@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 extra-y := head.o vmlinux.lds
 
 obj-$(CONFIG_SMP) += smp.o

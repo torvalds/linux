@@ -20,7 +20,7 @@ Optional properties:
 
 Example:
 
-max30100@57 {
+max30102@57 {
 	compatible = "maxim,max30102";
 	reg = <0x57>;
 	maxim,red-led-current-microamp = <7000>;

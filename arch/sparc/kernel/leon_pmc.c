@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /* leon_pmc.c: LEON Power-down cpu_idle() handler
  *
  * Copyright (C) 2011 Daniel Hellstrom (daniel@gaisler.com) Aeroflex Gaisler AB

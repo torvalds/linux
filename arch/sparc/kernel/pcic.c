@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * pcic.c: MicroSPARC-IIep PCI controller support
  *

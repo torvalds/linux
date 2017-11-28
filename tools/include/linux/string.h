@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _TOOLS_LINUX_STRING_H_
 #define _TOOLS_LINUX_STRING_H_
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  *  m32r_sio.c
  *
@@ -8,11 +9,6 @@
  *
  *  Copyright (C) 2001  Russell King.
  *  Copyright (C) 2004  Hirokazu Takata <takata at linux-m32r.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 /*
@@ -511,9 +507,9 @@ static void serial_unlink_irq_chain(struct uart_sio_port *up)
 /*
  * This function is used to handle ports that do not have an interrupt.
  */
-static void m32r_sio_timeout(unsigned long data)
+static void m32r_sio_timeout(struct timer_list *t)
 {
-	struct uart_sio_port *up = (struct uart_sio_port *)data;
+	struct uart_sio_port *up = from_timer(up, t, timer);
 	unsigned int timeout;
 	unsigned int sts;
 
@@ -576,7 +572,6 @@ static int m32r_sio_startup(struct uart_port *port)
 
 		timeout = timeout > 6 ? (timeout / 2 - 2) : 1;
 
-		up->timer.data = (unsigned long)up;
 		mod_timer(&up->timer, jiffies + timeout);
 	} else {
 		retval = serial_link_irq_chain(up);
@@ -907,8 +902,7 @@ static void __init m32r_sio_register_ports(struct uart_driver *drv)
 
 		up->port.line = i;
 		up->port.ops = &m32r_sio_pops;
-		init_timer(&up->timer);
-		up->timer.function = m32r_sio_timeout;
+		timer_setup(&up->timer, m32r_sio_timeout, 0);
 
 		uart_add_one_port(drv, &up->port);
 	}

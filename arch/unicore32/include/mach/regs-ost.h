@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * PKUnity Operating System Timer (OST) Registers
  */

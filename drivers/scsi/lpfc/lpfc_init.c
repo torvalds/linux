@@ -1138,13 +1138,13 @@ lpfc_hba_down_post(struct lpfc_hba *phba)
  * be cleared by the worker thread after it has taken the event bitmap out.
  **/
 static void
-lpfc_hb_timeout(unsigned long ptr)
+lpfc_hb_timeout(struct timer_list *t)
 {
 	struct lpfc_hba *phba;
 	uint32_t tmo_posted;
 	unsigned long iflag;
 
-	phba = (struct lpfc_hba *)ptr;
+	phba = from_timer(phba, t, hb_tmofunc);
 
 	/* Check for heart beat timeout conditions */
 	spin_lock_irqsave(&phba->pport->work_port_lock, iflag);
@@ -1172,12 +1172,12 @@ lpfc_hb_timeout(unsigned long ptr)
  * be cleared by the worker thread after it has taken the event bitmap out.
  **/
 static void
-lpfc_rrq_timeout(unsigned long ptr)
+lpfc_rrq_timeout(struct timer_list *t)
 {
 	struct lpfc_hba *phba;
 	unsigned long iflag;
 
-	phba = (struct lpfc_hba *)ptr;
+	phba = from_timer(phba, t, rrq_tmr);
 	spin_lock_irqsave(&phba->pport->work_port_lock, iflag);
 	if (!(phba->pport->load_flag & FC_UNLOADING))
 		phba->hba_flag |= HBA_RRQ_ACTIVE;
@@ -3216,6 +3216,9 @@ lpfc_offline_prep(struct lpfc_hba *phba, int mbx_action)
 	lpfc_destroy_vport_work_array(phba, vports);
 
 	lpfc_sli_mbox_sys_shutdown(phba, mbx_action);
+
+	if (phba->wq)
+		flush_workqueue(phba->wq);
 }
 
 /**
@@ -3937,14 +3940,11 @@ lpfc_create_port(struct lpfc_hba *phba, int instance, struct device *dev)
 	INIT_LIST_HEAD(&vport->rcv_buffer_list);
 	spin_lock_init(&vport->work_port_lock);
 
-	setup_timer(&vport->fc_disctmo, lpfc_disc_timeout,
-			(unsigned long)vport);
+	timer_setup(&vport->fc_disctmo, lpfc_disc_timeout, 0);
 
-	setup_timer(&vport->els_tmofunc, lpfc_els_timeout,
-			(unsigned long)vport);
+	timer_setup(&vport->els_tmofunc, lpfc_els_timeout, 0);
 
-	setup_timer(&vport->delayed_disc_tmo, lpfc_delayed_disc_tmo,
-			(unsigned long)vport);
+	timer_setup(&vport->delayed_disc_tmo, lpfc_delayed_disc_tmo, 0);
 
 	error = scsi_add_host_with_dma(shost, dev, &phba->pcidev->dev);
 	if (error)
@@ -4176,6 +4176,9 @@ void
 lpfc_stop_port(struct lpfc_hba *phba)
 {
 	phba->lpfc_stop_port(phba);
+
+	if (phba->wq)
+		flush_workqueue(phba->wq);
 }
 
 /**
@@ -4210,9 +4213,9 @@ lpfc_fcf_redisc_wait_start_timer(struct lpfc_hba *phba)
  * worker thread context.
  **/
 static void
-lpfc_sli4_fcf_redisc_wait_tmo(unsigned long ptr)
+lpfc_sli4_fcf_redisc_wait_tmo(struct timer_list *t)
 {
-	struct lpfc_hba *phba = (struct lpfc_hba *)ptr;
+	struct lpfc_hba *phba = from_timer(phba, t, fcf.redisc_wait);
 
 	/* Don't send FCF rediscovery event if timer cancelled */
 	spin_lock_irq(&phba->hbalock);
@@ -5624,15 +5627,13 @@ lpfc_setup_driver_resource_phase1(struct lpfc_hba *phba)
 	INIT_LIST_HEAD(&phba->luns);
 
 	/* MBOX heartbeat timer */
-	setup_timer(&psli->mbox_tmo, lpfc_mbox_timeout, (unsigned long)phba);
+	timer_setup(&psli->mbox_tmo, lpfc_mbox_timeout, 0);
 	/* Fabric block timer */
-	setup_timer(&phba->fabric_block_timer, lpfc_fabric_block_timeout,
-			(unsigned long)phba);
+	timer_setup(&phba->fabric_block_timer, lpfc_fabric_block_timeout, 0);
 	/* EA polling mode timer */
-	setup_timer(&phba->eratt_poll, lpfc_poll_eratt,
-			(unsigned long)phba);
+	timer_setup(&phba->eratt_poll, lpfc_poll_eratt, 0);
 	/* Heartbeat timer */
-	setup_timer(&phba->hb_tmofunc, lpfc_hb_timeout, (unsigned long)phba);
+	timer_setup(&phba->hb_tmofunc, lpfc_hb_timeout, 0);
 
 	return 0;
 }
@@ -5658,8 +5659,7 @@ lpfc_sli_driver_resource_setup(struct lpfc_hba *phba)
 	 */
 
 	/* FCP polling mode timer */
-	setup_timer(&phba->fcp_poll_timer, lpfc_poll_timeout,
-			(unsigned long)phba);
+	timer_setup(&phba->fcp_poll_timer, lpfc_poll_timeout, 0);
 
 	/* Host attention work mask setup */
 	phba->work_ha_mask = (HA_ERATT | HA_MBATT | HA_LATT);
@@ -5829,11 +5829,10 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 	 * Initialize timers used by driver
 	 */
 
-	setup_timer(&phba->rrq_tmr, lpfc_rrq_timeout, (unsigned long)phba);
+	timer_setup(&phba->rrq_tmr, lpfc_rrq_timeout, 0);
 
 	/* FCF rediscover timer */
-	setup_timer(&phba->fcf.redisc_wait, lpfc_sli4_fcf_redisc_wait_tmo,
-			(unsigned long)phba);
+	timer_setup(&phba->fcf.redisc_wait, lpfc_sli4_fcf_redisc_wait_tmo, 0);
 
 	/*
 	 * Control structure for handling external multi-buffer mailbox
@@ -6131,6 +6130,7 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 				"Extents and RPI headers enabled.\n");
 		}
 		mempool_free(mboxq, phba->mbox_mem_pool);
+		rc = -EIO;
 		goto out_free_bsmbx;
 	}
 
@@ -6369,6 +6369,9 @@ lpfc_setup_driver_resource_phase2(struct lpfc_hba *phba)
 		return error;
 	}
 
+	/* workqueue for deferred irq use */
+	phba->wq = alloc_workqueue("lpfc_wq", WQ_MEM_RECLAIM, 0);
+
 	return 0;
 }
 
@@ -6383,6 +6386,12 @@ lpfc_setup_driver_resource_phase2(struct lpfc_hba *phba)
 static void
 lpfc_unset_driver_resource_phase2(struct lpfc_hba *phba)
 {
+	if (phba->wq) {
+		flush_workqueue(phba->wq);
+		destroy_workqueue(phba->wq);
+		phba->wq = NULL;
+	}
+
 	/* Stop kernel worker thread */
 	kthread_stop(phba->worker_thread);
 }
@@ -11403,14 +11412,6 @@ lpfc_pci_remove_one_s4(struct pci_dev *pdev)
 	/* Remove FC host and then SCSI host with the physical port */
 	fc_remove_host(shost);
 	scsi_remove_host(shost);
-
-	/* Perform ndlp cleanup on the physical port.  The nvme and nvmet
-	 * localports are destroyed after to cleanup all transport memory.
-	 */
-	lpfc_cleanup(vport);
-	lpfc_nvmet_destroy_targetport(phba);
-	lpfc_nvme_destroy_localport(vport);
-
 	/*
 	 * Bring down the SLI Layer. This step disables all interrupts,
 	 * clears the rings, discards all mailbox commands, and resets
@@ -11419,6 +11420,15 @@ lpfc_pci_remove_one_s4(struct pci_dev *pdev)
 	lpfc_debugfs_terminate(vport);
 	lpfc_sli4_hba_unset(phba);
 
+	/* Perform ndlp cleanup on the physical port.  The nvme and nvmet
+	 * localports are destroyed after to cleanup all transport memory.
+	 */
+	lpfc_cleanup(vport);
+	lpfc_nvmet_destroy_targetport(phba);
+	lpfc_nvme_destroy_localport(vport);
+
+
+	lpfc_stop_hba_timers(phba);
 	spin_lock_irq(&phba->hbalock);
 	list_del_init(&vport->listentry);
 	spin_unlock_irq(&phba->hbalock);

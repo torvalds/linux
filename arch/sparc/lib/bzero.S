@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* bzero.S: Simple prefetching memset, bzero, and clear_user
  *          implementations.
  *

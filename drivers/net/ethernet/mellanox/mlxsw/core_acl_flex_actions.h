@@ -57,10 +57,12 @@ void mlxsw_afa_block_destroy(struct mlxsw_afa_block *block);
 int mlxsw_afa_block_commit(struct mlxsw_afa_block *block);
 char *mlxsw_afa_block_first_set(struct mlxsw_afa_block *block);
 u32 mlxsw_afa_block_first_set_kvdl_index(struct mlxsw_afa_block *block);
-void mlxsw_afa_block_continue(struct mlxsw_afa_block *block);
-void mlxsw_afa_block_jump(struct mlxsw_afa_block *block, u16 group_id);
+int mlxsw_afa_block_continue(struct mlxsw_afa_block *block);
+int mlxsw_afa_block_jump(struct mlxsw_afa_block *block, u16 group_id);
 int mlxsw_afa_block_append_drop(struct mlxsw_afa_block *block);
-int mlxsw_afa_block_append_trap(struct mlxsw_afa_block *block);
+int mlxsw_afa_block_append_trap(struct mlxsw_afa_block *block, u16 trap_id);
+int mlxsw_afa_block_append_trap_and_forward(struct mlxsw_afa_block *block,
+					    u16 trap_id);
 int mlxsw_afa_block_append_fwd(struct mlxsw_afa_block *block,
 			       u8 local_port, bool in_port);
 int mlxsw_afa_block_append_vlan_modify(struct mlxsw_afa_block *block,
@@ -68,5 +70,8 @@ int mlxsw_afa_block_append_vlan_modify(struct mlxsw_afa_block *block,
 int mlxsw_afa_block_append_counter(struct mlxsw_afa_block *block,
 				   u32 counter_index);
 int mlxsw_afa_block_append_fid_set(struct mlxsw_afa_block *block, u16 fid);
+int mlxsw_afa_block_append_mcrouter(struct mlxsw_afa_block *block,
+				    u16 expected_irif, u16 min_mtu,
+				    bool rmid_valid, u32 kvdl_index);
 
 #endif

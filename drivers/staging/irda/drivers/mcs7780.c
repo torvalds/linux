@@ -605,19 +605,22 @@ static int mcs_speed_change(struct mcs_cb *mcs)
 	if (mcs->new_speed <= 115200) {
 		rval &= ~MCS_FIR;
 
-		if ((rst = (mcs->speed > 115200)))
+		rst = mcs->speed > 115200;
+		if (rst)
 			mcs_set_reg(mcs, MCS_MINRXPW_REG, 0);
 
 	} else if (mcs->new_speed <= 1152000) {
 		rval &= ~MCS_FIR;
 
-		if ((rst = !(mcs->speed == 576000 || mcs->speed == 1152000)))
+		rst = !(mcs->speed == 576000 || mcs->speed == 1152000);
+		if (rst)
 			mcs_set_reg(mcs, MCS_MINRXPW_REG, 5);
 
 	} else {
 		rval |= MCS_FIR;
 
-		if ((rst = (mcs->speed != 4000000)))
+		rst = mcs->speed != 4000000;
+		if (rst)
 			mcs_set_reg(mcs, MCS_MINRXPW_REG, 5);
 
 	}

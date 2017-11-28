@@ -52,21 +52,30 @@
  *                          (non-running threads are de facto in such a
  *                          state). This only covers threads from the
  *                          same processes as the caller thread. This
- *                          command returns 0. The "expedited" commands
- *                          complete faster than the non-expedited ones,
- *                          they never block, but have the downside of
- *                          causing extra overhead.
+ *                          command returns 0 on success. The
+ *                          "expedited" commands complete faster than
+ *                          the non-expedited ones, they never block,
+ *                          but have the downside of causing extra
+ *                          overhead. A process needs to register its
+ *                          intent to use the private expedited command
+ *                          prior to using it, otherwise this command
+ *                          returns -EPERM.
+ * @MEMBARRIER_CMD_REGISTER_PRIVATE_EXPEDITED:
+ *                          Register the process intent to use
+ *                          MEMBARRIER_CMD_PRIVATE_EXPEDITED. Always
+ *                          returns 0.
  *
  * Command to be passed to the membarrier system call. The commands need to
  * be a single bit each, except for MEMBARRIER_CMD_QUERY which is assigned to
  * the value 0.
  */
 enum membarrier_cmd {
-	MEMBARRIER_CMD_QUERY			= 0,
-	MEMBARRIER_CMD_SHARED			= (1 << 0),
+	MEMBARRIER_CMD_QUERY				= 0,
+	MEMBARRIER_CMD_SHARED				= (1 << 0),
 	/* reserved for MEMBARRIER_CMD_SHARED_EXPEDITED (1 << 1) */
 	/* reserved for MEMBARRIER_CMD_PRIVATE (1 << 2) */
-	MEMBARRIER_CMD_PRIVATE_EXPEDITED	= (1 << 3),
+	MEMBARRIER_CMD_PRIVATE_EXPEDITED		= (1 << 3),
+	MEMBARRIER_CMD_REGISTER_PRIVATE_EXPEDITED	= (1 << 4),
 };
 
 #endif /* _UAPI_LINUX_MEMBARRIER_H */

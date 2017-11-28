@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef STATE_3D_XML
 #define STATE_3D_XML
 

@@ -977,7 +977,6 @@ void mmc_start_bkops(struct mmc_card *card, bool from_exception)
 	    from_exception)
 		return;
 
-	mmc_claim_host(card->host);
 	if (card->ext_csd.raw_bkops_status >= EXT_CSD_BKOPS_LEVEL_2) {
 		timeout = MMC_OPS_TIMEOUT_MS;
 		use_busy_signal = true;
@@ -995,7 +994,7 @@ void mmc_start_bkops(struct mmc_card *card, bool from_exception)
 		pr_warn("%s: Error %d starting bkops\n",
 			mmc_hostname(card->host), err);
 		mmc_retune_release(card->host);
-		goto out;
+		return;
 	}
 
 	/*
@@ -1007,9 +1006,8 @@ void mmc_start_bkops(struct mmc_card *card, bool from_exception)
 		mmc_card_set_doing_bkops(card);
 	else
 		mmc_retune_release(card->host);
-out:
-	mmc_release_host(card->host);
 }
+EXPORT_SYMBOL(mmc_start_bkops);
 
 /*
  * Flush the cache to the non-volatile storage.

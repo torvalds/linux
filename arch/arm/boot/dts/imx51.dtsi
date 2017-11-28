@@ -148,14 +148,14 @@
 			ipu_di0: port@2 {
 				reg = <2>;
 
-				ipu_di0_disp0: endpoint {
+				ipu_di0_disp1: endpoint {
 				};
 			};
 
 			ipu_di1: port@3 {
 				reg = <3>;
 
-				ipu_di1_disp1: endpoint {
+				ipu_di1_disp2: endpoint {
 				};
 			};
 		};

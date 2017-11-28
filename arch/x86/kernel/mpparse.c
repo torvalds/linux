@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *	Intel Multiprocessor Specification 1.1 and 1.4
  *	compliant MP-table parsing routines.
@@ -430,6 +431,7 @@ static inline void __init construct_default_ISA_mptable(int mpc_default_type)
 }
 
 static unsigned long mpf_base;
+static bool mpf_found;
 
 static unsigned long __init get_mpc_size(unsigned long physptr)
 {
@@ -503,7 +505,7 @@ void __init default_get_smp_config(unsigned int early)
 	if (!smp_found_config)
 		return;
 
-	if (!mpf_base)
+	if (!mpf_found)
 		return;
 
 	if (acpi_lapic && early)
@@ -592,6 +594,7 @@ static int __init smp_scan_config(unsigned long base, unsigned long length)
 			smp_found_config = 1;
 #endif
 			mpf_base = base;
+			mpf_found = true;
 
 			pr_info("found SMP MP-table at [mem %#010lx-%#010lx] mapped at [%p]\n",
 				base, base + sizeof(*mpf) - 1, mpf);
@@ -857,7 +860,7 @@ static int __init update_mp_table(void)
 	if (!enable_update_mptable)
 		return 0;
 
-	if (!mpf_base)
+	if (!mpf_found)
 		return 0;
 
 	mpf = early_memremap(mpf_base, sizeof(*mpf));

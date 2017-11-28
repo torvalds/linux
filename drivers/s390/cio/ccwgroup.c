@@ -373,6 +373,12 @@ int ccwgroup_create_dev(struct device *parent, struct ccwgroup_driver *gdrv,
 		rc = -EINVAL;
 		goto error;
 	}
+	/* Check if the devices are bound to the required ccw driver. */
+	if (gdev->count && gdrv && gdrv->ccw_driver &&
+	    gdev->cdev[0]->drv != gdrv->ccw_driver) {
+		rc = -EINVAL;
+		goto error;
+	}
 
 	dev_set_name(&gdev->dev, "%s", dev_name(&gdev->cdev[0]->dev));
 	gdev->dev.groups = ccwgroup_attr_groups;

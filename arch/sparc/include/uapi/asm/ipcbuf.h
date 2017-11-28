@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 #ifndef __SPARC_IPCBUF_H
 #define __SPARC_IPCBUF_H
 

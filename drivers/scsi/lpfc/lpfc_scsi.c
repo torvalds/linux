@@ -4501,9 +4501,9 @@ void lpfc_poll_start_timer(struct lpfc_hba * phba)
  * and FCP Ring interrupt is disable.
  **/
 
-void lpfc_poll_timeout(unsigned long ptr)
+void lpfc_poll_timeout(struct timer_list *t)
 {
-	struct lpfc_hba *phba = (struct lpfc_hba *) ptr;
+	struct lpfc_hba *phba = from_timer(phba, t, fcp_poll_timer);
 
 	if (phba->cfg_poll & ENABLE_FCP_RING_POLLING) {
 		lpfc_sli_handle_fast_ring_event(phba,

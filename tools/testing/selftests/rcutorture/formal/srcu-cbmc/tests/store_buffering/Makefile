@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 CBMC_FLAGS = -I../.. -I../../src -I../../include -I../../empty_includes -32 -pointer-check -mm pso
 
 all:

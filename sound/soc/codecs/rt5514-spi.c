@@ -145,11 +145,15 @@ done:
 	mutex_unlock(&rt5514_dsp->dma_lock);
 }
 
-static irqreturn_t rt5514_spi_irq(int irq, void *data)
+static void rt5514_schedule_copy(struct rt5514_dsp *rt5514_dsp)
 {
-	struct rt5514_dsp *rt5514_dsp = data;
+	size_t period_bytes;
 	u8 buf[8];
 
+	if (!rt5514_dsp->substream)
+		return;
+
+	period_bytes = snd_pcm_lib_period_bytes(rt5514_dsp->substream);
 	rt5514_dsp->get_size = 0;
 
 	/**
@@ -177,9 +181,20 @@ static irqreturn_t rt5514_spi_irq(int irq, void *data)
 
 	rt5514_dsp->buf_size = rt5514_dsp->buf_limit - rt5514_dsp->buf_base;
 
+	if (rt5514_dsp->buf_size % period_bytes)
+		rt5514_dsp->buf_size = (rt5514_dsp->buf_size / period_bytes) *
+			period_bytes;
+
 	if (rt5514_dsp->buf_base && rt5514_dsp->buf_limit &&
 		rt5514_dsp->buf_rp && rt5514_dsp->buf_size)
 		schedule_delayed_work(&rt5514_dsp->copy_work, 0);
+}
+
+static irqreturn_t rt5514_spi_irq(int irq, void *data)
+{
+	struct rt5514_dsp *rt5514_dsp = data;
+
+	rt5514_schedule_copy(rt5514_dsp);
 
 	return IRQ_HANDLED;
 }
@@ -199,12 +214,19 @@ static int rt5514_spi_hw_params(struct snd_pcm_substream *substream,
 	struct rt5514_dsp *rt5514_dsp =
 			snd_soc_platform_get_drvdata(rtd->platform);
 	int ret;
+	u8 buf[8];
 
 	mutex_lock(&rt5514_dsp->dma_lock);
 	ret = snd_pcm_lib_alloc_vmalloc_buffer(substream,
 			params_buffer_bytes(hw_params));
 	rt5514_dsp->substream = substream;
 	rt5514_dsp->dma_offset = 0;
+
+	/* Read IRQ status and schedule copy accordingly. */
+	rt5514_spi_burst_read(RT5514_IRQ_CTRL, (u8 *)&buf, sizeof(buf));
+	if (buf[0] & RT5514_IRQ_STATUS_BIT)
+		rt5514_schedule_copy(rt5514_dsp);
+
 	mutex_unlock(&rt5514_dsp->dma_lock);
 
 	return ret;
@@ -434,8 +456,44 @@ static int rt5514_spi_probe(struct spi_device *spi)
 		return ret;
 	}
 
+	device_init_wakeup(&spi->dev, true);
+
 	return 0;
 }
+
+static int __maybe_unused rt5514_suspend(struct device *dev)
+{
+	int irq = to_spi_device(dev)->irq;
+
+	if (device_may_wakeup(dev))
+		enable_irq_wake(irq);
+
+	return 0;
+}
+
+static int __maybe_unused rt5514_resume(struct device *dev)
+{
+	struct snd_soc_platform *platform = snd_soc_lookup_platform(dev);
+	struct rt5514_dsp *rt5514_dsp =
+		snd_soc_platform_get_drvdata(platform);
+	int irq = to_spi_device(dev)->irq;
+	u8 buf[8];
+
+	if (device_may_wakeup(dev))
+		disable_irq_wake(irq);
+
+	if (rt5514_dsp->substream) {
+		rt5514_spi_burst_read(RT5514_IRQ_CTRL, (u8 *)&buf, sizeof(buf));
+		if (buf[0] & RT5514_IRQ_STATUS_BIT)
+			rt5514_schedule_copy(rt5514_dsp);
+	}
+
+	return 0;
+}
+
+static const struct dev_pm_ops rt5514_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(rt5514_suspend, rt5514_resume)
+};
 
 static const struct of_device_id rt5514_of_match[] = {
 	{ .compatible = "realtek,rt5514", },
@@ -446,6 +504,7 @@ MODULE_DEVICE_TABLE(of, rt5514_of_match);
 static struct spi_driver rt5514_spi_driver = {
 	.driver = {
 		.name = "rt5514",
+		.pm = &rt5514_pm_ops,
 		.of_match_table = of_match_ptr(rt5514_of_match),
 	},
 	.probe = rt5514_spi_probe,

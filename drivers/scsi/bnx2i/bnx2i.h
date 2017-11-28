@@ -858,7 +858,7 @@ extern int bnx2i_alloc_qp_resc(struct bnx2i_hba *hba,
 			       struct bnx2i_endpoint *ep);
 extern void bnx2i_free_qp_resc(struct bnx2i_hba *hba,
 			       struct bnx2i_endpoint *ep);
-extern void bnx2i_ep_ofld_timer(unsigned long data);
+extern void bnx2i_ep_ofld_timer(struct timer_list *t);
 extern struct bnx2i_endpoint *bnx2i_find_ep_in_ofld_list(
 		struct bnx2i_hba *hba, u32 iscsi_cid);
 extern struct bnx2i_endpoint *bnx2i_find_ep_in_destroy_list(

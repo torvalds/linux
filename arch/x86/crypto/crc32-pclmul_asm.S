@@ -41,6 +41,7 @@
 #include <asm/inst.h>
 
 
+.section .rodata
 .align 16
 /*
  * [x4*128+32 mod P(x) << 32)]'  << 1   = 0x154442bd4
@@ -111,19 +112,13 @@ ENTRY(crc32_pclmul_le_16) /* buffer and buffer size are 16 bytes aligned */
 	pxor    CONSTANT, %xmm1
 	sub     $0x40, LEN
 	add     $0x40, BUF
-#ifndef __x86_64__
-	/* This is for position independent code(-fPIC) support for 32bit */
-	call    delta
-delta:
-	pop     %ecx
-#endif
 	cmp     $0x40, LEN
 	jb      less_64
 
 #ifdef __x86_64__
 	movdqa .Lconstant_R2R1(%rip), CONSTANT
 #else
-	movdqa .Lconstant_R2R1 - delta(%ecx), CONSTANT
+	movdqa .Lconstant_R2R1, CONSTANT
 #endif
 
 loop_64:/*  64 bytes Full cache line folding */
@@ -172,7 +167,7 @@ less_64:/*  Folding cache line into 128bit */
 #ifdef __x86_64__
 	movdqa  .Lconstant_R4R3(%rip), CONSTANT
 #else
-	movdqa  .Lconstant_R4R3 - delta(%ecx), CONSTANT
+	movdqa  .Lconstant_R4R3, CONSTANT
 #endif
 	prefetchnta     (BUF)
 
@@ -220,8 +215,8 @@ fold_64:
 	movdqa  .Lconstant_R5(%rip), CONSTANT
 	movdqa  .Lconstant_mask32(%rip), %xmm3
 #else
-	movdqa  .Lconstant_R5 - delta(%ecx), CONSTANT
-	movdqa  .Lconstant_mask32 - delta(%ecx), %xmm3
+	movdqa  .Lconstant_R5, CONSTANT
+	movdqa  .Lconstant_mask32, %xmm3
 #endif
 	psrldq  $0x04, %xmm2
 	pand    %xmm3, %xmm1
@@ -232,7 +227,7 @@ fold_64:
 #ifdef __x86_64__
 	movdqa  .Lconstant_RUpoly(%rip), CONSTANT
 #else
-	movdqa  .Lconstant_RUpoly - delta(%ecx), CONSTANT
+	movdqa  .Lconstant_RUpoly, CONSTANT
 #endif
 	movdqa  %xmm1, %xmm2
 	pand    %xmm3, %xmm1

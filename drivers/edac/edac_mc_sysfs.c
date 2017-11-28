@@ -50,7 +50,7 @@ int edac_mc_get_poll_msec(void)
 	return edac_mc_poll_msec;
 }
 
-static int edac_set_poll_msec(const char *val, struct kernel_param *kp)
+static int edac_set_poll_msec(const char *val, const struct kernel_param *kp)
 {
 	unsigned long l;
 	int ret;

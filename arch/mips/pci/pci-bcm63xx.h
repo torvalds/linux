@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef PCI_BCM63XX_H_
 #define PCI_BCM63XX_H_
 

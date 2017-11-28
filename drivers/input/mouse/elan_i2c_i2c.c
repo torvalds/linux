@@ -598,7 +598,7 @@ static int elan_i2c_write_fw_block(struct i2c_client *client,
 	}
 
 	/* Wait for F/W to update one page ROM data. */
-	msleep(20);
+	msleep(35);
 
 	error = elan_i2c_read_cmd(client, ETP_I2C_IAP_CTRL_CMD, val);
 	if (error) {

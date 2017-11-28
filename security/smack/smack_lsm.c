@@ -1473,7 +1473,7 @@ static int smack_inode_removexattr(struct dentry *dentry, const char *name)
  * @inode: the object
  * @name: attribute name
  * @buffer: where to put the result
- * @alloc: unused
+ * @alloc: duplicate memory
  *
  * Returns the size of the attribute or an error code
  */
@@ -1486,43 +1486,38 @@ static int smack_inode_getsecurity(struct inode *inode,
 	struct super_block *sbp;
 	struct inode *ip = (struct inode *)inode;
 	struct smack_known *isp;
-	int ilen;
-	int rc = 0;
 
-	if (strcmp(name, XATTR_SMACK_SUFFIX) == 0) {
+	if (strcmp(name, XATTR_SMACK_SUFFIX) == 0)
 		isp = smk_of_inode(inode);
-		ilen = strlen(isp->smk_known);
-		*buffer = isp->smk_known;
-		return ilen;
+	else {
+		/*
+		 * The rest of the Smack xattrs are only on sockets.
+		 */
+		sbp = ip->i_sb;
+		if (sbp->s_magic != SOCKFS_MAGIC)
+			return -EOPNOTSUPP;
+
+		sock = SOCKET_I(ip);
+		if (sock == NULL || sock->sk == NULL)
+			return -EOPNOTSUPP;
+
+		ssp = sock->sk->sk_security;
+
+		if (strcmp(name, XATTR_SMACK_IPIN) == 0)
+			isp = ssp->smk_in;
+		else if (strcmp(name, XATTR_SMACK_IPOUT) == 0)
+			isp = ssp->smk_out;
+		else
+			return -EOPNOTSUPP;
 	}
 
-	/*
-	 * The rest of the Smack xattrs are only on sockets.
-	 */
-	sbp = ip->i_sb;
-	if (sbp->s_magic != SOCKFS_MAGIC)
-		return -EOPNOTSUPP;
-
-	sock = SOCKET_I(ip);
-	if (sock == NULL || sock->sk == NULL)
-		return -EOPNOTSUPP;
-
-	ssp = sock->sk->sk_security;
-
-	if (strcmp(name, XATTR_SMACK_IPIN) == 0)
-		isp = ssp->smk_in;
-	else if (strcmp(name, XATTR_SMACK_IPOUT) == 0)
-		isp = ssp->smk_out;
-	else
-		return -EOPNOTSUPP;
-
-	ilen = strlen(isp->smk_known);
-	if (rc == 0) {
-		*buffer = isp->smk_known;
-		rc = ilen;
+	if (alloc) {
+		*buffer = kstrdup(isp->smk_known, GFP_KERNEL);
+		if (*buffer == NULL)
+			return -ENOMEM;
 	}
 
-	return rc;
+	return strlen(isp->smk_known);
 }
 
 
@@ -4605,6 +4600,82 @@ static int smack_inode_getsecctx(struct inode *inode, void **ctx, u32 *ctxlen)
 	return 0;
 }
 
+static int smack_inode_copy_up(struct dentry *dentry, struct cred **new)
+{
+
+	struct task_smack *tsp;
+	struct smack_known *skp;
+	struct inode_smack *isp;
+	struct cred *new_creds = *new;
+
+	if (new_creds == NULL) {
+		new_creds = prepare_creds();
+		if (new_creds == NULL)
+			return -ENOMEM;
+	}
+
+	tsp = new_creds->security;
+
+	/*
+	 * Get label from overlay inode and set it in create_sid
+	 */
+	isp = d_inode(dentry->d_parent)->i_security;
+	skp = isp->smk_inode;
+	tsp->smk_task = skp;
+	*new = new_creds;
+	return 0;
+}
+
+static int smack_inode_copy_up_xattr(const char *name)
+{
+	/*
+	 * Return 1 if this is the smack access Smack attribute.
+	 */
+	if (strcmp(name, XATTR_NAME_SMACK) == 0)
+		return 1;
+
+	return -EOPNOTSUPP;
+}
+
+static int smack_dentry_create_files_as(struct dentry *dentry, int mode,
+					struct qstr *name,
+					const struct cred *old,
+					struct cred *new)
+{
+	struct task_smack *otsp = old->security;
+	struct task_smack *ntsp = new->security;
+	struct inode_smack *isp;
+	int may;
+
+	/*
+	 * Use the process credential unless all of
+	 * the transmuting criteria are met
+	 */
+	ntsp->smk_task = otsp->smk_task;
+
+	/*
+	 * the attribute of the containing directory
+	 */
+	isp = d_inode(dentry->d_parent)->i_security;
+
+	if (isp->smk_flags & SMK_INODE_TRANSMUTE) {
+		rcu_read_lock();
+		may = smk_access_entry(otsp->smk_task->smk_known,
+				       isp->smk_inode->smk_known,
+				       &otsp->smk_task->smk_rules);
+		rcu_read_unlock();
+
+		/*
+		 * If the directory is transmuting and the rule
+		 * providing access is transmuting use the containing
+		 * directory label instead of the process label.
+		 */
+		if (may > 0 && (may & MAY_TRANSMUTE))
+			ntsp->smk_task = isp->smk_inode;
+	}
+	return 0;
+}
+
 static struct security_hook_list smack_hooks[] __lsm_ro_after_init = {
 	LSM_HOOK_INIT(ptrace_access_check, smack_ptrace_access_check),
 	LSM_HOOK_INIT(ptrace_traceme, smack_ptrace_traceme),
@@ -4740,6 +4811,9 @@ static struct security_hook_list smack_hooks[] __lsm_ro_after_init = {
 	LSM_HOOK_INIT(inode_notifysecctx, smack_inode_notifysecctx),
 	LSM_HOOK_INIT(inode_setsecctx, smack_inode_setsecctx),
 	LSM_HOOK_INIT(inode_getsecctx, smack_inode_getsecctx),
+	LSM_HOOK_INIT(inode_copy_up, smack_inode_copy_up),
+	LSM_HOOK_INIT(inode_copy_up_xattr, smack_inode_copy_up_xattr),
+	LSM_HOOK_INIT(dentry_create_files_as, smack_dentry_create_files_as),
 };
 
 

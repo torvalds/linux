@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *  Code extracted from drivers/block/genhd.c
  *  Copyright (C) 1991-1998  Linus Torvalds
@@ -112,7 +113,7 @@ ssize_t part_stat_show(struct device *dev,
 		       struct device_attribute *attr, char *buf)
 {
 	struct hd_struct *p = dev_to_part(dev);
-	struct request_queue *q = dev_to_disk(dev)->queue;
+	struct request_queue *q = part_to_disk(p)->queue;
 	unsigned int inflight[2];
 	int cpu;
 

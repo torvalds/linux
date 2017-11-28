@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *  linux/fs/readdir.c
  *
@@ -36,13 +37,12 @@ int iterate_dir(struct file *file, struct dir_context *ctx)
 	if (res)
 		goto out;
 
-	if (shared) {
-		inode_lock_shared(inode);
-	} else {
+	if (shared)
+		res = down_read_killable(&inode->i_rwsem);
+	else
 		res = down_write_killable(&inode->i_rwsem);
-		if (res)
-			goto out;
-	}
+	if (res)
+		goto out;
 
 	res = -ENOENT;
 	if (!IS_DEADDIR(inode)) {

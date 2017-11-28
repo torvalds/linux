@@ -379,13 +379,13 @@ enum drm_connector_status
 intel_panel_detect(struct drm_i915_private *dev_priv)
 {
 	/* Assume that the BIOS does not lie through the OpRegion... */
-	if (!i915.panel_ignore_lid && dev_priv->opregion.lid_state) {
+	if (!i915_modparams.panel_ignore_lid && dev_priv->opregion.lid_state) {
 		return *dev_priv->opregion.lid_state & 0x1 ?
 			connector_status_connected :
 			connector_status_disconnected;
 	}
 
-	switch (i915.panel_ignore_lid) {
+	switch (i915_modparams.panel_ignore_lid) {
 	case -2:
 		return connector_status_connected;
 	case -1:
@@ -465,10 +465,10 @@ static u32 intel_panel_compute_brightness(struct intel_connector *connector,
 
 	WARN_ON(panel->backlight.max == 0);
 
-	if (i915.invert_brightness < 0)
+	if (i915_modparams.invert_brightness < 0)
 		return val;
 
-	if (i915.invert_brightness > 0 ||
+	if (i915_modparams.invert_brightness > 0 ||
 	    dev_priv->quirks & QUIRK_INVERT_BRIGHTNESS) {
 		return panel->backlight.max - val + panel->backlight.min;
 	}
@@ -1699,6 +1699,8 @@ bxt_setup_backlight(struct intel_connector *connector, enum pipe unused)
 	if (!panel->backlight.max)
 		return -ENODEV;
 
+	panel->backlight.min = get_backlight_min_vbt(connector);
+
 	val = bxt_get_backlight(connector);
 	val = intel_panel_compute_brightness(connector, val);
 	panel->backlight.level = clamp(val, panel->backlight.min,
@@ -1734,6 +1736,8 @@ cnp_setup_backlight(struct intel_connector *connector, enum pipe unused)
 
 	if (!panel->backlight.max)
 		return -ENODEV;
+
+	panel->backlight.min = get_backlight_min_vbt(connector);
 
 	val = bxt_get_backlight(connector);
 	val = intel_panel_compute_brightness(connector, val);

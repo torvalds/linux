@@ -36,6 +36,10 @@ MODULE_PARM_DESC(force, "force loading on processors with erratum 319");
 /* Provide lock for writing to NB_SMU_IND_ADDR */
 static DEFINE_MUTEX(nb_smu_ind_mutex);
 
+#ifndef PCI_DEVICE_ID_AMD_17H_DF_F3
+#define PCI_DEVICE_ID_AMD_17H_DF_F3	0x1463
+#endif
+
 /* CPUID function 0x80000001, ebx */
 #define CPUID_PKGTYPE_MASK	0xf0000000
 #define CPUID_PKGTYPE_F		0x00000000
@@ -61,31 +65,72 @@ static DEFINE_MUTEX(nb_smu_ind_mutex);
  */
 #define F15H_M60H_REPORTED_TEMP_CTRL_OFFSET	0xd8200ca4
 
-static void amd_nb_smu_index_read(struct pci_dev *pdev, unsigned int devfn,
-				  int offset, u32 *val)
+/* F17h M01h Access througn SMN */
+#define F17H_M01H_REPORTED_TEMP_CTRL_OFFSET	0x00059800
+
+struct k10temp_data {
+	struct pci_dev *pdev;
+	void (*read_tempreg)(struct pci_dev *pdev, u32 *regval);
+	int temp_offset;
+};
+
+struct tctl_offset {
+	u8 model;
+	char const *id;
+	int offset;
+};
+
+static const struct tctl_offset tctl_offset_table[] = {
+	{ 0x17, "AMD Ryzen 5 1600X", 20000 },
+	{ 0x17, "AMD Ryzen 7 1700X", 20000 },
+	{ 0x17, "AMD Ryzen 7 1800X", 20000 },
+	{ 0x17, "AMD Ryzen Threadripper 1950X", 27000 },
+	{ 0x17, "AMD Ryzen Threadripper 1920X", 27000 },
+	{ 0x17, "AMD Ryzen Threadripper 1950", 10000 },
+	{ 0x17, "AMD Ryzen Threadripper 1920", 10000 },
+	{ 0x17, "AMD Ryzen Threadripper 1910", 10000 },
+};
+
+static void read_tempreg_pci(struct pci_dev *pdev, u32 *regval)
+{
+	pci_read_config_dword(pdev, REG_REPORTED_TEMPERATURE, regval);
+}
+
+static void amd_nb_index_read(struct pci_dev *pdev, unsigned int devfn,
+			      unsigned int base, int offset, u32 *val)
 {
 	mutex_lock(&nb_smu_ind_mutex);
 	pci_bus_write_config_dword(pdev->bus, devfn,
-				   0xb8, offset);
+				   base, offset);
 	pci_bus_read_config_dword(pdev->bus, devfn,
-				  0xbc, val);
+				  base + 4, val);
 	mutex_unlock(&nb_smu_ind_mutex);
+}
+
+static void read_tempreg_nb_f15(struct pci_dev *pdev, u32 *regval)
+{
+	amd_nb_index_read(pdev, PCI_DEVFN(0, 0), 0xb8,
+			  F15H_M60H_REPORTED_TEMP_CTRL_OFFSET, regval);
+}
+
+static void read_tempreg_nb_f17(struct pci_dev *pdev, u32 *regval)
+{
+	amd_nb_index_read(pdev, PCI_DEVFN(0, 0), 0x60,
+			  F17H_M01H_REPORTED_TEMP_CTRL_OFFSET, regval);
 }
 
 static ssize_t temp1_input_show(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
+	struct k10temp_data *data = dev_get_drvdata(dev);
 	u32 regval;
-	struct pci_dev *pdev = dev_get_drvdata(dev);
+	unsigned int temp;
 
-	if (boot_cpu_data.x86 == 0x15 && boot_cpu_data.x86_model == 0x60) {
-		amd_nb_smu_index_read(pdev, PCI_DEVFN(0, 0),
-				      F15H_M60H_REPORTED_TEMP_CTRL_OFFSET,
-				      &regval);
-	} else {
-		pci_read_config_dword(pdev, REG_REPORTED_TEMPERATURE, &regval);
-	}
-	return sprintf(buf, "%u\n", (regval >> 21) * 125);
+	data->read_tempreg(data->pdev, &regval);
+	temp = (regval >> 21) * 125;
+	temp -= data->temp_offset;
+
+	return sprintf(buf, "%u\n", temp);
 }
 
 static ssize_t temp1_max_show(struct device *dev,
@@ -98,11 +143,12 @@ static ssize_t show_temp_crit(struct device *dev,
 			      struct device_attribute *devattr, char *buf)
 {
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
+	struct k10temp_data *data = dev_get_drvdata(dev);
 	int show_hyst = attr->index;
 	u32 regval;
 	int value;
 
-	pci_read_config_dword(dev_get_drvdata(dev),
+	pci_read_config_dword(data->pdev,
 			      REG_HARDWARE_THERMAL_CONTROL, &regval);
 	value = ((regval >> 16) & 0x7f) * 500 + 52000;
 	if (show_hyst)
@@ -119,7 +165,8 @@ static umode_t k10temp_is_visible(struct kobject *kobj,
 				  struct attribute *attr, int index)
 {
 	struct device *dev = container_of(kobj, struct device, kobj);
-	struct pci_dev *pdev = dev_get_drvdata(dev);
+	struct k10temp_data *data = dev_get_drvdata(dev);
+	struct pci_dev *pdev = data->pdev;
 
 	if (index >= 2) {
 		u32 reg_caps, reg_htc;
@@ -187,7 +234,9 @@ static int k10temp_probe(struct pci_dev *pdev,
 {
 	int unreliable = has_erratum_319(pdev);
 	struct device *dev = &pdev->dev;
+	struct k10temp_data *data;
 	struct device *hwmon_dev;
+	int i;
 
 	if (unreliable) {
 		if (!force) {
@@ -199,7 +248,31 @@ static int k10temp_probe(struct pci_dev *pdev,
 			 "unreliable CPU thermal sensor; check erratum 319\n");
 	}
 
-	hwmon_dev = devm_hwmon_device_register_with_groups(dev, "k10temp", pdev,
+	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
+	if (!data)
+		return -ENOMEM;
+
+	data->pdev = pdev;
+
+	if (boot_cpu_data.x86 == 0x15 && (boot_cpu_data.x86_model == 0x60 ||
+					  boot_cpu_data.x86_model == 0x70))
+		data->read_tempreg = read_tempreg_nb_f15;
+	else if (boot_cpu_data.x86 == 0x17)
+		data->read_tempreg = read_tempreg_nb_f17;
+	else
+		data->read_tempreg = read_tempreg_pci;
+
+	for (i = 0; i < ARRAY_SIZE(tctl_offset_table); i++) {
+		const struct tctl_offset *entry = &tctl_offset_table[i];
+
+		if (boot_cpu_data.x86 == entry->model &&
+		    strstr(boot_cpu_data.x86_model_id, entry->id)) {
+			data->temp_offset = entry->offset;
+			break;
+		}
+	}
+
+	hwmon_dev = devm_hwmon_device_register_with_groups(dev, "k10temp", data,
 							   k10temp_groups);
 	return PTR_ERR_OR_ZERO(hwmon_dev);
 }
@@ -214,6 +287,7 @@ static const struct pci_device_id k10temp_id_table[] = {
 	{ PCI_VDEVICE(AMD, PCI_DEVICE_ID_AMD_15H_M60H_NB_F3) },
 	{ PCI_VDEVICE(AMD, PCI_DEVICE_ID_AMD_16H_NB_F3) },
 	{ PCI_VDEVICE(AMD, PCI_DEVICE_ID_AMD_16H_M30H_NB_F3) },
+	{ PCI_VDEVICE(AMD, PCI_DEVICE_ID_AMD_17H_DF_F3) },
 	{}
 };
 MODULE_DEVICE_TABLE(pci, k10temp_id_table);

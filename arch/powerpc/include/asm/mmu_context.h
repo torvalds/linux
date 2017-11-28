@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __ASM_POWERPC_MMU_CONTEXT_H
 #define __ASM_POWERPC_MMU_CONTEXT_H
 #ifdef __KERNEL__
@@ -77,6 +78,52 @@ extern void switch_cop(struct mm_struct *next);
 extern int use_cop(unsigned long acop, struct mm_struct *mm);
 extern void drop_cop(unsigned long acop, struct mm_struct *mm);
 
+#ifdef CONFIG_PPC_BOOK3S_64
+static inline void inc_mm_active_cpus(struct mm_struct *mm)
+{
+	atomic_inc(&mm->context.active_cpus);
+}
+
+static inline void dec_mm_active_cpus(struct mm_struct *mm)
+{
+	atomic_dec(&mm->context.active_cpus);
+}
+
+static inline void mm_context_add_copro(struct mm_struct *mm)
+{
+	/*
+	 * On hash, should only be called once over the lifetime of
+	 * the context, as we can't decrement the active cpus count
+	 * and flush properly for the time being.
+	 */
+	inc_mm_active_cpus(mm);
+}
+
+static inline void mm_context_remove_copro(struct mm_struct *mm)
+{
+	/*
+	 * Need to broadcast a global flush of the full mm before
+	 * decrementing active_cpus count, as the next TLBI may be
+	 * local and the nMMU and/or PSL need to be cleaned up.
+	 * Should be rare enough so that it's acceptable.
+	 *
+	 * Skip on hash, as we don't know how to do the proper flush
+	 * for the time being. Invalidations will remain global if
+	 * used on hash.
+	 */
+	if (radix_enabled()) {
+		flush_all_mm(mm);
+		dec_mm_active_cpus(mm);
+	}
+}
+#else
+static inline void inc_mm_active_cpus(struct mm_struct *mm) { }
+static inline void dec_mm_active_cpus(struct mm_struct *mm) { }
+static inline void mm_context_add_copro(struct mm_struct *mm) { }
+static inline void mm_context_remove_copro(struct mm_struct *mm) { }
+#endif
+
+
 extern void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *next,
 			       struct task_struct *tsk);
 
@@ -118,9 +165,13 @@ static inline void arch_dup_mmap(struct mm_struct *oldmm,
 {
 }
 
+#ifndef CONFIG_PPC_BOOK3S_64
 static inline void arch_exit_mmap(struct mm_struct *mm)
 {
 }
+#else
+extern void arch_exit_mmap(struct mm_struct *mm);
+#endif
 
 static inline void arch_unmap(struct mm_struct *mm,
 			      struct vm_area_struct *vma,

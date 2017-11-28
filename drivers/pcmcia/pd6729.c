@@ -234,9 +234,9 @@ static irqreturn_t pd6729_interrupt(int irq, void *dev)
 
 /* socket functions */
 
-static void pd6729_interrupt_wrapper(unsigned long data)
+static void pd6729_interrupt_wrapper(struct timer_list *t)
 {
-	struct pd6729_socket *socket = (struct pd6729_socket *) data;
+	struct pd6729_socket *socket = from_timer(socket, t, poll_timer);
 
 	pd6729_interrupt(0, (void *)socket);
 	mod_timer(&socket->poll_timer, jiffies + HZ);
@@ -707,8 +707,7 @@ static int pd6729_pci_probe(struct pci_dev *dev,
 		}
 	} else {
 		/* poll Card status change */
-		setup_timer(&socket->poll_timer, pd6729_interrupt_wrapper,
-			    (unsigned long)socket);
+		timer_setup(&socket->poll_timer, pd6729_interrupt_wrapper, 0);
 		mod_timer(&socket->poll_timer, jiffies + HZ);
 	}
 

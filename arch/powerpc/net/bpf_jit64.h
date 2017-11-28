@@ -23,7 +23,7 @@
  *		[   nv gpr save area	] 8*8		|
  *		[    tail_call_cnt	] 8		|
  *		[    local_tmp_var	] 8		|
- * fp (r31) -->	[   ebpf stack space	] 512		|
+ * fp (r31) -->	[   ebpf stack space	] upto 512	|
  *		[     frame header	] 32/112	|
  * sp (r1) --->	[    stack pointer	] --------------
  */
@@ -32,8 +32,8 @@
 #define BPF_PPC_STACK_SAVE	(8*8)
 /* for bpf JIT code internal usage */
 #define BPF_PPC_STACK_LOCALS	16
-/* Ensure this is quadword aligned */
-#define BPF_PPC_STACKFRAME	(STACK_FRAME_MIN_SIZE + MAX_BPF_STACK + \
+/* stack frame excluding BPF stack, ensure this is quadword aligned */
+#define BPF_PPC_STACKFRAME	(STACK_FRAME_MIN_SIZE + \
 				 BPF_PPC_STACK_LOCALS + BPF_PPC_STACK_SAVE)
 
 #ifndef __ASSEMBLY__
@@ -103,6 +103,7 @@ struct codegen_context {
 	 */
 	unsigned int seen;
 	unsigned int idx;
+	unsigned int stack_size;
 };
 
 #endif /* !__ASSEMBLY__ */

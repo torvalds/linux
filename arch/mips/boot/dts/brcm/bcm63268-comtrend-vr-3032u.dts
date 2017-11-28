@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /dts-v1/;
 
 /include/ "bcm63268.dtsi"
@@ -18,7 +19,7 @@
 };
 
 &leds0 {
-	status = "ok";
+	status = "okay";
 	brcm,serial-leds;
 	brcm,serial-dat-low;
 	brcm,serial-shift-inv;

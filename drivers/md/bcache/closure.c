@@ -64,7 +64,7 @@ EXPORT_SYMBOL(closure_put);
 void __closure_wake_up(struct closure_waitlist *wait_list)
 {
 	struct llist_node *list;
-	struct closure *cl;
+	struct closure *cl, *t;
 	struct llist_node *reverse = NULL;
 
 	list = llist_del_all(&wait_list->list);
@@ -73,7 +73,7 @@ void __closure_wake_up(struct closure_waitlist *wait_list)
 	reverse = llist_reverse_order(list);
 
 	/* Then do the wakeups */
-	llist_for_each_entry(cl, reverse, list) {
+	llist_for_each_entry_safe(cl, t, reverse, list) {
 		closure_set_waiting(cl, 0);
 		closure_sub(cl, CLOSURE_WAITING + 1);
 	}

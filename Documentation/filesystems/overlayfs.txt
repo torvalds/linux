@@ -210,8 +210,11 @@ path as another overlay mount and it may use a lower layer path that is
 beneath or above the path of another overlay lower layer path.
 
 Using an upper layer path and/or a workdir path that are already used by
-another overlay mount is not allowed and will fail with EBUSY.  Using
+another overlay mount is not allowed and may fail with EBUSY.  Using
 partially overlapping paths is not allowed but will not fail with EBUSY.
+If files are accessed from two overlayfs mounts which share or overlap the
+upper layer and/or workdir path the behavior of the overlay is undefined,
+though it will not result in a crash or deadlock.
 
 Mounting an overlay using an upper layer path, where the upper layer path
 was previously used by another mounted overlay in combination with a

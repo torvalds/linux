@@ -361,9 +361,9 @@ static int change_page_attr(struct page *page, int numpages, pgprot_t prot)
 			break;
 	}
 	wmb();
+	local_irq_restore(flags);
 	flush_tlb_kernel_range((unsigned long)page_address(start),
 			       (unsigned long)page_address(page));
-	local_irq_restore(flags);
 	return err;
 }
 

@@ -57,4 +57,13 @@ config ROCKCHIP_INNO_HDMI
 	  for the Innosilicon HDMI driver. If you want to enable
 	  HDMI on RK3036 based SoC, you should select this option.
 
+config ROCKCHIP_LVDS
+	bool "Rockchip LVDS support"
+	depends on DRM_ROCKCHIP
+	depends on PINCTRL && OF
+	help
+	  Choose this option to enable support for Rockchip LVDS controllers.
+	  Rockchip rk3288 SoC has LVDS TX Controller can be used, and it
+	  support LVDS, rgb, dual LVDS output mode. say Y to enable its
+	  driver.
 endif

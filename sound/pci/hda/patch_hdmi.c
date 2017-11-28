@@ -906,6 +906,7 @@ static int hdmi_setup_stream(struct hda_codec *codec, hda_nid_t cvt_nid,
 			      hda_nid_t pin_nid, u32 stream_tag, int format)
 {
 	struct hdmi_spec *spec = codec->spec;
+	unsigned int param;
 	int err;
 
 	err = spec->ops.pin_hbr_setup(codec, pin_nid, is_hbr_format(format));
@@ -913,6 +914,26 @@ static int hdmi_setup_stream(struct hda_codec *codec, hda_nid_t cvt_nid,
 	if (err) {
 		codec_dbg(codec, "hdmi_setup_stream: HBR is not supported\n");
 		return err;
+	}
+
+	if (is_haswell_plus(codec)) {
+
+		/*
+		 * on recent platforms IEC Coding Type is required for HBR
+		 * support, read current Digital Converter settings and set
+		 * ICT bitfield if needed.
+		 */
+		param = snd_hda_codec_read(codec, cvt_nid, 0,
+					   AC_VERB_GET_DIGI_CONVERT_1, 0);
+
+		param = (param >> 16) & ~(AC_DIG3_ICT);
+
+		/* on recent platforms ICT mode is required for HBR support */
+		if (is_hbr_format(format))
+			param |= 0x1;
+
+		snd_hda_codec_write(codec, cvt_nid, 0,
+				    AC_VERB_SET_DIGI_CONVERT_3, param);
 	}
 
 	snd_hda_codec_setup_stream(codec, cvt_nid, stream_tag, 0, format);

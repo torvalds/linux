@@ -51,6 +51,8 @@ module_param(mbox_sel, byte, S_IRUGO);
 MODULE_PARM_DESC(mbox_sel,
 		 "RIO Messaging MBOX Selection Mask (default: 0x0f = all)");
 
+static DEFINE_SPINLOCK(tsi721_maint_lock);
+
 static void tsi721_omsg_handler(struct tsi721_device *priv, int ch);
 static void tsi721_imsg_handler(struct tsi721_device *priv, int ch);
 
@@ -124,11 +126,14 @@ static int tsi721_maint_dma(struct tsi721_device *priv, u32 sys_size,
 	void __iomem *regs = priv->regs + TSI721_DMAC_BASE(priv->mdma.ch_id);
 	struct tsi721_dma_desc *bd_ptr;
 	u32 rd_count, swr_ptr, ch_stat;
+	unsigned long flags;
 	int i, err = 0;
 	u32 op = do_wr ? MAINT_WR : MAINT_RD;
 
 	if (offset > (RIO_MAINT_SPACE_SZ - len) || (len != sizeof(u32)))
 		return -EINVAL;
+
+	spin_lock_irqsave(&tsi721_maint_lock, flags);
 
 	bd_ptr = priv->mdma.bd_base;
 
@@ -197,7 +202,9 @@ static int tsi721_maint_dma(struct tsi721_device *priv, u32 sys_size,
 	 */
 	swr_ptr = ioread32(regs + TSI721_DMAC_DSWP);
 	iowrite32(swr_ptr, regs + TSI721_DMAC_DSRP);
+
 err_out:
+	spin_unlock_irqrestore(&tsi721_maint_lock, flags);
 
 	return err;
 }

@@ -2725,9 +2725,9 @@ int acornscsi_abort(struct scsi_cmnd *SCpnt)
  * Params   : SCpnt  - command causing reset
  * Returns  : one of SCSI_RESET_ macros
  */
-int acornscsi_host_reset(struct Scsi_Host *shpnt)
+int acornscsi_host_reset(struct scsi_cmnd *SCpnt)
 {
-	AS_Host *host = (AS_Host *)shpnt->hostdata;
+	AS_Host *host = (AS_Host *)SCpnt->device->host->hostdata;
 	struct scsi_cmnd *SCptr;
     
     host->stats.resets += 1;
@@ -2741,7 +2741,7 @@ int acornscsi_host_reset(struct Scsi_Host *shpnt)
 
 	printk(KERN_WARNING "acornscsi_reset: ");
 	print_sbic_status(asr, ssr, host->scsi.phase);
-	for (devidx = 0; devidx < 9; devidx ++) {
+	for (devidx = 0; devidx < 9; devidx++)
 	    acornscsi_dumplog(host, devidx);
     }
 #endif

@@ -381,7 +381,7 @@ void *perf_aux_output_begin(struct perf_output_handle *handle,
 	 * (B) <-> (C) ordering is still observed by the pmu driver.
 	 */
 	if (!rb->aux_overwrite) {
-		aux_tail = ACCESS_ONCE(rb->user_page->aux_tail);
+		aux_tail = READ_ONCE(rb->user_page->aux_tail);
 		handle->wakeup = rb->aux_wakeup + rb->aux_watermark;
 		if (aux_head - aux_tail < perf_aux_size(rb))
 			handle->size = CIRC_SPACE(aux_head, aux_tail, perf_aux_size(rb));
@@ -410,6 +410,20 @@ err:
 	handle->event = NULL;
 
 	return NULL;
+}
+EXPORT_SYMBOL_GPL(perf_aux_output_begin);
+
+static bool __always_inline rb_need_aux_wakeup(struct ring_buffer *rb)
+{
+	if (rb->aux_overwrite)
+		return false;
+
+	if (rb->aux_head - rb->aux_wakeup >= rb->aux_watermark) {
+		rb->aux_wakeup = rounddown(rb->aux_head, rb->aux_watermark);
+		return true;
+	}
+
+	return false;
 }
 
 /*
@@ -451,10 +465,8 @@ void perf_aux_output_end(struct perf_output_handle *handle, unsigned long size)
 	}
 
 	rb->user_page->aux_head = rb->aux_head;
-	if (rb->aux_head - rb->aux_wakeup >= rb->aux_watermark) {
+	if (rb_need_aux_wakeup(rb))
 		wakeup = true;
-		rb->aux_wakeup = rounddown(rb->aux_head, rb->aux_watermark);
-	}
 
 	if (wakeup) {
 		if (handle->aux_flags & PERF_AUX_FLAG_TRUNCATED)
@@ -469,6 +481,7 @@ void perf_aux_output_end(struct perf_output_handle *handle, unsigned long size)
 	rb_free_aux(rb);
 	ring_buffer_put(rb);
 }
+EXPORT_SYMBOL_GPL(perf_aux_output_end);
 
 /*
  * Skip over a given number of bytes in the AUX buffer, due to, for example,
@@ -484,9 +497,8 @@ int perf_aux_output_skip(struct perf_output_handle *handle, unsigned long size)
 	rb->aux_head += size;
 
 	rb->user_page->aux_head = rb->aux_head;
-	if (rb->aux_head - rb->aux_wakeup >= rb->aux_watermark) {
+	if (rb_need_aux_wakeup(rb)) {
 		perf_output_wakeup(handle);
-		rb->aux_wakeup = rounddown(rb->aux_head, rb->aux_watermark);
 		handle->wakeup = rb->aux_wakeup + rb->aux_watermark;
 	}
 
@@ -495,6 +507,7 @@ int perf_aux_output_skip(struct perf_output_handle *handle, unsigned long size)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(perf_aux_output_skip);
 
 void *perf_get_aux(struct perf_output_handle *handle)
 {
@@ -504,6 +517,7 @@ void *perf_get_aux(struct perf_output_handle *handle)
 
 	return handle->rb->aux_priv;
 }
+EXPORT_SYMBOL_GPL(perf_get_aux);
 
 #define PERF_AUX_GFP	(GFP_KERNEL | __GFP_ZERO | __GFP_NOWARN | __GFP_NORETRY)
 

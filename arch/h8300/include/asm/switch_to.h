@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _H8300_SWITCH_TO_H
 #define _H8300_SWITCH_TO_H
 

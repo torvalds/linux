@@ -247,6 +247,8 @@ xfs_set_mode(struct inode *inode, umode_t mode)
 int
 xfs_set_acl(struct inode *inode, struct posix_acl *acl, int type)
 {
+	umode_t mode;
+	bool set_mode = false;
 	int error = 0;
 
 	if (!acl)
@@ -257,16 +259,24 @@ xfs_set_acl(struct inode *inode, struct posix_acl *acl, int type)
 		return error;
 
 	if (type == ACL_TYPE_ACCESS) {
-		umode_t mode;
-
 		error = posix_acl_update_mode(inode, &mode, &acl);
 		if (error)
 			return error;
-		error = xfs_set_mode(inode, mode);
-		if (error)
-			return error;
+		set_mode = true;
 	}
 
  set_acl:
-	return __xfs_set_acl(inode, acl, type);
+	error =  __xfs_set_acl(inode, acl, type);
+	if (error)
+		return error;
+
+	/*
+	 * We set the mode after successfully updating the ACL xattr because the
+	 * xattr update can fail at ENOSPC and we don't want to change the mode
+	 * if the ACL update hasn't been applied.
+	 */
+	if (set_mode)
+		error = xfs_set_mode(inode, mode);
+
+	return error;
 }

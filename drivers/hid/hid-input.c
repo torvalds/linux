@@ -797,6 +797,15 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 			map_key_clear(BTN_STYLUS);
 			break;
 
+		case 0x45: /* ERASER */
+			/*
+			 * This event is reported when eraser tip touches the surface.
+			 * Actual eraser (BTN_TOOL_RUBBER) is set by Invert usage when
+			 * tool gets in proximity.
+			 */
+			map_key_clear(BTN_TOUCH);
+			break;
+
 		case 0x46: /* TabletPick */
 		case 0x5a: /* SecondaryBarrelSwitch */
 			map_key_clear(BTN_STYLUS2);

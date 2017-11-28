@@ -24,6 +24,7 @@
 
 #include <linux/completion.h>
 #include <linux/delay.h>
+#include <linux/prime_numbers.h>
 
 #include "../i915_selftest.h"
 
@@ -565,6 +566,46 @@ err_in:
 	return ret;
 }
 
+static int test_timer(void *arg)
+{
+	unsigned long target, delay;
+	struct timed_fence tf;
+
+	timed_fence_init(&tf, target = jiffies);
+	if (!i915_sw_fence_done(&tf.fence)) {
+		pr_err("Fence with immediate expiration not signaled\n");
+		goto err;
+	}
+	timed_fence_fini(&tf);
+
+	for_each_prime_number(delay, i915_selftest.timeout_jiffies/2) {
+		timed_fence_init(&tf, target = jiffies + delay);
+		if (i915_sw_fence_done(&tf.fence)) {
+			pr_err("Fence with future expiration (%lu jiffies) already signaled\n", delay);
+			goto err;
+		}
+
+		i915_sw_fence_wait(&tf.fence);
+		if (!i915_sw_fence_done(&tf.fence)) {
+			pr_err("Fence not signaled after wait\n");
+			goto err;
+		}
+		if (time_before(jiffies, target)) {
+			pr_err("Fence signaled too early, target=%lu, now=%lu\n",
+			       target, jiffies);
+			goto err;
+		}
+
+		timed_fence_fini(&tf);
+	}
+
+	return 0;
+
+err:
+	timed_fence_fini(&tf);
+	return -EINVAL;
+}
+
 int i915_sw_fence_mock_selftests(void)
 {
 	static const struct i915_subtest tests[] = {
@@ -576,6 +617,7 @@ int i915_sw_fence_mock_selftests(void)
 		SUBTEST(test_C_AB),
 		SUBTEST(test_chain),
 		SUBTEST(test_ipc),
+		SUBTEST(test_timer),
 	};
 
 	return i915_subtests(tests, NULL);

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef ASM_CELL_PIC_H
 #define ASM_CELL_PIC_H
 #ifdef __KERNEL__

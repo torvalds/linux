@@ -481,33 +481,6 @@ int af_alg_cmsg_send(struct msghdr *msg, struct af_alg_control *con)
 }
 EXPORT_SYMBOL_GPL(af_alg_cmsg_send);
 
-int af_alg_wait_for_completion(int err, struct af_alg_completion *completion)
-{
-	switch (err) {
-	case -EINPROGRESS:
-	case -EBUSY:
-		wait_for_completion(&completion->completion);
-		reinit_completion(&completion->completion);
-		err = completion->err;
-		break;
-	};
-
-	return err;
-}
-EXPORT_SYMBOL_GPL(af_alg_wait_for_completion);
-
-void af_alg_complete(struct crypto_async_request *req, int err)
-{
-	struct af_alg_completion *completion = req->data;
-
-	if (err == -EINPROGRESS)
-		return;
-
-	completion->err = err;
-	complete(&completion->completion);
-}
-EXPORT_SYMBOL_GPL(af_alg_complete);
-
 /**
  * af_alg_alloc_tsgl - allocate the TX SGL
  *
@@ -619,14 +592,14 @@ void af_alg_pull_tsgl(struct sock *sk, size_t used, struct scatterlist *dst,
 	struct af_alg_ctx *ctx = ask->private;
 	struct af_alg_tsgl *sgl;
 	struct scatterlist *sg;
-	unsigned int i, j;
+	unsigned int i, j = 0;
 
 	while (!list_empty(&ctx->tsgl_list)) {
 		sgl = list_first_entry(&ctx->tsgl_list, struct af_alg_tsgl,
 				       list);
 		sg = sgl->sg;
 
-		for (i = 0, j = 0; i < sgl->cur; i++) {
+		for (i = 0; i < sgl->cur; i++) {
 			size_t plen = min_t(size_t, used, sg[i].length);
 			struct page *page = sg_page(sg + i);
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Generate definitions needed by assembly language modules.
  * This code generates raw asm output which is post-processed to extract
@@ -13,6 +14,7 @@
 #include <asm/vdso.h>
 #include <asm/pgtable.h>
 #include <asm/gmap.h>
+#include <asm/nmi.h>
 
 /*
  * Make sure that the compiler is new enough. We want a compiler that
@@ -158,6 +160,7 @@ int main(void)
 	OFFSET(__LC_LAST_UPDATE_CLOCK, lowcore, last_update_clock);
 	OFFSET(__LC_INT_CLOCK, lowcore, int_clock);
 	OFFSET(__LC_MCCK_CLOCK, lowcore, mcck_clock);
+	OFFSET(__LC_CLOCK_COMPARATOR, lowcore, clock_comparator);
 	OFFSET(__LC_BOOT_CLOCK, lowcore, boot_clock);
 	OFFSET(__LC_CURRENT, lowcore, current_task);
 	OFFSET(__LC_KERNEL_STACK, lowcore, kernel_stack);
@@ -168,6 +171,7 @@ int main(void)
 	OFFSET(__LC_RESTART_DATA, lowcore, restart_data);
 	OFFSET(__LC_RESTART_SOURCE, lowcore, restart_source);
 	OFFSET(__LC_USER_ASCE, lowcore, user_asce);
+	OFFSET(__LC_VDSO_ASCE, lowcore, vdso_asce);
 	OFFSET(__LC_LPP, lowcore, lpp);
 	OFFSET(__LC_CURRENT_PID, lowcore, current_pid);
 	OFFSET(__LC_PERCPU_OFFSET, lowcore, percpu_offset);
@@ -175,7 +179,6 @@ int main(void)
 	OFFSET(__LC_MACHINE_FLAGS, lowcore, machine_flags);
 	OFFSET(__LC_PREEMPT_COUNT, lowcore, preempt_count);
 	OFFSET(__LC_GMAP, lowcore, gmap);
-	OFFSET(__LC_PASTE, lowcore, paste);
 	/* software defined ABI-relevant lowcore locations 0xe00 - 0xe20 */
 	OFFSET(__LC_DUMP_REIPL, lowcore, ipib);
 	/* hardware defined lowcore locations 0x1000 - 0x18ff */
@@ -192,6 +195,9 @@ int main(void)
 	OFFSET(__LC_AREGS_SAVE_AREA, lowcore, access_regs_save_area);
 	OFFSET(__LC_CREGS_SAVE_AREA, lowcore, cregs_save_area);
 	OFFSET(__LC_PGM_TDB, lowcore, pgm_tdb);
+	BLANK();
+	/* extended machine check save area */
+	OFFSET(__MCESA_GS_SAVE_AREA, mcesa, guarded_storage_save_area);
 	BLANK();
 	/* gmap/sie offsets */
 	OFFSET(__GMAP_ASCE, gmap, asce);

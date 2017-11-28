@@ -139,8 +139,7 @@ int mlx5_fpga_device_start(struct mlx5_core_dev *mdev)
 	if (err)
 		goto out;
 
-	err = mlx5_fpga_caps(fdev->mdev,
-			     fdev->mdev->caps.hca_cur[MLX5_CAP_FPGA]);
+	err = mlx5_fpga_caps(fdev->mdev);
 	if (err)
 		goto out;
 

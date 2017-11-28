@@ -1,3 +1,4 @@
+; SPDX-License-Identifier: GPL-2.0
 ; WARNING : The refill handler has been modified, see below !!!
 
 /*

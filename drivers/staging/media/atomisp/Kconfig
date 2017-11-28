@@ -1,9 +1,10 @@
 menuconfig INTEL_ATOMISP
-        bool "Enable support to Intel MIPI camera drivers"
-        depends on X86 && EFI && MEDIA_CONTROLLER && PCI && ACPI
-        help
-          Enable support for the Intel ISP2 camera interfaces and MIPI
-          sensor drivers.
+	bool "Enable support to Intel MIPI camera drivers"
+	depends on X86 && EFI && MEDIA_CONTROLLER && PCI && ACPI
+	select COMMON_CLK
+	help
+	  Enable support for the Intel ISP2 camera interfaces and MIPI
+	  sensor drivers.
 
 if INTEL_ATOMISP
 source "drivers/staging/media/atomisp/pci/Kconfig"

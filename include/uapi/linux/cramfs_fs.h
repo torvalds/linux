@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 #ifndef _UAPI__CRAMFS_H
 #define _UAPI__CRAMFS_H
 
@@ -73,6 +74,7 @@ struct cramfs_super {
 #define CRAMFS_FLAG_HOLES		0x00000100	/* support for holes */
 #define CRAMFS_FLAG_WRONG_SIGNATURE	0x00000200	/* reserved */
 #define CRAMFS_FLAG_SHIFTED_ROOT_OFFSET	0x00000400	/* shifted root fs */
+#define CRAMFS_FLAG_EXT_BLOCK_POINTERS	0x00000800	/* block pointer extensions */
 
 /*
  * Valid values in super.flags.  Currently we refuse to mount
@@ -82,7 +84,30 @@ struct cramfs_super {
 #define CRAMFS_SUPPORTED_FLAGS	( 0x000000ff \
 				| CRAMFS_FLAG_HOLES \
 				| CRAMFS_FLAG_WRONG_SIGNATURE \
-				| CRAMFS_FLAG_SHIFTED_ROOT_OFFSET )
+				| CRAMFS_FLAG_SHIFTED_ROOT_OFFSET \
+				| CRAMFS_FLAG_EXT_BLOCK_POINTERS )
 
+/*
+ * Block pointer flags
+ *
+ * The maximum block offset that needs to be represented is roughly:
+ *
+ *   (1 << CRAMFS_OFFSET_WIDTH) * 4 +
+ *   (1 << CRAMFS_SIZE_WIDTH) / PAGE_SIZE * (4 + PAGE_SIZE)
+ *   = 0x11004000
+ *
+ * That leaves room for 3 flag bits in the block pointer table.
+ */
+#define CRAMFS_BLK_FLAG_UNCOMPRESSED	(1 << 31)
+#define CRAMFS_BLK_FLAG_DIRECT_PTR	(1 << 30)
+
+#define CRAMFS_BLK_FLAGS	( CRAMFS_BLK_FLAG_UNCOMPRESSED \
+				| CRAMFS_BLK_FLAG_DIRECT_PTR )
+
+/*
+ * Direct blocks are at least 4-byte aligned.
+ * Pointers to direct blocks are shifted down by 2 bits.
+ */
+#define CRAMFS_BLK_DIRECT_PTR_SHIFT	2
 
 #endif /* _UAPI__CRAMFS_H */

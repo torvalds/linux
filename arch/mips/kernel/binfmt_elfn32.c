@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Support for n32 Linux/MIPS ELF binaries.
  * Author: Ralf Baechle (ralf@linux-mips.org)

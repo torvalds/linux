@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __PLATFORM_DATA_ASOC_MX27VIS_H
 #define __PLATFORM_DATA_ASOC_MX27VIS_H
 

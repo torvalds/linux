@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <inttypes.h>
 #include <unistd.h>
 #include <sys/syscall.h>
@@ -131,7 +132,7 @@ static int synth_all(struct machine *machine)
 {
 	return perf_event__synthesize_threads(NULL,
 					      perf_event__process,
-					      machine, 0, 500);
+					      machine, 0, 500, 1);
 }
 
 static int synth_process(struct machine *machine)

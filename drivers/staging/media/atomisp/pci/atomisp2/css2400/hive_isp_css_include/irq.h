@@ -29,18 +29,17 @@
  *	- local:   system and cell specific constants and identifiers
  */
 
-#include "storage_class.h"
 
 #include "system_local.h"
 #include "irq_local.h"
 
 #ifndef __INLINE_IRQ__
-#define STORAGE_CLASS_IRQ_H STORAGE_CLASS_EXTERN
+#define STORAGE_CLASS_IRQ_H extern
 #define STORAGE_CLASS_IRQ_C 
 #include "irq_public.h"
 #else  /* __INLINE_IRQ__ */
-#define STORAGE_CLASS_IRQ_H STORAGE_CLASS_INLINE
-#define STORAGE_CLASS_IRQ_C STORAGE_CLASS_INLINE
+#define STORAGE_CLASS_IRQ_H static inline
+#define STORAGE_CLASS_IRQ_C static inline
 #include "irq_private.h"
 #endif /* __INLINE_IRQ__ */
 

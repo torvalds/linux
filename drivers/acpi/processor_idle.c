@@ -710,6 +710,8 @@ static DEFINE_RAW_SPINLOCK(c3_lock);
 static void acpi_idle_enter_bm(struct acpi_processor *pr,
 			       struct acpi_processor_cx *cx, bool timer_bc)
 {
+	acpi_unlazy_tlb(smp_processor_id());
+
 	/*
 	 * Must be done before busmaster disable as we might need to
 	 * access HPET !

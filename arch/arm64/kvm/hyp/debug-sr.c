@@ -65,16 +65,6 @@
 	default:	write_debug(ptr[0], reg, 0);			\
 	}
 
-#define PMSCR_EL1		sys_reg(3, 0, 9, 9, 0)
-
-#define PMBLIMITR_EL1		sys_reg(3, 0, 9, 10, 0)
-#define PMBLIMITR_EL1_E		BIT(0)
-
-#define PMBIDR_EL1		sys_reg(3, 0, 9, 10, 7)
-#define PMBIDR_EL1_P		BIT(4)
-
-#define psb_csync()		asm volatile("hint #17")
-
 static void __hyp_text __debug_save_spe_vhe(u64 *pmscr_el1)
 {
 	/* The vcpu can run. but it can't hide. */
@@ -90,18 +80,18 @@ static void __hyp_text __debug_save_spe_nvhe(u64 *pmscr_el1)
 		return;
 
 	/* Yes; is it owned by EL3? */
-	reg = read_sysreg_s(PMBIDR_EL1);
-	if (reg & PMBIDR_EL1_P)
+	reg = read_sysreg_s(SYS_PMBIDR_EL1);
+	if (reg & BIT(SYS_PMBIDR_EL1_P_SHIFT))
 		return;
 
 	/* No; is the host actually using the thing? */
-	reg = read_sysreg_s(PMBLIMITR_EL1);
-	if (!(reg & PMBLIMITR_EL1_E))
+	reg = read_sysreg_s(SYS_PMBLIMITR_EL1);
+	if (!(reg & BIT(SYS_PMBLIMITR_EL1_E_SHIFT)))
 		return;
 
 	/* Yes; save the control register and disable data generation */
-	*pmscr_el1 = read_sysreg_s(PMSCR_EL1);
-	write_sysreg_s(0, PMSCR_EL1);
+	*pmscr_el1 = read_sysreg_s(SYS_PMSCR_EL1);
+	write_sysreg_s(0, SYS_PMSCR_EL1);
 	isb();
 
 	/* Now drain all buffered data to memory */
@@ -122,7 +112,7 @@ static void __hyp_text __debug_restore_spe(u64 pmscr_el1)
 	isb();
 
 	/* Re-enable data generation */
-	write_sysreg_s(pmscr_el1, PMSCR_EL1);
+	write_sysreg_s(pmscr_el1, SYS_PMSCR_EL1);
 }
 
 void __hyp_text __debug_save_state(struct kvm_vcpu *vcpu,

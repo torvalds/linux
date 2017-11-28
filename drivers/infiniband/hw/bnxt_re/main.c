@@ -78,6 +78,7 @@ static struct list_head bnxt_re_dev_list = LIST_HEAD_INIT(bnxt_re_dev_list);
 /* Mutex to protect the list of bnxt_re devices added */
 static DEFINE_MUTEX(bnxt_re_dev_lock);
 static struct workqueue_struct *bnxt_re_wq;
+static void bnxt_re_ib_unreg(struct bnxt_re_dev *rdev, bool lock_wait);
 
 /* for handling bnxt_en callbacks later */
 static void bnxt_re_stop(void *p)
@@ -92,11 +93,22 @@ static void bnxt_re_sriov_config(void *p, int num_vfs)
 {
 }
 
+static void bnxt_re_shutdown(void *p)
+{
+	struct bnxt_re_dev *rdev = p;
+
+	if (!rdev)
+		return;
+
+	bnxt_re_ib_unreg(rdev, false);
+}
+
 static struct bnxt_ulp_ops bnxt_re_ulp_ops = {
 	.ulp_async_notifier = NULL,
 	.ulp_stop = bnxt_re_stop,
 	.ulp_start = bnxt_re_start,
-	.ulp_sriov_config = bnxt_re_sriov_config
+	.ulp_sriov_config = bnxt_re_sriov_config,
+	.ulp_shutdown = bnxt_re_shutdown
 };
 
 /* RoCE -> Net driver */
@@ -1071,9 +1083,10 @@ static int bnxt_re_ib_reg(struct bnxt_re_dev *rdev)
 	 */
 	rc = bnxt_qplib_alloc_rcfw_channel(rdev->en_dev->pdev, &rdev->rcfw,
 					   BNXT_RE_MAX_QPC_COUNT);
-	if (rc)
+	if (rc) {
+		pr_err("Failed to allocate RCFW Channel: %#x\n", rc);
 		goto fail;
-
+	}
 	rc = bnxt_re_net_ring_alloc
 			(rdev, rdev->rcfw.creq.pbl[PBL_LVL_0].pg_map_arr,
 			 rdev->rcfw.creq.pbl[rdev->rcfw.creq.level].pg_count,
@@ -1161,6 +1174,8 @@ static int bnxt_re_ib_reg(struct bnxt_re_dev *rdev)
 		}
 	}
 	set_bit(BNXT_RE_FLAG_IBDEV_REGISTERED, &rdev->flags);
+	ib_get_eth_speed(&rdev->ibdev, 1, &rdev->active_speed,
+			 &rdev->active_width);
 	bnxt_re_dispatch_event(&rdev->ibdev, NULL, 1, IB_EVENT_PORT_ACTIVE);
 	bnxt_re_dispatch_event(&rdev->ibdev, NULL, 1, IB_EVENT_GID_CHANGE);
 
@@ -1255,10 +1270,14 @@ static void bnxt_re_task(struct work_struct *work)
 		else if (netif_carrier_ok(rdev->netdev))
 			bnxt_re_dispatch_event(&rdev->ibdev, NULL, 1,
 					       IB_EVENT_PORT_ACTIVE);
+		ib_get_eth_speed(&rdev->ibdev, 1, &rdev->active_speed,
+				 &rdev->active_width);
 		break;
 	default:
 		break;
 	}
+	smp_mb__before_atomic();
+	clear_bit(BNXT_RE_FLAG_TASK_IN_PROG, &rdev->flags);
 	kfree(re_work);
 }
 
@@ -1317,6 +1336,11 @@ static int bnxt_re_netdev_event(struct notifier_block *notifier,
 		break;
 
 	case NETDEV_UNREGISTER:
+		/* netdev notifier will call NETDEV_UNREGISTER again later since
+		 * we are still holding the reference to the netdev
+		 */
+		if (test_bit(BNXT_RE_FLAG_TASK_IN_PROG, &rdev->flags))
+			goto exit;
 		bnxt_re_ib_unreg(rdev, false);
 		bnxt_re_remove_one(rdev);
 		bnxt_re_dev_unreg(rdev);
@@ -1335,6 +1359,7 @@ static int bnxt_re_netdev_event(struct notifier_block *notifier,
 			re_work->vlan_dev = (real_dev == netdev ?
 					     NULL : netdev);
 			INIT_WORK(&re_work->work, bnxt_re_task);
+			set_bit(BNXT_RE_FLAG_TASK_IN_PROG, &rdev->flags);
 			queue_work(bnxt_re_wq, &re_work->work);
 		}
 	}
@@ -1375,6 +1400,22 @@ err_netdev:
 
 static void __exit bnxt_re_mod_exit(void)
 {
+	struct bnxt_re_dev *rdev;
+	LIST_HEAD(to_be_deleted);
+
+	mutex_lock(&bnxt_re_dev_lock);
+	/* Free all adapter allocated resources */
+	if (!list_empty(&bnxt_re_dev_list))
+		list_splice_init(&bnxt_re_dev_list, &to_be_deleted);
+	mutex_unlock(&bnxt_re_dev_lock);
+
+	list_for_each_entry(rdev, &to_be_deleted, list) {
+		dev_info(rdev_to_dev(rdev), "Unregistering Device");
+		bnxt_re_dev_stop(rdev);
+		bnxt_re_ib_unreg(rdev, true);
+		bnxt_re_remove_one(rdev);
+		bnxt_re_dev_unreg(rdev);
+	}
 	unregister_netdevice_notifier(&bnxt_re_netdev_notifier);
 	if (bnxt_re_wq)
 		destroy_workqueue(bnxt_re_wq);

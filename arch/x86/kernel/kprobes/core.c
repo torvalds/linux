@@ -119,29 +119,29 @@ struct kretprobe_blackpoint kretprobe_blacklist[] = {
 const int kretprobe_blacklist_size = ARRAY_SIZE(kretprobe_blacklist);
 
 static nokprobe_inline void
-__synthesize_relative_insn(void *from, void *to, u8 op)
+__synthesize_relative_insn(void *dest, void *from, void *to, u8 op)
 {
 	struct __arch_relative_insn {
 		u8 op;
 		s32 raddr;
 	} __packed *insn;
 
-	insn = (struct __arch_relative_insn *)from;
+	insn = (struct __arch_relative_insn *)dest;
 	insn->raddr = (s32)((long)(to) - ((long)(from) + 5));
 	insn->op = op;
 }
 
 /* Insert a jump instruction at address 'from', which jumps to address 'to'.*/
-void synthesize_reljump(void *from, void *to)
+void synthesize_reljump(void *dest, void *from, void *to)
 {
-	__synthesize_relative_insn(from, to, RELATIVEJUMP_OPCODE);
+	__synthesize_relative_insn(dest, from, to, RELATIVEJUMP_OPCODE);
 }
 NOKPROBE_SYMBOL(synthesize_reljump);
 
 /* Insert a call instruction at address 'from', which calls address 'to'.*/
-void synthesize_relcall(void *from, void *to)
+void synthesize_relcall(void *dest, void *from, void *to)
 {
-	__synthesize_relative_insn(from, to, RELATIVECALL_OPCODE);
+	__synthesize_relative_insn(dest, from, to, RELATIVECALL_OPCODE);
 }
 NOKPROBE_SYMBOL(synthesize_relcall);
 
@@ -346,10 +346,11 @@ static int is_IF_modifier(kprobe_opcode_t *insn)
 /*
  * Copy an instruction with recovering modified instruction by kprobes
  * and adjust the displacement if the instruction uses the %rip-relative
- * addressing mode.
+ * addressing mode. Note that since @real will be the final place of copied
+ * instruction, displacement must be adjust by @real, not @dest.
  * This returns the length of copied instruction, or 0 if it has an error.
  */
-int __copy_instruction(u8 *dest, u8 *src, struct insn *insn)
+int __copy_instruction(u8 *dest, u8 *src, u8 *real, struct insn *insn)
 {
 	kprobe_opcode_t buf[MAX_INSN_SIZE];
 	unsigned long recovered_insn =
@@ -387,11 +388,11 @@ int __copy_instruction(u8 *dest, u8 *src, struct insn *insn)
 		 * have given.
 		 */
 		newdisp = (u8 *) src + (s64) insn->displacement.value
-			  - (u8 *) dest;
+			  - (u8 *) real;
 		if ((s64) (s32) newdisp != newdisp) {
 			pr_err("Kprobes error: new displacement does not fit into s32 (%llx)\n", newdisp);
 			pr_err("\tSrc: %p, Dest: %p, old disp: %x\n",
-				src, dest, insn->displacement.value);
+				src, real, insn->displacement.value);
 			return 0;
 		}
 		disp = (u8 *) dest + insn_offset_displacement(insn);
@@ -402,20 +403,38 @@ int __copy_instruction(u8 *dest, u8 *src, struct insn *insn)
 }
 
 /* Prepare reljump right after instruction to boost */
-static void prepare_boost(struct kprobe *p, struct insn *insn)
+static int prepare_boost(kprobe_opcode_t *buf, struct kprobe *p,
+			  struct insn *insn)
 {
+	int len = insn->length;
+
 	if (can_boost(insn, p->addr) &&
-	    MAX_INSN_SIZE - insn->length >= RELATIVEJUMP_SIZE) {
+	    MAX_INSN_SIZE - len >= RELATIVEJUMP_SIZE) {
 		/*
 		 * These instructions can be executed directly if it
 		 * jumps back to correct address.
 		 */
-		synthesize_reljump(p->ainsn.insn + insn->length,
+		synthesize_reljump(buf + len, p->ainsn.insn + len,
 				   p->addr + insn->length);
+		len += RELATIVEJUMP_SIZE;
 		p->ainsn.boostable = true;
 	} else {
 		p->ainsn.boostable = false;
 	}
+
+	return len;
+}
+
+/* Make page to RO mode when allocate it */
+void *alloc_insn_page(void)
+{
+	void *page;
+
+	page = module_alloc(PAGE_SIZE);
+	if (page)
+		set_memory_ro((unsigned long)page & PAGE_MASK, 1);
+
+	return page;
 }
 
 /* Recover page to RW mode before releasing it */
@@ -429,12 +448,11 @@ void free_insn_page(void *page)
 static int arch_copy_kprobe(struct kprobe *p)
 {
 	struct insn insn;
+	kprobe_opcode_t buf[MAX_INSN_SIZE];
 	int len;
 
-	set_memory_rw((unsigned long)p->ainsn.insn & PAGE_MASK, 1);
-
 	/* Copy an instruction with recovering if other optprobe modifies it.*/
-	len = __copy_instruction(p->ainsn.insn, p->addr, &insn);
+	len = __copy_instruction(buf, p->addr, p->ainsn.insn, &insn);
 	if (!len)
 		return -EINVAL;
 
@@ -442,15 +460,16 @@ static int arch_copy_kprobe(struct kprobe *p)
 	 * __copy_instruction can modify the displacement of the instruction,
 	 * but it doesn't affect boostable check.
 	 */
-	prepare_boost(p, &insn);
-
-	set_memory_ro((unsigned long)p->ainsn.insn & PAGE_MASK, 1);
+	len = prepare_boost(buf, p, &insn);
 
 	/* Check whether the instruction modifies Interrupt Flag or not */
-	p->ainsn.if_modifier = is_IF_modifier(p->ainsn.insn);
+	p->ainsn.if_modifier = is_IF_modifier(buf);
 
 	/* Also, displacement change doesn't affect the first byte */
-	p->opcode = p->ainsn.insn[0];
+	p->opcode = buf[0];
+
+	/* OK, write back the instruction(s) into ROX insn buffer */
+	text_poke(p->ainsn.insn, buf, len);
 
 	return 0;
 }
@@ -1080,8 +1099,6 @@ int setjmp_pre_handler(struct kprobe *p, struct pt_regs *regs)
 	 * raw stack chunk with redzones:
 	 */
 	__memcpy(kcb->jprobes_stack, (kprobe_opcode_t *)addr, MIN_STACK_SIZE(addr));
-	regs->flags &= ~X86_EFLAGS_IF;
-	trace_hardirqs_off();
 	regs->ip = (unsigned long)(jp->entry);
 
 	/*

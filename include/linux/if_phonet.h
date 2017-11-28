@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * File: if_phonet.h
  *
@@ -10,5 +11,5 @@
 
 #include <uapi/linux/if_phonet.h>
 
-extern struct header_ops phonet_header_ops;
+extern const struct header_ops phonet_header_ops;
 #endif

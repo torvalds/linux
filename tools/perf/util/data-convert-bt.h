@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __DATA_CONVERT_BT_H
 #define __DATA_CONVERT_BT_H
 #include "data-convert.h"

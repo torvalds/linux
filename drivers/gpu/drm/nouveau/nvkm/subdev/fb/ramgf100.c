@@ -32,7 +32,6 @@
 #include <subdev/bios/timing.h>
 #include <subdev/clk.h>
 #include <subdev/clk/pll.h>
-#include <subdev/ltc.h>
 
 struct gf100_ramfuc {
 	struct ramfuc base;
@@ -420,86 +419,6 @@ gf100_ram_tidy(struct nvkm_ram *base)
 	ram_exec(&ram->fuc, false);
 }
 
-void
-gf100_ram_put(struct nvkm_ram *ram, struct nvkm_mem **pmem)
-{
-	struct nvkm_ltc *ltc = ram->fb->subdev.device->ltc;
-	struct nvkm_mem *mem = *pmem;
-
-	*pmem = NULL;
-	if (unlikely(mem == NULL))
-		return;
-
-	mutex_lock(&ram->fb->subdev.mutex);
-	if (mem->tag)
-		nvkm_ltc_tags_free(ltc, &mem->tag);
-	__nv50_ram_put(ram, mem);
-	mutex_unlock(&ram->fb->subdev.mutex);
-
-	kfree(mem);
-}
-
-int
-gf100_ram_get(struct nvkm_ram *ram, u64 size, u32 align, u32 ncmin,
-	      u32 memtype, struct nvkm_mem **pmem)
-{
-	struct nvkm_ltc *ltc = ram->fb->subdev.device->ltc;
-	struct nvkm_mm *mm = &ram->vram;
-	struct nvkm_mm_node **node, *r;
-	struct nvkm_mem *mem;
-	int type = (memtype & 0x0ff);
-	int back = (memtype & 0x800);
-	const bool comp = gf100_pte_storage_type_map[type] != type;
-	int ret;
-
-	size  >>= NVKM_RAM_MM_SHIFT;
-	align >>= NVKM_RAM_MM_SHIFT;
-	ncmin >>= NVKM_RAM_MM_SHIFT;
-	if (!ncmin)
-		ncmin = size;
-
-	mem = kzalloc(sizeof(*mem), GFP_KERNEL);
-	if (!mem)
-		return -ENOMEM;
-
-	mem->size = size;
-
-	mutex_lock(&ram->fb->subdev.mutex);
-	if (comp) {
-		/* compression only works with lpages */
-		if (align == (1 << (17 - NVKM_RAM_MM_SHIFT))) {
-			int n = size >> 5;
-			nvkm_ltc_tags_alloc(ltc, n, &mem->tag);
-		}
-
-		if (unlikely(!mem->tag))
-			type = gf100_pte_storage_type_map[type];
-	}
-	mem->memtype = type;
-
-	node = &mem->mem;
-	do {
-		if (back)
-			ret = nvkm_mm_tail(mm, 0, 1, size, ncmin, align, &r);
-		else
-			ret = nvkm_mm_head(mm, 0, 1, size, ncmin, align, &r);
-		if (ret) {
-			mutex_unlock(&ram->fb->subdev.mutex);
-			ram->func->put(ram, &mem);
-			return ret;
-		}
-
-		*node = r;
-		node = &r->next;
-		size -= r->length;
-	} while (size);
-	mutex_unlock(&ram->fb->subdev.mutex);
-
-	mem->offset = (u64)mem->mem->offset << NVKM_RAM_MM_SHIFT;
-	*pmem = mem;
-	return 0;
-}
-
 int
 gf100_ram_init(struct nvkm_ram *base)
 {
@@ -604,7 +523,7 @@ gf100_ram_ctor(const struct nvkm_ram_func *func, struct nvkm_fb *fb,
 	nvkm_debug(subdev, "Upper: %4lld MiB @ %010llx\n", usize >> 20, ubase);
 	nvkm_debug(subdev, "Total: %4lld MiB\n", total >> 20);
 
-	ret = nvkm_ram_ctor(func, fb, type, total, 0, ram);
+	ret = nvkm_ram_ctor(func, fb, type, total, ram);
 	if (ret)
 		return ret;
 
@@ -617,7 +536,8 @@ gf100_ram_ctor(const struct nvkm_ram_func *func, struct nvkm_fb *fb,
 	 */
 	if (lower != total) {
 		/* The common memory amount is addressed normally. */
-		ret = nvkm_mm_init(&ram->vram, rsvd_head >> NVKM_RAM_MM_SHIFT,
+		ret = nvkm_mm_init(&ram->vram, NVKM_RAM_MM_NORMAL,
+				   rsvd_head >> NVKM_RAM_MM_SHIFT,
 				   (lower - rsvd_head) >> NVKM_RAM_MM_SHIFT, 1);
 		if (ret)
 			return ret;
@@ -625,13 +545,15 @@ gf100_ram_ctor(const struct nvkm_ram_func *func, struct nvkm_fb *fb,
 		/* And the rest is much higher in the physical address
 		 * space, and may not be usable for certain operations.
 		 */
-		ret = nvkm_mm_init(&ram->vram, ubase >> NVKM_RAM_MM_SHIFT,
+		ret = nvkm_mm_init(&ram->vram, NVKM_RAM_MM_MIXED,
+				   ubase >> NVKM_RAM_MM_SHIFT,
 				   (usize - rsvd_tail) >> NVKM_RAM_MM_SHIFT, 1);
 		if (ret)
 			return ret;
 	} else {
 		/* GPUs without mixed-memory are a lot nicer... */
-		ret = nvkm_mm_init(&ram->vram, rsvd_head >> NVKM_RAM_MM_SHIFT,
+		ret = nvkm_mm_init(&ram->vram, NVKM_RAM_MM_NORMAL,
+				   rsvd_head >> NVKM_RAM_MM_SHIFT,
 				   (total - rsvd_head - rsvd_tail) >>
 				   NVKM_RAM_MM_SHIFT, 1);
 		if (ret)
@@ -738,8 +660,6 @@ gf100_ram = {
 	.probe_fbp_amount = gf100_ram_probe_fbp_amount,
 	.probe_fbpa_amount = gf100_ram_probe_fbpa_amount,
 	.init = gf100_ram_init,
-	.get = gf100_ram_get,
-	.put = gf100_ram_put,
 	.calc = gf100_ram_calc,
 	.prog = gf100_ram_prog,
 	.tidy = gf100_ram_tidy,

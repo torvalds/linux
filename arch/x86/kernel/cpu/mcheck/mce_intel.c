@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Intel specific MCE features.
  * Copyright 2004 Zwane Mwaikambo <zwane@linuxpower.ca>

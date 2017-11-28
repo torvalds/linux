@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __HDAC_HDMI_H__
 #define __HDAC_HDMI_H__
 

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 # DVM
 obj-$(CONFIG_IWLDVM)	+= iwldvm.o
 iwldvm-objs		+= main.o rs.o mac80211.o ucode.o tx.o

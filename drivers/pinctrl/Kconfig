@@ -2,11 +2,10 @@
 # PINCTRL infrastructure and drivers
 #
 
-config PINCTRL
-	bool
+menuconfig PINCTRL
+	bool "Pin controllers"
 
-menu "Pin controllers"
-	depends on PINCTRL
+if PINCTRL
 
 config GENERIC_PINCTRL_GROUPS
 	bool
@@ -33,7 +32,8 @@ config DEBUG_PINCTRL
 
 config PINCTRL_ADI2
 	bool "ADI pin controller driver"
-	depends on BLACKFIN
+	depends on (BF54x || BF60x)
+	depends on !GPIO_ADI
 	select PINMUX
 	select IRQ_DOMAIN
 	help
@@ -98,8 +98,10 @@ config PINCTRL_AT91PIO4
 
 config PINCTRL_AMD
 	tristate "AMD GPIO pin control"
-	depends on GPIOLIB
+	depends on HAS_IOMEM
+	select GPIOLIB
 	select GPIOLIB_IRQCHIP
+	select PINMUX
 	select PINCONF
 	select GENERIC_PINCONF
 	help
@@ -151,12 +153,14 @@ config PINCTRL_GEMINI
 	depends on ARCH_GEMINI
 	default ARCH_GEMINI
 	select PINMUX
+	select GENERIC_PINCONF
 	select MFD_SYSCON
 
 config PINCTRL_MCP23S08
 	tristate "Microchip MCP23xxx I/O expander"
 	depends on SPI_MASTER || I2C
 	depends on I2C || I2C=n
+	select GPIOLIB
 	select GPIOLIB_IRQCHIP
 	select REGMAP_I2C if I2C
 	select REGMAP_SPI if SPI_MASTER
@@ -166,16 +170,6 @@ config PINCTRL_MCP23S08
 	  I/O expanders.
 	  This provides a GPIO interface supporting inputs and outputs.
 	  The I2C versions of the chips can be used as interrupt-controller.
-
-config PINCTRL_MESON
-	bool
-	depends on OF
-	select PINMUX
-	select PINCONF
-	select GENERIC_PINCONF
-	select GPIOLIB
-	select OF_GPIO
-	select REGMAP_MMIO
 
 config PINCTRL_OXNAS
 	bool
@@ -209,6 +203,7 @@ config PINCTRL_RZA1
 config PINCTRL_SINGLE
 	tristate "One-register-per-pin type device tree based pinctrl driver"
 	depends on OF
+	depends on HAS_IOMEM
 	select GENERIC_PINCTRL_GROUPS
 	select GENERIC_PINMUX_FUNCTIONS
 	select GENERIC_PINCONF
@@ -225,10 +220,11 @@ config PINCTRL_SIRF
 
 config PINCTRL_SX150X
 	bool "Semtech SX150x I2C GPIO expander pinctrl driver"
-	depends on GPIOLIB && I2C=y
+	depends on I2C=y
 	select PINMUX
 	select PINCONF
 	select GENERIC_PINCONF
+	select GPIOLIB
 	select GPIOLIB_IRQCHIP
 	select REGMAP
 	help
@@ -368,6 +364,7 @@ source "drivers/pinctrl/uniphier/Kconfig"
 source "drivers/pinctrl/vt8500/Kconfig"
 source "drivers/pinctrl/mediatek/Kconfig"
 source "drivers/pinctrl/zte/Kconfig"
+source "drivers/pinctrl/meson/Kconfig"
 
 config PINCTRL_XWAY
 	bool
@@ -379,4 +376,4 @@ config PINCTRL_TB10X
 	depends on OF && ARC_PLAT_TB10X
 	select GPIOLIB
 
-endmenu
+endif

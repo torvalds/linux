@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Helpfile for jazzdma.c -- Mips Jazz R4030 DMA controller support
  */
