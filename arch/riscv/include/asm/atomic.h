@@ -300,8 +300,13 @@ static __always_inline long atomic64_inc_not_zero(atomic64_t *v)
 
 /*
  * atomic_{cmp,}xchg is required to have exactly the same ordering semantics as
- * {cmp,}xchg and the operations that return, so they need a barrier.  We just
- * use the other implementations directly.
+ * {cmp,}xchg and the operations that return, so they need a barrier.
+ */
+/*
+ * FIXME: atomic_cmpxchg_{acquire,release,relaxed} are all implemented by
+ * assigning the same barrier to both the LR and SC operations, but that might
+ * not make any sense.  We're waiting on a memory model specification to
+ * determine exactly what the right thing to do is here.
  */
 #define ATOMIC_OP(c_t, prefix, c_or, size, asm_or)						\
 static __always_inline c_t atomic##prefix##_cmpxchg##c_or(atomic##prefix##_t *v, c_t o, c_t n) 	\
