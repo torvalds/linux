@@ -64,7 +64,7 @@ static void sctp_stream_outq_migrate(struct sctp_stream *stream,
 		 */
 
 		/* Mark as failed send. */
-		sctp_chunk_fail(ch, SCTP_ERROR_INV_STRM);
+		sctp_chunk_fail(ch, (__force __u32)SCTP_ERROR_INV_STRM);
 		if (asoc->peer.prsctp_capable &&
 		    SCTP_PR_PRIO_ENABLED(ch->sinfo.sinfo_flags))
 			asoc->sent_cnt_removable--;

@@ -119,16 +119,27 @@ static struct sctp_sched_ops sctp_sched_fcfs = {
 	.unsched_all = sctp_sched_fcfs_unsched_all,
 };
 
+static void sctp_sched_ops_fcfs_init(void)
+{
+	sctp_sched_ops_register(SCTP_SS_FCFS, &sctp_sched_fcfs);
+}
+
 /* API to other parts of the stack */
 
-extern struct sctp_sched_ops sctp_sched_prio;
-extern struct sctp_sched_ops sctp_sched_rr;
+static struct sctp_sched_ops *sctp_sched_ops[SCTP_SS_MAX + 1];
 
-static struct sctp_sched_ops *sctp_sched_ops[] = {
-	&sctp_sched_fcfs,
-	&sctp_sched_prio,
-	&sctp_sched_rr,
-};
+void sctp_sched_ops_register(enum sctp_sched_type sched,
+			     struct sctp_sched_ops *sched_ops)
+{
+	sctp_sched_ops[sched] = sched_ops;
+}
+
+void sctp_sched_ops_init(void)
+{
+	sctp_sched_ops_fcfs_init();
+	sctp_sched_ops_prio_init();
+	sctp_sched_ops_rr_init();
+}
 
 int sctp_sched_set_sched(struct sctp_association *asoc,
 			 enum sctp_sched_type sched)
