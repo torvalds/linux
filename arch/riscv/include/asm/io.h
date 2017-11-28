@@ -250,7 +250,7 @@ static inline u64 __raw_readq(const volatile void __iomem *addr)
 			const ctype *buf = buffer;				\
 										\
 			do {							\
-				__raw_writeq(*buf++, addr);			\
+				__raw_write ## len(*buf++, addr);		\
 			} while (--count);					\
 		}								\
 		afence;								\
