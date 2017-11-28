@@ -136,13 +136,13 @@ int idr_alloc_cyclic(struct idr *idr, void *ptr, int start, int end, gfp_t gfp)
 EXPORT_SYMBOL(idr_alloc_cyclic);
 
 /**
- * idr_for_each - iterate through all stored pointers
- * @idr: idr handle
- * @fn: function to be called for each pointer
- * @data: data passed to callback function
+ * idr_for_each() - Iterate through all stored pointers.
+ * @idr: IDR handle.
+ * @fn: Function to be called for each pointer.
+ * @data: Data passed to callback function.
  *
  * The callback function will be called for each entry in @idr, passing
- * the id, the pointer and the data pointer passed to this function.
+ * the ID, the entry and @data.
  *
  * If @fn returns anything other than %0, the iteration stops and that
  * value is returned from this function.
@@ -169,9 +169,9 @@ int idr_for_each(const struct idr *idr,
 EXPORT_SYMBOL(idr_for_each);
 
 /**
- * idr_get_next - Find next populated entry
- * @idr: idr handle
- * @nextid: Pointer to lowest possible ID to return
+ * idr_get_next() - Find next populated entry.
+ * @idr: IDR handle.
+ * @nextid: Pointer to an ID.
  *
  * Returns the next populated entry in the tree with an ID greater than
  * or equal to the value pointed to by @nextid.  On exit, @nextid is updated
@@ -192,7 +192,17 @@ void *idr_get_next(struct idr *idr, int *nextid)
 }
 EXPORT_SYMBOL(idr_get_next);
 
-void *idr_get_next_ext(struct idr *idr, unsigned long *nextid)
+/**
+ * idr_get_next_ul() - Find next populated entry.
+ * @idr: IDR handle.
+ * @nextid: Pointer to an ID.
+ *
+ * Returns the next populated entry in the tree with an ID greater than
+ * or equal to the value pointed to by @nextid.  On exit, @nextid is updated
+ * to the ID of the found value.  To use in a loop, the value pointed to by
+ * nextid must be incremented by the user.
+ */
+void *idr_get_next_ul(struct idr *idr, unsigned long *nextid)
 {
 	struct radix_tree_iter iter;
 	void __rcu **slot;
@@ -204,7 +214,7 @@ void *idr_get_next_ext(struct idr *idr, unsigned long *nextid)
 	*nextid = iter.index;
 	return rcu_dereference_raw(*slot);
 }
-EXPORT_SYMBOL(idr_get_next_ext);
+EXPORT_SYMBOL(idr_get_next_ul);
 
 /**
  * idr_replace() - replace pointer for given ID.

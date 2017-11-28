@@ -88,7 +88,7 @@ int idr_alloc_cyclic(struct idr *, void *entry, int start, int end, gfp_t);
 int idr_for_each(const struct idr *,
 		 int (*fn)(int id, void *p, void *data), void *data);
 void *idr_get_next(struct idr *, int *nextid);
-void *idr_get_next_ext(struct idr *idr, unsigned long *nextid);
+void *idr_get_next_ul(struct idr *, unsigned long *nextid);
 void *idr_replace(struct idr *, void *, unsigned long id);
 void idr_destroy(struct idr *);
 
@@ -121,16 +121,18 @@ static inline void idr_preload_end(void)
 }
 
 /**
- * idr_find - return pointer for given id
- * @idr: idr handle
- * @id: lookup key
+ * idr_find() - Return pointer for given ID.
+ * @idr: IDR handle.
+ * @id: Pointer ID.
  *
- * Return the pointer given the id it has been registered with.  A %NULL
- * return indicates that @id is not valid or you passed %NULL in
- * idr_get_new().
+ * Looks up the pointer associated with this ID.  A %NULL pointer may
+ * indicate that @id is not allocated or that the %NULL pointer was
+ * associated with this ID.
  *
  * This function can be called under rcu_read_lock(), given that the leaf
  * pointers lifetimes are correctly managed.
+ *
+ * Return: The pointer associated with this ID.
  */
 static inline void *idr_find(const struct idr *idr, unsigned long id)
 {
@@ -138,28 +140,38 @@ static inline void *idr_find(const struct idr *idr, unsigned long id)
 }
 
 /**
- * idr_for_each_entry - iterate over an idr's elements of a given type
- * @idr:     idr handle
- * @entry:   the type * to use as cursor
- * @id:      id entry's key
+ * idr_for_each_entry() - Iterate over an IDR's elements of a given type.
+ * @idr: IDR handle.
+ * @entry: The type * to use as cursor
+ * @id: Entry ID.
  *
  * @entry and @id do not need to be initialized before the loop, and
- * after normal terminatinon @entry is left with the value NULL.  This
+ * after normal termination @entry is left with the value NULL.  This
  * is convenient for a "not found" value.
  */
 #define idr_for_each_entry(idr, entry, id)			\
 	for (id = 0; ((entry) = idr_get_next(idr, &(id))) != NULL; ++id)
-#define idr_for_each_entry_ext(idr, entry, id)			\
-	for (id = 0; ((entry) = idr_get_next_ext(idr, &(id))) != NULL; ++id)
 
 /**
- * idr_for_each_entry_continue - continue iteration over an idr's elements of a given type
- * @idr:     idr handle
- * @entry:   the type * to use as cursor
- * @id:      id entry's key
+ * idr_for_each_entry_ul() - Iterate over an IDR's elements of a given type.
+ * @idr: IDR handle.
+ * @entry: The type * to use as cursor.
+ * @id: Entry ID.
  *
- * Continue to iterate over list of given type, continuing after
- * the current position.
+ * @entry and @id do not need to be initialized before the loop, and
+ * after normal termination @entry is left with the value NULL.  This
+ * is convenient for a "not found" value.
+ */
+#define idr_for_each_entry_ul(idr, entry, id)			\
+	for (id = 0; ((entry) = idr_get_next_ul(idr, &(id))) != NULL; ++id)
+
+/**
+ * idr_for_each_entry_continue() - Continue iteration over an IDR's elements of a given type
+ * @idr: IDR handle.
+ * @entry: The type * to use as a cursor.
+ * @id: Entry ID.
+ *
+ * Continue to iterate over entries, continuing after the current position.
  */
 #define idr_for_each_entry_continue(idr, entry, id)			\
 	for ((entry) = idr_get_next((idr), &(id));			\
