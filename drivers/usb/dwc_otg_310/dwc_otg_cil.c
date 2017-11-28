@@ -3110,6 +3110,20 @@ void set_pid_isoc(dwc_hc_t *hc)
 	}
 }
 
+int dwc_otg_wait_bit_set(volatile u32 *reg, u32 bit, u32 timeout)
+{
+	int i;
+
+	for (i = 0; i < timeout; i++) {
+		if (DWC_READ_REG32(reg) & bit)
+			return 0;
+
+		dwc_udelay(1);
+	}
+
+	return -ETIMEDOUT;
+}
+
 /**
  * This function does the setup for a data transfer for a host channel and
  * starts the transfer. May be called in either Slave mode or DMA mode. In
@@ -3883,73 +3897,76 @@ void dwc_otg_ep_deactivate(dwc_otg_core_if_t *core_if, dwc_ep_t *ep)
 		depctl_data_t depctl = {.d32 = 0 };
 		if (ep->is_in) {
 			diepint_data_t diepint = {.d32 = 0 };
+			dwc_otg_dev_in_ep_regs_t *in_ep_reg;
+
+			in_ep_reg = core_if->dev_if->in_ep_regs[ep->num];
 
 			depctl.b.snak = 1;
-			DWC_WRITE_REG32(&core_if->dev_if->
-					in_ep_regs[ep->num]->diepctl,
+			DWC_WRITE_REG32(&in_ep_reg->diepctl,
 					depctl.d32);
-			do {
-				dwc_udelay(10);
-				diepint.d32 =
-				    DWC_READ_REG32(&core_if->dev_if->
-						   in_ep_regs[ep->
-							      num]->diepint);
-			} while (!diepint.b.inepnakeff);
+
 			diepint.b.inepnakeff = 1;
-			DWC_WRITE_REG32(&core_if->dev_if->
-					in_ep_regs[ep->num]->diepint,
-					diepint.d32);
+			if (dwc_otg_wait_bit_set(&in_ep_reg->diepint,
+						 diepint.d32, 1000)) {
+				DWC_WARN("%s: timeout diepctl.snak\n",
+					 __func__);
+			} else {
+				DWC_WRITE_REG32(&in_ep_reg->diepint,
+						diepint.d32);
+			}
+
 			depctl.d32 = 0;
 			depctl.b.epdis = 1;
-			DWC_WRITE_REG32(&core_if->dev_if->
-					in_ep_regs[ep->num]->diepctl,
+			DWC_WRITE_REG32(&in_ep_reg->diepctl,
 					depctl.d32);
-			do {
-				dwc_udelay(10);
-				diepint.d32 =
-				    DWC_READ_REG32(&core_if->dev_if->
-						   in_ep_regs[ep->
-							      num]->diepint);
-			} while (!diepint.b.epdisabled);
+
+			diepint.d32 = 0;
 			diepint.b.epdisabled = 1;
-			DWC_WRITE_REG32(&core_if->dev_if->
-					in_ep_regs[ep->num]->diepint,
-					diepint.d32);
+			if (dwc_otg_wait_bit_set(&in_ep_reg->diepint,
+						 diepint.d32, 1000)) {
+				DWC_WARN("%s: timeout diepctl.epdis\n",
+					 __func__);
+			} else {
+				DWC_WRITE_REG32(&in_ep_reg->diepint,
+						diepint.d32);
+			}
 		} else {
 			dctl_data_t dctl = {.d32 = 0 };
 			gintmsk_data_t gintsts = {.d32 = 0 };
 			doepint_data_t doepint = {.d32 = 0 };
+			dwc_otg_dev_out_ep_regs_t *out_ep_reg;
+
+			out_ep_reg = core_if->dev_if->out_ep_regs[ep->num];
+
 			dctl.b.sgoutnak = 1;
-			DWC_MODIFY_REG32(&core_if->dev_if->
-					 dev_global_regs->dctl, 0, dctl.d32);
-			do {
-				dwc_udelay(10);
-				gintsts.d32 =
-				    DWC_READ_REG32(&core_if->core_global_regs->
-						   gintsts);
-			} while (!gintsts.b.goutnakeff);
+			DWC_MODIFY_REG32(&core_if->dev_if->dev_global_regs->dctl,
+					 0, dctl.d32);
+
 			gintsts.d32 = 0;
 			gintsts.b.goutnakeff = 1;
-			DWC_WRITE_REG32(&core_if->core_global_regs->gintsts,
-					gintsts.d32);
+			if (dwc_otg_wait_bit_set(&core_if->core_global_regs->gintsts,
+						 gintsts.d32, 1000)) {
+				DWC_WARN("%s: timeout dctl.sgoutnak\n",
+					 __func__);
+			} else {
+				DWC_WRITE_REG32(&core_if->core_global_regs->gintsts,
+						gintsts.d32);
+			}
 
 			depctl.d32 = 0;
 			depctl.b.epdis = 1;
 			depctl.b.snak = 1;
-			DWC_WRITE_REG32(&core_if->dev_if->out_ep_regs[ep->num]->
-					doepctl, depctl.d32);
-			do {
-				dwc_udelay(10);
-				doepint.d32 =
-				    DWC_READ_REG32(&core_if->
-						   dev_if->out_ep_regs[ep->
-								       num]->
-						   doepint);
-			} while (!doepint.b.epdisabled);
+			DWC_WRITE_REG32(&out_ep_reg->doepctl, depctl.d32);
 
 			doepint.b.epdisabled = 1;
-			DWC_WRITE_REG32(&core_if->dev_if->out_ep_regs[ep->num]->
-					doepint, doepint.d32);
+			if (dwc_otg_wait_bit_set(&out_ep_reg->doepint,
+						 doepint.d32, 1000)) {
+				DWC_WARN("%s: timeout doepctl.epdis\n",
+					 __func__);
+			} else {
+				DWC_WRITE_REG32(&out_ep_reg->doepint,
+						doepint.d32);
+			}
 
 			dctl.d32 = 0;
 			dctl.b.cgoutnak = 1;

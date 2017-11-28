@@ -1054,6 +1054,11 @@ extern void hc_xfer_timeout(void *ptr);
 extern void ep_xfer_timeout(void *ptr);
 
 /*
+ * This function is called when set register and wait for completion.
+ */
+int dwc_otg_wait_bit_set(volatile u32 *reg, u32 bit, u32 timeout);
+
+/*
  * The following functions are functions for works
  * using during handling some interrupts
  */

@@ -1706,21 +1706,6 @@ out_unlocked:
 
 }
 
-static int dwc_otg_wait_bit_set(volatile uint32_t *reg,
-				uint32_t bit, uint32_t timeout)
-{
-	int i;
-
-	for (i = 0; i < timeout; i++) {
-		if (DWC_READ_REG32(reg) & bit)
-			return 0;
-
-		dwc_udelay(1);
-	}
-
-	return -ETIMEDOUT;
-}
-
 static void dwc_otg_pcd_ep_stop_transfer(dwc_otg_core_if_t
 					 *core_if, dwc_ep_t *ep)
 {
