@@ -38,14 +38,6 @@
 #define smp_rmb()	RISCV_FENCE(r,r)
 #define smp_wmb()	RISCV_FENCE(w,w)
 
-/*
- * These barriers prevent accesses performed outside a spinlock from being moved
- * inside a spinlock.  Since RISC-V sets the aq/rl bits on our spinlock only
- * enforce release consistency, we need full fences here.
- */
-#define smb_mb__before_spinlock()	smp_mb()
-#define smb_mb__after_spinlock()	smp_mb()
-
 #include <asm-generic/barrier.h>
 
 #endif /* __ASSEMBLY__ */
