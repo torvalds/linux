@@ -764,7 +764,7 @@ static int __ov5693_otp_read(struct v4l2_subdev *sd, u8 *buf)
 		//pr_debug("BANK[%2d] %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x\n", i, *b, *(b+1), *(b+2), *(b+3), *(b+4), *(b+5), *(b+6), *(b+7), *(b+8), *(b+9), *(b+10), *(b+11), *(b+12), *(b+13), *(b+14), *(b+15));
 
 		//Intel OTP map, try to read 320byts first.
-		if (21 == i) {
+		if (i == 21) {
 			if ((*b) == 0) {
 				dev->otp_size = 320;
 				break;
@@ -772,7 +772,7 @@ static int __ov5693_otp_read(struct v4l2_subdev *sd, u8 *buf)
 				b = buf;
 				continue;
 			}
-		} else if (24 == i) {		//if the first 320bytes data doesn't not exist, try to read the next 32bytes data.
+		} else if (i == 24) {		//if the first 320bytes data doesn't not exist, try to read the next 32bytes data.
 			if ((*b) == 0) {
 				dev->otp_size = 32;
 				break;
@@ -780,7 +780,7 @@ static int __ov5693_otp_read(struct v4l2_subdev *sd, u8 *buf)
 				b = buf;
 				continue;
 			}
-		} else if (27 == i) {		//if the prvious 32bytes data doesn't exist, try to read the next 32bytes data again.
+		} else if (i == 27) {		//if the prvious 32bytes data doesn't exist, try to read the next 32bytes data again.
 			if ((*b) == 0) {
 				dev->otp_size = 32;
 				break;
@@ -1348,7 +1348,7 @@ static int __power_up(struct v4l2_subdev *sd)
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	int ret;
 
-	if (NULL == dev->platform_data) {
+	if (!dev->platform_data) {
 		dev_err(&client->dev,
 			"no camera_sensor_platform_data");
 		return -ENODEV;
@@ -1396,7 +1396,7 @@ static int power_down(struct v4l2_subdev *sd)
 	int ret = 0;
 
 	dev->focus = OV5693_INVALID_CONFIG;
-	if (NULL == dev->platform_data) {
+	if (!dev->platform_data) {
 		dev_err(&client->dev,
 			"no camera_sensor_platform_data");
 		return -ENODEV;
