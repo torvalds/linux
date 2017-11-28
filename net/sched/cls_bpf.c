@@ -471,7 +471,6 @@ static int cls_bpf_change(struct net *net, struct sk_buff *in_skb,
 	struct cls_bpf_prog *oldprog = *arg;
 	struct nlattr *tb[TCA_BPF_MAX + 1];
 	struct cls_bpf_prog *prog;
-	unsigned long idr_index;
 	int ret;
 
 	if (tca[TCA_OPTIONS] == NULL)
@@ -498,20 +497,17 @@ static int cls_bpf_change(struct net *net, struct sk_buff *in_skb,
 	}
 
 	if (handle == 0) {
-		ret = idr_alloc_ext(&head->handle_idr, prog, &idr_index,
-				    1, 0x7FFFFFFF, GFP_KERNEL);
-		if (ret)
-			goto errout;
-		prog->handle = idr_index;
-	} else {
-		if (!oldprog) {
-			ret = idr_alloc_ext(&head->handle_idr, prog, &idr_index,
-					    handle, handle + 1, GFP_KERNEL);
-			if (ret)
-				goto errout;
-		}
-		prog->handle = handle;
+		handle = 1;
+		ret = idr_alloc_u32(&head->handle_idr, prog, &handle,
+				    INT_MAX, GFP_KERNEL);
+	} else if (!oldprog) {
+		ret = idr_alloc_u32(&head->handle_idr, prog, &handle,
+				    handle, GFP_KERNEL);
 	}
+
+	if (ret)
+		goto errout;
+	prog->handle = handle;
 
 	ret = cls_bpf_set_parms(net, tp, prog, base, tb, tca[TCA_RATE], ovr,
 				extack);
