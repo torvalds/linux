@@ -77,6 +77,7 @@ struct nvme_rdma_request {
 enum nvme_rdma_queue_flags {
 	NVME_RDMA_Q_ALLOCATED		= 0,
 	NVME_RDMA_Q_LIVE		= 1,
+	NVME_RDMA_Q_TR_READY		= 2,
 };
 
 struct nvme_rdma_queue {
@@ -390,12 +391,23 @@ out_err:
 
 static void nvme_rdma_destroy_queue_ib(struct nvme_rdma_queue *queue)
 {
-	struct nvme_rdma_device *dev = queue->device;
-	struct ib_device *ibdev = dev->dev;
+	struct nvme_rdma_device *dev;
+	struct ib_device *ibdev;
+
+	if (!test_and_clear_bit(NVME_RDMA_Q_TR_READY, &queue->flags))
+		return;
+
+	dev = queue->device;
+	ibdev = dev->dev;
 
 	ib_mr_pool_destroy(queue->qp, &queue->qp->rdma_mrs);
 
-	rdma_destroy_qp(queue->cm_id);
+	/*
+	 * The cm_id object might have been destroyed during RDMA connection
+	 * establishment error flow to avoid getting other cma events, thus
+	 * the destruction of the QP shouldn't use rdma_cm API.
+	 */
+	ib_destroy_qp(queue->qp);
 	ib_free_cq(queue->ib_cq);
 
 	nvme_rdma_free_ring(ibdev, queue->rsp_ring, queue->queue_size,
@@ -463,6 +475,8 @@ static int nvme_rdma_create_queue_ib(struct nvme_rdma_queue *queue)
 		goto out_destroy_ring;
 	}
 
+	set_bit(NVME_RDMA_Q_TR_READY, &queue->flags);
+
 	return 0;
 
 out_destroy_ring:
@@ -529,6 +543,7 @@ static int nvme_rdma_alloc_queue(struct nvme_rdma_ctrl *ctrl,
 
 out_destroy_cm_id:
 	rdma_destroy_id(queue->cm_id);
+	nvme_rdma_destroy_queue_ib(queue);
 	return ret;
 }
 
