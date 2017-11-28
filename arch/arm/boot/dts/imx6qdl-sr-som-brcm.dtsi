@@ -40,7 +40,7 @@
  */
 #include <dt-bindings/gpio/gpio.h>
 / {
-	clk_sdio: sdio-clock {
+	clk_brcm: brcm-clock {
 		compatible = "gpio-gate-clock";
 		#clock-cells = <0>;
 		pinctrl-names = "default";
@@ -64,7 +64,7 @@
 		compatible = "mmc-pwrseq-simple";
 		reset-gpios = <&gpio5 26 GPIO_ACTIVE_LOW>,
 			      <&gpio6 0 GPIO_ACTIVE_LOW>;
-		clocks = <&clk_sdio>;
+		clocks = <&clk_brcm>;
 		clock-names = "ext_clock";
 	};
 };
