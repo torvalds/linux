@@ -316,19 +316,13 @@ static void *u32_get(struct tcf_proto *tp, u32 handle)
 	return u32_lookup_key(ht, handle);
 }
 
+/* Protected by rtnl lock */
 static u32 gen_new_htid(struct tc_u_common *tp_c, struct tc_u_hnode *ptr)
 {
-	unsigned long idr_index;
-	int err;
-
-	/* This is only used inside rtnl lock it is safe to increment
-	 * without read _copy_ update semantics
-	 */
-	err = idr_alloc_ext(&tp_c->handle_idr, ptr, &idr_index,
-			    1, 0x7FF, GFP_KERNEL);
-	if (err)
+	int id = idr_alloc_cyclic(&tp_c->handle_idr, ptr, 1, 0x7FF, GFP_KERNEL);
+	if (id < 0)
 		return 0;
-	return (u32)(idr_index | 0x800) << 20;
+	return (id | 0x800U) << 20;
 }
 
 static struct hlist_head *tc_u_common_hash;
