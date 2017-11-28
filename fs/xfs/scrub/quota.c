@@ -207,7 +207,7 @@ xfs_scrub_quota(
 	xfs_dqid_t			id = 0;
 	uint				dqtype;
 	int				nimaps;
-	int				error;
+	int				error = 0;
 
 	if (!XFS_IS_QUOTA_RUNNING(mp) || !XFS_IS_QUOTA_ON(mp))
 		return -ENOENT;
