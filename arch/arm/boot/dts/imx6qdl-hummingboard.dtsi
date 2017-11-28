@@ -150,13 +150,13 @@
 	status = "okay";
 
 	/* Pro baseboard model */
-	rtc: pcf8523@68 {
+	rtc@68 {
 		compatible = "nxp,pcf8523";
 		reg = <0x68>;
 	};
 
 	/* Pro baseboard model */
-	sgtl5000: sgtl5000@a {
+	sgtl5000: codec@a {
 		clocks = <&clks IMX6QDL_CLK_CKO>;
 		compatible = "fsl,sgtl5000";
 		pinctrl-names = "default";

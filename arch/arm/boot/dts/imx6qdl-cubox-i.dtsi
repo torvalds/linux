@@ -135,7 +135,7 @@
 
 	status = "okay";
 
-	rtc: pcf8523@68 {
+	rtc@68 {
 		compatible = "nxp,pcf8523";
 		reg = <0x68>;
 	};
