@@ -39,21 +39,6 @@
 #define smp_wmb()	RISCV_FENCE(w,w)
 
 /*
- * These fences exist to enforce ordering around the relaxed AMOs.  The
- * documentation defines that
- * "
- *     atomic_fetch_add();
- *   is equivalent to:
- *     smp_mb__before_atomic();
- *     atomic_fetch_add_relaxed();
- *     smp_mb__after_atomic();
- * "
- * So we emit full fences on both sides.
- */
-#define __smb_mb__before_atomic()	smp_mb()
-#define __smb_mb__after_atomic()	smp_mb()
-
-/*
  * These barriers prevent accesses performed outside a spinlock from being moved
  * inside a spinlock.  Since RISC-V sets the aq/rl bits on our spinlock only
  * enforce release consistency, we need full fences here.
