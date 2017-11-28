@@ -1546,8 +1546,8 @@ static struct dst_entry *xfrm_bundle_create(struct xfrm_policy *policy,
 	unsigned long now = jiffies;
 	struct net_device *dev;
 	struct xfrm_mode *inner_mode;
-	struct dst_entry *dst_prev = NULL;
-	struct dst_entry *dst0 = NULL;
+	struct xfrm_dst *xdst_prev = NULL;
+	struct xfrm_dst *xdst0 = NULL;
 	int i = 0;
 	int err;
 	int header_len = 0;
@@ -1573,13 +1573,13 @@ static struct dst_entry *xfrm_bundle_create(struct xfrm_policy *policy,
 			goto put_states;
 		}
 
-		if (!dst_prev)
-			dst0 = dst1;
+		if (!xdst_prev)
+			xdst0 = xdst;
 		else
 			/* Ref count is taken during xfrm_alloc_dst()
 			 * No need to do dst_clone() on dst1
 			 */
-			dst_prev->child = dst1;
+			xfrm_dst_set_child(xdst_prev, &xdst->u.dst);
 
 		if (xfrm[i]->sel.family == AF_UNSPEC) {
 			inner_mode = xfrm_ip2inner_mode(xfrm[i],
@@ -1616,8 +1616,8 @@ static struct dst_entry *xfrm_bundle_create(struct xfrm_policy *policy,
 		dst1->input = dst_discard;
 		dst1->output = inner_mode->afinfo->output;
 
-		dst1->next = dst_prev;
-		dst_prev = dst1;
+		dst1->next = &xdst_prev->u.dst;
+		xdst_prev = xdst;
 
 		header_len += xfrm[i]->props.header_len;
 		if (xfrm[i]->type->flags & XFRM_TYPE_NON_FRAGMENT)
@@ -1625,40 +1625,39 @@ static struct dst_entry *xfrm_bundle_create(struct xfrm_policy *policy,
 		trailer_len += xfrm[i]->props.trailer_len;
 	}
 
-	dst_prev->child = dst;
-	dst0->path = dst;
+	xfrm_dst_set_child(xdst_prev, dst);
+	xdst0->u.dst.path = dst;
 
 	err = -ENODEV;
 	dev = dst->dev;
 	if (!dev)
 		goto free_dst;
 
-	xfrm_init_path((struct xfrm_dst *)dst0, dst, nfheader_len);
-	xfrm_init_pmtu(dst_prev);
+	xfrm_init_path(xdst0, dst, nfheader_len);
+	xfrm_init_pmtu(&xdst_prev->u.dst);
 
-	for (dst_prev = dst0; dst_prev != dst; dst_prev = xfrm_dst_child(dst_prev)) {
-		struct xfrm_dst *xdst = (struct xfrm_dst *)dst_prev;
-
-		err = xfrm_fill_dst(xdst, dev, fl);
+	for (xdst_prev = xdst0; xdst_prev != (struct xfrm_dst *)dst;
+	     xdst_prev = (struct xfrm_dst *) xfrm_dst_child(&xdst_prev->u.dst)) {
+		err = xfrm_fill_dst(xdst_prev, dev, fl);
 		if (err)
 			goto free_dst;
 
-		dst_prev->header_len = header_len;
-		dst_prev->trailer_len = trailer_len;
-		header_len -= xdst->u.dst.xfrm->props.header_len;
-		trailer_len -= xdst->u.dst.xfrm->props.trailer_len;
+		xdst_prev->u.dst.header_len = header_len;
+		xdst_prev->u.dst.trailer_len = trailer_len;
+		header_len -= xdst_prev->u.dst.xfrm->props.header_len;
+		trailer_len -= xdst_prev->u.dst.xfrm->props.trailer_len;
 	}
 
 out:
-	return dst0;
+	return &xdst0->u.dst;
 
 put_states:
 	for (; i < nx; i++)
 		xfrm_state_put(xfrm[i]);
 free_dst:
-	if (dst0)
-		dst_release_immediate(dst0);
-	dst0 = ERR_PTR(err);
+	if (xdst0)
+		dst_release_immediate(&xdst0->u.dst);
+	xdst0 = ERR_PTR(err);
 	goto out;
 }
 
@@ -2012,7 +2011,7 @@ static struct xfrm_dst *xfrm_create_dummy_bundle(struct net *net,
 	dst1->output = xdst_queue_output;
 
 	dst_hold(dst);
-	dst1->child = dst;
+	xfrm_dst_set_child(xdst, dst);
 	dst1->path = dst;
 
 	xfrm_init_path((struct xfrm_dst *)dst1, dst, 0);

@@ -1004,6 +1004,11 @@ static inline struct dst_entry *xfrm_dst_child(const struct dst_entry *dst)
 }
 
 #ifdef CONFIG_XFRM
+static inline void xfrm_dst_set_child(struct xfrm_dst *xdst, struct dst_entry *child)
+{
+	xdst->u.dst.child = child;
+}
+
 static inline void xfrm_dst_destroy(struct xfrm_dst *xdst)
 {
 	xfrm_pols_put(xdst->pols, xdst->num_pols);
