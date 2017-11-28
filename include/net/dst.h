@@ -102,7 +102,6 @@ struct dst_entry {
 	union {
 		struct dst_entry	*next;
 		struct rt6_info __rcu	*rt6_next;
-		struct dn_route __rcu	*dn_next;
 	};
 };
 
