@@ -2496,6 +2496,9 @@ int dwc_otg_pcd_ep_dequeue(dwc_otg_pcd_t *pcd, void *ep_handle,
 		}
 
 		dwc_otg_request_done(ep, req, -DWC_E_RESTART);
+
+		if (ep->dwc_ep.type == DWC_OTG_EP_TYPE_ISOC)
+			ep->dwc_ep.frame_num = 0xFFFFFFFF;
 	} else {
 		req = NULL;
 	}
