@@ -1067,6 +1067,15 @@ static int gen9_init_workarounds(struct intel_engine_cs *engine)
 	/* WaDisableSTUnitPowerOptimization:skl,bxt,kbl,glk,cfl */
 	WA_SET_BIT_MASKED(HALF_SLICE_CHICKEN2, GEN8_ST_PO_DISABLE);
 
+	/* WaProgramL3SqcReg1DefaultForPerf:bxt,glk */
+	if (IS_GEN9_LP(dev_priv)) {
+		u32 val = I915_READ(GEN8_L3SQCREG1);
+
+		val &= ~L3_PRIO_CREDITS_MASK;
+		val |= L3_GENERAL_PRIO_CREDITS(62) | L3_HIGH_PRIO_CREDITS(2);
+		I915_WRITE(GEN8_L3SQCREG1, val);
+	}
+
 	/* WaOCLCoherentLineFlush:skl,bxt,kbl,cfl */
 	I915_WRITE(GEN8_L3SQCREG4, (I915_READ(GEN8_L3SQCREG4) |
 				    GEN8_LQSC_FLUSH_COHERENT_LINES));
@@ -1184,7 +1193,6 @@ static int skl_init_workarounds(struct intel_engine_cs *engine)
 static int bxt_init_workarounds(struct intel_engine_cs *engine)
 {
 	struct drm_i915_private *dev_priv = engine->i915;
-	u32 val;
 	int ret;
 
 	ret = gen9_init_workarounds(engine);
@@ -1198,12 +1206,6 @@ static int bxt_init_workarounds(struct intel_engine_cs *engine)
 	/* WaDisablePooledEuLoadBalancingFix:bxt */
 	I915_WRITE(FF_SLICE_CS_CHICKEN2,
 		   _MASKED_BIT_ENABLE(GEN9_POOLED_EU_LOAD_BALANCING_FIX_DISABLE));
-
-	/* WaProgramL3SqcReg1DefaultForPerf:bxt */
-	val = I915_READ(GEN8_L3SQCREG1);
-	val &= ~L3_PRIO_CREDITS_MASK;
-	val |= L3_GENERAL_PRIO_CREDITS(62) | L3_HIGH_PRIO_CREDITS(2);
-	I915_WRITE(GEN8_L3SQCREG1, val);
 
 	/* WaToEnableHwFixForPushConstHWBug:bxt */
 	WA_SET_BIT_MASKED(COMMON_SLICE_CHICKEN2,
