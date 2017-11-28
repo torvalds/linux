@@ -8329,7 +8329,7 @@ static int mvpp2_probe(struct platform_device *pdev)
 	for_each_available_child_of_node(dn, port_node) {
 		err = mvpp2_port_probe(pdev, port_node, priv, i);
 		if (err < 0)
-			goto err_mg_clk;
+			goto err_port_probe;
 		i++;
 	}
 
@@ -8345,12 +8345,19 @@ static int mvpp2_probe(struct platform_device *pdev)
 	priv->stats_queue = create_singlethread_workqueue(priv->queue_name);
 	if (!priv->stats_queue) {
 		err = -ENOMEM;
-		goto err_mg_clk;
+		goto err_port_probe;
 	}
 
 	platform_set_drvdata(pdev, priv);
 	return 0;
 
+err_port_probe:
+	i = 0;
+	for_each_available_child_of_node(dn, port_node) {
+		if (priv->port_list[i])
+			mvpp2_port_remove(priv->port_list[i]);
+		i++;
+	}
 err_mg_clk:
 	clk_disable_unprepare(priv->axi_clk);
 	if (priv->hw_version == MVPP22)
