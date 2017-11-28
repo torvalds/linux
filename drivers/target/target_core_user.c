@@ -637,7 +637,7 @@ static void gather_data_area(struct tcmu_dev *udev, struct tcmu_cmd *cmd,
 
 static inline size_t spc_bitmap_free(unsigned long *bitmap, uint32_t thresh)
 {
-	return DATA_BLOCK_SIZE * (thresh - bitmap_weight(bitmap, thresh));
+	return thresh - bitmap_weight(bitmap, thresh);
 }
 
 /*
@@ -677,8 +677,9 @@ static bool is_ring_space_avail(struct tcmu_dev *udev, struct tcmu_cmd *cmd,
 
 	/* try to check and get the data blocks as needed */
 	space = spc_bitmap_free(udev->data_bitmap, udev->dbi_thresh);
-	if (space < data_needed) {
-		unsigned long blocks_left = DATA_BLOCK_BITS - udev->dbi_thresh;
+	if ((space * DATA_BLOCK_SIZE) < data_needed) {
+		unsigned long blocks_left = DATA_BLOCK_BITS - udev->dbi_thresh +
+						space;
 		unsigned long grow;
 
 		if (blocks_left < blocks_needed) {
