@@ -1198,7 +1198,7 @@ static long vphn_get_associativity(unsigned long cpu,
 	return rc;
 }
 
-static inline int find_and_online_cpu_nid(int cpu)
+int find_and_online_cpu_nid(int cpu)
 {
 	__be32 associativity[VPHN_ASSOC_BUFSIZE] = {0};
 	int new_nid;
@@ -1229,6 +1229,8 @@ static inline int find_and_online_cpu_nid(int cpu)
 #endif
 	}
 
+	pr_debug("%s:%d cpu %d nid %d\n", __FUNCTION__, __LINE__,
+		cpu, new_nid);
 	return new_nid;
 }
 
