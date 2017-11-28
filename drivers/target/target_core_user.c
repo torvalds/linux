@@ -143,6 +143,7 @@ struct tcmu_dev {
 
 	struct timer_list timeout;
 	unsigned int cmd_time_out;
+	struct list_head timedout_entry;
 
 	spinlock_t nl_cmd_lock;
 	struct tcmu_nl_cmd curr_nl_cmd;
@@ -178,6 +179,9 @@ struct tcmu_cmd {
 
 static DEFINE_MUTEX(root_udev_mutex);
 static LIST_HEAD(root_udev);
+
+static DEFINE_SPINLOCK(timed_out_udevs_lock);
+static LIST_HEAD(timed_out_udevs);
 
 static atomic_t global_db_count = ATOMIC_INIT(0);
 static struct work_struct tcmu_unmap_work;
@@ -1057,18 +1061,15 @@ static int tcmu_check_expired_cmd(int id, void *p, void *data)
 static void tcmu_device_timedout(struct timer_list *t)
 {
 	struct tcmu_dev *udev = from_timer(udev, t, timeout);
-	unsigned long flags;
 
-	spin_lock_irqsave(&udev->commands_lock, flags);
-	idr_for_each(&udev->commands, tcmu_check_expired_cmd, NULL);
-	spin_unlock_irqrestore(&udev->commands_lock, flags);
+	pr_debug("%s cmd timeout has expired\n", udev->name);
+
+	spin_lock(&timed_out_udevs_lock);
+	if (list_empty(&udev->timedout_entry))
+		list_add_tail(&udev->timedout_entry, &timed_out_udevs);
+	spin_unlock(&timed_out_udevs_lock);
 
 	schedule_work(&tcmu_unmap_work);
-
-	/*
-	 * We don't need to wakeup threads on wait_cmdr since they have their
-	 * own timeout.
-	 */
 }
 
 static int tcmu_attach_hba(struct se_hba *hba, u32 host_id)
@@ -1112,6 +1113,7 @@ static struct se_device *tcmu_alloc_device(struct se_hba *hba, const char *name)
 	init_waitqueue_head(&udev->wait_cmdr);
 	mutex_init(&udev->cmdr_lock);
 
+	INIT_LIST_HEAD(&udev->timedout_entry);
 	idr_init(&udev->commands);
 	spin_lock_init(&udev->commands_lock);
 
@@ -1324,6 +1326,11 @@ static void tcmu_dev_kref_release(struct kref *kref)
 
 	vfree(udev->mb_addr);
 	udev->mb_addr = NULL;
+
+	spin_lock_bh(&timed_out_udevs_lock);
+	if (!list_empty(&udev->timedout_entry))
+		list_del(&udev->timedout_entry);
+	spin_unlock_bh(&timed_out_udevs_lock);
 
 	/* Upper layer should drain all requests before calling this */
 	spin_lock_irq(&udev->commands_lock);
@@ -2041,8 +2048,31 @@ static void run_cmdr_queues(void)
 	mutex_unlock(&root_udev_mutex);
 }
 
+static void check_timedout_devices(void)
+{
+	struct tcmu_dev *udev, *tmp_dev;
+	LIST_HEAD(devs);
+
+	spin_lock_bh(&timed_out_udevs_lock);
+	list_splice_init(&timed_out_udevs, &devs);
+
+	list_for_each_entry_safe(udev, tmp_dev, &devs, timedout_entry) {
+		list_del_init(&udev->timedout_entry);
+		spin_unlock_bh(&timed_out_udevs_lock);
+
+		spin_lock(&udev->commands_lock);
+		idr_for_each(&udev->commands, tcmu_check_expired_cmd, NULL);
+		spin_unlock(&udev->commands_lock);
+
+		spin_lock_bh(&timed_out_udevs_lock);
+	}
+
+	spin_unlock_bh(&timed_out_udevs_lock);
+}
+
 static void tcmu_unmap_work_fn(struct work_struct *work)
 {
+	check_timedout_devices();
 	find_free_blocks();
 	run_cmdr_queues();
 }
