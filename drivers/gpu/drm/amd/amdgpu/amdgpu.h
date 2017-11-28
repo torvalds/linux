@@ -1428,6 +1428,23 @@ typedef void (*amdgpu_wreg_t)(struct amdgpu_device*, uint32_t, uint32_t);
 typedef uint32_t (*amdgpu_block_rreg_t)(struct amdgpu_device*, uint32_t, uint32_t);
 typedef void (*amdgpu_block_wreg_t)(struct amdgpu_device*, uint32_t, uint32_t, uint32_t);
 
+
+/*
+ * amdgpu nbio functions
+ *
+ * Fix me :
+ * 	Put more NBIO specifc func wraper here , for now just try to minimize the
+ *	change to avoid use SOC15_REG_OFFSET in the constant array
+ */
+
+struct amdgpu_nbio_funcs {
+	u32 (*get_hdp_flush_req_offset)(struct amdgpu_device*);
+	u32 (*get_hdp_flush_done_offset)(struct amdgpu_device*);
+	u32 (*get_pcie_index_offset)(struct amdgpu_device*);
+	u32 (*get_pcie_data_offset)(struct amdgpu_device*);
+};
+
+
 /* Define the HW IP blocks will be used in driver , add more if necessary */
 enum amd_hw_ip_block_type {
 	GC_HWIP = 1,
@@ -1646,6 +1663,8 @@ struct amdgpu_device {
 
 	/* soc15 register offset based on ip, instance and  segment */
 	uint32_t 		*reg_offset[MAX_HWIP][HWIP_MAX_INSTANCE];
+
+	const struct amdgpu_nbio_funcs	*nbio_funcs;
 
 	/* delayed work_func for deferring clockgating during resume */
 	struct delayed_work     late_init_work;

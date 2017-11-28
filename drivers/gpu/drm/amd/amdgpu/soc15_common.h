@@ -25,8 +25,6 @@
 #define __SOC15_COMMON_H__
 
 struct nbio_hdp_flush_reg {
-	u32 hdp_flush_req_offset;
-	u32 hdp_flush_done_offset;
 	u32 ref_and_mask_cp0;
 	u32 ref_and_mask_cp1;
 	u32 ref_and_mask_cp2;
@@ -41,10 +39,6 @@ struct nbio_hdp_flush_reg {
 	u32 ref_and_mask_sdma1;
 };
 
-struct nbio_pcie_index_data {
-	u32 index_offset;
-	u32 data_offset;
-};
 
 /* Register Access Macros */
 #define SOC15_REG_OFFSET(ip, inst, reg)       (0 == reg##_BASE_IDX ? ip##_BASE__INST##inst##_SEG0 + reg : \

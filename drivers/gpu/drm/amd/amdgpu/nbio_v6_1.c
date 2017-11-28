@@ -76,16 +76,13 @@ u32 nbio_v6_1_get_memsize(struct amdgpu_device *adev)
 	return RREG32_SOC15(NBIO, 0, mmRCC_PF_0_0_RCC_CONFIG_MEMSIZE);
 }
 
-static const u32 nbio_sdma_doorbell_range_reg[] =
-{
-	SOC15_REG_OFFSET(NBIO, 0, mmBIF_SDMA0_DOORBELL_RANGE),
-	SOC15_REG_OFFSET(NBIO, 0, mmBIF_SDMA1_DOORBELL_RANGE)
-};
-
 void nbio_v6_1_sdma_doorbell_range(struct amdgpu_device *adev, int instance,
 				  bool use_doorbell, int doorbell_index)
 {
-	u32 doorbell_range = RREG32(nbio_sdma_doorbell_range_reg[instance]);
+	u32 reg = instance == 0 ? SOC15_REG_OFFSET(NBIO, 0, mmBIF_SDMA0_DOORBELL_RANGE) :
+			SOC15_REG_OFFSET(NBIO, 0, mmBIF_SDMA1_DOORBELL_RANGE);
+
+	u32 doorbell_range = RREG32(reg);
 
 	if (use_doorbell) {
 		doorbell_range = REG_SET_FIELD(doorbell_range, BIF_SDMA0_DOORBELL_RANGE, OFFSET, doorbell_index);
@@ -93,7 +90,8 @@ void nbio_v6_1_sdma_doorbell_range(struct amdgpu_device *adev, int instance,
 	} else
 		doorbell_range = REG_SET_FIELD(doorbell_range, BIF_SDMA0_DOORBELL_RANGE, SIZE, 0);
 
-	WREG32(nbio_sdma_doorbell_range_reg[instance], doorbell_range);
+	WREG32(reg, doorbell_range);
+
 }
 
 void nbio_v6_1_enable_doorbell_aperture(struct amdgpu_device *adev,
@@ -215,9 +213,27 @@ void nbio_v6_1_get_clockgating_state(struct amdgpu_device *adev, u32 *flags)
 		*flags |= AMD_CG_SUPPORT_BIF_LS;
 }
 
+static u32 get_hdp_flush_req_offset(struct amdgpu_device *adev)
+{
+	return SOC15_REG_OFFSET(NBIO, 0, mmBIF_BX_PF0_GPU_HDP_FLUSH_REQ);
+}
+
+static u32 get_hdp_flush_done_offset(struct amdgpu_device *adev)
+{
+	return SOC15_REG_OFFSET(NBIO, 0, mmBIF_BX_PF0_GPU_HDP_FLUSH_DONE);
+}
+
+static u32 get_pcie_index_offset(struct amdgpu_device *adev)
+{
+	return SOC15_REG_OFFSET(NBIO, 0, mmPCIE_INDEX);
+}
+
+static u32 get_pcie_data_offset(struct amdgpu_device *adev)
+{
+	return SOC15_REG_OFFSET(NBIO, 0, mmPCIE_DATA);
+}
+
 const struct nbio_hdp_flush_reg nbio_v6_1_hdp_flush_reg = {
-	.hdp_flush_req_offset = SOC15_REG_OFFSET(NBIO, 0, mmBIF_BX_PF0_GPU_HDP_FLUSH_REQ),
-	.hdp_flush_done_offset = SOC15_REG_OFFSET(NBIO, 0, mmBIF_BX_PF0_GPU_HDP_FLUSH_DONE),
 	.ref_and_mask_cp0 = BIF_BX_PF0_GPU_HDP_FLUSH_DONE__CP0_MASK,
 	.ref_and_mask_cp1 = BIF_BX_PF0_GPU_HDP_FLUSH_DONE__CP1_MASK,
 	.ref_and_mask_cp2 = BIF_BX_PF0_GPU_HDP_FLUSH_DONE__CP2_MASK,
@@ -232,10 +248,13 @@ const struct nbio_hdp_flush_reg nbio_v6_1_hdp_flush_reg = {
 	.ref_and_mask_sdma1 = BIF_BX_PF0_GPU_HDP_FLUSH_DONE__SDMA1_MASK
 };
 
-const struct nbio_pcie_index_data nbio_v6_1_pcie_index_data = {
-	.index_offset = SOC15_REG_OFFSET(NBIO, 0, mmPCIE_INDEX),
-	.data_offset = SOC15_REG_OFFSET(NBIO, 0, mmPCIE_DATA),
+const struct amdgpu_nbio_funcs nbio_v6_1_funcs = {
+	.get_hdp_flush_req_offset = get_hdp_flush_req_offset,
+	.get_hdp_flush_done_offset = get_hdp_flush_done_offset,
+	.get_pcie_index_offset = get_pcie_index_offset,
+	.get_pcie_data_offset = get_pcie_data_offset,
 };
+
 
 void nbio_v6_1_detect_hw_virt(struct amdgpu_device *adev)
 {

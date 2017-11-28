@@ -1314,6 +1314,16 @@ static void uvd_v7_0_ring_emit_vm_flush(struct amdgpu_ring *ring,
 	uvd_v7_0_vm_reg_wait(ring, data0, data1, mask);
 }
 
+static void uvd_v7_0_ring_insert_nop(struct amdgpu_ring *ring, uint32_t count)
+{
+	int i;
+	struct amdgpu_device *adev = ring->adev;
+
+	for (i = 0; i < count; i++)
+		amdgpu_ring_write(ring, PACKET0(SOC15_REG_OFFSET(UVD, 0, mmUVD_NO_OP), 0));
+
+}
+
 static void uvd_v7_0_enc_ring_insert_end(struct amdgpu_ring *ring)
 {
 	amdgpu_ring_write(ring, HEVC_ENC_CMD_END);
@@ -1681,7 +1691,7 @@ const struct amd_ip_funcs uvd_v7_0_ip_funcs = {
 static const struct amdgpu_ring_funcs uvd_v7_0_ring_vm_funcs = {
 	.type = AMDGPU_RING_TYPE_UVD,
 	.align_mask = 0xf,
-	.nop = PACKET0(SOC15_REG_OFFSET(UVD, 0, mmUVD_NO_OP), 0),
+	.nop = PACKET0(0x81ff, 0),
 	.support_64bit_ptrs = false,
 	.vmhub = AMDGPU_MMHUB,
 	.get_rptr = uvd_v7_0_ring_get_rptr,
@@ -1700,7 +1710,7 @@ static const struct amdgpu_ring_funcs uvd_v7_0_ring_vm_funcs = {
 	.emit_hdp_invalidate = uvd_v7_0_ring_emit_hdp_invalidate,
 	.test_ring = uvd_v7_0_ring_test_ring,
 	.test_ib = amdgpu_uvd_ring_test_ib,
-	.insert_nop = amdgpu_ring_insert_nop,
+	.insert_nop = uvd_v7_0_ring_insert_nop,
 	.pad_ib = amdgpu_ring_generic_pad_ib,
 	.begin_use = amdgpu_uvd_ring_begin_use,
 	.end_use = amdgpu_uvd_ring_end_use,

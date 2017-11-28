@@ -35,6 +35,7 @@
 #include "mmhub/mmhub_1_0_offset.h"
 #include "athub/athub_1_0_offset.h"
 
+#include "soc15.h"
 #include "soc15_common.h"
 #include "umc/umc_6_0_sh_mask.h"
 
@@ -74,16 +75,16 @@ static const u32 golden_settings_vega10_hdp[] =
 	0xf6e, 0x0fffffff, 0x00000000,
 };
 
-static const u32 golden_settings_mmhub_1_0_0[] =
+static const struct soc15_reg_golden golden_settings_mmhub_1_0_0[] =
 {
-	SOC15_REG_OFFSET(MMHUB, 0, mmDAGB1_WRCLI2), 0x00000007, 0xfe5fe0fa,
-	SOC15_REG_OFFSET(MMHUB, 0, mmMMEA1_DRAM_WR_CLI2GRP_MAP0), 0x00000030, 0x55555565
+	SOC15_REG_GOLDEN_VALUE(MMHUB, 0, mmDAGB1_WRCLI2, 0x00000007, 0xfe5fe0fa),
+	SOC15_REG_GOLDEN_VALUE(MMHUB, 0, mmMMEA1_DRAM_WR_CLI2GRP_MAP0, 0x00000030, 0x55555565)
 };
 
-static const u32 golden_settings_athub_1_0_0[] =
+static const struct soc15_reg_golden golden_settings_athub_1_0_0[] =
 {
-	SOC15_REG_OFFSET(ATHUB, 0, mmRPB_ARB_CNTL), 0x0000ff00, 0x00000800,
-	SOC15_REG_OFFSET(ATHUB, 0, mmRPB_ARB_CNTL2), 0x00ff00ff, 0x00080008
+	SOC15_REG_GOLDEN_VALUE(ATHUB, 0, mmRPB_ARB_CNTL, 0x0000ff00, 0x00000800),
+	SOC15_REG_GOLDEN_VALUE(ATHUB, 0, mmRPB_ARB_CNTL2, 0x00ff00ff, 0x00080008)
 };
 
 /* Ecc related register addresses, (BASE + reg offset) */
@@ -883,17 +884,18 @@ static int gmc_v9_0_sw_fini(void *handle)
 
 static void gmc_v9_0_init_golden_registers(struct amdgpu_device *adev)
 {
+
 	switch (adev->asic_type) {
 	case CHIP_VEGA10:
-		amdgpu_program_register_sequence(adev,
+		soc15_program_register_sequence(adev,
 						golden_settings_mmhub_1_0_0,
 						ARRAY_SIZE(golden_settings_mmhub_1_0_0));
-		amdgpu_program_register_sequence(adev,
+		soc15_program_register_sequence(adev,
 						golden_settings_athub_1_0_0,
 						ARRAY_SIZE(golden_settings_athub_1_0_0));
 		break;
 	case CHIP_RAVEN:
-		amdgpu_program_register_sequence(adev,
+		soc15_program_register_sequence(adev,
 						golden_settings_athub_1_0_0,
 						ARRAY_SIZE(golden_settings_athub_1_0_0));
 		break;

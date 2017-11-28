@@ -101,15 +101,8 @@ static u32 soc15_pcie_rreg(struct amdgpu_device *adev, u32 reg)
 {
 	unsigned long flags, address, data;
 	u32 r;
-	const struct nbio_pcie_index_data *nbio_pcie_id;
-
-	if (adev->flags & AMD_IS_APU)
-		nbio_pcie_id = &nbio_v7_0_pcie_index_data;
-	else
-		nbio_pcie_id = &nbio_v6_1_pcie_index_data;
-
-	address = nbio_pcie_id->index_offset;
-	data = nbio_pcie_id->data_offset;
+	address = adev->nbio_funcs->get_pcie_index_offset(adev);
+	data = adev->nbio_funcs->get_pcie_data_offset(adev);
 
 	spin_lock_irqsave(&adev->pcie_idx_lock, flags);
 	WREG32(address, reg);
@@ -122,15 +115,9 @@ static u32 soc15_pcie_rreg(struct amdgpu_device *adev, u32 reg)
 static void soc15_pcie_wreg(struct amdgpu_device *adev, u32 reg, u32 v)
 {
 	unsigned long flags, address, data;
-	const struct nbio_pcie_index_data *nbio_pcie_id;
 
-	if (adev->flags & AMD_IS_APU)
-		nbio_pcie_id = &nbio_v7_0_pcie_index_data;
-	else
-		nbio_pcie_id = &nbio_v6_1_pcie_index_data;
-
-	address = nbio_pcie_id->index_offset;
-	data = nbio_pcie_id->data_offset;
+	address = adev->nbio_funcs->get_pcie_index_offset(adev);
+	data = adev->nbio_funcs->get_pcie_data_offset(adev);
 
 	spin_lock_irqsave(&adev->pcie_idx_lock, flags);
 	WREG32(address, reg);
@@ -332,25 +319,34 @@ static bool soc15_read_bios_from_rom(struct amdgpu_device *adev,
 	return true;
 }
 
-static struct amdgpu_allowed_register_entry soc15_allowed_read_registers[] = {
-	{ SOC15_REG_OFFSET(GC, 0, mmGRBM_STATUS)},
-	{ SOC15_REG_OFFSET(GC, 0, mmGRBM_STATUS2)},
-	{ SOC15_REG_OFFSET(GC, 0, mmGRBM_STATUS_SE0)},
-	{ SOC15_REG_OFFSET(GC, 0, mmGRBM_STATUS_SE1)},
-	{ SOC15_REG_OFFSET(GC, 0, mmGRBM_STATUS_SE2)},
-	{ SOC15_REG_OFFSET(GC, 0, mmGRBM_STATUS_SE3)},
-	{ SOC15_REG_OFFSET(SDMA0, 0, mmSDMA0_STATUS_REG)},
-	{ SOC15_REG_OFFSET(SDMA1, 0, mmSDMA1_STATUS_REG)},
-	{ SOC15_REG_OFFSET(GC, 0, mmCP_STAT)},
-	{ SOC15_REG_OFFSET(GC, 0, mmCP_STALLED_STAT1)},
-	{ SOC15_REG_OFFSET(GC, 0, mmCP_STALLED_STAT2)},
-	{ SOC15_REG_OFFSET(GC, 0, mmCP_STALLED_STAT3)},
-	{ SOC15_REG_OFFSET(GC, 0, mmCP_CPF_BUSY_STAT)},
-	{ SOC15_REG_OFFSET(GC, 0, mmCP_CPF_STALLED_STAT1)},
-	{ SOC15_REG_OFFSET(GC, 0, mmCP_CPF_STATUS)},
-	{ SOC15_REG_OFFSET(GC, 0, mmCP_CPC_STALLED_STAT1)},
-	{ SOC15_REG_OFFSET(GC, 0, mmCP_CPC_STATUS)},
-	{ SOC15_REG_OFFSET(GC, 0, mmGB_ADDR_CONFIG)},
+struct soc15_allowed_register_entry {
+	uint32_t hwip;
+	uint32_t inst;
+	uint32_t seg;
+	uint32_t reg_offset;
+	bool grbm_indexed;
+};
+
+
+static struct soc15_allowed_register_entry soc15_allowed_read_registers[] = {
+	{ SOC15_REG_ENTRY(GC, 0, mmGRBM_STATUS)},
+	{ SOC15_REG_ENTRY(GC, 0, mmGRBM_STATUS2)},
+	{ SOC15_REG_ENTRY(GC, 0, mmGRBM_STATUS_SE0)},
+	{ SOC15_REG_ENTRY(GC, 0, mmGRBM_STATUS_SE1)},
+	{ SOC15_REG_ENTRY(GC, 0, mmGRBM_STATUS_SE2)},
+	{ SOC15_REG_ENTRY(GC, 0, mmGRBM_STATUS_SE3)},
+	{ SOC15_REG_ENTRY(SDMA0, 0, mmSDMA0_STATUS_REG)},
+	{ SOC15_REG_ENTRY(SDMA1, 0, mmSDMA1_STATUS_REG)},
+	{ SOC15_REG_ENTRY(GC, 0, mmCP_STAT)},
+	{ SOC15_REG_ENTRY(GC, 0, mmCP_STALLED_STAT1)},
+	{ SOC15_REG_ENTRY(GC, 0, mmCP_STALLED_STAT2)},
+	{ SOC15_REG_ENTRY(GC, 0, mmCP_STALLED_STAT3)},
+	{ SOC15_REG_ENTRY(GC, 0, mmCP_CPF_BUSY_STAT)},
+	{ SOC15_REG_ENTRY(GC, 0, mmCP_CPF_STALLED_STAT1)},
+	{ SOC15_REG_ENTRY(GC, 0, mmCP_CPF_STATUS)},
+	{ SOC15_REG_ENTRY(GC, 0, mmCP_CPC_STALLED_STAT1)},
+	{ SOC15_REG_ENTRY(GC, 0, mmCP_CPC_STATUS)},
+	{ SOC15_REG_ENTRY(GC, 0, mmGB_ADDR_CONFIG)},
 };
 
 static uint32_t soc15_read_indexed_register(struct amdgpu_device *adev, u32 se_num,
@@ -390,10 +386,13 @@ static int soc15_read_register(struct amdgpu_device *adev, u32 se_num,
 			    u32 sh_num, u32 reg_offset, u32 *value)
 {
 	uint32_t i;
+	struct soc15_allowed_register_entry  *en;
 
 	*value = 0;
 	for (i = 0; i < ARRAY_SIZE(soc15_allowed_read_registers); i++) {
-		if (reg_offset != soc15_allowed_read_registers[i].reg_offset)
+		en = &soc15_allowed_read_registers[i];
+		if (reg_offset != (adev->reg_offset[en->hwip][en->inst][en->seg]
+					+ en->reg_offset))
 			continue;
 
 		*value = soc15_get_register_value(adev,
@@ -403,6 +402,43 @@ static int soc15_read_register(struct amdgpu_device *adev, u32 se_num,
 	}
 	return -EINVAL;
 }
+
+
+/**
+ * soc15_program_register_sequence - program an array of registers.
+ *
+ * @adev: amdgpu_device pointer
+ * @regs: pointer to the register array
+ * @array_size: size of the register array
+ *
+ * Programs an array or registers with and and or masks.
+ * This is a helper for setting golden registers.
+ */
+
+void soc15_program_register_sequence(struct amdgpu_device *adev,
+					     const struct soc15_reg_golden *regs,
+					     const u32 array_size)
+{
+	const struct soc15_reg_golden *entry;
+	u32 tmp, reg;
+	int i;
+
+	for (i = 0; i < array_size; ++i) {
+		entry = &regs[i];
+		reg =  adev->reg_offset[entry->hwip][entry->instance][entry->segment] + entry->reg;
+
+		if (entry->and_mask == 0xffffffff) {
+			tmp = entry->or_mask;
+		} else {
+			tmp = RREG32(reg);
+			tmp &= ~(entry->and_mask);
+			tmp |= entry->or_mask;
+		}
+		WREG32(reg, tmp);
+	}
+
+}
+
 
 static int soc15_asic_reset(struct amdgpu_device *adev)
 {
@@ -618,6 +654,11 @@ static int soc15_common_early_init(void *handle)
 	adev->se_cac_wreg = &soc15_se_cac_wreg;
 
 	adev->asic_funcs = &soc15_asic_funcs;
+
+	if (adev->flags & AMD_IS_APU)
+		adev->nbio_funcs = &nbio_v7_0_funcs;
+	else
+		adev->nbio_funcs = &nbio_v6_1_funcs;
 
 	if (amdgpu_get_ip_block(adev, AMD_IP_BLOCK_TYPE_PSP) &&
 		(amdgpu_ip_block_mask & (1 << AMD_IP_BLOCK_TYPE_PSP)))
