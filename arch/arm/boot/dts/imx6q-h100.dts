@@ -43,7 +43,6 @@
 
 #include "imx6q.dtsi"
 #include "imx6qdl-microsom.dtsi"
-#include "imx6qdl-microsom-ar8035.dtsi"
 
 / {
 	model = "Auvidea H100";

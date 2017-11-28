@@ -39,7 +39,6 @@
  *     OTHER DEALINGS IN THE SOFTWARE.
  */
 #include "imx6qdl-microsom.dtsi"
-#include "imx6qdl-microsom-ar8035.dtsi"
 #include <dt-bindings/input/input.h>
 #include <dt-bindings/gpio/gpio.h>
 
