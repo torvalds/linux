@@ -400,13 +400,6 @@ void dpp1_set_cursor_attributes(
 		REG_UPDATE(CURSOR0_COLOR1,
 				CUR0_COLOR1, 0xFFFFFFFF);
 	}
-
-	/* TODO: Fixed vs float */
-
-	REG_UPDATE_3(FORMAT_CONTROL,
-				CNVC_BYPASS, 0,
-				FORMAT_CONTROL__ALPHA_EN, 1,
-				FORMAT_EXPANSION_MODE, 0);
 }
 
 
