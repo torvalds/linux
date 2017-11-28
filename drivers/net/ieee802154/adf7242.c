@@ -906,9 +906,12 @@ static void adf7242_debug(struct adf7242_local *lp, u8 irq1)
 		irq1 & IRQ_FRAME_VALID ? "IRQ_FRAME_VALID\n" : "",
 		irq1 & IRQ_ADDRESS_VALID ? "IRQ_ADDRESS_VALID\n" : "");
 
-	dev_dbg(&lp->spi->dev, "%s STATUS = %X:\n%s\n%s%s%s%s%s\n",
+	dev_dbg(&lp->spi->dev, "%s STATUS = %X:\n%s\n%s\n%s\n%s\n%s%s%s%s%s\n",
 		__func__, stat,
+		stat & STAT_SPI_READY ? "SPI_READY" : "SPI_BUSY",
+		stat & STAT_IRQ_STATUS ? "IRQ_PENDING" : "IRQ_CLEAR",
 		stat & STAT_RC_READY ? "RC_READY" : "RC_BUSY",
+		stat & STAT_CCA_RESULT ? "CHAN_IDLE" : "CHAN_BUSY",
 		(stat & 0xf) == RC_STATUS_IDLE ? "RC_STATUS_IDLE" : "",
 		(stat & 0xf) == RC_STATUS_MEAS ? "RC_STATUS_MEAS" : "",
 		(stat & 0xf) == RC_STATUS_PHY_RDY ? "RC_STATUS_PHY_RDY" : "",
@@ -1086,8 +1089,11 @@ static int adf7242_stats_show(struct seq_file *file, void *offset)
 		   irq1 & IRQ_FRAME_VALID ? "IRQ_FRAME_VALID\n" : "",
 		   irq1 & IRQ_ADDRESS_VALID ? "IRQ_ADDRESS_VALID\n" : "");
 
-	seq_printf(file, "STATUS = %X:\n%s\n%s%s%s%s%s\n", stat,
+	seq_printf(file, "STATUS = %X:\n%s\n%s\n%s\n%s\n%s%s%s%s%s\n", stat,
+		   stat & STAT_SPI_READY ? "SPI_READY" : "SPI_BUSY",
+		   stat & STAT_IRQ_STATUS ? "IRQ_PENDING" : "IRQ_CLEAR",
 		   stat & STAT_RC_READY ? "RC_READY" : "RC_BUSY",
+		   stat & STAT_CCA_RESULT ? "CHAN_IDLE" : "CHAN_BUSY",
 		   (stat & 0xf) == RC_STATUS_IDLE ? "RC_STATUS_IDLE" : "",
 		   (stat & 0xf) == RC_STATUS_MEAS ? "RC_STATUS_MEAS" : "",
 		   (stat & 0xf) == RC_STATUS_PHY_RDY ? "RC_STATUS_PHY_RDY" : "",
