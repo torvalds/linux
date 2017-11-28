@@ -3,7 +3,7 @@
  * (C) Copyright 2007-2011 Reuuimlla Technology Co., Ltd.
  * (C) Copyright 2007-2011 Aaron Maoye <leafy.myeh@reuuimllatech.com>
  * (C) Copyright 2013-2014 O2S GmbH <www.o2s.ch>
- * (C) Copyright 2013-2014 David Lanzend�rfer <david.lanzendoerfer@o2s.ch>
+ * (C) Copyright 2013-2014 David Lanzendörfer <david.lanzendoerfer@o2s.ch>
  * (C) Copyright 2013-2014 Hans de Goede <hdegoede@redhat.com>
  * (C) Copyright 2017 Sootech SA
  *
@@ -1393,5 +1393,5 @@ module_platform_driver(sunxi_mmc_driver);
 
 MODULE_DESCRIPTION("Allwinner's SD/MMC Card Controller Driver");
 MODULE_LICENSE("GPL v2");
-MODULE_AUTHOR("David Lanzend�rfer <david.lanzendoerfer@o2s.ch>");
+MODULE_AUTHOR("David Lanzendörfer <david.lanzendoerfer@o2s.ch>");
 MODULE_ALIAS("platform:sunxi-mmc");
