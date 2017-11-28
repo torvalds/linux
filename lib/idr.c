@@ -159,7 +159,11 @@ int idr_for_each(const struct idr *idr,
 	void __rcu **slot;
 
 	radix_tree_for_each_slot(slot, &idr->idr_rt, &iter, 0) {
-		int ret = fn(iter.index, rcu_dereference_raw(*slot), data);
+		int ret;
+
+		if (WARN_ON_ONCE(iter.index > INT_MAX))
+			break;
+		ret = fn(iter.index, rcu_dereference_raw(*slot), data);
 		if (ret)
 			return ret;
 	}
@@ -185,6 +189,9 @@ void *idr_get_next(struct idr *idr, int *nextid)
 
 	slot = radix_tree_iter_find(&idr->idr_rt, &iter, *nextid);
 	if (!slot)
+		return NULL;
+
+	if (WARN_ON_ONCE(iter.index > INT_MAX))
 		return NULL;
 
 	*nextid = iter.index;
