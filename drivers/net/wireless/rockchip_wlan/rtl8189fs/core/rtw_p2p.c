@@ -3515,7 +3515,7 @@ _func_enter_;
 
 					rtw_p2p_set_state(pwdinfo, P2P_STATE_LISTEN);
 					if(!check_buddy_mlmeinfo_state(padapter, WIFI_FW_AP_STATE) &&
-					!(pmlmeinfo->state&0x03) == WIFI_FW_AP_STATE)
+					   (pmlmeinfo->state & 0x03) != WIFI_FW_AP_STATE)
 					{
 						val8 = 1;
 						rtw_hal_set_hwreg(padapter, HW_VAR_MLME_SITESURVEY, (u8 *)(&val8));
@@ -3539,7 +3539,7 @@ _func_enter_;
 				if ( pbuddy_mlmeext->cur_channel != pwdinfo->listen_channel )
 				{
 					set_channel_bwmode(padapter, pbuddy_mlmeext->cur_channel, pbuddy_mlmeext->cur_ch_offset, pbuddy_mlmeext->cur_bwmode);
-					if(!check_buddy_mlmeinfo_state(padapter, WIFI_FW_AP_STATE) &&!(pmlmeinfo->state&0x03) == WIFI_FW_AP_STATE)
+					if(!check_buddy_mlmeinfo_state(padapter, WIFI_FW_AP_STATE) && (pmlmeinfo->state&0x03) != WIFI_FW_AP_STATE)
 					{						
 						val8 = 0;
 						rtw_hal_set_hwreg(padapter, HW_VAR_MLME_SITESURVEY, (u8 *)(&val8));
