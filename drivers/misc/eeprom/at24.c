@@ -267,8 +267,8 @@ MODULE_DEVICE_TABLE(acpi, at24_acpi_ids);
  * one "eeprom" file not four, but larger reads would fail when
  * they crossed certain pages.
  */
-static struct i2c_client *at24_translate_offset(struct at24_data *at24,
-						unsigned int *offset)
+static struct at24_client *at24_translate_offset(struct at24_data *at24,
+						 unsigned int *offset)
 {
 	unsigned i;
 
@@ -280,17 +280,19 @@ static struct i2c_client *at24_translate_offset(struct at24_data *at24,
 		*offset &= 0xff;
 	}
 
-	return at24->client[i].client;
+	return &at24->client[i];
 }
 
 static ssize_t at24_eeprom_read_smbus(struct at24_data *at24, char *buf,
 				      unsigned int offset, size_t count)
 {
 	unsigned long timeout, read_time;
+	struct at24_client *at24_client;
 	struct i2c_client *client;
 	int status;
 
-	client = at24_translate_offset(at24, &offset);
+	at24_client = at24_translate_offset(at24, &offset);
+	client = at24_client->client;
 
 	if (count > io_limit)
 		count = io_limit;
@@ -318,13 +320,15 @@ static ssize_t at24_eeprom_read_i2c(struct at24_data *at24, char *buf,
 				    unsigned int offset, size_t count)
 {
 	unsigned long timeout, read_time;
+	struct at24_client *at24_client;
 	struct i2c_client *client;
 	struct i2c_msg msg[2];
 	int status, i;
 	u8 msgbuf[2];
 
 	memset(msg, 0, sizeof(msg));
-	client = at24_translate_offset(at24, &offset);
+	at24_client = at24_translate_offset(at24, &offset);
+	client = at24_client->client;
 
 	if (count > io_limit)
 		count = io_limit;
@@ -368,12 +372,14 @@ static ssize_t at24_eeprom_read_serial(struct at24_data *at24, char *buf,
 				       unsigned int offset, size_t count)
 {
 	unsigned long timeout, read_time;
+	struct at24_client *at24_client;
 	struct i2c_client *client;
 	struct i2c_msg msg[2];
 	u8 addrbuf[2];
 	int status;
 
-	client = at24_translate_offset(at24, &offset);
+	at24_client = at24_translate_offset(at24, &offset);
+	client = at24_client->client;
 
 	memset(msg, 0, sizeof(msg));
 	msg[0].addr = client->addr;
@@ -421,12 +427,14 @@ static ssize_t at24_eeprom_read_mac(struct at24_data *at24, char *buf,
 				    unsigned int offset, size_t count)
 {
 	unsigned long timeout, read_time;
+	struct at24_client *at24_client;
 	struct i2c_client *client;
 	struct i2c_msg msg[2];
 	u8 addrbuf[2];
 	int status;
 
-	client = at24_translate_offset(at24, &offset);
+	at24_client = at24_translate_offset(at24, &offset);
+	client = at24_client->client;
 
 	memset(msg, 0, sizeof(msg));
 	msg[0].addr = client->addr;
@@ -479,10 +487,12 @@ static ssize_t at24_eeprom_write_smbus_block(struct at24_data *at24,
 					     unsigned int offset, size_t count)
 {
 	unsigned long timeout, write_time;
+	struct at24_client *at24_client;
 	struct i2c_client *client;
 	ssize_t status = 0;
 
-	client = at24_translate_offset(at24, &offset);
+	at24_client = at24_translate_offset(at24, &offset);
+	client = at24_client->client;
 	count = at24_adjust_write_count(at24, offset, count);
 
 	loop_until_timeout(timeout, write_time) {
@@ -506,10 +516,12 @@ static ssize_t at24_eeprom_write_smbus_byte(struct at24_data *at24,
 					    unsigned int offset, size_t count)
 {
 	unsigned long timeout, write_time;
+	struct at24_client *at24_client;
 	struct i2c_client *client;
 	ssize_t status = 0;
 
-	client = at24_translate_offset(at24, &offset);
+	at24_client = at24_translate_offset(at24, &offset);
+	client = at24_client->client;
 
 	loop_until_timeout(timeout, write_time) {
 		status = i2c_smbus_write_byte_data(client, offset, buf[0]);
@@ -530,12 +542,14 @@ static ssize_t at24_eeprom_write_i2c(struct at24_data *at24, const char *buf,
 				     unsigned int offset, size_t count)
 {
 	unsigned long timeout, write_time;
+	struct at24_client *at24_client;
 	struct i2c_client *client;
 	struct i2c_msg msg;
 	ssize_t status = 0;
 	int i = 0;
 
-	client = at24_translate_offset(at24, &offset);
+	at24_client = at24_translate_offset(at24, &offset);
+	client = at24_client->client;
 	count = at24_adjust_write_count(at24, offset, count);
 
 	msg.addr = client->addr;
