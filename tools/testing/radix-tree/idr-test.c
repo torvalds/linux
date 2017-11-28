@@ -207,6 +207,7 @@ void idr_checks(void)
 		assert(idr_alloc(&idr, item, i, i + 10, GFP_KERNEL) == i);
 	}
 	assert(idr_alloc(&idr, DUMMY_PTR, i - 2, i, GFP_KERNEL) == -ENOSPC);
+	assert(idr_alloc(&idr, DUMMY_PTR, i - 2, i + 10, GFP_KERNEL) == -ENOSPC);
 
 	idr_for_each(&idr, item_idr_free, &idr);
 	idr_destroy(&idr);
