@@ -660,14 +660,14 @@ static void free_overlay_changeset(struct overlay_changeset *ovcs)
  * A non-zero return value will not have created the changeset if error is from:
  *   - parameter checks
  *   - building the changeset
- *   - overlay changset pre-apply notifier
+ *   - overlay changeset pre-apply notifier
  *
  * If an error is returned by an overlay changeset pre-apply notifier
  * then no further overlay changeset pre-apply notifier will be called.
  *
  * A non-zero return value will have created the changeset if error is from:
  *   - overlay changeset entry notifier
- *   - overlay changset post-apply notifier
+ *   - overlay changeset post-apply notifier
  *
  * If an error is returned by an overlay changeset post-apply notifier
  * then no further overlay changeset post-apply notifier will be called.
@@ -871,7 +871,7 @@ static int overlay_removal_is_ok(struct overlay_changeset *remove_ovcs)
  *
  * A non-zero return value will not revert the changeset if error is from:
  *   - parameter checks
- *   - overlay changset pre-remove notifier
+ *   - overlay changeset pre-remove notifier
  *   - overlay changeset entry revert
  *
  * If an error is returned by an overlay changeset pre-remove notifier
@@ -882,7 +882,7 @@ static int overlay_removal_is_ok(struct overlay_changeset *remove_ovcs)
  *
  * A non-zero return value will revert the changeset if error is from:
  *   - overlay changeset entry notifier
- *   - overlay changset post-remove notifier
+ *   - overlay changeset post-remove notifier
  *
  * If an error is returned by an overlay changeset post-remove notifier
  * then no further overlay changeset post-remove notifier will be called.
