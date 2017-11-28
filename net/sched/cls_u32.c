@@ -596,7 +596,7 @@ static void u32_clear_hnode(struct tcf_proto *tp, struct tc_u_hnode *ht,
 					 rtnl_dereference(n->next));
 			tcf_unbind_filter(tp, &n->res);
 			u32_remove_hw_knode(tp, n, extack);
-			idr_remove_ext(&ht->handle_idr, n->handle);
+			idr_remove(&ht->handle_idr, n->handle);
 			if (tcf_exts_get_net(&n->exts))
 				call_rcu(&n->rcu, u32_delete_key_freepf_rcu);
 			else
@@ -623,7 +623,7 @@ static int u32_destroy_hnode(struct tcf_proto *tp, struct tc_u_hnode *ht,
 		if (phn == ht) {
 			u32_clear_hw_hnode(tp, ht, extack);
 			idr_destroy(&ht->handle_idr);
-			idr_remove_ext(&tp_c->handle_idr, ht->handle);
+			idr_remove(&tp_c->handle_idr, ht->handle);
 			RCU_INIT_POINTER(*hn, ht->next);
 			kfree_rcu(ht, rcu);
 			return 0;
@@ -1026,7 +1026,7 @@ static int u32_change(struct net *net, struct sk_buff *in_skb,
 
 		err = u32_replace_hw_hnode(tp, ht, flags, extack);
 		if (err) {
-			idr_remove_ext(&tp_c->handle_idr, handle);
+			idr_remove(&tp_c->handle_idr, handle);
 			kfree(ht);
 			return err;
 		}
@@ -1162,7 +1162,7 @@ errfree:
 #endif
 	kfree(n);
 erridr:
-	idr_remove_ext(&ht->handle_idr, handle);
+	idr_remove(&ht->handle_idr, handle);
 	return err;
 }
 

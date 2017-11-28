@@ -393,7 +393,7 @@ static void tcf_block_remove(struct tcf_block *block, struct net *net)
 {
 	struct tcf_net *tn = net_generic(net, tcf_net_id);
 
-	idr_remove_ext(&tn->idr, block->index);
+	idr_remove(&tn->idr, block->index);
 }
 
 static struct tcf_block *tcf_block_create(struct net *net, struct Qdisc *q,

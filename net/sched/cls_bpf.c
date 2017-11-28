@@ -295,7 +295,7 @@ static void __cls_bpf_delete(struct tcf_proto *tp, struct cls_bpf_prog *prog,
 {
 	struct cls_bpf_head *head = rtnl_dereference(tp->root);
 
-	idr_remove_ext(&head->handle_idr, prog->handle);
+	idr_remove(&head->handle_idr, prog->handle);
 	cls_bpf_stop_offload(tp, prog, extack);
 	list_del_rcu(&prog->link);
 	tcf_unbind_filter(tp, &prog->res);
@@ -542,7 +542,7 @@ errout_parms:
 	cls_bpf_free_parms(prog);
 errout_idr:
 	if (!oldprog)
-		idr_remove_ext(&head->handle_idr, prog->handle);
+		idr_remove(&head->handle_idr, prog->handle);
 errout:
 	tcf_exts_destroy(&prog->exts);
 	kfree(prog);

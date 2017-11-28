@@ -140,14 +140,9 @@ void *idr_replace(struct idr *, void *, int id);
 void *idr_replace_ext(struct idr *idr, void *ptr, unsigned long id);
 void idr_destroy(struct idr *);
 
-static inline void *idr_remove_ext(struct idr *idr, unsigned long id)
+static inline void *idr_remove(struct idr *idr, unsigned long id)
 {
 	return radix_tree_delete_item(&idr->idr_rt, id, NULL);
-}
-
-static inline void *idr_remove(struct idr *idr, int id)
-{
-	return idr_remove_ext(idr, id);
 }
 
 static inline void idr_init(struct idr *idr)
