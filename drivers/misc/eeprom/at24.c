@@ -75,6 +75,7 @@ struct at24_data {
 
 	unsigned write_max;
 	unsigned num_addresses;
+	unsigned int offset_adj;
 
 	struct nvmem_config nvmem_config;
 	struct nvmem_device *nvmem;
@@ -312,6 +313,36 @@ static ssize_t at24_eeprom_read_smbus(struct at24_data *at24, char *buf,
 	return -ETIMEDOUT;
 }
 
+static ssize_t at24_regmap_read(struct at24_data *at24, char *buf,
+				unsigned int offset, size_t count)
+{
+	unsigned long timeout, read_time;
+	struct at24_client *at24_client;
+	struct i2c_client *client;
+	struct regmap *regmap;
+	int ret;
+
+	at24_client = at24_translate_offset(at24, &offset);
+	regmap = at24_client->regmap;
+	client = at24_client->client;
+
+	if (count > io_limit)
+		count = io_limit;
+
+	/* adjust offset for mac and serial read ops */
+	offset += at24->offset_adj;
+
+	loop_until_timeout(timeout, read_time) {
+		ret = regmap_bulk_read(regmap, offset, buf, count);
+		dev_dbg(&client->dev, "read %zu@%d --> %d (%ld)\n",
+			count, offset, ret, jiffies);
+		if (!ret)
+			return count;
+	}
+
+	return -ETIMEDOUT;
+}
+
 static ssize_t at24_eeprom_read_i2c(struct at24_data *at24, char *buf,
 				    unsigned int offset, size_t count)
 {
@@ -531,7 +562,7 @@ static int at24_read(void *priv, unsigned int off, void *val, size_t count)
 	while (count) {
 		int	status;
 
-		status = at24->read_func(at24, buf, off, count);
+		status = at24_regmap_read(at24, buf, off, count);
 		if (status < 0) {
 			mutex_unlock(&at24->lock);
 			pm_runtime_put(dev);
@@ -617,6 +648,29 @@ static void at24_get_pdata(struct device *dev, struct at24_platform_data *chip)
 		 * is recommended anyhow.
 		 */
 		chip->page_size = 1;
+	}
+}
+
+static unsigned int at24_get_offset_adj(u8 flags, unsigned int byte_len)
+{
+	if (flags & AT24_FLAG_MAC) {
+		/* EUI-48 starts from 0x9a, EUI-64 from 0x98 */
+		return 0xa0 - byte_len;
+	} else if (flags & AT24_FLAG_SERIAL && flags & AT24_FLAG_ADDR16) {
+		/*
+		 * For 16 bit address pointers, the word address must contain
+		 * a '10' sequence in bits 11 and 10 regardless of the
+		 * intended position of the address pointer.
+		 */
+		return 0x0800;
+	} else if (flags & AT24_FLAG_SERIAL) {
+		/*
+		 * Otherwise the word address must begin with a '10' sequence,
+		 * regardless of the intended address.
+		 */
+		return 0x0080;
+	} else {
+		return 0;
 	}
 }
 
@@ -746,6 +800,7 @@ static int at24_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	at24->use_smbus = use_smbus;
 	at24->chip = chip;
 	at24->num_addresses = num_addresses;
+	at24->offset_adj = at24_get_offset_adj(chip.flags, chip.byte_len);
 
 	at24->client[0].client = client;
 	at24->client[0].regmap = devm_regmap_init_i2c(client, config);
