@@ -2514,7 +2514,6 @@ static bool __has_curseg_space(struct f2fs_sb_info *sbi, int type)
 	return false;
 }
 
-#if 0
 int rw_hint_to_seg_type(enum rw_hint hint)
 {
 	switch (hint) {
@@ -2526,7 +2525,6 @@ int rw_hint_to_seg_type(enum rw_hint hint)
 		return CURSEG_WARM_DATA;
 	}
 }
-#endif
 
 static int __get_segment_type_2(struct f2fs_io_info *fio)
 {
