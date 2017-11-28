@@ -554,6 +554,53 @@ config SHADOW_CALL_STACK_VMAP
 	  provides better stack exhaustion protection, but increases per-thread
 	  memory consumption as a full page is allocated for each shadow stack.
 
+config LTO
+	bool
+
+config ARCH_SUPPORTS_LTO_CLANG
+	bool
+	help
+	  An architecture should select this option if it supports:
+	  - compiling with Clang,
+	  - compiling inline assembly with Clang's integrated assembler,
+	  - and linking with LLD.
+
+config ARCH_SUPPORTS_THINLTO
+	bool
+	help
+	  An architecture should select this if it supports Clang ThinLTO.
+
+config THINLTO
+	bool "Use Clang's ThinLTO (EXPERIMENTAL)"
+	depends on LTO_CLANG && ARCH_SUPPORTS_THINLTO
+	default y
+	help
+	  Use ThinLTO to speed up Link Time Optimization.
+
+choice
+	prompt "Link-Time Optimization (LTO) (EXPERIMENTAL)"
+	default LTO_NONE
+	help
+	  This option turns on Link-Time Optimization (LTO).
+
+config LTO_NONE
+	bool "None"
+
+config LTO_CLANG
+	bool "Use Clang's Link Time Optimization (LTO) (EXPERIMENTAL)"
+	depends on ARCH_SUPPORTS_LTO_CLANG
+	depends on !KASAN
+	depends on !FTRACE_MCOUNT_RECORD
+	depends on CC_IS_CLANG && CLANG_VERSION >= 100000 && LD_IS_LLD
+	select LTO
+	help
+          This option enables Clang's Link Time Optimization (LTO), which allows
+          the compiler to optimize the kernel globally at link time. If you
+          enable this option, the compiler generates LLVM IR instead of object
+          files, and the actual compilation from IR occurs at the LTO link step,
+          which may take several minutes.
+
+endchoice
 
 config HAVE_ARCH_WITHIN_STACK_FRAMES
 	bool

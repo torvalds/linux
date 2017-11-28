@@ -84,12 +84,32 @@ MODPOST += $(subst -i,-n,$(filter -i,$(MAKEFLAGS))) -s -T - $(wildcard vmlinux)
 # find all modules listed in modules.order
 modules := $(sort $(shell cat $(MODORDER)))
 
+# With CONFIG_LTO_CLANG, .o files might be LLVM IR, so we need to link them
+# into actual objects before passing them to modpost
+modpost-ext = $(if $(CONFIG_LTO_CLANG),.lto,)
+
+ifdef CONFIG_LTO_CLANG
+quiet_cmd_cc_lto_link_modules = LTO [M] $@
+cmd_cc_lto_link_modules =						\
+	$(LD) $(ld_flags) -r -o $(@)					\
+		$(shell [ -s $(@:$(modpost-ext).o=.o.symversions) ] &&	\
+			echo -T $(@:$(modpost-ext).o=.o.symversions))	\
+		--whole-archive $(filter-out FORCE,$^)
+
+$(modules:.ko=$(modpost-ext).o): %$(modpost-ext).o: %.o FORCE
+	$(call if_changed,cc_lto_link_modules)
+
+PHONY += FORCE
+FORCE:
+
+endif
+
 # Read out modules.order instead of expanding $(modules) to pass in modpost.
 # Otherwise, allmodconfig would fail with "Argument list too long".
 quiet_cmd_modpost = MODPOST $(words $(modules)) modules
-      cmd_modpost = sed 's/ko$$/o/' $(MODORDER) | $(MODPOST)
+      cmd_modpost = sed 's/\.ko$$/$(modpost-ext)\.o/' $(MODORDER) | $(MODPOST)
 
-__modpost:
+__modpost: $(modules:.ko=$(modpost-ext).o)
 	@$(kecho) '  Building modules, stage 2.'
 	$(call cmd,modpost)
 ifneq ($(KBUILD_MODPOST_NOFINAL),1)
