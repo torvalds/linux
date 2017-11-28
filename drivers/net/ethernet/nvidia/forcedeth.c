@@ -2563,7 +2563,7 @@ static int nv_tx_done(struct net_device *dev, int limit)
 
 		if (np->desc_ver == DESC_VER_1) {
 			if (flags & NV_TX_LASTPACKET) {
-				if (flags & NV_TX_ERROR) {
+				if (unlikely(flags & NV_TX_ERROR)) {
 					if ((flags & NV_TX_RETRYERROR)
 					    && !(flags & NV_TX_RETRYCOUNT_MASK))
 						nv_legacybackoff_reseed(dev);
@@ -2580,7 +2580,7 @@ static int nv_tx_done(struct net_device *dev, int limit)
 			}
 		} else {
 			if (flags & NV_TX2_LASTPACKET) {
-				if (flags & NV_TX2_ERROR) {
+				if (unlikely(flags & NV_TX2_ERROR)) {
 					if ((flags & NV_TX2_RETRYERROR)
 					    && !(flags & NV_TX2_RETRYCOUNT_MASK))
 						nv_legacybackoff_reseed(dev);
@@ -2626,7 +2626,7 @@ static int nv_tx_done_optimized(struct net_device *dev, int limit)
 		nv_unmap_txskb(np, np->get_tx_ctx);
 
 		if (flags & NV_TX2_LASTPACKET) {
-			if (flags & NV_TX2_ERROR) {
+			if (unlikely(flags & NV_TX2_ERROR)) {
 				if ((flags & NV_TX2_RETRYERROR)
 				    && !(flags & NV_TX2_RETRYCOUNT_MASK)) {
 					if (np->driver_data & DEV_HAS_GEAR_MODE)
