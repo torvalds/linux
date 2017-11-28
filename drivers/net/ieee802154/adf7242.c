@@ -1,7 +1,7 @@
 /*
  * Analog Devices ADF7242 Low-Power IEEE 802.15.4 Transceiver
  *
- * Copyright 2009-2015 Analog Devices Inc.
+ * Copyright 2009-2017 Analog Devices Inc.
  *
  * Licensed under the GPL-2 or later.
  *
@@ -1257,12 +1257,14 @@ static int adf7242_remove(struct spi_device *spi)
 
 static const struct of_device_id adf7242_of_match[] = {
 	{ .compatible = "adi,adf7242", },
+	{ .compatible = "adi,adf7241", },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, adf7242_of_match);
 
 static const struct spi_device_id adf7242_device_id[] = {
 	{ .name = "adf7242", },
+	{ .name = "adf7241", },
 	{ },
 };
 MODULE_DEVICE_TABLE(spi, adf7242_device_id);
