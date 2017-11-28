@@ -1370,8 +1370,9 @@ static void mlxsw_sp_netdevice_ipip_ol_down_event(struct mlxsw_sp *mlxsw_sp,
 		mlxsw_sp_ipip_entry_ol_down_event(mlxsw_sp, ipip_entry);
 }
 
-static void mlxsw_sp_nexthop_rif_update(struct mlxsw_sp *mlxsw_sp,
-					struct mlxsw_sp_rif *rif);
+static void mlxsw_sp_nexthop_rif_migrate(struct mlxsw_sp *mlxsw_sp,
+					 struct mlxsw_sp_rif *old_rif,
+					 struct mlxsw_sp_rif *new_rif);
 static int
 mlxsw_sp_ipip_entry_ol_lb_update(struct mlxsw_sp *mlxsw_sp,
 				 struct mlxsw_sp_ipip_entry *ipip_entry,
@@ -1389,16 +1390,17 @@ mlxsw_sp_ipip_entry_ol_lb_update(struct mlxsw_sp *mlxsw_sp,
 		return PTR_ERR(new_lb_rif);
 	ipip_entry->ol_lb = new_lb_rif;
 
-	if (keep_encap) {
-		list_splice_init(&old_lb_rif->common.nexthop_list,
-				 &new_lb_rif->common.nexthop_list);
-		mlxsw_sp_nexthop_rif_update(mlxsw_sp, &new_lb_rif->common);
-	}
+	if (keep_encap)
+		mlxsw_sp_nexthop_rif_migrate(mlxsw_sp, &old_lb_rif->common,
+					     &new_lb_rif->common);
 
 	mlxsw_sp_rif_destroy(&old_lb_rif->common);
 
 	return 0;
 }
+
+static void mlxsw_sp_nexthop_rif_update(struct mlxsw_sp *mlxsw_sp,
+					struct mlxsw_sp_rif *rif);
 
 /**
  * Update the offload related to an IPIP entry. This always updates decap, and
@@ -3558,6 +3560,18 @@ static void mlxsw_sp_nexthop_rif_update(struct mlxsw_sp *mlxsw_sp,
 		__mlxsw_sp_nexthop_neigh_update(nh, removing);
 		mlxsw_sp_nexthop_group_refresh(mlxsw_sp, nh->nh_grp);
 	}
+}
+
+static void mlxsw_sp_nexthop_rif_migrate(struct mlxsw_sp *mlxsw_sp,
+					 struct mlxsw_sp_rif *old_rif,
+					 struct mlxsw_sp_rif *new_rif)
+{
+	struct mlxsw_sp_nexthop *nh;
+
+	list_splice_init(&old_rif->nexthop_list, &new_rif->nexthop_list);
+	list_for_each_entry(nh, &new_rif->nexthop_list, rif_list_node)
+		nh->rif = new_rif;
+	mlxsw_sp_nexthop_rif_update(mlxsw_sp, new_rif);
 }
 
 static void mlxsw_sp_nexthop_rif_gone_sync(struct mlxsw_sp *mlxsw_sp,
