@@ -338,7 +338,7 @@ static int i915_pmu_event_init(struct perf_event *event)
 
 	/* only allow running on one cpu at a time */
 	if (!cpumask_test_cpu(event->cpu, &i915_pmu_cpumask))
-		return -ENODEV;
+		return -EINVAL;
 
 	if (is_engine_event(event)) {
 		ret = engine_event_init(event);
