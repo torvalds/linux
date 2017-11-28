@@ -48,20 +48,16 @@
 		enable-gpios = <&gpio5 5 GPIO_ACTIVE_HIGH>;
 	};
 
-	regulators {
-		compatible = "simple-bus";
-
-		reg_brcm: brcm-reg {
-			compatible = "regulator-fixed";
-			enable-active-high;
-			gpio = <&gpio3 19 0>;
-			pinctrl-names = "default";
-			pinctrl-0 = <&pinctrl_microsom_brcm_reg>;
-			regulator-name = "brcm_reg";
-			regulator-min-microvolt = <3300000>;
-			regulator-max-microvolt = <3300000>;
-			startup-delay-us = <200000>;
-		};
+	reg_brcm: brcm-reg {
+		compatible = "regulator-fixed";
+		enable-active-high;
+		gpio = <&gpio3 19 0>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_microsom_brcm_reg>;
+		regulator-name = "brcm_reg";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		startup-delay-us = <200000>;
 	};
 
 	usdhc1_pwrseq: usdhc1_pwrseq {
