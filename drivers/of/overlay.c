@@ -580,9 +580,9 @@ static int init_overlay_changeset(struct overlay_changeset *ovcs,
 				of_node_put(fragment->overlay);
 				ret = -EINVAL;
 				goto err_free_fragments;
-			} else {
-				cnt++;
 			}
+
+			cnt++;
 		}
 	}
 
@@ -736,13 +736,12 @@ int of_overlay_apply(struct device_node *tree, int *ovcs_id)
 			devicetree_state_flags |= DTSF_APPLY_FAIL;
 		}
 		goto err_free_overlay_changeset;
-	} else {
-		ret = __of_changeset_apply_notify(&ovcs->cset);
-		if (ret)
-			pr_err("overlay changeset entry notify error %d\n",
-			       ret);
-		/* fall through */
 	}
+
+	ret = __of_changeset_apply_notify(&ovcs->cset);
+	if (ret)
+		pr_err("overlay changeset entry notify error %d\n", ret);
+	/* notify failure is not fatal, continue */
 
 	list_add_tail(&ovcs->ovcs_list, &ovcs_list);
 	*ovcs_id = ovcs->id;
@@ -931,14 +930,12 @@ int of_overlay_remove(int *ovcs_id)
 		if (ret_apply)
 			devicetree_state_flags |= DTSF_REVERT_FAIL;
 		goto out_unlock;
-	} else {
-		ret = __of_changeset_revert_notify(&ovcs->cset);
-		if (ret) {
-			pr_err("overlay changeset entry notify error %d\n",
-			       ret);
-			/* fall through - changeset was reverted */
-		}
 	}
+
+	ret = __of_changeset_revert_notify(&ovcs->cset);
+	if (ret)
+		pr_err("overlay changeset entry notify error %d\n", ret);
+	/* notify failure is not fatal, continue */
 
 	*ovcs_id = 0;
 
