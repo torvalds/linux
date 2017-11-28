@@ -740,19 +740,17 @@ ret:
 
 static u32 gen_new_kid(struct tc_u_hnode *ht, u32 htid)
 {
-	unsigned long idr_index;
-	u32 start = htid | 0x800;
+	u32 index = htid | 0x800;
 	u32 max = htid | 0xFFF;
-	u32 min = htid;
 
-	if (idr_alloc_ext(&ht->handle_idr, NULL, &idr_index,
-			  start, max + 1, GFP_KERNEL)) {
-		if (idr_alloc_ext(&ht->handle_idr, NULL, &idr_index,
-				  min + 1, max + 1, GFP_KERNEL))
-			return max;
+	if (idr_alloc_u32(&ht->handle_idr, NULL, &index, max, GFP_KERNEL)) {
+		index = htid + 1;
+		if (idr_alloc_u32(&ht->handle_idr, NULL, &index, max,
+				 GFP_KERNEL))
+			index = max;
 	}
 
-	return (u32)idr_index;
+	return index;
 }
 
 static const struct nla_policy u32_policy[TCA_U32_MAX + 1] = {
@@ -1003,8 +1001,8 @@ static int u32_change(struct net *net, struct sk_buff *in_skb,
 				return -ENOMEM;
 			}
 		} else {
-			err = idr_alloc_ext(&tp_c->handle_idr, ht, NULL,
-					    handle, handle + 1, GFP_KERNEL);
+			err = idr_alloc_u32(&tp_c->handle_idr, ht, &handle,
+					    handle, GFP_KERNEL);
 			if (err) {
 				kfree(ht);
 				return err;
@@ -1060,8 +1058,7 @@ static int u32_change(struct net *net, struct sk_buff *in_skb,
 			return -EINVAL;
 		}
 		handle = htid | TC_U32_NODE(handle);
-		err = idr_alloc_ext(&ht->handle_idr, NULL, NULL,
-				    handle, handle + 1,
+		err = idr_alloc_u32(&ht->handle_idr, NULL, &handle, handle,
 				    GFP_KERNEL);
 		if (err)
 			return err;
