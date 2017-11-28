@@ -134,6 +134,7 @@ struct scp {
 	void __iomem *base;
 	struct regmap *infracfg;
 	struct scp_ctrl_reg ctrl_reg;
+	bool bus_prot_reg_update;
 };
 
 struct scp_subdomain {
@@ -147,6 +148,7 @@ struct scp_soc_data {
 	const struct scp_subdomain *subdomains;
 	int num_subdomains;
 	const struct scp_ctrl_reg regs;
+	bool bus_prot_reg_update;
 };
 
 static int scpsys_domain_is_on(struct scp_domain *scpd)
@@ -254,7 +256,8 @@ static int scpsys_power_on(struct generic_pm_domain *genpd)
 
 	if (scpd->data->bus_prot_mask) {
 		ret = mtk_infracfg_clear_bus_protection(scp->infracfg,
-				scpd->data->bus_prot_mask);
+				scpd->data->bus_prot_mask,
+				scp->bus_prot_reg_update);
 		if (ret)
 			goto err_pwr_ack;
 	}
@@ -289,7 +292,8 @@ static int scpsys_power_off(struct generic_pm_domain *genpd)
 
 	if (scpd->data->bus_prot_mask) {
 		ret = mtk_infracfg_set_bus_protection(scp->infracfg,
-				scpd->data->bus_prot_mask);
+				scpd->data->bus_prot_mask,
+				scp->bus_prot_reg_update);
 		if (ret)
 			goto out;
 	}
@@ -371,7 +375,8 @@ static void init_clks(struct platform_device *pdev, struct clk **clk)
 
 static struct scp *init_scp(struct platform_device *pdev,
 			const struct scp_domain_data *scp_domain_data, int num,
-			const struct scp_ctrl_reg *scp_ctrl_reg)
+			const struct scp_ctrl_reg *scp_ctrl_reg,
+			bool bus_prot_reg_update)
 {
 	struct genpd_onecell_data *pd_data;
 	struct resource *res;
@@ -385,6 +390,8 @@ static struct scp *init_scp(struct platform_device *pdev,
 
 	scp->ctrl_reg.pwr_sta_offs = scp_ctrl_reg->pwr_sta_offs;
 	scp->ctrl_reg.pwr_sta2nd_offs = scp_ctrl_reg->pwr_sta2nd_offs;
+
+	scp->bus_prot_reg_update = bus_prot_reg_update;
 
 	scp->dev = &pdev->dev;
 
@@ -806,7 +813,8 @@ static const struct scp_soc_data mt2701_data = {
 	.regs = {
 		.pwr_sta_offs = SPM_PWR_STATUS,
 		.pwr_sta2nd_offs = SPM_PWR_STATUS_2ND
-	}
+	},
+	.bus_prot_reg_update = true,
 };
 
 static const struct scp_soc_data mt6797_data = {
@@ -817,7 +825,8 @@ static const struct scp_soc_data mt6797_data = {
 	.regs = {
 		.pwr_sta_offs = SPM_PWR_STATUS_MT6797,
 		.pwr_sta2nd_offs = SPM_PWR_STATUS_2ND_MT6797
-	}
+	},
+	.bus_prot_reg_update = true,
 };
 
 static const struct scp_soc_data mt7622_data = {
@@ -826,7 +835,8 @@ static const struct scp_soc_data mt7622_data = {
 	.regs = {
 		.pwr_sta_offs = SPM_PWR_STATUS,
 		.pwr_sta2nd_offs = SPM_PWR_STATUS_2ND
-	}
+	},
+	.bus_prot_reg_update = true,
 };
 
 static const struct scp_soc_data mt8173_data = {
@@ -837,7 +847,8 @@ static const struct scp_soc_data mt8173_data = {
 	.regs = {
 		.pwr_sta_offs = SPM_PWR_STATUS,
 		.pwr_sta2nd_offs = SPM_PWR_STATUS_2ND
-	}
+	},
+	.bus_prot_reg_update = true,
 };
 
 /*
@@ -874,7 +885,8 @@ static int scpsys_probe(struct platform_device *pdev)
 	match = of_match_device(of_scpsys_match_tbl, &pdev->dev);
 	soc = (const struct scp_soc_data *)match->data;
 
-	scp = init_scp(pdev, soc->domains, soc->num_domains, &soc->regs);
+	scp = init_scp(pdev, soc->domains, soc->num_domains, &soc->regs,
+			soc->bus_prot_reg_update);
 	if (IS_ERR(scp))
 		return PTR_ERR(scp);
 
