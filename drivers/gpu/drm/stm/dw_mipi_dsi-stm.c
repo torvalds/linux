@@ -65,6 +65,7 @@ enum dsi_color {
 struct dw_mipi_dsi_stm {
 	void __iomem *base;
 	struct clk *pllref_clk;
+	struct dw_mipi_dsi *dsi;
 };
 
 static inline void dsi_write(struct dw_mipi_dsi_stm *dsi, u32 reg, u32 val)
@@ -312,21 +313,24 @@ static int dw_mipi_dsi_stm_probe(struct platform_device *pdev)
 	dw_mipi_dsi_stm_plat_data.base = dsi->base;
 	dw_mipi_dsi_stm_plat_data.priv_data = dsi;
 
-	ret = dw_mipi_dsi_probe(pdev, &dw_mipi_dsi_stm_plat_data);
-	if (ret) {
+	platform_set_drvdata(pdev, dsi);
+
+	dsi->dsi = dw_mipi_dsi_probe(pdev, &dw_mipi_dsi_stm_plat_data);
+	if (IS_ERR(dsi->dsi)) {
 		DRM_ERROR("Failed to initialize mipi dsi host\n");
 		clk_disable_unprepare(dsi->pllref_clk);
+		return PTR_ERR(dsi->dsi);
 	}
 
-	return ret;
+	return 0;
 }
 
 static int dw_mipi_dsi_stm_remove(struct platform_device *pdev)
 {
-	struct dw_mipi_dsi_stm *dsi = dw_mipi_dsi_stm_plat_data.priv_data;
+	struct dw_mipi_dsi_stm *dsi = platform_get_drvdata(pdev);
 
 	clk_disable_unprepare(dsi->pllref_clk);
-	dw_mipi_dsi_remove(pdev);
+	dw_mipi_dsi_remove(dsi->dsi);
 
 	return 0;
 }

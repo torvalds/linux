@@ -922,8 +922,6 @@ __dw_mipi_dsi_probe(struct platform_device *pdev,
 	dsi->bridge.of_node = pdev->dev.of_node;
 #endif
 
-	dev_set_drvdata(dev, dsi);
-
 	return dsi;
 }
 
@@ -935,23 +933,16 @@ static void __dw_mipi_dsi_remove(struct dw_mipi_dsi *dsi)
 /*
  * Probe/remove API, used from platforms based on the DRM bridge API.
  */
-int dw_mipi_dsi_probe(struct platform_device *pdev,
-		      const struct dw_mipi_dsi_plat_data *plat_data)
+struct dw_mipi_dsi *
+dw_mipi_dsi_probe(struct platform_device *pdev,
+		  const struct dw_mipi_dsi_plat_data *plat_data)
 {
-	struct dw_mipi_dsi *dsi;
-
-	dsi = __dw_mipi_dsi_probe(pdev, plat_data);
-	if (IS_ERR(dsi))
-		return PTR_ERR(dsi);
-
-	return 0;
+	return __dw_mipi_dsi_probe(pdev, plat_data);
 }
 EXPORT_SYMBOL_GPL(dw_mipi_dsi_probe);
 
-void dw_mipi_dsi_remove(struct platform_device *pdev)
+void dw_mipi_dsi_remove(struct dw_mipi_dsi *dsi)
 {
-	struct dw_mipi_dsi *dsi = platform_get_drvdata(pdev);
-
 	mipi_dsi_host_unregister(&dsi->dsi_host);
 
 	__dw_mipi_dsi_remove(dsi);
@@ -961,31 +952,30 @@ EXPORT_SYMBOL_GPL(dw_mipi_dsi_remove);
 /*
  * Bind/unbind API, used from platforms based on the component framework.
  */
-int dw_mipi_dsi_bind(struct platform_device *pdev, struct drm_encoder *encoder,
-		     const struct dw_mipi_dsi_plat_data *plat_data)
+struct dw_mipi_dsi *
+dw_mipi_dsi_bind(struct platform_device *pdev, struct drm_encoder *encoder,
+		 const struct dw_mipi_dsi_plat_data *plat_data)
 {
 	struct dw_mipi_dsi *dsi;
 	int ret;
 
 	dsi = __dw_mipi_dsi_probe(pdev, plat_data);
 	if (IS_ERR(dsi))
-		return PTR_ERR(dsi);
+		return dsi;
 
 	ret = drm_bridge_attach(encoder, &dsi->bridge, NULL);
 	if (ret) {
-		dw_mipi_dsi_remove(pdev);
+		dw_mipi_dsi_remove(dsi);
 		DRM_ERROR("Failed to initialize bridge with drm\n");
-		return ret;
+		return ERR_PTR(ret);
 	}
 
-	return 0;
+	return dsi;
 }
 EXPORT_SYMBOL_GPL(dw_mipi_dsi_bind);
 
-void dw_mipi_dsi_unbind(struct device *dev)
+void dw_mipi_dsi_unbind(struct dw_mipi_dsi *dsi)
 {
-	struct dw_mipi_dsi *dsi = dev_get_drvdata(dev);
-
 	__dw_mipi_dsi_remove(dsi);
 }
 EXPORT_SYMBOL_GPL(dw_mipi_dsi_unbind);
