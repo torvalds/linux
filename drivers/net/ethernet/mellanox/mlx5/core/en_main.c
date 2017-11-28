@@ -173,185 +173,23 @@ unlock:
 	rtnl_unlock();
 }
 
-static void mlx5e_update_sw_counters(struct mlx5e_priv *priv)
+void mlx5e_update_stats(struct mlx5e_priv *priv)
 {
-	struct mlx5e_sw_stats temp, *s = &temp;
-	struct mlx5e_rq_stats *rq_stats;
-	struct mlx5e_sq_stats *sq_stats;
-	struct mlx5e_ch_stats *ch_stats;
-	int i, j;
+	int i;
 
-	memset(s, 0, sizeof(*s));
-	for (i = 0; i < priv->channels.num; i++) {
-		struct mlx5e_channel *c = priv->channels.c[i];
-
-		rq_stats = &c->rq.stats;
-		ch_stats = &c->stats;
-
-		s->rx_packets	+= rq_stats->packets;
-		s->rx_bytes	+= rq_stats->bytes;
-		s->rx_lro_packets += rq_stats->lro_packets;
-		s->rx_lro_bytes	+= rq_stats->lro_bytes;
-		s->rx_removed_vlan_packets += rq_stats->removed_vlan_packets;
-		s->rx_csum_none	+= rq_stats->csum_none;
-		s->rx_csum_complete += rq_stats->csum_complete;
-		s->rx_csum_unnecessary += rq_stats->csum_unnecessary;
-		s->rx_csum_unnecessary_inner += rq_stats->csum_unnecessary_inner;
-		s->rx_xdp_drop += rq_stats->xdp_drop;
-		s->rx_xdp_tx += rq_stats->xdp_tx;
-		s->rx_xdp_tx_full += rq_stats->xdp_tx_full;
-		s->rx_wqe_err   += rq_stats->wqe_err;
-		s->rx_mpwqe_filler += rq_stats->mpwqe_filler;
-		s->rx_buff_alloc_err += rq_stats->buff_alloc_err;
-		s->rx_cqe_compress_blks += rq_stats->cqe_compress_blks;
-		s->rx_cqe_compress_pkts += rq_stats->cqe_compress_pkts;
-		s->rx_page_reuse  += rq_stats->page_reuse;
-		s->rx_cache_reuse += rq_stats->cache_reuse;
-		s->rx_cache_full  += rq_stats->cache_full;
-		s->rx_cache_empty += rq_stats->cache_empty;
-		s->rx_cache_busy  += rq_stats->cache_busy;
-		s->rx_cache_waive += rq_stats->cache_waive;
-		s->ch_eq_rearm += ch_stats->eq_rearm;
-
-		for (j = 0; j < priv->channels.params.num_tc; j++) {
-			sq_stats = &c->sq[j].stats;
-
-			s->tx_packets		+= sq_stats->packets;
-			s->tx_bytes		+= sq_stats->bytes;
-			s->tx_tso_packets	+= sq_stats->tso_packets;
-			s->tx_tso_bytes		+= sq_stats->tso_bytes;
-			s->tx_tso_inner_packets	+= sq_stats->tso_inner_packets;
-			s->tx_tso_inner_bytes	+= sq_stats->tso_inner_bytes;
-			s->tx_added_vlan_packets += sq_stats->added_vlan_packets;
-			s->tx_queue_stopped	+= sq_stats->stopped;
-			s->tx_queue_wake	+= sq_stats->wake;
-			s->tx_queue_dropped	+= sq_stats->dropped;
-			s->tx_xmit_more		+= sq_stats->xmit_more;
-			s->tx_csum_partial_inner += sq_stats->csum_partial_inner;
-			s->tx_csum_none		+= sq_stats->csum_none;
-			s->tx_csum_partial	+= sq_stats->csum_partial;
-		}
-	}
-
-	s->link_down_events_phy = MLX5_GET(ppcnt_reg,
-				priv->stats.pport.phy_counters,
-				counter_set.phys_layer_cntrs.link_down_events);
-	memcpy(&priv->stats.sw, s, sizeof(*s));
-}
-
-static void mlx5e_update_vport_counters(struct mlx5e_priv *priv)
-{
-	int outlen = MLX5_ST_SZ_BYTES(query_vport_counter_out);
-	u32 *out = (u32 *)priv->stats.vport.query_vport_out;
-	u32 in[MLX5_ST_SZ_DW(query_vport_counter_in)] = {0};
-	struct mlx5_core_dev *mdev = priv->mdev;
-
-	MLX5_SET(query_vport_counter_in, in, opcode,
-		 MLX5_CMD_OP_QUERY_VPORT_COUNTER);
-	MLX5_SET(query_vport_counter_in, in, op_mod, 0);
-	MLX5_SET(query_vport_counter_in, in, other_vport, 0);
-
-	mlx5_cmd_exec(mdev, in, sizeof(in), out, outlen);
-}
-
-static void mlx5e_update_pport_counters(struct mlx5e_priv *priv, bool full)
-{
-	struct mlx5e_pport_stats *pstats = &priv->stats.pport;
-	struct mlx5_core_dev *mdev = priv->mdev;
-	u32 in[MLX5_ST_SZ_DW(ppcnt_reg)] = {0};
-	int sz = MLX5_ST_SZ_BYTES(ppcnt_reg);
-	int prio;
-	void *out;
-
-	MLX5_SET(ppcnt_reg, in, local_port, 1);
-
-	out = pstats->IEEE_802_3_counters;
-	MLX5_SET(ppcnt_reg, in, grp, MLX5_IEEE_802_3_COUNTERS_GROUP);
-	mlx5_core_access_reg(mdev, in, sz, out, sz, MLX5_REG_PPCNT, 0, 0);
-
-	if (!full)
-		return;
-
-	out = pstats->RFC_2863_counters;
-	MLX5_SET(ppcnt_reg, in, grp, MLX5_RFC_2863_COUNTERS_GROUP);
-	mlx5_core_access_reg(mdev, in, sz, out, sz, MLX5_REG_PPCNT, 0, 0);
-
-	out = pstats->RFC_2819_counters;
-	MLX5_SET(ppcnt_reg, in, grp, MLX5_RFC_2819_COUNTERS_GROUP);
-	mlx5_core_access_reg(mdev, in, sz, out, sz, MLX5_REG_PPCNT, 0, 0);
-
-	out = pstats->phy_counters;
-	MLX5_SET(ppcnt_reg, in, grp, MLX5_PHYSICAL_LAYER_COUNTERS_GROUP);
-	mlx5_core_access_reg(mdev, in, sz, out, sz, MLX5_REG_PPCNT, 0, 0);
-
-	if (MLX5_CAP_PCAM_FEATURE(mdev, ppcnt_statistical_group)) {
-		out = pstats->phy_statistical_counters;
-		MLX5_SET(ppcnt_reg, in, grp, MLX5_PHYSICAL_LAYER_STATISTICAL_GROUP);
-		mlx5_core_access_reg(mdev, in, sz, out, sz, MLX5_REG_PPCNT, 0, 0);
-	}
-
-	if (MLX5_CAP_PCAM_FEATURE(mdev, rx_buffer_fullness_counters)) {
-		out = pstats->eth_ext_counters;
-		MLX5_SET(ppcnt_reg, in, grp, MLX5_ETHERNET_EXTENDED_COUNTERS_GROUP);
-		mlx5_core_access_reg(mdev, in, sz, out, sz, MLX5_REG_PPCNT, 0, 0);
-	}
-
-	MLX5_SET(ppcnt_reg, in, grp, MLX5_PER_PRIORITY_COUNTERS_GROUP);
-	for (prio = 0; prio < NUM_PPORT_PRIO; prio++) {
-		out = pstats->per_prio_counters[prio];
-		MLX5_SET(ppcnt_reg, in, prio_tc, prio);
-		mlx5_core_access_reg(mdev, in, sz, out, sz,
-				     MLX5_REG_PPCNT, 0, 0);
-	}
-}
-
-static void mlx5e_update_q_counter(struct mlx5e_priv *priv)
-{
-	struct mlx5e_qcounter_stats *qcnt = &priv->stats.qcnt;
-	u32 out[MLX5_ST_SZ_DW(query_q_counter_out)];
-	int err;
-
-	if (!priv->q_counter)
-		return;
-
-	err = mlx5_core_query_q_counter(priv->mdev, priv->q_counter, 0, out, sizeof(out));
-	if (err)
-		return;
-
-	qcnt->rx_out_of_buffer = MLX5_GET(query_q_counter_out, out, out_of_buffer);
-}
-
-static void mlx5e_update_pcie_counters(struct mlx5e_priv *priv)
-{
-	struct mlx5e_pcie_stats *pcie_stats = &priv->stats.pcie;
-	struct mlx5_core_dev *mdev = priv->mdev;
-	u32 in[MLX5_ST_SZ_DW(mpcnt_reg)] = {0};
-	int sz = MLX5_ST_SZ_BYTES(mpcnt_reg);
-	void *out;
-
-	if (!MLX5_CAP_MCAM_FEATURE(mdev, pcie_performance_group))
-		return;
-
-	out = pcie_stats->pcie_perf_counters;
-	MLX5_SET(mpcnt_reg, in, grp, MLX5_PCIE_PERFORMANCE_COUNTERS_GROUP);
-	mlx5_core_access_reg(mdev, in, sz, out, sz, MLX5_REG_MPCNT, 0, 0);
-}
-
-void mlx5e_update_stats(struct mlx5e_priv *priv, bool full)
-{
-	if (full) {
-		mlx5e_update_pcie_counters(priv);
-		mlx5e_ipsec_update_stats(priv);
-	}
-	mlx5e_update_pport_counters(priv, full);
-	mlx5e_update_vport_counters(priv);
-	mlx5e_update_q_counter(priv);
-	mlx5e_update_sw_counters(priv);
+	for (i = mlx5e_num_stats_grps - 1; i >= 0; i--)
+		if (mlx5e_stats_grps[i].update_stats)
+			mlx5e_stats_grps[i].update_stats(priv);
 }
 
 static void mlx5e_update_ndo_stats(struct mlx5e_priv *priv)
 {
-	mlx5e_update_stats(priv, false);
+	int i;
+
+	for (i = mlx5e_num_stats_grps - 1; i >= 0; i--)
+		if (mlx5e_stats_grps[i].update_stats_mask &
+		    MLX5E_NDO_UPDATE_STATS)
+			mlx5e_stats_grps[i].update_stats(priv);
 }
 
 void mlx5e_update_stats_work(struct work_struct *work)

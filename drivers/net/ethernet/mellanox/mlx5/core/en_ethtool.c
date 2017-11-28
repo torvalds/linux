@@ -207,7 +207,7 @@ void mlx5e_ethtool_get_ethtool_stats(struct mlx5e_priv *priv,
 		return;
 
 	mutex_lock(&priv->state_lock);
-	mlx5e_update_stats(priv, true);
+	mlx5e_update_stats(priv);
 	mutex_unlock(&priv->state_lock);
 
 	for (i = 0; i < mlx5e_num_stats_grps; i++)
