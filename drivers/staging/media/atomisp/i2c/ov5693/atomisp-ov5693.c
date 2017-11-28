@@ -776,7 +776,7 @@ static int __ov5693_otp_read(struct v4l2_subdev *sd, u8 *buf)
 			if ((*b) == 0) {
 				dev->otp_size = 32;
 				break;
-		} else {
+			} else {
 				b = buf;
 				continue;
 			}
