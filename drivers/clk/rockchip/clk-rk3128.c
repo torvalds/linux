@@ -16,6 +16,7 @@
 #include <linux/clk-provider.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
+#include <linux/rockchip/cpu.h>
 #include <linux/syscore_ops.h>
 #include <dt-bindings/clock/rk3128-cru.h>
 #include "clk.h"
@@ -581,6 +582,15 @@ static const char *const rk3128_critical_clocks[] __initconst = {
 	"hclk_vio_niu",
 };
 
+static void __iomem *rk312x_reg_base;
+
+void rkclk_cpuclk_div_setting(int div)
+{
+	if (cpu_is_rk312x())
+		writel_relaxed((0x001f0000 | (div - 1)),
+			       rk312x_reg_base +  RK2928_CLKSEL_CON(0));
+}
+
 static struct rockchip_clk_provider *__init rk3128_common_clk_init(struct device_node *np)
 {
 	struct rockchip_clk_provider *ctx;
@@ -592,6 +602,7 @@ static struct rockchip_clk_provider *__init rk3128_common_clk_init(struct device
 		return ERR_PTR(-ENOMEM);
 	}
 
+	rk312x_reg_base = reg_base;
 	ctx = rockchip_clk_init(np, reg_base, CLK_NR_CLKS);
 	if (IS_ERR(ctx)) {
 		pr_err("%s: rockchip clk init failed\n", __func__);

@@ -228,6 +228,38 @@ static int rk808_buck1_2_i2c_set_voltage_sel(struct regulator_dev *rdev,
 	return ret;
 }
 
+extern void rkclk_cpuclk_div_setting(int div);
+
+static int rk816_regulator_set_voltage_sel_regmap(struct regulator_dev *rdev,
+						  unsigned int sel)
+{
+	int ret, real_sel, delay = 100;
+
+	sel <<= ffs(rdev->desc->vsel_mask) - 1;
+
+	if (sel > 23)
+		rkclk_cpuclk_div_setting(4);
+	else
+		rkclk_cpuclk_div_setting(2);
+
+	do {
+		ret = regmap_update_bits(rdev->regmap,
+					 rdev->desc->vsel_reg,
+					 rdev->desc->vsel_mask, sel);
+		if (ret)
+			return ret;
+
+		regmap_read(rdev->regmap,
+			    rdev->desc->vsel_reg, &real_sel);
+		real_sel &= rdev->desc->vsel_mask;
+		delay--;
+	} while ((sel != real_sel) && (delay > 0));
+
+	rkclk_cpuclk_div_setting(1);
+
+	return ret;
+}
+
 static int rk808_buck1_2_set_voltage_sel(struct regulator_dev *rdev,
 					 unsigned sel)
 {
@@ -553,6 +585,24 @@ static struct regulator_ops rk808_switch_ops = {
 	.set_suspend_mode	= rk8xx_set_suspend_mode,
 };
 
+static struct regulator_ops rk816_buck_ops_range = {
+	.list_voltage		= regulator_list_voltage_linear_range,
+	.map_voltage		= regulator_map_voltage_linear_range,
+	.get_voltage_sel	= regulator_get_voltage_sel_regmap,
+	.set_voltage_sel	= rk816_regulator_set_voltage_sel_regmap,
+	.set_voltage_time_sel	= regulator_set_voltage_time_sel,
+	.enable			= regulator_enable_regmap,
+	.disable		= regulator_disable_regmap,
+	.is_enabled		= regulator_is_enabled_regmap,
+	.set_mode		= rk8xx_set_mode,
+	.get_mode		= rk8xx_get_mode,
+	.set_suspend_mode	= rk8xx_set_suspend_mode,
+	.set_ramp_delay		= rk808_set_ramp_delay,
+	.set_suspend_voltage	= rk808_set_suspend_voltage_range,
+	.set_suspend_enable	= rk808_set_suspend_enable,
+	.set_suspend_disable	= rk808_set_suspend_disable,
+};
+
 static const struct regulator_desc rk808_reg[] = {
 	{
 		.name = "DCDC_REG1",
@@ -654,7 +704,7 @@ static const struct regulator_desc rk816_reg[] = {
 		.of_match = of_match_ptr("DCDC_REG1"),
 		.regulators_node = of_match_ptr("regulators"),
 		.id = RK816_ID_DCDC1,
-		.ops = &rk8xx_buck_ops_range,
+		.ops = &rk816_buck_ops_range,
 		.type = REGULATOR_VOLTAGE,
 		.n_voltages = 64,
 		.linear_ranges = rk816_buck_voltage_ranges,
