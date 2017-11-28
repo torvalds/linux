@@ -131,6 +131,8 @@ static inline int idr_alloc_ext(struct idr *idr, void *ptr,
 	return idr_alloc_cmn(idr, ptr, index, start, end, gfp, true);
 }
 
+int __must_check idr_alloc_u32(struct idr *, void *ptr, u32 *nextid,
+				unsigned long max, gfp_t);
 int idr_alloc_cyclic(struct idr *, void *entry, int start, int end, gfp_t);
 int idr_for_each(const struct idr *,
 		 int (*fn)(int id, void *p, void *data), void *data);
