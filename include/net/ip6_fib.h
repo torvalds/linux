@@ -130,6 +130,7 @@ struct rt6_exception {
 struct rt6_info {
 	struct dst_entry		dst;
 	struct rt6_info __rcu		*rt6_next;
+	struct rt6_info			*from;
 
 	/*
 	 * Tail elements of dst_entry (__refcnt etc.)
@@ -204,11 +205,9 @@ static inline void rt6_update_expires(struct rt6_info *rt0, int timeout)
 {
 	struct rt6_info *rt;
 
-	for (rt = rt0; rt && !(rt->rt6i_flags & RTF_EXPIRES);
-	     rt = (struct rt6_info *)rt->dst.from);
+	for (rt = rt0; rt && !(rt->rt6i_flags & RTF_EXPIRES); rt = rt->from);
 	if (rt && rt != rt0)
 		rt0->dst.expires = rt->dst.expires;
-
 	dst_set_expires(&rt0->dst, timeout);
 	rt0->rt6i_flags |= RTF_EXPIRES;
 }
@@ -243,8 +242,8 @@ static inline u32 rt6_get_cookie(const struct rt6_info *rt)
 	u32 cookie = 0;
 
 	if (rt->rt6i_flags & RTF_PCPU ||
-	    (unlikely(!list_empty(&rt->rt6i_uncached)) && rt->dst.from))
-		rt = (struct rt6_info *)(rt->dst.from);
+	    (unlikely(!list_empty(&rt->rt6i_uncached)) && rt->from))
+		rt = rt->from;
 
 	rt6_get_cookie_safe(rt, &cookie);
 

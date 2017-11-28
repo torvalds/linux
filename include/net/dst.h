@@ -39,7 +39,6 @@ struct dst_entry {
 	unsigned long		_metrics;
 	unsigned long           expires;
 	struct dst_entry	*path;
-	struct dst_entry	*from;
 #ifdef CONFIG_XFRM
 	struct xfrm_state	*xfrm;
 #else
@@ -88,7 +87,7 @@ struct dst_entry {
 	 * Align __refcnt to a 64 bytes alignment
 	 * (L1_CACHE_SIZE would be too much)
 	 */
-	long			__pad_to_align_refcnt[3];
+	long			__pad_to_align_refcnt[4];
 #endif
 	/*
 	 * __refcnt wants to be on a different cache line from

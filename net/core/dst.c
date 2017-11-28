@@ -70,7 +70,6 @@ void dst_init(struct dst_entry *dst, struct dst_ops *ops,
 	dst_init_metrics(dst, dst_default_metrics.metrics, true);
 	dst->expires = 0UL;
 	dst->path = dst;
-	dst->from = NULL;
 #ifdef CONFIG_XFRM
 	dst->xfrm = NULL;
 #endif
