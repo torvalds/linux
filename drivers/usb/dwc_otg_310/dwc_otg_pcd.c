@@ -2468,16 +2468,18 @@ int dwc_otg_pcd_ep_dequeue(dwc_otg_pcd_t *pcd, void *ep_handle,
 	}
 
 	if (!DWC_CIRCLEQ_EMPTY_ENTRY(req, queue_entry)) {
-		dwc_otg_pcd_ep_stop_transfer(GET_CORE_IF(pcd),
-					     &ep->dwc_ep);
-		/* Flush the Tx FIFO */
-		if (ep->dwc_ep.is_in) {
-			dwc_otg_flush_tx_fifo(GET_CORE_IF(pcd),
-					      ep->dwc_ep.tx_fifo_num);
-			release_perio_tx_fifo(GET_CORE_IF(pcd),
-					      ep->dwc_ep.tx_fifo_num);
-			release_tx_fifo(GET_CORE_IF(pcd),
-					ep->dwc_ep.tx_fifo_num);
+		if (ep->dwc_ep.type != DWC_OTG_EP_TYPE_ISOC) {
+			dwc_otg_pcd_ep_stop_transfer(GET_CORE_IF(pcd),
+						     &ep->dwc_ep);
+			/* Flush the Tx FIFO */
+			if (ep->dwc_ep.is_in) {
+				dwc_otg_flush_tx_fifo(GET_CORE_IF(pcd),
+						      ep->dwc_ep.tx_fifo_num);
+				release_perio_tx_fifo(GET_CORE_IF(pcd),
+						      ep->dwc_ep.tx_fifo_num);
+				release_tx_fifo(GET_CORE_IF(pcd),
+						ep->dwc_ep.tx_fifo_num);
+			}
 		}
 
 		dwc_otg_request_done(ep, req, -DWC_E_RESTART);
