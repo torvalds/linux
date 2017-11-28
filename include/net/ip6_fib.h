@@ -129,6 +129,7 @@ struct rt6_exception {
 
 struct rt6_info {
 	struct dst_entry		dst;
+	struct rt6_info __rcu		*rt6_next;
 
 	/*
 	 * Tail elements of dst_entry (__refcnt etc.)
@@ -176,11 +177,11 @@ struct rt6_info {
 
 #define for_each_fib6_node_rt_rcu(fn)					\
 	for (rt = rcu_dereference((fn)->leaf); rt;			\
-	     rt = rcu_dereference(rt->dst.rt6_next))
+	     rt = rcu_dereference(rt->rt6_next))
 
 #define for_each_fib6_walker_rt(w)					\
 	for (rt = (w)->leaf; rt;					\
-	     rt = rcu_dereference_protected(rt->dst.rt6_next, 1))
+	     rt = rcu_dereference_protected(rt->rt6_next, 1))
 
 static inline struct inet6_dev *ip6_dst_idev(struct dst_entry *dst)
 {

@@ -101,7 +101,6 @@ struct dst_entry {
 	struct lwtunnel_state   *lwtstate;
 	union {
 		struct dst_entry	*next;
-		struct rt6_info __rcu	*rt6_next;
 	};
 };
 

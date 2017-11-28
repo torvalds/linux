@@ -502,7 +502,7 @@ static inline struct rt6_info *rt6_device_match(struct net *net,
 	if (!oif && ipv6_addr_any(saddr))
 		goto out;
 
-	for (sprt = rt; sprt; sprt = rcu_dereference(sprt->dst.rt6_next)) {
+	for (sprt = rt; sprt; sprt = rcu_dereference(sprt->rt6_next)) {
 		struct net_device *dev = sprt->dst.dev;
 
 		if (oif) {
@@ -721,7 +721,7 @@ static struct rt6_info *find_rr_leaf(struct fib6_node *fn,
 
 	match = NULL;
 	cont = NULL;
-	for (rt = rr_head; rt; rt = rcu_dereference(rt->dst.rt6_next)) {
+	for (rt = rr_head; rt; rt = rcu_dereference(rt->rt6_next)) {
 		if (rt->rt6i_metric != metric) {
 			cont = rt;
 			break;
@@ -731,7 +731,7 @@ static struct rt6_info *find_rr_leaf(struct fib6_node *fn,
 	}
 
 	for (rt = leaf; rt && rt != rr_head;
-	     rt = rcu_dereference(rt->dst.rt6_next)) {
+	     rt = rcu_dereference(rt->rt6_next)) {
 		if (rt->rt6i_metric != metric) {
 			cont = rt;
 			break;
@@ -743,7 +743,7 @@ static struct rt6_info *find_rr_leaf(struct fib6_node *fn,
 	if (match || !cont)
 		return match;
 
-	for (rt = cont; rt; rt = rcu_dereference(rt->dst.rt6_next))
+	for (rt = cont; rt; rt = rcu_dereference(rt->rt6_next))
 		match = find_match(rt, oif, strict, &mpri, match, do_rr);
 
 	return match;
@@ -781,7 +781,7 @@ static struct rt6_info *rt6_select(struct net *net, struct fib6_node *fn,
 			     &do_rr);
 
 	if (do_rr) {
-		struct rt6_info *next = rcu_dereference(rt0->dst.rt6_next);
+		struct rt6_info *next = rcu_dereference(rt0->rt6_next);
 
 		/* no entries matched; do round-robin */
 		if (!next || next->rt6i_metric != rt0->rt6i_metric)
