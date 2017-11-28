@@ -273,15 +273,21 @@ static void stmpe_dbg_show_one(struct seq_file *s,
 		u8 fall_reg;
 		u8 irqen_reg;
 
-		char *edge_det_values[] = {"edge-inactive",
-					   "edge-asserted",
-					   "not-supported"};
-		char *rise_values[] = {"no-rising-edge-detection",
-				       "rising-edge-detection",
-				       "not-supported"};
-		char *fall_values[] = {"no-falling-edge-detection",
-				       "falling-edge-detection",
-				       "not-supported"};
+		static const char * const edge_det_values[] = {
+			"edge-inactive",
+			"edge-asserted",
+			"not-supported"
+		};
+		static const char * const rise_values[] = {
+			"no-rising-edge-detection",
+			"rising-edge-detection",
+			"not-supported"
+		};
+		static const char * const fall_values[] = {
+			"no-falling-edge-detection",
+			"falling-edge-detection",
+			"not-supported"
+		};
 		#define NOT_SUPPORTED_IDX 2
 		u8 edge_det = NOT_SUPPORTED_IDX;
 		u8 rise = NOT_SUPPORTED_IDX;
