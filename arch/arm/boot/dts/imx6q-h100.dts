@@ -42,7 +42,7 @@
 /dts-v1/;
 
 #include "imx6q.dtsi"
-#include "imx6qdl-microsom.dtsi"
+#include "imx6qdl-sr-som.dtsi"
 
 / {
 	model = "Auvidea H100";
