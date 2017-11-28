@@ -1323,7 +1323,7 @@ static void hauppauge_eeprom(struct cx23885_dev *dev, u8 *eeprom_data)
 static void tbs_card_init(struct cx23885_dev *dev)
 {
 	int i;
-	const u8 buf[] = {
+	static const u8 buf[] = {
 		0xe0, 0x06, 0x66, 0x33, 0x65,
 		0x01, 0x17, 0x06, 0xde};
 

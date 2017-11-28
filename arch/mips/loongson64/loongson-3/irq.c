@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <loongson.h>
 #include <irq.h>
 #include <linux/interrupt.h>

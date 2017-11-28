@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Infrastructure for statistic tracing (histogram output).
  *

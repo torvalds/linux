@@ -7,6 +7,7 @@ Required Properties:
 
 - compatible: Should be:
 	- "mediatek,mt2701-ethsys", "syscon"
+	- "mediatek,mt7622-ethsys", "syscon"
 - #clock-cells: Must be 1
 
 The ethsys controller uses the common clk binding from

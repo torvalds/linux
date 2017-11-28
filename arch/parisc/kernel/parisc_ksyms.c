@@ -35,12 +35,12 @@ EXPORT_SYMBOL(memset);
 EXPORT_SYMBOL(__xchg8);
 EXPORT_SYMBOL(__xchg32);
 EXPORT_SYMBOL(__cmpxchg_u32);
+EXPORT_SYMBOL(__cmpxchg_u64);
 #ifdef CONFIG_SMP
 EXPORT_SYMBOL(__atomic_hash);
 #endif
 #ifdef CONFIG_64BIT
 EXPORT_SYMBOL(__xchg64);
-EXPORT_SYMBOL(__cmpxchg_u64);
 #endif
 
 #include <linux/uaccess.h>

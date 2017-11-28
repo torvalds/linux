@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 extern struct platform_device pxa_device_pmu;
 extern struct platform_device pxa_device_mci;
 extern struct platform_device pxa3xx_device_mci2;

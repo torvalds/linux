@@ -40,9 +40,11 @@
 #include <linux/ratelimit.h>
 #include <linux/kthread.h>
 #include <linux/init.h>
+#include <linux/mmu_notifier.h>
 
 #include <asm/tlb.h>
 #include "internal.h"
+#include "slab.h"
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/oom.h>
@@ -160,6 +162,25 @@ static bool oom_unkillable_task(struct task_struct *p,
 	return false;
 }
 
+/*
+ * Print out unreclaimble slabs info when unreclaimable slabs amount is greater
+ * than all user memory (LRU pages)
+ */
+static bool is_dump_unreclaim_slabs(void)
+{
+	unsigned long nr_lru;
+
+	nr_lru = global_node_page_state(NR_ACTIVE_ANON) +
+		 global_node_page_state(NR_INACTIVE_ANON) +
+		 global_node_page_state(NR_ACTIVE_FILE) +
+		 global_node_page_state(NR_INACTIVE_FILE) +
+		 global_node_page_state(NR_ISOLATED_ANON) +
+		 global_node_page_state(NR_ISOLATED_FILE) +
+		 global_node_page_state(NR_UNEVICTABLE);
+
+	return (global_node_page_state(NR_SLAB_UNRECLAIMABLE) > nr_lru);
+}
+
 /**
  * oom_badness - heuristic function to determine which candidate task to kill
  * @p: task struct of which task we should calculate
@@ -200,7 +221,7 @@ unsigned long oom_badness(struct task_struct *p, struct mem_cgroup *memcg,
 	 * task's rss, pagetable and swap space use.
 	 */
 	points = get_mm_rss(p->mm) + get_mm_counter(p->mm, MM_SWAPENTS) +
-		atomic_long_read(&p->mm->nr_ptes) + mm_nr_pmds(p->mm);
+		mm_pgtables_bytes(p->mm) / PAGE_SIZE;
 	task_unlock(p);
 
 	/*
@@ -368,15 +389,15 @@ static void select_bad_process(struct oom_control *oc)
  * Dumps the current memory state of all eligible tasks.  Tasks not in the same
  * memcg, not in the same cpuset, or bound to a disjoint set of mempolicy nodes
  * are not shown.
- * State information includes task's pid, uid, tgid, vm size, rss, nr_ptes,
- * swapents, oom_score_adj value, and name.
+ * State information includes task's pid, uid, tgid, vm size, rss,
+ * pgtables_bytes, swapents, oom_score_adj value, and name.
  */
 static void dump_tasks(struct mem_cgroup *memcg, const nodemask_t *nodemask)
 {
 	struct task_struct *p;
 	struct task_struct *task;
 
-	pr_info("[ pid ]   uid  tgid total_vm      rss nr_ptes nr_pmds swapents oom_score_adj name\n");
+	pr_info("[ pid ]   uid  tgid total_vm      rss pgtables_bytes swapents oom_score_adj name\n");
 	rcu_read_lock();
 	for_each_process(p) {
 		if (oom_unkillable_task(p, memcg, nodemask))
@@ -392,11 +413,10 @@ static void dump_tasks(struct mem_cgroup *memcg, const nodemask_t *nodemask)
 			continue;
 		}
 
-		pr_info("[%5d] %5d %5d %8lu %8lu %7ld %7ld %8lu         %5hd %s\n",
+		pr_info("[%5d] %5d %5d %8lu %8lu %8ld %8lu         %5hd %s\n",
 			task->pid, from_kuid(&init_user_ns, task_uid(task)),
 			task->tgid, task->mm->total_vm, get_mm_rss(task->mm),
-			atomic_long_read(&task->mm->nr_ptes),
-			mm_nr_pmds(task->mm),
+			mm_pgtables_bytes(task->mm),
 			get_mm_counter(task->mm, MM_SWAPENTS),
 			task->signal->oom_score_adj, task->comm);
 		task_unlock(task);
@@ -406,23 +426,22 @@ static void dump_tasks(struct mem_cgroup *memcg, const nodemask_t *nodemask)
 
 static void dump_header(struct oom_control *oc, struct task_struct *p)
 {
-	pr_warn("%s invoked oom-killer: gfp_mask=%#x(%pGg), nodemask=",
-		current->comm, oc->gfp_mask, &oc->gfp_mask);
-	if (oc->nodemask)
-		pr_cont("%*pbl", nodemask_pr_args(oc->nodemask));
-	else
-		pr_cont("(null)");
-	pr_cont(",  order=%d, oom_score_adj=%hd\n",
-		oc->order, current->signal->oom_score_adj);
+	pr_warn("%s invoked oom-killer: gfp_mask=%#x(%pGg), nodemask=%*pbl, order=%d, oom_score_adj=%hd\n",
+		current->comm, oc->gfp_mask, &oc->gfp_mask,
+		nodemask_pr_args(oc->nodemask), oc->order,
+			current->signal->oom_score_adj);
 	if (!IS_ENABLED(CONFIG_COMPACTION) && oc->order)
 		pr_warn("COMPACTION is disabled!!!\n");
 
 	cpuset_print_current_mems_allowed();
 	dump_stack();
-	if (oc->memcg)
+	if (is_memcg_oom(oc))
 		mem_cgroup_print_oom_info(oc->memcg, p);
-	else
+	else {
 		show_mem(SHOW_MEM_FILTER_NODES, oc->nodemask);
+		if (is_dump_unreclaim_slabs())
+			dump_unreclaimable_slab();
+	}
 	if (sysctl_oom_dump_tasks)
 		dump_tasks(oc->memcg, oc->nodemask);
 }
@@ -491,6 +510,21 @@ static bool __oom_reap_task_mm(struct task_struct *tsk, struct mm_struct *mm)
 	if (!down_read_trylock(&mm->mmap_sem)) {
 		ret = false;
 		trace_skip_task_reaping(tsk->pid);
+		goto unlock_oom;
+	}
+
+	/*
+	 * If the mm has notifiers then we would need to invalidate them around
+	 * unmap_page_range and that is risky because notifiers can sleep and
+	 * what they do is basically undeterministic.  So let's have a short
+	 * sleep to give the oom victim some more time.
+	 * TODO: we really want to get rid of this ugly hack and make sure that
+	 * notifiers cannot block for unbounded amount of time and add
+	 * mmu_notifier_invalidate_range_{start,end} around unmap_page_range
+	 */
+	if (mm_has_notifiers(mm)) {
+		up_read(&mm->mmap_sem);
+		schedule_timeout_idle(HZ);
 		goto unlock_oom;
 	}
 
@@ -602,9 +636,6 @@ static int oom_reaper(void *unused)
 
 static void wake_oom_reaper(struct task_struct *tsk)
 {
-	if (!oom_reaper_th)
-		return;
-
 	/* tsk is already queued? */
 	if (tsk == oom_reaper_list || tsk->oom_reaper_list)
 		return;
@@ -622,11 +653,6 @@ static void wake_oom_reaper(struct task_struct *tsk)
 static int __init oom_init(void)
 {
 	oom_reaper_th = kthread_run(oom_reaper, NULL, "oom_reaper");
-	if (IS_ERR(oom_reaper_th)) {
-		pr_err("Unable to start OOM reaper %ld. Continuing regardless\n",
-				PTR_ERR(oom_reaper_th));
-		oom_reaper_th = NULL;
-	}
 	return 0;
 }
 subsys_initcall(oom_init)

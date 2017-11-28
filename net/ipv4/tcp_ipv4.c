@@ -85,6 +85,8 @@
 #include <crypto/hash.h>
 #include <linux/scatterlist.h>
 
+#include <trace/events/tcp.h>
+
 #ifdef CONFIG_TCP_MD5SIG
 static int tcp_v4_md5_hash_hdr(char *md5_hash, const struct tcp_md5sig_key *key,
 			       __be32 daddr, __be32 saddr, const struct tcphdr *th);
@@ -480,7 +482,7 @@ void tcp_v4_err(struct sk_buff *icmp_skb, u32 info)
 					       TCP_TIMEOUT_INIT;
 		icsk->icsk_rto = inet_csk_rto_backoff(icsk, TCP_RTO_MAX);
 
-		skb = tcp_write_queue_head(sk);
+		skb = tcp_rtx_queue_head(sk);
 		BUG_ON(!skb);
 
 		tcp_mstamp_refresh(tp);
@@ -701,8 +703,10 @@ static void tcp_v4_send_reset(const struct sock *sk, struct sk_buff *skb)
 	 * routing might fail in this case. No choice here, if we choose to force
 	 * input interface, we will misroute in case of asymmetric route.
 	 */
-	if (sk)
+	if (sk) {
 		arg.bound_dev_if = sk->sk_bound_dev_if;
+		trace_tcp_send_reset(sk, skb);
+	}
 
 	BUILD_BUG_ON(offsetof(struct sock, sk_bound_dev_if) !=
 		     offsetof(struct inet_timewait_sock, tw_bound_dev_if));
@@ -877,7 +881,7 @@ static int tcp_v4_send_synack(const struct sock *sk, struct dst_entry *dst,
 
 		err = ip_build_and_send_pkt(skb, sk, ireq->ir_loc_addr,
 					    ireq->ir_rmt_addr,
-					    ireq->opt);
+					    ireq_opt_deref(ireq));
 		err = net_xmit_eval(err);
 	}
 
@@ -889,7 +893,7 @@ static int tcp_v4_send_synack(const struct sock *sk, struct dst_entry *dst,
  */
 static void tcp_v4_reqsk_destructor(struct request_sock *req)
 {
-	kfree(inet_rsk(req)->opt);
+	kfree(rcu_dereference_protected(inet_rsk(req)->ireq_opt, 1));
 }
 
 #ifdef CONFIG_TCP_MD5SIG
@@ -1265,10 +1269,11 @@ static void tcp_v4_init_req(struct request_sock *req,
 			    struct sk_buff *skb)
 {
 	struct inet_request_sock *ireq = inet_rsk(req);
+	struct net *net = sock_net(sk_listener);
 
 	sk_rcv_saddr_set(req_to_sk(req), ip_hdr(skb)->daddr);
 	sk_daddr_set(req_to_sk(req), ip_hdr(skb)->saddr);
-	ireq->opt = tcp_v4_save_options(sock_net(sk_listener), skb);
+	RCU_INIT_POINTER(ireq->ireq_opt, tcp_v4_save_options(net, skb));
 }
 
 static struct dst_entry *tcp_v4_route_req(const struct sock *sk,
@@ -1355,10 +1360,9 @@ struct sock *tcp_v4_syn_recv_sock(const struct sock *sk, struct sk_buff *skb,
 	sk_daddr_set(newsk, ireq->ir_rmt_addr);
 	sk_rcv_saddr_set(newsk, ireq->ir_loc_addr);
 	newsk->sk_bound_dev_if = ireq->ir_iif;
-	newinet->inet_saddr	      = ireq->ir_loc_addr;
-	inet_opt	      = ireq->opt;
-	rcu_assign_pointer(newinet->inet_opt, inet_opt);
-	ireq->opt	      = NULL;
+	newinet->inet_saddr   = ireq->ir_loc_addr;
+	inet_opt	      = rcu_dereference(ireq->ireq_opt);
+	RCU_INIT_POINTER(newinet->inet_opt, inet_opt);
 	newinet->mc_index     = inet_iif(skb);
 	newinet->mc_ttl	      = ip_hdr(skb)->ttl;
 	newinet->rcv_tos      = ip_hdr(skb)->tos;
@@ -1403,9 +1407,12 @@ struct sock *tcp_v4_syn_recv_sock(const struct sock *sk, struct sk_buff *skb,
 	if (__inet_inherit_port(sk, newsk) < 0)
 		goto put_and_exit;
 	*own_req = inet_ehash_nolisten(newsk, req_to_sk(req_unhash));
-	if (*own_req)
+	if (likely(*own_req)) {
 		tcp_move_syn(newtp, req);
-
+		ireq->ireq_opt = NULL;
+	} else {
+		newinet->inet_opt = NULL;
+	}
 	return newsk;
 
 exit_overflow:
@@ -1416,6 +1423,7 @@ exit:
 	tcp_listendrop(sk);
 	return NULL;
 put_and_exit:
+	newinet->inet_opt = NULL;
 	inet_csk_prepare_forced_close(newsk);
 	tcp_done(newsk);
 	goto exit;
@@ -1503,23 +1511,23 @@ csum_err:
 }
 EXPORT_SYMBOL(tcp_v4_do_rcv);
 
-void tcp_v4_early_demux(struct sk_buff *skb)
+int tcp_v4_early_demux(struct sk_buff *skb)
 {
 	const struct iphdr *iph;
 	const struct tcphdr *th;
 	struct sock *sk;
 
 	if (skb->pkt_type != PACKET_HOST)
-		return;
+		return 0;
 
 	if (!pskb_may_pull(skb, skb_transport_offset(skb) + sizeof(struct tcphdr)))
-		return;
+		return 0;
 
 	iph = ip_hdr(skb);
 	th = tcp_hdr(skb);
 
 	if (th->doff < sizeof(struct tcphdr) / 4)
-		return;
+		return 0;
 
 	sk = __inet_lookup_established(dev_net(skb->dev), &tcp_hashinfo,
 				       iph->saddr, th->source,
@@ -1538,6 +1546,7 @@ void tcp_v4_early_demux(struct sk_buff *skb)
 				skb_dst_set_noref(skb, dst);
 		}
 	}
+	return 0;
 }
 
 bool tcp_add_backlog(struct sock *sk, struct sk_buff *skb)
@@ -1778,8 +1787,9 @@ do_time_wait:
 			refcounted = false;
 			goto process;
 		}
-		/* Fall through to ACK */
 	}
+		/* to ACK */
+		/* fall through */
 	case TCP_TW_ACK:
 		tcp_v4_timewait_ack(sk, skb);
 		break;
@@ -1859,6 +1869,8 @@ void tcp_v4_destroy_sock(struct sock *sk)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 
+	trace_tcp_destroy_sock(sk);
+
 	tcp_clear_xmit_timers(sk);
 
 	tcp_cleanup_congestion_control(sk);
@@ -1891,6 +1903,7 @@ void tcp_v4_destroy_sock(struct sock *sk)
 
 	/* If socket is aborted during connect operation */
 	tcp_free_fastopen_req(tp);
+	tcp_fastopen_destroy_cipher(sk);
 	tcp_saved_syn_free(tp);
 
 	sk_sockets_allocated_dec(sk);
@@ -2396,8 +2409,8 @@ struct proto tcp_prot = {
 	.memory_allocated	= &tcp_memory_allocated,
 	.memory_pressure	= &tcp_memory_pressure,
 	.sysctl_mem		= sysctl_tcp_mem,
-	.sysctl_wmem		= sysctl_tcp_wmem,
-	.sysctl_rmem		= sysctl_tcp_rmem,
+	.sysctl_wmem_offset	= offsetof(struct net, ipv4.sysctl_tcp_wmem),
+	.sysctl_rmem_offset	= offsetof(struct net, ipv4.sysctl_tcp_rmem),
 	.max_header		= MAX_TCP_HEADER,
 	.obj_size		= sizeof(struct tcp_sock),
 	.slab_flags		= SLAB_TYPESAFE_BY_RCU,
@@ -2416,6 +2429,8 @@ EXPORT_SYMBOL(tcp_prot);
 static void __net_exit tcp_sk_exit(struct net *net)
 {
 	int cpu;
+
+	module_put(net->ipv4.tcp_congestion_control->owner);
 
 	for_each_possible_cpu(cpu)
 		inet_ctl_sock_destroy(*per_cpu_ptr(net->ipv4.tcp_sk, cpu));
@@ -2471,6 +2486,50 @@ static int __net_init tcp_sk_init(struct net *net)
 	net->ipv4.sysctl_tcp_sack = 1;
 	net->ipv4.sysctl_tcp_window_scaling = 1;
 	net->ipv4.sysctl_tcp_timestamps = 1;
+	net->ipv4.sysctl_tcp_early_retrans = 3;
+	net->ipv4.sysctl_tcp_recovery = TCP_RACK_LOSS_DETECTION;
+	net->ipv4.sysctl_tcp_slow_start_after_idle = 1; /* By default, RFC2861 behavior.  */
+	net->ipv4.sysctl_tcp_retrans_collapse = 1;
+	net->ipv4.sysctl_tcp_max_reordering = 300;
+	net->ipv4.sysctl_tcp_dsack = 1;
+	net->ipv4.sysctl_tcp_app_win = 31;
+	net->ipv4.sysctl_tcp_adv_win_scale = 1;
+	net->ipv4.sysctl_tcp_frto = 2;
+	net->ipv4.sysctl_tcp_moderate_rcvbuf = 1;
+	/* This limits the percentage of the congestion window which we
+	 * will allow a single TSO frame to consume.  Building TSO frames
+	 * which are too large can cause TCP streams to be bursty.
+	 */
+	net->ipv4.sysctl_tcp_tso_win_divisor = 3;
+	/* Default TSQ limit of four TSO segments */
+	net->ipv4.sysctl_tcp_limit_output_bytes = 262144;
+	/* rfc5961 challenge ack rate limiting */
+	net->ipv4.sysctl_tcp_challenge_ack_limit = 1000;
+	net->ipv4.sysctl_tcp_min_tso_segs = 2;
+	net->ipv4.sysctl_tcp_min_rtt_wlen = 300;
+	net->ipv4.sysctl_tcp_autocorking = 1;
+	net->ipv4.sysctl_tcp_invalid_ratelimit = HZ/2;
+	net->ipv4.sysctl_tcp_pacing_ss_ratio = 200;
+	net->ipv4.sysctl_tcp_pacing_ca_ratio = 120;
+	if (net != &init_net) {
+		memcpy(net->ipv4.sysctl_tcp_rmem,
+		       init_net.ipv4.sysctl_tcp_rmem,
+		       sizeof(init_net.ipv4.sysctl_tcp_rmem));
+		memcpy(net->ipv4.sysctl_tcp_wmem,
+		       init_net.ipv4.sysctl_tcp_wmem,
+		       sizeof(init_net.ipv4.sysctl_tcp_wmem));
+	}
+	net->ipv4.sysctl_tcp_fastopen = TFO_CLIENT_ENABLE;
+	spin_lock_init(&net->ipv4.tcp_fastopen_ctx_lock);
+	net->ipv4.sysctl_tcp_fastopen_blackhole_timeout = 60 * 60;
+	atomic_set(&net->ipv4.tfo_active_disable_times, 0);
+
+	/* Reno is always built in */
+	if (!net_eq(net, &init_net) &&
+	    try_module_get(init_net.ipv4.tcp_congestion_control->owner))
+		net->ipv4.tcp_congestion_control = init_net.ipv4.tcp_congestion_control;
+	else
+		net->ipv4.tcp_congestion_control = &tcp_reno;
 
 	return 0;
 fail:
@@ -2481,7 +2540,12 @@ fail:
 
 static void __net_exit tcp_sk_exit_batch(struct list_head *net_exit_list)
 {
+	struct net *net;
+
 	inet_twsk_purge(&tcp_hashinfo, AF_INET);
+
+	list_for_each_entry(net, net_exit_list, exit_list)
+		tcp_fastopen_ctx_destroy(net);
 }
 
 static struct pernet_operations __net_initdata tcp_sk_ops = {

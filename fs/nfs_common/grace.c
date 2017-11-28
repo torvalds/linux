@@ -55,14 +55,7 @@ locks_end_grace(struct lock_manager *lm)
 }
 EXPORT_SYMBOL_GPL(locks_end_grace);
 
-/**
- * locks_in_grace
- *
- * Lock managers call this function to determine when it is OK for them
- * to answer ordinary lock requests, and when they should accept only
- * lock reclaims.
- */
-int
+static bool
 __state_in_grace(struct net *net, bool open)
 {
 	struct list_head *grace_list = net_generic(net, grace_net_id);
@@ -78,15 +71,22 @@ __state_in_grace(struct net *net, bool open)
 	return false;
 }
 
-int locks_in_grace(struct net *net)
+/**
+ * locks_in_grace
+ *
+ * Lock managers call this function to determine when it is OK for them
+ * to answer ordinary lock requests, and when they should accept only
+ * lock reclaims.
+ */
+bool locks_in_grace(struct net *net)
 {
-	return __state_in_grace(net, 0);
+	return __state_in_grace(net, false);
 }
 EXPORT_SYMBOL_GPL(locks_in_grace);
 
-int opens_in_grace(struct net *net)
+bool opens_in_grace(struct net *net)
 {
-	return __state_in_grace(net, 1);
+	return __state_in_grace(net, true);
 }
 EXPORT_SYMBOL_GPL(opens_in_grace);
 

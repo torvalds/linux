@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *  fs/signalfd.c
  *
@@ -312,15 +313,13 @@ COMPAT_SYSCALL_DEFINE4(signalfd4, int, ufd,
 		     compat_size_t, sigsetsize,
 		     int, flags)
 {
-	compat_sigset_t ss32;
 	sigset_t tmp;
 	sigset_t __user *ksigmask;
 
 	if (sigsetsize != sizeof(compat_sigset_t))
 		return -EINVAL;
-	if (copy_from_user(&ss32, sigmask, sizeof(ss32)))
+	if (get_compat_sigset(&tmp, sigmask))
 		return -EFAULT;
-	sigset_from_compat(&tmp, &ss32);
 	ksigmask = compat_alloc_user_space(sizeof(sigset_t));
 	if (copy_to_user(ksigmask, &tmp, sizeof(sigset_t)))
 		return -EFAULT;

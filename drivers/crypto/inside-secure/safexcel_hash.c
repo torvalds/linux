@@ -308,10 +308,8 @@ unmap_cache:
 		ctx->base.cache_sz = 0;
 	}
 free_cache:
-	if (ctx->base.cache) {
-		kfree(ctx->base.cache);
-		ctx->base.cache = NULL;
-	}
+	kfree(ctx->base.cache);
+	ctx->base.cache = NULL;
 
 unlock:
 	spin_unlock_bh(&priv->ring[ring].egress_lock);
@@ -419,7 +417,7 @@ static int safexcel_ahash_exit_inv(struct crypto_tfm *tfm)
 	struct safexcel_ahash_ctx *ctx = crypto_tfm_ctx(tfm);
 	struct safexcel_crypto_priv *priv = ctx->priv;
 	struct ahash_request req;
-	struct safexcel_inv_result result = { 0 };
+	struct safexcel_inv_result result = {};
 	int ring = ctx->base.ring;
 
 	memset(&req, 0, sizeof(struct ahash_request));

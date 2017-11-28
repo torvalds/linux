@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * GPL HEADER START
  *
@@ -889,7 +890,7 @@ lnet_return_rx_credits_locked(struct lnet_msg *msg)
 		 */
 		LASSERT(msg->msg_kiov);
 
-		rb = list_entry(msg->msg_kiov, struct lnet_rtrbuf, rb_kiov[0]);
+		rb = container_of(msg->msg_kiov, struct lnet_rtrbuf, rb_kiov[0]);
 		rbp = rb->rb_pool;
 
 		msg->msg_kiov = NULL;

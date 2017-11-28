@@ -18,7 +18,7 @@
 #include <linux/posix_acl.h>
 #include <linux/gfs2_ondisk.h>
 #include <linux/crc32.h>
-#include <linux/fiemap.h>
+#include <linux/iomap.h>
 #include <linux/security.h>
 #include <linux/uaccess.h>
 
@@ -189,7 +189,8 @@ struct inode *gfs2_inode_lookup(struct super_block *sb, unsigned int type,
 
 		gfs2_set_iop(inode);
 
-		inode->i_atime.tv_sec = 0;
+		/* Lowest possible timestamp; will be overwritten in gfs2_dinode_in. */
+		inode->i_atime.tv_sec = 1LL << (8 * sizeof(inode->i_atime.tv_sec) - 1);
 		inode->i_atime.tv_nsec = 0;
 
 		unlock_new_inode(inode);
@@ -1986,6 +1987,7 @@ static int gfs2_getattr(const struct path *path, struct kstat *stat,
 	struct inode *inode = d_inode(path->dentry);
 	struct gfs2_inode *ip = GFS2_I(inode);
 	struct gfs2_holder gh;
+	u32 gfsflags;
 	int error;
 
 	gfs2_holder_mark_uninitialized(&gh);
@@ -1995,12 +1997,29 @@ static int gfs2_getattr(const struct path *path, struct kstat *stat,
 			return error;
 	}
 
+	gfsflags = ip->i_diskflags;
+	if (gfsflags & GFS2_DIF_APPENDONLY)
+		stat->attributes |= STATX_ATTR_APPEND;
+	if (gfsflags & GFS2_DIF_IMMUTABLE)
+		stat->attributes |= STATX_ATTR_IMMUTABLE;
+
+	stat->attributes_mask |= (STATX_ATTR_APPEND |
+				  STATX_ATTR_COMPRESSED |
+				  STATX_ATTR_ENCRYPTED |
+				  STATX_ATTR_IMMUTABLE |
+				  STATX_ATTR_NODUMP);
+
 	generic_fillattr(inode, stat);
+
 	if (gfs2_holder_initialized(&gh))
 		gfs2_glock_dq_uninit(&gh);
 
 	return 0;
 }
+
+const struct iomap_ops gfs2_iomap_ops = {
+	.iomap_begin = gfs2_iomap_begin,
+};
 
 static int gfs2_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 		       u64 start, u64 len)
@@ -2009,39 +2028,57 @@ static int gfs2_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 	struct gfs2_holder gh;
 	int ret;
 
-	ret = fiemap_check_flags(fieinfo, FIEMAP_FLAG_SYNC);
-	if (ret)
-		return ret;
-
-	inode_lock(inode);
+	inode_lock_shared(inode);
 
 	ret = gfs2_glock_nq_init(ip->i_gl, LM_ST_SHARED, 0, &gh);
 	if (ret)
 		goto out;
 
-	if (gfs2_is_stuffed(ip)) {
-		u64 phys = ip->i_no_addr << inode->i_blkbits;
-		u64 size = i_size_read(inode);
-		u32 flags = FIEMAP_EXTENT_LAST|FIEMAP_EXTENT_NOT_ALIGNED|
-			    FIEMAP_EXTENT_DATA_INLINE;
-		phys += sizeof(struct gfs2_dinode);
-		phys += start;
-		if (start + len > size)
-			len = size - start;
-		if (start < size)
-			ret = fiemap_fill_next_extent(fieinfo, start, phys,
-						      len, flags);
-		if (ret == 1)
-			ret = 0;
-	} else {
-		ret = __generic_block_fiemap(inode, fieinfo, start, len,
-					     gfs2_block_map);
-	}
+	ret = iomap_fiemap(inode, fieinfo, start, len, &gfs2_iomap_ops);
 
 	gfs2_glock_dq_uninit(&gh);
+
 out:
-	inode_unlock(inode);
+	inode_unlock_shared(inode);
 	return ret;
+}
+
+loff_t gfs2_seek_data(struct file *file, loff_t offset)
+{
+	struct inode *inode = file->f_mapping->host;
+	struct gfs2_inode *ip = GFS2_I(inode);
+	struct gfs2_holder gh;
+	loff_t ret;
+
+	inode_lock_shared(inode);
+	ret = gfs2_glock_nq_init(ip->i_gl, LM_ST_SHARED, 0, &gh);
+	if (!ret)
+		ret = iomap_seek_data(inode, offset, &gfs2_iomap_ops);
+	gfs2_glock_dq_uninit(&gh);
+	inode_unlock_shared(inode);
+
+	if (ret < 0)
+		return ret;
+	return vfs_setpos(file, ret, inode->i_sb->s_maxbytes);
+}
+
+loff_t gfs2_seek_hole(struct file *file, loff_t offset)
+{
+	struct inode *inode = file->f_mapping->host;
+	struct gfs2_inode *ip = GFS2_I(inode);
+	struct gfs2_holder gh;
+	loff_t ret;
+
+	inode_lock_shared(inode);
+	ret = gfs2_glock_nq_init(ip->i_gl, LM_ST_SHARED, 0, &gh);
+	if (!ret)
+		ret = iomap_seek_hole(inode, offset, &gfs2_iomap_ops);
+	gfs2_glock_dq_uninit(&gh);
+	inode_unlock_shared(inode);
+
+	if (ret < 0)
+		return ret;
+	return vfs_setpos(file, ret, inode->i_sb->s_maxbytes);
 }
 
 const struct inode_operations gfs2_file_iops = {

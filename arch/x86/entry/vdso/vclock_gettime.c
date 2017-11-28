@@ -318,7 +318,7 @@ int gettimeofday(struct timeval *, struct timezone *)
 notrace time_t __vdso_time(time_t *t)
 {
 	/* This is atomic on x86 so we don't need any locks. */
-	time_t result = ACCESS_ONCE(gtod->wall_time_sec);
+	time_t result = READ_ONCE(gtod->wall_time_sec);
 
 	if (t)
 		*t = result;

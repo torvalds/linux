@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Public definitions for the CAAM/QI (Queue Interface) backend.
  *

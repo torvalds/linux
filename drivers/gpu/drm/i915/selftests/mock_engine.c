@@ -32,9 +32,9 @@ static struct mock_request *first_request(struct mock_engine *engine)
 					link);
 }
 
-static void hw_delay_complete(unsigned long data)
+static void hw_delay_complete(struct timer_list *t)
 {
-	struct mock_engine *engine = (typeof(engine))data;
+	struct mock_engine *engine = from_timer(engine, t, hw_delay);
 	struct mock_request *request;
 
 	spin_lock(&engine->hw_lock);
@@ -161,9 +161,7 @@ struct intel_engine_cs *mock_engine(struct drm_i915_private *i915,
 
 	/* fake hw queue */
 	spin_lock_init(&engine->hw_lock);
-	setup_timer(&engine->hw_delay,
-		    hw_delay_complete,
-		    (unsigned long)engine);
+	timer_setup(&engine->hw_delay, hw_delay_complete, 0);
 	INIT_LIST_HEAD(&engine->hw_queue);
 
 	return &engine->base;

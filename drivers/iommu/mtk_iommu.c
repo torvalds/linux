@@ -371,7 +371,8 @@ static int mtk_iommu_map(struct iommu_domain *domain, unsigned long iova,
 	int ret;
 
 	spin_lock_irqsave(&dom->pgtlock, flags);
-	ret = dom->iop->map(dom->iop, iova, paddr, size, prot);
+	ret = dom->iop->map(dom->iop, iova, paddr & DMA_BIT_MASK(32),
+			    size, prot);
 	spin_unlock_irqrestore(&dom->pgtlock, flags);
 
 	return ret;
@@ -389,6 +390,11 @@ static size_t mtk_iommu_unmap(struct iommu_domain *domain,
 	spin_unlock_irqrestore(&dom->pgtlock, flags);
 
 	return unmapsz;
+}
+
+static void mtk_iommu_iotlb_sync(struct iommu_domain *domain)
+{
+	mtk_iommu_tlb_sync(mtk_iommu_get_m4u_data());
 }
 
 static phys_addr_t mtk_iommu_iova_to_phys(struct iommu_domain *domain,
@@ -490,6 +496,8 @@ static struct iommu_ops mtk_iommu_ops = {
 	.map		= mtk_iommu_map,
 	.unmap		= mtk_iommu_unmap,
 	.map_sg		= default_iommu_map_sg,
+	.flush_iotlb_all = mtk_iommu_iotlb_sync,
+	.iotlb_sync	= mtk_iommu_iotlb_sync,
 	.iova_to_phys	= mtk_iommu_iova_to_phys,
 	.add_device	= mtk_iommu_add_device,
 	.remove_device	= mtk_iommu_remove_device,

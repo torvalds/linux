@@ -34,6 +34,7 @@
 #include "xfs_rmap_btree.h"
 #include "xfs_trans_space.h"
 #include "xfs_trace.h"
+#include "xfs_errortag.h"
 #include "xfs_error.h"
 #include "xfs_extent_busy.h"
 #include "xfs_bmap.h"

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __SH_INTC_H
 #define __SH_INTC_H
 

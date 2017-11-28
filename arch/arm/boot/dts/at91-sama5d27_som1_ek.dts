@@ -53,27 +53,38 @@
 	model = "Atmel SAMA5D27 SOM1 EK";
 	compatible = "atmel,sama5d27-som1-ek", "atmel,sama5d27-som1", "atmel,sama5d27", "atmel,sama5d2", "atmel,sama5";
 
+	aliases {
+		serial0 = &uart1;	/* DBGU */
+		serial1 = &uart4;	/* mikro BUS 1 */
+		serial2 = &uart2;	/* mikro BUS 2 */
+		i2c1	= &i2c1;
+		i2c2	= &i2c2;
+	};
+
 	chosen {
 		stdout-path = "serial0:115200n8";
 	};
 
 	ahb {
-		usb0: gadget@00300000 {
+		usb0: gadget@300000 {
 			atmel,vbus-gpio = <&pioA PIN_PD20 GPIO_ACTIVE_HIGH>;
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinctrl_usba_vbus>;
 			status = "okay";
 		};
 
-		usb1: ohci@00400000 {
+		usb1: ohci@400000 {
 			num-ports = <3>;
-			atmel,vbus-gpio = <&pioA PIN_PA10 GPIO_ACTIVE_HIGH>;
+			atmel,vbus-gpio = <0 /* &pioA PIN_PD20 GPIO_ACTIVE_HIGH */
+					   &pioA PIN_PA27 GPIO_ACTIVE_HIGH
+					   0
+					  >;
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinctrl_usb_default>;
 			status = "okay";
 		};
 
-		usb2: ehci@00500000 {
+		usb2: ehci@500000 {
 			status = "okay";
 		};
 
@@ -120,17 +131,19 @@
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_mikrobus2_uart>;
 				atmel,use-dma-rx;
-				atmel-use-dma-tx;
+				atmel,use-dma-tx;
 				status = "okay";
 			};
 
 			pwm0: pwm@f802c000 {
-				status = "okay";
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_mikrobus1_pwm &pinctrl_mikrobus2_pwm>;
+				status = "disabled"; /* Conflict with leds. */
 			};
 
 			flx1: flexcom@f8038000 {
 				atmel,flexcom-mode = <ATMEL_FLEXCOM_MODE_TWI>;
-				status = "disabled";
+				status = "okay";
 
 				i2c2: i2c@600 {
 					compatible = "atmel,sama5d2-i2c";
@@ -144,7 +157,7 @@
 					pinctrl-names = "default";
 					pinctrl-0 = <&pinctrl_mikrobus_i2c>;
 					atmel,fifo-size = <16>;
-					status = "disabled";
+					status = "okay";
 				};
 			};
 
@@ -162,23 +175,18 @@
 				status = "okay";
 			};
 
-			can0: can@f8054000 {
-				pinctrl-names = "default";
-				pinctrl-0 = <&pinctrl_can0_default>;
-			};
-
 			uart3: serial@fc008000 {
 				atmel,use-dma-rx;
 				atmel,use-dma-tx;
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_uart3_default>;
-				status = "disabled";
+				status = "disabled"; /* Conflict with isc. */
 			};
 
 			uart4: serial@fc00c000 {
 				atmel,use-dma-rx;
 				atmel,use-dma-tx;
-				pinctrl-name = "default";
+				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_mikrobus1_uart>;
 				status = "okay";
 			};
@@ -196,7 +204,7 @@
 					pinctrl-names = "default";
 					pinctrl-0 = <&pinctrl_flx3_default>;
 					atmel,fifo-size = <32>;
-					status = "disabled";
+					status = "disabled"; /* Conflict with isc. */
 				};
 
 				spi2: spi@400 {
@@ -208,7 +216,7 @@
 					pinctrl-names = "default";
 					pinctrl-0 = <&pinctrl_flx3_default>;
 					atmel,fifo-size = <16>;
-					status = "disabled";
+					status = "disabled"; /* Conflict with isc. */
 				};
 			};
 
@@ -225,7 +233,7 @@
 					pinctrl-names = "default";
 					pinctrl-0 = <&pinctrl_flx4_default>;
 					atmel,fifo-size = <32>;
-					status = "disabled";
+					status = "disabled"; /* Conflict with spi3 and i2c3. */
 				};
 
 				spi3: spi@400 {
@@ -237,7 +245,7 @@
 					pinctrl-names = "default";
 					pinctrl-0 = <&pinctrl_mikrobus_spi &pinctrl_mikrobus1_spi_cs &pinctrl_mikrobus2_spi_cs>;
 					atmel,fifo-size = <16>;
-					status = "okay";
+					status = "okay"; /* Conflict with uart6 and i2c3. */
 				};
 
 				i2c3: i2c@600 {
@@ -252,7 +260,7 @@
 					pinctrl-names = "default";
 					pinctrl-0 = <&pinctrl_flx4_default>;
 					atmel,fifo-size = <16>;
-					status = "disabled";
+					status = "disabled"; /* Conflict with uart6 and spi3. */
 				};
 			};
 
@@ -264,12 +272,6 @@
 			};
 
 			pinctrl@fc038000 {
-
-				pinctrl_can0_default: can0_default {
-					pinmux = <PIN_PC10__CANTX0>,
-						 <PIN_PC11__CANRX0>;
-					bias-disable;
-				};
 
 				pinctrl_can1_default: can1_default {
 					pinmux = <PIN_PC26__CANTX1>,
@@ -330,7 +332,7 @@
 				};
 
 				pinctrl_led_gpio_default: led_gpio_default {
-					pinmux = <PIN_PA27__GPIO>,
+					pinmux = <PIN_PA10__GPIO>,
 						 <PIN_PB1__GPIO>,
 						 <PIN_PA31__GPIO>;
 					bias-pull-up;
@@ -347,7 +349,7 @@
 							 <PIN_PA7__SDMMC0_DAT5>,
 							 <PIN_PA8__SDMMC0_DAT6>,
 							 <PIN_PA9__SDMMC0_DAT7>;
-						bias-pull-up;
+						bias-disable;
 					};
 
 					ck_cd_vddsel {
@@ -365,7 +367,7 @@
 							 <PIN_PA19__SDMMC1_DAT1>,
 							 <PIN_PA20__SDMMC1_DAT2>,
 							 <PIN_PA21__SDMMC1_DAT3>;
-						bias-pull-up;
+						bias-disable;
 					};
 
 					conf-ck_cd {
@@ -396,7 +398,7 @@
 				};
 
 				pinctrl_usb_default: usb_default {
-					pinmux = <PIN_PA10__GPIO>,
+					pinmux = <PIN_PA27__GPIO>,
 						 <PIN_PD19__GPIO>;
 					bias-disable;
 				};
@@ -509,6 +511,7 @@
 			label = "USER";
 			gpios = <&pioA PIN_PA29 GPIO_ACTIVE_LOW>;
 			linux,code = <0x104>;
+			wakeup-source;
 		};
 	};
 
@@ -516,21 +519,21 @@
 		compatible = "gpio-leds";
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_led_gpio_default>;
-		status = "okay";
+		status = "okay"; /* Conflict with pwm0. */
 
 		red {
 			label = "red";
-			gpios = <&pioA PIN_PA27 GPIO_ACTIVE_LOW>;
+			gpios = <&pioA PIN_PA10 GPIO_ACTIVE_HIGH>;
 		};
 
 		green {
 			label = "green";
-			gpios = <&pioA PIN_PB1 GPIO_ACTIVE_LOW>;
+			gpios = <&pioA PIN_PB1 GPIO_ACTIVE_HIGH>;
 		};
 
 		blue {
 			label = "blue";
-			gpios = <&pioA PIN_PA31 GPIO_ACTIVE_LOW>;
+			gpios = <&pioA PIN_PA31 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "heartbeat";
 		};
 	};

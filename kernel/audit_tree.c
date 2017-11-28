@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include "audit.h"
 #include <linux/fsnotify_backend.h>
 #include <linux/namei.h>
@@ -1007,7 +1008,7 @@ static void audit_tree_freeing_mark(struct fsnotify_mark *entry, struct fsnotify
 	 * We are guaranteed to have at least one reference to the mark from
 	 * either the inode or the caller of fsnotify_destroy_mark().
 	 */
-	BUG_ON(atomic_read(&entry->refcnt) < 1);
+	BUG_ON(refcount_read(&entry->refcnt) < 1);
 }
 
 static const struct fsnotify_ops audit_tree_ops = {

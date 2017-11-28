@@ -146,7 +146,7 @@ void machine_power_off(void)
 
 	/* prevent soft lockup/stalled CPU messages for endless loop. */
 	rcu_sysrq_start();
-	lockup_detector_suspend();
+	lockup_detector_soft_poweroff();
 	for (;;);
 }
 

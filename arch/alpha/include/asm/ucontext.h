@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASMAXP_UCONTEXT_H
 #define _ASMAXP_UCONTEXT_H
 

@@ -44,12 +44,22 @@ SECTIONS
     *(.glue_7t)
     *(.glue_7)
   }
+  .table : ALIGN(4) {
+    _table_start = .;
+    LONG(ZIMAGE_MAGIC(2))
+    LONG(ZIMAGE_MAGIC(0x5a534c4b))
+    LONG(ZIMAGE_MAGIC(__piggy_size_addr - _start))
+    LONG(ZIMAGE_MAGIC(_kernel_bss_size))
+    LONG(0)
+    _table_end = .;
+  }
   .rodata : {
     *(.rodata)
     *(.rodata.*)
   }
   .piggydata : {
     *(.piggydata)
+    __piggy_size_addr = . - 4;
   }
 
   . = ALIGN(4);
@@ -85,9 +95,19 @@ SECTIONS
 
   _edata = .;
 
+  /*
+   * The image_end section appears after any additional loadable sections
+   * that the linker may decide to insert in the binary image.  Having
+   * this symbol allows further debug in the near future.
+   */
+  .image_end (NOLOAD) : {
+    _edata_real = .;
+  }
+
   _magic_sig = ZIMAGE_MAGIC(0x016f2818);
   _magic_start = ZIMAGE_MAGIC(_start);
   _magic_end = ZIMAGE_MAGIC(_edata);
+  _magic_table = ZIMAGE_MAGIC(_table_start - _start);
 
   . = BSS_START;
   __bss_start = .;

@@ -9,6 +9,7 @@
  */
 
 #include <linux/delay.h>
+#include <linux/etherdevice.h>
 #include <linux/jiffies.h>
 #include <linux/list.h>
 #include <linux/module.h>
@@ -69,7 +70,8 @@ static const char *mv88e6060_get_name(struct mii_bus *bus, int sw_addr)
 	return NULL;
 }
 
-static enum dsa_tag_protocol mv88e6060_get_tag_protocol(struct dsa_switch *ds)
+static enum dsa_tag_protocol mv88e6060_get_tag_protocol(struct dsa_switch *ds,
+							int port)
 {
 	return DSA_TAG_PROTO_TRAILER;
 }
@@ -174,9 +176,8 @@ static int mv88e6060_setup_port(struct dsa_switch *ds, int p)
 	 */
 	REG_WRITE(addr, PORT_VLAN_MAP,
 		  ((p & 0xf) << PORT_VLAN_MAP_DBNUM_SHIFT) |
-		   (dsa_is_cpu_port(ds, p) ?
-			ds->enabled_port_mask :
-			BIT(ds->dst->cpu_dp->index)));
+		   (dsa_is_cpu_port(ds, p) ? dsa_user_ports(ds) :
+		    BIT(dsa_to_port(ds, p)->cpu_dp->index)));
 
 	/* Port Association Vector: when learning source addresses
 	 * of packets, add the address to the address database using
@@ -184,6 +185,27 @@ static int mv88e6060_setup_port(struct dsa_switch *ds, int p)
 	 * the other bits clear.
 	 */
 	REG_WRITE(addr, PORT_ASSOC_VECTOR, BIT(p));
+
+	return 0;
+}
+
+static int mv88e6060_setup_addr(struct dsa_switch *ds)
+{
+	u8 addr[ETH_ALEN];
+	u16 val;
+
+	eth_random_addr(addr);
+
+	val = addr[0] << 8 | addr[1];
+
+	/* The multicast bit is always transmitted as a zero, so the switch uses
+	 * bit 8 for "DiffAddr", where 0 means all ports transmit the same SA.
+	 */
+	val &= 0xfeff;
+
+	REG_WRITE(REG_GLOBAL, GLOBAL_MAC_01, val);
+	REG_WRITE(REG_GLOBAL, GLOBAL_MAC_23, (addr[2] << 8) | addr[3]);
+	REG_WRITE(REG_GLOBAL, GLOBAL_MAC_45, (addr[4] << 8) | addr[5]);
 
 	return 0;
 }
@@ -203,21 +225,15 @@ static int mv88e6060_setup(struct dsa_switch *ds)
 	if (ret < 0)
 		return ret;
 
+	ret = mv88e6060_setup_addr(ds);
+	if (ret < 0)
+		return ret;
+
 	for (i = 0; i < MV88E6060_PORTS; i++) {
 		ret = mv88e6060_setup_port(ds, i);
 		if (ret < 0)
 			return ret;
 	}
-
-	return 0;
-}
-
-static int mv88e6060_set_addr(struct dsa_switch *ds, u8 *addr)
-{
-	/* Use the same MAC Address as FD Pause frames for all ports */
-	REG_WRITE(REG_GLOBAL, GLOBAL_MAC_01, (addr[0] << 9) | addr[1]);
-	REG_WRITE(REG_GLOBAL, GLOBAL_MAC_23, (addr[2] << 8) | addr[3]);
-	REG_WRITE(REG_GLOBAL, GLOBAL_MAC_45, (addr[4] << 8) | addr[5]);
 
 	return 0;
 }
@@ -256,7 +272,6 @@ static const struct dsa_switch_ops mv88e6060_switch_ops = {
 	.get_tag_protocol = mv88e6060_get_tag_protocol,
 	.probe		= mv88e6060_drv_probe,
 	.setup		= mv88e6060_setup,
-	.set_addr	= mv88e6060_set_addr,
 	.phy_read	= mv88e6060_phy_read,
 	.phy_write	= mv88e6060_phy_write,
 };

@@ -100,8 +100,8 @@ void *
 nv50_fifo_dtor(struct nvkm_fifo *base)
 {
 	struct nv50_fifo *fifo = nv50_fifo(base);
-	nvkm_memory_del(&fifo->runlist[1]);
-	nvkm_memory_del(&fifo->runlist[0]);
+	nvkm_memory_unref(&fifo->runlist[1]);
+	nvkm_memory_unref(&fifo->runlist[0]);
 	return fifo;
 }
 

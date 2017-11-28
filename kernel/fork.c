@@ -215,6 +215,10 @@ static unsigned long *alloc_thread_stack_node(struct task_struct *tsk, int node)
 		if (!s)
 			continue;
 
+#ifdef CONFIG_DEBUG_KMEMLEAK
+		/* Clear stale pointers from reused stack. */
+		memset(s->addr, 0, THREAD_SIZE);
+#endif
 		tsk->stack_vm_area = s;
 		return s->addr;
 	}
@@ -465,7 +469,7 @@ void __init fork_init(void)
 	/* create a slab on which task_structs can be allocated */
 	task_struct_cachep = kmem_cache_create("task_struct",
 			arch_task_struct_size, align,
-			SLAB_PANIC|SLAB_NOTRACK|SLAB_ACCOUNT, NULL);
+			SLAB_PANIC|SLAB_ACCOUNT, NULL);
 #endif
 
 	/* do the arch specific task caches init */
@@ -813,8 +817,7 @@ static struct mm_struct *mm_init(struct mm_struct *mm, struct task_struct *p,
 	init_rwsem(&mm->mmap_sem);
 	INIT_LIST_HEAD(&mm->mmlist);
 	mm->core_state = NULL;
-	atomic_long_set(&mm->nr_ptes, 0);
-	mm_nr_pmds_init(mm);
+	mm_pgtables_bytes_init(mm);
 	mm->map_count = 0;
 	mm->locked_vm = 0;
 	mm->pinned_vm = 0;
@@ -868,12 +871,9 @@ static void check_mm(struct mm_struct *mm)
 					  "mm:%p idx:%d val:%ld\n", mm, i, x);
 	}
 
-	if (atomic_long_read(&mm->nr_ptes))
-		pr_alert("BUG: non-zero nr_ptes on freeing mm: %ld\n",
-				atomic_long_read(&mm->nr_ptes));
-	if (mm_nr_pmds(mm))
-		pr_alert("BUG: non-zero nr_pmds on freeing mm: %ld\n",
-				mm_nr_pmds(mm));
+	if (mm_pgtables_bytes(mm))
+		pr_alert("BUG: non-zero pgtables_bytes on freeing mm: %ld\n",
+				mm_pgtables_bytes(mm));
 
 #if defined(CONFIG_TRANSPARENT_HUGEPAGE) && !USE_SPLIT_PMD_PTLOCKS
 	VM_BUG_ON_MM(mm->pmd_huge_pte, mm);
@@ -945,6 +945,24 @@ void mmput(struct mm_struct *mm)
 		__mmput(mm);
 }
 EXPORT_SYMBOL_GPL(mmput);
+
+#ifdef CONFIG_MMU
+static void mmput_async_fn(struct work_struct *work)
+{
+	struct mm_struct *mm = container_of(work, struct mm_struct,
+					    async_put_work);
+
+	__mmput(mm);
+}
+
+void mmput_async(struct mm_struct *mm)
+{
+	if (atomic_dec_and_test(&mm->mm_users)) {
+		INIT_WORK(&mm->async_put_work, mmput_async_fn);
+		schedule_work(&mm->async_put_work);
+	}
+}
+#endif
 
 /**
  * set_mm_exe_file - change a reference to the mm's executable file
@@ -1853,7 +1871,7 @@ static __latent_entropy struct task_struct *copy_process(
 		retval = -ERESTARTNOINTR;
 		goto bad_fork_cancel_cgroup;
 	}
-	if (unlikely(!(ns_of_pid(pid)->nr_hashed & PIDNS_HASH_ADDING))) {
+	if (unlikely(!(ns_of_pid(pid)->pid_allocated & PIDNS_ADDING))) {
 		retval = -ENOMEM;
 		goto bad_fork_cancel_cgroup;
 	}
@@ -2187,18 +2205,18 @@ void __init proc_caches_init(void)
 	sighand_cachep = kmem_cache_create("sighand_cache",
 			sizeof(struct sighand_struct), 0,
 			SLAB_HWCACHE_ALIGN|SLAB_PANIC|SLAB_TYPESAFE_BY_RCU|
-			SLAB_NOTRACK|SLAB_ACCOUNT, sighand_ctor);
+			SLAB_ACCOUNT, sighand_ctor);
 	signal_cachep = kmem_cache_create("signal_cache",
 			sizeof(struct signal_struct), 0,
-			SLAB_HWCACHE_ALIGN|SLAB_PANIC|SLAB_NOTRACK|SLAB_ACCOUNT,
+			SLAB_HWCACHE_ALIGN|SLAB_PANIC|SLAB_ACCOUNT,
 			NULL);
 	files_cachep = kmem_cache_create("files_cache",
 			sizeof(struct files_struct), 0,
-			SLAB_HWCACHE_ALIGN|SLAB_PANIC|SLAB_NOTRACK|SLAB_ACCOUNT,
+			SLAB_HWCACHE_ALIGN|SLAB_PANIC|SLAB_ACCOUNT,
 			NULL);
 	fs_cachep = kmem_cache_create("fs_cache",
 			sizeof(struct fs_struct), 0,
-			SLAB_HWCACHE_ALIGN|SLAB_PANIC|SLAB_NOTRACK|SLAB_ACCOUNT,
+			SLAB_HWCACHE_ALIGN|SLAB_PANIC|SLAB_ACCOUNT,
 			NULL);
 	/*
 	 * FIXME! The "sizeof(struct mm_struct)" currently includes the
@@ -2209,7 +2227,7 @@ void __init proc_caches_init(void)
 	 */
 	mm_cachep = kmem_cache_create("mm_struct",
 			sizeof(struct mm_struct), ARCH_MIN_MMSTRUCT_ALIGN,
-			SLAB_HWCACHE_ALIGN|SLAB_PANIC|SLAB_NOTRACK|SLAB_ACCOUNT,
+			SLAB_HWCACHE_ALIGN|SLAB_PANIC|SLAB_ACCOUNT,
 			NULL);
 	vm_area_cachep = KMEM_CACHE(vm_area_struct, SLAB_PANIC|SLAB_ACCOUNT);
 	mmap_init();

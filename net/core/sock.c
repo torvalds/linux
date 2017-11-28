@@ -1469,8 +1469,6 @@ static struct sock *sk_prot_alloc(struct proto *prot, gfp_t priority,
 		sk = kmalloc(prot->obj_size, priority);
 
 	if (sk != NULL) {
-		kmemcheck_annotate_bitfield(sk, flags);
-
 		if (security_sk_alloc(sk, family, priority))
 			goto out_free;
 
@@ -1654,6 +1652,8 @@ struct sock *sk_clone_lock(const struct sock *sk, const gfp_t priority)
 
 		sock_copy(newsk, sk);
 
+		newsk->sk_prot_creator = sk->sk_prot;
+
 		/* SANITY */
 		if (likely(newsk->sk_net_refcnt))
 			get_net(sock_net(newsk));
@@ -1675,20 +1675,28 @@ struct sock *sk_clone_lock(const struct sock *sk, const gfp_t priority)
 		newsk->sk_dst_pending_confirm = 0;
 		newsk->sk_wmem_queued	= 0;
 		newsk->sk_forward_alloc = 0;
+
+		/* sk->sk_memcg will be populated at accept() time */
+		newsk->sk_memcg = NULL;
+
 		atomic_set(&newsk->sk_drops, 0);
 		newsk->sk_send_head	= NULL;
 		newsk->sk_userlocks	= sk->sk_userlocks & ~SOCK_BINDPORT_LOCK;
 		atomic_set(&newsk->sk_zckey, 0);
 
 		sock_reset_flag(newsk, SOCK_DONE);
+		cgroup_sk_alloc(&newsk->sk_cgrp_data);
 
-		filter = rcu_dereference_protected(newsk->sk_filter, 1);
+		rcu_read_lock();
+		filter = rcu_dereference(sk->sk_filter);
 		if (filter != NULL)
 			/* though it's an empty new sock, the charging may fail
 			 * if sysctl_optmem_max was changed between creation of
 			 * original socket and cloning
 			 */
 			is_charged = sk_filter_charge(newsk, filter);
+		RCU_INIT_POINTER(newsk->sk_filter, filter);
+		rcu_read_unlock();
 
 		if (unlikely(!is_charged || xfrm_sk_clone_policy(newsk, sk))) {
 			/* We need to make sure that we don't uncharge the new
@@ -1708,9 +1716,6 @@ struct sock *sk_clone_lock(const struct sock *sk, const gfp_t priority)
 		newsk->sk_priority = 0;
 		newsk->sk_incoming_cpu = raw_smp_processor_id();
 		atomic64_set(&newsk->sk_cookie, 0);
-
-		mem_cgroup_sk_alloc(newsk);
-		cgroup_sk_alloc(&newsk->sk_cgrp_data);
 
 		/*
 		 * Before updating sk_refcnt, we must commit prior changes to memory
@@ -2339,16 +2344,18 @@ int __sk_mem_raise_allocated(struct sock *sk, int size, int amt, int kind)
 
 	/* guarantee minimum buffer size under pressure */
 	if (kind == SK_MEM_RECV) {
-		if (atomic_read(&sk->sk_rmem_alloc) < prot->sysctl_rmem[0])
+		if (atomic_read(&sk->sk_rmem_alloc) < sk_get_rmem0(sk, prot))
 			return 1;
 
 	} else { /* SK_MEM_SEND */
+		int wmem0 = sk_get_wmem0(sk, prot);
+
 		if (sk->sk_type == SOCK_STREAM) {
-			if (sk->sk_wmem_queued < prot->sysctl_wmem[0])
+			if (sk->sk_wmem_queued < wmem0)
 				return 1;
-		} else if (refcount_read(&sk->sk_wmem_alloc) <
-			   prot->sysctl_wmem[0])
+		} else if (refcount_read(&sk->sk_wmem_alloc) < wmem0) {
 				return 1;
+		}
 	}
 
 	if (sk_has_memory_pressure(sk)) {
@@ -2678,7 +2685,7 @@ void sock_init_data(struct socket *sock, struct sock *sk)
 	sk_init_common(sk);
 	sk->sk_send_head	=	NULL;
 
-	init_timer(&sk->sk_timer);
+	timer_setup(&sk->sk_timer, NULL, 0);
 
 	sk->sk_allocation	=	GFP_KERNEL;
 	sk->sk_rcvbuf		=	sysctl_rmem_default;
@@ -2737,6 +2744,7 @@ void sock_init_data(struct socket *sock, struct sock *sk)
 
 	sk->sk_max_pacing_rate = ~0U;
 	sk->sk_pacing_rate = ~0U;
+	sk->sk_pacing_shift = 10;
 	sk->sk_incoming_cpu = -1;
 	/*
 	 * Before updating sk_refcnt, we must commit prior changes to memory
@@ -3035,7 +3043,6 @@ struct prot_inuse {
 
 static DECLARE_BITMAP(proto_inuse_idx, PROTO_INUSE_NR);
 
-#ifdef CONFIG_NET_NS
 void sock_prot_inuse_add(struct net *net, struct proto *prot, int val)
 {
 	__this_cpu_add(net->core.inuse->val[prot->inuse_idx], val);
@@ -3079,27 +3086,6 @@ static __init int net_inuse_init(void)
 }
 
 core_initcall(net_inuse_init);
-#else
-static DEFINE_PER_CPU(struct prot_inuse, prot_inuse);
-
-void sock_prot_inuse_add(struct net *net, struct proto *prot, int val)
-{
-	__this_cpu_add(prot_inuse.val[prot->inuse_idx], val);
-}
-EXPORT_SYMBOL_GPL(sock_prot_inuse_add);
-
-int sock_prot_inuse_get(struct net *net, struct proto *prot)
-{
-	int cpu, idx = prot->inuse_idx;
-	int res = 0;
-
-	for_each_possible_cpu(cpu)
-		res += per_cpu(prot_inuse, cpu).val[idx];
-
-	return res >= 0 ? res : 0;
-}
-EXPORT_SYMBOL_GPL(sock_prot_inuse_get);
-#endif
 
 static void assign_proto_idx(struct proto *prot)
 {

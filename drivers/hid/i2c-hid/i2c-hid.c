@@ -46,6 +46,7 @@
 
 /* quirks to control the device */
 #define I2C_HID_QUIRK_SET_PWR_WAKEUP_DEV	BIT(0)
+#define I2C_HID_QUIRK_NO_IRQ_AFTER_RESET	BIT(1)
 
 /* flags */
 #define I2C_HID_STARTED		0
@@ -168,6 +169,8 @@ static const struct i2c_hid_quirks {
 		I2C_HID_QUIRK_SET_PWR_WAKEUP_DEV },
 	{ USB_VENDOR_ID_WEIDA, USB_DEVICE_ID_WEIDA_8755,
 		I2C_HID_QUIRK_SET_PWR_WAKEUP_DEV },
+	{ I2C_VENDOR_ID_HANTICK, I2C_PRODUCT_ID_HANTICK_5288,
+		I2C_HID_QUIRK_NO_IRQ_AFTER_RESET },
 	{ 0, 0 }
 };
 
@@ -252,7 +255,9 @@ static int __i2c_hid_command(struct i2c_client *client,
 
 	ret = 0;
 
-	if (wait) {
+	if (wait && (ihid->quirks & I2C_HID_QUIRK_NO_IRQ_AFTER_RESET)) {
+		msleep(100);
+	} else if (wait) {
 		i2c_hid_dbg(ihid, "%s: waiting...\n", __func__);
 		if (!wait_event_timeout(ihid->wait,
 				!test_bit(I2C_HID_RESET_PENDING, &ihid->flags),
@@ -543,7 +548,8 @@ static int i2c_hid_alloc_buffers(struct i2c_hid *ihid, size_t report_size)
 {
 	/* the worst case is computed from the set_report command with a
 	 * reportID > 15 and the maximum report length */
-	int args_len = sizeof(__u8) + /* optional ReportID byte */
+	int args_len = sizeof(__u8) + /* ReportID */
+		       sizeof(__u8) + /* optional ReportID byte */
 		       sizeof(__u16) + /* data register */
 		       sizeof(__u16) + /* size of the report */
 		       report_size; /* report */

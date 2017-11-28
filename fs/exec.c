@@ -1410,7 +1410,7 @@ static void free_bprm(struct linux_binprm *bprm)
 	kfree(bprm);
 }
 
-int bprm_change_interp(char *interp, struct linux_binprm *bprm)
+int bprm_change_interp(const char *interp, struct linux_binprm *bprm)
 {
 	/* If a binfmt changed the interp, free it first. */
 	if (bprm->interp != bprm->filename)
@@ -1802,6 +1802,7 @@ static int do_execveat_common(int fd, struct filename *filename,
 	/* execve succeeded */
 	current->fs->in_exec = 0;
 	current->in_execve = 0;
+	membarrier_execve(current);
 	acct_update_integrals(current);
 	task_numa_free(current);
 	free_bprm(bprm);
@@ -1910,7 +1911,7 @@ void set_dumpable(struct mm_struct *mm, int value)
 		return;
 
 	do {
-		old = ACCESS_ONCE(mm->flags);
+		old = READ_ONCE(mm->flags);
 		new = (old & ~MMF_DUMPABLE_MASK) | value;
 	} while (cmpxchg(&mm->flags, old, new) != old);
 }

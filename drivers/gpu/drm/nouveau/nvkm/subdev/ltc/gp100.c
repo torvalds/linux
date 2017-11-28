@@ -45,7 +45,7 @@ gp100_ltc_oneinit(struct nvkm_ltc *ltc)
 	ltc->ltc_nr = nvkm_rd32(device, 0x12006c);
 	ltc->lts_nr = nvkm_rd32(device, 0x17e280) >> 28;
 	/*XXX: tagram allocation - TBD */
-	return nvkm_mm_init(&ltc->tags, 0, 0, 1);
+	return 0;
 }
 
 static void

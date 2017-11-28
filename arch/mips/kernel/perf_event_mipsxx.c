@@ -618,8 +618,7 @@ static int mipspmu_event_init(struct perf_event *event)
 		return -ENOENT;
 	}
 
-	if ((unsigned int)event->cpu >= nr_cpumask_bits ||
-	    (event->cpu >= 0 && !cpu_online(event->cpu)))
+	if (event->cpu >= 0 && !cpu_online(event->cpu))
 		return -ENODEV;
 
 	if (!atomic_inc_not_zero(&active_events)) {

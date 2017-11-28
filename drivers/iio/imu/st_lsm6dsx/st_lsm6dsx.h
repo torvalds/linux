@@ -29,8 +29,6 @@ enum st_lsm6dsx_hw_id {
 
 #define ST_LSM6DSX_CHAN_SIZE		2
 #define ST_LSM6DSX_SAMPLE_SIZE		6
-#define ST_LSM6DSX_SAMPLE_DEPTH		(ST_LSM6DSX_SAMPLE_SIZE / \
-					 ST_LSM6DSX_CHAN_SIZE)
 
 #if defined(CONFIG_SPI_MASTER)
 #define ST_LSM6DSX_RX_MAX_LENGTH	256
@@ -52,10 +50,38 @@ struct st_lsm6dsx_reg {
 	u8 mask;
 };
 
+/**
+ * struct st_lsm6dsx_fifo_ops - ST IMU FIFO settings
+ * @fifo_th: FIFO threshold register info (addr + mask).
+ * @fifo_diff: FIFO diff status register info (addr + mask).
+ * @th_wl: FIFO threshold word length.
+ */
+struct st_lsm6dsx_fifo_ops {
+	struct {
+		u8 addr;
+		u16 mask;
+	} fifo_th;
+	struct {
+		u8 addr;
+		u16 mask;
+	} fifo_diff;
+	u8 th_wl;
+};
+
+/**
+ * struct st_lsm6dsx_settings - ST IMU sensor settings
+ * @wai: Sensor WhoAmI default value.
+ * @max_fifo_size: Sensor max fifo length in FIFO words.
+ * @id: List of hw id supported by the driver configuration.
+ * @decimator: List of decimator register info (addr + mask).
+ * @fifo_ops: Sensor hw FIFO parameters.
+ */
 struct st_lsm6dsx_settings {
 	u8 wai;
 	u16 max_fifo_size;
 	enum st_lsm6dsx_hw_id id[ST_LSM6DSX_MAX_ID];
+	struct st_lsm6dsx_reg decimator[ST_LSM6DSX_MAX_ID];
+	struct st_lsm6dsx_fifo_ops fifo_ops;
 };
 
 enum st_lsm6dsx_sensor_id {
@@ -79,7 +105,6 @@ enum st_lsm6dsx_fifo_mode {
  * @watermark: Sensor watermark level.
  * @sip: Number of samples in a given pattern.
  * @decimator: FIFO decimation factor.
- * @decimator_mask: Sensor mask for decimation register.
  * @delta_ts: Delta time between two consecutive interrupts.
  * @ts: Latest timestamp from the interrupt handler.
  */
@@ -94,7 +119,6 @@ struct st_lsm6dsx_sensor {
 	u16 watermark;
 	u8 sip;
 	u8 decimator;
-	u8 decimator_mask;
 
 	s64 delta_ts;
 	s64 ts;

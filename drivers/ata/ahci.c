@@ -57,6 +57,7 @@ enum {
 	AHCI_PCI_BAR_STA2X11	= 0,
 	AHCI_PCI_BAR_CAVIUM	= 0,
 	AHCI_PCI_BAR_ENMOTUS	= 2,
+	AHCI_PCI_BAR_CAVIUM_GEN5	= 4,
 	AHCI_PCI_BAR_STANDARD	= 5,
 };
 
@@ -621,8 +622,11 @@ static void ahci_pci_save_initial_config(struct pci_dev *pdev,
 static int ahci_pci_reset_controller(struct ata_host *host)
 {
 	struct pci_dev *pdev = to_pci_dev(host->dev);
+	int rc;
 
-	ahci_reset_controller(host);
+	rc = ahci_reset_controller(host);
+	if (rc)
+		return rc;
 
 	if (pdev->vendor == PCI_VENDOR_ID_INTEL) {
 		struct ahci_host_priv *hpriv = host->private_data;
@@ -1567,8 +1571,12 @@ static int ahci_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		ahci_pci_bar = AHCI_PCI_BAR_STA2X11;
 	else if (pdev->vendor == 0x1c44 && pdev->device == 0x8000)
 		ahci_pci_bar = AHCI_PCI_BAR_ENMOTUS;
-	else if (pdev->vendor == 0x177d && pdev->device == 0xa01c)
-		ahci_pci_bar = AHCI_PCI_BAR_CAVIUM;
+	else if (pdev->vendor == PCI_VENDOR_ID_CAVIUM) {
+		if (pdev->device == 0xa01c)
+			ahci_pci_bar = AHCI_PCI_BAR_CAVIUM;
+		if (pdev->device == 0xa084)
+			ahci_pci_bar = AHCI_PCI_BAR_CAVIUM_GEN5;
+	}
 
 	/* acquire resources */
 	rc = pcim_enable_device(pdev);

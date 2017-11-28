@@ -716,7 +716,7 @@ struct validate_negotiate_info_req {
 	__u8   Guid[SMB2_CLIENT_GUID_SIZE];
 	__le16 SecurityMode;
 	__le16 DialectCount;
-	__le16 Dialects[1]; /* dialect (someday maybe list) client asked for */
+	__le16 Dialects[3]; /* BB expand this if autonegotiate > 3 dialects */
 } __packed;
 
 struct validate_negotiate_info_rsp {
@@ -832,7 +832,7 @@ struct smb2_flush_rsp {
 /* Channel field for read and write: exactly one of following flags can be set*/
 #define SMB2_CHANNEL_NONE		0x00000000
 #define SMB2_CHANNEL_RDMA_V1		0x00000001 /* SMB3 or later */
-#define SMB2_CHANNEL_RDMA_V1_INVALIDATE 0x00000001 /* SMB3.02 or later */
+#define SMB2_CHANNEL_RDMA_V1_INVALIDATE 0x00000002 /* SMB3.02 or later */
 
 /* SMB2 read request without RFC1001 length at the beginning */
 struct smb2_read_plain_req {
@@ -1178,7 +1178,8 @@ struct smb2_file_link_info { /* encoding of request for level 11 */
 	char   FileName[0];     /* Name to be assigned to new link */
 } __packed; /* level 11 Set */
 
-#define SMB2_MAX_EA_BUF 2048
+#define SMB2_MIN_EA_BUF  2048
+#define SMB2_MAX_EA_BUF 65536
 
 struct smb2_file_full_ea_info { /* encoding of response for level 15 */
 	__le32 next_entry_offset;

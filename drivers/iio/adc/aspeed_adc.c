@@ -165,7 +165,6 @@ static int aspeed_adc_reg_access(struct iio_dev *indio_dev,
 }
 
 static const struct iio_info aspeed_adc_iio_info = {
-	.driver_module = THIS_MODULE,
 	.read_raw = aspeed_adc_read_raw,
 	.write_raw = aspeed_adc_write_raw,
 	.debugfs_reg_access = aspeed_adc_reg_access,

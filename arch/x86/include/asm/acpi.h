@@ -150,6 +150,8 @@ static inline void disable_acpi(void) { }
 extern int x86_acpi_numa_init(void);
 #endif /* CONFIG_ACPI_NUMA */
 
+#define acpi_unlazy_tlb(x)	leave_mm(x)
+
 #ifdef CONFIG_ACPI_APEI
 static inline pgprot_t arch_apei_get_mem_attribute(phys_addr_t addr)
 {

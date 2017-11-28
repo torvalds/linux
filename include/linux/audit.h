@@ -149,12 +149,6 @@ extern void		    audit_log_key(struct audit_buffer *ab,
 extern void		    audit_log_link_denied(const char *operation,
 						  const struct path *link);
 extern void		    audit_log_lost(const char *message);
-#ifdef CONFIG_SECURITY
-extern void 		    audit_log_secctx(struct audit_buffer *ab, u32 secid);
-#else
-static inline void	    audit_log_secctx(struct audit_buffer *ab, u32 secid)
-{ }
-#endif
 
 extern int audit_log_task_context(struct audit_buffer *ab);
 extern void audit_log_task_info(struct audit_buffer *ab,
@@ -202,8 +196,6 @@ static inline void audit_log_key(struct audit_buffer *ab, char *key)
 { }
 static inline void audit_log_link_denied(const char *string,
 					 const struct path *link)
-{ }
-static inline void audit_log_secctx(struct audit_buffer *ab, u32 secid)
 { }
 static inline int audit_log_task_context(struct audit_buffer *ab)
 {
@@ -314,11 +306,7 @@ void audit_core_dumps(long signr);
 
 static inline void audit_seccomp(unsigned long syscall, long signr, int code)
 {
-	if (!audit_enabled)
-		return;
-
-	/* Force a record to be reported if a signal was delivered. */
-	if (signr || unlikely(!audit_dummy_context()))
+	if (audit_enabled && unlikely(!audit_dummy_context()))
 		__audit_seccomp(syscall, signr, code);
 }
 
@@ -360,6 +348,7 @@ extern int __audit_log_bprm_fcaps(struct linux_binprm *bprm,
 extern void __audit_log_capset(const struct cred *new, const struct cred *old);
 extern void __audit_mmap_fd(int fd, int flags);
 extern void __audit_log_kern_module(char *name);
+extern void __audit_fanotify(unsigned int response);
 
 static inline void audit_ipc_obj(struct kern_ipc_perm *ipcp)
 {
@@ -454,6 +443,12 @@ static inline void audit_log_kern_module(char *name)
 {
 	if (!audit_dummy_context())
 		__audit_log_kern_module(name);
+}
+
+static inline void audit_fanotify(unsigned int response)
+{
+	if (!audit_dummy_context())
+		__audit_fanotify(response);
 }
 
 extern int audit_n_rules;
@@ -571,6 +566,9 @@ static inline void audit_mmap_fd(int fd, int flags)
 static inline void audit_log_kern_module(char *name)
 {
 }
+
+static inline void audit_fanotify(unsigned int response)
+{ }
 
 static inline void audit_ptrace(struct task_struct *t)
 { }

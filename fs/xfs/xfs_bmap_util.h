@@ -28,16 +28,33 @@ struct xfs_mount;
 struct xfs_trans;
 struct xfs_bmalloca;
 
+#ifdef CONFIG_XFS_RT
 int	xfs_bmap_rtalloc(struct xfs_bmalloca *ap);
+#else /* !CONFIG_XFS_RT */
+/*
+ * Attempts to allocate RT extents when RT is disable indicates corruption and
+ * should trigger a shutdown.
+ */
+static inline int
+xfs_bmap_rtalloc(struct xfs_bmalloca *ap)
+{
+	return -EFSCORRUPTED;
+}
+#endif /* CONFIG_XFS_RT */
+
 int	xfs_bmap_eof(struct xfs_inode *ip, xfs_fileoff_t endoff,
 		     int whichfork, int *eof);
 int	xfs_bmap_punch_delalloc_range(struct xfs_inode *ip,
 		xfs_fileoff_t start_fsb, xfs_fileoff_t length);
 
-/* bmap to userspace formatter - copy to user & advance pointer */
-typedef int (*xfs_bmap_format_t)(void **, struct getbmapx *);
+struct kgetbmap {
+	__s64		bmv_offset;	/* file offset of segment in blocks */
+	__s64		bmv_block;	/* starting block (64-bit daddr_t)  */
+	__s64		bmv_length;	/* length of segment, blocks	    */
+	__s32		bmv_oflags;	/* output flags */
+};
 int	xfs_getbmap(struct xfs_inode *ip, struct getbmapx *bmv,
-		xfs_bmap_format_t formatter, void *arg);
+		struct kgetbmap *out);
 
 /* functions in xfs_bmap.c that are only needed by xfs_bmap_util.c */
 int	xfs_bmap_extsize_align(struct xfs_mount *mp, struct xfs_bmbt_irec *gotp,

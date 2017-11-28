@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #include <linux/mount.h>
 #include <linux/seq_file.h>
 #include <linux/poll.h>

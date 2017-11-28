@@ -99,8 +99,6 @@ static struct notifier_block i40iw_net_notifier = {
 	.notifier_call = i40iw_net_event
 };
 
-static atomic_t i40iw_notifiers_registered;
-
 /**
  * i40iw_find_i40e_handler - find a handler given a client info
  * @ldev: pointer to a client info
@@ -355,6 +353,8 @@ static void i40iw_dele_ceqs(struct i40iw_device *iwdev)
 		i40iw_disable_irq(dev, msix_vec, (void *)iwceq);
 		i40iw_destroy_ceq(iwdev, iwceq);
 	}
+
+	iwdev->sc_dev.ceq_valid = false;
 }
 
 /**
@@ -812,17 +812,16 @@ static enum i40iw_status_code i40iw_setup_ceqs(struct i40iw_device *iwdev,
 		i40iw_enable_intr(&iwdev->sc_dev, msix_vec->idx);
 		iwdev->ceqs_count++;
 	}
-
 exit:
-	if (status) {
-		if (!iwdev->ceqs_count) {
-			kfree(iwdev->ceqlist);
-			iwdev->ceqlist = NULL;
-		} else {
-			status = 0;
-		}
+	if (status && !iwdev->ceqs_count) {
+		kfree(iwdev->ceqlist);
+		iwdev->ceqlist = NULL;
+		return status;
+	} else {
+		iwdev->sc_dev.ceq_valid = true;
+		return 0;
 	}
-	return status;
+
 }
 
 /**
@@ -960,17 +959,32 @@ static enum i40iw_status_code i40iw_initialize_ieq(struct i40iw_device *iwdev)
 	memset(&info, 0, sizeof(info));
 	info.type = I40IW_PUDA_RSRC_TYPE_IEQ;
 	info.cq_id = 2;
-	info.qp_id = iwdev->sc_dev.exception_lan_queue;
+	info.qp_id = iwdev->vsi.exception_lan_queue;
 	info.count = 1;
 	info.pd_id = 2;
 	info.sq_size = 8192;
 	info.rq_size = 8192;
-	info.buf_size = 2048;
-	info.tx_buf_cnt = 16384;
+	info.buf_size = iwdev->vsi.mtu + VLAN_ETH_HLEN;
+	info.tx_buf_cnt = 4096;
 	status = i40iw_puda_create_rsrc(&iwdev->vsi, &info);
 	if (status)
 		i40iw_pr_err("ieq create fail\n");
 	return status;
+}
+
+/**
+ * i40iw_reinitialize_ieq - destroy and re-create ieq
+ * @dev: iwarp device
+ */
+void i40iw_reinitialize_ieq(struct i40iw_sc_dev *dev)
+{
+	struct i40iw_device *iwdev = (struct i40iw_device *)dev->back_dev;
+
+	i40iw_puda_dele_resources(&iwdev->vsi, I40IW_PUDA_RSRC_TYPE_IEQ, false);
+	if (i40iw_initialize_ieq(iwdev)) {
+		iwdev->reset = true;
+		i40iw_request_reset(iwdev);
+	}
 }
 
 /**
@@ -1329,8 +1343,8 @@ static enum i40iw_status_code i40iw_initialize_dev(struct i40iw_device *iwdev,
 	info.bar0 = ldev->hw_addr;
 	info.hw = &iwdev->hw;
 	info.debug_mask = debug;
-	l2params.mss =
-		(ldev->params.mtu) ? ldev->params.mtu - I40IW_MTU_TO_MSS : I40IW_DEFAULT_MSS;
+	l2params.mtu =
+		(ldev->params.mtu) ? ldev->params.mtu : I40IW_DEFAULT_MTU;
 	for (i = 0; i < I40E_CLIENT_MAX_USER_PRIORITY; i++) {
 		qset = ldev->params.qos.prio_qos[i].qs_handle;
 		l2params.qs_handle_list[i] = qset;
@@ -1340,7 +1354,6 @@ static enum i40iw_status_code i40iw_initialize_dev(struct i40iw_device *iwdev,
 			iwdev->dcb = true;
 	}
 	i40iw_pr_info("DCB is set/clear = %d\n", iwdev->dcb);
-	info.exception_lan_queue = 1;
 	info.vchnl_send = i40iw_virtchnl_send;
 	status = i40iw_device_init(&iwdev->sc_dev, &info);
 
@@ -1350,6 +1363,7 @@ static enum i40iw_status_code i40iw_initialize_dev(struct i40iw_device *iwdev,
 	vsi_info.dev = &iwdev->sc_dev;
 	vsi_info.back_vsi = (void *)iwdev;
 	vsi_info.params = &l2params;
+	vsi_info.exception_lan_queue = 1;
 	i40iw_sc_vsi_init(&iwdev->vsi, &vsi_info);
 
 	if (dev->is_pf) {
@@ -1376,11 +1390,20 @@ error:
  */
 static void i40iw_register_notifiers(void)
 {
-	if (atomic_inc_return(&i40iw_notifiers_registered) == 1) {
-		register_inetaddr_notifier(&i40iw_inetaddr_notifier);
-		register_inet6addr_notifier(&i40iw_inetaddr6_notifier);
-		register_netevent_notifier(&i40iw_net_notifier);
-	}
+	register_inetaddr_notifier(&i40iw_inetaddr_notifier);
+	register_inet6addr_notifier(&i40iw_inetaddr6_notifier);
+	register_netevent_notifier(&i40iw_net_notifier);
+}
+
+/**
+ * i40iw_unregister_notifiers - unregister tcp ip notifiers
+ */
+
+static void i40iw_unregister_notifiers(void)
+{
+	unregister_netevent_notifier(&i40iw_net_notifier);
+	unregister_inetaddr_notifier(&i40iw_inetaddr_notifier);
+	unregister_inet6addr_notifier(&i40iw_inetaddr6_notifier);
 }
 
 /**
@@ -1399,6 +1422,11 @@ static enum i40iw_status_code i40iw_save_msix_info(struct i40iw_device *iwdev,
 	u32 ceq_idx;
 	u32 i;
 	u32 size;
+
+	if (!ldev->msix_count) {
+		i40iw_pr_err("No MSI-X vectors\n");
+		return I40IW_ERR_CONFIG;
+	}
 
 	iwdev->msix_count = ldev->msix_count;
 
@@ -1462,12 +1490,6 @@ static void i40iw_deinit_device(struct i40iw_device *iwdev)
 		if (!iwdev->reset)
 			i40iw_del_macip_entry(iwdev, (u8)iwdev->mac_ip_table_idx);
 		/* fallthrough */
-	case INET_NOTIFIER:
-		if (!atomic_dec_return(&i40iw_notifiers_registered)) {
-			unregister_netevent_notifier(&i40iw_net_notifier);
-			unregister_inetaddr_notifier(&i40iw_inetaddr_notifier);
-			unregister_inet6addr_notifier(&i40iw_inetaddr6_notifier);
-		}
 		/* fallthrough */
 	case PBLE_CHUNK_MEM:
 		i40iw_destroy_pble_pool(dev, iwdev->pble_rsrc);
@@ -1550,7 +1572,7 @@ static enum i40iw_status_code i40iw_setup_init_state(struct i40iw_handler *hdl,
 
 	status = i40iw_save_msix_info(iwdev, ldev);
 	if (status)
-		goto exit;
+		return status;
 	iwdev->hw.dev_context = (void *)ldev->pcidev;
 	iwdev->hw.hw_addr = ldev->hw_addr;
 	status = i40iw_allocate_dma_mem(&iwdev->hw,
@@ -1667,8 +1689,6 @@ static int i40iw_open(struct i40e_info *ldev, struct i40e_client *client)
 			break;
 		iwdev->init_state = PBLE_CHUNK_MEM;
 		iwdev->virtchnl_wq = alloc_ordered_workqueue("iwvch", WQ_MEM_RECLAIM);
-		i40iw_register_notifiers();
-		iwdev->init_state = INET_NOTIFIER;
 		status = i40iw_add_mac_ip(iwdev);
 		if (status)
 			break;
@@ -1744,7 +1764,7 @@ static void i40iw_l2param_change(struct i40e_info *ldev, struct i40e_client *cli
 	for (i = 0; i < I40E_CLIENT_MAX_USER_PRIORITY; i++)
 		l2params->qs_handle_list[i] = params->qos.prio_qos[i].qs_handle;
 
-	l2params->mss = (params->mtu) ? params->mtu - I40IW_MTU_TO_MSS : iwdev->vsi.mss;
+	l2params->mtu = (params->mtu) ? params->mtu : iwdev->vsi.mtu;
 
 	INIT_WORK(&work->work, i40iw_l2params_worker);
 	queue_work(iwdev->param_wq, &work->work);
@@ -2018,6 +2038,8 @@ static int __init i40iw_init_module(void)
 	i40iw_client.type = I40E_CLIENT_IWARP;
 	spin_lock_init(&i40iw_handler_lock);
 	ret = i40e_register_client(&i40iw_client);
+	i40iw_register_notifiers();
+
 	return ret;
 }
 
@@ -2029,6 +2051,7 @@ static int __init i40iw_init_module(void)
  */
 static void __exit i40iw_exit_module(void)
 {
+	i40iw_unregister_notifiers();
 	i40e_unregister_client(&i40iw_client);
 }
 

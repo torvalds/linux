@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __NVKM_DISP_IOR_H__
 #define __NVKM_DISP_IOR_H__
 #include "priv.h"
@@ -147,7 +148,7 @@ void gf119_hda_eld(struct nvkm_ior *, u8 *, u8);
 
 #define IOR_MSG(i,l,f,a...) do {                                               \
 	struct nvkm_ior *_ior = (i);                                           \
-	nvkm_##l(&_ior->disp->engine.subdev, "%s: "f, _ior->name, ##a);        \
+	nvkm_##l(&_ior->disp->engine.subdev, "%s: "f"\n", _ior->name, ##a);    \
 } while(0)
 #define IOR_WARN(i,f,a...) IOR_MSG((i), warn, f, ##a)
 #define IOR_DBG(i,f,a...) IOR_MSG((i), debug, f, ##a)

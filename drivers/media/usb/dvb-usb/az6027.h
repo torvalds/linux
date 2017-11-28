@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _DVB_USB_VP6027_H_
 #define _DVB_USB_VP6027_H_
 

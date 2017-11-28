@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * xhci-plat.c - xHCI host controller driver platform Bus Glue.
  *
@@ -5,10 +6,6 @@
  * Author: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
  *
  * A lot of code borrowed from the Linux xHCI driver.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2 as published by the Free Software Foundation.
  */
 
 #include <linux/clk.h>
@@ -16,6 +13,7 @@
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/of.h>
+#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/usb/phy.h>
 #include <linux/slab.h>
@@ -152,7 +150,7 @@ MODULE_DEVICE_TABLE(of, usb_xhci_of_match);
 
 static int xhci_plat_probe(struct platform_device *pdev)
 {
-	const struct of_device_id *match;
+	const struct xhci_plat_priv *priv_match;
 	const struct hc_driver	*driver;
 	struct device		*sysdev;
 	struct xhci_hcd		*xhci;
@@ -178,14 +176,18 @@ static int xhci_plat_probe(struct platform_device *pdev)
 	 * 2. xhci_plat is child of a device from firmware (dwc3-plat)
 	 * 3. xhci_plat is grandchild of a pci device (dwc3-pci)
 	 */
-	sysdev = &pdev->dev;
-	if (sysdev->parent && !sysdev->of_node && sysdev->parent->of_node)
-		sysdev = sysdev->parent;
+	for (sysdev = &pdev->dev; sysdev; sysdev = sysdev->parent) {
+		if (is_of_node(sysdev->fwnode) ||
+			is_acpi_device_node(sysdev->fwnode))
+			break;
 #ifdef CONFIG_PCI
-	else if (sysdev->parent && sysdev->parent->parent &&
-		 sysdev->parent->parent->bus == &pci_bus_type)
-		sysdev = sysdev->parent->parent;
+		else if (sysdev->bus == &pci_bus_type)
+			break;
 #endif
+	}
+
+	if (!sysdev)
+		sysdev = &pdev->dev;
 
 	/* Try to set 64-bit DMA first */
 	if (WARN_ON(!sysdev->dma_mask))
@@ -238,9 +240,8 @@ static int xhci_plat_probe(struct platform_device *pdev)
 	}
 
 	xhci = hcd_to_xhci(hcd);
-	match = of_match_node(usb_xhci_of_match, pdev->dev.of_node);
-	if (match) {
-		const struct xhci_plat_priv *priv_match = match->data;
+	priv_match = of_device_get_match_data(&pdev->dev);
+	if (priv_match) {
 		struct xhci_plat_priv *priv = hcd_to_xhci_priv(hcd);
 
 		/* Just copy data for now */
@@ -258,6 +259,9 @@ static int xhci_plat_probe(struct platform_device *pdev)
 		ret = -ENOMEM;
 		goto disable_clk;
 	}
+
+	if (device_property_read_bool(sysdev, "usb2-lpm-disable"))
+		xhci->quirks |= XHCI_HW_LPM_DISABLE;
 
 	if (device_property_read_bool(sysdev, "usb3-lpm-capable"))
 		xhci->quirks |= XHCI_LPM_SUPPORT;

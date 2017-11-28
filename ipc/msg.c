@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * linux/ipc/msg.c
  * Copyright (C) 1992 Krishna Balasubramanian
@@ -590,13 +591,13 @@ static int copy_compat_msqid_from_user(struct msqid64_ds *out, void __user *buf,
 {
 	memset(out, 0, sizeof(*out));
 	if (version == IPC_64) {
-		struct compat_msqid64_ds *p = buf;
+		struct compat_msqid64_ds __user *p = buf;
 		if (get_compat_ipc64_perm(&out->msg_perm, &p->msg_perm))
 			return -EFAULT;
 		if (get_user(out->msg_qbytes, &p->msg_qbytes))
 			return -EFAULT;
 	} else {
-		struct compat_msqid_ds *p = buf;
+		struct compat_msqid_ds __user *p = buf;
 		if (get_compat_ipc_perm(&out->msg_perm, &p->msg_perm))
 			return -EFAULT;
 		if (get_user(out->msg_qbytes, &p->msg_qbytes))

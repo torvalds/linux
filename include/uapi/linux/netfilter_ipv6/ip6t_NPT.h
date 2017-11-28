@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 #ifndef __NETFILTER_IP6T_NPT
 #define __NETFILTER_IP6T_NPT
 

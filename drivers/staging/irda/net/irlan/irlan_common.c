@@ -228,8 +228,8 @@ static struct irlan_cb __init *irlan_open(__u32 saddr, __u32 daddr)
 
 	self->media = MEDIA_802_3;
 	self->disconnect_reason = LM_USER_REQUEST;
-	init_timer(&self->watchdog_timer);
-	init_timer(&self->client.kick_timer);
+	timer_setup(&self->watchdog_timer, NULL, 0);
+	timer_setup(&self->client.kick_timer, NULL, 0);
 	init_waitqueue_head(&self->open_wait);
 
 	skb_queue_head_init(&self->client.txq);

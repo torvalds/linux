@@ -390,7 +390,10 @@ static const struct ov5670_reg mode_2592x1944_regs[] = {
 	{0x5792, 0x00},
 	{0x5793, 0x52},
 	{0x5794, 0xa3},
-	{0x3503, 0x00}
+	{0x3503, 0x00},
+	{0x5045, 0x05},
+	{0x4003, 0x40},
+	{0x5048, 0x40}
 };
 
 static const struct ov5670_reg mode_1296x972_regs[] = {
@@ -653,7 +656,10 @@ static const struct ov5670_reg mode_1296x972_regs[] = {
 	{0x5792, 0x00},
 	{0x5793, 0x52},
 	{0x5794, 0xa3},
-	{0x3503, 0x00}
+	{0x3503, 0x00},
+	{0x5045, 0x05},
+	{0x4003, 0x40},
+	{0x5048, 0x40}
 };
 
 static const struct ov5670_reg mode_648x486_regs[] = {
@@ -916,7 +922,10 @@ static const struct ov5670_reg mode_648x486_regs[] = {
 	{0x5792, 0x00},
 	{0x5793, 0x52},
 	{0x5794, 0xa3},
-	{0x3503, 0x00}
+	{0x3503, 0x00},
+	{0x5045, 0x05},
+	{0x4003, 0x40},
+	{0x5048, 0x40}
 };
 
 static const struct ov5670_reg mode_2560x1440_regs[] = {
@@ -1178,7 +1187,10 @@ static const struct ov5670_reg mode_2560x1440_regs[] = {
 	{0x5791, 0x06},
 	{0x5792, 0x00},
 	{0x5793, 0x52},
-	{0x5794, 0xa3}
+	{0x5794, 0xa3},
+	{0x5045, 0x05},
+	{0x4003, 0x40},
+	{0x5048, 0x40}
 };
 
 static const struct ov5670_reg mode_1280x720_regs[] = {
@@ -1441,7 +1453,10 @@ static const struct ov5670_reg mode_1280x720_regs[] = {
 	{0x5792, 0x00},
 	{0x5793, 0x52},
 	{0x5794, 0xa3},
-	{0x3503, 0x00}
+	{0x3503, 0x00},
+	{0x5045, 0x05},
+	{0x4003, 0x40},
+	{0x5048, 0x40}
 };
 
 static const struct ov5670_reg mode_640x360_regs[] = {
@@ -1704,7 +1719,10 @@ static const struct ov5670_reg mode_640x360_regs[] = {
 	{0x5792, 0x00},
 	{0x5793, 0x52},
 	{0x5794, 0xa3},
-	{0x3503, 0x00}
+	{0x3503, 0x00},
+	{0x5045, 0x05},
+	{0x4003, 0x40},
+	{0x5048, 0x40}
 };
 
 static const char * const ov5670_test_pattern_menu[] = {
@@ -2323,8 +2341,6 @@ static int ov5670_start_streaming(struct ov5670 *ov5670)
 		return ret;
 	}
 
-	ov5670->streaming = true;
-
 	return 0;
 }
 
@@ -2337,8 +2353,6 @@ static int ov5670_stop_streaming(struct ov5670 *ov5670)
 			       OV5670_REG_VALUE_08BIT, OV5670_MODE_STANDBY);
 	if (ret)
 		dev_err(&client->dev, "%s failed to set stream\n", __func__);
-
-	ov5670->streaming = false;
 
 	/* Return success even if it was an error, as there is nothing the
 	 * caller can do about it.
@@ -2370,6 +2384,7 @@ static int ov5670_set_stream(struct v4l2_subdev *sd, int enable)
 		ret = ov5670_stop_streaming(ov5670);
 		pm_runtime_put(&client->dev);
 	}
+	ov5670->streaming = enable;
 	goto unlock_and_return;
 
 error:
@@ -2514,7 +2529,7 @@ static int ov5670_probe(struct i2c_client *client)
 	}
 
 	/* Async register for subdev */
-	ret = v4l2_async_register_subdev(&ov5670->sd);
+	ret = v4l2_async_register_subdev_sensor_common(&ov5670->sd);
 	if (ret < 0) {
 		err_msg = "v4l2_async_register_subdev() error";
 		goto error_entity_cleanup;

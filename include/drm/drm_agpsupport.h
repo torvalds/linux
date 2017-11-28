@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _DRM_AGPSUPPORT_H_
 #define _DRM_AGPSUPPORT_H_
 

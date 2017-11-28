@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __ACPI_BATTERY_H
 #define __ACPI_BATTERY_H
 

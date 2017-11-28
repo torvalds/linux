@@ -3185,7 +3185,7 @@ static int verify_qp_parameters(struct mlx4_dev *dev,
 	optpar	= be32_to_cpu(*(__be32 *) inbox->buf);
 
 	if (slave != mlx4_master_func_num(dev)) {
-		qp_ctx->params2 &= ~MLX4_QP_BIT_FPP;
+		qp_ctx->params2 &= ~cpu_to_be32(MLX4_QP_BIT_FPP);
 		/* setting QP rate-limit is disallowed for VFs */
 		if (qp_ctx->rate_limit_params)
 			return -EPERM;

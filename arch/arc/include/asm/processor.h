@@ -78,9 +78,6 @@ struct task_struct;
 
 #endif
 
-#define copy_segments(tsk, mm)      do { } while (0)
-#define release_segments(mm)        do { } while (0)
-
 #define KSTK_EIP(tsk)   (task_pt_regs(tsk)->ret)
 #define KSTK_ESP(tsk)   (task_pt_regs(tsk)->sp)
 

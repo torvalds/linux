@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* Hypervisor call vector addresses; see <hv/hypervisor.h> */
 .macro gensym sym, val, size
 .org \val

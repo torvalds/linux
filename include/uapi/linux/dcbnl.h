@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  * Copyright (c) 2008-2011, Intel Corporation.
  *
@@ -205,6 +206,7 @@ struct cee_pfc {
 #define IEEE_8021QAZ_APP_SEL_STREAM	2
 #define IEEE_8021QAZ_APP_SEL_DGRAM	3
 #define IEEE_8021QAZ_APP_SEL_ANY	4
+#define IEEE_8021QAZ_APP_SEL_DSCP       5
 
 /* This structure contains the IEEE 802.1Qaz APP managed object. This
  * object is also used for the CEE std as well.

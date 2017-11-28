@@ -1,20 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
 /**
  * udc.c - Core UDC Framework
  *
  * Copyright (C) 2010 Texas Instruments
  * Author: Felipe Balbi <balbi@ti.com>
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2  of
- * the License as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <linux/kernel.h>
@@ -912,7 +901,7 @@ int usb_gadget_ep_match_desc(struct usb_gadget *gadget,
 		return 0;
 
 	type = usb_endpoint_type(desc);
-	max = 0x7ff & usb_endpoint_maxp(desc);
+	max = usb_endpoint_maxp(desc);
 
 	if (usb_endpoint_dir_in(desc) && !ep->caps.dir_in)
 		return 0;
@@ -1320,8 +1309,7 @@ static int udc_bind_to_driver(struct usb_udc *udc, struct usb_gadget_driver *dri
 	udc->dev.driver = &driver->driver;
 	udc->gadget->dev.driver = &driver->driver;
 
-	if (driver->max_speed < udc->gadget->max_speed)
-		usb_gadget_udc_set_speed(udc, driver->max_speed);
+	usb_gadget_udc_set_speed(udc, driver->max_speed);
 
 	ret = driver->bind(udc->gadget, driver);
 	if (ret)

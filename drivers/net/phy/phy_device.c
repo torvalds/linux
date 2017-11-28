@@ -879,7 +879,7 @@ void phy_attached_print(struct phy_device *phydev, const char *fmt, ...)
 {
 	const char *drv_name = phydev->drv ? phydev->drv->name : "unbound";
 	char *irq_str;
-	char irq_num[4];
+	char irq_num[8];
 
 	switch(phydev->irq) {
 	case PHY_POLL:

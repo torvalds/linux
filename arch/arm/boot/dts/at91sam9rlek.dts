@@ -32,7 +32,7 @@
 	};
 
 	ahb {
-		fb0: fb@00500000 {
+		fb0: fb@500000 {
 			display = <&display0>;
 			status = "okay";
 

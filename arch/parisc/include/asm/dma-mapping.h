@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _PARISC_DMA_MAPPING_H
 #define _PARISC_DMA_MAPPING_H
 
@@ -30,14 +31,6 @@ extern const struct dma_map_ops *hppa_dma_ops;
 static inline const struct dma_map_ops *get_arch_dma_ops(struct bus_type *bus)
 {
 	return hppa_dma_ops;
-}
-
-static inline void
-dma_cache_sync(struct device *dev, void *vaddr, size_t size,
-	       enum dma_data_direction direction)
-{
-	if (hppa_dma_ops->sync_single_for_cpu)
-		flush_kernel_dcache_range((unsigned long)vaddr, size);
 }
 
 static inline void *

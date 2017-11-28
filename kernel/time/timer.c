@@ -610,7 +610,7 @@ static bool timer_fixup_init(void *addr, enum debug_obj_state state)
 }
 
 /* Stub timer callback for improperly used timers. */
-static void stub_timer(unsigned long data)
+static void stub_timer(struct timer_list *unused)
 {
 	WARN_ON(1);
 }
@@ -626,7 +626,7 @@ static bool timer_fixup_activate(void *addr, enum debug_obj_state state)
 
 	switch (state) {
 	case ODEBUG_STATE_NOTAVAILABLE:
-		setup_timer(timer, stub_timer, 0);
+		timer_setup(timer, stub_timer, 0);
 		return true;
 
 	case ODEBUG_STATE_ACTIVE:
@@ -665,7 +665,7 @@ static bool timer_fixup_assert_init(void *addr, enum debug_obj_state state)
 
 	switch (state) {
 	case ODEBUG_STATE_NOTAVAILABLE:
-		setup_timer(timer, stub_timer, 0);
+		timer_setup(timer, stub_timer, 0);
 		return true;
 	default:
 		return false;
@@ -707,14 +707,18 @@ static inline void debug_timer_assert_init(struct timer_list *timer)
 	debug_object_assert_init(timer, &timer_debug_descr);
 }
 
-static void do_init_timer(struct timer_list *timer, unsigned int flags,
+static void do_init_timer(struct timer_list *timer,
+			  void (*func)(struct timer_list *),
+			  unsigned int flags,
 			  const char *name, struct lock_class_key *key);
 
-void init_timer_on_stack_key(struct timer_list *timer, unsigned int flags,
+void init_timer_on_stack_key(struct timer_list *timer,
+			     void (*func)(struct timer_list *),
+			     unsigned int flags,
 			     const char *name, struct lock_class_key *key)
 {
 	debug_object_init_on_stack(timer, &timer_debug_descr);
-	do_init_timer(timer, flags, name, key);
+	do_init_timer(timer, func, flags, name, key);
 }
 EXPORT_SYMBOL_GPL(init_timer_on_stack_key);
 
@@ -755,10 +759,13 @@ static inline void debug_assert_init(struct timer_list *timer)
 	debug_timer_assert_init(timer);
 }
 
-static void do_init_timer(struct timer_list *timer, unsigned int flags,
+static void do_init_timer(struct timer_list *timer,
+			  void (*func)(struct timer_list *),
+			  unsigned int flags,
 			  const char *name, struct lock_class_key *key)
 {
 	timer->entry.pprev = NULL;
+	timer->function = func;
 	timer->flags = flags | raw_smp_processor_id();
 	lockdep_init_map(&timer->lockdep_map, name, key, 0);
 }
@@ -766,6 +773,7 @@ static void do_init_timer(struct timer_list *timer, unsigned int flags,
 /**
  * init_timer_key - initialize a timer
  * @timer: the timer to be initialized
+ * @func: timer callback function
  * @flags: timer flags
  * @name: name of the timer
  * @key: lockdep class key of the fake lock used for tracking timer
@@ -774,11 +782,12 @@ static void do_init_timer(struct timer_list *timer, unsigned int flags,
  * init_timer_key() must be done to a timer prior calling *any* of the
  * other timer functions.
  */
-void init_timer_key(struct timer_list *timer, unsigned int flags,
+void init_timer_key(struct timer_list *timer,
+		    void (*func)(struct timer_list *), unsigned int flags,
 		    const char *name, struct lock_class_key *key)
 {
 	debug_init(timer);
-	do_init_timer(timer, flags, name, key);
+	do_init_timer(timer, func, flags, name, key);
 }
 EXPORT_SYMBOL(init_timer_key);
 
@@ -929,8 +938,11 @@ static struct timer_base *lock_timer_base(struct timer_list *timer,
 	}
 }
 
+#define MOD_TIMER_PENDING_ONLY		0x01
+#define MOD_TIMER_REDUCE		0x02
+
 static inline int
-__mod_timer(struct timer_list *timer, unsigned long expires, bool pending_only)
+__mod_timer(struct timer_list *timer, unsigned long expires, unsigned int options)
 {
 	struct timer_base *base, *new_base;
 	unsigned int idx = UINT_MAX;
@@ -950,7 +962,11 @@ __mod_timer(struct timer_list *timer, unsigned long expires, bool pending_only)
 		 * larger granularity than you would get from adding a new
 		 * timer with this expiry.
 		 */
-		if (timer->expires == expires)
+		long diff = timer->expires - expires;
+
+		if (!diff)
+			return 1;
+		if (options & MOD_TIMER_REDUCE && diff <= 0)
 			return 1;
 
 		/*
@@ -962,6 +978,12 @@ __mod_timer(struct timer_list *timer, unsigned long expires, bool pending_only)
 		base = lock_timer_base(timer, &flags);
 		forward_timer_base(base);
 
+		if (timer_pending(timer) && (options & MOD_TIMER_REDUCE) &&
+		    time_before_eq(timer->expires, expires)) {
+			ret = 1;
+			goto out_unlock;
+		}
+
 		clk = base->clk;
 		idx = calc_wheel_index(expires, clk);
 
@@ -971,7 +993,10 @@ __mod_timer(struct timer_list *timer, unsigned long expires, bool pending_only)
 		 * subsequent call will exit in the expires check above.
 		 */
 		if (idx == timer_get_idx(timer)) {
-			timer->expires = expires;
+			if (!(options & MOD_TIMER_REDUCE))
+				timer->expires = expires;
+			else if (time_after(timer->expires, expires))
+				timer->expires = expires;
 			ret = 1;
 			goto out_unlock;
 		}
@@ -981,7 +1006,7 @@ __mod_timer(struct timer_list *timer, unsigned long expires, bool pending_only)
 	}
 
 	ret = detach_if_pending(timer, base, false);
-	if (!ret && pending_only)
+	if (!ret && (options & MOD_TIMER_PENDING_ONLY))
 		goto out_unlock;
 
 	debug_activate(timer, expires);
@@ -1042,7 +1067,7 @@ out_unlock:
  */
 int mod_timer_pending(struct timer_list *timer, unsigned long expires)
 {
-	return __mod_timer(timer, expires, true);
+	return __mod_timer(timer, expires, MOD_TIMER_PENDING_ONLY);
 }
 EXPORT_SYMBOL(mod_timer_pending);
 
@@ -1068,20 +1093,35 @@ EXPORT_SYMBOL(mod_timer_pending);
  */
 int mod_timer(struct timer_list *timer, unsigned long expires)
 {
-	return __mod_timer(timer, expires, false);
+	return __mod_timer(timer, expires, 0);
 }
 EXPORT_SYMBOL(mod_timer);
+
+/**
+ * timer_reduce - Modify a timer's timeout if it would reduce the timeout
+ * @timer:	The timer to be modified
+ * @expires:	New timeout in jiffies
+ *
+ * timer_reduce() is very similar to mod_timer(), except that it will only
+ * modify a running timer if that would reduce the expiration time (it will
+ * start a timer that isn't running).
+ */
+int timer_reduce(struct timer_list *timer, unsigned long expires)
+{
+	return __mod_timer(timer, expires, MOD_TIMER_REDUCE);
+}
+EXPORT_SYMBOL(timer_reduce);
 
 /**
  * add_timer - start a timer
  * @timer: the timer to be added
  *
- * The kernel will do a ->function(->data) callback from the
+ * The kernel will do a ->function(@timer) callback from the
  * timer interrupt at the ->expires point in the future. The
  * current time is 'jiffies'.
  *
- * The timer's ->expires, ->function (and if the handler uses it, ->data)
- * fields must be set prior calling this function.
+ * The timer's ->expires, ->function fields must be set prior calling this
+ * function.
  *
  * Timers with an ->expires field in the past will be executed in the next
  * timer tick.
@@ -1253,8 +1293,7 @@ int del_timer_sync(struct timer_list *timer)
 EXPORT_SYMBOL(del_timer_sync);
 #endif
 
-static void call_timer_fn(struct timer_list *timer, void (*fn)(unsigned long),
-			  unsigned long data)
+static void call_timer_fn(struct timer_list *timer, void (*fn)(struct timer_list *))
 {
 	int count = preempt_count();
 
@@ -1278,7 +1317,7 @@ static void call_timer_fn(struct timer_list *timer, void (*fn)(unsigned long),
 	lock_map_acquire(&lockdep_map);
 
 	trace_timer_expire_entry(timer);
-	fn(data);
+	fn(timer);
 	trace_timer_expire_exit(timer);
 
 	lock_map_release(&lockdep_map);
@@ -1300,8 +1339,7 @@ static void expire_timers(struct timer_base *base, struct hlist_head *head)
 {
 	while (!hlist_empty(head)) {
 		struct timer_list *timer;
-		void (*fn)(unsigned long);
-		unsigned long data;
+		void (*fn)(struct timer_list *);
 
 		timer = hlist_entry(head->first, struct timer_list, entry);
 
@@ -1309,15 +1347,14 @@ static void expire_timers(struct timer_base *base, struct hlist_head *head)
 		detach_timer(timer, true);
 
 		fn = timer->function;
-		data = timer->data;
 
 		if (timer->flags & TIMER_IRQSAFE) {
 			raw_spin_unlock(&base->lock);
-			call_timer_fn(timer, fn, data);
+			call_timer_fn(timer, fn);
 			raw_spin_lock(&base->lock);
 		} else {
 			raw_spin_unlock_irq(&base->lock);
-			call_timer_fn(timer, fn, data);
+			call_timer_fn(timer, fn);
 			raw_spin_lock_irq(&base->lock);
 		}
 	}
@@ -1560,8 +1597,11 @@ static int collect_expired_timers(struct timer_base *base,
 		 * jiffies, otherwise forward to the next expiry time:
 		 */
 		if (time_after(next, jiffies)) {
-			/* The call site will increment clock! */
-			base->clk = jiffies - 1;
+			/*
+			 * The call site will increment base->clk and then
+			 * terminate the expiry loop immediately.
+			 */
+			base->clk = jiffies;
 			return 0;
 		}
 		base->clk = next;
@@ -1668,9 +1708,20 @@ void run_local_timers(void)
 	raise_softirq(TIMER_SOFTIRQ);
 }
 
-static void process_timeout(unsigned long __data)
+/*
+ * Since schedule_timeout()'s timer is defined on the stack, it must store
+ * the target task on the stack as well.
+ */
+struct process_timer {
+	struct timer_list timer;
+	struct task_struct *task;
+};
+
+static void process_timeout(struct timer_list *t)
 {
-	wake_up_process((struct task_struct *)__data);
+	struct process_timer *timeout = from_timer(timeout, t, timer);
+
+	wake_up_process(timeout->task);
 }
 
 /**
@@ -1704,7 +1755,7 @@ static void process_timeout(unsigned long __data)
  */
 signed long __sched schedule_timeout(signed long timeout)
 {
-	struct timer_list timer;
+	struct process_timer timer;
 	unsigned long expire;
 
 	switch (timeout)
@@ -1738,13 +1789,14 @@ signed long __sched schedule_timeout(signed long timeout)
 
 	expire = timeout + jiffies;
 
-	setup_timer_on_stack(&timer, process_timeout, (unsigned long)current);
-	__mod_timer(&timer, expire, false);
+	timer.task = current;
+	timer_setup_on_stack(&timer.timer, process_timeout, 0);
+	__mod_timer(&timer.timer, expire, 0);
 	schedule();
-	del_singleshot_timer_sync(&timer);
+	del_singleshot_timer_sync(&timer.timer);
 
 	/* Remove the timer from the object tracker */
-	destroy_timer_on_stack(&timer);
+	destroy_timer_on_stack(&timer.timer);
 
 	timeout = expire - jiffies;
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * xHCI host controller driver PCI Bus Glue.
  *
@@ -5,19 +6,6 @@
  *
  * Author: Sarah Sharp
  * Some code borrowed from the Linux EHCI driver.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
- * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- * for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <linux/pci.h>
@@ -53,11 +41,6 @@
 #define PCI_DEVICE_ID_INTEL_BROXTON_B_XHCI		0x1aa8
 #define PCI_DEVICE_ID_INTEL_APL_XHCI			0x5aa8
 #define PCI_DEVICE_ID_INTEL_DNV_XHCI			0x19d0
-
-#define PCI_DEVICE_ID_AMD_PROMONTORYA_4			0x43b9
-#define PCI_DEVICE_ID_AMD_PROMONTORYA_3			0x43ba
-#define PCI_DEVICE_ID_AMD_PROMONTORYA_2			0x43bb
-#define PCI_DEVICE_ID_AMD_PROMONTORYA_1			0x43bc
 
 #define PCI_DEVICE_ID_ASMEDIA_1042A_XHCI		0x1142
 
@@ -141,13 +124,6 @@ static void xhci_pci_quirks(struct device *dev, struct xhci_hcd *xhci)
 
 	if (pdev->vendor == PCI_VENDOR_ID_AMD)
 		xhci->quirks |= XHCI_TRUST_TX_LENGTH;
-
-	if ((pdev->vendor == PCI_VENDOR_ID_AMD) &&
-		((pdev->device == PCI_DEVICE_ID_AMD_PROMONTORYA_4) ||
-		(pdev->device == PCI_DEVICE_ID_AMD_PROMONTORYA_3) ||
-		(pdev->device == PCI_DEVICE_ID_AMD_PROMONTORYA_2) ||
-		(pdev->device == PCI_DEVICE_ID_AMD_PROMONTORYA_1)))
-		xhci->quirks |= XHCI_U2_DISABLE_WAKE;
 
 	if (pdev->vendor == PCI_VENDOR_ID_INTEL) {
 		xhci->quirks |= XHCI_LPM_SUPPORT;

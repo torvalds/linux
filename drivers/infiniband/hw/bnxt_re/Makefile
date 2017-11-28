@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 
 ccflags-y := -Idrivers/net/ethernet/broadcom/bnxt
 obj-$(CONFIG_INFINIBAND_BNXT_RE) += bnxt_re.o

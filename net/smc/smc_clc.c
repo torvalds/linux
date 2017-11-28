@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *  Shared Memory Communications over RDMA (SMC-R) and RoCE
  *
@@ -95,9 +96,10 @@ int smc_clc_wait_msg(struct smc_sock *smc, void *buf, int buflen,
 	}
 	if (clcm->type == SMC_CLC_DECLINE) {
 		reason_code = SMC_CLC_DECL_REPLY;
-		if (ntohl(((struct smc_clc_msg_decline *)buf)->peer_diagnosis)
-			== SMC_CLC_DECL_SYNCERR)
+		if (((struct smc_clc_msg_decline *)buf)->hdr.flag) {
 			smc->conn.lgr->sync_err = true;
+			smc_lgr_terminate(smc->conn.lgr);
+		}
 	}
 
 out:
@@ -105,8 +107,7 @@ out:
 }
 
 /* send CLC DECLINE message across internal TCP socket */
-int smc_clc_send_decline(struct smc_sock *smc, u32 peer_diag_info,
-			 u8 out_of_sync)
+int smc_clc_send_decline(struct smc_sock *smc, u32 peer_diag_info)
 {
 	struct smc_clc_msg_decline dclc;
 	struct msghdr msg;
@@ -118,7 +119,7 @@ int smc_clc_send_decline(struct smc_sock *smc, u32 peer_diag_info,
 	dclc.hdr.type = SMC_CLC_DECLINE;
 	dclc.hdr.length = htons(sizeof(struct smc_clc_msg_decline));
 	dclc.hdr.version = SMC_CLC_V1;
-	dclc.hdr.flag = out_of_sync ? 1 : 0;
+	dclc.hdr.flag = (peer_diag_info == SMC_CLC_DECL_SYNCERR) ? 1 : 0;
 	memcpy(dclc.id_for_peer, local_systemid, sizeof(local_systemid));
 	dclc.peer_diagnosis = htonl(peer_diag_info);
 	memcpy(dclc.trl.eyecatcher, SMC_EYECATCHER, sizeof(SMC_EYECATCHER));

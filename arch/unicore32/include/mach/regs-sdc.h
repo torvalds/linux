@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * PKUnity Multi-Media Card and Security Digital Card (MMC/SD) Registers
  */

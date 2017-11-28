@@ -109,9 +109,14 @@ static u16 nvmet_install_queue(struct nvmet_ctrl *ctrl, struct nvmet_req *req)
 		pr_warn("queue already connected!\n");
 		return NVME_SC_CONNECT_CTRL_BUSY | NVME_SC_DNR;
 	}
+	if (!sqsize) {
+		pr_warn("queue size zero!\n");
+		return NVME_SC_CONNECT_INVALID_PARAM | NVME_SC_DNR;
+	}
 
-	nvmet_cq_setup(ctrl, req->cq, qid, sqsize);
-	nvmet_sq_setup(ctrl, req->sq, qid, sqsize);
+	/* note: convert queue size from 0's-based value to 1's-based value */
+	nvmet_cq_setup(ctrl, req->cq, qid, sqsize + 1);
+	nvmet_sq_setup(ctrl, req->sq, qid, sqsize + 1);
 	return 0;
 }
 

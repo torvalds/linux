@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *  linux/fs/isofs/util.c
  */
@@ -15,7 +16,7 @@
  * to GMT.  Thus  we should always be correct.
  */
 
-int iso_date(char * p, int flag)
+int iso_date(u8 *p, int flag)
 {
 	int year, month, day, hour, minute, second, tz;
 	int crtime;

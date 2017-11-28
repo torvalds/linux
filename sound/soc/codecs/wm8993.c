@@ -1076,6 +1076,7 @@ static int wm8993_set_sysclk(struct snd_soc_dai *codec_dai,
 	switch (clk_id) {
 	case WM8993_SYSCLK_MCLK:
 		wm8993->mclk_rate = freq;
+		/* fall through */
 	case WM8993_SYSCLK_FLL:
 		wm8993->sysclk_source = clk_id;
 		break;
@@ -1123,6 +1124,7 @@ static int wm8993_set_dai_fmt(struct snd_soc_dai *dai,
 	switch (fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
 	case SND_SOC_DAIFMT_DSP_B:
 		aif1 |= WM8993_AIF_LRCLK_INV;
+		/* fall through */
 	case SND_SOC_DAIFMT_DSP_A:
 		aif1 |= 0x18;
 		break;

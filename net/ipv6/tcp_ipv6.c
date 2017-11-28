@@ -69,6 +69,8 @@
 #include <crypto/hash.h>
 #include <linux/scatterlist.h>
 
+#include <trace/events/tcp.h>
+
 static void	tcp_v6_send_reset(const struct sock *sk, struct sk_buff *skb);
 static void	tcp_v6_reqsk_send_ack(const struct sock *sk, struct sk_buff *skb,
 				      struct request_sock *req);
@@ -890,7 +892,7 @@ static void tcp_v6_send_reset(const struct sock *sk, struct sk_buff *skb)
 	int genhash;
 	struct sock *sk1 = NULL;
 #endif
-	int oif;
+	int oif = 0;
 
 	if (th->rst)
 		return;
@@ -939,7 +941,11 @@ static void tcp_v6_send_reset(const struct sock *sk, struct sk_buff *skb)
 		ack_seq = ntohl(th->seq) + th->syn + th->fin + skb->len -
 			  (th->doff << 2);
 
-	oif = sk ? sk->sk_bound_dev_if : 0;
+	if (sk) {
+		oif = sk->sk_bound_dev_if;
+		trace_tcp_send_reset(sk, skb);
+	}
+
 	tcp_v6_send_response(sk, skb, seq, ack_seq, 0, 0, 0, oif, key, 1, 0, 0);
 
 #ifdef CONFIG_TCP_MD5SIG
@@ -1577,8 +1583,9 @@ do_time_wait:
 			refcounted = false;
 			goto process;
 		}
-		/* Fall through to ACK */
 	}
+		/* to ACK */
+		/* fall through */
 	case TCP_TW_ACK:
 		tcp_v6_timewait_ack(sk, skb);
 		break;
@@ -1933,8 +1940,8 @@ struct proto tcpv6_prot = {
 	.memory_pressure	= &tcp_memory_pressure,
 	.orphan_count		= &tcp_orphan_count,
 	.sysctl_mem		= sysctl_tcp_mem,
-	.sysctl_wmem		= sysctl_tcp_wmem,
-	.sysctl_rmem		= sysctl_tcp_rmem,
+	.sysctl_wmem_offset	= offsetof(struct net, ipv4.sysctl_tcp_wmem),
+	.sysctl_rmem_offset	= offsetof(struct net, ipv4.sysctl_tcp_rmem),
 	.max_header		= MAX_TCP_HEADER,
 	.obj_size		= sizeof(struct tcp6_sock),
 	.slab_flags		= SLAB_TYPESAFE_BY_RCU,

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _LINUX_CGROUP_H
 #define _LINUX_CGROUP_H
 /*
@@ -22,6 +23,7 @@
 #include <linux/nsproxy.h>
 #include <linux/user_namespace.h>
 #include <linux/refcount.h>
+#include <linux/kernel_stat.h>
 
 #include <linux/cgroup-defs.h>
 
@@ -687,6 +689,63 @@ static inline bool task_under_cgroup_hierarchy(struct task_struct *task,
 static inline void cgroup_path_from_kernfs_id(const union kernfs_node_id *id,
 	char *buf, size_t buflen) {}
 #endif /* !CONFIG_CGROUPS */
+
+/*
+ * Basic resource stats.
+ */
+#ifdef CONFIG_CGROUPS
+
+#ifdef CONFIG_CGROUP_CPUACCT
+void cpuacct_charge(struct task_struct *tsk, u64 cputime);
+void cpuacct_account_field(struct task_struct *tsk, int index, u64 val);
+#else
+static inline void cpuacct_charge(struct task_struct *tsk, u64 cputime) {}
+static inline void cpuacct_account_field(struct task_struct *tsk, int index,
+					 u64 val) {}
+#endif
+
+void __cgroup_account_cputime(struct cgroup *cgrp, u64 delta_exec);
+void __cgroup_account_cputime_field(struct cgroup *cgrp,
+				    enum cpu_usage_stat index, u64 delta_exec);
+
+static inline void cgroup_account_cputime(struct task_struct *task,
+					  u64 delta_exec)
+{
+	struct cgroup *cgrp;
+
+	cpuacct_charge(task, delta_exec);
+
+	rcu_read_lock();
+	cgrp = task_dfl_cgroup(task);
+	if (cgroup_parent(cgrp))
+		__cgroup_account_cputime(cgrp, delta_exec);
+	rcu_read_unlock();
+}
+
+static inline void cgroup_account_cputime_field(struct task_struct *task,
+						enum cpu_usage_stat index,
+						u64 delta_exec)
+{
+	struct cgroup *cgrp;
+
+	cpuacct_account_field(task, index, delta_exec);
+
+	rcu_read_lock();
+	cgrp = task_dfl_cgroup(task);
+	if (cgroup_parent(cgrp))
+		__cgroup_account_cputime_field(cgrp, index, delta_exec);
+	rcu_read_unlock();
+}
+
+#else	/* CONFIG_CGROUPS */
+
+static inline void cgroup_account_cputime(struct task_struct *task,
+					  u64 delta_exec) {}
+static inline void cgroup_account_cputime_field(struct task_struct *task,
+						enum cpu_usage_stat index,
+						u64 delta_exec) {}
+
+#endif	/* CONFIG_CGROUPS */
 
 /*
  * sock->sk_cgrp_data handling.  For more info, see sock_cgroup_data

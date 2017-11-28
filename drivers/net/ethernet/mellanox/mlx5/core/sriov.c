@@ -109,7 +109,7 @@ static int mlx5_device_enable_sriov(struct mlx5_core_dev *dev, int num_vfs)
 				mlx5_core_warn(dev,
 					       "failed to restore VF %d settings, err %d\n",
 					       vf, err);
-			continue;
+				continue;
 			}
 		}
 		mlx5_core_dbg(dev, "successfully enabled VF* %d\n", vf);

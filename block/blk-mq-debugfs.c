@@ -54,7 +54,6 @@ static const char *const blk_queue_flag_name[] = {
 	QUEUE_FLAG_NAME(NOMERGES),
 	QUEUE_FLAG_NAME(SAME_COMP),
 	QUEUE_FLAG_NAME(FAIL_IO),
-	QUEUE_FLAG_NAME(STACKABLE),
 	QUEUE_FLAG_NAME(NONROT),
 	QUEUE_FLAG_NAME(IO_STAT),
 	QUEUE_FLAG_NAME(DISCARD),
@@ -75,6 +74,7 @@ static const char *const blk_queue_flag_name[] = {
 	QUEUE_FLAG_NAME(REGISTERED),
 	QUEUE_FLAG_NAME(SCSI_PASSTHROUGH),
 	QUEUE_FLAG_NAME(QUIESCED),
+	QUEUE_FLAG_NAME(PREEMPT_ONLY),
 };
 #undef QUEUE_FLAG_NAME
 
@@ -180,7 +180,6 @@ static const char *const hctx_state_name[] = {
 	HCTX_STATE_NAME(STOPPED),
 	HCTX_STATE_NAME(TAG_ACTIVE),
 	HCTX_STATE_NAME(SCHED_RESTART),
-	HCTX_STATE_NAME(TAG_WAITING),
 	HCTX_STATE_NAME(START_ON_RUN),
 };
 #undef HCTX_STATE_NAME
@@ -815,10 +814,14 @@ int blk_mq_debugfs_register(struct request_queue *q)
 		goto err;
 
 	/*
-	 * blk_mq_init_hctx() attempted to do this already, but q->debugfs_dir
+	 * blk_mq_init_sched() attempted to do this already, but q->debugfs_dir
 	 * didn't exist yet (because we don't know what to name the directory
 	 * until the queue is registered to a gendisk).
 	 */
+	if (q->elevator && !q->sched_debugfs_dir)
+		blk_mq_debugfs_register_sched(q);
+
+	/* Similarly, blk_mq_init_hctx() couldn't do this previously. */
 	queue_for_each_hw_ctx(q, hctx, i) {
 		if (!hctx->debugfs_dir && blk_mq_debugfs_register_hctx(q, hctx))
 			goto err;

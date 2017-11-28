@@ -115,8 +115,18 @@ unsigned paravirt_patch_jmp(void *insnbuf, const void *target,
 	return 5;
 }
 
-/* Neat trick to map patch type back to the call within the
- * corresponding structure. */
+DEFINE_STATIC_KEY_TRUE(virt_spin_lock_key);
+
+void __init native_pv_lock_init(void)
+{
+	if (!static_cpu_has(X86_FEATURE_HYPERVISOR))
+		static_branch_disable(&virt_spin_lock_key);
+}
+
+/*
+ * Neat trick to map patch type back to the call within the
+ * corresponding structure.
+ */
 static void *get_call_destination(u8 type)
 {
 	struct paravirt_patch_template tmpl = {

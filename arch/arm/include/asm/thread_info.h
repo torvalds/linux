@@ -139,11 +139,10 @@ extern int vfp_restore_user_hwstate(struct user_vfp __user *,
 #define TIF_NEED_RESCHED	1	/* rescheduling necessary */
 #define TIF_NOTIFY_RESUME	2	/* callback before returning to user */
 #define TIF_UPROBE		3	/* breakpointed or singlestepping */
-#define TIF_FSCHECK		4	/* Check FS is USER_DS on return */
-#define TIF_SYSCALL_TRACE	5	/* syscall trace active */
-#define TIF_SYSCALL_AUDIT	6	/* syscall auditing active */
-#define TIF_SYSCALL_TRACEPOINT	7	/* syscall tracepoint instrumentation */
-#define TIF_SECCOMP		8	/* seccomp syscall filtering active */
+#define TIF_SYSCALL_TRACE	4	/* syscall trace active */
+#define TIF_SYSCALL_AUDIT	5	/* syscall auditing active */
+#define TIF_SYSCALL_TRACEPOINT	6	/* syscall tracepoint instrumentation */
+#define TIF_SECCOMP		7	/* seccomp syscall filtering active */
 
 #define TIF_NOHZ		12	/* in adaptive nohz mode */
 #define TIF_USING_IWMMXT	17
@@ -154,7 +153,6 @@ extern int vfp_restore_user_hwstate(struct user_vfp __user *,
 #define _TIF_NEED_RESCHED	(1 << TIF_NEED_RESCHED)
 #define _TIF_NOTIFY_RESUME	(1 << TIF_NOTIFY_RESUME)
 #define _TIF_UPROBE		(1 << TIF_UPROBE)
-#define _TIF_FSCHECK		(1 << TIF_FSCHECK)
 #define _TIF_SYSCALL_TRACE	(1 << TIF_SYSCALL_TRACE)
 #define _TIF_SYSCALL_AUDIT	(1 << TIF_SYSCALL_AUDIT)
 #define _TIF_SYSCALL_TRACEPOINT	(1 << TIF_SYSCALL_TRACEPOINT)
@@ -168,9 +166,8 @@ extern int vfp_restore_user_hwstate(struct user_vfp __user *,
 /*
  * Change these and you break ASM code in entry-common.S
  */
-#define _TIF_WORK_MASK		(_TIF_NEED_RESCHED | _TIF_SIGPENDING |	\
-				 _TIF_NOTIFY_RESUME | _TIF_UPROBE |	\
-				 _TIF_FSCHECK)
+#define _TIF_WORK_MASK		(_TIF_NEED_RESCHED | _TIF_SIGPENDING | \
+				 _TIF_NOTIFY_RESUME | _TIF_UPROBE)
 
 #endif /* __KERNEL__ */
 #endif /* __ASM_ARM_THREAD_INFO_H */

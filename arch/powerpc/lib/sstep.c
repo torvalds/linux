@@ -31,6 +31,8 @@ extern char system_call_common[];
 #define XER_SO		0x80000000U
 #define XER_OV		0x40000000U
 #define XER_CA		0x20000000U
+#define XER_OV32	0x00080000U
+#define XER_CA32	0x00040000U
 
 #ifdef CONFIG_PPC_FPU
 /*
@@ -944,9 +946,9 @@ NOKPROBE_SYMBOL(emulate_dcbz);
 		: "r" (addr), "i" (-EFAULT), "0" (err))
 
 static nokprobe_inline void set_cr0(const struct pt_regs *regs,
-				    struct instruction_op *op, int rd)
+				    struct instruction_op *op)
 {
-	long val = regs->gpr[rd];
+	long val = op->val;
 
 	op->type |= SETCC;
 	op->ccval = (regs->ccr & 0x0fffffff) | ((regs->xer >> 3) & 0x10000000);
@@ -960,6 +962,16 @@ static nokprobe_inline void set_cr0(const struct pt_regs *regs,
 		op->ccval |= 0x40000000;
 	else
 		op->ccval |= 0x20000000;
+}
+
+static nokprobe_inline void set_ca32(struct instruction_op *op, bool val)
+{
+	if (cpu_has_feature(CPU_FTR_ARCH_300)) {
+		if (val)
+			op->xerval |= XER_CA32;
+		else
+			op->xerval &= ~XER_CA32;
+	}
 }
 
 static nokprobe_inline void add_with_carry(const struct pt_regs *regs,
@@ -985,6 +997,9 @@ static nokprobe_inline void add_with_carry(const struct pt_regs *regs,
 		op->xerval |= XER_CA;
 	else
 		op->xerval &= ~XER_CA;
+
+	set_ca32(op, (unsigned int)val < (unsigned int)val1 ||
+			(carry_in && (unsigned int)val == (unsigned int)val1));
 }
 
 static nokprobe_inline void do_cmp_signed(const struct pt_regs *regs,
@@ -1326,7 +1341,7 @@ int analyse_instr(struct instruction_op *op, const struct pt_regs *regs,
 	case 13:	/* addic. */
 		imm = (short) instr;
 		add_with_carry(regs, op, rd, regs->gpr[ra], imm, 0);
-		set_cr0(regs, op, rd);
+		set_cr0(regs, op);
 		return 1;
 
 	case 14:	/* addi */
@@ -1397,13 +1412,13 @@ int analyse_instr(struct instruction_op *op, const struct pt_regs *regs,
 
 	case 28:	/* andi. */
 		op->val = regs->gpr[rd] & (unsigned short) instr;
-		set_cr0(regs, op, ra);
+		set_cr0(regs, op);
 		goto logical_done_nocc;
 
 	case 29:	/* andis. */
 		imm = (unsigned short) instr;
 		op->val = regs->gpr[rd] & (imm << 16);
-		set_cr0(regs, op, ra);
+		set_cr0(regs, op);
 		goto logical_done_nocc;
 
 #ifdef __powerpc64__
@@ -1513,10 +1528,10 @@ int analyse_instr(struct instruction_op *op, const struct pt_regs *regs,
 			op->type = COMPUTE + SETCC;
 			imm = 0xf0000000UL;
 			val = regs->gpr[rd];
-			op->val = regs->ccr;
+			op->ccval = regs->ccr;
 			for (sh = 0; sh < 8; ++sh) {
 				if (instr & (0x80000 >> sh))
-					op->val = (op->val & ~imm) |
+					op->ccval = (op->ccval & ~imm) |
 						(val & imm);
 				imm >>= 4;
 			}
@@ -1651,8 +1666,9 @@ int analyse_instr(struct instruction_op *op, const struct pt_regs *regs,
 			goto arith_done;
 
 		case 235:	/* mullw */
-			op->val = (unsigned int) regs->gpr[ra] *
-				(unsigned int) regs->gpr[rb];
+			op->val = (long)(int) regs->gpr[ra] *
+				(int) regs->gpr[rb];
+
 			goto arith_done;
 
 		case 266:	/* add */
@@ -1683,11 +1699,13 @@ int analyse_instr(struct instruction_op *op, const struct pt_regs *regs,
  * Logical instructions
  */
 		case 26:	/* cntlzw */
-			op->val = __builtin_clz((unsigned int) regs->gpr[rd]);
+			val = (unsigned int) regs->gpr[rd];
+			op->val = ( val ? __builtin_clz(val) : 32 );
 			goto logical_done;
 #ifdef __powerpc64__
 		case 58:	/* cntlzd */
-			op->val = __builtin_clzl(regs->gpr[rd]);
+			val = regs->gpr[rd];
+			op->val = ( val ? __builtin_clzl(val) : 64 );
 			goto logical_done;
 #endif
 		case 28:	/* and */
@@ -1788,6 +1806,7 @@ int analyse_instr(struct instruction_op *op, const struct pt_regs *regs,
 				op->xerval |= XER_CA;
 			else
 				op->xerval &= ~XER_CA;
+			set_ca32(op, op->xerval & XER_CA);
 			goto logical_done;
 
 		case 824:	/* srawi */
@@ -1800,6 +1819,7 @@ int analyse_instr(struct instruction_op *op, const struct pt_regs *regs,
 				op->xerval |= XER_CA;
 			else
 				op->xerval &= ~XER_CA;
+			set_ca32(op, op->xerval & XER_CA);
 			goto logical_done;
 
 #ifdef __powerpc64__
@@ -1829,6 +1849,7 @@ int analyse_instr(struct instruction_op *op, const struct pt_regs *regs,
 				op->xerval |= XER_CA;
 			else
 				op->xerval &= ~XER_CA;
+			set_ca32(op, op->xerval & XER_CA);
 			goto logical_done;
 
 		case 826:	/* sradi with sh_5 = 0 */
@@ -1842,6 +1863,7 @@ int analyse_instr(struct instruction_op *op, const struct pt_regs *regs,
 				op->xerval |= XER_CA;
 			else
 				op->xerval &= ~XER_CA;
+			set_ca32(op, op->xerval & XER_CA);
 			goto logical_done;
 #endif /* __powerpc64__ */
 
@@ -2526,7 +2548,7 @@ int analyse_instr(struct instruction_op *op, const struct pt_regs *regs,
 
  logical_done:
 	if (instr & 1)
-		set_cr0(regs, op, ra);
+		set_cr0(regs, op);
  logical_done_nocc:
 	op->reg = ra;
 	op->type |= SETREG;
@@ -2534,7 +2556,7 @@ int analyse_instr(struct instruction_op *op, const struct pt_regs *regs,
 
  arith_done:
 	if (instr & 1)
-		set_cr0(regs, op, rd);
+		set_cr0(regs, op);
  compute_done:
 	op->reg = rd;
 	op->type |= SETREG;
@@ -2695,6 +2717,7 @@ void emulate_update_regs(struct pt_regs *regs, struct instruction_op *op)
 	}
 	regs->nip = next_pc;
 }
+NOKPROBE_SYMBOL(emulate_update_regs);
 
 /*
  * Emulate a previously-analysed load or store instruction.

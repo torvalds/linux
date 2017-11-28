@@ -585,10 +585,10 @@ skip:
 	spin_unlock_irqrestore(&ar_pci->ps_lock, flags);
 }
 
-static void ath10k_pci_ps_timer(unsigned long ptr)
+static void ath10k_pci_ps_timer(struct timer_list *t)
 {
-	struct ath10k *ar = (void *)ptr;
-	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
+	struct ath10k_pci *ar_pci = from_timer(ar_pci, t, ps_timer);
+	struct ath10k *ar = ar_pci->ar;
 	unsigned long flags;
 
 	spin_lock_irqsave(&ar_pci->ps_lock, flags);
@@ -838,9 +838,10 @@ void ath10k_pci_rx_post(struct ath10k *ar)
 		ath10k_pci_rx_post_pipe(&ar_pci->pipe_info[i]);
 }
 
-void ath10k_pci_rx_replenish_retry(unsigned long ptr)
+void ath10k_pci_rx_replenish_retry(struct timer_list *t)
 {
-	struct ath10k *ar = (void *)ptr;
+	struct ath10k_pci *ar_pci = from_timer(ar_pci, t, rx_post_retry);
+	struct ath10k *ar = ar_pci->ar;
 
 	ath10k_pci_rx_post(ar);
 }
@@ -2577,9 +2578,13 @@ void ath10k_pci_hif_power_down(struct ath10k *ar)
 	 */
 }
 
-#ifdef CONFIG_PM
-
 static int ath10k_pci_hif_suspend(struct ath10k *ar)
+{
+	/* Nothing to do; the important stuff is in the driver suspend. */
+	return 0;
+}
+
+static int ath10k_pci_suspend(struct ath10k *ar)
 {
 	/* The grace timer can still be counting down and ar->ps_awake be true.
 	 * It is known that the device may be asleep after resuming regardless
@@ -2592,6 +2597,12 @@ static int ath10k_pci_hif_suspend(struct ath10k *ar)
 }
 
 static int ath10k_pci_hif_resume(struct ath10k *ar)
+{
+	/* Nothing to do; the important stuff is in the driver resume. */
+	return 0;
+}
+
+static int ath10k_pci_resume(struct ath10k *ar)
 {
 	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
 	struct pci_dev *pdev = ar_pci->pdev;
@@ -2615,7 +2626,6 @@ static int ath10k_pci_hif_resume(struct ath10k *ar)
 
 	return ret;
 }
-#endif
 
 static bool ath10k_pci_validate_cal(void *data, size_t size)
 {
@@ -2770,10 +2780,8 @@ static const struct ath10k_hif_ops ath10k_pci_hif_ops = {
 	.power_down		= ath10k_pci_hif_power_down,
 	.read32			= ath10k_pci_read32,
 	.write32		= ath10k_pci_write32,
-#ifdef CONFIG_PM
 	.suspend		= ath10k_pci_hif_suspend,
 	.resume			= ath10k_pci_hif_resume,
-#endif
 	.fetch_cal_eeprom	= ath10k_pci_hif_fetch_cal_eeprom,
 };
 
@@ -3157,8 +3165,7 @@ int ath10k_pci_setup_resource(struct ath10k *ar)
 	spin_lock_init(&ce->ce_lock);
 	spin_lock_init(&ar_pci->ps_lock);
 
-	setup_timer(&ar_pci->rx_post_retry, ath10k_pci_rx_replenish_retry,
-		    (unsigned long)ar);
+	timer_setup(&ar_pci->rx_post_retry, ath10k_pci_rx_replenish_retry, 0);
 
 	if (QCA_REV_6174(ar) || QCA_REV_9377(ar))
 		ath10k_pci_override_ce_config(ar);
@@ -3284,8 +3291,7 @@ static int ath10k_pci_probe(struct pci_dev *pdev,
 	ar->id.subsystem_vendor = pdev->subsystem_vendor;
 	ar->id.subsystem_device = pdev->subsystem_device;
 
-	setup_timer(&ar_pci->ps_timer, ath10k_pci_ps_timer,
-		    (unsigned long)ar);
+	timer_setup(&ar_pci->ps_timer, ath10k_pci_ps_timer, 0);
 
 	ret = ath10k_pci_setup_resource(ar);
 	if (ret) {
@@ -3396,34 +3402,24 @@ static void ath10k_pci_remove(struct pci_dev *pdev)
 
 MODULE_DEVICE_TABLE(pci, ath10k_pci_id_table);
 
-#ifdef CONFIG_PM
-
-static int ath10k_pci_pm_suspend(struct device *dev)
+static __maybe_unused int ath10k_pci_pm_suspend(struct device *dev)
 {
 	struct ath10k *ar = dev_get_drvdata(dev);
 	int ret;
 
-	if (test_bit(ATH10K_FW_FEATURE_WOWLAN_SUPPORT,
-		     ar->running_fw->fw_file.fw_features))
-		return 0;
-
-	ret = ath10k_hif_suspend(ar);
+	ret = ath10k_pci_suspend(ar);
 	if (ret)
 		ath10k_warn(ar, "failed to suspend hif: %d\n", ret);
 
 	return ret;
 }
 
-static int ath10k_pci_pm_resume(struct device *dev)
+static __maybe_unused int ath10k_pci_pm_resume(struct device *dev)
 {
 	struct ath10k *ar = dev_get_drvdata(dev);
 	int ret;
 
-	if (test_bit(ATH10K_FW_FEATURE_WOWLAN_SUPPORT,
-		     ar->running_fw->fw_file.fw_features))
-		return 0;
-
-	ret = ath10k_hif_resume(ar);
+	ret = ath10k_pci_resume(ar);
 	if (ret)
 		ath10k_warn(ar, "failed to resume hif: %d\n", ret);
 
@@ -3433,7 +3429,6 @@ static int ath10k_pci_pm_resume(struct device *dev)
 static SIMPLE_DEV_PM_OPS(ath10k_pci_pm_ops,
 			 ath10k_pci_pm_suspend,
 			 ath10k_pci_pm_resume);
-#endif
 
 static struct pci_driver ath10k_pci_driver = {
 	.name = "ath10k_pci",

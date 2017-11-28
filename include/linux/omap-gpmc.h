@@ -36,18 +36,6 @@ static inline struct gpmc_nand_ops *gpmc_omap_get_nand_ops(struct gpmc_nand_regs
 }
 #endif /* CONFIG_OMAP_GPMC */
 
-/*--------------------------------*/
-
-/* deprecated APIs */
-#if IS_ENABLED(CONFIG_OMAP_GPMC)
-void gpmc_update_nand_reg(struct gpmc_nand_regs *reg, int cs);
-#else
-static inline void gpmc_update_nand_reg(struct gpmc_nand_regs *reg, int cs)
-{
-}
-#endif /* CONFIG_OMAP_GPMC */
-/*--------------------------------*/
-
 extern int gpmc_calc_timings(struct gpmc_timings *gpmc_t,
 			     struct gpmc_settings *gpmc_s,
 			     struct gpmc_device_timings *dev_t);

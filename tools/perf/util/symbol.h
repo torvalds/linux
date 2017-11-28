@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __PERF_SYMBOL
 #define __PERF_SYMBOL 1
 
@@ -59,6 +60,7 @@ struct symbol {
 	u8		binding;
 	u8		idle:1;
 	u8		ignore:1;
+	u8		inlined:1;
 	u8		arch_sym;
 	char		name[0];
 };
@@ -208,6 +210,7 @@ struct addr_location {
 	struct thread *thread;
 	struct map    *map;
 	struct symbol *sym;
+	const char    *srcline;
 	u64	      addr;
 	char	      level;
 	u8	      filtered;
@@ -344,9 +347,6 @@ int setup_intlist(struct intlist **list, const char *list_str,
 #ifdef HAVE_LIBELF_SUPPORT
 bool elf__needs_adjust_symbols(GElf_Ehdr ehdr);
 void arch__sym_update(struct symbol *s, GElf_Sym *sym);
-void arch__adjust_sym_map_offset(GElf_Sym *sym,
-				 GElf_Shdr *shdr __maybe_unused,
-				 struct map *map __maybe_unused);
 #endif
 
 #define SYMBOL_A 0

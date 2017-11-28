@@ -117,6 +117,6 @@ void cw1200_set_tim_work(struct work_struct *work);
 void cw1200_set_cts_work(struct work_struct *work);
 void cw1200_multicast_start_work(struct work_struct *work);
 void cw1200_multicast_stop_work(struct work_struct *work);
-void cw1200_mcast_timeout(unsigned long arg);
+void cw1200_mcast_timeout(struct timer_list *t);
 
 #endif
