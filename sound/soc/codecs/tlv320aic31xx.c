@@ -157,6 +157,7 @@ struct aic31xx_priv {
 	u8 i2c_regs_status;
 	struct device *dev;
 	struct regmap *regmap;
+	struct gpio_desc *gpio_reset;
 	struct aic31xx_pdata pdata;
 	struct regulator_bulk_data supplies[AIC31XX_NUM_SUPPLIES];
 	struct aic31xx_disable_nb disable_nb[AIC31XX_NUM_SUPPLIES];
@@ -1020,8 +1021,8 @@ static int aic31xx_regulator_event(struct notifier_block *nb,
 		 * Put codec to reset and as at least one of the
 		 * supplies was disabled.
 		 */
-		if (gpio_is_valid(aic31xx->pdata.gpio_reset))
-			gpio_set_value(aic31xx->pdata.gpio_reset, 0);
+		if (aic31xx->gpio_reset)
+			gpiod_set_value(aic31xx->gpio_reset, 1);
 
 		regcache_mark_dirty(aic31xx->regmap);
 		dev_dbg(aic31xx->dev, "## %s: DISABLE received\n", __func__);
@@ -1073,8 +1074,8 @@ static int aic31xx_power_on(struct snd_soc_codec *codec)
 	if (ret)
 		return ret;
 
-	if (gpio_is_valid(aic31xx->pdata.gpio_reset)) {
-		gpio_set_value(aic31xx->pdata.gpio_reset, 1);
+	if (aic31xx->gpio_reset) {
+		gpiod_set_value(aic31xx->gpio_reset, 0);
 		udelay(100);
 	}
 	regcache_cache_only(aic31xx->regmap, false);
@@ -1334,15 +1335,11 @@ static int aic31xx_i2c_probe(struct i2c_client *i2c,
 	else if (aic31xx->dev->of_node)
 		aic31xx_pdata_from_of(aic31xx);
 
-	if (aic31xx->pdata.gpio_reset) {
-		ret = devm_gpio_request_one(aic31xx->dev,
-					    aic31xx->pdata.gpio_reset,
-					    GPIOF_OUT_INIT_HIGH,
-					    "aic31xx-reset-pin");
-		if (ret < 0) {
-			dev_err(aic31xx->dev, "not able to acquire gpio\n");
-			return ret;
-		}
+	aic31xx->gpio_reset = devm_gpiod_get_optional(aic31xx->dev, "reset",
+						      GPIOD_OUT_LOW);
+	if (IS_ERR(aic31xx->gpio_reset)) {
+		dev_err(aic31xx->dev, "not able to acquire gpio\n");
+		return PTR_ERR(aic31xx->gpio_reset);
 	}
 
 	for (i = 0; i < ARRAY_SIZE(aic31xx->supplies); i++)
