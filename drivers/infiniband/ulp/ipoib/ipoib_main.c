@@ -2196,8 +2196,10 @@ static struct net_device *ipoib_add_port(const char *format,
 	int result = -ENOMEM;
 
 	priv = ipoib_intf_alloc(hca, port, format);
-	if (!priv)
+	if (!priv) {
+		pr_warn("%s, %d: ipoib_intf_alloc failed\n", hca->name, port);
 		goto alloc_mem_failed;
+	}
 
 	SET_NETDEV_DEV(priv->dev, hca->dev.parent);
 	priv->dev->dev_id = port - 1;
@@ -2325,8 +2327,7 @@ static void ipoib_add_one(struct ib_device *device)
 	}
 
 	if (!count) {
-		pr_err("Failed to init port, removing it\n");
-		ipoib_remove_one(device, dev_list);
+		kfree(dev_list);
 		return;
 	}
 
