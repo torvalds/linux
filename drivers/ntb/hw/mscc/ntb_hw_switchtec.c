@@ -777,9 +777,12 @@ static const struct ntb_dev_ops switchtec_ntb_ops = {
 	.peer_spad_addr		= switchtec_ntb_peer_spad_addr,
 };
 
-static void switchtec_ntb_init_sndev(struct switchtec_ntb *sndev)
+static int switchtec_ntb_init_sndev(struct switchtec_ntb *sndev)
 {
+	u64 tpart_vec;
+	int self;
 	u64 part_map;
+	int bit;
 
 	sndev->ntb.pdev = sndev->stdev->pdev;
 	sndev->ntb.topo = NTB_TOPO_SWITCH;
@@ -788,13 +791,47 @@ static void switchtec_ntb_init_sndev(struct switchtec_ntb *sndev)
 	sndev->self_partition = sndev->stdev->partition;
 
 	sndev->mmio_ntb = sndev->stdev->mmio_ntb;
+
+	self = sndev->self_partition;
+	tpart_vec = ioread32(&sndev->mmio_ntb->ntp_info[self].target_part_high);
+	tpart_vec <<= 32;
+	tpart_vec |= ioread32(&sndev->mmio_ntb->ntp_info[self].target_part_low);
+
 	part_map = ioread64(&sndev->mmio_ntb->ep_map);
 	part_map &= ~(1 << sndev->self_partition);
-	sndev->peer_partition = ffs(part_map) - 1;
 
-	dev_dbg(&sndev->stdev->dev, "Partition ID %d of %d (%llx)\n",
-		sndev->self_partition, sndev->stdev->partition_count,
-		part_map);
+	if (!ffs(tpart_vec)) {
+		if (sndev->stdev->partition_count != 2) {
+			dev_err(&sndev->stdev->dev,
+				"ntb target partition not defined\n");
+			return -ENODEV;
+		}
+
+		bit = ffs(part_map);
+		if (!bit) {
+			dev_err(&sndev->stdev->dev,
+				"peer partition is not NT partition\n");
+			return -ENODEV;
+		}
+
+		sndev->peer_partition = bit - 1;
+	} else {
+		if (ffs(tpart_vec) != fls(tpart_vec)) {
+			dev_err(&sndev->stdev->dev,
+				"ntb driver only supports 1 pair of 1-1 ntb mapping\n");
+			return -ENODEV;
+		}
+
+		sndev->peer_partition = ffs(tpart_vec) - 1;
+		if (!(part_map && (1 << sndev->peer_partition))) {
+			dev_err(&sndev->stdev->dev,
+				"ntb target partition is not NT partition\n");
+			return -ENODEV;
+		}
+	}
+
+	dev_dbg(&sndev->stdev->dev, "Partition ID %d of %d\n",
+		sndev->self_partition, sndev->stdev->partition_count);
 
 	sndev->mmio_ctrl = (void * __iomem)sndev->mmio_ntb +
 		SWITCHTEC_NTB_REG_CTRL_OFFSET;
@@ -804,6 +841,8 @@ static void switchtec_ntb_init_sndev(struct switchtec_ntb *sndev)
 	sndev->mmio_self_ctrl = &sndev->mmio_ctrl[sndev->self_partition];
 	sndev->mmio_peer_ctrl = &sndev->mmio_ctrl[sndev->peer_partition];
 	sndev->mmio_self_dbmsg = &sndev->mmio_dbmsg[sndev->self_partition];
+
+	return 0;
 }
 
 static int map_bars(int *map, struct ntb_ctrl_regs __iomem *ctrl)
@@ -1135,15 +1174,15 @@ static int switchtec_ntb_add(struct device *dev,
 	if (stdev->pdev->class != MICROSEMI_NTB_CLASSCODE)
 		return -ENODEV;
 
-	if (stdev->partition_count != 2)
-		dev_warn(dev, "ntb driver only supports 2 partitions\n");
-
 	sndev = kzalloc_node(sizeof(*sndev), GFP_KERNEL, dev_to_node(dev));
 	if (!sndev)
 		return -ENOMEM;
 
 	sndev->stdev = stdev;
-	switchtec_ntb_init_sndev(sndev);
+	rc = switchtec_ntb_init_sndev(sndev);
+	if (rc)
+		goto free_and_exit;
+
 	switchtec_ntb_init_mw(sndev);
 	switchtec_ntb_init_db(sndev);
 	switchtec_ntb_init_msgs(sndev);
