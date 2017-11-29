@@ -116,7 +116,8 @@ struct extent_io_ops {
 	 */
 	int (*fill_delalloc)(void *private_data, struct page *locked_page,
 			     u64 start, u64 end, int *page_started,
-			     unsigned long *nr_written);
+			     unsigned long *nr_written,
+			     struct writeback_control *wbc);
 
 	int (*writepage_start_hook)(struct page *page, u64 start, u64 end);
 	void (*writepage_end_io_hook)(struct page *page, u64 start, u64 end,
@@ -365,10 +366,11 @@ int convert_extent_bit(struct extent_io_tree *tree, u64 start, u64 end,
 		       struct extent_state **cached_state);
 
 static inline int set_extent_delalloc(struct extent_io_tree *tree, u64 start,
-		u64 end, struct extent_state **cached_state)
+				      u64 end, unsigned int extra_bits,
+				      struct extent_state **cached_state)
 {
 	return set_extent_bit(tree, start, end,
-			      EXTENT_DELALLOC | EXTENT_UPTODATE,
+			      EXTENT_DELALLOC | EXTENT_UPTODATE | extra_bits,
 			      NULL, cached_state, GFP_NOFS);
 }
 
