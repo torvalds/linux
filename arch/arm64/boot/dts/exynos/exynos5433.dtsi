@@ -486,6 +486,7 @@
 
 			clock-names = "oscclk", "aclk_mfc_400";
 			clocks = <&xxti>, <&cmu_top CLK_ACLK_MFC_400>;
+			power-domains = <&pd_mfc>;
 		};
 
 		cmu_hevc: clock-controller@14f80000 {
@@ -565,6 +566,13 @@
 			reg = <0x105c4080 0x20>;
 			#power-domain-cells = <0>;
 			label = "DISP";
+		};
+
+		pd_mfc: power-domain@105c4180 {
+			compatible = "samsung,exynos5433-pd";
+			reg = <0x105c4180 0x20>;
+			#power-domain-cells = <0>;
+			label = "MFC";
 		};
 
 		tmu_atlas0: tmu@10060000 {
@@ -992,6 +1000,7 @@
 				 <&cmu_mfc CLK_ACLK_XIU_MFCX>;
 			iommus = <&sysmmu_mfc_0>, <&sysmmu_mfc_1>;
 			iommu-names = "left", "right";
+			power-domains = <&pd_mfc>;
 		};
 
 		sysmmu_decon0x: sysmmu@13a00000 {
@@ -1090,6 +1099,7 @@
 			clocks = <&cmu_mfc CLK_PCLK_SMMU_MFC_0>,
 				 <&cmu_mfc CLK_ACLK_SMMU_MFC_0>;
 			#iommu-cells = <0>;
+			power-domains = <&pd_mfc>;
 		};
 
 		sysmmu_mfc_1: sysmmu@15210000 {
@@ -1100,6 +1110,7 @@
 			clocks = <&cmu_mfc CLK_PCLK_SMMU_MFC_1>,
 				 <&cmu_mfc CLK_ACLK_SMMU_MFC_1>;
 			#iommu-cells = <0>;
+			power-domains = <&pd_mfc>;
 		};
 
 		serial_0: serial@14c10000 {
