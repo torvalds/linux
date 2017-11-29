@@ -754,10 +754,16 @@ static int aic31xx_setup_pll(struct snd_soc_codec *codec,
 {
 	struct aic31xx_priv *aic31xx = snd_soc_codec_get_drvdata(codec);
 	int bclk_score = snd_soc_params_to_frame_size(params);
-	int mclk_p = aic31xx->sysclk / aic31xx->p_div;
+	int mclk_p;
 	int bclk_n = 0;
 	int match = -1;
 	int i;
+
+	if (!aic31xx->sysclk || !aic31xx->p_div) {
+		dev_err(codec->dev, "Master clock not supplied\n");
+		return -EINVAL;
+	}
+	mclk_p = aic31xx->sysclk / aic31xx->p_div;
 
 	/* Use PLL as CODEC_CLKIN and DAC_CLK as BDIV_CLKIN */
 	snd_soc_update_bits(codec, AIC31XX_CLKMUX,
