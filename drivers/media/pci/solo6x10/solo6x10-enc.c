@@ -175,7 +175,7 @@ out:
 	return 0;
 }
 
-/**
+/*
  * Set channel Quality Profile (0-3).
  */
 void solo_s_jpeg_qp(struct solo_dev *solo_dev, unsigned int ch,
