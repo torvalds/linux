@@ -998,7 +998,8 @@ enum transcoder intel_pipe_to_cpu_transcoder(struct drm_i915_private *dev_priv,
 	return crtc->config->cpu_transcoder;
 }
 
-static bool pipe_dsl_stopped(struct drm_i915_private *dev_priv, enum pipe pipe)
+static bool pipe_scanline_is_moving(struct drm_i915_private *dev_priv,
+				    enum pipe pipe)
 {
 	i915_reg_t reg = PIPEDSL(pipe);
 	u32 line1, line2;
@@ -1013,7 +1014,28 @@ static bool pipe_dsl_stopped(struct drm_i915_private *dev_priv, enum pipe pipe)
 	msleep(5);
 	line2 = I915_READ(reg) & line_mask;
 
-	return line1 == line2;
+	return line1 != line2;
+}
+
+static void wait_for_pipe_scanline_moving(struct intel_crtc *crtc, bool state)
+{
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	enum pipe pipe = crtc->pipe;
+
+	/* Wait for the display line to settle/start moving */
+	if (wait_for(pipe_scanline_is_moving(dev_priv, pipe) == state, 100))
+		DRM_ERROR("pipe %c scanline %s wait timed out\n",
+			  pipe_name(pipe), onoff(state));
+}
+
+static void intel_wait_for_pipe_scanline_stopped(struct intel_crtc *crtc)
+{
+	wait_for_pipe_scanline_moving(crtc, false);
+}
+
+static void intel_wait_for_pipe_scanline_moving(struct intel_crtc *crtc)
+{
+	wait_for_pipe_scanline_moving(crtc, true);
 }
 
 /*
@@ -1036,7 +1058,6 @@ static void intel_wait_for_pipe_off(struct intel_crtc *crtc)
 {
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	enum transcoder cpu_transcoder = crtc->config->cpu_transcoder;
-	enum pipe pipe = crtc->pipe;
 
 	if (INTEL_GEN(dev_priv) >= 4) {
 		i915_reg_t reg = PIPECONF(cpu_transcoder);
@@ -1047,9 +1068,7 @@ static void intel_wait_for_pipe_off(struct intel_crtc *crtc)
 					    100))
 			WARN(1, "pipe_off wait timed out\n");
 	} else {
-		/* Wait for the display line to settle */
-		if (wait_for(pipe_dsl_stopped(dev_priv, pipe), 100))
-			WARN(1, "pipe_off wait timed out\n");
+		intel_wait_for_pipe_scanline_stopped(crtc);
 	}
 }
 
@@ -1862,15 +1881,14 @@ static void intel_enable_pipe(struct intel_crtc *crtc)
 	POSTING_READ(reg);
 
 	/*
-	 * Until the pipe starts DSL will read as 0, which would cause
-	 * an apparent vblank timestamp jump, which messes up also the
-	 * frame count when it's derived from the timestamps. So let's
-	 * wait for the pipe to start properly before we call
-	 * drm_crtc_vblank_on()
+	 * Until the pipe starts PIPEDSL reads will return a stale value,
+	 * which causes an apparent vblank timestamp jump when PIPEDSL
+	 * resets to its proper value. That also messes up the frame count
+	 * when it's derived from the timestamps. So let's wait for the
+	 * pipe to start properly before we call drm_crtc_vblank_on()
 	 */
-	if (dev->max_vblank_count == 0 &&
-	    wait_for(intel_get_crtc_scanline(crtc) != crtc->scanline_offset, 50))
-		DRM_ERROR("pipe %c didn't start\n", pipe_name(pipe));
+	if (dev->max_vblank_count == 0)
+		intel_wait_for_pipe_scanline_moving(crtc);
 }
 
 /**
@@ -14767,6 +14785,8 @@ void i830_enable_pipe(struct drm_i915_private *dev_priv, enum pipe pipe)
 
 void i830_disable_pipe(struct drm_i915_private *dev_priv, enum pipe pipe)
 {
+	struct intel_crtc *crtc = intel_get_crtc_for_pipe(dev_priv, pipe);
+
 	DRM_DEBUG_KMS("disabling pipe %c due to force quirk\n",
 		      pipe_name(pipe));
 
@@ -14779,8 +14799,7 @@ void i830_disable_pipe(struct drm_i915_private *dev_priv, enum pipe pipe)
 	I915_WRITE(PIPECONF(pipe), 0);
 	POSTING_READ(PIPECONF(pipe));
 
-	if (wait_for(pipe_dsl_stopped(dev_priv, pipe), 100))
-		DRM_ERROR("pipe %c off wait timed out\n", pipe_name(pipe));
+	intel_wait_for_pipe_scanline_stopped(crtc);
 
 	I915_WRITE(DPLL(pipe), DPLL_VGA_MODE_DIS);
 	POSTING_READ(DPLL(pipe));
