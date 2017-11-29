@@ -443,6 +443,7 @@
 			clocks = <&xxti>,
 				<&cmu_top CLK_ACLK_GSCL_111>,
 				<&cmu_top CLK_ACLK_GSCL_333>;
+			power-domains = <&pd_gscl>;
 		};
 
 		cmu_apollo: clock-controller@11900000 {
@@ -541,6 +542,13 @@
 				<&cmu_top CLK_ACLK_CAM1_333>,
 				<&cmu_top CLK_ACLK_CAM1_400>,
 				<&cmu_top CLK_ACLK_CAM1_552>;
+		};
+
+		pd_gscl: power-domain@105c4000 {
+			compatible = "samsung,exynos5433-pd";
+			reg = <0x105c4000 0x20>;
+			#power-domain-cells = <0>;
+			label = "GSCL";
 		};
 
 		tmu_atlas0: tmu@10060000 {
@@ -910,6 +918,7 @@
 				 <&cmu_gscl CLK_ACLK_XIU_GSCLX>,
 				 <&cmu_gscl CLK_ACLK_GSCLBEND_333>;
 			iommus = <&sysmmu_gscl0>;
+			power-domains = <&pd_gscl>;
 		};
 
 		gsc_1: video-scaler@13C10000 {
@@ -923,6 +932,7 @@
 				 <&cmu_gscl CLK_ACLK_XIU_GSCLX>,
 				 <&cmu_gscl CLK_ACLK_GSCLBEND_333>;
 			iommus = <&sysmmu_gscl1>;
+			power-domains = <&pd_gscl>;
 		};
 
 		gsc_2: video-scaler@13C20000 {
@@ -936,6 +946,7 @@
 				 <&cmu_gscl CLK_ACLK_XIU_GSCLX>,
 				 <&cmu_gscl CLK_ACLK_GSCLBEND_333>;
 			iommus = <&sysmmu_gscl2>;
+			power-domains = <&pd_gscl>;
 		};
 
 		jpeg: codec@15020000 {
@@ -1010,6 +1021,7 @@
 			clocks = <&cmu_gscl CLK_ACLK_SMMU_GSCL0>,
 				 <&cmu_gscl CLK_PCLK_SMMU_GSCL0>;
 			#iommu-cells = <0>;
+			power-domains = <&pd_gscl>;
 		};
 
 		sysmmu_gscl1: sysmmu@13c90000 {
@@ -1020,6 +1032,7 @@
 			clocks = <&cmu_gscl CLK_ACLK_SMMU_GSCL1>,
 				 <&cmu_gscl CLK_PCLK_SMMU_GSCL1>;
 			#iommu-cells = <0>;
+			power-domains = <&pd_gscl>;
 		};
 
 		sysmmu_gscl2: sysmmu@13ca0000 {
@@ -1030,6 +1043,7 @@
 			clocks = <&cmu_gscl CLK_ACLK_SMMU_GSCL2>,
 				 <&cmu_gscl CLK_PCLK_SMMU_GSCL2>;
 			#iommu-cells = <0>;
+			power-domains = <&pd_gscl>;
 		};
 
 		sysmmu_jpeg: sysmmu@15060000 {
