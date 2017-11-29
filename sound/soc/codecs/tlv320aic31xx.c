@@ -1285,6 +1285,14 @@ static void aic31xx_pdata_from_of(struct aic31xx_priv *aic31xx)
 }
 #endif /* CONFIG_OF */
 
+#ifdef CONFIG_ACPI
+static const struct acpi_device_id aic31xx_acpi_match[] = {
+	{ "10TI3100", 0 },
+	{ }
+};
+MODULE_DEVICE_TABLE(acpi, aic31xx_acpi_match);
+#endif
+
 static int aic31xx_device_init(struct aic31xx_priv *aic31xx)
 {
 	int ret, i;
@@ -1381,14 +1389,6 @@ static const struct i2c_device_id aic31xx_i2c_id[] = {
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, aic31xx_i2c_id);
-
-#ifdef CONFIG_ACPI
-static const struct acpi_device_id aic31xx_acpi_match[] = {
-	{ "10TI3100", 0 },
-	{ }
-};
-MODULE_DEVICE_TABLE(acpi, aic31xx_acpi_match);
-#endif
 
 static struct i2c_driver aic31xx_i2c_driver = {
 	.driver = {
