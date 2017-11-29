@@ -1401,6 +1401,7 @@ void snd_soc_disconnect_sync(struct device *dev)
 
 	snd_card_disconnect_sync(component->card->snd_card);
 }
+EXPORT_SYMBOL_GPL(snd_soc_disconnect_sync);
 
 /**
  * snd_soc_add_dai_link - Add a DAI link dynamically
