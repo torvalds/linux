@@ -542,6 +542,7 @@ static struct optee *optee_probe(struct device_node *np)
 	}
 
 	optee->invoke_fn = invoke_fn;
+	optee->sec_caps = sec_caps;
 
 	teedev = tee_device_alloc(&optee_desc, NULL, pool, optee);
 	if (IS_ERR(teedev)) {
