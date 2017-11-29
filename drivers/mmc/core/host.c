@@ -404,8 +404,6 @@ struct mmc_host *mmc_alloc_host(int extra, struct device *dev)
 
 	host->fixed_drv_type = -EINVAL;
 
-	host->use_blk_mq = mmc_use_blk_mq;
-
 	return host;
 }
 
