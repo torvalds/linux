@@ -14718,6 +14718,7 @@ int intel_modeset_init(struct drm_device *dev)
 
 void i830_enable_pipe(struct drm_i915_private *dev_priv, enum pipe pipe)
 {
+	struct intel_crtc *crtc = intel_get_crtc_for_pipe(dev_priv, pipe);
 	/* 640x480@60Hz, ~25175 kHz */
 	struct dpll clock = {
 		.m1 = 18,
@@ -14781,6 +14782,8 @@ void i830_enable_pipe(struct drm_i915_private *dev_priv, enum pipe pipe)
 
 	I915_WRITE(PIPECONF(pipe), PIPECONF_ENABLE | PIPECONF_PROGRESSIVE);
 	POSTING_READ(PIPECONF(pipe));
+
+	intel_wait_for_pipe_scanline_moving(crtc);
 }
 
 void i830_disable_pipe(struct drm_i915_private *dev_priv, enum pipe pipe)
