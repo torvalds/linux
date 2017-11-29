@@ -2103,7 +2103,7 @@ static bool mmc_blk_status_error(struct request *req, u32 status)
 	u32 stop_err_bits;
 
 	if (mmc_host_is_spi(mq->card->host))
-		return 0;
+		return false;
 
 	stop_err_bits = mmc_blk_stop_err_bits(brq);
 
