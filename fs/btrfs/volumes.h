@@ -72,7 +72,6 @@ struct btrfs_device {
 	int writeable;
 	int in_fs_metadata;
 	int missing;
-	int can_discard;
 	int is_tgtdev_for_dev_replace;
 	blk_status_t last_flush_error;
 	int flush_bio_sent;

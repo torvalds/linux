@@ -698,8 +698,6 @@ static int btrfs_open_one_device(struct btrfs_fs_devices *fs_devices,
 	}
 
 	q = bdev_get_queue(bdev);
-	if (blk_queue_discard(q))
-		device->can_discard = 1;
 	if (!blk_queue_nonrot(q))
 		fs_devices->rotating = 1;
 
@@ -2433,8 +2431,6 @@ int btrfs_init_new_device(struct btrfs_fs_info *fs_info, const char *device_path
 	}
 
 	q = bdev_get_queue(bdev);
-	if (blk_queue_discard(q))
-		device->can_discard = 1;
 	device->writeable = 1;
 	device->generation = trans->transid;
 	device->io_width = fs_info->sectorsize;
@@ -2585,7 +2581,6 @@ int btrfs_init_dev_replace_tgtdev(struct btrfs_fs_info *fs_info,
 				  struct btrfs_device *srcdev,
 				  struct btrfs_device **device_out)
 {
-	struct request_queue *q;
 	struct btrfs_device *device;
 	struct block_device *bdev;
 	struct list_head *devices;
@@ -2642,9 +2637,6 @@ int btrfs_init_dev_replace_tgtdev(struct btrfs_fs_info *fs_info,
 	}
 	rcu_assign_pointer(device->name, name);
 
-	q = bdev_get_queue(bdev);
-	if (blk_queue_discard(q))
-		device->can_discard = 1;
 	mutex_lock(&fs_info->fs_devices->device_list_mutex);
 	device->writeable = 1;
 	device->generation = 0;

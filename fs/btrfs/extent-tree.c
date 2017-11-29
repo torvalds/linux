@@ -2145,7 +2145,10 @@ int btrfs_discard_extent(struct btrfs_fs_info *fs_info, u64 bytenr,
 
 		for (i = 0; i < bbio->num_stripes; i++, stripe++) {
 			u64 bytes;
-			if (!stripe->dev->can_discard)
+			struct request_queue *req_q;
+
+			req_q = bdev_get_queue(stripe->dev->bdev);
+			if (!blk_queue_discard(req_q))
 				continue;
 
 			ret = btrfs_issue_discard(stripe->dev->bdev,
