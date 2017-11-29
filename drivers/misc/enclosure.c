@@ -680,13 +680,7 @@ ATTRIBUTE_GROUPS(enclosure_component);
 
 static int __init enclosure_init(void)
 {
-	int err;
-
-	err = class_register(&enclosure_class);
-	if (err)
-		return err;
-
-	return 0;
+	return class_register(&enclosure_class);
 }
 
 static void __exit enclosure_exit(void)
