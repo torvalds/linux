@@ -102,6 +102,21 @@
 		};
 	};
 
+	tempmon: tempmon {
+		compatible = "fsl,imx6q-tempmon";
+		interrupts = <0 49 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-parent = <&gpc>;
+		fsl,tempmon = <&anatop>;
+		fsl,tempmon-data = <&ocotp>;
+		clocks = <&clks IMX6SL_CLK_PLL3_USB_OTG>;
+	};
+
+	pmu {
+		compatible = "arm,cortex-a9-pmu";
+		interrupt-parent = <&gpc>;
+		interrupts = <0 94 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
 	soc {
 		#address-cells = <1>;
 		#size-cells = <1>;
@@ -123,11 +138,6 @@
 			cache-level = <2>;
 			arm,tag-latency = <4 2 3>;
 			arm,data-latency = <4 2 3>;
-		};
-
-		pmu {
-			compatible = "arm,cortex-a9-pmu";
-			interrupts = <0 94 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
 		aips1: aips-bus@2000000 {
@@ -613,14 +623,6 @@
 					anatop-min-voltage = <725000>;
 					anatop-max-voltage = <1450000>;
 				};
-			};
-
-			tempmon: tempmon {
-				compatible = "fsl,imx6q-tempmon";
-				interrupts = <0 49 IRQ_TYPE_LEVEL_HIGH>;
-				fsl,tempmon = <&anatop>;
-				fsl,tempmon-data = <&ocotp>;
-				clocks = <&clks IMX6SL_CLK_PLL3_USB_OTG>;
 			};
 
 			usbphy1: usbphy@20c9000 {

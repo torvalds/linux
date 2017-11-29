@@ -80,6 +80,75 @@
 		};
 	};
 
+	tempmon: tempmon {
+		compatible = "fsl,imx6q-tempmon";
+		interrupt-parent = <&gpc>;
+		interrupts = <0 49 IRQ_TYPE_LEVEL_HIGH>;
+		fsl,tempmon = <&anatop>;
+		fsl,tempmon-data = <&ocotp>;
+		clocks = <&clks IMX6QDL_CLK_PLL3_USB_OTG>;
+	};
+
+	ldb: ldb {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		compatible = "fsl,imx6q-ldb", "fsl,imx53-ldb";
+		gpr = <&gpr>;
+		status = "disabled";
+
+		lvds-channel@0 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0>;
+			status = "disabled";
+
+			port@0 {
+				reg = <0>;
+
+				lvds0_mux_0: endpoint {
+					remote-endpoint = <&ipu1_di0_lvds0>;
+				};
+			};
+
+			port@1 {
+				reg = <1>;
+
+				lvds0_mux_1: endpoint {
+					remote-endpoint = <&ipu1_di1_lvds0>;
+				};
+			};
+		};
+
+		lvds-channel@1 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <1>;
+			status = "disabled";
+
+			port@0 {
+				reg = <0>;
+
+				lvds1_mux_0: endpoint {
+					remote-endpoint = <&ipu1_di0_lvds1>;
+				};
+			};
+
+			port@1 {
+				reg = <1>;
+
+				lvds1_mux_1: endpoint {
+					remote-endpoint = <&ipu1_di1_lvds1>;
+				};
+			};
+		};
+	};
+
+	pmu {
+		compatible = "arm,cortex-a9-pmu";
+		interrupt-parent = <&gpc>;
+		interrupts = <0 94 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
 	soc {
 		#address-cells = <1>;
 		#size-cells = <1>;
@@ -222,11 +291,6 @@
 				 <&clks IMX6QDL_CLK_PCIE_REF_125M>;
 			clock-names = "pcie", "pcie_bus", "pcie_phy";
 			status = "disabled";
-		};
-
-		pmu {
-			compatible = "arm,cortex-a9-pmu";
-			interrupts = <0 94 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
 		aips-bus@2000000 { /* AIPS1 */
@@ -729,14 +793,6 @@
 				};
 			};
 
-			tempmon: tempmon {
-				compatible = "fsl,imx6q-tempmon";
-				interrupts = <0 49 IRQ_TYPE_LEVEL_HIGH>;
-				fsl,tempmon = <&anatop>;
-				fsl,tempmon-data = <&ocotp>;
-				clocks = <&clks IMX6QDL_CLK_PLL3_USB_OTG>;
-			};
-
 			usbphy1: usbphy@20c9000 {
 				compatible = "fsl,imx6q-usbphy", "fsl,imx23-usbphy";
 				reg = <0x020c9000 0x1000>;
@@ -843,60 +899,6 @@
 			iomuxc: iomuxc@20e0000 {
 				compatible = "fsl,imx6dl-iomuxc", "fsl,imx6q-iomuxc";
 				reg = <0x20e0000 0x4000>;
-			};
-
-			ldb: ldb {
-				#address-cells = <1>;
-				#size-cells = <0>;
-				compatible = "fsl,imx6q-ldb", "fsl,imx53-ldb";
-				gpr = <&gpr>;
-				status = "disabled";
-
-				lvds-channel@0 {
-					#address-cells = <1>;
-					#size-cells = <0>;
-					reg = <0>;
-					status = "disabled";
-
-					port@0 {
-						reg = <0>;
-
-						lvds0_mux_0: endpoint {
-							remote-endpoint = <&ipu1_di0_lvds0>;
-						};
-					};
-
-					port@1 {
-						reg = <1>;
-
-						lvds0_mux_1: endpoint {
-							remote-endpoint = <&ipu1_di1_lvds0>;
-						};
-					};
-				};
-
-				lvds-channel@1 {
-					#address-cells = <1>;
-					#size-cells = <0>;
-					reg = <1>;
-					status = "disabled";
-
-					port@0 {
-						reg = <0>;
-
-						lvds1_mux_0: endpoint {
-							remote-endpoint = <&ipu1_di0_lvds1>;
-						};
-					};
-
-					port@1 {
-						reg = <1>;
-
-						lvds1_mux_1: endpoint {
-							remote-endpoint = <&ipu1_di1_lvds1>;
-						};
-					};
-				};
 			};
 
 			dcic1: dcic@20e4000 {

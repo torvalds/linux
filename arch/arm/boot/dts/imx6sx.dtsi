@@ -141,17 +141,28 @@
 		};
 	};
 
+	tempmon: tempmon {
+		compatible = "fsl,imx6sx-tempmon", "fsl,imx6q-tempmon";
+		interrupt-parent = <&gpc>;
+		interrupts = <GIC_SPI 49 IRQ_TYPE_LEVEL_HIGH>;
+		fsl,tempmon = <&anatop>;
+		nvmem-cells = <&tempmon_calib>, <&tempmon_temp_grade>;
+		nvmem-cell-names = "calib", "temp_grade";
+		clocks = <&clks IMX6SX_CLK_PLL3_USB_OTG>;
+	};
+
+	pmu {
+		compatible = "arm,cortex-a9-pmu";
+		interrupt-parent = <&gpc>;
+		interrupts = <GIC_SPI 94 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
 	soc {
 		#address-cells = <1>;
 		#size-cells = <1>;
 		compatible = "simple-bus";
 		interrupt-parent = <&gpc>;
 		ranges;
-
-		pmu {
-			compatible = "arm,cortex-a9-pmu";
-			interrupts = <GIC_SPI 94 IRQ_TYPE_LEVEL_HIGH>;
-		};
 
 		ocram: sram@900000 {
 			compatible = "mmio-sram";
@@ -669,15 +680,6 @@
 					anatop-min-voltage = <725000>;
 					anatop-max-voltage = <1450000>;
 				};
-			};
-
-			tempmon: tempmon {
-				compatible = "fsl,imx6sx-tempmon", "fsl,imx6q-tempmon";
-				interrupts = <GIC_SPI 49 IRQ_TYPE_LEVEL_HIGH>;
-				fsl,tempmon = <&anatop>;
-				nvmem-cells = <&tempmon_calib>, <&tempmon_temp_grade>;
-				nvmem-cell-names = "calib", "temp_grade";
-				clocks = <&clks IMX6SX_CLK_PLL3_USB_OTG>;
 			};
 
 			usbphy1: usbphy@20c9000 {
