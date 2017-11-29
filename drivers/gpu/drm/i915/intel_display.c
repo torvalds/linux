@@ -14770,8 +14770,11 @@ void i830_disable_pipe(struct drm_i915_private *dev_priv, enum pipe pipe)
 	DRM_DEBUG_KMS("disabling pipe %c due to force quirk\n",
 		      pipe_name(pipe));
 
-	assert_planes_disabled(intel_get_crtc_for_pipe(dev_priv, PIPE_A));
-	assert_planes_disabled(intel_get_crtc_for_pipe(dev_priv, PIPE_B));
+	WARN_ON(I915_READ(DSPCNTR(PLANE_A)) & DISPLAY_PLANE_ENABLE);
+	WARN_ON(I915_READ(DSPCNTR(PLANE_B)) & DISPLAY_PLANE_ENABLE);
+	WARN_ON(I915_READ(DSPCNTR(PLANE_C)) & DISPLAY_PLANE_ENABLE);
+	WARN_ON(I915_READ(CURCNTR(PIPE_A)) & CURSOR_MODE);
+	WARN_ON(I915_READ(CURCNTR(PIPE_B)) & CURSOR_MODE);
 
 	I915_WRITE(PIPECONF(pipe), 0);
 	POSTING_READ(PIPECONF(pipe));
