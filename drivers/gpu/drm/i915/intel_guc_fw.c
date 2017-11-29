@@ -33,8 +33,8 @@
 #define SKL_FW_MAJOR 9
 #define SKL_FW_MINOR 33
 
-#define BXT_FW_MAJOR 8
-#define BXT_FW_MINOR 7
+#define BXT_FW_MAJOR 9
+#define BXT_FW_MINOR 29
 
 #define KBL_FW_MAJOR 9
 #define KBL_FW_MINOR 14
