@@ -874,7 +874,8 @@ static void ep_ptable_queue_proc(struct file *file, wait_queue_head_t *whead,
  * the ep->mtx so we need to start from depth=1, such that mutex_lock_nested()
  * is correctly annotated.
  */
-static unsigned int ep_item_poll(struct epitem *epi, poll_table *pt, int depth)
+static unsigned int ep_item_poll(const struct epitem *epi, poll_table *pt,
+				 int depth)
 {
 	struct eventpoll *ep;
 	bool locked;
@@ -1410,7 +1411,7 @@ static noinline void ep_destroy_wakeup_source(struct epitem *epi)
 /*
  * Must be called with "mtx" held.
  */
-static int ep_insert(struct eventpoll *ep, struct epoll_event *event,
+static int ep_insert(struct eventpoll *ep, const struct epoll_event *event,
 		     struct file *tfile, int fd, int full_check)
 {
 	int error, revents, pwake = 0;
@@ -1541,7 +1542,8 @@ error_create_wakeup_source:
  * Modify the interest event mask by dropping an event if the new mask
  * has a match in the current file status. Must be called with "mtx" held.
  */
-static int ep_modify(struct eventpoll *ep, struct epitem *epi, struct epoll_event *event)
+static int ep_modify(struct eventpoll *ep, struct epitem *epi,
+		     const struct epoll_event *event)
 {
 	int pwake = 0;
 	unsigned int revents;
