@@ -489,7 +489,7 @@ config SND_SOC_ES8328
 	tristate "Everest Semi ES8328 CODEC"
 
 config SND_SOC_ES8328_I2C
-	tristate
+	tristate "Everest Semi ES8328 CODEC I2C"
 	select SND_SOC_ES8328
 
 config SND_SOC_ES8328_SPI
