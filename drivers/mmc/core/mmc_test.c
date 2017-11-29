@@ -171,11 +171,6 @@ struct mmc_test_multiple_rw {
 	enum mmc_test_prep_media prepare;
 };
 
-struct mmc_test_async_req {
-	struct mmc_async_req areq;
-	struct mmc_test_card *test;
-};
-
 /*******************************************************************/
 /*  General helper functions                                       */
 /*******************************************************************/
@@ -741,30 +736,6 @@ static int mmc_test_check_result(struct mmc_test_card *test,
 	return ret;
 }
 
-static enum mmc_blk_status mmc_test_check_result_async(struct mmc_card *card,
-				       struct mmc_async_req *areq)
-{
-	struct mmc_test_async_req *test_async =
-		container_of(areq, struct mmc_test_async_req, areq);
-	int ret;
-
-	mmc_test_wait_busy(test_async->test);
-
-	/*
-	 * FIXME: this would earlier just casts a regular error code,
-	 * either of the kernel type -ERRORCODE or the local test framework
-	 * RESULT_* errorcode, into an enum mmc_blk_status and return as
-	 * result check. Instead, convert it to some reasonable type by just
-	 * returning either MMC_BLK_SUCCESS or MMC_BLK_CMD_ERR.
-	 * If possible, a reasonable error code should be returned.
-	 */
-	ret = mmc_test_check_result(test_async->test, areq->mrq);
-	if (ret)
-		return MMC_BLK_CMD_ERR;
-
-	return MMC_BLK_SUCCESS;
-}
-
 /*
  * Checks that a "short transfer" behaved as expected
  */
@@ -831,6 +802,45 @@ static struct mmc_test_req *mmc_test_req_alloc(void)
 	return rq;
 }
 
+static void mmc_test_wait_done(struct mmc_request *mrq)
+{
+	complete(&mrq->completion);
+}
+
+static int mmc_test_start_areq(struct mmc_test_card *test,
+			       struct mmc_request *mrq,
+			       struct mmc_request *prev_mrq)
+{
+	struct mmc_host *host = test->card->host;
+	int err = 0;
+
+	if (mrq) {
+		init_completion(&mrq->completion);
+		mrq->done = mmc_test_wait_done;
+		mmc_pre_req(host, mrq);
+	}
+
+	if (prev_mrq) {
+		wait_for_completion(&prev_mrq->completion);
+		err = mmc_test_wait_busy(test);
+		if (!err)
+			err = mmc_test_check_result(test, prev_mrq);
+	}
+
+	if (!err && mrq) {
+		err = mmc_start_request(host, mrq);
+		if (err)
+			mmc_retune_release(host);
+	}
+
+	if (prev_mrq)
+		mmc_post_req(host, prev_mrq, 0);
+
+	if (err && mrq)
+		mmc_post_req(host, mrq, err);
+
+	return err;
+}
 
 static int mmc_test_nonblock_transfer(struct mmc_test_card *test,
 				      struct scatterlist *sg, unsigned sg_len,
@@ -838,16 +848,9 @@ static int mmc_test_nonblock_transfer(struct mmc_test_card *test,
 				      unsigned blksz, int write, int count)
 {
 	struct mmc_test_req *rq1, *rq2;
-	struct mmc_test_async_req test_areq[2];
-	struct mmc_async_req *done_areq;
-	struct mmc_async_req *cur_areq = &test_areq[0].areq;
-	struct mmc_async_req *other_areq = &test_areq[1].areq;
-	enum mmc_blk_status status;
+	struct mmc_request *mrq, *prev_mrq;
 	int i;
 	int ret = RESULT_OK;
-
-	test_areq[0].test = test;
-	test_areq[1].test = test;
 
 	rq1 = mmc_test_req_alloc();
 	rq2 = mmc_test_req_alloc();
@@ -856,33 +859,25 @@ static int mmc_test_nonblock_transfer(struct mmc_test_card *test,
 		goto err;
 	}
 
-	cur_areq->mrq = &rq1->mrq;
-	cur_areq->err_check = mmc_test_check_result_async;
-	other_areq->mrq = &rq2->mrq;
-	other_areq->err_check = mmc_test_check_result_async;
+	mrq = &rq1->mrq;
+	prev_mrq = NULL;
 
 	for (i = 0; i < count; i++) {
-		mmc_test_prepare_mrq(test, cur_areq->mrq, sg, sg_len, dev_addr,
-				     blocks, blksz, write);
-		done_areq = mmc_start_areq(test->card->host, cur_areq, &status);
-
-		if (status != MMC_BLK_SUCCESS || (!done_areq && i > 0)) {
-			ret = RESULT_FAIL;
+		mmc_test_req_reset(container_of(mrq, struct mmc_test_req, mrq));
+		mmc_test_prepare_mrq(test, mrq, sg, sg_len, dev_addr, blocks,
+				     blksz, write);
+		ret = mmc_test_start_areq(test, mrq, prev_mrq);
+		if (ret)
 			goto err;
-		}
 
-		if (done_areq)
-			mmc_test_req_reset(container_of(done_areq->mrq,
-						struct mmc_test_req, mrq));
+		if (!prev_mrq)
+			prev_mrq = &rq2->mrq;
 
-		swap(cur_areq, other_areq);
+		swap(mrq, prev_mrq);
 		dev_addr += blocks;
 	}
 
-	done_areq = mmc_start_areq(test->card->host, NULL, &status);
-	if (status != MMC_BLK_SUCCESS)
-		ret = RESULT_FAIL;
-
+	ret = mmc_test_start_areq(test, NULL, prev_mrq);
 err:
 	kfree(rq1);
 	kfree(rq2);
@@ -2356,11 +2351,9 @@ static int mmc_test_ongoing_transfer(struct mmc_test_card *test,
 	struct mmc_test_req *rq = mmc_test_req_alloc();
 	struct mmc_host *host = test->card->host;
 	struct mmc_test_area *t = &test->area;
-	struct mmc_test_async_req test_areq = { .test = test };
 	struct mmc_request *mrq;
 	unsigned long timeout;
 	bool expired = false;
-	enum mmc_blk_status blkstat = MMC_BLK_SUCCESS;
 	int ret = 0, cmd_ret;
 	u32 status = 0;
 	int count = 0;
@@ -2372,9 +2365,6 @@ static int mmc_test_ongoing_transfer(struct mmc_test_card *test,
 	if (use_sbc)
 		mrq->sbc = &rq->sbc;
 	mrq->cap_cmd_during_tfr = true;
-
-	test_areq.areq.mrq = mrq;
-	test_areq.areq.err_check = mmc_test_check_result_async;
 
 	mmc_test_prepare_mrq(test, mrq, t->sg, t->sg_len, dev_addr, t->blocks,
 			     512, write);
@@ -2388,11 +2378,9 @@ static int mmc_test_ongoing_transfer(struct mmc_test_card *test,
 
 	/* Start ongoing data request */
 	if (use_areq) {
-		mmc_start_areq(host, &test_areq.areq, &blkstat);
-		if (blkstat != MMC_BLK_SUCCESS) {
-			ret = RESULT_FAIL;
+		ret = mmc_test_start_areq(test, mrq, NULL);
+		if (ret)
 			goto out_free;
-		}
 	} else {
 		mmc_wait_for_req(host, mrq);
 	}
@@ -2426,9 +2414,7 @@ static int mmc_test_ongoing_transfer(struct mmc_test_card *test,
 
 	/* Wait for data request to complete */
 	if (use_areq) {
-		mmc_start_areq(host, NULL, &blkstat);
-		if (blkstat != MMC_BLK_SUCCESS)
-			ret = RESULT_FAIL;
+		ret = mmc_test_start_areq(test, NULL, mrq);
 	} else {
 		mmc_wait_for_req_done(test->card->host, mrq);
 	}
