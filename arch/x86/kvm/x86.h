@@ -265,18 +265,8 @@ static inline u64 nsec_to_cycles(struct kvm_vcpu *vcpu, u64 nsec)
 
 static inline bool kvm_mwait_in_guest(void)
 {
-	if (!cpu_has(&boot_cpu_data, X86_FEATURE_MWAIT))
-		return false;
-
-	switch (boot_cpu_data.x86_vendor) {
-	case X86_VENDOR_AMD:
-		/* All AMD CPUs have a working MWAIT implementation */
-		return true;
-	case X86_VENDOR_INTEL:
-		return !boot_cpu_has_bug(X86_BUG_MONITOR);
-	default:
-		return false;
-	}
+	return boot_cpu_has(X86_FEATURE_MWAIT) &&
+		!boot_cpu_has_bug(X86_BUG_MONITOR);
 }
 
 #endif
