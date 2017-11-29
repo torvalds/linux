@@ -527,12 +527,7 @@ static void calculate_recout(struct pipe_ctx *pipe_ctx, struct view *recout_skip
 			pipe_ctx->bottom_pipe->plane_state == pipe_ctx->plane_state;
 	bool sec_split = pipe_ctx->top_pipe &&
 			pipe_ctx->top_pipe->plane_state == pipe_ctx->plane_state;
-
-	if (stream->view_format == VIEW_3D_FORMAT_SIDE_BY_SIDE ||
-		stream->view_format == VIEW_3D_FORMAT_TOP_AND_BOTTOM) {
-		pri_split = false;
-		sec_split = false;
-	}
+	bool top_bottom_split = stream->view_format == VIEW_3D_FORMAT_TOP_AND_BOTTOM;
 
 	if (pipe_ctx->plane_state->rotation == ROTATION_ANGLE_90 ||
 			pipe_ctx->plane_state->rotation == ROTATION_ANGLE_270)
@@ -567,17 +562,15 @@ static void calculate_recout(struct pipe_ctx *pipe_ctx, struct view *recout_skip
 						- pipe_ctx->plane_res.scl_data.recout.y;
 
 	/* Handle h & vsplit */
-	if (pipe_ctx->top_pipe && pipe_ctx->top_pipe->plane_state ==
-			pipe_ctx->plane_state && stream->view_format == VIEW_3D_FORMAT_TOP_AND_BOTTOM) {
-		pipe_ctx->plane_res.scl_data.recout.y += pipe_ctx->plane_res.scl_data.recout.height / 2;
+	if (sec_split && top_bottom_split) {
+		pipe_ctx->plane_res.scl_data.recout.y +=
+				pipe_ctx->plane_res.scl_data.recout.height / 2;
 		/* Floor primary pipe, ceil 2ndary pipe */
-		pipe_ctx->plane_res.scl_data.recout.height = (pipe_ctx->plane_res.scl_data.recout.height + 1) / 2;
-	} else if (pipe_ctx->bottom_pipe &&
-			pipe_ctx->bottom_pipe->plane_state == pipe_ctx->plane_state
-			&& stream->view_format == VIEW_3D_FORMAT_TOP_AND_BOTTOM)
+		pipe_ctx->plane_res.scl_data.recout.height =
+				(pipe_ctx->plane_res.scl_data.recout.height + 1) / 2;
+	} else if (pri_split && top_bottom_split)
 		pipe_ctx->plane_res.scl_data.recout.height /= 2;
-
-	if (pri_split || sec_split) {
+	else if (pri_split || sec_split) {
 		/* HMirror XOR Secondary_pipe XOR Rotation_180 */
 		bool right_view = (sec_split != plane_state->horizontal_mirror) !=
 					(plane_state->rotation == ROTATION_ANGLE_180);
@@ -601,32 +594,17 @@ static void calculate_recout(struct pipe_ctx *pipe_ctx, struct view *recout_skip
 	 * 				* 1/ stream scaling ratio) - (surf surf_src offset * 1/ full scl
 	 * 				ratio)
 	 */
-	recout_full_x = stream->dst.x + (plane_state->dst_rect.x -  stream->src.x)
+	recout_full_x = stream->dst.x + (plane_state->dst_rect.x - stream->src.x)
 					* stream->dst.width / stream->src.width -
 			surf_src.x * plane_state->dst_rect.width / surf_src.width
 					* stream->dst.width / stream->src.width;
-	recout_full_y = stream->dst.y + (plane_state->dst_rect.y -  stream->src.y)
+	recout_full_y = stream->dst.y + (plane_state->dst_rect.y - stream->src.y)
 					* stream->dst.height / stream->src.height -
 			surf_src.y * plane_state->dst_rect.height / surf_src.height
 					* stream->dst.height / stream->src.height;
 
 	recout_skip->width = pipe_ctx->plane_res.scl_data.recout.x - recout_full_x;
 	recout_skip->height = pipe_ctx->plane_res.scl_data.recout.y - recout_full_y;
-
-	/*Adjust recout_skip for rotation */
-	if ((pri_split || sec_split) && (plane_state->rotation == ROTATION_ANGLE_270 || plane_state->rotation == ROTATION_ANGLE_180)) {
-		bool right_view = (sec_split != plane_state->horizontal_mirror) !=
-					(plane_state->rotation == ROTATION_ANGLE_180);
-
-		if (plane_state->rotation == ROTATION_ANGLE_90
-				|| plane_state->rotation == ROTATION_ANGLE_270)
-			/* Secondary_pipe XOR Rotation_270 */
-			right_view = (plane_state->rotation == ROTATION_ANGLE_270) != sec_split;
-		if (!right_view)
-			recout_skip->width = pipe_ctx->plane_res.scl_data.recout.x + pipe_ctx->plane_res.scl_data.recout.width / 2 - recout_full_x;
-		else
-			recout_skip->width = pipe_ctx->plane_res.scl_data.recout.x - pipe_ctx->plane_res.scl_data.recout.width / 2 - recout_full_x;
-	}
 }
 
 static void calculate_scaling_ratios(struct pipe_ctx *pipe_ctx)
@@ -676,7 +654,26 @@ static void calculate_inits_and_adj_vp(struct pipe_ctx *pipe_ctx, struct view *r
 	struct rect src = pipe_ctx->plane_state->src_rect;
 	int vpc_div = (data->format == PIXEL_FORMAT_420BPP8
 			|| data->format == PIXEL_FORMAT_420BPP10) ? 2 : 1;
+	bool flip_vert_scan_dir = false, flip_horz_scan_dir = false;
 
+	/*
+	 * Need to calculate the scan direction for viewport to make adjustments
+	 */
+	if (pipe_ctx->plane_state->rotation == ROTATION_ANGLE_180) {
+		flip_vert_scan_dir = true;
+		flip_horz_scan_dir = true;
+	} else if (pipe_ctx->plane_state->rotation == ROTATION_ANGLE_90)
+		flip_vert_scan_dir = true;
+	else if (pipe_ctx->plane_state->rotation == ROTATION_ANGLE_270)
+		flip_horz_scan_dir = true;
+	if (pipe_ctx->plane_state->horizontal_mirror)
+		flip_horz_scan_dir = !flip_horz_scan_dir;
+
+	/* Temp W/A for rotated displays, ignore recout_skip */
+	if (flip_vert_scan_dir)
+		recout_skip->height = 0;
+	if (flip_horz_scan_dir)
+		recout_skip->width = 0;
 
 	if (pipe_ctx->plane_state->rotation == ROTATION_ANGLE_90 ||
 			pipe_ctx->plane_state->rotation == ROTATION_ANGLE_270) {
