@@ -3335,7 +3335,7 @@ static int do_set_pmd(struct vm_fault *vmf, struct page *page)
 
 	entry = mk_huge_pmd(page, vma->vm_page_prot);
 	if (write)
-		entry = maybe_pmd_mkwrite(entry, vma, true);
+		entry = maybe_pmd_mkwrite(pmd_mkdirty(entry), vma);
 
 	add_mm_counter(vma->vm_mm, MM_FILEPAGES, HPAGE_PMD_NR);
 	page_add_file_rmap(page, true);
