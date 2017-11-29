@@ -47,7 +47,7 @@ static int qnx4_remount(struct super_block *sb, int *flags, char *data)
 	sync_filesystem(sb);
 	qs = qnx4_sb(sb);
 	qs->Version = QNX4_VERSION;
-	*flags |= MS_RDONLY;
+	*flags |= SB_RDONLY;
 	return 0;
 }
 
@@ -199,7 +199,7 @@ static int qnx4_fill_super(struct super_block *s, void *data, int silent)
 
 	s->s_op = &qnx4_sops;
 	s->s_magic = QNX4_SUPER_MAGIC;
-	s->s_flags |= MS_RDONLY;	/* Yup, read-only yet */
+	s->s_flags |= SB_RDONLY;	/* Yup, read-only yet */
 
 	/* Check the superblock signature. Since the qnx4 code is
 	   dangerous, we should leave as quickly as possible

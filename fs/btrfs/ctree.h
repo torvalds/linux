@@ -2957,7 +2957,7 @@ static inline int btrfs_fs_closing(struct btrfs_fs_info *fs_info)
  */
 static inline int btrfs_need_cleaner_sleep(struct btrfs_fs_info *fs_info)
 {
-	return fs_info->sb->s_flags & MS_RDONLY || btrfs_fs_closing(fs_info);
+	return fs_info->sb->s_flags & SB_RDONLY || btrfs_fs_closing(fs_info);
 }
 
 static inline void free_fs_info(struct btrfs_fs_info *fs_info)

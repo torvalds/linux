@@ -534,10 +534,10 @@ static int parse_options(struct super_block *sb, char *options)
 #endif
 			break;
 		case Opt_lazytime:
-			sb->s_flags |= MS_LAZYTIME;
+			sb->s_flags |= SB_LAZYTIME;
 			break;
 		case Opt_nolazytime:
-			sb->s_flags &= ~MS_LAZYTIME;
+			sb->s_flags &= ~SB_LAZYTIME;
 			break;
 #ifdef CONFIG_QUOTA
 		case Opt_quota:
@@ -1168,7 +1168,7 @@ static void default_options(struct f2fs_sb_info *sbi)
 	set_opt(sbi, INLINE_DENTRY);
 	set_opt(sbi, EXTENT_CACHE);
 	set_opt(sbi, NOHEAP);
-	sbi->sb->s_flags |= MS_LAZYTIME;
+	sbi->sb->s_flags |= SB_LAZYTIME;
 	set_opt(sbi, FLUSH_MERGE);
 	if (f2fs_sb_mounted_blkzoned(sbi->sb)) {
 		set_opt_mode(sbi, F2FS_MOUNT_LFS);
@@ -1236,7 +1236,7 @@ static int f2fs_remount(struct super_block *sb, int *flags, char *data)
 #endif
 
 	/* recover superblocks we couldn't write due to previous RO mount */
-	if (!(*flags & MS_RDONLY) && is_sbi_flag_set(sbi, SBI_NEED_SB_WRITE)) {
+	if (!(*flags & SB_RDONLY) && is_sbi_flag_set(sbi, SBI_NEED_SB_WRITE)) {
 		err = f2fs_commit_super(sbi, false);
 		f2fs_msg(sb, KERN_INFO,
 			"Try to recover all the superblocks, ret: %d", err);
@@ -1255,17 +1255,17 @@ static int f2fs_remount(struct super_block *sb, int *flags, char *data)
 	 * Previous and new state of filesystem is RO,
 	 * so skip checking GC and FLUSH_MERGE conditions.
 	 */
-	if (f2fs_readonly(sb) && (*flags & MS_RDONLY))
+	if (f2fs_readonly(sb) && (*flags & SB_RDONLY))
 		goto skip;
 
 #ifdef CONFIG_QUOTA
-	if (!f2fs_readonly(sb) && (*flags & MS_RDONLY)) {
+	if (!f2fs_readonly(sb) && (*flags & SB_RDONLY)) {
 		err = dquot_suspend(sb, -1);
 		if (err < 0)
 			goto restore_opts;
 	} else {
 		/* dquot_resume needs RW */
-		sb->s_flags &= ~MS_RDONLY;
+		sb->s_flags &= ~SB_RDONLY;
 		if (sb_any_quota_suspended(sb)) {
 			dquot_resume(sb, -1);
 		} else if (f2fs_sb_has_quota_ino(sb)) {
@@ -1288,7 +1288,7 @@ static int f2fs_remount(struct super_block *sb, int *flags, char *data)
 	 * or if background_gc = off is passed in mount
 	 * option. Also sync the filesystem.
 	 */
-	if ((*flags & MS_RDONLY) || !test_opt(sbi, BG_GC)) {
+	if ((*flags & SB_RDONLY) || !test_opt(sbi, BG_GC)) {
 		if (sbi->gc_thread) {
 			stop_gc_thread(sbi);
 			need_restart_gc = true;
@@ -1300,7 +1300,7 @@ static int f2fs_remount(struct super_block *sb, int *flags, char *data)
 		need_stop_gc = true;
 	}
 
-	if (*flags & MS_RDONLY) {
+	if (*flags & SB_RDONLY) {
 		writeback_inodes_sb(sb, WB_REASON_SYNC);
 		sync_inodes_sb(sb);
 
@@ -1314,7 +1314,7 @@ static int f2fs_remount(struct super_block *sb, int *flags, char *data)
 	 * We stop issue flush thread if FS is mounted as RO
 	 * or if flush_merge is not passed in mount option.
 	 */
-	if ((*flags & MS_RDONLY) || !test_opt(sbi, FLUSH_MERGE)) {
+	if ((*flags & SB_RDONLY) || !test_opt(sbi, FLUSH_MERGE)) {
 		clear_opt(sbi, FLUSH_MERGE);
 		destroy_flush_cmd_control(sbi, false);
 	} else {
@@ -1329,8 +1329,8 @@ skip:
 		kfree(s_qf_names[i]);
 #endif
 	/* Update the POSIXACL Flag */
-	sb->s_flags = (sb->s_flags & ~MS_POSIXACL) |
-		(test_opt(sbi, POSIX_ACL) ? MS_POSIXACL : 0);
+	sb->s_flags = (sb->s_flags & ~SB_POSIXACL) |
+		(test_opt(sbi, POSIX_ACL) ? SB_POSIXACL : 0);
 
 	return 0;
 restore_gc:
@@ -2472,8 +2472,8 @@ try_onemore:
 	sb->s_export_op = &f2fs_export_ops;
 	sb->s_magic = F2FS_SUPER_MAGIC;
 	sb->s_time_gran = 1;
-	sb->s_flags = (sb->s_flags & ~MS_POSIXACL) |
-		(test_opt(sbi, POSIX_ACL) ? MS_POSIXACL : 0);
+	sb->s_flags = (sb->s_flags & ~SB_POSIXACL) |
+		(test_opt(sbi, POSIX_ACL) ? SB_POSIXACL : 0);
 	memcpy(&sb->s_uuid, raw_super->uuid, sizeof(raw_super->uuid));
 
 	/* init f2fs-specific super block info */

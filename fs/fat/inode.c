@@ -781,12 +781,12 @@ static int fat_remount(struct super_block *sb, int *flags, char *data)
 {
 	int new_rdonly;
 	struct msdos_sb_info *sbi = MSDOS_SB(sb);
-	*flags |= MS_NODIRATIME | (sbi->options.isvfat ? 0 : MS_NOATIME);
+	*flags |= SB_NODIRATIME | (sbi->options.isvfat ? 0 : SB_NOATIME);
 
 	sync_filesystem(sb);
 
 	/* make sure we update state on remount. */
-	new_rdonly = *flags & MS_RDONLY;
+	new_rdonly = *flags & SB_RDONLY;
 	if (new_rdonly != sb_rdonly(sb)) {
 		if (new_rdonly)
 			fat_set_state(sb, 0, 0);
@@ -1352,7 +1352,7 @@ out:
 	if (opts->unicode_xlate)
 		opts->utf8 = 0;
 	if (opts->nfs == FAT_NFS_NOSTALE_RO) {
-		sb->s_flags |= MS_RDONLY;
+		sb->s_flags |= SB_RDONLY;
 		sb->s_export_op = &fat_export_ops_nostale;
 	}
 
@@ -1608,7 +1608,7 @@ int fat_fill_super(struct super_block *sb, void *data, int silent, int isvfat,
 		return -ENOMEM;
 	sb->s_fs_info = sbi;
 
-	sb->s_flags |= MS_NODIRATIME;
+	sb->s_flags |= SB_NODIRATIME;
 	sb->s_magic = MSDOS_SUPER_MAGIC;
 	sb->s_op = &fat_sops;
 	sb->s_export_op = &fat_export_ops;
