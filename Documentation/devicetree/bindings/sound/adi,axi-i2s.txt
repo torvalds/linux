@@ -21,7 +21,7 @@ please check:
 
 Example:
 
-	i2s: i2s@0x77600000 {
+	i2s: i2s@77600000 {
 		compatible = "adi,axi-i2s-1.00.a";
 		reg = <0x77600000 0x1000>;
 		clocks = <&clk 15>, <&audio_clock>;

@@ -20,7 +20,7 @@ Required properties:
 
 Example:
 
-sh_fsi2: sh_fsi2@0xec230000 {
+sh_fsi2: sh_fsi2@ec230000 {
 	compatible = "renesas,sh_fsi2";
 	reg = <0xec230000 0x400>;
 	interrupts = <0 146 0x4>;

@@ -30,7 +30,7 @@ Optional properties:
 
 Example:
 
-gpio_altr: gpio@0xff200000 {
+gpio_altr: gpio@ff200000 {
 	compatible = "altr,pio-1.0";
 	reg = <0xff200000 0x10>;
 	interrupts = <0 45 4>;

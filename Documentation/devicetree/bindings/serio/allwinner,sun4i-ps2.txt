@@ -14,7 +14,7 @@ Required properties:
 
 
 Example:
-	ps20: ps2@0x01c2a000 {
+	ps20: ps2@01c2a000 {
 		compatible = "allwinner,sun4i-a10-ps2";
 		reg = <0x01c2a000 0x400>;
 		interrupts = <0 62 4>;

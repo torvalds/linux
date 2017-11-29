@@ -10,7 +10,7 @@ Required properties:
 Example:
 
 &i2c {
-	max9867: max9867@0x18 {
+	max9867: max9867@18 {
 		compatible = "maxim,max9867";
 		reg = <0x18>;
 	};

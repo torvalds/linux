@@ -39,7 +39,7 @@ Example:
 
 The following is an example from the SPEAr320 SoC dtsi file.
 
-shirq: interrupt-controller@0xb3000000 {
+shirq: interrupt-controller@b3000000 {
 	compatible = "st,spear320-shirq";
 	reg = <0xb3000000 0x1000>;
 	interrupts = <28 29 30 1>;
