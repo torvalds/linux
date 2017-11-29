@@ -22,7 +22,6 @@
  */
 
 #include "amdgpu.h"
-#include "soc15ip.h"
 #include "nbio/nbio_6_1_offset.h"
 #include "nbio/nbio_6_1_sh_mask.h"
 #include "gc/gc_9_0_offset.h"

@@ -24,7 +24,6 @@
 #include "amdgpu_atombios.h"
 #include "nbio_v7_0.h"
 
-#include "soc15ip.h"
 #include "nbio/nbio_7_0_default.h"
 #include "nbio/nbio_7_0_offset.h"
 #include "nbio/nbio_7_0_sh_mask.h"

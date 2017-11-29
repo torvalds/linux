@@ -32,7 +32,6 @@
 #include "soc15_common.h"
 #include "mmsch_v1_0.h"
 
-#include "soc15ip.h"
 #include "vce/vce_4_0_offset.h"
 #include "vce/vce_4_0_default.h"
 #include "vce/vce_4_0_sh_mask.h"

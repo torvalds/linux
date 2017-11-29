@@ -23,7 +23,6 @@
 #include "amdgpu.h"
 #include "gfxhub_v1_0.h"
 
-#include "soc15ip.h"
 #include "gc/gc_9_0_offset.h"
 #include "gc/gc_9_0_sh_mask.h"
 #include "gc/gc_9_0_default.h"

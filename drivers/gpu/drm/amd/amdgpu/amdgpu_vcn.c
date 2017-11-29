@@ -35,7 +35,6 @@
 #include "soc15d.h"
 #include "soc15_common.h"
 
-#include "soc15ip.h"
 #include "vcn/vcn_1_0_offset.h"
 
 /* 1 second timeout */

@@ -23,7 +23,6 @@
 #include "amdgpu.h"
 #include "mmhub_v1_0.h"
 
-#include "soc15ip.h"
 #include "mmhub/mmhub_1_0_offset.h"
 #include "mmhub/mmhub_1_0_sh_mask.h"
 #include "mmhub/mmhub_1_0_default.h"

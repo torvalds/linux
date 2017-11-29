@@ -27,7 +27,6 @@
 #include "amdgpu_ucode.h"
 #include "amdgpu_trace.h"
 
-#include "soc15ip.h"
 #include "sdma0/sdma0_4_0_offset.h"
 #include "sdma0/sdma0_4_0_sh_mask.h"
 #include "sdma1/sdma1_4_0_offset.h"

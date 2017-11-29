@@ -25,7 +25,6 @@
 #include "gmc_v9_0.h"
 #include "amdgpu_atomfirmware.h"
 
-#include "soc15ip.h"
 #include "hdp/hdp_4_0_offset.h"
 #include "hdp/hdp_4_0_sh_mask.h"
 #include "gc/gc_9_0_sh_mask.h"

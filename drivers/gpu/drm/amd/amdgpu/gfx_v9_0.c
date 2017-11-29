@@ -28,7 +28,6 @@
 #include "soc15.h"
 #include "soc15d.h"
 
-#include "soc15ip.h"
 #include "gc/gc_9_0_offset.h"
 #include "gc/gc_9_0_sh_mask.h"
 #include "vega10_enum.h"
