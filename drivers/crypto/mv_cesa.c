@@ -149,7 +149,7 @@ struct mv_req_hash_ctx {
 	int count_add;
 };
 
-static void mv_completion_timer_callback(unsigned long unused)
+static void mv_completion_timer_callback(struct timer_list *unused)
 {
 	int active = readl(cpg->reg + SEC_ACCEL_CMD) & SEC_CMD_EN_SEC_ACCL0;
 
@@ -167,7 +167,7 @@ static void mv_completion_timer_callback(unsigned long unused)
 
 static void mv_setup_timer(void)
 {
-	setup_timer(&cpg->completion_timer, &mv_completion_timer_callback, 0);
+	timer_setup(&cpg->completion_timer, mv_completion_timer_callback, 0);
 	mod_timer(&cpg->completion_timer,
 			jiffies + msecs_to_jiffies(MV_CESA_EXPIRE));
 }

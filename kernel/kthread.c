@@ -798,15 +798,14 @@ EXPORT_SYMBOL_GPL(kthread_queue_work);
 /**
  * kthread_delayed_work_timer_fn - callback that queues the associated kthread
  *	delayed work when the timer expires.
- * @__data: pointer to the data associated with the timer
+ * @t: pointer to the expired timer
  *
  * The format of the function is defined by struct timer_list.
  * It should have been called from irqsafe timer with irq already off.
  */
-void kthread_delayed_work_timer_fn(unsigned long __data)
+void kthread_delayed_work_timer_fn(struct timer_list *t)
 {
-	struct kthread_delayed_work *dwork =
-		(struct kthread_delayed_work *)__data;
+	struct kthread_delayed_work *dwork = from_timer(dwork, t, timer);
 	struct kthread_work *work = &dwork->work;
 	struct kthread_worker *worker = work->worker;
 
@@ -837,8 +836,7 @@ void __kthread_queue_delayed_work(struct kthread_worker *worker,
 	struct timer_list *timer = &dwork->timer;
 	struct kthread_work *work = &dwork->work;
 
-	WARN_ON_ONCE(timer->function != kthread_delayed_work_timer_fn ||
-		     timer->data != (unsigned long)dwork);
+	WARN_ON_ONCE(timer->function != (TIMER_FUNC_TYPE)kthread_delayed_work_timer_fn);
 
 	/*
 	 * If @delay is 0, queue @dwork->work immediately.  This is for

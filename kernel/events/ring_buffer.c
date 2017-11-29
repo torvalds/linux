@@ -381,7 +381,7 @@ void *perf_aux_output_begin(struct perf_output_handle *handle,
 	 * (B) <-> (C) ordering is still observed by the pmu driver.
 	 */
 	if (!rb->aux_overwrite) {
-		aux_tail = ACCESS_ONCE(rb->user_page->aux_tail);
+		aux_tail = READ_ONCE(rb->user_page->aux_tail);
 		handle->wakeup = rb->aux_wakeup + rb->aux_watermark;
 		if (aux_head - aux_tail < perf_aux_size(rb))
 			handle->size = CIRC_SPACE(aux_head, aux_tail, perf_aux_size(rb));

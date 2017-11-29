@@ -323,7 +323,7 @@ static void fd_deselect (int drive)
 
 }
 
-static void motor_on_callback(unsigned long nr)
+static void motor_on_callback(unsigned long ignored)
 {
 	if (!(ciaa.pra & DSKRDY) || --on_attempts == 0) {
 		complete_all(&motor_on_completion);
@@ -344,7 +344,6 @@ static int fd_motor_on(int nr)
 		fd_select(nr);
 
 		reinit_completion(&motor_on_completion);
-		motor_on_timer.data = nr;
 		mod_timer(&motor_on_timer, jiffies + HZ/2);
 
 		on_attempts = 10;

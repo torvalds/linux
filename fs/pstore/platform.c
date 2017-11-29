@@ -62,7 +62,7 @@ MODULE_PARM_DESC(update_ms, "milliseconds before pstore updates its content "
 static int pstore_new_entry;
 
 static void pstore_timefunc(unsigned long);
-static DEFINE_TIMER(pstore_timer, pstore_timefunc, 0, 0);
+static DEFINE_TIMER(pstore_timer, pstore_timefunc);
 
 static void pstore_dowork(struct work_struct *);
 static DECLARE_WORK(pstore_work, pstore_dowork);
@@ -482,10 +482,7 @@ void pstore_record_init(struct pstore_record *record,
 	record->psi = psinfo;
 
 	/* Report zeroed timestamp if called before timekeeping has resumed. */
-	if (__getnstimeofday(&record->time)) {
-		record->time.tv_sec = 0;
-		record->time.tv_nsec = 0;
-	}
+	record->time = ns_to_timespec(ktime_get_real_fast_ns());
 }
 
 /*

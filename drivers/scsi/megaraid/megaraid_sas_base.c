@@ -2114,22 +2114,19 @@ static void megasas_complete_cmd_dpc(unsigned long instance_addr)
 	megasas_check_and_restore_queue_depth(instance);
 }
 
+static void megasas_sriov_heartbeat_handler(struct timer_list *t);
+
 /**
- * megasas_start_timer - Initializes a timer object
+ * megasas_start_timer - Initializes sriov heartbeat timer object
  * @instance:		Adapter soft state
- * @timer:		timer object to be initialized
- * @fn:			timer function
- * @interval:		time interval between timer function call
  *
  */
-void megasas_start_timer(struct megasas_instance *instance,
-			struct timer_list *timer,
-			void *fn, unsigned long interval)
+void megasas_start_timer(struct megasas_instance *instance)
 {
-	init_timer(timer);
-	timer->expires = jiffies + interval;
-	timer->data = (unsigned long)instance;
-	timer->function = fn;
+	struct timer_list *timer = &instance->sriov_heartbeat_timer;
+
+	timer_setup(timer, megasas_sriov_heartbeat_handler, 0);
+	timer->expires = jiffies + MEGASAS_SRIOV_HEARTBEAT_INTERVAL_VF;
 	add_timer(timer);
 }
 
@@ -2515,10 +2512,10 @@ out:
 }
 
 /* Handler for SR-IOV heartbeat */
-void megasas_sriov_heartbeat_handler(unsigned long instance_addr)
+static void megasas_sriov_heartbeat_handler(struct timer_list *t)
 {
 	struct megasas_instance *instance =
-		(struct megasas_instance *)instance_addr;
+		from_timer(instance, t, sriov_heartbeat_timer);
 
 	if (instance->hb_host_mem->HB.fwCounter !=
 	    instance->hb_host_mem->HB.driverCounter) {
@@ -5493,10 +5490,7 @@ static int megasas_init_fw(struct megasas_instance *instance)
 	/* Launch SR-IOV heartbeat timer */
 	if (instance->requestorId) {
 		if (!megasas_sriov_start_heartbeat(instance, 1))
-			megasas_start_timer(instance,
-					    &instance->sriov_heartbeat_timer,
-					    megasas_sriov_heartbeat_handler,
-					    MEGASAS_SRIOV_HEARTBEAT_INTERVAL_VF);
+			megasas_start_timer(instance);
 		else
 			instance->skip_heartbeat_timer_del = 1;
 	}
@@ -6507,10 +6501,7 @@ megasas_resume(struct pci_dev *pdev)
 	/* Re-launch SR-IOV heartbeat timer */
 	if (instance->requestorId) {
 		if (!megasas_sriov_start_heartbeat(instance, 0))
-			megasas_start_timer(instance,
-					    &instance->sriov_heartbeat_timer,
-					    megasas_sriov_heartbeat_handler,
-					    MEGASAS_SRIOV_HEARTBEAT_INTERVAL_VF);
+			megasas_start_timer(instance);
 		else {
 			instance->skip_heartbeat_timer_del = 1;
 			goto fail_init_mfi;

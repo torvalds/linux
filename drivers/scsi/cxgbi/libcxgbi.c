@@ -572,7 +572,7 @@ static struct cxgbi_sock *cxgbi_sock_create(struct cxgbi_device *cdev)
 	kref_init(&csk->refcnt);
 	skb_queue_head_init(&csk->receive_queue);
 	skb_queue_head_init(&csk->write_queue);
-	setup_timer(&csk->retry_timer, NULL, (unsigned long)csk);
+	timer_setup(&csk->retry_timer, NULL, 0);
 	rwlock_init(&csk->callback_lock);
 	csk->cdev = cdev;
 	csk->flags = 0;

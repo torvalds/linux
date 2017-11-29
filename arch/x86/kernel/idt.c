@@ -223,7 +223,7 @@ idt_setup_from_table(gate_desc *idt, const struct idt_data *t, int size, bool sy
 		idt_init_desc(&desc, t);
 		write_idt_entry(idt, t->vector, &desc);
 		if (sys)
-			set_bit(t->vector, used_vectors);
+			set_bit(t->vector, system_vectors);
 	}
 }
 
@@ -311,14 +311,14 @@ void __init idt_setup_apic_and_irq_gates(void)
 
 	idt_setup_from_table(idt_table, apic_idts, ARRAY_SIZE(apic_idts), true);
 
-	for_each_clear_bit_from(i, used_vectors, FIRST_SYSTEM_VECTOR) {
+	for_each_clear_bit_from(i, system_vectors, FIRST_SYSTEM_VECTOR) {
 		entry = irq_entries_start + 8 * (i - FIRST_EXTERNAL_VECTOR);
 		set_intr_gate(i, entry);
 	}
 
-	for_each_clear_bit_from(i, used_vectors, NR_VECTORS) {
+	for_each_clear_bit_from(i, system_vectors, NR_VECTORS) {
 #ifdef CONFIG_X86_LOCAL_APIC
-		set_bit(i, used_vectors);
+		set_bit(i, system_vectors);
 		set_intr_gate(i, spurious_interrupt);
 #else
 		entry = irq_entries_start + 8 * (i - FIRST_EXTERNAL_VECTOR);
@@ -356,7 +356,7 @@ void idt_invalidate(void *addr)
 
 void __init update_intr_gate(unsigned int n, const void *addr)
 {
-	if (WARN_ON_ONCE(!test_bit(n, used_vectors)))
+	if (WARN_ON_ONCE(!test_bit(n, system_vectors)))
 		return;
 	set_intr_gate(n, addr);
 }
@@ -364,6 +364,6 @@ void __init update_intr_gate(unsigned int n, const void *addr)
 void alloc_intr_gate(unsigned int n, const void *addr)
 {
 	BUG_ON(n < FIRST_SYSTEM_VECTOR);
-	if (!test_and_set_bit(n, used_vectors))
+	if (!test_and_set_bit(n, system_vectors))
 		set_intr_gate(n, addr);
 }

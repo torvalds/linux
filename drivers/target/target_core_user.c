@@ -985,7 +985,7 @@ static unsigned int tcmu_handle_completions(struct tcmu_dev *udev)
 	mb = udev->mb_addr;
 	tcmu_flush_dcache_range(mb, sizeof(*mb));
 
-	while (udev->cmdr_last_cleaned != ACCESS_ONCE(mb->cmd_tail)) {
+	while (udev->cmdr_last_cleaned != READ_ONCE(mb->cmd_tail)) {
 
 		struct tcmu_cmd_entry *entry = (void *) mb + CMDR_OFF + udev->cmdr_last_cleaned;
 		struct tcmu_cmd *cmd;

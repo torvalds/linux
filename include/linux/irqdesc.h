@@ -94,6 +94,7 @@ struct irq_desc {
 #endif
 #ifdef CONFIG_GENERIC_IRQ_DEBUGFS
 	struct dentry		*debugfs_file;
+	const char		*dev_name;
 #endif
 #ifdef CONFIG_SPARSE_IRQ
 	struct rcu_head		rcu;

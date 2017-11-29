@@ -469,7 +469,7 @@ static u16 tun_select_queue(struct net_device *dev, struct sk_buff *skb,
 	u32 numqueues = 0;
 
 	rcu_read_lock();
-	numqueues = ACCESS_ONCE(tun->numqueues);
+	numqueues = READ_ONCE(tun->numqueues);
 
 	txq = __skb_get_hash_symmetric(skb);
 	if (txq) {
@@ -864,7 +864,7 @@ static netdev_tx_t tun_net_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	rcu_read_lock();
 	tfile = rcu_dereference(tun->tfiles[txq]);
-	numqueues = ACCESS_ONCE(tun->numqueues);
+	numqueues = READ_ONCE(tun->numqueues);
 
 	/* Drop packet if interface is not attached */
 	if (txq >= numqueues)

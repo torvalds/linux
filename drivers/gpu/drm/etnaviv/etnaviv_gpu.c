@@ -975,9 +975,9 @@ static void hangcheck_timer_reset(struct etnaviv_gpu *gpu)
 		  round_jiffies_up(jiffies + DRM_ETNAVIV_HANGCHECK_JIFFIES));
 }
 
-static void hangcheck_handler(unsigned long data)
+static void hangcheck_handler(struct timer_list *t)
 {
-	struct etnaviv_gpu *gpu = (struct etnaviv_gpu *)data;
+	struct etnaviv_gpu *gpu = from_timer(gpu, t, hangcheck_timer);
 	u32 fence = gpu->completed_fence;
 	bool progress = false;
 
@@ -1648,8 +1648,7 @@ static int etnaviv_gpu_bind(struct device *dev, struct device *master,
 	INIT_WORK(&gpu->recover_work, recover_worker);
 	init_waitqueue_head(&gpu->fence_event);
 
-	setup_deferrable_timer(&gpu->hangcheck_timer, hangcheck_handler,
-			       (unsigned long)gpu);
+	timer_setup(&gpu->hangcheck_timer, hangcheck_handler, TIMER_DEFERRABLE);
 
 	priv->gpu[priv->num_gpus++] = gpu;
 

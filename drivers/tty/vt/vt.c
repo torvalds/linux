@@ -228,7 +228,7 @@ static int scrollback_delta;
  */
 int (*console_blank_hook)(int);
 
-static DEFINE_TIMER(console_timer, blank_screen_t, 0, 0);
+static DEFINE_TIMER(console_timer, blank_screen_t);
 static int blank_state;
 static int blank_timer_expired;
 enum {

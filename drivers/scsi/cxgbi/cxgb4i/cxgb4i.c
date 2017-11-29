@@ -872,10 +872,10 @@ static int act_open_rpl_status_to_errno(int status)
 	}
 }
 
-static void csk_act_open_retry_timer(unsigned long data)
+static void csk_act_open_retry_timer(struct timer_list *t)
 {
 	struct sk_buff *skb = NULL;
-	struct cxgbi_sock *csk = (struct cxgbi_sock *)data;
+	struct cxgbi_sock *csk = from_timer(csk, t, retry_timer);
 	struct cxgb4_lld_info *lldi = cxgbi_cdev_priv(csk->cdev);
 	void (*send_act_open_func)(struct cxgbi_sock *, struct sk_buff *,
 				   struct l2t_entry *);
@@ -963,8 +963,8 @@ static void do_act_open_rpl(struct cxgbi_device *cdev, struct sk_buff *skb)
 	spin_lock_bh(&csk->lock);
 
 	if (status == CPL_ERR_CONN_EXIST &&
-	    csk->retry_timer.function != csk_act_open_retry_timer) {
-		csk->retry_timer.function = csk_act_open_retry_timer;
+	    csk->retry_timer.function != (TIMER_FUNC_TYPE)csk_act_open_retry_timer) {
+		csk->retry_timer.function = (TIMER_FUNC_TYPE)csk_act_open_retry_timer;
 		mod_timer(&csk->retry_timer, jiffies + HZ / 2);
 	} else
 		cxgbi_sock_fail_act_open(csk,

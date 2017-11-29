@@ -1894,7 +1894,7 @@ int cmd_kmem(int argc, const char **argv)
 {
 	const char * const default_slab_sort = "frag,hit,bytes";
 	const char * const default_page_sort = "bytes,hit";
-	struct perf_data_file file = {
+	struct perf_data data = {
 		.mode = PERF_DATA_MODE_READ,
 	};
 	const struct option kmem_options[] = {
@@ -1910,7 +1910,7 @@ int cmd_kmem(int argc, const char **argv)
 		     "page, order, migtype, gfp", parse_sort_opt),
 	OPT_CALLBACK('l', "line", NULL, "num", "show n lines", parse_line_opt),
 	OPT_BOOLEAN(0, "raw-ip", &raw_ip, "show raw ip instead of symbol"),
-	OPT_BOOLEAN('f', "force", &file.force, "don't complain, do it"),
+	OPT_BOOLEAN('f', "force", &data.force, "don't complain, do it"),
 	OPT_CALLBACK_NOOPT(0, "slab", NULL, NULL, "Analyze slab allocator",
 			   parse_slab_opt),
 	OPT_CALLBACK_NOOPT(0, "page", NULL, NULL, "Analyze page allocator",
@@ -1950,9 +1950,9 @@ int cmd_kmem(int argc, const char **argv)
 		return __cmd_record(argc, argv);
 	}
 
-	file.path = input_name;
+	data.file.path = input_name;
 
-	kmem_session = session = perf_session__new(&file, false, &perf_kmem);
+	kmem_session = session = perf_session__new(&data, false, &perf_kmem);
 	if (session == NULL)
 		return -1;
 
@@ -1984,7 +1984,8 @@ int cmd_kmem(int argc, const char **argv)
 
 	if (perf_time__parse_str(&ptime, time_str) != 0) {
 		pr_err("Invalid time string\n");
-		return -EINVAL;
+		ret = -EINVAL;
+		goto out_delete;
 	}
 
 	if (!strcmp(argv[0], "stat")) {

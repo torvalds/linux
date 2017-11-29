@@ -16,10 +16,9 @@
 #include <linux/cpumask.h>
 #include <asm/frame.h>
 
-static inline void load_sp0(struct tss_struct *tss,
-			     struct thread_struct *thread)
+static inline void load_sp0(unsigned long sp0)
 {
-	PVOP_VCALL2(pv_cpu_ops.load_sp0, tss, thread);
+	PVOP_VCALL1(pv_cpu_ops.load_sp0, sp0);
 }
 
 /* The paravirtualized CPUID instruction. */

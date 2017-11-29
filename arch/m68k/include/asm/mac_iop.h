@@ -159,6 +159,7 @@ extern void iop_complete_message(struct iop_msg *);
 extern void iop_upload_code(uint, __u8 *, uint, __u16);
 extern void iop_download_code(uint, __u8 *, uint, __u16);
 extern __u8 *iop_compare_code(uint, __u8 *, uint, __u16);
+extern void iop_ism_irq_poll(uint);
 
 extern void iop_register_interrupts(void);
 

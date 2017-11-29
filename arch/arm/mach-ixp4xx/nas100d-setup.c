@@ -198,7 +198,7 @@ static int power_button_countdown;
 #define PBUTTON_HOLDDOWN_COUNT 4 /* 2 secs */
 
 static void nas100d_power_handler(unsigned long data);
-static DEFINE_TIMER(nas100d_power_timer, nas100d_power_handler, 0, 0);
+static DEFINE_TIMER(nas100d_power_timer, nas100d_power_handler);
 
 static void nas100d_power_handler(unsigned long data)
 {

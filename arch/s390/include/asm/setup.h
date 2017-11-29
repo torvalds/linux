@@ -98,9 +98,6 @@ extern char vmpoff_cmd[];
 #define SET_CONSOLE_VT220	do { console_mode = 4; } while (0)
 #define SET_CONSOLE_HVC		do { console_mode = 5; } while (0)
 
-#define NSS_NAME_SIZE	8
-extern char kernel_nss_name[];
-
 #ifdef CONFIG_PFAULT
 extern int pfault_init(void);
 extern void pfault_fini(void);

@@ -262,9 +262,8 @@ static void wd_timer_reset(unsigned int cpu, struct timer_list *t)
 	add_timer_on(t, cpu);
 }
 
-static void wd_timer_fn(unsigned long data)
+static void wd_timer_fn(struct timer_list *t)
 {
-	struct timer_list *t = this_cpu_ptr(&wd_timer);
 	int cpu = smp_processor_id();
 
 	watchdog_timer_interrupt(cpu);
@@ -288,7 +287,7 @@ static void start_watchdog_timer_on(unsigned int cpu)
 
 	per_cpu(wd_timer_tb, cpu) = get_tb();
 
-	setup_pinned_timer(t, wd_timer_fn, 0);
+	timer_setup(t, wd_timer_fn, TIMER_PINNED);
 	wd_timer_reset(cpu, t);
 }
 

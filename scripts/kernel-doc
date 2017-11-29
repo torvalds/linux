@@ -2168,7 +2168,7 @@ sub dump_struct($$) {
     my $nested;
 
     if ($x =~ /(struct|union)\s+(\w+)\s*{(.*)}/) {
-	#my $decl_type = $1;
+	my $decl_type = $1;
 	$declaration_name = $2;
 	my $members = $3;
 
@@ -2194,7 +2194,7 @@ sub dump_struct($$) {
 	$members =~ s/DECLARE_HASHTABLE\s*\(([^,)]+), ([^,)]+)\)/unsigned long $1\[1 << (($2) - 1)\]/gos;
 
 	create_parameterlist($members, ';', $file);
-	check_sections($file, $declaration_name, "struct", $sectcheck, $struct_actual, $nested);
+	check_sections($file, $declaration_name, $decl_type, $sectcheck, $struct_actual, $nested);
 
 	output_declaration($declaration_name,
 			   'struct',
@@ -2226,6 +2226,8 @@ sub dump_enum($$) {
     if ($x =~ /enum\s+(\w+)\s*{(.*)}/) {
 	$declaration_name = $1;
 	my $members = $2;
+	my %_members;
+
 	$members =~ s/\s+$//;
 
 	foreach my $arg (split ',', $members) {
@@ -2236,8 +2238,15 @@ sub dump_enum($$) {
 		print STDERR "${file}:$.: warning: Enum value '$arg' ".
 		    "not described in enum '$declaration_name'\n";
 	    }
-
+	    $_members{$arg} = 1;
 	}
+
+	while (my ($k, $v) = each %parameterdescs) {
+	    if (!exists($_members{$k})) {
+	     print STDERR "${file}:$.: warning: Excess enum value " .
+	                  "'$k' description in '$declaration_name'\n";
+	    }
+        }
 
 	output_declaration($declaration_name,
 			   'enum',
@@ -2506,7 +2515,7 @@ sub check_sections($$$$$$) {
 			} else {
 				if ($nested !~ m/\Q$sects[$sx]\E/) {
 				    print STDERR "${file}:$.: warning: " .
-					"Excess struct/union/enum/typedef member " .
+					"Excess $decl_type member " .
 					"'$sects[$sx]' " .
 					"description in '$decl_name'\n";
 				    ++$warnings;

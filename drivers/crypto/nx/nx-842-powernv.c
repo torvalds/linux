@@ -193,7 +193,7 @@ static int wait_for_csb(struct nx842_workmem *wmem,
 	ktime_t start = wmem->start, now = ktime_get();
 	ktime_t timeout = ktime_add_ms(start, CSB_WAIT_MAX);
 
-	while (!(ACCESS_ONCE(csb->flags) & CSB_V)) {
+	while (!(READ_ONCE(csb->flags) & CSB_V)) {
 		cpu_relax();
 		now = ktime_get();
 		if (ktime_after(now, timeout))

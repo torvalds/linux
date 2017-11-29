@@ -207,6 +207,7 @@ struct gendisk {
 #endif	/* CONFIG_BLK_DEV_INTEGRITY */
 	int node_id;
 	struct badblocks *bb;
+	struct lockdep_map lockdep_map;
 };
 
 static inline struct gendisk *part_to_disk(struct hd_struct *part)
@@ -591,8 +592,7 @@ extern void __delete_partition(struct percpu_ref *);
 extern void delete_partition(struct gendisk *, int);
 extern void printk_all_partitions(void);
 
-extern struct gendisk *alloc_disk_node(int minors, int node_id);
-extern struct gendisk *alloc_disk(int minors);
+extern struct gendisk *__alloc_disk_node(int minors, int node_id);
 extern struct kobject *get_disk(struct gendisk *disk);
 extern void put_disk(struct gendisk *disk);
 extern void blk_register_region(dev_t devt, unsigned long range,
@@ -615,6 +615,24 @@ extern ssize_t part_fail_store(struct device *dev,
 			       struct device_attribute *attr,
 			       const char *buf, size_t count);
 #endif /* CONFIG_FAIL_MAKE_REQUEST */
+
+#define alloc_disk_node(minors, node_id)				\
+({									\
+	static struct lock_class_key __key;				\
+	const char *__name;						\
+	struct gendisk *__disk;						\
+									\
+	__name = "(gendisk_completion)"#minors"("#node_id")";		\
+									\
+	__disk = __alloc_disk_node(minors, node_id);			\
+									\
+	if (__disk)							\
+		lockdep_init_map(&__disk->lockdep_map, __name, &__key, 0); \
+									\
+	__disk;								\
+})
+
+#define alloc_disk(minors) alloc_disk_node(minors, NUMA_NO_NODE)
 
 static inline int hd_ref_init(struct hd_struct *part)
 {

@@ -289,13 +289,14 @@ static int stm32_gpio_domain_translate(struct irq_domain *d,
 	return 0;
 }
 
-static void stm32_gpio_domain_activate(struct irq_domain *d,
-				       struct irq_data *irq_data)
+static int stm32_gpio_domain_activate(struct irq_domain *d,
+				      struct irq_data *irq_data, bool early)
 {
 	struct stm32_gpio_bank *bank = d->host_data;
 	struct stm32_pinctrl *pctl = dev_get_drvdata(bank->gpio_chip.parent);
 
 	regmap_field_write(pctl->irqmux[irq_data->hwirq], bank->bank_nr);
+	return 0;
 }
 
 static int stm32_gpio_domain_alloc(struct irq_domain *d,

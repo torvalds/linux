@@ -175,7 +175,7 @@ static int power_button_countdown;
 #define PBUTTON_HOLDDOWN_COUNT 4 /* 2 secs */
 
 static void dsmg600_power_handler(unsigned long data);
-static DEFINE_TIMER(dsmg600_power_timer, dsmg600_power_handler, 0, 0);
+static DEFINE_TIMER(dsmg600_power_timer, dsmg600_power_handler);
 
 static void dsmg600_power_handler(unsigned long data)
 {

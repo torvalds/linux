@@ -22,6 +22,7 @@
 #define CIF_IGNORE_IRQ		5	/* ignore interrupt (for udelay) */
 #define CIF_ENABLED_WAIT	6	/* in enabled wait state */
 #define CIF_MCCK_GUEST		7	/* machine check happening in guest */
+#define CIF_DEDICATED_CPU	8	/* this CPU is dedicated */
 
 #define _CIF_MCCK_PENDING	_BITUL(CIF_MCCK_PENDING)
 #define _CIF_ASCE_PRIMARY	_BITUL(CIF_ASCE_PRIMARY)
@@ -31,6 +32,7 @@
 #define _CIF_IGNORE_IRQ		_BITUL(CIF_IGNORE_IRQ)
 #define _CIF_ENABLED_WAIT	_BITUL(CIF_ENABLED_WAIT)
 #define _CIF_MCCK_GUEST		_BITUL(CIF_MCCK_GUEST)
+#define _CIF_DEDICATED_CPU	_BITUL(CIF_DEDICATED_CPU)
 
 #ifndef __ASSEMBLY__
 
@@ -219,10 +221,10 @@ void show_registers(struct pt_regs *regs);
 void show_cacheinfo(struct seq_file *m);
 
 /* Free all resources held by a thread. */
-extern void release_thread(struct task_struct *);
+static inline void release_thread(struct task_struct *tsk) { }
 
-/* Free guarded storage control block for current */
-void exit_thread_gs(void);
+/* Free guarded storage control block */
+void guarded_storage_release(struct task_struct *tsk);
 
 unsigned long get_wchan(struct task_struct *p);
 #define task_pt_regs(tsk) ((struct pt_regs *) \

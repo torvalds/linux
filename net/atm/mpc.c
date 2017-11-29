@@ -121,7 +121,7 @@ static struct notifier_block mpoa_notifier = {
 
 struct mpoa_client *mpcs = NULL; /* FIXME */
 static struct atm_mpoa_qos *qos_head = NULL;
-static DEFINE_TIMER(mpc_timer, NULL, 0, 0);
+static DEFINE_TIMER(mpc_timer, NULL);
 
 
 static struct mpoa_client *find_mpc_by_itfnum(int itf)

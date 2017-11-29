@@ -36,10 +36,10 @@ void mips_display_message(const char *str)
 	}
 }
 
-static void scroll_display_message(unsigned long data);
-static DEFINE_TIMER(mips_scroll_timer, scroll_display_message, HZ, 0);
+static void scroll_display_message(unsigned long unused);
+static DEFINE_TIMER(mips_scroll_timer, scroll_display_message);
 
-static void scroll_display_message(unsigned long data)
+static void scroll_display_message(unsigned long unused)
 {
 	mips_display_message(&display_string[display_count++]);
 	if (display_count == max_display_count)

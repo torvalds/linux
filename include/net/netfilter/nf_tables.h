@@ -1165,8 +1165,8 @@ static inline u8 nft_genmask_next(const struct net *net)
 
 static inline u8 nft_genmask_cur(const struct net *net)
 {
-	/* Use ACCESS_ONCE() to prevent refetching the value for atomicity */
-	return 1 << ACCESS_ONCE(net->nft.gencursor);
+	/* Use READ_ONCE() to prevent refetching the value for atomicity */
+	return 1 << READ_ONCE(net->nft.gencursor);
 }
 
 #define NFT_GENMASK_ANY		((1 << 0) | (1 << 1))

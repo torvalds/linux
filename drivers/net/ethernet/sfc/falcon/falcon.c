@@ -452,7 +452,7 @@ static irqreturn_t falcon_legacy_interrupt_a1(int irq, void *dev_id)
 		   "IRQ %d on CPU %d status " EF4_OWORD_FMT "\n",
 		   irq, raw_smp_processor_id(), EF4_OWORD_VAL(*int_ker));
 
-	if (!likely(ACCESS_ONCE(efx->irq_soft_enabled)))
+	if (!likely(READ_ONCE(efx->irq_soft_enabled)))
 		return IRQ_HANDLED;
 
 	/* Check to see if we have a serious error condition */
@@ -1372,7 +1372,7 @@ static void falcon_reconfigure_mac_wrapper(struct ef4_nic *efx)
 	ef4_oword_t reg;
 	int link_speed, isolate;
 
-	isolate = !!ACCESS_ONCE(efx->reset_pending);
+	isolate = !!READ_ONCE(efx->reset_pending);
 
 	switch (link_state->speed) {
 	case 10000: link_speed = 3; break;

@@ -56,7 +56,7 @@ menu "Timers subsystem"
 
 # Core internal switch. Selected by NO_HZ_COMMON / HIGH_RES_TIMERS. This is
 # only related to the tick functionality. Oneshot clockevent devices
-# are supported independ of this.
+# are supported independent of this.
 config TICK_ONESHOT
 	bool
 

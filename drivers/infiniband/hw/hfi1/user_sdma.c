@@ -276,7 +276,7 @@ int hfi1_user_sdma_free_queues(struct hfi1_filedata *fd,
 		/* Wait until all requests have been freed. */
 		wait_event_interruptible(
 			pq->wait,
-			(ACCESS_ONCE(pq->state) == SDMA_PKT_Q_INACTIVE));
+			(READ_ONCE(pq->state) == SDMA_PKT_Q_INACTIVE));
 		kfree(pq->reqs);
 		kfree(pq->req_in_use);
 		kmem_cache_destroy(pq->txreq_cache);
@@ -591,7 +591,7 @@ int hfi1_user_sdma_process_request(struct hfi1_filedata *fd,
 			if (ret != -EBUSY) {
 				req->status = ret;
 				WRITE_ONCE(req->has_error, 1);
-				if (ACCESS_ONCE(req->seqcomp) ==
+				if (READ_ONCE(req->seqcomp) ==
 				    req->seqsubmitted - 1)
 					goto free_req;
 				return ret;
@@ -825,7 +825,7 @@ static int user_sdma_send_pkts(struct user_sdma_request *req, unsigned maxpkts)
 		 */
 		if (req->data_len) {
 			iovec = &req->iovs[req->iov_idx];
-			if (ACCESS_ONCE(iovec->offset) == iovec->iov.iov_len) {
+			if (READ_ONCE(iovec->offset) == iovec->iov.iov_len) {
 				if (++req->iov_idx == req->data_iovs) {
 					ret = -EFAULT;
 					goto free_txreq;
@@ -1390,7 +1390,7 @@ static void user_sdma_txreq_cb(struct sdma_txreq *txreq, int status)
 	} else {
 		if (status != SDMA_TXREQ_S_OK)
 			req->status = status;
-		if (req->seqcomp == (ACCESS_ONCE(req->seqsubmitted) - 1) &&
+		if (req->seqcomp == (READ_ONCE(req->seqsubmitted) - 1) &&
 		    (READ_ONCE(req->done) ||
 		     READ_ONCE(req->has_error))) {
 			user_sdma_free_request(req, false);

@@ -5979,9 +5979,8 @@ struct ata_port *ata_port_alloc(struct ata_host *host)
 	INIT_LIST_HEAD(&ap->eh_done_q);
 	init_waitqueue_head(&ap->eh_wait_q);
 	init_completion(&ap->park_req_pending);
-	setup_deferrable_timer(&ap->fastdrain_timer,
-			       ata_eh_fastdrain_timerfn,
-			       (unsigned long)ap);
+	timer_setup(&ap->fastdrain_timer, ata_eh_fastdrain_timerfn,
+		    TIMER_DEFERRABLE);
 
 	ap->cbl = ATA_CBL_NONE;
 

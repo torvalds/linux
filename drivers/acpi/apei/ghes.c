@@ -774,9 +774,9 @@ static void ghes_add_timer(struct ghes *ghes)
 	add_timer(&ghes->timer);
 }
 
-static void ghes_poll_func(unsigned long data)
+static void ghes_poll_func(struct timer_list *t)
 {
-	struct ghes *ghes = (void *)data;
+	struct ghes *ghes = from_timer(ghes, t, timer);
 
 	ghes_proc(ghes);
 	if (!(ghes->flags & GHES_EXITING))
@@ -1147,8 +1147,7 @@ static int ghes_probe(struct platform_device *ghes_dev)
 
 	switch (generic->notify.type) {
 	case ACPI_HEST_NOTIFY_POLLED:
-		setup_deferrable_timer(&ghes->timer, ghes_poll_func,
-				       (unsigned long)ghes);
+		timer_setup(&ghes->timer, ghes_poll_func, TIMER_DEFERRABLE);
 		ghes_add_timer(ghes);
 		break;
 	case ACPI_HEST_NOTIFY_EXTERNAL:

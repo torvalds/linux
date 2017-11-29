@@ -211,11 +211,8 @@ sclp_console_write(struct console *console, const char *message,
 	/* Setup timer to output current console buffer after 1/10 second */
 	if (sclp_conbuf != NULL && sclp_chars_in_buffer(sclp_conbuf) != 0 &&
 	    !timer_pending(&sclp_con_timer)) {
-		init_timer(&sclp_con_timer);
-		sclp_con_timer.function = sclp_console_timeout;
-		sclp_con_timer.data = 0UL;
-		sclp_con_timer.expires = jiffies + HZ/10;
-		add_timer(&sclp_con_timer);
+		setup_timer(&sclp_con_timer, sclp_console_timeout, 0UL);
+		mod_timer(&sclp_con_timer, jiffies + HZ / 10);
 	}
 out:
 	spin_unlock_irqrestore(&sclp_con_lock, flags);

@@ -28,7 +28,7 @@ static unsigned mounts_poll(struct file *file, poll_table *wait)
 
 	poll_wait(file, &p->ns->poll, wait);
 
-	event = ACCESS_ONCE(ns->event);
+	event = READ_ONCE(ns->event);
 	if (m->poll_event != event) {
 		m->poll_event = event;
 		res |= POLLERR | POLLPRI;

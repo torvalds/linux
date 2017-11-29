@@ -3004,13 +3004,13 @@ lpfc_sli_rsp_pointers_error(struct lpfc_hba *phba, struct lpfc_sli_ring *pring)
  * and wake up worker thread to process it. Otherwise, it will set up the
  * Error Attention polling timer for the next poll.
  **/
-void lpfc_poll_eratt(unsigned long ptr)
+void lpfc_poll_eratt(struct timer_list *t)
 {
 	struct lpfc_hba *phba;
 	uint32_t eratt = 0;
 	uint64_t sli_intr, cnt;
 
-	phba = (struct lpfc_hba *)ptr;
+	phba = from_timer(phba, t, eratt_poll);
 
 	/* Here we will also keep track of interrupts per sec of the hba */
 	sli_intr = phba->sli.slistat.sli_intr;
@@ -7167,9 +7167,9 @@ out_free_mbox:
  * done by the worker thread function lpfc_mbox_timeout_handler.
  **/
 void
-lpfc_mbox_timeout(unsigned long ptr)
+lpfc_mbox_timeout(struct timer_list *t)
 {
-	struct lpfc_hba  *phba = (struct lpfc_hba *) ptr;
+	struct lpfc_hba  *phba = from_timer(phba, t, sli.mbox_tmo);
 	unsigned long iflag;
 	uint32_t tmo_posted;
 

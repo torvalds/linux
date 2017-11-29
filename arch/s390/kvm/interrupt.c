@@ -2483,11 +2483,11 @@ void kvm_s390_reinject_machine_check(struct kvm_vcpu *vcpu,
 
 	mci.val = mcck_info->mcic;
 	if (mci.sr)
-		cr14 |= MCCK_CR14_RECOVERY_SUB_MASK;
+		cr14 |= CR14_RECOVERY_SUBMASK;
 	if (mci.dg)
-		cr14 |= MCCK_CR14_DEGRAD_SUB_MASK;
+		cr14 |= CR14_DEGRADATION_SUBMASK;
 	if (mci.w)
-		cr14 |= MCCK_CR14_WARN_SUB_MASK;
+		cr14 |= CR14_WARNING_SUBMASK;
 
 	mchk = mci.ck ? &inti.mchk : &irq.u.mchk;
 	mchk->cr14 = cr14;

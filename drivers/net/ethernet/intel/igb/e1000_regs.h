@@ -375,7 +375,7 @@ u32 igb_rd32(struct e1000_hw *hw, u32 reg);
 /* write operations, indexed using DWORDS */
 #define wr32(reg, val) \
 do { \
-	u8 __iomem *hw_addr = ACCESS_ONCE((hw)->hw_addr); \
+	u8 __iomem *hw_addr = READ_ONCE((hw)->hw_addr); \
 	if (!E1000_REMOVED(hw_addr)) \
 		writel((val), &hw_addr[(reg)]); \
 } while (0)

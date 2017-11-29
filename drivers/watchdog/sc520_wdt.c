@@ -124,7 +124,7 @@ MODULE_PARM_DESC(nowayout,
 static __u16 __iomem *wdtmrctl;
 
 static void wdt_timer_ping(unsigned long);
-static DEFINE_TIMER(timer, wdt_timer_ping, 0, 0);
+static DEFINE_TIMER(timer, wdt_timer_ping);
 static unsigned long next_heartbeat;
 static unsigned long wdt_is_open;
 static char wdt_expect_close;

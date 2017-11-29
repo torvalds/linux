@@ -203,6 +203,9 @@ int is_valid_tracepoint(const char *event_string);
 int valid_event_mount(const char *eventfs);
 char *parse_events_formats_error_string(char *additional_terms);
 
+void parse_events_print_error(struct parse_events_error *err,
+			      const char *event);
+
 #ifdef HAVE_LIBELF_SUPPORT
 /*
  * If the probe point starts with '%',

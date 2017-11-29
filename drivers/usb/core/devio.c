@@ -150,7 +150,7 @@ static int usbfs_increase_memory_usage(u64 amount)
 {
 	u64 lim;
 
-	lim = ACCESS_ONCE(usbfs_memory_mb);
+	lim = READ_ONCE(usbfs_memory_mb);
 	lim <<= 20;
 
 	atomic64_add(amount, &usbfs_memory_usage);

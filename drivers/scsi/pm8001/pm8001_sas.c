@@ -656,9 +656,10 @@ void pm8001_task_done(struct sas_task *task)
 	complete(&task->slow_task->completion);
 }
 
-static void pm8001_tmf_timedout(unsigned long data)
+static void pm8001_tmf_timedout(struct timer_list *t)
 {
-	struct sas_task *task = (struct sas_task *)data;
+	struct sas_task_slow *slow = from_timer(slow, t, timer);
+	struct sas_task *task = slow->task;
 
 	task->task_state_flags |= SAS_TASK_STATE_ABORTED;
 	complete(&task->slow_task->completion);
@@ -694,8 +695,7 @@ static int pm8001_exec_internal_tmf_task(struct domain_device *dev,
 		task->task_proto = dev->tproto;
 		memcpy(&task->ssp_task, parameter, para_len);
 		task->task_done = pm8001_task_done;
-		task->slow_task->timer.data = (unsigned long)task;
-		task->slow_task->timer.function = pm8001_tmf_timedout;
+		task->slow_task->timer.function = (TIMER_FUNC_TYPE)pm8001_tmf_timedout;
 		task->slow_task->timer.expires = jiffies + PM8001_TASK_TIMEOUT*HZ;
 		add_timer(&task->slow_task->timer);
 
@@ -781,8 +781,7 @@ pm8001_exec_internal_task_abort(struct pm8001_hba_info *pm8001_ha,
 		task->dev = dev;
 		task->task_proto = dev->tproto;
 		task->task_done = pm8001_task_done;
-		task->slow_task->timer.data = (unsigned long)task;
-		task->slow_task->timer.function = pm8001_tmf_timedout;
+		task->slow_task->timer.function = (TIMER_FUNC_TYPE)pm8001_tmf_timedout;
 		task->slow_task->timer.expires = jiffies + PM8001_TASK_TIMEOUT * HZ;
 		add_timer(&task->slow_task->timer);
 

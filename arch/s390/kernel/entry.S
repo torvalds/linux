@@ -13,6 +13,7 @@
 #include <linux/linkage.h>
 #include <asm/processor.h>
 #include <asm/cache.h>
+#include <asm/ctl_reg.h>
 #include <asm/errno.h>
 #include <asm/ptrace.h>
 #include <asm/thread_info.h>
@@ -952,15 +953,56 @@ load_fpu_regs:
  */
 ENTRY(mcck_int_handler)
 	STCK	__LC_MCCK_CLOCK
-	la	%r1,4095		# revalidate r1
-	spt	__LC_CPU_TIMER_SAVE_AREA-4095(%r1)	# revalidate cpu timer
-	lmg	%r0,%r15,__LC_GPREGS_SAVE_AREA-4095(%r1)# revalidate gprs
+	la	%r1,4095		# validate r1
+	spt	__LC_CPU_TIMER_SAVE_AREA-4095(%r1)	# validate cpu timer
+	sckc	__LC_CLOCK_COMPARATOR			# validate comparator
+	lam	%a0,%a15,__LC_AREGS_SAVE_AREA-4095(%r1) # validate acrs
+	lmg	%r0,%r15,__LC_GPREGS_SAVE_AREA-4095(%r1)# validate gprs
 	lg	%r12,__LC_CURRENT
 	larl	%r13,cleanup_critical
 	lmg	%r8,%r9,__LC_MCK_OLD_PSW
 	TSTMSK	__LC_MCCK_CODE,MCCK_CODE_SYSTEM_DAMAGE
 	jo	.Lmcck_panic		# yes -> rest of mcck code invalid
-	lghi	%r14,__LC_CPU_TIMER_SAVE_AREA
+	TSTMSK	__LC_MCCK_CODE,MCCK_CODE_CR_VALID
+	jno	.Lmcck_panic		# control registers invalid -> panic
+	la	%r14,4095
+	lctlg	%c0,%c15,__LC_CREGS_SAVE_AREA-4095(%r14) # validate ctl regs
+	ptlb
+	lg	%r11,__LC_MCESAD-4095(%r14) # extended machine check save area
+	nill	%r11,0xfc00		# MCESA_ORIGIN_MASK
+	TSTMSK	__LC_CREGS_SAVE_AREA+16-4095(%r14),CR2_GUARDED_STORAGE
+	jno	0f
+	TSTMSK	__LC_MCCK_CODE,MCCK_CODE_GS_VALID
+	jno	0f
+	.insn	 rxy,0xe3000000004d,0,__MCESA_GS_SAVE_AREA(%r11) # LGSC
+0:	l	%r14,__LC_FP_CREG_SAVE_AREA-4095(%r14)
+	TSTMSK	__LC_MCCK_CODE,MCCK_CODE_FC_VALID
+	jo	0f
+	sr	%r14,%r14
+0:	sfpc	%r14
+	TSTMSK	__LC_MACHINE_FLAGS,MACHINE_FLAG_VX
+	jo	0f
+	lghi	%r14,__LC_FPREGS_SAVE_AREA
+	ld	%f0,0(%r14)
+	ld	%f1,8(%r14)
+	ld	%f2,16(%r14)
+	ld	%f3,24(%r14)
+	ld	%f4,32(%r14)
+	ld	%f5,40(%r14)
+	ld	%f6,48(%r14)
+	ld	%f7,56(%r14)
+	ld	%f8,64(%r14)
+	ld	%f9,72(%r14)
+	ld	%f10,80(%r14)
+	ld	%f11,88(%r14)
+	ld	%f12,96(%r14)
+	ld	%f13,104(%r14)
+	ld	%f14,112(%r14)
+	ld	%f15,120(%r14)
+	j	1f
+0:	VLM	%v0,%v15,0,%r11
+	VLM	%v16,%v31,256,%r11
+1:	lghi	%r14,__LC_CPU_TIMER_SAVE_AREA
 	mvc	__LC_MCCK_ENTER_TIMER(8),0(%r14)
 	TSTMSK	__LC_MCCK_CODE,MCCK_CODE_CPU_TIMER_VALID
 	jo	3f
@@ -976,9 +1018,13 @@ ENTRY(mcck_int_handler)
 	la	%r14,__LC_LAST_UPDATE_TIMER
 2:	spt	0(%r14)
 	mvc	__LC_MCCK_ENTER_TIMER(8),0(%r14)
-3:	TSTMSK	__LC_MCCK_CODE,(MCCK_CODE_PSW_MWP_VALID|MCCK_CODE_PSW_IA_VALID)
-	jno	.Lmcck_panic		# no -> skip cleanup critical
-	SWITCH_ASYNC __LC_GPREGS_SAVE_AREA+64,__LC_MCCK_ENTER_TIMER
+3:	TSTMSK	__LC_MCCK_CODE,MCCK_CODE_PSW_MWP_VALID
+	jno	.Lmcck_panic
+	tmhh	%r8,0x0001		# interrupting from user ?
+	jnz	4f
+	TSTMSK	__LC_MCCK_CODE,MCCK_CODE_PSW_IA_VALID
+	jno	.Lmcck_panic
+4:	SWITCH_ASYNC __LC_GPREGS_SAVE_AREA+64,__LC_MCCK_ENTER_TIMER
 .Lmcck_skip:
 	lghi	%r14,__LC_GPREGS_SAVE_AREA+64
 	stmg	%r0,%r7,__PT_R0(%r11)

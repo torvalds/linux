@@ -291,8 +291,7 @@ static inline void asd_init_ascb(struct asd_ha_struct *asd_ha,
 	INIT_LIST_HEAD(&ascb->list);
 	ascb->scb = ascb->dma_scb.vaddr;
 	ascb->ha = asd_ha;
-	ascb->timer.function = NULL;
-	init_timer(&ascb->timer);
+	timer_setup(&ascb->timer, NULL, 0);
 	ascb->tc_index = -1;
 }
 
@@ -392,7 +391,7 @@ void asd_control_led(struct asd_ha_struct *asd_ha, int phy_id, int op);
 void asd_turn_led(struct asd_ha_struct *asd_ha, int phy_id, int op);
 int  asd_enable_phys(struct asd_ha_struct *asd_ha, const u8 phy_mask);
 
-void asd_ascb_timedout(unsigned long data);
+void asd_ascb_timedout(struct timer_list *t);
 int  asd_chip_hardrst(struct asd_ha_struct *asd_ha);
 
 #endif
