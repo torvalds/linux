@@ -328,6 +328,8 @@ static const struct tee_driver_ops optee_supp_ops = {
 	.release = optee_release,
 	.supp_recv = optee_supp_recv,
 	.supp_send = optee_supp_send,
+	.shm_register = optee_shm_register_supp,
+	.shm_unregister = optee_shm_unregister_supp,
 };
 
 static const struct tee_desc optee_supp_desc = {

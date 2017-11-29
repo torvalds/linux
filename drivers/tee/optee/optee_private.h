@@ -118,7 +118,16 @@ struct optee_rpc_param {
 	u32	a7;
 };
 
-void optee_handle_rpc(struct tee_context *ctx, struct optee_rpc_param *param);
+/* Holds context that is preserved during one STD call */
+struct optee_call_ctx {
+	/* information about pages list used in last allocation */
+	void *pages_list;
+	size_t num_entries;
+};
+
+void optee_handle_rpc(struct tee_context *ctx, struct optee_rpc_param *param,
+		      struct optee_call_ctx *call_ctx);
+void optee_rpc_finalize_call(struct optee_call_ctx *call_ctx);
 
 void optee_wait_queue_init(struct optee_wait_queue *wq);
 void optee_wait_queue_exit(struct optee_wait_queue *wq);
@@ -152,6 +161,10 @@ void optee_disable_shm_cache(struct optee *optee);
 int optee_shm_register(struct tee_context *ctx, struct tee_shm *shm,
 		       struct page **pages, size_t num_pages);
 int optee_shm_unregister(struct tee_context *ctx, struct tee_shm *shm);
+
+int optee_shm_register_supp(struct tee_context *ctx, struct tee_shm *shm,
+			    struct page **pages, size_t num_pages);
+int optee_shm_unregister_supp(struct tee_context *ctx, struct tee_shm *shm);
 
 int optee_from_msg_param(struct tee_param *params, size_t num_params,
 			 const struct optee_msg_param *msg_params);
