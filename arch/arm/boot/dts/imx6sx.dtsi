@@ -1150,7 +1150,7 @@
 			reg = <0x02200000 0x100000>;
 			ranges;
 
-			spba-bus@2200000 {
+			spba-bus@2240000 {
 				compatible = "fsl,spba-bus", "simple-bus";
 				#address-cells = <1>;
 				#size-cells = <1>;
