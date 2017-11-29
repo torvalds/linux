@@ -394,6 +394,26 @@ void *tee_shm_get_va(struct tee_shm *shm, size_t offs);
 int tee_shm_get_pa(struct tee_shm *shm, size_t offs, phys_addr_t *pa);
 
 /**
+ * tee_shm_get_size() - Get size of shared memory buffer
+ * @shm:	Shared memory handle
+ * @returns size of shared memory
+ */
+static inline size_t tee_shm_get_size(struct tee_shm *shm)
+{
+	return shm->size;
+}
+
+/**
+ * tee_shm_get_page_offset() - Get shared buffer offset from page start
+ * @shm:	Shared memory handle
+ * @returns page offset of shared buffer
+ */
+static inline size_t tee_shm_get_page_offset(struct tee_shm *shm)
+{
+	return shm->offset;
+}
+
+/**
  * tee_shm_get_id() - Get id of a shared memory object
  * @shm:	Shared memory handle
  * @returns id
