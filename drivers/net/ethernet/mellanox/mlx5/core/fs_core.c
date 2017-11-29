@@ -2406,7 +2406,7 @@ out_err:
 	return PTR_ERR(prio);
 }
 
-static int init_ingress_acl_root_ns(struct mlx5_flow_steering *steering)
+static int init_egress_acl_root_ns(struct mlx5_flow_steering *steering)
 {
 	struct fs_prio *prio;
 
@@ -2420,7 +2420,7 @@ static int init_ingress_acl_root_ns(struct mlx5_flow_steering *steering)
 	return PTR_ERR_OR_ZERO(prio);
 }
 
-static int init_egress_acl_root_ns(struct mlx5_flow_steering *steering)
+static int init_ingress_acl_root_ns(struct mlx5_flow_steering *steering)
 {
 	struct fs_prio *prio;
 
