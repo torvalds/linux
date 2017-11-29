@@ -28,6 +28,15 @@
 
 #include "dml_inline_defs.h"
 
+/*
+ * NOTE:
+ *   This file is gcc-parseable HW gospel, coming straight from HW engineers.
+ *
+ * It doesn't adhere to Linux kernel style and sometimes will do things in odd
+ * ways. Unless there is something clearly wrong with it the code should
+ * remain as-is as it provides us with a guarantee from HW that it is correct.
+ */
+
 #define BPP_INVALID 0
 #define BPP_BLENDED_PIPE 0xffffffff
 static const unsigned int NumberOfStates = DC__VOLTAGE_STATES;

@@ -33,6 +33,15 @@
 #include "dcn10/dcn10_resource.h"
 #include "dcn_calc_math.h"
 
+/*
+ * NOTE:
+ *   This file is gcc-parseable HW gospel, coming straight from HW engineers.
+ *
+ * It doesn't adhere to Linux kernel style and sometimes will do things in odd
+ * ways. Unless there is something clearly wrong with it the code should
+ * remain as-is as it provides us with a guarantee from HW that it is correct.
+ */
+
 /* Defaults from spreadsheet rev#247 */
 const struct dcn_soc_bounding_box dcn10_soc_defaults = {
 		/* latencies */
