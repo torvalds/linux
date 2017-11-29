@@ -922,6 +922,34 @@ static int mmc_sd_num_wr_blocks(struct mmc_card *card, u32 *written_blocks)
 	return 0;
 }
 
+static unsigned int mmc_blk_clock_khz(struct mmc_host *host)
+{
+	if (host->actual_clock)
+		return host->actual_clock / 1000;
+
+	/* Clock may be subject to a divisor, fudge it by a factor of 2. */
+	if (host->ios.clock)
+		return host->ios.clock / 2000;
+
+	/* How can there be no clock */
+	WARN_ON_ONCE(1);
+	return 100; /* 100 kHz is minimum possible value */
+}
+
+static unsigned int mmc_blk_data_timeout_ms(struct mmc_host *host,
+					    struct mmc_data *data)
+{
+	unsigned int ms = DIV_ROUND_UP(data->timeout_ns, 1000000);
+	unsigned int khz;
+
+	if (data->timeout_clks) {
+		khz = mmc_blk_clock_khz(host);
+		ms += DIV_ROUND_UP(data->timeout_clks, khz);
+	}
+
+	return ms;
+}
+
 static inline bool mmc_blk_in_tran_state(u32 status)
 {
 	/*
@@ -1169,9 +1197,10 @@ static int mmc_blk_cmd_recovery(struct mmc_card *card, struct request *req,
 	 */
 	if (R1_CURRENT_STATE(status) == R1_STATE_DATA ||
 	    R1_CURRENT_STATE(status) == R1_STATE_RCV) {
-		err = send_stop(card,
-			DIV_ROUND_UP(brq->data.timeout_ns, 1000000),
-			req, gen_err, &stop_status);
+		unsigned int timeout;
+
+		timeout = mmc_blk_data_timeout_ms(card->host, &brq->data);
+		err = send_stop(card, timeout, req, gen_err, &stop_status);
 		if (err) {
 			pr_err("%s: error %d sending stop command\n",
 			       req->rq_disk->disk_name, err);
@@ -1977,6 +2006,7 @@ static void mmc_blk_read_single(struct mmc_queue *mq, struct request *req)
 	struct mmc_host *host = card->host;
 	blk_status_t error = BLK_STS_OK;
 	int retries = 0;
+	unsigned int timeout = mmc_blk_data_timeout_ms(host, mrq->data);
 
 	do {
 		u32 status;
@@ -1995,10 +2025,8 @@ static void mmc_blk_read_single(struct mmc_queue *mq, struct request *req)
 			u32 stop_status = 0;
 			bool gen_err = false;
 
-			err = send_stop(card,
-					DIV_ROUND_UP(mrq->data->timeout_ns,
-						     1000000),
-					req, &gen_err, &stop_status);
+			err = send_stop(card, timeout, req, &gen_err,
+					&stop_status);
 			if (err)
 				goto error_exit;
 		}
