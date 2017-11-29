@@ -54,6 +54,7 @@ static int tee_open(struct inode *inode, struct file *filp)
 		goto err;
 	}
 
+	kref_init(&ctx->refcount);
 	ctx->teedev = teedev;
 	INIT_LIST_HEAD(&ctx->list_shm);
 	filp->private_data = ctx;
@@ -68,19 +69,40 @@ err:
 	return rc;
 }
 
+void teedev_ctx_get(struct tee_context *ctx)
+{
+	if (ctx->releasing)
+		return;
+
+	kref_get(&ctx->refcount);
+}
+
+static void teedev_ctx_release(struct kref *ref)
+{
+	struct tee_context *ctx = container_of(ref, struct tee_context,
+					       refcount);
+	ctx->releasing = true;
+	ctx->teedev->desc->ops->release(ctx);
+	kfree(ctx);
+}
+
+void teedev_ctx_put(struct tee_context *ctx)
+{
+	if (ctx->releasing)
+		return;
+
+	kref_put(&ctx->refcount, teedev_ctx_release);
+}
+
+static void teedev_close_context(struct tee_context *ctx)
+{
+	tee_device_put(ctx->teedev);
+	teedev_ctx_put(ctx);
+}
+
 static int tee_release(struct inode *inode, struct file *filp)
 {
-	struct tee_context *ctx = filp->private_data;
-	struct tee_device *teedev = ctx->teedev;
-	struct tee_shm *shm;
-
-	ctx->teedev->desc->ops->release(ctx);
-	mutex_lock(&ctx->teedev->mutex);
-	list_for_each_entry(shm, &ctx->list_shm, link)
-		shm->ctx = NULL;
-	mutex_unlock(&ctx->teedev->mutex);
-	kfree(ctx);
-	tee_device_put(teedev);
+	teedev_close_context(filp->private_data);
 	return 0;
 }
 
