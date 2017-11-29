@@ -60,28 +60,25 @@
 		};
 	};
 
-	rk3229_codec: rk3229_codec{
-		compatible = "rk3229_codec";
+	gva_codec: gva-codec{
+		compatible = "rockchip,gva-codec";
 		#sound-dai-cells = <0>;
-		clocks = <&cru SCLK_I2S_OUT>;
-		clock-names = "mclk";
 		status = "okay";
 	};
 
-	rk3229_sound {
+	gva-sound {
 		compatible = "simple-audio-card";
 		simple-audio-card,format = "i2s";
-		simple-audio-card,bitclock-master = <&dailink0_master>;
-		simple-audio-card,frame-master = <&dailink0_master>;
 		simple-audio-card,name = "rockchip,rk3229-dummy";
 		simple-audio-card,mclk-fs = <256>;
 		simple-audio-card,cpu {
 			sound-dai = <&i2s1>;
 		};
-		dailink0_master:simple-audio-card,codec {
-			sound-dai = <&rk3229_codec>;
+		simple-audio-card,codec {
+			sound-dai = <&gva_codec>;
 		};
 	};
+
 };
 
 &hdmi {
