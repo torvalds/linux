@@ -24,24 +24,6 @@
 #define PAD_SIZE 16
 #define FILL_CHAR '$'
 
-#define PTR1 ((void*)0x01234567)
-#define PTR2 ((void*)(long)(int)0xfedcba98)
-
-#if BITS_PER_LONG == 64
-#define PTR1_ZEROES "000000000"
-#define PTR1_SPACES "         "
-#define PTR1_STR "1234567"
-#define PTR2_STR "fffffffffedcba98"
-#define PTR_WIDTH 16
-#else
-#define PTR1_ZEROES "0"
-#define PTR1_SPACES " "
-#define PTR1_STR "1234567"
-#define PTR2_STR "fedcba98"
-#define PTR_WIDTH 8
-#endif
-#define PTR_WIDTH_STR stringify(PTR_WIDTH)
-
 static unsigned total_tests __initdata;
 static unsigned failed_tests __initdata;
 static char *test_buffer __initdata;
@@ -217,30 +199,79 @@ test_string(void)
 	test("a  |   |   ", "%-3.s|%-3.0s|%-3.*s", "a", "b", 0, "c");
 }
 
+#define PLAIN_BUF_SIZE 64	/* leave some space so we don't oops */
+
+#if BITS_PER_LONG == 64
+
+#define PTR_WIDTH 16
+#define PTR ((void *)0xffff0123456789ab)
+#define PTR_STR "ffff0123456789ab"
+#define ZEROS "00000000"	/* hex 32 zero bits */
+
+static int __init
+plain_format(void)
+{
+	char buf[PLAIN_BUF_SIZE];
+	int nchars;
+
+	nchars = snprintf(buf, PLAIN_BUF_SIZE, "%p", PTR);
+
+	if (nchars != PTR_WIDTH || strncmp(buf, ZEROS, strlen(ZEROS)) != 0)
+		return -1;
+
+	return 0;
+}
+
+#else
+
+#define PTR_WIDTH 8
+#define PTR ((void *)0x456789ab)
+#define PTR_STR "456789ab"
+
+static int __init
+plain_format(void)
+{
+	/* Format is implicitly tested for 32 bit machines by plain_hash() */
+	return 0;
+}
+
+#endif	/* BITS_PER_LONG == 64 */
+
+static int __init
+plain_hash(void)
+{
+	char buf[PLAIN_BUF_SIZE];
+	int nchars;
+
+	nchars = snprintf(buf, PLAIN_BUF_SIZE, "%p", PTR);
+
+	if (nchars != PTR_WIDTH || strncmp(buf, PTR_STR, PTR_WIDTH) == 0)
+		return -1;
+
+	return 0;
+}
+
+/*
+ * We can't use test() to test %p because we don't know what output to expect
+ * after an address is hashed.
+ */
 static void __init
 plain(void)
 {
-	test(PTR1_ZEROES PTR1_STR " " PTR2_STR, "%p %p", PTR1, PTR2);
-	/*
-	 * The field width is overloaded for some %p extensions to
-	 * pass another piece of information. For plain pointers, the
-	 * behaviour is slightly odd: One cannot pass either the 0
-	 * flag nor a precision to %p without gcc complaining, and if
-	 * one explicitly gives a field width, the number is no longer
-	 * zero-padded.
-	 */
-	test("|" PTR1_STR PTR1_SPACES "  |  " PTR1_SPACES PTR1_STR "|",
-	     "|%-*p|%*p|", PTR_WIDTH+2, PTR1, PTR_WIDTH+2, PTR1);
-	test("|" PTR2_STR "  |  " PTR2_STR "|",
-	     "|%-*p|%*p|", PTR_WIDTH+2, PTR2, PTR_WIDTH+2, PTR2);
+	int err;
 
-	/*
-	 * Unrecognized %p extensions are treated as plain %p, but the
-	 * alphanumeric suffix is ignored (that is, does not occur in
-	 * the output.)
-	 */
-	test("|"PTR1_ZEROES PTR1_STR"|", "|%p0y|", PTR1);
-	test("|"PTR2_STR"|", "|%p0y|", PTR2);
+	err = plain_hash();
+	if (err) {
+		pr_warn("plain 'p' does not appear to be hashed\n");
+		failed_tests++;
+		return;
+	}
+
+	err = plain_format();
+	if (err) {
+		pr_warn("hashing plain 'p' has unexpected format\n");
+		failed_tests++;
+	}
 }
 
 static void __init
@@ -251,6 +282,7 @@ symbol_ptr(void)
 static void __init
 kernel_ptr(void)
 {
+	/* We can't test this without access to kptr_restrict. */
 }
 
 static void __init
