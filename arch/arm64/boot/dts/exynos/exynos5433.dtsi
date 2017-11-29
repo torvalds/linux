@@ -361,6 +361,7 @@
 			clocks = <&xxti>,
 				<&cmu_top CLK_ACLK_G2D_266>,
 				<&cmu_top CLK_ACLK_G2D_400>;
+			power-domains = <&pd_g2d>;
 		};
 
 		cmu_disp: clock-controller@13b90000 {
@@ -432,6 +433,7 @@
 
 			clock-names = "oscclk", "aclk_g3d_400";
 			clocks = <&xxti>, <&cmu_top CLK_ACLK_G3D_400>;
+			power-domains = <&pd_g3d>;
 		};
 
 		cmu_gscl: clock-controller@13cf0000 {
@@ -497,6 +499,7 @@
 
 			clock-names = "oscclk", "aclk_hevc_400";
 			clocks = <&xxti>, <&cmu_top CLK_ACLK_HEVC_400>;
+			power-domains = <&pd_hevc>;
 		};
 
 		cmu_isp: clock-controller@146d0000 {
@@ -510,6 +513,7 @@
 			clocks = <&xxti>,
 				<&cmu_top CLK_ACLK_ISP_DIS_400>,
 				<&cmu_top CLK_ACLK_ISP_400>;
+			power-domains = <&pd_isp>;
 		};
 
 		cmu_cam0: clock-controller@120d0000 {
@@ -525,6 +529,7 @@
 				<&cmu_top CLK_ACLK_CAM0_333>,
 				<&cmu_top CLK_ACLK_CAM0_400>,
 				<&cmu_top CLK_ACLK_CAM0_552>;
+			power-domains = <&pd_cam0>;
 		};
 
 		cmu_cam1: clock-controller@145d0000 {
@@ -546,6 +551,7 @@
 				<&cmu_top CLK_ACLK_CAM1_333>,
 				<&cmu_top CLK_ACLK_CAM1_400>,
 				<&cmu_top CLK_ACLK_CAM1_552>;
+			power-domains = <&pd_cam1>;
 		};
 
 		pd_gscl: power-domain@105c4000 {
@@ -555,11 +561,26 @@
 			label = "GSCL";
 		};
 
+		pd_cam0: power-domain@105c4020 {
+			compatible = "samsung,exynos5433-pd";
+			reg = <0x105c4020 0x20>;
+			#power-domain-cells = <0>;
+			power-domains = <&pd_cam1>;
+			label = "CAM0";
+		};
+
 		pd_mscl: power-domain@105c4040 {
 			compatible = "samsung,exynos5433-pd";
 			reg = <0x105c4040 0x20>;
 			#power-domain-cells = <0>;
 			label = "MSCL";
+		};
+
+		pd_g3d: power-domain@105c4060 {
+			compatible = "samsung,exynos5433-pd";
+			reg = <0x105c4060 0x20>;
+			#power-domain-cells = <0>;
+			label = "G3D";
 		};
 
 		pd_disp: power-domain@105c4080 {
@@ -569,6 +590,13 @@
 			label = "DISP";
 		};
 
+		pd_cam1: power-domain@105c40a0 {
+			compatible = "samsung,exynos5433-pd";
+			reg = <0x105c40a0 0x20>;
+			#power-domain-cells = <0>;
+			label = "CAM1";
+		};
+
 		pd_aud: power-domain@105c40c0 {
 			compatible = "samsung,exynos5433-pd";
 			reg = <0x105c40c0 0x20>;
@@ -576,11 +604,33 @@
 			label = "AUD";
 		};
 
+		pd_g2d: power-domain@105c4120 {
+			compatible = "samsung,exynos5433-pd";
+			reg = <0x105c4120 0x20>;
+			#power-domain-cells = <0>;
+			label = "G2D";
+		};
+
+		pd_isp: power-domain@105c4140 {
+			compatible = "samsung,exynos5433-pd";
+			reg = <0x105c4140 0x20>;
+			#power-domain-cells = <0>;
+			power-domains = <&pd_cam0>;
+			label = "ISP";
+		};
+
 		pd_mfc: power-domain@105c4180 {
 			compatible = "samsung,exynos5433-pd";
 			reg = <0x105c4180 0x20>;
 			#power-domain-cells = <0>;
 			label = "MFC";
+		};
+
+		pd_hevc: power-domain@105c41c0 {
+			compatible = "samsung,exynos5433-pd";
+			reg = <0x105c41c0 0x20>;
+			#power-domain-cells = <0>;
+			label = "HEVC";
 		};
 
 		tmu_atlas0: tmu@10060000 {
