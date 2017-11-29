@@ -40,18 +40,142 @@ static int mmc_prep_request(struct request_queue *q, struct request *req)
 	return BLKPREP_OK;
 }
 
+static inline bool mmc_cqe_dcmd_busy(struct mmc_queue *mq)
+{
+	/* Allow only 1 DCMD at a time */
+	return mq->in_flight[MMC_ISSUE_DCMD];
+}
+
+void mmc_cqe_check_busy(struct mmc_queue *mq)
+{
+	if ((mq->cqe_busy & MMC_CQE_DCMD_BUSY) && !mmc_cqe_dcmd_busy(mq))
+		mq->cqe_busy &= ~MMC_CQE_DCMD_BUSY;
+
+	mq->cqe_busy &= ~MMC_CQE_QUEUE_FULL;
+}
+
+static inline bool mmc_cqe_can_dcmd(struct mmc_host *host)
+{
+	return host->caps2 & MMC_CAP2_CQE_DCMD;
+}
+
+enum mmc_issue_type mmc_cqe_issue_type(struct mmc_host *host,
+				       struct request *req)
+{
+	switch (req_op(req)) {
+	case REQ_OP_DRV_IN:
+	case REQ_OP_DRV_OUT:
+	case REQ_OP_DISCARD:
+	case REQ_OP_SECURE_ERASE:
+		return MMC_ISSUE_SYNC;
+	case REQ_OP_FLUSH:
+		return mmc_cqe_can_dcmd(host) ? MMC_ISSUE_DCMD : MMC_ISSUE_SYNC;
+	default:
+		return MMC_ISSUE_ASYNC;
+	}
+}
+
 enum mmc_issue_type mmc_issue_type(struct mmc_queue *mq, struct request *req)
 {
+	struct mmc_host *host = mq->card->host;
+
+	if (mq->use_cqe)
+		return mmc_cqe_issue_type(host, req);
+
 	if (req_op(req) == REQ_OP_READ || req_op(req) == REQ_OP_WRITE)
 		return MMC_ISSUE_ASYNC;
 
 	return MMC_ISSUE_SYNC;
 }
 
+static void __mmc_cqe_recovery_notifier(struct mmc_queue *mq)
+{
+	if (!mq->recovery_needed) {
+		mq->recovery_needed = true;
+		schedule_work(&mq->recovery_work);
+	}
+}
+
+void mmc_cqe_recovery_notifier(struct mmc_request *mrq)
+{
+	struct mmc_queue_req *mqrq = container_of(mrq, struct mmc_queue_req,
+						  brq.mrq);
+	struct request *req = mmc_queue_req_to_req(mqrq);
+	struct request_queue *q = req->q;
+	struct mmc_queue *mq = q->queuedata;
+	unsigned long flags;
+
+	spin_lock_irqsave(q->queue_lock, flags);
+	__mmc_cqe_recovery_notifier(mq);
+	spin_unlock_irqrestore(q->queue_lock, flags);
+}
+
+static enum blk_eh_timer_return mmc_cqe_timed_out(struct request *req)
+{
+	struct mmc_queue_req *mqrq = req_to_mmc_queue_req(req);
+	struct mmc_request *mrq = &mqrq->brq.mrq;
+	struct mmc_queue *mq = req->q->queuedata;
+	struct mmc_host *host = mq->card->host;
+	enum mmc_issue_type issue_type = mmc_issue_type(mq, req);
+	bool recovery_needed = false;
+
+	switch (issue_type) {
+	case MMC_ISSUE_ASYNC:
+	case MMC_ISSUE_DCMD:
+		if (host->cqe_ops->cqe_timeout(host, mrq, &recovery_needed)) {
+			if (recovery_needed)
+				__mmc_cqe_recovery_notifier(mq);
+			return BLK_EH_RESET_TIMER;
+		}
+		/* No timeout */
+		return BLK_EH_HANDLED;
+	default:
+		/* Timeout is handled by mmc core */
+		return BLK_EH_RESET_TIMER;
+	}
+}
+
 static enum blk_eh_timer_return mmc_mq_timed_out(struct request *req,
 						 bool reserved)
 {
-	return BLK_EH_RESET_TIMER;
+	struct request_queue *q = req->q;
+	struct mmc_queue *mq = q->queuedata;
+	unsigned long flags;
+	int ret;
+
+	spin_lock_irqsave(q->queue_lock, flags);
+
+	if (mq->recovery_needed || !mq->use_cqe)
+		ret = BLK_EH_RESET_TIMER;
+	else
+		ret = mmc_cqe_timed_out(req);
+
+	spin_unlock_irqrestore(q->queue_lock, flags);
+
+	return ret;
+}
+
+static void mmc_mq_recovery_handler(struct work_struct *work)
+{
+	struct mmc_queue *mq = container_of(work, struct mmc_queue,
+					    recovery_work);
+	struct request_queue *q = mq->queue;
+
+	mmc_get_card(mq->card, &mq->ctx);
+
+	mq->in_recovery = true;
+
+	mmc_blk_cqe_recovery(mq);
+
+	mq->in_recovery = false;
+
+	spin_lock_irq(q->queue_lock);
+	mq->recovery_needed = false;
+	spin_unlock_irq(q->queue_lock);
+
+	mmc_put_card(mq->card, &mq->ctx);
+
+	blk_mq_run_hw_queues(q, true);
 }
 
 static int mmc_queue_thread(void *d)
@@ -223,9 +347,10 @@ static blk_status_t mmc_mq_queue_rq(struct blk_mq_hw_ctx *hctx,
 	struct request_queue *q = req->q;
 	struct mmc_queue *mq = q->queuedata;
 	struct mmc_card *card = mq->card;
+	struct mmc_host *host = card->host;
 	enum mmc_issue_type issue_type;
 	enum mmc_issued issued;
-	bool get_card;
+	bool get_card, cqe_retune_ok;
 	int ret;
 
 	if (mmc_card_removed(mq->card)) {
@@ -237,7 +362,19 @@ static blk_status_t mmc_mq_queue_rq(struct blk_mq_hw_ctx *hctx,
 
 	spin_lock_irq(q->queue_lock);
 
+	if (mq->recovery_needed) {
+		spin_unlock_irq(q->queue_lock);
+		return BLK_STS_RESOURCE;
+	}
+
 	switch (issue_type) {
+	case MMC_ISSUE_DCMD:
+		if (mmc_cqe_dcmd_busy(mq)) {
+			mq->cqe_busy |= MMC_CQE_DCMD_BUSY;
+			spin_unlock_irq(q->queue_lock);
+			return BLK_STS_RESOURCE;
+		}
+		break;
 	case MMC_ISSUE_ASYNC:
 		break;
 	default:
@@ -254,6 +391,7 @@ static blk_status_t mmc_mq_queue_rq(struct blk_mq_hw_ctx *hctx,
 
 	mq->in_flight[issue_type] += 1;
 	get_card = (mmc_tot_in_flight(mq) == 1);
+	cqe_retune_ok = (mmc_cqe_qcnt(mq) == 1);
 
 	spin_unlock_irq(q->queue_lock);
 
@@ -264,6 +402,11 @@ static blk_status_t mmc_mq_queue_rq(struct blk_mq_hw_ctx *hctx,
 
 	if (get_card)
 		mmc_get_card(card, &mq->ctx);
+
+	if (mq->use_cqe) {
+		host->retune_now = host->need_retune && cqe_retune_ok &&
+				   !host->hold_retune;
+	}
 
 	blk_mq_start_request(req);
 
@@ -326,6 +469,7 @@ static void mmc_setup_queue(struct mmc_queue *mq, struct mmc_card *card)
 	/* Initialize thread_sem even if it is not used */
 	sema_init(&mq->thread_sem, 1);
 
+	INIT_WORK(&mq->recovery_work, mmc_mq_recovery_handler);
 	INIT_WORK(&mq->complete_work, mmc_blk_mq_complete_work);
 
 	mutex_init(&mq->complete_lock);
@@ -375,10 +519,18 @@ free_tag_set:
 static int mmc_mq_init(struct mmc_queue *mq, struct mmc_card *card,
 			 spinlock_t *lock)
 {
+	struct mmc_host *host = card->host;
 	int q_depth;
 	int ret;
 
-	q_depth = MMC_QUEUE_DEPTH;
+	/*
+	 * The queue depth for CQE must match the hardware because the request
+	 * tag is used to index the hardware queue.
+	 */
+	if (mq->use_cqe)
+		q_depth = min_t(int, card->ext_csd.cmdq_depth, host->cqe_qdepth);
+	else
+		q_depth = MMC_QUEUE_DEPTH;
 
 	ret = mmc_mq_init_queue(mq, q_depth, &mmc_mq_ops, lock);
 	if (ret)
@@ -408,7 +560,9 @@ int mmc_init_queue(struct mmc_queue *mq, struct mmc_card *card,
 
 	mq->card = card;
 
-	if (mmc_host_use_blk_mq(host))
+	mq->use_cqe = host->cqe_enabled;
+
+	if (mq->use_cqe || mmc_host_use_blk_mq(host))
 		return mmc_mq_init(mq, card, lock);
 
 	mq->queue = blk_alloc_queue(GFP_KERNEL);

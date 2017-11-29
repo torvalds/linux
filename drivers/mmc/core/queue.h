@@ -17,6 +17,7 @@ enum mmc_issued {
 
 enum mmc_issue_type {
 	MMC_ISSUE_SYNC,
+	MMC_ISSUE_DCMD,
 	MMC_ISSUE_ASYNC,
 	MMC_ISSUE_MAX,
 };
@@ -92,8 +93,15 @@ struct mmc_queue {
 	int			qcnt;
 
 	int			in_flight[MMC_ISSUE_MAX];
+	unsigned int		cqe_busy;
+#define MMC_CQE_DCMD_BUSY	BIT(0)
+#define MMC_CQE_QUEUE_FULL	BIT(1)
+	bool			use_cqe;
+	bool			recovery_needed;
+	bool			in_recovery;
 	bool			rw_wait;
 	bool			waiting;
+	struct work_struct	recovery_work;
 	wait_queue_head_t	wait;
 	struct request		*complete_req;
 	struct mutex		complete_lock;
@@ -108,11 +116,21 @@ extern void mmc_queue_resume(struct mmc_queue *);
 extern unsigned int mmc_queue_map_sg(struct mmc_queue *,
 				     struct mmc_queue_req *);
 
+void mmc_cqe_check_busy(struct mmc_queue *mq);
+void mmc_cqe_recovery_notifier(struct mmc_request *mrq);
+
 enum mmc_issue_type mmc_issue_type(struct mmc_queue *mq, struct request *req);
 
 static inline int mmc_tot_in_flight(struct mmc_queue *mq)
 {
 	return mq->in_flight[MMC_ISSUE_SYNC] +
+	       mq->in_flight[MMC_ISSUE_DCMD] +
+	       mq->in_flight[MMC_ISSUE_ASYNC];
+}
+
+static inline int mmc_cqe_qcnt(struct mmc_queue *mq)
+{
+	return mq->in_flight[MMC_ISSUE_DCMD] +
 	       mq->in_flight[MMC_ISSUE_ASYNC];
 }
 
