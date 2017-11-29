@@ -2513,17 +2513,17 @@ void intel_ddi_prepare_link_retrain(struct intel_dp *intel_dp)
 	udelay(600);
 }
 
-bool intel_ddi_is_audio_enabled(struct drm_i915_private *dev_priv,
-				 struct intel_crtc *intel_crtc)
+static bool intel_ddi_is_audio_enabled(struct drm_i915_private *dev_priv,
+				       enum transcoder cpu_transcoder)
 {
-	u32 temp;
+	if (cpu_transcoder == TRANSCODER_EDP)
+		return false;
 
-	if (intel_display_power_is_enabled(dev_priv, POWER_DOMAIN_AUDIO)) {
-		temp = I915_READ(HSW_AUD_PIN_ELD_CP_VLD);
-		if (temp & AUDIO_OUTPUT_ENABLE(intel_crtc->pipe))
-			return true;
-	}
-	return false;
+	if (!intel_display_power_is_enabled(dev_priv, POWER_DOMAIN_AUDIO))
+		return false;
+
+	return I915_READ(HSW_AUD_PIN_ELD_CP_VLD) &
+		AUDIO_OUTPUT_ENABLE(cpu_transcoder);
 }
 
 void intel_ddi_compute_min_voltage_level(struct drm_i915_private *dev_priv,
@@ -2616,7 +2616,7 @@ void intel_ddi_get_config(struct intel_encoder *encoder,
 	}
 
 	pipe_config->has_audio =
-		intel_ddi_is_audio_enabled(dev_priv, intel_crtc);
+		intel_ddi_is_audio_enabled(dev_priv, cpu_transcoder);
 
 	if (encoder->type == INTEL_OUTPUT_EDP && dev_priv->vbt.edp.bpp &&
 	    pipe_config->pipe_bpp > dev_priv->vbt.edp.bpp) {
