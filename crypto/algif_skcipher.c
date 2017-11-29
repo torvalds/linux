@@ -72,6 +72,12 @@ static int _skcipher_recvmsg(struct socket *sock, struct msghdr *msg,
 	int err = 0;
 	size_t len = 0;
 
+	if (!ctx->used) {
+		err = af_alg_wait_for_data(sk, flags);
+		if (err)
+			return err;
+	}
+
 	/* Allocate cipher request for current operation. */
 	areq = af_alg_alloc_areq(sk, sizeof(struct af_alg_async_req) +
 				     crypto_skcipher_reqsize(tfm));
