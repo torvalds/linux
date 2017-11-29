@@ -931,6 +931,8 @@ static int card_busy_detect(struct mmc_card *card, unsigned int timeout_ms,
 	u32 status;
 
 	do {
+		bool done = time_after(jiffies, timeout);
+
 		err = __mmc_send_status(card, &status, 5);
 		if (err) {
 			pr_err("%s: error %d requesting status\n",
@@ -951,7 +953,7 @@ static int card_busy_detect(struct mmc_card *card, unsigned int timeout_ms,
 		 * Timeout if the device never becomes ready for data and never
 		 * leaves the program state.
 		 */
-		if (time_after(jiffies, timeout)) {
+		if (done) {
 			pr_err("%s: Card stuck in programming state! %s %s\n",
 				mmc_hostname(card->host),
 				req->rq_disk->disk_name, __func__);
