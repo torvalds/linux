@@ -20,20 +20,20 @@
 #include <linux/i2c.h>
 #include "dvb_frontend.h"
 
-/**
- * Attach a zl10036 tuner to the supplied frontend structure.
- *
- * @param fe Frontend to attach to.
- * @param config zl10036_config structure
- * @return FE pointer on success, NULL on failure.
- */
-
 struct zl10036_config {
 	u8 tuner_address;
 	int rf_loop_enable;
 };
 
 #if IS_REACHABLE(CONFIG_DVB_ZL10036)
+/**
+ * Attach a zl10036 tuner to the supplied frontend structure.
+ *
+ * @fe: Frontend to attach to.
+ * @config: zl10036_config structure.
+ * @i2c: pointer to struct i2c_adapter.
+ * return: FE pointer on success, NULL on failure.
+ */
 extern struct dvb_frontend *zl10036_attach(struct dvb_frontend *fe,
 	const struct zl10036_config *config, struct i2c_adapter *i2c);
 #else

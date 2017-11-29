@@ -27,7 +27,6 @@
  * @reg_read: Register read callback.
  * @reg_write: Register write callback.
  */
-
 struct zd1301_demod_platform_data {
 	void *reg_priv;
 	int (*reg_read)(void *, u16, u8 *);
@@ -41,8 +40,7 @@ struct zd1301_demod_platform_data {
  *
  * Return: Pointer to DVB frontend which given platform device owns.
  */
-
-struct dvb_frontend *zd1301_demod_get_dvb_frontend(struct platform_device *);
+struct dvb_frontend *zd1301_demod_get_dvb_frontend(struct platform_device *pdev);
 
 /**
  * zd1301_demod_get_i2c_adapter() - Get pointer to I2C adapter
@@ -50,8 +48,7 @@ struct dvb_frontend *zd1301_demod_get_dvb_frontend(struct platform_device *);
  *
  * Return: Pointer to I2C adapter which given platform device owns.
  */
-
-struct i2c_adapter *zd1301_demod_get_i2c_adapter(struct platform_device *);
+struct i2c_adapter *zd1301_demod_get_i2c_adapter(struct platform_device *pdev);
 
 #else
 

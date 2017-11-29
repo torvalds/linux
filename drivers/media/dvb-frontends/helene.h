@@ -38,6 +38,7 @@ enum helene_xtal {
  * @set_tuner_priv:	Callback function private context
  * @set_tuner_callback:	Callback function that notifies the parent driver
  *			which tuner is active now
+ * @xtal: Cristal frequency as described by &enum helene_xtal
  */
 struct helene_config {
 	u8	i2c_address;

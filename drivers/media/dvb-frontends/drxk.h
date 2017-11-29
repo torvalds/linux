@@ -20,17 +20,18 @@
  * @antenna_dvbt:	GPIO bit for changing antenna to DVB-C. A value of 1
  *			means that 1=DVBC, 0 = DVBT. Zero means the opposite.
  * @mpeg_out_clk_strength: DRXK Mpeg output clock drive strength.
+ * @chunk_size:		maximum size for I2C messages
  * @microcode_name:	Name of the firmware file with the microcode
  * @qam_demod_parameter_count:	The number of parameters used for the command
  *				to set the demodulator parameters. All
  *				firmwares are using the 2-parameter commmand.
- *				An exception is the "drxk_a3.mc" firmware,
+ *				An exception is the ``drxk_a3.mc`` firmware,
  *				which uses the 4-parameter command.
  *				A value of 0 (default) or lower indicates that
  *				the correct number of parameters will be
  *				automatically detected.
  *
- * On the *_gpio vars, bit 0 is UIO-1, bit 1 is UIO-2 and bit 2 is
+ * On the ``*_gpio`` vars, bit 0 is UIO-1, bit 1 is UIO-2 and bit 2 is
  * UIO-3.
  */
 struct drxk_config {

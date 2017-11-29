@@ -19,14 +19,6 @@
 #include <linux/i2c.h>
 #include "dvb_frontend.h"
 
-/**
- * Attach a ix2505v tuner to the supplied frontend structure.
- *
- * @param fe Frontend to attach to.
- * @param config ix2505v_config structure
- * @return FE pointer on success, NULL on failure.
- */
-
 struct ix2505v_config {
 	u8 tuner_address;
 
@@ -45,6 +37,15 @@ struct ix2505v_config {
 };
 
 #if IS_REACHABLE(CONFIG_DVB_IX2505V)
+/**
+ * Attach a ix2505v tuner to the supplied frontend structure.
+ *
+ * @fe: Frontend to attach to.
+ * @config: pointer to &struct ix2505v_config
+ * @i2c: pointer to &struct i2c_adapter.
+ *
+ * return: FE pointer on success, NULL on failure.
+ */
 extern struct dvb_frontend *ix2505v_attach(struct dvb_frontend *fe,
 	const struct ix2505v_config *config, struct i2c_adapter *i2c);
 #else

@@ -517,7 +517,7 @@ struct dvb_frontend* l64781_attach(const struct l64781_config* config,
 	state->i2c = i2c;
 	state->first = 1;
 
-	/**
+	/*
 	 *  the L64781 won't show up before we send the reset_and_configure()
 	 *  broadcast. If nothing responds there is no L64781 on the bus...
 	 */

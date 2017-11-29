@@ -33,11 +33,12 @@
 /**
  * Attach a dvb-pll to the supplied frontend structure.
  *
- * @param fe Frontend to attach to.
- * @param pll_addr i2c address of the PLL (if used).
- * @param i2c i2c adapter to use (set to NULL if not used).
- * @param pll_desc_id dvb_pll_desc to use.
- * @return Frontend pointer on success, NULL on failure
+ * @fe: Frontend to attach to.
+ * @pll_addr: i2c address of the PLL (if used).
+ * @i2c: i2c adapter to use (set to NULL if not used).
+ * @pll_desc_id: dvb_pll_desc to use.
+ *
+ * return: Frontend pointer on success, NULL on failure
  */
 #if IS_REACHABLE(CONFIG_DVB_PLL)
 extern struct dvb_frontend *dvb_pll_attach(struct dvb_frontend *fe,
