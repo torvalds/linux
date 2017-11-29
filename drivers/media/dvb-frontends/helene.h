@@ -49,7 +49,29 @@ struct helene_config {
 };
 
 #if IS_REACHABLE(CONFIG_DVB_HELENE)
+/**
+ * Attach a helene tuner (terrestrial and cable standards)
+ *
+ * @fe: frontend to be attached
+ * @config: pointer to &struct helene_config with tuner configuration.
+ * @i2c: i2c adapter to use.
+ *
+ * return: FE pointer on success, NULL on failure.
+ */
 extern struct dvb_frontend *helene_attach(struct dvb_frontend *fe,
+					const struct helene_config *config,
+					struct i2c_adapter *i2c);
+
+/**
+ * Attach a helene tuner (satellite standards)
+ *
+ * @fe: frontend to be attached
+ * @config: pointer to &struct helene_config with tuner configuration.
+ * @i2c: i2c adapter to use.
+ *
+ * return: FE pointer on success, NULL on failure.
+ */
+extern struct dvb_frontend *helene_attach_s(struct dvb_frontend *fe,
 					const struct helene_config *config,
 					struct i2c_adapter *i2c);
 #else
@@ -60,13 +82,6 @@ static inline struct dvb_frontend *helene_attach(struct dvb_frontend *fe,
 	pr_warn("%s: driver disabled by Kconfig\n", __func__);
 	return NULL;
 }
-#endif
-
-#if IS_REACHABLE(CONFIG_DVB_HELENE)
-extern struct dvb_frontend *helene_attach_s(struct dvb_frontend *fe,
-					const struct helene_config *config,
-					struct i2c_adapter *i2c);
-#else
 static inline struct dvb_frontend *helene_attach_s(struct dvb_frontend *fe,
 					const struct helene_config *config,
 					struct i2c_adapter *i2c)

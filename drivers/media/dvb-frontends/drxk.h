@@ -53,6 +53,14 @@ struct drxk_config {
 };
 
 #if IS_REACHABLE(CONFIG_DVB_DRXK)
+/**
+ * Attach a drxk demod
+ *
+ * @config: pointer to &struct drxk_config with demod configuration.
+ * @i2c: i2c adapter to use.
+ *
+ * return: FE pointer on success, NULL on failure.
+ */
 extern struct dvb_frontend *drxk_attach(const struct drxk_config *config,
 					struct i2c_adapter *i2c);
 #else

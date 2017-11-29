@@ -26,6 +26,7 @@
 #include <linux/i2c.h>
 #include "dvb_frontend.h"
 
+#if IS_REACHABLE(CONFIG_DVB_STB6000)
 /**
  * Attach a stb6000 tuner to the supplied frontend structure.
  *
@@ -35,7 +36,6 @@
  *
  * return: FE pointer on success, NULL on failure.
  */
-#if IS_REACHABLE(CONFIG_DVB_STB6000)
 extern struct dvb_frontend *stb6000_attach(struct dvb_frontend *fe, int addr,
 					   struct i2c_adapter *i2c);
 #else

@@ -19,19 +19,20 @@
 #include <linux/i2c.h>
 #include "dvb_frontend.h"
 
+/**
+ * struct ix2505v_config - ix2505 attachment configuration
+ *
+ * @tuner_address: tuner address
+ * @tuner_gain: Baseband AMP gain control 0/1=0dB(default) 2=-2bB 3=-4dB
+ * @tuner_chargepump: Charge pump output +/- 0=120 1=260 2=555 3=1200(default)
+ * @min_delay_ms: delay after tune
+ * @tuner_write_only: disables reads
+ */
 struct ix2505v_config {
 	u8 tuner_address;
-
-	/*Baseband AMP gain control 0/1=0dB(default) 2=-2bB 3=-4dB */
 	u8 tuner_gain;
-
-	/*Charge pump output +/- 0=120 1=260 2=555 3=1200(default) */
 	u8 tuner_chargepump;
-
-	/* delay after tune */
 	int min_delay_ms;
-
-	/* disables reads*/
 	u8 tuner_write_only;
 
 };
