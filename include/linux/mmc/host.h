@@ -424,9 +424,6 @@ struct mmc_host {
 
 	struct dentry		*debugfs_root;
 
-	struct mmc_async_req	*areq;		/* active async req */
-	struct mmc_context_info	context_info;	/* async synchronization info */
-
 	/* Ongoing data transfer that allows commands during transfer */
 	struct mmc_request	*ongoing_mrq;
 
