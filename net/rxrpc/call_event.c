@@ -426,7 +426,7 @@ recheck_state:
 	next = call->expect_rx_by;
 
 #define set(T) { t = READ_ONCE(T); if (time_before(t, next)) next = t; }
-	
+
 	set(call->expect_req_by);
 	set(call->expect_term_by);
 	set(call->ack_at);
