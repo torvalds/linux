@@ -48,13 +48,13 @@ void nlmclnt_next_cookie(struct nlm_cookie *c)
 
 static struct nlm_lockowner *nlm_get_lockowner(struct nlm_lockowner *lockowner)
 {
-	atomic_inc(&lockowner->count);
+	refcount_inc(&lockowner->count);
 	return lockowner;
 }
 
 static void nlm_put_lockowner(struct nlm_lockowner *lockowner)
 {
-	if (!atomic_dec_and_lock(&lockowner->count, &lockowner->host->h_lock))
+	if (!refcount_dec_and_lock(&lockowner->count, &lockowner->host->h_lock))
 		return;
 	list_del(&lockowner->list);
 	spin_unlock(&lockowner->host->h_lock);
@@ -105,7 +105,7 @@ static struct nlm_lockowner *nlm_find_lockowner(struct nlm_host *host, fl_owner_
 		res = __nlm_find_lockowner(host, owner);
 		if (res == NULL && new != NULL) {
 			res = new;
-			atomic_set(&new->count, 1);
+			refcount_set(&new->count, 1);
 			new->owner = owner;
 			new->pid = __nlm_alloc_pid(host);
 			new->host = nlm_get_host(host);
