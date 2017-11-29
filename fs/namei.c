@@ -1142,9 +1142,6 @@ static int follow_automount(struct path *path, struct nameidata *nd,
 			return -ENOENT;
 	}
 
-	if (path->dentry->d_sb->s_user_ns != &init_user_ns)
-		return -EACCES;
-
 	nd->total_link_count++;
 	if (nd->total_link_count >= 40)
 		return -ELOOP;
