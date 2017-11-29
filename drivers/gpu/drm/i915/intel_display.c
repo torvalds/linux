@@ -1038,28 +1038,14 @@ static void intel_wait_for_pipe_scanline_moving(struct intel_crtc *crtc)
 	wait_for_pipe_scanline_moving(crtc, true);
 }
 
-/*
- * intel_wait_for_pipe_off - wait for pipe to turn off
- * @crtc: crtc whose pipe to wait for
- *
- * After disabling a pipe, we can't wait for vblank in the usual way,
- * spinning on the vblank interrupt status bit, since we won't actually
- * see an interrupt when the pipe is disabled.
- *
- * On Gen4 and above:
- *   wait for the pipe register state bit to turn off
- *
- * Otherwise:
- *   wait for the display line value to settle (it usually
- *   ends up stopping at the start of the next frame).
- *
- */
-static void intel_wait_for_pipe_off(struct intel_crtc *crtc)
+static void
+intel_wait_for_pipe_off(const struct intel_crtc_state *old_crtc_state)
 {
+	struct intel_crtc *crtc = to_intel_crtc(old_crtc_state->base.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
-	enum transcoder cpu_transcoder = crtc->config->cpu_transcoder;
 
 	if (INTEL_GEN(dev_priv) >= 4) {
+		enum transcoder cpu_transcoder = old_crtc_state->cpu_transcoder;
 		i915_reg_t reg = PIPECONF(cpu_transcoder);
 
 		/* Wait for the Pipe State to go off */
@@ -1828,19 +1814,12 @@ enum pipe intel_crtc_pch_transcoder(struct intel_crtc *crtc)
 		return crtc->pipe;
 }
 
-/**
- * intel_enable_pipe - enable a pipe, asserting requirements
- * @crtc: crtc responsible for the pipe
- *
- * Enable @crtc's pipe, making sure that various hardware specific requirements
- * are met, if applicable, e.g. PLL enabled, LVDS pairs enabled, etc.
- */
-static void intel_enable_pipe(struct intel_crtc *crtc)
+static void intel_enable_pipe(const struct intel_crtc_state *new_crtc_state)
 {
-	struct drm_device *dev = crtc->base.dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct intel_crtc *crtc = to_intel_crtc(new_crtc_state->base.crtc);
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	enum transcoder cpu_transcoder = new_crtc_state->cpu_transcoder;
 	enum pipe pipe = crtc->pipe;
-	enum transcoder cpu_transcoder = crtc->config->cpu_transcoder;
 	i915_reg_t reg;
 	u32 val;
 
@@ -1854,12 +1833,12 @@ static void intel_enable_pipe(struct intel_crtc *crtc)
 	 * need the check.
 	 */
 	if (HAS_GMCH_DISPLAY(dev_priv)) {
-		if (intel_crtc_has_type(crtc->config, INTEL_OUTPUT_DSI))
+		if (intel_crtc_has_type(new_crtc_state, INTEL_OUTPUT_DSI))
 			assert_dsi_pll_enabled(dev_priv);
 		else
 			assert_pll_enabled(dev_priv, pipe);
 	} else {
-		if (crtc->config->has_pch_encoder) {
+		if (new_crtc_state->has_pch_encoder) {
 			/* if driving the PCH, we need FDI enabled */
 			assert_fdi_rx_pll_enabled(dev_priv,
 						  intel_crtc_pch_transcoder(crtc));
@@ -1887,24 +1866,15 @@ static void intel_enable_pipe(struct intel_crtc *crtc)
 	 * when it's derived from the timestamps. So let's wait for the
 	 * pipe to start properly before we call drm_crtc_vblank_on()
 	 */
-	if (dev->max_vblank_count == 0)
+	if (dev_priv->drm.max_vblank_count == 0)
 		intel_wait_for_pipe_scanline_moving(crtc);
 }
 
-/**
- * intel_disable_pipe - disable a pipe, asserting requirements
- * @crtc: crtc whose pipes is to be disabled
- *
- * Disable the pipe of @crtc, making sure that various hardware
- * specific requirements are met, if applicable, e.g. plane
- * disabled, panel fitter off, etc.
- *
- * Will wait until the pipe has shut down before returning.
- */
-static void intel_disable_pipe(struct intel_crtc *crtc)
+static void intel_disable_pipe(const struct intel_crtc_state *old_crtc_state)
 {
+	struct intel_crtc *crtc = to_intel_crtc(old_crtc_state->base.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
-	enum transcoder cpu_transcoder = crtc->config->cpu_transcoder;
+	enum transcoder cpu_transcoder = old_crtc_state->cpu_transcoder;
 	enum pipe pipe = crtc->pipe;
 	i915_reg_t reg;
 	u32 val;
@@ -1926,7 +1896,7 @@ static void intel_disable_pipe(struct intel_crtc *crtc)
 	 * Double wide has implications for planes
 	 * so best keep it disabled when not needed.
 	 */
-	if (crtc->config->double_wide)
+	if (old_crtc_state->double_wide)
 		val &= ~PIPECONF_DOUBLE_WIDE;
 
 	/* Don't disable pipe or pipe PLLs if needed */
@@ -1935,7 +1905,7 @@ static void intel_disable_pipe(struct intel_crtc *crtc)
 
 	I915_WRITE(reg, val);
 	if ((val & PIPECONF_ENABLE) == 0)
-		intel_wait_for_pipe_off(crtc);
+		intel_wait_for_pipe_off(old_crtc_state);
 }
 
 static unsigned int intel_tile_size(const struct drm_i915_private *dev_priv)
@@ -5354,7 +5324,7 @@ static void ironlake_crtc_enable(struct intel_crtc_state *pipe_config,
 
 	if (dev_priv->display.initial_watermarks != NULL)
 		dev_priv->display.initial_watermarks(old_intel_state, intel_crtc->config);
-	intel_enable_pipe(intel_crtc);
+	intel_enable_pipe(pipe_config);
 
 	if (intel_crtc->config->has_pch_encoder)
 		ironlake_pch_enable(pipe_config);
@@ -5473,7 +5443,7 @@ static void haswell_crtc_enable(struct intel_crtc_state *pipe_config,
 
 	/* XXX: Do the pipe assertions at the right place for BXT DSI. */
 	if (!transcoder_is_dsi(cpu_transcoder))
-		intel_enable_pipe(intel_crtc);
+		intel_enable_pipe(pipe_config);
 
 	if (intel_crtc->config->has_pch_encoder)
 		lpt_pch_enable(pipe_config);
@@ -5539,7 +5509,7 @@ static void ironlake_crtc_disable(struct intel_crtc_state *old_crtc_state,
 	drm_crtc_vblank_off(crtc);
 	assert_vblank_disabled(crtc);
 
-	intel_disable_pipe(intel_crtc);
+	intel_disable_pipe(old_crtc_state);
 
 	ironlake_pfit_disable(intel_crtc, false);
 
@@ -5591,7 +5561,7 @@ static void haswell_crtc_disable(struct intel_crtc_state *old_crtc_state,
 
 	/* XXX: Do the pipe assertions at the right place for BXT DSI. */
 	if (!transcoder_is_dsi(cpu_transcoder))
-		intel_disable_pipe(intel_crtc);
+		intel_disable_pipe(old_crtc_state);
 
 	if (intel_crtc_has_type(intel_crtc->config, INTEL_OUTPUT_DP_MST))
 		intel_ddi_set_vc_payload_alloc(intel_crtc->config, false);
@@ -5769,7 +5739,7 @@ static void valleyview_crtc_enable(struct intel_crtc_state *pipe_config,
 
 	dev_priv->display.initial_watermarks(old_intel_state,
 					     pipe_config);
-	intel_enable_pipe(intel_crtc);
+	intel_enable_pipe(pipe_config);
 
 	assert_vblank_disabled(crtc);
 	drm_crtc_vblank_on(crtc);
@@ -5828,7 +5798,7 @@ static void i9xx_crtc_enable(struct intel_crtc_state *pipe_config,
 						     intel_crtc->config);
 	else
 		intel_update_watermarks(intel_crtc);
-	intel_enable_pipe(intel_crtc);
+	intel_enable_pipe(pipe_config);
 
 	assert_vblank_disabled(crtc);
 	drm_crtc_vblank_on(crtc);
@@ -5872,7 +5842,7 @@ static void i9xx_crtc_disable(struct intel_crtc_state *old_crtc_state,
 	drm_crtc_vblank_off(crtc);
 	assert_vblank_disabled(crtc);
 
-	intel_disable_pipe(intel_crtc);
+	intel_disable_pipe(old_crtc_state);
 
 	i9xx_pfit_disable(intel_crtc);
 
