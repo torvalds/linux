@@ -148,6 +148,12 @@ Sorting
 .. kernel-doc:: lib/list_sort.c
    :export:
 
+UUID/GUID
+---------
+
+.. kernel-doc:: lib/uuid.c
+   :export:
+
 Memory Management in Linux
 ==========================
 
