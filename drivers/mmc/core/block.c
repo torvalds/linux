@@ -2139,6 +2139,26 @@ static inline bool mmc_blk_rq_error(struct mmc_blk_request *brq)
 	       brq->data.error || brq->cmd.resp[0] & CMD_ERRORS;
 }
 
+static int mmc_blk_card_busy(struct mmc_card *card, struct request *req)
+{
+	struct mmc_queue_req *mqrq = req_to_mmc_queue_req(req);
+	bool gen_err = false;
+	int err;
+
+	if (mmc_host_is_spi(card->host) || rq_data_dir(req) == READ)
+		return 0;
+
+	err = card_busy_detect(card, MMC_BLK_TIMEOUT_MS, false, req, &gen_err);
+
+	/* Copy the general error bit so it will be seen later on */
+	if (gen_err) {
+		mqrq->brq.stop.resp[0] |= R1_ERROR;
+		err = err ? err : -EIO;
+	}
+
+	return err;
+}
+
 static inline void mmc_blk_rw_reset_success(struct mmc_queue *mq,
 					    struct request *req)
 {
@@ -2197,8 +2217,15 @@ static void mmc_blk_mq_poll_completion(struct mmc_queue *mq,
 				       struct request *req)
 {
 	struct mmc_queue_req *mqrq = req_to_mmc_queue_req(req);
+	struct mmc_host *host = mq->card->host;
 
-	mmc_blk_mq_rw_recovery(mq, req);
+	if (mmc_blk_rq_error(&mqrq->brq) ||
+	    mmc_blk_card_busy(mq->card, req)) {
+		mmc_blk_mq_rw_recovery(mq, req);
+	} else {
+		mmc_blk_rw_reset_success(mq, req);
+		mmc_retune_release(host);
+	}
 
 	mmc_blk_urgent_bkops(mq, mqrq);
 }
