@@ -1201,20 +1201,22 @@ static void retire_worker(struct work_struct *work)
 					       retire_work);
 	u32 fence = gpu->completed_fence;
 	struct etnaviv_gem_submit *submit, *tmp;
+	LIST_HEAD(retire_list);
 
 	mutex_lock(&gpu->lock);
 	list_for_each_entry_safe(submit, tmp, &gpu->active_submit_list, node) {
 		if (!dma_fence_is_signaled(submit->out_fence))
 			break;
 
-		list_del(&submit->node);
-
-		etnaviv_submit_put(submit);
+		list_move(&submit->node, &retire_list);
 	}
 
 	gpu->retired_fence = fence;
 
 	mutex_unlock(&gpu->lock);
+
+	list_for_each_entry_safe(submit, tmp, &retire_list, node)
+		etnaviv_submit_put(submit);
 }
 
 int etnaviv_gpu_wait_fence_interruptible(struct etnaviv_gpu *gpu,
