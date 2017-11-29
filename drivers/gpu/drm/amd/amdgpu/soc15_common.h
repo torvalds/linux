@@ -41,11 +41,7 @@ struct nbio_hdp_flush_reg {
 
 
 /* Register Access Macros */
-#define SOC15_REG_OFFSET(ip, inst, reg)       (0 == reg##_BASE_IDX ? ip##_BASE__INST##inst##_SEG0 + reg : \
-                                                (1 == reg##_BASE_IDX ? ip##_BASE__INST##inst##_SEG1 + reg : \
-                                                    (2 == reg##_BASE_IDX ? ip##_BASE__INST##inst##_SEG2 + reg : \
-                                                        (3 == reg##_BASE_IDX ? ip##_BASE__INST##inst##_SEG3 + reg : \
-                                                            (ip##_BASE__INST##inst##_SEG4 + reg)))))
+#define SOC15_REG_OFFSET(ip, inst, reg)	(adev->reg_offset[ip##_HWIP][inst][reg##_BASE_IDX] + reg)
 
 #define WREG32_FIELD15(ip, idx, reg, field, val)	\
 	WREG32(adev->reg_offset[ip##_HWIP][idx][mm##reg##_BASE_IDX] + mm##reg,	\

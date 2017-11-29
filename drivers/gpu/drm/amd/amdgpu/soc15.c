@@ -373,12 +373,9 @@ static uint32_t soc15_get_register_value(struct amdgpu_device *adev,
 	if (indexed) {
 		return soc15_read_indexed_register(adev, se_num, sh_num, reg_offset);
 	} else {
-		switch (reg_offset) {
-		case SOC15_REG_OFFSET(GC, 0, mmGB_ADDR_CONFIG):
+		if (reg_offset == SOC15_REG_OFFSET(GC, 0, mmGB_ADDR_CONFIG))
 			return adev->gfx.config.gb_addr_config;
-		default:
-			return RREG32(reg_offset);
-		}
+		return RREG32(reg_offset);
 	}
 }
 
