@@ -170,7 +170,7 @@
 };
 
 &gpr {
-	ipu1_csi0_mux: ipu1_csi0_mux@34 {
+	ipu1_csi0_mux {
 		compatible = "video-mux";
 		mux-controls = <&mux 0>;
 		#address-cells = <1>;
@@ -224,7 +224,7 @@
 		};
 	};
 
-	ipu1_csi1_mux: ipu1_csi1_mux@34 {
+	ipu1_csi1_mux {
 		compatible = "video-mux";
 		mux-controls = <&mux 1>;
 		#address-cells = <1>;
