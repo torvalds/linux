@@ -8,6 +8,19 @@
 #include <linux/mmc/core.h>
 #include <linux/mmc/host.h>
 
+enum mmc_issued {
+	MMC_REQ_STARTED,
+	MMC_REQ_BUSY,
+	MMC_REQ_FAILED_TO_START,
+	MMC_REQ_FINISHED,
+};
+
+enum mmc_issue_type {
+	MMC_ISSUE_SYNC,
+	MMC_ISSUE_ASYNC,
+	MMC_ISSUE_MAX,
+};
+
 static inline struct mmc_queue_req *req_to_mmc_queue_req(struct request *rq)
 {
 	return blk_mq_rq_to_pdu(rq);
@@ -57,12 +70,15 @@ struct mmc_queue_req {
 	int			drv_op_result;
 	void			*drv_op_data;
 	unsigned int		ioc_count;
+	int			retries;
 };
 
 struct mmc_queue {
 	struct mmc_card		*card;
 	struct task_struct	*thread;
 	struct semaphore	thread_sem;
+	struct mmc_ctx		ctx;
+	struct blk_mq_tag_set	tag_set;
 	bool			suspended;
 	bool			asleep;
 	struct mmc_blk_data	*blkdata;
@@ -74,6 +90,14 @@ struct mmc_queue {
 	 * associated mmc_queue_req data.
 	 */
 	int			qcnt;
+
+	int			in_flight[MMC_ISSUE_MAX];
+	bool			rw_wait;
+	bool			waiting;
+	wait_queue_head_t	wait;
+	struct request		*complete_req;
+	struct mutex		complete_lock;
+	struct work_struct	complete_work;
 };
 
 extern int mmc_init_queue(struct mmc_queue *, struct mmc_card *, spinlock_t *,
@@ -83,5 +107,13 @@ extern void mmc_queue_suspend(struct mmc_queue *);
 extern void mmc_queue_resume(struct mmc_queue *);
 extern unsigned int mmc_queue_map_sg(struct mmc_queue *,
 				     struct mmc_queue_req *);
+
+enum mmc_issue_type mmc_issue_type(struct mmc_queue *mq, struct request *req);
+
+static inline int mmc_tot_in_flight(struct mmc_queue *mq)
+{
+	return mq->in_flight[MMC_ISSUE_SYNC] +
+	       mq->in_flight[MMC_ISSUE_ASYNC];
+}
 
 #endif
