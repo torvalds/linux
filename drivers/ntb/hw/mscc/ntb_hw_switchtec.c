@@ -109,6 +109,7 @@ struct switchtec_ntb {
 
 	int nr_direct_mw;
 	int nr_lut_mw;
+	int nr_rsvd_luts;
 	int direct_mw_to_bar[MAX_DIRECT_MW];
 
 	int peer_nr_direct_mw;
@@ -197,7 +198,7 @@ static int switchtec_ntb_mw_count(struct ntb_dev *ntb, int pidx)
 {
 	struct switchtec_ntb *sndev = ntb_sndev(ntb);
 	int nr_direct_mw = sndev->peer_nr_direct_mw;
-	int nr_lut_mw = sndev->peer_nr_lut_mw - 1;
+	int nr_lut_mw = sndev->peer_nr_lut_mw - sndev->nr_rsvd_luts;
 
 	if (pidx != NTB_DEF_PEER_IDX)
 		return -EINVAL;
@@ -210,12 +211,12 @@ static int switchtec_ntb_mw_count(struct ntb_dev *ntb, int pidx)
 
 static int lut_index(struct switchtec_ntb *sndev, int mw_idx)
 {
-	return mw_idx - sndev->nr_direct_mw + 1;
+	return mw_idx - sndev->nr_direct_mw + sndev->nr_rsvd_luts;
 }
 
 static int peer_lut_index(struct switchtec_ntb *sndev, int mw_idx)
 {
-	return mw_idx - sndev->peer_nr_direct_mw + 1;
+	return mw_idx - sndev->peer_nr_direct_mw + sndev->nr_rsvd_luts;
 }
 
 static int switchtec_ntb_mw_get_align(struct ntb_dev *ntb, int pidx,
@@ -355,8 +356,9 @@ static int switchtec_ntb_mw_set_trans(struct ntb_dev *ntb, int pidx, int widx,
 static int switchtec_ntb_peer_mw_count(struct ntb_dev *ntb)
 {
 	struct switchtec_ntb *sndev = ntb_sndev(ntb);
+	int nr_lut_mw = sndev->nr_lut_mw - sndev->nr_rsvd_luts;
 
-	return sndev->nr_direct_mw + (use_lut_mws ? sndev->nr_lut_mw - 1 : 0);
+	return sndev->nr_direct_mw + (use_lut_mws ? nr_lut_mw : 0);
 }
 
 static int switchtec_ntb_direct_get_addr(struct switchtec_ntb *sndev,
@@ -1008,6 +1010,7 @@ static int switchtec_ntb_init_shared_mw(struct switchtec_ntb *sndev)
 	u32 ctl_val;
 	int rc;
 
+	sndev->nr_rsvd_luts++;
 	sndev->self_shared = dma_zalloc_coherent(&sndev->stdev->pdev->dev,
 						 LUT_SIZE,
 						 &sndev->self_shared_dma,
@@ -1074,6 +1077,7 @@ static void switchtec_ntb_deinit_shared_mw(struct switchtec_ntb *sndev)
 		dma_free_coherent(&sndev->stdev->pdev->dev, LUT_SIZE,
 				  sndev->self_shared,
 				  sndev->self_shared_dma);
+	sndev->nr_rsvd_luts--;
 }
 
 static irqreturn_t switchtec_ntb_doorbell_isr(int irq, void *dev)
