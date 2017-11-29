@@ -292,7 +292,20 @@ enum {
 struct pff_csr_regs {
 	u16 vendor_id;
 	u16 device_id;
-	u32 pci_cfg_header[15];
+	u16 pcicmd;
+	u16 pcists;
+	u32 pci_class;
+	u32 pci_opts;
+	union {
+		u32 pci_bar[6];
+		u64 pci_bar64[3];
+	};
+	u32 pci_cardbus;
+	u32 pci_subsystem_id;
+	u32 pci_expansion_rom;
+	u32 pci_cap_ptr;
+	u32 reserved1;
+	u32 pci_irq;
 	u32 pci_cap_region[48];
 	u32 pcie_cap_region[448];
 	u32 indirect_gas_window[128];
