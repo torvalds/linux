@@ -116,6 +116,66 @@
 		clock-output-names = "osc";
 	};
 
+	usbphynop1: usbphynop1 {
+		compatible = "usb-nop-xceiv";
+		clocks = <&clks IMX7D_USB_PHY1_CLK>;
+		clock-names = "main_clk";
+		#phy-cells = <0>;
+	};
+
+	usbphynop3: usbphynop3 {
+		compatible = "usb-nop-xceiv";
+		clocks = <&clks IMX7D_USB_HSIC_ROOT_CLK>;
+		clock-names = "main_clk";
+		#phy-cells = <0>;
+	};
+
+
+	replicator {
+		/*
+		 * non-configurable replicators don't show up on the
+		 * AMBA bus.  As such no need to add "arm,primecell"
+		 */
+		compatible = "arm,coresight-replicator";
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+				/* replicator output ports */
+			port@0 {
+				reg = <0>;
+				replicator_out_port0: endpoint {
+					remote-endpoint = <&tpiu_in_port>;
+				};
+			};
+
+			port@1 {
+				reg = <1>;
+				replicator_out_port1: endpoint {
+					remote-endpoint = <&etr_in_port>;
+				};
+			};
+
+			/* replicator input port */
+			port@2 {
+				reg = <0>;
+				replicator_in_port0: endpoint {
+					slave-mode;
+					remote-endpoint = <&etf_out_port>;
+				};
+			};
+		};
+	};
+
+	timer {
+		compatible = "arm,armv7-timer";
+		interrupt-parent = <&intc>;
+		interrupts = <GIC_PPI 13 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>,
+			     <GIC_PPI 14 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>,
+			     <GIC_PPI 11 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>,
+			     <GIC_PPI 10 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>;
+	};
+
 	soc {
 		#address-cells = <1>;
 		#size-cells = <1>;
@@ -260,43 +320,6 @@
 			};
 		};
 
-		replicator {
-			/*
-			 * non-configurable replicators don't show up on the
-			 * AMBA bus.  As such no need to add "arm,primecell"
-			 */
-			compatible = "arm,coresight-replicator";
-
-			ports {
-				#address-cells = <1>;
-				#size-cells = <0>;
-
-				/* replicator output ports */
-				port@0 {
-					reg = <0>;
-					replicator_out_port0: endpoint {
-						remote-endpoint = <&tpiu_in_port>;
-					};
-				};
-
-				port@1 {
-					reg = <1>;
-					replicator_out_port1: endpoint {
-						remote-endpoint = <&etr_in_port>;
-					};
-				};
-
-				/* replicator input port */
-				port@2 {
-					reg = <0>;
-					replicator_in_port0: endpoint {
-						slave-mode;
-						remote-endpoint = <&etf_out_port>;
-					};
-				};
-			};
-		};
-
 		intc: interrupt-controller@31001000 {
 			compatible = "arm,cortex-a7-gic";
 			interrupts = <GIC_PPI 9 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_HIGH)>;
@@ -307,15 +330,6 @@
 			      <0x31002000 0x2000>,
 			      <0x31004000 0x2000>,
 			      <0x31006000 0x2000>;
-		};
-
-		timer {
-			compatible = "arm,armv7-timer";
-			interrupt-parent = <&intc>;
-			interrupts = <GIC_PPI 13 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>,
-				     <GIC_PPI 14 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>,
-				     <GIC_PPI 11 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>,
-				     <GIC_PPI 10 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>;
 		};
 
 		aips1: aips-bus@30000000 {
@@ -943,20 +957,6 @@
 				#index-cells = <1>;
 				compatible = "fsl,imx7d-usbmisc", "fsl,imx6q-usbmisc";
 				reg = <0x30b30200 0x200>;
-			};
-
-			usbphynop1: usbphynop1 {
-				compatible = "usb-nop-xceiv";
-				clocks = <&clks IMX7D_USB_PHY1_CLK>;
-				clock-names = "main_clk";
-				#phy-cells = <0>;
-			};
-
-			usbphynop3: usbphynop3 {
-				compatible = "usb-nop-xceiv";
-				clocks = <&clks IMX7D_USB_HSIC_ROOT_CLK>;
-				clock-names = "main_clk";
-				#phy-cells = <0>;
 			};
 
 			usdhc1: usdhc@30b40000 {
