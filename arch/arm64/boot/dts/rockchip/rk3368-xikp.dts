@@ -779,7 +779,7 @@
 			native-mode = <&timing0>;
 
 			timing0: timing0 {
-				clock-frequency = <145000000>;
+				clock-frequency = <159000000>;
 				hactive = <1200>;
 				vactive = <1920>;
 				hback-porch = <60>;
