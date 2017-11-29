@@ -265,8 +265,6 @@ static inline u64 nsec_to_cycles(struct kvm_vcpu *vcpu, u64 nsec)
 
 static inline bool kvm_mwait_in_guest(void)
 {
-	unsigned int eax, ebx, ecx, edx;
-
 	if (!cpu_has(&boot_cpu_data, X86_FEATURE_MWAIT))
 		return false;
 
@@ -275,29 +273,10 @@ static inline bool kvm_mwait_in_guest(void)
 		/* All AMD CPUs have a working MWAIT implementation */
 		return true;
 	case X86_VENDOR_INTEL:
-		/* Handle Intel below */
-		break;
+		return !boot_cpu_has_bug(X86_BUG_MONITOR);
 	default:
 		return false;
 	}
-
-	if (boot_cpu_has_bug(X86_BUG_MONITOR))
-		return false;
-
-	/*
-	 * Intel CPUs without CPUID5_ECX_INTERRUPT_BREAK are problematic as
-	 * they would allow guest to stop the CPU completely by disabling
-	 * interrupts then invoking MWAIT.
-	 */
-	if (boot_cpu_data.cpuid_level < CPUID_MWAIT_LEAF)
-		return false;
-
-	cpuid(CPUID_MWAIT_LEAF, &eax, &ebx, &ecx, &edx);
-
-	if (!(ecx & CPUID5_ECX_INTERRUPT_BREAK))
-		return false;
-
-	return true;
 }
 
 #endif
