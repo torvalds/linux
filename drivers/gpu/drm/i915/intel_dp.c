@@ -5180,8 +5180,11 @@ static void
 intel_dp_add_properties(struct intel_dp *intel_dp, struct drm_connector *connector)
 {
 	struct drm_i915_private *dev_priv = to_i915(connector->dev);
+	enum port port = dp_to_dig_port(intel_dp)->base.port;
 
-	intel_attach_force_audio_property(connector);
+	if (!IS_G4X(dev_priv) && port != PORT_A)
+		intel_attach_force_audio_property(connector);
+
 	intel_attach_broadcast_rgb_property(connector);
 
 	if (intel_dp_is_edp(intel_dp)) {
