@@ -385,11 +385,6 @@ Switch configuration
   avoid relying on what a previous software agent such as a bootloader/firmware
   may have previously configured.
 
-- set_addr: Some switches require the programming of the management interface's
-  Ethernet MAC address, switch drivers can also disable ageing of MAC addresses
-  on the management interface and "hardcode"/"force" this MAC address for the
-  CPU/management interface as an optimization
-
 PHY devices and link management
 -------------------------------
 
