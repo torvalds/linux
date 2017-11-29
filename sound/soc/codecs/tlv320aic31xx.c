@@ -925,8 +925,16 @@ static int aic31xx_set_dai_fmt(struct snd_soc_dai *codec_dai,
 	case SND_SOC_DAIFMT_CBM_CFM:
 		iface_reg1 |= AIC31XX_BCLK_MASTER | AIC31XX_WCLK_MASTER;
 		break;
+	case SND_SOC_DAIFMT_CBS_CFM:
+		iface_reg1 |= AIC31XX_WCLK_MASTER;
+		break;
+	case SND_SOC_DAIFMT_CBM_CFS:
+		iface_reg1 |= AIC31XX_BCLK_MASTER;
+		break;
+	case SND_SOC_DAIFMT_CBS_CFS:
+		break;
 	default:
-		dev_alert(codec->dev, "Invalid DAI master/slave interface\n");
+		dev_err(codec->dev, "Invalid DAI master/slave interface\n");
 		return -EINVAL;
 	}
 
