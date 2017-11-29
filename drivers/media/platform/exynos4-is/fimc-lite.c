@@ -1462,10 +1462,7 @@ static void fimc_lite_clk_put(struct fimc_lite *fimc)
 static int fimc_lite_clk_get(struct fimc_lite *fimc)
 {
 	fimc->clock = clk_get(&fimc->pdev->dev, FLITE_CLK_NAME);
-	if (IS_ERR(fimc->clock))
-		return PTR_ERR(fimc->clock);
-
-	return 0;
+	return PTR_ERR_OR_ZERO(fimc->clock);
 }
 
 static const struct of_device_id flite_of_match[];
