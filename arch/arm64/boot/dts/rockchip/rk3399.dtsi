@@ -1648,6 +1648,8 @@
 			 <&cru SCLK_DPHY_TX0_CFG>, <&cru PCLK_VIO_GRF>;
 		clock-names = "ref", "pclk", "phy_cfg", "grf";
 		power-domains = <&power RK3399_PD_VIO>;
+		resets = <&cru SRST_P_MIPI_DSI0>;
+		reset-names = "apb";
 		rockchip,grf = <&grf>;
 		status = "disabled";
 
