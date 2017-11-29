@@ -404,6 +404,19 @@ static inline size_t tee_shm_get_size(struct tee_shm *shm)
 }
 
 /**
+ * tee_shm_get_pages() - Get list of pages that hold shared buffer
+ * @shm:	Shared memory handle
+ * @num_pages:	Number of pages will be stored there
+ * @returns pointer to pages array
+ */
+static inline struct page **tee_shm_get_pages(struct tee_shm *shm,
+					      size_t *num_pages)
+{
+	*num_pages = shm->num_pages;
+	return shm->pages;
+}
+
+/**
  * tee_shm_get_page_offset() - Get shared buffer offset from page start
  * @shm:	Shared memory handle
  * @returns page offset of shared buffer
