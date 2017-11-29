@@ -35,6 +35,8 @@ struct mmc_bus_ops {
 	int (*reset)(struct mmc_host *);
 };
 
+extern bool mmc_use_blk_mq;
+
 void mmc_attach_bus(struct mmc_host *host, const struct mmc_bus_ops *ops);
 void mmc_detach_bus(struct mmc_host *host);
 

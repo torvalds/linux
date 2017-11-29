@@ -12,6 +12,16 @@ menuconfig MMC
 	  If you want MMC/SD/SDIO support, you should say Y here and
 	  also to your specific host controller driver.
 
+config MMC_MQ_DEFAULT
+	bool "MMC: use blk-mq I/O path by default"
+	depends on MMC && BLOCK
+	default y
+	---help---
+	  This option enables the new blk-mq based I/O path for MMC block
+	  devices by default.  With the option the mmc_core.use_blk_mq
+	  module/boot option defaults to Y, without it to N, but it can
+	  still be overridden either way.
+
 if MMC
 
 source "drivers/mmc/core/Kconfig"

@@ -66,6 +66,13 @@ static const unsigned freqs[] = { 400000, 300000, 200000, 100000 };
 bool use_spi_crc = 1;
 module_param(use_spi_crc, bool, 0);
 
+#ifdef CONFIG_MMC_MQ_DEFAULT
+bool mmc_use_blk_mq = true;
+#else
+bool mmc_use_blk_mq = false;
+#endif
+module_param_named(use_blk_mq, mmc_use_blk_mq, bool, S_IWUSR | S_IRUGO);
+
 static int mmc_schedule_delayed_work(struct delayed_work *work,
 				     unsigned long delay)
 {
