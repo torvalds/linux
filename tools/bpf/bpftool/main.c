@@ -288,6 +288,7 @@ int main(int argc, char **argv)
 	hash_init(prog_table.table);
 	hash_init(map_table.table);
 
+	opterr = 0;
 	while ((opt = getopt_long(argc, argv, "Vhpjf",
 				  options, NULL)) >= 0) {
 		switch (opt) {
@@ -313,7 +314,11 @@ int main(int argc, char **argv)
 			show_pinned = true;
 			break;
 		default:
-			usage();
+			p_err("unrecognized option '%s'", argv[optind - 1]);
+			if (json_output)
+				clean_and_exit(-1);
+			else
+				usage();
 		}
 	}
 
