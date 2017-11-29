@@ -73,4 +73,7 @@ int tee_shm_get_fd(struct tee_shm *shm);
 bool tee_device_get(struct tee_device *teedev);
 void tee_device_put(struct tee_device *teedev);
 
+void teedev_ctx_get(struct tee_context *ctx);
+void teedev_ctx_put(struct tee_context *ctx);
+
 #endif /*TEE_PRIVATE_H*/

@@ -17,6 +17,7 @@
 
 #include <linux/types.h>
 #include <linux/idr.h>
+#include <linux/kref.h>
 #include <linux/list.h>
 #include <linux/tee.h>
 
@@ -42,11 +43,17 @@ struct tee_shm_pool;
  * @teedev:	pointer to this drivers struct tee_device
  * @list_shm:	List of shared memory object owned by this context
  * @data:	driver specific context data, managed by the driver
+ * @refcount:	reference counter for this structure
+ * @releasing:  flag that indicates if context is being released right now.
+ *		It is needed to break circular dependency on context during
+ *              shared memory release.
  */
 struct tee_context {
 	struct tee_device *teedev;
 	struct list_head list_shm;
 	void *data;
+	struct kref refcount;
+	bool releasing;
 };
 
 struct tee_param_memref {
