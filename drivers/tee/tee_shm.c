@@ -497,17 +497,6 @@ struct tee_shm *tee_shm_get_from_id(struct tee_context *ctx, int id)
 EXPORT_SYMBOL_GPL(tee_shm_get_from_id);
 
 /**
- * tee_shm_get_id() - Get id of a shared memory object
- * @shm:	Shared memory handle
- * @returns id
- */
-int tee_shm_get_id(struct tee_shm *shm)
-{
-	return shm->id;
-}
-EXPORT_SYMBOL_GPL(tee_shm_get_id);
-
-/**
  * tee_shm_put() - Decrease reference count on a shared memory handle
  * @shm:	Shared memory handle
  */
