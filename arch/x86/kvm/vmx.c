@@ -650,6 +650,8 @@ struct vcpu_vmx {
 
 	u32 host_pkru;
 
+	unsigned long host_debugctlmsr;
+
 	/*
 	 * Only bits masked by msr_ia32_feature_control_valid_bits can be set in
 	 * msr_ia32_feature_control. FEATURE_CONTROL_LOCKED is always included
@@ -2318,6 +2320,7 @@ static void vmx_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 
 	vmx_vcpu_pi_load(vcpu, cpu);
 	vmx->host_pkru = read_pkru();
+	vmx->host_debugctlmsr = get_debugctlmsr();
 }
 
 static void vmx_vcpu_pi_put(struct kvm_vcpu *vcpu)
@@ -9261,7 +9264,7 @@ static void vmx_arm_hv_timer(struct kvm_vcpu *vcpu)
 static void __noclone vmx_vcpu_run(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
-	unsigned long debugctlmsr, cr3, cr4;
+	unsigned long cr3, cr4;
 
 	/* Record the guest's net vcpu time for enforced NMI injections. */
 	if (unlikely(!enable_vnmi &&
@@ -9314,7 +9317,6 @@ static void __noclone vmx_vcpu_run(struct kvm_vcpu *vcpu)
 		__write_pkru(vcpu->arch.pkru);
 
 	atomic_switch_perf_msrs(vmx);
-	debugctlmsr = get_debugctlmsr();
 
 	vmx_arm_hv_timer(vcpu);
 
@@ -9425,8 +9427,8 @@ static void __noclone vmx_vcpu_run(struct kvm_vcpu *vcpu)
 	      );
 
 	/* MSR_IA32_DEBUGCTLMSR is zeroed on vmexit. Restore it if needed */
-	if (debugctlmsr)
-		update_debugctlmsr(debugctlmsr);
+	if (vmx->host_debugctlmsr)
+		update_debugctlmsr(vmx->host_debugctlmsr);
 
 #ifndef CONFIG_X86_64
 	/*
