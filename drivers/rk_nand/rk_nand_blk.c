@@ -697,10 +697,11 @@ static int nand_blk_register(struct nand_blk_ops *nandr)
 
 	ret = rk_ftl_vendor_storage_init();
 	if (!ret) {
-#ifdef CONFIG_ROCKCHIP_VENDOR_STORAGE
 		rk_vendor_register(rk_ftl_vendor_read, rk_ftl_vendor_write);
-#endif
 		rknand_vendor_storage_init();
+		pr_info("rknand vendor storage init ok !\n");
+	} else {
+		pr_info("rknand vendor storage init failed !\n");
 	}
 
 	return 0;
