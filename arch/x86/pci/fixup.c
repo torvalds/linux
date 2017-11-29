@@ -696,8 +696,13 @@ static void pci_amd_enable_64bit_bar(struct pci_dev *dev)
 	res->end = 0xfd00000000ull - 1;
 
 	/* Just grab the free area behind system memory for this */
-	while ((conflict = request_resource_conflict(&iomem_resource, res)))
+	while ((conflict = request_resource_conflict(&iomem_resource, res))) {
+		if (conflict->end >= res->end) {
+			kfree(res);
+			return;
+		}
 		res->start = conflict->end + 1;
+	}
 
 	dev_info(&dev->dev, "adding root bus resource %pR\n", res);
 
