@@ -33,8 +33,6 @@ LIST_HEAD(opp_tables);
 /* Lock to allow exclusive modification to the device and opp lists */
 DEFINE_MUTEX(opp_table_lock);
 
-static void dev_pm_opp_get(struct dev_pm_opp *opp);
-
 static struct opp_device *_find_opp_dev(const struct device *dev,
 					struct opp_table *opp_table)
 {
@@ -901,7 +899,7 @@ static void _opp_kref_release(struct kref *kref)
 	dev_pm_opp_put_opp_table(opp_table);
 }
 
-static void dev_pm_opp_get(struct dev_pm_opp *opp)
+void dev_pm_opp_get(struct dev_pm_opp *opp)
 {
 	kref_get(&opp->kref);
 }

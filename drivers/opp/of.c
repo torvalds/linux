@@ -673,3 +673,57 @@ put_cpu_node:
 	return ret;
 }
 EXPORT_SYMBOL_GPL(dev_pm_opp_of_get_sharing_cpus);
+
+/**
+ * of_dev_pm_opp_find_required_opp() - Search for required OPP.
+ * @dev: The device whose OPP node is referenced by the 'np' DT node.
+ * @np: Node that contains the "required-opps" property.
+ *
+ * Returns the OPP of the device 'dev', whose phandle is present in the "np"
+ * node. Although the "required-opps" property supports having multiple
+ * phandles, this helper routine only parses the very first phandle in the list.
+ *
+ * Return: Matching opp, else returns ERR_PTR in case of error and should be
+ * handled using IS_ERR.
+ *
+ * The callers are required to call dev_pm_opp_put() for the returned OPP after
+ * use.
+ */
+struct dev_pm_opp *of_dev_pm_opp_find_required_opp(struct device *dev,
+						   struct device_node *np)
+{
+	struct dev_pm_opp *temp_opp, *opp = ERR_PTR(-ENODEV);
+	struct device_node *required_np;
+	struct opp_table *opp_table;
+
+	opp_table = _find_opp_table(dev);
+	if (IS_ERR(opp_table))
+		return ERR_CAST(opp_table);
+
+	required_np = of_parse_phandle(np, "required-opps", 0);
+	if (unlikely(!required_np)) {
+		dev_err(dev, "Unable to parse required-opps\n");
+		goto put_opp_table;
+	}
+
+	mutex_lock(&opp_table->lock);
+
+	list_for_each_entry(temp_opp, &opp_table->opp_list, node) {
+		if (temp_opp->available && temp_opp->np == required_np) {
+			opp = temp_opp;
+
+			/* Increment the reference count of OPP */
+			dev_pm_opp_get(opp);
+			break;
+		}
+	}
+
+	mutex_unlock(&opp_table->lock);
+
+	of_node_put(required_np);
+put_opp_table:
+	dev_pm_opp_put_opp_table(opp_table);
+
+	return opp;
+}
+EXPORT_SYMBOL_GPL(of_dev_pm_opp_find_required_opp);
