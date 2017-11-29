@@ -1457,14 +1457,17 @@ static inline void mmc_apply_rel_rw(struct mmc_blk_request *brq,
 	}
 }
 
-#define CMD_ERRORS							\
-	(R1_OUT_OF_RANGE |	/* Command argument out of range */	\
-	 R1_ADDRESS_ERROR |	/* Misaligned address */		\
+#define CMD_ERRORS_EXCL_OOR						\
+	(R1_ADDRESS_ERROR |	/* Misaligned address */		\
 	 R1_BLOCK_LEN_ERROR |	/* Transferred block length incorrect */\
 	 R1_WP_VIOLATION |	/* Tried to write to protected block */	\
 	 R1_CARD_ECC_FAILED |	/* Card ECC failed */			\
 	 R1_CC_ERROR |		/* Card controller error */		\
 	 R1_ERROR)		/* General/unknown error */
+
+#define CMD_ERRORS							\
+	(CMD_ERRORS_EXCL_OOR |						\
+	 R1_OUT_OF_RANGE)	/* Command argument out of range */	\
 
 static void mmc_blk_eval_resp_error(struct mmc_blk_request *brq)
 {
@@ -2157,23 +2160,39 @@ static inline bool mmc_blk_rq_error(struct mmc_blk_request *brq)
 	       brq->data.error || brq->cmd.resp[0] & CMD_ERRORS;
 }
 
+static inline bool mmc_blk_oor_valid(struct mmc_blk_request *brq)
+{
+	return !!brq->mrq.sbc;
+}
+
+static inline u32 mmc_blk_stop_err_bits(struct mmc_blk_request *brq)
+{
+	return mmc_blk_oor_valid(brq) ? CMD_ERRORS : CMD_ERRORS_EXCL_OOR;
+}
+
 static int mmc_blk_card_busy(struct mmc_card *card, struct request *req)
 {
 	struct mmc_queue_req *mqrq = req_to_mmc_queue_req(req);
-	bool gen_err = false;
+	u32 status = 0;
 	int err;
 
 	if (mmc_host_is_spi(card->host) || rq_data_dir(req) == READ)
 		return 0;
 
-	err = card_busy_detect_err(card, MMC_BLK_TIMEOUT_MS, false, req,
-				   &gen_err);
+	err = card_busy_detect(card, MMC_BLK_TIMEOUT_MS, false, req, &status);
 
-	/* Copy the general error bit so it will be seen later on */
-	if (gen_err) {
-		mqrq->brq.stop.resp[0] |= R1_ERROR;
+	/*
+	 * Do not assume data transferred correctly if there are any error bits
+	 * set.
+	 */
+	if (status & mmc_blk_stop_err_bits(&mqrq->brq)) {
+		mqrq->brq.data.bytes_xfered = 0;
 		err = err ? err : -EIO;
 	}
+
+	/* Copy the exception bit so it will be seen later on */
+	if (mmc_card_mmc(card) && status & R1_EXCEPTION_EVENT)
+		mqrq->brq.cmd.resp[0] |= R1_EXCEPTION_EVENT;
 
 	return err;
 }
