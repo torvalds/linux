@@ -11,6 +11,7 @@
  * GNU General Public License for more details.
  *
  */
+#include <asm/pgtable.h>
 #include <linux/arm-smccc.h>
 #include <linux/device.h>
 #include <linux/err.h>
@@ -442,3 +443,93 @@ void optee_disable_shm_cache(struct optee *optee)
 	}
 	optee_cq_wait_final(&optee->call_queue, &w);
 }
+
+#define PAGELIST_ENTRIES_PER_PAGE				\
+	((OPTEE_MSG_NONCONTIG_PAGE_SIZE / sizeof(u64)) - 1)
+
+/**
+ * optee_fill_pages_list() - write list of user pages to given shared
+ * buffer.
+ *
+ * @dst: page-aligned buffer where list of pages will be stored
+ * @pages: array of pages that represents shared buffer
+ * @num_pages: number of entries in @pages
+ * @page_offset: offset of user buffer from page start
+ *
+ * @dst should be big enough to hold list of user page addresses and
+ *	links to the next pages of buffer
+ */
+void optee_fill_pages_list(u64 *dst, struct page **pages, int num_pages,
+			   size_t page_offset)
+{
+	int n = 0;
+	phys_addr_t optee_page;
+	/*
+	 * Refer to OPTEE_MSG_ATTR_NONCONTIG description in optee_msg.h
+	 * for details.
+	 */
+	struct {
+		u64 pages_list[PAGELIST_ENTRIES_PER_PAGE];
+		u64 next_page_data;
+	} *pages_data;
+
+	/*
+	 * Currently OP-TEE uses 4k page size and it does not looks
+	 * like this will change in the future.  On other hand, there are
+	 * no know ARM architectures with page size < 4k.
+	 * Thus the next built assert looks redundant. But the following
+	 * code heavily relies on this assumption, so it is better be
+	 * safe than sorry.
+	 */
+	BUILD_BUG_ON(PAGE_SIZE < OPTEE_MSG_NONCONTIG_PAGE_SIZE);
+
+	pages_data = (void *)dst;
+	/*
+	 * If linux page is bigger than 4k, and user buffer offset is
+	 * larger than 4k/8k/12k/etc this will skip first 4k pages,
+	 * because they bear no value data for OP-TEE.
+	 */
+	optee_page = page_to_phys(*pages) +
+		round_down(page_offset, OPTEE_MSG_NONCONTIG_PAGE_SIZE);
+
+	while (true) {
+		pages_data->pages_list[n++] = optee_page;
+
+		if (n == PAGELIST_ENTRIES_PER_PAGE) {
+			pages_data->next_page_data =
+				virt_to_phys(pages_data + 1);
+			pages_data++;
+			n = 0;
+		}
+
+		optee_page += OPTEE_MSG_NONCONTIG_PAGE_SIZE;
+		if (!(optee_page & ~PAGE_MASK)) {
+			if (!--num_pages)
+				break;
+			pages++;
+			optee_page = page_to_phys(*pages);
+		}
+	}
+}
+
+/*
+ * The final entry in each pagelist page is a pointer to the next
+ * pagelist page.
+ */
+static size_t get_pages_list_size(size_t num_entries)
+{
+	int pages = DIV_ROUND_UP(num_entries, PAGELIST_ENTRIES_PER_PAGE);
+
+	return pages * OPTEE_MSG_NONCONTIG_PAGE_SIZE;
+}
+
+u64 *optee_allocate_pages_list(size_t num_entries)
+{
+	return alloc_pages_exact(get_pages_list_size(num_entries), GFP_KERNEL);
+}
+
+void optee_free_pages_list(void *list, size_t num_entries)
+{
+	free_pages_exact(list, get_pages_list_size(num_entries));
+}
+
