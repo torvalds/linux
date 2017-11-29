@@ -1911,7 +1911,11 @@ static void mmc_blk_issue_rw_rq(struct mmc_queue *mq, struct request *new_req)
 		case MMC_BLK_SUCCESS:
 		case MMC_BLK_PARTIAL:
 			/*
-			 * A block was successfully transferred.
+			 * Reset success, and accept bytes_xfered. For
+			 * MMC_BLK_PARTIAL re-submit the remaining request. For
+			 * MMC_BLK_SUCCESS error out the remaining request (it
+			 * could not be re-submitted anyway if a next request
+			 * had already begun).
 			 */
 			mmc_blk_reset_success(md, type);
 
@@ -1931,6 +1935,14 @@ static void mmc_blk_issue_rw_rq(struct mmc_queue *mq, struct request *new_req)
 			}
 			break;
 		case MMC_BLK_CMD_ERR:
+			/*
+			 * For SD cards, get bytes written, but do not accept
+			 * bytes_xfered if that fails. For MMC cards accept
+			 * bytes_xfered. Then try to reset. If reset fails then
+			 * error out the remaining request, otherwise retry
+			 * once (N.B mmc_blk_reset() will not succeed twice in a
+			 * row).
+			 */
 			req_pending = mmc_blk_rw_cmd_err(md, card, brq, old_req, req_pending);
 			if (mmc_blk_reset(md, card->host, type)) {
 				if (req_pending)
@@ -1947,11 +1959,20 @@ static void mmc_blk_issue_rw_rq(struct mmc_queue *mq, struct request *new_req)
 			}
 			break;
 		case MMC_BLK_RETRY:
+			/*
+			 * Do not accept bytes_xfered, but retry up to 5 times,
+			 * otherwise same as abort.
+			 */
 			retune_retry_done = brq->retune_retry_done;
 			if (retry++ < 5)
 				break;
 			/* Fall through */
 		case MMC_BLK_ABORT:
+			/*
+			 * Do not accept bytes_xfered, but try to reset. If
+			 * reset succeeds, try once more, otherwise error out
+			 * the request.
+			 */
 			if (!mmc_blk_reset(md, card->host, type))
 				break;
 			mmc_blk_rw_cmd_abort(mq, card, old_req, mq_rq);
@@ -1960,6 +1981,13 @@ static void mmc_blk_issue_rw_rq(struct mmc_queue *mq, struct request *new_req)
 		case MMC_BLK_DATA_ERR: {
 			int err;
 
+			/*
+			 * Do not accept bytes_xfered, but try to reset. If
+			 * reset succeeds, try once more. If reset fails with
+			 * ENODEV which means the partition is wrong, then error
+			 * out the request. Otherwise attempt to read one sector
+			 * at a time.
+			 */
 			err = mmc_blk_reset(md, card->host, type);
 			if (!err)
 				break;
@@ -1971,6 +1999,10 @@ static void mmc_blk_issue_rw_rq(struct mmc_queue *mq, struct request *new_req)
 			/* Fall through */
 		}
 		case MMC_BLK_ECC_ERR:
+			/*
+			 * Do not accept bytes_xfered. If reading more than one
+			 * sector, try reading one sector at a time.
+			 */
 			if (brq->data.blocks > 1) {
 				/* Redo read one sector at a time */
 				pr_warn("%s: retrying using single block read\n",
@@ -1992,10 +2024,12 @@ static void mmc_blk_issue_rw_rq(struct mmc_queue *mq, struct request *new_req)
 			}
 			break;
 		case MMC_BLK_NOMEDIUM:
+			/* Do not accept bytes_xfered. Error out the request */
 			mmc_blk_rw_cmd_abort(mq, card, old_req, mq_rq);
 			mmc_blk_rw_try_restart(mq, new_req, mqrq_cur);
 			return;
 		default:
+			/* Do not accept bytes_xfered. Error out the request */
 			pr_err("%s: Unhandled return value (%d)",
 					old_req->rq_disk->disk_name, status);
 			mmc_blk_rw_cmd_abort(mq, card, old_req, mq_rq);
