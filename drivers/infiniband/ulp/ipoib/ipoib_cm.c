@@ -876,7 +876,7 @@ int ipoib_cm_dev_open(struct net_device *dev)
 
 	priv->cm.id = ib_create_cm_id(priv->ca, ipoib_cm_rx_handler, dev);
 	if (IS_ERR(priv->cm.id)) {
-		printk(KERN_WARNING "%s: failed to create CM ID\n", priv->ca->name);
+		pr_warn("%s: failed to create CM ID\n", priv->ca->name);
 		ret = PTR_ERR(priv->cm.id);
 		goto err_cm;
 	}
@@ -884,8 +884,8 @@ int ipoib_cm_dev_open(struct net_device *dev)
 	ret = ib_cm_listen(priv->cm.id, cpu_to_be64(IPOIB_CM_IETF_ID | priv->qp->qp_num),
 			   0);
 	if (ret) {
-		printk(KERN_WARNING "%s: failed to listen on ID 0x%llx\n", priv->ca->name,
-		       IPOIB_CM_IETF_ID | priv->qp->qp_num);
+		pr_warn("%s: failed to listen on ID 0x%llx\n", priv->ca->name,
+			IPOIB_CM_IETF_ID | priv->qp->qp_num);
 		goto err_listen;
 	}
 
@@ -1562,7 +1562,7 @@ static void ipoib_cm_create_srq(struct net_device *dev, int max_sge)
 	priv->cm.srq = ib_create_srq(priv->pd, &srq_init_attr);
 	if (IS_ERR(priv->cm.srq)) {
 		if (PTR_ERR(priv->cm.srq) != -ENOSYS)
-			printk(KERN_WARNING "%s: failed to allocate SRQ, error %ld\n",
+			pr_warn("%s: failed to allocate SRQ, error %ld\n",
 			       priv->ca->name, PTR_ERR(priv->cm.srq));
 		priv->cm.srq = NULL;
 		return;
