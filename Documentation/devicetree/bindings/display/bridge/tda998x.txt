@@ -27,6 +27,9 @@ Optional properties:
 	in question is used. The implementation allows one or two DAIs. If two
 	DAIs are defined, they must be of different type.
 
+  - nxp,calib-gpios: calibration GPIO, which must correspond with the
+	gpio used for the TDA998x interrupt pin.
+
 [1] Documentation/sound/alsa/soc/DAI.txt
 [2] include/dt-bindings/display/tda998x.h
 
