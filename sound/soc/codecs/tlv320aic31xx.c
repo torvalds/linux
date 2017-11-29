@@ -1,22 +1,14 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
- * ALSA SoC TLV320AIC31XX codec driver
+ * ALSA SoC TLV320AIC31xx CODEC Driver
  *
- * Copyright (C) 2014 Texas Instruments, Inc.
- *
- * Author: Jyri Sarha <jsarha@ti.com>
+ * Copyright (C) 2014-2017 Texas Instruments Incorporated - http://www.ti.com/
+ *	Jyri Sarha <jsarha@ti.com>
  *
  * Based on ground work by: Ajit Kulkarni <x0175765@ti.com>
  *
- * This package is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * THIS PACKAGE IS PROVIDED AS IS AND WITHOUT ANY EXPRESS OR
- * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
- * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
- *
- * The TLV320AIC31xx series of audio codec is a low-power, highly integrated
- * high performance codec which provides a stereo DAC, a mono ADC,
+ * The TLV320AIC31xx series of audio codecs are low-power, highly integrated
+ * high performance codecs which provides a stereo DAC, a mono ADC,
  * and mono/stereo Class-D speaker driver.
  */
 
@@ -1414,6 +1406,6 @@ static struct i2c_driver aic31xx_i2c_driver = {
 
 module_i2c_driver(aic31xx_i2c_driver);
 
-MODULE_DESCRIPTION("ASoC TLV320AIC3111 codec driver");
-MODULE_AUTHOR("Jyri Sarha");
-MODULE_LICENSE("GPL");
+MODULE_AUTHOR("Jyri Sarha <jsarha@ti.com>");
+MODULE_DESCRIPTION("ASoC TLV320AIC31xx CODEC Driver");
+MODULE_LICENSE("GPL v2");

@@ -1,17 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
- * ALSA SoC TLV320AIC31XX codec driver
+ * ALSA SoC TLV320AIC31xx CODEC Driver Definitions
  *
- * Copyright (C) 2013 Texas Instruments, Inc.
- *
- * This package is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * THIS PACKAGE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR
- * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
- * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
- *
+ * Copyright (C) 2014-2017 Texas Instruments Incorporated - http://www.ti.com/
  */
+
 #ifndef _TLV320AIC31XX_H
 #define _TLV320AIC31XX_H
 
