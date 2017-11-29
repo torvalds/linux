@@ -144,11 +144,13 @@ static void rxrpc_end_rx_phase(struct rxrpc_call *call, rxrpc_serial_t serial)
 	trace_rxrpc_receive(call, rxrpc_receive_end, 0, call->rx_top);
 	ASSERTCMP(call->rx_hard_ack, ==, call->rx_top);
 
+#if 0 // TODO: May want to transmit final ACK under some circumstances anyway
 	if (call->state == RXRPC_CALL_CLIENT_RECV_REPLY) {
 		rxrpc_propose_ACK(call, RXRPC_ACK_IDLE, 0, serial, true, false,
 				  rxrpc_propose_ack_terminal_ack);
-		rxrpc_send_ack_packet(call, false);
+		rxrpc_send_ack_packet(call, false, NULL);
 	}
+#endif
 
 	write_lock_bh(&call->state_lock);
 
@@ -161,7 +163,7 @@ static void rxrpc_end_rx_phase(struct rxrpc_call *call, rxrpc_serial_t serial)
 	case RXRPC_CALL_SERVER_RECV_REQUEST:
 		call->tx_phase = true;
 		call->state = RXRPC_CALL_SERVER_ACK_REQUEST;
-		call->ack_at = call->expire_at;
+		call->expect_req_by = jiffies + MAX_JIFFY_OFFSET;
 		write_unlock_bh(&call->state_lock);
 		rxrpc_propose_ACK(call, RXRPC_ACK_DELAY, 0, serial, false, true,
 				  rxrpc_propose_ack_processing_op);
@@ -217,10 +219,10 @@ static void rxrpc_rotate_rx_window(struct rxrpc_call *call)
 		    after_eq(top, call->ackr_seen + 2) ||
 		    (hard_ack == top && after(hard_ack, call->ackr_consumed)))
 			rxrpc_propose_ACK(call, RXRPC_ACK_DELAY, 0, serial,
-					  true, false,
+					  true, true,
 					  rxrpc_propose_ack_rotate_rx);
-		if (call->ackr_reason)
-			rxrpc_send_ack_packet(call, false);
+		if (call->ackr_reason && call->ackr_reason != RXRPC_ACK_DELAY)
+			rxrpc_send_ack_packet(call, false, NULL);
 	}
 }
 
