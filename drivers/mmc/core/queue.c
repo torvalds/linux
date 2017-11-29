@@ -165,7 +165,10 @@ static void mmc_mq_recovery_handler(struct work_struct *work)
 
 	mq->in_recovery = true;
 
-	mmc_blk_cqe_recovery(mq);
+	if (mq->use_cqe)
+		mmc_blk_cqe_recovery(mq);
+	else
+		mmc_blk_mq_recovery(mq);
 
 	mq->in_recovery = false;
 

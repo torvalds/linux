@@ -103,6 +103,7 @@ struct mmc_queue {
 	bool			waiting;
 	struct work_struct	recovery_work;
 	wait_queue_head_t	wait;
+	struct request		*recovery_req;
 	struct request		*complete_req;
 	struct mutex		complete_lock;
 	struct work_struct	complete_work;

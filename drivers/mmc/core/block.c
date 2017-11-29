@@ -2131,6 +2131,22 @@ static void mmc_blk_mq_rw_recovery(struct mmc_queue *mq, struct request *req)
 	}
 }
 
+static inline bool mmc_blk_rq_error(struct mmc_blk_request *brq)
+{
+	mmc_blk_eval_resp_error(brq);
+
+	return brq->sbc.error || brq->cmd.error || brq->stop.error ||
+	       brq->data.error || brq->cmd.resp[0] & CMD_ERRORS;
+}
+
+static inline void mmc_blk_rw_reset_success(struct mmc_queue *mq,
+					    struct request *req)
+{
+	int type = rq_data_dir(req) == READ ? MMC_BLK_READ : MMC_BLK_WRITE;
+
+	mmc_blk_reset_success(mq->blkdata, type);
+}
+
 static void mmc_blk_mq_complete_rq(struct mmc_queue *mq, struct request *req)
 {
 	struct mmc_queue_req *mqrq = req_to_mmc_queue_req(req);
@@ -2213,14 +2229,43 @@ static void mmc_blk_mq_post_req(struct mmc_queue *mq, struct request *req)
 
 	mmc_post_req(host, mrq, 0);
 
-	blk_mq_complete_request(req);
+	/*
+	 * Block layer timeouts race with completions which means the normal
+	 * completion path cannot be used during recovery.
+	 */
+	if (mq->in_recovery)
+		mmc_blk_mq_complete_rq(mq, req);
+	else
+		blk_mq_complete_request(req);
 
 	mmc_blk_mq_dec_in_flight(mq, req);
+}
+
+void mmc_blk_mq_recovery(struct mmc_queue *mq)
+{
+	struct request *req = mq->recovery_req;
+	struct mmc_host *host = mq->card->host;
+	struct mmc_queue_req *mqrq = req_to_mmc_queue_req(req);
+
+	mq->recovery_req = NULL;
+	mq->rw_wait = false;
+
+	if (mmc_blk_rq_error(&mqrq->brq)) {
+		mmc_retune_hold_now(host);
+		mmc_blk_mq_rw_recovery(mq, req);
+	}
+
+	mmc_blk_urgent_bkops(mq, mqrq);
+
+	mmc_blk_mq_post_req(mq, req);
 }
 
 static void mmc_blk_mq_complete_prev_req(struct mmc_queue *mq,
 					 struct request **prev_req)
 {
+	if (mmc_host_done_complete(mq->card->host))
+		return;
+
 	mutex_lock(&mq->complete_lock);
 
 	if (!mq->complete_req)
@@ -2254,29 +2299,56 @@ static void mmc_blk_mq_req_done(struct mmc_request *mrq)
 	struct request *req = mmc_queue_req_to_req(mqrq);
 	struct request_queue *q = req->q;
 	struct mmc_queue *mq = q->queuedata;
+	struct mmc_host *host = mq->card->host;
 	unsigned long flags;
-	bool waiting;
 
-	/*
-	 * We cannot complete the request in this context, so record that there
-	 * is a request to complete, and that a following request does not need
-	 * to wait (although it does need to complete complete_req first).
-	 */
-	spin_lock_irqsave(q->queue_lock, flags);
-	mq->complete_req = req;
-	mq->rw_wait = false;
-	waiting = mq->waiting;
-	spin_unlock_irqrestore(q->queue_lock, flags);
+	if (!mmc_host_done_complete(host)) {
+		bool waiting;
 
-	/*
-	 * If 'waiting' then the waiting task will complete this request,
-	 * otherwise queue a work to do it. Note that complete_work may still
-	 * race with the dispatch of a following request.
-	 */
-	if (waiting)
+		/*
+		 * We cannot complete the request in this context, so record
+		 * that there is a request to complete, and that a following
+		 * request does not need to wait (although it does need to
+		 * complete complete_req first).
+		 */
+		spin_lock_irqsave(q->queue_lock, flags);
+		mq->complete_req = req;
+		mq->rw_wait = false;
+		waiting = mq->waiting;
+		spin_unlock_irqrestore(q->queue_lock, flags);
+
+		/*
+		 * If 'waiting' then the waiting task will complete this
+		 * request, otherwise queue a work to do it. Note that
+		 * complete_work may still race with the dispatch of a following
+		 * request.
+		 */
+		if (waiting)
+			wake_up(&mq->wait);
+		else
+			kblockd_schedule_work(&mq->complete_work);
+
+		return;
+	}
+
+	/* Take the recovery path for errors or urgent background operations */
+	if (mmc_blk_rq_error(&mqrq->brq) ||
+	    mmc_blk_urgent_bkops_needed(mq, mqrq)) {
+		spin_lock_irqsave(q->queue_lock, flags);
+		mq->recovery_needed = true;
+		mq->recovery_req = req;
+		spin_unlock_irqrestore(q->queue_lock, flags);
 		wake_up(&mq->wait);
-	else
-		kblockd_schedule_work(&mq->complete_work);
+		schedule_work(&mq->recovery_work);
+		return;
+	}
+
+	mmc_blk_rw_reset_success(mq, req);
+
+	mq->rw_wait = false;
+	wake_up(&mq->wait);
+
+	mmc_blk_mq_post_req(mq, req);
 }
 
 static bool mmc_blk_rw_wait_cond(struct mmc_queue *mq, int *err)
@@ -2286,11 +2358,16 @@ static bool mmc_blk_rw_wait_cond(struct mmc_queue *mq, int *err)
 	bool done;
 
 	/*
-	 * Wait while there is another request in progress. Also indicate that
-	 * there is a request waiting to start.
+	 * Wait while there is another request in progress, but not if recovery
+	 * is needed. Also indicate whether there is a request waiting to start.
 	 */
 	spin_lock_irqsave(q->queue_lock, flags);
-	done = !mq->rw_wait;
+	if (mq->recovery_needed) {
+		*err = -EBUSY;
+		done = true;
+	} else {
+		done = !mq->rw_wait;
+	}
 	mq->waiting = !done;
 	spin_unlock_irqrestore(q->queue_lock, flags);
 
@@ -2334,10 +2411,12 @@ static int mmc_blk_mq_issue_rw_rq(struct mmc_queue *mq,
 	if (prev_req)
 		mmc_blk_mq_post_req(mq, prev_req);
 
-	if (err) {
+	if (err)
 		mq->rw_wait = false;
+
+	/* Release re-tuning here where there is no synchronization required */
+	if (err || mmc_host_done_complete(host))
 		mmc_retune_release(host);
-	}
 
 out_post_req:
 	if (err)
