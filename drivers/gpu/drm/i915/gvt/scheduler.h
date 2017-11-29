@@ -125,12 +125,7 @@ struct intel_vgpu_shadow_bb {
 #define workload_q_head(vgpu, ring_id) \
 	(&(vgpu->submission.workload_q_head[ring_id]))
 
-#define queue_workload(workload) do { \
-	list_add_tail(&workload->list, \
-	workload_q_head(workload->vgpu, workload->ring_id)); \
-	wake_up(&workload->vgpu->gvt-> \
-	scheduler.waitq[workload->ring_id]); \
-} while (0)
+void intel_vgpu_queue_workload(struct intel_vgpu_workload *workload);
 
 int intel_gvt_init_workload_scheduler(struct intel_gvt *gvt);
 

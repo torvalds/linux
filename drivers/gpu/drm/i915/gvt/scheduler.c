@@ -1328,3 +1328,14 @@ intel_vgpu_create_workload(struct intel_vgpu *vgpu, int ring_id,
 
 	return workload;
 }
+
+/**
+ * intel_vgpu_queue_workload - Qeue a vGPU workload
+ * @workload: the workload to queue in
+ */
+void intel_vgpu_queue_workload(struct intel_vgpu_workload *workload)
+{
+	list_add_tail(&workload->list,
+		workload_q_head(workload->vgpu, workload->ring_id));
+	wake_up(&workload->vgpu->gvt->scheduler.waitq[workload->ring_id]);
+}

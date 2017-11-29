@@ -458,7 +458,7 @@ static int submit_context(struct intel_vgpu *vgpu, int ring_id,
 	gvt_dbg_el("workload %p emulate schedule_in %d\n", workload,
 			emulate_schedule_in);
 
-	queue_workload(workload);
+	intel_vgpu_queue_workload(workload);
 	return 0;
 }
 
