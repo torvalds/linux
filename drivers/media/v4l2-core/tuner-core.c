@@ -239,7 +239,7 @@ static const struct analog_demod_ops tuner_analog_ops = {
  * @type:		type of the tuner (e. g. tuner number)
  * @new_mode_mask:	Indicates if tuner supports TV and/or Radio
  * @new_config:		an optional parameter used by a few tuners to adjust
-			internal parameters, like LNA mode
+ *			internal parameters, like LNA mode
  * @tuner_callback:	an optional function to be called when switching
  *			to analog mode
  *
@@ -750,6 +750,7 @@ static int tuner_remove(struct i2c_client *client)
 /**
  * check_mode - Verify if tuner supports the requested mode
  * @t: a pointer to the module's internal struct_tuner
+ * @mode: mode of the tuner, as defined by &enum v4l2_tuner_type.
  *
  * This function checks if the tuner is capable of tuning analog TV,
  * digital TV or radio, depending on what the caller wants. If the
@@ -757,6 +758,7 @@ static int tuner_remove(struct i2c_client *client)
  * returns 0.
  * This function is needed for boards that have a separate tuner for
  * radio (like devices with tea5767).
+ *
  * NOTE: mt20xx uses V4L2_TUNER_DIGITAL_TV and calls set_tv_freq to
  *       select a TV frequency. So, t_mode = T_ANALOG_TV could actually
  *	 be used to represent a Digital TV too.
