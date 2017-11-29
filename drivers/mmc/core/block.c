@@ -63,7 +63,13 @@ MODULE_ALIAS("mmc:block");
 #endif
 #define MODULE_PARAM_PREFIX "mmcblk."
 
-#define MMC_BLK_TIMEOUT_MS  (10 * 60 * 1000)        /* 10 minute timeout */
+/*
+ * Set a 10 second timeout for polling write request busy state. Note, mmc core
+ * is setting a 3 second timeout for SD cards, and SDHCI has long had a 10
+ * second software timer to timeout the whole request, so 10 seconds should be
+ * ample.
+ */
+#define MMC_BLK_TIMEOUT_MS  (10 * 1000)
 #define MMC_SANITIZE_REQ_TIMEOUT 240000
 #define MMC_EXTRACT_INDEX_FROM_ARG(x) ((x & 0x00FF0000) >> 16)
 
