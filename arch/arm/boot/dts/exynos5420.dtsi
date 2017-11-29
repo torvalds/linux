@@ -1350,6 +1350,13 @@
 	iommu-names = "m0", "m1";
 };
 
+&g2d {
+	iommus = <&sysmmu_g2dr>, <&sysmmu_g2dw>;
+	clocks = <&clock CLK_G2D>;
+	clock-names = "fimg2d";
+	status = "okay";
+};
+
 &i2c_0 {
 	clocks = <&clock CLK_I2C0>;
 	clock-names = "i2c";

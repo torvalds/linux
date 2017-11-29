@@ -245,15 +245,6 @@
 			samsung,syscon-phandle = <&pmu_system_controller>;
 		};
 
-		g2d@10850000 {
-			compatible = "samsung,exynos5250-g2d";
-			reg = <0x10850000 0x1000>;
-			interrupts = <GIC_SPI 91 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&clock CLK_G2D>;
-			clock-names = "fimg2d";
-			iommus = <&sysmmu_g2d>;
-		};
-
 		mfc: codec@11000000 {
 			compatible = "samsung,mfc-v6";
 			reg = <0x11000000 0x10000>;
@@ -1014,6 +1005,13 @@
 	clocks = <&clock CLK_SCLK_FIMD1>, <&clock CLK_FIMD1>;
 	clock-names = "sclk_fimd", "fimd";
 	iommus = <&sysmmu_fimd1>;
+};
+
+&g2d {
+	iommus = <&sysmmu_g2d>;
+	clocks = <&clock CLK_G2D>;
+	clock-names = "fimg2d";
+	status = "okay";
 };
 
 &i2c_0 {
