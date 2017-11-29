@@ -58,11 +58,19 @@ bool show_pinned;
 struct pinned_obj_table prog_table;
 struct pinned_obj_table map_table;
 
+static void __noreturn clean_and_exit(int i)
+{
+	if (json_output)
+		jsonw_destroy(&json_wtr);
+
+	exit(i);
+}
+
 void usage(void)
 {
 	last_do_help(last_argc - 1, last_argv + 1);
 
-	exit(-1);
+	clean_and_exit(-1);
 }
 
 static int do_help(int argc, char **argv)

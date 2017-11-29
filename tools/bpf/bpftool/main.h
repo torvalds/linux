@@ -41,6 +41,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <linux/bpf.h>
+#include <linux/compiler.h>
 #include <linux/kernel.h>
 #include <linux/hashtable.h>
 
@@ -80,7 +81,7 @@ void p_info(const char *fmt, ...);
 
 bool is_prefix(const char *pfx, const char *str);
 void fprint_hex(FILE *f, void *arg, unsigned int n, const char *sep);
-void usage(void) __attribute__((noreturn));
+void usage(void) __noreturn;
 
 struct pinned_obj_table {
 	DECLARE_HASHTABLE(table, 16);
