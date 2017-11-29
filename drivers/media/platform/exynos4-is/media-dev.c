@@ -60,6 +60,7 @@ static void __setup_sensor_notification(struct fimc_md *fmd,
 
 /**
  * fimc_pipeline_prepare - update pipeline information with subdevice pointers
+ * @p: fimc pipeline
  * @me: media entity terminating the pipeline
  *
  * Caller holds the graph mutex.
@@ -151,8 +152,8 @@ static int __subdev_set_power(struct v4l2_subdev *sd, int on)
 
 /**
  * fimc_pipeline_s_power - change power state of all pipeline subdevs
- * @fimc: fimc device terminating the pipeline
- * @state: true to power on, false to power off
+ * @p: fimc device terminating the pipeline
+ * @on: true to power on, false to power off
  *
  * Needs to be called with the graph mutex held.
  */
@@ -219,6 +220,7 @@ static int __fimc_pipeline_enable(struct exynos_media_pipeline *ep,
 /**
  * __fimc_pipeline_open - update the pipeline information, enable power
  *                        of all pipeline subdevs and the sensor clock
+ * @ep: fimc device terminating the pipeline
  * @me: media entity to start graph walk with
  * @prepare: true to walk the current pipeline and acquire all subdevs
  *
@@ -252,7 +254,7 @@ static int __fimc_pipeline_open(struct exynos_media_pipeline *ep,
 
 /**
  * __fimc_pipeline_close - disable the sensor clock and pipeline power
- * @fimc: fimc device terminating the pipeline
+ * @ep: fimc device terminating the pipeline
  *
  * Disable power of all subdevs and turn the external sensor clock off.
  */
@@ -281,7 +283,7 @@ static int __fimc_pipeline_close(struct exynos_media_pipeline *ep)
 
 /**
  * __fimc_pipeline_s_stream - call s_stream() on pipeline subdevs
- * @pipeline: video pipeline structure
+ * @ep: video pipeline structure
  * @on: passed as the s_stream() callback argument
  */
 static int __fimc_pipeline_s_stream(struct exynos_media_pipeline *ep, bool on)
@@ -902,6 +904,7 @@ static int __fimc_md_create_fimc_is_links(struct fimc_md *fmd)
 
 /**
  * fimc_md_create_links - create default links between registered entities
+ * @fmd: fimc media device
  *
  * Parallel interface sensor entities are connected directly to FIMC capture
  * entities. The sensors using MIPI CSIS bus are connected through immutable
