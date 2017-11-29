@@ -1279,9 +1279,16 @@ static void aic31xx_pdata_from_of(struct aic31xx_priv *aic31xx)
 		aic31xx->pdata.micbias_vg = MICBIAS_2_0V;
 	}
 
-	ret = of_get_named_gpio(np, "gpio-reset", 0);
-	if (ret > 0)
+	ret = of_get_named_gpio(np, "reset-gpios", 0);
+	if (ret > 0) {
 		aic31xx->pdata.gpio_reset = ret;
+	} else {
+		ret = of_get_named_gpio(np, "gpio-reset", 0);
+		if (ret > 0) {
+			dev_warn(aic31xx->dev, "Using deprecated property \"gpio-reset\", please update your DT");
+			aic31xx->pdata.gpio_reset = ret;
+		}
+	}
 }
 #else /* CONFIG_OF */
 static void aic31xx_pdata_from_of(struct aic31xx_priv *aic31xx)
