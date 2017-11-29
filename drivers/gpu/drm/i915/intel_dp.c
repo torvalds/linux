@@ -1643,7 +1643,7 @@ intel_dp_compute_config(struct intel_encoder *encoder,
 		pipe_config->has_pch_encoder = true;
 
 	pipe_config->has_drrs = false;
-	if (port == PORT_A)
+	if (IS_G4X(dev_priv) || port == PORT_A)
 		pipe_config->has_audio = false;
 	else if (intel_conn_state->force_audio == HDMI_AUDIO_AUTO)
 		pipe_config->has_audio = intel_dp->has_audio;
