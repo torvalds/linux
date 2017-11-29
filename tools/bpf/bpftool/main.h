@@ -51,7 +51,7 @@
 
 #define NEXT_ARG()	({ argc--; argv++; if (argc < 0) usage(); })
 #define NEXT_ARGP()	({ (*argc)--; (*argv)++; if (*argc < 0) usage(); })
-#define BAD_ARG()	({ p_err("what is '%s'?\n", *argv); -1; })
+#define BAD_ARG()	({ p_err("what is '%s'?", *argv); -1; })
 
 #define ERR_MAX_LEN	1024
 
