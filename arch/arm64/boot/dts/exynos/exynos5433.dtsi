@@ -476,6 +476,7 @@
 			clocks = <&xxti>,
 				<&cmu_top CLK_SCLK_JPEG_MSCL>,
 				<&cmu_top CLK_ACLK_MSCL_400>;
+			power-domains = <&pd_mscl>;
 		};
 
 		cmu_mfc: clock-controller@15280000 {
@@ -550,6 +551,13 @@
 			reg = <0x105c4000 0x20>;
 			#power-domain-cells = <0>;
 			label = "GSCL";
+		};
+
+		pd_mscl: power-domain@105c4040 {
+			compatible = "samsung,exynos5433-pd";
+			reg = <0x105c4040 0x20>;
+			#power-domain-cells = <0>;
+			label = "MSCL";
 		};
 
 		pd_disp: power-domain@105c4080 {
@@ -971,6 +979,7 @@
 				 <&cmu_mscl CLK_ACLK_XIU_MSCLX>,
 				 <&cmu_mscl CLK_SCLK_JPEG>;
 			iommus = <&sysmmu_jpeg>;
+			power-domains = <&pd_mscl>;
 		};
 
 		mfc: codec@152E0000 {
@@ -1070,6 +1079,7 @@
 			clocks = <&cmu_mscl CLK_PCLK_SMMU_JPEG>,
 				 <&cmu_mscl CLK_ACLK_SMMU_JPEG>;
 			#iommu-cells = <0>;
+			power-domains = <&pd_mscl>;
 		};
 
 		sysmmu_mfc_0: sysmmu@15200000 {
