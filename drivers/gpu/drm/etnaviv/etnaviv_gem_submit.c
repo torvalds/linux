@@ -563,7 +563,7 @@ int etnaviv_ioctl_gem_submit(struct drm_device *dev, void *data,
 	}
 
 	args->fence_fd = out_fence_fd;
-	args->fence = submit->out_fence->seqno;
+	args->fence = submit->out_fence_id;
 
 err_submit_objects:
 	etnaviv_submit_put(submit);

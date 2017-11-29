@@ -104,6 +104,7 @@ struct etnaviv_gem_submit {
 	struct kref refcount;
 	struct etnaviv_gpu *gpu;
 	struct dma_fence *out_fence, *in_fence;
+	int out_fence_id;
 	struct list_head node; /* GPU active submit list */
 	struct etnaviv_cmdbuf cmdbuf;
 	bool runtime_resumed;

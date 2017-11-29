@@ -1016,6 +1016,7 @@ static void hangcheck_disable(struct etnaviv_gpu *gpu)
 /* fence object management */
 struct etnaviv_fence {
 	struct etnaviv_gpu *gpu;
+	int id;
 	struct dma_fence base;
 };
 
@@ -1052,6 +1053,11 @@ static void etnaviv_fence_release(struct dma_fence *fence)
 {
 	struct etnaviv_fence *f = to_etnaviv_fence(fence);
 
+	/* first remove from IDR, so fence can not be looked up anymore */
+	mutex_lock(&f->gpu->lock);
+	idr_remove(&f->gpu->fence_idr, f->id);
+	mutex_unlock(&f->gpu->lock);
+
 	kfree_rcu(f, base.rcu);
 }
 
@@ -1078,6 +1084,11 @@ static struct dma_fence *etnaviv_gpu_fence_alloc(struct etnaviv_gpu *gpu)
 	if (!f)
 		return NULL;
 
+	f->id = idr_alloc_cyclic(&gpu->fence_idr, &f->base, 0, INT_MAX, GFP_KERNEL);
+	if (f->id < 0) {
+		kfree(f);
+		return NULL;
+	}
 	f->gpu = gpu;
 
 	dma_fence_init(&f->base, &etnaviv_fence_ops, &gpu->fence_spinlock,
@@ -1226,35 +1237,43 @@ static void retire_worker(struct work_struct *work)
 }
 
 int etnaviv_gpu_wait_fence_interruptible(struct etnaviv_gpu *gpu,
-	u32 fence, struct timespec *timeout)
+	u32 id, struct timespec *timeout)
 {
+	struct dma_fence *fence;
 	int ret;
 
-	if (fence_after(fence, gpu->next_fence)) {
-		DRM_ERROR("waiting on invalid fence: %u (of %u)\n",
-				fence, gpu->next_fence);
-		return -EINVAL;
-	}
+	/*
+	 * Look up the fence and take a reference. The mutex only synchronizes
+	 * the IDR lookup with the fence release. We might still find a fence
+	 * whose refcount has already dropped to zero. dma_fence_get_rcu
+	 * pretends we didn't find a fence in that case.
+	 */
+	ret = mutex_lock_interruptible(&gpu->lock);
+	if (ret)
+		return ret;
+	fence = idr_find(&gpu->fence_idr, id);
+	if (fence)
+		fence = dma_fence_get_rcu(fence);
+	mutex_unlock(&gpu->lock);
+
+	if (!fence)
+		return 0;
 
 	if (!timeout) {
 		/* No timeout was requested: just test for completion */
-		ret = fence_completed(gpu, fence) ? 0 : -EBUSY;
+		ret = dma_fence_is_signaled(fence) ? 0 : -EBUSY;
 	} else {
 		unsigned long remaining = etnaviv_timeout_to_jiffies(timeout);
 
-		ret = wait_event_interruptible_timeout(gpu->fence_event,
-						fence_completed(gpu, fence),
-						remaining);
-		if (ret == 0) {
-			DBG("timeout waiting for fence: %u (retired: %u completed: %u)",
-				fence, gpu->retired_fence,
-				gpu->completed_fence);
+		ret = dma_fence_wait_timeout(fence, true, remaining);
+		if (ret == 0)
 			ret = -ETIMEDOUT;
-		} else if (ret != -ERESTARTSYS) {
+		else if (ret != -ERESTARTSYS)
 			ret = 0;
-		}
+
 	}
 
+	dma_fence_put(fence);
 	return ret;
 }
 
@@ -1386,6 +1405,7 @@ int etnaviv_gpu_submit(struct etnaviv_gpu *gpu,
 		ret = -ENOMEM;
 		goto out_unlock;
 	}
+	submit->out_fence_id = to_etnaviv_fence(submit->out_fence)->id;
 
 	gpu->active_fence = submit->out_fence->seqno;
 
@@ -1490,7 +1510,6 @@ static irqreturn_t irq_handler(int irq, void *data)
 				continue;
 
 			gpu->event[event].fence = NULL;
-			dma_fence_signal(fence);
 
 			/*
 			 * Events can be processed out of order.  Eg,
@@ -1503,6 +1522,7 @@ static irqreturn_t irq_handler(int irq, void *data)
 			 */
 			if (fence_after(fence->seqno, gpu->completed_fence))
 				gpu->completed_fence = fence->seqno;
+			dma_fence_signal(fence);
 
 			event_free(gpu, event);
 		}
@@ -1700,6 +1720,7 @@ static int etnaviv_gpu_bind(struct device *dev, struct device *master,
 
 	gpu->drm = drm;
 	gpu->fence_context = dma_fence_context_alloc(1);
+	idr_init(&gpu->fence_idr);
 	spin_lock_init(&gpu->fence_spinlock);
 
 	INIT_LIST_HEAD(&gpu->active_submit_list);
@@ -1751,6 +1772,7 @@ static void etnaviv_gpu_unbind(struct device *dev, struct device *master,
 	}
 
 	gpu->drm = NULL;
+	idr_destroy(&gpu->fence_idr);
 
 	if (IS_ENABLED(CONFIG_DRM_ETNAVIV_THERMAL))
 		thermal_cooling_device_unregister(gpu->cooling);
