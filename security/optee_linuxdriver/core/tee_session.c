@@ -816,7 +816,7 @@ static void _release_tee_cmd(struct tee_session *sess, struct tee_cmd *cmd)
 
 	dev_dbg(_DEV_TEE, "%s: > free the temporary objects...\n", __func__);
 
-	tee_shm_free(cmd->uuid);
+	rk_tee_shm_free(cmd->uuid);
 
 	if (cmd->param.type_original == TEEC_PARAM_TYPES(TEEC_NONE,
 			TEEC_NONE, TEEC_NONE, TEEC_NONE))
@@ -844,9 +844,9 @@ static void _release_tee_cmd(struct tee_session *sess, struct tee_cmd *cmd)
 			shm = cmd->param.params[idx].shm;
 
 			if (is_mapped_temp(shm->flags))
-				tee_shm_free(shm);
+				rk_tee_shm_free(shm);
 			else
-				tee_shm_put(ctx, shm);
+				rk_tee_shm_put(ctx, shm);
 			break;
 		default:
 			BUG_ON(1);

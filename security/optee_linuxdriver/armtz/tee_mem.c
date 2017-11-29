@@ -529,7 +529,7 @@ failed_out:
  * the memory region managed by the pool.
  *
  */
-int tee_shm_pool_free(struct device *dev, struct shm_pool *pool,
+int rk_tee_shm_pool_free(struct device *dev, struct shm_pool *pool,
 		      unsigned long paddr, size_t *size)
 {
 	struct mem_chunk *chunk;

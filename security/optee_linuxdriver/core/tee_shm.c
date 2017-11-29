@@ -44,7 +44,7 @@ struct tee_shm *tee_shm_alloc_from_rpc(struct tee *tee, size_t size)
 	INMSG();
 
 	mutex_lock(&tee->lock);
-	shm = tee_shm_alloc(tee, size, TEE_SHM_TEMP | TEE_SHM_FROM_RPC);
+	shm = rk_tee_shm_alloc(tee, size, TEE_SHM_TEMP | TEE_SHM_FROM_RPC);
 	if (IS_ERR_OR_NULL(shm)) {
 		dev_err(_DEV(tee), "%s: buffer allocation failed (%ld)\n",
 			__func__, PTR_ERR(shm));
@@ -75,11 +75,11 @@ void tee_shm_free_from_rpc(struct tee_shm *shm)
 		list_del(&shm->entry);
 	}
 
-	tee_shm_free(shm);
+	rk_tee_shm_free(shm);
 	mutex_unlock(&tee->lock);
 }
 
-struct tee_shm *tee_shm_alloc(struct tee *tee, size_t size, uint32_t flags)
+struct tee_shm *rk_tee_shm_alloc(struct tee *tee, size_t size, uint32_t flags)
 {
 	struct tee_shm *shm;
 	unsigned long pfn;
@@ -128,7 +128,7 @@ exit:
 	return shm;
 }
 
-void tee_shm_free(struct tee_shm *shm)
+void rk_tee_shm_free(struct tee_shm *shm)
 {
 	struct tee *tee;
 
@@ -402,7 +402,7 @@ int tee_shm_alloc_io(struct tee_context *ctx, struct tee_shm_io *shm_io)
 		shm_io->fd_shm = 0;
 
 	mutex_lock(&tee->lock);
-	shm = tee_shm_alloc(tee, shm_io->size, shm_io->flags);
+	shm = rk_tee_shm_alloc(tee, shm_io->size, shm_io->flags);
 	if (IS_ERR_OR_NULL(shm)) {
 		dev_err(_DEV(tee), "%s: buffer allocation failed (%ld)\n",
 			__func__, PTR_ERR(shm));
@@ -413,7 +413,7 @@ int tee_shm_alloc_io(struct tee_context *ctx, struct tee_shm_io *shm_io)
 	if (ctx->usr_client) {
 		ret = export_buf(tee, shm, &shm_io->fd_shm);
 		if (ret) {
-			tee_shm_free(shm);
+			rk_tee_shm_free(shm);
 			ret = -ENOMEM;
 			goto out;
 		}
@@ -445,7 +445,7 @@ void tee_shm_free_io(struct tee_shm *shm)
 	tee_dec_stats(&tee->stats[TEE_STATS_SHM_IDX]);
 	list_del(&shm->entry);
 
-	tee_shm_free(shm);
+	rk_tee_shm_free(shm);
 	tee_put(ctx->tee);
 	tee_context_put(ctx);
 	if (dev)
@@ -787,7 +787,7 @@ err:
 	return ERR_PTR(ret);
 }
 
-void tee_shm_put(struct tee_context *ctx, struct tee_shm *shm)
+void rk_tee_shm_put(struct tee_context *ctx, struct tee_shm *shm)
 {
 	struct tee *tee = ctx->tee;
 

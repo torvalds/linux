@@ -268,7 +268,7 @@ struct tee_shm *tee_context_alloc_shm_tmp(struct tee_context *ctx,
 
 	type &= (TEEC_MEM_INPUT | TEEC_MEM_OUTPUT);
 
-	shm = tee_shm_alloc(ctx->tee, size,
+	shm = rk_tee_shm_alloc(ctx->tee, size,
 			TEE_SHM_MAPPED | TEE_SHM_TEMP | type);
 	if (IS_ERR_OR_NULL(shm)) {
 		dev_err(_DEV(ctx->tee), "%s: buffer allocation failed (%ld)\n",
@@ -283,7 +283,7 @@ struct tee_shm *tee_context_alloc_shm_tmp(struct tee_context *ctx,
 			dev_err(_DEV(ctx->tee),
 				"%s: tee_context_copy_from_client failed\n",
 				__func__);
-			tee_shm_free(shm);
+			rk_tee_shm_free(shm);
 			shm = NULL;
 		}
 	}

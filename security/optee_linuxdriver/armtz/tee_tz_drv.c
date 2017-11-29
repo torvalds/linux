@@ -392,7 +392,7 @@ static u32 handle_rpc(struct tee_tz *ptee, struct smc_param *param)
 		param->a2 = 0;
 		break;
 	case TEESMC_RPC_FUNC_FREE_ARG:
-		tee_shm_pool_free(DEV, ptee->shm_pool, param->a1, 0);
+		rk_tee_shm_pool_free(DEV, ptee->shm_pool, param->a1, 0);
 		break;
 	case TEESMC_RPC_FUNC_FREE_PAYLOAD:
 		/* Can't support payload shared memory with this interface */
@@ -536,7 +536,7 @@ static void free_tee_arg(struct tee_tz *ptee, unsigned long p)
 	BUG_ON(!CAPABLE(ptee->tee));
 
 	if (p)
-		tee_shm_pool_free(DEV, ptee->shm_pool, p, 0);
+		rk_tee_shm_pool_free(DEV, ptee->shm_pool, p, 0);
 
 	dev_dbg(DEV, "<\n");
 }
@@ -916,7 +916,7 @@ static struct tee_shm *tz_alloc(struct tee *tee, size_t size, uint32_t flags)
 	if (!shm->kaddr) {
 		dev_err(tee->dev, "%s: p2v(%pad)=0\n", __func__,
 			&shm->paddr);
-		tee_shm_pool_free(tee->dev, ptee->shm_pool, shm->paddr, NULL);
+		rk_tee_shm_pool_free(tee->dev, ptee->shm_pool, shm->paddr, NULL);
 		devm_kfree(tee->dev, shm);
 		return ERR_PTR(-EFAULT);
 	}
@@ -945,7 +945,7 @@ static void tz_free(struct tee_shm *shm)
 
 	dev_dbg(tee->dev, "%s: shm=%p\n", __func__, shm);
 
-	ret = tee_shm_pool_free(tee->dev, ptee->shm_pool, shm->paddr, &size);
+	ret = rk_tee_shm_pool_free(tee->dev, ptee->shm_pool, shm->paddr, &size);
 	if (!ret) {
 		devm_kfree(tee->dev, shm);
 		shm = NULL;
