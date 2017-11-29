@@ -188,6 +188,7 @@
 			clocks = <&clock CLK_FIN_PLL>, <&clock CLK_MAU_EPLL>,
 				 <&clock CLK_SCLK_MAUDIO0>, <&clock CLK_SCLK_MAUPCM0>;
 			clock-names = "pll_ref", "pll_in", "sclk_audio", "sclk_pcm_in";
+			power-domains = <&mau_pd>;
 		};
 
 		mfc: codec@11000000 {
@@ -322,6 +323,13 @@
 			clock-names = "oscclk", "clk0", "clk1", "clk2", "asb0", "asb1";
 		};
 
+		mau_pd: power-domain@100440E0 {
+			compatible = "samsung,exynos4210-pd";
+			reg = <0x100440E0 0x20>;
+			#power-domain-cells = <0>;
+			label = "MAU";
+		};
+
 		pinctrl_0: pinctrl@13400000 {
 			compatible = "samsung,exynos5420-pinctrl";
 			reg = <0x13400000 0x1000>;
@@ -356,6 +364,7 @@
 			compatible = "samsung,exynos5420-pinctrl";
 			reg = <0x03860000 0x1000>;
 			interrupts = <GIC_SPI 47 IRQ_TYPE_LEVEL_HIGH>;
+			power-domains = <&mau_pd>;
 		};
 
 		amba {
@@ -374,6 +383,7 @@
 				#dma-cells = <1>;
 				#dma-channels = <6>;
 				#dma-requests = <16>;
+				power-domains = <&mau_pd>;
 			};
 
 			pdma0: pdma@121A0000 {
@@ -446,6 +456,7 @@
 			samsung,idma-addr = <0x03000000>;
 			pinctrl-names = "default";
 			pinctrl-0 = <&i2s0_bus>;
+			power-domains = <&mau_pd>;
 			status = "disabled";
 		};
 
