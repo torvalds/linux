@@ -102,7 +102,7 @@ static int vpif_buffer_prepare(struct vb2_buffer *vb)
  * @vq: vb2_queue ptr
  * @nbuffers: ptr to number of buffers requested by application
  * @nplanes:: contains number of distinct video planes needed to hold a frame
- * @sizes[]: contains the size (in bytes) of each plane.
+ * @sizes: contains the size (in bytes) of each plane.
  * @alloc_devs: ptr to allocation context
  *
  * This callback function is called when reqbuf() is called to adjust
@@ -158,7 +158,7 @@ static void vpif_buffer_queue(struct vb2_buffer *vb)
 
 /**
  * vpif_start_streaming : Starts the DMA engine for streaming
- * @vb: ptr to vb2_buffer
+ * @vq: ptr to vb2_buffer
  * @count: number of buffers
  */
 static int vpif_start_streaming(struct vb2_queue *vq, unsigned int count)
@@ -766,9 +766,9 @@ static int vpif_enum_output(struct file *file, void *fh,
 
 /**
  * vpif_output_to_subdev() - Maps output to sub device
- * @vpif_cfg - global config ptr
- * @chan_cfg - channel config ptr
- * @index - Given output index from application
+ * @vpif_cfg: global config ptr
+ * @chan_cfg: channel config ptr
+ * @index: Given output index from application
  *
  * lookup the sub device information for a given output index.
  * we report all the output to application. output table also
@@ -802,9 +802,9 @@ vpif_output_to_subdev(struct vpif_display_config *vpif_cfg,
 
 /**
  * vpif_set_output() - Select an output
- * @vpif_cfg - global config ptr
- * @ch - channel
- * @index - Given output index from application
+ * @vpif_cfg: global config ptr
+ * @ch: channel
+ * @index: Given output index from application
  *
  * Select the given output.
  */

@@ -109,7 +109,7 @@ static int vpif_buffer_prepare(struct vb2_buffer *vb)
  * @vq: vb2_queue ptr
  * @nbuffers: ptr to number of buffers requested by application
  * @nplanes:: contains number of distinct video planes needed to hold a frame
- * @sizes[]: contains the size (in bytes) of each plane.
+ * @sizes: contains the size (in bytes) of each plane.
  * @alloc_devs: ptr to allocation context
  *
  * This callback function is called when reqbuf() is called to adjust
@@ -167,7 +167,7 @@ static void vpif_buffer_queue(struct vb2_buffer *vb)
 
 /**
  * vpif_start_streaming : Starts the DMA engine for streaming
- * @vb: ptr to vb2_buffer
+ * @vq: ptr to vb2_buffer
  * @count: number of buffers
  */
 static int vpif_start_streaming(struct vb2_queue *vq, unsigned int count)
@@ -629,7 +629,7 @@ static void vpif_calculate_offsets(struct channel_obj *ch)
 
 /**
  * vpif_get_default_field() - Get default field type based on interface
- * @vpif_params - ptr to vpif params
+ * @iface: ptr to vpif interface
  */
 static inline enum v4l2_field vpif_get_default_field(
 				struct vpif_interface *iface)
@@ -640,8 +640,8 @@ static inline enum v4l2_field vpif_get_default_field(
 
 /**
  * vpif_config_addr() - function to configure buffer address in vpif
- * @ch - channel ptr
- * @muxmode - channel mux mode
+ * @ch: channel ptr
+ * @muxmode: channel mux mode
  */
 static void vpif_config_addr(struct channel_obj *ch, int muxmode)
 {
@@ -661,9 +661,9 @@ static void vpif_config_addr(struct channel_obj *ch, int muxmode)
 
 /**
  * vpif_input_to_subdev() - Maps input to sub device
- * @vpif_cfg - global config ptr
- * @chan_cfg - channel config ptr
- * @input_index - Given input index from application
+ * @vpif_cfg: global config ptr
+ * @chan_cfg: channel config ptr
+ * @input_index: Given input index from application
  *
  * lookup the sub device information for a given input index.
  * we report all the inputs to application. inputs table also
@@ -699,9 +699,9 @@ static int vpif_input_to_subdev(
 
 /**
  * vpif_set_input() - Select an input
- * @vpif_cfg - global config ptr
- * @ch - channel
- * @_index - Given input index from application
+ * @vpif_cfg: global config ptr
+ * @ch: channel
+ * @index: Given input index from application
  *
  * Select the given input.
  */
@@ -792,7 +792,7 @@ static int vpif_querystd(struct file *file, void *priv, v4l2_std_id *std_id)
  * vpif_g_std() - get STD handler
  * @file: file ptr
  * @priv: file handle
- * @std_id: ptr to std id
+ * @std: ptr to std id
  */
 static int vpif_g_std(struct file *file, void *priv, v4l2_std_id *std)
 {
@@ -933,7 +933,7 @@ static int vpif_s_input(struct file *file, void *priv, unsigned int index)
  * vpif_enum_fmt_vid_cap() - ENUM_FMT handler
  * @file: file ptr
  * @priv: file handle
- * @index: input index
+ * @fmt: ptr to V4L2 format descriptor
  */
 static int vpif_enum_fmt_vid_cap(struct file *file, void  *priv,
 					struct v4l2_fmtdesc *fmt)
@@ -1745,6 +1745,7 @@ static int vpif_remove(struct platform_device *device)
 #ifdef CONFIG_PM_SLEEP
 /**
  * vpif_suspend: vpif device suspend
+ * @dev: pointer to &struct device
  */
 static int vpif_suspend(struct device *dev)
 {
