@@ -1302,9 +1302,29 @@ static const struct acpi_device_id aic31xx_acpi_match[] = {
 MODULE_DEVICE_TABLE(acpi, aic31xx_acpi_match);
 #endif
 
-static int aic31xx_device_init(struct aic31xx_priv *aic31xx)
+static int aic31xx_i2c_probe(struct i2c_client *i2c,
+			     const struct i2c_device_id *id)
 {
-	int ret, i;
+	struct aic31xx_priv *aic31xx;
+	int i, ret;
+
+	dev_dbg(&i2c->dev, "## %s: %s codec_type = %d\n", __func__,
+		id->name, (int)id->driver_data);
+
+	aic31xx = devm_kzalloc(&i2c->dev, sizeof(*aic31xx), GFP_KERNEL);
+	if (!aic31xx)
+		return -ENOMEM;
+
+	aic31xx->regmap = devm_regmap_init_i2c(i2c, &aic31xx_i2c_regmap);
+	if (IS_ERR(aic31xx->regmap)) {
+		ret = PTR_ERR(aic31xx->regmap);
+		dev_err(&i2c->dev, "Failed to allocate register map: %d\n",
+			ret);
+		return ret;
+	}
+	aic31xx->dev = &i2c->dev;
+
+	aic31xx->pdata.codec_type = id->driver_data;
 
 	dev_set_drvdata(aic31xx->dev, aic31xx);
 
@@ -1335,37 +1355,6 @@ static int aic31xx_device_init(struct aic31xx_priv *aic31xx)
 		dev_err(aic31xx->dev, "Failed to request supplies: %d\n", ret);
 		return ret;
 	}
-
-	return 0;
-}
-
-static int aic31xx_i2c_probe(struct i2c_client *i2c,
-			     const struct i2c_device_id *id)
-{
-	struct aic31xx_priv *aic31xx;
-	int ret;
-
-	dev_dbg(&i2c->dev, "## %s: %s codec_type = %d\n", __func__,
-		id->name, (int) id->driver_data);
-
-	aic31xx = devm_kzalloc(&i2c->dev, sizeof(*aic31xx), GFP_KERNEL);
-	if (!aic31xx)
-		return -ENOMEM;
-
-	aic31xx->regmap = devm_regmap_init_i2c(i2c, &aic31xx_i2c_regmap);
-	if (IS_ERR(aic31xx->regmap)) {
-		ret = PTR_ERR(aic31xx->regmap);
-		dev_err(&i2c->dev, "Failed to allocate register map: %d\n",
-			ret);
-		return ret;
-	}
-	aic31xx->dev = &i2c->dev;
-
-	aic31xx->pdata.codec_type = id->driver_data;
-
-	ret = aic31xx_device_init(aic31xx);
-	if (ret)
-		return ret;
 
 	if (aic31xx->pdata.codec_type & DAC31XX_BIT)
 		return snd_soc_register_codec(&i2c->dev,
