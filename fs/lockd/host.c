@@ -151,7 +151,7 @@ static struct nlm_host *nlm_alloc_host(struct nlm_lookup_host_info *ni,
 	host->h_state      = 0;
 	host->h_nsmstate   = 0;
 	host->h_pidcount   = 0;
-	atomic_set(&host->h_count, 1);
+	refcount_set(&host->h_count, 1);
 	mutex_init(&host->h_mutex);
 	host->h_nextrebind = now + NLM_HOST_REBIND;
 	host->h_expires    = now + NLM_HOST_EXPIRE;
@@ -290,7 +290,7 @@ void nlmclnt_release_host(struct nlm_host *host)
 
 	WARN_ON_ONCE(host->h_server);
 
-	if (atomic_dec_and_test(&host->h_count)) {
+	if (refcount_dec_and_test(&host->h_count)) {
 		WARN_ON_ONCE(!list_empty(&host->h_lockowners));
 		WARN_ON_ONCE(!list_empty(&host->h_granted));
 		WARN_ON_ONCE(!list_empty(&host->h_reclaim));
@@ -410,7 +410,7 @@ void nlmsvc_release_host(struct nlm_host *host)
 	dprintk("lockd: release server host %s\n", host->h_name);
 
 	WARN_ON_ONCE(!host->h_server);
-	atomic_dec(&host->h_count);
+	refcount_dec(&host->h_count);
 }
 
 /*
@@ -504,7 +504,7 @@ struct nlm_host * nlm_get_host(struct nlm_host *host)
 {
 	if (host) {
 		dprintk("lockd: get host %s\n", host->h_name);
-		atomic_inc(&host->h_count);
+		refcount_inc(&host->h_count);
 		host->h_expires = jiffies + NLM_HOST_EXPIRE;
 	}
 	return host;
@@ -593,7 +593,7 @@ static void nlm_complain_hosts(struct net *net)
 		if (net && host->net != net)
 			continue;
 		dprintk("       %s (cnt %d use %d exp %ld net %x)\n",
-			host->h_name, atomic_read(&host->h_count),
+			host->h_name, refcount_read(&host->h_count),
 			host->h_inuse, host->h_expires, host->net->ns.inum);
 	}
 }
@@ -662,11 +662,11 @@ nlm_gc_hosts(struct net *net)
 	for_each_host_safe(host, next, chain, nlm_server_hosts) {
 		if (net && host->net != net)
 			continue;
-		if (atomic_read(&host->h_count) || host->h_inuse
+		if (refcount_read(&host->h_count) || host->h_inuse
 		 || time_before(jiffies, host->h_expires)) {
 			dprintk("nlm_gc_hosts skipping %s "
 				"(cnt %d use %d exp %ld net %x)\n",
-				host->h_name, atomic_read(&host->h_count),
+				host->h_name, refcount_read(&host->h_count),
 				host->h_inuse, host->h_expires,
 				host->net->ns.inum);
 			continue;
