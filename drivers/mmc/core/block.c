@@ -923,7 +923,8 @@ static int mmc_sd_num_wr_blocks(struct mmc_card *card, u32 *written_blocks)
 }
 
 static int card_busy_detect(struct mmc_card *card, unsigned int timeout_ms,
-		bool hw_busy_detect, struct request *req, bool *gen_err)
+			    bool hw_busy_detect, struct request *req,
+			    u32 *resp_errs)
 {
 	unsigned long timeout = jiffies + msecs_to_jiffies(timeout_ms);
 	int err = 0;
@@ -937,11 +938,9 @@ static int card_busy_detect(struct mmc_card *card, unsigned int timeout_ms,
 			return err;
 		}
 
-		if (status & R1_ERROR) {
-			pr_err("%s: %s: error sending status cmd, status %#x\n",
-				req->rq_disk->disk_name, __func__, status);
-			*gen_err = true;
-		}
+		/* Accumulate any response error bits seen */
+		if (resp_errs)
+			*resp_errs |= status;
 
 		/* We may rely on the host hw to handle busy detection.*/
 		if ((card->host->caps & MMC_CAP_WAIT_WHILE_BUSY) &&
@@ -966,6 +965,24 @@ static int card_busy_detect(struct mmc_card *card, unsigned int timeout_ms,
 		 */
 	} while (!(status & R1_READY_FOR_DATA) ||
 		 (R1_CURRENT_STATE(status) == R1_STATE_PRG));
+
+	return err;
+}
+
+static int card_busy_detect_err(struct mmc_card *card, unsigned int timeout_ms,
+				bool hw_busy_detect, struct request *req,
+				bool *gen_err)
+{
+	u32 resp_errs = 0;
+	int err;
+
+	err = card_busy_detect(card, timeout_ms, hw_busy_detect, req,
+			       &resp_errs);
+	if (resp_errs & R1_ERROR) {
+		pr_err("%s: %s: error sending status cmd, status %#x\n",
+		       req->rq_disk->disk_name, __func__, resp_errs);
+		*gen_err = true;
+	}
 
 	return err;
 }
@@ -1012,7 +1029,8 @@ static int send_stop(struct mmc_card *card, unsigned int timeout_ms,
 		*gen_err = true;
 	}
 
-	return card_busy_detect(card, timeout_ms, use_r1b_resp, req, gen_err);
+	return card_busy_detect_err(card, timeout_ms, use_r1b_resp, req,
+				    gen_err);
 }
 
 #define ERR_NOMEDIUM	3
@@ -1553,8 +1571,8 @@ static enum mmc_blk_status __mmc_blk_err_check(struct mmc_card *card,
 			gen_err = true;
 		}
 
-		err = card_busy_detect(card, MMC_BLK_TIMEOUT_MS, false, req,
-					&gen_err);
+		err = card_busy_detect_err(card, MMC_BLK_TIMEOUT_MS, false, req,
+					   &gen_err);
 		if (err)
 			return MMC_BLK_CMD_ERR;
 	}
@@ -2148,7 +2166,8 @@ static int mmc_blk_card_busy(struct mmc_card *card, struct request *req)
 	if (mmc_host_is_spi(card->host) || rq_data_dir(req) == READ)
 		return 0;
 
-	err = card_busy_detect(card, MMC_BLK_TIMEOUT_MS, false, req, &gen_err);
+	err = card_busy_detect_err(card, MMC_BLK_TIMEOUT_MS, false, req,
+				   &gen_err);
 
 	/* Copy the general error bit so it will be seen later on */
 	if (gen_err) {
