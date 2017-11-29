@@ -1081,16 +1081,13 @@ static int aic31xx_power_on(struct snd_soc_codec *codec)
 	return 0;
 }
 
-static int aic31xx_power_off(struct snd_soc_codec *codec)
+static void aic31xx_power_off(struct snd_soc_codec *codec)
 {
 	struct aic31xx_priv *aic31xx = snd_soc_codec_get_drvdata(codec);
-	int ret = 0;
 
 	regcache_cache_only(aic31xx->regmap, true);
-	ret = regulator_bulk_disable(ARRAY_SIZE(aic31xx->supplies),
-				     aic31xx->supplies);
-
-	return ret;
+	regulator_bulk_disable(ARRAY_SIZE(aic31xx->supplies),
+			       aic31xx->supplies);
 }
 
 static int aic31xx_set_bias_level(struct snd_soc_codec *codec,
