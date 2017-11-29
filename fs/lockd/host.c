@@ -114,7 +114,7 @@ static struct nlm_host *nlm_alloc_host(struct nlm_lookup_host_info *ni,
 	unsigned long now = jiffies;
 
 	if (nsm != NULL)
-		atomic_inc(&nsm->sm_count);
+		refcount_inc(&nsm->sm_count);
 	else {
 		host = NULL;
 		nsm = nsm_get_handle(ni->net, ni->sap, ni->salen,

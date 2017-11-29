@@ -84,7 +84,7 @@ struct nlm_host {
 
 struct nsm_handle {
 	struct list_head	sm_link;
-	atomic_t		sm_count;
+	refcount_t		sm_count;
 	char			*sm_mon_name;
 	char			*sm_name;
 	struct sockaddr_storage	sm_addr;
