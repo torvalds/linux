@@ -30,8 +30,8 @@
 #include "intel_guc_fw.h"
 #include "i915_drv.h"
 
-#define SKL_FW_MAJOR 6
-#define SKL_FW_MINOR 1
+#define SKL_FW_MAJOR 9
+#define SKL_FW_MINOR 33
 
 #define BXT_FW_MAJOR 8
 #define BXT_FW_MINOR 7
