@@ -1863,7 +1863,7 @@ int intel_enable_engine_stats(struct intel_engine_cs *engine)
 {
 	unsigned long flags;
 
-	if (INTEL_GEN(engine->i915) < 8)
+	if (!intel_engine_supports_stats(engine))
 		return -ENODEV;
 
 	spin_lock_irqsave(&engine->stats.lock, flags);
@@ -1924,7 +1924,7 @@ void intel_disable_engine_stats(struct intel_engine_cs *engine)
 {
 	unsigned long flags;
 
-	if (INTEL_GEN(engine->i915) < 8)
+	if (!intel_engine_supports_stats(engine))
 		return;
 
 	spin_lock_irqsave(&engine->stats.lock, flags);

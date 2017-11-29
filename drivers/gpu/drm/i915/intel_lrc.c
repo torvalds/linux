@@ -1919,6 +1919,8 @@ static void execlists_set_default_submission(struct intel_engine_cs *engine)
 
 	engine->park = NULL;
 	engine->unpark = NULL;
+
+	engine->flags |= I915_ENGINE_SUPPORTS_STATS;
 }
 
 static void

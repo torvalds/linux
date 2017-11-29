@@ -90,11 +90,6 @@ static unsigned int event_enabled_bit(struct perf_event *event)
 	return config_enabled_bit(event->attr.config);
 }
 
-static bool supports_busy_stats(struct drm_i915_private *i915)
-{
-	return INTEL_GEN(i915) >= 8;
-}
-
 static bool pmu_needs_timer(struct drm_i915_private *i915, bool gpu_active)
 {
 	u64 enable;
@@ -123,8 +118,10 @@ static bool pmu_needs_timer(struct drm_i915_private *i915, bool gpu_active)
 	/*
 	 * Also there is software busyness tracking available we do not
 	 * need the timer for I915_SAMPLE_BUSY counter.
+	 *
+	 * Use RCS as proxy for all engines.
 	 */
-	else if (supports_busy_stats(i915))
+	else if (intel_engine_supports_stats(i915->engine[RCS]))
 		enable &= ~BIT(I915_SAMPLE_BUSY);
 
 	/*
@@ -447,7 +444,7 @@ again:
 
 static bool engine_needs_busy_stats(struct intel_engine_cs *engine)
 {
-	return supports_busy_stats(engine->i915) &&
+	return intel_engine_supports_stats(engine) &&
 	       (engine->pmu.enable & BIT(I915_SAMPLE_BUSY));
 }
 

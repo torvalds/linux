@@ -1453,6 +1453,8 @@ int intel_guc_submission_enable(struct intel_guc *guc)
 		execlists->tasklet.func = guc_submission_tasklet;
 		engine->park = guc_submission_park;
 		engine->unpark = guc_submission_unpark;
+
+		engine->flags &= ~I915_ENGINE_SUPPORTS_STATS;
 	}
 
 	return 0;
