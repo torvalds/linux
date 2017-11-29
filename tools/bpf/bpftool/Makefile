@@ -89,5 +89,5 @@ doc-install:
 
 FORCE:
 
-.PHONY: all clean FORCE
+.PHONY: all clean FORCE install doc doc-install
 .DEFAULT_GOAL := all
