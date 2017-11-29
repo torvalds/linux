@@ -260,7 +260,7 @@ static int intel_cht_wc_pmic_opregion_probe(struct platform_device *pdev)
 			&intel_cht_wc_pmic_opregion_data);
 }
 
-static struct platform_device_id cht_wc_opregion_id_table[] = {
+static const struct platform_device_id cht_wc_opregion_id_table[] = {
 	{ .name = "cht_wcove_region" },
 	{},
 };

@@ -400,7 +400,7 @@ static int intel_bxtwc_pmic_opregion_probe(struct platform_device *pdev)
 			&intel_bxtwc_pmic_opregion_data);
 }
 
-static struct platform_device_id bxt_wc_opregion_id_table[] = {
+static const struct platform_device_id bxt_wc_opregion_id_table[] = {
 	{ .name = "bxt_wcove_region" },
 	{},
 };
