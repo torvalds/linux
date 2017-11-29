@@ -2490,14 +2490,8 @@ nvmet_fc_add_port(struct nvmet_port *port)
 	list_for_each_entry(tgtport, &nvmet_fc_target_list, tgt_list) {
 		if ((tgtport->fc_target_port.node_name == traddr.nn) &&
 		    (tgtport->fc_target_port.port_name == traddr.pn)) {
-			/* a FC port can only be 1 nvmet port id */
-			if (!tgtport->port) {
-				tgtport->port = port;
-				port->priv = tgtport;
-				nvmet_fc_tgtport_get(tgtport);
-				ret = 0;
-			} else
-				ret = -EALREADY;
+			tgtport->port = port;
+			ret = 0;
 			break;
 		}
 	}
@@ -2508,19 +2502,7 @@ nvmet_fc_add_port(struct nvmet_port *port)
 static void
 nvmet_fc_remove_port(struct nvmet_port *port)
 {
-	struct nvmet_fc_tgtport *tgtport = port->priv;
-	unsigned long flags;
-	bool matched = false;
-
-	spin_lock_irqsave(&nvmet_fc_tgtlock, flags);
-	if (tgtport->port == port) {
-		matched = true;
-		tgtport->port = NULL;
-	}
-	spin_unlock_irqrestore(&nvmet_fc_tgtlock, flags);
-
-	if (matched)
-		nvmet_fc_tgtport_put(tgtport);
+	/* nothing to do */
 }
 
 static struct nvmet_fabrics_ops nvmet_fc_tgt_fcp_ops = {
