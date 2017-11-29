@@ -149,6 +149,10 @@ int optee_cancel_req(struct tee_context *ctx, u32 cancel_id, u32 session);
 void optee_enable_shm_cache(struct optee *optee);
 void optee_disable_shm_cache(struct optee *optee);
 
+int optee_shm_register(struct tee_context *ctx, struct tee_shm *shm,
+		       struct page **pages, size_t num_pages);
+int optee_shm_unregister(struct tee_context *ctx, struct tee_shm *shm);
+
 int optee_from_msg_param(struct tee_param *params, size_t num_params,
 			 const struct optee_msg_param *msg_params);
 int optee_to_msg_param(struct optee_msg_param *msg_params, size_t num_params,

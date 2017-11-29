@@ -533,3 +533,72 @@ void optee_free_pages_list(void *list, size_t num_entries)
 	free_pages_exact(list, get_pages_list_size(num_entries));
 }
 
+int optee_shm_register(struct tee_context *ctx, struct tee_shm *shm,
+		       struct page **pages, size_t num_pages)
+{
+	struct tee_shm *shm_arg = NULL;
+	struct optee_msg_arg *msg_arg;
+	u64 *pages_list;
+	phys_addr_t msg_parg;
+	int rc = 0;
+
+	if (!num_pages)
+		return -EINVAL;
+
+	pages_list = optee_allocate_pages_list(num_pages);
+	if (!pages_list)
+		return -ENOMEM;
+
+	shm_arg = get_msg_arg(ctx, 1, &msg_arg, &msg_parg);
+	if (IS_ERR(shm_arg)) {
+		rc = PTR_ERR(shm_arg);
+		goto out;
+	}
+
+	optee_fill_pages_list(pages_list, pages, num_pages,
+			      tee_shm_get_page_offset(shm));
+
+	msg_arg->cmd = OPTEE_MSG_CMD_REGISTER_SHM;
+	msg_arg->params->attr = OPTEE_MSG_ATTR_TYPE_TMEM_OUTPUT |
+				OPTEE_MSG_ATTR_NONCONTIG;
+	msg_arg->params->u.tmem.shm_ref = (unsigned long)shm;
+	msg_arg->params->u.tmem.size = tee_shm_get_size(shm);
+	/*
+	 * In the least bits of msg_arg->params->u.tmem.buf_ptr we
+	 * store buffer offset from 4k page, as described in OP-TEE ABI.
+	 */
+	msg_arg->params->u.tmem.buf_ptr = virt_to_phys(pages_list) |
+	  (tee_shm_get_page_offset(shm) & (OPTEE_MSG_NONCONTIG_PAGE_SIZE - 1));
+
+	if (optee_do_call_with_arg(ctx, msg_parg) ||
+	    msg_arg->ret != TEEC_SUCCESS)
+		rc = -EINVAL;
+
+	tee_shm_free(shm_arg);
+out:
+	optee_free_pages_list(pages_list, num_pages);
+	return rc;
+}
+
+int optee_shm_unregister(struct tee_context *ctx, struct tee_shm *shm)
+{
+	struct tee_shm *shm_arg;
+	struct optee_msg_arg *msg_arg;
+	phys_addr_t msg_parg;
+	int rc = 0;
+
+	shm_arg = get_msg_arg(ctx, 1, &msg_arg, &msg_parg);
+	if (IS_ERR(shm_arg))
+		return PTR_ERR(shm_arg);
+
+	msg_arg->cmd = OPTEE_MSG_CMD_UNREGISTER_SHM;
+
+	msg_arg->params[0].attr = OPTEE_MSG_ATTR_TYPE_RMEM_INPUT;
+	msg_arg->params[0].u.rmem.shm_ref = (unsigned long)shm;
+
+	if (optee_do_call_with_arg(ctx, msg_parg) ||
+	    msg_arg->ret != TEEC_SUCCESS)
+		rc = -EINVAL;
+	tee_shm_free(shm_arg);
+	return rc;
+}
