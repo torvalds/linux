@@ -197,16 +197,27 @@ int rsnd_io_is_working(struct rsnd_dai_stream *io)
 	return 0;
 }
 
-int rsnd_runtime_channel_original(struct rsnd_dai_stream *io)
+int rsnd_runtime_channel_original_with_params(struct rsnd_dai_stream *io,
+					      struct snd_pcm_hw_params *params)
 {
 	struct snd_pcm_runtime *runtime = rsnd_io_to_runtime(io);
 
-	return runtime->channels;
+	/*
+	 * params will be added when refine
+	 * see
+	 *	__rsnd_soc_hw_rule_rate()
+	 *	__rsnd_soc_hw_rule_channels()
+	 */
+	if (params)
+		return params_channels(params);
+	else
+		return runtime->channels;
 }
 
-int rsnd_runtime_channel_after_ctu(struct rsnd_dai_stream *io)
+int rsnd_runtime_channel_after_ctu_with_params(struct rsnd_dai_stream *io,
+					       struct snd_pcm_hw_params *params)
 {
-	int chan = rsnd_runtime_channel_original(io);
+	int chan = rsnd_runtime_channel_original_with_params(io, params);
 	struct rsnd_mod *ctu_mod = rsnd_io_to_mod_ctu(io);
 
 	if (ctu_mod) {
@@ -219,12 +230,13 @@ int rsnd_runtime_channel_after_ctu(struct rsnd_dai_stream *io)
 	return chan;
 }
 
-int rsnd_runtime_channel_for_ssi(struct rsnd_dai_stream *io)
+int rsnd_runtime_channel_for_ssi_with_params(struct rsnd_dai_stream *io,
+					     struct snd_pcm_hw_params *params)
 {
 	struct rsnd_dai *rdai = rsnd_io_to_rdai(io);
 	int chan = rsnd_io_is_play(io) ?
-		rsnd_runtime_channel_after_ctu(io) :
-		rsnd_runtime_channel_original(io);
+		rsnd_runtime_channel_after_ctu_with_params(io, params) :
+		rsnd_runtime_channel_original_with_params(io, params);
 
 	/* Use Multi SSI */
 	if (rsnd_runtime_is_ssi_multi(io))
@@ -616,8 +628,6 @@ static int rsnd_soc_dai_trigger(struct snd_pcm_substream *substream, int cmd,
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
 	case SNDRV_PCM_TRIGGER_RESUME:
-		rsnd_dai_stream_init(io, substream);
-
 		ret = rsnd_dai_call(init, io, priv);
 		if (ret < 0)
 			goto dai_trigger_end;
@@ -639,7 +649,6 @@ static int rsnd_soc_dai_trigger(struct snd_pcm_substream *substream, int cmd,
 
 		ret |= rsnd_dai_call(quit, io, priv);
 
-		rsnd_dai_stream_quit(io);
 		break;
 	default:
 		ret = -EINVAL;
@@ -784,8 +793,9 @@ static int rsnd_soc_hw_rule(struct rsnd_priv *priv,
 	return snd_interval_refine(iv, &p);
 }
 
-static int rsnd_soc_hw_rule_rate(struct snd_pcm_hw_params *params,
-				 struct snd_pcm_hw_rule *rule)
+static int __rsnd_soc_hw_rule_rate(struct snd_pcm_hw_params *params,
+				   struct snd_pcm_hw_rule *rule,
+				   int is_play)
 {
 	struct snd_interval *ic_ = hw_param_interval(params, SNDRV_PCM_HW_PARAM_CHANNELS);
 	struct snd_interval *ir = hw_param_interval(params, SNDRV_PCM_HW_PARAM_RATE);
@@ -793,25 +803,37 @@ static int rsnd_soc_hw_rule_rate(struct snd_pcm_hw_params *params,
 	struct snd_soc_dai *dai = rule->private;
 	struct rsnd_dai *rdai = rsnd_dai_to_rdai(dai);
 	struct rsnd_priv *priv = rsnd_rdai_to_priv(rdai);
+	struct rsnd_dai_stream *io = is_play ? &rdai->playback : &rdai->capture;
 
 	/*
 	 * possible sampling rate limitation is same as
 	 * 2ch if it supports multi ssi
+	 * and same as 8ch if TDM 6ch (see rsnd_ssi_config_init())
 	 */
 	ic = *ic_;
-	if (1 < rsnd_rdai_ssi_lane_get(rdai)) {
-		ic.min = 2;
-		ic.max = 2;
-	}
+	ic.min =
+	ic.max = rsnd_runtime_channel_for_ssi_with_params(io, params);
 
 	return rsnd_soc_hw_rule(priv, rsnd_soc_hw_rate_list,
 				ARRAY_SIZE(rsnd_soc_hw_rate_list),
 				&ic, ir);
 }
 
+static int rsnd_soc_hw_rule_rate_playback(struct snd_pcm_hw_params *params,
+				 struct snd_pcm_hw_rule *rule)
+{
+	return __rsnd_soc_hw_rule_rate(params, rule, 1);
+}
 
-static int rsnd_soc_hw_rule_channels(struct snd_pcm_hw_params *params,
-				     struct snd_pcm_hw_rule *rule)
+static int rsnd_soc_hw_rule_rate_capture(struct snd_pcm_hw_params *params,
+					  struct snd_pcm_hw_rule *rule)
+{
+	return __rsnd_soc_hw_rule_rate(params, rule, 0);
+}
+
+static int __rsnd_soc_hw_rule_channels(struct snd_pcm_hw_params *params,
+				       struct snd_pcm_hw_rule *rule,
+				       int is_play)
 {
 	struct snd_interval *ic_ = hw_param_interval(params, SNDRV_PCM_HW_PARAM_CHANNELS);
 	struct snd_interval *ir = hw_param_interval(params, SNDRV_PCM_HW_PARAM_RATE);
@@ -819,20 +841,32 @@ static int rsnd_soc_hw_rule_channels(struct snd_pcm_hw_params *params,
 	struct snd_soc_dai *dai = rule->private;
 	struct rsnd_dai *rdai = rsnd_dai_to_rdai(dai);
 	struct rsnd_priv *priv = rsnd_rdai_to_priv(rdai);
+	struct rsnd_dai_stream *io = is_play ? &rdai->playback : &rdai->capture;
 
 	/*
 	 * possible sampling rate limitation is same as
 	 * 2ch if it supports multi ssi
+	 * and same as 8ch if TDM 6ch (see rsnd_ssi_config_init())
 	 */
 	ic = *ic_;
-	if (1 < rsnd_rdai_ssi_lane_get(rdai)) {
-		ic.min = 2;
-		ic.max = 2;
-	}
+	ic.min =
+	ic.max = rsnd_runtime_channel_for_ssi_with_params(io, params);
 
 	return rsnd_soc_hw_rule(priv, rsnd_soc_hw_channels_list,
 				ARRAY_SIZE(rsnd_soc_hw_channels_list),
 				ir, &ic);
+}
+
+static int rsnd_soc_hw_rule_channels_playback(struct snd_pcm_hw_params *params,
+					      struct snd_pcm_hw_rule *rule)
+{
+	return __rsnd_soc_hw_rule_channels(params, rule, 1);
+}
+
+static int rsnd_soc_hw_rule_channels_capture(struct snd_pcm_hw_params *params,
+					     struct snd_pcm_hw_rule *rule)
+{
+	return __rsnd_soc_hw_rule_channels(params, rule, 0);
 }
 
 static const struct snd_pcm_hardware rsnd_pcm_hardware = {
@@ -858,6 +892,8 @@ static int rsnd_soc_dai_startup(struct snd_pcm_substream *substream,
 	unsigned int max_channels = rsnd_rdai_channels_get(rdai);
 	int ret;
 	int i;
+
+	rsnd_dai_stream_init(io, substream);
 
 	/*
 	 * Channel Limitation
@@ -886,11 +922,17 @@ static int rsnd_soc_dai_startup(struct snd_pcm_substream *substream,
 	 * It depends on Clock Master Mode
 	 */
 	if (rsnd_rdai_is_clk_master(rdai)) {
+		int is_play = substream->stream == SNDRV_PCM_STREAM_PLAYBACK;
+
 		snd_pcm_hw_rule_add(runtime, 0, SNDRV_PCM_HW_PARAM_RATE,
-				    rsnd_soc_hw_rule_rate, dai,
+				    is_play ? rsnd_soc_hw_rule_rate_playback :
+					      rsnd_soc_hw_rule_rate_capture,
+				    dai,
 				    SNDRV_PCM_HW_PARAM_CHANNELS, -1);
 		snd_pcm_hw_rule_add(runtime, 0, SNDRV_PCM_HW_PARAM_CHANNELS,
-				    rsnd_soc_hw_rule_channels, dai,
+				    is_play ? rsnd_soc_hw_rule_channels_playback :
+					      rsnd_soc_hw_rule_channels_capture,
+				    dai,
 				    SNDRV_PCM_HW_PARAM_RATE, -1);
 	}
 
@@ -915,6 +957,8 @@ static void rsnd_soc_dai_shutdown(struct snd_pcm_substream *substream,
 	 * call rsnd_dai_call without spinlock
 	 */
 	rsnd_dai_call(nolock_stop, io, priv);
+
+	rsnd_dai_stream_quit(io);
 }
 
 static const struct snd_soc_dai_ops rsnd_soc_dai_ops = {
