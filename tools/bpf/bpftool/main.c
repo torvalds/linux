@@ -291,7 +291,15 @@ int main(int argc, char **argv)
 			pretty_output = true;
 			/* fall through */
 		case 'j':
-			json_output = true;
+			if (!json_output) {
+				json_wtr = jsonw_new(stdout);
+				if (!json_wtr) {
+					p_err("failed to create JSON writer");
+					return -1;
+				}
+				json_output = true;
+			}
+			jsonw_pretty(json_wtr, pretty_output);
 			break;
 		case 'f':
 			show_pinned = true;
@@ -305,15 +313,6 @@ int main(int argc, char **argv)
 	argv += optind;
 	if (argc < 0)
 		usage();
-
-	if (json_output) {
-		json_wtr = jsonw_new(stdout);
-		if (!json_wtr) {
-			p_err("failed to create JSON writer");
-			return -1;
-		}
-		jsonw_pretty(json_wtr, pretty_output);
-	}
 
 	bfd_init();
 
