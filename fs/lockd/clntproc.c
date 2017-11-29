@@ -204,7 +204,7 @@ struct nlm_rqst *nlm_alloc_call(struct nlm_host *host)
 	for(;;) {
 		call = kzalloc(sizeof(*call), GFP_KERNEL);
 		if (call != NULL) {
-			atomic_set(&call->a_count, 1);
+			refcount_set(&call->a_count, 1);
 			locks_init_lock(&call->a_args.lock.fl);
 			locks_init_lock(&call->a_res.lock.fl);
 			call->a_host = nlm_get_host(host);
@@ -222,7 +222,7 @@ void nlmclnt_release_call(struct nlm_rqst *call)
 {
 	const struct nlmclnt_operations *nlmclnt_ops = call->a_host->h_nlmclnt_ops;
 
-	if (!atomic_dec_and_test(&call->a_count))
+	if (!refcount_dec_and_test(&call->a_count))
 		return;
 	if (nlmclnt_ops && nlmclnt_ops->nlmclnt_release_call)
 		nlmclnt_ops->nlmclnt_release_call(call->a_callback_data);
@@ -678,7 +678,7 @@ nlmclnt_unlock(struct nlm_rqst *req, struct file_lock *fl)
 		goto out;
 	}
 
-	atomic_inc(&req->a_count);
+	refcount_inc(&req->a_count);
 	status = nlmclnt_async_call(nfs_file_cred(fl->fl_file), req,
 			NLMPROC_UNLOCK, &nlmclnt_unlock_ops);
 	if (status < 0)
@@ -769,7 +769,7 @@ static int nlmclnt_cancel(struct nlm_host *host, int block, struct file_lock *fl
 	nlmclnt_setlockargs(req, fl);
 	req->a_args.block = block;
 
-	atomic_inc(&req->a_count);
+	refcount_inc(&req->a_count);
 	status = nlmclnt_async_call(nfs_file_cred(fl->fl_file), req,
 			NLMPROC_CANCEL, &nlmclnt_cancel_ops);
 	if (status == 0 && req->a_res.status == nlm_lck_denied)
