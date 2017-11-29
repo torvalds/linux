@@ -1070,9 +1070,10 @@ static void amdgpu_vm_update_pde(struct amdgpu_pte_update_params *params,
 				 struct amdgpu_vm_pt *parent,
 				 struct amdgpu_vm_pt *entry)
 {
-	struct amdgpu_bo *bo = entry->base.bo, *shadow = NULL;
+	struct amdgpu_bo *bo = entry->base.bo, *shadow = NULL, *pbo;
 	uint64_t pd_addr, shadow_addr = 0;
-	uint64_t pde, pt;
+	uint64_t pde, pt, flags;
+	unsigned level;
 
 	/* Don't update huge pages here */
 	if (entry->huge)
@@ -1087,15 +1088,19 @@ static void amdgpu_vm_update_pde(struct amdgpu_pte_update_params *params,
 			shadow_addr = amdgpu_bo_gpu_offset(shadow);
 	}
 
+	for (level = 0, pbo = parent->base.bo->parent; pbo; ++level)
+		pbo = pbo->parent;
+
 	pt = amdgpu_bo_gpu_offset(bo);
-	pt = amdgpu_gart_get_vm_pde(params->adev, pt);
+	flags = AMDGPU_PTE_VALID;
+	amdgpu_gart_get_vm_pde(params->adev, level, &pt, &flags);
 	if (shadow) {
 		pde = shadow_addr + (entry - parent->entries) * 8;
-		params->func(params, pde, pt, 1, 0, AMDGPU_PTE_VALID);
+		params->func(params, pde, pt, 1, 0, flags);
 	}
 
 	pde = pd_addr + (entry - parent->entries) * 8;
-	params->func(params, pde, pt, 1, 0, AMDGPU_PTE_VALID);
+	params->func(params, pde, pt, 1, 0, flags);
 }
 
 /*
@@ -1305,7 +1310,6 @@ static void amdgpu_vm_handle_huge_pages(struct amdgpu_pte_update_params *p,
 	    !(flags & AMDGPU_PTE_VALID)) {
 
 		dst = amdgpu_bo_gpu_offset(entry->base.bo);
-		dst = amdgpu_gart_get_vm_pde(p->adev, dst);
 		flags = AMDGPU_PTE_VALID;
 	} else {
 		/* Set the huge page flag to stop scanning at this PDE */
@@ -1314,8 +1318,10 @@ static void amdgpu_vm_handle_huge_pages(struct amdgpu_pte_update_params *p,
 
 	if (!entry->huge && !(flags & AMDGPU_PDE_PTE))
 		return;
-
 	entry->huge = !!(flags & AMDGPU_PDE_PTE);
+
+	amdgpu_gart_get_vm_pde(p->adev, p->adev->vm_manager.num_level - 1,
+			       &dst, &flags);
 
 	if (use_cpu_update) {
 		/* In case a huge page is replaced with a system

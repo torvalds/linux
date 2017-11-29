@@ -474,11 +474,13 @@ static uint64_t gmc_v9_0_get_vm_pte_flags(struct amdgpu_device *adev,
 	return pte_flag;
 }
 
-static u64 gmc_v9_0_get_vm_pde(struct amdgpu_device *adev, u64 addr)
+static void gmc_v9_0_get_vm_pde(struct amdgpu_device *adev, int level,
+				uint64_t *addr, uint64_t *flags)
 {
-	addr = adev->vm_manager.vram_base_offset + addr - adev->mc.vram_start;
-	BUG_ON(addr & 0xFFFF00000000003FULL);
-	return addr;
+	if (!(*flags & AMDGPU_PDE_PTE))
+		*addr = adev->vm_manager.vram_base_offset + *addr -
+			adev->mc.vram_start;
+	BUG_ON(*addr & 0xFFFF00000000003FULL);
 }
 
 static const struct amdgpu_gart_funcs gmc_v9_0_gart_funcs = {
