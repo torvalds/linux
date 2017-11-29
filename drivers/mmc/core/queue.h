@@ -34,7 +34,6 @@ static inline struct request *mmc_queue_req_to_req(struct mmc_queue_req *mqr)
 	return blk_mq_rq_from_pdu(mqr);
 }
 
-struct task_struct;
 struct mmc_blk_data;
 struct mmc_blk_ioc_data;
 
@@ -44,7 +43,6 @@ struct mmc_blk_request {
 	struct mmc_command	cmd;
 	struct mmc_command	stop;
 	struct mmc_data		data;
-	int			retune_retry_done;
 };
 
 /**
@@ -66,7 +64,6 @@ enum mmc_drv_op {
 struct mmc_queue_req {
 	struct mmc_blk_request	brq;
 	struct scatterlist	*sg;
-	struct mmc_async_req	areq;
 	enum mmc_drv_op		drv_op;
 	int			drv_op_result;
 	void			*drv_op_data;
@@ -76,22 +73,10 @@ struct mmc_queue_req {
 
 struct mmc_queue {
 	struct mmc_card		*card;
-	struct task_struct	*thread;
-	struct semaphore	thread_sem;
 	struct mmc_ctx		ctx;
 	struct blk_mq_tag_set	tag_set;
-	bool			suspended;
-	bool			asleep;
 	struct mmc_blk_data	*blkdata;
 	struct request_queue	*queue;
-	/*
-	 * FIXME: this counter is not a very reliable way of keeping
-	 * track of how many requests that are ongoing. Switch to just
-	 * letting the block core keep track of requests and per-request
-	 * associated mmc_queue_req data.
-	 */
-	int			qcnt;
-
 	int			in_flight[MMC_ISSUE_MAX];
 	unsigned int		cqe_busy;
 #define MMC_CQE_DCMD_BUSY	BIT(0)
