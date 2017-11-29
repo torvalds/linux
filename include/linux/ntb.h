@@ -71,6 +71,7 @@ struct pci_dev;
  * @NTB_TOPO_B2B_USD:	On primary side of local ntb upstream of remote ntb.
  * @NTB_TOPO_B2B_DSD:	On primary side of local ntb downstream of remote ntb.
  * @NTB_TOPO_SWITCH:	Connected via a switch which supports ntb.
+ * @NTB_TOPO_CROSSLINK: Connected via two symmetric switchecs
  */
 enum ntb_topo {
 	NTB_TOPO_NONE = -1,
@@ -79,6 +80,7 @@ enum ntb_topo {
 	NTB_TOPO_B2B_USD,
 	NTB_TOPO_B2B_DSD,
 	NTB_TOPO_SWITCH,
+	NTB_TOPO_CROSSLINK,
 };
 
 static inline int ntb_topo_is_b2b(enum ntb_topo topo)
@@ -94,12 +96,13 @@ static inline int ntb_topo_is_b2b(enum ntb_topo topo)
 static inline char *ntb_topo_string(enum ntb_topo topo)
 {
 	switch (topo) {
-	case NTB_TOPO_NONE:	return "NTB_TOPO_NONE";
-	case NTB_TOPO_PRI:	return "NTB_TOPO_PRI";
-	case NTB_TOPO_SEC:	return "NTB_TOPO_SEC";
-	case NTB_TOPO_B2B_USD:	return "NTB_TOPO_B2B_USD";
-	case NTB_TOPO_B2B_DSD:	return "NTB_TOPO_B2B_DSD";
-	case NTB_TOPO_SWITCH:	return "NTB_TOPO_SWITCH";
+	case NTB_TOPO_NONE:		return "NTB_TOPO_NONE";
+	case NTB_TOPO_PRI:		return "NTB_TOPO_PRI";
+	case NTB_TOPO_SEC:		return "NTB_TOPO_SEC";
+	case NTB_TOPO_B2B_USD:		return "NTB_TOPO_B2B_USD";
+	case NTB_TOPO_B2B_DSD:		return "NTB_TOPO_B2B_DSD";
+	case NTB_TOPO_SWITCH:		return "NTB_TOPO_SWITCH";
+	case NTB_TOPO_CROSSLINK:	return "NTB_TOPO_CROSSLINK";
 	}
 	return "NTB_TOPO_INVALID";
 }
