@@ -14,7 +14,7 @@
  * | Module Init and Probe        |       0x0193       | 0x0146         |
  * |                              |                    | 0x015b-0x0160	|
  * |                              |                    | 0x016e		|
- * | Mailbox commands             |       0x1199       | 0x1193		|
+ * | Mailbox commands             |       0x1205       | 0x11a2-0x11ff	|
  * | Device Discovery             |       0x2134       | 0x210e-0x2116  |
  * |				  | 		       | 0x211a         |
  * |                              |                    | 0x211c-0x2128  |
@@ -41,7 +41,7 @@
  * |                              |                    | 0x70ad-0x70ae  |
  * |                              |                    | 0x70d0-0x70d6	|
  * |                              |                    | 0x70d7-0x70db  |
- * | Task Management              |       0x8042       | 0x8000,0x800b  |
+ * | Task Management              |       0x8042       | 0x8000         |
  * |                              |                    | 0x8019         |
  * |                              |                    | 0x8025,0x8026  |
  * |                              |                    | 0x8031,0x8032  |
@@ -2520,8 +2520,6 @@ qla83xx_fw_dump_failed:
 static inline int
 ql_mask_match(uint32_t level)
 {
-	if (ql2xextended_error_logging == 1)
-		ql2xextended_error_logging = QL_DBG_DEFAULT1_MASK;
 	return (level & ql2xextended_error_logging) == level;
 }
 
@@ -2738,9 +2736,9 @@ ql_dump_regs(uint32_t level, scsi_qla_host_t *vha, int32_t id)
 		mbx_reg = MAILBOX_REG(ha, reg, 0);
 
 	ql_dbg(level, vha, id, "Mailbox registers:\n");
-	for (i = 0; i < 6; i++)
+	for (i = 0; i < 6; i++, mbx_reg++)
 		ql_dbg(level, vha, id,
-		    "mbox[%d] 0x%04x\n", i, RD_REG_WORD(mbx_reg++));
+		    "mbox[%d] 0x%04x\n", i, RD_REG_WORD(mbx_reg));
 }
 
 

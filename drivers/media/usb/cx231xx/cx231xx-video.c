@@ -199,10 +199,10 @@ static inline void print_err_status(struct cx231xx *dev, int packet, int status)
 
 	switch (status) {
 	case -ENOENT:
-		errmsg = "unlinked synchronuously";
+		errmsg = "unlinked synchronously";
 		break;
 	case -ECONNRESET:
-		errmsg = "unlinked asynchronuously";
+		errmsg = "unlinked asynchronously";
 		break;
 	case -ENOSR:
 		errmsg = "Buffer error (overrun)";
@@ -859,7 +859,7 @@ static void buffer_release(struct videobuf_queue *vq,
 	free_buffer(vq, buf);
 }
 
-static struct videobuf_queue_ops cx231xx_video_qops = {
+static const struct videobuf_queue_ops cx231xx_video_qops = {
 	.buf_setup = buffer_setup,
 	.buf_prepare = buffer_prepare,
 	.buf_queue = buffer_queue,

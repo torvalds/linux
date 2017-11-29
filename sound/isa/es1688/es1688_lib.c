@@ -526,7 +526,7 @@ static snd_pcm_uframes_t snd_es1688_capture_pointer(struct snd_pcm_substream *su
 
  */
 
-static struct snd_pcm_hardware snd_es1688_playback =
+static const struct snd_pcm_hardware snd_es1688_playback =
 {
 	.info =			(SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED |
 				 SNDRV_PCM_INFO_MMAP_VALID),
@@ -544,7 +544,7 @@ static struct snd_pcm_hardware snd_es1688_playback =
 	.fifo_size =		0,
 };
 
-static struct snd_pcm_hardware snd_es1688_capture =
+static const struct snd_pcm_hardware snd_es1688_capture =
 {
 	.info =			(SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED |
 				 SNDRV_PCM_INFO_MMAP_VALID),
@@ -706,7 +706,7 @@ exit:
 	return err;
 }
 
-static struct snd_pcm_ops snd_es1688_playback_ops = {
+static const struct snd_pcm_ops snd_es1688_playback_ops = {
 	.open =			snd_es1688_playback_open,
 	.close =		snd_es1688_playback_close,
 	.ioctl =		snd_es1688_ioctl,
@@ -717,7 +717,7 @@ static struct snd_pcm_ops snd_es1688_playback_ops = {
 	.pointer =		snd_es1688_playback_pointer,
 };
 
-static struct snd_pcm_ops snd_es1688_capture_ops = {
+static const struct snd_pcm_ops snd_es1688_capture_ops = {
 	.open =			snd_es1688_capture_open,
 	.close =		snd_es1688_capture_close,
 	.ioctl =		snd_es1688_ioctl,

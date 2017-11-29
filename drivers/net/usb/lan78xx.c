@@ -1265,30 +1265,45 @@ static int lan78xx_ethtool_get_eeprom(struct net_device *netdev,
 				      struct ethtool_eeprom *ee, u8 *data)
 {
 	struct lan78xx_net *dev = netdev_priv(netdev);
+	int ret;
+
+	ret = usb_autopm_get_interface(dev->intf);
+	if (ret)
+		return ret;
 
 	ee->magic = LAN78XX_EEPROM_MAGIC;
 
-	return lan78xx_read_raw_eeprom(dev, ee->offset, ee->len, data);
+	ret = lan78xx_read_raw_eeprom(dev, ee->offset, ee->len, data);
+
+	usb_autopm_put_interface(dev->intf);
+
+	return ret;
 }
 
 static int lan78xx_ethtool_set_eeprom(struct net_device *netdev,
 				      struct ethtool_eeprom *ee, u8 *data)
 {
 	struct lan78xx_net *dev = netdev_priv(netdev);
+	int ret;
 
-	/* Allow entire eeprom update only */
-	if ((ee->magic == LAN78XX_EEPROM_MAGIC) &&
-	    (ee->offset == 0) &&
-	    (ee->len == 512) &&
-	    (data[0] == EEPROM_INDICATOR))
-		return lan78xx_write_raw_eeprom(dev, ee->offset, ee->len, data);
+	ret = usb_autopm_get_interface(dev->intf);
+	if (ret)
+		return ret;
+
+	/* Invalid EEPROM_INDICATOR at offset zero will result in a failure
+	 * to load data from EEPROM
+	 */
+	if (ee->magic == LAN78XX_EEPROM_MAGIC)
+		ret = lan78xx_write_raw_eeprom(dev, ee->offset, ee->len, data);
 	else if ((ee->magic == LAN78XX_OTP_MAGIC) &&
 		 (ee->offset == 0) &&
 		 (ee->len == 512) &&
 		 (data[0] == OTP_INDICATOR_1))
-		return lan78xx_write_raw_otp(dev, ee->offset, ee->len, data);
+		ret = lan78xx_write_raw_otp(dev, ee->offset, ee->len, data);
 
-	return -EINVAL;
+	usb_autopm_put_interface(dev->intf);
+
+	return ret;
 }
 
 static void lan78xx_get_strings(struct net_device *netdev, u32 stringset,
@@ -2367,9 +2382,6 @@ static int lan78xx_reset(struct lan78xx_net *dev)
 	/* Init LTM */
 	lan78xx_init_ltm(dev);
 
-	dev->net->hard_header_len += TX_OVERHEAD;
-	dev->hard_mtu = dev->net->mtu + dev->net->hard_header_len;
-
 	if (dev->udev->speed == USB_SPEED_SUPER) {
 		buf = DEFAULT_BURST_CAP_SIZE / SS_USB_PKT_SIZE;
 		dev->rx_urb_size = DEFAULT_BURST_CAP_SIZE;
@@ -2437,7 +2449,6 @@ static int lan78xx_reset(struct lan78xx_net *dev)
 	/* LAN7801 only has RGMII mode */
 	if (dev->chipid == ID_REV_CHIP_ID_7801_)
 		buf &= ~MAC_CR_GMII_EN_;
-	buf |= MAC_CR_AUTO_DUPLEX_ | MAC_CR_AUTO_SPEED_;
 	ret = lan78xx_write_reg(dev, MAC_CR, buf);
 
 	ret = lan78xx_read_reg(dev, MAC_TX, &buf);
@@ -2855,16 +2866,19 @@ static int lan78xx_bind(struct lan78xx_net *dev, struct usb_interface *intf)
 		return ret;
 	}
 
+	dev->net->hard_header_len += TX_OVERHEAD;
+	dev->hard_mtu = dev->net->mtu + dev->net->hard_header_len;
+
 	/* Init all registers */
 	ret = lan78xx_reset(dev);
 
-	lan78xx_mdio_init(dev);
+	ret = lan78xx_mdio_init(dev);
 
 	dev->net->flags |= IFF_MULTICAST;
 
 	pdata->wol = WAKE_MAGIC;
 
-	return 0;
+	return ret;
 }
 
 static void lan78xx_unbind(struct lan78xx_net *dev, struct usb_interface *intf)
@@ -3502,11 +3516,9 @@ static const struct net_device_ops lan78xx_netdev_ops = {
 	.ndo_vlan_rx_kill_vid	= lan78xx_vlan_rx_kill_vid,
 };
 
-static void lan78xx_stat_monitor(unsigned long param)
+static void lan78xx_stat_monitor(struct timer_list *t)
 {
-	struct lan78xx_net *dev;
-
-	dev = (struct lan78xx_net *)param;
+	struct lan78xx_net *dev = from_timer(dev, t, stat_monitor);
 
 	lan78xx_defer_kevent(dev, EVENT_STAT_UPDATE);
 }
@@ -3525,11 +3537,11 @@ static int lan78xx_probe(struct usb_interface *intf,
 	udev = interface_to_usbdev(intf);
 	udev = usb_get_dev(udev);
 
-	ret = -ENOMEM;
 	netdev = alloc_etherdev(sizeof(struct lan78xx_net));
 	if (!netdev) {
-			dev_err(&intf->dev, "Error: OOM\n");
-			goto out1;
+		dev_err(&intf->dev, "Error: OOM\n");
+		ret = -ENOMEM;
+		goto out1;
 	}
 
 	/* netdev_printk() needs this */
@@ -3557,10 +3569,8 @@ static int lan78xx_probe(struct usb_interface *intf,
 	netdev->watchdog_timeo = TX_TIMEOUT_JIFFIES;
 	netdev->ethtool_ops = &lan78xx_ethtool_ops;
 
-	dev->stat_monitor.function = lan78xx_stat_monitor;
-	dev->stat_monitor.data = (unsigned long)dev;
 	dev->delta = 1;
-	init_timer(&dev->stat_monitor);
+	timer_setup(&dev->stat_monitor, lan78xx_stat_monitor, 0);
 
 	mutex_init(&dev->stats.access_lock);
 
@@ -3610,7 +3620,7 @@ static int lan78xx_probe(struct usb_interface *intf,
 	ret = register_netdev(netdev);
 	if (ret != 0) {
 		netif_err(dev, probe, netdev, "couldn't register the device\n");
-		goto out2;
+		goto out3;
 	}
 
 	usb_set_intfdata(intf, dev);

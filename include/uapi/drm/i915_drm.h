@@ -260,6 +260,8 @@ typedef struct _drm_i915_sarea {
 #define DRM_I915_GEM_CONTEXT_GETPARAM	0x34
 #define DRM_I915_GEM_CONTEXT_SETPARAM	0x35
 #define DRM_I915_PERF_OPEN		0x36
+#define DRM_I915_PERF_ADD_CONFIG	0x37
+#define DRM_I915_PERF_REMOVE_CONFIG	0x38
 
 #define DRM_IOCTL_I915_INIT		DRM_IOW( DRM_COMMAND_BASE + DRM_I915_INIT, drm_i915_init_t)
 #define DRM_IOCTL_I915_FLUSH		DRM_IO ( DRM_COMMAND_BASE + DRM_I915_FLUSH)
@@ -315,6 +317,8 @@ typedef struct _drm_i915_sarea {
 #define DRM_IOCTL_I915_GEM_CONTEXT_GETPARAM	DRM_IOWR (DRM_COMMAND_BASE + DRM_I915_GEM_CONTEXT_GETPARAM, struct drm_i915_gem_context_param)
 #define DRM_IOCTL_I915_GEM_CONTEXT_SETPARAM	DRM_IOWR (DRM_COMMAND_BASE + DRM_I915_GEM_CONTEXT_SETPARAM, struct drm_i915_gem_context_param)
 #define DRM_IOCTL_I915_PERF_OPEN	DRM_IOW(DRM_COMMAND_BASE + DRM_I915_PERF_OPEN, struct drm_i915_perf_open_param)
+#define DRM_IOCTL_I915_PERF_ADD_CONFIG	DRM_IOW(DRM_COMMAND_BASE + DRM_I915_PERF_ADD_CONFIG, struct drm_i915_perf_oa_config)
+#define DRM_IOCTL_I915_PERF_REMOVE_CONFIG	DRM_IOW(DRM_COMMAND_BASE + DRM_I915_PERF_REMOVE_CONFIG, __u64)
 
 /* Allow drivers to submit batchbuffers directly to hardware, relying
  * on the security mechanisms provided by hardware.
@@ -393,10 +397,20 @@ typedef struct drm_i915_irq_wait {
 #define I915_PARAM_MIN_EU_IN_POOL	 39
 #define I915_PARAM_MMAP_GTT_VERSION	 40
 
-/* Query whether DRM_I915_GEM_EXECBUFFER2 supports user defined execution
+/*
+ * Query whether DRM_I915_GEM_EXECBUFFER2 supports user defined execution
  * priorities and the driver will attempt to execute batches in priority order.
+ * The param returns a capability bitmask, nonzero implies that the scheduler
+ * is enabled, with different features present according to the mask.
+ *
+ * The initial priority for each batch is supplied by the context and is
+ * controlled via I915_CONTEXT_PARAM_PRIORITY.
  */
 #define I915_PARAM_HAS_SCHEDULER	 41
+#define   I915_SCHEDULER_CAP_ENABLED	(1ul << 0)
+#define   I915_SCHEDULER_CAP_PRIORITY	(1ul << 1)
+#define   I915_SCHEDULER_CAP_PREEMPTION	(1ul << 2)
+
 #define I915_PARAM_HUC_STATUS		 42
 
 /* Query whether DRM_I915_GEM_EXECBUFFER2 supports the ability to opt-out of
@@ -430,6 +444,11 @@ typedef struct drm_i915_irq_wait {
  * as the first execobject as opposed to the last. See I915_EXEC_BATCH_FIRST.
  */
 #define I915_PARAM_HAS_EXEC_BATCH_FIRST	 48
+
+/* Query whether DRM_I915_GEM_EXECBUFFER2 supports supplying an array of
+ * drm_i915_gem_exec_fence structures.  See I915_EXEC_FENCE_ARRAY.
+ */
+#define I915_PARAM_HAS_EXEC_FENCE_ARRAY  49
 
 typedef struct drm_i915_getparam {
 	__s32 param;
@@ -812,6 +831,18 @@ struct drm_i915_gem_exec_object2 {
 	__u64 rsvd2;
 };
 
+struct drm_i915_gem_exec_fence {
+	/**
+	 * User's handle for a drm_syncobj to wait on or signal.
+	 */
+	__u32 handle;
+
+#define I915_EXEC_FENCE_WAIT            (1<<0)
+#define I915_EXEC_FENCE_SIGNAL          (1<<1)
+#define __I915_EXEC_FENCE_UNKNOWN_FLAGS (-(I915_EXEC_FENCE_SIGNAL << 1))
+	__u32 flags;
+};
+
 struct drm_i915_gem_execbuffer2 {
 	/**
 	 * List of gem_exec_object2 structs
@@ -826,7 +857,11 @@ struct drm_i915_gem_execbuffer2 {
 	__u32 DR1;
 	__u32 DR4;
 	__u32 num_cliprects;
-	/** This is a struct drm_clip_rect *cliprects */
+	/**
+	 * This is a struct drm_clip_rect *cliprects if I915_EXEC_FENCE_ARRAY
+	 * is not set.  If I915_EXEC_FENCE_ARRAY is set, then this is a
+	 * struct drm_i915_gem_exec_fence *fences.
+	 */
 	__u64 cliprects_ptr;
 #define I915_EXEC_RING_MASK              (7<<0)
 #define I915_EXEC_DEFAULT                (0<<0)
@@ -927,7 +962,14 @@ struct drm_i915_gem_execbuffer2 {
  * element).
  */
 #define I915_EXEC_BATCH_FIRST		(1<<18)
-#define __I915_EXEC_UNKNOWN_FLAGS (-(I915_EXEC_BATCH_FIRST<<1))
+
+/* Setting I915_FENCE_ARRAY implies that num_cliprects and cliprects_ptr
+ * define an array of i915_gem_exec_fence structures which specify a set of
+ * dma fences to wait upon or signal.
+ */
+#define I915_EXEC_FENCE_ARRAY   (1<<19)
+
+#define __I915_EXEC_UNKNOWN_FLAGS (-(I915_EXEC_FENCE_ARRAY<<1))
 
 #define I915_EXEC_CONTEXT_ID_MASK	(0xffffffff)
 #define i915_execbuffer2_set_context_id(eb2, context) \
@@ -1277,14 +1319,16 @@ struct drm_i915_reg_read {
 	 * be specified
 	 */
 	__u64 offset;
+#define I915_REG_READ_8B_WA (1ul << 0)
+
 	__u64 val; /* Return value */
 };
 /* Known registers:
  *
  * Render engine timestamp - 0x2358 + 64bit - gen7+
  * - Note this register returns an invalid value if using the default
- *   single instruction 8byte read, in order to workaround that use
- *   offset (0x2538 | 1) instead.
+ *   single instruction 8byte read, in order to workaround that pass
+ *   flag I915_REG_READ_8B_WA in offset field.
  *
  */
 
@@ -1327,6 +1371,10 @@ struct drm_i915_gem_context_param {
 #define I915_CONTEXT_PARAM_GTT_SIZE	0x3
 #define I915_CONTEXT_PARAM_NO_ERROR_CAPTURE	0x4
 #define I915_CONTEXT_PARAM_BANNABLE	0x5
+#define I915_CONTEXT_PARAM_PRIORITY	0x6
+#define   I915_CONTEXT_MAX_USER_PRIORITY	1023 /* inclusive */
+#define   I915_CONTEXT_DEFAULT_PRIORITY		0
+#define   I915_CONTEXT_MIN_USER_PRIORITY	-1023 /* inclusive */
 	__u64 value;
 };
 
@@ -1465,6 +1513,27 @@ enum drm_i915_perf_record_type {
 	DRM_I915_PERF_RECORD_OA_BUFFER_LOST = 3,
 
 	DRM_I915_PERF_RECORD_MAX /* non-ABI */
+};
+
+/**
+ * Structure to upload perf dynamic configuration into the kernel.
+ */
+struct drm_i915_perf_oa_config {
+	/** String formatted like "%08x-%04x-%04x-%04x-%012x" */
+	char uuid[36];
+
+	__u32 n_mux_regs;
+	__u32 n_boolean_regs;
+	__u32 n_flex_regs;
+
+	/*
+	 * These fields are pointers to tuples of u32 values (register
+	 * address, value). For example the expected length of the buffer
+	 * pointed by mux_regs_ptr is (2 * sizeof(u32) * n_mux_regs).
+	 */
+	__u64 mux_regs_ptr;
+	__u64 boolean_regs_ptr;
+	__u64 flex_regs_ptr;
 };
 
 #if defined(__cplusplus)

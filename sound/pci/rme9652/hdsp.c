@@ -793,11 +793,8 @@ static int hdsp_get_iobox_version (struct hdsp *hdsp)
 
 		hdsp_write(hdsp, HDSP_control2Reg, HDSP_S200 | HDSP_PROGRAM);
 		hdsp_write (hdsp, HDSP_fifoData, 0);
-		if (hdsp_fifo_wait(hdsp, 0, HDSP_SHORT_WAIT) < 0) {
-			hdsp->io_type = Multiface;
-			dev_info(hdsp->card->dev, "Multiface found\n");
-			return 0;
-		}
+		if (hdsp_fifo_wait(hdsp, 0, HDSP_SHORT_WAIT) < 0)
+			goto set_multi;
 
 		hdsp_write(hdsp, HDSP_control2Reg, HDSP_S_LOAD);
 		hdsp_write(hdsp, HDSP_fifoData, 0);
@@ -810,20 +807,14 @@ static int hdsp_get_iobox_version (struct hdsp *hdsp)
 		hdsp_write(hdsp, HDSP_control2Reg, HDSP_S300);
 		hdsp_write(hdsp, HDSP_control2Reg, HDSP_S_LOAD);
 		hdsp_write(hdsp, HDSP_fifoData, 0);
-		if (hdsp_fifo_wait(hdsp, 0, HDSP_SHORT_WAIT) == 0) {
-			hdsp->io_type = Multiface;
-			dev_info(hdsp->card->dev, "Multiface found\n");
-			return 0;
-		}
+		if (hdsp_fifo_wait(hdsp, 0, HDSP_SHORT_WAIT) == 0)
+			goto set_multi;
 
 		hdsp_write(hdsp, HDSP_control2Reg, HDSP_S300);
 		hdsp_write(hdsp, HDSP_control2Reg, HDSP_S_LOAD);
 		hdsp_write(hdsp, HDSP_fifoData, 0);
-		if (hdsp_fifo_wait(hdsp, 0, HDSP_SHORT_WAIT) < 0) {
-			hdsp->io_type = Multiface;
-			dev_info(hdsp->card->dev, "Multiface found\n");
-			return 0;
-		}
+		if (hdsp_fifo_wait(hdsp, 0, HDSP_SHORT_WAIT) < 0)
+			goto set_multi;
 
 		hdsp->io_type = RPM;
 		dev_info(hdsp->card->dev, "RPM found\n");
@@ -837,6 +828,11 @@ static int hdsp_get_iobox_version (struct hdsp *hdsp)
 		else
 			hdsp->io_type = Digiface;
 	}
+	return 0;
+
+set_multi:
+	hdsp->io_type = Multiface;
+	dev_info(hdsp->card->dev, "Multiface found\n");
 	return 0;
 }
 
@@ -1414,9 +1410,9 @@ static void snd_hdsp_midi_input_trigger(struct snd_rawmidi_substream *substream,
 	spin_unlock_irqrestore (&hdsp->lock, flags);
 }
 
-static void snd_hdsp_midi_output_timer(unsigned long data)
+static void snd_hdsp_midi_output_timer(struct timer_list *t)
 {
-	struct hdsp_midi *hmidi = (struct hdsp_midi *) data;
+	struct hdsp_midi *hmidi = from_timer(hmidi, t, timer);
 	unsigned long flags;
 
 	snd_hdsp_midi_output_write(hmidi);
@@ -1443,8 +1439,8 @@ static void snd_hdsp_midi_output_trigger(struct snd_rawmidi_substream *substream
 	spin_lock_irqsave (&hmidi->lock, flags);
 	if (up) {
 		if (!hmidi->istimer) {
-			setup_timer(&hmidi->timer, snd_hdsp_midi_output_timer,
-				    (unsigned long) hmidi);
+			timer_setup(&hmidi->timer, snd_hdsp_midi_output_timer,
+				    0);
 			mod_timer(&hmidi->timer, 1 + jiffies);
 			hmidi->istimer++;
 		}
@@ -4211,7 +4207,7 @@ static int snd_hdsp_prepare(struct snd_pcm_substream *substream)
 	return result;
 }
 
-static struct snd_pcm_hardware snd_hdsp_playback_subinfo =
+static const struct snd_pcm_hardware snd_hdsp_playback_subinfo =
 {
 	.info =			(SNDRV_PCM_INFO_MMAP |
 				 SNDRV_PCM_INFO_MMAP_VALID |
@@ -4241,7 +4237,7 @@ static struct snd_pcm_hardware snd_hdsp_playback_subinfo =
 	.fifo_size =		0
 };
 
-static struct snd_pcm_hardware snd_hdsp_capture_subinfo =
+static const struct snd_pcm_hardware snd_hdsp_capture_subinfo =
 {
 	.info =			(SNDRV_PCM_INFO_MMAP |
 				 SNDRV_PCM_INFO_MMAP_VALID |
@@ -5381,17 +5377,16 @@ static int snd_hdsp_probe(struct pci_dev *pci,
 	card->private_free = snd_hdsp_card_free;
 	hdsp->dev = dev;
 	hdsp->pci = pci;
-
-	if ((err = snd_hdsp_create(card, hdsp)) < 0) {
-		snd_card_free(card);
-		return err;
-	}
+	err = snd_hdsp_create(card, hdsp);
+	if (err)
+		goto free_card;
 
 	strcpy(card->shortname, "Hammerfall DSP");
 	sprintf(card->longname, "%s at 0x%lx, irq %d", hdsp->card_name,
 		hdsp->port, hdsp->irq);
-
-	if ((err = snd_card_register(card)) < 0) {
+	err = snd_card_register(card);
+	if (err) {
+free_card:
 		snd_card_free(card);
 		return err;
 	}

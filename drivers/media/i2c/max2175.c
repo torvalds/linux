@@ -1319,7 +1319,7 @@ static int max2175_probe(struct i2c_client *client,
 	if (IS_ERR(clk)) {
 		ret = PTR_ERR(clk);
 		dev_err(&client->dev, "cannot get clock %d\n", ret);
-		return -ENODEV;
+		return ret;
 	}
 
 	regmap = devm_regmap_init_i2c(client, &max2175_regmap_config);
@@ -1345,7 +1345,7 @@ static int max2175_probe(struct i2c_client *client,
 	v4l2_i2c_subdev_init(sd, client, &max2175_ops);
 	ctx->client = client;
 
-	sd->flags = V4L2_SUBDEV_FL_HAS_DEVNODE;
+	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
 
 	/* Controls */
 	hdl = &ctx->ctrl_hdl;

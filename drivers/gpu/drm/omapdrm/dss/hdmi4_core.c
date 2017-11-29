@@ -31,11 +31,11 @@
 #include <linux/platform_device.h>
 #include <linux/string.h>
 #include <linux/seq_file.h>
+#include <linux/sys_soc.h>
 #include <sound/asound.h>
 #include <sound/asoundef.h>
 
 #include "hdmi4_core.h"
-#include "dss_features.h"
 
 #define HDMI_CORE_AV		0x500
 
@@ -208,9 +208,9 @@ static void hdmi_core_init(struct hdmi_core_video_config *video_cfg)
 	video_cfg->tclk_sel_clkmult = HDMI_FPLL10IDCK;
 }
 
-static void hdmi_core_powerdown_disable(struct hdmi_core_data *core)
+void hdmi4_core_powerdown_disable(struct hdmi_core_data *core)
 {
-	DSSDBG("Enter hdmi_core_powerdown_disable\n");
+	DSSDBG("Enter hdmi4_core_powerdown_disable\n");
 	REG_FLD_MOD(core->base, HDMI_CORE_SYS_SYS_CTRL1, 0x1, 0, 0);
 }
 
@@ -334,9 +334,6 @@ void hdmi4_configure(struct hdmi_core_data *core,
 	 * set software reset in the core
 	 */
 	hdmi_core_swreset_assert(core);
-
-	/* power down off */
-	hdmi_core_powerdown_disable(core);
 
 	v_core_cfg.pkt_mode = HDMI_PACKETMODE24BITPERPIXEL;
 	v_core_cfg.hdmi_dvi = cfg->hdmi_dvi_mode;
@@ -757,10 +754,10 @@ int hdmi4_audio_config(struct hdmi_core_data *core, struct hdmi_wp_data *wp,
 	/* Audio clock regeneration settings */
 	acore.n = n;
 	acore.cts = cts;
-	if (dss_has_feature(FEAT_HDMI_CTS_SWMODE)) {
+	if (core->cts_swmode) {
 		acore.aud_par_busclk = 0;
 		acore.cts_mode = HDMI_AUDIO_CTS_MODE_SW;
-		acore.use_mclk = dss_has_feature(FEAT_HDMI_AUDIO_USE_MCLK);
+		acore.use_mclk = core->audio_use_mclk;
 	} else {
 		acore.aud_par_busclk = (((128 * 31) - 1) << 8);
 		acore.cts_mode = HDMI_AUDIO_CTS_MODE_HW;
@@ -884,9 +881,41 @@ void hdmi4_audio_stop(struct hdmi_core_data *core, struct hdmi_wp_data *wp)
 	hdmi_wp_audio_core_req_enable(wp, false);
 }
 
+struct hdmi4_features {
+	bool cts_swmode;
+	bool audio_use_mclk;
+};
+
+static const struct hdmi4_features hdmi4_es1_features = {
+	.cts_swmode = false,
+	.audio_use_mclk = false,
+};
+
+static const struct hdmi4_features hdmi4_es2_features = {
+	.cts_swmode = true,
+	.audio_use_mclk = false,
+};
+
+static const struct hdmi4_features hdmi4_es3_features = {
+	.cts_swmode = true,
+	.audio_use_mclk = true,
+};
+
+static const struct soc_device_attribute hdmi4_soc_devices[] = {
+	{ .family = "OMAP4", .revision = "ES1.?", .data = &hdmi4_es1_features },
+	{ .family = "OMAP4", .revision = "ES2.?", .data = &hdmi4_es2_features },
+	{ .family = "OMAP4",			  .data = &hdmi4_es3_features },
+	{ /* sentinel */ }
+};
+
 int hdmi4_core_init(struct platform_device *pdev, struct hdmi_core_data *core)
 {
+	const struct hdmi4_features *features;
 	struct resource *res;
+
+	features = soc_device_match(hdmi4_soc_devices)->data;
+	core->cts_swmode = features->cts_swmode;
+	core->audio_use_mclk = features->audio_use_mclk;
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "core");
 	core->base = devm_ioremap_resource(&pdev->dev, res);

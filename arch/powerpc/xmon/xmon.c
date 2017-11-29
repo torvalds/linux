@@ -28,6 +28,7 @@
 #include <linux/bug.h>
 #include <linux/nmi.h>
 #include <linux/ctype.h>
+#include <linux/highmem.h>
 
 #include <asm/debugfs.h>
 #include <asm/ptrace.h>
@@ -89,6 +90,7 @@ static unsigned long nidump = 16;
 static unsigned long ncsum = 4096;
 static int termch;
 static char tmpstr[128];
+static int tracing_enabled;
 
 static long bus_error_jmp[JMP_BUF_LEN];
 static int catch_memory_errors;
@@ -126,6 +128,7 @@ static void byterev(unsigned char *, int);
 static void memex(void);
 static int bsesc(void);
 static void dump(void);
+static void show_pte(unsigned long);
 static void prdump(unsigned long, long);
 static int ppc_inst_dump(unsigned long, long, int);
 static void dump_log_buf(void);
@@ -233,7 +236,9 @@ Commands:\n\
 #endif
   "\
   dr	dump stream of raw bytes\n\
+  dv	dump virtual address translation \n\
   dt	dump the tracing buffers (uses printk)\n\
+  dtc	dump the tracing buffers for current CPU (uses printk)\n\
 "
 #ifdef CONFIG_PPC_POWERNV
 "  dx#   dump xive on CPU #\n\
@@ -276,6 +281,7 @@ Commands:\n\
 #elif defined(CONFIG_44x) || defined(CONFIG_PPC_BOOK3E)
 "  u	dump TLB\n"
 #endif
+"  U	show uptime information\n"
 "  ?	help\n"
 "  # n	limit output to n lines per page (for dp, dpa, dl)\n"
 "  zr	reboot\n\
@@ -461,6 +467,9 @@ static int xmon_core(struct pt_regs *regs, int fromipi)
 	local_irq_save(flags);
 	hard_irq_disable();
 
+	tracing_enabled = tracing_is_on();
+	tracing_off();
+
 	bp = in_breakpoint_table(regs->nip, &offset);
 	if (bp != NULL) {
 		regs->nip = bp->address + offset;
@@ -525,14 +534,19 @@ static int xmon_core(struct pt_regs *regs, int fromipi)
 
  waiting:
 	secondary = 1;
+	spin_begin();
 	while (secondary && !xmon_gate) {
 		if (in_xmon == 0) {
-			if (fromipi)
+			if (fromipi) {
+				spin_end();
 				goto leave;
+			}
 			secondary = test_and_set_bit(0, &in_xmon);
 		}
-		barrier();
+		spin_cpu_relax();
+		touch_nmi_watchdog();
 	}
+	spin_end();
 
 	if (!secondary && !xmon_gate) {
 		/* we are the first cpu to come in */
@@ -563,21 +577,25 @@ static int xmon_core(struct pt_regs *regs, int fromipi)
 		mb();
 		xmon_gate = 1;
 		barrier();
+		touch_nmi_watchdog();
 	}
 
  cmdloop:
 	while (in_xmon) {
 		if (secondary) {
+			spin_begin();
 			if (cpu == xmon_owner) {
 				if (!test_and_set_bit(0, &xmon_taken)) {
 					secondary = 0;
+					spin_end();
 					continue;
 				}
 				/* missed it */
 				while (cpu == xmon_owner)
-					barrier();
+					spin_cpu_relax();
 			}
-			barrier();
+			spin_cpu_relax();
+			touch_nmi_watchdog();
 		} else {
 			cmd = cmds(regs);
 			if (cmd != 0) {
@@ -891,6 +909,26 @@ static void remove_cpu_bpts(void)
 	write_ciabr(0);
 }
 
+/* Based on uptime_proc_show(). */
+static void
+show_uptime(void)
+{
+	struct timespec uptime;
+
+	if (setjmp(bus_error_jmp) == 0) {
+		catch_memory_errors = 1;
+		sync();
+
+		get_monotonic_boottime(&uptime);
+		printf("Uptime: %lu.%.2lu seconds\n", (unsigned long)uptime.tv_sec,
+			((unsigned long)uptime.tv_nsec / (NSEC_PER_SEC/100)));
+
+		sync();
+		__delay(200);						\
+	}
+	catch_memory_errors = 0;
+}
+
 static void set_lpp_cmd(void)
 {
 	unsigned long lpp;
@@ -981,6 +1019,8 @@ cmds(struct pt_regs *excp)
 			break;
 		case 'x':
 		case 'X':
+			if (tracing_enabled)
+				tracing_on();
 			return cmd;
 		case EOF:
 			printf(" <no input ...>\n");
@@ -1024,6 +1064,9 @@ cmds(struct pt_regs *excp)
 			dump_tlb_book3e();
 			break;
 #endif
+		case 'U':
+			show_uptime();
+			break;
 		default:
 			printf("Unrecognized command: ");
 			do {
@@ -1732,23 +1775,25 @@ static void dump_206_sprs(void)
 
 	/* Actually some of these pre-date 2.06, but whatevs */
 
-	printf("srr0   = %.16x  srr1  = %.16x dsisr  = %.8x\n",
+	printf("srr0   = %.16lx  srr1  = %.16lx dsisr  = %.8x\n",
 		mfspr(SPRN_SRR0), mfspr(SPRN_SRR1), mfspr(SPRN_DSISR));
-	printf("dscr   = %.16x  ppr   = %.16x pir    = %.8x\n",
+	printf("dscr   = %.16lx  ppr   = %.16lx pir    = %.8x\n",
 		mfspr(SPRN_DSCR), mfspr(SPRN_PPR), mfspr(SPRN_PIR));
+	printf("amr    = %.16lx  uamor = %.16lx\n",
+		mfspr(SPRN_AMR), mfspr(SPRN_UAMOR));
 
 	if (!(mfmsr() & MSR_HV))
 		return;
 
-	printf("sdr1   = %.16x  hdar  = %.16x hdsisr = %.8x\n",
+	printf("sdr1   = %.16lx  hdar  = %.16lx hdsisr = %.8x\n",
 		mfspr(SPRN_SDR1), mfspr(SPRN_HDAR), mfspr(SPRN_HDSISR));
-	printf("hsrr0  = %.16x hsrr1  = %.16x hdec = %.8x\n",
+	printf("hsrr0  = %.16lx hsrr1  = %.16lx hdec   = %.16lx\n",
 		mfspr(SPRN_HSRR0), mfspr(SPRN_HSRR1), mfspr(SPRN_HDEC));
-	printf("lpcr   = %.16x  pcr   = %.16x lpidr = %.8x\n",
+	printf("lpcr   = %.16lx  pcr   = %.16lx lpidr  = %.8x\n",
 		mfspr(SPRN_LPCR), mfspr(SPRN_PCR), mfspr(SPRN_LPID));
-	printf("hsprg0 = %.16x hsprg1 = %.16x\n",
-		mfspr(SPRN_HSPRG0), mfspr(SPRN_HSPRG1));
-	printf("dabr   = %.16x dabrx  = %.16x\n",
+	printf("hsprg0 = %.16lx hsprg1 = %.16lx amor   = %.16lx\n",
+		mfspr(SPRN_HSPRG0), mfspr(SPRN_HSPRG1), mfspr(SPRN_AMOR));
+	printf("dabr   = %.16lx dabrx  = %.16lx\n",
 		mfspr(SPRN_DABR), mfspr(SPRN_DABRX));
 #endif
 }
@@ -1761,39 +1806,62 @@ static void dump_207_sprs(void)
 	if (!cpu_has_feature(CPU_FTR_ARCH_207S))
 		return;
 
-	printf("dpdes  = %.16x  tir   = %.16x cir    = %.8x\n",
+	printf("dpdes  = %.16lx  tir   = %.16lx cir    = %.8x\n",
 		mfspr(SPRN_DPDES), mfspr(SPRN_TIR), mfspr(SPRN_CIR));
 
-	printf("fscr   = %.16x  tar   = %.16x pspb   = %.8x\n",
+	printf("fscr   = %.16lx  tar   = %.16lx pspb   = %.8x\n",
 		mfspr(SPRN_FSCR), mfspr(SPRN_TAR), mfspr(SPRN_PSPB));
 
 	msr = mfmsr();
 	if (msr & MSR_TM) {
 		/* Only if TM has been enabled in the kernel */
-		printf("tfhar  = %.16x  tfiar = %.16x texasr = %.16x\n",
+		printf("tfhar  = %.16lx  tfiar = %.16lx texasr = %.16lx\n",
 			mfspr(SPRN_TFHAR), mfspr(SPRN_TFIAR),
 			mfspr(SPRN_TEXASR));
 	}
 
-	printf("mmcr0  = %.16x  mmcr1 = %.16x mmcr2  = %.16x\n",
+	printf("mmcr0  = %.16lx  mmcr1 = %.16lx mmcr2  = %.16lx\n",
 		mfspr(SPRN_MMCR0), mfspr(SPRN_MMCR1), mfspr(SPRN_MMCR2));
 	printf("pmc1   = %.8x pmc2 = %.8x  pmc3 = %.8x  pmc4   = %.8x\n",
 		mfspr(SPRN_PMC1), mfspr(SPRN_PMC2),
 		mfspr(SPRN_PMC3), mfspr(SPRN_PMC4));
-	printf("mmcra  = %.16x   siar = %.16x pmc5   = %.8x\n",
+	printf("mmcra  = %.16lx   siar = %.16lx pmc5   = %.8x\n",
 		mfspr(SPRN_MMCRA), mfspr(SPRN_SIAR), mfspr(SPRN_PMC5));
-	printf("sdar   = %.16x   sier = %.16x pmc6   = %.8x\n",
+	printf("sdar   = %.16lx   sier = %.16lx pmc6   = %.8x\n",
 		mfspr(SPRN_SDAR), mfspr(SPRN_SIER), mfspr(SPRN_PMC6));
-	printf("ebbhr  = %.16x  ebbrr = %.16x bescr  = %.16x\n",
+	printf("ebbhr  = %.16lx  ebbrr = %.16lx bescr  = %.16lx\n",
 		mfspr(SPRN_EBBHR), mfspr(SPRN_EBBRR), mfspr(SPRN_BESCR));
+	printf("iamr   = %.16lx\n", mfspr(SPRN_IAMR));
 
 	if (!(msr & MSR_HV))
 		return;
 
-	printf("hfscr  = %.16x  dhdes = %.16x rpr    = %.16x\n",
+	printf("hfscr  = %.16lx  dhdes = %.16lx rpr    = %.16lx\n",
 		mfspr(SPRN_HFSCR), mfspr(SPRN_DHDES), mfspr(SPRN_RPR));
-	printf("dawr   = %.16x  dawrx = %.16x ciabr  = %.16x\n",
+	printf("dawr   = %.16lx  dawrx = %.16lx ciabr  = %.16lx\n",
 		mfspr(SPRN_DAWR), mfspr(SPRN_DAWRX), mfspr(SPRN_CIABR));
+#endif
+}
+
+static void dump_300_sprs(void)
+{
+#ifdef CONFIG_PPC64
+	bool hv = mfmsr() & MSR_HV;
+
+	if (!cpu_has_feature(CPU_FTR_ARCH_300))
+		return;
+
+	printf("pidr   = %.16lx  tidr  = %.16lx\n",
+		mfspr(SPRN_PID), mfspr(SPRN_TIDR));
+	printf("asdr   = %.16lx  psscr = %.16lx\n",
+		mfspr(SPRN_ASDR), hv ? mfspr(SPRN_PSSCR)
+					: mfspr(SPRN_PSSCR_PR));
+
+	if (!hv)
+		return;
+
+	printf("ptcr   = %.16lx\n",
+		mfspr(SPRN_PTCR));
 #endif
 }
 
@@ -1850,6 +1918,7 @@ static void super_regs(void)
 
 		dump_206_sprs();
 		dump_207_sprs();
+		dump_300_sprs();
 
 		return;
 	}
@@ -2231,11 +2300,22 @@ static void xmon_rawdump (unsigned long adrs, long ndump)
 	printf("\n");
 }
 
+static void dump_tracing(void)
+{
+	int c;
+
+	c = inchar();
+	if (c == 'c')
+		ftrace_dump(DUMP_ORIG);
+	else
+		ftrace_dump(DUMP_ALL);
+}
+
 #ifdef CONFIG_PPC64
 static void dump_one_paca(int cpu)
 {
 	struct paca_struct *p;
-#ifdef CONFIG_PPC_STD_MMU_64
+#ifdef CONFIG_PPC_BOOK3S_64
 	int i = 0;
 #endif
 
@@ -2276,7 +2356,7 @@ static void dump_one_paca(int cpu)
 	DUMP(p, hw_cpu_id, "x");
 	DUMP(p, cpu_start, "x");
 	DUMP(p, kexec_state, "x");
-#ifdef CONFIG_PPC_STD_MMU_64
+#ifdef CONFIG_PPC_BOOK3S_64
 	for (i = 0; i < SLB_NUM_BOLTED; i++) {
 		u64 esid, vsid;
 
@@ -2307,6 +2387,7 @@ static void dump_one_paca(int cpu)
 #endif
 	DUMP(p, __current, "p");
 	DUMP(p, kstack, "lx");
+	printf(" kstack_base          = 0x%016lx\n", p->kstack & ~(THREAD_SIZE - 1));
 	DUMP(p, stab_rr, "lx");
 	DUMP(p, saved_r1, "lx");
 	DUMP(p, trap_save, "x");
@@ -2431,6 +2512,11 @@ static void dump_xives(void)
 	unsigned long num;
 	int c;
 
+	if (!xive_enabled()) {
+		printf("Xive disabled on this system\n");
+		return;
+	}
+
 	c = inchar();
 	if (c == 'a') {
 		dump_all_xives();
@@ -2507,6 +2593,11 @@ dump(void)
 	}
 #endif
 
+	if (c == 't') {
+		dump_tracing();
+		return;
+	}
+
 	if (c == '\n')
 		termch = c;
 
@@ -2525,9 +2616,9 @@ dump(void)
 		dump_log_buf();
 	} else if (c == 'o') {
 		dump_opal_msglog();
-	} else if (c == 't') {
-		ftrace_dump(DUMP_ALL);
-		tracing_on();
+	} else if (c == 'v') {
+		/* dump virtual to physical translation */
+		show_pte(adrs);
 	} else if (c == 'r') {
 		scanhex(&ndump);
 		if (ndump == 0)
@@ -2861,6 +2952,116 @@ static void show_task(struct task_struct *tsk)
 		tsk->comm);
 }
 
+#ifdef CONFIG_PPC_BOOK3S_64
+void format_pte(void *ptep, unsigned long pte)
+{
+	printf("ptep @ 0x%016lx = 0x%016lx\n", (unsigned long)ptep, pte);
+	printf("Maps physical address = 0x%016lx\n", pte & PTE_RPN_MASK);
+
+	printf("Flags = %s%s%s%s%s\n",
+	       (pte & _PAGE_ACCESSED) ? "Accessed " : "",
+	       (pte & _PAGE_DIRTY)    ? "Dirty " : "",
+	       (pte & _PAGE_READ)     ? "Read " : "",
+	       (pte & _PAGE_WRITE)    ? "Write " : "",
+	       (pte & _PAGE_EXEC)     ? "Exec " : "");
+}
+
+static void show_pte(unsigned long addr)
+{
+	unsigned long tskv = 0;
+	struct task_struct *tsk = NULL;
+	struct mm_struct *mm;
+	pgd_t *pgdp, *pgdir;
+	pud_t *pudp;
+	pmd_t *pmdp;
+	pte_t *ptep;
+
+	if (!scanhex(&tskv))
+		mm = &init_mm;
+	else
+		tsk = (struct task_struct *)tskv;
+
+	if (tsk == NULL)
+		mm = &init_mm;
+	else
+		mm = tsk->active_mm;
+
+	if (setjmp(bus_error_jmp) != 0) {
+		catch_memory_errors = 0;
+		printf("*** Error dumping pte for task %p\n", tsk);
+		return;
+	}
+
+	catch_memory_errors = 1;
+	sync();
+
+	if (mm == &init_mm) {
+		pgdp = pgd_offset_k(addr);
+		pgdir = pgd_offset_k(0);
+	} else {
+		pgdp = pgd_offset(mm, addr);
+		pgdir = pgd_offset(mm, 0);
+	}
+
+	if (pgd_none(*pgdp)) {
+		printf("no linux page table for address\n");
+		return;
+	}
+
+	printf("pgd  @ 0x%016lx\n", pgdir);
+
+	if (pgd_huge(*pgdp)) {
+		format_pte(pgdp, pgd_val(*pgdp));
+		return;
+	}
+	printf("pgdp @ 0x%016lx = 0x%016lx\n", pgdp, pgd_val(*pgdp));
+
+	pudp = pud_offset(pgdp, addr);
+
+	if (pud_none(*pudp)) {
+		printf("No valid PUD\n");
+		return;
+	}
+
+	if (pud_huge(*pudp)) {
+		format_pte(pudp, pud_val(*pudp));
+		return;
+	}
+
+	printf("pudp @ 0x%016lx = 0x%016lx\n", pudp, pud_val(*pudp));
+
+	pmdp = pmd_offset(pudp, addr);
+
+	if (pmd_none(*pmdp)) {
+		printf("No valid PMD\n");
+		return;
+	}
+
+	if (pmd_huge(*pmdp)) {
+		format_pte(pmdp, pmd_val(*pmdp));
+		return;
+	}
+	printf("pmdp @ 0x%016lx = 0x%016lx\n", pmdp, pmd_val(*pmdp));
+
+	ptep = pte_offset_map(pmdp, addr);
+	if (pte_none(*ptep)) {
+		printf("no valid PTE\n");
+		return;
+	}
+
+	format_pte(ptep, pte_val(*ptep));
+
+	sync();
+	__delay(200);
+	catch_memory_errors = 0;
+}
+#else
+static void show_pte(unsigned long addr)
+{
+	printf("show_pte not yet implemented\n");
+}
+#endif /* CONFIG_PPC_BOOK3S_64 */
+
 static void show_tasks(void)
 {
 	unsigned long tskv;
@@ -3178,7 +3379,7 @@ static void xmon_print_symbol(unsigned long address, const char *mid,
 	printf("%s", after);
 }
 
-#ifdef CONFIG_PPC_STD_MMU_64
+#ifdef CONFIG_PPC_BOOK3S_64
 void dump_segments(void)
 {
 	int i;

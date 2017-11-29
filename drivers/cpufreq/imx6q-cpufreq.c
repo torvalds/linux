@@ -12,6 +12,7 @@
 #include <linux/err.h>
 #include <linux/module.h>
 #include <linux/of.h>
+#include <linux/of_address.h>
 #include <linux/pm_opp.h>
 #include <linux/platform_device.h>
 #include <linux/regulator/consumer.h>
@@ -47,6 +48,7 @@ static int imx6q_set_target(struct cpufreq_policy *policy, unsigned int index)
 	struct dev_pm_opp *opp;
 	unsigned long freq_hz, volt, volt_old;
 	unsigned int old_freq, new_freq;
+	bool pll1_sys_temp_enabled = false;
 	int ret;
 
 	new_freq = freq_table[index].frequency;
@@ -124,6 +126,10 @@ static int imx6q_set_target(struct cpufreq_policy *policy, unsigned int index)
 		if (freq_hz > clk_get_rate(pll2_pfd2_396m_clk)) {
 			clk_set_rate(pll1_sys_clk, new_freq * 1000);
 			clk_set_parent(pll1_sw_clk, pll1_sys_clk);
+		} else {
+			/* pll1_sys needs to be enabled for divider rate change to work. */
+			pll1_sys_temp_enabled = true;
+			clk_prepare_enable(pll1_sys_clk);
 		}
 	}
 
@@ -134,6 +140,10 @@ static int imx6q_set_target(struct cpufreq_policy *policy, unsigned int index)
 		regulator_set_voltage_tol(arm_reg, volt_old, 0);
 		return ret;
 	}
+
+	/* PLL1 is only needed until after ARM-PODF is set. */
+	if (pll1_sys_temp_enabled)
+		clk_disable_unprepare(pll1_sys_clk);
 
 	/* scaling down?  scale voltage after frequency */
 	if (new_freq < old_freq) {
@@ -181,6 +191,57 @@ static struct cpufreq_driver imx6q_cpufreq_driver = {
 	.attr = cpufreq_generic_attr,
 	.suspend = cpufreq_generic_suspend,
 };
+
+#define OCOTP_CFG3			0x440
+#define OCOTP_CFG3_SPEED_SHIFT		16
+#define OCOTP_CFG3_SPEED_1P2GHZ		0x3
+#define OCOTP_CFG3_SPEED_996MHZ		0x2
+#define OCOTP_CFG3_SPEED_852MHZ		0x1
+
+static void imx6q_opp_check_speed_grading(struct device *dev)
+{
+	struct device_node *np;
+	void __iomem *base;
+	u32 val;
+
+	np = of_find_compatible_node(NULL, NULL, "fsl,imx6q-ocotp");
+	if (!np)
+		return;
+
+	base = of_iomap(np, 0);
+	if (!base) {
+		dev_err(dev, "failed to map ocotp\n");
+		goto put_node;
+	}
+
+	/*
+	 * SPEED_GRADING[1:0] defines the max speed of ARM:
+	 * 2b'11: 1200000000Hz;
+	 * 2b'10: 996000000Hz;
+	 * 2b'01: 852000000Hz; -- i.MX6Q Only, exclusive with 996MHz.
+	 * 2b'00: 792000000Hz;
+	 * We need to set the max speed of ARM according to fuse map.
+	 */
+	val = readl_relaxed(base + OCOTP_CFG3);
+	val >>= OCOTP_CFG3_SPEED_SHIFT;
+	val &= 0x3;
+
+	if ((val != OCOTP_CFG3_SPEED_1P2GHZ) &&
+	     of_machine_is_compatible("fsl,imx6q"))
+		if (dev_pm_opp_disable(dev, 1200000000))
+			dev_warn(dev, "failed to disable 1.2GHz OPP\n");
+	if (val < OCOTP_CFG3_SPEED_996MHZ)
+		if (dev_pm_opp_disable(dev, 996000000))
+			dev_warn(dev, "failed to disable 996MHz OPP\n");
+	if (of_machine_is_compatible("fsl,imx6q")) {
+		if (val != OCOTP_CFG3_SPEED_852MHZ)
+			if (dev_pm_opp_disable(dev, 852000000))
+				dev_warn(dev, "failed to disable 852MHz OPP\n");
+	}
+	iounmap(base);
+put_node:
+	of_node_put(np);
+}
 
 static int imx6q_cpufreq_probe(struct platform_device *pdev)
 {
@@ -243,28 +304,21 @@ static int imx6q_cpufreq_probe(struct platform_device *pdev)
 		goto put_reg;
 	}
 
-	/*
-	 * We expect an OPP table supplied by platform.
-	 * Just, incase the platform did not supply the OPP
-	 * table, it will try to get it.
-	 */
+	ret = dev_pm_opp_of_add_table(cpu_dev);
+	if (ret < 0) {
+		dev_err(cpu_dev, "failed to init OPP table: %d\n", ret);
+		goto put_reg;
+	}
+
+	imx6q_opp_check_speed_grading(cpu_dev);
+
+	/* Because we have added the OPPs here, we must free them */
+	free_opp = true;
 	num = dev_pm_opp_get_opp_count(cpu_dev);
 	if (num < 0) {
-		ret = dev_pm_opp_of_add_table(cpu_dev);
-		if (ret < 0) {
-			dev_err(cpu_dev, "failed to init OPP table: %d\n", ret);
-			goto put_reg;
-		}
-
-		/* Because we have added the OPPs here, we must free them */
-		free_opp = true;
-
-		num = dev_pm_opp_get_opp_count(cpu_dev);
-		if (num < 0) {
-			ret = num;
-			dev_err(cpu_dev, "no OPP table is found: %d\n", ret);
-			goto out_free_opp;
-		}
+		ret = num;
+		dev_err(cpu_dev, "no OPP table is found: %d\n", ret);
+		goto out_free_opp;
 	}
 
 	ret = dev_pm_opp_init_cpufreq_table(cpu_dev, &freq_table);

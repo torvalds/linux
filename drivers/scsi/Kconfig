@@ -47,6 +47,17 @@ config SCSI_NETLINK
 	default	n
 	depends on NET
 
+config SCSI_MQ_DEFAULT
+	bool "SCSI: use blk-mq I/O path by default"
+	depends on SCSI
+	---help---
+	  This option enables the new blk-mq based I/O path for SCSI
+	  devices by default.  With the option the scsi_mod.use_blk_mq
+	  module/boot option defaults to Y, without it to N, but it can
+	  still be overridden either way.
+
+	  If unsure say N.
+
 config SCSI_PROC_FS
 	bool "legacy /proc/scsi/ support"
 	depends on SCSI && PROC_FS
@@ -119,7 +130,8 @@ config CHR_DEV_OSST
 
 config BLK_DEV_SR
 	tristate "SCSI CDROM support"
-	depends on SCSI
+	depends on SCSI && BLK_DEV
+	select CDROM
 	---help---
 	  If you want to use a CD or DVD drive attached to your computer
 	  by SCSI, FireWire, USB or ATAPI, say Y and read the SCSI-HOWTO
@@ -272,7 +284,7 @@ config SCSI_ISCSI_ATTRS
 config SCSI_SAS_ATTRS
 	tristate "SAS Transport Attributes"
 	depends on SCSI
-	select BLK_DEV_BSG
+	select BLK_DEV_BSGLIB
 	help
 	  If you wish to export transport-specific information about
 	  each attached SAS device to sysfs, say Y.
@@ -775,7 +787,7 @@ config SCSI_IBMVSCSIS
 	depends on PPC_PSERIES && TARGET_CORE && SCSI && PCI
 	help
 	  This is the IBM POWER Virtual SCSI Target Server
-	  This driver uses the SRP protocol for communication betwen servers
+	  This driver uses the SRP protocol for communication between servers
 	  guest and/or the host that run on the same server.
 	  More information on VSCSI protocol can be found at www.power.org
 
@@ -1230,6 +1242,8 @@ config SCSI_LPFC
 	tristate "Emulex LightPulse Fibre Channel Support"
 	depends on PCI && SCSI
 	depends on SCSI_FC_ATTRS
+	depends on NVME_TARGET_FC || NVME_TARGET_FC=n
+	depends on NVME_FC || NVME_FC=n
 	select CRC_T10DIF
 	---help---
           This lpfc driver supports the Emulex LightPulse

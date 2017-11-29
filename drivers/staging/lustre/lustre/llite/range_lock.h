@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * GPL HEADER START
  *
@@ -36,8 +37,8 @@
 #ifndef _RANGE_LOCK_H
 #define _RANGE_LOCK_H
 
-#include "../../include/linux/libcfs/libcfs.h"
-#include "../include/interval_tree.h"
+#include <linux/libcfs/libcfs.h>
+#include <interval_tree.h>
 
 struct range_lock {
 	struct interval_node	rl_node;

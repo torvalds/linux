@@ -254,9 +254,10 @@ static dma_addr_t i915_stolen_to_dma(struct drm_i915_private *dev_priv)
 		 * This is a BIOS w/a: Some BIOS wrap stolen in the root
 		 * PCI bus, but have an off-by-one error. Hence retry the
 		 * reservation starting from 1 instead of 0.
+		 * There's also BIOS with off-by-one on the other end.
 		 */
 		r = devm_request_mem_region(dev_priv->drm.dev, base + 1,
-					    ggtt->stolen_size - 1,
+					    ggtt->stolen_size - 2,
 					    "Graphics Stolen Memory");
 		/*
 		 * GEN3 firmware likes to smash pci bridges into the stolen
@@ -538,12 +539,18 @@ i915_pages_create_for_stolen(struct drm_device *dev,
 	return st;
 }
 
-static struct sg_table *
-i915_gem_object_get_pages_stolen(struct drm_i915_gem_object *obj)
+static int i915_gem_object_get_pages_stolen(struct drm_i915_gem_object *obj)
 {
-	return i915_pages_create_for_stolen(obj->base.dev,
-					    obj->stolen->start,
-					    obj->stolen->size);
+	struct sg_table *pages =
+		i915_pages_create_for_stolen(obj->base.dev,
+					     obj->stolen->start,
+					     obj->stolen->size);
+	if (IS_ERR(pages))
+		return PTR_ERR(pages);
+
+	__i915_gem_object_set_pages(obj, pages, obj->stolen->size);
+
+	return 0;
 }
 
 static void i915_gem_object_put_pages_stolen(struct drm_i915_gem_object *obj,
@@ -579,6 +586,7 @@ _i915_gem_object_create_stolen(struct drm_i915_private *dev_priv,
 			       struct drm_mm_node *stolen)
 {
 	struct drm_i915_gem_object *obj;
+	unsigned int cache_level;
 
 	obj = i915_gem_object_alloc(dev_priv);
 	if (obj == NULL)
@@ -589,8 +597,8 @@ _i915_gem_object_create_stolen(struct drm_i915_private *dev_priv,
 
 	obj->stolen = stolen;
 	obj->base.read_domains = I915_GEM_DOMAIN_CPU | I915_GEM_DOMAIN_GTT;
-	obj->cache_level = HAS_LLC(dev_priv) ? I915_CACHE_LLC : I915_CACHE_NONE;
-	obj->cache_coherent = true; /* assumptions! more like cache_oblivious */
+	cache_level = HAS_LLC(dev_priv) ? I915_CACHE_LLC : I915_CACHE_NONE;
+	i915_gem_object_set_cache_coherency(obj, cache_level);
 
 	if (i915_gem_object_pin_pages(obj))
 		goto cleanup;
@@ -716,8 +724,11 @@ i915_gem_object_create_stolen_for_preallocated(struct drm_i915_private *dev_priv
 	vma->flags |= I915_VMA_GLOBAL_BIND;
 	__i915_vma_set_map_and_fenceable(vma);
 	list_move_tail(&vma->vm_link, &ggtt->base.inactive_list);
-	list_move_tail(&obj->global_link, &dev_priv->mm.bound_list);
+
+	spin_lock(&dev_priv->mm.obj_lock);
+	list_move_tail(&obj->mm.link, &dev_priv->mm.bound_list);
 	obj->bind_count++;
+	spin_unlock(&dev_priv->mm.obj_lock);
 
 	return obj;
 

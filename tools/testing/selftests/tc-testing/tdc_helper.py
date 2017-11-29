@@ -1,4 +1,5 @@
 """
+# SPDX-License-Identifier: GPL-2.0
 tdc_helper.py - tdc helper functions
 
 Copyright (C) 2017 Lucas Bates <lucasb@mojatatu.com>
@@ -15,7 +16,7 @@ def get_categorized_testlist(alltests, ucat):
 
 
 def get_unique_item(lst):
-    """ For a list, return a set of the unique items in the list. """
+    """ For a list, return a list of the unique items in the list. """
     return list(set(lst))
 
 
@@ -57,7 +58,7 @@ def print_sll(items):
 def print_test_case(tcase):
     """ Pretty-printing of a given test case. """
     for k in tcase.keys():
-        if (type(tcase[k]) == list):
+        if (isinstance(tcase[k], list)):
             print(k + ":")
             print_list(tcase[k])
         else:

@@ -579,8 +579,8 @@ static struct nf_conn *
 ovs_ct_find_existing(struct net *net, const struct nf_conntrack_zone *zone,
 		     u8 l3num, struct sk_buff *skb, bool natted)
 {
-	struct nf_conntrack_l3proto *l3proto;
-	struct nf_conntrack_l4proto *l4proto;
+	const struct nf_conntrack_l3proto *l3proto;
+	const struct nf_conntrack_l4proto *l4proto;
 	struct nf_conntrack_tuple tuple;
 	struct nf_conntrack_tuple_hash *h;
 	struct nf_conn *ct;
@@ -752,6 +752,7 @@ static int ovs_ct_nat_execute(struct sk_buff *skb, struct nf_conn *ct,
 			}
 		}
 		/* Non-ICMP, fall thru to initialize if needed. */
+		/* fall through */
 	case IP_CT_NEW:
 		/* Seen it before?  This can happen for loopback, retrans,
 		 * or local packets.
@@ -1129,6 +1130,17 @@ int ovs_ct_execute(struct net *net, struct sk_buff *skb,
 	return err;
 }
 
+int ovs_ct_clear(struct sk_buff *skb, struct sw_flow_key *key)
+{
+	if (skb_nfct(skb)) {
+		nf_conntrack_put(skb_nfct(skb));
+		nf_ct_set(skb, NULL, IP_CT_UNTRACKED);
+		ovs_ct_fill_key(skb, key);
+	}
+
+	return 0;
+}
+
 static int ovs_ct_add_helper(struct ovs_conntrack_info *info, const char *name,
 			     const struct sw_flow_key *key, bool log)
 {
@@ -1180,15 +1192,13 @@ static int parse_nat(const struct nlattr *attr,
 		int type = nla_type(a);
 
 		if (type > OVS_NAT_ATTR_MAX) {
-			OVS_NLERR(log,
-				  "Unknown NAT attribute (type=%d, max=%d).\n",
+			OVS_NLERR(log, "Unknown NAT attribute (type=%d, max=%d)",
 				  type, OVS_NAT_ATTR_MAX);
 			return -EINVAL;
 		}
 
 		if (nla_len(a) != ovs_nat_attr_lens[type][ip_vers]) {
-			OVS_NLERR(log,
-				  "NAT attribute type %d has unexpected length (%d != %d).\n",
+			OVS_NLERR(log, "NAT attribute type %d has unexpected length (%d != %d)",
 				  type, nla_len(a),
 				  ovs_nat_attr_lens[type][ip_vers]);
 			return -EINVAL;
@@ -1198,9 +1208,7 @@ static int parse_nat(const struct nlattr *attr,
 		case OVS_NAT_ATTR_SRC:
 		case OVS_NAT_ATTR_DST:
 			if (info->nat) {
-				OVS_NLERR(log,
-					  "Only one type of NAT may be specified.\n"
-					  );
+				OVS_NLERR(log, "Only one type of NAT may be specified");
 				return -ERANGE;
 			}
 			info->nat |= OVS_CT_NAT;
@@ -1245,13 +1253,13 @@ static int parse_nat(const struct nlattr *attr,
 			break;
 
 		default:
-			OVS_NLERR(log, "Unknown nat attribute (%d).\n", type);
+			OVS_NLERR(log, "Unknown nat attribute (%d)", type);
 			return -EINVAL;
 		}
 	}
 
 	if (rem > 0) {
-		OVS_NLERR(log, "NAT attribute has %d unknown bytes.\n", rem);
+		OVS_NLERR(log, "NAT attribute has %d unknown bytes", rem);
 		return -EINVAL;
 	}
 	if (!info->nat) {
@@ -1310,8 +1318,8 @@ static int parse_ct(const struct nlattr *attr, struct ovs_conntrack_info *info,
 
 	nla_for_each_nested(a, attr, rem) {
 		int type = nla_type(a);
-		int maxlen = ovs_ct_attr_lens[type].maxlen;
-		int minlen = ovs_ct_attr_lens[type].minlen;
+		int maxlen;
+		int minlen;
 
 		if (type > OVS_CT_ATTR_MAX) {
 			OVS_NLERR(log,
@@ -1319,6 +1327,9 @@ static int parse_ct(const struct nlattr *attr, struct ovs_conntrack_info *info,
 				  type, OVS_CT_ATTR_MAX);
 			return -EINVAL;
 		}
+
+		maxlen = ovs_ct_attr_lens[type].maxlen;
+		minlen = ovs_ct_attr_lens[type].minlen;
 		if (nla_len(a) < minlen || nla_len(a) > maxlen) {
 			OVS_NLERR(log,
 				  "Conntrack attr type has unexpected length (type=%d, length=%d, expected=%d)",

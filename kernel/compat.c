@@ -200,29 +200,6 @@ int compat_put_timespec(const struct timespec *ts, void __user *uts)
 }
 EXPORT_SYMBOL_GPL(compat_put_timespec);
 
-int compat_convert_timespec(struct timespec __user **kts,
-			    const void __user *cts)
-{
-	struct timespec ts;
-	struct timespec __user *uts;
-
-	if (!cts || COMPAT_USE_64BIT_TIME) {
-		*kts = (struct timespec __user *)cts;
-		return 0;
-	}
-
-	uts = compat_alloc_user_space(sizeof(ts));
-	if (!uts)
-		return -EFAULT;
-	if (compat_get_timespec(&ts, cts))
-		return -EFAULT;
-	if (copy_to_user(uts, &ts, sizeof(ts)))
-		return -EFAULT;
-
-	*kts = uts;
-	return 0;
-}
-
 int get_compat_itimerval(struct itimerval *o, const struct compat_itimerval __user *i)
 {
 	struct compat_itimerval v32;
@@ -390,24 +367,6 @@ COMPAT_SYSCALL_DEFINE3(sched_getaffinity, compat_pid_t,  pid, unsigned int, len,
 	return ret;
 }
 
-int get_compat_itimerspec(struct itimerspec *dst,
-			  const struct compat_itimerspec __user *src)
-{
-	if (__compat_get_timespec(&dst->it_interval, &src->it_interval) ||
-	    __compat_get_timespec(&dst->it_value, &src->it_value))
-		return -EFAULT;
-	return 0;
-}
-
-int put_compat_itimerspec(struct compat_itimerspec __user *dst,
-			  const struct itimerspec *src)
-{
-	if (__compat_put_timespec(&src->it_interval, &dst->it_interval) ||
-	    __compat_put_timespec(&src->it_value, &dst->it_value))
-		return -EFAULT;
-	return 0;
-}
-
 int get_compat_itimerspec64(struct itimerspec64 *its,
 			const struct compat_itimerspec __user *uits)
 {
@@ -508,27 +467,44 @@ Efault:
 	return -EFAULT;
 }
 
-void
-sigset_from_compat(sigset_t *set, const compat_sigset_t *compat)
+int
+get_compat_sigset(sigset_t *set, const compat_sigset_t __user *compat)
 {
+#ifdef __BIG_ENDIAN
+	compat_sigset_t v;
+	if (copy_from_user(&v, compat, sizeof(compat_sigset_t)))
+		return -EFAULT;
 	switch (_NSIG_WORDS) {
-	case 4: set->sig[3] = compat->sig[6] | (((long)compat->sig[7]) << 32 );
-	case 3: set->sig[2] = compat->sig[4] | (((long)compat->sig[5]) << 32 );
-	case 2: set->sig[1] = compat->sig[2] | (((long)compat->sig[3]) << 32 );
-	case 1: set->sig[0] = compat->sig[0] | (((long)compat->sig[1]) << 32 );
+	case 4: set->sig[3] = v.sig[6] | (((long)v.sig[7]) << 32 );
+	case 3: set->sig[2] = v.sig[4] | (((long)v.sig[5]) << 32 );
+	case 2: set->sig[1] = v.sig[2] | (((long)v.sig[3]) << 32 );
+	case 1: set->sig[0] = v.sig[0] | (((long)v.sig[1]) << 32 );
 	}
+#else
+	if (copy_from_user(set, compat, sizeof(compat_sigset_t)))
+		return -EFAULT;
+#endif
+	return 0;
 }
-EXPORT_SYMBOL_GPL(sigset_from_compat);
+EXPORT_SYMBOL_GPL(get_compat_sigset);
 
-void
-sigset_to_compat(compat_sigset_t *compat, const sigset_t *set)
+int
+put_compat_sigset(compat_sigset_t __user *compat, const sigset_t *set,
+		  unsigned int size)
 {
+	/* size <= sizeof(compat_sigset_t) <= sizeof(sigset_t) */
+#ifdef __BIG_ENDIAN
+	compat_sigset_t v;
 	switch (_NSIG_WORDS) {
-	case 4: compat->sig[7] = (set->sig[3] >> 32); compat->sig[6] = set->sig[3];
-	case 3: compat->sig[5] = (set->sig[2] >> 32); compat->sig[4] = set->sig[2];
-	case 2: compat->sig[3] = (set->sig[1] >> 32); compat->sig[2] = set->sig[1];
-	case 1: compat->sig[1] = (set->sig[0] >> 32); compat->sig[0] = set->sig[0];
+	case 4: v.sig[7] = (set->sig[3] >> 32); v.sig[6] = set->sig[3];
+	case 3: v.sig[5] = (set->sig[2] >> 32); v.sig[4] = set->sig[2];
+	case 2: v.sig[3] = (set->sig[1] >> 32); v.sig[2] = set->sig[1];
+	case 1: v.sig[1] = (set->sig[0] >> 32); v.sig[0] = set->sig[0];
 	}
+	return copy_to_user(compat, &v, size) ? -EFAULT : 0;
+#else
+	return copy_to_user(compat, set, size) ? -EFAULT : 0;
+#endif
 }
 
 #ifdef CONFIG_NUMA
@@ -585,22 +561,6 @@ COMPAT_SYSCALL_DEFINE4(migrate_pages, compat_pid_t, pid,
 	return sys_migrate_pages(pid, nr_bits + 1, old, new);
 }
 #endif
-
-COMPAT_SYSCALL_DEFINE2(sched_rr_get_interval,
-		       compat_pid_t, pid,
-		       struct compat_timespec __user *, interval)
-{
-	struct timespec t;
-	int ret;
-	mm_segment_t old_fs = get_fs();
-
-	set_fs(KERNEL_DS);
-	ret = sys_sched_rr_get_interval(pid, (struct timespec __user *)&t);
-	set_fs(old_fs);
-	if (compat_put_timespec(&t, interval))
-		return -EFAULT;
-	return ret;
-}
 
 /*
  * Allocate user-space memory for the duration of a single system call,

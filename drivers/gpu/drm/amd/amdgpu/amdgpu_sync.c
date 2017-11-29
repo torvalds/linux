@@ -169,14 +169,14 @@ int amdgpu_sync_fence(struct amdgpu_device *adev, struct amdgpu_sync *sync,
  *
  * @sync: sync object to add fences from reservation object to
  * @resv: reservation object with embedded fence
- * @shared: true if we should only sync to the exclusive fence
+ * @explicit_sync: true if we should only sync to the exclusive fence
  *
  * Sync to the fence
  */
 int amdgpu_sync_resv(struct amdgpu_device *adev,
 		     struct amdgpu_sync *sync,
 		     struct reservation_object *resv,
-		     void *owner)
+		     void *owner, bool explicit_sync)
 {
 	struct reservation_object_list *flist;
 	struct dma_fence *f;
@@ -190,6 +190,9 @@ int amdgpu_sync_resv(struct amdgpu_device *adev,
 	/* always sync to the exclusive fence */
 	f = reservation_object_get_excl(resv);
 	r = amdgpu_sync_fence(adev, sync, f);
+
+	if (explicit_sync)
+		return r;
 
 	flist = reservation_object_get_list(resv);
 	if (!flist || r)
@@ -244,6 +247,12 @@ struct dma_fence *amdgpu_sync_peek_fence(struct amdgpu_sync *sync,
 		struct dma_fence *f = e->fence;
 		struct amd_sched_fence *s_fence = to_amd_sched_fence(f);
 
+		if (dma_fence_is_signaled(f)) {
+			hash_del(&e->node);
+			dma_fence_put(f);
+			kmem_cache_free(amdgpu_sync_slab, e);
+			continue;
+		}
 		if (ring && s_fence) {
 			/* For fences from the same ring it is sufficient
 			 * when they are scheduled.
@@ -254,13 +263,6 @@ struct dma_fence *amdgpu_sync_peek_fence(struct amdgpu_sync *sync,
 
 				return &s_fence->scheduled;
 			}
-		}
-
-		if (dma_fence_is_signaled(f)) {
-			hash_del(&e->node);
-			dma_fence_put(f);
-			kmem_cache_free(amdgpu_sync_slab, e);
-			continue;
 		}
 
 		return f;

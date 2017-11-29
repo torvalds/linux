@@ -8,9 +8,9 @@
  */
 
 /dts-v1/;
-/include/ "uniphier-ld4.dtsi"
-/include/ "uniphier-ref-daughter.dtsi"
-/include/ "uniphier-support-card.dtsi"
+#include "uniphier-ld4.dtsi"
+#include "uniphier-ref-daughter.dtsi"
+#include "uniphier-support-card.dtsi"
 
 / {
 	model = "UniPhier LD4 Reference Board";
@@ -38,7 +38,7 @@
 };
 
 &ethsc {
-	interrupts = <0 49 4>;
+	interrupts = <1 8>;
 };
 
 &serial0 {
@@ -53,6 +53,14 @@
 	status = "okay";
 };
 
+&gpio {
+	xirq1 {
+		gpio-hog;
+		gpios = <121 0>;
+		input;
+	};
+};
+
 &i2c0 {
 	status = "okay";
 };
@@ -62,5 +70,9 @@
 };
 
 &usb1 {
+	status = "okay";
+};
+
+&nand {
 	status = "okay";
 };

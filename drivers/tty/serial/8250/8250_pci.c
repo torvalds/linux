@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *  Probe module for 8250/16550-type PCI serial ports.
  *
  *  Based on drivers/char/serial.c, by Linus Torvalds, Theodore Ts'o.
  *
  *  Copyright (C) 2001 Russell King, All Rights Reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License.
  */
 #undef DEBUG
 #include <linux/module.h>
@@ -1548,7 +1545,7 @@ static int skip_tx_en_setup(struct serial_private *priv,
 			const struct pciserial_board *board,
 			struct uart_8250_port *port, int idx)
 {
-	port->port.flags |= UPF_NO_TXEN_TEST;
+	port->port.quirks |= UPQ_NO_TXEN_TEST;
 	dev_dbg(&priv->dev->dev,
 		"serial8250: skipping TxEn test for device [%04x:%04x] subsystem [%04x:%04x]\n",
 		priv->dev->vendor, priv->dev->device,
@@ -3368,6 +3365,7 @@ static const struct pci_device_id blacklist[] = {
 	{ PCI_VDEVICE(INTEL, 0x081c), },
 	{ PCI_VDEVICE(INTEL, 0x081d), },
 	{ PCI_VDEVICE(INTEL, 0x1191), },
+	{ PCI_VDEVICE(INTEL, 0x18d8), },
 	{ PCI_VDEVICE(INTEL, 0x19d8), },
 
 	/* Intel platforms with DesignWare UART */
@@ -3384,17 +3382,8 @@ static const struct pci_device_id blacklist[] = {
 	{ PCI_VDEVICE(COMMTECH, PCI_ANY_ID), },
 };
 
-/*
- * Given a complete unknown PCI device, try to use some heuristics to
- * guess what the configuration might be, based on the pitiful PCI
- * serial specs.  Returns 0 on success, 1 on failure.
- */
-static int
-serial_pci_guess_board(struct pci_dev *dev, struct pciserial_board *board)
+static int serial_pci_is_class_communication(struct pci_dev *dev)
 {
-	const struct pci_device_id *bldev;
-	int num_iomem, num_port, first_port = -1, i;
-
 	/*
 	 * If it is not a communications device or the programming
 	 * interface is greater than 6, give up.
@@ -3407,6 +3396,13 @@ serial_pci_guess_board(struct pci_dev *dev, struct pciserial_board *board)
 	    (dev->class & 0xff) > 6)
 		return -ENODEV;
 
+	return 0;
+}
+
+static int serial_pci_is_blacklisted(struct pci_dev *dev)
+{
+	const struct pci_device_id *bldev;
+
 	/*
 	 * Do not access blacklisted devices that are known not to
 	 * feature serial ports or are handled by other modules.
@@ -3418,6 +3414,19 @@ serial_pci_guess_board(struct pci_dev *dev, struct pciserial_board *board)
 		    dev->device == bldev->device)
 			return -ENODEV;
 	}
+
+	return 0;
+}
+
+/*
+ * Given a complete unknown PCI device, try to use some heuristics to
+ * guess what the configuration might be, based on the pitiful PCI
+ * serial specs.  Returns 0 on success, -ENODEV on failure.
+ */
+static int
+serial_pci_guess_board(struct pci_dev *dev, struct pciserial_board *board)
+{
+	int num_iomem, num_port, first_port = -1, i;
 
 	num_iomem = num_port = 0;
 	for (i = 0; i < PCI_NUM_BAR_RESOURCES; i++) {
@@ -3639,6 +3648,14 @@ pciserial_init_one(struct pci_dev *dev, const struct pci_device_id *ent)
 
 	board = &pci_boards[ent->driver_data];
 
+	rc = serial_pci_is_class_communication(dev);
+	if (rc)
+		return rc;
+
+	rc = serial_pci_is_blacklisted(dev);
+	if (rc)
+		return rc;
+
 	rc = pcim_enable_device(dev);
 	pci_save_state(dev);
 	if (rc)
@@ -3723,7 +3740,7 @@ static int pciserial_resume_one(struct device *dev)
 static SIMPLE_DEV_PM_OPS(pciserial_pm_ops, pciserial_suspend_one,
 			 pciserial_resume_one);
 
-static struct pci_device_id serial_pci_tbl[] = {
+static const struct pci_device_id serial_pci_tbl[] = {
 	/* Advantech use PCI_DEVICE_ID_ADVANTECH_PCI3620 (0x3620) as 'PCI_SUBVENDOR_ID' */
 	{	PCI_VENDOR_ID_ADVANTECH, PCI_DEVICE_ID_ADVANTECH_PCI3620,
 		PCI_DEVICE_ID_ADVANTECH_PCI3620, 0x0001, 0, 0,

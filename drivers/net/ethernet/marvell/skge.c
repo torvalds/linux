@@ -1495,9 +1495,9 @@ static int xm_check_link(struct net_device *dev)
  * get an interrupt when carrier is detected, need to poll for
  * link coming up.
  */
-static void xm_link_timer(unsigned long arg)
+static void xm_link_timer(struct timer_list *t)
 {
-	struct skge_port *skge = (struct skge_port *) arg;
+	struct skge_port *skge = from_timer(skge, t, link_timer);
 	struct net_device *dev = skge->netdev;
 	struct skge_hw *hw = skge->hw;
 	int port = skge->port;
@@ -3516,7 +3516,7 @@ static const char *skge_board_name(const struct skge_hw *hw)
 		if (skge_chips[i].id == hw->chip_id)
 			return skge_chips[i].name;
 
-	snprintf(buf, sizeof buf, "chipid 0x%x", hw->chip_id);
+	snprintf(buf, sizeof(buf), "chipid 0x%x", hw->chip_id);
 	return buf;
 }
 
@@ -3897,7 +3897,7 @@ static struct net_device *skge_devinit(struct skge_hw *hw, int port,
 
 	/* Only used for Genesis XMAC */
 	if (is_genesis(hw))
-	    setup_timer(&skge->link_timer, xm_link_timer, (unsigned long) skge);
+	    timer_setup(&skge->link_timer, xm_link_timer, 0);
 	else {
 		dev->hw_features = NETIF_F_IP_CSUM | NETIF_F_SG |
 		                   NETIF_F_RXCSUM;
@@ -4193,7 +4193,7 @@ static struct pci_driver skge_driver = {
 	.driver.pm =	SKGE_PM_OPS,
 };
 
-static struct dmi_system_id skge_32bit_dma_boards[] = {
+static const struct dmi_system_id skge_32bit_dma_boards[] = {
 	{
 		.ident = "Gigabyte nForce boards",
 		.matches = {

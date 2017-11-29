@@ -31,7 +31,17 @@
 		 */
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
-		clock-frequency = <11289600>;
+		clock-frequency = <12288000>;
+	};
+
+	hdmi0-out {
+		compatible = "hdmi-connector";
+		type = "a";
+
+		port {
+			hdmi0_con: endpoint {
+			};
+		};
 	};
 
 	keyboard {
@@ -120,6 +130,12 @@
 		#clock-cells = <0>;
 		clock-frequency = <24576000>;
 	};
+
+	x23_clk: x23-clock {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <25000000>;
+	};
 };
 
 &audio_clk_a {
@@ -141,6 +157,10 @@
 	};
 };
 
+&du {
+	status = "okay";
+};
+
 &ehci1 {
 	status = "okay";
 };
@@ -151,6 +171,23 @@
 
 &extalr_clk {
 	clock-frequency = <32768>;
+};
+
+&hdmi0 {
+	status = "okay";
+
+	ports {
+		port@1 {
+			reg = <1>;
+			rcar_dw_hdmi0_out: endpoint {
+				remote-endpoint = <&hdmi0_con>;
+			};
+		};
+	};
+};
+
+&hdmi0_con {
+	remote-endpoint = <&rcar_dw_hdmi0_out>;
 };
 
 &i2c2 {
@@ -189,6 +226,24 @@
 	};
 };
 
+&i2c4 {
+	status = "okay";
+
+	clock-frequency = <400000>;
+
+	versaclock5: clock-generator@6a {
+		compatible = "idt,5p49v5925";
+		reg = <0x6a>;
+		#clock-cells = <1>;
+		clocks = <&x23_clk>;
+		clock-names = "xin";
+	};
+};
+
+&i2c_dvfs {
+	status = "okay";
+};
+
 &ohci1 {
 	status = "okay";
 };
@@ -199,8 +254,7 @@
 
 	avb_pins: avb {
 		mux {
-			groups = "avb_link", "avb_phy_int", "avb_mdc",
-				 "avb_mii";
+			groups = "avb_link", "avb_mdc", "avb_mii";
 			function = "avb";
 		};
 
@@ -281,7 +335,7 @@
 
 	/* audio_clkout0/1/2/3 */
 	#clock-cells = <1>;
-	clock-frequency = <11289600 12288000>;
+	clock-frequency = <12288000 11289600>;
 
 	status = "okay";
 

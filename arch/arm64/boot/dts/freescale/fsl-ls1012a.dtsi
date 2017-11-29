@@ -355,6 +355,19 @@
 			status = "disabled";
 		};
 
+		dspi: dspi@2100000 {
+			compatible = "fsl,ls1012a-dspi", "fsl,ls1021a-v1.0-dspi";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x0 0x2100000 0x0 0x10000>;
+			interrupts = <0 64 IRQ_TYPE_LEVEL_HIGH>;
+			clock-names = "dspi";
+			clocks = <&clockgen 4 0>;
+			spi-num-chipselects = <5>;
+			big-endian;
+			status = "disabled";
+		};
+
 		duart0: serial@21c0500 {
 			compatible = "fsl,ns16550", "ns16550a";
 			reg = <0x00 0x21c0500 0x0 0x100>;
@@ -444,6 +457,15 @@
 				 <&clockgen 4 3>;
 		};
 
+		usb0: usb3@2f00000 {
+			compatible = "snps,dwc3";
+			reg = <0x0 0x2f00000 0x0 0x10000>;
+			interrupts = <0 60 0x4>;
+			dr_mode = "host";
+			snps,quirk-frame-length-adjustment = <0x20>;
+			snps,dis_rxdet_inp3_quirk;
+		};
+
 		sata: sata@3200000 {
 			compatible = "fsl,ls1012a-ahci", "fsl,ls1043a-ahci";
 			reg = <0x0 0x3200000 0x0 0x10000>,
@@ -453,6 +475,52 @@
 			clocks = <&clockgen 4 0>;
 			dma-coherent;
 			status = "disabled";
+		};
+
+		usb1: usb2@8600000 {
+			compatible = "fsl-usb2-dr-v2.5", "fsl-usb2-dr";
+			reg = <0x0 0x8600000 0x0 0x1000>;
+			interrupts = <0 139 0x4>;
+			dr_mode = "host";
+			phy_type = "ulpi";
+		};
+
+		msi: msi-controller1@1572000 {
+			compatible = "fsl,ls1012a-msi";
+			reg = <0x0 0x1572000 0x0 0x8>;
+			msi-controller;
+			interrupts = <0 126 IRQ_TYPE_LEVEL_HIGH>;
+		};
+
+		pcie@3400000 {
+			compatible = "fsl,ls1012a-pcie", "snps,dw-pcie";
+			reg = <0x00 0x03400000 0x0 0x00100000   /* controller registers */
+			       0x40 0x00000000 0x0 0x00002000>; /* configuration space */
+			reg-names = "regs", "config";
+			interrupts = <0 118 0x4>, /* controller interrupt */
+				     <0 117 0x4>; /* PME interrupt */
+			interrupt-names = "aer", "pme";
+			#address-cells = <3>;
+			#size-cells = <2>;
+			device_type = "pci";
+			num-lanes = <4>;
+			bus-range = <0x0 0xff>;
+			ranges = <0x81000000 0x0 0x00000000 0x40 0x00010000 0x0 0x00010000   /* downstream I/O */
+				  0x82000000 0x0 0x40000000 0x40 0x40000000 0x0 0x40000000>; /* non-prefetchable memory */
+			msi-parent = <&msi>;
+			#interrupt-cells = <1>;
+			interrupt-map-mask = <0 0 0 7>;
+			interrupt-map = <0000 0 0 1 &gic 0 110 IRQ_TYPE_LEVEL_HIGH>,
+					<0000 0 0 2 &gic 0 111 IRQ_TYPE_LEVEL_HIGH>,
+					<0000 0 0 3 &gic 0 112 IRQ_TYPE_LEVEL_HIGH>,
+					<0000 0 0 4 &gic 0 113 IRQ_TYPE_LEVEL_HIGH>;
+		};
+	};
+
+	firmware {
+		optee {
+			compatible = "linaro,optee-tz";
+			method = "smc";
 		};
 	};
 };

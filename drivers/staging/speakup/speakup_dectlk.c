@@ -299,7 +299,7 @@ static void synth_flush(struct spk_synth *synth)
 }
 
 module_param_named(ser, synth_dectlk.ser, int, 0444);
-module_param_named(dev, synth_dectlk.dev_name, charp, S_IRUGO);
+module_param_named(dev, synth_dectlk.dev_name, charp, 0444);
 module_param_named(start, synth_dectlk.startup, short, 0444);
 
 MODULE_PARM_DESC(ser, "Set the serial port for the synthesizer (0-based).");

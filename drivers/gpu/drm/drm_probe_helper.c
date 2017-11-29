@@ -99,7 +99,7 @@ drm_mode_validate_pipeline(struct drm_display_mode *mode,
 
 	/* Step 2: Validate against encoders and crtcs */
 	for (i = 0; i < DRM_CONNECTOR_MAX_ENCODER; i++) {
-		struct drm_encoder *encoder = drm_encoder_find(dev, ids[i]);
+		struct drm_encoder *encoder = drm_encoder_find(dev, NULL, ids[i]);
 		struct drm_crtc *crtc;
 
 		if (!encoder)
@@ -353,8 +353,6 @@ EXPORT_SYMBOL(drm_helper_probe_detect);
  *    drm_mode_probed_add(). New modes start their life with status as OK.
  *    Modes are added from a single source using the following priority order.
  *
- *    - debugfs 'override_edid' (used for testing only)
- *    - firmware EDID (drm_load_edid_firmware())
  *    - &drm_connector_helper_funcs.get_modes vfunc
  *    - if the connector status is connector_status_connected, standard
  *      VESA DMT modes up to 1024x768 are automatically added
@@ -483,22 +481,7 @@ retry:
 		goto prune;
 	}
 
-	if (connector->override_edid) {
-		struct edid *edid = (struct edid *) connector->edid_blob_ptr->data;
-
-		count = drm_add_edid_modes(connector, edid);
-		drm_edid_to_eld(connector, edid);
-	} else {
-		struct edid *edid = drm_load_edid_firmware(connector);
-		if (!IS_ERR_OR_NULL(edid)) {
-			drm_mode_connector_update_edid_property(connector, edid);
-			count = drm_add_edid_modes(connector, edid);
-			drm_edid_to_eld(connector, edid);
-			kfree(edid);
-		}
-		if (count == 0)
-			count = (*connector_funcs->get_modes)(connector);
-	}
+	count = (*connector_funcs->get_modes)(connector);
 
 	if (count == 0 && connector->status == connector_status_connected)
 		count = drm_add_modes_noedid(connector, 1024, 768);
@@ -527,6 +510,10 @@ retry:
 
 		if (mode->status == MODE_OK)
 			mode->status = drm_mode_validate_pipeline(mode,
+								  connector);
+
+		if (mode->status == MODE_OK)
+			mode->status = drm_mode_validate_ycbcr420(mode,
 								  connector);
 	}
 

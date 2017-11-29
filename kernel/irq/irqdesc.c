@@ -27,7 +27,7 @@ static struct lock_class_key irq_desc_lock_class;
 #if defined(CONFIG_SMP)
 static int __init irq_affinity_setup(char *str)
 {
-	zalloc_cpumask_var(&irq_default_affinity, GFP_NOWAIT);
+	alloc_bootmem_cpumask_var(&irq_default_affinity);
 	cpulist_parse(str, irq_default_affinity);
 	/*
 	 * Set at least the boot cpu. We don't want to end up with
@@ -40,10 +40,8 @@ __setup("irqaffinity=", irq_affinity_setup);
 
 static void __init init_irq_default_affinity(void)
 {
-#ifdef CONFIG_CPUMASK_OFFSTACK
-	if (!irq_default_affinity)
+	if (!cpumask_available(irq_default_affinity))
 		zalloc_cpumask_var(&irq_default_affinity, GFP_NOWAIT);
-#endif
 	if (cpumask_empty(irq_default_affinity))
 		cpumask_setall(irq_default_affinity);
 }
@@ -421,10 +419,8 @@ static void free_desc(unsigned int irq)
 	 * The sysfs entry must be serialized against a concurrent
 	 * irq_sysfs_init() as well.
 	 */
-	mutex_lock(&sparse_irq_lock);
 	kobject_del(&desc->kobj);
 	delete_irq_desc(irq);
-	mutex_unlock(&sparse_irq_lock);
 
 	/*
 	 * We free the descriptor, masks and stat fields via RCU. That
@@ -450,7 +446,7 @@ static int alloc_descs(unsigned int start, unsigned int cnt, int node,
 		}
 	}
 
-	flags = affinity ? IRQD_AFFINITY_MANAGED : 0;
+	flags = affinity ? IRQD_AFFINITY_MANAGED | IRQD_MANAGED_SHUTDOWN : 0;
 	mask = NULL;
 
 	for (i = 0; i < cnt; i++) {
@@ -462,20 +458,16 @@ static int alloc_descs(unsigned int start, unsigned int cnt, int node,
 		desc = alloc_desc(start + i, node, flags, mask, owner);
 		if (!desc)
 			goto err;
-		mutex_lock(&sparse_irq_lock);
 		irq_insert_desc(start + i, desc);
 		irq_sysfs_add(start + i, desc);
-		mutex_unlock(&sparse_irq_lock);
+		irq_add_debugfs_entry(start + i, desc);
 	}
+	bitmap_set(allocated_irqs, start, cnt);
 	return start;
 
 err:
 	for (i--; i >= 0; i--)
 		free_desc(start + i);
-
-	mutex_lock(&sparse_irq_lock);
-	bitmap_clear(allocated_irqs, start, cnt);
-	mutex_unlock(&sparse_irq_lock);
 	return -ENOMEM;
 }
 
@@ -575,6 +567,7 @@ static inline int alloc_descs(unsigned int start, unsigned int cnt, int node,
 
 		desc->owner = owner;
 	}
+	bitmap_set(allocated_irqs, start, cnt);
 	return start;
 }
 
@@ -670,10 +663,10 @@ void irq_free_descs(unsigned int from, unsigned int cnt)
 	if (from >= nr_irqs || (from + cnt) > nr_irqs)
 		return;
 
+	mutex_lock(&sparse_irq_lock);
 	for (i = 0; i < cnt; i++)
 		free_desc(from + i);
 
-	mutex_lock(&sparse_irq_lock);
 	bitmap_clear(allocated_irqs, from, cnt);
 	mutex_unlock(&sparse_irq_lock);
 }
@@ -720,19 +713,15 @@ __irq_alloc_descs(int irq, unsigned int from, unsigned int cnt, int node,
 					   from, cnt, 0);
 	ret = -EEXIST;
 	if (irq >=0 && start != irq)
-		goto err;
+		goto unlock;
 
 	if (start + cnt > nr_irqs) {
 		ret = irq_expand_nr_irqs(start + cnt);
 		if (ret)
-			goto err;
+			goto unlock;
 	}
-
-	bitmap_set(allocated_irqs, start, cnt);
-	mutex_unlock(&sparse_irq_lock);
-	return alloc_descs(start, cnt, node, affinity, owner);
-
-err:
+	ret = alloc_descs(start, cnt, node, affinity, owner);
+unlock:
 	mutex_unlock(&sparse_irq_lock);
 	return ret;
 }
@@ -873,6 +862,7 @@ int irq_get_percpu_devid_partition(unsigned int irq, struct cpumask *affinity)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(irq_get_percpu_devid_partition);
 
 void kstat_incr_irq_this_cpu(unsigned int irq)
 {

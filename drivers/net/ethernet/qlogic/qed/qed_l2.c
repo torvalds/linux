@@ -2047,6 +2047,106 @@ qed_configure_rfs_ntuple_filter(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
 	return qed_spq_post(p_hwfn, p_ent, NULL);
 }
 
+int qed_get_rxq_coalesce(struct qed_hwfn *p_hwfn,
+			 struct qed_ptt *p_ptt,
+			 struct qed_queue_cid *p_cid, u16 *p_rx_coal)
+{
+	u32 coalesce, address, is_valid;
+	struct cau_sb_entry sb_entry;
+	u8 timer_res;
+	int rc;
+
+	rc = qed_dmae_grc2host(p_hwfn, p_ptt, CAU_REG_SB_VAR_MEMORY +
+			       p_cid->sb_igu_id * sizeof(u64),
+			       (u64)(uintptr_t)&sb_entry, 2, 0);
+	if (rc) {
+		DP_ERR(p_hwfn, "dmae_grc2host failed %d\n", rc);
+		return rc;
+	}
+
+	timer_res = GET_FIELD(sb_entry.params, CAU_SB_ENTRY_TIMER_RES0);
+
+	address = BAR0_MAP_REG_USDM_RAM +
+		  USTORM_ETH_QUEUE_ZONE_OFFSET(p_cid->abs.queue_id);
+	coalesce = qed_rd(p_hwfn, p_ptt, address);
+
+	is_valid = GET_FIELD(coalesce, COALESCING_TIMESET_VALID);
+	if (!is_valid)
+		return -EINVAL;
+
+	coalesce = GET_FIELD(coalesce, COALESCING_TIMESET_TIMESET);
+	*p_rx_coal = (u16)(coalesce << timer_res);
+
+	return 0;
+}
+
+int qed_get_txq_coalesce(struct qed_hwfn *p_hwfn,
+			 struct qed_ptt *p_ptt,
+			 struct qed_queue_cid *p_cid, u16 *p_tx_coal)
+{
+	u32 coalesce, address, is_valid;
+	struct cau_sb_entry sb_entry;
+	u8 timer_res;
+	int rc;
+
+	rc = qed_dmae_grc2host(p_hwfn, p_ptt, CAU_REG_SB_VAR_MEMORY +
+			       p_cid->sb_igu_id * sizeof(u64),
+			       (u64)(uintptr_t)&sb_entry, 2, 0);
+	if (rc) {
+		DP_ERR(p_hwfn, "dmae_grc2host failed %d\n", rc);
+		return rc;
+	}
+
+	timer_res = GET_FIELD(sb_entry.params, CAU_SB_ENTRY_TIMER_RES1);
+
+	address = BAR0_MAP_REG_XSDM_RAM +
+		  XSTORM_ETH_QUEUE_ZONE_OFFSET(p_cid->abs.queue_id);
+	coalesce = qed_rd(p_hwfn, p_ptt, address);
+
+	is_valid = GET_FIELD(coalesce, COALESCING_TIMESET_VALID);
+	if (!is_valid)
+		return -EINVAL;
+
+	coalesce = GET_FIELD(coalesce, COALESCING_TIMESET_TIMESET);
+	*p_tx_coal = (u16)(coalesce << timer_res);
+
+	return 0;
+}
+
+int qed_get_queue_coalesce(struct qed_hwfn *p_hwfn, u16 *p_coal, void *handle)
+{
+	struct qed_queue_cid *p_cid = handle;
+	struct qed_ptt *p_ptt;
+	int rc = 0;
+
+	if (IS_VF(p_hwfn->cdev)) {
+		rc = qed_vf_pf_get_coalesce(p_hwfn, p_coal, p_cid);
+		if (rc)
+			DP_NOTICE(p_hwfn, "Unable to read queue coalescing\n");
+
+		return rc;
+	}
+
+	p_ptt = qed_ptt_acquire(p_hwfn);
+	if (!p_ptt)
+		return -EAGAIN;
+
+	if (p_cid->b_is_rx) {
+		rc = qed_get_rxq_coalesce(p_hwfn, p_ptt, p_cid, p_coal);
+		if (rc)
+			goto out;
+	} else {
+		rc = qed_get_txq_coalesce(p_hwfn, p_ptt, p_cid, p_coal);
+		if (rc)
+			goto out;
+	}
+
+out:
+	qed_ptt_release(p_hwfn, p_ptt);
+
+	return rc;
+}
+
 static int qed_fill_eth_dev_info(struct qed_dev *cdev,
 				 struct qed_dev_eth_info *info)
 {
@@ -2696,6 +2796,20 @@ static int qed_ntuple_arfs_filter_config(struct qed_dev *cdev, void *cookie,
 	return rc;
 }
 
+static int qed_get_coalesce(struct qed_dev *cdev, u16 *coal, void *handle)
+{
+	struct qed_queue_cid *p_cid = handle;
+	struct qed_hwfn *p_hwfn;
+	int rc;
+
+	p_hwfn = p_cid->p_owner;
+	rc = qed_get_queue_coalesce(p_hwfn, coal, handle);
+	if (rc)
+		DP_NOTICE(p_hwfn, "Unable to read queue coalescing\n");
+
+	return rc;
+}
+
 static int qed_fp_cqe_completion(struct qed_dev *dev,
 				 u8 rss_id, struct eth_slow_path_rx_cqe *cqe)
 {
@@ -2739,6 +2853,7 @@ static const struct qed_eth_ops qed_eth_ops_pass = {
 	.tunn_config = &qed_tunn_configure,
 	.ntuple_filter_config = &qed_ntuple_arfs_filter_config,
 	.configure_arfs_searcher = &qed_configure_arfs_searcher,
+	.get_coalesce = &qed_get_coalesce,
 };
 
 const struct qed_eth_ops *qed_get_eth_ops(void)

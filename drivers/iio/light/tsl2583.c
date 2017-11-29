@@ -804,7 +804,6 @@ static int tsl2583_write_raw(struct iio_dev *indio_dev,
 
 static const struct iio_info tsl2583_info = {
 	.attrs = &tsl2583_attribute_group,
-	.driver_module = THIS_MODULE,
 	.read_raw = tsl2583_read_raw,
 	.write_raw = tsl2583_write_raw,
 };
@@ -924,7 +923,7 @@ static const struct dev_pm_ops tsl2583_pm_ops = {
 	SET_RUNTIME_PM_OPS(tsl2583_suspend, tsl2583_resume, NULL)
 };
 
-static struct i2c_device_id tsl2583_idtable[] = {
+static const struct i2c_device_id tsl2583_idtable[] = {
 	{ "tsl2580", 0 },
 	{ "tsl2581", 1 },
 	{ "tsl2583", 2 },

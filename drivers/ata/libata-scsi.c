@@ -106,10 +106,11 @@ static const u8 def_control_mpage[CONTROL_MPAGE_LEN] = {
 };
 
 static const char *ata_lpm_policy_names[] = {
-	[ATA_LPM_UNKNOWN]	= "max_performance",
-	[ATA_LPM_MAX_POWER]	= "max_performance",
-	[ATA_LPM_MED_POWER]	= "medium_power",
-	[ATA_LPM_MIN_POWER]	= "min_power",
+	[ATA_LPM_UNKNOWN]		= "max_performance",
+	[ATA_LPM_MAX_POWER]		= "max_performance",
+	[ATA_LPM_MED_POWER]		= "medium_power",
+	[ATA_LPM_MED_POWER_WITH_DIPM]	= "med_power_with_dipm",
+	[ATA_LPM_MIN_POWER]		= "min_power",
 };
 
 static ssize_t ata_scsi_lpm_store(struct device *device,
@@ -2145,7 +2146,7 @@ static void ata_scsi_rbuf_fill(struct ata_scsi_args *args,
  */
 static unsigned int ata_scsiop_inq_std(struct ata_scsi_args *args, u8 *rbuf)
 {
-	const u8 versions[] = {
+	static const u8 versions[] = {
 		0x00,
 		0x60,	/* SAM-3 (no version claimed) */
 
@@ -2155,7 +2156,7 @@ static unsigned int ata_scsiop_inq_std(struct ata_scsi_args *args, u8 *rbuf)
 		0x03,
 		0x00	/* SPC-3 (no version claimed) */
 	};
-	const u8 versions_zbc[] = {
+	static const u8 versions_zbc[] = {
 		0x00,
 		0xA0,	/* SAM-5 (no version claimed) */
 
@@ -2227,7 +2228,7 @@ static unsigned int ata_scsiop_inq_std(struct ata_scsi_args *args, u8 *rbuf)
 static unsigned int ata_scsiop_inq_00(struct ata_scsi_args *args, u8 *rbuf)
 {
 	int num_pages;
-	const u8 pages[] = {
+	static const u8 pages[] = {
 		0x00,	/* page 0x00, this page */
 		0x80,	/* page 0x80, unit serial no page */
 		0x83,	/* page 0x83, device ident page */
@@ -2258,7 +2259,7 @@ static unsigned int ata_scsiop_inq_00(struct ata_scsi_args *args, u8 *rbuf)
  */
 static unsigned int ata_scsiop_inq_80(struct ata_scsi_args *args, u8 *rbuf)
 {
-	const u8 hdr[] = {
+	static const u8 hdr[] = {
 		0,
 		0x80,			/* this page code */
 		0,
@@ -2580,7 +2581,7 @@ static unsigned int ata_scsiop_mode_sense(struct ata_scsi_args *args, u8 *rbuf)
 {
 	struct ata_device *dev = args->dev;
 	u8 *scsicmd = args->cmd->cmnd, *p = rbuf;
-	const u8 sat_blk_desc[] = {
+	static const u8 sat_blk_desc[] = {
 		0, 0, 0, 0,	/* number of blocks: sat unspecified */
 		0,
 		0, 0x2, 0x0	/* block length: 512 bytes */
@@ -3030,10 +3031,12 @@ static unsigned int atapi_xlat(struct ata_queued_cmd *qc)
 static struct ata_device *ata_find_dev(struct ata_port *ap, int devno)
 {
 	if (!sata_pmp_attached(ap)) {
-		if (likely(devno < ata_link_max_devices(&ap->link)))
+		if (likely(devno >= 0 &&
+			   devno < ata_link_max_devices(&ap->link)))
 			return &ap->link.device[devno];
 	} else {
-		if (likely(devno < ap->nr_pmp_links))
+		if (likely(devno >= 0 &&
+			   devno < ap->nr_pmp_links))
 			return &ap->pmp_link[devno].device[0];
 	}
 

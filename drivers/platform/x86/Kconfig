@@ -93,12 +93,31 @@ config ASUS_LAPTOP
 
 config DELL_SMBIOS
 	tristate
-	select DCDBAS
-	---help---
-	This module provides common functions for kernel modules using
-	Dell SMBIOS.
 
-	If you have a Dell laptop, say Y or M here.
+config DELL_SMBIOS_WMI
+	tristate "Dell SMBIOS calling interface (WMI implementation)"
+	depends on ACPI_WMI
+	select DELL_WMI_DESCRIPTOR
+	select DELL_SMBIOS
+	---help---
+	This provides an implementation for the Dell SMBIOS calling interface
+	communicated over ACPI-WMI.
+
+	If you have a Dell computer from >2007 you should say Y or M here.
+	If you aren't sure and this module doesn't work for your computer
+	it just won't load.
+
+config DELL_SMBIOS_SMM
+	tristate "Dell SMBIOS calling interface (SMM implementation)"
+	depends on DCDBAS
+	select DELL_SMBIOS
+	---help---
+	This provides an implementation for the Dell SMBIOS calling interface
+	communicated over SMI/SMM.
+
+	If you have a Dell computer from <=2017 you should say Y or M here.
+	If you aren't sure and this module doesn't work for your computer
+	it just won't load.
 
 config DELL_LAPTOP
 	tristate "Dell Laptop Extras"
@@ -116,11 +135,12 @@ config DELL_LAPTOP
 	laptops (except for some models covered by the Compal driver).
 
 config DELL_WMI
-	tristate "Dell WMI extras"
+	tristate "Dell WMI notifications"
 	depends on ACPI_WMI
 	depends on DMI
 	depends on INPUT
 	depends on ACPI_VIDEO || ACPI_VIDEO = n
+	select DELL_WMI_DESCRIPTOR
 	select DELL_SMBIOS
 	select INPUT_SPARSEKMAP
 	---help---
@@ -128,6 +148,10 @@ config DELL_WMI
 
 	  To compile this driver as a module, choose M here: the module will
 	  be called dell-wmi.
+
+config DELL_WMI_DESCRIPTOR
+	tristate
+	depends on ACPI_WMI
 
 config DELL_WMI_AIO
 	tristate "WMI Hotkeys for Dell All-In-One series"
@@ -426,7 +450,6 @@ config THINKPAD_ACPI_ALSA_SUPPORT
 config THINKPAD_ACPI_DEBUGFACILITIES
 	bool "Maintainer debug facilities"
 	depends on THINKPAD_ACPI
-	default n
 	---help---
 	  Enables extra stuff in the thinkpad-acpi which is completely useless
 	  for normal use.  Read the driver source to find out what it does.
@@ -437,7 +460,6 @@ config THINKPAD_ACPI_DEBUGFACILITIES
 config THINKPAD_ACPI_DEBUG
 	bool "Verbose debug mode"
 	depends on THINKPAD_ACPI
-	default n
 	---help---
 	  Enables extra debugging information, at the expense of a slightly
 	  increase in driver size.
@@ -447,7 +469,6 @@ config THINKPAD_ACPI_DEBUG
 config THINKPAD_ACPI_UNSAFE_LEDS
 	bool "Allow control of important LEDs (unsafe)"
 	depends on THINKPAD_ACPI
-	default n
 	---help---
 	  Overriding LED state on ThinkPads can mask important
 	  firmware alerts (like critical battery condition), or misled
@@ -515,7 +536,6 @@ config SENSORS_HDAPS
 	tristate "Thinkpad Hard Drive Active Protection System (hdaps)"
 	depends on INPUT
 	select INPUT_POLLDEV
-	default n
 	help
 	  This driver provides support for the IBM Hard Drive Active Protection
 	  System (hdaps), which provides an accelerometer and other misc. data.
@@ -658,6 +678,18 @@ config WMI_BMOF
 	  To compile this driver as a module, choose M here: the module will
 	  be called wmi-bmof.
 
+config INTEL_WMI_THUNDERBOLT
+	tristate "Intel WMI thunderbolt force power driver"
+	depends on ACPI_WMI
+	---help---
+	  Say Y here if you want to be able to use the WMI interface on select
+	  systems to force the power control of Intel Thunderbolt controllers.
+	  This is useful for updating the firmware when devices are not plugged
+	  into the controller.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called intel-wmi-thunderbolt.
+
 config MSI_WMI
 	tristate "MSI WMI extras"
 	depends on ACPI_WMI
@@ -675,6 +707,7 @@ config PEAQ_WMI
 	tristate "PEAQ 2-in-1 WMI hotkey driver"
 	depends on ACPI_WMI
 	depends on INPUT
+	select INPUT_POLLDEV
 	help
 	 Say Y here if you want to support WMI-based hotkeys on PEAQ 2-in-1s.
 
@@ -762,7 +795,6 @@ config TOSHIBA_HAPS
 
 config TOSHIBA_WMI
 	tristate "Toshiba WMI Hotkeys Driver (EXPERIMENTAL)"
-	default n
 	depends on ACPI_WMI
 	depends on INPUT
 	select INPUT_SPARSEKMAP
@@ -773,7 +805,7 @@ config TOSHIBA_WMI
 	  WARNING: This driver is incomplete as it lacks a proper keymap and the
 	  *notify function only prints the ACPI event type value. Be warned that
 	  you will need to provide some information if you have a Toshiba model
-	  with WMI event hotkeys and want to help with the develpment of this
+	  with WMI event hotkeys and want to help with the development of this
 	  driver.
 
 	  If you have a WMI-based hotkeys Toshiba laptop, say Y or M here.
@@ -784,7 +816,6 @@ config ACPI_CMPC
 	depends on RFKILL || RFKILL=n
 	select INPUT
 	select BACKLIGHT_CLASS_DEVICE
-	default n
 	help
 	  Support for Intel Classmate PC ACPI devices, including some
 	  keys as input device, backlight device, tablet and accelerometer
@@ -792,7 +823,7 @@ config ACPI_CMPC
 
 config INTEL_CHT_INT33FE
 	tristate "Intel Cherry Trail ACPI INT33FE Driver"
-	depends on X86 && ACPI && I2C
+	depends on X86 && ACPI && I2C && REGULATOR
 	---help---
 	  This driver add support for the INT33FE ACPI device found on
 	  some Intel Cherry Trail devices.
@@ -802,6 +833,10 @@ config INTEL_CHT_INT33FE
 	  FUSB302 USB Type-C Controller and PI3USB30532 USB switch.
 	  This driver instantiates i2c-clients for these, so that standard
 	  i2c drivers for these chips can bind to the them.
+
+	  If you enable this driver it is advised to also select
+	  CONFIG_TYPEC_FUSB302=m, CONFIG_CHARGER_BQ24190=m and
+	  CONFIG_BATTERY_MAX17042=m.
 
 config INTEL_INT0002_VGPIO
 	tristate "Intel ACPI INT0002 Virtual GPIO driver"
@@ -891,7 +926,6 @@ config INTEL_IPS
 
 config INTEL_IMR
 	bool "Intel Isolated Memory Region support"
-	default n
 	depends on X86_INTEL_QUARK && IOSF_MBI
 	---help---
 	  This option provides a means to manipulate Isolated Memory Regions.
@@ -1087,7 +1121,6 @@ config INTEL_PUNIT_IPC
 
 config INTEL_TELEMETRY
 	tristate "Intel SoC Telemetry Driver"
-	default n
 	depends on INTEL_PMC_IPC && INTEL_PUNIT_IPC && X86_64
 	---help---
 	  This driver provides interfaces to configure and use
@@ -1110,7 +1143,6 @@ config MLX_PLATFORM
 
 config MLX_CPLD_PLATFORM
 	tristate "Mellanox platform hotplug driver support"
-	default n
 	select HWMON
 	select I2C
 	---help---

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _FS_CEPH_OSDMAP_H
 #define _FS_CEPH_OSDMAP_H
 
@@ -272,6 +273,8 @@ bool ceph_is_new_interval(const struct ceph_osds *old_acting,
 			  u32 new_pg_num,
 			  bool old_sort_bitwise,
 			  bool new_sort_bitwise,
+			  bool old_recovery_deletes,
+			  bool new_recovery_deletes,
 			  const struct ceph_pg *pgid);
 bool ceph_osds_changed(const struct ceph_osds *old_acting,
 		       const struct ceph_osds *new_acting,

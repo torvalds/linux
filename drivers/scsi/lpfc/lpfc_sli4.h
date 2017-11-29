@@ -201,6 +201,9 @@ struct lpfc_queue {
 #define	RQ_buf_posted		q_cnt_3
 #define	RQ_rcv_buf		q_cnt_4
 
+	struct work_struct irqwork;
+	struct work_struct spwork;
+
 	uint64_t isr_timestamp;
 	struct lpfc_queue *assoc_qp;
 	union sli4_qe qe[1];	/* array to index entries (must be last) */
@@ -419,6 +422,20 @@ struct lpfc_hba_eq_hdl {
 #define LPFC_MULTI_CPU_AFFINITY 0xffffffff
 };
 
+/*BB Credit recovery value*/
+struct lpfc_bbscn_params {
+	uint32_t word0;
+#define lpfc_bbscn_min_SHIFT		0
+#define lpfc_bbscn_min_MASK		0x0000000F
+#define lpfc_bbscn_min_WORD		word0
+#define lpfc_bbscn_max_SHIFT		4
+#define lpfc_bbscn_max_MASK		0x0000000F
+#define lpfc_bbscn_max_WORD		word0
+#define lpfc_bbscn_def_SHIFT		8
+#define lpfc_bbscn_def_MASK		0x0000000F
+#define lpfc_bbscn_def_WORD		word0
+};
+
 /* Port Capabilities for SLI4 Parameters */
 struct lpfc_pc_sli4_params {
 	uint32_t supported;
@@ -550,6 +567,7 @@ struct lpfc_sli4_hba {
 	uint32_t ue_to_rp;
 	struct lpfc_register sli_intf;
 	struct lpfc_pc_sli4_params pc_sli4_params;
+	struct lpfc_bbscn_params bbscn_params;
 	struct lpfc_hba_eq_hdl *hba_eq_hdl; /* HBA per-WQ handle */
 
 	/* Pointers to the constructed SLI4 queues */
@@ -621,8 +639,6 @@ struct lpfc_sli4_hba {
 	uint16_t scsi_xri_start;
 	uint16_t els_xri_cnt;
 	uint16_t nvmet_xri_cnt;
-	uint16_t nvmet_ctx_get_cnt;
-	uint16_t nvmet_ctx_put_cnt;
 	uint16_t nvmet_io_wait_cnt;
 	uint16_t nvmet_io_wait_total;
 	struct list_head lpfc_els_sgl_list;
@@ -631,9 +647,8 @@ struct lpfc_sli4_hba {
 	struct list_head lpfc_abts_nvmet_ctx_list;
 	struct list_head lpfc_abts_scsi_buf_list;
 	struct list_head lpfc_abts_nvme_buf_list;
-	struct list_head lpfc_nvmet_ctx_get_list;
-	struct list_head lpfc_nvmet_ctx_put_list;
 	struct list_head lpfc_nvmet_io_wait_list;
+	struct lpfc_nvmet_ctx_info *nvmet_ctx_info;
 	struct lpfc_sglq **lpfc_sglq_active_list;
 	struct list_head lpfc_rpi_hdr_list;
 	unsigned long *rpi_bmask;
@@ -664,8 +679,6 @@ struct lpfc_sli4_hba {
 	spinlock_t abts_nvme_buf_list_lock; /* list of aborted SCSI IOs */
 	spinlock_t abts_scsi_buf_list_lock; /* list of aborted SCSI IOs */
 	spinlock_t sgl_list_lock; /* list of aborted els IOs */
-	spinlock_t nvmet_ctx_get_lock; /* list of avail XRI contexts */
-	spinlock_t nvmet_ctx_put_lock; /* list of avail XRI contexts */
 	spinlock_t nvmet_io_wait_lock; /* IOs waiting for ctx resources */
 	uint32_t physical_port;
 

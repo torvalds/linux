@@ -142,7 +142,7 @@ int batadv_send_unicast_skb(struct sk_buff *skb,
 #ifdef CONFIG_BATMAN_ADV_BATMAN_V
 	hardif_neigh = batadv_hardif_neigh_get(neigh->if_incoming, neigh->addr);
 
-	if ((hardif_neigh) && (ret != NET_XMIT_DROP))
+	if (hardif_neigh && ret != NET_XMIT_DROP)
 		hardif_neigh->bat_v.last_unicast_tx = jiffies;
 
 	if (hardif_neigh)
@@ -615,8 +615,8 @@ batadv_forw_packet_list_steal(struct hlist_head *forw_list,
 		 * we delete only packets belonging to the given interface
 		 */
 		if (hard_iface &&
-		    (forw_packet->if_incoming != hard_iface) &&
-		    (forw_packet->if_outgoing != hard_iface))
+		    forw_packet->if_incoming != hard_iface &&
+		    forw_packet->if_outgoing != hard_iface)
 			continue;
 
 		hlist_del(&forw_packet->list);
@@ -911,7 +911,7 @@ static void batadv_send_outstanding_bcast_packet(struct work_struct *work)
 				type = "unknown";
 			}
 
-			batadv_dbg(BATADV_DBG_BATMAN, bat_priv, "BCAST packet from orig %pM on %s surpressed: %s\n",
+			batadv_dbg(BATADV_DBG_BATMAN, bat_priv, "BCAST packet from orig %pM on %s suppressed: %s\n",
 				   bcast_packet->orig,
 				   hard_iface->net_dev->name, type);
 

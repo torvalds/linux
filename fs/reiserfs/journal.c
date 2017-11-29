@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Write ahead logging implementation copyright Chris Mason 2000
  *
@@ -1481,7 +1482,7 @@ static int flush_journal_list(struct super_block *s,
 		if ((!was_jwait) && !buffer_locked(saved_bh)) {
 			reiserfs_warning(s, "journal-813",
 					 "BAD! buffer %llu %cdirty %cjwait, "
-					 "not in a newer tranasction",
+					 "not in a newer transaction",
 					 (unsigned long long)saved_bh->
 					 b_blocknr, was_dirty ? ' ' : '!',
 					 was_jwait ? ' ' : '!');
@@ -1918,7 +1919,7 @@ static int do_journal_release(struct reiserfs_transaction_handle *th,
 	 * we only want to flush out transactions if we were
 	 * called with error == 0
 	 */
-	if (!error && !(sb->s_flags & MS_RDONLY)) {
+	if (!error && !sb_rdonly(sb)) {
 		/* end the current trans */
 		BUG_ON(!th->t_trans_id);
 		do_journal_end(th, FLUSH_ALL);

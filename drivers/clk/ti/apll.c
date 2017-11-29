@@ -304,7 +304,7 @@ static void omap2_apll_disable(struct clk_hw *hw)
 	ti_clk_ll_ops->clk_writel(v, &ad->control_reg);
 }
 
-static struct clk_ops omap2_apll_ops = {
+static const struct clk_ops omap2_apll_ops = {
 	.enable		= &omap2_apll_enable,
 	.disable	= &omap2_apll_disable,
 	.is_enabled	= &omap2_apll_is_enabled,

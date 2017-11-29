@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef GIT_COMPAT_UTIL_H
 #define GIT_COMPAT_UTIL_H
 
@@ -5,13 +6,13 @@
 /* glibc 2.20 deprecates _BSD_SOURCE in favour of _DEFAULT_SOURCE */
 #define _DEFAULT_SOURCE 1
 
-#include <fcntl.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdlib.h>
 #include <stdarg.h>
 #include <linux/compiler.h>
 #include <linux/types.h>
+#include "namespaces.h"
 
 /* General helper functions */
 void usage(const char *err) __noreturn;
@@ -33,10 +34,10 @@ struct strlist *lsdir(const char *name, bool (*filter)(const char *, struct dire
 bool lsdir_no_dot_filter(const char *name, struct dirent *d);
 int copyfile(const char *from, const char *to);
 int copyfile_mode(const char *from, const char *to, mode_t mode);
-int copyfile_offset(int fromfd, loff_t from_ofs, int tofd, loff_t to_ofs, u64 size);
+int copyfile_ns(const char *from, const char *to, struct nsinfo *nsi);
 
 ssize_t readn(int fd, void *buf, size_t n);
-ssize_t writen(int fd, void *buf, size_t n);
+ssize_t writen(int fd, const void *buf, size_t n);
 
 size_t hex_width(u64 v);
 int hex2u64(const char *ptr, u64 *val);
@@ -57,5 +58,14 @@ const char *perf_tip(const char *dirpath);
 #ifndef HAVE_SCHED_GETCPU_SUPPORT
 int sched_getcpu(void);
 #endif
+
+#ifndef HAVE_SETNS_SUPPORT
+int setns(int fd, int nstype);
+#endif
+
+extern bool perf_singlethreaded;
+
+void perf_set_singlethreaded(void);
+void perf_set_multithreaded(void);
 
 #endif /* GIT_COMPAT_UTIL_H */

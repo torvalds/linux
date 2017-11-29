@@ -36,8 +36,8 @@ static const struct acpi_device_id intel_vbtn_ids[] = {
 
 /* In theory, these are HID usages. */
 static const struct key_entry intel_vbtn_keymap[] = {
-	{ KE_IGNORE, 0xC0, { KEY_POWER } },	/* power key press */
-	{ KE_KEY, 0xC1, { KEY_POWER } },	/* power key release */
+	{ KE_KEY, 0xC0, { KEY_POWER } },	/* power key press */
+	{ KE_IGNORE, 0xC1, { KEY_POWER } },	/* power key release */
 	{ KE_KEY, 0xC4, { KEY_VOLUMEUP } },		/* volume-up key press */
 	{ KE_IGNORE, 0xC5, { KEY_VOLUMEUP } },		/* volume-up key release */
 	{ KE_KEY, 0xC6, { KEY_VOLUMEDOWN } },		/* volume-down key press */
@@ -83,7 +83,7 @@ static void notify_handler(acpi_handle handle, u32 event, void *context)
 	} else if (sparse_keymap_report_event(priv->input_dev, event, 1, true)) {
 		return;
 	}
-	dev_info(&device->dev, "unknown event index 0x%x\n", event);
+	dev_dbg(&device->dev, "unknown event index 0x%x\n", event);
 }
 
 static int intel_vbtn_probe(struct platform_device *device)

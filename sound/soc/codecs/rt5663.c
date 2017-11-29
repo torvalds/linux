@@ -38,12 +38,24 @@ enum {
 	CODEC_VER_0,
 };
 
+struct impedance_mapping_table {
+	unsigned int imp_min;
+	unsigned int imp_max;
+	unsigned int vol;
+	unsigned int dc_offset_l_manual;
+	unsigned int dc_offset_r_manual;
+	unsigned int dc_offset_l_manual_mic;
+	unsigned int dc_offset_r_manual_mic;
+};
+
 struct rt5663_priv {
 	struct snd_soc_codec *codec;
+	struct rt5663_platform_data pdata;
 	struct regmap *regmap;
-	struct delayed_work jack_detect_work;
+	struct delayed_work jack_detect_work, jd_unplug_work;
 	struct snd_soc_jack *hs_jack;
 	struct timer_list btn_check_timer;
+	struct impedance_mapping_table *imp_table;
 
 	int codec_ver;
 	int sysclk;
@@ -55,6 +67,11 @@ struct rt5663_priv {
 	int pll_out;
 
 	int jack_type;
+};
+
+static const struct reg_sequence rt5663_patch_list[] = {
+	{ 0x002a, 0x8020 },
+	{ 0x0086, 0x0028 },
 };
 
 static const struct reg_default rt5663_v2_reg[] = {
@@ -466,7 +483,7 @@ static const struct reg_default rt5663_reg[] = {
 	{ 0x0006, 0x1000 },
 	{ 0x000a, 0x0000 },
 	{ 0x0010, 0x000f },
-	{ 0x0015, 0x42c1 },
+	{ 0x0015, 0x42f1 },
 	{ 0x0016, 0x0000 },
 	{ 0x0018, 0x000b },
 	{ 0x0019, 0xafaf },
@@ -476,7 +493,7 @@ static const struct reg_default rt5663_reg[] = {
 	{ 0x0023, 0x0039 },
 	{ 0x0026, 0xc0c0 },
 	{ 0x0029, 0x8080 },
-	{ 0x002a, 0xa0a0 },
+	{ 0x002a, 0x8020 },
 	{ 0x002c, 0x000c },
 	{ 0x002d, 0x0000 },
 	{ 0x0040, 0x0808 },
@@ -504,12 +521,12 @@ static const struct reg_default rt5663_reg[] = {
 	{ 0x0082, 0x0000 },
 	{ 0x0083, 0x0000 },
 	{ 0x0084, 0x0000 },
-	{ 0x0086, 0x0008 },
+	{ 0x0086, 0x0028 },
 	{ 0x0087, 0x0000 },
 	{ 0x008a, 0x0000 },
 	{ 0x008b, 0x0000 },
 	{ 0x008c, 0x0003 },
-	{ 0x008e, 0x0004 },
+	{ 0x008e, 0x0008 },
 	{ 0x008f, 0x1000 },
 	{ 0x0090, 0x0646 },
 	{ 0x0091, 0x0e3e },
@@ -520,7 +537,7 @@ static const struct reg_default rt5663_reg[] = {
 	{ 0x0098, 0x0000 },
 	{ 0x009a, 0x0000 },
 	{ 0x009f, 0x0000 },
-	{ 0x00ae, 0x2000 },
+	{ 0x00ae, 0x6000 },
 	{ 0x00af, 0x0000 },
 	{ 0x00b6, 0x0000 },
 	{ 0x00b7, 0x0000 },
@@ -538,7 +555,7 @@ static const struct reg_default rt5663_reg[] = {
 	{ 0x00d9, 0x08f9 },
 	{ 0x00db, 0x0008 },
 	{ 0x00dc, 0x00c0 },
-	{ 0x00dd, 0x6724 },
+	{ 0x00dd, 0x6729 },
 	{ 0x00de, 0x3131 },
 	{ 0x00df, 0x0008 },
 	{ 0x00e0, 0x4000 },
@@ -578,7 +595,7 @@ static const struct reg_default rt5663_reg[] = {
 	{ 0x0116, 0x0000 },
 	{ 0x0117, 0x0f00 },
 	{ 0x0118, 0x0006 },
-	{ 0x0125, 0x2224 },
+	{ 0x0125, 0x2424 },
 	{ 0x0126, 0x5550 },
 	{ 0x0127, 0x0400 },
 	{ 0x0128, 0x7711 },
@@ -596,8 +613,8 @@ static const struct reg_default rt5663_reg[] = {
 	{ 0x0145, 0x0002 },
 	{ 0x0146, 0x0000 },
 	{ 0x0160, 0x0e80 },
-	{ 0x0161, 0x0020 },
-	{ 0x0162, 0x0080 },
+	{ 0x0161, 0x0080 },
+	{ 0x0162, 0x0200 },
 	{ 0x0163, 0x0800 },
 	{ 0x0164, 0x0000 },
 	{ 0x0165, 0x0000 },
@@ -676,8 +693,8 @@ static const struct reg_default rt5663_reg[] = {
 	{ 0x0251, 0x0000 },
 	{ 0x0252, 0x028a },
 	{ 0x02fa, 0x0000 },
-	{ 0x02fb, 0x0000 },
-	{ 0x02fc, 0x0000 },
+	{ 0x02fb, 0x00a4 },
+	{ 0x02fc, 0x0300 },
 	{ 0x0300, 0x0000 },
 	{ 0x03d0, 0x0000 },
 	{ 0x03d1, 0x0000 },
@@ -1508,7 +1525,7 @@ static int rt5663_v2_jack_detect(struct snd_soc_codec *codec, int jack_insert)
 static int rt5663_jack_detect(struct snd_soc_codec *codec, int jack_insert)
 {
 	struct rt5663_priv *rt5663 = snd_soc_codec_get_drvdata(codec);
-	int val, i = 0, sleep_time[5] = {300, 150, 100, 50, 30};
+	int val, i = 0;
 
 	dev_dbg(codec->dev, "%s jack_insert:%d\n", __func__, jack_insert);
 
@@ -1543,25 +1560,74 @@ static int rt5663_jack_detect(struct snd_soc_codec *codec, int jack_insert)
 			RT5663_IRQ_POW_SAV_MASK, RT5663_IRQ_POW_SAV_EN);
 		snd_soc_update_bits(codec, RT5663_IRQ_1,
 			RT5663_EN_IRQ_JD1_MASK, RT5663_EN_IRQ_JD1_EN);
-		while (i < 5) {
-			msleep(sleep_time[i]);
-			val = snd_soc_read(codec, RT5663_EM_JACK_TYPE_2) &
-				0x0003;
-			dev_dbg(codec->dev, "%s: MX-00e7 val=%x sleep %d\n",
-				__func__, val, sleep_time[i]);
-			i++;
-			if (val == 0x1 || val == 0x2 || val == 0x3)
+
+		while (true) {
+			regmap_read(rt5663->regmap, RT5663_INT_ST_2, &val);
+			if (!(val & 0x80))
+				usleep_range(10000, 10005);
+			else
 				break;
+
+			if (i > 200)
+				break;
+			i++;
 		}
+
+		val = snd_soc_read(codec, RT5663_EM_JACK_TYPE_2) & 0x0003;
 		dev_dbg(codec->dev, "%s val = %d\n", __func__, val);
+
+		snd_soc_update_bits(codec, RT5663_HP_CHARGE_PUMP_1,
+			RT5663_OSW_HP_L_MASK | RT5663_OSW_HP_R_MASK,
+			RT5663_OSW_HP_L_EN | RT5663_OSW_HP_R_EN);
+
 		switch (val) {
 		case 1:
 		case 2:
 			rt5663->jack_type = SND_JACK_HEADSET;
 			rt5663_enable_push_button_irq(codec, true);
+
+			if (rt5663->pdata.impedance_sensing_num)
+				break;
+
+			if (rt5663->pdata.dc_offset_l_manual_mic) {
+				regmap_write(rt5663->regmap, RT5663_MIC_DECRO_2,
+					rt5663->pdata.dc_offset_l_manual_mic >>
+					16);
+				regmap_write(rt5663->regmap, RT5663_MIC_DECRO_3,
+					rt5663->pdata.dc_offset_l_manual_mic &
+					0xffff);
+			}
+
+			if (rt5663->pdata.dc_offset_r_manual_mic) {
+				regmap_write(rt5663->regmap, RT5663_MIC_DECRO_5,
+					rt5663->pdata.dc_offset_r_manual_mic >>
+					16);
+				regmap_write(rt5663->regmap, RT5663_MIC_DECRO_6,
+					rt5663->pdata.dc_offset_r_manual_mic &
+					0xffff);
+			}
 			break;
 		default:
 			rt5663->jack_type = SND_JACK_HEADPHONE;
+
+			if (rt5663->pdata.impedance_sensing_num)
+				break;
+
+			if (rt5663->pdata.dc_offset_l_manual) {
+				regmap_write(rt5663->regmap, RT5663_MIC_DECRO_2,
+					rt5663->pdata.dc_offset_l_manual >> 16);
+				regmap_write(rt5663->regmap, RT5663_MIC_DECRO_3,
+					rt5663->pdata.dc_offset_l_manual &
+					0xffff);
+			}
+
+			if (rt5663->pdata.dc_offset_r_manual) {
+				regmap_write(rt5663->regmap, RT5663_MIC_DECRO_5,
+					rt5663->pdata.dc_offset_r_manual >> 16);
+				regmap_write(rt5663->regmap, RT5663_MIC_DECRO_6,
+					rt5663->pdata.dc_offset_r_manual &
+					0xffff);
+			}
 			break;
 		}
 	} else {
@@ -1572,6 +1638,177 @@ static int rt5663_jack_detect(struct snd_soc_codec *codec, int jack_insert)
 
 	dev_dbg(codec->dev, "jack_type = %d\n", rt5663->jack_type);
 	return rt5663->jack_type;
+}
+
+static int rt5663_impedance_sensing(struct snd_soc_codec *codec)
+{
+	struct rt5663_priv *rt5663 = snd_soc_codec_get_drvdata(codec);
+	unsigned int value, i, reg84, reg26, reg2fa, reg91, reg10, reg80;
+
+	for (i = 0; i < rt5663->pdata.impedance_sensing_num; i++) {
+		if (rt5663->imp_table[i].vol == 7)
+			break;
+	}
+
+	if (rt5663->jack_type == SND_JACK_HEADSET) {
+		snd_soc_write(codec, RT5663_MIC_DECRO_2,
+			rt5663->imp_table[i].dc_offset_l_manual_mic >> 16);
+		snd_soc_write(codec, RT5663_MIC_DECRO_3,
+			rt5663->imp_table[i].dc_offset_l_manual_mic & 0xffff);
+		snd_soc_write(codec, RT5663_MIC_DECRO_5,
+			rt5663->imp_table[i].dc_offset_r_manual_mic >> 16);
+		snd_soc_write(codec, RT5663_MIC_DECRO_6,
+			rt5663->imp_table[i].dc_offset_r_manual_mic & 0xffff);
+	} else {
+		snd_soc_write(codec, RT5663_MIC_DECRO_2,
+			rt5663->imp_table[i].dc_offset_l_manual >> 16);
+		snd_soc_write(codec, RT5663_MIC_DECRO_3,
+			rt5663->imp_table[i].dc_offset_l_manual & 0xffff);
+		snd_soc_write(codec, RT5663_MIC_DECRO_5,
+			rt5663->imp_table[i].dc_offset_r_manual >> 16);
+		snd_soc_write(codec, RT5663_MIC_DECRO_6,
+			rt5663->imp_table[i].dc_offset_r_manual & 0xffff);
+	}
+
+	reg84 = snd_soc_read(codec, RT5663_ASRC_2);
+	reg26 = snd_soc_read(codec, RT5663_STO1_ADC_MIXER);
+	reg2fa = snd_soc_read(codec, RT5663_DUMMY_1);
+	reg91 = snd_soc_read(codec, RT5663_HP_CHARGE_PUMP_1);
+	reg10 = snd_soc_read(codec, RT5663_RECMIX);
+	reg80 = snd_soc_read(codec, RT5663_GLB_CLK);
+
+	snd_soc_update_bits(codec, RT5663_STO_DRE_1, 0x8000, 0);
+	snd_soc_write(codec, RT5663_ASRC_2, 0);
+	snd_soc_write(codec, RT5663_STO1_ADC_MIXER, 0x4040);
+	snd_soc_update_bits(codec, RT5663_PWR_ANLG_1,
+		RT5663_PWR_VREF1_MASK | RT5663_PWR_VREF2_MASK |
+		RT5663_PWR_FV1_MASK | RT5663_PWR_FV2_MASK,
+		RT5663_PWR_VREF1 | RT5663_PWR_VREF2);
+	usleep_range(10000, 10005);
+	snd_soc_update_bits(codec, RT5663_PWR_ANLG_1,
+		RT5663_PWR_FV1_MASK | RT5663_PWR_FV2_MASK,
+		RT5663_PWR_FV1 | RT5663_PWR_FV2);
+	snd_soc_update_bits(codec, RT5663_GLB_CLK, RT5663_SCLK_SRC_MASK,
+		RT5663_SCLK_SRC_RCCLK);
+	snd_soc_update_bits(codec, RT5663_RC_CLK, RT5663_DIG_25M_CLK_MASK,
+		RT5663_DIG_25M_CLK_EN);
+	snd_soc_update_bits(codec, RT5663_ADDA_CLK_1, RT5663_I2S_PD1_MASK, 0);
+	snd_soc_write(codec, RT5663_PRE_DIV_GATING_1, 0xff00);
+	snd_soc_write(codec, RT5663_PRE_DIV_GATING_2, 0xfffc);
+	snd_soc_write(codec, RT5663_HP_CHARGE_PUMP_1, 0x1232);
+	snd_soc_write(codec, RT5663_HP_LOGIC_2, 0x0005);
+	snd_soc_write(codec, RT5663_DEPOP_2, 0x3003);
+	snd_soc_update_bits(codec, RT5663_DEPOP_1, 0x0030, 0x0030);
+	snd_soc_update_bits(codec, RT5663_DEPOP_1, 0x0003, 0x0003);
+	snd_soc_update_bits(codec, RT5663_PWR_DIG_2,
+		RT5663_PWR_ADC_S1F | RT5663_PWR_DAC_S1F,
+		RT5663_PWR_ADC_S1F | RT5663_PWR_DAC_S1F);
+	snd_soc_update_bits(codec, RT5663_PWR_DIG_1,
+		RT5663_PWR_DAC_L1 | RT5663_PWR_DAC_R1 |
+		RT5663_PWR_LDO_DACREF_MASK | RT5663_PWR_ADC_L1 |
+		RT5663_PWR_ADC_R1,
+		RT5663_PWR_DAC_L1 | RT5663_PWR_DAC_R1 |
+		RT5663_PWR_LDO_DACREF_ON | RT5663_PWR_ADC_L1 |
+		RT5663_PWR_ADC_R1);
+	msleep(40);
+	snd_soc_update_bits(codec, RT5663_PWR_ANLG_2,
+		RT5663_PWR_RECMIX1 | RT5663_PWR_RECMIX2,
+		RT5663_PWR_RECMIX1 | RT5663_PWR_RECMIX2);
+	msleep(30);
+	snd_soc_write(codec, RT5663_HP_CHARGE_PUMP_2, 0x1371);
+	snd_soc_write(codec, RT5663_STO_DAC_MIXER, 0);
+	snd_soc_write(codec, RT5663_BYPASS_STO_DAC, 0x000c);
+	snd_soc_write(codec, RT5663_HP_BIAS, 0xafaa);
+	snd_soc_write(codec, RT5663_CHARGE_PUMP_1, 0x2224);
+	snd_soc_write(codec, RT5663_HP_OUT_EN, 0x8088);
+	snd_soc_write(codec, RT5663_CHOP_ADC, 0x3000);
+	snd_soc_write(codec, RT5663_ADDA_RST, 0xc000);
+	snd_soc_write(codec, RT5663_STO1_HPF_ADJ1, 0x3320);
+	snd_soc_write(codec, RT5663_HP_CALIB_2, 0x00c9);
+	snd_soc_write(codec, RT5663_DUMMY_1, 0x004c);
+	snd_soc_write(codec, RT5663_ANA_BIAS_CUR_1, 0x7733);
+	snd_soc_write(codec, RT5663_CHARGE_PUMP_2, 0x7777);
+	snd_soc_write(codec, RT5663_STO_DRE_9, 0x0007);
+	snd_soc_write(codec, RT5663_STO_DRE_10, 0x0007);
+	snd_soc_write(codec, RT5663_DUMMY_2, 0x02a4);
+	snd_soc_write(codec, RT5663_RECMIX, 0x0005);
+	snd_soc_write(codec, RT5663_HP_IMP_SEN_1, 0x4334);
+	snd_soc_update_bits(codec, RT5663_IRQ_3, 0x0004, 0x0004);
+	snd_soc_write(codec, RT5663_HP_LOGIC_1, 0x2200);
+	snd_soc_update_bits(codec, RT5663_DEPOP_1, 0x3000, 0x3000);
+	snd_soc_write(codec, RT5663_HP_LOGIC_1, 0x6200);
+
+	for (i = 0; i < 100; i++) {
+		msleep(20);
+		if (snd_soc_read(codec, RT5663_INT_ST_1) & 0x2)
+			break;
+	}
+
+	value = snd_soc_read(codec, RT5663_HP_IMP_SEN_4);
+
+	snd_soc_update_bits(codec, RT5663_DEPOP_1, 0x3000, 0);
+	snd_soc_write(codec, RT5663_INT_ST_1, 0);
+	snd_soc_write(codec, RT5663_HP_LOGIC_1, 0);
+	snd_soc_update_bits(codec, RT5663_RC_CLK, RT5663_DIG_25M_CLK_MASK,
+		RT5663_DIG_25M_CLK_DIS);
+	snd_soc_write(codec, RT5663_GLB_CLK, reg80);
+	snd_soc_write(codec, RT5663_RECMIX, reg10);
+	snd_soc_write(codec, RT5663_DUMMY_2, 0x00a4);
+	snd_soc_write(codec, RT5663_DUMMY_1, reg2fa);
+	snd_soc_write(codec, RT5663_HP_CALIB_2, 0x00c8);
+	snd_soc_write(codec, RT5663_STO1_HPF_ADJ1, 0xb320);
+	snd_soc_write(codec, RT5663_ADDA_RST, 0xe400);
+	snd_soc_write(codec, RT5663_CHOP_ADC, 0x2000);
+	snd_soc_write(codec, RT5663_HP_OUT_EN, 0x0008);
+	snd_soc_update_bits(codec, RT5663_PWR_ANLG_2,
+		RT5663_PWR_RECMIX1 | RT5663_PWR_RECMIX2, 0);
+	snd_soc_update_bits(codec, RT5663_PWR_DIG_1,
+		RT5663_PWR_DAC_L1 | RT5663_PWR_DAC_R1 |
+		RT5663_PWR_LDO_DACREF_MASK | RT5663_PWR_ADC_L1 |
+		RT5663_PWR_ADC_R1, 0);
+	snd_soc_update_bits(codec, RT5663_PWR_DIG_2,
+		RT5663_PWR_ADC_S1F | RT5663_PWR_DAC_S1F, 0);
+	snd_soc_update_bits(codec, RT5663_DEPOP_1, 0x0003, 0);
+	snd_soc_update_bits(codec, RT5663_DEPOP_1, 0x0030, 0);
+	snd_soc_write(codec, RT5663_HP_LOGIC_2, 0);
+	snd_soc_write(codec, RT5663_HP_CHARGE_PUMP_1, reg91);
+	snd_soc_update_bits(codec, RT5663_PWR_ANLG_1,
+		RT5663_PWR_VREF1_MASK | RT5663_PWR_VREF2_MASK, 0);
+	snd_soc_write(codec, RT5663_STO1_ADC_MIXER, reg26);
+	snd_soc_write(codec, RT5663_ASRC_2, reg84);
+
+	for (i = 0; i < rt5663->pdata.impedance_sensing_num; i++) {
+		if (value >= rt5663->imp_table[i].imp_min &&
+			value <= rt5663->imp_table[i].imp_max)
+			break;
+	}
+
+	snd_soc_update_bits(codec, RT5663_STO_DRE_9, RT5663_DRE_GAIN_HP_MASK,
+		rt5663->imp_table[i].vol);
+	snd_soc_update_bits(codec, RT5663_STO_DRE_10, RT5663_DRE_GAIN_HP_MASK,
+		rt5663->imp_table[i].vol);
+
+	if (rt5663->jack_type == SND_JACK_HEADSET) {
+		snd_soc_write(codec, RT5663_MIC_DECRO_2,
+			rt5663->imp_table[i].dc_offset_l_manual_mic >> 16);
+		snd_soc_write(codec, RT5663_MIC_DECRO_3,
+			rt5663->imp_table[i].dc_offset_l_manual_mic & 0xffff);
+		snd_soc_write(codec, RT5663_MIC_DECRO_5,
+			rt5663->imp_table[i].dc_offset_r_manual_mic >> 16);
+		snd_soc_write(codec, RT5663_MIC_DECRO_6,
+			rt5663->imp_table[i].dc_offset_r_manual_mic & 0xffff);
+	} else {
+		snd_soc_write(codec, RT5663_MIC_DECRO_2,
+			rt5663->imp_table[i].dc_offset_l_manual >> 16);
+		snd_soc_write(codec, RT5663_MIC_DECRO_3,
+			rt5663->imp_table[i].dc_offset_l_manual & 0xffff);
+		snd_soc_write(codec, RT5663_MIC_DECRO_5,
+			rt5663->imp_table[i].dc_offset_r_manual >> 16);
+		snd_soc_write(codec, RT5663_MIC_DECRO_6,
+			rt5663->imp_table[i].dc_offset_r_manual & 0xffff);
+	}
+
+	return 0;
 }
 
 static int rt5663_button_detect(struct snd_soc_codec *codec)
@@ -1590,7 +1827,8 @@ static irqreturn_t rt5663_irq(int irq, void *data)
 {
 	struct rt5663_priv *rt5663 = data;
 
-	dev_dbg(rt5663->codec->dev, "%s IRQ queue work\n", __func__);
+	dev_dbg(regmap_get_device(rt5663->regmap), "%s IRQ queue work\n",
+		__func__);
 
 	queue_delayed_work(system_wq, &rt5663->jack_detect_work,
 		msecs_to_jiffies(250));
@@ -1652,10 +1890,15 @@ static void rt5663_jack_detect_work(struct work_struct *work)
 				break;
 			case CODEC_VER_0:
 				report = rt5663_jack_detect(rt5663->codec, 1);
+				if (rt5663->pdata.impedance_sensing_num)
+					rt5663_impedance_sensing(rt5663->codec);
 				break;
 			default:
 				dev_err(codec->dev, "Unknown CODEC Version\n");
 			}
+
+			/* Delay the jack insert report to avoid pop noise */
+			msleep(30);
 		} else {
 			/* jack is already in, report button event */
 			report = SND_JACK_HEADSET;
@@ -1698,8 +1941,15 @@ static void rt5663_jack_detect_work(struct work_struct *work)
 				break;
 			}
 			/* button release or spurious interrput*/
-			if (btn_type == 0)
+			if (btn_type == 0) {
 				report =  rt5663->jack_type;
+				cancel_delayed_work_sync(
+					&rt5663->jd_unplug_work);
+			} else {
+				queue_delayed_work(system_wq,
+					&rt5663->jd_unplug_work,
+					msecs_to_jiffies(500));
+			}
 		}
 	} else {
 		/* jack out */
@@ -1718,6 +1968,37 @@ static void rt5663_jack_detect_work(struct work_struct *work)
 	snd_soc_jack_report(rt5663->hs_jack, report, SND_JACK_HEADSET |
 			    SND_JACK_BTN_0 | SND_JACK_BTN_1 |
 			    SND_JACK_BTN_2 | SND_JACK_BTN_3);
+}
+
+static void rt5663_jd_unplug_work(struct work_struct *work)
+{
+	struct rt5663_priv *rt5663 =
+		container_of(work, struct rt5663_priv, jd_unplug_work.work);
+	struct snd_soc_codec *codec = rt5663->codec;
+
+	if (!codec)
+		return;
+
+	if (!rt5663_check_jd_status(codec)) {
+		/* jack out */
+		switch (rt5663->codec_ver) {
+		case CODEC_VER_1:
+			rt5663_v2_jack_detect(rt5663->codec, 0);
+			break;
+		case CODEC_VER_0:
+			rt5663_jack_detect(rt5663->codec, 0);
+			break;
+		default:
+			dev_err(codec->dev, "Unknown CODEC Version\n");
+		}
+
+		snd_soc_jack_report(rt5663->hs_jack, 0, SND_JACK_HEADSET |
+				    SND_JACK_BTN_0 | SND_JACK_BTN_1 |
+				    SND_JACK_BTN_2 | SND_JACK_BTN_3);
+	} else {
+		queue_delayed_work(system_wq, &rt5663->jd_unplug_work,
+			msecs_to_jiffies(500));
+	}
 }
 
 static const struct snd_kcontrol_new rt5663_snd_controls[] = {
@@ -1744,15 +2025,18 @@ static const struct snd_kcontrol_new rt5663_v2_specific_controls[] = {
 };
 
 static const struct snd_kcontrol_new rt5663_specific_controls[] = {
-	/* Headphone Output Volume */
-	SOC_DOUBLE_R_TLV("Headphone Playback Volume", RT5663_STO_DRE_9,
-		RT5663_STO_DRE_10, RT5663_DRE_GAIN_HP_SHIFT, 23, 1,
-		rt5663_hp_vol_tlv),
 	/* Mic Boost Volume*/
 	SOC_SINGLE_TLV("IN1 Capture Volume", RT5663_CBJ_2,
 		RT5663_GAIN_BST1_SHIFT, 8, 0, in_bst_tlv),
 	/* Data Swap for Slot0/1 in ADCDAT1 */
 	SOC_ENUM("IF1 ADC Data Swap", rt5663_if1_adc_enum),
+};
+
+static const struct snd_kcontrol_new rt5663_hpvol_controls[] = {
+	/* Headphone Output Volume */
+	SOC_DOUBLE_R_TLV("Headphone Playback Volume", RT5663_STO_DRE_9,
+		RT5663_STO_DRE_10, RT5663_DRE_GAIN_HP_SHIFT, 23, 1,
+		rt5663_hp_vol_tlv),
 };
 
 static int rt5663_is_sys_clk_from_pll(struct snd_soc_dapm_widget *w,
@@ -1953,13 +2237,9 @@ static const struct snd_kcontrol_new rt5663_adda_r_mix[] = {
 static const struct snd_kcontrol_new rt5663_sto1_dac_l_mix[] = {
 	SOC_DAPM_SINGLE("DAC L Switch", RT5663_STO_DAC_MIXER,
 			RT5663_M_DAC_L1_STO_L_SHIFT, 1, 1),
-	SOC_DAPM_SINGLE("DAC R Switch", RT5663_STO_DAC_MIXER,
-			RT5663_M_DAC_R1_STO_L_SHIFT, 1, 1),
 };
 
 static const struct snd_kcontrol_new rt5663_sto1_dac_r_mix[] = {
-	SOC_DAPM_SINGLE("DAC L Switch", RT5663_STO_DAC_MIXER,
-			RT5663_M_DAC_L1_STO_R_SHIFT, 1, 1),
 	SOC_DAPM_SINGLE("DAC R Switch", RT5663_STO_DAC_MIXER,
 			RT5663_M_DAC_R1_STO_R_SHIFT, 1, 1),
 };
@@ -2024,10 +2304,6 @@ static int rt5663_hp_event(struct snd_soc_dapm_widget *w,
 				RT5663_HP_SIG_SRC1_SILENCE);
 		} else {
 			snd_soc_write(codec, RT5663_DEPOP_2, 0x3003);
-			snd_soc_update_bits(codec, RT5663_DEPOP_1, 0x000b,
-				0x000b);
-			snd_soc_update_bits(codec, RT5663_DEPOP_1, 0x0030,
-				0x0030);
 			snd_soc_update_bits(codec, RT5663_HP_CHARGE_PUMP_1,
 				RT5663_OVCD_HP_MASK, RT5663_OVCD_HP_DIS);
 			snd_soc_write(codec, RT5663_HP_CHARGE_PUMP_2, 0x1371);
@@ -2036,6 +2312,8 @@ static int rt5663_hp_event(struct snd_soc_dapm_widget *w,
 			snd_soc_write(codec, RT5663_ANA_BIAS_CUR_1, 0x7766);
 			snd_soc_write(codec, RT5663_HP_BIAS, 0xafaa);
 			snd_soc_write(codec, RT5663_CHARGE_PUMP_2, 0x7777);
+			snd_soc_update_bits(codec, RT5663_STO_DRE_1, 0x8000,
+				0x8000);
 			snd_soc_update_bits(codec, RT5663_DEPOP_1, 0x3000,
 				0x3000);
 		}
@@ -2050,9 +2328,36 @@ static int rt5663_hp_event(struct snd_soc_dapm_widget *w,
 			snd_soc_update_bits(codec, RT5663_DEPOP_1, 0x3000, 0x0);
 			snd_soc_update_bits(codec, RT5663_HP_CHARGE_PUMP_1,
 				RT5663_OVCD_HP_MASK, RT5663_OVCD_HP_EN);
-			snd_soc_update_bits(codec, RT5663_DEPOP_1, 0x0030, 0x0);
-			snd_soc_update_bits(codec, RT5663_DEPOP_1, 0x000b,
-				0x000b);
+		}
+		break;
+
+	default:
+		return 0;
+	}
+
+	return 0;
+}
+
+static int rt5663_charge_pump_event(struct snd_soc_dapm_widget *w,
+	struct snd_kcontrol *kcontrol, int event)
+{
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
+	struct rt5663_priv *rt5663 = snd_soc_codec_get_drvdata(codec);
+
+	switch (event) {
+	case SND_SOC_DAPM_PRE_PMU:
+		if (rt5663->codec_ver == CODEC_VER_0) {
+			snd_soc_update_bits(codec, RT5663_DEPOP_1, 0x0030,
+				0x0030);
+			snd_soc_update_bits(codec, RT5663_DEPOP_1, 0x0003,
+				0x0003);
+		}
+		break;
+
+	case SND_SOC_DAPM_POST_PMD:
+		if (rt5663->codec_ver == CODEC_VER_0) {
+			snd_soc_update_bits(codec, RT5663_DEPOP_1, 0x0003, 0);
+			snd_soc_update_bits(codec, RT5663_DEPOP_1, 0x0030, 0);
 		}
 		break;
 
@@ -2182,6 +2487,9 @@ static const struct snd_soc_dapm_widget rt5663_dapm_widgets[] = {
 	SND_SOC_DAPM_DAC("DAC R", NULL, SND_SOC_NOPM, 0, 0),
 
 	/* Headphone*/
+	SND_SOC_DAPM_SUPPLY("HP Charge Pump", SND_SOC_NOPM, 0, 0,
+		rt5663_charge_pump_event, SND_SOC_DAPM_PRE_PMU |
+		SND_SOC_DAPM_POST_PMD),
 	SND_SOC_DAPM_PGA_S("HP Amp", 1, SND_SOC_NOPM, 0, 0, rt5663_hp_event,
 		SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMU),
 
@@ -2330,14 +2638,13 @@ static const struct snd_soc_dapm_route rt5663_dapm_routes[] = {
 	{ "DAC R1", NULL, "ADDA MIXR" },
 
 	{ "STO1 DAC MIXL", "DAC L Switch", "DAC L1" },
-	{ "STO1 DAC MIXL", "DAC R Switch", "DAC R1" },
 	{ "STO1 DAC MIXL", NULL, "STO1 DAC L Power" },
 	{ "STO1 DAC MIXL", NULL, "STO1 DAC Filter" },
 	{ "STO1 DAC MIXR", "DAC R Switch", "DAC R1" },
-	{ "STO1 DAC MIXR", "DAC L Switch", "DAC L1" },
 	{ "STO1 DAC MIXR", NULL, "STO1 DAC R Power" },
 	{ "STO1 DAC MIXR", NULL, "STO1 DAC Filter" },
 
+	{ "HP Amp", NULL, "HP Charge Pump" },
 	{ "HP Amp", NULL, "DAC L" },
 	{ "HP Amp", NULL, "DAC R" },
 };
@@ -2814,6 +3121,10 @@ static int rt5663_probe(struct snd_soc_codec *codec)
 			ARRAY_SIZE(rt5663_specific_dapm_routes));
 		snd_soc_add_codec_controls(codec, rt5663_specific_controls,
 			ARRAY_SIZE(rt5663_specific_controls));
+
+		if (!rt5663->imp_table)
+			snd_soc_add_codec_controls(codec, rt5663_hpvol_controls,
+				ARRAY_SIZE(rt5663_hpvol_controls));
 		break;
 	}
 
@@ -2860,7 +3171,7 @@ static int rt5663_resume(struct snd_soc_codec *codec)
 #define RT5663_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S20_3LE | \
 			SNDRV_PCM_FMTBIT_S24_LE | SNDRV_PCM_FMTBIT_S8)
 
-static struct snd_soc_dai_ops rt5663_aif_dai_ops = {
+static const struct snd_soc_dai_ops rt5663_aif_dai_ops = {
 	.hw_params = rt5663_hw_params,
 	.set_fmt = rt5663_set_dai_fmt,
 	.set_sysclk = rt5663_set_dai_sysclk,
@@ -2891,7 +3202,7 @@ static struct snd_soc_dai_driver rt5663_dai[] = {
 	},
 };
 
-static struct snd_soc_codec_driver soc_codec_dev_rt5663 = {
+static const struct snd_soc_codec_driver soc_codec_dev_rt5663 = {
 	.probe = rt5663_probe,
 	.remove = rt5663_remove,
 	.suspend = rt5663_suspend,
@@ -2956,7 +3267,7 @@ MODULE_DEVICE_TABLE(of, rt5663_of_match);
 #endif
 
 #ifdef CONFIG_ACPI
-static struct acpi_device_id rt5663_acpi_match[] = {
+static const struct acpi_device_id rt5663_acpi_match[] = {
 	{ "10EC5663", 0},
 	{},
 };
@@ -2986,47 +3297,76 @@ static void rt5663_calibrate(struct rt5663_priv *rt5663)
 {
 	int value, count;
 
-	regmap_write(rt5663->regmap, RT5663_RC_CLK, 0x0280);
-	regmap_write(rt5663->regmap, RT5663_GLB_CLK, 0x8000);
-	regmap_write(rt5663->regmap, RT5663_DIG_MISC, 0x8001);
-	regmap_write(rt5663->regmap, RT5663_VREF_RECMIX, 0x0032);
-	regmap_write(rt5663->regmap, RT5663_PWR_ANLG_1, 0xa2be);
+	regmap_write(rt5663->regmap, RT5663_RESET, 0x0000);
 	msleep(20);
-	regmap_write(rt5663->regmap, RT5663_PWR_ANLG_1, 0xf2be);
-	regmap_write(rt5663->regmap, RT5663_PWR_DIG_2, 0x8400);
-	regmap_write(rt5663->regmap, RT5663_CHOP_ADC, 0x3000);
-	regmap_write(rt5663->regmap, RT5663_DEPOP_1, 0x003b);
-	regmap_write(rt5663->regmap, RT5663_PWR_DIG_1, 0x8df8);
-	regmap_write(rt5663->regmap, RT5663_PWR_ANLG_2, 0x0003);
-	regmap_write(rt5663->regmap, RT5663_PWR_ANLG_3, 0x018c);
-	regmap_write(rt5663->regmap, RT5663_ADDA_CLK_1, 0x1111);
+	regmap_write(rt5663->regmap, RT5663_ANA_BIAS_CUR_4, 0x00a1);
+	regmap_write(rt5663->regmap, RT5663_RC_CLK, 0x0380);
+	regmap_write(rt5663->regmap, RT5663_GLB_CLK, 0x8000);
+	regmap_write(rt5663->regmap, RT5663_ADDA_CLK_1, 0x1000);
+	regmap_write(rt5663->regmap, RT5663_VREF_RECMIX, 0x0032);
+	regmap_write(rt5663->regmap, RT5663_HP_IMP_SEN_19, 0x000c);
+	regmap_write(rt5663->regmap, RT5663_DUMMY_1, 0x0324);
+	regmap_write(rt5663->regmap, RT5663_DIG_MISC, 0x8001);
+	regmap_write(rt5663->regmap, RT5663_PWR_ANLG_1, 0xa23b);
+	msleep(30);
+	regmap_write(rt5663->regmap, RT5663_PWR_ANLG_1, 0xf23b);
+	regmap_write(rt5663->regmap, RT5663_PWR_ANLG_2, 0x8000);
+	regmap_write(rt5663->regmap, RT5663_PWR_ANLG_3, 0x0008);
 	regmap_write(rt5663->regmap, RT5663_PRE_DIV_GATING_1, 0xffff);
 	regmap_write(rt5663->regmap, RT5663_PRE_DIV_GATING_2, 0xffff);
+	regmap_write(rt5663->regmap, RT5663_CBJ_1, 0x8c10);
+	regmap_write(rt5663->regmap, RT5663_IL_CMD_2, 0x00c1);
+	regmap_write(rt5663->regmap, RT5663_EM_JACK_TYPE_1, 0xb880);
+	regmap_write(rt5663->regmap, RT5663_EM_JACK_TYPE_2, 0x4110);
+	regmap_write(rt5663->regmap, RT5663_EM_JACK_TYPE_2, 0x4118);
+
+	count = 0;
+	while (true) {
+		regmap_read(rt5663->regmap, RT5663_INT_ST_2, &value);
+		if (!(value & 0x80))
+			usleep_range(10000, 10005);
+		else
+			break;
+
+		if (++count > 200)
+			break;
+	}
+
+	regmap_write(rt5663->regmap, RT5663_HP_IMP_SEN_19, 0x0000);
 	regmap_write(rt5663->regmap, RT5663_DEPOP_2, 0x3003);
+	regmap_write(rt5663->regmap, RT5663_DEPOP_1, 0x0038);
 	regmap_write(rt5663->regmap, RT5663_DEPOP_1, 0x003b);
+	regmap_write(rt5663->regmap, RT5663_PWR_DIG_2, 0x8400);
+	regmap_write(rt5663->regmap, RT5663_PWR_DIG_1, 0x8df8);
+	regmap_write(rt5663->regmap, RT5663_PWR_ANLG_2, 0x8003);
+	regmap_write(rt5663->regmap, RT5663_PWR_ANLG_3, 0x018c);
 	regmap_write(rt5663->regmap, RT5663_HP_CHARGE_PUMP_1, 0x1e32);
-	regmap_write(rt5663->regmap, RT5663_HP_CHARGE_PUMP_2, 0x1371);
 	regmap_write(rt5663->regmap, RT5663_DACREF_LDO, 0x3b0b);
-	regmap_write(rt5663->regmap, RT5663_STO_DAC_MIXER, 0x2080);
+	msleep(40);
+	regmap_write(rt5663->regmap, RT5663_STO_DAC_MIXER, 0x0000);
 	regmap_write(rt5663->regmap, RT5663_BYPASS_STO_DAC, 0x000c);
-	regmap_write(rt5663->regmap, RT5663_HP_BIAS, 0xabba);
+	regmap_write(rt5663->regmap, RT5663_HP_BIAS, 0xafaa);
 	regmap_write(rt5663->regmap, RT5663_CHARGE_PUMP_1, 0x2224);
 	regmap_write(rt5663->regmap, RT5663_HP_OUT_EN, 0x8088);
 	regmap_write(rt5663->regmap, RT5663_STO_DRE_9, 0x0017);
 	regmap_write(rt5663->regmap, RT5663_STO_DRE_10, 0x0017);
 	regmap_write(rt5663->regmap, RT5663_STO1_ADC_MIXER, 0x4040);
+	regmap_write(rt5663->regmap, RT5663_CHOP_ADC, 0x3000);
 	regmap_write(rt5663->regmap, RT5663_RECMIX, 0x0005);
 	regmap_write(rt5663->regmap, RT5663_ADDA_RST, 0xc000);
 	regmap_write(rt5663->regmap, RT5663_STO1_HPF_ADJ1, 0x3320);
 	regmap_write(rt5663->regmap, RT5663_HP_CALIB_2, 0x00c9);
 	regmap_write(rt5663->regmap, RT5663_DUMMY_1, 0x004c);
-	regmap_write(rt5663->regmap, RT5663_ANA_BIAS_CUR_1, 0x7766);
-	regmap_write(rt5663->regmap, RT5663_BIAS_CUR_8, 0x4702);
-	msleep(200);
+	regmap_write(rt5663->regmap, RT5663_ANA_BIAS_CUR_1, 0x1111);
+	regmap_write(rt5663->regmap, RT5663_BIAS_CUR_8, 0x4402);
+	regmap_write(rt5663->regmap, RT5663_CHARGE_PUMP_2, 0x3311);
 	regmap_write(rt5663->regmap, RT5663_HP_CALIB_1, 0x0069);
-	regmap_write(rt5663->regmap, RT5663_HP_CALIB_3, 0x06c2);
-	regmap_write(rt5663->regmap, RT5663_HP_CALIB_1_1, 0x7b00);
-	regmap_write(rt5663->regmap, RT5663_HP_CALIB_1_1, 0xfb00);
+	regmap_write(rt5663->regmap, RT5663_HP_CALIB_3, 0x06ce);
+	regmap_write(rt5663->regmap, RT5663_HP_CALIB_1_1, 0x6800);
+	regmap_write(rt5663->regmap, RT5663_CHARGE_PUMP_2, 0x1100);
+	regmap_write(rt5663->regmap, RT5663_HP_CALIB_7, 0x0057);
+	regmap_write(rt5663->regmap, RT5663_HP_CALIB_1_1, 0xe800);
+
 	count = 0;
 	while (true) {
 		regmap_read(rt5663->regmap, RT5663_HP_CALIB_1_1, &value);
@@ -3039,11 +3379,69 @@ static void rt5663_calibrate(struct rt5663_priv *rt5663)
 			return;
 		count++;
 	}
+
+	regmap_write(rt5663->regmap, RT5663_HP_CALIB_1_1, 0x6200);
+	regmap_write(rt5663->regmap, RT5663_HP_CALIB_7, 0x0059);
+	regmap_write(rt5663->regmap, RT5663_HP_CALIB_1_1, 0xe200);
+
+	count = 0;
+	while (true) {
+		regmap_read(rt5663->regmap, RT5663_HP_CALIB_1_1, &value);
+		if (value & 0x8000)
+			usleep_range(10000, 10005);
+		else
+			break;
+
+		if (count > 200)
+			return;
+		count++;
+	}
+
+	regmap_write(rt5663->regmap, RT5663_EM_JACK_TYPE_1, 0xb8e0);
+	usleep_range(10000, 10005);
+	regmap_write(rt5663->regmap, RT5663_PWR_ANLG_1, 0x003b);
+	usleep_range(10000, 10005);
+	regmap_write(rt5663->regmap, RT5663_PWR_DIG_1, 0x0000);
+	usleep_range(10000, 10005);
+	regmap_write(rt5663->regmap, RT5663_DEPOP_1, 0x000b);
+	usleep_range(10000, 10005);
+	regmap_write(rt5663->regmap, RT5663_DEPOP_1, 0x0008);
+	usleep_range(10000, 10005);
+	regmap_write(rt5663->regmap, RT5663_PWR_ANLG_2, 0x0000);
+	usleep_range(10000, 10005);
+}
+
+static int rt5663_parse_dp(struct rt5663_priv *rt5663, struct device *dev)
+{
+	int table_size;
+
+	device_property_read_u32(dev, "realtek,dc_offset_l_manual",
+		&rt5663->pdata.dc_offset_l_manual);
+	device_property_read_u32(dev, "realtek,dc_offset_r_manual",
+		&rt5663->pdata.dc_offset_r_manual);
+	device_property_read_u32(dev, "realtek,dc_offset_l_manual_mic",
+		&rt5663->pdata.dc_offset_l_manual_mic);
+	device_property_read_u32(dev, "realtek,dc_offset_r_manual_mic",
+		&rt5663->pdata.dc_offset_r_manual_mic);
+	device_property_read_u32(dev, "realtek,impedance_sensing_num",
+		&rt5663->pdata.impedance_sensing_num);
+
+	if (rt5663->pdata.impedance_sensing_num) {
+		table_size = sizeof(struct impedance_mapping_table) *
+			rt5663->pdata.impedance_sensing_num;
+		rt5663->imp_table = devm_kzalloc(dev, table_size, GFP_KERNEL);
+		device_property_read_u32_array(dev,
+			"realtek,impedance_sensing_table",
+			(u32 *)rt5663->imp_table, table_size);
+	}
+
+	return 0;
 }
 
 static int rt5663_i2c_probe(struct i2c_client *i2c,
 		    const struct i2c_device_id *id)
 {
+	struct rt5663_platform_data *pdata = dev_get_platdata(&i2c->dev);
 	struct rt5663_priv *rt5663;
 	int ret;
 	unsigned int val;
@@ -3057,6 +3455,11 @@ static int rt5663_i2c_probe(struct i2c_client *i2c,
 
 	i2c_set_clientdata(i2c, rt5663);
 
+	if (pdata)
+		rt5663->pdata = *pdata;
+	else
+		rt5663_parse_dp(rt5663, &i2c->dev);
+
 	regmap = devm_regmap_init_i2c(i2c, &temp_regmap);
 	if (IS_ERR(regmap)) {
 		ret = PTR_ERR(regmap);
@@ -3064,7 +3467,16 @@ static int rt5663_i2c_probe(struct i2c_client *i2c,
 			ret);
 		return ret;
 	}
-	regmap_read(regmap, RT5663_VENDOR_ID_2, &val);
+
+	ret = regmap_read(regmap, RT5663_VENDOR_ID_2, &val);
+	if (ret || (val != RT5663_DEVICE_ID_2 && val != RT5663_DEVICE_ID_1)) {
+		dev_err(&i2c->dev,
+			"Device with ID register %#x is not rt5663, retry one time.\n",
+			val);
+		msleep(100);
+		regmap_read(regmap, RT5663_VENDOR_ID_2, &val);
+	}
+
 	switch (val) {
 	case RT5663_DEVICE_ID_2:
 		rt5663->regmap = devm_regmap_init_i2c(i2c, &rt5663_v2_regmap);
@@ -3104,6 +3516,20 @@ static int rt5663_i2c_probe(struct i2c_client *i2c,
 	regcache_cache_bypass(rt5663->regmap, false);
 	regmap_write(rt5663->regmap, RT5663_RESET, 0);
 	dev_dbg(&i2c->dev, "calibrate done\n");
+
+	switch (rt5663->codec_ver) {
+	case CODEC_VER_1:
+		break;
+	case CODEC_VER_0:
+		ret = regmap_register_patch(rt5663->regmap, rt5663_patch_list,
+					    ARRAY_SIZE(rt5663_patch_list));
+		if (ret != 0)
+			dev_warn(&i2c->dev,
+				"Failed to apply regmap patch: %d\n", ret);
+		break;
+	default:
+		dev_err(&i2c->dev, "%s:Unknown codec type\n", __func__);
+	}
 
 	/* GPIO1 as IRQ */
 	regmap_update_bits(rt5663->regmap, RT5663_GPIO_1, RT5663_GP1_PIN_MASK,
@@ -3169,6 +3595,7 @@ static int rt5663_i2c_probe(struct i2c_client *i2c,
 	}
 
 	INIT_DELAYED_WORK(&rt5663->jack_detect_work, rt5663_jack_detect_work);
+	INIT_DELAYED_WORK(&rt5663->jd_unplug_work, rt5663_jd_unplug_work);
 
 	if (i2c->irq) {
 		ret = request_irq(i2c->irq, rt5663_irq,

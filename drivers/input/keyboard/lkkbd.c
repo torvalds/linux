@@ -707,7 +707,7 @@ static void lkkbd_disconnect(struct serio *serio)
 	kfree(lk);
 }
 
-static struct serio_device_id lkkbd_serio_ids[] = {
+static const struct serio_device_id lkkbd_serio_ids[] = {
 	{
 		.type	= SERIO_RS232,
 		.proto	= SERIO_LKKBD,

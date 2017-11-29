@@ -16,6 +16,7 @@
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_gem_cma_helper.h>
+#include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_fb_cma_helper.h>
 #include <drm/drm_of.h>
 
@@ -145,7 +146,7 @@ static void sti_output_poll_changed(struct drm_device *ddev)
 }
 
 static const struct drm_mode_config_funcs sti_mode_config_funcs = {
-	.fb_create = drm_fb_cma_create,
+	.fb_create = drm_gem_fb_create,
 	.output_poll_changed = sti_output_poll_changed,
 	.atomic_check = sti_atomic_check,
 	.atomic_commit = drm_atomic_helper_commit,
@@ -175,8 +176,6 @@ static struct drm_driver sti_driver = {
 	.gem_free_object_unlocked = drm_gem_cma_free_object,
 	.gem_vm_ops = &drm_gem_cma_vm_ops,
 	.dumb_create = drm_gem_cma_dumb_create,
-	.dumb_map_offset = drm_gem_cma_dumb_map_offset,
-	.dumb_destroy = drm_gem_dumb_destroy,
 	.fops = &sti_driver_fops,
 
 	.enable_vblank = sti_crtc_enable_vblank,
@@ -237,7 +236,6 @@ static void sti_cleanup(struct drm_device *ddev)
 	}
 
 	drm_kms_helper_poll_fini(ddev);
-	drm_vblank_cleanup(ddev);
 	component_unbind_all(ddev->dev, ddev);
 	kfree(private);
 	ddev->dev_private = NULL;

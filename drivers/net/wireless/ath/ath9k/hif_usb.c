@@ -20,7 +20,7 @@
 MODULE_FIRMWARE(HTC_7010_MODULE_FW);
 MODULE_FIRMWARE(HTC_9271_MODULE_FW);
 
-static struct usb_device_id ath9k_hif_usb_ids[] = {
+static const struct usb_device_id ath9k_hif_usb_ids[] = {
 	{ USB_DEVICE(0x0cf3, 0x9271) }, /* Atheros */
 	{ USB_DEVICE(0x0cf3, 0x1006) }, /* Atheros */
 	{ USB_DEVICE(0x0846, 0x9030) }, /* Netgear N150 */
@@ -424,7 +424,7 @@ static int hif_usb_send_tx(struct hif_device_usb *hif_dev, struct sk_buff *skb)
 
 static void hif_usb_start(void *hif_handle)
 {
-	struct hif_device_usb *hif_dev = (struct hif_device_usb *)hif_handle;
+	struct hif_device_usb *hif_dev = hif_handle;
 	unsigned long flags;
 
 	hif_dev->flags |= HIF_USB_START;
@@ -436,7 +436,7 @@ static void hif_usb_start(void *hif_handle)
 
 static void hif_usb_stop(void *hif_handle)
 {
-	struct hif_device_usb *hif_dev = (struct hif_device_usb *)hif_handle;
+	struct hif_device_usb *hif_dev = hif_handle;
 	struct tx_buf *tx_buf = NULL, *tx_buf_tmp = NULL;
 	unsigned long flags;
 
@@ -457,7 +457,7 @@ static void hif_usb_stop(void *hif_handle)
 
 static int hif_usb_send(void *hif_handle, u8 pipe_id, struct sk_buff *skb)
 {
-	struct hif_device_usb *hif_dev = (struct hif_device_usb *)hif_handle;
+	struct hif_device_usb *hif_dev = hif_handle;
 	int ret = 0;
 
 	switch (pipe_id) {
@@ -492,7 +492,7 @@ static inline bool check_index(struct sk_buff *skb, u8 idx)
 
 static void hif_usb_sta_drain(void *hif_handle, u8 idx)
 {
-	struct hif_device_usb *hif_dev = (struct hif_device_usb *)hif_handle;
+	struct hif_device_usb *hif_dev = hif_handle;
 	struct sk_buff *skb, *tmp;
 	unsigned long flags;
 

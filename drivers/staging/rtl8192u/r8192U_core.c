@@ -270,8 +270,7 @@ int write_nic_byte_E(struct net_device *dev, int indx, u8 data)
 	kfree(usbdata);
 
 	if (status < 0) {
-		netdev_err(dev, "write_nic_byte_E TimeOut! status: %d\n",
-			   status);
+		netdev_err(dev, "%s TimeOut! status: %d\n", __func__, status);
 		return status;
 	}
 	return 0;
@@ -321,7 +320,7 @@ int write_nic_byte(struct net_device *dev, int indx, u8 data)
 	kfree(usbdata);
 
 	if (status < 0) {
-		netdev_err(dev, "write_nic_byte TimeOut! status: %d\n", status);
+		netdev_err(dev, "%s TimeOut! status: %d\n", __func__, status);
 		return status;
 	}
 
@@ -348,7 +347,7 @@ int write_nic_word(struct net_device *dev, int indx, u16 data)
 	kfree(usbdata);
 
 	if (status < 0) {
-		netdev_err(dev, "write_nic_word TimeOut! status: %d\n", status);
+		netdev_err(dev, "%s TimeOut! status: %d\n", __func__, status);
 		return status;
 	}
 
@@ -376,8 +375,7 @@ int write_nic_dword(struct net_device *dev, int indx, u32 data)
 
 
 	if (status < 0) {
-		netdev_err(dev, "write_nic_dword TimeOut! status: %d\n",
-			   status);
+		netdev_err(dev, "%s TimeOut! status: %d\n", __func__, status);
 		return status;
 	}
 
@@ -499,7 +497,7 @@ inline void force_pci_posting(struct net_device *dev)
 
 static struct net_device_stats *rtl8192_stats(struct net_device *dev);
 static void rtl8192_restart(struct work_struct *work);
-static void watch_dog_timer_callback(unsigned long data);
+static void watch_dog_timer_callback(struct timer_list *t);
 
 /****************************************************************************
  *   -----------------------------PROCFS STUFF-------------------------
@@ -1689,9 +1687,13 @@ static short rtl8192_usb_initendpoints(struct net_device *dev)
 #ifndef JACKSON_NEW_RX
 	for (i = 0; i < (MAX_RX_URB + 1); i++) {
 		priv->rx_urb[i] = usb_alloc_urb(0, GFP_KERNEL);
+		if (!priv->rx_urb[i])
+			return -ENOMEM;
 
 		priv->rx_urb[i]->transfer_buffer =
 			kmalloc(RX_URB_SIZE, GFP_KERNEL);
+		if (!priv->rx_urb[i]->transfer_buffer)
+			return -ENOMEM;
 
 		priv->rx_urb[i]->transfer_buffer_length = RX_URB_SIZE;
 	}
@@ -2692,15 +2694,11 @@ static short rtl8192_init(struct net_device *dev)
 	err = rtl8192_read_eeprom_info(dev);
 	if (err) {
 		DMESG("Reading EEPROM info failed");
-		kfree(priv->pFirmware);
-		priv->pFirmware = NULL;
-		free_ieee80211(dev);
 		return err;
 	}
 	rtl8192_get_channel_map(dev);
 	init_hal_dm(dev);
-	setup_timer(&priv->watch_dog_timer, watch_dog_timer_callback,
-		    (unsigned long)dev);
+	timer_setup(&priv->watch_dog_timer, watch_dog_timer_callback, 0);
 	if (rtl8192_usb_initendpoints(dev) != 0) {
 		DMESG("Endopoints initialization failed");
 		return -ENOMEM;
@@ -3095,7 +3093,8 @@ static RESET_TYPE TxCheckStuck(struct net_device *dev)
 	if (bCheckFwTxCnt) {
 		if (HalTxCheckStuck819xUsb(dev)) {
 			RT_TRACE(COMP_RESET,
-				 "TxCheckStuck(): Fw indicates no Tx condition!\n");
+				 "%s: Fw indicates no Tx condition!\n",
+				 __func__);
 			return RESET_TYPE_SILENT;
 		}
 	}
@@ -3237,7 +3236,7 @@ static void CamRestoreAllEntry(struct net_device *dev)
 	static u8	CAM_CONST_BROAD[] = {
 		0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 
-	RT_TRACE(COMP_SEC, "CamRestoreAllEntry:\n");
+	RT_TRACE(COMP_SEC, "%s:\n", __func__);
 
 
 	if ((priv->ieee80211->pairwise_key_type == KEY_TYPE_WEP40) ||
@@ -3500,9 +3499,9 @@ static void rtl819x_watchdog_wqcallback(struct work_struct *work)
 	RT_TRACE(COMP_TRACE, " <==RtUsbCheckForHangWorkItemCallback()\n");
 }
 
-static void watch_dog_timer_callback(unsigned long data)
+static void watch_dog_timer_callback(struct timer_list *t)
 {
-	struct r8192_priv *priv = ieee80211_priv((struct net_device *)data);
+	struct r8192_priv *priv = from_timer(priv, t, watch_dog_timer);
 
 	schedule_delayed_work(&priv->watch_dog_wq, 0);
 	mod_timer(&priv->watch_dog_timer,
@@ -3529,7 +3528,7 @@ static int _rtl8192_up(struct net_device *dev)
 	if (priv->ieee80211->state != IEEE80211_LINKED)
 		ieee80211_softmac_start_protocol(priv->ieee80211);
 	ieee80211_reset_queue(priv->ieee80211);
-	watch_dog_timer_callback((unsigned long)dev);
+	watch_dog_timer_callback(&priv->watch_dog_timer);
 	if (!netif_queue_stopped(dev))
 		netif_start_queue(dev);
 	else
@@ -3835,8 +3834,8 @@ static u8 HwRateToMRate90(bool bIsHT, u8 rate)
 		default:
 			ret_rate = 0xff;
 			RT_TRACE(COMP_RECV,
-				 "HwRateToMRate90(): Non supported Rate [%x], bIsHT = %d!!!\n",
-				 rate, bIsHT);
+				 "%s: Non supported Rate [%x], bIsHT = %d!!!\n",
+				 __func__, rate, bIsHT);
 			break;
 		}
 
@@ -3897,8 +3896,8 @@ static u8 HwRateToMRate90(bool bIsHT, u8 rate)
 		default:
 			ret_rate = 0xff;
 			RT_TRACE(COMP_RECV,
-				 "HwRateToMRate90(): Non supported Rate [%x], bIsHT = %d!!!\n",
-				 rate, bIsHT);
+				 "%s: Non supported Rate [%x], bIsHT = %d!!!\n",
+				 __func__, rate, bIsHT);
 			break;
 		}
 	}
@@ -4995,11 +4994,11 @@ static int rtl8192_usb_probe(struct usb_interface *intf,
 
 fail2:
 	rtl8192_down(dev);
+fail:
 	kfree(priv->pFirmware);
 	priv->pFirmware = NULL;
 	rtl8192_usb_deleteendpoints(dev);
 	mdelay(10);
-fail:
 	free_ieee80211(dev);
 
 	RT_TRACE(COMP_ERR, "wlan driver load failed\n");

@@ -71,6 +71,43 @@ struct brcmf_if *brcmf_get_ifp(struct brcmf_pub *drvr, int ifidx)
 	return ifp;
 }
 
+void brcmf_configure_arp_nd_offload(struct brcmf_if *ifp, bool enable)
+{
+	s32 err;
+	u32 mode;
+
+	if (enable)
+		mode = BRCMF_ARP_OL_AGENT | BRCMF_ARP_OL_PEER_AUTO_REPLY;
+	else
+		mode = 0;
+
+	/* Try to set and enable ARP offload feature, this may fail, then it  */
+	/* is simply not supported and err 0 will be returned                 */
+	err = brcmf_fil_iovar_int_set(ifp, "arp_ol", mode);
+	if (err) {
+		brcmf_dbg(TRACE, "failed to set ARP offload mode to 0x%x, err = %d\n",
+			  mode, err);
+	} else {
+		err = brcmf_fil_iovar_int_set(ifp, "arpoe", enable);
+		if (err) {
+			brcmf_dbg(TRACE, "failed to configure (%d) ARP offload err = %d\n",
+				  enable, err);
+		} else {
+			brcmf_dbg(TRACE, "successfully configured (%d) ARP offload to 0x%x\n",
+				  enable, mode);
+		}
+	}
+
+	err = brcmf_fil_iovar_int_set(ifp, "ndoe", enable);
+	if (err) {
+		brcmf_dbg(TRACE, "failed to configure (%d) ND offload err = %d\n",
+			  enable, err);
+	} else {
+		brcmf_dbg(TRACE, "successfully configured (%d) ND offload to 0x%x\n",
+			  enable, mode);
+	}
+}
+
 static void _brcmf_set_multicast_list(struct work_struct *work)
 {
 	struct brcmf_if *ifp;
@@ -134,6 +171,7 @@ static void _brcmf_set_multicast_list(struct work_struct *work)
 	if (err < 0)
 		brcmf_err("Setting BRCMF_C_SET_PROMISC failed, %d\n",
 			  err);
+	brcmf_configure_arp_nd_offload(ifp, !cmd_value);
 }
 
 #if IS_ENABLED(CONFIG_IPV6)
@@ -214,7 +252,7 @@ static netdev_tx_t brcmf_netdev_start_xmit(struct sk_buff *skb,
 
 	/* Make sure there's enough writeable headroom */
 	if (skb_headroom(skb) < drvr->hdrlen || skb_header_cloned(skb)) {
-		head_delta = drvr->hdrlen - skb_headroom(skb);
+		head_delta = max_t(int, drvr->hdrlen - skb_headroom(skb), 0);
 
 		brcmf_dbg(INFO, "%s: insufficient headroom (%d)\n",
 			  brcmf_ifname(ifp), head_delta);
@@ -949,6 +987,8 @@ static int brcmf_revinfo_read(struct seq_file *s, void *data)
 	seq_printf(s, "phyrev: %u\n", ri->phyrev);
 	seq_printf(s, "anarev: %u\n", ri->anarev);
 	seq_printf(s, "nvramrev: %08x\n", ri->nvramrev);
+
+	seq_printf(s, "clmver: %s\n", bus_if->drvr->clmver);
 
 	return 0;
 }

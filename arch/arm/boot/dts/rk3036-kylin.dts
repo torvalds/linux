@@ -135,6 +135,11 @@
 	status = "okay";
 };
 
+&gpu {
+	mali-supply = <&vdd_gpu>;
+	status = "okay";
+};
+
 &hdmi {
 	status = "okay";
 };
@@ -357,7 +362,6 @@
 	keep-power-in-suspend;
 	mmc-pwrseq = <&sdio_pwrseq>;
 	non-removable;
-	num-slots = <1>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&sdio_clk &sdio_cmd &sdio_bus4>;
 	sd-uhs-sdr12;
@@ -372,7 +376,6 @@
 	cap-sd-highspeed;
 	card-detect-delay = <200>;
 	disable-wp;
-	num-slots = <1>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&sdmmc_clk>, <&sdmmc_cmd>, <&sdmmc_cd>, <&sdmmc_bus4>;
 };

@@ -414,43 +414,11 @@ static void sdhci_cmu_set_clock(struct sdhci_host *host, unsigned int clock)
 	sdhci_writew(host, clk, SDHCI_CLOCK_CONTROL);
 }
 
-/**
- * sdhci_s3c_set_bus_width - support 8bit buswidth
- * @host: The SDHCI host being queried
- * @width: MMC_BUS_WIDTH_ macro for the bus width being requested
- *
- * We have 8-bit width support but is not a v3 controller.
- * So we add platform_bus_width() and support 8bit width.
- */
-static void sdhci_s3c_set_bus_width(struct sdhci_host *host, int width)
-{
-	u8 ctrl;
-
-	ctrl = sdhci_readb(host, SDHCI_HOST_CONTROL);
-
-	switch (width) {
-	case MMC_BUS_WIDTH_8:
-		ctrl |= SDHCI_CTRL_8BITBUS;
-		ctrl &= ~SDHCI_CTRL_4BITBUS;
-		break;
-	case MMC_BUS_WIDTH_4:
-		ctrl |= SDHCI_CTRL_4BITBUS;
-		ctrl &= ~SDHCI_CTRL_8BITBUS;
-		break;
-	default:
-		ctrl &= ~SDHCI_CTRL_4BITBUS;
-		ctrl &= ~SDHCI_CTRL_8BITBUS;
-		break;
-	}
-
-	sdhci_writeb(host, ctrl, SDHCI_HOST_CONTROL);
-}
-
 static struct sdhci_ops sdhci_s3c_ops = {
 	.get_max_clock		= sdhci_s3c_get_max_clk,
 	.set_clock		= sdhci_s3c_set_clock,
 	.get_min_clock		= sdhci_s3c_get_min_clock,
-	.set_bus_width		= sdhci_s3c_set_bus_width,
+	.set_bus_width		= sdhci_set_bus_width,
 	.reset			= sdhci_reset,
 	.set_uhs_signaling	= sdhci_set_uhs_signaling,
 };
@@ -793,32 +761,24 @@ static const struct dev_pm_ops sdhci_s3c_pmops = {
 			   NULL)
 };
 
-#if defined(CONFIG_CPU_EXYNOS4210) || defined(CONFIG_SOC_EXYNOS4212)
-static struct sdhci_s3c_drv_data exynos4_sdhci_drv_data = {
-	.no_divider = true,
-};
-#define EXYNOS4_SDHCI_DRV_DATA ((kernel_ulong_t)&exynos4_sdhci_drv_data)
-#else
-#define EXYNOS4_SDHCI_DRV_DATA ((kernel_ulong_t)NULL)
-#endif
-
 static const struct platform_device_id sdhci_s3c_driver_ids[] = {
 	{
 		.name		= "s3c-sdhci",
 		.driver_data	= (kernel_ulong_t)NULL,
-	}, {
-		.name		= "exynos4-sdhci",
-		.driver_data	= EXYNOS4_SDHCI_DRV_DATA,
 	},
 	{ }
 };
 MODULE_DEVICE_TABLE(platform, sdhci_s3c_driver_ids);
 
 #ifdef CONFIG_OF
+static struct sdhci_s3c_drv_data exynos4_sdhci_drv_data = {
+	.no_divider = true,
+};
+
 static const struct of_device_id sdhci_s3c_dt_match[] = {
 	{ .compatible = "samsung,s3c6410-sdhci", },
 	{ .compatible = "samsung,exynos4210-sdhci",
-		.data = (void *)EXYNOS4_SDHCI_DRV_DATA },
+		.data = &exynos4_sdhci_drv_data },
 	{},
 };
 MODULE_DEVICE_TABLE(of, sdhci_s3c_dt_match);

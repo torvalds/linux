@@ -20,6 +20,7 @@
 #include <linux/atomic.h>
 #include <linux/blk-mq.h>
 #include <linux/mount.h>
+#include <linux/dax.h>
 
 #define DM_MSG_PREFIX "table"
 
@@ -450,15 +451,15 @@ int dm_get_device(struct dm_target *ti, const char *path, fmode_t mode,
 			return r;
 		}
 
-		atomic_set(&dd->count, 0);
+		refcount_set(&dd->count, 1);
 		list_add(&dd->list, &t->devices);
 
 	} else if (dd->dm_dev->mode != (mode | dd->dm_dev->mode)) {
 		r = upgrade_mode(dd, mode, t->md);
 		if (r)
 			return r;
+		refcount_inc(&dd->count);
 	}
-	atomic_inc(&dd->count);
 
 	*result = dd->dm_dev;
 	return 0;
@@ -514,7 +515,7 @@ void dm_put_device(struct dm_target *ti, struct dm_dev *d)
 		       dm_device_name(ti->table->md), d->name);
 		return;
 	}
-	if (atomic_dec_and_test(&dd->count)) {
+	if (refcount_dec_and_test(&dd->count)) {
 		dm_put_table_device(ti->table->md, d);
 		list_del(&dd->list);
 		kfree(dd);
@@ -805,7 +806,8 @@ int dm_table_add_target(struct dm_table *t, const char *type,
 /*
  * Target argument parsing helpers.
  */
-static int validate_next_arg(struct dm_arg *arg, struct dm_arg_set *arg_set,
+static int validate_next_arg(const struct dm_arg *arg,
+			     struct dm_arg_set *arg_set,
 			     unsigned *value, char **error, unsigned grouped)
 {
 	const char *arg_str = dm_shift_arg(arg_set);
@@ -823,14 +825,14 @@ static int validate_next_arg(struct dm_arg *arg, struct dm_arg_set *arg_set,
 	return 0;
 }
 
-int dm_read_arg(struct dm_arg *arg, struct dm_arg_set *arg_set,
+int dm_read_arg(const struct dm_arg *arg, struct dm_arg_set *arg_set,
 		unsigned *value, char **error)
 {
 	return validate_next_arg(arg, arg_set, value, error, 0);
 }
 EXPORT_SYMBOL(dm_read_arg);
 
-int dm_read_arg_group(struct dm_arg *arg, struct dm_arg_set *arg_set,
+int dm_read_arg_group(const struct dm_arg *arg, struct dm_arg_set *arg_set,
 		      unsigned *value, char **error)
 {
 	return validate_next_arg(arg, arg_set, value, error, 1);
@@ -998,7 +1000,7 @@ verify_rq_based:
 	list_for_each_entry(dd, devices, list) {
 		struct request_queue *q = bdev_get_queue(dd->dm_dev->bdev);
 
-		if (!blk_queue_stackable(q)) {
+		if (!queue_is_rq_based(q)) {
 			DMERR("table load rejected: including"
 			      " non-request-stackable devices");
 			return -EINVAL;
@@ -1630,6 +1632,37 @@ static bool dm_table_supports_flush(struct dm_table *t, unsigned long flush)
 	return false;
 }
 
+static int device_dax_write_cache_enabled(struct dm_target *ti,
+					  struct dm_dev *dev, sector_t start,
+					  sector_t len, void *data)
+{
+	struct dax_device *dax_dev = dev->dax_dev;
+
+	if (!dax_dev)
+		return false;
+
+	if (dax_write_cache_enabled(dax_dev))
+		return true;
+	return false;
+}
+
+static int dm_table_supports_dax_write_cache(struct dm_table *t)
+{
+	struct dm_target *ti;
+	unsigned i;
+
+	for (i = 0; i < dm_table_get_num_targets(t); i++) {
+		ti = dm_table_get_target(t, i);
+
+		if (ti->type->iterate_devices &&
+		    ti->type->iterate_devices(ti,
+				device_dax_write_cache_enabled, NULL))
+			return true;
+	}
+
+	return false;
+}
+
 static int device_is_nonrot(struct dm_target *ti, struct dm_dev *dev,
 			    sector_t start, sector_t len, void *data)
 {
@@ -1725,13 +1758,12 @@ static bool dm_table_supports_write_zeroes(struct dm_table *t)
 	return true;
 }
 
-
-static int device_discard_capable(struct dm_target *ti, struct dm_dev *dev,
-				  sector_t start, sector_t len, void *data)
+static int device_not_discard_capable(struct dm_target *ti, struct dm_dev *dev,
+				      sector_t start, sector_t len, void *data)
 {
 	struct request_queue *q = bdev_get_queue(dev->bdev);
 
-	return q && blk_queue_discard(q);
+	return q && !blk_queue_discard(q);
 }
 
 static bool dm_table_supports_discards(struct dm_table *t)
@@ -1739,28 +1771,24 @@ static bool dm_table_supports_discards(struct dm_table *t)
 	struct dm_target *ti;
 	unsigned i;
 
-	/*
-	 * Unless any target used by the table set discards_supported,
-	 * require at least one underlying device to support discards.
-	 * t->devices includes internal dm devices such as mirror logs
-	 * so we need to use iterate_devices here, which targets
-	 * supporting discard selectively must provide.
-	 */
 	for (i = 0; i < dm_table_get_num_targets(t); i++) {
 		ti = dm_table_get_target(t, i);
 
 		if (!ti->num_discard_bios)
-			continue;
+			return false;
 
-		if (ti->discards_supported)
-			return true;
-
-		if (ti->type->iterate_devices &&
-		    ti->type->iterate_devices(ti, device_discard_capable, NULL))
-			return true;
+		/*
+		 * Either the target provides discard support (as implied by setting
+		 * 'discards_supported') or it relies on _all_ data devices having
+		 * discard support.
+		 */
+		if (!ti->discards_supported &&
+		    (!ti->type->iterate_devices ||
+		     ti->type->iterate_devices(ti, device_not_discard_capable, NULL)))
+			return false;
 	}
 
-	return false;
+	return true;
 }
 
 void dm_table_set_restrictions(struct dm_table *t, struct request_queue *q,
@@ -1773,9 +1801,15 @@ void dm_table_set_restrictions(struct dm_table *t, struct request_queue *q,
 	 */
 	q->limits = *limits;
 
-	if (!dm_table_supports_discards(t))
+	if (!dm_table_supports_discards(t)) {
 		queue_flag_clear_unlocked(QUEUE_FLAG_DISCARD, q);
-	else
+		/* Must also clear discard limits... */
+		q->limits.max_discard_sectors = 0;
+		q->limits.max_hw_discard_sectors = 0;
+		q->limits.discard_granularity = 0;
+		q->limits.discard_alignment = 0;
+		q->limits.discard_misaligned = 0;
+	} else
 		queue_flag_set_unlocked(QUEUE_FLAG_DISCARD, q);
 
 	if (dm_table_supports_flush(t, (1UL << QUEUE_FLAG_WC))) {
@@ -1784,6 +1818,9 @@ void dm_table_set_restrictions(struct dm_table *t, struct request_queue *q,
 			fua = true;
 	}
 	blk_queue_write_cache(q, wc, fua);
+
+	if (dm_table_supports_dax_write_cache(t))
+		dax_write_cache(t->md->dax_dev, true);
 
 	/* Ensure that all underlying devices are non-rotational. */
 	if (dm_table_all_devices_attribute(t, device_is_nonrot))
@@ -1811,19 +1848,6 @@ void dm_table_set_restrictions(struct dm_table *t, struct request_queue *q,
 	 */
 	if (blk_queue_add_random(q) && dm_table_all_devices_attribute(t, device_is_not_random))
 		queue_flag_clear_unlocked(QUEUE_FLAG_ADD_RANDOM, q);
-
-	/*
-	 * QUEUE_FLAG_STACKABLE must be set after all queue settings are
-	 * visible to other CPUs because, once the flag is set, incoming bios
-	 * are processed by request-based dm, which refers to the queue
-	 * settings.
-	 * Until the flag set, bios are passed to bio-based dm and queued to
-	 * md->deferred where queue settings are not needed yet.
-	 * Those bios are passed to request-based dm at the resume time.
-	 */
-	smp_mb();
-	if (dm_table_request_based(t))
-		queue_flag_set_unlocked(QUEUE_FLAG_STACKABLE, q);
 }
 
 unsigned int dm_table_get_num_targets(struct dm_table *t)

@@ -1,18 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *Copyright (C) 2011 LAPIS Semiconductor Co., Ltd.
- *
- *This program is free software; you can redistribute it and/or modify
- *it under the terms of the GNU General Public License as published by
- *the Free Software Foundation; version 2 of the License.
- *
- *This program is distributed in the hope that it will be useful,
- *but WITHOUT ANY WARRANTY; without even the implied warranty of
- *MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *GNU General Public License for more details.
- *
- *You should have received a copy of the GNU General Public License
- *along with this program; if not, write to the Free Software
- *Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307, USA.
  */
 #if defined(CONFIG_SERIAL_PCH_UART_CONSOLE) && defined(CONFIG_MAGIC_SYSRQ)
 #define SUPPORT_SYSRQ
@@ -44,11 +32,6 @@ enum {
 	PCH_UART_HANDLED_RX_TRG_INT_SHIFT,
 	PCH_UART_HANDLED_MS_INT_SHIFT,
 	PCH_UART_HANDLED_LS_INT_SHIFT,
-};
-
-enum {
-	PCH_UART_8LINE,
-	PCH_UART_2LINE,
 };
 
 #define PCH_UART_DRIVER_DEVICE "ttyPCH"
@@ -267,7 +250,7 @@ struct eg20t_port {
 
 /**
  * struct pch_uart_driver_data - private data structure for UART-DMA
- * @port_type:			The number of DMA channel
+ * @port_type:			The type of UART port
  * @line_no:			UART port line number (0, 1, 2...)
  */
 struct pch_uart_driver_data {
@@ -290,17 +273,17 @@ enum pch_uart_num_t {
 };
 
 static struct pch_uart_driver_data drv_dat[] = {
-	[pch_et20t_uart0] = {PCH_UART_8LINE, 0},
-	[pch_et20t_uart1] = {PCH_UART_2LINE, 1},
-	[pch_et20t_uart2] = {PCH_UART_2LINE, 2},
-	[pch_et20t_uart3] = {PCH_UART_2LINE, 3},
-	[pch_ml7213_uart0] = {PCH_UART_8LINE, 0},
-	[pch_ml7213_uart1] = {PCH_UART_2LINE, 1},
-	[pch_ml7213_uart2] = {PCH_UART_2LINE, 2},
-	[pch_ml7223_uart0] = {PCH_UART_8LINE, 0},
-	[pch_ml7223_uart1] = {PCH_UART_2LINE, 1},
-	[pch_ml7831_uart0] = {PCH_UART_8LINE, 0},
-	[pch_ml7831_uart1] = {PCH_UART_2LINE, 1},
+	[pch_et20t_uart0] = {PORT_PCH_8LINE, 0},
+	[pch_et20t_uart1] = {PORT_PCH_2LINE, 1},
+	[pch_et20t_uart2] = {PORT_PCH_2LINE, 2},
+	[pch_et20t_uart3] = {PORT_PCH_2LINE, 3},
+	[pch_ml7213_uart0] = {PORT_PCH_8LINE, 0},
+	[pch_ml7213_uart1] = {PORT_PCH_2LINE, 1},
+	[pch_ml7213_uart2] = {PORT_PCH_2LINE, 2},
+	[pch_ml7223_uart0] = {PORT_PCH_8LINE, 0},
+	[pch_ml7223_uart1] = {PORT_PCH_2LINE, 1},
+	[pch_ml7831_uart0] = {PORT_PCH_8LINE, 0},
+	[pch_ml7831_uart1] = {PORT_PCH_2LINE, 1},
 };
 
 #ifdef CONFIG_SERIAL_PCH_UART_CONSOLE
@@ -376,7 +359,7 @@ static const struct file_operations port_regs_ops = {
 };
 #endif	/* CONFIG_DEBUG_FS */
 
-static struct dmi_system_id pch_uart_dmi_table[] = {
+static const struct dmi_system_id pch_uart_dmi_table[] = {
 	{
 		.ident = "CM-iTC",
 		{
@@ -1777,10 +1760,10 @@ static struct eg20t_port *pch_uart_init_port(struct pci_dev *pdev,
 		goto init_port_free_txbuf;
 
 	switch (port_type) {
-	case PORT_UNKNOWN:
+	case PORT_PCH_8LINE:
 		fifosize = 256; /* EG20T/ML7213: UART0 */
 		break;
-	case PORT_8250:
+	case PORT_PCH_2LINE:
 		fifosize = 64; /* EG20T:UART1~3  ML7213: UART1~2*/
 		break;
 	default:
@@ -1804,7 +1787,7 @@ static struct eg20t_port *pch_uart_init_port(struct pci_dev *pdev,
 
 	priv->fifo_size = fifosize;
 	priv->uartclk = pch_uart_get_uartclk();
-	priv->port_type = PORT_MAX_8250 + port_type + 1;
+	priv->port_type = port_type;
 	priv->port.dev = &pdev->dev;
 	priv->port.iobase = iobase;
 	priv->port.membase = NULL;
@@ -1862,8 +1845,7 @@ static void pch_uart_exit_port(struct eg20t_port *priv)
 {
 
 #ifdef CONFIG_DEBUG_FS
-	if (priv->debugfs)
-		debugfs_remove(priv->debugfs);
+	debugfs_remove(priv->debugfs);
 #endif
 	uart_remove_one_port(&pch_uart_driver, &priv->port);
 	free_page((unsigned long)priv->rxbuf.buf);

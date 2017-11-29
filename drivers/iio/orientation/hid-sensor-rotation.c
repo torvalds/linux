@@ -138,7 +138,6 @@ static int dev_rot_write_raw(struct iio_dev *indio_dev,
 }
 
 static const struct iio_info dev_rot_info = {
-	.driver_module = THIS_MODULE,
 	.read_raw_multi = &dev_rot_read_raw,
 	.write_raw = &dev_rot_write_raw,
 };
@@ -238,7 +237,7 @@ static int dev_rot_parse_report(struct platform_device *pdev,
 static int hid_dev_rot_probe(struct platform_device *pdev)
 {
 	int ret;
-	static char *name;
+	char *name;
 	struct iio_dev *indio_dev;
 	struct dev_rot_state *rot_state;
 	struct hid_sensor_hub_device *hsdev = pdev->dev.platform_data;

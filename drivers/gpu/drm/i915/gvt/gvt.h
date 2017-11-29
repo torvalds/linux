@@ -80,6 +80,7 @@ struct intel_gvt_device_info {
 struct intel_vgpu_gm {
 	u64 aperture_sz;
 	u64 hidden_sz;
+	void *aperture_va;
 	struct drm_mm_node low_gm_node;
 	struct drm_mm_node high_gm_node;
 };
@@ -99,7 +100,6 @@ struct intel_vgpu_mmio {
 	bool disable_warn_untrack;
 };
 
-#define INTEL_GVT_MAX_CFG_SPACE_SZ 256
 #define INTEL_GVT_MAX_BAR_NUM 4
 
 struct intel_vgpu_pci_bar {
@@ -108,7 +108,7 @@ struct intel_vgpu_pci_bar {
 };
 
 struct intel_vgpu_cfg_space {
-	unsigned char virtual_cfg_space[INTEL_GVT_MAX_CFG_SPACE_SZ];
+	unsigned char virtual_cfg_space[PCI_CFG_SPACE_EXP_SIZE];
 	struct intel_vgpu_pci_bar bar[INTEL_GVT_MAX_BAR_NUM];
 };
 
@@ -149,7 +149,7 @@ struct intel_vgpu {
 	bool active;
 	bool pv_notified;
 	bool failsafe;
-	bool resetting;
+	unsigned int resetting_eng;
 	void *sched_data;
 	struct vgpu_sched_ctl sched_ctl;
 
@@ -165,8 +165,12 @@ struct intel_vgpu {
 	struct list_head workload_q_head[I915_NUM_ENGINES];
 	struct kmem_cache *workloads;
 	atomic_t running_workload_num;
+	/* 1/2K for each reserve ring buffer */
+	void *reserve_ring_buffer_va[I915_NUM_ENGINES];
+	int reserve_ring_buffer_size[I915_NUM_ENGINES];
 	DECLARE_BITMAP(tlb_handle_pending, I915_NUM_ENGINES);
 	struct i915_gem_context *shadow_ctx;
+	DECLARE_BITMAP(shadow_ctx_desc_updated, I915_NUM_ENGINES);
 
 #if IS_ENABLED(CONFIG_DRM_I915_GVT_KVMGT)
 	struct {
@@ -195,6 +199,15 @@ struct intel_gvt_fence {
 	unsigned long vgpu_allocated_fence_num;
 };
 
+/* Special MMIO blocks. */
+struct gvt_mmio_block {
+	unsigned int device;
+	i915_reg_t   offset;
+	unsigned int size;
+	gvt_mmio_func read;
+	gvt_mmio_func write;
+};
+
 #define INTEL_GVT_MMIO_HASH_BITS 11
 
 struct intel_gvt_mmio {
@@ -213,6 +226,9 @@ struct intel_gvt_mmio {
 #define F_CMD_ACCESSED	(1 << 5)
 /* This reg could be accessed by unaligned address */
 #define F_UNALIGN	(1 << 6)
+
+	struct gvt_mmio_block *mmio_block;
+	unsigned int num_mmio_block;
 
 	DECLARE_HASHTABLE(mmio_info_table, INTEL_GVT_MMIO_HASH_BITS);
 	unsigned int num_tracked_mmio;
@@ -461,6 +477,13 @@ int intel_vgpu_emulate_cfg_read(struct intel_vgpu *vgpu, unsigned int offset,
 int intel_vgpu_emulate_cfg_write(struct intel_vgpu *vgpu, unsigned int offset,
 		void *p_data, unsigned int bytes);
 
+static inline u64 intel_vgpu_get_bar_gpa(struct intel_vgpu *vgpu, int bar)
+{
+	/* We are 64bit bar. */
+	return (*(u64 *)(vgpu->cfg_space.virtual_cfg_space + bar)) &
+			PCI_BASE_ADDRESS_MEM_MASK;
+}
+
 void intel_gvt_clean_opregion(struct intel_gvt *gvt);
 int intel_gvt_init_opregion(struct intel_gvt *gvt);
 
@@ -469,6 +492,8 @@ int intel_vgpu_init_opregion(struct intel_vgpu *vgpu, u32 gpa);
 
 int intel_vgpu_emulate_opregion_request(struct intel_vgpu *vgpu, u32 swsci);
 void populate_pvinfo_page(struct intel_vgpu *vgpu);
+
+int intel_gvt_scan_and_shadow_workload(struct intel_vgpu_workload *workload);
 
 struct intel_gvt_ops {
 	int (*emulate_cfg_read)(struct intel_vgpu *, unsigned int, void *,

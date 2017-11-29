@@ -32,6 +32,8 @@
 #include <linux/hyperv.h>
 #include <linux/export.h>
 #include <asm/hyperv.h>
+#include <asm/mshyperv.h>
+
 #include "hyperv_vmbus.h"
 
 
@@ -94,7 +96,8 @@ static int vmbus_negotiate_version(struct vmbus_channel_msginfo *msginfo,
 	 * the CPU attempting to connect may not be CPU 0.
 	 */
 	if (version >= VERSION_WIN8_1) {
-		msg->target_vcpu = hv_context.vp_index[smp_processor_id()];
+		msg->target_vcpu =
+			hv_cpu_number_to_vp_number(smp_processor_id());
 		vmbus_connection.connect_cpu = smp_processor_id();
 	} else {
 		msg->target_vcpu = 0;
@@ -114,6 +117,9 @@ static int vmbus_negotiate_version(struct vmbus_channel_msginfo *msginfo,
 	ret = vmbus_post_msg(msg,
 			     sizeof(struct vmbus_channel_initiate_contact),
 			     true);
+
+	trace_vmbus_negotiate_version(msg, ret);
+
 	if (ret != 0) {
 		spin_lock_irqsave(&vmbus_connection.channelmsg_lock, flags);
 		list_del(&msginfo->msglistentry);
@@ -316,6 +322,8 @@ void vmbus_on_event(unsigned long data)
 	struct vmbus_channel *channel = (void *) data;
 	unsigned long time_limit = jiffies + 2;
 
+	trace_vmbus_on_event(channel);
+
 	do {
 		void (*callback_fn)(void *);
 
@@ -406,6 +414,8 @@ void vmbus_set_event(struct vmbus_channel *channel)
 	if (!channel->is_dedicated_interrupt)
 		vmbus_send_interrupt(child_relid);
 
-	hv_do_hypercall(HVCALL_SIGNAL_EVENT, channel->sig_event, NULL);
+	++channel->sig_events;
+
+	hv_do_fast_hypercall8(HVCALL_SIGNAL_EVENT, channel->sig_event);
 }
 EXPORT_SYMBOL_GPL(vmbus_set_event);

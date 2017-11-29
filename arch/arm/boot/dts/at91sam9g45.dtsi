@@ -74,7 +74,7 @@
 		};
 	};
 
-	sram: sram@00300000 {
+	sram: sram@300000 {
 		compatible = "mmio-sram";
 		reg = <0x00300000 0x10000>;
 	};
@@ -455,6 +455,16 @@
 				      >;
 
 				/* shared pinctrl settings */
+				ac97 {
+					pinctrl_ac97: ac97-0 {
+						atmel,pins =
+							<AT91_PIOD 6 AT91_PERIPH_A AT91_PINCTRL_NONE	/* AC97RX */
+							 AT91_PIOD 7 AT91_PERIPH_A AT91_PINCTRL_NONE	/* AC97TX */
+							 AT91_PIOD 8 AT91_PERIPH_A AT91_PINCTRL_NONE	/* AC97FS */
+							 AT91_PIOD 9 AT91_PERIPH_A AT91_PINCTRL_NONE>;	/* AC97CK */
+					};
+				};
+
 				adc0 {
 					pinctrl_adc0_adtrg: adc0_adtrg {
 						atmel,pins = <AT91_PIOD 28 AT91_PERIPH_A AT91_PINCTRL_NONE>;
@@ -1043,6 +1053,17 @@
 				status = "disabled";
 			};
 
+			ac97: sound@fffac000 {
+				compatible = "atmel,at91sam9263-ac97c";
+				reg = <0xfffac000 0x4000>;
+				interrupts = <24 IRQ_TYPE_LEVEL_HIGH 4>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_ac97>;
+				clocks = <&ac97_clk>;
+				clock-names = "ac97_clk";
+				status = "disabled";
+			};
+
 			adc0: adc@fffb0000 {
 				#address-cells = <1>;
 				#size-cells = <0>;
@@ -1292,7 +1313,7 @@
 			status = "disabled";
 		};
 
-		usb0: ohci@00700000 {
+		usb0: ohci@700000 {
 			compatible = "atmel,at91rm9200-ohci", "usb-ohci";
 			reg = <0x00700000 0x100000>;
 			interrupts = <22 IRQ_TYPE_LEVEL_HIGH 2>;
@@ -1301,7 +1322,7 @@
 			status = "disabled";
 		};
 
-		usb1: ehci@00800000 {
+		usb1: ehci@800000 {
 			compatible = "atmel,at91sam9g45-ehci", "usb-ehci";
 			reg = <0x00800000 0x100000>;
 			interrupts = <22 IRQ_TYPE_LEVEL_HIGH 2>;

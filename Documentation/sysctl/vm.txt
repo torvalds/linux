@@ -58,6 +58,7 @@ Currently, these files are in /proc/sys/vm:
 - percpu_pagelist_fraction
 - stat_interval
 - stat_refresh
+- numa_stat
 - swappiness
 - user_reserve_kbytes
 - vfs_cache_pressure
@@ -157,6 +158,10 @@ Note: the minimum value allowed for dirty_bytes is two pages (in bytes); any
 value lower than this limit will be ignored and the old configuration will be
 retained.
 
+Note: the value of dirty_bytes also must be set greater than
+dirty_background_bytes or the amount of memory corresponding to
+dirty_background_ratio.
+
 ==============================================================
 
 dirty_expire_centisecs
@@ -175,6 +180,9 @@ and reclaimable pages, the number of pages at which a process which is
 generating disk writes will itself start writing out dirty data.
 
 The total available memory is not equal to total system memory.
+
+Note: dirty_ratio must be set greater than dirty_background_ratio or
+ratio corresponding to dirty_background_bytes.
 
 ==============================================================
 
@@ -572,7 +580,9 @@ See Documentation/nommu-mmap.txt for more information.
 
 numa_zonelist_order
 
-This sysctl is only for NUMA.
+This sysctl is only for NUMA and it is deprecated. Anything but
+Node order will fail!
+
 'where the memory is allocated from' is controlled by zonelists.
 (This documentation ignores ZONE_HIGHMEM/ZONE_DMA32 for simple explanation.
  you may be able to read ZONE_DMA as ZONE_DMA32...)
@@ -620,7 +630,7 @@ oom_dump_tasks
 
 Enables a system-wide task dump (excluding kernel threads) to be produced
 when the kernel performs an OOM-killing and includes such information as
-pid, uid, tgid, vm size, rss, nr_ptes, nr_pmds, swapents, oom_score_adj
+pid, uid, tgid, vm size, rss, pgtables_bytes, swapents, oom_score_adj
 score, and name.  This is helpful to determine why the OOM killer was
 invoked, to identify the rogue task that caused it, and to determine why
 the OOM killer chose the task it did to kill.
@@ -790,10 +800,25 @@ with no ill effects: errors and warnings on these stats are suppressed.)
 
 ==============================================================
 
+numa_stat
+
+This interface allows runtime configuration of numa statistics.
+
+When page allocation performance becomes a bottleneck and you can tolerate
+some possible tool breakage and decreased numa counter precision, you can
+do:
+	echo 0 > /proc/sys/vm/numa_stat
+
+When page allocation performance is not a bottleneck and you want all
+tooling to work, you can do:
+	echo 1 > /proc/sys/vm/numa_stat
+
+==============================================================
+
 swappiness
 
 This control is used to define how aggressive the kernel will swap
-memory pages.  Higher values will increase agressiveness, lower values
+memory pages.  Higher values will increase aggressiveness, lower values
 decrease the amount of swap.  A value of 0 instructs the kernel not to
 initiate swap until the amount of free and file-backed pages is less
 than the high water mark in a zone.

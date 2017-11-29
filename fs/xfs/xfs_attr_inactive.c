@@ -97,7 +97,7 @@ xfs_attr3_leaf_freextent(
 			/*
 			 * Roll to next transaction.
 			 */
-			error = xfs_trans_roll(trans, dp);
+			error = xfs_trans_roll_inode(trans, dp);
 			if (error)
 				return error;
 		}
@@ -251,47 +251,44 @@ xfs_attr3_node_inactive(
 		 * traversal of the tree so we may deal with many blocks
 		 * before we come back to this one.
 		 */
-		error = xfs_da3_node_read(*trans, dp, child_fsb, -2, &child_bp,
-						XFS_ATTR_FORK);
+		error = xfs_da3_node_read(*trans, dp, child_fsb, -1, &child_bp,
+					  XFS_ATTR_FORK);
 		if (error)
 			return error;
-		if (child_bp) {
-						/* save for re-read later */
-			child_blkno = XFS_BUF_ADDR(child_bp);
 
-			/*
-			 * Invalidate the subtree, however we have to.
-			 */
-			info = child_bp->b_addr;
-			switch (info->magic) {
-			case cpu_to_be16(XFS_DA_NODE_MAGIC):
-			case cpu_to_be16(XFS_DA3_NODE_MAGIC):
-				error = xfs_attr3_node_inactive(trans, dp,
-							child_bp, level + 1);
-				break;
-			case cpu_to_be16(XFS_ATTR_LEAF_MAGIC):
-			case cpu_to_be16(XFS_ATTR3_LEAF_MAGIC):
-				error = xfs_attr3_leaf_inactive(trans, dp,
-							child_bp);
-				break;
-			default:
-				error = -EIO;
-				xfs_trans_brelse(*trans, child_bp);
-				break;
-			}
-			if (error)
-				return error;
+		/* save for re-read later */
+		child_blkno = XFS_BUF_ADDR(child_bp);
 
-			/*
-			 * Remove the subsidiary block from the cache
-			 * and from the log.
-			 */
-			error = xfs_da_get_buf(*trans, dp, 0, child_blkno,
-				&child_bp, XFS_ATTR_FORK);
-			if (error)
-				return error;
-			xfs_trans_binval(*trans, child_bp);
+		/*
+		 * Invalidate the subtree, however we have to.
+		 */
+		info = child_bp->b_addr;
+		switch (info->magic) {
+		case cpu_to_be16(XFS_DA_NODE_MAGIC):
+		case cpu_to_be16(XFS_DA3_NODE_MAGIC):
+			error = xfs_attr3_node_inactive(trans, dp, child_bp,
+							level + 1);
+			break;
+		case cpu_to_be16(XFS_ATTR_LEAF_MAGIC):
+		case cpu_to_be16(XFS_ATTR3_LEAF_MAGIC):
+			error = xfs_attr3_leaf_inactive(trans, dp, child_bp);
+			break;
+		default:
+			error = -EIO;
+			xfs_trans_brelse(*trans, child_bp);
+			break;
 		}
+		if (error)
+			return error;
+
+		/*
+		 * Remove the subsidiary block from the cache and from the log.
+		 */
+		error = xfs_da_get_buf(*trans, dp, 0, child_blkno, &child_bp,
+				       XFS_ATTR_FORK);
+		if (error)
+			return error;
+		xfs_trans_binval(*trans, child_bp);
 
 		/*
 		 * If we're not done, re-read the parent to get the next
@@ -302,13 +299,15 @@ xfs_attr3_node_inactive(
 						 &bp, XFS_ATTR_FORK);
 			if (error)
 				return error;
+			node = bp->b_addr;
+			btree = dp->d_ops->node_tree_p(node);
 			child_fsb = be32_to_cpu(btree[i + 1].before);
 			xfs_trans_brelse(*trans, bp);
 		}
 		/*
 		 * Atomically commit the whole invalidate stuff.
 		 */
-		error = xfs_trans_roll(trans, dp);
+		error = xfs_trans_roll_inode(trans, dp);
 		if (error)
 			return  error;
 	}
@@ -375,7 +374,7 @@ xfs_attr3_root_inactive(
 	/*
 	 * Commit the invalidate and start the next transaction.
 	 */
-	error = xfs_trans_roll(trans, dp);
+	error = xfs_trans_roll_inode(trans, dp);
 
 	return error;
 }

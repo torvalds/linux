@@ -86,6 +86,7 @@ eod
 compile_to_dts() {
 
 	dtx="$1"
+	dtc_include="$2"
 
 	if [ -d "${dtx}" ] ; then
 
@@ -113,7 +114,7 @@ compile_to_dts() {
 		# -----  input is DTS (source)
 
 		if ( cpp ${cpp_flags} -x assembler-with-cpp ${dtx} \
-			| ${DTC} -I dts ) ; then
+			| ${DTC} ${dtc_include} -I dts ) ; then
 			return
 		fi
 
@@ -320,18 +321,13 @@ fi
 
 cpp_flags="\
 	-nostdinc                                  \
-	-I${srctree}/arch/${ARCH}/boot/dts         \
-	-I${srctree}/arch/${ARCH}/boot/dts/include \
-	-I${srctree}/drivers/of/testcase-data      \
+	-I${srctree}/scripts/dtc/include-prefixes  \
 	-undef -D__DTS__"
 
-dtc_flags="\
-	-i ${srctree}/arch/${ARCH}/boot/dts/ \
-	-i ${srctree}/kernel/dts             \
-	${dtx_path_1_dtc_include}            \
-	${dtx_path_2_dtc_include}"
-
-DTC="${DTC} ${dtc_flags} -O dts -qq -f ${dtc_sort} -o -"
+DTC="\
+	${DTC}                                     \
+	-i ${srctree}/scripts/dtc/include-prefixes \
+	-O dts -qq -f ${dtc_sort} -o -"
 
 
 # -----  do the diff or decompile
@@ -339,11 +335,11 @@ DTC="${DTC} ${dtc_flags} -O dts -qq -f ${dtc_sort} -o -"
 if (( ${cmd_diff} )) ; then
 
 	diff ${diff_flags} --label "${dtx_file_1}" --label "${dtx_file_2}" \
-		<(compile_to_dts "${dtx_file_1}") \
-		<(compile_to_dts "${dtx_file_2}")
+		<(compile_to_dts "${dtx_file_1}" "${dtx_path_1_dtc_include}") \
+		<(compile_to_dts "${dtx_file_2}" "${dtx_path_2_dtc_include}")
 
 else
 
-	compile_to_dts "${dtx_file_1}"
+	compile_to_dts "${dtx_file_1}" "${dtx_path_1_dtc_include}"
 
 fi

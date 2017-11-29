@@ -35,17 +35,14 @@ u32 nvmet_get_log_page_len(struct nvme_command *cmd)
 static u16 nvmet_get_smart_log_nsid(struct nvmet_req *req,
 		struct nvme_smart_log *slog)
 {
-	u16 status;
 	struct nvmet_ns *ns;
 	u64 host_reads, host_writes, data_units_read, data_units_written;
 
-	status = NVME_SC_SUCCESS;
 	ns = nvmet_find_namespace(req->sq->ctrl, req->cmd->get_log_page.nsid);
 	if (!ns) {
-		status = NVME_SC_INVALID_NS;
 		pr_err("nvmet : Could not find namespace id : %d\n",
 				le32_to_cpu(req->cmd->get_log_page.nsid));
-		goto out;
+		return NVME_SC_INVALID_NS;
 	}
 
 	host_reads = part_stat_read(ns->bdev->bd_part, ios[READ]);
@@ -58,20 +55,18 @@ static u16 nvmet_get_smart_log_nsid(struct nvmet_req *req,
 	put_unaligned_le64(host_writes, &slog->host_writes[0]);
 	put_unaligned_le64(data_units_written, &slog->data_units_written[0]);
 	nvmet_put_namespace(ns);
-out:
-	return status;
+
+	return NVME_SC_SUCCESS;
 }
 
 static u16 nvmet_get_smart_log_all(struct nvmet_req *req,
 		struct nvme_smart_log *slog)
 {
-	u16 status;
 	u64 host_reads = 0, host_writes = 0;
 	u64 data_units_read = 0, data_units_written = 0;
 	struct nvmet_ns *ns;
 	struct nvmet_ctrl *ctrl;
 
-	status = NVME_SC_SUCCESS;
 	ctrl = req->sq->ctrl;
 
 	rcu_read_lock();
@@ -91,7 +86,7 @@ static u16 nvmet_get_smart_log_all(struct nvmet_req *req,
 	put_unaligned_le64(host_writes, &slog->host_writes[0]);
 	put_unaligned_le64(data_units_written, &slog->data_units_written[0]);
 
-	return status;
+	return NVME_SC_SUCCESS;
 }
 
 static u16 nvmet_get_smart_log(struct nvmet_req *req,
@@ -100,7 +95,7 @@ static u16 nvmet_get_smart_log(struct nvmet_req *req,
 	u16 status;
 
 	WARN_ON(req == NULL || slog == NULL);
-	if (req->cmd->get_log_page.nsid == cpu_to_le32(0xFFFFFFFF))
+	if (req->cmd->get_log_page.nsid == cpu_to_le32(NVME_NSID_ALL))
 		status = nvmet_get_smart_log_all(req, slog);
 	else
 		status = nvmet_get_smart_log_nsid(req, slog);
@@ -144,10 +139,8 @@ static void nvmet_execute_get_log_page(struct nvmet_req *req)
 		}
 		smart_log = buf;
 		status = nvmet_get_smart_log(req, smart_log);
-		if (status) {
-			memset(buf, '\0', data_len);
+		if (status)
 			goto err;
-		}
 		break;
 	case NVME_LOG_FW_SLOT:
 		/*
@@ -166,15 +159,6 @@ err:
 	kfree(buf);
 out:
 	nvmet_req_complete(req, status);
-}
-
-static void copy_and_pad(char *dst, int dst_len, const char *src, int src_len)
-{
-	int len = min(src_len, dst_len);
-
-	memcpy(dst, src, len);
-	if (dst_len > len)
-		memset(dst + len, ' ', dst_len - len);
 }
 
 static void nvmet_execute_identify_ctrl(struct nvmet_req *req)
@@ -196,14 +180,9 @@ static void nvmet_execute_identify_ctrl(struct nvmet_req *req)
 
 	bin2hex(id->sn, &ctrl->subsys->serial,
 		min(sizeof(ctrl->subsys->serial), sizeof(id->sn) / 2));
-	copy_and_pad(id->mn, sizeof(id->mn), model, sizeof(model) - 1);
-	copy_and_pad(id->fr, sizeof(id->fr), UTS_RELEASE, strlen(UTS_RELEASE));
-
-	memset(id->mn, ' ', sizeof(id->mn));
-	strncpy((char *)id->mn, "Linux", sizeof(id->mn));
-
-	memset(id->fr, ' ', sizeof(id->fr));
-	strncpy((char *)id->fr, UTS_RELEASE, sizeof(id->fr));
+	memcpy_and_pad(id->mn, sizeof(id->mn), model, sizeof(model) - 1, ' ');
+	memcpy_and_pad(id->fr, sizeof(id->fr),
+		       UTS_RELEASE, strlen(UTS_RELEASE), ' ');
 
 	id->rab = 6;
 
@@ -314,7 +293,7 @@ static void nvmet_execute_identify_ns(struct nvmet_req *req)
 	}
 
 	/*
-	 * nuse = ncap = nsze isn't aways true, but we have no way to find
+	 * nuse = ncap = nsze isn't always true, but we have no way to find
 	 * that out from the underlying device.
 	 */
 	id->ncap = id->nuse = id->nsze =
@@ -438,7 +417,7 @@ out:
 }
 
 /*
- * A "mimimum viable" abort implementation: the command is mandatory in the
+ * A "minimum viable" abort implementation: the command is mandatory in the
  * spec, but we are not required to do any useful work.  We couldn't really
  * do a useful abort, so don't bother even with waiting for the command
  * to be exectuted and return immediately telling the command to abort
@@ -457,7 +436,7 @@ static void nvmet_execute_set_features(struct nvmet_req *req)
 	u32 val32;
 	u16 status = 0;
 
-	switch (cdw10 & 0xf) {
+	switch (cdw10 & 0xff) {
 	case NVME_FEAT_NUM_QUEUES:
 		nvmet_set_result(req,
 			(subsys->max_qid - 1) | ((subsys->max_qid - 1) << 16));
@@ -466,6 +445,9 @@ static void nvmet_execute_set_features(struct nvmet_req *req)
 		val32 = le32_to_cpu(req->cmd->common.cdw10[1]);
 		req->sq->ctrl->kato = DIV_ROUND_UP(val32, 1000);
 		nvmet_set_result(req, req->sq->ctrl->kato);
+		break;
+	case NVME_FEAT_HOST_ID:
+		status = NVME_SC_CMD_SEQ_ERROR | NVME_SC_DNR;
 		break;
 	default:
 		status = NVME_SC_INVALID_FIELD | NVME_SC_DNR;
@@ -481,7 +463,7 @@ static void nvmet_execute_get_features(struct nvmet_req *req)
 	u32 cdw10 = le32_to_cpu(req->cmd->common.cdw10[0]);
 	u16 status = 0;
 
-	switch (cdw10 & 0xf) {
+	switch (cdw10 & 0xff) {
 	/*
 	 * These features are mandatory in the spec, but we don't
 	 * have a useful way to implement them.  We'll eventually
@@ -514,6 +496,16 @@ static void nvmet_execute_get_features(struct nvmet_req *req)
 		break;
 	case NVME_FEAT_KATO:
 		nvmet_set_result(req, req->sq->ctrl->kato * 1000);
+		break;
+	case NVME_FEAT_HOST_ID:
+		/* need 128-bit host identifier flag */
+		if (!(req->cmd->common.cdw10[1] & cpu_to_le32(1 << 0))) {
+			status = NVME_SC_INVALID_FIELD | NVME_SC_DNR;
+			break;
+		}
+
+		status = nvmet_copy_to_sgl(req, 0, &req->sq->ctrl->hostid,
+				sizeof(req->sq->ctrl->hostid));
 		break;
 	default:
 		status = NVME_SC_INVALID_FIELD | NVME_SC_DNR;

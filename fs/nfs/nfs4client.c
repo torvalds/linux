@@ -483,7 +483,7 @@ static int nfs4_match_client(struct nfs_client  *pos,  struct nfs_client *new,
 	 * ID and serverowner fields.  Wait for CREATE_SESSION
 	 * to finish. */
 	if (pos->cl_cons_state > NFS_CS_READY) {
-		atomic_inc(&pos->cl_count);
+		refcount_inc(&pos->cl_count);
 		spin_unlock(&nn->nfs_client_lock);
 
 		nfs_put_client(*prev);
@@ -559,7 +559,7 @@ int nfs40_walk_client_list(struct nfs_client *new,
 		 * way that a SETCLIENTID_CONFIRM to pos can succeed is
 		 * if new and pos point to the same server:
 		 */
-		atomic_inc(&pos->cl_count);
+		refcount_inc(&pos->cl_count);
 		spin_unlock(&nn->nfs_client_lock);
 
 		nfs_put_client(prev);
@@ -660,9 +660,6 @@ int nfs4_detect_session_trunking(struct nfs_client *clp,
 	if (!nfs4_check_server_scope(clp->cl_serverscope, res->server_scope))
 		goto out_err;
 
-	/* Session trunking passed, add the xprt */
-	rpc_clnt_xprt_switch_add_xprt(clp->cl_rpcclient, xprt);
-
 	pr_info("NFS:  %s: Session trunking succeeded for %s\n",
 		clp->cl_hostname,
 		xprt->address_strings[RPC_DISPLAY_ADDR]);
@@ -718,7 +715,7 @@ int nfs41_walk_client_list(struct nfs_client *new,
 			continue;
 
 found:
-		atomic_inc(&pos->cl_count);
+		refcount_inc(&pos->cl_count);
 		*result = pos;
 		status = 0;
 		break;
@@ -752,7 +749,7 @@ nfs4_find_client_ident(struct net *net, int cb_ident)
 	spin_lock(&nn->nfs_client_lock);
 	clp = idr_find(&nn->cb_ident_idr, cb_ident);
 	if (clp)
-		atomic_inc(&clp->cl_count);
+		refcount_inc(&clp->cl_count);
 	spin_unlock(&nn->nfs_client_lock);
 	return clp;
 }
@@ -796,7 +793,7 @@ nfs4_find_client_sessionid(struct net *net, const struct sockaddr *addr,
 
 	spin_lock(&nn->nfs_client_lock);
 	list_for_each_entry(clp, &nn->nfs_client_list, cl_share_link) {
-		if (nfs4_cb_match_client(addr, clp, minorversion) == false)
+		if (!nfs4_cb_match_client(addr, clp, minorversion))
 			continue;
 
 		if (!nfs4_has_session(clp))
@@ -807,7 +804,7 @@ nfs4_find_client_sessionid(struct net *net, const struct sockaddr *addr,
 		    sid->data, NFS4_MAX_SESSIONID_LEN) != 0)
 			continue;
 
-		atomic_inc(&clp->cl_count);
+		refcount_inc(&clp->cl_count);
 		spin_unlock(&nn->nfs_client_lock);
 		return clp;
 	}

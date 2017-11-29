@@ -14,10 +14,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- * 02110-1301, USA.
  *
  */
 #include <linux/firmware.h>
@@ -27,7 +23,8 @@
 #include <linux/kfifo.h>
 #include <linux/pm_runtime.h>
 #include <linux/timer.h>
-#include <asm/intel-mid.h>
+
+#include <asm/iosf_mbi.h>
 
 #include <media/v4l2-event.h>
 #include <media/videobuf-vmalloc.h>
@@ -81,48 +78,6 @@ union host {
 		void *hmm_ptr;
 	} ptr;
 };
-
-/*
- * atomisp_kernel_malloc: chooses whether kmalloc() or vmalloc() is preferable.
- *
- * It is also a wrap functions to pass into css framework.
- */
-void *atomisp_kernel_malloc(size_t bytes)
-{
-	/* vmalloc() is preferable if allocating more than 1 page */
-	if (bytes > PAGE_SIZE)
-		return vmalloc(bytes);
-
-	return kmalloc(bytes, GFP_KERNEL);
-}
-
-/*
- * atomisp_kernel_zalloc: chooses whether set 0 to the allocated memory.
- *
- * It is also a wrap functions to pass into css framework.
- */
-void *atomisp_kernel_zalloc(size_t bytes, bool zero_mem)
-{
-	void *ptr = atomisp_kernel_malloc(bytes);
-
-	if (ptr && zero_mem)
-		memset(ptr, 0, bytes);
-
-	return ptr;
-}
-
-/*
- * Free buffer allocated with atomisp_kernel_malloc()/atomisp_kernel_zalloc
- * helper
- */
-void atomisp_kernel_free(void *ptr)
-{
-	/* Verify if buffer was allocated by vmalloc() or kmalloc() */
-	if (is_vmalloc_addr(ptr))
-		vfree(ptr);
-	else
-		kfree(ptr);
-}
 
 /*
  * get sensor:dis71430/ov2720 related info from v4l2_subdev->priv data field.
@@ -185,36 +140,36 @@ static int write_target_freq_to_hw(struct atomisp_device *isp,
 	unsigned int ratio, timeout, guar_ratio;
 	u32 isp_sspm1 = 0;
 	int i;
+
 	if (!isp->hpll_freq) {
 		dev_err(isp->dev, "failed to get hpll_freq. no change to freq\n");
 		return -EINVAL;
 	}
 
-	isp_sspm1 = intel_mid_msgbus_read32(PUNIT_PORT, ISPSSPM1);
+	iosf_mbi_read(BT_MBI_UNIT_PMC, MBI_REG_READ, ISPSSPM1, &isp_sspm1);
 	if (isp_sspm1 & ISP_FREQ_VALID_MASK) {
 		dev_dbg(isp->dev, "clearing ISPSSPM1 valid bit.\n");
-		intel_mid_msgbus_write32(PUNIT_PORT, ISPSSPM1,
+		iosf_mbi_write(BT_MBI_UNIT_PMC, MBI_REG_WRITE, ISPSSPM1,
 				    isp_sspm1 & ~(1 << ISP_FREQ_VALID_OFFSET));
 	}
 
 	ratio = (2 * isp->hpll_freq + new_freq / 2) / new_freq - 1;
 	guar_ratio = (2 * isp->hpll_freq + 200 / 2) / 200 - 1;
 
-	isp_sspm1 = intel_mid_msgbus_read32(PUNIT_PORT, ISPSSPM1);
+	iosf_mbi_read(BT_MBI_UNIT_PMC, MBI_REG_READ, ISPSSPM1, &isp_sspm1);
 	isp_sspm1 &= ~(0x1F << ISP_REQ_FREQ_OFFSET);
 
 	for (i = 0; i < ISP_DFS_TRY_TIMES; i++) {
-		intel_mid_msgbus_write32(PUNIT_PORT, ISPSSPM1,
+		iosf_mbi_write(BT_MBI_UNIT_PMC, MBI_REG_WRITE, ISPSSPM1,
 				   isp_sspm1
 				   | ratio << ISP_REQ_FREQ_OFFSET
 				   | 1 << ISP_FREQ_VALID_OFFSET
 				   | guar_ratio << ISP_REQ_GUAR_FREQ_OFFSET);
 
-		isp_sspm1 = intel_mid_msgbus_read32(PUNIT_PORT, ISPSSPM1);
-
+		iosf_mbi_read(BT_MBI_UNIT_PMC, MBI_REG_READ, ISPSSPM1, &isp_sspm1);
 		timeout = 20;
 		while ((isp_sspm1 & ISP_FREQ_VALID_MASK) && timeout) {
-			isp_sspm1 = intel_mid_msgbus_read32(PUNIT_PORT, ISPSSPM1);
+			iosf_mbi_read(BT_MBI_UNIT_PMC, MBI_REG_READ, ISPSSPM1, &isp_sspm1);
 			dev_dbg(isp->dev, "waiting for ISPSSPM1 valid bit to be 0.\n");
 			udelay(100);
 			timeout--;
@@ -229,10 +184,10 @@ static int write_target_freq_to_hw(struct atomisp_device *isp,
 		return -EINVAL;
 	}
 
-	isp_sspm1 = intel_mid_msgbus_read32(PUNIT_PORT, ISPSSPM1);
+	iosf_mbi_read(BT_MBI_UNIT_PMC, MBI_REG_READ, ISPSSPM1, &isp_sspm1);
 	timeout = 10;
 	while (((isp_sspm1 >> ISP_FREQ_STAT_OFFSET) != ratio) && timeout) {
-		isp_sspm1 = intel_mid_msgbus_read32(PUNIT_PORT, ISPSSPM1);
+		iosf_mbi_read(BT_MBI_UNIT_PMC, MBI_REG_READ, ISPSSPM1, &isp_sspm1);
 		dev_dbg(isp->dev, "waiting for ISPSSPM1 status bit to be 0x%x.\n",
 			new_freq);
 		udelay(100);
@@ -785,7 +740,7 @@ void atomisp_flush_params_queue(struct atomisp_video_pipe *pipe)
 				   struct atomisp_css_params_with_list, list);
 		list_del(&param->list);
 		atomisp_free_css_parameters(&param->params);
-		atomisp_kernel_free(param);
+		kvfree(param);
 	}
 }
 
@@ -1132,7 +1087,7 @@ void atomisp_buf_done(struct atomisp_sub_device *asd, int error,
 				asd->params.dvs_6axis = NULL;
 			atomisp_free_css_parameters(
 				&pipe->frame_params[vb->i]->params);
-			atomisp_kernel_free(pipe->frame_params[vb->i]);
+			kvfree(pipe->frame_params[vb->i]);
 			pipe->frame_params[vb->i] = NULL;
 		}
 
@@ -1702,20 +1657,15 @@ void atomisp_css_flush(struct atomisp_device *isp)
 	dev_dbg(isp->dev, "atomisp css flush done\n");
 }
 
-#ifndef ISP2401
-void atomisp_wdt(unsigned long isp_addr)
-#else
-void atomisp_wdt(unsigned long pipe_addr)
-#endif
+void atomisp_wdt(struct timer_list *t)
 {
 #ifndef ISP2401
-	struct atomisp_device *isp = (struct atomisp_device *)isp_addr;
+	struct atomisp_sub_device *asd = from_timer(asd, t, wdt);
 #else
-	struct atomisp_video_pipe *pipe =
-		(struct atomisp_video_pipe *)pipe_addr;
+	struct atomisp_video_pipe *pipe = from_timer(pipe, t, wdt);
 	struct atomisp_sub_device *asd = pipe->asd;
-	struct atomisp_device *isp = asd->isp;
 #endif
+	struct atomisp_device *isp = asd->isp;
 
 #ifdef ISP2401
 	atomic_inc(&pipe->wdt_count);
@@ -4329,7 +4279,7 @@ int atomisp_set_parameters(struct video_device *vdev,
 		 * are ready, the parameters will be set to CSS.
 		 * per-frame setting only works for the main output frame.
 		 */
-		param = atomisp_kernel_zalloc(sizeof(*param), true);
+		param = kvzalloc(sizeof(*param), GFP_KERNEL);
 		if (!param) {
 			dev_err(asd->isp->dev, "%s: failed to alloc params buffer\n",
 				__func__);
@@ -4375,7 +4325,7 @@ apply_parameter_failed:
 	if (css_param)
 		atomisp_free_css_parameters(css_param);
 	if (param)
-		atomisp_kernel_free(param);
+		kvfree(param);
 
 	return ret;
 }

@@ -231,6 +231,7 @@ enum ath10k_hw_rev {
 	ATH10K_HW_QCA9377,
 	ATH10K_HW_QCA4019,
 	ATH10K_HW_QCA9887,
+	ATH10K_HW_WCN3990,
 };
 
 struct ath10k_hw_regs {
@@ -247,6 +248,10 @@ struct ath10k_hw_regs {
 	u32 ce5_base_address;
 	u32 ce6_base_address;
 	u32 ce7_base_address;
+	u32 ce8_base_address;
+	u32 ce9_base_address;
+	u32 ce10_base_address;
+	u32 ce11_base_address;
 	u32 soc_reset_control_si0_rst_mask;
 	u32 soc_reset_control_ce_rst_mask;
 	u32 soc_chip_id_address;
@@ -267,6 +272,7 @@ extern const struct ath10k_hw_regs qca988x_regs;
 extern const struct ath10k_hw_regs qca6174_regs;
 extern const struct ath10k_hw_regs qca99x0_regs;
 extern const struct ath10k_hw_regs qca4019_regs;
+extern const struct ath10k_hw_regs wcn3990_regs;
 
 struct ath10k_hw_ce_regs_addr_map {
 	u32 msb;
@@ -362,7 +368,9 @@ extern const struct ath10k_hw_values qca6174_values;
 extern const struct ath10k_hw_values qca99x0_values;
 extern const struct ath10k_hw_values qca9888_values;
 extern const struct ath10k_hw_values qca4019_values;
-extern struct ath10k_hw_ce_regs qcax_ce_regs;
+extern const struct ath10k_hw_values wcn3990_values;
+extern const struct ath10k_hw_ce_regs wcn3990_ce_regs;
+extern const struct ath10k_hw_ce_regs qcax_ce_regs;
 
 void ath10k_hw_fill_survey_time(struct ath10k *ar, struct survey_info *survey,
 				u32 cc, u32 rcc, u32 cc_prev, u32 rcc_prev);
@@ -375,6 +383,7 @@ void ath10k_hw_fill_survey_time(struct ath10k *ar, struct survey_info *survey,
 #define QCA_REV_9984(ar) ((ar)->hw_rev == ATH10K_HW_QCA9984)
 #define QCA_REV_9377(ar) ((ar)->hw_rev == ATH10K_HW_QCA9377)
 #define QCA_REV_40XX(ar) ((ar)->hw_rev == ATH10K_HW_QCA4019)
+#define QCA_REV_WCN3990(ar) ((ar)->hw_rev == ATH10K_HW_WCN3990)
 
 /* Known peculiarities:
  *  - raw appears in nwifi decap, raw and nwifi appear in ethernet decap
@@ -541,6 +550,9 @@ struct ath10k_hw_params {
 	 */
 	int vht160_mcs_rx_highest;
 	int vht160_mcs_tx_highest;
+
+	/* Number of ciphers supported (i.e First N) in cipher_suites array */
+	int n_cipher_suites;
 };
 
 struct htt_rx_desc;
@@ -710,6 +722,11 @@ ath10k_rx_desc_get_l3_pad_bytes(struct ath10k_hw_params *hw,
 #define TARGET_10_4_ATF_CONFIG			0
 #define TARGET_10_4_IPHDR_PAD_CONFIG		1
 #define TARGET_10_4_QWRAP_CONFIG		0
+
+/* TDLS config */
+#define TARGET_10_4_NUM_TDLS_VDEVS		1
+#define TARGET_10_4_NUM_TDLS_BUFFER_STA		1
+#define TARGET_10_4_NUM_TDLS_SLEEP_STA		1
 
 /* Maximum number of Copy Engine's supported */
 #define CE_COUNT_MAX 12

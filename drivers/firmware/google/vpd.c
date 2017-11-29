@@ -202,7 +202,7 @@ static int vpd_section_init(const char *name, struct vpd_section *sec,
 	sec->raw_name = kasprintf(GFP_KERNEL, "%s_raw", name);
 	if (!sec->raw_name) {
 		err = -ENOMEM;
-		goto err_iounmap;
+		goto err_memunmap;
 	}
 
 	sysfs_bin_attr_init(&sec->bin_attr);
@@ -233,8 +233,8 @@ err_sysfs_remove:
 	sysfs_remove_bin_file(vpd_kobj, &sec->bin_attr);
 err_free_raw_name:
 	kfree(sec->raw_name);
-err_iounmap:
-	iounmap(sec->baseaddr);
+err_memunmap:
+	memunmap(sec->baseaddr);
 	return err;
 }
 
@@ -245,7 +245,7 @@ static int vpd_section_destroy(struct vpd_section *sec)
 		kobject_put(sec->kobj);
 		sysfs_remove_bin_file(vpd_kobj, &sec->bin_attr);
 		kfree(sec->raw_name);
-		iounmap(sec->baseaddr);
+		memunmap(sec->baseaddr);
 	}
 
 	return 0;
@@ -262,7 +262,7 @@ static int vpd_sections_init(phys_addr_t physaddr)
 		return -ENOMEM;
 
 	memcpy_fromio(&header, temp, sizeof(struct vpd_cbmem));
-	iounmap(temp);
+	memunmap(temp);
 
 	if (header.magic != VPD_CBMEM_MAGIC)
 		return -ENODEV;

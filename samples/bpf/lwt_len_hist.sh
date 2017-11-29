@@ -1,4 +1,5 @@
 #!/bin/bash
+# SPDX-License-Identifier: GPL-2.0
 
 NS1=lwt_ns1
 VETH0=tst_lwt1a

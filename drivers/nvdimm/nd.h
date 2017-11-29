@@ -34,15 +34,9 @@ enum {
 	NVDIMM_IO_ATOMIC = 1,
 };
 
-struct nd_poison {
-	u64 start;
-	u64 length;
-	struct list_head list;
-};
-
 struct nvdimm_drvdata {
 	struct device *dev;
-	int nsindex_size, nslabel_size;
+	int nslabel_size;
 	struct nd_cmd_get_config_size nsarea;
 	void *data;
 	int ns_current, ns_next;
@@ -134,6 +128,7 @@ struct nd_mapping {
 	struct nvdimm *nvdimm;
 	u64 start;
 	u64 size;
+	int position;
 	struct list_head labels;
 	struct mutex lock;
 	/*
@@ -233,10 +228,10 @@ void nd_device_unregister(struct device *dev, enum nd_async_mode mode);
 void nd_device_notify(struct device *dev, enum nvdimm_event event);
 int nd_uuid_store(struct device *dev, u8 **uuid_out, const char *buf,
 		size_t len);
-ssize_t nd_sector_size_show(unsigned long current_lbasize,
+ssize_t nd_size_select_show(unsigned long current_size,
 		const unsigned long *supported, char *buf);
-ssize_t nd_sector_size_store(struct device *dev, const char *buf,
-		unsigned long *current_lbasize, const unsigned long *supported);
+ssize_t nd_size_select_store(struct device *dev, const char *buf,
+		unsigned long *current_size, const unsigned long *supported);
 int __init nvdimm_init(void);
 int __init nd_region_init(void);
 int __init nd_label_init(void);
@@ -253,6 +248,7 @@ long nvdimm_clear_poison(struct device *dev, phys_addr_t phys,
 		unsigned int len);
 void nvdimm_set_aliasing(struct device *dev);
 void nvdimm_set_locked(struct device *dev);
+void nvdimm_clear_locked(struct device *dev);
 struct nd_btt *to_nd_btt(struct device *dev);
 
 struct nd_gen_sb {
@@ -285,6 +281,13 @@ static inline struct device *nd_btt_create(struct nd_region *nd_region)
 
 struct nd_pfn *to_nd_pfn(struct device *dev);
 #if IS_ENABLED(CONFIG_NVDIMM_PFN)
+
+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+#define PFN_DEFAULT_ALIGNMENT HPAGE_PMD_SIZE
+#else
+#define PFN_DEFAULT_ALIGNMENT PAGE_SIZE
+#endif
+
 int nd_pfn_probe(struct device *dev, struct nd_namespace_common *ndns);
 bool is_nd_pfn(struct device *dev);
 struct device *nd_pfn_create(struct nd_region *nd_region);
@@ -390,21 +393,22 @@ int nd_region_activate(struct nd_region *nd_region);
 void __nd_iostat_start(struct bio *bio, unsigned long *start);
 static inline bool nd_iostat_start(struct bio *bio, unsigned long *start)
 {
-	struct gendisk *disk = bio->bi_bdev->bd_disk;
+	struct gendisk *disk = bio->bi_disk;
 
 	if (!blk_queue_io_stat(disk->queue))
 		return false;
 
 	*start = jiffies;
-	generic_start_io_acct(bio_data_dir(bio),
+	generic_start_io_acct(disk->queue, bio_data_dir(bio),
 			      bio_sectors(bio), &disk->part0);
 	return true;
 }
 static inline void nd_iostat_end(struct bio *bio, unsigned long start)
 {
-	struct gendisk *disk = bio->bi_bdev->bd_disk;
+	struct gendisk *disk = bio->bi_disk;
 
-	generic_end_io_acct(bio_data_dir(bio), &disk->part0, start);
+	generic_end_io_acct(disk->queue, bio_data_dir(bio), &disk->part0,
+				start);
 }
 static inline bool is_bad_pmem(struct badblocks *bb, sector_t sector,
 		unsigned int len)

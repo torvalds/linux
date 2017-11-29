@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef CEPH_RADOS_H
 #define CEPH_RADOS_H
 
@@ -158,6 +159,10 @@ extern const char *ceph_osd_state_name(int s);
 #define CEPH_OSDMAP_NOTIERAGENT (1<<13) /* disable tiering agent */
 #define CEPH_OSDMAP_NOREBALANCE (1<<14) /* block osd backfill unless pg is degraded */
 #define CEPH_OSDMAP_SORTBITWISE (1<<15) /* use bitwise hobject_t sort */
+#define CEPH_OSDMAP_REQUIRE_JEWEL    (1<<16) /* require jewel for booting osds */
+#define CEPH_OSDMAP_REQUIRE_KRAKEN   (1<<17) /* require kraken for booting osds */
+#define CEPH_OSDMAP_REQUIRE_LUMINOUS (1<<18) /* require l for booting osds */
+#define CEPH_OSDMAP_RECOVERY_DELETES (1<<19) /* deletes performed during recovery instead of peering */
 
 /*
  * The error code to return when an OSD can't handle a write
@@ -226,7 +231,6 @@ extern const char *ceph_osd_state_name(int s);
 									    \
 	/* fancy write */						    \
 	f(APPEND,	__CEPH_OSD_OP(WR, DATA, 6),	"append")	    \
-	f(STARTSYNC,	__CEPH_OSD_OP(WR, DATA, 7),	"startsync")	    \
 	f(SETTRUNC,	__CEPH_OSD_OP(WR, DATA, 8),	"settrunc")	    \
 	f(TRIMTRUNC,	__CEPH_OSD_OP(WR, DATA, 9),	"trimtrunc")	    \
 									    \

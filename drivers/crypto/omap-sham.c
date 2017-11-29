@@ -1944,11 +1944,10 @@ static int omap_sham_get_res_of(struct omap_sham_dev *dd,
 		struct device *dev, struct resource *res)
 {
 	struct device_node *node = dev->of_node;
-	const struct of_device_id *match;
 	int err = 0;
 
-	match = of_match_device(of_match_ptr(omap_sham_of_match), dev);
-	if (!match) {
+	dd->pdata = of_device_get_match_data(dev);
+	if (!dd->pdata) {
 		dev_err(dev, "no compatible OF match\n");
 		err = -EINVAL;
 		goto err;
@@ -1967,8 +1966,6 @@ static int omap_sham_get_res_of(struct omap_sham_dev *dd,
 		err = -EINVAL;
 		goto err;
 	}
-
-	dd->pdata = match->data;
 
 err:
 	return err;
@@ -2133,7 +2130,7 @@ data_err:
 
 static int omap_sham_remove(struct platform_device *pdev)
 {
-	static struct omap_sham_dev *dd;
+	struct omap_sham_dev *dd;
 	int i, j;
 
 	dd = platform_get_drvdata(pdev);

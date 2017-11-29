@@ -76,7 +76,8 @@ config VIDEO_M32R_AR_M64278
 
 config VIDEO_MUX
 	tristate "Video Multiplexer"
-	depends on OF && VIDEO_V4L2_SUBDEV_API && MEDIA_CONTROLLER
+	select MULTIPLEXER
+	depends on VIDEO_V4L2 && OF && VIDEO_V4L2_SUBDEV_API && MEDIA_CONTROLLER
 	select REGMAP
 	help
 	  This driver provides support for N:1 video bus multiplexers.
@@ -108,6 +109,13 @@ config VIDEO_PXA27x
 	select V4L2_FWNODE
 	---help---
 	  This is a v4l2 driver for the PXA27x Quick Capture Interface
+
+config VIDEO_QCOM_CAMSS
+	tristate "Qualcomm 8x16 V4L2 Camera Subsystem driver"
+	depends on VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API && HAS_DMA
+	depends on (ARCH_QCOM && IOMMU_DMA) || COMPILE_TEST
+	select VIDEOBUF2_DMA_SG
+	select V4L2_FWNODE
 
 config VIDEO_S3C_CAMIF
 	tristate "Samsung S3C24XX/S3C64XX SoC Camera Interface driver"
@@ -450,6 +458,21 @@ config VIDEO_RENESAS_VSP1
 	  To compile this driver as a module, choose M here: the module
 	  will be called vsp1.
 
+config VIDEO_ROCKCHIP_RGA
+	tristate "Rockchip Raster 2d Graphic Acceleration Unit"
+	depends on VIDEO_DEV && VIDEO_V4L2 && HAS_DMA
+	depends on ARCH_ROCKCHIP || COMPILE_TEST
+	select VIDEOBUF2_DMA_SG
+	select V4L2_MEM2MEM_DEV
+	default n
+	---help---
+	  This is a v4l2 driver for Rockchip SOC RGA 2d graphics accelerator.
+	  Rockchip RGA is a separate 2D raster graphic acceleration unit.
+	  It accelerates 2D graphics operations, such as point/line drawing,
+	  image scaling, rotation, BitBLT, alpha blending and image blur/sharpness.
+
+	  To compile this driver as a module choose m here.
+
 config VIDEO_TI_VPE
 	tristate "TI VPE (Video Processing Engine) driver"
 	depends on VIDEO_DEV && VIDEO_V4L2
@@ -475,8 +498,8 @@ config VIDEO_QCOM_VENUS
 	tristate "Qualcomm Venus V4L2 encoder/decoder driver"
 	depends on VIDEO_DEV && VIDEO_V4L2 && HAS_DMA
 	depends on (ARCH_QCOM && IOMMU_DMA) || COMPILE_TEST
-	select QCOM_MDT_LOADER if (ARM || ARM64)
-	select QCOM_SCM if (ARM || ARM64)
+	select QCOM_MDT_LOADER if ARCH_QCOM
+	select QCOM_SCM if ARCH_QCOM
 	select VIDEOBUF2_DMA_SG
 	select V4L2_MEM2MEM_DEV
 	---help---
@@ -536,6 +559,27 @@ menuconfig CEC_PLATFORM_DRIVERS
 
 if CEC_PLATFORM_DRIVERS
 
+config VIDEO_MESON_AO_CEC
+	tristate "Amlogic Meson AO CEC driver"
+	depends on ARCH_MESON || COMPILE_TEST
+	select CEC_CORE
+	select CEC_NOTIFIER
+	---help---
+	  This is a driver for Amlogic Meson SoCs AO CEC interface. It uses the
+	  generic CEC framework interface.
+	  CEC bus is present in the HDMI connector and enables communication
+
+config CEC_GPIO
+	tristate "Generic GPIO-based CEC driver"
+	depends on PREEMPT
+	select CEC_CORE
+	select CEC_PIN
+	select GPIOLIB
+	---help---
+	  This is a generic GPIO-based CEC driver.
+	  The CEC bus is present in the HDMI connector and enables communication
+	  between compatible devices.
+
 config VIDEO_SAMSUNG_S5P_CEC
        tristate "Samsung S5P CEC driver"
        depends on PLAT_S5P || ARCH_EXYNOS || COMPILE_TEST
@@ -568,6 +612,17 @@ config VIDEO_STM32_HDMI_CEC
          This is a driver for STM32 interface. It uses the
          generic CEC framework interface.
          CEC bus is present in the HDMI connector and enables communication
+         between compatible devices.
+
+config VIDEO_TEGRA_HDMI_CEC
+       tristate "Tegra HDMI CEC driver"
+       depends on ARCH_TEGRA || COMPILE_TEST
+       select CEC_CORE
+       select CEC_NOTIFIER
+       ---help---
+         This is a driver for the Tegra HDMI CEC interface. It uses the
+         generic CEC framework interface.
+         The CEC bus is present in the HDMI connector and enables communication
          between compatible devices.
 
 endif #CEC_PLATFORM_DRIVERS

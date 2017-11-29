@@ -290,7 +290,7 @@ static void vpif_stop_streaming(struct vb2_queue *vq)
 	spin_unlock_irqrestore(&common->irqlock, flags);
 }
 
-static struct vb2_ops video_qops = {
+static const struct vb2_ops video_qops = {
 	.queue_setup		= vpif_buffer_queue_setup,
 	.wait_prepare		= vb2_ops_wait_prepare,
 	.wait_finish		= vb2_ops_wait_finish,
@@ -1232,6 +1232,11 @@ static int vpif_async_complete(struct v4l2_async_notifier *notifier)
 	return vpif_probe_complete();
 }
 
+static const struct v4l2_async_notifier_operations vpif_async_ops = {
+	.bound = vpif_async_bound,
+	.complete = vpif_async_complete,
+};
+
 /*
  * vpif_probe: This function creates device entries by register itself to the
  * V4L2 driver and initializes fields of each channel objects
@@ -1313,8 +1318,7 @@ static __init int vpif_probe(struct platform_device *pdev)
 	} else {
 		vpif_obj.notifier.subdevs = vpif_obj.config->asd;
 		vpif_obj.notifier.num_subdevs = vpif_obj.config->asd_sizes[0];
-		vpif_obj.notifier.bound = vpif_async_bound;
-		vpif_obj.notifier.complete = vpif_async_complete;
+		vpif_obj.notifier.ops = &vpif_async_ops;
 		err = v4l2_async_notifier_register(&vpif_obj.v4l2_dev,
 						   &vpif_obj.notifier);
 		if (err) {
@@ -1339,7 +1343,6 @@ vpif_unregister:
  */
 static int vpif_remove(struct platform_device *device)
 {
-	struct common_obj *common;
 	struct channel_obj *ch;
 	int i;
 
@@ -1350,7 +1353,6 @@ static int vpif_remove(struct platform_device *device)
 	for (i = 0; i < VPIF_DISPLAY_MAX_DEVICES; i++) {
 		/* Get the pointer to the channel object */
 		ch = vpif_obj.dev[i];
-		common = &ch->common[VPIF_VIDEO_INDEX];
 		/* Unregister video device */
 		video_unregister_device(&ch->video_dev);
 		kfree(vpif_obj.dev[i]);

@@ -1108,6 +1108,7 @@ void
 lpfc_mbx_cmpl_local_config_link(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 {
 	struct lpfc_vport *vport = pmb->vport;
+	uint8_t bbscn = 0;
 
 	if (pmb->u.mb.mbxStatus)
 		goto out;
@@ -1134,10 +1135,17 @@ lpfc_mbx_cmpl_local_config_link(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	/* Start discovery by sending a FLOGI. port_state is identically
 	 * LPFC_FLOGI while waiting for FLOGI cmpl
 	 */
-	if (vport->port_state != LPFC_FLOGI)
+	if (vport->port_state != LPFC_FLOGI) {
+		if (phba->bbcredit_support && phba->cfg_enable_bbcr) {
+			bbscn = bf_get(lpfc_bbscn_def,
+				       &phba->sli4_hba.bbscn_params);
+			vport->fc_sparam.cmn.bbRcvSizeMsb &= 0xf;
+			vport->fc_sparam.cmn.bbRcvSizeMsb |= (bbscn << 4);
+		}
 		lpfc_initial_flogi(vport);
-	else if (vport->fc_flag & FC_PT2PT)
+	} else if (vport->fc_flag & FC_PT2PT) {
 		lpfc_disc_start(vport);
+	}
 	return;
 
 out:
@@ -3316,7 +3324,8 @@ lpfc_mbx_cmpl_read_topology(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 
 	/* Unblock ELS traffic */
 	pring = lpfc_phba_elsring(phba);
-	pring->flag &= ~LPFC_STOP_IOCB_EVENT;
+	if (pring)
+		pring->flag &= ~LPFC_STOP_IOCB_EVENT;
 
 	/* Check for error */
 	if (mb->mbxStatus) {
@@ -4362,8 +4371,7 @@ lpfc_initialize_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 {
 	INIT_LIST_HEAD(&ndlp->els_retry_evt.evt_listp);
 	INIT_LIST_HEAD(&ndlp->dev_loss_evt.evt_listp);
-	setup_timer(&ndlp->nlp_delayfunc, lpfc_els_retry_delay,
-			(unsigned long)ndlp);
+	timer_setup(&ndlp->nlp_delayfunc, lpfc_els_retry_delay, 0);
 	ndlp->nlp_DID = did;
 	ndlp->vport = vport;
 	ndlp->phba = vport->phba;
@@ -4974,7 +4982,8 @@ lpfc_nlp_remove(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 	lpfc_cancel_retry_delay_tmo(vport, ndlp);
 	if ((ndlp->nlp_flag & NLP_DEFER_RM) &&
 	    !(ndlp->nlp_flag & NLP_REG_LOGIN_SEND) &&
-	    !(ndlp->nlp_flag & NLP_RPI_REGISTERED)) {
+	    !(ndlp->nlp_flag & NLP_RPI_REGISTERED) &&
+	    phba->sli_rev != LPFC_SLI_REV4) {
 		/* For this case we need to cleanup the default rpi
 		 * allocated by the firmware.
 		 */
@@ -5422,6 +5431,8 @@ lpfc_free_tx(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp)
 
 	psli = &phba->sli;
 	pring = lpfc_phba_elsring(phba);
+	if (unlikely(!pring))
+		return;
 
 	/* Error matching iocb on txq or txcmplq
 	 * First check the txq.
@@ -5500,9 +5511,9 @@ lpfc_cleanup_discovery_resources(struct lpfc_vport *vport)
  */
 /*****************************************************************************/
 void
-lpfc_disc_timeout(unsigned long ptr)
+lpfc_disc_timeout(struct timer_list *t)
 {
-	struct lpfc_vport *vport = (struct lpfc_vport *) ptr;
+	struct lpfc_vport *vport = from_timer(vport, t, fc_disctmo);
 	struct lpfc_hba   *phba = vport->phba;
 	uint32_t tmo_posted;
 	unsigned long flags = 0;

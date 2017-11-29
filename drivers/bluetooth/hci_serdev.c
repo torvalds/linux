@@ -185,7 +185,7 @@ static int hci_uart_setup(struct hci_dev *hdev)
 	if (hu->proto->set_baudrate && speed) {
 		err = hu->proto->set_baudrate(hu, speed);
 		if (err)
-			BT_ERR("%s: failed to set baudrate", hdev->name);
+			bt_dev_err(hdev, "Failed to set baudrate");
 		else
 			serdev_device_set_baudrate(hu->serdev, speed);
 	}
@@ -199,14 +199,13 @@ static int hci_uart_setup(struct hci_dev *hdev)
 	skb = __hci_cmd_sync(hdev, HCI_OP_READ_LOCAL_VERSION, 0, NULL,
 			     HCI_INIT_TIMEOUT);
 	if (IS_ERR(skb)) {
-		BT_ERR("%s: Reading local version information failed (%ld)",
-		       hdev->name, PTR_ERR(skb));
+		bt_dev_err(hdev, "Reading local version info failed (%ld)",
+			   PTR_ERR(skb));
 		return 0;
 	}
 
 	if (skb->len != sizeof(*ver)) {
-		BT_ERR("%s: Event length mismatch for version information",
-		       hdev->name);
+		bt_dev_err(hdev, "Event length mismatch for version info");
 	}
 
 	kfree_skb(skb);
@@ -354,3 +353,16 @@ err_alloc:
 	return err;
 }
 EXPORT_SYMBOL_GPL(hci_uart_register_device);
+
+void hci_uart_unregister_device(struct hci_uart *hu)
+{
+	struct hci_dev *hdev = hu->hdev;
+
+	hci_unregister_dev(hdev);
+	hci_free_dev(hdev);
+
+	cancel_work_sync(&hu->write_work);
+
+	hu->proto->close(hu);
+}
+EXPORT_SYMBOL_GPL(hci_uart_unregister_device);

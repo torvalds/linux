@@ -80,8 +80,8 @@ static int lpfc_sli4_fp_handle_cqe(struct lpfc_hba *, struct lpfc_queue *,
 				    struct lpfc_cqe *);
 static int lpfc_sli4_post_sgl_list(struct lpfc_hba *, struct list_head *,
 				       int);
-static void lpfc_sli4_hba_handle_eqe(struct lpfc_hba *, struct lpfc_eqe *,
-			uint32_t);
+static void lpfc_sli4_hba_handle_eqe(struct lpfc_hba *phba,
+				     struct lpfc_eqe *eqe, uint32_t qidx);
 static bool lpfc_sli4_mbox_completions_pending(struct lpfc_hba *phba);
 static bool lpfc_sli4_process_missed_mbox_completions(struct lpfc_hba *phba);
 static int lpfc_sli4_abort_nvme_io(struct lpfc_hba *phba,
@@ -106,7 +106,7 @@ lpfc_get_iocb_from_iocbq(struct lpfc_iocbq *iocbq)
  * -ENOMEM.
  * The caller is expected to hold the hbalock when calling this routine.
  **/
-static uint32_t
+static int
 lpfc_sli4_wq_put(struct lpfc_queue *q, union lpfc_wqe *wqe)
 {
 	union lpfc_wqe *temp_wqe;
@@ -123,7 +123,7 @@ lpfc_sli4_wq_put(struct lpfc_queue *q, union lpfc_wqe *wqe)
 	idx = ((q->host_index + 1) % q->entry_count);
 	if (idx == q->hba_index) {
 		q->WQ_overflow++;
-		return -ENOMEM;
+		return -EBUSY;
 	}
 	q->WQ_posted++;
 	/* set consumption flag every once in a while */
@@ -2732,7 +2732,8 @@ lpfc_sli_process_unsol_iocb(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
  *
  * This function looks up the iocb_lookup table to get the command iocb
  * corresponding to the given response iocb using the iotag of the
- * response iocb. This function is called with the hbalock held.
+ * response iocb. This function is called with the hbalock held
+ * for sli3 devices or the ring_lock for sli4 devices.
  * This function returns the command iocb object if it finds the command
  * iocb else returns NULL.
  **/
@@ -2828,9 +2829,15 @@ lpfc_sli_process_sol_iocb(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 	unsigned long iflag;
 
 	/* Based on the iotag field, get the cmd IOCB from the txcmplq */
-	spin_lock_irqsave(&phba->hbalock, iflag);
+	if (phba->sli_rev == LPFC_SLI_REV4)
+		spin_lock_irqsave(&pring->ring_lock, iflag);
+	else
+		spin_lock_irqsave(&phba->hbalock, iflag);
 	cmdiocbp = lpfc_sli_iocbq_lookup(phba, pring, saveq);
-	spin_unlock_irqrestore(&phba->hbalock, iflag);
+	if (phba->sli_rev == LPFC_SLI_REV4)
+		spin_unlock_irqrestore(&pring->ring_lock, iflag);
+	else
+		spin_unlock_irqrestore(&phba->hbalock, iflag);
 
 	if (cmdiocbp) {
 		if (cmdiocbp->iocb_cmpl) {
@@ -3004,13 +3011,13 @@ lpfc_sli_rsp_pointers_error(struct lpfc_hba *phba, struct lpfc_sli_ring *pring)
  * and wake up worker thread to process it. Otherwise, it will set up the
  * Error Attention polling timer for the next poll.
  **/
-void lpfc_poll_eratt(unsigned long ptr)
+void lpfc_poll_eratt(struct timer_list *t)
 {
 	struct lpfc_hba *phba;
 	uint32_t eratt = 0;
 	uint64_t sli_intr, cnt;
 
-	phba = (struct lpfc_hba *)ptr;
+	phba = from_timer(phba, t, eratt_poll);
 
 	/* Here we will also keep track of interrupts per sec of the hba */
 	sli_intr = phba->sli.slistat.sli_intr;
@@ -7167,9 +7174,9 @@ out_free_mbox:
  * done by the worker thread function lpfc_mbox_timeout_handler.
  **/
 void
-lpfc_mbox_timeout(unsigned long ptr)
+lpfc_mbox_timeout(struct timer_list *t)
 {
-	struct lpfc_hba  *phba = (struct lpfc_hba *) ptr;
+	struct lpfc_hba  *phba = from_timer(phba, t, sli.mbox_tmo);
 	unsigned long iflag;
 	uint32_t tmo_posted;
 
@@ -9396,10 +9403,13 @@ lpfc_sli4_calc_ring(struct lpfc_hba *phba, struct lpfc_iocbq *piocb)
 			 * for abort iocb hba_wqidx should already
 			 * be setup based on what work queue we used.
 			 */
-			if (!(piocb->iocb_flag & LPFC_USE_FCPWQIDX))
+			if (!(piocb->iocb_flag & LPFC_USE_FCPWQIDX)) {
 				piocb->hba_wqidx =
 					lpfc_sli4_scmd_to_wqidx_distr(phba,
 							      piocb->context1);
+				piocb->hba_wqidx = piocb->hba_wqidx %
+					phba->cfg_fcp_io_channel;
+			}
 			return phba->sli4_hba.fcp_wq[piocb->hba_wqidx]->pring;
 		} else {
 			if (unlikely(!phba->sli4_hba.oas_wq))
@@ -10632,6 +10642,14 @@ lpfc_sli_issue_abort_iotag(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 	    (cmdiocb->iocb_flag & LPFC_DRIVER_ABORTED) != 0)
 		return 0;
 
+	if (!pring) {
+		if (cmdiocb->iocb_flag & LPFC_IO_FABRIC)
+			cmdiocb->fabric_iocb_cmpl = lpfc_ignore_els_cmpl;
+		else
+			cmdiocb->iocb_cmpl = lpfc_ignore_els_cmpl;
+		goto abort_iotag_exit;
+	}
+
 	/*
 	 * If we're unloading, don't abort iocb on the ELS ring, but change
 	 * the callback so that nothing happens when it finishes.
@@ -10741,7 +10759,7 @@ lpfc_sli4_abort_nvme_io(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 	abtsiocbp->vport = vport;
 	abtsiocbp->wqe_cmpl = lpfc_nvme_abort_fcreq_cmpl;
 	retval = lpfc_sli4_issue_wqe(phba, LPFC_FCP_RING, abtsiocbp);
-	if (retval == IOCB_ERROR) {
+	if (retval) {
 		lpfc_printf_vlog(vport, KERN_ERR, LOG_NVME,
 				 "6147 Failed abts issue_wqe with status x%x "
 				 "for oxid x%x\n",
@@ -12500,6 +12518,8 @@ lpfc_sli4_els_wcqe_to_rspiocbq(struct lpfc_hba *phba,
 	unsigned long iflags;
 
 	pring = lpfc_phba_elsring(phba);
+	if (unlikely(!pring))
+		return NULL;
 
 	wcqe = &irspiocbq->cq_event.cqe.wcqe_cmpl;
 	spin_lock_irqsave(&pring->ring_lock, iflags);
@@ -12507,18 +12527,20 @@ lpfc_sli4_els_wcqe_to_rspiocbq(struct lpfc_hba *phba,
 	/* Look up the ELS command IOCB and create pseudo response IOCB */
 	cmdiocbq = lpfc_sli_iocbq_lookup_by_tag(phba, pring,
 				bf_get(lpfc_wcqe_c_request_tag, wcqe));
-	/* Put the iocb back on the txcmplq */
-	lpfc_sli_ringtxcmpl_put(phba, pring, cmdiocbq);
-	spin_unlock_irqrestore(&pring->ring_lock, iflags);
-
 	if (unlikely(!cmdiocbq)) {
+		spin_unlock_irqrestore(&pring->ring_lock, iflags);
 		lpfc_printf_log(phba, KERN_WARNING, LOG_SLI,
 				"0386 ELS complete with no corresponding "
-				"cmdiocb: iotag (%d)\n",
-				bf_get(lpfc_wcqe_c_request_tag, wcqe));
+				"cmdiocb: 0x%x 0x%x 0x%x 0x%x\n",
+				wcqe->word0, wcqe->total_data_placed,
+				wcqe->parameter, wcqe->word3);
 		lpfc_sli_release_iocbq(phba, irspiocbq);
 		return NULL;
 	}
+
+	/* Put the iocb back on the txcmplq */
+	lpfc_sli_ringtxcmpl_put(phba, pring, cmdiocbq);
+	spin_unlock_irqrestore(&pring->ring_lock, iflags);
 
 	/* Fake the irspiocbq and copy necessary response information */
 	lpfc_sli4_iocb_param_transfer(phba, irspiocbq, cmdiocbq, wcqe);
@@ -13015,9 +13037,6 @@ lpfc_sli4_sp_handle_eqe(struct lpfc_hba *phba, struct lpfc_eqe *eqe,
 	struct lpfc_queue *speq)
 {
 	struct lpfc_queue *cq = NULL, *childq;
-	struct lpfc_cqe *cqe;
-	bool workposted = false;
-	int ecount = 0;
 	uint16_t cqid;
 
 	/* Get the reference to the corresponding CQ */
@@ -13040,32 +13059,68 @@ lpfc_sli4_sp_handle_eqe(struct lpfc_hba *phba, struct lpfc_eqe *eqe,
 	/* Save EQ associated with this CQ */
 	cq->assoc_qp = speq;
 
+	if (!queue_work(phba->wq, &cq->spwork))
+		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+				"0390 Cannot schedule soft IRQ "
+				"for CQ eqcqid=%d, cqid=%d on CPU %d\n",
+				cqid, cq->queue_id, smp_processor_id());
+}
+
+/**
+ * lpfc_sli4_sp_process_cq - Process a slow-path event queue entry
+ * @phba: Pointer to HBA context object.
+ *
+ * This routine process a event queue entry from the slow-path event queue.
+ * It will check the MajorCode and MinorCode to determine this is for a
+ * completion event on a completion queue, if not, an error shall be logged
+ * and just return. Otherwise, it will get to the corresponding completion
+ * queue and process all the entries on that completion queue, rearm the
+ * completion queue, and then return.
+ *
+ **/
+static void
+lpfc_sli4_sp_process_cq(struct work_struct *work)
+{
+	struct lpfc_queue *cq =
+		container_of(work, struct lpfc_queue, spwork);
+	struct lpfc_hba *phba = cq->phba;
+	struct lpfc_cqe *cqe;
+	bool workposted = false;
+	int ccount = 0;
+
 	/* Process all the entries to the CQ */
 	switch (cq->type) {
 	case LPFC_MCQ:
 		while ((cqe = lpfc_sli4_cq_get(cq))) {
 			workposted |= lpfc_sli4_sp_handle_mcqe(phba, cqe);
-			if (!(++ecount % cq->entry_repost))
+			if (!(++ccount % cq->entry_repost))
 				break;
 			cq->CQ_mbox++;
 		}
 		break;
 	case LPFC_WCQ:
 		while ((cqe = lpfc_sli4_cq_get(cq))) {
-			if ((cq->subtype == LPFC_FCP) ||
-			    (cq->subtype == LPFC_NVME))
+			if (cq->subtype == LPFC_FCP ||
+			    cq->subtype == LPFC_NVME) {
+#ifdef CONFIG_SCSI_LPFC_DEBUG_FS
+				if (phba->ktime_on)
+					cq->isr_timestamp = ktime_get_ns();
+				else
+					cq->isr_timestamp = 0;
+#endif
 				workposted |= lpfc_sli4_fp_handle_cqe(phba, cq,
 								       cqe);
-			else
+			} else {
 				workposted |= lpfc_sli4_sp_handle_cqe(phba, cq,
 								      cqe);
-			if (!(++ecount % cq->entry_repost))
+			}
+			if (!(++ccount % cq->entry_repost))
 				break;
 		}
 
 		/* Track the max number of CQEs processed in 1 EQ */
-		if (ecount > cq->CQ_max_cqe)
-			cq->CQ_max_cqe = ecount;
+		if (ccount > cq->CQ_max_cqe)
+			cq->CQ_max_cqe = ccount;
 		break;
 	default:
 		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
@@ -13075,7 +13130,7 @@ lpfc_sli4_sp_handle_eqe(struct lpfc_hba *phba, struct lpfc_eqe *eqe,
 	}
 
 	/* Catch the no cq entry condition, log an error */
-	if (unlikely(ecount == 0))
+	if (unlikely(ccount == 0))
 		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
 				"0371 No entry from the CQ: identifier "
 				"(x%x), type (%d)\n", cq->queue_id, cq->type);
@@ -13141,11 +13196,9 @@ lpfc_sli4_fp_handle_fcp_wcqe(struct lpfc_hba *phba, struct lpfc_queue *cq,
 				bf_get(lpfc_wcqe_c_request_tag, wcqe));
 		return;
 	}
-
-	if (cq->assoc_qp)
-		cmdiocbq->isr_timestamp =
-			cq->assoc_qp->isr_timestamp;
-
+#ifdef CONFIG_SCSI_LPFC_DEBUG_FS
+	cmdiocbq->isr_timestamp = cq->isr_timestamp;
+#endif
 	if (cmdiocbq->iocb_cmpl == NULL) {
 		if (cmdiocbq->wqe_cmpl) {
 			if (cmdiocbq->iocb_flag & LPFC_DRIVER_ABORTED) {
@@ -13289,8 +13342,8 @@ lpfc_sli4_nvmet_handle_rcqe(struct lpfc_hba *phba, struct lpfc_queue *cq,
 		if (fc_hdr->fh_type == FC_TYPE_FCP) {
 			dma_buf->bytes_recv = bf_get(lpfc_rcqe_length,  rcqe);
 			lpfc_nvmet_unsol_fcp_event(
-				phba, phba->sli4_hba.els_wq->pring, dma_buf,
-				cq->assoc_qp->isr_timestamp);
+				phba, idx, dma_buf,
+				cq->isr_timestamp);
 			return false;
 		}
 drop:
@@ -13398,10 +13451,7 @@ lpfc_sli4_hba_handle_eqe(struct lpfc_hba *phba, struct lpfc_eqe *eqe,
 			uint32_t qidx)
 {
 	struct lpfc_queue *cq = NULL;
-	struct lpfc_cqe *cqe;
-	bool workposted = false;
 	uint16_t cqid, id;
-	int ecount = 0;
 
 	if (unlikely(bf_get_le32(lpfc_eqe_major_code, eqe) != 0)) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
@@ -13462,20 +13512,55 @@ process_cq:
 	/* Save EQ associated with this CQ */
 	cq->assoc_qp = phba->sli4_hba.hba_eq[qidx];
 
+	if (!queue_work(phba->wq, &cq->irqwork))
+		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+				"0363 Cannot schedule soft IRQ "
+				"for CQ eqcqid=%d, cqid=%d on CPU %d\n",
+				cqid, cq->queue_id, smp_processor_id());
+}
+
+/**
+ * lpfc_sli4_hba_process_cq - Process a fast-path event queue entry
+ * @phba: Pointer to HBA context object.
+ * @eqe: Pointer to fast-path event queue entry.
+ *
+ * This routine process a event queue entry from the fast-path event queue.
+ * It will check the MajorCode and MinorCode to determine this is for a
+ * completion event on a completion queue, if not, an error shall be logged
+ * and just return. Otherwise, it will get to the corresponding completion
+ * queue and process all the entries on the completion queue, rearm the
+ * completion queue, and then return.
+ **/
+static void
+lpfc_sli4_hba_process_cq(struct work_struct *work)
+{
+	struct lpfc_queue *cq =
+		container_of(work, struct lpfc_queue, irqwork);
+	struct lpfc_hba *phba = cq->phba;
+	struct lpfc_cqe *cqe;
+	bool workposted = false;
+	int ccount = 0;
+
 	/* Process all the entries to the CQ */
 	while ((cqe = lpfc_sli4_cq_get(cq))) {
+#ifdef CONFIG_SCSI_LPFC_DEBUG_FS
+		if (phba->ktime_on)
+			cq->isr_timestamp = ktime_get_ns();
+		else
+			cq->isr_timestamp = 0;
+#endif
 		workposted |= lpfc_sli4_fp_handle_cqe(phba, cq, cqe);
-		if (!(++ecount % cq->entry_repost))
+		if (!(++ccount % cq->entry_repost))
 			break;
 	}
 
 	/* Track the max number of CQEs processed in 1 EQ */
-	if (ecount > cq->CQ_max_cqe)
-		cq->CQ_max_cqe = ecount;
-	cq->assoc_qp->EQ_cqe_cnt += ecount;
+	if (ccount > cq->CQ_max_cqe)
+		cq->CQ_max_cqe = ccount;
+	cq->assoc_qp->EQ_cqe_cnt += ccount;
 
 	/* Catch the no cq entry condition */
-	if (unlikely(ecount == 0))
+	if (unlikely(ccount == 0))
 		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
 				"0369 No entry from fast-path completion "
 				"queue fcpcqid=%d\n", cq->queue_id);
@@ -13519,10 +13604,7 @@ static void
 lpfc_sli4_fof_handle_eqe(struct lpfc_hba *phba, struct lpfc_eqe *eqe)
 {
 	struct lpfc_queue *cq;
-	struct lpfc_cqe *cqe;
-	bool workposted = false;
 	uint16_t cqid;
-	int ecount = 0;
 
 	if (unlikely(bf_get_le32(lpfc_eqe_major_code, eqe) != 0)) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
@@ -13557,30 +13639,12 @@ lpfc_sli4_fof_handle_eqe(struct lpfc_hba *phba, struct lpfc_eqe *eqe)
 	/* Save EQ associated with this CQ */
 	cq->assoc_qp = phba->sli4_hba.fof_eq;
 
-	/* Process all the entries to the OAS CQ */
-	while ((cqe = lpfc_sli4_cq_get(cq))) {
-		workposted |= lpfc_sli4_fp_handle_cqe(phba, cq, cqe);
-		if (!(++ecount % cq->entry_repost))
-			break;
-	}
-
-	/* Track the max number of CQEs processed in 1 EQ */
-	if (ecount > cq->CQ_max_cqe)
-		cq->CQ_max_cqe = ecount;
-	cq->assoc_qp->EQ_cqe_cnt += ecount;
-
-	/* Catch the no cq entry condition */
-	if (unlikely(ecount == 0))
+	/* CQ work will be processed on CPU affinitized to this IRQ */
+	if (!queue_work(phba->wq, &cq->irqwork))
 		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
-				"9153 No entry from fast-path completion "
-				"queue fcpcqid=%d\n", cq->queue_id);
-
-	/* In any case, flash and re-arm the CQ */
-	lpfc_sli4_cq_release(cq, LPFC_QUEUE_REARM);
-
-	/* wake up worker thread if there are works to be done */
-	if (workposted)
-		lpfc_worker_wake_up(phba);
+				"0367 Cannot schedule soft IRQ "
+				"for CQ eqcqid=%d, cqid=%d on CPU %d\n",
+				cqid, cq->queue_id, smp_processor_id());
 }
 
 /**
@@ -13723,11 +13787,6 @@ lpfc_sli4_hba_intr_handler(int irq, void *dev_id)
 	if (unlikely(!fpeq))
 		return IRQ_NONE;
 
-#ifdef CONFIG_SCSI_LPFC_DEBUG_FS
-	if (phba->ktime_on)
-		fpeq->isr_timestamp = ktime_get_ns();
-#endif
-
 	if (lpfc_fcp_look_ahead) {
 		if (atomic_dec_and_test(&hba_eq_hdl->hba_eq_in_use))
 			lpfc_sli4_eq_clr_intr(fpeq);
@@ -13754,9 +13813,6 @@ lpfc_sli4_hba_intr_handler(int irq, void *dev_id)
 	 * Process all the event on FCP fast-path EQ
 	 */
 	while ((eqe = lpfc_sli4_eq_get(fpeq))) {
-		if (eqe == NULL)
-			break;
-
 		lpfc_sli4_hba_handle_eqe(phba, eqe, hba_eqidx);
 		if (!(++ecount % fpeq->entry_repost))
 			break;
@@ -13941,6 +13997,8 @@ lpfc_sli4_queue_alloc(struct lpfc_hba *phba, uint32_t entry_size,
 	queue->entry_size = entry_size;
 	queue->entry_count = entry_count;
 	queue->phba = phba;
+	INIT_WORK(&queue->irqwork, lpfc_sli4_hba_process_cq);
+	INIT_WORK(&queue->spwork, lpfc_sli4_sp_process_cq);
 
 	/* entry_repost will be set during q creation */
 
@@ -17051,7 +17109,7 @@ lpfc_sli4_mds_loopback_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	struct lpfc_dmabuf *pcmd = cmdiocb->context2;
 
 	if (pcmd && pcmd->virt)
-		pci_pool_free(phba->lpfc_drb_pool, pcmd->virt, pcmd->phys);
+		dma_pool_free(phba->lpfc_drb_pool, pcmd->virt, pcmd->phys);
 	kfree(pcmd);
 	lpfc_sli_release_iocbq(phba, cmdiocb);
 }
@@ -17079,7 +17137,7 @@ lpfc_sli4_handle_mds_loopback(struct lpfc_vport *vport,
 	/* Allocate buffer for command payload */
 	pcmd = kmalloc(sizeof(struct lpfc_dmabuf), GFP_KERNEL);
 	if (pcmd)
-		pcmd->virt = pci_pool_alloc(phba->lpfc_drb_pool, GFP_KERNEL,
+		pcmd->virt = dma_pool_alloc(phba->lpfc_drb_pool, GFP_KERNEL,
 					    &pcmd->phys);
 	if (!pcmd || !pcmd->virt)
 		goto exit;
@@ -17128,9 +17186,10 @@ exit:
 	lpfc_printf_log(phba, KERN_WARNING, LOG_SLI,
 			"2023 Unable to process MDS loopback frame\n");
 	if (pcmd && pcmd->virt)
-		pci_pool_free(phba->lpfc_drb_pool, pcmd->virt, pcmd->phys);
+		dma_pool_free(phba->lpfc_drb_pool, pcmd->virt, pcmd->phys);
 	kfree(pcmd);
-	lpfc_sli_release_iocbq(phba, iocbq);
+	if (iocbq)
+		lpfc_sli_release_iocbq(phba, iocbq);
 	lpfc_in_buf_free(phba, &dmabuf->dbuf);
 }
 
@@ -18684,6 +18743,8 @@ lpfc_drain_txq(struct lpfc_hba *phba)
 	uint32_t txq_cnt = 0;
 
 	pring = lpfc_phba_elsring(phba);
+	if (unlikely(!pring))
+		return 0;
 
 	spin_lock_irqsave(&pring->ring_lock, iflags);
 	list_for_each_entry(piocbq, &pring->txq, list) {
@@ -18888,6 +18949,7 @@ lpfc_sli4_issue_wqe(struct lpfc_hba *phba, uint32_t ring_number,
 	struct lpfc_sglq *sglq;
 	struct lpfc_sli_ring *pring;
 	unsigned long iflags;
+	uint32_t ret = 0;
 
 	/* NVME_LS and NVME_LS ABTS requests. */
 	if (pwqe->iocb_flag & LPFC_IO_NVME_LS) {
@@ -18906,10 +18968,12 @@ lpfc_sli4_issue_wqe(struct lpfc_hba *phba, uint32_t ring_number,
 		}
 		bf_set(wqe_xri_tag, &pwqe->wqe.xmit_bls_rsp.wqe_com,
 		       pwqe->sli4_xritag);
-		if (lpfc_sli4_wq_put(phba->sli4_hba.nvmels_wq, wqe)) {
+		ret = lpfc_sli4_wq_put(phba->sli4_hba.nvmels_wq, wqe);
+		if (ret) {
 			spin_unlock_irqrestore(&pring->ring_lock, iflags);
-			return WQE_ERROR;
+			return ret;
 		}
+
 		lpfc_sli_ringtxcmpl_put(phba, pring, pwqe);
 		spin_unlock_irqrestore(&pring->ring_lock, iflags);
 		return 0;
@@ -18924,9 +18988,10 @@ lpfc_sli4_issue_wqe(struct lpfc_hba *phba, uint32_t ring_number,
 		wq = phba->sli4_hba.nvme_wq[pwqe->hba_wqidx];
 		bf_set(wqe_cqid, &wqe->generic.wqe_com,
 		      phba->sli4_hba.nvme_cq[pwqe->hba_wqidx]->queue_id);
-		if (lpfc_sli4_wq_put(wq, wqe)) {
+		ret = lpfc_sli4_wq_put(wq, wqe);
+		if (ret) {
 			spin_unlock_irqrestore(&pring->ring_lock, iflags);
-			return WQE_ERROR;
+			return ret;
 		}
 		lpfc_sli_ringtxcmpl_put(phba, pring, pwqe);
 		spin_unlock_irqrestore(&pring->ring_lock, iflags);
@@ -18950,9 +19015,10 @@ lpfc_sli4_issue_wqe(struct lpfc_hba *phba, uint32_t ring_number,
 		wq = phba->sli4_hba.nvme_wq[pwqe->hba_wqidx];
 		bf_set(wqe_cqid, &wqe->generic.wqe_com,
 		      phba->sli4_hba.nvme_cq[pwqe->hba_wqidx]->queue_id);
-		if (lpfc_sli4_wq_put(wq, wqe)) {
+		ret = lpfc_sli4_wq_put(wq, wqe);
+		if (ret) {
 			spin_unlock_irqrestore(&pring->ring_lock, iflags);
-			return WQE_ERROR;
+			return ret;
 		}
 		lpfc_sli_ringtxcmpl_put(phba, pring, pwqe);
 		spin_unlock_irqrestore(&pring->ring_lock, iflags);

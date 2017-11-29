@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __MAC80211_DEBUGFS_KEY_H
 #define __MAC80211_DEBUGFS_KEY_H
 

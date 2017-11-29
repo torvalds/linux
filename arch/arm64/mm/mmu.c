@@ -496,7 +496,7 @@ void mark_rodata_ro(void)
 
 static void __init map_kernel_segment(pgd_t *pgd, void *va_start, void *va_end,
 				      pgprot_t prot, struct vm_struct *vma,
-				      int flags)
+				      int flags, unsigned long vm_flags)
 {
 	phys_addr_t pa_start = __pa_symbol(va_start);
 	unsigned long size = va_end - va_start;
@@ -507,10 +507,13 @@ static void __init map_kernel_segment(pgd_t *pgd, void *va_start, void *va_end,
 	__create_pgd_mapping(pgd, pa_start, (unsigned long)va_start, size, prot,
 			     early_pgtable_alloc, flags);
 
+	if (!(vm_flags & VM_NO_GUARD))
+		size += PAGE_SIZE;
+
 	vma->addr	= va_start;
 	vma->phys_addr	= pa_start;
 	vma->size	= size;
-	vma->flags	= VM_MAP;
+	vma->flags	= VM_MAP | vm_flags;
 	vma->caller	= __builtin_return_address(0);
 
 	vm_area_add_early(vma);
@@ -541,14 +544,15 @@ static void __init map_kernel(pgd_t *pgd)
 	 * Only rodata will be remapped with different permissions later on,
 	 * all other segments are allowed to use contiguous mappings.
 	 */
-	map_kernel_segment(pgd, _text, _etext, text_prot, &vmlinux_text, 0);
+	map_kernel_segment(pgd, _text, _etext, text_prot, &vmlinux_text, 0,
+			   VM_NO_GUARD);
 	map_kernel_segment(pgd, __start_rodata, __inittext_begin, PAGE_KERNEL,
-			   &vmlinux_rodata, NO_CONT_MAPPINGS);
+			   &vmlinux_rodata, NO_CONT_MAPPINGS, VM_NO_GUARD);
 	map_kernel_segment(pgd, __inittext_begin, __inittext_end, text_prot,
-			   &vmlinux_inittext, 0);
+			   &vmlinux_inittext, 0, VM_NO_GUARD);
 	map_kernel_segment(pgd, __initdata_begin, __initdata_end, PAGE_KERNEL,
-			   &vmlinux_initdata, 0);
-	map_kernel_segment(pgd, _data, _end, PAGE_KERNEL, &vmlinux_data, 0);
+			   &vmlinux_initdata, 0, VM_NO_GUARD);
+	map_kernel_segment(pgd, _data, _end, PAGE_KERNEL, &vmlinux_data, 0, 0);
 
 	if (!pgd_val(*pgd_offset_raw(pgd, FIXADDR_START))) {
 		/*
@@ -774,6 +778,10 @@ void __init early_fixmap_init(void)
 	}
 }
 
+/*
+ * Unusually, this is also called in IRQ context (ghes_iounmap_irq) so if we
+ * ever need to use IPIs for TLB broadcasting, then we're in trouble here.
+ */
 void __set_fixmap(enum fixed_addresses idx,
 			       phys_addr_t phys, pgprot_t flags)
 {

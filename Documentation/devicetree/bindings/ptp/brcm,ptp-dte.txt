@@ -16,5 +16,4 @@ Example:
 ptp: ptp-dte@180af650 {
 	compatible = "brcm,iproc-ptp-dte", "brcm,ptp-dte";
 	reg = <0x180af650 0x10>;
-	status = "okay";
 };

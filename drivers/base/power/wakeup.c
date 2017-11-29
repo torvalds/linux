@@ -54,7 +54,7 @@ static unsigned int saved_count;
 
 static DEFINE_SPINLOCK(events_lock);
 
-static void pm_wakeup_timer_fn(unsigned long data);
+static void pm_wakeup_timer_fn(struct timer_list *t);
 
 static LIST_HEAD(wakeup_sources);
 
@@ -176,7 +176,7 @@ void wakeup_source_add(struct wakeup_source *ws)
 		return;
 
 	spin_lock_init(&ws->lock);
-	setup_timer(&ws->timer, pm_wakeup_timer_fn, (unsigned long)ws);
+	timer_setup(&ws->timer, pm_wakeup_timer_fn, 0);
 	ws->active = false;
 	ws->last_time = ktime_get();
 
@@ -412,15 +412,17 @@ void device_set_wakeup_capable(struct device *dev, bool capable)
 	if (!!dev->power.can_wakeup == !!capable)
 		return;
 
+	dev->power.can_wakeup = capable;
 	if (device_is_registered(dev) && !list_empty(&dev->power.entry)) {
 		if (capable) {
-			if (wakeup_sysfs_add(dev))
-				return;
+			int ret = wakeup_sysfs_add(dev);
+
+			if (ret)
+				dev_info(dev, "Wakeup sysfs attributes not added\n");
 		} else {
 			wakeup_sysfs_remove(dev);
 		}
 	}
-	dev->power.can_wakeup = capable;
 }
 EXPORT_SYMBOL_GPL(device_set_wakeup_capable);
 
@@ -479,8 +481,7 @@ static bool wakeup_source_not_registered(struct wakeup_source *ws)
 	 * Use timer struct to check if the given source is initialized
 	 * by wakeup_source_add.
 	 */
-	return ws->timer.function != pm_wakeup_timer_fn ||
-		   ws->timer.data != (unsigned long)ws;
+	return ws->timer.function != pm_wakeup_timer_fn;
 }
 
 /*
@@ -722,9 +723,9 @@ EXPORT_SYMBOL_GPL(pm_relax);
  * in @data if it is currently active and its timer has not been canceled and
  * the expiration time of the timer is not in future.
  */
-static void pm_wakeup_timer_fn(unsigned long data)
+static void pm_wakeup_timer_fn(struct timer_list *t)
 {
-	struct wakeup_source *ws = (struct wakeup_source *)data;
+	struct wakeup_source *ws = from_timer(ws, t, timer);
 	unsigned long flags;
 
 	spin_lock_irqsave(&ws->lock, flags);
@@ -863,7 +864,7 @@ bool pm_wakeup_pending(void)
 void pm_system_wakeup(void)
 {
 	atomic_inc(&pm_abort_suspend);
-	freeze_wake();
+	s2idle_wake();
 }
 EXPORT_SYMBOL_GPL(pm_system_wakeup);
 

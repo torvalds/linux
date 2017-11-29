@@ -44,6 +44,7 @@
 #include <asm/machdep.h>
 #include <asm/ppc-pci.h>
 #include <asm/rtas.h>
+#include <asm/pte-walk.h>
 
 
 /** Overview:
@@ -169,10 +170,10 @@ static size_t eeh_dump_dev_log(struct eeh_dev *edev, char *buf, size_t len)
 	char buffer[128];
 
 	n += scnprintf(buf+n, len-n, "%04x:%02x:%02x.%01x\n",
-		       edev->phb->global_number, pdn->busno,
+		       pdn->phb->global_number, pdn->busno,
 		       PCI_SLOT(pdn->devfn), PCI_FUNC(pdn->devfn));
 	pr_warn("EEH: of node=%04x:%02x:%02x.%01x\n",
-		edev->phb->global_number, pdn->busno,
+		pdn->phb->global_number, pdn->busno,
 		PCI_SLOT(pdn->devfn), PCI_FUNC(pdn->devfn));
 
 	eeh_ops->read_config(pdn, PCI_VENDOR_ID, 4, &cfg);
@@ -352,8 +353,7 @@ static inline unsigned long eeh_token_to_phys(unsigned long token)
 	 * worried about _PAGE_SPLITTING/collapse. Also we will not hit
 	 * page table free, because of init_mm.
 	 */
-	ptep = __find_linux_pte_or_hugepte(init_mm.pgd, token,
-					   NULL, &hugepage_shift);
+	ptep = find_init_mm_pte(token, &hugepage_shift);
 	if (!ptep)
 		return token;
 	WARN_ON(hugepage_shift);
@@ -435,7 +435,7 @@ int eeh_dev_check_failure(struct eeh_dev *edev)
 	int ret;
 	int active_flags = (EEH_STATE_MMIO_ACTIVE | EEH_STATE_DMA_ACTIVE);
 	unsigned long flags;
-	struct pci_dn *pdn;
+	struct device_node *dn;
 	struct pci_dev *dev;
 	struct eeh_pe *pe, *parent_pe, *phb_pe;
 	int rc = 0;
@@ -493,9 +493,10 @@ int eeh_dev_check_failure(struct eeh_dev *edev)
 	if (pe->state & EEH_PE_ISOLATED) {
 		pe->check_count++;
 		if (pe->check_count % EEH_MAX_FAILS == 0) {
-			pdn = eeh_dev_to_pdn(edev);
-			if (pdn->node)
-				location = of_get_property(pdn->node, "ibm,loc-code", NULL);
+			dn = pci_device_to_OF_node(dev);
+			if (dn)
+				location = of_get_property(dn, "ibm,loc-code",
+						NULL);
 			printk(KERN_ERR "EEH: %d reads ignored for recovering device at "
 				"location=%s driver=%s pci addr=%s\n",
 				pe->check_count,
@@ -971,6 +972,18 @@ static struct notifier_block eeh_reboot_nb = {
 	.notifier_call = eeh_reboot_notifier,
 };
 
+void eeh_probe_devices(void)
+{
+	struct pci_controller *hose, *tmp;
+	struct pci_dn *pdn;
+
+	/* Enable EEH for all adapters */
+	list_for_each_entry_safe(hose, tmp, &hose_list, list_node) {
+		pdn = hose->pci_data;
+		traverse_pci_dn(pdn, eeh_ops->probe, NULL);
+	}
+}
+
 /**
  * eeh_init - EEH initialization
  *
@@ -986,21 +999,10 @@ static struct notifier_block eeh_reboot_nb = {
  * Even if force-off is set, the EEH hardware is still enabled, so that
  * newer systems can boot.
  */
-int eeh_init(void)
+static int eeh_init(void)
 {
 	struct pci_controller *hose, *tmp;
-	struct pci_dn *pdn;
-	static int cnt = 0;
 	int ret = 0;
-
-	/*
-	 * We have to delay the initialization on PowerNV after
-	 * the PCI hierarchy tree has been built because the PEs
-	 * are figured out based on PCI devices instead of device
-	 * tree nodes
-	 */
-	if (machine_is(powernv) && cnt++ <= 0)
-		return ret;
 
 	/* Register reboot notifier */
 	ret = register_reboot_notifier(&eeh_reboot_nb);
@@ -1018,27 +1020,16 @@ int eeh_init(void)
 	} else if ((ret = eeh_ops->init()))
 		return ret;
 
+	/* Initialize PHB PEs */
+	list_for_each_entry_safe(hose, tmp, &hose_list, list_node)
+		eeh_dev_phb_init_dynamic(hose);
+
 	/* Initialize EEH event */
 	ret = eeh_event_init();
 	if (ret)
 		return ret;
 
-	/* Enable EEH for all adapters */
-	list_for_each_entry_safe(hose, tmp, &hose_list, list_node) {
-		pdn = hose->pci_data;
-		traverse_pci_dn(pdn, eeh_ops->probe, NULL);
-	}
-
-	/*
-	 * Call platform post-initialization. Actually, It's good chance
-	 * to inform platform that EEH is ready to supply service if the
-	 * I/O cache stuff has been built up.
-	 */
-	if (eeh_ops->post_init) {
-		ret = eeh_ops->post_init();
-		if (ret)
-			return ret;
-	}
+	eeh_probe_devices();
 
 	if (eeh_enabled())
 		pr_info("EEH: PCI Enhanced I/O Error Handling Enabled\n");
@@ -1064,7 +1055,7 @@ core_initcall_sync(eeh_init);
  */
 void eeh_add_device_early(struct pci_dn *pdn)
 {
-	struct pci_controller *phb;
+	struct pci_controller *phb = pdn ? pdn->phb : NULL;
 	struct eeh_dev *edev = pdn_to_eeh_dev(pdn);
 
 	if (!edev)
@@ -1074,7 +1065,6 @@ void eeh_add_device_early(struct pci_dn *pdn)
 		return;
 
 	/* USB Bus children of PCI devices will not have BUID's */
-	phb = edev->phb;
 	if (NULL == phb ||
 	    (eeh_has_flag(EEH_PROBE_MODE_DEVTREE) && 0 == phb->buid))
 		return;
@@ -1752,10 +1742,6 @@ static int eeh_enable_dbgfs_set(void *data, u64 val)
 		eeh_clear_flag(EEH_FORCE_DISABLED);
 	else
 		eeh_add_flag(EEH_FORCE_DISABLED);
-
-	/* Notify the backend */
-	if (eeh_ops->post_init)
-		eeh_ops->post_init();
 
 	return 0;
 }

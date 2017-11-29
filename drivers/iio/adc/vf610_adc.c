@@ -77,7 +77,7 @@
 #define VF610_ADC_ADSTS_MASK		0x300
 #define VF610_ADC_ADLPC_EN		0x80
 #define VF610_ADC_ADHSC_EN		0x400
-#define VF610_ADC_REFSEL_VALT		0x100
+#define VF610_ADC_REFSEL_VALT		0x800
 #define VF610_ADC_REFSEL_VBG		0x1000
 #define VF610_ADC_ADTRG_HARD		0x2000
 #define VF610_ADC_AVGS_8		0x4000
@@ -799,7 +799,6 @@ static int vf610_adc_reg_access(struct iio_dev *indio_dev,
 }
 
 static const struct iio_info vf610_adc_iio_info = {
-	.driver_module = THIS_MODULE,
 	.read_raw = &vf610_read_raw,
 	.write_raw = &vf610_write_raw,
 	.debugfs_reg_access = &vf610_adc_reg_access,

@@ -136,7 +136,7 @@ void __nilfs_error(struct super_block *sb, const char *function,
 
 	va_end(args);
 
-	if (!(sb->s_flags & MS_RDONLY)) {
+	if (!sb_rdonly(sb)) {
 		nilfs_set_error(sb);
 
 		if (nilfs_test_opt(nilfs, ERRORS_RO)) {
@@ -160,7 +160,6 @@ struct inode *nilfs_alloc_inode(struct super_block *sb)
 	ii->i_bh = NULL;
 	ii->i_state = 0;
 	ii->i_cno = 0;
-	ii->vfs_inode.i_version = 1;
 	nilfs_mapping_init(&ii->i_btnode_cache, &ii->vfs_inode);
 	return &ii->vfs_inode;
 }
@@ -478,7 +477,7 @@ static void nilfs_put_super(struct super_block *sb)
 
 	nilfs_detach_log_writer(sb);
 
-	if (!(sb->s_flags & MS_RDONLY)) {
+	if (!sb_rdonly(sb)) {
 		down_write(&nilfs->ns_sem);
 		nilfs_cleanup_super(sb);
 		up_write(&nilfs->ns_sem);
@@ -578,7 +577,7 @@ static int nilfs_freeze(struct super_block *sb)
 	struct the_nilfs *nilfs = sb->s_fs_info;
 	int err;
 
-	if (sb->s_flags & MS_RDONLY)
+	if (sb_rdonly(sb))
 		return 0;
 
 	/* Mark super block clean */
@@ -592,7 +591,7 @@ static int nilfs_unfreeze(struct super_block *sb)
 {
 	struct the_nilfs *nilfs = sb->s_fs_info;
 
-	if (sb->s_flags & MS_RDONLY)
+	if (sb_rdonly(sb))
 		return 0;
 
 	down_write(&nilfs->ns_sem);
@@ -898,7 +897,7 @@ int nilfs_check_feature_compatibility(struct super_block *sb,
 	}
 	features = le64_to_cpu(sbp->s_feature_compat_ro) &
 		~NILFS_FEATURE_COMPAT_RO_SUPP;
-	if (!(sb->s_flags & MS_RDONLY) && features) {
+	if (!sb_rdonly(sb) && features) {
 		nilfs_msg(sb, KERN_ERR,
 			  "couldn't mount RDWR because of unsupported optional features (%llx)",
 			  (unsigned long long)features);
@@ -1083,7 +1082,7 @@ nilfs_fill_super(struct super_block *sb, void *data, int silent)
 		goto failed_unload;
 	}
 
-	if (!(sb->s_flags & MS_RDONLY)) {
+	if (!sb_rdonly(sb)) {
 		err = nilfs_attach_log_writer(sb, fsroot);
 		if (err)
 			goto failed_checkpoint;
@@ -1095,7 +1094,7 @@ nilfs_fill_super(struct super_block *sb, void *data, int silent)
 
 	nilfs_put_root(fsroot);
 
-	if (!(sb->s_flags & MS_RDONLY)) {
+	if (!sb_rdonly(sb)) {
 		down_write(&nilfs->ns_sem);
 		nilfs_setup_super(sb, true);
 		up_write(&nilfs->ns_sem);
@@ -1144,7 +1143,7 @@ static int nilfs_remount(struct super_block *sb, int *flags, char *data)
 		goto restore_opts;
 	}
 
-	if ((*flags & MS_RDONLY) == (sb->s_flags & MS_RDONLY))
+	if ((bool)(*flags & MS_RDONLY) == sb_rdonly(sb))
 		goto out;
 	if (*flags & MS_RDONLY) {
 		/* Shutting down log writer */
@@ -1338,8 +1337,7 @@ nilfs_mount(struct file_system_type *fs_type, int flags,
 			if ((flags ^ s->s_flags) & MS_RDONLY) {
 				nilfs_msg(s, KERN_ERR,
 					  "the device already has a %s mount.",
-					  (s->s_flags & MS_RDONLY) ?
-					  "read-only" : "read/write");
+					  sb_rdonly(s) ? "read-only" : "read/write");
 				err = -EBUSY;
 				goto failed_super;
 			}

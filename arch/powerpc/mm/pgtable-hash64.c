@@ -239,7 +239,7 @@ pmd_t hash__pmdp_collapse_flush(struct vm_area_struct *vma, unsigned long addres
 	 * by sending an IPI to all the cpus and executing a dummy
 	 * function there.
 	 */
-	kick_all_cpus_sync();
+	serialize_against_pte_lookup(vma->vm_mm);
 	/*
 	 * Now invalidate the hpte entries in the range
 	 * covered by pmd. This make sure we take a
@@ -329,7 +329,6 @@ void hpte_do_hugepage_flush(struct mm_struct *mm, unsigned long addr,
 	unsigned int psize;
 	unsigned long vsid;
 	unsigned long flags = 0;
-	const struct cpumask *tmp;
 
 	/* get the base page size,vsid and segment size */
 #ifdef CONFIG_DEBUG_VM
@@ -350,8 +349,7 @@ void hpte_do_hugepage_flush(struct mm_struct *mm, unsigned long addr,
 		ssize = mmu_kernel_ssize;
 	}
 
-	tmp = cpumask_of(smp_processor_id());
-	if (cpumask_equal(mm_cpumask(mm), tmp))
+	if (mm_is_thread_local(mm))
 		flags |= HPTE_LOCAL_UPDATE;
 
 	return flush_hash_hugepage(vsid, addr, pmdp, psize, ssize, flags);
@@ -380,16 +378,16 @@ pmd_t hash__pmdp_huge_get_and_clear(struct mm_struct *mm,
 	 */
 	memset(pgtable, 0, PTE_FRAG_SIZE);
 	/*
-	 * Serialize against find_linux_pte_or_hugepte which does lock-less
+	 * Serialize against find_current_mm_pte variants which does lock-less
 	 * lookup in page tables with local interrupts disabled. For huge pages
 	 * it casts pmd_t to pte_t. Since format of pte_t is different from
 	 * pmd_t we want to prevent transit from pmd pointing to page table
 	 * to pmd pointing to huge page (and back) while interrupts are disabled.
 	 * We clear pmd to possibly replace it with page table pointer in
 	 * different code paths. So make sure we wait for the parallel
-	 * find_linux_pte_or_hugepage to finish.
+	 * find_curren_mm_pte to finish.
 	 */
-	kick_all_cpus_sync();
+	serialize_against_pte_lookup(mm);
 	return old_pmd;
 }
 

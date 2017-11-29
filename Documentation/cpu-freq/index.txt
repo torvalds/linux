@@ -32,8 +32,6 @@ cpufreq-stats.txt -	General description of sysfs cpufreq stats.
 
 index.txt	-	File index, Mailing list and Links (this document)
 
-intel-pstate.txt -	Intel pstate cpufreq driver specific file.
-
 pcc-cpufreq.txt -	PCC cpufreq driver specific file.
 
 

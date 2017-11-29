@@ -21,6 +21,7 @@
 #include "etnaviv_drv.h"
 #include "etnaviv_gpu.h"
 #include "etnaviv_gem.h"
+#include "etnaviv_perfmon.h"
 
 /*
  * Cmdstream submission:
@@ -37,7 +38,7 @@ static struct etnaviv_gem_submit *submit_create(struct drm_device *dev,
 	struct etnaviv_gem_submit *submit;
 	size_t sz = size_vstruct(nr, sizeof(submit->bos[0]), sizeof(*submit));
 
-	submit = kmalloc(sz, GFP_TEMPORARY | __GFP_NOWARN | __GFP_NORETRY);
+	submit = kmalloc(sz, GFP_KERNEL | __GFP_NOWARN | __GFP_NORETRY);
 	if (submit) {
 		submit->dev = dev;
 		submit->gpu = gpu;
@@ -88,7 +89,7 @@ static int submit_lookup_objects(struct etnaviv_gem_submit *submit,
 		 * Take a refcount on the object. The file table lock
 		 * prevents the object_idr's refcount on this being dropped.
 		 */
-		drm_gem_object_reference(obj);
+		drm_gem_object_get(obj);
 
 		submit->bos[i].obj = to_etnaviv_bo(obj);
 	}
@@ -270,14 +271,62 @@ static int submit_reloc(struct etnaviv_gem_submit *submit, void *stream,
 		if (ret)
 			return ret;
 
-		if (r->reloc_offset >= bo->obj->base.size - sizeof(*ptr)) {
-			DRM_ERROR("relocation %u outside object", i);
+		if (r->reloc_offset > bo->obj->base.size - sizeof(*ptr)) {
+			DRM_ERROR("relocation %u outside object\n", i);
 			return -EINVAL;
 		}
 
 		ptr[off] = bo->mapping->iova + r->reloc_offset;
 
 		last_offset = off;
+	}
+
+	return 0;
+}
+
+static int submit_perfmon_validate(struct etnaviv_gem_submit *submit,
+		struct etnaviv_cmdbuf *cmdbuf,
+		const struct drm_etnaviv_gem_submit_pmr *pmrs,
+		u32 nr_pms)
+{
+	u32 i;
+
+	for (i = 0; i < nr_pms; i++) {
+		const struct drm_etnaviv_gem_submit_pmr *r = pmrs + i;
+		struct etnaviv_gem_submit_bo *bo;
+		int ret;
+
+		ret = submit_bo(submit, r->read_idx, &bo);
+		if (ret)
+			return ret;
+
+		/* at offset 0 a sequence number gets stored used for userspace sync */
+		if (r->read_offset == 0) {
+			DRM_ERROR("perfmon request: offset is 0");
+			return -EINVAL;
+		}
+
+		if (r->read_offset >= bo->obj->base.size - sizeof(u32)) {
+			DRM_ERROR("perfmon request: offset %u outside object", i);
+			return -EINVAL;
+		}
+
+		if (r->flags & ~(ETNA_PM_PROCESS_PRE | ETNA_PM_PROCESS_POST)) {
+			DRM_ERROR("perfmon request: flags are not valid");
+			return -EINVAL;
+		}
+
+		if (etnaviv_pm_req_validate(r, cmdbuf->exec_state)) {
+			DRM_ERROR("perfmon request: domain or signal not valid");
+			return -EINVAL;
+		}
+
+		cmdbuf->pmrs[i].flags = r->flags;
+		cmdbuf->pmrs[i].domain = r->domain;
+		cmdbuf->pmrs[i].signal = r->signal;
+		cmdbuf->pmrs[i].sequence = r->sequence;
+		cmdbuf->pmrs[i].offset = r->read_offset;
+		cmdbuf->pmrs[i].bo_vma = etnaviv_gem_vmap(&bo->obj->base);
 	}
 
 	return 0;
@@ -291,7 +340,7 @@ static void submit_cleanup(struct etnaviv_gem_submit *submit)
 		struct etnaviv_gem_object *etnaviv_obj = submit->bos[i].obj;
 
 		submit_unlock_object(submit, i);
-		drm_gem_object_unreference_unlocked(&etnaviv_obj->base);
+		drm_gem_object_put_unlocked(&etnaviv_obj->base);
 	}
 
 	ww_acquire_fini(&submit->ticket);
@@ -306,6 +355,7 @@ int etnaviv_ioctl_gem_submit(struct drm_device *dev, void *data,
 	struct etnaviv_drm_private *priv = dev->dev_private;
 	struct drm_etnaviv_gem_submit *args = data;
 	struct drm_etnaviv_gem_submit_reloc *relocs;
+	struct drm_etnaviv_gem_submit_pmr *pmrs;
 	struct drm_etnaviv_gem_submit_bo *bos;
 	struct etnaviv_gem_submit *submit;
 	struct etnaviv_cmdbuf *cmdbuf;
@@ -347,11 +397,12 @@ int etnaviv_ioctl_gem_submit(struct drm_device *dev, void *data,
 	 */
 	bos = kvmalloc_array(args->nr_bos, sizeof(*bos), GFP_KERNEL);
 	relocs = kvmalloc_array(args->nr_relocs, sizeof(*relocs), GFP_KERNEL);
+	pmrs = kvmalloc_array(args->nr_pmrs, sizeof(*pmrs), GFP_KERNEL);
 	stream = kvmalloc_array(1, args->stream_size, GFP_KERNEL);
 	cmdbuf = etnaviv_cmdbuf_new(gpu->cmdbuf_suballoc,
 				    ALIGN(args->stream_size, 8) + 8,
-				    args->nr_bos);
-	if (!bos || !relocs || !stream || !cmdbuf) {
+				    args->nr_bos, args->nr_pmrs);
+	if (!bos || !relocs || !pmrs || !stream || !cmdbuf) {
 		ret = -ENOMEM;
 		goto err_submit_cmds;
 	}
@@ -372,6 +423,14 @@ int etnaviv_ioctl_gem_submit(struct drm_device *dev, void *data,
 		ret = -EFAULT;
 		goto err_submit_cmds;
 	}
+
+	ret = copy_from_user(pmrs, u64_to_user_ptr(args->pmrs),
+			     args->nr_pmrs * sizeof(*pmrs));
+	if (ret) {
+		ret = -EFAULT;
+		goto err_submit_cmds;
+	}
+	cmdbuf->nr_pmrs = args->nr_pmrs;
 
 	ret = copy_from_user(stream, u64_to_user_ptr(args->stream),
 			     args->stream_size);
@@ -441,12 +500,18 @@ int etnaviv_ioctl_gem_submit(struct drm_device *dev, void *data,
 	if (ret)
 		goto out;
 
+	ret = submit_perfmon_validate(submit, cmdbuf, pmrs, args->nr_pmrs);
+	if (ret)
+		goto out;
+
 	memcpy(cmdbuf->vaddr, stream, args->stream_size);
 	cmdbuf->user_size = ALIGN(args->stream_size, 8);
 
 	ret = etnaviv_gpu_submit(gpu, submit, cmdbuf);
-	if (ret == 0)
-		cmdbuf = NULL;
+	if (ret)
+		goto out;
+
+	cmdbuf = NULL;
 
 	if (args->flags & ETNA_SUBMIT_FENCE_FD_OUT) {
 		/*
@@ -494,6 +559,8 @@ err_submit_cmds:
 		kvfree(bos);
 	if (relocs)
 		kvfree(relocs);
+	if (pmrs)
+		kvfree(pmrs);
 
 	return ret;
 }

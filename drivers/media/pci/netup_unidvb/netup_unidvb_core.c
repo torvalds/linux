@@ -638,9 +638,9 @@ static void netup_unidvb_queue_cleanup(struct netup_dma *dma)
 	spin_unlock_irqrestore(&dma->lock, flags);
 }
 
-static void netup_unidvb_dma_timeout(unsigned long data)
+static void netup_unidvb_dma_timeout(struct timer_list *t)
 {
-	struct netup_dma *dma = (struct netup_dma *)data;
+	struct netup_dma *dma = from_timer(dma, t, timeout);
 	struct netup_unidvb_dev *ndev = dma->ndev;
 
 	dev_dbg(&ndev->pci_dev->dev, "%s()\n", __func__);
@@ -664,8 +664,7 @@ static int netup_unidvb_dma_init(struct netup_unidvb_dev *ndev, int num)
 	spin_lock_init(&dma->lock);
 	INIT_WORK(&dma->work, netup_unidvb_dma_worker);
 	INIT_LIST_HEAD(&dma->free_buffers);
-	setup_timer(&dma->timeout, netup_unidvb_dma_timeout,
-		    (unsigned long)dma);
+	timer_setup(&dma->timeout, netup_unidvb_dma_timeout, 0);
 	dma->ring_buffer_size = ndev->dma_size / 2;
 	dma->addr_virt = ndev->dma_virt + dma->ring_buffer_size * num;
 	dma->addr_phys = (dma_addr_t)((u64)ndev->dma_phys +
@@ -1014,7 +1013,7 @@ static void netup_unidvb_finidev(struct pci_dev *pci_dev)
 }
 
 
-static struct pci_device_id netup_unidvb_pci_tbl[] = {
+static const struct pci_device_id netup_unidvb_pci_tbl[] = {
 	{ PCI_DEVICE(0x1b55, 0x18f6) }, /* hw rev. 1.3 */
 	{ PCI_DEVICE(0x1b55, 0x18f7) }, /* hw rev. 1.4 */
 	{ 0, }

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * GPL HEADER START
  *
@@ -669,7 +670,7 @@ enum {
 	NRS_RES_MAX
 };
 
-#include "lustre_nrs_fifo.h"
+#include <lustre_nrs_fifo.h>
 
 /**
  * NRS request

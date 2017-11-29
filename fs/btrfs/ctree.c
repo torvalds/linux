@@ -192,7 +192,7 @@ struct extent_buffer *btrfs_lock_root_node(struct btrfs_root *root)
  * tree until you end up with a lock on the root.  A locked buffer
  * is returned, with a reference held.
  */
-static struct extent_buffer *btrfs_read_lock_root_node(struct btrfs_root *root)
+struct extent_buffer *btrfs_read_lock_root_node(struct btrfs_root *root)
 {
 	struct extent_buffer *eb;
 
@@ -4650,7 +4650,7 @@ void btrfs_truncate_item(struct btrfs_fs_info *fs_info,
 	btrfs_mark_buffer_dirty(leaf);
 
 	if (btrfs_leaf_free_space(fs_info, leaf) < 0) {
-		btrfs_print_leaf(fs_info, leaf);
+		btrfs_print_leaf(leaf);
 		BUG();
 	}
 }
@@ -4679,7 +4679,7 @@ void btrfs_extend_item(struct btrfs_fs_info *fs_info, struct btrfs_path *path,
 	data_end = leaf_data_end(fs_info, leaf);
 
 	if (btrfs_leaf_free_space(fs_info, leaf) < data_size) {
-		btrfs_print_leaf(fs_info, leaf);
+		btrfs_print_leaf(leaf);
 		BUG();
 	}
 	slot = path->slots[0];
@@ -4687,7 +4687,7 @@ void btrfs_extend_item(struct btrfs_fs_info *fs_info, struct btrfs_path *path,
 
 	BUG_ON(slot < 0);
 	if (slot >= nritems) {
-		btrfs_print_leaf(fs_info, leaf);
+		btrfs_print_leaf(leaf);
 		btrfs_crit(fs_info, "slot %d too large, nritems %d",
 			   slot, nritems);
 		BUG_ON(1);
@@ -4718,7 +4718,7 @@ void btrfs_extend_item(struct btrfs_fs_info *fs_info, struct btrfs_path *path,
 	btrfs_mark_buffer_dirty(leaf);
 
 	if (btrfs_leaf_free_space(fs_info, leaf) < 0) {
-		btrfs_print_leaf(fs_info, leaf);
+		btrfs_print_leaf(leaf);
 		BUG();
 	}
 }
@@ -4757,7 +4757,7 @@ void setup_items_for_insert(struct btrfs_root *root, struct btrfs_path *path,
 	data_end = leaf_data_end(fs_info, leaf);
 
 	if (btrfs_leaf_free_space(fs_info, leaf) < total_size) {
-		btrfs_print_leaf(fs_info, leaf);
+		btrfs_print_leaf(leaf);
 		btrfs_crit(fs_info, "not enough freespace need %u have %d",
 			   total_size, btrfs_leaf_free_space(fs_info, leaf));
 		BUG();
@@ -4767,7 +4767,7 @@ void setup_items_for_insert(struct btrfs_root *root, struct btrfs_path *path,
 		unsigned int old_data = btrfs_item_end_nr(leaf, slot);
 
 		if (old_data < data_end) {
-			btrfs_print_leaf(fs_info, leaf);
+			btrfs_print_leaf(leaf);
 			btrfs_crit(fs_info, "slot %d old_data %d data_end %d",
 				   slot, old_data, data_end);
 			BUG_ON(1);
@@ -4811,7 +4811,7 @@ void setup_items_for_insert(struct btrfs_root *root, struct btrfs_path *path,
 	btrfs_mark_buffer_dirty(leaf);
 
 	if (btrfs_leaf_free_space(fs_info, leaf) < 0) {
-		btrfs_print_leaf(fs_info, leaf);
+		btrfs_print_leaf(leaf);
 		BUG();
 	}
 }
@@ -5496,8 +5496,7 @@ int btrfs_compare_trees(struct btrfs_root *left_root,
 			goto out;
 		} else if (left_end_reached) {
 			if (right_level == 0) {
-				ret = changed_cb(left_root, right_root,
-						left_path, right_path,
+				ret = changed_cb(left_path, right_path,
 						&right_key,
 						BTRFS_COMPARE_TREE_DELETED,
 						ctx);
@@ -5508,8 +5507,7 @@ int btrfs_compare_trees(struct btrfs_root *left_root,
 			continue;
 		} else if (right_end_reached) {
 			if (left_level == 0) {
-				ret = changed_cb(left_root, right_root,
-						left_path, right_path,
+				ret = changed_cb(left_path, right_path,
 						&left_key,
 						BTRFS_COMPARE_TREE_NEW,
 						ctx);
@@ -5523,8 +5521,7 @@ int btrfs_compare_trees(struct btrfs_root *left_root,
 		if (left_level == 0 && right_level == 0) {
 			cmp = btrfs_comp_cpu_keys(&left_key, &right_key);
 			if (cmp < 0) {
-				ret = changed_cb(left_root, right_root,
-						left_path, right_path,
+				ret = changed_cb(left_path, right_path,
 						&left_key,
 						BTRFS_COMPARE_TREE_NEW,
 						ctx);
@@ -5532,8 +5529,7 @@ int btrfs_compare_trees(struct btrfs_root *left_root,
 					goto out;
 				advance_left = ADVANCE;
 			} else if (cmp > 0) {
-				ret = changed_cb(left_root, right_root,
-						left_path, right_path,
+				ret = changed_cb(left_path, right_path,
 						&right_key,
 						BTRFS_COMPARE_TREE_DELETED,
 						ctx);
@@ -5550,8 +5546,7 @@ int btrfs_compare_trees(struct btrfs_root *left_root,
 					result = BTRFS_COMPARE_TREE_CHANGED;
 				else
 					result = BTRFS_COMPARE_TREE_SAME;
-				ret = changed_cb(left_root, right_root,
-						 left_path, right_path,
+				ret = changed_cb(left_path, right_path,
 						 &left_key, result, ctx);
 				if (ret < 0)
 					goto out;

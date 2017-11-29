@@ -73,5 +73,8 @@
  */
 #define DRA7XX_CORE_IOPAD(pa, val)	(((pa) & 0xffff) - 0x3400) (val)
 
+/* DRA7 IODELAY configuration parameters */
+#define A_DELAY_PS(val)			((val) & 0xffff)
+#define G_DELAY_PS(val)			((val) & 0xffff)
 #endif
 

@@ -52,7 +52,7 @@ static __init int timer_irq_init(struct device_node *np,
 		of_irq->irq = irq_of_parse_and_map(np, of_irq->index);
 	}
 	if (!of_irq->irq) {
-		pr_err("Failed to map interrupt for %s\n", np->full_name);
+		pr_err("Failed to map interrupt for %pOF\n", np);
 		return -EINVAL;
 	}
 
@@ -63,8 +63,7 @@ static __init int timer_irq_init(struct device_node *np,
 			    of_irq->flags ? of_irq->flags : IRQF_TIMER,
 			    np->full_name, clkevt);
 	if (ret) {
-		pr_err("Failed to request irq %d for %s\n", of_irq->irq,
-		       np->full_name);
+		pr_err("Failed to request irq %d for %pOF\n", of_irq->irq, np);
 		return ret;
 	}
 
@@ -88,20 +87,20 @@ static __init int timer_clk_init(struct device_node *np,
 	of_clk->clk = of_clk->name ? of_clk_get_by_name(np, of_clk->name) :
 		of_clk_get(np, of_clk->index);
 	if (IS_ERR(of_clk->clk)) {
-		pr_err("Failed to get clock for %s\n", np->full_name);
+		pr_err("Failed to get clock for %pOF\n", np);
 		return PTR_ERR(of_clk->clk);
 	}
 
 	ret = clk_prepare_enable(of_clk->clk);
 	if (ret) {
-		pr_err("Failed for enable clock for %s\n", np->full_name);
+		pr_err("Failed for enable clock for %pOF\n", np);
 		goto out_clk_put;
 	}
 
 	of_clk->rate = clk_get_rate(of_clk->clk);
 	if (!of_clk->rate) {
 		ret = -EINVAL;
-		pr_err("Failed to get clock rate for %s\n", np->full_name);
+		pr_err("Failed to get clock rate for %pOF\n", np);
 		goto out_clk_disable;
 	}
 
@@ -128,9 +127,9 @@ static __init int timer_base_init(struct device_node *np,
 	const char *name = of_base->name ? of_base->name : np->full_name;
 
 	of_base->base = of_io_request_and_map(np, of_base->index, name);
-	if (!of_base->base) {
+	if (IS_ERR(of_base->base)) {
 		pr_err("Failed to iomap (%s)\n", name);
-		return -ENXIO;
+		return PTR_ERR(of_base->base);
 	}
 
 	return 0;
@@ -176,4 +175,23 @@ out_fail:
 	if (flags & TIMER_OF_BASE)
 		timer_base_exit(&to->of_base);
 	return ret;
+}
+
+/**
+ * timer_of_cleanup - release timer_of ressources
+ * @to: timer_of structure
+ *
+ * Release the ressources that has been used in timer_of_init().
+ * This function should be called in init error cases
+ */
+void __init timer_of_cleanup(struct timer_of *to)
+{
+	if (to->flags & TIMER_OF_IRQ)
+		timer_irq_exit(&to->of_irq);
+
+	if (to->flags & TIMER_OF_CLOCK)
+		timer_clk_exit(&to->of_clk);
+
+	if (to->flags & TIMER_OF_BASE)
+		timer_base_exit(&to->of_base);
 }

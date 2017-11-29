@@ -395,14 +395,14 @@ int jffs2_do_remount_fs(struct super_block *sb, int *flags, char *data)
 {
 	struct jffs2_sb_info *c = JFFS2_SB_INFO(sb);
 
-	if (c->flags & JFFS2_SB_FLAG_RO && !(sb->s_flags & MS_RDONLY))
+	if (c->flags & JFFS2_SB_FLAG_RO && !sb_rdonly(sb))
 		return -EROFS;
 
 	/* We stop if it was running, then restart if it needs to.
 	   This also catches the case where it was stopped and this
 	   is just a remount to restart it.
 	   Flush the writebuffer, if neccecary, else we loose it */
-	if (!(sb->s_flags & MS_RDONLY)) {
+	if (!sb_rdonly(sb)) {
 		jffs2_stop_garbage_collect_thread(c);
 		mutex_lock(&c->alloc_sem);
 		jffs2_flush_wbuf_pad(c);
@@ -590,7 +590,7 @@ int jffs2_do_fill_super(struct super_block *sb, void *data, int silent)
 	sb->s_blocksize = PAGE_SIZE;
 	sb->s_blocksize_bits = PAGE_SHIFT;
 	sb->s_magic = JFFS2_SUPER_MAGIC;
-	if (!(sb->s_flags & MS_RDONLY))
+	if (!sb_rdonly(sb))
 		jffs2_start_garbage_collect_thread(c);
 	return 0;
 

@@ -76,7 +76,6 @@ static const char netdev_features_strings[NETDEV_FEATURE_COUNT][ETH_GSTRING_LEN]
 	[NETIF_F_LRO_BIT] =              "rx-lro",
 
 	[NETIF_F_TSO_BIT] =              "tx-tcp-segmentation",
-	[NETIF_F_UFO_BIT] =              "tx-udp-fragmentation",
 	[NETIF_F_GSO_ROBUST_BIT] =       "tx-gso-robust",
 	[NETIF_F_TSO_ECN_BIT] =          "tx-tcp-ecn-segmentation",
 	[NETIF_F_TSO_MANGLEID_BIT] =	 "tx-tcp-mangleid-segmentation",
@@ -106,6 +105,7 @@ static const char netdev_features_strings[NETDEV_FEATURE_COUNT][ETH_GSTRING_LEN]
 	[NETIF_F_HW_TC_BIT] =		 "hw-tc-offload",
 	[NETIF_F_HW_ESP_BIT] =		 "esp-hw-offload",
 	[NETIF_F_HW_ESP_TX_CSUM_BIT] =	 "esp-tx-csum-hw-offload",
+	[NETIF_F_RX_UDP_TUNNEL_PORT_BIT] =	 "rx-udp_tunnel-port-offload",
 };
 
 static const char
@@ -299,9 +299,6 @@ static netdev_features_t ethtool_get_feature_mask(u32 eth_cmd)
 	case ETHTOOL_GTSO:
 	case ETHTOOL_STSO:
 		return NETIF_F_ALL_TSO;
-	case ETHTOOL_GUFO:
-	case ETHTOOL_SUFO:
-		return NETIF_F_UFO;
 	case ETHTOOL_GGSO:
 	case ETHTOOL_SGSO:
 		return NETIF_F_GSO;
@@ -406,6 +403,22 @@ static int __ethtool_set_flags(struct net_device *dev, u32 data)
 	return 0;
 }
 
+/* Given two link masks, AND them together and save the result in dst. */
+void ethtool_intersect_link_masks(struct ethtool_link_ksettings *dst,
+				  struct ethtool_link_ksettings *src)
+{
+	unsigned int size = BITS_TO_LONGS(__ETHTOOL_LINK_MODE_MASK_NBITS);
+	unsigned int idx = 0;
+
+	for (; idx < size; idx++) {
+		dst->link_modes.supported[idx] &=
+			src->link_modes.supported[idx];
+		dst->link_modes.advertising[idx] &=
+			src->link_modes.advertising[idx];
+	}
+}
+EXPORT_SYMBOL(ethtool_intersect_link_masks);
+
 void ethtool_convert_legacy_u32_to_link_mode(unsigned long *dst,
 					     u32 legacy_u32)
 {
@@ -439,7 +452,7 @@ bool ethtool_convert_link_mode_to_legacy_u32(u32 *legacy_u32,
 EXPORT_SYMBOL(ethtool_convert_link_mode_to_legacy_u32);
 
 /* return false if legacy contained non-0 deprecated fields
- * transceiver/maxtxpkt/maxrxpkt. rest of ksettings always updated
+ * maxtxpkt/maxrxpkt. rest of ksettings always updated
  */
 static bool
 convert_legacy_settings_to_link_ksettings(
@@ -454,8 +467,7 @@ convert_legacy_settings_to_link_ksettings(
 	 * deprecated legacy fields, and they should not use
 	 * %ETHTOOL_GLINKSETTINGS/%ETHTOOL_SLINKSETTINGS
 	 */
-	if (legacy_settings->transceiver ||
-	    legacy_settings->maxtxpkt ||
+	if (legacy_settings->maxtxpkt ||
 	    legacy_settings->maxrxpkt)
 		retval = false;
 
@@ -528,6 +540,8 @@ convert_link_ksettings_to_legacy_settings(
 		= link_ksettings->base.eth_tp_mdix;
 	legacy_settings->eth_tp_mdix_ctrl
 		= link_ksettings->base.eth_tp_mdix_ctrl;
+	legacy_settings->transceiver
+		= link_ksettings->base.transceiver;
 	return retval;
 }
 
@@ -2515,6 +2529,33 @@ static int set_phy_tunable(struct net_device *dev, void __user *useraddr)
 	return ret;
 }
 
+static int ethtool_get_fecparam(struct net_device *dev, void __user *useraddr)
+{
+	struct ethtool_fecparam fecparam = { ETHTOOL_GFECPARAM };
+
+	if (!dev->ethtool_ops->get_fecparam)
+		return -EOPNOTSUPP;
+
+	dev->ethtool_ops->get_fecparam(dev, &fecparam);
+
+	if (copy_to_user(useraddr, &fecparam, sizeof(fecparam)))
+		return -EFAULT;
+	return 0;
+}
+
+static int ethtool_set_fecparam(struct net_device *dev, void __user *useraddr)
+{
+	struct ethtool_fecparam fecparam;
+
+	if (!dev->ethtool_ops->set_fecparam)
+		return -EOPNOTSUPP;
+
+	if (copy_from_user(&fecparam, useraddr, sizeof(fecparam)))
+		return -EFAULT;
+
+	return dev->ethtool_ops->set_fecparam(dev, &fecparam);
+}
+
 /* The main entry point in this file.  Called from net/core/dev_ioctl.c */
 
 int dev_ethtool(struct net *net, struct ifreq *ifr)
@@ -2555,7 +2596,6 @@ int dev_ethtool(struct net *net, struct ifreq *ifr)
 	case ETHTOOL_GPHYSTATS:
 	case ETHTOOL_GTSO:
 	case ETHTOOL_GPERMADDR:
-	case ETHTOOL_GUFO:
 	case ETHTOOL_GGSO:
 	case ETHTOOL_GGRO:
 	case ETHTOOL_GFLAGS:
@@ -2574,6 +2614,7 @@ int dev_ethtool(struct net *net, struct ifreq *ifr)
 	case ETHTOOL_GTUNABLE:
 	case ETHTOOL_PHY_GTUNABLE:
 	case ETHTOOL_GLINKSETTINGS:
+	case ETHTOOL_GFECPARAM:
 		break;
 	default:
 		if (!ns_capable(net->user_ns, CAP_NET_ADMIN))
@@ -2723,7 +2764,6 @@ int dev_ethtool(struct net *net, struct ifreq *ifr)
 	case ETHTOOL_GRXCSUM:
 	case ETHTOOL_GSG:
 	case ETHTOOL_GTSO:
-	case ETHTOOL_GUFO:
 	case ETHTOOL_GGSO:
 	case ETHTOOL_GGRO:
 		rc = ethtool_get_one_feature(dev, useraddr, ethcmd);
@@ -2732,7 +2772,6 @@ int dev_ethtool(struct net *net, struct ifreq *ifr)
 	case ETHTOOL_SRXCSUM:
 	case ETHTOOL_SSG:
 	case ETHTOOL_STSO:
-	case ETHTOOL_SUFO:
 	case ETHTOOL_SGSO:
 	case ETHTOOL_SGRO:
 		rc = ethtool_set_one_feature(dev, useraddr, ethcmd);
@@ -2784,6 +2823,12 @@ int dev_ethtool(struct net *net, struct ifreq *ifr)
 		break;
 	case ETHTOOL_PHY_STUNABLE:
 		rc = set_phy_tunable(dev, useraddr);
+		break;
+	case ETHTOOL_GFECPARAM:
+		rc = ethtool_get_fecparam(dev, useraddr);
+		break;
+	case ETHTOOL_SFECPARAM:
+		rc = ethtool_set_fecparam(dev, useraddr);
 		break;
 	default:
 		rc = -EOPNOTSUPP;

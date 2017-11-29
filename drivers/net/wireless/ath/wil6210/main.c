@@ -336,9 +336,9 @@ static void wil_disconnect_worker(struct work_struct *work)
 	clear_bit(wil_status_fwconnecting, wil->status);
 }
 
-static void wil_connect_timer_fn(ulong x)
+static void wil_connect_timer_fn(struct timer_list *t)
 {
-	struct wil6210_priv *wil = (void *)x;
+	struct wil6210_priv *wil = from_timer(wil, t, connect_timer);
 	bool q;
 
 	wil_err(wil, "Connect timeout detected, disconnect station\n");
@@ -351,9 +351,9 @@ static void wil_connect_timer_fn(ulong x)
 	wil_dbg_wmi(wil, "queue_work of disconnect_worker -> %d\n", q);
 }
 
-static void wil_scan_timer_fn(ulong x)
+static void wil_scan_timer_fn(struct timer_list *t)
 {
-	struct wil6210_priv *wil = (void *)x;
+	struct wil6210_priv *wil = from_timer(wil, t, scan_timer);
 
 	clear_bit(wil_status_fwready, wil->status);
 	wil_err(wil, "Scan timeout detected, start fw error recovery\n");
@@ -394,10 +394,11 @@ static void wil_fw_error_worker(struct work_struct *work)
 	struct wil6210_priv *wil = container_of(work, struct wil6210_priv,
 						fw_error_worker);
 	struct wireless_dev *wdev = wil->wdev;
+	struct net_device *ndev = wil_to_ndev(wil);
 
 	wil_dbg_misc(wil, "fw error worker\n");
 
-	if (!netif_running(wil_to_ndev(wil))) {
+	if (!(ndev->flags & IFF_UP)) {
 		wil_info(wil, "No recovery - interface is down\n");
 		return;
 	}
@@ -539,10 +540,9 @@ int wil_priv_init(struct wil6210_priv *wil)
 	init_completion(&wil->halp.comp);
 
 	wil->bcast_vring = -1;
-	setup_timer(&wil->connect_timer, wil_connect_timer_fn, (ulong)wil);
-	setup_timer(&wil->scan_timer, wil_scan_timer_fn, (ulong)wil);
-	setup_timer(&wil->p2p.discovery_timer, wil_p2p_discovery_timer_fn,
-		    (ulong)wil);
+	timer_setup(&wil->connect_timer, wil_connect_timer_fn, 0);
+	timer_setup(&wil->scan_timer, wil_scan_timer_fn, 0);
+	timer_setup(&wil->p2p.discovery_timer, wil_p2p_discovery_timer_fn, 0);
 
 	INIT_WORK(&wil->disconnect_worker, wil_disconnect_worker);
 	INIT_WORK(&wil->wmi_event_worker, wmi_event_worker);
@@ -578,6 +578,9 @@ int wil_priv_init(struct wil6210_priv *wil)
 
 	wil->wakeup_trigger = WMI_WAKEUP_TRIGGER_UCAST |
 			      WMI_WAKEUP_TRIGGER_BCAST;
+	memset(&wil->suspend_stats, 0, sizeof(wil->suspend_stats));
+	wil->suspend_stats.min_suspend_time = ULONG_MAX;
+	wil->vring_idle_trsh = 16;
 
 	return 0;
 
@@ -926,6 +929,29 @@ int wil_ps_update(struct wil6210_priv *wil, enum wmi_ps_profile_type ps_profile)
 	return rc;
 }
 
+static void wil_pre_fw_config(struct wil6210_priv *wil)
+{
+	/* Mark FW as loaded from host */
+	wil_s(wil, RGF_USER_USAGE_6, 1);
+
+	/* clear any interrupts which on-card-firmware
+	 * may have set
+	 */
+	wil6210_clear_irq(wil);
+	/* CAF_ICR - clear and mask */
+	/* it is W1C, clear by writing back same value */
+	wil_s(wil, RGF_CAF_ICR + offsetof(struct RGF_ICR, ICR), 0);
+	wil_w(wil, RGF_CAF_ICR + offsetof(struct RGF_ICR, IMV), ~0);
+	/* clear PAL_UNIT_ICR (potential D0->D3 leftover) */
+	wil_s(wil, RGF_PAL_UNIT_ICR + offsetof(struct RGF_ICR, ICR), 0);
+
+	if (wil->fw_calib_result > 0) {
+		__le32 val = cpu_to_le32(wil->fw_calib_result |
+						(CALIB_RESULT_SIGNATURE << 8));
+		wil_w(wil, RGF_USER_FW_CALIB_RESULT, (u32 __force)val);
+	}
+}
+
 /*
  * We reset all the structures, and we reset the UMAC.
  * After calling this routine, you're expected to reload
@@ -1019,18 +1045,7 @@ int wil_reset(struct wil6210_priv *wil, bool load_fw)
 		if (rc)
 			return rc;
 
-		/* Mark FW as loaded from host */
-		wil_s(wil, RGF_USER_USAGE_6, 1);
-
-		/* clear any interrupts which on-card-firmware
-		 * may have set
-		 */
-		wil6210_clear_irq(wil);
-		/* CAF_ICR - clear and mask */
-		/* it is W1C, clear by writing back same value */
-		wil_s(wil, RGF_CAF_ICR + offsetof(struct RGF_ICR, ICR), 0);
-		wil_w(wil, RGF_CAF_ICR + offsetof(struct RGF_ICR, IMV), ~0);
-
+		wil_pre_fw_config(wil);
 		wil_release_cpu(wil);
 	}
 

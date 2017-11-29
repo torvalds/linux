@@ -1257,7 +1257,7 @@ int btrfs_clear_free_space_tree(struct btrfs_fs_info *fs_info)
 	if (ret)
 		goto abort;
 
-	ret = btrfs_del_root(trans, tree_root, &free_space_root->root_key);
+	ret = btrfs_del_root(trans, fs_info, &free_space_root->root_key);
 	if (ret)
 		goto abort;
 
@@ -1286,11 +1286,7 @@ static int __add_block_group_free_space(struct btrfs_trans_handle *trans,
 					struct btrfs_block_group_cache *block_group,
 					struct btrfs_path *path)
 {
-	u64 start, end;
 	int ret;
-
-	start = block_group->key.objectid;
-	end = block_group->key.objectid + block_group->key.offset;
 
 	block_group->needs_free_space = 0;
 

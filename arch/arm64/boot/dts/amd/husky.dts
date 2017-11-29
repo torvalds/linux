@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * DTS file for AMD/Linaro 96Boards Enterprise Edition Server (Husky) Board
  * Note: Based-on AMD Seattle Rev.B0

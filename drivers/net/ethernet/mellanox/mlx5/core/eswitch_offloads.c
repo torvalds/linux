@@ -306,7 +306,7 @@ static struct mlx5_flow_handle *
 mlx5_eswitch_add_send_to_vport_rule(struct mlx5_eswitch *esw, int vport, u32 sqn)
 {
 	struct mlx5_flow_act flow_act = {0};
-	struct mlx5_flow_destination dest;
+	struct mlx5_flow_destination dest = {};
 	struct mlx5_flow_handle *flow_rule;
 	struct mlx5_flow_spec *spec;
 	void *misc;
@@ -395,7 +395,7 @@ out_err:
 static int esw_add_fdb_miss_rule(struct mlx5_eswitch *esw)
 {
 	struct mlx5_flow_act flow_act = {0};
-	struct mlx5_flow_destination dest;
+	struct mlx5_flow_destination dest = {};
 	struct mlx5_flow_handle *flow_rule = NULL;
 	struct mlx5_flow_spec *spec;
 	int err = 0;
@@ -433,6 +433,8 @@ static int esw_create_offloads_fast_fdb_table(struct mlx5_eswitch *esw)
 	struct mlx5_flow_table *fdb = NULL;
 	int esw_size, err = 0;
 	u32 flags = 0;
+	u32 max_flow_counter = (MLX5_CAP_GEN(dev, max_flow_counter_31_16) << 16) |
+				MLX5_CAP_GEN(dev, max_flow_counter_15_0);
 
 	root_ns = mlx5_get_flow_namespace(dev, MLX5_FLOW_NAMESPACE_FDB);
 	if (!root_ns) {
@@ -443,9 +445,9 @@ static int esw_create_offloads_fast_fdb_table(struct mlx5_eswitch *esw)
 
 	esw_debug(dev, "Create offloads FDB table, min (max esw size(2^%d), max counters(%d)*groups(%d))\n",
 		  MLX5_CAP_ESW_FLOWTABLE_FDB(dev, log_max_ft_size),
-		  MLX5_CAP_GEN(dev, max_flow_counter), ESW_OFFLOADS_NUM_GROUPS);
+		  max_flow_counter, ESW_OFFLOADS_NUM_GROUPS);
 
-	esw_size = min_t(int, MLX5_CAP_GEN(dev, max_flow_counter) * ESW_OFFLOADS_NUM_GROUPS,
+	esw_size = min_t(int, max_flow_counter * ESW_OFFLOADS_NUM_GROUPS,
 			 1 << MLX5_CAP_ESW_FLOWTABLE_FDB(dev, log_max_ft_size));
 
 	if (esw->offloads.encap != DEVLINK_ESWITCH_ENCAP_MODE_NONE)
@@ -668,7 +670,7 @@ struct mlx5_flow_handle *
 mlx5_eswitch_create_vport_rx_rule(struct mlx5_eswitch *esw, int vport, u32 tirn)
 {
 	struct mlx5_flow_act flow_act = {0};
-	struct mlx5_flow_destination dest;
+	struct mlx5_flow_destination dest = {};
 	struct mlx5_flow_handle *flow_rule;
 	struct mlx5_flow_spec *spec;
 	void *misc;
@@ -815,7 +817,7 @@ void esw_offloads_cleanup(struct mlx5_eswitch *esw, int nvports)
 	struct mlx5_eswitch_rep *rep;
 	int vport;
 
-	for (vport = 0; vport < nvports; vport++) {
+	for (vport = nvports - 1; vport >= 0; vport--) {
 		rep = &esw->offloads.vport_reps[vport];
 		if (!rep->valid)
 			continue;

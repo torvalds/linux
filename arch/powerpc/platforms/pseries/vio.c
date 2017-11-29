@@ -1357,14 +1357,14 @@ struct vio_dev *vio_register_device_node(struct device_node *of_node)
 	 */
 	parent_node = of_get_parent(of_node);
 	if (parent_node) {
-		if (!strcmp(parent_node->full_name, "/ibm,platform-facilities"))
+		if (!strcmp(parent_node->type, "ibm,platform-facilities"))
 			family = PFO;
-		else if (!strcmp(parent_node->full_name, "/vdevice"))
+		else if (!strcmp(parent_node->type, "vdevice"))
 			family = VDEVICE;
 		else {
-			pr_warn("%s: parent(%s) of %s not recognized.\n",
+			pr_warn("%s: parent(%pOF) of %s not recognized.\n",
 					__func__,
-					parent_node->full_name,
+					parent_node,
 					of_node_name);
 			of_node_put(parent_node);
 			return NULL;
@@ -1555,7 +1555,7 @@ static ssize_t devspec_show(struct device *dev,
 {
 	struct device_node *of_node = dev->of_node;
 
-	return sprintf(buf, "%s\n", of_node_full_name(of_node));
+	return sprintf(buf, "%pOF\n", of_node);
 }
 static DEVICE_ATTR_RO(devspec);
 
@@ -1592,6 +1592,8 @@ ATTRIBUTE_GROUPS(vio_dev);
 void vio_unregister_device(struct vio_dev *viodev)
 {
 	device_unregister(&viodev->dev);
+	if (viodev->family == VDEVICE)
+		irq_dispose_mapping(viodev->irq);
 }
 EXPORT_SYMBOL(vio_unregister_device);
 

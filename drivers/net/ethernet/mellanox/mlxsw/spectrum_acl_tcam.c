@@ -295,6 +295,12 @@ mlxsw_sp_acl_tcam_group_unbind(struct mlxsw_sp *mlxsw_sp,
 	mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(ppbt), ppbt_pl);
 }
 
+static u16
+mlxsw_sp_acl_tcam_group_id(struct mlxsw_sp_acl_tcam_group *group)
+{
+	return group->id;
+}
+
 static unsigned int
 mlxsw_sp_acl_tcam_region_prio(struct mlxsw_sp_acl_tcam_region *region)
 {
@@ -602,7 +608,10 @@ mlxsw_sp_acl_tcam_region_catchall_add(struct mlxsw_sp *mlxsw_sp,
 		goto err_rulei_create;
 	}
 
-	mlxsw_sp_acl_rulei_act_continue(rulei);
+	err = mlxsw_sp_acl_rulei_act_continue(rulei);
+	if (WARN_ON(err))
+		goto err_rulei_act_continue;
+
 	err = mlxsw_sp_acl_rulei_commit(rulei);
 	if (err)
 		goto err_rulei_commit;
@@ -617,6 +626,7 @@ mlxsw_sp_acl_tcam_region_catchall_add(struct mlxsw_sp *mlxsw_sp,
 
 err_rule_insert:
 err_rulei_commit:
+err_rulei_act_continue:
 	mlxsw_sp_acl_rulei_destroy(rulei);
 err_rulei_create:
 	parman_item_remove(region->parman, parman_prio, parman_item);
@@ -984,6 +994,9 @@ static const enum mlxsw_afk_element mlxsw_sp_acl_tcam_pattern_ipv4[] = {
 	MLXSW_AFK_ELEMENT_VID,
 	MLXSW_AFK_ELEMENT_PCP,
 	MLXSW_AFK_ELEMENT_TCP_FLAGS,
+	MLXSW_AFK_ELEMENT_IP_TTL_,
+	MLXSW_AFK_ELEMENT_IP_ECN,
+	MLXSW_AFK_ELEMENT_IP_DSCP,
 };
 
 static const enum mlxsw_afk_element mlxsw_sp_acl_tcam_pattern_ipv6[] = {
@@ -1060,6 +1073,14 @@ mlxsw_sp_acl_tcam_flower_ruleset_unbind(struct mlxsw_sp *mlxsw_sp,
 	mlxsw_sp_acl_tcam_group_unbind(mlxsw_sp, &ruleset->group);
 }
 
+static u16
+mlxsw_sp_acl_tcam_flower_ruleset_group_id(void *ruleset_priv)
+{
+	struct mlxsw_sp_acl_tcam_flower_ruleset *ruleset = ruleset_priv;
+
+	return mlxsw_sp_acl_tcam_group_id(&ruleset->group);
+}
+
 static int
 mlxsw_sp_acl_tcam_flower_rule_add(struct mlxsw_sp *mlxsw_sp,
 				  void *ruleset_priv, void *rule_priv,
@@ -1096,6 +1117,7 @@ static const struct mlxsw_sp_acl_profile_ops mlxsw_sp_acl_tcam_flower_ops = {
 	.ruleset_del		= mlxsw_sp_acl_tcam_flower_ruleset_del,
 	.ruleset_bind		= mlxsw_sp_acl_tcam_flower_ruleset_bind,
 	.ruleset_unbind		= mlxsw_sp_acl_tcam_flower_ruleset_unbind,
+	.ruleset_group_id	= mlxsw_sp_acl_tcam_flower_ruleset_group_id,
 	.rule_priv_size		= sizeof(struct mlxsw_sp_acl_tcam_flower_rule),
 	.rule_add		= mlxsw_sp_acl_tcam_flower_rule_add,
 	.rule_del		= mlxsw_sp_acl_tcam_flower_rule_del,

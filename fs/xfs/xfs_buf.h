@@ -108,6 +108,7 @@ typedef unsigned int xfs_buf_flags_t;
 typedef struct xfs_buftarg {
 	dev_t			bt_dev;
 	struct block_device	*bt_bdev;
+	struct dax_device	*bt_daxdev;
 	struct xfs_mount	*bt_mount;
 	unsigned int		bt_meta_sectorsize;
 	size_t			bt_meta_sectormask;
@@ -351,10 +352,7 @@ extern void xfs_buf_terminate(void);
 #define XFS_BUF_ADDR(bp)		((bp)->b_maps[0].bm_bn)
 #define XFS_BUF_SET_ADDR(bp, bno)	((bp)->b_maps[0].bm_bn = (xfs_daddr_t)(bno))
 
-static inline void xfs_buf_set_ref(struct xfs_buf *bp, int lru_ref)
-{
-	atomic_set(&bp->b_lru_ref, lru_ref);
-}
+void xfs_buf_set_ref(struct xfs_buf *bp, int lru_ref);
 
 static inline int xfs_buf_ispinned(struct xfs_buf *bp)
 {
@@ -385,7 +383,7 @@ xfs_buf_update_cksum(struct xfs_buf *bp, unsigned long cksum_offset)
  *	Handling of buftargs.
  */
 extern xfs_buftarg_t *xfs_alloc_buftarg(struct xfs_mount *,
-			struct block_device *);
+			struct block_device *, struct dax_device *);
 extern void xfs_free_buftarg(struct xfs_mount *, struct xfs_buftarg *);
 extern void xfs_wait_buftarg(xfs_buftarg_t *);
 extern int xfs_setsize_buftarg(xfs_buftarg_t *, unsigned int);

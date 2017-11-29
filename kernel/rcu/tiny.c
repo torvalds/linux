@@ -56,8 +56,6 @@ static struct rcu_ctrlblk rcu_bh_ctrlblk = {
 	.curtail	= &rcu_bh_ctrlblk.rcucblist,
 };
 
-#include "tiny_plugin.h"
-
 void rcu_barrier_bh(void)
 {
 	wait_rcu_gp(call_rcu_bh);

@@ -1,9 +1,11 @@
+# SPDX-License-Identifier: GPL-2.0
 #
 # Makefile for MMC/SD host controller drivers
 #
 
-obj-$(CONFIG_MMC_ARMMMCI)	+= mmci.o
-obj-$(CONFIG_MMC_QCOM_DML)	+= mmci_qcom_dml.o
+obj-$(CONFIG_MMC_ARMMMCI) += armmmci.o
+armmmci-y := mmci.o
+armmmci-$(CONFIG_MMC_QCOM_DML) += mmci_qcom_dml.o
 obj-$(CONFIG_MMC_PXA)		+= pxamci.o
 obj-$(CONFIG_MMC_MXC)		+= mxcmmc.o
 obj-$(CONFIG_MMC_MXS)		+= mxs-mmc.o
@@ -36,7 +38,13 @@ obj-$(CONFIG_MMC_S3C)   	+= s3cmci.o
 obj-$(CONFIG_MMC_SDRICOH_CS)	+= sdricoh_cs.o
 obj-$(CONFIG_MMC_TMIO)		+= tmio_mmc.o
 obj-$(CONFIG_MMC_TMIO_CORE)	+= tmio_mmc_core.o
-obj-$(CONFIG_MMC_SDHI)		+= renesas_sdhi_core.o renesas_sdhi_sys_dmac.o
+obj-$(CONFIG_MMC_SDHI)		+= renesas_sdhi_core.o
+ifeq ($(subst m,y,$(CONFIG_MMC_SDHI_SYS_DMAC)),y)
+obj-$(CONFIG_MMC_SDHI)		+= renesas_sdhi_sys_dmac.o
+endif
+ifeq ($(subst m,y,$(CONFIG_MMC_SDHI_INTERNAL_DMAC)),y)
+obj-$(CONFIG_MMC_SDHI)		+= renesas_sdhi_internal_dmac.o
+endif
 obj-$(CONFIG_MMC_CB710)		+= cb710-mmc.o
 obj-$(CONFIG_MMC_VIA_SDMMC)	+= via-sdmmc.o
 obj-$(CONFIG_SDH_BFIN)		+= bfin_sdh.o
@@ -57,6 +65,7 @@ obj-$(CONFIG_MMC_VUB300)	+= vub300.o
 obj-$(CONFIG_MMC_USHC)		+= ushc.o
 obj-$(CONFIG_MMC_WMT)		+= wmt-sdmmc.o
 obj-$(CONFIG_MMC_MESON_GX)	+= meson-gx-mmc.o
+obj-$(CONFIG_MMC_MESON_MX_SDIO)	+= meson-mx-sdio.o
 obj-$(CONFIG_MMC_MOXART)	+= moxart-mmc.o
 obj-$(CONFIG_MMC_SUNXI)		+= sunxi-mmc.o
 obj-$(CONFIG_MMC_USDHI6ROL0)	+= usdhi6rol0.o
@@ -82,6 +91,7 @@ obj-$(CONFIG_MMC_SDHCI_MSM)		+= sdhci-msm.o
 obj-$(CONFIG_MMC_SDHCI_ST)		+= sdhci-st.o
 obj-$(CONFIG_MMC_SDHCI_MICROCHIP_PIC32)	+= sdhci-pic32.o
 obj-$(CONFIG_MMC_SDHCI_BRCMSTB)		+= sdhci-brcmstb.o
+obj-$(CONFIG_MMC_SDHCI_OMAP)		+= sdhci-omap.o
 
 ifeq ($(CONFIG_CB710_DEBUG),y)
 	CFLAGS-cb710-mmc	+= -DDEBUG

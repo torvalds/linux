@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef ISCSI_TARGET_CORE_H
 #define ISCSI_TARGET_CORE_H
 
@@ -786,6 +787,7 @@ struct iscsi_np {
 	int			np_sock_type;
 	enum np_thread_state_table np_thread_state;
 	bool                    enabled;
+	atomic_t		np_reset_count;
 	enum iscsi_timer_flags_table np_login_timer_flags;
 	u32			np_exports;
 	enum np_flags_table	np_flags;

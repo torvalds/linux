@@ -704,7 +704,7 @@ xfs_mountfs(
 	xfs_set_maxicount(mp);
 
 	/* enable fail_at_unmount as default */
-	mp->m_fail_unmount = 1;
+	mp->m_fail_unmount = true;
 
 	error = xfs_sysfs_init(&mp->m_kobj, &xfs_mp_ktype, NULL, mp->m_fsname);
 	if (error)
@@ -945,15 +945,6 @@ xfs_mountfs(
 	}
 
 	/*
-	 * During the second phase of log recovery, we need iget and
-	 * iput to behave like they do for an active filesystem.
-	 * xfs_fs_drop_inode needs to be able to prevent the deletion
-	 * of inodes before we're done replaying log items on those
-	 * inodes.
-	 */
-	mp->m_super->s_flags |= MS_ACTIVE;
-
-	/*
 	 * Finish recovering the file system.  This part needed to be delayed
 	 * until after the root and real-time bitmap inodes were consistently
 	 * read in.
@@ -1028,10 +1019,22 @@ xfs_mountfs(
  out_quota:
 	xfs_qm_unmount_quotas(mp);
  out_rtunmount:
-	mp->m_super->s_flags &= ~MS_ACTIVE;
 	xfs_rtunmount_inodes(mp);
  out_rele_rip:
 	IRELE(rip);
+	/* Clean out dquots that might be in memory after quotacheck. */
+	xfs_qm_unmount(mp);
+	/*
+	 * Cancel all delayed reclaim work and reclaim the inodes directly.
+	 * We have to do this /after/ rtunmount and qm_unmount because those
+	 * two will have scheduled delayed reclaim for the rt/quota inodes.
+	 *
+	 * This is slightly different from the unmountfs call sequence
+	 * because we could be tearing down a partially set up mount.  In
+	 * particular, if log_mount_finish fails we bail out without calling
+	 * qm_unmount_quotas and therefore rely on qm_unmount to release the
+	 * quota inodes.
+	 */
 	cancel_delayed_work_sync(&mp->m_reclaim_work);
 	xfs_reclaim_inodes(mp, SYNC_WAIT);
  out_log_dealloc:

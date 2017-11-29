@@ -129,7 +129,7 @@ static void udp_v6_rehash(struct sock *sk)
 static int compute_score(struct sock *sk, struct net *net,
 			 const struct in6_addr *saddr, __be16 sport,
 			 const struct in6_addr *daddr, unsigned short hnum,
-			 int dif, bool exact_dif)
+			 int dif, int sdif, bool exact_dif)
 {
 	int score;
 	struct inet_sock *inet;
@@ -161,9 +161,13 @@ static int compute_score(struct sock *sk, struct net *net,
 	}
 
 	if (sk->sk_bound_dev_if || exact_dif) {
-		if (sk->sk_bound_dev_if != dif)
+		bool dev_match = (sk->sk_bound_dev_if == dif ||
+				  sk->sk_bound_dev_if == sdif);
+
+		if (exact_dif && !dev_match)
 			return -1;
-		score++;
+		if (sk->sk_bound_dev_if && dev_match)
+			score++;
 	}
 
 	if (sk->sk_incoming_cpu == raw_smp_processor_id())
@@ -175,9 +179,9 @@ static int compute_score(struct sock *sk, struct net *net,
 /* called with rcu_read_lock() */
 static struct sock *udp6_lib_lookup2(struct net *net,
 		const struct in6_addr *saddr, __be16 sport,
-		const struct in6_addr *daddr, unsigned int hnum, int dif,
-		bool exact_dif, struct udp_hslot *hslot2,
-		struct sk_buff *skb)
+		const struct in6_addr *daddr, unsigned int hnum,
+		int dif, int sdif, bool exact_dif,
+		struct udp_hslot *hslot2, struct sk_buff *skb)
 {
 	struct sock *sk, *result;
 	int score, badness, matches = 0, reuseport = 0;
@@ -187,7 +191,7 @@ static struct sock *udp6_lib_lookup2(struct net *net,
 	badness = -1;
 	udp_portaddr_for_each_entry_rcu(sk, &hslot2->head) {
 		score = compute_score(sk, net, saddr, sport,
-				      daddr, hnum, dif, exact_dif);
+				      daddr, hnum, dif, sdif, exact_dif);
 		if (score > badness) {
 			reuseport = sk->sk_reuseport;
 			if (reuseport) {
@@ -214,10 +218,10 @@ static struct sock *udp6_lib_lookup2(struct net *net,
 
 /* rcu_read_lock() must be held */
 struct sock *__udp6_lib_lookup(struct net *net,
-				      const struct in6_addr *saddr, __be16 sport,
-				      const struct in6_addr *daddr, __be16 dport,
-				      int dif, struct udp_table *udptable,
-				      struct sk_buff *skb)
+			       const struct in6_addr *saddr, __be16 sport,
+			       const struct in6_addr *daddr, __be16 dport,
+			       int dif, int sdif, struct udp_table *udptable,
+			       struct sk_buff *skb)
 {
 	struct sock *sk, *result;
 	unsigned short hnum = ntohs(dport);
@@ -235,7 +239,7 @@ struct sock *__udp6_lib_lookup(struct net *net,
 			goto begin;
 
 		result = udp6_lib_lookup2(net, saddr, sport,
-					  daddr, hnum, dif, exact_dif,
+					  daddr, hnum, dif, sdif, exact_dif,
 					  hslot2, skb);
 		if (!result) {
 			unsigned int old_slot2 = slot2;
@@ -250,7 +254,7 @@ struct sock *__udp6_lib_lookup(struct net *net,
 				goto begin;
 
 			result = udp6_lib_lookup2(net, saddr, sport,
-						  daddr, hnum, dif,
+						  daddr, hnum, dif, sdif,
 						  exact_dif, hslot2,
 						  skb);
 		}
@@ -261,7 +265,7 @@ begin:
 	badness = -1;
 	sk_for_each_rcu(sk, &hslot->head) {
 		score = compute_score(sk, net, saddr, sport, daddr, hnum, dif,
-				      exact_dif);
+				      sdif, exact_dif);
 		if (score > badness) {
 			reuseport = sk->sk_reuseport;
 			if (reuseport) {
@@ -291,14 +295,10 @@ static struct sock *__udp6_lib_lookup_skb(struct sk_buff *skb,
 					  struct udp_table *udptable)
 {
 	const struct ipv6hdr *iph = ipv6_hdr(skb);
-	struct sock *sk;
 
-	sk = skb_steal_sock(skb);
-	if (unlikely(sk))
-		return sk;
 	return __udp6_lib_lookup(dev_net(skb->dev), &iph->saddr, sport,
 				 &iph->daddr, dport, inet6_iif(skb),
-				 udptable, skb);
+				 inet6_sdif(skb), udptable, skb);
 }
 
 struct sock *udp6_lib_lookup_skb(struct sk_buff *skb,
@@ -308,7 +308,7 @@ struct sock *udp6_lib_lookup_skb(struct sk_buff *skb,
 
 	return __udp6_lib_lookup(dev_net(skb->dev), &iph->saddr, sport,
 				 &iph->daddr, dport, inet6_iif(skb),
-				 &udp_table, skb);
+				 inet6_sdif(skb), &udp_table, skb);
 }
 EXPORT_SYMBOL_GPL(udp6_lib_lookup_skb);
 
@@ -324,13 +324,22 @@ struct sock *udp6_lib_lookup(struct net *net, const struct in6_addr *saddr, __be
 	struct sock *sk;
 
 	sk =  __udp6_lib_lookup(net, saddr, sport, daddr, dport,
-				dif, &udp_table, NULL);
+				dif, 0, &udp_table, NULL);
 	if (sk && !refcount_inc_not_zero(&sk->sk_refcnt))
 		sk = NULL;
 	return sk;
 }
 EXPORT_SYMBOL_GPL(udp6_lib_lookup);
 #endif
+
+/* do not use the scratch area len for jumbogram: their length execeeds the
+ * scratch area space; note that the IP6CB flags is still in the first
+ * cacheline, so checking for jumbograms is cheap
+ */
+static int udp6_skb_len(struct sk_buff *skb)
+{
+	return unlikely(inet6_is_jumbogram(skb)) ? skb->len : udp_skb_len(skb);
+}
 
 /*
  *	This should be easy, if there is something there we
@@ -357,12 +366,13 @@ int udpv6_recvmsg(struct sock *sk, struct msghdr *msg, size_t len,
 		return ipv6_recv_rxpmtu(sk, msg, len, addr_len);
 
 try_again:
-	peeking = off = sk_peek_offset(sk, flags);
+	peeking = flags & MSG_PEEK;
+	off = sk_peek_offset(sk, flags);
 	skb = __skb_recv_udp(sk, flags, noblock, &peeked, &off, &err);
 	if (!skb)
 		return err;
 
-	ulen = udp_skb_len(skb);
+	ulen = udp6_skb_len(skb);
 	copied = len;
 	if (copied > ulen - off)
 		copied = ulen - off;
@@ -496,7 +506,7 @@ void __udp6_lib_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 	struct net *net = dev_net(skb->dev);
 
 	sk = __udp6_lib_lookup(net, daddr, uh->dest, saddr, uh->source,
-			       inet6_iif(skb), udptable, skb);
+			       inet6_iif(skb), 0, udptable, skb);
 	if (!sk) {
 		__ICMP6_INC_STATS(net, __in6_dev_get(skb->dev),
 				  ICMP6_MIB_INERRORS);
@@ -569,8 +579,7 @@ static __inline__ void udpv6_err(struct sk_buff *skb,
 static struct static_key udpv6_encap_needed __read_mostly;
 void udpv6_encap_enable(void)
 {
-	if (!static_key_enabled(&udpv6_encap_needed))
-		static_key_slow_inc(&udpv6_encap_needed);
+	static_key_enable(&udpv6_encap_needed);
 }
 EXPORT_SYMBOL(udpv6_encap_enable);
 
@@ -597,7 +606,7 @@ static int udpv6_queue_rcv_skb(struct sock *sk, struct sk_buff *skb)
 		 */
 
 		/* if we're overly short, let UDP handle it */
-		encap_rcv = ACCESS_ONCE(up->encap_rcv);
+		encap_rcv = READ_ONCE(up->encap_rcv);
 		if (encap_rcv) {
 			int ret;
 
@@ -762,6 +771,15 @@ start_lookup:
 	return 0;
 }
 
+static void udp6_sk_rx_dst_set(struct sock *sk, struct dst_entry *dst)
+{
+	if (udp_sk_rx_dst_set(sk, dst)) {
+		const struct rt6_info *rt = (const struct rt6_info *)dst;
+
+		inet6_sk(sk)->rx_dst_cookie = rt6_get_cookie(rt);
+	}
+}
+
 int __udp6_lib_rcv(struct sk_buff *skb, struct udp_table *udptable,
 		   int proto)
 {
@@ -804,6 +822,24 @@ int __udp6_lib_rcv(struct sk_buff *skb, struct udp_table *udptable,
 	if (udp6_csum_init(skb, uh, proto))
 		goto csum_error;
 
+	/* Check if the socket is already available, e.g. due to early demux */
+	sk = skb_steal_sock(skb);
+	if (sk) {
+		struct dst_entry *dst = skb_dst(skb);
+		int ret;
+
+		if (unlikely(sk->sk_rx_dst != dst))
+			udp6_sk_rx_dst_set(sk, dst);
+
+		ret = udpv6_queue_rcv_skb(sk, skb);
+		sock_put(sk);
+
+		/* a return value > 0 means to resubmit the input */
+		if (ret > 0)
+			return ret;
+		return 0;
+	}
+
 	/*
 	 *	Multicast receive code
 	 */
@@ -812,11 +848,6 @@ int __udp6_lib_rcv(struct sk_buff *skb, struct udp_table *udptable,
 				saddr, daddr, udptable, proto);
 
 	/* Unicast */
-
-	/*
-	 * check socket cache ... must talk to Alan about his plans
-	 * for sock caches... i'll skip this for now.
-	 */
 	sk = __udp6_lib_lookup_skb(skb, uh->source, uh->dest, udptable);
 	if (sk) {
 		int ret;
@@ -875,7 +906,7 @@ discard:
 static struct sock *__udp6_lib_demux_lookup(struct net *net,
 			__be16 loc_port, const struct in6_addr *loc_addr,
 			__be16 rmt_port, const struct in6_addr *rmt_addr,
-			int dif)
+			int dif, int sdif)
 {
 	unsigned short hnum = ntohs(loc_port);
 	unsigned int hash2 = udp6_portaddr_hash(net, loc_addr, hnum);
@@ -886,7 +917,7 @@ static struct sock *__udp6_lib_demux_lookup(struct net *net,
 
 	udp_portaddr_for_each_entry_rcu(sk, &hslot2->head) {
 		if (sk->sk_state == TCP_ESTABLISHED &&
-		    INET6_MATCH(sk, net, rmt_addr, loc_addr, ports, dif))
+		    INET6_MATCH(sk, net, rmt_addr, loc_addr, ports, dif, sdif))
 			return sk;
 		/* Only check first socket in chain */
 		break;
@@ -901,6 +932,7 @@ static void udp_v6_early_demux(struct sk_buff *skb)
 	struct sock *sk;
 	struct dst_entry *dst;
 	int dif = skb->dev->ifindex;
+	int sdif = inet6_sdif(skb);
 
 	if (!pskb_may_pull(skb, skb_transport_offset(skb) +
 	    sizeof(struct udphdr)))
@@ -912,7 +944,7 @@ static void udp_v6_early_demux(struct sk_buff *skb)
 		sk = __udp6_lib_demux_lookup(net, uh->dest,
 					     &ipv6_hdr(skb)->daddr,
 					     uh->source, &ipv6_hdr(skb)->saddr,
-					     dif);
+					     dif, sdif);
 	else
 		return;
 
@@ -983,6 +1015,7 @@ static void udp6_hwcsum_outgoing(struct sock *sk, struct sk_buff *skb,
 		 */
 		offset = skb_transport_offset(skb);
 		skb->csum = skb_checksum(skb, offset, skb->len - offset, 0);
+		csum = skb->csum;
 
 		skb->ip_summed = CHECKSUM_NONE;
 
@@ -1399,7 +1432,7 @@ void udpv6_destroy_sock(struct sock *sk)
 
 	if (static_key_false(&udpv6_encap_needed) && up->encap_type) {
 		void (*encap_destroy)(struct sock *sk);
-		encap_destroy = ACCESS_ONCE(up->encap_destroy);
+		encap_destroy = READ_ONCE(up->encap_destroy);
 		if (encap_destroy)
 			encap_destroy(sk);
 	}
@@ -1448,6 +1481,9 @@ int compat_udpv6_getsockopt(struct sock *sk, int level, int optname,
 }
 #endif
 
+/* thinking of making this const? Don't.
+ * early_demux can change based on sysctl.
+ */
 static struct inet6_protocol udpv6_protocol = {
 	.early_demux	=	udp_v6_early_demux,
 	.early_demux_handler =  udp_v6_early_demux,

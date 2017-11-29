@@ -31,7 +31,6 @@ Example:
 		clocks = <&clk_s_a1_ls 0>;
 		phys = <&usb2_phy>;
 		phy-names = "usb";
-		status = "okay";
 
 		resets = <&powerdown STIH416_USB1_POWERDOWN>,
 			 <&softreset STIH416_USB1_SOFTRESET>;

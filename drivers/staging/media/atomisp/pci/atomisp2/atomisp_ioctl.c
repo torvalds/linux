@@ -14,17 +14,12 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- * 02110-1301, USA.
  *
  */
 
 #include <linux/delay.h>
 #include <linux/pci.h>
 
-#include <asm/intel-mid.h>
 
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-event.h>
@@ -51,7 +46,6 @@
 static const char *DRIVER = "atomisp";	/* max size 15 */
 static const char *CARD = "ATOM ISP";	/* max size 31 */
 static const char *BUS_INFO = "PCI-3";	/* max size 31 */
-static const u32 VERSION = DRIVER_VERSION;
 
 /*
  * FIXME: ISP should not know beforehand all CIDs supported by sensor.
@@ -562,8 +556,6 @@ static int atomisp_querycap(struct file *file, void *fh,
 	strncpy(cap->card, CARD, sizeof(cap->card) - 1);
 	strncpy(cap->bus_info, BUS_INFO, sizeof(cap->card) - 1);
 
-	cap->version = VERSION;
-
 	cap->device_caps = V4L2_CAP_VIDEO_CAPTURE |
 	    V4L2_CAP_STREAMING | V4L2_CAP_VIDEO_OUTPUT;
 	cap->capabilities = cap->device_caps | V4L2_CAP_DEVICE_CAPS;
@@ -946,10 +938,8 @@ int atomisp_alloc_css_stat_bufs(struct atomisp_sub_device *asd,
 		dev_dbg(isp->dev, "allocating %d 3a buffers\n", count);
 		while (count--) {
 			s3a_buf = kzalloc(sizeof(struct atomisp_s3a_buf), GFP_KERNEL);
-			if (!s3a_buf) {
-				dev_err(isp->dev, "s3a stat buf alloc failed\n");
+			if (!s3a_buf)
 				goto error;
-			}
 
 			if (atomisp_css_allocate_stat_buffers(
 					asd, stream_id, s3a_buf, NULL, NULL)) {
@@ -968,7 +958,6 @@ int atomisp_alloc_css_stat_bufs(struct atomisp_sub_device *asd,
 		while (count--) {
 			dis_buf = kzalloc(sizeof(struct atomisp_dis_buf), GFP_KERNEL);
 			if (!dis_buf) {
-				dev_err(isp->dev, "dis stat buf alloc failed\n");
 				kfree(s3a_buf);
 				goto error;
 			}
@@ -993,10 +982,8 @@ int atomisp_alloc_css_stat_bufs(struct atomisp_sub_device *asd,
 			while (count--) {
 				md_buf = kzalloc(sizeof(struct atomisp_metadata_buf),
 						 GFP_KERNEL);
-				if (!md_buf) {
-					dev_err(isp->dev, "metadata buf alloc failed\n");
+				if (!md_buf)
 					goto error;
-				}
 
 				if (atomisp_css_allocate_stat_buffers(
 						asd, stream_id, NULL, NULL, md_buf)) {
@@ -2946,13 +2933,15 @@ static long atomisp_vidioc_default(struct file *file, void *fh,
 #else
 		if (isp->motor)
 #endif
-			err = v4l2_subdev_call(
 #ifndef ISP2401
+			err = v4l2_subdev_call(
 					isp->inputs[asd->input_curr].motor,
-#else
-					isp->motor,
-#endif
 					core, ioctl, cmd, arg);
+#else
+			err = v4l2_subdev_call(
+					isp->motor,
+					core, ioctl, cmd, arg);
+#endif
 		else
 			err = v4l2_subdev_call(
 					isp->inputs[asd->input_curr].camera,

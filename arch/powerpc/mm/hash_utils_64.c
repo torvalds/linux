@@ -21,6 +21,7 @@
 #undef DEBUG
 #undef DEBUG_LOW
 
+#define pr_fmt(fmt) "hash-mmu: " fmt
 #include <linux/spinlock.h>
 #include <linux/errno.h>
 #include <linux/sched/mm.h>
@@ -61,6 +62,7 @@
 #include <asm/tm.h>
 #include <asm/trace.h>
 #include <asm/ps3.h>
+#include <asm/pte-walk.h>
 
 #ifdef DEBUG
 #define DBG(fmt...) udbg_printf(fmt)
@@ -507,9 +509,9 @@ static int __init htab_dt_scan_hugepage_blocks(unsigned long node,
 	printk(KERN_INFO "Huge page(16GB) memory: "
 			"addr = 0x%lX size = 0x%lX pages = %d\n",
 			phys_addr, block_size, expected_pages);
-	if (phys_addr + (16 * GB) <= memblock_end_of_DRAM()) {
+	if (phys_addr + block_size * expected_pages <= memblock_end_of_DRAM()) {
 		memblock_reserve(phys_addr, block_size * expected_pages);
-		add_gpage(phys_addr, block_size, expected_pages);
+		pseries_add_gpage(phys_addr, block_size, expected_pages);
 	}
 	return 0;
 }
@@ -1019,6 +1021,7 @@ void __init hash__early_init_mmu(void)
 	__kernel_virt_size = H_KERN_VIRT_SIZE;
 	__vmalloc_start = H_VMALLOC_START;
 	__vmalloc_end = H_VMALLOC_END;
+	__kernel_io_start = H_KERN_IO_START;
 	vmemmap = (struct page *)H_VMEMMAP_BASE;
 	ioremap_bot = IOREMAP_BASE;
 
@@ -1228,7 +1231,6 @@ int hash_page_mm(struct mm_struct *mm, unsigned long ea,
 	unsigned long vsid;
 	pte_t *ptep;
 	unsigned hugeshift;
-	const struct cpumask *tmp;
 	int rc, user_region = 0;
 	int psize, ssize;
 
@@ -1280,8 +1282,7 @@ int hash_page_mm(struct mm_struct *mm, unsigned long ea,
 	}
 
 	/* Check CPU locality */
-	tmp = cpumask_of(smp_processor_id());
-	if (user_region && cpumask_equal(mm_cpumask(mm), tmp))
+	if (user_region && mm_is_thread_local(mm))
 		flags |= HPTE_LOCAL_UPDATE;
 
 #ifndef CONFIG_PPC_64K_PAGES
@@ -1297,7 +1298,7 @@ int hash_page_mm(struct mm_struct *mm, unsigned long ea,
 #endif /* CONFIG_PPC_64K_PAGES */
 
 	/* Get PTE and page size from page tables */
-	ptep = __find_linux_pte_or_hugepte(pgdir, ea, &is_thp, &hugeshift);
+	ptep = find_linux_pte(pgdir, ea, &is_thp, &hugeshift);
 	if (ptep == NULL || !pte_present(*ptep)) {
 		DBG_LOW(" no PTE !\n");
 		rc = 1;
@@ -1526,7 +1527,7 @@ void hash_preload(struct mm_struct *mm, unsigned long ea,
 	 * THP pages use update_mmu_cache_pmd. We don't do
 	 * hash preload there. Hence can ignore THP here
 	 */
-	ptep = find_linux_pte_or_hugepte(pgdir, ea, NULL, &hugepage_shift);
+	ptep = find_current_mm_pte(pgdir, ea, NULL, &hugepage_shift);
 	if (!ptep)
 		goto out_exit;
 
@@ -1543,7 +1544,7 @@ void hash_preload(struct mm_struct *mm, unsigned long ea,
 #endif /* CONFIG_PPC_64K_PAGES */
 
 	/* Is that local to this CPU ? */
-	if (cpumask_equal(mm_cpumask(mm), cpumask_of(smp_processor_id())))
+	if (mm_is_thread_local(mm))
 		update_flags |= HPTE_LOCAL_UPDATE;
 
 	/* Hash it in */

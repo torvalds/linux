@@ -73,6 +73,7 @@ struct sdhci_acpi_slot {
 	unsigned int	caps2;
 	mmc_pm_flag_t	pm_caps;
 	unsigned int	flags;
+	size_t		priv_size;
 	int (*probe_slot)(struct platform_device *, const char *, const char *);
 	int (*remove_slot)(struct platform_device *);
 };
@@ -82,11 +83,116 @@ struct sdhci_acpi_host {
 	const struct sdhci_acpi_slot	*slot;
 	struct platform_device		*pdev;
 	bool				use_runtime_pm;
+	unsigned long			private[0] ____cacheline_aligned;
 };
+
+static inline void *sdhci_acpi_priv(struct sdhci_acpi_host *c)
+{
+	return (void *)c->private;
+}
 
 static inline bool sdhci_acpi_flag(struct sdhci_acpi_host *c, unsigned int flag)
 {
 	return c->slot && (c->slot->flags & flag);
+}
+
+enum {
+	INTEL_DSM_FNS		=  0,
+	INTEL_DSM_V18_SWITCH	=  3,
+	INTEL_DSM_V33_SWITCH	=  4,
+};
+
+struct intel_host {
+	u32	dsm_fns;
+};
+
+static const guid_t intel_dsm_guid =
+	GUID_INIT(0xF6C13EA5, 0x65CD, 0x461F,
+		  0xAB, 0x7A, 0x29, 0xF7, 0xE8, 0xD5, 0xBD, 0x61);
+
+static int __intel_dsm(struct intel_host *intel_host, struct device *dev,
+		       unsigned int fn, u32 *result)
+{
+	union acpi_object *obj;
+	int err = 0;
+
+	obj = acpi_evaluate_dsm(ACPI_HANDLE(dev), &intel_dsm_guid, 0, fn, NULL);
+	if (!obj)
+		return -EOPNOTSUPP;
+
+	if (obj->type == ACPI_TYPE_INTEGER) {
+		*result = obj->integer.value;
+	} else if (obj->type == ACPI_TYPE_BUFFER && obj->buffer.length > 0) {
+		size_t len = min_t(size_t, obj->buffer.length, 4);
+
+		*result = 0;
+		memcpy(result, obj->buffer.pointer, len);
+	} else {
+		dev_err(dev, "%s DSM fn %u obj->type %d obj->buffer.length %d\n",
+			__func__, fn, obj->type, obj->buffer.length);
+		err = -EINVAL;
+	}
+
+	ACPI_FREE(obj);
+
+	return err;
+}
+
+static int intel_dsm(struct intel_host *intel_host, struct device *dev,
+		     unsigned int fn, u32 *result)
+{
+	if (fn > 31 || !(intel_host->dsm_fns & (1 << fn)))
+		return -EOPNOTSUPP;
+
+	return __intel_dsm(intel_host, dev, fn, result);
+}
+
+static void intel_dsm_init(struct intel_host *intel_host, struct device *dev,
+			   struct mmc_host *mmc)
+{
+	int err;
+
+	err = __intel_dsm(intel_host, dev, INTEL_DSM_FNS, &intel_host->dsm_fns);
+	if (err) {
+		pr_debug("%s: DSM not supported, error %d\n",
+			 mmc_hostname(mmc), err);
+		return;
+	}
+
+	pr_debug("%s: DSM function mask %#x\n",
+		 mmc_hostname(mmc), intel_host->dsm_fns);
+}
+
+static int intel_start_signal_voltage_switch(struct mmc_host *mmc,
+					     struct mmc_ios *ios)
+{
+	struct device *dev = mmc_dev(mmc);
+	struct sdhci_acpi_host *c = dev_get_drvdata(dev);
+	struct intel_host *intel_host = sdhci_acpi_priv(c);
+	unsigned int fn;
+	u32 result = 0;
+	int err;
+
+	err = sdhci_start_signal_voltage_switch(mmc, ios);
+	if (err)
+		return err;
+
+	switch (ios->signal_voltage) {
+	case MMC_SIGNAL_VOLTAGE_330:
+		fn = INTEL_DSM_V33_SWITCH;
+		break;
+	case MMC_SIGNAL_VOLTAGE_180:
+		fn = INTEL_DSM_V18_SWITCH;
+		break;
+	default:
+		return 0;
+	}
+
+	err = intel_dsm(intel_host, dev, fn, &result);
+	pr_debug("%s: %s DSM fn %u error %d result %u\n",
+		 mmc_hostname(mmc), __func__, fn, err, result);
+
+	return 0;
 }
 
 static void sdhci_acpi_int_hw_reset(struct sdhci_host *host)
@@ -269,58 +375,25 @@ out:
 	return ret;
 }
 
-static int sdhci_acpi_emmc_probe_slot(struct platform_device *pdev,
-				      const char *hid, const char *uid)
+static int intel_probe_slot(struct platform_device *pdev, const char *hid,
+			    const char *uid)
 {
 	struct sdhci_acpi_host *c = platform_get_drvdata(pdev);
-	struct sdhci_host *host;
-
-	if (!c || !c->host)
-		return 0;
-
-	host = c->host;
-
-	/* Platform specific code during emmc probe slot goes here */
+	struct intel_host *intel_host = sdhci_acpi_priv(c);
+	struct sdhci_host *host = c->host;
 
 	if (hid && uid && !strcmp(hid, "80860F14") && !strcmp(uid, "1") &&
 	    sdhci_readl(host, SDHCI_CAPABILITIES) == 0x446cc8b2 &&
 	    sdhci_readl(host, SDHCI_CAPABILITIES_1) == 0x00000807)
 		host->timeout_clk = 1000; /* 1000 kHz i.e. 1 MHz */
 
-	return 0;
-}
-
-static int sdhci_acpi_sdio_probe_slot(struct platform_device *pdev,
-				      const char *hid, const char *uid)
-{
-	struct sdhci_acpi_host *c = platform_get_drvdata(pdev);
-	struct sdhci_host *host;
-
-	if (!c || !c->host)
-		return 0;
-
-	host = c->host;
-
-	/* Platform specific code during sdio probe slot goes here */
-
-	return 0;
-}
-
-static int sdhci_acpi_sd_probe_slot(struct platform_device *pdev,
-				    const char *hid, const char *uid)
-{
-	struct sdhci_acpi_host *c = platform_get_drvdata(pdev);
-	struct sdhci_host *host;
-
-	if (!c || !c->host || !c->slot)
-		return 0;
-
-	host = c->host;
-
-	/* Platform specific code during sd probe slot goes here */
-
 	if (hid && !strcmp(hid, "80865ACA"))
 		host->mmc_host_ops.get_cd = bxt_get_cd;
+
+	intel_dsm_init(intel_host, &pdev->dev, host->mmc);
+
+	host->mmc_host_ops.start_signal_voltage_switch =
+					intel_start_signal_voltage_switch;
 
 	return 0;
 }
@@ -335,7 +408,8 @@ static const struct sdhci_acpi_slot sdhci_acpi_slot_int_emmc = {
 	.quirks2 = SDHCI_QUIRK2_PRESET_VALUE_BROKEN |
 		   SDHCI_QUIRK2_STOP_WITH_TC |
 		   SDHCI_QUIRK2_CAPS_BIT63_FOR_HS400,
-	.probe_slot	= sdhci_acpi_emmc_probe_slot,
+	.probe_slot	= intel_probe_slot,
+	.priv_size	= sizeof(struct intel_host),
 };
 
 static const struct sdhci_acpi_slot sdhci_acpi_slot_int_sdio = {
@@ -346,7 +420,8 @@ static const struct sdhci_acpi_slot sdhci_acpi_slot_int_sdio = {
 		   MMC_CAP_WAIT_WHILE_BUSY,
 	.flags   = SDHCI_ACPI_RUNTIME_PM,
 	.pm_caps = MMC_PM_KEEP_POWER,
-	.probe_slot	= sdhci_acpi_sdio_probe_slot,
+	.probe_slot	= intel_probe_slot,
+	.priv_size	= sizeof(struct intel_host),
 };
 
 static const struct sdhci_acpi_slot sdhci_acpi_slot_int_sd = {
@@ -356,7 +431,8 @@ static const struct sdhci_acpi_slot sdhci_acpi_slot_int_sd = {
 	.quirks2 = SDHCI_QUIRK2_CARD_ON_NEEDS_BUS_ON |
 		   SDHCI_QUIRK2_STOP_WITH_TC,
 	.caps    = MMC_CAP_WAIT_WHILE_BUSY | MMC_CAP_AGGRESSIVE_PM,
-	.probe_slot	= sdhci_acpi_sd_probe_slot,
+	.probe_slot	= intel_probe_slot,
+	.priv_size	= sizeof(struct intel_host),
 };
 
 static const struct sdhci_acpi_slot sdhci_acpi_slot_qcom_sd_3v = {
@@ -432,21 +508,25 @@ static const struct sdhci_acpi_slot *sdhci_acpi_get_slot(const char *hid,
 static int sdhci_acpi_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	acpi_handle handle = ACPI_HANDLE(dev);
+	const struct sdhci_acpi_slot *slot;
 	struct acpi_device *device, *child;
 	struct sdhci_acpi_host *c;
 	struct sdhci_host *host;
 	struct resource *iomem;
 	resource_size_t len;
+	size_t priv_size;
 	const char *hid;
 	const char *uid;
 	int err;
 
-	if (acpi_bus_get_device(handle, &device))
+	device = ACPI_COMPANION(dev);
+	if (!device)
 		return -ENODEV;
 
 	hid = acpi_device_hid(device);
-	uid = device->pnp.unique_id;
+	uid = acpi_device_uid(device);
+
+	slot = sdhci_acpi_get_slot(hid, uid);
 
 	/* Power on the SDHCI controller and its children */
 	acpi_device_fix_up_power(device);
@@ -470,13 +550,14 @@ static int sdhci_acpi_probe(struct platform_device *pdev)
 	if (!devm_request_mem_region(dev, iomem->start, len, dev_name(dev)))
 		return -ENOMEM;
 
-	host = sdhci_alloc_host(dev, sizeof(struct sdhci_acpi_host));
+	priv_size = slot ? slot->priv_size : 0;
+	host = sdhci_alloc_host(dev, sizeof(struct sdhci_acpi_host) + priv_size);
 	if (IS_ERR(host))
 		return PTR_ERR(host);
 
 	c = sdhci_priv(host);
 	c->host = host;
-	c->slot = sdhci_acpi_get_slot(hid, uid);
+	c->slot = slot;
 	c->pdev = pdev;
 	c->use_runtime_pm = sdhci_acpi_flag(c, SDHCI_ACPI_RUNTIME_PM);
 

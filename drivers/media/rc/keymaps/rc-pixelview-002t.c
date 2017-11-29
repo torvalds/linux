@@ -54,10 +54,10 @@ static struct rc_map_table pixelview_002t[] = {
 
 static struct rc_map_list pixelview_map = {
 	.map = {
-		.scan    = pixelview_002t,
-		.size    = ARRAY_SIZE(pixelview_002t),
-		.rc_type = RC_TYPE_NEC,
-		.name    = RC_MAP_PIXELVIEW_002T,
+		.scan     = pixelview_002t,
+		.size     = ARRAY_SIZE(pixelview_002t),
+		.rc_proto = RC_PROTO_NEC,
+		.name     = RC_MAP_PIXELVIEW_002T,
 	}
 };
 

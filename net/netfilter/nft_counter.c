@@ -175,15 +175,21 @@ static const struct nla_policy nft_counter_policy[NFTA_COUNTER_MAX + 1] = {
 	[NFTA_COUNTER_BYTES]	= { .type = NLA_U64 },
 };
 
-static struct nft_object_type nft_counter_obj __read_mostly = {
-	.type		= NFT_OBJECT_COUNTER,
+static struct nft_object_type nft_counter_obj_type;
+static const struct nft_object_ops nft_counter_obj_ops = {
+	.type		= &nft_counter_obj_type,
 	.size		= sizeof(struct nft_counter_percpu_priv),
-	.maxattr	= NFTA_COUNTER_MAX,
-	.policy		= nft_counter_policy,
 	.eval		= nft_counter_obj_eval,
 	.init		= nft_counter_obj_init,
 	.destroy	= nft_counter_obj_destroy,
 	.dump		= nft_counter_obj_dump,
+};
+
+static struct nft_object_type nft_counter_obj_type __read_mostly = {
+	.type		= NFT_OBJECT_COUNTER,
+	.ops		= &nft_counter_obj_ops,
+	.maxattr	= NFTA_COUNTER_MAX,
+	.policy		= nft_counter_policy,
 	.owner		= THIS_MODULE,
 };
 
@@ -271,7 +277,7 @@ static int __init nft_counter_module_init(void)
 	for_each_possible_cpu(cpu)
 		seqcount_init(per_cpu_ptr(&nft_counter_seq, cpu));
 
-	err = nft_register_obj(&nft_counter_obj);
+	err = nft_register_obj(&nft_counter_obj_type);
 	if (err < 0)
 		return err;
 
@@ -281,14 +287,14 @@ static int __init nft_counter_module_init(void)
 
 	return 0;
 err1:
-	nft_unregister_obj(&nft_counter_obj);
+	nft_unregister_obj(&nft_counter_obj_type);
 	return err;
 }
 
 static void __exit nft_counter_module_exit(void)
 {
 	nft_unregister_expr(&nft_counter_type);
-	nft_unregister_obj(&nft_counter_obj);
+	nft_unregister_obj(&nft_counter_obj_type);
 }
 
 module_init(nft_counter_module_init);

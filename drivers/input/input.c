@@ -76,7 +76,7 @@ static void input_start_autorepeat(struct input_dev *dev, int code)
 {
 	if (test_bit(EV_REP, dev->evbit) &&
 	    dev->rep[REP_PERIOD] && dev->rep[REP_DELAY] &&
-	    dev->timer.data) {
+	    dev->timer.function) {
 		dev->repeat_key = code;
 		mod_timer(&dev->timer,
 			  jiffies + msecs_to_jiffies(dev->rep[REP_DELAY]));
@@ -179,9 +179,9 @@ static void input_pass_event(struct input_dev *dev,
  * dev->event_lock here to avoid racing with input_event
  * which may cause keys get "stuck".
  */
-static void input_repeat_key(unsigned long data)
+static void input_repeat_key(struct timer_list *t)
 {
-	struct input_dev *dev = (void *) data;
+	struct input_dev *dev = from_timer(dev, t, timer);
 	unsigned long flags;
 
 	spin_lock_irqsave(&dev->event_lock, flags);
@@ -933,58 +933,52 @@ int input_set_keycode(struct input_dev *dev,
 }
 EXPORT_SYMBOL(input_set_keycode);
 
+bool input_match_device_id(const struct input_dev *dev,
+			   const struct input_device_id *id)
+{
+	if (id->flags & INPUT_DEVICE_ID_MATCH_BUS)
+		if (id->bustype != dev->id.bustype)
+			return false;
+
+	if (id->flags & INPUT_DEVICE_ID_MATCH_VENDOR)
+		if (id->vendor != dev->id.vendor)
+			return false;
+
+	if (id->flags & INPUT_DEVICE_ID_MATCH_PRODUCT)
+		if (id->product != dev->id.product)
+			return false;
+
+	if (id->flags & INPUT_DEVICE_ID_MATCH_VERSION)
+		if (id->version != dev->id.version)
+			return false;
+
+	if (!bitmap_subset(id->evbit, dev->evbit, EV_MAX) ||
+	    !bitmap_subset(id->keybit, dev->keybit, KEY_MAX) ||
+	    !bitmap_subset(id->relbit, dev->relbit, REL_MAX) ||
+	    !bitmap_subset(id->absbit, dev->absbit, ABS_MAX) ||
+	    !bitmap_subset(id->mscbit, dev->mscbit, MSC_MAX) ||
+	    !bitmap_subset(id->ledbit, dev->ledbit, LED_MAX) ||
+	    !bitmap_subset(id->sndbit, dev->sndbit, SND_MAX) ||
+	    !bitmap_subset(id->ffbit, dev->ffbit, FF_MAX) ||
+	    !bitmap_subset(id->swbit, dev->swbit, SW_MAX) ||
+	    !bitmap_subset(id->propbit, dev->propbit, INPUT_PROP_MAX)) {
+		return false;
+	}
+
+	return true;
+}
+EXPORT_SYMBOL(input_match_device_id);
+
 static const struct input_device_id *input_match_device(struct input_handler *handler,
 							struct input_dev *dev)
 {
 	const struct input_device_id *id;
 
 	for (id = handler->id_table; id->flags || id->driver_info; id++) {
-
-		if (id->flags & INPUT_DEVICE_ID_MATCH_BUS)
-			if (id->bustype != dev->id.bustype)
-				continue;
-
-		if (id->flags & INPUT_DEVICE_ID_MATCH_VENDOR)
-			if (id->vendor != dev->id.vendor)
-				continue;
-
-		if (id->flags & INPUT_DEVICE_ID_MATCH_PRODUCT)
-			if (id->product != dev->id.product)
-				continue;
-
-		if (id->flags & INPUT_DEVICE_ID_MATCH_VERSION)
-			if (id->version != dev->id.version)
-				continue;
-
-		if (!bitmap_subset(id->evbit, dev->evbit, EV_MAX))
-			continue;
-
-		if (!bitmap_subset(id->keybit, dev->keybit, KEY_MAX))
-			continue;
-
-		if (!bitmap_subset(id->relbit, dev->relbit, REL_MAX))
-			continue;
-
-		if (!bitmap_subset(id->absbit, dev->absbit, ABS_MAX))
-			continue;
-
-		if (!bitmap_subset(id->mscbit, dev->mscbit, MSC_MAX))
-			continue;
-
-		if (!bitmap_subset(id->ledbit, dev->ledbit, LED_MAX))
-			continue;
-
-		if (!bitmap_subset(id->sndbit, dev->sndbit, SND_MAX))
-			continue;
-
-		if (!bitmap_subset(id->ffbit, dev->ffbit, FF_MAX))
-			continue;
-
-		if (!bitmap_subset(id->swbit, dev->swbit, SW_MAX))
-			continue;
-
-		if (!handler->match || handler->match(handler, dev))
+		if (input_match_device_id(dev, id) &&
+		    (!handler->match || handler->match(handler, dev))) {
 			return id;
+		}
 	}
 
 	return NULL;
@@ -1398,7 +1392,7 @@ static struct attribute *input_dev_attrs[] = {
 	NULL
 };
 
-static struct attribute_group input_dev_attr_group = {
+static const struct attribute_group input_dev_attr_group = {
 	.attrs	= input_dev_attrs,
 };
 
@@ -1425,7 +1419,7 @@ static struct attribute *input_dev_id_attrs[] = {
 	NULL
 };
 
-static struct attribute_group input_dev_id_attr_group = {
+static const struct attribute_group input_dev_id_attr_group = {
 	.name	= "id",
 	.attrs	= input_dev_id_attrs,
 };
@@ -1495,7 +1489,7 @@ static struct attribute *input_dev_caps_attrs[] = {
 	NULL
 };
 
-static struct attribute_group input_dev_caps_attr_group = {
+static const struct attribute_group input_dev_caps_attr_group = {
 	.name	= "capabilities",
 	.attrs	= input_dev_caps_attrs,
 };
@@ -1790,7 +1784,7 @@ struct input_dev *input_allocate_device(void)
 		device_initialize(&dev->dev);
 		mutex_init(&dev->mutex);
 		spin_lock_init(&dev->event_lock);
-		init_timer(&dev->timer);
+		timer_setup(&dev->timer, NULL, 0);
 		INIT_LIST_HEAD(&dev->h_list);
 		INIT_LIST_HEAD(&dev->node);
 
@@ -2053,7 +2047,6 @@ static void devm_input_device_unregister(struct device *dev, void *res)
  */
 void input_enable_softrepeat(struct input_dev *dev, int delay, int period)
 {
-	dev->timer.data = (unsigned long) dev;
 	dev->timer.function = input_repeat_key;
 	dev->rep[REP_DELAY] = delay;
 	dev->rep[REP_PERIOD] = period;

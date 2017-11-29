@@ -445,6 +445,7 @@ struct kvm {
 	struct kvm_stat_data **debugfs_stat_data;
 	struct srcu_struct srcu;
 	struct srcu_struct irq_srcu;
+	pid_t userspace_pid;
 };
 
 #define kvm_err(fmt, ...) \
@@ -476,7 +477,8 @@ struct kvm {
 static inline struct kvm_io_bus *kvm_get_bus(struct kvm *kvm, enum kvm_bus idx)
 {
 	return srcu_dereference_check(kvm->buses[idx], &kvm->srcu,
-				      lockdep_is_held(&kvm->slots_lock));
+				      lockdep_is_held(&kvm->slots_lock) ||
+				      !refcount_read(&kvm->users_count));
 }
 
 static inline struct kvm_vcpu *kvm_get_vcpu(struct kvm *kvm, int i)
@@ -569,7 +571,8 @@ void kvm_put_kvm(struct kvm *kvm);
 static inline struct kvm_memslots *__kvm_memslots(struct kvm *kvm, int as_id)
 {
 	return srcu_dereference_check(kvm->memslots[as_id], &kvm->srcu,
-			lockdep_is_held(&kvm->slots_lock));
+			lockdep_is_held(&kvm->slots_lock) ||
+			!refcount_read(&kvm->users_count));
 }
 
 static inline struct kvm_memslots *kvm_memslots(struct kvm *kvm)
@@ -664,6 +667,7 @@ kvm_pfn_t __gfn_to_pfn_memslot(struct kvm_memory_slot *slot, gfn_t gfn,
 			       bool *writable);
 
 void kvm_release_pfn_clean(kvm_pfn_t pfn);
+void kvm_release_pfn_dirty(kvm_pfn_t pfn);
 void kvm_set_pfn_dirty(kvm_pfn_t pfn);
 void kvm_set_pfn_accessed(kvm_pfn_t pfn);
 void kvm_get_pfn(kvm_pfn_t pfn);
@@ -717,7 +721,7 @@ void kvm_arch_vcpu_unblocking(struct kvm_vcpu *vcpu);
 bool kvm_vcpu_wake_up(struct kvm_vcpu *vcpu);
 void kvm_vcpu_kick(struct kvm_vcpu *vcpu);
 int kvm_vcpu_yield_to(struct kvm_vcpu *target);
-void kvm_vcpu_on_spin(struct kvm_vcpu *vcpu);
+void kvm_vcpu_on_spin(struct kvm_vcpu *vcpu, bool usermode_vcpu_not_eligible);
 void kvm_load_guest_fpu(struct kvm_vcpu *vcpu);
 void kvm_put_guest_fpu(struct kvm_vcpu *vcpu);
 
@@ -797,6 +801,7 @@ int kvm_arch_hardware_setup(void);
 void kvm_arch_hardware_unsetup(void);
 void kvm_arch_check_processor_compat(void *rtn);
 int kvm_arch_vcpu_runnable(struct kvm_vcpu *vcpu);
+bool kvm_arch_vcpu_in_kernel(struct kvm_vcpu *vcpu);
 int kvm_arch_vcpu_should_kick(struct kvm_vcpu *vcpu);
 
 #ifndef __KVM_HAVE_ARCH_VM_ALLOC
@@ -980,6 +985,12 @@ static inline gfn_t gpa_to_gfn(gpa_t gpa)
 static inline hpa_t pfn_to_hpa(kvm_pfn_t pfn)
 {
 	return (hpa_t)pfn << PAGE_SHIFT;
+}
+
+static inline struct page *kvm_vcpu_gpa_to_page(struct kvm_vcpu *vcpu,
+						gpa_t gpa)
+{
+	return kvm_vcpu_gfn_to_page(vcpu, gpa_to_gfn(gpa));
 }
 
 static inline bool kvm_is_error_gpa(struct kvm *kvm, gpa_t gpa)

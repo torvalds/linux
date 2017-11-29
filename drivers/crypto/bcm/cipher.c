@@ -90,8 +90,6 @@ static int aead_pri = 150;
 module_param(aead_pri, int, 0644);
 MODULE_PARM_DESC(aead_pri, "Priority for AEAD algos");
 
-#define MAX_SPUS 16
-
 /* A type 3 BCM header, expected to precede the SPU header for SPU-M.
  * Bits 3 and 4 in the first byte encode the channel number (the dma ringset).
  * 0x60 - ring 0
@@ -120,7 +118,7 @@ static u8 select_channel(void)
 {
 	u8 chan_idx = atomic_inc_return(&iproc_priv.next_chan);
 
-	return chan_idx % iproc_priv.spu.num_spu;
+	return chan_idx % iproc_priv.spu.num_chan;
 }
 
 /**
@@ -258,6 +256,44 @@ spu_ablkcipher_tx_sg_create(struct brcm_message *mssg,
 	return 0;
 }
 
+static int mailbox_send_message(struct brcm_message *mssg, u32 flags,
+				u8 chan_idx)
+{
+	int err;
+	int retry_cnt = 0;
+	struct device *dev = &(iproc_priv.pdev->dev);
+
+	err = mbox_send_message(iproc_priv.mbox[chan_idx], mssg);
+	if (flags & CRYPTO_TFM_REQ_MAY_SLEEP) {
+		while ((err == -ENOBUFS) && (retry_cnt < SPU_MB_RETRY_MAX)) {
+			/*
+			 * Mailbox queue is full. Since MAY_SLEEP is set, assume
+			 * not in atomic context and we can wait and try again.
+			 */
+			retry_cnt++;
+			usleep_range(MBOX_SLEEP_MIN, MBOX_SLEEP_MAX);
+			err = mbox_send_message(iproc_priv.mbox[chan_idx],
+						mssg);
+			atomic_inc(&iproc_priv.mb_no_spc);
+		}
+	}
+	if (err < 0) {
+		atomic_inc(&iproc_priv.mb_send_fail);
+		return err;
+	}
+
+	/* Check error returned by mailbox controller */
+	err = mssg->error;
+	if (unlikely(err < 0)) {
+		dev_err(dev, "message error %d", err);
+		/* Signal txdone for mailbox channel */
+	}
+
+	/* Signal txdone for mailbox channel */
+	mbox_client_txdone(iproc_priv.mbox[chan_idx], err);
+	return err;
+}
+
 /**
  * handle_ablkcipher_req() - Submit as much of a block cipher request as fits in
  * a single SPU request message, starting at the current position in the request
@@ -295,7 +331,6 @@ static int handle_ablkcipher_req(struct iproc_reqctx_s *rctx)
 	u32 pad_len;		/* total length of all padding */
 	bool update_key = false;
 	struct brcm_message *mssg;	/* mailbox message */
-	int retry_cnt = 0;
 
 	/* number of entries in src and dst sg in mailbox message. */
 	u8 rx_frag_num = 2;	/* response header and STATUS */
@@ -464,24 +499,9 @@ static int handle_ablkcipher_req(struct iproc_reqctx_s *rctx)
 	if (err)
 		return err;
 
-	err = mbox_send_message(iproc_priv.mbox[rctx->chan_idx], mssg);
-	if (req->base.flags & CRYPTO_TFM_REQ_MAY_SLEEP) {
-		while ((err == -ENOBUFS) && (retry_cnt < SPU_MB_RETRY_MAX)) {
-			/*
-			 * Mailbox queue is full. Since MAY_SLEEP is set, assume
-			 * not in atomic context and we can wait and try again.
-			 */
-			retry_cnt++;
-			usleep_range(MBOX_SLEEP_MIN, MBOX_SLEEP_MAX);
-			err = mbox_send_message(iproc_priv.mbox[rctx->chan_idx],
-						mssg);
-			atomic_inc(&iproc_priv.mb_no_spc);
-		}
-	}
-	if (unlikely(err < 0)) {
-		atomic_inc(&iproc_priv.mb_send_fail);
+	err = mailbox_send_message(mssg, req->base.flags, rctx->chan_idx);
+	if (unlikely(err < 0))
 		return err;
-	}
 
 	return -EINPROGRESS;
 }
@@ -712,7 +732,6 @@ static int handle_ahash_req(struct iproc_reqctx_s *rctx)
 	u32 spu_hdr_len;
 	unsigned int digestsize;
 	u16 rem = 0;
-	int retry_cnt = 0;
 
 	/*
 	 * number of entries in src and dst sg. Always includes SPU msg header.
@@ -906,24 +925,10 @@ static int handle_ahash_req(struct iproc_reqctx_s *rctx)
 	if (err)
 		return err;
 
-	err = mbox_send_message(iproc_priv.mbox[rctx->chan_idx], mssg);
-	if (req->base.flags & CRYPTO_TFM_REQ_MAY_SLEEP) {
-		while ((err == -ENOBUFS) && (retry_cnt < SPU_MB_RETRY_MAX)) {
-			/*
-			 * Mailbox queue is full. Since MAY_SLEEP is set, assume
-			 * not in atomic context and we can wait and try again.
-			 */
-			retry_cnt++;
-			usleep_range(MBOX_SLEEP_MIN, MBOX_SLEEP_MAX);
-			err = mbox_send_message(iproc_priv.mbox[rctx->chan_idx],
-						mssg);
-			atomic_inc(&iproc_priv.mb_no_spc);
-		}
-	}
-	if (err < 0) {
-		atomic_inc(&iproc_priv.mb_send_fail);
+	err = mailbox_send_message(mssg, req->base.flags, rctx->chan_idx);
+	if (unlikely(err < 0))
 		return err;
-	}
+
 	return -EINPROGRESS;
 }
 
@@ -1322,7 +1327,6 @@ static int handle_aead_req(struct iproc_reqctx_s *rctx)
 	int assoc_nents = 0;
 	bool incl_icv = false;
 	unsigned int digestsize = ctx->digestsize;
-	int retry_cnt = 0;
 
 	/* number of entries in src and dst sg. Always includes SPU msg header.
 	 */
@@ -1369,11 +1373,11 @@ static int handle_aead_req(struct iproc_reqctx_s *rctx)
 		 * expects AAD to include just SPI and seqno. So
 		 * subtract off the IV len.
 		 */
-		aead_parms.assoc_size -= GCM_ESP_IV_SIZE;
+		aead_parms.assoc_size -= GCM_RFC4106_IV_SIZE;
 
 		if (rctx->is_encrypt) {
 			aead_parms.return_iv = true;
-			aead_parms.ret_iv_len = GCM_ESP_IV_SIZE;
+			aead_parms.ret_iv_len = GCM_RFC4106_IV_SIZE;
 			aead_parms.ret_iv_off = GCM_ESP_SALT_SIZE;
 		}
 	} else {
@@ -1560,24 +1564,9 @@ static int handle_aead_req(struct iproc_reqctx_s *rctx)
 	if (err)
 		return err;
 
-	err = mbox_send_message(iproc_priv.mbox[rctx->chan_idx], mssg);
-	if (req->base.flags & CRYPTO_TFM_REQ_MAY_SLEEP) {
-		while ((err == -ENOBUFS) && (retry_cnt < SPU_MB_RETRY_MAX)) {
-			/*
-			 * Mailbox queue is full. Since MAY_SLEEP is set, assume
-			 * not in atomic context and we can wait and try again.
-			 */
-			retry_cnt++;
-			usleep_range(MBOX_SLEEP_MIN, MBOX_SLEEP_MAX);
-			err = mbox_send_message(iproc_priv.mbox[rctx->chan_idx],
-						mssg);
-			atomic_inc(&iproc_priv.mb_no_spc);
-		}
-	}
-	if (err < 0) {
-		atomic_inc(&iproc_priv.mb_send_fail);
+	err = mailbox_send_message(mssg, req->base.flags, rctx->chan_idx);
+	if (unlikely(err < 0))
 		return err;
-	}
 
 	return -EINPROGRESS;
 }
@@ -3257,7 +3246,7 @@ static struct iproc_alg_s driver_algs[] = {
 			.cra_flags = CRYPTO_ALG_NEED_FALLBACK
 		 },
 		 .setkey = aead_gcm_esp_setkey,
-		 .ivsize = GCM_ESP_IV_SIZE,
+		 .ivsize = GCM_RFC4106_IV_SIZE,
 		 .maxauthsize = AES_BLOCK_SIZE,
 	 },
 	 .cipher_info = {
@@ -3303,7 +3292,7 @@ static struct iproc_alg_s driver_algs[] = {
 			.cra_flags = CRYPTO_ALG_NEED_FALLBACK
 		 },
 		 .setkey = rfc4543_gcm_esp_setkey,
-		 .ivsize = GCM_ESP_IV_SIZE,
+		 .ivsize = GCM_RFC4106_IV_SIZE,
 		 .maxauthsize = AES_BLOCK_SIZE,
 	 },
 	 .cipher_info = {
@@ -4528,35 +4517,48 @@ static void spu_functions_register(struct device *dev,
  */
 static int spu_mb_init(struct device *dev)
 {
-	struct mbox_client *mcl = &iproc_priv.mcl[iproc_priv.spu.num_spu];
-	int err;
+	struct mbox_client *mcl = &iproc_priv.mcl;
+	int err, i;
+
+	iproc_priv.mbox = devm_kcalloc(dev, iproc_priv.spu.num_chan,
+				  sizeof(struct mbox_chan *), GFP_KERNEL);
+	if (!iproc_priv.mbox)
+		return -ENOMEM;
 
 	mcl->dev = dev;
 	mcl->tx_block = false;
 	mcl->tx_tout = 0;
-	mcl->knows_txdone = false;
+	mcl->knows_txdone = true;
 	mcl->rx_callback = spu_rx_callback;
 	mcl->tx_done = NULL;
 
-	iproc_priv.mbox[iproc_priv.spu.num_spu] =
-			mbox_request_channel(mcl, 0);
-	if (IS_ERR(iproc_priv.mbox[iproc_priv.spu.num_spu])) {
-		err = (int)PTR_ERR(iproc_priv.mbox[iproc_priv.spu.num_spu]);
-		dev_err(dev,
-			"Mbox channel %d request failed with err %d",
-			iproc_priv.spu.num_spu, err);
-		iproc_priv.mbox[iproc_priv.spu.num_spu] = NULL;
-		return err;
+	for (i = 0; i < iproc_priv.spu.num_chan; i++) {
+		iproc_priv.mbox[i] = mbox_request_channel(mcl, i);
+		if (IS_ERR(iproc_priv.mbox[i])) {
+			err = (int)PTR_ERR(iproc_priv.mbox[i]);
+			dev_err(dev,
+				"Mbox channel %d request failed with err %d",
+				i, err);
+			iproc_priv.mbox[i] = NULL;
+			goto free_channels;
+		}
 	}
 
 	return 0;
+free_channels:
+	for (i = 0; i < iproc_priv.spu.num_chan; i++) {
+		if (iproc_priv.mbox[i])
+			mbox_free_channel(iproc_priv.mbox[i]);
+	}
+
+	return err;
 }
 
 static void spu_mb_release(struct platform_device *pdev)
 {
 	int i;
 
-	for (i = 0; i < iproc_priv.spu.num_spu; i++)
+	for (i = 0; i < iproc_priv.spu.num_chan; i++)
 		mbox_free_channel(iproc_priv.mbox[i]);
 }
 
@@ -4567,7 +4569,7 @@ static void spu_counters_init(void)
 
 	atomic_set(&iproc_priv.session_count, 0);
 	atomic_set(&iproc_priv.stream_count, 0);
-	atomic_set(&iproc_priv.next_chan, (int)iproc_priv.spu.num_spu);
+	atomic_set(&iproc_priv.next_chan, (int)iproc_priv.spu.num_chan);
 	atomic64_set(&iproc_priv.bytes_in, 0);
 	atomic64_set(&iproc_priv.bytes_out, 0);
 	for (i = 0; i < SPU_OP_NUM; i++) {
@@ -4807,49 +4809,37 @@ static int spu_dt_read(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct spu_hw *spu = &iproc_priv.spu;
 	struct resource *spu_ctrl_regs;
-	const struct of_device_id *match;
 	const struct spu_type_subtype *matched_spu_type;
-	void __iomem *spu_reg_vbase[MAX_SPUS];
-	int err;
+	struct device_node *dn = pdev->dev.of_node;
+	int err, i;
 
-	match = of_match_device(of_match_ptr(bcm_spu_dt_ids), dev);
-	matched_spu_type = match->data;
+	/* Count number of mailbox channels */
+	spu->num_chan = of_count_phandle_with_args(dn, "mboxes", "#mbox-cells");
 
-	if (iproc_priv.spu.num_spu > 1) {
-		/* If this is 2nd or later SPU, make sure it's same type */
-		if ((spu->spu_type != matched_spu_type->type) ||
-		    (spu->spu_subtype != matched_spu_type->subtype)) {
-			err = -EINVAL;
-			dev_err(&pdev->dev, "Multiple SPU types not allowed");
+	matched_spu_type = of_device_get_match_data(dev);
+	if (!matched_spu_type) {
+		dev_err(&pdev->dev, "Failed to match device\n");
+		return -ENODEV;
+	}
+
+	spu->spu_type = matched_spu_type->type;
+	spu->spu_subtype = matched_spu_type->subtype;
+
+	i = 0;
+	for (i = 0; (i < MAX_SPUS) && ((spu_ctrl_regs =
+		platform_get_resource(pdev, IORESOURCE_MEM, i)) != NULL); i++) {
+
+		spu->reg_vbase[i] = devm_ioremap_resource(dev, spu_ctrl_regs);
+		if (IS_ERR(spu->reg_vbase[i])) {
+			err = PTR_ERR(spu->reg_vbase[i]);
+			dev_err(&pdev->dev, "Failed to map registers: %d\n",
+				err);
+			spu->reg_vbase[i] = NULL;
 			return err;
 		}
-	} else {
-		/* Record type of first SPU */
-		spu->spu_type = matched_spu_type->type;
-		spu->spu_subtype = matched_spu_type->subtype;
 	}
-
-	/* Get and map SPU registers */
-	spu_ctrl_regs = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!spu_ctrl_regs) {
-		err = -EINVAL;
-		dev_err(&pdev->dev, "Invalid/missing registers for SPU\n");
-		return err;
-	}
-
-	spu_reg_vbase[iproc_priv.spu.num_spu] =
-				devm_ioremap_resource(dev, spu_ctrl_regs);
-	if (IS_ERR(spu_reg_vbase[iproc_priv.spu.num_spu])) {
-		err = PTR_ERR(spu_reg_vbase[iproc_priv.spu.num_spu]);
-		dev_err(&pdev->dev, "Failed to map registers: %d\n",
-			err);
-		spu_reg_vbase[iproc_priv.spu.num_spu] = NULL;
-		return err;
-	}
-
-	dev_dbg(dev, "SPU %d detected.", iproc_priv.spu.num_spu);
-
-	spu->reg_vbase[iproc_priv.spu.num_spu] = spu_reg_vbase;
+	spu->num_spu = i;
+	dev_dbg(dev, "Device has %d SPUs", spu->num_spu);
 
 	return 0;
 }
@@ -4860,8 +4850,8 @@ int bcm_spu_probe(struct platform_device *pdev)
 	struct spu_hw *spu = &iproc_priv.spu;
 	int err = 0;
 
-	iproc_priv.pdev[iproc_priv.spu.num_spu] = pdev;
-	platform_set_drvdata(iproc_priv.pdev[iproc_priv.spu.num_spu],
+	iproc_priv.pdev  = pdev;
+	platform_set_drvdata(iproc_priv.pdev,
 			     &iproc_priv);
 
 	err = spu_dt_read(pdev);
@@ -4871,12 +4861,6 @@ int bcm_spu_probe(struct platform_device *pdev)
 	err = spu_mb_init(&pdev->dev);
 	if (err < 0)
 		goto failure;
-
-	iproc_priv.spu.num_spu++;
-
-	/* If already initialized, we've just added another SPU and are done */
-	if (iproc_priv.inited)
-		return 0;
 
 	if (spu->spu_type == SPU_TYPE_SPUM)
 		iproc_priv.bcm_hdr_len = 8;
@@ -4892,8 +4876,6 @@ int bcm_spu_probe(struct platform_device *pdev)
 	err = spu_algs_register(dev);
 	if (err < 0)
 		goto fail_reg;
-
-	iproc_priv.inited = true;
 
 	return 0;
 

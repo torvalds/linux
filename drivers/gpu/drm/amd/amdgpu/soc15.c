@@ -25,7 +25,7 @@
 #include <linux/module.h>
 #include <drm/drmP.h>
 #include "amdgpu.h"
-#include "amdgpu_atomfirmware.h"
+#include "amdgpu_atombios.h"
 #include "amdgpu_ih.h"
 #include "amdgpu_uvd.h"
 #include "amdgpu_vce.h"
@@ -61,8 +61,6 @@
 #include "amdgpu_powerplay.h"
 #include "dce_virtual.h"
 #include "mxgpu_ai.h"
-
-MODULE_FIRMWARE("amdgpu/vega10_smc.bin");
 
 #define mmFabricConfigAccessControl                                                                    0x0410
 #define mmFabricConfigAccessControl_BASE_IDX                                                           0
@@ -103,7 +101,7 @@ static u32 soc15_pcie_rreg(struct amdgpu_device *adev, u32 reg)
 {
 	unsigned long flags, address, data;
 	u32 r;
-	struct nbio_pcie_index_data *nbio_pcie_id;
+	const struct nbio_pcie_index_data *nbio_pcie_id;
 
 	if (adev->flags & AMD_IS_APU)
 		nbio_pcie_id = &nbio_v7_0_pcie_index_data;
@@ -124,7 +122,7 @@ static u32 soc15_pcie_rreg(struct amdgpu_device *adev, u32 reg)
 static void soc15_pcie_wreg(struct amdgpu_device *adev, u32 reg, u32 v)
 {
 	unsigned long flags, address, data;
-	struct nbio_pcie_index_data *nbio_pcie_id;
+	const struct nbio_pcie_index_data *nbio_pcie_id;
 
 	if (adev->flags & AMD_IS_APU)
 		nbio_pcie_id = &nbio_v7_0_pcie_index_data;
@@ -198,6 +196,50 @@ static void soc15_didt_wreg(struct amdgpu_device *adev, u32 reg, u32 v)
 	spin_unlock_irqrestore(&adev->didt_idx_lock, flags);
 }
 
+static u32 soc15_gc_cac_rreg(struct amdgpu_device *adev, u32 reg)
+{
+	unsigned long flags;
+	u32 r;
+
+	spin_lock_irqsave(&adev->gc_cac_idx_lock, flags);
+	WREG32_SOC15(GC, 0, mmGC_CAC_IND_INDEX, (reg));
+	r = RREG32_SOC15(GC, 0, mmGC_CAC_IND_DATA);
+	spin_unlock_irqrestore(&adev->gc_cac_idx_lock, flags);
+	return r;
+}
+
+static void soc15_gc_cac_wreg(struct amdgpu_device *adev, u32 reg, u32 v)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&adev->gc_cac_idx_lock, flags);
+	WREG32_SOC15(GC, 0, mmGC_CAC_IND_INDEX, (reg));
+	WREG32_SOC15(GC, 0, mmGC_CAC_IND_DATA, (v));
+	spin_unlock_irqrestore(&adev->gc_cac_idx_lock, flags);
+}
+
+static u32 soc15_se_cac_rreg(struct amdgpu_device *adev, u32 reg)
+{
+	unsigned long flags;
+	u32 r;
+
+	spin_lock_irqsave(&adev->se_cac_idx_lock, flags);
+	WREG32_SOC15(GC, 0, mmSE_CAC_IND_INDEX, (reg));
+	r = RREG32_SOC15(GC, 0, mmSE_CAC_IND_DATA);
+	spin_unlock_irqrestore(&adev->se_cac_idx_lock, flags);
+	return r;
+}
+
+static void soc15_se_cac_wreg(struct amdgpu_device *adev, u32 reg, u32 v)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&adev->se_cac_idx_lock, flags);
+	WREG32_SOC15(GC, 0, mmSE_CAC_IND_INDEX, (reg));
+	WREG32_SOC15(GC, 0, mmSE_CAC_IND_DATA, (v));
+	spin_unlock_irqrestore(&adev->se_cac_idx_lock, flags);
+}
+
 static u32 soc15_get_config_memsize(struct amdgpu_device *adev)
 {
 	if (adev->flags & AMD_IS_APU)
@@ -237,10 +279,7 @@ static void soc15_init_golden_registers(struct amdgpu_device *adev)
 }
 static u32 soc15_get_xclk(struct amdgpu_device *adev)
 {
-	if (adev->asic_type == CHIP_VEGA10)
-		return adev->clock.spll.reference_freq/4;
-	else
-		return adev->clock.spll.reference_freq;
+	return adev->clock.spll.reference_freq;
 }
 
 
@@ -365,18 +404,27 @@ static int soc15_read_register(struct amdgpu_device *adev, u32 se_num,
 	return -EINVAL;
 }
 
-static void soc15_gpu_pci_config_reset(struct amdgpu_device *adev)
+static int soc15_asic_reset(struct amdgpu_device *adev)
 {
 	u32 i;
 
-	dev_info(adev->dev, "GPU pci config reset\n");
+	amdgpu_atombios_scratch_regs_engine_hung(adev, true);
+
+	dev_info(adev->dev, "GPU reset\n");
 
 	/* disable BM */
 	pci_clear_master(adev->pdev);
-	/* reset */
-	amdgpu_pci_config_reset(adev);
 
-	udelay(100);
+	pci_save_state(adev->pdev);
+
+	for (i = 0; i < AMDGPU_MAX_IP_NUM; i++) {
+		if (adev->ip_blocks[i].version->type == AMD_IP_BLOCK_TYPE_PSP){
+			adev->ip_blocks[i].version->funcs->soft_reset((void *)adev);
+			break;
+		}
+	}
+
+	pci_restore_state(adev->pdev);
 
 	/* wait for asic to come out of reset */
 	for (i = 0; i < adev->usec_timeout; i++) {
@@ -388,15 +436,7 @@ static void soc15_gpu_pci_config_reset(struct amdgpu_device *adev)
 		udelay(1);
 	}
 
-}
-
-static int soc15_asic_reset(struct amdgpu_device *adev)
-{
-	amdgpu_atomfirmware_scratch_regs_engine_hung(adev, true);
-
-	soc15_gpu_pci_config_reset(adev);
-
-	amdgpu_atomfirmware_scratch_regs_engine_hung(adev, false);
+	amdgpu_atombios_scratch_regs_engine_hung(adev, false);
 
 	return 0;
 }
@@ -492,6 +532,12 @@ int soc15_set_ip_blocks(struct amdgpu_device *adev)
 			amdgpu_ip_block_add(adev, &amdgpu_pp_ip_block);
 		if (adev->enable_virtual_display || amdgpu_sriov_vf(adev))
 			amdgpu_ip_block_add(adev, &dce_virtual_ip_block);
+#if defined(CONFIG_DRM_AMD_DC)
+		else if (amdgpu_device_has_dc_support(adev))
+			amdgpu_ip_block_add(adev, &dm_ip_block);
+#else
+#	warning "Enable CONFIG_DRM_AMD_DC for display support on SOC15."
+#endif
 		amdgpu_ip_block_add(adev, &gfx_v9_0_ip_block);
 		amdgpu_ip_block_add(adev, &sdma_v4_0_ip_block);
 		amdgpu_ip_block_add(adev, &uvd_v7_0_ip_block);
@@ -505,6 +551,12 @@ int soc15_set_ip_blocks(struct amdgpu_device *adev)
 		amdgpu_ip_block_add(adev, &amdgpu_pp_ip_block);
 		if (adev->enable_virtual_display || amdgpu_sriov_vf(adev))
 			amdgpu_ip_block_add(adev, &dce_virtual_ip_block);
+#if defined(CONFIG_DRM_AMD_DC)
+		else if (amdgpu_device_has_dc_support(adev))
+			amdgpu_ip_block_add(adev, &dm_ip_block);
+#else
+#	warning "Enable CONFIG_DRM_AMD_DC for display support on SOC15."
+#endif
 		amdgpu_ip_block_add(adev, &gfx_v9_0_ip_block);
 		amdgpu_ip_block_add(adev, &sdma_v4_0_ip_block);
 		amdgpu_ip_block_add(adev, &vcn_v1_0_ip_block);
@@ -522,13 +574,6 @@ static uint32_t soc15_get_rev_id(struct amdgpu_device *adev)
 		return nbio_v7_0_get_rev_id(adev);
 	else
 		return nbio_v6_1_get_rev_id(adev);
-}
-
-
-int gmc_v9_0_mc_wait_for_idle(struct amdgpu_device *adev)
-{
-	/* to be implemented in MC IP*/
-	return 0;
 }
 
 static const struct amdgpu_asic_funcs soc15_asic_funcs =
@@ -557,27 +602,16 @@ static int soc15_common_early_init(void *handle)
 	adev->uvd_ctx_wreg = &soc15_uvd_ctx_wreg;
 	adev->didt_rreg = &soc15_didt_rreg;
 	adev->didt_wreg = &soc15_didt_wreg;
+	adev->gc_cac_rreg = &soc15_gc_cac_rreg;
+	adev->gc_cac_wreg = &soc15_gc_cac_wreg;
+	adev->se_cac_rreg = &soc15_se_cac_rreg;
+	adev->se_cac_wreg = &soc15_se_cac_wreg;
 
 	adev->asic_funcs = &soc15_asic_funcs;
 
 	if (amdgpu_get_ip_block(adev, AMD_IP_BLOCK_TYPE_PSP) &&
 		(amdgpu_ip_block_mask & (1 << AMD_IP_BLOCK_TYPE_PSP)))
 		psp_enabled = true;
-
-	/*
-	 * nbio need be used for both sdma and gfx9, but only
-	 * initializes once
-	 */
-	switch(adev->asic_type) {
-	case CHIP_VEGA10:
-		nbio_v6_1_init(adev);
-		break;
-	case CHIP_RAVEN:
-		nbio_v7_0_init(adev);
-		break;
-	default:
-		return -EINVAL;
-	}
 
 	adev->rev_id = soc15_get_rev_id(adev);
 	adev->external_rev_id = 0xFF;
@@ -681,6 +715,9 @@ static int soc15_common_hw_init(void *handle)
 	soc15_pcie_gen3_enable(adev);
 	/* enable aspm */
 	soc15_program_aspm(adev);
+	/* setup nbio registers */
+	if (!(adev->flags & AMD_IS_APU))
+		nbio_v6_1_init_registers(adev);
 	/* enable the doorbell aperture */
 	soc15_enable_doorbell_aperture(adev, true);
 

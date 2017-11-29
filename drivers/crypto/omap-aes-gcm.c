@@ -18,6 +18,7 @@
 #include <linux/omap-dma.h>
 #include <linux/interrupt.h>
 #include <crypto/aes.h>
+#include <crypto/gcm.h>
 #include <crypto/scatterwalk.h>
 #include <crypto/skcipher.h>
 #include <crypto/internal/aead.h>
@@ -186,7 +187,7 @@ static int do_encrypt_iv(struct aead_request *req, u32 *tag, u32 *iv)
 	sk_req = skcipher_request_alloc(ctx->ctr, GFP_KERNEL);
 	if (!sk_req) {
 		pr_err("skcipher: Failed to allocate request\n");
-		return -1;
+		return -ENOMEM;
 	}
 
 	init_completion(&result.completion);
@@ -214,7 +215,7 @@ static int do_encrypt_iv(struct aead_request *req, u32 *tag, u32 *iv)
 		}
 		/* fall through */
 	default:
-		pr_err("Encryption of IV failed for GCM mode");
+		pr_err("Encryption of IV failed for GCM mode\n");
 		break;
 	}
 
@@ -311,7 +312,7 @@ static int omap_aes_gcm_crypt(struct aead_request *req, unsigned long mode)
 	int err, assoclen;
 
 	memset(rctx->auth_tag, 0, sizeof(rctx->auth_tag));
-	memcpy(rctx->iv + 12, &counter, 4);
+	memcpy(rctx->iv + GCM_AES_IV_SIZE, &counter, 4);
 
 	err = do_encrypt_iv(req, (u32 *)rctx->auth_tag, (u32 *)rctx->iv);
 	if (err)
@@ -339,7 +340,7 @@ int omap_aes_gcm_encrypt(struct aead_request *req)
 {
 	struct omap_aes_reqctx *rctx = aead_request_ctx(req);
 
-	memcpy(rctx->iv, req->iv, 12);
+	memcpy(rctx->iv, req->iv, GCM_AES_IV_SIZE);
 	return omap_aes_gcm_crypt(req, FLAGS_ENCRYPT | FLAGS_GCM);
 }
 
@@ -347,7 +348,7 @@ int omap_aes_gcm_decrypt(struct aead_request *req)
 {
 	struct omap_aes_reqctx *rctx = aead_request_ctx(req);
 
-	memcpy(rctx->iv, req->iv, 12);
+	memcpy(rctx->iv, req->iv, GCM_AES_IV_SIZE);
 	return omap_aes_gcm_crypt(req, FLAGS_GCM);
 }
 

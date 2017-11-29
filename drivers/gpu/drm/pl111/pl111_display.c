@@ -21,8 +21,8 @@
 #include <linux/of_graph.h>
 
 #include <drm/drmP.h>
-#include <drm/drm_panel.h>
 #include <drm/drm_gem_cma_helper.h>
+#include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_fb_cma_helper.h>
 
 #include "pl111_drm.h"
@@ -93,7 +93,7 @@ static void pl111_display_enable(struct drm_simple_display_pipe *pipe,
 	struct pl111_drm_dev_private *priv = drm->dev_private;
 	const struct drm_display_mode *mode = &cstate->mode;
 	struct drm_framebuffer *fb = plane->state->fb;
-	struct drm_connector *connector = &priv->connector.connector;
+	struct drm_connector *connector = priv->connector;
 	u32 cntl;
 	u32 ppl, hsw, hfp, hbp;
 	u32 lpp, vsw, vfp, vbp;
@@ -155,10 +155,8 @@ static void pl111_display_enable(struct drm_simple_display_pipe *pipe,
 
 	writel(0, priv->regs + CLCD_TIM3);
 
-	drm_panel_prepare(priv->connector.panel);
-
-	/* Enable and Power Up */
-	cntl = CNTL_LCDEN | CNTL_LCDTFT | CNTL_LCDPWR | CNTL_LCDVCOMP(1);
+	/* Hard-code TFT panel */
+	cntl = CNTL_LCDEN | CNTL_LCDTFT | CNTL_LCDVCOMP(1);
 
 	/* Note that the the hardware's format reader takes 'r' from
 	 * the low bit, while DRM formats list channels from high bit
@@ -201,9 +199,21 @@ static void pl111_display_enable(struct drm_simple_display_pipe *pipe,
 		break;
 	}
 
-	writel(cntl, priv->regs + CLCD_PL111_CNTL);
+	/* Power sequence: first enable and chill */
+	writel(cntl, priv->regs + priv->ctrl);
 
-	drm_panel_enable(priv->connector.panel);
+	/*
+	 * We expect this delay to stabilize the contrast
+	 * voltage Vee as stipulated by the manual
+	 */
+	msleep(20);
+
+	if (priv->variant_display_enable)
+		priv->variant_display_enable(drm, fb->format->format);
+
+	/* Power Up */
+	cntl |= CNTL_LCDPWR;
+	writel(cntl, priv->regs + priv->ctrl);
 
 	drm_crtc_vblank_on(crtc);
 }
@@ -213,15 +223,28 @@ void pl111_display_disable(struct drm_simple_display_pipe *pipe)
 	struct drm_crtc *crtc = &pipe->crtc;
 	struct drm_device *drm = crtc->dev;
 	struct pl111_drm_dev_private *priv = drm->dev_private;
+	u32 cntl;
 
 	drm_crtc_vblank_off(crtc);
 
-	drm_panel_disable(priv->connector.panel);
+	/* Power Down */
+	cntl = readl(priv->regs + priv->ctrl);
+	if (cntl & CNTL_LCDPWR) {
+		cntl &= ~CNTL_LCDPWR;
+		writel(cntl, priv->regs + priv->ctrl);
+	}
 
-	/* Disable and Power Down */
-	writel(0, priv->regs + CLCD_PL111_CNTL);
+	/*
+	 * We expect this delay to stabilize the contrast voltage Vee as
+	 * stipulated by the manual
+	 */
+	msleep(20);
 
-	drm_panel_unprepare(priv->connector.panel);
+	if (priv->variant_display_disable)
+		priv->variant_display_disable(drm);
+
+	/* Disable */
+	writel(0, priv->regs + priv->ctrl);
 
 	clk_disable_unprepare(priv->clk);
 }
@@ -259,7 +282,7 @@ int pl111_enable_vblank(struct drm_device *drm, unsigned int crtc)
 {
 	struct pl111_drm_dev_private *priv = drm->dev_private;
 
-	writel(CLCD_IRQ_NEXTBASE_UPDATE, priv->regs + CLCD_PL111_IENB);
+	writel(CLCD_IRQ_NEXTBASE_UPDATE, priv->regs + priv->ienb);
 
 	return 0;
 }
@@ -268,13 +291,13 @@ void pl111_disable_vblank(struct drm_device *drm, unsigned int crtc)
 {
 	struct pl111_drm_dev_private *priv = drm->dev_private;
 
-	writel(0, priv->regs + CLCD_PL111_IENB);
+	writel(0, priv->regs + priv->ienb);
 }
 
 static int pl111_display_prepare_fb(struct drm_simple_display_pipe *pipe,
 				    struct drm_plane_state *plane_state)
 {
-	return drm_fb_cma_prepare_fb(&pipe->plane, plane_state);
+	return drm_gem_fb_prepare_fb(&pipe->plane, plane_state);
 }
 
 static const struct drm_simple_display_pipe_funcs pl111_display_funcs = {
@@ -412,22 +435,6 @@ int pl111_display_init(struct drm_device *drm)
 	struct device_node *endpoint;
 	u32 tft_r0b0g0[3];
 	int ret;
-	static const u32 formats[] = {
-		DRM_FORMAT_ABGR8888,
-		DRM_FORMAT_XBGR8888,
-		DRM_FORMAT_ARGB8888,
-		DRM_FORMAT_XRGB8888,
-		DRM_FORMAT_BGR565,
-		DRM_FORMAT_RGB565,
-		DRM_FORMAT_ABGR1555,
-		DRM_FORMAT_XBGR1555,
-		DRM_FORMAT_ARGB1555,
-		DRM_FORMAT_XRGB1555,
-		DRM_FORMAT_ABGR4444,
-		DRM_FORMAT_XBGR4444,
-		DRM_FORMAT_ARGB4444,
-		DRM_FORMAT_XRGB4444,
-	};
 
 	endpoint = of_graph_get_next_endpoint(dev->of_node, NULL);
 	if (!endpoint)
@@ -443,21 +450,16 @@ int pl111_display_init(struct drm_device *drm)
 	}
 	of_node_put(endpoint);
 
-	if (tft_r0b0g0[0] != 0 ||
-	    tft_r0b0g0[1] != 8 ||
-	    tft_r0b0g0[2] != 16) {
-		dev_err(dev, "arm,pl11x,tft-r0g0b0-pads != [0,8,16] not yet supported\n");
-		return -EINVAL;
-	}
-
 	ret = pl111_init_clock_divider(drm);
 	if (ret)
 		return ret;
 
 	ret = drm_simple_display_pipe_init(drm, &priv->pipe,
 					   &pl111_display_funcs,
-					   formats, ARRAY_SIZE(formats),
-					   &priv->connector.connector);
+					   priv->variant->formats,
+					   priv->variant->nformats,
+					   NULL,
+					   priv->connector);
 	if (ret)
 		return ret;
 

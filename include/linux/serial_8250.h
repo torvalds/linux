@@ -80,9 +80,10 @@ struct uart_8250_ops {
 };
 
 struct uart_8250_em485 {
-	struct timer_list	start_tx_timer; /* "rs485 start tx" timer */
-	struct timer_list	stop_tx_timer;  /* "rs485 stop tx" timer */
-	struct timer_list	*active_timer;  /* pointer to active timer */
+	struct hrtimer		start_tx_timer; /* "rs485 start tx" timer */
+	struct hrtimer		stop_tx_timer;  /* "rs485 stop tx" timer */
+	struct hrtimer		*active_timer;  /* pointer to active timer */
+	struct uart_8250_port	*port;          /* for hrtimer callbacks */
 };
 
 /*

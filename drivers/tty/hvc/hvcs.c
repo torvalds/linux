@@ -1,21 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * IBM eServer Hypervisor Virtual Console Server Device Driver
  * Copyright (C) 2003, 2004 IBM Corp.
  *  Ryan S. Arnold (rsa@us.ibm.com)
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  *
  * Author(s) :  Ryan S. Arnold <rsa@us.ibm.com>
  *
@@ -189,7 +176,7 @@ MODULE_VERSION(HVCS_DRIVER_VERSION);
  * that will cause echoing or we'll go into recursive loop echoing chars back
  * and forth with the console drivers.
  */
-static struct ktermios hvcs_tty_termios = {
+static const struct ktermios hvcs_tty_termios = {
 	.c_iflag = IGNBRK | IGNPAR,
 	.c_oflag = OPOST,
 	.c_cflag = B38400 | CS8 | CREAD | HUPCL,
@@ -675,7 +662,7 @@ static int khvcsd(void *unused)
 	return 0;
 }
 
-static struct vio_device_id hvcs_driver_table[] = {
+static const struct vio_device_id hvcs_driver_table[] = {
 	{"serial-server", "hvterm2"},
 	{ "", "" }
 };

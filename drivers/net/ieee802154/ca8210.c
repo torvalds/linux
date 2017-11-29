@@ -66,6 +66,7 @@
 #include <linux/spinlock.h>
 #include <linux/string.h>
 #include <linux/workqueue.h>
+#include <linux/interrupt.h>
 
 #include <net/ieee802154_netdev.h>
 #include <net/mac802154.h>
@@ -916,17 +917,14 @@ static int ca8210_spi_transfer(
 	struct cas_control *cas_ctl;
 
 	if (!spi) {
-		dev_crit(
-			&spi->dev,
-			"NULL spi device passed to ca8210_spi_transfer\n"
-		);
+		pr_crit("NULL spi device passed to %s\n", __func__);
 		return -ENODEV;
 	}
 
 	priv = spi_get_drvdata(spi);
 	reinit_completion(&priv->spi_transfer_complete);
 
-	dev_dbg(&spi->dev, "ca8210_spi_transfer called\n");
+	dev_dbg(&spi->dev, "%s called\n", __func__);
 
 	cas_ctl = kmalloc(sizeof(*cas_ctl), GFP_ATOMIC);
 	if (!cas_ctl)
@@ -1305,7 +1303,7 @@ static u8 tdme_checkpibattribute(
 		break;
 	/* MAC */
 	case MAC_BATT_LIFE_EXT_PERIODS:
-		if ((value < 6) || (value > 41))
+		if (value < 6 || value > 41)
 			status = MAC_INVALID_PARAMETER;
 		break;
 	case MAC_BEACON_PAYLOAD:
@@ -1321,7 +1319,7 @@ static u8 tdme_checkpibattribute(
 			status = MAC_INVALID_PARAMETER;
 		break;
 	case MAC_MAX_BE:
-		if ((value < 3) || (value > 8))
+		if (value < 3 || value > 8)
 			status = MAC_INVALID_PARAMETER;
 		break;
 	case MAC_MAX_CSMA_BACKOFFS:
@@ -1337,7 +1335,7 @@ static u8 tdme_checkpibattribute(
 			status = MAC_INVALID_PARAMETER;
 		break;
 	case MAC_RESPONSE_WAIT_TIME:
-		if ((value < 2) || (value > 64))
+		if (value < 2 || value > 64)
 			status = MAC_INVALID_PARAMETER;
 		break;
 	case MAC_SUPERFRAME_ORDER:
@@ -1513,7 +1511,7 @@ static u8 mcps_data_request(
 	psec = (struct secspec *)(command.pdata.data_req.msdu + msdu_length);
 	command.length = sizeof(struct mcps_data_request_pset) -
 		MAX_DATA_SIZE + msdu_length;
-	if (!security || (security->security_level == 0)) {
+	if (!security || security->security_level == 0) {
 		psec->security_level = 0;
 		command.length += 1;
 	} else {
@@ -1563,7 +1561,7 @@ static u8 mlme_reset_request_sync(
 	status = response.pdata.status;
 
 	/* reset COORD Bit for Channel Filtering as Coordinator */
-	if (CA8210_MAC_WORKAROUNDS && set_default_pib && (!status)) {
+	if (CA8210_MAC_WORKAROUNDS && set_default_pib && !status) {
 		status = tdme_setsfr_request_sync(
 			0,
 			CA8210_SFR_MACCON,
@@ -1900,7 +1898,7 @@ static int ca8210_net_rx(struct ieee802154_hw *hw, u8 *command, size_t len)
 	unsigned long flags;
 	u8 status;
 
-	dev_dbg(&priv->spi->dev, "ca8210_net_rx(), CmdID = %d\n", command[0]);
+	dev_dbg(&priv->spi->dev, "%s: CmdID = %d\n", __func__, command[0]);
 
 	if (command[0] == SPI_MCPS_DATA_INDICATION) {
 		/* Received data */
@@ -1946,11 +1944,11 @@ static int ca8210_skb_tx(
 )
 {
 	int status;
-	struct ieee802154_hdr header = { 0 };
+	struct ieee802154_hdr header = { };
 	struct secspec secspec;
 	unsigned int mac_len;
 
-	dev_dbg(&priv->spi->dev, "ca8210_skb_tx() called\n");
+	dev_dbg(&priv->spi->dev, "%s called\n", __func__);
 
 	/* Get addressing info from skb - ieee802154 layer creates a full
 	 * packet
@@ -2053,7 +2051,7 @@ static int ca8210_xmit_async(struct ieee802154_hw *hw, struct sk_buff *skb)
 	struct ca8210_priv *priv = hw->priv;
 	int status;
 
-	dev_dbg(&priv->spi->dev, "calling ca8210_xmit_async()\n");
+	dev_dbg(&priv->spi->dev, "calling %s\n", __func__);
 
 	priv->tx_skb = skb;
 	priv->async_tx_pending = true;
@@ -2371,7 +2369,7 @@ static int ca8210_set_promiscuous_mode(struct ieee802154_hw *hw, const bool on)
 		MAC_PROMISCUOUS_MODE,
 		0,
 		1,
-		(const void*)&on,
+		(const void *)&on,
 		priv->spi
 	);
 	if (status) {

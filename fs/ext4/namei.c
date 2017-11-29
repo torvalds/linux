@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *  linux/fs/ext4/namei.c
  *
@@ -1342,13 +1343,12 @@ static struct buffer_head * ext4_find_entry (struct inode *dir,
 	struct super_block *sb;
 	struct buffer_head *bh_use[NAMEI_RA_SIZE];
 	struct buffer_head *bh, *ret = NULL;
-	ext4_lblk_t start, block, b;
+	ext4_lblk_t start, block;
 	const u8 *name = d_name->name;
-	int ra_max = 0;		/* Number of bh's in the readahead
+	size_t ra_max = 0;	/* Number of bh's in the readahead
 				   buffer, bh_use[] */
-	int ra_ptr = 0;		/* Current index into readahead
+	size_t ra_ptr = 0;	/* Current index into readahead
 				   buffer */
-	int num = 0;
 	ext4_lblk_t  nblocks;
 	int i, namelen, retval;
 	struct ext4_filename fname;
@@ -1411,31 +1411,17 @@ restart:
 		if (ra_ptr >= ra_max) {
 			/* Refill the readahead buffer */
 			ra_ptr = 0;
-			b = block;
-			for (ra_max = 0; ra_max < NAMEI_RA_SIZE; ra_max++) {
-				/*
-				 * Terminate if we reach the end of the
-				 * directory and must wrap, or if our
-				 * search has finished at this block.
-				 */
-				if (b >= nblocks || (num && block == start)) {
-					bh_use[ra_max] = NULL;
-					break;
-				}
-				num++;
-				bh = ext4_getblk(NULL, dir, b++, 0);
-				if (IS_ERR(bh)) {
-					if (ra_max == 0) {
-						ret = bh;
-						goto cleanup_and_exit;
-					}
-					break;
-				}
-				bh_use[ra_max] = bh;
-				if (bh)
-					ll_rw_block(REQ_OP_READ,
-						    REQ_META | REQ_PRIO,
-						    1, &bh);
+			if (block < start)
+				ra_max = start - block;
+			else
+				ra_max = nblocks - block;
+			ra_max = min(ra_max, ARRAY_SIZE(bh_use));
+			retval = ext4_bread_batch(dir, block, ra_max,
+						  false /* wait */, bh_use);
+			if (retval) {
+				ret = ERR_PTR(retval);
+				ra_max = 0;
+				goto cleanup_and_exit;
 			}
 		}
 		if ((bh = bh_use[ra_ptr++]) == NULL)
@@ -1553,24 +1539,14 @@ static struct dentry *ext4_lookup(struct inode *dir, struct dentry *dentry, unsi
 	struct inode *inode;
 	struct ext4_dir_entry_2 *de;
 	struct buffer_head *bh;
+	int err;
 
-	if (ext4_encrypted_inode(dir)) {
-		int res = fscrypt_get_encryption_info(dir);
+	err = fscrypt_prepare_lookup(dir, dentry, flags);
+	if (err)
+		return ERR_PTR(err);
 
-		/*
-		 * DCACHE_ENCRYPTED_WITH_KEY is set if the dentry is
-		 * created while the directory was encrypted and we
-		 * have access to the key.
-		 */
-		if (fscrypt_has_encryption_key(dir))
-			fscrypt_set_encrypted_dentry(dentry);
-		fscrypt_set_d_op(dentry);
-		if (res && res != -ENOKEY)
-			return ERR_PTR(res);
-	}
-
-       if (dentry->d_name.len > EXT4_NAME_LEN)
-	       return ERR_PTR(-ENAMETOOLONG);
+	if (dentry->d_name.len > EXT4_NAME_LEN)
+		return ERR_PTR(-ENAMETOOLONG);
 
 	bh = ext4_find_entry(dir, &dentry->d_name, &de, NULL);
 	if (IS_ERR(bh))
@@ -2395,19 +2371,22 @@ out:
 }
 
 /*
- * DIR_NLINK feature is set if 1) nlinks > EXT4_LINK_MAX or 2) nlinks == 2,
- * since this indicates that nlinks count was previously 1.
+ * Set directory link count to 1 if nlinks > EXT4_LINK_MAX, or if nlinks == 2
+ * since this indicates that nlinks count was previously 1 to avoid overflowing
+ * the 16-bit i_links_count field on disk.  Directories with i_nlink == 1 mean
+ * that subdirectory link counts are not being maintained accurately.
+ *
+ * The caller has already checked for i_nlink overflow in case the DIR_LINK
+ * feature is not enabled and returned -EMLINK.  The is_dx() check is a proxy
+ * for checking S_ISDIR(inode) (since the INODE_INDEX feature will not be set
+ * on regular files) and to avoid creating huge/slow non-HTREE directories.
  */
 static void ext4_inc_count(handle_t *handle, struct inode *inode)
 {
 	inc_nlink(inode);
-	if (is_dx(inode) && inode->i_nlink > 1) {
-		/* limit is 16-bit i_links_count */
-		if (inode->i_nlink >= EXT4_LINK_MAX || inode->i_nlink == 2) {
-			set_nlink(inode, 1);
-			ext4_set_feature_dir_nlink(inode->i_sb);
-		}
-	}
+	if (is_dx(inode) &&
+	    (inode->i_nlink > EXT4_LINK_MAX || inode->i_nlink == 2))
+		set_nlink(inode, 1);
 }
 
 /*
@@ -3233,9 +3212,10 @@ static int ext4_link(struct dentry *old_dentry,
 
 	if (inode->i_nlink >= EXT4_LINK_MAX)
 		return -EMLINK;
-	if (ext4_encrypted_inode(dir) &&
-			!fscrypt_has_permitted_context(dir, inode))
-		return -EPERM;
+
+	err = fscrypt_prepare_link(old_dentry, dir, dentry);
+	if (err)
+		return err;
 
        if ((ext4_test_inode_flag(dir, EXT4_INODE_PROJINHERIT)) &&
 	   (!projid_eq(EXT4_I(dir)->i_projid,
@@ -3527,12 +3507,6 @@ static int ext4_rename(struct inode *old_dir, struct dentry *old_dentry,
 			EXT4_I(old_dentry->d_inode)->i_projid)))
 		return -EXDEV;
 
-	if ((ext4_encrypted_inode(old_dir) &&
-	     !fscrypt_has_encryption_key(old_dir)) ||
-	    (ext4_encrypted_inode(new_dir) &&
-	     !fscrypt_has_encryption_key(new_dir)))
-		return -ENOKEY;
-
 	retval = dquot_initialize(old.dir);
 	if (retval)
 		return retval;
@@ -3560,13 +3534,6 @@ static int ext4_rename(struct inode *old_dir, struct dentry *old_dentry,
 	retval = -ENOENT;
 	if (!old.bh || le32_to_cpu(old.de->inode) != old.inode->i_ino)
 		goto end_rename;
-
-	if ((old.dir != new.dir) &&
-	    ext4_encrypted_inode(new.dir) &&
-	    !fscrypt_has_permitted_context(new.dir, old.inode)) {
-		retval = -EPERM;
-		goto end_rename;
-	}
 
 	new.bh = ext4_find_entry(new.dir, &new.dentry->d_name,
 				 &new.de, &new.inlined);
@@ -3733,19 +3700,6 @@ static int ext4_cross_rename(struct inode *old_dir, struct dentry *old_dentry,
 	int retval;
 	struct timespec ctime;
 
-	if ((ext4_encrypted_inode(old_dir) &&
-	     !fscrypt_has_encryption_key(old_dir)) ||
-	    (ext4_encrypted_inode(new_dir) &&
-	     !fscrypt_has_encryption_key(new_dir)))
-		return -ENOKEY;
-
-	if ((ext4_encrypted_inode(old_dir) ||
-	     ext4_encrypted_inode(new_dir)) &&
-	    (old_dir != new_dir) &&
-	    (!fscrypt_has_permitted_context(new_dir, old.inode) ||
-	     !fscrypt_has_permitted_context(old_dir, new.inode)))
-		return -EPERM;
-
 	if ((ext4_test_inode_flag(new_dir, EXT4_INODE_PROJINHERIT) &&
 	     !projid_eq(EXT4_I(new_dir)->i_projid,
 			EXT4_I(old_dentry->d_inode)->i_projid)) ||
@@ -3872,11 +3826,18 @@ static int ext4_rename2(struct inode *old_dir, struct dentry *old_dentry,
 			struct inode *new_dir, struct dentry *new_dentry,
 			unsigned int flags)
 {
+	int err;
+
 	if (unlikely(ext4_forced_shutdown(EXT4_SB(old_dir->i_sb))))
 		return -EIO;
 
 	if (flags & ~(RENAME_NOREPLACE | RENAME_EXCHANGE | RENAME_WHITEOUT))
 		return -EINVAL;
+
+	err = fscrypt_prepare_rename(old_dir, old_dentry, new_dir, new_dentry,
+				     flags);
+	if (err)
+		return err;
 
 	if (flags & RENAME_EXCHANGE) {
 		return ext4_cross_rename(old_dir, old_dentry,

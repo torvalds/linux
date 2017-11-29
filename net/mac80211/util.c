@@ -1392,10 +1392,10 @@ static int ieee80211_build_preq_ies_band(struct ieee80211_local *local,
 	/* insert custom IEs that go before HT */
 	if (ie && ie_len) {
 		static const u8 before_ht[] = {
-			WLAN_EID_SSID,
-			WLAN_EID_SUPP_RATES,
-			WLAN_EID_REQUEST,
-			WLAN_EID_EXT_SUPP_RATES,
+			/*
+			 * no need to list the ones split off already
+			 * (or generated here)
+			 */
 			WLAN_EID_DS_PARAMS,
 			WLAN_EID_SUPPORTED_REGULATORY_CLASSES,
 		};
@@ -1424,20 +1424,17 @@ static int ieee80211_build_preq_ies_band(struct ieee80211_local *local,
 	/* insert custom IEs that go before VHT */
 	if (ie && ie_len) {
 		static const u8 before_vht[] = {
-			WLAN_EID_SSID,
-			WLAN_EID_SUPP_RATES,
-			WLAN_EID_REQUEST,
-			WLAN_EID_EXT_SUPP_RATES,
-			WLAN_EID_DS_PARAMS,
-			WLAN_EID_SUPPORTED_REGULATORY_CLASSES,
-			WLAN_EID_HT_CAPABILITY,
+			/*
+			 * no need to list the ones split off already
+			 * (or generated here)
+			 */
 			WLAN_EID_BSS_COEX_2040,
 			WLAN_EID_EXT_CAPABILITY,
 			WLAN_EID_SSID_LIST,
 			WLAN_EID_CHANNEL_USAGE,
 			WLAN_EID_INTERWORKING,
-			/* mesh ID can't happen here */
-			/* 60 GHz can't happen here right now */
+			WLAN_EID_MESH_ID,
+			/* 60 GHz (Multi-band, DMG, MMS) can't happen */
 		};
 		noffset = ieee80211_ie_split(ie, ie_len,
 					     before_vht, ARRAY_SIZE(before_vht),
@@ -2980,8 +2977,8 @@ int ieee80211_send_action_csa(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_mgmt *mgmt;
 	struct ieee80211_local *local = sdata->local;
 	int freq;
-	int hdr_len = offsetof(struct ieee80211_mgmt, u.action.u.chan_switch) +
-			       sizeof(mgmt->u.action.u.chan_switch);
+	int hdr_len = offsetofend(struct ieee80211_mgmt,
+				  u.action.u.chan_switch);
 	u8 *pos;
 
 	if (sdata->vif.type != NL80211_IFTYPE_ADHOC &&

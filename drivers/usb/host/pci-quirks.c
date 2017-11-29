@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * This file contains code to reset and initialize USB host controllers.
  * Some of it includes work-arounds for PCI hardware and BIOS quirks.
@@ -98,6 +99,7 @@ enum amd_chipset_gen {
 	AMD_CHIPSET_HUDSON2,
 	AMD_CHIPSET_BOLTON,
 	AMD_CHIPSET_YANGTZE,
+	AMD_CHIPSET_TAISHAN,
 	AMD_CHIPSET_UNKNOWN,
 };
 
@@ -145,20 +147,26 @@ static int amd_chipset_sb_type_init(struct amd_chipset_info *pinfo)
 		pinfo->smbus_dev = pci_get_device(PCI_VENDOR_ID_AMD,
 				PCI_DEVICE_ID_AMD_HUDSON2_SMBUS, NULL);
 
-		if (!pinfo->smbus_dev) {
-			pinfo->sb_type.gen = NOT_AMD_CHIPSET;
-			return 0;
+		if (pinfo->smbus_dev) {
+			rev = pinfo->smbus_dev->revision;
+			if (rev >= 0x11 && rev <= 0x14)
+				pinfo->sb_type.gen = AMD_CHIPSET_HUDSON2;
+			else if (rev >= 0x15 && rev <= 0x18)
+				pinfo->sb_type.gen = AMD_CHIPSET_BOLTON;
+			else if (rev >= 0x39 && rev <= 0x3a)
+				pinfo->sb_type.gen = AMD_CHIPSET_YANGTZE;
+		} else {
+			pinfo->smbus_dev = pci_get_device(PCI_VENDOR_ID_AMD,
+							  0x145c, NULL);
+			if (pinfo->smbus_dev) {
+				rev = pinfo->smbus_dev->revision;
+				pinfo->sb_type.gen = AMD_CHIPSET_TAISHAN;
+			} else {
+				pinfo->sb_type.gen = NOT_AMD_CHIPSET;
+				return 0;
+			}
 		}
-
-		rev = pinfo->smbus_dev->revision;
-		if (rev >= 0x11 && rev <= 0x14)
-			pinfo->sb_type.gen = AMD_CHIPSET_HUDSON2;
-		else if (rev >= 0x15 && rev <= 0x18)
-			pinfo->sb_type.gen = AMD_CHIPSET_BOLTON;
-		else if (rev >= 0x39 && rev <= 0x3a)
-			pinfo->sb_type.gen = AMD_CHIPSET_YANGTZE;
 	}
-
 	pinfo->sb_type.rev = rev;
 	return 1;
 }
@@ -260,11 +268,12 @@ int usb_hcd_amd_remote_wakeup_quirk(struct pci_dev *pdev)
 {
 	/* Make sure amd chipset type has already been initialized */
 	usb_amd_find_chipset_info();
-	if (amd_chipset.sb_type.gen != AMD_CHIPSET_YANGTZE)
-		return 0;
-
-	dev_dbg(&pdev->dev, "QUIRK: Enable AMD remote wakeup fix\n");
-	return 1;
+	if (amd_chipset.sb_type.gen == AMD_CHIPSET_YANGTZE ||
+	    amd_chipset.sb_type.gen == AMD_CHIPSET_TAISHAN) {
+		dev_dbg(&pdev->dev, "QUIRK: Enable AMD remote wakeup fix\n");
+		return 1;
+	}
+	return 0;
 }
 EXPORT_SYMBOL_GPL(usb_hcd_amd_remote_wakeup_quirk);
 
@@ -439,7 +448,7 @@ static int usb_asmedia_wait_write(struct pci_dev *pdev)
 		if ((value & ASMT_CONTROL_WRITE_BIT) == 0)
 			return 0;
 
-		usleep_range(40, 60);
+		udelay(50);
 	}
 
 	dev_warn(&pdev->dev, "%s: check_write_ready timeout", __func__);
@@ -833,7 +842,7 @@ static void quirk_usb_disable_ehci(struct pci_dev *pdev)
 			ehci_bios_handoff(pdev, op_reg_base, cap, offset);
 			break;
 		case 0: /* Illegal reserved cap, set cap=0 so we exit */
-			cap = 0; /* then fallthrough... */
+			cap = 0; /* fall through */
 		default:
 			dev_warn(&pdev->dev,
 				 "EHCI: unrecognized capability %02x\n",
@@ -1014,7 +1023,7 @@ EXPORT_SYMBOL_GPL(usb_disable_xhci_ports);
  *
  * Takes care of the handoff between the Pre-OS (i.e. BIOS) and the OS.
  * It signals to the BIOS that the OS wants control of the host controller,
- * and then waits 5 seconds for the BIOS to hand over control.
+ * and then waits 1 second for the BIOS to hand over control.
  * If we timeout, assume the BIOS is broken and take control anyway.
  */
 static void quirk_usb_handoff_xhci(struct pci_dev *pdev)
@@ -1061,9 +1070,9 @@ static void quirk_usb_handoff_xhci(struct pci_dev *pdev)
 	if (val & XHCI_HC_BIOS_OWNED) {
 		writel(val | XHCI_HC_OS_OWNED, base + ext_cap_offset);
 
-		/* Wait for 5 seconds with 10 microsecond polling interval */
+		/* Wait for 1 second with 10 microsecond polling interval */
 		timeout = handshake(base + ext_cap_offset, XHCI_HC_BIOS_OWNED,
-				0, 5000, 10);
+				0, 1000000, 10);
 
 		/* Assume a buggy BIOS and take HC ownership anyway */
 		if (timeout) {
@@ -1092,7 +1101,7 @@ hc_init:
 	 * operational or runtime registers.  Wait 5 seconds and no more.
 	 */
 	timeout = handshake(op_reg_base + XHCI_STS_OFFSET, XHCI_STS_CNR, 0,
-			5000, 10);
+			5000000, 10);
 	/* Assume a buggy HC and start HC initialization anyway */
 	if (timeout) {
 		val = readl(op_reg_base + XHCI_STS_OFFSET);
@@ -1150,3 +1159,23 @@ static void quirk_usb_early_handoff(struct pci_dev *pdev)
 }
 DECLARE_PCI_FIXUP_CLASS_FINAL(PCI_ANY_ID, PCI_ANY_ID,
 			PCI_CLASS_SERIAL_USB, 8, quirk_usb_early_handoff);
+
+bool usb_xhci_needs_pci_reset(struct pci_dev *pdev)
+{
+	/*
+	 * Our dear uPD72020{1,2} friend only partially resets when
+	 * asked to via the XHCI interface, and may end up doing DMA
+	 * at the wrong addresses, as it keeps the top 32bit of some
+	 * addresses from its previous programming under obscure
+	 * circumstances.
+	 * Give it a good wack at probe time. Unfortunately, this
+	 * needs to happen before we've had a chance to discover any
+	 * quirk, or the system will be in a rather bad state.
+	 */
+	if (pdev->vendor == PCI_VENDOR_ID_RENESAS &&
+	    (pdev->device == 0x0014 || pdev->device == 0x0015))
+		return true;
+
+	return false;
+}
+EXPORT_SYMBOL_GPL(usb_xhci_needs_pci_reset);

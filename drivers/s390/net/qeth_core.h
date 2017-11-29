@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  *    Copyright IBM Corp. 2007
  *    Author(s): Utz Bacher <utz.bacher@de.ibm.com>,
@@ -182,6 +183,21 @@ struct qeth_sbp_info {
 	__u32 reflect_promisc_primary:1;
 };
 
+struct qeth_vnicc_info {
+	/* supported/currently configured VNICCs; updated in IPA exchanges */
+	u32 sup_chars;
+	u32 cur_chars;
+	/* supported commands: bitmasks which VNICCs support respective cmd */
+	u32 set_char_sup;
+	u32 getset_timeout_sup;
+	/* timeout value for the learning characteristic */
+	u32 learning_timeout;
+	/* characteristics wanted/configured by user */
+	u32 wanted_chars;
+	/* has user explicitly enabled rx_bcast while online? */
+	bool rx_bcast_enabled;
+};
+
 static inline int qeth_is_ipa_supported(struct qeth_ipa_info *ipa,
 		enum qeth_ipa_funcs func)
 {
@@ -215,20 +231,6 @@ static inline int qeth_is_ipa_enabled(struct qeth_ipa_info *ipa,
 
 #define QETH_IDX_FUNC_LEVEL_OSD		 0x0101
 #define QETH_IDX_FUNC_LEVEL_IQD		 0x4108
-
-#define QETH_MODELLIST_ARRAY \
-	{{0x1731, 0x01, 0x1732, QETH_CARD_TYPE_OSD, QETH_MAX_QUEUES, 0}, \
-	 {0x1731, 0x05, 0x1732, QETH_CARD_TYPE_IQD, QETH_MAX_QUEUES, 0x103}, \
-	 {0x1731, 0x06, 0x1732, QETH_CARD_TYPE_OSN, QETH_MAX_QUEUES, 0}, \
-	 {0x1731, 0x02, 0x1732, QETH_CARD_TYPE_OSM, QETH_MAX_QUEUES, 0}, \
-	 {0x1731, 0x02, 0x1732, QETH_CARD_TYPE_OSX, QETH_MAX_QUEUES, 0}, \
-	 {0, 0, 0, 0, 0, 0} }
-#define QETH_CU_TYPE_IND	0
-#define QETH_CU_MODEL_IND	1
-#define QETH_DEV_TYPE_IND	2
-#define QETH_DEV_MODEL_IND	3
-#define QETH_QUEUE_NO_IND	4
-#define QETH_MULTICAST_IND	5
 
 #define QETH_REAL_CARD		1
 #define QETH_VLAN_CARD		2
@@ -673,6 +675,7 @@ struct qeth_card_options {
 	struct qeth_routing_info route6;
 	struct qeth_ipa_info ipa6;
 	struct qeth_sbp_info sbp; /* SETBRIDGEPORT options */
+	struct qeth_vnicc_info vnicc; /* VNICC options */
 	int fake_broadcast;
 	int layer2;
 	int performance_stats;
@@ -857,11 +860,6 @@ static inline int qeth_get_ip_version(struct sk_buff *skb)
 	}
 }
 
-static inline int qeth_get_ip_protocol(struct sk_buff *skb)
-{
-	return ip_hdr(skb)->protocol;
-}
-
 static inline void qeth_put_buffer_pool_entry(struct qeth_card *card,
 		struct qeth_buffer_pool_entry *entry)
 {
@@ -951,10 +949,13 @@ int qeth_get_priority_queue(struct qeth_card *, struct sk_buff *, int, int);
 int qeth_get_elements_no(struct qeth_card *card, struct sk_buff *skb,
 			 int extra_elems, int data_offset);
 int qeth_get_elements_for_frags(struct sk_buff *);
-int qeth_do_send_packet_fast(struct qeth_card *, struct qeth_qdio_out_q *,
-			struct sk_buff *, struct qeth_hdr *, int, int);
-int qeth_do_send_packet(struct qeth_card *, struct qeth_qdio_out_q *,
-		    struct sk_buff *, struct qeth_hdr *, int);
+int qeth_do_send_packet_fast(struct qeth_qdio_out_q *queue, struct sk_buff *skb,
+			     struct qeth_hdr *hdr, unsigned int offset,
+			     unsigned int hd_len);
+int qeth_do_send_packet(struct qeth_card *card, struct qeth_qdio_out_q *queue,
+			struct sk_buff *skb, struct qeth_hdr *hdr,
+			unsigned int offset, unsigned int hd_len,
+			int elements_needed);
 int qeth_do_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
 int qeth_core_get_sset_count(struct net_device *, int);
 void qeth_core_get_ethtool_stats(struct net_device *,
@@ -984,9 +985,10 @@ struct qeth_cmd_buffer *qeth_get_setassparms_cmd(struct qeth_card *,
 						 __u16, __u16,
 						 enum qeth_prot_versions);
 int qeth_set_features(struct net_device *, netdev_features_t);
-int qeth_recover_features(struct net_device *);
+void qeth_recover_features(struct net_device *dev);
 netdev_features_t qeth_fix_features(struct net_device *, netdev_features_t);
 int qeth_vm_request_mac(struct qeth_card *card);
+int qeth_push_hdr(struct sk_buff *skb, struct qeth_hdr **hdr, unsigned int len);
 
 /* exports for OSN */
 int qeth_osn_assist(struct net_device *, void *, int);

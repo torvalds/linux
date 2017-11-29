@@ -707,6 +707,8 @@ static int ieee80211_cancel_roc(struct ieee80211_local *local,
 	if (!cookie)
 		return -ENOENT;
 
+	flush_work(&local->hw_roc_start);
+
 	mutex_lock(&local->mtx);
 	list_for_each_entry_safe(roc, tmp, &local->roc_list, list) {
 		if (!mgmt_tx && roc->cookie != cookie)

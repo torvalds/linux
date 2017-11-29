@@ -25,7 +25,7 @@ It is recommended to list all clocks and resets available.
 The driver will only use those matching the phy_type.
 
 Example:
-	usbphy1: phy@00a01800 {
+	usbphy1: phy@a01800 {
 		compatible = "allwinner,sun9i-a80-usb-phy";
 		reg = <0x00a01800 0x4>;
 		clocks = <&usb_phy_clk 2>, <&usb_phy_clk 10>,
@@ -33,6 +33,5 @@ Example:
 		clock-names = "hsic_480M", "hsic_12M", "phy";
 		resets = <&usb_phy_clk 18>, <&usb_phy_clk 19>;
 		reset-names = "hsic", "phy";
-		status = "disabled";
 		#phy-cells = <0>;
 	};

@@ -153,7 +153,7 @@ static int neigh_check_cb(struct neighbour *n)
 	return 1;
 }
 
-static void idle_timer_check(unsigned long dummy)
+static void idle_timer_check(struct timer_list *unused)
 {
 	write_lock(&arp_tbl.lock);
 	__neigh_for_each_release(&arp_tbl, neigh_check_cb);
@@ -617,7 +617,7 @@ static void atmarpd_close(struct atm_vcc *vcc)
 	module_put(THIS_MODULE);
 }
 
-static struct atmdev_ops atmarpd_dev_ops = {
+static const struct atmdev_ops atmarpd_dev_ops = {
 	.close = atmarpd_close
 };
 
@@ -887,7 +887,7 @@ static int __init atm_clip_init(void)
 	register_netdevice_notifier(&clip_dev_notifier);
 	register_inetaddr_notifier(&clip_inet_notifier);
 
-	setup_timer(&idle_timer, idle_timer_check, 0);
+	timer_setup(&idle_timer, idle_timer_check, 0);
 
 #ifdef CONFIG_PROC_FS
 	{

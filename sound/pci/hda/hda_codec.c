@@ -977,7 +977,7 @@ int snd_hda_codec_update_widgets(struct hda_codec *codec)
 	hda_nid_t fg;
 	int err;
 
-	err = snd_hdac_refresh_widget_sysfs(&codec->core);
+	err = snd_hdac_refresh_widgets(&codec->core, true);
 	if (err < 0)
 		return err;
 
@@ -1803,36 +1803,6 @@ static int check_slave_present(struct hda_codec *codec,
 	return 1;
 }
 
-/* guess the value corresponding to 0dB */
-static int get_kctl_0dB_offset(struct hda_codec *codec,
-			       struct snd_kcontrol *kctl, int *step_to_check)
-{
-	int _tlv[4];
-	const int *tlv = NULL;
-	int val = -1;
-
-	if ((kctl->vd[0].access & SNDRV_CTL_ELEM_ACCESS_TLV_CALLBACK) &&
-	    kctl->tlv.c == snd_hda_mixer_amp_tlv) {
-		get_ctl_amp_tlv(kctl, _tlv);
-		tlv = _tlv;
-	} else if (kctl->vd[0].access & SNDRV_CTL_ELEM_ACCESS_TLV_READ)
-		tlv = kctl->tlv.p;
-	if (tlv && tlv[0] == SNDRV_CTL_TLVT_DB_SCALE) {
-		int step = tlv[3];
-		step &= ~TLV_DB_SCALE_MUTE;
-		if (!step)
-			return -1;
-		if (*step_to_check && *step_to_check != step) {
-			codec_err(codec, "Mismatching dB step for vmaster slave (%d!=%d)\n",
--				   *step_to_check, step);
-			return -1;
-		}
-		*step_to_check = step;
-		val = -tlv[2] / step;
-	}
-	return val;
-}
-
 /* call kctl->put with the given value(s) */
 static int put_kctl_with_value(struct snd_kcontrol *kctl, int val)
 {
@@ -1847,19 +1817,62 @@ static int put_kctl_with_value(struct snd_kcontrol *kctl, int val)
 	return 0;
 }
 
-/* initialize the slave volume with 0dB */
-static int init_slave_0dB(struct hda_codec *codec,
-			  void *data, struct snd_kcontrol *slave)
+struct slave_init_arg {
+	struct hda_codec *codec;
+	int step;
+};
+
+/* initialize the slave volume with 0dB via snd_ctl_apply_vmaster_slaves() */
+static int init_slave_0dB(struct snd_kcontrol *slave,
+			  struct snd_kcontrol *kctl,
+			  void *_arg)
 {
-	int offset = get_kctl_0dB_offset(codec, slave, data);
-	if (offset > 0)
-		put_kctl_with_value(slave, offset);
+	struct slave_init_arg *arg = _arg;
+	int _tlv[4];
+	const int *tlv = NULL;
+	int step;
+	int val;
+
+	if (kctl->vd[0].access & SNDRV_CTL_ELEM_ACCESS_TLV_CALLBACK) {
+		if (kctl->tlv.c != snd_hda_mixer_amp_tlv) {
+			codec_err(arg->codec,
+				  "Unexpected TLV callback for slave %s:%d\n",
+				  kctl->id.name, kctl->id.index);
+			return 0; /* ignore */
+		}
+		get_ctl_amp_tlv(kctl, _tlv);
+		tlv = _tlv;
+	} else if (kctl->vd[0].access & SNDRV_CTL_ELEM_ACCESS_TLV_READ)
+		tlv = kctl->tlv.p;
+
+	if (!tlv || tlv[0] != SNDRV_CTL_TLVT_DB_SCALE)
+		return 0;
+
+	step = tlv[3];
+	step &= ~TLV_DB_SCALE_MUTE;
+	if (!step)
+		return 0;
+	if (arg->step && arg->step != step) {
+		codec_err(arg->codec,
+			  "Mismatching dB step for vmaster slave (%d!=%d)\n",
+			  arg->step, step);
+		return 0;
+	}
+
+	arg->step = step;
+	val = -tlv[2] / step;
+	if (val > 0) {
+		put_kctl_with_value(slave, val);
+		return val;
+	}
+
 	return 0;
 }
 
-/* unmute the slave */
-static int init_slave_unmute(struct hda_codec *codec,
-			     void *data, struct snd_kcontrol *slave)
+/* unmute the slave via snd_ctl_apply_vmaster_slaves() */
+static int init_slave_unmute(struct snd_kcontrol *slave,
+			     struct snd_kcontrol *kctl,
+			     void *_arg)
 {
 	return put_kctl_with_value(slave, 1);
 }
@@ -1919,9 +1932,13 @@ int __snd_hda_add_vmaster(struct hda_codec *codec, char *name,
 	/* init with master mute & zero volume */
 	put_kctl_with_value(kctl, 0);
 	if (init_slave_vol) {
-		int step = 0;
-		map_slaves(codec, slaves, suffix,
-			   tlv ? init_slave_0dB : init_slave_unmute, &step);
+		struct slave_init_arg arg = {
+			.codec = codec,
+			.step = 0,
+		};
+		snd_ctl_apply_vmaster_slaves(kctl,
+					     tlv ? init_slave_0dB : init_slave_unmute,
+					     &arg);
 	}
 
 	if (ctl_ret)
@@ -3213,8 +3230,10 @@ int snd_hda_codec_build_pcms(struct hda_codec *codec)
 			continue; /* no substreams assigned */
 
 		dev = get_empty_pcm_device(bus, cpcm->pcm_type);
-		if (dev < 0)
+		if (dev < 0) {
+			cpcm->device = SNDRV_PCM_INVALID_DEVICE;
 			continue; /* no fatal error */
+		}
 		cpcm->device = dev;
 		err =  snd_hda_attach_pcm_stream(bus, codec, cpcm);
 		if (err < 0) {

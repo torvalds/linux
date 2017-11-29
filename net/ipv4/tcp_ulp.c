@@ -122,14 +122,14 @@ int tcp_set_ulp(struct sock *sk, const char *name)
 
 	ulp_ops = __tcp_ulp_find_autoload(name);
 	if (!ulp_ops)
-		err = -ENOENT;
-	else
-		err = ulp_ops->init(sk);
+		return -ENOENT;
 
-	if (err)
-		goto out;
+	err = ulp_ops->init(sk);
+	if (err) {
+		module_put(ulp_ops->owner);
+		return err;
+	}
 
 	icsk->icsk_ulp_ops = ulp_ops;
- out:
-	return err;
+	return 0;
 }

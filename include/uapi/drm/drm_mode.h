@@ -712,6 +712,56 @@ struct drm_mode_atomic {
 	__u64 user_data;
 };
 
+struct drm_format_modifier_blob {
+#define FORMAT_BLOB_CURRENT 1
+	/* Version of this blob format */
+	__u32 version;
+
+	/* Flags */
+	__u32 flags;
+
+	/* Number of fourcc formats supported */
+	__u32 count_formats;
+
+	/* Where in this blob the formats exist (in bytes) */
+	__u32 formats_offset;
+
+	/* Number of drm_format_modifiers */
+	__u32 count_modifiers;
+
+	/* Where in this blob the modifiers exist (in bytes) */
+	__u32 modifiers_offset;
+
+	/* __u32 formats[] */
+	/* struct drm_format_modifier modifiers[] */
+};
+
+struct drm_format_modifier {
+	/* Bitmask of formats in get_plane format list this info applies to. The
+	 * offset allows a sliding window of which 64 formats (bits).
+	 *
+	 * Some examples:
+	 * In today's world with < 65 formats, and formats 0, and 2 are
+	 * supported
+	 * 0x0000000000000005
+	 *		  ^-offset = 0, formats = 5
+	 *
+	 * If the number formats grew to 128, and formats 98-102 are
+	 * supported with the modifier:
+	 *
+	 * 0x0000007c00000000 0000000000000000
+	 *		  ^
+	 *		  |__offset = 64, formats = 0x7c00000000
+	 *
+	 */
+	__u64 formats;
+	__u32 offset;
+	__u32 pad;
+
+	/* The modifier that applies to the >get_plane format list bitmask. */
+	__u64 modifier;
+};
+
 /**
  * Create a new 'blob' data property, copying length bytes from data pointer,
  * and returning new blob ID.
@@ -730,6 +780,72 @@ struct drm_mode_create_blob {
  */
 struct drm_mode_destroy_blob {
 	__u32 blob_id;
+};
+
+/**
+ * Lease mode resources, creating another drm_master.
+ */
+struct drm_mode_create_lease {
+	/** Pointer to array of object ids (__u32) */
+	__u64 object_ids;
+	/** Number of object ids */
+	__u32 object_count;
+	/** flags for new FD (O_CLOEXEC, etc) */
+	__u32 flags;
+
+	/** Return: unique identifier for lessee. */
+	__u32 lessee_id;
+	/** Return: file descriptor to new drm_master file */
+	__u32 fd;
+};
+
+/**
+ * List lesses from a drm_master
+ */
+struct drm_mode_list_lessees {
+	/** Number of lessees.
+	 * On input, provides length of the array.
+	 * On output, provides total number. No
+	 * more than the input number will be written
+	 * back, so two calls can be used to get
+	 * the size and then the data.
+	 */
+	__u32 count_lessees;
+	__u32 pad;
+
+	/** Pointer to lessees.
+	 * pointer to __u64 array of lessee ids
+	 */
+	__u64 lessees_ptr;
+};
+
+/**
+ * Get leased objects
+ */
+struct drm_mode_get_lease {
+	/** Number of leased objects.
+	 * On input, provides length of the array.
+	 * On output, provides total number. No
+	 * more than the input number will be written
+	 * back, so two calls can be used to get
+	 * the size and then the data.
+	 */
+	__u32 count_objects;
+	__u32 pad;
+
+	/** Pointer to objects.
+	 * pointer to __u32 array of object ids
+	 */
+	__u64 objects_ptr;
+};
+
+/**
+ * Revoke lease
+ */
+struct drm_mode_revoke_lease {
+	/** Unique ID of lessee
+	 */
+	__u32 lessee_id;
 };
 
 #if defined(__cplusplus)

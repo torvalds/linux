@@ -1663,7 +1663,7 @@ __find_pending_exception(struct dm_snapshot *s,
 static void remap_exception(struct dm_snapshot *s, struct dm_exception *e,
 			    struct bio *bio, chunk_t chunk)
 {
-	bio->bi_bdev = s->cow->bdev;
+	bio_set_dev(bio, s->cow->bdev);
 	bio->bi_iter.bi_sector =
 		chunk_to_sector(s->store, dm_chunk_number(e->new_chunk) +
 				(chunk - e->old_chunk)) +
@@ -1681,7 +1681,7 @@ static int snapshot_map(struct dm_target *ti, struct bio *bio)
 	init_tracked_chunk(bio);
 
 	if (bio->bi_opf & REQ_PREFLUSH) {
-		bio->bi_bdev = s->cow->bdev;
+		bio_set_dev(bio, s->cow->bdev);
 		return DM_MAPIO_REMAPPED;
 	}
 
@@ -1769,7 +1769,7 @@ static int snapshot_map(struct dm_target *ti, struct bio *bio)
 			goto out;
 		}
 	} else {
-		bio->bi_bdev = s->origin->bdev;
+		bio_set_dev(bio, s->origin->bdev);
 		track_chunk(s, bio, chunk);
 	}
 
@@ -1802,9 +1802,9 @@ static int snapshot_merge_map(struct dm_target *ti, struct bio *bio)
 
 	if (bio->bi_opf & REQ_PREFLUSH) {
 		if (!dm_bio_get_target_bio_nr(bio))
-			bio->bi_bdev = s->origin->bdev;
+			bio_set_dev(bio, s->origin->bdev);
 		else
-			bio->bi_bdev = s->cow->bdev;
+			bio_set_dev(bio, s->cow->bdev);
 		return DM_MAPIO_REMAPPED;
 	}
 
@@ -1824,7 +1824,7 @@ static int snapshot_merge_map(struct dm_target *ti, struct bio *bio)
 		    chunk >= s->first_merging_chunk &&
 		    chunk < (s->first_merging_chunk +
 			     s->num_merging_chunks)) {
-			bio->bi_bdev = s->origin->bdev;
+			bio_set_dev(bio, s->origin->bdev);
 			bio_list_add(&s->bios_queued_during_merge, bio);
 			r = DM_MAPIO_SUBMITTED;
 			goto out_unlock;
@@ -1838,7 +1838,7 @@ static int snapshot_merge_map(struct dm_target *ti, struct bio *bio)
 	}
 
 redirect_to_origin:
-	bio->bi_bdev = s->origin->bdev;
+	bio_set_dev(bio, s->origin->bdev);
 
 	if (bio_data_dir(bio) == WRITE) {
 		up_write(&s->lock);
@@ -2285,7 +2285,7 @@ static int origin_map(struct dm_target *ti, struct bio *bio)
 	struct dm_origin *o = ti->private;
 	unsigned available_sectors;
 
-	bio->bi_bdev = o->dev->bdev;
+	bio_set_dev(bio, o->dev->bdev);
 
 	if (unlikely(bio->bi_opf & REQ_PREFLUSH))
 		return DM_MAPIO_REMAPPED;

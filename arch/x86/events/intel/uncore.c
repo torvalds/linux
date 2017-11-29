@@ -721,7 +721,7 @@ static struct attribute *uncore_pmu_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group uncore_pmu_attr_group = {
+static const struct attribute_group uncore_pmu_attr_group = {
 	.attrs = uncore_pmu_attrs,
 };
 
@@ -822,7 +822,7 @@ static int __init uncore_type_init(struct intel_uncore_type *type, bool setid)
 		pmus[i].type	= type;
 		pmus[i].boxes	= kzalloc(size, GFP_KERNEL);
 		if (!pmus[i].boxes)
-			return -ENOMEM;
+			goto err;
 	}
 
 	type->pmus = pmus;
@@ -836,7 +836,7 @@ static int __init uncore_type_init(struct intel_uncore_type *type, bool setid)
 		attr_group = kzalloc(sizeof(struct attribute *) * (i + 1) +
 					sizeof(*attr_group), GFP_KERNEL);
 		if (!attr_group)
-			return -ENOMEM;
+			goto err;
 
 		attrs = (struct attribute **)(attr_group + 1);
 		attr_group->name = "events";
@@ -849,7 +849,15 @@ static int __init uncore_type_init(struct intel_uncore_type *type, bool setid)
 	}
 
 	type->pmu_group = &uncore_pmu_attr_group;
+
 	return 0;
+
+err:
+	for (i = 0; i < type->num_boxes; i++)
+		kfree(pmus[i].boxes);
+	kfree(pmus);
+
+	return -ENOMEM;
 }
 
 static int __init
@@ -967,10 +975,10 @@ static void uncore_pci_remove(struct pci_dev *pdev)
 	int i, phys_id, pkg;
 
 	phys_id = uncore_pcibus_to_physid(pdev->bus);
-	pkg = topology_phys_to_logical_pkg(phys_id);
 
 	box = pci_get_drvdata(pdev);
 	if (!box) {
+		pkg = topology_phys_to_logical_pkg(phys_id);
 		for (i = 0; i < UNCORE_EXTRA_PCI_DEV_MAX; i++) {
 			if (uncore_extra_pci_dev[pkg].dev[i] == pdev) {
 				uncore_extra_pci_dev[pkg].dev[i] = NULL;
@@ -986,7 +994,7 @@ static void uncore_pci_remove(struct pci_dev *pdev)
 		return;
 
 	pci_set_drvdata(pdev, NULL);
-	pmu->boxes[pkg] = NULL;
+	pmu->boxes[box->pkgid] = NULL;
 	if (atomic_dec_return(&pmu->activeboxes) == 0)
 		uncore_pmu_unregister(pmu);
 	uncore_box_exit(box);

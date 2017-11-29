@@ -39,25 +39,26 @@ static void fake_free_pages(struct drm_i915_gem_object *obj,
 	kfree(pages);
 }
 
-static struct sg_table *
-fake_get_pages(struct drm_i915_gem_object *obj)
+static int fake_get_pages(struct drm_i915_gem_object *obj)
 {
 #define GFP (GFP_KERNEL | __GFP_NOWARN | __GFP_NORETRY)
 #define PFN_BIAS 0x1000
 	struct sg_table *pages;
 	struct scatterlist *sg;
+	unsigned int sg_page_sizes;
 	typeof(obj->base.size) rem;
 
 	pages = kmalloc(sizeof(*pages), GFP);
 	if (!pages)
-		return ERR_PTR(-ENOMEM);
+		return -ENOMEM;
 
 	rem = round_up(obj->base.size, BIT(31)) >> 31;
 	if (sg_alloc_table(pages, rem, GFP)) {
 		kfree(pages);
-		return ERR_PTR(-ENOMEM);
+		return -ENOMEM;
 	}
 
+	sg_page_sizes = 0;
 	rem = obj->base.size;
 	for (sg = pages->sgl; sg; sg = sg_next(sg)) {
 		unsigned long len = min_t(typeof(rem), rem, BIT(31));
@@ -66,13 +67,17 @@ fake_get_pages(struct drm_i915_gem_object *obj)
 		sg_set_page(sg, pfn_to_page(PFN_BIAS), len, 0);
 		sg_dma_address(sg) = page_to_phys(sg_page(sg));
 		sg_dma_len(sg) = len;
+		sg_page_sizes |= len;
 
 		rem -= len;
 	}
 	GEM_BUG_ON(rem);
 
 	obj->mm.madv = I915_MADV_DONTNEED;
-	return pages;
+
+	__i915_gem_object_set_pages(obj, pages, sg_page_sizes);
+
+	return 0;
 #undef GFP
 }
 
@@ -197,6 +202,9 @@ static int lowlevel_hole(struct drm_i915_private *i915,
 {
 	I915_RND_STATE(seed_prng);
 	unsigned int size;
+	struct i915_vma mock_vma;
+
+	memset(&mock_vma, 0, sizeof(struct i915_vma));
 
 	/* Keep creating larger objects until one cannot fit into the hole */
 	for (size = 12; (hole_end - hole_start) >> size; size++) {
@@ -255,8 +263,11 @@ static int lowlevel_hole(struct drm_i915_private *i915,
 			    vm->allocate_va_range(vm, addr, BIT_ULL(size)))
 				break;
 
-			vm->insert_entries(vm, obj->mm.pages, addr,
-					   I915_CACHE_NONE, 0);
+			mock_vma.pages = obj->mm.pages;
+			mock_vma.node.size = BIT_ULL(size);
+			mock_vma.node.start = addr;
+
+			vm->insert_entries(vm, &mock_vma, I915_CACHE_NONE, 0);
 		}
 		count = n;
 

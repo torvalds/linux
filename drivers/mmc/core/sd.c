@@ -39,11 +39,11 @@ static const unsigned char tran_mant[] = {
 	35,	40,	45,	50,	55,	60,	70,	80,
 };
 
-static const unsigned int tacc_exp[] = {
+static const unsigned int taac_exp[] = {
 	1,	10,	100,	1000,	10000,	100000,	1000000, 10000000,
 };
 
-static const unsigned int tacc_mant[] = {
+static const unsigned int taac_mant[] = {
 	0,	10,	12,	13,	15,	20,	25,	30,
 	35,	40,	45,	50,	55,	60,	70,	80,
 };
@@ -111,8 +111,8 @@ static int mmc_decode_csd(struct mmc_card *card)
 	case 0:
 		m = UNSTUFF_BITS(resp, 115, 4);
 		e = UNSTUFF_BITS(resp, 112, 3);
-		csd->tacc_ns	 = (tacc_exp[e] * tacc_mant[m] + 9) / 10;
-		csd->tacc_clks	 = UNSTUFF_BITS(resp, 104, 8) * 100;
+		csd->taac_ns	 = (taac_exp[e] * taac_mant[m] + 9) / 10;
+		csd->taac_clks	 = UNSTUFF_BITS(resp, 104, 8) * 100;
 
 		m = UNSTUFF_BITS(resp, 99, 4);
 		e = UNSTUFF_BITS(resp, 96, 3);
@@ -148,8 +148,8 @@ static int mmc_decode_csd(struct mmc_card *card)
 		 */
 		mmc_card_set_blockaddr(card);
 
-		csd->tacc_ns	 = 0; /* Unused */
-		csd->tacc_clks	 = 0; /* Unused */
+		csd->taac_ns	 = 0; /* Unused */
+		csd->taac_clks	 = 0; /* Unused */
 
 		m = UNSTUFF_BITS(resp, 99, 4);
 		e = UNSTUFF_BITS(resp, 96, 3);
@@ -908,6 +908,18 @@ unsigned mmc_sd_get_max_clock(struct mmc_card *card)
 	return max_dtr;
 }
 
+static bool mmc_sd_card_using_v18(struct mmc_card *card)
+{
+	/*
+	 * According to the SD spec., the Bus Speed Mode (function group 1) bits
+	 * 2 to 4 are zero if the card is initialized at 3.3V signal level. Thus
+	 * they can be used to determine if the card has already switched to
+	 * 1.8V signaling.
+	 */
+	return card->sw_caps.sd3_bus_mode &
+	       (SD_MODE_UHS_SDR50 | SD_MODE_UHS_SDR104 | SD_MODE_UHS_DDR50);
+}
+
 /*
  * Handle the detection and initialisation of a card.
  *
@@ -921,9 +933,10 @@ static int mmc_sd_init_card(struct mmc_host *host, u32 ocr,
 	int err;
 	u32 cid[4];
 	u32 rocr = 0;
+	bool v18_fixup_failed = false;
 
 	WARN_ON(!host->claimed);
-
+retry:
 	err = mmc_sd_get_cid(host, ocr, cid, &rocr);
 	if (err)
 		return err;
@@ -989,6 +1002,36 @@ static int mmc_sd_init_card(struct mmc_host *host, u32 ocr,
 	if (err)
 		goto free_card;
 
+	/*
+	 * If the card has not been power cycled, it may still be using 1.8V
+	 * signaling. Detect that situation and try to initialize a UHS-I (1.8V)
+	 * transfer mode.
+	 */
+	if (!v18_fixup_failed && !mmc_host_is_spi(host) && mmc_host_uhs(host) &&
+	    mmc_sd_card_using_v18(card) &&
+	    host->ios.signal_voltage != MMC_SIGNAL_VOLTAGE_180) {
+		/*
+		 * Re-read switch information in case it has changed since
+		 * oldcard was initialized.
+		 */
+		if (oldcard) {
+			err = mmc_read_switch(card);
+			if (err)
+				goto free_card;
+		}
+		if (mmc_sd_card_using_v18(card)) {
+			if (mmc_host_set_uhs_voltage(host) ||
+			    mmc_sd_init_uhs_card(card)) {
+				v18_fixup_failed = true;
+				mmc_power_cycle(host, ocr);
+				if (!oldcard)
+					mmc_remove_card(card);
+				goto retry;
+			}
+			goto done;
+		}
+	}
+
 	/* Initialization sequence for UHS-I cards */
 	if (rocr & SD_ROCR_S18A) {
 		err = mmc_sd_init_uhs_card(card);
@@ -1021,7 +1064,7 @@ static int mmc_sd_init_card(struct mmc_host *host, u32 ocr,
 			mmc_set_bus_width(host, MMC_BUS_WIDTH_4);
 		}
 	}
-
+done:
 	host->card = card;
 	return 0;
 
@@ -1056,14 +1099,14 @@ static void mmc_sd_detect(struct mmc_host *host)
 {
 	int err;
 
-	mmc_get_card(host->card);
+	mmc_get_card(host->card, NULL);
 
 	/*
 	 * Just check if our card has been removed.
 	 */
 	err = _mmc_detect_card_removed(host);
 
-	mmc_put_card(host->card);
+	mmc_put_card(host->card, NULL);
 
 	if (err) {
 		mmc_sd_remove(host);

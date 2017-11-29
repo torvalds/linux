@@ -196,7 +196,7 @@ static void sctp_free_local_addr_list(struct net *net)
 
 /* Copy the local addresses which are valid for 'scope' into 'bp'.  */
 int sctp_copy_local_addr_list(struct net *net, struct sctp_bind_addr *bp,
-			      sctp_scope_t scope, gfp_t gfp, int copy_flags)
+			      enum sctp_scope scope, gfp_t gfp, int copy_flags)
 {
 	struct sctp_sockaddr_entry *addr;
 	union sctp_addr laddr;
@@ -292,7 +292,7 @@ static void sctp_v4_from_addr_param(union sctp_addr *addr,
 static int sctp_v4_to_addr_param(const union sctp_addr *addr,
 				 union sctp_addr_param *param)
 {
-	int length = sizeof(sctp_ipv4addr_param_t);
+	int length = sizeof(struct sctp_ipv4addr_param);
 
 	param->v4.param_hdr.type = SCTP_PARAM_IPV4_ADDRESS;
 	param->v4.param_hdr.length = htons(length);
@@ -400,9 +400,9 @@ static int sctp_v4_available(union sctp_addr *addr, struct sctp_sock *sp)
  * IPv4 scoping can be controlled through sysctl option
  * net.sctp.addr_scope_policy
  */
-static sctp_scope_t sctp_v4_scope(union sctp_addr *addr)
+static enum sctp_scope sctp_v4_scope(union sctp_addr *addr)
 {
-	sctp_scope_t retval;
+	enum sctp_scope retval;
 
 	/* Check for unusable SCTP addresses. */
 	if (IS_IPV4_UNUSABLE_ADDRESS(addr->v4.sin_addr.s_addr)) {
@@ -622,9 +622,9 @@ static void sctp_v4_ecn_capable(struct sock *sk)
 	INET_ECN_xmit(sk);
 }
 
-static void sctp_addr_wq_timeout_handler(unsigned long arg)
+static void sctp_addr_wq_timeout_handler(struct timer_list *t)
 {
-	struct net *net = (struct net *)arg;
+	struct net *net = from_timer(net, t, sctp.addr_wq_timer);
 	struct sctp_sockaddr_entry *addrw, *temp;
 	struct sctp_sock *sp;
 
@@ -1304,8 +1304,7 @@ static int __net_init sctp_defaults_init(struct net *net)
 	INIT_LIST_HEAD(&net->sctp.auto_asconf_splist);
 	spin_lock_init(&net->sctp.addr_wq_lock);
 	net->sctp.addr_wq_timer.expires = 0;
-	setup_timer(&net->sctp.addr_wq_timer, sctp_addr_wq_timeout_handler,
-		    (unsigned long)net);
+	timer_setup(&net->sctp.addr_wq_timer, sctp_addr_wq_timeout_handler, 0);
 
 	return 0;
 

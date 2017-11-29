@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef CEPH_CRUSH_CRUSH_H
 #define CEPH_CRUSH_CRUSH_H
 
@@ -193,7 +194,7 @@ struct crush_choose_arg {
 struct crush_choose_arg_map {
 #ifdef __KERNEL__
 	struct rb_node node;
-	u64 choose_args_index;
+	s64 choose_args_index;
 #endif
 	struct crush_choose_arg *args; /*!< replacement for each bucket
                                             in the crushmap */

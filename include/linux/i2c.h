@@ -304,6 +304,7 @@ static inline bool i2c_detect_slave_mode(struct device *dev) { return false; }
  * @type: chip type, to initialize i2c_client.name
  * @flags: to initialize i2c_client.flags
  * @addr: stored in i2c_client.addr
+ * @dev_name: Overrides the default <busnr>-<addr> dev_name if set
  * @platform_data: stored in i2c_client.dev.platform_data
  * @archdata: copied into i2c_client.dev.archdata
  * @of_node: pointer to OpenFirmware device node
@@ -328,6 +329,7 @@ struct i2c_board_info {
 	char		type[I2C_NAME_SIZE];
 	unsigned short	flags;
 	unsigned short	addr;
+	const char	*dev_name;
 	void		*platform_data;
 	struct dev_archdata	*archdata;
 	struct device_node *of_node;
@@ -689,7 +691,8 @@ i2c_unlock_adapter(struct i2c_adapter *adapter)
 #define I2C_CLASS_HWMON		(1<<0)	/* lm_sensors, ... */
 #define I2C_CLASS_DDC		(1<<3)	/* DDC bus on graphics adapters */
 #define I2C_CLASS_SPD		(1<<7)	/* Memory modules */
-#define I2C_CLASS_DEPRECATED	(1<<8)	/* Warn users that adapter will stop using classes */
+/* Warn users that the adapter doesn't support classes anymore */
+#define I2C_CLASS_DEPRECATED	(1<<8)
 
 /* Internal numbers to terminate lists */
 #define I2C_CLIENT_END		0xfffeU

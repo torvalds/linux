@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * This file contains the procedures for the handling of select and poll
  *
@@ -291,8 +292,7 @@ static int poll_select_copy_remaining(struct timespec64 *end_time,
 				      void __user *p,
 				      int timeval, int ret)
 {
-	struct timespec64 rts64;
-	struct timespec rts;
+	struct timespec64 rts;
 	struct timeval rtv;
 
 	if (!p)
@@ -305,23 +305,22 @@ static int poll_select_copy_remaining(struct timespec64 *end_time,
 	if (!end_time->tv_sec && !end_time->tv_nsec)
 		return ret;
 
-	ktime_get_ts64(&rts64);
-	rts64 = timespec64_sub(*end_time, rts64);
-	if (rts64.tv_sec < 0)
-		rts64.tv_sec = rts64.tv_nsec = 0;
+	ktime_get_ts64(&rts);
+	rts = timespec64_sub(*end_time, rts);
+	if (rts.tv_sec < 0)
+		rts.tv_sec = rts.tv_nsec = 0;
 
-	rts = timespec64_to_timespec(rts64);
 
 	if (timeval) {
 		if (sizeof(rtv) > sizeof(rtv.tv_sec) + sizeof(rtv.tv_usec))
 			memset(&rtv, 0, sizeof(rtv));
-		rtv.tv_sec = rts64.tv_sec;
-		rtv.tv_usec = rts64.tv_nsec / NSEC_PER_USEC;
+		rtv.tv_sec = rts.tv_sec;
+		rtv.tv_usec = rts.tv_nsec / NSEC_PER_USEC;
 
 		if (!copy_to_user(p, &rtv, sizeof(rtv)))
 			return ret;
 
-	} else if (!copy_to_user(p, &rts, sizeof(rts)))
+	} else if (!put_timespec64(&rts, p))
 		return ret;
 
 	/*
@@ -704,17 +703,15 @@ static long do_pselect(int n, fd_set __user *inp, fd_set __user *outp,
 		       const sigset_t __user *sigmask, size_t sigsetsize)
 {
 	sigset_t ksigmask, sigsaved;
-	struct timespec ts;
-	struct timespec64 ts64, end_time, *to = NULL;
+	struct timespec64 ts, end_time, *to = NULL;
 	int ret;
 
 	if (tsp) {
-		if (copy_from_user(&ts, tsp, sizeof(ts)))
+		if (get_timespec64(&ts, tsp))
 			return -EFAULT;
-		ts64 = timespec_to_timespec64(ts);
 
 		to = &end_time;
-		if (poll_select_set_timeout(to, ts64.tv_sec, ts64.tv_nsec))
+		if (poll_select_set_timeout(to, ts.tv_sec, ts.tv_nsec))
 			return -EINVAL;
 	}
 
@@ -1051,12 +1048,11 @@ SYSCALL_DEFINE5(ppoll, struct pollfd __user *, ufds, unsigned int, nfds,
 		size_t, sigsetsize)
 {
 	sigset_t ksigmask, sigsaved;
-	struct timespec ts;
-	struct timespec64 end_time, *to = NULL;
+	struct timespec64 ts, end_time, *to = NULL;
 	int ret;
 
 	if (tsp) {
-		if (copy_from_user(&ts, tsp, sizeof(ts)))
+		if (get_timespec64(&ts, tsp))
 			return -EFAULT;
 
 		to = &end_time;
@@ -1102,10 +1098,10 @@ SYSCALL_DEFINE5(ppoll, struct pollfd __user *, ufds, unsigned int, nfds,
 #define __COMPAT_NFDBITS       (8 * sizeof(compat_ulong_t))
 
 static
-int compat_poll_select_copy_remaining(struct timespec *end_time, void __user *p,
+int compat_poll_select_copy_remaining(struct timespec64 *end_time, void __user *p,
 				      int timeval, int ret)
 {
-	struct timespec ts;
+	struct timespec64 ts;
 
 	if (!p)
 		return ret;
@@ -1117,8 +1113,8 @@ int compat_poll_select_copy_remaining(struct timespec *end_time, void __user *p,
 	if (!end_time->tv_sec && !end_time->tv_nsec)
 		return ret;
 
-	ktime_get_ts(&ts);
-	ts = timespec_sub(*end_time, ts);
+	ktime_get_ts64(&ts);
+	ts = timespec64_sub(*end_time, ts);
 	if (ts.tv_sec < 0)
 		ts.tv_sec = ts.tv_nsec = 0;
 
@@ -1131,12 +1127,7 @@ int compat_poll_select_copy_remaining(struct timespec *end_time, void __user *p,
 		if (!copy_to_user(p, &rtv, sizeof(rtv)))
 			return ret;
 	} else {
-		struct compat_timespec rts;
-
-		rts.tv_sec = ts.tv_sec;
-		rts.tv_nsec = ts.tv_nsec;
-
-		if (!copy_to_user(p, &rts, sizeof(rts)))
+		if (!compat_put_timespec64(&ts, p))
 			return ret;
 	}
 	/*
@@ -1164,11 +1155,7 @@ int compat_get_fd_set(unsigned long nr, compat_ulong_t __user *ufdset,
 	if (ufdset) {
 		return compat_get_bitmap(fdset, ufdset, nr);
 	} else {
-		/* Tricky, must clear full unsigned long in the
-		 * kernel fdset at the end, ALIGN makes sure that
-		 * actually happens.
-		 */
-		memset(fdset, 0, ALIGN(nr, BITS_PER_LONG));
+		zero_fd_set(nr, fdset);
 		return 0;
 	}
 }
@@ -1198,7 +1185,7 @@ int compat_set_fd_set(unsigned long nr, compat_ulong_t __user *ufdset,
  */
 static int compat_core_sys_select(int n, compat_ulong_t __user *inp,
 	compat_ulong_t __user *outp, compat_ulong_t __user *exp,
-	struct timespec *end_time)
+	struct timespec64 *end_time)
 {
 	fd_set_bits fds;
 	void *bits;
@@ -1271,7 +1258,7 @@ COMPAT_SYSCALL_DEFINE5(select, int, n, compat_ulong_t __user *, inp,
 	compat_ulong_t __user *, outp, compat_ulong_t __user *, exp,
 	struct compat_timeval __user *, tvp)
 {
-	struct timespec end_time, *to = NULL;
+	struct timespec64 end_time, *to = NULL;
 	struct compat_timeval tv;
 	int ret;
 
@@ -1315,14 +1302,12 @@ static long do_compat_pselect(int n, compat_ulong_t __user *inp,
 	struct compat_timespec __user *tsp, compat_sigset_t __user *sigmask,
 	compat_size_t sigsetsize)
 {
-	compat_sigset_t ss32;
 	sigset_t ksigmask, sigsaved;
-	struct compat_timespec ts;
-	struct timespec end_time, *to = NULL;
+	struct timespec64 ts, end_time, *to = NULL;
 	int ret;
 
 	if (tsp) {
-		if (copy_from_user(&ts, tsp, sizeof(ts)))
+		if (compat_get_timespec64(&ts, tsp))
 			return -EFAULT;
 
 		to = &end_time;
@@ -1333,9 +1318,8 @@ static long do_compat_pselect(int n, compat_ulong_t __user *inp,
 	if (sigmask) {
 		if (sigsetsize != sizeof(compat_sigset_t))
 			return -EINVAL;
-		if (copy_from_user(&ss32, sigmask, sizeof(ss32)))
+		if (get_compat_sigset(&ksigmask, sigmask))
 			return -EFAULT;
-		sigset_from_compat(&ksigmask, &ss32);
 
 		sigdelsetmask(&ksigmask, sigmask(SIGKILL)|sigmask(SIGSTOP));
 		sigprocmask(SIG_SETMASK, &ksigmask, &sigsaved);
@@ -1384,14 +1368,12 @@ COMPAT_SYSCALL_DEFINE5(ppoll, struct pollfd __user *, ufds,
 	unsigned int,  nfds, struct compat_timespec __user *, tsp,
 	const compat_sigset_t __user *, sigmask, compat_size_t, sigsetsize)
 {
-	compat_sigset_t ss32;
 	sigset_t ksigmask, sigsaved;
-	struct compat_timespec ts;
-	struct timespec end_time, *to = NULL;
+	struct timespec64 ts, end_time, *to = NULL;
 	int ret;
 
 	if (tsp) {
-		if (copy_from_user(&ts, tsp, sizeof(ts)))
+		if (compat_get_timespec64(&ts, tsp))
 			return -EFAULT;
 
 		to = &end_time;
@@ -1402,9 +1384,8 @@ COMPAT_SYSCALL_DEFINE5(ppoll, struct pollfd __user *, ufds,
 	if (sigmask) {
 		if (sigsetsize != sizeof(compat_sigset_t))
 			return -EINVAL;
-		if (copy_from_user(&ss32, sigmask, sizeof(ss32)))
+		if (get_compat_sigset(&ksigmask, sigmask))
 			return -EFAULT;
-		sigset_from_compat(&ksigmask, &ss32);
 
 		sigdelsetmask(&ksigmask, sigmask(SIGKILL)|sigmask(SIGSTOP));
 		sigprocmask(SIG_SETMASK, &ksigmask, &sigsaved);

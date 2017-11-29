@@ -24,6 +24,7 @@
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_gem_cma_helper.h>
+#include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_fb_cma_helper.h>
 #include <drm/drm_plane_helper.h>
 #include <drm/drm_of.h>
@@ -105,7 +106,7 @@ static int imx_drm_atomic_check(struct drm_device *dev,
 }
 
 static const struct drm_mode_config_funcs imx_drm_mode_config_funcs = {
-	.fb_create = drm_fb_cma_create,
+	.fb_create = drm_gem_fb_create,
 	.output_poll_changed = imx_drm_output_poll_changed,
 	.atomic_check = imx_drm_atomic_check,
 	.atomic_commit = drm_atomic_helper_commit,
@@ -115,7 +116,7 @@ static void imx_drm_atomic_commit_tail(struct drm_atomic_state *state)
 {
 	struct drm_device *dev = state->dev;
 	struct drm_plane *plane;
-	struct drm_plane_state *old_plane_state;
+	struct drm_plane_state *old_plane_state, *new_plane_state;
 	bool plane_disabling = false;
 	int i;
 
@@ -127,15 +128,15 @@ static void imx_drm_atomic_commit_tail(struct drm_atomic_state *state)
 
 	drm_atomic_helper_commit_modeset_enables(dev, state);
 
-	for_each_plane_in_state(state, plane, old_plane_state, i) {
-		if (drm_atomic_plane_disabling(old_plane_state, plane->state))
+	for_each_oldnew_plane_in_state(state, plane, old_plane_state, new_plane_state, i) {
+		if (drm_atomic_plane_disabling(old_plane_state, new_plane_state))
 			plane_disabling = true;
 	}
 
 	if (plane_disabling) {
 		drm_atomic_helper_wait_for_vblanks(dev, state);
 
-		for_each_plane_in_state(state, plane, old_plane_state, i)
+		for_each_old_plane_in_state(state, plane, old_plane_state, i)
 			ipu_plane_disable_deferred(plane);
 
 	}
@@ -182,8 +183,6 @@ static struct drm_driver imx_drm_driver = {
 	.gem_free_object_unlocked = drm_gem_cma_free_object,
 	.gem_vm_ops		= &drm_gem_cma_vm_ops,
 	.dumb_create		= drm_gem_cma_dumb_create,
-	.dumb_map_offset	= drm_gem_cma_dumb_map_offset,
-	.dumb_destroy		= drm_gem_dumb_destroy,
 
 	.prime_handle_to_fd	= drm_gem_prime_handle_to_fd,
 	.prime_fd_to_handle	= drm_gem_prime_fd_to_handle,

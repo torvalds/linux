@@ -81,14 +81,19 @@
  * 	it.
  * @PIN_CONFIG_OUTPUT: this will configure the pin as an output and drive a
  * 	value on the line. Use argument 1 to indicate high level, argument 0 to
- * 	indicate low level. (Please see Documentation/pinctrl.txt, section
- * 	"GPIO mode pitfalls" for a discussion around this parameter.)
+ *	indicate low level. (Please see Documentation/driver-api/pinctl.rst,
+ *	section "GPIO mode pitfalls" for a discussion around this parameter.)
  * @PIN_CONFIG_POWER_SOURCE: if the pin can select between different power
  *	supplies, the argument to this parameter (on a custom format) tells
  *	the driver which alternative power source to use.
+ * @PIN_CONFIG_SLEEP_HARDWARE_STATE: indicate this is sleep related state.
  * @PIN_CONFIG_SLEW_RATE: if the pin can select slew rate, the argument to
  *	this parameter (on a custom format) tells the driver which alternative
  *	slew rate to use.
+ * @PIN_CONFIG_SKEW_DELAY: if the pin has programmable skew rate (on inputs)
+ *	or latch delay (on outputs) this parameter (in a custom format)
+ *	specifies the clock skew or latch delay. It typically controls how
+ *	many double inverters are put in front of the line.
  * @PIN_CONFIG_END: this is the last enumerator for pin configurations, if
  *	you need to pass in custom configurations to the pin controller, use
  *	PIN_CONFIG_END+1 as the base offset.
@@ -114,7 +119,9 @@ enum pin_config_param {
 	PIN_CONFIG_OUTPUT_ENABLE,
 	PIN_CONFIG_OUTPUT,
 	PIN_CONFIG_POWER_SOURCE,
+	PIN_CONFIG_SLEEP_HARDWARE_STATE,
 	PIN_CONFIG_SLEW_RATE,
+	PIN_CONFIG_SKEW_DELAY,
 	PIN_CONFIG_END = 0x7F,
 	PIN_CONFIG_MAX = 0xFF,
 };

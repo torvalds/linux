@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _INTEL_RINGBUFFER_H_
 #define _INTEL_RINGBUFFER_H_
 
@@ -6,6 +7,8 @@
 #include "i915_gem_request.h"
 #include "i915_gem_timeline.h"
 #include "i915_selftest.h"
+
+struct drm_printer;
 
 #define I915_CMD_HASH_ORDER 9
 
@@ -121,6 +124,7 @@ struct intel_engine_hangcheck {
 	unsigned long action_timestamp;
 	int deadlock;
 	struct intel_instdone instdone;
+	struct drm_i915_gem_request *active_request;
 	bool stalled;
 };
 
@@ -181,6 +185,104 @@ struct i915_priolist {
 	struct rb_node node;
 	struct list_head requests;
 	int priority;
+};
+
+/**
+ * struct intel_engine_execlists - execlist submission queue and port state
+ *
+ * The struct intel_engine_execlists represents the combined logical state of
+ * driver and the hardware state for execlist mode of submission.
+ */
+struct intel_engine_execlists {
+	/**
+	 * @irq_tasklet: softirq tasklet for bottom handler
+	 */
+	struct tasklet_struct irq_tasklet;
+
+	/**
+	 * @default_priolist: priority list for I915_PRIORITY_NORMAL
+	 */
+	struct i915_priolist default_priolist;
+
+	/**
+	 * @no_priolist: priority lists disabled
+	 */
+	bool no_priolist;
+
+	/**
+	 * @port: execlist port states
+	 *
+	 * For each hardware ELSP (ExecList Submission Port) we keep
+	 * track of the last request and the number of times we submitted
+	 * that port to hw. We then count the number of times the hw reports
+	 * a context completion or preemption. As only one context can
+	 * be active on hw, we limit resubmission of context to port[0]. This
+	 * is called Lite Restore, of the context.
+	 */
+	struct execlist_port {
+		/**
+		 * @request_count: combined request and submission count
+		 */
+		struct drm_i915_gem_request *request_count;
+#define EXECLIST_COUNT_BITS 2
+#define port_request(p) ptr_mask_bits((p)->request_count, EXECLIST_COUNT_BITS)
+#define port_count(p) ptr_unmask_bits((p)->request_count, EXECLIST_COUNT_BITS)
+#define port_pack(rq, count) ptr_pack_bits(rq, count, EXECLIST_COUNT_BITS)
+#define port_unpack(p, count) ptr_unpack_bits((p)->request_count, count, EXECLIST_COUNT_BITS)
+#define port_set(p, packed) ((p)->request_count = (packed))
+#define port_isset(p) ((p)->request_count)
+#define port_index(p, execlists) ((p) - (execlists)->port)
+
+		/**
+		 * @context_id: context ID for port
+		 */
+		GEM_DEBUG_DECL(u32 context_id);
+
+#define EXECLIST_MAX_PORTS 2
+	} port[EXECLIST_MAX_PORTS];
+
+	/**
+	 * @active: is the HW active? We consider the HW as active after
+	 * submitting any context for execution and until we have seen the
+	 * last context completion event. After that, we do not expect any
+	 * more events until we submit, and so can park the HW.
+	 *
+	 * As we have a small number of different sources from which we feed
+	 * the HW, we track the state of each inside a single bitfield.
+	 */
+	unsigned int active;
+#define EXECLISTS_ACTIVE_USER 0
+#define EXECLISTS_ACTIVE_PREEMPT 1
+
+	/**
+	 * @port_mask: number of execlist ports - 1
+	 */
+	unsigned int port_mask;
+
+	/**
+	 * @queue: queue of requests, in priority lists
+	 */
+	struct rb_root queue;
+
+	/**
+	 * @first: leftmost level in priority @queue
+	 */
+	struct rb_node *first;
+
+	/**
+	 * @fw_domains: forcewake domains for irq tasklet
+	 */
+	unsigned int fw_domains;
+
+	/**
+	 * @csb_head: context status buffer head
+	 */
+	unsigned int csb_head;
+
+	/**
+	 * @csb_use_mmio: access csb through mmio, instead of hwsp
+	 */
+	bool csb_use_mmio;
 };
 
 #define INTEL_ENGINE_CS_MAX_NAME 8
@@ -305,6 +407,14 @@ struct intel_engine_cs {
 	void		(*schedule)(struct drm_i915_gem_request *request,
 				    int priority);
 
+	/*
+	 * Cancel all requests on the hardware, or queued for execution.
+	 * This should only cancel the ready requests that have been
+	 * submitted to the engine (via the engine->submit_request callback).
+	 * This is called when marking the device as wedged.
+	 */
+	void		(*cancel_requests)(struct intel_engine_cs *engine);
+
 	/* Some chipsets are not quite as coherent as advertised and need
 	 * an expensive kick to force a true read of the up-to-date seqno.
 	 * However, the up-to-date seqno is not always required and the last
@@ -371,25 +481,7 @@ struct intel_engine_cs {
 		u32	*(*signal)(struct drm_i915_gem_request *req, u32 *cs);
 	} semaphore;
 
-	/* Execlists */
-	struct tasklet_struct irq_tasklet;
-	struct i915_priolist default_priolist;
-	bool no_priolist;
-	struct execlist_port {
-		struct drm_i915_gem_request *request_count;
-#define EXECLIST_COUNT_BITS 2
-#define port_request(p) ptr_mask_bits((p)->request_count, EXECLIST_COUNT_BITS)
-#define port_count(p) ptr_unmask_bits((p)->request_count, EXECLIST_COUNT_BITS)
-#define port_pack(rq, count) ptr_pack_bits(rq, count, EXECLIST_COUNT_BITS)
-#define port_unpack(p, count) ptr_unpack_bits((p)->request_count, count, EXECLIST_COUNT_BITS)
-#define port_set(p, packed) ((p)->request_count = (packed))
-#define port_isset(p) ((p)->request_count)
-#define port_index(p, e) ((p) - (e)->execlist_port)
-		GEM_DEBUG_DECL(u32 context_id);
-	} execlist_port[2];
-	struct rb_root execlist_queue;
-	struct rb_node *execlist_first;
-	unsigned int fw_domains;
+	struct intel_engine_execlists execlists;
 
 	/* Contexts are pinned whilst they are active on the GPU. The last
 	 * context executed remains active whilst the GPU is idle - the
@@ -441,6 +533,46 @@ struct intel_engine_cs {
 	 */
 	u32 (*get_cmd_length_mask)(u32 cmd_header);
 };
+
+static inline void
+execlists_set_active(struct intel_engine_execlists *execlists,
+		     unsigned int bit)
+{
+	__set_bit(bit, (unsigned long *)&execlists->active);
+}
+
+static inline void
+execlists_clear_active(struct intel_engine_execlists *execlists,
+		       unsigned int bit)
+{
+	__clear_bit(bit, (unsigned long *)&execlists->active);
+}
+
+static inline bool
+execlists_is_active(const struct intel_engine_execlists *execlists,
+		    unsigned int bit)
+{
+	return test_bit(bit, (unsigned long *)&execlists->active);
+}
+
+static inline unsigned int
+execlists_num_ports(const struct intel_engine_execlists * const execlists)
+{
+	return execlists->port_mask + 1;
+}
+
+static inline void
+execlists_port_complete(struct intel_engine_execlists * const execlists,
+			struct execlist_port * const port)
+{
+	const unsigned int m = execlists->port_mask;
+
+	GEM_BUG_ON(port_index(port, execlists) != 0);
+	GEM_BUG_ON(!execlists_is_active(execlists, EXECLISTS_ACTIVE_USER));
+
+	memmove(port, port + 1, m * sizeof(struct execlist_port));
+	memset(port + m, 0, sizeof(struct execlist_port));
+}
 
 static inline unsigned int
 intel_engine_flag(const struct intel_engine_cs *engine)
@@ -494,6 +626,10 @@ intel_write_status_page(struct intel_engine_cs *engine, int reg, u32 value)
 #define I915_GEM_HWS_INDEX_ADDR (I915_GEM_HWS_INDEX << MI_STORE_DWORD_INDEX_SHIFT)
 #define I915_GEM_HWS_SCRATCH_INDEX	0x40
 #define I915_GEM_HWS_SCRATCH_ADDR (I915_GEM_HWS_SCRATCH_INDEX << MI_STORE_DWORD_INDEX_SHIFT)
+
+#define I915_HWS_CSB_BUF0_INDEX		0x10
+#define I915_HWS_CSB_WRITE_INDEX	0x1f
+#define CNL_HWS_CSB_WRITE_INDEX		0x2f
 
 struct intel_ring *
 intel_engine_create_ring(struct intel_engine_cs *engine, int size);
@@ -733,5 +869,9 @@ bool intel_engines_are_idle(struct drm_i915_private *dev_priv);
 
 void intel_engines_mark_idle(struct drm_i915_private *i915);
 void intel_engines_reset_default_submission(struct drm_i915_private *i915);
+
+bool intel_engine_can_store_dword(struct intel_engine_cs *engine);
+
+void intel_engine_dump(struct intel_engine_cs *engine, struct drm_printer *p);
 
 #endif /* _INTEL_RINGBUFFER_H_ */

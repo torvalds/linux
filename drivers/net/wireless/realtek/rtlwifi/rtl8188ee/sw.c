@@ -41,6 +41,7 @@
 
 static void rtl88e_init_aspm_vars(struct ieee80211_hw *hw)
 {
+	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_pci *rtlpci = rtl_pcidev(rtl_pcipriv(hw));
 
 	/*close ASPM for AMD defaultly */
@@ -77,7 +78,7 @@ static void rtl88e_init_aspm_vars(struct ieee80211_hw *hw)
 	 * 1 - Support ASPM,
 	 * 2 - According to chipset.
 	 */
-	rtlpci->const_support_pciaspm = 1;
+	rtlpci->const_support_pciaspm = rtlpriv->cfg->mod_params->aspm_support;
 }
 
 int rtl88e_init_sw_vars(struct ieee80211_hw *hw)
@@ -175,6 +176,8 @@ int rtl88e_init_sw_vars(struct ieee80211_hw *hw)
 				      rtl_fw_cb);
 	if (err) {
 		pr_info("Failed to request firmware!\n");
+		vfree(rtlpriv->rtlhal.pfirmware);
+		rtlpriv->rtlhal.pfirmware = NULL;
 		return 1;
 	}
 
@@ -187,16 +190,12 @@ int rtl88e_init_sw_vars(struct ieee80211_hw *hw)
 	/*low power */
 	rtlpriv->psc.low_power_enable = false;
 	if (rtlpriv->psc.low_power_enable) {
-		init_timer(&rtlpriv->works.fw_clockoff_timer);
-		setup_timer(&rtlpriv->works.fw_clockoff_timer,
-			    rtl88ee_fw_clk_off_timer_callback,
-			    (unsigned long)hw);
+		timer_setup(&rtlpriv->works.fw_clockoff_timer,
+			    rtl88ee_fw_clk_off_timer_callback, 0);
 	}
 
-	init_timer(&rtlpriv->works.fast_antenna_training_timer);
-	setup_timer(&rtlpriv->works.fast_antenna_training_timer,
-		    rtl88e_dm_fast_antenna_training_callback,
-			(unsigned long)hw);
+	timer_setup(&rtlpriv->works.fast_antenna_training_timer,
+		    rtl88e_dm_fast_antenna_training_callback, 0);
 	return err;
 }
 
@@ -274,6 +273,7 @@ static struct rtl_mod_params rtl88ee_mod_params = {
 	.swctrl_lps = false,
 	.fwctrl_lps = false,
 	.msi_support = true,
+	.aspm_support = 1,
 	.debug_level = 0,
 	.debug_mask = 0,
 };
@@ -376,7 +376,7 @@ static const struct rtl_hal_cfg rtl88ee_hal_cfg = {
 	.maps[RTL_RC_HT_RATEMCS15] = DESC92C_RATEMCS15,
 };
 
-static struct pci_device_id rtl88ee_pci_ids[] = {
+static const struct pci_device_id rtl88ee_pci_ids[] = {
 	{RTL_PCI_DEVICE(PCI_VENDOR_ID_REALTEK, 0x8179, rtl88ee_hal_cfg)},
 	{},
 };
@@ -397,6 +397,7 @@ module_param_named(ips, rtl88ee_mod_params.inactiveps, bool, 0444);
 module_param_named(swlps, rtl88ee_mod_params.swctrl_lps, bool, 0444);
 module_param_named(fwlps, rtl88ee_mod_params.fwctrl_lps, bool, 0444);
 module_param_named(msi, rtl88ee_mod_params.msi_support, bool, 0444);
+module_param_named(aspm, rtl88ee_mod_params.aspm_support, int, 0444);
 module_param_named(disable_watchdog, rtl88ee_mod_params.disable_watchdog,
 		   bool, 0444);
 MODULE_PARM_DESC(swenc, "Set to 1 for software crypto (default 0)\n");
@@ -404,6 +405,7 @@ MODULE_PARM_DESC(ips, "Set to 0 to not use link power save (default 1)\n");
 MODULE_PARM_DESC(swlps, "Set to 1 to use SW control power save (default 0)\n");
 MODULE_PARM_DESC(fwlps, "Set to 1 to use FW control power save (default 1)\n");
 MODULE_PARM_DESC(msi, "Set to 1 to use MSI interrupts mode (default 1)\n");
+MODULE_PARM_DESC(aspm, "Set to 1 to enable ASPM (default 1)\n");
 MODULE_PARM_DESC(debug_level, "Set debug level (0-5) (default 0)");
 MODULE_PARM_DESC(debug_mask, "Set debug mask (default 0)");
 MODULE_PARM_DESC(disable_watchdog, "Set to 1 to disable the watchdog (default 0)\n");

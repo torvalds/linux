@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <asm/bug.h>
 #include <linux/kernel.h>
 #include <sys/time.h>
@@ -6,9 +7,11 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <errno.h>
+#include <fcntl.h>
 #include "compress.h"
 #include "path.h"
 #include "symbol.h"
+#include "srcline.h"
 #include "dso.h"
 #include "machine.h"
 #include "auxtrace.h"
@@ -32,6 +35,7 @@ char dso__symtab_origin(const struct dso *dso)
 		[DSO_BINARY_TYPE__JAVA_JIT]			= 'j',
 		[DSO_BINARY_TYPE__DEBUGLINK]			= 'l',
 		[DSO_BINARY_TYPE__BUILD_ID_CACHE]		= 'B',
+		[DSO_BINARY_TYPE__BUILD_ID_CACHE_DEBUGINFO]	= 'D',
 		[DSO_BINARY_TYPE__FEDORA_DEBUGINFO]		= 'f',
 		[DSO_BINARY_TYPE__UBUNTU_DEBUGINFO]		= 'u',
 		[DSO_BINARY_TYPE__OPENEMBEDDED_DEBUGINFO]	= 'o',
@@ -97,7 +101,12 @@ int dso__read_binary_type_filename(const struct dso *dso,
 		break;
 	}
 	case DSO_BINARY_TYPE__BUILD_ID_CACHE:
-		if (dso__build_id_filename(dso, filename, size) == NULL)
+		if (dso__build_id_filename(dso, filename, size, false) == NULL)
+			ret = -1;
+		break;
+
+	case DSO_BINARY_TYPE__BUILD_ID_CACHE_DEBUGINFO:
+		if (dso__build_id_filename(dso, filename, size, true) == NULL)
 			ret = -1;
 		break;
 
@@ -504,7 +513,14 @@ static void check_data_close(void);
  */
 static int open_dso(struct dso *dso, struct machine *machine)
 {
-	int fd = __open_dso(dso, machine);
+	int fd;
+	struct nscookie nsc;
+
+	if (dso->binary_type != DSO_BINARY_TYPE__BUILD_ID_CACHE)
+		nsinfo__mountns_enter(dso->nsinfo, &nsc);
+	fd = __open_dso(dso, machine);
+	if (dso->binary_type != DSO_BINARY_TYPE__BUILD_ID_CACHE)
+		nsinfo__mountns_exit(&nsc);
 
 	if (fd >= 0) {
 		dso__list_add(dso);
@@ -1187,6 +1203,8 @@ struct dso *dso__new(const char *name)
 		for (i = 0; i < MAP__NR_TYPES; ++i)
 			dso->symbols[i] = dso->symbol_names[i] = RB_ROOT;
 		dso->data.cache = RB_ROOT;
+		dso->inlined_nodes = RB_ROOT;
+		dso->srclines = RB_ROOT;
 		dso->data.fd = -1;
 		dso->data.status = DSO_DATA_STATUS_UNKNOWN;
 		dso->symtab_type = DSO_BINARY_TYPE__NOT_FOUND;
@@ -1218,6 +1236,10 @@ void dso__delete(struct dso *dso)
 	if (!RB_EMPTY_NODE(&dso->rb_node))
 		pr_err("DSO %s is still in rbtree when being deleted!\n",
 		       dso->long_name);
+
+	/* free inlines first, as they reference symbols */
+	inlines__tree_delete(&dso->inlined_nodes);
+	srcline__tree_delete(&dso->srclines);
 	for (i = 0; i < MAP__NR_TYPES; ++i)
 		symbols__delete(&dso->symbols[i]);
 
@@ -1236,6 +1258,7 @@ void dso__delete(struct dso *dso)
 	dso_cache__free(dso);
 	dso__free_a2l(dso);
 	zfree(&dso->symsrc_filename);
+	nsinfo__zput(dso->nsinfo);
 	pthread_mutex_destroy(&dso->lock);
 	free(dso);
 }
@@ -1301,6 +1324,7 @@ bool __dsos__read_build_ids(struct list_head *head, bool with_hits)
 {
 	bool have_build_id = false;
 	struct dso *pos;
+	struct nscookie nsc;
 
 	list_for_each_entry(pos, head, node) {
 		if (with_hits && !pos->hit && !dso__is_vdso(pos))
@@ -1309,11 +1333,13 @@ bool __dsos__read_build_ids(struct list_head *head, bool with_hits)
 			have_build_id = true;
 			continue;
 		}
+		nsinfo__mountns_enter(pos->nsinfo, &nsc);
 		if (filename__read_build_id(pos->long_name, pos->build_id,
 					    sizeof(pos->build_id)) > 0) {
 			have_build_id	  = true;
 			pos->has_build_id = true;
 		}
+		nsinfo__mountns_exit(&nsc);
 	}
 
 	return have_build_id;
@@ -1348,9 +1374,9 @@ void __dsos__add(struct dsos *dsos, struct dso *dso)
 
 void dsos__add(struct dsos *dsos, struct dso *dso)
 {
-	pthread_rwlock_wrlock(&dsos->lock);
+	down_write(&dsos->lock);
 	__dsos__add(dsos, dso);
-	pthread_rwlock_unlock(&dsos->lock);
+	up_write(&dsos->lock);
 }
 
 struct dso *__dsos__find(struct dsos *dsos, const char *name, bool cmp_short)
@@ -1369,9 +1395,9 @@ struct dso *__dsos__find(struct dsos *dsos, const char *name, bool cmp_short)
 struct dso *dsos__find(struct dsos *dsos, const char *name, bool cmp_short)
 {
 	struct dso *dso;
-	pthread_rwlock_rdlock(&dsos->lock);
+	down_read(&dsos->lock);
 	dso = __dsos__find(dsos, name, cmp_short);
-	pthread_rwlock_unlock(&dsos->lock);
+	up_read(&dsos->lock);
 	return dso;
 }
 
@@ -1398,9 +1424,9 @@ struct dso *__dsos__findnew(struct dsos *dsos, const char *name)
 struct dso *dsos__findnew(struct dsos *dsos, const char *name)
 {
 	struct dso *dso;
-	pthread_rwlock_wrlock(&dsos->lock);
+	down_write(&dsos->lock);
 	dso = dso__get(__dsos__findnew(dsos, name));
-	pthread_rwlock_unlock(&dsos->lock);
+	up_write(&dsos->lock);
 	return dso;
 }
 

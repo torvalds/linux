@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0
 /**
  * ulpi.c - USB ULPI PHY bus
  *
  * Copyright (C) 2015 Intel Corporation
  *
  * Author: Heikki Krogerus <heikki.krogerus@linux.intel.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/ulpi/interface.h>
@@ -135,7 +132,7 @@ static void ulpi_dev_release(struct device *dev)
 	kfree(to_ulpi_dev(dev));
 }
 
-static struct device_type ulpi_dev_type = {
+static const struct device_type ulpi_dev_type = {
 	.name = "ulpi_device",
 	.groups = ulpi_dev_attr_groups,
 	.release = ulpi_dev_release,

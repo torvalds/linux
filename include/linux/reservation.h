@@ -254,6 +254,9 @@ int reservation_object_get_fences_rcu(struct reservation_object *obj,
 				      unsigned *pshared_count,
 				      struct dma_fence ***pshared);
 
+int reservation_object_copy_fences(struct reservation_object *dst,
+				   struct reservation_object *src);
+
 long reservation_object_wait_timeout_rcu(struct reservation_object *obj,
 					 bool wait_all, bool intr,
 					 unsigned long timeout);

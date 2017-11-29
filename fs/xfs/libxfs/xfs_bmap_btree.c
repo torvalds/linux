@@ -38,22 +38,6 @@
 #include "xfs_rmap.h"
 
 /*
- * Determine the extent state.
- */
-/* ARGSUSED */
-STATIC xfs_exntst_t
-xfs_extent_state(
-	xfs_filblks_t		blks,
-	int			extent_flag)
-{
-	if (extent_flag) {
-		ASSERT(blks != 0);	/* saved for DMIG */
-		return XFS_EXT_UNWRITTEN;
-	}
-	return XFS_EXT_NORM;
-}
-
-/*
  * Convert on-disk form of btree root to in-memory form.
  */
 void
@@ -87,84 +71,21 @@ xfs_bmdr_to_bmbt(
 	memcpy(tpp, fpp, sizeof(*fpp) * dmxr);
 }
 
-/*
- * Convert a compressed bmap extent record to an uncompressed form.
- * This code must be in sync with the routines xfs_bmbt_get_startoff,
- * xfs_bmbt_get_startblock, xfs_bmbt_get_blockcount and xfs_bmbt_get_state.
- */
-STATIC void
-__xfs_bmbt_get_all(
-		uint64_t l0,
-		uint64_t l1,
-		xfs_bmbt_irec_t *s)
-{
-	int	ext_flag;
-	xfs_exntst_t st;
-
-	ext_flag = (int)(l0 >> (64 - BMBT_EXNTFLAG_BITLEN));
-	s->br_startoff = ((xfs_fileoff_t)l0 &
-			   xfs_mask64lo(64 - BMBT_EXNTFLAG_BITLEN)) >> 9;
-	s->br_startblock = (((xfs_fsblock_t)l0 & xfs_mask64lo(9)) << 43) |
-			   (((xfs_fsblock_t)l1) >> 21);
-	s->br_blockcount = (xfs_filblks_t)(l1 & xfs_mask64lo(21));
-	/* This is xfs_extent_state() in-line */
-	if (ext_flag) {
-		ASSERT(s->br_blockcount != 0);	/* saved for DMIG */
-		st = XFS_EXT_UNWRITTEN;
-	} else
-		st = XFS_EXT_NORM;
-	s->br_state = st;
-}
-
 void
-xfs_bmbt_get_all(
-	xfs_bmbt_rec_host_t *r,
-	xfs_bmbt_irec_t *s)
+xfs_bmbt_disk_get_all(
+	struct xfs_bmbt_rec	*rec,
+	struct xfs_bmbt_irec	*irec)
 {
-	__xfs_bmbt_get_all(r->l0, r->l1, s);
-}
+	uint64_t		l0 = get_unaligned_be64(&rec->l0);
+	uint64_t		l1 = get_unaligned_be64(&rec->l1);
 
-/*
- * Extract the blockcount field from an in memory bmap extent record.
- */
-xfs_filblks_t
-xfs_bmbt_get_blockcount(
-	xfs_bmbt_rec_host_t	*r)
-{
-	return (xfs_filblks_t)(r->l1 & xfs_mask64lo(21));
-}
-
-/*
- * Extract the startblock field from an in memory bmap extent record.
- */
-xfs_fsblock_t
-xfs_bmbt_get_startblock(
-	xfs_bmbt_rec_host_t	*r)
-{
-	return (((xfs_fsblock_t)r->l0 & xfs_mask64lo(9)) << 43) |
-	       (((xfs_fsblock_t)r->l1) >> 21);
-}
-
-/*
- * Extract the startoff field from an in memory bmap extent record.
- */
-xfs_fileoff_t
-xfs_bmbt_get_startoff(
-	xfs_bmbt_rec_host_t	*r)
-{
-	return ((xfs_fileoff_t)r->l0 &
-		 xfs_mask64lo(64 - BMBT_EXNTFLAG_BITLEN)) >> 9;
-}
-
-xfs_exntst_t
-xfs_bmbt_get_state(
-	xfs_bmbt_rec_host_t	*r)
-{
-	int	ext_flag;
-
-	ext_flag = (int)((r->l0) >> (64 - BMBT_EXNTFLAG_BITLEN));
-	return xfs_extent_state(xfs_bmbt_get_blockcount(r),
-				ext_flag);
+	irec->br_startoff = (l0 & xfs_mask64lo(64 - BMBT_EXNTFLAG_BITLEN)) >> 9;
+	irec->br_startblock = ((l0 & xfs_mask64lo(9)) << 43) | (l1 >> 21);
+	irec->br_blockcount = l1 & xfs_mask64lo(21);
+	if (l0 >> (64 - BMBT_EXNTFLAG_BITLEN))
+		irec->br_state = XFS_EXT_UNWRITTEN;
+	else
+		irec->br_state = XFS_EXT_NORM;
 }
 
 /*
@@ -188,142 +109,29 @@ xfs_bmbt_disk_get_startoff(
 		 xfs_mask64lo(64 - BMBT_EXNTFLAG_BITLEN)) >> 9;
 }
 
-
-/*
- * Set all the fields in a bmap extent record from the arguments.
- */
-void
-xfs_bmbt_set_allf(
-	xfs_bmbt_rec_host_t	*r,
-	xfs_fileoff_t		startoff,
-	xfs_fsblock_t		startblock,
-	xfs_filblks_t		blockcount,
-	xfs_exntst_t		state)
-{
-	int		extent_flag = (state == XFS_EXT_NORM) ? 0 : 1;
-
-	ASSERT(state == XFS_EXT_NORM || state == XFS_EXT_UNWRITTEN);
-	ASSERT((startoff & xfs_mask64hi(64-BMBT_STARTOFF_BITLEN)) == 0);
-	ASSERT((blockcount & xfs_mask64hi(64-BMBT_BLOCKCOUNT_BITLEN)) == 0);
-
-	ASSERT((startblock & xfs_mask64hi(64-BMBT_STARTBLOCK_BITLEN)) == 0);
-
-	r->l0 = ((xfs_bmbt_rec_base_t)extent_flag << 63) |
-		((xfs_bmbt_rec_base_t)startoff << 9) |
-		((xfs_bmbt_rec_base_t)startblock >> 43);
-	r->l1 = ((xfs_bmbt_rec_base_t)startblock << 21) |
-		((xfs_bmbt_rec_base_t)blockcount &
-		(xfs_bmbt_rec_base_t)xfs_mask64lo(21));
-}
-
 /*
  * Set all the fields in a bmap extent record from the uncompressed form.
  */
 void
-xfs_bmbt_set_all(
-	xfs_bmbt_rec_host_t *r,
-	xfs_bmbt_irec_t	*s)
-{
-	xfs_bmbt_set_allf(r, s->br_startoff, s->br_startblock,
-			     s->br_blockcount, s->br_state);
-}
-
-
-/*
- * Set all the fields in a disk format bmap extent record from the arguments.
- */
-void
-xfs_bmbt_disk_set_allf(
-	xfs_bmbt_rec_t		*r,
-	xfs_fileoff_t		startoff,
-	xfs_fsblock_t		startblock,
-	xfs_filblks_t		blockcount,
-	xfs_exntst_t		state)
-{
-	int			extent_flag = (state == XFS_EXT_NORM) ? 0 : 1;
-
-	ASSERT(state == XFS_EXT_NORM || state == XFS_EXT_UNWRITTEN);
-	ASSERT((startoff & xfs_mask64hi(64-BMBT_STARTOFF_BITLEN)) == 0);
-	ASSERT((blockcount & xfs_mask64hi(64-BMBT_BLOCKCOUNT_BITLEN)) == 0);
-	ASSERT((startblock & xfs_mask64hi(64-BMBT_STARTBLOCK_BITLEN)) == 0);
-
-	r->l0 = cpu_to_be64(
-		((xfs_bmbt_rec_base_t)extent_flag << 63) |
-		 ((xfs_bmbt_rec_base_t)startoff << 9) |
-		 ((xfs_bmbt_rec_base_t)startblock >> 43));
-	r->l1 = cpu_to_be64(
-		((xfs_bmbt_rec_base_t)startblock << 21) |
-		 ((xfs_bmbt_rec_base_t)blockcount &
-		  (xfs_bmbt_rec_base_t)xfs_mask64lo(21)));
-}
-
-/*
- * Set all the fields in a bmap extent record from the uncompressed form.
- */
-STATIC void
 xfs_bmbt_disk_set_all(
-	xfs_bmbt_rec_t	*r,
-	xfs_bmbt_irec_t *s)
+	struct xfs_bmbt_rec	*r,
+	struct xfs_bmbt_irec	*s)
 {
-	xfs_bmbt_disk_set_allf(r, s->br_startoff, s->br_startblock,
-				  s->br_blockcount, s->br_state);
-}
+	int			extent_flag = (s->br_state != XFS_EXT_NORM);
 
-/*
- * Set the blockcount field in a bmap extent record.
- */
-void
-xfs_bmbt_set_blockcount(
-	xfs_bmbt_rec_host_t *r,
-	xfs_filblks_t	v)
-{
-	ASSERT((v & xfs_mask64hi(43)) == 0);
-	r->l1 = (r->l1 & (xfs_bmbt_rec_base_t)xfs_mask64hi(43)) |
-		  (xfs_bmbt_rec_base_t)(v & xfs_mask64lo(21));
-}
+	ASSERT(s->br_state == XFS_EXT_NORM || s->br_state == XFS_EXT_UNWRITTEN);
+	ASSERT(!(s->br_startoff & xfs_mask64hi(64-BMBT_STARTOFF_BITLEN)));
+	ASSERT(!(s->br_blockcount & xfs_mask64hi(64-BMBT_BLOCKCOUNT_BITLEN)));
+	ASSERT(!(s->br_startblock & xfs_mask64hi(64-BMBT_STARTBLOCK_BITLEN)));
 
-/*
- * Set the startblock field in a bmap extent record.
- */
-void
-xfs_bmbt_set_startblock(
-	xfs_bmbt_rec_host_t *r,
-	xfs_fsblock_t	v)
-{
-	ASSERT((v & xfs_mask64hi(12)) == 0);
-	r->l0 = (r->l0 & (xfs_bmbt_rec_base_t)xfs_mask64hi(55)) |
-		  (xfs_bmbt_rec_base_t)(v >> 43);
-	r->l1 = (r->l1 & (xfs_bmbt_rec_base_t)xfs_mask64lo(21)) |
-		  (xfs_bmbt_rec_base_t)(v << 21);
-}
-
-/*
- * Set the startoff field in a bmap extent record.
- */
-void
-xfs_bmbt_set_startoff(
-	xfs_bmbt_rec_host_t *r,
-	xfs_fileoff_t	v)
-{
-	ASSERT((v & xfs_mask64hi(9)) == 0);
-	r->l0 = (r->l0 & (xfs_bmbt_rec_base_t) xfs_mask64hi(1)) |
-		((xfs_bmbt_rec_base_t)v << 9) |
-		  (r->l0 & (xfs_bmbt_rec_base_t)xfs_mask64lo(9));
-}
-
-/*
- * Set the extent state field in a bmap extent record.
- */
-void
-xfs_bmbt_set_state(
-	xfs_bmbt_rec_host_t *r,
-	xfs_exntst_t	v)
-{
-	ASSERT(v == XFS_EXT_NORM || v == XFS_EXT_UNWRITTEN);
-	if (v == XFS_EXT_NORM)
-		r->l0 &= xfs_mask64lo(64 - BMBT_EXNTFLAG_BITLEN);
-	else
-		r->l0 |= xfs_mask64hi(BMBT_EXNTFLAG_BITLEN);
+	put_unaligned_be64(
+		((xfs_bmbt_rec_base_t)extent_flag << 63) |
+		 ((xfs_bmbt_rec_base_t)s->br_startoff << 9) |
+		 ((xfs_bmbt_rec_base_t)s->br_startblock >> 43), &r->l0);
+	put_unaligned_be64(
+		((xfs_bmbt_rec_base_t)s->br_startblock << 21) |
+		 ((xfs_bmbt_rec_base_t)s->br_blockcount &
+		  (xfs_bmbt_rec_base_t)xfs_mask64lo(21)), &r->l1);
 }
 
 /*
@@ -858,6 +666,7 @@ xfs_bmbt_change_owner(
 	cur = xfs_bmbt_init_cursor(ip->i_mount, tp, ip, whichfork);
 	if (!cur)
 		return -ENOMEM;
+	cur->bc_private.b.flags |= XFS_BTCUR_BPRV_INVALID_OWNER;
 
 	error = xfs_btree_change_owner(cur, new_owner, buffer_list);
 	xfs_btree_del_cursor(cur, error ? XFS_BTREE_ERROR : XFS_BTREE_NOERROR);

@@ -812,7 +812,7 @@ int nfs_show_stats(struct seq_file *m, struct dentry *root)
 	 * Display all mount option settings
 	 */
 	seq_printf(m, "\n\topts:\t");
-	seq_puts(m, root->d_sb->s_flags & MS_RDONLY ? "ro" : "rw");
+	seq_puts(m, sb_rdonly(root->d_sb) ? "ro" : "rw");
 	seq_puts(m, root->d_sb->s_flags & MS_SYNCHRONOUS ? ",sync" : "");
 	seq_puts(m, root->d_sb->s_flags & MS_NOATIME ? ",noatime" : "");
 	seq_puts(m, root->d_sb->s_flags & MS_NODIRATIME ? ",nodiratime" : "");
@@ -1332,7 +1332,7 @@ static int nfs_parse_mount_options(char *raw,
 			mnt->options |= NFS_OPTION_MIGRATION;
 			break;
 		case Opt_nomigration:
-			mnt->options &= NFS_OPTION_MIGRATION;
+			mnt->options &= ~NFS_OPTION_MIGRATION;
 			break;
 
 		/*
@@ -1456,18 +1456,21 @@ static int nfs_parse_mount_options(char *raw,
 			switch (token) {
 			case Opt_xprt_udp6:
 				protofamily = AF_INET6;
+				/* fall through */
 			case Opt_xprt_udp:
 				mnt->flags &= ~NFS_MOUNT_TCP;
 				mnt->nfs_server.protocol = XPRT_TRANSPORT_UDP;
 				break;
 			case Opt_xprt_tcp6:
 				protofamily = AF_INET6;
+				/* fall through */
 			case Opt_xprt_tcp:
 				mnt->flags |= NFS_MOUNT_TCP;
 				mnt->nfs_server.protocol = XPRT_TRANSPORT_TCP;
 				break;
 			case Opt_xprt_rdma6:
 				protofamily = AF_INET6;
+				/* fall through */
 			case Opt_xprt_rdma:
 				/* vector side protocols to TCP */
 				mnt->flags |= NFS_MOUNT_TCP;
@@ -1494,11 +1497,13 @@ static int nfs_parse_mount_options(char *raw,
 			switch (token) {
 			case Opt_xprt_udp6:
 				mountfamily = AF_INET6;
+				/* fall through */
 			case Opt_xprt_udp:
 				mnt->mount_server.protocol = XPRT_TRANSPORT_UDP;
 				break;
 			case Opt_xprt_tcp6:
 				mountfamily = AF_INET6;
+				/* fall through */
 			case Opt_xprt_tcp:
 				mnt->mount_server.protocol = XPRT_TRANSPORT_TCP;
 				break;
@@ -1691,8 +1696,8 @@ static int nfs_verify_authflavors(struct nfs_parsed_mount_data *args,
 			rpc_authflavor_t *server_authlist, unsigned int count)
 {
 	rpc_authflavor_t flavor = RPC_AUTH_MAXFLAVOR;
+	bool found_auth_null = false;
 	unsigned int i;
-	int use_auth_null = false;
 
 	/*
 	 * If the sec= mount option is used, the specified flavor or AUTH_NULL
@@ -1701,6 +1706,10 @@ static int nfs_verify_authflavors(struct nfs_parsed_mount_data *args,
 	 * AUTH_NULL has a special meaning when it's in the server list - it
 	 * means that the server will ignore the rpc creds, so any flavor
 	 * can be used but still use the sec= that was specified.
+	 *
+	 * Note also that the MNT procedure in MNTv1 does not return a list
+	 * of supported security flavors. In this case, nfs_mount() fabricates
+	 * a security flavor list containing just AUTH_NULL.
 	 */
 	for (i = 0; i < count; i++) {
 		flavor = server_authlist[i];
@@ -1709,11 +1718,11 @@ static int nfs_verify_authflavors(struct nfs_parsed_mount_data *args,
 			goto out;
 
 		if (flavor == RPC_AUTH_NULL)
-			use_auth_null = true;
+			found_auth_null = true;
 	}
 
-	if (use_auth_null) {
-		flavor = RPC_AUTH_NULL;
+	if (found_auth_null) {
+		flavor = args->auth_info.flavors[0];
 		goto out;
 	}
 
@@ -1984,9 +1993,9 @@ static int nfs23_validate_mount_data(void *options,
 	args->version = NFS_DEFAULT_VERSION;
 	switch (data->version) {
 	case 1:
-		data->namlen = 0;
+		data->namlen = 0; /* fall through */
 	case 2:
-		data->bsize = 0;
+		data->bsize = 0; /* fall through */
 	case 3:
 		if (data->flags & NFS_MOUNT_VER3)
 			goto out_no_v3;
@@ -1994,11 +2003,14 @@ static int nfs23_validate_mount_data(void *options,
 		memcpy(data->root.data, data->old_root.data, NFS2_FHSIZE);
 		/* Turn off security negotiation */
 		extra_flags |= NFS_MOUNT_SECFLAVOUR;
+		/* fall through */
 	case 4:
 		if (data->flags & NFS_MOUNT_SECFLAVOUR)
 			goto out_no_sec;
+		/* fall through */
 	case 5:
 		memset(data->context, 0, sizeof(data->context));
+		/* fall through */
 	case 6:
 		if (data->flags & NFS_MOUNT_VER3) {
 			if (data->root.size > NFS3_FHSIZE || data->root.size == 0)

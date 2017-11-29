@@ -24,7 +24,7 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #define TPACPI_VERSION "0.25"
-#define TPACPI_SYSFS_VERSION 0x020700
+#define TPACPI_SYSFS_VERSION 0x030000
 
 /*
  *  Changelog:
@@ -310,8 +310,7 @@ static struct {
 	enum {
 		TP_HOTKEY_TABLET_NONE = 0,
 		TP_HOTKEY_TABLET_USES_MHKG,
-		/* X1 Yoga 2016, seen on BIOS N1FET44W */
-		TP_HOTKEY_TABLET_USES_CMMD,
+		TP_HOTKEY_TABLET_USES_GMMS,
 	} hotkey_tablet;
 	u32 kbdlight:1;
 	u32 light:1;
@@ -2044,8 +2043,28 @@ static void hotkey_poll_setup(const bool may_warn);
 
 /* HKEY.MHKG() return bits */
 #define TP_HOTKEY_TABLET_MASK (1 << 3)
-/* ThinkPad X1 Yoga (2016) */
-#define TP_EC_CMMD_TABLET_MODE 0x6
+enum {
+	TP_ACPI_MULTI_MODE_INVALID	= 0,
+	TP_ACPI_MULTI_MODE_UNKNOWN	= 1 << 0,
+	TP_ACPI_MULTI_MODE_LAPTOP	= 1 << 1,
+	TP_ACPI_MULTI_MODE_TABLET	= 1 << 2,
+	TP_ACPI_MULTI_MODE_FLAT		= 1 << 3,
+	TP_ACPI_MULTI_MODE_STAND	= 1 << 4,
+	TP_ACPI_MULTI_MODE_TENT		= 1 << 5,
+	TP_ACPI_MULTI_MODE_STAND_TENT	= 1 << 6,
+};
+
+enum {
+	/* The following modes are considered tablet mode for the purpose of
+	 * reporting the status to userspace. i.e. in all these modes it makes
+	 * sense to disable the laptop input devices such as touchpad and
+	 * keyboard.
+	 */
+	TP_ACPI_MULTI_MODE_TABLET_LIKE	= TP_ACPI_MULTI_MODE_TABLET |
+					  TP_ACPI_MULTI_MODE_STAND |
+					  TP_ACPI_MULTI_MODE_TENT |
+					  TP_ACPI_MULTI_MODE_STAND_TENT,
+};
 
 static int hotkey_get_wlsw(void)
 {
@@ -2066,6 +2085,90 @@ static int hotkey_get_wlsw(void)
 	return (status) ? TPACPI_RFK_RADIO_ON : TPACPI_RFK_RADIO_OFF;
 }
 
+static int hotkey_gmms_get_tablet_mode(int s, int *has_tablet_mode)
+{
+	int type = (s >> 16) & 0xffff;
+	int value = s & 0xffff;
+	int mode = TP_ACPI_MULTI_MODE_INVALID;
+	int valid_modes = 0;
+
+	if (has_tablet_mode)
+		*has_tablet_mode = 0;
+
+	switch (type) {
+	case 1:
+		valid_modes = TP_ACPI_MULTI_MODE_LAPTOP |
+			      TP_ACPI_MULTI_MODE_TABLET |
+			      TP_ACPI_MULTI_MODE_STAND_TENT;
+		break;
+	case 2:
+		valid_modes = TP_ACPI_MULTI_MODE_LAPTOP |
+			      TP_ACPI_MULTI_MODE_FLAT |
+			      TP_ACPI_MULTI_MODE_TABLET |
+			      TP_ACPI_MULTI_MODE_STAND |
+			      TP_ACPI_MULTI_MODE_TENT;
+		break;
+	case 3:
+		valid_modes = TP_ACPI_MULTI_MODE_LAPTOP |
+			      TP_ACPI_MULTI_MODE_FLAT;
+		break;
+	case 4:
+		valid_modes = TP_ACPI_MULTI_MODE_LAPTOP |
+			      TP_ACPI_MULTI_MODE_TABLET |
+			      TP_ACPI_MULTI_MODE_STAND |
+			      TP_ACPI_MULTI_MODE_TENT;
+		break;
+	case 5:
+		valid_modes = TP_ACPI_MULTI_MODE_LAPTOP |
+			      TP_ACPI_MULTI_MODE_FLAT |
+			      TP_ACPI_MULTI_MODE_TABLET |
+			      TP_ACPI_MULTI_MODE_STAND |
+			      TP_ACPI_MULTI_MODE_TENT;
+		break;
+	default:
+		pr_err("Unknown multi mode status type %d with value 0x%04X, please report this to %s\n",
+		       type, value, TPACPI_MAIL);
+		return 0;
+	}
+
+	if (has_tablet_mode && (valid_modes & TP_ACPI_MULTI_MODE_TABLET_LIKE))
+		*has_tablet_mode = 1;
+
+	switch (value) {
+	case 1:
+		mode = TP_ACPI_MULTI_MODE_LAPTOP;
+		break;
+	case 2:
+		mode = TP_ACPI_MULTI_MODE_FLAT;
+		break;
+	case 3:
+		mode = TP_ACPI_MULTI_MODE_TABLET;
+		break;
+	case 4:
+		if (type == 1)
+			mode = TP_ACPI_MULTI_MODE_STAND_TENT;
+		else
+			mode = TP_ACPI_MULTI_MODE_STAND;
+		break;
+	case 5:
+		mode = TP_ACPI_MULTI_MODE_TENT;
+		break;
+	default:
+		if (type == 5 && value == 0xffff) {
+			pr_warn("Multi mode status is undetected, assuming laptop\n");
+			return 0;
+		}
+	}
+
+	if (!(mode & valid_modes)) {
+		pr_err("Unknown/reserved multi mode value 0x%04X for type %d, please report this to %s\n",
+		       value, type, TPACPI_MAIL);
+		return 0;
+	}
+
+	return !!(mode & TP_ACPI_MULTI_MODE_TABLET_LIKE);
+}
+
 static int hotkey_get_tablet_mode(int *status)
 {
 	int s;
@@ -2077,11 +2180,11 @@ static int hotkey_get_tablet_mode(int *status)
 
 		*status = ((s & TP_HOTKEY_TABLET_MASK) != 0);
 		break;
-	case TP_HOTKEY_TABLET_USES_CMMD:
-		if (!acpi_evalf(ec_handle, &s, "CMMD", "d"))
+	case TP_HOTKEY_TABLET_USES_GMMS:
+		if (!acpi_evalf(hkey_handle, &s, "GMMS", "dd", 0))
 			return -EIO;
 
-		*status = (s == TP_EC_CMMD_TABLET_MODE);
+		*status = hotkey_gmms_get_tablet_mode(s, NULL);
 		break;
 	default:
 		break;
@@ -3113,16 +3216,19 @@ static int hotkey_init_tablet_mode(void)
 	int in_tablet_mode = 0, res;
 	char *type = NULL;
 
-	if (acpi_evalf(hkey_handle, &res, "MHKG", "qd")) {
+	if (acpi_evalf(hkey_handle, &res, "GMMS", "qdd", 0)) {
+		int has_tablet_mode;
+
+		in_tablet_mode = hotkey_gmms_get_tablet_mode(res,
+							     &has_tablet_mode);
+		if (has_tablet_mode)
+			tp_features.hotkey_tablet = TP_HOTKEY_TABLET_USES_GMMS;
+		type = "GMMS";
+	} else if (acpi_evalf(hkey_handle, &res, "MHKG", "qd")) {
 		/* For X41t, X60t, X61t Tablets... */
 		tp_features.hotkey_tablet = TP_HOTKEY_TABLET_USES_MHKG;
 		in_tablet_mode = !!(res & TP_HOTKEY_TABLET_MASK);
 		type = "MHKG";
-	} else if (acpi_evalf(ec_handle, &res, "CMMD", "qd")) {
-		/* For X1 Yoga (2016) */
-		tp_features.hotkey_tablet = TP_HOTKEY_TABLET_USES_CMMD;
-		in_tablet_mode = res == TP_EC_CMMD_TABLET_MODE;
-		type = "CMMD";
 	}
 
 	if (!tp_features.hotkey_tablet)
@@ -6342,7 +6448,7 @@ static int __init thermal_init(struct ibm_init_struct *iibm)
 
 	switch (thermal_read_mode) {
 	case TPACPI_THERMAL_TPEC_16:
-		res = sysfs_create_group(&tpacpi_sensors_pdev->dev.kobj,
+		res = sysfs_create_group(&tpacpi_hwmon->kobj,
 				&thermal_temp_input16_group);
 		if (res)
 			return res;
@@ -6350,7 +6456,7 @@ static int __init thermal_init(struct ibm_init_struct *iibm)
 	case TPACPI_THERMAL_TPEC_8:
 	case TPACPI_THERMAL_ACPI_TMP07:
 	case TPACPI_THERMAL_ACPI_UPDT:
-		res = sysfs_create_group(&tpacpi_sensors_pdev->dev.kobj,
+		res = sysfs_create_group(&tpacpi_hwmon->kobj,
 				&thermal_temp_input8_group);
 		if (res)
 			return res;
@@ -6367,13 +6473,13 @@ static void thermal_exit(void)
 {
 	switch (thermal_read_mode) {
 	case TPACPI_THERMAL_TPEC_16:
-		sysfs_remove_group(&tpacpi_sensors_pdev->dev.kobj,
+		sysfs_remove_group(&tpacpi_hwmon->kobj,
 				   &thermal_temp_input16_group);
 		break;
 	case TPACPI_THERMAL_TPEC_8:
 	case TPACPI_THERMAL_ACPI_TMP07:
 	case TPACPI_THERMAL_ACPI_UPDT:
-		sysfs_remove_group(&tpacpi_sensors_pdev->dev.kobj,
+		sysfs_remove_group(&tpacpi_hwmon->kobj,
 				   &thermal_temp_input8_group);
 		break;
 	case TPACPI_THERMAL_NONE:
@@ -8696,7 +8802,7 @@ static int __init fan_init(struct ibm_init_struct *iibm)
 			fan_attributes[ARRAY_SIZE(fan_attributes)-2] =
 					&dev_attr_fan2_input.attr;
 		}
-		rc = sysfs_create_group(&tpacpi_sensors_pdev->dev.kobj,
+		rc = sysfs_create_group(&tpacpi_hwmon->kobj,
 					 &fan_attr_group);
 		if (rc < 0)
 			return rc;
@@ -8704,7 +8810,7 @@ static int __init fan_init(struct ibm_init_struct *iibm)
 		rc = driver_create_file(&tpacpi_hwmon_pdriver.driver,
 					&driver_attr_fan_watchdog);
 		if (rc < 0) {
-			sysfs_remove_group(&tpacpi_sensors_pdev->dev.kobj,
+			sysfs_remove_group(&tpacpi_hwmon->kobj,
 					&fan_attr_group);
 			return rc;
 		}
@@ -8719,7 +8825,7 @@ static void fan_exit(void)
 		    "cancelling any pending fan watchdog tasks\n");
 
 	/* FIXME: can we really do this unconditionally? */
-	sysfs_remove_group(&tpacpi_sensors_pdev->dev.kobj, &fan_attr_group);
+	sysfs_remove_group(&tpacpi_hwmon->kobj, &fan_attr_group);
 	driver_remove_file(&tpacpi_hwmon_pdriver.driver,
 			   &driver_attr_fan_watchdog);
 
@@ -9149,16 +9255,6 @@ static void hotkey_driver_event(const unsigned int scancode)
 	tpacpi_driver_event(TP_HKEY_EV_HOTKEY_BASE + scancode);
 }
 
-/* sysfs name ---------------------------------------------------------- */
-static ssize_t thinkpad_acpi_pdev_name_show(struct device *dev,
-			   struct device_attribute *attr,
-			   char *buf)
-{
-	return snprintf(buf, PAGE_SIZE, "%s\n", TPACPI_NAME);
-}
-
-static DEVICE_ATTR(name, S_IRUGO, thinkpad_acpi_pdev_name_show, NULL);
-
 /* --------------------------------------------------------------------- */
 
 /* /proc support */
@@ -9553,7 +9649,7 @@ static struct ibm_init_struct ibms_init[] __initdata = {
 	},
 };
 
-static int __init set_ibm_param(const char *val, struct kernel_param *kp)
+static int __init set_ibm_param(const char *val, const struct kernel_param *kp)
 {
 	unsigned int i;
 	struct ibm_struct *ibm;
@@ -9696,8 +9792,6 @@ static void thinkpad_acpi_module_exit(void)
 	if (tpacpi_hwmon)
 		hwmon_device_unregister(tpacpi_hwmon);
 
-	if (tp_features.sensors_pdev_attrs_registered)
-		device_remove_file(&tpacpi_sensors_pdev->dev, &dev_attr_name);
 	if (tpacpi_sensors_pdev)
 		platform_device_unregister(tpacpi_sensors_pdev);
 	if (tpacpi_pdev)
@@ -9818,14 +9912,10 @@ static int __init thinkpad_acpi_module_init(void)
 		thinkpad_acpi_module_exit();
 		return ret;
 	}
-	ret = device_create_file(&tpacpi_sensors_pdev->dev, &dev_attr_name);
-	if (ret) {
-		pr_err("unable to create sysfs hwmon device attributes\n");
-		thinkpad_acpi_module_exit();
-		return ret;
-	}
 	tp_features.sensors_pdev_attrs_registered = 1;
-	tpacpi_hwmon = hwmon_device_register(&tpacpi_sensors_pdev->dev);
+	tpacpi_hwmon = hwmon_device_register_with_groups(
+		&tpacpi_sensors_pdev->dev, TPACPI_NAME, NULL, NULL);
+
 	if (IS_ERR(tpacpi_hwmon)) {
 		ret = PTR_ERR(tpacpi_hwmon);
 		tpacpi_hwmon = NULL;

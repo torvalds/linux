@@ -27,6 +27,7 @@
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
+#include <linux/reset.h>
 #include <linux/slab.h>
 
 /* I2C Register */
@@ -53,6 +54,9 @@
 #define ASPEED_I2CD_MASTER_EN				BIT(0)
 
 /* 0x04 : I2CD Clock and AC Timing Control Register #1 */
+#define ASPEED_I2CD_TIME_TBUF_MASK			GENMASK(31, 28)
+#define ASPEED_I2CD_TIME_THDSTA_MASK			GENMASK(27, 24)
+#define ASPEED_I2CD_TIME_TACST_MASK			GENMASK(23, 20)
 #define ASPEED_I2CD_TIME_SCL_HIGH_SHIFT			16
 #define ASPEED_I2CD_TIME_SCL_HIGH_MASK			GENMASK(19, 16)
 #define ASPEED_I2CD_TIME_SCL_LOW_SHIFT			12
@@ -129,9 +133,11 @@ struct aspeed_i2c_bus {
 	struct i2c_adapter		adap;
 	struct device			*dev;
 	void __iomem			*base;
+	struct reset_control		*rst;
 	/* Synchronizes I/O mem access to base. */
 	spinlock_t			lock;
 	struct completion		cmd_complete;
+	u32				(*get_clk_reg_val)(u32 divisor);
 	unsigned long			parent_clk_frequency;
 	u32				bus_frequency;
 	/* Transaction state. */
@@ -410,10 +416,11 @@ static bool aspeed_i2c_master_irq(struct aspeed_i2c_bus *bus)
 	}
 
 	/* We are in an invalid state; reset bus to a known state. */
-	if (!bus->msgs && bus->master_state != ASPEED_I2C_MASTER_STOP) {
+	if (!bus->msgs) {
 		dev_err(bus->dev, "bus in unknown state");
 		bus->cmd_err = -EIO;
-		aspeed_i2c_do_stop(bus);
+		if (bus->master_state != ASPEED_I2C_MASTER_STOP)
+			aspeed_i2c_do_stop(bus);
 		goto out_no_complete;
 	}
 	msg = &bus->msgs[bus->msgs_index];
@@ -674,7 +681,7 @@ static const struct i2c_algorithm aspeed_i2c_algo = {
 #endif /* CONFIG_I2C_SLAVE */
 };
 
-static u32 aspeed_i2c_get_clk_reg_val(u32 divisor)
+static u32 aspeed_i2c_get_clk_reg_val(u32 clk_high_low_max, u32 divisor)
 {
 	u32 base_clk, clk_high, clk_low, tmp;
 
@@ -694,16 +701,22 @@ static u32 aspeed_i2c_get_clk_reg_val(u32 divisor)
 	 * Thus,
 	 *	SCL_freq = APB_freq /
 	 *		((1 << base_clk) * (clk_high + 1 + clk_low + 1))
-	 * The documentation recommends clk_high >= 8 and clk_low >= 7 when
-	 * possible; this last constraint gives us the following solution:
+	 * The documentation recommends clk_high >= clk_high_max / 2 and
+	 * clk_low >= clk_low_max / 2 - 1 when possible; this last constraint
+	 * gives us the following solution:
 	 */
-	base_clk = divisor > 33 ? ilog2((divisor - 1) / 32) + 1 : 0;
-	tmp = divisor / (1 << base_clk);
-	clk_high = tmp / 2 + tmp % 2;
-	clk_low = tmp - clk_high;
+	base_clk = divisor > clk_high_low_max ?
+			ilog2((divisor - 1) / clk_high_low_max) + 1 : 0;
+	tmp = (divisor + (1 << base_clk) - 1) >> base_clk;
+	clk_low = tmp / 2;
+	clk_high = tmp - clk_low;
 
-	clk_high -= 1;
-	clk_low -= 1;
+	if (clk_high)
+		clk_high--;
+
+	if (clk_low)
+		clk_low--;
+
 
 	return ((clk_high << ASPEED_I2CD_TIME_SCL_HIGH_SHIFT)
 		& ASPEED_I2CD_TIME_SCL_HIGH_MASK)
@@ -712,13 +725,35 @@ static u32 aspeed_i2c_get_clk_reg_val(u32 divisor)
 			| (base_clk & ASPEED_I2CD_TIME_BASE_DIVISOR_MASK);
 }
 
+static u32 aspeed_i2c_24xx_get_clk_reg_val(u32 divisor)
+{
+	/*
+	 * clk_high and clk_low are each 3 bits wide, so each can hold a max
+	 * value of 8 giving a clk_high_low_max of 16.
+	 */
+	return aspeed_i2c_get_clk_reg_val(16, divisor);
+}
+
+static u32 aspeed_i2c_25xx_get_clk_reg_val(u32 divisor)
+{
+	/*
+	 * clk_high and clk_low are each 4 bits wide, so each can hold a max
+	 * value of 16 giving a clk_high_low_max of 32.
+	 */
+	return aspeed_i2c_get_clk_reg_val(32, divisor);
+}
+
 /* precondition: bus.lock has been acquired. */
 static int aspeed_i2c_init_clk(struct aspeed_i2c_bus *bus)
 {
 	u32 divisor, clk_reg_val;
 
-	divisor = bus->parent_clk_frequency / bus->bus_frequency;
-	clk_reg_val = aspeed_i2c_get_clk_reg_val(divisor);
+	divisor = DIV_ROUND_UP(bus->parent_clk_frequency, bus->bus_frequency);
+	clk_reg_val = readl(bus->base + ASPEED_I2C_AC_TIMING_REG1);
+	clk_reg_val &= (ASPEED_I2CD_TIME_TBUF_MASK |
+			ASPEED_I2CD_TIME_THDSTA_MASK |
+			ASPEED_I2CD_TIME_TACST_MASK);
+	clk_reg_val |= bus->get_clk_reg_val(divisor);
 	writel(clk_reg_val, bus->base + ASPEED_I2C_AC_TIMING_REG1);
 	writel(ASPEED_NO_TIMEOUT_CTRL, bus->base + ASPEED_I2C_AC_TIMING_REG2);
 
@@ -777,8 +812,22 @@ static int aspeed_i2c_reset(struct aspeed_i2c_bus *bus)
 	return ret;
 }
 
+static const struct of_device_id aspeed_i2c_bus_of_table[] = {
+	{
+		.compatible = "aspeed,ast2400-i2c-bus",
+		.data = aspeed_i2c_24xx_get_clk_reg_val,
+	},
+	{
+		.compatible = "aspeed,ast2500-i2c-bus",
+		.data = aspeed_i2c_25xx_get_clk_reg_val,
+	},
+	{ },
+};
+MODULE_DEVICE_TABLE(of, aspeed_i2c_bus_of_table);
+
 static int aspeed_i2c_probe_bus(struct platform_device *pdev)
 {
+	const struct of_device_id *match;
 	struct aspeed_i2c_bus *bus;
 	struct clk *parent_clk;
 	struct resource *res;
@@ -800,6 +849,14 @@ static int aspeed_i2c_probe_bus(struct platform_device *pdev)
 	/* We just need the clock rate, we don't actually use the clk object. */
 	devm_clk_put(&pdev->dev, parent_clk);
 
+	bus->rst = devm_reset_control_get_shared(&pdev->dev, NULL);
+	if (IS_ERR(bus->rst)) {
+		dev_err(&pdev->dev,
+			"missing or invalid reset controller device tree entry");
+		return PTR_ERR(bus->rst);
+	}
+	reset_control_deassert(bus->rst);
+
 	ret = of_property_read_u32(pdev->dev.of_node,
 				   "bus-frequency", &bus->bus_frequency);
 	if (ret < 0) {
@@ -807,6 +864,12 @@ static int aspeed_i2c_probe_bus(struct platform_device *pdev)
 			"Could not read bus-frequency property\n");
 		bus->bus_frequency = 100000;
 	}
+
+	match = of_match_node(aspeed_i2c_bus_of_table, pdev->dev.of_node);
+	if (!match)
+		bus->get_clk_reg_val = aspeed_i2c_24xx_get_clk_reg_val;
+	else
+		bus->get_clk_reg_val = match->data;
 
 	/* Initialize the I2C adapter */
 	spin_lock_init(&bus->lock);
@@ -864,17 +927,12 @@ static int aspeed_i2c_remove_bus(struct platform_device *pdev)
 
 	spin_unlock_irqrestore(&bus->lock, flags);
 
+	reset_control_assert(bus->rst);
+
 	i2c_del_adapter(&bus->adap);
 
 	return 0;
 }
-
-static const struct of_device_id aspeed_i2c_bus_of_table[] = {
-	{ .compatible = "aspeed,ast2400-i2c-bus", },
-	{ .compatible = "aspeed,ast2500-i2c-bus", },
-	{ },
-};
-MODULE_DEVICE_TABLE(of, aspeed_i2c_bus_of_table);
 
 static struct platform_driver aspeed_i2c_bus_driver = {
 	.probe		= aspeed_i2c_probe_bus,

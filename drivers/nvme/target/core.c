@@ -57,6 +57,17 @@ u16 nvmet_copy_from_sgl(struct nvmet_req *req, off_t off, void *buf, size_t len)
 	return 0;
 }
 
+static unsigned int nvmet_max_nsid(struct nvmet_subsys *subsys)
+{
+	struct nvmet_ns *ns;
+
+	if (list_empty(&subsys->namespaces))
+		return 0;
+
+	ns = list_last_entry(&subsys->namespaces, struct nvmet_ns, dev_link);
+	return ns->nsid;
+}
+
 static u32 nvmet_async_event_result(struct nvmet_async_event *aen)
 {
 	return aen->event_type | (aen->event_info << 8) | (aen->log_page << 16);
@@ -334,6 +345,8 @@ void nvmet_ns_disable(struct nvmet_ns *ns)
 
 	ns->enabled = false;
 	list_del_rcu(&ns->dev_link);
+	if (ns->nsid == subsys->max_nsid)
+		subsys->max_nsid = nvmet_max_nsid(subsys);
 	mutex_unlock(&subsys->lock);
 
 	/*
@@ -387,13 +400,22 @@ struct nvmet_ns *nvmet_ns_alloc(struct nvmet_subsys *subsys, u32 nsid)
 
 static void __nvmet_req_complete(struct nvmet_req *req, u16 status)
 {
+	u32 old_sqhd, new_sqhd;
+	u16 sqhd;
+
 	if (status)
 		nvmet_set_status(req, status);
 
-	/* XXX: need to fill in something useful for sq_head */
-	req->rsp->sq_head = 0;
-	if (likely(req->sq)) /* may happen during early failure */
-		req->rsp->sq_id = cpu_to_le16(req->sq->qid);
+	if (req->sq->size) {
+		do {
+			old_sqhd = req->sq->sqhd;
+			new_sqhd = (old_sqhd + 1) % req->sq->size;
+		} while (cmpxchg(&req->sq->sqhd, old_sqhd, new_sqhd) !=
+					old_sqhd);
+	}
+	sqhd = req->sq->sqhd & 0x0000FFFF;
+	req->rsp->sq_head = cpu_to_le16(sqhd);
+	req->rsp->sq_id = cpu_to_le16(req->sq->qid);
 	req->rsp->command_id = req->cmd->common.command_id;
 
 	if (req->ns)
@@ -420,6 +442,7 @@ void nvmet_cq_setup(struct nvmet_ctrl *ctrl, struct nvmet_cq *cq,
 void nvmet_sq_setup(struct nvmet_ctrl *ctrl, struct nvmet_sq *sq,
 		u16 qid, u16 size)
 {
+	sq->sqhd = 0;
 	sq->qid = qid;
 	sq->size = size;
 
@@ -487,6 +510,7 @@ bool nvmet_req_init(struct nvmet_req *req, struct nvmet_cq *cq,
 	req->ops = ops;
 	req->sg = NULL;
 	req->sg_cnt = 0;
+	req->transfer_len = 0;
 	req->rsp->status = 0;
 
 	/* no support for fused commands yet */
@@ -536,39 +560,48 @@ void nvmet_req_uninit(struct nvmet_req *req)
 }
 EXPORT_SYMBOL_GPL(nvmet_req_uninit);
 
+void nvmet_req_execute(struct nvmet_req *req)
+{
+	if (unlikely(req->data_len != req->transfer_len))
+		nvmet_req_complete(req, NVME_SC_SGL_INVALID_DATA | NVME_SC_DNR);
+	else
+		req->execute(req);
+}
+EXPORT_SYMBOL_GPL(nvmet_req_execute);
+
 static inline bool nvmet_cc_en(u32 cc)
 {
-	return cc & 0x1;
+	return (cc >> NVME_CC_EN_SHIFT) & 0x1;
 }
 
 static inline u8 nvmet_cc_css(u32 cc)
 {
-	return (cc >> 4) & 0x7;
+	return (cc >> NVME_CC_CSS_SHIFT) & 0x7;
 }
 
 static inline u8 nvmet_cc_mps(u32 cc)
 {
-	return (cc >> 7) & 0xf;
+	return (cc >> NVME_CC_MPS_SHIFT) & 0xf;
 }
 
 static inline u8 nvmet_cc_ams(u32 cc)
 {
-	return (cc >> 11) & 0x7;
+	return (cc >> NVME_CC_AMS_SHIFT) & 0x7;
 }
 
 static inline u8 nvmet_cc_shn(u32 cc)
 {
-	return (cc >> 14) & 0x3;
+	return (cc >> NVME_CC_SHN_SHIFT) & 0x3;
 }
 
 static inline u8 nvmet_cc_iosqes(u32 cc)
 {
-	return (cc >> 16) & 0xf;
+	return (cc >> NVME_CC_IOSQES_SHIFT) & 0xf;
 }
 
 static inline u8 nvmet_cc_iocqes(u32 cc)
 {
-	return (cc >> 20) & 0xf;
+	return (cc >> NVME_CC_IOCQES_SHIFT) & 0xf;
 }
 
 static void nvmet_start_ctrl(struct nvmet_ctrl *ctrl)
@@ -749,6 +782,7 @@ u16 nvmet_alloc_ctrl(const char *subsysnqn, const char *hostnqn,
 			hostnqn, subsysnqn);
 		req->rsp->result.u32 = IPO_IATTR_CONNECT_DATA(hostnqn);
 		up_read(&nvmet_config_sem);
+		status = NVME_SC_CONNECT_INVALID_HOST | NVME_SC_DNR;
 		goto out_put_subsystem;
 	}
 	up_read(&nvmet_config_sem);

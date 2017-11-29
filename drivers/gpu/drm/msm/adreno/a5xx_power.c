@@ -173,7 +173,7 @@ static int a5xx_gpmu_init(struct msm_gpu *gpu)
 {
 	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
 	struct a5xx_gpu *a5xx_gpu = to_a5xx_gpu(adreno_gpu);
-	struct msm_ringbuffer *ring = gpu->rb;
+	struct msm_ringbuffer *ring = gpu->rb[0];
 
 	if (!a5xx_gpu->gpmu_dwords)
 		return 0;
@@ -192,9 +192,9 @@ static int a5xx_gpmu_init(struct msm_gpu *gpu)
 	OUT_PKT7(ring, CP_SET_PROTECTED_MODE, 1);
 	OUT_RING(ring, 1);
 
-	gpu->funcs->flush(gpu);
+	gpu->funcs->flush(gpu, ring);
 
-	if (!a5xx_idle(gpu)) {
+	if (!a5xx_idle(gpu, ring)) {
 		DRM_ERROR("%s: Unable to load GPMU firmware. GPMU will not be active\n",
 			gpu->name);
 		return -EINVAL;
@@ -264,7 +264,8 @@ void a5xx_gpmu_ucode_init(struct msm_gpu *gpu)
 		return;
 
 	/* Get the firmware */
-	if (request_firmware(&fw, adreno_gpu->info->gpmufw, drm->dev)) {
+	fw = adreno_request_fw(adreno_gpu, adreno_gpu->info->gpmufw);
+	if (IS_ERR(fw)) {
 		DRM_ERROR("%s: Could not get GPMU firmware. GPMU will not be active\n",
 			gpu->name);
 		return;
@@ -294,16 +295,10 @@ void a5xx_gpmu_ucode_init(struct msm_gpu *gpu)
 	 */
 	bosize = (cmds_size + (cmds_size / TYPE4_MAX_PAYLOAD) + 1) << 2;
 
-	a5xx_gpu->gpmu_bo = msm_gem_new_locked(drm, bosize, MSM_BO_UNCACHED);
-	if (IS_ERR(a5xx_gpu->gpmu_bo))
-		goto err;
-
-	if (msm_gem_get_iova(a5xx_gpu->gpmu_bo, gpu->aspace,
-			&a5xx_gpu->gpmu_iova))
-		goto err;
-
-	ptr = msm_gem_get_vaddr(a5xx_gpu->gpmu_bo);
-	if (!ptr)
+	ptr = msm_gem_kernel_new_locked(drm, bosize,
+		MSM_BO_UNCACHED | MSM_BO_GPU_READONLY, gpu->aspace,
+		&a5xx_gpu->gpmu_bo, &a5xx_gpu->gpmu_iova);
+	if (IS_ERR(ptr))
 		goto err;
 
 	while (cmds_size > 0) {

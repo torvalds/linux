@@ -243,8 +243,8 @@ static void sctp_v6_get_dst(struct sctp_transport *t, union sctp_addr *saddr,
 	union sctp_addr *daddr = &t->ipaddr;
 	union sctp_addr dst_saddr;
 	struct in6_addr *final_p, final;
+	enum sctp_scope scope;
 	__u8 matchlen = 0;
-	sctp_scope_t scope;
 
 	memset(fl6, 0, sizeof(struct flowi6));
 	fl6->daddr = daddr->v6.sin6_addr;
@@ -497,7 +497,7 @@ static void sctp_v6_from_addr_param(union sctp_addr *addr,
 static int sctp_v6_to_addr_param(const union sctp_addr *addr,
 				 union sctp_addr_param *param)
 {
-	int length = sizeof(sctp_ipv6addr_param_t);
+	int length = sizeof(struct sctp_ipv6addr_param);
 
 	param->v6.param_hdr.type = SCTP_PARAM_IPV6_ADDRESS;
 	param->v6.param_hdr.length = htons(length);
@@ -512,7 +512,9 @@ static void sctp_v6_to_addr(union sctp_addr *addr, struct in6_addr *saddr,
 {
 	addr->sa.sa_family = AF_INET6;
 	addr->v6.sin6_port = port;
+	addr->v6.sin6_flowinfo = 0;
 	addr->v6.sin6_addr = *saddr;
+	addr->v6.sin6_scope_id = 0;
 }
 
 /* Compare addresses exactly.
@@ -624,10 +626,10 @@ static int sctp_v6_addr_valid(union sctp_addr *addr,
 }
 
 /* What is the scope of 'addr'?  */
-static sctp_scope_t sctp_v6_scope(union sctp_addr *addr)
+static enum sctp_scope sctp_v6_scope(union sctp_addr *addr)
 {
+	enum sctp_scope retval;
 	int v6scope;
-	sctp_scope_t retval;
 
 	/* The IPv6 scope is really a set of bit fields.
 	 * See IFA_* in <net/if_inet6.h>.  Map to a generic SCTP scope.
@@ -736,7 +738,7 @@ static int sctp_v6_skb_iif(const struct sk_buff *skb)
 /* Was this packet marked by Explicit Congestion Notification? */
 static int sctp_v6_is_ce(const struct sk_buff *skb)
 {
-	return *((__u32 *)(ipv6_hdr(skb))) & htonl(1 << 20);
+	return *((__u32 *)(ipv6_hdr(skb))) & (__force __u32)htonl(1 << 20);
 }
 
 /* Dump the v6 addr to the seq file. */
@@ -805,9 +807,10 @@ static void sctp_inet6_skb_msgname(struct sk_buff *skb, char *msgname,
 		addr->v6.sin6_flowinfo = 0;
 		addr->v6.sin6_port = sh->source;
 		addr->v6.sin6_addr = ipv6_hdr(skb)->saddr;
-		if (ipv6_addr_type(&addr->v6.sin6_addr) & IPV6_ADDR_LINKLOCAL) {
+		if (ipv6_addr_type(&addr->v6.sin6_addr) & IPV6_ADDR_LINKLOCAL)
 			addr->v6.sin6_scope_id = sctp_v6_skb_iif(skb);
-		}
+		else
+			addr->v6.sin6_scope_id = 0;
 	}
 
 	*addr_len = sctp_v6_addr_to_user(sctp_sk(skb->sk), addr);
@@ -880,8 +883,10 @@ static int sctp_inet6_bind_verify(struct sctp_sock *opt, union sctp_addr *addr)
 			net = sock_net(&opt->inet.sk);
 			rcu_read_lock();
 			dev = dev_get_by_index_rcu(net, addr->v6.sin6_scope_id);
-			if (!dev ||
-			    !ipv6_chk_addr(net, &addr->v6.sin6_addr, dev, 0)) {
+			if (!dev || !(opt->inet.freebind ||
+				      net->ipv6.sysctl.ip_nonlocal_bind ||
+				      ipv6_chk_addr(net, &addr->v6.sin6_addr,
+						    dev, 0))) {
 				rcu_read_unlock();
 				return 0;
 			}

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * GPL HEADER START
  *
@@ -51,7 +52,7 @@
 
 # define DEBUG_SUBSYSTEM S_LNET
 
-#include "../../../include/linux/libcfs/libcfs.h"
+#include <linux/libcfs/libcfs.h>
 
 #include "../tracefile.h"
 

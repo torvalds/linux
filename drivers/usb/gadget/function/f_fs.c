@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * f_fs.c -- user mode file system API for USB composite function controllers
  *
@@ -7,11 +8,6 @@
  * Based on inode.c (GadgetFS) which was:
  * Copyright (C) 2003-2004 David Brownell
  * Copyright (C) 2003 Agilent Technologies
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 
@@ -46,7 +42,8 @@
 static void ffs_data_get(struct ffs_data *ffs);
 static void ffs_data_put(struct ffs_data *ffs);
 /* Creates new ffs_data object. */
-static struct ffs_data *__must_check ffs_data_new(void) __attribute__((malloc));
+static struct ffs_data *__must_check ffs_data_new(const char *dev_name)
+	__attribute__((malloc));
 
 /* Opened counter handling. */
 static void ffs_data_opened(struct ffs_data *ffs);
@@ -780,11 +777,12 @@ static void ffs_epfile_async_io_complete(struct usb_ep *_ep,
 					 struct usb_request *req)
 {
 	struct ffs_io_data *io_data = req->context;
+	struct ffs_data *ffs = io_data->ffs;
 
 	ENTER();
 
 	INIT_WORK(&io_data->work, ffs_user_copy_worker);
-	schedule_work(&io_data->work);
+	queue_work(ffs->io_completion_wq, &io_data->work);
 }
 
 static void __ffs_epfile_read_buffer_free(struct ffs_epfile *epfile)
@@ -961,10 +959,9 @@ static ssize_t ffs_epfile_io(struct file *file, struct ffs_io_data *io_data)
 		/* In the meantime, endpoint got disabled or changed. */
 		ret = -ESHUTDOWN;
 	} else if (halt) {
-		/* Halt */
-		if (likely(epfile->ep == ep) && !WARN_ON(!ep->ep))
-			usb_ep_set_halt(ep->ep);
-		ret = -EBADMSG;
+		ret = usb_ep_set_halt(ep->ep);
+		if (!ret)
+			ret = -EBADMSG;
 	} else if (unlikely(data_len == -EINVAL)) {
 		/*
 		 * Sanity Check: even though data_len can't be used
@@ -1501,7 +1498,7 @@ ffs_fs_mount(struct file_system_type *t, int flags,
 	if (unlikely(ret < 0))
 		return ERR_PTR(ret);
 
-	ffs = ffs_data_new();
+	ffs = ffs_data_new(dev_name);
 	if (unlikely(!ffs))
 		return ERR_PTR(-ENOMEM);
 	ffs->file_perms = data.perms;
@@ -1611,6 +1608,7 @@ static void ffs_data_put(struct ffs_data *ffs)
 		BUG_ON(waitqueue_active(&ffs->ev.waitq) ||
 		       waitqueue_active(&ffs->ep0req_completion.wait) ||
 		       waitqueue_active(&ffs->wait));
+		destroy_workqueue(ffs->io_completion_wq);
 		kfree(ffs->dev_name);
 		kfree(ffs);
 	}
@@ -1643,13 +1641,19 @@ static void ffs_data_closed(struct ffs_data *ffs)
 	ffs_data_put(ffs);
 }
 
-static struct ffs_data *ffs_data_new(void)
+static struct ffs_data *ffs_data_new(const char *dev_name)
 {
 	struct ffs_data *ffs = kzalloc(sizeof *ffs, GFP_KERNEL);
 	if (unlikely(!ffs))
 		return NULL;
 
 	ENTER();
+
+	ffs->io_completion_wq = alloc_ordered_workqueue("%s", 0, dev_name);
+	if (!ffs->io_completion_wq) {
+		kfree(ffs);
+		return NULL;
+	}
 
 	refcount_set(&ffs->ref, 1);
 	atomic_set(&ffs->opened, 0);
@@ -3377,7 +3381,7 @@ static struct configfs_item_operations ffs_item_ops = {
 	.release	= ffs_attr_release,
 };
 
-static struct config_item_type ffs_func_type = {
+static const struct config_item_type ffs_func_type = {
 	.ct_item_ops	= &ffs_item_ops,
 	.ct_owner	= THIS_MODULE,
 };
@@ -3669,6 +3673,7 @@ static void ffs_closed(struct ffs_data *ffs)
 		goto done;
 
 	ffs_obj->desc_ready = false;
+	ffs_obj->ffs_data = NULL;
 
 	if (test_and_clear_bit(FFS_FL_CALL_CLOSED_CALLBACK, &ffs->flags) &&
 	    ffs_obj->ffs_closed_callback)

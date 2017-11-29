@@ -13,6 +13,7 @@
 #include <linux/dmi.h>
 #include <linux/nls.h>
 #include <linux/dma-mapping.h>
+#include <linux/platform_data/x86/apple.h>
 
 #include <asm/pgtable.h>
 
@@ -1360,6 +1361,85 @@ enum dev_dma_attr acpi_get_dma_attr(struct acpi_device *adev)
 }
 
 /**
+ * acpi_dma_get_range() - Get device DMA parameters.
+ *
+ * @dev: device to configure
+ * @dma_addr: pointer device DMA address result
+ * @offset: pointer to the DMA offset result
+ * @size: pointer to DMA range size result
+ *
+ * Evaluate DMA regions and return respectively DMA region start, offset
+ * and size in dma_addr, offset and size on parsing success; it does not
+ * update the passed in values on failure.
+ *
+ * Return 0 on success, < 0 on failure.
+ */
+int acpi_dma_get_range(struct device *dev, u64 *dma_addr, u64 *offset,
+		       u64 *size)
+{
+	struct acpi_device *adev;
+	LIST_HEAD(list);
+	struct resource_entry *rentry;
+	int ret;
+	struct device *dma_dev = dev;
+	u64 len, dma_start = U64_MAX, dma_end = 0, dma_offset = 0;
+
+	/*
+	 * Walk the device tree chasing an ACPI companion with a _DMA
+	 * object while we go. Stop if we find a device with an ACPI
+	 * companion containing a _DMA method.
+	 */
+	do {
+		adev = ACPI_COMPANION(dma_dev);
+		if (adev && acpi_has_method(adev->handle, METHOD_NAME__DMA))
+			break;
+
+		dma_dev = dma_dev->parent;
+	} while (dma_dev);
+
+	if (!dma_dev)
+		return -ENODEV;
+
+	if (!acpi_has_method(adev->handle, METHOD_NAME__CRS)) {
+		acpi_handle_warn(adev->handle, "_DMA is valid only if _CRS is present\n");
+		return -EINVAL;
+	}
+
+	ret = acpi_dev_get_dma_resources(adev, &list);
+	if (ret > 0) {
+		list_for_each_entry(rentry, &list, node) {
+			if (dma_offset && rentry->offset != dma_offset) {
+				ret = -EINVAL;
+				dev_warn(dma_dev, "Can't handle multiple windows with different offsets\n");
+				goto out;
+			}
+			dma_offset = rentry->offset;
+
+			/* Take lower and upper limits */
+			if (rentry->res->start < dma_start)
+				dma_start = rentry->res->start;
+			if (rentry->res->end > dma_end)
+				dma_end = rentry->res->end;
+		}
+
+		if (dma_start >= dma_end) {
+			ret = -EINVAL;
+			dev_dbg(dma_dev, "Invalid DMA regions configuration\n");
+			goto out;
+		}
+
+		*dma_addr = dma_start - dma_offset;
+		len = dma_end - dma_start;
+		*size = max(len, len + 1);
+		*offset = dma_offset;
+	}
+ out:
+	acpi_dev_free_resource_list(&list);
+
+	return ret >= 0 ? 0 : ret;
+}
+
+/**
  * acpi_dma_configure - Set-up DMA configuration for the device.
  * @dev: The pointer to the device
  * @attr: device dma attributes
@@ -1367,20 +1447,16 @@ enum dev_dma_attr acpi_get_dma_attr(struct acpi_device *adev)
 int acpi_dma_configure(struct device *dev, enum dev_dma_attr attr)
 {
 	const struct iommu_ops *iommu;
-	u64 size;
+	u64 dma_addr = 0, size = 0;
 
-	iort_set_dma_mask(dev);
+	iort_dma_setup(dev, &dma_addr, &size);
 
 	iommu = iort_iommu_configure(dev);
 	if (IS_ERR(iommu) && PTR_ERR(iommu) == -EPROBE_DEFER)
 		return -EPROBE_DEFER;
 
-	size = max(dev->coherent_dma_mask, dev->coherent_dma_mask + 1);
-	/*
-	 * Assume dma valid range starts at 0 and covers the whole
-	 * coherent_dma_mask.
-	 */
-	arch_setup_dma_ops(dev, 0, size, iommu, attr == DEV_DMA_COHERENT);
+	arch_setup_dma_ops(dev, dma_addr, size,
+				iommu, attr == DEV_DMA_COHERENT);
 
 	return 0;
 }
@@ -1429,35 +1505,38 @@ static void acpi_init_coherency(struct acpi_device *adev)
 	adev->flags.coherent_dma = cca;
 }
 
-static int acpi_check_spi_i2c_slave(struct acpi_resource *ares, void *data)
+static int acpi_check_serial_bus_slave(struct acpi_resource *ares, void *data)
 {
-	bool *is_spi_i2c_slave_p = data;
+	bool *is_serial_bus_slave_p = data;
 
 	if (ares->type != ACPI_RESOURCE_TYPE_SERIAL_BUS)
 		return 1;
 
-	/*
-	 * devices that are connected to UART still need to be enumerated to
-	 * platform bus
-	 */
-	if (ares->data.common_serial_bus.type != ACPI_RESOURCE_SERIAL_TYPE_UART)
-		*is_spi_i2c_slave_p = true;
+	*is_serial_bus_slave_p = true;
 
 	 /* no need to do more checking */
 	return -1;
 }
 
-static bool acpi_is_spi_i2c_slave(struct acpi_device *device)
+static bool acpi_is_serial_bus_slave(struct acpi_device *device)
 {
 	struct list_head resource_list;
-	bool is_spi_i2c_slave = false;
+	bool is_serial_bus_slave = false;
+
+	/* Macs use device properties in lieu of _CRS resources */
+	if (x86_apple_machine &&
+	    (fwnode_property_present(&device->fwnode, "spiSclkPeriod") ||
+	     fwnode_property_present(&device->fwnode, "i2cAddress") ||
+	     fwnode_property_present(&device->fwnode, "baud")))
+		return true;
 
 	INIT_LIST_HEAD(&resource_list);
-	acpi_dev_get_resources(device, &resource_list, acpi_check_spi_i2c_slave,
-			       &is_spi_i2c_slave);
+	acpi_dev_get_resources(device, &resource_list,
+			       acpi_check_serial_bus_slave,
+			       &is_serial_bus_slave);
 	acpi_dev_free_resource_list(&resource_list);
 
-	return is_spi_i2c_slave;
+	return is_serial_bus_slave;
 }
 
 void acpi_init_device_object(struct acpi_device *device, acpi_handle handle,
@@ -1467,8 +1546,7 @@ void acpi_init_device_object(struct acpi_device *device, acpi_handle handle,
 	device->device_type = type;
 	device->handle = handle;
 	device->parent = acpi_bus_get_parent(handle);
-	device->fwnode.type = FWNODE_ACPI;
-	device->fwnode.ops = &acpi_fwnode_ops;
+	device->fwnode.ops = &acpi_device_fwnode_ops;
 	acpi_set_device_status(device, sta);
 	acpi_device_get_busid(device);
 	acpi_set_pnp_ids(handle, &device->pnp, type);
@@ -1476,7 +1554,7 @@ void acpi_init_device_object(struct acpi_device *device, acpi_handle handle,
 	acpi_bus_get_flags(device);
 	device->flags.match_driver = false;
 	device->flags.initialized = true;
-	device->flags.spi_i2c_slave = acpi_is_spi_i2c_slave(device);
+	device->flags.serial_bus_slave = acpi_is_serial_bus_slave(device);
 	acpi_device_clear_enumerated(device);
 	device_initialize(&device->dev);
 	dev_set_uevent_suppress(&device->dev, true);
@@ -1760,10 +1838,10 @@ static acpi_status acpi_bus_check_add(acpi_handle handle, u32 lvl_not_used,
 static void acpi_default_enumeration(struct acpi_device *device)
 {
 	/*
-	 * Do not enumerate SPI/I2C slaves as they will be enumerated by their
-	 * respective parents.
+	 * Do not enumerate SPI/I2C/UART slaves as they will be enumerated by
+	 * their respective parents.
 	 */
-	if (!device->flags.spi_i2c_slave) {
+	if (!device->flags.serial_bus_slave) {
 		acpi_create_platform_device(device, NULL);
 		acpi_device_set_enumerated(device);
 	} else {
@@ -1860,7 +1938,7 @@ static void acpi_bus_attach(struct acpi_device *device)
 		return;
 
 	device->flags.match_driver = true;
-	if (ret > 0 && !device->flags.spi_i2c_slave) {
+	if (ret > 0 && !device->flags.serial_bus_slave) {
 		acpi_device_set_enumerated(device);
 		goto ok;
 	}
@@ -1869,7 +1947,7 @@ static void acpi_bus_attach(struct acpi_device *device)
 	if (ret < 0)
 		return;
 
-	if (!device->pnp.type.platform_id && !device->flags.spi_i2c_slave)
+	if (!device->pnp.type.platform_id && !device->flags.serial_bus_slave)
 		acpi_device_set_enumerated(device);
 	else
 		acpi_default_enumeration(device);
@@ -2041,6 +2119,7 @@ int __init acpi_scan_init(void)
 	acpi_int340x_thermal_init();
 	acpi_amba_init();
 	acpi_watchdog_init();
+	acpi_init_lpit();
 
 	acpi_scan_add_handler(&generic_device_handler);
 
@@ -2057,6 +2136,9 @@ int __init acpi_scan_init(void)
 		if (stao_ptr->ignore_uart)
 			acpi_get_spcr_uart_addr();
 	}
+
+	acpi_gpe_apply_masked_gpes();
+	acpi_update_all_gpes();
 
 	mutex_lock(&acpi_scan_lock);
 	/*
@@ -2081,10 +2163,6 @@ int __init acpi_scan_init(void)
 			goto out;
 		}
 	}
-
-	acpi_gpe_apply_masked_gpes();
-	acpi_update_all_gpes();
-	acpi_ec_ecdt_start();
 
 	acpi_scan_initialized = true;
 

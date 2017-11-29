@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * GPL HEADER START
  *
@@ -36,7 +37,7 @@
 
 #define DEBUG_SUBSYSTEM S_LNET
 
-#include "../../include/linux/lnet/lib-lnet.h"
+#include <linux/lnet/lib-lnet.h>
 #include <linux/nsproxy.h>
 #include <net/net_namespace.h>
 
@@ -889,7 +890,7 @@ lnet_return_rx_credits_locked(struct lnet_msg *msg)
 		 */
 		LASSERT(msg->msg_kiov);
 
-		rb = list_entry(msg->msg_kiov, struct lnet_rtrbuf, rb_kiov[0]);
+		rb = container_of(msg->msg_kiov, struct lnet_rtrbuf, rb_kiov[0]);
 		rbp = rb->rb_pool;
 
 		msg->msg_kiov = NULL;
@@ -2034,7 +2035,7 @@ LNetPut(lnet_nid_t self, struct lnet_handle_md mdh, enum lnet_ack_req ack,
 		return -ENOENT;
 	}
 
-	CDEBUG(D_NET, "LNetPut -> %s\n", libcfs_id2str(target));
+	CDEBUG(D_NET, "%s -> %s\n", __func__, libcfs_id2str(target));
 
 	lnet_msg_attach_md(msg, md, 0, 0);
 
@@ -2239,7 +2240,7 @@ LNetGet(lnet_nid_t self, struct lnet_handle_md mdh,
 		return -ENOENT;
 	}
 
-	CDEBUG(D_NET, "LNetGet -> %s\n", libcfs_id2str(target));
+	CDEBUG(D_NET, "%s -> %s\n", __func__, libcfs_id2str(target));
 
 	lnet_msg_attach_md(msg, md, 0, 0);
 

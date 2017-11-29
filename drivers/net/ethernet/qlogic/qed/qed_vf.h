@@ -497,6 +497,27 @@ struct tlv_buffer_size {
 	u8 tlv_buffer[TLV_BUFFER_SIZE];
 };
 
+struct vfpf_update_coalesce {
+	struct vfpf_first_tlv first_tlv;
+	u16 rx_coal;
+	u16 tx_coal;
+	u16 qid;
+	u8 padding[2];
+};
+
+struct vfpf_read_coal_req_tlv {
+	struct vfpf_first_tlv first_tlv;
+	u16 qid;
+	u8 is_rx;
+	u8 padding[5];
+};
+
+struct pfvf_read_coal_resp_tlv {
+	struct pfvf_tlv hdr;
+	u16 coal;
+	u8 padding[6];
+};
+
 union vfpf_tlvs {
 	struct vfpf_first_tlv first_tlv;
 	struct vfpf_acquire_tlv acquire;
@@ -509,7 +530,8 @@ union vfpf_tlvs {
 	struct vfpf_vport_update_tlv vport_update;
 	struct vfpf_ucast_filter_tlv ucast_filter;
 	struct vfpf_update_tunn_param_tlv tunn_param_update;
-	struct channel_list_end_tlv list_end;
+	struct vfpf_update_coalesce update_coalesce;
+	struct vfpf_read_coal_req_tlv read_coal_req;
 	struct tlv_buffer_size tlv_buf_size;
 };
 
@@ -519,6 +541,7 @@ union pfvf_tlvs {
 	struct tlv_buffer_size tlv_buf_size;
 	struct pfvf_start_queue_resp_tlv queue_start;
 	struct pfvf_update_tunn_param_tlv tunn_param_resp;
+	struct pfvf_read_coal_resp_tlv read_coal_resp;
 };
 
 enum qed_bulletin_bit {
@@ -624,8 +647,9 @@ enum {
 	CHANNEL_TLV_VPORT_UPDATE_ACCEPT_ANY_VLAN,
 	CHANNEL_TLV_VPORT_UPDATE_SGE_TPA,
 	CHANNEL_TLV_UPDATE_TUNN_PARAM,
-	CHANNEL_TLV_RESERVED,
+	CHANNEL_TLV_COALESCE_UPDATE,
 	CHANNEL_TLV_QID,
+	CHANNEL_TLV_COALESCE_READ,
 	CHANNEL_TLV_MAX,
 
 	/* Required for iterating over vport-update tlvs.
@@ -676,6 +700,31 @@ struct qed_vf_iov {
 	 */
 	bool b_doorbell_bar;
 };
+
+/**
+ * @brief VF - Set Rx/Tx coalesce per VF's relative queue.
+ *             Coalesce value '0' will omit the configuration.
+ *
+ * @param p_hwfn
+ * @param rx_coal - coalesce value in micro second for rx queue
+ * @param tx_coal - coalesce value in micro second for tx queue
+ * @param p_cid   - queue cid
+ *
+ **/
+int qed_vf_pf_set_coalesce(struct qed_hwfn *p_hwfn,
+			   u16 rx_coal,
+			   u16 tx_coal, struct qed_queue_cid *p_cid);
+
+/**
+ * @brief VF - Get coalesce per VF's relative queue.
+ *
+ * @param p_hwfn
+ * @param p_coal - coalesce value in micro second for VF queues.
+ * @param p_cid  - queue cid
+ *
+ **/
+int qed_vf_pf_get_coalesce(struct qed_hwfn *p_hwfn,
+			   u16 *p_coal, struct qed_queue_cid *p_cid);
 
 #ifdef CONFIG_QED_SRIOV
 /**

@@ -22,6 +22,7 @@
 #include "xfs_log_format.h"
 #include "xfs_trans_resv.h"
 #include "xfs_mount.h"
+#include "xfs_errortag.h"
 #include "xfs_error.h"
 #include "xfs_trans.h"
 #include "xfs_trans_priv.h"
@@ -608,6 +609,7 @@ xfs_log_mount(
 	xfs_daddr_t	blk_offset,
 	int		num_bblks)
 {
+	bool		fatal = xfs_sb_version_hascrc(&mp->m_sb);
 	int		error = 0;
 	int		min_logfsbs;
 
@@ -659,9 +661,20 @@ xfs_log_mount(
 			 XFS_FSB_TO_B(mp, mp->m_sb.sb_logblocks),
 			 XFS_MAX_LOG_BYTES);
 		error = -EINVAL;
+	} else if (mp->m_sb.sb_logsunit > 1 &&
+		   mp->m_sb.sb_logsunit % mp->m_sb.sb_blocksize) {
+		xfs_warn(mp,
+		"log stripe unit %u bytes must be a multiple of block size",
+			 mp->m_sb.sb_logsunit);
+		error = -EINVAL;
+		fatal = true;
 	}
 	if (error) {
-		if (xfs_sb_version_hascrc(&mp->m_sb)) {
+		/*
+		 * Log check errors are always fatal on v5; or whenever bad
+		 * metadata leads to a crash.
+		 */
+		if (fatal) {
 			xfs_crit(mp, "AAIEEE! Log failed size checks. Abort!");
 			ASSERT(0);
 			goto out_free_log;
@@ -743,15 +756,61 @@ xfs_log_mount_finish(
 	struct xfs_mount	*mp)
 {
 	int	error = 0;
+	bool	readonly = (mp->m_flags & XFS_MOUNT_RDONLY);
+	bool	recovered = mp->m_log->l_flags & XLOG_RECOVERY_NEEDED;
 
 	if (mp->m_flags & XFS_MOUNT_NORECOVERY) {
 		ASSERT(mp->m_flags & XFS_MOUNT_RDONLY);
 		return 0;
+	} else if (readonly) {
+		/* Allow unlinked processing to proceed */
+		mp->m_flags &= ~XFS_MOUNT_RDONLY;
 	}
 
+	/*
+	 * During the second phase of log recovery, we need iget and
+	 * iput to behave like they do for an active filesystem.
+	 * xfs_fs_drop_inode needs to be able to prevent the deletion
+	 * of inodes before we're done replaying log items on those
+	 * inodes.  Turn it off immediately after recovery finishes
+	 * so that we don't leak the quota inodes if subsequent mount
+	 * activities fail.
+	 *
+	 * We let all inodes involved in redo item processing end up on
+	 * the LRU instead of being evicted immediately so that if we do
+	 * something to an unlinked inode, the irele won't cause
+	 * premature truncation and freeing of the inode, which results
+	 * in log recovery failure.  We have to evict the unreferenced
+	 * lru inodes after clearing MS_ACTIVE because we don't
+	 * otherwise clean up the lru if there's a subsequent failure in
+	 * xfs_mountfs, which leads to us leaking the inodes if nothing
+	 * else (e.g. quotacheck) references the inodes before the
+	 * mount failure occurs.
+	 */
+	mp->m_super->s_flags |= MS_ACTIVE;
 	error = xlog_recover_finish(mp->m_log);
 	if (!error)
 		xfs_log_work_queue(mp);
+	mp->m_super->s_flags &= ~MS_ACTIVE;
+	evict_inodes(mp->m_super);
+
+	/*
+	 * Drain the buffer LRU after log recovery. This is required for v4
+	 * filesystems to avoid leaving around buffers with NULL verifier ops,
+	 * but we do it unconditionally to make sure we're always in a clean
+	 * cache state after mount.
+	 *
+	 * Don't push in the error case because the AIL may have pending intents
+	 * that aren't removed until recovery is cancelled.
+	 */
+	if (!error && recovered) {
+		xfs_log_force(mp, XFS_LOG_SYNC);
+		xfs_ail_push_all_sync(mp->m_ail);
+	}
+	xfs_wait_buftarg(mp->m_ddev_targp);
+
+	if (readonly)
+		mp->m_flags |= XFS_MOUNT_RDONLY;
 
 	return error;
 }
@@ -801,11 +860,14 @@ xfs_log_unmount_write(xfs_mount_t *mp)
 	int		 error;
 
 	/*
-	 * Don't write out unmount record on read-only mounts.
+	 * Don't write out unmount record on norecovery mounts or ro devices.
 	 * Or, if we are doing a forced umount (typically because of IO errors).
 	 */
-	if (mp->m_flags & XFS_MOUNT_RDONLY)
+	if (mp->m_flags & XFS_MOUNT_NORECOVERY ||
+	    xfs_readonly_buftarg(log->l_mp->m_logdev_targp)) {
+		ASSERT(mp->m_flags & XFS_MOUNT_RDONLY);
 		return 0;
+	}
 
 	error = _xfs_log_force(mp, XFS_LOG_SYNC, NULL);
 	ASSERT(error || !(XLOG_FORCED_SHUTDOWN(log)));
@@ -2482,7 +2544,7 @@ next_lv:
 				if (lv)
 					vecp = lv->lv_iovecp;
 			}
-			if (record_cnt == 0 && ordered == false) {
+			if (record_cnt == 0 && !ordered) {
 				if (!lv)
 					return 0;
 				break;
@@ -3342,8 +3404,6 @@ maybe_sleep:
 		 */
 		if (iclog->ic_state & XLOG_STATE_IOERROR)
 			return -EIO;
-		if (log_flushed)
-			*log_flushed = 1;
 	} else {
 
 no_sleep:
@@ -3447,8 +3507,6 @@ try_again:
 
 				xlog_wait(&iclog->ic_prev->ic_write_wait,
 							&log->l_icloglock);
-				if (log_flushed)
-					*log_flushed = 1;
 				already_slept = 1;
 				goto try_again;
 			}
@@ -3482,9 +3540,6 @@ try_again:
 			 */
 			if (iclog->ic_state & XLOG_STATE_IOERROR)
 				return -EIO;
-
-			if (log_flushed)
-				*log_flushed = 1;
 		} else {		/* just return */
 			spin_unlock(&log->l_icloglock);
 		}
@@ -3708,7 +3763,7 @@ xlog_ticket_alloc(
  * one of the iclogs.  This uses backup pointers stored in a different
  * part of the log in case we trash the log structure.
  */
-void
+STATIC void
 xlog_verify_dest_ptr(
 	struct xlog	*log,
 	void		*ptr)

@@ -59,6 +59,19 @@ machine-$(CONFIG_PPC64) += 64
 machine-$(CONFIG_CPU_LITTLE_ENDIAN) += le
 UTS_MACHINE := $(subst $(space),,$(machine-y))
 
+# XXX This needs to be before we override LD below
+ifdef CONFIG_PPC32
+KBUILD_LDFLAGS_MODULE += arch/powerpc/lib/crtsavres.o
+else
+ifeq ($(call ld-ifversion, -ge, 225000000, y),y)
+# Have the linker provide sfpr if possible.
+# There is a corresponding test in arch/powerpc/lib/Makefile
+KBUILD_LDFLAGS_MODULE += --save-restore-funcs
+else
+KBUILD_LDFLAGS_MODULE += arch/powerpc/lib/crtsavres.o
+endif
+endif
+
 ifeq ($(CONFIG_CPU_LITTLE_ENDIAN),y)
 override LD	+= -EL
 LDEMULATION	:= lppc
@@ -190,18 +203,6 @@ else
 CHECKFLAGS	+= -D__LITTLE_ENDIAN__
 endif
 
-ifdef CONFIG_PPC32
-KBUILD_LDFLAGS_MODULE += arch/powerpc/lib/crtsavres.o
-else
-ifeq ($(call ld-ifversion, -ge, 225000000, y),y)
-# Have the linker provide sfpr if possible.
-# There is a corresponding test in arch/powerpc/lib/Makefile
-KBUILD_LDFLAGS_MODULE += --save-restore-funcs
-else
-KBUILD_LDFLAGS_MODULE += arch/powerpc/lib/crtsavres.o
-endif
-endif
-
 ifeq ($(CONFIG_476FPE_ERR46),y)
 	KBUILD_LDFLAGS_MODULE += --ppc476-workaround \
 		-T $(srctree)/arch/powerpc/platforms/44x/ppc476_modules.lds
@@ -249,7 +250,7 @@ KBUILD_AFLAGS += $(aflags-y)
 KBUILD_CFLAGS += $(cflags-y)
 
 head-y				:= arch/powerpc/kernel/head_$(BITS).o
-head-$(CONFIG_8xx)		:= arch/powerpc/kernel/head_8xx.o
+head-$(CONFIG_PPC_8xx)		:= arch/powerpc/kernel/head_8xx.o
 head-$(CONFIG_40x)		:= arch/powerpc/kernel/head_40x.o
 head-$(CONFIG_44x)		:= arch/powerpc/kernel/head_44x.o
 head-$(CONFIG_FSL_BOOKE)	:= arch/powerpc/kernel/head_fsl_booke.o
@@ -315,6 +316,10 @@ pseries_le_defconfig:
 PHONY += ppc64le_defconfig
 ppc64le_defconfig:
 	$(call merge_into_defconfig,ppc64_defconfig,le)
+
+PHONY += powernv_be_defconfig
+powernv_be_defconfig:
+	$(call merge_into_defconfig,powernv_defconfig,be)
 
 PHONY += mpc85xx_defconfig
 mpc85xx_defconfig:

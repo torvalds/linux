@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  *	pci.h
  *
@@ -102,6 +103,28 @@ enum {
 	DEVICE_COUNT_RESOURCE = PCI_NUM_RESOURCES,
 };
 
+/**
+ * enum pci_interrupt_pin - PCI INTx interrupt values
+ * @PCI_INTERRUPT_UNKNOWN: Unknown or unassigned interrupt
+ * @PCI_INTERRUPT_INTA: PCI INTA pin
+ * @PCI_INTERRUPT_INTB: PCI INTB pin
+ * @PCI_INTERRUPT_INTC: PCI INTC pin
+ * @PCI_INTERRUPT_INTD: PCI INTD pin
+ *
+ * Corresponds to values for legacy PCI INTx interrupts, as can be found in the
+ * PCI_INTERRUPT_PIN register.
+ */
+enum pci_interrupt_pin {
+	PCI_INTERRUPT_UNKNOWN,
+	PCI_INTERRUPT_INTA,
+	PCI_INTERRUPT_INTB,
+	PCI_INTERRUPT_INTC,
+	PCI_INTERRUPT_INTD,
+};
+
+/* The number of legacy PCI INTx interrupts */
+#define PCI_NUM_INTX	4
+
 /*
  * pci_power_t values must match the bits in the Capabilities PME_Support
  * and Control/Status PowerState fields in the Power Management capability.
@@ -183,11 +206,8 @@ enum pci_dev_flags {
 	PCI_DEV_FLAGS_BRIDGE_XLATE_ROOT = (__force pci_dev_flags_t) (1 << 9),
 	/* Do not use FLR even if device advertises PCI_AF_CAP */
 	PCI_DEV_FLAGS_NO_FLR_RESET = (__force pci_dev_flags_t) (1 << 10),
-	/*
-	 * Resume before calling the driver's system suspend hooks, disabling
-	 * the direct_complete optimization.
-	 */
-	PCI_DEV_FLAGS_NEEDS_RESUME = (__force pci_dev_flags_t) (1 << 11),
+	/* Don't use Relaxed Ordering for TLPs directed at this device */
+	PCI_DEV_FLAGS_NO_RELAXED_ORDERING = (__force pci_dev_flags_t) (1 << 11),
 };
 
 enum pci_irq_reroute_variant {
@@ -451,6 +471,7 @@ struct pci_host_bridge {
 	void *release_data;
 	struct msi_controller *msi;
 	unsigned int ignore_reset_delay:1;	/* for entire hierarchy */
+	unsigned int no_ext_tags:1;		/* no Extended Tags */
 	/* Resource alignment requirements */
 	resource_size_t (*align_resource)(struct pci_dev *dev,
 			const struct resource *res,
@@ -570,6 +591,10 @@ static inline bool pci_is_bridge(struct pci_dev *dev)
 	return dev->hdr_type == PCI_HEADER_TYPE_BRIDGE ||
 		dev->hdr_type == PCI_HEADER_TYPE_CARDBUS;
 }
+
+#define for_each_pci_bridge(dev, bus)				\
+	list_for_each_entry(dev, &bus->devices, bus_list)	\
+		if (!pci_is_bridge(dev)) {} else
 
 static inline struct pci_dev *pci_upstream_bridge(struct pci_dev *dev)
 {
@@ -729,6 +754,7 @@ struct pci_driver {
 	void (*shutdown) (struct pci_dev *dev);
 	int (*sriov_configure) (struct pci_dev *dev, int num_vfs); /* PF pdev */
 	const struct pci_error_handlers *err_handler;
+	const struct attribute_group **groups;
 	struct device_driver	driver;
 	struct pci_dynids dynids;
 };
@@ -844,7 +870,6 @@ char *pcibios_setup(char *str);
 resource_size_t pcibios_align_resource(void *, const struct resource *,
 				resource_size_t,
 				resource_size_t);
-void pcibios_update_irq(struct pci_dev *, int irq);
 
 /* Weak but can be overriden by arch */
 void pci_fixup_cardbus(struct pci_bus *);
@@ -1064,9 +1089,9 @@ int pcie_set_mps(struct pci_dev *dev, int mps);
 int pcie_get_minimum_link(struct pci_dev *dev, enum pci_bus_speed *speed,
 			  enum pcie_link_width *width);
 void pcie_flr(struct pci_dev *dev);
-int __pci_reset_function(struct pci_dev *dev);
 int __pci_reset_function_locked(struct pci_dev *dev);
 int pci_reset_function(struct pci_dev *dev);
+int pci_reset_function_locked(struct pci_dev *dev);
 int pci_try_reset_function(struct pci_dev *dev);
 int pci_probe_reset_slot(struct pci_slot *slot);
 int pci_reset_slot(struct pci_slot *slot);
@@ -1080,6 +1105,8 @@ void pci_reset_bridge_secondary_bus(struct pci_dev *dev);
 void pci_update_resource(struct pci_dev *dev, int resno);
 int __must_check pci_assign_resource(struct pci_dev *dev, int i);
 int __must_check pci_reassign_resource(struct pci_dev *dev, int i, resource_size_t add_size, resource_size_t align);
+void pci_release_resource(struct pci_dev *dev, int resno);
+int __must_check pci_resize_resource(struct pci_dev *dev, int i, int size);
 int pci_select_bars(struct pci_dev *dev, unsigned long flags);
 bool pci_device_is_present(struct pci_dev *pdev);
 void pci_ignore_hotplug(struct pci_dev *dev);
@@ -1125,6 +1152,7 @@ bool pci_check_pme_status(struct pci_dev *dev);
 void pci_pme_wakeup_bus(struct pci_bus *bus);
 void pci_d3cold_enable(struct pci_dev *dev);
 void pci_d3cold_disable(struct pci_dev *dev);
+bool pcie_relaxed_ordering_enabled(struct pci_dev *dev);
 
 /* PCI Virtual Channel */
 int pci_save_vc_state(struct pci_dev *dev);
@@ -1158,10 +1186,9 @@ void pci_assign_unassigned_resources(void);
 void pci_assign_unassigned_bridge_resources(struct pci_dev *bridge);
 void pci_assign_unassigned_bus_resources(struct pci_bus *bus);
 void pci_assign_unassigned_root_bus_resources(struct pci_bus *bus);
+int pci_reassign_bridge_resources(struct pci_dev *bridge, unsigned long type);
 void pdev_enable_device(struct pci_dev *);
 int pci_enable_resources(struct pci_dev *, int mask);
-void pci_fixup_irqs(u8 (*)(struct pci_dev *, u8 *),
-		    int (*)(const struct pci_dev *, u8, u8));
 void pci_assign_irq(struct pci_dev *dev);
 struct resource *pci_find_resource(struct pci_dev *dev, struct resource *res);
 #define HAVE_PCI_REQ_REGIONS	2
@@ -1394,6 +1421,38 @@ pci_alloc_irq_vectors(struct pci_dev *dev, unsigned int min_vecs,
 					      NULL);
 }
 
+/**
+ * pci_irqd_intx_xlate() - Translate PCI INTx value to an IRQ domain hwirq
+ * @d: the INTx IRQ domain
+ * @node: the DT node for the device whose interrupt we're translating
+ * @intspec: the interrupt specifier data from the DT
+ * @intsize: the number of entries in @intspec
+ * @out_hwirq: pointer at which to write the hwirq number
+ * @out_type: pointer at which to write the interrupt type
+ *
+ * Translate a PCI INTx interrupt number from device tree in the range 1-4, as
+ * stored in the standard PCI_INTERRUPT_PIN register, to a value in the range
+ * 0-3 suitable for use in a 4 entry IRQ domain. That is, subtract one from the
+ * INTx value to obtain the hwirq number.
+ *
+ * Returns 0 on success, or -EINVAL if the interrupt specifier is out of range.
+ */
+static inline int pci_irqd_intx_xlate(struct irq_domain *d,
+				      struct device_node *node,
+				      const u32 *intspec,
+				      unsigned int intsize,
+				      unsigned long *out_hwirq,
+				      unsigned int *out_type)
+{
+	const u32 intx = intspec[0];
+
+	if (intx < PCI_INTERRUPT_INTA || intx > PCI_INTERRUPT_INTD)
+		return -EINVAL;
+
+	*out_hwirq = intx - PCI_INTERRUPT_INTA;
+	return 0;
+}
+
 #ifdef CONFIG_PCIEPORTBUS
 extern bool pcie_ports_disabled;
 extern bool pcie_ports_auto;
@@ -1425,12 +1484,6 @@ void pcie_ecrc_get_policy(char *str);
 static inline void pcie_set_ecrc_checking(struct pci_dev *dev) { }
 static inline void pcie_ecrc_get_policy(char *str) { }
 #endif
-
-#ifdef CONFIG_HT_IRQ
-/* The functions a driver should call */
-int  ht_create_irq(struct pci_dev *dev, int idx);
-void ht_destroy_irq(unsigned int irq);
-#endif /* CONFIG_HT_IRQ */
 
 #ifdef CONFIG_PCI_ATS
 /* Address Translation Service */
@@ -1628,6 +1681,8 @@ static inline int pci_get_new_domain_nr(void) { return -ENOSYS; }
 
 #define dev_is_pci(d) (false)
 #define dev_is_pf(d) (false)
+static inline bool pci_acs_enabled(struct pci_dev *pdev, u16 acs_flags)
+{ return false; }
 #endif /* CONFIG_PCI */
 
 /* Include architecture-dependent settings and functions */
@@ -1899,8 +1954,8 @@ int pci_iov_virtfn_devfn(struct pci_dev *dev, int id);
 
 int pci_enable_sriov(struct pci_dev *dev, int nr_virtfn);
 void pci_disable_sriov(struct pci_dev *dev);
-int pci_iov_add_virtfn(struct pci_dev *dev, int id, int reset);
-void pci_iov_remove_virtfn(struct pci_dev *dev, int id, int reset);
+int pci_iov_add_virtfn(struct pci_dev *dev, int id);
+void pci_iov_remove_virtfn(struct pci_dev *dev, int id);
 int pci_num_vf(struct pci_dev *dev);
 int pci_vfs_assigned(struct pci_dev *dev);
 int pci_sriov_set_totalvfs(struct pci_dev *dev, u16 numvfs);
@@ -1917,12 +1972,12 @@ static inline int pci_iov_virtfn_devfn(struct pci_dev *dev, int id)
 }
 static inline int pci_enable_sriov(struct pci_dev *dev, int nr_virtfn)
 { return -ENODEV; }
-static inline int pci_iov_add_virtfn(struct pci_dev *dev, int id, int reset)
+static inline int pci_iov_add_virtfn(struct pci_dev *dev, int id)
 {
 	return -ENOSYS;
 }
 static inline void pci_iov_remove_virtfn(struct pci_dev *dev,
-					 int id, int reset) { }
+					 int id) { }
 static inline void pci_disable_sriov(struct pci_dev *dev) { }
 static inline int pci_num_vf(struct pci_dev *dev) { return 0; }
 static inline int pci_vfs_assigned(struct pci_dev *dev)
@@ -2059,7 +2114,7 @@ static inline u16 pci_vpd_lrdt_tag(const u8 *lrdt)
 
 /**
  * pci_vpd_srdt_size - Extracts the Small Resource Data Type length
- * @lrdt: Pointer to the beginning of the Small Resource Data Type tag
+ * @srdt: Pointer to the beginning of the Small Resource Data Type tag
  *
  * Returns the extracted Small Resource Data Type length.
  */
@@ -2070,7 +2125,7 @@ static inline u8 pci_vpd_srdt_size(const u8 *srdt)
 
 /**
  * pci_vpd_srdt_tag - Extracts the Small Resource Data Type Tag Item
- * @lrdt: Pointer to the beginning of the Small Resource Data Type tag
+ * @srdt: Pointer to the beginning of the Small Resource Data Type tag
  *
  * Returns the extracted Small Resource Data Type Tag Item.
  */

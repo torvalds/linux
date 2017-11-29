@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * GPL HEADER START
  *
@@ -99,7 +100,7 @@ void osc_update_next_shrink(struct client_obd *cli);
 /*
  * cl integration.
  */
-#include "../include/cl_object.h"
+#include <cl_object.h>
 
 extern struct ptlrpc_request_set *PTLRPCD_SET;
 

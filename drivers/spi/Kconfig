@@ -1,10 +1,6 @@
 #
 # SPI driver configuration
 #
-# NOTE:  the reason this doesn't show SPI slave support is mostly that
-# nobody's needed a slave side API yet.  The master-role API is not
-# fully appropriate there, so it'd need some thought to do well.
-#
 menuconfig SPI
 	bool "SPI support"
 	depends on HAS_IOMEM
@@ -55,7 +51,6 @@ comment "SPI Master Controller Drivers"
 
 config SPI_ALTERA
 	tristate "Altera SPI Controller"
-	select SPI_BITBANG
 	help
 	  This is the driver for the Altera SPI Controller.
 
@@ -380,7 +375,7 @@ config SPI_FSL_DSPI
 	tristate "Freescale DSPI controller"
 	select REGMAP_MMIO
 	depends on HAS_DMA
-	depends on SOC_VF610 || SOC_LS1021A || ARCH_LAYERSCAPE || COMPILE_TEST
+	depends on SOC_VF610 || SOC_LS1021A || ARCH_LAYERSCAPE || M5441x || COMPILE_TEST
 	help
 	  This enables support for the Freescale DSPI controller in master
 	  mode. VF610 platform uses the controller.
@@ -518,8 +513,8 @@ config SPI_PPC4xx
 
 config SPI_PXA2XX
 	tristate "PXA2xx SSP SPI master"
-	depends on (ARCH_PXA || PCI || ACPI)
-	select PXA_SSP if ARCH_PXA
+	depends on (ARCH_PXA || ARCH_MMP || PCI || ACPI)
+	select PXA_SSP if ARCH_PXA || ARCH_MMP
 	help
 	  This enables using a PXA2xx or Sodaville SSP port as a SPI master
 	  controller. The driver can be configured to use any SSP port and
@@ -626,6 +621,13 @@ config SPI_SIRF
 	select SPI_BITBANG
 	help
 	  SPI driver for CSR SiRFprimaII SoCs
+
+config SPI_SPRD_ADI
+	tristate "Spreadtrum ADI controller"
+	depends on ARCH_SPRD || COMPILE_TEST
+	depends on HWSPINLOCK || (COMPILE_TEST && !HWSPINLOCK)
+	help
+	  ADI driver based on SPI for Spreadtrum SoCs.
 
 config SPI_STM32
 	tristate "STMicroelectronics STM32 SPI controller"

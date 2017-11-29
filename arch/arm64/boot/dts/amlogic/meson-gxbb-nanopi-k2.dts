@@ -107,6 +107,9 @@
 
 		states = <3300000 0>,
 		         <1800000 1>;
+
+		regulator-settling-time-up-us = <100>;
+		regulator-settling-time-down-us = <5000>;
 	};
 
 	wifi_32k: wifi-32k {
@@ -165,6 +168,8 @@
 		eth_phy0: ethernet-phy@0 {
 			/* Realtek RTL8211F (0x001cc916) */
 			reg = <0>;
+			interrupt-parent = <&gpio_intc>;
+			interrupts = <29 IRQ_TYPE_LEVEL_LOW>;
 		};
 	};
 };
@@ -173,6 +178,64 @@
 	status = "okay";
 	pinctrl-0 = <&remote_input_ao_pins>;
 	pinctrl-names = "default";
+};
+
+&pinctrl_aobus {
+	gpio-line-names = "UART TX", "UART RX", "Power Control", "Power Key In",
+			  "VCCK En", "CON1 Header Pin31",
+			  "I2S Header Pin6", "IR In", "I2S Header Pin7",
+			  "I2S Header Pin3", "I2S Header Pin4",
+			  "I2S Header Pin5", "HDMI CEC", "SYS LED",
+			  /* GPIO_TEST_N */
+			  "";
+};
+
+&pinctrl_periphs {
+	gpio-line-names = /* Bank GPIOZ */
+			  "Eth MDIO", "Eth MDC", "Eth RGMII RX Clk",
+			  "Eth RX DV", "Eth RX D0", "Eth RX D1", "Eth RX D2",
+			  "Eth RX D3", "Eth RGMII TX Clk", "Eth TX En",
+			  "Eth TX D0", "Eth TX D1", "Eth TX D2", "Eth TX D3",
+			  "Eth PHY nRESET", "Eth PHY Intc",
+			  /* Bank GPIOH */
+			  "HDMI HPD", "HDMI DDC SDA", "HDMI DDC SCL",
+			  "CON1 Header Pin33",
+			  /* Bank BOOT */
+			  "eMMC D0", "eMMC D1", "eMMC D2", "eMMC D3", "eMMC D4",
+			  "eMMC D5", "eMMC D6", "eMMC D7", "eMMC Clk",
+			  "eMMC Reset", "eMMC CMD",
+			  "", "", "", "", "eMMC DS",
+			  "", "",
+			  /* Bank CARD */
+			  "SDCard D1", "SDCard D0", "SDCard CLK", "SDCard CMD",
+			  "SDCard D3", "SDCard D2", "SDCard Det",
+			  /* Bank GPIODV */
+			  "", "", "", "", "", "", "", "", "", "", "", "", "",
+			  "", "", "", "", "", "", "", "", "", "", "",
+			  "I2C A SDA", "I2C A SCK", "I2C B SDA", "I2C B SCK",
+			  "VDDEE Regulator", "VCCK Regulator",
+			  /* Bank GPIOY */
+			  "CON1 Header Pin7", "CON1 Header Pin11",
+			  "CON1 Header Pin13", "CON1 Header Pin15",
+			  "CON1 Header Pin18", "CON1 Header Pin19",
+			  "CON1 Header Pin22", "CON1 Header Pin21",
+			  "CON1 Header Pin24", "CON1 Header Pin23",
+			  "CON1 Header Pin26", "CON1 Header Pin29",
+			  "CON1 Header Pin32", "CON1 Header Pin8",
+			  "CON1 Header Pin10", "CON1 Header Pin16",
+			  "CON1 Header Pin12",
+			  /* Bank GPIOX */
+			  "WIFI SDIO D0", "WIFI SDIO D1", "WIFI SDIO D2",
+			  "WIFI SDIO D3", "WIFI SDIO CLK", "WIFI SDIO CMD",
+			  "WIFI Power Enable", "WIFI WAKE HOST",
+			  "Bluetooth PCM DOUT", "Bluetooth PCM DIN",
+			  "Bluetooth PCM SYNC", "Bluetooth PCM CLK",
+			  "Bluetooth UART TX", "Bluetooth UART RX",
+			  "Bluetooth UART CTS", "Bluetooth UART RTS",
+			  "", "", "", "WIFI 32K", "Bluetooth Enable",
+			  "Bluetooth WAKE HOST", "",
+			  /* Bank GPIOCLK */
+			  "", "CON1 Header Pin35", "", "";
 };
 
 &pwm_ef {
@@ -192,7 +255,8 @@
 &sd_emmc_a {
 	status = "okay";
 	pinctrl-0 = <&sdio_pins>, <&sdio_irq_pins>;
-	pinctrl-names = "default";
+	pinctrl-1 = <&sdio_clk_gate_pins>;
+	pinctrl-names = "default", "clk-gate";
 	#address-cells = <1>;
 	#size-cells = <0>;
 
@@ -218,11 +282,16 @@
 &sd_emmc_b {
 	status = "okay";
 	pinctrl-0 = <&sdcard_pins>;
-	pinctrl-names = "default";
+	pinctrl-1 = <&sdcard_clk_gate_pins>;
+	pinctrl-names = "default", "clk-gate";
 
 	bus-width = <4>;
 	cap-sd-highspeed;
-	max-frequency = <100000000>;
+	sd-uhs-sdr12;
+	sd-uhs-sdr25;
+	sd-uhs-sdr50;
+	sd-uhs-sdr104;
+	max-frequency = <200000000>;
 	disable-wp;
 
 	cd-gpios = <&gpio CARD_6 GPIO_ACTIVE_HIGH>;
@@ -235,11 +304,11 @@
 /* eMMC */
 &sd_emmc_c {
 	status = "disabled";
-	pinctrl-0 = <&emmc_pins>;
-	pinctrl-names = "default";
+	pinctrl-0 = <&emmc_pins>, <&emmc_ds_pins>;
+	pinctrl-1 = <&emmc_clk_gate_pins>;
+	pinctrl-names = "default", "clk-gate";
 
 	bus-width = <8>;
-	cap-sd-highspeed;
 	max-frequency = <200000000>;
 	non-removable;
 	disable-wp;

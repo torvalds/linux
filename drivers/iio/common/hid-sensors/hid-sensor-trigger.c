@@ -111,8 +111,6 @@ static int _hid_sensor_power_state(struct hid_sensor_common *st, bool state)
 	s32 poll_value = 0;
 
 	if (state) {
-		if (!atomic_read(&st->user_requested_state))
-			return 0;
 		if (sensor_hub_device_open(st->hsdev))
 			return -EIO;
 
@@ -161,6 +159,9 @@ static int _hid_sensor_power_state(struct hid_sensor_common *st, bool state)
 				       &report_val);
 	}
 
+	pr_debug("HID_SENSOR %s set power_state %d report_state %d\n",
+		 st->pdev->name, state_val, report_val);
+
 	sensor_hub_get_feature(st->hsdev, st->power_state.report_id,
 			       st->power_state.index,
 			       sizeof(state_val), &state_val);
@@ -178,10 +179,15 @@ int hid_sensor_power_state(struct hid_sensor_common *st, bool state)
 	int ret;
 
 	atomic_set(&st->user_requested_state, state);
+
+	if (atomic_add_unless(&st->runtime_pm_enable, 1, 1))
+		pm_runtime_enable(&st->pdev->dev);
+
 	if (state)
 		ret = pm_runtime_get_sync(&st->pdev->dev);
 	else {
 		pm_runtime_mark_last_busy(&st->pdev->dev);
+		pm_runtime_use_autosuspend(&st->pdev->dev);
 		ret = pm_runtime_put_autosuspend(&st->pdev->dev);
 	}
 	if (ret < 0) {
@@ -219,7 +225,8 @@ static void hid_sensor_set_power_work(struct work_struct *work)
 	if (attrb->latency_ms > 0)
 		hid_sensor_set_report_latency(attrb, attrb->latency_ms);
 
-	_hid_sensor_power_state(attrb, true);
+	if (atomic_read(&attrb->user_requested_state))
+		_hid_sensor_power_state(attrb, true);
 }
 
 static int hid_sensor_data_rdy_trigger_set_state(struct iio_trigger *trig,
@@ -230,7 +237,9 @@ static int hid_sensor_data_rdy_trigger_set_state(struct iio_trigger *trig,
 
 void hid_sensor_remove_trigger(struct hid_sensor_common *attrb)
 {
-	pm_runtime_disable(&attrb->pdev->dev);
+	if (atomic_read(&attrb->runtime_pm_enable))
+		pm_runtime_disable(&attrb->pdev->dev);
+
 	pm_runtime_set_suspended(&attrb->pdev->dev);
 	pm_runtime_put_noidle(&attrb->pdev->dev);
 
@@ -241,7 +250,6 @@ void hid_sensor_remove_trigger(struct hid_sensor_common *attrb)
 EXPORT_SYMBOL(hid_sensor_remove_trigger);
 
 static const struct iio_trigger_ops hid_sensor_trigger_ops = {
-	.owner = THIS_MODULE,
 	.set_trigger_state = &hid_sensor_data_rdy_trigger_set_state,
 };
 
@@ -281,12 +289,9 @@ int hid_sensor_setup_trigger(struct iio_dev *indio_dev, const char *name,
 	INIT_WORK(&attrb->work, hid_sensor_set_power_work);
 
 	pm_suspend_ignore_children(&attrb->pdev->dev, true);
-	pm_runtime_enable(&attrb->pdev->dev);
 	/* Default to 3 seconds, but can be changed from sysfs */
 	pm_runtime_set_autosuspend_delay(&attrb->pdev->dev,
 					 3000);
-	pm_runtime_use_autosuspend(&attrb->pdev->dev);
-
 	return ret;
 error_unreg_trigger:
 	iio_trigger_unregister(trig);

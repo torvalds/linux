@@ -1038,7 +1038,8 @@ static int write_protect_page(struct vm_area_struct *vma, struct page *page,
 		goto out_unlock;
 
 	if (pte_write(*pvmw.pte) || pte_dirty(*pvmw.pte) ||
-	    (pte_protnone(*pvmw.pte) && pte_savedwrite(*pvmw.pte))) {
+	    (pte_protnone(*pvmw.pte) && pte_savedwrite(*pvmw.pte)) ||
+						mm_tlb_flush_pending(mm)) {
 		pte_t entry;
 
 		swapped = PageSwapCache(page);
@@ -1051,8 +1052,13 @@ static int write_protect_page(struct vm_area_struct *vma, struct page *page,
 		 * So we clear the pte and flush the tlb before the check
 		 * this assure us that no O_DIRECT can happen after the check
 		 * or in the middle of the check.
+		 *
+		 * No need to notify as we are downgrading page table to read
+		 * only not changing it to point to a new page.
+		 *
+		 * See Documentation/vm/mmu_notifier.txt
 		 */
-		entry = ptep_clear_flush_notify(vma, pvmw.address, pvmw.pte);
+		entry = ptep_clear_flush(vma, pvmw.address, pvmw.pte);
 		/*
 		 * Check that no O_DIRECT or similar I/O is in progress on the
 		 * page
@@ -1135,7 +1141,13 @@ static int replace_page(struct vm_area_struct *vma, struct page *page,
 	}
 
 	flush_cache_page(vma, addr, pte_pfn(*ptep));
-	ptep_clear_flush_notify(vma, addr, ptep);
+	/*
+	 * No need to notify as we are replacing a read only page with another
+	 * read only page with the same content.
+	 *
+	 * See Documentation/vm/mmu_notifier.txt
+	 */
+	ptep_clear_flush(vma, addr, ptep);
 	set_pte_at_notify(mm, addr, ptep, newpte);
 
 	page_remove_rmap(page, false);
@@ -1989,6 +2001,7 @@ static void stable_tree_append(struct rmap_item *rmap_item,
  */
 static void cmp_and_merge_page(struct page *page, struct rmap_item *rmap_item)
 {
+	struct mm_struct *mm = rmap_item->mm;
 	struct rmap_item *tree_rmap_item;
 	struct page *tree_page = NULL;
 	struct stable_node *stable_node;
@@ -2061,9 +2074,11 @@ static void cmp_and_merge_page(struct page *page, struct rmap_item *rmap_item)
 	if (ksm_use_zero_pages && (checksum == zero_checksum)) {
 		struct vm_area_struct *vma;
 
-		vma = find_mergeable_vma(rmap_item->mm, rmap_item->address);
+		down_read(&mm->mmap_sem);
+		vma = find_mergeable_vma(mm, rmap_item->address);
 		err = try_to_merge_one_page(vma, page,
 					    ZERO_PAGE(rmap_item->address));
+		up_read(&mm->mmap_sem);
 		/*
 		 * In case of failure, the page was not really empty, so we
 		 * need to continue. Otherwise we're done.
@@ -3042,7 +3057,7 @@ static struct attribute *ksm_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group ksm_attr_group = {
+static const struct attribute_group ksm_attr_group = {
 	.attrs = ksm_attrs,
 	.name = "ksm",
 };

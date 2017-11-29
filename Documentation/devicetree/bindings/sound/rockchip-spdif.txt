@@ -41,6 +41,5 @@ spdif: spdif@0x1011e000 {
 	dma-names = "tx";
 	clock-names = "hclk", "mclk";
 	clocks = <&cru HCLK_SPDIF>, <&cru SCLK_SPDIF>;
-	status = "disabled";
 	#sound-dai-cells = <0>;
 };

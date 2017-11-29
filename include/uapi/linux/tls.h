@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR BSD-2-Clause) */
 /*
  * Copyright (c) 2016-2017, Mellanox Technologies. All rights reserved.
  *
@@ -34,10 +35,6 @@
 #define _UAPI_LINUX_TLS_H
 
 #include <linux/types.h>
-#include <asm/byteorder.h>
-#include <linux/socket.h>
-#include <linux/tcp.h>
-#include <net/tcp.h>
 
 /* TLS socket options */
 #define TLS_TX			1	/* Set transmit parameters */

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 1992 Krishna Balasubramanian and Linus Torvalds
  * Copyright (C) 1999 Ingo Molnar <mingo@redhat.com>
@@ -12,6 +13,7 @@
 #include <linux/string.h>
 #include <linux/mm.h>
 #include <linux/smp.h>
+#include <linux/syscalls.h>
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
 #include <linux/uaccess.h>
@@ -20,6 +22,25 @@
 #include <asm/desc.h>
 #include <asm/mmu_context.h>
 #include <asm/syscalls.h>
+
+static void refresh_ldt_segments(void)
+{
+#ifdef CONFIG_X86_64
+	unsigned short sel;
+
+	/*
+	 * Make sure that the cached DS and ES descriptors match the updated
+	 * LDT.
+	 */
+	savesegment(ds, sel);
+	if ((sel & SEGMENT_TI_MASK) == SEGMENT_LDT)
+		loadsegment(ds, sel);
+
+	savesegment(es, sel);
+	if ((sel & SEGMENT_TI_MASK) == SEGMENT_LDT)
+		loadsegment(es, sel);
+#endif
+}
 
 /* context.lock is held for us, so we don't need any locking. */
 static void flush_ldt(void *__mm)
@@ -32,6 +53,8 @@ static void flush_ldt(void *__mm)
 
 	pc = &mm->context;
 	set_ldt(pc->ldt->entries, pc->ldt->nr_entries);
+
+	refresh_ldt_segments();
 }
 
 /* The caller must call finalize_ldt_struct on the result. LDT starts zeroed. */
@@ -80,7 +103,7 @@ static void finalize_ldt_struct(struct ldt_struct *ldt)
 static void install_ldt(struct mm_struct *current_mm,
 			struct ldt_struct *ldt)
 {
-	/* Synchronizes with lockless_dereference in load_mm_ldt. */
+	/* Synchronizes with READ_ONCE in load_mm_ldt. */
 	smp_store_release(&current_mm->context.ldt, ldt);
 
 	/* Activate the LDT for all CPUs using current_mm. */
@@ -273,8 +296,8 @@ out:
 	return error;
 }
 
-asmlinkage int sys_modify_ldt(int func, void __user *ptr,
-			      unsigned long bytecount)
+SYSCALL_DEFINE3(modify_ldt, int , func , void __user * , ptr ,
+		unsigned long , bytecount)
 {
 	int ret = -ENOSYS;
 
@@ -292,5 +315,14 @@ asmlinkage int sys_modify_ldt(int func, void __user *ptr,
 		ret = write_ldt(ptr, bytecount, 0);
 		break;
 	}
-	return ret;
+	/*
+	 * The SYSCALL_DEFINE() macros give us an 'unsigned long'
+	 * return type, but tht ABI for sys_modify_ldt() expects
+	 * 'int'.  This cast gives us an int-sized value in %rax
+	 * for the return code.  The 'unsigned' is necessary so
+	 * the compiler does not try to sign-extend the negative
+	 * return codes into the high half of the register when
+	 * taking the value from int->long.
+	 */
+	return (unsigned int)ret;
 }

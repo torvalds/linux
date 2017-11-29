@@ -134,7 +134,7 @@ static int perf_top__parse_source(struct perf_top *top, struct hist_entry *he)
 		return err;
 	}
 
-	err = symbol__disassemble(sym, map, NULL, 0, NULL);
+	err = symbol__disassemble(sym, map, NULL, 0, NULL, NULL);
 	if (err == 0) {
 out_assign:
 		top->sym_filter_entry = he;
@@ -183,6 +183,7 @@ static void ui__warn_map_erange(struct map *map, struct symbol *sym, u64 ip)
 
 static void perf_top__record_precise_ip(struct perf_top *top,
 					struct hist_entry *he,
+					struct perf_sample *sample,
 					int counter, u64 ip)
 {
 	struct annotation *notes;
@@ -199,7 +200,7 @@ static void perf_top__record_precise_ip(struct perf_top *top,
 	if (pthread_mutex_trylock(&notes->lock))
 		return;
 
-	err = hist_entry__inc_addr_samples(he, counter, ip);
+	err = hist_entry__inc_addr_samples(he, sample, counter, ip);
 
 	pthread_mutex_unlock(&notes->lock);
 
@@ -586,6 +587,13 @@ static void *display_thread_tui(void *arg)
 		.refresh	= top->delay_secs,
 	};
 
+	/* In order to read symbols from other namespaces perf to  needs to call
+	 * setns(2).  This isn't permitted if the struct_fs has multiple users.
+	 * unshare(2) the fs so that we may continue to setns into namespaces
+	 * that we're observing.
+	 */
+	unshare(CLONE_FS);
+
 	perf_top__sort_new_samples(top);
 
 	/*
@@ -626,6 +634,13 @@ static void *display_thread(void *arg)
 	struct termios save;
 	struct perf_top *top = arg;
 	int delay_msecs, c;
+
+	/* In order to read symbols from other namespaces perf to  needs to call
+	 * setns(2).  This isn't permitted if the struct_fs has multiple users.
+	 * unshare(2) the fs so that we may continue to setns into namespaces
+	 * that we're observing.
+	 */
+	unshare(CLONE_FS);
 
 	display_setup_sig();
 	pthread__unblock_sigwinch();
@@ -671,7 +686,7 @@ static int hist_iter__top_callback(struct hist_entry_iter *iter,
 	struct perf_evsel *evsel = iter->evsel;
 
 	if (perf_hpp_list.sym && single)
-		perf_top__record_precise_ip(top, he, evsel->idx, al->addr);
+		perf_top__record_precise_ip(top, he, iter->sample, evsel->idx, al->addr);
 
 	hist__account_cycles(iter->sample->branch_stack, al, iter->sample,
 		     !(top->record_opts.branch_stack & PERF_SAMPLE_BRANCH_ANY));
@@ -943,8 +958,16 @@ static int __cmd_top(struct perf_top *top)
 	if (perf_session__register_idle_thread(top->session) < 0)
 		goto out_delete;
 
+	if (top->nr_threads_synthesize > 1)
+		perf_set_multithreaded();
+
 	machine__synthesize_threads(&top->session->machines.host, &opts->target,
-				    top->evlist->threads, false, opts->proc_map_timeout);
+				    top->evlist->threads, false,
+				    opts->proc_map_timeout,
+				    top->nr_threads_synthesize);
+
+	if (top->nr_threads_synthesize > 1)
+		perf_set_singlethreaded();
 
 	if (perf_hpp_list.socket) {
 		ret = perf_env__read_cpu_topology_map(&perf_env);
@@ -1097,6 +1120,7 @@ int cmd_top(int argc, const char **argv)
 		},
 		.max_stack	     = sysctl_perf_event_max_stack,
 		.sym_pcnt_filter     = 5,
+		.nr_threads_synthesize = UINT_MAX,
 	};
 	struct record_opts *opts = &top.record_opts;
 	struct target *target = &opts->target;
@@ -1205,6 +1229,9 @@ int cmd_top(int argc, const char **argv)
 		    "Show raw trace event output (do not use print fmt or plugins)"),
 	OPT_BOOLEAN(0, "hierarchy", &symbol_conf.report_hierarchy,
 		    "Show entries in a hierarchy"),
+	OPT_BOOLEAN(0, "force", &symbol_conf.force, "don't complain, do it"),
+	OPT_UINTEGER(0, "num-thread-synthesize", &top.nr_threads_synthesize,
+			"number of thread to run event synthesize"),
 	OPT_END()
 	};
 	const char * const top_usage[] = {

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 #
 # SATA/PATA driver configuration
 #
@@ -153,6 +154,16 @@ config AHCI_CEVA
 
 	  If unsure, say N.
 
+config AHCI_MTK
+	tristate "MediaTek AHCI SATA support"
+	depends on ARCH_MEDIATEK
+	select MFD_SYSCON
+	help
+	  This option enables support for the MediaTek SoC's
+	  onboard AHCI SATA controller.
+
+	  If unsure, say N.
+
 config AHCI_MVEBU
 	tristate "Marvell EBU AHCI SATA support"
 	depends on ARCH_MVEBU
@@ -215,7 +226,7 @@ config SATA_FSL
 
 config SATA_GEMINI
 	tristate "Gemini SATA bridge support"
-	depends on PATA_FTIDE010
+	depends on ARCH_GEMINI || COMPILE_TEST
 	default ARCH_GEMINI
 	help
 	  This enabled support for the FTIDE010 to SATA bridge
@@ -613,7 +624,7 @@ config PATA_FTIDE010
 	tristate "Faraday Technology FTIDE010 PATA support"
 	depends on OF
 	depends on ARM
-	default ARCH_GEMINI
+	depends on SATA_GEMINI
 	help
 	  This option enables support for the Faraday FTIDE010
 	  PATA controller found in the Cortina Gemini SoCs.

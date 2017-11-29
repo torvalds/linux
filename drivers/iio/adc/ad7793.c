@@ -257,7 +257,7 @@ static int ad7793_setup(struct iio_dev *indio_dev,
 	unsigned int vref_mv)
 {
 	struct ad7793_state *st = iio_priv(indio_dev);
-	int i, ret = -1;
+	int i, ret;
 	unsigned long long scale_uv;
 	u32 id;
 
@@ -266,7 +266,7 @@ static int ad7793_setup(struct iio_dev *indio_dev,
 		return ret;
 
 	/* reset the serial interface */
-	ret = spi_write(st->sd.spi, (u8 *)&ret, sizeof(ret));
+	ret = ad_sd_reset(&st->sd, 32);
 	if (ret < 0)
 		goto out;
 	usleep_range(500, 2000); /* Wait for at least 500us */
@@ -563,7 +563,6 @@ static const struct iio_info ad7793_info = {
 	.write_raw_get_fmt = &ad7793_write_raw_get_fmt,
 	.attrs = &ad7793_attribute_group,
 	.validate_trigger = ad_sd_validate_trigger,
-	.driver_module = THIS_MODULE,
 };
 
 static const struct iio_info ad7797_info = {
@@ -572,7 +571,6 @@ static const struct iio_info ad7797_info = {
 	.write_raw_get_fmt = &ad7793_write_raw_get_fmt,
 	.attrs = &ad7793_attribute_group,
 	.validate_trigger = ad_sd_validate_trigger,
-	.driver_module = THIS_MODULE,
 };
 
 #define DECLARE_AD7793_CHANNELS(_name, _b, _sb, _s) \

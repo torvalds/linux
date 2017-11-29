@@ -160,6 +160,8 @@ struct qede_rdma_dev {
 
 struct qede_ptp;
 
+#define QEDE_RFS_MAX_FLTR	256
+
 struct qede_dev {
 	struct qed_dev			*cdev;
 	struct net_device		*ndev;
@@ -241,9 +243,7 @@ struct qede_dev {
 	u16				vxlan_dst_port;
 	u16				geneve_dst_port;
 
-#ifdef CONFIG_RFS_ACCEL
 	struct qede_arfs		*arfs;
-#endif
 	bool				wol_enabled;
 
 	struct qede_rdma_dev		rdma_info;
@@ -447,16 +447,21 @@ struct qede_fastpath {
 #ifdef CONFIG_RFS_ACCEL
 int qede_rx_flow_steer(struct net_device *dev, const struct sk_buff *skb,
 		       u16 rxq_index, u32 flow_id);
+#define QEDE_SP_ARFS_CONFIG	4
+#define QEDE_SP_TASK_POLL_DELAY	(5 * HZ)
+#endif
+
 void qede_process_arfs_filters(struct qede_dev *edev, bool free_fltr);
 void qede_poll_for_freeing_arfs_filters(struct qede_dev *edev);
 void qede_arfs_filter_op(void *dev, void *filter, u8 fw_rc);
 void qede_free_arfs(struct qede_dev *edev);
 int qede_alloc_arfs(struct qede_dev *edev);
-
-#define QEDE_SP_ARFS_CONFIG	4
-#define QEDE_SP_TASK_POLL_DELAY	(5 * HZ)
-#define QEDE_RFS_MAX_FLTR	256
-#endif
+int qede_add_cls_rule(struct qede_dev *edev, struct ethtool_rxnfc *info);
+int qede_del_cls_rule(struct qede_dev *edev, struct ethtool_rxnfc *info);
+int qede_get_cls_rule_entry(struct qede_dev *edev, struct ethtool_rxnfc *cmd);
+int qede_get_cls_rule_all(struct qede_dev *edev, struct ethtool_rxnfc *info,
+			  u32 *rule_locs);
+int qede_get_arfs_filter_count(struct qede_dev *edev);
 
 struct qede_reload_args {
 	void (*func)(struct qede_dev *edev, struct qede_reload_args *args);
@@ -498,7 +503,7 @@ void qede_fill_rss_params(struct qede_dev *edev,
 void qede_udp_tunnel_add(struct net_device *dev, struct udp_tunnel_info *ti);
 void qede_udp_tunnel_del(struct net_device *dev, struct udp_tunnel_info *ti);
 
-int qede_xdp(struct net_device *dev, struct netdev_xdp *xdp);
+int qede_xdp(struct net_device *dev, struct netdev_bpf *xdp);
 
 #ifdef CONFIG_DCB
 void qede_set_dcbnl_ops(struct net_device *ndev);

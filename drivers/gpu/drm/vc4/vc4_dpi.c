@@ -97,8 +97,6 @@ struct vc4_dpi {
 
 	struct drm_encoder *encoder;
 	struct drm_connector *connector;
-	struct drm_bridge *bridge;
-	bool is_panel_bridge;
 
 	void __iomem *regs;
 
@@ -224,20 +222,19 @@ static void vc4_dpi_encoder_enable(struct drm_encoder *encoder)
 		DRM_ERROR("Failed to set clock rate: %d\n", ret);
 }
 
-static bool vc4_dpi_encoder_mode_fixup(struct drm_encoder *encoder,
-				       const struct drm_display_mode *mode,
-				       struct drm_display_mode *adjusted_mode)
+static enum drm_mode_status vc4_dpi_encoder_mode_valid(struct drm_encoder *encoder,
+						       const struct drm_display_mode *mode)
 {
-	if (adjusted_mode->flags & DRM_MODE_FLAG_INTERLACE)
-		return false;
+	if (mode->flags & DRM_MODE_FLAG_INTERLACE)
+		return MODE_NO_INTERLACE;
 
-	return true;
+	return MODE_OK;
 }
 
 static const struct drm_encoder_helper_funcs vc4_dpi_encoder_helper_funcs = {
 	.disable = vc4_dpi_encoder_disable,
 	.enable = vc4_dpi_encoder_enable,
-	.mode_fixup = vc4_dpi_encoder_mode_fixup,
+	.mode_valid = vc4_dpi_encoder_mode_valid,
 };
 
 static const struct of_device_id vc4_dpi_dt_match[] = {
@@ -252,10 +249,11 @@ static int vc4_dpi_init_bridge(struct vc4_dpi *dpi)
 {
 	struct device *dev = &dpi->pdev->dev;
 	struct drm_panel *panel;
+	struct drm_bridge *bridge;
 	int ret;
 
 	ret = drm_of_find_panel_or_bridge(dev->of_node, 0, 0,
-					  &panel, &dpi->bridge);
+					  &panel, &bridge);
 	if (ret) {
 		/* If nothing was connected in the DT, that's not an
 		 * error.
@@ -266,13 +264,10 @@ static int vc4_dpi_init_bridge(struct vc4_dpi *dpi)
 			return ret;
 	}
 
-	if (panel) {
-		dpi->bridge = drm_panel_bridge_add(panel,
-						   DRM_MODE_CONNECTOR_DPI);
-		dpi->is_panel_bridge = true;
-	}
+	if (panel)
+		bridge = drm_panel_bridge_add(panel, DRM_MODE_CONNECTOR_DPI);
 
-	return drm_bridge_attach(dpi->encoder, dpi->bridge, NULL);
+	return drm_bridge_attach(dpi->encoder, bridge, NULL);
 }
 
 static int vc4_dpi_bind(struct device *dev, struct device *master, void *data)
@@ -353,8 +348,7 @@ static void vc4_dpi_unbind(struct device *dev, struct device *master,
 	struct vc4_dev *vc4 = to_vc4_dev(drm);
 	struct vc4_dpi *dpi = dev_get_drvdata(dev);
 
-	if (dpi->is_panel_bridge)
-		drm_panel_bridge_remove(dpi->bridge);
+	drm_of_panel_bridge_remove(dev->of_node, 0, 0);
 
 	drm_encoder_cleanup(dpi->encoder);
 

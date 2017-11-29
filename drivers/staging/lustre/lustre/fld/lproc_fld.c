@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * GPL HEADER START
  *
@@ -39,15 +40,15 @@
 
 #define DEBUG_SUBSYSTEM S_FLD
 
-#include "../../include/linux/libcfs/libcfs.h"
+#include <linux/libcfs/libcfs.h>
 #include <linux/module.h>
 
-#include "../include/obd.h"
-#include "../include/obd_class.h"
-#include "../include/obd_support.h"
-#include "../include/lustre_req_layout.h"
-#include "../include/lustre_fld.h"
-#include "../include/lustre_fid.h"
+#include <obd.h>
+#include <obd_class.h>
+#include <obd_support.h>
+#include <lustre_req_layout.h>
+#include <lustre_fld.h>
+#include <lustre_fid.h>
 #include "fld_internal.h"
 
 static int

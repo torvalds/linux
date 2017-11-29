@@ -76,8 +76,6 @@
 #define LINK_UP_TIMEOUT			HZ
 #define LINK_RETRAIN_TIMEOUT		HZ
 
-#define INTX_NUM			4
-
 #define DWORD_MASK			3
 
 struct altera_pcie {
@@ -107,7 +105,7 @@ static inline u32 cra_readl(struct altera_pcie *pcie, const u32 reg)
 	return readl_relaxed(pcie->cra_base + reg);
 }
 
-static bool altera_pcie_link_is_up(struct altera_pcie *pcie)
+static bool altera_pcie_link_up(struct altera_pcie *pcie)
 {
 	return !!((cra_readl(pcie, RP_LTSSM) & RP_LTSSM_MASK) == LTSSM_L0);
 }
@@ -144,7 +142,7 @@ static bool altera_pcie_valid_device(struct altera_pcie *pcie,
 {
 	/* If there is no link, then there is no device */
 	if (bus->number != pcie->root_bus_nr) {
-		if (!altera_pcie_link_is_up(pcie))
+		if (!altera_pcie_link_up(pcie))
 			return false;
 	}
 
@@ -414,7 +412,7 @@ static void altera_wait_link_retrain(struct altera_pcie *pcie)
 	/* Wait for link is up */
 	start_jiffies = jiffies;
 	for (;;) {
-		if (altera_pcie_link_is_up(pcie))
+		if (altera_pcie_link_up(pcie))
 			break;
 
 		if (time_after(jiffies, start_jiffies + LINK_UP_TIMEOUT)) {
@@ -429,7 +427,7 @@ static void altera_pcie_retrain(struct altera_pcie *pcie)
 {
 	u16 linkcap, linkstat, linkctl;
 
-	if (!altera_pcie_link_is_up(pcie))
+	if (!altera_pcie_link_up(pcie))
 		return;
 
 	/*
@@ -464,6 +462,7 @@ static int altera_pcie_intx_map(struct irq_domain *domain, unsigned int irq,
 
 static const struct irq_domain_ops intx_domain_ops = {
 	.map = altera_pcie_intx_map,
+	.xlate = pci_irqd_intx_xlate,
 };
 
 static void altera_pcie_isr(struct irq_desc *desc)
@@ -481,11 +480,11 @@ static void altera_pcie_isr(struct irq_desc *desc)
 
 	while ((status = cra_readl(pcie, P2A_INT_STATUS)
 		& P2A_INT_STS_ALL) != 0) {
-		for_each_set_bit(bit, &status, INTX_NUM) {
+		for_each_set_bit(bit, &status, PCI_NUM_INTX) {
 			/* clear interrupts */
 			cra_writel(pcie, 1 << bit, P2A_INT_STATUS);
 
-			virq = irq_find_mapping(pcie->irq_domain, bit + 1);
+			virq = irq_find_mapping(pcie->irq_domain, bit);
 			if (virq)
 				generic_handle_irq(virq);
 			else
@@ -536,7 +535,7 @@ static int altera_pcie_init_irq_domain(struct altera_pcie *pcie)
 	struct device_node *node = dev->of_node;
 
 	/* Setup INTx */
-	pcie->irq_domain = irq_domain_add_linear(node, INTX_NUM + 1,
+	pcie->irq_domain = irq_domain_add_linear(node, PCI_NUM_INTX,
 					&intx_domain_ops, pcie);
 	if (!pcie->irq_domain) {
 		dev_err(dev, "Failed to get a INTx IRQ domain\n");
@@ -559,9 +558,9 @@ static int altera_pcie_parse_dt(struct altera_pcie *pcie)
 
 	/* setup IRQ */
 	pcie->irq = platform_get_irq(pdev, 0);
-	if (pcie->irq <= 0) {
+	if (pcie->irq < 0) {
 		dev_err(dev, "failed to get IRQ: %d\n", pcie->irq);
-		return -EINVAL;
+		return pcie->irq;
 	}
 
 	irq_set_chained_handler_and_data(pcie->irq, altera_pcie_isr, pcie);

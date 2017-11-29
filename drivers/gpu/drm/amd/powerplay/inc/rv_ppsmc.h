@@ -66,7 +66,17 @@
 #define PPSMC_MSG_SetMinVddcrSocVoltage         0x22
 #define PPSMC_MSG_SetMinVideoFclkFreq           0x23
 #define PPSMC_MSG_SetMinDeepSleepDcefclk        0x24
-#define PPSMC_Message_Count                     0x25
+#define PPSMC_MSG_ForcePowerDownGfx             0x25
+#define PPSMC_MSG_SetPhyclkVoltageByFreq        0x26
+#define PPSMC_MSG_SetDppclkVoltageByFreq        0x27
+#define PPSMC_MSG_SetSoftMinVcn                 0x28
+#define PPSMC_MSG_GetGfxclkFrequency            0x2A
+#define PPSMC_MSG_GetFclkFrequency              0x2B
+#define PPSMC_MSG_GetMinGfxclkFrequency         0x2C
+#define PPSMC_MSG_GetMaxGfxclkFrequency         0x2D
+#define PPSMC_MSG_SoftReset                     0x2E
+#define PPSMC_Message_Count                     0x2F
+
 
 typedef uint16_t PPSMC_Result;
 typedef int      PPSMC_Msg;

@@ -587,7 +587,7 @@ static __initconst const u64 p4_hw_cache_event_ids
  * P4_CONFIG_ALIASABLE or bits for P4_PEBS_METRIC, they are
  * either up to date automatically or not applicable at all.
  */
-struct p4_event_alias {
+static struct p4_event_alias {
 	u64 original;
 	u64 alternative;
 } p4_event_aliases[] = {

@@ -19,7 +19,7 @@
 #include <linux/err.h>
 
 #include <linux/mtd/mtd.h>
-#include <linux/mtd/nand.h>
+#include <linux/mtd/rawnand.h>
 #include <linux/mtd/partitions.h>
 
 #define REG_FMICSR   	0x00
@@ -154,7 +154,7 @@ static void nuc900_nand_command_lp(struct mtd_info *mtd, unsigned int command,
 		if (page_addr != -1) {
 			write_addr_reg(nand, page_addr);
 
-			if (chip->chipsize > (128 << 20)) {
+			if (chip->options & NAND_ROW_ADDR_3) {
 				write_addr_reg(nand, page_addr >> 8);
 				write_addr_reg(nand, page_addr >> 16 | ENDADDR);
 			} else {

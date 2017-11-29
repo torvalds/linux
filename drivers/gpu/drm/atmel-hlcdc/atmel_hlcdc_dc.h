@@ -34,6 +34,7 @@
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_fb_cma_helper.h>
 #include <drm/drm_gem_cma_helper.h>
+#include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_panel.h>
 #include <drm/drm_plane_helper.h>
 #include <drm/drmP.h>
@@ -88,6 +89,11 @@
 #define ATMEL_HLCDC_YUV422SWP			BIT(17)
 #define ATMEL_HLCDC_DSCALEOPT			BIT(20)
 
+#define ATMEL_HLCDC_C1_MODE			ATMEL_HLCDC_CLUT_MODE(0)
+#define ATMEL_HLCDC_C2_MODE			ATMEL_HLCDC_CLUT_MODE(1)
+#define ATMEL_HLCDC_C4_MODE			ATMEL_HLCDC_CLUT_MODE(2)
+#define ATMEL_HLCDC_C8_MODE			ATMEL_HLCDC_CLUT_MODE(3)
+
 #define ATMEL_HLCDC_XRGB4444_MODE		ATMEL_HLCDC_RGB_MODE(0)
 #define ATMEL_HLCDC_ARGB4444_MODE		ATMEL_HLCDC_RGB_MODE(1)
 #define ATMEL_HLCDC_RGBA4444_MODE		ATMEL_HLCDC_RGB_MODE(2)
@@ -141,6 +147,8 @@
 #define ATMEL_HLCDC_DMA_CHANNEL_DSCR_LOADED	BIT(1)
 #define ATMEL_HLCDC_DMA_CHANNEL_DSCR_DONE	BIT(2)
 #define ATMEL_HLCDC_DMA_CHANNEL_DSCR_OVERRUN	BIT(3)
+
+#define ATMEL_HLCDC_CLUT_SIZE			256
 
 #define ATMEL_HLCDC_MAX_LAYERS			6
 
@@ -259,6 +267,7 @@ struct atmel_hlcdc_layer_desc {
 	int id;
 	int regs_offset;
 	int cfgs_offset;
+	int clut_offset;
 	struct atmel_hlcdc_formats *formats;
 	struct atmel_hlcdc_layer_cfg_layout layout;
 	int max_width;
@@ -412,6 +421,14 @@ static inline u32 atmel_hlcdc_layer_read_cfg(struct atmel_hlcdc_layer *layer,
 	return atmel_hlcdc_layer_read_reg(layer,
 					  layer->desc->cfgs_offset +
 					  (cfgid * sizeof(u32)));
+}
+
+static inline void atmel_hlcdc_layer_write_clut(struct atmel_hlcdc_layer *layer,
+						unsigned int c, u32 val)
+{
+	regmap_write(layer->regmap,
+		     layer->desc->clut_offset + c * sizeof(u32),
+		     val);
 }
 
 static inline void atmel_hlcdc_layer_init(struct atmel_hlcdc_layer *layer,

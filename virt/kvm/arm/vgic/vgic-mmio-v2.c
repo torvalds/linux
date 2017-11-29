@@ -74,6 +74,7 @@ static void vgic_mmio_write_sgir(struct kvm_vcpu *source_vcpu,
 	int mode = (val >> 24) & 0x03;
 	int c;
 	struct kvm_vcpu *vcpu;
+	unsigned long flags;
 
 	switch (mode) {
 	case 0x0:		/* as specified by targets */
@@ -97,11 +98,11 @@ static void vgic_mmio_write_sgir(struct kvm_vcpu *source_vcpu,
 
 		irq = vgic_get_irq(source_vcpu->kvm, vcpu, intid);
 
-		spin_lock(&irq->irq_lock);
+		spin_lock_irqsave(&irq->irq_lock, flags);
 		irq->pending_latch = true;
 		irq->source |= 1U << source_vcpu->vcpu_id;
 
-		vgic_queue_irq_unlock(source_vcpu->kvm, irq);
+		vgic_queue_irq_unlock(source_vcpu->kvm, irq, flags);
 		vgic_put_irq(source_vcpu->kvm, irq);
 	}
 }
@@ -131,6 +132,7 @@ static void vgic_mmio_write_target(struct kvm_vcpu *vcpu,
 	u32 intid = VGIC_ADDR_TO_INTID(addr, 8);
 	u8 cpu_mask = GENMASK(atomic_read(&vcpu->kvm->online_vcpus) - 1, 0);
 	int i;
+	unsigned long flags;
 
 	/* GICD_ITARGETSR[0-7] are read-only */
 	if (intid < VGIC_NR_PRIVATE_IRQS)
@@ -140,13 +142,13 @@ static void vgic_mmio_write_target(struct kvm_vcpu *vcpu,
 		struct vgic_irq *irq = vgic_get_irq(vcpu->kvm, NULL, intid + i);
 		int target;
 
-		spin_lock(&irq->irq_lock);
+		spin_lock_irqsave(&irq->irq_lock, flags);
 
 		irq->targets = (val >> (i * 8)) & cpu_mask;
 		target = irq->targets ? __ffs(irq->targets) : 0;
 		irq->target_vcpu = kvm_get_vcpu(vcpu->kvm, target);
 
-		spin_unlock(&irq->irq_lock);
+		spin_unlock_irqrestore(&irq->irq_lock, flags);
 		vgic_put_irq(vcpu->kvm, irq);
 	}
 }
@@ -174,17 +176,18 @@ static void vgic_mmio_write_sgipendc(struct kvm_vcpu *vcpu,
 {
 	u32 intid = addr & 0x0f;
 	int i;
+	unsigned long flags;
 
 	for (i = 0; i < len; i++) {
 		struct vgic_irq *irq = vgic_get_irq(vcpu->kvm, vcpu, intid + i);
 
-		spin_lock(&irq->irq_lock);
+		spin_lock_irqsave(&irq->irq_lock, flags);
 
 		irq->source &= ~((val >> (i * 8)) & 0xff);
 		if (!irq->source)
 			irq->pending_latch = false;
 
-		spin_unlock(&irq->irq_lock);
+		spin_unlock_irqrestore(&irq->irq_lock, flags);
 		vgic_put_irq(vcpu->kvm, irq);
 	}
 }
@@ -195,19 +198,20 @@ static void vgic_mmio_write_sgipends(struct kvm_vcpu *vcpu,
 {
 	u32 intid = addr & 0x0f;
 	int i;
+	unsigned long flags;
 
 	for (i = 0; i < len; i++) {
 		struct vgic_irq *irq = vgic_get_irq(vcpu->kvm, vcpu, intid + i);
 
-		spin_lock(&irq->irq_lock);
+		spin_lock_irqsave(&irq->irq_lock, flags);
 
 		irq->source |= (val >> (i * 8)) & 0xff;
 
 		if (irq->source) {
 			irq->pending_latch = true;
-			vgic_queue_irq_unlock(vcpu->kvm, irq);
+			vgic_queue_irq_unlock(vcpu->kvm, irq, flags);
 		} else {
-			spin_unlock(&irq->irq_lock);
+			spin_unlock_irqrestore(&irq->irq_lock, flags);
 		}
 		vgic_put_irq(vcpu->kvm, irq);
 	}
@@ -303,6 +307,51 @@ static void vgic_mmio_write_vcpuif(struct kvm_vcpu *vcpu,
 	vgic_set_vmcr(vcpu, &vmcr);
 }
 
+static unsigned long vgic_mmio_read_apr(struct kvm_vcpu *vcpu,
+					gpa_t addr, unsigned int len)
+{
+	int n; /* which APRn is this */
+
+	n = (addr >> 2) & 0x3;
+
+	if (kvm_vgic_global_state.type == VGIC_V2) {
+		/* GICv2 hardware systems support max. 32 groups */
+		if (n != 0)
+			return 0;
+		return vcpu->arch.vgic_cpu.vgic_v2.vgic_apr;
+	} else {
+		struct vgic_v3_cpu_if *vgicv3 = &vcpu->arch.vgic_cpu.vgic_v3;
+
+		if (n > vgic_v3_max_apr_idx(vcpu))
+			return 0;
+		/* GICv3 only uses ICH_AP1Rn for memory mapped (GICv2) guests */
+		return vgicv3->vgic_ap1r[n];
+	}
+}
+
+static void vgic_mmio_write_apr(struct kvm_vcpu *vcpu,
+				gpa_t addr, unsigned int len,
+				unsigned long val)
+{
+	int n; /* which APRn is this */
+
+	n = (addr >> 2) & 0x3;
+
+	if (kvm_vgic_global_state.type == VGIC_V2) {
+		/* GICv2 hardware systems support max. 32 groups */
+		if (n != 0)
+			return;
+		vcpu->arch.vgic_cpu.vgic_v2.vgic_apr = val;
+	} else {
+		struct vgic_v3_cpu_if *vgicv3 = &vcpu->arch.vgic_cpu.vgic_v3;
+
+		if (n > vgic_v3_max_apr_idx(vcpu))
+			return;
+		/* GICv3 only uses ICH_AP1Rn for memory mapped (GICv2) guests */
+		vgicv3->vgic_ap1r[n] = val;
+	}
+}
+
 static const struct vgic_register_region vgic_v2_dist_registers[] = {
 	REGISTER_DESC_WITH_LENGTH(GIC_DIST_CTRL,
 		vgic_mmio_read_v2_misc, vgic_mmio_write_v2_misc, 12,
@@ -364,7 +413,7 @@ static const struct vgic_register_region vgic_v2_cpu_registers[] = {
 		vgic_mmio_read_vcpuif, vgic_mmio_write_vcpuif, 4,
 		VGIC_ACCESS_32bit),
 	REGISTER_DESC_WITH_LENGTH(GIC_CPU_ACTIVEPRIO,
-		vgic_mmio_read_raz, vgic_mmio_write_wi, 16,
+		vgic_mmio_read_apr, vgic_mmio_write_apr, 16,
 		VGIC_ACCESS_32bit),
 	REGISTER_DESC_WITH_LENGTH(GIC_CPU_IDENT,
 		vgic_mmio_read_vcpuif, vgic_mmio_write_vcpuif, 4,

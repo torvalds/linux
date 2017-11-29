@@ -31,6 +31,7 @@
  */
 
 #include <linux/platform_device.h>
+#include <linux/interrupt.h>
 #include "hns_roce_common.h"
 #include "hns_roce_device.h"
 #include "hns_roce_eq.h"
@@ -292,7 +293,7 @@ static int hns_roce_aeq_int(struct hns_roce_dev *hr_dev, struct hns_roce_eq *eq)
 			dev_warn(dev, "Unhandled event %d on EQ %d at index %u\n",
 				 event_type, eq->eqn, eq->cons_index);
 			break;
-		};
+		}
 
 		eq->cons_index++;
 		aeqes_found = 1;
@@ -557,7 +558,7 @@ static int hns_roce_create_eq(struct hns_roce_dev *hr_dev,
 	writel(eqshift_val, eqc);
 
 	/* Configure eq extended address 12~44bit */
-	writel((u32)(eq->buf_list[0].map >> 12), (u8 *)eqc + 4);
+	writel((u32)(eq->buf_list[0].map >> 12), eqc + 4);
 
 	/*
 	 * Configure eq extended address 45~49 bit.
@@ -571,13 +572,13 @@ static int hns_roce_create_eq(struct hns_roce_dev *hr_dev,
 	roce_set_field(eqcuridx_val,
 		       ROCEE_CAEP_AEQE_CUR_IDX_CAEP_AEQE_CUR_IDX_M,
 		       ROCEE_CAEP_AEQE_CUR_IDX_CAEP_AEQE_CUR_IDX_S, 0);
-	writel(eqcuridx_val, (u8 *)eqc + 8);
+	writel(eqcuridx_val, eqc + 8);
 
 	/* Configure eq consumer index */
 	roce_set_field(eqconsindx_val,
 		       ROCEE_CAEP_AEQE_CONS_IDX_CAEP_AEQE_CONS_IDX_M,
 		       ROCEE_CAEP_AEQE_CONS_IDX_CAEP_AEQE_CONS_IDX_S, 0);
-	writel(eqconsindx_val, (u8 *)eqc + 0xc);
+	writel(eqconsindx_val, eqc + 0xc);
 
 	return 0;
 

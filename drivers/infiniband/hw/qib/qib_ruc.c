@@ -58,8 +58,10 @@ static int qib_init_sge(struct rvt_qp *qp, struct rvt_rwqe *wqe)
 		if (wqe->sg_list[i].length == 0)
 			continue;
 		/* Check LKEY */
-		if (!rvt_lkey_ok(rkt, pd, j ? &ss->sg_list[j - 1] : &ss->sge,
-				 &wqe->sg_list[i], IB_ACCESS_LOCAL_WRITE))
+		ret = rvt_lkey_ok(rkt, pd, j ? &ss->sg_list[j - 1] : &ss->sge,
+				  NULL, &wqe->sg_list[i],
+				  IB_ACCESS_LOCAL_WRITE);
+		if (unlikely(ret <= 0))
 			goto bad_lkey;
 		qp->r_len += wqe->sg_list[i].length;
 		j++;
@@ -256,11 +258,11 @@ int qib_ruc_check_hdr(struct qib_ibport *ibp, struct ib_header *hdr,
 		}
 		if (!qib_pkey_ok((u16)bth0,
 				 qib_get_pkey(ibp, qp->s_alt_pkey_index))) {
-			qib_bad_pqkey(ibp, IB_NOTICE_TRAP_BAD_PKEY,
-				      (u16)bth0,
-				      (be16_to_cpu(hdr->lrh[0]) >> 4) & 0xF,
-				      0, qp->ibqp.qp_num,
-				      hdr->lrh[3], hdr->lrh[1]);
+			qib_bad_pkey(ibp,
+				     (u16)bth0,
+				     (be16_to_cpu(hdr->lrh[0]) >> 4) & 0xF,
+				     0, qp->ibqp.qp_num,
+				     hdr->lrh[3], hdr->lrh[1]);
 			goto err;
 		}
 		/* Validate the SLID. See Ch. 9.6.1.5 and 17.2.8 */
@@ -295,11 +297,11 @@ int qib_ruc_check_hdr(struct qib_ibport *ibp, struct ib_header *hdr,
 		}
 		if (!qib_pkey_ok((u16)bth0,
 				 qib_get_pkey(ibp, qp->s_pkey_index))) {
-			qib_bad_pqkey(ibp, IB_NOTICE_TRAP_BAD_PKEY,
-				      (u16)bth0,
-				      (be16_to_cpu(hdr->lrh[0]) >> 4) & 0xF,
-				      0, qp->ibqp.qp_num,
-				      hdr->lrh[3], hdr->lrh[1]);
+			qib_bad_pkey(ibp,
+				     (u16)bth0,
+				     (be16_to_cpu(hdr->lrh[0]) >> 4) & 0xF,
+				     0, qp->ibqp.qp_num,
+				     hdr->lrh[3], hdr->lrh[1]);
 			goto err;
 		}
 		/* Validate the SLID. See Ch. 9.6.1.5 */
@@ -366,7 +368,7 @@ static void qib_ruc_loopback(struct rvt_qp *sqp)
 
 again:
 	smp_read_barrier_depends(); /* see post_one_send() */
-	if (sqp->s_last == ACCESS_ONCE(sqp->s_head))
+	if (sqp->s_last == READ_ONCE(sqp->s_head))
 		goto clr_busy;
 	wqe = rvt_get_swqe_ptr(sqp, sqp->s_last);
 
@@ -643,8 +645,10 @@ u32 qib_make_grh(struct qib_ibport *ibp, struct ib_grh *hdr,
 	hdr->hop_limit = grh->hop_limit;
 	/* The SGID is 32-bit aligned. */
 	hdr->sgid.global.subnet_prefix = ibp->rvp.gid_prefix;
-	hdr->sgid.global.interface_id = grh->sgid_index ?
-		ibp->guids[grh->sgid_index - 1] : ppd_from_ibp(ibp)->guid;
+	if (!grh->sgid_index)
+		hdr->sgid.global.interface_id = ppd_from_ibp(ibp)->guid;
+	else if (grh->sgid_index < QIB_GUIDS_PER_PORT)
+		hdr->sgid.global.interface_id = ibp->guids[grh->sgid_index - 1];
 	hdr->dgid = grh->dgid;
 
 	/* GRH header size in 32-bit words. */

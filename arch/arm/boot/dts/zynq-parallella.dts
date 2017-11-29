@@ -34,7 +34,7 @@
 	};
 
 	chosen {
-		bootargs = "earlycon root=/dev/mmcblk0p2 rootfstype=ext4 rw rootwait";
+		bootargs = "root=/dev/mmcblk0p2 rootfstype=ext4 rw rootwait";
 		stdout-path = "serial0:115200n8";
 	};
 };
@@ -54,6 +54,7 @@
 		compatible = "ethernet-phy-id0141.0e90",
 		             "ethernet-phy-ieee802.3-c22";
 		reg = <0>;
+		device_type = "ethernet-phy";
 		marvell,reg-init = <0x3 0x10 0xff00 0x1e>,
 		                   <0x3 0x11 0xfff0 0xa>;
 	};

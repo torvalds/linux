@@ -186,7 +186,7 @@ _next:
 			pcmd->res = H2C_DROPPED;
 		} else {
 			if (pcmd->cmdcode < ARRAY_SIZE(wlancmds)) {
-			    cmd_hdl = wlancmds[pcmd->cmdcode].h2cfuns;
+				cmd_hdl = wlancmds[pcmd->cmdcode].h2cfuns;
 
 				if (cmd_hdl) {
 					ret = cmd_hdl(pcmd->padapter, pcmd->parmbuf);
@@ -333,7 +333,7 @@ u8 rtw_createbss_cmd(struct adapter  *padapter)
 	else
 		RT_TRACE(_module_rtl871x_cmd_c_, _drv_info_, (" createbss for SSid:%s\n", pmlmepriv->assoc_ssid.Ssid));
 
-	pcmd = kzalloc(sizeof(struct cmd_obj), GFP_KERNEL);
+	pcmd = kzalloc(sizeof(struct cmd_obj), GFP_ATOMIC);
 	if (!pcmd) {
 		res = _FAIL;
 		goto exit;
@@ -508,7 +508,7 @@ u8 rtw_disassoc_cmd(struct adapter *padapter, u32 deauth_timeout_ms, bool enqueu
 
 	if (enqueue) {
 		/* need enqueue, prepare cmd_obj and enqueue */
-		cmdobj = kzalloc(sizeof(*cmdobj), GFP_KERNEL);
+		cmdobj = kzalloc(sizeof(*cmdobj), GFP_ATOMIC);
 		if (!cmdobj) {
 			res = _FAIL;
 			kfree(param);

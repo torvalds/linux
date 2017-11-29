@@ -64,7 +64,7 @@
 #define STM32H7_CKMODE_MASK		GENMASK(17, 16)
 
 /* STM32 H7 maximum analog clock rate (from datasheet) */
-#define STM32H7_ADC_MAX_CLK_RATE	72000000
+#define STM32H7_ADC_MAX_CLK_RATE	36000000
 
 /**
  * stm32_adc_common_regs - stm32 common registers, compatible dependent data
@@ -139,6 +139,11 @@ static int stm32f4_adc_clk_sel(struct platform_device *pdev,
 	}
 
 	rate = clk_get_rate(priv->aclk);
+	if (!rate) {
+		dev_err(&pdev->dev, "Invalid clock rate: 0\n");
+		return -EINVAL;
+	}
+
 	for (i = 0; i < ARRAY_SIZE(stm32f4_pclk_div); i++) {
 		if ((rate / stm32f4_pclk_div[i]) <= STM32F4_ADC_MAX_CLK_RATE)
 			break;
@@ -148,14 +153,14 @@ static int stm32f4_adc_clk_sel(struct platform_device *pdev,
 		return -EINVAL;
 	}
 
-	priv->common.rate = rate;
+	priv->common.rate = rate / stm32f4_pclk_div[i];
 	val = readl_relaxed(priv->common.base + STM32F4_ADC_CCR);
 	val &= ~STM32F4_ADC_ADCPRE_MASK;
 	val |= i << STM32F4_ADC_ADCPRE_SHIFT;
 	writel_relaxed(val, priv->common.base + STM32F4_ADC_CCR);
 
 	dev_dbg(&pdev->dev, "Using analog clock source at %ld kHz\n",
-		rate / (stm32f4_pclk_div[i] * 1000));
+		priv->common.rate / 1000);
 
 	return 0;
 }
@@ -172,7 +177,7 @@ struct stm32h7_adc_ck_spec {
 	int div;
 };
 
-const struct stm32h7_adc_ck_spec stm32h7_adc_ckmodes_spec[] = {
+static const struct stm32h7_adc_ck_spec stm32h7_adc_ckmodes_spec[] = {
 	/* 00: CK_ADC[1..3]: Asynchronous clock modes */
 	{ 0, 0, 1 },
 	{ 0, 1, 2 },
@@ -216,6 +221,10 @@ static int stm32h7_adc_clk_sel(struct platform_device *pdev,
 		 * From spec: PLL output musn't exceed max rate
 		 */
 		rate = clk_get_rate(priv->aclk);
+		if (!rate) {
+			dev_err(&pdev->dev, "Invalid adc clock rate: 0\n");
+			return -EINVAL;
+		}
 
 		for (i = 0; i < ARRAY_SIZE(stm32h7_adc_ckmodes_spec); i++) {
 			ckmode = stm32h7_adc_ckmodes_spec[i].ckmode;
@@ -232,6 +241,10 @@ static int stm32h7_adc_clk_sel(struct platform_device *pdev,
 
 	/* Synchronous clock modes (e.g. ckmode is 1, 2 or 3) */
 	rate = clk_get_rate(priv->bclk);
+	if (!rate) {
+		dev_err(&pdev->dev, "Invalid bus clock rate: 0\n");
+		return -EINVAL;
+	}
 
 	for (i = 0; i < ARRAY_SIZE(stm32h7_adc_ckmodes_spec); i++) {
 		ckmode = stm32h7_adc_ckmodes_spec[i].ckmode;
@@ -250,7 +263,7 @@ static int stm32h7_adc_clk_sel(struct platform_device *pdev,
 
 out:
 	/* rate used later by each ADC instance to control BOOST mode */
-	priv->common.rate = rate;
+	priv->common.rate = rate / div;
 
 	/* Set common clock mode and prescaler */
 	val = readl_relaxed(priv->common.base + STM32H7_ADC_CCR);
@@ -260,7 +273,7 @@ out:
 	writel_relaxed(val, priv->common.base + STM32H7_ADC_CCR);
 
 	dev_dbg(&pdev->dev, "Using %s clock/%d source at %ld kHz\n",
-		ckmode ? "bus" : "adc", div, rate / (div * 1000));
+		ckmode ? "bus" : "adc", div, priv->common.rate / 1000);
 
 	return 0;
 }

@@ -48,10 +48,21 @@
  * @wqe: cqp wqe for header
  * @header: header for the cqp wqe
  */
-static inline void i40iw_insert_wqe_hdr(u64 *wqe, u64 header)
+void i40iw_insert_wqe_hdr(u64 *wqe, u64 header)
 {
 	wmb();            /* make sure WQE is populated before polarity is set */
 	set_64bit_val(wqe, 24, header);
+}
+
+void i40iw_check_cqp_progress(struct i40iw_cqp_timeout *cqp_timeout, struct i40iw_sc_dev *dev)
+{
+	if (cqp_timeout->compl_cqp_cmds != dev->cqp_cmd_stats[OP_COMPLETED_COMMANDS]) {
+		cqp_timeout->compl_cqp_cmds = dev->cqp_cmd_stats[OP_COMPLETED_COMMANDS];
+		cqp_timeout->count = 0;
+	} else {
+		if (dev->cqp_cmd_stats[OP_REQUESTED_COMMANDS] != cqp_timeout->compl_cqp_cmds)
+			cqp_timeout->count++;
+	}
 }
 
 /**
@@ -130,20 +141,32 @@ static enum i40iw_status_code i40iw_sc_parse_fpm_commit_buf(
 	u64 base = 0;
 	u32 i, j;
 	u32 k = 0;
-	u32 low;
 
 	/* copy base values in obj_info */
-	for (i = I40IW_HMC_IW_QP, j = 0;
-			i <= I40IW_HMC_IW_PBLE; i++, j += 8) {
+	for (i = I40IW_HMC_IW_QP, j = 0; i <= I40IW_HMC_IW_PBLE; i++, j += 8) {
+		if ((i == I40IW_HMC_IW_SRQ) ||
+			(i == I40IW_HMC_IW_FSIMC) ||
+			(i == I40IW_HMC_IW_FSIAV)) {
+			info[i].base = 0;
+			info[i].cnt = 0;
+			continue;
+		}
 		get_64bit_val(buf, j, &temp);
 		info[i].base = RS_64_1(temp, 32) * 512;
 		if (info[i].base > base) {
 			base = info[i].base;
 			k = i;
 		}
-		low = (u32)(temp);
-		if (low)
-			info[i].cnt = low;
+		if (i == I40IW_HMC_IW_APBVT_ENTRY) {
+			info[i].cnt = 1;
+			continue;
+		}
+		if (i == I40IW_HMC_IW_QP)
+			info[i].cnt = (u32)RS_64(temp, I40IW_QUERY_FPM_MAX_QPS);
+		else if (i == I40IW_HMC_IW_CQ)
+			info[i].cnt = (u32)RS_64(temp, I40IW_QUERY_FPM_MAX_CQS);
+		else
+			info[i].cnt = (u32)(temp);
 	}
 	size = info[k].cnt * info[k].size + info[k].base;
 	if (size & 0x1FFFFF)
@@ -152,6 +175,31 @@ static enum i40iw_status_code i40iw_sc_parse_fpm_commit_buf(
 		*sd = (u32)(size >> 21);
 
 	return 0;
+}
+
+/**
+ * i40iw_sc_decode_fpm_query() - Decode a 64 bit value into max count and size
+ * @buf: ptr to fpm query buffer
+ * @buf_idx: index into buf
+ * @info: ptr to i40iw_hmc_obj_info struct
+ * @rsrc_idx: resource index into info
+ *
+ * Decode a 64 bit value from fpm query buffer into max count and size
+ */
+static u64 i40iw_sc_decode_fpm_query(u64 *buf,
+					    u32 buf_idx,
+					    struct i40iw_hmc_obj_info *obj_info,
+					    u32 rsrc_idx)
+{
+	u64 temp;
+	u32 size;
+
+	get_64bit_val(buf, buf_idx, &temp);
+	obj_info[rsrc_idx].max_cnt = (u32)temp;
+	size = (u32)RS_64_1(temp, 32);
+	obj_info[rsrc_idx].size = LS_64_1(1, size);
+
+	return temp;
 }
 
 /**
@@ -168,9 +216,9 @@ static enum i40iw_status_code i40iw_sc_parse_fpm_query_buf(
 				struct i40iw_hmc_info *hmc_info,
 				struct i40iw_hmc_fpm_misc *hmc_fpm_misc)
 {
-	u64 temp;
 	struct i40iw_hmc_obj_info *obj_info;
-	u32 i, j, size;
+	u64 temp;
+	u32 size;
 	u16 max_pe_sds;
 
 	obj_info = hmc_info->hmc_obj;
@@ -185,41 +233,52 @@ static enum i40iw_status_code i40iw_sc_parse_fpm_query_buf(
 	hmc_fpm_misc->max_sds = max_pe_sds;
 	hmc_info->sd_table.sd_cnt = max_pe_sds + hmc_info->first_sd_index;
 
-	for (i = I40IW_HMC_IW_QP, j = 8;
-	     i <= I40IW_HMC_IW_ARP; i++, j += 8) {
-		get_64bit_val(buf, j, &temp);
-		if (i == I40IW_HMC_IW_QP)
-			obj_info[i].max_cnt = (u32)RS_64(temp, I40IW_QUERY_FPM_MAX_QPS);
-		else if (i == I40IW_HMC_IW_CQ)
-			obj_info[i].max_cnt = (u32)RS_64(temp, I40IW_QUERY_FPM_MAX_CQS);
-		else
-			obj_info[i].max_cnt = (u32)temp;
+	get_64bit_val(buf, 8, &temp);
+	obj_info[I40IW_HMC_IW_QP].max_cnt = (u32)RS_64(temp, I40IW_QUERY_FPM_MAX_QPS);
+	size = (u32)RS_64_1(temp, 32);
+	obj_info[I40IW_HMC_IW_QP].size = LS_64_1(1, size);
 
-		size = (u32)RS_64_1(temp, 32);
-		obj_info[i].size = ((u64)1 << size);
-	}
-	for (i = I40IW_HMC_IW_MR, j = 48;
-			i <= I40IW_HMC_IW_PBLE; i++, j += 8) {
-		get_64bit_val(buf, j, &temp);
-		obj_info[i].max_cnt = (u32)temp;
-		size = (u32)RS_64_1(temp, 32);
-		obj_info[i].size = LS_64_1(1, size);
-	}
+	get_64bit_val(buf, 16, &temp);
+	obj_info[I40IW_HMC_IW_CQ].max_cnt = (u32)RS_64(temp, I40IW_QUERY_FPM_MAX_CQS);
+	size = (u32)RS_64_1(temp, 32);
+	obj_info[I40IW_HMC_IW_CQ].size = LS_64_1(1, size);
 
-	get_64bit_val(buf, 120, &temp);
-	hmc_fpm_misc->max_ceqs = (u8)RS_64(temp, I40IW_QUERY_FPM_MAX_CEQS);
-	get_64bit_val(buf, 120, &temp);
-	hmc_fpm_misc->ht_multiplier = RS_64(temp, I40IW_QUERY_FPM_HTMULTIPLIER);
-	get_64bit_val(buf, 120, &temp);
-	hmc_fpm_misc->timer_bucket = RS_64(temp, I40IW_QUERY_FPM_TIMERBUCKET);
+	i40iw_sc_decode_fpm_query(buf, 32, obj_info, I40IW_HMC_IW_HTE);
+	i40iw_sc_decode_fpm_query(buf, 40, obj_info, I40IW_HMC_IW_ARP);
+
+	obj_info[I40IW_HMC_IW_APBVT_ENTRY].size = 8192;
+	obj_info[I40IW_HMC_IW_APBVT_ENTRY].max_cnt = 1;
+
+	i40iw_sc_decode_fpm_query(buf, 48, obj_info, I40IW_HMC_IW_MR);
+	i40iw_sc_decode_fpm_query(buf, 56, obj_info, I40IW_HMC_IW_XF);
+
 	get_64bit_val(buf, 64, &temp);
+	obj_info[I40IW_HMC_IW_XFFL].max_cnt = (u32)temp;
+	obj_info[I40IW_HMC_IW_XFFL].size = 4;
 	hmc_fpm_misc->xf_block_size = RS_64(temp, I40IW_QUERY_FPM_XFBLOCKSIZE);
 	if (!hmc_fpm_misc->xf_block_size)
 		return I40IW_ERR_INVALID_SIZE;
+
+	i40iw_sc_decode_fpm_query(buf, 72, obj_info, I40IW_HMC_IW_Q1);
+
 	get_64bit_val(buf, 80, &temp);
+	obj_info[I40IW_HMC_IW_Q1FL].max_cnt = (u32)temp;
+	obj_info[I40IW_HMC_IW_Q1FL].size = 4;
 	hmc_fpm_misc->q1_block_size = RS_64(temp, I40IW_QUERY_FPM_Q1BLOCKSIZE);
 	if (!hmc_fpm_misc->q1_block_size)
 		return I40IW_ERR_INVALID_SIZE;
+
+	i40iw_sc_decode_fpm_query(buf, 88, obj_info, I40IW_HMC_IW_TIMER);
+
+	get_64bit_val(buf, 112, &temp);
+	obj_info[I40IW_HMC_IW_PBLE].max_cnt = (u32)temp;
+	obj_info[I40IW_HMC_IW_PBLE].size = 8;
+
+	get_64bit_val(buf, 120, &temp);
+	hmc_fpm_misc->max_ceqs = (u8)RS_64(temp, I40IW_QUERY_FPM_MAX_CEQS);
+	hmc_fpm_misc->ht_multiplier = RS_64(temp, I40IW_QUERY_FPM_HTMULTIPLIER);
+	hmc_fpm_misc->timer_bucket = RS_64(temp, I40IW_QUERY_FPM_TIMERBUCKET);
+
 	return 0;
 }
 
@@ -289,7 +348,10 @@ void i40iw_change_l2params(struct i40iw_sc_vsi *vsi, struct i40iw_l2params *l2pa
 	u16 qs_handle;
 	int i;
 
-	vsi->mss = l2params->mss;
+	if (vsi->mtu != l2params->mtu) {
+		vsi->mtu = l2params->mtu;
+		i40iw_reinitialize_ieq(dev);
+	}
 
 	i40iw_fill_qos_list(l2params->qs_handle_list);
 	for (i = 0; i < I40IW_MAX_USER_PRIORITY; i++) {
@@ -315,7 +377,7 @@ void i40iw_change_l2params(struct i40iw_sc_vsi *vsi, struct i40iw_l2params *l2pa
  * i40iw_qp_rem_qos - remove qp from qos lists during destroy qp
  * @qp: qp to be removed from qos
  */
-static void i40iw_qp_rem_qos(struct i40iw_sc_qp *qp)
+void i40iw_qp_rem_qos(struct i40iw_sc_qp *qp)
 {
 	struct i40iw_sc_vsi *vsi = qp->vsi;
 	unsigned long flags;
@@ -420,6 +482,10 @@ static enum i40iw_status_code i40iw_sc_cqp_init(struct i40iw_sc_cqp *cqp,
 	I40IW_RING_INIT(cqp->sq_ring, cqp->sq_size);
 	cqp->dev->cqp_cmd_stats[OP_REQUESTED_COMMANDS] = 0;
 	cqp->dev->cqp_cmd_stats[OP_COMPLETED_COMMANDS] = 0;
+	INIT_LIST_HEAD(&cqp->dev->cqp_cmd_head);               /* for the cqp commands backlog. */
+
+	i40iw_wr32(cqp->dev->hw, I40E_PFPE_CQPTAIL, 0);
+	i40iw_wr32(cqp->dev->hw, I40E_PFPE_CQPDB, 0);
 
 	i40iw_debug(cqp->dev, I40IW_DEBUG_WQE,
 		    "%s: sq_size[%04d] hw_sq_size[%04d] sq_base[%p] sq_pa[%llxh] cqp[%p] polarity[x%04X]\n",
@@ -1715,6 +1781,53 @@ static enum i40iw_status_code i40iw_sc_get_next_aeqe(struct i40iw_sc_aeq *aeq,
 	info->iwarp_state = (u8)RS_64(temp, I40IW_AEQE_IWSTATE);
 	info->q2_data_written = (u8)RS_64(temp, I40IW_AEQE_Q2DATA);
 	info->aeqe_overflow = (bool)RS_64(temp, I40IW_AEQE_OVERFLOW);
+
+	switch (info->ae_id) {
+	case I40IW_AE_PRIV_OPERATION_DENIED:
+	case I40IW_AE_UDA_XMIT_DGRAM_TOO_LONG:
+	case I40IW_AE_UDA_XMIT_DGRAM_TOO_SHORT:
+	case I40IW_AE_BAD_CLOSE:
+	case I40IW_AE_RDMAP_ROE_BAD_LLP_CLOSE:
+	case I40IW_AE_RDMA_READ_WHILE_ORD_ZERO:
+	case I40IW_AE_STAG_ZERO_INVALID:
+	case I40IW_AE_IB_RREQ_AND_Q1_FULL:
+	case I40IW_AE_WQE_UNEXPECTED_OPCODE:
+	case I40IW_AE_DDP_UBE_INVALID_DDP_VERSION:
+	case I40IW_AE_DDP_UBE_INVALID_MO:
+	case I40IW_AE_DDP_UBE_INVALID_QN:
+	case I40IW_AE_DDP_NO_L_BIT:
+	case I40IW_AE_RDMAP_ROE_INVALID_RDMAP_VERSION:
+	case I40IW_AE_RDMAP_ROE_UNEXPECTED_OPCODE:
+	case I40IW_AE_ROE_INVALID_RDMA_READ_REQUEST:
+	case I40IW_AE_ROE_INVALID_RDMA_WRITE_OR_READ_RESP:
+	case I40IW_AE_INVALID_ARP_ENTRY:
+	case I40IW_AE_INVALID_TCP_OPTION_RCVD:
+	case I40IW_AE_STALE_ARP_ENTRY:
+	case I40IW_AE_LLP_CLOSE_COMPLETE:
+	case I40IW_AE_LLP_CONNECTION_RESET:
+	case I40IW_AE_LLP_FIN_RECEIVED:
+	case I40IW_AE_LLP_RECEIVED_MPA_CRC_ERROR:
+	case I40IW_AE_LLP_SEGMENT_TOO_SMALL:
+	case I40IW_AE_LLP_SYN_RECEIVED:
+	case I40IW_AE_LLP_TERMINATE_RECEIVED:
+	case I40IW_AE_LLP_TOO_MANY_RETRIES:
+	case I40IW_AE_LLP_DOUBT_REACHABILITY:
+	case I40IW_AE_RESET_SENT:
+	case I40IW_AE_TERMINATE_SENT:
+	case I40IW_AE_RESET_NOT_SENT:
+	case I40IW_AE_LCE_QP_CATASTROPHIC:
+	case I40IW_AE_QP_SUSPEND_COMPLETE:
+		info->qp = true;
+		info->compl_ctx = compl_ctx;
+		ae_src = I40IW_AE_SOURCE_RSVD;
+		break;
+	case I40IW_AE_LCE_CQ_CATASTROPHIC:
+		info->cq = true;
+		info->compl_ctx = LS_64_1(compl_ctx, 1);
+		ae_src = I40IW_AE_SOURCE_RSVD;
+		break;
+	}
+
 	switch (ae_src) {
 	case I40IW_AE_SOURCE_RQ:
 	case I40IW_AE_SOURCE_RQ_0011:
@@ -1748,6 +1861,8 @@ static enum i40iw_status_code i40iw_sc_get_next_aeqe(struct i40iw_sc_aeq *aeq,
 		info->compl_ctx = compl_ctx;
 		info->out_rdrsp = true;
 		break;
+	case I40IW_AE_SOURCE_RSVD:
+		/* fallthrough */
 	default:
 		break;
 	}
@@ -2298,7 +2413,6 @@ static enum i40iw_status_code i40iw_sc_qp_init(struct i40iw_sc_qp *qp,
 	qp->rcv_tph_en = info->rcv_tph_en;
 	qp->xmit_tph_en = info->xmit_tph_en;
 	qp->qs_handle = qp->vsi->qos[qp->user_pri].qs_handle;
-	qp->exception_lan_queue = qp->pd->dev->exception_lan_queue;
 
 	return 0;
 }
@@ -2340,7 +2454,6 @@ static enum i40iw_status_code i40iw_sc_qp_create(
 		 LS_64(qp->qp_type, I40IW_CQPSQ_QP_QPTYPE) |
 		 LS_64(qp->virtual_map, I40IW_CQPSQ_QP_VQ) |
 		 LS_64(info->cq_num_valid, I40IW_CQPSQ_QP_CQNUMVALID) |
-		 LS_64(info->static_rsrc, I40IW_CQPSQ_QP_STATRSRC) |
 		 LS_64(info->arp_cache_idx_valid, I40IW_CQPSQ_QP_ARPTABIDXVALID) |
 		 LS_64(info->next_iwarp_state, I40IW_CQPSQ_QP_NEXTIWSTATE) |
 		 LS_64(cqp->polarity, I40IW_CQPSQ_WQEVALID);
@@ -2403,7 +2516,6 @@ static enum i40iw_status_code i40iw_sc_qp_modify(
 		 LS_64(info->cq_num_valid, I40IW_CQPSQ_QP_CQNUMVALID) |
 		 LS_64(info->force_loopback, I40IW_CQPSQ_QP_FORCELOOPBACK) |
 		 LS_64(qp->qp_type, I40IW_CQPSQ_QP_QPTYPE) |
-		 LS_64(info->static_rsrc, I40IW_CQPSQ_QP_STATRSRC) |
 		 LS_64(info->remove_hash_idx, I40IW_CQPSQ_QP_REMOVEHASHENTRY) |
 		 LS_64(term_actions, I40IW_CQPSQ_QP_TERMACT) |
 		 LS_64(info->reset_tcp_conn, I40IW_CQPSQ_QP_RESETCON) |
@@ -2635,7 +2747,7 @@ static enum i40iw_status_code i40iw_sc_qp_setctx(
 		      LS_64(qp->sq_tph_val, I40IWQPC_SQTPHVAL) |
 		      LS_64(qp->rq_tph_val, I40IWQPC_RQTPHVAL) |
 		      LS_64(qp->qs_handle, I40IWQPC_QSHANDLE) |
-		      LS_64(qp->exception_lan_queue, I40IWQPC_EXCEPTION_LAN_QUEUE));
+		      LS_64(vsi->exception_lan_queue, I40IWQPC_EXCEPTION_LAN_QUEUE));
 
 	if (info->iwarp_info_valid) {
 		qw0 |= LS_64(iw->ddp_ver, I40IWQPC_DDP_VER) |
@@ -3391,13 +3503,6 @@ enum i40iw_status_code i40iw_sc_init_iw_hmc(struct i40iw_sc_dev *dev, u8 hmc_fn_
 			return ret_code;
 		hmc_info->sd_table.sd_entry = virt_mem.va;
 	}
-
-	/* fill size of objects which are fixed */
-	hmc_info->hmc_obj[I40IW_HMC_IW_XFFL].size = 4;
-	hmc_info->hmc_obj[I40IW_HMC_IW_Q1FL].size = 4;
-	hmc_info->hmc_obj[I40IW_HMC_IW_PBLE].size = 8;
-	hmc_info->hmc_obj[I40IW_HMC_IW_APBVT_ENTRY].size = 8192;
-	hmc_info->hmc_obj[I40IW_HMC_IW_APBVT_ENTRY].max_cnt = 1;
 
 	return ret_code;
 }
@@ -4324,10 +4429,6 @@ static int i40iw_bld_terminate_hdr(struct i40iw_sc_qp *qp,
 		i40iw_setup_termhdr(qp, termhdr, FLUSH_REM_ACCESS_ERR,
 				    (LAYER_RDMA << 4) | RDMAP_REMOTE_PROT, RDMAP_TO_WRAP);
 		break;
-	case I40IW_AE_LLP_RECEIVED_MARKER_AND_LENGTH_FIELDS_DONT_MATCH:
-		i40iw_setup_termhdr(qp, termhdr, FLUSH_LOC_LEN_ERR,
-				    (LAYER_MPA << 4) | DDP_LLP, MPA_MARKER);
-		break;
 	case I40IW_AE_LLP_RECEIVED_MPA_CRC_ERROR:
 		i40iw_setup_termhdr(qp, termhdr, FLUSH_GENERAL_ERR,
 				    (LAYER_MPA << 4) | DDP_LLP, MPA_CRC);
@@ -4343,7 +4444,6 @@ static int i40iw_bld_terminate_hdr(struct i40iw_sc_qp *qp,
 				    (LAYER_DDP << 4) | DDP_CATASTROPHIC, DDP_CATASTROPHIC_LOCAL);
 		break;
 	case I40IW_AE_DDP_INVALID_MSN_GAP_IN_MSN:
-	case I40IW_AE_DDP_INVALID_MSN_RANGE_IS_NOT_VALID:
 		i40iw_setup_termhdr(qp, termhdr, FLUSH_GENERAL_ERR,
 				    (LAYER_DDP << 4) | DDP_UNTAGGED_BUFFER, DDP_UNTAGGED_INV_MSN_RANGE);
 		break;
@@ -4489,7 +4589,8 @@ void i40iw_sc_vsi_init(struct i40iw_sc_vsi *vsi, struct i40iw_vsi_init_info *inf
 
 	vsi->dev = info->dev;
 	vsi->back_vsi = info->back_vsi;
-	vsi->mss = info->params->mss;
+	vsi->mtu = info->params->mtu;
+	vsi->exception_lan_queue = info->exception_lan_queue;
 	i40iw_fill_qos_list(info->params->qs_handle_list);
 
 	for (i = 0; i < I40IW_MAX_USER_PRIORITY; i++) {
@@ -4821,6 +4922,7 @@ enum i40iw_status_code i40iw_vsi_stats_init(struct i40iw_sc_vsi *vsi, struct i40
 
 	vsi->pestat = info->pestat;
 	vsi->pestat->hw = vsi->dev->hw;
+	vsi->pestat->vsi = vsi;
 
 	if (info->stats_initialize) {
 		i40iw_hw_stats_init(vsi->pestat, fcn_id, true);
@@ -4840,7 +4942,7 @@ void i40iw_vsi_stats_free(struct i40iw_sc_vsi *vsi)
 {
 	u8 fcn_id = vsi->fcn_id;
 
-	if ((vsi->stats_fcn_id_alloc) && (fcn_id != I40IW_INVALID_FCN_ID))
+	if (vsi->stats_fcn_id_alloc && fcn_id < I40IW_MAX_STATS_COUNT)
 		vsi->dev->fcn_id_array[fcn_id] = false;
 	i40iw_hw_stats_stop_timer(vsi);
 }
@@ -4966,14 +5068,12 @@ enum i40iw_status_code i40iw_device_init(struct i40iw_sc_dev *dev,
 	u8 db_size;
 
 	spin_lock_init(&dev->cqp_lock);
-	INIT_LIST_HEAD(&dev->cqp_cmd_head);             /* for the cqp commands backlog. */
 
 	i40iw_device_init_uk(&dev->dev_uk);
 
 	dev->debug_mask = info->debug_mask;
 
 	dev->hmc_fn_id = info->hmc_fn_id;
-	dev->exception_lan_queue = info->exception_lan_queue;
 	dev->is_pf = info->is_pf;
 
 	dev->fpm_query_buf_pa = info->fpm_query_buf_pa;

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __mmu_defs_asm_h
 #define __mmu_defs_asm_h
 

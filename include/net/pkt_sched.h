@@ -1,10 +1,14 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __NET_PKT_SCHED_H
 #define __NET_PKT_SCHED_H
 
 #include <linux/jiffies.h>
 #include <linux/ktime.h>
 #include <linux/if_vlan.h>
+#include <linux/netdevice.h>
 #include <net/sch_generic.h>
+#include <net/net_namespace.h>
+#include <uapi/linux/pkt_sched.h>
 
 #define DEFAULT_TX_QUEUE_LEN	1000
 
@@ -131,5 +135,19 @@ static inline unsigned int psched_mtu(const struct net_device *dev)
 {
 	return dev->mtu + dev->hard_header_len;
 }
+
+static inline struct net *qdisc_net(struct Qdisc *q)
+{
+	return dev_net(q->dev_queue->dev);
+}
+
+struct tc_cbs_qopt_offload {
+	u8 enable;
+	s32 queue;
+	s32 hicredit;
+	s32 locredit;
+	s32 idleslope;
+	s32 sendslope;
+};
 
 #endif

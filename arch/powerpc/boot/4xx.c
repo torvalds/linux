@@ -564,7 +564,7 @@ void ibm405gp_fixup_clocks(unsigned int sys_clk, unsigned int ser_clk)
 		fbdv = 16;
 	cbdv = ((pllmr & 0x00060000) >> 17) + 1; /* CPU:PLB */
 	opdv = ((pllmr & 0x00018000) >> 15) + 1; /* PLB:OPB */
-	ppdv = ((pllmr & 0x00001800) >> 13) + 1; /* PLB:PCI */
+	ppdv = ((pllmr & 0x00006000) >> 13) + 1; /* PLB:PCI */
 	epdv = ((pllmr & 0x00001800) >> 11) + 2; /* PLB:EBC */
 	udiv = ((cpc0_cr0 & 0x3e) >> 1) + 1;
 

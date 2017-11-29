@@ -402,7 +402,6 @@ static const struct attribute_group max44000_attribute_group = {
 };
 
 static const struct iio_info max44000_info = {
-	.driver_module		= THIS_MODULE,
 	.read_raw		= max44000_read_raw,
 	.write_raw		= max44000_write_raw,
 	.write_raw_get_fmt	= max44000_write_raw_get_fmt,

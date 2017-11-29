@@ -123,6 +123,18 @@
 			regulator-max-microvolt = <2800000>;
 			regulator-always-on;
 		};
+
+		reg_usb_h1_vbus: regulator@7 {
+			compatible = "regulator-fixed";
+			reg = <7>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_usbh1>;
+			regulator-name = "usb_h1_vbus";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+			gpio = <&gpio7 12 GPIO_ACTIVE_HIGH>;
+			enable-active-high;
+		};
 	};
 
 	mipi_xclk: mipi_xclk {
@@ -209,7 +221,7 @@
 		status = "okay";
 	};
 
-	lcd_display: display@di0 {
+	lcd_display: disp0 {
 		compatible = "fsl,imx-parallel-display";
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -338,7 +350,7 @@
 	pinctrl-0 = <&pinctrl_i2c1>;
 	status = "okay";
 
-	codec: sgtl5000@0a {
+	codec: sgtl5000@a {
 		compatible = "fsl,sgtl5000";
 		reg = <0x0a>;
 		clocks = <&clks IMX6QDL_CLK_CKO>;
@@ -610,6 +622,12 @@
 			>;
 		};
 
+		pinctrl_usbh1: usbh1grp {
+			fsl,pins = <
+				MX6QDL_PAD_GPIO_17__GPIO7_IO12		0x030b0
+			>;
+		};
+
 		pinctrl_usbotg: usbotggrp {
 			fsl,pins = <
 				MX6QDL_PAD_GPIO_1__USB_OTG_ID		0x17059
@@ -705,6 +723,7 @@
 };
 
 &usbh1 {
+	vbus-supply = <&reg_usb_h1_vbus>;
 	status = "okay";
 };
 

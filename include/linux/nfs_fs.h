@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  *  linux/include/linux/nfs_fs.h
  *
@@ -22,6 +23,7 @@
 #include <linux/mm.h>
 #include <linux/pagemap.h>
 #include <linux/rbtree.h>
+#include <linux/refcount.h>
 #include <linux/rwsem.h>
 #include <linux/wait.h>
 
@@ -49,14 +51,13 @@
 struct nfs_access_entry {
 	struct rb_node		rb_node;
 	struct list_head	lru;
-	unsigned long		jiffies;
 	struct rpc_cred *	cred;
 	__u32			mask;
 	struct rcu_head		rcu_head;
 };
 
 struct nfs_lock_context {
-	atomic_t count;
+	refcount_t count;
 	struct list_head list;
 	struct nfs_open_context *open_context;
 	fl_owner_t lockowner;
@@ -154,7 +155,7 @@ struct nfs_inode {
 	 */
 	__be32			cookieverf[2];
 
-	unsigned long		nrequests;
+	atomic_long_t		nrequests;
 	struct nfs_mds_commit_info commit_info;
 
 	/* Open contexts for shared mmap writes */
@@ -163,6 +164,7 @@ struct nfs_inode {
 	/* Readers: in-flight sillydelete RPC calls */
 	/* Writers: rmdir */
 	struct rw_semaphore	rmdir_sem;
+	struct mutex		commit_mutex;
 
 #if IS_ENABLED(CONFIG_NFS_V4)
 	struct nfs4_cached_acl	*nfs4_acl;
@@ -182,6 +184,16 @@ struct nfs_inode {
 #endif
 	struct inode		vfs_inode;
 };
+
+/*
+ * Access bit flags
+ */
+#define NFS_ACCESS_READ        0x0001
+#define NFS_ACCESS_LOOKUP      0x0002
+#define NFS_ACCESS_MODIFY      0x0004
+#define NFS_ACCESS_EXTEND      0x0008
+#define NFS_ACCESS_DELETE      0x0010
+#define NFS_ACCESS_EXECUTE     0x0020
 
 /*
  * Cache validity bit flags
@@ -510,7 +522,7 @@ extern void nfs_commit_free(struct nfs_commit_data *data);
 static inline int
 nfs_have_writebacks(struct inode *inode)
 {
-	return NFS_I(inode)->nrequests != 0;
+	return atomic_long_read(&NFS_I(inode)->nrequests) != 0;
 }
 
 /*

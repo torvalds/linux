@@ -5,6 +5,7 @@
  */
 #include <linux/irqdomain.h>
 #include <linux/irq.h>
+#include <linux/uaccess.h>
 
 #include "internals.h"
 
@@ -80,6 +81,8 @@ irq_debug_show_data(struct seq_file *m, struct irq_data *data, int ind)
 		   data->domain ? data->domain->name : "");
 	seq_printf(m, "%*shwirq:   0x%lx\n", ind + 1, "", data->hwirq);
 	irq_debug_show_chip(m, data, ind + 1);
+	if (data->domain && data->domain->ops && data->domain->ops->debug_show)
+		data->domain->ops->debug_show(m, NULL, data, ind + 1);
 #ifdef	CONFIG_IRQ_DOMAIN_HIERARCHY
 	if (!data->parent_data)
 		return;
@@ -148,6 +151,7 @@ static int irq_debug_show(struct seq_file *m, void *p)
 	raw_spin_lock_irq(&desc->lock);
 	data = irq_desc_get_irq_data(desc);
 	seq_printf(m, "handler:  %pf\n", desc->handle_irq);
+	seq_printf(m, "device:   %s\n", desc->dev_name);
 	seq_printf(m, "status:   0x%08x\n", desc->status_use_accessors);
 	irq_debug_show_bits(m, 0, desc->status_use_accessors, irqdesc_states,
 			    ARRAY_SIZE(irqdesc_states));
@@ -171,12 +175,68 @@ static int irq_debug_open(struct inode *inode, struct file *file)
 	return single_open(file, irq_debug_show, inode->i_private);
 }
 
+static ssize_t irq_debug_write(struct file *file, const char __user *user_buf,
+			       size_t count, loff_t *ppos)
+{
+	struct irq_desc *desc = file_inode(file)->i_private;
+	char buf[8] = { 0, };
+	size_t size;
+
+	size = min(sizeof(buf) - 1, count);
+	if (copy_from_user(buf, user_buf, size))
+		return -EFAULT;
+
+	if (!strncmp(buf, "trigger", size)) {
+		unsigned long flags;
+		int err;
+
+		/* Try the HW interface first */
+		err = irq_set_irqchip_state(irq_desc_get_irq(desc),
+					    IRQCHIP_STATE_PENDING, true);
+		if (!err)
+			return count;
+
+		/*
+		 * Otherwise, try to inject via the resend interface,
+		 * which may or may not succeed.
+		 */
+		chip_bus_lock(desc);
+		raw_spin_lock_irqsave(&desc->lock, flags);
+
+		if (irq_settings_is_level(desc)) {
+			/* Can't do level, sorry */
+			err = -EINVAL;
+		} else {
+			desc->istate |= IRQS_PENDING;
+			check_irq_resend(desc);
+			err = 0;
+		}
+
+		raw_spin_unlock_irqrestore(&desc->lock, flags);
+		chip_bus_sync_unlock(desc);
+
+		return err ? err : count;
+	}
+
+	return count;
+}
+
 static const struct file_operations dfs_irq_ops = {
 	.open		= irq_debug_open,
+	.write		= irq_debug_write,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
 	.release	= single_release,
 };
+
+void irq_debugfs_copy_devname(int irq, struct device *dev)
+{
+	struct irq_desc *desc = irq_to_desc(irq);
+	const char *name = dev_name(dev);
+
+	if (name)
+		desc->dev_name = kstrdup(name, GFP_KERNEL);
+}
 
 void irq_add_debugfs_entry(unsigned int irq, struct irq_desc *desc)
 {
@@ -186,7 +246,7 @@ void irq_add_debugfs_entry(unsigned int irq, struct irq_desc *desc)
 		return;
 
 	sprintf(name, "%d", irq);
-	desc->debugfs_file = debugfs_create_file(name, 0444, irq_dir, desc,
+	desc->debugfs_file = debugfs_create_file(name, 0644, irq_dir, desc,
 						 &dfs_irq_ops);
 }
 

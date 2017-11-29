@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 
 #include <linux/ceph/ceph_debug.h>
 
@@ -863,8 +864,6 @@ static u32 osd_req_encode_op(struct ceph_osd_op *dst,
 		dst->cls.method_len = src->cls.method_len;
 		dst->cls.indata_len = cpu_to_le32(src->cls.indata_len);
 		break;
-	case CEPH_OSD_OP_STARTSYNC:
-		break;
 	case CEPH_OSD_OP_WATCH:
 		dst->watch.cookie = cpu_to_le64(src->watch.cookie);
 		dst->watch.ver = cpu_to_le64(0);
@@ -916,9 +915,6 @@ static u32 osd_req_encode_op(struct ceph_osd_op *dst,
  * if the file was recently truncated, we include information about its
  * old and new size so that the object can be updated appropriately.  (we
  * avoid synchronously deleting truncated objects because it's slow.)
- *
- * if @do_sync, include a 'startsync' command so that the osd will flush
- * data quickly.
  */
 struct ceph_osd_request *ceph_osdc_new_request(struct ceph_osd_client *osdc,
 					       struct ceph_file_layout *layout,
@@ -1337,6 +1333,8 @@ static enum calc_target_result calc_target(struct ceph_osd_client *osdc,
 	bool legacy_change;
 	bool split = false;
 	bool sort_bitwise = ceph_osdmap_flag(osdc, CEPH_OSDMAP_SORTBITWISE);
+	bool recovery_deletes = ceph_osdmap_flag(osdc,
+						 CEPH_OSDMAP_RECOVERY_DELETES);
 	enum calc_target_result ct_res;
 	int ret;
 
@@ -1399,6 +1397,8 @@ static enum calc_target_result calc_target(struct ceph_osd_client *osdc,
 				 pi->pg_num,
 				 t->sort_bitwise,
 				 sort_bitwise,
+				 t->recovery_deletes,
+				 recovery_deletes,
 				 &last_pgid))
 		force_resend = true;
 
@@ -1421,6 +1421,7 @@ static enum calc_target_result calc_target(struct ceph_osd_client *osdc,
 		t->pg_num = pi->pg_num;
 		t->pg_num_mask = pi->pg_num_mask;
 		t->sort_bitwise = sort_bitwise;
+		t->recovery_deletes = recovery_deletes;
 
 		t->osd = acting.primary;
 	}
@@ -1918,10 +1919,12 @@ static void encode_request_partial(struct ceph_osd_request *req,
 	}
 
 	ceph_encode_32(&p, req->r_attempts); /* retry_attempt */
-	BUG_ON(p != end - 8); /* space for features */
+	BUG_ON(p > end - 8); /* space for features */
 
 	msg->hdr.version = cpu_to_le16(8); /* MOSDOp v8 */
 	/* front_len is finalized in encode_request_finish() */
+	msg->front.iov_len = p - msg->front.iov_base;
+	msg->hdr.front_len = cpu_to_le32(msg->front.iov_len);
 	msg->hdr.data_len = cpu_to_le32(data_len);
 	/*
 	 * The header "data_off" is a hint to the receiver allowing it
@@ -1937,11 +1940,12 @@ static void encode_request_partial(struct ceph_osd_request *req,
 static void encode_request_finish(struct ceph_msg *msg)
 {
 	void *p = msg->front.iov_base;
+	void *const partial_end = p + msg->front.iov_len;
 	void *const end = p + msg->front_alloc_len;
 
 	if (CEPH_HAVE_FEATURE(msg->con->peer_features, RESEND_ON_SPLIT)) {
 		/* luminous OSD -- encode features and be done */
-		p = end - 8;
+		p = partial_end;
 		ceph_encode_64(&p, msg->con->peer_features);
 	} else {
 		struct {
@@ -1984,7 +1988,7 @@ static void encode_request_finish(struct ceph_msg *msg)
 		oid_len = p - oid;
 
 		tail = p;
-		tail_len = (end - p) - 8;
+		tail_len = partial_end - p;
 
 		p = msg->front.iov_base;
 		ceph_encode_copy(&p, &head.client_inc, sizeof(head.client_inc));

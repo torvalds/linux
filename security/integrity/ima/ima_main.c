@@ -51,6 +51,8 @@ static int __init hash_setup(char *str)
 			ima_hash_algo = HASH_ALGO_SHA1;
 		else if (strncmp(str, "md5", 3) == 0)
 			ima_hash_algo = HASH_ALGO_MD5;
+		else
+			return 1;
 		goto out;
 	}
 
@@ -60,6 +62,8 @@ static int __init hash_setup(char *str)
 			break;
 		}
 	}
+	if (i == HASH_ALGO__LAST)
+		return 1;
 out:
 	hash_setup_done = 1;
 	return 1;
@@ -235,11 +239,8 @@ static int process_measurement(struct file *file, char *buf, loff_t size,
 	hash_algo = ima_get_hash_algo(xattr_value, xattr_len);
 
 	rc = ima_collect_measurement(iint, file, buf, size, hash_algo);
-	if (rc != 0) {
-		if (file->f_flags & O_DIRECT)
-			rc = (iint->flags & IMA_PERMIT_DIRECTIO) ? 0 : -EACCES;
+	if (rc != 0 && rc != -EBADF && rc != -EINVAL)
 		goto out_digsig;
-	}
 
 	if (!pathbuf)	/* ima_rdwr_violation possibly pre-fetched */
 		pathname = ima_d_path(&file->f_path, &pathbuf, filename);
@@ -247,12 +248,14 @@ static int process_measurement(struct file *file, char *buf, loff_t size,
 	if (action & IMA_MEASURE)
 		ima_store_measurement(iint, file, pathname,
 				      xattr_value, xattr_len, pcr);
-	if (action & IMA_APPRAISE_SUBMASK)
+	if (rc == 0 && (action & IMA_APPRAISE_SUBMASK))
 		rc = ima_appraise_measurement(func, iint, file, pathname,
 					      xattr_value, xattr_len, opened);
 	if (action & IMA_AUDIT)
 		ima_audit_measurement(iint, pathname);
 
+	if ((file->f_flags & O_DIRECT) && (iint->flags & IMA_PERMIT_DIRECTIO))
+		rc = 0;
 out_digsig:
 	if ((mask & MAY_WRITE) && (iint->flags & IMA_DIGSIG) &&
 	     !(iint->flags & IMA_NEW_FILE))
@@ -359,12 +362,12 @@ void ima_post_path_mknod(struct dentry *dentry)
  */
 int ima_read_file(struct file *file, enum kernel_read_file_id read_id)
 {
+	bool sig_enforce = is_module_sig_enforced();
+
 	if (!file && read_id == READING_MODULE) {
-#ifndef CONFIG_MODULE_SIG_FORCE
-		if ((ima_appraise & IMA_APPRAISE_MODULES) &&
+		if (!sig_enforce && (ima_appraise & IMA_APPRAISE_MODULES) &&
 		    (ima_appraise & IMA_APPRAISE_ENFORCE))
 			return -EACCES;	/* INTEGRITY_UNKNOWN */
-#endif
 		return 0;	/* We rely on module signature checking */
 	}
 	return 0;
@@ -404,6 +407,10 @@ int ima_post_read_file(struct file *file, void *buf, loff_t size,
 	}
 
 	if (!file && read_id == READING_MODULE) /* MODULE_SIG_FORCE enabled */
+		return 0;
+
+	/* permit signed certs */
+	if (!file && read_id == READING_X509_CERTIFICATE)
 		return 0;
 
 	if (!file || !buf || size == 0) { /* should never happen */

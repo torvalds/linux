@@ -373,6 +373,14 @@ static int aio_migratepage(struct address_space *mapping, struct page *new,
 	pgoff_t idx;
 	int rc;
 
+	/*
+	 * We cannot support the _NO_COPY case here, because copy needs to
+	 * happen under the ctx->completion_lock. That does not work with the
+	 * migration workflow of MIGRATE_SYNC_NO_COPY.
+	 */
+	if (mode == MIGRATE_SYNC_NO_COPY)
+		return -EINVAL;
+
 	rc = 0;
 
 	/* mapping->private_lock here protects against the kioctx teardown.  */
@@ -441,10 +449,9 @@ static const struct address_space_operations aio_ctx_aops = {
 #endif
 };
 
-static int aio_setup_ring(struct kioctx *ctx)
+static int aio_setup_ring(struct kioctx *ctx, unsigned int nr_events)
 {
 	struct aio_ring *ring;
-	unsigned nr_events = ctx->max_reqs;
 	struct mm_struct *mm = current->mm;
 	unsigned long size, unused;
 	int nr_pages;
@@ -569,7 +576,7 @@ static int kiocb_cancel(struct aio_kiocb *kiocb)
 	 * actually has a cancel function, hence the cmpxchg()
 	 */
 
-	cancel = ACCESS_ONCE(kiocb->ki_cancel);
+	cancel = READ_ONCE(kiocb->ki_cancel);
 	do {
 		if (!cancel || cancel == KIOCB_CANCELLED)
 			return -EINVAL;
@@ -707,6 +714,12 @@ static struct kioctx *ioctx_alloc(unsigned nr_events)
 	int err = -ENOMEM;
 
 	/*
+	 * Store the original nr_events -- what userspace passed to io_setup(),
+	 * for counting against the global limit -- before it changes.
+	 */
+	unsigned int max_reqs = nr_events;
+
+	/*
 	 * We keep track of the number of available ringbuffer slots, to prevent
 	 * overflow (reqs_available), and we also use percpu counters for this.
 	 *
@@ -724,14 +737,14 @@ static struct kioctx *ioctx_alloc(unsigned nr_events)
 		return ERR_PTR(-EINVAL);
 	}
 
-	if (!nr_events || (unsigned long)nr_events > (aio_max_nr * 2UL))
+	if (!nr_events || (unsigned long)max_reqs > aio_max_nr)
 		return ERR_PTR(-EAGAIN);
 
 	ctx = kmem_cache_zalloc(kioctx_cachep, GFP_KERNEL);
 	if (!ctx)
 		return ERR_PTR(-ENOMEM);
 
-	ctx->max_reqs = nr_events;
+	ctx->max_reqs = max_reqs;
 
 	spin_lock_init(&ctx->ctx_lock);
 	spin_lock_init(&ctx->completion_lock);
@@ -753,7 +766,7 @@ static struct kioctx *ioctx_alloc(unsigned nr_events)
 	if (!ctx->cpu)
 		goto err;
 
-	err = aio_setup_ring(ctx);
+	err = aio_setup_ring(ctx, nr_events);
 	if (err < 0)
 		goto err;
 
@@ -764,8 +777,8 @@ static struct kioctx *ioctx_alloc(unsigned nr_events)
 
 	/* limit the number of system wide aios */
 	spin_lock(&aio_nr_lock);
-	if (aio_nr + nr_events > (aio_max_nr * 2UL) ||
-	    aio_nr + nr_events < aio_nr) {
+	if (aio_nr + ctx->max_reqs > aio_max_nr ||
+	    aio_nr + ctx->max_reqs < aio_nr) {
 		spin_unlock(&aio_nr_lock);
 		err = -EAGAIN;
 		goto err_ctx;
@@ -1284,19 +1297,9 @@ static bool aio_read_events(struct kioctx *ctx, long min_nr, long nr,
 
 static long read_events(struct kioctx *ctx, long min_nr, long nr,
 			struct io_event __user *event,
-			struct timespec __user *timeout)
+			ktime_t until)
 {
-	ktime_t until = KTIME_MAX;
 	long ret = 0;
-
-	if (timeout) {
-		struct timespec	ts;
-
-		if (unlikely(copy_from_user(&ts, timeout, sizeof(ts))))
-			return -EFAULT;
-
-		until = timespec_to_ktime(ts);
-	}
 
 	/*
 	 * Note that aio_read_events() is being called as the conditional - i.e.
@@ -1593,12 +1596,6 @@ static int io_submit_one(struct kioctx *ctx, struct iocb __user *user_iocb,
 		goto out_put_req;
 	}
 
-	if ((req->common.ki_flags & IOCB_NOWAIT) &&
-			!(req->common.ki_flags & IOCB_DIRECT)) {
-		ret = -EOPNOTSUPP;
-		goto out_put_req;
-	}
-
 	ret = put_user(KIOCB_KEY, &user_iocb->aio_key);
 	if (unlikely(ret)) {
 		pr_debug("EFAULT: aio_key\n");
@@ -1819,6 +1816,25 @@ SYSCALL_DEFINE3(io_cancel, aio_context_t, ctx_id, struct iocb __user *, iocb,
 	return ret;
 }
 
+static long do_io_getevents(aio_context_t ctx_id,
+		long min_nr,
+		long nr,
+		struct io_event __user *events,
+		struct timespec64 *ts)
+{
+	ktime_t until = ts ? timespec64_to_ktime(*ts) : KTIME_MAX;
+	struct kioctx *ioctx = lookup_ioctx(ctx_id);
+	long ret = -EINVAL;
+
+	if (likely(ioctx)) {
+		if (likely(min_nr <= nr && min_nr >= 0))
+			ret = read_events(ioctx, min_nr, nr, events, until);
+		percpu_ref_put(&ioctx->users);
+	}
+
+	return ret;
+}
+
 /* io_getevents:
  *	Attempts to read at least min_nr events and up to nr events from
  *	the completion queue for the aio_context specified by ctx_id. If
@@ -1837,15 +1853,14 @@ SYSCALL_DEFINE5(io_getevents, aio_context_t, ctx_id,
 		struct io_event __user *, events,
 		struct timespec __user *, timeout)
 {
-	struct kioctx *ioctx = lookup_ioctx(ctx_id);
-	long ret = -EINVAL;
+	struct timespec64	ts;
 
-	if (likely(ioctx)) {
-		if (likely(min_nr <= nr && min_nr >= 0))
-			ret = read_events(ioctx, min_nr, nr, events, timeout);
-		percpu_ref_put(&ioctx->users);
+	if (timeout) {
+		if (unlikely(get_timespec64(&ts, timeout)))
+			return -EFAULT;
 	}
-	return ret;
+
+	return do_io_getevents(ctx_id, min_nr, nr, events, timeout ? &ts : NULL);
 }
 
 #ifdef CONFIG_COMPAT
@@ -1855,17 +1870,14 @@ COMPAT_SYSCALL_DEFINE5(io_getevents, compat_aio_context_t, ctx_id,
 		       struct io_event __user *, events,
 		       struct compat_timespec __user *, timeout)
 {
-	struct timespec t;
-	struct timespec __user *ut = NULL;
+	struct timespec64 t;
 
 	if (timeout) {
-		if (compat_get_timespec(&t, timeout))
+		if (compat_get_timespec64(&t, timeout))
 			return -EFAULT;
 
-		ut = compat_alloc_user_space(sizeof(*ut));
-		if (copy_to_user(ut, &t, sizeof(t)))
-			return -EFAULT;
 	}
-	return sys_io_getevents(ctx_id, min_nr, nr, events, ut);
+
+	return do_io_getevents(ctx_id, min_nr, nr, events, timeout ? &t : NULL);
 }
 #endif

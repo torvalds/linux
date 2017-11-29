@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2013 Imagination Technologies
- * Author: Paul Burton <paul.burton@imgtec.com>
+ * Author: Paul Burton <paul.burton@mips.com>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -12,10 +12,10 @@
 #include <linux/percpu.h>
 #include <linux/spinlock.h>
 
-#include <asm/mips-cm.h>
+#include <asm/mips-cps.h>
 #include <asm/mipsregs.h>
 
-void __iomem *mips_cm_base;
+void __iomem *mips_gcr_base;
 void __iomem *mips_cm_l2sync_base;
 int mips_cm_is64;
 
@@ -167,8 +167,8 @@ phys_addr_t __mips_cm_l2sync_phys_base(void)
 	 * current location.
 	 */
 	base_reg = read_gcr_l2_only_sync_base();
-	if (base_reg & CM_GCR_L2_ONLY_SYNC_BASE_SYNCEN_MSK)
-		return base_reg & CM_GCR_L2_ONLY_SYNC_BASE_SYNCBASE_MSK;
+	if (base_reg & CM_GCR_L2_ONLY_SYNC_BASE_SYNCEN)
+		return base_reg & CM_GCR_L2_ONLY_SYNC_BASE_SYNCBASE;
 
 	/* Default to following the CM */
 	return mips_cm_phys_base() + MIPS_CM_GCR_SIZE;
@@ -183,19 +183,19 @@ static void mips_cm_probe_l2sync(void)
 	phys_addr_t addr;
 
 	/* L2-only sync was introduced with CM major revision 6 */
-	major_rev = (read_gcr_rev() & CM_GCR_REV_MAJOR_MSK) >>
-		CM_GCR_REV_MAJOR_SHF;
+	major_rev = (read_gcr_rev() & CM_GCR_REV_MAJOR) >>
+		__ffs(CM_GCR_REV_MAJOR);
 	if (major_rev < 6)
 		return;
 
 	/* Find a location for the L2 sync region */
 	addr = mips_cm_l2sync_phys_base();
-	BUG_ON((addr & CM_GCR_L2_ONLY_SYNC_BASE_SYNCBASE_MSK) != addr);
+	BUG_ON((addr & CM_GCR_L2_ONLY_SYNC_BASE_SYNCBASE) != addr);
 	if (!addr)
 		return;
 
 	/* Set the region base address & enable it */
-	write_gcr_l2_only_sync_base(addr | CM_GCR_L2_ONLY_SYNC_BASE_SYNCEN_MSK);
+	write_gcr_l2_only_sync_base(addr | CM_GCR_L2_ONLY_SYNC_BASE_SYNCEN);
 
 	/* Map the region */
 	mips_cm_l2sync_base = ioremap_nocache(addr, MIPS_CM_L2SYNC_SIZE);
@@ -211,41 +211,39 @@ int mips_cm_probe(void)
 	 * No need to probe again if we have already been
 	 * here before.
 	 */
-	if (mips_cm_base)
+	if (mips_gcr_base)
 		return 0;
 
 	addr = mips_cm_phys_base();
-	BUG_ON((addr & CM_GCR_BASE_GCRBASE_MSK) != addr);
+	BUG_ON((addr & CM_GCR_BASE_GCRBASE) != addr);
 	if (!addr)
 		return -ENODEV;
 
-	mips_cm_base = ioremap_nocache(addr, MIPS_CM_GCR_SIZE);
-	if (!mips_cm_base)
+	mips_gcr_base = ioremap_nocache(addr, MIPS_CM_GCR_SIZE);
+	if (!mips_gcr_base)
 		return -ENXIO;
 
 	/* sanity check that we're looking at a CM */
 	base_reg = read_gcr_base();
-	if ((base_reg & CM_GCR_BASE_GCRBASE_MSK) != addr) {
+	if ((base_reg & CM_GCR_BASE_GCRBASE) != addr) {
 		pr_err("GCRs appear to have been moved (expected them at 0x%08lx)!\n",
 		       (unsigned long)addr);
-		mips_cm_base = NULL;
+		mips_gcr_base = NULL;
 		return -ENODEV;
 	}
 
 	/* set default target to memory */
-	base_reg &= ~CM_GCR_BASE_CMDEFTGT_MSK;
-	base_reg |= CM_GCR_BASE_CMDEFTGT_MEM;
-	write_gcr_base(base_reg);
+	change_gcr_base(CM_GCR_BASE_CMDEFTGT, CM_GCR_BASE_CMDEFTGT_MEM);
 
 	/* disable CM regions */
-	write_gcr_reg0_base(CM_GCR_REGn_BASE_BASEADDR_MSK);
-	write_gcr_reg0_mask(CM_GCR_REGn_MASK_ADDRMASK_MSK);
-	write_gcr_reg1_base(CM_GCR_REGn_BASE_BASEADDR_MSK);
-	write_gcr_reg1_mask(CM_GCR_REGn_MASK_ADDRMASK_MSK);
-	write_gcr_reg2_base(CM_GCR_REGn_BASE_BASEADDR_MSK);
-	write_gcr_reg2_mask(CM_GCR_REGn_MASK_ADDRMASK_MSK);
-	write_gcr_reg3_base(CM_GCR_REGn_BASE_BASEADDR_MSK);
-	write_gcr_reg3_mask(CM_GCR_REGn_MASK_ADDRMASK_MSK);
+	write_gcr_reg0_base(CM_GCR_REGn_BASE_BASEADDR);
+	write_gcr_reg0_mask(CM_GCR_REGn_MASK_ADDRMASK);
+	write_gcr_reg1_base(CM_GCR_REGn_BASE_BASEADDR);
+	write_gcr_reg1_mask(CM_GCR_REGn_MASK_ADDRMASK);
+	write_gcr_reg2_base(CM_GCR_REGn_BASE_BASEADDR);
+	write_gcr_reg2_mask(CM_GCR_REGn_MASK_ADDRMASK);
+	write_gcr_reg3_base(CM_GCR_REGn_BASE_BASEADDR);
+	write_gcr_reg3_mask(CM_GCR_REGn_MASK_ADDRMASK);
 
 	/* probe for an L2-only sync region */
 	mips_cm_probe_l2sync();
@@ -259,16 +257,27 @@ int mips_cm_probe(void)
 	return 0;
 }
 
-void mips_cm_lock_other(unsigned int core, unsigned int vp)
+void mips_cm_lock_other(unsigned int cluster, unsigned int core,
+			unsigned int vp, unsigned int block)
 {
-	unsigned curr_core;
+	unsigned int curr_core, cm_rev;
 	u32 val;
 
+	cm_rev = mips_cm_revision();
 	preempt_disable();
 
-	if (mips_cm_revision() >= CM_REV_CM3) {
-		val = core << CM3_GCR_Cx_OTHER_CORE_SHF;
-		val |= vp << CM3_GCR_Cx_OTHER_VP_SHF;
+	if (cm_rev >= CM_REV_CM3) {
+		val = core << __ffs(CM3_GCR_Cx_OTHER_CORE);
+		val |= vp << __ffs(CM3_GCR_Cx_OTHER_VP);
+
+		if (cm_rev >= CM_REV_CM3_5) {
+			val |= CM_GCR_Cx_OTHER_CLUSTER_EN;
+			val |= cluster << __ffs(CM_GCR_Cx_OTHER_CLUSTER);
+			val |= block << __ffs(CM_GCR_Cx_OTHER_BLOCK);
+		} else {
+			WARN_ON(cluster != 0);
+			WARN_ON(block != CM_GCR_Cx_OTHER_BLOCK_LOCAL);
+		}
 
 		/*
 		 * We need to disable interrupts in SMP systems in order to
@@ -282,18 +291,20 @@ void mips_cm_lock_other(unsigned int core, unsigned int vp)
 		spin_lock_irqsave(this_cpu_ptr(&cm_core_lock),
 				  *this_cpu_ptr(&cm_core_lock_flags));
 	} else {
+		WARN_ON(cluster != 0);
 		WARN_ON(vp != 0);
+		WARN_ON(block != CM_GCR_Cx_OTHER_BLOCK_LOCAL);
 
 		/*
 		 * We only have a GCR_CL_OTHER per core in systems with
 		 * CM 2.5 & older, so have to ensure other VP(E)s don't
 		 * race with us.
 		 */
-		curr_core = current_cpu_data.core;
+		curr_core = cpu_core(&current_cpu_data);
 		spin_lock_irqsave(&per_cpu(cm_core_lock, curr_core),
 				  per_cpu(cm_core_lock_flags, curr_core));
 
-		val = core << CM_GCR_Cx_OTHER_CORENUM_SHF;
+		val = core << __ffs(CM_GCR_Cx_OTHER_CORENUM);
 	}
 
 	write_gcr_cl_other(val);
@@ -310,7 +321,7 @@ void mips_cm_unlock_other(void)
 	unsigned int curr_core;
 
 	if (mips_cm_revision() < CM_REV_CM3) {
-		curr_core = current_cpu_data.core;
+		curr_core = cpu_core(&current_cpu_data);
 		spin_unlock_irqrestore(&per_cpu(cm_core_lock, curr_core),
 				       per_cpu(cm_core_lock_flags, curr_core));
 	} else {
@@ -332,13 +343,13 @@ void mips_cm_error_report(void)
 		return;
 
 	revision = mips_cm_revision();
+	cm_error = read_gcr_error_cause();
+	cm_addr = read_gcr_error_addr();
+	cm_other = read_gcr_error_mult();
 
 	if (revision < CM_REV_CM3) { /* CM2 */
-		cm_error = read_gcr_error_cause();
-		cm_addr = read_gcr_error_addr();
-		cm_other = read_gcr_error_mult();
-		cause = cm_error >> CM_GCR_ERROR_CAUSE_ERRTYPE_SHF;
-		ocause = cm_other >> CM_GCR_ERROR_MULT_ERR2ND_SHF;
+		cause = cm_error >> __ffs(CM_GCR_ERROR_CAUSE_ERRTYPE);
+		ocause = cm_other >> __ffs(CM_GCR_ERROR_MULT_ERR2ND);
 
 		if (!cause)
 			return;
@@ -380,11 +391,8 @@ void mips_cm_error_report(void)
 		ulong core_id_bits, vp_id_bits, cmd_bits, cmd_group_bits;
 		ulong cm3_cca_bits, mcp_bits, cm3_tr_bits, sched_bit;
 
-		cm_error = read64_gcr_error_cause();
-		cm_addr = read64_gcr_error_addr();
-		cm_other = read64_gcr_error_mult();
-		cause = cm_error >> CM3_GCR_ERROR_CAUSE_ERRTYPE_SHF;
-		ocause = cm_other >> CM_GCR_ERROR_MULT_ERR2ND_SHF;
+		cause = cm_error >> __ffs64(CM3_GCR_ERROR_CAUSE_ERRTYPE);
+		ocause = cm_other >> __ffs(CM_GCR_ERROR_MULT_ERR2ND);
 
 		if (!cause)
 			return;

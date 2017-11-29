@@ -51,7 +51,7 @@ do {						\
 
 #define PNEIGH_HASHMASK		0xF
 
-static void neigh_timer_handler(unsigned long arg);
+static void neigh_timer_handler(struct timer_list *t);
 static void __neigh_notify(struct neighbour *n, int type, int flags,
 			   u32 pid);
 static void neigh_update_notify(struct neighbour *neigh, u32 nlmsg_pid);
@@ -331,7 +331,7 @@ static struct neighbour *neigh_alloc(struct neigh_table *tbl, struct net_device 
 	n->output	  = neigh_blackhole;
 	seqlock_init(&n->hh.hh_lock);
 	n->parms	  = neigh_parms_clone(&tbl->parms);
-	setup_timer(&n->timer, neigh_timer_handler, (unsigned long)n);
+	timer_setup(&n->timer, neigh_timer_handler, 0);
 
 	NEIGH_CACHE_STAT_INC(tbl, allocs);
 	n->tbl		  = tbl;
@@ -457,7 +457,7 @@ struct neighbour *neigh_lookup_nodev(struct neigh_table *tbl, struct net *net,
 				     const void *pkey)
 {
 	struct neighbour *n;
-	int key_len = tbl->key_len;
+	unsigned int key_len = tbl->key_len;
 	u32 hash_val;
 	struct neigh_hash_table *nht;
 
@@ -488,7 +488,7 @@ struct neighbour *__neigh_create(struct neigh_table *tbl, const void *pkey,
 				 struct net_device *dev, bool want_ref)
 {
 	u32 hash_val;
-	int key_len = tbl->key_len;
+	unsigned int key_len = tbl->key_len;
 	int error;
 	struct neighbour *n1, *rc, *n = neigh_alloc(tbl, dev);
 	struct neigh_hash_table *nht;
@@ -572,7 +572,7 @@ out_neigh_release:
 }
 EXPORT_SYMBOL(__neigh_create);
 
-static u32 pneigh_hash(const void *pkey, int key_len)
+static u32 pneigh_hash(const void *pkey, unsigned int key_len)
 {
 	u32 hash_val = *(u32 *)(pkey + key_len - 4);
 	hash_val ^= (hash_val >> 16);
@@ -585,7 +585,7 @@ static u32 pneigh_hash(const void *pkey, int key_len)
 static struct pneigh_entry *__pneigh_lookup_1(struct pneigh_entry *n,
 					      struct net *net,
 					      const void *pkey,
-					      int key_len,
+					      unsigned int key_len,
 					      struct net_device *dev)
 {
 	while (n) {
@@ -601,7 +601,7 @@ static struct pneigh_entry *__pneigh_lookup_1(struct pneigh_entry *n,
 struct pneigh_entry *__pneigh_lookup(struct neigh_table *tbl,
 		struct net *net, const void *pkey, struct net_device *dev)
 {
-	int key_len = tbl->key_len;
+	unsigned int key_len = tbl->key_len;
 	u32 hash_val = pneigh_hash(pkey, key_len);
 
 	return __pneigh_lookup_1(tbl->phash_buckets[hash_val],
@@ -614,7 +614,7 @@ struct pneigh_entry * pneigh_lookup(struct neigh_table *tbl,
 				    struct net_device *dev, int creat)
 {
 	struct pneigh_entry *n;
-	int key_len = tbl->key_len;
+	unsigned int key_len = tbl->key_len;
 	u32 hash_val = pneigh_hash(pkey, key_len);
 
 	read_lock_bh(&tbl->lock);
@@ -659,7 +659,7 @@ int pneigh_delete(struct neigh_table *tbl, struct net *net, const void *pkey,
 		  struct net_device *dev)
 {
 	struct pneigh_entry *n, **np;
-	int key_len = tbl->key_len;
+	unsigned int key_len = tbl->key_len;
 	u32 hash_val = pneigh_hash(pkey, key_len);
 
 	write_lock_bh(&tbl->lock);
@@ -903,10 +903,10 @@ static void neigh_probe(struct neighbour *neigh)
 
 /* Called when a timer expires for a neighbour entry. */
 
-static void neigh_timer_handler(unsigned long arg)
+static void neigh_timer_handler(struct timer_list *t)
 {
 	unsigned long now, next;
-	struct neighbour *neigh = (struct neighbour *)arg;
+	struct neighbour *neigh = from_timer(neigh, t, timer);
 	unsigned int state;
 	int notify = 0;
 
@@ -1391,9 +1391,9 @@ int neigh_direct_output(struct neighbour *neigh, struct sk_buff *skb)
 }
 EXPORT_SYMBOL(neigh_direct_output);
 
-static void neigh_proxy_process(unsigned long arg)
+static void neigh_proxy_process(struct timer_list *t)
 {
-	struct neigh_table *tbl = (struct neigh_table *)arg;
+	struct neigh_table *tbl = from_timer(tbl, t, proxy_timer);
 	long sched_next = 0;
 	unsigned long now = jiffies;
 	struct sk_buff *skb, *n;
@@ -1573,7 +1573,7 @@ void neigh_table_init(int index, struct neigh_table *tbl)
 	INIT_DEFERRABLE_WORK(&tbl->gc_work, neigh_periodic_work);
 	queue_delayed_work(system_power_efficient_wq, &tbl->gc_work,
 			tbl->parms.reachable_time);
-	setup_timer(&tbl->proxy_timer, neigh_proxy_process, (unsigned long)tbl);
+	timer_setup(&tbl->proxy_timer, neigh_proxy_process, 0);
 	skb_queue_head_init_class(&tbl->proxy_queue,
 			&neigh_table_proxy_queue_class);
 
@@ -1662,7 +1662,7 @@ static int neigh_delete(struct sk_buff *skb, struct nlmsghdr *nlh,
 	if (tbl == NULL)
 		return -EAFNOSUPPORT;
 
-	if (nla_len(dst_attr) < tbl->key_len)
+	if (nla_len(dst_attr) < (int)tbl->key_len)
 		goto out;
 
 	if (ndm->ndm_flags & NTF_PROXY) {
@@ -1730,7 +1730,7 @@ static int neigh_add(struct sk_buff *skb, struct nlmsghdr *nlh,
 	if (tbl == NULL)
 		return -EAFNOSUPPORT;
 
-	if (nla_len(tb[NDA_DST]) < tbl->key_len)
+	if (nla_len(tb[NDA_DST]) < (int)tbl->key_len)
 		goto out;
 	dst = nla_data(tb[NDA_DST]);
 	lladdr = tb[NDA_LLADDR] ? nla_data(tb[NDA_LLADDR]) : NULL;
@@ -3261,13 +3261,13 @@ EXPORT_SYMBOL(neigh_sysctl_unregister);
 
 static int __init neigh_init(void)
 {
-	rtnl_register(PF_UNSPEC, RTM_NEWNEIGH, neigh_add, NULL, NULL);
-	rtnl_register(PF_UNSPEC, RTM_DELNEIGH, neigh_delete, NULL, NULL);
-	rtnl_register(PF_UNSPEC, RTM_GETNEIGH, NULL, neigh_dump_info, NULL);
+	rtnl_register(PF_UNSPEC, RTM_NEWNEIGH, neigh_add, NULL, 0);
+	rtnl_register(PF_UNSPEC, RTM_DELNEIGH, neigh_delete, NULL, 0);
+	rtnl_register(PF_UNSPEC, RTM_GETNEIGH, NULL, neigh_dump_info, 0);
 
 	rtnl_register(PF_UNSPEC, RTM_GETNEIGHTBL, NULL, neightbl_dump_info,
-		      NULL);
-	rtnl_register(PF_UNSPEC, RTM_SETNEIGHTBL, neightbl_set, NULL, NULL);
+		      0);
+	rtnl_register(PF_UNSPEC, RTM_SETNEIGHTBL, neightbl_set, NULL, 0);
 
 	return 0;
 }

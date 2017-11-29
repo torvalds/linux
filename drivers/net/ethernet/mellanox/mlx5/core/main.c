@@ -47,18 +47,19 @@
 #include <linux/debugfs.h>
 #include <linux/kmod.h>
 #include <linux/mlx5/mlx5_ifc.h>
+#include <linux/mlx5/vport.h>
 #ifdef CONFIG_RFS_ACCEL
 #include <linux/cpu_rmap.h>
 #endif
 #include <net/devlink.h>
 #include "mlx5_core.h"
 #include "fs_core.h"
-#ifdef CONFIG_MLX5_CORE_EN
+#include "lib/mpfs.h"
 #include "eswitch.h"
-#endif
 #include "lib/mlx5.h"
 #include "fpga/core.h"
 #include "accel/ipsec.h"
+#include "lib/clock.h"
 
 MODULE_AUTHOR("Eli Cohen <eli@mellanox.com>");
 MODULE_DESCRIPTION("Mellanox Connect-IB, ConnectX-4 core driver");
@@ -312,13 +313,15 @@ static void release_bar(struct pci_dev *pdev)
 	pci_release_regions(pdev);
 }
 
-static int mlx5_enable_msix(struct mlx5_core_dev *dev)
+static int mlx5_alloc_irq_vectors(struct mlx5_core_dev *dev)
 {
 	struct mlx5_priv *priv = &dev->priv;
 	struct mlx5_eq_table *table = &priv->eq_table;
+	struct irq_affinity irqdesc = {
+		.pre_vectors = MLX5_EQ_VEC_COMP_BASE,
+	};
 	int num_eqs = 1 << MLX5_CAP_GEN(dev, log_max_eq);
 	int nvec;
-	int i;
 
 	nvec = MLX5_CAP_GEN(dev, num_ports) * num_online_cpus() +
 	       MLX5_EQ_VEC_COMP_BASE;
@@ -326,17 +329,14 @@ static int mlx5_enable_msix(struct mlx5_core_dev *dev)
 	if (nvec <= MLX5_EQ_VEC_COMP_BASE)
 		return -ENOMEM;
 
-	priv->msix_arr = kcalloc(nvec, sizeof(*priv->msix_arr), GFP_KERNEL);
-
 	priv->irq_info = kcalloc(nvec, sizeof(*priv->irq_info), GFP_KERNEL);
-	if (!priv->msix_arr || !priv->irq_info)
+	if (!priv->irq_info)
 		goto err_free_msix;
 
-	for (i = 0; i < nvec; i++)
-		priv->msix_arr[i].entry = i;
-
-	nvec = pci_enable_msix_range(dev->pdev, priv->msix_arr,
-				     MLX5_EQ_VEC_COMP_BASE + 1, nvec);
+	nvec = pci_alloc_irq_vectors_affinity(dev->pdev,
+			MLX5_EQ_VEC_COMP_BASE + 1, nvec,
+			PCI_IRQ_MSIX | PCI_IRQ_AFFINITY,
+			&irqdesc);
 	if (nvec < 0)
 		return nvec;
 
@@ -346,17 +346,15 @@ static int mlx5_enable_msix(struct mlx5_core_dev *dev)
 
 err_free_msix:
 	kfree(priv->irq_info);
-	kfree(priv->msix_arr);
 	return -ENOMEM;
 }
 
-static void mlx5_disable_msix(struct mlx5_core_dev *dev)
+static void mlx5_free_irq_vectors(struct mlx5_core_dev *dev)
 {
 	struct mlx5_priv *priv = &dev->priv;
 
-	pci_disable_msix(dev->pdev);
+	pci_free_irq_vectors(dev->pdev);
 	kfree(priv->irq_info);
-	kfree(priv->msix_arr);
 }
 
 struct mlx5_reg_host_endianness {
@@ -579,6 +577,18 @@ static int set_hca_ctrl(struct mlx5_core_dev *dev)
 	return err;
 }
 
+static int mlx5_core_set_hca_defaults(struct mlx5_core_dev *dev)
+{
+	int ret = 0;
+
+	/* Disable local_lb by default */
+	if ((MLX5_CAP_GEN(dev, port_type) == MLX5_CAP_PORT_TYPE_ETH) &&
+	    MLX5_CAP_GEN(dev, disable_local_lb))
+		ret = mlx5_nic_vport_update_local_lb(dev, false);
+
+	return ret;
+}
+
 int mlx5_core_enable_hca(struct mlx5_core_dev *dev, u16 func_id)
 {
 	u32 out[MLX5_ST_SZ_DW(enable_hca_out)] = {0};
@@ -610,65 +620,6 @@ u64 mlx5_read_internal_timer(struct mlx5_core_dev *dev)
 		timer_l = ioread32be(&dev->iseg->internal_timer_l);
 
 	return (u64)timer_l | (u64)timer_h1 << 32;
-}
-
-static int mlx5_irq_set_affinity_hint(struct mlx5_core_dev *mdev, int i)
-{
-	struct mlx5_priv *priv  = &mdev->priv;
-	struct msix_entry *msix = priv->msix_arr;
-	int irq                 = msix[i + MLX5_EQ_VEC_COMP_BASE].vector;
-
-	if (!zalloc_cpumask_var(&priv->irq_info[i].mask, GFP_KERNEL)) {
-		mlx5_core_warn(mdev, "zalloc_cpumask_var failed");
-		return -ENOMEM;
-	}
-
-	cpumask_set_cpu(cpumask_local_spread(i, priv->numa_node),
-			priv->irq_info[i].mask);
-
-	if (IS_ENABLED(CONFIG_SMP) &&
-	    irq_set_affinity_hint(irq, priv->irq_info[i].mask))
-		mlx5_core_warn(mdev, "irq_set_affinity_hint failed, irq 0x%.4x", irq);
-
-	return 0;
-}
-
-static void mlx5_irq_clear_affinity_hint(struct mlx5_core_dev *mdev, int i)
-{
-	struct mlx5_priv *priv  = &mdev->priv;
-	struct msix_entry *msix = priv->msix_arr;
-	int irq                 = msix[i + MLX5_EQ_VEC_COMP_BASE].vector;
-
-	irq_set_affinity_hint(irq, NULL);
-	free_cpumask_var(priv->irq_info[i].mask);
-}
-
-static int mlx5_irq_set_affinity_hints(struct mlx5_core_dev *mdev)
-{
-	int err;
-	int i;
-
-	for (i = 0; i < mdev->priv.eq_table.num_comp_vectors; i++) {
-		err = mlx5_irq_set_affinity_hint(mdev, i);
-		if (err)
-			goto err_out;
-	}
-
-	return 0;
-
-err_out:
-	for (i--; i >= 0; i--)
-		mlx5_irq_clear_affinity_hint(mdev, i);
-
-	return err;
-}
-
-static void mlx5_irq_clear_affinity_hints(struct mlx5_core_dev *mdev)
-{
-	int i;
-
-	for (i = 0; i < mdev->priv.eq_table.num_comp_vectors; i++)
-		mlx5_irq_clear_affinity_hint(mdev, i);
 }
 
 int mlx5_vector2eqn(struct mlx5_core_dev *dev, int vector, int *eqn,
@@ -760,8 +711,8 @@ static int alloc_comp_eqs(struct mlx5_core_dev *dev)
 		}
 
 #ifdef CONFIG_RFS_ACCEL
-		irq_cpu_rmap_add(dev->rmap,
-				 dev->priv.msix_arr[i + MLX5_EQ_VEC_COMP_BASE].vector);
+		irq_cpu_rmap_add(dev->rmap, pci_irq_vector(dev->pdev,
+				 MLX5_EQ_VEC_COMP_BASE + i));
 #endif
 		snprintf(name, MLX5_MAX_IRQ_NAME, "mlx5_comp%d", i);
 		err = mlx5_create_map_eq(dev, eq,
@@ -836,7 +787,6 @@ static int mlx5_core_set_issi(struct mlx5_core_dev *dev)
 
 	return -EOPNOTSUPP;
 }
-
 
 static int mlx5_pci_init(struct mlx5_core_dev *dev, struct mlx5_priv *priv)
 {
@@ -940,19 +890,25 @@ static int mlx5_init_once(struct mlx5_core_dev *dev, struct mlx5_priv *priv)
 
 	mlx5_init_reserved_gids(dev);
 
+	mlx5_init_clock(dev);
+
 	err = mlx5_init_rl_table(dev);
 	if (err) {
 		dev_err(&pdev->dev, "Failed to init rate limiting\n");
 		goto err_tables_cleanup;
 	}
 
-#ifdef CONFIG_MLX5_CORE_EN
+	err = mlx5_mpfs_init(dev);
+	if (err) {
+		dev_err(&pdev->dev, "Failed to init l2 table %d\n", err);
+		goto err_rl_cleanup;
+	}
+
 	err = mlx5_eswitch_init(dev);
 	if (err) {
 		dev_err(&pdev->dev, "Failed to init eswitch %d\n", err);
-		goto err_rl_cleanup;
+		goto err_mpfs_cleanup;
 	}
-#endif
 
 	err = mlx5_sriov_init(dev);
 	if (err) {
@@ -971,13 +927,11 @@ static int mlx5_init_once(struct mlx5_core_dev *dev, struct mlx5_priv *priv)
 err_sriov_cleanup:
 	mlx5_sriov_cleanup(dev);
 err_eswitch_cleanup:
-#ifdef CONFIG_MLX5_CORE_EN
 	mlx5_eswitch_cleanup(dev->priv.eswitch);
-
+err_mpfs_cleanup:
+	mlx5_mpfs_cleanup(dev);
 err_rl_cleanup:
-#endif
 	mlx5_cleanup_rl_table(dev);
-
 err_tables_cleanup:
 	mlx5_cleanup_mkey_table(dev);
 	mlx5_cleanup_srq_table(dev);
@@ -995,10 +949,10 @@ static void mlx5_cleanup_once(struct mlx5_core_dev *dev)
 {
 	mlx5_fpga_cleanup(dev);
 	mlx5_sriov_cleanup(dev);
-#ifdef CONFIG_MLX5_CORE_EN
 	mlx5_eswitch_cleanup(dev->priv.eswitch);
-#endif
+	mlx5_mpfs_cleanup(dev);
 	mlx5_cleanup_rl_table(dev);
+	mlx5_cleanup_clock(dev);
 	mlx5_cleanup_reserved_gids(dev);
 	mlx5_cleanup_mkey_table(dev);
 	mlx5_cleanup_srq_table(dev);
@@ -1119,9 +1073,9 @@ static int mlx5_load_one(struct mlx5_core_dev *dev, struct mlx5_priv *priv,
 		goto err_stop_poll;
 	}
 
-	err = mlx5_enable_msix(dev);
+	err = mlx5_alloc_irq_vectors(dev);
 	if (err) {
-		dev_err(&pdev->dev, "enable msix failed\n");
+		dev_err(&pdev->dev, "alloc irq vectors failed\n");
 		goto err_cleanup_once;
 	}
 
@@ -1143,21 +1097,17 @@ static int mlx5_load_one(struct mlx5_core_dev *dev, struct mlx5_priv *priv,
 		goto err_stop_eqs;
 	}
 
-	err = mlx5_irq_set_affinity_hints(dev);
-	if (err) {
-		dev_err(&pdev->dev, "Failed to alloc affinity hint cpumask\n");
-		goto err_affinity_hints;
-	}
-
 	err = mlx5_init_fs(dev);
 	if (err) {
 		dev_err(&pdev->dev, "Failed to init flow steering\n");
 		goto err_fs;
 	}
 
-#ifdef CONFIG_MLX5_CORE_EN
-	mlx5_eswitch_attach(dev->priv.eswitch);
-#endif
+	err = mlx5_core_set_hca_defaults(dev);
+	if (err) {
+		dev_err(&pdev->dev, "Failed to set hca defaults\n");
+		goto err_fs;
+	}
 
 	err = mlx5_sriov_attach(dev);
 	if (err) {
@@ -1186,7 +1136,6 @@ static int mlx5_load_one(struct mlx5_core_dev *dev, struct mlx5_priv *priv,
 		}
 	}
 
-	clear_bit(MLX5_INTERFACE_STATE_DOWN, &dev->intf_state);
 	set_bit(MLX5_INTERFACE_STATE_UP, &dev->intf_state);
 out:
 	mutex_unlock(&dev->intf_state_mutex);
@@ -1202,15 +1151,9 @@ err_fpga_start:
 	mlx5_sriov_detach(dev);
 
 err_sriov:
-#ifdef CONFIG_MLX5_CORE_EN
-	mlx5_eswitch_detach(dev->priv.eswitch);
-#endif
 	mlx5_cleanup_fs(dev);
 
 err_fs:
-	mlx5_irq_clear_affinity_hints(dev);
-
-err_affinity_hints:
 	free_comp_eqs(dev);
 
 err_stop_eqs:
@@ -1220,7 +1163,7 @@ err_put_uars:
 	mlx5_put_uars_page(dev, priv->uar);
 
 err_disable_msix:
-	mlx5_disable_msix(dev);
+	mlx5_free_irq_vectors(dev);
 
 err_cleanup_once:
 	if (boot)
@@ -1261,7 +1204,7 @@ static int mlx5_unload_one(struct mlx5_core_dev *dev, struct mlx5_priv *priv,
 		mlx5_drain_health_recovery(dev);
 
 	mutex_lock(&dev->intf_state_mutex);
-	if (test_bit(MLX5_INTERFACE_STATE_DOWN, &dev->intf_state)) {
+	if (!test_bit(MLX5_INTERFACE_STATE_UP, &dev->intf_state)) {
 		dev_warn(&dev->pdev->dev, "%s: interface is down, NOP\n",
 			 __func__);
 		if (cleanup)
@@ -1270,7 +1213,6 @@ static int mlx5_unload_one(struct mlx5_core_dev *dev, struct mlx5_priv *priv,
 	}
 
 	clear_bit(MLX5_INTERFACE_STATE_UP, &dev->intf_state);
-	set_bit(MLX5_INTERFACE_STATE_DOWN, &dev->intf_state);
 
 	if (mlx5_device_registered(dev))
 		mlx5_detach_device(dev);
@@ -1279,15 +1221,11 @@ static int mlx5_unload_one(struct mlx5_core_dev *dev, struct mlx5_priv *priv,
 	mlx5_fpga_device_stop(dev);
 
 	mlx5_sriov_detach(dev);
-#ifdef CONFIG_MLX5_CORE_EN
-	mlx5_eswitch_detach(dev->priv.eswitch);
-#endif
 	mlx5_cleanup_fs(dev);
-	mlx5_irq_clear_affinity_hints(dev);
 	free_comp_eqs(dev);
 	mlx5_stop_eqs(dev);
 	mlx5_put_uars_page(dev, priv->uar);
-	mlx5_disable_msix(dev);
+	mlx5_free_irq_vectors(dev);
 	if (cleanup)
 		mlx5_cleanup_once(dev);
 	mlx5_stop_health_poll(dev);
@@ -1313,7 +1251,7 @@ struct mlx5_core_event_handler {
 };
 
 static const struct devlink_ops mlx5_devlink_ops = {
-#ifdef CONFIG_MLX5_CORE_EN
+#ifdef CONFIG_MLX5_ESWITCH
 	.eswitch_mode_set = mlx5_devlink_eswitch_mode_set,
 	.eswitch_mode_get = mlx5_devlink_eswitch_mode_get,
 	.eswitch_inline_mode_set = mlx5_devlink_eswitch_inline_mode_set,
@@ -1352,6 +1290,9 @@ static int init_one(struct pci_dev *pdev,
 	spin_lock_init(&priv->ctx_lock);
 	mutex_init(&dev->pci_status_mutex);
 	mutex_init(&dev->intf_state_mutex);
+
+	INIT_LIST_HEAD(&priv->waiting_events_list);
+	priv->is_accum_events = false;
 
 #ifdef CONFIG_INFINIBAND_ON_DEMAND_PAGING
 	err = init_srcu_struct(&priv->pfault_srcu);
@@ -1407,7 +1348,6 @@ clean_srcu:
 	cleanup_srcu_struct(&priv->pfault_srcu);
 clean_dev:
 #endif
-	pci_set_drvdata(pdev, NULL);
 	devlink_free(devlink);
 
 	return err;
@@ -1434,7 +1374,6 @@ static void remove_one(struct pci_dev *pdev)
 #ifdef CONFIG_INFINIBAND_ON_DEMAND_PAGING
 	cleanup_srcu_struct(&priv->pfault_srcu);
 #endif
-	pci_set_drvdata(pdev, NULL);
 	devlink_free(devlink);
 }
 
@@ -1547,9 +1486,16 @@ static int mlx5_try_fast_unload(struct mlx5_core_dev *dev)
 		return -EAGAIN;
 	}
 
+	/* Panic tear down fw command will stop the PCI bus communication
+	 * with the HCA, so the health polll is no longer needed.
+	 */
+	mlx5_drain_health_wq(dev);
+	mlx5_stop_health_poll(dev);
+
 	ret = mlx5_cmd_force_teardown_hca(dev);
 	if (ret) {
 		mlx5_core_dbg(dev, "Firmware couldn't do fast unload error: %d\n", ret);
+		mlx5_start_health_poll(dev);
 		return ret;
 	}
 
@@ -1565,8 +1511,6 @@ static void shutdown(struct pci_dev *pdev)
 	int err;
 
 	dev_info(&pdev->dev, "Shutdown was called\n");
-	/* Notify mlx5 clients that the kernel is being shut down */
-	set_bit(MLX5_INTERFACE_STATE_SHUTDOWN, &dev->intf_state);
 	err = mlx5_try_fast_unload(dev);
 	if (err)
 		mlx5_unload_one(dev, priv, false);

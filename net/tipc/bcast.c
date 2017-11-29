@@ -233,7 +233,7 @@ static int tipc_bcast_xmit(struct net *net, struct sk_buff_head *pkts,
 	struct sk_buff_head xmitq;
 	int rc = 0;
 
-	__skb_queue_head_init(&xmitq);
+	skb_queue_head_init(&xmitq);
 	tipc_bcast_lock(net);
 	if (tipc_link_bc_peers(l))
 		rc = tipc_link_xmit(l, pkts, &xmitq);
@@ -258,20 +258,20 @@ static int tipc_bcast_xmit(struct net *net, struct sk_buff_head *pkts,
 static int tipc_rcast_xmit(struct net *net, struct sk_buff_head *pkts,
 			   struct tipc_nlist *dests, u16 *cong_link_cnt)
 {
+	struct tipc_dest *dst, *tmp;
 	struct sk_buff_head _pkts;
-	struct u32_item *n, *tmp;
-	u32 dst, selector;
+	u32 dnode, selector;
 
 	selector = msg_link_selector(buf_msg(skb_peek(pkts)));
-	__skb_queue_head_init(&_pkts);
+	skb_queue_head_init(&_pkts);
 
-	list_for_each_entry_safe(n, tmp, &dests->list, list) {
-		dst = n->value;
-		if (!tipc_msg_pskb_copy(dst, pkts, &_pkts))
+	list_for_each_entry_safe(dst, tmp, &dests->list, list) {
+		dnode = dst->node;
+		if (!tipc_msg_pskb_copy(dnode, pkts, &_pkts))
 			return -ENOMEM;
 
 		/* Any other return value than -ELINKCONG is ignored */
-		if (tipc_node_xmit(net, &_pkts, dst, selector) == -ELINKCONG)
+		if (tipc_node_xmit(net, &_pkts, dnode, selector) == -ELINKCONG)
 			(*cong_link_cnt)++;
 	}
 	return 0;
@@ -554,7 +554,7 @@ void tipc_nlist_add(struct tipc_nlist *nl, u32 node)
 {
 	if (node == nl->self)
 		nl->local = true;
-	else if (u32_push(&nl->list, node))
+	else if (tipc_dest_push(&nl->list, node, 0))
 		nl->remote++;
 }
 
@@ -562,13 +562,13 @@ void tipc_nlist_del(struct tipc_nlist *nl, u32 node)
 {
 	if (node == nl->self)
 		nl->local = false;
-	else if (u32_del(&nl->list, node))
+	else if (tipc_dest_del(&nl->list, node, 0))
 		nl->remote--;
 }
 
 void tipc_nlist_purge(struct tipc_nlist *nl)
 {
-	u32_list_purge(&nl->list);
+	tipc_dest_list_purge(&nl->list);
 	nl->remote = 0;
 	nl->local = 0;
 }

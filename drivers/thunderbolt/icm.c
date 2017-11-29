@@ -13,9 +13,9 @@
  */
 
 #include <linux/delay.h>
-#include <linux/dmi.h>
 #include <linux/mutex.h>
 #include <linux/pci.h>
+#include <linux/platform_data/x86/apple.h>
 #include <linux/sizes.h>
 #include <linux/slab.h>
 #include <linux/workqueue.h>
@@ -60,6 +60,8 @@
  * @get_route: Find a route string for given switch
  * @device_connected: Handle device connected ICM message
  * @device_disconnected: Handle device disconnected ICM message
+ * @xdomain_connected - Handle XDomain connected ICM message
+ * @xdomain_disconnected - Handle XDomain disconnected ICM message
  */
 struct icm {
 	struct mutex request_lock;
@@ -74,6 +76,10 @@ struct icm {
 				 const struct icm_pkg_header *hdr);
 	void (*device_disconnected)(struct tb *tb,
 				    const struct icm_pkg_header *hdr);
+	void (*xdomain_connected)(struct tb *tb,
+				  const struct icm_pkg_header *hdr);
+	void (*xdomain_disconnected)(struct tb *tb,
+				     const struct icm_pkg_header *hdr);
 };
 
 struct icm_notification {
@@ -89,7 +95,10 @@ static inline struct tb *icm_to_tb(struct icm *icm)
 
 static inline u8 phy_port_from_route(u64 route, u8 depth)
 {
-	return tb_switch_phy_port_from_link(route >> ((depth - 1) * 8));
+	u8 link;
+
+	link = depth ? route >> ((depth - 1) * 8) : route;
+	return tb_phy_port_from_link(link);
 }
 
 static inline u8 dual_link_from_link(u8 link)
@@ -100,11 +109,6 @@ static inline u8 dual_link_from_link(u8 link)
 static inline u64 get_route(u32 route_hi, u32 route_lo)
 {
 	return (u64)route_hi << 32 | route_lo;
-}
-
-static inline bool is_apple(void)
-{
-	return dmi_match(DMI_BOARD_VENDOR, "Apple Inc.");
 }
 
 static bool icm_match(const struct tb_cfg_request *req,
@@ -176,7 +180,7 @@ static int icm_request(struct tb *tb, const void *request, size_t request_size,
 
 static bool icm_fr_is_supported(struct tb *tb)
 {
-	return !is_apple();
+	return !x86_apple_machine;
 }
 
 static inline int icm_fr_get_switch_index(u32 port)
@@ -322,6 +326,51 @@ static int icm_fr_challenge_switch_key(struct tb *tb, struct tb_switch *sw,
 
 	memcpy(response, reply.response, TB_SWITCH_KEY_SIZE);
 
+	return 0;
+}
+
+static int icm_fr_approve_xdomain_paths(struct tb *tb, struct tb_xdomain *xd)
+{
+	struct icm_fr_pkg_approve_xdomain_response reply;
+	struct icm_fr_pkg_approve_xdomain request;
+	int ret;
+
+	memset(&request, 0, sizeof(request));
+	request.hdr.code = ICM_APPROVE_XDOMAIN;
+	request.link_info = xd->depth << ICM_LINK_INFO_DEPTH_SHIFT | xd->link;
+	memcpy(&request.remote_uuid, xd->remote_uuid, sizeof(*xd->remote_uuid));
+
+	request.transmit_path = xd->transmit_path;
+	request.transmit_ring = xd->transmit_ring;
+	request.receive_path = xd->receive_path;
+	request.receive_ring = xd->receive_ring;
+
+	memset(&reply, 0, sizeof(reply));
+	ret = icm_request(tb, &request, sizeof(request), &reply, sizeof(reply),
+			  1, ICM_TIMEOUT);
+	if (ret)
+		return ret;
+
+	if (reply.hdr.flags & ICM_FLAGS_ERROR)
+		return -EIO;
+
+	return 0;
+}
+
+static int icm_fr_disconnect_xdomain_paths(struct tb *tb, struct tb_xdomain *xd)
+{
+	u8 phy_port;
+	u8 cmd;
+
+	phy_port = tb_phy_port_from_link(xd->link);
+	if (phy_port == 0)
+		cmd = NHI_MAILBOX_DISCONNECT_PA;
+	else
+		cmd = NHI_MAILBOX_DISCONNECT_PB;
+
+	nhi_mailbox_cmd(tb->nhi, cmd, 1);
+	usleep_range(10, 50);
+	nhi_mailbox_cmd(tb->nhi, cmd, 2);
 	return 0;
 }
 
@@ -480,6 +529,141 @@ icm_fr_device_disconnected(struct tb *tb, const struct icm_pkg_header *hdr)
 	tb_switch_put(sw);
 }
 
+static void remove_xdomain(struct tb_xdomain *xd)
+{
+	struct tb_switch *sw;
+
+	sw = tb_to_switch(xd->dev.parent);
+	tb_port_at(xd->route, sw)->xdomain = NULL;
+	tb_xdomain_remove(xd);
+}
+
+static void
+icm_fr_xdomain_connected(struct tb *tb, const struct icm_pkg_header *hdr)
+{
+	const struct icm_fr_event_xdomain_connected *pkg =
+		(const struct icm_fr_event_xdomain_connected *)hdr;
+	struct tb_xdomain *xd;
+	struct tb_switch *sw;
+	u8 link, depth;
+	bool approved;
+	u64 route;
+
+	/*
+	 * After NVM upgrade adding root switch device fails because we
+	 * initiated reset. During that time ICM might still send
+	 * XDomain connected message which we ignore here.
+	 */
+	if (!tb->root_switch)
+		return;
+
+	link = pkg->link_info & ICM_LINK_INFO_LINK_MASK;
+	depth = (pkg->link_info & ICM_LINK_INFO_DEPTH_MASK) >>
+		ICM_LINK_INFO_DEPTH_SHIFT;
+	approved = pkg->link_info & ICM_LINK_INFO_APPROVED;
+
+	if (link > ICM_MAX_LINK || depth > ICM_MAX_DEPTH) {
+		tb_warn(tb, "invalid topology %u.%u, ignoring\n", link, depth);
+		return;
+	}
+
+	route = get_route(pkg->local_route_hi, pkg->local_route_lo);
+
+	xd = tb_xdomain_find_by_uuid(tb, &pkg->remote_uuid);
+	if (xd) {
+		u8 xd_phy_port, phy_port;
+
+		xd_phy_port = phy_port_from_route(xd->route, xd->depth);
+		phy_port = phy_port_from_route(route, depth);
+
+		if (xd->depth == depth && xd_phy_port == phy_port) {
+			xd->link = link;
+			xd->route = route;
+			xd->is_unplugged = false;
+			tb_xdomain_put(xd);
+			return;
+		}
+
+		/*
+		 * If we find an existing XDomain connection remove it
+		 * now. We need to go through login handshake and
+		 * everything anyway to be able to re-establish the
+		 * connection.
+		 */
+		remove_xdomain(xd);
+		tb_xdomain_put(xd);
+	}
+
+	/*
+	 * Look if there already exists an XDomain in the same place
+	 * than the new one and in that case remove it because it is
+	 * most likely another host that got disconnected.
+	 */
+	xd = tb_xdomain_find_by_link_depth(tb, link, depth);
+	if (!xd) {
+		u8 dual_link;
+
+		dual_link = dual_link_from_link(link);
+		if (dual_link)
+			xd = tb_xdomain_find_by_link_depth(tb, dual_link,
+							   depth);
+	}
+	if (xd) {
+		remove_xdomain(xd);
+		tb_xdomain_put(xd);
+	}
+
+	/*
+	 * If the user disconnected a switch during suspend and
+	 * connected another host to the same port, remove the switch
+	 * first.
+	 */
+	sw = get_switch_at_route(tb->root_switch, route);
+	if (sw)
+		remove_switch(sw);
+
+	sw = tb_switch_find_by_link_depth(tb, link, depth);
+	if (!sw) {
+		tb_warn(tb, "no switch exists at %u.%u, ignoring\n", link,
+			depth);
+		return;
+	}
+
+	xd = tb_xdomain_alloc(sw->tb, &sw->dev, route,
+			      &pkg->local_uuid, &pkg->remote_uuid);
+	if (!xd) {
+		tb_switch_put(sw);
+		return;
+	}
+
+	xd->link = link;
+	xd->depth = depth;
+
+	tb_port_at(route, sw)->xdomain = xd;
+
+	tb_xdomain_add(xd);
+	tb_switch_put(sw);
+}
+
+static void
+icm_fr_xdomain_disconnected(struct tb *tb, const struct icm_pkg_header *hdr)
+{
+	const struct icm_fr_event_xdomain_disconnected *pkg =
+		(const struct icm_fr_event_xdomain_disconnected *)hdr;
+	struct tb_xdomain *xd;
+
+	/*
+	 * If the connection is through one or multiple devices, the
+	 * XDomain device is removed along with them so it is fine if we
+	 * cannot find it here.
+	 */
+	xd = tb_xdomain_find_by_uuid(tb, &pkg->remote_uuid);
+	if (xd) {
+		remove_xdomain(xd);
+		tb_xdomain_put(xd);
+	}
+}
+
 static struct pci_dev *get_upstream_port(struct pci_dev *pdev)
 {
 	struct pci_dev *parent;
@@ -517,7 +701,7 @@ static bool icm_ar_is_supported(struct tb *tb)
 	 * Starting from Alpine Ridge we can use ICM on Apple machines
 	 * as well. We just need to reset and re-enable it first.
 	 */
-	if (!is_apple())
+	if (!x86_apple_machine)
 		return true;
 
 	/*
@@ -598,6 +782,12 @@ static void icm_handle_notification(struct work_struct *work)
 		break;
 	case ICM_EVENT_DEVICE_DISCONNECTED:
 		icm->device_disconnected(tb, n->pkg);
+		break;
+	case ICM_EVENT_XDOMAIN_CONNECTED:
+		icm->xdomain_connected(tb, n->pkg);
+		break;
+	case ICM_EVENT_XDOMAIN_DISCONNECTED:
+		icm->xdomain_disconnected(tb, n->pkg);
 		break;
 	}
 
@@ -904,7 +1094,14 @@ static int icm_driver_ready(struct tb *tb)
 
 static int icm_suspend(struct tb *tb)
 {
-	return nhi_mailbox_cmd(tb->nhi, NHI_MAILBOX_SAVE_DEVS, 0);
+	int ret;
+
+	ret = nhi_mailbox_cmd(tb->nhi, NHI_MAILBOX_SAVE_DEVS, 0);
+	if (ret)
+		tb_info(tb, "Ignoring mailbox command error (%d) in %s\n",
+			ret, __func__);
+
+	return 0;
 }
 
 /*
@@ -925,6 +1122,10 @@ static void icm_unplug_children(struct tb_switch *sw)
 
 		if (tb_is_upstream_port(port))
 			continue;
+		if (port->xdomain) {
+			port->xdomain->is_unplugged = true;
+			continue;
+		}
 		if (!port->remote)
 			continue;
 
@@ -941,6 +1142,13 @@ static void icm_free_unplugged_children(struct tb_switch *sw)
 
 		if (tb_is_upstream_port(port))
 			continue;
+
+		if (port->xdomain && port->xdomain->is_unplugged) {
+			tb_xdomain_remove(port->xdomain);
+			port->xdomain = NULL;
+			continue;
+		}
+
 		if (!port->remote)
 			continue;
 
@@ -1004,11 +1212,13 @@ static int icm_start(struct tb *tb)
 	 * don't provide images publicly either. To be on the safe side
 	 * prevent root switch NVM upgrade on Macs for now.
 	 */
-	tb->root_switch->no_nvm_upgrade = is_apple();
+	tb->root_switch->no_nvm_upgrade = x86_apple_machine;
 
 	ret = tb_switch_add(tb->root_switch);
-	if (ret)
+	if (ret) {
 		tb_switch_put(tb->root_switch);
+		tb->root_switch = NULL;
+	}
 
 	return ret;
 }
@@ -1040,6 +1250,8 @@ static const struct tb_cm_ops icm_fr_ops = {
 	.add_switch_key = icm_fr_add_switch_key,
 	.challenge_switch_key = icm_fr_challenge_switch_key,
 	.disconnect_pcie_paths = icm_disconnect_pcie_paths,
+	.approve_xdomain_paths = icm_fr_approve_xdomain_paths,
+	.disconnect_xdomain_paths = icm_fr_disconnect_xdomain_paths,
 };
 
 struct tb *icm_probe(struct tb_nhi *nhi)
@@ -1062,6 +1274,8 @@ struct tb *icm_probe(struct tb_nhi *nhi)
 		icm->get_route = icm_fr_get_route;
 		icm->device_connected = icm_fr_device_connected;
 		icm->device_disconnected = icm_fr_device_disconnected;
+		icm->xdomain_connected = icm_fr_xdomain_connected;
+		icm->xdomain_disconnected = icm_fr_xdomain_disconnected;
 		tb->cm_ops = &icm_fr_ops;
 		break;
 
@@ -1075,6 +1289,8 @@ struct tb *icm_probe(struct tb_nhi *nhi)
 		icm->get_route = icm_ar_get_route;
 		icm->device_connected = icm_fr_device_connected;
 		icm->device_disconnected = icm_fr_device_disconnected;
+		icm->xdomain_connected = icm_fr_xdomain_connected;
+		icm->xdomain_disconnected = icm_fr_xdomain_disconnected;
 		tb->cm_ops = &icm_fr_ops;
 		break;
 	}

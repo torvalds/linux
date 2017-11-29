@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/errno.h>
@@ -48,7 +49,13 @@
  */
 __visible DEFINE_PER_CPU_SHARED_ALIGNED(struct tss_struct, cpu_tss) = {
 	.x86_tss = {
-		.sp0 = TOP_OF_INIT_STACK,
+		/*
+		 * .sp0 is only used when entering ring 0 from a lower
+		 * privilege level.  Since the init task never runs anything
+		 * but ring 0 code, there is no need for a valid value here.
+		 * Poison it.
+		 */
+		.sp0 = (1UL << (BITS_PER_LONG-1)) + 1,
 #ifdef CONFIG_X86_32
 		.ss0 = __KERNEL_DS,
 		.ss1 = __KERNEL_CS,
@@ -355,6 +362,7 @@ bool xen_set_default_idle(void)
 	return ret;
 }
 #endif
+
 void stop_this_cpu(void *dummy)
 {
 	local_irq_disable();
@@ -365,8 +373,20 @@ void stop_this_cpu(void *dummy)
 	disable_local_APIC();
 	mcheck_cpu_clear(this_cpu_ptr(&cpu_info));
 
-	for (;;)
-		halt();
+	for (;;) {
+		/*
+		 * Use wbinvd followed by hlt to stop the processor. This
+		 * provides support for kexec on a processor that supports
+		 * SME. With kexec, going from SME inactive to SME active
+		 * requires clearing cache entries so that addresses without
+		 * the encryption bit set don't corrupt the same physical
+		 * address that has the encryption bit set when caches are
+		 * flushed. To achieve this a wbinvd is performed followed by
+		 * a hlt. Even if the processor is not in the kexec/SME
+		 * scenario this only adds a wbinvd to a halting processor.
+		 */
+		asm volatile("wbinvd; hlt" : : : "memory");
+	}
 }
 
 /*

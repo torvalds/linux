@@ -26,6 +26,7 @@
 #include <linux/radix-tree.h>
 #include <linux/vmalloc.h>
 #include <linux/string.h>
+#include <linux/compat.h>
 
 #include "send.h"
 #include "backref.h"
@@ -539,33 +540,23 @@ static struct btrfs_path *alloc_path_for_send(void)
 static int write_buf(struct file *filp, const void *buf, u32 len, loff_t *off)
 {
 	int ret;
-	mm_segment_t old_fs;
 	u32 pos = 0;
 
-	old_fs = get_fs();
-	set_fs(KERNEL_DS);
-
 	while (pos < len) {
-		ret = vfs_write(filp, (__force const char __user *)buf + pos,
-				len - pos, off);
+		ret = kernel_write(filp, buf + pos, len - pos, off);
 		/* TODO handle that correctly */
 		/*if (ret == -ERESTARTSYS) {
 			continue;
 		}*/
 		if (ret < 0)
-			goto out;
+			return ret;
 		if (ret == 0) {
-			ret = -EIO;
-			goto out;
+			return -EIO;
 		}
 		pos += ret;
 	}
 
-	ret = 0;
-
-out:
-	set_fs(old_fs);
-	return ret;
+	return 0;
 }
 
 static int tlv_put(struct send_ctx *sctx, u16 attr, const void *data, int len)
@@ -1002,7 +993,6 @@ typedef int (*iterate_dir_item_t)(int num, struct btrfs_key *di_key,
  * path must point to the dir item when called.
  */
 static int iterate_dir_item(struct btrfs_root *root, struct btrfs_path *path,
-			    struct btrfs_key *found_key,
 			    iterate_dir_item_t iterate, void *ctx)
 {
 	int ret = 0;
@@ -1281,12 +1271,6 @@ static int __iterate_backrefs(u64 ino, u64 offset, u64 root, void *ctx_)
 		 */
 		if (ino >= bctx->cur_objectid)
 			return 0;
-#if 0
-		if (ino > bctx->cur_objectid)
-			return 0;
-		if (offset + bctx->extent_len > bctx->cur_offset)
-			return 0;
-#endif
 	}
 
 	bctx->found++;
@@ -1439,7 +1423,7 @@ static int find_extent_clone(struct send_ctx *sctx,
 		extent_item_pos = 0;
 	ret = iterate_extent_inodes(fs_info, found_key.objectid,
 				    extent_item_pos, 1, __iterate_backrefs,
-				    backref_ctx);
+				    backref_ctx, false);
 
 	if (ret < 0)
 		goto out;
@@ -2640,7 +2624,7 @@ static int send_create_inode(struct send_ctx *sctx, u64 ino)
 	} else {
 		btrfs_warn(sctx->send_root->fs_info, "unexpected inode type %o",
 				(int)(mode & S_IFMT));
-		ret = -ENOTSUPP;
+		ret = -EOPNOTSUPP;
 		goto out;
 	}
 
@@ -4116,8 +4100,8 @@ out:
 	return ret;
 }
 
-static int record_ref(struct btrfs_root *root, int num, u64 dir, int index,
-		      struct fs_path *name, void *ctx, struct list_head *refs)
+static int record_ref(struct btrfs_root *root, u64 dir, struct fs_path *name,
+		      void *ctx, struct list_head *refs)
 {
 	int ret = 0;
 	struct send_ctx *sctx = ctx;
@@ -4153,8 +4137,7 @@ static int __record_new_ref(int num, u64 dir, int index,
 			    void *ctx)
 {
 	struct send_ctx *sctx = ctx;
-	return record_ref(sctx->send_root, num, dir, index, name,
-			  ctx, &sctx->new_refs);
+	return record_ref(sctx->send_root, dir, name, ctx, &sctx->new_refs);
 }
 
 
@@ -4163,8 +4146,8 @@ static int __record_deleted_ref(int num, u64 dir, int index,
 				void *ctx)
 {
 	struct send_ctx *sctx = ctx;
-	return record_ref(sctx->parent_root, num, dir, index, name,
-			  ctx, &sctx->deleted_refs);
+	return record_ref(sctx->parent_root, dir, name, ctx,
+			  &sctx->deleted_refs);
 }
 
 static int record_new_ref(struct send_ctx *sctx)
@@ -4508,7 +4491,7 @@ static int process_new_xattr(struct send_ctx *sctx)
 	int ret = 0;
 
 	ret = iterate_dir_item(sctx->send_root, sctx->left_path,
-			       sctx->cmp_key, __process_new_xattr, sctx);
+			       __process_new_xattr, sctx);
 
 	return ret;
 }
@@ -4516,7 +4499,7 @@ static int process_new_xattr(struct send_ctx *sctx)
 static int process_deleted_xattr(struct send_ctx *sctx)
 {
 	return iterate_dir_item(sctx->parent_root, sctx->right_path,
-				sctx->cmp_key, __process_deleted_xattr, sctx);
+				__process_deleted_xattr, sctx);
 }
 
 struct find_xattr_ctx {
@@ -4561,7 +4544,7 @@ static int find_xattr(struct btrfs_root *root,
 	ctx.found_data = NULL;
 	ctx.found_data_len = 0;
 
-	ret = iterate_dir_item(root, path, key, __find_xattr, &ctx);
+	ret = iterate_dir_item(root, path, __find_xattr, &ctx);
 	if (ret < 0)
 		return ret;
 
@@ -4631,11 +4614,11 @@ static int process_changed_xattr(struct send_ctx *sctx)
 	int ret = 0;
 
 	ret = iterate_dir_item(sctx->send_root, sctx->left_path,
-			sctx->cmp_key, __process_changed_new_xattr, sctx);
+			__process_changed_new_xattr, sctx);
 	if (ret < 0)
 		goto out;
 	ret = iterate_dir_item(sctx->parent_root, sctx->right_path,
-			sctx->cmp_key, __process_changed_deleted_xattr, sctx);
+			__process_changed_deleted_xattr, sctx);
 
 out:
 	return ret;
@@ -4685,8 +4668,7 @@ static int process_all_new_xattrs(struct send_ctx *sctx)
 			goto out;
 		}
 
-		ret = iterate_dir_item(root, path, &found_key,
-				       __process_new_xattr, sctx);
+		ret = iterate_dir_item(root, path, __process_new_xattr, sctx);
 		if (ret < 0)
 			goto out;
 
@@ -4733,16 +4715,27 @@ static ssize_t fill_read_buf(struct send_ctx *sctx, u64 offset, u32 len)
 	/* initial readahead */
 	memset(&sctx->ra, 0, sizeof(struct file_ra_state));
 	file_ra_state_init(&sctx->ra, inode->i_mapping);
-	btrfs_force_ra(inode->i_mapping, &sctx->ra, NULL, index,
-		       last_index - index + 1);
 
 	while (index <= last_index) {
 		unsigned cur_len = min_t(unsigned, len,
 					 PAGE_SIZE - pg_offset);
-		page = find_or_create_page(inode->i_mapping, index, GFP_KERNEL);
+
+		page = find_lock_page(inode->i_mapping, index);
 		if (!page) {
-			ret = -ENOMEM;
-			break;
+			page_cache_sync_readahead(inode->i_mapping, &sctx->ra,
+				NULL, index, last_index + 1 - index);
+
+			page = find_or_create_page(inode->i_mapping, index,
+					GFP_KERNEL);
+			if (!page) {
+				ret = -ENOMEM;
+				break;
+			}
+		}
+
+		if (PageReadahead(page)) {
+			page_cache_async_readahead(inode->i_mapping, &sctx->ra,
+				NULL, page, index, last_index + 1 - index);
 		}
 
 		if (!PageUptodate(page)) {
@@ -4991,6 +4984,25 @@ static int clone_range(struct send_ctx *sctx,
 	struct btrfs_path *path;
 	struct btrfs_key key;
 	int ret;
+
+	/*
+	 * Prevent cloning from a zero offset with a length matching the sector
+	 * size because in some scenarios this will make the receiver fail.
+	 *
+	 * For example, if in the source filesystem the extent at offset 0
+	 * has a length of sectorsize and it was written using direct IO, then
+	 * it can never be an inline extent (even if compression is enabled).
+	 * Then this extent can be cloned in the original filesystem to a non
+	 * zero file offset, but it may not be possible to clone in the
+	 * destination filesystem because it can be inlined due to compression
+	 * on the destination filesystem (as the receiver's write operations are
+	 * always done using buffered IO). The same happens when the original
+	 * filesystem does not have compression enabled but the destination
+	 * filesystem has.
+	 */
+	if (clone_root->offset == 0 &&
+	    len == sctx->send_root->fs_info->sectorsize)
+		return send_extent_data(sctx, offset, len);
 
 	path = alloc_path_for_send();
 	if (!path)
@@ -6153,9 +6165,7 @@ out:
  * Updates compare related fields in sctx and simply forwards to the actual
  * changed_xxx functions.
  */
-static int changed_cb(struct btrfs_root *left_root,
-		      struct btrfs_root *right_root,
-		      struct btrfs_path *left_path,
+static int changed_cb(struct btrfs_path *left_path,
 		      struct btrfs_path *right_path,
 		      struct btrfs_key *key,
 		      enum btrfs_compare_tree_result result,
@@ -6237,8 +6247,8 @@ static int full_send_tree(struct send_ctx *sctx)
 		slot = path->slots[0];
 		btrfs_item_key_to_cpu(eb, &found_key, slot);
 
-		ret = changed_cb(send_root, NULL, path, NULL,
-				&found_key, BTRFS_COMPARE_TREE_NEW, sctx);
+		ret = changed_cb(path, NULL, &found_key,
+				 BTRFS_COMPARE_TREE_NEW, sctx);
 		if (ret < 0)
 			goto out;
 
@@ -6356,13 +6366,12 @@ static void btrfs_root_dec_send_in_progress(struct btrfs_root* root)
 	spin_unlock(&root->root_item_lock);
 }
 
-long btrfs_ioctl_send(struct file *mnt_file, void __user *arg_)
+long btrfs_ioctl_send(struct file *mnt_file, struct btrfs_ioctl_send_args *arg)
 {
 	int ret = 0;
 	struct btrfs_root *send_root = BTRFS_I(file_inode(mnt_file))->root;
 	struct btrfs_fs_info *fs_info = send_root->fs_info;
 	struct btrfs_root *clone_root;
-	struct btrfs_ioctl_send_args *arg = NULL;
 	struct btrfs_key key;
 	struct send_ctx *sctx = NULL;
 	u32 i;
@@ -6395,13 +6404,6 @@ long btrfs_ioctl_send(struct file *mnt_file, void __user *arg_)
 	 */
 	if (!btrfs_root_readonly(send_root)) {
 		ret = -EPERM;
-		goto out;
-	}
-
-	arg = memdup_user(arg_, sizeof(*arg));
-	if (IS_ERR(arg)) {
-		ret = PTR_ERR(arg);
-		arg = NULL;
 		goto out;
 	}
 
@@ -6645,7 +6647,6 @@ out:
 	if (sctx && !IS_ERR_OR_NULL(sctx->parent_root))
 		btrfs_root_dec_send_in_progress(sctx->parent_root);
 
-	kfree(arg);
 	kvfree(clone_sources_tmp);
 
 	if (sctx) {

@@ -150,7 +150,7 @@
 #define PDC_PAT_MEM_SETGM		9L /* Set Good Memory value        */
 #define PDC_PAT_MEM_ADD_PAGE		10L /* ADDs a page to the cell      */
 #define PDC_PAT_MEM_ADDRESS		11L /* Get Physical Location From   */
-                                    		 /* Memory Address               */
+					    /* Memory Address               */
 #define PDC_PAT_MEM_GET_TXT_SIZE   	12L /* Get Formatted Text Size   */
 #define PDC_PAT_MEM_GET_PD_TXT     	13L /* Get PD Formatted Text     */
 #define PDC_PAT_MEM_GET_CELL_TXT   	14L /* Get Cell Formatted Text   */
@@ -223,11 +223,34 @@ struct pdc_pat_mem_retinfo { /* PDC_PAT_MEM/PDC_PAT_MEM_PD_INFO (return info) */
 	unsigned long clear_time; /* last PDT clear time (since Jan 1970) */
 };
 
+struct pdc_pat_mem_cell_pdt_retinfo { /* PDC_PAT_MEM/PDC_PAT_MEM_CELL_INFO */
+	u64 reserved:32;
+	u64 cs:1;		/* clear status: cleared since the last call? */
+	u64 current_pdt_entries:15;
+	u64 ic:1;		/* interleaving had to be changed ? */
+	u64 max_pdt_entries:15;
+	unsigned long good_mem;
+	unsigned long first_dbe_loc; /* first location of double bit error */
+	unsigned long clear_time; /* last PDT clear time (since Jan 1970) */
+};
+
+
 struct pdc_pat_mem_read_pd_retinfo { /* PDC_PAT_MEM/PDC_PAT_MEM_PD_READ */
 	unsigned long actual_count_bytes;
 	unsigned long pdt_entries;
 };
 
+struct pdc_pat_mem_phys_mem_location { /* PDC_PAT_MEM/PDC_PAT_MEM_ADDRESS */
+	u64 cabinet:8;
+	u64 ign1:8;
+	u64 ign2:8;
+	u64 cell_slot:8;
+	u64 ign3:8;
+	u64 dimm_slot:8; /* DIMM slot, e.g. 0x1A, 0x2B, show user hex value! */
+	u64 ign4:8;
+	u64 source:4; /* for mem: always 0x07 */
+	u64 source_detail:4; /* for mem: always 0x04 (SIMM or DIMM) */
+};
 
 struct pdc_pat_pd_addr_map_entry {
 	unsigned char entry_type;       /* 1 = Memory Descriptor Entry Type */
@@ -314,11 +337,16 @@ extern int pdc_pat_io_pci_cfg_read(unsigned long pci_addr, int pci_size, u32 *va
 extern int pdc_pat_io_pci_cfg_write(unsigned long pci_addr, int pci_size, u32 val); 
 
 extern int pdc_pat_mem_pdt_info(struct pdc_pat_mem_retinfo *rinfo);
+extern int pdc_pat_mem_pdt_cell_info(struct pdc_pat_mem_cell_pdt_retinfo *rinfo,
+		unsigned long cell);
 extern int pdc_pat_mem_read_cell_pdt(struct pdc_pat_mem_read_pd_retinfo *pret,
 		unsigned long *pdt_entries_ptr, unsigned long max_entries);
 extern int pdc_pat_mem_read_pd_pdt(struct pdc_pat_mem_read_pd_retinfo *pret,
 		unsigned long *pdt_entries_ptr, unsigned long count,
 		unsigned long offset);
+extern int pdc_pat_mem_get_dimm_phys_location(
+                struct pdc_pat_mem_phys_mem_location *pret,
+                unsigned long phys_addr);
 
 #endif /* __ASSEMBLY__ */
 

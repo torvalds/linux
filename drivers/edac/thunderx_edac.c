@@ -639,27 +639,6 @@ err_free:
 	return ret;
 }
 
-#ifdef CONFIG_PM
-static int thunderx_lmc_suspend(struct pci_dev *pdev, pm_message_t state)
-{
-	pci_save_state(pdev);
-	pci_disable_device(pdev);
-
-	pci_set_power_state(pdev, pci_choose_state(pdev, state));
-
-	return 0;
-}
-
-static int thunderx_lmc_resume(struct pci_dev *pdev)
-{
-	pci_set_power_state(pdev, PCI_D0);
-	pci_enable_wake(pdev, PCI_D0, 0);
-	pci_restore_state(pdev);
-
-	return 0;
-}
-#endif
-
 static const struct pci_device_id thunderx_lmc_pci_tbl[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_CAVIUM, PCI_DEVICE_ID_THUNDER_LMC) },
 	{ 0, },
@@ -732,7 +711,6 @@ static int thunderx_lmc_probe(struct pci_dev *pdev,
 	mci->edac_cap = EDAC_FLAG_SECDED;
 
 	mci->mod_name = "thunderx-lmc";
-	mci->mod_ver = "1";
 	mci->ctl_name = "thunderx-lmc";
 	mci->dev_name = dev_name(&pdev->dev);
 	mci->scrub_mode = SCRUB_NONE;
@@ -775,11 +753,10 @@ static int thunderx_lmc_probe(struct pci_dev *pdev,
 
 	lmc->xor_bank = lmc_control & LMC_CONTROL_XOR_BANK;
 
-	l2c_ioaddr = ioremap(L2C_CTL | FIELD_PREP(THUNDERX_NODE, lmc->node),
-			     PAGE_SIZE);
-
+	l2c_ioaddr = ioremap(L2C_CTL | FIELD_PREP(THUNDERX_NODE, lmc->node), PAGE_SIZE);
 	if (!l2c_ioaddr) {
 		dev_err(&pdev->dev, "Cannot map L2C_CTL\n");
+		ret = -ENOMEM;
 		goto err_free;
 	}
 
@@ -836,10 +813,6 @@ static struct pci_driver thunderx_lmc_driver = {
 	.name     = "thunderx_lmc_edac",
 	.probe    = thunderx_lmc_probe,
 	.remove   = thunderx_lmc_remove,
-#ifdef CONFIG_PM
-	.suspend  = thunderx_lmc_suspend,
-	.resume   = thunderx_lmc_resume,
-#endif
 	.id_table = thunderx_lmc_pci_tbl,
 };
 

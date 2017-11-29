@@ -78,7 +78,7 @@ static ssize_t qeth_dev_card_type_show(struct device *dev,
 
 static DEVICE_ATTR(card_type, 0444, qeth_dev_card_type_show, NULL);
 
-static inline const char *qeth_get_bufsize_str(struct qeth_card *card)
+static const char *qeth_get_bufsize_str(struct qeth_card *card)
 {
 	if (card->qdio.in_buf_size == 16384)
 		return "16k";
@@ -475,10 +475,8 @@ static ssize_t qeth_dev_isolation_store(struct device *dev,
 		return -EINVAL;
 
 	mutex_lock(&card->conf_mutex);
-	/* check for unknown, too, in case we do not yet know who we are */
 	if (card->info.type != QETH_CARD_TYPE_OSD &&
-	    card->info.type != QETH_CARD_TYPE_OSX &&
-	    card->info.type != QETH_CARD_TYPE_UNKNOWN) {
+	    card->info.type != QETH_CARD_TYPE_OSX) {
 		rc = -EOPNOTSUPP;
 		dev_err(&card->gdev->dev, "Adapter does not "
 			"support QDIO data connection isolation\n");

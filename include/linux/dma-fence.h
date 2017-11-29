@@ -128,7 +128,7 @@ struct dma_fence_cb {
  * implementation know that there is another driver waiting on
  * the signal (ie. hw->sw case).
  *
- * This function can be called called from atomic context, but not
+ * This function can be called from atomic context, but not
  * from irq context, so normal spinlocks can be used.
  *
  * A return value of false indicates the fence already passed,
@@ -248,8 +248,11 @@ dma_fence_get_rcu_safe(struct dma_fence * __rcu *fencep)
 		struct dma_fence *fence;
 
 		fence = rcu_dereference(*fencep);
-		if (!fence || !dma_fence_get_rcu(fence))
+		if (!fence)
 			return NULL;
+
+		if (!dma_fence_get_rcu(fence))
+			continue;
 
 		/* The atomic_inc_not_zero() inside dma_fence_get_rcu()
 		 * provides a full memory barrier upon success (such as now).
@@ -338,6 +341,19 @@ dma_fence_is_signaled(struct dma_fence *fence)
 }
 
 /**
+ * __dma_fence_is_later - return if f1 is chronologically later than f2
+ * @f1:	[in]	the first fence's seqno
+ * @f2:	[in]	the second fence's seqno from the same context
+ *
+ * Returns true if f1 is chronologically later than f2. Both fences must be
+ * from the same context, since a seqno is not common across contexts.
+ */
+static inline bool __dma_fence_is_later(u32 f1, u32 f2)
+{
+	return (int)(f1 - f2) > 0;
+}
+
+/**
  * dma_fence_is_later - return if f1 is chronologically later than f2
  * @f1:	[in]	the first fence from the same context
  * @f2:	[in]	the second fence from the same context
@@ -351,7 +367,7 @@ static inline bool dma_fence_is_later(struct dma_fence *f1,
 	if (WARN_ON(f1->context != f2->context))
 		return false;
 
-	return (int)(f1->seqno - f2->seqno) > 0;
+	return __dma_fence_is_later(f1->seqno, f2->seqno);
 }
 
 /**
@@ -418,8 +434,8 @@ int dma_fence_get_status(struct dma_fence *fence);
 static inline void dma_fence_set_error(struct dma_fence *fence,
 				       int error)
 {
-	BUG_ON(test_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &fence->flags));
-	BUG_ON(error >= 0 || error < -MAX_ERRNO);
+	WARN_ON(test_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &fence->flags));
+	WARN_ON(error >= 0 || error < -MAX_ERRNO);
 
 	fence->error = error;
 }

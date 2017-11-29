@@ -1686,7 +1686,7 @@ void amdgpu_atombios_scratch_regs_lock(struct amdgpu_device *adev, bool lock)
 {
 	uint32_t bios_6_scratch;
 
-	bios_6_scratch = RREG32(mmBIOS_SCRATCH_6);
+	bios_6_scratch = RREG32(adev->bios_scratch_reg_offset + 6);
 
 	if (lock) {
 		bios_6_scratch |= ATOM_S6_CRITICAL_STATE;
@@ -1696,15 +1696,17 @@ void amdgpu_atombios_scratch_regs_lock(struct amdgpu_device *adev, bool lock)
 		bios_6_scratch |= ATOM_S6_ACC_MODE;
 	}
 
-	WREG32(mmBIOS_SCRATCH_6, bios_6_scratch);
+	WREG32(adev->bios_scratch_reg_offset + 6, bios_6_scratch);
 }
 
 void amdgpu_atombios_scratch_regs_init(struct amdgpu_device *adev)
 {
 	uint32_t bios_2_scratch, bios_6_scratch;
 
-	bios_2_scratch = RREG32(mmBIOS_SCRATCH_2);
-	bios_6_scratch = RREG32(mmBIOS_SCRATCH_6);
+	adev->bios_scratch_reg_offset = mmBIOS_SCRATCH_0;
+
+	bios_2_scratch = RREG32(adev->bios_scratch_reg_offset + 2);
+	bios_6_scratch = RREG32(adev->bios_scratch_reg_offset + 6);
 
 	/* let the bios control the backlight */
 	bios_2_scratch &= ~ATOM_S2_VRI_BRIGHT_ENABLE;
@@ -1715,8 +1717,8 @@ void amdgpu_atombios_scratch_regs_init(struct amdgpu_device *adev)
 	/* clear the vbios dpms state */
 	bios_2_scratch &= ~ATOM_S2_DEVICE_DPMS_STATE;
 
-	WREG32(mmBIOS_SCRATCH_2, bios_2_scratch);
-	WREG32(mmBIOS_SCRATCH_6, bios_6_scratch);
+	WREG32(adev->bios_scratch_reg_offset + 2, bios_2_scratch);
+	WREG32(adev->bios_scratch_reg_offset + 6, bios_6_scratch);
 }
 
 void amdgpu_atombios_scratch_regs_save(struct amdgpu_device *adev)
@@ -1724,7 +1726,7 @@ void amdgpu_atombios_scratch_regs_save(struct amdgpu_device *adev)
 	int i;
 
 	for (i = 0; i < AMDGPU_BIOS_NUM_SCRATCH; i++)
-		adev->bios_scratch[i] = RREG32(mmBIOS_SCRATCH_0 + i);
+		adev->bios_scratch[i] = RREG32(adev->bios_scratch_reg_offset + i);
 }
 
 void amdgpu_atombios_scratch_regs_restore(struct amdgpu_device *adev)
@@ -1738,50 +1740,58 @@ void amdgpu_atombios_scratch_regs_restore(struct amdgpu_device *adev)
 	adev->bios_scratch[7] &= ~ATOM_S7_ASIC_INIT_COMPLETE_MASK;
 
 	for (i = 0; i < AMDGPU_BIOS_NUM_SCRATCH; i++)
-		WREG32(mmBIOS_SCRATCH_0 + i, adev->bios_scratch[i]);
+		WREG32(adev->bios_scratch_reg_offset + i, adev->bios_scratch[i]);
 }
 
 void amdgpu_atombios_scratch_regs_engine_hung(struct amdgpu_device *adev,
 					      bool hung)
 {
-	u32 tmp = RREG32(mmBIOS_SCRATCH_3);
+	u32 tmp = RREG32(adev->bios_scratch_reg_offset + 3);
 
 	if (hung)
 		tmp |= ATOM_S3_ASIC_GUI_ENGINE_HUNG;
 	else
 		tmp &= ~ATOM_S3_ASIC_GUI_ENGINE_HUNG;
 
-	WREG32(mmBIOS_SCRATCH_3, tmp);
+	WREG32(adev->bios_scratch_reg_offset + 3, tmp);
 }
 
-/* Atom needs data in little endian format
- * so swap as appropriate when copying data to
- * or from atom. Note that atom operates on
- * dw units.
+bool amdgpu_atombios_scratch_need_asic_init(struct amdgpu_device *adev)
+{
+	u32 tmp = RREG32(adev->bios_scratch_reg_offset + 7);
+
+	if (tmp & ATOM_S7_ASIC_INIT_COMPLETE_MASK)
+		return false;
+	else
+		return true;
+}
+
+/* Atom needs data in little endian format so swap as appropriate when copying
+ * data to or from atom. Note that atom operates on dw units.
+ *
+ * Use to_le=true when sending data to atom and provide at least
+ * ALIGN(num_bytes,4) bytes in the dst buffer.
+ *
+ * Use to_le=false when receiving data from atom and provide ALIGN(num_bytes,4)
+ * byes in the src buffer.
  */
 void amdgpu_atombios_copy_swap(u8 *dst, u8 *src, u8 num_bytes, bool to_le)
 {
 #ifdef __BIG_ENDIAN
-	u8 src_tmp[20], dst_tmp[20]; /* used for byteswapping */
-	u32 *dst32, *src32;
+	u32 src_tmp[5], dst_tmp[5];
 	int i;
+	u8 align_num_bytes = ALIGN(num_bytes, 4);
 
-	memcpy(src_tmp, src, num_bytes);
-	src32 = (u32 *)src_tmp;
-	dst32 = (u32 *)dst_tmp;
 	if (to_le) {
-		for (i = 0; i < ((num_bytes + 3) / 4); i++)
-			dst32[i] = cpu_to_le32(src32[i]);
-		memcpy(dst, dst_tmp, num_bytes);
+		memcpy(src_tmp, src, num_bytes);
+		for (i = 0; i < align_num_bytes / 4; i++)
+			dst_tmp[i] = cpu_to_le32(src_tmp[i]);
+		memcpy(dst, dst_tmp, align_num_bytes);
 	} else {
-		u8 dws = num_bytes & ~3;
-		for (i = 0; i < ((num_bytes + 3) / 4); i++)
-			dst32[i] = le32_to_cpu(src32[i]);
-		memcpy(dst, dst_tmp, dws);
-		if (num_bytes % 4) {
-			for (i = 0; i < (num_bytes % 4); i++)
-				dst[dws+i] = dst_tmp[dws+i];
-		}
+		memcpy(src_tmp, src, align_num_bytes);
+		for (i = 0; i < align_num_bytes / 4; i++)
+			dst_tmp[i] = le32_to_cpu(src_tmp[i]);
+		memcpy(dst, dst_tmp, num_bytes);
 	}
 #else
 	memcpy(dst, src, num_bytes);
@@ -1795,6 +1805,8 @@ int amdgpu_atombios_allocate_fb_scratch(struct amdgpu_device *adev)
 	uint16_t data_offset;
 	int usage_bytes = 0;
 	struct _ATOM_VRAM_USAGE_BY_FIRMWARE *firmware_usage;
+	u64 start_addr;
+	u64 size;
 
 	if (amdgpu_atom_parse_data_header(ctx, index, NULL, NULL, NULL, &data_offset)) {
 		firmware_usage = (struct _ATOM_VRAM_USAGE_BY_FIRMWARE *)(ctx->bios + data_offset);
@@ -1803,7 +1815,21 @@ int amdgpu_atombios_allocate_fb_scratch(struct amdgpu_device *adev)
 			  le32_to_cpu(firmware_usage->asFirmwareVramReserveInfo[0].ulStartAddrUsedByFirmware),
 			  le16_to_cpu(firmware_usage->asFirmwareVramReserveInfo[0].usFirmwareUseInKb));
 
-		usage_bytes = le16_to_cpu(firmware_usage->asFirmwareVramReserveInfo[0].usFirmwareUseInKb) * 1024;
+		start_addr = firmware_usage->asFirmwareVramReserveInfo[0].ulStartAddrUsedByFirmware;
+		size = firmware_usage->asFirmwareVramReserveInfo[0].usFirmwareUseInKb;
+
+		if ((uint32_t)(start_addr & ATOM_VRAM_OPERATION_FLAGS_MASK) ==
+			(uint32_t)(ATOM_VRAM_BLOCK_SRIOV_MSG_SHARE_RESERVATION <<
+			ATOM_VRAM_OPERATION_FLAGS_SHIFT)) {
+			/* Firmware request VRAM reservation for SR-IOV */
+			adev->fw_vram_usage.start_offset = (start_addr &
+				(~ATOM_VRAM_OPERATION_FLAGS_MASK)) << 10;
+			adev->fw_vram_usage.size = size << 10;
+			/* Use the default scratch size */
+			usage_bytes = 0;
+		} else {
+			usage_bytes = le16_to_cpu(firmware_usage->asFirmwareVramReserveInfo[0].usFirmwareUseInKb) * 1024;
+		}
 	}
 	ctx->scratch_size_bytes = 0;
 	if (usage_bytes == 0)

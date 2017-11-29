@@ -41,6 +41,7 @@ static struct rtl_btc_ops rtl_btc_operation = {
 	.btc_periodical = rtl_btc_periodical,
 	.btc_halt_notify = rtl_btc_halt_notify,
 	.btc_btinfo_notify = rtl_btc_btinfo_notify,
+	.btc_btmpinfo_notify = rtl_btc_btmpinfo_notify,
 	.btc_is_limited_dig = rtl_btc_is_limited_dig,
 	.btc_is_disable_edca_turbo = rtl_btc_is_disable_edca_turbo,
 	.btc_is_bt_disabled = rtl_btc_is_bt_disabled,
@@ -163,6 +164,33 @@ void rtl_btc_halt_notify(void)
 void rtl_btc_btinfo_notify(struct rtl_priv *rtlpriv, u8 *tmp_buf, u8 length)
 {
 	exhalbtc_bt_info_notify(&gl_bt_coexist, tmp_buf, length);
+}
+
+void rtl_btc_btmpinfo_notify(struct rtl_priv *rtlpriv, u8 *tmp_buf, u8 length)
+{
+	u8 extid, seq, len;
+	u16 bt_real_fw_ver;
+	u8 bt_fw_ver;
+
+	if ((length < 4) || (!tmp_buf))
+		return;
+
+	extid = tmp_buf[0];
+	/* not response from BT FW then exit*/
+	if (extid != 1) /* C2H_TRIG_BY_BT_FW = 1 */
+		return;
+
+	len = tmp_buf[1] >> 4;
+	seq = tmp_buf[2] >> 4;
+
+	/* BT Firmware version response */
+	if (seq == 0x0E) {
+		bt_real_fw_ver = tmp_buf[3] | (tmp_buf[4] << 8);
+		bt_fw_ver = tmp_buf[5];
+
+		gl_bt_coexist.bt_info.bt_real_fw_ver = bt_real_fw_ver;
+		gl_bt_coexist.bt_info.bt_fw_ver = bt_fw_ver;
+	}
 }
 
 bool rtl_btc_is_limited_dig(struct rtl_priv *rtlpriv)

@@ -105,7 +105,7 @@ static void qib_send_trap(struct qib_ibport *ibp, void *data, unsigned len)
 		if (ibp->rvp.sm_lid != be16_to_cpu(IB_LID_PERMISSIVE)) {
 			struct ib_ah *ah;
 
-			ah = qib_create_qp0_ah(ibp, ibp->rvp.sm_lid);
+			ah = qib_create_qp0_ah(ibp, (u16)ibp->rvp.sm_lid);
 			if (IS_ERR(ah))
 				ret = PTR_ERR(ah);
 			else {
@@ -134,24 +134,21 @@ static void qib_send_trap(struct qib_ibport *ibp, void *data, unsigned len)
 }
 
 /*
- * Send a bad [PQ]_Key trap (ch. 14.3.8).
+ * Send a bad P_Key trap (ch. 14.3.8).
  */
-void qib_bad_pqkey(struct qib_ibport *ibp, __be16 trap_num, u32 key, u32 sl,
-		   u32 qp1, u32 qp2, __be16 lid1, __be16 lid2)
+void qib_bad_pkey(struct qib_ibport *ibp, u32 key, u32 sl,
+		  u32 qp1, u32 qp2, __be16 lid1, __be16 lid2)
 {
 	struct ib_mad_notice_attr data;
 
-	if (trap_num == IB_NOTICE_TRAP_BAD_PKEY)
-		ibp->rvp.pkey_violations++;
-	else
-		ibp->rvp.qkey_violations++;
 	ibp->rvp.n_pkt_drops++;
+	ibp->rvp.pkey_violations++;
 
 	/* Send violation trap */
 	data.generic_type = IB_NOTICE_TYPE_SECURITY;
 	data.prod_type_msb = 0;
 	data.prod_type_lsb = IB_NOTICE_PROD_CA;
-	data.trap_num = trap_num;
+	data.trap_num = IB_NOTICE_TRAP_BAD_PKEY;
 	data.issuer_lid = cpu_to_be16(ppd_from_ibp(ibp)->lid);
 	data.toggle_count = 0;
 	memset(&data.details, 0, sizeof(data.details));
@@ -283,7 +280,7 @@ static int subn_get_nodeinfo(struct ib_smp *smp, struct ib_device *ibdev,
 {
 	struct ib_node_info *nip = (struct ib_node_info *)&smp->data;
 	struct qib_devdata *dd = dd_from_ibdev(ibdev);
-	u32 vendor, majrev, minrev;
+	u32 majrev, minrev;
 	unsigned pidx = port - 1; /* IB number port from 1, hdw from 0 */
 
 	/* GUID 0 is illegal */
@@ -306,7 +303,6 @@ static int subn_get_nodeinfo(struct ib_smp *smp, struct ib_device *ibdev,
 	minrev = dd->minrev;
 	nip->revision = cpu_to_be32((majrev << 16) | minrev);
 	nip->local_port_num = port;
-	vendor = dd->vendorid;
 	nip->vendor_id[0] = QIB_SRC_OUI_1;
 	nip->vendor_id[1] = QIB_SRC_OUI_2;
 	nip->vendor_id[2] = QIB_SRC_OUI_3;
@@ -437,6 +433,7 @@ static int check_mkey(struct qib_ibport *ibp, struct ib_smp *smp, int mad_flags)
 			/* Bad mkey not a violation below level 2 */
 			if (ibp->rvp.mkeyprot < 2)
 				break;
+			/* fall through */
 		case IB_MGMT_METHOD_SET:
 		case IB_MGMT_METHOD_TRAP_REPRESS:
 			if (ibp->rvp.mkey_violations != 0xFFFF)
@@ -499,7 +496,7 @@ static int subn_get_portinfo(struct ib_smp *smp, struct ib_device *ibdev,
 		pip->mkey = ibp->rvp.mkey;
 	pip->gid_prefix = ibp->rvp.gid_prefix;
 	pip->lid = cpu_to_be16(ppd->lid);
-	pip->sm_lid = cpu_to_be16(ibp->rvp.sm_lid);
+	pip->sm_lid = cpu_to_be16((u16)ibp->rvp.sm_lid);
 	pip->cap_mask = cpu_to_be32(ibp->rvp.port_cap_flags);
 	/* pip->diag_code; */
 	pip->mkey_lease_period = cpu_to_be16(ibp->rvp.mkey_lease_period);
@@ -873,8 +870,6 @@ static int subn_set_portinfo(struct ib_smp *smp, struct ib_device *ibdev,
 		event.event = IB_EVENT_CLIENT_REREGISTER;
 		ib_dispatch_event(&event);
 	}
-
-	ret = subn_get_portinfo(smp, ibdev, port);
 
 	/* restore re-reg bit per o14-12.2.1 */
 	pip->clientrereg_resv_subnetto |= clientrereg;
@@ -1578,8 +1573,8 @@ static int pma_get_portcounters_cong(struct ib_pma_mad *pmp,
 	cntrs.port_xmit_packets -= ibp->z_port_xmit_packets;
 	cntrs.port_rcv_packets -= ibp->z_port_rcv_packets;
 
-	memset(pmp->reserved, 0, sizeof(pmp->reserved) +
-	       sizeof(pmp->data));
+	memset(pmp->reserved, 0, sizeof(pmp->reserved));
+	memset(pmp->data, 0, sizeof(pmp->data));
 
 	/*
 	 * Set top 3 bits to indicate interval in picoseconds in
@@ -2451,9 +2446,9 @@ bail:
 	return ret;
 }
 
-static void xmit_wait_timer_func(unsigned long opaque)
+static void xmit_wait_timer_func(struct timer_list *t)
 {
-	struct qib_pportdata *ppd = (struct qib_pportdata *)opaque;
+	struct qib_pportdata *ppd = from_timer(ppd, t, cong_stats.timer);
 	struct qib_devdata *dd = dd_from_ppd(ppd);
 	unsigned long flags;
 	u8 status;
@@ -2483,10 +2478,8 @@ void qib_notify_create_mad_agent(struct rvt_dev_info *rdi, int port_idx)
 
 	/* Initialize xmit_wait structure */
 	dd->pport[port_idx].cong_stats.counter = 0;
-	init_timer(&dd->pport[port_idx].cong_stats.timer);
-	dd->pport[port_idx].cong_stats.timer.function = xmit_wait_timer_func;
-	dd->pport[port_idx].cong_stats.timer.data =
-		(unsigned long)(&dd->pport[port_idx]);
+	timer_setup(&dd->pport[port_idx].cong_stats.timer,
+		    xmit_wait_timer_func, 0);
 	dd->pport[port_idx].cong_stats.timer.expires = 0;
 	add_timer(&dd->pport[port_idx].cong_stats.timer);
 }
@@ -2497,7 +2490,7 @@ void qib_notify_free_mad_agent(struct rvt_dev_info *rdi, int port_idx)
 	struct qib_devdata *dd = container_of(ibdev,
 					      struct qib_devdata, verbs_dev);
 
-	if (dd->pport[port_idx].cong_stats.timer.data)
+	if (dd->pport[port_idx].cong_stats.timer.function)
 		del_timer_sync(&dd->pport[port_idx].cong_stats.timer);
 
 	if (dd->pport[port_idx].ibport_data.smi_ah)

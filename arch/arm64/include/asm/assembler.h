@@ -25,11 +25,40 @@
 
 #include <asm/asm-offsets.h>
 #include <asm/cpufeature.h>
+#include <asm/debug-monitors.h>
 #include <asm/mmu_context.h>
 #include <asm/page.h>
 #include <asm/pgtable-hwdef.h>
 #include <asm/ptrace.h>
 #include <asm/thread_info.h>
+
+	.macro save_and_disable_daif, flags
+	mrs	\flags, daif
+	msr	daifset, #0xf
+	.endm
+
+	.macro disable_daif
+	msr	daifset, #0xf
+	.endm
+
+	.macro enable_daif
+	msr	daifclr, #0xf
+	.endm
+
+	.macro	restore_daif, flags:req
+	msr	daif, \flags
+	.endm
+
+	/* Only on aarch64 pstate, PSR_D_BIT is different for aarch32 */
+	.macro	inherit_daif, pstate:req, tmp:req
+	and	\tmp, \pstate, #(PSR_D_BIT | PSR_A_BIT | PSR_I_BIT | PSR_F_BIT)
+	msr	daif, \tmp
+	.endm
+
+	/* IRQ is the lowest priority flag, unconditionally unmask the rest. */
+	.macro enable_da_f
+	msr	daifclr, #(8 | 4 | 1)
+	.endm
 
 /*
  * Enable and disable interrupts.
@@ -51,13 +80,6 @@
 	msr	daif, \flags
 	.endm
 
-/*
- * Enable and disable debug exceptions.
- */
-	.macro	disable_dbg
-	msr	daifset, #8
-	.endm
-
 	.macro	enable_dbg
 	msr	daifclr, #8
 	.endm
@@ -65,28 +87,19 @@
 	.macro	disable_step_tsk, flgs, tmp
 	tbz	\flgs, #TIF_SINGLESTEP, 9990f
 	mrs	\tmp, mdscr_el1
-	bic	\tmp, \tmp, #1
+	bic	\tmp, \tmp, #DBG_MDSCR_SS
 	msr	mdscr_el1, \tmp
 	isb	// Synchronise with enable_dbg
 9990:
 	.endm
 
+	/* call with daif masked */
 	.macro	enable_step_tsk, flgs, tmp
 	tbz	\flgs, #TIF_SINGLESTEP, 9990f
-	disable_dbg
 	mrs	\tmp, mdscr_el1
-	orr	\tmp, \tmp, #1
+	orr	\tmp, \tmp, #DBG_MDSCR_SS
 	msr	mdscr_el1, \tmp
 9990:
-	.endm
-
-/*
- * Enable both debug exceptions and interrupts. This is likely to be
- * faster than two daifclr operations, since writes to this register
- * are self-synchronising.
- */
-	.macro	enable_dbg_and_irq
-	msr	daifclr, #(8 | 2)
 	.endm
 
 /*
@@ -230,12 +243,18 @@ lr	.req	x30		// link register
 	.endm
 
 	/*
-	 * @dst: Result of per_cpu(sym, smp_processor_id())
+	 * @dst: Result of per_cpu(sym, smp_processor_id()), can be SP for
+	 *       non-module code
 	 * @sym: The name of the per-cpu variable
 	 * @tmp: scratch register
 	 */
 	.macro adr_this_cpu, dst, sym, tmp
+#ifndef MODULE
+	adrp	\tmp, \sym
+	add	\dst, \tmp, #:lo12:\sym
+#else
 	adr_l	\dst, \sym
+#endif
 	mrs	\tmp, tpidr_el1
 	add	\dst, \dst, \tmp
 	.endm
@@ -353,6 +372,12 @@ alternative_if_not ARM64_WORKAROUND_CLEAN_CACHE
 alternative_else
 	dc	civac, \kaddr
 alternative_endif
+	.elseif	(\op == cvap)
+alternative_if ARM64_HAS_DCPOP
+	sys 3, c7, c12, 1, \kaddr	// dc cvap
+alternative_else
+	dc	cvac, \kaddr
+alternative_endif
 	.else
 	dc	\op, \kaddr
 	.endif
@@ -403,6 +428,17 @@ alternative_endif
 	.size	__pi_##x, . - x;	\
 	ENDPROC(x)
 
+/*
+ * Annotate a function as being unsuitable for kprobes.
+ */
+#ifdef CONFIG_KPROBES
+#define NOKPROBE(x)				\
+	.pushsection "_kprobe_blacklist", "aw";	\
+	.quad	x;				\
+	.popsection;
+#else
+#define NOKPROBE(x)
+#endif
 	/*
 	 * Emit a 64-bit absolute little endian symbol reference in a way that
 	 * ensures that it will be resolved at build time, even when building a

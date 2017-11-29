@@ -213,6 +213,14 @@ struct detailed_timing {
 #define DRM_EDID_HDMI_DC_30               (1 << 4)
 #define DRM_EDID_HDMI_DC_Y444             (1 << 3)
 
+/* YCBCR 420 deep color modes */
+#define DRM_EDID_YCBCR420_DC_48		  (1 << 6)
+#define DRM_EDID_YCBCR420_DC_36		  (1 << 5)
+#define DRM_EDID_YCBCR420_DC_30		  (1 << 4)
+#define DRM_EDID_YCBCR420_DC_MASK (DRM_EDID_YCBCR420_DC_48 | \
+				    DRM_EDID_YCBCR420_DC_36 | \
+				    DRM_EDID_YCBCR420_DC_30)
+
 /* ELD Header Block */
 #define DRM_ELD_HEADER_BLOCK_SIZE	4
 
@@ -333,6 +341,8 @@ int drm_av_sync_delay(struct drm_connector *connector,
 
 #ifdef CONFIG_DRM_LOAD_EDID_FIRMWARE
 struct edid *drm_load_edid_firmware(struct drm_connector *connector);
+int __drm_set_edid_firmware_path(const char *path);
+int __drm_get_edid_firmware_path(char *buf, size_t bufsize);
 #else
 static inline struct edid *
 drm_load_edid_firmware(struct drm_connector *connector)
@@ -343,7 +353,8 @@ drm_load_edid_firmware(struct drm_connector *connector)
 
 int
 drm_hdmi_avi_infoframe_from_display_mode(struct hdmi_avi_infoframe *frame,
-					 const struct drm_display_mode *mode);
+					 const struct drm_display_mode *mode,
+					 bool is_hdmi2_sink);
 int
 drm_hdmi_vendor_infoframe_from_display_mode(struct hdmi_vendor_infoframe *frame,
 					    const struct drm_display_mode *mode);

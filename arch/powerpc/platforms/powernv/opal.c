@@ -16,6 +16,7 @@
 #include <linux/of.h>
 #include <linux/of_fdt.h>
 #include <linux/of_platform.h>
+#include <linux/of_address.h>
 #include <linux/interrupt.h>
 #include <linux/notifier.h>
 #include <linux/slab.h>
@@ -25,11 +26,17 @@
 #include <linux/memblock.h>
 #include <linux/kthread.h>
 #include <linux/freezer.h>
+#include <linux/printk.h>
+#include <linux/kmsg_dump.h>
+#include <linux/console.h>
+#include <linux/sched/debug.h>
 
 #include <asm/machdep.h>
 #include <asm/opal.h>
 #include <asm/firmware.h>
 #include <asm/mce.h>
+#include <asm/imc-pmu.h>
+#include <asm/bug.h>
 
 #include "powernv.h"
 
@@ -162,12 +169,9 @@ int __init early_init_dt_scan_recoverable_ranges(unsigned long node,
 			sizeof(struct mcheck_recoverable_range);
 
 	/*
-	 * Allocate a buffer to hold the MC recoverable ranges. We would be
-	 * accessing them in real mode, hence it needs to be within
-	 * RMO region.
+	 * Allocate a buffer to hold the MC recoverable ranges.
 	 */
-	mc_recoverable_range =__va(memblock_alloc_base(size, __alignof__(u64),
-							ppc64_rma_size));
+	mc_recoverable_range =__va(memblock_alloc(size, __alignof__(u64)));
 	memset(mc_recoverable_range, 0, size);
 
 	for (i = 0; i < mc_recoverable_range_len; i++) {
@@ -422,24 +426,88 @@ static int opal_recover_mce(struct pt_regs *regs,
 		/* Fatal machine check */
 		pr_err("Machine check interrupt is fatal\n");
 		recovered = 0;
-	} else if ((evt->severity == MCE_SEV_ERROR_SYNC) &&
-			(user_mode(regs) && !is_global_init(current))) {
+	}
+
+	if (!recovered && evt->severity == MCE_SEV_ERROR_SYNC) {
 		/*
-		 * For now, kill the task if we have received exception when
-		 * in userspace.
+		 * Try to kill processes if we get a synchronous machine check
+		 * (e.g., one caused by execution of this instruction). This
+		 * will devolve into a panic if we try to kill init or are in
+		 * an interrupt etc.
 		 *
 		 * TODO: Queue up this address for hwpoisioning later.
+		 * TODO: This is not quite right for d-side machine
+		 *       checks ->nip is not necessarily the important
+		 *       address.
 		 */
-		_exception(SIGBUS, regs, BUS_MCEERR_AR, regs->nip);
-		recovered = 1;
+		if ((user_mode(regs))) {
+			_exception(SIGBUS, regs, BUS_MCEERR_AR, regs->nip);
+			recovered = 1;
+		} else if (die_will_crash()) {
+			/*
+			 * die() would kill the kernel, so better to go via
+			 * the platform reboot code that will log the
+			 * machine check.
+			 */
+			recovered = 0;
+		} else {
+			die("Machine check", regs, SIGBUS);
+			recovered = 1;
+		}
 	}
+
 	return recovered;
+}
+
+void pnv_platform_error_reboot(struct pt_regs *regs, const char *msg)
+{
+	/*
+	 * This is mostly taken from kernel/panic.c, but tries to do
+	 * relatively minimal work. Don't use delay functions (TB may
+	 * be broken), don't crash dump (need to set a firmware log),
+	 * don't run notifiers. We do want to get some information to
+	 * Linux console.
+	 */
+	console_verbose();
+	bust_spinlocks(1);
+	pr_emerg("Hardware platform error: %s\n", msg);
+	if (regs)
+		show_regs(regs);
+	smp_send_stop();
+	printk_safe_flush_on_panic();
+	kmsg_dump(KMSG_DUMP_PANIC);
+	bust_spinlocks(0);
+	debug_locks_off();
+	console_flush_on_panic();
+
+	/*
+	 * Don't bother to shut things down because this will
+	 * xstop the system.
+	 */
+	if (opal_cec_reboot2(OPAL_REBOOT_PLATFORM_ERROR, msg)
+						== OPAL_UNSUPPORTED) {
+		pr_emerg("Reboot type %d not supported for %s\n",
+				OPAL_REBOOT_PLATFORM_ERROR, msg);
+	}
+
+	/*
+	 * We reached here. There can be three possibilities:
+	 * 1. We are running on a firmware level that do not support
+	 *    opal_cec_reboot2()
+	 * 2. We are running on a firmware level that do not support
+	 *    OPAL_REBOOT_PLATFORM_ERROR reboot type.
+	 * 3. We are running on FSP based system that does not need
+	 *    opal to trigger checkstop explicitly for error analysis.
+	 *    The FSP PRD component would have already got notified
+	 *    about this error through other channels.
+	 */
+
+	ppc_md.restart(NULL);
 }
 
 int opal_machine_check(struct pt_regs *regs)
 {
 	struct machine_check_event evt;
-	int ret;
 
 	if (!get_mce_event(&evt, MCE_EVENT_RELEASE))
 		return 0;
@@ -455,43 +523,7 @@ int opal_machine_check(struct pt_regs *regs)
 	if (opal_recover_mce(regs, &evt))
 		return 1;
 
-	/*
-	 * Unrecovered machine check, we are heading to panic path.
-	 *
-	 * We may have hit this MCE in very early stage of kernel
-	 * initialization even before opal-prd has started running. If
-	 * this is the case then this MCE error may go un-noticed or
-	 * un-analyzed if we go down panic path. We need to inform
-	 * BMC/OCC about this error so that they can collect relevant
-	 * data for error analysis before rebooting.
-	 * Use opal_cec_reboot2(OPAL_REBOOT_PLATFORM_ERROR) to do so.
-	 * This function may not return on BMC based system.
-	 */
-	ret = opal_cec_reboot2(OPAL_REBOOT_PLATFORM_ERROR,
-			"Unrecoverable Machine Check exception");
-	if (ret == OPAL_UNSUPPORTED) {
-		pr_emerg("Reboot type %d not supported\n",
-					OPAL_REBOOT_PLATFORM_ERROR);
-	}
-
-	/*
-	 * We reached here. There can be three possibilities:
-	 * 1. We are running on a firmware level that do not support
-	 *    opal_cec_reboot2()
-	 * 2. We are running on a firmware level that do not support
-	 *    OPAL_REBOOT_PLATFORM_ERROR reboot type.
-	 * 3. We are running on FSP based system that does not need opal
-	 *    to trigger checkstop explicitly for error analysis. The FSP
-	 *    PRD component would have already got notified about this
-	 *    error through other channels.
-	 *
-	 * If hardware marked this as an unrecoverable MCE, we are
-	 * going to panic anyway. Even if it didn't, it's not safe to
-	 * continue at this point, so we should explicitly panic.
-	 */
-
-	panic("PowerNV Unrecovered Machine Check");
-	return 0;
+	pnv_platform_error_reboot(regs, "Unrecoverable Machine Check exception");
 }
 
 /* Early hmi handler called in real mode. */
@@ -720,6 +752,15 @@ static void opal_pdev_init(const char *compatible)
 		of_platform_device_create(np, NULL, NULL);
 }
 
+static void __init opal_imc_init_dev(void)
+{
+	struct device_node *np;
+
+	np = of_find_compatible_node(NULL, NULL, IMC_DTB_COMPAT);
+	if (np)
+		of_platform_device_create(np, NULL, NULL);
+}
+
 static int kopald(void *unused)
 {
 	unsigned long timeout = msecs_to_jiffies(opal_heartbeat) + 1;
@@ -793,6 +834,9 @@ static int __init opal_init(void)
 	/* Setup a heatbeat thread if requested by OPAL */
 	opal_init_heartbeat();
 
+	/* Detect In-Memory Collection counters and create devices*/
+	opal_imc_init_dev();
+
 	/* Create leds platform devices */
 	leds = of_find_node_by_path("/ibm,opal/leds");
 	if (leds) {
@@ -835,6 +879,15 @@ static int __init opal_init(void)
 
 	/* Initialise OPAL kmsg dumper for flushing console on panic */
 	opal_kmsg_init();
+
+	/* Initialise OPAL powercap interface */
+	opal_powercap_init();
+
+	/* Initialise OPAL Power-Shifting-Ratio interface */
+	opal_psr_init();
+
+	/* Initialise OPAL sensor groups */
+	opal_sensor_groups_init();
 
 	return 0;
 }
@@ -945,6 +998,7 @@ int opal_error_code(int rc)
 
 	case OPAL_PARAMETER:		return -EINVAL;
 	case OPAL_ASYNC_COMPLETION:	return -EINPROGRESS;
+	case OPAL_BUSY:
 	case OPAL_BUSY_EVENT:		return -EBUSY;
 	case OPAL_NO_MEM:		return -ENOMEM;
 	case OPAL_PERMISSION:		return -EPERM;
@@ -952,6 +1006,7 @@ int opal_error_code(int rc)
 	case OPAL_UNSUPPORTED:		return -EIO;
 	case OPAL_HARDWARE:		return -EIO;
 	case OPAL_INTERNAL_ERROR:	return -EIO;
+	case OPAL_TIMEOUT:		return -ETIMEDOUT;
 	default:
 		pr_err("%s: unexpected OPAL error %d\n", __func__, rc);
 		return -EIO;
@@ -983,3 +1038,4 @@ EXPORT_SYMBOL_GPL(opal_write_oppanel_async);
 /* Export this for KVM */
 EXPORT_SYMBOL_GPL(opal_int_set_mfrr);
 EXPORT_SYMBOL_GPL(opal_int_eoi);
+EXPORT_SYMBOL_GPL(opal_error_code);

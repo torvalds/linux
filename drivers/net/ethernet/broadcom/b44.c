@@ -599,9 +599,9 @@ static void b44_check_phy(struct b44 *bp)
 	}
 }
 
-static void b44_timer(unsigned long __opaque)
+static void b44_timer(struct timer_list *t)
 {
-	struct b44 *bp = (struct b44 *) __opaque;
+	struct b44 *bp = from_timer(bp, t, timer);
 
 	spin_lock_irq(&bp->lock);
 
@@ -1474,10 +1474,8 @@ static int b44_open(struct net_device *dev)
 		goto out;
 	}
 
-	init_timer(&bp->timer);
+	timer_setup(&bp->timer, b44_timer, 0);
 	bp->timer.expires = jiffies + HZ;
-	bp->timer.data = (unsigned long) bp;
-	bp->timer.function = b44_timer;
 	add_timer(&bp->timer);
 
 	b44_enable_ints(bp);
@@ -2368,6 +2366,7 @@ static int b44_init_one(struct ssb_device *sdev,
 	bp->msg_enable = netif_msg_init(b44_debug, B44_DEF_MSG_ENABLE);
 
 	spin_lock_init(&bp->lock);
+	u64_stats_init(&bp->hw_stats.syncp);
 
 	bp->rx_pending = B44_DEF_RX_RING_PENDING;
 	bp->tx_pending = B44_DEF_TX_RING_PENDING;

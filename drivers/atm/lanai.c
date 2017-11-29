@@ -1761,9 +1761,9 @@ static void iter_dequeue(struct lanai_dev *lanai, vci_t vci)
 }
 #endif /* !DEBUG_RW */
 
-static void lanai_timed_poll(unsigned long arg)
+static void lanai_timed_poll(struct timer_list *t)
 {
-	struct lanai_dev *lanai = (struct lanai_dev *) arg;
+	struct lanai_dev *lanai = from_timer(lanai, t, timer);
 #ifndef DEBUG_RW
 	unsigned long flags;
 #ifdef USE_POWERDOWN
@@ -1790,10 +1790,8 @@ static void lanai_timed_poll(unsigned long arg)
 
 static inline void lanai_timed_poll_start(struct lanai_dev *lanai)
 {
-	init_timer(&lanai->timer);
+	timer_setup(&lanai->timer, lanai_timed_poll, 0);
 	lanai->timer.expires = jiffies + LANAI_POLL_PERIOD;
-	lanai->timer.data = (unsigned long) lanai;
-	lanai->timer.function = lanai_timed_poll;
 	add_timer(&lanai->timer);
 }
 
@@ -2589,7 +2587,7 @@ static int lanai_init_one(struct pci_dev *pci,
 	return result;
 }
 
-static struct pci_device_id lanai_pci_tbl[] = {
+static const struct pci_device_id lanai_pci_tbl[] = {
 	{ PCI_VDEVICE(EF, PCI_DEVICE_ID_EF_ATM_LANAI2) },
 	{ PCI_VDEVICE(EF, PCI_DEVICE_ID_EF_ATM_LANAIHB) },
 	{ 0, }	/* terminal entry */

@@ -102,7 +102,8 @@ static const struct venus_format vdec_formats[] = {
 	},
 };
 
-static const struct venus_format *find_format(u32 pixfmt, u32 type)
+static const struct venus_format *
+find_format(struct venus_inst *inst, u32 pixfmt, u32 type)
 {
 	const struct venus_format *fmt = vdec_formats;
 	unsigned int size = ARRAY_SIZE(vdec_formats);
@@ -116,11 +117,15 @@ static const struct venus_format *find_format(u32 pixfmt, u32 type)
 	if (i == size || fmt[i].type != type)
 		return NULL;
 
+	if (type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE &&
+	    !venus_helper_check_codec(inst, fmt[i].pixfmt))
+		return NULL;
+
 	return &fmt[i];
 }
 
 static const struct venus_format *
-find_format_by_index(unsigned int index, u32 type)
+find_format_by_index(struct venus_inst *inst, unsigned int index, u32 type)
 {
 	const struct venus_format *fmt = vdec_formats;
 	unsigned int size = ARRAY_SIZE(vdec_formats);
@@ -140,6 +145,10 @@ find_format_by_index(unsigned int index, u32 type)
 	if (i == size)
 		return NULL;
 
+	if (type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE &&
+	    !venus_helper_check_codec(inst, fmt[i].pixfmt))
+		return NULL;
+
 	return &fmt[i];
 }
 
@@ -154,7 +163,7 @@ vdec_try_fmt_common(struct venus_inst *inst, struct v4l2_format *f)
 	memset(pfmt[0].reserved, 0, sizeof(pfmt[0].reserved));
 	memset(pixmp->reserved, 0, sizeof(pixmp->reserved));
 
-	fmt = find_format(pixmp->pixelformat, f->type);
+	fmt = find_format(inst, pixmp->pixelformat, f->type);
 	if (!fmt) {
 		if (f->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE)
 			pixmp->pixelformat = V4L2_PIX_FMT_NV12;
@@ -162,7 +171,7 @@ vdec_try_fmt_common(struct venus_inst *inst, struct v4l2_format *f)
 			pixmp->pixelformat = V4L2_PIX_FMT_H264;
 		else
 			return NULL;
-		fmt = find_format(pixmp->pixelformat, f->type);
+		fmt = find_format(inst, pixmp->pixelformat, f->type);
 		pixmp->width = 1280;
 		pixmp->height = 720;
 	}
@@ -364,11 +373,12 @@ vdec_querycap(struct file *file, void *fh, struct v4l2_capability *cap)
 
 static int vdec_enum_fmt(struct file *file, void *fh, struct v4l2_fmtdesc *f)
 {
+	struct venus_inst *inst = to_inst(file);
 	const struct venus_format *fmt;
 
 	memset(f->reserved, 0, sizeof(f->reserved));
 
-	fmt = find_format_by_index(f->index, f->type);
+	fmt = find_format_by_index(inst, f->index, f->type);
 	if (!fmt)
 		return -EINVAL;
 
@@ -417,10 +427,10 @@ static int vdec_enum_framesizes(struct file *file, void *fh,
 	struct venus_inst *inst = to_inst(file);
 	const struct venus_format *fmt;
 
-	fmt = find_format(fsize->pixel_format,
+	fmt = find_format(inst, fsize->pixel_format,
 			  V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE);
 	if (!fmt) {
-		fmt = find_format(fsize->pixel_format,
+		fmt = find_format(inst, fsize->pixel_format,
 				  V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE);
 		if (!fmt)
 			return -EINVAL;
@@ -459,8 +469,14 @@ static int vdec_subscribe_event(struct v4l2_fh *fh,
 static int
 vdec_try_decoder_cmd(struct file *file, void *fh, struct v4l2_decoder_cmd *cmd)
 {
-	if (cmd->cmd != V4L2_DEC_CMD_STOP)
+	switch (cmd->cmd) {
+	case V4L2_DEC_CMD_STOP:
+		if (cmd->flags & V4L2_DEC_CMD_STOP_TO_BLACK)
+			return -EINVAL;
+		break;
+	default:
 		return -EINVAL;
+	}
 
 	return 0;
 }
@@ -469,6 +485,7 @@ static int
 vdec_decoder_cmd(struct file *file, void *fh, struct v4l2_decoder_cmd *cmd)
 {
 	struct venus_inst *inst = to_inst(file);
+	struct hfi_frame_data fdata = {0};
 	int ret;
 
 	ret = vdec_try_decoder_cmd(file, fh, cmd);
@@ -476,12 +493,23 @@ vdec_decoder_cmd(struct file *file, void *fh, struct v4l2_decoder_cmd *cmd)
 		return ret;
 
 	mutex_lock(&inst->lock);
-	inst->cmd_stop = true;
+
+	/*
+	 * Implement V4L2_DEC_CMD_STOP by enqueue an empty buffer on decoder
+	 * input to signal EOS.
+	 */
+	if (!(inst->streamon_out & inst->streamon_cap))
+		goto unlock;
+
+	fdata.buffer_type = HFI_BUFFER_INPUT;
+	fdata.flags |= HFI_BUFFERFLAG_EOS;
+	fdata.device_addr = 0xdeadbeef;
+
+	ret = hfi_session_process_buf(inst, &fdata);
+
+unlock:
 	mutex_unlock(&inst->lock);
-
-	hfi_session_flush(inst);
-
-	return 0;
+	return ret;
 }
 
 static const struct v4l2_ioctl_ops vdec_ioctl_ops = {
@@ -708,7 +736,6 @@ static int vdec_start_streaming(struct vb2_queue *q, unsigned int count)
 	inst->reconfig = false;
 	inst->sequence_cap = 0;
 	inst->sequence_out = 0;
-	inst->cmd_stop = false;
 
 	ret = vdec_init_session(inst);
 	if (ret)
@@ -796,11 +823,6 @@ static void vdec_buf_done(struct venus_inst *inst, unsigned int buf_type,
 		vb->planes[0].data_offset = data_offset;
 		vb->timestamp = timestamp_us * NSEC_PER_USEC;
 		vbuf->sequence = inst->sequence_cap++;
-
-		if (inst->cmd_stop) {
-			vbuf->flags |= V4L2_BUF_FLAG_LAST;
-			inst->cmd_stop = false;
-		}
 
 		if (vbuf->flags & V4L2_BUF_FLAG_LAST) {
 			const struct v4l2_event ev = { .type = V4L2_EVENT_EOS };
@@ -1069,6 +1091,7 @@ static int vdec_probe(struct platform_device *pdev)
 	if (!vdev)
 		return -ENOMEM;
 
+	strlcpy(vdev->name, "qcom-venus-decoder", sizeof(vdev->name));
 	vdev->release = video_device_release;
 	vdev->fops = &vdec_fops;
 	vdev->ioctl_ops = &vdec_ioctl_ops;
@@ -1103,8 +1126,7 @@ static int vdec_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM
-static int vdec_runtime_suspend(struct device *dev)
+static __maybe_unused int vdec_runtime_suspend(struct device *dev)
 {
 	struct venus_core *core = dev_get_drvdata(dev);
 
@@ -1118,7 +1140,7 @@ static int vdec_runtime_suspend(struct device *dev)
 	return 0;
 }
 
-static int vdec_runtime_resume(struct device *dev)
+static __maybe_unused int vdec_runtime_resume(struct device *dev)
 {
 	struct venus_core *core = dev_get_drvdata(dev);
 	int ret;
@@ -1132,7 +1154,6 @@ static int vdec_runtime_resume(struct device *dev)
 
 	return ret;
 }
-#endif
 
 static const struct dev_pm_ops vdec_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,

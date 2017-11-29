@@ -138,6 +138,22 @@ int cxl_handle_mm_fault(struct mm_struct *mm, u64 dsisr, u64 dar)
 	int result;
 	unsigned long access, flags, inv_flags = 0;
 
+	/*
+	 * Add the fault handling cpu to task mm cpumask so that we
+	 * can do a safe lockless page table walk when inserting the
+	 * hash page table entry. This function get called with a
+	 * valid mm for user space addresses. Hence using the if (mm)
+	 * check is sufficient here.
+	 */
+	if (mm && !cpumask_test_cpu(smp_processor_id(), mm_cpumask(mm))) {
+		cpumask_set_cpu(smp_processor_id(), mm_cpumask(mm));
+		/*
+		 * We need to make sure we walk the table only after
+		 * we update the cpumask. The other side of the barrier
+		 * is explained in serialize_against_pte_lookup()
+		 */
+		smp_mb();
+	}
 	if ((result = copro_handle_mm_fault(mm, dar, dsisr, &flt))) {
 		pr_devel("copro_handle_mm_fault failed: %#x\n", result);
 		return result;
@@ -204,22 +220,11 @@ static bool cxl_is_segment_miss(struct cxl_context *ctx, u64 dsisr)
 
 static bool cxl_is_page_fault(struct cxl_context *ctx, u64 dsisr)
 {
-	u64 crs; /* Translation Checkout Response Status */
-
 	if ((cxl_is_power8()) && (dsisr & CXL_PSL_DSISR_An_DM))
 		return true;
 
-	if (cxl_is_power9()) {
-		crs = (dsisr & CXL_PSL9_DSISR_An_CO_MASK);
-		if ((crs == CXL_PSL9_DSISR_An_PF_SLR) ||
-		    (crs == CXL_PSL9_DSISR_An_PF_RGC) ||
-		    (crs == CXL_PSL9_DSISR_An_PF_RGP) ||
-		    (crs == CXL_PSL9_DSISR_An_PF_HRH) ||
-		    (crs == CXL_PSL9_DSISR_An_PF_STEG) ||
-		    (crs == CXL_PSL9_DSISR_An_URTCH)) {
-			return true;
-		}
-	}
+	if (cxl_is_power9())
+		return true;
 
 	return false;
 }

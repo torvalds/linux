@@ -21,8 +21,25 @@ config ARM64
 	select ARCH_HAS_STRICT_KERNEL_RWX
 	select ARCH_HAS_STRICT_MODULE_RWX
 	select ARCH_HAS_TICK_BROADCAST if GENERIC_CLOCKEVENTS_BROADCAST
-	select ARCH_HAVE_NMI_SAFE_CMPXCHG if ACPI_APEI_SEA
+	select ARCH_HAVE_NMI_SAFE_CMPXCHG
+	select ARCH_INLINE_READ_LOCK if !PREEMPT
+	select ARCH_INLINE_READ_LOCK_BH if !PREEMPT
+	select ARCH_INLINE_READ_LOCK_IRQ if !PREEMPT
+	select ARCH_INLINE_READ_LOCK_IRQSAVE if !PREEMPT
+	select ARCH_INLINE_READ_UNLOCK if !PREEMPT
+	select ARCH_INLINE_READ_UNLOCK_BH if !PREEMPT
+	select ARCH_INLINE_READ_UNLOCK_IRQ if !PREEMPT
+	select ARCH_INLINE_READ_UNLOCK_IRQRESTORE if !PREEMPT
+	select ARCH_INLINE_WRITE_LOCK if !PREEMPT
+	select ARCH_INLINE_WRITE_LOCK_BH if !PREEMPT
+	select ARCH_INLINE_WRITE_LOCK_IRQ if !PREEMPT
+	select ARCH_INLINE_WRITE_LOCK_IRQSAVE if !PREEMPT
+	select ARCH_INLINE_WRITE_UNLOCK if !PREEMPT
+	select ARCH_INLINE_WRITE_UNLOCK_BH if !PREEMPT
+	select ARCH_INLINE_WRITE_UNLOCK_IRQ if !PREEMPT
+	select ARCH_INLINE_WRITE_UNLOCK_IRQRESTORE if !PREEMPT
 	select ARCH_USE_CMPXCHG_LOCKREF
+	select ARCH_USE_QUEUED_RWLOCKS
 	select ARCH_SUPPORTS_MEMORY_FAILURE
 	select ARCH_SUPPORTS_ATOMIC_RMW
 	select ARCH_SUPPORTS_NUMA_BALANCING
@@ -68,13 +85,14 @@ config ARM64
 	select HAVE_ARCH_BITREVERSE
 	select HAVE_ARCH_HUGE_VMAP
 	select HAVE_ARCH_JUMP_LABEL
-	select HAVE_ARCH_KASAN if SPARSEMEM_VMEMMAP && !(ARM64_16K_PAGES && ARM64_VA_BITS_48)
+	select HAVE_ARCH_KASAN if !(ARM64_16K_PAGES && ARM64_VA_BITS_48)
 	select HAVE_ARCH_KGDB
 	select HAVE_ARCH_MMAP_RND_BITS
 	select HAVE_ARCH_MMAP_RND_COMPAT_BITS if COMPAT
 	select HAVE_ARCH_SECCOMP_FILTER
 	select HAVE_ARCH_TRACEHOOK
 	select HAVE_ARCH_TRANSPARENT_HUGEPAGE
+	select HAVE_ARCH_VMAP_STACK
 	select HAVE_ARM_SMCCC
 	select HAVE_EBPF_JIT
 	select HAVE_C_RECORDMCOUNT
@@ -97,7 +115,7 @@ config ARM64
 	select HAVE_IRQ_TIME_ACCOUNTING
 	select HAVE_MEMBLOCK
 	select HAVE_MEMBLOCK_NODE_MAP if NUMA
-	select HAVE_NMI if ACPI_APEI_SEA
+	select HAVE_NMI
 	select HAVE_PATA_PLATFORM
 	select HAVE_PERF_EVENTS
 	select HAVE_PERF_REGS
@@ -118,6 +136,7 @@ config ARM64
 	select PCI_ECAM if ACPI
 	select POWER_RESET
 	select POWER_SUPPLY
+	select REFCOUNT_FULL
 	select SPARSE_IRQ
 	select SYSCTL_EXCEPTION_TRACE
 	select THREAD_INFO_IN_TASK
@@ -538,6 +557,25 @@ config QCOM_QDF2400_ERRATUM_0065
 
 	  If unsure, say Y.
 
+
+config SOCIONEXT_SYNQUACER_PREITS
+	bool "Socionext Synquacer: Workaround for GICv3 pre-ITS"
+	default y
+	help
+	  Socionext Synquacer SoCs implement a separate h/w block to generate
+	  MSI doorbell writes with non-zero values for the device ID.
+
+	  If unsure, say Y.
+
+config HISILICON_ERRATUM_161600802
+	bool "Hip07 161600802: Erroneous redistributor VLPI base"
+	default y
+	help
+	  The HiSilicon Hip07 SoC usees the wrong redistributor base
+	  when issued ITS commands such as VMOVP and VMAPP, and requires
+	  a 128kB offset to be applied to the target address in this commands.
+
+	  If unsure, say Y.
 endmenu
 
 
@@ -805,6 +843,7 @@ config FORCE_MAX_ZONEORDER
 menuconfig ARMV8_DEPRECATED
 	bool "Emulate deprecated/obsolete ARMv8 instructions"
 	depends on COMPAT
+	depends on SYSCTL
 	help
 	  Legacy software support may require certain instructions
 	  that have been deprecated or obsoleted in the architecture.
@@ -945,7 +984,7 @@ config ARM64_UAO
 	help
 	  User Access Override (UAO; part of the ARMv8.2 Extensions)
 	  causes the 'unprivileged' variant of the load/store instructions to
-	  be overriden to be privileged.
+	  be overridden to be privileged.
 
 	  This option changes get_user() and friends to use the 'unprivileged'
 	  variant of the load/store instructions. This ensures that user-space
@@ -960,7 +999,30 @@ config ARM64_UAO
 	  regular load/store instructions if the cpu does not implement the
 	  feature.
 
+config ARM64_PMEM
+	bool "Enable support for persistent memory"
+	select ARCH_HAS_PMEM_API
+	select ARCH_HAS_UACCESS_FLUSHCACHE
+	help
+	  Say Y to enable support for the persistent memory API based on the
+	  ARMv8.2 DCPoP feature.
+
+	  The feature is detected at runtime, and the kernel will use DC CVAC
+	  operations if DC CVAP is not supported (following the behaviour of
+	  DC CVAP itself if the system does not define a point of persistence).
+
 endmenu
+
+config ARM64_SVE
+	bool "ARM Scalable Vector Extension support"
+	default y
+	help
+	  The Scalable Vector Extension (SVE) is an extension to the AArch64
+	  execution state which complements and extends the SIMD functionality
+	  of the base architecture to support much larger vectors and to enable
+	  additional vectorisation opportunities.
+
+	  To enable use of this extension on CPUs that implement it, say Y.
 
 config ARM64_MODULE_CMODEL_LARGE
 	bool
@@ -1050,6 +1112,7 @@ config EFI_STUB
 config EFI
 	bool "UEFI runtime support"
 	depends on OF && !CPU_BIG_ENDIAN
+	depends on KERNEL_MODE_NEON
 	select LIBFDT
 	select UCS2_STRING
 	select EFI_PARAMS_FROM_FDT

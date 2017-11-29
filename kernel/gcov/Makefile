@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 ccflags-y := -DSRCTREE='"$(srctree)"' -DOBJTREE='"$(objtree)"'
 
 obj-y := base.o fs.o

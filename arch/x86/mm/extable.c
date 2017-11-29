@@ -2,6 +2,7 @@
 #include <linux/uaccess.h>
 #include <linux/sched/debug.h>
 
+#include <asm/fpu/internal.h>
 #include <asm/traps.h>
 #include <asm/kdebug.h>
 
@@ -35,6 +36,76 @@ bool ex_handler_fault(const struct exception_table_entry *fixup,
 	return true;
 }
 EXPORT_SYMBOL_GPL(ex_handler_fault);
+
+/*
+ * Handler for UD0 exception following a failed test against the
+ * result of a refcount inc/dec/add/sub.
+ */
+bool ex_handler_refcount(const struct exception_table_entry *fixup,
+			 struct pt_regs *regs, int trapnr)
+{
+	/* First unconditionally saturate the refcount. */
+	*(int *)regs->cx = INT_MIN / 2;
+
+	/*
+	 * Strictly speaking, this reports the fixup destination, not
+	 * the fault location, and not the actually overflowing
+	 * instruction, which is the instruction before the "js", but
+	 * since that instruction could be a variety of lengths, just
+	 * report the location after the overflow, which should be close
+	 * enough for finding the overflow, as it's at least back in
+	 * the function, having returned from .text.unlikely.
+	 */
+	regs->ip = ex_fixup_addr(fixup);
+
+	/*
+	 * This function has been called because either a negative refcount
+	 * value was seen by any of the refcount functions, or a zero
+	 * refcount value was seen by refcount_dec().
+	 *
+	 * If we crossed from INT_MAX to INT_MIN, OF (Overflow Flag: result
+	 * wrapped around) will be set. Additionally, seeing the refcount
+	 * reach 0 will set ZF (Zero Flag: result was zero). In each of
+	 * these cases we want a report, since it's a boundary condition.
+	 * The SF case is not reported since it indicates post-boundary
+	 * manipulations below zero or above INT_MAX. And if none of the
+	 * flags are set, something has gone very wrong, so report it.
+	 */
+	if (regs->flags & (X86_EFLAGS_OF | X86_EFLAGS_ZF)) {
+		bool zero = regs->flags & X86_EFLAGS_ZF;
+
+		refcount_error_report(regs, zero ? "hit zero" : "overflow");
+	} else if ((regs->flags & X86_EFLAGS_SF) == 0) {
+		/* Report if none of OF, ZF, nor SF are set. */
+		refcount_error_report(regs, "unexpected saturation");
+	}
+
+	return true;
+}
+EXPORT_SYMBOL_GPL(ex_handler_refcount);
+
+/*
+ * Handler for when we fail to restore a task's FPU state.  We should never get
+ * here because the FPU state of a task using the FPU (task->thread.fpu.state)
+ * should always be valid.  However, past bugs have allowed userspace to set
+ * reserved bits in the XSAVE area using PTRACE_SETREGSET or sys_rt_sigreturn().
+ * These caused XRSTOR to fail when switching to the task, leaking the FPU
+ * registers of the task previously executing on the CPU.  Mitigate this class
+ * of vulnerability by restoring from the initial state (essentially, zeroing
+ * out all the FPU registers) if we can't restore from the task's FPU state.
+ */
+bool ex_handler_fprestore(const struct exception_table_entry *fixup,
+			  struct pt_regs *regs, int trapnr)
+{
+	regs->ip = ex_fixup_addr(fixup);
+
+	WARN_ONCE(1, "Bad FPU state detected at %pB, reinitializing FPU registers.",
+		  (void *)instruction_pointer(regs));
+
+	__copy_kernel_to_fpregs(&init_fpstate, -1);
+	return true;
+}
+EXPORT_SYMBOL_GPL(ex_handler_fprestore);
 
 bool ex_handler_ext(const struct exception_table_entry *fixup,
 		   struct pt_regs *regs, int trapnr)
@@ -142,7 +213,7 @@ void __init early_fixup_exception(struct pt_regs *regs, int trapnr)
 	 * undefined.  I'm not sure which CPUs do this, but at least
 	 * the 486 DX works this way.
 	 */
-	if ((regs->cs & 0xFFFF) != __KERNEL_CS)
+	if (regs->cs != __KERNEL_CS)
 		goto fail;
 
 	/*

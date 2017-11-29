@@ -25,7 +25,7 @@
 #include <linux/firmware.h>
 #include "zd1201.h"
 
-static struct usb_device_id zd1201_table[] = {
+static const struct usb_device_id zd1201_table[] = {
 	{USB_DEVICE(0x0586, 0x3400)}, /* Peabird Wireless USB Adapter */
 	{USB_DEVICE(0x0ace, 0x1201)}, /* ZyDAS ZD1201 Wireless USB Adapter */
 	{USB_DEVICE(0x050d, 0x6051)}, /* Belkin F5D6051 usb  adapter */
@@ -230,8 +230,7 @@ static void zd1201_usbrx(struct urb *urb)
 	/* Info frame */
 	if (type == ZD1201_PACKET_INQUIRE) {
 		int i = 0;
-		unsigned short infotype, framelen, copylen;
-		framelen = le16_to_cpu(*(__le16*)&data[4]);
+		unsigned short infotype, copylen;
 		infotype = le16_to_cpu(*(__le16*)&data[6]);
 
 		if (infotype == ZD1201_INF_LINKSTATUS) {

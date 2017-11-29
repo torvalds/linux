@@ -73,6 +73,7 @@
 #define SUN8I_SYS_SR_CTRL_AIF2_FS_MASK		GENMASK(11, 8)
 #define SUN8I_AIF1CLK_CTRL_AIF1_WORD_SIZ_MASK	GENMASK(5, 4)
 #define SUN8I_AIF1CLK_CTRL_AIF1_LRCK_DIV_MASK	GENMASK(8, 6)
+#define SUN8I_AIF1CLK_CTRL_AIF1_BCLK_DIV_MASK	GENMASK(12, 9)
 
 struct sun8i_codec {
 	struct device	*dev;
@@ -170,11 +171,11 @@ static int sun8i_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 
 	/* clock masters */
 	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
-	case SND_SOC_DAIFMT_CBS_CFS: /* DAI Slave */
-		value = 0x0; /* Codec Master */
+	case SND_SOC_DAIFMT_CBS_CFS: /* Codec slave, DAI master */
+		value = 0x1;
 		break;
-	case SND_SOC_DAIFMT_CBM_CFM: /* DAI Master */
-		value = 0x1; /* Codec Slave */
+	case SND_SOC_DAIFMT_CBM_CFM: /* Codec Master, DAI slave */
+		value = 0x0;
 		break;
 	default:
 		return -EINVAL;
@@ -197,9 +198,20 @@ static int sun8i_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	regmap_update_bits(scodec->regmap, SUN8I_AIF1CLK_CTRL,
 			   BIT(SUN8I_AIF1CLK_CTRL_AIF1_BCLK_INV),
 			   value << SUN8I_AIF1CLK_CTRL_AIF1_BCLK_INV);
+
+	/*
+	 * It appears that the DAI and the codec don't share the same
+	 * polarity for the LRCK signal when they mean 'normal' and
+	 * 'inverted' in the datasheet.
+	 *
+	 * Since the DAI here is our regular i2s driver that have been
+	 * tested with way more codecs than just this one, it means
+	 * that the codec probably gets it backward, and we have to
+	 * invert the value here.
+	 */
 	regmap_update_bits(scodec->regmap, SUN8I_AIF1CLK_CTRL,
 			   BIT(SUN8I_AIF1CLK_CTRL_AIF1_LRCK_INV),
-			   value << SUN8I_AIF1CLK_CTRL_AIF1_LRCK_INV);
+			   !value << SUN8I_AIF1CLK_CTRL_AIF1_LRCK_INV);
 
 	/* DAI format */
 	switch (fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
@@ -226,12 +238,57 @@ static int sun8i_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	return 0;
 }
 
+struct sun8i_codec_clk_div {
+	u8	div;
+	u8	val;
+};
+
+static const struct sun8i_codec_clk_div sun8i_codec_bclk_div[] = {
+	{ .div = 1,	.val = 0 },
+	{ .div = 2,	.val = 1 },
+	{ .div = 4,	.val = 2 },
+	{ .div = 6,	.val = 3 },
+	{ .div = 8,	.val = 4 },
+	{ .div = 12,	.val = 5 },
+	{ .div = 16,	.val = 6 },
+	{ .div = 24,	.val = 7 },
+	{ .div = 32,	.val = 8 },
+	{ .div = 48,	.val = 9 },
+	{ .div = 64,	.val = 10 },
+	{ .div = 96,	.val = 11 },
+	{ .div = 128,	.val = 12 },
+	{ .div = 192,	.val = 13 },
+};
+
+static u8 sun8i_codec_get_bclk_div(struct sun8i_codec *scodec,
+				   unsigned int rate,
+				   unsigned int word_size)
+{
+	unsigned long clk_rate = clk_get_rate(scodec->clk_module);
+	unsigned int div = clk_rate / rate / word_size / 2;
+	unsigned int best_val = 0, best_diff = ~0;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(sun8i_codec_bclk_div); i++) {
+		const struct sun8i_codec_clk_div *bdiv = &sun8i_codec_bclk_div[i];
+		unsigned int diff = abs(bdiv->div - div);
+
+		if (diff < best_diff) {
+			best_diff = diff;
+			best_val = bdiv->val;
+		}
+	}
+
+	return best_val;
+}
+
 static int sun8i_codec_hw_params(struct snd_pcm_substream *substream,
 				 struct snd_pcm_hw_params *params,
 				 struct snd_soc_dai *dai)
 {
 	struct sun8i_codec *scodec = snd_soc_codec_get_drvdata(dai->codec);
 	int sample_rate;
+	u8 bclk_div;
 
 	/*
 	 * The CPU DAI handles only a sample of 16 bits. Configure the
@@ -240,6 +297,11 @@ static int sun8i_codec_hw_params(struct snd_pcm_substream *substream,
 	regmap_update_bits(scodec->regmap, SUN8I_AIF1CLK_CTRL,
 			   SUN8I_AIF1CLK_CTRL_AIF1_WORD_SIZ_MASK,
 			   SUN8I_AIF1CLK_CTRL_AIF1_WORD_SIZ_16);
+
+	bclk_div = sun8i_codec_get_bclk_div(scodec, params_rate(params), 16);
+	regmap_update_bits(scodec->regmap, SUN8I_AIF1CLK_CTRL,
+			   SUN8I_AIF1CLK_CTRL_AIF1_BCLK_DIV_MASK,
+			   bclk_div << SUN8I_AIF1CLK_CTRL_AIF1_BCLK_DIV);
 
 	regmap_update_bits(scodec->regmap, SUN8I_AIF1CLK_CTRL,
 			   SUN8I_AIF1CLK_CTRL_AIF1_LRCK_DIV_MASK,
@@ -341,7 +403,7 @@ static const struct snd_soc_dapm_route sun8i_codec_dapm_routes[] = {
 	  "AIF1 Slot 0 Right"},
 };
 
-static struct snd_soc_dai_ops sun8i_codec_dai_ops = {
+static const struct snd_soc_dai_ops sun8i_codec_dai_ops = {
 	.hw_params = sun8i_codec_hw_params,
 	.set_fmt = sun8i_set_fmt,
 };
@@ -360,7 +422,7 @@ static struct snd_soc_dai_driver sun8i_codec_dai = {
 	.ops = &sun8i_codec_dai_ops,
 };
 
-static struct snd_soc_codec_driver sun8i_soc_codec = {
+static const struct snd_soc_codec_driver sun8i_soc_codec = {
 	.component_driver = {
 		.dapm_widgets		= sun8i_codec_dapm_widgets,
 		.num_dapm_widgets	= ARRAY_SIZE(sun8i_codec_dapm_widgets),

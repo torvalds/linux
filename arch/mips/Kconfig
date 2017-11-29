@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 config MIPS
 	bool
 	default y
@@ -64,7 +65,7 @@ config MIPS
 	select HAVE_PERF_EVENTS
 	select HAVE_REGS_AND_STACK_ACCESS_API
 	select HAVE_SYSCALL_TRACEPOINTS
-	select HAVE_VIRT_CPU_ACCOUNTING_GEN
+	select HAVE_VIRT_CPU_ACCOUNTING_GEN if 64BIT || !SMP
 	select IRQ_FORCED_THREADING
 	select MODULES_USE_ELF_RELA if MODULES && 64BIT
 	select MODULES_USE_ELF_REL if MODULES
@@ -77,7 +78,7 @@ menu "Machine selection"
 
 choice
 	prompt "System type"
-	default SGI_IP22
+	default MIPS_GENERIC
 
 config MIPS_GENERIC
 	bool "Generic board-agnostic MIPS kernel"
@@ -232,6 +233,7 @@ config BMIPS_GENERIC
 	select USB_EHCI_BIG_ENDIAN_MMIO if CPU_BIG_ENDIAN
 	select USB_OHCI_BIG_ENDIAN_DESC if CPU_BIG_ENDIAN
 	select USB_OHCI_BIG_ENDIAN_MMIO if CPU_BIG_ENDIAN
+	select HARDIRQS_SW_RESEND
 	help
 	  Build a generic DT-based kernel image that boots on select
 	  BCM33xx cable modem chips, BCM63xx DSL chips, and BCM7xxx set-top
@@ -275,6 +277,7 @@ config BCM63XX
 	select GPIOLIB
 	select HAVE_CLK
 	select MIPS_L1_CACHE_SHIFT_4
+	select CLKDEV_LOOKUP
 	help
 	 Support for BCM63XX based boards
 
@@ -466,29 +469,6 @@ config MACH_PISTACHIO
 	select USE_OF
 	help
 	  This enables support for the IMG Pistachio SoC platform.
-
-config MACH_XILFPGA
-	bool "MIPSfpga Xilinx based boards"
-	select BOOT_ELF32
-	select BOOT_RAW
-	select BUILTIN_DTB
-	select CEVT_R4K
-	select COMMON_CLK
-	select CSRC_R4K
-	select GPIOLIB
-	select IRQ_MIPS_CPU
-	select LIBFDT
-	select MIPS_CPU_SCACHE
-	select SYS_HAS_EARLY_PRINTK
-	select SYS_HAS_CPU_MIPS32_R2
-	select SYS_SUPPORTS_32BIT_KERNEL
-	select SYS_SUPPORTS_LITTLE_ENDIAN
-	select SYS_SUPPORTS_ZBOOT_UART16550
-	select USE_OF
-	select USE_GENERIC_EARLY_PRINTK_8250
-	select XILINX_INTC
-	help
-	  This enables support for the IMG University Program MIPSfpga platform.
 
 config MIPS_MALTA
 	bool "MIPS Malta board"
@@ -915,7 +895,8 @@ config CAVIUM_OCTEON_SOC
 	select USE_OF
 	select ARCH_SPARSEMEM_ENABLE
 	select SYS_SUPPORTS_SMP
-	select NR_CPUS_DEFAULT_16
+	select NR_CPUS_DEFAULT_64
+	select MIPS_NR_CPU_NR_MAP_1024
 	select BUILTIN_DTB
 	select MTD_COMPLEX_MAPPINGS
 	select SYS_SUPPORTS_RELOCATABLE
@@ -1033,7 +1014,6 @@ source "arch/mips/loongson32/Kconfig"
 source "arch/mips/loongson64/Kconfig"
 source "arch/mips/netlogic/Kconfig"
 source "arch/mips/paravirt/Kconfig"
-source "arch/mips/xilfpga/Kconfig"
 
 endmenu
 
@@ -1627,14 +1607,6 @@ config CPU_R5500
 	  NEC VR5500 and VR5500A series processors implement 64-bit MIPS IV
 	  instruction set.
 
-config CPU_R6000
-	bool "R6000"
-	depends on SYS_HAS_CPU_R6000
-	select CPU_SUPPORTS_32BIT_KERNEL
-	help
-	  MIPS Technologies R6000 and R6000A series processors.  Note these
-	  processors are extremely rare and the support for them is incomplete.
-
 config CPU_NEVADA
 	bool "RM52xx"
 	depends on SYS_HAS_CPU_NEVADA
@@ -1950,9 +1922,6 @@ config SYS_HAS_CPU_R5432
 config SYS_HAS_CPU_R5500
 	bool
 
-config SYS_HAS_CPU_R6000
-	bool
-
 config SYS_HAS_CPU_NEVADA
 	bool
 
@@ -2180,7 +2149,7 @@ config PAGE_SIZE_32KB
 
 config PAGE_SIZE_64KB
 	bool "64kB"
-	depends on !CPU_R3000 && !CPU_TX39XX && !CPU_R6000
+	depends on !CPU_R3000 && !CPU_TX39XX
 	help
 	  Using 64kB page size will result in higher performance kernel at
 	  the price of higher memory consumption.  This option is available on
@@ -2248,11 +2217,11 @@ config CPU_HAS_PREFETCH
 
 config CPU_GENERIC_DUMP_TLB
 	bool
-	default y if !(CPU_R3000 || CPU_R6000 || CPU_R8000 || CPU_TX39XX)
+	default y if !(CPU_R3000 || CPU_R8000 || CPU_TX39XX)
 
 config CPU_R4K_FPU
 	bool
-	default y if !(CPU_R3000 || CPU_R6000 || CPU_TX39XX || CPU_CAVIUM_OCTEON)
+	default y if !(CPU_R3000 || CPU_TX39XX)
 
 config CPU_R4K_CACHE_TLB
 	bool
@@ -2260,7 +2229,8 @@ config CPU_R4K_CACHE_TLB
 
 config MIPS_MT_SMP
 	bool "MIPS MT SMP support (1 TC on each available VPE)"
-	depends on SYS_SUPPORTS_MULTITHREADING && !CPU_MIPSR6
+	default y
+	depends on SYS_SUPPORTS_MULTITHREADING && !CPU_MIPSR6 && !CPU_MICROMIPS
 	select CPU_MIPSR2_IRQ_VI
 	select CPU_MIPSR2_IRQ_EI
 	select SYNC_R4K
@@ -2376,7 +2346,6 @@ config MIPS_CPS
 	bool "MIPS Coherent Processing System support"
 	depends on SYS_SUPPORTS_MIPS_CPS
 	select MIPS_CM
-	select MIPS_CPC
 	select MIPS_CPS_PM if HOTPLUG_CPU
 	select SMP
 	select SYNC_R4K if (CEVT_R4K || CSRC_R4K)
@@ -2393,11 +2362,11 @@ config MIPS_CPS
 
 config MIPS_CPS_PM
 	depends on MIPS_CPS
-	select MIPS_CPC
 	bool
 
 config MIPS_CM
 	bool
+	select MIPS_CPC
 
 config MIPS_CPC
 	bool
@@ -2735,6 +2704,15 @@ config NR_CPUS
 
 config MIPS_PERF_SHARED_TC_COUNTERS
 	bool
+
+config MIPS_NR_CPU_NR_MAP_1024
+	bool
+
+config MIPS_NR_CPU_NR_MAP
+	int
+	depends on SMP
+	default 1024 if MIPS_NR_CPU_NR_MAP_1024
+	default NR_CPUS if !MIPS_NR_CPU_NR_MAP_1024
 
 #
 # Timer Interrupt Frequency Configuration

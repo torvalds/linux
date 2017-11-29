@@ -21,36 +21,99 @@
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/phy/phy.h>
 #include <dt-bindings/reset/mt2701-resets.h>
+#include <dt-bindings/thermal/thermal.h>
 #include "skeleton64.dtsi"
 
 / {
 	compatible = "mediatek,mt7623";
 	interrupt-parent = <&sysirq>;
 
+	cpu_opp_table: opp_table {
+		compatible = "operating-points-v2";
+		opp-shared;
+
+		opp-98000000 {
+			opp-hz = /bits/ 64 <98000000>;
+			opp-microvolt = <1050000>;
+		};
+
+		opp-198000000 {
+			opp-hz = /bits/ 64 <198000000>;
+			opp-microvolt = <1050000>;
+		};
+
+		opp-398000000 {
+			opp-hz = /bits/ 64 <398000000>;
+			opp-microvolt = <1050000>;
+		};
+
+		opp-598000000 {
+			opp-hz = /bits/ 64 <598000000>;
+			opp-microvolt = <1050000>;
+		};
+
+		opp-747500000 {
+			opp-hz = /bits/ 64 <747500000>;
+			opp-microvolt = <1050000>;
+		};
+
+		opp-1040000000 {
+			opp-hz = /bits/ 64 <1040000000>;
+			opp-microvolt = <1150000>;
+		};
+
+		opp-1196000000 {
+			opp-hz = /bits/ 64 <1196000000>;
+			opp-microvolt = <1200000>;
+		};
+
+		opp-1300000000 {
+			opp-hz = /bits/ 64 <1300000000>;
+			opp-microvolt = <1300000>;
+		};
+	};
+
 	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;
 		enable-method = "mediatek,mt6589-smp";
 
-		cpu@0 {
+		cpu0: cpu@0 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a7";
 			reg = <0x0>;
+			clocks = <&infracfg CLK_INFRA_CPUSEL>,
+				 <&apmixedsys CLK_APMIXED_MAINPLL>;
+			clock-names = "cpu", "intermediate";
+			operating-points-v2 = <&cpu_opp_table>;
+			#cooling-cells = <2>;
+			cooling-min-level = <0>;
+			cooling-max-level = <7>;
+			clock-frequency = <1300000000>;
 		};
-		cpu@1 {
+
+		cpu1: cpu@1 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a7";
 			reg = <0x1>;
+			operating-points-v2 = <&cpu_opp_table>;
+			clock-frequency = <1300000000>;
 		};
-		cpu@2 {
+
+		cpu2: cpu@2 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a7";
 			reg = <0x2>;
+			operating-points-v2 = <&cpu_opp_table>;
+			clock-frequency = <1300000000>;
 		};
-		cpu@3 {
+
+		cpu3: cpu@3 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a7";
 			reg = <0x3>;
+			operating-points-v2 = <&cpu_opp_table>;
+			clock-frequency = <1300000000>;
 		};
 	};
 
@@ -72,6 +135,58 @@
 		#clock-cells = <0>;
 		clock-frequency = <26000000>;
 		clock-output-names = "clk26m";
+	};
+
+	thermal-zones {
+			cpu_thermal: cpu_thermal {
+				polling-delay-passive = <1000>;
+				polling-delay = <1000>;
+
+				thermal-sensors = <&thermal 0>;
+
+				trips {
+					cpu_passive: cpu_passive {
+						temperature = <47000>;
+						hysteresis = <2000>;
+						type = "passive";
+					};
+
+					cpu_active: cpu_active {
+						temperature = <67000>;
+						hysteresis = <2000>;
+						type = "active";
+					};
+
+					cpu_hot: cpu_hot {
+						temperature = <87000>;
+						hysteresis = <2000>;
+						type = "hot";
+					};
+
+					cpu_crit {
+						temperature = <107000>;
+						hysteresis = <2000>;
+						type = "critical";
+					};
+				};
+
+			cooling-maps {
+				map0 {
+					trip = <&cpu_passive>;
+					cooling-device = <&cpu0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+				};
+
+				map1 {
+					trip = <&cpu_active>;
+					cooling-device = <&cpu0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+				};
+
+				map2 {
+					trip = <&cpu_hot>;
+					cooling-device = <&cpu0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+				};
+			};
+		};
 	};
 
 	timer {
@@ -112,8 +227,7 @@
 	};
 
 	pio: pinctrl@10005000 {
-		compatible = "mediatek,mt7623-pinctrl",
-			     "mediatek,mt2701-pinctrl";
+		compatible = "mediatek,mt7623-pinctrl";
 		reg = <0 0x1000b000 0 0x1000>;
 		mediatek,pctl-regmap = <&syscfg_pctl_a>;
 		pins-are-numbered;
@@ -172,7 +286,7 @@
 		clock-names = "spi", "wrap";
 	};
 
-	cir: cir@0x10013000 {
+	cir: cir@10013000 {
 		compatible = "mediatek,mt7623-cir";
 		reg = <0 0x10013000 0 0x1000>;
 		interrupts = <GIC_SPI 87 IRQ_TYPE_LEVEL_LOW>;
@@ -193,7 +307,7 @@
 	efuse: efuse@10206000 {
 		compatible = "mediatek,mt7623-efuse",
 			     "mediatek,mt8173-efuse";
-		reg	   = <0 0x10206000 0 0x1000>;
+		reg = <0 0x10206000 0 0x1000>;
 		#address-cells = <1>;
 		#size-cells = <1>;
 		thermal_calibration_data: calib@424 {
@@ -371,6 +485,31 @@
 		nvmem-cell-names = "calibration-data";
 	};
 
+	nandc: nfi@1100d000 {
+		compatible = "mediatek,mt7623-nfc",
+			     "mediatek,mt2701-nfc";
+		reg = <0 0x1100d000 0 0x1000>;
+		interrupts = <GIC_SPI 56 IRQ_TYPE_LEVEL_LOW>;
+		power-domains = <&scpsys MT2701_POWER_DOMAIN_IFR_MSC>;
+		clocks = <&pericfg CLK_PERI_NFI>,
+			 <&pericfg CLK_PERI_NFI_PAD>;
+		clock-names = "nfi_clk", "pad_clk";
+		status = "disabled";
+		ecc-engine = <&bch>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+	};
+
+	bch: ecc@1100e000 {
+		compatible = "mediatek,mt7623-ecc",
+			     "mediatek,mt2701-ecc";
+		reg = <0 0x1100e000 0 0x1000>;
+		interrupts = <GIC_SPI 55 IRQ_TYPE_LEVEL_LOW>;
+		clocks = <&pericfg CLK_PERI_NFI_ECC>;
+		clock-names = "nfiecc_clk";
+		status = "disabled";
+	};
+
 	spi1: spi@11016000 {
 		compatible = "mediatek,mt7623-spi",
 			     "mediatek,mt2701-spi";
@@ -399,37 +538,14 @@
 		status = "disabled";
 	};
 
-	nandc: nfi@1100d000 {
-		compatible = "mediatek,mt7623-nfc",
-			     "mediatek,mt2701-nfc";
-		reg = <0 0x1100d000 0 0x1000>;
-		interrupts = <GIC_SPI 56 IRQ_TYPE_LEVEL_LOW>;
-		power-domains = <&scpsys MT2701_POWER_DOMAIN_IFR_MSC>;
-		clocks = <&pericfg CLK_PERI_NFI>,
-			 <&pericfg CLK_PERI_NFI_PAD>;
-		clock-names = "nfi_clk", "pad_clk";
-		status = "disabled";
-		ecc-engine = <&bch>;
-		#address-cells = <1>;
-		#size-cells = <0>;
-	};
-
-	bch: ecc@1100e000 {
-		compatible = "mediatek,mt7623-ecc",
-			     "mediatek,mt2701-ecc";
-		reg = <0 0x1100e000 0 0x1000>;
-		interrupts = <GIC_SPI 55 IRQ_TYPE_LEVEL_LOW>;
-		clocks = <&pericfg CLK_PERI_NFI_ECC>;
-		clock-names = "nfiecc_clk";
-		status = "disabled";
-	};
-
 	afe: audio-controller@11220000 {
 		compatible = "mediatek,mt7623-audio",
 			     "mediatek,mt2701-audio";
 		reg = <0 0x11220000 0 0x2000>,
 		      <0 0x112a0000 0 0x20000>;
-		interrupts = <GIC_SPI 132 IRQ_TYPE_LEVEL_LOW>;
+		interrupts =  <GIC_SPI 104 IRQ_TYPE_LEVEL_LOW>,
+			      <GIC_SPI 132 IRQ_TYPE_LEVEL_LOW>;
+		interrupt-names	= "afe", "asys";
 		power-domains = <&scpsys MT2701_POWER_DOMAIN_IFR_MSC>;
 
 		clocks = <&infracfg CLK_INFRA_AUDIO>,
@@ -538,11 +654,20 @@
 		compatible = "mediatek,mt7623-mmc",
 			     "mediatek,mt8135-mmc";
 		reg = <0 0x11240000 0 0x1000>;
-		interrupts = <GIC_SPI 72 IRQ_TYPE_LEVEL_LOW>;
+		interrupts = <GIC_SPI 40 IRQ_TYPE_LEVEL_LOW>;
 		clocks = <&pericfg CLK_PERI_MSDC30_1>,
 			 <&topckgen CLK_TOP_MSDC30_1_SEL>;
 		clock-names = "source", "hclk";
 		status = "disabled";
+	};
+
+	hifsys: syscon@1a000000 {
+		compatible = "mediatek,mt7623-hifsys",
+			     "mediatek,mt2701-hifsys",
+			     "syscon";
+		reg = <0 0x1a000000 0 0x1000>;
+		#clock-cells = <1>;
+		#reset-cells = <1>;
 	};
 
 	usb1: usb@1a1c0000 {
@@ -554,17 +679,16 @@
 		interrupts = <GIC_SPI 196 IRQ_TYPE_LEVEL_LOW>;
 		clocks = <&hifsys CLK_HIFSYS_USB0PHY>,
 			 <&topckgen CLK_TOP_ETHIF_SEL>;
-		clock-names = "sys_ck", "free_ck";
+		clock-names = "sys_ck", "ref_ck";
 		power-domains = <&scpsys MT2701_POWER_DOMAIN_HIF>;
 		phys = <&u2port0 PHY_TYPE_USB2>, <&u3port0 PHY_TYPE_USB3>;
 		status = "disabled";
 	};
 
 	u3phy1: usb-phy@1a1c4000 {
-		compatible = "mediatek,mt7623-u3phy", "mediatek,mt2701-u3phy";
+		compatible = "mediatek,mt7623-u3phy",
+			     "mediatek,mt2701-u3phy";
 		reg = <0 0x1a1c4000 0 0x0700>;
-		clocks = <&clk26m>;
-		clock-names = "u3phya_ref";
 		#address-cells = <2>;
 		#size-cells = <2>;
 		ranges;
@@ -572,12 +696,16 @@
 
 		u2port0: usb-phy@1a1c4800 {
 			reg = <0 0x1a1c4800 0 0x0100>;
+			clocks = <&topckgen CLK_TOP_USB_PHY48M>;
+			clock-names = "ref";
 			#phy-cells = <1>;
 			status = "okay";
 		};
 
 		u3port0: usb-phy@1a1c4900 {
 			reg = <0 0x1a1c4900 0 0x0700>;
+			clocks = <&clk26m>;
+			clock-names = "ref";
 			#phy-cells = <1>;
 			status = "okay";
 		};
@@ -592,17 +720,16 @@
 		interrupts = <GIC_SPI 197 IRQ_TYPE_LEVEL_LOW>;
 		clocks = <&hifsys CLK_HIFSYS_USB1PHY>,
 			 <&topckgen CLK_TOP_ETHIF_SEL>;
-		clock-names = "sys_ck", "free_ck";
+		clock-names = "sys_ck", "ref_ck";
 		power-domains = <&scpsys MT2701_POWER_DOMAIN_HIF>;
 		phys = <&u2port1 PHY_TYPE_USB2>, <&u3port1 PHY_TYPE_USB3>;
 		status = "disabled";
 	};
 
 	u3phy2: usb-phy@1a244000 {
-		compatible = "mediatek,mt7623-u3phy", "mediatek,mt2701-u3phy";
+		compatible = "mediatek,mt7623-u3phy",
+			     "mediatek,mt2701-u3phy";
 		reg = <0 0x1a244000 0 0x0700>;
-		clocks = <&clk26m>;
-		clock-names = "u3phya_ref";
 		#address-cells = <2>;
 		#size-cells = <2>;
 		ranges;
@@ -610,24 +737,19 @@
 
 		u2port1: usb-phy@1a244800 {
 			reg = <0 0x1a244800 0 0x0100>;
+			clocks = <&topckgen CLK_TOP_USB_PHY48M>;
+			clock-names = "ref";
 			#phy-cells = <1>;
 			status = "okay";
 		};
 
 		u3port1: usb-phy@1a244900 {
 			reg = <0 0x1a244900 0 0x0700>;
+			clocks = <&clk26m>;
+			clock-names = "ref";
 			#phy-cells = <1>;
 			status = "okay";
 		};
-	};
-
-	hifsys: syscon@1a000000 {
-		compatible = "mediatek,mt7623-hifsys",
-			     "mediatek,mt2701-hifsys",
-			     "syscon";
-		reg = <0 0x1a000000 0 0x1000>;
-		#clock-cells = <1>;
-		#reset-cells = <1>;
 	};
 
 	ethsys: syscon@1b000000 {
@@ -639,7 +761,9 @@
 	};
 
 	eth: ethernet@1b100000 {
-		compatible = "mediatek,mt2701-eth", "syscon";
+		compatible = "mediatek,mt7623-eth",
+			     "mediatek,mt2701-eth",
+			     "syscon";
 		reg = <0 0x1b100000 0 0x20000>;
 		interrupts = <GIC_SPI 200 IRQ_TYPE_LEVEL_LOW>,
 			     <GIC_SPI 199 IRQ_TYPE_LEVEL_LOW>,
@@ -650,6 +774,10 @@
 			 <&ethsys CLK_ETHSYS_GP2>,
 			 <&apmixedsys CLK_APMIXED_TRGPLL>;
 		clock-names = "ethif", "esw", "gp1", "gp2", "trgpll";
+		resets = <&ethsys MT2701_ETHSYS_FE_RST>,
+			 <&ethsys MT2701_ETHSYS_GMAC_RST>,
+			 <&ethsys MT2701_ETHSYS_PPE_RST>;
+		reset-names = "fe", "gmac", "ppe";
 		power-domains = <&scpsys MT2701_POWER_DOMAIN_ETH>;
 		mediatek,ethsys = <&ethsys>;
 		mediatek,pctl = <&syscfg_pctl_a>;
@@ -659,16 +787,15 @@
 	};
 
 	crypto: crypto@1b240000 {
-		compatible = "mediatek,mt7623-crypto";
+		compatible = "mediatek,eip97-crypto";
 		reg = <0 0x1b240000 0 0x20000>;
 		interrupts = <GIC_SPI 82 IRQ_TYPE_LEVEL_LOW>,
 			     <GIC_SPI 83 IRQ_TYPE_LEVEL_LOW>,
 			     <GIC_SPI 84 IRQ_TYPE_LEVEL_LOW>,
 			     <GIC_SPI 91 IRQ_TYPE_LEVEL_LOW>,
 			     <GIC_SPI 97 IRQ_TYPE_LEVEL_LOW>;
-		clocks = <&topckgen CLK_TOP_ETHIF_SEL>,
-			 <&ethsys CLK_ETHSYS_CRYPTO>;
-		clock-names = "ethif","cryp";
+		clocks = <&ethsys CLK_ETHSYS_CRYPTO>;
+		clock-names = "cryp";
 		power-domains = <&scpsys MT2701_POWER_DOMAIN_ETH>;
 		status = "disabled";
 	};

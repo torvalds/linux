@@ -1690,6 +1690,15 @@ static int rcar_dmac_chan_probe(struct rcar_dmac *dmac,
 	if (!irqname)
 		return -ENOMEM;
 
+	/*
+	 * Initialize the DMA engine channel and add it to the DMA engine
+	 * channels list.
+	 */
+	chan->device = &dmac->engine;
+	dma_cookie_init(chan);
+
+	list_add_tail(&chan->device_node, &dmac->engine.channels);
+
 	ret = devm_request_threaded_irq(dmac->dev, rchan->irq,
 					rcar_dmac_isr_channel,
 					rcar_dmac_isr_channel_thread, 0,
@@ -1699,15 +1708,6 @@ static int rcar_dmac_chan_probe(struct rcar_dmac *dmac,
 			rchan->irq, ret);
 		return ret;
 	}
-
-	/*
-	 * Initialize the DMA engine channel and add it to the DMA engine
-	 * channels list.
-	 */
-	chan->device = &dmac->engine;
-	dma_cookie_init(chan);
-
-	list_add_tail(&chan->device_node, &dmac->engine.channels);
 
 	return 0;
 }
@@ -1794,14 +1794,6 @@ static int rcar_dmac_probe(struct platform_device *pdev)
 	if (!irqname)
 		return -ENOMEM;
 
-	ret = devm_request_irq(&pdev->dev, irq, rcar_dmac_isr_error, 0,
-			       irqname, dmac);
-	if (ret) {
-		dev_err(&pdev->dev, "failed to request IRQ %u (%d)\n",
-			irq, ret);
-		return ret;
-	}
-
 	/* Enable runtime PM and initialize the device. */
 	pm_runtime_enable(&pdev->dev);
 	ret = pm_runtime_get_sync(&pdev->dev);
@@ -1818,14 +1810,46 @@ static int rcar_dmac_probe(struct platform_device *pdev)
 		goto error;
 	}
 
-	/* Initialize the channels. */
-	INIT_LIST_HEAD(&dmac->engine.channels);
+	/* Initialize engine */
+	engine = &dmac->engine;
+
+	dma_cap_set(DMA_MEMCPY, engine->cap_mask);
+	dma_cap_set(DMA_SLAVE, engine->cap_mask);
+
+	engine->dev		= &pdev->dev;
+	engine->copy_align	= ilog2(RCAR_DMAC_MEMCPY_XFER_SIZE);
+
+	engine->src_addr_widths	= widths;
+	engine->dst_addr_widths	= widths;
+	engine->directions	= BIT(DMA_MEM_TO_DEV) | BIT(DMA_DEV_TO_MEM);
+	engine->residue_granularity = DMA_RESIDUE_GRANULARITY_BURST;
+
+	engine->device_alloc_chan_resources	= rcar_dmac_alloc_chan_resources;
+	engine->device_free_chan_resources	= rcar_dmac_free_chan_resources;
+	engine->device_prep_dma_memcpy		= rcar_dmac_prep_dma_memcpy;
+	engine->device_prep_slave_sg		= rcar_dmac_prep_slave_sg;
+	engine->device_prep_dma_cyclic		= rcar_dmac_prep_dma_cyclic;
+	engine->device_config			= rcar_dmac_device_config;
+	engine->device_terminate_all		= rcar_dmac_chan_terminate_all;
+	engine->device_tx_status		= rcar_dmac_tx_status;
+	engine->device_issue_pending		= rcar_dmac_issue_pending;
+	engine->device_synchronize		= rcar_dmac_device_synchronize;
+
+	INIT_LIST_HEAD(&engine->channels);
 
 	for (i = 0; i < dmac->n_channels; ++i) {
 		ret = rcar_dmac_chan_probe(dmac, &dmac->channels[i],
 					   i + channels_offset);
 		if (ret < 0)
 			goto error;
+	}
+
+	ret = devm_request_irq(&pdev->dev, irq, rcar_dmac_isr_error, 0,
+			       irqname, dmac);
+	if (ret) {
+		dev_err(&pdev->dev, "failed to request IRQ %u (%d)\n",
+			irq, ret);
+		return ret;
 	}
 
 	/* Register the DMAC as a DMA provider for DT. */
@@ -1839,29 +1863,6 @@ static int rcar_dmac_probe(struct platform_device *pdev)
 	 *
 	 * Default transfer size of 32 bytes requires 32-byte alignment.
 	 */
-	engine = &dmac->engine;
-	dma_cap_set(DMA_MEMCPY, engine->cap_mask);
-	dma_cap_set(DMA_SLAVE, engine->cap_mask);
-
-	engine->dev = &pdev->dev;
-	engine->copy_align = ilog2(RCAR_DMAC_MEMCPY_XFER_SIZE);
-
-	engine->src_addr_widths = widths;
-	engine->dst_addr_widths = widths;
-	engine->directions = BIT(DMA_MEM_TO_DEV) | BIT(DMA_DEV_TO_MEM);
-	engine->residue_granularity = DMA_RESIDUE_GRANULARITY_BURST;
-
-	engine->device_alloc_chan_resources = rcar_dmac_alloc_chan_resources;
-	engine->device_free_chan_resources = rcar_dmac_free_chan_resources;
-	engine->device_prep_dma_memcpy = rcar_dmac_prep_dma_memcpy;
-	engine->device_prep_slave_sg = rcar_dmac_prep_slave_sg;
-	engine->device_prep_dma_cyclic = rcar_dmac_prep_dma_cyclic;
-	engine->device_config = rcar_dmac_device_config;
-	engine->device_terminate_all = rcar_dmac_chan_terminate_all;
-	engine->device_tx_status = rcar_dmac_tx_status;
-	engine->device_issue_pending = rcar_dmac_issue_pending;
-	engine->device_synchronize = rcar_dmac_device_synchronize;
-
 	ret = dma_async_device_register(engine);
 	if (ret < 0)
 		goto error;

@@ -195,7 +195,6 @@ EXPORT_SYMBOL_GPL(snd_pcm_stream_unlock_irqrestore);
 
 int snd_pcm_info(struct snd_pcm_substream *substream, struct snd_pcm_info *info)
 {
-	struct snd_pcm_runtime *runtime;
 	struct snd_pcm *pcm = substream->pcm;
 	struct snd_pcm_str *pstr = substream->pstr;
 
@@ -211,7 +210,6 @@ int snd_pcm_info(struct snd_pcm_substream *substream, struct snd_pcm_info *info)
 	info->subdevices_count = pstr->substream_count;
 	info->subdevices_avail = pstr->substream_count - pstr->substream_opened;
 	strlcpy(info->subname, substream->name, sizeof(info->subname));
-	runtime = substream->runtime;
 
 	return 0;
 }
@@ -1830,7 +1828,6 @@ static int snd_pcm_drain(struct snd_pcm_substream *substream,
 		add_wait_queue(&to_check->sleep, &wait);
 		snd_pcm_stream_unlock_irq(substream);
 		up_read(&snd_pcm_link_rwsem);
-		snd_power_unlock(card);
 		if (runtime->no_period_wakeup)
 			tout = MAX_SCHEDULE_TIMEOUT;
 		else {
@@ -1842,7 +1839,6 @@ static int snd_pcm_drain(struct snd_pcm_substream *substream,
 			tout = msecs_to_jiffies(tout * 1000);
 		}
 		tout = schedule_timeout_interruptible(tout);
-		snd_power_lock(card);
 		down_read(&snd_pcm_link_rwsem);
 		snd_pcm_stream_lock_irq(substream);
 		remove_wait_queue(&to_check->sleep, &wait);
@@ -2763,12 +2759,106 @@ static int snd_pcm_tstamp(struct snd_pcm_substream *substream, int __user *_arg)
 	runtime->tstamp_type = arg;
 	return 0;
 }
-		
+
+static int snd_pcm_xferi_frames_ioctl(struct snd_pcm_substream *substream,
+				      struct snd_xferi __user *_xferi)
+{
+	struct snd_xferi xferi;
+	struct snd_pcm_runtime *runtime = substream->runtime;
+	snd_pcm_sframes_t result;
+
+	if (runtime->status->state == SNDRV_PCM_STATE_OPEN)
+		return -EBADFD;
+	if (put_user(0, &_xferi->result))
+		return -EFAULT;
+	if (copy_from_user(&xferi, _xferi, sizeof(xferi)))
+		return -EFAULT;
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
+		result = snd_pcm_lib_write(substream, xferi.buf, xferi.frames);
+	else
+		result = snd_pcm_lib_read(substream, xferi.buf, xferi.frames);
+	__put_user(result, &_xferi->result);
+	return result < 0 ? result : 0;
+}
+
+static int snd_pcm_xfern_frames_ioctl(struct snd_pcm_substream *substream,
+				      struct snd_xfern __user *_xfern)
+{
+	struct snd_xfern xfern;
+	struct snd_pcm_runtime *runtime = substream->runtime;
+	void *bufs;
+	snd_pcm_sframes_t result;
+
+	if (runtime->status->state == SNDRV_PCM_STATE_OPEN)
+		return -EBADFD;
+	if (runtime->channels > 128)
+		return -EINVAL;
+	if (put_user(0, &_xfern->result))
+		return -EFAULT;
+	if (copy_from_user(&xfern, _xfern, sizeof(xfern)))
+		return -EFAULT;
+
+	bufs = memdup_user(xfern.bufs, sizeof(void *) * runtime->channels);
+	if (IS_ERR(bufs))
+		return PTR_ERR(bufs);
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
+		result = snd_pcm_lib_writev(substream, bufs, xfern.frames);
+	else
+		result = snd_pcm_lib_readv(substream, bufs, xfern.frames);
+	kfree(bufs);
+	__put_user(result, &_xfern->result);
+	return result < 0 ? result : 0;
+}
+
+static int snd_pcm_rewind_ioctl(struct snd_pcm_substream *substream,
+				snd_pcm_uframes_t __user *_frames)
+{
+	snd_pcm_uframes_t frames;
+	snd_pcm_sframes_t result;
+
+	if (get_user(frames, _frames))
+		return -EFAULT;
+	if (put_user(0, _frames))
+		return -EFAULT;
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
+		result = snd_pcm_playback_rewind(substream, frames);
+	else
+		result = snd_pcm_capture_rewind(substream, frames);
+	__put_user(result, _frames);
+	return result < 0 ? result : 0;
+}
+
+static int snd_pcm_forward_ioctl(struct snd_pcm_substream *substream,
+				 snd_pcm_uframes_t __user *_frames)
+{
+	snd_pcm_uframes_t frames;
+	snd_pcm_sframes_t result;
+
+	if (get_user(frames, _frames))
+		return -EFAULT;
+	if (put_user(0, _frames))
+		return -EFAULT;
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
+		result = snd_pcm_playback_forward(substream, frames);
+	else
+		result = snd_pcm_capture_forward(substream, frames);
+	__put_user(result, _frames);
+	return result < 0 ? result : 0;
+}
+
 static int snd_pcm_common_ioctl(struct file *file,
 				 struct snd_pcm_substream *substream,
 				 unsigned int cmd, void __user *arg)
 {
 	struct snd_pcm_file *pcm_file = file->private_data;
+	int res;
+
+	if (PCM_RUNTIME_CHECK(substream))
+		return -ENXIO;
+
+	res = snd_power_wait(substream->pcm->card, SNDRV_CTL_POWER_D0);
+	if (res < 0)
+		return res;
 
 	switch (cmd) {
 	case SNDRV_PCM_IOCTL_PVERSION:
@@ -2841,188 +2931,23 @@ static int snd_pcm_common_ioctl(struct file *file,
 		return snd_pcm_action_lock_irq(&snd_pcm_action_pause,
 					       substream,
 					       (int)(unsigned long)arg);
+	case SNDRV_PCM_IOCTL_WRITEI_FRAMES:
+	case SNDRV_PCM_IOCTL_READI_FRAMES:
+		return snd_pcm_xferi_frames_ioctl(substream, arg);
+	case SNDRV_PCM_IOCTL_WRITEN_FRAMES:
+	case SNDRV_PCM_IOCTL_READN_FRAMES:
+		return snd_pcm_xfern_frames_ioctl(substream, arg);
+	case SNDRV_PCM_IOCTL_REWIND:
+		return snd_pcm_rewind_ioctl(substream, arg);
+	case SNDRV_PCM_IOCTL_FORWARD:
+		return snd_pcm_forward_ioctl(substream, arg);
 	}
 	pcm_dbg(substream->pcm, "unknown ioctl = 0x%x\n", cmd);
 	return -ENOTTY;
 }
 
-static int snd_pcm_common_ioctl1(struct file *file,
-				 struct snd_pcm_substream *substream,
-				 unsigned int cmd, void __user *arg)
-{
-	struct snd_card *card = substream->pcm->card;
-	int res;
-
-	snd_power_lock(card);
-	res = snd_power_wait(card, SNDRV_CTL_POWER_D0);
-	if (res >= 0)
-		res = snd_pcm_common_ioctl(file, substream, cmd, arg);
-	snd_power_unlock(card);
-	return res;
-}
-
-static int snd_pcm_playback_ioctl1(struct file *file,
-				   struct snd_pcm_substream *substream,
-				   unsigned int cmd, void __user *arg)
-{
-	if (PCM_RUNTIME_CHECK(substream))
-		return -ENXIO;
-	if (snd_BUG_ON(substream->stream != SNDRV_PCM_STREAM_PLAYBACK))
-		return -EINVAL;
-	switch (cmd) {
-	case SNDRV_PCM_IOCTL_WRITEI_FRAMES:
-	{
-		struct snd_xferi xferi;
-		struct snd_xferi __user *_xferi = arg;
-		struct snd_pcm_runtime *runtime = substream->runtime;
-		snd_pcm_sframes_t result;
-		if (runtime->status->state == SNDRV_PCM_STATE_OPEN)
-			return -EBADFD;
-		if (put_user(0, &_xferi->result))
-			return -EFAULT;
-		if (copy_from_user(&xferi, _xferi, sizeof(xferi)))
-			return -EFAULT;
-		result = snd_pcm_lib_write(substream, xferi.buf, xferi.frames);
-		__put_user(result, &_xferi->result);
-		return result < 0 ? result : 0;
-	}
-	case SNDRV_PCM_IOCTL_WRITEN_FRAMES:
-	{
-		struct snd_xfern xfern;
-		struct snd_xfern __user *_xfern = arg;
-		struct snd_pcm_runtime *runtime = substream->runtime;
-		void __user **bufs;
-		snd_pcm_sframes_t result;
-		if (runtime->status->state == SNDRV_PCM_STATE_OPEN)
-			return -EBADFD;
-		if (runtime->channels > 128)
-			return -EINVAL;
-		if (put_user(0, &_xfern->result))
-			return -EFAULT;
-		if (copy_from_user(&xfern, _xfern, sizeof(xfern)))
-			return -EFAULT;
-
-		bufs = memdup_user(xfern.bufs,
-				   sizeof(void *) * runtime->channels);
-		if (IS_ERR(bufs))
-			return PTR_ERR(bufs);
-		result = snd_pcm_lib_writev(substream, bufs, xfern.frames);
-		kfree(bufs);
-		__put_user(result, &_xfern->result);
-		return result < 0 ? result : 0;
-	}
-	case SNDRV_PCM_IOCTL_REWIND:
-	{
-		snd_pcm_uframes_t frames;
-		snd_pcm_uframes_t __user *_frames = arg;
-		snd_pcm_sframes_t result;
-		if (get_user(frames, _frames))
-			return -EFAULT;
-		if (put_user(0, _frames))
-			return -EFAULT;
-		result = snd_pcm_playback_rewind(substream, frames);
-		__put_user(result, _frames);
-		return result < 0 ? result : 0;
-	}
-	case SNDRV_PCM_IOCTL_FORWARD:
-	{
-		snd_pcm_uframes_t frames;
-		snd_pcm_uframes_t __user *_frames = arg;
-		snd_pcm_sframes_t result;
-		if (get_user(frames, _frames))
-			return -EFAULT;
-		if (put_user(0, _frames))
-			return -EFAULT;
-		result = snd_pcm_playback_forward(substream, frames);
-		__put_user(result, _frames);
-		return result < 0 ? result : 0;
-	}
-	}
-	return snd_pcm_common_ioctl1(file, substream, cmd, arg);
-}
-
-static int snd_pcm_capture_ioctl1(struct file *file,
-				  struct snd_pcm_substream *substream,
-				  unsigned int cmd, void __user *arg)
-{
-	if (PCM_RUNTIME_CHECK(substream))
-		return -ENXIO;
-	if (snd_BUG_ON(substream->stream != SNDRV_PCM_STREAM_CAPTURE))
-		return -EINVAL;
-	switch (cmd) {
-	case SNDRV_PCM_IOCTL_READI_FRAMES:
-	{
-		struct snd_xferi xferi;
-		struct snd_xferi __user *_xferi = arg;
-		struct snd_pcm_runtime *runtime = substream->runtime;
-		snd_pcm_sframes_t result;
-		if (runtime->status->state == SNDRV_PCM_STATE_OPEN)
-			return -EBADFD;
-		if (put_user(0, &_xferi->result))
-			return -EFAULT;
-		if (copy_from_user(&xferi, _xferi, sizeof(xferi)))
-			return -EFAULT;
-		result = snd_pcm_lib_read(substream, xferi.buf, xferi.frames);
-		__put_user(result, &_xferi->result);
-		return result < 0 ? result : 0;
-	}
-	case SNDRV_PCM_IOCTL_READN_FRAMES:
-	{
-		struct snd_xfern xfern;
-		struct snd_xfern __user *_xfern = arg;
-		struct snd_pcm_runtime *runtime = substream->runtime;
-		void *bufs;
-		snd_pcm_sframes_t result;
-		if (runtime->status->state == SNDRV_PCM_STATE_OPEN)
-			return -EBADFD;
-		if (runtime->channels > 128)
-			return -EINVAL;
-		if (put_user(0, &_xfern->result))
-			return -EFAULT;
-		if (copy_from_user(&xfern, _xfern, sizeof(xfern)))
-			return -EFAULT;
-
-		bufs = memdup_user(xfern.bufs,
-				   sizeof(void *) * runtime->channels);
-		if (IS_ERR(bufs))
-			return PTR_ERR(bufs);
-		result = snd_pcm_lib_readv(substream, bufs, xfern.frames);
-		kfree(bufs);
-		__put_user(result, &_xfern->result);
-		return result < 0 ? result : 0;
-	}
-	case SNDRV_PCM_IOCTL_REWIND:
-	{
-		snd_pcm_uframes_t frames;
-		snd_pcm_uframes_t __user *_frames = arg;
-		snd_pcm_sframes_t result;
-		if (get_user(frames, _frames))
-			return -EFAULT;
-		if (put_user(0, _frames))
-			return -EFAULT;
-		result = snd_pcm_capture_rewind(substream, frames);
-		__put_user(result, _frames);
-		return result < 0 ? result : 0;
-	}
-	case SNDRV_PCM_IOCTL_FORWARD:
-	{
-		snd_pcm_uframes_t frames;
-		snd_pcm_uframes_t __user *_frames = arg;
-		snd_pcm_sframes_t result;
-		if (get_user(frames, _frames))
-			return -EFAULT;
-		if (put_user(0, _frames))
-			return -EFAULT;
-		result = snd_pcm_capture_forward(substream, frames);
-		__put_user(result, _frames);
-		return result < 0 ? result : 0;
-	}
-	}
-	return snd_pcm_common_ioctl1(file, substream, cmd, arg);
-}
-
-static long snd_pcm_playback_ioctl(struct file *file, unsigned int cmd,
-				   unsigned long arg)
+static long snd_pcm_ioctl(struct file *file, unsigned int cmd,
+			  unsigned long arg)
 {
 	struct snd_pcm_file *pcm_file;
 
@@ -3031,22 +2956,8 @@ static long snd_pcm_playback_ioctl(struct file *file, unsigned int cmd,
 	if (((cmd >> 8) & 0xff) != 'A')
 		return -ENOTTY;
 
-	return snd_pcm_playback_ioctl1(file, pcm_file->substream, cmd,
-				       (void __user *)arg);
-}
-
-static long snd_pcm_capture_ioctl(struct file *file, unsigned int cmd,
-				  unsigned long arg)
-{
-	struct snd_pcm_file *pcm_file;
-
-	pcm_file = file->private_data;
-
-	if (((cmd >> 8) & 0xff) != 'A')
-		return -ENOTTY;
-
-	return snd_pcm_capture_ioctl1(file, pcm_file->substream, cmd,
-				      (void __user *)arg);
+	return snd_pcm_common_ioctl(file, pcm_file->substream, cmd,
+				     (void __user *)arg);
 }
 
 /**
@@ -3787,7 +3698,7 @@ const struct file_operations snd_pcm_f_ops[2] = {
 		.release =		snd_pcm_release,
 		.llseek =		no_llseek,
 		.poll =			snd_pcm_playback_poll,
-		.unlocked_ioctl =	snd_pcm_playback_ioctl,
+		.unlocked_ioctl =	snd_pcm_ioctl,
 		.compat_ioctl = 	snd_pcm_ioctl_compat,
 		.mmap =			snd_pcm_mmap,
 		.fasync =		snd_pcm_fasync,
@@ -3801,7 +3712,7 @@ const struct file_operations snd_pcm_f_ops[2] = {
 		.release =		snd_pcm_release,
 		.llseek =		no_llseek,
 		.poll =			snd_pcm_capture_poll,
-		.unlocked_ioctl =	snd_pcm_capture_ioctl,
+		.unlocked_ioctl =	snd_pcm_ioctl,
 		.compat_ioctl = 	snd_pcm_ioctl_compat,
 		.mmap =			snd_pcm_mmap,
 		.fasync =		snd_pcm_fasync,

@@ -217,20 +217,24 @@ static enum tmc_mem_intf_width tmc_get_memwidth(u32 devid)
 	return memwidth;
 }
 
-#define coresight_tmc_simple_func(name, offset)			\
-	coresight_simple_func(struct tmc_drvdata, NULL, name, offset)
+#define coresight_tmc_reg(name, offset)			\
+	coresight_simple_reg32(struct tmc_drvdata, name, offset)
+#define coresight_tmc_reg64(name, lo_off, hi_off)	\
+	coresight_simple_reg64(struct tmc_drvdata, name, lo_off, hi_off)
 
-coresight_tmc_simple_func(rsz, TMC_RSZ);
-coresight_tmc_simple_func(sts, TMC_STS);
-coresight_tmc_simple_func(rrp, TMC_RRP);
-coresight_tmc_simple_func(rwp, TMC_RWP);
-coresight_tmc_simple_func(trg, TMC_TRG);
-coresight_tmc_simple_func(ctl, TMC_CTL);
-coresight_tmc_simple_func(ffsr, TMC_FFSR);
-coresight_tmc_simple_func(ffcr, TMC_FFCR);
-coresight_tmc_simple_func(mode, TMC_MODE);
-coresight_tmc_simple_func(pscr, TMC_PSCR);
-coresight_tmc_simple_func(devid, CORESIGHT_DEVID);
+coresight_tmc_reg(rsz, TMC_RSZ);
+coresight_tmc_reg(sts, TMC_STS);
+coresight_tmc_reg(trg, TMC_TRG);
+coresight_tmc_reg(ctl, TMC_CTL);
+coresight_tmc_reg(ffsr, TMC_FFSR);
+coresight_tmc_reg(ffcr, TMC_FFCR);
+coresight_tmc_reg(mode, TMC_MODE);
+coresight_tmc_reg(pscr, TMC_PSCR);
+coresight_tmc_reg(axictl, TMC_AXICTL);
+coresight_tmc_reg(devid, CORESIGHT_DEVID);
+coresight_tmc_reg64(rrp, TMC_RRP, TMC_RRPHI);
+coresight_tmc_reg64(rwp, TMC_RWP, TMC_RWPHI);
+coresight_tmc_reg64(dba, TMC_DBALO, TMC_DBAHI);
 
 static struct attribute *coresight_tmc_mgmt_attrs[] = {
 	&dev_attr_rsz.attr,
@@ -244,6 +248,8 @@ static struct attribute *coresight_tmc_mgmt_attrs[] = {
 	&dev_attr_mode.attr,
 	&dev_attr_pscr.attr,
 	&dev_attr_devid.attr,
+	&dev_attr_dba.attr,
+	&dev_attr_axictl.attr,
 	NULL,
 };
 
@@ -292,6 +298,42 @@ const struct attribute_group *coresight_tmc_groups[] = {
 	&coresight_tmc_mgmt_group,
 	NULL,
 };
+
+/* Detect and initialise the capabilities of a TMC ETR */
+static int tmc_etr_setup_caps(struct tmc_drvdata *drvdata,
+			     u32 devid, void *dev_caps)
+{
+	u32 dma_mask = 0;
+
+	/* Set the unadvertised capabilities */
+	tmc_etr_init_caps(drvdata, (u32)(unsigned long)dev_caps);
+
+	if (!(devid & TMC_DEVID_NOSCAT))
+		tmc_etr_set_cap(drvdata, TMC_ETR_SG);
+
+	/* Check if the AXI address width is available */
+	if (devid & TMC_DEVID_AXIAW_VALID)
+		dma_mask = ((devid >> TMC_DEVID_AXIAW_SHIFT) &
+				TMC_DEVID_AXIAW_MASK);
+
+	/*
+	 * Unless specified in the device configuration, ETR uses a 40-bit
+	 * AXI master in place of the embedded SRAM of ETB/ETF.
+	 */
+	switch (dma_mask) {
+	case 32:
+	case 40:
+	case 44:
+	case 48:
+	case 52:
+		dev_info(drvdata->dev, "Detected dma mask %dbits\n", dma_mask);
+		break;
+	default:
+		dma_mask = 40;
+	}
+
+	return dma_set_mask_and_coherent(drvdata->dev, DMA_BIT_MASK(dma_mask));
+}
 
 static int tmc_probe(struct amba_device *adev, const struct amba_id *id)
 {
@@ -354,25 +396,29 @@ static int tmc_probe(struct amba_device *adev, const struct amba_id *id)
 	desc.dev = dev;
 	desc.groups = coresight_tmc_groups;
 
-	if (drvdata->config_type == TMC_CONFIG_TYPE_ETB) {
+	switch (drvdata->config_type) {
+	case TMC_CONFIG_TYPE_ETB:
 		desc.type = CORESIGHT_DEV_TYPE_SINK;
 		desc.subtype.sink_subtype = CORESIGHT_DEV_SUBTYPE_SINK_BUFFER;
 		desc.ops = &tmc_etb_cs_ops;
-	} else if (drvdata->config_type == TMC_CONFIG_TYPE_ETR) {
+		break;
+	case TMC_CONFIG_TYPE_ETR:
 		desc.type = CORESIGHT_DEV_TYPE_SINK;
 		desc.subtype.sink_subtype = CORESIGHT_DEV_SUBTYPE_SINK_BUFFER;
 		desc.ops = &tmc_etr_cs_ops;
-		/*
-		 * ETR configuration uses a 40-bit AXI master in place of
-		 * the embedded SRAM of ETB/ETF.
-		 */
-		ret = dma_set_mask_and_coherent(dev, DMA_BIT_MASK(40));
+		ret = tmc_etr_setup_caps(drvdata, devid, id->data);
 		if (ret)
 			goto out;
-	} else {
+		break;
+	case TMC_CONFIG_TYPE_ETF:
 		desc.type = CORESIGHT_DEV_TYPE_LINKSINK;
 		desc.subtype.link_subtype = CORESIGHT_DEV_SUBTYPE_LINK_FIFO;
 		desc.ops = &tmc_etf_cs_ops;
+		break;
+	default:
+		pr_err("%s: Unsupported TMC config\n", pdata->name);
+		ret = -EINVAL;
+		goto out;
 	}
 
 	drvdata->csdev = coresight_register(&desc);
@@ -391,10 +437,26 @@ out:
 	return ret;
 }
 
-static struct amba_id tmc_ids[] = {
+static const struct amba_id tmc_ids[] = {
 	{
-		.id     = 0x0003b961,
-		.mask   = 0x0003ffff,
+		.id     = 0x000bb961,
+		.mask   = 0x000fffff,
+	},
+	{
+		/* Coresight SoC 600 TMC-ETR/ETS */
+		.id	= 0x000bb9e8,
+		.mask	= 0x000fffff,
+		.data	= (void *)(unsigned long)CORESIGHT_SOC_600_ETR_CAPS,
+	},
+	{
+		/* Coresight SoC 600 TMC-ETB */
+		.id	= 0x000bb9e9,
+		.mask	= 0x000fffff,
+	},
+	{
+		/* Coresight SoC 600 TMC-ETF */
+		.id	= 0x000bb9ea,
+		.mask	= 0x000fffff,
 	},
 	{ 0, 0},
 };

@@ -9,6 +9,7 @@
  * (at your option) any later version.
  */
 
+#include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/tinydrm/mipi-dbi.h>
 #include <drm/tinydrm/tinydrm-helpers.h>
 #include <linux/debugfs.h>
@@ -253,8 +254,8 @@ out_unlock:
 }
 
 static const struct drm_framebuffer_funcs mipi_dbi_fb_funcs = {
-	.destroy	= drm_fb_cma_destroy,
-	.create_handle	= drm_fb_cma_create_handle,
+	.destroy	= drm_gem_fb_destroy,
+	.create_handle	= drm_gem_fb_create_handle,
 	.dirty		= mipi_dbi_fb_dirty,
 };
 
@@ -776,15 +777,12 @@ static int mipi_dbi_typec3_command(struct mipi_dbi *mipi, u8 cmd,
 /**
  * mipi_dbi_spi_init - Initialize MIPI DBI SPI interfaced controller
  * @spi: SPI device
- * @dc: D/C gpio (optional)
  * @mipi: &mipi_dbi structure to initialize
- * @pipe_funcs: Display pipe functions
- * @driver: DRM driver
- * @mode: Display mode
- * @rotation: Initial rotation in degrees Counter Clock Wise
+ * @dc: D/C gpio (optional)
  *
  * This function sets &mipi_dbi->command, enables &mipi->read_commands for the
- * usual read commands and initializes @mipi using mipi_dbi_init().
+ * usual read commands. It should be followed by a call to mipi_dbi_init() or
+ * a driver-specific init.
  *
  * If @dc is set, a Type C Option 3 interface is assumed, if not
  * Type C Option 1.
@@ -799,11 +797,7 @@ static int mipi_dbi_typec3_command(struct mipi_dbi *mipi, u8 cmd,
  * Zero on success, negative error code on failure.
  */
 int mipi_dbi_spi_init(struct spi_device *spi, struct mipi_dbi *mipi,
-		      struct gpio_desc *dc,
-		      const struct drm_simple_display_pipe_funcs *pipe_funcs,
-		      struct drm_driver *driver,
-		      const struct drm_display_mode *mode,
-		      unsigned int rotation)
+		      struct gpio_desc *dc)
 {
 	size_t tx_size = tinydrm_spi_max_transfer_size(spi, 0);
 	struct device *dev = &spi->dev;
@@ -849,7 +843,9 @@ int mipi_dbi_spi_init(struct spi_device *spi, struct mipi_dbi *mipi,
 			return -ENOMEM;
 	}
 
-	return mipi_dbi_init(dev, mipi, pipe_funcs, driver, mode, rotation);
+	DRM_DEBUG_DRIVER("SPI speed: %uMHz\n", spi->max_speed_hz / 1000000);
+
+	return 0;
 }
 EXPORT_SYMBOL(mipi_dbi_spi_init);
 

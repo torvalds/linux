@@ -1817,6 +1817,8 @@
 		clocks = <&abe_24m_fclk>, <&abe_sys_clk_div>, <&func_24m_clk>, <&atl_clkin3_ck>, <&atl_clkin2_ck>, <&atl_clkin1_ck>, <&atl_clkin0_ck>, <&sys_clkin2>, <&ref_clkin0_ck>, <&ref_clkin1_ck>, <&ref_clkin2_ck>, <&ref_clkin3_ck>, <&mlb_clk>, <&mlbp_clk>;
 		ti,bit-shift = <24>;
 		reg = <0x1868>;
+		assigned-clocks = <&mcasp3_ahclkx_mux>;
+		assigned-clock-parents = <&abe_24m_fclk>;
 	};
 
 	mcasp3_aux_gfclk_mux: mcasp3_aux_gfclk_mux@1868 {

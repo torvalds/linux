@@ -46,6 +46,7 @@
 #include <net/ipv6.h>
 #include <net/mpls.h>
 #include <net/ndisc.h>
+#include <net/nsh.h>
 
 #include "conntrack.h"
 #include "datapath.h"
@@ -72,8 +73,7 @@ void ovs_flow_stats_update(struct sw_flow *flow, __be16 tcp_flags,
 			   const struct sk_buff *skb)
 {
 	struct flow_stats *stats;
-	int node = numa_node_id();
-	int cpu = smp_processor_id();
+	unsigned int cpu = smp_processor_id();
 	int len = skb->len + (skb_vlan_tag_present(skb) ? VLAN_HLEN : 0);
 
 	stats = rcu_dereference(flow->stats[cpu]);
@@ -108,7 +108,7 @@ void ovs_flow_stats_update(struct sw_flow *flow, __be16 tcp_flags,
 							      __GFP_THISNODE |
 							      __GFP_NOWARN |
 							      __GFP_NOMEMALLOC,
-							      node);
+							      numa_node_id());
 				if (likely(new_stats)) {
 					new_stats->used = jiffies;
 					new_stats->packet_count = 1;
@@ -118,6 +118,7 @@ void ovs_flow_stats_update(struct sw_flow *flow, __be16 tcp_flags,
 
 					rcu_assign_pointer(flow->stats[cpu],
 							   new_stats);
+					cpumask_set_cpu(cpu, &flow->cpu_used_mask);
 					goto unlock;
 				}
 			}
@@ -145,7 +146,7 @@ void ovs_flow_stats_get(const struct sw_flow *flow,
 	memset(ovs_stats, 0, sizeof(*ovs_stats));
 
 	/* We open code this to make sure cpu 0 is always considered */
-	for (cpu = 0; cpu < nr_cpu_ids; cpu = cpumask_next(cpu, cpu_possible_mask)) {
+	for (cpu = 0; cpu < nr_cpu_ids; cpu = cpumask_next(cpu, &flow->cpu_used_mask)) {
 		struct flow_stats *stats = rcu_dereference_ovsl(flow->stats[cpu]);
 
 		if (stats) {
@@ -169,7 +170,7 @@ void ovs_flow_stats_clear(struct sw_flow *flow)
 	int cpu;
 
 	/* We open code this to make sure cpu 0 is always considered */
-	for (cpu = 0; cpu < nr_cpu_ids; cpu = cpumask_next(cpu, cpu_possible_mask)) {
+	for (cpu = 0; cpu < nr_cpu_ids; cpu = cpumask_next(cpu, &flow->cpu_used_mask)) {
 		struct flow_stats *stats = ovsl_dereference(flow->stats[cpu]);
 
 		if (stats) {
@@ -490,6 +491,52 @@ invalid:
 	return 0;
 }
 
+static int parse_nsh(struct sk_buff *skb, struct sw_flow_key *key)
+{
+	struct nshhdr *nh;
+	unsigned int nh_ofs = skb_network_offset(skb);
+	u8 version, length;
+	int err;
+
+	err = check_header(skb, nh_ofs + NSH_BASE_HDR_LEN);
+	if (unlikely(err))
+		return err;
+
+	nh = nsh_hdr(skb);
+	version = nsh_get_ver(nh);
+	length = nsh_hdr_len(nh);
+
+	if (version != 0)
+		return -EINVAL;
+
+	err = check_header(skb, nh_ofs + length);
+	if (unlikely(err))
+		return err;
+
+	nh = nsh_hdr(skb);
+	key->nsh.base.flags = nsh_get_flags(nh);
+	key->nsh.base.ttl = nsh_get_ttl(nh);
+	key->nsh.base.mdtype = nh->mdtype;
+	key->nsh.base.np = nh->np;
+	key->nsh.base.path_hdr = nh->path_hdr;
+	switch (key->nsh.base.mdtype) {
+	case NSH_M_TYPE1:
+		if (length != NSH_M_TYPE1_LEN)
+			return -EINVAL;
+		memcpy(key->nsh.context, nh->md1.context,
+		       sizeof(nh->md1));
+		break;
+	case NSH_M_TYPE2:
+		memset(key->nsh.context, 0,
+		       sizeof(nh->md1));
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 /**
  * key_extract - extracts a flow key from an Ethernet frame.
  * @skb: sk_buff that contains the frame, with skb->data pointing to the
@@ -739,6 +786,10 @@ static int key_extract(struct sk_buff *skb, struct sw_flow_key *key)
 				memset(&key->tp, 0, sizeof(key->tp));
 			}
 		}
+	} else if (key->eth.type == htons(ETH_P_NSH)) {
+		error = parse_nsh(skb, key);
+		if (error)
+			return error;
 	}
 	return 0;
 }

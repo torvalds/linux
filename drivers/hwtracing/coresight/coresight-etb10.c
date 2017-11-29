@@ -200,8 +200,10 @@ static void etb_disable_hw(struct etb_drvdata *drvdata)
 
 static void etb_dump_hw(struct etb_drvdata *drvdata)
 {
+	bool lost = false;
 	int i;
 	u8 *buf_ptr;
+	const u32 *barrier;
 	u32 read_data, depth;
 	u32 read_ptr, write_ptr;
 	u32 frame_off, frame_endoff;
@@ -223,20 +225,26 @@ static void etb_dump_hw(struct etb_drvdata *drvdata)
 	}
 
 	if ((readl_relaxed(drvdata->base + ETB_STATUS_REG)
-		      & ETB_STATUS_RAM_FULL) == 0)
+		      & ETB_STATUS_RAM_FULL) == 0) {
 		writel_relaxed(0x0, drvdata->base + ETB_RAM_READ_POINTER);
-	else
+	} else {
 		writel_relaxed(write_ptr, drvdata->base + ETB_RAM_READ_POINTER);
+		lost = true;
+	}
 
 	depth = drvdata->buffer_depth;
 	buf_ptr = drvdata->buf;
+	barrier = barrier_pkt;
 	for (i = 0; i < depth; i++) {
 		read_data = readl_relaxed(drvdata->base +
 					  ETB_RAM_READ_DATA_REG);
-		*buf_ptr++ = read_data >> 0;
-		*buf_ptr++ = read_data >> 8;
-		*buf_ptr++ = read_data >> 16;
-		*buf_ptr++ = read_data >> 24;
+		if (lost && *barrier) {
+			read_data = *barrier;
+			barrier++;
+		}
+
+		*(u32 *)buf_ptr = read_data;
+		buf_ptr += 4;
 	}
 
 	if (frame_off) {
@@ -353,8 +361,10 @@ static void etb_update_buffer(struct coresight_device *csdev,
 			      struct perf_output_handle *handle,
 			      void *sink_config)
 {
+	bool lost = false;
 	int i, cur;
 	u8 *buf_ptr;
+	const u32 *barrier;
 	u32 read_ptr, write_ptr, capacity;
 	u32 status, read_data, to_read;
 	unsigned long offset;
@@ -366,8 +376,8 @@ static void etb_update_buffer(struct coresight_device *csdev,
 
 	capacity = drvdata->buffer_depth * ETB_FRAME_SIZE_WORDS;
 
-	CS_UNLOCK(drvdata->base);
 	etb_disable_hw(drvdata);
+	CS_UNLOCK(drvdata->base);
 
 	/* unit is in words, not bytes */
 	read_ptr = readl_relaxed(drvdata->base + ETB_RAM_READ_POINTER);
@@ -384,7 +394,7 @@ static void etb_update_buffer(struct coresight_device *csdev,
 			(unsigned long)write_ptr);
 
 		write_ptr &= ~(ETB_FRAME_SIZE_WORDS - 1);
-		perf_aux_output_flag(handle, PERF_AUX_FLAG_TRUNCATED);
+		lost = true;
 	}
 
 	/*
@@ -395,7 +405,7 @@ static void etb_update_buffer(struct coresight_device *csdev,
 	 */
 	status = readl_relaxed(drvdata->base + ETB_STATUS_REG);
 	if (status & ETB_STATUS_RAM_FULL) {
-		perf_aux_output_flag(handle, PERF_AUX_FLAG_TRUNCATED);
+		lost = true;
 		to_read = capacity;
 		read_ptr = write_ptr;
 	} else {
@@ -428,22 +438,30 @@ static void etb_update_buffer(struct coresight_device *csdev,
 		if (read_ptr > (drvdata->buffer_depth - 1))
 			read_ptr -= drvdata->buffer_depth;
 		/* let the decoder know we've skipped ahead */
-		perf_aux_output_flag(handle, PERF_AUX_FLAG_TRUNCATED);
+		lost = true;
 	}
+
+	if (lost)
+		perf_aux_output_flag(handle, PERF_AUX_FLAG_TRUNCATED);
 
 	/* finally tell HW where we want to start reading from */
 	writel_relaxed(read_ptr, drvdata->base + ETB_RAM_READ_POINTER);
 
 	cur = buf->cur;
 	offset = buf->offset;
+	barrier = barrier_pkt;
+
 	for (i = 0; i < to_read; i += 4) {
 		buf_ptr = buf->data_pages[cur] + offset;
 		read_data = readl_relaxed(drvdata->base +
 					  ETB_RAM_READ_DATA_REG);
-		*buf_ptr++ = read_data >> 0;
-		*buf_ptr++ = read_data >> 8;
-		*buf_ptr++ = read_data >> 16;
-		*buf_ptr++ = read_data >> 24;
+		if (lost && *barrier) {
+			read_data = *barrier;
+			barrier++;
+		}
+
+		*(u32 *)buf_ptr = read_data;
+		buf_ptr += 4;
 
 		offset += 4;
 		if (offset >= PAGE_SIZE) {
@@ -557,17 +575,17 @@ static const struct file_operations etb_fops = {
 	.llseek		= no_llseek,
 };
 
-#define coresight_etb10_simple_func(name, offset)                       \
-	coresight_simple_func(struct etb_drvdata, NULL, name, offset)
+#define coresight_etb10_reg(name, offset)		\
+	coresight_simple_reg32(struct etb_drvdata, name, offset)
 
-coresight_etb10_simple_func(rdp, ETB_RAM_DEPTH_REG);
-coresight_etb10_simple_func(sts, ETB_STATUS_REG);
-coresight_etb10_simple_func(rrp, ETB_RAM_READ_POINTER);
-coresight_etb10_simple_func(rwp, ETB_RAM_WRITE_POINTER);
-coresight_etb10_simple_func(trg, ETB_TRG);
-coresight_etb10_simple_func(ctl, ETB_CTL_REG);
-coresight_etb10_simple_func(ffsr, ETB_FFSR);
-coresight_etb10_simple_func(ffcr, ETB_FFCR);
+coresight_etb10_reg(rdp, ETB_RAM_DEPTH_REG);
+coresight_etb10_reg(sts, ETB_STATUS_REG);
+coresight_etb10_reg(rrp, ETB_RAM_READ_POINTER);
+coresight_etb10_reg(rwp, ETB_RAM_WRITE_POINTER);
+coresight_etb10_reg(trg, ETB_TRG);
+coresight_etb10_reg(ctl, ETB_CTL_REG);
+coresight_etb10_reg(ffsr, ETB_FFSR);
+coresight_etb10_reg(ffcr, ETB_FFCR);
 
 static struct attribute *coresight_etb_mgmt_attrs[] = {
 	&dev_attr_rdp.attr,
@@ -728,10 +746,10 @@ static const struct dev_pm_ops etb_dev_pm_ops = {
 	SET_RUNTIME_PM_OPS(etb_runtime_suspend, etb_runtime_resume, NULL)
 };
 
-static struct amba_id etb_ids[] = {
+static const struct amba_id etb_ids[] = {
 	{
-		.id	= 0x0003b907,
-		.mask	= 0x0003ffff,
+		.id	= 0x000bb907,
+		.mask	= 0x000fffff,
 	},
 	{ 0, 0},
 };

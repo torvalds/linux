@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _FS_CEPH_SUPER_H
 #define _FS_CEPH_SUPER_H
 
@@ -46,11 +47,24 @@
 #define ceph_test_mount_opt(fsc, opt) \
 	(!!((fsc)->mount_options->flags & CEPH_MOUNT_OPT_##opt))
 
-#define CEPH_RSIZE_DEFAULT              (64*1024*1024) /* max read size */
+/* max size of osd read request, limited by libceph */
+#define CEPH_MAX_READ_SIZE              CEPH_MSG_MAX_DATA_LEN
+/* osd has a configurable limitaion of max write size.
+ * CEPH_MSG_MAX_DATA_LEN should be small enough. */
+#define CEPH_MAX_WRITE_SIZE		CEPH_MSG_MAX_DATA_LEN
 #define CEPH_RASIZE_DEFAULT             (8192*1024)    /* max readahead */
 #define CEPH_MAX_READDIR_DEFAULT        1024
 #define CEPH_MAX_READDIR_BYTES_DEFAULT  (512*1024)
 #define CEPH_SNAPDIRNAME_DEFAULT        ".snap"
+
+/*
+ * Delay telling the MDS we no longer want caps, in case we reopen
+ * the file.  Delay a minimum amount of time, even if we send a cap
+ * message for some other reason.  Otherwise, take the oppotunity to
+ * update the mds to avoid sending another message later.
+ */
+#define CEPH_CAPS_WANTED_DELAY_MIN_DEFAULT      5  /* cap release delay */
+#define CEPH_CAPS_WANTED_DELAY_MAX_DEFAULT     60  /* cap release delay */
 
 struct ceph_mount_options {
 	int flags;
@@ -61,7 +75,6 @@ struct ceph_mount_options {
 	int rasize;           /* max readahead */
 	int congestion_kb;    /* max writeback in flight */
 	int caps_wanted_delay_min, caps_wanted_delay_max;
-	int cap_release_safety;
 	int max_readdir;       /* max readdir result (entires) */
 	int max_readdir_bytes; /* max readdir result (bytes) */
 
@@ -339,6 +352,7 @@ struct ceph_inode_info {
 	int i_pin_ref;
 	int i_rd_ref, i_rdcache_ref, i_wr_ref, i_wb_ref;
 	int i_wrbuffer_ref, i_wrbuffer_ref_head;
+	atomic_t i_filelock_ref;
 	u32 i_shared_gen;       /* increment each time we get FILE_SHARED */
 	u32 i_rdcache_gen;      /* incremented each time we get FILE_CACHE. */
 	u32 i_rdcache_revoking; /* RDCACHE gen to async invalidate, if any */
@@ -474,6 +488,8 @@ static inline struct inode *ceph_find_inode(struct super_block *sb,
 #define CEPH_I_KICK_FLUSH	(1 << 9)  /* kick flushing caps */
 #define CEPH_I_FLUSH_SNAPS	(1 << 10) /* need flush snapss */
 #define CEPH_I_ERROR_WRITE	(1 << 11) /* have seen write errors */
+#define CEPH_I_ERROR_FILELOCK	(1 << 12) /* have seen file lock errors */
+
 
 /*
  * We set the ERROR_WRITE bit when we start seeing write errors on an inode
@@ -998,7 +1014,6 @@ extern int ceph_encode_locks_to_buffer(struct inode *inode,
 extern int ceph_locks_to_pagelist(struct ceph_filelock *flocks,
 				  struct ceph_pagelist *pagelist,
 				  int num_fcntl_locks, int num_flock_locks);
-extern int lock_to_ceph_filelock(struct file_lock *fl, struct ceph_filelock *c);
 
 /* debugfs.c */
 extern int ceph_fs_debugfs_init(struct ceph_fs_client *client);

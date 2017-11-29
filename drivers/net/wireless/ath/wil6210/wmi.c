@@ -344,6 +344,11 @@ static void wmi_evt_ready(struct wil6210_priv *wil, int id, void *d, int len)
 	strlcpy(wdev->wiphy->fw_version, wil->fw_version,
 		sizeof(wdev->wiphy->fw_version));
 
+	if (len > offsetof(struct wmi_ready_event, rfc_read_calib_result)) {
+		wil_dbg_wmi(wil, "rfc calibration result %d\n",
+			    evt->rfc_read_calib_result);
+		wil->fw_calib_result = evt->rfc_read_calib_result;
+	}
 	wil_set_recovery_state(wil, fw_recovery_idle);
 	set_bit(wil_status_fwready, wil->status);
 	/* let the reset sequence continue */
@@ -381,12 +386,15 @@ static void wmi_evt_rx_mgmt(struct wil6210_priv *wil, int id, void *d, int len)
 	ch_no = data->info.channel + 1;
 	freq = ieee80211_channel_to_frequency(ch_no, NL80211_BAND_60GHZ);
 	channel = ieee80211_get_channel(wiphy, freq);
-	signal = data->info.sqi;
+	if (test_bit(WMI_FW_CAPABILITY_RSSI_REPORTING, wil->fw_capabilities))
+		signal = 100 * data->info.rssi;
+	else
+		signal = data->info.sqi;
 	d_status = le16_to_cpu(data->info.status);
 	fc = rx_mgmt_frame->frame_control;
 
-	wil_dbg_wmi(wil, "MGMT Rx: channel %d MCS %d SNR %d SQI %d%%\n",
-		    data->info.channel, data->info.mcs, data->info.snr,
+	wil_dbg_wmi(wil, "MGMT Rx: channel %d MCS %d RSSI %d SQI %d%%\n",
+		    data->info.channel, data->info.mcs, data->info.rssi,
 		    data->info.sqi);
 	wil_dbg_wmi(wil, "status 0x%04x len %d fc 0x%04x\n", d_status, d_len,
 		    le16_to_cpu(fc));

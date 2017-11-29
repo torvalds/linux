@@ -404,7 +404,7 @@ struct bcm_rsb {
 #define  RING_CONS_INDEX_MASK		0xffff
 
 #define RING_MAPPING			0x14
-#define  RING_QID_MASK			0x3
+#define  RING_QID_MASK			0x7
 #define  RING_PORT_ID_SHIFT		3
 #define  RING_PORT_ID_MASK		0x7
 #define  RING_IGNORE_STATUS		(1 << 6)
@@ -449,7 +449,8 @@ struct bcm_rsb {
 /* Uses 2 bits on SYSTEMPORT Lite and shifts everything by 1 bit, we
  * keep the SYSTEMPORT layout here and adjust with tdma_control_bit()
  */
-#define  TSB_SWAP			2
+#define  TSB_SWAP0			2
+#define  TSB_SWAP1			3
 #define  ACB_ALGO			3
 #define  BUF_DATA_OFFSET_SHIFT		4
 #define  BUF_DATA_OFFSET_MASK		0x3ff
@@ -603,6 +604,7 @@ struct bcm_sysport_mib {
 /* HW maintains a large list of counters */
 enum bcm_sysport_stat_type {
 	BCM_SYSPORT_STAT_NETDEV = -1,
+	BCM_SYSPORT_STAT_NETDEV64,
 	BCM_SYSPORT_STAT_MIB_RX,
 	BCM_SYSPORT_STAT_MIB_TX,
 	BCM_SYSPORT_STAT_RUNT,
@@ -617,6 +619,13 @@ enum bcm_sysport_stat_type {
 	.stat_sizeof = sizeof(((struct net_device_stats *)0)->m), \
 	.stat_offset = offsetof(struct net_device_stats, m), \
 	.type = BCM_SYSPORT_STAT_NETDEV, \
+}
+
+#define STAT_NETDEV64(m) { \
+	.stat_string = __stringify(m), \
+	.stat_sizeof = sizeof(((struct bcm_sysport_stats64 *)0)->m), \
+	.stat_offset = offsetof(struct bcm_sysport_stats64, m), \
+	.type = BCM_SYSPORT_STAT_NETDEV64, \
 }
 
 #define STAT_MIB(str, m, _type) { \
@@ -659,6 +668,14 @@ struct bcm_sysport_stats {
 	u16 reg_offset;
 };
 
+struct bcm_sysport_stats64 {
+	/* 64bit stats on 32bit/64bit Machine */
+	u64	rx_packets;
+	u64	rx_bytes;
+	u64	tx_packets;
+	u64	tx_bytes;
+};
+
 /* Software house keeping helper structure */
 struct bcm_sysport_cb {
 	struct sk_buff	*skb;		/* SKB for RX packets */
@@ -695,6 +712,9 @@ struct bcm_sysport_tx_ring {
 	struct bcm_sysport_priv *priv;	/* private context backpointer */
 	unsigned long	packets;	/* packets statistics */
 	unsigned long	bytes;		/* bytes statistics */
+	unsigned int	switch_queue;	/* switch port queue number */
+	unsigned int	switch_port;	/* switch port queue number */
+	bool		inspect;	/* inspect switch port and queue */
 };
 
 /* Driver private structure */
@@ -743,5 +763,17 @@ struct bcm_sysport_priv {
 
 	/* Ethtool */
 	u32			msg_enable;
+
+	struct bcm_sysport_stats64	stats64;
+
+	/* For atomic update generic 64bit value on 32bit Machine */
+	struct u64_stats_sync	syncp;
+
+	/* map information between switch port queues and local queues */
+	struct notifier_block	dsa_notifier;
+	unsigned int		per_port_num_tx_queues;
+	unsigned long		queue_bitmap;
+	struct bcm_sysport_tx_ring *ring_map[DSA_MAX_PORTS * 8];
+
 };
 #endif /* __BCM_SYSPORT_H */

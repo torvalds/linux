@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2007, 2010, Oracle and/or its affiliates. All rights reserved.
  *
@@ -18,8 +19,9 @@
  */
 
 #define DEBUG_SUBSYSTEM S_LNET
+
 #include <linux/completion.h>
-#include "../../include/linux/lnet/lib-lnet.h"
+#include <linux/lnet/lib-lnet.h>
 
 #define LNET_NRB_TINY_MIN	512	/* min value for each CPT */
 #define LNET_NRB_TINY		(LNET_NRB_TINY_MIN * 4)
@@ -221,15 +223,12 @@ struct lnet_remotenet *
 lnet_find_net_locked(__u32 net)
 {
 	struct lnet_remotenet *rnet;
-	struct list_head *tmp;
 	struct list_head *rn_list;
 
 	LASSERT(!the_lnet.ln_shutdown);
 
 	rn_list = lnet_net2rnethash(net);
-	list_for_each(tmp, rn_list) {
-		rnet = list_entry(tmp, struct lnet_remotenet, lrn_list);
-
+	list_for_each_entry(rnet, rn_list, lrn_list) {
 		if (rnet->lrn_net == net)
 			return rnet;
 	}
@@ -242,7 +241,6 @@ static void lnet_shuffle_seed(void)
 	__u32 lnd_type, seed[2];
 	struct timespec64 ts;
 	struct lnet_ni *ni;
-	struct list_head *tmp;
 
 	if (seeded)
 		return;
@@ -253,8 +251,7 @@ static void lnet_shuffle_seed(void)
 	 * Nodes with small feet have little entropy
 	 * the NID for this node gives the most entropy in the low bits
 	 */
-	list_for_each(tmp, &the_lnet.ln_nis) {
-		ni = list_entry(tmp, struct lnet_ni, ni_list);
+	list_for_each_entry(ni, &the_lnet.ln_nis, ni_list) {
 		lnd_type = LNET_NETTYP(LNET_NIDNET(ni->ni_nid));
 
 		if (lnd_type != LOLND)

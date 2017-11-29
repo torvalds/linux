@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #if !defined(_AMDGPU_TRACE_H) || defined(TRACE_HEADER_MULTI_READ)
 #define _AMDGPU_TRACE_H_
 
@@ -105,12 +106,12 @@ TRACE_EVENT(amdgpu_bo_create,
 			   __entry->bo = bo;
 			   __entry->pages = bo->tbo.num_pages;
 			   __entry->type = bo->tbo.mem.mem_type;
-			   __entry->prefer = bo->prefered_domains;
+			   __entry->prefer = bo->preferred_domains;
 			   __entry->allow = bo->allowed_domains;
 			   __entry->visible = bo->flags;
 			   ),
 
-	    TP_printk("bo=%p, pages=%u, type=%d, prefered=%d, allowed=%d, visible=%d",
+	    TP_printk("bo=%p, pages=%u, type=%d, preferred=%d, allowed=%d, visible=%d",
 		       __entry->bo, __entry->pages, __entry->type,
 		       __entry->prefer, __entry->allow, __entry->visible)
 );
@@ -224,17 +225,17 @@ TRACE_EVENT(amdgpu_vm_bo_map,
 			     __field(long, start)
 			     __field(long, last)
 			     __field(u64, offset)
-			     __field(u32, flags)
+			     __field(u64, flags)
 			     ),
 
 	    TP_fast_assign(
-			   __entry->bo = bo_va ? bo_va->bo : NULL;
+			   __entry->bo = bo_va ? bo_va->base.bo : NULL;
 			   __entry->start = mapping->start;
 			   __entry->last = mapping->last;
 			   __entry->offset = mapping->offset;
 			   __entry->flags = mapping->flags;
 			   ),
-	    TP_printk("bo=%p, start=%lx, last=%lx, offset=%010llx, flags=%08x",
+	    TP_printk("bo=%p, start=%lx, last=%lx, offset=%010llx, flags=%llx",
 		      __entry->bo, __entry->start, __entry->last,
 		      __entry->offset, __entry->flags)
 );
@@ -248,17 +249,17 @@ TRACE_EVENT(amdgpu_vm_bo_unmap,
 			     __field(long, start)
 			     __field(long, last)
 			     __field(u64, offset)
-			     __field(u32, flags)
+			     __field(u64, flags)
 			     ),
 
 	    TP_fast_assign(
-			   __entry->bo = bo_va->bo;
+			   __entry->bo = bo_va->base.bo;
 			   __entry->start = mapping->start;
 			   __entry->last = mapping->last;
 			   __entry->offset = mapping->offset;
 			   __entry->flags = mapping->flags;
 			   ),
-	    TP_printk("bo=%p, start=%lx, last=%lx, offset=%010llx, flags=%08x",
+	    TP_printk("bo=%p, start=%lx, last=%lx, offset=%010llx, flags=%llx",
 		      __entry->bo, __entry->start, __entry->last,
 		      __entry->offset, __entry->flags)
 );
@@ -269,7 +270,7 @@ DECLARE_EVENT_CLASS(amdgpu_vm_mapping,
 	    TP_STRUCT__entry(
 			     __field(u64, soffset)
 			     __field(u64, eoffset)
-			     __field(u32, flags)
+			     __field(u64, flags)
 			     ),
 
 	    TP_fast_assign(
@@ -277,7 +278,7 @@ DECLARE_EVENT_CLASS(amdgpu_vm_mapping,
 			   __entry->eoffset = mapping->last + 1;
 			   __entry->flags = mapping->flags;
 			   ),
-	    TP_printk("soffs=%010llx, eoffs=%010llx, flags=%08x",
+	    TP_printk("soffs=%010llx, eoffs=%010llx, flags=%llx",
 		      __entry->soffset, __entry->eoffset, __entry->flags)
 );
 
@@ -293,14 +294,14 @@ DEFINE_EVENT(amdgpu_vm_mapping, amdgpu_vm_bo_mapping,
 
 TRACE_EVENT(amdgpu_vm_set_ptes,
 	    TP_PROTO(uint64_t pe, uint64_t addr, unsigned count,
-		     uint32_t incr, uint32_t flags),
+		     uint32_t incr, uint64_t flags),
 	    TP_ARGS(pe, addr, count, incr, flags),
 	    TP_STRUCT__entry(
 			     __field(u64, pe)
 			     __field(u64, addr)
 			     __field(u32, count)
 			     __field(u32, incr)
-			     __field(u32, flags)
+			     __field(u64, flags)
 			     ),
 
 	    TP_fast_assign(
@@ -310,7 +311,7 @@ TRACE_EVENT(amdgpu_vm_set_ptes,
 			   __entry->incr = incr;
 			   __entry->flags = flags;
 			   ),
-	    TP_printk("pe=%010Lx, addr=%010Lx, incr=%u, flags=%08x, count=%u",
+	    TP_printk("pe=%010Lx, addr=%010Lx, incr=%u, flags=%llx, count=%u",
 		      __entry->pe, __entry->addr, __entry->incr,
 		      __entry->flags, __entry->count)
 );
@@ -417,5 +418,5 @@ TRACE_EVENT(amdgpu_ttm_bo_move,
 
 /* This part must be outside protection */
 #undef TRACE_INCLUDE_PATH
-#define TRACE_INCLUDE_PATH .
+#define TRACE_INCLUDE_PATH ../../drivers/gpu/drm/amd/amdgpu
 #include <trace/define_trace.h>

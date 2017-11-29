@@ -85,13 +85,15 @@ struct amd_nb {
  * Flags PEBS can handle without an PMI.
  *
  * TID can only be handled by flushing at context switch.
+ * REGS_USER can be handled for events limited to ring 3.
  *
  */
 #define PEBS_FREERUNNING_FLAGS \
 	(PERF_SAMPLE_IP | PERF_SAMPLE_TID | PERF_SAMPLE_ADDR | \
 	PERF_SAMPLE_ID | PERF_SAMPLE_CPU | PERF_SAMPLE_STREAM_ID | \
 	PERF_SAMPLE_DATA_SRC | PERF_SAMPLE_IDENTIFIER | \
-	PERF_SAMPLE_TRANSACTION)
+	PERF_SAMPLE_TRANSACTION | PERF_SAMPLE_PHYS_ADDR | \
+	PERF_SAMPLE_REGS_INTR | PERF_SAMPLE_REGS_USER)
 
 /*
  * A debug store configuration.
@@ -109,6 +111,26 @@ struct debug_store {
 	u64	pebs_interrupt_threshold;
 	u64	pebs_event_reset[MAX_PEBS_EVENTS];
 };
+
+#define PEBS_REGS \
+	(PERF_REG_X86_AX | \
+	 PERF_REG_X86_BX | \
+	 PERF_REG_X86_CX | \
+	 PERF_REG_X86_DX | \
+	 PERF_REG_X86_DI | \
+	 PERF_REG_X86_SI | \
+	 PERF_REG_X86_SP | \
+	 PERF_REG_X86_BP | \
+	 PERF_REG_X86_IP | \
+	 PERF_REG_X86_FLAGS | \
+	 PERF_REG_X86_R8 | \
+	 PERF_REG_X86_R9 | \
+	 PERF_REG_X86_R10 | \
+	 PERF_REG_X86_R11 | \
+	 PERF_REG_X86_R12 | \
+	 PERF_REG_X86_R13 | \
+	 PERF_REG_X86_R14 | \
+	 PERF_REG_X86_R15)
 
 /*
  * Per register state.
@@ -558,6 +580,7 @@ struct x86_pmu {
 	int		attr_rdpmc;
 	struct attribute **format_attrs;
 	struct attribute **event_attrs;
+	struct attribute **caps_attrs;
 
 	ssize_t		(*events_sysfs_show)(char *page, u64 config);
 	struct attribute **cpu_events;
@@ -591,7 +614,8 @@ struct x86_pmu {
 			pebs		:1,
 			pebs_active	:1,
 			pebs_broken	:1,
-			pebs_prec_dist	:1;
+			pebs_prec_dist	:1,
+			pebs_no_tlb	:1;
 	int		pebs_record_size;
 	int		pebs_buffer_size;
 	void		(*drain_pebs)(struct pt_regs *regs);
@@ -740,6 +764,8 @@ void x86_del_exclusive(unsigned int what);
 int x86_reserve_hardware(void);
 
 void x86_release_hardware(void);
+
+int x86_pmu_max_precise(void);
 
 void hw_perf_lbr_event_destroy(struct perf_event *event);
 
@@ -946,6 +972,8 @@ void intel_pmu_lbr_init_skl(void);
 void intel_pmu_lbr_init_knl(void);
 
 void intel_pmu_pebs_data_source_nhm(void);
+
+void intel_pmu_pebs_data_source_skl(bool pmem);
 
 int intel_pmu_setup_lbr_filter(struct perf_event *event);
 

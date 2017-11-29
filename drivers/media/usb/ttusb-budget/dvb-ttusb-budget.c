@@ -1640,7 +1640,7 @@ static void frontend_init(struct ttusb* ttusb)
 
 
 
-static struct i2c_algorithm ttusb_dec_algo = {
+static const struct i2c_algorithm ttusb_dec_algo = {
 	.master_xfer	= master_xfer,
 	.functionality	= functionality,
 };
@@ -1795,7 +1795,7 @@ static void ttusb_disconnect(struct usb_interface *intf)
 	dprintk("%s: TTUSB DVB disconnected\n", __func__);
 }
 
-static struct usb_device_id ttusb_table[] = {
+static const struct usb_device_id ttusb_table[] = {
 	{USB_DEVICE(0xb48, 0x1003)},
 	{USB_DEVICE(0xb48, 0x1004)},
 	{USB_DEVICE(0xb48, 0x1005)},

@@ -491,7 +491,7 @@ static const struct chv_community north_community = {
 	.ngpio_ranges = ARRAY_SIZE(north_gpio_ranges),
 	.ngpios = ARRAY_SIZE(north_pins),
 	/*
-	 * North community can benerate GPIO interrupts only for the first
+	 * North community can generate GPIO interrupts only for the first
 	 * 8 interrupts. The upper half (8-15) can only be used to trigger
 	 * GPEs.
 	 */
@@ -1523,7 +1523,7 @@ static void chv_gpio_irq_handler(struct irq_desc *desc)
 		unsigned irq, offset;
 
 		offset = pctrl->intr_lines[intr_line];
-		irq = irq_find_mapping(gc->irqdomain, offset);
+		irq = irq_find_mapping(gc->irq.domain, offset);
 		generic_handle_irq(irq);
 	}
 
@@ -1545,6 +1545,13 @@ static const struct dmi_system_id chv_no_valid_mask[] = {
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "GOOGLE"),
 			DMI_MATCH(DMI_PRODUCT_FAMILY, "Intel_Strago"),
+		},
+	},
+	{
+		.ident = "HP Chromebook 11 G5 (Setzer)",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "HP"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Setzer"),
 		},
 	},
 	{
@@ -1570,6 +1577,7 @@ static int chv_gpio_probe(struct chv_pinctrl *pctrl, int irq)
 	struct gpio_chip *chip = &pctrl->chip;
 	bool need_valid_mask = !dmi_check_system(chv_no_valid_mask);
 	int ret, i, offset;
+	int irq_base;
 
 	*chip = chv_gpio_chip;
 
@@ -1577,7 +1585,7 @@ static int chv_gpio_probe(struct chv_pinctrl *pctrl, int irq)
 	chip->label = dev_name(pctrl->dev);
 	chip->parent = pctrl->dev;
 	chip->base = -1;
-	chip->irq_need_valid_mask = need_valid_mask;
+	chip->irq.need_valid_mask = need_valid_mask;
 
 	ret = devm_gpiochip_add_data(pctrl->dev, chip, pctrl);
 	if (ret) {
@@ -1609,13 +1617,24 @@ static int chv_gpio_probe(struct chv_pinctrl *pctrl, int irq)
 		intsel >>= CHV_PADCTRL0_INTSEL_SHIFT;
 
 		if (need_valid_mask && intsel >= pctrl->community->nirqs)
-			clear_bit(i, chip->irq_valid_mask);
+			clear_bit(i, chip->irq.valid_mask);
 	}
 
 	/* Clear all interrupts */
 	chv_writel(0xffff, pctrl->regs + CHV_INTSTAT);
 
-	ret = gpiochip_irqchip_add(chip, &chv_gpio_irqchip, 0,
+	if (!need_valid_mask) {
+		irq_base = devm_irq_alloc_descs(pctrl->dev, -1, 0,
+						chip->ngpio, NUMA_NO_NODE);
+		if (irq_base < 0) {
+			dev_err(pctrl->dev, "Failed to allocate IRQ numbers\n");
+			return irq_base;
+		}
+	} else {
+		irq_base = 0;
+	}
+
+	ret = gpiochip_irqchip_add(chip, &chv_gpio_irqchip, irq_base,
 				   handle_bad_irq, IRQ_TYPE_NONE);
 	if (ret) {
 		dev_err(pctrl->dev, "failed to add IRQ chip\n");

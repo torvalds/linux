@@ -66,8 +66,6 @@ int rvt_check_ah(struct ib_device *ibdev,
 	int port_num = rdma_ah_get_port_num(ah_attr);
 	struct ib_port_attr port_attr;
 	struct rvt_dev_info *rdi = ib_to_rvt(ibdev);
-	enum rdma_link_layer link = rdma_port_get_link_layer(ibdev, port_num);
-	u32 dlid = rdma_ah_get_dlid(ah_attr);
 	u8 ah_flags = rdma_ah_get_ah_flags(ah_attr);
 	u8 static_rate = rdma_ah_get_static_rate(ah_attr);
 
@@ -83,14 +81,6 @@ int rvt_check_ah(struct ib_device *ibdev,
 	if ((ah_flags & IB_AH_GRH) &&
 	    rdma_ah_read_grh(ah_attr)->sgid_index >= port_attr.gid_tbl_len)
 		return -EINVAL;
-	if (link != IB_LINK_LAYER_ETHERNET) {
-		if (dlid == 0)
-			return -EINVAL;
-		if (dlid >= be16_to_cpu(IB_MULTICAST_LID_BASE) &&
-		    dlid != be16_to_cpu(IB_LID_PERMISSIVE) &&
-		    !(ah_flags & IB_AH_GRH))
-			return -EINVAL;
-	}
 	if (rdi->driver_f.check_ah)
 		return rdi->driver_f.check_ah(ibdev, ah_attr);
 	return 0;

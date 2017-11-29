@@ -3,6 +3,7 @@ config DRM_EXYNOS
 	depends on OF && DRM && (ARCH_S3C64XX || ARCH_EXYNOS || ARCH_MULTIPLATFORM)
 	select DRM_KMS_HELPER
 	select VIDEOMODE_HELPERS
+	select SND_SOC_HDMI_CODEC if SND_SOC
 	help
 	  Choose this option if you have a Samsung SoC EXYNOS chipset.
 	  If M is selected the module will be called exynosdrm.
@@ -75,6 +76,7 @@ config DRM_EXYNOS_DP
 config DRM_EXYNOS_HDMI
 	bool "HDMI"
 	depends on DRM_EXYNOS_MIXER || DRM_EXYNOS5433_DECON
+	select CEC_CORE if CEC_NOTIFIER
 	help
 	  Choose this option if you want to use Exynos HDMI for DRM.
 

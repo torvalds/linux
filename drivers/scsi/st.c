@@ -4299,11 +4299,11 @@ static int st_probe(struct device *dev)
 	kref_init(&tpnt->kref);
 	tpnt->disk = disk;
 	disk->private_data = &tpnt->driver;
-	disk->queue = SDp->request_queue;
 	/* SCSI tape doesn't register this gendisk via add_disk().  Manually
 	 * take queue reference that release_disk() expects. */
-	if (!blk_get_queue(disk->queue))
+	if (!blk_get_queue(SDp->request_queue))
 		goto out_put_disk;
+	disk->queue = SDp->request_queue;
 	tpnt->driver = &st_template;
 
 	tpnt->device = SDp;
@@ -4920,11 +4920,7 @@ static int sgl_map_user_pages(struct st_buffer *STbp,
 
         /* Try to fault in all of the necessary pages */
         /* rw==READ means read from drive, write into memory area */
-	res = get_user_pages_unlocked(
-		uaddr,
-		nr_pages,
-		pages,
-		rw == READ ? FOLL_WRITE : 0); /* don't force */
+	res = get_user_pages_fast(uaddr, nr_pages, rw == READ, pages);
 
 	/* Errors and no page mapped should return here */
 	if (res < nr_pages)

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _FS_CEPH_OSD_CLIENT_H
 #define _FS_CEPH_OSD_CLIENT_H
 
@@ -148,6 +149,7 @@ struct ceph_osd_request_target {
 	int size;
 	int min_size;
 	bool sort_bitwise;
+	bool recovery_deletes;
 
 	unsigned int flags;                /* CEPH_OSD_FLAG_* */
 	bool paused;

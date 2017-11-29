@@ -651,8 +651,6 @@ static struct wmi_cmd_map wmi_10_4_cmd_map = {
 	.gpio_output_cmdid = WMI_10_4_GPIO_OUTPUT_CMDID,
 	.pdev_get_temperature_cmdid = WMI_10_4_PDEV_GET_TEMPERATURE_CMDID,
 	.vdev_set_wmm_params_cmdid = WMI_CMD_UNSUPPORTED,
-	.tdls_set_state_cmdid = WMI_CMD_UNSUPPORTED,
-	.tdls_peer_update_cmdid = WMI_CMD_UNSUPPORTED,
 	.adaptive_qcs_cmdid = WMI_CMD_UNSUPPORTED,
 	.scan_update_request_cmdid = WMI_10_4_SCAN_UPDATE_REQUEST_CMDID,
 	.vdev_standby_response_cmdid = WMI_10_4_VDEV_STANDBY_RESPONSE_CMDID,
@@ -711,6 +709,33 @@ static struct wmi_cmd_map wmi_10_4_cmd_map = {
 	.pdev_bss_chan_info_request_cmdid =
 			WMI_10_4_PDEV_BSS_CHAN_INFO_REQUEST_CMDID,
 	.ext_resource_cfg_cmdid = WMI_10_4_EXT_RESOURCE_CFG_CMDID,
+	.vdev_set_ie_cmdid = WMI_10_4_VDEV_SET_IE_CMDID,
+	.set_lteu_config_cmdid = WMI_10_4_SET_LTEU_CONFIG_CMDID,
+	.atf_ssid_grouping_request_cmdid =
+			WMI_10_4_ATF_SSID_GROUPING_REQUEST_CMDID,
+	.peer_atf_ext_request_cmdid = WMI_10_4_PEER_ATF_EXT_REQUEST_CMDID,
+	.set_periodic_channel_stats_cfg_cmdid =
+			WMI_10_4_SET_PERIODIC_CHANNEL_STATS_CONFIG,
+	.peer_bwf_request_cmdid = WMI_10_4_PEER_BWF_REQUEST_CMDID,
+	.btcoex_cfg_cmdid = WMI_10_4_BTCOEX_CFG_CMDID,
+	.peer_tx_mu_txmit_count_cmdid = WMI_10_4_PEER_TX_MU_TXMIT_COUNT_CMDID,
+	.peer_tx_mu_txmit_rstcnt_cmdid = WMI_10_4_PEER_TX_MU_TXMIT_RSTCNT_CMDID,
+	.peer_gid_userpos_list_cmdid = WMI_10_4_PEER_GID_USERPOS_LIST_CMDID,
+	.pdev_check_cal_version_cmdid = WMI_10_4_PDEV_CHECK_CAL_VERSION_CMDID,
+	.coex_version_cfg_cmid = WMI_10_4_COEX_VERSION_CFG_CMID,
+	.pdev_get_rx_filter_cmdid = WMI_10_4_PDEV_GET_RX_FILTER_CMDID,
+	.pdev_extended_nss_cfg_cmdid = WMI_10_4_PDEV_EXTENDED_NSS_CFG_CMDID,
+	.vdev_set_scan_nac_rssi_cmdid = WMI_10_4_VDEV_SET_SCAN_NAC_RSSI_CMDID,
+	.prog_gpio_band_select_cmdid = WMI_10_4_PROG_GPIO_BAND_SELECT_CMDID,
+	.config_smart_logging_cmdid = WMI_10_4_CONFIG_SMART_LOGGING_CMDID,
+	.debug_fatal_condition_cmdid = WMI_10_4_DEBUG_FATAL_CONDITION_CMDID,
+	.get_tsf_timer_cmdid = WMI_10_4_GET_TSF_TIMER_CMDID,
+	.pdev_get_tpc_table_cmdid = WMI_10_4_PDEV_GET_TPC_TABLE_CMDID,
+	.vdev_sifs_trigger_time_cmdid = WMI_10_4_VDEV_SIFS_TRIGGER_TIME_CMDID,
+	.pdev_wds_entry_list_cmdid = WMI_10_4_PDEV_WDS_ENTRY_LIST_CMDID,
+	.tdls_set_state_cmdid = WMI_10_4_TDLS_SET_STATE_CMDID,
+	.tdls_peer_update_cmdid = WMI_10_4_TDLS_PEER_UPDATE_CMDID,
+	.tdls_set_offchan_mode_cmdid = WMI_10_4_TDLS_SET_OFFCHAN_MODE_CMDID,
 };
 
 /* MAIN WMI VDEV param map */
@@ -3305,7 +3330,7 @@ static void ath10k_wmi_update_noa(struct ath10k *ar, struct ath10k_vif *arvif,
 	if (arvif->u.ap.noa_data)
 		if (!pskb_expand_head(bcn, 0, arvif->u.ap.noa_len, GFP_ATOMIC))
 			skb_put_data(bcn, arvif->u.ap.noa_data,
-			             arvif->u.ap.noa_len);
+				     arvif->u.ap.noa_len);
 }
 
 static int ath10k_wmi_op_pull_swba_ev(struct ath10k *ar, struct sk_buff *skb,
@@ -6473,6 +6498,7 @@ ath10k_wmi_op_gen_peer_create(struct ath10k *ar, u32 vdev_id,
 	cmd = (struct wmi_peer_create_cmd *)skb->data;
 	cmd->vdev_id = __cpu_to_le32(vdev_id);
 	ether_addr_copy(cmd->peer_macaddr.addr, peer_addr);
+	cmd->peer_type = __cpu_to_le32(peer_type);
 
 	ath10k_dbg(ar, ATH10K_DBG_WMI,
 		   "wmi peer create vdev_id %d peer_addr %pM\n",
@@ -7803,18 +7829,151 @@ ath10k_wmi_10_4_ext_resource_config(struct ath10k *ar,
 {
 	struct wmi_ext_resource_config_10_4_cmd *cmd;
 	struct sk_buff *skb;
+	u32 num_tdls_sleep_sta = 0;
 
 	skb = ath10k_wmi_alloc_skb(ar, sizeof(*cmd));
 	if (!skb)
 		return ERR_PTR(-ENOMEM);
 
+	if (test_bit(WMI_SERVICE_TDLS_UAPSD_SLEEP_STA, ar->wmi.svc_map))
+		num_tdls_sleep_sta = TARGET_10_4_NUM_TDLS_SLEEP_STA;
+
 	cmd = (struct wmi_ext_resource_config_10_4_cmd *)skb->data;
 	cmd->host_platform_config = __cpu_to_le32(type);
 	cmd->fw_feature_bitmap = __cpu_to_le32(fw_feature_bitmap);
+	cmd->wlan_gpio_priority = __cpu_to_le32(-1);
+	cmd->coex_version = __cpu_to_le32(WMI_NO_COEX_VERSION_SUPPORT);
+	cmd->coex_gpio_pin1 = __cpu_to_le32(-1);
+	cmd->coex_gpio_pin2 = __cpu_to_le32(-1);
+	cmd->coex_gpio_pin3 = __cpu_to_le32(-1);
+	cmd->num_tdls_vdevs = __cpu_to_le32(TARGET_10_4_NUM_TDLS_VDEVS);
+	cmd->num_tdls_conn_table_entries = __cpu_to_le32(20);
+	cmd->max_tdls_concurrent_sleep_sta = __cpu_to_le32(num_tdls_sleep_sta);
+	cmd->max_tdls_concurrent_buffer_sta =
+			__cpu_to_le32(TARGET_10_4_NUM_TDLS_BUFFER_STA);
 
 	ath10k_dbg(ar, ATH10K_DBG_WMI,
 		   "wmi ext resource config host type %d firmware feature bitmap %08x\n",
 		   type, fw_feature_bitmap);
+	return skb;
+}
+
+static struct sk_buff *
+ath10k_wmi_10_4_gen_update_fw_tdls_state(struct ath10k *ar, u32 vdev_id,
+					 enum wmi_tdls_state state)
+{
+	struct wmi_10_4_tdls_set_state_cmd *cmd;
+	struct sk_buff *skb;
+	u32 options = 0;
+
+	skb = ath10k_wmi_alloc_skb(ar, sizeof(*cmd));
+	if (!skb)
+		return ERR_PTR(-ENOMEM);
+
+	if (test_bit(WMI_SERVICE_TDLS_EXPLICIT_MODE_ONLY, ar->wmi.svc_map) &&
+	    state == WMI_TDLS_ENABLE_ACTIVE)
+		state = WMI_TDLS_ENABLE_PASSIVE;
+
+	if (test_bit(WMI_SERVICE_TDLS_UAPSD_BUFFER_STA, ar->wmi.svc_map))
+		options |= WMI_TDLS_BUFFER_STA_EN;
+
+	cmd = (struct wmi_10_4_tdls_set_state_cmd *)skb->data;
+	cmd->vdev_id = __cpu_to_le32(vdev_id);
+	cmd->state = __cpu_to_le32(state);
+	cmd->notification_interval_ms = __cpu_to_le32(5000);
+	cmd->tx_discovery_threshold = __cpu_to_le32(100);
+	cmd->tx_teardown_threshold = __cpu_to_le32(5);
+	cmd->rssi_teardown_threshold = __cpu_to_le32(-75);
+	cmd->rssi_delta = __cpu_to_le32(-20);
+	cmd->tdls_options = __cpu_to_le32(options);
+	cmd->tdls_peer_traffic_ind_window = __cpu_to_le32(2);
+	cmd->tdls_peer_traffic_response_timeout_ms = __cpu_to_le32(5000);
+	cmd->tdls_puapsd_mask = __cpu_to_le32(0xf);
+	cmd->tdls_puapsd_inactivity_time_ms = __cpu_to_le32(0);
+	cmd->tdls_puapsd_rx_frame_threshold = __cpu_to_le32(10);
+	cmd->teardown_notification_ms = __cpu_to_le32(10);
+	cmd->tdls_peer_kickout_threshold = __cpu_to_le32(96);
+
+	ath10k_dbg(ar, ATH10K_DBG_WMI, "wmi update fw tdls state %d for vdev %i\n",
+		   state, vdev_id);
+	return skb;
+}
+
+static u32 ath10k_wmi_prepare_peer_qos(u8 uapsd_queues, u8 sp)
+{
+	u32 peer_qos = 0;
+
+	if (uapsd_queues & IEEE80211_WMM_IE_STA_QOSINFO_AC_VO)
+		peer_qos |= WMI_TDLS_PEER_QOS_AC_VO;
+	if (uapsd_queues & IEEE80211_WMM_IE_STA_QOSINFO_AC_VI)
+		peer_qos |= WMI_TDLS_PEER_QOS_AC_VI;
+	if (uapsd_queues & IEEE80211_WMM_IE_STA_QOSINFO_AC_BK)
+		peer_qos |= WMI_TDLS_PEER_QOS_AC_BK;
+	if (uapsd_queues & IEEE80211_WMM_IE_STA_QOSINFO_AC_BE)
+		peer_qos |= WMI_TDLS_PEER_QOS_AC_BE;
+
+	peer_qos |= SM(sp, WMI_TDLS_PEER_SP);
+
+	return peer_qos;
+}
+
+static struct sk_buff *
+ath10k_wmi_10_4_gen_tdls_peer_update(struct ath10k *ar,
+				     const struct wmi_tdls_peer_update_cmd_arg *arg,
+				     const struct wmi_tdls_peer_capab_arg *cap,
+				     const struct wmi_channel_arg *chan_arg)
+{
+	struct wmi_10_4_tdls_peer_update_cmd *cmd;
+	struct wmi_tdls_peer_capabilities *peer_cap;
+	struct wmi_channel *chan;
+	struct sk_buff *skb;
+	u32 peer_qos;
+	int len, chan_len;
+	int i;
+
+	/* tdls peer update cmd has place holder for one channel*/
+	chan_len = cap->peer_chan_len ? (cap->peer_chan_len - 1) : 0;
+
+	len = sizeof(*cmd) + chan_len * sizeof(*chan);
+
+	skb = ath10k_wmi_alloc_skb(ar, len);
+	if (!skb)
+		return ERR_PTR(-ENOMEM);
+
+	memset(skb->data, 0, sizeof(*cmd));
+
+	cmd = (struct wmi_10_4_tdls_peer_update_cmd *)skb->data;
+	cmd->vdev_id = __cpu_to_le32(arg->vdev_id);
+	ether_addr_copy(cmd->peer_macaddr.addr, arg->addr);
+	cmd->peer_state = __cpu_to_le32(arg->peer_state);
+
+	peer_qos = ath10k_wmi_prepare_peer_qos(cap->peer_uapsd_queues,
+					       cap->peer_max_sp);
+
+	peer_cap = &cmd->peer_capab;
+	peer_cap->peer_qos = __cpu_to_le32(peer_qos);
+	peer_cap->buff_sta_support = __cpu_to_le32(cap->buff_sta_support);
+	peer_cap->off_chan_support = __cpu_to_le32(cap->off_chan_support);
+	peer_cap->peer_curr_operclass = __cpu_to_le32(cap->peer_curr_operclass);
+	peer_cap->self_curr_operclass = __cpu_to_le32(cap->self_curr_operclass);
+	peer_cap->peer_chan_len = __cpu_to_le32(cap->peer_chan_len);
+	peer_cap->peer_operclass_len = __cpu_to_le32(cap->peer_operclass_len);
+
+	for (i = 0; i < WMI_TDLS_MAX_SUPP_OPER_CLASSES; i++)
+		peer_cap->peer_operclass[i] = cap->peer_operclass[i];
+
+	peer_cap->is_peer_responder = __cpu_to_le32(cap->is_peer_responder);
+	peer_cap->pref_offchan_num = __cpu_to_le32(cap->pref_offchan_num);
+	peer_cap->pref_offchan_bw = __cpu_to_le32(cap->pref_offchan_bw);
+
+	for (i = 0; i < cap->peer_chan_len; i++) {
+		chan = (struct wmi_channel *)&peer_cap->peer_chan_list[i];
+		ath10k_wmi_put_wmi_channel(chan, &chan_arg[i]);
+	}
+
+	ath10k_dbg(ar, ATH10K_DBG_WMI,
+		   "wmi tdls peer update vdev %i state %d n_chans %u\n",
+		   arg->vdev_id, arg->peer_state, cap->peer_chan_len);
 	return skb;
 }
 
@@ -8197,6 +8356,8 @@ static const struct wmi_ops wmi_10_4_ops = {
 	.gen_delba_send = ath10k_wmi_op_gen_delba_send,
 	.fw_stats_fill = ath10k_wmi_10_4_op_fw_stats_fill,
 	.ext_resource_config = ath10k_wmi_10_4_ext_resource_config,
+	.gen_update_fw_tdls_state = ath10k_wmi_10_4_gen_update_fw_tdls_state,
+	.gen_tdls_peer_update = ath10k_wmi_10_4_gen_tdls_peer_update,
 
 	/* shared with 10.2 */
 	.pull_echo_ev = ath10k_wmi_op_pull_echo_ev,

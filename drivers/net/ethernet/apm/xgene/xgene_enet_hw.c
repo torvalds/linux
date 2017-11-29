@@ -468,7 +468,6 @@ static void xgene_enet_configure_clock(struct xgene_enet_pdata *pdata)
 
 static void xgene_gmac_set_speed(struct xgene_enet_pdata *pdata)
 {
-	struct device *dev = &pdata->pdev->dev;
 	u32 icm0, icm2, mc2;
 	u32 intf_ctl, rgmii, value;
 
@@ -500,10 +499,8 @@ static void xgene_gmac_set_speed(struct xgene_enet_pdata *pdata)
 		intf_ctl |= ENET_GHD_MODE;
 		CFG_MACMODE_SET(&icm0, 2);
 		CFG_WAITASYNCRD_SET(&icm2, 0);
-		if (dev->of_node) {
-			CFG_TXCLK_MUXSEL0_SET(&rgmii, pdata->tx_delay);
-			CFG_RXCLK_MUXSEL0_SET(&rgmii, pdata->rx_delay);
-		}
+		CFG_TXCLK_MUXSEL0_SET(&rgmii, pdata->tx_delay);
+		CFG_RXCLK_MUXSEL0_SET(&rgmii, pdata->rx_delay);
 		rgmii |= CFG_SPEED_1250;
 
 		xgene_enet_rd_csr(pdata, DEBUG_REG_ADDR, &value);

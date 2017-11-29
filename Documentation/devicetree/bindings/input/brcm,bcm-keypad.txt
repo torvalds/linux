@@ -72,7 +72,6 @@ Example:
 		/* Required Board specific properties */
 		keypad,num-rows = <5>;
 		keypad,num-columns = <5>;
-		status = "okay";
 
 		linux,keymap = <MATRIX_KEY(0x00, 0x02, KEY_F) /* key_forward */
 		MATRIX_KEY(0x00, 0x03, KEY_HOME) /* key_home */

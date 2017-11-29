@@ -12,32 +12,28 @@
  * published by the Free Software Foundation.
 */
 
-#include <dt-bindings/clock/samsung,s2mps11.h>
-#include <dt-bindings/interrupt-controller/irq.h>
-#include <dt-bindings/gpio/gpio.h>
-#include <dt-bindings/sound/samsung-i2s.h>
-#include "exynos5800.dtsi"
-#include "exynos5422-cpus.dtsi"
+#include <dt-bindings/input/input.h>
+#include "exynos5422-odroid-core.dtsi"
 
 / {
-	memory@40000000 {
-		device_type = "memory";
-		reg = <0x40000000 0x7EA00000>;
-	};
+	gpio_keys {
+		compatible = "gpio-keys";
+		pinctrl-names = "default";
+		pinctrl-0 = <&power_key>;
 
-	chosen {
-		stdout-path = "serial2:115200n8";
-	};
-
-	firmware@02073000 {
-		compatible = "samsung,secure-firmware";
-		reg = <0x02073000 0x1000>;
-	};
-
-	fixed-rate-clocks {
-		oscclk {
-			compatible = "samsung,exynos5420-oscclk";
-			clock-frequency = <24000000>;
+		power_key {
+			/*
+			 * The power button (SW2) is connected to the PWRON
+			 * pin (active high) of the S2MPS11 PMIC, which acts
+			 * as a 16ms debouce filter and signal inverter with
+			 * output on ONOB pin (active low). ONOB PMIC pin is
+			 * then connected to XEINT3 SoC pin.
+			 */
+			gpios = <&gpx0 3 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_POWER>;
+			label = "power key";
+			debounce-interval = <0>;
+			wakeup-source;
 		};
 	};
 
@@ -63,22 +59,22 @@
 			polling-delay-passive = <250>;
 			polling-delay = <0>;
 			trips {
-				cpu_alert0: cpu-alert-0 {
+				cpu0_alert0: cpu-alert-0 {
 					temperature = <50000>; /* millicelsius */
 					hysteresis = <5000>; /* millicelsius */
 					type = "active";
 				};
-				cpu_alert1: cpu-alert-1 {
+				cpu0_alert1: cpu-alert-1 {
 					temperature = <60000>; /* millicelsius */
 					hysteresis = <5000>; /* millicelsius */
 					type = "active";
 				};
-				cpu_alert2: cpu-alert-2 {
+				cpu0_alert2: cpu-alert-2 {
 					temperature = <70000>; /* millicelsius */
 					hysteresis = <5000>; /* millicelsius */
 					type = "active";
 				};
-				cpu_crit0: cpu-crit-0 {
+				cpu0_crit0: cpu-crit-0 {
 					temperature = <120000>; /* millicelsius */
 					hysteresis = <0>; /* millicelsius */
 					type = "critical";
@@ -87,59 +83,258 @@
 				 * Exynos542x supports only 4 trip-points
 				 * so for these polling mode is required.
 				 * Start polling at temperature level of last
-				 * interrupt-driven trip: cpu_alert2
+				 * interrupt-driven trip: cpu0_alert2
 				 */
-				cpu_alert3: cpu-alert-3 {
+				cpu0_alert3: cpu-alert-3 {
 					temperature = <70000>; /* millicelsius */
 					hysteresis = <10000>; /* millicelsius */
 					type = "passive";
 				};
-				cpu_alert4: cpu-alert-4 {
+				cpu0_alert4: cpu-alert-4 {
 					temperature = <85000>; /* millicelsius */
 					hysteresis = <10000>; /* millicelsius */
 					type = "passive";
 				};
-
 			};
 			cooling-maps {
 				map0 {
-					trip = <&cpu_alert0>;
+					trip = <&cpu0_alert0>;
 					cooling-device = <&fan0 0 1>;
 				};
 				map1 {
-					trip = <&cpu_alert1>;
+					trip = <&cpu0_alert1>;
 					cooling-device = <&fan0 1 2>;
 				};
 				map2 {
-					trip = <&cpu_alert2>;
+					trip = <&cpu0_alert2>;
 					cooling-device = <&fan0 2 3>;
 				};
 				/*
-				 * When reaching cpu_alert3, reduce CPU
+				 * When reaching cpu0_alert3, reduce CPU
 				 * by 2 steps. On Exynos5422/5800 that would
 				 * be: 1600 MHz and 1100 MHz.
 				 */
 				map3 {
-					trip = <&cpu_alert3>;
+					trip = <&cpu0_alert3>;
 					cooling-device = <&cpu0 0 2>;
 				};
 				map4 {
-					trip = <&cpu_alert3>;
+					trip = <&cpu0_alert3>;
 					cooling-device = <&cpu4 0 2>;
 				};
-
 				/*
-				 * When reaching cpu_alert4, reduce CPU
-				 * further, down to 600 MHz (11 steps for big,
+				 * When reaching cpu0_alert4, reduce CPU
+				 * further, down to 600 MHz (12 steps for big,
 				 * 7 steps for LITTLE).
 				 */
 				map5 {
-					trip = <&cpu_alert4>;
+					trip = <&cpu0_alert4>;
 					cooling-device = <&cpu0 3 7>;
 				};
 				map6 {
-					trip = <&cpu_alert4>;
-					cooling-device = <&cpu4 3 11>;
+					trip = <&cpu0_alert4>;
+					cooling-device = <&cpu4 3 12>;
+				};
+			};
+		};
+		cpu1_thermal: cpu1-thermal {
+			thermal-sensors = <&tmu_cpu1 0>;
+			polling-delay-passive = <250>;
+			polling-delay = <0>;
+			trips {
+				cpu1_alert0: cpu-alert-0 {
+					temperature = <50000>;
+					hysteresis = <5000>;
+					type = "active";
+				};
+				cpu1_alert1: cpu-alert-1 {
+					temperature = <60000>;
+					hysteresis = <5000>;
+					type = "active";
+				};
+				cpu1_alert2: cpu-alert-2 {
+					temperature = <70000>;
+					hysteresis = <5000>;
+					type = "active";
+				};
+				cpu1_crit0: cpu-crit-0 {
+					temperature = <120000>;
+					hysteresis = <0>;
+					type = "critical";
+				};
+				cpu1_alert3: cpu-alert-3 {
+					temperature = <70000>;
+					hysteresis = <10000>;
+					type = "passive";
+				};
+				cpu1_alert4: cpu-alert-4 {
+					temperature = <85000>;
+					hysteresis = <10000>;
+					type = "passive";
+				};
+			};
+			cooling-maps {
+				map0 {
+					trip = <&cpu1_alert0>;
+					cooling-device = <&fan0 0 1>;
+				};
+				map1 {
+					trip = <&cpu1_alert1>;
+					cooling-device = <&fan0 1 2>;
+				};
+				map2 {
+					trip = <&cpu1_alert2>;
+					cooling-device = <&fan0 2 3>;
+				};
+				map3 {
+					trip = <&cpu1_alert3>;
+					cooling-device = <&cpu0 0 2>;
+				};
+				map4 {
+					trip = <&cpu1_alert3>;
+					cooling-device = <&cpu4 0 2>;
+				};
+				map5 {
+					trip = <&cpu1_alert4>;
+					cooling-device = <&cpu0 3 7>;
+				};
+				map6 {
+					trip = <&cpu1_alert4>;
+					cooling-device = <&cpu4 3 12>;
+				};
+			};
+		};
+		cpu2_thermal: cpu2-thermal {
+			thermal-sensors = <&tmu_cpu2 0>;
+			polling-delay-passive = <250>;
+			polling-delay = <0>;
+			trips {
+				cpu2_alert0: cpu-alert-0 {
+					temperature = <50000>;
+					hysteresis = <5000>;
+					type = "active";
+				};
+				cpu2_alert1: cpu-alert-1 {
+					temperature = <60000>;
+					hysteresis = <5000>;
+					type = "active";
+				};
+				cpu2_alert2: cpu-alert-2 {
+					temperature = <70000>;
+					hysteresis = <5000>;
+					type = "active";
+				};
+				cpu2_crit0: cpu-crit-0 {
+					temperature = <120000>;
+					hysteresis = <0>;
+					type = "critical";
+				};
+				cpu2_alert3: cpu-alert-3 {
+					temperature = <70000>;
+					hysteresis = <10000>;
+					type = "passive";
+				};
+				cpu2_alert4: cpu-alert-4 {
+					temperature = <85000>;
+					hysteresis = <10000>;
+					type = "passive";
+				};
+			};
+			cooling-maps {
+				map0 {
+					trip = <&cpu2_alert0>;
+					cooling-device = <&fan0 0 1>;
+				};
+				map1 {
+					trip = <&cpu2_alert1>;
+					cooling-device = <&fan0 1 2>;
+				};
+				map2 {
+					trip = <&cpu2_alert2>;
+					cooling-device = <&fan0 2 3>;
+				};
+				map3 {
+					trip = <&cpu2_alert3>;
+					cooling-device = <&cpu0 0 2>;
+				};
+				map4 {
+					trip = <&cpu2_alert3>;
+					cooling-device = <&cpu4 0 2>;
+				};
+				map5 {
+					trip = <&cpu2_alert4>;
+					cooling-device = <&cpu0 3 7>;
+				};
+				map6 {
+					trip = <&cpu2_alert4>;
+					cooling-device = <&cpu4 3 12>;
+				};
+			};
+		};
+		cpu3_thermal: cpu3-thermal {
+			thermal-sensors = <&tmu_cpu3 0>;
+			polling-delay-passive = <250>;
+			polling-delay = <0>;
+			trips {
+				cpu3_alert0: cpu-alert-0 {
+					temperature = <50000>;
+					hysteresis = <5000>;
+					type = "active";
+				};
+				cpu3_alert1: cpu-alert-1 {
+					temperature = <60000>;
+					hysteresis = <5000>;
+					type = "active";
+				};
+				cpu3_alert2: cpu-alert-2 {
+					temperature = <70000>;
+					hysteresis = <5000>;
+					type = "active";
+				};
+				cpu3_crit0: cpu-crit-0 {
+					temperature = <120000>;
+					hysteresis = <0>;
+					type = "critical";
+				};
+				cpu3_alert3: cpu-alert-3 {
+					temperature = <70000>;
+					hysteresis = <10000>;
+					type = "passive";
+				};
+				cpu3_alert4: cpu-alert-4 {
+					temperature = <85000>;
+					hysteresis = <10000>;
+					type = "passive";
+				};
+			};
+			cooling-maps {
+				map0 {
+					trip = <&cpu3_alert0>;
+					cooling-device = <&fan0 0 1>;
+				};
+				map1 {
+					trip = <&cpu3_alert1>;
+					cooling-device = <&fan0 1 2>;
+				};
+				map2 {
+					trip = <&cpu3_alert2>;
+					cooling-device = <&fan0 2 3>;
+				};
+				map3 {
+					trip = <&cpu3_alert3>;
+					cooling-device = <&cpu0 0 2>;
+				};
+				map4 {
+					trip = <&cpu3_alert3>;
+					cooling-device = <&cpu4 0 2>;
+				};
+				map5 {
+					trip = <&cpu3_alert4>;
+					cooling-device = <&cpu0 3 7>;
+				};
+				map6 {
+					trip = <&cpu3_alert4>;
+					cooling-device = <&cpu4 3 12>;
 				};
 			};
 		};
@@ -151,110 +346,9 @@
 	status = "okay";
 };
 
-&bus_wcore {
-	devfreq-events = <&nocp_mem0_0>, <&nocp_mem0_1>,
-			<&nocp_mem1_0>, <&nocp_mem1_1>;
-	vdd-supply = <&buck3_reg>;
-	exynos,saturation-ratio = <100>;
-	status = "okay";
-};
-
-&bus_noc {
-	devfreq = <&bus_wcore>;
-	status = "okay";
-};
-
-&bus_fsys_apb {
-	devfreq = <&bus_wcore>;
-	status = "okay";
-};
-
-&bus_fsys {
-	devfreq = <&bus_wcore>;
-	status = "okay";
-};
-
-&bus_fsys2 {
-	devfreq = <&bus_wcore>;
-	status = "okay";
-};
-
-&bus_mfc {
-	devfreq = <&bus_wcore>;
-	status = "okay";
-};
-
-&bus_gen {
-	devfreq = <&bus_wcore>;
-	status = "okay";
-};
-
-&bus_peri {
-	devfreq = <&bus_wcore>;
-	status = "okay";
-};
-
-&bus_g2d {
-	devfreq = <&bus_wcore>;
-	status = "okay";
-};
-
-&bus_g2d_acp {
-	devfreq = <&bus_wcore>;
-	status = "okay";
-};
-
-&bus_jpeg {
-	devfreq = <&bus_wcore>;
-	status = "okay";
-};
-
-&bus_jpeg_apb {
-	devfreq = <&bus_wcore>;
-	status = "okay";
-};
-
-&bus_disp1_fimd {
-	devfreq = <&bus_wcore>;
-	status = "okay";
-};
-
-&bus_disp1 {
-	devfreq = <&bus_wcore>;
-	status = "okay";
-};
-
-&bus_gscl_scaler {
-	devfreq = <&bus_wcore>;
-	status = "okay";
-};
-
-&bus_mscl {
-	devfreq = <&bus_wcore>;
-	status = "okay";
-};
-
-&clock_audss {
-	assigned-clocks = <&clock_audss EXYNOS_MOUT_AUDSS>,
-			<&clock_audss EXYNOS_MOUT_I2S>,
-			<&clock_audss EXYNOS_DOUT_AUD_BUS>;
-	assigned-clock-parents = <&clock CLK_FIN_PLL>,
-			<&clock_audss EXYNOS_MOUT_AUDSS>;
-	assigned-clock-rates = <0>,
-			<0>,
-			<19200000>;
-};
-
-&cpu0 {
-	cpu-supply = <&buck6_reg>;
-};
-
-&cpu4 {
-	cpu-supply = <&buck2_reg>;
-};
-
 &hdmi {
 	status = "okay";
+	ddc = <&i2c_2>;
 	hpd-gpios = <&gpx3 7 GPIO_ACTIVE_HIGH>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&hdmi_hpd_irq>;
@@ -266,248 +360,18 @@
 
 &hdmicec {
 	status = "okay";
-};
-
-&hsi2c_4 {
-	status = "okay";
-
-	s2mps11_pmic@66 {
-		compatible = "samsung,s2mps11-pmic";
-		reg = <0x66>;
-		samsung,s2mps11-acokb-ground;
-
-		interrupt-parent = <&gpx0>;
-		interrupts = <4 IRQ_TYPE_EDGE_FALLING>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&s2mps11_irq>;
-
-		s2mps11_osc: clocks {
-			#clock-cells = <1>;
-			clock-output-names = "s2mps11_ap",
-					"s2mps11_cp", "s2mps11_bt";
-		};
-
-		regulators {
-			ldo1_reg: LDO1 {
-				regulator-name = "vdd_ldo1";
-				regulator-min-microvolt = <1000000>;
-				regulator-max-microvolt = <1000000>;
-				regulator-always-on;
-			};
-
-			ldo3_reg: LDO3 {
-				regulator-name = "vddq_mmc0";
-				regulator-min-microvolt = <1800000>;
-				regulator-max-microvolt = <1800000>;
-			};
-
-			ldo4_reg: LDO4 {
-				regulator-name = "vdd_adc";
-				regulator-min-microvolt = <1800000>;
-				regulator-max-microvolt = <1800000>;
-			};
-
-			ldo5_reg: LDO5 {
-				regulator-name = "vdd_ldo5";
-				regulator-min-microvolt = <1800000>;
-				regulator-max-microvolt = <1800000>;
-				regulator-always-on;
-			};
-
-			ldo6_reg: LDO6 {
-				regulator-name = "vdd_ldo6";
-				regulator-min-microvolt = <1000000>;
-				regulator-max-microvolt = <1000000>;
-				regulator-always-on;
-			};
-
-			ldo7_reg: LDO7 {
-				regulator-name = "vdd_ldo7";
-				regulator-min-microvolt = <1800000>;
-				regulator-max-microvolt = <1800000>;
-				regulator-always-on;
-			};
-
-			ldo8_reg: LDO8 {
-				regulator-name = "vdd_ldo8";
-				regulator-min-microvolt = <1800000>;
-				regulator-max-microvolt = <1800000>;
-				regulator-always-on;
-			};
-
-			ldo9_reg: LDO9 {
-				regulator-name = "vdd_ldo9";
-				regulator-min-microvolt = <3000000>;
-				regulator-max-microvolt = <3000000>;
-				regulator-always-on;
-			};
-
-			ldo10_reg: LDO10 {
-				regulator-name = "vdd_ldo10";
-				regulator-min-microvolt = <1800000>;
-				regulator-max-microvolt = <1800000>;
-				regulator-always-on;
-			};
-
-			ldo11_reg: LDO11 {
-				regulator-name = "vdd_ldo11";
-				regulator-min-microvolt = <1000000>;
-				regulator-max-microvolt = <1000000>;
-				regulator-always-on;
-			};
-
-			ldo12_reg: LDO12 {
-				regulator-name = "vdd_ldo12";
-				regulator-min-microvolt = <1800000>;
-				regulator-max-microvolt = <1800000>;
-				regulator-always-on;
-			};
-
-			ldo13_reg: LDO13 {
-				regulator-name = "vddq_mmc2";
-				regulator-min-microvolt = <2800000>;
-				regulator-max-microvolt = <2800000>;
-			};
-
-			ldo15_reg: LDO15 {
-				regulator-name = "vdd_ldo15";
-				regulator-min-microvolt = <3100000>;
-				regulator-max-microvolt = <3100000>;
-				regulator-always-on;
-			};
-
-			ldo16_reg: LDO16 {
-				regulator-name = "vdd_ldo16";
-				regulator-min-microvolt = <2200000>;
-				regulator-max-microvolt = <2200000>;
-				regulator-always-on;
-			};
-
-			ldo17_reg: LDO17 {
-				regulator-name = "tsp_avdd";
-				regulator-min-microvolt = <3300000>;
-				regulator-max-microvolt = <3300000>;
-				regulator-always-on;
-			};
-
-			ldo18_reg: LDO18 {
-				regulator-name = "vdd_emmc_1V8";
-				regulator-min-microvolt = <1800000>;
-				regulator-max-microvolt = <1800000>;
-			};
-
-			ldo19_reg: LDO19 {
-				regulator-name = "vdd_sd";
-				regulator-min-microvolt = <2800000>;
-				regulator-max-microvolt = <2800000>;
-			};
-
-			ldo24_reg: LDO24 {
-				regulator-name = "tsp_io";
-				regulator-min-microvolt = <2800000>;
-				regulator-max-microvolt = <2800000>;
-				regulator-always-on;
-			};
-
-			ldo26_reg: LDO26 {
-				regulator-name = "vdd_ldo26";
-				regulator-min-microvolt = <3000000>;
-				regulator-max-microvolt = <3000000>;
-				regulator-always-on;
-			};
-
-			buck1_reg: BUCK1 {
-				regulator-name = "vdd_mif";
-				regulator-min-microvolt = <800000>;
-				regulator-max-microvolt = <1300000>;
-				regulator-always-on;
-				regulator-boot-on;
-			};
-
-			buck2_reg: BUCK2 {
-				regulator-name = "vdd_arm";
-				regulator-min-microvolt = <800000>;
-				regulator-max-microvolt = <1500000>;
-				regulator-always-on;
-				regulator-boot-on;
-			};
-
-			buck3_reg: BUCK3 {
-				regulator-name = "vdd_int";
-				regulator-min-microvolt = <800000>;
-				regulator-max-microvolt = <1400000>;
-				regulator-always-on;
-				regulator-boot-on;
-			};
-
-			buck4_reg: BUCK4 {
-				regulator-name = "vdd_g3d";
-				regulator-min-microvolt = <800000>;
-				regulator-max-microvolt = <1400000>;
-				regulator-always-on;
-				regulator-boot-on;
-			};
-
-			buck5_reg: BUCK5 {
-				regulator-name = "vdd_mem";
-				regulator-min-microvolt = <800000>;
-				regulator-max-microvolt = <1400000>;
-				regulator-always-on;
-				regulator-boot-on;
-			};
-
-			buck6_reg: BUCK6 {
-				regulator-name = "vdd_kfc";
-				regulator-min-microvolt = <800000>;
-				regulator-max-microvolt = <1500000>;
-				regulator-always-on;
-				regulator-boot-on;
-			};
-
-			buck7_reg: BUCK7 {
-				regulator-name = "vdd_1.0v_ldo";
-				regulator-min-microvolt = <800000>;
-				regulator-max-microvolt = <1500000>;
-				regulator-always-on;
-				regulator-boot-on;
-			};
-
-			buck8_reg: BUCK8 {
-				regulator-name = "vdd_1.8v_ldo";
-				regulator-min-microvolt = <800000>;
-				regulator-max-microvolt = <1500000>;
-				regulator-always-on;
-				regulator-boot-on;
-			};
-
-			buck9_reg: BUCK9 {
-				regulator-name = "vdd_2.8v_ldo";
-				regulator-min-microvolt = <3000000>;
-				regulator-max-microvolt = <3750000>;
-				regulator-always-on;
-				regulator-boot-on;
-			};
-
-			buck10_reg: BUCK10 {
-				regulator-name = "vdd_vmem";
-				regulator-min-microvolt = <2850000>;
-				regulator-max-microvolt = <2850000>;
-				regulator-always-on;
-				regulator-boot-on;
-			};
-		};
-	};
+	needs-hpd;
 };
 
 &i2c_2 {
 	samsung,i2c-sda-delay = <100>;
 	samsung,i2c-max-bus-freq = <66000>;
+	/* used by HDMI DDC */
 	status = "okay";
+};
 
-	hdmiddc@50 {
-		compatible = "samsung,exynos4210-hdmiddc";
-		reg = <0x50>;
-	};
+&mixer {
+	status = "okay";
 };
 
 &mmc_0 {
@@ -529,48 +393,18 @@
 	vqmmc-supply = <&ldo3_reg>;
 };
 
-&mmc_2 {
-	status = "okay";
-	card-detect-delay = <200>;
-	samsung,dw-mshc-ciu-div = <3>;
-	samsung,dw-mshc-sdr-timing = <0 4>;
-	samsung,dw-mshc-ddr-timing = <0 2>;
-	pinctrl-names = "default";
-	pinctrl-0 = <&sd2_clk &sd2_cmd &sd2_cd &sd2_bus1 &sd2_bus4>;
-	bus-width = <4>;
-	cap-sd-highspeed;
-	vmmc-supply = <&ldo19_reg>;
-	vqmmc-supply = <&ldo13_reg>;
-};
-
-&nocp_mem0_0 {
-	status = "okay";
-};
-
-&nocp_mem0_1 {
-	status = "okay";
-};
-
-&nocp_mem1_0 {
-	status = "okay";
-};
-
-&nocp_mem1_1 {
-	status = "okay";
-};
-
 &pinctrl_0 {
+	power_key: power-key {
+		samsung,pins = "gpx0-3";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_INPUT>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+		samsung,pin-drv = <EXYNOS5420_PIN_DRV_LV1>;
+	};
+
 	hdmi_hpd_irq: hdmi-hpd-irq {
 		samsung,pins = "gpx3-7";
 		samsung,pin-function = <EXYNOS_PIN_FUNC_INPUT>;
 		samsung,pin-pud = <EXYNOS_PIN_PULL_DOWN>;
-		samsung,pin-drv = <EXYNOS5420_PIN_DRV_LV1>;
-	};
-
-	s2mps11_irq: s2mps11-irq {
-		samsung,pins = "gpx0-4";
-		samsung,pin-function = <EXYNOS_PIN_FUNC_F>;
-		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
 		samsung,pin-drv = <EXYNOS5420_PIN_DRV_LV1>;
 	};
 };
@@ -582,46 +416,4 @@
 		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
 		samsung,pin-drv = <EXYNOS5420_PIN_DRV_LV1>;
 	};
-};
-
-&tmu_cpu0 {
-	vtmu-supply = <&ldo7_reg>;
-};
-
-&tmu_cpu1 {
-	vtmu-supply = <&ldo7_reg>;
-};
-
-&tmu_cpu2 {
-	vtmu-supply = <&ldo7_reg>;
-};
-
-&tmu_cpu3 {
-	vtmu-supply = <&ldo7_reg>;
-};
-
-&tmu_gpu {
-	vtmu-supply = <&ldo7_reg>;
-};
-
-&rtc {
-	status = "okay";
-	clocks = <&clock CLK_RTC>, <&s2mps11_osc S2MPS11_CLK_AP>;
-	clock-names = "rtc", "rtc_src";
-};
-
-&usbdrd_dwc3_0 {
-	dr_mode = "host";
-};
-
-/* usbdrd_dwc3_1 mode customized in each board */
-
-&usbdrd3_0 {
-	vdd33-supply = <&ldo9_reg>;
-	vdd10-supply = <&ldo11_reg>;
-};
-
-&usbdrd3_1 {
-	vdd33-supply = <&ldo9_reg>;
-	vdd10-supply = <&ldo11_reg>;
 };

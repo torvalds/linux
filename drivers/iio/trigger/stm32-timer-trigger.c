@@ -13,6 +13,7 @@
 #include <linux/mfd/stm32-timers.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/of_device.h>
 
 #define MAX_TRIGGERS 7
 #define MAX_VALIDS 5
@@ -28,9 +29,14 @@ static const void *triggers_table[][MAX_TRIGGERS] = {
 	{ TIM7_TRGO,},
 	{ TIM8_TRGO, TIM8_TRGO2, TIM8_CH1, TIM8_CH2, TIM8_CH3, TIM8_CH4,},
 	{ TIM9_TRGO, TIM9_CH1, TIM9_CH2,},
-	{ }, /* timer 10 */
-	{ }, /* timer 11 */
+	{ TIM10_OC1,},
+	{ TIM11_OC1,},
 	{ TIM12_TRGO, TIM12_CH1, TIM12_CH2,},
+	{ TIM13_OC1,},
+	{ TIM14_OC1,},
+	{ TIM15_TRGO,},
+	{ TIM16_OC1,},
+	{ TIM17_OC1,},
 };
 
 /* List the triggers accepted by each timer */
@@ -43,10 +49,30 @@ static const void *valids_table[][MAX_VALIDS] = {
 	{ }, /* timer 6 */
 	{ }, /* timer 7 */
 	{ TIM1_TRGO, TIM2_TRGO, TIM4_TRGO, TIM5_TRGO,},
-	{ TIM2_TRGO, TIM3_TRGO,},
+	{ TIM2_TRGO, TIM3_TRGO, TIM10_OC1, TIM11_OC1,},
 	{ }, /* timer 10 */
 	{ }, /* timer 11 */
-	{ TIM4_TRGO, TIM5_TRGO,},
+	{ TIM4_TRGO, TIM5_TRGO, TIM13_OC1, TIM14_OC1,},
+};
+
+static const void *stm32h7_valids_table[][MAX_VALIDS] = {
+	{ TIM15_TRGO, TIM2_TRGO, TIM3_TRGO, TIM4_TRGO,},
+	{ TIM1_TRGO, TIM8_TRGO, TIM3_TRGO, TIM4_TRGO,},
+	{ TIM1_TRGO, TIM2_TRGO, TIM15_TRGO, TIM4_TRGO,},
+	{ TIM1_TRGO, TIM2_TRGO, TIM3_TRGO, TIM8_TRGO,},
+	{ TIM1_TRGO, TIM8_TRGO, TIM3_TRGO, TIM4_TRGO,},
+	{ }, /* timer 6 */
+	{ }, /* timer 7 */
+	{ TIM1_TRGO, TIM2_TRGO, TIM4_TRGO, TIM5_TRGO,},
+	{ }, /* timer 9 */
+	{ }, /* timer 10 */
+	{ }, /* timer 11 */
+	{ TIM4_TRGO, TIM5_TRGO, TIM13_OC1, TIM14_OC1,},
+	{ }, /* timer 13 */
+	{ }, /* timer 14 */
+	{ TIM1_TRGO, TIM3_TRGO, TIM16_OC1, TIM17_OC1,},
+	{ }, /* timer 16 */
+	{ }, /* timer 17 */
 };
 
 struct stm32_timer_trigger {
@@ -59,9 +85,19 @@ struct stm32_timer_trigger {
 	bool has_trgo2;
 };
 
+struct stm32_timer_trigger_cfg {
+	const void *(*valids_table)[MAX_VALIDS];
+	const unsigned int num_valids_table;
+};
+
 static bool stm32_timer_is_trgo2_name(const char *name)
 {
 	return !!strstr(name, "trgo2");
+}
+
+static bool stm32_timer_is_trgo_name(const char *name)
+{
+	return (!!strstr(name, "trgo") && !strstr(name, "trgo2"));
 }
 
 static int stm32_timer_start(struct stm32_timer_trigger *priv,
@@ -138,6 +174,7 @@ static void stm32_timer_stop(struct stm32_timer_trigger *priv)
 		clk_disable(priv->clk);
 
 	/* Stop timer */
+	regmap_update_bits(priv->regmap, TIM_CR1, TIM_CR1_ARPE, 0);
 	regmap_update_bits(priv->regmap, TIM_CR1, TIM_CR1_CEN, 0);
 	regmap_write(priv->regmap, TIM_PSC, 0);
 	regmap_write(priv->regmap, TIM_ARR, 0);
@@ -318,7 +355,6 @@ static const struct attribute_group *stm32_trigger_attr_groups[] = {
 };
 
 static const struct iio_trigger_ops timer_trigger_ops = {
-	.owner = THIS_MODULE,
 };
 
 static int stm32_setup_iio_triggers(struct stm32_timer_trigger *priv)
@@ -328,6 +364,7 @@ static int stm32_setup_iio_triggers(struct stm32_timer_trigger *priv)
 
 	while (cur && *cur) {
 		struct iio_trigger *trig;
+		bool cur_is_trgo = stm32_timer_is_trgo_name(*cur);
 		bool cur_is_trgo2 = stm32_timer_is_trgo2_name(*cur);
 
 		if (cur_is_trgo2 && !priv->has_trgo2) {
@@ -344,10 +381,9 @@ static int stm32_setup_iio_triggers(struct stm32_timer_trigger *priv)
 
 		/*
 		 * sampling frequency and master mode attributes
-		 * should only be available on trgo trigger which
-		 * is always the first in the list.
+		 * should only be available on trgo/trgo2 triggers
 		 */
-		if (cur == priv->triggers || cur_is_trgo2)
+		if (cur_is_trgo || cur_is_trgo2)
 			trig->dev.groups = stm32_trigger_attr_groups;
 
 		iio_trigger_set_drvdata(trig, priv);
@@ -366,33 +402,31 @@ static int stm32_counter_read_raw(struct iio_dev *indio_dev,
 				  int *val, int *val2, long mask)
 {
 	struct stm32_timer_trigger *priv = iio_priv(indio_dev);
+	u32 dat;
 
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
-	{
-		u32 cnt;
-
-		regmap_read(priv->regmap, TIM_CNT, &cnt);
-		*val = cnt;
-
+		regmap_read(priv->regmap, TIM_CNT, &dat);
+		*val = dat;
 		return IIO_VAL_INT;
-	}
-	case IIO_CHAN_INFO_SCALE:
-	{
-		u32 smcr;
 
-		regmap_read(priv->regmap, TIM_SMCR, &smcr);
-		smcr &= TIM_SMCR_SMS;
+	case IIO_CHAN_INFO_ENABLE:
+		regmap_read(priv->regmap, TIM_CR1, &dat);
+		*val = (dat & TIM_CR1_CEN) ? 1 : 0;
+		return IIO_VAL_INT;
+
+	case IIO_CHAN_INFO_SCALE:
+		regmap_read(priv->regmap, TIM_SMCR, &dat);
+		dat &= TIM_SMCR_SMS;
 
 		*val = 1;
 		*val2 = 0;
 
 		/* in quadrature case scale = 0.25 */
-		if (smcr == 3)
+		if (dat == 3)
 			*val2 = 2;
 
 		return IIO_VAL_FRACTIONAL_LOG2;
-	}
 	}
 
 	return -EINVAL;
@@ -403,15 +437,31 @@ static int stm32_counter_write_raw(struct iio_dev *indio_dev,
 				   int val, int val2, long mask)
 {
 	struct stm32_timer_trigger *priv = iio_priv(indio_dev);
+	u32 dat;
 
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
-		regmap_write(priv->regmap, TIM_CNT, val);
+		return regmap_write(priv->regmap, TIM_CNT, val);
 
-		return IIO_VAL_INT;
 	case IIO_CHAN_INFO_SCALE:
 		/* fixed scale */
 		return -EINVAL;
+
+	case IIO_CHAN_INFO_ENABLE:
+		if (val) {
+			regmap_read(priv->regmap, TIM_CR1, &dat);
+			if (!(dat & TIM_CR1_CEN))
+				clk_enable(priv->clk);
+			regmap_update_bits(priv->regmap, TIM_CR1, TIM_CR1_CEN,
+					   TIM_CR1_CEN);
+		} else {
+			regmap_read(priv->regmap, TIM_CR1, &dat);
+			regmap_update_bits(priv->regmap, TIM_CR1, TIM_CR1_CEN,
+					   0);
+			if (dat & TIM_CR1_CEN)
+				clk_disable(priv->clk);
+		}
+		return 0;
 	}
 
 	return -EINVAL;
@@ -442,7 +492,6 @@ static int stm32_counter_validate_trigger(struct iio_dev *indio_dev,
 }
 
 static const struct iio_info stm32_trigger_info = {
-	.driver_module = THIS_MODULE,
 	.validate_trigger = stm32_counter_validate_trigger,
 	.read_raw = stm32_counter_read_raw,
 	.write_raw = stm32_counter_write_raw
@@ -471,7 +520,7 @@ static int stm32_get_trigger_mode(struct iio_dev *indio_dev,
 
 	regmap_read(priv->regmap, TIM_SMCR, &smcr);
 
-	return smcr == TIM_SMCR_SMS ? 0 : -EINVAL;
+	return (smcr & TIM_SMCR_SMS) == TIM_SMCR_SMS ? 0 : -EINVAL;
 }
 
 static const struct iio_enum stm32_trigger_mode_enum = {
@@ -507,9 +556,19 @@ static int stm32_set_enable_mode(struct iio_dev *indio_dev,
 {
 	struct stm32_timer_trigger *priv = iio_priv(indio_dev);
 	int sms = stm32_enable_mode2sms(mode);
+	u32 val;
 
 	if (sms < 0)
 		return sms;
+	/*
+	 * Triggered mode sets CEN bit automatically by hardware. So, first
+	 * enable counter clock, so it can use it. Keeps it in sync with CEN.
+	 */
+	if (sms == 6) {
+		regmap_read(priv->regmap, TIM_CR1, &val);
+		if (!(val & TIM_CR1_CEN))
+			clk_enable(priv->clk);
+	}
 
 	regmap_update_bits(priv->regmap, TIM_SMCR, TIM_SMCR_SMS, sms);
 
@@ -571,11 +630,14 @@ static int stm32_get_quadrature_mode(struct iio_dev *indio_dev,
 {
 	struct stm32_timer_trigger *priv = iio_priv(indio_dev);
 	u32 smcr;
+	int mode;
 
 	regmap_read(priv->regmap, TIM_SMCR, &smcr);
-	smcr &= TIM_SMCR_SMS;
+	mode = (smcr & TIM_SMCR_SMS) - 1;
+	if ((mode < 0) || (mode > ARRAY_SIZE(stm32_quadrature_modes)))
+		return -EINVAL;
 
-	return smcr - 1;
+	return mode;
 }
 
 static const struct iio_enum stm32_quadrature_mode_enum = {
@@ -592,13 +654,20 @@ static const char *const stm32_count_direction_states[] = {
 
 static int stm32_set_count_direction(struct iio_dev *indio_dev,
 				     const struct iio_chan_spec *chan,
-				     unsigned int mode)
+				     unsigned int dir)
 {
 	struct stm32_timer_trigger *priv = iio_priv(indio_dev);
+	u32 val;
+	int mode;
 
-	regmap_update_bits(priv->regmap, TIM_CR1, TIM_CR1_DIR, mode);
+	/* In encoder mode, direction is RO (given by TI1/TI2 signals) */
+	regmap_read(priv->regmap, TIM_SMCR, &val);
+	mode = (val & TIM_SMCR_SMS) - 1;
+	if ((mode >= 0) || (mode < ARRAY_SIZE(stm32_quadrature_modes)))
+		return -EBUSY;
 
-	return 0;
+	return regmap_update_bits(priv->regmap, TIM_CR1, TIM_CR1_DIR,
+				  dir ? TIM_CR1_DIR : 0);
 }
 
 static int stm32_get_count_direction(struct iio_dev *indio_dev,
@@ -609,7 +678,7 @@ static int stm32_get_count_direction(struct iio_dev *indio_dev,
 
 	regmap_read(priv->regmap, TIM_CR1, &cr1);
 
-	return (cr1 & TIM_CR1_DIR);
+	return ((cr1 & TIM_CR1_DIR) ? 1 : 0);
 }
 
 static const struct iio_enum stm32_count_direction_enum = {
@@ -645,8 +714,9 @@ static ssize_t stm32_count_set_preset(struct iio_dev *indio_dev,
 	if (ret)
 		return ret;
 
+	/* TIMx_ARR register shouldn't be buffered (ARPE=0) */
+	regmap_update_bits(priv->regmap, TIM_CR1, TIM_CR1_ARPE, 0);
 	regmap_write(priv->regmap, TIM_ARR, preset);
-	regmap_update_bits(priv->regmap, TIM_CR1, TIM_CR1_ARPE, TIM_CR1_ARPE);
 
 	return len;
 }
@@ -672,7 +742,9 @@ static const struct iio_chan_spec_ext_info stm32_trigger_count_info[] = {
 static const struct iio_chan_spec stm32_trigger_channel = {
 	.type = IIO_COUNT,
 	.channel = 0,
-	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) | BIT(IIO_CHAN_INFO_SCALE),
+	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |
+			      BIT(IIO_CHAN_INFO_ENABLE) |
+			      BIT(IIO_CHAN_INFO_SCALE),
 	.ext_info = stm32_trigger_count_info,
 	.indexed = 1
 };
@@ -734,18 +806,22 @@ static int stm32_timer_trigger_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct stm32_timer_trigger *priv;
 	struct stm32_timers *ddata = dev_get_drvdata(pdev->dev.parent);
+	const struct stm32_timer_trigger_cfg *cfg;
 	unsigned int index;
 	int ret;
 
 	if (of_property_read_u32(dev->of_node, "reg", &index))
 		return -EINVAL;
 
+	cfg = (const struct stm32_timer_trigger_cfg *)
+		of_match_device(dev->driver->of_match_table, dev)->data;
+
 	if (index >= ARRAY_SIZE(triggers_table) ||
-	    index >= ARRAY_SIZE(valids_table))
+	    index >= cfg->num_valids_table)
 		return -EINVAL;
 
 	/* Create an IIO device only if we have triggers to be validated */
-	if (*valids_table[index])
+	if (*cfg->valids_table[index])
 		priv = stm32_setup_counter_device(dev);
 	else
 		priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
@@ -758,7 +834,7 @@ static int stm32_timer_trigger_probe(struct platform_device *pdev)
 	priv->clk = ddata->clk;
 	priv->max_arr = ddata->max_arr;
 	priv->triggers = triggers_table[index];
-	priv->valids = valids_table[index];
+	priv->valids = cfg->valids_table[index];
 	stm32_timer_detect_trgo2(priv);
 
 	ret = stm32_setup_iio_triggers(priv);
@@ -770,8 +846,24 @@ static int stm32_timer_trigger_probe(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct stm32_timer_trigger_cfg stm32_timer_trg_cfg = {
+	.valids_table = valids_table,
+	.num_valids_table = ARRAY_SIZE(valids_table),
+};
+
+static const struct stm32_timer_trigger_cfg stm32h7_timer_trg_cfg = {
+	.valids_table = stm32h7_valids_table,
+	.num_valids_table = ARRAY_SIZE(stm32h7_valids_table),
+};
+
 static const struct of_device_id stm32_trig_of_match[] = {
-	{ .compatible = "st,stm32-timer-trigger", },
+	{
+		.compatible = "st,stm32-timer-trigger",
+		.data = (void *)&stm32_timer_trg_cfg,
+	}, {
+		.compatible = "st,stm32h7-timer-trigger",
+		.data = (void *)&stm32h7_timer_trg_cfg,
+	},
 	{ /* end node */ },
 };
 MODULE_DEVICE_TABLE(of, stm32_trig_of_match);

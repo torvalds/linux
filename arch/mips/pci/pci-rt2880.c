@@ -181,7 +181,7 @@ static inline void rt2880_pci_write_u32(unsigned long reg, u32 val)
 	spin_unlock_irqrestore(&rt2880_pci_lock, flags);
 }
 
-int __init pcibios_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
+int pcibios_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 {
 	u16 cmd;
 	int irq = -1;

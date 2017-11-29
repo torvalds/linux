@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * irq_domain - IRQ translation domains
  *
@@ -32,6 +33,7 @@
 #include <linux/types.h>
 #include <linux/irqhandler.h>
 #include <linux/of.h>
+#include <linux/mutex.h>
 #include <linux/radix-tree.h>
 
 struct device_node;
@@ -40,6 +42,7 @@ struct of_device_id;
 struct irq_chip;
 struct irq_data;
 struct cpumask;
+struct seq_file;
 
 /* Number of irqs reserved for a legacy isa controller */
 #define NUM_ISA_INTERRUPTS	16
@@ -104,17 +107,20 @@ struct irq_domain_ops {
 	int (*xlate)(struct irq_domain *d, struct device_node *node,
 		     const u32 *intspec, unsigned int intsize,
 		     unsigned long *out_hwirq, unsigned int *out_type);
-
 #ifdef	CONFIG_IRQ_DOMAIN_HIERARCHY
 	/* extended V2 interfaces to support hierarchy irq_domains */
 	int (*alloc)(struct irq_domain *d, unsigned int virq,
 		     unsigned int nr_irqs, void *arg);
 	void (*free)(struct irq_domain *d, unsigned int virq,
 		     unsigned int nr_irqs);
-	void (*activate)(struct irq_domain *d, struct irq_data *irq_data);
+	int (*activate)(struct irq_domain *d, struct irq_data *irqd, bool early);
 	void (*deactivate)(struct irq_domain *d, struct irq_data *irq_data);
 	int (*translate)(struct irq_domain *d, struct irq_fwspec *fwspec,
 			 unsigned long *out_hwirq, unsigned int *out_type);
+#endif
+#ifdef CONFIG_GENERIC_IRQ_DEBUGFS
+	void (*debug_show)(struct seq_file *m, struct irq_domain *d,
+			   struct irq_data *irqd, int ind);
 #endif
 };
 
@@ -133,8 +139,8 @@ struct irq_domain_chip_generic;
  * @mapcount: The number of mapped interrupts
  *
  * Optional elements
- * @of_node: Pointer to device tree nodes associated with the irq_domain. Used
- *           when decoding device tree interrupt specifiers.
+ * @fwnode: Pointer to firmware node associated with the irq_domain. Pretty easy
+ *          to swap it for the of_node via the irq_domain_get_of_node accessor
  * @gc: Pointer to a list of generic chips. There is a helper function for
  *      setting up one or more generic chips for interrupt controllers
  *      drivers using the generic chip library which uses this pointer.
@@ -172,6 +178,7 @@ struct irq_domain {
 	unsigned int revmap_direct_max_irq;
 	unsigned int revmap_size;
 	struct radix_tree_root revmap_tree;
+	struct mutex revmap_tree_mutex;
 	unsigned int linear_revmap[];
 };
 
@@ -265,9 +272,11 @@ static inline struct fwnode_handle *of_node_to_fwnode(struct device_node *node)
 	return node ? &node->fwnode : NULL;
 }
 
+extern const struct fwnode_operations irqchip_fwnode_ops;
+
 static inline bool is_fwnode_irqchip(struct fwnode_handle *fwnode)
 {
-	return fwnode && fwnode->type == FWNODE_IRQCHIP;
+	return fwnode && fwnode->ops == &irqchip_fwnode_ops;
 }
 
 extern void irq_domain_update_bus_token(struct irq_domain *domain,
@@ -435,7 +444,7 @@ extern int __irq_domain_alloc_irqs(struct irq_domain *domain, int irq_base,
 				   unsigned int nr_irqs, int node, void *arg,
 				   bool realloc, const struct cpumask *affinity);
 extern void irq_domain_free_irqs(unsigned int virq, unsigned int nr_irqs);
-extern void irq_domain_activate_irq(struct irq_data *irq_data);
+extern int irq_domain_activate_irq(struct irq_data *irq_data, bool early);
 extern void irq_domain_deactivate_irq(struct irq_data *irq_data);
 
 static inline int irq_domain_alloc_irqs(struct irq_domain *domain,
@@ -459,6 +468,9 @@ extern void irq_domain_free_irqs_common(struct irq_domain *domain,
 					unsigned int nr_irqs);
 extern void irq_domain_free_irqs_top(struct irq_domain *domain,
 				     unsigned int virq, unsigned int nr_irqs);
+
+extern int irq_domain_push_irq(struct irq_domain *domain, int virq, void *arg);
+extern int irq_domain_pop_irq(struct irq_domain *domain, int virq);
 
 extern int irq_domain_alloc_irqs_parent(struct irq_domain *domain,
 					unsigned int irq_base,
@@ -502,8 +514,6 @@ static inline bool irq_domain_is_msi_remap(struct irq_domain *domain)
 extern bool irq_domain_hierarchical_is_msi_remap(struct irq_domain *domain);
 
 #else	/* CONFIG_IRQ_DOMAIN_HIERARCHY */
-static inline void irq_domain_activate_irq(struct irq_data *data) { }
-static inline void irq_domain_deactivate_irq(struct irq_data *data) { }
 static inline int irq_domain_alloc_irqs(struct irq_domain *domain,
 			unsigned int nr_irqs, int node, void *arg)
 {
@@ -552,8 +562,6 @@ irq_domain_hierarchical_is_msi_remap(struct irq_domain *domain)
 
 #else /* CONFIG_IRQ_DOMAIN */
 static inline void irq_dispose_mapping(unsigned int virq) { }
-static inline void irq_domain_activate_irq(struct irq_data *data) { }
-static inline void irq_domain_deactivate_irq(struct irq_data *data) { }
 static inline struct irq_domain *irq_find_matching_fwnode(
 	struct fwnode_handle *fwnode, enum irq_domain_bus_token bus_token)
 {

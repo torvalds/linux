@@ -92,7 +92,6 @@ static int ad8801_read_raw(struct iio_dev *indio_dev,
 static const struct iio_info ad8801_info = {
 	.read_raw = ad8801_read_raw,
 	.write_raw = ad8801_write_raw,
-	.driver_module = THIS_MODULE,
 };
 
 #define AD8801_CHANNEL(chan) {		\

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * GPL HEADER START
  *
@@ -44,7 +45,7 @@
 
 #define DEBUG_SUBSYSTEM S_LOG
 
-#include "../include/obd_class.h"
+#include <obd_class.h>
 
 #include "llog_internal.h"
 

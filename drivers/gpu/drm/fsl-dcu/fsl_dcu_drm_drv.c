@@ -176,8 +176,6 @@ static struct drm_driver fsl_dcu_drm_driver = {
 	.gem_prime_vunmap	= drm_gem_cma_prime_vunmap,
 	.gem_prime_mmap		= drm_gem_cma_prime_mmap,
 	.dumb_create		= drm_gem_cma_dumb_create,
-	.dumb_map_offset	= drm_gem_cma_dumb_map_offset,
-	.dumb_destroy		= drm_gem_dumb_destroy,
 	.fops			= &fsl_dcu_drm_fops,
 	.name			= "fsl-dcu-drm",
 	.desc			= "Freescale DCU DRM",
@@ -212,7 +210,6 @@ static int fsl_dcu_drm_pm_suspend(struct device *dev)
 		return PTR_ERR(fsl_dev->state);
 	}
 
-	clk_disable_unprepare(fsl_dev->pix_clk);
 	clk_disable_unprepare(fsl_dev->clk);
 
 	return 0;
@@ -235,6 +232,7 @@ static int fsl_dcu_drm_pm_resume(struct device *dev)
 	if (fsl_dev->tcon)
 		fsl_tcon_bypass_enable(fsl_dev->tcon);
 	fsl_dcu_drm_init_planes(fsl_dev->drm);
+	enable_irq(fsl_dev->irq);
 	drm_atomic_helper_resume(fsl_dev->drm, fsl_dev->state);
 
 	console_lock();
@@ -242,7 +240,6 @@ static int fsl_dcu_drm_pm_resume(struct device *dev)
 	console_unlock();
 
 	drm_kms_helper_poll_enable(fsl_dev->drm);
-	enable_irq(fsl_dev->irq);
 
 	return 0;
 }

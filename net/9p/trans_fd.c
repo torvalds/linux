@@ -272,6 +272,7 @@ static int p9_fd_read(struct p9_client *client, void *v, int len)
 {
 	int ret;
 	struct p9_trans_fd *ts = NULL;
+	loff_t pos;
 
 	if (client && client->status != Disconnected)
 		ts = client->trans;
@@ -282,7 +283,8 @@ static int p9_fd_read(struct p9_client *client, void *v, int len)
 	if (!(ts->rd->f_flags & O_NONBLOCK))
 		p9_debug(P9_DEBUG_ERROR, "blocking read ...\n");
 
-	ret = kernel_read(ts->rd, ts->rd->f_pos, v, len);
+	pos = ts->rd->f_pos;
+	ret = kernel_read(ts->rd, v, len, &pos);
 	if (ret <= 0 && ret != -ERESTARTSYS && ret != -EAGAIN)
 		client->status = Disconnected;
 	return ret;
@@ -420,8 +422,7 @@ error:
 
 static int p9_fd_write(struct p9_client *client, void *v, int len)
 {
-	int ret;
-	mm_segment_t oldfs;
+	ssize_t ret;
 	struct p9_trans_fd *ts = NULL;
 
 	if (client && client->status != Disconnected)
@@ -433,12 +434,7 @@ static int p9_fd_write(struct p9_client *client, void *v, int len)
 	if (!(ts->wr->f_flags & O_NONBLOCK))
 		p9_debug(P9_DEBUG_ERROR, "blocking write ...\n");
 
-	oldfs = get_fs();
-	set_fs(get_ds());
-	/* The cast to a user pointer is valid due to the set_fs() */
-	ret = vfs_write(ts->wr, (__force void __user *)v, len, &ts->wr->f_pos);
-	set_fs(oldfs);
-
+	ret = kernel_write(ts->wr, v, len, &ts->wr->f_pos);
 	if (ret <= 0 && ret != -ERESTARTSYS && ret != -EAGAIN)
 		client->status = Disconnected;
 	return ret;
@@ -728,12 +724,12 @@ static int p9_fd_show_options(struct seq_file *m, struct p9_client *clnt)
 {
 	if (clnt->trans_mod == &p9_tcp_trans) {
 		if (clnt->trans_opts.tcp.port != P9_PORT)
-			seq_printf(m, "port=%u", clnt->trans_opts.tcp.port);
+			seq_printf(m, ",port=%u", clnt->trans_opts.tcp.port);
 	} else if (clnt->trans_mod == &p9_fd_trans) {
 		if (clnt->trans_opts.fd.rfd != ~0)
-			seq_printf(m, "rfd=%u", clnt->trans_opts.fd.rfd);
+			seq_printf(m, ",rfd=%u", clnt->trans_opts.fd.rfd);
 		if (clnt->trans_opts.fd.wfd != ~0)
-			seq_printf(m, "wfd=%u", clnt->trans_opts.fd.wfd);
+			seq_printf(m, ",wfd=%u", clnt->trans_opts.fd.wfd);
 	}
 	return 0;
 }

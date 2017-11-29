@@ -190,7 +190,7 @@ static int ds1672_probe(struct i2c_client *client,
 	return 0;
 }
 
-static struct i2c_device_id ds1672_id[] = {
+static const struct i2c_device_id ds1672_id[] = {
 	{ "ds1672", 0 },
 	{ }
 };

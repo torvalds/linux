@@ -33,11 +33,7 @@ of a small V4L2_PIX_FMT_SBGGR10P image:
 **Byte Order.**
 Each cell is one byte.
 
-.. raw:: latex
-
-    \newline\newline\begin{adjustbox}{width=\columnwidth}
-
-.. tabularcolumns:: |p{2.0cm}|p{1.3cm}|p{1.3cm}|p{1.3cm}|p{1.3cm}|p{10.9cm}|
+.. tabularcolumns:: |p{2.0cm}|p{1.0cm}|p{1.0cm}|p{1.0cm}|p{1.0cm}|p{5.4cm}|
 
 .. flat-table::
     :header-rows:  0
@@ -50,6 +46,7 @@ Each cell is one byte.
       - B\ :sub:`02high`
       - G\ :sub:`03high`
       - G\ :sub:`03low`\ (bits 7--6) B\ :sub:`02low`\ (bits 5--4)
+
 	G\ :sub:`01low`\ (bits 3--2) B\ :sub:`00low`\ (bits 1--0)
     * - start + 5:
       - G\ :sub:`10high`
@@ -57,6 +54,7 @@ Each cell is one byte.
       - G\ :sub:`12high`
       - R\ :sub:`13high`
       - R\ :sub:`13low`\ (bits 7--6) G\ :sub:`12low`\ (bits 5--4)
+
 	R\ :sub:`11low`\ (bits 3--2) G\ :sub:`10low`\ (bits 1--0)
     * - start + 10:
       - B\ :sub:`20high`
@@ -64,6 +62,7 @@ Each cell is one byte.
       - B\ :sub:`22high`
       - G\ :sub:`23high`
       - G\ :sub:`23low`\ (bits 7--6) B\ :sub:`22low`\ (bits 5--4)
+
 	G\ :sub:`21low`\ (bits 3--2) B\ :sub:`20low`\ (bits 1--0)
     * - start + 15:
       - G\ :sub:`30high`
@@ -71,8 +70,5 @@ Each cell is one byte.
       - G\ :sub:`32high`
       - R\ :sub:`33high`
       - R\ :sub:`33low`\ (bits 7--6) G\ :sub:`32low`\ (bits 5--4)
+
 	R\ :sub:`31low`\ (bits 3--2) G\ :sub:`30low`\ (bits 1--0)
-
-.. raw:: latex
-
-    \end{adjustbox}\newline\newline

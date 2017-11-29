@@ -159,7 +159,7 @@ static void vmbus_rescind_cleanup(struct vmbus_channel *channel)
 
 
 	spin_lock_irqsave(&vmbus_connection.channelmsg_lock, flags);
-
+	channel->rescind = true;
 	list_for_each_entry(msginfo, &vmbus_connection.chn_msg_list,
 				msglistentry) {
 
@@ -350,7 +350,7 @@ static void free_channel(struct vmbus_channel *channel)
 {
 	tasklet_kill(&channel->callback_event);
 
-	kfree_rcu(channel, rcu);
+	kobject_put(&channel->kobj);
 }
 
 static void percpu_channel_enq(void *arg)
@@ -373,22 +373,32 @@ static void percpu_channel_deq(void *arg)
 static void vmbus_release_relid(u32 relid)
 {
 	struct vmbus_channel_relid_released msg;
+	int ret;
 
 	memset(&msg, 0, sizeof(struct vmbus_channel_relid_released));
 	msg.child_relid = relid;
 	msg.header.msgtype = CHANNELMSG_RELID_RELEASED;
-	vmbus_post_msg(&msg, sizeof(struct vmbus_channel_relid_released),
-		       true);
+	ret = vmbus_post_msg(&msg, sizeof(struct vmbus_channel_relid_released),
+			     true);
+
+	trace_vmbus_release_relid(&msg, ret);
 }
 
-void hv_process_channel_removal(struct vmbus_channel *channel, u32 relid)
+void hv_process_channel_removal(u32 relid)
 {
 	unsigned long flags;
-	struct vmbus_channel *primary_channel;
+	struct vmbus_channel *primary_channel, *channel;
 
-	BUG_ON(!channel->rescind);
 	BUG_ON(!mutex_is_locked(&vmbus_connection.channel_mutex));
 
+	/*
+	 * Make sure channel is valid as we may have raced.
+	 */
+	channel = relid2channel(relid);
+	if (!channel)
+		return;
+
+	BUG_ON(!channel->rescind);
 	if (channel->target_cpu != get_cpu()) {
 		put_cpu();
 		smp_call_function_single(channel->target_cpu,
@@ -451,6 +461,12 @@ static void vmbus_process_offer(struct vmbus_channel *newchannel)
 	/* Make sure this is a new offer */
 	mutex_lock(&vmbus_connection.channel_mutex);
 
+	/*
+	 * Now that we have acquired the channel_mutex,
+	 * we can release the potentially racing rescind thread.
+	 */
+	atomic_dec(&vmbus_connection.offer_in_progress);
+
 	list_for_each_entry(channel, &vmbus_connection.chn_list, listentry) {
 		if (!uuid_le_cmp(channel->offermsg.offer.if_type,
 			newchannel->offermsg.offer.if_type) &&
@@ -481,7 +497,6 @@ static void vmbus_process_offer(struct vmbus_channel *newchannel)
 			channel->num_sc++;
 			spin_unlock_irqrestore(&channel->lock, flags);
 		} else {
-			atomic_dec(&vmbus_connection.offer_in_progress);
 			goto err_free_chan;
 		}
 	}
@@ -508,9 +523,17 @@ static void vmbus_process_offer(struct vmbus_channel *newchannel)
 	newchannel->state = CHANNEL_OPEN_STATE;
 
 	if (!fnew) {
+		struct hv_device *dev
+			= newchannel->primary_channel->device_obj;
+
+		if (vmbus_add_channel_kobj(dev, newchannel)) {
+			atomic_dec(&vmbus_connection.offer_in_progress);
+			goto err_free_chan;
+		}
+
 		if (channel->sc_creation_callback != NULL)
 			channel->sc_creation_callback(newchannel);
-		atomic_dec(&vmbus_connection.offer_in_progress);
+		newchannel->probe_done = true;
 		return;
 	}
 
@@ -541,7 +564,7 @@ static void vmbus_process_offer(struct vmbus_channel *newchannel)
 		goto err_deq_chan;
 	}
 
-	atomic_dec(&vmbus_connection.offer_in_progress);
+	newchannel->probe_done = true;
 	return;
 
 err_deq_chan:
@@ -599,7 +622,7 @@ static void init_vp_index(struct vmbus_channel *channel, u16 dev_type)
 		 */
 		channel->numa_node = 0;
 		channel->target_cpu = 0;
-		channel->target_vp = hv_context.vp_index[0];
+		channel->target_vp = hv_cpu_number_to_vp_number(0);
 		return;
 	}
 
@@ -683,7 +706,7 @@ static void init_vp_index(struct vmbus_channel *channel, u16 dev_type)
 	}
 
 	channel->target_cpu = cur_cpu;
-	channel->target_vp = hv_context.vp_index[cur_cpu];
+	channel->target_vp = hv_cpu_number_to_vp_number(cur_cpu);
 }
 
 static void vmbus_wait_for_unload(void)
@@ -793,6 +816,8 @@ static void vmbus_onoffer(struct vmbus_channel_message_header *hdr)
 
 	offer = (struct vmbus_channel_offer_channel *)hdr;
 
+	trace_vmbus_onoffer(offer);
+
 	/* Allocate the channel object and save this offer. */
 	newchannel = alloc_channel();
 	if (!newchannel) {
@@ -805,21 +830,12 @@ static void vmbus_onoffer(struct vmbus_channel_message_header *hdr)
 	/*
 	 * Setup state for signalling the host.
 	 */
-	newchannel->sig_event = (struct hv_input_signal_event *)
-				(ALIGN((unsigned long)
-				&newchannel->sig_buf,
-				HV_HYPERCALL_PARAM_ALIGN));
-
-	newchannel->sig_event->connectionid.asu32 = 0;
-	newchannel->sig_event->connectionid.u.id = VMBUS_EVENT_CONNECTION_ID;
-	newchannel->sig_event->flag_number = 0;
-	newchannel->sig_event->rsvdz = 0;
+	newchannel->sig_event = VMBUS_EVENT_CONNECTION_ID;
 
 	if (vmbus_proto_version != VERSION_WS2008) {
 		newchannel->is_dedicated_interrupt =
 				(offer->is_dedicated_interrupt != 0);
-		newchannel->sig_event->connectionid.u.id =
-				offer->connection_id;
+		newchannel->sig_event = offer->connection_id;
 	}
 
 	memcpy(&newchannel->offermsg, offer,
@@ -839,10 +855,11 @@ static void vmbus_onoffer_rescind(struct vmbus_channel_message_header *hdr)
 {
 	struct vmbus_channel_rescind_offer *rescind;
 	struct vmbus_channel *channel;
-	unsigned long flags;
 	struct device *dev;
 
 	rescind = (struct vmbus_channel_rescind_offer *)hdr;
+
+	trace_vmbus_onoffer_rescind(rescind);
 
 	/*
 	 * The offer msg and the corresponding rescind msg
@@ -878,15 +895,25 @@ static void vmbus_onoffer_rescind(struct vmbus_channel_message_header *hdr)
 		return;
 	}
 
-	spin_lock_irqsave(&channel->lock, flags);
-	channel->rescind = true;
-	spin_unlock_irqrestore(&channel->lock, flags);
+	/*
+	 * Now wait for offer handling to complete.
+	 */
+	while (READ_ONCE(channel->probe_done) == false) {
+		/*
+		 * We wait here until any channel offer is currently
+		 * being processed.
+		 */
+		msleep(1);
+	}
 
-	vmbus_rescind_cleanup(channel);
+	/*
+	 * At this point, the rescind handling can proceed safely.
+	 */
 
 	if (channel->device_obj) {
 		if (channel->chn_rescind_callback) {
 			channel->chn_rescind_callback(channel);
+			vmbus_rescind_cleanup(channel);
 			return;
 		}
 		/*
@@ -895,6 +922,7 @@ static void vmbus_onoffer_rescind(struct vmbus_channel_message_header *hdr)
 		 */
 		dev = get_device(&channel->device_obj->device);
 		if (dev) {
+			vmbus_rescind_cleanup(channel);
 			vmbus_device_unregister(channel->device_obj);
 			put_device(dev);
 		}
@@ -907,29 +935,28 @@ static void vmbus_onoffer_rescind(struct vmbus_channel_message_header *hdr)
 		 * 1. Close all sub-channels first
 		 * 2. Then close the primary channel.
 		 */
+		mutex_lock(&vmbus_connection.channel_mutex);
+		vmbus_rescind_cleanup(channel);
 		if (channel->state == CHANNEL_OPEN_STATE) {
 			/*
 			 * The channel is currently not open;
 			 * it is safe for us to cleanup the channel.
 			 */
-			mutex_lock(&vmbus_connection.channel_mutex);
-			hv_process_channel_removal(channel,
-						channel->offermsg.child_relid);
-			mutex_unlock(&vmbus_connection.channel_mutex);
+			hv_process_channel_removal(rescind->child_relid);
 		}
+		mutex_unlock(&vmbus_connection.channel_mutex);
 	}
 }
 
 void vmbus_hvsock_device_unregister(struct vmbus_channel *channel)
 {
-	mutex_lock(&vmbus_connection.channel_mutex);
-
 	BUG_ON(!is_hvsock_channel(channel));
 
-	channel->rescind = true;
-	vmbus_device_unregister(channel->device_obj);
+	/* We always get a rescind msg when a connection is closed. */
+	while (!READ_ONCE(channel->probe_done) || !READ_ONCE(channel->rescind))
+		msleep(1);
 
-	mutex_unlock(&vmbus_connection.channel_mutex);
+	vmbus_device_unregister(channel->device_obj);
 }
 EXPORT_SYMBOL_GPL(vmbus_hvsock_device_unregister);
 
@@ -961,6 +988,8 @@ static void vmbus_onopen_result(struct vmbus_channel_message_header *hdr)
 	unsigned long flags;
 
 	result = (struct vmbus_channel_open_result *)hdr;
+
+	trace_vmbus_onopen_result(result);
 
 	/*
 	 * Find the open msg, copy the result and signal/unblock the wait event
@@ -1005,6 +1034,8 @@ static void vmbus_ongpadl_created(struct vmbus_channel_message_header *hdr)
 	unsigned long flags;
 
 	gpadlcreated = (struct vmbus_channel_gpadl_created *)hdr;
+
+	trace_vmbus_ongpadl_created(gpadlcreated);
 
 	/*
 	 * Find the establish msg, copy the result and signal/unblock the wait
@@ -1054,6 +1085,8 @@ static void vmbus_ongpadl_torndown(
 
 	gpadl_torndown = (struct vmbus_channel_gpadl_torndown *)hdr;
 
+	trace_vmbus_ongpadl_torndown(gpadl_torndown);
+
 	/*
 	 * Find the open msg, copy the result and signal/unblock the wait event
 	 */
@@ -1097,6 +1130,9 @@ static void vmbus_onversion_response(
 	unsigned long flags;
 
 	version_response = (struct vmbus_channel_version_response *)hdr;
+
+	trace_vmbus_onversion_response(version_response);
+
 	spin_lock_irqsave(&vmbus_connection.channelmsg_lock, flags);
 
 	list_for_each_entry(msginfo, &vmbus_connection.chn_msg_list,
@@ -1156,6 +1192,8 @@ void vmbus_onmessage(void *context)
 	hdr = (struct vmbus_channel_message_header *)msg->u.payload;
 	size = msg->header.payload_size;
 
+	trace_vmbus_on_message(hdr);
+
 	if (hdr->msgtype >= CHANNELMSG_COUNT) {
 		pr_err("Received invalid channel message type %d size %d\n",
 			   hdr->msgtype, size);
@@ -1189,9 +1227,11 @@ int vmbus_request_offers(void)
 
 	msg->msgtype = CHANNELMSG_REQUESTOFFERS;
 
-
 	ret = vmbus_post_msg(msg, sizeof(struct vmbus_channel_message_header),
 			     true);
+
+	trace_vmbus_request_offers(ret);
+
 	if (ret != 0) {
 		pr_err("Unable to request offers - %d\n", ret);
 
@@ -1228,8 +1268,7 @@ struct vmbus_channel *vmbus_get_outgoing_channel(struct vmbus_channel *primary)
 		return outgoing_channel;
 	}
 
-	cur_cpu = hv_context.vp_index[get_cpu()];
-	put_cpu();
+	cur_cpu = hv_cpu_number_to_vp_number(smp_processor_id());
 	list_for_each_safe(cur, tmp, &primary->sc_list) {
 		cur_channel = list_entry(cur, struct vmbus_channel, sc_list);
 		if (cur_channel->state != CHANNEL_OPENED_STATE)

@@ -2737,8 +2737,6 @@ static u16 MXL_TuneRF(struct dvb_frontend *fe, u32 RF_Freq)
 		status += MXL_ControlWrite(fe, TG_LO_DIVVAL,	0x0);
 		status += MXL_ControlWrite(fe, TG_LO_SELVAL,	0x7);
 		divider_val = 2 ;
-		Fmax = FmaxBin ;
-		Fmin = FminBin ;
 	}
 
 	/* TG_DIV_VAL */

@@ -236,6 +236,13 @@ enum mddev_flags {
 				 * never cause the array to become failed.
 				 */
 	MD_HAS_PPL,		/* The raid array has PPL feature set */
+	MD_HAS_MULTIPLE_PPLS,	/* The raid array has multiple PPLs feature set */
+	MD_ALLOW_SB_UPDATE,	/* md_check_recovery is allowed to update
+				 * the metadata without taking reconfig_mutex.
+				 */
+	MD_UPDATING_SB,		/* md_check_recovery is updating the metadata
+				 * without explicitly holding reconfig_mutex.
+				 */
 };
 
 enum mddev_sb_flags {
@@ -493,11 +500,6 @@ static inline void mddev_lock_nointr(struct mddev *mddev)
 	mutex_lock(&mddev->reconfig_mutex);
 }
 
-static inline int mddev_is_locked(struct mddev *mddev)
-{
-	return mutex_is_locked(&mddev->reconfig_mutex);
-}
-
 static inline int mddev_trylock(struct mddev *mddev)
 {
 	return mutex_trylock(&mddev->reconfig_mutex);
@@ -507,6 +509,11 @@ extern void mddev_unlock(struct mddev *mddev);
 static inline void md_sync_acct(struct block_device *bdev, unsigned long nr_sectors)
 {
 	atomic_add(nr_sectors, &bdev->bd_contains->bd_disk->sync_io);
+}
+
+static inline void md_sync_acct_bio(struct bio *bio, unsigned long nr_sectors)
+{
+	atomic_add(nr_sectors, &bio->bi_disk->sync_io);
 }
 
 struct md_personality
@@ -532,12 +539,11 @@ struct md_personality
 	int (*check_reshape) (struct mddev *mddev);
 	int (*start_reshape) (struct mddev *mddev);
 	void (*finish_reshape) (struct mddev *mddev);
-	/* quiesce moves between quiescence states
-	 * 0 - fully active
-	 * 1 - no new requests allowed
-	 * others - reserved
+	/* quiesce suspends or resumes internal processing.
+	 * 1 - stop new actions and wait for action io to complete
+	 * 0 - return to normal behaviour
 	 */
-	void (*quiesce) (struct mddev *mddev, int state);
+	void (*quiesce) (struct mddev *mddev, int quiesce);
 	/* takeover is used to transition an array from one
 	 * personality to another.  The new personality must be able
 	 * to handle the data in the current layout.
@@ -686,6 +692,7 @@ extern void md_stop_writes(struct mddev *mddev);
 extern int md_rdev_init(struct md_rdev *rdev);
 extern void md_rdev_clear(struct md_rdev *rdev);
 
+extern void md_handle_request(struct mddev *mddev, struct bio *bio);
 extern void mddev_suspend(struct mddev *mddev);
 extern void mddev_resume(struct mddev *mddev);
 extern struct bio *bio_alloc_mddev(gfp_t gfp_mask, int nr_iovecs,
@@ -721,68 +728,14 @@ static inline void mddev_clear_unsupported_flags(struct mddev *mddev,
 static inline void mddev_check_writesame(struct mddev *mddev, struct bio *bio)
 {
 	if (bio_op(bio) == REQ_OP_WRITE_SAME &&
-	    !bdev_get_queue(bio->bi_bdev)->limits.max_write_same_sectors)
+	    !bio->bi_disk->queue->limits.max_write_same_sectors)
 		mddev->queue->limits.max_write_same_sectors = 0;
 }
 
 static inline void mddev_check_write_zeroes(struct mddev *mddev, struct bio *bio)
 {
 	if (bio_op(bio) == REQ_OP_WRITE_ZEROES &&
-	    !bdev_get_queue(bio->bi_bdev)->limits.max_write_zeroes_sectors)
+	    !bio->bi_disk->queue->limits.max_write_zeroes_sectors)
 		mddev->queue->limits.max_write_zeroes_sectors = 0;
-}
-
-/* Maximum size of each resync request */
-#define RESYNC_BLOCK_SIZE (64*1024)
-#define RESYNC_PAGES ((RESYNC_BLOCK_SIZE + PAGE_SIZE-1) / PAGE_SIZE)
-
-/* for managing resync I/O pages */
-struct resync_pages {
-	unsigned	idx;	/* for get/put page from the pool */
-	void		*raid_bio;
-	struct page	*pages[RESYNC_PAGES];
-};
-
-static inline int resync_alloc_pages(struct resync_pages *rp,
-				     gfp_t gfp_flags)
-{
-	int i;
-
-	for (i = 0; i < RESYNC_PAGES; i++) {
-		rp->pages[i] = alloc_page(gfp_flags);
-		if (!rp->pages[i])
-			goto out_free;
-	}
-
-	return 0;
-
-out_free:
-	while (--i >= 0)
-		put_page(rp->pages[i]);
-	return -ENOMEM;
-}
-
-static inline void resync_free_pages(struct resync_pages *rp)
-{
-	int i;
-
-	for (i = 0; i < RESYNC_PAGES; i++)
-		put_page(rp->pages[i]);
-}
-
-static inline void resync_get_all_pages(struct resync_pages *rp)
-{
-	int i;
-
-	for (i = 0; i < RESYNC_PAGES; i++)
-		get_page(rp->pages[i]);
-}
-
-static inline struct page *resync_fetch_page(struct resync_pages *rp,
-					     unsigned idx)
-{
-	if (WARN_ON_ONCE(idx >= RESYNC_PAGES))
-		return NULL;
-	return rp->pages[idx];
 }
 #endif /* _MD_MD_H */

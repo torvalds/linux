@@ -164,7 +164,7 @@ static void ixgbevf_check_remove(struct ixgbe_hw *hw, u32 reg)
 
 u32 ixgbevf_read_reg(struct ixgbe_hw *hw, u32 reg)
 {
-	u8 __iomem *reg_addr = ACCESS_ONCE(hw->hw_addr);
+	u8 __iomem *reg_addr = READ_ONCE(hw->hw_addr);
 	u32 value;
 
 	if (IXGBE_REMOVED(reg_addr))
@@ -326,7 +326,7 @@ static bool ixgbevf_clean_tx_irq(struct ixgbevf_q_vector *q_vector,
 			break;
 
 		/* prevent any other reads prior to eop_desc */
-		read_barrier_depends();
+		smp_rmb();
 
 		/* if DD is not set pending work has not been completed */
 		if (!(eop_desc->wb.status & cpu_to_le32(IXGBE_TXD_STAT_DD)))
@@ -2747,9 +2747,10 @@ void ixgbevf_update_stats(struct ixgbevf_adapter *adapter)
  * ixgbevf_service_timer - Timer Call-back
  * @data: pointer to adapter cast into an unsigned long
  **/
-static void ixgbevf_service_timer(unsigned long data)
+static void ixgbevf_service_timer(struct timer_list *t)
 {
-	struct ixgbevf_adapter *adapter = (struct ixgbevf_adapter *)data;
+	struct ixgbevf_adapter *adapter = from_timer(adapter, t,
+						     service_timer);
 
 	/* Reset the timer */
 	mod_timer(&adapter->service_timer, (HZ * 2) + jiffies);
@@ -2988,6 +2989,8 @@ int ixgbevf_setup_tx_resources(struct ixgbevf_ring *tx_ring)
 	if (!tx_ring->tx_buffer_info)
 		goto err;
 
+	u64_stats_init(&tx_ring->syncp);
+
 	/* round up to nearest 4K */
 	tx_ring->size = tx_ring->count * sizeof(union ixgbe_adv_tx_desc);
 	tx_ring->size = ALIGN(tx_ring->size, 4096);
@@ -3045,6 +3048,8 @@ int ixgbevf_setup_rx_resources(struct ixgbevf_ring *rx_ring)
 	rx_ring->rx_buffer_info = vzalloc(size);
 	if (!rx_ring->rx_buffer_info)
 		goto err;
+
+	u64_stats_init(&rx_ring->syncp);
 
 	/* Round up to nearest 4K */
 	rx_ring->size = rx_ring->count * sizeof(union ixgbe_adv_rx_desc);
@@ -4116,8 +4121,7 @@ static int ixgbevf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto err_sw_init;
 	}
 
-	setup_timer(&adapter->service_timer, &ixgbevf_service_timer,
-		    (unsigned long)adapter);
+	timer_setup(&adapter->service_timer, ixgbevf_service_timer, 0);
 
 	INIT_WORK(&adapter->service_task, ixgbevf_service_task);
 	set_bit(__IXGBEVF_SERVICE_INITED, &adapter->state);

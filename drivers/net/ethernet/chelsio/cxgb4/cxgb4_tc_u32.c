@@ -96,7 +96,7 @@ static int fill_action_fields(struct adapter *adap,
 	LIST_HEAD(actions);
 
 	exts = cls->knode.exts;
-	if (tc_no_actions(exts))
+	if (!tcf_exts_has_actions(exts))
 		return -EINVAL;
 
 	tcf_exts_to_list(exts, &actions);
@@ -146,11 +146,11 @@ static int fill_action_fields(struct adapter *adap,
 	return 0;
 }
 
-int cxgb4_config_knode(struct net_device *dev, __be16 protocol,
-		       struct tc_cls_u32_offload *cls)
+int cxgb4_config_knode(struct net_device *dev, struct tc_cls_u32_offload *cls)
 {
 	const struct cxgb4_match_field *start, *link_start = NULL;
 	struct adapter *adapter = netdev2adap(dev);
+	__be16 protocol = cls->common.protocol;
 	struct ch_filter_specification fs;
 	struct cxgb4_tc_u32_table *t;
 	struct cxgb4_link *link;
@@ -338,8 +338,7 @@ out:
 	return ret;
 }
 
-int cxgb4_delete_knode(struct net_device *dev, __be16 protocol,
-		       struct tc_cls_u32_offload *cls)
+int cxgb4_delete_knode(struct net_device *dev, struct tc_cls_u32_offload *cls)
 {
 	struct adapter *adapter = netdev2adap(dev);
 	unsigned int filter_id, max_tids, i, j;
@@ -381,7 +380,7 @@ int cxgb4_delete_knode(struct net_device *dev, __be16 protocol,
 			return -EINVAL;
 	}
 
-	ret = cxgb4_del_filter(dev, filter_id);
+	ret = cxgb4_del_filter(dev, filter_id, NULL);
 	if (ret)
 		goto out;
 
@@ -400,7 +399,7 @@ int cxgb4_delete_knode(struct net_device *dev, __be16 protocol,
 				if (!test_bit(j, link->tid_map))
 					continue;
 
-				ret = __cxgb4_del_filter(dev, j, NULL);
+				ret = __cxgb4_del_filter(dev, j, NULL, NULL);
 				if (ret)
 					goto out;
 

@@ -174,7 +174,7 @@ int tipc_buf_append(struct sk_buff **headbuf, struct sk_buff **buf)
 
 	if (fragid == LAST_FRAGMENT) {
 		TIPC_SKB_CB(head)->validated = false;
-		if (unlikely(!tipc_msg_validate(head)))
+		if (unlikely(!tipc_msg_validate(&head)))
 			goto err;
 		*buf = head;
 		TIPC_SKB_CB(head)->tail = NULL;
@@ -201,10 +201,20 @@ err:
  * TIPC will ignore the excess, under the assumption that it is optional info
  * introduced by a later release of the protocol.
  */
-bool tipc_msg_validate(struct sk_buff *skb)
+bool tipc_msg_validate(struct sk_buff **_skb)
 {
-	struct tipc_msg *msg;
+	struct sk_buff *skb = *_skb;
+	struct tipc_msg *hdr;
 	int msz, hsz;
+
+	/* Ensure that flow control ratio condition is satisfied */
+	if (unlikely(skb->truesize / buf_roundup_len(skb) > 4)) {
+		skb = skb_copy(skb, GFP_ATOMIC);
+		if (!skb)
+			return false;
+		kfree_skb(*_skb);
+		*_skb = skb;
+	}
 
 	if (unlikely(TIPC_SKB_CB(skb)->validated))
 		return true;
@@ -217,11 +227,11 @@ bool tipc_msg_validate(struct sk_buff *skb)
 	if (unlikely(!pskb_may_pull(skb, hsz)))
 		return false;
 
-	msg = buf_msg(skb);
-	if (unlikely(msg_version(msg) != TIPC_VERSION))
+	hdr = buf_msg(skb);
+	if (unlikely(msg_version(hdr) != TIPC_VERSION))
 		return false;
 
-	msz = msg_size(msg);
+	msz = msg_size(hdr);
 	if (unlikely(msz < hsz))
 		return false;
 	if (unlikely((msz - hsz) > TIPC_MAX_USER_MSG_SIZE))
@@ -411,7 +421,7 @@ bool tipc_msg_extract(struct sk_buff *skb, struct sk_buff **iskb, int *pos)
 	skb_pull(*iskb, offset);
 	imsz = msg_size(buf_msg(*iskb));
 	skb_trim(*iskb, imsz);
-	if (unlikely(!tipc_msg_validate(*iskb)))
+	if (unlikely(!tipc_msg_validate(iskb)))
 		goto none;
 	*pos += align(imsz);
 	return true;
@@ -479,13 +489,14 @@ bool tipc_msg_make_bundle(struct sk_buff **skb,  struct tipc_msg *msg,
 bool tipc_msg_reverse(u32 own_node,  struct sk_buff **skb, int err)
 {
 	struct sk_buff *_skb = *skb;
-	struct tipc_msg *hdr = buf_msg(_skb);
+	struct tipc_msg *hdr;
 	struct tipc_msg ohdr;
-	int dlen = min_t(uint, msg_data_sz(hdr), MAX_FORWARD_SIZE);
+	int dlen;
 
 	if (skb_linearize(_skb))
 		goto exit;
 	hdr = buf_msg(_skb);
+	dlen = min_t(uint, msg_data_sz(hdr), MAX_FORWARD_SIZE);
 	if (msg_dest_droppable(hdr))
 		goto exit;
 	if (msg_errcode(hdr))
@@ -511,8 +522,11 @@ bool tipc_msg_reverse(u32 own_node,  struct sk_buff **skb, int err)
 	    pskb_expand_head(_skb, BUF_HEADROOM, BUF_TAILROOM, GFP_ATOMIC))
 		goto exit;
 
+	/* reassign after skb header modifications */
+	hdr = buf_msg(_skb);
 	/* Now reverse the concerned fields */
 	msg_set_errcode(hdr, err);
+	msg_set_non_seq(hdr, 0);
 	msg_set_origport(hdr, msg_destport(&ohdr));
 	msg_set_destport(hdr, msg_origport(&ohdr));
 	msg_set_destnode(hdr, msg_prevnode(&ohdr));
@@ -547,7 +561,7 @@ bool tipc_msg_lookup_dest(struct net *net, struct sk_buff *skb, int *err)
 		return false;
 	if (msg_errcode(msg))
 		return false;
-	*err = -TIPC_ERR_NO_NAME;
+	*err = TIPC_ERR_NO_NAME;
 	if (skb_linearize(skb))
 		return false;
 	msg = buf_msg(skb);
@@ -564,6 +578,14 @@ bool tipc_msg_lookup_dest(struct net *net, struct sk_buff *skb, int *err)
 	msg_set_destnode(msg, dnode);
 	msg_set_destport(msg, dport);
 	*err = TIPC_OK;
+
+	if (!skb_cloned(skb))
+		return true;
+
+	/* Unclone buffer in case it was bundled */
+	if (pskb_expand_head(skb, BUF_HEADROOM, BUF_TAILROOM, GFP_ATOMIC))
+		return false;
+
 	return true;
 }
 
@@ -653,4 +675,11 @@ void __tipc_skb_queue_sorted(struct sk_buff_head *list, u16 seqno,
 		return;
 	}
 	kfree_skb(skb);
+}
+
+void tipc_skb_reject(struct net *net, int err, struct sk_buff *skb,
+		     struct sk_buff_head *xmitq)
+{
+	if (tipc_msg_reverse(tipc_own_addr(net), &skb, err))
+		__skb_queue_tail(xmitq, skb);
 }

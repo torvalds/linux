@@ -296,3 +296,12 @@ Auxiliary Modeset Helpers
 
 .. kernel-doc:: drivers/gpu/drm/drm_modeset_helper.c
    :export:
+
+Framebuffer GEM Helper Reference
+================================
+
+.. kernel-doc:: drivers/gpu/drm/drm_gem_framebuffer_helper.c
+   :doc: overview
+
+.. kernel-doc:: drivers/gpu/drm/drm_gem_framebuffer_helper.c
+   :export:

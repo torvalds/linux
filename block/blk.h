@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef BLK_INTERNAL_H
 #define BLK_INTERNAL_H
 
@@ -64,7 +65,6 @@ void blk_rq_bio_prep(struct request_queue *q, struct request *rq,
 			struct bio *bio);
 void blk_queue_bypass_start(struct request_queue *q);
 void blk_queue_bypass_end(struct request_queue *q);
-void blk_dequeue_request(struct request *rq);
 void __blk_queue_free_tags(struct request_queue *q);
 void blk_freeze_queue(struct request_queue *q);
 
@@ -123,8 +123,15 @@ void blk_account_io_done(struct request *req);
  * Internal atomic flags for request handling
  */
 enum rq_atomic_flags {
+	/*
+	 * Keep these two bits first - not because we depend on the
+	 * value of them, but we do depend on them being in the same
+	 * byte of storage to ensure ordering on writes. Keeping them
+	 * first will achieve that nicely.
+	 */
 	REQ_ATOM_COMPLETE = 0,
 	REQ_ATOM_STARTED,
+
 	REQ_ATOM_POLL_SLEPT,
 };
 
@@ -149,45 +156,6 @@ static inline void blk_clear_rq_complete(struct request *rq)
 
 void blk_insert_flush(struct request *rq);
 
-static inline struct request *__elv_next_request(struct request_queue *q)
-{
-	struct request *rq;
-	struct blk_flush_queue *fq = blk_get_flush_queue(q, NULL);
-
-	WARN_ON_ONCE(q->mq_ops);
-
-	while (1) {
-		if (!list_empty(&q->queue_head)) {
-			rq = list_entry_rq(q->queue_head.next);
-			return rq;
-		}
-
-		/*
-		 * Flush request is running and flush request isn't queueable
-		 * in the drive, we can hold the queue till flush request is
-		 * finished. Even we don't do this, driver can't dispatch next
-		 * requests and will requeue them. And this can improve
-		 * throughput too. For example, we have request flush1, write1,
-		 * flush 2. flush1 is dispatched, then queue is hold, write1
-		 * isn't inserted to queue. After flush1 is finished, flush2
-		 * will be dispatched. Since disk cache is already clean,
-		 * flush2 will be finished very soon, so looks like flush2 is
-		 * folded to flush1.
-		 * Since the queue is hold, a flag is set to indicate the queue
-		 * should be restarted later. Please see flush_end_io() for
-		 * details.
-		 */
-		if (fq->flush_pending_idx != fq->flush_running_idx &&
-				!queue_flush_queueable(q)) {
-			fq->flush_queue_delayed = 1;
-			return NULL;
-		}
-		if (unlikely(blk_queue_bypass(q)) ||
-		    !q->elevator->type->ops.sq.elevator_dispatch_fn(q, 0))
-			return NULL;
-	}
-}
-
 static inline void elv_activate_rq(struct request_queue *q, struct request *rq)
 {
 	struct elevator_queue *e = q->elevator;
@@ -203,6 +171,8 @@ static inline void elv_deactivate_rq(struct request_queue *q, struct request *rq
 	if (e->type->ops.sq.elevator_deactivate_req_fn)
 		e->type->ops.sq.elevator_deactivate_req_fn(q, rq);
 }
+
+struct hd_struct *__disk_get_part(struct gendisk *disk, int partno);
 
 #ifdef CONFIG_FAIL_IO_TIMEOUT
 int blk_should_fake_timeout(struct request_queue *);

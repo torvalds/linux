@@ -16,6 +16,7 @@
 #include <net/arp.h>
 #include <net/ip_fib.h>
 #include <net/netevent.h>
+#include <net/ip_tunnels.h>
 #include <net/netns/generic.h>
 #if IS_ENABLED(CONFIG_IPV6)
 #include <net/ipv6.h>
@@ -38,6 +39,36 @@ static int zero = 0;
 static int one = 1;
 static int label_limit = (1 << 20) - 1;
 static int ttl_max = 255;
+
+#if IS_ENABLED(CONFIG_NET_IP_TUNNEL)
+static size_t ipgre_mpls_encap_hlen(struct ip_tunnel_encap *e)
+{
+	return sizeof(struct mpls_shim_hdr);
+}
+
+static const struct ip_tunnel_encap_ops mpls_iptun_ops = {
+	.encap_hlen	= ipgre_mpls_encap_hlen,
+};
+
+static int ipgre_tunnel_encap_add_mpls_ops(void)
+{
+	return ip_tunnel_encap_add_ops(&mpls_iptun_ops, TUNNEL_ENCAP_MPLS);
+}
+
+static void ipgre_tunnel_encap_del_mpls_ops(void)
+{
+	ip_tunnel_encap_del_ops(&mpls_iptun_ops, TUNNEL_ENCAP_MPLS);
+}
+#else
+static int ipgre_tunnel_encap_add_mpls_ops(void)
+{
+	return 0;
+}
+
+static void ipgre_tunnel_encap_del_mpls_ops(void)
+{
+}
+#endif
 
 static void rtmsg_lfib(int event, u32 label, struct mpls_route *rt,
 		       struct nlmsghdr *nlh, struct net *net, u32 portid,
@@ -2479,12 +2510,16 @@ static int __init mpls_init(void)
 
 	rtnl_af_register(&mpls_af_ops);
 
-	rtnl_register(PF_MPLS, RTM_NEWROUTE, mpls_rtm_newroute, NULL, NULL);
-	rtnl_register(PF_MPLS, RTM_DELROUTE, mpls_rtm_delroute, NULL, NULL);
+	rtnl_register(PF_MPLS, RTM_NEWROUTE, mpls_rtm_newroute, NULL, 0);
+	rtnl_register(PF_MPLS, RTM_DELROUTE, mpls_rtm_delroute, NULL, 0);
 	rtnl_register(PF_MPLS, RTM_GETROUTE, mpls_getroute, mpls_dump_routes,
-		      NULL);
+		      0);
 	rtnl_register(PF_MPLS, RTM_GETNETCONF, mpls_netconf_get_devconf,
-		      mpls_netconf_dump_devconf, NULL);
+		      mpls_netconf_dump_devconf, 0);
+	err = ipgre_tunnel_encap_add_mpls_ops();
+	if (err)
+		pr_err("Can't add mpls over gre tunnel ops\n");
+
 	err = 0;
 out:
 	return err;
@@ -2502,6 +2537,7 @@ static void __exit mpls_exit(void)
 	dev_remove_pack(&mpls_packet_type);
 	unregister_netdevice_notifier(&mpls_dev_notifier);
 	unregister_pernet_subsys(&mpls_net_ops);
+	ipgre_tunnel_encap_del_mpls_ops();
 }
 module_exit(mpls_exit);
 

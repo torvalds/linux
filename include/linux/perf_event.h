@@ -139,17 +139,6 @@ struct hw_perf_event {
 			/* for tp_event->class */
 			struct list_head	tp_list;
 		};
-		struct { /* intel_cqm */
-			int			cqm_state;
-			u32			cqm_rmid;
-			int			is_group_event;
-			struct list_head	cqm_events_entry;
-			struct list_head	cqm_groups_entry;
-			struct list_head	cqm_group_entry;
-		};
-		struct { /* itrace */
-			int			itrace_started;
-		};
 		struct { /* amd_power */
 			u64	pwr_acc;
 			u64	ptsc;
@@ -310,8 +299,8 @@ struct pmu {
 	 * Notification that the event was mapped or unmapped.  Called
 	 * in the context of the mapping task.
 	 */
-	void (*event_mapped)		(struct perf_event *event); /*optional*/
-	void (*event_unmapped)		(struct perf_event *event); /*optional*/
+	void (*event_mapped)		(struct perf_event *event, struct mm_struct *mm); /* optional */
+	void (*event_unmapped)		(struct perf_event *event, struct mm_struct *mm); /* optional */
 
 	/*
 	 * Flags for ->add()/->del()/ ->start()/->stop(). There are
@@ -417,11 +406,6 @@ struct pmu {
 
 
 	/*
-	 * Return the count value for a counter.
-	 */
-	u64 (*count)			(struct perf_event *event); /*optional*/
-
-	/*
 	 * Set up pmu-private data structures for an AUX area
 	 */
 	void *(*setup_aux)		(int cpu, void **pages,
@@ -501,9 +485,9 @@ struct perf_addr_filters_head {
 };
 
 /**
- * enum perf_event_active_state - the states of a event
+ * enum perf_event_state - the states of a event
  */
-enum perf_event_active_state {
+enum perf_event_state {
 	PERF_EVENT_STATE_DEAD		= -4,
 	PERF_EVENT_STATE_EXIT		= -3,
 	PERF_EVENT_STATE_ERROR		= -2,
@@ -541,6 +525,7 @@ struct swevent_hlist {
 #define PERF_ATTACH_GROUP	0x02
 #define PERF_ATTACH_TASK	0x04
 #define PERF_ATTACH_TASK_DATA	0x08
+#define PERF_ATTACH_ITRACE	0x10
 
 struct perf_cgroup;
 struct ring_buffer;
@@ -593,7 +578,7 @@ struct perf_event {
 	struct pmu			*pmu;
 	void				*pmu_private;
 
-	enum perf_event_active_state	state;
+	enum perf_event_state		state;
 	unsigned int			attach_state;
 	local64_t			count;
 	atomic64_t			child_count;
@@ -603,26 +588,10 @@ struct perf_event {
 	 * has been enabled (i.e. eligible to run, and the task has
 	 * been scheduled in, if this is a per-task event)
 	 * and running (scheduled onto the CPU), respectively.
-	 *
-	 * They are computed from tstamp_enabled, tstamp_running and
-	 * tstamp_stopped when the event is in INACTIVE or ACTIVE state.
 	 */
 	u64				total_time_enabled;
 	u64				total_time_running;
-
-	/*
-	 * These are timestamps used for computing total_time_enabled
-	 * and total_time_running when the event is in INACTIVE or
-	 * ACTIVE state, measured in nanoseconds from an arbitrary point
-	 * in time.
-	 * tstamp_enabled: the notional time when the event was enabled
-	 * tstamp_running: the notional time when the event was scheduled on
-	 * tstamp_stopped: in INACTIVE state, the notional time when the
-	 *	event was scheduled off.
-	 */
-	u64				tstamp_enabled;
-	u64				tstamp_running;
-	u64				tstamp_stopped;
+	u64				tstamp;
 
 	/*
 	 * timestamp shadows the actual context timing but it can
@@ -714,7 +683,6 @@ struct perf_event {
 
 #ifdef CONFIG_CGROUP_PERF
 	struct perf_cgroup		*cgrp; /* cgroup event is attach to */
-	int				cgrp_defer_enabled;
 #endif
 
 	struct list_head		sb_list;
@@ -821,6 +789,7 @@ struct perf_output_handle {
 struct bpf_perf_event_data_kern {
 	struct pt_regs *regs;
 	struct perf_sample_data *data;
+	struct perf_event *event;
 };
 
 #ifdef CONFIG_CGROUP_PERF
@@ -864,6 +833,7 @@ extern int perf_aux_output_skip(struct perf_output_handle *handle,
 				unsigned long size);
 extern void *perf_get_aux(struct perf_output_handle *handle);
 extern void perf_aux_output_flag(struct perf_output_handle *handle, u64 flags);
+extern void perf_event_itrace_started(struct perf_event *event);
 
 extern int perf_pmu_register(struct pmu *pmu, const char *name, int type);
 extern void perf_pmu_unregister(struct pmu *pmu);
@@ -898,7 +868,8 @@ perf_event_create_kernel_counter(struct perf_event_attr *attr,
 				void *context);
 extern void perf_pmu_migrate_context(struct pmu *pmu,
 				int src_cpu, int dst_cpu);
-int perf_event_read_local(struct perf_event *event, u64 *value);
+int perf_event_read_local(struct perf_event *event, u64 *value,
+			  u64 *enabled, u64 *running);
 extern u64 perf_event_read_value(struct perf_event *event,
 				 u64 *enabled, u64 *running);
 
@@ -944,6 +915,8 @@ struct perf_sample_data {
 
 	struct perf_regs		regs_intr;
 	u64				stack_user_size;
+
+	u64				phys_addr;
 } ____cacheline_aligned;
 
 /* default value for data source */
@@ -1109,11 +1082,6 @@ static inline void perf_event_task_sched_out(struct task_struct *prev,
 
 	if (static_branch_unlikely(&perf_sched_events))
 		__perf_event_task_sched_out(prev, next);
-}
-
-static inline u64 __perf_event_count(struct perf_event *event)
-{
-	return local64_read(&event->count) + atomic64_read(&event->child_count);
 }
 
 extern void perf_event_mmap(struct vm_area_struct *vma);
@@ -1303,7 +1271,8 @@ static inline const struct perf_event_attr *perf_event_attrs(struct perf_event *
 {
 	return ERR_PTR(-EINVAL);
 }
-static inline int perf_event_read_local(struct perf_event *event, u64 *value)
+static inline int perf_event_read_local(struct perf_event *event, u64 *value,
+					u64 *enabled, u64 *running)
 {
 	return -EINVAL;
 }

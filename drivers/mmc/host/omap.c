@@ -625,9 +625,9 @@ static void mmc_omap_abort_command(struct work_struct *work)
 }
 
 static void
-mmc_omap_cmd_timer(unsigned long data)
+mmc_omap_cmd_timer(struct timer_list *t)
 {
-	struct mmc_omap_host *host = (struct mmc_omap_host *) data;
+	struct mmc_omap_host *host = from_timer(host, t, cmd_abort_timer);
 	unsigned long flags;
 
 	spin_lock_irqsave(&host->slot_lock, flags);
@@ -654,9 +654,9 @@ mmc_omap_sg_to_buf(struct mmc_omap_host *host)
 }
 
 static void
-mmc_omap_clk_timer(unsigned long data)
+mmc_omap_clk_timer(struct timer_list *t)
 {
-	struct mmc_omap_host *host = (struct mmc_omap_host *) data;
+	struct mmc_omap_host *host = from_timer(host, t, clk_timer);
 
 	mmc_omap_fclk_enable(host, 0);
 }
@@ -874,9 +874,9 @@ void omap_mmc_notify_cover_event(struct device *dev, int num, int is_closed)
 	tasklet_hi_schedule(&slot->cover_tasklet);
 }
 
-static void mmc_omap_cover_timer(unsigned long arg)
+static void mmc_omap_cover_timer(struct timer_list *t)
 {
-	struct mmc_omap_slot *slot = (struct mmc_omap_slot *) arg;
+	struct mmc_omap_slot *slot = from_timer(slot, t, cover_timer);
 	tasklet_schedule(&slot->cover_tasklet);
 }
 
@@ -1264,8 +1264,7 @@ static int mmc_omap_new_slot(struct mmc_omap_host *host, int id)
 	mmc->max_seg_size = mmc->max_req_size;
 
 	if (slot->pdata->get_cover_state != NULL) {
-		setup_timer(&slot->cover_timer, mmc_omap_cover_timer,
-			    (unsigned long)slot);
+		timer_setup(&slot->cover_timer, mmc_omap_cover_timer, 0);
 		tasklet_init(&slot->cover_tasklet, mmc_omap_cover_handler,
 			     (unsigned long)slot);
 	}
@@ -1352,11 +1351,10 @@ static int mmc_omap_probe(struct platform_device *pdev)
 	INIT_WORK(&host->send_stop_work, mmc_omap_send_stop_work);
 
 	INIT_WORK(&host->cmd_abort_work, mmc_omap_abort_command);
-	setup_timer(&host->cmd_abort_timer, mmc_omap_cmd_timer,
-		    (unsigned long) host);
+	timer_setup(&host->cmd_abort_timer, mmc_omap_cmd_timer, 0);
 
 	spin_lock_init(&host->clk_lock);
-	setup_timer(&host->clk_timer, mmc_omap_clk_timer, (unsigned long) host);
+	timer_setup(&host->clk_timer, mmc_omap_clk_timer, 0);
 
 	spin_lock_init(&host->dma_lock);
 	spin_lock_init(&host->slot_lock);

@@ -66,10 +66,10 @@ static struct rc_map_table pinnacle_grey[] = {
 
 static struct rc_map_list pinnacle_grey_map = {
 	.map = {
-		.scan    = pinnacle_grey,
-		.size    = ARRAY_SIZE(pinnacle_grey),
-		.rc_type = RC_TYPE_UNKNOWN,	/* Legacy IR type */
-		.name    = RC_MAP_PINNACLE_GREY,
+		.scan     = pinnacle_grey,
+		.size     = ARRAY_SIZE(pinnacle_grey),
+		.rc_proto = RC_PROTO_UNKNOWN,	/* Legacy IR type */
+		.name     = RC_MAP_PINNACLE_GREY,
 	}
 };
 

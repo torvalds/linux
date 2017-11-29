@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /* This utility makes a bootblock suitable for the SRM console/miniloader */
 
 /* Usage:

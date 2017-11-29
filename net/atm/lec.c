@@ -486,7 +486,7 @@ static void lec_atm_close(struct atm_vcc *vcc)
 	module_put(THIS_MODULE);
 }
 
-static struct atmdev_ops lecdev_ops = {
+static const struct atmdev_ops lecdev_ops = {
 	.close = lec_atm_close,
 	.send = lec_atm_send
 };
@@ -1232,7 +1232,7 @@ static void lane2_associate_ind(struct net_device *dev, const u8 *mac_addr,
 #define LEC_ARP_REFRESH_INTERVAL (3*HZ)
 
 static void lec_arp_check_expire(struct work_struct *work);
-static void lec_arp_expire_arp(unsigned long data);
+static void lec_arp_expire_arp(struct timer_list *t);
 
 /*
  * Arp table funcs
@@ -1559,8 +1559,7 @@ static struct lec_arp_table *make_entry(struct lec_priv *priv,
 	}
 	ether_addr_copy(to_return->mac_addr, mac_addr);
 	INIT_HLIST_NODE(&to_return->next);
-	setup_timer(&to_return->timer, lec_arp_expire_arp,
-			(unsigned long)to_return);
+	timer_setup(&to_return->timer, lec_arp_expire_arp, 0);
 	to_return->last_used = jiffies;
 	to_return->priv = priv;
 	skb_queue_head_init(&to_return->tx_wait);
@@ -1569,11 +1568,11 @@ static struct lec_arp_table *make_entry(struct lec_priv *priv,
 }
 
 /* Arp sent timer expired */
-static void lec_arp_expire_arp(unsigned long data)
+static void lec_arp_expire_arp(struct timer_list *t)
 {
 	struct lec_arp_table *entry;
 
-	entry = (struct lec_arp_table *)data;
+	entry = from_timer(entry, t, timer);
 
 	pr_debug("\n");
 	if (entry->status == ESI_ARP_PENDING) {
@@ -1591,10 +1590,10 @@ static void lec_arp_expire_arp(unsigned long data)
 }
 
 /* Unknown/unused vcc expire, remove associated entry */
-static void lec_arp_expire_vcc(unsigned long data)
+static void lec_arp_expire_vcc(struct timer_list *t)
 {
 	unsigned long flags;
-	struct lec_arp_table *to_remove = (struct lec_arp_table *)data;
+	struct lec_arp_table *to_remove = from_timer(to_remove, t, timer);
 	struct lec_priv *priv = to_remove->priv;
 
 	del_timer(&to_remove->timer);

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 atomisp-objs += \
 	atomisp_drvfs.o \
 	atomisp_file.o \
@@ -354,7 +355,9 @@ ccflags-y += $(INCLUDES) $(DEFINES) -fno-common
 
 # HACK! While this driver is in bad shape, don't enable several warnings
 #       that would be otherwise enabled with W=1
-ccflags-y += -Wno-unused-const-variable -Wno-missing-prototypes \
-	     -Wno-unused-but-set-variable -Wno-missing-declarations \
-	     -Wno-suggest-attribute=format -Wno-missing-prototypes \
-	     -Wno-implicit-fallthrough
+ccflags-y += $(call cc-disable-warning, implicit-fallthrough)
+ccflags-y += $(call cc-disable-warning, missing-prototypes)
+ccflags-y += $(call cc-disable-warning, missing-declarations)
+ccflags-y += $(call cc-disable-warning, suggest-attribute=format)
+ccflags-y += $(call cc-disable-warning, unused-const-variable)
+ccflags-y += $(call cc-disable-warning, unused-but-set-variable)

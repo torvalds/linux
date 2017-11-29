@@ -52,7 +52,7 @@ please make a proposal on the linux-media mailing list.
 	`http://www.ivtvdriver.org/ <http://www.ivtvdriver.org/>`__
 
 	The format is documented in the kernel sources in the file
-	``Documentation/video4linux/cx2341x/README.hm12``
+	``Documentation/media/v4l-drivers/cx2341x.rst``
     * .. _V4L2-PIX-FMT-CPIA1:
 
       - ``V4L2_PIX_FMT_CPIA1``

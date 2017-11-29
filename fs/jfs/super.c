@@ -76,7 +76,7 @@ static void jfs_handle_error(struct super_block *sb)
 {
 	struct jfs_sb_info *sbi = JFS_SBI(sb);
 
-	if (sb->s_flags & MS_RDONLY)
+	if (sb_rdonly(sb))
 		return;
 
 	updateSuper(sb, FM_DIRTY);
@@ -313,7 +313,7 @@ static int parse_options(char *options, struct super_block *sb, s64 *newLVSize,
 		}
 		case Opt_resize_nosize:
 		{
-			*newLVSize = sb->s_bdev->bd_inode->i_size >>
+			*newLVSize = i_size_read(sb->s_bdev->bd_inode) >>
 				sb->s_blocksize_bits;
 			if (*newLVSize == 0)
 				pr_err("JFS: Cannot determine volume size\n");
@@ -468,7 +468,7 @@ static int jfs_remount(struct super_block *sb, int *flags, char *data)
 		return -EINVAL;
 
 	if (newLVSize) {
-		if (sb->s_flags & MS_RDONLY) {
+		if (sb_rdonly(sb)) {
 			pr_err("JFS: resize requires volume to be mounted read-write\n");
 			return -EROFS;
 		}
@@ -477,7 +477,7 @@ static int jfs_remount(struct super_block *sb, int *flags, char *data)
 			return rc;
 	}
 
-	if ((sb->s_flags & MS_RDONLY) && !(*flags & MS_RDONLY)) {
+	if (sb_rdonly(sb) && !(*flags & MS_RDONLY)) {
 		/*
 		 * Invalidate any previously read metadata.  fsck may have
 		 * changed the on-disk data since we mounted r/o
@@ -493,7 +493,7 @@ static int jfs_remount(struct super_block *sb, int *flags, char *data)
 		dquot_resume(sb, -1);
 		return ret;
 	}
-	if ((!(sb->s_flags & MS_RDONLY)) && (*flags & MS_RDONLY)) {
+	if (!sb_rdonly(sb) && (*flags & MS_RDONLY)) {
 		rc = dquot_suspend(sb, -1);
 		if (rc < 0)
 			return rc;
@@ -502,7 +502,7 @@ static int jfs_remount(struct super_block *sb, int *flags, char *data)
 		return rc;
 	}
 	if ((JFS_SBI(sb)->flag & JFS_NOINTEGRITY) != (flag & JFS_NOINTEGRITY))
-		if (!(sb->s_flags & MS_RDONLY)) {
+		if (!sb_rdonly(sb)) {
 			rc = jfs_umount_rw(sb);
 			if (rc)
 				return rc;
@@ -579,7 +579,7 @@ static int jfs_fill_super(struct super_block *sb, void *data, int silent)
 		goto out_unload;
 	}
 	inode->i_ino = 0;
-	inode->i_size = sb->s_bdev->bd_inode->i_size;
+	inode->i_size = i_size_read(sb->s_bdev->bd_inode);
 	inode->i_mapping->a_ops = &jfs_metapage_aops;
 	hlist_add_fake(&inode->i_hash);
 	mapping_set_gfp_mask(inode->i_mapping, GFP_NOFS);
@@ -592,7 +592,7 @@ static int jfs_fill_super(struct super_block *sb, void *data, int silent)
 			jfs_err("jfs_mount failed w/return code = %d", rc);
 		goto out_mount_failed;
 	}
-	if (sb->s_flags & MS_RDONLY)
+	if (sb_rdonly(sb))
 		sbi->log = NULL;
 	else {
 		rc = jfs_mount_rw(sb, 0);
@@ -619,16 +619,10 @@ static int jfs_fill_super(struct super_block *sb, void *data, int silent)
 	if (!sb->s_root)
 		goto out_no_root;
 
-	/* logical blocks are represented by 40 bits in pxd_t, etc. */
-	sb->s_maxbytes = ((u64) sb->s_blocksize) << 40;
-#if BITS_PER_LONG == 32
-	/*
-	 * Page cache is indexed by long.
-	 * I would use MAX_LFS_FILESIZE, but it's only half as big
+	/* logical blocks are represented by 40 bits in pxd_t, etc.
+	 * and page cache is indexed by long
 	 */
-	sb->s_maxbytes = min(((u64) PAGE_SIZE << 32) - 1,
-			     (u64)sb->s_maxbytes);
-#endif
+	sb->s_maxbytes = min(((loff_t)sb->s_blocksize) << 40, MAX_LFS_FILESIZE);
 	sb->s_time_gran = 1;
 	return 0;
 
@@ -658,7 +652,7 @@ static int jfs_freeze(struct super_block *sb)
 	struct jfs_log *log = sbi->log;
 	int rc = 0;
 
-	if (!(sb->s_flags & MS_RDONLY)) {
+	if (!sb_rdonly(sb)) {
 		txQuiesce(sb);
 		rc = lmLogShutdown(log);
 		if (rc) {
@@ -688,7 +682,7 @@ static int jfs_unfreeze(struct super_block *sb)
 	struct jfs_log *log = sbi->log;
 	int rc = 0;
 
-	if (!(sb->s_flags & MS_RDONLY)) {
+	if (!sb_rdonly(sb)) {
 		rc = updateSuper(sb, FM_MOUNT);
 		if (rc) {
 			jfs_error(sb, "updateSuper failed\n");
@@ -859,7 +853,6 @@ out:
 	}
 	if (inode->i_size < off+len-towrite)
 		i_size_write(inode, off+len-towrite);
-	inode->i_version++;
 	inode->i_mtime = inode->i_ctime = current_time(inode);
 	mark_inode_dirty(inode);
 	inode_unlock(inode);

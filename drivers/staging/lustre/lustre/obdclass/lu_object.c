@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * GPL HEADER START
  *
@@ -40,19 +41,19 @@
 
 #define DEBUG_SUBSYSTEM S_CLASS
 
-#include "../../include/linux/libcfs/libcfs.h"
+#include <linux/libcfs/libcfs.h>
 
-# include <linux/module.h>
+#include <linux/module.h>
 
 /* hash_long() */
-#include "../../include/linux/libcfs/libcfs_hash.h"
-#include "../include/obd_class.h"
-#include "../include/obd_support.h"
-#include "../include/lustre_disk.h"
-#include "../include/lustre_fid.h"
-#include "../include/lu_object.h"
-#include "../include/cl_object.h"
-#include "../include/lu_ref.h"
+#include <linux/libcfs/libcfs_hash.h>
+#include <obd_class.h>
+#include <obd_support.h>
+#include <lustre_disk.h>
+#include <lustre_fid.h>
+#include <lu_object.h>
+#include <cl_object.h>
+#include <lu_ref.h>
 #include <linux/list.h>
 
 enum {
@@ -1409,9 +1410,9 @@ void lu_context_key_degister(struct lu_context_key *key)
 	 */
 	while (atomic_read(&key->lct_used) > 1) {
 		spin_unlock(&lu_keys_guard);
-		CDEBUG(D_INFO, "lu_context_key_degister: \"%s\" %p, %d\n",
-		       key->lct_owner ? key->lct_owner->name : "", key,
-		       atomic_read(&key->lct_used));
+		CDEBUG(D_INFO, "%s: \"%s\" %p, %d\n",
+		       __func__, key->lct_owner ? key->lct_owner->name : "",
+		       key, atomic_read(&key->lct_used));
 		schedule();
 		spin_lock(&lu_keys_guard);
 	}
@@ -1548,7 +1549,8 @@ void lu_context_key_quiesce(struct lu_context_key *key)
 		 */
 		while (atomic_read(&lu_key_initing_cnt) > 0) {
 			spin_unlock(&lu_keys_guard);
-			CDEBUG(D_INFO, "lu_context_key_quiesce: \"%s\" %p, %d (%d)\n",
+			CDEBUG(D_INFO, "%s: \"%s\" %p, %d (%d)\n",
+			       __func__,
 			       key->lct_owner ? key->lct_owner->name : "",
 			       key, atomic_read(&key->lct_used),
 			atomic_read(&lu_key_initing_cnt));

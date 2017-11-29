@@ -62,10 +62,10 @@ static struct rc_map_table msi_digivox_iii[] = {
 
 static struct rc_map_list msi_digivox_iii_map = {
 	.map = {
-		.scan    = msi_digivox_iii,
-		.size    = ARRAY_SIZE(msi_digivox_iii),
-		.rc_type = RC_TYPE_NEC,
-		.name    = RC_MAP_MSI_DIGIVOX_III,
+		.scan     = msi_digivox_iii,
+		.size     = ARRAY_SIZE(msi_digivox_iii),
+		.rc_proto = RC_PROTO_NEC,
+		.name     = RC_MAP_MSI_DIGIVOX_III,
 	}
 };
 

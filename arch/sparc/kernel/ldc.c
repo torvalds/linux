@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /* ldc.c: Logical Domain Channel link-layer protocol driver.
  *
  * Copyright (C) 2007, 2008 David S. Miller <davem@davemloft.net>
@@ -1480,6 +1481,7 @@ int ldc_rx_reset(struct ldc_channel *lp)
 {
 	return __set_rx_head(lp, lp->rx_tail);
 }
+EXPORT_SYMBOL(ldc_rx_reset);
 
 void __ldc_print(struct ldc_channel *lp, const char *caller)
 {
@@ -1493,6 +1495,7 @@ void __ldc_print(struct ldc_channel *lp, const char *caller)
 		lp->tx_head, lp->tx_tail, lp->tx_num_entries,
 		lp->rcv_nxt, lp->snd_nxt);
 }
+EXPORT_SYMBOL(__ldc_print);
 
 static int write_raw(struct ldc_channel *lp, const void *buf, unsigned int size)
 {

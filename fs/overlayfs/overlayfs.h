@@ -9,6 +9,7 @@
 
 #include <linux/kernel.h>
 #include <linux/uuid.h>
+#include "ovl_entry.h"
 
 enum ovl_path_type {
 	__OVL_PATH_UPPER	= (1 << 0),
@@ -28,7 +29,10 @@ enum ovl_path_type {
 #define OVL_XATTR_NLINK OVL_XATTR_PREFIX "nlink"
 
 enum ovl_flag {
+	/* Pure upper dir that may contain non pure upper entries */
 	OVL_IMPURE,
+	/* Non-merge dir that may contain whiteout entries */
+	OVL_WHITEOUTS,
 	OVL_INDEX,
 };
 
@@ -204,8 +208,8 @@ struct dentry *ovl_i_dentry_upper(struct inode *inode);
 struct inode *ovl_inode_upper(struct inode *inode);
 struct inode *ovl_inode_lower(struct inode *inode);
 struct inode *ovl_inode_real(struct inode *inode);
-struct ovl_dir_cache *ovl_dir_cache(struct dentry *dentry);
-void ovl_set_dir_cache(struct dentry *dentry, struct ovl_dir_cache *cache);
+struct ovl_dir_cache *ovl_dir_cache(struct inode *inode);
+void ovl_set_dir_cache(struct inode *inode, struct ovl_dir_cache *cache);
 bool ovl_dentry_is_opaque(struct dentry *dentry);
 bool ovl_dentry_is_whiteout(struct dentry *dentry);
 void ovl_dentry_set_opaque(struct dentry *dentry);
@@ -217,23 +221,26 @@ void ovl_dentry_set_redirect(struct dentry *dentry, const char *redirect);
 void ovl_inode_init(struct inode *inode, struct dentry *upperdentry,
 		    struct dentry *lowerdentry);
 void ovl_inode_update(struct inode *inode, struct dentry *upperdentry);
-void ovl_dentry_version_inc(struct dentry *dentry);
+void ovl_dentry_version_inc(struct dentry *dentry, bool impurity);
 u64 ovl_dentry_version_get(struct dentry *dentry);
 bool ovl_is_whiteout(struct dentry *dentry);
 struct file *ovl_path_open(struct path *path, int flags);
 int ovl_copy_up_start(struct dentry *dentry);
 void ovl_copy_up_end(struct dentry *dentry);
+bool ovl_check_origin_xattr(struct dentry *dentry);
 bool ovl_check_dir_xattr(struct dentry *dentry, const char *name);
 int ovl_check_setxattr(struct dentry *dentry, struct dentry *upperdentry,
 		       const char *name, const void *value, size_t size,
 		       int xerr);
 int ovl_set_impure(struct dentry *dentry, struct dentry *upperdentry);
 void ovl_set_flag(unsigned long flag, struct inode *inode);
+void ovl_clear_flag(unsigned long flag, struct inode *inode);
 bool ovl_test_flag(unsigned long flag, struct inode *inode);
 bool ovl_inuse_trylock(struct dentry *dentry);
 void ovl_inuse_unlock(struct dentry *dentry);
 int ovl_nlink_start(struct dentry *dentry, bool *locked);
 void ovl_nlink_end(struct dentry *dentry, bool locked);
+int ovl_lock_rename_workdir(struct dentry *workdir, struct dentry *upperdir);
 
 static inline bool ovl_is_impuredir(struct dentry *dentry)
 {
@@ -242,9 +249,9 @@ static inline bool ovl_is_impuredir(struct dentry *dentry)
 
 
 /* namei.c */
-int ovl_verify_origin(struct dentry *dentry, struct vfsmount *mnt,
-		      struct dentry *origin, bool is_upper, bool set);
-int ovl_verify_index(struct dentry *index, struct path *lowerstack,
+int ovl_verify_origin(struct dentry *dentry, struct dentry *origin,
+		      bool is_upper, bool set);
+int ovl_verify_index(struct dentry *index, struct ovl_path *lower,
 		     unsigned int numlower);
 int ovl_get_index_name(struct dentry *origin, struct qstr *name);
 int ovl_path_next(int idx, struct dentry *dentry, struct path *path);
@@ -256,11 +263,12 @@ extern const struct file_operations ovl_dir_operations;
 int ovl_check_empty_dir(struct dentry *dentry, struct list_head *list);
 void ovl_cleanup_whiteouts(struct dentry *upper, struct list_head *list);
 void ovl_cache_free(struct list_head *list);
+void ovl_dir_cache_free(struct inode *inode);
 int ovl_check_d_type_supported(struct path *realpath);
 void ovl_workdir_cleanup(struct inode *dir, struct vfsmount *mnt,
 			 struct dentry *dentry, int level);
 int ovl_indexdir_cleanup(struct dentry *dentry, struct vfsmount *mnt,
-			 struct path *lowerstack, unsigned int numlower);
+			 struct ovl_path *lower, unsigned int numlower);
 
 /* inode.c */
 int ovl_set_nlink_upper(struct dentry *dentry);
@@ -283,7 +291,8 @@ int ovl_update_time(struct inode *inode, struct timespec *ts, int flags);
 bool ovl_is_private_xattr(const char *name);
 
 struct inode *ovl_new_inode(struct super_block *sb, umode_t mode, dev_t rdev);
-struct inode *ovl_get_inode(struct dentry *dentry, struct dentry *upperdentry);
+struct inode *ovl_get_inode(struct dentry *dentry, struct dentry *upperdentry,
+			    struct dentry *index);
 static inline void ovl_copyattr(struct inode *from, struct inode *to)
 {
 	to->i_uid = from->i_uid;

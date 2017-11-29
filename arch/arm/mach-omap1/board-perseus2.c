@@ -16,7 +16,7 @@
 #include <linux/platform_device.h>
 #include <linux/delay.h>
 #include <linux/mtd/mtd.h>
-#include <linux/mtd/nand.h>
+#include <linux/mtd/rawnand.h>
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/physmap.h>
 #include <linux/input.h>
@@ -225,7 +225,7 @@ static struct platform_device *devices[] __initdata = {
 	&kp_device,
 };
 
-static struct omap_lcd_config perseus2_lcd_config __initdata = {
+static const struct omap_lcd_config perseus2_lcd_config __initconst = {
 	.ctrl_name	= "internal",
 };
 

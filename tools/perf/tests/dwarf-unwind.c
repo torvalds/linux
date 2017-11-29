@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/compiler.h>
 #include <linux/types.h>
 #include <inttypes.h>
@@ -6,7 +7,7 @@
 #include "debug.h"
 #include "machine.h"
 #include "event.h"
-#include "unwind.h"
+#include "../util/unwind.h"
 #include "perf_regs.h"
 #include "map.h"
 #include "thread.h"
@@ -154,7 +155,7 @@ static noinline int krava_1(struct thread *thread)
 	return krava_2(thread);
 }
 
-int test__dwarf_unwind(int subtest __maybe_unused)
+int test__dwarf_unwind(struct test *test __maybe_unused, int subtest __maybe_unused)
 {
 	struct machine *machine;
 	struct thread *thread;

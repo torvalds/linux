@@ -117,7 +117,7 @@ enum kprobe_slot_state {
 	SLOT_USED = 2,
 };
 
-static void *alloc_insn_page(void)
+void __weak *alloc_insn_page(void)
 {
 	return module_alloc(PAGE_SIZE);
 }
@@ -573,13 +573,15 @@ static void kprobe_optimizer(struct work_struct *work)
 	do_unoptimize_kprobes();
 
 	/*
-	 * Step 2: Wait for quiesence period to ensure all running interrupts
-	 * are done. Because optprobe may modify multiple instructions
-	 * there is a chance that Nth instruction is interrupted. In that
-	 * case, running interrupt can return to 2nd-Nth byte of jump
-	 * instruction. This wait is for avoiding it.
+	 * Step 2: Wait for quiesence period to ensure all potentially
+	 * preempted tasks to have normally scheduled. Because optprobe
+	 * may modify multiple instructions, there is a chance that Nth
+	 * instruction is preempted. In that case, such tasks can return
+	 * to 2nd-Nth byte of jump instruction. This wait is for avoiding it.
+	 * Note that on non-preemptive kernel, this is transparently converted
+	 * to synchronoze_sched() to wait for all interrupts to have completed.
 	 */
-	synchronize_sched();
+	synchronize_rcu_tasks();
 
 	/* Step 3: Optimize kprobes after quiesence period */
 	do_optimize_kprobes();
@@ -1769,6 +1771,7 @@ unsigned long __weak arch_deref_entry_point(void *entry)
 	return (unsigned long)entry;
 }
 
+#if 0
 int register_jprobes(struct jprobe **jps, int num)
 {
 	int ret = 0, i;
@@ -1837,6 +1840,7 @@ void unregister_jprobes(struct jprobe **jps, int num)
 	}
 }
 EXPORT_SYMBOL_GPL(unregister_jprobes);
+#endif
 
 #ifdef CONFIG_KRETPROBES
 /*

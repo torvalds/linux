@@ -135,6 +135,28 @@ struct drm_scdc {
 struct drm_hdmi_info {
 	/** @scdc: sink's scdc support and capabilities */
 	struct drm_scdc scdc;
+
+	/**
+	 * @y420_vdb_modes: bitmap of modes which can support ycbcr420
+	 * output only (not normal RGB/YCBCR444/422 outputs). There are total
+	 * 107 VICs defined by CEA-861-F spec, so the size is 128 bits to map
+	 * upto 128 VICs;
+	 */
+	unsigned long y420_vdb_modes[BITS_TO_LONGS(128)];
+
+	/**
+	 * @y420_cmdb_modes: bitmap of modes which can support ycbcr420
+	 * output also, along with normal HDMI outputs. There are total 107
+	 * VICs defined by CEA-861-F spec, so the size is 128 bits to map upto
+	 * 128 VICs;
+	 */
+	unsigned long y420_cmdb_modes[BITS_TO_LONGS(128)];
+
+	/** @y420_cmdb_map: bitmap of SVD index, to extraxt vcb modes */
+	u64 y420_cmdb_map;
+
+	/** @y420_dc_modes: bitmap of deep color support index */
+	u8 y420_dc_modes;
 };
 
 /**
@@ -198,6 +220,7 @@ struct drm_display_info {
 #define DRM_COLOR_FORMAT_RGB444		(1<<0)
 #define DRM_COLOR_FORMAT_YCRCB444	(1<<1)
 #define DRM_COLOR_FORMAT_YCRCB422	(1<<2)
+#define DRM_COLOR_FORMAT_YCRCB420	(1<<3)
 
 	/**
 	 * @color_formats: HDMI Color formats, selects between RGB and YCrCb
@@ -261,6 +284,11 @@ struct drm_display_info {
 	 * @hdmi: advance features of a HDMI sink.
 	 */
 	struct drm_hdmi_info hdmi;
+
+	/**
+	 * @non_desktop: Non desktop display (HMD).
+	 */
+	bool non_desktop;
 };
 
 int drm_display_info_set_bus_formats(struct drm_display_info *info,
@@ -324,6 +352,13 @@ struct drm_connector_state {
 
 	struct drm_atomic_state *state;
 
+	/**
+	 * @commit: Tracks the pending commit to prevent use-after-free conditions.
+	 *
+	 * Is only set when @crtc is NULL.
+	 */
+	struct drm_crtc_commit *commit;
+
 	struct drm_tv_connector_state tv;
 
 	/**
@@ -359,8 +394,8 @@ struct drm_connector_funcs {
 	 * implement the 4 level DPMS support on the connector any more, but
 	 * instead only have an on/off "ACTIVE" property on the CRTC object.
 	 *
-	 * Drivers implementing atomic modeset should use
-	 * drm_atomic_helper_connector_dpms() to implement this hook.
+	 * This hook is not used by atomic drivers, remapping of the legacy DPMS
+	 * property is entirely handled in the DRM core.
 	 *
 	 * RETURNS:
 	 *
@@ -457,11 +492,9 @@ struct drm_connector_funcs {
 	 * This is the legacy entry point to update a property attached to the
 	 * connector.
 	 *
-	 * Drivers implementing atomic modeset should use
-	 * drm_atomic_helper_connector_set_property() to implement this hook.
-	 *
 	 * This callback is optional if the driver does not support any legacy
-	 * driver-private properties.
+	 * driver-private properties. For atomic drivers it is not used because
+	 * property handling is done entirely in the DRM core.
 	 *
 	 * RETURNS:
 	 *
@@ -726,6 +759,15 @@ struct drm_connector {
 	bool interlace_allowed;
 	bool doublescan_allowed;
 	bool stereo_allowed;
+
+	/**
+	 * @ycbcr_420_allowed : This bool indicates if this connector is
+	 * capable of handling YCBCR 420 output. While parsing the EDID
+	 * blocks, its very helpful to know, if the source is capable of
+	 * handling YCBCR 420 outputs.
+	 */
+	bool ycbcr_420_allowed;
+
 	/**
 	 * @registered: Is this connector exposed (registered) with userspace?
 	 * Protected by @mutex.
@@ -858,8 +900,7 @@ struct drm_connector {
 	 * This is protected by @drm_mode_config.connection_mutex. Note that
 	 * nonblocking atomic commits access the current connector state without
 	 * taking locks. Either by going through the &struct drm_atomic_state
-	 * pointers, see for_each_connector_in_state(),
-	 * for_each_oldnew_connector_in_state(),
+	 * pointers, see for_each_oldnew_connector_in_state(),
 	 * for_each_old_connector_in_state() and
 	 * for_each_new_connector_in_state(). Or through careful ordering of
 	 * atomic commit operations as implemented in the atomic helpers, see
@@ -897,16 +938,18 @@ static inline unsigned drm_connector_index(struct drm_connector *connector)
 /**
  * drm_connector_lookup - lookup connector object
  * @dev: DRM device
+ * @file_priv: drm file to check for lease against.
  * @id: connector object id
  *
  * This function looks up the connector object specified by id
  * add takes a reference to it.
  */
 static inline struct drm_connector *drm_connector_lookup(struct drm_device *dev,
+		struct drm_file *file_priv,
 		uint32_t id)
 {
 	struct drm_mode_object *mo;
-	mo = drm_mode_object_find(dev, id, DRM_MODE_OBJECT_CONNECTOR);
+	mo = drm_mode_object_find(dev, file_priv, id, DRM_MODE_OBJECT_CONNECTOR);
 	return mo ? obj_to_connector(mo) : NULL;
 }
 

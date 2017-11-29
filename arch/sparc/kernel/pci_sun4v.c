@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /* pci_sun4v.c: SUN4V specific PCI controller support.
  *
  * Copyright (C) 2006, 2007, 2008 David S. Miller (davem@davemloft.net)
@@ -1266,8 +1267,6 @@ static int pci_sun4v_probe(struct platform_device *op)
 			 * ATU group, but ATU hcalls won't be available.
 			 */
 			hv_atu = false;
-			pr_err(PFX "Could not register hvapi ATU err=%d\n",
-			       err);
 		} else {
 			pr_info(PFX "Registered hvapi ATU major[%lu] minor[%lu]\n",
 				vatu_major, vatu_minor);

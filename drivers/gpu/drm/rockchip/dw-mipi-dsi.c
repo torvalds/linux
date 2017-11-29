@@ -430,9 +430,9 @@ static int dw_mipi_dsi_phy_init(struct dw_mipi_dsi *dsi)
 
 	testdin = max_mbps_to_testdin(dsi->lane_mbps);
 	if (testdin < 0) {
-		dev_err(dsi->dev,
-			"failed to get testdin for %dmbps lane clock\n",
-			dsi->lane_mbps);
+		DRM_DEV_ERROR(dsi->dev,
+			      "failed to get testdin for %dmbps lane clock\n",
+			      dsi->lane_mbps);
 		return testdin;
 	}
 
@@ -443,7 +443,7 @@ static int dw_mipi_dsi_phy_init(struct dw_mipi_dsi *dsi)
 
 	ret = clk_prepare_enable(dsi->phy_cfg_clk);
 	if (ret) {
-		dev_err(dsi->dev, "Failed to enable phy_cfg_clk\n");
+		DRM_DEV_ERROR(dsi->dev, "Failed to enable phy_cfg_clk\n");
 		return ret;
 	}
 
@@ -501,7 +501,7 @@ static int dw_mipi_dsi_phy_init(struct dw_mipi_dsi *dsi)
 	ret = readl_poll_timeout(dsi->base + DSI_PHY_STATUS,
 				 val, val & LOCK, 1000, PHY_STATUS_TIMEOUT_US);
 	if (ret < 0) {
-		dev_err(dsi->dev, "failed to wait for phy lock state\n");
+		DRM_DEV_ERROR(dsi->dev, "failed to wait for phy lock state\n");
 		goto phy_init_end;
 	}
 
@@ -509,8 +509,8 @@ static int dw_mipi_dsi_phy_init(struct dw_mipi_dsi *dsi)
 				 val, val & STOP_STATE_CLK_LANE, 1000,
 				 PHY_STATUS_TIMEOUT_US);
 	if (ret < 0)
-		dev_err(dsi->dev,
-			"failed to wait for phy clk lane stop state\n");
+		DRM_DEV_ERROR(dsi->dev,
+			      "failed to wait for phy clk lane stop state\n");
 
 phy_init_end:
 	clk_disable_unprepare(dsi->phy_cfg_clk);
@@ -529,8 +529,9 @@ static int dw_mipi_dsi_get_lane_bps(struct dw_mipi_dsi *dsi,
 
 	bpp = mipi_dsi_pixel_format_to_bpp(dsi->format);
 	if (bpp < 0) {
-		dev_err(dsi->dev, "failed to get bpp for pixel format %d\n",
-			dsi->format);
+		DRM_DEV_ERROR(dsi->dev,
+			      "failed to get bpp for pixel format %d\n",
+			      dsi->format);
 		return bpp;
 	}
 
@@ -541,7 +542,8 @@ static int dw_mipi_dsi_get_lane_bps(struct dw_mipi_dsi *dsi,
 		if (tmp < max_mbps)
 			target_mbps = tmp;
 		else
-			dev_err(dsi->dev, "DPHY clock frequency is out of range\n");
+			DRM_DEV_ERROR(dsi->dev,
+				      "DPHY clock frequency is out of range\n");
 	}
 
 	pllref = DIV_ROUND_UP(clk_get_rate(dsi->pllref_clk), USEC_PER_SEC);
@@ -582,8 +584,9 @@ static int dw_mipi_dsi_host_attach(struct mipi_dsi_host *host,
 	struct dw_mipi_dsi *dsi = host_to_dsi(host);
 
 	if (device->lanes > dsi->pdata->max_data_lanes) {
-		dev_err(dsi->dev, "the number of data lanes(%u) is too many\n",
-			device->lanes);
+		DRM_DEV_ERROR(dsi->dev,
+			      "the number of data lanes(%u) is too many\n",
+			      device->lanes);
 		return -EINVAL;
 	}
 
@@ -632,7 +635,8 @@ static int dw_mipi_dsi_gen_pkt_hdr_write(struct dw_mipi_dsi *dsi, u32 hdr_val)
 				 val, !(val & GEN_CMD_FULL), 1000,
 				 CMD_PKT_STATUS_TIMEOUT_US);
 	if (ret < 0) {
-		dev_err(dsi->dev, "failed to get available command FIFO\n");
+		DRM_DEV_ERROR(dsi->dev,
+			      "failed to get available command FIFO\n");
 		return ret;
 	}
 
@@ -643,7 +647,7 @@ static int dw_mipi_dsi_gen_pkt_hdr_write(struct dw_mipi_dsi *dsi, u32 hdr_val)
 				 val, (val & mask) == mask,
 				 1000, CMD_PKT_STATUS_TIMEOUT_US);
 	if (ret < 0) {
-		dev_err(dsi->dev, "failed to write command FIFO\n");
+		DRM_DEV_ERROR(dsi->dev, "failed to write command FIFO\n");
 		return ret;
 	}
 
@@ -663,8 +667,9 @@ static int dw_mipi_dsi_dcs_short_write(struct dw_mipi_dsi *dsi,
 		data |= tx_buf[1] << 8;
 
 	if (msg->tx_len > 2) {
-		dev_err(dsi->dev, "too long tx buf length %zu for short write\n",
-			msg->tx_len);
+		DRM_DEV_ERROR(dsi->dev,
+			      "too long tx buf length %zu for short write\n",
+			      msg->tx_len);
 		return -EINVAL;
 	}
 
@@ -682,8 +687,9 @@ static int dw_mipi_dsi_dcs_long_write(struct dw_mipi_dsi *dsi,
 	u32 val;
 
 	if (msg->tx_len < 3) {
-		dev_err(dsi->dev, "wrong tx buf length %zu for long write\n",
-			msg->tx_len);
+		DRM_DEV_ERROR(dsi->dev,
+			      "wrong tx buf length %zu for long write\n",
+			      msg->tx_len);
 		return -EINVAL;
 	}
 
@@ -704,8 +710,8 @@ static int dw_mipi_dsi_dcs_long_write(struct dw_mipi_dsi *dsi,
 					 val, !(val & GEN_PLD_W_FULL), 1000,
 					 CMD_PKT_STATUS_TIMEOUT_US);
 		if (ret < 0) {
-			dev_err(dsi->dev,
-				"failed to get available write payload FIFO\n");
+			DRM_DEV_ERROR(dsi->dev,
+				      "failed to get available write payload FIFO\n");
 			return ret;
 		}
 	}
@@ -731,8 +737,8 @@ static ssize_t dw_mipi_dsi_host_transfer(struct mipi_dsi_host *host,
 		ret = dw_mipi_dsi_dcs_long_write(dsi, msg);
 		break;
 	default:
-		dev_err(dsi->dev, "unsupported message type 0x%02x\n",
-			msg->type);
+		DRM_DEV_ERROR(dsi->dev, "unsupported message type 0x%02x\n",
+			      msg->type);
 		ret = -EINVAL;
 	}
 
@@ -935,7 +941,7 @@ static void dw_mipi_dsi_encoder_disable(struct drm_encoder *encoder)
 		return;
 
 	if (clk_prepare_enable(dsi->pclk)) {
-		dev_err(dsi->dev, "%s: Failed to enable pclk\n", __func__);
+		DRM_DEV_ERROR(dsi->dev, "Failed to enable pclk\n");
 		return;
 	}
 
@@ -967,7 +973,7 @@ static void dw_mipi_dsi_encoder_enable(struct drm_encoder *encoder)
 		return;
 
 	if (clk_prepare_enable(dsi->pclk)) {
-		dev_err(dsi->dev, "%s: Failed to enable pclk\n", __func__);
+		DRM_DEV_ERROR(dsi->dev, "Failed to enable pclk\n");
 		return;
 	}
 
@@ -991,7 +997,7 @@ static void dw_mipi_dsi_encoder_enable(struct drm_encoder *encoder)
 	 */
 	ret = clk_prepare_enable(dsi->grf_clk);
 	if (ret) {
-		dev_err(dsi->dev, "Failed to enable grf_clk: %d\n", ret);
+		DRM_DEV_ERROR(dsi->dev, "Failed to enable grf_clk: %d\n", ret);
 		return;
 	}
 
@@ -1004,7 +1010,7 @@ static void dw_mipi_dsi_encoder_enable(struct drm_encoder *encoder)
 
 	dw_mipi_dsi_set_mode(dsi, DW_MIPI_DSI_CMD_MODE);
 	if (drm_panel_prepare(dsi->panel))
-		dev_err(dsi->dev, "failed to prepare panel\n");
+		DRM_DEV_ERROR(dsi->dev, "failed to prepare panel\n");
 
 	dw_mipi_dsi_set_mode(dsi, DW_MIPI_DSI_VID_MODE);
 	drm_panel_enable(dsi->panel);
@@ -1017,7 +1023,8 @@ static void dw_mipi_dsi_encoder_enable(struct drm_encoder *encoder)
 		val = pdata->dsi0_en_bit << 16;
 
 	regmap_write(dsi->grf_regmap, pdata->grf_switch_reg, val);
-	dev_dbg(dsi->dev, "vop %s output to dsi0\n", (mux) ? "LIT" : "BIG");
+	DRM_DEV_DEBUG(dsi->dev,
+		      "vop %s output to dsi0\n", (mux) ? "LIT" : "BIG");
 	dsi->dpms_mode = DRM_MODE_DPMS_ON;
 
 	clk_disable_unprepare(dsi->grf_clk);
@@ -1080,7 +1087,6 @@ static void dw_mipi_dsi_drm_connector_destroy(struct drm_connector *connector)
 }
 
 static const struct drm_connector_funcs dw_mipi_dsi_atomic_connector_funcs = {
-	.dpms = drm_atomic_helper_connector_dpms,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.destroy = dw_mipi_dsi_drm_connector_destroy,
 	.reset = drm_atomic_helper_connector_reset,
@@ -1112,7 +1118,7 @@ static int dw_mipi_dsi_register(struct drm_device *drm,
 	ret = drm_encoder_init(drm, &dsi->encoder, &dw_mipi_dsi_encoder_funcs,
 			       DRM_MODE_ENCODER_DSI, NULL);
 	if (ret) {
-		dev_err(dev, "Failed to initialize encoder with drm\n");
+		DRM_DEV_ERROR(dev, "Failed to initialize encoder with drm\n");
 		return ret;
 	}
 
@@ -1134,7 +1140,7 @@ static int rockchip_mipi_parse_dt(struct dw_mipi_dsi *dsi)
 
 	dsi->grf_regmap = syscon_regmap_lookup_by_phandle(np, "rockchip,grf");
 	if (IS_ERR(dsi->grf_regmap)) {
-		dev_err(dsi->dev, "Unable to get rockchip,grf\n");
+		DRM_DEV_ERROR(dsi->dev, "Unable to get rockchip,grf\n");
 		return PTR_ERR(dsi->grf_regmap);
 	}
 
@@ -1206,14 +1212,15 @@ static int dw_mipi_dsi_bind(struct device *dev, struct device *master,
 	dsi->pllref_clk = devm_clk_get(dev, "ref");
 	if (IS_ERR(dsi->pllref_clk)) {
 		ret = PTR_ERR(dsi->pllref_clk);
-		dev_err(dev, "Unable to get pll reference clock: %d\n", ret);
+		DRM_DEV_ERROR(dev,
+			      "Unable to get pll reference clock: %d\n", ret);
 		return ret;
 	}
 
 	dsi->pclk = devm_clk_get(dev, "pclk");
 	if (IS_ERR(dsi->pclk)) {
 		ret = PTR_ERR(dsi->pclk);
-		dev_err(dev, "Unable to get pclk: %d\n", ret);
+		DRM_DEV_ERROR(dev, "Unable to get pclk: %d\n", ret);
 		return ret;
 	}
 
@@ -1227,7 +1234,8 @@ static int dw_mipi_dsi_bind(struct device *dev, struct device *master,
 		if (ret == -ENOENT) {
 			apb_rst = NULL;
 		} else {
-			dev_err(dev, "Unable to get reset control: %d\n", ret);
+			DRM_DEV_ERROR(dev,
+				      "Unable to get reset control: %d\n", ret);
 			return ret;
 		}
 	}
@@ -1235,7 +1243,7 @@ static int dw_mipi_dsi_bind(struct device *dev, struct device *master,
 	if (apb_rst) {
 		ret = clk_prepare_enable(dsi->pclk);
 		if (ret) {
-			dev_err(dev, "%s: Failed to enable pclk\n", __func__);
+			DRM_DEV_ERROR(dev, "Failed to enable pclk\n");
 			return ret;
 		}
 
@@ -1250,7 +1258,8 @@ static int dw_mipi_dsi_bind(struct device *dev, struct device *master,
 		dsi->phy_cfg_clk = devm_clk_get(dev, "phy_cfg");
 		if (IS_ERR(dsi->phy_cfg_clk)) {
 			ret = PTR_ERR(dsi->phy_cfg_clk);
-			dev_err(dev, "Unable to get phy_cfg_clk: %d\n", ret);
+			DRM_DEV_ERROR(dev,
+				      "Unable to get phy_cfg_clk: %d\n", ret);
 			return ret;
 		}
 	}
@@ -1259,20 +1268,20 @@ static int dw_mipi_dsi_bind(struct device *dev, struct device *master,
 		dsi->grf_clk = devm_clk_get(dev, "grf");
 		if (IS_ERR(dsi->grf_clk)) {
 			ret = PTR_ERR(dsi->grf_clk);
-			dev_err(dev, "Unable to get grf_clk: %d\n", ret);
+			DRM_DEV_ERROR(dev, "Unable to get grf_clk: %d\n", ret);
 			return ret;
 		}
 	}
 
 	ret = clk_prepare_enable(dsi->pllref_clk);
 	if (ret) {
-		dev_err(dev, "%s: Failed to enable pllref_clk\n", __func__);
+		DRM_DEV_ERROR(dev, "Failed to enable pllref_clk\n");
 		return ret;
 	}
 
 	ret = dw_mipi_dsi_register(drm, dsi);
 	if (ret) {
-		dev_err(dev, "Failed to register mipi_dsi: %d\n", ret);
+		DRM_DEV_ERROR(dev, "Failed to register mipi_dsi: %d\n", ret);
 		goto err_pllref;
 	}
 
@@ -1282,7 +1291,7 @@ static int dw_mipi_dsi_bind(struct device *dev, struct device *master,
 	dsi->dsi_host.dev = dev;
 	ret = mipi_dsi_host_register(&dsi->dsi_host);
 	if (ret) {
-		dev_err(dev, "Failed to register MIPI host: %d\n", ret);
+		DRM_DEV_ERROR(dev, "Failed to register MIPI host: %d\n", ret);
 		goto err_cleanup;
 	}
 

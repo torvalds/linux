@@ -1159,7 +1159,7 @@ static int mount_ubifs(struct ubifs_info *c)
 	long long x, y;
 	size_t sz;
 
-	c->ro_mount = !!(c->vfs_sb->s_flags & MS_RDONLY);
+	c->ro_mount = !!sb_rdonly(c->vfs_sb);
 	/* Suppress error messages while probing if MS_SILENT is set */
 	c->probing = !!(c->vfs_sb->s_flags & MS_SILENT);
 
@@ -2007,12 +2007,6 @@ static struct ubifs_info *alloc_ubifs_info(struct ubi_volume_desc *ubi)
 	return c;
 }
 
-#ifndef CONFIG_UBIFS_FS_ENCRYPTION
-const struct fscrypt_operations ubifs_crypt_operations = {
-	.is_encrypted		= __ubifs_crypt_is_encrypted,
-};
-#endif
-
 static int ubifs_fill_super(struct super_block *sb, void *data, int silent)
 {
 	struct ubifs_info *c = sb->s_fs_info;
@@ -2055,7 +2049,9 @@ static int ubifs_fill_super(struct super_block *sb, void *data, int silent)
 		sb->s_maxbytes = c->max_inode_sz = MAX_LFS_FILESIZE;
 	sb->s_op = &ubifs_super_operations;
 	sb->s_xattr = ubifs_xattr_handlers;
+#ifdef CONFIG_UBIFS_FS_ENCRYPTION
 	sb->s_cop = &ubifs_crypt_operations;
+#endif
 
 	mutex_lock(&c->umount_mutex);
 	err = mount_ubifs(c);

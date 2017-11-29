@@ -223,17 +223,27 @@ system_call_exit:
 	andi.	r0,r9,(_TIF_SYSCALL_DOTRACE|_TIF_SINGLESTEP|_TIF_USER_WORK_MASK|_TIF_PERSYSCALL_MASK)
 	bne-	.Lsyscall_exit_work
 
-	/* If MSR_FP and MSR_VEC are set in user msr, then no need to restore */
-	li	r7,MSR_FP
+	andi.	r0,r8,MSR_FP
+	beq 2f
 #ifdef CONFIG_ALTIVEC
-	oris	r7,r7,MSR_VEC@h
+	andis.	r0,r8,MSR_VEC@h
+	bne	3f
 #endif
-	and	r0,r8,r7
-	cmpd	r0,r7
-	bne	.Lsyscall_restore_math
-.Lsyscall_restore_math_cont:
+2:	addi    r3,r1,STACK_FRAME_OVERHEAD
+#ifdef CONFIG_PPC_BOOK3S
+	li	r10,MSR_RI
+	mtmsrd	r10,1		/* Restore RI */
+#endif
+	bl	restore_math
+#ifdef CONFIG_PPC_BOOK3S
+	li	r11,0
+	mtmsrd	r11,1
+#endif
+	ld	r8,_MSR(r1)
+	ld	r3,RESULT(r1)
+	li	r11,-MAX_ERRNO
 
-	cmpld	r3,r11
+3:	cmpld	r3,r11
 	ld	r5,_CCR(r1)
 	bge-	.Lsyscall_error
 .Lsyscall_error_cont:
@@ -266,40 +276,6 @@ END_FTR_SECTION_IFSET(CPU_FTR_HAS_PPR)
 	neg	r3,r3
 	std	r5,_CCR(r1)
 	b	.Lsyscall_error_cont
-
-.Lsyscall_restore_math:
-	/*
-	 * Some initial tests from restore_math to avoid the heavyweight
-	 * C code entry and MSR manipulations.
-	 */
-	LOAD_REG_IMMEDIATE(r0, MSR_TS_MASK)
-	and.	r0,r0,r8
-	bne	1f
-
-	ld	r7,PACACURRENT(r13)
-	lbz	r0,THREAD+THREAD_LOAD_FP(r7)
-#ifdef CONFIG_ALTIVEC
-	lbz	r6,THREAD+THREAD_LOAD_VEC(r7)
-	add	r0,r0,r6
-#endif
-	cmpdi	r0,0
-	beq	.Lsyscall_restore_math_cont
-
-1:	addi    r3,r1,STACK_FRAME_OVERHEAD
-#ifdef CONFIG_PPC_BOOK3S
-	li	r10,MSR_RI
-	mtmsrd	r10,1		/* Restore RI */
-#endif
-	bl	restore_math
-#ifdef CONFIG_PPC_BOOK3S
-	li	r11,0
-	mtmsrd	r11,1
-#endif
-	/* Restore volatiles, reload MSR from updated one */
-	ld	r8,_MSR(r1)
-	ld	r3,RESULT(r1)
-	li	r11,-MAX_ERRNO
-	b	.Lsyscall_restore_math_cont
 
 /* Traced system call support */
 .Lsyscall_dotrace:
@@ -563,7 +539,7 @@ _GLOBAL(_switch)
 	std	r6,PACACURRENT(r13)	/* Set new 'current' */
 
 	ld	r8,KSP(r4)	/* new stack pointer */
-#ifdef CONFIG_PPC_STD_MMU_64
+#ifdef CONFIG_PPC_BOOK3S_64
 BEGIN_MMU_FTR_SECTION
 	b	2f
 END_MMU_FTR_SECTION_IFSET(MMU_FTR_TYPE_RADIX)
@@ -612,7 +588,7 @@ END_MMU_FTR_SECTION_IFSET(MMU_FTR_1T_SEGMENT)
 	slbmte	r7,r0
 	isync
 2:
-#endif /* CONFIG_PPC_STD_MMU_64 */
+#endif /* CONFIG_PPC_BOOK3S_64 */
 
 	CURRENT_THREAD_INFO(r7, r8)  /* base of new stack */
 	/* Note: this uses SWITCH_FRAME_SIZE rather than INT_FRAME_SIZE
@@ -990,16 +966,11 @@ END_FTR_SECTION_IFSET(CPU_FTR_HAS_PPR)
 #ifdef CONFIG_PPC_BOOK3E
 	cmpwi	cr0,r3,0x280
 #else
-	BEGIN_FTR_SECTION
-		cmpwi	cr0,r3,0xe80
-	FTR_SECTION_ELSE
-		cmpwi	cr0,r3,0xa00
-	ALT_FTR_SECTION_END_IFSET(CPU_FTR_HVMODE)
+	cmpwi	cr0,r3,0xa00
 #endif /* CONFIG_PPC_BOOK3E */
 	bne	1f
 	addi	r3,r1,STACK_FRAME_OVERHEAD;
 	bl	doorbell_exception
-	b	ret_from_except
 #endif /* CONFIG_PPC_DOORBELL */
 1:	b	ret_from_except /* What else to do here ? */
  
@@ -1133,7 +1104,7 @@ _ASM_NOKPROBE_SYMBOL(__enter_rtas)
 _ASM_NOKPROBE_SYMBOL(rtas_return_loc)
 
 	.align	3
-1:	.llong	rtas_restore_regs
+1:	.8byte	rtas_restore_regs
 
 rtas_restore_regs:
 	/* relocation is on at this point */

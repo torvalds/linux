@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /dts-v1/;
 
 #include "tango4-smp8758.dtsi"
@@ -22,7 +23,7 @@
 };
 
 &eth0 {
-	phy-connection-type = "rgmii";
+	phy-connection-type = "rgmii-id";
 	phy-handle = <&eth0_phy>;
 	#address-cells = <1>;
 	#size-cells = <0>;

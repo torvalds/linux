@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * GPL HEADER START
  *
@@ -88,7 +89,7 @@ struct ldlm_namespace *ldlm_namespace_first_locked(enum ldlm_side client);
 /* ldlm_request.c */
 /* Cancel lru flag, it indicates we cancel aged locks. */
 enum {
-	LDLM_LRU_FLAG_AGED	= BIT(0), /* Cancel aged locks (non lru resize). */
+	LDLM_LRU_FLAG_AGED	= BIT(0), /* Cancel old non-LRU resize locks */
 	LDLM_LRU_FLAG_PASSED	= BIT(1), /* Cancel passed number of locks. */
 	LDLM_LRU_FLAG_SHRINK	= BIT(2), /* Cancel locks from shrinker. */
 	LDLM_LRU_FLAG_LRUR	= BIT(3), /* Cancel locks from lru resize. */
@@ -105,9 +106,6 @@ int ldlm_cancel_lru_local(struct ldlm_namespace *ns,
 			  enum ldlm_cancel_flags cancel_flags, int flags);
 extern unsigned int ldlm_enqueue_min;
 extern unsigned int ldlm_cancel_unused_locks_before_replay;
-
-/* ldlm_resource.c */
-int ldlm_resource_putref_locked(struct ldlm_resource *res);
 
 /* ldlm_lock.c */
 
@@ -336,3 +334,9 @@ void ldlm_flock_policy_wire_to_local(const union ldlm_wire_policy_data *wpolicy,
 				     union ldlm_policy_data *lpolicy);
 void ldlm_flock_policy_local_to_wire(const union ldlm_policy_data *lpolicy,
 				     union ldlm_wire_policy_data *wpolicy);
+
+static inline bool ldlm_res_eq(const struct ldlm_res_id *res0,
+			       const struct ldlm_res_id *res1)
+{
+	return memcmp(res0, res1, sizeof(*res0)) == 0;
+}

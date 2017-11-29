@@ -340,7 +340,7 @@ end:
 }
 
 /* Clock source control for special firmware */
-static enum snd_bebob_clock_type special_clk_types[] = {
+static const enum snd_bebob_clock_type special_clk_types[] = {
 	SND_BEBOB_CLOCK_TYPE_INTERNAL,	/* With digital mute */
 	SND_BEBOB_CLOCK_TYPE_EXTERNAL,	/* SPDIF/ADAT */
 	SND_BEBOB_CLOCK_TYPE_EXTERNAL,	/* Word Clock */

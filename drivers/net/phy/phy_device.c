@@ -688,6 +688,19 @@ struct phy_device *phy_find_first(struct mii_bus *bus)
 }
 EXPORT_SYMBOL(phy_find_first);
 
+static void phy_link_change(struct phy_device *phydev, bool up, bool do_carrier)
+{
+	struct net_device *netdev = phydev->attached_dev;
+
+	if (do_carrier) {
+		if (up)
+			netif_carrier_on(netdev);
+		else
+			netif_carrier_off(netdev);
+	}
+	phydev->adjust_link(netdev);
+}
+
 /**
  * phy_prepare_link - prepares the PHY layer to monitor link status
  * @phydev: target phy_device struct
@@ -861,19 +874,37 @@ void phy_attached_info(struct phy_device *phydev)
 }
 EXPORT_SYMBOL(phy_attached_info);
 
-#define ATTACHED_FMT "attached PHY driver [%s] (mii_bus:phy_addr=%s, irq=%d)"
+#define ATTACHED_FMT "attached PHY driver [%s] (mii_bus:phy_addr=%s, irq=%s)"
 void phy_attached_print(struct phy_device *phydev, const char *fmt, ...)
 {
+	const char *drv_name = phydev->drv ? phydev->drv->name : "unbound";
+	char *irq_str;
+	char irq_num[8];
+
+	switch(phydev->irq) {
+	case PHY_POLL:
+		irq_str = "POLL";
+		break;
+	case PHY_IGNORE_INTERRUPT:
+		irq_str = "IGNORE";
+		break;
+	default:
+		snprintf(irq_num, sizeof(irq_num), "%d", phydev->irq);
+		irq_str = irq_num;
+		break;
+	}
+
+
 	if (!fmt) {
 		dev_info(&phydev->mdio.dev, ATTACHED_FMT "\n",
-			 phydev->drv->name, phydev_name(phydev),
-			 phydev->irq);
+			 drv_name, phydev_name(phydev),
+			 irq_str);
 	} else {
 		va_list ap;
 
 		dev_info(&phydev->mdio.dev, ATTACHED_FMT,
-			 phydev->drv->name, phydev_name(phydev),
-			 phydev->irq);
+			 drv_name, phydev_name(phydev),
+			 irq_str);
 
 		va_start(ap, fmt);
 		vprintk(fmt, ap);
@@ -951,6 +982,7 @@ int phy_attach_direct(struct net_device *dev, struct phy_device *phydev,
 		goto error;
 	}
 
+	phydev->phy_link_change = phy_link_change;
 	phydev->attached_dev = dev;
 	dev->phydev = phydev;
 
@@ -1070,6 +1102,7 @@ void phy_detach(struct phy_device *phydev)
 	phydev->attached_dev->phydev = NULL;
 	phydev->attached_dev = NULL;
 	phy_suspend(phydev);
+	phydev->phylink = NULL;
 
 	phy_led_triggers_unregister(phydev);
 

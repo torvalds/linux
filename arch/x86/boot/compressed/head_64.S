@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  *  linux/boot/head.S
  *
@@ -130,6 +131,19 @@ ENTRY(startup_32)
  /*
   * Build early 4G boot pagetable
   */
+	/*
+	 * If SEV is active then set the encryption mask in the page tables.
+	 * This will insure that when the kernel is copied and decompressed
+	 * it will be done so encrypted.
+	 */
+	call	get_sev_encryption_bit
+	xorl	%edx, %edx
+	testl	%eax, %eax
+	jz	1f
+	subl	$32, %eax	/* Encryption bit is always above bit 31 */
+	bts	%eax, %edx	/* Set encryption mask for page tables */
+1:
+
 	/* Initialize Page tables to 0 */
 	leal	pgtable(%ebx), %edi
 	xorl	%eax, %eax
@@ -140,12 +154,14 @@ ENTRY(startup_32)
 	leal	pgtable + 0(%ebx), %edi
 	leal	0x1007 (%edi), %eax
 	movl	%eax, 0(%edi)
+	addl	%edx, 4(%edi)
 
 	/* Build Level 3 */
 	leal	pgtable + 0x1000(%ebx), %edi
 	leal	0x1007(%edi), %eax
 	movl	$4, %ecx
 1:	movl	%eax, 0x00(%edi)
+	addl	%edx, 0x04(%edi)
 	addl	$0x00001000, %eax
 	addl	$8, %edi
 	decl	%ecx
@@ -156,6 +172,7 @@ ENTRY(startup_32)
 	movl	$0x00000183, %eax
 	movl	$2048, %ecx
 1:	movl	%eax, 0(%edi)
+	addl	%edx, 4(%edi)
 	addl	$0x00200000, %eax
 	addl	$8, %edi
 	decl	%ecx
@@ -243,65 +260,6 @@ ENTRY(startup_64)
 	 * that maps our entire kernel(text+data+bss+brk), zero page
 	 * and command line.
 	 */
-#ifdef CONFIG_EFI_STUB
-	/*
-	 * The entry point for the PE/COFF executable is efi_pe_entry, so
-	 * only legacy boot loaders will execute this jmp.
-	 */
-	jmp	preferred_addr
-
-ENTRY(efi_pe_entry)
-	movq	%rcx, efi64_config(%rip)	/* Handle */
-	movq	%rdx, efi64_config+8(%rip) /* EFI System table pointer */
-
-	leaq	efi64_config(%rip), %rax
-	movq	%rax, efi_config(%rip)
-
-	call	1f
-1:	popq	%rbp
-	subq	$1b, %rbp
-
-	/*
-	 * Relocate efi_config->call().
-	 */
-	addq	%rbp, efi64_config+40(%rip)
-
-	movq	%rax, %rdi
-	call	make_boot_params
-	cmpq	$0,%rax
-	je	fail
-	mov	%rax, %rsi
-	leaq	startup_32(%rip), %rax
-	movl	%eax, BP_code32_start(%rsi)
-	jmp	2f		/* Skip the relocation */
-
-handover_entry:
-	call	1f
-1:	popq	%rbp
-	subq	$1b, %rbp
-
-	/*
-	 * Relocate efi_config->call().
-	 */
-	movq	efi_config(%rip), %rax
-	addq	%rbp, 40(%rax)
-2:
-	movq	efi_config(%rip), %rdi
-	call	efi_main
-	movq	%rax,%rsi
-	cmpq	$0,%rax
-	jne	2f
-fail:
-	/* EFI init failed, so hang. */
-	hlt
-	jmp	fail
-2:
-	movl	BP_code32_start(%esi), %eax
-	leaq	preferred_addr(%rax), %rax
-	jmp	*%rax
-
-preferred_addr:
-#endif
 
 	/* Setup data segments. */
 	xorl	%eax, %eax
@@ -413,6 +371,59 @@ lvl5:
 	jmp	*%rax
 
 #ifdef CONFIG_EFI_STUB
+
+/* The entry point for the PE/COFF executable is efi_pe_entry. */
+ENTRY(efi_pe_entry)
+	movq	%rcx, efi64_config(%rip)	/* Handle */
+	movq	%rdx, efi64_config+8(%rip) /* EFI System table pointer */
+
+	leaq	efi64_config(%rip), %rax
+	movq	%rax, efi_config(%rip)
+
+	call	1f
+1:	popq	%rbp
+	subq	$1b, %rbp
+
+	/*
+	 * Relocate efi_config->call().
+	 */
+	addq	%rbp, efi64_config+40(%rip)
+
+	movq	%rax, %rdi
+	call	make_boot_params
+	cmpq	$0,%rax
+	je	fail
+	mov	%rax, %rsi
+	leaq	startup_32(%rip), %rax
+	movl	%eax, BP_code32_start(%rsi)
+	jmp	2f		/* Skip the relocation */
+
+handover_entry:
+	call	1f
+1:	popq	%rbp
+	subq	$1b, %rbp
+
+	/*
+	 * Relocate efi_config->call().
+	 */
+	movq	efi_config(%rip), %rax
+	addq	%rbp, 40(%rax)
+2:
+	movq	efi_config(%rip), %rdi
+	call	efi_main
+	movq	%rax,%rsi
+	cmpq	$0,%rax
+	jne	2f
+fail:
+	/* EFI init failed, so hang. */
+	hlt
+	jmp	fail
+2:
+	movl	BP_code32_start(%esi), %eax
+	leaq	startup_64(%rax), %rax
+	jmp	*%rax
+ENDPROC(efi_pe_entry)
+
 	.org 0x390
 ENTRY(efi64_stub_entry)
 	movq	%rdi, efi64_config(%rip)	/* Handle */

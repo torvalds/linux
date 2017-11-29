@@ -9,4 +9,5 @@ generic-y += param.h
 generic-y += poll.h
 generic-y += resource.h
 generic-y += sockios.h
+generic-y += swab.h
 generic-y += termbits.h

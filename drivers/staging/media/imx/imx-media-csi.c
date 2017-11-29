@@ -122,11 +122,11 @@ static inline struct csi_priv *sd_to_dev(struct v4l2_subdev *sdev)
 
 static void csi_idmac_put_ipu_resources(struct csi_priv *priv)
 {
-	if (!IS_ERR_OR_NULL(priv->idmac_ch))
+	if (priv->idmac_ch)
 		ipu_idmac_put(priv->idmac_ch);
 	priv->idmac_ch = NULL;
 
-	if (!IS_ERR_OR_NULL(priv->smfc))
+	if (priv->smfc)
 		ipu_smfc_put(priv->smfc);
 	priv->smfc = NULL;
 }
@@ -134,23 +134,27 @@ static void csi_idmac_put_ipu_resources(struct csi_priv *priv)
 static int csi_idmac_get_ipu_resources(struct csi_priv *priv)
 {
 	int ch_num, ret;
+	struct ipu_smfc *smfc;
+	struct ipuv3_channel *idmac_ch;
 
 	ch_num = IPUV3_CHANNEL_CSI0 + priv->smfc_id;
 
-	priv->smfc = ipu_smfc_get(priv->ipu, ch_num);
-	if (IS_ERR(priv->smfc)) {
+	smfc = ipu_smfc_get(priv->ipu, ch_num);
+	if (IS_ERR(smfc)) {
 		v4l2_err(&priv->sd, "failed to get SMFC\n");
-		ret = PTR_ERR(priv->smfc);
+		ret = PTR_ERR(smfc);
 		goto out;
 	}
+	priv->smfc = smfc;
 
-	priv->idmac_ch = ipu_idmac_get(priv->ipu, ch_num);
-	if (IS_ERR(priv->idmac_ch)) {
+	idmac_ch = ipu_idmac_get(priv->ipu, ch_num);
+	if (IS_ERR(idmac_ch)) {
 		v4l2_err(&priv->sd, "could not get IDMAC channel %u\n",
 			 ch_num);
-		ret = PTR_ERR(priv->idmac_ch);
+		ret = PTR_ERR(idmac_ch);
 		goto out;
 	}
+	priv->idmac_ch = idmac_ch;
 
 	return 0;
 out:
@@ -250,9 +254,9 @@ static irqreturn_t csi_idmac_nfb4eof_interrupt(int irq, void *dev_id)
  * EOF timeout timer function. This is an unrecoverable condition
  * without a stream restart.
  */
-static void csi_idmac_eof_timeout(unsigned long data)
+static void csi_idmac_eof_timeout(struct timer_list *t)
 {
-	struct csi_priv *priv = (struct csi_priv *)data;
+	struct csi_priv *priv = from_timer(priv, t, eof_timeout_timer);
 	struct imx_media_video_dev *vdev = priv->vdev;
 
 	v4l2_err(&priv->sd, "EOF timeout\n");
@@ -357,6 +361,8 @@ static int csi_idmac_setup_channel(struct csi_priv *priv)
 		passthrough = (sensor_ep->bus_type != V4L2_MBUS_CSI2 &&
 			       sensor_ep->bus.parallel.bus_width >= 16);
 		passthrough_bits = 16;
+		/* Skip writing U and V components to odd rows */
+		ipu_cpmem_skip_odd_chroma_rows(priv->idmac_ch);
 		break;
 	case V4L2_PIX_FMT_YUYV:
 	case V4L2_PIX_FMT_UYVY:
@@ -1583,6 +1589,7 @@ static int csi_unsubscribe_event(struct v4l2_subdev *sd, struct v4l2_fh *fh,
 static int csi_registered(struct v4l2_subdev *sd)
 {
 	struct csi_priv *priv = v4l2_get_subdevdata(sd);
+	struct ipu_csi *csi;
 	int i, ret;
 	u32 code;
 
@@ -1590,11 +1597,12 @@ static int csi_registered(struct v4l2_subdev *sd)
 	priv->md = dev_get_drvdata(sd->v4l2_dev->dev);
 
 	/* get handle to IPU CSI */
-	priv->csi = ipu_csi_get(priv->ipu, priv->csi_id);
-	if (IS_ERR(priv->csi)) {
+	csi = ipu_csi_get(priv->ipu, priv->csi_id);
+	if (IS_ERR(csi)) {
 		v4l2_err(&priv->sd, "failed to get CSI%d\n", priv->csi_id);
-		return PTR_ERR(priv->csi);
+		return PTR_ERR(csi);
 	}
+	priv->csi = csi;
 
 	for (i = 0; i < CSI_NUM_PADS; i++) {
 		priv->pad[i].flags = (i == CSI_SINK_PAD) ?
@@ -1663,7 +1671,7 @@ static void csi_unregistered(struct v4l2_subdev *sd)
 	if (priv->fim)
 		imx_media_fim_free(priv->fim);
 
-	if (!IS_ERR_OR_NULL(priv->csi))
+	if (priv->csi)
 		ipu_csi_put(priv->csi);
 }
 
@@ -1731,9 +1739,7 @@ static int imx_csi_probe(struct platform_device *pdev)
 	priv->csi_id = pdata->csi;
 	priv->smfc_id = (priv->csi_id == 0) ? 0 : 2;
 
-	init_timer(&priv->eof_timeout_timer);
-	priv->eof_timeout_timer.data = (unsigned long)priv;
-	priv->eof_timeout_timer.function = csi_idmac_eof_timeout;
+	timer_setup(&priv->eof_timeout_timer, csi_idmac_eof_timeout, 0);
 	spin_lock_init(&priv->irqlock);
 
 	v4l2_subdev_init(&priv->sd, &csi_subdev_ops);

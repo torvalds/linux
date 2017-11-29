@@ -118,7 +118,7 @@
 	status = "okay";
 };
 
-&mdio {
+&external_mdio {
 	ext_rgmii_phy: ethernet-phy@7 {
 		compatible = "ethernet-phy-ieee802.3-c22";
 		reg = <7>;

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /* bbc_envctrl.c: UltraSPARC-III environment control driver.
  *
  * Copyright (C) 2001, 2008 David S. Miller (davem@davemloft.net)

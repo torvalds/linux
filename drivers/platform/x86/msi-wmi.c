@@ -184,7 +184,7 @@ static const struct backlight_ops msi_backlight_ops = {
 static void msi_wmi_notify(u32 value, void *context)
 {
 	struct acpi_buffer response = { ACPI_ALLOCATE_BUFFER, NULL };
-	static struct key_entry *key;
+	struct key_entry *key;
 	union acpi_object *obj;
 	acpi_status status;
 

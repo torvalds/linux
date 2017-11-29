@@ -30,7 +30,6 @@
 #include <linux/proc_fs.h>
 #include <linux/security.h>
 #include <linux/ctype.h>
-#include <linux/kmemcheck.h>
 #include <linux/kmemleak.h>
 #include <linux/fs.h>
 #include <linux/init.h>
@@ -67,6 +66,7 @@
 #include <linux/kexec.h>
 #include <linux/bpf.h>
 #include <linux/mount.h>
+#include <linux/pipe_fs_i.h>
 
 #include <linux/uaccess.h>
 #include <asm/processor.h>
@@ -367,7 +367,8 @@ static struct ctl_table kern_table[] = {
 		.data		= &sysctl_sched_time_avg,
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec,
+		.proc_handler	= proc_dointvec_minmax,
+		.extra1		= &one,
 	},
 #ifdef CONFIG_SCHEDSTATS
 	{
@@ -871,9 +872,9 @@ static struct ctl_table kern_table[] = {
 #if defined(CONFIG_LOCKUP_DETECTOR)
 	{
 		.procname       = "watchdog",
-		.data           = &watchdog_user_enabled,
-		.maxlen         = sizeof (int),
-		.mode           = 0644,
+		.data		= &watchdog_user_enabled,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
 		.proc_handler   = proc_watchdog,
 		.extra1		= &zero,
 		.extra2		= &one,
@@ -889,16 +890,12 @@ static struct ctl_table kern_table[] = {
 	},
 	{
 		.procname       = "nmi_watchdog",
-		.data           = &nmi_watchdog_enabled,
-		.maxlen         = sizeof (int),
-		.mode           = 0644,
+		.data		= &nmi_watchdog_user_enabled,
+		.maxlen		= sizeof(int),
+		.mode		= NMI_WATCHDOG_SYSCTL_PERM,
 		.proc_handler   = proc_nmi_watchdog,
 		.extra1		= &zero,
-#if defined(CONFIG_HAVE_NMI_WATCHDOG) || defined(CONFIG_HARDLOCKUP_DETECTOR)
 		.extra2		= &one,
-#else
-		.extra2		= &zero,
-#endif
 	},
 	{
 		.procname	= "watchdog_cpumask",
@@ -910,9 +907,9 @@ static struct ctl_table kern_table[] = {
 #ifdef CONFIG_SOFTLOCKUP_DETECTOR
 	{
 		.procname       = "soft_watchdog",
-		.data           = &soft_watchdog_enabled,
-		.maxlen         = sizeof (int),
-		.mode           = 0644,
+		.data		= &soft_watchdog_user_enabled,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
 		.proc_handler   = proc_soft_watchdog,
 		.extra1		= &zero,
 		.extra2		= &one,
@@ -1177,15 +1174,6 @@ static struct ctl_table kern_table[] = {
 		.extra2		= &one_thousand,
 	},
 #endif
-#ifdef CONFIG_KMEMCHECK
-	{
-		.procname	= "kmemcheck",
-		.data		= &kmemcheck_enabled,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec,
-	},
-#endif
 	{
 		.procname	= "panic_on_warn",
 		.data		= &panic_on_warn,
@@ -1345,11 +1333,6 @@ static struct ctl_table vm_table[] = {
 		.extra1		= &zero,
 	},
 	{
-		.procname       = "nr_pdflush_threads",
-		.mode           = 0444 /* read-only */,
-		.proc_handler   = pdflush_proc_obsolete,
-	},
-	{
 		.procname	= "swappiness",
 		.data		= &vm_swappiness,
 		.maxlen		= sizeof(vm_swappiness),
@@ -1373,6 +1356,15 @@ static struct ctl_table vm_table[] = {
 		.maxlen         = sizeof(unsigned long),
 		.mode           = 0644,
 		.proc_handler   = &hugetlb_mempolicy_sysctl_handler,
+	},
+	{
+		.procname		= "numa_stat",
+		.data			= &sysctl_vm_numa_stat,
+		.maxlen			= sizeof(int),
+		.mode			= 0644,
+		.proc_handler	= sysctl_vm_numa_stat_handler,
+		.extra1			= &zero,
+		.extra2			= &one,
 	},
 #endif
 	 {
@@ -1825,7 +1817,7 @@ static struct ctl_table fs_table[] = {
 	{
 		.procname	= "pipe-max-size",
 		.data		= &pipe_max_size,
-		.maxlen		= sizeof(int),
+		.maxlen		= sizeof(pipe_max_size),
 		.mode		= 0644,
 		.proc_handler	= &pipe_proc_fn,
 		.extra1		= &pipe_min_size,
@@ -2185,8 +2177,6 @@ static int do_proc_douintvec_conv(unsigned long *lvalp,
 				  int write, void *data)
 {
 	if (write) {
-		if (*lvalp > UINT_MAX)
-			return -EINVAL;
 		if (*lvalp > UINT_MAX)
 			return -EINVAL;
 		*valp = *lvalp;
@@ -2586,12 +2576,13 @@ static int do_proc_douintvec_minmax_conv(unsigned long *lvalp,
 	if (write) {
 		unsigned int val = *lvalp;
 
+		if (*lvalp > UINT_MAX)
+			return -EINVAL;
+
 		if ((param->min && *param->min > val) ||
 		    (param->max && *param->max < val))
 			return -ERANGE;
 
-		if (*lvalp > UINT_MAX)
-			return -EINVAL;
 		*valp = val;
 	} else {
 		unsigned int val = *valp;
@@ -2629,6 +2620,48 @@ int proc_douintvec_minmax(struct ctl_table *table, int write,
 	};
 	return do_proc_douintvec(table, write, buffer, lenp, ppos,
 				 do_proc_douintvec_minmax_conv, &param);
+}
+
+struct do_proc_dopipe_max_size_conv_param {
+	unsigned int *min;
+};
+
+static int do_proc_dopipe_max_size_conv(unsigned long *lvalp,
+					unsigned int *valp,
+					int write, void *data)
+{
+	struct do_proc_dopipe_max_size_conv_param *param = data;
+
+	if (write) {
+		unsigned int val;
+
+		if (*lvalp > UINT_MAX)
+			return -EINVAL;
+
+		val = round_pipe_size(*lvalp);
+		if (val == 0)
+			return -EINVAL;
+
+		if (param->min && *param->min > val)
+			return -ERANGE;
+
+		*valp = val;
+	} else {
+		unsigned int val = *valp;
+		*lvalp = (unsigned long) val;
+	}
+
+	return 0;
+}
+
+int proc_dopipe_max_size(struct ctl_table *table, int write,
+			 void __user *buffer, size_t *lenp, loff_t *ppos)
+{
+	struct do_proc_dopipe_max_size_conv_param param = {
+		.min = (unsigned int *) table->extra1,
+	};
+	return do_proc_douintvec(table, write, buffer, lenp, ppos,
+				 do_proc_dopipe_max_size_conv, &param);
 }
 
 static void validate_coredump_safety(void)
@@ -3094,14 +3127,12 @@ int proc_do_large_bitmap(struct ctl_table *table, int write,
 			else
 				bitmap_copy(bitmap, tmp_bitmap, bitmap_len);
 		}
-		kfree(tmp_bitmap);
 		*lenp -= left;
 		*ppos += *lenp;
-		return 0;
-	} else {
-		kfree(tmp_bitmap);
-		return err;
 	}
+
+	kfree(tmp_bitmap);
+	return err;
 }
 
 #else /* CONFIG_PROC_SYSCTL */
@@ -3132,6 +3163,12 @@ int proc_dointvec_minmax(struct ctl_table *table, int write,
 
 int proc_douintvec_minmax(struct ctl_table *table, int write,
 			  void __user *buffer, size_t *lenp, loff_t *ppos)
+{
+	return -ENOSYS;
+}
+
+int proc_dopipe_max_size(struct ctl_table *table, int write,
+			 void __user *buffer, size_t *lenp, loff_t *ppos)
 {
 	return -ENOSYS;
 }
@@ -3179,6 +3216,7 @@ EXPORT_SYMBOL(proc_douintvec);
 EXPORT_SYMBOL(proc_dointvec_jiffies);
 EXPORT_SYMBOL(proc_dointvec_minmax);
 EXPORT_SYMBOL_GPL(proc_douintvec_minmax);
+EXPORT_SYMBOL_GPL(proc_dopipe_max_size);
 EXPORT_SYMBOL(proc_dointvec_userhz_jiffies);
 EXPORT_SYMBOL(proc_dointvec_ms_jiffies);
 EXPORT_SYMBOL(proc_dostring);

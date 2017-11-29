@@ -21,31 +21,40 @@ adi,adt7490		+/-1C TDM Extended Temp Range I.C
 adi,adxl345		Three-Axis Digital Accelerometer
 adi,adxl346		Three-Axis Digital Accelerometer (backward-compatibility value "adi,adxl345" must be listed too)
 ams,iaq-core		AMS iAQ-Core VOC Sensor
+amstaos,tsl2571		AMS/TAOS ALS and proximity sensor
+amstaos,tsl2671		AMS/TAOS ALS and proximity sensor
+amstaos,tmd2671		AMS/TAOS ALS and proximity sensor
+amstaos,tsl2771		AMS/TAOS ALS and proximity sensor
+amstaos,tmd2771		AMS/TAOS ALS and proximity sensor
+amstaos,tsl2572		AMS/TAOS ALS and proximity sensor
+amstaos,tsl2672		AMS/TAOS ALS and proximity sensor
+amstaos,tmd2672		AMS/TAOS ALS and proximity sensor
+amstaos,tsl2772		AMS/TAOS ALS and proximity sensor
+amstaos,tmd2772		AMS/TAOS ALS and proximity sensor
 at,24c08		i2c serial eeprom  (24cxx)
 atmel,at97sc3204t	i2c trusted platform module (TPM)
 capella,cm32181		CM32181: Ambient Light Sensor
 capella,cm3232		CM3232: Ambient Light Sensor
 cirrus,cs42l51		Cirrus Logic CS42L51 audio codec
-dallas,ds1307		64 x 8, Serial, I2C Real-Time Clock
-dallas,ds1338		I2C RTC with 56-Byte NV RAM
-dallas,ds1340		I2C RTC with Trickle Charger
 dallas,ds1374		I2C, 32-Bit Binary Counter Watchdog RTC with Trickle Charger and Reset Input/Output
 dallas,ds1631		High-Precision Digital Thermometer
+dallas,ds1672		Dallas DS1672 Real-time Clock
 dallas,ds1682		Total-Elapsed-Time Recorder with Alarm
 dallas,ds1775		Tiny Digital Thermometer and Thermostat
 dallas,ds3232		Extremely Accurate I²C RTC with Integrated Crystal and SRAM
 dallas,ds4510		CPU Supervisor with Nonvolatile Memory and Programmable I/O
 dallas,ds75		Digital Thermometer and Thermostat
+devantech,srf02		Devantech SRF02 ultrasonic ranger in I2C mode
 devantech,srf08		Devantech SRF08 ultrasonic ranger
+devantech,srf10		Devantech SRF10 ultrasonic ranger
 dlg,da9053		DA9053: flexible system level PMIC with multicore support
 dlg,da9063		DA9063: system PMIC for quad-core application processors
 domintech,dmard09	DMARD09: 3-axis Accelerometer
 domintech,dmard10	DMARD10: 3-axis Accelerometer
 epson,rx8010		I2C-BUS INTERFACE REAL TIME CLOCK MODULE
-epson,rx8025		High-Stability. I2C-Bus INTERFACE REAL TIME CLOCK MODULE
 epson,rx8581		I2C-BUS INTERFACE REAL TIME CLOCK MODULE
+emmicro,em3027		EM Microelectronic EM3027 Real-time Clock
 fsl,mag3110		MAG3110: Xtrinsic High Accuracy, 3D Magnetometer
-fsl,mc13892		MC13892: Power Management Integrated Circuit (PMIC) for i.MX35/51
 fsl,mma7660		MMA7660FC: 3-Axis Orientation/Motion Detection Sensor
 fsl,mma8450		MMA8450Q: Xtrinsic Low-power, 3-axis Xtrinsic Accelerometer
 fsl,mpl3115		MPL3115: Absolute Digital Pressure Sensor
@@ -54,12 +63,15 @@ fsl,sgtl5000		SGTL5000: Ultra Low-Power Audio Codec
 gmt,g751		G751: Digital Temperature Sensor and Thermal Watchdog with Two-Wire Interface
 infineon,slb9635tt	Infineon SLB9635 (Soft-) I2C TPM (old protocol, max 100khz)
 infineon,slb9645tt	Infineon SLB9645 I2C TPM (new protocol, max 400khz)
+isil,isl1208		Intersil ISL1208 Low Power RTC with Battery Backed SRAM
+isil,isl1218		Intersil ISL1218 Low Power RTC with Battery Backed SRAM
+isil,isl12022		Intersil ISL12022 Real-time Clock
 isil,isl29028		Intersil ISL29028 Ambient Light and Proximity Sensor
 isil,isl29030		Intersil ISL29030 Ambient Light and Proximity Sensor
 maxim,ds1050		5 Bit Programmable, Pulse-Width Modulator
 maxim,max1237		Low-Power, 4-/12-Channel, 2-Wire Serial, 12-Bit ADCs
+maxim,max6621		PECI-to-I2C translator for PECI-to-SMBus/I2C protocol conversion
 maxim,max6625		9-Bit/12-Bit Temperature Sensors with I²C-Compatible Serial Interface
-mc,rv3029c2		Real Time Clock Module with I2C-Bus
 mcube,mc3230		mCube 3-axis 8-bit digital accelerometer
 memsic,mxc6225		MEMSIC 2-axis 8-bit digital accelerometer
 microchip,mcp4531-502	Microchip 7-bit Single I2C Digital Potentiometer (5k)
@@ -128,6 +140,7 @@ microchip,mcp4662-503	Microchip 8-bit Dual I2C Digital Potentiometer with NV Mem
 microchip,mcp4662-104	Microchip 8-bit Dual I2C Digital Potentiometer with NV Memory (100k)
 microchip,tc654		PWM Fan Speed Controller With Fan Fault Detection
 microchip,tc655		PWM Fan Speed Controller With Fan Fault Detection
+microcrystal,rv3029	Real Time Clock Module with I2C-Bus
 miramems,da226		MiraMEMS DA226 2-axis 14-bit digital accelerometer
 miramems,da280		MiraMEMS DA280 3-axis 14-bit digital accelerometer
 miramems,da311		MiraMEMS DA311 3-axis 12-bit digital accelerometer
@@ -142,6 +155,7 @@ nxp,pca9556		Octal SMBus and I2C registered interface
 nxp,pca9557		8-bit I2C-bus and SMBus I/O port with reset
 nxp,pcf2127		Real-time clock
 nxp,pcf2129		Real-time clock
+nxp,pcf8523		Real-time Clock
 nxp,pcf8563		Real-time clock/calendar
 nxp,pcf85063		Tiny Real-Time Clock
 oki,ml86v7667		OKI ML86V7667 video decoder
@@ -161,13 +175,10 @@ sii,s35390a		2-wire CMOS real-time clock
 silabs,si7020		Relative Humidity and Temperature Sensors
 skyworks,sky81452	Skyworks SKY81452: Six-Channel White LED Driver with Touch Panel Bias Supply
 st,24c256		i2c serial eeprom  (24cxx)
-st,m41t0		Serial real-time clock (RTC)
-st,m41t00		Serial real-time clock (RTC)
-st,m41t62		Serial real-time clock (RTC) with alarm
-st,m41t80		M41T80 - SERIAL ACCESS RTC WITH ALARMS
 taos,tsl2550		Ambient Light Sensor with SMBUS/Two Wire Serial Interface
 ti,ads7828		8-Channels, 12-bit ADC
 ti,ads7830		8-Channels, 8-bit ADC
+ti,amc6821		Temperature Monitoring and Fan Control
 ti,tsc2003		I2C Touch-Screen Controller
 ti,tmp102		Low Power Digital Temperature Sensor with SMBUS/Two Wire Serial Interface
 ti,tmp103		Low Power Digital Temperature Sensor with SMBUS/Two Wire Serial Interface

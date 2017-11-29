@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __LINUX_GPIO_MACHINE_H
 #define __LINUX_GPIO_MACHINE_H
 
@@ -10,7 +11,7 @@ enum gpio_lookup_flags {
 	GPIO_OPEN_DRAIN = (1 << 1),
 	GPIO_OPEN_SOURCE = (1 << 2),
 	GPIO_SLEEP_MAINTAIN_VALUE = (0 << 3),
-	GPIO_SLEEP_MAY_LOOSE_VALUE = (1 << 3),
+	GPIO_SLEEP_MAY_LOSE_VALUE = (1 << 3),
 };
 
 /**
@@ -60,10 +61,13 @@ struct gpiod_lookup_table {
 
 #ifdef CONFIG_GPIOLIB
 void gpiod_add_lookup_table(struct gpiod_lookup_table *table);
+void gpiod_add_lookup_tables(struct gpiod_lookup_table **tables, size_t n);
 void gpiod_remove_lookup_table(struct gpiod_lookup_table *table);
 #else
 static inline
 void gpiod_add_lookup_table(struct gpiod_lookup_table *table) {}
+static inline
+void gpiod_add_lookup_tables(struct gpiod_lookup_table **tables, size_t n) {}
 static inline
 void gpiod_remove_lookup_table(struct gpiod_lookup_table *table) {}
 #endif

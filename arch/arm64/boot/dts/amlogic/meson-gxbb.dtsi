@@ -307,11 +307,26 @@
 	};
 };
 
+&cec_AO {
+	clocks = <&clkc_AO CLKID_AO_CEC_32K>;
+	clock-names = "core";
+};
+
+&clkc_AO {
+	compatible = "amlogic,meson-gxbb-aoclkc", "amlogic,meson-gx-aoclkc";
+};
+
 &ethmac {
 	clocks = <&clkc CLKID_ETH>,
 		 <&clkc CLKID_FCLK_DIV2>,
 		 <&clkc CLKID_MPLL2>;
 	clock-names = "stmmaceth", "clkin0", "clkin1";
+};
+
+&gpio_intc {
+	compatible = "amlogic,meson-gpio-intc",
+		     "amlogic,meson-gxbb-gpio-intc";
+	status = "okay";
 };
 
 &hdmi_tx {
@@ -370,16 +385,33 @@
 			reg-names = "mux", "pull", "pull-enable", "gpio";
 			gpio-controller;
 			#gpio-cells = <2>;
-			gpio-ranges = <&pinctrl_periphs 0 14 120>;
+			gpio-ranges = <&pinctrl_periphs 0 0 119>;
 		};
 
 		emmc_pins: emmc {
 			mux {
 				groups = "emmc_nand_d07",
 				       "emmc_cmd",
-				       "emmc_clk",
-				       "emmc_ds";
+				       "emmc_clk";
 				function = "emmc";
+			};
+		};
+
+		emmc_ds_pins: emmc-ds {
+			mux {
+				groups = "emmc_ds";
+				function = "emmc";
+			};
+		};
+
+		emmc_clk_gate_pins: emmc_clk_gate {
+			mux {
+				groups = "BOOT_8";
+				function = "gpio_periphs";
+			};
+			cfg-pull-down {
+				pins = "BOOT_8";
+				bias-pull-down;
 			};
 		};
 
@@ -421,6 +453,17 @@
 			};
 		};
 
+		sdcard_clk_gate_pins: sdcard_clk_gate {
+			mux {
+				groups = "CARD_2";
+				function = "gpio_periphs";
+			};
+			cfg-pull-down {
+				pins = "CARD_2";
+				bias-pull-down;
+			};
+		};
+
 		sdio_pins: sdio {
 			mux {
 				groups = "sdio_d0",
@@ -430,6 +473,17 @@
 				       "sdio_cmd",
 				       "sdio_clk";
 				function = "sdio";
+			};
+		};
+
+		sdio_clk_gate_pins: sdio_clk_gate {
+			mux {
+				groups = "GPIOX_4";
+				function = "gpio_periphs";
+			};
+			cfg-pull-down {
+				pins = "GPIOX_4";
+				bias-pull-down;
 			};
 		};
 
@@ -652,21 +706,21 @@
 
 &sd_emmc_a {
 	clocks = <&clkc CLKID_SD_EMMC_A>,
-		 <&xtal>,
+		 <&clkc CLKID_SD_EMMC_A_CLK0>,
 		 <&clkc CLKID_FCLK_DIV2>;
 	clock-names = "core", "clkin0", "clkin1";
 };
 
 &sd_emmc_b {
 	clocks = <&clkc CLKID_SD_EMMC_B>,
-		 <&xtal>,
+		 <&clkc CLKID_SD_EMMC_B_CLK0>,
 		 <&clkc CLKID_FCLK_DIV2>;
 	clock-names = "core", "clkin0", "clkin1";
 };
 
 &sd_emmc_c {
 	clocks = <&clkc CLKID_SD_EMMC_C>,
-		 <&xtal>,
+		 <&clkc CLKID_SD_EMMC_C_CLK0>,
 		 <&clkc CLKID_FCLK_DIV2>;
 	clock-names = "core", "clkin0", "clkin1";
 };
@@ -680,6 +734,31 @@
 
 &spifc {
 	clocks = <&clkc CLKID_SPI>;
+};
+
+&uart_A {
+	clocks = <&xtal>, <&clkc CLKID_UART0>, <&xtal>;
+	clock-names = "xtal", "pclk", "baud";
+};
+
+&uart_AO {
+	clocks = <&xtal>, <&clkc CLKID_CLK81>, <&xtal>;
+	clock-names = "xtal", "pclk", "baud";
+};
+
+&uart_AO_B {
+	clocks = <&xtal>, <&clkc CLKID_CLK81>, <&xtal>;
+	clock-names = "xtal", "pclk", "baud";
+};
+
+&uart_B {
+	clocks = <&xtal>, <&clkc CLKID_UART1>, <&xtal>;
+	clock-names = "xtal", "core", "baud";
+};
+
+&uart_C {
+	clocks = <&xtal>, <&clkc CLKID_UART2>, <&xtal>;
+	clock-names = "xtal", "core", "baud";
 };
 
 &vpu {

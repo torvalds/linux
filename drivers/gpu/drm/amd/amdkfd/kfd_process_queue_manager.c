@@ -32,12 +32,9 @@ static inline struct process_queue_node *get_queue_by_qid(
 {
 	struct process_queue_node *pqn;
 
-	BUG_ON(!pqm);
-
 	list_for_each_entry(pqn, &pqm->queues, process_queue_list) {
-		if (pqn->q && pqn->q->properties.queue_id == qid)
-			return pqn;
-		if (pqn->kq && pqn->kq->queue->properties.queue_id == qid)
+		if ((pqn->q && pqn->q->properties.queue_id == qid) ||
+		    (pqn->kq && pqn->kq->queue->properties.queue_id == qid))
 			return pqn;
 	}
 
@@ -49,17 +46,13 @@ static int find_available_queue_slot(struct process_queue_manager *pqm,
 {
 	unsigned long found;
 
-	BUG_ON(!pqm || !qid);
-
-	pr_debug("kfd: in %s\n", __func__);
-
 	found = find_first_zero_bit(pqm->queue_slot_bitmap,
 			KFD_MAX_NUM_OF_QUEUES_PER_PROCESS);
 
-	pr_debug("kfd: the new slot id %lu\n", found);
+	pr_debug("The new slot id %lu\n", found);
 
 	if (found >= KFD_MAX_NUM_OF_QUEUES_PER_PROCESS) {
-		pr_info("amdkfd: Can not open more queues for process with pasid %d\n",
+		pr_info("Cannot open more queues for process with pasid %d\n",
 				pqm->process->pasid);
 		return -ENOMEM;
 	}
@@ -70,15 +63,32 @@ static int find_available_queue_slot(struct process_queue_manager *pqm,
 	return 0;
 }
 
+void kfd_process_dequeue_from_device(struct kfd_process_device *pdd)
+{
+	struct kfd_dev *dev = pdd->dev;
+
+	if (pdd->already_dequeued)
+		return;
+
+	dev->dqm->ops.process_termination(dev->dqm, &pdd->qpd);
+	pdd->already_dequeued = true;
+}
+
+void kfd_process_dequeue_from_all_devices(struct kfd_process *p)
+{
+	struct kfd_process_device *pdd;
+
+	list_for_each_entry(pdd, &p->per_device_data, per_device_list)
+		kfd_process_dequeue_from_device(pdd);
+}
+
 int pqm_init(struct process_queue_manager *pqm, struct kfd_process *p)
 {
-	BUG_ON(!pqm);
-
 	INIT_LIST_HEAD(&pqm->queues);
 	pqm->queue_slot_bitmap =
 			kzalloc(DIV_ROUND_UP(KFD_MAX_NUM_OF_QUEUES_PER_PROCESS,
 					BITS_PER_BYTE), GFP_KERNEL);
-	if (pqm->queue_slot_bitmap == NULL)
+	if (!pqm->queue_slot_bitmap)
 		return -ENOMEM;
 	pqm->process = p;
 
@@ -87,25 +97,14 @@ int pqm_init(struct process_queue_manager *pqm, struct kfd_process *p)
 
 void pqm_uninit(struct process_queue_manager *pqm)
 {
-	int retval;
 	struct process_queue_node *pqn, *next;
 
-	BUG_ON(!pqm);
-
-	pr_debug("In func %s\n", __func__);
-
 	list_for_each_entry_safe(pqn, next, &pqm->queues, process_queue_list) {
-		retval = pqm_destroy_queue(
-				pqm,
-				(pqn->q != NULL) ?
-					pqn->q->properties.queue_id :
-					pqn->kq->queue->properties.queue_id);
-
-		if (retval != 0) {
-			pr_err("kfd: failed to destroy queue\n");
-			return;
-		}
+		uninit_queue(pqn->q);
+		list_del(&pqn->process_queue_list);
+		kfree(pqn);
 	}
+
 	kfree(pqm->queue_slot_bitmap);
 	pqm->queue_slot_bitmap = NULL;
 }
@@ -116,8 +115,6 @@ static int create_cp_queue(struct process_queue_manager *pqm,
 				struct file *f, unsigned int qid)
 {
 	int retval;
-
-	retval = 0;
 
 	/* Doorbell initialized in user space*/
 	q_properties->doorbell_ptr = NULL;
@@ -131,16 +128,13 @@ static int create_cp_queue(struct process_queue_manager *pqm,
 
 	retval = init_queue(q, q_properties);
 	if (retval != 0)
-		goto err_init_queue;
+		return retval;
 
 	(*q)->device = dev;
 	(*q)->process = pqm->process;
 
-	pr_debug("kfd: PQM After init queue");
+	pr_debug("PQM After init queue");
 
-	return retval;
-
-err_init_queue:
 	return retval;
 }
 
@@ -148,23 +142,16 @@ int pqm_create_queue(struct process_queue_manager *pqm,
 			    struct kfd_dev *dev,
 			    struct file *f,
 			    struct queue_properties *properties,
-			    unsigned int flags,
-			    enum kfd_queue_type type,
 			    unsigned int *qid)
 {
 	int retval;
 	struct kfd_process_device *pdd;
-	struct queue_properties q_properties;
 	struct queue *q;
 	struct process_queue_node *pqn;
 	struct kernel_queue *kq;
-	int num_queues = 0;
-	struct queue *cur;
+	enum kfd_queue_type type = properties->type;
+	unsigned int max_queues = 127; /* HWS limit */
 
-	BUG_ON(!pqm || !dev || !properties || !qid);
-
-	memset(&q_properties, 0, sizeof(struct queue_properties));
-	memcpy(&q_properties, properties, sizeof(struct queue_properties));
 	q = NULL;
 	kq = NULL;
 
@@ -180,24 +167,23 @@ int pqm_create_queue(struct process_queue_manager *pqm,
 	 * If we are just about to create DIQ, the is_debug flag is not set yet
 	 * Hence we also check the type as well
 	 */
-	if ((pdd->qpd.is_debug) ||
-		(type == KFD_QUEUE_TYPE_DIQ)) {
-		list_for_each_entry(cur, &pdd->qpd.queues_list, list)
-			num_queues++;
-		if (num_queues >= dev->device_info->max_no_of_hqd/2)
-			return (-ENOSPC);
-	}
+	if ((pdd->qpd.is_debug) || (type == KFD_QUEUE_TYPE_DIQ))
+		max_queues = dev->device_info->max_no_of_hqd/2;
+
+	if (pdd->qpd.queue_count >= max_queues)
+		return -ENOSPC;
 
 	retval = find_available_queue_slot(pqm, qid);
 	if (retval != 0)
 		return retval;
 
-	if (list_empty(&pqm->queues)) {
+	if (list_empty(&pdd->qpd.queues_list) &&
+	    list_empty(&pdd->qpd.priv_queue_list)) {
 		pdd->qpd.pqm = pqm;
 		dev->dqm->ops.register_process(dev->dqm, &pdd->qpd);
 	}
 
-	pqn = kzalloc(sizeof(struct process_queue_node), GFP_KERNEL);
+	pqn = kzalloc(sizeof(*pqn), GFP_KERNEL);
 	if (!pqn) {
 		retval = -ENOMEM;
 		goto err_allocate_pqn;
@@ -208,14 +194,14 @@ int pqm_create_queue(struct process_queue_manager *pqm,
 	case KFD_QUEUE_TYPE_COMPUTE:
 		/* check if there is over subscription */
 		if ((sched_policy == KFD_SCHED_POLICY_HWS_NO_OVERSUBSCRIPTION) &&
-		((dev->dqm->processes_count >= VMID_PER_DEVICE) ||
+		((dev->dqm->processes_count >= dev->vm_info.vmid_num_kfd) ||
 		(dev->dqm->queue_count >= get_queues_num(dev->dqm)))) {
-			pr_err("kfd: over-subscription is not allowed in radeon_kfd.sched_policy == 1\n");
+			pr_err("Over-subscription is not allowed in radeon_kfd.sched_policy == 1\n");
 			retval = -EPERM;
 			goto err_create_queue;
 		}
 
-		retval = create_cp_queue(pqm, dev, &q, &q_properties, f, *qid);
+		retval = create_cp_queue(pqm, dev, &q, properties, f, *qid);
 		if (retval != 0)
 			goto err_create_queue;
 		pqn->q = q;
@@ -227,7 +213,7 @@ int pqm_create_queue(struct process_queue_manager *pqm,
 		break;
 	case KFD_QUEUE_TYPE_DIQ:
 		kq = kernel_queue_init(dev, KFD_QUEUE_TYPE_DIQ);
-		if (kq == NULL) {
+		if (!kq) {
 			retval = -ENOMEM;
 			goto err_create_queue;
 		}
@@ -238,23 +224,22 @@ int pqm_create_queue(struct process_queue_manager *pqm,
 							kq, &pdd->qpd);
 		break;
 	default:
-		BUG();
-		break;
+		WARN(1, "Invalid queue type %d", type);
+		retval = -EINVAL;
 	}
 
 	if (retval != 0) {
-		pr_debug("Error dqm create queue\n");
+		pr_err("DQM create queue failed\n");
 		goto err_create_queue;
 	}
 
-	pr_debug("kfd: PQM After DQM create queue\n");
+	pr_debug("PQM After DQM create queue\n");
 
 	list_add(&pqn->process_queue_list, &pqm->queues);
 
 	if (q) {
-		*properties = q->properties;
-		pr_debug("kfd: PQM done creating queue\n");
-		print_queue_properties(properties);
+		pr_debug("PQM done creating queue\n");
+		print_queue_properties(&q->properties);
 	}
 
 	return retval;
@@ -264,7 +249,8 @@ err_create_queue:
 err_allocate_pqn:
 	/* check if queues list is empty unregister process from device */
 	clear_bit(*qid, pqm->queue_slot_bitmap);
-	if (list_empty(&pqm->queues))
+	if (list_empty(&pdd->qpd.queues_list) &&
+	    list_empty(&pdd->qpd.priv_queue_list))
 		dev->dqm->ops.unregister_process(dev->dqm, &pdd->qpd);
 	return retval;
 }
@@ -279,14 +265,11 @@ int pqm_destroy_queue(struct process_queue_manager *pqm, unsigned int qid)
 
 	dqm = NULL;
 
-	BUG_ON(!pqm);
 	retval = 0;
 
-	pr_debug("kfd: In Func %s\n", __func__);
-
 	pqn = get_queue_by_qid(pqm, qid);
-	if (pqn == NULL) {
-		pr_err("kfd: queue id does not match any known queue\n");
+	if (!pqn) {
+		pr_err("Queue id does not match any known queue\n");
 		return -EINVAL;
 	}
 
@@ -295,7 +278,8 @@ int pqm_destroy_queue(struct process_queue_manager *pqm, unsigned int qid)
 		dev = pqn->kq->dev;
 	if (pqn->q)
 		dev = pqn->q->device;
-	BUG_ON(!dev);
+	if (WARN_ON(!dev))
+		return -ENODEV;
 
 	pdd = kfd_get_process_device_data(dev, pqm->process);
 	if (!pdd) {
@@ -313,9 +297,6 @@ int pqm_destroy_queue(struct process_queue_manager *pqm, unsigned int qid)
 	if (pqn->q) {
 		dqm = pqn->q->device->dqm;
 		retval = dqm->ops.destroy_queue(dqm, &pdd->qpd, pqn->q);
-		if (retval != 0)
-			return retval;
-
 		uninit_queue(pqn->q);
 	}
 
@@ -323,7 +304,8 @@ int pqm_destroy_queue(struct process_queue_manager *pqm, unsigned int qid)
 	kfree(pqn);
 	clear_bit(qid, pqm->queue_slot_bitmap);
 
-	if (list_empty(&pqm->queues))
+	if (list_empty(&pdd->qpd.queues_list) &&
+	    list_empty(&pdd->qpd.priv_queue_list))
 		dqm->ops.unregister_process(dqm, &pdd->qpd);
 
 	return retval;
@@ -335,12 +317,9 @@ int pqm_update_queue(struct process_queue_manager *pqm, unsigned int qid,
 	int retval;
 	struct process_queue_node *pqn;
 
-	BUG_ON(!pqm);
-
 	pqn = get_queue_by_qid(pqm, qid);
 	if (!pqn) {
-		pr_debug("amdkfd: No queue %d exists for update operation\n",
-				qid);
+		pr_debug("No queue %d exists for update operation\n", qid);
 		return -EFAULT;
 	}
 
@@ -362,8 +341,6 @@ struct kernel_queue *pqm_get_kernel_queue(
 					unsigned int qid)
 {
 	struct process_queue_node *pqn;
-
-	BUG_ON(!pqm);
 
 	pqn = get_queue_by_qid(pqm, qid);
 	if (pqn && pqn->kq)

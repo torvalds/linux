@@ -31,6 +31,8 @@
 #include <linux/hyperv.h>
 #include <linux/interrupt.h>
 
+#include "hv_trace.h"
+
 /*
  * Timeout for services such as KVP and fcopy.
  */
@@ -229,17 +231,6 @@ struct hv_context {
 	struct hv_per_cpu_context __percpu *cpu_context;
 
 	/*
-	 * Hypervisor's notion of virtual processor ID is different from
-	 * Linux' notion of CPU ID. This information can only be retrieved
-	 * in the context of the calling CPU. Setup a map for easy access
-	 * to this information:
-	 *
-	 * vp_index[a] is the Hyper-V's processor ID corresponding to
-	 * Linux cpuid 'a'.
-	 */
-	u32 vp_index[NR_CPUS];
-
-	/*
 	 * To manage allocations in a NUMA node.
 	 * Array indexed by numa node ID.
 	 */
@@ -384,6 +375,8 @@ struct hv_device *vmbus_device_create(const uuid_le *type,
 
 int vmbus_device_register(struct hv_device *child_device_obj);
 void vmbus_device_unregister(struct hv_device *device_obj);
+int vmbus_add_channel_kobj(struct hv_device *device_obj,
+			   struct vmbus_channel *channel);
 
 struct vmbus_channel *relid2channel(u32 relid);
 

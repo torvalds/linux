@@ -597,7 +597,7 @@ static void iwl_pcie_rx_allocator_get(struct iwl_trans *trans,
 	rxq->free_count += RX_CLAIM_REQ_ALLOC;
 }
 
-static void iwl_pcie_rx_allocator_work(struct work_struct *data)
+void iwl_pcie_rx_allocator_work(struct work_struct *data)
 {
 	struct iwl_rb_allocator *rba_p =
 		container_of(data, struct iwl_rb_allocator, rx_alloc);
@@ -900,10 +900,6 @@ static int _iwl_pcie_rx_init(struct iwl_trans *trans)
 			return err;
 	}
 	def_rxq = trans_pcie->rxq;
-	if (!rba->alloc_wq)
-		rba->alloc_wq = alloc_workqueue("rb_allocator",
-						WQ_HIGHPRI | WQ_UNBOUND, 1);
-	INIT_WORK(&rba->rx_alloc, iwl_pcie_rx_allocator_work);
 
 	spin_lock(&rba->lock);
 	atomic_set(&rba->req_pending, 0);
@@ -1017,10 +1013,6 @@ void iwl_pcie_rx_free(struct iwl_trans *trans)
 	}
 
 	cancel_work_sync(&rba->rx_alloc);
-	if (rba->alloc_wq) {
-		destroy_workqueue(rba->alloc_wq);
-		rba->alloc_wq = NULL;
-	}
 
 	iwl_pcie_free_rbs_pool(trans);
 
@@ -1176,7 +1168,7 @@ static void iwl_pcie_rx_handle_rb(struct iwl_trans *trans,
 
 		sequence = le16_to_cpu(pkt->hdr.sequence);
 		index = SEQ_TO_INDEX(sequence);
-		cmd_index = get_cmd_index(txq, index);
+		cmd_index = iwl_pcie_get_cmd_index(txq, index);
 
 		if (rxq->id == 0)
 			iwl_op_mode_rx(trans->op_mode, &rxq->napi,
@@ -1255,7 +1247,7 @@ restart:
 	spin_lock(&rxq->lock);
 	/* uCode's read index (stored in shared DRAM) indicates the last Rx
 	 * buffer that the driver may process (last buffer filled by ucode). */
-	r = le16_to_cpu(ACCESS_ONCE(rxq->rb_stts->closed_rb_num)) & 0x0FFF;
+	r = le16_to_cpu(READ_ONCE(rxq->rb_stts->closed_rb_num)) & 0x0FFF;
 	i = rxq->read;
 
 	/* W/A 9000 device step A0 wrap-around bug */

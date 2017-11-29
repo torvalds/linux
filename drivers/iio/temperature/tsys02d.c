@@ -120,7 +120,6 @@ static const struct iio_info tsys02d_info = {
 	.read_raw = tsys02d_read_raw,
 	.write_raw = tsys02d_write_raw,
 	.attrs = &tsys02d_attribute_group,
-	.driver_module = THIS_MODULE,
 };
 
 static int tsys02d_probe(struct i2c_client *client,

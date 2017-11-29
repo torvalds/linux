@@ -60,6 +60,14 @@ struct rsnd_dma_ctrl {
 #define rsnd_dma_to_dmaen(dma)	(&(dma)->dma.en)
 #define rsnd_dma_to_dmapp(dma)	(&(dma)->dma.pp)
 
+/* for DEBUG */
+static struct rsnd_mod_ops mem_ops = {
+	.name = "mem",
+};
+
+static struct rsnd_mod mem = {
+};
+
 /*
  *		Audio DMAC
  */
@@ -211,11 +219,9 @@ static int rsnd_dmaen_nolock_start(struct rsnd_mod *mod,
 						 dma->mod_from,
 						 dma->mod_to);
 	if (IS_ERR_OR_NULL(dmaen->chan)) {
-		int ret = PTR_ERR(dmaen->chan);
-
 		dmaen->chan = NULL;
 		dev_err(dev, "can't get dma channel\n");
-		return ret;
+		return -EIO;
 	}
 
 	return 0;
@@ -604,8 +610,8 @@ rsnd_gen2_dma_addr(struct rsnd_dai_stream *io,
 		dma_addr_t in_addr;
 	} dma_addrs[3][2][3] = {
 		/* SRC */
+		/* Capture */
 		{{{ 0,				0 },
-		  /* Capture */
 		  { RDMA_SRC_O_N(src, id),	RDMA_SRC_I_P(src, id) },
 		  { RDMA_CMD_O_N(src, id),	RDMA_SRC_I_P(src, id) } },
 		 /* Playback */
@@ -747,20 +753,22 @@ static void rsnd_dma_of_path(struct rsnd_mod *this,
 		rsnd_mod_name(this), rsnd_mod_id(this));
 	for (i = 0; i <= idx; i++) {
 		dev_dbg(dev, "  %s[%d]%s\n",
-		       rsnd_mod_name(mod[i]), rsnd_mod_id(mod[i]),
-		       (mod[i] == *mod_from) ? " from" :
-		       (mod[i] == *mod_to)   ? " to" : "");
+			rsnd_mod_name(mod[i] ? mod[i] : &mem),
+			rsnd_mod_id  (mod[i] ? mod[i] : &mem),
+			(mod[i] == *mod_from) ? " from" :
+			(mod[i] == *mod_to)   ? " to" : "");
 	}
 }
 
-int rsnd_dma_attach(struct rsnd_dai_stream *io, struct rsnd_mod *mod,
-		    struct rsnd_mod **dma_mod)
+static int rsnd_dma_alloc(struct rsnd_dai_stream *io, struct rsnd_mod *mod,
+			  struct rsnd_mod **dma_mod)
 {
 	struct rsnd_mod *mod_from = NULL;
 	struct rsnd_mod *mod_to = NULL;
 	struct rsnd_priv *priv = rsnd_io_to_priv(io);
 	struct rsnd_dma_ctrl *dmac = rsnd_priv_to_dmac(priv);
 	struct device *dev = rsnd_priv_to_dev(priv);
+	struct rsnd_dma *dma;
 	struct rsnd_mod_ops *ops;
 	enum rsnd_mod_type type;
 	int (*attach)(struct rsnd_dai_stream *io, struct rsnd_dma *dma,
@@ -800,40 +808,47 @@ int rsnd_dma_attach(struct rsnd_dai_stream *io, struct rsnd_mod *mod,
 		type	= RSND_MOD_AUDMA;
 	}
 
-	if (!(*dma_mod)) {
-		struct rsnd_dma *dma;
+	dma = devm_kzalloc(dev, sizeof(*dma), GFP_KERNEL);
+	if (!dma)
+		return -ENOMEM;
 
-		dma = devm_kzalloc(dev, sizeof(*dma), GFP_KERNEL);
-		if (!dma)
-			return -ENOMEM;
+	*dma_mod = rsnd_mod_get(dma);
 
-		*dma_mod = rsnd_mod_get(dma);
-
-		ret = rsnd_mod_init(priv, *dma_mod, ops, NULL,
-				    rsnd_mod_get_status, type, dma_id);
-		if (ret < 0)
-			return ret;
-
-		dev_dbg(dev, "%s[%d] %s[%d] -> %s[%d]\n",
-			rsnd_mod_name(*dma_mod), rsnd_mod_id(*dma_mod),
-			rsnd_mod_name(mod_from), rsnd_mod_id(mod_from),
-			rsnd_mod_name(mod_to),   rsnd_mod_id(mod_to));
-
-		ret = attach(io, dma, mod_from, mod_to);
-		if (ret < 0)
-			return ret;
-
-		dma->src_addr = rsnd_dma_addr(io, mod_from, is_play, 1);
-		dma->dst_addr = rsnd_dma_addr(io, mod_to,   is_play, 0);
-		dma->mod_from = mod_from;
-		dma->mod_to   = mod_to;
-	}
-
-	ret = rsnd_dai_connect(*dma_mod, io, type);
+	ret = rsnd_mod_init(priv, *dma_mod, ops, NULL,
+			    rsnd_mod_get_status, type, dma_id);
 	if (ret < 0)
 		return ret;
 
+	dev_dbg(dev, "%s[%d] %s[%d] -> %s[%d]\n",
+		rsnd_mod_name(*dma_mod), rsnd_mod_id(*dma_mod),
+		rsnd_mod_name(mod_from ? mod_from : &mem),
+		rsnd_mod_id  (mod_from ? mod_from : &mem),
+		rsnd_mod_name(mod_to   ? mod_to   : &mem),
+		rsnd_mod_id  (mod_to   ? mod_to   : &mem));
+
+	ret = attach(io, dma, mod_from, mod_to);
+	if (ret < 0)
+		return ret;
+
+	dma->src_addr = rsnd_dma_addr(io, mod_from, is_play, 1);
+	dma->dst_addr = rsnd_dma_addr(io, mod_to,   is_play, 0);
+	dma->mod_from = mod_from;
+	dma->mod_to   = mod_to;
+
 	return 0;
+}
+
+int rsnd_dma_attach(struct rsnd_dai_stream *io, struct rsnd_mod *mod,
+		    struct rsnd_mod **dma_mod)
+{
+	if (!(*dma_mod)) {
+		int ret = rsnd_dma_alloc(io, mod, dma_mod);
+
+		if (ret < 0)
+			return ret;
+	}
+
+	return rsnd_dai_connect(*dma_mod, io, (*dma_mod)->type);
 }
 
 int rsnd_dma_probe(struct rsnd_priv *priv)
@@ -866,5 +881,6 @@ int rsnd_dma_probe(struct rsnd_priv *priv)
 
 	priv->dma = dmac;
 
-	return 0;
+	/* dummy mem mod for debug */
+	return rsnd_mod_init(NULL, &mem, &mem_ops, NULL, NULL, 0, 0);
 }

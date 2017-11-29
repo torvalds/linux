@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *  Probe module for 8250/16550-type Exar chips PCI serial ports.
  *
  *  Based on drivers/tty/serial/8250/8250_pci.c,
  *
  *  Copyright (C) 2017 Sudip Mukherjee, All Rights Reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License.
  */
 #include <linux/acpi.h>
 #include <linux/dmi.h>
@@ -261,7 +258,7 @@ __xr17v35x_register_gpio(struct pci_dev *pcidev,
 }
 
 static const struct property_entry exar_gpio_properties[] = {
-	PROPERTY_ENTRY_U32("linux,first-pin", 0),
+	PROPERTY_ENTRY_U32("exar,first-pin", 0),
 	PROPERTY_ENTRY_U32("ngpios", 16),
 	{ }
 };
@@ -326,7 +323,7 @@ static int iot2040_rs485_config(struct uart_port *port,
 }
 
 static const struct property_entry iot2040_gpio_properties[] = {
-	PROPERTY_ENTRY_U32("linux,first-pin", 10),
+	PROPERTY_ENTRY_U32("exar,first-pin", 10),
 	PROPERTY_ENTRY_U32("ngpios", 1),
 	{ }
 };
@@ -601,7 +598,7 @@ static const struct exar8250_board pbn_exar_XR17V8358 = {
 		(kernel_ulong_t)&bd			\
 	}
 
-static struct pci_device_id exar_pci_tbl[] = {
+static const struct pci_device_id exar_pci_tbl[] = {
 	CONNECT_DEVICE(XR17C152, UART_2_232, pbn_connect),
 	CONNECT_DEVICE(XR17C154, UART_4_232, pbn_connect),
 	CONNECT_DEVICE(XR17C158, UART_8_232, pbn_connect),

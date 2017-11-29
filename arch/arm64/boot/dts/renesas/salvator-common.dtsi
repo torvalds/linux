@@ -45,14 +45,14 @@
 		stdout-path = "serial0:115200n8";
 	};
 
-	audio_clkout: audio_clkout {
+	audio_clkout: audio-clkout {
 		/*
 		 * This is same as <&rcar_sound 0>
 		 * but needed to avoid cs2000/rcar_sound probe dead-lock
 		 */
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
-		clock-frequency = <11289600>;
+		clock-frequency = <12288000>;
 	};
 
 	backlight: backlight {
@@ -62,6 +62,7 @@
 		brightness-levels = <256 128 64 16 8 4 0>;
 		default-brightness-level = <6>;
 
+		power-supply = <&reg_12v>;
 		enable-gpios = <&gpio6 7 GPIO_ACTIVE_HIGH>;
 	};
 
@@ -79,6 +80,15 @@
 		regulator-name = "fixed-3.3V";
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
+		regulator-boot-on;
+		regulator-always-on;
+	};
+
+	reg_12v: regulator2 {
+		compatible = "regulator-fixed";
+		regulator-name = "fixed-12V";
+		regulator-min-microvolt = <12000000>;
+		regulator-max-microvolt = <12000000>;
 		regulator-boot-on;
 		regulator-always-on;
 	};
@@ -268,14 +278,11 @@
 				remote-endpoint = <&adv7123_in>;
 			};
 		};
-		port@3 {
-			lvds_connector: endpoint {
-			};
-		};
 	};
 };
 
 &ehci0 {
+	dr_mode = "otg";
 	status = "okay";
 };
 
@@ -288,6 +295,7 @@
 };
 
 &hsusb {
+	dr_mode = "otg";
 	status = "okay";
 };
 
@@ -350,6 +358,7 @@
 };
 
 &ohci0 {
+	dr_mode = "otg";
 	status = "okay";
 };
 
@@ -375,8 +384,7 @@
 
 	avb_pins: avb {
 		mux {
-			groups = "avb_link", "avb_phy_int", "avb_mdc",
-				 "avb_mii";
+			groups = "avb_link", "avb_mdc", "avb_mii";
 			function = "avb";
 		};
 
@@ -490,6 +498,11 @@
 			bias-pull-down;
 		};
 	};
+
+	usb30_pins: usb30 {
+		groups = "usb30";
+		function = "usb30";
+	};
 };
 
 &pwm1 {
@@ -508,7 +521,7 @@
 
 	/* audio_clkout0/1/2/3 */
 	#clock-cells = <1>;
-	clock-frequency = <11289600 12288000>;
+	clock-frequency = <12288000 11289600>;
 
 	status = "okay";
 
@@ -625,5 +638,8 @@
 };
 
 &xhci0 {
+	pinctrl-0 = <&usb30_pins>;
+	pinctrl-names = "default";
+
 	status = "okay";
 };

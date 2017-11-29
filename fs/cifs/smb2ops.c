@@ -426,6 +426,215 @@ smb2_query_file_info(const unsigned int xid, struct cifs_tcon *tcon,
 	return rc;
 }
 
+#ifdef CONFIG_CIFS_XATTR
+static ssize_t
+move_smb2_ea_to_cifs(char *dst, size_t dst_size,
+		     struct smb2_file_full_ea_info *src, size_t src_size,
+		     const unsigned char *ea_name)
+{
+	int rc = 0;
+	unsigned int ea_name_len = ea_name ? strlen(ea_name) : 0;
+	char *name, *value;
+	size_t name_len, value_len, user_name_len;
+
+	while (src_size > 0) {
+		name = &src->ea_data[0];
+		name_len = (size_t)src->ea_name_length;
+		value = &src->ea_data[src->ea_name_length + 1];
+		value_len = (size_t)le16_to_cpu(src->ea_value_length);
+
+		if (name_len == 0) {
+			break;
+		}
+
+		if (src_size < 8 + name_len + 1 + value_len) {
+			cifs_dbg(FYI, "EA entry goes beyond length of list\n");
+			rc = -EIO;
+			goto out;
+		}
+
+		if (ea_name) {
+			if (ea_name_len == name_len &&
+			    memcmp(ea_name, name, name_len) == 0) {
+				rc = value_len;
+				if (dst_size == 0)
+					goto out;
+				if (dst_size < value_len) {
+					rc = -ERANGE;
+					goto out;
+				}
+				memcpy(dst, value, value_len);
+				goto out;
+			}
+		} else {
+			/* 'user.' plus a terminating null */
+			user_name_len = 5 + 1 + name_len;
+
+			rc += user_name_len;
+
+			if (dst_size >= user_name_len) {
+				dst_size -= user_name_len;
+				memcpy(dst, "user.", 5);
+				dst += 5;
+				memcpy(dst, src->ea_data, name_len);
+				dst += name_len;
+				*dst = 0;
+				++dst;
+			} else if (dst_size == 0) {
+				/* skip copy - calc size only */
+			} else {
+				/* stop before overrun buffer */
+				rc = -ERANGE;
+				break;
+			}
+		}
+
+		if (!src->next_entry_offset)
+			break;
+
+		if (src_size < le32_to_cpu(src->next_entry_offset)) {
+			/* stop before overrun buffer */
+			rc = -ERANGE;
+			break;
+		}
+		src_size -= le32_to_cpu(src->next_entry_offset);
+		src = (void *)((char *)src +
+			       le32_to_cpu(src->next_entry_offset));
+	}
+
+	/* didn't find the named attribute */
+	if (ea_name)
+		rc = -ENODATA;
+
+out:
+	return (ssize_t)rc;
+}
+
+static ssize_t
+smb2_query_eas(const unsigned int xid, struct cifs_tcon *tcon,
+	       const unsigned char *path, const unsigned char *ea_name,
+	       char *ea_data, size_t buf_size,
+	       struct cifs_sb_info *cifs_sb)
+{
+	int rc;
+	__le16 *utf16_path;
+	__u8 oplock = SMB2_OPLOCK_LEVEL_NONE;
+	struct cifs_open_parms oparms;
+	struct cifs_fid fid;
+	struct smb2_file_full_ea_info *smb2_data;
+	int ea_buf_size = SMB2_MIN_EA_BUF;
+
+	utf16_path = cifs_convert_path_to_utf16(path, cifs_sb);
+	if (!utf16_path)
+		return -ENOMEM;
+
+	oparms.tcon = tcon;
+	oparms.desired_access = FILE_READ_EA;
+	oparms.disposition = FILE_OPEN;
+	oparms.create_options = 0;
+	oparms.fid = &fid;
+	oparms.reconnect = false;
+
+	rc = SMB2_open(xid, &oparms, utf16_path, &oplock, NULL, NULL);
+	kfree(utf16_path);
+	if (rc) {
+		cifs_dbg(FYI, "open failed rc=%d\n", rc);
+		return rc;
+	}
+
+	while (1) {
+		smb2_data = kzalloc(ea_buf_size, GFP_KERNEL);
+		if (smb2_data == NULL) {
+			SMB2_close(xid, tcon, fid.persistent_fid,
+				   fid.volatile_fid);
+			return -ENOMEM;
+		}
+
+		rc = SMB2_query_eas(xid, tcon, fid.persistent_fid,
+				    fid.volatile_fid,
+				    ea_buf_size, smb2_data);
+
+		if (rc != -E2BIG)
+			break;
+
+		kfree(smb2_data);
+		ea_buf_size <<= 1;
+
+		if (ea_buf_size > SMB2_MAX_EA_BUF) {
+			cifs_dbg(VFS, "EA size is too large\n");
+			SMB2_close(xid, tcon, fid.persistent_fid,
+				   fid.volatile_fid);
+			return -ENOMEM;
+		}
+	}
+
+	SMB2_close(xid, tcon, fid.persistent_fid, fid.volatile_fid);
+
+	if (!rc)
+		rc = move_smb2_ea_to_cifs(ea_data, buf_size, smb2_data,
+					  SMB2_MAX_EA_BUF, ea_name);
+
+	kfree(smb2_data);
+	return rc;
+}
+
+
+static int
+smb2_set_ea(const unsigned int xid, struct cifs_tcon *tcon,
+	    const char *path, const char *ea_name, const void *ea_value,
+	    const __u16 ea_value_len, const struct nls_table *nls_codepage,
+	    struct cifs_sb_info *cifs_sb)
+{
+	int rc;
+	__le16 *utf16_path;
+	__u8 oplock = SMB2_OPLOCK_LEVEL_NONE;
+	struct cifs_open_parms oparms;
+	struct cifs_fid fid;
+	struct smb2_file_full_ea_info *ea;
+	int ea_name_len = strlen(ea_name);
+	int len;
+
+	if (ea_name_len > 255)
+		return -EINVAL;
+
+	utf16_path = cifs_convert_path_to_utf16(path, cifs_sb);
+	if (!utf16_path)
+		return -ENOMEM;
+
+	oparms.tcon = tcon;
+	oparms.desired_access = FILE_WRITE_EA;
+	oparms.disposition = FILE_OPEN;
+	oparms.create_options = 0;
+	oparms.fid = &fid;
+	oparms.reconnect = false;
+
+	rc = SMB2_open(xid, &oparms, utf16_path, &oplock, NULL, NULL);
+	kfree(utf16_path);
+	if (rc) {
+		cifs_dbg(FYI, "open failed rc=%d\n", rc);
+		return rc;
+	}
+
+	len = sizeof(ea) + ea_name_len + ea_value_len + 1;
+	ea = kzalloc(len, GFP_KERNEL);
+	if (ea == NULL) {
+		SMB2_close(xid, tcon, fid.persistent_fid, fid.volatile_fid);
+		return -ENOMEM;
+	}
+
+	ea->ea_name_length = ea_name_len;
+	ea->ea_value_length = cpu_to_le16(ea_value_len);
+	memcpy(ea->ea_data, ea_name, ea_name_len + 1);
+	memcpy(ea->ea_data + ea_name_len + 1, ea_value, ea_value_len);
+
+	rc = SMB2_set_ea(xid, tcon, fid.persistent_fid, fid.volatile_fid, ea,
+			 len);
+	SMB2_close(xid, tcon, fid.persistent_fid, fid.volatile_fid);
+
+	return rc;
+}
+#endif
+
 static bool
 smb2_can_echo(struct TCP_Server_Info *server)
 {
@@ -1878,22 +2087,6 @@ init_sg(struct smb_rqst *rqst, u8 *sign)
 	return sg;
 }
 
-struct cifs_crypt_result {
-	int err;
-	struct completion completion;
-};
-
-static void cifs_crypt_complete(struct crypto_async_request *req, int err)
-{
-	struct cifs_crypt_result *res = req->data;
-
-	if (err == -EINPROGRESS)
-		return;
-
-	res->err = err;
-	complete(&res->completion);
-}
-
 static int
 smb2_get_enc_key(struct TCP_Server_Info *server, __u64 ses_id, int enc, u8 *key)
 {
@@ -1934,11 +2127,9 @@ crypt_message(struct TCP_Server_Info *server, struct smb_rqst *rqst, int enc)
 	struct aead_request *req;
 	char *iv;
 	unsigned int iv_len;
-	struct cifs_crypt_result result = {0, };
+	DECLARE_CRYPTO_WAIT(wait);
 	struct crypto_aead *tfm;
 	unsigned int crypt_len = le32_to_cpu(tr_hdr->OriginalMessageSize);
-
-	init_completion(&result.completion);
 
 	rc = smb2_get_enc_key(server, tr_hdr->SessionId, enc, key);
 	if (rc) {
@@ -1999,14 +2190,10 @@ crypt_message(struct TCP_Server_Info *server, struct smb_rqst *rqst, int enc)
 	aead_request_set_ad(req, assoc_data_len);
 
 	aead_request_set_callback(req, CRYPTO_TFM_REQ_MAY_BACKLOG,
-				  cifs_crypt_complete, &result);
+				  crypto_req_done, &wait);
 
-	rc = enc ? crypto_aead_encrypt(req) : crypto_aead_decrypt(req);
-
-	if (rc == -EINPROGRESS || rc == -EBUSY) {
-		wait_for_completion(&result.completion);
-		rc = result.err;
-	}
+	rc = crypto_wait_req(enc ? crypto_aead_encrypt(req)
+				: crypto_aead_decrypt(req), &wait);
 
 	if (!rc && enc)
 		memcpy(&tr_hdr->Signature, sign, SMB2_SIGNATURE_SIZE);
@@ -2572,6 +2759,10 @@ struct smb_version_operations smb20_operations = {
 	.dir_needs_close = smb2_dir_needs_close,
 	.get_dfs_refer = smb2_get_dfs_refer,
 	.select_sectype = smb2_select_sectype,
+#ifdef CONFIG_CIFS_XATTR
+	.query_all_EAs = smb2_query_eas,
+	.set_EA = smb2_set_ea,
+#endif /* CIFS_XATTR */
 #ifdef CONFIG_CIFS_ACL
 	.get_acl = get_smb2_acl,
 	.get_acl_by_fid = get_smb2_acl_by_fid,
@@ -2662,6 +2853,10 @@ struct smb_version_operations smb21_operations = {
 	.enum_snapshots = smb3_enum_snapshots,
 	.get_dfs_refer = smb2_get_dfs_refer,
 	.select_sectype = smb2_select_sectype,
+#ifdef CONFIG_CIFS_XATTR
+	.query_all_EAs = smb2_query_eas,
+	.set_EA = smb2_set_ea,
+#endif /* CIFS_XATTR */
 #ifdef CONFIG_CIFS_ACL
 	.get_acl = get_smb2_acl,
 	.get_acl_by_fid = get_smb2_acl_by_fid,
@@ -2762,6 +2957,10 @@ struct smb_version_operations smb30_operations = {
 	.receive_transform = smb3_receive_transform,
 	.get_dfs_refer = smb2_get_dfs_refer,
 	.select_sectype = smb2_select_sectype,
+#ifdef CONFIG_CIFS_XATTR
+	.query_all_EAs = smb2_query_eas,
+	.set_EA = smb2_set_ea,
+#endif /* CIFS_XATTR */
 #ifdef CONFIG_CIFS_ACL
 	.get_acl = get_smb2_acl,
 	.get_acl_by_fid = get_smb2_acl_by_fid,
@@ -2863,6 +3062,10 @@ struct smb_version_operations smb311_operations = {
 	.receive_transform = smb3_receive_transform,
 	.get_dfs_refer = smb2_get_dfs_refer,
 	.select_sectype = smb2_select_sectype,
+#ifdef CONFIG_CIFS_XATTR
+	.query_all_EAs = smb2_query_eas,
+	.set_EA = smb2_set_ea,
+#endif /* CIFS_XATTR */
 };
 #endif /* CIFS_SMB311 */
 
@@ -2904,6 +3107,46 @@ struct smb_version_values smb21_values = {
 	.signing_enabled = SMB2_NEGOTIATE_SIGNING_ENABLED | SMB2_NEGOTIATE_SIGNING_REQUIRED,
 	.signing_required = SMB2_NEGOTIATE_SIGNING_REQUIRED,
 	.create_lease_size = sizeof(struct create_lease),
+};
+
+struct smb_version_values smb3any_values = {
+	.version_string = SMB3ANY_VERSION_STRING,
+	.protocol_id = SMB302_PROT_ID, /* doesn't matter, send protocol array */
+	.req_capabilities = SMB2_GLOBAL_CAP_DFS | SMB2_GLOBAL_CAP_LEASING | SMB2_GLOBAL_CAP_LARGE_MTU | SMB2_GLOBAL_CAP_PERSISTENT_HANDLES | SMB2_GLOBAL_CAP_ENCRYPTION,
+	.large_lock_type = 0,
+	.exclusive_lock_type = SMB2_LOCKFLAG_EXCLUSIVE_LOCK,
+	.shared_lock_type = SMB2_LOCKFLAG_SHARED_LOCK,
+	.unlock_lock_type = SMB2_LOCKFLAG_UNLOCK,
+	.header_size = sizeof(struct smb2_hdr),
+	.max_header_size = MAX_SMB2_HDR_SIZE,
+	.read_rsp_size = sizeof(struct smb2_read_rsp) - 1,
+	.lock_cmd = SMB2_LOCK,
+	.cap_unix = 0,
+	.cap_nt_find = SMB2_NT_FIND,
+	.cap_large_files = SMB2_LARGE_FILES,
+	.signing_enabled = SMB2_NEGOTIATE_SIGNING_ENABLED | SMB2_NEGOTIATE_SIGNING_REQUIRED,
+	.signing_required = SMB2_NEGOTIATE_SIGNING_REQUIRED,
+	.create_lease_size = sizeof(struct create_lease_v2),
+};
+
+struct smb_version_values smbdefault_values = {
+	.version_string = SMBDEFAULT_VERSION_STRING,
+	.protocol_id = SMB302_PROT_ID, /* doesn't matter, send protocol array */
+	.req_capabilities = SMB2_GLOBAL_CAP_DFS | SMB2_GLOBAL_CAP_LEASING | SMB2_GLOBAL_CAP_LARGE_MTU | SMB2_GLOBAL_CAP_PERSISTENT_HANDLES | SMB2_GLOBAL_CAP_ENCRYPTION,
+	.large_lock_type = 0,
+	.exclusive_lock_type = SMB2_LOCKFLAG_EXCLUSIVE_LOCK,
+	.shared_lock_type = SMB2_LOCKFLAG_SHARED_LOCK,
+	.unlock_lock_type = SMB2_LOCKFLAG_UNLOCK,
+	.header_size = sizeof(struct smb2_hdr),
+	.max_header_size = MAX_SMB2_HDR_SIZE,
+	.read_rsp_size = sizeof(struct smb2_read_rsp) - 1,
+	.lock_cmd = SMB2_LOCK,
+	.cap_unix = 0,
+	.cap_nt_find = SMB2_NT_FIND,
+	.cap_large_files = SMB2_LARGE_FILES,
+	.signing_enabled = SMB2_NEGOTIATE_SIGNING_ENABLED | SMB2_NEGOTIATE_SIGNING_REQUIRED,
+	.signing_required = SMB2_NEGOTIATE_SIGNING_REQUIRED,
+	.create_lease_size = sizeof(struct create_lease_v2),
 };
 
 struct smb_version_values smb30_values = {

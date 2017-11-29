@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * GPL HEADER START
  *
@@ -32,22 +33,22 @@
 
 #define DEBUG_SUBSYSTEM S_OSC
 
-#include "../../include/linux/libcfs/libcfs.h"
+#include <linux/libcfs/libcfs.h>
 
-#include "../include/lustre_dlm.h"
-#include "../include/lustre_net.h"
-#include "../include/lustre/lustre_user.h"
-#include "../include/obd_cksum.h"
+#include <lustre_dlm.h>
+#include <lustre_net.h>
+#include <uapi/linux/lustre/lustre_idl.h>
+#include <obd_cksum.h>
 
-#include "../include/lustre_ha.h"
-#include "../include/lprocfs_status.h"
-#include "../include/lustre/lustre_ioctl.h"
-#include "../include/lustre_debug.h"
-#include "../include/lustre_obdo.h"
-#include "../include/lustre_param.h"
-#include "../include/lustre_fid.h"
-#include "../include/obd_class.h"
-#include "../include/obd.h"
+#include <lustre_ha.h>
+#include <lprocfs_status.h>
+#include <uapi/linux/lustre/lustre_ioctl.h>
+#include <lustre_debug.h>
+#include <lustre_obdo.h>
+#include <uapi/linux/lustre/lustre_param.h>
+#include <lustre_fid.h>
+#include <obd_class.h>
+#include <obd.h>
 #include "osc_internal.h"
 #include "osc_cl_internal.h"
 

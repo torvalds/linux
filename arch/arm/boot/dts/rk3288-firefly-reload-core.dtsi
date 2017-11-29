@@ -47,7 +47,7 @@
 / {
 	memory@0 {
 		device_type = "memory";
-		reg = <0 0x80000000>;
+		reg = <0x0 0x0 0x0 0x80000000>;
 	};
 
 	ext_gmac: external-gmac-clock {
@@ -78,7 +78,6 @@
 	mmc-ddr-1_8v;
 	mmc-hs200-1_8v;
 	non-removable;
-	num-slots = <1>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&emmc_clk>, <&emmc_cmd>, <&emmc_pwr>, <&emmc_bus8>;
 	vmmc-supply = <&vcc_io>;
@@ -185,6 +184,7 @@
 				regulator-name = "vdd10_lcd";
 				regulator-min-microvolt = <1000000>;
 				regulator-max-microvolt = <1000000>;
+				regulator-always-on;
 			};
 
 			vcca_18: REG7  {
@@ -224,6 +224,7 @@
 				regulator-name = "vcc18_lcd";
 				regulator-min-microvolt = <1800000>;
 				regulator-max-microvolt = <1800000>;
+				regulator-always-on;
 			};
 		};
 	};

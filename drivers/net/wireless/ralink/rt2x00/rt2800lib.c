@@ -3702,7 +3702,10 @@ static void rt2800_config_channel(struct rt2x00_dev *rt2x00dev,
 	if (rt2x00_rt(rt2x00dev, RT3572))
 		rt2800_rfcsr_write(rt2x00dev, 8, 0);
 
-	tx_pin = rt2800_register_read(rt2x00dev, TX_PIN_CFG);
+	if (rt2x00_rt(rt2x00dev, RT6352))
+		tx_pin = rt2800_register_read(rt2x00dev, TX_PIN_CFG);
+	else
+		tx_pin = 0;
 
 	switch (rt2x00dev->default_ant.tx_chain_num) {
 	case 3:

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * GPL HEADER START
  *
@@ -37,9 +38,9 @@
 
 #define DEBUG_SUBSYSTEM S_LDLM
 
-#include "../../include/linux/libcfs/libcfs.h"
-#include "../include/lustre_dlm.h"
-#include "../include/obd_class.h"
+#include <linux/libcfs/libcfs.h>
+#include <lustre_dlm.h>
+#include <obd_class.h>
 #include <linux/list.h>
 #include "ldlm_internal.h"
 
@@ -184,7 +185,8 @@ static void ldlm_handle_cp_callback(struct ptlrpc_request *req,
 			LASSERT(lock->l_lvb_data);
 
 			if (unlikely(lock->l_lvb_len < lvb_len)) {
-				LDLM_ERROR(lock, "Replied LVB is larger than expectation, expected = %d, replied = %d",
+				LDLM_ERROR(lock,
+					   "Replied LVB is larger than expectation, expected = %d, replied = %d",
 					   lock->l_lvb_len, lvb_len);
 				rc = -EINVAL;
 				goto out;
@@ -598,7 +600,8 @@ static int ldlm_callback_handler(struct ptlrpc_request *req)
 
 	lock = ldlm_handle2lock_long(&dlm_req->lock_handle[0], 0);
 	if (!lock) {
-		CDEBUG(D_DLMTRACE, "callback on lock %#llx - lock disappeared\n",
+		CDEBUG(D_DLMTRACE,
+		       "callback on lock %#llx - lock disappeared\n",
 		       dlm_req->lock_handle[0].cookie);
 		rc = ldlm_callback_reply(req, -EINVAL);
 		ldlm_callback_errmsg(req, "Operate with invalid parameter", rc,
@@ -926,7 +929,7 @@ static struct attribute *ldlm_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group ldlm_attr_group = {
+static const struct attribute_group ldlm_attr_group = {
 	.attrs = ldlm_attrs,
 };
 
@@ -1138,7 +1141,7 @@ int ldlm_init(void)
 void ldlm_exit(void)
 {
 	if (ldlm_refcount)
-		CERROR("ldlm_refcount is %d in ldlm_exit!\n", ldlm_refcount);
+		CERROR("ldlm_refcount is %d in %s!\n", ldlm_refcount, __func__);
 	kmem_cache_destroy(ldlm_resource_slab);
 	/* ldlm_lock_put() use RCU to call ldlm_lock_free, so need call
 	 * synchronize_rcu() to wait a grace period elapsed, so that

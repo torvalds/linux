@@ -53,6 +53,9 @@ EXPORT_SYMBOL_GPL(clk_disable);
 
 unsigned long clk_get_rate(struct clk *clk)
 {
+	if (!clk)
+		return 0;
+
 	return clk->rate;
 }
 EXPORT_SYMBOL_GPL(clk_get_rate);

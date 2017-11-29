@@ -27,6 +27,7 @@
 
 #include <linux/acpi.h>
 #include <linux/dmi.h>
+#include <linux/firmware.h>
 #include <acpi/video.h>
 
 #include <drm/drmP.h>
@@ -829,6 +830,10 @@ void intel_opregion_unregister(struct drm_i915_private *dev_priv)
 		memunmap(opregion->rvda);
 		opregion->rvda = NULL;
 	}
+	if (opregion->vbt_firmware) {
+		kfree(opregion->vbt_firmware);
+		opregion->vbt_firmware = NULL;
+	}
 	opregion->header = NULL;
 	opregion->acpi = NULL;
 	opregion->swsci = NULL;
@@ -912,6 +917,43 @@ static const struct dmi_system_id intel_no_opregion_vbt[] = {
 	{ }
 };
 
+static int intel_load_vbt_firmware(struct drm_i915_private *dev_priv)
+{
+	struct intel_opregion *opregion = &dev_priv->opregion;
+	const struct firmware *fw = NULL;
+	const char *name = i915_modparams.vbt_firmware;
+	int ret;
+
+	if (!name || !*name)
+		return -ENOENT;
+
+	ret = request_firmware(&fw, name, &dev_priv->drm.pdev->dev);
+	if (ret) {
+		DRM_ERROR("Requesting VBT firmware \"%s\" failed (%d)\n",
+			  name, ret);
+		return ret;
+	}
+
+	if (intel_bios_is_valid_vbt(fw->data, fw->size)) {
+		opregion->vbt_firmware = kmemdup(fw->data, fw->size, GFP_KERNEL);
+		if (opregion->vbt_firmware) {
+			DRM_DEBUG_KMS("Found valid VBT firmware \"%s\"\n", name);
+			opregion->vbt = opregion->vbt_firmware;
+			opregion->vbt_size = fw->size;
+			ret = 0;
+		} else {
+			ret = -ENOMEM;
+		}
+	} else {
+		DRM_DEBUG_KMS("Invalid VBT firmware \"%s\"\n", name);
+		ret = -EINVAL;
+	}
+
+	release_firmware(fw);
+
+	return ret;
+}
+
 int intel_opregion_setup(struct drm_i915_private *dev_priv)
 {
 	struct intel_opregion *opregion = &dev_priv->opregion;
@@ -973,6 +1015,9 @@ int intel_opregion_setup(struct drm_i915_private *dev_priv)
 
 	if (mboxes & MBOX_ASLE_EXT)
 		DRM_DEBUG_DRIVER("ASLE extension supported\n");
+
+	if (intel_load_vbt_firmware(dev_priv) == 0)
+		goto out;
 
 	if (dmi_check_system(intel_no_opregion_vbt))
 		goto out;

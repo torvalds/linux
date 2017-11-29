@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * GPL HEADER START
  *
@@ -37,16 +38,16 @@
  */
 
 #define DEBUG_SUBSYSTEM S_LLITE
-#include "../include/lustre_dlm.h"
+#include <lustre_dlm.h>
 #include <linux/pagemap.h>
 #include <linux/file.h>
 #include <linux/sched.h>
 #include <linux/mount.h>
-#include "../include/lustre/ll_fiemap.h"
-#include "../include/lustre/lustre_ioctl.h"
-#include "../include/lustre_swab.h"
+#include <uapi/linux/lustre/lustre_fiemap.h>
+#include <uapi/linux/lustre/lustre_ioctl.h>
+#include <lustre_swab.h>
 
-#include "../include/cl_object.h"
+#include <cl_object.h>
 #include "llite_internal.h"
 
 static int
@@ -386,8 +387,8 @@ static int ll_intent_file_open(struct dentry *de, void *lmm, int lmmsize,
 	ll_finish_md_op_data(op_data);
 	if (rc == -ESTALE) {
 		/* reason for keep own exit path - don`t flood log
-		* with messages with -ESTALE errors.
-		*/
+		 * with messages with -ESTALE errors.
+		 */
 		if (!it_disposition(itp, DISP_OPEN_OPEN) ||
 		    it_open_error(DISP_OPEN_OPEN, itp))
 			goto out;
@@ -605,7 +606,8 @@ restart:
 			 * to get file with different fid.
 			 */
 			it->it_flags |= MDS_OPEN_LOCK | MDS_OPEN_BY_FID;
-			rc = ll_intent_file_open(file->f_path.dentry, NULL, 0, it);
+			rc = ll_intent_file_open(file->f_path.dentry,
+						 NULL, 0, it);
 			if (rc)
 				goto out_openerr;
 
@@ -1119,7 +1121,8 @@ out:
 	cl_io_fini(env, io);
 
 	if ((!rc || rc == -ENODATA) && count > 0 && io->ci_need_restart) {
-		CDEBUG(D_VFSTRACE, "%s: restart %s from %lld, count:%zu, result: %zd\n",
+		CDEBUG(D_VFSTRACE,
+		       "%s: restart %s from %lld, count:%zu, result: %zd\n",
 		       file_dentry(file)->d_name.name,
 		       iot == CIT_READ ? "read" : "write",
 		       *ppos, count, result);
@@ -2364,7 +2367,7 @@ int ll_fsync(struct file *file, loff_t start, loff_t end, int datasync)
 	       PFID(ll_inode2fid(inode)), inode);
 	ll_stats_ops_tally(ll_i2sbi(inode), LPROC_LL_FSYNC, 1);
 
-	rc = filemap_write_and_wait_range(inode->i_mapping, start, end);
+	rc = file_write_and_wait_range(file, start, end);
 	inode_lock(inode);
 
 	/* catch async errors that were recorded back when async writeback
@@ -3035,9 +3038,6 @@ struct posix_acl *ll_get_acl(struct inode *inode, int type)
 	spin_lock(&lli->lli_lock);
 	/* VFS' acl_permission_check->check_acl will release the refcount */
 	acl = posix_acl_dup(lli->lli_posix_acl);
-#ifdef CONFIG_FS_POSIX_ACL
-	forget_cached_acl(inode, type);
-#endif
 	spin_unlock(&lli->lli_lock);
 
 	return acl;
@@ -3458,7 +3458,8 @@ out:
 		if (rc == 0)
 			rc = -EAGAIN;
 
-		CDEBUG(D_INODE, "%s: file=" DFID " waiting layout return: %d.\n",
+		CDEBUG(D_INODE,
+		       "%s: file=" DFID " waiting layout return: %d.\n",
 		       ll_get_fsname(inode->i_sb, NULL, 0),
 		       PFID(&lli->lli_fid), rc);
 	}

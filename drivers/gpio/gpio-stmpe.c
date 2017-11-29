@@ -299,7 +299,7 @@ static void stmpe_dbg_show_one(struct seq_file *s,
 			if (ret < 0)
 				return;
 			edge_det = !!(ret & mask);
-
+			/* fall through */
 		case STMPE1801:
 			rise_reg = stmpe->regs[STMPE_IDX_GPRER_LSB + bank];
 			fall_reg = stmpe->regs[STMPE_IDX_GPFER_LSB + bank];
@@ -312,7 +312,7 @@ static void stmpe_dbg_show_one(struct seq_file *s,
 			if (ret < 0)
 				return;
 			fall = !!(ret & mask);
-
+			/* fall through */
 		case STMPE801:
 		case STMPE1600:
 			irqen_reg = stmpe->regs[STMPE_IDX_IEGPIOR_LSB + bank];
@@ -397,7 +397,7 @@ static irqreturn_t stmpe_gpio_irq(int irq, void *dev)
 		while (stat) {
 			int bit = __ffs(stat);
 			int line = bank * 8 + bit;
-			int child_irq = irq_find_mapping(stmpe_gpio->chip.irqdomain,
+			int child_irq = irq_find_mapping(stmpe_gpio->chip.irq.domain,
 							 line);
 
 			handle_nested_irq(child_irq);
@@ -451,7 +451,7 @@ static int stmpe_gpio_probe(struct platform_device *pdev)
 	of_property_read_u32(np, "st,norequest-mask",
 			&stmpe_gpio->norequest_mask);
 	if (stmpe_gpio->norequest_mask)
-		stmpe_gpio->chip.irq_need_valid_mask = true;
+		stmpe_gpio->chip.irq.need_valid_mask = true;
 
 	if (irq < 0)
 		dev_info(&pdev->dev,
@@ -482,7 +482,7 @@ static int stmpe_gpio_probe(struct platform_device *pdev)
 			/* Forbid unused lines to be mapped as IRQs */
 			for (i = 0; i < sizeof(u32); i++)
 				if (stmpe_gpio->norequest_mask & BIT(i))
-					clear_bit(i, stmpe_gpio->chip.irq_valid_mask);
+					clear_bit(i, stmpe_gpio->chip.irq.valid_mask);
 		}
 		ret =  gpiochip_irqchip_add_nested(&stmpe_gpio->chip,
 						   &stmpe_gpio_irq_chip,

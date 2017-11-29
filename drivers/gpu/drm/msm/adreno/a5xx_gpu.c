@@ -15,7 +15,7 @@
 #include <linux/cpumask.h>
 #include <linux/qcom_scm.h>
 #include <linux/dma-mapping.h>
-#include <linux/of_reserved_mem.h>
+#include <linux/of_address.h>
 #include <linux/soc/qcom/mdt_loader.h>
 #include "msm_gem.h"
 #include "msm_mmu.h"
@@ -26,21 +26,40 @@ static void a5xx_dump(struct msm_gpu *gpu);
 
 #define GPU_PAS_ID 13
 
-#if IS_ENABLED(CONFIG_QCOM_MDT_LOADER)
-
-static int zap_shader_load_mdt(struct device *dev, const char *fwname)
+static int zap_shader_load_mdt(struct msm_gpu *gpu, const char *fwname)
 {
+	struct device *dev = &gpu->pdev->dev;
 	const struct firmware *fw;
+	struct device_node *np;
+	struct resource r;
 	phys_addr_t mem_phys;
 	ssize_t mem_size;
 	void *mem_region = NULL;
 	int ret;
 
-	/* Request the MDT file for the firmware */
-	ret = request_firmware(&fw, fwname, dev);
-	if (ret) {
-		DRM_DEV_ERROR(dev, "Unable to load %s\n", fwname);
+	if (!IS_ENABLED(CONFIG_ARCH_QCOM))
+		return -EINVAL;
+
+	np = of_get_child_by_name(dev->of_node, "zap-shader");
+	if (!np)
+		return -ENODEV;
+
+	np = of_parse_phandle(np, "memory-region", 0);
+	if (!np)
+		return -EINVAL;
+
+	ret = of_address_to_resource(np, 0, &r);
+	if (ret)
 		return ret;
+
+	mem_phys = r.start;
+	mem_size = resource_size(&r);
+
+	/* Request the MDT file for the firmware */
+	fw = adreno_request_fw(to_adreno_gpu(gpu), fwname);
+	if (IS_ERR(fw)) {
+		DRM_DEV_ERROR(dev, "Unable to load %s\n", fwname);
+		return PTR_ERR(fw);
 	}
 
 	/* Figure out how much memory we need */
@@ -51,15 +70,32 @@ static int zap_shader_load_mdt(struct device *dev, const char *fwname)
 	}
 
 	/* Allocate memory for the firmware image */
-	mem_region = dmam_alloc_coherent(dev, mem_size, &mem_phys, GFP_KERNEL);
+	mem_region = memremap(mem_phys, mem_size,  MEMREMAP_WC);
 	if (!mem_region) {
 		ret = -ENOMEM;
 		goto out;
 	}
 
-	/* Load the rest of the MDT */
-	ret = qcom_mdt_load(dev, fw, fwname, GPU_PAS_ID, mem_region, mem_phys,
-		mem_size);
+	/*
+	 * Load the rest of the MDT
+	 *
+	 * Note that we could be dealing with two different paths, since
+	 * with upstream linux-firmware it would be in a qcom/ subdir..
+	 * adreno_request_fw() handles this, but qcom_mdt_load() does
+	 * not.  But since we've already gotten thru adreno_request_fw()
+	 * we know which of the two cases it is:
+	 */
+	if (to_adreno_gpu(gpu)->fwloc == FW_LOCATION_LEGACY) {
+		ret = qcom_mdt_load(dev, fw, fwname, GPU_PAS_ID,
+				mem_region, mem_phys, mem_size);
+	} else {
+		char newname[strlen("qcom/") + strlen(fwname) + 1];
+
+		sprintf(newname, "qcom/%s", fwname);
+
+		ret = qcom_mdt_load(dev, fw, newname, GPU_PAS_ID,
+				mem_region, mem_phys, mem_size);
+	}
 	if (ret)
 		goto out;
 
@@ -69,25 +105,73 @@ static int zap_shader_load_mdt(struct device *dev, const char *fwname)
 		DRM_DEV_ERROR(dev, "Unable to authorize the image\n");
 
 out:
+	if (mem_region)
+		memunmap(mem_region);
+
 	release_firmware(fw);
 
 	return ret;
 }
-#else
-static int zap_shader_load_mdt(struct device *dev, const char *fwname)
+
+static void a5xx_flush(struct msm_gpu *gpu, struct msm_ringbuffer *ring)
 {
-	return -ENODEV;
+	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
+	struct a5xx_gpu *a5xx_gpu = to_a5xx_gpu(adreno_gpu);
+	uint32_t wptr;
+	unsigned long flags;
+
+	spin_lock_irqsave(&ring->lock, flags);
+
+	/* Copy the shadow to the actual register */
+	ring->cur = ring->next;
+
+	/* Make sure to wrap wptr if we need to */
+	wptr = get_wptr(ring);
+
+	spin_unlock_irqrestore(&ring->lock, flags);
+
+	/* Make sure everything is posted before making a decision */
+	mb();
+
+	/* Update HW if this is the current ring and we are not in preempt */
+	if (a5xx_gpu->cur_ring == ring && !a5xx_in_preempt(a5xx_gpu))
+		gpu_write(gpu, REG_A5XX_CP_RB_WPTR, wptr);
 }
-#endif
 
 static void a5xx_submit(struct msm_gpu *gpu, struct msm_gem_submit *submit,
 	struct msm_file_private *ctx)
 {
 	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
+	struct a5xx_gpu *a5xx_gpu = to_a5xx_gpu(adreno_gpu);
 	struct msm_drm_private *priv = gpu->dev->dev_private;
-	struct msm_ringbuffer *ring = gpu->rb;
+	struct msm_ringbuffer *ring = submit->ring;
 	unsigned int i, ibs = 0;
 
+	OUT_PKT7(ring, CP_PREEMPT_ENABLE_GLOBAL, 1);
+	OUT_RING(ring, 0x02);
+
+	/* Turn off protected mode to write to special registers */
+	OUT_PKT7(ring, CP_SET_PROTECTED_MODE, 1);
+	OUT_RING(ring, 0);
+
+	/* Set the save preemption record for the ring/command */
+	OUT_PKT4(ring, REG_A5XX_CP_CONTEXT_SWITCH_SAVE_ADDR_LO, 2);
+	OUT_RING(ring, lower_32_bits(a5xx_gpu->preempt_iova[submit->ring->id]));
+	OUT_RING(ring, upper_32_bits(a5xx_gpu->preempt_iova[submit->ring->id]));
+
+	/* Turn back on protected mode */
+	OUT_PKT7(ring, CP_SET_PROTECTED_MODE, 1);
+	OUT_RING(ring, 1);
+
+	/* Enable local preemption for finegrain preemption */
+	OUT_PKT7(ring, CP_PREEMPT_ENABLE_GLOBAL, 1);
+	OUT_RING(ring, 0x02);
+
+	/* Allow CP_CONTEXT_SWITCH_YIELD packets in the IB2 */
+	OUT_PKT7(ring, CP_YIELD_ENABLE, 1);
+	OUT_RING(ring, 0x02);
+
+	/* Submit the commands */
 	for (i = 0; i < submit->nr_cmds; i++) {
 		switch (submit->cmd[i].type) {
 		case MSM_SUBMIT_CMD_IB_TARGET_BUF:
@@ -105,24 +189,60 @@ static void a5xx_submit(struct msm_gpu *gpu, struct msm_gem_submit *submit,
 		}
 	}
 
-	OUT_PKT4(ring, REG_A5XX_CP_SCRATCH_REG(2), 1);
-	OUT_RING(ring, submit->fence->seqno);
+	/*
+	 * Write the render mode to NULL (0) to indicate to the CP that the IBs
+	 * are done rendering - otherwise a lucky preemption would start
+	 * replaying from the last checkpoint
+	 */
+	OUT_PKT7(ring, CP_SET_RENDER_MODE, 5);
+	OUT_RING(ring, 0);
+	OUT_RING(ring, 0);
+	OUT_RING(ring, 0);
+	OUT_RING(ring, 0);
+	OUT_RING(ring, 0);
 
+	/* Turn off IB level preemptions */
+	OUT_PKT7(ring, CP_YIELD_ENABLE, 1);
+	OUT_RING(ring, 0x01);
+
+	/* Write the fence to the scratch register */
+	OUT_PKT4(ring, REG_A5XX_CP_SCRATCH_REG(2), 1);
+	OUT_RING(ring, submit->seqno);
+
+	/*
+	 * Execute a CACHE_FLUSH_TS event. This will ensure that the
+	 * timestamp is written to the memory and then triggers the interrupt
+	 */
 	OUT_PKT7(ring, CP_EVENT_WRITE, 4);
 	OUT_RING(ring, CACHE_FLUSH_TS | (1 << 31));
-	OUT_RING(ring, lower_32_bits(rbmemptr(adreno_gpu, fence)));
-	OUT_RING(ring, upper_32_bits(rbmemptr(adreno_gpu, fence)));
-	OUT_RING(ring, submit->fence->seqno);
+	OUT_RING(ring, lower_32_bits(rbmemptr(ring, fence)));
+	OUT_RING(ring, upper_32_bits(rbmemptr(ring, fence)));
+	OUT_RING(ring, submit->seqno);
 
-	gpu->funcs->flush(gpu);
+	/* Yield the floor on command completion */
+	OUT_PKT7(ring, CP_CONTEXT_SWITCH_YIELD, 4);
+	/*
+	 * If dword[2:1] are non zero, they specify an address for the CP to
+	 * write the value of dword[3] to on preemption complete. Write 0 to
+	 * skip the write
+	 */
+	OUT_RING(ring, 0x00);
+	OUT_RING(ring, 0x00);
+	/* Data value - not used if the address above is 0 */
+	OUT_RING(ring, 0x01);
+	/* Set bit 0 to trigger an interrupt on preempt complete */
+	OUT_RING(ring, 0x01);
+
+	a5xx_flush(gpu, ring);
+
+	/* Check to see if we need to start preemption */
+	a5xx_preempt_trigger(gpu);
 }
 
-struct a5xx_hwcg {
+static const struct {
 	u32 offset;
 	u32 value;
-};
-
-static const struct a5xx_hwcg a530_hwcg[] = {
+} a5xx_hwcg[] = {
 	{REG_A5XX_RBBM_CLOCK_CNTL_SP0, 0x02222222},
 	{REG_A5XX_RBBM_CLOCK_CNTL_SP1, 0x02222222},
 	{REG_A5XX_RBBM_CLOCK_CNTL_SP2, 0x02222222},
@@ -217,44 +337,22 @@ static const struct a5xx_hwcg a530_hwcg[] = {
 	{REG_A5XX_RBBM_CLOCK_DELAY_VFD, 0x00002222}
 };
 
-static const struct {
-	int (*test)(struct adreno_gpu *gpu);
-	const struct a5xx_hwcg *regs;
-	unsigned int count;
-} a5xx_hwcg_regs[] = {
-	{ adreno_is_a530, a530_hwcg, ARRAY_SIZE(a530_hwcg), },
-};
-
-static void _a5xx_enable_hwcg(struct msm_gpu *gpu,
-		const struct a5xx_hwcg *regs, unsigned int count)
+void a5xx_set_hwcg(struct msm_gpu *gpu, bool state)
 {
 	unsigned int i;
 
-	for (i = 0; i < count; i++)
-		gpu_write(gpu, regs[i].offset, regs[i].value);
+	for (i = 0; i < ARRAY_SIZE(a5xx_hwcg); i++)
+		gpu_write(gpu, a5xx_hwcg[i].offset,
+			state ? a5xx_hwcg[i].value : 0);
 
-	gpu_write(gpu, REG_A5XX_RBBM_CLOCK_CNTL, 0xAAA8AA00);
-	gpu_write(gpu, REG_A5XX_RBBM_ISDB_CNT, 0x182);
-}
-
-static void a5xx_enable_hwcg(struct msm_gpu *gpu)
-{
-	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
-	unsigned int i;
-
-	for (i = 0; i < ARRAY_SIZE(a5xx_hwcg_regs); i++) {
-		if (a5xx_hwcg_regs[i].test(adreno_gpu)) {
-			_a5xx_enable_hwcg(gpu, a5xx_hwcg_regs[i].regs,
-				a5xx_hwcg_regs[i].count);
-			return;
-		}
-	}
+	gpu_write(gpu, REG_A5XX_RBBM_CLOCK_CNTL, state ? 0xAAA8AA00 : 0);
+	gpu_write(gpu, REG_A5XX_RBBM_ISDB_CNT, state ? 0x182 : 0x180);
 }
 
 static int a5xx_me_init(struct msm_gpu *gpu)
 {
 	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
-	struct msm_ringbuffer *ring = gpu->rb;
+	struct msm_ringbuffer *ring = gpu->rb[0];
 
 	OUT_PKT7(ring, CP_ME_INIT, 8);
 
@@ -285,36 +383,65 @@ static int a5xx_me_init(struct msm_gpu *gpu)
 	OUT_RING(ring, 0x00000000);
 	OUT_RING(ring, 0x00000000);
 
-	gpu->funcs->flush(gpu);
-
-	return a5xx_idle(gpu) ? 0 : -EINVAL;
+	gpu->funcs->flush(gpu, ring);
+	return a5xx_idle(gpu, ring) ? 0 : -EINVAL;
 }
+
+static int a5xx_preempt_start(struct msm_gpu *gpu)
+{
+	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
+	struct a5xx_gpu *a5xx_gpu = to_a5xx_gpu(adreno_gpu);
+	struct msm_ringbuffer *ring = gpu->rb[0];
+
+	if (gpu->nr_rings == 1)
+		return 0;
+
+	/* Turn off protected mode to write to special registers */
+	OUT_PKT7(ring, CP_SET_PROTECTED_MODE, 1);
+	OUT_RING(ring, 0);
+
+	/* Set the save preemption record for the ring/command */
+	OUT_PKT4(ring, REG_A5XX_CP_CONTEXT_SWITCH_SAVE_ADDR_LO, 2);
+	OUT_RING(ring, lower_32_bits(a5xx_gpu->preempt_iova[ring->id]));
+	OUT_RING(ring, upper_32_bits(a5xx_gpu->preempt_iova[ring->id]));
+
+	/* Turn back on protected mode */
+	OUT_PKT7(ring, CP_SET_PROTECTED_MODE, 1);
+	OUT_RING(ring, 1);
+
+	OUT_PKT7(ring, CP_PREEMPT_ENABLE_GLOBAL, 1);
+	OUT_RING(ring, 0x00);
+
+	OUT_PKT7(ring, CP_PREEMPT_ENABLE_LOCAL, 1);
+	OUT_RING(ring, 0x01);
+
+	OUT_PKT7(ring, CP_YIELD_ENABLE, 1);
+	OUT_RING(ring, 0x01);
+
+	/* Yield the floor on command completion */
+	OUT_PKT7(ring, CP_CONTEXT_SWITCH_YIELD, 4);
+	OUT_RING(ring, 0x00);
+	OUT_RING(ring, 0x00);
+	OUT_RING(ring, 0x01);
+	OUT_RING(ring, 0x01);
+
+	gpu->funcs->flush(gpu, ring);
+
+	return a5xx_idle(gpu, ring) ? 0 : -EINVAL;
+}
+
 
 static struct drm_gem_object *a5xx_ucode_load_bo(struct msm_gpu *gpu,
 		const struct firmware *fw, u64 *iova)
 {
-	struct drm_device *drm = gpu->dev;
 	struct drm_gem_object *bo;
 	void *ptr;
 
-	bo = msm_gem_new_locked(drm, fw->size - 4, MSM_BO_UNCACHED);
-	if (IS_ERR(bo))
-		return bo;
+	ptr = msm_gem_kernel_new_locked(gpu->dev, fw->size - 4,
+		MSM_BO_UNCACHED | MSM_BO_GPU_READONLY, gpu->aspace, &bo, iova);
 
-	ptr = msm_gem_get_vaddr(bo);
-	if (!ptr) {
-		drm_gem_object_unreference(bo);
-		return ERR_PTR(-ENOMEM);
-	}
-
-	if (iova) {
-		int ret = msm_gem_get_iova(bo, gpu->aspace, iova);
-
-		if (ret) {
-			drm_gem_object_unreference(bo);
-			return ERR_PTR(ret);
-		}
-	}
+	if (IS_ERR(ptr))
+		return ERR_CAST(ptr);
 
 	memcpy(ptr, &fw->data[4], fw->size - 4);
 
@@ -377,51 +504,11 @@ static int a5xx_zap_shader_resume(struct msm_gpu *gpu)
 	return ret;
 }
 
-/* Set up a child device to "own" the zap shader */
-static int a5xx_zap_shader_dev_init(struct device *parent, struct device *dev)
-{
-	struct device_node *node;
-	int ret;
-
-	if (dev->parent)
-		return 0;
-
-	/* Find the sub-node for the zap shader */
-	node = of_get_child_by_name(parent->of_node, "zap-shader");
-	if (!node) {
-		DRM_DEV_ERROR(parent, "zap-shader not found in device tree\n");
-		return -ENODEV;
-	}
-
-	dev->parent = parent;
-	dev->of_node = node;
-	dev_set_name(dev, "adreno_zap_shader");
-
-	ret = device_register(dev);
-	if (ret) {
-		DRM_DEV_ERROR(parent, "Couldn't register zap shader device\n");
-		goto out;
-	}
-
-	ret = of_reserved_mem_device_init(dev);
-	if (ret) {
-		DRM_DEV_ERROR(parent, "Unable to set up the reserved memory\n");
-		device_unregister(dev);
-	}
-
-out:
-	if (ret)
-		dev->parent = NULL;
-
-	return ret;
-}
-
 static int a5xx_zap_shader_init(struct msm_gpu *gpu)
 {
 	static bool loaded;
 	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
-	struct a5xx_gpu *a5xx_gpu = to_a5xx_gpu(adreno_gpu);
-	struct platform_device *pdev = a5xx_gpu->pdev;
+	struct platform_device *pdev = gpu->pdev;
 	int ret;
 
 	/*
@@ -444,11 +531,7 @@ static int a5xx_zap_shader_init(struct msm_gpu *gpu)
 		return -ENODEV;
 	}
 
-	ret = a5xx_zap_shader_dev_init(&pdev->dev, &a5xx_gpu->zap_dev);
-
-	if (!ret)
-		ret = zap_shader_load_mdt(&a5xx_gpu->zap_dev,
-			adreno_gpu->info->zapfw);
+	ret = zap_shader_load_mdt(gpu, adreno_gpu->info->zapfw);
 
 	loaded = !ret;
 
@@ -462,6 +545,8 @@ static int a5xx_zap_shader_init(struct msm_gpu *gpu)
 	  A5XX_RBBM_INT_0_MASK_RBBM_ETS_MS_TIMEOUT | \
 	  A5XX_RBBM_INT_0_MASK_RBBM_ATB_ASYNC_OVERFLOW | \
 	  A5XX_RBBM_INT_0_MASK_CP_HW_ERROR | \
+	  A5XX_RBBM_INT_0_MASK_MISC_HANG_DETECT | \
+	  A5XX_RBBM_INT_0_MASK_CP_SW | \
 	  A5XX_RBBM_INT_0_MASK_CP_CACHE_FLUSH_TS | \
 	  A5XX_RBBM_INT_0_MASK_UCHE_OOB_ACCESS | \
 	  A5XX_RBBM_INT_0_MASK_GPMU_VOLTAGE_DROOP)
@@ -545,7 +630,7 @@ static int a5xx_hw_init(struct msm_gpu *gpu)
 	gpu_write(gpu, REG_A5XX_RBBM_AHB_CNTL1, 0xA6FFFFFF);
 
 	/* Enable HWCG */
-	a5xx_enable_hwcg(gpu);
+	a5xx_set_hwcg(gpu, true);
 
 	gpu_write(gpu, REG_A5XX_RBBM_AHB_CNTL2, 0x0000003F);
 
@@ -602,12 +687,13 @@ static int a5xx_hw_init(struct msm_gpu *gpu)
 		REG_A5XX_RBBM_SECVID_TSB_TRUSTED_BASE_HI, 0x00000000);
 	gpu_write(gpu, REG_A5XX_RBBM_SECVID_TSB_TRUSTED_SIZE, 0x00000000);
 
-	/* Load the GPMU firmware before starting the HW init */
-	a5xx_gpmu_ucode_init(gpu);
-
 	ret = adreno_hw_init(gpu);
 	if (ret)
 		return ret;
+
+	a5xx_preempt_hw_init(gpu);
+
+	a5xx_gpmu_ucode_init(gpu);
 
 	ret = a5xx_ucode_init(gpu);
 	if (ret)
@@ -631,11 +717,11 @@ static int a5xx_hw_init(struct msm_gpu *gpu)
 	 * ticking correctly
 	 */
 	if (adreno_is_a530(adreno_gpu)) {
-		OUT_PKT7(gpu->rb, CP_EVENT_WRITE, 1);
-		OUT_RING(gpu->rb, 0x0F);
+		OUT_PKT7(gpu->rb[0], CP_EVENT_WRITE, 1);
+		OUT_RING(gpu->rb[0], 0x0F);
 
-		gpu->funcs->flush(gpu);
-		if (!a5xx_idle(gpu))
+		gpu->funcs->flush(gpu, gpu->rb[0]);
+		if (!a5xx_idle(gpu, gpu->rb[0]))
 			return -EINVAL;
 	}
 
@@ -648,11 +734,11 @@ static int a5xx_hw_init(struct msm_gpu *gpu)
 	 */
 	ret = a5xx_zap_shader_init(gpu);
 	if (!ret) {
-		OUT_PKT7(gpu->rb, CP_SET_SECURE_MODE, 1);
-		OUT_RING(gpu->rb, 0x00000000);
+		OUT_PKT7(gpu->rb[0], CP_SET_SECURE_MODE, 1);
+		OUT_RING(gpu->rb[0], 0x00000000);
 
-		gpu->funcs->flush(gpu);
-		if (!a5xx_idle(gpu))
+		gpu->funcs->flush(gpu, gpu->rb[0]);
+		if (!a5xx_idle(gpu, gpu->rb[0]))
 			return -EINVAL;
 	} else {
 		/* Print a warning so if we die, we know why */
@@ -660,6 +746,9 @@ static int a5xx_hw_init(struct msm_gpu *gpu)
 			"Zap shader not enabled - using SECVID_TRUST_CNTL instead\n");
 		gpu_write(gpu, REG_A5XX_RBBM_SECVID_TRUST_CNTL, 0x0);
 	}
+
+	/* Last step - yield the ringbuffer */
+	a5xx_preempt_start(gpu);
 
 	return 0;
 }
@@ -691,8 +780,7 @@ static void a5xx_destroy(struct msm_gpu *gpu)
 
 	DBG("%s", gpu->name);
 
-	if (a5xx_gpu->zap_dev.parent)
-		device_unregister(&a5xx_gpu->zap_dev);
+	a5xx_preempt_fini(gpu);
 
 	if (a5xx_gpu->pm4_bo) {
 		if (a5xx_gpu->pm4_iova)
@@ -729,18 +817,27 @@ static inline bool _a5xx_check_idle(struct msm_gpu *gpu)
 		A5XX_RBBM_INT_0_MASK_MISC_HANG_DETECT);
 }
 
-bool a5xx_idle(struct msm_gpu *gpu)
+bool a5xx_idle(struct msm_gpu *gpu, struct msm_ringbuffer *ring)
 {
+	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
+	struct a5xx_gpu *a5xx_gpu = to_a5xx_gpu(adreno_gpu);
+
+	if (ring != a5xx_gpu->cur_ring) {
+		WARN(1, "Tried to idle a non-current ringbuffer\n");
+		return false;
+	}
+
 	/* wait for CP to drain ringbuffer: */
-	if (!adreno_idle(gpu))
+	if (!adreno_idle(gpu, ring))
 		return false;
 
 	if (spin_until(_a5xx_check_idle(gpu))) {
-		DRM_ERROR("%s: %ps: timeout waiting for GPU to idle: status %8.8X irq %8.8X\n",
+		DRM_ERROR("%s: %ps: timeout waiting for GPU to idle: status %8.8X irq %8.8X rptr/wptr %d/%d\n",
 			gpu->name, __builtin_return_address(0),
 			gpu_read(gpu, REG_A5XX_RBBM_STATUS),
-			gpu_read(gpu, REG_A5XX_RBBM_INT_0_STATUS));
-
+			gpu_read(gpu, REG_A5XX_RBBM_INT_0_STATUS),
+			gpu_read(gpu, REG_A5XX_CP_RB_RPTR),
+			gpu_read(gpu, REG_A5XX_CP_RB_WPTR));
 		return false;
 	}
 
@@ -867,6 +964,28 @@ static void a5xx_gpmu_err_irq(struct msm_gpu *gpu)
 	dev_err_ratelimited(gpu->dev->dev, "GPMU | voltage droop\n");
 }
 
+static void a5xx_fault_detect_irq(struct msm_gpu *gpu)
+{
+	struct drm_device *dev = gpu->dev;
+	struct msm_drm_private *priv = dev->dev_private;
+	struct msm_ringbuffer *ring = gpu->funcs->active_ring(gpu);
+
+	dev_err(dev->dev, "gpu fault ring %d fence %x status %8.8X rb %4.4x/%4.4x ib1 %16.16llX/%4.4x ib2 %16.16llX/%4.4x\n",
+		ring ? ring->id : -1, ring ? ring->seqno : 0,
+		gpu_read(gpu, REG_A5XX_RBBM_STATUS),
+		gpu_read(gpu, REG_A5XX_CP_RB_RPTR),
+		gpu_read(gpu, REG_A5XX_CP_RB_WPTR),
+		gpu_read64(gpu, REG_A5XX_CP_IB1_BASE, REG_A5XX_CP_IB1_BASE_HI),
+		gpu_read(gpu, REG_A5XX_CP_IB1_BUFSZ),
+		gpu_read64(gpu, REG_A5XX_CP_IB2_BASE, REG_A5XX_CP_IB2_BASE_HI),
+		gpu_read(gpu, REG_A5XX_CP_IB2_BUFSZ));
+
+	/* Turn off the hangcheck timer to keep it from bothering us */
+	del_timer(&gpu->hangcheck_timer);
+
+	queue_work(priv->wq, &gpu->recover_work);
+}
+
 #define RBBM_ERROR_MASK \
 	(A5XX_RBBM_INT_0_MASK_RBBM_AHB_ERROR | \
 	A5XX_RBBM_INT_0_MASK_RBBM_TRANSFER_TIMEOUT | \
@@ -893,14 +1012,22 @@ static irqreturn_t a5xx_irq(struct msm_gpu *gpu)
 	if (status & A5XX_RBBM_INT_0_MASK_CP_HW_ERROR)
 		a5xx_cp_err_irq(gpu);
 
+	if (status & A5XX_RBBM_INT_0_MASK_MISC_HANG_DETECT)
+		a5xx_fault_detect_irq(gpu);
+
 	if (status & A5XX_RBBM_INT_0_MASK_UCHE_OOB_ACCESS)
 		a5xx_uche_err_irq(gpu);
 
 	if (status & A5XX_RBBM_INT_0_MASK_GPMU_VOLTAGE_DROOP)
 		a5xx_gpmu_err_irq(gpu);
 
-	if (status & A5XX_RBBM_INT_0_MASK_CP_CACHE_FLUSH_TS)
+	if (status & A5XX_RBBM_INT_0_MASK_CP_CACHE_FLUSH_TS) {
+		a5xx_preempt_trigger(gpu);
 		msm_gpu_retire(gpu);
+	}
+
+	if (status & A5XX_RBBM_INT_0_MASK_CP_SW)
+		a5xx_preempt_irq(gpu);
 
 	return IRQ_HANDLED;
 }
@@ -920,31 +1047,30 @@ static const u32 a5xx_registers[] = {
 	0x0000, 0x0002, 0x0004, 0x0020, 0x0022, 0x0026, 0x0029, 0x002B,
 	0x002E, 0x0035, 0x0038, 0x0042, 0x0044, 0x0044, 0x0047, 0x0095,
 	0x0097, 0x00BB, 0x03A0, 0x0464, 0x0469, 0x046F, 0x04D2, 0x04D3,
-	0x04E0, 0x0533, 0x0540, 0x0555, 0xF400, 0xF400, 0xF800, 0xF807,
-	0x0800, 0x081A, 0x081F, 0x0841, 0x0860, 0x0860, 0x0880, 0x08A0,
-	0x0B00, 0x0B12, 0x0B15, 0x0B28, 0x0B78, 0x0B7F, 0x0BB0, 0x0BBD,
-	0x0BC0, 0x0BC6, 0x0BD0, 0x0C53, 0x0C60, 0x0C61, 0x0C80, 0x0C82,
-	0x0C84, 0x0C85, 0x0C90, 0x0C98, 0x0CA0, 0x0CA0, 0x0CB0, 0x0CB2,
-	0x2180, 0x2185, 0x2580, 0x2585, 0x0CC1, 0x0CC1, 0x0CC4, 0x0CC7,
-	0x0CCC, 0x0CCC, 0x0CD0, 0x0CD8, 0x0CE0, 0x0CE5, 0x0CE8, 0x0CE8,
-	0x0CEC, 0x0CF1, 0x0CFB, 0x0D0E, 0x2100, 0x211E, 0x2140, 0x2145,
-	0x2500, 0x251E, 0x2540, 0x2545, 0x0D10, 0x0D17, 0x0D20, 0x0D23,
-	0x0D30, 0x0D30, 0x20C0, 0x20C0, 0x24C0, 0x24C0, 0x0E40, 0x0E43,
-	0x0E4A, 0x0E4A, 0x0E50, 0x0E57, 0x0E60, 0x0E7C, 0x0E80, 0x0E8E,
-	0x0E90, 0x0E96, 0x0EA0, 0x0EA8, 0x0EB0, 0x0EB2, 0xE140, 0xE147,
-	0xE150, 0xE187, 0xE1A0, 0xE1A9, 0xE1B0, 0xE1B6, 0xE1C0, 0xE1C7,
-	0xE1D0, 0xE1D1, 0xE200, 0xE201, 0xE210, 0xE21C, 0xE240, 0xE268,
-	0xE000, 0xE006, 0xE010, 0xE09A, 0xE0A0, 0xE0A4, 0xE0AA, 0xE0EB,
-	0xE100, 0xE105, 0xE380, 0xE38F, 0xE3B0, 0xE3B0, 0xE400, 0xE405,
-	0xE408, 0xE4E9, 0xE4F0, 0xE4F0, 0xE280, 0xE280, 0xE282, 0xE2A3,
-	0xE2A5, 0xE2C2, 0xE940, 0xE947, 0xE950, 0xE987, 0xE9A0, 0xE9A9,
-	0xE9B0, 0xE9B6, 0xE9C0, 0xE9C7, 0xE9D0, 0xE9D1, 0xEA00, 0xEA01,
-	0xEA10, 0xEA1C, 0xEA40, 0xEA68, 0xE800, 0xE806, 0xE810, 0xE89A,
-	0xE8A0, 0xE8A4, 0xE8AA, 0xE8EB, 0xE900, 0xE905, 0xEB80, 0xEB8F,
-	0xEBB0, 0xEBB0, 0xEC00, 0xEC05, 0xEC08, 0xECE9, 0xECF0, 0xECF0,
-	0xEA80, 0xEA80, 0xEA82, 0xEAA3, 0xEAA5, 0xEAC2, 0xA800, 0xA8FF,
-	0xAC60, 0xAC60, 0xB000, 0xB97F, 0xB9A0, 0xB9BF,
-	~0
+	0x04E0, 0x0533, 0x0540, 0x0555, 0x0800, 0x081A, 0x081F, 0x0841,
+	0x0860, 0x0860, 0x0880, 0x08A0, 0x0B00, 0x0B12, 0x0B15, 0x0B28,
+	0x0B78, 0x0B7F, 0x0BB0, 0x0BBD, 0x0BC0, 0x0BC6, 0x0BD0, 0x0C53,
+	0x0C60, 0x0C61, 0x0C80, 0x0C82, 0x0C84, 0x0C85, 0x0C90, 0x0C98,
+	0x0CA0, 0x0CA0, 0x0CB0, 0x0CB2, 0x2180, 0x2185, 0x2580, 0x2585,
+	0x0CC1, 0x0CC1, 0x0CC4, 0x0CC7, 0x0CCC, 0x0CCC, 0x0CD0, 0x0CD8,
+	0x0CE0, 0x0CE5, 0x0CE8, 0x0CE8, 0x0CEC, 0x0CF1, 0x0CFB, 0x0D0E,
+	0x2100, 0x211E, 0x2140, 0x2145, 0x2500, 0x251E, 0x2540, 0x2545,
+	0x0D10, 0x0D17, 0x0D20, 0x0D23, 0x0D30, 0x0D30, 0x20C0, 0x20C0,
+	0x24C0, 0x24C0, 0x0E40, 0x0E43, 0x0E4A, 0x0E4A, 0x0E50, 0x0E57,
+	0x0E60, 0x0E7C, 0x0E80, 0x0E8E, 0x0E90, 0x0E96, 0x0EA0, 0x0EA8,
+	0x0EB0, 0x0EB2, 0xE140, 0xE147, 0xE150, 0xE187, 0xE1A0, 0xE1A9,
+	0xE1B0, 0xE1B6, 0xE1C0, 0xE1C7, 0xE1D0, 0xE1D1, 0xE200, 0xE201,
+	0xE210, 0xE21C, 0xE240, 0xE268, 0xE000, 0xE006, 0xE010, 0xE09A,
+	0xE0A0, 0xE0A4, 0xE0AA, 0xE0EB, 0xE100, 0xE105, 0xE380, 0xE38F,
+	0xE3B0, 0xE3B0, 0xE400, 0xE405, 0xE408, 0xE4E9, 0xE4F0, 0xE4F0,
+	0xE280, 0xE280, 0xE282, 0xE2A3, 0xE2A5, 0xE2C2, 0xE940, 0xE947,
+	0xE950, 0xE987, 0xE9A0, 0xE9A9, 0xE9B0, 0xE9B6, 0xE9C0, 0xE9C7,
+	0xE9D0, 0xE9D1, 0xEA00, 0xEA01, 0xEA10, 0xEA1C, 0xEA40, 0xEA68,
+	0xE800, 0xE806, 0xE810, 0xE89A, 0xE8A0, 0xE8A4, 0xE8AA, 0xE8EB,
+	0xE900, 0xE905, 0xEB80, 0xEB8F, 0xEBB0, 0xEBB0, 0xEC00, 0xEC05,
+	0xEC08, 0xECE9, 0xECF0, 0xECF0, 0xEA80, 0xEA80, 0xEA82, 0xEAA3,
+	0xEAA5, 0xEAC2, 0xA800, 0xA8FF, 0xAC60, 0xAC60, 0xB000, 0xB97F,
+	0xB9A0, 0xB9BF, ~0
 };
 
 static void a5xx_dump(struct msm_gpu *gpu)
@@ -1020,9 +1146,24 @@ static void a5xx_show(struct msm_gpu *gpu, struct seq_file *m)
 {
 	seq_printf(m, "status:   %08x\n",
 			gpu_read(gpu, REG_A5XX_RBBM_STATUS));
+
+	/*
+	 * Temporarily disable hardware clock gating before going into
+	 * adreno_show to avoid issues while reading the registers
+	 */
+	a5xx_set_hwcg(gpu, false);
 	adreno_show(gpu, m);
+	a5xx_set_hwcg(gpu, true);
 }
 #endif
+
+static struct msm_ringbuffer *a5xx_active_ring(struct msm_gpu *gpu)
+{
+	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
+	struct a5xx_gpu *a5xx_gpu = to_a5xx_gpu(adreno_gpu);
+
+	return a5xx_gpu->cur_ring;
+}
 
 static const struct adreno_gpu_funcs funcs = {
 	.base = {
@@ -1031,9 +1172,9 @@ static const struct adreno_gpu_funcs funcs = {
 		.pm_suspend = a5xx_pm_suspend,
 		.pm_resume = a5xx_pm_resume,
 		.recover = a5xx_recover,
-		.last_fence = adreno_last_fence,
 		.submit = a5xx_submit,
-		.flush = adreno_flush,
+		.flush = a5xx_flush,
+		.active_ring = a5xx_active_ring,
 		.irq = a5xx_irq,
 		.destroy = a5xx_destroy,
 #ifdef CONFIG_DEBUG_FS
@@ -1064,13 +1205,12 @@ struct msm_gpu *a5xx_gpu_init(struct drm_device *dev)
 	adreno_gpu = &a5xx_gpu->base;
 	gpu = &adreno_gpu->base;
 
-	a5xx_gpu->pdev = pdev;
 	adreno_gpu->registers = a5xx_registers;
 	adreno_gpu->reg_offsets = a5xx_register_offsets;
 
 	a5xx_gpu->lm_leakage = 0x4E001A;
 
-	ret = adreno_gpu_init(dev, pdev, adreno_gpu, &funcs);
+	ret = adreno_gpu_init(dev, pdev, adreno_gpu, &funcs, 4);
 	if (ret) {
 		a5xx_destroy(&(a5xx_gpu->base.base));
 		return ERR_PTR(ret);
@@ -1078,6 +1218,9 @@ struct msm_gpu *a5xx_gpu_init(struct drm_device *dev)
 
 	if (gpu->aspace)
 		msm_mmu_set_fault_handler(gpu->aspace->mmu, gpu, a5xx_fault_handler);
+
+	/* Set up the preemption specific bits and pieces for each ringbuffer */
+	a5xx_preempt_init(gpu);
 
 	return gpu;
 }

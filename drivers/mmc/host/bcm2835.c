@@ -1252,7 +1252,7 @@ static void bcm2835_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	mutex_unlock(&host->mutex);
 }
 
-static struct mmc_host_ops bcm2835_ops = {
+static const struct mmc_host_ops bcm2835_ops = {
 	.request = bcm2835_request,
 	.set_ios = bcm2835_set_ios,
 	.hw_reset = bcm2835_reset,

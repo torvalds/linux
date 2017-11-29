@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_X86_ELF_H
 #define _ASM_X86_ELF_H
 
@@ -126,15 +127,15 @@ do {						\
 	pr_reg[4] = regs->di;			\
 	pr_reg[5] = regs->bp;			\
 	pr_reg[6] = regs->ax;			\
-	pr_reg[7] = regs->ds & 0xffff;		\
-	pr_reg[8] = regs->es & 0xffff;		\
-	pr_reg[9] = regs->fs & 0xffff;		\
+	pr_reg[7] = regs->ds;			\
+	pr_reg[8] = regs->es;			\
+	pr_reg[9] = regs->fs;			\
 	pr_reg[11] = regs->orig_ax;		\
 	pr_reg[12] = regs->ip;			\
-	pr_reg[13] = regs->cs & 0xffff;		\
+	pr_reg[13] = regs->cs;			\
 	pr_reg[14] = regs->flags;		\
 	pr_reg[15] = regs->sp;			\
-	pr_reg[16] = regs->ss & 0xffff;		\
+	pr_reg[16] = regs->ss;			\
 } while (0);
 
 #define ELF_CORE_COPY_REGS(pr_reg, regs)	\
@@ -204,6 +205,7 @@ void set_personality_ia32(bool);
 
 #define ELF_CORE_COPY_REGS(pr_reg, regs)			\
 do {								\
+	unsigned long base;					\
 	unsigned v;						\
 	(pr_reg)[0] = (regs)->r15;				\
 	(pr_reg)[1] = (regs)->r14;				\
@@ -226,8 +228,8 @@ do {								\
 	(pr_reg)[18] = (regs)->flags;				\
 	(pr_reg)[19] = (regs)->sp;				\
 	(pr_reg)[20] = (regs)->ss;				\
-	(pr_reg)[21] = current->thread.fsbase;			\
-	(pr_reg)[22] = current->thread.gsbase;			\
+	rdmsrl(MSR_FS_BASE, base); (pr_reg)[21] = base;		\
+	rdmsrl(MSR_KERNEL_GS_BASE, base); (pr_reg)[22] = base;	\
 	asm("movl %%ds,%0" : "=r" (v)); (pr_reg)[23] = v;	\
 	asm("movl %%es,%0" : "=r" (v)); (pr_reg)[24] = v;	\
 	asm("movl %%fs,%0" : "=r" (v)); (pr_reg)[25] = v;	\
@@ -247,11 +249,11 @@ extern int force_personality32;
 
 /*
  * This is the base location for PIE (ET_DYN with INTERP) loads. On
- * 64-bit, this is raised to 4GB to leave the entire 32-bit address
+ * 64-bit, this is above 4GB to leave the entire 32-bit address
  * space open for things that want to use the area for 32-bit pointers.
  */
 #define ELF_ET_DYN_BASE		(mmap_is_ia32() ? 0x000400000UL : \
-						  0x100000000UL)
+						  (DEFAULT_MAP_WINDOW / 3 * 2))
 
 /* This yields a mask that user programs can use to figure out what
    instruction set this CPU supports.  This could be done in user space,
@@ -304,9 +306,10 @@ static inline int mmap_is_ia32(void)
 		test_thread_flag(TIF_ADDR32));
 }
 
-extern unsigned long tasksize_32bit(void);
-extern unsigned long tasksize_64bit(void);
+extern unsigned long task_size_32bit(void);
+extern unsigned long task_size_64bit(int full_addr_space);
 extern unsigned long get_mmap_base(int is_legacy);
+extern bool mmap_address_hint_valid(unsigned long addr, unsigned long len);
 
 #ifdef CONFIG_X86_32
 

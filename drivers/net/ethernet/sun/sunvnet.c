@@ -312,7 +312,7 @@ static struct vnet *vnet_new(const u64 *local_mac,
 	dev->watchdog_timeo = VNET_TX_TIMEOUT;
 
 	dev->hw_features = NETIF_F_TSO | NETIF_F_GSO | NETIF_F_GSO_SOFTWARE |
-			   NETIF_F_IP_CSUM | NETIF_F_SG;
+			   NETIF_F_HW_CSUM | NETIF_F_SG;
 	dev->features = dev->hw_features;
 
 	/* MTU range: 68 - 65535 */
@@ -492,8 +492,7 @@ static int vnet_port_probe(struct vio_dev *vdev, const struct vio_device_id *id)
 	pr_info("%s: PORT ( remote-mac %pM%s )\n",
 		vp->dev->name, port->raddr, switch_port ? " switch-port" : "");
 
-	setup_timer(&port->clean_timer, sunvnet_clean_timer_expire_common,
-		    (unsigned long)port);
+	timer_setup(&port->clean_timer, sunvnet_clean_timer_expire_common, 0);
 
 	napi_enable(&port->napi);
 	vio_port_up(&port->vio);

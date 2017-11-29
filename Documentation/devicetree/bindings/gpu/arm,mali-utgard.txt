@@ -10,8 +10,13 @@ Required properties:
     * And, optionally, one of the vendor specific compatible:
       + allwinner,sun4i-a10-mali
       + allwinner,sun7i-a20-mali
+      + allwinner,sun50i-h5-mali
       + amlogic,meson-gxbb-mali
       + amlogic,meson-gxl-mali
+      + rockchip,rk3036-mali
+      + rockchip,rk3066-mali
+      + rockchip,rk3188-mali
+      + rockchip,rk3228-mali
       + stericsson,db8500-mali
 
   - reg: Physical base address and length of the GPU registers
@@ -39,9 +44,17 @@ Optional properties:
     Memory region to allocate from, as defined in
     Documentation/devicetree/bindi/reserved-memory/reserved-memory.txt
 
+  - mali-supply:
+    Phandle to regulator for the Mali device, as defined in
+    Documentation/devicetree/bindings/regulator/regulator.txt for details.
+
   - operating-points-v2:
     Operating Points for the GPU, as defined in
     Documentation/devicetree/bindings/opp/opp.txt
+
+  - power-domains:
+    A power domain consumer specifier as defined in
+    Documentation/devicetree/bindings/power/power_domain.txt
 
 Vendor-specific bindings
 ------------------------
@@ -55,6 +68,14 @@ to specify one more vendor-specific compatible, among:
       * resets: phandle to the reset line for the GPU
 
   - allwinner,sun7i-a20-mali
+    Required properties:
+      * resets: phandle to the reset line for the GPU
+
+  - allwinner,sun50i-h5-mali
+    Required properties:
+      * resets: phandle to the reset line for the GPU
+
+  - Rockchip variants:
     Required properties:
       * resets: phandle to the reset line for the GPU
 

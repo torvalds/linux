@@ -39,6 +39,7 @@
 #include <linux/wmi.h>
 #include <acpi/video.h>
 #include "dell-smbios.h"
+#include "dell-wmi-descriptor.h"
 
 MODULE_AUTHOR("Matthew Garrett <mjg@redhat.com>");
 MODULE_AUTHOR("Pali Rohár <pali.rohar@gmail.com>");
@@ -46,16 +47,14 @@ MODULE_DESCRIPTION("Dell laptop WMI hotkeys driver");
 MODULE_LICENSE("GPL");
 
 #define DELL_EVENT_GUID "9DBB5994-A997-11DA-B012-B622A1EF5492"
-#define DELL_DESCRIPTOR_GUID "8D9DDCBC-A997-11DA-B012-B622A1EF5492"
 
-static u32 dell_wmi_interface_version;
 static bool wmi_requires_smbios_request;
 
 MODULE_ALIAS("wmi:"DELL_EVENT_GUID);
-MODULE_ALIAS("wmi:"DELL_DESCRIPTOR_GUID);
 
 struct dell_wmi_priv {
 	struct input_dev *input_dev;
+	u32 interface_version;
 };
 
 static int __init dmi_matched(const struct dmi_system_id *dmi)
@@ -348,6 +347,7 @@ static void dell_wmi_process_key(struct wmi_device *wdev, int type, int code)
 static void dell_wmi_notify(struct wmi_device *wdev,
 			    union acpi_object *obj)
 {
+	struct dell_wmi_priv *priv = dev_get_drvdata(&wdev->dev);
 	u16 *buffer_entry, *buffer_end;
 	acpi_size buffer_size;
 	int len, i;
@@ -376,7 +376,7 @@ static void dell_wmi_notify(struct wmi_device *wdev,
 	 * So to prevent reading garbage from buffer we will process only first
 	 * one event on devices with WMI interface version 0.
 	 */
-	if (dell_wmi_interface_version == 0 && buffer_entry < buffer_end)
+	if (priv->interface_version == 0 && buffer_entry < buffer_end)
 		if (buffer_end > buffer_entry + buffer_entry[0] + 1)
 			buffer_end = buffer_entry + buffer_entry[0] + 1;
 
@@ -618,72 +618,6 @@ static void dell_wmi_input_destroy(struct wmi_device *wdev)
 }
 
 /*
- * Descriptor buffer is 128 byte long and contains:
- *
- *       Name             Offset  Length  Value
- * Vendor Signature          0       4    "DELL"
- * Object Signature          4       4    " WMI"
- * WMI Interface Version     8       4    <version>
- * WMI buffer length        12       4    4096
- */
-static int __init dell_wmi_check_descriptor_buffer(void)
-{
-	struct acpi_buffer out = { ACPI_ALLOCATE_BUFFER, NULL };
-	union acpi_object *obj;
-	acpi_status status;
-	u32 *buffer;
-
-	status = wmi_query_block(DELL_DESCRIPTOR_GUID, 0, &out);
-	if (ACPI_FAILURE(status)) {
-		pr_err("Cannot read Dell descriptor buffer - %d\n", status);
-		return status;
-	}
-
-	obj = (union acpi_object *)out.pointer;
-	if (!obj) {
-		pr_err("Dell descriptor buffer is empty\n");
-		return -EINVAL;
-	}
-
-	if (obj->type != ACPI_TYPE_BUFFER) {
-		pr_err("Cannot read Dell descriptor buffer\n");
-		kfree(obj);
-		return -EINVAL;
-	}
-
-	if (obj->buffer.length != 128) {
-		pr_err("Dell descriptor buffer has invalid length (%d)\n",
-			obj->buffer.length);
-		if (obj->buffer.length < 16) {
-			kfree(obj);
-			return -EINVAL;
-		}
-	}
-
-	buffer = (u32 *)obj->buffer.pointer;
-
-	if (buffer[0] != 0x4C4C4544 && buffer[1] != 0x494D5720)
-		pr_warn("Dell descriptor buffer has invalid signature (%*ph)\n",
-			8, buffer);
-
-	if (buffer[2] != 0 && buffer[2] != 1)
-		pr_warn("Dell descriptor buffer has unknown version (%d)\n",
-			buffer[2]);
-
-	if (buffer[3] != 4096)
-		pr_warn("Dell descriptor buffer has invalid buffer length (%d)\n",
-			buffer[3]);
-
-	dell_wmi_interface_version = buffer[2];
-
-	pr_info("Detected Dell WMI interface version %u\n",
-		dell_wmi_interface_version);
-
-	kfree(obj);
-	return 0;
-}
-
-/*
  * According to Dell SMBIOS documentation:
  *
  * 17  3  Application Program Registration
@@ -704,23 +638,37 @@ static int dell_wmi_events_set_enabled(bool enable)
 	struct calling_interface_buffer *buffer;
 	int ret;
 
-	buffer = dell_smbios_get_buffer();
+	buffer = kzalloc(sizeof(struct calling_interface_buffer), GFP_KERNEL);
+	buffer->cmd_class = CLASS_INFO;
+	buffer->cmd_select = SELECT_APP_REGISTRATION;
 	buffer->input[0] = 0x10000;
 	buffer->input[1] = 0x51534554;
 	buffer->input[3] = enable;
-	dell_smbios_send_request(17, 3);
-	ret = buffer->output[0];
-	dell_smbios_release_buffer();
+	ret = dell_smbios_call(buffer);
+	if (ret == 0)
+		ret = buffer->output[0];
+	kfree(buffer);
 
 	return dell_smbios_error(ret);
 }
 
 static int dell_wmi_probe(struct wmi_device *wdev)
 {
-	struct dell_wmi_priv *priv = devm_kzalloc(
-		&wdev->dev, sizeof(struct dell_wmi_priv), GFP_KERNEL);
+	struct dell_wmi_priv *priv;
+	int ret;
 
+	ret = dell_wmi_get_descriptor_valid();
+	if (ret)
+		return ret;
+
+	priv = devm_kzalloc(
+		&wdev->dev, sizeof(struct dell_wmi_priv), GFP_KERNEL);
+	if (!priv)
+		return -ENOMEM;
 	dev_set_drvdata(&wdev->dev, priv);
+
+	if (!dell_wmi_get_interface_version(&priv->interface_version))
+		return -EPROBE_DEFER;
 
 	return dell_wmi_input_setup(wdev);
 }
@@ -748,10 +696,6 @@ static struct wmi_driver dell_wmi_driver = {
 static int __init dell_wmi_init(void)
 {
 	int err;
-
-	err = dell_wmi_check_descriptor_buffer();
-	if (err)
-		return err;
 
 	dmi_check_system(dell_wmi_smbios_list);
 

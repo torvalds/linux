@@ -204,6 +204,18 @@ config VIDEO_ADV7183
 	  To compile this driver as a module, choose M here: the
 	  module will be called adv7183.
 
+config VIDEO_ADV748X
+	tristate "Analog Devices ADV748x decoder"
+	depends on VIDEO_V4L2 && I2C && VIDEO_V4L2_SUBDEV_API
+	depends on OF
+	select REGMAP_I2C
+	---help---
+	  V4L2 subdevice driver for the Analog Devices
+	  ADV7481 and ADV7482 HDMI/Analog video decoders.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called adv748x.
+
 config VIDEO_ADV7604
 	tristate "Analog Devices ADV7604 decoder"
 	depends on VIDEO_V4L2 && I2C && VIDEO_V4L2_SUBDEV_API
@@ -341,6 +353,14 @@ config VIDEO_TC358743
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called tc358743.
+
+config VIDEO_TC358743_CEC
+	bool "Enable Toshiba TC358743 CEC support"
+	depends on VIDEO_TC358743
+	select CEC_CORE
+	---help---
+	  When selected the tc358743 will support the optional
+	  HDMI CEC feature.
 
 config VIDEO_TVP514X
 	tristate "Texas Instruments TVP514x video decoder"
@@ -535,6 +555,14 @@ config VIDEO_APTINA_PLL
 config VIDEO_SMIAPP_PLL
 	tristate
 
+config VIDEO_IMX274
+	tristate "Sony IMX274 sensor support"
+	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
+	depends on MEDIA_CAMERA_SUPPORT
+	---help---
+	  This is a V4L2 sensor-level driver for the Sony IMX274
+	  CMOS image sensor.
+
 config VIDEO_OV2640
 	tristate "OmniVision OV2640 sensor support"
 	depends on VIDEO_V4L2 && I2C
@@ -592,6 +620,30 @@ config VIDEO_OV5647
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called ov5647.
+
+config VIDEO_OV6650
+	tristate "OmniVision OV6650 sensor support"
+	depends on I2C && VIDEO_V4L2
+	depends on MEDIA_CAMERA_SUPPORT
+	---help---
+	  This is a Video4Linux2 sensor-level driver for the OmniVision
+	  OV6650 camera.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ov6650.
+
+config VIDEO_OV5670
+	tristate "OmniVision OV5670 sensor support"
+	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
+	depends on MEDIA_CAMERA_SUPPORT
+	depends on MEDIA_CONTROLLER
+	select V4L2_FWNODE
+	---help---
+	  This is a Video4Linux2 sensor-level driver for the OmniVision
+	  OV5670 camera.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ov5670.
 
 config VIDEO_OV7640
 	tristate "OmniVision OV7640 sensor support"

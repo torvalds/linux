@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * memory.c: PROM library functions for acquiring/using memory descriptors
  *	     given to us from the ARCS firmware.

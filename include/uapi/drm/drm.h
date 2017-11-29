@@ -700,6 +700,7 @@ struct drm_prime_handle {
 
 struct drm_syncobj_create {
 	__u32 handle;
+#define DRM_SYNCOBJ_CREATE_SIGNALED (1 << 0)
 	__u32 flags;
 };
 
@@ -716,6 +717,46 @@ struct drm_syncobj_handle {
 
 	__s32 fd;
 	__u32 pad;
+};
+
+#define DRM_SYNCOBJ_WAIT_FLAGS_WAIT_ALL (1 << 0)
+#define DRM_SYNCOBJ_WAIT_FLAGS_WAIT_FOR_SUBMIT (1 << 1)
+struct drm_syncobj_wait {
+	__u64 handles;
+	/* absolute timeout */
+	__s64 timeout_nsec;
+	__u32 count_handles;
+	__u32 flags;
+	__u32 first_signaled; /* only valid when not waiting all */
+	__u32 pad;
+};
+
+struct drm_syncobj_array {
+	__u64 handles;
+	__u32 count_handles;
+	__u32 pad;
+};
+
+/* Query current scanout sequence number */
+struct drm_crtc_get_sequence {
+	__u32 crtc_id;		/* requested crtc_id */
+	__u32 active;		/* return: crtc output is active */
+	__u64 sequence;		/* return: most recent vblank sequence */
+	__s64 sequence_ns;	/* return: most recent time of first pixel out */
+};
+
+/* Queue event to be delivered at specified sequence. Time stamp marks
+ * when the first pixel of the refresh cycle leaves the display engine
+ * for the display
+ */
+#define DRM_CRTC_SEQUENCE_RELATIVE		0x00000001	/* sequence is relative to current */
+#define DRM_CRTC_SEQUENCE_NEXT_ON_MISS		0x00000002	/* Use next sequence if we've missed */
+
+struct drm_crtc_queue_sequence {
+	__u32 crtc_id;
+	__u32 flags;
+	__u64 sequence;		/* on input, target sequence. on output, actual sequence */
+	__u64 user_data;	/* user data passed to event */
 };
 
 #if defined(__cplusplus)
@@ -800,6 +841,9 @@ extern "C" {
 
 #define DRM_IOCTL_WAIT_VBLANK		DRM_IOWR(0x3a, union drm_wait_vblank)
 
+#define DRM_IOCTL_CRTC_GET_SEQUENCE	DRM_IOWR(0x3b, struct drm_crtc_get_sequence)
+#define DRM_IOCTL_CRTC_QUEUE_SEQUENCE	DRM_IOWR(0x3c, struct drm_crtc_queue_sequence)
+
 #define DRM_IOCTL_UPDATE_DRAW		DRM_IOW(0x3f, struct drm_update_draw)
 
 #define DRM_IOCTL_MODE_GETRESOURCES	DRM_IOWR(0xA0, struct drm_mode_card_res)
@@ -840,6 +884,14 @@ extern "C" {
 #define DRM_IOCTL_SYNCOBJ_DESTROY	DRM_IOWR(0xC0, struct drm_syncobj_destroy)
 #define DRM_IOCTL_SYNCOBJ_HANDLE_TO_FD	DRM_IOWR(0xC1, struct drm_syncobj_handle)
 #define DRM_IOCTL_SYNCOBJ_FD_TO_HANDLE	DRM_IOWR(0xC2, struct drm_syncobj_handle)
+#define DRM_IOCTL_SYNCOBJ_WAIT		DRM_IOWR(0xC3, struct drm_syncobj_wait)
+#define DRM_IOCTL_SYNCOBJ_RESET		DRM_IOWR(0xC4, struct drm_syncobj_array)
+#define DRM_IOCTL_SYNCOBJ_SIGNAL	DRM_IOWR(0xC5, struct drm_syncobj_array)
+
+#define DRM_IOCTL_MODE_CREATE_LEASE	DRM_IOWR(0xC6, struct drm_mode_create_lease)
+#define DRM_IOCTL_MODE_LIST_LESSEES	DRM_IOWR(0xC7, struct drm_mode_list_lessees)
+#define DRM_IOCTL_MODE_GET_LEASE	DRM_IOWR(0xC8, struct drm_mode_get_lease)
+#define DRM_IOCTL_MODE_REVOKE_LEASE	DRM_IOWR(0xC9, struct drm_mode_revoke_lease)
 
 /**
  * Device specific ioctls should only be in their respective headers
@@ -871,6 +923,7 @@ struct drm_event {
 
 #define DRM_EVENT_VBLANK 0x01
 #define DRM_EVENT_FLIP_COMPLETE 0x02
+#define DRM_EVENT_CRTC_SEQUENCE	0x03
 
 struct drm_event_vblank {
 	struct drm_event base;
@@ -879,6 +932,16 @@ struct drm_event_vblank {
 	__u32 tv_usec;
 	__u32 sequence;
 	__u32 crtc_id; /* 0 on older kernels that do not support this */
+};
+
+/* Event delivered at sequence. Time stamp marks when the first pixel
+ * of the refresh cycle leaves the display engine for the display
+ */
+struct drm_event_crtc_sequence {
+	struct drm_event	base;
+	__u64			user_data;
+	__s64			time_ns;
+	__u64			sequence;
 };
 
 /* typedef area */

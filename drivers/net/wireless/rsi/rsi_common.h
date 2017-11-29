@@ -79,8 +79,14 @@ static inline int rsi_kill_thread(struct rsi_thread *handle)
 }
 
 void rsi_mac80211_detach(struct rsi_hw *hw);
-u16 rsi_get_connected_channel(struct rsi_hw *adapter);
+u16 rsi_get_connected_channel(struct ieee80211_vif *vif);
 struct rsi_hw *rsi_91x_init(void);
 void rsi_91x_deinit(struct rsi_hw *adapter);
 int rsi_read_pkt(struct rsi_common *common, s32 rcv_pkt_len);
+#ifdef CONFIG_PM
+int rsi_config_wowlan(struct rsi_hw *adapter, struct cfg80211_wowlan *wowlan);
+#endif
+struct rsi_sta *rsi_find_sta(struct rsi_common *common, u8 *mac_addr);
+struct ieee80211_vif *rsi_get_vif(struct rsi_hw *adapter, u8 *mac);
+void rsi_roc_timeout(struct timer_list *t);
 #endif

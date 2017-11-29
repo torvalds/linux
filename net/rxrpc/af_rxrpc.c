@@ -246,6 +246,7 @@ static int rxrpc_listen(struct socket *sock, int backlog)
 			ret = 0;
 			break;
 		}
+		/* Fall through */
 	default:
 		ret = -EBUSY;
 		break;
@@ -265,6 +266,7 @@ static int rxrpc_listen(struct socket *sock, int backlog)
  * @tx_total_len: Total length of data to transmit during the call (or -1)
  * @gfp: The allocation constraints
  * @notify_rx: Where to send notifications instead of socket queue
+ * @upgrade: Request service upgrade for call
  *
  * Allow a kernel service to begin a call on the nominated socket.  This just
  * sets up all the internal tracking structures and allocates connection and
@@ -279,7 +281,8 @@ struct rxrpc_call *rxrpc_kernel_begin_call(struct socket *sock,
 					   unsigned long user_call_ID,
 					   s64 tx_total_len,
 					   gfp_t gfp,
-					   rxrpc_notify_rx_t notify_rx)
+					   rxrpc_notify_rx_t notify_rx,
+					   bool upgrade)
 {
 	struct rxrpc_conn_parameters cp;
 	struct rxrpc_call *call;
@@ -304,18 +307,28 @@ struct rxrpc_call *rxrpc_kernel_begin_call(struct socket *sock,
 	cp.key			= key;
 	cp.security_level	= 0;
 	cp.exclusive		= false;
+	cp.upgrade		= upgrade;
 	cp.service_id		= srx->srx_service;
 	call = rxrpc_new_client_call(rx, &cp, srx, user_call_ID, tx_total_len,
 				     gfp);
 	/* The socket has been unlocked. */
-	if (!IS_ERR(call))
+	if (!IS_ERR(call)) {
 		call->notify_rx = notify_rx;
+		mutex_unlock(&call->user_mutex);
+	}
 
-	mutex_unlock(&call->user_mutex);
 	_leave(" = %p", call);
 	return call;
 }
 EXPORT_SYMBOL(rxrpc_kernel_begin_call);
+
+/*
+ * Dummy function used to stop the notifier talking to recvmsg().
+ */
+static void rxrpc_dummy_notify_rx(struct sock *sk, struct rxrpc_call *rxcall,
+				  unsigned long call_user_ID)
+{
+}
 
 /**
  * rxrpc_kernel_end_call - Allow a kernel service to end a call it was using
@@ -331,10 +344,106 @@ void rxrpc_kernel_end_call(struct socket *sock, struct rxrpc_call *call)
 
 	mutex_lock(&call->user_mutex);
 	rxrpc_release_call(rxrpc_sk(sock->sk), call);
+
+	/* Make sure we're not going to call back into a kernel service */
+	if (call->notify_rx) {
+		spin_lock_bh(&call->notify_lock);
+		call->notify_rx = rxrpc_dummy_notify_rx;
+		spin_unlock_bh(&call->notify_lock);
+	}
+
 	mutex_unlock(&call->user_mutex);
 	rxrpc_put_call(call, rxrpc_call_put_kernel);
 }
 EXPORT_SYMBOL(rxrpc_kernel_end_call);
+
+/**
+ * rxrpc_kernel_check_life - Check to see whether a call is still alive
+ * @sock: The socket the call is on
+ * @call: The call to check
+ *
+ * Allow a kernel service to find out whether a call is still alive - ie. we're
+ * getting ACKs from the server.  Returns a number representing the life state
+ * which can be compared to that returned by a previous call.
+ *
+ * If this is a client call, ping ACKs will be sent to the server to find out
+ * whether it's still responsive and whether the call is still alive on the
+ * server.
+ */
+u32 rxrpc_kernel_check_life(struct socket *sock, struct rxrpc_call *call)
+{
+	return call->acks_latest;
+}
+EXPORT_SYMBOL(rxrpc_kernel_check_life);
+
+/**
+ * rxrpc_kernel_check_call - Check a call's state
+ * @sock: The socket the call is on
+ * @call: The call to check
+ * @_compl: Where to store the completion state
+ * @_abort_code: Where to store any abort code
+ *
+ * Allow a kernel service to query the state of a call and find out the manner
+ * of its termination if it has completed.  Returns -EINPROGRESS if the call is
+ * still going, 0 if the call finished successfully, -ECONNABORTED if the call
+ * was aborted and an appropriate error if the call failed in some other way.
+ */
+int rxrpc_kernel_check_call(struct socket *sock, struct rxrpc_call *call,
+			    enum rxrpc_call_completion *_compl, u32 *_abort_code)
+{
+	if (call->state != RXRPC_CALL_COMPLETE)
+		return -EINPROGRESS;
+	smp_rmb();
+	*_compl = call->completion;
+	*_abort_code = call->abort_code;
+	return call->error;
+}
+EXPORT_SYMBOL(rxrpc_kernel_check_call);
+
+/**
+ * rxrpc_kernel_retry_call - Allow a kernel service to retry a call
+ * @sock: The socket the call is on
+ * @call: The call to retry
+ * @srx: The address of the peer to contact
+ * @key: The security context to use (defaults to socket setting)
+ *
+ * Allow a kernel service to try resending a client call that failed due to a
+ * network error to a new address.  The Tx queue is maintained intact, thereby
+ * relieving the need to re-encrypt any request data that has already been
+ * buffered.
+ */
+int rxrpc_kernel_retry_call(struct socket *sock, struct rxrpc_call *call,
+			    struct sockaddr_rxrpc *srx, struct key *key)
+{
+	struct rxrpc_conn_parameters cp;
+	struct rxrpc_sock *rx = rxrpc_sk(sock->sk);
+	int ret;
+
+	_enter("%d{%d}", call->debug_id, atomic_read(&call->usage));
+
+	if (!key)
+		key = rx->key;
+	if (key && !key->payload.data[0])
+		key = NULL; /* a no-security key */
+
+	memset(&cp, 0, sizeof(cp));
+	cp.local		= rx->local;
+	cp.key			= key;
+	cp.security_level	= 0;
+	cp.exclusive		= false;
+	cp.service_id		= srx->srx_service;
+
+	mutex_lock(&call->user_mutex);
+
+	ret = rxrpc_prepare_call_for_retry(rx, call);
+	if (ret == 0)
+		ret = rxrpc_retry_client_call(rx, call, &cp, srx, GFP_KERNEL);
+
+	mutex_unlock(&call->user_mutex);
+	_leave(" = %d", ret);
+	return ret;
+}
+EXPORT_SYMBOL(rxrpc_kernel_retry_call);
 
 /**
  * rxrpc_kernel_new_call_notification - Get notifications of new calls
@@ -468,6 +577,7 @@ static int rxrpc_sendmsg(struct socket *sock, struct msghdr *m, size_t len)
 			m->msg_name = &rx->connect_srx;
 			m->msg_namelen = sizeof(rx->connect_srx);
 		}
+		/* Fall through */
 	case RXRPC_SERVER_BOUND:
 	case RXRPC_SERVER_LISTENING:
 		ret = rxrpc_do_sendmsg(rx, m, len);
@@ -591,13 +701,13 @@ static int rxrpc_getsockopt(struct socket *sock, int level, int optname,
 			    char __user *optval, int __user *_optlen)
 {
 	int optlen;
-	
+
 	if (level != SOL_RXRPC)
 		return -EOPNOTSUPP;
 
 	if (get_user(optlen, _optlen))
 		return -EFAULT;
-	
+
 	switch (optname) {
 	case RXRPC_SUPPORTED_CMSG:
 		if (optlen < sizeof(int))
@@ -606,7 +716,7 @@ static int rxrpc_getsockopt(struct socket *sock, int level, int optname,
 		    put_user(sizeof(int), _optlen))
 			return -EFAULT;
 		return 0;
-		
+
 	default:
 		return -EOPNOTSUPP;
 	}

@@ -1635,8 +1635,7 @@ static int s5c73m3_get_platform_data(struct s5c73m3 *state)
 
 	node_ep = of_graph_get_next_endpoint(node, NULL);
 	if (!node_ep) {
-		dev_warn(dev, "no endpoint defined for node: %s\n",
-						node->full_name);
+		dev_warn(dev, "no endpoint defined for node: %pOF\n", node);
 		return 0;
 	}
 

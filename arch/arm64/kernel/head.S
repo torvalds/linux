@@ -143,8 +143,8 @@ preserve_boot_args:
 	dmb	sy				// needed before dc ivac with
 						// MMU off
 
-	add	x1, x0, #0x20			// 4 x 8 bytes
-	b	__inval_cache_range		// tail call
+	mov	x1, #0x20			// 4 x 8 bytes
+	b	__inval_dcache_area		// tail call
 ENDPROC(preserve_boot_args)
 
 /*
@@ -221,20 +221,20 @@ __create_page_tables:
 	 * dirty cache lines being evicted.
 	 */
 	adrp	x0, idmap_pg_dir
-	adrp	x1, swapper_pg_dir + SWAPPER_DIR_SIZE + RESERVED_TTBR0_SIZE
-	bl	__inval_cache_range
+	ldr	x1, =(IDMAP_DIR_SIZE + SWAPPER_DIR_SIZE + RESERVED_TTBR0_SIZE)
+	bl	__inval_dcache_area
 
 	/*
 	 * Clear the idmap and swapper page tables.
 	 */
 	adrp	x0, idmap_pg_dir
-	adrp	x6, swapper_pg_dir + SWAPPER_DIR_SIZE + RESERVED_TTBR0_SIZE
+	ldr	x1, =(IDMAP_DIR_SIZE + SWAPPER_DIR_SIZE + RESERVED_TTBR0_SIZE)
 1:	stp	xzr, xzr, [x0], #16
 	stp	xzr, xzr, [x0], #16
 	stp	xzr, xzr, [x0], #16
 	stp	xzr, xzr, [x0], #16
-	cmp	x0, x6
-	b.lo	1b
+	subs	x1, x1, #64
+	b.ne	1b
 
 	mov	x7, SWAPPER_MM_MMUFLAGS
 
@@ -307,9 +307,9 @@ __create_page_tables:
 	 * tables again to remove any speculatively loaded cache lines.
 	 */
 	adrp	x0, idmap_pg_dir
-	adrp	x1, swapper_pg_dir + SWAPPER_DIR_SIZE + RESERVED_TTBR0_SIZE
+	ldr	x1, =(IDMAP_DIR_SIZE + SWAPPER_DIR_SIZE + RESERVED_TTBR0_SIZE)
 	dmb	sy
-	bl	__inval_cache_range
+	bl	__inval_dcache_area
 
 	ret	x28
 ENDPROC(__create_page_tables)
@@ -354,7 +354,6 @@ __primary_switched:
 	tst	x23, ~(MIN_KIMG_ALIGN - 1)	// already running randomized?
 	b.ne	0f
 	mov	x0, x21				// pass FDT address in x0
-	mov	x1, x23				// pass modulo offset in x1
 	bl	kaslr_early_init		// parse FDT for KASLR options
 	cbz	x0, 0f				// KASLR disabled? just proceed
 	orr	x23, x23, x0			// record KASLR offset
@@ -362,6 +361,9 @@ __primary_switched:
 	ret					// to __primary_switch()
 0:
 #endif
+	add	sp, sp, #16
+	mov	x29, #0
+	mov	x30, #0
 	b	start_kernel
 ENDPROC(__primary_switched)
 
@@ -382,6 +384,7 @@ ENTRY(kimage_vaddr)
  * booted in EL1 or EL2 respectively.
  */
 ENTRY(el2_setup)
+	msr	SPsel, #1			// We want to use SP_EL{1,2}
 	mrs	x0, CurrentEL
 	cmp	x0, #CurrentEL_EL2
 	b.eq	1f
@@ -477,14 +480,21 @@ set_hcr:
 
 	/* Statistical profiling */
 	ubfx	x0, x1, #32, #4			// Check ID_AA64DFR0_EL1 PMSVer
-	cbz	x0, 6f				// Skip if SPE not present
-	cbnz	x2, 5f				// VHE?
+	cbz	x0, 7f				// Skip if SPE not present
+	cbnz	x2, 6f				// VHE?
+	mrs_s	x4, SYS_PMBIDR_EL1		// If SPE available at EL2,
+	and	x4, x4, #(1 << SYS_PMBIDR_EL1_P_SHIFT)
+	cbnz	x4, 5f				// then permit sampling of physical
+	mov	x4, #(1 << SYS_PMSCR_EL2_PCT_SHIFT | \
+		      1 << SYS_PMSCR_EL2_PA_SHIFT)
+	msr_s	SYS_PMSCR_EL2, x4		// addresses and physical counter
+5:
 	mov	x1, #(MDCR_EL2_E2PB_MASK << MDCR_EL2_E2PB_SHIFT)
 	orr	x3, x3, x1			// If we don't have VHE, then
-	b	6f				// use EL1&0 translation.
-5:						// For VHE, use EL2 translation
+	b	7f				// use EL1&0 translation.
+6:						// For VHE, use EL2 translation
 	orr	x3, x3, #MDCR_EL2_TPMS		// and disable access from EL1
-6:
+7:
 	msr	mdcr_el2, x3			// Configure debug traps
 
 	/* Stage-2 translation */
@@ -514,8 +524,19 @@ CPU_LE(	movk	x0, #0x30d0, lsl #16	)	// Clear EE and E0E on LE systems
 	mov	x0, #0x33ff
 	msr	cptr_el2, x0			// Disable copro. traps to EL2
 
+	/* SVE register access */
+	mrs	x1, id_aa64pfr0_el1
+	ubfx	x1, x1, #ID_AA64PFR0_SVE_SHIFT, #4
+	cbz	x1, 7f
+
+	bic	x0, x0, #CPTR_EL2_TZ		// Also disable SVE traps
+	msr	cptr_el2, x0			// Disable copro. traps to EL2
+	isb
+	mov	x1, #ZCR_ELx_LEN_MASK		// SVE: Enable full vector
+	msr_s	SYS_ZCR_EL2, x1			// length for EL1.
+
 	/* Hypervisor stub */
-	adr_l	x0, __hyp_stub_vectors
+7:	adr_l	x0, __hyp_stub_vectors
 	msr	vbar_el2, x0
 
 	/* spsr */
@@ -617,6 +638,7 @@ __secondary_switched:
 	ldr	x2, [x0, #CPU_BOOT_TASK]
 	msr	sp_el0, x2
 	mov	x29, #0
+	mov	x30, #0
 	b	secondary_start_kernel
 ENDPROC(__secondary_switched)
 

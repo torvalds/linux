@@ -39,6 +39,7 @@
 
 #ifndef __ASSEMBLY__
 
+#include <asm/cmpxchg.h>
 #include <asm/fixmap.h>
 #include <linux/mmdebug.h>
 
@@ -84,11 +85,7 @@ extern unsigned long empty_zero_page[PAGE_SIZE / sizeof(unsigned long)];
 	(__boundary - 1 < (end) - 1) ? __boundary : (end);			\
 })
 
-#ifdef CONFIG_ARM64_HW_AFDBM
 #define pte_hw_dirty(pte)	(pte_write(pte) && !(pte_val(pte) & PTE_RDONLY))
-#else
-#define pte_hw_dirty(pte)	(0)
-#endif
 #define pte_sw_dirty(pte)	(!!(pte_val(pte) & PTE_DIRTY))
 #define pte_dirty(pte)		(pte_sw_dirty(pte) || pte_hw_dirty(pte))
 
@@ -101,6 +98,8 @@ extern unsigned long empty_zero_page[PAGE_SIZE / sizeof(unsigned long)];
 	((pte_val(pte) & (PTE_VALID | PTE_USER | PTE_UXN)) == (PTE_VALID | PTE_UXN))
 #define pte_valid_young(pte) \
 	((pte_val(pte) & (PTE_VALID | PTE_AF)) == (PTE_VALID | PTE_AF))
+#define pte_valid_user(pte) \
+	((pte_val(pte) & (PTE_VALID | PTE_USER)) == (PTE_VALID | PTE_USER))
 
 /*
  * Could the pte be present in the TLB? We must check mm_tlb_flush_pending
@@ -109,6 +108,18 @@ extern unsigned long empty_zero_page[PAGE_SIZE / sizeof(unsigned long)];
  */
 #define pte_accessible(mm, pte)	\
 	(mm_tlb_flush_pending(mm) ? pte_present(pte) : pte_valid_young(pte))
+
+/*
+ * p??_access_permitted() is true for valid user mappings (subject to the
+ * write permission check) other than user execute-only which do not have the
+ * PTE_USER bit set. PROT_NONE mappings do not have the PTE_VALID bit set.
+ */
+#define pte_access_permitted(pte, write) \
+	(pte_valid_user(pte) && (!(write) || pte_write(pte)))
+#define pmd_access_permitted(pmd, write) \
+	(pte_access_permitted(pmd_pte(pmd), (write)))
+#define pud_access_permitted(pud, write) \
+	(pte_access_permitted(pud_pte(pud), (write)))
 
 static inline pte_t clear_pte_bit(pte_t pte, pgprot_t prot)
 {
@@ -124,12 +135,16 @@ static inline pte_t set_pte_bit(pte_t pte, pgprot_t prot)
 
 static inline pte_t pte_wrprotect(pte_t pte)
 {
-	return clear_pte_bit(pte, __pgprot(PTE_WRITE));
+	pte = clear_pte_bit(pte, __pgprot(PTE_WRITE));
+	pte = set_pte_bit(pte, __pgprot(PTE_RDONLY));
+	return pte;
 }
 
 static inline pte_t pte_mkwrite(pte_t pte)
 {
-	return set_pte_bit(pte, __pgprot(PTE_WRITE));
+	pte = set_pte_bit(pte, __pgprot(PTE_WRITE));
+	pte = clear_pte_bit(pte, __pgprot(PTE_RDONLY));
+	return pte;
 }
 
 static inline pte_t pte_mkclean(pte_t pte)
@@ -166,11 +181,6 @@ static inline pte_t pte_mkcont(pte_t pte)
 static inline pte_t pte_mknoncont(pte_t pte)
 {
 	return clear_pte_bit(pte, __pgprot(PTE_CONT));
-}
-
-static inline pte_t pte_clear_rdonly(pte_t pte)
-{
-	return clear_pte_bit(pte, __pgprot(PTE_RDONLY));
 }
 
 static inline pte_t pte_mkpresent(pte_t pte)
@@ -220,22 +230,15 @@ extern void __sync_icache_dcache(pte_t pteval, unsigned long addr);
 static inline void set_pte_at(struct mm_struct *mm, unsigned long addr,
 			      pte_t *ptep, pte_t pte)
 {
-	if (pte_present(pte)) {
-		if (pte_sw_dirty(pte) && pte_write(pte))
-			pte_val(pte) &= ~PTE_RDONLY;
-		else
-			pte_val(pte) |= PTE_RDONLY;
-		if (pte_user_exec(pte) && !pte_special(pte))
-			__sync_icache_dcache(pte, addr);
-	}
+	if (pte_present(pte) && pte_user_exec(pte) && !pte_special(pte))
+		__sync_icache_dcache(pte, addr);
 
 	/*
 	 * If the existing pte is valid, check for potential race with
 	 * hardware updates of the pte (ptep_set_access_flags safely changes
 	 * valid ptes without going through an invalid entry).
 	 */
-	if (IS_ENABLED(CONFIG_ARM64_HW_AFDBM) &&
-	    pte_valid(*ptep) && pte_valid(pte)) {
+	if (pte_valid(*ptep) && pte_valid(pte)) {
 		VM_WARN_ONCE(!pte_young(pte),
 			     "%s: racy access flag clearing: 0x%016llx -> 0x%016llx",
 			     __func__, pte_val(*ptep), pte_val(pte));
@@ -412,7 +415,7 @@ static inline phys_addr_t pmd_page_paddr(pmd_t pmd)
 /* Find an entry in the third-level page table. */
 #define pte_index(addr)		(((addr) >> PAGE_SHIFT) & (PTRS_PER_PTE - 1))
 
-#define pte_offset_phys(dir,addr)	(pmd_page_paddr(*(dir)) + pte_index(addr) * sizeof(pte_t))
+#define pte_offset_phys(dir,addr)	(pmd_page_paddr(READ_ONCE(*(dir))) + pte_index(addr) * sizeof(pte_t))
 #define pte_offset_kernel(dir,addr)	((pte_t *)__va(pte_offset_phys((dir), (addr))))
 
 #define pte_offset_map(dir,addr)	pte_offset_kernel((dir), (addr))
@@ -571,7 +574,6 @@ static inline pmd_t pmd_modify(pmd_t pmd, pgprot_t newprot)
 	return pte_pmd(pte_modify(pmd_pte(pmd), newprot));
 }
 
-#ifdef CONFIG_ARM64_HW_AFDBM
 #define __HAVE_ARCH_PTEP_SET_ACCESS_FLAGS
 extern int ptep_set_access_flags(struct vm_area_struct *vma,
 				 unsigned long address, pte_t *ptep,
@@ -593,20 +595,17 @@ static inline int pmdp_set_access_flags(struct vm_area_struct *vma,
 #define __HAVE_ARCH_PTEP_TEST_AND_CLEAR_YOUNG
 static inline int __ptep_test_and_clear_young(pte_t *ptep)
 {
-	pteval_t pteval;
-	unsigned int tmp, res;
+	pte_t old_pte, pte;
 
-	asm volatile("//	__ptep_test_and_clear_young\n"
-	"	prfm	pstl1strm, %2\n"
-	"1:	ldxr	%0, %2\n"
-	"	ubfx	%w3, %w0, %5, #1	// extract PTE_AF (young)\n"
-	"	and	%0, %0, %4		// clear PTE_AF\n"
-	"	stxr	%w1, %0, %2\n"
-	"	cbnz	%w1, 1b\n"
-	: "=&r" (pteval), "=&r" (tmp), "+Q" (pte_val(*ptep)), "=&r" (res)
-	: "L" (~PTE_AF), "I" (ilog2(PTE_AF)));
+	pte = READ_ONCE(*ptep);
+	do {
+		old_pte = pte;
+		pte = pte_mkold(pte);
+		pte_val(pte) = cmpxchg_relaxed(&pte_val(*ptep),
+					       pte_val(old_pte), pte_val(pte));
+	} while (pte_val(pte) != pte_val(old_pte));
 
-	return res;
+	return pte_young(pte);
 }
 
 static inline int ptep_test_and_clear_young(struct vm_area_struct *vma,
@@ -630,17 +629,7 @@ static inline int pmdp_test_and_clear_young(struct vm_area_struct *vma,
 static inline pte_t ptep_get_and_clear(struct mm_struct *mm,
 				       unsigned long address, pte_t *ptep)
 {
-	pteval_t old_pteval;
-	unsigned int tmp;
-
-	asm volatile("//	ptep_get_and_clear\n"
-	"	prfm	pstl1strm, %2\n"
-	"1:	ldxr	%0, %2\n"
-	"	stxr	%w1, xzr, %2\n"
-	"	cbnz	%w1, 1b\n"
-	: "=&r" (old_pteval), "=&r" (tmp), "+Q" (pte_val(*ptep)));
-
-	return __pte(old_pteval);
+	return __pte(xchg_relaxed(&pte_val(*ptep), 0));
 }
 
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
@@ -653,27 +642,32 @@ static inline pmd_t pmdp_huge_get_and_clear(struct mm_struct *mm,
 #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
 
 /*
- * ptep_set_wrprotect - mark read-only while trasferring potential hardware
- * dirty status (PTE_DBM && !PTE_RDONLY) to the software PTE_DIRTY bit.
+ * ptep_set_wrprotect - mark read-only while preserving the hardware update of
+ * the Access Flag.
  */
 #define __HAVE_ARCH_PTEP_SET_WRPROTECT
 static inline void ptep_set_wrprotect(struct mm_struct *mm, unsigned long address, pte_t *ptep)
 {
-	pteval_t pteval;
-	unsigned long tmp;
+	pte_t old_pte, pte;
 
-	asm volatile("//	ptep_set_wrprotect\n"
-	"	prfm	pstl1strm, %2\n"
-	"1:	ldxr	%0, %2\n"
-	"	tst	%0, %4			// check for hw dirty (!PTE_RDONLY)\n"
-	"	csel	%1, %3, xzr, eq		// set PTE_DIRTY|PTE_RDONLY if dirty\n"
-	"	orr	%0, %0, %1		// if !dirty, PTE_RDONLY is already set\n"
-	"	and	%0, %0, %5		// clear PTE_WRITE/PTE_DBM\n"
-	"	stxr	%w1, %0, %2\n"
-	"	cbnz	%w1, 1b\n"
-	: "=&r" (pteval), "=&r" (tmp), "+Q" (pte_val(*ptep))
-	: "r" (PTE_DIRTY|PTE_RDONLY), "L" (PTE_RDONLY), "L" (~PTE_WRITE)
-	: "cc");
+	/*
+	 * ptep_set_wrprotect() is only called on CoW mappings which are
+	 * private (!VM_SHARED) with the pte either read-only (!PTE_WRITE &&
+	 * PTE_RDONLY) or writable and software-dirty (PTE_WRITE &&
+	 * !PTE_RDONLY && PTE_DIRTY); see is_cow_mapping() and
+	 * protection_map[]. There is no race with the hardware update of the
+	 * dirty state: clearing of PTE_RDONLY when PTE_WRITE (a.k.a. PTE_DBM)
+	 * is set.
+	 */
+	VM_WARN_ONCE(pte_write(*ptep) && !pte_dirty(*ptep),
+		     "%s: potential race with hardware DBM", __func__);
+	pte = READ_ONCE(*ptep);
+	do {
+		old_pte = pte;
+		pte = pte_wrprotect(pte);
+		pte_val(pte) = cmpxchg_relaxed(&pte_val(*ptep),
+					       pte_val(old_pte), pte_val(pte));
+	} while (pte_val(pte) != pte_val(old_pte));
 }
 
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
@@ -684,7 +678,6 @@ static inline void pmdp_set_wrprotect(struct mm_struct *mm,
 	ptep_set_wrprotect(mm, address, (pte_t *)pmdp);
 }
 #endif
-#endif	/* CONFIG_ARM64_HW_AFDBM */
 
 extern pgd_t swapper_pg_dir[PTRS_PER_PGD];
 extern pgd_t idmap_pg_dir[PTRS_PER_PGD];

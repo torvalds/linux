@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 if BCM47XX
 
 config BCM47XX_SSB

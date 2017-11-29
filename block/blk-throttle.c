@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Interface for controlling IO bandwidth on a request queue
  *
@@ -224,7 +225,7 @@ struct throtl_data
 	bool track_bio_latency;
 };
 
-static void throtl_pending_timer_fn(unsigned long arg);
+static void throtl_pending_timer_fn(struct timer_list *t);
 
 static inline struct throtl_grp *pd_to_tg(struct blkg_policy_data *pd)
 {
@@ -373,14 +374,20 @@ static unsigned int tg_iops_limit(struct throtl_grp *tg, int rw)
 	if (likely(!blk_trace_note_message_enabled(__td->queue)))	\
 		break;							\
 	if ((__tg)) {							\
-		char __pbuf[128];					\
-									\
-		blkg_path(tg_to_blkg(__tg), __pbuf, sizeof(__pbuf));	\
-		blk_add_trace_msg(__td->queue, "throtl %s " fmt, __pbuf, ##args); \
+		blk_add_cgroup_trace_msg(__td->queue,			\
+			tg_to_blkg(__tg)->blkcg, "throtl " fmt, ##args);\
 	} else {							\
 		blk_add_trace_msg(__td->queue, "throtl " fmt, ##args);	\
 	}								\
 } while (0)
+
+static inline unsigned int throtl_bio_data_size(struct bio *bio)
+{
+	/* assume it's one sector */
+	if (unlikely(bio_op(bio) == REQ_OP_DISCARD))
+		return 512;
+	return bio->bi_iter.bi_size;
+}
 
 static void throtl_qnode_init(struct throtl_qnode *qn, struct throtl_grp *tg)
 {
@@ -471,8 +478,7 @@ static void throtl_service_queue_init(struct throtl_service_queue *sq)
 	INIT_LIST_HEAD(&sq->queued[0]);
 	INIT_LIST_HEAD(&sq->queued[1]);
 	sq->pending_tree = RB_ROOT;
-	setup_timer(&sq->pending_timer, throtl_pending_timer_fn,
-		    (unsigned long)sq);
+	timer_setup(&sq->pending_timer, throtl_pending_timer_fn, 0);
 }
 
 static struct blkg_policy_data *throtl_pd_alloc(gfp_t gfp, int node)
@@ -934,6 +940,7 @@ static bool tg_with_in_bps_limit(struct throtl_grp *tg, struct bio *bio,
 	bool rw = bio_data_dir(bio);
 	u64 bytes_allowed, extra_bytes, tmp;
 	unsigned long jiffy_elapsed, jiffy_wait, jiffy_elapsed_rnd;
+	unsigned int bio_size = throtl_bio_data_size(bio);
 
 	jiffy_elapsed = jiffy_elapsed_rnd = jiffies - tg->slice_start[rw];
 
@@ -947,14 +954,14 @@ static bool tg_with_in_bps_limit(struct throtl_grp *tg, struct bio *bio,
 	do_div(tmp, HZ);
 	bytes_allowed = tmp;
 
-	if (tg->bytes_disp[rw] + bio->bi_iter.bi_size <= bytes_allowed) {
+	if (tg->bytes_disp[rw] + bio_size <= bytes_allowed) {
 		if (wait)
 			*wait = 0;
 		return true;
 	}
 
 	/* Calc approx time to dispatch */
-	extra_bytes = tg->bytes_disp[rw] + bio->bi_iter.bi_size - bytes_allowed;
+	extra_bytes = tg->bytes_disp[rw] + bio_size - bytes_allowed;
 	jiffy_wait = div64_u64(extra_bytes * HZ, tg_bps_limit(tg, rw));
 
 	if (!jiffy_wait)
@@ -1034,11 +1041,12 @@ static bool tg_may_dispatch(struct throtl_grp *tg, struct bio *bio,
 static void throtl_charge_bio(struct throtl_grp *tg, struct bio *bio)
 {
 	bool rw = bio_data_dir(bio);
+	unsigned int bio_size = throtl_bio_data_size(bio);
 
 	/* Charge the bio to the group */
-	tg->bytes_disp[rw] += bio->bi_iter.bi_size;
+	tg->bytes_disp[rw] += bio_size;
 	tg->io_disp[rw]++;
-	tg->last_bytes_disp[rw] += bio->bi_iter.bi_size;
+	tg->last_bytes_disp[rw] += bio_size;
 	tg->last_io_disp[rw]++;
 
 	/*
@@ -1240,9 +1248,9 @@ static bool throtl_can_upgrade(struct throtl_data *td,
  * the top-level service_tree is reached, throtl_data->dispatch_work is
  * kicked so that the ready bio's are issued.
  */
-static void throtl_pending_timer_fn(unsigned long arg)
+static void throtl_pending_timer_fn(struct timer_list *t)
 {
-	struct throtl_service_queue *sq = (void *)arg;
+	struct throtl_service_queue *sq = from_timer(sq, t, pending_timer);
 	struct throtl_grp *tg = sq_to_tg(sq);
 	struct throtl_data *td = sq_to_td(sq);
 	struct request_queue *q = td->queue;
@@ -1903,11 +1911,11 @@ static void throtl_upgrade_state(struct throtl_data *td)
 
 		tg->disptime = jiffies - 1;
 		throtl_select_dispatch(sq);
-		throtl_schedule_next_dispatch(sq, false);
+		throtl_schedule_next_dispatch(sq, true);
 	}
 	rcu_read_unlock();
 	throtl_select_dispatch(&td->service_queue);
-	throtl_schedule_next_dispatch(&td->service_queue, false);
+	throtl_schedule_next_dispatch(&td->service_queue, true);
 	queue_work(kthrotld_workqueue, &td->dispatch_work);
 }
 
@@ -2104,14 +2112,13 @@ static inline void throtl_update_latency_buckets(struct throtl_data *td)
 static void blk_throtl_assoc_bio(struct throtl_grp *tg, struct bio *bio)
 {
 #ifdef CONFIG_BLK_DEV_THROTTLING_LOW
-	int ret;
-
-	ret = bio_associate_current(bio);
-	if (ret == 0 || ret == -EBUSY)
+	if (bio->bi_css) {
+		if (bio->bi_cg_private)
+			blkg_put(tg_to_blkg(bio->bi_cg_private));
 		bio->bi_cg_private = tg;
+		blkg_get(tg_to_blkg(tg));
+	}
 	blk_stat_set_issue(&bio->bi_issue_stat, bio_sectors(bio));
-#else
-	bio_associate_current(bio);
 #endif
 }
 
@@ -2280,8 +2287,10 @@ void blk_throtl_bio_endio(struct bio *bio)
 
 	start_time = blk_stat_time(&bio->bi_issue_stat) >> 10;
 	finish_time = __blk_stat_time(finish_time_ns) >> 10;
-	if (!start_time || finish_time <= start_time)
+	if (!start_time || finish_time <= start_time) {
+		blkg_put(tg_to_blkg(tg));
 		return;
+	}
 
 	lat = finish_time - start_time;
 	/* this is only for bio based driver */
@@ -2311,6 +2320,8 @@ void blk_throtl_bio_endio(struct bio *bio)
 		tg->bio_cnt /= 2;
 		tg->bad_bio_cnt /= 2;
 	}
+
+	blkg_put(tg_to_blkg(tg));
 }
 #endif
 

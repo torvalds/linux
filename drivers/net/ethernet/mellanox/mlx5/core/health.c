@@ -81,7 +81,7 @@ static void trigger_cmd_completions(struct mlx5_core_dev *dev)
 	u64 vector;
 
 	/* wait for pending handlers to complete */
-	synchronize_irq(dev->priv.msix_arr[MLX5_EQ_VEC_CMD].vector);
+	synchronize_irq(pci_irq_vector(dev->pdev, MLX5_EQ_VEC_CMD));
 	spin_lock_irqsave(&dev->cmd.alloc_lock, flags);
 	vector = ~dev->cmd.bitmask & ((1ul << (1 << dev->cmd.log_sz)) - 1);
 	if (!vector)
@@ -285,9 +285,9 @@ void mlx5_trigger_health_work(struct mlx5_core_dev *dev)
 	spin_unlock_irqrestore(&health->wq_lock, flags);
 }
 
-static void poll_health(unsigned long data)
+static void poll_health(struct timer_list *t)
 {
-	struct mlx5_core_dev *dev = (struct mlx5_core_dev *)data;
+	struct mlx5_core_dev *dev = from_timer(dev, t, priv.health.timer);
 	struct mlx5_core_health *health = &dev->priv.health;
 	u32 count;
 
@@ -320,15 +320,13 @@ void mlx5_start_health_poll(struct mlx5_core_dev *dev)
 {
 	struct mlx5_core_health *health = &dev->priv.health;
 
-	init_timer(&health->timer);
+	timer_setup(&health->timer, poll_health, 0);
 	health->sick = 0;
 	clear_bit(MLX5_DROP_NEW_HEALTH_WORK, &health->flags);
 	clear_bit(MLX5_DROP_NEW_RECOVERY_WORK, &health->flags);
 	health->health = &dev->iseg->health;
 	health->health_counter = &dev->iseg->health_counter;
 
-	health->timer.data = (unsigned long)dev;
-	health->timer.function = poll_health;
 	health->timer.expires = round_jiffies(jiffies + MLX5_HEALTH_POLL_INTERVAL);
 	add_timer(&health->timer);
 }
@@ -356,10 +354,11 @@ void mlx5_drain_health_wq(struct mlx5_core_dev *dev)
 void mlx5_drain_health_recovery(struct mlx5_core_dev *dev)
 {
 	struct mlx5_core_health *health = &dev->priv.health;
+	unsigned long flags;
 
-	spin_lock(&health->wq_lock);
+	spin_lock_irqsave(&health->wq_lock, flags);
 	set_bit(MLX5_DROP_NEW_RECOVERY_WORK, &health->flags);
-	spin_unlock(&health->wq_lock);
+	spin_unlock_irqrestore(&health->wq_lock, flags);
 	cancel_delayed_work_sync(&dev->priv.health.recover_work);
 }
 

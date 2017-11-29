@@ -41,13 +41,13 @@ report::
 
 	- a symbolically formed event like 'pmu/param1=0x3,param2/' where
 	  param1 and param2 are defined as formats for the PMU in
-	  /sys/bus/event_sources/devices/<pmu>/format/*
+	  /sys/bus/event_source/devices/<pmu>/format/*
 
 	- a symbolically formed event like 'pmu/config=M,config1=N,config2=K/'
 	  where M, N, K are numbers (in decimal, hex, octal format).
 	  Acceptable values for each of 'config', 'config1' and 'config2'
 	  parameters are defined by corresponding entries in
-	  /sys/bus/event_sources/devices/<pmu>/format/*
+	  /sys/bus/event_source/devices/<pmu>/format/*
 
 -i::
 --no-inherit::
@@ -198,6 +198,13 @@ Aggregate counts per processor socket for system-wide mode measurements.
 
 --per-core::
 Aggregate counts per physical processor for system-wide mode measurements.
+
+-M::
+--metrics::
+Print metrics or metricgroups specified in a comma separated list.
+For a group all metrics from the group are added.
+The events from the metrics are automatically measured.
+See perf list output for the possble metrics and metricgroups.
 
 -A::
 --no-aggr::

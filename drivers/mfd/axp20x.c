@@ -44,6 +44,7 @@ static const char * const axp20x_model_names[] = {
 	"AXP803",
 	"AXP806",
 	"AXP809",
+	"AXP813",
 };
 
 static const struct regmap_range axp152_writeable_ranges[] = {
@@ -676,7 +677,7 @@ static struct mfd_cell axp20x_cells[] = {
 
 static struct mfd_cell axp221_cells[] = {
 	{
-		.name		= "axp20x-pek",
+		.name		= "axp221-pek",
 		.num_resources	= ARRAY_SIZE(axp22x_pek_resources),
 		.resources	= axp22x_pek_resources,
 	}, {
@@ -701,7 +702,7 @@ static struct mfd_cell axp221_cells[] = {
 
 static struct mfd_cell axp223_cells[] = {
 	{
-		.name			= "axp20x-pek",
+		.name			= "axp221-pek",
 		.num_resources		= ARRAY_SIZE(axp22x_pek_resources),
 		.resources		= axp22x_pek_resources,
 	}, {
@@ -834,7 +835,7 @@ static struct mfd_cell axp288_cells[] = {
 		.resources = axp288_fuel_gauge_resources,
 	},
 	{
-		.name = "axp20x-pek",
+		.name = "axp221-pek",
 		.num_resources = ARRAY_SIZE(axp288_power_button_resources),
 		.resources = axp288_power_button_resources,
 	},
@@ -845,7 +846,7 @@ static struct mfd_cell axp288_cells[] = {
 
 static struct mfd_cell axp803_cells[] = {
 	{
-		.name			= "axp20x-pek",
+		.name			= "axp221-pek",
 		.num_resources		= ARRAY_SIZE(axp803_pek_resources),
 		.resources		= axp803_pek_resources,
 	},
@@ -861,13 +862,23 @@ static struct mfd_cell axp806_cells[] = {
 
 static struct mfd_cell axp809_cells[] = {
 	{
-		.name			= "axp20x-pek",
+		.name			= "axp221-pek",
 		.num_resources		= ARRAY_SIZE(axp809_pek_resources),
 		.resources		= axp809_pek_resources,
 	}, {
 		.id			= 1,
 		.name			= "axp20x-regulator",
 	},
+};
+
+static struct mfd_cell axp813_cells[] = {
+	{
+		.name			= "axp221-pek",
+		.num_resources		= ARRAY_SIZE(axp803_pek_resources),
+		.resources		= axp803_pek_resources,
+	}, {
+		.name			= "axp20x-regulator",
+	}
 };
 
 static struct axp20x_dev *axp20x_pm_power_off;
@@ -955,6 +966,19 @@ int axp20x_match_device(struct axp20x_dev *axp20x)
 		axp20x->cells = axp809_cells;
 		axp20x->regmap_cfg = &axp22x_regmap_config;
 		axp20x->regmap_irq_chip = &axp809_regmap_irq_chip;
+		break;
+	case AXP813_ID:
+		axp20x->nr_cells = ARRAY_SIZE(axp813_cells);
+		axp20x->cells = axp813_cells;
+		axp20x->regmap_cfg = &axp288_regmap_config;
+		/*
+		 * The IRQ table given in the datasheet is incorrect.
+		 * In IRQ enable/status registers 1, there are separate
+		 * IRQs for ACIN and VBUS, instead of bits [7:5] being
+		 * the same as bits [4:2]. So it shares the same IRQs
+		 * as the AXP803, rather than the AXP288.
+		 */
+		axp20x->regmap_irq_chip = &axp803_regmap_irq_chip;
 		break;
 	default:
 		dev_err(dev, "unsupported AXP20X ID %lu\n", axp20x->variant);

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Suspend support specific for s390.
  *
@@ -98,10 +99,16 @@ int page_key_alloc(unsigned long pages)
  */
 void page_key_read(unsigned long *pfn)
 {
+	struct page *page;
 	unsigned long addr;
+	unsigned char key;
 
-	addr = (unsigned long) page_address(pfn_to_page(*pfn));
-	*(unsigned char *) pfn = (unsigned char) page_get_storage_key(addr);
+	page = pfn_to_page(*pfn);
+	addr = (unsigned long) page_address(page);
+	key = (unsigned char) page_get_storage_key(addr) & 0x7f;
+	if (arch_test_page_nodat(page))
+		key |= 0x80;
+	*(unsigned char *) pfn = key;
 }
 
 /*
@@ -126,8 +133,16 @@ void page_key_memorize(unsigned long *pfn)
  */
 void page_key_write(void *address)
 {
-	page_set_storage_key((unsigned long) address,
-			     page_key_rp->data[page_key_rx], 0);
+	struct page *page;
+	unsigned char key;
+
+	key = page_key_rp->data[page_key_rx];
+	page_set_storage_key((unsigned long) address, key & 0x7f, 0);
+	page = virt_to_page(address);
+	if (key & 0x80)
+		arch_set_page_nodat(page, 0);
+	else
+		arch_set_page_dat(page, 0);
 	if (++page_key_rx >= PAGE_KEY_DATA_SIZE)
 		return;
 	page_key_rp = page_key_rp->next;
@@ -138,7 +153,7 @@ int pfn_is_nosave(unsigned long pfn)
 {
 	unsigned long nosave_begin_pfn = PFN_DOWN(__pa(&__nosave_begin));
 	unsigned long nosave_end_pfn = PFN_DOWN(__pa(&__nosave_end));
-	unsigned long eshared_pfn = PFN_DOWN(__pa(&_eshared)) - 1;
+	unsigned long end_rodata_pfn = PFN_DOWN(__pa(&__end_rodata)) - 1;
 	unsigned long stext_pfn = PFN_DOWN(__pa(&_stext));
 
 	/* Always save lowcore pages (LC protection might be enabled). */
@@ -146,9 +161,9 @@ int pfn_is_nosave(unsigned long pfn)
 		return 0;
 	if (pfn >= nosave_begin_pfn && pfn < nosave_end_pfn)
 		return 1;
-	/* Skip memory holes and read-only pages (NSS, DCSS, ...). */
-	if (pfn >= stext_pfn && pfn <= eshared_pfn)
-		return ipl_info.type == IPL_TYPE_NSS ? 1 : 0;
+	/* Skip memory holes and read-only pages (DCSS, ...). */
+	if (pfn >= stext_pfn && pfn <= end_rodata_pfn)
+		return 0;
 	if (tprot(PFN_PHYS(pfn)))
 		return 1;
 	return 0;

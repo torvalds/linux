@@ -151,7 +151,7 @@ instance_put(struct nfulnl_instance *inst)
 		call_rcu_bh(&inst->rcu, nfulnl_instance_free_rcu);
 }
 
-static void nfulnl_timer(unsigned long data);
+static void nfulnl_timer(struct timer_list *t);
 
 static struct nfulnl_instance *
 instance_create(struct net *net, u_int16_t group_num,
@@ -184,7 +184,7 @@ instance_create(struct net *net, u_int16_t group_num,
 	/* needs to be two, since we _put() after creation */
 	refcount_set(&inst->use, 2);
 
-	setup_timer(&inst->timer, nfulnl_timer, (unsigned long)inst);
+	timer_setup(&inst->timer, nfulnl_timer, 0);
 
 	inst->net = get_net(net);
 	inst->peer_user_ns = user_ns;
@@ -377,9 +377,9 @@ __nfulnl_flush(struct nfulnl_instance *inst)
 }
 
 static void
-nfulnl_timer(unsigned long data)
+nfulnl_timer(struct timer_list *t)
 {
-	struct nfulnl_instance *inst = (struct nfulnl_instance *)data;
+	struct nfulnl_instance *inst = from_timer(inst, t, timer);
 
 	spin_lock_bh(&inst->lock);
 	if (inst->skb)
@@ -606,7 +606,7 @@ nla_put_failure:
 	return -1;
 }
 
-static struct nf_loginfo default_loginfo = {
+static const struct nf_loginfo default_loginfo = {
 	.type =		NF_LOG_TYPE_ULOG,
 	.u = {
 		.ulog = {

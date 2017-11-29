@@ -298,8 +298,8 @@ static int menu_select(struct cpuidle_driver *drv, struct cpuidle_device *dev)
 		data->needs_update = 0;
 	}
 
-	/* resume_latency is 0 means no restriction */
-	if (resume_latency && resume_latency < latency_req)
+	if (resume_latency < latency_req &&
+	    resume_latency != PM_QOS_RESUME_LATENCY_NO_CONSTRAINT)
 		latency_req = resume_latency;
 
 	/* Special case when user has set very strict latency requirement */
@@ -324,8 +324,9 @@ static int menu_select(struct cpuidle_driver *drv, struct cpuidle_device *dev)
 	expected_interval = get_typical_interval(data);
 	expected_interval = min(expected_interval, data->next_timer_us);
 
-	if (CPUIDLE_DRIVER_STATE_START > 0) {
-		struct cpuidle_state *s = &drv->states[CPUIDLE_DRIVER_STATE_START];
+	first_idx = 0;
+	if (drv->states[0].flags & CPUIDLE_FLAG_POLLING) {
+		struct cpuidle_state *s = &drv->states[1];
 		unsigned int polling_threshold;
 
 		/*
@@ -336,12 +337,8 @@ static int menu_select(struct cpuidle_driver *drv, struct cpuidle_device *dev)
 		polling_threshold = max_t(unsigned int, 20, s->target_residency);
 		if (data->next_timer_us > polling_threshold &&
 		    latency_req > s->exit_latency && !s->disabled &&
-		    !dev->states_usage[CPUIDLE_DRIVER_STATE_START].disable)
-			first_idx = CPUIDLE_DRIVER_STATE_START;
-		else
-			first_idx = CPUIDLE_DRIVER_STATE_START - 1;
-	} else {
-		first_idx = 0;
+		    !dev->states_usage[1].disable)
+			first_idx = 1;
 	}
 
 	/*

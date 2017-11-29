@@ -214,11 +214,19 @@ void media_gobj_destroy(struct media_gobj *gobj)
 	gobj->mdev = NULL;
 }
 
+/*
+ * TODO: Get rid of this.
+ */
+#define MEDIA_ENTITY_MAX_PADS		512
+
 int media_entity_pads_init(struct media_entity *entity, u16 num_pads,
 			   struct media_pad *pads)
 {
 	struct media_device *mdev = entity->graph_obj.mdev;
 	unsigned int i;
+
+	if (num_pads >= MEDIA_ENTITY_MAX_PADS)
+		return -E2BIG;
 
 	entity->num_pads = num_pads;
 	entity->pads = pads;
@@ -279,11 +287,6 @@ static struct media_entity *stack_pop(struct media_graph *graph)
 
 #define link_top(en)	((en)->stack[(en)->top].link)
 #define stack_top(en)	((en)->stack[(en)->top].entity)
-
-/*
- * TODO: Get rid of this.
- */
-#define MEDIA_ENTITY_MAX_PADS		512
 
 /**
  * media_graph_walk_init - Allocate resources for graph walk
@@ -917,7 +920,7 @@ media_entity_find_link(struct media_pad *source, struct media_pad *sink)
 }
 EXPORT_SYMBOL_GPL(media_entity_find_link);
 
-struct media_pad *media_entity_remote_pad(struct media_pad *pad)
+struct media_pad *media_entity_remote_pad(const struct media_pad *pad)
 {
 	struct media_link *link;
 

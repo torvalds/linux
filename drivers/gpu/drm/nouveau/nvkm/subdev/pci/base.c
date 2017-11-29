@@ -87,7 +87,7 @@ nvkm_pci_fini(struct nvkm_subdev *subdev, bool suspend)
 	if (pci->irq >= 0) {
 		free_irq(pci->irq, pci);
 		pci->irq = -1;
-	};
+	}
 
 	if (pci->agp.bridge)
 		nvkm_agp_fini(pci);
@@ -191,6 +191,10 @@ nvkm_pci_new_(const struct nvkm_pci_func *func, struct nvkm_device *device,
 			break;
 		}
 	}
+
+#ifdef __BIG_ENDIAN
+	pci->msi = false;
+#endif
 
 	pci->msi = nvkm_boolopt(device->cfgopt, "NvMSI", pci->msi);
 	if (pci->msi && func->msi_rearm) {

@@ -124,6 +124,7 @@ _cp15_save_diag:
 #endif /* CONFIG_CACHE_L2X0 */
 
 	.data
+	.align	2
 	.globl cp15_save_diag
 cp15_save_diag:
 	.long	0	@ cp15 diagnostic

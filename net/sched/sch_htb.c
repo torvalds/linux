@@ -107,7 +107,6 @@ struct htb_class {
 	struct tcf_proto __rcu	*filter_list;	/* class attached filters */
 	struct tcf_block	*block;
 	int			filter_cnt;
-	int			refcnt;		/* usage count of this class */
 
 	int			level;		/* our level (see above) */
 	unsigned int		children;
@@ -143,6 +142,7 @@ struct htb_class {
 	struct rb_node		node[TC_HTB_NUMPRIO];	/* node for self or feed tree */
 
 	unsigned int drops ____cacheline_aligned_in_smp;
+	unsigned int		overlimits;
 };
 
 struct htb_level {
@@ -193,6 +193,10 @@ static inline struct htb_class *htb_find(u32 handle, struct Qdisc *sch)
 	return container_of(clc, struct htb_class, common);
 }
 
+static unsigned long htb_search(struct Qdisc *sch, u32 handle)
+{
+	return (unsigned long)htb_find(handle, sch);
+}
 /**
  * htb_classify - classify a packet into class
  *
@@ -240,6 +244,7 @@ static struct htb_class *htb_classify(struct sk_buff *skb, struct Qdisc *sch,
 		case TC_ACT_STOLEN:
 		case TC_ACT_TRAP:
 			*qerr = NET_XMIT_SUCCESS | __NET_XMIT_STOLEN;
+			/* fall through */
 		case TC_ACT_SHOT:
 			return NULL;
 		}
@@ -529,6 +534,9 @@ htb_change_class_mode(struct htb_sched *q, struct htb_class *cl, s64 *diff)
 
 	if (new_mode == cl->cmode)
 		return;
+
+	if (new_mode == HTB_CANT_SEND)
+		cl->overlimits++;
 
 	if (cl->prio_activity) {	/* not necessary: speed optimization */
 		if (cl->cmode != HTB_CANT_SEND)
@@ -1017,10 +1025,13 @@ static int htb_init(struct Qdisc *sch, struct nlattr *opt)
 	int err;
 	int i;
 
+	qdisc_watchdog_init(&q->watchdog, sch);
+	INIT_WORK(&q->work, htb_work_func);
+
 	if (!opt)
 		return -EINVAL;
 
-	err = tcf_block_get(&q->block, &q->filter_list);
+	err = tcf_block_get(&q->block, &q->filter_list, sch);
 	if (err)
 		return err;
 
@@ -1041,8 +1052,6 @@ static int htb_init(struct Qdisc *sch, struct nlattr *opt)
 	for (i = 0; i < TC_HTB_NUMPRIO; i++)
 		INIT_LIST_HEAD(q->drops + i);
 
-	qdisc_watchdog_init(&q->watchdog, sch);
-	INIT_WORK(&q->work, htb_work_func);
 	qdisc_skb_head_init(&q->direct_queue);
 
 	if (tb[TCA_HTB_DIRECT_QLEN])
@@ -1139,6 +1148,7 @@ htb_dump_class_stats(struct Qdisc *sch, unsigned long arg, struct gnet_dump *d)
 	struct htb_class *cl = (struct htb_class *)arg;
 	struct gnet_stats_queue qs = {
 		.drops = cl->drops,
+		.overlimits = cl->overlimits,
 	};
 	__u32 qlen = 0;
 
@@ -1186,16 +1196,7 @@ static void htb_qlen_notify(struct Qdisc *sch, unsigned long arg)
 {
 	struct htb_class *cl = (struct htb_class *)arg;
 
-	if (cl->un.leaf.q->q.qlen == 0)
-		htb_deactivate(qdisc_priv(sch), cl);
-}
-
-static unsigned long htb_get(struct Qdisc *sch, u32 classid)
-{
-	struct htb_class *cl = htb_find(classid, sch);
-	if (cl)
-		cl->refcnt++;
-	return (unsigned long)cl;
+	htb_deactivate(qdisc_priv(sch), cl);
 }
 
 static inline int htb_parent_last_child(struct htb_class *cl)
@@ -1258,8 +1259,10 @@ static void htb_destroy(struct Qdisc *sch)
 	tcf_block_put(q->block);
 
 	for (i = 0; i < q->clhash.hashsize; i++) {
-		hlist_for_each_entry(cl, &q->clhash.hash[i], common.hnode)
+		hlist_for_each_entry(cl, &q->clhash.hash[i], common.hnode) {
 			tcf_block_put(cl->block);
+			cl->block = NULL;
+		}
 	}
 	for (i = 0; i < q->clhash.hashsize; i++) {
 		hlist_for_each_entry_safe(cl, next, &q->clhash.hash[i],
@@ -1315,22 +1318,10 @@ static int htb_delete(struct Qdisc *sch, unsigned long arg)
 	if (last_child)
 		htb_parent_to_leaf(q, cl, new_q);
 
-	BUG_ON(--cl->refcnt == 0);
-	/*
-	 * This shouldn't happen: we "hold" one cops->get() when called
-	 * from tc_ctl_tclass; the destroy method is done from cops->put().
-	 */
-
 	sch_tree_unlock(sch);
+
+	htb_destroy_class(sch, cl);
 	return 0;
-}
-
-static void htb_put(struct Qdisc *sch, unsigned long arg)
-{
-	struct htb_class *cl = (struct htb_class *)arg;
-
-	if (--cl->refcnt == 0)
-		htb_destroy_class(sch, cl);
 }
 
 static int htb_change_class(struct Qdisc *sch, u32 classid,
@@ -1403,7 +1394,7 @@ static int htb_change_class(struct Qdisc *sch, u32 classid,
 		if (!cl)
 			goto failure;
 
-		err = tcf_block_get(&cl->block, &cl->filter_list);
+		err = tcf_block_get(&cl->block, &cl->filter_list, sch);
 		if (err) {
 			kfree(cl);
 			goto failure;
@@ -1421,7 +1412,6 @@ static int htb_change_class(struct Qdisc *sch, u32 classid,
 			}
 		}
 
-		cl->refcnt = 1;
 		cl->children = 0;
 		INIT_LIST_HEAD(&cl->un.leaf.drop_list);
 		RB_CLEAR_NODE(&cl->pq_node);
@@ -1597,8 +1587,7 @@ static const struct Qdisc_class_ops htb_class_ops = {
 	.graft		=	htb_graft,
 	.leaf		=	htb_leaf,
 	.qlen_notify	=	htb_qlen_notify,
-	.get		=	htb_get,
-	.put		=	htb_put,
+	.find		=	htb_search,
 	.change		=	htb_change_class,
 	.delete		=	htb_delete,
 	.walk		=	htb_walk,

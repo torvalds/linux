@@ -19,9 +19,11 @@ Three different ways of output formatting are available:
 
 The data is sampled from the KVM's debugfs entries and its perf events.
 """
+from __future__ import print_function
 
 import curses
 import sys
+import locale
 import os
 import time
 import optparse
@@ -224,6 +226,8 @@ IOCTL_NUMBERS = {
     'DISABLE':     0x00002401,
     'RESET':       0x00002403,
 }
+
+ENCODING = locale.getpreferredencoding(False)
 
 
 class Arch(object):
@@ -474,7 +478,7 @@ class Provider(object):
     @staticmethod
     def is_field_wanted(fields_filter, field):
         """Indicate whether field is valid according to fields_filter."""
-        if not fields_filter:
+        if not fields_filter or fields_filter == "help":
             return True
         return re.match(fields_filter, field) is not None
 
@@ -666,7 +670,7 @@ class TracepointProvider(Provider):
         """Returns 'event name: current value' for all enabled events."""
         ret = defaultdict(int)
         for group in self.group_leaders:
-            for name, val in group.read().iteritems():
+            for name, val in group.read().items():
                 if name in self._fields:
                     ret[name] += val
         return ret
@@ -955,7 +959,7 @@ class Tui(object):
         except:
             raise Exception
         for line in child.stdout:
-            line = line.lstrip().split(' ', 1)
+            line = line.decode(ENCODING).lstrip().split(' ', 1)
             # perform a sanity check before calling the more expensive
             # function to possibly extract the guest name
             if ' -name ' in line[1]:
@@ -1005,7 +1009,7 @@ class Tui(object):
         name = ''
         try:
             line = open('/proc/{}/cmdline'
-                        .format(pid), 'rb').read().split('\0')
+                        .format(pid), 'r').read().split('\0')
             parms = line[line.index('-name') + 1].split(',')
             while '' in parms:
                 # commas are escaped (i.e. ',,'), hence e.g. 'foo,bar' results
@@ -1170,7 +1174,7 @@ class Tui(object):
                                .format(self.stats.fields_filter))
             self.screen.addstr(3, 0, "New regex: ")
             curses.echo()
-            regex = self.screen.getstr()
+            regex = self.screen.getstr().decode(ENCODING)
             curses.noecho()
             if len(regex) == 0:
                 self.stats.fields_filter = DEFAULT_REGEX
@@ -1204,7 +1208,7 @@ class Tui(object):
 
             curses.echo()
             self.screen.addstr(3, 0, "Pid [0 or pid]: ")
-            pid = self.screen.getstr()
+            pid = self.screen.getstr().decode(ENCODING)
             curses.noecho()
 
             try:
@@ -1233,7 +1237,7 @@ class Tui(object):
             self.screen.addstr(2, 0, 'Change delay from %.1fs to ' %
                                self._delay_regular)
             curses.echo()
-            val = self.screen.getstr()
+            val = self.screen.getstr().decode(ENCODING)
             curses.noecho()
 
             try:
@@ -1273,7 +1277,7 @@ class Tui(object):
             self.print_all_gnames(7)
             curses.echo()
             self.screen.addstr(3, 0, "Guest [ENTER or guest]: ")
-            gname = self.screen.getstr()
+            gname = self.screen.getstr().decode(ENCODING)
             curses.noecho()
 
             if not gname:
@@ -1369,25 +1373,25 @@ def batch(stats):
         s = stats.get()
         for key in sorted(s.keys()):
             values = s[key]
-            print '%-42s%10d%10d' % (key, values[0], values[1])
+            print('%-42s%10d%10d' % (key, values[0], values[1]))
     except KeyboardInterrupt:
         pass
 
 
 def log(stats):
     """Prints statistics as reiterating key block, multiple value blocks."""
-    keys = sorted(stats.get().iterkeys())
+    keys = sorted(stats.get().keys())
 
     def banner():
         for k in keys:
-            print '%s' % k,
-        print
+            print(k, end=' ')
+        print()
 
     def statline():
         s = stats.get()
         for k in keys:
-            print ' %9d' % s[k][1],
-        print
+            print(' %9d' % s[k][1], end=' ')
+        print()
     line = 0
     banner_repeat = 20
     while True:
@@ -1413,8 +1417,8 @@ performance.
 
 Requirements:
 - Access to:
-    /sys/kernel/debug/kvm
-    /sys/kernel/debug/trace/events/*
+    %s
+    %s/events/*
     /proc/pid/task
 - /proc/sys/kernel/perf_event_paranoid < 1 if user has no
   CAP_SYS_ADMIN and perf events are used.
@@ -1434,7 +1438,7 @@ Interactive Commands:
    s     set update interval
    x     toggle reporting of stats for individual child trace events
 Press any other key to refresh statistics immediately.
-"""
+""" % (PATH_DEBUGFS_KVM, PATH_DEBUGFS_TRACING)
 
     class PlainHelpFormatter(optparse.IndentedHelpFormatter):
         def format_description(self, description):
@@ -1496,7 +1500,8 @@ Press any other key to refresh statistics immediately.
                          action='store',
                          default=DEFAULT_REGEX,
                          dest='fields',
-                         help='fields to display (regex)',
+                         help='''fields to display (regex)
+                                 "-f help" for a list of available events''',
                          )
     optparser.add_option('-p', '--pid',
                          action='store',
@@ -1558,6 +1563,17 @@ def main():
         sys.exit('Specified pid does not exist.')
 
     stats = Stats(options)
+
+    if options.fields == "help":
+        event_list = "\n"
+        s = stats.get()
+        for key in s.keys():
+            if key.find('(') != -1:
+                key = key[0:key.find('(')]
+            if event_list.find('\n' + key + '\n') == -1:
+                event_list += key + '\n'
+        sys.stdout.write(event_list)
+        return ""
 
     if options.log:
         log(stats)

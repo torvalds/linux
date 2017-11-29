@@ -24,6 +24,7 @@
 #include <linux/irq.h>
 #include <linux/module.h>
 #include <linux/of.h>
+#include <linux/of_device.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
@@ -206,7 +207,7 @@ static irqreturn_t gpio_rcar_irq_handler(int irq, void *dev_id)
 			  gpio_rcar_read(p, INTMSK))) {
 		offset = __ffs(pending);
 		gpio_rcar_write(p, INTCLR, BIT(offset));
-		generic_handle_irq(irq_find_mapping(p->gpio_chip.irqdomain,
+		generic_handle_irq(irq_find_mapping(p->gpio_chip.irq.domain,
 						    offset));
 		irqs_handled++;
 	}
@@ -249,7 +250,7 @@ static int gpio_rcar_request(struct gpio_chip *chip, unsigned offset)
 	if (error < 0)
 		return error;
 
-	error = pinctrl_request_gpio(chip->base + offset);
+	error = pinctrl_gpio_request(chip->base + offset);
 	if (error)
 		pm_runtime_put(&p->pdev->dev);
 
@@ -260,7 +261,7 @@ static void gpio_rcar_free(struct gpio_chip *chip, unsigned offset)
 {
 	struct gpio_rcar_priv *p = gpiochip_get_data(chip);
 
-	pinctrl_free_gpio(chip->base + offset);
+	pinctrl_gpio_free(chip->base + offset);
 
 	/*
 	 * Set the GPIO as an input to ensure that the next GPIO request won't
@@ -371,6 +372,16 @@ static const struct of_device_id gpio_rcar_of_table[] = {
 		/* Gen3 GPIO is identical to Gen2. */
 		.data = &gpio_rcar_info_gen2,
 	}, {
+		.compatible = "renesas,rcar-gen1-gpio",
+		.data = &gpio_rcar_info_gen1,
+	}, {
+		.compatible = "renesas,rcar-gen2-gpio",
+		.data = &gpio_rcar_info_gen2,
+	}, {
+		.compatible = "renesas,rcar-gen3-gpio",
+		/* Gen3 GPIO is identical to Gen2. */
+		.data = &gpio_rcar_info_gen2,
+	}, {
 		.compatible = "renesas,gpio-rcar",
 		.data = &gpio_rcar_info_gen1,
 	}, {
@@ -383,16 +394,11 @@ MODULE_DEVICE_TABLE(of, gpio_rcar_of_table);
 static int gpio_rcar_parse_dt(struct gpio_rcar_priv *p, unsigned int *npins)
 {
 	struct device_node *np = p->pdev->dev.of_node;
-	const struct of_device_id *match;
 	const struct gpio_rcar_info *info;
 	struct of_phandle_args args;
 	int ret;
 
-	match = of_match_node(gpio_rcar_of_table, np);
-	if (!match)
-		return -EINVAL;
-
-	info = match->data;
+	info = of_device_get_match_data(&p->pdev->dev);
 
 	ret = of_parse_phandle_with_fixed_args(np, "gpio-ranges", 3, 0, &args);
 	*npins = ret == 0 ? args.args[2] : RCAR_MAX_GPIO_PER_BANK;
@@ -446,19 +452,17 @@ static int gpio_rcar_probe(struct platform_device *pdev)
 
 	pm_runtime_enable(dev);
 
-	io = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	irq = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
-
-	if (!io || !irq) {
-		dev_err(dev, "missing IRQ or IOMEM\n");
+	if (!irq) {
+		dev_err(dev, "missing IRQ\n");
 		ret = -EINVAL;
 		goto err0;
 	}
 
-	p->base = devm_ioremap_nocache(dev, io->start, resource_size(io));
-	if (!p->base) {
-		dev_err(dev, "failed to remap I/O memory\n");
-		ret = -ENXIO;
+	io = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	p->base = devm_ioremap_resource(dev, io);
+	if (IS_ERR(p->base)) {
+		ret = PTR_ERR(p->base);
 		goto err0;
 	}
 

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __ASM_GENERIC_FB_H_
 #define __ASM_GENERIC_FB_H_
 #include <linux/fb.h>

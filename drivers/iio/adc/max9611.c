@@ -460,7 +460,6 @@ static const struct attribute_group max9611_attribute_group = {
 };
 
 static const struct iio_info indio_info = {
-	.driver_module	= THIS_MODULE,
 	.read_raw	= max9611_read_raw,
 	.attrs		= &max9611_attribute_group,
 };
@@ -549,8 +548,8 @@ static int max9611_probe(struct i2c_client *client,
 	ret = of_property_read_u32(of_node, shunt_res_prop, &of_shunt);
 	if (ret) {
 		dev_err(&client->dev,
-			"Missing %s property for %s node\n",
-			shunt_res_prop, of_node->full_name);
+			"Missing %s property for %pOF node\n",
+			shunt_res_prop, of_node);
 		return ret;
 	}
 	max9611->shunt_resistor_uohm = of_shunt;
@@ -573,7 +572,6 @@ static int max9611_probe(struct i2c_client *client,
 static struct i2c_driver max9611_driver = {
 	.driver = {
 		   .name = DRIVER_NAME,
-		   .owner = THIS_MODULE,
 		   .of_match_table = max9611_of_table,
 	},
 	.probe = max9611_probe,

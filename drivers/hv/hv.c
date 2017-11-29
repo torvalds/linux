@@ -234,7 +234,6 @@ int hv_synic_init(unsigned int cpu)
 	union hv_synic_siefp siefp;
 	union hv_synic_sint shared_sint;
 	union hv_synic_scontrol sctrl;
-	u64 vp_index;
 
 	/* Setup the Synic's message page */
 	hv_get_simp(simp.as_uint64);
@@ -274,14 +273,6 @@ int hv_synic_init(unsigned int cpu)
 	hv_set_synic_state(sctrl.as_uint64);
 
 	hv_context.synic_initialized = true;
-
-	/*
-	 * Setup the mapping between Hyper-V's notion
-	 * of cpuid and Linux' notion of cpuid.
-	 * This array will be indexed using Linux cpuid.
-	 */
-	hv_get_vp_index(vp_index);
-	hv_context.vp_index[cpu] = (u32)vp_index;
 
 	/*
 	 * Register the per-cpu clockevent source.

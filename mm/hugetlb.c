@@ -1066,11 +1066,11 @@ static void free_gigantic_page(struct page *page, unsigned int order)
 }
 
 static int __alloc_gigantic_page(unsigned long start_pfn,
-				unsigned long nr_pages)
+				unsigned long nr_pages, gfp_t gfp_mask)
 {
 	unsigned long end_pfn = start_pfn + nr_pages;
 	return alloc_contig_range(start_pfn, end_pfn, MIGRATE_MOVABLE,
-				  GFP_KERNEL);
+				  gfp_mask);
 }
 
 static bool pfn_range_valid_gigantic(struct zone *z,
@@ -1108,19 +1108,24 @@ static bool zone_spans_last_pfn(const struct zone *zone,
 	return zone_spans_pfn(zone, last_pfn);
 }
 
-static struct page *alloc_gigantic_page(int nid, unsigned int order)
+static struct page *alloc_gigantic_page(int nid, struct hstate *h)
 {
+	unsigned int order = huge_page_order(h);
 	unsigned long nr_pages = 1 << order;
 	unsigned long ret, pfn, flags;
-	struct zone *z;
+	struct zonelist *zonelist;
+	struct zone *zone;
+	struct zoneref *z;
+	gfp_t gfp_mask;
 
-	z = NODE_DATA(nid)->node_zones;
-	for (; z - NODE_DATA(nid)->node_zones < MAX_NR_ZONES; z++) {
-		spin_lock_irqsave(&z->lock, flags);
+	gfp_mask = htlb_alloc_mask(h) | __GFP_THISNODE;
+	zonelist = node_zonelist(nid, gfp_mask);
+	for_each_zone_zonelist_nodemask(zone, z, zonelist, gfp_zone(gfp_mask), NULL) {
+		spin_lock_irqsave(&zone->lock, flags);
 
-		pfn = ALIGN(z->zone_start_pfn, nr_pages);
-		while (zone_spans_last_pfn(z, pfn, nr_pages)) {
-			if (pfn_range_valid_gigantic(z, pfn, nr_pages)) {
+		pfn = ALIGN(zone->zone_start_pfn, nr_pages);
+		while (zone_spans_last_pfn(zone, pfn, nr_pages)) {
+			if (pfn_range_valid_gigantic(zone, pfn, nr_pages)) {
 				/*
 				 * We release the zone lock here because
 				 * alloc_contig_range() will also lock the zone
@@ -1128,16 +1133,16 @@ static struct page *alloc_gigantic_page(int nid, unsigned int order)
 				 * spinning on this lock, it may win the race
 				 * and cause alloc_contig_range() to fail...
 				 */
-				spin_unlock_irqrestore(&z->lock, flags);
-				ret = __alloc_gigantic_page(pfn, nr_pages);
+				spin_unlock_irqrestore(&zone->lock, flags);
+				ret = __alloc_gigantic_page(pfn, nr_pages, gfp_mask);
 				if (!ret)
 					return pfn_to_page(pfn);
-				spin_lock_irqsave(&z->lock, flags);
+				spin_lock_irqsave(&zone->lock, flags);
 			}
 			pfn += nr_pages;
 		}
 
-		spin_unlock_irqrestore(&z->lock, flags);
+		spin_unlock_irqrestore(&zone->lock, flags);
 	}
 
 	return NULL;
@@ -1150,7 +1155,7 @@ static struct page *alloc_fresh_gigantic_page_node(struct hstate *h, int nid)
 {
 	struct page *page;
 
-	page = alloc_gigantic_page(nid, huge_page_order(h));
+	page = alloc_gigantic_page(nid, h);
 	if (page) {
 		prep_compound_gigantic_page(page, huge_page_order(h));
 		prep_new_huge_page(h, page, nid);
@@ -2083,7 +2088,9 @@ struct page *alloc_huge_page_noerr(struct vm_area_struct *vma,
 	return page;
 }
 
-int __weak alloc_bootmem_huge_page(struct hstate *h)
+int alloc_bootmem_huge_page(struct hstate *h)
+	__attribute__ ((weak, alias("__alloc_bootmem_huge_page")));
+int __alloc_bootmem_huge_page(struct hstate *h)
 {
 	struct huge_bootmem_page *m;
 	int nr_nodes, node;
@@ -2569,13 +2576,13 @@ static struct attribute *hstate_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group hstate_attr_group = {
+static const struct attribute_group hstate_attr_group = {
 	.attrs = hstate_attrs,
 };
 
 static int hugetlb_sysfs_add_hstate(struct hstate *h, struct kobject *parent,
 				    struct kobject **hstate_kobjs,
-				    struct attribute_group *hstate_attr_group)
+				    const struct attribute_group *hstate_attr_group)
 {
 	int retval;
 	int hi = hstate_index(h);
@@ -2633,7 +2640,7 @@ static struct attribute *per_node_hstate_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group per_node_hstate_attr_group = {
+static const struct attribute_group per_node_hstate_attr_group = {
 	.attrs = per_node_hstate_attrs,
 };
 
@@ -3249,9 +3256,14 @@ int copy_hugetlb_page_range(struct mm_struct *dst, struct mm_struct *src,
 			set_huge_swap_pte_at(dst, addr, dst_pte, entry, sz);
 		} else {
 			if (cow) {
+				/*
+				 * No need to notify as we are downgrading page
+				 * table protection not changing it to point
+				 * to a new page.
+				 *
+				 * See Documentation/vm/mmu_notifier.txt
+				 */
 				huge_ptep_set_wrprotect(src, addr, src_pte);
-				mmu_notifier_invalidate_range(src, mmun_start,
-								   mmun_end);
 			}
 			entry = huge_ptep_get(src_pte);
 			ptepage = pte_page(entry);
@@ -3977,6 +3989,9 @@ int hugetlb_mcopy_atomic_pte(struct mm_struct *dst_mm,
 			    unsigned long src_addr,
 			    struct page **pagep)
 {
+	struct address_space *mapping;
+	pgoff_t idx;
+	unsigned long size;
 	int vm_shared = dst_vma->vm_flags & VM_SHARED;
 	struct hstate *h = hstate_vma(dst_vma);
 	pte_t _dst_pte;
@@ -4014,13 +4029,24 @@ int hugetlb_mcopy_atomic_pte(struct mm_struct *dst_mm,
 	__SetPageUptodate(page);
 	set_page_huge_active(page);
 
+	mapping = dst_vma->vm_file->f_mapping;
+	idx = vma_hugecache_offset(h, dst_vma, dst_addr);
+
 	/*
 	 * If shared, add to page cache
 	 */
 	if (vm_shared) {
-		struct address_space *mapping = dst_vma->vm_file->f_mapping;
-		pgoff_t idx = vma_hugecache_offset(h, dst_vma, dst_addr);
+		size = i_size_read(mapping->host) >> huge_page_shift(h);
+		ret = -EFAULT;
+		if (idx >= size)
+			goto out_release_nounlock;
 
+		/*
+		 * Serialization between remove_inode_hugepages() and
+		 * huge_add_to_page_cache() below happens through the
+		 * hugetlb_fault_mutex_table that here must be hold by
+		 * the caller.
+		 */
 		ret = huge_add_to_page_cache(page, mapping, idx);
 		if (ret)
 			goto out_release_nounlock;
@@ -4028,6 +4054,20 @@ int hugetlb_mcopy_atomic_pte(struct mm_struct *dst_mm,
 
 	ptl = huge_pte_lockptr(h, dst_mm, dst_pte);
 	spin_lock(ptl);
+
+	/*
+	 * Recheck the i_size after holding PT lock to make sure not
+	 * to leave any page mapped (as page_mapped()) beyond the end
+	 * of the i_size (remove_inode_hugepages() is strict about
+	 * enforcing that). If we bail out here, we'll also leave a
+	 * page in the radix tree in the vm_shared case beyond the end
+	 * of the i_size, but remove_inode_hugepages() will take care
+	 * of it as soon as we drop the hugetlb_fault_mutex_table.
+	 */
+	size = i_size_read(mapping->host) >> huge_page_shift(h);
+	ret = -EFAULT;
+	if (idx >= size)
+		goto out_release_unlock;
 
 	ret = -EEXIST;
 	if (!huge_pte_none(huge_ptep_get(dst_pte)))
@@ -4062,9 +4102,9 @@ out:
 	return ret;
 out_release_unlock:
 	spin_unlock(ptl);
-out_release_nounlock:
 	if (vm_shared)
 		unlock_page(page);
+out_release_nounlock:
 	put_page(page);
 	goto out;
 }
@@ -4078,6 +4118,7 @@ long follow_hugetlb_page(struct mm_struct *mm, struct vm_area_struct *vma,
 	unsigned long vaddr = *position;
 	unsigned long remainder = *nr_pages;
 	struct hstate *h = hstate_vma(vma);
+	int err = -EFAULT;
 
 	while (vaddr < vma->vm_end && remainder) {
 		pte_t *pte;
@@ -4154,11 +4195,7 @@ long follow_hugetlb_page(struct mm_struct *mm, struct vm_area_struct *vma,
 			}
 			ret = hugetlb_fault(mm, vma, vaddr, fault_flags);
 			if (ret & VM_FAULT_ERROR) {
-				int err = vm_fault_to_errno(ret, flags);
-
-				if (err)
-					return err;
-
+				err = vm_fault_to_errno(ret, flags);
 				remainder = 0;
 				break;
 			}
@@ -4213,7 +4250,7 @@ same_page:
 	 */
 	*position = vaddr;
 
-	return i ? i : -EFAULT;
+	return i ? i : err;
 }
 
 #ifndef __HAVE_ARCH_FLUSH_HUGETLB_TLB_RANGE
@@ -4286,7 +4323,12 @@ unsigned long hugetlb_change_protection(struct vm_area_struct *vma,
 	 * and that page table be reused and filled with junk.
 	 */
 	flush_hugetlb_tlb_range(vma, start, end);
-	mmu_notifier_invalidate_range(mm, start, end);
+	/*
+	 * No need to call mmu_notifier_invalidate_range() we are downgrading
+	 * page table protection not changing it to point to a new page.
+	 *
+	 * See Documentation/vm/mmu_notifier.txt
+	 */
 	i_mmap_unlock_write(vma->vm_file->f_mapping);
 	mmu_notifier_invalidate_range_end(mm, start, end);
 
@@ -4603,6 +4645,15 @@ pte_t *huge_pte_alloc(struct mm_struct *mm,
 	return pte;
 }
 
+/*
+ * huge_pte_offset() - Walk the page table to resolve the hugepage
+ * entry at address @addr
+ *
+ * Return: Pointer to page table or swap entry (PUD or PMD) for
+ * address @addr, or NULL if a p*d_none() entry is encountered and the
+ * size @sz doesn't match the hugepage size at this level of the page
+ * table.
+ */
 pte_t *huge_pte_offset(struct mm_struct *mm,
 		       unsigned long addr, unsigned long sz)
 {
@@ -4617,13 +4668,22 @@ pte_t *huge_pte_offset(struct mm_struct *mm,
 	p4d = p4d_offset(pgd, addr);
 	if (!p4d_present(*p4d))
 		return NULL;
+
 	pud = pud_offset(p4d, addr);
-	if (!pud_present(*pud))
+	if (sz != PUD_SIZE && pud_none(*pud))
 		return NULL;
-	if (pud_huge(*pud))
+	/* hugepage or swap? */
+	if (pud_huge(*pud) || !pud_present(*pud))
 		return (pte_t *)pud;
+
 	pmd = pmd_offset(pud, addr);
-	return (pte_t *) pmd;
+	if (sz != PMD_SIZE && pmd_none(*pmd))
+		return NULL;
+	/* hugepage or swap? */
+	if (pmd_huge(*pmd) || !pmd_present(*pmd))
+		return (pte_t *)pmd;
+
+	return NULL;
 }
 
 #endif /* CONFIG_ARCH_WANT_GENERAL_HUGETLB */

@@ -22,11 +22,14 @@
 #undef DEBUG
 #define pr_fmt(fmt) "mce: " fmt
 
+#include <linux/hardirq.h>
 #include <linux/types.h>
 #include <linux/ptrace.h>
 #include <linux/percpu.h>
 #include <linux/export.h>
 #include <linux/irq_work.h>
+
+#include <asm/machdep.h>
 #include <asm/mce.h>
 
 static DEFINE_PER_CPU(int, mce_nest_count);
@@ -36,10 +39,20 @@ static DEFINE_PER_CPU(struct machine_check_event[MAX_MC_EVT], mce_event);
 static DEFINE_PER_CPU(int, mce_queue_count);
 static DEFINE_PER_CPU(struct machine_check_event[MAX_MC_EVT], mce_event_queue);
 
+/* Queue for delayed MCE UE events. */
+static DEFINE_PER_CPU(int, mce_ue_count);
+static DEFINE_PER_CPU(struct machine_check_event[MAX_MC_EVT],
+					mce_ue_event_queue);
+
 static void machine_check_process_queued_event(struct irq_work *work);
+void machine_check_ue_event(struct machine_check_event *evt);
+static void machine_process_ue_event(struct work_struct *work);
+
 static struct irq_work mce_event_process_work = {
         .func = machine_check_process_queued_event,
 };
+
+DECLARE_WORK(mce_ue_event_work, machine_process_ue_event);
 
 static void mce_set_error_info(struct machine_check_event *mce,
 			       struct mce_error_info *mce_err)
@@ -79,7 +92,7 @@ static void mce_set_error_info(struct machine_check_event *mce,
  */
 void save_mce_event(struct pt_regs *regs, long handled,
 		    struct mce_error_info *mce_err,
-		    uint64_t nip, uint64_t addr)
+		    uint64_t nip, uint64_t addr, uint64_t phys_addr)
 {
 	int index = __this_cpu_inc_return(mce_nest_count) - 1;
 	struct machine_check_event *mce = this_cpu_ptr(&mce_event[index]);
@@ -137,6 +150,11 @@ void save_mce_event(struct pt_regs *regs, long handled,
 	} else if (mce->error_type == MCE_ERROR_TYPE_UE) {
 		mce->u.ue_error.effective_address_provided = true;
 		mce->u.ue_error.effective_address = addr;
+		if (phys_addr != ULONG_MAX) {
+			mce->u.ue_error.physical_address_provided = true;
+			mce->u.ue_error.physical_address = phys_addr;
+			machine_check_ue_event(mce);
+		}
 	}
 	return;
 }
@@ -190,6 +208,26 @@ void release_mce_event(void)
 	get_mce_event(NULL, true);
 }
 
+
+/*
+ * Queue up the MCE event which then can be handled later.
+ */
+void machine_check_ue_event(struct machine_check_event *evt)
+{
+	int index;
+
+	index = __this_cpu_inc_return(mce_ue_count) - 1;
+	/* If queue is full, just return for now. */
+	if (index >= MAX_MC_EVT) {
+		__this_cpu_dec(mce_ue_count);
+		return;
+	}
+	memcpy(this_cpu_ptr(&mce_ue_event_queue[index]), evt, sizeof(*evt));
+
+	/* Queue work to process this event later. */
+	schedule_work(&mce_ue_event_work);
+}
+
 /*
  * Queue up the MCE event which then can be handled later.
  */
@@ -212,7 +250,39 @@ void machine_check_queue_event(void)
 	/* Queue irq work to process this event later. */
 	irq_work_queue(&mce_event_process_work);
 }
+/*
+ * process pending MCE event from the mce event queue. This function will be
+ * called during syscall exit.
+ */
+static void machine_process_ue_event(struct work_struct *work)
+{
+	int index;
+	struct machine_check_event *evt;
 
+	while (__this_cpu_read(mce_ue_count) > 0) {
+		index = __this_cpu_read(mce_ue_count) - 1;
+		evt = this_cpu_ptr(&mce_ue_event_queue[index]);
+#ifdef CONFIG_MEMORY_FAILURE
+		/*
+		 * This should probably queued elsewhere, but
+		 * oh! well
+		 */
+		if (evt->error_type == MCE_ERROR_TYPE_UE) {
+			if (evt->u.ue_error.physical_address_provided) {
+				unsigned long pfn;
+
+				pfn = evt->u.ue_error.physical_address >>
+					PAGE_SHIFT;
+				memory_failure(pfn, SIGBUS, 0);
+			} else
+				pr_warn("Failed to identify bad address from "
+					"where the uncorrectable error (UE) "
+					"was generated\n");
+		}
+#endif
+		__this_cpu_dec(mce_ue_count);
+	}
+}
 /*
  * process pending MCE event from the mce event queue. This function will be
  * called during syscall exit.
@@ -220,6 +290,7 @@ void machine_check_queue_event(void)
 static void machine_check_process_queued_event(struct irq_work *work)
 {
 	int index;
+	struct machine_check_event *evt;
 
 	add_taint(TAINT_MACHINE_CHECK, LOCKDEP_NOW_UNRELIABLE);
 
@@ -229,8 +300,8 @@ static void machine_check_process_queued_event(struct irq_work *work)
 	 */
 	while (__this_cpu_read(mce_queue_count) > 0) {
 		index = __this_cpu_read(mce_queue_count) - 1;
-		machine_check_print_event_info(
-				this_cpu_ptr(&mce_event_queue[index]), false);
+		evt = this_cpu_ptr(&mce_event_queue[index]);
+		machine_check_print_event_info(evt, false);
 		__this_cpu_dec(mce_queue_count);
 	}
 }
@@ -337,7 +408,7 @@ void machine_check_print_event_info(struct machine_check_event *evt,
 			printk("%s    Effective address: %016llx\n",
 			       level, evt->u.ue_error.effective_address);
 		if (evt->u.ue_error.physical_address_provided)
-			printk("%s      Physical address: %016llx\n",
+			printk("%s    Physical address:  %016llx\n",
 			       level, evt->u.ue_error.physical_address);
 		break;
 	case MCE_ERROR_TYPE_SLB:
@@ -408,41 +479,60 @@ void machine_check_print_event_info(struct machine_check_event *evt,
 }
 EXPORT_SYMBOL_GPL(machine_check_print_event_info);
 
-uint64_t get_mce_fault_addr(struct machine_check_event *evt)
+/*
+ * This function is called in real mode. Strictly no printk's please.
+ *
+ * regs->nip and regs->msr contains srr0 and ssr1.
+ */
+long machine_check_early(struct pt_regs *regs)
 {
-	switch (evt->error_type) {
-	case MCE_ERROR_TYPE_UE:
-		if (evt->u.ue_error.effective_address_provided)
-			return evt->u.ue_error.effective_address;
-		break;
-	case MCE_ERROR_TYPE_SLB:
-		if (evt->u.slb_error.effective_address_provided)
-			return evt->u.slb_error.effective_address;
-		break;
-	case MCE_ERROR_TYPE_ERAT:
-		if (evt->u.erat_error.effective_address_provided)
-			return evt->u.erat_error.effective_address;
-		break;
-	case MCE_ERROR_TYPE_TLB:
-		if (evt->u.tlb_error.effective_address_provided)
-			return evt->u.tlb_error.effective_address;
-		break;
-	case MCE_ERROR_TYPE_USER:
-		if (evt->u.user_error.effective_address_provided)
-			return evt->u.user_error.effective_address;
-		break;
-	case MCE_ERROR_TYPE_RA:
-		if (evt->u.ra_error.effective_address_provided)
-			return evt->u.ra_error.effective_address;
-		break;
-	case MCE_ERROR_TYPE_LINK:
-		if (evt->u.link_error.effective_address_provided)
-			return evt->u.link_error.effective_address;
-		break;
-	default:
-	case MCE_ERROR_TYPE_UNKNOWN:
-		break;
-	}
-	return 0;
+	long handled = 0;
+
+	__this_cpu_inc(irq_stat.mce_exceptions);
+
+	if (cur_cpu_spec && cur_cpu_spec->machine_check_early)
+		handled = cur_cpu_spec->machine_check_early(regs);
+	return handled;
 }
-EXPORT_SYMBOL(get_mce_fault_addr);
+
+long hmi_exception_realmode(struct pt_regs *regs)
+{
+	__this_cpu_inc(irq_stat.hmi_exceptions);
+
+#ifdef CONFIG_PPC_BOOK3S_64
+	/* Workaround for P9 vector CI loads (see p9_hmi_special_emu) */
+	if (pvr_version_is(PVR_POWER9)) {
+		unsigned long hmer = mfspr(SPRN_HMER);
+
+		/* Do we have the debug bit set */
+		if (hmer & PPC_BIT(17)) {
+			hmer &= ~PPC_BIT(17);
+			mtspr(SPRN_HMER, hmer);
+
+			/*
+			 * Now to avoid problems with soft-disable we
+			 * only do the emulation if we are coming from
+			 * user space
+			 */
+			if (user_mode(regs))
+				local_paca->hmi_p9_special_emu = 1;
+
+			/*
+			 * Don't bother going to OPAL if that's the
+			 * only relevant bit.
+			 */
+			if (!(hmer & mfspr(SPRN_HMEER)))
+				return local_paca->hmi_p9_special_emu;
+		}
+	}
+#endif /* CONFIG_PPC_BOOK3S_64 */
+
+	wait_for_subcore_guest_exit();
+
+	if (ppc_md.hmi_exception_early)
+		ppc_md.hmi_exception_early(regs);
+
+	wait_for_tb_resync();
+
+	return 1;
+}

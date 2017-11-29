@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * GPL HEADER START
  *
@@ -34,16 +35,8 @@
 #ifndef __LNET_LNET_SOCKLND_H__
 #define __LNET_LNET_SOCKLND_H__
 
-#include "types.h"
-
-#define SOCKLND_CONN_NONE     (-1)
-#define SOCKLND_CONN_ANY	0
-#define SOCKLND_CONN_CONTROL	1
-#define SOCKLND_CONN_BULK_IN	2
-#define SOCKLND_CONN_BULK_OUT	3
-#define SOCKLND_CONN_NTYPES	4
-
-#define SOCKLND_CONN_ACK	SOCKLND_CONN_BULK_IN
+#include <uapi/linux/lnet/lnet-types.h>
+#include <uapi/linux/lnet/socklnd.h>
 
 struct ksock_hello_msg {
 	__u32		kshm_magic;	/* magic number of socklnd message */
@@ -76,7 +69,8 @@ struct ksock_msg {
 	__u64	ksm_zc_cookies[2];	/* Zero-Copy request/ACK cookie */
 	union {
 		struct ksock_lnet_msg lnetmsg; /* lnet message, it's empty if
-					  * it's NOOP */
+						* it's NOOP
+						*/
 	} WIRE_ATTR ksm_u;
 } WIRE_ATTR;
 

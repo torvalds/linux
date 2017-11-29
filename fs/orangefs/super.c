@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * (C) 2001 Clemson University and The University of Chicago
  *
@@ -98,8 +99,6 @@ static void orangefs_inode_cache_ctor(void *req)
 
 	inode_init_once(&orangefs_inode->vfs_inode);
 	init_rwsem(&orangefs_inode->xattr_sem);
-
-	orangefs_inode->vfs_inode.i_version = 1;
 }
 
 static struct inode *orangefs_alloc_inode(struct super_block *sb)
@@ -107,10 +106,8 @@ static struct inode *orangefs_alloc_inode(struct super_block *sb)
 	struct orangefs_inode_s *orangefs_inode;
 
 	orangefs_inode = kmem_cache_alloc(orangefs_inode_cache, GFP_KERNEL);
-	if (orangefs_inode == NULL) {
-		gossip_err("Failed to allocate orangefs_inode\n");
+	if (!orangefs_inode)
 		return NULL;
-	}
 
 	/*
 	 * We want to clear everything except for rw_semaphore and the
@@ -120,7 +117,6 @@ static struct inode *orangefs_alloc_inode(struct super_block *sb)
 	orangefs_inode->refn.fs_id = ORANGEFS_FS_ID_NULL;
 	orangefs_inode->last_failed_block_index_read = 0;
 	memset(orangefs_inode->link_target, 0, sizeof(orangefs_inode->link_target));
-	orangefs_inode->pinode_flags = 0;
 
 	gossip_debug(GOSSIP_SUPER_DEBUG,
 		     "orangefs_alloc_inode: allocated %p\n",
@@ -300,21 +296,9 @@ void fsid_key_table_finalize(void)
 {
 }
 
-/* Called whenever the VFS dirties the inode in response to atime updates */
-static void orangefs_dirty_inode(struct inode *inode, int flags)
-{
-	struct orangefs_inode_s *orangefs_inode = ORANGEFS_I(inode);
-
-	gossip_debug(GOSSIP_SUPER_DEBUG,
-		     "orangefs_dirty_inode: %pU\n",
-		     get_khandle_from_ino(inode));
-	SetAtimeFlag(orangefs_inode);
-}
-
 static const struct super_operations orangefs_s_ops = {
 	.alloc_inode = orangefs_alloc_inode,
 	.destroy_inode = orangefs_destroy_inode,
-	.dirty_inode = orangefs_dirty_inode,
 	.drop_inode = generic_delete_inode,
 	.statfs = orangefs_statfs,
 	.remount_fs = orangefs_remount_fs,

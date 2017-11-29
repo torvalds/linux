@@ -117,7 +117,8 @@ clusterip_config_entry_put(struct net *net, struct clusterip_config *c)
 		 * functions are also incrementing the refcount on their own,
 		 * so it's safe to remove the entry even if it's in use. */
 #ifdef CONFIG_PROC_FS
-		proc_remove(c->pde);
+		if (cn->procdir)
+			proc_remove(c->pde);
 #endif
 		return;
 	}
@@ -624,7 +625,7 @@ arp_mangle(void *priv,
 	return NF_ACCEPT;
 }
 
-static struct nf_hook_ops cip_arp_ops __read_mostly = {
+static const struct nf_hook_ops cip_arp_ops = {
 	.hook = arp_mangle,
 	.pf = NFPROTO_ARP,
 	.hooknum = NF_ARP_OUT,
@@ -815,6 +816,7 @@ static void clusterip_net_exit(struct net *net)
 #ifdef CONFIG_PROC_FS
 	struct clusterip_net *cn = net_generic(net, clusterip_net_id);
 	proc_remove(cn->procdir);
+	cn->procdir = NULL;
 #endif
 	nf_unregister_net_hook(net, &cip_arp_ops);
 }

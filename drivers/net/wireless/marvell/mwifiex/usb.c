@@ -24,7 +24,7 @@
 
 static struct mwifiex_if_ops usb_ops;
 
-static struct usb_device_id mwifiex_usb_table[] = {
+static const struct usb_device_id mwifiex_usb_table[] = {
 	/* 8766 */
 	{USB_DEVICE(USB8XXX_VID, USB8766_PID_1)},
 	{USB_DEVICE_AND_INTERFACE_INFO(USB8XXX_VID, USB8766_PID_2,
@@ -1096,12 +1096,12 @@ postcopy_cur_buf:
 	return -EINPROGRESS;
 }
 
-static void mwifiex_usb_tx_aggr_tmo(unsigned long context)
+static void mwifiex_usb_tx_aggr_tmo(struct timer_list *t)
 {
 	struct urb_context *urb_cnxt = NULL;
 	struct sk_buff *skb_send = NULL;
 	struct tx_aggr_tmr_cnxt *timer_context =
-		(struct tx_aggr_tmr_cnxt *)context;
+		from_timer(timer_context, t, hold_timer);
 	struct mwifiex_adapter *adapter = timer_context->adapter;
 	struct usb_tx_data_port *port = timer_context->port;
 	unsigned long flags;
@@ -1112,7 +1112,7 @@ static void mwifiex_usb_tx_aggr_tmo(unsigned long context)
 	if (err) {
 		mwifiex_dbg(adapter, ERROR,
 			    "prepare tx aggr skb failed, err=%d\n", err);
-		return;
+		goto unlock;
 	}
 
 	if (atomic_read(&port->tx_data_urb_pending) >=
@@ -1133,6 +1133,7 @@ static void mwifiex_usb_tx_aggr_tmo(unsigned long context)
 done:
 	if (err == -1)
 		mwifiex_write_data_complete(adapter, skb_send, 0, -1);
+unlock:
 	spin_unlock_irqrestore(&port->tx_aggr_lock, flags);
 }
 
@@ -1235,9 +1236,8 @@ static int mwifiex_usb_tx_init(struct mwifiex_adapter *adapter)
 		port->tx_aggr.timer_cnxt.port = port;
 		port->tx_aggr.timer_cnxt.is_hold_timer_set = false;
 		port->tx_aggr.timer_cnxt.hold_tmo_msecs = 0;
-		setup_timer(&port->tx_aggr.timer_cnxt.hold_timer,
-			    mwifiex_usb_tx_aggr_tmo,
-			    (unsigned long)&port->tx_aggr.timer_cnxt);
+		timer_setup(&port->tx_aggr.timer_cnxt.hold_timer,
+			    mwifiex_usb_tx_aggr_tmo, 0);
 	}
 
 	return 0;

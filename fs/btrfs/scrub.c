@@ -182,8 +182,8 @@ struct scrub_ctx {
 	struct scrub_bio        *wr_curr_bio;
 	struct mutex            wr_lock;
 	int                     pages_per_wr_bio; /* <= SCRUB_PAGES_PER_WR_BIO */
-	atomic_t                flush_all_writes;
 	struct btrfs_device     *wr_tgtdev;
+	bool                    flush_all_writes;
 
 	/*
 	 * statistics
@@ -231,7 +231,7 @@ struct scrub_warning {
 	struct btrfs_path	*path;
 	u64			extent_item_size;
 	const char		*errstr;
-	sector_t		sector;
+	u64			physical;
 	u64			logical;
 	struct btrfs_device	*dev;
 };
@@ -717,7 +717,7 @@ struct scrub_ctx *scrub_setup_ctx(struct btrfs_device *dev, int is_dev_replace)
 		WARN_ON(!fs_info->dev_replace.tgtdev);
 		sctx->pages_per_wr_bio = SCRUB_PAGES_PER_WR_BIO;
 		sctx->wr_tgtdev = fs_info->dev_replace.tgtdev;
-		atomic_set(&sctx->flush_all_writes, 0);
+		sctx->flush_all_writes = false;
 	}
 
 	return sctx;
@@ -797,10 +797,10 @@ static int scrub_print_warning_inode(u64 inum, u64 offset, u64 root,
 	 */
 	for (i = 0; i < ipath->fspath->elem_cnt; ++i)
 		btrfs_warn_in_rcu(fs_info,
-				  "%s at logical %llu on dev %s, sector %llu, root %llu, inode %llu, offset %llu, length %llu, links %u (path: %s)",
+"%s at logical %llu on dev %s, physical %llu, root %llu, inode %llu, offset %llu, length %llu, links %u (path: %s)",
 				  swarn->errstr, swarn->logical,
 				  rcu_str_deref(swarn->dev->name),
-				  (unsigned long long)swarn->sector,
+				  swarn->physical,
 				  root, inum, offset,
 				  min(isize - offset, (u64)PAGE_SIZE), nlink,
 				  (char *)(unsigned long)ipath->fspath->val[i]);
@@ -810,10 +810,10 @@ static int scrub_print_warning_inode(u64 inum, u64 offset, u64 root,
 
 err:
 	btrfs_warn_in_rcu(fs_info,
-			  "%s at logical %llu on dev %s, sector %llu, root %llu, inode %llu, offset %llu: path resolving failed with ret=%d",
+			  "%s at logical %llu on dev %s, physical %llu, root %llu, inode %llu, offset %llu: path resolving failed with ret=%d",
 			  swarn->errstr, swarn->logical,
 			  rcu_str_deref(swarn->dev->name),
-			  (unsigned long long)swarn->sector,
+			  swarn->physical,
 			  root, inum, offset, ret);
 
 	free_ipath(ipath);
@@ -845,7 +845,7 @@ static void scrub_print_warning(const char *errstr, struct scrub_block *sblock)
 	if (!path)
 		return;
 
-	swarn.sector = (sblock->pagev[0]->physical) >> 9;
+	swarn.physical = sblock->pagev[0]->physical;
 	swarn.logical = sblock->pagev[0]->logical;
 	swarn.errstr = errstr;
 	swarn.dev = NULL;
@@ -868,10 +868,10 @@ static void scrub_print_warning(const char *errstr, struct scrub_block *sblock)
 						      item_size, &ref_root,
 						      &ref_level);
 			btrfs_warn_in_rcu(fs_info,
-				"%s at logical %llu on dev %s, sector %llu: metadata %s (level %d) in tree %llu",
+"%s at logical %llu on dev %s, physical %llu: metadata %s (level %d) in tree %llu",
 				errstr, swarn.logical,
 				rcu_str_deref(dev->name),
-				(unsigned long long)swarn.sector,
+				swarn.physical,
 				ref_level ? "node" : "leaf",
 				ret < 0 ? -1 : ref_level,
 				ret < 0 ? -1 : ref_root);
@@ -883,7 +883,7 @@ static void scrub_print_warning(const char *errstr, struct scrub_block *sblock)
 		swarn.dev = dev;
 		iterate_extent_inodes(fs_info, found_key.objectid,
 					extent_item_pos, 1,
-					scrub_print_warning_inode, &swarn);
+					scrub_print_warning_inode, &swarn, false);
 	}
 
 out:
@@ -1047,7 +1047,7 @@ static void scrub_fixup_nodatasum(struct btrfs_work *work)
 	 * can be found.
 	 */
 	ret = iterate_inodes_from_logical(fixup->logical, fs_info, path,
-					  scrub_fixup_readpage, fixup);
+					  scrub_fixup_readpage, fixup, false);
 	if (ret < 0) {
 		uncorrectable = 1;
 		goto out;
@@ -1704,7 +1704,7 @@ static int scrub_submit_raid56_bio_wait(struct btrfs_fs_info *fs_info,
 	if (ret)
 		return ret;
 
-	wait_for_completion(&done.event);
+	wait_for_completion_io(&done.event);
 	if (done.status)
 		return -EIO;
 
@@ -1738,7 +1738,7 @@ static void scrub_recheck_block(struct btrfs_fs_info *fs_info,
 
 		WARN_ON(!page->page);
 		bio = btrfs_io_bio_alloc(1);
-		bio->bi_bdev = page->dev->bdev;
+		bio_set_dev(bio, page->dev->bdev);
 
 		bio_add_page(bio, page->page, PAGE_SIZE, 0);
 		if (!retry_failed_mirror && scrub_is_page_on_raid56(page)) {
@@ -1769,7 +1769,7 @@ static inline int scrub_check_fsid(u8 fsid[],
 	struct btrfs_fs_devices *fs_devices = spage->dev->fs_devices;
 	int ret;
 
-	ret = memcmp(fsid, fs_devices->fsid, BTRFS_UUID_SIZE);
+	ret = memcmp(fsid, fs_devices->fsid, BTRFS_FSID_SIZE);
 	return !ret;
 }
 
@@ -1826,7 +1826,7 @@ static int scrub_repair_page_from_good_copy(struct scrub_block *sblock_bad,
 		}
 
 		bio = btrfs_io_bio_alloc(1);
-		bio->bi_bdev = page_bad->dev->bdev;
+		bio_set_dev(bio, page_bad->dev->bdev);
 		bio->bi_iter.bi_sector = page_bad->physical >> 9;
 		bio_set_op_attrs(bio, REQ_OP_WRITE, 0);
 
@@ -1921,7 +1921,7 @@ again:
 
 		bio->bi_private = sbio;
 		bio->bi_end_io = scrub_wr_bio_end_io;
-		bio->bi_bdev = sbio->dev->bdev;
+		bio_set_dev(bio, sbio->dev->bdev);
 		bio->bi_iter.bi_sector = sbio->physical >> 9;
 		bio_set_op_attrs(bio, REQ_OP_WRITE, 0);
 		sbio->status = 0;
@@ -1964,7 +1964,7 @@ static void scrub_wr_submit(struct scrub_ctx *sctx)
 
 	sbio = sctx->wr_curr_bio;
 	sctx->wr_curr_bio = NULL;
-	WARN_ON(!sbio->bio->bi_bdev);
+	WARN_ON(!sbio->bio->bi_disk);
 	scrub_pending_bio_inc(sctx);
 	/* process all writes in a single worker thread. Then the block layer
 	 * orders the requests before sending them to the driver which
@@ -2321,7 +2321,7 @@ again:
 
 		bio->bi_private = sbio;
 		bio->bi_end_io = scrub_bio_end_io;
-		bio->bi_bdev = sbio->dev->bdev;
+		bio_set_dev(bio, sbio->dev->bdev);
 		bio->bi_iter.bi_sector = sbio->physical >> 9;
 		bio_set_op_attrs(bio, REQ_OP_READ, 0);
 		sbio->status = 0;
@@ -2402,8 +2402,7 @@ static void scrub_missing_raid56_worker(struct btrfs_work *work)
 
 	scrub_block_put(sblock);
 
-	if (sctx->is_dev_replace &&
-	    atomic_read(&sctx->flush_all_writes)) {
+	if (sctx->is_dev_replace && sctx->flush_all_writes) {
 		mutex_lock(&sctx->wr_lock);
 		scrub_wr_submit(sctx);
 		mutex_unlock(&sctx->wr_lock);
@@ -2607,8 +2606,7 @@ static void scrub_bio_end_io_worker(struct btrfs_work *work)
 	sctx->first_free = sbio->index;
 	spin_unlock(&sctx->list_lock);
 
-	if (sctx->is_dev_replace &&
-	    atomic_read(&sctx->flush_all_writes)) {
+	if (sctx->is_dev_replace && sctx->flush_all_writes) {
 		mutex_lock(&sctx->wr_lock);
 		scrub_wr_submit(sctx);
 		mutex_unlock(&sctx->wr_lock);
@@ -2622,7 +2620,8 @@ static inline void __scrub_mark_bitmap(struct scrub_parity *sparity,
 				       u64 start, u64 len)
 {
 	u64 offset;
-	int nsectors;
+	u64 nsectors64;
+	u32 nsectors;
 	int sectorsize = sparity->sctx->fs_info->sectorsize;
 
 	if (len >= sparity->stripe_len) {
@@ -2633,7 +2632,10 @@ static inline void __scrub_mark_bitmap(struct scrub_parity *sparity,
 	start -= sparity->logic_start;
 	start = div64_u64_rem(start, sparity->stripe_len, &offset);
 	offset = div_u64(offset, sectorsize);
-	nsectors = (int)len / sectorsize;
+	nsectors64 = div_u64(len, sectorsize);
+
+	ASSERT(nsectors64 < UINT_MAX);
+	nsectors = (u32)nsectors64;
 
 	if (offset + nsectors <= sparity->nsectors) {
 		bitmap_set(bitmap, offset, nsectors);
@@ -2706,7 +2708,9 @@ static int scrub_find_csum(struct scrub_ctx *sctx, u64 logical, u8 *csum)
 	if (!sum)
 		return 0;
 
-	index = ((u32)(logical - sum->bytenr)) / sctx->fs_info->sectorsize;
+	index = div_u64(logical - sum->bytenr, sctx->fs_info->sectorsize);
+	ASSERT(index < UINT_MAX);
+
 	num_sectors = sum->len / sctx->fs_info->sectorsize;
 	memcpy(csum, sum->sums + index, sctx->csum_size);
 	if (index == num_sectors - 1) {
@@ -3440,14 +3444,14 @@ static noinline_for_stack int scrub_stripe(struct scrub_ctx *sctx,
 		 */
 		if (atomic_read(&fs_info->scrub_pause_req)) {
 			/* push queued extents */
-			atomic_set(&sctx->flush_all_writes, 1);
+			sctx->flush_all_writes = true;
 			scrub_submit(sctx);
 			mutex_lock(&sctx->wr_lock);
 			scrub_wr_submit(sctx);
 			mutex_unlock(&sctx->wr_lock);
 			wait_event(sctx->list_wait,
 				   atomic_read(&sctx->bios_in_flight) == 0);
-			atomic_set(&sctx->flush_all_writes, 0);
+			sctx->flush_all_writes = false;
 			scrub_blocked_if_needed(fs_info);
 		}
 
@@ -3869,8 +3873,7 @@ int scrub_enumerate_chunks(struct scrub_ctx *sctx,
 			ro_set = 0;
 		} else {
 			btrfs_warn(fs_info,
-				   "failed setting block group ro, ret=%d\n",
-				   ret);
+				   "failed setting block group ro: %d", ret);
 			btrfs_put_block_group(cache);
 			break;
 		}
@@ -3893,7 +3896,7 @@ int scrub_enumerate_chunks(struct scrub_ctx *sctx,
 		 * write requests are really completed when bios_in_flight
 		 * changes to 0.
 		 */
-		atomic_set(&sctx->flush_all_writes, 1);
+		sctx->flush_all_writes = true;
 		scrub_submit(sctx);
 		mutex_lock(&sctx->wr_lock);
 		scrub_wr_submit(sctx);
@@ -3911,7 +3914,7 @@ int scrub_enumerate_chunks(struct scrub_ctx *sctx,
 		 */
 		wait_event(sctx->list_wait,
 			   atomic_read(&sctx->workers_pending) == 0);
-		atomic_set(&sctx->flush_all_writes, 0);
+		sctx->flush_all_writes = false;
 
 		scrub_pause_off(fs_info);
 
@@ -4012,14 +4015,8 @@ static noinline_for_stack int scrub_workers_get(struct btrfs_fs_info *fs_info,
 	int max_active = fs_info->thread_pool_size;
 
 	if (fs_info->scrub_workers_refcnt == 0) {
-		if (is_dev_replace)
-			fs_info->scrub_workers =
-				btrfs_alloc_workqueue(fs_info, "scrub", flags,
-						      1, 4);
-		else
-			fs_info->scrub_workers =
-				btrfs_alloc_workqueue(fs_info, "scrub", flags,
-						      max_active, 4);
+		fs_info->scrub_workers = btrfs_alloc_workqueue(fs_info, "scrub",
+				flags, is_dev_replace ? 1 : max_active, 4);
 		if (!fs_info->scrub_workers)
 			goto fail_scrub_workers;
 
@@ -4393,7 +4390,7 @@ static void copy_nocow_pages_worker(struct btrfs_work *work)
 	}
 
 	ret = iterate_inodes_from_logical(logical, fs_info, path,
-					  record_inode_for_nocow, nocow_ctx);
+			record_inode_for_nocow, nocow_ctx, false);
 	if (ret != 0 && ret != -ENOENT) {
 		btrfs_warn(fs_info,
 			   "iterate_inodes_from_logical() failed: log %llu, phys %llu, len %llu, mir %u, ret %d",
@@ -4627,7 +4624,7 @@ static int write_page_nocow(struct scrub_ctx *sctx,
 	bio = btrfs_io_bio_alloc(1);
 	bio->bi_iter.bi_size = 0;
 	bio->bi_iter.bi_sector = physical_for_dev_replace >> 9;
-	bio->bi_bdev = dev->bdev;
+	bio_set_dev(bio, dev->bdev);
 	bio->bi_opf = REQ_OP_WRITE | REQ_SYNC;
 	ret = bio_add_page(bio, page, PAGE_SIZE, 0);
 	if (ret != PAGE_SIZE) {

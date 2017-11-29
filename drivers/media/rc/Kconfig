@@ -1,9 +1,19 @@
-config RC_CORE
-	tristate
-	depends on MEDIA_RC_SUPPORT
-	depends on INPUT
-	default y
 
+menuconfig RC_CORE
+	tristate "Remote Controller support"
+	depends on INPUT
+	---help---
+	  Enable support for Remote Controllers on Linux. This is
+	  needed in order to support several video capture adapters,
+	  standalone IR receivers/transmitters, and RF receivers.
+
+	  Enable this option if you have a video capture board even
+	  if you don't need IR, as otherwise, you may not be able to
+	  compile the driver for your adapter.
+
+	  Say Y when you have a TV or an IR device.
+
+if RC_CORE
 source "drivers/media/rc/keymaps/Kconfig"
 
 menuconfig RC_DECODERS
@@ -168,6 +178,7 @@ config IR_ENE
 config IR_HIX5HD2
 	tristate "Hisilicon hix5hd2 IR remote control"
 	depends on RC_CORE
+	depends on OF || COMPILE_TEST
 	help
 	   Say Y here if you want to use hisilicon hix5hd2 remote control.
 	   To compile this driver as a module, choose M here: the module will be
@@ -275,6 +286,7 @@ config IR_REDRAT3
 config IR_SPI
 	tristate "SPI connected IR LED"
 	depends on SPI && LIRC
+	depends on OF || COMPILE_TEST
 	---help---
 	  Say Y if you want to use an IR LED connected through SPI bus.
 
@@ -382,11 +394,37 @@ config RC_LOOPBACK
 config IR_GPIO_CIR
 	tristate "GPIO IR remote control"
 	depends on RC_CORE
+	depends on (OF && GPIOLIB) || COMPILE_TEST
 	---help---
 	   Say Y if you want to use GPIO based IR Receiver.
 
 	   To compile this driver as a module, choose M here: the module will
 	   be called gpio-ir-recv.
+
+config IR_GPIO_TX
+	tristate "GPIO IR Bit Banging Transmitter"
+	depends on RC_CORE
+	depends on LIRC
+	depends on (OF && GPIOLIB) || COMPILE_TEST
+	---help---
+	   Say Y if you want to a GPIO based IR transmitter. This is a
+	   bit banging driver.
+
+	   To compile this driver as a module, choose M here: the module will
+	   be called gpio-ir-tx.
+
+config IR_PWM_TX
+	tristate "PWM IR transmitter"
+	depends on RC_CORE
+	depends on LIRC
+	depends on PWM
+	depends on OF || COMPILE_TEST
+	---help---
+	   Say Y if you want to use a PWM based IR transmitter. This is
+	   more power efficient than the bit banging gpio driver.
+
+	   To compile this driver as a module, choose M here: the module will
+	   be called pwm-ir-tx.
 
 config RC_ST
 	tristate "ST remote control receiver"
@@ -435,4 +473,27 @@ config IR_SIR
 	   To compile this driver as a module, choose M here: the module will
 	   be called sir-ir.
 
+config IR_TANGO
+	tristate "Sigma Designs SMP86xx IR decoder"
+	depends on RC_CORE
+	depends on ARCH_TANGO || COMPILE_TEST
+	---help---
+	   Adds support for the HW IR decoder embedded on Sigma Designs
+	   Tango-based systems (SMP86xx, SMP87xx).
+	   The HW decoder supports NEC, RC-5, RC-6 IR protocols.
+	   When compiled as a module, look for tango-ir.
+
+config IR_ZX
+	tristate "ZTE ZX IR remote control"
+	depends on RC_CORE
+	depends on ARCH_ZX || COMPILE_TEST
+	---help---
+	   Say Y if you want to use the IR remote control available
+	   on ZTE ZX family SoCs.
+
+	   To compile this driver as a module, choose M here: the
+	   module will be called zx-irdec.
+
 endif #RC_DEVICES
+
+endif #RC_CORE

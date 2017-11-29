@@ -19,9 +19,10 @@ menuconfig PPS
 	  To compile this driver as a module, choose M here: the module
 	  will be called pps_core.ko.
 
+if PPS
+
 config PPS_DEBUG
 	bool "PPS debugging messages"
-	depends on PPS
 	help
 	  Say Y here if you want the PPS support to produce a bunch of debug
 	  messages to the system log.  Select this if you are having a
@@ -29,7 +30,7 @@ config PPS_DEBUG
 
 config NTP_PPS
 	bool "PPS kernel consumer support"
-	depends on PPS && !NO_HZ_COMMON
+	depends on !NO_HZ_COMMON
 	help
 	  This option adds support for direct in-kernel time
 	  synchronization using an external PPS signal.
@@ -39,3 +40,5 @@ config NTP_PPS
 source drivers/pps/clients/Kconfig
 
 source drivers/pps/generators/Kconfig
+
+endif # PPS

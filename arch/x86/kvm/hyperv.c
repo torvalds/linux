@@ -1160,6 +1160,12 @@ static int kvm_hv_get_msr(struct kvm_vcpu *vcpu, u32 msr, u64 *pdata)
 		return stimer_get_count(vcpu_to_stimer(vcpu, timer_index),
 					pdata);
 	}
+	case HV_X64_MSR_TSC_FREQUENCY:
+		data = (u64)vcpu->arch.virtual_tsc_khz * 1000;
+		break;
+	case HV_X64_MSR_APIC_FREQUENCY:
+		data = APIC_BUS_FREQUENCY;
+		break;
 	default:
 		vcpu_unimpl(vcpu, "Hyper-V unhandled rdmsr: 0x%x\n", msr);
 		return 1;
@@ -1268,7 +1274,7 @@ int kvm_hv_hypercall(struct kvm_vcpu *vcpu)
 
 	switch (code) {
 	case HVCALL_NOTIFY_LONG_SPIN_WAIT:
-		kvm_vcpu_on_spin(vcpu);
+		kvm_vcpu_on_spin(vcpu, true);
 		break;
 	case HVCALL_POST_MESSAGE:
 	case HVCALL_SIGNAL_EVENT:

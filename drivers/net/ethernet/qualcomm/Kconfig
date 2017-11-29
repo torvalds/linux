@@ -59,4 +59,6 @@ config QCOM_EMAC
 	  low power, Receive-Side Scaling (RSS), and IEEE 1588-2008
 	  Precision Clock Synchronization Protocol.
 
+source "drivers/net/ethernet/qualcomm/rmnet/Kconfig"
+
 endif # NET_VENDOR_QUALCOMM

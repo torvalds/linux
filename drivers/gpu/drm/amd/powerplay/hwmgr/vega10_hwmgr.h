@@ -31,7 +31,6 @@
 #include "vega10_ppsmc.h"
 #include "vega10_powertune.h"
 
-extern const uint32_t PhwVega10_Magic;
 #define VEGA10_MAX_HARDWARE_POWERLEVELS 2
 
 #define WaterMarksExist  1
@@ -64,7 +63,9 @@ enum {
 	GNLD_FW_CTF,
 	GNLD_LED_DISPLAY,
 	GNLD_FAN_CONTROL,
-	GNLD_VOLTAGE_CONTROLLER,
+	GNLD_FEATURE_FAST_PPT_BIT,
+	GNLD_DIDT,
+	GNLD_ACG,
 	GNLD_FEATURES_MAX
 };
 
@@ -230,7 +231,9 @@ struct vega10_registry_data {
 	uint8_t   cac_support;
 	uint8_t   clock_stretcher_support;
 	uint8_t   db_ramping_support;
+	uint8_t   didt_mode;
 	uint8_t   didt_support;
+	uint8_t   edc_didt_support;
 	uint8_t   dynamic_state_patching_support;
 	uint8_t   enable_pkg_pwr_tracking_feature;
 	uint8_t   enable_tdc_limit_feature;
@@ -263,6 +266,9 @@ struct vega10_registry_data {
 	uint8_t   tcp_ramping_support;
 	uint8_t   tdc_support;
 	uint8_t   td_ramping_support;
+	uint8_t   dbr_ramping_support;
+	uint8_t   gc_didt_support;
+	uint8_t   psm_didt_support;
 	uint8_t   thermal_out_gpio_support;
 	uint8_t   thermal_support;
 	uint8_t   fw_ctf_enabled;
@@ -381,6 +387,9 @@ struct vega10_hwmgr {
 	struct vega10_smc_state_table  smc_state_table;
 
 	uint32_t                       config_telemetry;
+	uint32_t                       smu_version;
+	uint32_t                       acg_loop_state;
+	uint32_t                       mem_channels;
 };
 
 #define VEGA10_DPM2_NEAR_TDP_DEC                      10
@@ -424,6 +433,10 @@ struct vega10_hwmgr {
 #define PPVEGA10_VEGA10SOCCLKAVERAGEALPHA_DFLT       25 /* 10% * 255 = 25 */
 #define PPVEGA10_VEGA10UCLKCLKAVERAGEALPHA_DFLT      25 /* 10% * 255 = 25 */
 #define PPVEGA10_VEGA10GFXACTIVITYAVERAGEALPHA_DFLT  25 /* 10% * 255 = 25 */
+
+#define VEGA10_UMD_PSTATE_GFXCLK_LEVEL         0x3
+#define VEGA10_UMD_PSTATE_SOCCLK_LEVEL         0x3
+#define VEGA10_UMD_PSTATE_MCLK_LEVEL           0x2
 
 extern int tonga_initializa_dynamic_state_adjustment_rule_settings(struct pp_hwmgr *hwmgr);
 extern int tonga_hwmgr_backend_fini(struct pp_hwmgr *hwmgr);

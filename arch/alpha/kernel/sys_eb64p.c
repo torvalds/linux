@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *	linux/arch/alpha/kernel/sys_eb64p.c
  *
@@ -167,10 +168,10 @@ eb64p_init_irq(void)
  * comes in on.  This makes interrupt processing much easier.
  */
 
-static int __init
+static int
 eb64p_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 {
-	static char irq_tab[5][5] __initdata = {
+	static char irq_tab[5][5] = {
 		/*INT  INTA  INTB  INTC   INTD */
 		{16+7, 16+7, 16+7, 16+7,  16+7},  /* IdSel 5,  slot ?, ?? */
 		{16+0, 16+0, 16+2, 16+4,  16+9},  /* IdSel 6,  slot ?, ?? */

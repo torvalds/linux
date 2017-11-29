@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 
 #include <linux/ceph/ceph_debug.h>
 
@@ -295,6 +296,10 @@ static int decode_choose_args(void **p, void *end, struct crush_map *c)
 			ret = decode_choose_arg(p, end, arg);
 			if (ret)
 				goto fail;
+
+			if (arg->ids_size &&
+			    arg->ids_size != c->buckets[bucket_index]->size)
+				goto e_inval;
 		}
 
 		insert_choose_arg_map(&c->choose_args, arg_map);
@@ -2078,6 +2083,8 @@ bool ceph_is_new_interval(const struct ceph_osds *old_acting,
 			  u32 new_pg_num,
 			  bool old_sort_bitwise,
 			  bool new_sort_bitwise,
+			  bool old_recovery_deletes,
+			  bool new_recovery_deletes,
 			  const struct ceph_pg *pgid)
 {
 	return !osds_equal(old_acting, new_acting) ||
@@ -2085,7 +2092,8 @@ bool ceph_is_new_interval(const struct ceph_osds *old_acting,
 	       old_size != new_size ||
 	       old_min_size != new_min_size ||
 	       ceph_pg_is_split(pgid, old_pg_num, new_pg_num) ||
-	       old_sort_bitwise != new_sort_bitwise;
+	       old_sort_bitwise != new_sort_bitwise ||
+	       old_recovery_deletes != new_recovery_deletes;
 }
 
 static int calc_pg_rank(int osd, const struct ceph_osds *acting)
@@ -2301,10 +2309,17 @@ static u32 raw_pg_to_pps(struct ceph_pg_pool_info *pi,
 	}
 }
 
+/*
+ * Magic value used for a "default" fallback choose_args, used if the
+ * crush_choose_arg_map passed to do_crush() does not exist.  If this
+ * also doesn't exist, fall back to canonical weights.
+ */
+#define CEPH_DEFAULT_CHOOSE_ARGS	-1
+
 static int do_crush(struct ceph_osdmap *map, int ruleno, int x,
 		    int *result, int result_max,
 		    const __u32 *weight, int weight_max,
-		    u64 choose_args_index)
+		    s64 choose_args_index)
 {
 	struct crush_choose_arg_map *arg_map;
 	int r;
@@ -2313,6 +2328,9 @@ static int do_crush(struct ceph_osdmap *map, int ruleno, int x,
 
 	arg_map = lookup_choose_arg_map(&map->crush->choose_args,
 					choose_args_index);
+	if (!arg_map)
+		arg_map = lookup_choose_arg_map(&map->crush->choose_args,
+						CEPH_DEFAULT_CHOOSE_ARGS);
 
 	mutex_lock(&map->crush_workspace_mutex);
 	r = crush_do_rule(map->crush, ruleno, x, result, result_max,
@@ -2423,7 +2441,7 @@ static void apply_upmap(struct ceph_osdmap *osdmap,
 		for (i = 0; i < pg->pg_upmap.len; i++)
 			raw->osds[i] = pg->pg_upmap.osds[i];
 		raw->size = pg->pg_upmap.len;
-		return;
+		/* check and apply pg_upmap_items, if any */
 	}
 
 	pg = lookup_pg_mapping(&osdmap->pg_upmap_items, pgid);
@@ -2454,10 +2472,8 @@ static void apply_upmap(struct ceph_osdmap *osdmap,
 					pos = j;
 				}
 			}
-			if (!exists && pos >= 0) {
+			if (!exists && pos >= 0)
 				raw->osds[pos] = to;
-				return;
-			}
 		}
 	}
 }

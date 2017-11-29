@@ -28,9 +28,6 @@ sint	_rtw_init_mlme_priv(struct adapter *padapter)
 	struct mlme_priv 	*pmlmepriv = &padapter->mlmepriv;
 	sint	res = _SUCCESS;
 
-	/*  We don't need to memset padapter->XXX to zero, because adapter is allocated by vzalloc(). */
-	/* memset((u8 *)pmlmepriv, 0, sizeof(struct mlme_priv)); */
-
 	pmlmepriv->nic_hdl = (u8 *)padapter;
 
 	pmlmepriv->pscanned = NULL;
@@ -119,9 +116,8 @@ void rtw_free_mlme_priv_ie_data(struct mlme_priv *pmlmepriv)
 
 void _rtw_free_mlme_priv(struct mlme_priv *pmlmepriv)
 {
-	rtw_free_mlme_priv_ie_data(pmlmepriv);
-
 	if (pmlmepriv) {
+		rtw_free_mlme_priv_ie_data(pmlmepriv);
 		if (pmlmepriv->free_bss_buf) {
 			vfree(pmlmepriv->free_bss_buf);
 		}
@@ -922,7 +918,6 @@ void rtw_surveydone_event_callback(struct adapter	*adapter, u8 *pbuf)
 
 					RT_TRACE(_module_rtl871x_mlme_c_, _drv_err_, ("switching to adhoc master\n"));
 
-					memset(&pdev_network->Ssid, 0, sizeof(struct ndis_802_11_ssid));
 					memcpy(&pdev_network->Ssid, &pmlmepriv->assoc_ssid, sizeof(struct ndis_802_11_ssid));
 
 					rtw_update_registrypriv_dev_network(adapter);
@@ -1384,7 +1379,7 @@ static void rtw_joinbss_update_network(struct adapter *padapter, struct wlan_net
 /* define REJOIN */
 void rtw_joinbss_event_prehandle(struct adapter *adapter, u8 *pbuf)
 {
-	static u8 retry = 0;
+	static u8 retry;
 	u8 timer_cancelled;
 	struct sta_info *ptarget_sta = NULL, *pcur_sta = NULL;
 	struct	sta_priv *pstapriv = &adapter->stapriv;
@@ -1774,7 +1769,6 @@ void rtw_stadel_event_callback(struct adapter *adapter, u8 *pbuf)
 
 			memcpy(pdev_network, &tgt_network->network, get_wlan_bssid_ex_sz(&tgt_network->network));
 
-			memset(&pdev_network->Ssid, 0, sizeof(struct ndis_802_11_ssid));
 			memcpy(&pdev_network->Ssid, &pmlmepriv->assoc_ssid, sizeof(struct ndis_802_11_ssid));
 
 			rtw_update_registrypriv_dev_network(adapter);
@@ -1820,8 +1814,10 @@ void rtw_wmm_event_callback(struct adapter *padapter, u8 *pbuf)
 * _rtw_join_timeout_handler - Timeout/failure handler for CMD JoinBss
 * @adapter: pointer to struct adapter structure
 */
-void _rtw_join_timeout_handler (struct adapter *adapter)
+void _rtw_join_timeout_handler(struct timer_list *t)
 {
+	struct adapter *adapter = from_timer(adapter, t,
+						  mlmepriv.assoc_timer);
 	struct	mlme_priv *pmlmepriv = &adapter->mlmepriv;
 
 	DBG_871X("%s, fw_state =%x\n", __func__, get_fwstate(pmlmepriv));
@@ -1873,8 +1869,10 @@ void _rtw_join_timeout_handler (struct adapter *adapter)
 * rtw_scan_timeout_handler - Timeout/Failure handler for CMD SiteSurvey
 * @adapter: pointer to struct adapter structure
 */
-void rtw_scan_timeout_handler (struct adapter *adapter)
+void rtw_scan_timeout_handler(struct timer_list *t)
 {
+	struct adapter *adapter = from_timer(adapter, t,
+						  mlmepriv.scan_to_timer);
 	struct	mlme_priv *pmlmepriv = &adapter->mlmepriv;
 
 	DBG_871X(FUNC_ADPT_FMT" fw_state =%x\n", FUNC_ADPT_ARG(adapter), get_fwstate(pmlmepriv));
@@ -1937,7 +1935,7 @@ exit:
 	return;
 }
 
-void rtw_dynamic_check_timer_handlder(struct adapter *adapter)
+void rtw_dynamic_check_timer_handler(struct adapter *adapter)
 {
 	if (!adapter)
 		return;
@@ -2274,13 +2272,13 @@ sint rtw_set_auth(struct adapter *adapter, struct security_priv *psecuritypriv)
 	struct	cmd_priv *pcmdpriv = &(adapter->cmdpriv);
 	sint		res = _SUCCESS;
 
-	pcmd = (struct	cmd_obj *)rtw_zmalloc(sizeof(struct	cmd_obj));
+	pcmd = rtw_zmalloc(sizeof(struct cmd_obj));
 	if (pcmd == NULL) {
 		res = _FAIL;  /* try again */
 		goto exit;
 	}
 
-	psetauthparm = (struct setauth_parm *)rtw_zmalloc(sizeof(struct setauth_parm));
+	psetauthparm = rtw_zmalloc(sizeof(struct setauth_parm));
 	if (psetauthparm == NULL) {
 		kfree((unsigned char *)pcmd);
 		res = _FAIL;
@@ -2315,7 +2313,7 @@ sint rtw_set_key(struct adapter *adapter, struct security_priv *psecuritypriv, s
 	struct cmd_priv 	*pcmdpriv = &(adapter->cmdpriv);
 	sint	res = _SUCCESS;
 
-	psetkeyparm = (struct setkey_parm *)rtw_zmalloc(sizeof(struct setkey_parm));
+	psetkeyparm = rtw_zmalloc(sizeof(struct setkey_parm));
 	if (psetkeyparm == NULL) {
 		res = _FAIL;
 		goto exit;
@@ -2367,7 +2365,7 @@ sint rtw_set_key(struct adapter *adapter, struct security_priv *psecuritypriv, s
 
 
 	if (enqueue) {
-		pcmd = (struct	cmd_obj *)rtw_zmalloc(sizeof(struct	cmd_obj));
+		pcmd = rtw_zmalloc(sizeof(struct cmd_obj));
 		if (pcmd == NULL) {
 			kfree((unsigned char *)psetkeyparm);
 			res = _FAIL;  /* try again */
@@ -2498,8 +2496,7 @@ sint rtw_restruct_sec_ie(struct adapter *adapter, u8 *in_ie, u8 *out_ie, uint in
 	uint	ndisauthmode = psecuritypriv->ndisauthtype;
 
 	RT_TRACE(_module_rtl871x_mlme_c_, _drv_notice_,
-		 ("+rtw_restruct_sec_ie: ndisauthmode =%d ndissecuritytype =%d\n",
-		  ndisauthmode, ndissecuritytype));
+		 ("+rtw_restruct_sec_ie: ndisauthmode =%d\n", ndisauthmode));
 
 	/* copy fixed ie only */
 	memcpy(out_ie, in_ie, 12);

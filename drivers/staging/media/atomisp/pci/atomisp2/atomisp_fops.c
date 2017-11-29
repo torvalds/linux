@@ -14,10 +14,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- * 02110-1301, USA.
  *
  */
 
@@ -643,14 +639,14 @@ static void atomisp_buf_release_output(struct videobuf_queue *vq,
 	vb->state = VIDEOBUF_NEEDS_INIT;
 }
 
-static struct videobuf_queue_ops videobuf_qops = {
+static const struct videobuf_queue_ops videobuf_qops = {
 	.buf_setup	= atomisp_buf_setup,
 	.buf_prepare	= atomisp_buf_prepare,
 	.buf_queue	= atomisp_buf_queue,
 	.buf_release	= atomisp_buf_release,
 };
 
-static struct videobuf_queue_ops videobuf_qops_output = {
+static const struct videobuf_queue_ops videobuf_qops_output = {
 	.buf_setup	= atomisp_buf_setup_output,
 	.buf_prepare	= atomisp_buf_prepare_output,
 	.buf_queue	= atomisp_buf_queue_output,
@@ -1137,10 +1133,8 @@ static int remove_pad_from_frame(struct atomisp_device *isp,
 	ia_css_ptr store = load;
 
 	buffer = kmalloc(width*sizeof(load), GFP_KERNEL);
-	if (!buffer) {
-		dev_err(isp->dev, "out of memory.\n");
+	if (!buffer)
 		return -ENOMEM;
-	}
 
 	load += ISP_LEFT_PAD;
 	for (i = 0; i < height; i++) {

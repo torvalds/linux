@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _LINUX_MM_H
 #define _LINUX_MM_H
 
@@ -23,6 +24,7 @@
 #include <linux/page_ext.h>
 #include <linux/err.h>
 #include <linux/page_ref.h>
+#include <linux/memremap.h>
 
 struct mempolicy;
 struct anon_vma;
@@ -91,6 +93,15 @@ extern int mmap_rnd_compat_bits __read_mostly;
  */
 #ifndef mm_forbids_zeropage
 #define mm_forbids_zeropage(X)	(0)
+#endif
+
+/*
+ * On some architectures it is expensive to call memset() for small sizes.
+ * Those architectures should provide their own implementation of "struct page"
+ * zeroing by defining this macro in <asm/pgtable.h>.
+ */
+#ifndef mm_zero_struct_page
+#define mm_zero_struct_page(pp)  ((void)memset((pp), 0, sizeof(struct page)))
 #endif
 
 /*
@@ -188,8 +199,9 @@ extern unsigned int kobjsize(const void *objp);
 #define VM_ACCOUNT	0x00100000	/* Is a VM accounted object */
 #define VM_NORESERVE	0x00200000	/* should the VM suppress accounting */
 #define VM_HUGETLB	0x00400000	/* Huge TLB Page VM */
+#define VM_SYNC		0x00800000	/* Synchronous page faults */
 #define VM_ARCH_1	0x01000000	/* Architecture-specific flag */
-#define VM_ARCH_2	0x02000000
+#define VM_WIPEONFORK	0x02000000	/* Wipe VMA contents in child. */
 #define VM_DONTDUMP	0x04000000	/* Do not include in the core dump */
 
 #ifdef CONFIG_MEM_SOFT_DIRTY
@@ -208,10 +220,12 @@ extern unsigned int kobjsize(const void *objp);
 #define VM_HIGH_ARCH_BIT_1	33	/* bit only usable on 64-bit architectures */
 #define VM_HIGH_ARCH_BIT_2	34	/* bit only usable on 64-bit architectures */
 #define VM_HIGH_ARCH_BIT_3	35	/* bit only usable on 64-bit architectures */
+#define VM_HIGH_ARCH_BIT_4	36	/* bit only usable on 64-bit architectures */
 #define VM_HIGH_ARCH_0	BIT(VM_HIGH_ARCH_BIT_0)
 #define VM_HIGH_ARCH_1	BIT(VM_HIGH_ARCH_BIT_1)
 #define VM_HIGH_ARCH_2	BIT(VM_HIGH_ARCH_BIT_2)
 #define VM_HIGH_ARCH_3	BIT(VM_HIGH_ARCH_BIT_3)
+#define VM_HIGH_ARCH_4	BIT(VM_HIGH_ARCH_BIT_4)
 #endif /* CONFIG_ARCH_USES_HIGH_VMA_FLAGS */
 
 #if defined(CONFIG_X86)
@@ -235,9 +249,11 @@ extern unsigned int kobjsize(const void *objp);
 # define VM_MAPPED_COPY	VM_ARCH_1	/* T if mapped copy of data (nommu mmap) */
 #endif
 
-#if defined(CONFIG_X86)
+#if defined(CONFIG_X86_INTEL_MPX)
 /* MPX specific bounds table or bounds directory */
-# define VM_MPX		VM_ARCH_2
+# define VM_MPX		VM_HIGH_ARCH_4
+#else
+# define VM_MPX		VM_NONE
 #endif
 
 #ifndef VM_GROWSUP
@@ -795,6 +811,28 @@ static inline bool is_zone_device_page(const struct page *page)
 }
 #endif
 
+#if defined(CONFIG_DEVICE_PRIVATE) || defined(CONFIG_DEVICE_PUBLIC)
+void put_zone_device_private_or_public_page(struct page *page);
+DECLARE_STATIC_KEY_FALSE(device_private_key);
+#define IS_HMM_ENABLED static_branch_unlikely(&device_private_key)
+static inline bool is_device_private_page(const struct page *page);
+static inline bool is_device_public_page(const struct page *page);
+#else /* CONFIG_DEVICE_PRIVATE || CONFIG_DEVICE_PUBLIC */
+static inline void put_zone_device_private_or_public_page(struct page *page)
+{
+}
+#define IS_HMM_ENABLED 0
+static inline bool is_device_private_page(const struct page *page)
+{
+	return false;
+}
+static inline bool is_device_public_page(const struct page *page)
+{
+	return false;
+}
+#endif /* CONFIG_DEVICE_PRIVATE || CONFIG_DEVICE_PUBLIC */
+
+
 static inline void get_page(struct page *page)
 {
 	page = compound_head(page);
@@ -809,6 +847,18 @@ static inline void get_page(struct page *page)
 static inline void put_page(struct page *page)
 {
 	page = compound_head(page);
+
+	/*
+	 * For private device pages we need to catch refcount transition from
+	 * 2 to 1, when refcount reach one it means the private device page is
+	 * free and we need to inform the device driver through callback. See
+	 * include/linux/memremap.h and HMM for details.
+	 */
+	if (IS_HMM_ENABLED && unlikely(is_device_private_page(page) ||
+	    unlikely(is_device_public_page(page)))) {
+		put_zone_device_private_or_public_page(page);
+		return;
+	}
 
 	if (put_page_testzero(page))
 		__put_page(page);
@@ -1142,8 +1192,9 @@ static inline void clear_page_pfmemalloc(struct page *page)
 #define VM_FAULT_RETRY	0x0400	/* ->fault blocked, must retry */
 #define VM_FAULT_FALLBACK 0x0800	/* huge page fault failed, fall back to small */
 #define VM_FAULT_DONE_COW   0x1000	/* ->fault has fully handled COW */
-
-#define VM_FAULT_HWPOISON_LARGE_MASK 0xf000 /* encodes hpage index for large hwpoison */
+#define VM_FAULT_NEEDDSYNC  0x2000	/* ->fault did not modify page tables
+					 * and needs fsync() to complete (for
+					 * synchronous page faults in DAX) */
 
 #define VM_FAULT_ERROR	(VM_FAULT_OOM | VM_FAULT_SIGBUS | VM_FAULT_SIGSEGV | \
 			 VM_FAULT_HWPOISON | VM_FAULT_HWPOISON_LARGE | \
@@ -1161,7 +1212,8 @@ static inline void clear_page_pfmemalloc(struct page *page)
 	{ VM_FAULT_LOCKED,		"LOCKED" }, \
 	{ VM_FAULT_RETRY,		"RETRY" }, \
 	{ VM_FAULT_FALLBACK,		"FALLBACK" }, \
-	{ VM_FAULT_DONE_COW,		"DONE_COW" }
+	{ VM_FAULT_DONE_COW,		"DONE_COW" }, \
+	{ VM_FAULT_NEEDDSYNC,		"NEEDDSYNC" }
 
 /* Encode hstate index for a hwpoisoned large page */
 #define VM_FAULT_SET_HINDEX(x) ((x) << 12)
@@ -1195,8 +1247,10 @@ struct zap_details {
 	pgoff_t last_index;			/* Highest page->index to unmap */
 };
 
-struct page *vm_normal_page(struct vm_area_struct *vma, unsigned long addr,
-		pte_t pte);
+struct page *_vm_normal_page(struct vm_area_struct *vma, unsigned long addr,
+			     pte_t pte, bool with_public_device);
+#define vm_normal_page(vma, addr, pte) _vm_normal_page(vma, addr, pte, false)
+
 struct page *vm_normal_page_pmd(struct vm_area_struct *vma, unsigned long addr,
 				pmd_t pmd);
 
@@ -1260,6 +1314,7 @@ int copy_page_range(struct mm_struct *dst, struct mm_struct *src,
 void unmap_mapping_range(struct address_space *mapping,
 		loff_t const holebegin, loff_t const holelen, int even_cows);
 int follow_pte_pmd(struct mm_struct *mm, unsigned long address,
+			     unsigned long *start, unsigned long *end,
 			     pte_t **ptepp, pmd_t **pmdpp, spinlock_t **ptlp);
 int follow_pfn(struct vm_area_struct *vma, unsigned long address,
 	unsigned long *pfn);
@@ -1388,7 +1443,13 @@ void account_page_cleaned(struct page *page, struct address_space *mapping,
 			  struct bdi_writeback *wb);
 int set_page_dirty(struct page *page);
 int set_page_dirty_lock(struct page *page);
-void cancel_dirty_page(struct page *page);
+void __cancel_dirty_page(struct page *page);
+static inline void cancel_dirty_page(struct page *page)
+{
+	/* Avoid atomic ops, locking, etc. when not actually needed. */
+	if (PageDirty(page))
+		__cancel_dirty_page(page);
+}
 int clear_page_dirty_for_io(struct page *page);
 
 int get_cmdline(struct task_struct *task, char *buffer, int buflen);
@@ -1556,26 +1617,32 @@ static inline int __p4d_alloc(struct mm_struct *mm, pgd_t *pgd,
 int __p4d_alloc(struct mm_struct *mm, pgd_t *pgd, unsigned long address);
 #endif
 
-#ifdef __PAGETABLE_PUD_FOLDED
+#if defined(__PAGETABLE_PUD_FOLDED) || !defined(CONFIG_MMU)
 static inline int __pud_alloc(struct mm_struct *mm, p4d_t *p4d,
 						unsigned long address)
 {
 	return 0;
 }
+static inline void mm_inc_nr_puds(struct mm_struct *mm) {}
+static inline void mm_dec_nr_puds(struct mm_struct *mm) {}
+
 #else
 int __pud_alloc(struct mm_struct *mm, p4d_t *p4d, unsigned long address);
+
+static inline void mm_inc_nr_puds(struct mm_struct *mm)
+{
+	atomic_long_add(PTRS_PER_PUD * sizeof(pud_t), &mm->pgtables_bytes);
+}
+
+static inline void mm_dec_nr_puds(struct mm_struct *mm)
+{
+	atomic_long_sub(PTRS_PER_PUD * sizeof(pud_t), &mm->pgtables_bytes);
+}
 #endif
 
 #if defined(__PAGETABLE_PMD_FOLDED) || !defined(CONFIG_MMU)
 static inline int __pmd_alloc(struct mm_struct *mm, pud_t *pud,
 						unsigned long address)
-{
-	return 0;
-}
-
-static inline void mm_nr_pmds_init(struct mm_struct *mm) {}
-
-static inline unsigned long mm_nr_pmds(struct mm_struct *mm)
 {
 	return 0;
 }
@@ -1586,25 +1653,47 @@ static inline void mm_dec_nr_pmds(struct mm_struct *mm) {}
 #else
 int __pmd_alloc(struct mm_struct *mm, pud_t *pud, unsigned long address);
 
-static inline void mm_nr_pmds_init(struct mm_struct *mm)
-{
-	atomic_long_set(&mm->nr_pmds, 0);
-}
-
-static inline unsigned long mm_nr_pmds(struct mm_struct *mm)
-{
-	return atomic_long_read(&mm->nr_pmds);
-}
-
 static inline void mm_inc_nr_pmds(struct mm_struct *mm)
 {
-	atomic_long_inc(&mm->nr_pmds);
+	atomic_long_add(PTRS_PER_PMD * sizeof(pmd_t), &mm->pgtables_bytes);
 }
 
 static inline void mm_dec_nr_pmds(struct mm_struct *mm)
 {
-	atomic_long_dec(&mm->nr_pmds);
+	atomic_long_sub(PTRS_PER_PMD * sizeof(pmd_t), &mm->pgtables_bytes);
 }
+#endif
+
+#ifdef CONFIG_MMU
+static inline void mm_pgtables_bytes_init(struct mm_struct *mm)
+{
+	atomic_long_set(&mm->pgtables_bytes, 0);
+}
+
+static inline unsigned long mm_pgtables_bytes(const struct mm_struct *mm)
+{
+	return atomic_long_read(&mm->pgtables_bytes);
+}
+
+static inline void mm_inc_nr_ptes(struct mm_struct *mm)
+{
+	atomic_long_add(PTRS_PER_PTE * sizeof(pte_t), &mm->pgtables_bytes);
+}
+
+static inline void mm_dec_nr_ptes(struct mm_struct *mm)
+{
+	atomic_long_sub(PTRS_PER_PTE * sizeof(pte_t), &mm->pgtables_bytes);
+}
+#else
+
+static inline void mm_pgtables_bytes_init(struct mm_struct *mm) {}
+static inline unsigned long mm_pgtables_bytes(const struct mm_struct *mm)
+{
+	return 0;
+}
+
+static inline void mm_inc_nr_ptes(struct mm_struct *mm) {}
+static inline void mm_dec_nr_ptes(struct mm_struct *mm) {}
 #endif
 
 int __pte_alloc(struct mm_struct *mm, pmd_t *pmd, unsigned long address);
@@ -1959,6 +2048,12 @@ extern int __meminit __early_pfn_to_nid(unsigned long pfn,
 					struct mminit_pfnnid_cache *state);
 #endif
 
+#ifdef CONFIG_HAVE_MEMBLOCK
+void zero_resv_unavail(void);
+#else
+static inline void zero_resv_unavail(void) {}
+#endif
+
 extern void set_dma_reserve(unsigned long new_dma_reserve);
 extern void memmap_init_zone(unsigned long, int, unsigned long,
 				unsigned long, enum memmap_context);
@@ -1992,13 +2087,13 @@ extern int nommu_shrink_inode_mappings(struct inode *, size_t, size_t);
 
 /* interval_tree.c */
 void vma_interval_tree_insert(struct vm_area_struct *node,
-			      struct rb_root *root);
+			      struct rb_root_cached *root);
 void vma_interval_tree_insert_after(struct vm_area_struct *node,
 				    struct vm_area_struct *prev,
-				    struct rb_root *root);
+				    struct rb_root_cached *root);
 void vma_interval_tree_remove(struct vm_area_struct *node,
-			      struct rb_root *root);
-struct vm_area_struct *vma_interval_tree_iter_first(struct rb_root *root,
+			      struct rb_root_cached *root);
+struct vm_area_struct *vma_interval_tree_iter_first(struct rb_root_cached *root,
 				unsigned long start, unsigned long last);
 struct vm_area_struct *vma_interval_tree_iter_next(struct vm_area_struct *node,
 				unsigned long start, unsigned long last);
@@ -2008,11 +2103,12 @@ struct vm_area_struct *vma_interval_tree_iter_next(struct vm_area_struct *node,
 	     vma; vma = vma_interval_tree_iter_next(vma, start, last))
 
 void anon_vma_interval_tree_insert(struct anon_vma_chain *node,
-				   struct rb_root *root);
+				   struct rb_root_cached *root);
 void anon_vma_interval_tree_remove(struct anon_vma_chain *node,
-				   struct rb_root *root);
-struct anon_vma_chain *anon_vma_interval_tree_iter_first(
-	struct rb_root *root, unsigned long start, unsigned long last);
+				   struct rb_root_cached *root);
+struct anon_vma_chain *
+anon_vma_interval_tree_iter_first(struct rb_root_cached *root,
+				  unsigned long start, unsigned long last);
 struct anon_vma_chain *anon_vma_interval_tree_iter_next(
 	struct anon_vma_chain *node, unsigned long start, unsigned long last);
 #ifdef CONFIG_DEBUG_VM_RB
@@ -2293,6 +2389,8 @@ int vm_insert_pfn_prot(struct vm_area_struct *vma, unsigned long addr,
 			unsigned long pfn, pgprot_t pgprot);
 int vm_insert_mixed(struct vm_area_struct *vma, unsigned long addr,
 			pfn_t pfn);
+int vm_insert_mixed_mkwrite(struct vm_area_struct *vma, unsigned long addr,
+			pfn_t pfn);
 int vm_iomap_memory(struct vm_area_struct *vma, phys_addr_t start, unsigned long len);
 
 
@@ -2450,7 +2548,7 @@ void vmemmap_populate_print_last(void);
 void vmemmap_free(unsigned long start, unsigned long end);
 #endif
 void register_page_bootmem_memmap(unsigned long section_nr, struct page *map,
-				  unsigned long size);
+				  unsigned long nr_pages);
 
 enum mf_flags {
 	MF_COUNT_INCREASED = 1 << 0,
@@ -2505,7 +2603,7 @@ enum mf_action_page_type {
 
 #if defined(CONFIG_TRANSPARENT_HUGEPAGE) || defined(CONFIG_HUGETLBFS)
 extern void clear_huge_page(struct page *page,
-			    unsigned long addr,
+			    unsigned long addr_hint,
 			    unsigned int pages_per_huge_page);
 extern void copy_user_huge_page(struct page *dst, struct page *src,
 				unsigned long addr, struct vm_area_struct *vma,

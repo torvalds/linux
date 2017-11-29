@@ -337,7 +337,6 @@ static int vc_vchi_audio_deinit(struct bcm2835_audio_instance *instance)
 {
 	unsigned int i;
 
-
 	if (!instance) {
 		LOG_ERR("%s: invalid handle %p\n", __func__, instance);
 
@@ -369,7 +368,6 @@ static int vc_vchi_audio_deinit(struct bcm2835_audio_instance *instance)
 
 	kfree(instance);
 
-
 	return 0;
 }
 
@@ -382,7 +380,6 @@ static int bcm2835_audio_open_connection(struct bcm2835_alsa_stream *alsa_stream
 		(struct bcm2835_audio_instance *)alsa_stream->instance;
 	int ret;
 
-
 	LOG_INFO("%s: start\n", __func__);
 	BUG_ON(instance);
 	if (instance) {
@@ -390,8 +387,7 @@ static int bcm2835_audio_open_connection(struct bcm2835_alsa_stream *alsa_stream
 			__func__, instance);
 		instance->alsa_stream = alsa_stream;
 		alsa_stream->instance = instance;
-		ret = 0; // xxx todo -1;
-		goto err_free_mem;
+		return 0;
 	}
 
 	/* Initialize and create a VCHI connection */
@@ -401,16 +397,15 @@ static int bcm2835_audio_open_connection(struct bcm2835_alsa_stream *alsa_stream
 			LOG_ERR("%s: failed to initialise VCHI instance (ret=%d)\n",
 				__func__, ret);
 
-			ret = -EIO;
-			goto err_free_mem;
+			return -EIO;
 		}
 		ret = vchi_connect(NULL, 0, vchi_instance);
 		if (ret) {
 			LOG_ERR("%s: failed to connect VCHI instance (ret=%d)\n",
 				__func__, ret);
 
-			ret = -EIO;
-			goto err_free_mem;
+			kfree(vchi_instance);
+			return -EIO;
 		}
 		initted = 1;
 	}
@@ -421,19 +416,16 @@ static int bcm2835_audio_open_connection(struct bcm2835_alsa_stream *alsa_stream
 	if (IS_ERR(instance)) {
 		LOG_ERR("%s: failed to initialize audio service\n", __func__);
 
-		ret = PTR_ERR(instance);
-		goto err_free_mem;
+		/* vchi_instance is retained for use the next time. */
+		return PTR_ERR(instance);
 	}
 
 	instance->alsa_stream = alsa_stream;
 	alsa_stream->instance = instance;
 
 	LOG_DBG(" success !\n");
-	ret = 0;
-err_free_mem:
-	kfree(vchi_instance);
 
-	return ret;
+	return 0;
 }
 
 int bcm2835_audio_open(struct bcm2835_alsa_stream *alsa_stream)
@@ -442,7 +434,6 @@ int bcm2835_audio_open(struct bcm2835_alsa_stream *alsa_stream)
 	struct vc_audio_msg m;
 	int status;
 	int ret;
-
 
 	my_workqueue_init(alsa_stream);
 
@@ -490,7 +481,6 @@ static int bcm2835_audio_set_ctls_chan(struct bcm2835_alsa_stream *alsa_stream,
 	struct bcm2835_audio_instance *instance = alsa_stream->instance;
 	int status;
 	int ret;
-
 
 	LOG_INFO(" Setting ALSA dest(%d), volume(%d)\n",
 		 chip->dest, chip->volume);
@@ -575,7 +565,6 @@ int bcm2835_audio_set_params(struct bcm2835_alsa_stream *alsa_stream,
 	int status;
 	int ret;
 
-
 	LOG_INFO(" Setting ALSA channels(%d), samplerate(%d), bits-per-sample(%d)\n",
 		 channels, samplerate, bps);
 
@@ -636,7 +625,6 @@ unlock:
 int bcm2835_audio_setup(struct bcm2835_alsa_stream *alsa_stream)
 {
 
-
 	return 0;
 }
 
@@ -646,7 +634,6 @@ static int bcm2835_audio_start_worker(struct bcm2835_alsa_stream *alsa_stream)
 	struct bcm2835_audio_instance *instance = alsa_stream->instance;
 	int status;
 	int ret;
-
 
 	if (mutex_lock_interruptible(&instance->vchi_mutex)) {
 		LOG_DBG("Interrupted whilst waiting for lock on (%d)\n",
@@ -684,7 +671,6 @@ static int bcm2835_audio_stop_worker(struct bcm2835_alsa_stream *alsa_stream)
 	int status;
 	int ret;
 
-
 	if (mutex_lock_interruptible(&instance->vchi_mutex)) {
 		LOG_DBG("Interrupted whilst waiting for lock on (%d)\n",
 			instance->num_connections);
@@ -721,7 +707,6 @@ int bcm2835_audio_close(struct bcm2835_alsa_stream *alsa_stream)
 	struct bcm2835_audio_instance *instance = alsa_stream->instance;
 	int status;
 	int ret;
-
 
 	my_workqueue_quit(alsa_stream);
 
@@ -779,7 +764,6 @@ static int bcm2835_audio_write_worker(struct bcm2835_alsa_stream *alsa_stream,
 	struct bcm2835_audio_instance *instance = alsa_stream->instance;
 	int status;
 	int ret;
-
 
 	LOG_INFO(" Writing %d bytes from %p\n", count, src);
 

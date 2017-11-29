@@ -142,7 +142,7 @@ static void io_subchannel_shutdown(struct subchannel *);
 static int io_subchannel_sch_event(struct subchannel *, int);
 static int io_subchannel_chp_event(struct subchannel *, struct chp_link *,
 				   int);
-static void recovery_func(unsigned long data);
+static void recovery_func(struct timer_list *unused);
 
 static struct css_device_id io_subchannel_ids[] = {
 	{ .match_flags = 0x1, .type = SUBCHANNEL_TYPE_IO, },
@@ -194,7 +194,7 @@ int __init io_subchannel_init(void)
 {
 	int ret;
 
-	setup_timer(&recovery_timer, recovery_func, 0);
+	timer_setup(&recovery_timer, recovery_func, 0);
 	ret = bus_register(&ccw_bus_type);
 	if (ret)
 		return ret;
@@ -612,7 +612,7 @@ static struct attribute *io_subchannel_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group io_subchannel_attr_group = {
+static const struct attribute_group io_subchannel_attr_group = {
 	.attrs = io_subchannel_attrs,
 };
 
@@ -626,7 +626,7 @@ static struct attribute * ccwdev_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group ccwdev_attr_group = {
+static const struct attribute_group ccwdev_attr_group = {
 	.attrs = ccwdev_attrs,
 };
 
@@ -726,7 +726,7 @@ static int io_subchannel_initialize_dev(struct subchannel *sch,
 	INIT_WORK(&priv->todo_work, ccw_device_todo);
 	INIT_LIST_HEAD(&priv->cmb_list);
 	init_waitqueue_head(&priv->wait_q);
-	init_timer(&priv->timer);
+	timer_setup(&priv->timer, ccw_device_timeout, 0);
 
 	atomic_set(&priv->onoff, 0);
 	cdev->ccwlock = sch->lock;
@@ -1225,10 +1225,16 @@ static int device_is_disconnected(struct ccw_device *cdev)
 static int recovery_check(struct device *dev, void *data)
 {
 	struct ccw_device *cdev = to_ccwdev(dev);
+	struct subchannel *sch;
 	int *redo = data;
 
 	spin_lock_irq(cdev->ccwlock);
 	switch (cdev->private->state) {
+	case DEV_STATE_ONLINE:
+		sch = to_subchannel(cdev->dev.parent);
+		if ((sch->schib.pmcw.pam & sch->opm) == sch->vpm)
+			break;
+		/* fall through */
 	case DEV_STATE_DISCONNECTED:
 		CIO_MSG_EVENT(3, "recovery: trigger 0.%x.%04x\n",
 			      cdev->private->dev_id.ssid,
@@ -1260,12 +1266,12 @@ static void recovery_work_func(struct work_struct *unused)
 		}
 		spin_unlock_irq(&recovery_lock);
 	} else
-		CIO_MSG_EVENT(4, "recovery: end\n");
+		CIO_MSG_EVENT(3, "recovery: end\n");
 }
 
 static DECLARE_WORK(recovery_work, recovery_work_func);
 
-static void recovery_func(unsigned long data)
+static void recovery_func(struct timer_list *unused)
 {
 	/*
 	 * We can't do our recovery in softirq context and it's not
@@ -1274,11 +1280,11 @@ static void recovery_func(unsigned long data)
 	schedule_work(&recovery_work);
 }
 
-static void ccw_device_schedule_recovery(void)
+void ccw_device_schedule_recovery(void)
 {
 	unsigned long flags;
 
-	CIO_MSG_EVENT(4, "recovery: schedule\n");
+	CIO_MSG_EVENT(3, "recovery: schedule\n");
 	spin_lock_irqsave(&recovery_lock, flags);
 	if (!timer_pending(&recovery_timer) || (recovery_phase != 0)) {
 		recovery_phase = 0;

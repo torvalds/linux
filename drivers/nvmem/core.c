@@ -135,7 +135,7 @@ static ssize_t bin_attr_nvmem_write(struct file *filp, struct kobject *kobj,
 
 	/* Stop the user from writing */
 	if (pos >= nvmem->size)
-		return 0;
+		return -EFBIG;
 
 	if (count < nvmem->word_size)
 		return -EINVAL;
@@ -290,7 +290,7 @@ static struct nvmem_cell *nvmem_find_cell(const char *cell_id)
 	mutex_lock(&nvmem_cells_mutex);
 
 	list_for_each_entry(p, &nvmem_cells, node)
-		if (p && !strcmp(p->name, cell_id)) {
+		if (!strcmp(p->name, cell_id)) {
 			mutex_unlock(&nvmem_cells_mutex);
 			return p;
 		}
@@ -462,6 +462,8 @@ struct nvmem_device *nvmem_register(const struct nvmem_config *config)
 
 	nvmem->id = rval;
 	nvmem->owner = config->owner;
+	if (!nvmem->owner && config->dev->driver)
+		nvmem->owner = config->dev->driver->owner;
 	nvmem->stride = config->stride;
 	nvmem->word_size = config->word_size;
 	nvmem->size = config->size;
@@ -615,7 +617,7 @@ static struct nvmem_device *nvmem_find(const char *name)
 	return to_nvmem_device(d);
 }
 
-#if IS_ENABLED(CONFIG_NVMEM) && IS_ENABLED(CONFIG_OF)
+#if IS_ENABLED(CONFIG_OF)
 /**
  * of_nvmem_device_get() - Get nvmem device from a given id
  *
@@ -753,7 +755,7 @@ static struct nvmem_cell *nvmem_cell_get_from_list(const char *cell_id)
 	return cell;
 }
 
-#if IS_ENABLED(CONFIG_NVMEM) && IS_ENABLED(CONFIG_OF)
+#if IS_ENABLED(CONFIG_OF)
 /**
  * of_nvmem_cell_get() - Get a nvmem cell from given device node and cell id
  *
@@ -789,13 +791,14 @@ struct nvmem_cell *of_nvmem_cell_get(struct device_node *np,
 		return ERR_PTR(-EINVAL);
 
 	nvmem = __nvmem_device_get(nvmem_np, NULL, NULL);
+	of_node_put(nvmem_np);
 	if (IS_ERR(nvmem))
 		return ERR_CAST(nvmem);
 
 	addr = of_get_property(cell_np, "reg", &len);
 	if (!addr || (len < 2 * sizeof(u32))) {
-		dev_err(&nvmem->dev, "nvmem: invalid reg on %s\n",
-			cell_np->full_name);
+		dev_err(&nvmem->dev, "nvmem: invalid reg on %pOF\n",
+			cell_np);
 		rval  = -EINVAL;
 		goto err_mem;
 	}
@@ -945,8 +948,7 @@ void nvmem_cell_put(struct nvmem_cell *cell)
 }
 EXPORT_SYMBOL_GPL(nvmem_cell_put);
 
-static inline void nvmem_shift_read_buffer_in_place(struct nvmem_cell *cell,
-						    void *buf)
+static void nvmem_shift_read_buffer_in_place(struct nvmem_cell *cell, void *buf)
 {
 	u8 *p, *b;
 	int i, bit_offset = cell->bit_offset;
@@ -1027,8 +1029,8 @@ void *nvmem_cell_read(struct nvmem_cell *cell, size_t *len)
 }
 EXPORT_SYMBOL_GPL(nvmem_cell_read);
 
-static inline void *nvmem_cell_prepare_write_buffer(struct nvmem_cell *cell,
-						    u8 *_buf, int len)
+static void *nvmem_cell_prepare_write_buffer(struct nvmem_cell *cell,
+					     u8 *_buf, int len)
 {
 	struct nvmem_device *nvmem = cell->nvmem;
 	int i, rc, nbits, bit_offset = cell->bit_offset;
@@ -1109,6 +1111,43 @@ int nvmem_cell_write(struct nvmem_cell *cell, void *buf, size_t len)
 	return len;
 }
 EXPORT_SYMBOL_GPL(nvmem_cell_write);
+
+/**
+ * nvmem_cell_read_u32() - Read a cell value as an u32
+ *
+ * @dev: Device that requests the nvmem cell.
+ * @cell_id: Name of nvmem cell to read.
+ * @val: pointer to output value.
+ *
+ * Return: 0 on success or negative errno.
+ */
+int nvmem_cell_read_u32(struct device *dev, const char *cell_id, u32 *val)
+{
+	struct nvmem_cell *cell;
+	void *buf;
+	size_t len;
+
+	cell = nvmem_cell_get(dev, cell_id);
+	if (IS_ERR(cell))
+		return PTR_ERR(cell);
+
+	buf = nvmem_cell_read(cell, &len);
+	if (IS_ERR(buf)) {
+		nvmem_cell_put(cell);
+		return PTR_ERR(buf);
+	}
+	if (len != sizeof(*val)) {
+		kfree(buf);
+		nvmem_cell_put(cell);
+		return -EINVAL;
+	}
+	memcpy(val, buf, sizeof(*val));
+
+	kfree(buf);
+	nvmem_cell_put(cell);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(nvmem_cell_read_u32);
 
 /**
  * nvmem_device_cell_read() - Read a given nvmem device and cell

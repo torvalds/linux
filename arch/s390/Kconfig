@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 config MMU
 	def_bool y
 
@@ -67,6 +68,7 @@ config S390
 	select ARCH_BINFMT_ELF_STATE
 	select ARCH_HAS_DEVMEM_IS_ALLOWED
 	select ARCH_HAS_ELF_RANDOMIZE
+	select ARCH_HAS_FORTIFY_SOURCE
 	select ARCH_HAS_GCOV_PROFILE_ALL
 	select ARCH_HAS_GIGANTIC_PAGE if (MEMORY_ISOLATION && COMPACTION) || CMA
 	select ARCH_HAS_KCOV
@@ -142,11 +144,11 @@ config S390
 	select HAVE_DYNAMIC_FTRACE
 	select HAVE_DYNAMIC_FTRACE_WITH_REGS
 	select HAVE_EFFICIENT_UNALIGNED_ACCESS
-	select HAVE_EXIT_THREAD
 	select HAVE_FTRACE_MCOUNT_RECORD
 	select HAVE_FUNCTION_GRAPH_TRACER
 	select HAVE_FUNCTION_TRACER
 	select HAVE_FUTEX_CMPXCHG if FUTEX
+	select HAVE_GCC_PLUGINS
 	select HAVE_KERNEL_BZIP2
 	select HAVE_KERNEL_GZIP
 	select HAVE_KERNEL_LZ4
@@ -157,6 +159,8 @@ config S390
 	select HAVE_KRETPROBES
 	select HAVE_KVM
 	select HAVE_LIVEPATCH
+	select HAVE_PERF_REGS
+	select HAVE_PERF_USER_STACK_DUMP
 	select HAVE_MEMBLOCK
 	select HAVE_MEMBLOCK_NODE_MAP
 	select HAVE_MEMBLOCK_PHYS_MAP
@@ -222,6 +226,10 @@ config HAVE_MARCH_Z13_FEATURES
 	def_bool n
 	select HAVE_MARCH_ZEC12_FEATURES
 
+config HAVE_MARCH_Z14_FEATURES
+	def_bool n
+	select HAVE_MARCH_Z13_FEATURES
+
 choice
 	prompt "Processor type"
 	default MARCH_Z196
@@ -282,6 +290,14 @@ config MARCH_Z13
 	  2964 series). The kernel will be slightly faster but will not work on
 	  older machines.
 
+config MARCH_Z14
+	bool "IBM z14"
+	select HAVE_MARCH_Z14_FEATURES
+	help
+	  Select this to enable optimizations for IBM z14 (3906 series).
+	  The kernel will be slightly faster but will not work on older
+	  machines.
+
 endchoice
 
 config MARCH_Z900_TUNE
@@ -304,6 +320,9 @@ config MARCH_ZEC12_TUNE
 
 config MARCH_Z13_TUNE
 	def_bool TUNE_Z13 || MARCH_Z13 && TUNE_DEFAULT
+
+config MARCH_Z14_TUNE
+	def_bool TUNE_Z14 || MARCH_Z14 && TUNE_DEFAULT
 
 choice
 	prompt "Tune code generation"
@@ -342,6 +361,9 @@ config TUNE_ZEC12
 
 config TUNE_Z13
 	bool "IBM z13"
+
+config TUNE_Z14
+	bool "IBM z14"
 
 endchoice
 
@@ -790,18 +812,6 @@ config PFAULT
 	  Everybody who wants to run Linux under VM != VM4.2 should select
 	  this option.
 
-config SHARED_KERNEL
-	bool "VM shared kernel support"
-	depends on !JUMP_LABEL
-	help
-	  Select this option, if you want to share the text segment of the
-	  Linux kernel between different VM guests. This reduces memory
-	  usage with lots of guests but greatly increases kernel size.
-	  Also if a kernel was IPL'ed from a shared segment the kexec system
-	  call will not work.
-	  You should only select this option if you know what you are
-	  doing and want to exploit this feature.
-
 config CMM
 	def_tristate n
 	prompt "Cooperative memory management"
@@ -910,18 +920,5 @@ config S390_GUEST
 
 	  Select this option if you want to run the kernel as a guest under
 	  the KVM hypervisor.
-
-config S390_GUEST_OLD_TRANSPORT
-	def_bool y
-	prompt "Guest support for old s390 virtio transport (DEPRECATED)"
-	depends on S390_GUEST
-	help
-	  Enable this option to add support for the old s390-virtio
-	  transport (i.e. virtio devices NOT based on virtio-ccw). This
-	  type of virtio devices is only available on the experimental
-	  kuli userspace or with old (< 2.6) qemu. If you are running
-	  with a modern version of qemu (which supports virtio-ccw since
-	  1.4 and uses it by default since version 2.4), you probably won't
-	  need this.
 
 endmenu

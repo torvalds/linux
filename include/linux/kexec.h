@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef LINUX_KEXEC_H
 #define LINUX_KEXEC_H
 
@@ -159,7 +160,7 @@ struct kexec_buf {
 };
 
 int __weak arch_kexec_walk_mem(struct kexec_buf *kbuf,
-			       int (*func)(u64, u64, void *));
+			       int (*func)(struct resource *, void *));
 extern int kexec_add_buffer(struct kexec_buf *kbuf);
 int kexec_locate_mem_hole(struct kexec_buf *kbuf);
 #endif /* CONFIG_KEXEC_FILE */
@@ -326,6 +327,14 @@ static inline void *boot_phys_to_virt(unsigned long entry)
 {
 	return phys_to_virt(boot_phys_to_phys(entry));
 }
+
+#ifndef arch_kexec_post_alloc_pages
+static inline int arch_kexec_post_alloc_pages(void *vaddr, unsigned int pages, gfp_t gfp) { return 0; }
+#endif
+
+#ifndef arch_kexec_pre_free_pages
+static inline void arch_kexec_pre_free_pages(void *vaddr, unsigned int pages) { }
+#endif
 
 #else /* !CONFIG_KEXEC_CORE */
 struct pt_regs;

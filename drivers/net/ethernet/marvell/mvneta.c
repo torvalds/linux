@@ -281,9 +281,6 @@
  */
 #define MVNETA_RSS_LU_TABLE_SIZE	1
 
-/* TSO header size */
-#define TSO_HEADER_SIZE 128
-
 /* Max number of Rx descriptors */
 #define MVNETA_MAX_RXD 128
 
@@ -819,11 +816,14 @@ static void mvneta_txq_pend_desc_add(struct mvneta_port *pp,
 {
 	u32 val;
 
-	/* Only 255 descriptors can be added at once ; Assume caller
-	 * process TX desriptors in quanta less than 256
-	 */
-	val = pend_desc + txq->pending;
-	mvreg_write(pp, MVNETA_TXQ_UPDATE_REG(txq->id), val);
+	pend_desc += txq->pending;
+
+	/* Only 255 Tx descriptors can be added at once */
+	do {
+		val = min(pend_desc, 255);
+		mvreg_write(pp, MVNETA_TXQ_UPDATE_REG(txq->id), val);
+		pend_desc -= val;
+	} while (pend_desc > 0);
 	txq->pending = 0;
 }
 
@@ -4332,7 +4332,7 @@ static int mvneta_probe(struct platform_device *pdev)
 		}
 	}
 
-	dev->features = NETIF_F_SG | NETIF_F_IP_CSUM | NETIF_F_TSO;
+	dev->features = NETIF_F_SG | NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM | NETIF_F_TSO;
 	dev->hw_features |= dev->features;
 	dev->vlan_features |= dev->features;
 	dev->priv_flags |= IFF_LIVE_ADDR_CHANGE;

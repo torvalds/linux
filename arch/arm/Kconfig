@@ -1,7 +1,9 @@
+# SPDX-License-Identifier: GPL-2.0
 config ARM
 	bool
 	default y
 	select ARCH_CLOCKSOURCE_DATA
+	select ARCH_DISCARD_MEMBLOCK if !HAVE_ARCH_PFN_VALID
 	select ARCH_HAS_DEBUG_VIRTUAL
 	select ARCH_HAS_DEVMEM_IS_ALLOWED
 	select ARCH_HAS_ELF_RANDOMIZE
@@ -50,7 +52,7 @@ config ARM
 	select HAVE_ARCH_SECCOMP_FILTER if (AEABI && !OABI_COMPAT)
 	select HAVE_ARCH_TRACEHOOK
 	select HAVE_ARM_SMCCC if CPU_V7
-	select HAVE_CBPF_JIT
+	select HAVE_EBPF_JIT if !CPU_ENDIAN_BE32
 	select HAVE_CC_STACKPROTECTOR
 	select HAVE_CONTEXT_TRACKING
 	select HAVE_C_RECORDMCOUNT
@@ -239,15 +241,6 @@ config NEED_RET_TO_USER
 config ARCH_MTD_XIP
 	bool
 
-config VECTORS_BASE
-	hex
-	default 0xffff0000 if MMU || CPU_HIGH_VECTOR
-	default DRAM_BASE if REMAP_VECTORS_TO_RAM
-	default 0x00000000
-	help
-	  The base address of exception vectors.  This must be two pages
-	  in size.
-
 config ARM_PATCH_PHYS_VIRT
 	bool "Patch physical to virtual translations at runtime" if EMBEDDED
 	default y
@@ -378,9 +371,9 @@ config ARCH_EBSA110
 
 config ARCH_EP93XX
 	bool "EP93xx-based"
-	select ARCH_HAS_HOLES_MEMORYMODEL
+	select ARCH_SPARSEMEM_ENABLE
 	select ARM_AMBA
-	select ARM_PATCH_PHYS_VIRT
+	imply ARM_PATCH_PHYS_VIRT
 	select ARM_VIC
 	select AUTO_ZRELADDR
 	select CLKDEV_LOOKUP
@@ -1531,7 +1524,6 @@ config THUMB2_KERNEL
 	bool "Compile the kernel in Thumb-2 mode" if !CPU_THUMBONLY
 	depends on (CPU_V7 || CPU_V7M) && !CPU_V6 && !CPU_V6K
 	default y if CPU_THUMBONLY
-	select AEABI
 	select ARM_ASM_UNIFIED
 	select ARM_UNWIND
 	help
@@ -1594,7 +1586,8 @@ config ARM_PATCH_IDIV
 	  code to do integer division.
 
 config AEABI
-	bool "Use the ARM EABI to compile the kernel"
+	bool "Use the ARM EABI to compile the kernel" if !CPU_V7 && !CPU_V7M && !CPU_V6 && !CPU_V6K
+	default CPU_V7 || CPU_V7M || CPU_V6 || CPU_V6K
 	help
 	  This option allows for the kernel to be compiled using the latest
 	  ARM ABI (aka EABI).  This is only useful if you are using a user
@@ -2004,6 +1997,17 @@ config XIP_PHYS_ADDR
 	  This is the physical address in your flash memory the kernel will
 	  be linked for and stored to.  This address is dependent on your
 	  own flash usage.
+
+config XIP_DEFLATED_DATA
+	bool "Store kernel .data section compressed in ROM"
+	depends on XIP_KERNEL
+	select ZLIB_INFLATE
+	help
+	  Before the kernel is actually executed, its .data section has to be
+	  copied to RAM from ROM. This option allows for storing that data
+	  in compressed form and decompressed to RAM rather than merely being
+	  copied, saving some precious ROM space. A possible drawback is a
+	  slightly longer boot delay.
 
 config KEXEC
 	bool "Kexec system call (EXPERIMENTAL)"

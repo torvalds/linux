@@ -1,3 +1,5 @@
+menu "IRQ chip support"
+
 config IRQCHIP
 	def_bool y
 	depends on OF_IRQ
@@ -7,6 +9,7 @@ config ARM_GIC
 	select IRQ_DOMAIN
 	select IRQ_DOMAIN_HIERARCHY
 	select MULTI_IRQ_HANDLER
+	select GENERIC_IRQ_EFFECTIVE_AFF_MASK
 
 config ARM_GIC_PM
 	bool
@@ -34,11 +37,19 @@ config ARM_GIC_V3
 	select MULTI_IRQ_HANDLER
 	select IRQ_DOMAIN_HIERARCHY
 	select PARTITION_PERCPU
+	select GENERIC_IRQ_EFFECTIVE_AFF_MASK
 
 config ARM_GIC_V3_ITS
 	bool
+	select GENERIC_MSI_IRQ_DOMAIN
+	default ARM_GIC_V3
+
+config ARM_GIC_V3_ITS_PCI
+	bool
+	depends on ARM_GIC_V3_ITS
 	depends on PCI
 	depends on PCI_MSI
+	default ARM_GIC_V3_ITS
 
 config ARM_NVIC
 	bool
@@ -64,6 +75,7 @@ config ARMADA_370_XP_IRQ
 	bool
 	select GENERIC_IRQ_CHIP
 	select PCI_MSI if PCI
+	select GENERIC_IRQ_EFFECTIVE_AFF_MASK
 
 config ALPINE_MSI
 	bool
@@ -93,11 +105,13 @@ config BCM6345_L1_IRQ
 	bool
 	select GENERIC_IRQ_CHIP
 	select IRQ_DOMAIN
+	select GENERIC_IRQ_EFFECTIVE_AFF_MASK
 
 config BCM7038_L1_IRQ
 	bool
 	select GENERIC_IRQ_CHIP
 	select IRQ_DOMAIN
+	select GENERIC_IRQ_EFFECTIVE_AFF_MASK
 
 config BCM7120_L2_IRQ
 	bool
@@ -136,6 +150,7 @@ config IRQ_MIPS_CPU
 	select GENERIC_IRQ_IPI if SYS_SUPPORTS_MULTITHREADING
 	select IRQ_DOMAIN
 	select IRQ_DOMAIN_HIERARCHY if GENERIC_IRQ_IPI
+	select GENERIC_IRQ_EFFECTIVE_AFF_MASK
 
 config CLPS711X_IRQCHIP
 	bool
@@ -144,6 +159,9 @@ config CLPS711X_IRQCHIP
 	select MULTI_IRQ_HANDLER
 	select SPARSE_IRQ
 	default y
+
+config OMPIC
+	bool
 
 config OR1K_PIC
 	bool
@@ -217,6 +235,7 @@ config VERSATILE_FPGA_IRQ_NR
 config XTENSA_MX
 	bool
 	select IRQ_DOMAIN
+	select GENERIC_IRQ_EFFECTIVE_AFF_MASK
 
 config XILINX_INTC
 	bool
@@ -297,6 +316,7 @@ config EZNPS_GIC
 config STM32_EXTI
 	bool
 	select IRQ_DOMAIN
+	select GENERIC_IRQ_CHIP
 
 config QCOM_IRQ_COMBINER
 	bool "QCOM IRQ combiner support"
@@ -306,3 +326,21 @@ config QCOM_IRQ_COMBINER
 	help
 	  Say yes here to add support for the IRQ combiner devices embedded
 	  in Qualcomm Technologies chips.
+
+config IRQ_UNIPHIER_AIDET
+	bool "UniPhier AIDET support" if COMPILE_TEST
+	depends on ARCH_UNIPHIER || COMPILE_TEST
+	default ARCH_UNIPHIER
+	select IRQ_DOMAIN_HIERARCHY
+	help
+	  Support for the UniPhier AIDET (ARM Interrupt Detector).
+
+config MESON_IRQ_GPIO
+       bool "Meson GPIO Interrupt Multiplexer"
+       depends on ARCH_MESON
+       select IRQ_DOMAIN
+       select IRQ_DOMAIN_HIERARCHY
+       help
+         Support Meson SoC Family GPIO Interrupt Multiplexer
+
+endmenu

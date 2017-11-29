@@ -42,10 +42,31 @@ struct amdgpu_cgs_device {
 	struct amdgpu_device *adev =					\
 		((struct amdgpu_cgs_device *)cgs_device)->adev
 
+static void *amdgpu_cgs_register_pp_handle(struct cgs_device *cgs_device,
+			int (*call_back_func)(struct amd_pp_init *, void **))
+{
+	CGS_FUNC_ADEV;
+	struct amd_pp_init pp_init;
+	struct amd_powerplay *amd_pp;
+
+	if (call_back_func == NULL)
+		return NULL;
+
+	amd_pp = &(adev->powerplay);
+	pp_init.chip_family = adev->family;
+	pp_init.chip_id = adev->asic_type;
+	pp_init.pm_en = (amdgpu_dpm != 0 && !amdgpu_sriov_vf(adev)) ? true : false;
+	pp_init.feature_mask = amdgpu_pp_feature_mask;
+	pp_init.device = cgs_device;
+	if (call_back_func(&pp_init, &(amd_pp->pp_handle)))
+		return NULL;
+
+	return adev->powerplay.pp_handle;
+}
+
 static int amdgpu_cgs_alloc_gpu_mem(struct cgs_device *cgs_device,
 				    enum cgs_gpu_mem_type type,
 				    uint64_t size, uint64_t align,
-				    uint64_t min_offset, uint64_t max_offset,
 				    cgs_handle_t *handle)
 {
 	CGS_FUNC_ADEV;
@@ -53,13 +74,6 @@ static int amdgpu_cgs_alloc_gpu_mem(struct cgs_device *cgs_device,
 	int ret = 0;
 	uint32_t domain = 0;
 	struct amdgpu_bo *obj;
-	struct ttm_placement placement;
-	struct ttm_place place;
-
-	if (min_offset > max_offset) {
-		BUG_ON(1);
-		return -EINVAL;
-	}
 
 	/* fail if the alignment is not a power of 2 */
 	if (((align != 1) && (align & (align - 1)))
@@ -73,41 +87,19 @@ static int amdgpu_cgs_alloc_gpu_mem(struct cgs_device *cgs_device,
 		flags = AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED |
 			AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS;
 		domain = AMDGPU_GEM_DOMAIN_VRAM;
-		if (max_offset > adev->mc.real_vram_size)
-			return -EINVAL;
-		place.fpfn = min_offset >> PAGE_SHIFT;
-		place.lpfn = max_offset >> PAGE_SHIFT;
-		place.flags = TTM_PL_FLAG_WC | TTM_PL_FLAG_UNCACHED |
-			TTM_PL_FLAG_VRAM;
 		break;
 	case CGS_GPU_MEM_TYPE__INVISIBLE_CONTIG_FB:
 	case CGS_GPU_MEM_TYPE__INVISIBLE_FB:
 		flags = AMDGPU_GEM_CREATE_NO_CPU_ACCESS |
 			AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS;
 		domain = AMDGPU_GEM_DOMAIN_VRAM;
-		if (adev->mc.visible_vram_size < adev->mc.real_vram_size) {
-			place.fpfn =
-				max(min_offset, adev->mc.visible_vram_size) >> PAGE_SHIFT;
-			place.lpfn =
-				min(max_offset, adev->mc.real_vram_size) >> PAGE_SHIFT;
-			place.flags = TTM_PL_FLAG_WC | TTM_PL_FLAG_UNCACHED |
-				TTM_PL_FLAG_VRAM;
-		}
-
 		break;
 	case CGS_GPU_MEM_TYPE__GART_CACHEABLE:
 		domain = AMDGPU_GEM_DOMAIN_GTT;
-		place.fpfn = min_offset >> PAGE_SHIFT;
-		place.lpfn = max_offset >> PAGE_SHIFT;
-		place.flags = TTM_PL_FLAG_CACHED | TTM_PL_FLAG_TT;
 		break;
 	case CGS_GPU_MEM_TYPE__GART_WRITECOMBINE:
 		flags = AMDGPU_GEM_CREATE_CPU_GTT_USWC;
 		domain = AMDGPU_GEM_DOMAIN_GTT;
-		place.fpfn = min_offset >> PAGE_SHIFT;
-		place.lpfn = max_offset >> PAGE_SHIFT;
-		place.flags = TTM_PL_FLAG_WC | TTM_PL_FLAG_TT |
-			TTM_PL_FLAG_UNCACHED;
 		break;
 	default:
 		return -EINVAL;
@@ -116,15 +108,8 @@ static int amdgpu_cgs_alloc_gpu_mem(struct cgs_device *cgs_device,
 
 	*handle = 0;
 
-	placement.placement = &place;
-	placement.num_placement = 1;
-	placement.busy_placement = &place;
-	placement.num_busy_placement = 1;
-
-	ret = amdgpu_bo_create_restricted(adev, size, PAGE_SIZE,
-					  true, domain, flags,
-					  NULL, &placement, NULL,
-					  &obj);
+	ret = amdgpu_bo_create(adev, size, align, true, domain, flags,
+			       NULL, NULL, 0, &obj);
 	if (ret) {
 		DRM_ERROR("(%d) bo create failed\n", ret);
 		return ret;
@@ -155,19 +140,14 @@ static int amdgpu_cgs_gmap_gpu_mem(struct cgs_device *cgs_device, cgs_handle_t h
 				   uint64_t *mcaddr)
 {
 	int r;
-	u64 min_offset, max_offset;
 	struct amdgpu_bo *obj = (struct amdgpu_bo *)handle;
 
 	WARN_ON_ONCE(obj->placement.num_placement > 1);
 
-	min_offset = obj->placements[0].fpfn << PAGE_SHIFT;
-	max_offset = obj->placements[0].lpfn << PAGE_SHIFT;
-
 	r = amdgpu_bo_reserve(obj, true);
 	if (unlikely(r != 0))
 		return r;
-	r = amdgpu_bo_pin_restricted(obj, obj->prefered_domains,
-				     min_offset, max_offset, mcaddr);
+	r = amdgpu_bo_pin(obj, obj->preferred_domains, mcaddr);
 	amdgpu_bo_unreserve(obj);
 	return r;
 }
@@ -240,6 +220,8 @@ static uint32_t amdgpu_cgs_read_ind_register(struct cgs_device *cgs_device,
 		return RREG32_DIDT(index);
 	case CGS_IND_REG_GC_CAC:
 		return RREG32_GC_CAC(index);
+	case CGS_IND_REG_SE_CAC:
+		return RREG32_SE_CAC(index);
 	case CGS_IND_REG__AUDIO_ENDPT:
 		DRM_ERROR("audio endpt register access not implemented.\n");
 		return 0;
@@ -266,6 +248,8 @@ static void amdgpu_cgs_write_ind_register(struct cgs_device *cgs_device,
 		return WREG32_DIDT(index, value);
 	case CGS_IND_REG_GC_CAC:
 		return WREG32_GC_CAC(index, value);
+	case CGS_IND_REG_SE_CAC:
+		return WREG32_SE_CAC(index, value);
 	case CGS_IND_REG__AUDIO_ENDPT:
 		DRM_ERROR("audio endpt register access not implemented.\n");
 		return;
@@ -610,6 +594,17 @@ static int amdgpu_cgs_enter_safe_mode(struct cgs_device *cgs_device,
 	return 0;
 }
 
+static void amdgpu_cgs_lock_grbm_idx(struct cgs_device *cgs_device,
+					bool lock)
+{
+	CGS_FUNC_ADEV;
+
+	if (lock)
+		mutex_lock(&adev->grbm_idx_mutex);
+	else
+		mutex_unlock(&adev->grbm_idx_mutex);
+}
+
 static int amdgpu_cgs_get_firmware_info(struct cgs_device *cgs_device,
 					enum cgs_ucode_id type,
 					struct cgs_firmware_info *info)
@@ -644,7 +639,7 @@ static int amdgpu_cgs_get_firmware_info(struct cgs_device *cgs_device,
 		info->version = (uint16_t)le32_to_cpu(header->header.ucode_version);
 
 		if (CGS_UCODE_ID_CP_MEC == type)
-			info->image_size = (header->jt_offset) << 2;
+			info->image_size = le32_to_cpu(header->jt_offset) << 2;
 
 		info->fw_version = amdgpu_get_firmware_version(cgs_device, type);
 		info->feature_version = (uint16_t)le32_to_cpu(header->ucode_feature_version);
@@ -660,6 +655,85 @@ static int amdgpu_cgs_get_firmware_info(struct cgs_device *cgs_device,
 
 		if (!adev->pm.fw) {
 			switch (adev->asic_type) {
+			case CHIP_TAHITI:
+				strcpy(fw_name, "radeon/tahiti_smc.bin");
+				break;
+			case CHIP_PITCAIRN:
+				if ((adev->pdev->revision == 0x81) &&
+				    ((adev->pdev->device == 0x6810) ||
+				    (adev->pdev->device == 0x6811))) {
+					info->is_kicker = true;
+					strcpy(fw_name, "radeon/pitcairn_k_smc.bin");
+				} else {
+					strcpy(fw_name, "radeon/pitcairn_smc.bin");
+				}
+				break;
+			case CHIP_VERDE:
+				if (((adev->pdev->device == 0x6820) &&
+					((adev->pdev->revision == 0x81) ||
+					(adev->pdev->revision == 0x83))) ||
+				    ((adev->pdev->device == 0x6821) &&
+					((adev->pdev->revision == 0x83) ||
+					(adev->pdev->revision == 0x87))) ||
+				    ((adev->pdev->revision == 0x87) &&
+					((adev->pdev->device == 0x6823) ||
+					(adev->pdev->device == 0x682b)))) {
+					info->is_kicker = true;
+					strcpy(fw_name, "radeon/verde_k_smc.bin");
+				} else {
+					strcpy(fw_name, "radeon/verde_smc.bin");
+				}
+				break;
+			case CHIP_OLAND:
+				if (((adev->pdev->revision == 0x81) &&
+					((adev->pdev->device == 0x6600) ||
+					(adev->pdev->device == 0x6604) ||
+					(adev->pdev->device == 0x6605) ||
+					(adev->pdev->device == 0x6610))) ||
+				    ((adev->pdev->revision == 0x83) &&
+					(adev->pdev->device == 0x6610))) {
+					info->is_kicker = true;
+					strcpy(fw_name, "radeon/oland_k_smc.bin");
+				} else {
+					strcpy(fw_name, "radeon/oland_smc.bin");
+				}
+				break;
+			case CHIP_HAINAN:
+				if (((adev->pdev->revision == 0x81) &&
+					(adev->pdev->device == 0x6660)) ||
+				    ((adev->pdev->revision == 0x83) &&
+					((adev->pdev->device == 0x6660) ||
+					(adev->pdev->device == 0x6663) ||
+					(adev->pdev->device == 0x6665) ||
+					 (adev->pdev->device == 0x6667)))) {
+					info->is_kicker = true;
+					strcpy(fw_name, "radeon/hainan_k_smc.bin");
+				} else if ((adev->pdev->revision == 0xc3) &&
+					 (adev->pdev->device == 0x6665)) {
+					info->is_kicker = true;
+					strcpy(fw_name, "radeon/banks_k_2_smc.bin");
+				} else {
+					strcpy(fw_name, "radeon/hainan_smc.bin");
+				}
+				break;
+			case CHIP_BONAIRE:
+				if ((adev->pdev->revision == 0x80) ||
+					(adev->pdev->revision == 0x81) ||
+					(adev->pdev->device == 0x665f)) {
+					info->is_kicker = true;
+					strcpy(fw_name, "radeon/bonaire_k_smc.bin");
+				} else {
+					strcpy(fw_name, "radeon/bonaire_smc.bin");
+				}
+				break;
+			case CHIP_HAWAII:
+				if (adev->pdev->revision == 0x80) {
+					info->is_kicker = true;
+					strcpy(fw_name, "radeon/hawaii_k_smc.bin");
+				} else {
+					strcpy(fw_name, "radeon/hawaii_smc.bin");
+				}
+				break;
 			case CHIP_TOPAZ:
 				if (((adev->pdev->device == 0x6900) && (adev->pdev->revision == 0x81)) ||
 				    ((adev->pdev->device == 0x6900) && (adev->pdev->revision == 0x83)) ||
@@ -719,7 +793,13 @@ static int amdgpu_cgs_get_firmware_info(struct cgs_device *cgs_device,
 				strcpy(fw_name, "amdgpu/polaris12_smc.bin");
 				break;
 			case CHIP_VEGA10:
-				strcpy(fw_name, "amdgpu/vega10_smc.bin");
+				if ((adev->pdev->device == 0x687f) &&
+					((adev->pdev->revision == 0xc0) ||
+					(adev->pdev->revision == 0xc1) ||
+					(adev->pdev->revision == 0xc3)))
+					strcpy(fw_name, "amdgpu/vega10_acg_smc.bin");
+				else
+					strcpy(fw_name, "amdgpu/vega10_smc.bin");
 				break;
 			default:
 				DRM_ERROR("SMC firmware not supported\n");
@@ -817,6 +897,9 @@ static int amdgpu_cgs_query_system_info(struct cgs_device *cgs_device,
 	case CGS_SYSTEM_INFO_PCIE_SUB_SYS_VENDOR_ID:
 		sys_info->value = adev->pdev->subsystem_vendor;
 		break;
+	case CGS_SYSTEM_INFO_PCIE_BUS_DEVFN:
+		sys_info->value = adev->pdev->devfn;
+		break;
 	default:
 		return -ENODEV;
 	}
@@ -828,10 +911,6 @@ static int amdgpu_cgs_get_active_displays_info(struct cgs_device *cgs_device,
 					  struct cgs_display_info *info)
 {
 	CGS_FUNC_ADEV;
-	struct amdgpu_crtc *amdgpu_crtc;
-	struct drm_device *ddev = adev->ddev;
-	struct drm_crtc *crtc;
-	uint32_t line_time_us, vblank_lines;
 	struct cgs_mode_info *mode_info;
 
 	if (info == NULL)
@@ -845,30 +924,43 @@ static int amdgpu_cgs_get_active_displays_info(struct cgs_device *cgs_device,
 		mode_info->ref_clock = adev->clock.spll.reference_freq;
 	}
 
-	if (adev->mode_info.num_crtc && adev->mode_info.mode_config_initialized) {
-		list_for_each_entry(crtc,
-				&ddev->mode_config.crtc_list, head) {
-			amdgpu_crtc = to_amdgpu_crtc(crtc);
-			if (crtc->enabled) {
-				info->active_display_mask |= (1 << amdgpu_crtc->crtc_id);
-				info->display_count++;
-			}
-			if (mode_info != NULL &&
-				crtc->enabled && amdgpu_crtc->enabled &&
-				amdgpu_crtc->hw_mode.clock) {
-				line_time_us = (amdgpu_crtc->hw_mode.crtc_htotal * 1000) /
-							amdgpu_crtc->hw_mode.clock;
-				vblank_lines = amdgpu_crtc->hw_mode.crtc_vblank_end -
-							amdgpu_crtc->hw_mode.crtc_vdisplay +
-							(amdgpu_crtc->v_border * 2);
-				mode_info->vblank_time_us = vblank_lines * line_time_us;
-				mode_info->refresh_rate = drm_mode_vrefresh(&amdgpu_crtc->hw_mode);
-				mode_info->ref_clock = adev->clock.spll.reference_freq;
-				mode_info = NULL;
+	if (!amdgpu_device_has_dc_support(adev)) {
+		struct amdgpu_crtc *amdgpu_crtc;
+		struct drm_device *ddev = adev->ddev;
+		struct drm_crtc *crtc;
+		uint32_t line_time_us, vblank_lines;
+
+		if (adev->mode_info.num_crtc && adev->mode_info.mode_config_initialized) {
+			list_for_each_entry(crtc,
+					&ddev->mode_config.crtc_list, head) {
+				amdgpu_crtc = to_amdgpu_crtc(crtc);
+				if (crtc->enabled) {
+					info->active_display_mask |= (1 << amdgpu_crtc->crtc_id);
+					info->display_count++;
+				}
+				if (mode_info != NULL &&
+					crtc->enabled && amdgpu_crtc->enabled &&
+					amdgpu_crtc->hw_mode.clock) {
+					line_time_us = (amdgpu_crtc->hw_mode.crtc_htotal * 1000) /
+								amdgpu_crtc->hw_mode.clock;
+					vblank_lines = amdgpu_crtc->hw_mode.crtc_vblank_end -
+								amdgpu_crtc->hw_mode.crtc_vdisplay +
+								(amdgpu_crtc->v_border * 2);
+					mode_info->vblank_time_us = vblank_lines * line_time_us;
+					mode_info->refresh_rate = drm_mode_vrefresh(&amdgpu_crtc->hw_mode);
+					mode_info->ref_clock = adev->clock.spll.reference_freq;
+					mode_info = NULL;
+				}
 			}
 		}
+	} else {
+		info->display_count = adev->pm.pm_display_cfg.num_display;
+		if (mode_info != NULL) {
+			mode_info->vblank_time_us = adev->pm.pm_display_cfg.min_vblank_time;
+			mode_info->refresh_rate = adev->pm.pm_display_cfg.vrefresh;
+			mode_info->ref_clock = adev->clock.spll.reference_freq;
+		}
 	}
-
 	return 0;
 }
 
@@ -1117,6 +1209,8 @@ static const struct cgs_ops amdgpu_cgs_ops = {
 	.query_system_info = amdgpu_cgs_query_system_info,
 	.is_virtualization_enabled = amdgpu_cgs_is_virtualization_enabled,
 	.enter_safe_mode = amdgpu_cgs_enter_safe_mode,
+	.lock_grbm_idx = amdgpu_cgs_lock_grbm_idx,
+	.register_pp_handle = amdgpu_cgs_register_pp_handle,
 };
 
 static const struct cgs_os_ops amdgpu_cgs_os_ops = {

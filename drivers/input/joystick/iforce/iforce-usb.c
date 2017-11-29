@@ -209,7 +209,7 @@ static void iforce_usb_disconnect(struct usb_interface *intf)
 	kfree(iforce);
 }
 
-static struct usb_device_id iforce_usb_ids [] = {
+static const struct usb_device_id iforce_usb_ids[] = {
 	{ USB_DEVICE(0x044f, 0xa01c) },		/* Thrustmaster Motor Sport GT */
 	{ USB_DEVICE(0x046d, 0xc281) },		/* Logitech WingMan Force */
 	{ USB_DEVICE(0x046d, 0xc291) },		/* Logitech WingMan Formula Force */

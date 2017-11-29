@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/tty.h>
 #include <linux/module.h>
 #include <linux/kallsyms.h>

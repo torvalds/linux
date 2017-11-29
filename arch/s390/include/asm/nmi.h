@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  *   Machine check handler definitions
  *
@@ -25,12 +26,9 @@
 #define MCCK_CODE_CPU_TIMER_VALID	_BITUL(63 - 46)
 #define MCCK_CODE_PSW_MWP_VALID		_BITUL(63 - 20)
 #define MCCK_CODE_PSW_IA_VALID		_BITUL(63 - 23)
-
-#define MCCK_CR14_CR_PENDING_SUB_MASK	(1 << 28)
-#define MCCK_CR14_RECOVERY_SUB_MASK	(1 << 27)
-#define MCCK_CR14_DEGRAD_SUB_MASK	(1 << 26)
-#define MCCK_CR14_EXT_DAMAGE_SUB_MASK	(1 << 25)
-#define MCCK_CR14_WARN_SUB_MASK		(1 << 24)
+#define MCCK_CODE_CR_VALID		_BITUL(63 - 29)
+#define MCCK_CODE_GS_VALID		_BITUL(63 - 36)
+#define MCCK_CODE_FC_VALID		_BITUL(63 - 43)
 
 #ifndef __ASSEMBLY__
 
@@ -72,7 +70,7 @@ union mci {
 		u64 ar :  1; /* 33 access register validity */
 		u64 da :  1; /* 34 delayed access exception */
 		u64    :  1; /* 35 */
-		u64 gs :  1; /* 36 guarded storage registers */
+		u64 gs :  1; /* 36 guarded storage registers validity */
 		u64    :  5; /* 37-41 */
 		u64 pr :  1; /* 42 tod programmable register validity */
 		u64 fc :  1; /* 43 fp control register validity */
@@ -86,6 +84,8 @@ union mci {
 
 #define MCESA_ORIGIN_MASK	(~0x3ffUL)
 #define MCESA_LC_MASK		(0xfUL)
+#define MCESA_MIN_SIZE		(1024)
+#define MCESA_MAX_SIZE		(2048)
 
 struct mcesa {
 	u8 vector_save_area[1024];
@@ -94,8 +94,12 @@ struct mcesa {
 
 struct pt_regs;
 
-extern void s390_handle_mcck(void);
-extern void s390_do_machine_check(struct pt_regs *regs);
+void nmi_alloc_boot_cpu(struct lowcore *lc);
+int nmi_alloc_per_cpu(struct lowcore *lc);
+void nmi_free_per_cpu(struct lowcore *lc);
+
+void s390_handle_mcck(void);
+void s390_do_machine_check(struct pt_regs *regs);
 
 #endif /* __ASSEMBLY__ */
 #endif /* _ASM_S390_NMI_H */

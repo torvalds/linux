@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-1.0+ WITH Linux-syscall-note */
 /*
  * include/linux/loop.h
  *
@@ -22,7 +23,6 @@ enum {
 	LO_FLAGS_AUTOCLEAR	= 4,
 	LO_FLAGS_PARTSCAN	= 8,
 	LO_FLAGS_DIRECT_IO	= 16,
-	LO_FLAGS_BLOCKSIZE	= 32,
 };
 
 #include <asm/posix_types.h>	/* for __kernel_old_dev_t */
@@ -60,8 +60,6 @@ struct loop_info64 {
 	__u64		   lo_init[2];
 };
 
-#define LO_INFO_BLOCKSIZE(l) (l)->lo_init[0]
-
 /*
  * Loop filter types
  */
@@ -91,6 +89,7 @@ struct loop_info64 {
 #define LOOP_CHANGE_FD		0x4C06
 #define LOOP_SET_CAPACITY	0x4C07
 #define LOOP_SET_DIRECT_IO	0x4C08
+#define LOOP_SET_BLOCK_SIZE	0x4C09
 
 /* /dev/loop-control interface */
 #define LOOP_CTL_ADD		0x4C80

@@ -57,6 +57,40 @@ void amdgpu_gem_prime_vunmap(struct drm_gem_object *obj, void *vaddr)
 	ttm_bo_kunmap(&bo->dma_buf_vmap);
 }
 
+int amdgpu_gem_prime_mmap(struct drm_gem_object *obj, struct vm_area_struct *vma)
+{
+	struct amdgpu_bo *bo = gem_to_amdgpu_bo(obj);
+	struct amdgpu_device *adev = amdgpu_ttm_adev(bo->tbo.bdev);
+	unsigned asize = amdgpu_bo_size(bo);
+	int ret;
+
+	if (!vma->vm_file)
+		return -ENODEV;
+
+	if (adev == NULL)
+		return -ENODEV;
+
+	/* Check for valid size. */
+	if (asize < vma->vm_end - vma->vm_start)
+		return -EINVAL;
+
+	if (amdgpu_ttm_tt_get_usermm(bo->tbo.ttm) ||
+	    (bo->flags & AMDGPU_GEM_CREATE_NO_CPU_ACCESS)) {
+		return -EPERM;
+	}
+	vma->vm_pgoff += amdgpu_bo_mmap_offset(bo) >> PAGE_SHIFT;
+
+	/* prime mmap does not need to check access, so allow here */
+	ret = drm_vma_node_allow(&obj->vma_node, vma->vm_file->private_data);
+	if (ret)
+		return ret;
+
+	ret = ttm_bo_mmap(vma->vm_file, vma, &adev->mman.bdev);
+	drm_vma_node_revoke(&obj->vma_node, vma->vm_file->private_data);
+
+	return ret;
+}
+
 struct drm_gem_object *
 amdgpu_gem_prime_import_sg_table(struct drm_device *dev,
 				 struct dma_buf_attachment *attach,
@@ -69,7 +103,7 @@ amdgpu_gem_prime_import_sg_table(struct drm_device *dev,
 
 	ww_mutex_lock(&resv->lock, NULL);
 	ret = amdgpu_bo_create(adev, attach->dmabuf->size, PAGE_SIZE, false,
-			       AMDGPU_GEM_DOMAIN_GTT, 0, sg, resv, &bo);
+			       AMDGPU_GEM_DOMAIN_GTT, 0, sg, resv, 0, &bo);
 	ww_mutex_unlock(&resv->lock);
 	if (ret)
 		return ERR_PTR(ret);
@@ -135,9 +169,14 @@ struct dma_buf *amdgpu_gem_prime_export(struct drm_device *dev,
 					int flags)
 {
 	struct amdgpu_bo *bo = gem_to_amdgpu_bo(gobj);
+	struct dma_buf *buf;
 
-	if (amdgpu_ttm_tt_get_usermm(bo->tbo.ttm))
+	if (amdgpu_ttm_tt_get_usermm(bo->tbo.ttm) ||
+	    bo->flags & AMDGPU_GEM_CREATE_VM_ALWAYS_VALID)
 		return ERR_PTR(-EPERM);
 
-	return drm_gem_prime_export(dev, gobj, flags);
+	buf = drm_gem_prime_export(dev, gobj, flags);
+	if (!IS_ERR(buf))
+		buf->file->f_mapping = dev->anon_inode->i_mapping;
+	return buf;
 }

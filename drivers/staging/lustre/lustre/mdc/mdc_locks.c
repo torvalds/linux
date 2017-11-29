@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * GPL HEADER START
  *
@@ -32,17 +33,17 @@
 
 #define DEBUG_SUBSYSTEM S_MDC
 
-# include <linux/module.h>
+#include <linux/module.h>
 
-#include "../include/lustre_intent.h"
-#include "../include/obd.h"
-#include "../include/obd_class.h"
-#include "../include/lustre_dlm.h"
-#include "../include/lustre_fid.h"
-#include "../include/lustre_mdc.h"
-#include "../include/lustre_net.h"
-#include "../include/lustre_req_layout.h"
-#include "../include/lustre_swab.h"
+#include <lustre_intent.h>
+#include <obd.h>
+#include <obd_class.h>
+#include <lustre_dlm.h>
+#include <lustre_fid.h>
+#include <lustre_mdc.h>
+#include <lustre_net.h>
+#include <lustre_req_layout.h>
+#include <lustre_swab.h>
 
 #include "mdc_internal.h"
 
@@ -1030,7 +1031,7 @@ int mdc_revalidate_lock(struct obd_export *exp, struct lookup_intent *it,
  * If we're performing a creation, that means that unless the creation
  * failed with EEXIST, we should fake up a negative dentry.
  *
- * For everything else, we want to lookup to succeed.
+ * For everything else, we want the lookup to succeed.
  *
  * One additional note: if CREATE or OPEN succeeded, we add an extra
  * reference to the request because we need to keep it around until
@@ -1040,7 +1041,7 @@ int mdc_revalidate_lock(struct obd_export *exp, struct lookup_intent *it,
  * exactly what it_status refers to.
  *
  * If DISP_OPEN_OPEN is set, then it_status refers to the open() call,
- * otherwise if DISP_OPEN_CREATE is set, then it status is the
+ * otherwise if DISP_OPEN_CREATE is set, then it_status is the
  * creation failure mode.  In either case, one of DISP_LOOKUP_NEG or
  * DISP_LOOKUP_POS will be set, indicating whether the child lookup
  * was successful.

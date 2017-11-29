@@ -31,9 +31,7 @@
 #include "dm_pp_interface.h"
 
 extern const struct amd_ip_funcs pp_ip_funcs;
-extern const struct amd_powerplay_funcs pp_dpm_funcs;
-
-#define PP_DPM_DISABLED 0xCCCC
+extern const struct amd_pm_funcs pp_dpm_funcs;
 
 enum amd_pp_sensors {
 	AMDGPU_PP_SENSOR_GFX_SCLK = 0,
@@ -50,94 +48,12 @@ enum amd_pp_sensors {
 	AMDGPU_PP_SENSOR_GPU_POWER,
 };
 
-enum amd_pp_event {
-	AMD_PP_EVENT_INITIALIZE = 0,
-	AMD_PP_EVENT_UNINITIALIZE,
-	AMD_PP_EVENT_POWER_SOURCE_CHANGE,
-	AMD_PP_EVENT_SUSPEND,
-	AMD_PP_EVENT_RESUME,
-	AMD_PP_EVENT_ENTER_REST_STATE,
-	AMD_PP_EVENT_EXIT_REST_STATE,
-	AMD_PP_EVENT_DISPLAY_CONFIG_CHANGE,
-	AMD_PP_EVENT_THERMAL_NOTIFICATION,
-	AMD_PP_EVENT_VBIOS_NOTIFICATION,
-	AMD_PP_EVENT_ENTER_THERMAL_STATE,
-	AMD_PP_EVENT_EXIT_THERMAL_STATE,
-	AMD_PP_EVENT_ENTER_FORCED_STATE,
-	AMD_PP_EVENT_EXIT_FORCED_STATE,
-	AMD_PP_EVENT_ENTER_EXCLUSIVE_MODE,
-	AMD_PP_EVENT_EXIT_EXCLUSIVE_MODE,
-	AMD_PP_EVENT_ENTER_SCREEN_SAVER,
-	AMD_PP_EVENT_EXIT_SCREEN_SAVER,
-	AMD_PP_EVENT_VPU_RECOVERY_BEGIN,
-	AMD_PP_EVENT_VPU_RECOVERY_END,
-	AMD_PP_EVENT_ENABLE_POWER_PLAY,
-	AMD_PP_EVENT_DISABLE_POWER_PLAY,
-	AMD_PP_EVENT_CHANGE_POWER_SOURCE_UI_LABEL,
-	AMD_PP_EVENT_ENABLE_USER2D_PERFORMANCE,
-	AMD_PP_EVENT_DISABLE_USER2D_PERFORMANCE,
-	AMD_PP_EVENT_ENABLE_USER3D_PERFORMANCE,
-	AMD_PP_EVENT_DISABLE_USER3D_PERFORMANCE,
-	AMD_PP_EVENT_ENABLE_OVER_DRIVE_TEST,
-	AMD_PP_EVENT_DISABLE_OVER_DRIVE_TEST,
-	AMD_PP_EVENT_ENABLE_REDUCED_REFRESH_RATE,
-	AMD_PP_EVENT_DISABLE_REDUCED_REFRESH_RATE,
-	AMD_PP_EVENT_ENABLE_GFX_CLOCK_GATING,
-	AMD_PP_EVENT_DISABLE_GFX_CLOCK_GATING,
-	AMD_PP_EVENT_ENABLE_CGPG,
-	AMD_PP_EVENT_DISABLE_CGPG,
-	AMD_PP_EVENT_ENTER_TEXT_MODE,
-	AMD_PP_EVENT_EXIT_TEXT_MODE,
-	AMD_PP_EVENT_VIDEO_START,
-	AMD_PP_EVENT_VIDEO_STOP,
-	AMD_PP_EVENT_ENABLE_USER_STATE,
-	AMD_PP_EVENT_DISABLE_USER_STATE,
-	AMD_PP_EVENT_READJUST_POWER_STATE,
-	AMD_PP_EVENT_START_INACTIVITY,
-	AMD_PP_EVENT_STOP_INACTIVITY,
-	AMD_PP_EVENT_LINKED_ADAPTERS_READY,
-	AMD_PP_EVENT_ADAPTER_SAFE_TO_DISABLE,
-	AMD_PP_EVENT_COMPLETE_INIT,
-	AMD_PP_EVENT_CRITICAL_THERMAL_FAULT,
-	AMD_PP_EVENT_BACKLIGHT_CHANGED,
-	AMD_PP_EVENT_ENABLE_VARI_BRIGHT,
-	AMD_PP_EVENT_DISABLE_VARI_BRIGHT,
-	AMD_PP_EVENT_ENABLE_VARI_BRIGHT_ON_POWER_XPRESS,
-	AMD_PP_EVENT_DISABLE_VARI_BRIGHT_ON_POWER_XPRESS,
-	AMD_PP_EVENT_SET_VARI_BRIGHT_LEVEL,
-	AMD_PP_EVENT_VARI_BRIGHT_MONITOR_MEASUREMENT,
-	AMD_PP_EVENT_SCREEN_ON,
-	AMD_PP_EVENT_SCREEN_OFF,
-	AMD_PP_EVENT_PRE_DISPLAY_CONFIG_CHANGE,
-	AMD_PP_EVENT_ENTER_ULP_STATE,
-	AMD_PP_EVENT_EXIT_ULP_STATE,
-	AMD_PP_EVENT_REGISTER_IP_STATE,
-	AMD_PP_EVENT_UNREGISTER_IP_STATE,
-	AMD_PP_EVENT_ENTER_MGPU_MODE,
-	AMD_PP_EVENT_EXIT_MGPU_MODE,
-	AMD_PP_EVENT_ENTER_MULTI_GPU_MODE,
-	AMD_PP_EVENT_PRE_SUSPEND,
-	AMD_PP_EVENT_PRE_RESUME,
-	AMD_PP_EVENT_ENTER_BACOS,
-	AMD_PP_EVENT_EXIT_BACOS,
-	AMD_PP_EVENT_RESUME_BACO,
-	AMD_PP_EVENT_RESET_BACO,
-	AMD_PP_EVENT_PRE_DISPLAY_PHY_ACCESS,
-	AMD_PP_EVENT_POST_DISPLAY_PHY_CCESS,
-	AMD_PP_EVENT_START_COMPUTE_APPLICATION,
-	AMD_PP_EVENT_STOP_COMPUTE_APPLICATION,
-	AMD_PP_EVENT_REDUCE_POWER_LIMIT,
-	AMD_PP_EVENT_ENTER_FRAME_LOCK,
-	AMD_PP_EVENT_EXIT_FRAME_LOOCK,
-	AMD_PP_EVENT_LONG_IDLE_REQUEST_BACO,
-	AMD_PP_EVENT_LONG_IDLE_ENTER_BACO,
-	AMD_PP_EVENT_LONG_IDLE_EXIT_BACO,
-	AMD_PP_EVENT_HIBERNATE,
-	AMD_PP_EVENT_CONNECTED_STANDBY,
-	AMD_PP_EVENT_ENTER_SELF_REFRESH,
-	AMD_PP_EVENT_EXIT_SELF_REFRESH,
-	AMD_PP_EVENT_START_AVFS_BTC,
-	AMD_PP_EVENT_MAX
+enum amd_pp_task {
+	AMD_PP_TASK_DISPLAY_CONFIG_CHANGE,
+	AMD_PP_TASK_ENABLE_USER_STATE,
+	AMD_PP_TASK_READJUST_POWER_STATE,
+	AMD_PP_TASK_COMPLETE_INIT,
+	AMD_PP_TASK_MAX
 };
 
 struct amd_pp_init {
@@ -295,12 +211,6 @@ enum {
 	PP_GROUP_MAX
 };
 
-enum pp_clock_type {
-	PP_SCLK,
-	PP_MCLK,
-	PP_PCIE,
-};
-
 struct pp_states_info {
 	uint32_t nums;
 	uint32_t states[16];
@@ -355,55 +265,12 @@ struct pp_display_clock_request {
 								support << PP_STATE_SUPPORT_SHIFT |\
 								state << PP_STATE_SHIFT)
 
-struct amd_powerplay_funcs {
-	int (*get_temperature)(void *handle);
-	int (*load_firmware)(void *handle);
-	int (*wait_for_fw_loading_complete)(void *handle);
-	int (*force_performance_level)(void *handle, enum amd_dpm_forced_level level);
-	enum amd_dpm_forced_level (*get_performance_level)(void *handle);
-	enum amd_pm_state_type (*get_current_power_state)(void *handle);
-	int (*get_sclk)(void *handle, bool low);
-	int (*get_mclk)(void *handle, bool low);
-	int (*powergate_vce)(void *handle, bool gate);
-	int (*powergate_uvd)(void *handle, bool gate);
-	int (*dispatch_tasks)(void *handle, enum amd_pp_event event_id,
-				   void *input, void *output);
-	int (*set_fan_control_mode)(void *handle, uint32_t mode);
-	int (*get_fan_control_mode)(void *handle);
-	int (*set_fan_speed_percent)(void *handle, uint32_t percent);
-	int (*get_fan_speed_percent)(void *handle, uint32_t *speed);
-	int (*get_fan_speed_rpm)(void *handle, uint32_t *rpm);
-	int (*get_pp_num_states)(void *handle, struct pp_states_info *data);
-	int (*get_pp_table)(void *handle, char **table);
-	int (*set_pp_table)(void *handle, const char *buf, size_t size);
-	int (*force_clock_level)(void *handle, enum pp_clock_type type, uint32_t mask);
-	int (*print_clock_levels)(void *handle, enum pp_clock_type type, char *buf);
-	int (*get_sclk_od)(void *handle);
-	int (*set_sclk_od)(void *handle, uint32_t value);
-	int (*get_mclk_od)(void *handle);
-	int (*set_mclk_od)(void *handle, uint32_t value);
-	int (*read_sensor)(void *handle, int idx, void *value, int *size);
-	struct amd_vce_state* (*get_vce_clock_state)(void *handle, unsigned idx);
-	int (*reset_power_profile_state)(void *handle,
-			struct amd_pp_profile *request);
-	int (*get_power_profile_state)(void *handle,
-			struct amd_pp_profile *query);
-	int (*set_power_profile_state)(void *handle,
-			struct amd_pp_profile *request);
-	int (*switch_power_profile)(void *handle,
-			enum amd_pp_profile_type type);
-};
-
 struct amd_powerplay {
+	struct cgs_device *cgs_device;
 	void *pp_handle;
 	const struct amd_ip_funcs *ip_funcs;
-	const struct amd_powerplay_funcs *pp_funcs;
+	const struct amd_pm_funcs *pp_funcs;
 };
-
-int amd_powerplay_create(struct amd_pp_init *pp_init,
-				void **handle);
-
-int amd_powerplay_destroy(void *handle);
 
 int amd_powerplay_reset(void *handle);
 
@@ -437,6 +304,5 @@ int amd_powerplay_display_clock_voltage_request(void *handle,
 int amd_powerplay_get_display_mode_validation_clocks(void *handle,
 		struct amd_pp_simple_clock_info *output);
 
-int amd_set_clockgating_by_smu(void *handle, uint32_t msg_id);
 
 #endif /* _AMD_POWERPLAY_H_ */

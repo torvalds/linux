@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 
 menu "Bluetooth device drivers"
 	depends on BT
@@ -65,6 +66,7 @@ config BT_HCIBTSDIO
 
 config BT_HCIUART
 	tristate "HCI UART driver"
+	depends on SERIAL_DEV_BUS || !SERIAL_DEV_BUS
 	depends on TTY
 	help
 	  Bluetooth HCI UART driver.
@@ -79,7 +81,6 @@ config BT_HCIUART
 config BT_HCIUART_SERDEV
 	bool
 	depends on SERIAL_DEV_BUS && BT_HCIUART
-	depends on SERIAL_DEV_BUS=y || SERIAL_DEV_BUS=BT_HCIUART
 	default y
 
 config BT_HCIUART_H4
@@ -98,6 +99,7 @@ config BT_HCIUART_NOKIA
 	depends on BT_HCIUART_SERDEV
 	depends on PM
 	select BT_HCIUART_H4
+	select BT_BCM
 	help
 	  Nokia H4+ is serial protocol for communication between Bluetooth
 	  device and host. This protocol is required for Bluetooth devices
@@ -167,6 +169,8 @@ config BT_HCIUART_INTEL
 config BT_HCIUART_BCM
 	bool "Broadcom protocol support"
 	depends on BT_HCIUART
+	depends on BT_HCIUART_SERDEV
+	depends on (!ACPI || SERIAL_DEV_CTRL_TTYPORT)
 	select BT_HCIUART_H4
 	select BT_BCM
 	help

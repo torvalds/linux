@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * GPL HEADER START
  *
@@ -31,9 +32,15 @@
  */
 
 #define DEBUG_SUBSYSTEM S_MDC
-#include "../include/lustre_net.h"
-#include "../include/lustre/lustre_idl.h"
+#include <lustre_net.h>
+#include <uapi/linux/lustre/lustre_idl.h>
 #include "mdc_internal.h"
+
+static void set_mrc_cr_flags(struct mdt_rec_create *mrc, u64 flags)
+{
+	mrc->cr_flags_l = (u32)(flags & 0xFFFFFFFFUll);
+	mrc->cr_flags_h = (u32)(flags >> 32);
+}
 
 static void __mdc_pack_body(struct mdt_body *b, __u32 suppgid)
 {

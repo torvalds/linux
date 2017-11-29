@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Assorted bcache debug code
  *
@@ -49,7 +50,7 @@ void bch_btree_verify(struct btree *b)
 	v->keys.ops = b->keys.ops;
 
 	bio = bch_bbio_alloc(b->c);
-	bio->bi_bdev		= PTR_CACHE(b->c, &b->key, 0)->bdev;
+	bio_set_dev(bio, PTR_CACHE(b->c, &b->key, 0)->bdev);
 	bio->bi_iter.bi_sector	= PTR_OFFSET(&b->key, 0);
 	bio->bi_iter.bi_size	= KEY_SIZE(&v->key) << 9;
 	bio->bi_opf		= REQ_OP_READ | REQ_META;

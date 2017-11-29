@@ -75,7 +75,7 @@
 		#address-cells = <1>;
 		#size-cells = <1>;
 
-		a9pll: arm_clk@00000 {
+		a9pll: arm_clk@0 {
 			#clock-cells = <0>;
 			compatible = "brcm,nsp-armpll";
 			clocks = <&osc>;
@@ -164,7 +164,7 @@
 		#address-cells = <1>;
 		#size-cells = <1>;
 
-		gpioa: gpio@0020 {
+		gpioa: gpio@20 {
 			compatible = "brcm,nsp-gpio-a";
 			reg = <0x0020 0x70>,
 			      <0x3f1c4 0x1c>;
@@ -176,7 +176,7 @@
 			gpio-ranges = <&pinctrl 0 0 32>;
 		};
 
-		uart0: serial@0300 {
+		uart0: serial@300 {
 			compatible = "ns16550a";
 			reg = <0x0300 0x100>;
 			interrupts = <GIC_SPI 85 IRQ_TYPE_LEVEL_HIGH>;
@@ -184,7 +184,7 @@
 			status = "disabled";
 		};
 
-		uart1: serial@0400 {
+		uart1: serial@400 {
 			compatible = "ns16550a";
 			reg = <0x0400 0x100>;
 			interrupts = <GIC_SPI 85 IRQ_TYPE_LEVEL_HIGH>;
@@ -215,6 +215,7 @@
 			interrupts = <GIC_SPI 145 IRQ_TYPE_LEVEL_HIGH>;
 			sdhci,auto-cmd12;
 			clocks = <&lcpll0 BCM_NSP_LCPLL0_SDIO_CLK>;
+			dma-coherent;
 			status = "disabled";
 		};
 
@@ -224,6 +225,7 @@
 			      <0x110000 0x1000>;
 			reg-names = "amac_base", "idm_base";
 			interrupts = <GIC_SPI 147 IRQ_TYPE_LEVEL_HIGH>;
+			dma-coherent;
 			status = "disabled";
 		};
 
@@ -233,6 +235,7 @@
 			      <0x111000 0x1000>;
 			reg-names = "amac_base", "idm_base";
 			interrupts = <GIC_SPI 148 IRQ_TYPE_LEVEL_HIGH>;
+			dma-coherent;
 			status = "disabled";
 		};
 
@@ -242,6 +245,7 @@
 			      <0x112000 0x1000>;
 			reg-names = "amac_base", "idm_base";
 			interrupts = <GIC_SPI 149 IRQ_TYPE_LEVEL_HIGH>;
+			dma-coherent;
 			status = "disabled";
 		};
 
@@ -252,6 +256,7 @@
 			#mbox-cells = <1>;
 			brcm,rx-status-len = <32>;
 			brcm,use-bcm-hdr;
+			dma-coherent;
 		};
 
 		nand: nand@26000 {
@@ -297,6 +302,32 @@
 			#size-cells = <0>;
 		};
 
+		xhci: usb@29000 {
+			compatible = "generic-xhci";
+			reg = <0x29000 0x1000>;
+			interrupts = <GIC_SPI 80 IRQ_TYPE_LEVEL_HIGH>;
+			phys = <&usb3_phy>;
+			phy-names = "usb3-phy";
+			dma-coherent;
+			status = "disabled";
+		};
+
+		ehci0: usb@2a000 {
+			compatible = "generic-ehci";
+			reg = <0x2a000 0x100>;
+			interrupts = <GIC_SPI 79 IRQ_TYPE_LEVEL_HIGH>;
+			dma-coherent;
+			status = "disabled";
+		};
+
+		ohci0: usb@2b000 {
+			compatible = "generic-ohci";
+			reg = <0x2b000 0x100>;
+			interrupts = <GIC_SPI 79 IRQ_TYPE_LEVEL_HIGH>;
+			dma-coherent;
+			status = "disabled";
+		};
+
 		crypto@2f000 {
 			compatible = "brcm,spum-nsp-crypto";
 			reg = <0x2f000 0x900>;
@@ -318,20 +349,6 @@
 			reg = <0x31000 0x28>;
 			clocks = <&osc>;
 			#pwm-cells = <3>;
-			status = "disabled";
-		};
-
-		ehci0: usb@2a000 {
-			compatible = "generic-ehci";
-			reg = <0x2a000 0x100>;
-			interrupts = <GIC_SPI 79 IRQ_TYPE_LEVEL_HIGH>;
-			status = "disabled";
-		};
-
-		ohci0: usb@2b000 {
-			compatible = "generic-ohci";
-			reg = <0x2b000 0x100>;
-			interrupts = <GIC_SPI 79 IRQ_TYPE_LEVEL_HIGH>;
 			status = "disabled";
 		};
 
@@ -376,6 +393,7 @@
 			#size-cells = <0>;
 			interrupts = <GIC_SPI 89 IRQ_TYPE_NONE>;
 			clock-frequency = <100000>;
+			dma-coherent;
 			status = "disabled";
 		};
 
@@ -446,6 +464,7 @@
 			interrupts = <GIC_SPI 159 IRQ_TYPE_LEVEL_HIGH>;
 			#address-cells = <1>;
 			#size-cells = <0>;
+			dma-coherent;
 			status = "disabled";
 
 			sata0: sata-port@0 {
@@ -459,6 +478,15 @@
 				phys = <&sata_phy1>;
 				phy-names = "sata-phy";
 			};
+		};
+
+		usb3_phy: usb3-phy@104000 {
+			compatible = "brcm,ns-bx-usb3-phy";
+			reg = <0x104000 0x1000>,
+			      <0x032000 0x1000>;
+			reg-names = "dmp", "ccb-mii";
+			#phy-cells = <0>;
+			status = "disabled";
 		};
 	};
 
@@ -483,6 +511,7 @@
 		 */
 		ranges = <0x82000000 0 0x08000000 0x08000000 0 0x8000000>;
 
+		dma-coherent;
 		status = "disabled";
 
 		msi-parent = <&msi0>;
@@ -519,6 +548,7 @@
 		 */
 		ranges = <0x82000000 0 0x40000000 0x40000000 0 0x8000000>;
 
+		dma-coherent;
 		status = "disabled";
 
 		msi-parent = <&msi1>;
@@ -555,6 +585,7 @@
 		 */
 		ranges = <0x82000000 0 0x48000000 0x48000000 0 0x8000000>;
 
+		dma-coherent;
 		status = "disabled";
 
 		msi-parent = <&msi2>;

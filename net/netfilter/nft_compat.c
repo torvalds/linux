@@ -305,7 +305,7 @@ static int nft_target_validate(const struct nft_ctx *ctx,
 		const struct nf_hook_ops *ops = &basechain->ops[0];
 
 		hook_mask = 1 << ops->hooknum;
-		if (!(hook_mask & target->hooks))
+		if (target->hooks && !(hook_mask & target->hooks))
 			return -EINVAL;
 
 		ret = nft_compat_chain_validate_dependency(target->table,
@@ -484,7 +484,7 @@ static int nft_match_validate(const struct nft_ctx *ctx,
 		const struct nf_hook_ops *ops = &basechain->ops[0];
 
 		hook_mask = 1 << ops->hooknum;
-		if (!(hook_mask & match->hooks))
+		if (match->hooks && !(hook_mask & match->hooks))
 			return -EINVAL;
 
 		ret = nft_compat_chain_validate_dependency(match->table,

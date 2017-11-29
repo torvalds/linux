@@ -117,6 +117,37 @@
 		regulator-max-microvolt = <3300000>;
 		startup-delay-us = <200000>;
 	};
+
+	reg_lcd_3v3: regulator-lcd-3v3 {
+		compatible = "regulator-fixed";
+		regulator-name = "lcd-3v3";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		gpio = <&extended_io 7 GPIO_ACTIVE_LOW>;
+	};
+
+	reg_can2_3v3: regulator-can2-3v3 {
+		compatible = "regulator-fixed";
+		regulator-name = "can2-3v3";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_flexcan2_reg>;
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		gpio = <&gpio2 14 GPIO_ACTIVE_LOW>;
+	};
+
+	panel {
+		compatible = "innolux,at043tn24";
+		pinctrl-0 = <&pinctrl_backlight>;
+		enable-gpios = <&gpio1 1 GPIO_ACTIVE_HIGH>;
+		power-supply = <&reg_lcd_3v3>;
+
+		port {
+			panel_in: endpoint {
+				remote-endpoint = <&display_out>;
+			};
+		};
+	};
 };
 
 &adc1 {
@@ -168,6 +199,7 @@
 	phy-mode = "rgmii";
 	phy-handle = <&ethphy0>;
 	fsl,magic-packet;
+	phy-reset-gpios = <&extended_io 5 GPIO_ACTIVE_LOW>;
 	status = "okay";
 
 	mdio {
@@ -197,12 +229,19 @@
 	status = "okay";
 };
 
+&flexcan2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_flexcan2>;
+	xceiver-supply = <&reg_can2_3v3>;
+	status = "okay";
+};
+
 &i2c1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_i2c1>;
 	status = "okay";
 
-	pmic: pfuze3000@08 {
+	pmic: pfuze3000@8 {
 		compatible = "fsl,pfuze3000";
 		reg = <0x08>;
 
@@ -285,8 +324,8 @@
 			};
 
 			vgen6_reg: vldo4 {
-				regulator-min-microvolt = <1800000>;
-				regulator-max-microvolt = <3300000>;
+				regulator-min-microvolt = <2800000>;
+				regulator-max-microvolt = <2800000>;
 				regulator-always-on;
 			};
 		};
@@ -322,43 +361,17 @@
 &lcdif {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_lcdif>;
-	display = <&display0>;
 	status = "okay";
 
-	display0: display {
-		bits-per-pixel = <16>;
-		bus-width = <24>;
-
-		display-timings {
-			native-mode = <&timing0>;
-
-			timing0: timing0 {
-				clock-frequency = <9200000>;
-				hactive = <480>;
-				vactive = <272>;
-				hfront-porch = <8>;
-				hback-porch = <4>;
-				hsync-len = <41>;
-				vback-porch = <2>;
-				vfront-porch = <4>;
-				vsync-len = <10>;
-				hsync-active = <0>;
-				vsync-active = <0>;
-				de-active = <1>;
-				pixelclk-active = <0>;
-			};
+	port {
+		display_out: endpoint {
+			remote-endpoint = <&panel_in>;
 		};
 	};
 };
 
 &pcie {
 	reset-gpio = <&extended_io 1 GPIO_ACTIVE_LOW>;
-	status = "okay";
-};
-
-&pwm1 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_pwm1>;
 	status = "okay";
 };
 
@@ -488,6 +501,20 @@
 			>;
 		};
 
+		pinctrl_flexcan2: flexcan2grp {
+			fsl,pins = <
+				MX7D_PAD_GPIO1_IO14__FLEXCAN2_RX	0x59
+				MX7D_PAD_GPIO1_IO15__FLEXCAN2_TX	0x59
+			>;
+		};
+
+		pinctrl_flexcan2_reg: flexcan2reggrp {
+			fsl,pins = <
+				MX7D_PAD_EPDC_DATA14__GPIO2_IO14	0x59	/* CAN_STBY */
+			>;
+		};
+
+
 		pinctrl_hog: hoggrp {
 			fsl,pins = <
 				MX7D_PAD_UART3_CTS_B__GPIO4_IO7		0x14
@@ -554,6 +581,14 @@
 				MX7D_PAD_LCD_VSYNC__LCD_VSYNC		0x79
 				MX7D_PAD_LCD_HSYNC__LCD_HSYNC		0x79
 				MX7D_PAD_LCD_RESET__LCD_RESET		0x79
+			>;
+		};
+
+		pinctrl_spi4: spi4grp {
+			fsl,pins = <
+				MX7D_PAD_GPIO1_IO09__GPIO1_IO9	0x59
+				MX7D_PAD_GPIO1_IO12__GPIO1_IO12	0x59
+				MX7D_PAD_GPIO1_IO13__GPIO1_IO13	0x59
 			>;
 		};
 
@@ -693,17 +728,9 @@
 		>;
 	};
 
-	pinctrl_pwm1: pwm1grp {
+	pinctrl_backlight: backlightgrp {
 		fsl,pins = <
-			MX7D_PAD_LPSR_GPIO1_IO01__PWM1_OUT		0x110b0
+			MX7D_PAD_LPSR_GPIO1_IO01__GPIO1_IO1		0x110b0
 		>;
-
-		pinctrl_spi4: spi4grp {
-			fsl,pins = <
-				MX7D_PAD_GPIO1_IO09__GPIO1_IO9	0x59
-				MX7D_PAD_GPIO1_IO12__GPIO1_IO12	0x59
-				MX7D_PAD_GPIO1_IO13__GPIO1_IO13	0x59
-			>;
-		};
 	};
 };

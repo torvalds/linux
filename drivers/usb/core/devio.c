@@ -1,23 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*****************************************************************************/
 
 /*
  *      devio.c  --  User space communication with USB devices.
  *
  *      Copyright (C) 1999-2000  Thomas Sailer (sailer@ife.ee.ethz.ch)
- *
- *      This program is free software; you can redistribute it and/or modify
- *      it under the terms of the GNU General Public License as published by
- *      the Free Software Foundation; either version 2 of the License, or
- *      (at your option) any later version.
- *
- *      This program is distributed in the hope that it will be useful,
- *      but WITHOUT ANY WARRANTY; without even the implied warranty of
- *      MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *      GNU General Public License for more details.
- *
- *      You should have received a copy of the GNU General Public License
- *      along with this program; if not, write to the Free Software
- *      Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  *  This file implements the usbfs/x/y files, where
  *  x is the bus number and y the device number.
@@ -140,6 +127,9 @@ module_param(usbfs_memory_mb, uint, 0644);
 MODULE_PARM_DESC(usbfs_memory_mb,
 		"maximum MB allowed for usbfs buffers (0 = no limit)");
 
+/* Hard limit, necessary to avoid arithmetic overflow */
+#define USBFS_XFER_MAX         (UINT_MAX / 2 - 1000000)
+
 static atomic64_t usbfs_memory_usage;	/* Total memory currently allocated */
 
 /* Check whether it's okay to allocate more memory for a transfer */
@@ -147,7 +137,7 @@ static int usbfs_increase_memory_usage(u64 amount)
 {
 	u64 lim;
 
-	lim = ACCESS_ONCE(usbfs_memory_mb);
+	lim = READ_ONCE(usbfs_memory_mb);
 	lim <<= 20;
 
 	atomic64_add(amount, &usbfs_memory_usage);
@@ -210,7 +200,7 @@ static void usbdev_vm_close(struct vm_area_struct *vma)
 	dec_usb_memory_use_count(usbm, &usbm->vma_use_count);
 }
 
-static struct vm_operations_struct usbdev_vm_ops = {
+static const struct vm_operations_struct usbdev_vm_ops = {
 	.open = usbdev_vm_open,
 	.close = usbdev_vm_close
 };
@@ -623,6 +613,8 @@ static void async_completed(struct urb *urb)
 	if (as->status < 0 && as->bulk_addr && as->status != -ECONNRESET &&
 			as->status != -ENOENT)
 		cancel_bulk_urbs(ps, as->bulk_addr);
+
+	wake_up(&ps->wait);
 	spin_unlock(&ps->lock);
 
 	if (signr) {
@@ -630,8 +622,6 @@ static void async_completed(struct urb *urb)
 		put_pid(pid);
 		put_cred(cred);
 	}
-
-	wake_up(&ps->wait);
 }
 
 static void destroy_async(struct usb_dev_state *ps, struct list_head *list)
@@ -1460,6 +1450,8 @@ static int proc_do_submiturb(struct usb_dev_state *ps, struct usbdevfs_urb *uurb
 				USBDEVFS_URB_ZERO_PACKET |
 				USBDEVFS_URB_NO_INTERRUPT))
 		return -EINVAL;
+	if ((unsigned int)uurb->buffer_length >= USBFS_XFER_MAX)
+		return -EINVAL;
 	if (uurb->buffer_length > 0 && !uurb->buffer)
 		return -EINVAL;
 	if (!(uurb->type == USBDEVFS_URB_TYPE_CONTROL &&
@@ -1828,6 +1820,18 @@ static int proc_unlinkurb(struct usb_dev_state *ps, void __user *arg)
 	return 0;
 }
 
+static void compute_isochronous_actual_length(struct urb *urb)
+{
+	unsigned int i;
+
+	if (urb->number_of_packets > 0) {
+		urb->actual_length = 0;
+		for (i = 0; i < urb->number_of_packets; i++)
+			urb->actual_length +=
+					urb->iso_frame_desc[i].actual_length;
+	}
+}
+
 static int processcompl(struct async *as, void __user * __user *arg)
 {
 	struct urb *urb = as->urb;
@@ -1835,6 +1839,7 @@ static int processcompl(struct async *as, void __user * __user *arg)
 	void __user *addr = as->userurb;
 	unsigned int i;
 
+	compute_isochronous_actual_length(urb);
 	if (as->userbuffer && urb->actual_length) {
 		if (copy_urb_data_to_user(as->userbuffer, urb))
 			goto err_out;
@@ -2003,6 +2008,7 @@ static int processcompl_compat(struct async *as, void __user * __user *arg)
 	void __user *addr = as->userurb;
 	unsigned int i;
 
+	compute_isochronous_actual_length(urb);
 	if (as->userbuffer && urb->actual_length) {
 		if (copy_urb_data_to_user(as->userbuffer, urb))
 			return -EFAULT;

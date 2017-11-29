@@ -343,14 +343,6 @@ static void bind_evtchn_to_cpu(unsigned int chn, unsigned int cpu)
 	info->cpu = cpu;
 }
 
-static void xen_evtchn_mask_all(void)
-{
-	unsigned int evtchn;
-
-	for (evtchn = 0; evtchn < xen_evtchn_nr_channels(); evtchn++)
-		mask_evtchn(evtchn);
-}
-
 /**
  * notify_remote_via_irq - send event to remote end of event channel via irq
  * @irq: irq of event channel to send event to
@@ -582,7 +574,7 @@ static void shutdown_pirq(struct irq_data *data)
 
 static void enable_pirq(struct irq_data *data)
 {
-	startup_pirq(data);
+	enable_dynirq(data);
 }
 
 static void disable_pirq(struct irq_data *data)
@@ -1573,7 +1565,6 @@ void xen_irq_resume(void)
 	struct irq_info *info;
 
 	/* New event-channel space is not 'live' yet. */
-	xen_evtchn_mask_all();
 	xen_evtchn_resume();
 
 	/* No IRQ <-> event-channel mappings. */
@@ -1662,10 +1653,8 @@ void xen_callback_vector(void)
 			return;
 		}
 		pr_info("Xen HVM callback vector for event delivery is enabled\n");
-		/* in the restore case the vector has already been allocated */
-		if (!test_bit(HYPERVISOR_CALLBACK_VECTOR, used_vectors))
-			alloc_intr_gate(HYPERVISOR_CALLBACK_VECTOR,
-					xen_hvm_callback_vector);
+		alloc_intr_gate(HYPERVISOR_CALLBACK_VECTOR,
+				xen_hvm_callback_vector);
 	}
 }
 #else
@@ -1681,6 +1670,7 @@ module_param(fifo_events, bool, 0);
 void __init xen_init_IRQ(void)
 {
 	int ret = -EINVAL;
+	unsigned int evtchn;
 
 	if (fifo_events)
 		ret = xen_evtchn_fifo_init();
@@ -1692,7 +1682,8 @@ void __init xen_init_IRQ(void)
 	BUG_ON(!evtchn_to_irq);
 
 	/* No event channels are 'live' right now. */
-	xen_evtchn_mask_all();
+	for (evtchn = 0; evtchn < xen_evtchn_nr_channels(); evtchn++)
+		mask_evtchn(evtchn);
 
 	pirq_needs_eoi = pirq_needs_eoi_flag;
 

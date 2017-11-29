@@ -53,7 +53,6 @@ Example:
 
 	sti_uni_player1: sti-uni-player@0x8D81000 {
 		compatible = "st,stih407-uni-player-hdmi";
-		status = "okay";
 		#sound-dai-cells = <0>;
 		st,syscfg = <&syscfg_core>;
 		clocks = <&clk_s_d0_flexgen CLK_PCM_1>;
@@ -66,7 +65,6 @@ Example:
 
 	sti_uni_player2: sti-uni-player@0x8D82000 {
 		compatible = "st,stih407-uni-player-pcm-out";
-		status = "okay";
 		#sound-dai-cells = <0>;
 		st,syscfg = <&syscfg_core>;
 		clocks = <&clk_s_d0_flexgen CLK_PCM_2>;
@@ -78,7 +76,6 @@ Example:
 
 	sti_uni_player3: sti-uni-player@0x8D85000 {
 		compatible = "st,stih407-uni-player-spdif";
-		status = "okay";
 		#sound-dai-cells = <0>;
 		st,syscfg = <&syscfg_core>;
 		clocks = <&clk_s_d0_flexgen CLK_SPDIFF>;
@@ -90,7 +87,6 @@ Example:
 
 	sti_uni_reader1: sti-uni-reader@0x8D84000 {
 		compatible = "st,stih407-uni-reader-hdmi";
-		status = "disabled";
 		#sound-dai-cells = <0>;
 		st,syscfg = <&syscfg_core>;
 		reg = <0x8D84000 0x158>;
@@ -125,7 +121,6 @@ Example of audio card declaration:
 	sound {
 		compatible = "simple-audio-card";
 		simple-audio-card,name = "sti audio card";
-		status = "okay";
 
 		simple-audio-card,dai-link@0 {
 			/* DAC */

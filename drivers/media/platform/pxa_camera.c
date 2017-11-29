@@ -638,6 +638,9 @@ static unsigned int pxa_mbus_config_compatible(const struct v4l2_mbus_config *cf
 		mipi_clock = common_flags & (V4L2_MBUS_CSI2_NONCONTINUOUS_CLOCK |
 					     V4L2_MBUS_CSI2_CONTINUOUS_CLOCK);
 		return (!mipi_lanes || !mipi_clock) ? 0 : common_flags;
+	default:
+		WARN_ON(1);
+		return -EINVAL;
 	}
 	return 0;
 }
@@ -1557,7 +1560,7 @@ static void pxac_vb2_stop_streaming(struct vb2_queue *vq)
 		pxa_camera_wakeup(pcdev, buf, VB2_BUF_STATE_ERROR);
 }
 
-static struct vb2_ops pxac_vb2_ops = {
+static const struct vb2_ops pxac_vb2_ops = {
 	.queue_setup		= pxac_vb2_queue_setup,
 	.buf_init		= pxac_vb2_init,
 	.buf_prepare		= pxac_vb2_prepare,
@@ -2097,7 +2100,7 @@ static const struct v4l2_ioctl_ops pxa_camera_ioctl_ops = {
 	.vidioc_unsubscribe_event	= v4l2_event_unsubscribe,
 };
 
-static struct v4l2_clk_ops pxa_camera_mclk_ops = {
+static const struct v4l2_clk_ops pxa_camera_mclk_ops = {
 };
 
 static const struct video_device pxa_camera_videodev_template = {
@@ -2218,6 +2221,11 @@ static void pxa_camera_sensor_unbind(struct v4l2_async_notifier *notifier,
 	mutex_unlock(&pcdev->mlock);
 }
 
+static const struct v4l2_async_notifier_operations pxa_camera_sensor_ops = {
+	.bound = pxa_camera_sensor_bound,
+	.unbind = pxa_camera_sensor_unbind,
+};
+
 /*
  * Driver probe, remove, suspend and resume operations
  */
@@ -2328,7 +2336,7 @@ static int pxa_camera_pdata_from_dt(struct device *dev,
 		asd->match.fwnode.fwnode = of_fwnode_handle(remote);
 		of_node_put(remote);
 	} else {
-		dev_notice(dev, "no remote for %s\n", of_node_full_name(np));
+		dev_notice(dev, "no remote for %pOF\n", np);
 	}
 
 out:
@@ -2486,8 +2494,7 @@ static int pxa_camera_probe(struct platform_device *pdev)
 	pcdev->asds[0] = &pcdev->asd;
 	pcdev->notifier.subdevs = pcdev->asds;
 	pcdev->notifier.num_subdevs = 1;
-	pcdev->notifier.bound = pxa_camera_sensor_bound;
-	pcdev->notifier.unbind = pxa_camera_sensor_unbind;
+	pcdev->notifier.ops = &pxa_camera_sensor_ops;
 
 	if (!of_have_populated_dt())
 		pcdev->asd.match_type = V4L2_ASYNC_MATCH_I2C;

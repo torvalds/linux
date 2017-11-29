@@ -242,7 +242,6 @@ static int do_ipv6_setsockopt(struct sock *sk, int level, int optname,
 			pktopt = xchg(&np->pktoptions, NULL);
 			kfree_skb(pktopt);
 
-			sk->sk_destruct = inet_sock_destruct;
 			/*
 			 * ... and add it to the refcnt debug socks count
 			 * in the new family. -acme
@@ -375,6 +374,14 @@ static int do_ipv6_setsockopt(struct sock *sk, int level, int optname,
 			goto e_inval;
 		/* we don't have a separate transparent bit for IPV6 we use the one in the IPv4 socket */
 		inet_sk(sk)->transparent = valbool;
+		retv = 0;
+		break;
+
+	case IPV6_FREEBIND:
+		if (optlen < sizeof(int))
+			goto e_inval;
+		/* we also don't have a separate freebind bit for IPV6 */
+		inet_sk(sk)->freebind = valbool;
 		retv = 0;
 		break;
 
@@ -1213,6 +1220,10 @@ static int do_ipv6_getsockopt(struct sock *sk, int level, int optname,
 
 	case IPV6_TRANSPARENT:
 		val = inet_sk(sk)->transparent;
+		break;
+
+	case IPV6_FREEBIND:
+		val = inet_sk(sk)->freebind;
 		break;
 
 	case IPV6_RECVORIGDSTADDR:

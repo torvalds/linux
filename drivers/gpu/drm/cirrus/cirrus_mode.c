@@ -31,25 +31,6 @@
  * This file contains setup code for the CRTC.
  */
 
-static void cirrus_crtc_load_lut(struct drm_crtc *crtc)
-{
-	struct cirrus_crtc *cirrus_crtc = to_cirrus_crtc(crtc);
-	struct drm_device *dev = crtc->dev;
-	struct cirrus_device *cdev = dev->dev_private;
-	int i;
-
-	if (!crtc->enabled)
-		return;
-
-	for (i = 0; i < CIRRUS_LUT_SIZE; i++) {
-		/* VGA registers */
-		WREG8(PALETTE_INDEX, i);
-		WREG8(PALETTE_DATA, cirrus_crtc->lut_r[i]);
-		WREG8(PALETTE_DATA, cirrus_crtc->lut_g[i]);
-		WREG8(PALETTE_DATA, cirrus_crtc->lut_b[i]);
-	}
-}
-
 /*
  * The DRM core requires DPMS functions, but they make little sense in our
  * case and so are just stubs
@@ -330,15 +311,25 @@ static int cirrus_crtc_gamma_set(struct drm_crtc *crtc, u16 *red, u16 *green,
 				 u16 *blue, uint32_t size,
 				 struct drm_modeset_acquire_ctx *ctx)
 {
-	struct cirrus_crtc *cirrus_crtc = to_cirrus_crtc(crtc);
+	struct drm_device *dev = crtc->dev;
+	struct cirrus_device *cdev = dev->dev_private;
+	u16 *r, *g, *b;
 	int i;
 
-	for (i = 0; i < size; i++) {
-		cirrus_crtc->lut_r[i] = red[i];
-		cirrus_crtc->lut_g[i] = green[i];
-		cirrus_crtc->lut_b[i] = blue[i];
+	if (!crtc->enabled)
+		return 0;
+
+	r = crtc->gamma_store;
+	g = r + crtc->gamma_size;
+	b = g + crtc->gamma_size;
+
+	for (i = 0; i < CIRRUS_LUT_SIZE; i++) {
+		/* VGA registers */
+		WREG8(PALETTE_INDEX, i);
+		WREG8(PALETTE_DATA, *r++ >> 8);
+		WREG8(PALETTE_DATA, *g++ >> 8);
+		WREG8(PALETTE_DATA, *b++ >> 8);
 	}
-	cirrus_crtc_load_lut(crtc);
 
 	return 0;
 }
@@ -365,7 +356,6 @@ static const struct drm_crtc_helper_funcs cirrus_helper_funcs = {
 	.mode_set_base = cirrus_crtc_mode_set_base,
 	.prepare = cirrus_crtc_prepare,
 	.commit = cirrus_crtc_commit,
-	.load_lut = cirrus_crtc_load_lut,
 };
 
 /* CRTC setup */
@@ -373,7 +363,6 @@ static void cirrus_crtc_init(struct drm_device *dev)
 {
 	struct cirrus_device *cdev = dev->dev_private;
 	struct cirrus_crtc *cirrus_crtc;
-	int i;
 
 	cirrus_crtc = kzalloc(sizeof(struct cirrus_crtc) +
 			      (CIRRUSFB_CONN_LIMIT * sizeof(struct drm_connector *)),
@@ -387,35 +376,7 @@ static void cirrus_crtc_init(struct drm_device *dev)
 	drm_mode_crtc_set_gamma_size(&cirrus_crtc->base, CIRRUS_LUT_SIZE);
 	cdev->mode_info.crtc = cirrus_crtc;
 
-	for (i = 0; i < CIRRUS_LUT_SIZE; i++) {
-		cirrus_crtc->lut_r[i] = i;
-		cirrus_crtc->lut_g[i] = i;
-		cirrus_crtc->lut_b[i] = i;
-	}
-
 	drm_crtc_helper_add(&cirrus_crtc->base, &cirrus_helper_funcs);
-}
-
-/** Sets the color ramps on behalf of fbcon */
-void cirrus_crtc_fb_gamma_set(struct drm_crtc *crtc, u16 red, u16 green,
-			      u16 blue, int regno)
-{
-	struct cirrus_crtc *cirrus_crtc = to_cirrus_crtc(crtc);
-
-	cirrus_crtc->lut_r[regno] = red;
-	cirrus_crtc->lut_g[regno] = green;
-	cirrus_crtc->lut_b[regno] = blue;
-}
-
-/** Gets the color ramps on behalf of fbcon */
-void cirrus_crtc_fb_gamma_get(struct drm_crtc *crtc, u16 *red, u16 *green,
-			      u16 *blue, int regno)
-{
-	struct cirrus_crtc *cirrus_crtc = to_cirrus_crtc(crtc);
-
-	*red = cirrus_crtc->lut_r[regno];
-	*green = cirrus_crtc->lut_g[regno];
-	*blue = cirrus_crtc->lut_b[regno];
 }
 
 static void cirrus_encoder_mode_set(struct drm_encoder *encoder,
@@ -496,7 +457,7 @@ static struct drm_encoder *cirrus_connector_best_encoder(struct drm_connector
 	int enc_id = connector->encoder_ids[0];
 	/* pick the encoder ids */
 	if (enc_id)
-		return drm_encoder_find(connector->dev, enc_id);
+		return drm_encoder_find(connector->dev, NULL, enc_id);
 	return NULL;
 }
 

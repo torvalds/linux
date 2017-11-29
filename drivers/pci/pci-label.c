@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Purpose: Export the firmware instance and label associated with
  * a pci device to sysfs
@@ -123,7 +124,7 @@ static struct attribute *smbios_attributes[] = {
 	NULL,
 };
 
-static struct attribute_group smbios_attr_group = {
+static const struct attribute_group smbios_attr_group = {
 	.attrs = smbios_attributes,
 	.is_visible = smbios_instance_string_exist,
 };
@@ -260,7 +261,7 @@ static struct attribute *acpi_attributes[] = {
 	NULL,
 };
 
-static struct attribute_group acpi_attr_group = {
+static const struct attribute_group acpi_attr_group = {
 	.attrs = acpi_attributes,
 	.is_visible = acpi_index_string_exist,
 };

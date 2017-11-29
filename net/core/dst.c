@@ -55,7 +55,7 @@ const struct dst_metrics dst_default_metrics = {
 	 * We really want to avoid false sharing on this variable, and catch
 	 * any writes on it.
 	 */
-	.refcnt = ATOMIC_INIT(1),
+	.refcnt = REFCOUNT_INIT(1),
 };
 
 void dst_init(struct dst_entry *dst, struct dst_ops *ops,
@@ -213,7 +213,7 @@ u32 *dst_cow_metrics_generic(struct dst_entry *dst, unsigned long old)
 		struct dst_metrics *old_p = (struct dst_metrics *)__DST_METRICS_PTR(old);
 		unsigned long prev, new;
 
-		atomic_set(&p->refcnt, 1);
+		refcount_set(&p->refcnt, 1);
 		memcpy(p->metrics, old_p->metrics, sizeof(p->metrics));
 
 		new = (unsigned long) p;
@@ -225,7 +225,7 @@ u32 *dst_cow_metrics_generic(struct dst_entry *dst, unsigned long old)
 			if (prev & DST_METRICS_READ_ONLY)
 				p = NULL;
 		} else if (prev & DST_METRICS_REFCOUNTED) {
-			if (atomic_dec_and_test(&old_p->refcnt))
+			if (refcount_dec_and_test(&old_p->refcnt))
 				kfree(old_p);
 		}
 	}
@@ -299,7 +299,8 @@ EXPORT_SYMBOL_GPL(metadata_dst_alloc);
 void metadata_dst_free(struct metadata_dst *md_dst)
 {
 #ifdef CONFIG_DST_CACHE
-	dst_cache_destroy(&md_dst->u.tun_info.dst_cache);
+	if (md_dst->type == METADATA_IP_TUNNEL)
+		dst_cache_destroy(&md_dst->u.tun_info.dst_cache);
 #endif
 	kfree(md_dst);
 }
@@ -321,3 +322,19 @@ metadata_dst_alloc_percpu(u8 optslen, enum metadata_type type, gfp_t flags)
 	return md_dst;
 }
 EXPORT_SYMBOL_GPL(metadata_dst_alloc_percpu);
+
+void metadata_dst_free_percpu(struct metadata_dst __percpu *md_dst)
+{
+#ifdef CONFIG_DST_CACHE
+	int cpu;
+
+	for_each_possible_cpu(cpu) {
+		struct metadata_dst *one_md_dst = per_cpu_ptr(md_dst, cpu);
+
+		if (one_md_dst->type == METADATA_IP_TUNNEL)
+			dst_cache_destroy(&one_md_dst->u.tun_info.dst_cache);
+	}
+#endif
+	free_percpu(md_dst);
+}
+EXPORT_SYMBOL_GPL(metadata_dst_free_percpu);

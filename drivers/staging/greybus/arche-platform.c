@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Arche Platform driver to enable Unipro link.
  *
  * Copyright 2014-2015 Google Inc.
  * Copyright 2014-2015 Linaro Ltd.
- *
- * Released under the GPLv2 only.
  */
 
 #include <linux/clk.h>
@@ -176,7 +175,10 @@ static irqreturn_t arche_platform_wd_irq(int irq, void *devid)
 				arche_platform_set_wake_detect_state(arche_pdata,
 								     WD_STATE_IDLE);
 			} else {
-				/* Check we are not in middle of irq thread already */
+				/*
+				 * Check we are not in middle of irq thread
+				 * already
+				 */
 				if (arche_pdata->wake_detect_state !=
 						WD_STATE_COLDBOOT_START) {
 					arche_platform_set_wake_detect_state(arche_pdata,
@@ -193,7 +195,7 @@ static irqreturn_t arche_platform_wd_irq(int irq, void *devid)
 		if (arche_pdata->wake_detect_state == WD_STATE_IDLE) {
 			arche_pdata->wake_detect_start = jiffies;
 			/*
-			 * In the begining, when wake/detect goes low
+			 * In the beginning, when wake/detect goes low
 			 * (first time), we assume it is meant for coldboot
 			 * and set the flag. If wake/detect line stays low
 			 * beyond 30msec, then it is coldboot else fallback
@@ -607,7 +609,6 @@ static int arche_platform_remove(struct platform_device *pdev)
 	device_remove_file(&pdev->dev, &dev_attr_state);
 	device_for_each_child(&pdev->dev, NULL, arche_remove_child);
 	arche_platform_poweroff_seq(arche_pdata);
-	platform_set_drvdata(pdev, NULL);
 
 	if (usb3613_hub_mode_ctrl(false))
 		dev_warn(arche_pdata->dev, "failed to control hub device\n");
@@ -657,12 +658,14 @@ static SIMPLE_DEV_PM_OPS(arche_platform_pm_ops,
 			arche_platform_resume);
 
 static const struct of_device_id arche_platform_of_match[] = {
-	{ .compatible = "google,arche-platform", }, /* Use PID/VID of SVC device */
+	/* Use PID/VID of SVC device */
+	{ .compatible = "google,arche-platform", },
 	{ },
 };
 
 static const struct of_device_id arche_combined_id[] = {
-	{ .compatible = "google,arche-platform", }, /* Use PID/VID of SVC device */
+	/* Use PID/VID of SVC device */
+	{ .compatible = "google,arche-platform", },
 	{ .compatible = "usbffff,2", },
 	{ },
 };

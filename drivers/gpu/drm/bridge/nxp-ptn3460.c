@@ -238,7 +238,6 @@ static const struct drm_connector_helper_funcs ptn3460_connector_helper_funcs = 
 };
 
 static const struct drm_connector_funcs ptn3460_connector_funcs = {
-	.dpms = drm_atomic_helper_connector_dpms,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.destroy = drm_connector_cleanup,
 	.reset = drm_atomic_helper_connector_reset,
@@ -332,11 +331,7 @@ static int ptn3460_probe(struct i2c_client *client,
 
 	ptn_bridge->bridge.funcs = &ptn3460_bridge_funcs;
 	ptn_bridge->bridge.of_node = dev->of_node;
-	ret = drm_bridge_add(&ptn_bridge->bridge);
-	if (ret) {
-		DRM_ERROR("Failed to add bridge\n");
-		return ret;
-	}
+	drm_bridge_add(&ptn_bridge->bridge);
 
 	i2c_set_clientdata(client, ptn_bridge);
 

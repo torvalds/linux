@@ -19,7 +19,7 @@
 
 #include <linux/ieee80211.h>
 
-#define QLINK_PROTO_VER		3
+#define QLINK_PROTO_VER		6
 
 #define QLINK_MACID_RSVD		0xFF
 #define QLINK_VIFID_RSVD		0xFF
@@ -61,14 +61,17 @@ struct qlink_msg_header {
 /* Generic definitions of data and information carried in QLINK messages
  */
 
+/**
+ * enum qlink_hw_capab - device capabilities.
+ *
+ * @QLINK_HW_CAPAB_REG_UPDATE: device can update it's regulatory region.
+ * @QLINK_HW_CAPAB_STA_INACT_TIMEOUT: device implements a logic to kick-out
+ *	associated STAs due to inactivity. Inactivity timeout period is taken
+ *	from QLINK_CMD_START_AP parameters.
+ */
 enum qlink_hw_capab {
-	QLINK_HW_SUPPORTS_REG_UPDATE	= BIT(0),
-};
-
-enum qlink_phy_mode {
-	QLINK_PHYMODE_BGN	= BIT(0),
-	QLINK_PHYMODE_AN	= BIT(1),
-	QLINK_PHYMODE_AC	= BIT(2),
+	QLINK_HW_CAPAB_REG_UPDATE = BIT(0),
+	QLINK_HW_CAPAB_STA_INACT_TIMEOUT = BIT(1),
 };
 
 enum qlink_iface_type {
@@ -77,6 +80,7 @@ enum qlink_iface_type {
 	QLINK_IFTYPE_ADHOC	= 3,
 	QLINK_IFTYPE_MONITOR	= 4,
 	QLINK_IFTYPE_WDS	= 5,
+	QLINK_IFTYPE_AP_VLAN	= 6,
 };
 
 /**
@@ -85,12 +89,12 @@ enum qlink_iface_type {
  * Data describing a single virtual interface.
  *
  * @if_type: Mode of interface operation, one of &enum qlink_iface_type
- * @flags: interface flagsmap.
+ * @vlanid: VLAN ID for AP_VLAN interface type
  * @mac_addr: MAC address of virtual interface.
  */
 struct qlink_intf_info {
 	__le16 if_type;
-	__le16 flags;
+	__le16 vlanid;
 	u8 mac_addr[ETH_ALEN];
 	u8 rsvd[2];
 } __packed;
@@ -107,15 +111,47 @@ enum qlink_sta_flags {
 };
 
 enum qlink_channel_width {
-	QLINK_CHAN_WIDTH_5		= BIT(0),
-	QLINK_CHAN_WIDTH_10		= BIT(1),
-	QLINK_CHAN_WIDTH_20_NOHT	= BIT(2),
-	QLINK_CHAN_WIDTH_20		= BIT(3),
-	QLINK_CHAN_WIDTH_40		= BIT(4),
-	QLINK_CHAN_WIDTH_80		= BIT(5),
-	QLINK_CHAN_WIDTH_80P80		= BIT(6),
-	QLINK_CHAN_WIDTH_160		= BIT(7),
+	QLINK_CHAN_WIDTH_5 = 0,
+	QLINK_CHAN_WIDTH_10,
+	QLINK_CHAN_WIDTH_20_NOHT,
+	QLINK_CHAN_WIDTH_20,
+	QLINK_CHAN_WIDTH_40,
+	QLINK_CHAN_WIDTH_80,
+	QLINK_CHAN_WIDTH_80P80,
+	QLINK_CHAN_WIDTH_160,
 };
+
+/**
+ * struct qlink_chandef - qlink channel definition
+ *
+ * @center_freq1: center frequency of first segment
+ * @center_freq2: center frequency of second segment (80+80 only)
+ * @width: channel width, one of @enum qlink_channel_width
+ */
+struct qlink_chandef {
+	__le16 center_freq1;
+	__le16 center_freq2;
+	u8 width;
+	u8 rsvd[3];
+} __packed;
+
+#define QLINK_MAX_NR_CIPHER_SUITES            5
+#define QLINK_MAX_NR_AKM_SUITES               2
+
+struct qlink_auth_encr {
+	__le32 wpa_versions;
+	__le32 cipher_group;
+	__le32 n_ciphers_pairwise;
+	__le32 ciphers_pairwise[QLINK_MAX_NR_CIPHER_SUITES];
+	__le32 n_akm_suites;
+	__le32 akm_suites[QLINK_MAX_NR_AKM_SUITES];
+	__le16 control_port_ethertype;
+	u8 auth_type;
+	u8 privacy;
+	u8 control_port;
+	u8 control_port_no_encrypt;
+	u8 rsvd[2];
+} __packed;
 
 /* QLINK Command messages related definitions
  */
@@ -126,13 +162,17 @@ enum qlink_channel_width {
  * Commands are QLINK messages of type @QLINK_MSG_TYPE_CMD, sent by driver to
  * wireless network device for processing. Device is expected to send back a
  * reply message of type &QLINK_MSG_TYPE_CMDRSP, containing at least command
- * execution status (one of &enum qlink_cmd_result) at least. Reply message
+ * execution status (one of &enum qlink_cmd_result). Reply message
  * may also contain data payload specific to the command type.
  *
- * @QLINK_CMD_CHANS_INFO_GET: for the specified MAC and specified band, get
- *	number of operational channels and information on each of the channel.
+ * @QLINK_CMD_BAND_INFO_GET: for the specified MAC and specified band, get
+ *	the band's description including number of operational channels and
+ *	info on each channel, HT/VHT capabilities, supported rates etc.
  *	This command is generic to a specified MAC, interface index must be set
  *	to QLINK_VIFID_RSVD in command header.
+ * @QLINK_CMD_REG_NOTIFY: notify device about regulatory domain change. This
+ *	command is supported only if device reports QLINK_HW_SUPPORTS_REG_UPDATE
+ *	capability.
  */
 enum qlink_cmd_type {
 	QLINK_CMD_FW_INIT		= 0x0001,
@@ -148,9 +188,10 @@ enum qlink_cmd_type {
 	QLINK_CMD_DEL_INTF		= 0x0016,
 	QLINK_CMD_CHANGE_INTF		= 0x0017,
 	QLINK_CMD_UPDOWN_INTF		= 0x0018,
-	QLINK_CMD_REG_REGION		= 0x0019,
-	QLINK_CMD_CHANS_INFO_GET	= 0x001A,
-	QLINK_CMD_CONFIG_AP		= 0x0020,
+	QLINK_CMD_REG_NOTIFY		= 0x0019,
+	QLINK_CMD_BAND_INFO_GET		= 0x001A,
+	QLINK_CMD_CHAN_SWITCH		= 0x001B,
+	QLINK_CMD_CHAN_GET		= 0x001C,
 	QLINK_CMD_START_AP		= 0x0021,
 	QLINK_CMD_STOP_AP		= 0x0022,
 	QLINK_CMD_GET_STA_INFO		= 0x0030,
@@ -161,6 +202,7 @@ enum qlink_cmd_type {
 	QLINK_CMD_CHANGE_STA		= 0x0051,
 	QLINK_CMD_DEL_STA		= 0x0052,
 	QLINK_CMD_SCAN			= 0x0053,
+	QLINK_CMD_CHAN_STATS		= 0x0054,
 	QLINK_CMD_CONNECT		= 0x0060,
 	QLINK_CMD_DISCONNECT		= 0x0061,
 };
@@ -256,21 +298,6 @@ struct qlink_cmd_mgmt_frame_tx {
 } __packed;
 
 /**
- * struct qlink_cmd_mgmt_append_ie - data for QLINK_CMD_MGMT_SET_APPIE command
- *
- * @type: type of MGMT frame to appent requested IEs to, one of
- *	&enum qlink_mgmt_frame_type.
- * @flags: for future use.
- * @ie_data: IEs data to append.
- */
-struct qlink_cmd_mgmt_append_ie {
-	struct qlink_cmd chdr;
-	u8 type;
-	u8 flags;
-	u8 ie_data[0];
-} __packed;
-
-/**
  * struct qlink_cmd_get_sta_info - data for QLINK_CMD_GET_STA_INFO command
  *
  * @sta_addr: MAC address of the STA statistics is requested for.
@@ -287,6 +314,7 @@ struct qlink_cmd_get_sta_info {
  * @pairwise: whether to use pairwise key.
  * @addr: MAC address of a STA key is being installed to.
  * @cipher: cipher suite.
+ * @vlanid: VLAN ID for AP_VLAN interface type
  * @key_data: key data itself.
  */
 struct qlink_cmd_add_key {
@@ -295,6 +323,7 @@ struct qlink_cmd_add_key {
 	u8 pairwise;
 	u8 addr[ETH_ALEN];
 	__le32 cipher;
+	__le16 vlanid;
 	u8 key_data[0];
 } __packed;
 
@@ -341,12 +370,16 @@ struct qlink_cmd_set_def_mgmt_key {
  *
  * @sta_flags_mask: STA flags mask, bitmap of &enum qlink_sta_flags
  * @sta_flags_set: STA flags values, bitmap of &enum qlink_sta_flags
+ * @if_type: Mode of interface operation, one of &enum qlink_iface_type
+ * @vlanid: VLAN ID to assign to specific STA
  * @sta_addr: address of the STA for which parameters are set.
  */
 struct qlink_cmd_change_sta {
 	struct qlink_cmd chdr;
 	__le32 sta_flags_mask;
 	__le32 sta_flags_set;
+	__le16 if_type;
+	__le16 vlanid;
 	u8 sta_addr[ETH_ALEN];
 } __packed;
 
@@ -371,18 +404,36 @@ enum qlink_sta_connect_flags {
 /**
  * struct qlink_cmd_connect - data for QLINK_CMD_CONNECT command
  *
- * @flags: for future use.
- * @freq: center frequence of a channel which should be used to connect.
- * @bg_scan_period: period of background scan.
  * @bssid: BSSID of the BSS to connect to.
+ * @bssid_hint: recommended AP BSSID for initial connection to the BSS or
+ *	00:00:00:00:00:00 if not specified.
+ * @prev_bssid: previous BSSID, if specified (not 00:00:00:00:00:00) indicates
+ *	a request to reassociate.
+ * @bg_scan_period: period of background scan.
+ * @flags: one of &enum qlink_sta_connect_flags.
+ * @ht_capa: HT Capabilities overrides.
+ * @ht_capa_mask: The bits of ht_capa which are to be used.
+ * @vht_capa: VHT Capability overrides
+ * @vht_capa_mask: The bits of vht_capa which are to be used.
+ * @aen: authentication information.
+ * @mfp: whether to use management frame protection.
  * @payload: variable portion of connection request.
  */
 struct qlink_cmd_connect {
 	struct qlink_cmd chdr;
-	__le32 flags;
-	__le16 freq;
-	__le16 bg_scan_period;
 	u8 bssid[ETH_ALEN];
+	u8 bssid_hint[ETH_ALEN];
+	u8 prev_bssid[ETH_ALEN];
+	__le16 bg_scan_period;
+	__le32 flags;
+	struct ieee80211_ht_cap ht_capa;
+	struct ieee80211_ht_cap ht_capa_mask;
+	struct ieee80211_vht_cap vht_capa;
+	struct ieee80211_vht_cap vht_capa_mask;
+	struct qlink_auth_encr aen;
+	u8 mfp;
+	u8 pbss;
+	u8 rsvd[2];
 	u8 payload[0];
 } __packed;
 
@@ -421,13 +472,117 @@ enum qlink_band {
 };
 
 /**
- * struct qlink_cmd_chans_info_get - data for QLINK_CMD_CHANS_INFO_GET command
+ * struct qlink_cmd_band_info_get - data for QLINK_CMD_BAND_INFO_GET command
  *
- * @band: a PHY band for which channels info is needed, one of @enum qlink_band
+ * @band: a PHY band for which information is queried, one of @enum qlink_band
  */
-struct qlink_cmd_chans_info_get {
+struct qlink_cmd_band_info_get {
 	struct qlink_cmd chdr;
 	u8 band;
+} __packed;
+
+/**
+ * struct qlink_cmd_get_chan_stats - data for QLINK_CMD_CHAN_STATS command
+ *
+ * @channel: channel number according to 802.11 17.3.8.3.2 and Annex J
+ */
+struct qlink_cmd_get_chan_stats {
+	struct qlink_cmd chdr;
+	__le16 channel;
+} __packed;
+
+/**
+ * enum qlink_reg_initiator - Indicates the initiator of a reg domain request
+ *
+ * See &enum nl80211_reg_initiator for more info.
+ */
+enum qlink_reg_initiator {
+	QLINK_REGDOM_SET_BY_CORE,
+	QLINK_REGDOM_SET_BY_USER,
+	QLINK_REGDOM_SET_BY_DRIVER,
+	QLINK_REGDOM_SET_BY_COUNTRY_IE,
+};
+
+/**
+ * enum qlink_user_reg_hint_type - type of user regulatory hint
+ *
+ * See &enum nl80211_user_reg_hint_type for more info.
+ */
+enum qlink_user_reg_hint_type {
+	QLINK_USER_REG_HINT_USER	= 0,
+	QLINK_USER_REG_HINT_CELL_BASE	= 1,
+	QLINK_USER_REG_HINT_INDOOR	= 2,
+};
+
+/**
+ * struct qlink_cmd_reg_notify - data for QLINK_CMD_REG_NOTIFY command
+ *
+ * @alpha2: the ISO / IEC 3166 alpha2 country code.
+ * @initiator: which entity sent the request, one of &enum qlink_reg_initiator.
+ * @user_reg_hint_type: type of hint for QLINK_REGDOM_SET_BY_USER request, one
+ *	of &enum qlink_user_reg_hint_type.
+ */
+struct qlink_cmd_reg_notify {
+	struct qlink_cmd chdr;
+	u8 alpha2[2];
+	u8 initiator;
+	u8 user_reg_hint_type;
+} __packed;
+
+/**
+ * struct qlink_cmd_chan_switch - data for QLINK_CMD_CHAN_SWITCH command
+ *
+ * @channel: channel number according to 802.11 17.3.8.3.2 and Annex J
+ * @radar_required: whether radar detection is required on the new channel
+ * @block_tx: whether transmissions should be blocked while changing
+ * @beacon_count: number of beacons until switch
+ */
+struct qlink_cmd_chan_switch {
+	struct qlink_cmd chdr;
+	__le16 channel;
+	u8 radar_required;
+	u8 block_tx;
+	u8 beacon_count;
+} __packed;
+
+/**
+ * enum qlink_hidden_ssid - values for %NL80211_ATTR_HIDDEN_SSID
+ *
+ * Refer to &enum nl80211_hidden_ssid
+ */
+enum qlink_hidden_ssid {
+	QLINK_HIDDEN_SSID_NOT_IN_USE,
+	QLINK_HIDDEN_SSID_ZERO_LEN,
+	QLINK_HIDDEN_SSID_ZERO_CONTENTS
+};
+
+/**
+ * struct qlink_cmd_start_ap - data for QLINK_CMD_START_AP command
+ *
+ * @beacon_interval: beacon interval
+ * @inactivity_timeout: station's inactivity period in seconds
+ * @dtim_period: DTIM period
+ * @hidden_ssid: whether to hide the SSID, one of &enum qlink_hidden_ssid
+ * @smps_mode: SMPS mode
+ * @ht_required: stations must support HT
+ * @vht_required: stations must support VHT
+ * @aen: encryption info
+ * @info: variable configurations
+ */
+struct qlink_cmd_start_ap {
+	struct qlink_cmd chdr;
+	__le16 beacon_interval;
+	__le16 inactivity_timeout;
+	u8 dtim_period;
+	u8 hidden_ssid;
+	u8 smps_mode;
+	u8 p2p_ctwindow;
+	u8 p2p_opp_ps;
+	u8 pbss;
+	u8 ht_required;
+	u8 vht_required;
+	struct qlink_auth_encr aen;
+	u8 info[0];
 } __packed;
 
 /* QLINK Command Responses messages related definitions
@@ -438,6 +593,7 @@ enum qlink_cmd_result {
 	QLINK_CMD_RESULT_INVALID,
 	QLINK_CMD_RESULT_ENOTSUPP,
 	QLINK_CMD_RESULT_ENOTFOUND,
+	QLINK_CMD_RESULT_EALREADY,
 };
 
 /**
@@ -474,10 +630,9 @@ struct qlink_resp {
  *	specified WMAC).
  * @num_tx_chain: Number of transmit chains used by WMAC.
  * @num_rx_chain: Number of receive chains used by WMAC.
- * @vht_cap: VHT capabilities.
- * @ht_cap: HT capabilities.
+ * @vht_cap_mod_mask: mask specifying which VHT capabilities can be altered.
+ * @ht_cap_mod_mask: mask specifying which HT capabilities can be altered.
  * @bands_cap: wireless bands WMAC can operate in, bitmap of &enum qlink_band.
- * @phymode_cap: PHY modes WMAC can operate in, bitmap of &enum qlink_phy_mode.
  * @max_ap_assoc_sta: Maximum number of associations supported by WMAC.
  * @radar_detect_widths: bitmask of channels BW for which WMAC can detect radar.
  * @var_info: variable-length WMAC info data.
@@ -487,14 +642,26 @@ struct qlink_resp_get_mac_info {
 	u8 dev_mac[ETH_ALEN];
 	u8 num_tx_chain;
 	u8 num_rx_chain;
-	struct ieee80211_vht_cap vht_cap;
-	struct ieee80211_ht_cap ht_cap;
-	u8 bands_cap;
-	u8 phymode_cap;
+	struct ieee80211_vht_cap vht_cap_mod_mask;
+	struct ieee80211_ht_cap ht_cap_mod_mask;
 	__le16 max_ap_assoc_sta;
 	__le16 radar_detect_widths;
+	u8 bands_cap;
+	u8 rsvd[1];
 	u8 var_info[0];
 } __packed;
+
+/**
+ * enum qlink_dfs_regions - regulatory DFS regions
+ *
+ * Corresponds to &enum nl80211_dfs_regions.
+ */
+enum qlink_dfs_regions {
+	QLINK_DFS_UNSET	= 0,
+	QLINK_DFS_FCC	= 1,
+	QLINK_DFS_ETSI	= 2,
+	QLINK_DFS_JP	= 3,
+};
 
 /**
  * struct qlink_resp_get_hw_info - response for QLINK_CMD_GET_HW_INFO command
@@ -504,22 +671,29 @@ struct qlink_resp_get_mac_info {
  * @fw_ver: wireless hardware firmware version.
  * @hw_capab: Bitmap of capabilities supported by firmware.
  * @ql_proto_ver: Version of QLINK protocol used by firmware.
- * @country_code: country code ID firmware is configured to.
  * @num_mac: Number of separate physical radio devices provided by hardware.
  * @mac_bitmap: Bitmap of MAC IDs that are active and can be used in firmware.
  * @total_tx_chains: total number of transmit chains used by device.
  * @total_rx_chains: total number of receive chains.
+ * @alpha2: country code ID firmware is configured to.
+ * @n_reg_rules: number of regulatory rules TLVs in variable portion of the
+ *	message.
+ * @dfs_region: regulatory DFS region, one of @enum qlink_dfs_region.
+ * @info: variable-length HW info, can contain QTN_TLV_ID_REG_RULE.
  */
 struct qlink_resp_get_hw_info {
 	struct qlink_resp rhdr;
 	__le32 fw_ver;
 	__le32 hw_capab;
 	__le16 ql_proto_ver;
-	u8 alpha2_code[2];
 	u8 num_mac;
 	u8 mac_bitmap;
 	u8 total_tx_chain;
 	u8 total_rx_chain;
+	u8 alpha2[2];
+	u8 n_reg_rules;
+	u8 dfs_region;
+	u8 info[0];
 } __packed;
 
 /**
@@ -550,17 +724,19 @@ struct qlink_resp_get_sta_info {
 } __packed;
 
 /**
- * struct qlink_resp_get_chan_info - response for QLINK_CMD_CHANS_INFO_GET cmd
+ * struct qlink_resp_band_info_get - response for QLINK_CMD_BAND_INFO_GET cmd
  *
- * @band: frequency band to which channels belong to, one of @enum qlink_band.
- * @num_chans: total number of channels info data contained in reply data.
- * @info: variable-length channels info.
+ * @band: frequency band that the response describes, one of @enum qlink_band.
+ * @num_chans: total number of channels info TLVs contained in reply.
+ * @num_bitrates: total number of bitrate TLVs contained in reply.
+ * @info: variable-length info portion.
  */
-struct qlink_resp_get_chan_info {
+struct qlink_resp_band_info_get {
 	struct qlink_resp rhdr;
 	u8 band;
 	u8 num_chans;
-	u8 rsvd[2];
+	u8 num_bitrates;
+	u8 rsvd[1];
 	u8 info[0];
 } __packed;
 
@@ -574,6 +750,26 @@ struct qlink_resp_phy_params {
 	u8 info[0];
 } __packed;
 
+/**
+ * struct qlink_resp_get_chan_stats - response for QLINK_CMD_CHAN_STATS cmd
+ *
+ * @info: variable-length channel info.
+ */
+struct qlink_resp_get_chan_stats {
+	struct qlink_cmd rhdr;
+	u8 info[0];
+} __packed;
+
+/**
+ * struct qlink_resp_channel_get - response for QLINK_CMD_CHAN_GET command
+ *
+ * @chan: definition of current operating channel.
+ */
+struct qlink_resp_channel_get {
+	struct qlink_resp rhdr;
+	struct qlink_chandef chan;
+} __packed;
+
 /* QLINK Events messages related definitions
  */
 
@@ -585,6 +781,7 @@ enum qlink_event_type {
 	QLINK_EVENT_SCAN_COMPLETE	= 0x0025,
 	QLINK_EVENT_BSS_JOIN		= 0x0026,
 	QLINK_EVENT_BSS_LEAVE		= 0x0027,
+	QLINK_EVENT_FREQ_CHANGE		= 0x0028,
 };
 
 /**
@@ -651,7 +848,17 @@ struct qlink_event_bss_join {
  */
 struct qlink_event_bss_leave {
 	struct qlink_event ehdr;
-	u16 reason;
+	__le16 reason;
+} __packed;
+
+/**
+ * struct qlink_event_freq_change - data for QLINK_EVENT_FREQ_CHANGE event
+ *
+ * @chan: new operating channel definition
+ */
+struct qlink_event_freq_change {
+	struct qlink_event ehdr;
+	struct qlink_chandef chan;
 } __packed;
 
 enum qlink_rxmgmt_flags {
@@ -674,12 +881,6 @@ struct qlink_event_rxmgmt {
 	u8 frame_data[0];
 } __packed;
 
-enum qlink_frame_type {
-	QLINK_BSS_FTYPE_UNKNOWN,
-	QLINK_BSS_FTYPE_BEACON,
-	QLINK_BSS_FTYPE_PRESP,
-};
-
 /**
  * struct qlink_event_scan_result - data for QLINK_EVENT_SCAN_RESULTS event
  *
@@ -689,7 +890,6 @@ enum qlink_frame_type {
  * @capab: capabilities field.
  * @bintval: beacon interval announced by discovered BSS.
  * @signal: signal strength.
- * @frame_type: frame type used to get scan result, see &enum qlink_frame_type.
  * @bssid: BSSID announced by discovered BSS.
  * @ssid_len: length of SSID announced by BSS.
  * @ssid: SSID announced by discovered BSS.
@@ -702,10 +902,10 @@ struct qlink_event_scan_result {
 	__le16 capab;
 	__le16 bintval;
 	s8 signal;
-	u8 frame_type;
-	u8 bssid[ETH_ALEN];
 	u8 ssid_len;
 	u8 ssid[IEEE80211_MAX_SSID_LEN];
+	u8 bssid[ETH_ALEN];
+	u8 rsvd[2];
 	u8 payload[0];
 } __packed;
 
@@ -739,17 +939,17 @@ enum qlink_tlv_id {
 	QTN_TLV_ID_RTS_THRESH		= 0x0202,
 	QTN_TLV_ID_SRETRY_LIMIT		= 0x0203,
 	QTN_TLV_ID_LRETRY_LIMIT		= 0x0204,
-	QTN_TLV_ID_BCN_PERIOD		= 0x0205,
-	QTN_TLV_ID_DTIM			= 0x0206,
+	QTN_TLV_ID_REG_RULE		= 0x0207,
 	QTN_TLV_ID_CHANNEL		= 0x020F,
+	QTN_TLV_ID_CHANDEF		= 0x0210,
 	QTN_TLV_ID_COVERAGE_CLASS	= 0x0213,
 	QTN_TLV_ID_IFACE_LIMIT		= 0x0214,
 	QTN_TLV_ID_NUM_IFACE_COMB	= 0x0215,
+	QTN_TLV_ID_CHANNEL_STATS	= 0x0216,
 	QTN_TLV_ID_STA_BASIC_COUNTERS	= 0x0300,
 	QTN_TLV_ID_STA_GENERIC_INFO	= 0x0301,
 	QTN_TLV_ID_KEY			= 0x0302,
 	QTN_TLV_ID_SEQ			= 0x0303,
-	QTN_TLV_ID_CRYPTO		= 0x0304,
 	QTN_TLV_ID_IE_SET		= 0x0305,
 };
 
@@ -761,7 +961,7 @@ struct qlink_tlv_hdr {
 
 struct qlink_iface_limit {
 	__le16 max_num;
-	__le16 type_mask;
+	__le16 type;
 } __packed;
 
 struct qlink_iface_comb_num {
@@ -844,11 +1044,53 @@ struct qlink_tlv_cclass {
 	u8 cclass;
 } __packed;
 
-enum qlink_dfs_state {
-	QLINK_DFS_USABLE,
-	QLINK_DFS_UNAVAILABLE,
-	QLINK_DFS_AVAILABLE,
+/**
+ * enum qlink_reg_rule_flags - regulatory rule flags
+ *
+ * See description of &enum nl80211_reg_rule_flags
+ */
+enum qlink_reg_rule_flags {
+	QLINK_RRF_NO_OFDM	= BIT(0),
+	QLINK_RRF_NO_CCK	= BIT(1),
+	QLINK_RRF_NO_INDOOR	= BIT(2),
+	QLINK_RRF_NO_OUTDOOR	= BIT(3),
+	QLINK_RRF_DFS		= BIT(4),
+	QLINK_RRF_PTP_ONLY	= BIT(5),
+	QLINK_RRF_PTMP_ONLY	= BIT(6),
+	QLINK_RRF_NO_IR		= BIT(7),
+	QLINK_RRF_AUTO_BW	= BIT(8),
+	QLINK_RRF_IR_CONCURRENT	= BIT(9),
+	QLINK_RRF_NO_HT40MINUS	= BIT(10),
+	QLINK_RRF_NO_HT40PLUS	= BIT(11),
+	QLINK_RRF_NO_80MHZ	= BIT(12),
+	QLINK_RRF_NO_160MHZ	= BIT(13),
 };
+
+/**
+ * struct qlink_tlv_reg_rule - data for QTN_TLV_ID_REG_RULE TLV
+ *
+ * Regulatory rule description.
+ *
+ * @start_freq_khz: start frequency of the range the rule is attributed to.
+ * @end_freq_khz: end frequency of the range the rule is attributed to.
+ * @max_bandwidth_khz: max bandwidth that channels in specified range can be
+ *	configured to.
+ * @max_antenna_gain: max antenna gain that can be used in the specified
+ *	frequency range, dBi.
+ * @max_eirp: maximum EIRP.
+ * @flags: regulatory rule flags in &enum qlink_reg_rule_flags.
+ * @dfs_cac_ms: DFS CAC period.
+ */
+struct qlink_tlv_reg_rule {
+	struct qlink_tlv_hdr hdr;
+	__le32 start_freq_khz;
+	__le32 end_freq_khz;
+	__le32 max_bandwidth_khz;
+	__le32 max_antenna_gain;
+	__le32 max_eirp;
+	__le32 flags;
+	__le32 dfs_cac_ms;
+} __packed;
 
 enum qlink_channel_flags {
 	QLINK_CHAN_DISABLED		= BIT(0),
@@ -863,6 +1105,12 @@ enum qlink_channel_flags {
 	QLINK_CHAN_IR_CONCURRENT	= BIT(10),
 	QLINK_CHAN_NO_20MHZ		= BIT(11),
 	QLINK_CHAN_NO_10MHZ		= BIT(12),
+};
+
+enum qlink_dfs_state {
+	QLINK_DFS_USABLE,
+	QLINK_DFS_UNAVAILABLE,
+	QLINK_DFS_AVAILABLE,
 };
 
 struct qlink_tlv_channel {
@@ -880,22 +1128,52 @@ struct qlink_tlv_channel {
 	u8 rsvd[2];
 } __packed;
 
-#define QLINK_MAX_NR_CIPHER_SUITES            5
-#define QLINK_MAX_NR_AKM_SUITES               2
+/**
+ * struct qlink_tlv_chandef - data for QTN_TLV_ID_CHANDEF TLV
+ *
+ * Channel definition.
+ *
+ * @chan: channel definition data.
+ */
+struct qlink_tlv_chandef {
+	struct qlink_tlv_hdr hdr;
+	struct qlink_chandef chan;
+} __packed;
 
-struct qlink_auth_encr {
-	__le32 wpa_versions;
-	__le32 cipher_group;
-	__le32 n_ciphers_pairwise;
-	__le32 ciphers_pairwise[QLINK_MAX_NR_CIPHER_SUITES];
-	__le32 n_akm_suites;
-	__le32 akm_suites[QLINK_MAX_NR_AKM_SUITES];
-	__le16 control_port_ethertype;
-	u8 auth_type;
-	u8 privacy;
-	u8 mfp;
-	u8 control_port;
-	u8 control_port_no_encrypt;
+enum qlink_ie_set_type {
+	QLINK_IE_SET_UNKNOWN,
+	QLINK_IE_SET_ASSOC_REQ,
+	QLINK_IE_SET_ASSOC_RESP,
+	QLINK_IE_SET_PROBE_REQ,
+	QLINK_IE_SET_SCAN,
+	QLINK_IE_SET_BEACON_HEAD,
+	QLINK_IE_SET_BEACON_TAIL,
+	QLINK_IE_SET_BEACON_IES,
+	QLINK_IE_SET_PROBE_RESP,
+	QLINK_IE_SET_PROBE_RESP_IES,
+};
+
+/**
+ * struct qlink_tlv_ie_set - data for QTN_TLV_ID_IE_SET
+ *
+ * @type: type of MGMT frame IEs belong to, one of &enum qlink_ie_set_type.
+ * @flags: for future use.
+ * @ie_data: IEs data.
+ */
+struct qlink_tlv_ie_set {
+	struct qlink_tlv_hdr hdr;
+	u8 type;
+	u8 flags;
+	u8 ie_data[0];
+} __packed;
+
+struct qlink_chan_stats {
+	__le32 chan_num;
+	__le32 cca_tx;
+	__le32 cca_rx;
+	__le32 cca_busy;
+	__le32 cca_try;
+	s8 chan_noise;
 } __packed;
 
 #endif /* _QTN_QLINK_H_ */

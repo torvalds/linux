@@ -1,7 +1,7 @@
 /*
  * AMD Cryptographic Coprocessor (CCP) driver
  *
- * Copyright (C) 2016 Advanced Micro Devices, Inc.
+ * Copyright (C) 2016,2017 Advanced Micro Devices, Inc.
  *
  * Author: Gary R Hook <gary.hook@amd.com>
  *
@@ -223,6 +223,7 @@ static struct ccp_dma_desc *ccp_handle_active_desc(struct ccp_dma_chan *chan,
 				desc->tx_desc.cookie, desc->status);
 
 			dma_cookie_complete(tx_desc);
+			dma_descriptor_unmap(tx_desc);
 		}
 
 		desc = __ccp_next_dma_desc(chan, desc);
@@ -230,9 +231,7 @@ static struct ccp_dma_desc *ccp_handle_active_desc(struct ccp_dma_chan *chan,
 		spin_unlock_irqrestore(&chan->lock, flags);
 
 		if (tx_desc) {
-			if (tx_desc->callback &&
-			    (tx_desc->flags & DMA_PREP_INTERRUPT))
-				tx_desc->callback(tx_desc->callback_param);
+			dmaengine_desc_get_callback_invoke(tx_desc, NULL);
 
 			dma_run_dependencies(tx_desc);
 		}
@@ -502,27 +501,6 @@ static struct dma_async_tx_descriptor *ccp_prep_dma_memcpy(
 	return &desc->tx_desc;
 }
 
-static struct dma_async_tx_descriptor *ccp_prep_dma_sg(
-	struct dma_chan *dma_chan, struct scatterlist *dst_sg,
-	unsigned int dst_nents, struct scatterlist *src_sg,
-	unsigned int src_nents, unsigned long flags)
-{
-	struct ccp_dma_chan *chan = container_of(dma_chan, struct ccp_dma_chan,
-						 dma_chan);
-	struct ccp_dma_desc *desc;
-
-	dev_dbg(chan->ccp->dev,
-		"%s - src=%p, src_nents=%u dst=%p, dst_nents=%u, flags=%#lx\n",
-		__func__, src_sg, src_nents, dst_sg, dst_nents, flags);
-
-	desc = ccp_create_desc(dma_chan, dst_sg, dst_nents, src_sg, src_nents,
-			       flags);
-	if (!desc)
-		return NULL;
-
-	return &desc->tx_desc;
-}
-
 static struct dma_async_tx_descriptor *ccp_prep_dma_interrupt(
 	struct dma_chan *dma_chan, unsigned long flags)
 {
@@ -704,7 +682,6 @@ int ccp_dmaengine_register(struct ccp_device *ccp)
 	dma_dev->directions = DMA_MEM_TO_MEM;
 	dma_dev->residue_granularity = DMA_RESIDUE_GRANULARITY_DESCRIPTOR;
 	dma_cap_set(DMA_MEMCPY, dma_dev->cap_mask);
-	dma_cap_set(DMA_SG, dma_dev->cap_mask);
 	dma_cap_set(DMA_INTERRUPT, dma_dev->cap_mask);
 
 	/* The DMA channels for this device can be set to public or private,
@@ -740,7 +717,6 @@ int ccp_dmaengine_register(struct ccp_device *ccp)
 
 	dma_dev->device_free_chan_resources = ccp_free_chan_resources;
 	dma_dev->device_prep_dma_memcpy = ccp_prep_dma_memcpy;
-	dma_dev->device_prep_dma_sg = ccp_prep_dma_sg;
 	dma_dev->device_prep_dma_interrupt = ccp_prep_dma_interrupt;
 	dma_dev->device_issue_pending = ccp_issue_pending;
 	dma_dev->device_tx_status = ccp_tx_status;

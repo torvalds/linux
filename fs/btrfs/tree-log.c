@@ -717,7 +717,7 @@ static noinline int replay_one_extent(struct btrfs_trans_handle *trans,
 			ret = btrfs_lookup_data_extent(fs_info, ins.objectid,
 						ins.offset);
 			if (ret == 0) {
-				ret = btrfs_inc_extent_ref(trans, fs_info,
+				ret = btrfs_inc_extent_ref(trans, root,
 						ins.objectid, ins.offset,
 						0, root->root_key.objectid,
 						key->objectid, offset);
@@ -1143,8 +1143,6 @@ again:
 				goto again;
 			}
 			kfree(victim_name);
-			if (ret)
-				return ret;
 next:
 			cur_offset += victim_name_len + sizeof(*extref);
 		}
@@ -2153,8 +2151,7 @@ process_leaf:
 			u32 this_len = sizeof(*di) + name_len + data_len;
 			char *name;
 
-			ret = verify_dir_item(fs_info, path->nodes[0],
-					      path->slots[0], di);
+			ret = verify_dir_item(fs_info, path->nodes[0], i, di);
 			if (ret) {
 				ret = -EIO;
 				goto out;
@@ -2702,34 +2699,36 @@ static void wait_log_commit(struct btrfs_root *root, int transid)
 	 * so we know that if ours is more than 2 older than the
 	 * current transaction, we're done
 	 */
-	do {
+	for (;;) {
 		prepare_to_wait(&root->log_commit_wait[index],
 				&wait, TASK_UNINTERRUPTIBLE);
+
+		if (!(root->log_transid_committed < transid &&
+		      atomic_read(&root->log_commit[index])))
+			break;
+
 		mutex_unlock(&root->log_mutex);
-
-		if (root->log_transid_committed < transid &&
-		    atomic_read(&root->log_commit[index]))
-			schedule();
-
-		finish_wait(&root->log_commit_wait[index], &wait);
+		schedule();
 		mutex_lock(&root->log_mutex);
-	} while (root->log_transid_committed < transid &&
-		 atomic_read(&root->log_commit[index]));
+	}
+	finish_wait(&root->log_commit_wait[index], &wait);
 }
 
 static void wait_for_writer(struct btrfs_root *root)
 {
 	DEFINE_WAIT(wait);
 
-	while (atomic_read(&root->log_writers)) {
-		prepare_to_wait(&root->log_writer_wait,
-				&wait, TASK_UNINTERRUPTIBLE);
+	for (;;) {
+		prepare_to_wait(&root->log_writer_wait, &wait,
+				TASK_UNINTERRUPTIBLE);
+		if (!atomic_read(&root->log_writers))
+			break;
+
 		mutex_unlock(&root->log_mutex);
-		if (atomic_read(&root->log_writers))
-			schedule();
-		finish_wait(&root->log_writer_wait, &wait);
+		schedule();
 		mutex_lock(&root->log_mutex);
 	}
+	finish_wait(&root->log_writer_wait, &wait);
 }
 
 static inline void btrfs_remove_log_ctx(struct btrfs_root *root,
@@ -3691,7 +3690,7 @@ static noinline int copy_items(struct btrfs_trans_handle *trans,
 
 		src_offset = btrfs_item_ptr_offset(src, start_slot + i);
 
-		if ((i == (nr - 1)))
+		if (i == nr - 1)
 			last_key = ins_keys[i];
 
 		if (ins_keys[i].type == BTRFS_INODE_ITEM_KEY) {
@@ -4184,6 +4183,7 @@ static int btrfs_log_changed_extents(struct btrfs_trans_handle *trans,
 	struct extent_map *em, *n;
 	struct list_head extents;
 	struct extent_map_tree *tree = &inode->extent_tree;
+	u64 logged_start, logged_end;
 	u64 test_gen;
 	int ret = 0;
 	int num = 0;
@@ -4193,10 +4193,11 @@ static int btrfs_log_changed_extents(struct btrfs_trans_handle *trans,
 	down_write(&inode->dio_sem);
 	write_lock(&tree->lock);
 	test_gen = root->fs_info->last_trans_committed;
+	logged_start = start;
+	logged_end = end;
 
 	list_for_each_entry_safe(em, n, &tree->modified_extents, list) {
 		list_del_init(&em->list);
-
 		/*
 		 * Just an arbitrary number, this can be really CPU intensive
 		 * once we start getting a lot of extents, and really once we
@@ -4211,6 +4212,12 @@ static int btrfs_log_changed_extents(struct btrfs_trans_handle *trans,
 
 		if (em->generation <= test_gen)
 			continue;
+
+		if (em->start < logged_start)
+			logged_start = em->start;
+		if ((em->start + em->len - 1) > logged_end)
+			logged_end = em->start + em->len - 1;
+
 		/* Need a ref to keep it from getting evicted from cache */
 		refcount_inc(&em->refs);
 		set_bit(EXTENT_FLAG_LOGGING, &em->flags);
@@ -4219,7 +4226,7 @@ static int btrfs_log_changed_extents(struct btrfs_trans_handle *trans,
 	}
 
 	list_sort(NULL, &extents, extent_cmp);
-	btrfs_get_logged_extents(inode, logged_list, start, end);
+	btrfs_get_logged_extents(inode, logged_list, logged_start, logged_end);
 	/*
 	 * Some ordered extents started by fsync might have completed
 	 * before we could collect them into the list logged_list, which
@@ -4451,7 +4458,10 @@ static int btrfs_log_trailing_hole(struct btrfs_trans_handle *trans,
 			len = btrfs_file_extent_inline_len(leaf,
 							   path->slots[0],
 							   extent);
-			ASSERT(len == i_size);
+			ASSERT(len == i_size ||
+			       (len == fs_info->sectorsize &&
+				btrfs_file_extent_compression(leaf, extent) !=
+				BTRFS_COMPRESS_NONE));
 			return 0;
 		}
 
@@ -4637,7 +4647,6 @@ static int btrfs_log_inode(struct btrfs_trans_handle *trans,
 	struct btrfs_key min_key;
 	struct btrfs_key max_key;
 	struct btrfs_root *log = root->log_root;
-	struct extent_buffer *src = NULL;
 	LIST_HEAD(logged_list);
 	u64 last_extent = 0;
 	int err = 0;
@@ -4880,7 +4889,6 @@ again:
 			goto next_slot;
 		}
 
-		src = path->nodes[0];
 		if (ins_nr && ins_start_slot + ins_nr == path->slots[0]) {
 			ins_nr++;
 			goto next_slot;

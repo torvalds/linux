@@ -645,6 +645,9 @@ static const struct regmap_range da9062_aa_readable_ranges[] = {
 		.range_min = DA9062AA_VLDO1_B,
 		.range_max = DA9062AA_VLDO4_B,
 	}, {
+		.range_min = DA9062AA_BBAT_CONT,
+		.range_max = DA9062AA_BBAT_CONT,
+	}, {
 		.range_min = DA9062AA_INTERFACE,
 		.range_max = DA9062AA_CONFIG_E,
 	}, {
@@ -720,6 +723,9 @@ static const struct regmap_range da9062_aa_writeable_ranges[] = {
 	}, {
 		.range_min = DA9062AA_VLDO1_B,
 		.range_max = DA9062AA_VLDO4_B,
+	}, {
+		.range_min = DA9062AA_BBAT_CONT,
+		.range_max = DA9062AA_BBAT_CONT,
 	}, {
 		.range_min = DA9062AA_GP_ID_0,
 		.range_max = DA9062AA_GP_ID_19,

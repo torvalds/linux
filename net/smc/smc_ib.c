@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *  Shared Memory Communications over RDMA (SMC-R) and RoCE
  *
@@ -13,6 +14,7 @@
 
 #include <linux/random.h>
 #include <linux/workqueue.h>
+#include <linux/scatterlist.h>
 #include <rdma/ib_verbs.h>
 
 #include "smc_pnet.h"
@@ -192,8 +194,7 @@ int smc_ib_create_protection_domain(struct smc_link *lnk)
 {
 	int rc;
 
-	lnk->roce_pd = ib_alloc_pd(lnk->smcibdev->ibdev,
-				   IB_PD_UNSAFE_GLOBAL_RKEY);
+	lnk->roce_pd = ib_alloc_pd(lnk->smcibdev->ibdev, 0);
 	rc = PTR_ERR_OR_ZERO(lnk->roce_pd);
 	if (IS_ERR(lnk->roce_pd))
 		lnk->roce_pd = NULL;
@@ -232,10 +233,10 @@ int smc_ib_create_queue_pair(struct smc_link *lnk)
 		.recv_cq = lnk->smcibdev->roce_cq_recv,
 		.srq = NULL,
 		.cap = {
-			.max_send_wr = SMC_WR_BUF_CNT,
 				/* include unsolicited rdma_writes as well,
 				 * there are max. 2 RDMA_WRITE per 1 WR_SEND
 				 */
+			.max_send_wr = SMC_WR_BUF_CNT * 3,
 			.max_recv_wr = SMC_WR_BUF_CNT * 3,
 			.max_send_sge = SMC_IB_MAX_SEND_SGE,
 			.max_recv_sge = 1,
@@ -254,56 +255,132 @@ int smc_ib_create_queue_pair(struct smc_link *lnk)
 	return rc;
 }
 
-/* map a new TX or RX buffer to DMA */
-int smc_ib_buf_map(struct smc_ib_device *smcibdev, int buf_size,
-		   struct smc_buf_desc *buf_slot,
-		   enum dma_data_direction data_direction)
+void smc_ib_put_memory_region(struct ib_mr *mr)
 {
-	int rc = 0;
-
-	if (buf_slot->dma_addr[SMC_SINGLE_LINK])
-		return rc; /* already mapped */
-	buf_slot->dma_addr[SMC_SINGLE_LINK] =
-		ib_dma_map_single(smcibdev->ibdev, buf_slot->cpu_addr,
-				  buf_size, data_direction);
-	if (ib_dma_mapping_error(smcibdev->ibdev,
-				 buf_slot->dma_addr[SMC_SINGLE_LINK]))
-		rc = -EIO;
-	return rc;
+	ib_dereg_mr(mr);
 }
 
-void smc_ib_buf_unmap(struct smc_ib_device *smcibdev, int buf_size,
+static int smc_ib_map_mr_sg(struct smc_buf_desc *buf_slot)
+{
+	unsigned int offset = 0;
+	int sg_num;
+
+	/* map the largest prefix of a dma mapped SG list */
+	sg_num = ib_map_mr_sg(buf_slot->mr_rx[SMC_SINGLE_LINK],
+			      buf_slot->sgt[SMC_SINGLE_LINK].sgl,
+			      buf_slot->sgt[SMC_SINGLE_LINK].orig_nents,
+			      &offset, PAGE_SIZE);
+
+	return sg_num;
+}
+
+/* Allocate a memory region and map the dma mapped SG list of buf_slot */
+int smc_ib_get_memory_region(struct ib_pd *pd, int access_flags,
+			     struct smc_buf_desc *buf_slot)
+{
+	if (buf_slot->mr_rx[SMC_SINGLE_LINK])
+		return 0; /* already done */
+
+	buf_slot->mr_rx[SMC_SINGLE_LINK] =
+		ib_alloc_mr(pd, IB_MR_TYPE_MEM_REG, 1 << buf_slot->order);
+	if (IS_ERR(buf_slot->mr_rx[SMC_SINGLE_LINK])) {
+		int rc;
+
+		rc = PTR_ERR(buf_slot->mr_rx[SMC_SINGLE_LINK]);
+		buf_slot->mr_rx[SMC_SINGLE_LINK] = NULL;
+		return rc;
+	}
+
+	if (smc_ib_map_mr_sg(buf_slot) != 1)
+		return -EINVAL;
+
+	return 0;
+}
+
+/* synchronize buffer usage for cpu access */
+void smc_ib_sync_sg_for_cpu(struct smc_ib_device *smcibdev,
+			    struct smc_buf_desc *buf_slot,
+			    enum dma_data_direction data_direction)
+{
+	struct scatterlist *sg;
+	unsigned int i;
+
+	/* for now there is just one DMA address */
+	for_each_sg(buf_slot->sgt[SMC_SINGLE_LINK].sgl, sg,
+		    buf_slot->sgt[SMC_SINGLE_LINK].nents, i) {
+		if (!sg_dma_len(sg))
+			break;
+		ib_dma_sync_single_for_cpu(smcibdev->ibdev,
+					   sg_dma_address(sg),
+					   sg_dma_len(sg),
+					   data_direction);
+	}
+}
+
+/* synchronize buffer usage for device access */
+void smc_ib_sync_sg_for_device(struct smc_ib_device *smcibdev,
+			       struct smc_buf_desc *buf_slot,
+			       enum dma_data_direction data_direction)
+{
+	struct scatterlist *sg;
+	unsigned int i;
+
+	/* for now there is just one DMA address */
+	for_each_sg(buf_slot->sgt[SMC_SINGLE_LINK].sgl, sg,
+		    buf_slot->sgt[SMC_SINGLE_LINK].nents, i) {
+		if (!sg_dma_len(sg))
+			break;
+		ib_dma_sync_single_for_device(smcibdev->ibdev,
+					      sg_dma_address(sg),
+					      sg_dma_len(sg),
+					      data_direction);
+	}
+}
+
+/* Map a new TX or RX buffer SG-table to DMA */
+int smc_ib_buf_map_sg(struct smc_ib_device *smcibdev,
 		      struct smc_buf_desc *buf_slot,
 		      enum dma_data_direction data_direction)
 {
-	if (!buf_slot->dma_addr[SMC_SINGLE_LINK])
+	int mapped_nents;
+
+	mapped_nents = ib_dma_map_sg(smcibdev->ibdev,
+				     buf_slot->sgt[SMC_SINGLE_LINK].sgl,
+				     buf_slot->sgt[SMC_SINGLE_LINK].orig_nents,
+				     data_direction);
+	if (!mapped_nents)
+		return -ENOMEM;
+
+	return mapped_nents;
+}
+
+void smc_ib_buf_unmap_sg(struct smc_ib_device *smcibdev,
+			 struct smc_buf_desc *buf_slot,
+			 enum dma_data_direction data_direction)
+{
+	if (!buf_slot->sgt[SMC_SINGLE_LINK].sgl->dma_address)
 		return; /* already unmapped */
-	ib_dma_unmap_single(smcibdev->ibdev, *buf_slot->dma_addr, buf_size,
-			    data_direction);
-	buf_slot->dma_addr[SMC_SINGLE_LINK] = 0;
+
+	ib_dma_unmap_sg(smcibdev->ibdev,
+			buf_slot->sgt[SMC_SINGLE_LINK].sgl,
+			buf_slot->sgt[SMC_SINGLE_LINK].orig_nents,
+			data_direction);
+	buf_slot->sgt[SMC_SINGLE_LINK].sgl->dma_address = 0;
 }
 
 static int smc_ib_fill_gid_and_mac(struct smc_ib_device *smcibdev, u8 ibport)
 {
-	struct net_device *ndev;
+	struct ib_gid_attr gattr;
 	int rc;
 
 	rc = ib_query_gid(smcibdev->ibdev, ibport, 0,
-			  &smcibdev->gid[ibport - 1], NULL);
-	/* the SMC protocol requires specification of the roce MAC address;
-	 * if net_device cannot be determined, it can be derived from gid 0
-	 */
-	ndev = smcibdev->ibdev->get_netdev(smcibdev->ibdev, ibport);
-	if (ndev) {
-		memcpy(&smcibdev->mac, ndev->dev_addr, ETH_ALEN);
-	} else if (!rc) {
-		memcpy(&smcibdev->mac[ibport - 1][0],
-		       &smcibdev->gid[ibport - 1].raw[8], 3);
-		memcpy(&smcibdev->mac[ibport - 1][3],
-		       &smcibdev->gid[ibport - 1].raw[13], 3);
-		smcibdev->mac[ibport - 1][0] &= ~0x02;
-	}
-	return rc;
+			  &smcibdev->gid[ibport - 1], &gattr);
+	if (rc || !gattr.ndev)
+		return -ENODEV;
+
+	memcpy(smcibdev->mac[ibport - 1], gattr.ndev->dev_addr, ETH_ALEN);
+	dev_put(gattr.ndev);
+	return 0;
 }
 
 /* Create an identifier unique for this instance of SMC-R.
@@ -334,6 +411,7 @@ int smc_ib_remember_port_attr(struct smc_ib_device *smcibdev, u8 ibport)
 			   &smcibdev->pattr[ibport - 1]);
 	if (rc)
 		goto out;
+	/* the SMC protocol requires specification of the RoCE MAC address */
 	rc = smc_ib_fill_gid_and_mac(smcibdev, ibport);
 	if (rc)
 		goto out;

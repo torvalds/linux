@@ -156,10 +156,8 @@ static struct clk * __init cpg_mstp_clock_register(const char *name,
 	struct clk *clk;
 
 	clock = kzalloc(sizeof(*clock), GFP_KERNEL);
-	if (!clock) {
-		pr_err("%s: failed to allocate MSTP clock.\n", __func__);
+	if (!clock)
 		return ERR_PTR(-ENOMEM);
-	}
 
 	init.name = name;
 	init.ops = &cpg_mstp_clock_ops;
@@ -196,7 +194,6 @@ static void __init cpg_mstp_clocks_init(struct device_node *np)
 	if (group == NULL || clks == NULL) {
 		kfree(group);
 		kfree(clks);
-		pr_err("%s: failed to allocate group\n", __func__);
 		return;
 	}
 
@@ -335,7 +332,7 @@ void __init cpg_mstp_add_clk_domain(struct device_node *np)
 	u32 ncells;
 
 	if (of_property_read_u32(np, "#power-domain-cells", &ncells)) {
-		pr_warn("%s lacks #power-domain-cells\n", np->full_name);
+		pr_warn("%pOF lacks #power-domain-cells\n", np);
 		return;
 	}
 

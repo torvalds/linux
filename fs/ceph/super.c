@@ -49,9 +49,16 @@ static int ceph_statfs(struct dentry *dentry, struct kstatfs *buf)
 	struct ceph_statfs st;
 	u64 fsid;
 	int err;
+	u64 data_pool;
+
+	if (fsc->mdsc->mdsmap->m_num_data_pg_pools == 1) {
+		data_pool = fsc->mdsc->mdsmap->m_data_pg_pools[0];
+	} else {
+		data_pool = CEPH_NOPOOL;
+	}
 
 	dout("statfs\n");
-	err = ceph_monc_do_statfs(&fsc->client->monc, &st);
+	err = ceph_monc_do_statfs(&fsc->client->monc, data_pool, &st);
 	if (err < 0)
 		return err;
 
@@ -77,8 +84,9 @@ static int ceph_statfs(struct dentry *dentry, struct kstatfs *buf)
 	buf->f_ffree = -1;
 	buf->f_namelen = NAME_MAX;
 
-	/* leave fsid little-endian, regardless of host endianness */
-	fsid = *(u64 *)(&monmap->fsid) ^ *((u64 *)&monmap->fsid + 1);
+	/* Must convert the fsid, for consistent values across arches */
+	fsid = le64_to_cpu(*(__le64 *)(&monmap->fsid)) ^
+	       le64_to_cpu(*((__le64 *)&monmap->fsid + 1));
 	buf->f_fsid.val[0] = fsid & 0xffffffff;
 	buf->f_fsid.val[1] = fsid >> 32;
 
@@ -113,7 +121,6 @@ enum {
 	Opt_rasize,
 	Opt_caps_wanted_delay_min,
 	Opt_caps_wanted_delay_max,
-	Opt_cap_release_safety,
 	Opt_readdir_max_entries,
 	Opt_readdir_max_bytes,
 	Opt_congestion_kb,
@@ -152,7 +159,6 @@ static match_table_t fsopt_tokens = {
 	{Opt_rasize, "rasize=%d"},
 	{Opt_caps_wanted_delay_min, "caps_wanted_delay_min=%d"},
 	{Opt_caps_wanted_delay_max, "caps_wanted_delay_max=%d"},
-	{Opt_cap_release_safety, "cap_release_safety=%d"},
 	{Opt_readdir_max_entries, "readdir_max_entries=%d"},
 	{Opt_readdir_max_bytes, "readdir_max_bytes=%d"},
 	{Opt_congestion_kb, "write_congestion_kb=%d"},
@@ -235,27 +241,43 @@ static int parse_fsopt_token(char *c, void *private)
 		break;
 		/* misc */
 	case Opt_wsize:
-		fsopt->wsize = intval;
+		if (intval < PAGE_SIZE || intval > CEPH_MAX_WRITE_SIZE)
+			return -EINVAL;
+		fsopt->wsize = ALIGN(intval, PAGE_SIZE);
 		break;
 	case Opt_rsize:
-		fsopt->rsize = intval;
+		if (intval < PAGE_SIZE || intval > CEPH_MAX_READ_SIZE)
+			return -EINVAL;
+		fsopt->rsize = ALIGN(intval, PAGE_SIZE);
 		break;
 	case Opt_rasize:
-		fsopt->rasize = intval;
+		if (intval < 0)
+			return -EINVAL;
+		fsopt->rasize = ALIGN(intval + PAGE_SIZE - 1, PAGE_SIZE);
 		break;
 	case Opt_caps_wanted_delay_min:
+		if (intval < 1)
+			return -EINVAL;
 		fsopt->caps_wanted_delay_min = intval;
 		break;
 	case Opt_caps_wanted_delay_max:
+		if (intval < 1)
+			return -EINVAL;
 		fsopt->caps_wanted_delay_max = intval;
 		break;
 	case Opt_readdir_max_entries:
+		if (intval < 1)
+			return -EINVAL;
 		fsopt->max_readdir = intval;
 		break;
 	case Opt_readdir_max_bytes:
+		if (intval < PAGE_SIZE && intval != 0)
+			return -EINVAL;
 		fsopt->max_readdir_bytes = intval;
 		break;
 	case Opt_congestion_kb:
+		if (intval < 1024) /* at least 1M */
+			return -EINVAL;
 		fsopt->congestion_kb = intval;
 		break;
 	case Opt_dirstat:
@@ -392,7 +414,8 @@ static int parse_mount_options(struct ceph_mount_options **pfsopt,
 	fsopt->sb_flags = flags;
 	fsopt->flags = CEPH_MOUNT_OPT_DEFAULT;
 
-	fsopt->rsize = CEPH_RSIZE_DEFAULT;
+	fsopt->wsize = CEPH_MAX_WRITE_SIZE;
+	fsopt->rsize = CEPH_MAX_READ_SIZE;
 	fsopt->rasize = CEPH_RASIZE_DEFAULT;
 	fsopt->snapdir_name = kstrdup(CEPH_SNAPDIRNAME_DEFAULT, GFP_KERNEL);
 	if (!fsopt->snapdir_name) {
@@ -402,7 +425,6 @@ static int parse_mount_options(struct ceph_mount_options **pfsopt,
 
 	fsopt->caps_wanted_delay_min = CEPH_CAPS_WANTED_DELAY_MIN_DEFAULT;
 	fsopt->caps_wanted_delay_max = CEPH_CAPS_WANTED_DELAY_MAX_DEFAULT;
-	fsopt->cap_release_safety = CEPH_CAP_RELEASE_SAFETY_DEFAULT;
 	fsopt->max_readdir = CEPH_MAX_READDIR_DEFAULT;
 	fsopt->max_readdir_bytes = CEPH_MAX_READDIR_BYTES_DEFAULT;
 	fsopt->congestion_kb = default_congestion_kb();
@@ -508,7 +530,7 @@ static int ceph_show_options(struct seq_file *m, struct dentry *root)
 		seq_printf(m, ",mds_namespace=%s", fsopt->mds_namespace);
 	if (fsopt->wsize)
 		seq_printf(m, ",wsize=%d", fsopt->wsize);
-	if (fsopt->rsize != CEPH_RSIZE_DEFAULT)
+	if (fsopt->rsize != CEPH_MAX_READ_SIZE)
 		seq_printf(m, ",rsize=%d", fsopt->rsize);
 	if (fsopt->rasize != CEPH_RASIZE_DEFAULT)
 		seq_printf(m, ",rasize=%d", fsopt->rasize);
@@ -520,9 +542,6 @@ static int ceph_show_options(struct seq_file *m, struct dentry *root)
 	if (fsopt->caps_wanted_delay_max != CEPH_CAPS_WANTED_DELAY_MAX_DEFAULT)
 		seq_printf(m, ",caps_wanted_delay_max=%d",
 			   fsopt->caps_wanted_delay_max);
-	if (fsopt->cap_release_safety != CEPH_CAP_RELEASE_SAFETY_DEFAULT)
-		seq_printf(m, ",cap_release_safety=%d",
-			   fsopt->cap_release_safety);
 	if (fsopt->max_readdir != CEPH_MAX_READDIR_DEFAULT)
 		seq_printf(m, ",readdir_max_entries=%d", fsopt->max_readdir);
 	if (fsopt->max_readdir_bytes != CEPH_MAX_READDIR_BYTES_DEFAULT)
@@ -576,7 +595,7 @@ static struct ceph_fs_client *create_fs_client(struct ceph_mount_options *fsopt,
 	}
 	fsc->client->extra_mon_dispatch = extra_mon_dispatch;
 
-	if (fsopt->mds_namespace == NULL) {
+	if (!fsopt->mds_namespace) {
 		ceph_monc_want_map(&fsc->client->monc, CEPH_SUB_MDSMAP,
 				   0, true);
 	} else {
@@ -597,13 +616,13 @@ static struct ceph_fs_client *create_fs_client(struct ceph_mount_options *fsopt,
 	 * to be processed in parallel, limit concurrency.
 	 */
 	fsc->wb_wq = alloc_workqueue("ceph-writeback", 0, 1);
-	if (fsc->wb_wq == NULL)
+	if (!fsc->wb_wq)
 		goto fail_client;
 	fsc->pg_inv_wq = alloc_workqueue("ceph-pg-invalid", 0, 1);
-	if (fsc->pg_inv_wq == NULL)
+	if (!fsc->pg_inv_wq)
 		goto fail_wb_wq;
 	fsc->trunc_wq = alloc_workqueue("ceph-trunc", 0, 1);
-	if (fsc->trunc_wq == NULL)
+	if (!fsc->trunc_wq)
 		goto fail_pg_inv_wq;
 
 	/* set up mempools */
@@ -674,26 +693,26 @@ static int __init init_caches(void)
 				      __alignof__(struct ceph_inode_info),
 				      SLAB_RECLAIM_ACCOUNT|SLAB_MEM_SPREAD|
 				      SLAB_ACCOUNT, ceph_inode_init_once);
-	if (ceph_inode_cachep == NULL)
+	if (!ceph_inode_cachep)
 		return -ENOMEM;
 
 	ceph_cap_cachep = KMEM_CACHE(ceph_cap,
 				     SLAB_RECLAIM_ACCOUNT|SLAB_MEM_SPREAD);
-	if (ceph_cap_cachep == NULL)
+	if (!ceph_cap_cachep)
 		goto bad_cap;
 	ceph_cap_flush_cachep = KMEM_CACHE(ceph_cap_flush,
 					   SLAB_RECLAIM_ACCOUNT|SLAB_MEM_SPREAD);
-	if (ceph_cap_flush_cachep == NULL)
+	if (!ceph_cap_flush_cachep)
 		goto bad_cap_flush;
 
 	ceph_dentry_cachep = KMEM_CACHE(ceph_dentry_info,
 					SLAB_RECLAIM_ACCOUNT|SLAB_MEM_SPREAD);
-	if (ceph_dentry_cachep == NULL)
+	if (!ceph_dentry_cachep)
 		goto bad_dentry;
 
 	ceph_file_cachep = KMEM_CACHE(ceph_file_info, SLAB_MEM_SPREAD);
 
-	if (ceph_file_cachep == NULL)
+	if (!ceph_file_cachep)
 		goto bad_file;
 
 	if ((error = ceph_fscache_register()))
@@ -947,20 +966,10 @@ static int ceph_setup_bdi(struct super_block *sb, struct ceph_fs_client *fsc)
 		return err;
 
 	/* set ra_pages based on rasize mount option? */
-	if (fsc->mount_options->rasize >= PAGE_SIZE)
-		sb->s_bdi->ra_pages =
-			(fsc->mount_options->rasize + PAGE_SIZE - 1)
-			>> PAGE_SHIFT;
-	else
-		sb->s_bdi->ra_pages = VM_MAX_READAHEAD * 1024 / PAGE_SIZE;
+	sb->s_bdi->ra_pages = fsc->mount_options->rasize >> PAGE_SHIFT;
 
-	if (fsc->mount_options->rsize > fsc->mount_options->rasize &&
-	    fsc->mount_options->rsize >= PAGE_SIZE)
-		sb->s_bdi->io_pages =
-			(fsc->mount_options->rsize + PAGE_SIZE - 1)
-			>> PAGE_SHIFT;
-	else if (fsc->mount_options->rsize == 0)
-		sb->s_bdi->io_pages = ULONG_MAX;
+	/* set io_pages based on max osd read size */
+	sb->s_bdi->io_pages = fsc->mount_options->rsize >> PAGE_SHIFT;
 
 	return 0;
 }

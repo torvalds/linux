@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * sleep.c - x86-specific ACPI sleep support.
  *

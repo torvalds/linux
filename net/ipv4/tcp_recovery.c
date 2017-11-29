@@ -1,7 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/tcp.h>
 #include <net/tcp.h>
-
-int sysctl_tcp_recovery __read_mostly = TCP_RACK_LOSS_DETECTION;
 
 static void tcp_rack_mark_skb_lost(struct sock *sk, struct sk_buff *skb)
 {
@@ -45,7 +44,8 @@ static bool tcp_rack_sent_after(u64 t1, u64 t2, u32 seq1, u32 seq2)
 static void tcp_rack_detect_loss(struct sock *sk, u32 *reo_timeout)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
-	struct sk_buff *skb;
+	u32 min_rtt = tcp_min_rtt(tp);
+	struct sk_buff *skb, *n;
 	u32 reo_wnd;
 
 	*reo_timeout = 0;
@@ -55,48 +55,36 @@ static void tcp_rack_detect_loss(struct sock *sk, u32 *reo_timeout)
 	 * to queuing or delayed ACKs.
 	 */
 	reo_wnd = 1000;
-	if ((tp->rack.reord || !tp->lost_out) && tcp_min_rtt(tp) != ~0U)
-		reo_wnd = max(tcp_min_rtt(tp) >> 2, reo_wnd);
+	if ((tp->rack.reord || !tp->lost_out) && min_rtt != ~0U) {
+		reo_wnd = max((min_rtt >> 2) * tp->rack.reo_wnd_steps, reo_wnd);
+		reo_wnd = min(reo_wnd, tp->srtt_us >> 3);
+	}
 
-	tcp_for_write_queue(skb, sk) {
+	list_for_each_entry_safe(skb, n, &tp->tsorted_sent_queue,
+				 tcp_tsorted_anchor) {
 		struct tcp_skb_cb *scb = TCP_SKB_CB(skb);
+		s32 remaining;
 
-		if (skb == tcp_send_head(sk))
-			break;
-
-		/* Skip ones already (s)acked */
-		if (!after(scb->end_seq, tp->snd_una) ||
-		    scb->sacked & TCPCB_SACKED_ACKED)
+		/* Skip ones marked lost but not yet retransmitted */
+		if ((scb->sacked & TCPCB_LOST) &&
+		    !(scb->sacked & TCPCB_SACKED_RETRANS))
 			continue;
 
-		if (tcp_rack_sent_after(tp->rack.mstamp, skb->skb_mstamp,
-					tp->rack.end_seq, scb->end_seq)) {
-			/* Step 3 in draft-cheng-tcpm-rack-00.txt:
-			 * A packet is lost if its elapsed time is beyond
-			 * the recent RTT plus the reordering window.
-			 */
-			u32 elapsed = tcp_stamp_us_delta(tp->tcp_mstamp,
-							 skb->skb_mstamp);
-			s32 remaining = tp->rack.rtt_us + reo_wnd - elapsed;
+		if (!tcp_rack_sent_after(tp->rack.mstamp, skb->skb_mstamp,
+					 tp->rack.end_seq, scb->end_seq))
+			break;
 
-			if (remaining < 0) {
-				tcp_rack_mark_skb_lost(sk, skb);
-				continue;
-			}
-
-			/* Skip ones marked lost but not yet retransmitted */
-			if ((scb->sacked & TCPCB_LOST) &&
-			    !(scb->sacked & TCPCB_SACKED_RETRANS))
-				continue;
-
+		/* A packet is lost if it has not been s/acked beyond
+		 * the recent RTT plus the reordering window.
+		 */
+		remaining = tp->rack.rtt_us + reo_wnd -
+			    tcp_stamp_us_delta(tp->tcp_mstamp, skb->skb_mstamp);
+		if (remaining < 0) {
+			tcp_rack_mark_skb_lost(sk, skb);
+			list_del_init(&skb->tcp_tsorted_anchor);
+		} else {
 			/* Record maximum wait time (+1 to avoid 0) */
 			*reo_timeout = max_t(u32, *reo_timeout, 1 + remaining);
-
-		} else if (!(scb->sacked & TCPCB_RETRANS)) {
-			/* Original data are sent sequentially so stop early
-			 * b/c the rest are all sent after rack_sent
-			 */
-			break;
 		}
 	}
 }
@@ -113,7 +101,7 @@ void tcp_rack_mark_lost(struct sock *sk)
 	tp->rack.advanced = 0;
 	tcp_rack_detect_loss(sk, &timeout);
 	if (timeout) {
-		timeout = usecs_to_jiffies(timeout + TCP_REO_TIMEOUT_MIN);
+		timeout = usecs_to_jiffies(timeout) + TCP_TIMEOUT_MIN;
 		inet_csk_reset_xmit_timer(sk, ICSK_TIME_REO_TIMEOUT,
 					  timeout, inet_csk(sk)->icsk_rto);
 	}
@@ -174,4 +162,45 @@ void tcp_rack_reo_timeout(struct sock *sk)
 	}
 	if (inet_csk(sk)->icsk_pending != ICSK_TIME_RETRANS)
 		tcp_rearm_rto(sk);
+}
+
+/* Updates the RACK's reo_wnd based on DSACK and no. of recoveries.
+ *
+ * If DSACK is received, increment reo_wnd by min_rtt/4 (upper bounded
+ * by srtt), since there is possibility that spurious retransmission was
+ * due to reordering delay longer than reo_wnd.
+ *
+ * Persist the current reo_wnd value for TCP_RACK_RECOVERY_THRESH (16)
+ * no. of successful recoveries (accounts for full DSACK-based loss
+ * recovery undo). After that, reset it to default (min_rtt/4).
+ *
+ * At max, reo_wnd is incremented only once per rtt. So that the new
+ * DSACK on which we are reacting, is due to the spurious retx (approx)
+ * after the reo_wnd has been updated last time.
+ *
+ * reo_wnd is tracked in terms of steps (of min_rtt/4), rather than
+ * absolute value to account for change in rtt.
+ */
+void tcp_rack_update_reo_wnd(struct sock *sk, struct rate_sample *rs)
+{
+	struct tcp_sock *tp = tcp_sk(sk);
+
+	if (sock_net(sk)->ipv4.sysctl_tcp_recovery & TCP_RACK_STATIC_REO_WND ||
+	    !rs->prior_delivered)
+		return;
+
+	/* Disregard DSACK if a rtt has not passed since we adjusted reo_wnd */
+	if (before(rs->prior_delivered, tp->rack.last_delivered))
+		tp->rack.dsack_seen = 0;
+
+	/* Adjust the reo_wnd if update is pending */
+	if (tp->rack.dsack_seen) {
+		tp->rack.reo_wnd_steps = min_t(u32, 0xFF,
+					       tp->rack.reo_wnd_steps + 1);
+		tp->rack.dsack_seen = 0;
+		tp->rack.last_delivered = tp->delivered;
+		tp->rack.reo_wnd_persist = TCP_RACK_RECOVERY_THRESH;
+	} else if (!tp->rack.reo_wnd_persist) {
+		tp->rack.reo_wnd_steps = 1;
+	}
 }

@@ -83,6 +83,11 @@ Groups:
 
     Bits for undefined preemption levels are RAZ/WI.
 
+    Note that this differs from a CPU's view of the APRs on hardware in which
+    a GIC without the security extensions expose group 0 and group 1 active
+    priorities in separate register groups, whereas we show a combined view
+    similar to GICv2's GICH_APR.
+
     For historical reasons and to provide ABI compatibility with userspace we
     export the GICC_PMR register in the format of the GICH_VMCR.VMPriMask
     field in the lower 5 bits of a word, meaning that userspace must always

@@ -55,17 +55,18 @@
 #include <asm/mmu_context.h>
 #include <asm/cpcmd.h>
 #include <asm/lowcore.h>
+#include <asm/nmi.h>
 #include <asm/irq.h>
 #include <asm/page.h>
 #include <asm/ptrace.h>
 #include <asm/sections.h>
 #include <asm/ebcdic.h>
-#include <asm/kvm_virtio.h>
 #include <asm/diag.h>
 #include <asm/os_info.h>
 #include <asm/sclp.h>
 #include <asm/sysinfo.h>
 #include <asm/numa.h>
+#include <asm/alternative.h>
 #include "entry.h"
 
 /*
@@ -305,7 +306,7 @@ static void __init setup_lowcore(void)
 	/*
 	 * Setup lowcore for boot cpu
 	 */
-	BUILD_BUG_ON(sizeof(struct lowcore) != LC_PAGES * 4096);
+	BUILD_BUG_ON(sizeof(struct lowcore) != LC_PAGES * PAGE_SIZE);
 	lc = memblock_virt_alloc_low(sizeof(*lc), sizeof(*lc));
 	lc->restart_psw.mask = PSW_KERNEL_BITS;
 	lc->restart_psw.addr = (unsigned long) restart_int_handler;
@@ -323,7 +324,7 @@ static void __init setup_lowcore(void)
 	lc->io_new_psw.mask = PSW_KERNEL_BITS |
 		PSW_MASK_DAT | PSW_MASK_MCHECK;
 	lc->io_new_psw.addr = (unsigned long) io_int_handler;
-	lc->clock_comparator = -1ULL;
+	lc->clock_comparator = clock_comparator_max;
 	lc->kernel_stack = ((unsigned long) &init_thread_union)
 		+ THREAD_SIZE - STACK_FRAME_OVERHEAD - sizeof(struct pt_regs);
 	lc->async_stack = (unsigned long)
@@ -339,16 +340,8 @@ static void __init setup_lowcore(void)
 	lc->stfl_fac_list = S390_lowcore.stfl_fac_list;
 	memcpy(lc->stfle_fac_list, S390_lowcore.stfle_fac_list,
 	       MAX_FACILITY_BIT/8);
-	if (MACHINE_HAS_VX || MACHINE_HAS_GS) {
-		unsigned long bits, size;
-
-		bits = MACHINE_HAS_GS ? 11 : 10;
-		size = 1UL << bits;
-		lc->mcesad = (__u64) memblock_virt_alloc(size, size);
-		if (MACHINE_HAS_GS)
-			lc->mcesad |= bits;
-	}
-	lc->vdso_per_cpu_data = (unsigned long) &lc->paste[0];
+	nmi_alloc_boot_cpu(lc);
+	vdso_alloc_boot_cpu(lc);
 	lc->sync_enter_timer = S390_lowcore.sync_enter_timer;
 	lc->async_enter_timer = S390_lowcore.async_enter_timer;
 	lc->exit_timer = S390_lowcore.exit_timer;
@@ -380,6 +373,8 @@ static void __init setup_lowcore(void)
 
 #ifdef CONFIG_SMP
 	lc->spinlock_lockval = arch_spin_lockval(0);
+	lc->spinlock_index = 0;
+	arch_spin_lock_setup(0);
 #endif
 
 	set_prefix((u32)(unsigned long) lc);
@@ -469,10 +464,10 @@ static void __init setup_memory_end(void)
 	vmalloc_size = VMALLOC_END ?: (128UL << 30) - MODULES_LEN;
 	tmp = (memory_end ?: max_physmem_end) / PAGE_SIZE;
 	tmp = tmp * (sizeof(struct page) + PAGE_SIZE);
-	if (tmp + vmalloc_size + MODULES_LEN <= (1UL << 42))
-		vmax = 1UL << 42;	/* 3-level kernel page table */
+	if (tmp + vmalloc_size + MODULES_LEN <= _REGION2_SIZE)
+		vmax = _REGION2_SIZE; /* 3-level kernel page table */
 	else
-		vmax = 1UL << 53;	/* 4-level kernel page table */
+		vmax = _REGION1_SIZE; /* 4-level kernel page table */
 	/* module area is at the end of the kernel address space. */
 	MODULES_END = vmax;
 	MODULES_VADDR = MODULES_END - MODULES_LEN;
@@ -764,7 +759,7 @@ static int __init setup_hwcaps(void)
 	/*
 	 * Transactional execution support HWCAP_S390_TE is bit 10.
 	 */
-	if (test_facility(50) && test_facility(73))
+	if (MACHINE_HAS_TE)
 		elf_hwcap |= HWCAP_S390_TE;
 
 	/*
@@ -817,6 +812,9 @@ static int __init setup_hwcaps(void)
 	case 0x2964:
 	case 0x2965:
 		strcpy(elf_platform, "z13");
+		break;
+	case 0x3906:
+		strcpy(elf_platform, "z14");
 		break;
 	}
 
@@ -922,6 +920,7 @@ void __init setup_arch(char **cmdline_p)
 	setup_memory_end();
 	setup_memory();
 	dma_contiguous_reserve(memory_end);
+	vmcp_cma_reserve();
 
 	check_initrd();
 	reserve_crashkernel();
@@ -950,6 +949,8 @@ void __init setup_arch(char **cmdline_p)
         /* Setup default console */
 	conmode_default();
 	set_preferred_console();
+
+	apply_alternative_instructions();
 
 	/* Setup zfcpdump support */
 	setup_zfcpdump();

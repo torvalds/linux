@@ -366,6 +366,20 @@ struct xilinx_dma_chan {
 	u16 tdest;
 };
 
+/**
+ * enum xdma_ip_type: DMA IP type.
+ *
+ * XDMA_TYPE_AXIDMA: Axi dma ip.
+ * XDMA_TYPE_CDMA: Axi cdma ip.
+ * XDMA_TYPE_VDMA: Axi vdma ip.
+ *
+ */
+enum xdma_ip_type {
+	XDMA_TYPE_AXIDMA = 0,
+	XDMA_TYPE_CDMA,
+	XDMA_TYPE_VDMA,
+};
+
 struct xilinx_dma_config {
 	enum xdma_ip_type dmatype;
 	int (*clk_init)(struct platform_device *pdev, struct clk **axi_clk,
@@ -2124,7 +2138,7 @@ static int axidma_clk_init(struct platform_device *pdev, struct clk **axi_clk,
 	*axi_clk = devm_clk_get(&pdev->dev, "s_axi_lite_aclk");
 	if (IS_ERR(*axi_clk)) {
 		err = PTR_ERR(*axi_clk);
-		dev_err(&pdev->dev, "failed to get axi_aclk (%u)\n", err);
+		dev_err(&pdev->dev, "failed to get axi_aclk (%d)\n", err);
 		return err;
 	}
 
@@ -2142,25 +2156,25 @@ static int axidma_clk_init(struct platform_device *pdev, struct clk **axi_clk,
 
 	err = clk_prepare_enable(*axi_clk);
 	if (err) {
-		dev_err(&pdev->dev, "failed to enable axi_clk (%u)\n", err);
+		dev_err(&pdev->dev, "failed to enable axi_clk (%d)\n", err);
 		return err;
 	}
 
 	err = clk_prepare_enable(*tx_clk);
 	if (err) {
-		dev_err(&pdev->dev, "failed to enable tx_clk (%u)\n", err);
+		dev_err(&pdev->dev, "failed to enable tx_clk (%d)\n", err);
 		goto err_disable_axiclk;
 	}
 
 	err = clk_prepare_enable(*rx_clk);
 	if (err) {
-		dev_err(&pdev->dev, "failed to enable rx_clk (%u)\n", err);
+		dev_err(&pdev->dev, "failed to enable rx_clk (%d)\n", err);
 		goto err_disable_txclk;
 	}
 
 	err = clk_prepare_enable(*sg_clk);
 	if (err) {
-		dev_err(&pdev->dev, "failed to enable sg_clk (%u)\n", err);
+		dev_err(&pdev->dev, "failed to enable sg_clk (%d)\n", err);
 		goto err_disable_rxclk;
 	}
 
@@ -2189,26 +2203,26 @@ static int axicdma_clk_init(struct platform_device *pdev, struct clk **axi_clk,
 	*axi_clk = devm_clk_get(&pdev->dev, "s_axi_lite_aclk");
 	if (IS_ERR(*axi_clk)) {
 		err = PTR_ERR(*axi_clk);
-		dev_err(&pdev->dev, "failed to get axi_clk (%u)\n", err);
+		dev_err(&pdev->dev, "failed to get axi_clk (%d)\n", err);
 		return err;
 	}
 
 	*dev_clk = devm_clk_get(&pdev->dev, "m_axi_aclk");
 	if (IS_ERR(*dev_clk)) {
 		err = PTR_ERR(*dev_clk);
-		dev_err(&pdev->dev, "failed to get dev_clk (%u)\n", err);
+		dev_err(&pdev->dev, "failed to get dev_clk (%d)\n", err);
 		return err;
 	}
 
 	err = clk_prepare_enable(*axi_clk);
 	if (err) {
-		dev_err(&pdev->dev, "failed to enable axi_clk (%u)\n", err);
+		dev_err(&pdev->dev, "failed to enable axi_clk (%d)\n", err);
 		return err;
 	}
 
 	err = clk_prepare_enable(*dev_clk);
 	if (err) {
-		dev_err(&pdev->dev, "failed to enable dev_clk (%u)\n", err);
+		dev_err(&pdev->dev, "failed to enable dev_clk (%d)\n", err);
 		goto err_disable_axiclk;
 	}
 
@@ -2229,7 +2243,7 @@ static int axivdma_clk_init(struct platform_device *pdev, struct clk **axi_clk,
 	*axi_clk = devm_clk_get(&pdev->dev, "s_axi_lite_aclk");
 	if (IS_ERR(*axi_clk)) {
 		err = PTR_ERR(*axi_clk);
-		dev_err(&pdev->dev, "failed to get axi_aclk (%u)\n", err);
+		dev_err(&pdev->dev, "failed to get axi_aclk (%d)\n", err);
 		return err;
 	}
 
@@ -2251,31 +2265,31 @@ static int axivdma_clk_init(struct platform_device *pdev, struct clk **axi_clk,
 
 	err = clk_prepare_enable(*axi_clk);
 	if (err) {
-		dev_err(&pdev->dev, "failed to enable axi_clk (%u)\n", err);
+		dev_err(&pdev->dev, "failed to enable axi_clk (%d)\n", err);
 		return err;
 	}
 
 	err = clk_prepare_enable(*tx_clk);
 	if (err) {
-		dev_err(&pdev->dev, "failed to enable tx_clk (%u)\n", err);
+		dev_err(&pdev->dev, "failed to enable tx_clk (%d)\n", err);
 		goto err_disable_axiclk;
 	}
 
 	err = clk_prepare_enable(*txs_clk);
 	if (err) {
-		dev_err(&pdev->dev, "failed to enable txs_clk (%u)\n", err);
+		dev_err(&pdev->dev, "failed to enable txs_clk (%d)\n", err);
 		goto err_disable_txclk;
 	}
 
 	err = clk_prepare_enable(*rx_clk);
 	if (err) {
-		dev_err(&pdev->dev, "failed to enable rx_clk (%u)\n", err);
+		dev_err(&pdev->dev, "failed to enable rx_clk (%d)\n", err);
 		goto err_disable_txsclk;
 	}
 
 	err = clk_prepare_enable(*rxs_clk);
 	if (err) {
-		dev_err(&pdev->dev, "failed to enable rxs_clk (%u)\n", err);
+		dev_err(&pdev->dev, "failed to enable rxs_clk (%d)\n", err);
 		goto err_disable_rxclk;
 	}
 

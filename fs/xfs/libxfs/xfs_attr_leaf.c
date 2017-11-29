@@ -397,12 +397,8 @@ xfs_attr_shortform_bytesfit(xfs_inode_t *dp, int bytes)
 	/* rounded down */
 	offset = (XFS_LITINO(mp, dp->i_d.di_version) - bytes) >> 3;
 
-	switch (dp->i_d.di_format) {
-	case XFS_DINODE_FMT_DEV:
+	if (dp->i_d.di_format == XFS_DINODE_FMT_DEV) {
 		minforkoff = roundup(sizeof(xfs_dev_t), 8) >> 3;
-		return (offset >= minforkoff) ? minforkoff : 0;
-	case XFS_DINODE_FMT_UUID:
-		minforkoff = roundup(sizeof(uuid_t), 8) >> 3;
 		return (offset >= minforkoff) ? minforkoff : 0;
 	}
 
@@ -2608,7 +2604,7 @@ xfs_attr3_leaf_clearflag(
 	/*
 	 * Commit the flag value change and start the next trans in series.
 	 */
-	return xfs_trans_roll(&args->trans, args->dp);
+	return xfs_trans_roll_inode(&args->trans, args->dp);
 }
 
 /*
@@ -2659,7 +2655,7 @@ xfs_attr3_leaf_setflag(
 	/*
 	 * Commit the flag value change and start the next trans in series.
 	 */
-	return xfs_trans_roll(&args->trans, args->dp);
+	return xfs_trans_roll_inode(&args->trans, args->dp);
 }
 
 /*
@@ -2777,7 +2773,7 @@ xfs_attr3_leaf_flipflags(
 	/*
 	 * Commit the flag value change and start the next trans in series.
 	 */
-	error = xfs_trans_roll(&args->trans, args->dp);
+	error = xfs_trans_roll_inode(&args->trans, args->dp);
 
 	return error;
 }

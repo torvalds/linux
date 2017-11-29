@@ -20,6 +20,7 @@
 #include <linux/firmware.h>
 #include "rsi_mgmt.h"
 #include "rsi_common.h"
+#include "rsi_hal.h"
 
 u32 rsi_zone_enabled = /* INFO_ZONE |
 			INIT_ZONE |
@@ -56,6 +57,30 @@ void rsi_dbg(u32 zone, const char *fmt, ...)
 }
 EXPORT_SYMBOL_GPL(rsi_dbg);
 
+static char *opmode_str(int oper_mode)
+{
+	switch (oper_mode) {
+	case RSI_DEV_OPMODE_WIFI_ALONE:
+		return "Wi-Fi alone";
+	}
+
+	return "Unknown";
+}
+
+void rsi_print_version(struct rsi_common *common)
+{
+	rsi_dbg(ERR_ZONE, "================================================\n");
+	rsi_dbg(ERR_ZONE, "================ RSI Version Info ==============\n");
+	rsi_dbg(ERR_ZONE, "================================================\n");
+	rsi_dbg(ERR_ZONE, "FW Version\t: %d.%d.%d\n",
+		common->lmac_ver.major, common->lmac_ver.minor,
+		common->lmac_ver.release_num);
+	rsi_dbg(ERR_ZONE, "Operating mode\t: %d [%s]",
+		common->oper_mode, opmode_str(common->oper_mode));
+	rsi_dbg(ERR_ZONE, "Firmware file\t: %s", common->priv->fw_file_name);
+	rsi_dbg(ERR_ZONE, "================================================\n");
+}
+
 /**
  * rsi_prepare_skb() - This function prepares the skb.
  * @common: Pointer to the driver private structure.
@@ -74,6 +99,8 @@ static struct sk_buff *rsi_prepare_skb(struct rsi_common *common,
 	struct skb_info *rx_params;
 	struct sk_buff *skb = NULL;
 	u8 payload_offset;
+	struct ieee80211_vif *vif;
+	struct ieee80211_hdr *wh;
 
 	if (WARN(!pkt_len, "%s: Dummy pkt received", __func__))
 		return NULL;
@@ -92,11 +119,13 @@ static struct sk_buff *rsi_prepare_skb(struct rsi_common *common,
 	payload_offset = (extended_desc + FRAME_DESC_SZ);
 	skb_put(skb, pkt_len);
 	memcpy((skb->data), (buffer + payload_offset), skb->len);
+	wh = (struct ieee80211_hdr *)skb->data;
+	vif = rsi_get_vif(common->priv, wh->addr1);
 
 	info = IEEE80211_SKB_CB(skb);
 	rx_params = (struct skb_info *)info->driver_data;
 	rx_params->rssi = rsi_get_rssi(buffer);
-	rx_params->channel = rsi_get_connected_channel(common->priv);
+	rx_params->channel = rsi_get_connected_channel(vif);
 
 	return skb;
 }
@@ -220,7 +249,8 @@ struct rsi_hw *rsi_91x_init(void)
 
 	rsi_init_event(&common->tx_thread.event);
 	mutex_init(&common->mutex);
-	mutex_init(&common->tx_rxlock);
+	mutex_init(&common->tx_lock);
+	mutex_init(&common->rx_lock);
 
 	if (rsi_create_kthread(common,
 			       &common->tx_thread,
@@ -230,6 +260,10 @@ struct rsi_hw *rsi_91x_init(void)
 		goto err;
 	}
 
+	rsi_default_ps_params(adapter);
+	spin_lock_init(&adapter->ps_lock);
+	timer_setup(&common->roc_timer, rsi_roc_timeout, 0);
+	init_completion(&common->wlan_init_completion);
 	common->init_done = true;
 	return adapter;
 

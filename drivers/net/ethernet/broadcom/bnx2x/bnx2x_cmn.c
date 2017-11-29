@@ -4284,15 +4284,17 @@ int bnx2x_setup_tc(struct net_device *dev, u8 num_tc)
 	return 0;
 }
 
-int __bnx2x_setup_tc(struct net_device *dev, u32 handle, u32 chain_index,
-		     __be16 proto, struct tc_to_netdev *tc)
+int __bnx2x_setup_tc(struct net_device *dev, enum tc_setup_type type,
+		     void *type_data)
 {
-	if (tc->type != TC_SETUP_MQPRIO)
-		return -EINVAL;
+	struct tc_mqprio_qopt *mqprio = type_data;
 
-	tc->mqprio->hw = TC_MQPRIO_HW_OFFLOAD_TCS;
+	if (type != TC_SETUP_QDISC_MQPRIO)
+		return -EOPNOTSUPP;
 
-	return bnx2x_setup_tc(dev, tc->mqprio->num_tc);
+	mqprio->hw = TC_MQPRIO_HW_OFFLOAD_TCS;
+
+	return bnx2x_setup_tc(dev, mqprio->num_tc);
 }
 
 /* called with rtnl_lock */

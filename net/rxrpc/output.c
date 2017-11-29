@@ -35,7 +35,8 @@ struct rxrpc_abort_buffer {
 /*
  * Fill out an ACK packet.
  */
-static size_t rxrpc_fill_out_ack(struct rxrpc_call *call,
+static size_t rxrpc_fill_out_ack(struct rxrpc_connection *conn,
+				 struct rxrpc_call *call,
 				 struct rxrpc_ack_buffer *pkt,
 				 rxrpc_seq_t *_hard_ack,
 				 rxrpc_seq_t *_top,
@@ -77,8 +78,8 @@ static size_t rxrpc_fill_out_ack(struct rxrpc_call *call,
 		} while (before_eq(seq, top));
 	}
 
-	mtu = call->conn->params.peer->if_mtu;
-	mtu -= call->conn->params.peer->hdrsize;
+	mtu = conn->params.peer->if_mtu;
+	mtu -= conn->params.peer->hdrsize;
 	jmax = (call->nr_jumbo_bad > 3) ? 1 : rxrpc_rx_jumbo_max;
 	pkt->ackinfo.rxMTU	= htonl(rxrpc_rx_mtu);
 	pkt->ackinfo.maxMTU	= htonl(mtu);
@@ -148,7 +149,7 @@ int rxrpc_send_ack_packet(struct rxrpc_call *call, bool ping)
 		}
 		call->ackr_reason = 0;
 	}
-	n = rxrpc_fill_out_ack(call, pkt, &hard_ack, &top, reason);
+	n = rxrpc_fill_out_ack(conn, call, pkt, &hard_ack, &top, reason);
 
 	spin_unlock_bh(&call->lock);
 
@@ -220,6 +221,16 @@ int rxrpc_send_abort_packet(struct rxrpc_call *call)
 	struct kvec iov[1];
 	rxrpc_serial_t serial;
 	int ret;
+
+	/* Don't bother sending aborts for a client call once the server has
+	 * hard-ACK'd all of its request data.  After that point, we're not
+	 * going to stop the operation proceeding, and whilst we might limit
+	 * the reply, it's not worth it if we can send a new call on the same
+	 * channel instead, thereby closing off this call.
+	 */
+	if (rxrpc_is_client_call(call) &&
+	    test_bit(RXRPC_CALL_TX_LAST, &call->flags))
+		return 0;
 
 	spin_lock_bh(&call->lock);
 	if (call->conn)
@@ -444,7 +455,7 @@ void rxrpc_reject_packets(struct rxrpc_local *local)
 		rxrpc_see_skb(skb, rxrpc_skb_rx_seen);
 		sp = rxrpc_skb(skb);
 
-		if (rxrpc_extract_addr_from_skb(&srx, skb) == 0) {
+		if (rxrpc_extract_addr_from_skb(local, &srx, skb) == 0) {
 			msg.msg_namelen = srx.transport_len;
 
 			code = htonl(skb->priority);

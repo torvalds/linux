@@ -27,5 +27,4 @@ amac0: ethernet@18022000 {
 	      <0x18110000 0x1000>;
 	reg-names = "amac_base", "idm_base";
 	interrupts = <GIC_SPI 147 IRQ_TYPE_LEVEL_HIGH>;
-	status = "disabled";
 };

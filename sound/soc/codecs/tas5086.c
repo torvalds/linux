@@ -885,7 +885,7 @@ static int tas5086_remove(struct snd_soc_codec *codec)
 	return 0;
 };
 
-static struct snd_soc_codec_driver soc_codec_dev_tas5086 = {
+static const struct snd_soc_codec_driver soc_codec_dev_tas5086 = {
 	.probe			= tas5086_probe,
 	.remove			= tas5086_remove,
 	.suspend		= tas5086_soc_suspend,

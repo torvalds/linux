@@ -109,7 +109,10 @@ neigh/default/unres_qlen_bytes - INTEGER
 	queued for each	unresolved address by other network layers.
 	(added in linux 3.3)
 	Setting negative value is meaningless and will return error.
-	Default: 65536 Bytes(64KB)
+	Default: SK_WMEM_MAX, (same as net.core.wmem_default).
+		Exact value depends on architecture and kernel options,
+		but should be enough to allow queuing 256 packets
+		of medium size.
 
 neigh/default/unres_qlen - INTEGER
 	The maximum number of packets which may be queued for each
@@ -119,7 +122,7 @@ neigh/default/unres_qlen - INTEGER
 	unexpected packet loss. The current default value is calculated
 	according to default value of unres_qlen_bytes and true size of
 	packet.
-	Default: 31
+	Default: 101
 
 mtu_expires - INTEGER
 	Time, in seconds, that cached PMTU information is kept.
@@ -286,8 +289,7 @@ tcp_ecn_fallback - BOOLEAN
 	Default: 1 (fallback enabled)
 
 tcp_fack - BOOLEAN
-	Enable FACK congestion avoidance and fast retransmission.
-	The value is not used, if tcp_sack is not enabled.
+	This is a legacy option, it has no effect anymore.
 
 tcp_fin_timeout - INTEGER
 	The length of time an orphaned (no longer referenced by any
@@ -353,12 +355,7 @@ tcp_l3mdev_accept - BOOLEAN
 	compiled with CONFIG_NET_L3_MASTER_DEV.
 
 tcp_low_latency - BOOLEAN
-	If set, the TCP stack makes decisions that prefer lower
-	latency as opposed to higher throughput.  By default, this
-	option is not set meaning that higher throughput is preferred.
-	An example of an application where this default should be
-	changed would be a Beowulf compute cluster.
-	Default: 0
+	This is a legacy option, it has no effect anymore.
 
 tcp_max_orphans - INTEGER
 	Maximal number of TCP sockets not attached to any user file handle,
@@ -456,6 +453,7 @@ tcp_recovery - INTEGER
 
 	RACK: 0x1 enables the RACK loss detection for fast detection of lost
 	      retransmissions and tail drops.
+	RACK: 0x2 makes RACK's reordering window static (min_rtt/4).
 
 	Default: 0x1
 
@@ -1291,8 +1289,7 @@ tag - INTEGER
 xfrm4_gc_thresh - INTEGER
 	The threshold at which we will start garbage collecting for IPv4
 	destination cache entries.  At twice this value the system will
-	refuse new allocations. The value must be set below the flowcache
-	limit (4096 * number of online cpus) to take effect.
+	refuse new allocations.
 
 igmp_link_local_mcast_reports - BOOLEAN
 	Enable IGMP reports for link local multicast groups in the
@@ -1356,6 +1353,15 @@ flowlabel_state_ranges - BOOLEAN
 	FALSE: disabled
 	Default: true
 
+flowlabel_reflect - BOOLEAN
+	Automatically reflect the flow label. Needed for Path MTU
+	Discovery to work with Equal Cost Multipath Routing in anycast
+	environments. See RFC 7690 and:
+	https://tools.ietf.org/html/draft-wang-6man-flow-label-reflection-01
+	TRUE: enabled
+	FALSE: disabled
+	Default: FALSE
+
 anycast_src_echo_reply - BOOLEAN
 	Controls the use of anycast addresses as source addresses for ICMPv6
 	echo reply
@@ -1378,6 +1384,30 @@ mld_qrv - INTEGER
 	Controls the MLD query robustness variable (see RFC3810 9.1).
 	Default: 2 (as specified by RFC3810 9.1)
 	Minimum: 1 (as specified by RFC6636 4.5)
+
+max_dst_opts_cnt - INTEGER
+	Maximum number of non-padding TLVs allowed in a Destination
+	options extension header. If this value is less than zero
+	then unknown options are disallowed and the number of known
+	TLVs allowed is the absolute value of this number.
+	Default: 8
+
+max_hbh_opts_cnt - INTEGER
+	Maximum number of non-padding TLVs allowed in a Hop-by-Hop
+	options extension header. If this value is less than zero
+	then unknown options are disallowed and the number of known
+	TLVs allowed is the absolute value of this number.
+	Default: 8
+
+max dst_opts_len - INTEGER
+	Maximum length allowed for a Destination options extension
+	header.
+	Default: INT_MAX (unlimited)
+
+max hbh_opts_len - INTEGER
+	Maximum length allowed for a Hop-by-Hop options extension
+	header.
+	Default: INT_MAX (unlimited)
 
 IPv6 Fragmentation:
 
@@ -1674,6 +1704,9 @@ accept_dad - INTEGER
 	2: Enable DAD, and disable IPv6 operation if MAC-based duplicate
 	   link-local address has been found.
 
+	DAD operation and mode on a given interface will be selected according
+	to the maximum value of conf/{all,interface}/accept_dad.
+
 force_tllao - BOOLEAN
 	Enable sending the target link-layer address option even when
 	responding to a unicast neighbor solicitation.
@@ -1698,6 +1731,15 @@ ndisc_notify - BOOLEAN
 	1 - Generate unsolicited neighbour advertisements when device is brought
 	    up or hardware address changes.
 
+ndisc_tclass - INTEGER
+	The IPv6 Traffic Class to use by default when sending IPv6 Neighbor
+	Discovery (Router Solicitation, Router Advertisement, Neighbor
+	Solicitation, Neighbor Advertisement, Redirect) messages.
+	These 8 bits can be interpreted as 6 high order bits holding the DSCP
+	value and 2 low order bits representing ECN (which you probably want
+	to leave cleared).
+	0 - (default)
+
 mldv1_unsolicited_report_interval - INTEGER
 	The interval in milliseconds in which the next unsolicited
 	MLDv1 report retransmit will take place.
@@ -1721,16 +1763,23 @@ suppress_frag_ndisc - INTEGER
 
 optimistic_dad - BOOLEAN
 	Whether to perform Optimistic Duplicate Address Detection (RFC 4429).
-		0: disabled (default)
-		1: enabled
+	0: disabled (default)
+	1: enabled
+
+	Optimistic Duplicate Address Detection for the interface will be enabled
+	if at least one of conf/{all,interface}/optimistic_dad is set to 1,
+	it will be disabled otherwise.
 
 use_optimistic - BOOLEAN
 	If enabled, do not classify optimistic addresses as deprecated during
 	source address selection.  Preferred addresses will still be chosen
 	before optimistic addresses, subject to other ranking in the source
 	address selection algorithm.
-		0: disabled (default)
-		1: enabled
+	0: disabled (default)
+	1: enabled
+
+	This will be enabled if at least one of
+	conf/{all,interface}/use_optimistic is set to 1, disabled otherwise.
 
 stable_secret - IPv6 address
 	This IPv6 address will be used as a secret to generate IPv6
@@ -1778,8 +1827,7 @@ ratelimit - INTEGER
 xfrm6_gc_thresh - INTEGER
 	The threshold at which we will start garbage collecting for IPv6
 	destination cache entries.  At twice this value the system will
-	refuse new allocations. The value must be set below the flowcache
-	limit (4096 * number of online cpus) to take effect.
+	refuse new allocations.
 
 
 IPv6 Update by:

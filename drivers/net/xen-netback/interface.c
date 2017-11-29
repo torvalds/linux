@@ -486,7 +486,7 @@ struct xenvif *xenvif_alloc(struct device *parent, domid_t domid,
 
 	dev->tx_queue_len = XENVIF_QUEUE_LENGTH;
 
-	dev->min_mtu = 0;
+	dev->min_mtu = ETH_MIN_MTU;
 	dev->max_mtu = ETH_MAX_MTU - VLAN_ETH_HLEN;
 
 	/*
@@ -520,8 +520,7 @@ int xenvif_init_queue(struct xenvif_queue *queue)
 
 	queue->credit_bytes = queue->remaining_credit = ~0UL;
 	queue->credit_usec  = 0UL;
-	init_timer(&queue->credit_timeout);
-	queue->credit_timeout.function = xenvif_tx_credit_callback;
+	timer_setup(&queue->credit_timeout, xenvif_tx_credit_callback, 0);
 	queue->credit_window_start = get_jiffies_64();
 
 	queue->rx_queue_max = XENVIF_RX_QUEUE_BYTES;
@@ -551,8 +550,8 @@ int xenvif_init_queue(struct xenvif_queue *queue)
 	for (i = 0; i < MAX_PENDING_REQS; i++) {
 		queue->pending_tx_info[i].callback_struct = (struct ubuf_info)
 			{ .callback = xenvif_zerocopy_callback,
-			  .ctx = NULL,
-			  .desc = i };
+			  { { .ctx = NULL,
+			      .desc = i } } };
 		queue->grant_tx_handle[i] = NETBACK_INVALID_HANDLE;
 	}
 

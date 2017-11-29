@@ -160,14 +160,14 @@ zalon_probe(struct parisc_device *dev)
 	return error;
 }
 
-static struct parisc_device_id zalon_tbl[] = {
+static const struct parisc_device_id zalon_tbl[] __initconst = {
 	{ HPHW_A_DMA, HVERSION_REV_ANY_ID, HVERSION_ANY_ID, 0x00089 }, 
 	{ 0, }
 };
 
 MODULE_DEVICE_TABLE(parisc, zalon_tbl);
 
-static int zalon_remove(struct parisc_device *dev)
+static int __exit zalon_remove(struct parisc_device *dev)
 {
 	struct Scsi_Host *host = dev_get_drvdata(&dev->dev);
 
@@ -178,11 +178,11 @@ static int zalon_remove(struct parisc_device *dev)
 	return 0;
 }
 
-static struct parisc_driver zalon_driver = {
+static struct parisc_driver zalon_driver __refdata = {
 	.name =		"zalon",
 	.id_table =	zalon_tbl,
 	.probe =	zalon_probe,
-	.remove =	zalon_remove,
+	.remove =	__exit_p(zalon_remove),
 };
 
 static int __init zalon7xx_init(void)

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * IRQ subsystem internal functions and variables:
  *
@@ -74,6 +75,8 @@ extern void __enable_irq(struct irq_desc *desc);
 #define IRQ_START_FORCE	true
 #define IRQ_START_COND	false
 
+extern int irq_activate(struct irq_desc *desc);
+extern void irq_activate_and_startup(struct irq_desc *desc, bool resend);
 extern int irq_startup(struct irq_desc *desc, bool resend, bool force);
 
 extern void irq_shutdown(struct irq_desc *desc);
@@ -151,7 +154,7 @@ static inline void chip_bus_sync_unlock(struct irq_desc *desc)
 #define IRQ_GET_DESC_CHECK_PERCPU	(_IRQ_DESC_CHECK | _IRQ_DESC_PERCPU)
 
 #define for_each_action_of_desc(desc, act)			\
-	for (act = desc->act; act; act = act->next)
+	for (act = desc->action; act; act = act->next)
 
 struct irq_desc *
 __irq_get_desc_lock(unsigned int irq, unsigned long *flags, bool bus,
@@ -436,6 +439,18 @@ static inline bool irq_fixup_move_pending(struct irq_desc *desc, bool fclear)
 }
 #endif /* !CONFIG_GENERIC_PENDING_IRQ */
 
+#if !defined(CONFIG_IRQ_DOMAIN) || !defined(CONFIG_IRQ_DOMAIN_HIERARCHY)
+static inline int irq_domain_activate_irq(struct irq_data *data, bool early)
+{
+	irqd_set_activated(data);
+	return 0;
+}
+static inline void irq_domain_deactivate_irq(struct irq_data *data)
+{
+	irqd_clr_activated(data);
+}
+#endif
+
 #ifdef CONFIG_GENERIC_IRQ_DEBUGFS
 #include <linux/debugfs.h>
 
@@ -443,7 +458,9 @@ void irq_add_debugfs_entry(unsigned int irq, struct irq_desc *desc);
 static inline void irq_remove_debugfs_entry(struct irq_desc *desc)
 {
 	debugfs_remove(desc->debugfs_file);
+	kfree(desc->dev_name);
 }
+void irq_debugfs_copy_devname(int irq, struct device *dev);
 # ifdef CONFIG_IRQ_DOMAIN
 void irq_domain_debugfs_init(struct dentry *root);
 # else
@@ -456,6 +473,9 @@ static inline void irq_add_debugfs_entry(unsigned int irq, struct irq_desc *d)
 {
 }
 static inline void irq_remove_debugfs_entry(struct irq_desc *d)
+{
+}
+static inline void irq_debugfs_copy_devname(int irq, struct device *dev)
 {
 }
 #endif /* CONFIG_GENERIC_IRQ_DEBUGFS */

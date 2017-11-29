@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * This header provides constants for most GPIO bindings.
  *
@@ -30,6 +31,6 @@
 
 /* Bit 3 express GPIO suspend/resume persistence */
 #define GPIO_SLEEP_MAINTAIN_VALUE 0
-#define GPIO_SLEEP_MAY_LOOSE_VALUE 8
+#define GPIO_SLEEP_MAY_LOSE_VALUE 8
 
 #endif

@@ -84,7 +84,7 @@ nlm_set_nmi_handler(void *handler)
  */
 void nlm_init_boot_cpu(void);
 unsigned int nlm_get_cpu_frequency(void);
-extern struct plat_smp_ops nlm_smp_ops;
+extern const struct plat_smp_ops nlm_smp_ops;
 extern char nlm_reset_entry[], nlm_reset_entry_end[];
 
 /* SWIOTLB */

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /************************************************************************
  * Include file for TRIZEPS4 SoM and ConXS eval-board
  * Copyright (c) Jürgen Schindele

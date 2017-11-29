@@ -268,14 +268,14 @@ unsigned int arpt_do_table(struct sk_buff *skb,
 		acpar.targinfo = t->data;
 		verdict = t->u.kernel.target->target(skb, &acpar);
 
-		/* Target might have changed stuff. */
-		arp = arp_hdr(skb);
-
-		if (verdict == XT_CONTINUE)
+		if (verdict == XT_CONTINUE) {
+			/* Target might have changed stuff. */
+			arp = arp_hdr(skb);
 			e = arpt_next_entry(e);
-		else
+		} else {
 			/* Verdict */
 			break;
+		}
 	} while (!acpar.hotdrop);
 	xt_write_recseq_end(addend);
 	local_bh_enable();
@@ -629,7 +629,27 @@ static void get_counters(const struct xt_table_info *t,
 
 			ADD_COUNTER(counters[i], bcnt, pcnt);
 			++i;
+			cond_resched();
 		}
+	}
+}
+
+static void get_old_counters(const struct xt_table_info *t,
+			     struct xt_counters counters[])
+{
+	struct arpt_entry *iter;
+	unsigned int cpu, i;
+
+	for_each_possible_cpu(cpu) {
+		i = 0;
+		xt_entry_foreach(iter, t->entries, t->size) {
+			struct xt_counters *tmp;
+
+			tmp = xt_get_per_cpu_counter(&iter->counters, cpu);
+			ADD_COUNTER(counters[i], tmp->bcnt, tmp->pcnt);
+			++i;
+		}
+		cond_resched();
 	}
 }
 
@@ -909,8 +929,7 @@ static int __do_replace(struct net *net, const char *name,
 	    (newinfo->number <= oldinfo->initial_entries))
 		module_put(t->me);
 
-	/* Get the old counters, and synchronize with replace */
-	get_counters(oldinfo, counters);
+	get_old_counters(oldinfo, counters);
 
 	/* Decrease module usage counts and free resource */
 	loc_cpu_old_entry = oldinfo->entries;
@@ -1117,7 +1136,6 @@ compat_copy_entry_from_user(struct compat_arpt_entry *e, void **dstptr,
 			    struct xt_table_info *newinfo, unsigned char *base)
 {
 	struct xt_entry_target *t;
-	struct xt_target *target;
 	struct arpt_entry *de;
 	unsigned int origsize;
 	int h;
@@ -1132,7 +1150,6 @@ compat_copy_entry_from_user(struct compat_arpt_entry *e, void **dstptr,
 
 	de->target_offset = e->target_offset - (origsize - *size);
 	t = compat_arpt_get_target(e);
-	target = t->u.kernel.target;
 	xt_compat_target_from_user(t, dstptr, size);
 
 	de->next_offset = e->next_offset - (origsize - *size);

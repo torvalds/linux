@@ -17,6 +17,7 @@
  * GNU General Public License for more details.
  */
 
+#include <linux/input.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <sound/core.h>
@@ -34,7 +35,7 @@
 #define MAXIM_DEV0_NAME "i2c-MX98927:00"
 #define MAXIM_DEV1_NAME "i2c-MX98927:01"
 
-static struct snd_soc_card kabylake_audio_card;
+static struct snd_soc_card *kabylake_audio_card;
 static const struct snd_pcm_hw_constraint_list *dmic_constraints;
 static struct snd_soc_jack skylake_hdmi[3];
 
@@ -52,6 +53,8 @@ struct kbl_rt5663_private {
 enum {
 	KBL_DPCM_AUDIO_PB = 0,
 	KBL_DPCM_AUDIO_CP,
+	KBL_DPCM_AUDIO_HS_PB,
+	KBL_DPCM_AUDIO_ECHO_REF_CP,
 	KBL_DPCM_AUDIO_REF_CP,
 	KBL_DPCM_AUDIO_DMIC_CP,
 	KBL_DPCM_AUDIO_HDMI1_PB,
@@ -72,8 +75,9 @@ static const struct snd_soc_dapm_widget kabylake_widgets[] = {
 	SND_SOC_DAPM_SPK("Left Spk", NULL),
 	SND_SOC_DAPM_SPK("Right Spk", NULL),
 	SND_SOC_DAPM_MIC("SoC DMIC", NULL),
-	SND_SOC_DAPM_SPK("DP", NULL),
-	SND_SOC_DAPM_SPK("HDMI", NULL),
+	SND_SOC_DAPM_SPK("HDMI1", NULL),
+	SND_SOC_DAPM_SPK("HDMI2", NULL),
+	SND_SOC_DAPM_SPK("HDMI3", NULL),
 
 };
 
@@ -91,19 +95,21 @@ static const struct snd_soc_dapm_route kabylake_map[] = {
 	{ "IN1N", NULL, "Headset Mic" },
 	{ "DMic", NULL, "SoC DMIC" },
 
-	{ "HDMI", NULL, "hif5 Output" },
-	{ "DP", NULL, "hif6 Output" },
-
 	/* CODEC BE connections */
 	{ "Left HiFi Playback", NULL, "ssp0 Tx" },
 	{ "Right HiFi Playback", NULL, "ssp0 Tx" },
-	{ "ssp0 Tx", NULL, "codec0_out" },
+	{ "ssp0 Tx", NULL, "spk_out" },
 
 	{ "AIF Playback", NULL, "ssp1 Tx" },
-	{ "ssp1 Tx", NULL, "codec1_out" },
+	{ "ssp1 Tx", NULL, "hs_out" },
 
-	{ "codec0_in", NULL, "ssp1 Rx" },
+	{ "hs_in", NULL, "ssp1 Rx" },
 	{ "ssp1 Rx", NULL, "AIF Capture" },
+
+	/* IV feedback path */
+	{ "codec0_fb_in", NULL, "ssp0 Rx"},
+	{ "ssp0 Rx", NULL, "Left HiFi Capture" },
+	{ "ssp0 Rx", NULL, "Right HiFi Capture" },
 
 	/* DMIC */
 	{ "dmic01_hifi", NULL, "DMIC01 Rx" },
@@ -111,6 +117,49 @@ static const struct snd_soc_dapm_route kabylake_map[] = {
 
 	{ "hifi3", NULL, "iDisp3 Tx"},
 	{ "iDisp3 Tx", NULL, "iDisp3_out"},
+	{ "hifi2", NULL, "iDisp2 Tx"},
+	{ "iDisp2 Tx", NULL, "iDisp2_out"},
+	{ "hifi1", NULL, "iDisp1 Tx"},
+	{ "iDisp1 Tx", NULL, "iDisp1_out"},
+};
+
+enum {
+	KBL_DPCM_AUDIO_5663_PB = 0,
+	KBL_DPCM_AUDIO_5663_CP,
+	KBL_DPCM_AUDIO_5663_HDMI1_PB,
+	KBL_DPCM_AUDIO_5663_HDMI2_PB,
+};
+
+static const struct snd_kcontrol_new kabylake_5663_controls[] = {
+	SOC_DAPM_PIN_SWITCH("Headphone Jack"),
+	SOC_DAPM_PIN_SWITCH("Headset Mic"),
+};
+
+static const struct snd_soc_dapm_widget kabylake_5663_widgets[] = {
+	SND_SOC_DAPM_HP("Headphone Jack", NULL),
+	SND_SOC_DAPM_MIC("Headset Mic", NULL),
+	SND_SOC_DAPM_SPK("DP", NULL),
+	SND_SOC_DAPM_SPK("HDMI", NULL),
+};
+
+static const struct snd_soc_dapm_route kabylake_5663_map[] = {
+	{ "Headphone Jack", NULL, "HPOL" },
+	{ "Headphone Jack", NULL, "HPOR" },
+
+	/* other jacks */
+	{ "IN1P", NULL, "Headset Mic" },
+	{ "IN1N", NULL, "Headset Mic" },
+
+	{ "HDMI", NULL, "hif5 Output" },
+	{ "DP", NULL, "hif6 Output" },
+
+	/* CODEC BE connections */
+	{ "AIF Playback", NULL, "ssp1 Tx" },
+	{ "ssp1 Tx", NULL, "codec1_out" },
+
+	{ "codec0_in", NULL, "ssp1 Rx" },
+	{ "ssp1 Rx", NULL, "AIF Capture" },
+
 	{ "hifi2", NULL, "iDisp2 Tx"},
 	{ "iDisp2 Tx", NULL, "iDisp2_out"},
 	{ "hifi1", NULL, "iDisp1 Tx"},
@@ -160,12 +209,13 @@ static int kabylake_rt5663_codec_init(struct snd_soc_pcm_runtime *rtd)
 	int ret;
 	struct kbl_rt5663_private *ctx = snd_soc_card_get_drvdata(rtd->card);
 	struct snd_soc_codec *codec = rtd->codec;
+	struct snd_soc_jack *jack;
 
 	/*
 	 * Headset buttons map to the google Reference headset.
 	 * These can be configured by userspace.
 	 */
-	ret = snd_soc_card_jack_new(&kabylake_audio_card, "Headset Jack",
+	ret = snd_soc_card_jack_new(kabylake_audio_card, "Headset Jack",
 			SND_JACK_HEADSET | SND_JACK_BTN_0 | SND_JACK_BTN_1 |
 			SND_JACK_BTN_2 | SND_JACK_BTN_3, &ctx->kabylake_headset,
 			NULL, 0);
@@ -174,7 +224,24 @@ static int kabylake_rt5663_codec_init(struct snd_soc_pcm_runtime *rtd)
 		return ret;
 	}
 
+	jack = &ctx->kabylake_headset;
+	snd_jack_set_key(jack->jack, SND_JACK_BTN_0, KEY_MEDIA);
+	snd_jack_set_key(jack->jack, SND_JACK_BTN_1, KEY_VOICECOMMAND);
+	snd_jack_set_key(jack->jack, SND_JACK_BTN_2, KEY_VOLUMEUP);
+	snd_jack_set_key(jack->jack, SND_JACK_BTN_3, KEY_VOLUMEDOWN);
+
 	rt5663_set_jack_detect(codec, &ctx->kabylake_headset);
+	return ret;
+}
+
+static int kabylake_rt5663_max98927_codec_init(struct snd_soc_pcm_runtime *rtd)
+{
+	int ret;
+
+	ret = kabylake_rt5663_codec_init(rtd);
+	if (ret)
+		return ret;
+
 	ret = snd_soc_dapm_ignore_suspend(&rtd->card->dapm, "SoC DMIC");
 	if (ret) {
 		dev_err(rtd->dev, "SoC DMIC ignore suspend failed %d\n", ret);
@@ -184,7 +251,7 @@ static int kabylake_rt5663_codec_init(struct snd_soc_pcm_runtime *rtd)
 	return ret;
 }
 
-static int kabylake_hdmi1_init(struct snd_soc_pcm_runtime *rtd)
+static int kabylake_hdmi_init(struct snd_soc_pcm_runtime *rtd, int device)
 {
 	struct kbl_rt5663_private *ctx = snd_soc_card_get_drvdata(rtd->card);
 	struct snd_soc_dai *dai = rtd->codec_dai;
@@ -194,55 +261,44 @@ static int kabylake_hdmi1_init(struct snd_soc_pcm_runtime *rtd)
 	if (!pcm)
 		return -ENOMEM;
 
-	pcm->device = KBL_DPCM_AUDIO_HDMI1_PB;
+	pcm->device = device;
 	pcm->codec_dai = dai;
 
 	list_add_tail(&pcm->head, &ctx->hdmi_pcm_list);
 
 	return 0;
+}
+
+static int kabylake_hdmi1_init(struct snd_soc_pcm_runtime *rtd)
+{
+	return kabylake_hdmi_init(rtd, KBL_DPCM_AUDIO_HDMI1_PB);
 }
 
 static int kabylake_hdmi2_init(struct snd_soc_pcm_runtime *rtd)
 {
-	struct kbl_rt5663_private *ctx = snd_soc_card_get_drvdata(rtd->card);
-	struct snd_soc_dai *dai = rtd->codec_dai;
-	struct kbl_hdmi_pcm *pcm;
-
-	pcm = devm_kzalloc(rtd->card->dev, sizeof(*pcm), GFP_KERNEL);
-	if (!pcm)
-		return -ENOMEM;
-
-	pcm->device = KBL_DPCM_AUDIO_HDMI2_PB;
-	pcm->codec_dai = dai;
-
-	list_add_tail(&pcm->head, &ctx->hdmi_pcm_list);
-
-	return 0;
+	return kabylake_hdmi_init(rtd, KBL_DPCM_AUDIO_HDMI2_PB);
 }
 
 static int kabylake_hdmi3_init(struct snd_soc_pcm_runtime *rtd)
 {
-	struct kbl_rt5663_private *ctx = snd_soc_card_get_drvdata(rtd->card);
-	struct snd_soc_dai *dai = rtd->codec_dai;
-	struct kbl_hdmi_pcm *pcm;
+	return kabylake_hdmi_init(rtd, KBL_DPCM_AUDIO_HDMI3_PB);
+}
 
-	pcm = devm_kzalloc(rtd->card->dev, sizeof(*pcm), GFP_KERNEL);
-	if (!pcm)
-		return -ENOMEM;
+static int kabylake_5663_hdmi1_init(struct snd_soc_pcm_runtime *rtd)
+{
+	return kabylake_hdmi_init(rtd, KBL_DPCM_AUDIO_5663_HDMI1_PB);
+}
 
-	pcm->device = KBL_DPCM_AUDIO_HDMI3_PB;
-	pcm->codec_dai = dai;
-
-	list_add_tail(&pcm->head, &ctx->hdmi_pcm_list);
-
-	return 0;
+static int kabylake_5663_hdmi2_init(struct snd_soc_pcm_runtime *rtd)
+{
+	return kabylake_hdmi_init(rtd, KBL_DPCM_AUDIO_5663_HDMI2_PB);
 }
 
 static unsigned int rates[] = {
 	48000,
 };
 
-static struct snd_pcm_hw_constraint_list constraints_rates = {
+static const struct snd_pcm_hw_constraint_list constraints_rates = {
 	.count = ARRAY_SIZE(rates),
 	.list  = rates,
 	.mask = 0,
@@ -252,7 +308,7 @@ static unsigned int channels[] = {
 	2,
 };
 
-static struct snd_pcm_hw_constraint_list constraints_channels = {
+static const struct snd_pcm_hw_constraint_list constraints_channels = {
 	.count = ARRAY_SIZE(channels),
 	.list = channels,
 	.mask = 0,
@@ -294,13 +350,28 @@ static int kabylake_ssp_fixup(struct snd_soc_pcm_runtime *rtd,
 	struct snd_interval *channels = hw_param_interval(params,
 			SNDRV_PCM_HW_PARAM_CHANNELS);
 	struct snd_mask *fmt = hw_param_mask(params, SNDRV_PCM_HW_PARAM_FORMAT);
+	struct snd_soc_dpcm *dpcm = container_of(
+			params, struct snd_soc_dpcm, hw_params);
+	struct snd_soc_dai_link *fe_dai_link = dpcm->fe->dai_link;
+	struct snd_soc_dai_link *be_dai_link = dpcm->be->dai_link;
 
-	/* The ADSP will convert the FE rate to 48k, stereo */
-	rate->min = rate->max = 48000;
-	channels->min = channels->max = 2;
-	/* set SSP1 to 24 bit */
-	snd_mask_none(fmt);
-	snd_mask_set(fmt, SNDRV_PCM_FORMAT_S24_LE);
+	/*
+	 * The ADSP will convert the FE rate to 48k, stereo, 24 bit
+	 */
+	if (!strcmp(fe_dai_link->name, "Kbl Audio Port") ||
+	    !strcmp(fe_dai_link->name, "Kbl Audio Headset Playback") ||
+	    !strcmp(fe_dai_link->name, "Kbl Audio Capture Port")) {
+		rate->min = rate->max = 48000;
+		channels->min = channels->max = 2;
+		snd_mask_none(fmt);
+		snd_mask_set(fmt, SNDRV_PCM_FORMAT_S24_LE);
+	}
+	/*
+	 * The speaker on the SSP0 supports S16_LE and not S24_LE.
+	 * thus changing the mask here
+	 */
+	if (!strcmp(be_dai_link->name, "SSP0-Codec"))
+		snd_mask_set(fmt, SNDRV_PCM_FORMAT_S16_LE);
 
 	return 0;
 }
@@ -312,11 +383,13 @@ static int kabylake_rt5663_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_dai *codec_dai = rtd->codec_dai;
 	int ret;
 
+	/* use ASRC for internal clocks, as PLL rate isn't multiple of BCLK */
+	rt5663_sel_asrc_clk_src(codec_dai->codec,
+			RT5663_DA_STEREO_FILTER | RT5663_AD_STEREO_FILTER,
+			RT5663_CLK_SEL_I2S1_ASRC);
+
 	ret = snd_soc_dai_set_sysclk(codec_dai,
 			RT5663_SCLK_S_MCLK, 24576000, SND_SOC_CLOCK_IN);
-	/* use ASRC for internal clocks, as PLL rate isn't multiple of BCLK */
-	rt5663_sel_asrc_clk_src(codec_dai->codec, RT5663_DA_STEREO_FILTER, 1);
-
 	if (ret < 0)
 		dev_err(rtd->dev, "snd_soc_dai_set_sysclk err = %d\n", ret);
 
@@ -340,6 +413,43 @@ static int kabylake_dmic_fixup(struct snd_soc_pcm_runtime *rtd,
 
 	return 0;
 }
+
+static int kabylake_ssp0_hw_params(struct snd_pcm_substream *substream,
+					struct snd_pcm_hw_params *params)
+{
+	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	int ret = 0, j;
+
+	for (j = 0; j < rtd->num_codecs; j++) {
+		struct snd_soc_dai *codec_dai = rtd->codec_dais[j];
+
+		if (!strcmp(codec_dai->component->name, MAXIM_DEV0_NAME)) {
+			/*
+			 * Use channel 4 and 5 for the first amp
+			 */
+			ret = snd_soc_dai_set_tdm_slot(codec_dai, 0x30, 3, 8, 16);
+			if (ret < 0) {
+				dev_err(rtd->dev, "set TDM slot err:%d\n", ret);
+				return ret;
+			}
+		}
+		if (!strcmp(codec_dai->component->name, MAXIM_DEV1_NAME)) {
+			/*
+			 * Use channel 6 and 7 for the second amp
+			 */
+			ret = snd_soc_dai_set_tdm_slot(codec_dai, 0xC0, 3, 8, 16);
+			if (ret < 0) {
+				dev_err(rtd->dev, "set TDM slot err:%d\n", ret);
+				return ret;
+			}
+		}
+	}
+	return ret;
+}
+
+static struct snd_soc_ops kabylake_ssp0_ops = {
+	.hw_params = kabylake_ssp0_hw_params,
+};
 
 static unsigned int channels_dmic[] = {
 	2, 4,
@@ -381,7 +491,7 @@ static unsigned int rates_16000[] = {
 	16000,
 };
 
-static struct snd_pcm_hw_constraint_list constraints_16000 = {
+static const struct snd_pcm_hw_constraint_list constraints_16000 = {
 	.count = ARRAY_SIZE(rates_16000),
 	.list  = rates_16000,
 };
@@ -442,6 +552,28 @@ static struct snd_soc_dai_link kabylake_dais[] = {
 			SND_SOC_DPCM_TRIGGER_POST, SND_SOC_DPCM_TRIGGER_POST},
 		.dpcm_capture = 1,
 		.ops = &kabylake_rt5663_fe_ops,
+	},
+	[KBL_DPCM_AUDIO_HS_PB] = {
+		.name = "Kbl Audio Headset Playback",
+		.stream_name = "Headset Audio",
+		.cpu_dai_name = "System Pin2",
+		.codec_name = "snd-soc-dummy",
+		.codec_dai_name = "snd-soc-dummy-dai",
+		.platform_name = "0000:00:1f.3",
+		.dpcm_playback = 1,
+		.nonatomic = 1,
+		.dynamic = 1,
+	},
+	[KBL_DPCM_AUDIO_ECHO_REF_CP] = {
+		.name = "Kbl Audio Echo Reference cap",
+		.stream_name = "Echoreference Capture",
+		.cpu_dai_name = "Echoref Pin",
+		.codec_name = "snd-soc-dummy",
+		.codec_dai_name = "snd-soc-dummy-dai",
+		.platform_name = "0000:00:1f.3",
+		.init = NULL,
+		.capture_only = 1,
+		.nonatomic = 1,
 	},
 	[KBL_DPCM_AUDIO_REF_CP] = {
 		.name = "Kbl Audio Reference cap",
@@ -522,12 +654,13 @@ static struct snd_soc_dai_link kabylake_dais[] = {
 		.no_pcm = 1,
 		.codecs = max98927_codec_components,
 		.num_codecs = ARRAY_SIZE(max98927_codec_components),
-		.dai_fmt = SND_SOC_DAIFMT_I2S |
+		.dai_fmt = SND_SOC_DAIFMT_DSP_B |
 			SND_SOC_DAIFMT_NB_NF |
 			SND_SOC_DAIFMT_CBS_CFS,
 		.ignore_pmdown_time = 1,
 		.be_hw_params_fixup = kabylake_ssp_fixup,
 		.dpcm_playback = 1,
+		.ops = &kabylake_ssp0_ops,
 	},
 	{
 		/* SSP1 - Codec */
@@ -538,7 +671,7 @@ static struct snd_soc_dai_link kabylake_dais[] = {
 		.no_pcm = 1,
 		.codec_name = "i2c-10EC5663:00",
 		.codec_dai_name = KBL_REALTEK_CODEC_DAI,
-		.init = kabylake_rt5663_codec_init,
+		.init = kabylake_rt5663_max98927_codec_init,
 		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
 			SND_SOC_DAIFMT_CBS_CFS,
 		.ignore_pmdown_time = 1,
@@ -594,15 +727,119 @@ static struct snd_soc_dai_link kabylake_dais[] = {
 	},
 };
 
+static struct snd_soc_dai_link kabylake_5663_dais[] = {
+	/* Front End DAI links */
+	[KBL_DPCM_AUDIO_5663_PB] = {
+		.name = "Kbl Audio Port",
+		.stream_name = "Audio",
+		.cpu_dai_name = "System Pin",
+		.platform_name = "0000:00:1f.3",
+		.dynamic = 1,
+		.codec_name = "snd-soc-dummy",
+		.codec_dai_name = "snd-soc-dummy-dai",
+		.nonatomic = 1,
+		.trigger = {
+			SND_SOC_DPCM_TRIGGER_POST, SND_SOC_DPCM_TRIGGER_POST},
+		.dpcm_playback = 1,
+		.ops = &kabylake_rt5663_fe_ops,
+	},
+	[KBL_DPCM_AUDIO_5663_CP] = {
+		.name = "Kbl Audio Capture Port",
+		.stream_name = "Audio Record",
+		.cpu_dai_name = "System Pin",
+		.platform_name = "0000:00:1f.3",
+		.dynamic = 1,
+		.codec_name = "snd-soc-dummy",
+		.codec_dai_name = "snd-soc-dummy-dai",
+		.nonatomic = 1,
+		.trigger = {
+			SND_SOC_DPCM_TRIGGER_POST, SND_SOC_DPCM_TRIGGER_POST},
+		.dpcm_capture = 1,
+		.ops = &kabylake_rt5663_fe_ops,
+	},
+	[KBL_DPCM_AUDIO_5663_HDMI1_PB] = {
+		.name = "Kbl HDMI Port1",
+		.stream_name = "Hdmi1",
+		.cpu_dai_name = "HDMI1 Pin",
+		.codec_name = "snd-soc-dummy",
+		.codec_dai_name = "snd-soc-dummy-dai",
+		.platform_name = "0000:00:1f.3",
+		.dpcm_playback = 1,
+		.init = NULL,
+		.trigger = {
+			SND_SOC_DPCM_TRIGGER_POST, SND_SOC_DPCM_TRIGGER_POST},
+		.nonatomic = 1,
+		.dynamic = 1,
+	},
+	[KBL_DPCM_AUDIO_5663_HDMI2_PB] = {
+		.name = "Kbl HDMI Port2",
+		.stream_name = "Hdmi2",
+		.cpu_dai_name = "HDMI2 Pin",
+		.codec_name = "snd-soc-dummy",
+		.codec_dai_name = "snd-soc-dummy-dai",
+		.platform_name = "0000:00:1f.3",
+		.dpcm_playback = 1,
+		.init = NULL,
+		.trigger = {
+			SND_SOC_DPCM_TRIGGER_POST, SND_SOC_DPCM_TRIGGER_POST},
+		.nonatomic = 1,
+		.dynamic = 1,
+	},
+
+	/* Back End DAI links */
+	{
+		/* SSP1 - Codec */
+		.name = "SSP1-Codec",
+		.id = 0,
+		.cpu_dai_name = "SSP1 Pin",
+		.platform_name = "0000:00:1f.3",
+		.no_pcm = 1,
+		.codec_name = "i2c-10EC5663:00",
+		.codec_dai_name = KBL_REALTEK_CODEC_DAI,
+		.init = kabylake_rt5663_codec_init,
+		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
+			SND_SOC_DAIFMT_CBS_CFS,
+		.ignore_pmdown_time = 1,
+		.be_hw_params_fixup = kabylake_ssp_fixup,
+		.ops = &kabylake_rt5663_ops,
+		.dpcm_playback = 1,
+		.dpcm_capture = 1,
+	},
+	{
+		.name = "iDisp1",
+		.id = 1,
+		.cpu_dai_name = "iDisp1 Pin",
+		.codec_name = "ehdaudio0D2",
+		.codec_dai_name = "intel-hdmi-hifi1",
+		.platform_name = "0000:00:1f.3",
+		.dpcm_playback = 1,
+		.init = kabylake_5663_hdmi1_init,
+		.no_pcm = 1,
+	},
+	{
+		.name = "iDisp2",
+		.id = 2,
+		.cpu_dai_name = "iDisp2 Pin",
+		.codec_name = "ehdaudio0D2",
+		.codec_dai_name = "intel-hdmi-hifi2",
+		.platform_name = "0000:00:1f.3",
+		.init = kabylake_5663_hdmi2_init,
+		.dpcm_playback = 1,
+		.no_pcm = 1,
+	},
+};
+
 #define NAME_SIZE	32
 static int kabylake_card_late_probe(struct snd_soc_card *card)
 {
 	struct kbl_rt5663_private *ctx = snd_soc_card_get_drvdata(card);
 	struct kbl_hdmi_pcm *pcm;
+	struct snd_soc_codec *codec = NULL;
 	int err, i = 0;
 	char jack_name[NAME_SIZE];
 
 	list_for_each_entry(pcm, &ctx->hdmi_pcm_list, head) {
+		codec = pcm->codec_dai->codec;
 		snprintf(jack_name, sizeof(jack_name),
 			"HDMI/DP, pcm=%d Jack", pcm->device);
 		err = snd_soc_card_jack_new(card, jack_name,
@@ -620,11 +857,14 @@ static int kabylake_card_late_probe(struct snd_soc_card *card)
 		i++;
 	}
 
-	return 0;
+	if (!codec)
+		return -EINVAL;
+
+	return hdac_hdmi_jack_port_init(codec, &card->dapm);
 }
 
 /* kabylake audio machine driver for SPT + RT5663 */
-static struct snd_soc_card kabylake_audio_card = {
+static struct snd_soc_card kabylake_audio_card_rt5663_m98927 = {
 	.name = "kblrt5663max",
 	.owner = THIS_MODULE,
 	.dai_link = kabylake_dais,
@@ -641,6 +881,22 @@ static struct snd_soc_card kabylake_audio_card = {
 	.late_probe = kabylake_card_late_probe,
 };
 
+/* kabylake audio machine driver for RT5663 */
+static struct snd_soc_card kabylake_audio_card_rt5663 = {
+	.name = "kblrt5663",
+	.owner = THIS_MODULE,
+	.dai_link = kabylake_5663_dais,
+	.num_links = ARRAY_SIZE(kabylake_5663_dais),
+	.controls = kabylake_5663_controls,
+	.num_controls = ARRAY_SIZE(kabylake_5663_controls),
+	.dapm_widgets = kabylake_5663_widgets,
+	.num_dapm_widgets = ARRAY_SIZE(kabylake_5663_widgets),
+	.dapm_routes = kabylake_5663_map,
+	.num_dapm_routes = ARRAY_SIZE(kabylake_5663_map),
+	.fully_routed = true,
+	.late_probe = kabylake_card_late_probe,
+};
+
 static int kabylake_audio_probe(struct platform_device *pdev)
 {
 	struct kbl_rt5663_private *ctx;
@@ -652,19 +908,30 @@ static int kabylake_audio_probe(struct platform_device *pdev)
 
 	INIT_LIST_HEAD(&ctx->hdmi_pcm_list);
 
-	kabylake_audio_card.dev = &pdev->dev;
-	snd_soc_card_set_drvdata(&kabylake_audio_card, ctx);
+	kabylake_audio_card =
+		(struct snd_soc_card *)pdev->id_entry->driver_data;
+
+	kabylake_audio_card->dev = &pdev->dev;
+	snd_soc_card_set_drvdata(kabylake_audio_card, ctx);
 
 	pdata = dev_get_drvdata(&pdev->dev);
 	if (pdata)
 		dmic_constraints = pdata->dmic_num == 2 ?
 			&constraints_dmic_2ch : &constraints_dmic_channels;
 
-	return devm_snd_soc_register_card(&pdev->dev, &kabylake_audio_card);
+	return devm_snd_soc_register_card(&pdev->dev, kabylake_audio_card);
 }
 
 static const struct platform_device_id kbl_board_ids[] = {
-	{ .name = "kbl_rt5663_m98927" },
+	{
+		.name = "kbl_rt5663",
+		.driver_data = (kernel_ulong_t)&kabylake_audio_card_rt5663,
+	},
+	{
+		.name = "kbl_rt5663_m98927",
+		.driver_data =
+			(kernel_ulong_t)&kabylake_audio_card_rt5663_m98927,
+	},
 	{ }
 };
 
@@ -684,4 +951,5 @@ MODULE_DESCRIPTION("Audio Machine driver-RT5663 & MAX98927 in I2S mode");
 MODULE_AUTHOR("Naveen M <naveen.m@intel.com>");
 MODULE_AUTHOR("Harsha Priya <harshapriya.n@intel.com>");
 MODULE_LICENSE("GPL v2");
+MODULE_ALIAS("platform:kbl_rt5663");
 MODULE_ALIAS("platform:kbl_rt5663_m98927");

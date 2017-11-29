@@ -8,19 +8,26 @@
  * This file is licensed under GPLv2.
  */
 
-#include <linux/jiffies.h>
+#include <linux/delay.h>
+#include <linux/ktime.h>
 #include <linux/math64.h>
 #include <linux/percpu.h>
 #include <linux/smp.h>
 
+#include "cpu.h"
+
 struct aperfmperf_sample {
 	unsigned int	khz;
-	unsigned long	jiffies;
+	ktime_t	time;
 	u64	aperf;
 	u64	mperf;
 };
 
 static DEFINE_PER_CPU(struct aperfmperf_sample, samples);
+
+#define APERFMPERF_CACHE_THRESHOLD_MS	10
+#define APERFMPERF_REFRESH_DELAY_MS	10
+#define APERFMPERF_STALE_THRESHOLD_MS	1000
 
 /*
  * aperfmperf_snapshot_khz()
@@ -33,13 +40,12 @@ static void aperfmperf_snapshot_khz(void *dummy)
 	u64 aperf, aperf_delta;
 	u64 mperf, mperf_delta;
 	struct aperfmperf_sample *s = this_cpu_ptr(&samples);
+	unsigned long flags;
 
-	/* Don't bother re-computing within 10 ms */
-	if (time_before(jiffies, s->jiffies + HZ/100))
-		return;
-
+	local_irq_save(flags);
 	rdmsrl(MSR_IA32_APERF, aperf);
 	rdmsrl(MSR_IA32_MPERF, mperf);
+	local_irq_restore(flags);
 
 	aperf_delta = aperf - s->aperf;
 	mperf_delta = mperf - s->mperf;
@@ -51,18 +57,56 @@ static void aperfmperf_snapshot_khz(void *dummy)
 	if (mperf_delta == 0)
 		return;
 
-	/*
-	 * if (cpu_khz * aperf_delta) fits into ULLONG_MAX, then
-	 *	khz = (cpu_khz * aperf_delta) / mperf_delta
-	 */
-	if (div64_u64(ULLONG_MAX, cpu_khz) > aperf_delta)
-		s->khz = div64_u64((cpu_khz * aperf_delta), mperf_delta);
-	else	/* khz = aperf_delta / (mperf_delta / cpu_khz) */
-		s->khz = div64_u64(aperf_delta,
-			div64_u64(mperf_delta, cpu_khz));
-	s->jiffies = jiffies;
+	s->time = ktime_get();
 	s->aperf = aperf;
 	s->mperf = mperf;
+	s->khz = div64_u64((cpu_khz * aperf_delta), mperf_delta);
+}
+
+static bool aperfmperf_snapshot_cpu(int cpu, ktime_t now, bool wait)
+{
+	s64 time_delta = ktime_ms_delta(now, per_cpu(samples.time, cpu));
+
+	/* Don't bother re-computing within the cache threshold time. */
+	if (time_delta < APERFMPERF_CACHE_THRESHOLD_MS)
+		return true;
+
+	smp_call_function_single(cpu, aperfmperf_snapshot_khz, NULL, wait);
+
+	/* Return false if the previous iteration was too long ago. */
+	return time_delta <= APERFMPERF_STALE_THRESHOLD_MS;
+}
+
+unsigned int aperfmperf_get_khz(int cpu)
+{
+	if (!cpu_khz)
+		return 0;
+
+	if (!static_cpu_has(X86_FEATURE_APERFMPERF))
+		return 0;
+
+	aperfmperf_snapshot_cpu(cpu, ktime_get(), true);
+	return per_cpu(samples.khz, cpu);
+}
+
+void arch_freq_prepare_all(void)
+{
+	ktime_t now = ktime_get();
+	bool wait = false;
+	int cpu;
+
+	if (!cpu_khz)
+		return;
+
+	if (!static_cpu_has(X86_FEATURE_APERFMPERF))
+		return;
+
+	for_each_online_cpu(cpu)
+		if (!aperfmperf_snapshot_cpu(cpu, now, false))
+			wait = true;
+
+	if (wait)
+		msleep(APERFMPERF_REFRESH_DELAY_MS);
 }
 
 unsigned int arch_freq_get_on_cpu(int cpu)
@@ -73,6 +117,10 @@ unsigned int arch_freq_get_on_cpu(int cpu)
 	if (!static_cpu_has(X86_FEATURE_APERFMPERF))
 		return 0;
 
+	if (aperfmperf_snapshot_cpu(cpu, ktime_get(), true))
+		return per_cpu(samples.khz, cpu);
+
+	msleep(APERFMPERF_REFRESH_DELAY_MS);
 	smp_call_function_single(cpu, aperfmperf_snapshot_khz, NULL, 1);
 
 	return per_cpu(samples.khz, cpu);

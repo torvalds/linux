@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * ipv6 in net namespaces
  */
@@ -36,6 +37,11 @@ struct netns_sysctl_ipv6 {
 	int idgen_retries;
 	int idgen_delay;
 	int flowlabel_state_ranges;
+	int flowlabel_reflect;
+	int max_dst_opts_cnt;
+	int max_hbh_opts_cnt;
+	int max_dst_opts_len;
+	int max_hbh_opts_len;
 };
 
 struct netns_ipv6 {
@@ -65,6 +71,7 @@ struct netns_ipv6 {
 	unsigned int		 ip6_rt_gc_expire;
 	unsigned long		 ip6_rt_last_gc;
 #ifdef CONFIG_IPV6_MULTIPLE_TABLES
+	bool			 fib6_has_custom_rules;
 	struct rt6_info         *ip6_prohibit_entry;
 	struct rt6_info         *ip6_blk_hole_entry;
 	struct fib6_table       *fib6_local_tbl;
@@ -86,6 +93,12 @@ struct netns_ipv6 {
 	atomic_t		dev_addr_genid;
 	atomic_t		fib6_sernum;
 	struct seg6_pernet_data *seg6_data;
+	struct fib_notifier_ops	*notifier_ops;
+	struct {
+		struct hlist_head head;
+		spinlock_t	lock;
+		u32		seq;
+	} ip6addrlbl_table;
 };
 
 #if IS_ENABLED(CONFIG_NF_DEFRAG_IPV6)

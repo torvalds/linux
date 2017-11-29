@@ -253,7 +253,7 @@ int qed_mcp_cmd_init(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 	size = MFW_DRV_MSG_MAX_DWORDS(p_info->mfw_mb_length) * sizeof(u32);
 	p_info->mfw_mb_cur = kzalloc(size, GFP_KERNEL);
 	p_info->mfw_mb_shadow = kzalloc(size, GFP_KERNEL);
-	if (!p_info->mfw_mb_shadow || !p_info->mfw_mb_addr)
+	if (!p_info->mfw_mb_cur || !p_info->mfw_mb_shadow)
 		goto err;
 
 	return 0;
@@ -1097,6 +1097,31 @@ static void qed_mcp_handle_transceiver_change(struct qed_hwfn *p_hwfn,
 		DP_NOTICE(p_hwfn, "Transceiver is unplugged.\n");
 }
 
+static void qed_mcp_read_eee_config(struct qed_hwfn *p_hwfn,
+				    struct qed_ptt *p_ptt,
+				    struct qed_mcp_link_state *p_link)
+{
+	u32 eee_status, val;
+
+	p_link->eee_adv_caps = 0;
+	p_link->eee_lp_adv_caps = 0;
+	eee_status = qed_rd(p_hwfn,
+			    p_ptt,
+			    p_hwfn->mcp_info->port_addr +
+			    offsetof(struct public_port, eee_status));
+	p_link->eee_active = !!(eee_status & EEE_ACTIVE_BIT);
+	val = (eee_status & EEE_LD_ADV_STATUS_MASK) >> EEE_LD_ADV_STATUS_OFFSET;
+	if (val & EEE_1G_ADV)
+		p_link->eee_adv_caps |= QED_EEE_1G_ADV;
+	if (val & EEE_10G_ADV)
+		p_link->eee_adv_caps |= QED_EEE_10G_ADV;
+	val = (eee_status & EEE_LP_ADV_STATUS_MASK) >> EEE_LP_ADV_STATUS_OFFSET;
+	if (val & EEE_1G_ADV)
+		p_link->eee_lp_adv_caps |= QED_EEE_1G_ADV;
+	if (val & EEE_10G_ADV)
+		p_link->eee_lp_adv_caps |= QED_EEE_10G_ADV;
+}
+
 static void qed_mcp_handle_link_change(struct qed_hwfn *p_hwfn,
 				       struct qed_ptt *p_ptt, bool b_reset)
 {
@@ -1228,6 +1253,9 @@ static void qed_mcp_handle_link_change(struct qed_hwfn *p_hwfn,
 
 	p_link->sfp_tx_fault = !!(status & LINK_STATUS_SFP_TX_FAULT);
 
+	if (p_hwfn->mcp_info->capabilities & FW_MB_PARAM_FEATURE_SUPPORT_EEE)
+		qed_mcp_read_eee_config(p_hwfn, p_ptt, p_link);
+
 	qed_link_update(p_hwfn);
 out:
 	spin_unlock_bh(&p_hwfn->mcp_info->link_lock);
@@ -1251,6 +1279,19 @@ int qed_mcp_set_link(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt, bool b_up)
 	phy_cfg.pause |= (params->pause.forced_tx) ? ETH_PAUSE_TX : 0;
 	phy_cfg.adv_speed = params->speed.advertised_speeds;
 	phy_cfg.loopback_mode = params->loopback_mode;
+	if (p_hwfn->mcp_info->capabilities & FW_MB_PARAM_FEATURE_SUPPORT_EEE) {
+		if (params->eee.enable)
+			phy_cfg.eee_cfg |= EEE_CFG_EEE_ENABLED;
+		if (params->eee.tx_lpi_enable)
+			phy_cfg.eee_cfg |= EEE_CFG_TX_LPI;
+		if (params->eee.adv_caps & QED_EEE_1G_ADV)
+			phy_cfg.eee_cfg |= EEE_CFG_ADV_SPEED_1G;
+		if (params->eee.adv_caps & QED_EEE_10G_ADV)
+			phy_cfg.eee_cfg |= EEE_CFG_ADV_SPEED_10G;
+		phy_cfg.eee_cfg |= (params->eee.tx_lpi_timer <<
+				    EEE_TX_TIMER_USEC_OFFSET) &
+				   EEE_TX_TIMER_USEC_MASK;
+	}
 
 	p_hwfn->b_drv_link_init = b_up;
 
@@ -1650,12 +1691,12 @@ qed_mcp_get_shmem_proto_mfw(struct qed_hwfn *p_hwfn,
 	case FW_MB_PARAM_GET_PF_RDMA_ROCE:
 		*p_proto = QED_PCI_ETH_ROCE;
 		break;
-	case FW_MB_PARAM_GET_PF_RDMA_BOTH:
-		DP_NOTICE(p_hwfn,
-			  "Current day drivers don't support RoCE & iWARP. Default to RoCE-only\n");
-		*p_proto = QED_PCI_ETH_ROCE;
-		break;
 	case FW_MB_PARAM_GET_PF_RDMA_IWARP:
+		*p_proto = QED_PCI_ETH_IWARP;
+		break;
+	case FW_MB_PARAM_GET_PF_RDMA_BOTH:
+		*p_proto = QED_PCI_ETH_RDMA;
+		break;
 	default:
 		DP_NOTICE(p_hwfn,
 			  "MFW answers GET_PF_RDMA_PROTOCOL but param is %08x\n",
@@ -2821,4 +2862,29 @@ void qed_mcp_resc_lock_default_init(struct qed_resc_lock_params *p_lock,
 		memset(p_unlock, 0, sizeof(*p_unlock));
 		p_unlock->resource = resource;
 	}
+}
+
+int qed_mcp_get_capabilities(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
+{
+	u32 mcp_resp;
+	int rc;
+
+	rc = qed_mcp_cmd(p_hwfn, p_ptt, DRV_MSG_CODE_GET_MFW_FEATURE_SUPPORT,
+			 0, &mcp_resp, &p_hwfn->mcp_info->capabilities);
+	if (!rc)
+		DP_VERBOSE(p_hwfn, (QED_MSG_SP | NETIF_MSG_PROBE),
+			   "MFW supported features: %08x\n",
+			   p_hwfn->mcp_info->capabilities);
+
+	return rc;
+}
+
+int qed_mcp_set_capabilities(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
+{
+	u32 mcp_resp, mcp_param, features;
+
+	features = DRV_MB_PARAM_FEATURE_SUPPORT_PORT_EEE;
+
+	return qed_mcp_cmd(p_hwfn, p_ptt, DRV_MSG_CODE_FEATURE_SUPPORT,
+			   features, &mcp_resp, &mcp_param);
 }

@@ -74,7 +74,7 @@ static unsigned int ipv6_defrag(void *priv,
 	return err == 0 ? NF_ACCEPT : NF_DROP;
 }
 
-static struct nf_hook_ops ipv6_defrag_ops[] = {
+static const struct nf_hook_ops ipv6_defrag_ops[] = {
 	{
 		.hook		= ipv6_defrag,
 		.pf		= NFPROTO_IPV6,

@@ -24,28 +24,19 @@ static dev_t rtc_devt;
 
 static int rtc_dev_open(struct inode *inode, struct file *file)
 {
-	int err;
 	struct rtc_device *rtc = container_of(inode->i_cdev,
 					struct rtc_device, char_dev);
-	const struct rtc_class_ops *ops = rtc->ops;
 
 	if (test_and_set_bit_lock(RTC_DEV_BUSY, &rtc->flags))
 		return -EBUSY;
 
 	file->private_data = rtc;
 
-	err = ops->open ? ops->open(rtc->dev.parent) : 0;
-	if (err == 0) {
-		spin_lock_irq(&rtc->irq_lock);
-		rtc->irq_data = 0;
-		spin_unlock_irq(&rtc->irq_lock);
+	spin_lock_irq(&rtc->irq_lock);
+	rtc->irq_data = 0;
+	spin_unlock_irq(&rtc->irq_lock);
 
-		return 0;
-	}
-
-	/* something has gone wrong */
-	clear_bit_unlock(RTC_DEV_BUSY, &rtc->flags);
-	return err;
+	return 0;
 }
 
 #ifdef CONFIG_RTC_INTF_DEV_UIE_EMUL
@@ -80,9 +71,9 @@ static void rtc_uie_task(struct work_struct *work)
 	if (num)
 		rtc_handle_legacy_irq(rtc, num, RTC_UF);
 }
-static void rtc_uie_timer(unsigned long data)
+static void rtc_uie_timer(struct timer_list *t)
 {
-	struct rtc_device *rtc = (struct rtc_device *)data;
+	struct rtc_device *rtc = from_timer(rtc, t, uie_timer);
 	unsigned long flags;
 
 	spin_lock_irqsave(&rtc->irq_lock, flags);
@@ -438,9 +429,6 @@ static int rtc_dev_release(struct inode *inode, struct file *file)
 	rtc_update_irq_enable(rtc, 0);
 	rtc_irq_set_state(rtc, NULL, 0);
 
-	if (rtc->ops->release)
-		rtc->ops->release(rtc->dev.parent);
-
 	clear_bit_unlock(RTC_DEV_BUSY, &rtc->flags);
 	return 0;
 }
@@ -472,7 +460,7 @@ void rtc_dev_prepare(struct rtc_device *rtc)
 
 #ifdef CONFIG_RTC_INTF_DEV_UIE_EMUL
 	INIT_WORK(&rtc->uie_task, rtc_uie_task);
-	setup_timer(&rtc->uie_timer, rtc_uie_timer, (unsigned long)rtc);
+	timer_setup(&rtc->uie_timer, rtc_uie_timer, 0);
 #endif
 
 	cdev_init(&rtc->char_dev, &rtc_dev_fops);

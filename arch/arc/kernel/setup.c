@@ -51,6 +51,7 @@ static const struct id_to_str arc_cpu_rel[] = {
 	{ 0x51, "R2.0" },
 	{ 0x52, "R2.1" },
 	{ 0x53, "R3.0" },
+	{ 0x54, "R4.0" },
 #endif
 	{ 0x00, NULL   }
 };
@@ -62,6 +63,7 @@ static const struct id_to_str arc_cpu_nm[] = {
 #else
 	{ 0x40, "ARC EM"  },
 	{ 0x50, "ARC HS38"  },
+	{ 0x54, "ARC HS48"  },
 #endif
 	{ 0x00, "Unknown"   }
 };
@@ -119,11 +121,11 @@ static void read_arc_build_cfg_regs(void)
 	struct bcr_generic bcr;
 	struct cpuinfo_arc *cpu = &cpuinfo_arc700[smp_processor_id()];
 	const struct id_to_str *tbl;
+	struct bcr_isa_arcv2 isa;
 
 	FIX_PTR(cpu);
 
 	READ_BCR(AUX_IDENTITY, cpu->core);
-	READ_BCR(ARC_REG_ISA_CFG_BCR, cpu->isa);
 
 	for (tbl = &arc_cpu_rel[0]; tbl->id != 0; tbl++) {
 		if (cpu->core.family == tbl->id) {
@@ -133,7 +135,7 @@ static void read_arc_build_cfg_regs(void)
 	}
 
 	for (tbl = &arc_cpu_nm[0]; tbl->id != 0; tbl++) {
-		if ((cpu->core.family & 0xF0) == tbl->id)
+		if ((cpu->core.family & 0xF4) == tbl->id)
 			break;
 	}
 	cpu->name = tbl->str;
@@ -192,6 +194,16 @@ static void read_arc_build_cfg_regs(void)
 		cpu->bpu.full = bpu.ft;
 		cpu->bpu.num_cache = 256 << bpu.bce;
 		cpu->bpu.num_pred = 2048 << bpu.pte;
+
+		if (cpu->core.family >= 0x54) {
+			unsigned int exec_ctrl;
+
+			READ_BCR(AUX_EXEC_CTRL, exec_ctrl);
+			cpu->extn.dual_enb = exec_ctrl & 1;
+
+			/* dual issue always present for this core */
+			cpu->extn.dual = 1;
+		}
 	}
 
 	READ_BCR(ARC_REG_AP_BCR, bcr);
@@ -205,18 +217,25 @@ static void read_arc_build_cfg_regs(void)
 
 	cpu->extn.debug = cpu->extn.ap | cpu->extn.smart | cpu->extn.rtt;
 
+	READ_BCR(ARC_REG_ISA_CFG_BCR, isa);
+
 	/* some hacks for lack of feature BCR info in old ARC700 cores */
 	if (is_isa_arcompact()) {
-		if (!cpu->isa.ver)	/* ISA BCR absent, use Kconfig info */
+		if (!isa.ver)	/* ISA BCR absent, use Kconfig info */
 			cpu->isa.atomic = IS_ENABLED(CONFIG_ARC_HAS_LLSC);
-		else
-			cpu->isa.atomic = cpu->isa.atomic1;
+		else {
+			/* ARC700_BUILD only has 2 bits of isa info */
+			struct bcr_generic bcr = *(struct bcr_generic *)&isa;
+			cpu->isa.atomic = bcr.info & 1;
+		}
 
 		cpu->isa.be = IS_ENABLED(CONFIG_CPU_BIG_ENDIAN);
 
 		 /* there's no direct way to distinguish 750 vs. 770 */
 		if (unlikely(cpu->core.family < 0x34 || cpu->mmu.ver < 3))
 			cpu->name = "ARC750";
+	} else {
+		cpu->isa = isa;
 	}
 }
 
@@ -232,10 +251,11 @@ static char *arc_cpu_mumbojumbo(int cpu_id, char *buf, int len)
 		       "\nIDENTITY\t: ARCVER [%#02x] ARCNUM [%#02x] CHIPID [%#4x]\n",
 		       core->family, core->cpu_id, core->chip_id);
 
-	n += scnprintf(buf + n, len - n, "processor [%d]\t: %s %s (%s ISA) %s\n",
+	n += scnprintf(buf + n, len - n, "processor [%d]\t: %s %s (%s ISA) %s%s%s\n",
 		       cpu_id, cpu->name, cpu->details,
 		       is_isa_arcompact() ? "ARCompact" : "ARCv2",
-		       IS_AVAIL1(cpu->isa.be, "[Big-Endian]"));
+		       IS_AVAIL1(cpu->isa.be, "[Big-Endian]"),
+		       IS_AVAIL3(cpu->extn.dual, cpu->extn.dual_enb, " Dual-Issue "));
 
 	n += scnprintf(buf + n, len - n, "Timers\t\t: %s%s%s%s%s%s\nISA Extn\t: ",
 		       IS_AVAIL1(cpu->extn.timer0, "Timer0 "),
@@ -275,11 +295,26 @@ static char *arc_cpu_mumbojumbo(int cpu_id, char *buf, int len)
 
 	if (cpu->bpu.ver)
 		n += scnprintf(buf + n, len - n,
-			      "BPU\t\t: %s%s match, cache:%d, Predict Table:%d\n",
+			      "BPU\t\t: %s%s match, cache:%d, Predict Table:%d",
 			      IS_AVAIL1(cpu->bpu.full, "full"),
 			      IS_AVAIL1(!cpu->bpu.full, "partial"),
 			      cpu->bpu.num_cache, cpu->bpu.num_pred);
 
+	if (is_isa_arcv2()) {
+		struct bcr_lpb lpb;
+
+		READ_BCR(ARC_REG_LPB_BUILD, lpb);
+		if (lpb.ver) {
+			unsigned int ctl;
+			ctl = read_aux_reg(ARC_REG_LPB_CTRL);
+
+			n += scnprintf(buf + n, len - n, " Loop Buffer:%d %s",
+				lpb.entries,
+				IS_DISABLED_RUN(!ctl));
+		}
+	}
+
+	n += scnprintf(buf + n, len - n, "\n");
 	return buf;
 }
 
@@ -307,6 +342,24 @@ static char *arc_extn_mumbojumbo(int cpu_id, char *buf, int len)
 		n += scnprintf(buf + n, len - n, "Extn [CCM]\t: DCCM @ %x, %d KB / ICCM: @ %x, %d KB\n",
 			       cpu->dccm.base_addr, TO_KB(cpu->dccm.sz),
 			       cpu->iccm.base_addr, TO_KB(cpu->iccm.sz));
+
+	if (is_isa_arcv2()) {
+
+		/* Error Protection: ECC/Parity */
+		struct bcr_erp erp;
+		READ_BCR(ARC_REG_ERP_BUILD, erp);
+
+		if (erp.ver) {
+			struct  ctl_erp ctl;
+			READ_BCR(ARC_REG_ERP_CTRL, ctl);
+
+			/* inverted bits: 0 means enabled */
+			n += scnprintf(buf + n, len - n, "Extn [ECC]\t: %s%s%s%s%s%s\n",
+				IS_AVAIL3(erp.ic,  !ctl.dpi, "IC "),
+				IS_AVAIL3(erp.dc,  !ctl.dpd, "DC "),
+				IS_AVAIL3(erp.mmu, !ctl.mpd, "MMU "));
+		}
+	}
 
 	n += scnprintf(buf + n, len - n, "OS ABI [v%d]\t: %s\n",
 			EF_ARC_OSABI_CURRENT >> 8,
@@ -385,13 +438,13 @@ void setup_processor(void)
 	read_arc_build_cfg_regs();
 	arc_init_IRQ();
 
-	printk(arc_cpu_mumbojumbo(cpu_id, str, sizeof(str)));
+	pr_info("%s", arc_cpu_mumbojumbo(cpu_id, str, sizeof(str)));
 
 	arc_mmu_init();
 	arc_cache_init();
 
-	printk(arc_extn_mumbojumbo(cpu_id, str, sizeof(str)));
-	printk(arc_platform_smp_cpuinfo());
+	pr_info("%s", arc_extn_mumbojumbo(cpu_id, str, sizeof(str)));
+	pr_info("%s", arc_platform_smp_cpuinfo());
 
 	arc_chk_core_config();
 }
@@ -510,7 +563,7 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 		goto done;
 	}
 
-	str = (char *)__get_free_page(GFP_TEMPORARY);
+	str = (char *)__get_free_page(GFP_KERNEL);
 	if (!str)
 		goto done;
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * gadget.c - DesignWare USB3 DRD Controller Gadget Framework Link
  *
@@ -5,15 +6,6 @@
  *
  * Authors: Felipe Balbi <balbi@ti.com>,
  *	    Sebastian Andrzej Siewior <bigeasy@linutronix.de>
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2  of
- * the License as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/kernel.h>
@@ -896,9 +888,40 @@ static void __dwc3_prepare_one_trb(struct dwc3_ep *dep, struct dwc3_trb *trb,
 		if (!node) {
 			trb->ctrl = DWC3_TRBCTL_ISOCHRONOUS_FIRST;
 
+			/*
+			 * USB Specification 2.0 Section 5.9.2 states that: "If
+			 * there is only a single transaction in the microframe,
+			 * only a DATA0 data packet PID is used.  If there are
+			 * two transactions per microframe, DATA1 is used for
+			 * the first transaction data packet and DATA0 is used
+			 * for the second transaction data packet.  If there are
+			 * three transactions per microframe, DATA2 is used for
+			 * the first transaction data packet, DATA1 is used for
+			 * the second, and DATA0 is used for the third."
+			 *
+			 * IOW, we should satisfy the following cases:
+			 *
+			 * 1) length <= maxpacket
+			 *	- DATA0
+			 *
+			 * 2) maxpacket < length <= (2 * maxpacket)
+			 *	- DATA1, DATA0
+			 *
+			 * 3) (2 * maxpacket) < length <= (3 * maxpacket)
+			 *	- DATA2, DATA1, DATA0
+			 */
 			if (speed == USB_SPEED_HIGH) {
 				struct usb_ep *ep = &dep->endpoint;
-				trb->size |= DWC3_TRB_SIZE_PCM1(ep->mult - 1);
+				unsigned int mult = ep->mult - 1;
+				unsigned int maxp = usb_endpoint_maxp(ep->desc);
+
+				if (length <= (2 * maxp))
+					mult--;
+
+				if (length <= maxp)
+					mult--;
+
+				trb->size |= DWC3_TRB_SIZE_PCM1(mult);
 			}
 		} else {
 			trb->ctrl = DWC3_TRBCTL_ISOCHRONOUS;
@@ -1120,9 +1143,6 @@ static void dwc3_prepare_trbs(struct dwc3_ep *dep)
 
 	BUILD_BUG_ON_NOT_POWER_OF_2(DWC3_TRB_NUM);
 
-	if (!dwc3_calc_trbs_left(dep))
-		return;
-
 	/*
 	 * We can get in a situation where there's a request in the started list
 	 * but there weren't enough TRBs to fully kick it in the first time
@@ -1163,13 +1183,16 @@ static void dwc3_prepare_trbs(struct dwc3_ep *dep)
 	}
 }
 
-static int __dwc3_gadget_kick_transfer(struct dwc3_ep *dep, u16 cmd_param)
+static int __dwc3_gadget_kick_transfer(struct dwc3_ep *dep)
 {
 	struct dwc3_gadget_ep_cmd_params params;
 	struct dwc3_request		*req;
 	int				starting;
 	int				ret;
 	u32				cmd;
+
+	if (!dwc3_calc_trbs_left(dep))
+		return 0;
 
 	starting = !(dep->flags & DWC3_EP_BUSY);
 
@@ -1185,8 +1208,10 @@ static int __dwc3_gadget_kick_transfer(struct dwc3_ep *dep, u16 cmd_param)
 	if (starting) {
 		params.param0 = upper_32_bits(req->trb_dma);
 		params.param1 = lower_32_bits(req->trb_dma);
-		cmd = DWC3_DEPCMD_STARTTRANSFER |
-			DWC3_DEPCMD_PARAM(cmd_param);
+		cmd = DWC3_DEPCMD_STARTTRANSFER;
+
+		if (usb_endpoint_xfer_isoc(dep->endpoint.desc))
+			cmd |= DWC3_DEPCMD_PARAM(dep->frame_number);
 	} else {
 		cmd = DWC3_DEPCMD_UPDATETRANSFER |
 			DWC3_DEPCMD_PARAM(dep->resource_index);
@@ -1227,8 +1252,6 @@ static int __dwc3_gadget_get_frame(struct dwc3 *dwc)
 static void __dwc3_gadget_start_isoc(struct dwc3 *dwc,
 		struct dwc3_ep *dep, u32 cur_uf)
 {
-	u32 uf;
-
 	if (list_empty(&dep->pending_list)) {
 		dev_info(dwc->dev, "%s: ran out of requests\n",
 				dep->name);
@@ -1240,9 +1263,8 @@ static void __dwc3_gadget_start_isoc(struct dwc3 *dwc,
 	 * Schedule the first trb for one interval in the future or at
 	 * least 4 microframes.
 	 */
-	uf = cur_uf + max_t(u32, 4, dep->interval);
-
-	__dwc3_gadget_kick_transfer(dep, uf);
+	dep->frame_number = cur_uf + max_t(u32, 4, dep->interval);
+	__dwc3_gadget_kick_transfer(dep);
 }
 
 static void dwc3_gadget_start_isoc(struct dwc3 *dwc,
@@ -1259,7 +1281,6 @@ static void dwc3_gadget_start_isoc(struct dwc3 *dwc,
 static int __dwc3_gadget_ep_queue(struct dwc3_ep *dep, struct dwc3_request *req)
 {
 	struct dwc3		*dwc = dep->dwc;
-	int			ret = 0;
 
 	if (!dep->endpoint.desc) {
 		dev_err(dwc->dev, "%s: can't queue to disabled endpoint\n",
@@ -1306,24 +1327,14 @@ static int __dwc3_gadget_ep_queue(struct dwc3_ep *dep, struct dwc3_request *req)
 		}
 
 		if ((dep->flags & DWC3_EP_BUSY) &&
-		    !(dep->flags & DWC3_EP_MISSED_ISOC)) {
-			WARN_ON_ONCE(!dep->resource_index);
-			ret = __dwc3_gadget_kick_transfer(dep,
-							  dep->resource_index);
-		}
+		    !(dep->flags & DWC3_EP_MISSED_ISOC))
+			goto out;
 
-		goto out;
+		return 0;
 	}
 
-	if (!dwc3_calc_trbs_left(dep))
-		return 0;
-
-	ret = __dwc3_gadget_kick_transfer(dep, 0);
 out:
-	if (ret == -EBUSY)
-		ret = 0;
-
-	return ret;
+	return __dwc3_gadget_kick_transfer(dep);
 }
 
 static int dwc3_gadget_ep_queue(struct usb_ep *ep, struct usb_request *request,
@@ -2316,7 +2327,7 @@ static int dwc3_cleanup_done_reqs(struct dwc3 *dwc, struct dwc3_ep *dep,
 		req->request.actual = length - req->remaining;
 
 		if ((req->request.actual < length) && req->num_pending_sgs)
-			return __dwc3_gadget_kick_transfer(dep, 0);
+			return __dwc3_gadget_kick_transfer(dep);
 
 		dwc3_gadget_giveback(dep, req, status);
 
@@ -2409,13 +2420,8 @@ static void dwc3_endpoint_transfer_complete(struct dwc3 *dwc,
 	if (!dep->endpoint.desc)
 		return;
 
-	if (!usb_endpoint_xfer_isoc(dep->endpoint.desc)) {
-		int ret;
-
-		ret = __dwc3_gadget_kick_transfer(dep, 0);
-		if (!ret || ret == -EBUSY)
-			return;
-	}
+	if (!usb_endpoint_xfer_isoc(dep->endpoint.desc))
+		__dwc3_gadget_kick_transfer(dep);
 }
 
 static void dwc3_endpoint_interrupt(struct dwc3 *dwc,
@@ -2456,15 +2462,10 @@ static void dwc3_endpoint_interrupt(struct dwc3 *dwc,
 		dwc3_endpoint_transfer_complete(dwc, dep, event);
 		break;
 	case DWC3_DEPEVT_XFERNOTREADY:
-		if (usb_endpoint_xfer_isoc(dep->endpoint.desc)) {
+		if (usb_endpoint_xfer_isoc(dep->endpoint.desc))
 			dwc3_gadget_start_isoc(dwc, dep, event);
-		} else {
-			int ret;
-
-			ret = __dwc3_gadget_kick_transfer(dep, 0);
-			if (!ret || ret == -EBUSY)
-				return;
-		}
+		else
+			__dwc3_gadget_kick_transfer(dep);
 
 		break;
 	case DWC3_DEPEVT_STREAMEVT:

@@ -143,9 +143,10 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	printf("%s: Test signal handling during requeue_pi\n",
+	ksft_print_header();
+	ksft_print_msg("%s: Test signal handling during requeue_pi\n",
 	       basename(argv[0]));
-	printf("\tArguments: <none>\n");
+	ksft_print_msg("\tArguments: <none>\n");
 
 	sa.sa_handler = handle_signal;
 	sigemptyset(&sa.sa_mask);

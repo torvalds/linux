@@ -249,6 +249,10 @@ ap_i2c_dig: &i2c2 {
 		pinctrl-0 = <&trackpad_int_l>;
 		interrupt-parent = <&gpio1>;
 		interrupts = <4 IRQ_TYPE_LEVEL_LOW>;
+		linux,gpio-keymap = <KEY_RESERVED
+				     KEY_RESERVED
+				     KEY_RESERVED
+				     BTN_LEFT>;
 		wakeup-source;
 	};
 };
@@ -262,6 +266,50 @@ ap_i2c_dig: &i2c2 {
 		interrupt-parent = <&gpio3>;
 		interrupts = <13 IRQ_TYPE_LEVEL_LOW>;
 	};
+};
+
+&ppvar_bigcpu_pwm {
+	regulator-min-microvolt = <798674>;
+	regulator-max-microvolt = <1302172>;
+};
+
+&ppvar_bigcpu {
+	regulator-min-microvolt = <798674>;
+	regulator-max-microvolt = <1302172>;
+	ctrl-voltage-range = <798674 1302172>;
+};
+
+&ppvar_litcpu_pwm {
+	regulator-min-microvolt = <799065>;
+	regulator-max-microvolt = <1303738>;
+};
+
+&ppvar_litcpu {
+	regulator-min-microvolt = <799065>;
+	regulator-max-microvolt = <1303738>;
+	ctrl-voltage-range = <799065 1303738>;
+};
+
+&ppvar_gpu_pwm {
+	regulator-min-microvolt = <785782>;
+	regulator-max-microvolt = <1217729>;
+};
+
+&ppvar_gpu {
+	regulator-min-microvolt = <785782>;
+	regulator-max-microvolt = <1217729>;
+	ctrl-voltage-range = <785782 1217729>;
+};
+
+&ppvar_centerlogic_pwm {
+	regulator-min-microvolt = <800069>;
+	regulator-max-microvolt = <1049692>;
+};
+
+&ppvar_centerlogic {
+	regulator-min-microvolt = <800069>;
+	regulator-max-microvolt = <1049692>;
+	ctrl-voltage-range = <800069 1049692>;
 };
 
 &saradc {

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Statically sized hash table implementation
  * (C) 2012  Sasha Levin <levinsasha928@gmail.com>

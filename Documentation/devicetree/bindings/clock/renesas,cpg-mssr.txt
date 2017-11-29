@@ -22,6 +22,8 @@ Required Properties:
       - "renesas,r8a7794-cpg-mssr" for the r8a7794 SoC (R-Car E2)
       - "renesas,r8a7795-cpg-mssr" for the r8a7795 SoC (R-Car H3)
       - "renesas,r8a7796-cpg-mssr" for the r8a7796 SoC (R-Car M3-W)
+      - "renesas,r8a77970-cpg-mssr" for the r8a77970 SoC (R-Car V3M)
+      - "renesas,r8a77995-cpg-mssr" for the r8a77995 SoC (R-Car D3)
 
   - reg: Base address and length of the memory resource used by the CPG/MSSR
     block
@@ -30,8 +32,8 @@ Required Properties:
     clock-names
   - clock-names: List of external parent clock names. Valid names are:
       - "extal" (r8a7743, r8a7745, r8a7790, r8a7791, r8a7792, r8a7793, r8a7794,
-		 r8a7795, r8a7796)
-      - "extalr" (r8a7795, r8a7796)
+		 r8a7795, r8a7796, r8a77970, r8a77995)
+      - "extalr" (r8a7795, r8a7796, r8a77970)
       - "usb_extal" (r8a7743, r8a7745, r8a7790, r8a7791, r8a7793, r8a7794)
 
   - #clock-cells: Must be 2
@@ -81,5 +83,4 @@ Examples
 		dma-names = "tx", "rx";
 		power-domains = <&cpg>;
 		resets = <&cpg 310>;
-		status = "disabled";
 	};

@@ -47,6 +47,7 @@
 #include <asm/cpu.h>
 #include <asm/cputype.h>
 #include <asm/cpu_ops.h>
+#include <asm/daifflags.h>
 #include <asm/mmu_context.h>
 #include <asm/numa.h>
 #include <asm/pgtable.h>
@@ -154,7 +155,7 @@ int __cpu_up(unsigned int cpu, struct task_struct *idle)
 	 * page tables.
 	 */
 	secondary_data.task = idle;
-	secondary_data.stack = task_stack_page(idle) + THREAD_START_SP;
+	secondary_data.stack = task_stack_page(idle) + THREAD_SIZE;
 	update_cpu_boot_status(CPU_MMU_OFF);
 	__flush_dcache_area(&secondary_data, sizeof(secondary_data));
 
@@ -216,6 +217,7 @@ int __cpu_up(unsigned int cpu, struct task_struct *idle)
  */
 asmlinkage void secondary_start_kernel(void)
 {
+	u64 mpidr = read_cpuid_mpidr() & MPIDR_HWID_BITMASK;
 	struct mm_struct *mm = &init_mm;
 	unsigned int cpu;
 
@@ -265,14 +267,14 @@ asmlinkage void secondary_start_kernel(void)
 	 * the CPU migration code to notice that the CPU is online
 	 * before we continue.
 	 */
-	pr_info("CPU%u: Booted secondary processor [%08x]\n",
-					 cpu, read_cpuid_id());
+	pr_info("CPU%u: Booted secondary processor 0x%010lx [0x%08x]\n",
+					 cpu, (unsigned long)mpidr,
+					 read_cpuid_id());
 	update_cpu_boot_status(CPU_BOOT_SUCCESS);
 	set_cpu_online(cpu, true);
 	complete(&cpu_running);
 
-	local_irq_enable();
-	local_async_enable();
+	local_daif_restore(DAIF_PROCCTX);
 
 	/*
 	 * OK, it's off to the idle thread for us
@@ -368,10 +370,6 @@ void __cpu_die(unsigned int cpu)
 /*
  * Called from the idle thread for the CPU which has been shutdown.
  *
- * Note that we disable IRQs here, but do not re-enable them
- * before returning to the caller. This is also the behaviour
- * of the other hotplug-cpu capable cores, so presumably coming
- * out of idle fixes this.
  */
 void cpu_die(void)
 {
@@ -379,7 +377,7 @@ void cpu_die(void)
 
 	idle_task_exit();
 
-	local_irq_disable();
+	local_daif_mask();
 
 	/* Tell __cpu_die() that this CPU is now safe to dispose of */
 	(void)cpu_report_death();
@@ -469,7 +467,7 @@ static u64 __init of_get_cpu_mpidr(struct device_node *dn)
 	 */
 	cell = of_get_property(dn, "reg", NULL);
 	if (!cell) {
-		pr_err("%s: missing reg property\n", dn->full_name);
+		pr_err("%pOF: missing reg property\n", dn);
 		return INVALID_HWID;
 	}
 
@@ -478,7 +476,7 @@ static u64 __init of_get_cpu_mpidr(struct device_node *dn)
 	 * Non affinity bits must be set to 0 in the DT
 	 */
 	if (hwid & ~MPIDR_HWID_BITMASK) {
-		pr_err("%s: invalid reg property\n", dn->full_name);
+		pr_err("%pOF: invalid reg property\n", dn);
 		return INVALID_HWID;
 	}
 	return hwid;
@@ -627,8 +625,8 @@ static void __init of_parse_and_init_cpus(void)
 			goto next;
 
 		if (is_mpidr_duplicate(cpu_count, hwid)) {
-			pr_err("%s: duplicate cpu reg properties in the DT\n",
-				dn->full_name);
+			pr_err("%pOF: duplicate cpu reg properties in the DT\n",
+				dn);
 			goto next;
 		}
 
@@ -640,8 +638,8 @@ static void __init of_parse_and_init_cpus(void)
 		 */
 		if (hwid == cpu_logical_map(0)) {
 			if (bootcpu_valid) {
-				pr_err("%s: duplicate boot cpu reg property in DT\n",
-					dn->full_name);
+				pr_err("%pOF: duplicate boot cpu reg property in DT\n",
+					dn);
 				goto next;
 			}
 
@@ -690,7 +688,7 @@ void __init smp_init_cpus(void)
 				      acpi_parse_gic_cpu_interface, 0);
 
 	if (cpu_count > nr_cpu_ids)
-		pr_warn("Number of cores (%d) exceeds configured maximum of %d - clipping\n",
+		pr_warn("Number of cores (%d) exceeds configured maximum of %u - clipping\n",
 			cpu_count, nr_cpu_ids);
 
 	if (!bootcpu_valid) {
@@ -837,7 +835,7 @@ static void ipi_cpu_stop(unsigned int cpu)
 {
 	set_cpu_online(cpu, false);
 
-	local_irq_disable();
+	local_daif_mask();
 
 	while (1)
 		cpu_relax();
@@ -977,10 +975,20 @@ void smp_send_stop(void)
 }
 
 #ifdef CONFIG_KEXEC_CORE
-void smp_send_crash_stop(void)
+void crash_smp_send_stop(void)
 {
+	static int cpus_stopped;
 	cpumask_t mask;
 	unsigned long timeout;
+
+	/*
+	 * This function can be called twice in panic path, but obviously
+	 * we execute this only once.
+	 */
+	if (cpus_stopped)
+		return;
+
+	cpus_stopped = 1;
 
 	if (num_online_cpus() == 1)
 		return;

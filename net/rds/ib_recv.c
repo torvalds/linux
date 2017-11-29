@@ -410,14 +410,14 @@ void rds_ib_recv_refill(struct rds_connection *conn, int prefill, gfp_t gfp)
 			break;
 		}
 
-		/* XXX when can this fail? */
-		ret = ib_post_recv(ic->i_cm_id->qp, &recv->r_wr, &failed_wr);
-		rdsdebug("recv %p ibinc %p page %p addr %lu ret %d\n", recv,
+		rdsdebug("recv %p ibinc %p page %p addr %lu\n", recv,
 			 recv->r_ibinc, sg_page(&recv->r_frag->f_sg),
 			 (long) ib_sg_dma_address(
 				ic->i_cm_id->device,
-				&recv->r_frag->f_sg),
-			ret);
+				&recv->r_frag->f_sg));
+
+		/* XXX when can this fail? */
+		ret = ib_post_recv(ic->i_cm_id->qp, &recv->r_wr, &failed_wr);
 		if (ret) {
 			rds_ib_conn_error(conn, "recv post on "
 			       "%pI4 returned %d, disconnecting and "
@@ -1015,8 +1015,10 @@ void rds_ib_recv_cqe_handler(struct rds_ib_connection *ic,
 	if (rds_ib_ring_empty(&ic->i_recv_ring))
 		rds_ib_stats_inc(s_ib_rx_ring_empty);
 
-	if (rds_ib_ring_low(&ic->i_recv_ring))
+	if (rds_ib_ring_low(&ic->i_recv_ring)) {
 		rds_ib_recv_refill(conn, 0, GFP_NOWAIT);
+		rds_ib_stats_inc(s_ib_rx_refill_from_cq);
+	}
 }
 
 int rds_ib_recv_path(struct rds_conn_path *cp)
@@ -1029,6 +1031,7 @@ int rds_ib_recv_path(struct rds_conn_path *cp)
 	if (rds_conn_up(conn)) {
 		rds_ib_attempt_ack(ic);
 		rds_ib_recv_refill(conn, 0, GFP_KERNEL);
+		rds_ib_stats_inc(s_ib_rx_refill_from_thread);
 	}
 
 	return ret;

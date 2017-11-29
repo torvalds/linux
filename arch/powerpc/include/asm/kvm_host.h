@@ -67,11 +67,6 @@ extern int kvm_age_hva(struct kvm *kvm, unsigned long start, unsigned long end);
 extern int kvm_test_age_hva(struct kvm *kvm, unsigned long hva);
 extern void kvm_set_spte_hva(struct kvm *kvm, unsigned long hva, pte_t pte);
 
-static inline void kvm_arch_mmu_notifier_invalidate_page(struct kvm *kvm,
-							 unsigned long address)
-{
-}
-
 #define HPTEG_CACHE_NUM			(1 << 15)
 #define HPTEG_HASH_BITS_PTE		13
 #define HPTEG_HASH_BITS_PTE_LONG	12
@@ -240,10 +235,7 @@ struct revmap_entry {
  */
 #define KVMPPC_RMAP_LOCK_BIT	63
 #define KVMPPC_RMAP_RC_SHIFT	32
-#define KVMPPC_RMAP_CHG_SHIFT	48
 #define KVMPPC_RMAP_REFERENCED	(HPTE_R_R << KVMPPC_RMAP_RC_SHIFT)
-#define KVMPPC_RMAP_CHANGED	(HPTE_R_C << KVMPPC_RMAP_RC_SHIFT)
-#define KVMPPC_RMAP_CHG_ORDER	(0x3ful << KVMPPC_RMAP_CHG_SHIFT)
 #define KVMPPC_RMAP_PRESENT	0x100000000ul
 #define KVMPPC_RMAP_INDEX	0xfffffffful
 
@@ -281,7 +273,7 @@ struct kvm_arch {
 	int tlbie_lock;
 	unsigned long lpcr;
 	unsigned long vrma_slb_v;
-	int hpte_setup_done;
+	int mmu_ready;
 	atomic_t vcpus_running;
 	u32 online_vcores;
 	atomic_t hpte_mod_interest;
@@ -289,6 +281,7 @@ struct kvm_arch {
 	cpumask_t cpu_in_guest;
 	u8 radix;
 	u8 fwnmi_enabled;
+	bool threads_indep;
 	pgd_t *pgtable;
 	u64 process_table;
 	struct dentry *debugfs_dir;

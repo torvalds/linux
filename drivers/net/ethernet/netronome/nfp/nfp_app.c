@@ -31,6 +31,7 @@
  * SOFTWARE.
  */
 
+#include <linux/bug.h>
 #include <linux/skbuff.h>
 #include <linux/slab.h>
 
@@ -38,15 +39,39 @@
 #include "nfpcore/nfp_nffw.h"
 #include "nfp_app.h"
 #include "nfp_main.h"
+#include "nfp_net.h"
 #include "nfp_net_repr.h"
 
 static const struct nfp_app_type *apps[] = {
-	&app_nic,
-	&app_bpf,
+	[NFP_APP_CORE_NIC]	= &app_nic,
+#ifdef CONFIG_BPF_SYSCALL
+	[NFP_APP_BPF_NIC]	= &app_bpf,
+#else
+	[NFP_APP_BPF_NIC]	= &app_nic,
+#endif
 #ifdef CONFIG_NFP_APP_FLOWER
-	&app_flower,
+	[NFP_APP_FLOWER_NIC]	= &app_flower,
 #endif
 };
+
+struct nfp_app *nfp_app_from_netdev(struct net_device *netdev)
+{
+	if (nfp_netdev_is_nfp_net(netdev)) {
+		struct nfp_net *nn = netdev_priv(netdev);
+
+		return nn->app;
+	}
+
+	if (nfp_netdev_is_nfp_repr(netdev)) {
+		struct nfp_repr *repr = netdev_priv(netdev);
+
+		return repr->app;
+	}
+
+	WARN(1, "Unknown netdev type for nfp_app\n");
+
+	return NULL;
+}
 
 const char *nfp_app_mip_name(struct nfp_app *app)
 {
@@ -81,31 +106,21 @@ nfp_app_reprs_set(struct nfp_app *app, enum nfp_repr_type type,
 
 	old = rcu_dereference_protected(app->reprs[type],
 					lockdep_is_held(&app->pf->lock));
-	if (reprs && old) {
-		old = ERR_PTR(-EBUSY);
-		goto exit_unlock;
-	}
-
 	rcu_assign_pointer(app->reprs[type], reprs);
 
-exit_unlock:
 	return old;
 }
 
 struct nfp_app *nfp_app_alloc(struct nfp_pf *pf, enum nfp_app_id id)
 {
 	struct nfp_app *app;
-	unsigned int i;
 
-	for (i = 0; i < ARRAY_SIZE(apps); i++)
-		if (apps[i]->id == id)
-			break;
-	if (i == ARRAY_SIZE(apps)) {
+	if (id >= ARRAY_SIZE(apps) || !apps[id]) {
 		nfp_err(pf->cpp, "failed to find app with ID 0x%02hhx\n", id);
 		return ERR_PTR(-EINVAL);
 	}
 
-	if (WARN_ON(!apps[i]->name || !apps[i]->vnic_init))
+	if (WARN_ON(!apps[id]->name || !apps[id]->vnic_alloc))
 		return ERR_PTR(-EINVAL);
 
 	app = kzalloc(sizeof(*app), GFP_KERNEL);
@@ -115,7 +130,7 @@ struct nfp_app *nfp_app_alloc(struct nfp_pf *pf, enum nfp_app_id id)
 	app->pf = pf;
 	app->cpp = pf->cpp;
 	app->pdev = pf->pdev;
-	app->type = apps[i];
+	app->type = apps[id];
 
 	return app;
 }

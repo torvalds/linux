@@ -60,7 +60,7 @@
 #include <linux/sched.h>
 #include <linux/wait.h>
 #include <linux/cgroup-defs.h>
-
+#include <linux/rbtree.h>
 #include <linux/filter.h>
 #include <linux/rculist_nulls.h>
 #include <linux/poll.h>
@@ -267,6 +267,7 @@ struct sock_common {
   *	@sk_gso_type: GSO type (e.g. %SKB_GSO_TCPV4)
   *	@sk_gso_max_size: Maximum GSO segment size to build
   *	@sk_gso_max_segs: Maximum number of GSO segments
+  *	@sk_pacing_shift: scaling factor for TCP Small Queues
   *	@sk_lingertime: %SO_LINGER l_linger setting
   *	@sk_backlog: always used with the per-socket spinlock held
   *	@sk_callback_lock: used with the callbacks in the end of this struct
@@ -294,6 +295,7 @@ struct sock_common {
   *	@sk_stamp: time stamp of last packet received
   *	@sk_tsflags: SO_TIMESTAMPING socket options
   *	@sk_tskey: counter to disambiguate concurrent tstamp requests
+  *	@sk_zckey: counter to order MSG_ZEROCOPY notifications
   *	@sk_socket: Identd and reporting IO signals
   *	@sk_user_data: RPC layer private data
   *	@sk_frag: cached page frag
@@ -396,7 +398,10 @@ struct sock {
 	int			sk_wmem_queued;
 	refcount_t		sk_wmem_alloc;
 	unsigned long		sk_tsq_flags;
-	struct sk_buff		*sk_send_head;
+	union {
+		struct sk_buff	*sk_send_head;
+		struct rb_root	tcp_rtx_queue;
+	};
 	struct sk_buff_head	sk_write_queue;
 	__s32			sk_peek_off;
 	int			sk_write_pending;
@@ -435,7 +440,6 @@ struct sock {
 #define SK_FL_TYPE_MASK    0xffff0000
 #endif
 
-	kmemcheck_bitfield_begin(flags);
 	unsigned int		sk_padding : 1,
 				sk_kern_sock : 1,
 				sk_no_check_tx : 1,
@@ -444,9 +448,8 @@ struct sock {
 				sk_protocol  : 8,
 				sk_type      : 16;
 #define SK_PROTOCOL_MAX U8_MAX
-	kmemcheck_bitfield_end(flags);
-
 	u16			sk_gso_max_segs;
+	u8			sk_pacing_shift;
 	unsigned long	        sk_lingertime;
 	struct proto		*sk_prot_creator;
 	rwlock_t		sk_callback_lock;
@@ -462,6 +465,7 @@ struct sock {
 	u16			sk_tsflags;
 	u8			sk_shutdown;
 	u32			sk_tskey;
+	atomic_t		sk_zckey;
 	struct socket		*sk_socket;
 	void			*sk_user_data;
 #ifdef CONFIG_SECURITY
@@ -507,9 +511,7 @@ int sk_set_peek_off(struct sock *sk, int val);
 static inline int sk_peek_offset(struct sock *sk, int flags)
 {
 	if (unlikely(flags & MSG_PEEK)) {
-		s32 off = READ_ONCE(sk->sk_peek_off);
-		if (off >= 0)
-			return off;
+		return READ_ONCE(sk->sk_peek_off);
 	}
 
 	return 0;
@@ -734,10 +736,10 @@ static inline void sk_add_bind_node(struct sock *sk,
  *
  */
 #define sk_for_each_entry_offset_rcu(tpos, pos, head, offset)		       \
-	for (pos = rcu_dereference((head)->first);			       \
+	for (pos = rcu_dereference(hlist_first_rcu(head));		       \
 	     pos != NULL &&						       \
 		({ tpos = (typeof(*tpos) *)((void *)pos - offset); 1;});       \
-	     pos = rcu_dereference(pos->next))
+	     pos = rcu_dereference(hlist_next_rcu(pos)))
 
 static inline struct user_namespace *sk_user_ns(struct sock *sk)
 {
@@ -856,7 +858,7 @@ void sk_stream_write_space(struct sock *sk);
 static inline void __sk_add_backlog(struct sock *sk, struct sk_buff *skb)
 {
 	/* dont let skb dst not refcounted, we are going to leave rcu lock */
-	skb_dst_force_safe(skb);
+	skb_dst_force(skb);
 
 	if (!sk->sk_backlog.tail)
 		sk->sk_backlog.head = skb;
@@ -1098,14 +1100,18 @@ struct proto {
 	 */
 	unsigned long		*memory_pressure;
 	long			*sysctl_mem;
+
 	int			*sysctl_wmem;
 	int			*sysctl_rmem;
+	u32			sysctl_wmem_offset;
+	u32			sysctl_rmem_offset;
+
 	int			max_header;
 	bool			no_autobind;
 
 	struct kmem_cache	*slab;
 	unsigned int		obj_size;
-	int			slab_flags;
+	slab_flags_t		slab_flags;
 
 	struct percpu_counter	*orphan_count;
 
@@ -1531,6 +1537,8 @@ struct sk_buff *sock_wmalloc(struct sock *sk, unsigned long size, int force,
 			     gfp_t priority);
 void __sock_wfree(struct sk_buff *skb);
 void sock_wfree(struct sk_buff *skb);
+struct sk_buff *sock_omalloc(struct sock *sk, unsigned long size,
+			     gfp_t priority);
 void skb_orphan_partial(struct sk_buff *skb);
 void sock_rfree(struct sk_buff *skb);
 void sock_efree(struct sk_buff *skb);
@@ -1582,11 +1590,14 @@ int sock_no_shutdown(struct socket *, int);
 int sock_no_getsockopt(struct socket *, int , int, char __user *, int __user *);
 int sock_no_setsockopt(struct socket *, int, int, char __user *, unsigned int);
 int sock_no_sendmsg(struct socket *, struct msghdr *, size_t);
+int sock_no_sendmsg_locked(struct sock *sk, struct msghdr *msg, size_t len);
 int sock_no_recvmsg(struct socket *, struct msghdr *, size_t, int);
 int sock_no_mmap(struct file *file, struct socket *sock,
 		 struct vm_area_struct *vma);
 ssize_t sock_no_sendpage(struct socket *sock, struct page *page, int offset,
 			 size_t size, int flags);
+ssize_t sock_no_sendpage_locked(struct sock *sk, struct page *page,
+				int offset, size_t size, int flags);
 
 /*
  * Functions to fill in entries in struct proto_ops when a protocol
@@ -2363,6 +2374,16 @@ bool sk_net_capable(const struct sock *sk, int cap);
 
 void sk_get_meminfo(const struct sock *sk, u32 *meminfo);
 
+/* Take into consideration the size of the struct sk_buff overhead in the
+ * determination of these values, since that is non-constant across
+ * platforms.  This makes socket queueing behavior and performance
+ * not depend upon such differences.
+ */
+#define _SK_MEM_PACKETS		256
+#define _SK_MEM_OVERHEAD	SKB_TRUESIZE(256)
+#define SK_WMEM_MAX		(_SK_MEM_OVERHEAD * _SK_MEM_PACKETS)
+#define SK_RMEM_MAX		(_SK_MEM_OVERHEAD * _SK_MEM_PACKETS)
+
 extern __u32 sysctl_wmem_max;
 extern __u32 sysctl_rmem_max;
 
@@ -2371,5 +2392,23 @@ extern int sysctl_optmem_max;
 
 extern __u32 sysctl_wmem_default;
 extern __u32 sysctl_rmem_default;
+
+static inline int sk_get_wmem0(const struct sock *sk, const struct proto *proto)
+{
+	/* Does this proto have per netns sysctl_wmem ? */
+	if (proto->sysctl_wmem_offset)
+		return *(int *)((void *)sock_net(sk) + proto->sysctl_wmem_offset);
+
+	return *proto->sysctl_wmem;
+}
+
+static inline int sk_get_rmem0(const struct sock *sk, const struct proto *proto)
+{
+	/* Does this proto have per netns sysctl_rmem ? */
+	if (proto->sysctl_rmem_offset)
+		return *(int *)((void *)sock_net(sk) + proto->sysctl_rmem_offset);
+
+	return *proto->sysctl_rmem;
+}
 
 #endif	/* _SOCK_H */

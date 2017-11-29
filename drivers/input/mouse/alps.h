@@ -100,6 +100,10 @@ enum SS4_PACKET_ID {
 				 ((_b[1 + _i * 3]  << 5) & 0x1F00)	\
 				)
 
+#define SS4_PLUS_STD_MF_X_V2(_b, _i) (((_b[0 + (_i) * 3] << 4) & 0x0070) | \
+				 ((_b[1 + (_i) * 3]  << 4) & 0x0F80)	\
+				)
+
 #define SS4_STD_MF_Y_V2(_b, _i)	(((_b[1 + (_i) * 3] << 3) & 0x0010) |	\
 				 ((_b[2 + (_i) * 3] << 5) & 0x01E0) |	\
 				 ((_b[2 + (_i) * 3] << 4) & 0x0E00)	\
@@ -107,6 +111,10 @@ enum SS4_PACKET_ID {
 
 #define SS4_BTL_MF_X_V2(_b, _i)	(SS4_STD_MF_X_V2(_b, _i) |		\
 				 ((_b[0 + (_i) * 3] >> 3) & 0x0010)	\
+				)
+
+#define SS4_PLUS_BTL_MF_X_V2(_b, _i) (SS4_PLUS_STD_MF_X_V2(_b, _i) |	\
+				 ((_b[0 + (_i) * 3] >> 4) & 0x0008)	\
 				)
 
 #define SS4_BTL_MF_Y_V2(_b, _i)	(SS4_STD_MF_Y_V2(_b, _i) | \

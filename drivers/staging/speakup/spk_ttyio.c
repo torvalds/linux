@@ -7,11 +7,6 @@
 #include "spk_types.h"
 #include "spk_priv.h"
 
-#define DEV_PREFIX_LP "lp"
-
-static const char * const lp_supported[] = { "acntsa", "bns", "dummy",
-	"txprt" };
-
 struct spk_ldisc_data {
 	char buf;
 	struct semaphore sem;
@@ -20,6 +15,11 @@ struct spk_ldisc_data {
 
 static struct spk_synth *spk_ttyio_synth;
 static struct tty_struct *speakup_tty;
+/* mutex to protect against speakup_tty disappearing from underneath us while
+ * we are using it. this can happen when the device physically unplugged,
+ * while in use. it also serialises access to speakup_tty.
+ */
+static DEFINE_MUTEX(speakup_tty_mutex);
 
 static int ser_to_dev(int ser, dev_t *dev_no)
 {
@@ -36,24 +36,8 @@ static int get_dev_to_use(struct spk_synth *synth, dev_t *dev_no)
 {
 	/* use ser only when dev is not specified */
 	if (strcmp(synth->dev_name, SYNTH_DEFAULT_DEV) ||
-	    synth->ser == SYNTH_DEFAULT_SER) {
-		/* for /dev/lp* check if synth is supported */
-		if (strncmp(synth->dev_name, DEV_PREFIX_LP,
-		    strlen(DEV_PREFIX_LP)) == 0)
-			if (match_string(lp_supported, ARRAY_SIZE(lp_supported),
-			    synth->name) < 0)  {
-				int i;
-
-				pr_err("speakup: lp* is only supported on:");
-				for (i = 0; i < ARRAY_SIZE(lp_supported); i++)
-					pr_cont(" %s", lp_supported[i]);
-				pr_cont("\n");
-
-				return -ENOTSUPP;
-			}
-
+	    synth->ser == SYNTH_DEFAULT_SER)
 		return tty_dev_name_to_number(synth->dev_name, dev_no);
-	}
 
 	return ser_to_dev(synth->ser, dev_no);
 }
@@ -67,10 +51,8 @@ static int spk_ttyio_ldisc_open(struct tty_struct *tty)
 	speakup_tty = tty;
 
 	ldisc_data = kmalloc(sizeof(struct spk_ldisc_data), GFP_KERNEL);
-	if (!ldisc_data) {
-		pr_err("speakup: Failed to allocate ldisc_data.\n");
+	if (!ldisc_data)
 		return -ENOMEM;
-	}
 
 	sema_init(&ldisc_data->sem, 0);
 	ldisc_data->buf_free = true;
@@ -81,8 +63,10 @@ static int spk_ttyio_ldisc_open(struct tty_struct *tty)
 
 static void spk_ttyio_ldisc_close(struct tty_struct *tty)
 {
+	mutex_lock(&speakup_tty_mutex);
 	kfree(speakup_tty->disc_data);
 	speakup_tty = NULL;
+	mutex_unlock(&speakup_tty_mutex);
 }
 
 static int spk_ttyio_receive_buf2(struct tty_struct *tty,
@@ -104,7 +88,8 @@ static int spk_ttyio_receive_buf2(struct tty_struct *tty,
 		return 0;
 
 	/* Make sure the consumer has read buf before we have seen
-	 * buf_free == true and overwrite buf */
+	 * buf_free == true and overwrite buf
+	 */
 	mb();
 
 	ldisc_data->buf = cp[0];
@@ -158,7 +143,7 @@ static int spk_ttyio_initialise_ldisc(struct spk_synth *synth)
 	if (ret)
 		return ret;
 
-	tty = tty_open_by_driver(dev, NULL, NULL);
+	tty = tty_kopen(dev);
 	if (IS_ERR(tty))
 		return PTR_ERR(tty);
 
@@ -210,9 +195,11 @@ void spk_ttyio_unregister_ldisc(void)
 
 static int spk_ttyio_out(struct spk_synth *in_synth, const char ch)
 {
+	mutex_lock(&speakup_tty_mutex);
 	if (in_synth->alive && speakup_tty && speakup_tty->ops->write) {
 		int ret = speakup_tty->ops->write(speakup_tty, &ch, 1);
 
+		mutex_unlock(&speakup_tty_mutex);
 		if (ret == 0)
 			/* No room */
 			return 0;
@@ -228,17 +215,50 @@ static int spk_ttyio_out(struct spk_synth *in_synth, const char ch)
 		}
 		return 1;
 	}
+
+	mutex_unlock(&speakup_tty_mutex);
+	return 0;
+}
+
+static int check_tty(struct tty_struct *tty)
+{
+	if (!tty) {
+		pr_warn("%s: I/O error, deactivating speakup\n",
+			spk_ttyio_synth->long_name);
+		/* No synth any more, so nobody will restart TTYs, and we thus
+		 * need to do it ourselves.  Now that there is no synth we can
+		 * let application flood anyway
+		 */
+		spk_ttyio_synth->alive = 0;
+		speakup_start_ttys();
+		return 1;
+	}
+
 	return 0;
 }
 
 static void spk_ttyio_send_xchar(char ch)
 {
+	mutex_lock(&speakup_tty_mutex);
+	if (check_tty(speakup_tty)) {
+		mutex_unlock(&speakup_tty_mutex);
+		return;
+	}
+
 	speakup_tty->ops->send_xchar(speakup_tty, ch);
+	mutex_unlock(&speakup_tty_mutex);
 }
 
 static void spk_ttyio_tiocmset(unsigned int set, unsigned int clear)
 {
+	mutex_lock(&speakup_tty_mutex);
+	if (check_tty(speakup_tty)) {
+		mutex_unlock(&speakup_tty_mutex);
+		return;
+	}
+
 	speakup_tty->ops->tiocmset(speakup_tty, set, clear);
+	mutex_unlock(&speakup_tty_mutex);
 }
 
 static unsigned char ttyio_in(int timeout)
@@ -255,7 +275,8 @@ static unsigned char ttyio_in(int timeout)
 
 	rv = ldisc_data->buf;
 	/* Make sure we have read buf before we set buf_free to let
-	 * the producer overwrite it */
+	 * the producer overwrite it
+	 */
 	mb();
 	ldisc_data->buf_free = true;
 	/* Let TTY push more characters */
@@ -278,8 +299,16 @@ static unsigned char spk_ttyio_in_nowait(void)
 
 static void spk_ttyio_flush_buffer(void)
 {
+	mutex_lock(&speakup_tty_mutex);
+	if (check_tty(speakup_tty)) {
+		mutex_unlock(&speakup_tty_mutex);
+		return;
+	}
+
 	if (speakup_tty->ops->flush_buffer)
 		speakup_tty->ops->flush_buffer(speakup_tty);
+
+	mutex_unlock(&speakup_tty_mutex);
 }
 
 int spk_ttyio_synth_probe(struct spk_synth *synth)
@@ -308,7 +337,7 @@ void spk_ttyio_release(void)
 
 	tty_ldisc_flush(speakup_tty);
 	tty_unlock(speakup_tty);
-	tty_release_struct(speakup_tty, speakup_tty->index);
+	tty_kclose(speakup_tty);
 }
 EXPORT_SYMBOL_GPL(spk_ttyio_release);
 

@@ -227,14 +227,14 @@ config RTC_DRV_AS3722
 	  will be called rtc-as3722.
 
 config RTC_DRV_DS1307
-	tristate "Dallas/Maxim DS1307/37/38/39/40, ST M41T00, EPSON RX-8025, ISL12057"
+	tristate "Dallas/Maxim DS1307/37/38/39/40/41, ST M41T00, EPSON RX-8025, ISL12057"
 	help
 	  If you say yes here you get support for various compatible RTC
 	  chips (often with battery backup) connected with I2C. This driver
-	  should handle DS1307, DS1337, DS1338, DS1339, DS1340, ST M41T00,
-	  EPSON RX-8025, Intersil ISL12057 and probably other chips. In some
-	  cases the RTC must already have been initialized (by manufacturing or
-	  a bootloader).
+	  should handle DS1307, DS1337, DS1338, DS1339, DS1340, DS1341,
+	  ST M41T00, EPSON RX-8025, Intersil ISL12057 and probably other chips.
+	  In some cases the RTC must already have been initialized (by
+	  manufacturing or a bootloader).
 
 	  The first seven registers on these chips hold an RTC, and other
 	  registers may add features such as NVRAM, a trickle charger for
@@ -371,11 +371,11 @@ config RTC_DRV_MAX77686
 	  will be called rtc-max77686.
 
 config RTC_DRV_RK808
-	tristate "Rockchip RK808/RK818 RTC"
+	tristate "Rockchip RK805/RK808/RK818 RTC"
 	depends on MFD_RK808
 	help
 	  If you say yes here you will get support for the
-	  RTC of RK808 and RK818 PMIC.
+	  RTC of RK805, RK808 and RK818 PMIC.
 
 	  This driver can also be built as a module. If so, the module
 	  will be called rk808-rtc.
@@ -432,6 +432,19 @@ config RTC_DRV_PCF85063
 
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-pcf85063.
+
+config RTC_DRV_PCF85363
+	tristate "NXP PCF85363"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  If you say yes here you get support for the PCF85363 RTC chip.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called rtc-pcf85363.
+
+	  The nvmem interface will be named pcf85363-#, where # is the
+	  zero-based instance number.
 
 config RTC_DRV_PCF8563
 	tristate "Philips PCF8563/Epson RTC8564"
@@ -1174,6 +1187,17 @@ config RTC_DRV_WM8350
 	  This driver can also be built as a module. If so, the module
 	  will be called "rtc-wm8350".
 
+config RTC_DRV_SC27XX
+	tristate "Spreadtrum SC27xx RTC"
+	depends on MFD_SC27XX_PMIC || COMPILE_TEST
+	help
+	  If you say Y here you will get support for the RTC subsystem
+	  of the Spreadtrum SC27xx series PMICs. The SC27xx series PMICs
+	  includes the SC2720, SC2721, SC2723, SC2730 and SC2731 chips.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called rtc-sc27xx.
+
 config RTC_DRV_SPEAR
 	tristate "SPEAR ST RTC"
 	depends on PLAT_SPEAR || COMPILE_TEST
@@ -1706,14 +1730,24 @@ config RTC_DRV_MOXART
 	   will be called rtc-moxart
 
 config RTC_DRV_MT6397
-	tristate "Mediatek Real Time Clock driver"
+	tristate "MediaTek PMIC based RTC"
 	depends on MFD_MT6397 || (COMPILE_TEST && IRQ_DOMAIN)
 	help
-	  This selects the Mediatek(R) RTC driver. RTC is part of Mediatek
+	  This selects the MediaTek(R) RTC driver. RTC is part of MediaTek
 	  MT6397 PMIC. You should enable MT6397 PMIC MFD before select
-	  Mediatek(R) RTC driver.
+	  MediaTek(R) RTC driver.
 
-	  If you want to use Mediatek(R) RTC interface, select Y or M here.
+	  If you want to use MediaTek(R) RTC interface, select Y or M here.
+
+config RTC_DRV_MT7622
+	tristate "MediaTek SoC based RTC"
+	depends on ARCH_MEDIATEK || COMPILE_TEST
+	help
+	  This enables support for the real time clock built in the MediaTek
+	  SoCs.
+
+	  This drive can also be built as a module. If so, the module
+	  will be called rtc-mt7622.
 
 config RTC_DRV_XGENE
 	tristate "APM X-Gene RTC"
@@ -1765,6 +1799,14 @@ config RTC_DRV_CPCAP
 	   Say y here for CPCAP rtc found on some Motorola phones
 	   and tablets such as Droid 4.
 
+config RTC_DRV_RTD119X
+	bool "Realtek RTD129x RTC"
+	depends on ARCH_REALTEK || COMPILE_TEST
+	default ARCH_REALTEK
+	help
+	  If you say yes here, you get support for the RTD1295 SoC
+	  Real Time Clock.
+
 comment "HID Sensor RTC drivers"
 
 config RTC_DRV_HID_SENSOR_TIME
@@ -1780,5 +1822,13 @@ config RTC_DRV_HID_SENSOR_TIME
 	  If this driver is compiled as a module, it will be named
 	  rtc-hid-sensor-time.
 
+config RTC_DRV_GOLDFISH
+	tristate "Goldfish Real Time Clock"
+	depends on MIPS && (GOLDFISH || COMPILE_TEST)
+	help
+	  Say yes to enable RTC driver for the Goldfish based virtual platform.
+
+	  Goldfish is a code name for the virtual platform developed by Google
+	  for Android emulation.
 
 endif # RTC_CLASS

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 #
 # Character device configuration
 #
@@ -161,7 +162,7 @@ config VIRTIO_CONSOLE
 	depends on VIRTIO && TTY
 	select HVC_DRIVER
 	help
-	  Virtio console for use with lguest and other hypervisors.
+	  Virtio console for use with hypervisors.
 
 	  Also serves as a general-purpose serial device for data
 	  transfer between the guest and host.  Character devices at

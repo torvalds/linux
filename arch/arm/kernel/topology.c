@@ -127,8 +127,7 @@ static void __init parse_dt_topology(void)
 
 		rate = of_get_property(cn, "clock-frequency", &len);
 		if (!rate || len != 4) {
-			pr_err("%s missing clock-frequency property\n",
-				cn->full_name);
+			pr_err("%pOF missing clock-frequency property\n", cn);
 			continue;
 		}
 

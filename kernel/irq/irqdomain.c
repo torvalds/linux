@@ -21,7 +21,6 @@
 static LIST_HEAD(irq_domain_list);
 static DEFINE_MUTEX(irq_domain_mutex);
 
-static DEFINE_MUTEX(revmap_trees_mutex);
 static struct irq_domain *irq_default_domain;
 
 static void irq_domain_check_hierarchy(struct irq_domain *domain);
@@ -40,6 +39,9 @@ static void debugfs_remove_domain_dir(struct irq_domain *d);
 static inline void debugfs_add_domain_dir(struct irq_domain *d) { }
 static inline void debugfs_remove_domain_dir(struct irq_domain *d) { }
 #endif
+
+const struct fwnode_operations irqchip_fwnode_ops;
+EXPORT_SYMBOL_GPL(irqchip_fwnode_ops);
 
 /**
  * irq_domain_alloc_fwnode - Allocate a fwnode_handle suitable for
@@ -86,7 +88,7 @@ struct fwnode_handle *__irq_domain_alloc_fwnode(unsigned int type, int id,
 	fwid->type = type;
 	fwid->name = n;
 	fwid->data = data;
-	fwid->fwnode.type = FWNODE_IRQCHIP;
+	fwid->fwnode.ops = &irqchip_fwnode_ops;
 	return &fwid->fwnode;
 }
 EXPORT_SYMBOL_GPL(__irq_domain_alloc_fwnode);
@@ -193,10 +195,8 @@ struct irq_domain *__irq_domain_add(struct fwnode_handle *fwnode, int size,
 	}
 
 	if (!domain->name) {
-		if (fwnode) {
-			pr_err("Invalid fwnode type (%d) for irqdomain\n",
-			       fwnode->type);
-		}
+		if (fwnode)
+			pr_err("Invalid fwnode type for irqdomain\n");
 		domain->name = kasprintf(GFP_KERNEL, "unknown-%d",
 					 atomic_inc_return(&unknown_domains));
 		if (!domain->name) {
@@ -210,6 +210,7 @@ struct irq_domain *__irq_domain_add(struct fwnode_handle *fwnode, int size,
 
 	/* Fill structure */
 	INIT_RADIX_TREE(&domain->revmap_tree, GFP_KERNEL);
+	mutex_init(&domain->revmap_tree_mutex);
 	domain->ops = ops;
 	domain->host_data = host_data;
 	domain->hwirq_max = hwirq_max;
@@ -455,6 +456,31 @@ void irq_set_default_host(struct irq_domain *domain)
 }
 EXPORT_SYMBOL_GPL(irq_set_default_host);
 
+static void irq_domain_clear_mapping(struct irq_domain *domain,
+				     irq_hw_number_t hwirq)
+{
+	if (hwirq < domain->revmap_size) {
+		domain->linear_revmap[hwirq] = 0;
+	} else {
+		mutex_lock(&domain->revmap_tree_mutex);
+		radix_tree_delete(&domain->revmap_tree, hwirq);
+		mutex_unlock(&domain->revmap_tree_mutex);
+	}
+}
+
+static void irq_domain_set_mapping(struct irq_domain *domain,
+				   irq_hw_number_t hwirq,
+				   struct irq_data *irq_data)
+{
+	if (hwirq < domain->revmap_size) {
+		domain->linear_revmap[hwirq] = irq_data->irq;
+	} else {
+		mutex_lock(&domain->revmap_tree_mutex);
+		radix_tree_insert(&domain->revmap_tree, hwirq, irq_data);
+		mutex_unlock(&domain->revmap_tree_mutex);
+	}
+}
+
 void irq_domain_disassociate(struct irq_domain *domain, unsigned int irq)
 {
 	struct irq_data *irq_data = irq_get_irq_data(irq);
@@ -483,13 +509,7 @@ void irq_domain_disassociate(struct irq_domain *domain, unsigned int irq)
 	domain->mapcount--;
 
 	/* Clear reverse map for this hwirq */
-	if (hwirq < domain->revmap_size) {
-		domain->linear_revmap[hwirq] = 0;
-	} else {
-		mutex_lock(&revmap_trees_mutex);
-		radix_tree_delete(&domain->revmap_tree, hwirq);
-		mutex_unlock(&revmap_trees_mutex);
-	}
+	irq_domain_clear_mapping(domain, hwirq);
 }
 
 int irq_domain_associate(struct irq_domain *domain, unsigned int virq,
@@ -533,13 +553,7 @@ int irq_domain_associate(struct irq_domain *domain, unsigned int virq,
 	}
 
 	domain->mapcount++;
-	if (hwirq < domain->revmap_size) {
-		domain->linear_revmap[hwirq] = virq;
-	} else {
-		mutex_lock(&revmap_trees_mutex);
-		radix_tree_insert(&domain->revmap_tree, hwirq, irq_data);
-		mutex_unlock(&revmap_trees_mutex);
-	}
+	irq_domain_set_mapping(domain, hwirq, irq_data);
 	mutex_unlock(&irq_domain_mutex);
 
 	irq_clear_status_flags(virq, IRQ_NOREQUEST);
@@ -907,8 +921,7 @@ static void virq_debug_show_one(struct seq_file *m, struct irq_desc *desc)
 		chip = irq_data_get_irq_chip(data);
 		seq_printf(m, "%-15s  ", (chip && chip->name) ? chip->name : "none");
 
-		seq_printf(m, data ? "0x%p  " : "  %p  ",
-			   irq_data_get_irq_chip_data(data));
+		seq_printf(m, "0x%p  ", irq_data_get_irq_chip_data(data));
 
 		seq_printf(m, "   %c    ", (desc->action && desc->action->handler) ? '*' : ' ');
 		direct = (irq == hwirq) && (irq < domain->revmap_direct_max_irq);
@@ -931,7 +944,7 @@ static int virq_debug_show(struct seq_file *m, void *private)
 	struct irq_desc *desc;
 	struct irq_domain *domain;
 	struct radix_tree_iter iter;
-	void **slot;
+	void __rcu **slot;
 	int i;
 
 	seq_printf(m, " %-16s  %-6s  %-10s  %-10s  %s\n",
@@ -1138,16 +1151,9 @@ static void irq_domain_insert_irq(int virq)
 
 	for (data = irq_get_irq_data(virq); data; data = data->parent_data) {
 		struct irq_domain *domain = data->domain;
-		irq_hw_number_t hwirq = data->hwirq;
 
 		domain->mapcount++;
-		if (hwirq < domain->revmap_size) {
-			domain->linear_revmap[hwirq] = virq;
-		} else {
-			mutex_lock(&revmap_trees_mutex);
-			radix_tree_insert(&domain->revmap_tree, hwirq, data);
-			mutex_unlock(&revmap_trees_mutex);
-		}
+		irq_domain_set_mapping(domain, data->hwirq, data);
 
 		/* If not already assigned, give the domain the chip's name */
 		if (!domain->name && data->chip)
@@ -1171,13 +1177,7 @@ static void irq_domain_remove_irq(int virq)
 		irq_hw_number_t hwirq = data->hwirq;
 
 		domain->mapcount--;
-		if (hwirq < domain->revmap_size) {
-			domain->linear_revmap[hwirq] = 0;
-		} else {
-			mutex_lock(&revmap_trees_mutex);
-			radix_tree_delete(&domain->revmap_tree, hwirq);
-			mutex_unlock(&revmap_trees_mutex);
-		}
+		irq_domain_clear_mapping(domain, hwirq);
 	}
 }
 
@@ -1362,7 +1362,8 @@ static void irq_domain_free_irqs_hierarchy(struct irq_domain *domain,
 					   unsigned int irq_base,
 					   unsigned int nr_irqs)
 {
-	domain->ops->free(domain, irq_base, nr_irqs);
+	if (domain->ops->free)
+		domain->ops->free(domain, irq_base, nr_irqs);
 }
 
 int irq_domain_alloc_irqs_hierarchy(struct irq_domain *domain,
@@ -1448,6 +1449,175 @@ out_free_desc:
 	return ret;
 }
 
+/* The irq_data was moved, fix the revmap to refer to the new location */
+static void irq_domain_fix_revmap(struct irq_data *d)
+{
+	void __rcu **slot;
+
+	if (d->hwirq < d->domain->revmap_size)
+		return; /* Not using radix tree. */
+
+	/* Fix up the revmap. */
+	mutex_lock(&d->domain->revmap_tree_mutex);
+	slot = radix_tree_lookup_slot(&d->domain->revmap_tree, d->hwirq);
+	if (slot)
+		radix_tree_replace_slot(&d->domain->revmap_tree, slot, d);
+	mutex_unlock(&d->domain->revmap_tree_mutex);
+}
+
+/**
+ * irq_domain_push_irq() - Push a domain in to the top of a hierarchy.
+ * @domain:	Domain to push.
+ * @virq:	Irq to push the domain in to.
+ * @arg:	Passed to the irq_domain_ops alloc() function.
+ *
+ * For an already existing irqdomain hierarchy, as might be obtained
+ * via a call to pci_enable_msix(), add an additional domain to the
+ * head of the processing chain.  Must be called before request_irq()
+ * has been called.
+ */
+int irq_domain_push_irq(struct irq_domain *domain, int virq, void *arg)
+{
+	struct irq_data *child_irq_data;
+	struct irq_data *root_irq_data = irq_get_irq_data(virq);
+	struct irq_desc *desc;
+	int rv = 0;
+
+	/*
+	 * Check that no action has been set, which indicates the virq
+	 * is in a state where this function doesn't have to deal with
+	 * races between interrupt handling and maintaining the
+	 * hierarchy.  This will catch gross misuse.  Attempting to
+	 * make the check race free would require holding locks across
+	 * calls to struct irq_domain_ops->alloc(), which could lead
+	 * to deadlock, so we just do a simple check before starting.
+	 */
+	desc = irq_to_desc(virq);
+	if (!desc)
+		return -EINVAL;
+	if (WARN_ON(desc->action))
+		return -EBUSY;
+
+	if (domain == NULL)
+		return -EINVAL;
+
+	if (WARN_ON(!irq_domain_is_hierarchy(domain)))
+		return -EINVAL;
+
+	if (!root_irq_data)
+		return -EINVAL;
+
+	if (domain->parent != root_irq_data->domain)
+		return -EINVAL;
+
+	child_irq_data = kzalloc_node(sizeof(*child_irq_data), GFP_KERNEL,
+				      irq_data_get_node(root_irq_data));
+	if (!child_irq_data)
+		return -ENOMEM;
+
+	mutex_lock(&irq_domain_mutex);
+
+	/* Copy the original irq_data. */
+	*child_irq_data = *root_irq_data;
+
+	/*
+	 * Overwrite the root_irq_data, which is embedded in struct
+	 * irq_desc, with values for this domain.
+	 */
+	root_irq_data->parent_data = child_irq_data;
+	root_irq_data->domain = domain;
+	root_irq_data->mask = 0;
+	root_irq_data->hwirq = 0;
+	root_irq_data->chip = NULL;
+	root_irq_data->chip_data = NULL;
+
+	/* May (probably does) set hwirq, chip, etc. */
+	rv = irq_domain_alloc_irqs_hierarchy(domain, virq, 1, arg);
+	if (rv) {
+		/* Restore the original irq_data. */
+		*root_irq_data = *child_irq_data;
+		goto error;
+	}
+
+	irq_domain_fix_revmap(child_irq_data);
+	irq_domain_set_mapping(domain, root_irq_data->hwirq, root_irq_data);
+
+error:
+	mutex_unlock(&irq_domain_mutex);
+
+	return rv;
+}
+EXPORT_SYMBOL_GPL(irq_domain_push_irq);
+
+/**
+ * irq_domain_pop_irq() - Remove a domain from the top of a hierarchy.
+ * @domain:	Domain to remove.
+ * @virq:	Irq to remove the domain from.
+ *
+ * Undo the effects of a call to irq_domain_push_irq().  Must be
+ * called either before request_irq() or after free_irq().
+ */
+int irq_domain_pop_irq(struct irq_domain *domain, int virq)
+{
+	struct irq_data *root_irq_data = irq_get_irq_data(virq);
+	struct irq_data *child_irq_data;
+	struct irq_data *tmp_irq_data;
+	struct irq_desc *desc;
+
+	/*
+	 * Check that no action is set, which indicates the virq is in
+	 * a state where this function doesn't have to deal with races
+	 * between interrupt handling and maintaining the hierarchy.
+	 * This will catch gross misuse.  Attempting to make the check
+	 * race free would require holding locks across calls to
+	 * struct irq_domain_ops->free(), which could lead to
+	 * deadlock, so we just do a simple check before starting.
+	 */
+	desc = irq_to_desc(virq);
+	if (!desc)
+		return -EINVAL;
+	if (WARN_ON(desc->action))
+		return -EBUSY;
+
+	if (domain == NULL)
+		return -EINVAL;
+
+	if (!root_irq_data)
+		return -EINVAL;
+
+	tmp_irq_data = irq_domain_get_irq_data(domain, virq);
+
+	/* We can only "pop" if this domain is at the top of the list */
+	if (WARN_ON(root_irq_data != tmp_irq_data))
+		return -EINVAL;
+
+	if (WARN_ON(root_irq_data->domain != domain))
+		return -EINVAL;
+
+	child_irq_data = root_irq_data->parent_data;
+	if (WARN_ON(!child_irq_data))
+		return -EINVAL;
+
+	mutex_lock(&irq_domain_mutex);
+
+	root_irq_data->parent_data = NULL;
+
+	irq_domain_clear_mapping(domain, root_irq_data->hwirq);
+	irq_domain_free_irqs_hierarchy(domain, virq, 1);
+
+	/* Restore the original irq_data. */
+	*root_irq_data = *child_irq_data;
+
+	irq_domain_fix_revmap(root_irq_data);
+
+	mutex_unlock(&irq_domain_mutex);
+
+	kfree(child_irq_data);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(irq_domain_pop_irq);
+
 /**
  * irq_domain_free_irqs - Free IRQ number and associated data structures
  * @virq:	base IRQ number
@@ -1511,18 +1681,6 @@ void irq_domain_free_irqs_parent(struct irq_domain *domain,
 }
 EXPORT_SYMBOL_GPL(irq_domain_free_irqs_parent);
 
-static void __irq_domain_activate_irq(struct irq_data *irq_data)
-{
-	if (irq_data && irq_data->domain) {
-		struct irq_domain *domain = irq_data->domain;
-
-		if (irq_data->parent_data)
-			__irq_domain_activate_irq(irq_data->parent_data);
-		if (domain->ops->activate)
-			domain->ops->activate(domain, irq_data);
-	}
-}
-
 static void __irq_domain_deactivate_irq(struct irq_data *irq_data)
 {
 	if (irq_data && irq_data->domain) {
@@ -1535,6 +1693,26 @@ static void __irq_domain_deactivate_irq(struct irq_data *irq_data)
 	}
 }
 
+static int __irq_domain_activate_irq(struct irq_data *irqd, bool early)
+{
+	int ret = 0;
+
+	if (irqd && irqd->domain) {
+		struct irq_domain *domain = irqd->domain;
+
+		if (irqd->parent_data)
+			ret = __irq_domain_activate_irq(irqd->parent_data,
+							early);
+		if (!ret && domain->ops->activate) {
+			ret = domain->ops->activate(domain, irqd, early);
+			/* Rollback in case of error */
+			if (ret && irqd->parent_data)
+				__irq_domain_deactivate_irq(irqd->parent_data);
+		}
+	}
+	return ret;
+}
+
 /**
  * irq_domain_activate_irq - Call domain_ops->activate recursively to activate
  *			     interrupt
@@ -1543,12 +1721,15 @@ static void __irq_domain_deactivate_irq(struct irq_data *irq_data)
  * This is the second step to call domain_ops->activate to program interrupt
  * controllers, so the interrupt could actually get delivered.
  */
-void irq_domain_activate_irq(struct irq_data *irq_data)
+int irq_domain_activate_irq(struct irq_data *irq_data, bool early)
 {
-	if (!irqd_is_activated(irq_data)) {
-		__irq_domain_activate_irq(irq_data);
+	int ret = 0;
+
+	if (!irqd_is_activated(irq_data))
+		ret = __irq_domain_activate_irq(irq_data, early);
+	if (!ret)
 		irqd_set_activated(irq_data);
-	}
+	return ret;
 }
 
 /**
@@ -1639,6 +1820,8 @@ irq_domain_debug_show_one(struct seq_file *m, struct irq_domain *d, int ind)
 		   d->revmap_size + d->revmap_direct_max_irq);
 	seq_printf(m, "%*smapped: %u\n", ind + 1, "", d->mapcount);
 	seq_printf(m, "%*sflags:  0x%08x\n", ind +1 , "", d->flags);
+	if (d->ops && d->ops->debug_show)
+		d->ops->debug_show(m, d, NULL, ind + 1);
 #ifdef	CONFIG_IRQ_DOMAIN_HIERARCHY
 	if (!d->parent)
 		return;

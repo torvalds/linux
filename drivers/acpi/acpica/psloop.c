@@ -164,6 +164,11 @@ acpi_ps_get_arguments(struct acpi_walk_state *walk_state,
 			INCREMENT_ARG_LIST(walk_state->arg_types);
 		}
 
+		ACPI_DEBUG_PRINT((ACPI_DB_PARSE,
+				  "Final argument count: %u pass %u\n",
+				  walk_state->arg_count,
+				  walk_state->pass_number));
+
 		/*
 		 * Handle executable code at "module-level". This refers to
 		 * executable opcodes that appear outside of any control method.
@@ -277,6 +282,11 @@ acpi_ps_get_arguments(struct acpi_walk_state *walk_state,
 			     AML_NAME_OP)
 			    && (walk_state->pass_number <=
 				ACPI_IMODE_LOAD_PASS2)) {
+				ACPI_DEBUG_PRINT((ACPI_DB_PARSE,
+						  "Setup Package/Buffer: Pass %u, AML Ptr: %p\n",
+						  walk_state->pass_number,
+						  aml_op_start));
+
 				/*
 				 * Skip parsing of Buffers and Packages because we don't have
 				 * enough info in the first pass to parse them correctly.
@@ -569,6 +579,10 @@ acpi_status acpi_ps_parse_loop(struct acpi_walk_state *walk_state)
 		}
 
 		/* Check for arguments that need to be processed */
+
+		ACPI_DEBUG_PRINT((ACPI_DB_PARSE,
+				  "Parseloop: argument count: %u\n",
+				  walk_state->arg_count));
 
 		if (walk_state->arg_count) {
 			/*

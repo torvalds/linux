@@ -381,7 +381,7 @@ MODULE_PARM_DESC(jpeg_enable, "Jpeg enable(1-on 0-off) default 1");
 
 /* USB device table */
 #define USB_SENSORAY_VID	0x1943
-static struct usb_device_id s2255_table[] = {
+static const struct usb_device_id s2255_table[] = {
 	{USB_DEVICE(USB_SENSORAY_VID, 0x2255)},
 	{USB_DEVICE(USB_SENSORAY_VID, 0x2257)}, /*same family as 2255*/
 	{ }			/* Terminating entry */
@@ -485,9 +485,10 @@ static void s2255_reset_dsppower(struct s2255_dev *dev)
 
 /* kickstarts the firmware loading. from probe
  */
-static void s2255_timer(unsigned long user_data)
+static void s2255_timer(struct timer_list *t)
 {
-	struct s2255_fw *data = (struct s2255_fw *)user_data;
+	struct s2255_dev *dev = from_timer(dev, t, timer);
+	struct s2255_fw *data = dev->fw_data;
 	if (usb_submit_urb(data->fw_urb, GFP_ATOMIC) < 0) {
 		pr_err("s2255: can't submit urb\n");
 		atomic_set(&data->fw_state, S2255_FW_FAILED);
@@ -1590,7 +1591,7 @@ static void s2255_video_device_release(struct video_device *vdev)
 	return;
 }
 
-static struct video_device template = {
+static const struct video_device template = {
 	.name = "s2255v",
 	.fops = &s2255_fops_v4l,
 	.ioctl_ops = &s2255_ioctl_ops,
@@ -2283,7 +2284,7 @@ static int s2255_probe(struct usb_interface *interface,
 		dev_err(&interface->dev, "Could not find bulk-in endpoint\n");
 		goto errorEP;
 	}
-	setup_timer(&dev->timer, s2255_timer, (unsigned long)dev->fw_data);
+	timer_setup(&dev->timer, s2255_timer, 0);
 	init_waitqueue_head(&dev->fw_data->wait_fw);
 	for (i = 0; i < MAX_CHANNELS; i++) {
 		struct s2255_vc *vc = &dev->vc[i];

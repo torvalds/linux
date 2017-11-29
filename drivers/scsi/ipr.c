@@ -694,7 +694,7 @@ static void ipr_init_ipr_cmnd(struct ipr_cmnd *ipr_cmd,
 	ipr_cmd->sibling = NULL;
 	ipr_cmd->eh_comp = NULL;
 	ipr_cmd->fast_done = fast_done;
-	init_timer(&ipr_cmd->timer);
+	timer_setup(&ipr_cmd->timer, NULL, 0);
 }
 
 /**
@@ -990,15 +990,14 @@ static void ipr_send_command(struct ipr_cmnd *ipr_cmd)
  **/
 static void ipr_do_req(struct ipr_cmnd *ipr_cmd,
 		       void (*done) (struct ipr_cmnd *),
-		       void (*timeout_func) (struct ipr_cmnd *), u32 timeout)
+		       void (*timeout_func) (struct timer_list *), u32 timeout)
 {
 	list_add_tail(&ipr_cmd->queue, &ipr_cmd->hrrq->hrrq_pending_q);
 
 	ipr_cmd->done = done;
 
-	ipr_cmd->timer.data = (unsigned long) ipr_cmd;
 	ipr_cmd->timer.expires = jiffies + timeout;
-	ipr_cmd->timer.function = (void (*)(unsigned long))timeout_func;
+	ipr_cmd->timer.function = timeout_func;
 
 	add_timer(&ipr_cmd->timer);
 
@@ -1080,7 +1079,7 @@ static void ipr_init_ioadl(struct ipr_cmnd *ipr_cmd, dma_addr_t dma_addr,
  * 	none
  **/
 static void ipr_send_blocking_cmd(struct ipr_cmnd *ipr_cmd,
-				  void (*timeout_func) (struct ipr_cmnd *ipr_cmd),
+				  void (*timeout_func) (struct timer_list *),
 				  u32 timeout)
 {
 	struct ipr_ioa_cfg *ioa_cfg = ipr_cmd->ioa_cfg;
@@ -2664,8 +2663,9 @@ static void ipr_process_error(struct ipr_cmnd *ipr_cmd)
  * Return value:
  * 	none
  **/
-static void ipr_timeout(struct ipr_cmnd *ipr_cmd)
+static void ipr_timeout(struct timer_list *t)
 {
+	struct ipr_cmnd *ipr_cmd = from_timer(ipr_cmd, t, timer);
 	unsigned long lock_flags = 0;
 	struct ipr_ioa_cfg *ioa_cfg = ipr_cmd->ioa_cfg;
 
@@ -2696,8 +2696,9 @@ static void ipr_timeout(struct ipr_cmnd *ipr_cmd)
  * Return value:
  * 	none
  **/
-static void ipr_oper_timeout(struct ipr_cmnd *ipr_cmd)
+static void ipr_oper_timeout(struct timer_list *t)
 {
+	struct ipr_cmnd *ipr_cmd = from_timer(ipr_cmd, t, timer);
 	unsigned long lock_flags = 0;
 	struct ipr_ioa_cfg *ioa_cfg = ipr_cmd->ioa_cfg;
 
@@ -3349,6 +3350,16 @@ static void ipr_worker_thread(struct work_struct *work)
 			ipr_initiate_ioa_reset(ioa_cfg, IPR_SHUTDOWN_NONE);
 		spin_unlock_irqrestore(ioa_cfg->host->host_lock, lock_flags);
 		return;
+	}
+
+	if (ioa_cfg->scsi_unblock) {
+		ioa_cfg->scsi_unblock = 0;
+		ioa_cfg->scsi_blocked = 0;
+		spin_unlock_irqrestore(ioa_cfg->host->host_lock, lock_flags);
+		scsi_unblock_requests(ioa_cfg->host);
+		spin_lock_irqsave(ioa_cfg->host->host_lock, lock_flags);
+		if (ioa_cfg->scsi_blocked)
+			scsi_block_requests(ioa_cfg->host);
 	}
 
 	if (!ioa_cfg->scan_enabled) {
@@ -4935,6 +4946,7 @@ static int ipr_slave_configure(struct scsi_device *sdev)
 		}
 		if (ipr_is_vset_device(res)) {
 			sdev->scsi_level = SCSI_SPC_3;
+			sdev->no_report_opcodes = 1;
 			blk_queue_rq_timeout(sdev->request_queue,
 					     IPR_VSET_RW_TIMEOUT);
 			blk_queue_max_hw_sectors(sdev->request_queue, IPR_VSET_MAX_SECTORS);
@@ -5438,8 +5450,9 @@ static void ipr_bus_reset_done(struct ipr_cmnd *ipr_cmd)
  * Return value:
  *	none
  **/
-static void ipr_abort_timeout(struct ipr_cmnd *ipr_cmd)
+static void ipr_abort_timeout(struct timer_list *t)
 {
+	struct ipr_cmnd *ipr_cmd = from_timer(ipr_cmd, t, timer);
 	struct ipr_cmnd *reset_cmd;
 	struct ipr_ioa_cfg *ioa_cfg = ipr_cmd->ioa_cfg;
 	struct ipr_cmd_pkt *cmd_pkt;
@@ -7211,9 +7224,8 @@ static int ipr_ioa_bringdown_done(struct ipr_cmnd *ipr_cmd)
 	ENTER;
 	if (!ioa_cfg->hrrq[IPR_INIT_HRRQ].removing_ioa) {
 		ipr_trace;
-		spin_unlock_irq(ioa_cfg->host->host_lock);
-		scsi_unblock_requests(ioa_cfg->host);
-		spin_lock_irq(ioa_cfg->host->host_lock);
+		ioa_cfg->scsi_unblock = 1;
+		schedule_work(&ioa_cfg->work_q);
 	}
 
 	ioa_cfg->in_reset_reload = 0;
@@ -7287,13 +7299,7 @@ static int ipr_ioa_reset_done(struct ipr_cmnd *ipr_cmd)
 	list_add_tail(&ipr_cmd->queue, &ipr_cmd->hrrq->hrrq_free_q);
 	wake_up_all(&ioa_cfg->reset_wait_q);
 
-	spin_unlock(ioa_cfg->host->host_lock);
-	scsi_unblock_requests(ioa_cfg->host);
-	spin_lock(ioa_cfg->host->host_lock);
-
-	if (!ioa_cfg->hrrq[IPR_INIT_HRRQ].allow_cmds)
-		scsi_block_requests(ioa_cfg->host);
-
+	ioa_cfg->scsi_unblock = 1;
 	schedule_work(&ioa_cfg->work_q);
 	LEAVE;
 	return IPR_RC_JOB_RETURN;
@@ -8267,8 +8273,9 @@ static int ipr_ioafp_identify_hrrq(struct ipr_cmnd *ipr_cmd)
  * Return value:
  * 	none
  **/
-static void ipr_reset_timer_done(struct ipr_cmnd *ipr_cmd)
+static void ipr_reset_timer_done(struct timer_list *t)
 {
+	struct ipr_cmnd *ipr_cmd = from_timer(ipr_cmd, t, timer);
 	struct ipr_ioa_cfg *ioa_cfg = ipr_cmd->ioa_cfg;
 	unsigned long lock_flags = 0;
 
@@ -8304,9 +8311,8 @@ static void ipr_reset_start_timer(struct ipr_cmnd *ipr_cmd,
 	list_add_tail(&ipr_cmd->queue, &ipr_cmd->hrrq->hrrq_pending_q);
 	ipr_cmd->done = ipr_reset_ioa_job;
 
-	ipr_cmd->timer.data = (unsigned long) ipr_cmd;
 	ipr_cmd->timer.expires = jiffies + timeout;
-	ipr_cmd->timer.function = (void (*)(unsigned long))ipr_reset_timer_done;
+	ipr_cmd->timer.function = ipr_reset_timer_done;
 	add_timer(&ipr_cmd->timer);
 }
 
@@ -8390,9 +8396,8 @@ static int ipr_reset_next_stage(struct ipr_cmnd *ipr_cmd)
 		}
 	}
 
-	ipr_cmd->timer.data = (unsigned long) ipr_cmd;
 	ipr_cmd->timer.expires = jiffies + stage_time * HZ;
-	ipr_cmd->timer.function = (void (*)(unsigned long))ipr_oper_timeout;
+	ipr_cmd->timer.function = ipr_oper_timeout;
 	ipr_cmd->done = ipr_reset_ioa_job;
 	add_timer(&ipr_cmd->timer);
 
@@ -8462,9 +8467,8 @@ static int ipr_reset_enable_ioa(struct ipr_cmnd *ipr_cmd)
 		return IPR_RC_JOB_CONTINUE;
 	}
 
-	ipr_cmd->timer.data = (unsigned long) ipr_cmd;
 	ipr_cmd->timer.expires = jiffies + (ioa_cfg->transop_timeout * HZ);
-	ipr_cmd->timer.function = (void (*)(unsigned long))ipr_oper_timeout;
+	ipr_cmd->timer.function = ipr_oper_timeout;
 	ipr_cmd->done = ipr_reset_ioa_job;
 	add_timer(&ipr_cmd->timer);
 	list_add_tail(&ipr_cmd->queue, &ipr_cmd->hrrq->hrrq_pending_q);
@@ -9249,8 +9253,11 @@ static void _ipr_initiate_ioa_reset(struct ipr_ioa_cfg *ioa_cfg,
 		spin_unlock(&ioa_cfg->hrrq[i]._lock);
 	}
 	wmb();
-	if (!ioa_cfg->hrrq[IPR_INIT_HRRQ].removing_ioa)
+	if (!ioa_cfg->hrrq[IPR_INIT_HRRQ].removing_ioa) {
+		ioa_cfg->scsi_unblock = 0;
+		ioa_cfg->scsi_blocked = 1;
 		scsi_block_requests(ioa_cfg->host);
+	}
 
 	ipr_cmd = ipr_get_free_ipr_cmnd(ioa_cfg);
 	ioa_cfg->reset_cmd = ipr_cmd;
@@ -9306,9 +9313,8 @@ static void ipr_initiate_ioa_reset(struct ipr_ioa_cfg *ioa_cfg,
 			wake_up_all(&ioa_cfg->reset_wait_q);
 
 			if (!ioa_cfg->hrrq[IPR_INIT_HRRQ].removing_ioa) {
-				spin_unlock_irq(ioa_cfg->host->host_lock);
-				scsi_unblock_requests(ioa_cfg->host);
-				spin_lock_irq(ioa_cfg->host->host_lock);
+				ioa_cfg->scsi_unblock = 1;
+				schedule_work(&ioa_cfg->work_q);
 			}
 			return;
 		} else {

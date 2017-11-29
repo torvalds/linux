@@ -60,8 +60,27 @@ struct tk_fast {
 	struct tk_read_base	base[2];
 };
 
-static struct tk_fast tk_fast_mono ____cacheline_aligned;
-static struct tk_fast tk_fast_raw  ____cacheline_aligned;
+/* Suspend-time cycles value for halted fast timekeeper. */
+static u64 cycles_at_suspend;
+
+static u64 dummy_clock_read(struct clocksource *cs)
+{
+	return cycles_at_suspend;
+}
+
+static struct clocksource dummy_clock = {
+	.read = dummy_clock_read,
+};
+
+static struct tk_fast tk_fast_mono ____cacheline_aligned = {
+	.base[0] = { .clock = &dummy_clock, },
+	.base[1] = { .clock = &dummy_clock, },
+};
+
+static struct tk_fast tk_fast_raw  ____cacheline_aligned = {
+	.base[0] = { .clock = &dummy_clock, },
+	.base[1] = { .clock = &dummy_clock, },
+};
 
 /* flag for if timekeeping is suspended */
 int __read_mostly timekeeping_suspended;
@@ -477,17 +496,39 @@ u64 notrace ktime_get_boot_fast_ns(void)
 }
 EXPORT_SYMBOL_GPL(ktime_get_boot_fast_ns);
 
-/* Suspend-time cycles value for halted fast timekeeper. */
-static u64 cycles_at_suspend;
 
-static u64 dummy_clock_read(struct clocksource *cs)
+/*
+ * See comment for __ktime_get_fast_ns() vs. timestamp ordering
+ */
+static __always_inline u64 __ktime_get_real_fast_ns(struct tk_fast *tkf)
 {
-	return cycles_at_suspend;
+	struct tk_read_base *tkr;
+	unsigned int seq;
+	u64 now;
+
+	do {
+		seq = raw_read_seqcount_latch(&tkf->seq);
+		tkr = tkf->base + (seq & 0x01);
+		now = ktime_to_ns(tkr->base_real);
+
+		now += timekeeping_delta_to_ns(tkr,
+				clocksource_delta(
+					tk_clock_read(tkr),
+					tkr->cycle_last,
+					tkr->mask));
+	} while (read_seqcount_retry(&tkf->seq, seq));
+
+	return now;
 }
 
-static struct clocksource dummy_clock = {
-	.read = dummy_clock_read,
-};
+/**
+ * ktime_get_real_fast_ns: - NMI safe and fast access to clock realtime.
+ */
+u64 ktime_get_real_fast_ns(void)
+{
+	return __ktime_get_real_fast_ns(&tk_fast_mono);
+}
+EXPORT_SYMBOL_GPL(ktime_get_real_fast_ns);
 
 /**
  * halt_fast_timekeeper - Prevent fast timekeeper from accessing clocksource.
@@ -507,6 +548,7 @@ static void halt_fast_timekeeper(struct timekeeper *tk)
 	memcpy(&tkr_dummy, tkr, sizeof(tkr_dummy));
 	cycles_at_suspend = tk_clock_read(tkr);
 	tkr_dummy.clock = &dummy_clock;
+	tkr_dummy.base_real = tkr->base + tk->offs_real;
 	update_fast_timekeeper(&tkr_dummy, &tk_fast_mono);
 
 	tkr = &tk->tkr_raw;
@@ -514,45 +556,6 @@ static void halt_fast_timekeeper(struct timekeeper *tk)
 	tkr_dummy.clock = &dummy_clock;
 	update_fast_timekeeper(&tkr_dummy, &tk_fast_raw);
 }
-
-#ifdef CONFIG_GENERIC_TIME_VSYSCALL_OLD
-#warning Please contact your maintainers, as GENERIC_TIME_VSYSCALL_OLD compatibity will disappear soon.
-
-static inline void update_vsyscall(struct timekeeper *tk)
-{
-	struct timespec xt, wm;
-
-	xt = timespec64_to_timespec(tk_xtime(tk));
-	wm = timespec64_to_timespec(tk->wall_to_monotonic);
-	update_vsyscall_old(&xt, &wm, tk->tkr_mono.clock, tk->tkr_mono.mult,
-			    tk->tkr_mono.cycle_last);
-}
-
-static inline void old_vsyscall_fixup(struct timekeeper *tk)
-{
-	s64 remainder;
-
-	/*
-	* Store only full nanoseconds into xtime_nsec after rounding
-	* it up and add the remainder to the error difference.
-	* XXX - This is necessary to avoid small 1ns inconsistnecies caused
-	* by truncating the remainder in vsyscalls. However, it causes
-	* additional work to be done in timekeeping_adjust(). Once
-	* the vsyscall implementations are converted to use xtime_nsec
-	* (shifted nanoseconds), and CONFIG_GENERIC_TIME_VSYSCALL_OLD
-	* users are removed, this can be killed.
-	*/
-	remainder = tk->tkr_mono.xtime_nsec & ((1ULL << tk->tkr_mono.shift) - 1);
-	if (remainder != 0) {
-		tk->tkr_mono.xtime_nsec -= remainder;
-		tk->tkr_mono.xtime_nsec += 1ULL << tk->tkr_mono.shift;
-		tk->ntp_error += remainder << tk->ntp_error_shift;
-		tk->ntp_error -= (1ULL << tk->tkr_mono.shift) << tk->ntp_error_shift;
-	}
-}
-#else
-#define old_vsyscall_fixup(tk)
-#endif
 
 static RAW_NOTIFIER_HEAD(pvclock_gtod_chain);
 
@@ -637,9 +640,7 @@ static inline void tk_update_ktime_data(struct timekeeper *tk)
 	tk->ktime_sec = seconds;
 
 	/* Update the monotonic raw base */
-	seconds = tk->raw_sec;
-	nsec = (u32)(tk->tkr_raw.xtime_nsec >> tk->tkr_raw.shift);
-	tk->tkr_raw.base = ns_to_ktime(seconds * NSEC_PER_SEC + nsec);
+	tk->tkr_raw.base = ns_to_ktime(tk->raw_sec * NSEC_PER_SEC);
 }
 
 /* must hold timekeeper_lock */
@@ -656,6 +657,7 @@ static void timekeeping_update(struct timekeeper *tk, unsigned int action)
 	update_vsyscall(tk);
 	update_pvclock_gtod(tk, action & TK_CLOCK_WAS_SET);
 
+	tk->tkr_mono.base_real = tk->tkr_mono.base + tk->offs_real;
 	update_fast_timekeeper(&tk->tkr_mono, &tk_fast_mono);
 	update_fast_timekeeper(&tk->tkr_raw,  &tk_fast_raw);
 
@@ -1266,17 +1268,15 @@ EXPORT_SYMBOL(do_settimeofday64);
  *
  * Adds or subtracts an offset value from the current time.
  */
-int timekeeping_inject_offset(struct timespec *ts)
+static int timekeeping_inject_offset(struct timespec64 *ts)
 {
 	struct timekeeper *tk = &tk_core.timekeeper;
 	unsigned long flags;
-	struct timespec64 ts64, tmp;
+	struct timespec64 tmp;
 	int ret = 0;
 
-	if (!timespec_inject_offset_valid(ts))
+	if (ts->tv_nsec < 0 || ts->tv_nsec >= NSEC_PER_SEC)
 		return -EINVAL;
-
-	ts64 = timespec_to_timespec64(*ts);
 
 	raw_spin_lock_irqsave(&timekeeper_lock, flags);
 	write_seqcount_begin(&tk_core.seq);
@@ -1284,15 +1284,15 @@ int timekeeping_inject_offset(struct timespec *ts)
 	timekeeping_forward_now(tk);
 
 	/* Make sure the proposed value is valid */
-	tmp = timespec64_add(tk_xtime(tk),  ts64);
-	if (timespec64_compare(&tk->wall_to_monotonic, &ts64) > 0 ||
+	tmp = timespec64_add(tk_xtime(tk), *ts);
+	if (timespec64_compare(&tk->wall_to_monotonic, ts) > 0 ||
 	    !timespec64_valid_strict(&tmp)) {
 		ret = -EINVAL;
 		goto error;
 	}
 
-	tk_xtime_add(tk, &ts64);
-	tk_set_wall_to_mono(tk, timespec64_sub(tk->wall_to_monotonic, ts64));
+	tk_xtime_add(tk, ts);
+	tk_set_wall_to_mono(tk, timespec64_sub(tk->wall_to_monotonic, *ts));
 
 error: /* even if we error out, we forwarded the time, so call update */
 	timekeeping_update(tk, TK_CLEAR_NTP | TK_MIRROR | TK_CLOCK_WAS_SET);
@@ -1305,7 +1305,40 @@ error: /* even if we error out, we forwarded the time, so call update */
 
 	return ret;
 }
-EXPORT_SYMBOL(timekeeping_inject_offset);
+
+/*
+ * Indicates if there is an offset between the system clock and the hardware
+ * clock/persistent clock/rtc.
+ */
+int persistent_clock_is_local;
+
+/*
+ * Adjust the time obtained from the CMOS to be UTC time instead of
+ * local time.
+ *
+ * This is ugly, but preferable to the alternatives.  Otherwise we
+ * would either need to write a program to do it in /etc/rc (and risk
+ * confusion if the program gets run more than once; it would also be
+ * hard to make the program warp the clock precisely n hours)  or
+ * compile in the timezone information into the kernel.  Bad, bad....
+ *
+ *						- TYT, 1992-01-01
+ *
+ * The best thing to do is to keep the CMOS clock in universal time (UTC)
+ * as real UNIX machines always do it. This avoids all headaches about
+ * daylight saving times and warping kernel clocks.
+ */
+void timekeeping_warp_clock(void)
+{
+	if (sys_tz.tz_minuteswest != 0) {
+		struct timespec64 adjust;
+
+		persistent_clock_is_local = 1;
+		adjust.tv_sec = sys_tz.tz_minuteswest * 60;
+		adjust.tv_nsec = 0;
+		timekeeping_inject_offset(&adjust);
+	}
+}
 
 /**
  * __timekeeping_set_tai_offset - Sets the TAI offset from UTC and monotonic
@@ -2066,7 +2099,7 @@ void update_wall_time(void)
 		goto out;
 
 	/* Do some additional sanity checking */
-	timekeeping_check_update(real_tk, offset);
+	timekeeping_check_update(tk, offset);
 
 	/*
 	 * With NO_HZ we may have to accumulate many cycle_intervals
@@ -2090,12 +2123,6 @@ void update_wall_time(void)
 
 	/* correct the clock when NTP error is too big */
 	timekeeping_adjust(tk, offset);
-
-	/*
-	 * XXX This can be killed once everyone converts
-	 * to the new update_vsyscall.
-	 */
-	old_vsyscall_fixup(tk);
 
 	/*
 	 * Finally, make sure that after the rounding
@@ -2250,6 +2277,72 @@ ktime_t ktime_get_update_offsets_now(unsigned int *cwsseq, ktime_t *offs_real,
 }
 
 /**
+ * timekeeping_validate_timex - Ensures the timex is ok for use in do_adjtimex
+ */
+static int timekeeping_validate_timex(struct timex *txc)
+{
+	if (txc->modes & ADJ_ADJTIME) {
+		/* singleshot must not be used with any other mode bits */
+		if (!(txc->modes & ADJ_OFFSET_SINGLESHOT))
+			return -EINVAL;
+		if (!(txc->modes & ADJ_OFFSET_READONLY) &&
+		    !capable(CAP_SYS_TIME))
+			return -EPERM;
+	} else {
+		/* In order to modify anything, you gotta be super-user! */
+		if (txc->modes && !capable(CAP_SYS_TIME))
+			return -EPERM;
+		/*
+		 * if the quartz is off by more than 10% then
+		 * something is VERY wrong!
+		 */
+		if (txc->modes & ADJ_TICK &&
+		    (txc->tick <  900000/USER_HZ ||
+		     txc->tick > 1100000/USER_HZ))
+			return -EINVAL;
+	}
+
+	if (txc->modes & ADJ_SETOFFSET) {
+		/* In order to inject time, you gotta be super-user! */
+		if (!capable(CAP_SYS_TIME))
+			return -EPERM;
+
+		/*
+		 * Validate if a timespec/timeval used to inject a time
+		 * offset is valid.  Offsets can be postive or negative, so
+		 * we don't check tv_sec. The value of the timeval/timespec
+		 * is the sum of its fields,but *NOTE*:
+		 * The field tv_usec/tv_nsec must always be non-negative and
+		 * we can't have more nanoseconds/microseconds than a second.
+		 */
+		if (txc->time.tv_usec < 0)
+			return -EINVAL;
+
+		if (txc->modes & ADJ_NANO) {
+			if (txc->time.tv_usec >= NSEC_PER_SEC)
+				return -EINVAL;
+		} else {
+			if (txc->time.tv_usec >= USEC_PER_SEC)
+				return -EINVAL;
+		}
+	}
+
+	/*
+	 * Check for potential multiplication overflows that can
+	 * only happen on 64-bit systems:
+	 */
+	if ((txc->modes & ADJ_FREQUENCY) && (BITS_PER_LONG == 64)) {
+		if (LLONG_MIN / PPM_SCALE > txc->freq)
+			return -EINVAL;
+		if (LLONG_MAX / PPM_SCALE < txc->freq)
+			return -EINVAL;
+	}
+
+	return 0;
+}
+
+
+/**
  * do_adjtimex() - Accessor function to NTP __do_adjtimex function
  */
 int do_adjtimex(struct timex *txc)
@@ -2261,12 +2354,12 @@ int do_adjtimex(struct timex *txc)
 	int ret;
 
 	/* Validate the data before disabling interrupts */
-	ret = ntp_validate_timex(txc);
+	ret = timekeeping_validate_timex(txc);
 	if (ret)
 		return ret;
 
 	if (txc->modes & ADJ_SETOFFSET) {
-		struct timespec delta;
+		struct timespec64 delta;
 		delta.tv_sec  = txc->time.tv_sec;
 		delta.tv_nsec = txc->time.tv_usec;
 		if (!(txc->modes & ADJ_NANO))
@@ -2318,7 +2411,7 @@ void hardpps(const struct timespec64 *phase_ts, const struct timespec64 *raw_ts)
 	raw_spin_unlock_irqrestore(&timekeeper_lock, flags);
 }
 EXPORT_SYMBOL(hardpps);
-#endif
+#endif /* CONFIG_NTP_PPS */
 
 /**
  * xtime_update() - advances the timekeeping infrastructure

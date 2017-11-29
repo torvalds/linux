@@ -201,7 +201,7 @@ struct sctp_datamsg *sctp_datamsg_from_user(struct sctp_association *asoc,
 		struct sctp_hmac *hmac_desc = sctp_auth_asoc_get_hmac(asoc);
 
 		if (hmac_desc)
-			max_data -= SCTP_PAD4(sizeof(sctp_auth_chunk_t) +
+			max_data -= SCTP_PAD4(sizeof(struct sctp_auth_chunk) +
 					      hmac_desc->hmac_len);
 	}
 
@@ -221,7 +221,7 @@ struct sctp_datamsg *sctp_datamsg_from_user(struct sctp_association *asoc,
 	    asoc->outqueue.out_qlen == 0 &&
 	    list_empty(&asoc->outqueue.retransmit) &&
 	    msg_len > max_data)
-		first_len -= SCTP_PAD4(sizeof(sctp_sack_chunk_t));
+		first_len -= SCTP_PAD4(sizeof(struct sctp_sack_chunk));
 
 	/* Encourage Cookie-ECHO bundling. */
 	if (asoc->state < SCTP_STATE_COOKIE_ECHOED)
@@ -311,10 +311,10 @@ int sctp_chunk_abandoned(struct sctp_chunk *chunk)
 
 		if (chunk->sent_count) {
 			chunk->asoc->abandoned_sent[SCTP_PR_INDEX(TTL)]++;
-			streamout->abandoned_sent[SCTP_PR_INDEX(TTL)]++;
+			streamout->ext->abandoned_sent[SCTP_PR_INDEX(TTL)]++;
 		} else {
 			chunk->asoc->abandoned_unsent[SCTP_PR_INDEX(TTL)]++;
-			streamout->abandoned_unsent[SCTP_PR_INDEX(TTL)]++;
+			streamout->ext->abandoned_unsent[SCTP_PR_INDEX(TTL)]++;
 		}
 		return 1;
 	} else if (SCTP_PR_RTX_ENABLED(chunk->sinfo.sinfo_flags) &&
@@ -323,7 +323,7 @@ int sctp_chunk_abandoned(struct sctp_chunk *chunk)
 			&chunk->asoc->stream.out[chunk->sinfo.sinfo_stream];
 
 		chunk->asoc->abandoned_sent[SCTP_PR_INDEX(RTX)]++;
-		streamout->abandoned_sent[SCTP_PR_INDEX(RTX)]++;
+		streamout->ext->abandoned_sent[SCTP_PR_INDEX(RTX)]++;
 		return 1;
 	} else if (!SCTP_PR_POLICY(chunk->sinfo.sinfo_flags) &&
 		   chunk->msg->expires_at &&

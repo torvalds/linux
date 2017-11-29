@@ -187,21 +187,20 @@ static int __init exynos_pmu_irq_init(struct device_node *node,
 	struct irq_domain *parent_domain, *domain;
 
 	if (!parent) {
-		pr_err("%s: no parent, giving up\n", node->full_name);
+		pr_err("%pOF: no parent, giving up\n", node);
 		return -ENODEV;
 	}
 
 	parent_domain = irq_find_host(parent);
 	if (!parent_domain) {
-		pr_err("%s: unable to obtain parent domain\n", node->full_name);
+		pr_err("%pOF: unable to obtain parent domain\n", node);
 		return -ENXIO;
 	}
 
 	pmu_base_addr = of_iomap(node, 0);
 
 	if (!pmu_base_addr) {
-		pr_err("%s: failed to find exynos pmu register\n",
-		       node->full_name);
+		pr_err("%pOF: failed to find exynos pmu register\n", node);
 		return -ENOMEM;
 	}
 
@@ -226,7 +225,6 @@ static int __init exynos_pmu_irq_init(struct device_node *node,
 
 EXYNOS_PMU_IRQ(exynos3250_pmu_irq, "samsung,exynos3250-pmu");
 EXYNOS_PMU_IRQ(exynos4210_pmu_irq, "samsung,exynos4210-pmu");
-EXYNOS_PMU_IRQ(exynos4212_pmu_irq, "samsung,exynos4212-pmu");
 EXYNOS_PMU_IRQ(exynos4412_pmu_irq, "samsung,exynos4412-pmu");
 EXYNOS_PMU_IRQ(exynos5250_pmu_irq, "samsung,exynos5250-pmu");
 EXYNOS_PMU_IRQ(exynos5420_pmu_irq, "samsung,exynos5420-pmu");
@@ -616,9 +614,6 @@ static const struct of_device_id exynos_pmu_of_device_ids[] __initconst = {
 		.data = &exynos3250_pm_data,
 	}, {
 		.compatible = "samsung,exynos4210-pmu",
-		.data = &exynos4_pm_data,
-	}, {
-		.compatible = "samsung,exynos4212-pmu",
 		.data = &exynos4_pm_data,
 	}, {
 		.compatible = "samsung,exynos4412-pmu",

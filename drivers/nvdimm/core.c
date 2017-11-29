@@ -277,14 +277,14 @@ int nd_uuid_store(struct device *dev, u8 **uuid_out, const char *buf,
 	return 0;
 }
 
-ssize_t nd_sector_size_show(unsigned long current_lbasize,
+ssize_t nd_size_select_show(unsigned long current_size,
 		const unsigned long *supported, char *buf)
 {
 	ssize_t len = 0;
 	int i;
 
 	for (i = 0; supported[i]; i++)
-		if (current_lbasize == supported[i])
+		if (current_size == supported[i])
 			len += sprintf(buf + len, "[%ld] ", supported[i]);
 		else
 			len += sprintf(buf + len, "%ld ", supported[i]);
@@ -292,8 +292,8 @@ ssize_t nd_sector_size_show(unsigned long current_lbasize,
 	return len;
 }
 
-ssize_t nd_sector_size_store(struct device *dev, const char *buf,
-		unsigned long *current_lbasize, const unsigned long *supported)
+ssize_t nd_size_select_store(struct device *dev, const char *buf,
+		unsigned long *current_size, const unsigned long *supported)
 {
 	unsigned long lbasize;
 	int rc, i;
@@ -310,7 +310,7 @@ ssize_t nd_sector_size_store(struct device *dev, const char *buf,
 			break;
 
 	if (supported[i]) {
-		*current_lbasize = lbasize;
+		*current_size = lbasize;
 		return 0;
 	} else {
 		return -EINVAL;
@@ -398,265 +398,11 @@ struct attribute_group nvdimm_bus_attribute_group = {
 };
 EXPORT_SYMBOL_GPL(nvdimm_bus_attribute_group);
 
-static void set_badblock(struct badblocks *bb, sector_t s, int num)
+int nvdimm_bus_add_badrange(struct nvdimm_bus *nvdimm_bus, u64 addr, u64 length)
 {
-	dev_dbg(bb->dev, "Found a poison range (0x%llx, 0x%llx)\n",
-			(u64) s * 512, (u64) num * 512);
-	/* this isn't an error as the hardware will still throw an exception */
-	if (badblocks_set(bb, s, num, 1))
-		dev_info_once(bb->dev, "%s: failed for sector %llx\n",
-				__func__, (u64) s);
+	return badrange_add(&nvdimm_bus->badrange, addr, length);
 }
-
-/**
- * __add_badblock_range() - Convert a physical address range to bad sectors
- * @bb:		badblocks instance to populate
- * @ns_offset:	namespace offset where the error range begins (in bytes)
- * @len:	number of bytes of poison to be added
- *
- * This assumes that the range provided with (ns_offset, len) is within
- * the bounds of physical addresses for this namespace, i.e. lies in the
- * interval [ns_start, ns_start + ns_size)
- */
-static void __add_badblock_range(struct badblocks *bb, u64 ns_offset, u64 len)
-{
-	const unsigned int sector_size = 512;
-	sector_t start_sector, end_sector;
-	u64 num_sectors;
-	u32 rem;
-
-	start_sector = div_u64(ns_offset, sector_size);
-	end_sector = div_u64_rem(ns_offset + len, sector_size, &rem);
-	if (rem)
-		end_sector++;
-	num_sectors = end_sector - start_sector;
-
-	if (unlikely(num_sectors > (u64)INT_MAX)) {
-		u64 remaining = num_sectors;
-		sector_t s = start_sector;
-
-		while (remaining) {
-			int done = min_t(u64, remaining, INT_MAX);
-
-			set_badblock(bb, s, done);
-			remaining -= done;
-			s += done;
-		}
-	} else
-		set_badblock(bb, start_sector, num_sectors);
-}
-
-static void badblocks_populate(struct list_head *poison_list,
-		struct badblocks *bb, const struct resource *res)
-{
-	struct nd_poison *pl;
-
-	if (list_empty(poison_list))
-		return;
-
-	list_for_each_entry(pl, poison_list, list) {
-		u64 pl_end = pl->start + pl->length - 1;
-
-		/* Discard intervals with no intersection */
-		if (pl_end < res->start)
-			continue;
-		if (pl->start >  res->end)
-			continue;
-		/* Deal with any overlap after start of the namespace */
-		if (pl->start >= res->start) {
-			u64 start = pl->start;
-			u64 len;
-
-			if (pl_end <= res->end)
-				len = pl->length;
-			else
-				len = res->start + resource_size(res)
-					- pl->start;
-			__add_badblock_range(bb, start - res->start, len);
-			continue;
-		}
-		/* Deal with overlap for poison starting before the namespace */
-		if (pl->start < res->start) {
-			u64 len;
-
-			if (pl_end < res->end)
-				len = pl->start + pl->length - res->start;
-			else
-				len = resource_size(res);
-			__add_badblock_range(bb, 0, len);
-		}
-	}
-}
-
-/**
- * nvdimm_badblocks_populate() - Convert a list of poison ranges to badblocks
- * @region: parent region of the range to interrogate
- * @bb: badblocks instance to populate
- * @res: resource range to consider
- *
- * The poison list generated during bus initialization may contain
- * multiple, possibly overlapping physical address ranges.  Compare each
- * of these ranges to the resource range currently being initialized,
- * and add badblocks entries for all matching sub-ranges
- */
-void nvdimm_badblocks_populate(struct nd_region *nd_region,
-		struct badblocks *bb, const struct resource *res)
-{
-	struct nvdimm_bus *nvdimm_bus;
-	struct list_head *poison_list;
-
-	if (!is_memory(&nd_region->dev)) {
-		dev_WARN_ONCE(&nd_region->dev, 1,
-				"%s only valid for pmem regions\n", __func__);
-		return;
-	}
-	nvdimm_bus = walk_to_nvdimm_bus(&nd_region->dev);
-	poison_list = &nvdimm_bus->poison_list;
-
-	nvdimm_bus_lock(&nvdimm_bus->dev);
-	badblocks_populate(poison_list, bb, res);
-	nvdimm_bus_unlock(&nvdimm_bus->dev);
-}
-EXPORT_SYMBOL_GPL(nvdimm_badblocks_populate);
-
-static void append_poison_entry(struct nvdimm_bus *nvdimm_bus,
-		struct nd_poison *pl, u64 addr, u64 length)
-{
-	lockdep_assert_held(&nvdimm_bus->poison_lock);
-	pl->start = addr;
-	pl->length = length;
-	list_add_tail(&pl->list, &nvdimm_bus->poison_list);
-}
-
-static int add_poison(struct nvdimm_bus *nvdimm_bus, u64 addr, u64 length,
-			gfp_t flags)
-{
-	struct nd_poison *pl;
-
-	pl = kzalloc(sizeof(*pl), flags);
-	if (!pl)
-		return -ENOMEM;
-
-	append_poison_entry(nvdimm_bus, pl, addr, length);
-	return 0;
-}
-
-static int bus_add_poison(struct nvdimm_bus *nvdimm_bus, u64 addr, u64 length)
-{
-	struct nd_poison *pl, *pl_new;
-
-	spin_unlock(&nvdimm_bus->poison_lock);
-	pl_new = kzalloc(sizeof(*pl_new), GFP_KERNEL);
-	spin_lock(&nvdimm_bus->poison_lock);
-
-	if (list_empty(&nvdimm_bus->poison_list)) {
-		if (!pl_new)
-			return -ENOMEM;
-		append_poison_entry(nvdimm_bus, pl_new, addr, length);
-		return 0;
-	}
-
-	/*
-	 * There is a chance this is a duplicate, check for those first.
-	 * This will be the common case as ARS_STATUS returns all known
-	 * errors in the SPA space, and we can't query it per region
-	 */
-	list_for_each_entry(pl, &nvdimm_bus->poison_list, list)
-		if (pl->start == addr) {
-			/* If length has changed, update this list entry */
-			if (pl->length != length)
-				pl->length = length;
-			kfree(pl_new);
-			return 0;
-		}
-
-	/*
-	 * If not a duplicate or a simple length update, add the entry as is,
-	 * as any overlapping ranges will get resolved when the list is consumed
-	 * and converted to badblocks
-	 */
-	if (!pl_new)
-		return -ENOMEM;
-	append_poison_entry(nvdimm_bus, pl_new, addr, length);
-
-	return 0;
-}
-
-int nvdimm_bus_add_poison(struct nvdimm_bus *nvdimm_bus, u64 addr, u64 length)
-{
-	int rc;
-
-	spin_lock(&nvdimm_bus->poison_lock);
-	rc = bus_add_poison(nvdimm_bus, addr, length);
-	spin_unlock(&nvdimm_bus->poison_lock);
-
-	return rc;
-}
-EXPORT_SYMBOL_GPL(nvdimm_bus_add_poison);
-
-void nvdimm_forget_poison(struct nvdimm_bus *nvdimm_bus, phys_addr_t start,
-		unsigned int len)
-{
-	struct list_head *poison_list = &nvdimm_bus->poison_list;
-	u64 clr_end = start + len - 1;
-	struct nd_poison *pl, *next;
-
-	spin_lock(&nvdimm_bus->poison_lock);
-	WARN_ON_ONCE(list_empty(poison_list));
-
-	/*
-	 * [start, clr_end] is the poison interval being cleared.
-	 * [pl->start, pl_end] is the poison_list entry we're comparing
-	 * the above interval against. The poison list entry may need
-	 * to be modified (update either start or length), deleted, or
-	 * split into two based on the overlap characteristics
-	 */
-
-	list_for_each_entry_safe(pl, next, poison_list, list) {
-		u64 pl_end = pl->start + pl->length - 1;
-
-		/* Skip intervals with no intersection */
-		if (pl_end < start)
-			continue;
-		if (pl->start >  clr_end)
-			continue;
-		/* Delete completely overlapped poison entries */
-		if ((pl->start >= start) && (pl_end <= clr_end)) {
-			list_del(&pl->list);
-			kfree(pl);
-			continue;
-		}
-		/* Adjust start point of partially cleared entries */
-		if ((start <= pl->start) && (clr_end > pl->start)) {
-			pl->length -= clr_end - pl->start + 1;
-			pl->start = clr_end + 1;
-			continue;
-		}
-		/* Adjust pl->length for partial clearing at the tail end */
-		if ((pl->start < start) && (pl_end <= clr_end)) {
-			/* pl->start remains the same */
-			pl->length = start - pl->start;
-			continue;
-		}
-		/*
-		 * If clearing in the middle of an entry, we split it into
-		 * two by modifying the current entry to represent one half of
-		 * the split, and adding a new entry for the second half.
-		 */
-		if ((pl->start < start) && (pl_end > clr_end)) {
-			u64 new_start = clr_end + 1;
-			u64 new_len = pl_end - new_start + 1;
-
-			/* Add new entry covering the right half */
-			add_poison(nvdimm_bus, new_start, new_len, GFP_NOWAIT);
-			/* Adjust this entry to cover the left half */
-			pl->length = start - pl->start;
-			continue;
-		}
-	}
-	spin_unlock(&nvdimm_bus->poison_lock);
-}
-EXPORT_SYMBOL_GPL(nvdimm_forget_poison);
+EXPORT_SYMBOL_GPL(nvdimm_bus_add_badrange);
 
 #ifdef CONFIG_BLK_DEV_INTEGRITY
 int nd_integrity_init(struct gendisk *disk, unsigned long meta_size)

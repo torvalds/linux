@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *	SUCS NET3:
  *
@@ -169,20 +170,26 @@ struct sk_buff *__skb_try_recv_from_queue(struct sock *sk,
 					  int *peeked, int *off, int *err,
 					  struct sk_buff **last)
 {
+	bool peek_at_off = false;
 	struct sk_buff *skb;
-	int _off = *off;
+	int _off = 0;
+
+	if (unlikely(flags & MSG_PEEK && *off >= 0)) {
+		peek_at_off = true;
+		_off = *off;
+	}
 
 	*last = queue->prev;
 	skb_queue_walk(queue, skb) {
 		if (flags & MSG_PEEK) {
-			if (_off >= skb->len && (skb->len || _off ||
-						 skb->peeked)) {
+			if (peek_at_off && _off >= skb->len &&
+			    (_off || skb->peeked)) {
 				_off -= skb->len;
 				continue;
 			}
 			if (!skb->len) {
 				skb = skb_set_peeked(skb);
-				if (unlikely(IS_ERR(skb))) {
+				if (IS_ERR(skb)) {
 					*err = PTR_ERR(skb);
 					return NULL;
 				}
@@ -356,7 +363,7 @@ int __sk_queue_drop_skb(struct sock *sk, struct sk_buff_head *sk_queue,
 	if (flags & MSG_PEEK) {
 		err = -ENOENT;
 		spin_lock_bh(&sk_queue->lock);
-		if (skb == skb_peek(sk_queue)) {
+		if (skb->next) {
 			__skb_unlink(skb, sk_queue);
 			refcount_dec(&skb->users);
 			if (destructor)
@@ -573,6 +580,51 @@ fault:
 }
 EXPORT_SYMBOL(skb_copy_datagram_from_iter);
 
+int __zerocopy_sg_from_iter(struct sock *sk, struct sk_buff *skb,
+			    struct iov_iter *from, size_t length)
+{
+	int frag = skb_shinfo(skb)->nr_frags;
+
+	while (length && iov_iter_count(from)) {
+		struct page *pages[MAX_SKB_FRAGS];
+		size_t start;
+		ssize_t copied;
+		unsigned long truesize;
+		int n = 0;
+
+		if (frag == MAX_SKB_FRAGS)
+			return -EMSGSIZE;
+
+		copied = iov_iter_get_pages(from, pages, length,
+					    MAX_SKB_FRAGS - frag, &start);
+		if (copied < 0)
+			return -EFAULT;
+
+		iov_iter_advance(from, copied);
+		length -= copied;
+
+		truesize = PAGE_ALIGN(copied + start);
+		skb->data_len += copied;
+		skb->len += copied;
+		skb->truesize += truesize;
+		if (sk && sk->sk_type == SOCK_STREAM) {
+			sk->sk_wmem_queued += truesize;
+			sk_mem_charge(sk, truesize);
+		} else {
+			refcount_add(truesize, &skb->sk->sk_wmem_alloc);
+		}
+		while (copied) {
+			int size = min_t(int, copied, PAGE_SIZE - start);
+			skb_fill_page_desc(skb, frag++, pages[n], start, size);
+			start = 0;
+			copied -= size;
+			n++;
+		}
+	}
+	return 0;
+}
+EXPORT_SYMBOL(__zerocopy_sg_from_iter);
+
 /**
  *	zerocopy_sg_from_iter - Build a zerocopy datagram from an iov_iter
  *	@skb: buffer to copy
@@ -585,45 +637,13 @@ EXPORT_SYMBOL(skb_copy_datagram_from_iter);
  */
 int zerocopy_sg_from_iter(struct sk_buff *skb, struct iov_iter *from)
 {
-	int len = iov_iter_count(from);
-	int copy = min_t(int, skb_headlen(skb), len);
-	int frag = 0;
+	int copy = min_t(int, skb_headlen(skb), iov_iter_count(from));
 
 	/* copy up to skb headlen */
 	if (skb_copy_datagram_from_iter(skb, 0, from, copy))
 		return -EFAULT;
 
-	while (iov_iter_count(from)) {
-		struct page *pages[MAX_SKB_FRAGS];
-		size_t start;
-		ssize_t copied;
-		unsigned long truesize;
-		int n = 0;
-
-		if (frag == MAX_SKB_FRAGS)
-			return -EMSGSIZE;
-
-		copied = iov_iter_get_pages(from, pages, ~0U,
-					    MAX_SKB_FRAGS - frag, &start);
-		if (copied < 0)
-			return -EFAULT;
-
-		iov_iter_advance(from, copied);
-
-		truesize = PAGE_ALIGN(copied + start);
-		skb->data_len += copied;
-		skb->len += copied;
-		skb->truesize += truesize;
-		refcount_add(truesize, &skb->sk->sk_wmem_alloc);
-		while (copied) {
-			int size = min_t(int, copied, PAGE_SIZE - start);
-			skb_fill_page_desc(skb, frag++, pages[n], start, size);
-			start = 0;
-			copied -= size;
-			n++;
-		}
-	}
-	return 0;
+	return __zerocopy_sg_from_iter(NULL, skb, from, ~0U);
 }
 EXPORT_SYMBOL(zerocopy_sg_from_iter);
 

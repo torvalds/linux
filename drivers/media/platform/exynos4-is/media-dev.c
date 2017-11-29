@@ -412,8 +412,8 @@ static int fimc_md_parse_port_node(struct fimc_md *fmd,
 	rem = of_graph_get_remote_port_parent(ep);
 	of_node_put(ep);
 	if (rem == NULL) {
-		v4l2_info(&fmd->v4l2_dev, "Remote device at %s not found\n",
-							ep->full_name);
+		v4l2_info(&fmd->v4l2_dev, "Remote device at %pOF not found\n",
+							ep);
 		return 0;
 	}
 
@@ -430,8 +430,8 @@ static int fimc_md_parse_port_node(struct fimc_md *fmd,
 		 */
 		pd->sensor_bus_type = FIMC_BUS_TYPE_MIPI_CSI2;
 	} else {
-		v4l2_err(&fmd->v4l2_dev, "Wrong port id (%u) at node %s\n",
-			 endpoint.base.port, rem->full_name);
+		v4l2_err(&fmd->v4l2_dev, "Wrong port id (%u) at node %pOF\n",
+			 endpoint.base.port, rem);
 	}
 	/*
 	 * For FIMC-IS handled sensors, that are placed under i2c-isp device
@@ -1405,6 +1405,11 @@ unlock:
 	return media_device_register(&fmd->media_dev);
 }
 
+static const struct v4l2_async_notifier_operations subdev_notifier_ops = {
+	.bound = subdev_notifier_bound,
+	.complete = subdev_notifier_complete,
+};
+
 static int fimc_md_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -1479,8 +1484,7 @@ static int fimc_md_probe(struct platform_device *pdev)
 	if (fmd->num_sensors > 0) {
 		fmd->subdev_notifier.subdevs = fmd->async_subdevs;
 		fmd->subdev_notifier.num_subdevs = fmd->num_sensors;
-		fmd->subdev_notifier.bound = subdev_notifier_bound;
-		fmd->subdev_notifier.complete = subdev_notifier_complete;
+		fmd->subdev_notifier.ops = &subdev_notifier_ops;
 		fmd->num_sensors = 0;
 
 		ret = v4l2_async_notifier_register(&fmd->v4l2_dev,

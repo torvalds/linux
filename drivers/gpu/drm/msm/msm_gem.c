@@ -383,8 +383,10 @@ int msm_gem_get_iova(struct drm_gem_object *obj,
 		struct page **pages;
 
 		vma = add_vma(obj, aspace);
-		if (IS_ERR(vma))
-			return PTR_ERR(vma);
+		if (IS_ERR(vma)) {
+			ret = PTR_ERR(vma);
+			goto unlock;
+		}
 
 		pages = get_pages(obj);
 		if (IS_ERR(pages)) {
@@ -405,7 +407,7 @@ int msm_gem_get_iova(struct drm_gem_object *obj,
 
 fail:
 	del_vma(vma);
-
+unlock:
 	mutex_unlock(&msm_obj->lock);
 	return ret;
 }
@@ -468,14 +470,16 @@ fail:
 	return ret;
 }
 
-void *msm_gem_get_vaddr(struct drm_gem_object *obj)
+static void *get_vaddr(struct drm_gem_object *obj, unsigned madv)
 {
 	struct msm_gem_object *msm_obj = to_msm_bo(obj);
 	int ret = 0;
 
 	mutex_lock(&msm_obj->lock);
 
-	if (WARN_ON(msm_obj->madv != MSM_MADV_WILLNEED)) {
+	if (WARN_ON(msm_obj->madv > madv)) {
+		dev_err(obj->dev->dev, "Invalid madv state: %u vs %u\n",
+			msm_obj->madv, madv);
 		mutex_unlock(&msm_obj->lock);
 		return ERR_PTR(-EBUSY);
 	}
@@ -509,6 +513,22 @@ fail:
 	msm_obj->vmap_count--;
 	mutex_unlock(&msm_obj->lock);
 	return ERR_PTR(ret);
+}
+
+void *msm_gem_get_vaddr(struct drm_gem_object *obj)
+{
+	return get_vaddr(obj, MSM_MADV_WILLNEED);
+}
+
+/*
+ * Don't use this!  It is for the very special case of dumping
+ * submits from GPU hangs or faults, were the bo may already
+ * be MSM_MADV_DONTNEED, but we know the buffer is still on the
+ * active list.
+ */
+void *msm_gem_get_vaddr_active(struct drm_gem_object *obj)
+{
+	return get_vaddr(obj, __MSM_MADV_PURGED);
 }
 
 void msm_gem_put_vaddr(struct drm_gem_object *obj)
@@ -607,17 +627,6 @@ int msm_gem_sync_object(struct drm_gem_object *obj,
 	struct reservation_object_list *fobj;
 	struct dma_fence *fence;
 	int i, ret;
-
-	if (!exclusive) {
-		/* NOTE: _reserve_shared() must happen before _add_shared_fence(),
-		 * which makes this a slightly strange place to call it.  OTOH this
-		 * is a convenient can-fail point to hook it in.  (And similar to
-		 * how etnaviv and nouveau handle this.)
-		 */
-		ret = reservation_object_reserve_shared(msm_obj->resv);
-		if (ret)
-			return ret;
-	}
 
 	fobj = reservation_object_get_list(msm_obj->resv);
 	if (!fobj || (fobj->shared_count == 0)) {
@@ -928,8 +937,12 @@ static struct drm_gem_object *_msm_gem_new(struct drm_device *dev,
 	if (use_vram) {
 		struct msm_gem_vma *vma;
 		struct page **pages;
+		struct msm_gem_object *msm_obj = to_msm_bo(obj);
+
+		mutex_lock(&msm_obj->lock);
 
 		vma = add_vma(obj, NULL);
+		mutex_unlock(&msm_obj->lock);
 		if (IS_ERR(vma)) {
 			ret = PTR_ERR(vma);
 			goto fail;
@@ -1017,4 +1030,50 @@ struct drm_gem_object *msm_gem_import(struct drm_device *dev,
 fail:
 	drm_gem_object_unreference_unlocked(obj);
 	return ERR_PTR(ret);
+}
+
+static void *_msm_gem_kernel_new(struct drm_device *dev, uint32_t size,
+		uint32_t flags, struct msm_gem_address_space *aspace,
+		struct drm_gem_object **bo, uint64_t *iova, bool locked)
+{
+	void *vaddr;
+	struct drm_gem_object *obj = _msm_gem_new(dev, size, flags, locked);
+	int ret;
+
+	if (IS_ERR(obj))
+		return ERR_CAST(obj);
+
+	if (iova) {
+		ret = msm_gem_get_iova(obj, aspace, iova);
+		if (ret) {
+			drm_gem_object_unreference(obj);
+			return ERR_PTR(ret);
+		}
+	}
+
+	vaddr = msm_gem_get_vaddr(obj);
+	if (IS_ERR(vaddr)) {
+		msm_gem_put_iova(obj, aspace);
+		drm_gem_object_unreference(obj);
+		return ERR_CAST(vaddr);
+	}
+
+	if (bo)
+		*bo = obj;
+
+	return vaddr;
+}
+
+void *msm_gem_kernel_new(struct drm_device *dev, uint32_t size,
+		uint32_t flags, struct msm_gem_address_space *aspace,
+		struct drm_gem_object **bo, uint64_t *iova)
+{
+	return _msm_gem_kernel_new(dev, size, flags, aspace, bo, iova, false);
+}
+
+void *msm_gem_kernel_new_locked(struct drm_device *dev, uint32_t size,
+		uint32_t flags, struct msm_gem_address_space *aspace,
+		struct drm_gem_object **bo, uint64_t *iova)
+{
+	return _msm_gem_kernel_new(dev, size, flags, aspace, bo, iova, true);
 }

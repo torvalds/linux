@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <dirent.h>
 #include <errno.h>
 #include <inttypes.h>
@@ -30,7 +31,21 @@ static void dsos__init(struct dsos *dsos)
 {
 	INIT_LIST_HEAD(&dsos->head);
 	dsos->root = RB_ROOT;
-	pthread_rwlock_init(&dsos->lock, NULL);
+	init_rwsem(&dsos->lock);
+}
+
+static void machine__threads_init(struct machine *machine)
+{
+	int i;
+
+	for (i = 0; i < THREADS__TABLE_SIZE; i++) {
+		struct threads *threads = &machine->threads[i];
+		threads->entries = RB_ROOT;
+		init_rwsem(&threads->lock);
+		threads->nr = 0;
+		INIT_LIST_HEAD(&threads->dead);
+		threads->last_match = NULL;
+	}
 }
 
 int machine__init(struct machine *machine, const char *root_dir, pid_t pid)
@@ -40,11 +55,7 @@ int machine__init(struct machine *machine, const char *root_dir, pid_t pid)
 	RB_CLEAR_NODE(&machine->rb_node);
 	dsos__init(&machine->dsos);
 
-	machine->threads = RB_ROOT;
-	pthread_rwlock_init(&machine->threads_lock, NULL);
-	machine->nr_threads = 0;
-	INIT_LIST_HEAD(&machine->dead_threads);
-	machine->last_match = NULL;
+	machine__threads_init(machine);
 
 	machine->vdso_info = NULL;
 	machine->env = NULL;
@@ -120,7 +131,7 @@ static void dsos__purge(struct dsos *dsos)
 {
 	struct dso *pos, *n;
 
-	pthread_rwlock_wrlock(&dsos->lock);
+	down_write(&dsos->lock);
 
 	list_for_each_entry_safe(pos, n, &dsos->head, node) {
 		RB_CLEAR_NODE(&pos->rb_node);
@@ -129,39 +140,49 @@ static void dsos__purge(struct dsos *dsos)
 		dso__put(pos);
 	}
 
-	pthread_rwlock_unlock(&dsos->lock);
+	up_write(&dsos->lock);
 }
 
 static void dsos__exit(struct dsos *dsos)
 {
 	dsos__purge(dsos);
-	pthread_rwlock_destroy(&dsos->lock);
+	exit_rwsem(&dsos->lock);
 }
 
 void machine__delete_threads(struct machine *machine)
 {
 	struct rb_node *nd;
+	int i;
 
-	pthread_rwlock_wrlock(&machine->threads_lock);
-	nd = rb_first(&machine->threads);
-	while (nd) {
-		struct thread *t = rb_entry(nd, struct thread, rb_node);
+	for (i = 0; i < THREADS__TABLE_SIZE; i++) {
+		struct threads *threads = &machine->threads[i];
+		down_write(&threads->lock);
+		nd = rb_first(&threads->entries);
+		while (nd) {
+			struct thread *t = rb_entry(nd, struct thread, rb_node);
 
-		nd = rb_next(nd);
-		__machine__remove_thread(machine, t, false);
+			nd = rb_next(nd);
+			__machine__remove_thread(machine, t, false);
+		}
+		up_write(&threads->lock);
 	}
-	pthread_rwlock_unlock(&machine->threads_lock);
 }
 
 void machine__exit(struct machine *machine)
 {
+	int i;
+
 	machine__destroy_kernel_maps(machine);
 	map_groups__exit(&machine->kmaps);
 	dsos__exit(&machine->dsos);
 	machine__exit_vdso(machine);
 	zfree(&machine->root_dir);
 	zfree(&machine->current_tid);
-	pthread_rwlock_destroy(&machine->threads_lock);
+
+	for (i = 0; i < THREADS__TABLE_SIZE; i++) {
+		struct threads *threads = &machine->threads[i];
+		exit_rwsem(&threads->lock);
+	}
 }
 
 void machine__delete(struct machine *machine)
@@ -379,10 +400,11 @@ out_err:
  * lookup/new thread inserted.
  */
 static struct thread *____machine__findnew_thread(struct machine *machine,
+						  struct threads *threads,
 						  pid_t pid, pid_t tid,
 						  bool create)
 {
-	struct rb_node **p = &machine->threads.rb_node;
+	struct rb_node **p = &threads->entries.rb_node;
 	struct rb_node *parent = NULL;
 	struct thread *th;
 
@@ -391,14 +413,14 @@ static struct thread *____machine__findnew_thread(struct machine *machine,
 	 * so most of the time we dont have to look up
 	 * the full rbtree:
 	 */
-	th = machine->last_match;
+	th = threads->last_match;
 	if (th != NULL) {
 		if (th->tid == tid) {
 			machine__update_thread_pid(machine, th, pid);
 			return thread__get(th);
 		}
 
-		machine->last_match = NULL;
+		threads->last_match = NULL;
 	}
 
 	while (*p != NULL) {
@@ -406,7 +428,7 @@ static struct thread *____machine__findnew_thread(struct machine *machine,
 		th = rb_entry(parent, struct thread, rb_node);
 
 		if (th->tid == tid) {
-			machine->last_match = th;
+			threads->last_match = th;
 			machine__update_thread_pid(machine, th, pid);
 			return thread__get(th);
 		}
@@ -423,7 +445,7 @@ static struct thread *____machine__findnew_thread(struct machine *machine,
 	th = thread__new(pid, tid);
 	if (th != NULL) {
 		rb_link_node(&th->rb_node, parent, p);
-		rb_insert_color(&th->rb_node, &machine->threads);
+		rb_insert_color(&th->rb_node, &threads->entries);
 
 		/*
 		 * We have to initialize map_groups separately
@@ -434,7 +456,7 @@ static struct thread *____machine__findnew_thread(struct machine *machine,
 		 * leader and that would screwed the rb tree.
 		 */
 		if (thread__init_map_groups(th, machine)) {
-			rb_erase_init(&th->rb_node, &machine->threads);
+			rb_erase_init(&th->rb_node, &threads->entries);
 			RB_CLEAR_NODE(&th->rb_node);
 			thread__put(th);
 			return NULL;
@@ -443,8 +465,8 @@ static struct thread *____machine__findnew_thread(struct machine *machine,
 		 * It is now in the rbtree, get a ref
 		 */
 		thread__get(th);
-		machine->last_match = th;
-		++machine->nr_threads;
+		threads->last_match = th;
+		++threads->nr;
 	}
 
 	return th;
@@ -452,27 +474,30 @@ static struct thread *____machine__findnew_thread(struct machine *machine,
 
 struct thread *__machine__findnew_thread(struct machine *machine, pid_t pid, pid_t tid)
 {
-	return ____machine__findnew_thread(machine, pid, tid, true);
+	return ____machine__findnew_thread(machine, machine__threads(machine, tid), pid, tid, true);
 }
 
 struct thread *machine__findnew_thread(struct machine *machine, pid_t pid,
 				       pid_t tid)
 {
+	struct threads *threads = machine__threads(machine, tid);
 	struct thread *th;
 
-	pthread_rwlock_wrlock(&machine->threads_lock);
+	down_write(&threads->lock);
 	th = __machine__findnew_thread(machine, pid, tid);
-	pthread_rwlock_unlock(&machine->threads_lock);
+	up_write(&threads->lock);
 	return th;
 }
 
 struct thread *machine__find_thread(struct machine *machine, pid_t pid,
 				    pid_t tid)
 {
+	struct threads *threads = machine__threads(machine, tid);
 	struct thread *th;
-	pthread_rwlock_rdlock(&machine->threads_lock);
-	th =  ____machine__findnew_thread(machine, pid, tid, false);
-	pthread_rwlock_unlock(&machine->threads_lock);
+
+	down_read(&threads->lock);
+	th =  ____machine__findnew_thread(machine, threads, pid, tid, false);
+	up_read(&threads->lock);
 	return th;
 }
 
@@ -564,7 +589,7 @@ static struct dso *machine__findnew_module_dso(struct machine *machine,
 {
 	struct dso *dso;
 
-	pthread_rwlock_wrlock(&machine->dsos.lock);
+	down_write(&machine->dsos.lock);
 
 	dso = __dsos__find(&machine->dsos, m->name, true);
 	if (!dso) {
@@ -578,7 +603,7 @@ static struct dso *machine__findnew_module_dso(struct machine *machine,
 
 	dso__get(dso);
 out_unlock:
-	pthread_rwlock_unlock(&machine->dsos.lock);
+	up_write(&machine->dsos.lock);
 	return dso;
 }
 
@@ -705,7 +730,8 @@ size_t machine__fprintf_vmlinux_path(struct machine *machine, FILE *fp)
 
 	if (kdso->has_build_id) {
 		char filename[PATH_MAX];
-		if (dso__build_id_filename(kdso, filename, sizeof(filename)))
+		if (dso__build_id_filename(kdso, filename, sizeof(filename),
+					   false))
 			printed += fprintf(fp, "[0] %s\n", filename);
 	}
 
@@ -718,21 +744,25 @@ size_t machine__fprintf_vmlinux_path(struct machine *machine, FILE *fp)
 
 size_t machine__fprintf(struct machine *machine, FILE *fp)
 {
-	size_t ret;
 	struct rb_node *nd;
+	size_t ret;
+	int i;
 
-	pthread_rwlock_rdlock(&machine->threads_lock);
+	for (i = 0; i < THREADS__TABLE_SIZE; i++) {
+		struct threads *threads = &machine->threads[i];
 
-	ret = fprintf(fp, "Threads: %u\n", machine->nr_threads);
+		down_read(&threads->lock);
 
-	for (nd = rb_first(&machine->threads); nd; nd = rb_next(nd)) {
-		struct thread *pos = rb_entry(nd, struct thread, rb_node);
+		ret = fprintf(fp, "Threads: %u\n", threads->nr);
 
-		ret += thread__fprintf(pos, fp);
+		for (nd = rb_first(&threads->entries); nd; nd = rb_next(nd)) {
+			struct thread *pos = rb_entry(nd, struct thread, rb_node);
+
+			ret += thread__fprintf(pos, fp);
+		}
+
+		up_read(&threads->lock);
 	}
-
-	pthread_rwlock_unlock(&machine->threads_lock);
-
 	return ret;
 }
 
@@ -1137,7 +1167,8 @@ int __weak arch__fix_module_text_start(u64 *start __maybe_unused,
 	return 0;
 }
 
-static int machine__create_module(void *arg, const char *name, u64 start)
+static int machine__create_module(void *arg, const char *name, u64 start,
+				  u64 size)
 {
 	struct machine *machine = arg;
 	struct map *map;
@@ -1148,6 +1179,7 @@ static int machine__create_module(void *arg, const char *name, u64 start)
 	map = machine__findnew_module_map(machine, start, name);
 	if (map == NULL)
 		return -1;
+	map->end = start + size;
 
 	dso__kernel_module_get_build_id(map->dso, machine->root_dir);
 
@@ -1289,7 +1321,7 @@ static int machine__process_kernel_mmap_event(struct machine *machine,
 		struct dso *kernel = NULL;
 		struct dso *dso;
 
-		pthread_rwlock_rdlock(&machine->dsos.lock);
+		down_read(&machine->dsos.lock);
 
 		list_for_each_entry(dso, &machine->dsos.head, node) {
 
@@ -1319,7 +1351,7 @@ static int machine__process_kernel_mmap_event(struct machine *machine,
 			break;
 		}
 
-		pthread_rwlock_unlock(&machine->dsos.lock);
+		up_read(&machine->dsos.lock);
 
 		if (kernel == NULL)
 			kernel = machine__findnew_dso(machine, kmmap_prefix);
@@ -1392,7 +1424,7 @@ int machine__process_mmap2_event(struct machine *machine,
 
 	map = map__new(machine, event->mmap2.start,
 			event->mmap2.len, event->mmap2.pgoff,
-			event->mmap2.pid, event->mmap2.maj,
+			event->mmap2.maj,
 			event->mmap2.min, event->mmap2.ino,
 			event->mmap2.ino_generation,
 			event->mmap2.prot,
@@ -1450,7 +1482,7 @@ int machine__process_mmap_event(struct machine *machine, union perf_event *event
 
 	map = map__new(machine, event->mmap.start,
 			event->mmap.len, event->mmap.pgoff,
-			event->mmap.pid, 0, 0, 0, 0, 0, 0,
+			0, 0, 0, 0, 0, 0,
 			event->mmap.filename,
 			type, thread);
 
@@ -1476,23 +1508,25 @@ out_problem:
 
 static void __machine__remove_thread(struct machine *machine, struct thread *th, bool lock)
 {
-	if (machine->last_match == th)
-		machine->last_match = NULL;
+	struct threads *threads = machine__threads(machine, th->tid);
+
+	if (threads->last_match == th)
+		threads->last_match = NULL;
 
 	BUG_ON(refcount_read(&th->refcnt) == 0);
 	if (lock)
-		pthread_rwlock_wrlock(&machine->threads_lock);
-	rb_erase_init(&th->rb_node, &machine->threads);
+		down_write(&threads->lock);
+	rb_erase_init(&th->rb_node, &threads->entries);
 	RB_CLEAR_NODE(&th->rb_node);
-	--machine->nr_threads;
+	--threads->nr;
 	/*
 	 * Move it first to the dead_threads list, then drop the reference,
 	 * if this is the last reference, then the thread__delete destructor
 	 * will be called and we will remove it from the dead_threads list.
 	 */
-	list_add_tail(&th->node, &machine->dead_threads);
+	list_add_tail(&th->node, &threads->dead);
 	if (lock)
-		pthread_rwlock_unlock(&machine->threads_lock);
+		up_write(&threads->lock);
 	thread__put(th);
 }
 
@@ -1632,10 +1666,12 @@ static void ip__resolve_ams(struct thread *thread,
 	ams->al_addr = al.addr;
 	ams->sym = al.sym;
 	ams->map = al.map;
+	ams->phys_addr = 0;
 }
 
 static void ip__resolve_data(struct thread *thread,
-			     u8 m, struct addr_map_symbol *ams, u64 addr)
+			     u8 m, struct addr_map_symbol *ams,
+			     u64 addr, u64 phys_addr)
 {
 	struct addr_location al;
 
@@ -1655,6 +1691,7 @@ static void ip__resolve_data(struct thread *thread,
 	ams->al_addr = al.addr;
 	ams->sym = al.sym;
 	ams->map = al.map;
+	ams->phys_addr = phys_addr;
 }
 
 struct mem_info *sample__resolve_mem(struct perf_sample *sample,
@@ -1666,11 +1703,37 @@ struct mem_info *sample__resolve_mem(struct perf_sample *sample,
 		return NULL;
 
 	ip__resolve_ams(al->thread, &mi->iaddr, sample->ip);
-	ip__resolve_data(al->thread, al->cpumode, &mi->daddr, sample->addr);
+	ip__resolve_data(al->thread, al->cpumode, &mi->daddr,
+			 sample->addr, sample->phys_addr);
 	mi->data_src.val = sample->data_src;
 
 	return mi;
 }
+
+static char *callchain_srcline(struct map *map, struct symbol *sym, u64 ip)
+{
+	char *srcline = NULL;
+
+	if (!map || callchain_param.key == CCKEY_FUNCTION)
+		return srcline;
+
+	srcline = srcline__tree_find(&map->dso->srclines, ip);
+	if (!srcline) {
+		bool show_sym = false;
+		bool show_addr = callchain_param.key == CCKEY_ADDRESS;
+
+		srcline = get_srcline(map->dso, map__rip_2objdump(map, ip),
+				      sym, show_sym, show_addr);
+		srcline__tree_insert(&map->dso->srclines, ip, srcline);
+	}
+
+	return srcline;
+}
+
+struct iterations {
+	int nr_loop_iter;
+	u64 cycles;
+};
 
 static int add_callchain_ip(struct thread *thread,
 			    struct callchain_cursor *cursor,
@@ -1680,10 +1743,13 @@ static int add_callchain_ip(struct thread *thread,
 			    u64 ip,
 			    bool branch,
 			    struct branch_flags *flags,
-			    int nr_loop_iter,
-			    int samples)
+			    struct iterations *iter,
+			    u64 branch_from)
 {
 	struct addr_location al;
+	int nr_loop_iter = 0;
+	u64 iter_cycles = 0;
+	const char *srcline = NULL;
 
 	al.filtered = 0;
 	al.sym = NULL;
@@ -1733,8 +1799,16 @@ static int add_callchain_ip(struct thread *thread,
 
 	if (symbol_conf.hide_unresolved && al.sym == NULL)
 		return 0;
+
+	if (iter) {
+		nr_loop_iter = iter->nr_loop_iter;
+		iter_cycles = iter->cycles;
+	}
+
+	srcline = callchain_srcline(al.map, al.sym, al.addr);
 	return callchain_cursor_append(cursor, al.addr, al.map, al.sym,
-				       branch, flags, nr_loop_iter, samples);
+				       branch, flags, nr_loop_iter,
+				       iter_cycles, branch_from, srcline);
 }
 
 struct branch_info *sample__resolve_bstack(struct perf_sample *sample,
@@ -1755,6 +1829,18 @@ struct branch_info *sample__resolve_bstack(struct perf_sample *sample,
 	return bi;
 }
 
+static void save_iterations(struct iterations *iter,
+			    struct branch_entry *be, int nr)
+{
+	int i;
+
+	iter->nr_loop_iter = nr;
+	iter->cycles = 0;
+
+	for (i = 0; i < nr; i++)
+		iter->cycles += be[i].flags.cycles;
+}
+
 #define CHASHSZ 127
 #define CHASHBITS 7
 #define NO_ENTRY 0xff
@@ -1762,7 +1848,8 @@ struct branch_info *sample__resolve_bstack(struct perf_sample *sample,
 #define PERF_MAX_BRANCH_DEPTH 127
 
 /* Remove loops. */
-static int remove_loops(struct branch_entry *l, int nr)
+static int remove_loops(struct branch_entry *l, int nr,
+			struct iterations *iter)
 {
 	int i, j, off;
 	unsigned char chash[CHASHSZ];
@@ -1787,8 +1874,18 @@ static int remove_loops(struct branch_entry *l, int nr)
 					break;
 				}
 			if (is_loop) {
-				memmove(l + i, l + i + off,
-					(nr - (i + off)) * sizeof(*l));
+				j = nr - (i + off);
+				if (j > 0) {
+					save_iterations(iter + i + off,
+						l + i, off);
+
+					memmove(iter + i, iter + i + off,
+						j * sizeof(*iter));
+
+					memmove(l + i, l + i + off,
+						j * sizeof(*l));
+				}
+
 				nr -= off;
 			}
 		}
@@ -1813,7 +1910,7 @@ static int resolve_lbr_callchain_sample(struct thread *thread,
 	struct ip_callchain *chain = sample->callchain;
 	int chain_nr = min(max_stack, (int)chain->nr), i;
 	u8 cpumode = PERF_RECORD_MISC_USER;
-	u64 ip;
+	u64 ip, branch_from = 0;
 
 	for (i = 0; i < chain_nr; i++) {
 		if (chain->ips[i] == PERF_CONTEXT_USER)
@@ -1855,6 +1952,8 @@ static int resolve_lbr_callchain_sample(struct thread *thread,
 					ip = lbr_stack->entries[0].to;
 					branch = true;
 					flags = &lbr_stack->entries[0].flags;
+					branch_from =
+						lbr_stack->entries[0].from;
 				}
 			} else {
 				if (j < lbr_nr) {
@@ -1869,12 +1968,15 @@ static int resolve_lbr_callchain_sample(struct thread *thread,
 					ip = lbr_stack->entries[0].to;
 					branch = true;
 					flags = &lbr_stack->entries[0].flags;
+					branch_from =
+						lbr_stack->entries[0].from;
 				}
 			}
 
 			err = add_callchain_ip(thread, cursor, parent,
 					       root_al, &cpumode, ip,
-					       branch, flags, 0, 0);
+					       branch, flags, NULL,
+					       branch_from);
 			if (err)
 				return (err < 0) ? err : 0;
 		}
@@ -1894,12 +1996,14 @@ static int thread__resolve_callchain_sample(struct thread *thread,
 {
 	struct branch_stack *branch = sample->branch_stack;
 	struct ip_callchain *chain = sample->callchain;
-	int chain_nr = chain->nr;
+	int chain_nr = 0;
 	u8 cpumode = PERF_RECORD_MISC_USER;
 	int i, j, err, nr_entries;
 	int skip_idx = -1;
 	int first_call = 0;
-	int nr_loop_iter;
+
+	if (chain)
+		chain_nr = chain->nr;
 
 	if (perf_evsel__has_branch_callstack(evsel)) {
 		err = resolve_lbr_callchain_sample(thread, cursor, sample, parent,
@@ -1929,6 +2033,7 @@ static int thread__resolve_callchain_sample(struct thread *thread,
 	if (branch && callchain_param.branch_callstack) {
 		int nr = min(max_stack, (int)branch->nr);
 		struct branch_entry be[nr];
+		struct iterations iter[nr];
 
 		if (branch->nr > PERF_MAX_BRANCH_DEPTH) {
 			pr_warning("corrupted branch chain. skipping...\n");
@@ -1938,6 +2043,10 @@ static int thread__resolve_callchain_sample(struct thread *thread,
 		for (i = 0; i < nr; i++) {
 			if (callchain_param.order == ORDER_CALLEE) {
 				be[i] = branch->entries[i];
+
+				if (chain == NULL)
+					continue;
+
 				/*
 				 * Check for overlap into the callchain.
 				 * The return address is one off compared to
@@ -1955,42 +2064,30 @@ static int thread__resolve_callchain_sample(struct thread *thread,
 				be[i] = branch->entries[branch->nr - i - 1];
 		}
 
-		nr_loop_iter = nr;
-		nr = remove_loops(be, nr);
-
-		/*
-		 * Get the number of iterations.
-		 * It's only approximation, but good enough in practice.
-		 */
-		if (nr_loop_iter > nr)
-			nr_loop_iter = nr_loop_iter - nr + 1;
-		else
-			nr_loop_iter = 0;
+		memset(iter, 0, sizeof(struct iterations) * nr);
+		nr = remove_loops(be, nr, iter);
 
 		for (i = 0; i < nr; i++) {
-			if (i == nr - 1)
-				err = add_callchain_ip(thread, cursor, parent,
-						       root_al,
-						       NULL, be[i].to,
-						       true, &be[i].flags,
-						       nr_loop_iter, 1);
-			else
-				err = add_callchain_ip(thread, cursor, parent,
-						       root_al,
-						       NULL, be[i].to,
-						       true, &be[i].flags,
-						       0, 0);
+			err = add_callchain_ip(thread, cursor, parent,
+					       root_al,
+					       NULL, be[i].to,
+					       true, &be[i].flags,
+					       NULL, be[i].from);
 
 			if (!err)
 				err = add_callchain_ip(thread, cursor, parent, root_al,
 						       NULL, be[i].from,
 						       true, &be[i].flags,
-						       0, 0);
+						       &iter[i], 0);
 			if (err == -EINVAL)
 				break;
 			if (err)
 				return err;
 		}
+
+		if (chain_nr == 0)
+			return 0;
+
 		chain_nr -= nr;
 	}
 
@@ -2015,7 +2112,7 @@ check_calls:
 
 		err = add_callchain_ip(thread, cursor, parent,
 				       root_al, &cpumode, ip,
-				       false, NULL, 0, 0);
+				       false, NULL, NULL, 0);
 
 		if (err)
 			return (err < 0) ? err : 0;
@@ -2024,15 +2121,54 @@ check_calls:
 	return 0;
 }
 
+static int append_inlines(struct callchain_cursor *cursor,
+			  struct map *map, struct symbol *sym, u64 ip)
+{
+	struct inline_node *inline_node;
+	struct inline_list *ilist;
+	u64 addr;
+	int ret = 1;
+
+	if (!symbol_conf.inline_name || !map || !sym)
+		return ret;
+
+	addr = map__rip_2objdump(map, ip);
+
+	inline_node = inlines__tree_find(&map->dso->inlined_nodes, addr);
+	if (!inline_node) {
+		inline_node = dso__parse_addr_inlines(map->dso, addr, sym);
+		if (!inline_node)
+			return ret;
+		inlines__tree_insert(&map->dso->inlined_nodes, inline_node);
+	}
+
+	list_for_each_entry(ilist, &inline_node->val, list) {
+		ret = callchain_cursor_append(cursor, ip, map,
+					      ilist->symbol, false,
+					      NULL, 0, 0, 0, ilist->srcline);
+
+		if (ret != 0)
+			return ret;
+	}
+
+	return ret;
+}
+
 static int unwind_entry(struct unwind_entry *entry, void *arg)
 {
 	struct callchain_cursor *cursor = arg;
+	const char *srcline = NULL;
 
 	if (symbol_conf.hide_unresolved && entry->sym == NULL)
 		return 0;
+
+	if (append_inlines(cursor, entry->map, entry->sym, entry->ip) == 0)
+		return 0;
+
+	srcline = callchain_srcline(entry->map, entry->sym, entry->ip);
 	return callchain_cursor_append(cursor, entry->ip,
 				       entry->map, entry->sym,
-				       false, NULL, 0, 0);
+				       false, NULL, 0, 0, 0, srcline);
 }
 
 static int thread__resolve_callchain_unwind(struct thread *thread,
@@ -2096,21 +2232,26 @@ int machine__for_each_thread(struct machine *machine,
 			     int (*fn)(struct thread *thread, void *p),
 			     void *priv)
 {
+	struct threads *threads;
 	struct rb_node *nd;
 	struct thread *thread;
 	int rc = 0;
+	int i;
 
-	for (nd = rb_first(&machine->threads); nd; nd = rb_next(nd)) {
-		thread = rb_entry(nd, struct thread, rb_node);
-		rc = fn(thread, priv);
-		if (rc != 0)
-			return rc;
-	}
+	for (i = 0; i < THREADS__TABLE_SIZE; i++) {
+		threads = &machine->threads[i];
+		for (nd = rb_first(&threads->entries); nd; nd = rb_next(nd)) {
+			thread = rb_entry(nd, struct thread, rb_node);
+			rc = fn(thread, priv);
+			if (rc != 0)
+				return rc;
+		}
 
-	list_for_each_entry(thread, &machine->dead_threads, node) {
-		rc = fn(thread, priv);
-		if (rc != 0)
-			return rc;
+		list_for_each_entry(thread, &threads->dead, node) {
+			rc = fn(thread, priv);
+			if (rc != 0)
+				return rc;
+		}
 	}
 	return rc;
 }
@@ -2139,12 +2280,16 @@ int machines__for_each_thread(struct machines *machines,
 int __machine__synthesize_threads(struct machine *machine, struct perf_tool *tool,
 				  struct target *target, struct thread_map *threads,
 				  perf_event__handler_t process, bool data_mmap,
-				  unsigned int proc_map_timeout)
+				  unsigned int proc_map_timeout,
+				  unsigned int nr_threads_synthesize)
 {
 	if (target__has_task(target))
 		return perf_event__synthesize_thread_map(tool, threads, process, machine, data_mmap, proc_map_timeout);
 	else if (target__has_cpu(target))
-		return perf_event__synthesize_threads(tool, process, machine, data_mmap, proc_map_timeout);
+		return perf_event__synthesize_threads(tool, process,
+						      machine, data_mmap,
+						      proc_map_timeout,
+						      nr_threads_synthesize);
 	/* command specified */
 	return 0;
 }

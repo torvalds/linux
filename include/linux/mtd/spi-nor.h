@@ -41,6 +41,8 @@
 #define SPINOR_OP_WREN		0x06	/* Write enable */
 #define SPINOR_OP_RDSR		0x05	/* Read status register */
 #define SPINOR_OP_WRSR		0x01	/* Write status register 1 byte */
+#define SPINOR_OP_RDSR2		0x3f	/* Read status register 2 */
+#define SPINOR_OP_WRSR2		0x3e	/* Write status register 2 */
 #define SPINOR_OP_READ		0x03	/* Read data bytes (low frequency) */
 #define SPINOR_OP_READ_FAST	0x0b	/* Read data bytes (high frequency) */
 #define SPINOR_OP_READ_1_1_2	0x3b	/* Read data bytes (Dual Output SPI) */
@@ -56,6 +58,7 @@
 #define SPINOR_OP_CHIP_ERASE	0xc7	/* Erase whole flash chip */
 #define SPINOR_OP_SE		0xd8	/* Sector erase (usually 64KiB) */
 #define SPINOR_OP_RDID		0x9f	/* Read JEDEC ID */
+#define SPINOR_OP_RDSFDP	0x5a	/* Read SFDP */
 #define SPINOR_OP_RDCR		0x35	/* Read configuration register */
 #define SPINOR_OP_RDFSR		0x70	/* Read flag status register */
 
@@ -102,6 +105,7 @@
 
 /* Used for Spansion flashes only. */
 #define SPINOR_OP_BRWR		0x17	/* Bank register write */
+#define SPINOR_OP_CLSR		0x30	/* Clear status register 1 */
 
 /* Used for Micron flashes only. */
 #define SPINOR_OP_RD_EVCR      0x65    /* Read EVCR register */
@@ -116,6 +120,9 @@
 #define SR_BP2			BIT(4)	/* Block protect 2 */
 #define SR_TB			BIT(5)	/* Top/Bottom protect */
 #define SR_SRWD			BIT(7)	/* SR write protect */
+/* Spansion/Cypress specific status bits */
+#define SR_E_ERR		BIT(5)
+#define SR_P_ERR		BIT(6)
 
 #define SR_QUAD_EN_MX		BIT(6)	/* Macronix Quad I/O */
 
@@ -127,6 +134,9 @@
 
 /* Configuration Register bits. */
 #define CR_QUAD_EN_SPAN		BIT(1)	/* Spansion Quad I/O */
+
+/* Status Register 2 bits. */
+#define SR2_QUAD_EN_BIT7	BIT(7)
 
 /* Supported SPI protocols */
 #define SNOR_PROTO_INST_MASK	GENMASK(23, 16)
@@ -218,13 +228,21 @@ enum spi_nor_option_flags {
 	SNOR_F_NO_OP_CHIP_ERASE	= BIT(2),
 	SNOR_F_S3AN_ADDR_DEFAULT = BIT(3),
 	SNOR_F_READY_XSR_RDY	= BIT(4),
+	SNOR_F_USE_CLSR		= BIT(5),
 };
+
+/**
+ * struct flash_info - Forward declaration of a structure used internally by
+ *		       spi_nor_scan()
+ */
+struct flash_info;
 
 /**
  * struct spi_nor - Structure for defining a the SPI NOR layer
  * @mtd:		point to a mtd_info structure
  * @lock:		the lock for the read/write/erase/lock/unlock operations
  * @dev:		point to a spi device, or a spi nor controller device.
+ * @info:		spi-nor part JDEC MFR id and other info
  * @page_size:		the page size of the SPI NOR
  * @addr_width:		number of address bytes
  * @erase_opcode:	the opcode for erasing a sector
@@ -251,6 +269,7 @@ enum spi_nor_option_flags {
  * @flash_lock:		[FLASH-SPECIFIC] lock a region of the SPI NOR
  * @flash_unlock:	[FLASH-SPECIFIC] unlock a region of the SPI NOR
  * @flash_is_locked:	[FLASH-SPECIFIC] check if a region of the SPI NOR is
+ * @quad_enable:	[FLASH-SPECIFIC] enables SPI NOR quad mode
  *			completely locked
  * @priv:		the private data
  */
@@ -258,6 +277,7 @@ struct spi_nor {
 	struct mtd_info		mtd;
 	struct mutex		lock;
 	struct device		*dev;
+	const struct flash_info	*info;
 	u32			page_size;
 	u8			addr_width;
 	u8			erase_opcode;
@@ -285,6 +305,7 @@ struct spi_nor {
 	int (*flash_lock)(struct spi_nor *nor, loff_t ofs, uint64_t len);
 	int (*flash_unlock)(struct spi_nor *nor, loff_t ofs, uint64_t len);
 	int (*flash_is_locked)(struct spi_nor *nor, loff_t ofs, uint64_t len);
+	int (*quad_enable)(struct spi_nor *nor);
 
 	void *priv;
 };

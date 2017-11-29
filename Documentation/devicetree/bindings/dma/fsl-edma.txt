@@ -72,5 +72,4 @@ sai2: sai@40031000 {
 	dma-names = "tx", "rx";
 	dmas = <&edma0 0 21>,
 		<&edma0 0 20>;
-	status = "disabled";
 };

@@ -36,7 +36,6 @@
 
 #include <net/devlink.h>
 
-struct tc_to_netdev;
 struct net_device;
 struct nfp_app;
 struct nfp_pf;
@@ -77,8 +76,10 @@ enum nfp_port_flags {
  * @dl_port:	devlink port structure
  * @eth_id:	for %NFP_PORT_PHYS_PORT port ID in NFP enumeration scheme
  * @eth_port:	for %NFP_PORT_PHYS_PORT translated ETH Table port entry
+ * @eth_stats:	for %NFP_PORT_PHYS_PORT MAC stats if available
  * @pf_id:	for %NFP_PORT_PF_PORT, %NFP_PORT_VF_PORT ID of the PCI PF (0-3)
  * @vf_id:	for %NFP_PORT_VF_PORT ID of the PCI VF within @pf_id
+ * @vnic:	for %NFP_PORT_PF_PORT, %NFP_PORT_VF_PORT vNIC ctrl memory
  * @port_list:	entry on pf's list of ports
  */
 struct nfp_port {
@@ -96,21 +97,29 @@ struct nfp_port {
 		struct {
 			unsigned int eth_id;
 			struct nfp_eth_table_port *eth_port;
+			u8 __iomem *eth_stats;
 		};
 		/* NFP_PORT_PF_PORT, NFP_PORT_VF_PORT */
 		struct {
 			unsigned int pf_id;
 			unsigned int vf_id;
+			u8 __iomem *vnic;
 		};
 	};
 
 	struct list_head port_list;
 };
 
+extern const struct ethtool_ops nfp_port_ethtool_ops;
 extern const struct switchdev_ops nfp_port_switchdev_ops;
 
-int nfp_port_setup_tc(struct net_device *netdev, u32 handle, u32 chain_index,
-		      __be16 proto, struct tc_to_netdev *tc);
+int nfp_port_setup_tc(struct net_device *netdev, enum tc_setup_type type,
+		      void *type_data);
+
+static inline bool nfp_port_is_vnic(const struct nfp_port *port)
+{
+	return port->type == NFP_PORT_PF_PORT || port->type == NFP_PORT_VF_PORT;
+}
 
 struct nfp_port *nfp_port_from_netdev(struct net_device *netdev);
 struct nfp_port *
@@ -120,6 +129,7 @@ struct nfp_eth_table_port *nfp_port_get_eth_port(struct nfp_port *port);
 
 int
 nfp_port_get_phys_port_name(struct net_device *netdev, char *name, size_t len);
+int nfp_port_configure(struct net_device *netdev, bool configed);
 
 struct nfp_port *
 nfp_port_alloc(struct nfp_app *app, enum nfp_port_type type,
@@ -144,31 +154,32 @@ void nfp_devlink_port_unregister(struct nfp_port *port);
 #define NFP_MAC_STATS_SIZE                0x0200
 
 #define NFP_MAC_STATS_RX_IN_OCTETS			(NFP_MAC_STATS_BASE + 0x000)
+							/* unused 0x008 */
 #define NFP_MAC_STATS_RX_FRAME_TOO_LONG_ERRORS		(NFP_MAC_STATS_BASE + 0x010)
 #define NFP_MAC_STATS_RX_RANGE_LENGTH_ERRORS		(NFP_MAC_STATS_BASE + 0x018)
-#define NFP_MAC_STATS_RX_VLAN_REVEIVE_OK		(NFP_MAC_STATS_BASE + 0x020)
+#define NFP_MAC_STATS_RX_VLAN_RECEIVED_OK		(NFP_MAC_STATS_BASE + 0x020)
 #define NFP_MAC_STATS_RX_IN_ERRORS			(NFP_MAC_STATS_BASE + 0x028)
 #define NFP_MAC_STATS_RX_IN_BROADCAST_PKTS		(NFP_MAC_STATS_BASE + 0x030)
-#define NFP_MAC_STATS_RX_STATS_DROP_EVENTS		(NFP_MAC_STATS_BASE + 0x038)
+#define NFP_MAC_STATS_RX_DROP_EVENTS			(NFP_MAC_STATS_BASE + 0x038)
 #define NFP_MAC_STATS_RX_ALIGNMENT_ERRORS		(NFP_MAC_STATS_BASE + 0x040)
 #define NFP_MAC_STATS_RX_PAUSE_MAC_CTRL_FRAMES		(NFP_MAC_STATS_BASE + 0x048)
 #define NFP_MAC_STATS_RX_FRAMES_RECEIVED_OK		(NFP_MAC_STATS_BASE + 0x050)
 #define NFP_MAC_STATS_RX_FRAME_CHECK_SEQUENCE_ERRORS	(NFP_MAC_STATS_BASE + 0x058)
 #define NFP_MAC_STATS_RX_UNICAST_PKTS			(NFP_MAC_STATS_BASE + 0x060)
 #define NFP_MAC_STATS_RX_MULTICAST_PKTS			(NFP_MAC_STATS_BASE + 0x068)
-#define NFP_MAC_STATS_RX_STATS_PKTS			(NFP_MAC_STATS_BASE + 0x070)
-#define NFP_MAC_STATS_RX_STATS_UNDERSIZE_PKTS		(NFP_MAC_STATS_BASE + 0x078)
-#define NFP_MAC_STATS_RX_STATS_PKTS_64_OCTETS		(NFP_MAC_STATS_BASE + 0x080)
-#define NFP_MAC_STATS_RX_STATS_PKTS_65_TO_127_OCTETS	(NFP_MAC_STATS_BASE + 0x088)
-#define NFP_MAC_STATS_RX_STATS_PKTS_512_TO_1023_OCTETS	(NFP_MAC_STATS_BASE + 0x090)
-#define NFP_MAC_STATS_RX_STATS_PKTS_1024_TO_1518_OCTETS	(NFP_MAC_STATS_BASE + 0x098)
-#define NFP_MAC_STATS_RX_STATS_JABBERS			(NFP_MAC_STATS_BASE + 0x0a0)
-#define NFP_MAC_STATS_RX_STATS_FRAGMENTS		(NFP_MAC_STATS_BASE + 0x0a8)
+#define NFP_MAC_STATS_RX_PKTS				(NFP_MAC_STATS_BASE + 0x070)
+#define NFP_MAC_STATS_RX_UNDERSIZE_PKTS			(NFP_MAC_STATS_BASE + 0x078)
+#define NFP_MAC_STATS_RX_PKTS_64_OCTETS			(NFP_MAC_STATS_BASE + 0x080)
+#define NFP_MAC_STATS_RX_PKTS_65_TO_127_OCTETS		(NFP_MAC_STATS_BASE + 0x088)
+#define NFP_MAC_STATS_RX_PKTS_512_TO_1023_OCTETS	(NFP_MAC_STATS_BASE + 0x090)
+#define NFP_MAC_STATS_RX_PKTS_1024_TO_1518_OCTETS	(NFP_MAC_STATS_BASE + 0x098)
+#define NFP_MAC_STATS_RX_JABBERS			(NFP_MAC_STATS_BASE + 0x0a0)
+#define NFP_MAC_STATS_RX_FRAGMENTS			(NFP_MAC_STATS_BASE + 0x0a8)
 #define NFP_MAC_STATS_RX_PAUSE_FRAMES_CLASS2		(NFP_MAC_STATS_BASE + 0x0b0)
 #define NFP_MAC_STATS_RX_PAUSE_FRAMES_CLASS3		(NFP_MAC_STATS_BASE + 0x0b8)
-#define NFP_MAC_STATS_RX_STATS_PKTS_128_TO_255_OCTETS	(NFP_MAC_STATS_BASE + 0x0c0)
-#define NFP_MAC_STATS_RX_STATS_PKTS_256_TO_511_OCTETS	(NFP_MAC_STATS_BASE + 0x0c8)
-#define NFP_MAC_STATS_RX_STATS_PKTS_1519_TO_MAX_OCTETS	(NFP_MAC_STATS_BASE + 0x0d0)
+#define NFP_MAC_STATS_RX_PKTS_128_TO_255_OCTETS		(NFP_MAC_STATS_BASE + 0x0c0)
+#define NFP_MAC_STATS_RX_PKTS_256_TO_511_OCTETS		(NFP_MAC_STATS_BASE + 0x0c8)
+#define NFP_MAC_STATS_RX_PKTS_1519_TO_MAX_OCTETS	(NFP_MAC_STATS_BASE + 0x0d0)
 #define NFP_MAC_STATS_RX_OVERSIZE_PKTS			(NFP_MAC_STATS_BASE + 0x0d8)
 #define NFP_MAC_STATS_RX_PAUSE_FRAMES_CLASS0		(NFP_MAC_STATS_BASE + 0x0e0)
 #define NFP_MAC_STATS_RX_PAUSE_FRAMES_CLASS1		(NFP_MAC_STATS_BASE + 0x0e8)
@@ -178,9 +189,12 @@ void nfp_devlink_port_unregister(struct nfp_port *port);
 #define NFP_MAC_STATS_RX_PAUSE_FRAMES_CLASS7		(NFP_MAC_STATS_BASE + 0x108)
 #define NFP_MAC_STATS_RX_MAC_CTRL_FRAMES_RECEIVED	(NFP_MAC_STATS_BASE + 0x110)
 #define NFP_MAC_STATS_RX_MAC_HEAD_DROP			(NFP_MAC_STATS_BASE + 0x118)
-
+							/* unused 0x120 */
+							/* unused 0x128 */
+							/* unused 0x130 */
 #define NFP_MAC_STATS_TX_QUEUE_DROP			(NFP_MAC_STATS_BASE + 0x138)
 #define NFP_MAC_STATS_TX_OUT_OCTETS			(NFP_MAC_STATS_BASE + 0x140)
+							/* unused 0x148 */
 #define NFP_MAC_STATS_TX_VLAN_TRANSMITTED_OK		(NFP_MAC_STATS_BASE + 0x150)
 #define NFP_MAC_STATS_TX_OUT_ERRORS			(NFP_MAC_STATS_BASE + 0x158)
 #define NFP_MAC_STATS_TX_BROADCAST_PKTS			(NFP_MAC_STATS_BASE + 0x160)
@@ -192,8 +206,16 @@ void nfp_devlink_port_unregister(struct nfp_port *port);
 #define NFP_MAC_STATS_TX_UNICAST_PKTS			(NFP_MAC_STATS_BASE + 0x190)
 #define NFP_MAC_STATS_TX_MULTICAST_PKTS			(NFP_MAC_STATS_BASE + 0x198)
 #define NFP_MAC_STATS_TX_PKTS_65_TO_127_OCTETS		(NFP_MAC_STATS_BASE + 0x1a0)
-#define NFP_MAC_STATS_TX_PKTS_127_TO_512_OCTETS		(NFP_MAC_STATS_BASE + 0x1a8)
-#define NFP_MAC_STATS_TX_PKTS_128_TO_1518_OCTETS	(NFP_MAC_STATS_BASE + 0x1b0)
-#define NFP_MAC_STATS_TX_PKTS_1518_TO_MAX_OCTETS	(NFP_MAC_STATS_BASE + 0x1b8)
+#define NFP_MAC_STATS_TX_PKTS_128_TO_255_OCTETS		(NFP_MAC_STATS_BASE + 0x1a8)
+#define NFP_MAC_STATS_TX_PKTS_1024_TO_1518_OCTETS	(NFP_MAC_STATS_BASE + 0x1b0)
+#define NFP_MAC_STATS_TX_PKTS_1519_TO_MAX_OCTETS	(NFP_MAC_STATS_BASE + 0x1b8)
+#define NFP_MAC_STATS_TX_PAUSE_FRAMES_CLASS0		(NFP_MAC_STATS_BASE + 0x1c0)
+#define NFP_MAC_STATS_TX_PAUSE_FRAMES_CLASS1		(NFP_MAC_STATS_BASE + 0x1c8)
+#define NFP_MAC_STATS_TX_PAUSE_FRAMES_CLASS4		(NFP_MAC_STATS_BASE + 0x1d0)
+#define NFP_MAC_STATS_TX_PAUSE_FRAMES_CLASS5		(NFP_MAC_STATS_BASE + 0x1d8)
+#define NFP_MAC_STATS_TX_PAUSE_FRAMES_CLASS2		(NFP_MAC_STATS_BASE + 0x1e0)
+#define NFP_MAC_STATS_TX_PAUSE_FRAMES_CLASS3		(NFP_MAC_STATS_BASE + 0x1e8)
+#define NFP_MAC_STATS_TX_PAUSE_FRAMES_CLASS6		(NFP_MAC_STATS_BASE + 0x1f0)
+#define NFP_MAC_STATS_TX_PAUSE_FRAMES_CLASS7		(NFP_MAC_STATS_BASE + 0x1f8)
 
 #endif

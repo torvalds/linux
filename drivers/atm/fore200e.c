@@ -358,26 +358,33 @@ fore200e_shutdown(struct fore200e* fore200e)
     case FORE200E_STATE_COMPLETE:
 	kfree(fore200e->stats);
 
+	/* fall through */
     case FORE200E_STATE_IRQ:
 	free_irq(fore200e->irq, fore200e->atm_dev);
 
+	/* fall through */
     case FORE200E_STATE_ALLOC_BUF:
 	fore200e_free_rx_buf(fore200e);
 
+	/* fall through */
     case FORE200E_STATE_INIT_BSQ:
 	fore200e_uninit_bs_queue(fore200e);
 
+	/* fall through */
     case FORE200E_STATE_INIT_RXQ:
 	fore200e->bus->dma_chunk_free(fore200e, &fore200e->host_rxq.status);
 	fore200e->bus->dma_chunk_free(fore200e, &fore200e->host_rxq.rpd);
 
+	/* fall through */
     case FORE200E_STATE_INIT_TXQ:
 	fore200e->bus->dma_chunk_free(fore200e, &fore200e->host_txq.status);
 	fore200e->bus->dma_chunk_free(fore200e, &fore200e->host_txq.tpd);
 
+	/* fall through */
     case FORE200E_STATE_INIT_CMDQ:
 	fore200e->bus->dma_chunk_free(fore200e, &fore200e->host_cmdq.status);
 
+	/* fall through */
     case FORE200E_STATE_INITIALIZE:
 	/* nothing to do for that state */
 
@@ -390,6 +397,7 @@ fore200e_shutdown(struct fore200e* fore200e)
     case FORE200E_STATE_MAP:
 	fore200e->bus->unmap(fore200e);
 
+	/* fall through */
     case FORE200E_STATE_CONFIGURE:
 	/* nothing to do for that state */
 
@@ -2757,7 +2765,7 @@ static void fore200e_pca_remove_one(struct pci_dev *pci_dev)
 }
 
 
-static struct pci_device_id fore200e_pca_tbl[] = {
+static const struct pci_device_id fore200e_pca_tbl[] = {
     { PCI_VENDOR_ID_FORE, PCI_DEVICE_ID_FORE_PCA200E, PCI_ANY_ID, PCI_ANY_ID,
       0, 0, (unsigned long) &fore200e_bus[0] },
     { 0, }

@@ -2145,8 +2145,7 @@ int saa7134_video_init1(struct saa7134_dev *dev)
 	dev->automute       = 0;
 
 	INIT_LIST_HEAD(&dev->video_q.queue);
-	setup_timer(&dev->video_q.timeout, saa7134_buffer_timeout,
-		    (unsigned long)(&dev->video_q));
+	timer_setup(&dev->video_q.timeout, saa7134_buffer_timeout, 0);
 	dev->video_q.dev              = dev;
 	dev->fmt = format_by_fourcc(V4L2_PIX_FMT_BGR24);
 	dev->width    = 720;

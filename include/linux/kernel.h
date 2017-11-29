@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _LINUX_KERNEL_H
 #define _LINUX_KERNEL_H
 
@@ -44,6 +45,12 @@
 
 #define STACK_MAGIC	0xdeadbeef
 
+/**
+ * REPEAT_BYTE - repeat the value @x multiple times as an unsigned long value
+ * @x: value to repeat
+ *
+ * NOTE: @x is not checked for > 0xff; larger values produce odd results.
+ */
 #define REPEAT_BYTE(x)	((~0ul / 0xff) * (x))
 
 /* @a is a power of 2 value */
@@ -57,6 +64,10 @@
 #define READ			0
 #define WRITE			1
 
+/**
+ * ARRAY_SIZE - get the number of elements in array @arr
+ * @arr: array to be sized
+ */
 #define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]) + __must_be_array(arr))
 
 #define u64_to_user_ptr(x) (		\
@@ -76,10 +87,21 @@
 #define round_up(x, y) ((((x)-1) | __round_mask(x, y))+1)
 #define round_down(x, y) ((x) & ~__round_mask(x, y))
 
+/**
+ * FIELD_SIZEOF - get the size of a struct's field
+ * @t: the target struct
+ * @f: the target struct's field
+ * Return: the size of @f in the struct definition without having a
+ * declared instance of @t.
+ */
 #define FIELD_SIZEOF(t, f) (sizeof(((t*)0)->f))
+
 #define DIV_ROUND_UP __KERNEL_DIV_ROUND_UP
-#define DIV_ROUND_UP_ULL(ll,d) \
-	({ unsigned long long _tmp = (ll)+(d)-1; do_div(_tmp, d); _tmp; })
+
+#define DIV_ROUND_DOWN_ULL(ll, d) \
+	({ unsigned long long _tmp = (ll); do_div(_tmp, d); _tmp; })
+
+#define DIV_ROUND_UP_ULL(ll, d)		DIV_ROUND_DOWN_ULL((ll) + (d) - 1, (d))
 
 #if BITS_PER_LONG == 32
 # define DIV_ROUND_UP_SECTOR_T(ll,d) DIV_ROUND_UP_ULL(ll, d)
@@ -104,7 +126,7 @@
 /*
  * Divide positive or negative dividend by positive or negative divisor
  * and round to closest integer. Result is undefined for negative
- * divisors if he dividend variable type is unsigned and for negative
+ * divisors if the dividend variable type is unsigned and for negative
  * dividends if the divisor variable type is unsigned.
  */
 #define DIV_ROUND_CLOSEST(x, divisor)(			\
@@ -244,13 +266,13 @@ extern int _cond_resched(void);
  * @ep_ro: right open interval endpoint
  *
  * Perform a "reciprocal multiplication" in order to "scale" a value into
- * range [0, ep_ro), where the upper interval endpoint is right-open.
+ * range [0, @ep_ro), where the upper interval endpoint is right-open.
  * This is useful, e.g. for accessing a index of an array containing
- * ep_ro elements, for example. Think of it as sort of modulus, only that
+ * @ep_ro elements, for example. Think of it as sort of modulus, only that
  * the result isn't that of modulo. ;) Note that if initial input is a
  * small value, then result will return 0.
  *
- * Return: a result based on val in interval [0, ep_ro).
+ * Return: a result based on @val in interval [0, @ep_ro).
  */
 static inline u32 reciprocal_scale(u32 val, u32 ep_ro)
 {
@@ -276,6 +298,13 @@ void print_oops_end_marker(void);
 extern int oops_may_print(void);
 void do_exit(long error_code) __noreturn;
 void complete_and_exit(struct completion *, long) __noreturn;
+
+#ifdef CONFIG_ARCH_HAS_REFCOUNT
+void refcount_error_report(struct pt_regs *regs, const char *err);
+#else
+static inline void refcount_error_report(struct pt_regs *regs, const char *err)
+{ }
+#endif
 
 /* Internal, do not use. */
 int __must_check _kstrtoul(const char *s, unsigned int base, unsigned long *res);
@@ -520,7 +549,8 @@ extern enum system_states {
 #define TAINT_UNSIGNED_MODULE		13
 #define TAINT_SOFTLOCKUP		14
 #define TAINT_LIVEPATCH			15
-#define TAINT_FLAGS_COUNT		16
+#define TAINT_AUX			16
+#define TAINT_FLAGS_COUNT		17
 
 struct taint_flag {
 	char c_true;	/* character printed when tainted */
@@ -608,8 +638,8 @@ do {									\
  * trace_printk - printf formatting in the ftrace buffer
  * @fmt: the printf format for printing
  *
- * Note: __trace_printk is an internal function for trace_printk and
- *       the @ip is passed in via the trace_printk macro.
+ * Note: __trace_printk is an internal function for trace_printk() and
+ *       the @ip is passed in via the trace_printk() macro.
  *
  * This function allows a kernel developer to debug fast path sections
  * that printk is not appropriate for. By scattering in various
@@ -619,7 +649,7 @@ do {									\
  * This is intended as a debugging tool for the developer only.
  * Please refrain from leaving trace_printks scattered around in
  * your code. (Extra memory is used for special buffers that are
- * allocated when trace_printk() is used)
+ * allocated when trace_printk() is used.)
  *
  * A little optization trick is done here. If there's only one
  * argument, there's no need to scan the string for printf formats.
@@ -671,7 +701,7 @@ int __trace_printk(unsigned long ip, const char *fmt, ...);
  *       the @ip is passed in via the trace_puts macro.
  *
  * This is similar to trace_printk() but is made for those really fast
- * paths that a developer wants the least amount of "Heisenbug" affects,
+ * paths that a developer wants the least amount of "Heisenbug" effects,
  * where the processing of the print format is still too much.
  *
  * This function allows a kernel developer to debug fast path sections
@@ -682,7 +712,7 @@ int __trace_printk(unsigned long ip, const char *fmt, ...);
  * This is intended as a debugging tool for the developer only.
  * Please refrain from leaving trace_puts scattered around in
  * your code. (Extra memory is used for special buffers that are
- * allocated when trace_puts() is used)
+ * allocated when trace_puts() is used.)
  *
  * Returns: 0 if nothing was written, positive # if string was.
  *  (1 when __trace_bputs is used, strlen(str) when __trace_puts is used)
@@ -761,6 +791,12 @@ static inline void ftrace_dump(enum ftrace_dump_mode oops_dump_mode) { }
 	t2 min2 = (y);					\
 	(void) (&min1 == &min2);			\
 	min1 < min2 ? min1 : min2; })
+
+/**
+ * min - return minimum of two values of the same or compatible types
+ * @x: first value
+ * @y: second value
+ */
 #define min(x, y)					\
 	__min(typeof(x), typeof(y),			\
 	      __UNIQUE_ID(min1_), __UNIQUE_ID(min2_),	\
@@ -771,12 +807,31 @@ static inline void ftrace_dump(enum ftrace_dump_mode oops_dump_mode) { }
 	t2 max2 = (y);					\
 	(void) (&max1 == &max2);			\
 	max1 > max2 ? max1 : max2; })
+
+/**
+ * max - return maximum of two values of the same or compatible types
+ * @x: first value
+ * @y: second value
+ */
 #define max(x, y)					\
 	__max(typeof(x), typeof(y),			\
 	      __UNIQUE_ID(max1_), __UNIQUE_ID(max2_),	\
 	      x, y)
 
+/**
+ * min3 - return minimum of three values
+ * @x: first value
+ * @y: second value
+ * @z: third value
+ */
 #define min3(x, y, z) min((typeof(x))min(x, y), z)
+
+/**
+ * max3 - return maximum of three values
+ * @x: first value
+ * @y: second value
+ * @z: third value
+ */
 #define max3(x, y, z) max((typeof(x))max(x, y), z)
 
 /**
@@ -795,8 +850,8 @@ static inline void ftrace_dump(enum ftrace_dump_mode oops_dump_mode) { }
  * @lo: lowest allowable value
  * @hi: highest allowable value
  *
- * This macro does strict typechecking of lo/hi to make sure they are of the
- * same type as val.  See the unnecessary pointer comparisons.
+ * This macro does strict typechecking of @lo/@hi to make sure they are of the
+ * same type as @val.  See the unnecessary pointer comparisons.
  */
 #define clamp(val, lo, hi) min((typeof(val))max(val, lo), hi)
 
@@ -806,11 +861,24 @@ static inline void ftrace_dump(enum ftrace_dump_mode oops_dump_mode) { }
  *
  * Or not use min/max/clamp at all, of course.
  */
+
+/**
+ * min_t - return minimum of two values, using the specified type
+ * @type: data type to use
+ * @x: first value
+ * @y: second value
+ */
 #define min_t(type, x, y)				\
 	__min(type, type,				\
 	      __UNIQUE_ID(min1_), __UNIQUE_ID(min2_),	\
 	      x, y)
 
+/**
+ * max_t - return maximum of two values, using the specified type
+ * @type: data type to use
+ * @x: first value
+ * @y: second value
+ */
 #define max_t(type, x, y)				\
 	__max(type, type,				\
 	      __UNIQUE_ID(min1_), __UNIQUE_ID(min2_),	\
@@ -824,7 +892,7 @@ static inline void ftrace_dump(enum ftrace_dump_mode oops_dump_mode) { }
  * @hi: maximum allowable value
  *
  * This macro does no typechecking and uses temporary variables of type
- * 'type' to make all the comparisons.
+ * @type to make all the comparisons.
  */
 #define clamp_t(type, val, lo, hi) min_t(type, max_t(type, val, lo), hi)
 
@@ -835,15 +903,17 @@ static inline void ftrace_dump(enum ftrace_dump_mode oops_dump_mode) { }
  * @hi: maximum allowable value
  *
  * This macro does no typechecking and uses temporary variables of whatever
- * type the input argument 'val' is.  This is useful when val is an unsigned
- * type and min and max are literals that will otherwise be assigned a signed
+ * type the input argument @val is.  This is useful when @val is an unsigned
+ * type and @lo and @hi are literals that will otherwise be assigned a signed
  * integer type.
  */
 #define clamp_val(val, lo, hi) clamp_t(typeof(val), val, lo, hi)
 
 
-/*
- * swap - swap value of @a and @b
+/**
+ * swap - swap values of @a and @b
+ * @a: first value
+ * @b: second value
  */
 #define swap(a, b) \
 	do { typeof(a) __tmp = (a); (a) = (b); (b) = __tmp; } while (0)

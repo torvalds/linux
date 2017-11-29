@@ -559,6 +559,7 @@ static int amdgpu_vce_cs_reloc(struct amdgpu_cs_parser *p, uint32_t ib_idx,
 	struct amdgpu_bo_va_mapping *mapping;
 	struct amdgpu_bo *bo;
 	uint64_t addr;
+	int r;
 
 	if (index == 0xffffffff)
 		index = 0;
@@ -567,11 +568,11 @@ static int amdgpu_vce_cs_reloc(struct amdgpu_cs_parser *p, uint32_t ib_idx,
 	       ((uint64_t)amdgpu_get_ib_value(p, ib_idx, hi)) << 32;
 	addr += ((uint64_t)size) * ((uint64_t)index);
 
-	mapping = amdgpu_cs_find_mapping(p, addr, &bo);
-	if (mapping == NULL) {
+	r = amdgpu_cs_find_mapping(p, addr, &bo, &mapping);
+	if (r) {
 		DRM_ERROR("Can't find BO for addr 0x%010Lx %d %d %d %d\n",
 			  addr, lo, hi, size, index);
-		return -EINVAL;
+		return r;
 	}
 
 	if ((addr + (uint64_t)size) >
@@ -647,14 +648,10 @@ int amdgpu_vce_ring_parse_cs(struct amdgpu_cs_parser *p, uint32_t ib_idx)
 	uint32_t allocated = 0;
 	uint32_t tmp, handle = 0;
 	uint32_t *size = &tmp;
-	int i, r, idx = 0;
+	int i, r = 0, idx = 0;
 
 	p->job->vm = NULL;
 	ib->gpu_addr = amdgpu_sa_bo_gpu_addr(ib->sa_bo);
-
-	r = amdgpu_cs_sysvm_access_required(p);
-	if (r)
-		return r;
 
 	while (idx < ib->length_dw) {
 		uint32_t len = amdgpu_get_ib_value(p, ib_idx, idx);
@@ -937,9 +934,9 @@ int amdgpu_vce_ring_test_ring(struct amdgpu_ring *ring)
 	unsigned i;
 	int r, timeout = adev->usec_timeout;
 
-	/* workaround VCE ring test slow issue for sriov*/
+	/* skip ring test for sriov*/
 	if (amdgpu_sriov_vf(adev))
-		timeout *= 10;
+		return 0;
 
 	r = amdgpu_ring_alloc(ring, 16);
 	if (r) {

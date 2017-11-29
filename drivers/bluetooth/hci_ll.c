@@ -242,7 +242,7 @@ static void ll_device_want_to_wakeup(struct hci_uart *hu)
 		 * perfectly safe to always send one.
 		 */
 		BT_DBG("dual wake-up-indication");
-		/* deliberate fall-through - do not add break */
+		/* fall through */
 	case HCILL_ASLEEP:
 		/* acknowledge device wake up */
 		if (send_hcill_cmd(HCILL_WAKE_UP_ACK, hu) < 0) {
@@ -622,7 +622,8 @@ static int download_firmware(struct ll_device *lldev)
 			cmd = (struct hci_command *)action_ptr;
 			if (cmd->opcode == 0xff36) {
 				/* ignore remote change
-				 * baud rate HCI VS command */
+				 * baud rate HCI VS command
+				 */
 				bt_dev_warn(lldev->hu.hdev, "change remote baud rate command in firmware");
 				break;
 			}
@@ -742,14 +743,8 @@ static int hci_ti_probe(struct serdev_device *serdev)
 static void hci_ti_remove(struct serdev_device *serdev)
 {
 	struct ll_device *lldev = serdev_device_get_drvdata(serdev);
-	struct hci_uart *hu = &lldev->hu;
-	struct hci_dev *hdev = hu->hdev;
 
-	cancel_work_sync(&hu->write_work);
-
-	hci_unregister_dev(hdev);
-	hci_free_dev(hdev);
-	hu->proto->close(hu);
+	hci_uart_unregister_device(&lldev->hu);
 }
 
 static const struct of_device_id hci_ti_of_match[] = {

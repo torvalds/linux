@@ -367,7 +367,7 @@ static struct attribute *cdc_ncm_sysfs_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group cdc_ncm_sysfs_attr_group = {
+static const struct attribute_group cdc_ncm_sysfs_attr_group = {
 	.name = "cdc_ncm",
 	.attrs = cdc_ncm_sysfs_attrs,
 };
@@ -771,7 +771,7 @@ int cdc_ncm_bind_common(struct usbnet *dev, struct usb_interface *intf, u8 data_
 	int err;
 	u8 iface_no;
 	struct usb_cdc_parsed_header hdr;
-	u16 curr_ntb_format;
+	__le16 curr_ntb_format;
 
 	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
@@ -889,7 +889,7 @@ int cdc_ncm_bind_common(struct usbnet *dev, struct usb_interface *intf, u8 data_
 			goto error2;
 		}
 
-		if (curr_ntb_format == USB_CDC_NCM_NTB32_FORMAT) {
+		if (curr_ntb_format == cpu_to_le16(USB_CDC_NCM_NTB32_FORMAT)) {
 			dev_info(&intf->dev, "resetting NTB format to 16-bit");
 			err = usbnet_write_cmd(dev, USB_CDC_SET_NTB_FORMAT,
 					       USB_TYPE_CLASS | USB_DIR_OUT
@@ -1756,6 +1756,13 @@ static const struct usb_device_id cdc_devs[] = {
 		USB_CLASS_COMM,
 		USB_CDC_SUBCLASS_NCM, USB_CDC_PROTO_NONE),
 	  .driver_info = (unsigned long)&wwan_noarp_info,
+	},
+
+	/* u-blox TOBY-L4 */
+	{ USB_DEVICE_AND_INTERFACE_INFO(0x1546, 0x1010,
+		USB_CLASS_COMM,
+		USB_CDC_SUBCLASS_NCM, USB_CDC_PROTO_NONE),
+	  .driver_info = (unsigned long)&wwan_info,
 	},
 
 	/* Generic CDC-NCM devices */

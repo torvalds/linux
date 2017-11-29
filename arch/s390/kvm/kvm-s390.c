@@ -130,6 +130,12 @@ struct kvm_stats_debugfs_item debugfs_entries[] = {
 	{ NULL }
 };
 
+struct kvm_s390_tod_clock_ext {
+	__u8 epoch_idx;
+	__u64 tod;
+	__u8 reserved[7];
+} __packed;
+
 /* allow nested virtualization in KVM (if enabled by user space) */
 static int nested;
 module_param(nested, int, S_IRUGO);
@@ -389,6 +395,7 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 	case KVM_CAP_S390_USER_INSTR0:
 	case KVM_CAP_S390_CMMA_MIGRATION:
 	case KVM_CAP_S390_AIS:
+	case KVM_CAP_S390_AIS_MIGRATION:
 		r = 1;
 		break;
 	case KVM_CAP_S390_MEM_OP:
@@ -874,6 +881,26 @@ static int kvm_s390_vm_get_migration(struct kvm *kvm,
 	return 0;
 }
 
+static int kvm_s390_set_tod_ext(struct kvm *kvm, struct kvm_device_attr *attr)
+{
+	struct kvm_s390_vm_tod_clock gtod;
+
+	if (copy_from_user(&gtod, (void __user *)attr->addr, sizeof(gtod)))
+		return -EFAULT;
+
+	if (test_kvm_facility(kvm, 139))
+		kvm_s390_set_tod_clock_ext(kvm, &gtod);
+	else if (gtod.epoch_idx == 0)
+		kvm_s390_set_tod_clock(kvm, gtod.tod);
+	else
+		return -EINVAL;
+
+	VM_EVENT(kvm, 3, "SET: TOD extension: 0x%x, TOD base: 0x%llx",
+		gtod.epoch_idx, gtod.tod);
+
+	return 0;
+}
+
 static int kvm_s390_set_tod_high(struct kvm *kvm, struct kvm_device_attr *attr)
 {
 	u8 gtod_high;
@@ -909,6 +936,9 @@ static int kvm_s390_set_tod(struct kvm *kvm, struct kvm_device_attr *attr)
 		return -EINVAL;
 
 	switch (attr->attr) {
+	case KVM_S390_VM_TOD_EXT:
+		ret = kvm_s390_set_tod_ext(kvm, attr);
+		break;
 	case KVM_S390_VM_TOD_HIGH:
 		ret = kvm_s390_set_tod_high(kvm, attr);
 		break;
@@ -920,6 +950,43 @@ static int kvm_s390_set_tod(struct kvm *kvm, struct kvm_device_attr *attr)
 		break;
 	}
 	return ret;
+}
+
+static void kvm_s390_get_tod_clock_ext(struct kvm *kvm,
+					struct kvm_s390_vm_tod_clock *gtod)
+{
+	struct kvm_s390_tod_clock_ext htod;
+
+	preempt_disable();
+
+	get_tod_clock_ext((char *)&htod);
+
+	gtod->tod = htod.tod + kvm->arch.epoch;
+	gtod->epoch_idx = htod.epoch_idx + kvm->arch.epdx;
+
+	if (gtod->tod < htod.tod)
+		gtod->epoch_idx += 1;
+
+	preempt_enable();
+}
+
+static int kvm_s390_get_tod_ext(struct kvm *kvm, struct kvm_device_attr *attr)
+{
+	struct kvm_s390_vm_tod_clock gtod;
+
+	memset(&gtod, 0, sizeof(gtod));
+
+	if (test_kvm_facility(kvm, 139))
+		kvm_s390_get_tod_clock_ext(kvm, &gtod);
+	else
+		gtod.tod = kvm_s390_get_tod_clock_fast(kvm);
+
+	if (copy_to_user((void __user *)attr->addr, &gtod, sizeof(gtod)))
+		return -EFAULT;
+
+	VM_EVENT(kvm, 3, "QUERY: TOD extension: 0x%x, TOD base: 0x%llx",
+		gtod.epoch_idx, gtod.tod);
+	return 0;
 }
 
 static int kvm_s390_get_tod_high(struct kvm *kvm, struct kvm_device_attr *attr)
@@ -954,6 +1021,9 @@ static int kvm_s390_get_tod(struct kvm *kvm, struct kvm_device_attr *attr)
 		return -EINVAL;
 
 	switch (attr->attr) {
+	case KVM_S390_VM_TOD_EXT:
+		ret = kvm_s390_get_tod_ext(kvm, attr);
+		break;
 	case KVM_S390_VM_TOD_HIGH:
 		ret = kvm_s390_get_tod_high(kvm, attr);
 		break;
@@ -1324,7 +1394,7 @@ static long kvm_s390_get_skeys(struct kvm *kvm, struct kvm_s390_skeys *args)
 {
 	uint8_t *keys;
 	uint64_t hva;
-	int i, r = 0;
+	int srcu_idx, i, r = 0;
 
 	if (args->flags != 0)
 		return -EINVAL;
@@ -1342,6 +1412,7 @@ static long kvm_s390_get_skeys(struct kvm *kvm, struct kvm_s390_skeys *args)
 		return -ENOMEM;
 
 	down_read(&current->mm->mmap_sem);
+	srcu_idx = srcu_read_lock(&kvm->srcu);
 	for (i = 0; i < args->count; i++) {
 		hva = gfn_to_hva(kvm, args->start_gfn + i);
 		if (kvm_is_error_hva(hva)) {
@@ -1353,6 +1424,7 @@ static long kvm_s390_get_skeys(struct kvm *kvm, struct kvm_s390_skeys *args)
 		if (r)
 			break;
 	}
+	srcu_read_unlock(&kvm->srcu, srcu_idx);
 	up_read(&current->mm->mmap_sem);
 
 	if (!r) {
@@ -1370,7 +1442,7 @@ static long kvm_s390_set_skeys(struct kvm *kvm, struct kvm_s390_skeys *args)
 {
 	uint8_t *keys;
 	uint64_t hva;
-	int i, r = 0;
+	int srcu_idx, i, r = 0;
 
 	if (args->flags != 0)
 		return -EINVAL;
@@ -1396,6 +1468,7 @@ static long kvm_s390_set_skeys(struct kvm *kvm, struct kvm_s390_skeys *args)
 		goto out;
 
 	down_read(&current->mm->mmap_sem);
+	srcu_idx = srcu_read_lock(&kvm->srcu);
 	for (i = 0; i < args->count; i++) {
 		hva = gfn_to_hva(kvm, args->start_gfn + i);
 		if (kvm_is_error_hva(hva)) {
@@ -1413,6 +1486,7 @@ static long kvm_s390_set_skeys(struct kvm *kvm, struct kvm_s390_skeys *args)
 		if (r)
 			break;
 	}
+	srcu_read_unlock(&kvm->srcu, srcu_idx);
 	up_read(&current->mm->mmap_sem);
 out:
 	kvfree(keys);
@@ -1501,7 +1575,7 @@ static int kvm_s390_get_cmma_bits(struct kvm *kvm,
 		if (r < 0)
 			pgstev = 0;
 		/* save the value */
-		res[i++] = (pgstev >> 24) & 0x3;
+		res[i++] = (pgstev >> 24) & 0x43;
 		/*
 		 * if the next bit is too far away, stop.
 		 * if we reached the previous "next", find the next one
@@ -1579,7 +1653,7 @@ static int kvm_s390_set_cmma_bits(struct kvm *kvm,
 
 		pgstev = bits[i];
 		pgstev = pgstev << 24;
-		mask &= _PGSTE_GPS_USAGE_MASK;
+		mask &= _PGSTE_GPS_USAGE_MASK | _PGSTE_GPS_NODAT;
 		set_pgste_bits(kvm->mm, hva, mask, pgstev);
 	}
 	srcu_read_unlock(&kvm->srcu, srcu_idx);
@@ -1811,8 +1885,6 @@ int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 
 	rc = -ENOMEM;
 
-	ratelimit_state_init(&kvm->arch.sthyi_limit, 5 * HZ, 500);
-
 	kvm->arch.use_esca = 0; /* start with basic SCA */
 	if (!sclp.has_64bscao)
 		alloc_flags |= GFP_DMA;
@@ -1854,8 +1926,16 @@ int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 	memcpy(kvm->arch.model.fac_list, kvm->arch.model.fac_mask,
 	       S390_ARCH_FAC_LIST_SIZE_BYTE);
 
+	/* we are always in czam mode - even on pre z14 machines */
+	set_kvm_facility(kvm->arch.model.fac_mask, 138);
+	set_kvm_facility(kvm->arch.model.fac_list, 138);
+	/* we emulate STHYI in kvm */
 	set_kvm_facility(kvm->arch.model.fac_mask, 74);
 	set_kvm_facility(kvm->arch.model.fac_list, 74);
+	if (MACHINE_HAS_TLB_GUEST) {
+		set_kvm_facility(kvm->arch.model.fac_mask, 147);
+		set_kvm_facility(kvm->arch.model.fac_list, 147);
+	}
 
 	kvm->arch.model.cpuid = kvm_s390_get_initial_cpuid();
 	kvm->arch.model.ibc = sclp.ibc & 0x0fff;
@@ -2365,6 +2445,9 @@ int kvm_arch_vcpu_setup(struct kvm_vcpu *vcpu)
 		vcpu->arch.sie_block->eca |= ECA_VX;
 		vcpu->arch.sie_block->ecd |= ECD_HOSTREGMGMT;
 	}
+	if (test_kvm_facility(vcpu->kvm, 139))
+		vcpu->arch.sie_block->ecd |= ECD_MEF;
+
 	vcpu->arch.sie_block->sdnxo = ((unsigned long) &vcpu->run->s.regs.sdnx)
 					| SDNXC;
 	vcpu->arch.sie_block->riccbd = (unsigned long) &vcpu->run->s.regs.riccb;
@@ -2441,6 +2524,11 @@ out:
 int kvm_arch_vcpu_runnable(struct kvm_vcpu *vcpu)
 {
 	return kvm_s390_vcpu_has_irq(vcpu, 0);
+}
+
+bool kvm_arch_vcpu_in_kernel(struct kvm_vcpu *vcpu)
+{
+	return !(vcpu->arch.sie_block->gpsw.mask & PSW_MASK_PSTATE);
 }
 
 void kvm_s390_vcpu_block(struct kvm_vcpu *vcpu)
@@ -2851,6 +2939,35 @@ retry:
 	return 0;
 }
 
+void kvm_s390_set_tod_clock_ext(struct kvm *kvm,
+				 const struct kvm_s390_vm_tod_clock *gtod)
+{
+	struct kvm_vcpu *vcpu;
+	struct kvm_s390_tod_clock_ext htod;
+	int i;
+
+	mutex_lock(&kvm->lock);
+	preempt_disable();
+
+	get_tod_clock_ext((char *)&htod);
+
+	kvm->arch.epoch = gtod->tod - htod.tod;
+	kvm->arch.epdx = gtod->epoch_idx - htod.epoch_idx;
+
+	if (kvm->arch.epoch > gtod->tod)
+		kvm->arch.epdx -= 1;
+
+	kvm_s390_vcpu_block_all(kvm);
+	kvm_for_each_vcpu(i, vcpu, kvm) {
+		vcpu->arch.sie_block->epoch = kvm->arch.epoch;
+		vcpu->arch.sie_block->epdx  = kvm->arch.epdx;
+	}
+
+	kvm_s390_vcpu_unblock_all(kvm);
+	preempt_enable();
+	mutex_unlock(&kvm->lock);
+}
+
 void kvm_s390_set_tod_clock(struct kvm *kvm, u64 tod)
 {
 	struct kvm_vcpu *vcpu;
@@ -3165,7 +3282,7 @@ static void sync_regs(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	 */
 	if ((kvm_run->kvm_dirty_regs & KVM_SYNC_RICCB) &&
 	    test_kvm_facility(vcpu->kvm, 64) &&
-	    riccb->valid &&
+	    riccb->v &&
 	    !(vcpu->arch.sie_block->ecb3 & ECB3_RI)) {
 		VCPU_EVENT(vcpu, 3, "%s", "ENABLE: RI (sync_regs)");
 		vcpu->arch.sie_block->ecb3 |= ECB3_RI;

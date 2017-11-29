@@ -4,6 +4,15 @@
 
 comment "MMC/SD/SDIO Host Controller Drivers"
 
+config MMC_DEBUG
+	bool "MMC host drivers debugging"
+	depends on MMC != n
+	help
+	  This is an option for use by developers; most people should
+	  say N here. This enables MMC host driver debugging. And further
+	  added host drivers please don't invent their private macro for
+	  debugging.
+
 config MMC_ARMMMCI
 	tristate "ARM AMBA Multimedia Card Interface support"
 	depends on ARM_AMBA
@@ -15,7 +24,7 @@ config MMC_ARMMMCI
 	  If unsure, say N.
 
 config MMC_QCOM_DML
-	tristate "Qualcomm Data Mover for SD Card Controller"
+	bool "Qualcomm Data Mover for SD Card Controller"
 	depends on MMC_ARMMMCI && QCOM_BAM_DMA
 	default y
 	help
@@ -343,6 +352,19 @@ config MMC_MESON_GX
 
 	  If you have a controller with this interface, say Y here.
 
+config MMC_MESON_MX_SDIO
+	tristate "Amlogic Meson6/Meson8/Meson8b SD/MMC Host Controller support"
+	depends on ARCH_MESON || COMPILE_TEST
+	depends on COMMON_CLK
+	depends on HAS_DMA
+	depends on OF
+	help
+	  This selects support for the SD/MMC Host Controller on
+	  Amlogic Meson6, Meson8 and Meson8b SoCs.
+
+	  If you have a controller with this interface, say Y or M here.
+	  If unsure, say N.
+
 config MMC_MOXART
 	tristate "MOXART SD/MMC Host Controller support"
 	depends on ARCH_MOXART && MMC
@@ -354,7 +376,7 @@ config MMC_MOXART
 
 config MMC_SDHCI_ST
 	tristate "SDHCI support on STMicroelectronics SoC"
-	depends on ARCH_STI
+	depends on ARCH_STI || FSP2
 	depends on MMC_SDHCI_PLTFM
 	select MMC_SDHCI_IO_ACCESSORS
 	help
@@ -420,6 +442,7 @@ config MMC_SDHCI_MSM
 	tristate "Qualcomm SDHCI Controller Support"
 	depends on ARCH_QCOM || (ARM && COMPILE_TEST)
 	depends on MMC_SDHCI_PLTFM
+	select MMC_SDHCI_IO_ACCESSORS
 	help
 	  This selects the Secure Digital Host Controller Interface (SDHCI)
 	  support present in Qualcomm SOCs. The controller supports
@@ -494,7 +517,7 @@ config MMC_GOLDFISH
 
 config MMC_SPI
 	tristate "MMC/SD/SDIO over SPI"
-	depends on SPI_MASTER && !HIGHMEM && HAS_DMA
+	depends on SPI_MASTER && HAS_DMA
 	select CRC7
 	select CRC_ITU_T
 	help
@@ -575,9 +598,28 @@ config MMC_SDHI
 	depends on SUPERH || ARM || ARM64
 	depends on SUPERH || ARCH_RENESAS || COMPILE_TEST
 	select MMC_TMIO_CORE
+	select MMC_SDHI_SYS_DMAC if (SUPERH || ARM)
+	select MMC_SDHI_INTERNAL_DMAC if ARM64
 	help
 	  This provides support for the SDHI SD/SDIO controller found in
 	  Renesas SuperH, ARM and ARM64 based SoCs
+
+config MMC_SDHI_SYS_DMAC
+	tristate "DMA for SDHI SD/SDIO controllers using SYS-DMAC"
+	depends on MMC_SDHI
+	help
+	  This provides DMA support for SDHI SD/SDIO controllers
+	  using SYS-DMAC via DMA Engine. This supports the controllers
+	  found in SuperH and Renesas ARM based SoCs.
+
+config MMC_SDHI_INTERNAL_DMAC
+	tristate "DMA for SDHI SD/SDIO controllers using on-chip bus mastering"
+	depends on ARM64 || COMPILE_TEST
+	depends on MMC_SDHI
+	help
+	  This provides DMA support for SDHI SD/SDIO controllers
+	  using on-chip bus mastering. This supports the controllers
+	  found in arm64 based SoCs.
 
 config MMC_CB710
 	tristate "ENE CB710 MMC/SD Interface support"
@@ -635,7 +677,7 @@ config MMC_CAVIUM_OCTEON
 config MMC_CAVIUM_THUNDERX
 	tristate "Cavium ThunderX SD/MMC Card Interface support"
 	depends on PCI && 64BIT && (ARM64 || COMPILE_TEST)
-	depends on GPIOLIB
+	depends on GPIO_THUNDERX
 	depends on OF_ADDRESS
 	help
 	  This selects Cavium ThunderX SD/MMC Card Interface.
@@ -870,4 +912,16 @@ config MMC_SDHCI_XENON
 	help
 	  This selects Marvell Xenon eMMC/SD/SDIO SDHCI.
 	  If you have a controller with this interface, say Y or M here.
+	  If unsure, say N.
+
+config MMC_SDHCI_OMAP
+	tristate "TI SDHCI Controller Support"
+	depends on MMC_SDHCI_PLTFM && OF
+	help
+	  This selects the Secure Digital Host Controller Interface (SDHCI)
+	  support present in TI's DRA7 SOCs. The controller supports
+	  SD/MMC/SDIO devices.
+
+	  If you have a controller with this interface, say Y or M here.
+
 	  If unsure, say N.

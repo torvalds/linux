@@ -669,9 +669,8 @@ static int orion_spi_probe(struct platform_device *pdev)
 		status = of_property_read_u32(np, "reg", &cs);
 		if (status) {
 			dev_err(&pdev->dev,
-				"%s has no valid 'reg' property (%d)\n",
-				np->full_name, status);
-			status = 0;
+				"%pOF has no valid 'reg' property (%d)\n",
+				np, status);
 			continue;
 		}
 

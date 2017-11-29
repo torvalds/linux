@@ -212,7 +212,6 @@ struct mlx5_wqe_ctrl_seg {
 #define MLX5_WQE_CTRL_OPCODE_MASK 0xff
 #define MLX5_WQE_CTRL_WQE_INDEX_MASK 0x00ffff00
 #define MLX5_WQE_CTRL_WQE_INDEX_SHIFT 8
-#define MLX5_WQE_AV_EXT 0x80000000
 
 enum {
 	MLX5_ETH_WQE_L3_INNER_CSUM      = 1 << 4,
@@ -222,6 +221,7 @@ enum {
 };
 
 enum {
+	MLX5_ETH_WQE_SVLAN              = 1 << 0,
 	MLX5_ETH_WQE_INSERT_VLAN        = 1 << 15,
 };
 
@@ -560,6 +560,9 @@ int mlx5_core_destroy_qp(struct mlx5_core_dev *dev,
 			 struct mlx5_core_qp *qp);
 int mlx5_core_qp_query(struct mlx5_core_dev *dev, struct mlx5_core_qp *qp,
 		       u32 *out, int outlen);
+
+int mlx5_core_set_delay_drop(struct mlx5_core_dev *dev,
+			     u32 timeout_usec);
 
 int mlx5_core_xrcd_alloc(struct mlx5_core_dev *dev, u32 *xrcdn);
 int mlx5_core_xrcd_dealloc(struct mlx5_core_dev *dev, u32 xrcdn);

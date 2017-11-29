@@ -18,6 +18,7 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
+#include <linux/of_device.h>
 #include <linux/phy/phy.h>
 #include <linux/platform_device.h>
 #include <linux/mutex.h>
@@ -662,7 +663,6 @@ static int exynos5_usbdrd_phy_probe(struct platform_device *pdev)
 	struct exynos5_usbdrd_phy *phy_drd;
 	struct phy_provider *phy_provider;
 	struct resource *res;
-	const struct of_device_id *match;
 	const struct exynos5_usbdrd_phy_drvdata *drv_data;
 	struct regmap *reg_pmu;
 	u32 pmu_offset;
@@ -681,9 +681,10 @@ static int exynos5_usbdrd_phy_probe(struct platform_device *pdev)
 	if (IS_ERR(phy_drd->reg_phy))
 		return PTR_ERR(phy_drd->reg_phy);
 
-	match = of_match_node(exynos5_usbdrd_phy_of_match, pdev->dev.of_node);
+	drv_data = of_device_get_match_data(dev);
+	if (!drv_data)
+		return -EINVAL;
 
-	drv_data = match->data;
 	phy_drd->drv_data = drv_data;
 
 	ret = exynos5_usbdrd_phy_clk_handle(phy_drd);

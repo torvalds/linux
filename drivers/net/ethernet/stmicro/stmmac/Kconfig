@@ -45,6 +45,15 @@ config DWMAC_GENERIC
 	  platform specific code to function or is using platform
 	  data for setup.
 
+config DWMAC_ANARION
+	tristate "Adaptrum Anarion GMAC support"
+	default ARC
+	depends on OF && (ARC || COMPILE_TEST)
+	help
+	  Support for Adaptrum Anarion GMAC Ethernet controller.
+
+	  This selects the Anarion SoC glue layer support for the stmmac driver.
+
 config DWMAC_IPQ806X
 	tristate "QCA IPQ806x DWMAC support"
 	default ARCH_QCOM
@@ -150,6 +159,7 @@ config DWMAC_SUN8I
 	tristate "Allwinner sun8i GMAC support"
 	default ARCH_SUNXI
 	depends on OF && (ARCH_SUNXI || COMPILE_TEST)
+	select MDIO_BUS_MUX
 	---help---
 	  Support for Allwinner H3 A83T A64 EMAC ethernet controllers.
 

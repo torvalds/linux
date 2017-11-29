@@ -1,20 +1,15 @@
-dts-dirs	+= brcm
-dts-dirs	+= cavium-octeon
-dts-dirs	+= img
-dts-dirs	+= ingenic
-dts-dirs	+= lantiq
-dts-dirs	+= mti
-dts-dirs	+= netlogic
-dts-dirs	+= pic32
-dts-dirs	+= qca
-dts-dirs	+= ralink
-dts-dirs	+= xilfpga
+# SPDX-License-Identifier: GPL-2.0
+subdir-y	+= brcm
+subdir-y	+= cavium-octeon
+subdir-y	+= img
+subdir-y	+= ingenic
+subdir-y	+= lantiq
+subdir-y	+= mti
+subdir-y	+= netlogic
+subdir-y	+= ni
+subdir-y	+= pic32
+subdir-y	+= qca
+subdir-y	+= ralink
+subdir-y	+= xilfpga
 
-obj-y		:= $(addsuffix /, $(dts-dirs))
-
-dtstree		:= $(srctree)/$(src)
-dtb-$(CONFIG_OF_ALL_DTBS) := $(patsubst $(dtstree)/%.dts,%.dtb, $(foreach d,$(dts-dirs), $(wildcard $(dtstree)/$(d)/*.dts)))
-
-always		:= $(dtb-y)
-subdir-y	:= $(dts-dirs)
-clean-files	:= *.dtb *.dtb.S
+obj-$(CONFIG_BUILTIN_DTB)	:= $(addsuffix /, $(subdir-y))

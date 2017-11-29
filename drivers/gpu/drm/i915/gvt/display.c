@@ -178,9 +178,9 @@ static void emulate_monitor_status_change(struct intel_vgpu *vgpu)
 				SDE_PORTE_HOTPLUG_SPT);
 		vgpu_vreg(vgpu, SKL_FUSE_STATUS) |=
 				SKL_FUSE_DOWNLOAD_STATUS |
-				SKL_FUSE_PG0_DIST_STATUS |
-				SKL_FUSE_PG1_DIST_STATUS |
-				SKL_FUSE_PG2_DIST_STATUS;
+				SKL_FUSE_PG_DIST_STATUS(SKL_PG0) |
+				SKL_FUSE_PG_DIST_STATUS(SKL_PG1) |
+				SKL_FUSE_PG_DIST_STATUS(SKL_PG2);
 		vgpu_vreg(vgpu, LCPLL1_CTL) |=
 				LCPLL_PLL_ENABLE |
 				LCPLL_PLL_LOCK;
@@ -323,27 +323,27 @@ void intel_gvt_check_vblank_emulation(struct intel_gvt *gvt)
 {
 	struct intel_gvt_irq *irq = &gvt->irq;
 	struct intel_vgpu *vgpu;
-	bool have_enabled_pipe = false;
 	int pipe, id;
 
 	if (WARN_ON(!mutex_is_locked(&gvt->lock)))
 		return;
 
-	hrtimer_cancel(&irq->vblank_timer.timer);
-
 	for_each_active_vgpu(gvt, vgpu, id) {
 		for (pipe = 0; pipe < I915_MAX_PIPES; pipe++) {
-			have_enabled_pipe =
-				pipe_is_enabled(vgpu, pipe);
-			if (have_enabled_pipe)
-				break;
+			if (pipe_is_enabled(vgpu, pipe))
+				goto out;
 		}
 	}
 
-	if (have_enabled_pipe)
-		hrtimer_start(&irq->vblank_timer.timer,
-			ktime_add_ns(ktime_get(), irq->vblank_timer.period),
-			HRTIMER_MODE_ABS);
+	/* all the pipes are disabled */
+	hrtimer_cancel(&irq->vblank_timer.timer);
+	return;
+
+out:
+	hrtimer_start(&irq->vblank_timer.timer,
+		ktime_add_ns(ktime_get(), irq->vblank_timer.period),
+		HRTIMER_MODE_ABS);
+
 }
 
 static void emulate_vblank_on_pipe(struct intel_vgpu *vgpu, int pipe)

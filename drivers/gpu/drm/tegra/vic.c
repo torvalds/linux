@@ -167,7 +167,7 @@ static int vic_init(struct host1x_client *client)
 		goto detach_device;
 	}
 
-	client->syncpts[0] = host1x_syncpt_request(client->dev, 0);
+	client->syncpts[0] = host1x_syncpt_request(client, 0);
 	if (!client->syncpts[0]) {
 		err = -ENOMEM;
 		goto free_channel;
@@ -258,36 +258,44 @@ static const struct tegra_drm_client_ops vic_ops = {
 	.submit = tegra_drm_submit,
 };
 
+#define NVIDIA_TEGRA_124_VIC_FIRMWARE "nvidia/tegra124/vic03_ucode.bin"
+
 static const struct vic_config vic_t124_config = {
-	.firmware = "nvidia/tegra124/vic03_ucode.bin",
+	.firmware = NVIDIA_TEGRA_124_VIC_FIRMWARE,
 };
 
+#define NVIDIA_TEGRA_210_VIC_FIRMWARE "nvidia/tegra210/vic04_ucode.bin"
+
 static const struct vic_config vic_t210_config = {
-	.firmware = "nvidia/tegra210/vic04_ucode.bin",
+	.firmware = NVIDIA_TEGRA_210_VIC_FIRMWARE,
+};
+
+#define NVIDIA_TEGRA_186_VIC_FIRMWARE "nvidia/tegra186/vic04_ucode.bin"
+
+static const struct vic_config vic_t186_config = {
+	.firmware = NVIDIA_TEGRA_186_VIC_FIRMWARE,
 };
 
 static const struct of_device_id vic_match[] = {
 	{ .compatible = "nvidia,tegra124-vic", .data = &vic_t124_config },
 	{ .compatible = "nvidia,tegra210-vic", .data = &vic_t210_config },
+	{ .compatible = "nvidia,tegra186-vic", .data = &vic_t186_config },
 	{ },
 };
 
 static int vic_probe(struct platform_device *pdev)
 {
-	struct vic_config *vic_config = NULL;
 	struct device *dev = &pdev->dev;
 	struct host1x_syncpt **syncpts;
 	struct resource *regs;
-	const struct of_device_id *match;
 	struct vic *vic;
 	int err;
-
-	match = of_match_device(vic_match, dev);
-	vic_config = (struct vic_config *)match->data;
 
 	vic = devm_kzalloc(dev, sizeof(*vic), GFP_KERNEL);
 	if (!vic)
 		return -ENOMEM;
+
+	vic->config = of_device_get_match_data(dev);
 
 	syncpts = devm_kzalloc(dev, sizeof(*syncpts), GFP_KERNEL);
 	if (!syncpts)
@@ -317,7 +325,7 @@ static int vic_probe(struct platform_device *pdev)
 	if (err < 0)
 		return err;
 
-	err = falcon_read_firmware(&vic->falcon, vic_config->firmware);
+	err = falcon_read_firmware(&vic->falcon, vic->config->firmware);
 	if (err < 0)
 		goto exit_falcon;
 
@@ -330,7 +338,6 @@ static int vic_probe(struct platform_device *pdev)
 	vic->client.base.syncpts = syncpts;
 	vic->client.base.num_syncpts = 1;
 	vic->dev = dev;
-	vic->config = vic_config;
 
 	INIT_LIST_HEAD(&vic->client.list);
 	vic->client.ops = &vic_ops;
@@ -394,3 +401,13 @@ struct platform_driver tegra_vic_driver = {
 	.probe = vic_probe,
 	.remove = vic_remove,
 };
+
+#if IS_ENABLED(CONFIG_ARCH_TEGRA_124_SOC)
+MODULE_FIRMWARE(NVIDIA_TEGRA_124_VIC_FIRMWARE);
+#endif
+#if IS_ENABLED(CONFIG_ARCH_TEGRA_210_SOC)
+MODULE_FIRMWARE(NVIDIA_TEGRA_210_VIC_FIRMWARE);
+#endif
+#if IS_ENABLED(CONFIG_ARCH_TEGRA_186_SOC)
+MODULE_FIRMWARE(NVIDIA_TEGRA_186_VIC_FIRMWARE);
+#endif

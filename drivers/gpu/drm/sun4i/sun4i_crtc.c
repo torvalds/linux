@@ -30,6 +30,22 @@
 #include "sunxi_engine.h"
 #include "sun4i_tcon.h"
 
+/*
+ * While this isn't really working in the DRM theory, in practice we
+ * can only ever have one encoder per TCON since we have a mux in our
+ * TCON.
+ */
+static struct drm_encoder *sun4i_crtc_get_encoder(struct drm_crtc *crtc)
+{
+	struct drm_encoder *encoder;
+
+	drm_for_each_encoder(encoder, crtc->dev)
+		if (encoder->crtc == crtc)
+			return encoder;
+
+	return NULL;
+}
+
 static void sun4i_crtc_atomic_begin(struct drm_crtc *crtc,
 				    struct drm_crtc_state *old_state)
 {
@@ -69,13 +85,15 @@ static void sun4i_crtc_atomic_flush(struct drm_crtc *crtc,
 	}
 }
 
-static void sun4i_crtc_disable(struct drm_crtc *crtc)
+static void sun4i_crtc_atomic_disable(struct drm_crtc *crtc,
+				      struct drm_crtc_state *old_state)
 {
+	struct drm_encoder *encoder = sun4i_crtc_get_encoder(crtc);
 	struct sun4i_crtc *scrtc = drm_crtc_to_sun4i_crtc(crtc);
 
 	DRM_DEBUG_DRIVER("Disabling the CRTC\n");
 
-	sun4i_tcon_disable(scrtc->tcon);
+	sun4i_tcon_set_status(scrtc->tcon, encoder, false);
 
 	if (crtc->state->event && !crtc->state->active) {
 		spin_lock_irq(&crtc->dev->event_lock);
@@ -86,20 +104,32 @@ static void sun4i_crtc_disable(struct drm_crtc *crtc)
 	}
 }
 
-static void sun4i_crtc_enable(struct drm_crtc *crtc)
+static void sun4i_crtc_atomic_enable(struct drm_crtc *crtc,
+				     struct drm_crtc_state *old_state)
 {
+	struct drm_encoder *encoder = sun4i_crtc_get_encoder(crtc);
 	struct sun4i_crtc *scrtc = drm_crtc_to_sun4i_crtc(crtc);
 
 	DRM_DEBUG_DRIVER("Enabling the CRTC\n");
 
-	sun4i_tcon_enable(scrtc->tcon);
+	sun4i_tcon_set_status(scrtc->tcon, encoder, true);
+}
+
+static void sun4i_crtc_mode_set_nofb(struct drm_crtc *crtc)
+{
+	struct drm_display_mode *mode = &crtc->state->adjusted_mode;
+	struct drm_encoder *encoder = sun4i_crtc_get_encoder(crtc);
+	struct sun4i_crtc *scrtc = drm_crtc_to_sun4i_crtc(crtc);
+
+	sun4i_tcon_mode_set(scrtc->tcon, encoder, mode);
 }
 
 static const struct drm_crtc_helper_funcs sun4i_crtc_helper_funcs = {
 	.atomic_begin	= sun4i_crtc_atomic_begin,
 	.atomic_flush	= sun4i_crtc_atomic_flush,
-	.disable	= sun4i_crtc_disable,
-	.enable		= sun4i_crtc_enable,
+	.atomic_enable	= sun4i_crtc_atomic_enable,
+	.atomic_disable	= sun4i_crtc_atomic_disable,
+	.mode_set_nofb	= sun4i_crtc_mode_set_nofb,
 };
 
 static int sun4i_crtc_enable_vblank(struct drm_crtc *crtc)

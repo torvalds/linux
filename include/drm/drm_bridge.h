@@ -245,7 +245,7 @@ struct drm_bridge {
 	void *driver_private;
 };
 
-int drm_bridge_add(struct drm_bridge *bridge);
+void drm_bridge_add(struct drm_bridge *bridge);
 void drm_bridge_remove(struct drm_bridge *bridge);
 struct drm_bridge *of_drm_find_bridge(struct device_node *np);
 int drm_bridge_attach(struct drm_encoder *encoder, struct drm_bridge *bridge,
@@ -268,6 +268,9 @@ void drm_bridge_enable(struct drm_bridge *bridge);
 struct drm_bridge *drm_panel_bridge_add(struct drm_panel *panel,
 					u32 connector_type);
 void drm_panel_bridge_remove(struct drm_bridge *bridge);
+struct drm_bridge *devm_drm_panel_bridge_add(struct device *dev,
+					     struct drm_panel *panel,
+					     u32 connector_type);
 #endif
 
 #endif

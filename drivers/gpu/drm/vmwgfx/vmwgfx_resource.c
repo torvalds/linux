@@ -446,7 +446,7 @@ int vmw_user_dmabuf_alloc(struct vmw_private *dev_priv,
 	int ret;
 
 	user_bo = kzalloc(sizeof(*user_bo), GFP_KERNEL);
-	if (unlikely(user_bo == NULL)) {
+	if (unlikely(!user_bo)) {
 		DRM_ERROR("Failed to allocate a buffer.\n");
 		return -ENOMEM;
 	}
@@ -836,7 +836,7 @@ static int vmw_resource_buf_alloc(struct vmw_resource *res,
 	}
 
 	backup = kzalloc(sizeof(*backup), GFP_KERNEL);
-	if (unlikely(backup == NULL))
+	if (unlikely(!backup))
 		return -ENOMEM;
 
 	ret = vmw_dmabuf_init(res->dev_priv, backup, res->backup_size,

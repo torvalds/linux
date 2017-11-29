@@ -14,6 +14,8 @@
 #include <scsi/scsi_tcq.h>
 #include <scsi/scsi_bsg_fc.h>
 #include <scsi/scsi_eh.h>
+#include <scsi/fc/fc_fs.h>
+#include <linux/nvme-fc-driver.h>
 
 static void qla2x00_mbx_completion(scsi_qla_host_t *, uint16_t);
 static void qla2x00_status_entry(scsi_qla_host_t *, struct rsp_que *, void *);
@@ -452,7 +454,7 @@ qla83xx_handle_8200_aen(scsi_qla_host_t *vha, uint16_t *mb)
 			uint16_t peg_fw_state, nw_interface_link_up;
 			uint16_t nw_interface_signal_detect, sfp_status;
 			uint16_t htbt_counter, htbt_monitor_enable;
-			uint16_t sfp_additonal_info, sfp_multirate;
+			uint16_t sfp_additional_info, sfp_multirate;
 			uint16_t sfp_tx_fault, link_speed, dcbx_status;
 
 			/*
@@ -492,7 +494,7 @@ qla83xx_handle_8200_aen(scsi_qla_host_t *vha, uint16_t *mb)
 			sfp_status = ((mb[2] & 0x0c00) >> 10);
 			htbt_counter = ((mb[2] & 0x7000) >> 12);
 			htbt_monitor_enable = ((mb[2] & 0x8000) >> 15);
-			sfp_additonal_info = (mb[6] & 0x0003);
+			sfp_additional_info = (mb[6] & 0x0003);
 			sfp_multirate = ((mb[6] & 0x0004) >> 2);
 			sfp_tx_fault = ((mb[6] & 0x0008) >> 3);
 			link_speed = ((mb[6] & 0x0070) >> 4);
@@ -507,9 +509,9 @@ qla83xx_handle_8200_aen(scsi_qla_host_t *vha, uint16_t *mb)
 			    sfp_status);
 			ql_log(ql_log_warn, vha, 0x5067,
 			    "htbt_counter=0x%x, htbt_monitor_enable=0x%x, "
-			    "sfp_additonal_info=0x%x, sfp_multirate=0x%x.\n ",
+			    "sfp_additional_info=0x%x, sfp_multirate=0x%x.\n ",
 			    htbt_counter, htbt_monitor_enable,
-			    sfp_additonal_info, sfp_multirate);
+			    sfp_additional_info, sfp_multirate);
 			ql_log(ql_log_warn, vha, 0x5068,
 			    "sfp_tx_fault=0x%x, link_state=0x%x, "
 			    "dcbx_status=0x%x.\n", sfp_tx_fault, link_speed,
@@ -799,6 +801,11 @@ skip_rio:
 
 		vha->flags.management_server_logged_in = 0;
 		qla2x00_post_aen_work(vha, FCH_EVT_LINKUP, ha->link_data_rate);
+
+		if (AUTO_DETECT_SFP_SUPPORT(vha)) {
+			set_bit(DETECT_SFP_CHANGE, &vha->dpc_flags);
+			qla2xxx_wake_dpc(vha);
+		}
 		break;
 
 	case MBA_LOOP_DOWN:		/* Loop Down Event */
@@ -1034,6 +1041,7 @@ global_port_update:
 		 */
 		atomic_set(&vha->loop_down_timer, 0);
 		if (atomic_read(&vha->loop_state) != LOOP_DOWN &&
+			!ha->flags.n2n_ae  &&
 		    atomic_read(&vha->loop_state) != LOOP_DEAD) {
 			ql_dbg(ql_dbg_async, vha, 0x5011,
 			    "Asynchronous PORT UPDATE ignored %04x/%04x/%04x.\n",
@@ -1226,6 +1234,11 @@ global_port_update:
 		    "TEMPERATURE ALERT: %04x %04x %04x\n", mb[1], mb[2], mb[3]);
 		if (mb[1] == 0x12)
 			schedule_work(&ha->board_disable);
+		break;
+
+	case MBA_TRANS_INSERT:
+		ql_dbg(ql_dbg_async, vha, 0x5091,
+		    "Transceiver Insertion: %04x\n", mb[1]);
 		break;
 
 	default:
@@ -1531,14 +1544,12 @@ qla24xx_els_ct_entry(scsi_qla_host_t *vha, struct req_que *req,
 	struct fc_bsg_reply *bsg_reply;
 	uint16_t comp_status;
 	uint32_t fw_status[3];
-	uint8_t* fw_sts_ptr;
 	int res;
+	struct srb_iocb *els;
 
 	sp = qla2x00_get_sp_from_handle(vha, func, req, pkt);
 	if (!sp)
 		return;
-	bsg_job = sp->u.bsg_job;
-	bsg_reply = bsg_job->reply;
 
 	type = NULL;
 	switch (sp->type) {
@@ -1551,10 +1562,14 @@ qla24xx_els_ct_entry(scsi_qla_host_t *vha, struct req_que *req,
 		break;
 	case SRB_ELS_DCMD:
 		type = "Driver ELS logo";
-		ql_dbg(ql_dbg_user, vha, 0x5047,
-		    "Completing %s: (%p) type=%d.\n", type, sp, sp->type);
-		sp->done(sp, 0);
-		return;
+		if (iocb_type != ELS_IOCB_TYPE) {
+			ql_dbg(ql_dbg_user, vha, 0x5047,
+			    "Completing %s: (%p) type=%d.\n",
+			    type, sp, sp->type);
+			sp->done(sp, 0);
+			return;
+		}
+		break;
 	case SRB_CT_PTHRU_CMD:
 		/* borrowing sts_entry_24xx.comp_status.
 		   same location as ct_entry_24xx.comp_status
@@ -1574,9 +1589,38 @@ qla24xx_els_ct_entry(scsi_qla_host_t *vha, struct req_que *req,
 	fw_status[1] = le16_to_cpu(((struct els_sts_entry_24xx*)pkt)->error_subcode_1);
 	fw_status[2] = le16_to_cpu(((struct els_sts_entry_24xx*)pkt)->error_subcode_2);
 
+	if (iocb_type == ELS_IOCB_TYPE) {
+		els = &sp->u.iocb_cmd;
+		els->u.els_plogi.fw_status[0] = fw_status[0];
+		els->u.els_plogi.fw_status[1] = fw_status[1];
+		els->u.els_plogi.fw_status[2] = fw_status[2];
+		els->u.els_plogi.comp_status = fw_status[0];
+		if (comp_status == CS_COMPLETE) {
+			res =  DID_OK << 16;
+		} else {
+			if (comp_status == CS_DATA_UNDERRUN) {
+				res =  DID_OK << 16;
+				els->u.els_plogi.len =
+				le16_to_cpu(((struct els_sts_entry_24xx *)
+					pkt)->total_byte_count);
+			} else {
+				els->u.els_plogi.len = 0;
+				res = DID_ERROR << 16;
+			}
+		}
+		ql_log(ql_log_info, vha, 0x503f,
+		    "ELS IOCB Done -%s error hdl=%x comp_status=0x%x error subcode 1=0x%x error subcode 2=0x%x total_byte=0x%x\n",
+		    type, sp->handle, comp_status, fw_status[1], fw_status[2],
+		    le16_to_cpu(((struct els_sts_entry_24xx *)
+			pkt)->total_byte_count));
+		goto els_ct_done;
+	}
+
 	/* return FC_CTELS_STATUS_OK and leave the decoding of the ELS/CT
 	 * fc payload  to the caller
 	 */
+	bsg_job = sp->u.bsg_job;
+	bsg_reply = bsg_job->reply;
 	bsg_reply->reply_data.ctels_reply.status = FC_CTELS_STATUS_OK;
 	bsg_job->reply_len = sizeof(struct fc_bsg_reply) + sizeof(fw_status);
 
@@ -1592,11 +1636,7 @@ qla24xx_els_ct_entry(scsi_qla_host_t *vha, struct req_que *req,
 			    type, sp->handle, comp_status, fw_status[1], fw_status[2],
 			    le16_to_cpu(((struct els_sts_entry_24xx *)
 				pkt)->total_byte_count));
-			fw_sts_ptr = ((uint8_t*)scsi_req(bsg_job->req)->sense) +
-				sizeof(struct fc_bsg_reply);
-			memcpy( fw_sts_ptr, fw_status, sizeof(fw_status));
-		}
-		else {
+		} else {
 			ql_dbg(ql_dbg_user, vha, 0x5040,
 			    "ELS-CT pass-through-%s error hdl=%x comp_status-status=0x%x "
 			    "error subcode 1=0x%x error subcode 2=0x%x.\n",
@@ -1607,10 +1647,9 @@ qla24xx_els_ct_entry(scsi_qla_host_t *vha, struct req_que *req,
 				    pkt)->error_subcode_2));
 			res = DID_ERROR << 16;
 			bsg_reply->reply_payload_rcv_len = 0;
-			fw_sts_ptr = ((uint8_t*)scsi_req(bsg_job->req)->sense) +
-					sizeof(struct fc_bsg_reply);
-			memcpy( fw_sts_ptr, fw_status, sizeof(fw_status));
 		}
+		memcpy(bsg_job->reply + sizeof(struct fc_bsg_reply),
+		       fw_status, sizeof(fw_status));
 		ql_dump_buffer(ql_dbg_user + ql_dbg_buffer, vha, 0x5056,
 				(uint8_t *)pkt, sizeof(*pkt));
 	}
@@ -1619,6 +1658,7 @@ qla24xx_els_ct_entry(scsi_qla_host_t *vha, struct req_que *req,
 		bsg_reply->reply_payload_rcv_len = bsg_job->reply_payload.payload_len;
 		bsg_job->reply_len = 0;
 	}
+els_ct_done:
 
 	sp->done(sp, res);
 }
@@ -1823,7 +1863,7 @@ qla24xx_nvme_iocb_entry(scsi_qla_host_t *vha, struct req_que *req, void *tsk)
 	nvme = &sp->u.iocb_cmd;
 
 	if (unlikely(nvme->u.nvme.aen_op))
-		atomic_dec(&sp->vha->nvme_active_aen_cnt);
+		atomic_dec(&sp->vha->hw->nvme_active_aen_cnt);
 
 	/*
 	 * State flags: Bit 6 and 0.
@@ -1856,17 +1896,42 @@ qla24xx_nvme_iocb_entry(scsi_qla_host_t *vha, struct req_que *req, void *tsk)
 	fd->transferred_length = fd->payload_length -
 	    le32_to_cpu(sts->residual_len);
 
+	/*
+	 * If transport error then Failure (HBA rejects request)
+	 * otherwise transport will handle.
+	 */
 	if (sts->entry_status) {
 		ql_log(ql_log_warn, fcport->vha, 0x5038,
 		    "NVME-%s error - hdl=%x entry-status(%x).\n",
 		    sp->name, sp->handle, sts->entry_status);
 		ret = QLA_FUNCTION_FAILED;
-	} else if (sts->comp_status != cpu_to_le16(CS_COMPLETE)) {
-		ql_log(ql_log_warn, fcport->vha, 0x5039,
-		    "NVME-%s error - hdl=%x completion status(%x) resid=%x  ox_id=%x\n",
-		    sp->name, sp->handle, sts->comp_status,
-		    le32_to_cpu(sts->residual_len), sts->ox_id);
-		ret = QLA_FUNCTION_FAILED;
+	} else  {
+		switch (le16_to_cpu(sts->comp_status)) {
+			case CS_COMPLETE:
+				ret = 0;
+			break;
+
+			case CS_ABORTED:
+			case CS_RESET:
+			case CS_PORT_UNAVAILABLE:
+			case CS_PORT_LOGGED_OUT:
+			case CS_PORT_BUSY:
+				ql_log(ql_log_warn, fcport->vha, 0x5060,
+				"NVME-%s ERR Handling - hdl=%x completion status(%x) resid=%x  ox_id=%x\n",
+				sp->name, sp->handle, sts->comp_status,
+				le32_to_cpu(sts->residual_len), sts->ox_id);
+				fd->transferred_length = fd->payload_length;
+				ret = QLA_ABORTED;
+			break;
+
+			default:
+				ql_log(ql_log_warn, fcport->vha, 0x5060,
+				"NVME-%s error - hdl=%x completion status(%x) resid=%x  ox_id=%x\n",
+				sp->name, sp->handle, sts->comp_status,
+				le32_to_cpu(sts->residual_len), sts->ox_id);
+				ret = QLA_FUNCTION_FAILED;
+				break;
+		}
 	}
 	sp->done(sp, ret);
 }
@@ -2827,8 +2892,8 @@ qla24xx_abort_iocb_entry(scsi_qla_host_t *vha, struct req_que *req,
 	sp->done(sp, 0);
 }
 
-void qla24xx_nvme_ls4_iocb(scsi_qla_host_t *vha, struct pt_ls4_request *pkt,
-    struct req_que *req)
+void qla24xx_nvme_ls4_iocb(struct scsi_qla_host *vha,
+    struct pt_ls4_request *pkt, struct req_que *req)
 {
 	srb_t *sp;
 	const char func[] = "LS4_IOCB";
@@ -3092,6 +3157,7 @@ qla24xx_intr_handler(int irq, void *dev_id)
 		case INTR_RSP_QUE_UPDATE_83XX:
 			qla24xx_process_response_queue(vha, rsp);
 			break;
+		case INTR_ATIO_QUE_UPDATE_27XX:
 		case INTR_ATIO_QUE_UPDATE:{
 			unsigned long flags2;
 			spin_lock_irqsave(&ha->tgt.atio_lock, flags2);
@@ -3132,7 +3198,6 @@ qla24xx_msix_rsp_q(int irq, void *dev_id)
 	struct device_reg_24xx __iomem *reg;
 	struct scsi_qla_host *vha;
 	unsigned long flags;
-	uint32_t stat = 0;
 
 	rsp = (struct rsp_que *) dev_id;
 	if (!rsp) {
@@ -3146,19 +3211,11 @@ qla24xx_msix_rsp_q(int irq, void *dev_id)
 	spin_lock_irqsave(&ha->hardware_lock, flags);
 
 	vha = pci_get_drvdata(ha->pdev);
-	/*
-	 * Use host_status register to check to PCI disconnection before we
-	 * we process the response queue.
-	 */
-	stat = RD_REG_DWORD(&reg->host_status);
-	if (qla2x00_check_reg32_for_disconnect(vha, stat))
-		goto out;
 	qla24xx_process_response_queue(vha, rsp);
 	if (!ha->flags.disable_msix_handshake) {
 		WRT_REG_DWORD(&reg->hccr, HCCRX_CLR_RISC_INT);
 		RD_REG_DWORD_RELAXED(&reg->hccr);
 	}
-out:
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
 
 	return IRQ_HANDLED;
@@ -3231,6 +3288,7 @@ qla24xx_msix_default(int irq, void *dev_id)
 		case INTR_RSP_QUE_UPDATE_83XX:
 			qla24xx_process_response_queue(vha, rsp);
 			break;
+		case INTR_ATIO_QUE_UPDATE_27XX:
 		case INTR_ATIO_QUE_UPDATE:{
 			unsigned long flags2;
 			spin_lock_irqsave(&ha->tgt.atio_lock, flags2);
@@ -3319,7 +3377,8 @@ qla24xx_enable_msix(struct qla_hw_data *ha, struct rsp_que *rsp)
 		.pre_vectors = QLA_BASE_VECTORS,
 	};
 
-	if (QLA_TGT_MODE_ENABLED() && IS_ATIO_MSIX_CAPABLE(ha)) {
+	if (QLA_TGT_MODE_ENABLED() && (ql2xenablemsix != 0) &&
+	    IS_ATIO_MSIX_CAPABLE(ha)) {
 		desc.pre_vectors++;
 		min_vecs++;
 	}
@@ -3346,7 +3405,7 @@ qla24xx_enable_msix(struct qla_hw_data *ha, struct rsp_que *rsp)
 		    ha->msix_count, ret);
 		ha->msix_count = ret;
 		/* Recalculate queue values */
-		if (ha->mqiobase && ql2xmqsupport) {
+		if (ha->mqiobase && (ql2xmqsupport || ql2xnvmeenable)) {
 			ha->max_req_queues = ha->msix_count - 1;
 
 			/* ATIOQ needs 1 vector. That's 1 less QPair */
@@ -3404,7 +3463,8 @@ qla24xx_enable_msix(struct qla_hw_data *ha, struct rsp_que *rsp)
 	 * If target mode is enable, also request the vector for the ATIO
 	 * queue.
 	 */
-	if (QLA_TGT_MODE_ENABLED() && IS_ATIO_MSIX_CAPABLE(ha)) {
+	if (QLA_TGT_MODE_ENABLED() && (ql2xenablemsix != 0) &&
+	    IS_ATIO_MSIX_CAPABLE(ha)) {
 		qentry = &ha->msix_entries[QLA_ATIO_VECTOR];
 		rsp->msix = qentry;
 		qentry->handle = rsp;
@@ -3429,7 +3489,7 @@ msix_register_fail:
 	}
 
 	/* Enable MSI-X vector for response queue update for queue 0 */
-	if (IS_QLA25XX(ha) || IS_QLA83XX(ha) || IS_QLA27XX(ha)) {
+	if (IS_QLA83XX(ha) || IS_QLA27XX(ha)) {
 		if (ha->msixbase && ha->mqiobase &&
 		    (ha->max_rsp_queues > 1 || ha->max_req_queues > 1 ||
 		     ql2xmqsupport))
@@ -3458,10 +3518,13 @@ qla2x00_request_irqs(struct qla_hw_data *ha, struct rsp_que *rsp)
 	scsi_qla_host_t *vha = pci_get_drvdata(ha->pdev);
 
 	/* If possible, enable MSI-X. */
-	if (!IS_QLA2432(ha) && !IS_QLA2532(ha) && !IS_QLA8432(ha) &&
-	    !IS_CNA_CAPABLE(ha) && !IS_QLA2031(ha) && !IS_QLAFX00(ha) &&
-	    !IS_QLA27XX(ha))
+	if (ql2xenablemsix == 0 || (!IS_QLA2432(ha) && !IS_QLA2532(ha) &&
+	    !IS_QLA8432(ha) && !IS_CNA_CAPABLE(ha) && !IS_QLA2031(ha) &&
+	    !IS_QLAFX00(ha) && !IS_QLA27XX(ha)))
 		goto skip_msi;
+
+	if (ql2xenablemsix == 2)
+		goto skip_msix;
 
 	if (ha->pdev->subsystem_vendor == PCI_VENDOR_ID_HP &&
 		(ha->pdev->subsystem_device == 0x7040 ||

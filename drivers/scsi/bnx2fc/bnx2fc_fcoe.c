@@ -823,7 +823,7 @@ static int bnx2fc_net_config(struct fc_lport *lport, struct net_device *netdev)
 
 	skb_queue_head_init(&port->fcoe_pending_queue);
 	port->fcoe_pending_queue_active = 0;
-	setup_timer(&port->timer, fcoe_queue_timer, (unsigned long) lport);
+	timer_setup(&port->timer, fcoe_queue_timer, 0);
 
 	fcoe_link_speed_update(lport);
 
@@ -845,9 +845,9 @@ static int bnx2fc_net_config(struct fc_lport *lport, struct net_device *netdev)
 	return 0;
 }
 
-static void bnx2fc_destroy_timer(unsigned long data)
+static void bnx2fc_destroy_timer(struct timer_list *t)
 {
-	struct bnx2fc_hba *hba = (struct bnx2fc_hba *)data;
+	struct bnx2fc_hba *hba = from_timer(hba, t, destroy_timer);
 
 	printk(KERN_ERR PFX "ERROR:bnx2fc_destroy_timer - "
 	       "Destroy compl not received!!\n");
@@ -1946,11 +1946,10 @@ static void bnx2fc_fw_destroy(struct bnx2fc_hba *hba)
 {
 	if (test_and_clear_bit(BNX2FC_FLAG_FW_INIT_DONE, &hba->flags)) {
 		if (bnx2fc_send_fw_fcoe_destroy_msg(hba) == 0) {
-			init_timer(&hba->destroy_timer);
+			timer_setup(&hba->destroy_timer, bnx2fc_destroy_timer,
+				    0);
 			hba->destroy_timer.expires = BNX2FC_FW_TIMEOUT +
 								jiffies;
-			hba->destroy_timer.function = bnx2fc_destroy_timer;
-			hba->destroy_timer.data = (unsigned long)hba;
 			add_timer(&hba->destroy_timer);
 			wait_event_interruptible(hba->destroy_wait,
 					test_bit(BNX2FC_FLAG_DESTROY_CMPL,
@@ -2624,12 +2623,11 @@ static struct fcoe_transport bnx2fc_transport = {
 };
 
 /**
- * bnx2fc_percpu_thread_create - Create a receive thread for an
- *				 online CPU
+ * bnx2fc_cpu_online - Create a receive thread for an  online CPU
  *
  * @cpu: cpu index for the online cpu
  */
-static void bnx2fc_percpu_thread_create(unsigned int cpu)
+static int bnx2fc_cpu_online(unsigned int cpu)
 {
 	struct bnx2fc_percpu_s *p;
 	struct task_struct *thread;
@@ -2639,15 +2637,17 @@ static void bnx2fc_percpu_thread_create(unsigned int cpu)
 	thread = kthread_create_on_node(bnx2fc_percpu_io_thread,
 					(void *)p, cpu_to_node(cpu),
 					"bnx2fc_thread/%d", cpu);
+	if (IS_ERR(thread))
+		return PTR_ERR(thread);
+
 	/* bind thread to the cpu */
-	if (likely(!IS_ERR(thread))) {
-		kthread_bind(thread, cpu);
-		p->iothread = thread;
-		wake_up_process(thread);
-	}
+	kthread_bind(thread, cpu);
+	p->iothread = thread;
+	wake_up_process(thread);
+	return 0;
 }
 
-static void bnx2fc_percpu_thread_destroy(unsigned int cpu)
+static int bnx2fc_cpu_offline(unsigned int cpu)
 {
 	struct bnx2fc_percpu_s *p;
 	struct task_struct *thread;
@@ -2661,7 +2661,6 @@ static void bnx2fc_percpu_thread_destroy(unsigned int cpu)
 	thread = p->iothread;
 	p->iothread = NULL;
 
-
 	/* Free all work in the list */
 	list_for_each_entry_safe(work, tmp, &p->work_list, list) {
 		list_del_init(&work->list);
@@ -2673,20 +2672,6 @@ static void bnx2fc_percpu_thread_destroy(unsigned int cpu)
 
 	if (thread)
 		kthread_stop(thread);
-}
-
-
-static int bnx2fc_cpu_online(unsigned int cpu)
-{
-	printk(PFX "CPU %x online: Create Rx thread\n", cpu);
-	bnx2fc_percpu_thread_create(cpu);
-	return 0;
-}
-
-static int bnx2fc_cpu_dead(unsigned int cpu)
-{
-	printk(PFX "CPU %x offline: Remove Rx thread\n", cpu);
-	bnx2fc_percpu_thread_destroy(cpu);
 	return 0;
 }
 
@@ -2761,30 +2746,16 @@ static int __init bnx2fc_mod_init(void)
 		spin_lock_init(&p->fp_work_lock);
 	}
 
-	get_online_cpus();
-
-	for_each_online_cpu(cpu)
-		bnx2fc_percpu_thread_create(cpu);
-
-	rc = cpuhp_setup_state_nocalls(CPUHP_AP_ONLINE_DYN,
-				       "scsi/bnx2fc:online",
-				       bnx2fc_cpu_online, NULL);
+	rc = cpuhp_setup_state(CPUHP_AP_ONLINE_DYN, "scsi/bnx2fc:online",
+			       bnx2fc_cpu_online, bnx2fc_cpu_offline);
 	if (rc < 0)
-		goto stop_threads;
+		goto stop_thread;
 	bnx2fc_online_state = rc;
 
-	cpuhp_setup_state_nocalls(CPUHP_SCSI_BNX2FC_DEAD, "scsi/bnx2fc:dead",
-				  NULL, bnx2fc_cpu_dead);
-	put_online_cpus();
-
 	cnic_register_driver(CNIC_ULP_FCOE, &bnx2fc_cnic_cb);
-
 	return 0;
 
-stop_threads:
-	for_each_online_cpu(cpu)
-		bnx2fc_percpu_thread_destroy(cpu);
-	put_online_cpus();
+stop_thread:
 	kthread_stop(l2_thread);
 free_wq:
 	destroy_workqueue(bnx2fc_wq);
@@ -2803,7 +2774,6 @@ static void __exit bnx2fc_mod_exit(void)
 	struct fcoe_percpu_s *bg;
 	struct task_struct *l2_thread;
 	struct sk_buff *skb;
-	unsigned int cpu = 0;
 
 	/*
 	 * NOTE: Since cnic calls register_driver routine rtnl_lock,
@@ -2844,16 +2814,7 @@ static void __exit bnx2fc_mod_exit(void)
 	if (l2_thread)
 		kthread_stop(l2_thread);
 
-	get_online_cpus();
-	/* Destroy per cpu threads */
-	for_each_online_cpu(cpu) {
-		bnx2fc_percpu_thread_destroy(cpu);
-	}
-
-	cpuhp_remove_state_nocalls(bnx2fc_online_state);
-	cpuhp_remove_state_nocalls(CPUHP_SCSI_BNX2FC_DEAD);
-
-	put_online_cpus();
+	cpuhp_remove_state(bnx2fc_online_state);
 
 	destroy_workqueue(bnx2fc_wq);
 	/*

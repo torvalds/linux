@@ -729,11 +729,9 @@ static void batadv_iv_ogm_aggregate(struct batadv_forw_packet *forw_packet_aggr,
 				    const unsigned char *packet_buff,
 				    int packet_len, bool direct_link)
 {
-	unsigned char *skb_buff;
 	unsigned long new_direct_link_flag;
 
-	skb_buff = skb_put_data(forw_packet_aggr->skb, packet_buff,
-				packet_len);
+	skb_put_data(forw_packet_aggr->skb, packet_buff, packet_len);
 	forw_packet_aggr->packet_len += packet_len;
 	forw_packet_aggr->num_packets++;
 
@@ -918,8 +916,8 @@ static void batadv_iv_ogm_schedule(struct batadv_hard_iface *hard_iface)
 	u16 tvlv_len = 0;
 	unsigned long send_time;
 
-	if ((hard_iface->if_status == BATADV_IF_NOT_IN_USE) ||
-	    (hard_iface->if_status == BATADV_IF_TO_BE_REMOVED))
+	if (hard_iface->if_status == BATADV_IF_NOT_IN_USE ||
+	    hard_iface->if_status == BATADV_IF_TO_BE_REMOVED)
 		return;
 
 	/* the interface gets activated here to avoid race conditions between
@@ -1266,7 +1264,7 @@ static bool batadv_iv_ogm_calc_tq(struct batadv_orig_node *orig_node,
 	 * drops as they can't send and receive at the same time.
 	 */
 	tq_iface_penalty = BATADV_TQ_MAX_VALUE;
-	if (if_outgoing && (if_incoming == if_outgoing) &&
+	if (if_outgoing && if_incoming == if_outgoing &&
 	    batadv_is_wifi_hardif(if_outgoing))
 		tq_iface_penalty = batadv_hop_penalty(BATADV_TQ_MAX_VALUE,
 						      bat_priv);
@@ -1281,7 +1279,7 @@ static bool batadv_iv_ogm_calc_tq(struct batadv_orig_node *orig_node,
 	batadv_ogm_packet->tq = combined_tq;
 
 	batadv_dbg(BATADV_DBG_BATMAN, bat_priv,
-		   "bidirectional: orig = %-15pM neigh = %-15pM => own_bcast = %2i, real recv = %2i, local tq: %3i, asym_penalty: %3i, iface_penalty: %3i, total tq: %3i, if_incoming = %s, if_outgoing = %s\n",
+		   "bidirectional: orig = %pM neigh = %pM => own_bcast = %2i, real recv = %2i, local tq: %3i, asym_penalty: %3i, iface_penalty: %3i, total tq: %3i, if_incoming = %s, if_outgoing = %s\n",
 		   orig_node->orig, orig_neigh_node->orig, total_count,
 		   neigh_rq_count, tq_own, tq_asym_penalty, tq_iface_penalty,
 		   batadv_ogm_packet->tq, if_incoming->net_dev->name,
@@ -1371,7 +1369,7 @@ batadv_iv_ogm_update_seqnos(const struct ethhdr *ethhdr,
 				ret = BATADV_NEIGH_DUP;
 		} else {
 			set_mark = 0;
-			if (is_dup && (ret != BATADV_NEIGH_DUP))
+			if (is_dup && ret != BATADV_NEIGH_DUP)
 				ret = BATADV_ORIG_DUP;
 		}
 
@@ -1517,7 +1515,7 @@ batadv_iv_ogm_process_per_outif(const struct sk_buff *skb, int ogm_offset,
 	/* drop packet if sender is not a direct neighbor and if we
 	 * don't route towards it
 	 */
-	if (!is_single_hop_neigh && (!orig_neigh_router)) {
+	if (!is_single_hop_neigh && !orig_neigh_router) {
 		batadv_dbg(BATADV_DBG_BATMAN, bat_priv,
 			   "Drop packet: OGM via unknown neighbor!\n");
 		goto out_neigh;
@@ -1537,7 +1535,7 @@ batadv_iv_ogm_process_per_outif(const struct sk_buff *skb, int ogm_offset,
 	sameseq = orig_ifinfo->last_real_seqno == ntohl(ogm_packet->seqno);
 	similar_ttl = (orig_ifinfo->last_ttl - 3) <= ogm_packet->ttl;
 
-	if (is_bidirect && ((dup_status == BATADV_NO_DUP) ||
+	if (is_bidirect && (dup_status == BATADV_NO_DUP ||
 			    (sameseq && similar_ttl))) {
 		batadv_iv_ogm_orig_update(bat_priv, orig_node,
 					  orig_ifinfo, ethhdr,
@@ -1555,8 +1553,8 @@ batadv_iv_ogm_process_per_outif(const struct sk_buff *skb, int ogm_offset,
 		/* OGMs from secondary interfaces should only scheduled once
 		 * per interface where it has been received, not multiple times
 		 */
-		if ((ogm_packet->ttl <= 2) &&
-		    (if_incoming != if_outgoing)) {
+		if (ogm_packet->ttl <= 2 &&
+		    if_incoming != if_outgoing) {
 			batadv_dbg(BATADV_DBG_BATMAN, bat_priv,
 				   "Drop packet: OGM from secondary interface and wrong outgoing interface\n");
 			goto out_neigh;
@@ -1592,7 +1590,7 @@ batadv_iv_ogm_process_per_outif(const struct sk_buff *skb, int ogm_offset,
 			      if_incoming, if_outgoing);
 
 out_neigh:
-	if ((orig_neigh_node) && (!is_single_hop_neigh))
+	if (orig_neigh_node && !is_single_hop_neigh)
 		batadv_orig_node_put(orig_neigh_node);
 out:
 	if (router_ifinfo)
@@ -2525,9 +2523,9 @@ batadv_iv_gw_get_best_gw_node(struct batadv_priv *bat_priv)
 			tmp_gw_factor *= 100 * 100;
 			tmp_gw_factor >>= 18;
 
-			if ((tmp_gw_factor > max_gw_factor) ||
-			    ((tmp_gw_factor == max_gw_factor) &&
-			     (tq_avg > max_tq))) {
+			if (tmp_gw_factor > max_gw_factor ||
+			    (tmp_gw_factor == max_gw_factor &&
+			     tq_avg > max_tq)) {
 				if (curr_gw)
 					batadv_gw_node_put(curr_gw);
 				curr_gw = gw_node;

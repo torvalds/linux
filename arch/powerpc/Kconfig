@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 source "arch/powerpc/platforms/Kconfig.cputype"
 
 config PPC32
@@ -85,6 +86,17 @@ config NMI_IPI
 	depends on SMP && (DEBUGGER || KEXEC_CORE || HARDLOCKUP_DETECTOR)
 	default y
 
+config PPC_WATCHDOG
+	bool
+	depends on HARDLOCKUP_DETECTOR
+	depends on HAVE_HARDLOCKUP_DETECTOR_ARCH
+	default y
+	help
+	  This is a placeholder when the powerpc hardlockup detector
+	  watchdog is selected (arch/powerpc/kernel/watchdog.c). It is
+	  seleted via the generic lockup detector menu which is why we
+	  have no standalone config option for it here.
+
 config STACKTRACE_SUPPORT
 	bool
 	default y
@@ -127,9 +139,11 @@ config PPC
 	select ARCH_HAS_ELF_RANDOMIZE
 	select ARCH_HAS_FORTIFY_SOURCE
 	select ARCH_HAS_GCOV_PROFILE_ALL
+	select ARCH_HAS_PMEM_API                if PPC64
 	select ARCH_HAS_SCALED_CPUTIME		if VIRT_CPU_ACCOUNTING_NATIVE
 	select ARCH_HAS_SG_CHAIN
 	select ARCH_HAS_TICK_BROADCAST		if GENERIC_CLOCKEVENTS_BROADCAST
+	select ARCH_HAS_UACCESS_FLUSHCACHE	if PPC64
 	select ARCH_HAS_UBSAN_SANITIZE_ALL
 	select ARCH_HAS_ZONE_DEVICE		if PPC_BOOK3S_64
 	select ARCH_HAVE_NMI_SAFE_CMPXCHG
@@ -165,7 +179,7 @@ config PPC
 	select HAVE_ARCH_MMAP_RND_COMPAT_BITS	if COMPAT
 	select HAVE_ARCH_SECCOMP_FILTER
 	select HAVE_ARCH_TRACEHOOK
-	select ARCH_HAS_STRICT_KERNEL_RWX	if (PPC_BOOK3S_64 && !RELOCATABLE && !HIBERNATION)
+	select ARCH_HAS_STRICT_KERNEL_RWX	if ((PPC_BOOK3S_64 || PPC32) && !RELOCATABLE && !HIBERNATION)
 	select ARCH_OPTIONAL_KERNEL_RWX		if ARCH_HAS_STRICT_KERNEL_RWX
 	select HAVE_CBPF_JIT			if !PPC64
 	select HAVE_CONTEXT_TRACKING		if PPC64
@@ -199,7 +213,7 @@ config PPC
 	select HAVE_OPTPROBES			if PPC64
 	select HAVE_PERF_EVENTS
 	select HAVE_PERF_EVENTS_NMI		if PPC64
-	select HAVE_HARDLOCKUP_DETECTOR_PERF	if HAVE_PERF_EVENTS_NMI && !HAVE_HARDLOCKUP_DETECTOR_ARCH
+	select HAVE_HARDLOCKUP_DETECTOR_PERF	if PERF_EVENTS && HAVE_PERF_EVENTS_NMI && !HAVE_HARDLOCKUP_DETECTOR_ARCH
 	select HAVE_PERF_REGS
 	select HAVE_PERF_USER_STACK_DUMP
 	select HAVE_RCU_TABLE_FREE		if SMP
@@ -323,7 +337,7 @@ config PPC_OF_PLATFORM_PCI
 	default n
 
 config ARCH_SUPPORTS_DEBUG_PAGEALLOC
-	depends on PPC32 || PPC_STD_MMU_64
+	depends on PPC32 || PPC_BOOK3S_64
 	def_bool y
 
 config ARCH_SUPPORTS_UPROBES
@@ -355,10 +369,6 @@ config PPC_ADV_DEBUG_DAC_RANGE
 	bool
 	depends on PPC_ADV_DEBUG_REGS && 44x
 	default y
-
-config PPC_EMULATE_SSTEP
-	bool
-	default y if KPROBES || UPROBES || XMON || HAVE_HW_BREAKPOINT
 
 config ZONE_DMA32
 	bool
@@ -394,7 +404,7 @@ config HUGETLB_PAGE_SIZE_VARIABLE
 
 config MATH_EMULATION
 	bool "Math emulation"
-	depends on 4xx || 8xx || PPC_MPC832x || BOOKE
+	depends on 4xx || PPC_8xx || PPC_MPC832x || BOOKE
 	---help---
 	  Some PowerPC chips designed for embedded applications do not have
 	  a floating-point unit and therefore do not implement the
@@ -714,7 +724,7 @@ config PPC_16K_PAGES
 
 config PPC_64K_PAGES
 	bool "64k page size"
-	depends on !PPC_FSL_BOOK3E && (44x || PPC_STD_MMU_64 || PPC_BOOK3E_64)
+	depends on !PPC_FSL_BOOK3E && (44x || PPC_BOOK3S_64 || PPC_BOOK3E_64)
 	select HAVE_ARCH_SOFT_DIRTY if PPC_BOOK3S_64
 
 config PPC_256K_PAGES
@@ -773,7 +783,7 @@ config FORCE_MAX_ZONEORDER
 
 config PPC_SUBPAGE_PROT
 	bool "Support setting protections for 4k subpages"
-	depends on PPC_STD_MMU_64 && PPC_64K_PAGES
+	depends on PPC_BOOK3S_64 && PPC_64K_PAGES
 	help
 	  This option adds support for a system call to allow user programs
 	  to set access permissions (read/write, readonly, or no access)
@@ -956,9 +966,9 @@ config PPC_PCI_CHOICE
 
 config PCI
 	bool "PCI support" if PPC_PCI_CHOICE
-	default y if !40x && !CPM2 && !8xx && !PPC_83xx \
+	default y if !40x && !CPM2 && !PPC_8xx && !PPC_83xx \
 		&& !PPC_85xx && !PPC_86xx && !GAMECUBE_COMMON
-	default PCI_QSPAN if !4xx && !CPM2 && 8xx
+	default PCI_QSPAN if PPC_8xx
 	select GENERIC_PCI_IOMAP
 	help
 	  Find out whether your system includes a PCI bus. PCI is the name of
@@ -974,7 +984,7 @@ config PCI_SYSCALL
 
 config PCI_QSPAN
 	bool "QSpan PCI"
-	depends on !4xx && !CPM2 && 8xx
+	depends on PPC_8xx
 	select PPC_I8259
 	help
 	  Say Y here if you have a system based on a Motorola 8xx-series
@@ -1165,10 +1175,21 @@ config CONSISTENT_SIZE
 
 config PIN_TLB
 	bool "Pinned Kernel TLBs (860 ONLY)"
-	depends on ADVANCED_OPTIONS && 8xx
+	depends on ADVANCED_OPTIONS && PPC_8xx && \
+		   !DEBUG_PAGEALLOC && !STRICT_KERNEL_RWX
+
+config PIN_TLB_DATA
+	bool "Pinned TLB for DATA"
+	depends on PIN_TLB
+	default y
 
 config PIN_TLB_IMMR
 	bool "Pinned TLB for IMMR"
+	depends on PIN_TLB
+	default y
+
+config PIN_TLB_TEXT
+	bool "Pinned TLB for TEXT"
 	depends on PIN_TLB
 	default y
 endmenu

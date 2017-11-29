@@ -101,7 +101,6 @@ struct venus_core {
 	struct device *dev;
 	struct device *dev_dec;
 	struct device *dev_enc;
-	struct device dev_fw;
 	struct mutex lock;
 	struct list_head instances;
 	atomic_t insts_count;
@@ -195,7 +194,6 @@ struct venus_buffer {
  * @fh:	 a holder of v4l file handle structure
  * @streamon_cap: stream on flag for capture queue
  * @streamon_out: stream on flag for output queue
- * @cmd_stop:	a flag to signal encoder/decoder commands
  * @width:	current capture width
  * @height:	current capture height
  * @out_width:	current output width
@@ -259,7 +257,6 @@ struct venus_inst {
 	} controls;
 	struct v4l2_fh fh;
 	unsigned int streamon_cap, streamon_out;
-	bool cmd_stop;
 	u32 width;
 	u32 height;
 	u32 out_width;

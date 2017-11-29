@@ -1,19 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * mtu3.h - MediaTek USB3 DRD header
  *
  * Copyright (C) 2016 MediaTek Inc.
  *
  * Author: Chunfeng Yun <chunfeng.yun@mediatek.com>
- *
- * This software is licensed under the terms of the GNU General Public
- * License version 2, as published by the Free Software Foundation, and
- * may be copied, distributed, and modified under those terms.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  */
 
 #ifndef __MTU3_H__
@@ -45,6 +36,9 @@ struct mtu3_request;
 #define	MU3D_EP_RXCR0(epnum)	(U3D_RX1CSR0 + (((epnum) - 1) * 0x10))
 #define	MU3D_EP_RXCR1(epnum)	(U3D_RX1CSR1 + (((epnum) - 1) * 0x10))
 #define	MU3D_EP_RXCR2(epnum)	(U3D_RX1CSR2 + (((epnum) - 1) * 0x10))
+
+#define USB_QMU_TQHIAR(epnum)	(U3D_TXQHIAR1 + (((epnum) - 1) * 0x4))
+#define USB_QMU_RQHIAR(epnum)	(U3D_RXQHIAR1 + (((epnum) - 1) * 0x4))
 
 #define USB_QMU_RQCSR(epnum)	(U3D_RXQCSR1 + (((epnum) - 1) * 0x10))
 #define USB_QMU_RQSAR(epnum)	(U3D_RXQSAR1 + (((epnum) - 1) * 0x10))
@@ -91,6 +85,7 @@ enum mtu3_speed {
 	MTU3_SPEED_FULL = 1,
 	MTU3_SPEED_HIGH = 3,
 	MTU3_SPEED_SUPER = 4,
+	MTU3_SPEED_SUPER_PLUS = 5,
 };
 
 /**
@@ -109,6 +104,19 @@ enum mtu3_g_ep0_state {
 	MU3D_EP0_STATE_RX,
 	MU3D_EP0_STATE_TX_END,
 	MU3D_EP0_STATE_STALL,
+};
+
+/**
+ * MTU3_DR_FORCE_NONE: automatically switch host and periperal mode
+ *		by IDPIN signal.
+ * MTU3_DR_FORCE_HOST: force to enter host mode and override OTG
+ *		IDPIN signal.
+ * MTU3_DR_FORCE_DEVICE: force to enter peripheral mode.
+ */
+enum mtu3_dr_force_mode {
+	MTU3_DR_FORCE_NONE = 0,
+	MTU3_DR_FORCE_HOST,
+	MTU3_DR_FORCE_DEVICE,
 };
 
 /**
@@ -138,23 +146,33 @@ struct mtu3_fifo_info {
  *	Checksum value is calculated over the 16 bytes of the GPD by default;
  * @data_buf_len (RX ONLY): This value indicates the length of
  *	the assigned data buffer
+ * @tx_ext_addr (TX ONLY): [3:0] are 4 extension bits of @buffer,
+ *	[7:4] are 4 extension bits of @next_gpd
  * @next_gpd: Physical address of the next GPD
  * @buffer: Physical address of the data buffer
  * @buf_len:
  *	(TX): This value indicates the length of the assigned data buffer
  *	(RX): The total length of data received
  * @ext_len: reserved
+ * @rx_ext_addr(RX ONLY): [3:0] are 4 extension bits of @buffer,
+ *	[7:4] are 4 extension bits of @next_gpd
  * @ext_flag:
  *	bit5 (TX ONLY): Zero Length Packet (ZLP),
  */
 struct qmu_gpd {
 	__u8 flag;
 	__u8 chksum;
-	__le16 data_buf_len;
+	union {
+		__le16 data_buf_len;
+		__le16 tx_ext_addr;
+	};
 	__le32 next_gpd;
 	__le32 buffer;
 	__le16 buf_len;
-	__u8 ext_len;
+	union {
+		__u8 ext_len;
+		__u8 rx_ext_addr;
+	};
 	__u8 ext_flag;
 } __packed;
 
@@ -183,7 +201,6 @@ struct mtu3_gpd_ring {
 *		xHCI driver initialization, it's necessary for system bootup
 *		as device.
 * @is_u3_drd: whether port0 supports usb3.0 dual-role device or not
-* @id_*: used to maually switch between host and device modes by idpin
 * @manual_drd_enabled: it's true when supports dual-role device by debugfs
 *		to switch host/device modes depending on user input.
 */
@@ -194,10 +211,6 @@ struct otg_switch_mtk {
 	struct notifier_block id_nb;
 	struct delayed_work extcon_reg_dwork;
 	bool is_u3_drd;
-	/* dual-role switch by debugfs */
-	struct pinctrl *id_pinctrl;
-	struct pinctrl_state *id_float;
-	struct pinctrl_state *id_ground;
 	bool manual_drd_enabled;
 };
 
@@ -206,14 +219,17 @@ struct otg_switch_mtk {
  * @ippc_base: register base address of IP Power and Clock interface (IPPC)
  * @vusb33: usb3.3V shared by device/host IP
  * @sys_clk: system clock of mtu3, shared by device/host IP
+ * @ref_clk: reference clock
+ * @mcu_clk: mcu_bus_ck clock for AHB bus etc
+ * @dma_clk: dma_bus_ck clock for AXI bus etc
  * @dr_mode: works in which mode:
  *		host only, device only or dual-role mode
  * @u2_ports: number of usb2.0 host ports
  * @u3_ports: number of usb3.0 host ports
+ * @u3p_dis_msk: mask of disabling usb3 ports, for example, bit0==1 to
+ *		disable u3port0, bit1==1 to disable u3port1,... etc
  * @dbgfs_root: only used when supports manual dual-role switch via debugfs
  * @wakeup_en: it's true when supports remote wakeup in host mode
- * @wk_deb_p0: port0's wakeup debounce clock
- * @wk_deb_p1: it's optional, and depends on port1 is supported or not
  */
 struct ssusb_mtk {
 	struct device *dev;
@@ -226,17 +242,18 @@ struct ssusb_mtk {
 	struct regulator *vusb33;
 	struct clk *sys_clk;
 	struct clk *ref_clk;
+	struct clk *mcu_clk;
+	struct clk *dma_clk;
 	/* otg */
 	struct otg_switch_mtk otg_switch;
 	enum usb_dr_mode dr_mode;
 	bool is_host;
 	int u2_ports;
 	int u3_ports;
+	int u3p_dis_msk;
 	struct dentry *dbgfs_root;
 	/* usb wakeup for host mode */
 	bool wakeup_en;
-	struct clk *wk_deb_p0;
-	struct clk *wk_deb_p1;
 	struct regmap *pericfg;
 };
 
@@ -288,6 +305,7 @@ static inline struct ssusb_mtk *dev_to_ssusb(struct device *dev)
  *		MTU3_U3_IP_SLOT_DEFAULT for U3 IP
  * @may_wakeup: means device's remote wakeup is enabled
  * @is_self_powered: is reported in device status and the config descriptor
+ * @delayed_status: true when function drivers ask for delayed status
  * @ep0_req: dummy request used while handling standard USB requests
  *		for GET_STATUS and SET_SEL
  * @setup_buf: ep0 response buffer for GET_STATUS and SET_SEL requests
@@ -327,6 +345,7 @@ struct mtu3 {
 	unsigned u1_enable:1;
 	unsigned u2_enable:1;
 	unsigned is_u3_ip:1;
+	unsigned delayed_status:1;
 
 	u8 address;
 	u8 test_mode_nr;

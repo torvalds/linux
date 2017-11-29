@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Thunderbolt Cactus Ridge driver - switch/port utility functions
  *
@@ -30,7 +31,7 @@ static DEFINE_IDA(nvm_ida);
 
 struct nvm_auth_status {
 	struct list_head list;
-	uuid_be uuid;
+	uuid_t uuid;
 	u32 status;
 };
 
@@ -47,7 +48,7 @@ static struct nvm_auth_status *__nvm_get_auth_status(const struct tb_switch *sw)
 	struct nvm_auth_status *st;
 
 	list_for_each_entry(st, &nvm_auth_status_cache, list) {
-		if (!uuid_be_cmp(st->uuid, *sw->uuid))
+		if (uuid_equal(&st->uuid, sw->uuid))
 			return st;
 	}
 
@@ -171,11 +172,11 @@ static int nvm_authenticate_host(struct tb_switch *sw)
 
 	/*
 	 * Root switch NVM upgrade requires that we disconnect the
-	 * existing PCIe paths first (in case it is not in safe mode
+	 * existing paths first (in case it is not in safe mode
 	 * already).
 	 */
 	if (!sw->safe_mode) {
-		ret = tb_domain_disconnect_pcie_paths(sw->tb);
+		ret = tb_domain_disconnect_all_paths(sw->tb);
 		if (ret)
 			return ret;
 		/*
@@ -807,11 +808,11 @@ static ssize_t key_store(struct device *dev, struct device_attribute *attr,
 	struct tb_switch *sw = tb_to_switch(dev);
 	u8 key[TB_SWITCH_KEY_SIZE];
 	ssize_t ret = count;
+	bool clear = false;
 
-	if (count < 64)
-		return -EINVAL;
-
-	if (hex2bin(key, buf, sizeof(key)))
+	if (!strcmp(buf, "\n"))
+		clear = true;
+	else if (hex2bin(key, buf, sizeof(key)))
 		return -EINVAL;
 
 	if (mutex_lock_interruptible(&switch_lock))
@@ -821,15 +822,19 @@ static ssize_t key_store(struct device *dev, struct device_attribute *attr,
 		ret = -EBUSY;
 	} else {
 		kfree(sw->key);
-		sw->key = kmemdup(key, sizeof(key), GFP_KERNEL);
-		if (!sw->key)
-			ret = -ENOMEM;
+		if (clear) {
+			sw->key = NULL;
+		} else {
+			sw->key = kmemdup(key, sizeof(key), GFP_KERNEL);
+			if (!sw->key)
+				ret = -ENOMEM;
+		}
 	}
 
 	mutex_unlock(&switch_lock);
 	return ret;
 }
-static DEVICE_ATTR_RW(key);
+static DEVICE_ATTR(key, 0600, key_show, key_store);
 
 static ssize_t nvm_authenticate_show(struct device *dev,
 	struct device_attribute *attr, char *buf)
@@ -1359,6 +1364,9 @@ void tb_switch_remove(struct tb_switch *sw)
 		if (sw->ports[i].remote)
 			tb_switch_remove(sw->ports[i].remote->sw);
 		sw->ports[i].remote = NULL;
+		if (sw->ports[i].xdomain)
+			tb_xdomain_remove(sw->ports[i].xdomain);
+		sw->ports[i].xdomain = NULL;
 	}
 
 	if (!sw->is_unplugged)
@@ -1461,7 +1469,7 @@ struct tb_sw_lookup {
 	struct tb *tb;
 	u8 link;
 	u8 depth;
-	const uuid_be *uuid;
+	const uuid_t *uuid;
 };
 
 static int tb_switch_match(struct device *dev, void *data)
@@ -1518,7 +1526,7 @@ struct tb_switch *tb_switch_find_by_link_depth(struct tb *tb, u8 link, u8 depth)
  * Returned switch has reference count increased so the caller needs to
  * call tb_switch_put() when done with the switch.
  */
-struct tb_switch *tb_switch_find_by_uuid(struct tb *tb, const uuid_be *uuid)
+struct tb_switch *tb_switch_find_by_uuid(struct tb *tb, const uuid_t *uuid)
 {
 	struct tb_sw_lookup lookup;
 	struct device *dev;

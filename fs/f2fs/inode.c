@@ -43,26 +43,31 @@ void f2fs_set_inode_flags(struct inode *inode)
 		new_fl |= S_NOATIME;
 	if (flags & FS_DIRSYNC_FL)
 		new_fl |= S_DIRSYNC;
+	if (f2fs_encrypted_inode(inode))
+		new_fl |= S_ENCRYPTED;
 	inode_set_flags(inode, new_fl,
-			S_SYNC|S_APPEND|S_IMMUTABLE|S_NOATIME|S_DIRSYNC);
+			S_SYNC|S_APPEND|S_IMMUTABLE|S_NOATIME|S_DIRSYNC|
+			S_ENCRYPTED);
 }
 
 static void __get_inode_rdev(struct inode *inode, struct f2fs_inode *ri)
 {
+	int extra_size = get_extra_isize(inode);
+
 	if (S_ISCHR(inode->i_mode) || S_ISBLK(inode->i_mode) ||
 			S_ISFIFO(inode->i_mode) || S_ISSOCK(inode->i_mode)) {
-		if (ri->i_addr[0])
-			inode->i_rdev =
-				old_decode_dev(le32_to_cpu(ri->i_addr[0]));
+		if (ri->i_addr[extra_size])
+			inode->i_rdev = old_decode_dev(
+				le32_to_cpu(ri->i_addr[extra_size]));
 		else
-			inode->i_rdev =
-				new_decode_dev(le32_to_cpu(ri->i_addr[1]));
+			inode->i_rdev = new_decode_dev(
+				le32_to_cpu(ri->i_addr[extra_size + 1]));
 	}
 }
 
 static bool __written_first_block(struct f2fs_inode *ri)
 {
-	block_t addr = le32_to_cpu(ri->i_addr[0]);
+	block_t addr = le32_to_cpu(ri->i_addr[offset_in_addr(ri)]);
 
 	if (addr != NEW_ADDR && addr != NULL_ADDR)
 		return true;
@@ -71,25 +76,27 @@ static bool __written_first_block(struct f2fs_inode *ri)
 
 static void __set_inode_rdev(struct inode *inode, struct f2fs_inode *ri)
 {
+	int extra_size = get_extra_isize(inode);
+
 	if (S_ISCHR(inode->i_mode) || S_ISBLK(inode->i_mode)) {
 		if (old_valid_dev(inode->i_rdev)) {
-			ri->i_addr[0] =
+			ri->i_addr[extra_size] =
 				cpu_to_le32(old_encode_dev(inode->i_rdev));
-			ri->i_addr[1] = 0;
+			ri->i_addr[extra_size + 1] = 0;
 		} else {
-			ri->i_addr[0] = 0;
-			ri->i_addr[1] =
+			ri->i_addr[extra_size] = 0;
+			ri->i_addr[extra_size + 1] =
 				cpu_to_le32(new_encode_dev(inode->i_rdev));
-			ri->i_addr[2] = 0;
+			ri->i_addr[extra_size + 2] = 0;
 		}
 	}
 }
 
 static void __recover_inline_status(struct inode *inode, struct page *ipage)
 {
-	void *inline_data = inline_data_addr(ipage);
+	void *inline_data = inline_data_addr(inode, ipage);
 	__le32 *start = inline_data;
-	__le32 *end = start + MAX_INLINE_DATA / sizeof(__le32);
+	__le32 *end = start + MAX_INLINE_DATA(inode) / sizeof(__le32);
 
 	while (start < end) {
 		if (*start++) {
@@ -104,12 +111,84 @@ static void __recover_inline_status(struct inode *inode, struct page *ipage)
 	return;
 }
 
+static bool f2fs_enable_inode_chksum(struct f2fs_sb_info *sbi, struct page *page)
+{
+	struct f2fs_inode *ri = &F2FS_NODE(page)->i;
+	int extra_isize = le32_to_cpu(ri->i_extra_isize);
+
+	if (!f2fs_sb_has_inode_chksum(sbi->sb))
+		return false;
+
+	if (!RAW_IS_INODE(F2FS_NODE(page)) || !(ri->i_inline & F2FS_EXTRA_ATTR))
+		return false;
+
+	if (!F2FS_FITS_IN_INODE(ri, extra_isize, i_inode_checksum))
+		return false;
+
+	return true;
+}
+
+static __u32 f2fs_inode_chksum(struct f2fs_sb_info *sbi, struct page *page)
+{
+	struct f2fs_node *node = F2FS_NODE(page);
+	struct f2fs_inode *ri = &node->i;
+	__le32 ino = node->footer.ino;
+	__le32 gen = ri->i_generation;
+	__u32 chksum, chksum_seed;
+	__u32 dummy_cs = 0;
+	unsigned int offset = offsetof(struct f2fs_inode, i_inode_checksum);
+	unsigned int cs_size = sizeof(dummy_cs);
+
+	chksum = f2fs_chksum(sbi, sbi->s_chksum_seed, (__u8 *)&ino,
+							sizeof(ino));
+	chksum_seed = f2fs_chksum(sbi, chksum, (__u8 *)&gen, sizeof(gen));
+
+	chksum = f2fs_chksum(sbi, chksum_seed, (__u8 *)ri, offset);
+	chksum = f2fs_chksum(sbi, chksum, (__u8 *)&dummy_cs, cs_size);
+	offset += cs_size;
+	chksum = f2fs_chksum(sbi, chksum, (__u8 *)ri + offset,
+						F2FS_BLKSIZE - offset);
+	return chksum;
+}
+
+bool f2fs_inode_chksum_verify(struct f2fs_sb_info *sbi, struct page *page)
+{
+	struct f2fs_inode *ri;
+	__u32 provided, calculated;
+
+	if (!f2fs_enable_inode_chksum(sbi, page) ||
+			PageDirty(page) || PageWriteback(page))
+		return true;
+
+	ri = &F2FS_NODE(page)->i;
+	provided = le32_to_cpu(ri->i_inode_checksum);
+	calculated = f2fs_inode_chksum(sbi, page);
+
+	if (provided != calculated)
+		f2fs_msg(sbi->sb, KERN_WARNING,
+			"checksum invalid, ino = %x, %x vs. %x",
+			ino_of_node(page), provided, calculated);
+
+	return provided == calculated;
+}
+
+void f2fs_inode_chksum_set(struct f2fs_sb_info *sbi, struct page *page)
+{
+	struct f2fs_inode *ri = &F2FS_NODE(page)->i;
+
+	if (!f2fs_enable_inode_chksum(sbi, page))
+		return;
+
+	ri->i_inode_checksum = cpu_to_le32(f2fs_inode_chksum(sbi, page));
+}
+
 static int do_read_inode(struct inode *inode)
 {
 	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
 	struct f2fs_inode_info *fi = F2FS_I(inode);
 	struct page *node_page;
 	struct f2fs_inode *ri;
+	projid_t i_projid;
 
 	/* Check if ino is within scope */
 	if (check_nid_range(sbi, inode->i_ino)) {
@@ -153,6 +232,26 @@ static int do_read_inode(struct inode *inode)
 
 	get_inline_info(inode, ri);
 
+	fi->i_extra_isize = f2fs_has_extra_attr(inode) ?
+					le16_to_cpu(ri->i_extra_isize) : 0;
+
+	if (f2fs_sb_has_flexible_inline_xattr(sbi->sb)) {
+		f2fs_bug_on(sbi, !f2fs_has_extra_attr(inode));
+		fi->i_inline_xattr_size = le16_to_cpu(ri->i_inline_xattr_size);
+	} else if (f2fs_has_inline_xattr(inode) ||
+				f2fs_has_inline_dentry(inode)) {
+		fi->i_inline_xattr_size = DEFAULT_INLINE_XATTR_ADDRS;
+	} else {
+
+		/*
+		 * Previous inline data or directory always reserved 200 bytes
+		 * in inode layout, even if inline_xattr is disabled. In order
+		 * to keep inline_dentry's structure for backward compatibility,
+		 * we get the space back only from inline_data.
+		 */
+		fi->i_inline_xattr_size = 0;
+	}
+
 	/* check data exist */
 	if (f2fs_has_inline_data(inode) && !f2fs_exist_data(inode))
 		__recover_inline_status(inode, node_page);
@@ -165,6 +264,16 @@ static int do_read_inode(struct inode *inode)
 
 	if (!need_inode_block_update(sbi, inode->i_ino))
 		fi->last_disk_size = inode->i_size;
+
+	if (fi->i_flags & FS_PROJINHERIT_FL)
+		set_inode_flag(inode, FI_PROJ_INHERIT);
+
+	if (f2fs_has_extra_attr(inode) && f2fs_sb_has_project_quota(sbi->sb) &&
+			F2FS_FITS_IN_INODE(ri, fi->i_extra_isize, i_projid))
+		i_projid = (projid_t)le32_to_cpu(ri->i_projid);
+	else
+		i_projid = F2FS_DEF_PROJID;
+	fi->i_projid = make_kprojid(&init_user_ns, i_projid);
 
 	f2fs_put_page(node_page, 1);
 
@@ -292,6 +401,24 @@ int update_inode(struct inode *inode, struct page *node_page)
 	ri->i_generation = cpu_to_le32(inode->i_generation);
 	ri->i_dir_level = F2FS_I(inode)->i_dir_level;
 
+	if (f2fs_has_extra_attr(inode)) {
+		ri->i_extra_isize = cpu_to_le16(F2FS_I(inode)->i_extra_isize);
+
+		if (f2fs_sb_has_flexible_inline_xattr(F2FS_I_SB(inode)->sb))
+			ri->i_inline_xattr_size =
+				cpu_to_le16(F2FS_I(inode)->i_inline_xattr_size);
+
+		if (f2fs_sb_has_project_quota(F2FS_I_SB(inode)->sb) &&
+			F2FS_FITS_IN_INODE(ri, F2FS_I(inode)->i_extra_isize,
+								i_projid)) {
+			projid_t i_projid;
+
+			i_projid = from_kprojid(&init_user_ns,
+						F2FS_I(inode)->i_projid);
+			ri->i_projid = cpu_to_le32(i_projid);
+		}
+	}
+
 	__set_inode_rdev(inode, ri);
 	set_cold_node(inode, node_page);
 
@@ -377,6 +504,7 @@ void f2fs_evict_inode(struct inode *inode)
 
 	remove_ino_entry(sbi, inode->i_ino, APPEND_INO);
 	remove_ino_entry(sbi, inode->i_ino, UPDATE_INO);
+	remove_ino_entry(sbi, inode->i_ino, FLUSH_INO);
 
 	sb_start_intwrite(inode->i_sb);
 	set_inode_flag(inode, FI_NO_ALLOC);
@@ -415,6 +543,11 @@ no_delete:
 	stat_dec_inline_xattr(inode);
 	stat_dec_inline_dir(inode);
 	stat_dec_inline_inode(inode);
+
+	if (likely(!is_set_ckpt_flags(sbi, CP_ERROR_FLAG)))
+		f2fs_bug_on(sbi, is_inode_flag_set(inode, FI_DIRTY_INODE));
+	else
+		f2fs_inode_synced(inode);
 
 	/* ino == 0, if f2fs_new_inode() was failed t*/
 	if (inode->i_ino)

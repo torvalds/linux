@@ -24,6 +24,7 @@
 #include <linux/pci-ats.h>
 #include <linux/dmar.h>
 #include <linux/interrupt.h>
+#include <asm/page.h>
 
 static irqreturn_t prq_event_thread(int irq, void *d);
 
@@ -223,14 +224,6 @@ static void intel_change_pte(struct mmu_notifier *mn, struct mm_struct *mm,
 	intel_flush_svm_range(svm, address, 1, 1, 0);
 }
 
-static void intel_invalidate_page(struct mmu_notifier *mn, struct mm_struct *mm,
-				  unsigned long address)
-{
-	struct intel_svm *svm = container_of(mn, struct intel_svm, notifier);
-
-	intel_flush_svm_range(svm, address, 1, 1, 0);
-}
-
 /* Pages have been freed at this point */
 static void intel_invalidate_range(struct mmu_notifier *mn,
 				   struct mm_struct *mm,
@@ -285,7 +278,6 @@ static void intel_mm_release(struct mmu_notifier *mn, struct mm_struct *mm)
 static const struct mmu_notifier_ops intel_mmuops = {
 	.release = intel_mm_release,
 	.change_pte = intel_change_pte,
-	.invalidate_page = intel_invalidate_page,
 	.invalidate_range = intel_invalidate_range,
 };
 
@@ -300,7 +292,7 @@ int intel_svm_bind_mm(struct device *dev, int *pasid, int flags, struct svm_dev_
 	int pasid_max;
 	int ret;
 
-	if (WARN_ON(!iommu))
+	if (WARN_ON(!iommu || !iommu->pasid_table))
 		return -EINVAL;
 
 	if (dev_is_pci(dev)) {
@@ -466,6 +458,8 @@ int intel_svm_unbind_mm(struct device *dev, int pasid)
 				kfree_rcu(sdev, rcu);
 
 				if (list_empty(&svm->devs)) {
+					svm->iommu->pasid_table[svm->pasid].val = 0;
+					wmb();
 
 					idr_remove(&svm->iommu->pasid_idr, svm->pasid);
 					if (svm->mm)
@@ -555,6 +549,14 @@ static bool access_error(struct vm_area_struct *vma, struct page_req_dsc *req)
 	return (requested & ~vma->vm_flags) != 0;
 }
 
+static bool is_canonical_address(u64 addr)
+{
+	int shift = 64 - (__VIRTUAL_MASK_SHIFT + 1);
+	long saddr = (long) addr;
+
+	return (((saddr << shift) >> shift) == saddr);
+}
+
 static irqreturn_t prq_event_thread(int irq, void *d)
 {
 	struct intel_iommu *iommu = d;
@@ -612,6 +614,11 @@ static irqreturn_t prq_event_thread(int irq, void *d)
 		/* If the mm is already defunct, don't handle faults. */
 		if (!mmget_not_zero(svm->mm))
 			goto bad_req;
+
+		/* If address is not canonical, return invalid response */
+		if (!is_canonical_address(address))
+			goto bad_req;
+
 		down_read(&svm->mm->mmap_sem);
 		vma = find_extend_vma(svm->mm, address);
 		if (!vma || address < vma->vm_start)

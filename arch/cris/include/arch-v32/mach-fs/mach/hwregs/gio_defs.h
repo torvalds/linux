@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __gio_defs_h
 #define __gio_defs_h
 

@@ -25,7 +25,7 @@ config PCI_DRA7XX
 	 work either as EP or RC. In order to enable host-specific features
 	 PCI_DRA7XX_HOST must be selected and in order to enable device-
 	 specific features PCI_DRA7XX_EP must be selected. This uses
-	 the Designware core.
+	 the DesignWare core.
 
 if PCI_DRA7XX
 
@@ -97,8 +97,8 @@ config PCI_KEYSTONE
 	select PCIE_DW_HOST
 	help
 	  Say Y here if you want to enable PCI controller support on Keystone
-	  SoCs. The PCI controller on Keystone is based on Designware hardware
-	  and therefore the driver re-uses the Designware core functions to
+	  SoCs. The PCI controller on Keystone is based on DesignWare hardware
+	  and therefore the driver re-uses the DesignWare core functions to
 	  implement the driver.
 
 config PCI_LAYERSCAPE
@@ -132,7 +132,7 @@ config PCIE_QCOM
 	select PCIE_DW_HOST
 	help
 	  Say Y here to enable PCIe controller support on Qualcomm SoCs. The
-	  PCIe controller uses the Designware core plus Qualcomm-specific
+	  PCIe controller uses the DesignWare core plus Qualcomm-specific
 	  hardware wrappers.
 
 config PCIE_ARMADA_8K
@@ -145,8 +145,8 @@ config PCIE_ARMADA_8K
 	help
 	  Say Y here if you want to enable PCIe controller support on
 	  Armada-8K SoCs. The PCIe controller on Armada-8K is based on
-	  Designware hardware and therefore the driver re-uses the
-	  Designware core functions to implement the driver.
+	  DesignWare hardware and therefore the driver re-uses the
+	  DesignWare core functions to implement the driver.
 
 config PCIE_ARTPEC6
 	bool "Axis ARTPEC-6 PCIe controller"
@@ -168,5 +168,15 @@ config PCIE_KIRIN
 	help
 	  Say Y here if you want PCIe controller support
 	  on HiSilicon Kirin series SoCs.
+
+config PCIE_HISI_STB
+	bool "HiSilicon STB SoCs PCIe controllers"
+	depends on ARCH_HISI
+	depends on PCI
+	depends on PCI_MSI_IRQ_DOMAIN
+	select PCIEPORTBUS
+	select PCIE_DW_HOST
+	help
+          Say Y here if you want PCIe controller support on HiSilicon STB SoCs
 
 endmenu

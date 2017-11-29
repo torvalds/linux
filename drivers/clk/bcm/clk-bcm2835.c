@@ -37,7 +37,6 @@
 #include <linux/clk-provider.h>
 #include <linux/clkdev.h>
 #include <linux/clk.h>
-#include <linux/clk/bcm2835.h>
 #include <linux/debugfs.h>
 #include <linux/delay.h>
 #include <linux/module.h>
@@ -414,35 +413,6 @@ static int bcm2835_debugfs_regset(struct bcm2835_cprman *cprman, u32 base,
 					  regset);
 
 	return regdump ? 0 : -ENOMEM;
-}
-
-/*
- * These are fixed clocks. They're probably not all root clocks and it may
- * be possible to turn them on and off but until this is mapped out better
- * it's the only way they can be used.
- */
-void __init bcm2835_init_clocks(void)
-{
-	struct clk_hw *hw;
-	int ret;
-
-	hw = clk_hw_register_fixed_rate(NULL, "apb_pclk", NULL, 0, 126000000);
-	if (IS_ERR(hw))
-		pr_err("apb_pclk not registered\n");
-
-	hw = clk_hw_register_fixed_rate(NULL, "uart0_pclk", NULL, 0, 3000000);
-	if (IS_ERR(hw))
-		pr_err("uart0_pclk not registered\n");
-	ret = clk_hw_register_clkdev(hw, NULL, "20201000.uart");
-	if (ret)
-		pr_err("uart0_pclk alias not registered\n");
-
-	hw = clk_hw_register_fixed_rate(NULL, "uart1_pclk", NULL, 0, 125000000);
-	if (IS_ERR(hw))
-		pr_err("uart1_pclk not registered\n");
-	ret = clk_hw_register_clkdev(hw, NULL, "20215000.uart");
-	if (ret)
-		pr_err("uart1_pclk alias not registered\n");
 }
 
 struct bcm2835_pll_data {

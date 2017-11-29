@@ -54,6 +54,11 @@ bool vgic_has_its(struct kvm *kvm)
 	return dist->has_its;
 }
 
+bool vgic_supports_direct_msis(struct kvm *kvm)
+{
+	return kvm_vgic_global_state.has_gicv4 && vgic_has_its(kvm);
+}
+
 static unsigned long vgic_mmio_read_v3_misc(struct kvm_vcpu *vcpu,
 					    gpa_t addr, unsigned int len)
 {
@@ -129,6 +134,7 @@ static void vgic_mmio_write_irouter(struct kvm_vcpu *vcpu,
 {
 	int intid = VGIC_ADDR_TO_INTID(addr, 64);
 	struct vgic_irq *irq;
+	unsigned long flags;
 
 	/* The upper word is WI for us since we don't implement Aff3. */
 	if (addr & 4)
@@ -139,13 +145,13 @@ static void vgic_mmio_write_irouter(struct kvm_vcpu *vcpu,
 	if (!irq)
 		return;
 
-	spin_lock(&irq->irq_lock);
+	spin_lock_irqsave(&irq->irq_lock, flags);
 
 	/* We only care about and preserve Aff0, Aff1 and Aff2. */
 	irq->mpidr = val & GENMASK(23, 0);
 	irq->target_vcpu = kvm_mpidr_to_vcpu(vcpu->kvm, irq->mpidr);
 
-	spin_unlock(&irq->irq_lock);
+	spin_unlock_irqrestore(&irq->irq_lock, flags);
 	vgic_put_irq(vcpu->kvm, irq);
 }
 
@@ -241,11 +247,12 @@ static void vgic_v3_uaccess_write_pending(struct kvm_vcpu *vcpu,
 {
 	u32 intid = VGIC_ADDR_TO_INTID(addr, 1);
 	int i;
+	unsigned long flags;
 
 	for (i = 0; i < len * 8; i++) {
 		struct vgic_irq *irq = vgic_get_irq(vcpu->kvm, vcpu, intid + i);
 
-		spin_lock(&irq->irq_lock);
+		spin_lock_irqsave(&irq->irq_lock, flags);
 		if (test_bit(i, &val)) {
 			/*
 			 * pending_latch is set irrespective of irq type
@@ -253,10 +260,10 @@ static void vgic_v3_uaccess_write_pending(struct kvm_vcpu *vcpu,
 			 * restore irq config before pending info.
 			 */
 			irq->pending_latch = true;
-			vgic_queue_irq_unlock(vcpu->kvm, irq);
+			vgic_queue_irq_unlock(vcpu->kvm, irq, flags);
 		} else {
 			irq->pending_latch = false;
-			spin_unlock(&irq->irq_lock);
+			spin_unlock_irqrestore(&irq->irq_lock, flags);
 		}
 
 		vgic_put_irq(vcpu->kvm, irq);
@@ -369,7 +376,7 @@ static void vgic_mmio_write_propbase(struct kvm_vcpu *vcpu,
 		return;
 
 	do {
-		old_propbaser = dist->propbaser;
+		old_propbaser = READ_ONCE(dist->propbaser);
 		propbaser = old_propbaser;
 		propbaser = update_64bit_reg(propbaser, addr & 4, len, val);
 		propbaser = vgic_sanitise_propbaser(propbaser);
@@ -397,7 +404,7 @@ static void vgic_mmio_write_pendbase(struct kvm_vcpu *vcpu,
 		return;
 
 	do {
-		old_pendbaser = vgic_cpu->pendbaser;
+		old_pendbaser = READ_ONCE(vgic_cpu->pendbaser);
 		pendbaser = old_pendbaser;
 		pendbaser = update_64bit_reg(pendbaser, addr & 4, len, val);
 		pendbaser = vgic_sanitise_pendbaser(pendbaser);
@@ -799,6 +806,7 @@ void vgic_v3_dispatch_sgi(struct kvm_vcpu *vcpu, u64 reg)
 	int sgi, c;
 	int vcpu_id = vcpu->vcpu_id;
 	bool broadcast;
+	unsigned long flags;
 
 	sgi = (reg & ICC_SGI1R_SGI_ID_MASK) >> ICC_SGI1R_SGI_ID_SHIFT;
 	broadcast = reg & BIT_ULL(ICC_SGI1R_IRQ_ROUTING_MODE_BIT);
@@ -837,10 +845,10 @@ void vgic_v3_dispatch_sgi(struct kvm_vcpu *vcpu, u64 reg)
 
 		irq = vgic_get_irq(vcpu->kvm, c_vcpu, sgi);
 
-		spin_lock(&irq->irq_lock);
+		spin_lock_irqsave(&irq->irq_lock, flags);
 		irq->pending_latch = true;
 
-		vgic_queue_irq_unlock(vcpu->kvm, irq);
+		vgic_queue_irq_unlock(vcpu->kvm, irq, flags);
 		vgic_put_irq(vcpu->kvm, irq);
 	}
 }

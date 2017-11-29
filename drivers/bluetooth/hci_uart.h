@@ -87,7 +87,7 @@ struct hci_uart {
 	struct work_struct	write_work;
 
 	const struct hci_uart_proto *proto;
-	rwlock_t		proto_lock;	/* Stop work for proto close */
+	struct percpu_rw_semaphore proto_lock;	/* Stop work for proto close */
 	void			*priv;
 
 	struct sk_buff		*tx_skb;
@@ -112,6 +112,7 @@ struct hci_uart {
 int hci_uart_register_proto(const struct hci_uart_proto *p);
 int hci_uart_unregister_proto(const struct hci_uart_proto *p);
 int hci_uart_register_device(struct hci_uart *hu, const struct hci_uart_proto *p);
+void hci_uart_unregister_device(struct hci_uart *hu);
 
 int hci_uart_tx_wakeup(struct hci_uart *hu);
 int hci_uart_init_ready(struct hci_uart *hu);

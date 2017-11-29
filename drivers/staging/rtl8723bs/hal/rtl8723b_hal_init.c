@@ -63,7 +63,7 @@ static int _BlockWrite(struct adapter *padapter, void *buffer, u32 buffSize)
 	u32 blockSize_p3 = 1; /*  Phase #3 : Use 1-byte, the remnant of FW image. */
 	u32 blockCount_p1 = 0, blockCount_p2 = 0, blockCount_p3 = 0;
 	u32 remainSize_p1 = 0, remainSize_p2 = 0;
-	u8 *bufferPtr = (u8 *)buffer;
+	u8 *bufferPtr = buffer;
 	u32 i = 0, offset = 0;
 
 /* 	printk("====>%s %d\n", __func__, __LINE__); */
@@ -163,7 +163,7 @@ static int _WriteFW(struct adapter *padapter, void *buffer, u32 size)
 	int ret = _SUCCESS;
 	u32 pageNums, remainSize;
 	u32 page, offset;
-	u8 *bufferPtr = (u8 *)buffer;
+	u8 *bufferPtr = buffer;
 
 	pageNums = size / MAX_DLFW_PAGE_SIZE;
 	/* RT_ASSERT((pageNums <= 4), ("Page numbers should not greater then 4\n")); */
@@ -643,7 +643,7 @@ static void Hal_GetEfuseDefinition(
 	case TYPE_EFUSE_MAX_SECTION:
 		{
 			u8 *pMax_section;
-			pMax_section = (u8 *)pOut;
+			pMax_section = pOut;
 
 			if (efuseType == EFUSE_WIFI)
 				*pMax_section = EFUSE_MAX_SECTION_8723B;
@@ -655,7 +655,7 @@ static void Hal_GetEfuseDefinition(
 	case TYPE_EFUSE_REAL_CONTENT_LEN:
 		{
 			u16 *pu2Tmp;
-			pu2Tmp = (u16 *)pOut;
+			pu2Tmp = pOut;
 
 			if (efuseType == EFUSE_WIFI)
 				*pu2Tmp = EFUSE_REAL_CONTENT_LEN_8723B;
@@ -667,7 +667,7 @@ static void Hal_GetEfuseDefinition(
 	case TYPE_AVAILABLE_EFUSE_BYTES_BANK:
 		{
 			u16 *pu2Tmp;
-			pu2Tmp = (u16 *)pOut;
+			pu2Tmp = pOut;
 
 			if (efuseType == EFUSE_WIFI)
 				*pu2Tmp = (EFUSE_REAL_CONTENT_LEN_8723B-EFUSE_OOB_PROTECT_BYTES);
@@ -679,7 +679,7 @@ static void Hal_GetEfuseDefinition(
 	case TYPE_AVAILABLE_EFUSE_BYTES_TOTAL:
 		{
 			u16 *pu2Tmp;
-			pu2Tmp = (u16 *)pOut;
+			pu2Tmp = pOut;
 
 			if (efuseType == EFUSE_WIFI)
 				*pu2Tmp = (EFUSE_REAL_CONTENT_LEN_8723B-EFUSE_OOB_PROTECT_BYTES);
@@ -691,7 +691,7 @@ static void Hal_GetEfuseDefinition(
 	case TYPE_EFUSE_MAP_LEN:
 		{
 			u16 *pu2Tmp;
-			pu2Tmp = (u16 *)pOut;
+			pu2Tmp = pOut;
 
 			if (efuseType == EFUSE_WIFI)
 				*pu2Tmp = EFUSE_MAX_MAP_LEN;
@@ -703,7 +703,7 @@ static void Hal_GetEfuseDefinition(
 	case TYPE_EFUSE_PROTECT_BYTES_BANK:
 		{
 			u8 *pu1Tmp;
-			pu1Tmp = (u8 *)pOut;
+			pu1Tmp = pOut;
 
 			if (efuseType == EFUSE_WIFI)
 				*pu1Tmp = EFUSE_OOB_PROTECT_BYTES;
@@ -715,7 +715,7 @@ static void Hal_GetEfuseDefinition(
 	case TYPE_EFUSE_CONTENT_LEN_BANK:
 		{
 			u16 *pu2Tmp;
-			pu2Tmp = (u16 *)pOut;
+			pu2Tmp = pOut;
 
 			if (efuseType == EFUSE_WIFI)
 				*pu2Tmp = EFUSE_REAL_CONTENT_LEN_8723B;
@@ -727,7 +727,7 @@ static void Hal_GetEfuseDefinition(
 	default:
 		{
 			u8 *pu1Tmp;
-			pu1Tmp = (u8 *)pOut;
+			pu1Tmp = pOut;
 			*pu1Tmp = 0;
 		}
 		break;
@@ -891,7 +891,7 @@ static void hal_ReadEFuse_WiFi(
 		return;
 	}
 
-	efuseTbl = (u8 *)rtw_malloc(EFUSE_MAX_MAP_LEN);
+	efuseTbl = rtw_malloc(EFUSE_MAX_MAP_LEN);
 	if (efuseTbl == NULL) {
 		DBG_8192C("%s: alloc efuseTbl fail!\n", __func__);
 		return;

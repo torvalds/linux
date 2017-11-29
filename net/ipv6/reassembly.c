@@ -170,12 +170,13 @@ out:
 }
 EXPORT_SYMBOL(ip6_expire_frag_queue);
 
-static void ip6_frag_expire(unsigned long data)
+static void ip6_frag_expire(struct timer_list *t)
 {
+	struct inet_frag_queue *frag = from_timer(frag, t, timer);
 	struct frag_queue *fq;
 	struct net *net;
 
-	fq = container_of((struct inet_frag_queue *)data, struct frag_queue, q);
+	fq = container_of(frag, struct frag_queue, q);
 	net = container_of(fq->q.net, struct net, ipv6.frags);
 
 	ip6_expire_frag_queue(net, fq, &ip6_frags);
@@ -714,19 +715,13 @@ static void ip6_frags_sysctl_unregister(void)
 
 static int __net_init ipv6_frags_init_net(struct net *net)
 {
-	int res;
-
 	net->ipv6.frags.high_thresh = IPV6_FRAG_HIGH_THRESH;
 	net->ipv6.frags.low_thresh = IPV6_FRAG_LOW_THRESH;
 	net->ipv6.frags.timeout = IPV6_FRAG_TIMEOUT;
 
-	res = inet_frags_init_net(&net->ipv6.frags);
-	if (res)
-		return res;
-	res = ip6_frags_ns_sysctl_register(net);
-	if (res)
-		inet_frags_uninit_net(&net->ipv6.frags);
-	return res;
+	inet_frags_init_net(&net->ipv6.frags);
+
+	return ip6_frags_ns_sysctl_register(net);
 }
 
 static void __net_exit ipv6_frags_exit_net(struct net *net)

@@ -308,10 +308,8 @@ unmap_cache:
 		ctx->base.cache_sz = 0;
 	}
 free_cache:
-	if (ctx->base.cache) {
-		kfree(ctx->base.cache);
-		ctx->base.cache = NULL;
-	}
+	kfree(ctx->base.cache);
+	ctx->base.cache = NULL;
 
 unlock:
 	spin_unlock_bh(&priv->ring[ring].egress_lock);
@@ -419,7 +417,7 @@ static int safexcel_ahash_exit_inv(struct crypto_tfm *tfm)
 	struct safexcel_ahash_ctx *ctx = crypto_tfm_ctx(tfm);
 	struct safexcel_crypto_priv *priv = ctx->priv;
 	struct ahash_request req;
-	struct safexcel_inv_result result = { 0 };
+	struct safexcel_inv_result result = {};
 	int ring = ctx->base.ring;
 
 	memset(&req, 0, sizeof(struct ahash_request));
@@ -883,16 +881,16 @@ static int safexcel_hmac_sha1_setkey(struct crypto_ahash *tfm, const u8 *key,
 	if (ret)
 		return ret;
 
-	memcpy(ctx->ipad, &istate.state, SHA1_DIGEST_SIZE);
-	memcpy(ctx->opad, &ostate.state, SHA1_DIGEST_SIZE);
-
-	for (i = 0; i < ARRAY_SIZE(istate.state); i++) {
+	for (i = 0; i < SHA1_DIGEST_SIZE / sizeof(u32); i++) {
 		if (ctx->ipad[i] != le32_to_cpu(istate.state[i]) ||
 		    ctx->opad[i] != le32_to_cpu(ostate.state[i])) {
 			ctx->base.needs_inv = true;
 			break;
 		}
 	}
+
+	memcpy(ctx->ipad, &istate.state, SHA1_DIGEST_SIZE);
+	memcpy(ctx->opad, &ostate.state, SHA1_DIGEST_SIZE);
 
 	return 0;
 }

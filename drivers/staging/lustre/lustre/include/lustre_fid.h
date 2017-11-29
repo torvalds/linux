@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * GPL HEADER START
  *
@@ -41,7 +42,7 @@
  *
  * @{
  *
- * http://wiki.old.lustre.org/index.php/Architecture_-_Interoperability_fids_zfs
+ * http://wiki.lustre.org/index.php/Architecture_-_Interoperability_fids_zfs
  * describes the FID namespace and interoperability requirements for FIDs.
  * The important parts of that document are included here for reference.
  *
@@ -148,9 +149,10 @@
  *  Even so, the MDT and OST resources are also in different LDLM namespaces.
  */
 
-#include "../../include/linux/libcfs/libcfs.h"
-#include "lustre/lustre_idl.h"
-#include "seq_range.h"
+#include <linux/libcfs/libcfs.h>
+#include <uapi/linux/lustre/lustre_fid.h>
+#include <uapi/linux/lustre/lustre_idl.h>
+#include <uapi/linux/lustre/lustre_ostid.h>
 
 struct lu_env;
 struct lu_site;
@@ -286,18 +288,6 @@ static inline int fid_is_quota(const struct lu_fid *fid)
 {
 	return fid_seq(fid) == FID_SEQ_QUOTA ||
 	       fid_seq(fid) == FID_SEQ_QUOTA_GLB;
-}
-
-static inline int fid_is_namespace_visible(const struct lu_fid *fid)
-{
-	const __u64 seq = fid_seq(fid);
-
-	/* Here, we cannot distinguish whether the normal FID is for OST
-	 * object or not. It is caller's duty to check more if needed.
-	 */
-	return (!fid_is_last_id(fid) &&
-		(fid_seq_is_norm(seq) || fid_seq_is_igif(seq))) ||
-	       fid_is_root(fid) || fid_is_dot_lustre(fid);
 }
 
 static inline int fid_seq_in_fldb(__u64 seq)
@@ -506,6 +496,52 @@ static inline int ostid_res_name_eq(const struct ost_id *oi,
 	}
 }
 
+/**
+ * Note: we need check oi_seq to decide where to set oi_id,
+ * so oi_seq should always be set ahead of oi_id.
+ */
+static inline int ostid_set_id(struct ost_id *oi, __u64 oid)
+{
+	if (fid_seq_is_mdt0(oi->oi.oi_seq)) {
+		if (oid >= IDIF_MAX_OID)
+			return -E2BIG;
+		oi->oi.oi_id = oid;
+	} else if (fid_is_idif(&oi->oi_fid)) {
+		if (oid >= IDIF_MAX_OID)
+			return -E2BIG;
+		oi->oi_fid.f_seq = fid_idif_seq(oid,
+						fid_idif_ost_idx(&oi->oi_fid));
+		oi->oi_fid.f_oid = oid;
+		oi->oi_fid.f_ver = oid >> 48;
+	} else {
+		if (oid >= OBIF_MAX_OID)
+			return -E2BIG;
+		oi->oi_fid.f_oid = oid;
+	}
+	return 0;
+}
+
+/* pack any OST FID into an ostid (id/seq) for the wire/disk */
+static inline int fid_to_ostid(const struct lu_fid *fid, struct ost_id *ostid)
+{
+	int rc = 0;
+
+	if (fid_seq_is_igif(fid->f_seq))
+		return -EBADF;
+
+	if (fid_is_idif(fid)) {
+		u64 objid = fid_idif_id(fid_seq(fid), fid_oid(fid),
+					fid_ver(fid));
+
+		ostid_set_seq_mdt0(ostid);
+		rc = ostid_set_id(ostid, objid);
+	} else {
+		ostid->oi_fid = *fid;
+	}
+
+	return rc;
+}
+
 /* The same as osc_build_res_name() */
 static inline void ost_fid_build_resid(const struct lu_fid *fid,
 				       struct ldlm_res_id *resname)
@@ -519,23 +555,6 @@ static inline void ost_fid_build_resid(const struct lu_fid *fid,
 		ostid_build_res_name(&oi, resname);
 	} else {
 		fid_build_reg_res_name(fid, resname);
-	}
-}
-
-static inline void ost_fid_from_resid(struct lu_fid *fid,
-				      const struct ldlm_res_id *name,
-				      int ost_idx)
-{
-	if (fid_seq_is_mdt0(name->name[LUSTRE_RES_ID_VER_OID_OFF])) {
-		/* old resid */
-		struct ost_id oi;
-
-		ostid_set_seq(&oi, name->name[LUSTRE_RES_ID_VER_OID_OFF]);
-		ostid_set_id(&oi, name->name[LUSTRE_RES_ID_SEQ_OFF]);
-		ostid_to_fid(fid, &oi, ost_idx);
-	} else {
-		/* new resid */
-		fid_extract_from_res_name(fid, name);
 	}
 }
 

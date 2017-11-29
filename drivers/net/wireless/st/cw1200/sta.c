@@ -2112,10 +2112,9 @@ void cw1200_multicast_stop_work(struct work_struct *work)
 	}
 }
 
-void cw1200_mcast_timeout(unsigned long arg)
+void cw1200_mcast_timeout(struct timer_list *t)
 {
-	struct cw1200_common *priv =
-		(struct cw1200_common *)arg;
+	struct cw1200_common *priv = from_timer(priv, t, mcast_timeout);
 
 	wiphy_warn(priv->hw->wiphy,
 		   "Multicast delivery timeout.\n");

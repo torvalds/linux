@@ -40,6 +40,8 @@ extern "C" {
 #define DRM_VC4_GET_PARAM                         0x07
 #define DRM_VC4_SET_TILING                        0x08
 #define DRM_VC4_GET_TILING                        0x09
+#define DRM_VC4_LABEL_BO                          0x0a
+#define DRM_VC4_GEM_MADVISE                       0x0b
 
 #define DRM_IOCTL_VC4_SUBMIT_CL           DRM_IOWR(DRM_COMMAND_BASE + DRM_VC4_SUBMIT_CL, struct drm_vc4_submit_cl)
 #define DRM_IOCTL_VC4_WAIT_SEQNO          DRM_IOWR(DRM_COMMAND_BASE + DRM_VC4_WAIT_SEQNO, struct drm_vc4_wait_seqno)
@@ -51,6 +53,8 @@ extern "C" {
 #define DRM_IOCTL_VC4_GET_PARAM           DRM_IOWR(DRM_COMMAND_BASE + DRM_VC4_GET_PARAM, struct drm_vc4_get_param)
 #define DRM_IOCTL_VC4_SET_TILING          DRM_IOWR(DRM_COMMAND_BASE + DRM_VC4_SET_TILING, struct drm_vc4_set_tiling)
 #define DRM_IOCTL_VC4_GET_TILING          DRM_IOWR(DRM_COMMAND_BASE + DRM_VC4_GET_TILING, struct drm_vc4_get_tiling)
+#define DRM_IOCTL_VC4_LABEL_BO            DRM_IOWR(DRM_COMMAND_BASE + DRM_VC4_LABEL_BO, struct drm_vc4_label_bo)
+#define DRM_IOCTL_VC4_GEM_MADVISE         DRM_IOWR(DRM_COMMAND_BASE + DRM_VC4_GEM_MADVISE, struct drm_vc4_gem_madvise)
 
 struct drm_vc4_submit_rcl_surface {
 	__u32 hindex; /* Handle index, or ~0 if not present. */
@@ -153,6 +157,16 @@ struct drm_vc4_submit_cl {
 	__u32 pad:24;
 
 #define VC4_SUBMIT_CL_USE_CLEAR_COLOR			(1 << 0)
+/* By default, the kernel gets to choose the order that the tiles are
+ * rendered in.  If this is set, then the tiles will be rendered in a
+ * raster order, with the right-to-left vs left-to-right and
+ * top-to-bottom vs bottom-to-top dictated by
+ * VC4_SUBMIT_CL_RCL_ORDER_INCREASING_*.  This allows overlapping
+ * blits to be implemented using the 3D engine.
+ */
+#define VC4_SUBMIT_CL_FIXED_RCL_ORDER			(1 << 1)
+#define VC4_SUBMIT_CL_RCL_ORDER_INCREASING_X		(1 << 2)
+#define VC4_SUBMIT_CL_RCL_ORDER_INCREASING_Y		(1 << 3)
 	__u32 flags;
 
 	/* Returned value of the seqno of this render job (for the
@@ -292,6 +306,8 @@ struct drm_vc4_get_hang_state {
 #define DRM_VC4_PARAM_SUPPORTS_BRANCHES		3
 #define DRM_VC4_PARAM_SUPPORTS_ETC1		4
 #define DRM_VC4_PARAM_SUPPORTS_THREADED_FS	5
+#define DRM_VC4_PARAM_SUPPORTS_FIXED_RCL_ORDER	6
+#define DRM_VC4_PARAM_SUPPORTS_MADVISE		7
 
 struct drm_vc4_get_param {
 	__u32 param;
@@ -309,6 +325,31 @@ struct drm_vc4_set_tiling {
 	__u32 handle;
 	__u32 flags;
 	__u64 modifier;
+};
+
+/**
+ * struct drm_vc4_label_bo - Attach a name to a BO for debug purposes.
+ */
+struct drm_vc4_label_bo {
+	__u32 handle;
+	__u32 len;
+	__u64 name;
+};
+
+/*
+ * States prefixed with '__' are internal states and cannot be passed to the
+ * DRM_IOCTL_VC4_GEM_MADVISE ioctl.
+ */
+#define VC4_MADV_WILLNEED			0
+#define VC4_MADV_DONTNEED			1
+#define __VC4_MADV_PURGED			2
+#define __VC4_MADV_NOTSUPP			3
+
+struct drm_vc4_gem_madvise {
+	__u32 handle;
+	__u32 madv;
+	__u32 retained;
+	__u32 pad;
 };
 
 #if defined(__cplusplus)

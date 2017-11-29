@@ -18,7 +18,7 @@
 
 static struct sk_buff *dsa_xmit(struct sk_buff *skb, struct net_device *dev)
 {
-	struct dsa_slave_priv *p = netdev_priv(dev);
+	struct dsa_port *dp = dsa_slave_to_port(dev);
 	u8 *dsa_header;
 
 	/*
@@ -34,8 +34,8 @@ static struct sk_buff *dsa_xmit(struct sk_buff *skb, struct net_device *dev)
 		 * Construct tagged FROM_CPU DSA tag from 802.1q tag.
 		 */
 		dsa_header = skb->data + 2 * ETH_ALEN;
-		dsa_header[0] = 0x60 | p->dp->ds->index;
-		dsa_header[1] = p->dp->index << 3;
+		dsa_header[0] = 0x60 | dp->ds->index;
+		dsa_header[1] = dp->index << 3;
 
 		/*
 		 * Move CFI field from byte 2 to byte 1.
@@ -55,8 +55,8 @@ static struct sk_buff *dsa_xmit(struct sk_buff *skb, struct net_device *dev)
 		 * Construct untagged FROM_CPU DSA tag.
 		 */
 		dsa_header = skb->data + 2 * ETH_ALEN;
-		dsa_header[0] = 0x40 | p->dp->ds->index;
-		dsa_header[1] = p->dp->index << 3;
+		dsa_header[0] = 0x40 | dp->ds->index;
+		dsa_header[1] = dp->index << 3;
 		dsa_header[2] = 0x00;
 		dsa_header[3] = 0x00;
 	}
@@ -65,11 +65,8 @@ static struct sk_buff *dsa_xmit(struct sk_buff *skb, struct net_device *dev)
 }
 
 static struct sk_buff *dsa_rcv(struct sk_buff *skb, struct net_device *dev,
-			       struct packet_type *pt,
-			       struct net_device *orig_dev)
+			       struct packet_type *pt)
 {
-	struct dsa_switch_tree *dst = dev->dsa_ptr;
-	struct dsa_switch *ds;
 	u8 *dsa_header;
 	int source_device;
 	int source_port;
@@ -94,18 +91,8 @@ static struct sk_buff *dsa_rcv(struct sk_buff *skb, struct net_device *dev,
 	source_device = dsa_header[0] & 0x1f;
 	source_port = (dsa_header[1] >> 3) & 0x1f;
 
-	/*
-	 * Check that the source device exists and that the source
-	 * port is a registered DSA port.
-	 */
-	if (source_device >= DSA_MAX_SWITCHES)
-		return NULL;
-
-	ds = dst->ds[source_device];
-	if (!ds)
-		return NULL;
-
-	if (source_port >= ds->num_ports || !ds->ports[source_port].netdev)
+	skb->dev = dsa_master_find_slave(dev, source_device, source_port);
+	if (!skb->dev)
 		return NULL;
 
 	/*
@@ -154,7 +141,7 @@ static struct sk_buff *dsa_rcv(struct sk_buff *skb, struct net_device *dev,
 			2 * ETH_ALEN);
 	}
 
-	skb->dev = ds->ports[source_port].netdev;
+	skb->offload_fwd_mark = 1;
 
 	return skb;
 }

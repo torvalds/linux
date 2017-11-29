@@ -43,6 +43,7 @@
 
 static void rtl8821ae_init_aspm_vars(struct ieee80211_hw *hw)
 {
+	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_pci *rtlpci = rtl_pcidev(rtl_pcipriv(hw));
 
 	/*close ASPM for AMD defaultly */
@@ -82,7 +83,7 @@ static void rtl8821ae_init_aspm_vars(struct ieee80211_hw *hw)
 	 * 1 - Support ASPM,
 	 * 2 - According to chipset.
 	 */
-	rtlpci->const_support_pciaspm = 1;
+	rtlpci->const_support_pciaspm = rtlpriv->cfg->mod_params->aspm_support;
 }
 
 /*InitializeVariables8812E*/
@@ -196,6 +197,8 @@ int rtl8821ae_init_sw_vars(struct ieee80211_hw *hw)
 	rtlpriv->rtlhal.wowlan_firmware = vzalloc(0x8000);
 	if (!rtlpriv->rtlhal.wowlan_firmware) {
 		pr_err("Can't alloc buffer for wowlan fw.\n");
+		vfree(rtlpriv->rtlhal.pfirmware);
+		rtlpriv->rtlhal.pfirmware = NULL;
 		return 1;
 	}
 
@@ -214,16 +217,10 @@ int rtl8821ae_init_sw_vars(struct ieee80211_hw *hw)
 				      rtlpriv->io.dev, GFP_KERNEL, hw,
 				      rtl_fw_cb);
 	if (err) {
-		/* Failed to get firmware. Check if old version available */
-		fw_name = "rtlwifi/rtl8821aefw.bin";
-		pr_info("Using firmware %s\n", fw_name);
-		err = request_firmware_nowait(THIS_MODULE, 1, fw_name,
-					      rtlpriv->io.dev, GFP_KERNEL, hw,
-					      rtl_fw_cb);
-		if (err) {
-			pr_err("Failed to request normal firmware!\n");
-			return 1;
-		}
+		pr_err("Failed to request normal firmware!\n");
+		vfree(rtlpriv->rtlhal.wowlan_firmware);
+		vfree(rtlpriv->rtlhal.pfirmware);
+		return 1;
 	}
 	/*load wowlan firmware*/
 	pr_info("Using firmware %s\n", wowlan_fw_name);
@@ -233,6 +230,8 @@ int rtl8821ae_init_sw_vars(struct ieee80211_hw *hw)
 				      rtl_wowlan_fw_cb);
 	if (err) {
 		pr_err("Failed to request wowlan firmware!\n");
+		vfree(rtlpriv->rtlhal.wowlan_firmware);
+		vfree(rtlpriv->rtlhal.pfirmware);
 		return 1;
 	}
 	return 0;
@@ -315,6 +314,7 @@ static struct rtl_mod_params rtl8821ae_mod_params = {
 	.swctrl_lps = false,
 	.fwctrl_lps = true,
 	.msi_support = true,
+	.aspm_support = 1,
 	.int_clear = true,
 	.debug_level = 0,
 	.debug_mask = 0,
@@ -325,6 +325,7 @@ static const struct rtl_hal_cfg rtl8821ae_hal_cfg = {
 	.bar_id = 2,
 	.write_readback = true,
 	.name = "rtl8821ae_pci",
+	.alt_fw_name = "rtlwifi/rtl8821aefw.bin",
 	.ops = &rtl8821ae_hal_ops,
 	.mod_params = &rtl8821ae_mod_params,
 	.maps[SYS_ISO_CTRL] = REG_SYS_ISO_CTRL,
@@ -424,7 +425,7 @@ static const struct rtl_hal_cfg rtl8821ae_hal_cfg = {
 	.maps[RTL_RC_VHT_RATE_2SS_MCS9] = DESC_RATEVHT2SS_MCS9,
 };
 
-static struct pci_device_id rtl8821ae_pci_ids[] = {
+static const struct pci_device_id rtl8821ae_pci_ids[] = {
 	{RTL_PCI_DEVICE(PCI_VENDOR_ID_REALTEK, 0x8812, rtl8821ae_hal_cfg)},
 	{RTL_PCI_DEVICE(PCI_VENDOR_ID_REALTEK, 0x8821, rtl8821ae_hal_cfg)},
 	{},
@@ -445,6 +446,7 @@ module_param_named(ips, rtl8821ae_mod_params.inactiveps, bool, 0444);
 module_param_named(swlps, rtl8821ae_mod_params.swctrl_lps, bool, 0444);
 module_param_named(fwlps, rtl8821ae_mod_params.fwctrl_lps, bool, 0444);
 module_param_named(msi, rtl8821ae_mod_params.msi_support, bool, 0444);
+module_param_named(aspm, rtl8821ae_mod_params.aspm_support, int, 0444);
 module_param_named(disable_watchdog, rtl8821ae_mod_params.disable_watchdog,
 		   bool, 0444);
 module_param_named(int_clear, rtl8821ae_mod_params.int_clear, bool, 0444);
@@ -453,6 +455,7 @@ MODULE_PARM_DESC(ips, "Set to 0 to not use link power save (default 1)\n");
 MODULE_PARM_DESC(swlps, "Set to 1 to use SW control power save (default 0)\n");
 MODULE_PARM_DESC(fwlps, "Set to 1 to use FW control power save (default 1)\n");
 MODULE_PARM_DESC(msi, "Set to 1 to use MSI interrupts mode (default 1)\n");
+MODULE_PARM_DESC(aspm, "Set to 1 to enable ASPM (default 1)\n");
 MODULE_PARM_DESC(debug_level, "Set debug level (0-5) (default 0)");
 MODULE_PARM_DESC(debug_mask, "Set debug mask (default 0)");
 MODULE_PARM_DESC(disable_watchdog, "Set to 1 to disable the watchdog (default 0)\n");

@@ -30,8 +30,8 @@ config PHY_BCM_NS_USB3
 	tristate "Broadcom Northstar USB 3.0 PHY Driver"
 	depends on ARCH_BCM_IPROC || COMPILE_TEST
 	depends on HAS_IOMEM && OF
+	depends on MDIO_BUS
 	select GENERIC_PHY
-	select MDIO_DEVICE
 	help
 	  Enable this to support Broadcom USB 3.0 PHY connected to the USB
 	  controller on Northstar family.
@@ -66,4 +66,17 @@ config PHY_BRCM_SATA
 	default ARCH_BCM_IPROC
 	help
 	  Enable this to support the Broadcom SATA PHY.
+	  If unsure, say N.
+
+config PHY_BRCM_USB
+	tristate "Broadcom STB USB PHY driver"
+	depends on ARCH_BRCMSTB
+	depends on OF
+	select GENERIC_PHY
+	select SOC_BRCMSTB
+	default ARCH_BRCMSTB
+	help
+	  Enable this to support the Broadcom STB USB PHY.
+	  This driver is required by the USB XHCI, EHCI and OHCI
+	  drivers.
 	  If unsure, say N.

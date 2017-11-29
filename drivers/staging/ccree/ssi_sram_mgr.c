@@ -50,28 +50,14 @@ void ssi_sram_mgr_fini(struct ssi_drvdata *drvdata)
  */
 int ssi_sram_mgr_init(struct ssi_drvdata *drvdata)
 {
-	struct ssi_sram_mgr_ctx *smgr_ctx;
-	int rc;
-
 	/* Allocate "this" context */
-	drvdata->sram_mgr_handle = kzalloc(
-			sizeof(struct ssi_sram_mgr_ctx), GFP_KERNEL);
-	if (!drvdata->sram_mgr_handle) {
-		SSI_LOG_ERR("Not enough memory to allocate SRAM_MGR ctx (%zu)\n",
-			sizeof(struct ssi_sram_mgr_ctx));
-		rc = -ENOMEM;
-		goto out;
-	}
-	smgr_ctx = drvdata->sram_mgr_handle;
+	drvdata->sram_mgr_handle = kzalloc(sizeof(struct ssi_sram_mgr_ctx),
+					   GFP_KERNEL);
 
-	/* Pool starts at start of SRAM */
-	smgr_ctx->sram_free_offset = 0;
+	if (!drvdata->sram_mgr_handle)
+		return -ENOMEM;
 
 	return 0;
-
-out:
-	ssi_sram_mgr_fini(drvdata);
-	return rc;
 }
 
 /*!
@@ -86,22 +72,23 @@ out:
 ssi_sram_addr_t ssi_sram_mgr_alloc(struct ssi_drvdata *drvdata, u32 size)
 {
 	struct ssi_sram_mgr_ctx *smgr_ctx = drvdata->sram_mgr_handle;
+	struct device *dev = drvdata_to_dev(drvdata);
 	ssi_sram_addr_t p;
 
 	if (unlikely((size & 0x3) != 0)) {
-		SSI_LOG_ERR("Requested buffer size (%u) is not multiple of 4",
+		dev_err(dev, "Requested buffer size (%u) is not multiple of 4",
 			size);
 		return NULL_SRAM_ADDR;
 	}
 	if (unlikely(size > (SSI_CC_SRAM_SIZE - smgr_ctx->sram_free_offset))) {
-		SSI_LOG_ERR("Not enough space to allocate %u B (at offset %llu)\n",
+		dev_err(dev, "Not enough space to allocate %u B (at offset %llu)\n",
 			size, smgr_ctx->sram_free_offset);
 		return NULL_SRAM_ADDR;
 	}
 
 	p = smgr_ctx->sram_free_offset;
 	smgr_ctx->sram_free_offset += size;
-	SSI_LOG_DEBUG("Allocated %u B @ %u\n", size, (unsigned int)p);
+	dev_dbg(dev, "Allocated %u B @ %u\n", size, (unsigned int)p);
 	return p;
 }
 

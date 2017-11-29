@@ -1785,7 +1785,7 @@ static void encode_exchange_id(struct xdr_stream *xdr,
 	int len = 0;
 
 	encode_op_hdr(xdr, OP_EXCHANGE_ID, decode_exchange_id_maxsz, hdr);
-	encode_nfs4_verifier(xdr, args->verifier);
+	encode_nfs4_verifier(xdr, &args->verifier);
 
 	encode_string(xdr, strlen(args->client->cl_owner_id),
 			args->client->cl_owner_id);
@@ -1842,8 +1842,8 @@ static void encode_create_session(struct xdr_stream *xdr,
 	 * Assumes OPEN is the biggest non-idempotent compound.
 	 * 2 is the verifier.
 	 */
-	max_resp_sz_cached = (NFS4_dec_open_sz + RPC_REPHDRSIZE +
-			      RPC_MAX_AUTH_SIZE + 2) * XDR_UNIT;
+	max_resp_sz_cached = (NFS4_dec_open_sz + RPC_REPHDRSIZE + 2)
+				* XDR_UNIT + RPC_MAX_AUTH_SIZE;
 
 	encode_op_hdr(xdr, OP_CREATE_SESSION, decode_create_session_maxsz, hdr);
 	p = reserve_space(xdr, 16 + 2*28 + 20 + clnt->cl_nodelen + 12);
@@ -4385,6 +4385,14 @@ static int decode_delegation_stateid(struct xdr_stream *xdr, nfs4_stateid *state
 	return decode_stateid(xdr, stateid);
 }
 
+static int decode_invalid_stateid(struct xdr_stream *xdr, nfs4_stateid *stateid)
+{
+	nfs4_stateid dummy;
+
+	nfs4_stateid_copy(stateid, &invalid_stateid);
+	return decode_stateid(xdr, &dummy);
+}
+
 static int decode_close(struct xdr_stream *xdr, struct nfs_closeres *res)
 {
 	int status;
@@ -4393,7 +4401,7 @@ static int decode_close(struct xdr_stream *xdr, struct nfs_closeres *res)
 	if (status != -EIO)
 		nfs_increment_open_seqid(status, res->seqid);
 	if (!status)
-		status = decode_open_stateid(xdr, &res->stateid);
+		status = decode_invalid_stateid(xdr, &res->stateid);
 	return status;
 }
 
@@ -6108,6 +6116,8 @@ static int decode_layoutreturn(struct xdr_stream *xdr,
 	res->lrs_present = be32_to_cpup(p);
 	if (res->lrs_present)
 		status = decode_layout_stateid(xdr, &res->stateid);
+	else
+		nfs4_stateid_copy(&res->stateid, &invalid_stateid);
 	return status;
 out_overflow:
 	print_overflow_msg(__func__, xdr);

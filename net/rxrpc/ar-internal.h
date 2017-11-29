@@ -15,7 +15,7 @@
 #include <net/netns/generic.h>
 #include <net/sock.h>
 #include <net/af_rxrpc.h>
-#include <rxrpc/packet.h>
+#include "protocol.h"
 
 #if 0
 #define CHECK_SLAB_OKAY(X)				     \
@@ -445,6 +445,7 @@ enum rxrpc_call_flag {
 	RXRPC_CALL_EXPOSED,		/* The call was exposed to the world */
 	RXRPC_CALL_RX_LAST,		/* Received the last packet (at rxtx_top) */
 	RXRPC_CALL_TX_LAST,		/* Last packet in Tx buffer (at rxtx_top) */
+	RXRPC_CALL_TX_LASTQ,		/* Last packet has been queued */
 	RXRPC_CALL_SEND_PING,		/* A ping will need to be sent */
 	RXRPC_CALL_PINGING,		/* Ping in process */
 	RXRPC_CALL_RETRANS_TIMEOUT,	/* Retransmission due to timeout occurred */
@@ -479,18 +480,6 @@ enum rxrpc_call_state {
 	RXRPC_CALL_SERVER_AWAIT_ACK,	/* - server awaiting final ACK */
 	RXRPC_CALL_COMPLETE,		/* - call complete */
 	NR__RXRPC_CALL_STATES
-};
-
-/*
- * Call completion condition (state == RXRPC_CALL_COMPLETE).
- */
-enum rxrpc_call_completion {
-	RXRPC_CALL_SUCCEEDED,		/* - Normal termination */
-	RXRPC_CALL_REMOTELY_ABORTED,	/* - call aborted by peer */
-	RXRPC_CALL_LOCALLY_ABORTED,	/* - call aborted locally on error or close */
-	RXRPC_CALL_LOCAL_ERROR,		/* - call failed due to local error */
-	RXRPC_CALL_NETWORK_ERROR,	/* - call terminated by network error */
-	NR__RXRPC_CALL_COMPLETIONS
 };
 
 /*
@@ -536,6 +525,7 @@ struct rxrpc_call {
 	unsigned long		flags;
 	unsigned long		events;
 	spinlock_t		lock;
+	spinlock_t		notify_lock;	/* Kernel notification lock */
 	rwlock_t		state_lock;	/* lock for state transition */
 	u32			abort_code;	/* Local/remote abort code */
 	int			error;		/* Local error incurred */
@@ -687,9 +677,15 @@ struct rxrpc_call *rxrpc_new_client_call(struct rxrpc_sock *,
 					 struct rxrpc_conn_parameters *,
 					 struct sockaddr_rxrpc *,
 					 unsigned long, s64, gfp_t);
+int rxrpc_retry_client_call(struct rxrpc_sock *,
+			    struct rxrpc_call *,
+			    struct rxrpc_conn_parameters *,
+			    struct sockaddr_rxrpc *,
+			    gfp_t);
 void rxrpc_incoming_call(struct rxrpc_sock *, struct rxrpc_call *,
 			 struct sk_buff *);
 void rxrpc_release_call(struct rxrpc_sock *, struct rxrpc_call *);
+int rxrpc_prepare_call_for_retry(struct rxrpc_sock *, struct rxrpc_call *);
 void rxrpc_release_calls_on_socket(struct rxrpc_sock *);
 bool __rxrpc_queue_call(struct rxrpc_call *);
 bool rxrpc_queue_call(struct rxrpc_call *);
@@ -830,7 +826,6 @@ void rxrpc_process_connection(struct work_struct *);
  */
 extern unsigned int rxrpc_connection_expiry;
 
-int rxrpc_extract_addr_from_skb(struct sockaddr_rxrpc *, struct sk_buff *);
 struct rxrpc_connection *rxrpc_alloc_connection(gfp_t);
 struct rxrpc_connection *rxrpc_find_connection_rcu(struct rxrpc_local *,
 						   struct sk_buff *);
@@ -894,7 +889,7 @@ extern struct key_type key_type_rxrpc_s;
 
 int rxrpc_request_key(struct rxrpc_sock *, char __user *, int);
 int rxrpc_server_keyring(struct rxrpc_sock *, char __user *, int);
-int rxrpc_get_server_data_key(struct rxrpc_connection *, const void *, time_t,
+int rxrpc_get_server_data_key(struct rxrpc_connection *, const void *, time64_t,
 			      u32);
 
 /*
@@ -1060,7 +1055,8 @@ static inline void rxrpc_sysctl_exit(void) {}
 /*
  * utils.c
  */
-int rxrpc_extract_addr_from_skb(struct sockaddr_rxrpc *, struct sk_buff *);
+int rxrpc_extract_addr_from_skb(struct rxrpc_local *, struct sockaddr_rxrpc *,
+				struct sk_buff *);
 
 static inline bool before(u32 seq1, u32 seq2)
 {

@@ -18,8 +18,34 @@
 static inline bool irq_needs_fixup(struct irq_data *d)
 {
 	const struct cpumask *m = irq_data_get_effective_affinity_mask(d);
+	unsigned int cpu = smp_processor_id();
 
-	return cpumask_test_cpu(smp_processor_id(), m);
+#ifdef CONFIG_GENERIC_IRQ_EFFECTIVE_AFF_MASK
+	/*
+	 * The cpumask_empty() check is a workaround for interrupt chips,
+	 * which do not implement effective affinity, but the architecture has
+	 * enabled the config switch. Use the general affinity mask instead.
+	 */
+	if (cpumask_empty(m))
+		m = irq_data_get_affinity_mask(d);
+
+	/*
+	 * Sanity check. If the mask is not empty when excluding the outgoing
+	 * CPU then it must contain at least one online CPU. The outgoing CPU
+	 * has been removed from the online mask already.
+	 */
+	if (cpumask_any_but(m, cpu) < nr_cpu_ids &&
+	    cpumask_any_and(m, cpu_online_mask) >= nr_cpu_ids) {
+		/*
+		 * If this happens then there was a missed IRQ fixup at some
+		 * point. Warn about it and enforce fixup.
+		 */
+		pr_warn("Eff. affinity %*pbl of IRQ %u contains only offline CPUs after offlining CPU %u\n",
+			cpumask_pr_args(m), d->irq, cpu);
+		return true;
+	}
+#endif
+	return cpumask_test_cpu(cpu, m);
 }
 
 static bool migrate_one_irq(struct irq_desc *desc)
@@ -95,8 +121,13 @@ static bool migrate_one_irq(struct irq_desc *desc)
 		affinity = cpu_online_mask;
 		brokeaff = true;
 	}
-
-	err = irq_do_set_affinity(d, affinity, true);
+	/*
+	 * Do not set the force argument of irq_do_set_affinity() as this
+	 * disables the masking of offline CPUs from the supplied affinity
+	 * mask and therefore might keep/reassign the irq to the outgoing
+	 * CPU.
+	 */
+	err = irq_do_set_affinity(d, affinity, false);
 	if (err) {
 		pr_warn_ratelimited("IRQ%u: set affinity failed(%d).\n",
 				    d->irq, err);

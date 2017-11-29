@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  *  linux/arch/x86/kernel/head_64.S -- start in 32bit and switch to 64bit
  *
@@ -37,11 +38,12 @@
  *
  */
 
-#define p4d_index(x)	(((x) >> P4D_SHIFT) & (PTRS_PER_P4D-1))
 #define pud_index(x)	(((x) >> PUD_SHIFT) & (PTRS_PER_PUD-1))
 
+#if defined(CONFIG_XEN_PV) || defined(CONFIG_XEN_PVH)
 PGD_PAGE_OFFSET = pgd_index(__PAGE_OFFSET_BASE)
 PGD_START_KERNEL = pgd_index(__START_KERNEL_map)
+#endif
 L3_START_KERNEL = pud_index(__START_KERNEL_map)
 
 	.text
@@ -49,6 +51,7 @@ L3_START_KERNEL = pud_index(__START_KERNEL_map)
 	.code64
 	.globl startup_64
 startup_64:
+	UNWIND_HINT_EMPTY
 	/*
 	 * At this point the CPU runs in 64bit mode CS.L = 1 CS.D = 0,
 	 * and someone has loaded an identity mapped page table
@@ -73,14 +76,22 @@ startup_64:
 	/* Sanitize CPU configuration */
 	call verify_cpu
 
+	/*
+	 * Perform pagetable fixups. Additionally, if SME is active, encrypt
+	 * the kernel and retrieve the modifier (SME encryption mask if SME
+	 * is active) to be added to the initial pgdir entry that will be
+	 * programmed into CR3.
+	 */
 	leaq	_text(%rip), %rdi
 	pushq	%rsi
 	call	__startup_64
 	popq	%rsi
 
-	movq	$(early_top_pgt - __START_KERNEL_map), %rax
+	/* Form the CR3 value being sure to include the CR3 modifier */
+	addq	$(early_top_pgt - __START_KERNEL_map), %rax
 	jmp 1f
 ENTRY(secondary_startup_64)
+	UNWIND_HINT_EMPTY
 	/*
 	 * At this point the CPU runs in 64bit mode CS.L = 1 CS.D = 0,
 	 * and someone has loaded a mapped page table.
@@ -98,7 +109,16 @@ ENTRY(secondary_startup_64)
 	/* Sanitize CPU configuration */
 	call verify_cpu
 
-	movq	$(init_top_pgt - __START_KERNEL_map), %rax
+	/*
+	 * Retrieve the modifier (SME encryption mask if SME is active) to be
+	 * added to the initial pgdir entry that will be programmed into CR3.
+	 */
+	pushq	%rsi
+	call	__startup_secondary_64
+	popq	%rsi
+
+	/* Form the CR3 value being sure to include the CR3 modifier */
+	addq	$(init_top_pgt - __START_KERNEL_map), %rax
 1:
 
 	/* Enable PAE mode, PGE and LA57 */
@@ -116,6 +136,7 @@ ENTRY(secondary_startup_64)
 	movq	$1f, %rax
 	jmp	*%rax
 1:
+	UNWIND_HINT_EMPTY
 
 	/* Check if nx is implemented */
 	movl	$0x80000001, %eax
@@ -133,9 +154,6 @@ ENTRY(secondary_startup_64)
 1:	wrmsr				/* Make changes effective */
 
 	/* Setup cr0 */
-#define CR0_STATE	(X86_CR0_PE | X86_CR0_MP | X86_CR0_ET | \
-			 X86_CR0_NE | X86_CR0_WP | X86_CR0_AM | \
-			 X86_CR0_PG)
 	movl	$CR0_STATE, %eax
 	/* Make changes effective */
 	movq	%rax, %cr0
@@ -218,7 +236,7 @@ ENTRY(secondary_startup_64)
 	pushq	%rax		# target address in negative space
 	lretq
 .Lafter_lret:
-ENDPROC(secondary_startup_64)
+END(secondary_startup_64)
 
 #include "verify_cpu.S"
 
@@ -230,6 +248,7 @@ ENDPROC(secondary_startup_64)
  */
 ENTRY(start_cpu0)
 	movq	initial_stack(%rip), %rsp
+	UNWIND_HINT_EMPTY
 	jmp	.Ljump_to_C_code
 ENDPROC(start_cpu0)
 #endif
@@ -249,26 +268,24 @@ ENDPROC(start_cpu0)
 	.quad  init_thread_union + THREAD_SIZE - SIZEOF_PTREGS
 	__FINITDATA
 
-bad_address:
-	jmp bad_address
-
 	__INIT
 ENTRY(early_idt_handler_array)
-	# 104(%rsp) %rflags
-	#  96(%rsp) %cs
-	#  88(%rsp) %rip
-	#  80(%rsp) error code
 	i = 0
 	.rept NUM_EXCEPTION_VECTORS
-	.ifeq (EXCEPTION_ERRCODE_MASK >> i) & 1
-	pushq $0		# Dummy error code, to make stack frame uniform
+	.if ((EXCEPTION_ERRCODE_MASK >> i) & 1) == 0
+		UNWIND_HINT_IRET_REGS
+		pushq $0	# Dummy error code, to make stack frame uniform
+	.else
+		UNWIND_HINT_IRET_REGS offset=8
 	.endif
 	pushq $i		# 72(%rsp) Vector number
 	jmp early_idt_handler_common
+	UNWIND_HINT_IRET_REGS
 	i = i + 1
 	.fill early_idt_handler_array + i*EARLY_IDT_HANDLER_SIZE - ., 1, 0xcc
 	.endr
-ENDPROC(early_idt_handler_array)
+	UNWIND_HINT_IRET_REGS offset=16
+END(early_idt_handler_array)
 
 early_idt_handler_common:
 	/*
@@ -296,6 +313,7 @@ early_idt_handler_common:
 	pushq %r13				/* pt_regs->r13 */
 	pushq %r14				/* pt_regs->r14 */
 	pushq %r15				/* pt_regs->r15 */
+	UNWIND_HINT_REGS
 
 	cmpq $14,%rsi		/* Page fault? */
 	jnz 10f
@@ -310,8 +328,8 @@ early_idt_handler_common:
 
 20:
 	decl early_recursion_flag(%rip)
-	jmp restore_regs_and_iret
-ENDPROC(early_idt_handler_common)
+	jmp restore_regs_and_return_to_kernel
+END(early_idt_handler_common)
 
 	__INITDATA
 
@@ -335,9 +353,9 @@ GLOBAL(name)
 NEXT_PAGE(early_top_pgt)
 	.fill	511,8,0
 #ifdef CONFIG_X86_5LEVEL
-	.quad	level4_kernel_pgt - __START_KERNEL_map + _PAGE_TABLE
+	.quad	level4_kernel_pgt - __START_KERNEL_map + _PAGE_TABLE_NOENC
 #else
-	.quad	level3_kernel_pgt - __START_KERNEL_map + _PAGE_TABLE
+	.quad	level3_kernel_pgt - __START_KERNEL_map + _PAGE_TABLE_NOENC
 #endif
 
 NEXT_PAGE(early_dynamic_pgts)
@@ -345,39 +363,39 @@ NEXT_PAGE(early_dynamic_pgts)
 
 	.data
 
-#ifndef CONFIG_XEN
+#if defined(CONFIG_XEN_PV) || defined(CONFIG_XEN_PVH)
 NEXT_PAGE(init_top_pgt)
-	.fill	512,8,0
-#else
-NEXT_PAGE(init_top_pgt)
-	.quad   level3_ident_pgt - __START_KERNEL_map + _KERNPG_TABLE
+	.quad   level3_ident_pgt - __START_KERNEL_map + _KERNPG_TABLE_NOENC
 	.org    init_top_pgt + PGD_PAGE_OFFSET*8, 0
-	.quad   level3_ident_pgt - __START_KERNEL_map + _KERNPG_TABLE
+	.quad   level3_ident_pgt - __START_KERNEL_map + _KERNPG_TABLE_NOENC
 	.org    init_top_pgt + PGD_START_KERNEL*8, 0
 	/* (2^48-(2*1024*1024*1024))/(2^39) = 511 */
-	.quad   level3_kernel_pgt - __START_KERNEL_map + _PAGE_TABLE
+	.quad   level3_kernel_pgt - __START_KERNEL_map + _PAGE_TABLE_NOENC
 
 NEXT_PAGE(level3_ident_pgt)
-	.quad	level2_ident_pgt - __START_KERNEL_map + _KERNPG_TABLE
+	.quad	level2_ident_pgt - __START_KERNEL_map + _KERNPG_TABLE_NOENC
 	.fill	511, 8, 0
 NEXT_PAGE(level2_ident_pgt)
 	/* Since I easily can, map the first 1G.
 	 * Don't set NX because code runs from these pages.
 	 */
 	PMDS(0, __PAGE_KERNEL_IDENT_LARGE_EXEC, PTRS_PER_PMD)
+#else
+NEXT_PAGE(init_top_pgt)
+	.fill	512,8,0
 #endif
 
 #ifdef CONFIG_X86_5LEVEL
 NEXT_PAGE(level4_kernel_pgt)
 	.fill	511,8,0
-	.quad	level3_kernel_pgt - __START_KERNEL_map + _PAGE_TABLE
+	.quad	level3_kernel_pgt - __START_KERNEL_map + _PAGE_TABLE_NOENC
 #endif
 
 NEXT_PAGE(level3_kernel_pgt)
 	.fill	L3_START_KERNEL,8,0
 	/* (2^48-(2*1024*1024*1024)-((2^39)*511))/(2^30) = 510 */
-	.quad	level2_kernel_pgt - __START_KERNEL_map + _KERNPG_TABLE
-	.quad	level2_fixmap_pgt - __START_KERNEL_map + _PAGE_TABLE
+	.quad	level2_kernel_pgt - __START_KERNEL_map + _KERNPG_TABLE_NOENC
+	.quad	level2_fixmap_pgt - __START_KERNEL_map + _PAGE_TABLE_NOENC
 
 NEXT_PAGE(level2_kernel_pgt)
 	/*
@@ -395,7 +413,7 @@ NEXT_PAGE(level2_kernel_pgt)
 
 NEXT_PAGE(level2_fixmap_pgt)
 	.fill	506,8,0
-	.quad	level1_fixmap_pgt - __START_KERNEL_map + _PAGE_TABLE
+	.quad	level1_fixmap_pgt - __START_KERNEL_map + _PAGE_TABLE_NOENC
 	/* 8MB reserved for vsyscalls + a 2MB hole = 4 + 1 entries */
 	.fill	5,8,0
 
@@ -418,7 +436,7 @@ ENTRY(phys_base)
 EXPORT_SYMBOL(phys_base)
 
 #include "../../x86/xen/xen-head.S"
-	
+
 	__PAGE_ALIGNED_BSS
 NEXT_PAGE(empty_zero_page)
 	.skip PAGE_SIZE

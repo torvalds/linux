@@ -2247,15 +2247,26 @@ static struct Bprotocol X75SLP = {
 int
 Isdnl2_Init(u_int *deb)
 {
+	int res;
 	debug = deb;
 	mISDN_register_Bprotocol(&X75SLP);
 	l2fsm.state_count = L2_STATE_COUNT;
 	l2fsm.event_count = L2_EVENT_COUNT;
 	l2fsm.strEvent = strL2Event;
 	l2fsm.strState = strL2State;
-	mISDN_FsmNew(&l2fsm, L2FnList, ARRAY_SIZE(L2FnList));
-	TEIInit(deb);
+	res = mISDN_FsmNew(&l2fsm, L2FnList, ARRAY_SIZE(L2FnList));
+	if (res)
+		goto error;
+	res = TEIInit(deb);
+	if (res)
+		goto error_fsm;
 	return 0;
+
+error_fsm:
+	mISDN_FsmFree(&l2fsm);
+error:
+	mISDN_unregister_Bprotocol(&X75SLP);
+	return res;
 }
 
 void

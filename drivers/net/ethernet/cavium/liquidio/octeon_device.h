@@ -22,6 +22,9 @@
 #ifndef _OCTEON_DEVICE_H_
 #define  _OCTEON_DEVICE_H_
 
+#include <linux/interrupt.h>
+#include <net/devlink.h>
+
 /** PCI VendorId Device Id */
 #define  OCTEON_CN68XX_PCIID          0x91177d
 #define  OCTEON_CN66XX_PCIID          0x92177d
@@ -46,6 +49,13 @@ enum octeon_pci_swap_mode {
 	OCTEON_PCI_64BIT_SWAP = 1,
 	OCTEON_PCI_32BIT_BYTE_SWAP = 2,
 	OCTEON_PCI_32BIT_LW_SWAP = 3
+};
+
+enum lio_fw_state {
+	FW_IS_PRELOADED = 0,
+	FW_NEEDS_TO_BE_LOADED = 1,
+	FW_IS_BEING_LOADED = 2,
+	FW_HAS_BEEN_LOADED = 3,
 };
 
 enum {
@@ -192,6 +202,8 @@ struct octeon_reg_list {
 };
 
 #define OCTEON_CONSOLE_MAX_READ_BYTES 512
+typedef int (*octeon_console_print_fn)(struct octeon_device *oct,
+				       u32 num, char *pre, char *suf);
 struct octeon_console {
 	u32 active;
 	u32 waiting;
@@ -199,6 +211,7 @@ struct octeon_console {
 	u32 buffer_size;
 	u64 input_base_addr;
 	u64 output_base_addr;
+	octeon_console_print_fn print;
 	char leftover[OCTEON_CONSOLE_MAX_READ_BYTES];
 };
 
@@ -379,6 +392,15 @@ struct octeon_ioq_vector {
 	u32			ioq_num;
 };
 
+struct lio_vf_rep_list {
+	int num_vfs;
+	struct net_device *ndev[CN23XX_MAX_VFS_PER_PF];
+};
+
+struct lio_devlink_priv {
+	struct octeon_device *oct;
+};
+
 /** The Octeon device.
  *  Each Octeon device has this structure to represent all its
  *  components.
@@ -552,6 +574,14 @@ struct octeon_device {
 	} loc;
 
 	atomic_t *adapter_refcount; /* reference count of adapter */
+
+	atomic_t *adapter_fw_state; /* per-adapter, lio_fw_state */
+
+	bool ptp_enable;
+
+	struct lio_vf_rep_list vf_rep_list;
+	struct devlink *devlink;
+	enum devlink_eswitch_mode eswitch_mode;
 };
 
 #define  OCT_DRV_ONLINE 1
@@ -564,6 +594,8 @@ struct octeon_device {
 #define  OCTEON_CN23XX_VF(oct)        ((oct)->chip_id == OCTEON_CN23XX_VF_VID)
 #define CHIP_CONF(oct, TYPE)             \
 	(((struct octeon_ ## TYPE  *)((oct)->chip))->conf)
+
+#define MAX_IO_PENDING_PKT_COUNT 100
 
 /*------------------ Function Prototypes ----------------------*/
 
@@ -740,11 +772,17 @@ int octeon_init_consoles(struct octeon_device *oct);
 /**
  * Adds access to a console to the device.
  *
- * @param oct which octeon to add to
- * @param console_num which console
+ * @param oct:          which octeon to add to
+ * @param console_num:  which console
+ * @param dbg_enb:      ptr to debug enablement string, one of:
+ *                    * NULL for no debug output (i.e. disabled)
+ *                    * empty string enables debug output (via default method)
+ *                    * specific string to enable debug console output
+ *
  * @return Zero on success, negative on failure.
  */
-int octeon_add_console(struct octeon_device *oct, u32 console_num);
+int octeon_add_console(struct octeon_device *oct, u32 console_num,
+		       char *dbg_enb);
 
 /** write or read from a console */
 int octeon_console_write(struct octeon_device *oct, u32 console_num,

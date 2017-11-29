@@ -1879,6 +1879,7 @@ retry:
 	switch (class) {
 	case ATA_DEV_SEMB:
 		class = ATA_DEV_ATA;	/* some hard drives report SEMB sig */
+		/* fall through */
 	case ATA_DEV_ATA:
 	case ATA_DEV_ZAC:
 		tf.command = ATA_CMD_ID_ATA;
@@ -2083,7 +2084,7 @@ unsigned int ata_read_log_page(struct ata_device *dev, u8 log,
 retry:
 	ata_tf_init(dev, &tf);
 	if (dev->dma_mode && ata_id_has_read_log_dma_ext(dev->id) &&
-	    !(dev->horkage & ATA_HORKAGE_NO_NCQ_LOG)) {
+	    !(dev->horkage & ATA_HORKAGE_NO_DMA_LOG)) {
 		tf.command = ATA_CMD_READ_LOG_DMA_EXT;
 		tf.protocol = ATA_PROT_DMA;
 		dma = true;
@@ -2102,8 +2103,8 @@ retry:
 				     buf, sectors * ATA_SECT_SIZE, 0);
 
 	if (err_mask && dma) {
-		dev->horkage |= ATA_HORKAGE_NO_NCQ_LOG;
-		ata_dev_warn(dev, "READ LOG DMA EXT failed, trying unqueued\n");
+		dev->horkage |= ATA_HORKAGE_NO_DMA_LOG;
+		ata_dev_warn(dev, "READ LOG DMA EXT failed, trying PIO\n");
 		goto retry;
 	}
 
@@ -2410,6 +2411,9 @@ static void ata_dev_config_trusted(struct ata_device *dev)
 	struct ata_port *ap = dev->link->ap;
 	u64 trusted_cap;
 	unsigned int err;
+
+	if (!ata_id_has_trusted(dev->id))
+		return;
 
 	if (!ata_identify_page_supported(dev, ATA_LOG_SECURITY)) {
 		ata_dev_warn(dev,
@@ -2972,6 +2976,7 @@ int ata_bus_probe(struct ata_port *ap)
 	case -ENODEV:
 		/* give it just one more chance */
 		tries[dev->devno] = min(tries[dev->devno], 1);
+		/* fall through */
 	case -EIO:
 		if (tries[dev->devno] == 1) {
 			/* This is the last chance, better to slow
@@ -3231,19 +3236,19 @@ static const struct ata_timing ata_timing[] = {
 };
 
 #define ENOUGH(v, unit)		(((v)-1)/(unit)+1)
-#define EZ(v, unit)		((v)?ENOUGH(v, unit):0)
+#define EZ(v, unit)		((v)?ENOUGH(((v) * 1000), unit):0)
 
 static void ata_timing_quantize(const struct ata_timing *t, struct ata_timing *q, int T, int UT)
 {
-	q->setup	= EZ(t->setup      * 1000,  T);
-	q->act8b	= EZ(t->act8b      * 1000,  T);
-	q->rec8b	= EZ(t->rec8b      * 1000,  T);
-	q->cyc8b	= EZ(t->cyc8b      * 1000,  T);
-	q->active	= EZ(t->active     * 1000,  T);
-	q->recover	= EZ(t->recover    * 1000,  T);
-	q->dmack_hold	= EZ(t->dmack_hold * 1000,  T);
-	q->cycle	= EZ(t->cycle      * 1000,  T);
-	q->udma		= EZ(t->udma       * 1000, UT);
+	q->setup	= EZ(t->setup,       T);
+	q->act8b	= EZ(t->act8b,       T);
+	q->rec8b	= EZ(t->rec8b,       T);
+	q->cyc8b	= EZ(t->cyc8b,       T);
+	q->active	= EZ(t->active,      T);
+	q->recover	= EZ(t->recover,     T);
+	q->dmack_hold	= EZ(t->dmack_hold,  T);
+	q->cycle	= EZ(t->cycle,       T);
+	q->udma		= EZ(t->udma,       UT);
 }
 
 void ata_timing_merge(const struct ata_timing *a, const struct ata_timing *b,
@@ -3459,6 +3464,7 @@ int ata_down_xfermask_limit(struct ata_device *dev, unsigned int sel)
 
 	case ATA_DNXFER_FORCE_PIO0:
 		pio_mask &= 1;
+		/* fall through */
 	case ATA_DNXFER_FORCE_PIO:
 		mwdma_mask = 0;
 		udma_mask = 0;
@@ -3961,6 +3967,7 @@ int sata_link_scr_lpm(struct ata_link *link, enum ata_lpm_policy policy,
 		scontrol &= ~(0x1 << 8);
 		scontrol |= (0x6 << 8);
 		break;
+	case ATA_LPM_MED_POWER_WITH_DIPM:
 	case ATA_LPM_MIN_POWER:
 		if (ata_link_nr_enabled(link) > 0)
 			/* no restrictions on LPM transitions */
@@ -5820,7 +5827,7 @@ void ata_host_resume(struct ata_host *host)
 }
 #endif
 
-struct device_type ata_port_type = {
+const struct device_type ata_port_type = {
 	.name = "ata_port",
 #ifdef CONFIG_PM
 	.pm = &ata_port_pm_ops,
@@ -5976,9 +5983,8 @@ struct ata_port *ata_port_alloc(struct ata_host *host)
 	INIT_LIST_HEAD(&ap->eh_done_q);
 	init_waitqueue_head(&ap->eh_wait_q);
 	init_completion(&ap->park_req_pending);
-	setup_deferrable_timer(&ap->fastdrain_timer,
-			       ata_eh_fastdrain_timerfn,
-			       (unsigned long)ap);
+	timer_setup(&ap->fastdrain_timer, ata_eh_fastdrain_timerfn,
+		    TIMER_DEFERRABLE);
 
 	ap->cbl = ATA_CBL_NONE;
 
@@ -6901,7 +6907,7 @@ static int __init ata_parse_force_one(char **cur,
 		return -EINVAL;
 	}
 	if (nr_matches > 1) {
-		*reason = "ambigious value";
+		*reason = "ambiguous value";
 		return -EINVAL;
 	}
 

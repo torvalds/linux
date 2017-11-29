@@ -6,8 +6,6 @@
 # published by the Free Software Foundation.
 #
 
-UTS_MACHINE := arc
-
 ifeq ($(CROSS_COMPILE),)
 ifndef CONFIG_CPU_BIG_ENDIAN
 CROSS_COMPILE := arc-linux-
@@ -107,10 +105,11 @@ core-y		+= arch/arc/
 # w/o this dtb won't embed into kernel binary
 core-y		+= arch/arc/boot/dts/
 
-core-$(CONFIG_ARC_PLAT_SIM)	+= arch/arc/plat-sim/
+core-y				+= arch/arc/plat-sim/
 core-$(CONFIG_ARC_PLAT_TB10X)	+= arch/arc/plat-tb10x/
 core-$(CONFIG_ARC_PLAT_AXS10X)	+= arch/arc/plat-axs10x/
 core-$(CONFIG_ARC_PLAT_EZNPS)	+= arch/arc/plat-eznps/
+core-$(CONFIG_ARC_SOC_HSDK)	+= arch/arc/plat-hsdk/
 
 ifdef CONFIG_ARC_PLAT_EZNPS
 KBUILD_CPPFLAGS += -I$(srctree)/arch/arc/plat-eznps/include

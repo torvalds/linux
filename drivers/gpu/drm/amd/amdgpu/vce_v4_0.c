@@ -173,6 +173,11 @@ static int vce_v4_0_mmsch_start(struct amdgpu_device *adev,
 	/* 4, set resp to zero */
 	WREG32(SOC15_REG_OFFSET(VCE, 0, mmVCE_MMSCH_VF_MAILBOX_RESP), 0);
 
+	WDOORBELL32(adev->vce.ring[0].doorbell_index, 0);
+	adev->wb.wb[adev->vce.ring[0].wptr_offs] = 0;
+	adev->vce.ring[0].wptr = 0;
+	adev->vce.ring[0].wptr_old = 0;
+
 	/* 5, kick off the initialization and wait until VCE_MMSCH_VF_MAILBOX_RESP becomes non-zero */
 	WREG32(SOC15_REG_OFFSET(VCE, 0, mmVCE_MMSCH_VF_MAILBOX_HOST), 0x10000001);
 
@@ -190,7 +195,6 @@ static int vce_v4_0_mmsch_start(struct amdgpu_device *adev,
 		dev_err(adev->dev, "failed to init MMSCH, mmVCE_MMSCH_VF_MAILBOX_RESP = %x\n", data);
 		return -EBUSY;
 	}
-	WDOORBELL32(adev->vce.ring[0].doorbell_index, 0);
 
 	return 0;
 }
@@ -274,7 +278,8 @@ static int vce_v4_0_sriov_start(struct amdgpu_device *adev)
 
 		MMSCH_V1_0_INSERT_DIRECT_RD_MOD_WT(SOC15_REG_OFFSET(VCE, 0, mmVCE_LMI_CTRL2), ~0x100, 0);
 		MMSCH_V1_0_INSERT_DIRECT_RD_MOD_WT(SOC15_REG_OFFSET(VCE, 0, mmVCE_SYS_INT_EN),
-						   0xffffffff, VCE_SYS_INT_EN__VCE_SYS_INT_TRAP_INTERRUPT_EN_MASK);
+						   VCE_SYS_INT_EN__VCE_SYS_INT_TRAP_INTERRUPT_EN_MASK,
+						   VCE_SYS_INT_EN__VCE_SYS_INT_TRAP_INTERRUPT_EN_MASK);
 
 		/* end of MC_RESUME */
 		MMSCH_V1_0_INSERT_DIRECT_RD_MOD_WT(SOC15_REG_OFFSET(VCE, 0, mmVCE_STATUS),
@@ -296,11 +301,9 @@ static int vce_v4_0_sriov_start(struct amdgpu_device *adev)
 		memcpy((void *)init_table, &end, sizeof(struct mmsch_v1_0_cmd_end));
 		table_size += sizeof(struct mmsch_v1_0_cmd_end) / 4;
 		header->vce_table_size = table_size;
-
-		return vce_v4_0_mmsch_start(adev, &adev->virt.mm_table);
 	}
 
-	return -EINVAL; /* already initializaed ? */
+	return vce_v4_0_mmsch_start(adev, &adev->virt.mm_table);
 }
 
 /**
@@ -443,12 +446,14 @@ static int vce_v4_0_sw_init(void *handle)
 		if (amdgpu_sriov_vf(adev)) {
 			/* DOORBELL only works under SRIOV */
 			ring->use_doorbell = true;
+
+			/* currently only use the first encoding ring for sriov,
+			 * so set unused location for other unused rings.
+			 */
 			if (i == 0)
-				ring->doorbell_index = AMDGPU_DOORBELL64_RING0_1 * 2;
-			else if (i == 1)
-				ring->doorbell_index = AMDGPU_DOORBELL64_RING2_3 * 2;
+				ring->doorbell_index = AMDGPU_DOORBELL64_VCE_RING0_1 * 2;
 			else
-				ring->doorbell_index = AMDGPU_DOORBELL64_RING2_3 * 2 + 1;
+				ring->doorbell_index = AMDGPU_DOORBELL64_VCE_RING2_3 * 2 + 1;
 		}
 		r = amdgpu_ring_init(adev, ring, 512, &adev->vce.irq, 0);
 		if (r)
@@ -990,11 +995,13 @@ static int vce_v4_0_set_interrupt_state(struct amdgpu_device *adev,
 {
 	uint32_t val = 0;
 
-	if (state == AMDGPU_IRQ_STATE_ENABLE)
-		val |= VCE_SYS_INT_EN__VCE_SYS_INT_TRAP_INTERRUPT_EN_MASK;
+	if (!amdgpu_sriov_vf(adev)) {
+		if (state == AMDGPU_IRQ_STATE_ENABLE)
+			val |= VCE_SYS_INT_EN__VCE_SYS_INT_TRAP_INTERRUPT_EN_MASK;
 
-	WREG32_P(SOC15_REG_OFFSET(VCE, 0, mmVCE_SYS_INT_EN), val,
-			~VCE_SYS_INT_EN__VCE_SYS_INT_TRAP_INTERRUPT_EN_MASK);
+		WREG32_P(SOC15_REG_OFFSET(VCE, 0, mmVCE_SYS_INT_EN), val,
+				~VCE_SYS_INT_EN__VCE_SYS_INT_TRAP_INTERRUPT_EN_MASK);
+	}
 	return 0;
 }
 
@@ -1003,10 +1010,6 @@ static int vce_v4_0_process_interrupt(struct amdgpu_device *adev,
 				      struct amdgpu_iv_entry *entry)
 {
 	DRM_DEBUG("IH: VCE\n");
-
-	WREG32_P(SOC15_REG_OFFSET(VCE, 0, mmVCE_SYS_INT_STATUS),
-			VCE_SYS_INT_STATUS__VCE_SYS_INT_TRAP_INTERRUPT_INT_MASK,
-			~VCE_SYS_INT_STATUS__VCE_SYS_INT_TRAP_INTERRUPT_INT_MASK);
 
 	switch (entry->src_data[0]) {
 	case 0:

@@ -44,7 +44,7 @@ void mlx4_en_fill_qp_context(struct mlx4_en_priv *priv, int size, int stride,
 	struct mlx4_en_dev *mdev = priv->mdev;
 	struct net_device *dev = priv->dev;
 
-	memset(context, 0, sizeof *context);
+	memset(context, 0, sizeof(*context));
 	context->flags = cpu_to_be32(7 << 16 | rss << MLX4_RSS_QPC_FLAG_OFFSET);
 	context->pd = cpu_to_be32(mdev->priv_pdn);
 	context->mtu_msgmax = 0xff;
@@ -53,7 +53,7 @@ void mlx4_en_fill_qp_context(struct mlx4_en_priv *priv, int size, int stride,
 	if (is_tx) {
 		context->sq_size_stride = ilog2(size) << 3 | (ilog2(stride) - 4);
 		if (mdev->dev->caps.flags2 & MLX4_DEV_CAP_FLAG2_PORT_REMAP)
-			context->params2 |= MLX4_QP_BIT_FPP;
+			context->params2 |= cpu_to_be32(MLX4_QP_BIT_FPP);
 
 	} else {
 		context->sq_size_stride = ilog2(TXBB_SIZE) - 4;

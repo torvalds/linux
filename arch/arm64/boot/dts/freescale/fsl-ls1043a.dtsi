@@ -376,14 +376,14 @@
 		qman: qman@1880000 {
 			compatible = "fsl,qman";
 			reg = <0x0 0x1880000 0x0 0x10000>;
-			interrupts = <0 45 0x4>;
+			interrupts = <GIC_SPI 45 IRQ_TYPE_LEVEL_HIGH>;
 			memory-region = <&qman_fqd &qman_pfdr>;
 		};
 
 		bman: bman@1890000 {
 			compatible = "fsl,bman";
 			reg = <0x0 0x1890000 0x0 0x10000>;
-			interrupts = <0 45 0x4>;
+			interrupts = <GIC_SPI 45 IRQ_TYPE_LEVEL_HIGH>;
 			memory-region = <&bman_fbpr>;
 		};
 
@@ -653,21 +653,21 @@
 		};
 
 		msi1: msi-controller1@1571000 {
-			compatible = "fsl,1s1043a-msi";
+			compatible = "fsl,ls1043a-msi";
 			reg = <0x0 0x1571000 0x0 0x8>;
 			msi-controller;
 			interrupts = <0 116 0x4>;
 		};
 
 		msi2: msi-controller2@1572000 {
-			compatible = "fsl,1s1043a-msi";
+			compatible = "fsl,ls1043a-msi";
 			reg = <0x0 0x1572000 0x0 0x8>;
 			msi-controller;
 			interrupts = <0 126 0x4>;
 		};
 
 		msi3: msi-controller3@1573000 {
-			compatible = "fsl,1s1043a-msi";
+			compatible = "fsl,ls1043a-msi";
 			reg = <0x0 0x1573000 0x0 0x8>;
 			msi-controller;
 			interrupts = <0 160 0x4>;
@@ -689,7 +689,7 @@
 			bus-range = <0x0 0xff>;
 			ranges = <0x81000000 0x0 0x00000000 0x40 0x00010000 0x0 0x00010000   /* downstream I/O */
 				  0x82000000 0x0 0x40000000 0x40 0x40000000 0x0 0x40000000>; /* non-prefetchable memory */
-			msi-parent = <&msi1>;
+			msi-parent = <&msi1>, <&msi2>, <&msi3>;
 			#interrupt-cells = <1>;
 			interrupt-map-mask = <0 0 0 7>;
 			interrupt-map = <0000 0 0 1 &gic 0 110 0x4>,
@@ -714,7 +714,7 @@
 			bus-range = <0x0 0xff>;
 			ranges = <0x81000000 0x0 0x00000000 0x48 0x00010000 0x0 0x00010000   /* downstream I/O */
 				  0x82000000 0x0 0x40000000 0x48 0x40000000 0x0 0x40000000>; /* non-prefetchable memory */
-			msi-parent = <&msi2>;
+			msi-parent = <&msi1>, <&msi2>, <&msi3>;
 			#interrupt-cells = <1>;
 			interrupt-map-mask = <0 0 0 7>;
 			interrupt-map = <0000 0 0 1 &gic 0 120  0x4>,
@@ -739,13 +739,20 @@
 			bus-range = <0x0 0xff>;
 			ranges = <0x81000000 0x0 0x00000000 0x50 0x00010000 0x0 0x00010000   /* downstream I/O */
 				  0x82000000 0x0 0x40000000 0x50 0x40000000 0x0 0x40000000>; /* non-prefetchable memory */
-			msi-parent = <&msi3>;
+			msi-parent = <&msi1>, <&msi2>, <&msi3>;
 			#interrupt-cells = <1>;
 			interrupt-map-mask = <0 0 0 7>;
 			interrupt-map = <0000 0 0 1 &gic 0 154 0x4>,
 					<0000 0 0 2 &gic 0 155 0x4>,
 					<0000 0 0 3 &gic 0 156 0x4>,
 					<0000 0 0 4 &gic 0 157 0x4>;
+		};
+	};
+
+	firmware {
+		optee {
+			compatible = "linaro,optee-tz";
+			method = "smc";
 		};
 	};
 

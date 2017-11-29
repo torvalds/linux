@@ -54,9 +54,6 @@
 
 #include <rdma/ib_verbs.h>
 
-/* VNIC uses 16B header format */
-#define OPA_VNIC_L2_TYPE    0x2
-
 /* 16 header bytes + 2 reserved bytes */
 #define OPA_VNIC_L2_HDR_LEN   (16 + 2)
 

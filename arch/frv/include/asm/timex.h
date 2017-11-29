@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* timex.h: FR-V architecture timex specifications
  */
 #ifndef _ASM_TIMEX_H

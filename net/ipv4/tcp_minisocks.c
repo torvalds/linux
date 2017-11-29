@@ -23,12 +23,11 @@
 #include <linux/slab.h>
 #include <linux/sysctl.h>
 #include <linux/workqueue.h>
+#include <linux/static_key.h>
 #include <net/tcp.h>
 #include <net/inet_common.h>
 #include <net/xfrm.h>
 #include <net/busy_poll.h>
-
-int sysctl_tcp_abort_on_overflow __read_mostly;
 
 static bool tcp_in_window(u32 seq, u32 end_seq, u32 s_win, u32 e_win)
 {
@@ -180,7 +179,7 @@ tcp_timewait_state_process(struct inet_timewait_sock *tw, struct sk_buff *skb,
 			 * Oh well... nobody has a sufficient solution to this
 			 * protocol bug yet.
 			 */
-			if (sysctl_tcp_rfc1337 == 0) {
+			if (twsk_net(tw)->ipv4.sysctl_tcp_rfc1337 == 0) {
 kill:
 				inet_twsk_deschedule_put(tw);
 				return TCP_TW_SUCCESS;
@@ -298,8 +297,7 @@ void tcp_time_wait(struct sock *sk, int state, int timeo)
 			key = tp->af_specific->md5_lookup(sk, sk);
 			if (key) {
 				tcptw->tw_md5_key = kmemdup(key, sizeof(*key), GFP_ATOMIC);
-				if (tcptw->tw_md5_key && !tcp_alloc_md5sig_pool())
-					BUG();
+				BUG_ON(tcptw->tw_md5_key && !tcp_alloc_md5sig_pool());
 			}
 		} while (0);
 #endif
@@ -371,7 +369,7 @@ void tcp_openreq_init_rwin(struct request_sock *req,
 		full_space = rcv_wnd * mss;
 
 	/* tcp_full_space because it is guaranteed to be the first packet */
-	tcp_select_initial_window(full_space,
+	tcp_select_initial_window(sk_listener, full_space,
 		mss - (ireq->tstamp_ok ? TCPOLEN_TSTAMP_ALIGNED : 0),
 		&req->rsk_rcv_wnd,
 		&req->rsk_window_clamp,
@@ -417,6 +415,21 @@ void tcp_ca_openreq_child(struct sock *sk, const struct dst_entry *dst)
 }
 EXPORT_SYMBOL_GPL(tcp_ca_openreq_child);
 
+static void smc_check_reset_syn_req(struct tcp_sock *oldtp,
+				    struct request_sock *req,
+				    struct tcp_sock *newtp)
+{
+#if IS_ENABLED(CONFIG_SMC)
+	struct inet_request_sock *ireq;
+
+	if (static_branch_unlikely(&tcp_have_smc)) {
+		ireq = inet_rsk(req);
+		if (oldtp->syn_smc && !ireq->smc_ok)
+			newtp->syn_smc = 0;
+	}
+#endif
+}
+
 /* This is not only more efficient than what we used to do, it eliminates
  * a lot of code duplication between IPv4/IPv6 SYN recv processing. -DaveM
  *
@@ -434,6 +447,9 @@ struct sock *tcp_create_openreq_child(const struct sock *sk,
 		struct tcp_request_sock *treq = tcp_rsk(req);
 		struct inet_connection_sock *newicsk = inet_csk(newsk);
 		struct tcp_sock *newtp = tcp_sk(newsk);
+		struct tcp_sock *oldtp = tcp_sk(sk);
+
+		smc_check_reset_syn_req(oldtp, req, newtp);
 
 		/* Now setup tcp_sock */
 		newtp->pred_flags = 0;
@@ -445,8 +461,8 @@ struct sock *tcp_create_openreq_child(const struct sock *sk,
 		newtp->snd_sml = newtp->snd_una =
 		newtp->snd_nxt = newtp->snd_up = treq->snt_isn + 1;
 
-		tcp_prequeue_init(newtp);
 		INIT_LIST_HEAD(&newtp->tsq_node);
+		INIT_LIST_HEAD(&newtp->tsorted_sent_queue);
 
 		tcp_init_wl(newtp, treq->rcv_isn);
 
@@ -459,7 +475,6 @@ struct sock *tcp_create_openreq_child(const struct sock *sk,
 		newtp->packets_out = 0;
 		newtp->retrans_out = 0;
 		newtp->sacked_out = 0;
-		newtp->fackets_out = 0;
 		newtp->snd_ssthresh = TCP_INFINITE_SSTHRESH;
 		newtp->tlp_high_seq = 0;
 		newtp->lsndtime = tcp_jiffies32;
@@ -493,10 +508,7 @@ struct sock *tcp_create_openreq_child(const struct sock *sk,
 						       keepalive_time_when(newtp));
 
 		newtp->rx_opt.tstamp_ok = ireq->tstamp_ok;
-		if ((newtp->rx_opt.sack_ok = ireq->sack_ok) != 0) {
-			if (sysctl_tcp_fack)
-				tcp_enable_fack(newtp);
-		}
+		newtp->rx_opt.sack_ok = ireq->sack_ok;
 		newtp->window_clamp = req->rsk_window_clamp;
 		newtp->rcv_ssthresh = req->rsk_rcv_wnd;
 		newtp->rcv_wnd = req->rsk_rcv_wnd;
@@ -535,6 +547,10 @@ struct sock *tcp_create_openreq_child(const struct sock *sk,
 		newtp->syn_data_acked = 0;
 		newtp->rack.mstamp = 0;
 		newtp->rack.advanced = 0;
+		newtp->rack.reo_wnd_steps = 1;
+		newtp->rack.last_delivered = 0;
+		newtp->rack.reo_wnd_persist = 0;
+		newtp->rack.dsack_seen = 0;
 
 		__TCP_INC_STATS(sock_net(sk), TCP_MIB_PASSIVEOPENS);
 	}
@@ -765,7 +781,7 @@ struct sock *tcp_check_req(struct sock *sk, struct sk_buff *skb,
 	return inet_csk_complete_hashdance(sk, child, req, own_req);
 
 listen_overflow:
-	if (!sysctl_tcp_abort_on_overflow) {
+	if (!sock_net(sk)->ipv4.sysctl_tcp_abort_on_overflow) {
 		inet_rsk(req)->acked = 1;
 		return NULL;
 	}

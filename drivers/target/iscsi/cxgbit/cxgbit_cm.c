@@ -665,6 +665,46 @@ static int cxgbit_send_abort_req(struct cxgbit_sock *csk)
 	return cxgbit_l2t_send(csk->com.cdev, skb, csk->l2t);
 }
 
+static void
+__cxgbit_abort_conn(struct cxgbit_sock *csk, struct sk_buff *skb)
+{
+	__kfree_skb(skb);
+
+	if (csk->com.state != CSK_STATE_ESTABLISHED)
+		goto no_abort;
+
+	set_bit(CSK_ABORT_RPL_WAIT, &csk->com.flags);
+	csk->com.state = CSK_STATE_ABORTING;
+
+	cxgbit_send_abort_req(csk);
+
+	return;
+
+no_abort:
+	cxgbit_wake_up(&csk->com.wr_wait, __func__, CPL_ERR_NONE);
+	cxgbit_put_csk(csk);
+}
+
+void cxgbit_abort_conn(struct cxgbit_sock *csk)
+{
+	struct sk_buff *skb = alloc_skb(0, GFP_KERNEL | __GFP_NOFAIL);
+
+	cxgbit_get_csk(csk);
+	cxgbit_init_wr_wait(&csk->com.wr_wait);
+
+	spin_lock_bh(&csk->lock);
+	if (csk->lock_owner) {
+		cxgbit_skcb_rx_backlog_fn(skb) = __cxgbit_abort_conn;
+		__skb_queue_tail(&csk->backlogq, skb);
+	} else {
+		__cxgbit_abort_conn(csk, skb);
+	}
+	spin_unlock_bh(&csk->lock);
+
+	cxgbit_wait_for_reply(csk->com.cdev, &csk->com.wr_wait,
+			      csk->tid, 600, __func__);
+}
+
 void cxgbit_free_conn(struct iscsi_conn *conn)
 {
 	struct cxgbit_sock *csk = conn->context;
@@ -1510,11 +1550,13 @@ cxgbit_pass_open_rpl(struct cxgbit_device *cdev, struct sk_buff *skb)
 
 	if (!cnp) {
 		pr_info("%s stid %d lookup failure\n", __func__, stid);
-		return;
+		goto rel_skb;
 	}
 
 	cxgbit_wake_up(&cnp->com.wr_wait, __func__, rpl->status);
 	cxgbit_put_cnp(cnp);
+rel_skb:
+	__kfree_skb(skb);
 }
 
 static void
@@ -1530,11 +1572,13 @@ cxgbit_close_listsrv_rpl(struct cxgbit_device *cdev, struct sk_buff *skb)
 
 	if (!cnp) {
 		pr_info("%s stid %d lookup failure\n", __func__, stid);
-		return;
+		goto rel_skb;
 	}
 
 	cxgbit_wake_up(&cnp->com.wr_wait, __func__, rpl->status);
 	cxgbit_put_cnp(cnp);
+rel_skb:
+	__kfree_skb(skb);
 }
 
 static void
@@ -1705,12 +1749,17 @@ rel_skb:
 
 static void cxgbit_abort_rpl_rss(struct cxgbit_sock *csk, struct sk_buff *skb)
 {
+	struct cpl_abort_rpl_rss *rpl = cplhdr(skb);
+
 	pr_debug("%s: csk %p; tid %u; state %d\n",
 		 __func__, csk, csk->tid, csk->com.state);
 
 	switch (csk->com.state) {
 	case CSK_STATE_ABORTING:
 		csk->com.state = CSK_STATE_DEAD;
+		if (test_bit(CSK_ABORT_RPL_WAIT, &csk->com.flags))
+			cxgbit_wake_up(&csk->com.wr_wait, __func__,
+				       rpl->status);
 		cxgbit_put_csk(csk);
 		break;
 	default:
@@ -1819,12 +1868,16 @@ static void cxgbit_set_tcb_rpl(struct cxgbit_device *cdev, struct sk_buff *skb)
 	struct tid_info *t = lldi->tids;
 
 	csk = lookup_tid(t, tid);
-	if (unlikely(!csk))
+	if (unlikely(!csk)) {
 		pr_err("can't find connection for tid %u.\n", tid);
-	else
+		goto rel_skb;
+	} else {
 		cxgbit_wake_up(&csk->com.wr_wait, __func__, rpl->status);
+	}
 
 	cxgbit_put_csk(csk);
+rel_skb:
+	__kfree_skb(skb);
 }
 
 static void cxgbit_rx_data(struct cxgbit_device *cdev, struct sk_buff *skb)

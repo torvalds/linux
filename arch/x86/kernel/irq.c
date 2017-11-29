@@ -29,9 +29,6 @@ EXPORT_PER_CPU_SYMBOL(irq_regs);
 
 atomic_t irq_err_count;
 
-/* Function pointer for generic interrupt vector handling */
-void (*x86_platform_ipi_callback)(void) = NULL;
-
 /*
  * 'what should we do if we get a hw irq event on an illegal vector'.
  * each architecture has to answer this themselves.
@@ -87,13 +84,13 @@ int arch_show_interrupts(struct seq_file *p, int prec)
 	for_each_online_cpu(j)
 		seq_printf(p, "%10u ", irq_stats(j)->icr_read_retry_count);
 	seq_puts(p, "  APIC ICR read retries\n");
-#endif
 	if (x86_platform_ipi_callback) {
 		seq_printf(p, "%*s: ", prec, "PLT");
 		for_each_online_cpu(j)
 			seq_printf(p, "%10u ", irq_stats(j)->x86_platform_ipis);
 		seq_puts(p, "  Platform interrupts\n");
 	}
+#endif
 #ifdef CONFIG_SMP
 	seq_printf(p, "%*s: ", prec, "RES");
 	for_each_online_cpu(j)
@@ -137,7 +134,7 @@ int arch_show_interrupts(struct seq_file *p, int prec)
 	seq_puts(p, "  Machine check polls\n");
 #endif
 #if IS_ENABLED(CONFIG_HYPERV) || defined(CONFIG_XEN)
-	if (test_bit(HYPERVISOR_CALLBACK_VECTOR, used_vectors)) {
+	if (test_bit(HYPERVISOR_CALLBACK_VECTOR, system_vectors)) {
 		seq_printf(p, "%*s: ", prec, "HYP");
 		for_each_online_cpu(j)
 			seq_printf(p, "%10u ",
@@ -154,6 +151,12 @@ int arch_show_interrupts(struct seq_file *p, int prec)
 	for_each_online_cpu(j)
 		seq_printf(p, "%10u ", irq_stats(j)->kvm_posted_intr_ipis);
 	seq_puts(p, "  Posted-interrupt notification event\n");
+
+	seq_printf(p, "%*s: ", prec, "NPI");
+	for_each_online_cpu(j)
+		seq_printf(p, "%10u ",
+			   irq_stats(j)->kvm_posted_intr_nested_ipis);
+	seq_puts(p, "  Nested posted-interrupt event\n");
 
 	seq_printf(p, "%*s: ", prec, "PIW");
 	for_each_online_cpu(j)
@@ -177,9 +180,9 @@ u64 arch_irq_stat_cpu(unsigned int cpu)
 	sum += irq_stats(cpu)->apic_perf_irqs;
 	sum += irq_stats(cpu)->apic_irq_work_irqs;
 	sum += irq_stats(cpu)->icr_read_retry_count;
-#endif
 	if (x86_platform_ipi_callback)
 		sum += irq_stats(cpu)->x86_platform_ipis;
+#endif
 #ifdef CONFIG_SMP
 	sum += irq_stats(cpu)->irq_resched_count;
 	sum += irq_stats(cpu)->irq_call_count;
@@ -253,26 +256,26 @@ __visible unsigned int __irq_entry do_IRQ(struct pt_regs *regs)
 	return 1;
 }
 
+#ifdef CONFIG_X86_LOCAL_APIC
+/* Function pointer for generic interrupt vector handling */
+void (*x86_platform_ipi_callback)(void) = NULL;
 /*
  * Handler for X86_PLATFORM_IPI_VECTOR.
  */
-void __smp_x86_platform_ipi(void)
-{
-	inc_irq_stat(x86_platform_ipis);
-
-	if (x86_platform_ipi_callback)
-		x86_platform_ipi_callback();
-}
-
 __visible void __irq_entry smp_x86_platform_ipi(struct pt_regs *regs)
 {
 	struct pt_regs *old_regs = set_irq_regs(regs);
 
 	entering_ack_irq();
-	__smp_x86_platform_ipi();
+	trace_x86_platform_ipi_entry(X86_PLATFORM_IPI_VECTOR);
+	inc_irq_stat(x86_platform_ipis);
+	if (x86_platform_ipi_callback)
+		x86_platform_ipi_callback();
+	trace_x86_platform_ipi_exit(X86_PLATFORM_IPI_VECTOR);
 	exiting_irq();
 	set_irq_regs(old_regs);
 }
+#endif
 
 #ifdef CONFIG_HAVE_KVM
 static void dummy_handler(void) {}
@@ -313,122 +316,23 @@ __visible void smp_kvm_posted_intr_wakeup_ipi(struct pt_regs *regs)
 	exiting_irq();
 	set_irq_regs(old_regs);
 }
-#endif
 
-__visible void __irq_entry smp_trace_x86_platform_ipi(struct pt_regs *regs)
+/*
+ * Handler for POSTED_INTERRUPT_NESTED_VECTOR.
+ */
+__visible void smp_kvm_posted_intr_nested_ipi(struct pt_regs *regs)
 {
 	struct pt_regs *old_regs = set_irq_regs(regs);
 
 	entering_ack_irq();
-	trace_x86_platform_ipi_entry(X86_PLATFORM_IPI_VECTOR);
-	__smp_x86_platform_ipi();
-	trace_x86_platform_ipi_exit(X86_PLATFORM_IPI_VECTOR);
+	inc_irq_stat(kvm_posted_intr_nested_ipis);
 	exiting_irq();
 	set_irq_regs(old_regs);
 }
+#endif
 
-EXPORT_SYMBOL_GPL(vector_used_by_percpu_irq);
 
 #ifdef CONFIG_HOTPLUG_CPU
-
-/* These two declarations are only used in check_irq_vectors_for_cpu_disable()
- * below, which is protected by stop_machine().  Putting them on the stack
- * results in a stack frame overflow.  Dynamically allocating could result in a
- * failure so declare these two cpumasks as global.
- */
-static struct cpumask affinity_new, online_new;
-
-/*
- * This cpu is going to be removed and its vectors migrated to the remaining
- * online cpus.  Check to see if there are enough vectors in the remaining cpus.
- * This function is protected by stop_machine().
- */
-int check_irq_vectors_for_cpu_disable(void)
-{
-	unsigned int this_cpu, vector, this_count, count;
-	struct irq_desc *desc;
-	struct irq_data *data;
-	int cpu;
-
-	this_cpu = smp_processor_id();
-	cpumask_copy(&online_new, cpu_online_mask);
-	cpumask_clear_cpu(this_cpu, &online_new);
-
-	this_count = 0;
-	for (vector = FIRST_EXTERNAL_VECTOR; vector < NR_VECTORS; vector++) {
-		desc = __this_cpu_read(vector_irq[vector]);
-		if (IS_ERR_OR_NULL(desc))
-			continue;
-		/*
-		 * Protect against concurrent action removal, affinity
-		 * changes etc.
-		 */
-		raw_spin_lock(&desc->lock);
-		data = irq_desc_get_irq_data(desc);
-		cpumask_copy(&affinity_new,
-			     irq_data_get_affinity_mask(data));
-		cpumask_clear_cpu(this_cpu, &affinity_new);
-
-		/* Do not count inactive or per-cpu irqs. */
-		if (!irq_desc_has_action(desc) || irqd_is_per_cpu(data)) {
-			raw_spin_unlock(&desc->lock);
-			continue;
-		}
-
-		raw_spin_unlock(&desc->lock);
-		/*
-		 * A single irq may be mapped to multiple cpu's
-		 * vector_irq[] (for example IOAPIC cluster mode).  In
-		 * this case we have two possibilities:
-		 *
-		 * 1) the resulting affinity mask is empty; that is
-		 * this the down'd cpu is the last cpu in the irq's
-		 * affinity mask, or
-		 *
-		 * 2) the resulting affinity mask is no longer a
-		 * subset of the online cpus but the affinity mask is
-		 * not zero; that is the down'd cpu is the last online
-		 * cpu in a user set affinity mask.
-		 */
-		if (cpumask_empty(&affinity_new) ||
-		    !cpumask_subset(&affinity_new, &online_new))
-			this_count++;
-	}
-	/* No need to check any further. */
-	if (!this_count)
-		return 0;
-
-	count = 0;
-	for_each_online_cpu(cpu) {
-		if (cpu == this_cpu)
-			continue;
-		/*
-		 * We scan from FIRST_EXTERNAL_VECTOR to first system
-		 * vector. If the vector is marked in the used vectors
-		 * bitmap or an irq is assigned to it, we don't count
-		 * it as available.
-		 *
-		 * As this is an inaccurate snapshot anyway, we can do
-		 * this w/o holding vector_lock.
-		 */
-		for (vector = FIRST_EXTERNAL_VECTOR;
-		     vector < first_system_vector; vector++) {
-			if (!test_bit(vector, used_vectors) &&
-			    IS_ERR_OR_NULL(per_cpu(vector_irq, cpu)[vector])) {
-				if (++count == this_count)
-					return 0;
-			}
-		}
-	}
-
-	if (count < this_count) {
-		pr_warn("CPU %d disable failed: CPU has %u vectors assigned and there are only %u available.\n",
-			this_cpu, this_count, count);
-		return -ERANGE;
-	}
-	return 0;
-}
-
 /* A cpu has been removed from cpu_online_mask.  Reset irq affinities. */
 void fixup_irqs(void)
 {

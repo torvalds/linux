@@ -112,10 +112,6 @@ static int __must_check cec_devnode_register(struct cec_devnode *devnode,
 	int minor;
 	int ret;
 
-	/* Initialization */
-	INIT_LIST_HEAD(&devnode->fhs);
-	mutex_init(&devnode->lock);
-
 	/* Part 1: Find a free minor number */
 	mutex_lock(&cec_devnode_lock);
 	minor = find_next_zero_bit(cec_devnode_nums, CEC_NUM_DEVICES, 0);
@@ -227,6 +223,7 @@ struct cec_adapter *cec_allocate_adapter(const struct cec_adap_ops *ops,
 		return ERR_PTR(-ENOMEM);
 	strlcpy(adap->name, name, sizeof(adap->name));
 	adap->phys_addr = CEC_PHYS_ADDR_INVALID;
+	adap->cec_pin_is_high = true;
 	adap->log_addrs.cec_version = CEC_OP_CEC_VERSION_2_0;
 	adap->log_addrs.vendor_id = CEC_VENDOR_ID_NONE;
 	adap->capabilities = caps;
@@ -240,6 +237,10 @@ struct cec_adapter *cec_allocate_adapter(const struct cec_adap_ops *ops,
 	INIT_LIST_HEAD(&adap->transmit_queue);
 	INIT_LIST_HEAD(&adap->wait_queue);
 	init_waitqueue_head(&adap->kthread_waitq);
+
+	/* adap->devnode initialization */
+	INIT_LIST_HEAD(&adap->devnode.fhs);
+	mutex_init(&adap->devnode.lock);
 
 	adap->kthread = kthread_run(cec_thread_func, adap, "cec-%s", name);
 	if (IS_ERR(adap->kthread)) {
@@ -263,22 +264,23 @@ struct cec_adapter *cec_allocate_adapter(const struct cec_adap_ops *ops,
 		return ERR_PTR(-ENOMEM);
 	}
 
-	snprintf(adap->input_name, sizeof(adap->input_name),
+	snprintf(adap->device_name, sizeof(adap->device_name),
 		 "RC for %s", name);
 	snprintf(adap->input_phys, sizeof(adap->input_phys),
 		 "%s/input0", name);
 
-	adap->rc->input_name = adap->input_name;
+	adap->rc->device_name = adap->device_name;
 	adap->rc->input_phys = adap->input_phys;
 	adap->rc->input_id.bustype = BUS_CEC;
 	adap->rc->input_id.vendor = 0;
 	adap->rc->input_id.product = 0;
 	adap->rc->input_id.version = 1;
 	adap->rc->driver_name = CEC_NAME;
-	adap->rc->allowed_protocols = RC_BIT_CEC;
+	adap->rc->allowed_protocols = RC_PROTO_BIT_CEC;
 	adap->rc->priv = adap;
 	adap->rc->map_name = RC_MAP_CEC;
 	adap->rc->timeout = MS_TO_NS(100);
+	adap->rc_last_scancode = -1;
 #endif
 	return adap;
 }
@@ -310,6 +312,17 @@ int cec_register_adapter(struct cec_adapter *adap,
 			adap->rc = NULL;
 			return res;
 		}
+		/*
+		 * The REP_DELAY for CEC is really the time between the initial
+		 * 'User Control Pressed' message and the second. The first
+		 * keypress is always seen as non-repeating, the second
+		 * (provided it has the same UI Command) will start the 'Press
+		 * and Hold' (aka repeat) behavior. By setting REP_DELAY to the
+		 * same value as REP_PERIOD the expected CEC behavior is
+		 * reproduced.
+		 */
+		adap->rc->input_dev->rep[REP_DELAY] =
+			adap->rc->input_dev->rep[REP_PERIOD];
 	}
 #endif
 
@@ -374,6 +387,8 @@ void cec_delete_adapter(struct cec_adapter *adap)
 	kthread_stop(adap->kthread);
 	if (adap->kthread_config)
 		kthread_stop(adap->kthread_config);
+	if (adap->ops->adap_free)
+		adap->ops->adap_free(adap);
 #ifdef CONFIG_MEDIA_CEC_RC
 	rc_free_device(adap->rc);
 #endif
@@ -386,11 +401,8 @@ EXPORT_SYMBOL_GPL(cec_delete_adapter);
  */
 static int __init cec_devnode_init(void)
 {
-	int ret;
+	int ret = alloc_chrdev_region(&cec_dev_t, 0, CEC_NUM_DEVICES, CEC_NAME);
 
-	pr_info("Linux cec interface: v0.10\n");
-	ret = alloc_chrdev_region(&cec_dev_t, 0, CEC_NUM_DEVICES,
-				  CEC_NAME);
 	if (ret < 0) {
 		pr_warn("cec: unable to allocate major\n");
 		return ret;

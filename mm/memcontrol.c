@@ -119,6 +119,7 @@ static const char *const mem_cgroup_lru_names[] = {
 
 struct mem_cgroup_tree_per_node {
 	struct rb_root rb_root;
+	struct rb_node *rb_rightmost;
 	spinlock_t lock;
 };
 
@@ -386,6 +387,7 @@ static void __mem_cgroup_insert_exceeded(struct mem_cgroup_per_node *mz,
 	struct rb_node **p = &mctz->rb_root.rb_node;
 	struct rb_node *parent = NULL;
 	struct mem_cgroup_per_node *mz_node;
+	bool rightmost = true;
 
 	if (mz->on_tree)
 		return;
@@ -397,8 +399,11 @@ static void __mem_cgroup_insert_exceeded(struct mem_cgroup_per_node *mz,
 		parent = *p;
 		mz_node = rb_entry(parent, struct mem_cgroup_per_node,
 					tree_node);
-		if (mz->usage_in_excess < mz_node->usage_in_excess)
+		if (mz->usage_in_excess < mz_node->usage_in_excess) {
 			p = &(*p)->rb_left;
+			rightmost = false;
+		}
+
 		/*
 		 * We can't avoid mem cgroups that are over their soft
 		 * limit by the same amount
@@ -406,6 +411,10 @@ static void __mem_cgroup_insert_exceeded(struct mem_cgroup_per_node *mz,
 		else if (mz->usage_in_excess >= mz_node->usage_in_excess)
 			p = &(*p)->rb_right;
 	}
+
+	if (rightmost)
+		mctz->rb_rightmost = &mz->tree_node;
+
 	rb_link_node(&mz->tree_node, parent, p);
 	rb_insert_color(&mz->tree_node, &mctz->rb_root);
 	mz->on_tree = true;
@@ -416,6 +425,10 @@ static void __mem_cgroup_remove_exceeded(struct mem_cgroup_per_node *mz,
 {
 	if (!mz->on_tree)
 		return;
+
+	if (&mz->tree_node == mctz->rb_rightmost)
+		mctz->rb_rightmost = rb_prev(&mz->tree_node);
+
 	rb_erase(&mz->tree_node, &mctz->rb_root);
 	mz->on_tree = false;
 }
@@ -496,16 +509,15 @@ static void mem_cgroup_remove_from_trees(struct mem_cgroup *memcg)
 static struct mem_cgroup_per_node *
 __mem_cgroup_largest_soft_limit_node(struct mem_cgroup_tree_per_node *mctz)
 {
-	struct rb_node *rightmost = NULL;
 	struct mem_cgroup_per_node *mz;
 
 retry:
 	mz = NULL;
-	rightmost = rb_last(&mctz->rb_root);
-	if (!rightmost)
+	if (!mctz->rb_rightmost)
 		goto done;		/* Nothing to reclaim from */
 
-	mz = rb_entry(rightmost, struct mem_cgroup_per_node, tree_node);
+	mz = rb_entry(mctz->rb_rightmost,
+		      struct mem_cgroup_per_node, tree_node);
 	/*
 	 * Remove the node now but someone else can add it back,
 	 * we will to add it back at the end of reclaim to its correct
@@ -550,10 +562,12 @@ mem_cgroup_largest_soft_limit_node(struct mem_cgroup_tree_per_node *mctz)
  * value, and reading all cpu value can be performance bottleneck in some
  * common workload, threshold and synchronization as vmstat[] should be
  * implemented.
+ *
+ * The parameter idx can be of type enum memcg_event_item or vm_event_item.
  */
 
 static unsigned long memcg_sum_events(struct mem_cgroup *memcg,
-				      enum memcg_event_item event)
+				      int event)
 {
 	unsigned long val = 0;
 	int cpu;
@@ -917,7 +931,7 @@ int mem_cgroup_scan_tasks(struct mem_cgroup *memcg,
 		struct css_task_iter it;
 		struct task_struct *task;
 
-		css_task_iter_start(&iter->css, &it);
+		css_task_iter_start(&iter->css, 0, &it);
 		while (!ret && (task = css_task_iter_next(&it)))
 			ret = fn(task, arg);
 		css_task_iter_end(&it);
@@ -1611,9 +1625,13 @@ cleanup:
  * @page: the page
  *
  * This function protects unlocked LRU pages from being moved to
- * another cgroup and stabilizes their page->mem_cgroup binding.
+ * another cgroup.
+ *
+ * It ensures lifetime of the returned memcg. Caller is responsible
+ * for the lifetime of the page; __unlock_page_memcg() is available
+ * when @page might get freed inside the locked section.
  */
-void lock_page_memcg(struct page *page)
+struct mem_cgroup *lock_page_memcg(struct page *page)
 {
 	struct mem_cgroup *memcg;
 	unsigned long flags;
@@ -1622,18 +1640,24 @@ void lock_page_memcg(struct page *page)
 	 * The RCU lock is held throughout the transaction.  The fast
 	 * path can get away without acquiring the memcg->move_lock
 	 * because page moving starts with an RCU grace period.
-	 */
+	 *
+	 * The RCU lock also protects the memcg from being freed when
+	 * the page state that is going to change is the only thing
+	 * preventing the page itself from being freed. E.g. writeback
+	 * doesn't hold a page reference and relies on PG_writeback to
+	 * keep off truncation, migration and so forth.
+         */
 	rcu_read_lock();
 
 	if (mem_cgroup_disabled())
-		return;
+		return NULL;
 again:
 	memcg = page->mem_cgroup;
 	if (unlikely(!memcg))
-		return;
+		return NULL;
 
 	if (atomic_read(&memcg->moving_account) <= 0)
-		return;
+		return memcg;
 
 	spin_lock_irqsave(&memcg->move_lock, flags);
 	if (memcg != page->mem_cgroup) {
@@ -1649,18 +1673,18 @@ again:
 	memcg->move_lock_task = current;
 	memcg->move_lock_flags = flags;
 
-	return;
+	return memcg;
 }
 EXPORT_SYMBOL(lock_page_memcg);
 
 /**
- * unlock_page_memcg - unlock a page->mem_cgroup binding
- * @page: the page
+ * __unlock_page_memcg - unlock and unpin a memcg
+ * @memcg: the memcg
+ *
+ * Unlock and unpin a memcg returned by lock_page_memcg().
  */
-void unlock_page_memcg(struct page *page)
+void __unlock_page_memcg(struct mem_cgroup *memcg)
 {
-	struct mem_cgroup *memcg = page->mem_cgroup;
-
 	if (memcg && memcg->move_lock_task == current) {
 		unsigned long flags = memcg->move_lock_flags;
 
@@ -1671,6 +1695,15 @@ void unlock_page_memcg(struct page *page)
 	}
 
 	rcu_read_unlock();
+}
+
+/**
+ * unlock_page_memcg - unlock a page->mem_cgroup binding
+ * @page: the page
+ */
+void unlock_page_memcg(struct page *page)
+{
+	__unlock_page_memcg(page->mem_cgroup);
 }
 EXPORT_SYMBOL(unlock_page_memcg);
 
@@ -1744,6 +1777,10 @@ static void drain_local_stock(struct work_struct *dummy)
 	struct memcg_stock_pcp *stock;
 	unsigned long flags;
 
+	/*
+	 * The only protection from memory hotplug vs. drain_stock races is
+	 * that we always operate on local CPU stock here with IRQ disabled
+	 */
 	local_irq_save(flags);
 
 	stock = this_cpu_ptr(&memcg_stock);
@@ -1771,6 +1808,9 @@ static void refill_stock(struct mem_cgroup *memcg, unsigned int nr_pages)
 	}
 	stock->nr_pages += nr_pages;
 
+	if (stock->nr_pages > CHARGE_BATCH)
+		drain_stock(stock);
+
 	local_irq_restore(flags);
 }
 
@@ -1785,27 +1825,33 @@ static void drain_all_stock(struct mem_cgroup *root_memcg)
 	/* If someone's already draining, avoid adding running more workers. */
 	if (!mutex_trylock(&percpu_charge_mutex))
 		return;
-	/* Notify other cpus that system-wide "drain" is running */
-	get_online_cpus();
+	/*
+	 * Notify other cpus that system-wide "drain" is running
+	 * We do not care about races with the cpu hotplug because cpu down
+	 * as well as workers from this path always operate on the local
+	 * per-cpu data. CPU up doesn't touch memcg_stock at all.
+	 */
 	curcpu = get_cpu();
 	for_each_online_cpu(cpu) {
 		struct memcg_stock_pcp *stock = &per_cpu(memcg_stock, cpu);
 		struct mem_cgroup *memcg;
 
 		memcg = stock->cached;
-		if (!memcg || !stock->nr_pages)
+		if (!memcg || !stock->nr_pages || !css_tryget(&memcg->css))
 			continue;
-		if (!mem_cgroup_is_descendant(memcg, root_memcg))
+		if (!mem_cgroup_is_descendant(memcg, root_memcg)) {
+			css_put(&memcg->css);
 			continue;
+		}
 		if (!test_and_set_bit(FLUSHING_CACHED_CHARGE, &stock->flags)) {
 			if (cpu == curcpu)
 				drain_local_stock(&stock->work);
 			else
 				schedule_work_on(cpu, &stock->work);
 		}
+		css_put(&memcg->css);
 	}
 	put_cpu();
-	put_online_cpus();
 	mutex_unlock(&percpu_charge_mutex);
 }
 
@@ -1896,7 +1942,7 @@ retry:
 	 * bypass the last charges so that they can exit quickly and
 	 * free their memory.
 	 */
-	if (unlikely(test_thread_flag(TIF_MEMDIE) ||
+	if (unlikely(tsk_is_oom_victim(current) ||
 		     fatal_signal_pending(current) ||
 		     current->flags & PF_EXITING))
 		goto force;
@@ -4003,7 +4049,7 @@ static struct cftype mem_cgroup_legacy_files[] = {
 		.write = mem_cgroup_reset,
 		.read_u64 = mem_cgroup_read_u64,
 	},
-#ifdef CONFIG_SLABINFO
+#if defined(CONFIG_SLAB) || defined(CONFIG_SLUB_DEBUG)
 	{
 		.name = "kmem.slabinfo",
 		.seq_start = memcg_slab_start,
@@ -4300,6 +4346,8 @@ static void mem_cgroup_css_offline(struct cgroup_subsys_state *css)
 	}
 	spin_unlock(&memcg->event_list_lock);
 
+	memcg->low = 0;
+
 	memcg_offline_kmem(memcg);
 	wb_memcg_offline(memcg);
 
@@ -4391,12 +4439,13 @@ enum mc_target_type {
 	MC_TARGET_NONE = 0,
 	MC_TARGET_PAGE,
 	MC_TARGET_SWAP,
+	MC_TARGET_DEVICE,
 };
 
 static struct page *mc_handle_present_pte(struct vm_area_struct *vma,
 						unsigned long addr, pte_t ptent)
 {
-	struct page *page = vm_normal_page(vma, addr, ptent);
+	struct page *page = _vm_normal_page(vma, addr, ptent, true);
 
 	if (!page || !page_mapped(page))
 		return NULL;
@@ -4413,7 +4462,7 @@ static struct page *mc_handle_present_pte(struct vm_area_struct *vma,
 	return page;
 }
 
-#ifdef CONFIG_SWAP
+#if defined(CONFIG_SWAP) || defined(CONFIG_DEVICE_PRIVATE)
 static struct page *mc_handle_swap_pte(struct vm_area_struct *vma,
 			pte_t ptent, swp_entry_t *entry)
 {
@@ -4422,6 +4471,23 @@ static struct page *mc_handle_swap_pte(struct vm_area_struct *vma,
 
 	if (!(mc.flags & MOVE_ANON) || non_swap_entry(ent))
 		return NULL;
+
+	/*
+	 * Handle MEMORY_DEVICE_PRIVATE which are ZONE_DEVICE page belonging to
+	 * a device and because they are not accessible by CPU they are store
+	 * as special swap entry in the CPU page table.
+	 */
+	if (is_device_private_entry(ent)) {
+		page = device_private_entry_to_page(ent);
+		/*
+		 * MEMORY_DEVICE_PRIVATE means ZONE_DEVICE page and which have
+		 * a refcount of 1 when free (unlike normal page)
+		 */
+		if (!page_ref_add_unless(page, 1, 1))
+			return NULL;
+		return page;
+	}
+
 	/*
 	 * Because lookup_swap_cache() updates some statistics counter,
 	 * we call find_get_page() with swapper_space directly.
@@ -4582,6 +4648,13 @@ out:
  *   2(MC_TARGET_SWAP): if the swap entry corresponding to this pte is a
  *     target for charge migration. if @target is not NULL, the entry is stored
  *     in target->ent.
+ *   3(MC_TARGET_DEVICE): like MC_TARGET_PAGE  but page is MEMORY_DEVICE_PUBLIC
+ *     or MEMORY_DEVICE_PRIVATE (so ZONE_DEVICE page and thus not on the lru).
+ *     For now we such page is charge like a regular page would be as for all
+ *     intent and purposes it is just special memory taking the place of a
+ *     regular page.
+ *
+ *     See Documentations/vm/hmm.txt and include/linux/hmm.h
  *
  * Called with pte lock held.
  */
@@ -4610,14 +4683,20 @@ static enum mc_target_type get_mctgt_type(struct vm_area_struct *vma,
 		 */
 		if (page->mem_cgroup == mc.from) {
 			ret = MC_TARGET_PAGE;
+			if (is_device_private_page(page) ||
+			    is_device_public_page(page))
+				ret = MC_TARGET_DEVICE;
 			if (target)
 				target->page = page;
 		}
 		if (!ret || !target)
 			put_page(page);
 	}
-	/* There is a swap entry and a page doesn't exist or isn't charged */
-	if (ent.val && !ret &&
+	/*
+	 * There is a swap entry and a page doesn't exist or isn't charged.
+	 * But we cannot move a tail-page in a THP.
+	 */
+	if (ent.val && !ret && (!page || !PageTransCompound(page)) &&
 	    mem_cgroup_id(mc.from) == lookup_swap_cgroup_id(ent)) {
 		ret = MC_TARGET_SWAP;
 		if (target)
@@ -4628,8 +4707,8 @@ static enum mc_target_type get_mctgt_type(struct vm_area_struct *vma,
 
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
 /*
- * We don't consider swapping or file mapped pages because THP does not
- * support them for now.
+ * We don't consider PMD mapped swapping or file mapped pages because THP does
+ * not support them for now.
  * Caller should make sure that pmd_trans_huge(pmd) is true.
  */
 static enum mc_target_type get_mctgt_type_thp(struct vm_area_struct *vma,
@@ -4638,6 +4717,11 @@ static enum mc_target_type get_mctgt_type_thp(struct vm_area_struct *vma,
 	struct page *page = NULL;
 	enum mc_target_type ret = MC_TARGET_NONE;
 
+	if (unlikely(is_swap_pmd(pmd))) {
+		VM_BUG_ON(thp_migration_supported() &&
+				  !is_pmd_migration_entry(pmd));
+		return ret;
+	}
 	page = pmd_page(pmd);
 	VM_BUG_ON_PAGE(!page || !PageHead(page), page);
 	if (!(mc.flags & MOVE_ANON))
@@ -4669,6 +4753,11 @@ static int mem_cgroup_count_precharge_pte_range(pmd_t *pmd,
 
 	ptl = pmd_trans_huge_lock(pmd, vma);
 	if (ptl) {
+		/*
+		 * Note their can not be MC_TARGET_DEVICE for now as we do not
+		 * support transparent huge page with MEMORY_DEVICE_PUBLIC or
+		 * MEMORY_DEVICE_PRIVATE but this might change.
+		 */
 		if (get_mctgt_type_thp(vma, addr, *pmd, NULL) == MC_TARGET_PAGE)
 			mc.precharge += HPAGE_PMD_NR;
 		spin_unlock(ptl);
@@ -4884,6 +4973,14 @@ static int mem_cgroup_move_charge_pte_range(pmd_t *pmd,
 				putback_lru_page(page);
 			}
 			put_page(page);
+		} else if (target_type == MC_TARGET_DEVICE) {
+			page = target.page;
+			if (!mem_cgroup_move_account(page, true,
+						     mc.from, mc.to)) {
+				mc.precharge -= HPAGE_PMD_NR;
+				mc.moved_charge += HPAGE_PMD_NR;
+			}
+			put_page(page);
 		}
 		spin_unlock(ptl);
 		return 0;
@@ -4895,12 +4992,16 @@ retry:
 	pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
 	for (; addr != end; addr += PAGE_SIZE) {
 		pte_t ptent = *(pte++);
+		bool device = false;
 		swp_entry_t ent;
 
 		if (!mc.precharge)
 			break;
 
 		switch (get_mctgt_type(vma, addr, ptent, &target)) {
+		case MC_TARGET_DEVICE:
+			device = true;
+			/* fall through */
 		case MC_TARGET_PAGE:
 			page = target.page;
 			/*
@@ -4911,7 +5012,7 @@ retry:
 			 */
 			if (PageTransCompound(page))
 				goto put;
-			if (isolate_lru_page(page))
+			if (!device && isolate_lru_page(page))
 				goto put;
 			if (!mem_cgroup_move_account(page, false,
 						mc.from, mc.to)) {
@@ -4919,7 +5020,8 @@ retry:
 				/* we uncharge from mc.from later. */
 				mc.moved_charge++;
 			}
-			putback_lru_page(page);
+			if (!device)
+				putback_lru_page(page);
 put:			/* get_mctgt_type() gets the page */
 			put_page(page);
 			break;
@@ -5404,7 +5506,7 @@ int mem_cgroup_try_charge(struct page *page, struct mm_struct *mm,
 		 * in turn serializes uncharging.
 		 */
 		VM_BUG_ON_PAGE(!PageLocked(page), page);
-		if (page->mem_cgroup)
+		if (compound_head(page)->mem_cgroup)
 			goto out;
 
 		if (do_swap_account) {
@@ -5509,48 +5611,103 @@ void mem_cgroup_cancel_charge(struct page *page, struct mem_cgroup *memcg,
 	cancel_charge(memcg, nr_pages);
 }
 
-static void uncharge_batch(struct mem_cgroup *memcg, unsigned long pgpgout,
-			   unsigned long nr_anon, unsigned long nr_file,
-			   unsigned long nr_kmem, unsigned long nr_huge,
-			   unsigned long nr_shmem, struct page *dummy_page)
+struct uncharge_gather {
+	struct mem_cgroup *memcg;
+	unsigned long pgpgout;
+	unsigned long nr_anon;
+	unsigned long nr_file;
+	unsigned long nr_kmem;
+	unsigned long nr_huge;
+	unsigned long nr_shmem;
+	struct page *dummy_page;
+};
+
+static inline void uncharge_gather_clear(struct uncharge_gather *ug)
 {
-	unsigned long nr_pages = nr_anon + nr_file + nr_kmem;
+	memset(ug, 0, sizeof(*ug));
+}
+
+static void uncharge_batch(const struct uncharge_gather *ug)
+{
+	unsigned long nr_pages = ug->nr_anon + ug->nr_file + ug->nr_kmem;
 	unsigned long flags;
 
-	if (!mem_cgroup_is_root(memcg)) {
-		page_counter_uncharge(&memcg->memory, nr_pages);
+	if (!mem_cgroup_is_root(ug->memcg)) {
+		page_counter_uncharge(&ug->memcg->memory, nr_pages);
 		if (do_memsw_account())
-			page_counter_uncharge(&memcg->memsw, nr_pages);
-		if (!cgroup_subsys_on_dfl(memory_cgrp_subsys) && nr_kmem)
-			page_counter_uncharge(&memcg->kmem, nr_kmem);
-		memcg_oom_recover(memcg);
+			page_counter_uncharge(&ug->memcg->memsw, nr_pages);
+		if (!cgroup_subsys_on_dfl(memory_cgrp_subsys) && ug->nr_kmem)
+			page_counter_uncharge(&ug->memcg->kmem, ug->nr_kmem);
+		memcg_oom_recover(ug->memcg);
 	}
 
 	local_irq_save(flags);
-	__this_cpu_sub(memcg->stat->count[MEMCG_RSS], nr_anon);
-	__this_cpu_sub(memcg->stat->count[MEMCG_CACHE], nr_file);
-	__this_cpu_sub(memcg->stat->count[MEMCG_RSS_HUGE], nr_huge);
-	__this_cpu_sub(memcg->stat->count[NR_SHMEM], nr_shmem);
-	__this_cpu_add(memcg->stat->events[PGPGOUT], pgpgout);
-	__this_cpu_add(memcg->stat->nr_page_events, nr_pages);
-	memcg_check_events(memcg, dummy_page);
+	__this_cpu_sub(ug->memcg->stat->count[MEMCG_RSS], ug->nr_anon);
+	__this_cpu_sub(ug->memcg->stat->count[MEMCG_CACHE], ug->nr_file);
+	__this_cpu_sub(ug->memcg->stat->count[MEMCG_RSS_HUGE], ug->nr_huge);
+	__this_cpu_sub(ug->memcg->stat->count[NR_SHMEM], ug->nr_shmem);
+	__this_cpu_add(ug->memcg->stat->events[PGPGOUT], ug->pgpgout);
+	__this_cpu_add(ug->memcg->stat->nr_page_events, nr_pages);
+	memcg_check_events(ug->memcg, ug->dummy_page);
 	local_irq_restore(flags);
 
-	if (!mem_cgroup_is_root(memcg))
-		css_put_many(&memcg->css, nr_pages);
+	if (!mem_cgroup_is_root(ug->memcg))
+		css_put_many(&ug->memcg->css, nr_pages);
+}
+
+static void uncharge_page(struct page *page, struct uncharge_gather *ug)
+{
+	VM_BUG_ON_PAGE(PageLRU(page), page);
+	VM_BUG_ON_PAGE(page_count(page) && !is_zone_device_page(page) &&
+			!PageHWPoison(page) , page);
+
+	if (!page->mem_cgroup)
+		return;
+
+	/*
+	 * Nobody should be changing or seriously looking at
+	 * page->mem_cgroup at this point, we have fully
+	 * exclusive access to the page.
+	 */
+
+	if (ug->memcg != page->mem_cgroup) {
+		if (ug->memcg) {
+			uncharge_batch(ug);
+			uncharge_gather_clear(ug);
+		}
+		ug->memcg = page->mem_cgroup;
+	}
+
+	if (!PageKmemcg(page)) {
+		unsigned int nr_pages = 1;
+
+		if (PageTransHuge(page)) {
+			nr_pages <<= compound_order(page);
+			ug->nr_huge += nr_pages;
+		}
+		if (PageAnon(page))
+			ug->nr_anon += nr_pages;
+		else {
+			ug->nr_file += nr_pages;
+			if (PageSwapBacked(page))
+				ug->nr_shmem += nr_pages;
+		}
+		ug->pgpgout++;
+	} else {
+		ug->nr_kmem += 1 << compound_order(page);
+		__ClearPageKmemcg(page);
+	}
+
+	ug->dummy_page = page;
+	page->mem_cgroup = NULL;
 }
 
 static void uncharge_list(struct list_head *page_list)
 {
-	struct mem_cgroup *memcg = NULL;
-	unsigned long nr_shmem = 0;
-	unsigned long nr_anon = 0;
-	unsigned long nr_file = 0;
-	unsigned long nr_huge = 0;
-	unsigned long nr_kmem = 0;
-	unsigned long pgpgout = 0;
+	struct uncharge_gather ug;
 	struct list_head *next;
-	struct page *page;
+
+	uncharge_gather_clear(&ug);
 
 	/*
 	 * Note that the list can be a single page->lru; hence the
@@ -5558,57 +5715,16 @@ static void uncharge_list(struct list_head *page_list)
 	 */
 	next = page_list->next;
 	do {
+		struct page *page;
+
 		page = list_entry(next, struct page, lru);
 		next = page->lru.next;
 
-		VM_BUG_ON_PAGE(PageLRU(page), page);
-		VM_BUG_ON_PAGE(!PageHWPoison(page) && page_count(page), page);
-
-		if (!page->mem_cgroup)
-			continue;
-
-		/*
-		 * Nobody should be changing or seriously looking at
-		 * page->mem_cgroup at this point, we have fully
-		 * exclusive access to the page.
-		 */
-
-		if (memcg != page->mem_cgroup) {
-			if (memcg) {
-				uncharge_batch(memcg, pgpgout, nr_anon, nr_file,
-					       nr_kmem, nr_huge, nr_shmem, page);
-				pgpgout = nr_anon = nr_file = nr_kmem = 0;
-				nr_huge = nr_shmem = 0;
-			}
-			memcg = page->mem_cgroup;
-		}
-
-		if (!PageKmemcg(page)) {
-			unsigned int nr_pages = 1;
-
-			if (PageTransHuge(page)) {
-				nr_pages <<= compound_order(page);
-				nr_huge += nr_pages;
-			}
-			if (PageAnon(page))
-				nr_anon += nr_pages;
-			else {
-				nr_file += nr_pages;
-				if (PageSwapBacked(page))
-					nr_shmem += nr_pages;
-			}
-			pgpgout++;
-		} else {
-			nr_kmem += 1 << compound_order(page);
-			__ClearPageKmemcg(page);
-		}
-
-		page->mem_cgroup = NULL;
+		uncharge_page(page, &ug);
 	} while (next != page_list);
 
-	if (memcg)
-		uncharge_batch(memcg, pgpgout, nr_anon, nr_file,
-			       nr_kmem, nr_huge, nr_shmem, page);
+	if (ug.memcg)
+		uncharge_batch(&ug);
 }
 
 /**
@@ -5620,6 +5736,8 @@ static void uncharge_list(struct list_head *page_list)
  */
 void mem_cgroup_uncharge(struct page *page)
 {
+	struct uncharge_gather ug;
+
 	if (mem_cgroup_disabled())
 		return;
 
@@ -5627,8 +5745,9 @@ void mem_cgroup_uncharge(struct page *page)
 	if (!page->mem_cgroup)
 		return;
 
-	INIT_LIST_HEAD(&page->lru);
-	uncharge_list(&page->lru);
+	uncharge_gather_clear(&ug);
+	uncharge_page(page, &ug);
+	uncharge_batch(&ug);
 }
 
 /**
@@ -5709,21 +5828,6 @@ void mem_cgroup_sk_alloc(struct sock *sk)
 	if (!mem_cgroup_sockets_enabled)
 		return;
 
-	/*
-	 * Socket cloning can throw us here with sk_memcg already
-	 * filled. It won't however, necessarily happen from
-	 * process context. So the test for root memcg given
-	 * the current task's memcg won't help us in this case.
-	 *
-	 * Respecting the original socket's memcg is a better
-	 * decision in this case.
-	 */
-	if (sk->sk_memcg) {
-		BUG_ON(mem_cgroup_is_root(sk->sk_memcg));
-		css_get(&sk->sk_memcg->css);
-		return;
-	}
-
 	rcu_read_lock();
 	memcg = mem_cgroup_from_task(current);
 	if (memcg == root_mem_cgroup)
@@ -5793,8 +5897,7 @@ void mem_cgroup_uncharge_skmem(struct mem_cgroup *memcg, unsigned int nr_pages)
 
 	this_cpu_sub(memcg->stat->count[MEMCG_SOCK], nr_pages);
 
-	page_counter_uncharge(&memcg->memory, nr_pages);
-	css_put_many(&memcg->css, nr_pages);
+	refill_stock(memcg, nr_pages);
 }
 
 static int __init cgroup_memory(char *s)
@@ -5850,6 +5953,7 @@ static int __init mem_cgroup_init(void)
 				    node_online(node) ? node : NUMA_NO_NODE);
 
 		rtpn->rb_root = RB_ROOT;
+		rtpn->rb_rightmost = NULL;
 		spin_lock_init(&rtpn->lock);
 		soft_limit_tree.rb_tree_per_node[node] = rtpn;
 	}
@@ -5887,6 +5991,7 @@ static struct mem_cgroup *mem_cgroup_id_get_online(struct mem_cgroup *memcg)
 void mem_cgroup_swapout(struct page *page, swp_entry_t entry)
 {
 	struct mem_cgroup *memcg, *swap_memcg;
+	unsigned int nr_entries;
 	unsigned short oldid;
 
 	VM_BUG_ON_PAGE(PageLRU(page), page);
@@ -5907,19 +6012,24 @@ void mem_cgroup_swapout(struct page *page, swp_entry_t entry)
 	 * ancestor for the swap instead and transfer the memory+swap charge.
 	 */
 	swap_memcg = mem_cgroup_id_get_online(memcg);
-	oldid = swap_cgroup_record(entry, mem_cgroup_id(swap_memcg), 1);
+	nr_entries = hpage_nr_pages(page);
+	/* Get references for the tail pages, too */
+	if (nr_entries > 1)
+		mem_cgroup_id_get_many(swap_memcg, nr_entries - 1);
+	oldid = swap_cgroup_record(entry, mem_cgroup_id(swap_memcg),
+				   nr_entries);
 	VM_BUG_ON_PAGE(oldid, page);
-	mem_cgroup_swap_statistics(swap_memcg, 1);
+	mem_cgroup_swap_statistics(swap_memcg, nr_entries);
 
 	page->mem_cgroup = NULL;
 
 	if (!mem_cgroup_is_root(memcg))
-		page_counter_uncharge(&memcg->memory, 1);
+		page_counter_uncharge(&memcg->memory, nr_entries);
 
 	if (memcg != swap_memcg) {
 		if (!mem_cgroup_is_root(swap_memcg))
-			page_counter_charge(&swap_memcg->memsw, 1);
-		page_counter_uncharge(&memcg->memsw, 1);
+			page_counter_charge(&swap_memcg->memsw, nr_entries);
+		page_counter_uncharge(&memcg->memsw, nr_entries);
 	}
 
 	/*
@@ -5929,7 +6039,8 @@ void mem_cgroup_swapout(struct page *page, swp_entry_t entry)
 	 * only synchronisation we have for udpating the per-CPU variables.
 	 */
 	VM_BUG_ON(!irqs_disabled());
-	mem_cgroup_charge_statistics(memcg, page, false, -1);
+	mem_cgroup_charge_statistics(memcg, page, PageTransHuge(page),
+				     -nr_entries);
 	memcg_check_events(memcg, page);
 
 	if (!mem_cgroup_is_root(memcg))

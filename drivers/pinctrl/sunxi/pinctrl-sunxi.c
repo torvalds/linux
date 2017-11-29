@@ -564,7 +564,8 @@ static int sunxi_pconf_group_set(struct pinctrl_dev *pctldev,
 			val = arg / 10 - 1;
 			break;
 		case PIN_CONFIG_BIAS_DISABLE:
-			continue;
+			val = 0;
+			break;
 		case PIN_CONFIG_BIAS_PULL_UP:
 			if (arg == 0)
 				return -EINVAL;
@@ -695,6 +696,7 @@ static const struct pinmux_ops sunxi_pmx_ops = {
 	.get_function_groups	= sunxi_pmx_get_func_groups,
 	.set_mux		= sunxi_pmx_set_mux,
 	.gpio_set_direction	= sunxi_pmx_gpio_set_direction,
+	.strict			= true,
 };
 
 static int sunxi_pinctrl_gpio_direction_input(struct gpio_chip *chip,
@@ -1244,6 +1246,7 @@ int sunxi_pinctrl_init_with_variant(struct platform_device *pdev,
 	struct pinctrl_desc *pctrl_desc;
 	struct pinctrl_pin_desc *pins;
 	struct sunxi_pinctrl *pctl;
+	struct pinmux_ops *pmxops;
 	struct resource *res;
 	int i, ret, last_pin, pin_idx;
 	struct clk *clk;
@@ -1304,7 +1307,16 @@ int sunxi_pinctrl_init_with_variant(struct platform_device *pdev,
 	pctrl_desc->npins = pctl->ngroups;
 	pctrl_desc->confops = &sunxi_pconf_ops;
 	pctrl_desc->pctlops = &sunxi_pctrl_ops;
-	pctrl_desc->pmxops =  &sunxi_pmx_ops;
+
+	pmxops = devm_kmemdup(&pdev->dev, &sunxi_pmx_ops, sizeof(sunxi_pmx_ops),
+			      GFP_KERNEL);
+	if (!pmxops)
+		return -ENOMEM;
+
+	if (desc->disable_strict_mode)
+		pmxops->strict = false;
+
+	pctrl_desc->pmxops = pmxops;
 
 	pctl->pctl_dev = devm_pinctrl_register(&pdev->dev, pctrl_desc, pctl);
 	if (IS_ERR(pctl->pctl_dev)) {

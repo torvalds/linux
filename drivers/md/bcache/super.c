@@ -53,12 +53,15 @@ LIST_HEAD(bch_cache_sets);
 static LIST_HEAD(uncached_devices);
 
 static int bcache_major;
-static DEFINE_IDA(bcache_minor);
+static DEFINE_IDA(bcache_device_idx);
 static wait_queue_head_t unregister_wait;
 struct workqueue_struct *bcache_wq;
 
 #define BTREE_MAX_PAGES		(256 * 1024 / PAGE_SIZE)
-#define BCACHE_MINORS		16 /* partition support */
+/* limitation of partitions number on single bcache device */
+#define BCACHE_MINORS		128
+/* limitation of bcache devices number on single system */
+#define BCACHE_DEVICE_IDX_MAX	((1U << MINORBITS)/BCACHE_MINORS)
 
 /* Superblock */
 
@@ -257,7 +260,7 @@ void bch_write_bdev_super(struct cached_dev *dc, struct closure *parent)
 	closure_init(cl, parent);
 
 	bio_reset(bio);
-	bio->bi_bdev	= dc->bdev;
+	bio_set_dev(bio, dc->bdev);
 	bio->bi_end_io	= write_bdev_super_endio;
 	bio->bi_private = dc;
 
@@ -303,7 +306,7 @@ void bcache_write_super(struct cache_set *c)
 		SET_CACHE_SYNC(&ca->sb, CACHE_SYNC(&c->sb));
 
 		bio_reset(bio);
-		bio->bi_bdev	= ca->bdev;
+		bio_set_dev(bio, ca->bdev);
 		bio->bi_end_io	= write_super_endio;
 		bio->bi_private = ca;
 
@@ -508,7 +511,7 @@ static void prio_io(struct cache *ca, uint64_t bucket, int op,
 	closure_init_stack(cl);
 
 	bio->bi_iter.bi_sector	= bucket * ca->sb.bucket_size;
-	bio->bi_bdev		= ca->bdev;
+	bio_set_dev(bio, ca->bdev);
 	bio->bi_iter.bi_size	= bucket_bytes(ca);
 
 	bio->bi_end_io	= prio_endio;
@@ -721,6 +724,16 @@ static void bcache_device_attach(struct bcache_device *d, struct cache_set *c,
 	closure_get(&c->caching);
 }
 
+static inline int first_minor_to_idx(int first_minor)
+{
+	return (first_minor/BCACHE_MINORS);
+}
+
+static inline int idx_to_first_minor(int idx)
+{
+	return (idx * BCACHE_MINORS);
+}
+
 static void bcache_device_free(struct bcache_device *d)
 {
 	lockdep_assert_held(&bch_register_lock);
@@ -734,7 +747,8 @@ static void bcache_device_free(struct bcache_device *d)
 	if (d->disk && d->disk->queue)
 		blk_cleanup_queue(d->disk->queue);
 	if (d->disk) {
-		ida_simple_remove(&bcache_minor, d->disk->first_minor);
+		ida_simple_remove(&bcache_device_idx,
+				  first_minor_to_idx(d->disk->first_minor));
 		put_disk(d->disk);
 	}
 
@@ -751,7 +765,7 @@ static int bcache_device_init(struct bcache_device *d, unsigned block_size,
 {
 	struct request_queue *q;
 	size_t n;
-	int minor;
+	int idx;
 
 	if (!d->stripe_size)
 		d->stripe_size = 1 << 31;
@@ -776,25 +790,24 @@ static int bcache_device_init(struct bcache_device *d, unsigned block_size,
 	if (!d->full_dirty_stripes)
 		return -ENOMEM;
 
-	minor = ida_simple_get(&bcache_minor, 0, MINORMASK + 1, GFP_KERNEL);
-	if (minor < 0)
-		return minor;
-
-	minor *= BCACHE_MINORS;
+	idx = ida_simple_get(&bcache_device_idx, 0,
+				BCACHE_DEVICE_IDX_MAX, GFP_KERNEL);
+	if (idx < 0)
+		return idx;
 
 	if (!(d->bio_split = bioset_create(4, offsetof(struct bbio, bio),
 					   BIOSET_NEED_BVECS |
 					   BIOSET_NEED_RESCUER)) ||
 	    !(d->disk = alloc_disk(BCACHE_MINORS))) {
-		ida_simple_remove(&bcache_minor, minor);
+		ida_simple_remove(&bcache_device_idx, idx);
 		return -ENOMEM;
 	}
 
 	set_capacity(d->disk, sectors);
-	snprintf(d->disk->disk_name, DISK_NAME_LEN, "bcache%i", minor);
+	snprintf(d->disk->disk_name, DISK_NAME_LEN, "bcache%i", idx);
 
 	d->disk->major		= bcache_major;
-	d->disk->first_minor	= minor;
+	d->disk->first_minor	= idx_to_first_minor(idx);
 	d->disk->fops		= &bcache_ops;
 	d->disk->private_data	= d;
 
@@ -889,7 +902,7 @@ static void cached_dev_detach_finish(struct work_struct *w)
 	closure_init_stack(&cl);
 
 	BUG_ON(!test_bit(BCACHE_DEV_DETACHING, &dc->disk.flags));
-	BUG_ON(atomic_read(&dc->count));
+	BUG_ON(refcount_read(&dc->count));
 
 	mutex_lock(&bch_register_lock);
 
@@ -1016,7 +1029,7 @@ int bch_cached_dev_attach(struct cached_dev *dc, struct cache_set *c)
 	 * dc->c must be set before dc->count != 0 - paired with the mb in
 	 * cached_dev_get()
 	 */
-	atomic_set(&dc->count, 1);
+	refcount_set(&dc->count, 1);
 
 	/* Block writeback thread, but spawn it */
 	down_write(&dc->writeback_lock);
@@ -1026,9 +1039,9 @@ int bch_cached_dev_attach(struct cached_dev *dc, struct cache_set *c)
 	}
 
 	if (BDEV_STATE(&dc->sb) == BDEV_STATE_DIRTY) {
-		bch_sectors_dirty_init(dc);
+		bch_sectors_dirty_init(&dc->disk);
 		atomic_set(&dc->has_dirty, 1);
-		atomic_inc(&dc->count);
+		refcount_inc(&dc->count);
 		bch_writeback_queue(dc);
 	}
 
@@ -1059,6 +1072,8 @@ static void cached_dev_free(struct closure *cl)
 	cancel_delayed_work_sync(&dc->writeback_rate_update);
 	if (!IS_ERR_OR_NULL(dc->writeback_thread))
 		kthread_stop(dc->writeback_thread);
+	if (dc->writeback_write_wq)
+		destroy_workqueue(dc->writeback_write_wq);
 
 	mutex_lock(&bch_register_lock);
 
@@ -1126,9 +1141,6 @@ static int cached_dev_init(struct cached_dev *dc, unsigned block_size)
 			 dc->bdev->bd_part->nr_sects - dc->sb.data_offset);
 	if (ret)
 		return ret;
-
-	set_capacity(dc->disk.disk,
-		     dc->bdev->bd_part->nr_sects - dc->sb.data_offset);
 
 	dc->disk.disk->queue->backing_dev_info->ra_pages =
 		max(dc->disk.disk->queue->backing_dev_info->ra_pages,
@@ -1228,6 +1240,7 @@ static int flash_dev_run(struct cache_set *c, struct uuid_entry *u)
 		goto err;
 
 	bcache_device_attach(d, c, u - c->uuids);
+	bch_sectors_dirty_init(d);
 	bch_flash_dev_request_init(d);
 	add_disk(d->disk);
 
@@ -1373,9 +1386,6 @@ static void cache_set_flush(struct closure *cl)
 	struct cache *ca;
 	struct btree *b;
 	unsigned i;
-
-	if (!c)
-		closure_return(cl);
 
 	bch_cache_accounting_destroy(&c->accounting);
 
@@ -1964,6 +1974,8 @@ static ssize_t register_bcache(struct kobject *k, struct kobj_attribute *attr,
 			else
 				err = "device busy";
 			mutex_unlock(&bch_register_lock);
+			if (!IS_ERR(bdev))
+				bdput(bdev);
 			if (attr == &ksysfs_register_quiet)
 				goto out;
 		}
@@ -2083,6 +2095,7 @@ static void bcache_exit(void)
 	if (bcache_major)
 		unregister_blkdev(bcache_major, "bcache");
 	unregister_reboot_notifier(&reboot);
+	mutex_destroy(&bch_register_lock);
 }
 
 static int __init bcache_init(void)
@@ -2101,14 +2114,15 @@ static int __init bcache_init(void)
 	bcache_major = register_blkdev(0, "bcache");
 	if (bcache_major < 0) {
 		unregister_reboot_notifier(&reboot);
+		mutex_destroy(&bch_register_lock);
 		return bcache_major;
 	}
 
 	if (!(bcache_wq = alloc_workqueue("bcache", WQ_MEM_RECLAIM, 0)) ||
 	    !(bcache_kobj = kobject_create_and_add("bcache", fs_kobj)) ||
-	    sysfs_create_files(bcache_kobj, files) ||
 	    bch_request_init() ||
-	    bch_debug_init(bcache_kobj))
+	    bch_debug_init(bcache_kobj) ||
+	    sysfs_create_files(bcache_kobj, files))
 		goto err;
 
 	return 0;

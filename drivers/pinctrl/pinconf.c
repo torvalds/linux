@@ -37,7 +37,7 @@ int pinconf_check_ops(struct pinctrl_dev *pctldev)
 	return 0;
 }
 
-int pinconf_validate_map(struct pinctrl_map const *map, int i)
+int pinconf_validate_map(const struct pinctrl_map *map, int i)
 {
 	if (!map->data.configs.group_or_pin) {
 		pr_err("failed to register map %s (%d): no group/pin given\n",
@@ -106,7 +106,7 @@ unlock:
 	return ret;
 }
 
-int pinconf_map_to_setting(struct pinctrl_map const *map,
+int pinconf_map_to_setting(const struct pinctrl_map *map,
 			  struct pinctrl_setting *setting)
 {
 	struct pinctrl_dev *pctldev = setting->pctldev;
@@ -143,11 +143,11 @@ int pinconf_map_to_setting(struct pinctrl_map const *map,
 	return 0;
 }
 
-void pinconf_free_setting(struct pinctrl_setting const *setting)
+void pinconf_free_setting(const struct pinctrl_setting *setting)
 {
 }
 
-int pinconf_apply_setting(struct pinctrl_setting const *setting)
+int pinconf_apply_setting(const struct pinctrl_setting *setting)
 {
 	struct pinctrl_dev *pctldev = setting->pctldev;
 	const struct pinconf_ops *ops = pctldev->desc->confops;
@@ -205,7 +205,7 @@ int pinconf_set_config(struct pinctrl_dev *pctldev, unsigned pin,
 	const struct pinconf_ops *ops;
 
 	ops = pctldev->desc->confops;
-	if (!ops)
+	if (!ops || !ops->pin_config_set)
 		return -ENOTSUPP;
 
 	return ops->pin_config_set(pctldev, pin, configs, nconfigs);
@@ -235,7 +235,7 @@ static void pinconf_show_config(struct seq_file *s, struct pinctrl_dev *pctldev,
 	}
 }
 
-void pinconf_show_map(struct seq_file *s, struct pinctrl_map const *map)
+void pinconf_show_map(struct seq_file *s, const struct pinctrl_map *map)
 {
 	struct pinctrl_dev *pctldev;
 
@@ -259,7 +259,7 @@ void pinconf_show_map(struct seq_file *s, struct pinctrl_map const *map)
 }
 
 void pinconf_show_setting(struct seq_file *s,
-			  struct pinctrl_setting const *setting)
+			  const struct pinctrl_setting *setting)
 {
 	struct pinctrl_dev *pctldev = setting->pctldev;
 	const struct pinctrl_ops *pctlops = pctldev->desc->pctlops;

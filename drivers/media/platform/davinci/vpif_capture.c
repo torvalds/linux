@@ -312,7 +312,7 @@ static void vpif_stop_streaming(struct vb2_queue *vq)
 	spin_unlock_irqrestore(&common->irqlock, flags);
 }
 
-static struct vb2_ops video_qops = {
+static const struct vb2_ops video_qops = {
 	.queue_setup		= vpif_buffer_queue_setup,
 	.buf_prepare		= vpif_buffer_prepare,
 	.start_streaming	= vpif_start_streaming,
@@ -1344,7 +1344,7 @@ static const struct v4l2_ioctl_ops vpif_ioctl_ops = {
 };
 
 /* vpif file operations */
-static struct v4l2_file_operations vpif_fops = {
+static const struct v4l2_file_operations vpif_fops = {
 	.owner = THIS_MODULE,
 	.open = v4l2_fh_open,
 	.release = vb2_fop_release,
@@ -1397,9 +1397,9 @@ static int vpif_async_bound(struct v4l2_async_notifier *notifier,
 			vpif_obj.config->chan_config->inputs[i].subdev_name =
 				(char *)to_of_node(subdev->fwnode)->full_name;
 			vpif_dbg(2, debug,
-				 "%s: setting input %d subdev_name = %s\n",
+				 "%s: setting input %d subdev_name = %pOF\n",
 				 __func__, i,
-				 to_of_node(subdev->fwnode)->full_name);
+				 to_of_node(subdev->fwnode));
 			return 0;
 		}
 	}
@@ -1500,6 +1500,11 @@ static int vpif_async_complete(struct v4l2_async_notifier *notifier)
 	return vpif_probe_complete();
 }
 
+static const struct v4l2_async_notifier_operations vpif_async_ops = {
+	.bound = vpif_async_bound,
+	.complete = vpif_async_complete,
+};
+
 static struct vpif_capture_config *
 vpif_capture_get_pdata(struct platform_device *pdev)
 {
@@ -1557,8 +1562,8 @@ vpif_capture_get_pdata(struct platform_device *pdev)
 			dev_err(&pdev->dev, "Could not parse the endpoint\n");
 			goto done;
 		}
-		dev_dbg(&pdev->dev, "Endpoint %s, bus_width = %d\n",
-			endpoint->full_name, bus_cfg.bus.parallel.bus_width);
+		dev_dbg(&pdev->dev, "Endpoint %pOF, bus_width = %d\n",
+			endpoint, bus_cfg.bus.parallel.bus_width);
 		flags = bus_cfg.bus.parallel.flags;
 
 		if (flags & V4L2_MBUS_HSYNC_ACTIVE_HIGH)
@@ -1569,13 +1574,13 @@ vpif_capture_get_pdata(struct platform_device *pdev)
 
 		rem = of_graph_get_remote_port_parent(endpoint);
 		if (!rem) {
-			dev_dbg(&pdev->dev, "Remote device at %s not found\n",
-				endpoint->full_name);
+			dev_dbg(&pdev->dev, "Remote device at %pOF not found\n",
+				endpoint);
 			goto done;
 		}
 
-		dev_dbg(&pdev->dev, "Remote device %s, %s found\n",
-			rem->name, rem->full_name);
+		dev_dbg(&pdev->dev, "Remote device %s, %pOF found\n",
+			rem->name, rem);
 		sdinfo->name = rem->full_name;
 
 		pdata->asd[i] = devm_kzalloc(&pdev->dev,
@@ -1593,9 +1598,11 @@ vpif_capture_get_pdata(struct platform_device *pdev)
 	}
 
 done:
-	pdata->asd_sizes[0] = i;
-	pdata->subdev_count = i;
-	pdata->card_name = "DA850/OMAP-L138 Video Capture";
+	if (pdata) {
+		pdata->asd_sizes[0] = i;
+		pdata->subdev_count = i;
+		pdata->card_name = "DA850/OMAP-L138 Video Capture";
+	}
 
 	return pdata;
 }
@@ -1689,8 +1696,7 @@ static __init int vpif_probe(struct platform_device *pdev)
 	} else {
 		vpif_obj.notifier.subdevs = vpif_obj.config->asd;
 		vpif_obj.notifier.num_subdevs = vpif_obj.config->asd_sizes[0];
-		vpif_obj.notifier.bound = vpif_async_bound;
-		vpif_obj.notifier.complete = vpif_async_complete;
+		vpif_obj.notifier.ops = &vpif_async_ops;
 		err = v4l2_async_notifier_register(&vpif_obj.v4l2_dev,
 						   &vpif_obj.notifier);
 		if (err) {
@@ -1719,7 +1725,6 @@ vpif_unregister:
  */
 static int vpif_remove(struct platform_device *device)
 {
-	struct common_obj *common;
 	struct channel_obj *ch;
 	int i;
 
@@ -1730,7 +1735,6 @@ static int vpif_remove(struct platform_device *device)
 	for (i = 0; i < VPIF_CAPTURE_MAX_DEVICES; i++) {
 		/* Get the pointer to the channel object */
 		ch = vpif_obj.dev[i];
-		common = &ch->common[VPIF_VIDEO_INDEX];
 		/* Unregister video device */
 		video_unregister_device(&ch->video_dev);
 		kfree(vpif_obj.dev[i]);

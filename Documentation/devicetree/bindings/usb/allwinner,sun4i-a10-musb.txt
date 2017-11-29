@@ -16,7 +16,7 @@ Required properties:
 
 Example:
 
-	usb_otg: usb@01c13000 {
+	usb_otg: usb@1c13000 {
 		compatible = "allwinner,sun4i-a10-musb";
 		reg = <0x01c13000 0x0400>;
 		clocks = <&ahb_gates 0>;
@@ -25,5 +25,4 @@ Example:
 		phys = <&usbphy 0>;
 		phy-names = "usb";
 		extcon = <&usbphy 0>;
-		status = "disabled";
 	};

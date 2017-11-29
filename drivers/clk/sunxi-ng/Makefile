@@ -1,5 +1,7 @@
+# SPDX-License-Identifier: GPL-2.0
 # Common objects
 lib-$(CONFIG_SUNXI_CCU)		+= ccu_common.o
+lib-$(CONFIG_SUNXI_CCU)		+= ccu_mmc_timing.o
 lib-$(CONFIG_SUNXI_CCU)		+= ccu_reset.o
 
 # Base clock types
@@ -9,6 +11,7 @@ lib-$(CONFIG_SUNXI_CCU)		+= ccu_gate.o
 lib-$(CONFIG_SUNXI_CCU)		+= ccu_mux.o
 lib-$(CONFIG_SUNXI_CCU)		+= ccu_mult.o
 lib-$(CONFIG_SUNXI_CCU)		+= ccu_phase.o
+lib-$(CONFIG_SUNXI_CCU)		+= ccu_sdm.o
 
 # Multi-factor clocks
 lib-$(CONFIG_SUNXI_CCU)		+= ccu_nk.o
@@ -19,6 +22,7 @@ lib-$(CONFIG_SUNXI_CCU)		+= ccu_mp.o
 
 # SoC support
 obj-$(CONFIG_SUN50I_A64_CCU)	+= ccu-sun50i-a64.o
+obj-$(CONFIG_SUN4I_A10_CCU)	+= ccu-sun4i-a10.o
 obj-$(CONFIG_SUN5I_CCU)		+= ccu-sun5i.o
 obj-$(CONFIG_SUN6I_A31_CCU)	+= ccu-sun6i-a31.o
 obj-$(CONFIG_SUN8I_A23_CCU)	+= ccu-sun8i-a23.o
@@ -28,6 +32,7 @@ obj-$(CONFIG_SUN8I_H3_CCU)	+= ccu-sun8i-h3.o
 obj-$(CONFIG_SUN8I_V3S_CCU)	+= ccu-sun8i-v3s.o
 obj-$(CONFIG_SUN8I_DE2_CCU)	+= ccu-sun8i-de2.o
 obj-$(CONFIG_SUN8I_R_CCU)	+= ccu-sun8i-r.o
+obj-$(CONFIG_SUN8I_R40_CCU)	+= ccu-sun8i-r40.o
 obj-$(CONFIG_SUN9I_A80_CCU)	+= ccu-sun9i-a80.o
 obj-$(CONFIG_SUN9I_A80_CCU)	+= ccu-sun9i-a80-de.o
 obj-$(CONFIG_SUN9I_A80_CCU)	+= ccu-sun9i-a80-usb.o

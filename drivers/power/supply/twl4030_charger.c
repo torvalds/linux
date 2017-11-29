@@ -18,7 +18,7 @@
 #include <linux/err.h>
 #include <linux/platform_device.h>
 #include <linux/interrupt.h>
-#include <linux/i2c/twl.h>
+#include <linux/mfd/twl.h>
 #include <linux/power_supply.h>
 #include <linux/notifier.h>
 #include <linux/usb/otg.h>
@@ -743,7 +743,7 @@ static int twl4030bci_state(struct twl4030_bci *bci)
 
 	ret = twl4030_bci_read(TWL4030_BCIMSTATEC, &state);
 	if (ret) {
-		pr_err("twl4030_bci: error reading BCIMSTATEC\n");
+		dev_err(bci->dev, "error reading BCIMSTATEC\n");
 		return ret;
 	}
 

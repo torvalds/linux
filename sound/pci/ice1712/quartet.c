@@ -386,7 +386,7 @@ static const struct snd_akm4xxx_adc_channel qtet_adc[] = {
 	AK_CONTROL(PCM_34_CAPTURE_VOLUME, 2),
 };
 
-static struct snd_akm4xxx akm_qtet_dac = {
+static const struct snd_akm4xxx akm_qtet_dac = {
 	.type = SND_AK4620,
 	.num_dacs = 4,	/* DAC1 - Output 12
 	*/

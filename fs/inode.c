@@ -353,7 +353,7 @@ void address_space_init_once(struct address_space *mapping)
 	init_rwsem(&mapping->i_mmap_rwsem);
 	INIT_LIST_HEAD(&mapping->private_list);
 	spin_lock_init(&mapping->private_lock);
-	mapping->i_mmap = RB_ROOT;
+	mapping->i_mmap = RB_ROOT_CACHED;
 }
 EXPORT_SYMBOL(address_space_init_once);
 
@@ -637,6 +637,7 @@ again:
 
 	dispose_list(&dispose);
 }
+EXPORT_SYMBOL_GPL(evict_inodes);
 
 /**
  * invalidate_inodes	- attempt to free all inodes on a superblock
@@ -1569,11 +1570,24 @@ EXPORT_SYMBOL(bmap);
 static void update_ovl_inode_times(struct dentry *dentry, struct inode *inode,
 			       bool rcu)
 {
-	if (!rcu) {
-		struct inode *realinode = d_real_inode(dentry);
+	struct dentry *upperdentry;
 
-		if (unlikely(inode != realinode) &&
-		    (!timespec_equal(&inode->i_mtime, &realinode->i_mtime) ||
+	/*
+	 * Nothing to do if in rcu or if non-overlayfs
+	 */
+	if (rcu || likely(!(dentry->d_flags & DCACHE_OP_REAL)))
+		return;
+
+	upperdentry = d_real(dentry, NULL, 0, D_REAL_UPPER);
+
+	/*
+	 * If file is on lower then we can't update atime, so no worries about
+	 * stale mtime/ctime.
+	 */
+	if (upperdentry) {
+		struct inode *realinode = d_inode(upperdentry);
+
+		if ((!timespec_equal(&inode->i_mtime, &realinode->i_mtime) ||
 		     !timespec_equal(&inode->i_ctime, &realinode->i_ctime))) {
 			inode->i_mtime = realinode->i_mtime;
 			inode->i_ctime = realinode->i_ctime;
@@ -2076,7 +2090,7 @@ void inode_set_flags(struct inode *inode, unsigned int flags,
 
 	WARN_ON_ONCE(flags & ~mask);
 	do {
-		old_flags = ACCESS_ONCE(inode->i_flags);
+		old_flags = READ_ONCE(inode->i_flags);
 		new_flags = (old_flags & ~mask) | flags;
 	} while (unlikely(cmpxchg(&inode->i_flags, old_flags,
 				  new_flags) != old_flags));

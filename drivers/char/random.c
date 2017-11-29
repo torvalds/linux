@@ -259,7 +259,6 @@
 #include <linux/cryptohash.h>
 #include <linux/fips.h>
 #include <linux/ptrace.h>
-#include <linux/kmemcheck.h>
 #include <linux/workqueue.h>
 #include <linux/irq.h>
 #include <linux/syscalls.h>
@@ -641,7 +640,7 @@ static void credit_entropy_bits(struct entropy_store *r, int nbits)
 		return;
 
 retry:
-	entropy_count = orig = ACCESS_ONCE(r->entropy_count);
+	entropy_count = orig = READ_ONCE(r->entropy_count);
 	if (nfrac < 0) {
 		/* Debit */
 		entropy_count += nfrac;
@@ -1265,7 +1264,7 @@ static size_t account(struct entropy_store *r, size_t nbytes, int min,
 
 	/* Can we pull enough? */
 retry:
-	entropy_count = orig = ACCESS_ONCE(r->entropy_count);
+	entropy_count = orig = READ_ONCE(r->entropy_count);
 	ibytes = nbytes;
 	/* never pull more than available */
 	have_bytes = entropy_count >> (ENTROPY_SHIFT + 3);
@@ -1492,7 +1491,7 @@ static void _warn_unseeded_randomness(const char *func_name, void *caller,
 #ifndef CONFIG_WARN_ALL_UNSEEDED_RANDOM
 	print_once = true;
 #endif
-	pr_notice("random: %s called from %pF with crng_init=%d\n",
+	pr_notice("random: %s called from %pS with crng_init=%d\n",
 		  func_name, caller, crng_init);
 }
 

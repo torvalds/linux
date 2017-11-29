@@ -1,5 +1,15 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ARCH_X86_REALMODE_H
 #define _ARCH_X86_REALMODE_H
+
+/*
+ * Flag bit definitions for use with the flags field of the trampoline header
+ * in the CONFIG_X86_64 variant.
+ */
+#define TH_FLAGS_SME_ACTIVE_BIT		0
+#define TH_FLAGS_SME_ACTIVE		BIT(TH_FLAGS_SME_ACTIVE_BIT)
+
+#ifndef __ASSEMBLY__
 
 #include <linux/types.h>
 #include <asm/io.h>
@@ -38,6 +48,7 @@ struct trampoline_header {
 	u64 start;
 	u64 efer;
 	u32 cr4;
+	u32 flags;
 #endif
 };
 
@@ -68,5 +79,7 @@ static inline size_t real_mode_size_needed(void)
 
 void set_real_mode_mem(phys_addr_t mem, size_t size);
 void reserve_real_mode(void);
+
+#endif /* __ASSEMBLY__ */
 
 #endif /* _ARCH_X86_REALMODE_H */

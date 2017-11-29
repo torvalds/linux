@@ -23,6 +23,7 @@
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_fb_helper.h>
+#include <drm/drm_gem_framebuffer_helper.h>
 
 #include "tilcdc_drv.h"
 #include "tilcdc_regs.h"
@@ -65,7 +66,7 @@ static struct of_device_id tilcdc_of_match[];
 static struct drm_framebuffer *tilcdc_fb_create(struct drm_device *dev,
 		struct drm_file *file_priv, const struct drm_mode_fb_cmd2 *mode_cmd)
 {
-	return drm_fb_cma_create(dev, file_priv, mode_cmd);
+	return drm_gem_fb_create(dev, file_priv, mode_cmd);
 }
 
 static void tilcdc_fb_output_poll_changed(struct drm_device *dev)
@@ -108,7 +109,11 @@ static int tilcdc_commit(struct drm_device *dev,
 	if (ret)
 		return ret;
 
-	drm_atomic_helper_swap_state(state, true);
+	ret = drm_atomic_helper_swap_state(state, true);
+	if (ret) {
+		drm_atomic_helper_cleanup_planes(dev, state);
+		return ret;
+	}
 
 	/*
 	 * Everything below can be run asynchronously without the need to grab
@@ -221,7 +226,7 @@ static void tilcdc_fini(struct drm_device *dev)
 
 	pm_runtime_disable(dev->dev);
 
-	drm_dev_unref(dev);
+	drm_dev_put(dev);
 }
 
 static int tilcdc_init(struct drm_driver *ddrv, struct device *dev)
@@ -538,8 +543,6 @@ static struct drm_driver tilcdc_driver = {
 	.gem_free_object_unlocked = drm_gem_cma_free_object,
 	.gem_vm_ops         = &drm_gem_cma_vm_ops,
 	.dumb_create        = drm_gem_cma_dumb_create,
-	.dumb_map_offset    = drm_gem_cma_dumb_map_offset,
-	.dumb_destroy       = drm_gem_dumb_destroy,
 
 	.prime_handle_to_fd	= drm_gem_prime_handle_to_fd,
 	.prime_fd_to_handle	= drm_gem_prime_fd_to_handle,

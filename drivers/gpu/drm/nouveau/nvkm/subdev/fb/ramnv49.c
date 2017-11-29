@@ -28,7 +28,6 @@ nv49_ram_new(struct nvkm_fb *fb, struct nvkm_ram **pram)
 {
 	struct nvkm_device *device = fb->subdev.device;
 	u32  size = nvkm_rd32(device, 0x10020c) & 0xff000000;
-	u32  tags = nvkm_rd32(device, 0x100320);
 	u32 fb914 = nvkm_rd32(device, 0x100914);
 	enum nvkm_ram_type type = NVKM_RAM_TYPE_UNKNOWN;
 	int ret;
@@ -40,7 +39,7 @@ nv49_ram_new(struct nvkm_fb *fb, struct nvkm_ram **pram)
 	case 0x00000003: break;
 	}
 
-	ret = nv40_ram_new_(fb, type, size, tags, pram);
+	ret = nv40_ram_new_(fb, type, size, pram);
 	if (ret)
 		return ret;
 

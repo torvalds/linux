@@ -384,6 +384,12 @@ vmw_du_cursor_plane_atomic_update(struct drm_plane *plane,
 
 	hotspot_x = du->hotspot_x;
 	hotspot_y = du->hotspot_y;
+
+	if (plane->fb) {
+		hotspot_x += plane->fb->hot_x;
+		hotspot_y += plane->fb->hot_y;
+	}
+
 	du->cursor_surface = vps->surf;
 	du->cursor_dmabuf = vps->dmabuf;
 
@@ -411,6 +417,9 @@ vmw_du_cursor_plane_atomic_update(struct drm_plane *plane,
 		vmw_cursor_update_position(dev_priv, true,
 					   du->cursor_x + hotspot_x,
 					   du->cursor_y + hotspot_y);
+
+		du->core_hotspot_x = hotspot_x - du->hotspot_x;
+		du->core_hotspot_y = hotspot_y - du->hotspot_y;
 	} else {
 		DRM_ERROR("Failed to update cursor image\n");
 	}
@@ -1527,7 +1536,7 @@ err_out:
  * RETURNS
  * Zero for success or -errno
  */
-int
+static int
 vmw_kms_atomic_check_modeset(struct drm_device *dev,
 			     struct drm_atomic_state *state)
 {
@@ -1536,8 +1545,7 @@ vmw_kms_atomic_check_modeset(struct drm_device *dev,
 	struct vmw_private *dev_priv = vmw_priv(dev);
 	int i;
 
-
-	for_each_crtc_in_state(state, crtc, crtc_state, i) {
+	for_each_new_crtc_in_state(state, crtc, crtc_state, i) {
 		unsigned long requested_bb_mem = 0;
 
 		if (dev_priv->active_display_unit == vmw_du_screen_target) {
@@ -1558,10 +1566,34 @@ vmw_kms_atomic_check_modeset(struct drm_device *dev,
 }
 
 
+/**
+ * vmw_kms_atomic_commit - Perform an atomic state commit
+ *
+ * @dev: DRM device
+ * @state: the driver state object
+ * @nonblock: Whether nonblocking behaviour is requested
+ *
+ * This is a simple wrapper around drm_atomic_helper_commit() for
+ * us to clear the nonblocking value.
+ *
+ * Nonblocking commits currently cause synchronization issues
+ * for vmwgfx.
+ *
+ * RETURNS
+ * Zero for success or negative error code on failure.
+ */
+int vmw_kms_atomic_commit(struct drm_device *dev,
+			  struct drm_atomic_state *state,
+			  bool nonblock)
+{
+	return drm_atomic_helper_commit(dev, state, false);
+}
+
+
 static const struct drm_mode_config_funcs vmw_kms_funcs = {
 	.fb_create = vmw_kms_fb_create,
 	.atomic_check = vmw_kms_atomic_check_modeset,
-	.atomic_commit = drm_atomic_helper_commit,
+	.atomic_commit = vmw_kms_atomic_commit,
 };
 
 static int vmw_kms_generic_present(struct vmw_private *dev_priv,
@@ -1658,7 +1690,7 @@ int vmw_kms_init(struct vmw_private *dev_priv)
 
 int vmw_kms_close(struct vmw_private *dev_priv)
 {
-	int ret;
+	int ret = 0;
 
 	/*
 	 * Docs says we should take the lock before calling this function
@@ -1666,11 +1698,7 @@ int vmw_kms_close(struct vmw_private *dev_priv)
 	 * drm_encoder_cleanup which takes the lock we deadlock.
 	 */
 	drm_mode_config_cleanup(dev_priv->dev);
-	if (dev_priv->active_display_unit == vmw_du_screen_object)
-		ret = vmw_kms_sou_close_display(dev_priv);
-	else if (dev_priv->active_display_unit == vmw_du_screen_target)
-		ret = vmw_kms_stdu_close_display(dev_priv);
-	else
+	if (dev_priv->active_display_unit == vmw_du_legacy)
 		ret = vmw_kms_ldu_close_display(dev_priv);
 
 	return ret;
@@ -1698,7 +1726,7 @@ int vmw_kms_cursor_bypass_ioctl(struct drm_device *dev, void *data,
 		return 0;
 	}
 
-	crtc = drm_crtc_find(dev, arg->crtc_id);
+	crtc = drm_crtc_find(dev, file_priv, arg->crtc_id);
 	if (!crtc) {
 		ret = -ENOENT;
 		goto out;
@@ -2490,7 +2518,7 @@ void vmw_kms_helper_buffer_finish(struct vmw_private *dev_priv,
 	if (file_priv)
 		vmw_execbuf_copy_fence_user(dev_priv, vmw_fpriv(file_priv),
 					    ret, user_fence_rep, fence,
-					    handle);
+					    handle, -1, NULL);
 	if (out_fence)
 		*out_fence = fence;
 	else

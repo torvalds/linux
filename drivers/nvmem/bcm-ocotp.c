@@ -232,7 +232,6 @@ static struct nvmem_config bcm_otpc_nvmem_config = {
 	.read_only = false,
 	.word_size = 4,
 	.stride = 4,
-	.owner = THIS_MODULE,
 	.reg_read = bcm_otpc_read,
 	.reg_write = bcm_otpc_write,
 };

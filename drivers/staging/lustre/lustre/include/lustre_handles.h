@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * GPL HEADER START
  *
@@ -44,7 +45,7 @@
 #include <linux/spinlock.h>
 #include <linux/types.h>
 
-#include "../../include/linux/libcfs/libcfs.h"
+#include <linux/libcfs/libcfs.h>
 
 struct portals_handle_ops {
 	void (*hop_addref)(void *object);

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 
 menu "HP Simulator drivers"
 	depends on IA64_HP_SIM || IA64_GENERIC

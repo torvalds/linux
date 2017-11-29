@@ -68,11 +68,11 @@
 
 #include "mmu_decl.h"
 
-#ifdef CONFIG_PPC_STD_MMU_64
+#ifdef CONFIG_PPC_BOOK3S_64
 #if H_PGTABLE_RANGE > USER_VSID_RANGE
 #warning Limited user VSID range means pagetable space is wasted
 #endif
-#endif /* CONFIG_PPC_STD_MMU_64 */
+#endif /* CONFIG_PPC_BOOK3S_64 */
 
 phys_addr_t memstart_addr = ~0;
 EXPORT_SYMBOL_GPL(memstart_addr);
@@ -356,7 +356,7 @@ struct page *realmode_pfn_to_page(unsigned long pfn)
 }
 EXPORT_SYMBOL_GPL(realmode_pfn_to_page);
 
-#elif defined(CONFIG_FLATMEM)
+#else
 
 struct page *realmode_pfn_to_page(unsigned long pfn)
 {
@@ -365,13 +365,22 @@ struct page *realmode_pfn_to_page(unsigned long pfn)
 }
 EXPORT_SYMBOL_GPL(realmode_pfn_to_page);
 
-#endif /* CONFIG_SPARSEMEM_VMEMMAP/CONFIG_FLATMEM */
+#endif /* CONFIG_SPARSEMEM_VMEMMAP */
 
-#ifdef CONFIG_PPC_STD_MMU_64
-static bool disable_radix;
+#ifdef CONFIG_PPC_BOOK3S_64
+static bool disable_radix = !IS_ENABLED(CONFIG_PPC_RADIX_MMU_DEFAULT);
+
 static int __init parse_disable_radix(char *p)
 {
-	disable_radix = true;
+	bool val;
+
+	if (strlen(p) == 0)
+		val = true;
+	else if (kstrtobool(p, &val))
+		return -EINVAL;
+
+	disable_radix = val;
+
 	return 0;
 }
 early_param("disable_radix", parse_disable_radix);
@@ -381,7 +390,7 @@ early_param("disable_radix", parse_disable_radix);
  * /chosen/ibm,architecture-vec-5 to see if the hypervisor is willing to do
  * radix.  If not, we clear the radix feature bit so we fall back to hash.
  */
-static void early_check_vec5(void)
+static void __init early_check_vec5(void)
 {
 	unsigned long root, chosen;
 	int size;
@@ -444,4 +453,4 @@ void __init mmu_early_init_devtree(void)
 	else
 		hash__early_init_devtree();
 }
-#endif /* CONFIG_PPC_STD_MMU_64 */
+#endif /* CONFIG_PPC_BOOK3S_64 */

@@ -45,7 +45,7 @@ static bool is_supported_device(struct drm_i915_private *dev_priv)
 		return true;
 	if (IS_SKYLAKE(dev_priv))
 		return true;
-	if (IS_KABYLAKE(dev_priv) && INTEL_DEVID(dev_priv) == 0x591D)
+	if (IS_KABYLAKE(dev_priv))
 		return true;
 	return false;
 }
@@ -58,7 +58,7 @@ static bool is_supported_device(struct drm_i915_private *dev_priv)
  */
 void intel_gvt_sanitize_options(struct drm_i915_private *dev_priv)
 {
-	if (!i915.enable_gvt)
+	if (!i915_modparams.enable_gvt)
 		return;
 
 	if (intel_vgpu_active(dev_priv)) {
@@ -73,7 +73,7 @@ void intel_gvt_sanitize_options(struct drm_i915_private *dev_priv)
 
 	return;
 bail:
-	i915.enable_gvt = 0;
+	i915_modparams.enable_gvt = 0;
 }
 
 /**
@@ -90,17 +90,17 @@ int intel_gvt_init(struct drm_i915_private *dev_priv)
 {
 	int ret;
 
-	if (!i915.enable_gvt) {
+	if (!i915_modparams.enable_gvt) {
 		DRM_DEBUG_DRIVER("GVT-g is disabled by kernel params\n");
 		return 0;
 	}
 
-	if (!i915.enable_execlists) {
+	if (!i915_modparams.enable_execlists) {
 		DRM_ERROR("i915 GVT-g loading failed due to disabled execlists mode\n");
 		return -EIO;
 	}
 
-	if (i915.enable_guc_submission) {
+	if (i915_modparams.enable_guc_submission) {
 		DRM_ERROR("i915 GVT-g loading failed due to Graphics virtualization is not yet supported with GuC submission\n");
 		return -EIO;
 	}
@@ -123,7 +123,7 @@ int intel_gvt_init(struct drm_i915_private *dev_priv)
 	return 0;
 
 bail:
-	i915.enable_gvt = 0;
+	i915_modparams.enable_gvt = 0;
 	return 0;
 }
 

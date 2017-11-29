@@ -22,6 +22,7 @@
 #include <linux/if_vlan.h>
 #include <linux/reset.h>
 #include <linux/tcp.h>
+#include <linux/interrupt.h>
 
 #include "mtk_eth_soc.h"
 
@@ -52,7 +53,8 @@ static const struct mtk_ethtool_stats {
 };
 
 static const char * const mtk_clks_source_name[] = {
-	"ethif", "esw", "gp1", "gp2", "trgpll"
+	"ethif", "esw", "gp0", "gp1", "gp2", "trgpll", "sgmii_tx250m",
+	"sgmii_rx250m", "sgmii_cdr_ref", "sgmii_cdr_fb", "sgmii_ck", "eth2pll"
 };
 
 void mtk_w32(struct mtk_eth *eth, u32 val, unsigned reg)
@@ -162,6 +164,47 @@ static void mtk_gmac0_rgmii_adjust(struct mtk_eth *eth, int speed)
 	mtk_w32(eth, val, TRGMII_TCK_CTRL);
 }
 
+static void mtk_gmac_sgmii_hw_setup(struct mtk_eth *eth, int mac_id)
+{
+	u32 val;
+
+	/* Setup the link timer and QPHY power up inside SGMIISYS */
+	regmap_write(eth->sgmiisys, SGMSYS_PCS_LINK_TIMER,
+		     SGMII_LINK_TIMER_DEFAULT);
+
+	regmap_read(eth->sgmiisys, SGMSYS_SGMII_MODE, &val);
+	val |= SGMII_REMOTE_FAULT_DIS;
+	regmap_write(eth->sgmiisys, SGMSYS_SGMII_MODE, val);
+
+	regmap_read(eth->sgmiisys, SGMSYS_PCS_CONTROL_1, &val);
+	val |= SGMII_AN_RESTART;
+	regmap_write(eth->sgmiisys, SGMSYS_PCS_CONTROL_1, val);
+
+	regmap_read(eth->sgmiisys, SGMSYS_QPHY_PWR_STATE_CTRL, &val);
+	val &= ~SGMII_PHYA_PWD;
+	regmap_write(eth->sgmiisys, SGMSYS_QPHY_PWR_STATE_CTRL, val);
+
+	/* Determine MUX for which GMAC uses the SGMII interface */
+	if (MTK_HAS_CAPS(eth->soc->caps, MTK_DUAL_GMAC_SHARED_SGMII)) {
+		regmap_read(eth->ethsys, ETHSYS_SYSCFG0, &val);
+		val &= ~SYSCFG0_SGMII_MASK;
+		val |= !mac_id ? SYSCFG0_SGMII_GMAC1 : SYSCFG0_SGMII_GMAC2;
+		regmap_write(eth->ethsys, ETHSYS_SYSCFG0, val);
+
+		dev_info(eth->dev, "setup shared sgmii for gmac=%d\n",
+			 mac_id);
+	}
+
+	/* Setup the GMAC1 going through SGMII path when SoC also support
+	 * ESW on GMAC1
+	 */
+	if (MTK_HAS_CAPS(eth->soc->caps, MTK_GMAC1_ESW | MTK_GMAC1_SGMII) &&
+	    !mac_id) {
+		mtk_w32(eth, 0, MTK_MAC_MISC);
+		dev_info(eth->dev, "setup gmac1 going through sgmii");
+	}
+}
+
 static void mtk_phy_link_adjust(struct net_device *dev)
 {
 	struct mtk_mac *mac = netdev_priv(dev);
@@ -184,7 +227,8 @@ static void mtk_phy_link_adjust(struct net_device *dev)
 		break;
 	};
 
-	if (mac->id == 0 && !mac->trgmii)
+	if (MTK_HAS_CAPS(mac->hw->soc->caps, MTK_GMAC1_TRGMII) &&
+	    !mac->id && !mac->trgmii)
 		mtk_gmac0_rgmii_adjust(mac->hw, dev->phydev->speed);
 
 	if (dev->phydev->link)
@@ -268,6 +312,7 @@ static int mtk_phy_connect(struct net_device *dev)
 	if (!np)
 		return -ENODEV;
 
+	mac->ge_mode = 0;
 	switch (of_get_phy_mode(np)) {
 	case PHY_INTERFACE_MODE_TRGMII:
 		mac->trgmii = true;
@@ -275,7 +320,10 @@ static int mtk_phy_connect(struct net_device *dev)
 	case PHY_INTERFACE_MODE_RGMII_RXID:
 	case PHY_INTERFACE_MODE_RGMII_ID:
 	case PHY_INTERFACE_MODE_RGMII:
-		mac->ge_mode = 0;
+		break;
+	case PHY_INTERFACE_MODE_SGMII:
+		if (MTK_HAS_CAPS(eth->soc->caps, MTK_SGMII))
+			mtk_gmac_sgmii_hw_setup(eth, mac->id);
 		break;
 	case PHY_INTERFACE_MODE_MII:
 		mac->ge_mode = 1;
@@ -947,6 +995,10 @@ static int mtk_poll_rx(struct napi_struct *napi, int budget,
 		      RX_DMA_FPORT_MASK;
 		mac--;
 
+		if (unlikely(mac < 0 || mac >= MTK_MAC_COUNT ||
+			     !eth->netdev[mac]))
+			goto release_desc;
+
 		netdev = eth->netdev[mac];
 
 		if (unlikely(test_bit(MTK_RESETTING, &eth->state)))
@@ -1027,7 +1079,6 @@ static int mtk_poll_tx(struct mtk_eth *eth, int budget)
 	unsigned int done[MTK_MAX_DEVS];
 	unsigned int bytes[MTK_MAX_DEVS];
 	u32 cpu, dma;
-	static int condition;
 	int total = 0, i;
 
 	memset(done, 0, sizeof(done));
@@ -1051,10 +1102,8 @@ static int mtk_poll_tx(struct mtk_eth *eth, int budget)
 			mac = 1;
 
 		skb = tx_buf->skb;
-		if (!skb) {
-			condition = 1;
+		if (!skb)
 			break;
-		}
 
 		if (skb != (struct sk_buff *)MTK_DMA_DUMMY_DESC) {
 			bytes[mac] += skb->len;
@@ -1236,9 +1285,19 @@ static void mtk_tx_clean(struct mtk_eth *eth)
 
 static int mtk_rx_alloc(struct mtk_eth *eth, int ring_no, int rx_flag)
 {
-	struct mtk_rx_ring *ring = &eth->rx_ring[ring_no];
+	struct mtk_rx_ring *ring;
 	int rx_data_len, rx_dma_size;
 	int i;
+	u32 offset = 0;
+
+	if (rx_flag == MTK_RX_FLAGS_QDMA) {
+		if (ring_no)
+			return -EINVAL;
+		ring = &eth->rx_ring_qdma;
+		offset = 0x1000;
+	} else {
+		ring = &eth->rx_ring[ring_no];
+	}
 
 	if (rx_flag == MTK_RX_FLAGS_HWLRO) {
 		rx_data_len = MTK_MAX_LRO_RX_LENGTH;
@@ -1288,17 +1347,16 @@ static int mtk_rx_alloc(struct mtk_eth *eth, int ring_no, int rx_flag)
 	 */
 	wmb();
 
-	mtk_w32(eth, ring->phys, MTK_PRX_BASE_PTR_CFG(ring_no));
-	mtk_w32(eth, rx_dma_size, MTK_PRX_MAX_CNT_CFG(ring_no));
-	mtk_w32(eth, ring->calc_idx, ring->crx_idx_reg);
-	mtk_w32(eth, MTK_PST_DRX_IDX_CFG(ring_no), MTK_PDMA_RST_IDX);
+	mtk_w32(eth, ring->phys, MTK_PRX_BASE_PTR_CFG(ring_no) + offset);
+	mtk_w32(eth, rx_dma_size, MTK_PRX_MAX_CNT_CFG(ring_no) + offset);
+	mtk_w32(eth, ring->calc_idx, ring->crx_idx_reg + offset);
+	mtk_w32(eth, MTK_PST_DRX_IDX_CFG(ring_no), MTK_PDMA_RST_IDX + offset);
 
 	return 0;
 }
 
-static void mtk_rx_clean(struct mtk_eth *eth, int ring_no)
+static void mtk_rx_clean(struct mtk_eth *eth, struct mtk_rx_ring *ring)
 {
-	struct mtk_rx_ring *ring = &eth->rx_ring[ring_no];
 	int i;
 
 	if (ring->data && ring->dma) {
@@ -1624,6 +1682,10 @@ static int mtk_dma_init(struct mtk_eth *eth)
 	if (err)
 		return err;
 
+	err = mtk_rx_alloc(eth, 0, MTK_RX_FLAGS_QDMA);
+	if (err)
+		return err;
+
 	err = mtk_rx_alloc(eth, 0, MTK_RX_FLAGS_NORMAL);
 	if (err)
 		return err;
@@ -1663,12 +1725,13 @@ static void mtk_dma_free(struct mtk_eth *eth)
 		eth->phy_scratch_ring = 0;
 	}
 	mtk_tx_clean(eth);
-	mtk_rx_clean(eth, 0);
+	mtk_rx_clean(eth, &eth->rx_ring[0]);
+	mtk_rx_clean(eth, &eth->rx_ring_qdma);
 
 	if (eth->hwlro) {
 		mtk_hwlro_rx_uninit(eth);
 		for (i = 1; i < MTK_MAX_RX_RING_NUM; i++)
-			mtk_rx_clean(eth, i);
+			mtk_rx_clean(eth, &eth->rx_ring[i]);
 	}
 
 	kfree(eth->scratch_head);
@@ -1735,7 +1798,9 @@ static int mtk_start_dma(struct mtk_eth *eth)
 
 	mtk_w32(eth,
 		MTK_TX_WB_DDONE | MTK_TX_DMA_EN |
-		MTK_DMA_SIZE_16DWORDS | MTK_NDP_CO_PRO,
+		MTK_DMA_SIZE_16DWORDS | MTK_NDP_CO_PRO |
+		MTK_RX_DMA_EN | MTK_RX_2B_OFFSET |
+		MTK_RX_BT_32DWORDS,
 		MTK_QDMA_GLO_CFG);
 
 	mtk_w32(eth,
@@ -1752,7 +1817,7 @@ static int mtk_open(struct net_device *dev)
 	struct mtk_eth *eth = mac->hw;
 
 	/* we run 2 netdevs on the same dma ring so we only bring it up once */
-	if (!atomic_read(&eth->dma_refcnt)) {
+	if (!refcount_read(&eth->dma_refcnt)) {
 		int err = mtk_start_dma(eth);
 
 		if (err)
@@ -1762,8 +1827,10 @@ static int mtk_open(struct net_device *dev)
 		napi_enable(&eth->rx_napi);
 		mtk_tx_irq_enable(eth, MTK_TX_DONE_INT);
 		mtk_rx_irq_enable(eth, MTK_RX_DONE_INT);
+		refcount_set(&eth->dma_refcnt, 1);
 	}
-	atomic_inc(&eth->dma_refcnt);
+	else
+		refcount_inc(&eth->dma_refcnt);
 
 	phy_start(dev->phydev);
 	netif_start_queue(dev);
@@ -1803,7 +1870,7 @@ static int mtk_stop(struct net_device *dev)
 	phy_stop(dev->phydev);
 
 	/* only shutdown DMA if this is the last user */
-	if (!atomic_dec_and_test(&eth->dma_refcnt))
+	if (!refcount_dec_and_test(&eth->dma_refcnt))
 		return 0;
 
 	mtk_tx_irq_disable(eth, MTK_TX_DONE_INT);
@@ -1832,9 +1899,36 @@ static void ethsys_reset(struct mtk_eth *eth, u32 reset_bits)
 	mdelay(10);
 }
 
+static void mtk_clk_disable(struct mtk_eth *eth)
+{
+	int clk;
+
+	for (clk = MTK_CLK_MAX - 1; clk >= 0; clk--)
+		clk_disable_unprepare(eth->clks[clk]);
+}
+
+static int mtk_clk_enable(struct mtk_eth *eth)
+{
+	int clk, ret;
+
+	for (clk = 0; clk < MTK_CLK_MAX ; clk++) {
+		ret = clk_prepare_enable(eth->clks[clk]);
+		if (ret)
+			goto err_disable_clks;
+	}
+
+	return 0;
+
+err_disable_clks:
+	while (--clk >= 0)
+		clk_disable_unprepare(eth->clks[clk]);
+
+	return ret;
+}
+
 static int mtk_hw_init(struct mtk_eth *eth)
 {
-	int i, val;
+	int i, val, ret;
 
 	if (test_and_set_bit(MTK_HW_INIT, &eth->state))
 		return 0;
@@ -1842,10 +1936,10 @@ static int mtk_hw_init(struct mtk_eth *eth)
 	pm_runtime_enable(eth->dev);
 	pm_runtime_get_sync(eth->dev);
 
-	clk_prepare_enable(eth->clks[MTK_CLK_ETHIF]);
-	clk_prepare_enable(eth->clks[MTK_CLK_ESW]);
-	clk_prepare_enable(eth->clks[MTK_CLK_GP1]);
-	clk_prepare_enable(eth->clks[MTK_CLK_GP2]);
+	ret = mtk_clk_enable(eth);
+	if (ret)
+		goto err_disable_pm;
+
 	ethsys_reset(eth, RSTCTRL_FE);
 	ethsys_reset(eth, RSTCTRL_PPE);
 
@@ -1913,6 +2007,12 @@ static int mtk_hw_init(struct mtk_eth *eth)
 	}
 
 	return 0;
+
+err_disable_pm:
+	pm_runtime_put_sync(eth->dev);
+	pm_runtime_disable(eth->dev);
+
+	return ret;
 }
 
 static int mtk_hw_deinit(struct mtk_eth *eth)
@@ -1920,10 +2020,7 @@ static int mtk_hw_deinit(struct mtk_eth *eth)
 	if (!test_and_clear_bit(MTK_HW_INIT, &eth->state))
 		return 0;
 
-	clk_disable_unprepare(eth->clks[MTK_CLK_GP2]);
-	clk_disable_unprepare(eth->clks[MTK_CLK_GP1]);
-	clk_disable_unprepare(eth->clks[MTK_CLK_ESW]);
-	clk_disable_unprepare(eth->clks[MTK_CLK_ETHIF]);
+	mtk_clk_disable(eth);
 
 	pm_runtime_put_sync(eth->dev);
 	pm_runtime_disable(eth->dev);
@@ -2390,6 +2487,7 @@ static int mtk_get_chip_id(struct mtk_eth *eth, u32 *chip_id)
 static bool mtk_is_hwlro_supported(struct mtk_eth *eth)
 {
 	switch (eth->chip_id) {
+	case MT7622_ETH:
 	case MT7623_ETH:
 		return true;
 	}
@@ -2401,6 +2499,7 @@ static int mtk_probe(struct platform_device *pdev)
 {
 	struct resource *res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	struct device_node *mac_np;
+	const struct of_device_id *match;
 	struct mtk_eth *eth;
 	int err;
 	int i;
@@ -2408,6 +2507,9 @@ static int mtk_probe(struct platform_device *pdev)
 	eth = devm_kzalloc(&pdev->dev, sizeof(*eth), GFP_KERNEL);
 	if (!eth)
 		return -ENOMEM;
+
+	match = of_match_device(of_mtk_match, &pdev->dev);
+	eth->soc = (struct mtk_soc_data *)match->data;
 
 	eth->dev = &pdev->dev;
 	eth->base = devm_ioremap_resource(&pdev->dev, res);
@@ -2423,6 +2525,16 @@ static int mtk_probe(struct platform_device *pdev)
 	if (IS_ERR(eth->ethsys)) {
 		dev_err(&pdev->dev, "no ethsys regmap found\n");
 		return PTR_ERR(eth->ethsys);
+	}
+
+	if (MTK_HAS_CAPS(eth->soc->caps, MTK_SGMII)) {
+		eth->sgmiisys =
+		syscon_regmap_lookup_by_phandle(pdev->dev.of_node,
+						"mediatek,sgmiisys");
+		if (IS_ERR(eth->sgmiisys)) {
+			dev_err(&pdev->dev, "no sgmiisys regmap found\n");
+			return PTR_ERR(eth->sgmiisys);
+		}
 	}
 
 	eth->pctl = syscon_regmap_lookup_by_phandle(pdev->dev.of_node,
@@ -2445,7 +2557,12 @@ static int mtk_probe(struct platform_device *pdev)
 		if (IS_ERR(eth->clks[i])) {
 			if (PTR_ERR(eth->clks[i]) == -EPROBE_DEFER)
 				return -EPROBE_DEFER;
-			return -ENODEV;
+			if (eth->soc->required_clks & BIT(i)) {
+				dev_err(&pdev->dev, "clock %s not found\n",
+					mtk_clks_source_name[i]);
+				return -EINVAL;
+			}
+			eth->clks[i] = NULL;
 		}
 	}
 
@@ -2548,8 +2665,25 @@ static int mtk_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct mtk_soc_data mt2701_data = {
+	.caps = MTK_GMAC1_TRGMII,
+	.required_clks = MT7623_CLKS_BITMAP
+};
+
+static const struct mtk_soc_data mt7622_data = {
+	.caps = MTK_DUAL_GMAC_SHARED_SGMII | MTK_GMAC1_ESW,
+	.required_clks = MT7622_CLKS_BITMAP
+};
+
+static const struct mtk_soc_data mt7623_data = {
+	.caps = MTK_GMAC1_TRGMII,
+	.required_clks = MT7623_CLKS_BITMAP
+};
+
 const struct of_device_id of_mtk_match[] = {
-	{ .compatible = "mediatek,mt2701-eth" },
+	{ .compatible = "mediatek,mt2701-eth", .data = &mt2701_data},
+	{ .compatible = "mediatek,mt7622-eth", .data = &mt7622_data},
+	{ .compatible = "mediatek,mt7623-eth", .data = &mt7623_data},
 	{},
 };
 MODULE_DEVICE_TABLE(of, of_mtk_match);

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 menuconfig ARCH_CNS3XXX
 	bool "Cavium Networks CNS3XXX family"
 	depends on ARCH_MULTI_V6

@@ -201,7 +201,6 @@ static int         nsp32_release     (struct Scsi_Host *);
 
 /* SCSI error handler */
 static int         nsp32_eh_abort     (struct scsi_cmnd *);
-static int         nsp32_eh_bus_reset (struct scsi_cmnd *);
 static int         nsp32_eh_host_reset(struct scsi_cmnd *);
 
 /* generate SCSI message */
@@ -276,8 +275,7 @@ static struct scsi_host_template nsp32_template = {
 	.max_sectors			= 128,
 	.this_id			= NSP32_HOST_SCSIID,
 	.use_clustering			= DISABLE_CLUSTERING,
-	.eh_abort_handler       	= nsp32_eh_abort,
-	.eh_bus_reset_handler		= nsp32_eh_bus_reset,
+	.eh_abort_handler		= nsp32_eh_abort,
 	.eh_host_reset_handler		= nsp32_eh_host_reset,
 /*	.highmem_io			= 1, */
 };
@@ -606,7 +604,7 @@ static int nsp32_selection_autoscsi(struct scsi_cmnd *SCpnt)
 	 * check bus line
 	 */
 	phase = nsp32_read1(base, SCSI_BUS_MONITOR);
-	if(((phase & BUSMON_BSY) == 1) || (phase & BUSMON_SEL) == 1) {
+	if ((phase & BUSMON_BSY) || (phase & BUSMON_SEL)) {
 		nsp32_msg(KERN_WARNING, "bus busy");
 		SCpnt->result = DID_BUS_BUSY << 16;
 		status = 1;
@@ -2843,24 +2841,6 @@ static int nsp32_eh_abort(struct scsi_cmnd *SCpnt)
 
 	nsp32_dbg(NSP32_DEBUG_BUSRESET, "abort success");
 	return SUCCESS;
-}
-
-static int nsp32_eh_bus_reset(struct scsi_cmnd *SCpnt)
-{
-	nsp32_hw_data *data = (nsp32_hw_data *)SCpnt->device->host->hostdata;
-	unsigned int   base = SCpnt->device->host->io_port;
-
-	spin_lock_irq(SCpnt->device->host->host_lock);
-
-	nsp32_msg(KERN_INFO, "Bus Reset");	
-	nsp32_dbg(NSP32_DEBUG_BUSRESET, "SCpnt=0x%x", SCpnt);
-
-	nsp32_write2(base, IRQ_CONTROL, IRQ_CONTROL_ALL_IRQ_MASK);
-	nsp32_do_bus_reset(data);
-	nsp32_write2(base, IRQ_CONTROL, 0);
-
-	spin_unlock_irq(SCpnt->device->host->host_lock);
-	return SUCCESS;	/* SCSI bus reset is succeeded at any time. */
 }
 
 static void nsp32_do_bus_reset(nsp32_hw_data *data)

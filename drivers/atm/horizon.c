@@ -357,7 +357,7 @@ static inline void __init show_version (void) {
 
 /********** globals **********/
 
-static void do_housekeeping (unsigned long arg);
+static void do_housekeeping (struct timer_list *t);
 
 static unsigned short debug = 0;
 static unsigned short vpi_bits = 0;
@@ -1418,9 +1418,9 @@ static irqreturn_t interrupt_handler(int irq, void *dev_id)
 
 /********** housekeeping **********/
 
-static void do_housekeeping (unsigned long arg) {
+static void do_housekeeping (struct timer_list *t) {
   // just stats at the moment
-  hrz_dev * dev = (hrz_dev *) arg;
+  hrz_dev * dev = from_timer(dev, t, housekeeping);
 
   // collect device-specific (not driver/atm-linux) stats here
   dev->tx_cell_count += rd_regw (dev, TX_CELL_COUNT_OFF);
@@ -2796,14 +2796,14 @@ static int hrz_probe(struct pci_dev *pci_dev,
 	dev->atm_dev->ci_range.vpi_bits = vpi_bits;
 	dev->atm_dev->ci_range.vci_bits = 10-vpi_bits;
 
-	setup_timer(&dev->housekeeping, do_housekeeping, (unsigned long) dev);
+	timer_setup(&dev->housekeeping, do_housekeeping, 0);
 	mod_timer(&dev->housekeeping, jiffies);
 
 out:
 	return err;
 
 out_free_irq:
-	free_irq(dev->irq, dev);
+	free_irq(irq, dev);
 out_free:
 	kfree(dev);
 out_release:
@@ -2867,7 +2867,7 @@ MODULE_PARM_DESC(max_tx_size, "maximum size of TX AAL5 frames");
 MODULE_PARM_DESC(max_rx_size, "maximum size of RX AAL5 frames");
 MODULE_PARM_DESC(pci_lat, "PCI latency in bus cycles");
 
-static struct pci_device_id hrz_pci_tbl[] = {
+static const struct pci_device_id hrz_pci_tbl[] = {
 	{ PCI_VENDOR_ID_MADGE, PCI_DEVICE_ID_MADGE_HORIZON, PCI_ANY_ID, PCI_ANY_ID,
 	  0, 0, 0 },
 	{ 0, }

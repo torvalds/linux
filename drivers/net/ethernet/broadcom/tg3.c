@@ -6587,7 +6587,7 @@ static void tg3_tx(struct tg3_napi *tnapi)
 		pkts_compl++;
 		bytes_compl += skb->len;
 
-		dev_kfree_skb_any(skb);
+		dev_consume_skb_any(skb);
 
 		if (unlikely(tx_bug)) {
 			tg3_tx_recover(tp);
@@ -7829,7 +7829,7 @@ static int tigon3_dma_hwbug_workaround(struct tg3_napi *tnapi,
 		}
 	}
 
-	dev_kfree_skb_any(skb);
+	dev_consume_skb_any(skb);
 	*pskb = new_skb;
 	return ret;
 }
@@ -7882,7 +7882,7 @@ static int tg3_tso_bug(struct tg3 *tp, struct tg3_napi *tnapi,
 	} while (segs);
 
 tg3_tso_bug_end:
-	dev_kfree_skb_any(skb);
+	dev_consume_skb_any(skb);
 
 	return NETDEV_TX_OK;
 }
@@ -8543,7 +8543,7 @@ static void tg3_free_rings(struct tg3 *tp)
 			tg3_tx_skb_unmap(tnapi, i,
 					 skb_shinfo(skb)->nr_frags - 1);
 
-			dev_kfree_skb_any(skb);
+			dev_consume_skb_any(skb);
 		}
 		netdev_tx_reset_queue(netdev_get_tx_queue(tp->dev, j));
 	}
@@ -10931,9 +10931,9 @@ static void tg3_chk_missed_msi(struct tg3 *tp)
 	}
 }
 
-static void tg3_timer(unsigned long __opaque)
+static void tg3_timer(struct timer_list *t)
 {
-	struct tg3 *tp = (struct tg3 *) __opaque;
+	struct tg3 *tp = from_timer(tp, t, timer);
 
 	spin_lock(&tp->lock);
 
@@ -11087,9 +11087,7 @@ static void tg3_timer_init(struct tg3 *tp)
 	tp->asf_multiplier = (HZ / tp->timer_offset) *
 			     TG3_FW_UPDATE_FREQ_SEC;
 
-	init_timer(&tp->timer);
-	tp->timer.data = (unsigned long) tp;
-	tp->timer.function = tg3_timer;
+	timer_setup(&tp->timer, tg3_timer, 0);
 }
 
 static void tg3_timer_start(struct tg3 *tp)
@@ -11536,11 +11534,11 @@ static int tg3_start(struct tg3 *tp, bool reset_phy, bool test_irq,
 	tg3_napi_enable(tp);
 
 	for (i = 0; i < tp->irq_cnt; i++) {
-		struct tg3_napi *tnapi = &tp->napi[i];
 		err = tg3_request_irq(tp, i);
 		if (err) {
 			for (i--; i >= 0; i--) {
-				tnapi = &tp->napi[i];
+				struct tg3_napi *tnapi = &tp->napi[i];
+
 				free_irq(tnapi->irq_vec, tnapi);
 			}
 			goto out_napi_fini;

@@ -25,6 +25,7 @@
 #include <linux/types.h>
 #include <linux/kvm_types.h>
 #include <asm/cpufeature.h>
+#include <asm/fpsimd.h>
 #include <asm/kvm.h>
 #include <asm/kvm_asm.h>
 #include <asm/kvm_mmio.h>
@@ -326,12 +327,6 @@ void kvm_set_spte_hva(struct kvm *kvm, unsigned long hva, pte_t pte);
 int kvm_age_hva(struct kvm *kvm, unsigned long start, unsigned long end);
 int kvm_test_age_hva(struct kvm *kvm, unsigned long hva);
 
-/* We do not have shadow page tables, hence the empty hooks */
-static inline void kvm_arch_mmu_notifier_invalidate_page(struct kvm *kvm,
-							 unsigned long address)
-{
-}
-
 struct kvm_vcpu *kvm_arm_get_running_vcpu(void);
 struct kvm_vcpu * __percpu *kvm_get_running_vcpus(void);
 void kvm_arm_halt_guest(struct kvm *kvm);
@@ -388,6 +383,16 @@ static inline void __cpu_init_stage2(void)
 
 	WARN_ONCE(parange < 40,
 		  "PARange is %d bits, unsupported configuration!", parange);
+}
+
+/*
+ * All host FP/SIMD state is restored on guest exit, so nothing needs
+ * doing here except in the SVE case:
+*/
+static inline void kvm_fpsimd_flush_cpu_state(void)
+{
+	if (system_supports_sve())
+		sve_flush_cpu_state();
 }
 
 #endif /* __ARM64_KVM_HOST_H__ */

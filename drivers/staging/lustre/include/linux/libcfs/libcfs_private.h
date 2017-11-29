@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * GPL HEADER START
  *
@@ -154,18 +155,6 @@ do {								    \
 
 /******************************************************************************/
 
-/* htonl hack - either this, or compile with -O2. Stupid byteorder/generic.h */
-#if defined(__GNUC__) && (__GNUC__ >= 2) && !defined(__OPTIMIZE__)
-#define ___htonl(x) __cpu_to_be32(x)
-#define ___htons(x) __cpu_to_be16(x)
-#define ___ntohl(x) __be32_to_cpu(x)
-#define ___ntohs(x) __be16_to_cpu(x)
-#define htonl(x) ___htonl(x)
-#define ntohl(x) ___ntohl(x)
-#define htons(x) ___htons(x)
-#define ntohs(x) ___ntohs(x)
-#endif
-
 void libcfs_debug_dumplog(void);
 int libcfs_debug_init(unsigned long bufsize);
 int libcfs_debug_cleanup(void);
@@ -307,19 +296,5 @@ static inline size_t cfs_round_strlen(char *fset)
 {
 	return cfs_size_round((int)strlen(fset) + 1);
 }
-
-#define LOGL(var, len, ptr)				       \
-do {							    \
-	if (var)						\
-		memcpy((char *)ptr, (const char *)var, len);    \
-	ptr += cfs_size_round(len);			     \
-} while (0)
-
-#define LOGU(var, len, ptr)				       \
-do {							    \
-	if (var)						\
-		memcpy((char *)var, (const char *)ptr, len);    \
-	ptr += cfs_size_round(len);			     \
-} while (0)
 
 #endif

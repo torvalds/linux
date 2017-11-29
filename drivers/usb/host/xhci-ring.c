@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * xHCI host controller driver
  *
@@ -5,19 +6,6 @@
  *
  * Author: Sarah Sharp
  * Some code borrowed from the Linux EHCI driver.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
- * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- * for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 /*
@@ -171,13 +159,13 @@ static void inc_deq(struct xhci_hcd *xhci, struct xhci_ring *ring)
 	if (ring->type == TYPE_EVENT) {
 		if (!last_trb_on_seg(ring->deq_seg, ring->dequeue)) {
 			ring->dequeue++;
-			return;
+			goto out;
 		}
 		if (last_trb_on_ring(ring, ring->deq_seg, ring->dequeue))
 			ring->cycle_state ^= 1;
 		ring->deq_seg = ring->deq_seg->next;
 		ring->dequeue = ring->deq_seg->trbs;
-		return;
+		goto out;
 	}
 
 	/* All other rings have link trbs */
@@ -190,6 +178,7 @@ static void inc_deq(struct xhci_hcd *xhci, struct xhci_ring *ring)
 		ring->dequeue = ring->deq_seg->trbs;
 	}
 
+out:
 	trace_xhci_inc_deq(ring);
 
 	return;
@@ -946,14 +935,11 @@ void xhci_hc_died(struct xhci_hcd *xhci)
  * Instead we use a combination of that flag and checking if a new timer is
  * pending.
  */
-void xhci_stop_endpoint_command_watchdog(unsigned long arg)
+void xhci_stop_endpoint_command_watchdog(struct timer_list *t)
 {
-	struct xhci_hcd *xhci;
-	struct xhci_virt_ep *ep;
+	struct xhci_virt_ep *ep = from_timer(ep, t, stop_cmd_timer);
+	struct xhci_hcd *xhci = ep->xhci;
 	unsigned long flags;
-
-	ep = (struct xhci_virt_ep *) arg;
-	xhci = ep->xhci;
 
 	spin_lock_irqsave(&xhci->lock, flags);
 
@@ -1309,6 +1295,7 @@ static void xhci_complete_del_and_free_cmd(struct xhci_command *cmd, u32 status)
 void xhci_cleanup_command_queue(struct xhci_hcd *xhci)
 {
 	struct xhci_command *cur_cmd, *tmp_cmd;
+	xhci->current_cmd = NULL;
 	list_for_each_entry_safe(cur_cmd, tmp_cmd, &xhci->cmd_list, cmd_list)
 		xhci_complete_del_and_free_cmd(cur_cmd, COMP_COMMAND_ABORTED);
 }
@@ -1572,7 +1559,7 @@ static void handle_port_status(struct xhci_hcd *xhci,
 {
 	struct usb_hcd *hcd;
 	u32 port_id;
-	u32 temp, temp1;
+	u32 portsc, cmd_reg;
 	int max_ports;
 	int slot_id;
 	unsigned int faked_port_index;
@@ -1636,26 +1623,28 @@ static void handle_port_status(struct xhci_hcd *xhci,
 	/* Find the faked port hub number */
 	faked_port_index = find_faked_portnum_from_hw_portnum(hcd, xhci,
 			port_id);
+	portsc = readl(port_array[faked_port_index]);
 
-	temp = readl(port_array[faked_port_index]);
+	trace_xhci_handle_port_status(faked_port_index, portsc);
+
 	if (hcd->state == HC_STATE_SUSPENDED) {
 		xhci_dbg(xhci, "resume root hub\n");
 		usb_hcd_resume_root_hub(hcd);
 	}
 
-	if (hcd->speed >= HCD_USB3 && (temp & PORT_PLS_MASK) == XDEV_INACTIVE)
+	if (hcd->speed >= HCD_USB3 && (portsc & PORT_PLS_MASK) == XDEV_INACTIVE)
 		bus_state->port_remote_wakeup &= ~(1 << faked_port_index);
 
-	if ((temp & PORT_PLC) && (temp & PORT_PLS_MASK) == XDEV_RESUME) {
+	if ((portsc & PORT_PLC) && (portsc & PORT_PLS_MASK) == XDEV_RESUME) {
 		xhci_dbg(xhci, "port resume event for port %d\n", port_id);
 
-		temp1 = readl(&xhci->op_regs->command);
-		if (!(temp1 & CMD_RUN)) {
+		cmd_reg = readl(&xhci->op_regs->command);
+		if (!(cmd_reg & CMD_RUN)) {
 			xhci_warn(xhci, "xHC is not running.\n");
 			goto cleanup;
 		}
 
-		if (DEV_SUPERSPEED_ANY(temp)) {
+		if (DEV_SUPERSPEED_ANY(portsc)) {
 			xhci_dbg(xhci, "remote wake SS port %d\n", port_id);
 			/* Set a flag to say the port signaled remote wakeup,
 			 * so we can tell the difference between the end of
@@ -1677,14 +1666,19 @@ static void handle_port_status(struct xhci_hcd *xhci,
 			bus_state->resume_done[faked_port_index] = jiffies +
 				msecs_to_jiffies(USB_RESUME_TIMEOUT);
 			set_bit(faked_port_index, &bus_state->resuming_ports);
+			/* Do the rest in GetPortStatus after resume time delay.
+			 * Avoid polling roothub status before that so that a
+			 * usb device auto-resume latency around ~40ms.
+			 */
+			set_bit(HCD_FLAG_POLL_RH, &hcd->flags);
 			mod_timer(&hcd->rh_timer,
 				  bus_state->resume_done[faked_port_index]);
-			/* Do the rest in GetPortStatus */
+			bogus_port_status = true;
 		}
 	}
 
-	if ((temp & PORT_PLC) && (temp & PORT_PLS_MASK) == XDEV_U0 &&
-			DEV_SUPERSPEED_ANY(temp)) {
+	if ((portsc & PORT_PLC) && (portsc & PORT_PLS_MASK) == XDEV_U0 &&
+			DEV_SUPERSPEED_ANY(portsc)) {
 		xhci_dbg(xhci, "resume SS port %d finished\n", port_id);
 		/* We've just brought the device into U0 through either the
 		 * Resume state after a device remote wakeup, or through the
@@ -1714,7 +1708,7 @@ static void handle_port_status(struct xhci_hcd *xhci,
 	 * RExit to a disconnect state).  If so, let the the driver know it's
 	 * out of the RExit state.
 	 */
-	if (!DEV_SUPERSPEED_ANY(temp) &&
+	if (!DEV_SUPERSPEED_ANY(portsc) &&
 			test_and_clear_bit(faked_port_index,
 				&bus_state->rexit_ports)) {
 		complete(&bus_state->rexit_done[faked_port_index]);
@@ -2577,15 +2571,21 @@ static int handle_tx_event(struct xhci_hcd *xhci,
 				(struct xhci_generic_trb *) ep_trb);
 
 		/*
-		 * No-op TRB should not trigger interrupts.
-		 * If ep_trb is a no-op TRB, it means the
-		 * corresponding TD has been cancelled. Just ignore
-		 * the TD.
+		 * No-op TRB could trigger interrupts in a case where
+		 * a URB was killed and a STALL_ERROR happens right
+		 * after the endpoint ring stopped. Reset the halted
+		 * endpoint. Otherwise, the endpoint remains stalled
+		 * indefinitely.
 		 */
 		if (trb_is_noop(ep_trb)) {
-			xhci_dbg(xhci,
-				 "ep_trb is a no-op TRB. Skip it for slot %u ep %u\n",
-				 slot_id, ep_index);
+			if (trb_comp_code == COMP_STALL_ERROR ||
+			    xhci_requires_manual_halt_cleanup(xhci, ep_ctx,
+							      trb_comp_code))
+				xhci_cleanup_halted_endpoint(xhci, slot_id,
+							     ep_index,
+							     ep_ring->stream_id,
+							     td, ep_trb,
+							     EP_HARD_RESET);
 			goto cleanup;
 		}
 

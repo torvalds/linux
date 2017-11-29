@@ -81,7 +81,7 @@ static int rome_patch_ver_req(struct hci_dev *hdev, u32 *rome_version)
 	 * and lower 2 bytes from patch will be used.
 	 */
 	*rome_version = (le32_to_cpu(ver->soc_id) << 16) |
-		        (le16_to_cpu(ver->rome_ver) & 0x0000ffff);
+			(le16_to_cpu(ver->rome_ver) & 0x0000ffff);
 
 out:
 	kfree_skb(skb);
@@ -287,7 +287,7 @@ static int rome_download_firmware(struct hci_dev *hdev,
 	const struct firmware *fw;
 	int ret;
 
-	BT_INFO("%s: ROME Downloading %s", hdev->name, config->fwname);
+	bt_dev_info(hdev, "ROME Downloading %s", config->fwname);
 
 	ret = request_firmware(&fw, config->fwname, &hdev->dev);
 	if (ret) {
@@ -351,7 +351,7 @@ int qca_uart_setup_rome(struct hci_dev *hdev, uint8_t baudrate)
 		return err;
 	}
 
-	BT_INFO("%s: ROME controller version 0x%08x", hdev->name, rome_ver);
+	bt_dev_info(hdev, "ROME controller version 0x%08x", rome_ver);
 
 	/* Download rampatch file */
 	config.type = TLV_TYPE_PATCH;
@@ -380,7 +380,7 @@ int qca_uart_setup_rome(struct hci_dev *hdev, uint8_t baudrate)
 		return err;
 	}
 
-	BT_INFO("%s: ROME setup on UART is completed", hdev->name);
+	bt_dev_info(hdev, "ROME setup on UART is completed");
 
 	return 0;
 }

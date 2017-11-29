@@ -91,6 +91,7 @@ struct exynos_drm_plane {
 #define EXYNOS_DRM_PLANE_CAP_DOUBLE	(1 << 0)
 #define EXYNOS_DRM_PLANE_CAP_SCALE	(1 << 1)
 #define EXYNOS_DRM_PLANE_CAP_ZPOS	(1 << 2)
+#define EXYNOS_DRM_PLANE_CAP_TILE	(1 << 3)
 
 /*
  * Exynos DRM plane configuration structure.
@@ -117,6 +118,7 @@ struct exynos_drm_plane_config {
  * @disable: disable the device
  * @enable_vblank: specific driver callback for enabling vblank interrupt.
  * @disable_vblank: specific driver callback for disabling vblank interrupt.
+ * @mode_valid: specific driver callback for mode validation
  * @atomic_check: validate state
  * @atomic_begin: prepare device to receive an update
  * @atomic_flush: mark the end of device update
@@ -132,6 +134,11 @@ struct exynos_drm_crtc_ops {
 	int (*enable_vblank)(struct exynos_drm_crtc *crtc);
 	void (*disable_vblank)(struct exynos_drm_crtc *crtc);
 	u32 (*get_vblank_counter)(struct exynos_drm_crtc *crtc);
+	enum drm_mode_status (*mode_valid)(struct exynos_drm_crtc *crtc,
+		const struct drm_display_mode *mode);
+	bool (*mode_fixup)(struct exynos_drm_crtc *crtc,
+			   const struct drm_display_mode *mode,
+			   struct drm_display_mode *adjusted_mode);
 	int (*atomic_check)(struct exynos_drm_crtc *crtc,
 			    struct drm_crtc_state *state);
 	void (*atomic_begin)(struct exynos_drm_crtc *crtc);
@@ -162,6 +169,7 @@ struct exynos_drm_crtc {
 	const struct exynos_drm_crtc_ops	*ops;
 	void				*ctx;
 	struct exynos_drm_clk		*pipe_clk;
+	bool				i80_mode : 1;
 };
 
 static inline void exynos_drm_pipe_clk_enable(struct exynos_drm_crtc *crtc,
@@ -197,6 +205,7 @@ struct drm_exynos_file_private {
  */
 struct exynos_drm_private {
 	struct drm_fb_helper *fb_helper;
+	struct drm_atomic_state *suspend_state;
 
 	struct device *dma_dev;
 	void *mapping;

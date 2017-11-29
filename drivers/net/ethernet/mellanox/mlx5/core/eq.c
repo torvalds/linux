@@ -36,9 +36,7 @@
 #include <linux/mlx5/cmd.h>
 #include "mlx5_core.h"
 #include "fpga/core.h"
-#ifdef CONFIG_MLX5_CORE_EN
 #include "eswitch.h"
-#endif
 
 enum {
 	MLX5_EQE_SIZE		= sizeof(struct mlx5_eqe),
@@ -161,6 +159,8 @@ static const char *eqe_type_str(u8 type)
 		return "MLX5_EVENT_TYPE_NIC_VPORT_CHANGE";
 	case MLX5_EVENT_TYPE_FPGA_ERROR:
 		return "MLX5_EVENT_TYPE_FPGA_ERROR";
+	case MLX5_EVENT_TYPE_GENERAL_EVENT:
+		return "MLX5_EVENT_TYPE_GENERAL_EVENT";
 	default:
 		return "Unrecognized event";
 	}
@@ -191,6 +191,7 @@ static void eq_update_ci(struct mlx5_eq *eq, int arm)
 {
 	__be32 __iomem *addr = eq->doorbell + (arm ? 0 : 2);
 	u32 val = (eq->cons_index & 0xffffff) | (eq->eqn << 24);
+
 	__raw_writel((__force u32)cpu_to_be32(val), addr);
 	/* We still want ordering, just not swabbing, so add a barrier */
 	mb();
@@ -378,6 +379,20 @@ int mlx5_core_page_fault_resume(struct mlx5_core_dev *dev, u32 token,
 EXPORT_SYMBOL_GPL(mlx5_core_page_fault_resume);
 #endif
 
+static void general_event_handler(struct mlx5_core_dev *dev,
+				  struct mlx5_eqe *eqe)
+{
+	switch (eqe->sub_type) {
+	case MLX5_GENERAL_SUBTYPE_DELAY_DROP_TIMEOUT:
+		if (dev->event)
+			dev->event(dev, MLX5_DEV_EVENT_DELAY_DROP_TIMEOUT, 0);
+		break;
+	default:
+		mlx5_core_dbg(dev, "General event with unrecognized subtype: sub_type %d\n",
+			      eqe->sub_type);
+	}
+}
+
 static irqreturn_t mlx5_eq_int(int irq, void *eq_ptr)
 {
 	struct mlx5_eq *eq = eq_ptr;
@@ -467,25 +482,25 @@ static irqreturn_t mlx5_eq_int(int irq, void *eq_ptr)
 			}
 			break;
 
-#ifdef CONFIG_MLX5_CORE_EN
 		case MLX5_EVENT_TYPE_NIC_VPORT_CHANGE:
 			mlx5_eswitch_vport_event(dev->priv.eswitch, eqe);
 			break;
-#endif
 
 		case MLX5_EVENT_TYPE_PORT_MODULE_EVENT:
 			mlx5_port_module_event(dev, eqe);
 			break;
 
 		case MLX5_EVENT_TYPE_PPS_EVENT:
-			if (dev->event)
-				dev->event(dev, MLX5_DEV_EVENT_PPS, (unsigned long)eqe);
+			mlx5_pps_event(dev, eqe);
 			break;
 
 		case MLX5_EVENT_TYPE_FPGA_ERROR:
 			mlx5_fpga_event(dev, eqe->type, &eqe->data.raw);
 			break;
 
+		case MLX5_EVENT_TYPE_GENERAL_EVENT:
+			general_event_handler(dev, eqe);
+			break;
 		default:
 			mlx5_core_warn(dev, "Unhandled event 0x%x on EQ 0x%x\n",
 				       eqe->type, eq->eqn);
@@ -585,7 +600,7 @@ int mlx5_create_map_eq(struct mlx5_core_dev *dev, struct mlx5_eq *eq, u8 vecidx,
 		 name, pci_name(dev->pdev));
 
 	eq->eqn = MLX5_GET(create_eq_out, out, eq_number);
-	eq->irqn = priv->msix_arr[vecidx].vector;
+	eq->irqn = pci_irq_vector(dev->pdev, vecidx);
 	eq->dev = dev;
 	eq->doorbell = priv->uar->map + MLX5_EQ_DOORBEL_OFFSET;
 	err = request_irq(eq->irqn, handler, 0,
@@ -620,7 +635,7 @@ int mlx5_create_map_eq(struct mlx5_core_dev *dev, struct mlx5_eq *eq, u8 vecidx,
 	return 0;
 
 err_irq:
-	free_irq(priv->msix_arr[vecidx].vector, eq);
+	free_irq(eq->irqn, eq);
 
 err_eq:
 	mlx5_cmd_destroy_eq(dev, eq->eqn);
@@ -661,11 +676,6 @@ int mlx5_destroy_unmap_eq(struct mlx5_core_dev *dev, struct mlx5_eq *eq)
 }
 EXPORT_SYMBOL_GPL(mlx5_destroy_unmap_eq);
 
-u32 mlx5_get_msix_vec(struct mlx5_core_dev *dev, int vecidx)
-{
-	return dev->priv.msix_arr[MLX5_EQ_VEC_ASYNC].vector;
-}
-
 int mlx5_eq_init(struct mlx5_core_dev *dev)
 {
 	int err;
@@ -688,17 +698,19 @@ int mlx5_start_eqs(struct mlx5_core_dev *dev)
 	u64 async_event_mask = MLX5_ASYNC_EVENT_MASK;
 	int err;
 
-	if (MLX5_CAP_GEN(dev, port_type) == MLX5_CAP_PORT_TYPE_ETH &&
-	    MLX5_CAP_GEN(dev, vport_group_manager) &&
-	    mlx5_core_is_pf(dev))
+	if (MLX5_VPORT_MANAGER(dev))
 		async_event_mask |= (1ull << MLX5_EVENT_TYPE_NIC_VPORT_CHANGE);
+
+	if (MLX5_CAP_GEN(dev, port_type) == MLX5_CAP_PORT_TYPE_ETH &&
+	    MLX5_CAP_GEN(dev, general_notification_event))
+		async_event_mask |= (1ull << MLX5_EVENT_TYPE_GENERAL_EVENT);
 
 	if (MLX5_CAP_GEN(dev, port_module_event))
 		async_event_mask |= (1ull << MLX5_EVENT_TYPE_PORT_MODULE_EVENT);
 	else
 		mlx5_core_dbg(dev, "port_module_event is not set\n");
 
-	if (MLX5_CAP_GEN(dev, pps))
+	if (MLX5_PPS_CAP(dev))
 		async_event_mask |= (1ull << MLX5_EVENT_TYPE_PPS_EVENT);
 
 	if (MLX5_CAP_GEN(dev, fpga))

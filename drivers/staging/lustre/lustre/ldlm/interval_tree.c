@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * GPL HEADER START
  *
@@ -34,9 +35,9 @@
  * Author: Huang Wei <huangwei@clusterfs.com>
  * Author: Jay Xiong <jinshan.xiong@sun.com>
  */
-#include "../include/lustre_dlm.h"
-#include "../include/obd_support.h"
-#include "../include/interval_tree.h"
+#include <lustre_dlm.h>
+#include <obd_support.h>
+#include <interval_tree.h>
 
 enum {
 	INTERVAL_RED = 0,
@@ -110,6 +111,15 @@ static struct interval_node *interval_first(struct interval_node *node)
 	return node;
 }
 
+static struct interval_node *interval_last(struct interval_node *node)
+{
+	if (!node)
+		return NULL;
+	while (node->in_right)
+		node = node->in_right;
+	return node;
+}
+
 static struct interval_node *interval_next(struct interval_node *node)
 {
 	if (!node)
@@ -120,6 +130,37 @@ static struct interval_node *interval_next(struct interval_node *node)
 		node = node->in_parent;
 	return node->in_parent;
 }
+
+static struct interval_node *interval_prev(struct interval_node *node)
+{
+	if (!node)
+		return NULL;
+
+	if (node->in_left)
+		return interval_last(node->in_left);
+
+	while (node->in_parent && node_is_left_child(node))
+		node = node->in_parent;
+
+	return node->in_parent;
+}
+
+enum interval_iter interval_iterate_reverse(struct interval_node *root,
+					    interval_callback_t func,
+					    void *data)
+{
+	enum interval_iter rc = INTERVAL_ITER_CONT;
+	struct interval_node *node;
+
+	for (node = interval_last(root); node; node = interval_prev(node)) {
+		rc = func(node, data);
+		if (rc == INTERVAL_ITER_STOP)
+			break;
+	}
+
+	return rc;
+}
+EXPORT_SYMBOL(interval_iterate_reverse);
 
 static void __rotate_change_maxhigh(struct interval_node *node,
 				    struct interval_node *rotate)

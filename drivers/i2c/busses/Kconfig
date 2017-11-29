@@ -131,6 +131,7 @@ config I2C_I801
 	    Gemini Lake (SOC)
 	    Cannon Lake-H (PCH)
 	    Cannon Lake-LP (PCH)
+	    Cedar Fork (PCH)
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-i801.
@@ -188,6 +189,19 @@ config I2C_PIIX4
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-piix4.
+
+config I2C_CHT_WC
+	tristate "Intel Cherry Trail Whiskey Cove PMIC smbus controller"
+	depends on INTEL_SOC_PMIC_CHTWC
+	help
+	  If you say yes to this option, support will be included for the
+	  SMBus controller found in the Intel Cherry Trail Whiskey Cove PMIC
+	  found on some Intel Cherry Trail systems.
+
+	  Note this controller is hooked up to a TI bq24292i charger-IC,
+	  combined with a FUSB302 Type-C port-controller as such it is advised
+	  to also select CONFIG_CHARGER_BQ24190=m and CONFIG_TYPEC_FUSB302=m
+	  (the fusb302 driver currently is in drivers/staging).
 
 config I2C_NFORCE2
 	tristate "Nvidia nForce2, nForce3 and nForce4"
@@ -327,6 +341,16 @@ config I2C_POWERMAC
 	  will be called i2c-powermac.
 
 comment "I2C system bus drivers (mostly embedded / system-on-chip)"
+
+config I2C_ALTERA
+	tristate "Altera Soft IP I2C"
+	depends on (ARCH_SOCFPGA || NIOS2) && OF
+	help
+	  If you say yes to this option, support will be included for the
+	  Altera Soft IP I2C interfaces on SoCFPGA and Nios2 architectures.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called i2c-altera.
 
 config I2C_ASPEED
 	tristate "Aspeed I2C Controller"
@@ -900,6 +924,13 @@ config I2C_SIRF
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-sirf.
 
+config I2C_SPRD
+	bool "Spreadtrum I2C interface"
+	depends on I2C=y && ARCH_SPRD
+	help
+	  If you say yes to this option, support will be included for the
+	  Spreadtrum I2C interface.
+
 config I2C_ST
 	tristate "STMicroelectronics SSC I2C support"
 	depends on ARCH_STI
@@ -919,6 +950,16 @@ config I2C_STM32F4
 
 	  This driver can also be built as module. If so, the module
 	  will be called i2c-stm32f4.
+
+config I2C_STM32F7
+	tristate "STMicroelectronics STM32F7 I2C support"
+	depends on ARCH_STM32 || COMPILE_TEST
+	help
+	  Enable this option to add support for STM32 I2C controller embedded
+	  in STM32F7 SoCs.
+
+	  This driver can also be built as module. If so, the module
+	  will be called i2c-stm32f7.
 
 config I2C_STU300
 	tristate "ST Microelectronics DDC I2C interface"
@@ -983,7 +1024,7 @@ config I2C_UNIPHIER_F
 
 config I2C_VERSATILE
 	tristate "ARM Versatile/Realview I2C bus support"
-	depends on ARCH_VERSATILE || ARCH_REALVIEW || ARCH_VEXPRESS || COMPILE_TEST
+	depends on ARCH_MPS2 || ARCH_VERSATILE || ARCH_REALVIEW || ARCH_VEXPRESS || COMPILE_TEST
 	select I2C_ALGOBIT
 	help
 	  Say yes if you want to support the I2C serial bus on ARMs Versatile

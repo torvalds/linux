@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * GPL HEADER START
  *
@@ -39,12 +40,12 @@
 
 #include <linux/module.h>
 
-#include "../include/lprocfs_status.h"
-#include "../include/lustre_dlm.h"
-#include "../include/lustre_disk.h"
-#include "../include/lustre_log.h"
-#include "../include/lustre_swab.h"
-#include "../include/obd_class.h"
+#include <lprocfs_status.h>
+#include <lustre_dlm.h>
+#include <lustre_disk.h>
+#include <lustre_log.h>
+#include <lustre_swab.h>
+#include <obd_class.h>
 
 #include "mgc_internal.h"
 
@@ -288,7 +289,7 @@ config_log_add(struct obd_device *obd, char *logname,
 	struct config_llog_data *cld;
 	struct config_llog_data *sptlrpc_cld;
 	struct config_llog_data *params_cld;
-	bool locked = false;
+	struct config_llog_data *recover_cld = NULL;
 	char			seclogname[32];
 	char			*ptr;
 	int			rc;
@@ -333,20 +334,14 @@ config_log_add(struct obd_device *obd, char *logname,
 		goto out_params;
 	}
 
-	cld->cld_sptlrpc = sptlrpc_cld;
-	cld->cld_params = params_cld;
-
 	LASSERT(lsi->lsi_lmd);
 	if (!(lsi->lsi_lmd->lmd_flags & LMD_FLG_NOIR)) {
-		struct config_llog_data *recover_cld;
-
 		ptr = strrchr(seclogname, '-');
 		if (ptr) {
 			*ptr = 0;
 		} else {
 			CERROR("%s: sptlrpc log name not correct, %s: rc = %d\n",
 			       obd->obd_name, seclogname, -EINVAL);
-			config_log_put(cld);
 			rc = -EINVAL;
 			goto out_cld;
 		}
@@ -355,14 +350,10 @@ config_log_add(struct obd_device *obd, char *logname,
 			rc = PTR_ERR(recover_cld);
 			goto out_cld;
 		}
-
-		mutex_lock(&cld->cld_lock);
-		locked = true;
-		cld->cld_recover = recover_cld;
 	}
 
-	if (!locked)
-		mutex_lock(&cld->cld_lock);
+	mutex_lock(&cld->cld_lock);
+	cld->cld_recover = recover_cld;
 	cld->cld_params = params_cld;
 	cld->cld_sptlrpc = sptlrpc_cld;
 	mutex_unlock(&cld->cld_lock);
@@ -1165,6 +1156,7 @@ static int mgc_apply_recover_logs(struct obd_device *mgc,
 		char *cname;
 		char *params;
 		char *uuid;
+		size_t len;
 
 		rc = -EINVAL;
 		if (datalen < sizeof(*entry))
@@ -1293,17 +1285,19 @@ static int mgc_apply_recover_logs(struct obd_device *mgc,
 		lustre_cfg_bufs_set_string(&bufs, 1, params);
 
 		rc = -ENOMEM;
-		lcfg = lustre_cfg_new(LCFG_PARAM, &bufs);
-		if (IS_ERR(lcfg)) {
-			CERROR("mgc: cannot allocate memory\n");
+		len = lustre_cfg_len(bufs.lcfg_bufcount, bufs.lcfg_buflen);
+		lcfg = kzalloc(len, GFP_NOFS);
+		if (!lcfg) {
+			rc = -ENOMEM;
 			break;
 		}
+		lustre_cfg_init(lcfg, LCFG_PARAM, &bufs);
 
 		CDEBUG(D_INFO, "ir apply logs %lld/%lld for %s -> %s\n",
 		       prev_version, max_version, obdname, params);
 
 		rc = class_process_config(lcfg);
-		lustre_cfg_free(lcfg);
+		kfree(lcfg);
 		if (rc)
 			CDEBUG(D_INFO, "process config for %s error %d\n",
 			       obdname, rc);

@@ -564,7 +564,8 @@ static int mt7530_phy_read(struct dsa_switch *ds, int port, int regnum)
 	return mdiobus_read_nested(priv->bus, port, regnum);
 }
 
-int mt7530_phy_write(struct dsa_switch *ds, int port, int regnum, u16 val)
+static int mt7530_phy_write(struct dsa_switch *ds, int port, int regnum,
+			    u16 val)
 {
 	struct mt7530_priv *priv = ds->priv;
 
@@ -625,6 +626,44 @@ static void mt7530_adjust_link(struct dsa_switch *ds, int port,
 		 * all finished.
 		 */
 		mt7623_pad_clk_setup(ds);
+	} else {
+		u16 lcl_adv = 0, rmt_adv = 0;
+		u8 flowctrl;
+		u32 mcr = PMCR_USERP_LINK | PMCR_FORCE_MODE;
+
+		switch (phydev->speed) {
+		case SPEED_1000:
+			mcr |= PMCR_FORCE_SPEED_1000;
+			break;
+		case SPEED_100:
+			mcr |= PMCR_FORCE_SPEED_100;
+			break;
+		};
+
+		if (phydev->link)
+			mcr |= PMCR_FORCE_LNK;
+
+		if (phydev->duplex) {
+			mcr |= PMCR_FORCE_FDX;
+
+			if (phydev->pause)
+				rmt_adv = LPA_PAUSE_CAP;
+			if (phydev->asym_pause)
+				rmt_adv |= LPA_PAUSE_ASYM;
+
+			if (phydev->advertising & ADVERTISED_Pause)
+				lcl_adv |= ADVERTISE_PAUSE_CAP;
+			if (phydev->advertising & ADVERTISED_Asym_Pause)
+				lcl_adv |= ADVERTISE_PAUSE_ASYM;
+
+			flowctrl = mii_resolve_flowctrl_fdx(lcl_adv, rmt_adv);
+
+			if (flowctrl & FLOW_CTRL_TX)
+				mcr |= PMCR_TX_FC_EN;
+			if (flowctrl & FLOW_CTRL_RX)
+				mcr |= PMCR_RX_FC_EN;
+		}
+		mt7530_write(priv, MT7530_PMCR_P(port), mcr);
 	}
 }
 
@@ -649,7 +688,7 @@ mt7530_cpu_port_enable(struct mt7530_priv *priv,
 	 * the switch
 	 */
 	mt7530_write(priv, MT7530_PCR_P(port),
-		     PCR_MATRIX(priv->ds->enabled_port_mask));
+		     PCR_MATRIX(dsa_user_ports(priv->ds)));
 
 	return 0;
 }
@@ -742,8 +781,8 @@ mt7530_port_bridge_join(struct dsa_switch *ds, int port,
 		 * same bridge. If the port is disabled, port matrix is kept
 		 * and not being setup until the port becomes enabled.
 		 */
-		if (ds->enabled_port_mask & BIT(i) && i != port) {
-			if (ds->ports[i].bridge_dev != bridge)
+		if (dsa_is_user_port(ds, i) && i != port) {
+			if (dsa_to_port(ds, i)->bridge_dev != bridge)
 				continue;
 			if (priv->ports[i].enable)
 				mt7530_set(priv, MT7530_PCR_P(i),
@@ -779,8 +818,8 @@ mt7530_port_bridge_leave(struct dsa_switch *ds, int port,
 		 * in the same bridge. If the port is disabled, port matrix
 		 * is kept and not being setup until the port becomes enabled.
 		 */
-		if (ds->enabled_port_mask & BIT(i) && i != port) {
-			if (ds->ports[i].bridge_dev != bridge)
+		if (dsa_is_user_port(ds, i) && i != port) {
+			if (dsa_to_port(ds, i)->bridge_dev != bridge)
 				continue;
 			if (priv->ports[i].enable)
 				mt7530_clear(priv, MT7530_PCR_P(i),
@@ -801,49 +840,31 @@ mt7530_port_bridge_leave(struct dsa_switch *ds, int port,
 }
 
 static int
-mt7530_port_fdb_prepare(struct dsa_switch *ds, int port,
-			const struct switchdev_obj_port_fdb *fdb,
-			struct switchdev_trans *trans)
+mt7530_port_fdb_add(struct dsa_switch *ds, int port,
+		    const unsigned char *addr, u16 vid)
 {
 	struct mt7530_priv *priv = ds->priv;
 	int ret;
+	u8 port_mask = BIT(port);
 
-	/* Because auto-learned entrie shares the same FDB table.
-	 * an entry is reserved with no port_mask to make sure fdb_add
-	 * is called while the entry is still available.
-	 */
 	mutex_lock(&priv->reg_mutex);
-	mt7530_fdb_write(priv, fdb->vid, 0, fdb->addr, -1, STATIC_ENT);
+	mt7530_fdb_write(priv, vid, port_mask, addr, -1, STATIC_ENT);
 	ret = mt7530_fdb_cmd(priv, MT7530_FDB_WRITE, 0);
 	mutex_unlock(&priv->reg_mutex);
 
 	return ret;
 }
 
-static void
-mt7530_port_fdb_add(struct dsa_switch *ds, int port,
-		    const struct switchdev_obj_port_fdb *fdb,
-		    struct switchdev_trans *trans)
-{
-	struct mt7530_priv *priv = ds->priv;
-	u8 port_mask = BIT(port);
-
-	mutex_lock(&priv->reg_mutex);
-	mt7530_fdb_write(priv, fdb->vid, port_mask, fdb->addr, -1, STATIC_ENT);
-	mt7530_fdb_cmd(priv, MT7530_FDB_WRITE, 0);
-	mutex_unlock(&priv->reg_mutex);
-}
-
 static int
 mt7530_port_fdb_del(struct dsa_switch *ds, int port,
-		    const struct switchdev_obj_port_fdb *fdb)
+		    const unsigned char *addr, u16 vid)
 {
 	struct mt7530_priv *priv = ds->priv;
 	int ret;
 	u8 port_mask = BIT(port);
 
 	mutex_lock(&priv->reg_mutex);
-	mt7530_fdb_write(priv, fdb->vid, port_mask, fdb->addr, -1, STATIC_EMP);
+	mt7530_fdb_write(priv, vid, port_mask, addr, -1, STATIC_EMP);
 	ret = mt7530_fdb_cmd(priv, MT7530_FDB_WRITE, 0);
 	mutex_unlock(&priv->reg_mutex);
 
@@ -852,8 +873,7 @@ mt7530_port_fdb_del(struct dsa_switch *ds, int port,
 
 static int
 mt7530_port_fdb_dump(struct dsa_switch *ds, int port,
-		     struct switchdev_obj_port_fdb *fdb,
-		     switchdev_obj_dump_cb_t *cb)
+		     dsa_fdb_dump_cb_t *cb, void *data)
 {
 	struct mt7530_priv *priv = ds->priv;
 	struct mt7530_fdb _fdb = { 0 };
@@ -871,11 +891,8 @@ mt7530_port_fdb_dump(struct dsa_switch *ds, int port,
 		if (rsp & ATC_SRCH_HIT) {
 			mt7530_fdb_read(priv, &_fdb);
 			if (_fdb.port_mask & BIT(port)) {
-				ether_addr_copy(fdb->addr, _fdb.mac);
-				fdb->vid = _fdb.vid;
-				fdb->ndm_state = _fdb.noarp ?
-						NUD_NOARP : NUD_REACHABLE;
-				ret = cb(&fdb->obj);
+				ret = cb(_fdb.mac, _fdb.vid, _fdb.noarp,
+					 data);
 				if (ret < 0)
 					break;
 			}
@@ -890,11 +907,11 @@ err:
 }
 
 static enum dsa_tag_protocol
-mtk_get_tag_protocol(struct dsa_switch *ds)
+mtk_get_tag_protocol(struct dsa_switch *ds, int port)
 {
 	struct mt7530_priv *priv = ds->priv;
 
-	if (!dsa_is_cpu_port(ds, MT7530_CPU_PORT)) {
+	if (port != MT7530_CPU_PORT) {
 		dev_warn(priv->dev,
 			 "port not matched with tagging CPU port\n");
 		return DSA_TAG_PROTO_NONE;
@@ -912,11 +929,11 @@ mt7530_setup(struct dsa_switch *ds)
 	struct device_node *dn;
 	struct mt7530_dummy_poll p;
 
-	/* The parent node of cpu_dp->netdev which holds the common system
+	/* The parent node of master netdev which holds the common system
 	 * controller also is the container for two GMACs nodes representing
 	 * as two netdev instances.
 	 */
-	dn = ds->dst->cpu_dp->netdev->dev.of_node->parent;
+	dn = ds->ports[MT7530_CPU_PORT].master->dev.of_node->parent;
 	priv->ethernet = syscon_node_to_regmap(dn);
 	if (IS_ERR(priv->ethernet))
 		return PTR_ERR(priv->ethernet);
@@ -1001,7 +1018,7 @@ mt7530_setup(struct dsa_switch *ds)
 	return 0;
 }
 
-static struct dsa_switch_ops mt7530_switch_ops = {
+static const struct dsa_switch_ops mt7530_switch_ops = {
 	.get_tag_protocol	= mtk_get_tag_protocol,
 	.setup			= mt7530_setup,
 	.get_strings		= mt7530_get_strings,
@@ -1015,7 +1032,6 @@ static struct dsa_switch_ops mt7530_switch_ops = {
 	.port_stp_state_set	= mt7530_stp_state_set,
 	.port_bridge_join	= mt7530_port_bridge_join,
 	.port_bridge_leave	= mt7530_port_bridge_leave,
-	.port_fdb_prepare	= mt7530_port_fdb_prepare,
 	.port_fdb_add		= mt7530_port_fdb_add,
 	.port_fdb_del		= mt7530_port_fdb_del,
 	.port_fdb_dump		= mt7530_port_fdb_dump,

@@ -63,7 +63,6 @@
 MODULE_AUTHOR("NetEffect");
 MODULE_DESCRIPTION("NetEffect RNIC Low-level iWARP Driver");
 MODULE_LICENSE("Dual BSD/GPL");
-MODULE_VERSION(DRV_VERSION);
 
 int interrupt_mod_interval = 0;
 
@@ -102,7 +101,7 @@ static unsigned int ee_flsh_adapter;
 static unsigned int sysfs_nonidx_addr;
 static unsigned int sysfs_idx_addr;
 
-static struct pci_device_id nes_pci_table[] = {
+static const struct pci_device_id nes_pci_table[] = {
 	{ PCI_VDEVICE(NETEFFECT, PCI_DEVICE_ID_NETEFFECT_NE020), },
 	{ PCI_VDEVICE(NETEFFECT, PCI_DEVICE_ID_NETEFFECT_NE020_KR), },
 	{0}
@@ -179,11 +178,16 @@ static int nes_inetaddr_event(struct notifier_block *notifier,
 					/* fall through */
 				case NETDEV_CHANGEADDR:
 					/* Add the address to the IP table */
-					if (upper_dev)
-						nesvnic->local_ipaddr =
-							((struct in_device *)upper_dev->ip_ptr)->ifa_list->ifa_address;
-					else
+					if (upper_dev) {
+						struct in_device *in;
+
+						rcu_read_lock();
+						in = __in_dev_get_rcu(upper_dev);
+						nesvnic->local_ipaddr = in->ifa_list->ifa_address;
+						rcu_read_unlock();
+					} else {
 						nesvnic->local_ipaddr = ifa->ifa_address;
+					}
 
 					nes_write_indexed(nesdev,
 							NES_IDX_DST_IP_ADDR+(0x10*PCI_FUNC(nesdev->pcidev->devfn)),
@@ -758,18 +762,18 @@ static void nes_remove(struct pci_dev *pcidev)
 	int netdev_index = 0;
 	unsigned long flags;
 
-		if (nesdev->netdev_count) {
-			netdev = nesdev->netdev[netdev_index];
-			if (netdev) {
-				netif_stop_queue(netdev);
-				unregister_netdev(netdev);
-				nes_netdev_destroy(netdev);
+	if (nesdev->netdev_count) {
+		netdev = nesdev->netdev[netdev_index];
+		if (netdev) {
+			netif_stop_queue(netdev);
+			unregister_netdev(netdev);
+			nes_netdev_destroy(netdev);
 
-				nesdev->netdev[netdev_index] = NULL;
-				nesdev->netdev_count--;
-				nesdev->nesadapter->netdev_count--;
-			}
+			nesdev->netdev[netdev_index] = NULL;
+			nesdev->netdev_count--;
+			nesdev->nesadapter->netdev_count--;
 		}
+	}
 
 	nes_notifiers_registered--;
 	if (nes_notifiers_registered == 0) {
@@ -807,13 +811,6 @@ static void nes_remove(struct pci_dev *pcidev)
 	pci_set_drvdata(pcidev, NULL);
 }
 
-
-static struct pci_driver nes_pci_driver = {
-	.name = DRV_NAME,
-	.id_table = nes_pci_table,
-	.probe = nes_probe,
-	.remove = nes_remove,
-};
 
 static ssize_t adapter_show(struct device_driver *ddp, char *buf)
 {
@@ -1156,35 +1153,29 @@ static DRIVER_ATTR_RW(idx_addr);
 static DRIVER_ATTR_RW(idx_data);
 static DRIVER_ATTR_RW(wqm_quanta);
 
-static int nes_create_driver_sysfs(struct pci_driver *drv)
-{
-	int error;
-	error  = driver_create_file(&drv->driver, &driver_attr_adapter);
-	error |= driver_create_file(&drv->driver, &driver_attr_eeprom_cmd);
-	error |= driver_create_file(&drv->driver, &driver_attr_eeprom_data);
-	error |= driver_create_file(&drv->driver, &driver_attr_flash_cmd);
-	error |= driver_create_file(&drv->driver, &driver_attr_flash_data);
-	error |= driver_create_file(&drv->driver, &driver_attr_nonidx_addr);
-	error |= driver_create_file(&drv->driver, &driver_attr_nonidx_data);
-	error |= driver_create_file(&drv->driver, &driver_attr_idx_addr);
-	error |= driver_create_file(&drv->driver, &driver_attr_idx_data);
-	error |= driver_create_file(&drv->driver, &driver_attr_wqm_quanta);
-	return error;
-}
+static struct attribute *nes_attrs[] = {
+	&driver_attr_adapter.attr,
+	&driver_attr_eeprom_cmd.attr,
+	&driver_attr_eeprom_data.attr,
+	&driver_attr_flash_cmd.attr,
+	&driver_attr_flash_data.attr,
+	&driver_attr_nonidx_addr.attr,
+	&driver_attr_nonidx_data.attr,
+	&driver_attr_idx_addr.attr,
+	&driver_attr_idx_data.attr,
+	&driver_attr_wqm_quanta.attr,
+	NULL,
+};
+ATTRIBUTE_GROUPS(nes);
 
-static void nes_remove_driver_sysfs(struct pci_driver *drv)
-{
-	driver_remove_file(&drv->driver, &driver_attr_adapter);
-	driver_remove_file(&drv->driver, &driver_attr_eeprom_cmd);
-	driver_remove_file(&drv->driver, &driver_attr_eeprom_data);
-	driver_remove_file(&drv->driver, &driver_attr_flash_cmd);
-	driver_remove_file(&drv->driver, &driver_attr_flash_data);
-	driver_remove_file(&drv->driver, &driver_attr_nonidx_addr);
-	driver_remove_file(&drv->driver, &driver_attr_nonidx_data);
-	driver_remove_file(&drv->driver, &driver_attr_idx_addr);
-	driver_remove_file(&drv->driver, &driver_attr_idx_data);
-	driver_remove_file(&drv->driver, &driver_attr_wqm_quanta);
-}
+static struct pci_driver nes_pci_driver = {
+	.name = DRV_NAME,
+	.id_table = nes_pci_table,
+	.probe = nes_probe,
+	.remove = nes_remove,
+	.groups = nes_groups,
+};
+
 
 /**
  * nes_init_module - module initialization entry point
@@ -1192,20 +1183,13 @@ static void nes_remove_driver_sysfs(struct pci_driver *drv)
 static int __init nes_init_module(void)
 {
 	int retval;
-	int retval1;
 
 	retval = nes_cm_start();
 	if (retval) {
 		printk(KERN_ERR PFX "Unable to start NetEffect iWARP CM.\n");
 		return retval;
 	}
-	retval = pci_register_driver(&nes_pci_driver);
-	if (retval >= 0) {
-		retval1 = nes_create_driver_sysfs(&nes_pci_driver);
-		if (retval1 < 0)
-			printk(KERN_ERR PFX "Unable to create NetEffect sys files.\n");
-	}
-	return retval;
+	return pci_register_driver(&nes_pci_driver);
 }
 
 
@@ -1215,7 +1199,6 @@ static int __init nes_init_module(void)
 static void __exit nes_exit_module(void)
 {
 	nes_cm_stop();
-	nes_remove_driver_sysfs(&nes_pci_driver);
 
 	pci_unregister_driver(&nes_pci_driver);
 }

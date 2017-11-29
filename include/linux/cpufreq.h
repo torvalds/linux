@@ -127,6 +127,15 @@ struct cpufreq_policy {
 	 */
 	unsigned int		transition_delay_us;
 
+	/*
+	 * Remote DVFS flag (Not added to the driver structure as we don't want
+	 * to access another structure from scheduler hotpath).
+	 *
+	 * Should be set if CPUs can do DVFS on behalf of other CPUs from
+	 * different cpufreq policies.
+	 */
+	bool			dvfs_possible_from_any_cpu;
+
 	 /* Cached frequency lookup from cpufreq_driver_resolve_freq. */
 	unsigned int cached_target_freq;
 	int cached_resolved_idx;
@@ -370,6 +379,12 @@ struct cpufreq_driver {
  */
 #define CPUFREQ_NEED_INITIAL_FREQ_CHECK	(1 << 5)
 
+/*
+ * Set by drivers to disallow use of governors with "dynamic_switching" flag
+ * set.
+ */
+#define CPUFREQ_NO_AUTO_DYNAMIC_SWITCHING (1 << 6)
+
 int cpufreq_register_driver(struct cpufreq_driver *driver_data);
 int cpufreq_unregister_driver(struct cpufreq_driver *driver_data);
 
@@ -487,14 +502,8 @@ static inline unsigned long cpufreq_scale(unsigned long old, u_int div,
  * polling frequency is 1000 times the transition latency of the processor. The
  * ondemand governor will work on any processor with transition latency <= 10ms,
  * using appropriate sampling rate.
- *
- * For CPUs with transition latency > 10ms (mostly drivers with CPUFREQ_ETERNAL)
- * the ondemand governor will not work. All times here are in us (microseconds).
  */
-#define MIN_SAMPLING_RATE_RATIO		(2)
 #define LATENCY_MULTIPLIER		(1000)
-#define MIN_LATENCY_MULTIPLIER		(20)
-#define TRANSITION_LATENCY_LIMIT	(10 * 1000 * 1000)
 
 struct cpufreq_governor {
 	char	name[CPUFREQ_NAME_LEN];
@@ -507,9 +516,8 @@ struct cpufreq_governor {
 					 char *buf);
 	int	(*store_setspeed)	(struct cpufreq_policy *policy,
 					 unsigned int freq);
-	unsigned int max_transition_latency; /* HW must be able to switch to
-			next freq faster than this value in nano secs or we
-			will fallback to performance governor */
+	/* For governors which change frequency dynamically by themselves */
+	bool			dynamic_switching;
 	struct list_head	governor_list;
 	struct module		*owner;
 };
@@ -525,6 +533,7 @@ int __cpufreq_driver_target(struct cpufreq_policy *policy,
 				   unsigned int relation);
 unsigned int cpufreq_driver_resolve_freq(struct cpufreq_policy *policy,
 					 unsigned int target_freq);
+unsigned int cpufreq_policy_transition_delay_us(struct cpufreq_policy *policy);
 int cpufreq_register_governor(struct cpufreq_governor *governor);
 void cpufreq_unregister_governor(struct cpufreq_governor *governor);
 
@@ -561,6 +570,17 @@ struct governor_attr {
 	ssize_t (*store)(struct gov_attr_set *attr_set, const char *buf,
 			 size_t count);
 };
+
+static inline bool cpufreq_can_do_remote_dvfs(struct cpufreq_policy *policy)
+{
+	/*
+	 * Allow remote callbacks if:
+	 * - dvfs_possible_from_any_cpu flag is set
+	 * - the local and remote CPUs share cpufreq policy
+	 */
+	return policy->dvfs_possible_from_any_cpu ||
+		cpumask_test_cpu(smp_processor_id(), policy->cpus);
+}
 
 /*********************************************************************
  *                     FREQUENCY TABLE HELPERS                       *
@@ -897,7 +917,11 @@ static inline bool policy_has_boost_freq(struct cpufreq_policy *policy)
 }
 #endif
 
+extern void arch_freq_prepare_all(void);
 extern unsigned int arch_freq_get_on_cpu(int cpu);
+
+extern void arch_set_freq_scale(struct cpumask *cpus, unsigned long cur_freq,
+				unsigned long max_freq);
 
 /* the following are really really optional */
 extern struct freq_attr cpufreq_freq_attr_scaling_available_freqs;

@@ -26,6 +26,7 @@
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_fb_cma_helper.h>
 #include <drm/drm_gem_cma_helper.h>
+#include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_of.h>
 
 #include "malidp_drv.h"
@@ -225,7 +226,7 @@ static void malidp_atomic_commit_tail(struct drm_atomic_state *state)
 
 	drm_atomic_helper_commit_modeset_disables(drm, state);
 
-	for_each_crtc_in_state(state, crtc, old_crtc_state, i) {
+	for_each_old_crtc_in_state(state, crtc, old_crtc_state, i) {
 		malidp_atomic_commit_update_gamma(crtc, old_crtc_state);
 		malidp_atomic_commit_update_coloradj(crtc, old_crtc_state);
 		malidp_atomic_commit_se_config(crtc, old_crtc_state);
@@ -249,7 +250,7 @@ static const struct drm_mode_config_helper_funcs malidp_mode_config_helpers = {
 };
 
 static const struct drm_mode_config_funcs malidp_mode_config_funcs = {
-	.fb_create = drm_fb_cma_create,
+	.fb_create = drm_gem_fb_create,
 	.output_poll_changed = malidp_output_poll_changed,
 	.atomic_check = drm_atomic_helper_check,
 	.atomic_commit = drm_atomic_helper_commit,
@@ -331,8 +332,6 @@ static struct drm_driver malidp_driver = {
 	.gem_free_object_unlocked = drm_gem_cma_free_object,
 	.gem_vm_ops = &drm_gem_cma_vm_ops,
 	.dumb_create = drm_gem_cma_dumb_create,
-	.dumb_map_offset = drm_gem_cma_dumb_map_offset,
-	.dumb_destroy = drm_gem_dumb_destroy,
 	.prime_handle_to_fd = drm_gem_prime_handle_to_fd,
 	.prime_fd_to_handle = drm_gem_prime_fd_to_handle,
 	.gem_prime_export = drm_gem_prime_export,

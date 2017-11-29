@@ -312,39 +312,6 @@ static const struct nla_policy nft_ct_policy[NFTA_CT_MAX + 1] = {
 	[NFTA_CT_SREG]		= { .type = NLA_U32 },
 };
 
-static int nft_ct_netns_get(struct net *net, uint8_t family)
-{
-	int err;
-
-	if (family == NFPROTO_INET) {
-		err = nf_ct_netns_get(net, NFPROTO_IPV4);
-		if (err < 0)
-			goto err1;
-		err = nf_ct_netns_get(net, NFPROTO_IPV6);
-		if (err < 0)
-			goto err2;
-	} else {
-		err = nf_ct_netns_get(net, family);
-		if (err < 0)
-			goto err1;
-	}
-	return 0;
-
-err2:
-	nf_ct_netns_put(net, NFPROTO_IPV4);
-err1:
-	return err;
-}
-
-static void nft_ct_netns_put(struct net *net, uint8_t family)
-{
-	if (family == NFPROTO_INET) {
-		nf_ct_netns_put(net, NFPROTO_IPV4);
-		nf_ct_netns_put(net, NFPROTO_IPV6);
-	} else
-		nf_ct_netns_put(net, family);
-}
-
 #ifdef CONFIG_NF_CONNTRACK_ZONES
 static void nft_ct_tmpl_put_pcpu(void)
 {
@@ -489,7 +456,7 @@ static int nft_ct_get_init(const struct nft_ctx *ctx,
 	if (err < 0)
 		return err;
 
-	err = nft_ct_netns_get(ctx->net, ctx->afi->family);
+	err = nf_ct_netns_get(ctx->net, ctx->afi->family);
 	if (err < 0)
 		return err;
 
@@ -583,7 +550,7 @@ static int nft_ct_set_init(const struct nft_ctx *ctx,
 	if (err < 0)
 		goto err1;
 
-	err = nft_ct_netns_get(ctx->net, ctx->afi->family);
+	err = nf_ct_netns_get(ctx->net, ctx->afi->family);
 	if (err < 0)
 		goto err1;
 
@@ -606,7 +573,7 @@ static void nft_ct_set_destroy(const struct nft_ctx *ctx,
 	struct nft_ct *priv = nft_expr_priv(expr);
 
 	__nft_ct_set_destroy(ctx, priv);
-	nft_ct_netns_put(ctx->net, ctx->afi->family);
+	nf_ct_netns_put(ctx->net, ctx->afi->family);
 }
 
 static int nft_ct_get_dump(struct sk_buff *skb, const struct nft_expr *expr)
@@ -904,15 +871,21 @@ static const struct nla_policy nft_ct_helper_policy[NFTA_CT_HELPER_MAX + 1] = {
 	[NFTA_CT_HELPER_L4PROTO] = { .type = NLA_U8 },
 };
 
-static struct nft_object_type nft_ct_helper_obj __read_mostly = {
-	.type		= NFT_OBJECT_CT_HELPER,
+static struct nft_object_type nft_ct_helper_obj_type;
+static const struct nft_object_ops nft_ct_helper_obj_ops = {
+	.type		= &nft_ct_helper_obj_type,
 	.size		= sizeof(struct nft_ct_helper_obj),
-	.maxattr	= NFTA_CT_HELPER_MAX,
-	.policy		= nft_ct_helper_policy,
 	.eval		= nft_ct_helper_obj_eval,
 	.init		= nft_ct_helper_obj_init,
 	.destroy	= nft_ct_helper_obj_destroy,
 	.dump		= nft_ct_helper_obj_dump,
+};
+
+static struct nft_object_type nft_ct_helper_obj_type __read_mostly = {
+	.type		= NFT_OBJECT_CT_HELPER,
+	.ops		= &nft_ct_helper_obj_ops,
+	.maxattr	= NFTA_CT_HELPER_MAX,
+	.policy		= nft_ct_helper_policy,
 	.owner		= THIS_MODULE,
 };
 
@@ -930,7 +903,7 @@ static int __init nft_ct_module_init(void)
 	if (err < 0)
 		goto err1;
 
-	err = nft_register_obj(&nft_ct_helper_obj);
+	err = nft_register_obj(&nft_ct_helper_obj_type);
 	if (err < 0)
 		goto err2;
 
@@ -945,7 +918,7 @@ err1:
 
 static void __exit nft_ct_module_exit(void)
 {
-	nft_unregister_obj(&nft_ct_helper_obj);
+	nft_unregister_obj(&nft_ct_helper_obj_type);
 	nft_unregister_expr(&nft_notrack_type);
 	nft_unregister_expr(&nft_ct_type);
 }
