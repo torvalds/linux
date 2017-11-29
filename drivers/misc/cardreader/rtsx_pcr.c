@@ -29,7 +29,7 @@
 #include <linux/idr.h>
 #include <linux/platform_device.h>
 #include <linux/mfd/core.h>
-#include <linux/mfd/rtsx_pci.h>
+#include <linux/rtsx_pci.h>
 #include <linux/mmc/card.h>
 #include <asm/unaligned.h>
 

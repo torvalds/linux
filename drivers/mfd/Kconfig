@@ -929,17 +929,6 @@ config MFD_RDC321X
 	  southbridge which provides access to GPIOs and Watchdog using the
 	  southbridge PCI device configuration space.
 
-config MFD_RTSX_PCI
-	tristate "Realtek PCI-E card reader"
-	depends on PCI
-	select MFD_CORE
-	help
-	  This supports for Realtek PCI-Express card reader including rts5209,
-	  rts5227, rts522A, rts5229, rts5249, rts524A, rts525A, rtl8411, etc.
-	  Realtek card reader supports access to many types of memory cards,
-	  such as Memory Stick, Memory Stick Pro, Secure Digital and
-	  MultiMediaCard.
-
 config MFD_RT5033
 	tristate "Richtek RT5033 Power Management IC"
 	depends on I2C
@@ -952,16 +941,6 @@ config MFD_RT5033
 	  common support for accessing the device. The device supports multiple
 	  sub-devices like charger, fuel gauge, flash LED, current source,
 	  LDO and Buck.
-
-config MFD_RTSX_USB
-	tristate "Realtek USB card reader"
-	depends on USB
-	select MFD_CORE
-	help
-	  Select this option to get support for Realtek USB 2.0 card readers
-	  including RTS5129, RTS5139, RTS5179 and RTS5170.
-	  Realtek card reader supports access to many types of memory cards,
-	  such as Memory Stick Pro, Secure Digital and MultiMediaCard.
 
 config MFD_RC5T583
 	bool "Ricoh RC5T583 Power Management system device"

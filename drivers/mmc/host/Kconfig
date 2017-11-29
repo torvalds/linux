@@ -838,14 +838,14 @@ config MMC_USDHI6ROL0
 
 config MMC_REALTEK_PCI
 	tristate "Realtek PCI-E SD/MMC Card Interface Driver"
-	depends on MFD_RTSX_PCI
+	depends on MISC_RTSX_PCI
 	help
 	  Say Y here to include driver code to support SD/MMC card interface
 	  of Realtek PCI-E card reader
 
 config MMC_REALTEK_USB
 	tristate "Realtek USB SD/MMC Card Interface Driver"
-	depends on MFD_RTSX_USB
+	depends on MISC_RTSX_USB
 	help
 	  Say Y here to include driver code to support SD/MMC card interface
 	  of Realtek RTS5129/39 series card reader
