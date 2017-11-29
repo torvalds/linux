@@ -59,7 +59,7 @@ STORAGE_CLASS_ISYS2401_IRQ_C void isys_irqc_state_dump(
 		state->status, state->edge, state->mask, state->enable, state->level_no);
 }
 
-/** end of NCI */
+/* end of NCI */
 
 /* -------------------------------------------------------+
  |              Device level interface (DLI)              |
@@ -101,7 +101,7 @@ STORAGE_CLASS_ISYS2401_IRQ_C hrt_data isys_irqc_reg_load(
 	return value;
 }
 
-/** end of DLI */
+/* end of DLI */
 
 #endif /* defined(USE_INPUT_SYSTEM_VERSION_2401) */
 

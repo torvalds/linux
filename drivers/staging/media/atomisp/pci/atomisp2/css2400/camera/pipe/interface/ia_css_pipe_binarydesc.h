@@ -19,7 +19,7 @@
 #include <ia_css_frame_public.h>	/* ia_css_frame_info */
 #include <ia_css_binary.h>		/* ia_css_binary_descr */
 
-/** @brief Get a binary descriptor for copy.
+/* @brief Get a binary descriptor for copy.
  *
  * @param[in] pipe
  * @param[out] copy_desc
@@ -36,7 +36,7 @@ extern void ia_css_pipe_get_copy_binarydesc(
 	struct ia_css_frame_info *out_info,
 	struct ia_css_frame_info *vf_info);
 
-/** @brief Get a binary descriptor for vfpp.
+/* @brief Get a binary descriptor for vfpp.
  *
  * @param[in] pipe
  * @param[out] vfpp_descr
@@ -51,7 +51,7 @@ extern void ia_css_pipe_get_vfpp_binarydesc(
 		struct ia_css_frame_info *in_info,
 		struct ia_css_frame_info *out_info);
 
-/** @brief Get numerator and denominator of bayer downscaling factor.
+/* @brief Get numerator and denominator of bayer downscaling factor.
  *
  * @param[in] bds_factor: The bayer downscaling factor.
  *		(= The bds_factor member in the sh_css_bds_factor structure.)
@@ -67,7 +67,7 @@ extern enum ia_css_err sh_css_bds_factor_get_numerator_denominator(
 	unsigned int *bds_factor_numerator,
 	unsigned int *bds_factor_denominator);
 
-/** @brief Get a binary descriptor for preview stage.
+/* @brief Get a binary descriptor for preview stage.
  *
  * @param[in] pipe
  * @param[out] preview_descr
@@ -86,7 +86,7 @@ extern enum ia_css_err ia_css_pipe_get_preview_binarydesc(
 	struct ia_css_frame_info *out_info,
 	struct ia_css_frame_info *vf_info);
 
-/** @brief Get a binary descriptor for video stage.
+/* @brief Get a binary descriptor for video stage.
  *
  * @param[in/out] pipe
  * @param[out] video_descr
@@ -105,7 +105,7 @@ extern enum ia_css_err ia_css_pipe_get_video_binarydesc(
 	struct ia_css_frame_info *vf_info,
 	int stream_config_left_padding);
 
-/** @brief Get a binary descriptor for yuv scaler stage.
+/* @brief Get a binary descriptor for yuv scaler stage.
  *
  * @param[in/out] pipe
  * @param[out] yuv_scaler_descr
@@ -124,7 +124,7 @@ void ia_css_pipe_get_yuvscaler_binarydesc(
 	struct ia_css_frame_info *internal_out_info,
 	struct ia_css_frame_info *vf_info);
 
-/** @brief Get a binary descriptor for capture pp stage.
+/* @brief Get a binary descriptor for capture pp stage.
  *
  * @param[in/out] pipe
  * @param[out] capture_pp_descr
@@ -140,7 +140,7 @@ extern void ia_css_pipe_get_capturepp_binarydesc(
 	struct ia_css_frame_info *out_info,
 	struct ia_css_frame_info *vf_info);
 
-/** @brief Get a binary descriptor for primary capture.
+/* @brief Get a binary descriptor for primary capture.
  *
  * @param[in] pipe
  * @param[out] prim_descr
@@ -158,7 +158,7 @@ extern void ia_css_pipe_get_primary_binarydesc(
 	struct ia_css_frame_info *vf_info,
 	unsigned int stage_idx);
 
-/** @brief Get a binary descriptor for pre gdc stage.
+/* @brief Get a binary descriptor for pre gdc stage.
  *
  * @param[in] pipe
  * @param[out] pre_gdc_descr
@@ -173,7 +173,7 @@ extern void ia_css_pipe_get_pre_gdc_binarydesc(
 	struct ia_css_frame_info *in_info,
 	struct ia_css_frame_info *out_info);
 
-/** @brief Get a binary descriptor for gdc stage.
+/* @brief Get a binary descriptor for gdc stage.
  *
  * @param[in] pipe
  * @param[out] gdc_descr
@@ -188,7 +188,7 @@ extern void ia_css_pipe_get_gdc_binarydesc(
 	struct ia_css_frame_info *in_info,
 	struct ia_css_frame_info *out_info);
 
-/** @brief Get a binary descriptor for post gdc.
+/* @brief Get a binary descriptor for post gdc.
  *
  * @param[in] pipe
  * @param[out] post_gdc_descr
@@ -205,7 +205,7 @@ extern void ia_css_pipe_get_post_gdc_binarydesc(
 	struct ia_css_frame_info *out_info,
 	struct ia_css_frame_info *vf_info);
 
-/** @brief Get a binary descriptor for de.
+/* @brief Get a binary descriptor for de.
  *
  * @param[in] pipe
  * @param[out] pre_de_descr
@@ -220,7 +220,7 @@ extern void ia_css_pipe_get_pre_de_binarydesc(
 	struct ia_css_frame_info *in_info,
 	struct ia_css_frame_info *out_info);
 
-/** @brief Get a binary descriptor for pre anr stage.
+/* @brief Get a binary descriptor for pre anr stage.
  *
  * @param[in] pipe
  * @param[out] pre_anr_descr
@@ -235,7 +235,7 @@ extern void ia_css_pipe_get_pre_anr_binarydesc(
 	struct ia_css_frame_info *in_info,
 	struct ia_css_frame_info *out_info);
 
-/** @brief Get a binary descriptor for ANR stage.
+/* @brief Get a binary descriptor for ANR stage.
  *
  * @param[in] pipe
  * @param[out] anr_descr
@@ -250,7 +250,7 @@ extern void ia_css_pipe_get_anr_binarydesc(
 	struct ia_css_frame_info *in_info,
 	struct ia_css_frame_info *out_info);
 
-/** @brief Get a binary descriptor for post anr stage.
+/* @brief Get a binary descriptor for post anr stage.
  *
  * @param[in] pipe
  * @param[out] post_anr_descr
@@ -267,7 +267,7 @@ extern void ia_css_pipe_get_post_anr_binarydesc(
 	struct ia_css_frame_info *out_info,
 	struct ia_css_frame_info *vf_info);
 
-/** @brief Get a binary descriptor for ldc stage.
+/* @brief Get a binary descriptor for ldc stage.
  *
  * @param[in/out] pipe
  * @param[out] capture_pp_descr
@@ -282,7 +282,7 @@ extern void ia_css_pipe_get_ldc_binarydesc(
 	struct ia_css_frame_info *in_info,
 	struct ia_css_frame_info *out_info);
 
-/** @brief Calculates the required BDS factor
+/* @brief Calculates the required BDS factor
  *
  * @param[in] input_res
  * @param[in] output_res

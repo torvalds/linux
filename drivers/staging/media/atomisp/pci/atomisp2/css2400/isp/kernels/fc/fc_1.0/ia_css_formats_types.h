@@ -15,20 +15,20 @@
 #ifndef __IA_CSS_FORMATS_TYPES_H
 #define __IA_CSS_FORMATS_TYPES_H
 
-/** @file
+/* @file
 * CSS-API header file for output format parameters.
 */
 
 #include "type_support.h"
 
-/** Formats configuration.
+/* Formats configuration.
  *
  *  ISP block: FORMATS
  *  ISP1: FORMATS is used.
  *  ISP2: FORMATS is used.
  */
 struct ia_css_formats_config {
-	uint32_t video_full_range_flag; /**< selects the range of YUV output.
+	uint32_t video_full_range_flag; /** selects the range of YUV output.
 				u8.0, [0,1],
 				default 1, ineffective n/a\n
 				1 - full range, luma 0-255, chroma 0-255\n

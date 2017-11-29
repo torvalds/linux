@@ -152,7 +152,7 @@ void ia_css_queue_map(
 		unmap_buffer_type_to_queue_id(thread_id, buf_type);
 }
 
-/**
+/*
  * @brief Query the internal queue ID.
  */
 bool ia_css_query_internal_queue_id(

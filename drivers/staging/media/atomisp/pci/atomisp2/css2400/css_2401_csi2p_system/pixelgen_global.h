@@ -86,6 +86,6 @@ struct pixelgen_prbs_cfg_s {
 	sync_generator_cfg_t	sync_gen_cfg;
 };
 
-/** end of Pixel-generator: TPG. ("pixelgen_global.h") */
+/* end of Pixel-generator: TPG. ("pixelgen_global.h") */
 #endif /* __PIXELGEN_GLOBAL_H_INCLUDED__ */
 

@@ -15,7 +15,7 @@
 #ifndef __IA_CSS_XNR3_TYPES_H
 #define __IA_CSS_XNR3_TYPES_H
 
-/** @file
+/* @file
 * CSS-API header file for Extra Noise Reduction (XNR) parameters.
 */
 
@@ -47,12 +47,12 @@
  * IA_CSS_XNR3_SIGMA_SCALE.
  */
 struct ia_css_xnr3_sigma_params {
-	int y0;     /**< Sigma for Y range similarity in dark area */
-	int y1;     /**< Sigma for Y range similarity in bright area */
-	int u0;     /**< Sigma for U range similarity in dark area */
-	int u1;     /**< Sigma for U range similarity in bright area */
-	int v0;     /**< Sigma for V range similarity in dark area */
-	int v1;     /**< Sigma for V range similarity in bright area */
+	int y0;     /** Sigma for Y range similarity in dark area */
+	int y1;     /** Sigma for Y range similarity in bright area */
+	int u0;     /** Sigma for U range similarity in dark area */
+	int u1;     /** Sigma for U range similarity in bright area */
+	int v0;     /** Sigma for V range similarity in dark area */
+	int v1;     /** Sigma for V range similarity in bright area */
 };
 
 /**
@@ -64,10 +64,10 @@ struct ia_css_xnr3_sigma_params {
  * with IA_CSS_XNR3_CORING_SCALE. The ineffective value is 0.
  */
 struct ia_css_xnr3_coring_params {
-	int u0;     /**< Coring threshold of U channel in dark area */
-	int u1;     /**< Coring threshold of U channel in bright area */
-	int v0;     /**< Coring threshold of V channel in dark area */
-	int v1;     /**< Coring threshold of V channel in bright area */
+	int u0;     /** Coring threshold of U channel in dark area */
+	int u1;     /** Coring threshold of U channel in bright area */
+	int v0;     /** Coring threshold of V channel in dark area */
+	int v1;     /** Coring threshold of V channel in bright area */
 };
 
 /**
@@ -81,7 +81,7 @@ struct ia_css_xnr3_coring_params {
  * value of 0.0 bypasses the entire xnr3 filter.
  */
 struct ia_css_xnr3_blending_params {
-	int strength;   /**< Blending strength */
+	int strength;   /** Blending strength */
 };
 
 /**
@@ -90,9 +90,9 @@ struct ia_css_xnr3_blending_params {
  * from the CSS API.
  */
 struct ia_css_xnr3_config {
-	struct ia_css_xnr3_sigma_params    sigma;    /**< XNR3 sigma parameters */
-	struct ia_css_xnr3_coring_params   coring;   /**< XNR3 coring parameters */
-	struct ia_css_xnr3_blending_params blending; /**< XNR3 blending parameters */
+	struct ia_css_xnr3_sigma_params    sigma;    /** XNR3 sigma parameters */
+	struct ia_css_xnr3_coring_params   coring;   /** XNR3 coring parameters */
+	struct ia_css_xnr3_blending_params blending; /** XNR3 blending parameters */
 };
 
 #endif /* __IA_CSS_XNR3_TYPES_H */

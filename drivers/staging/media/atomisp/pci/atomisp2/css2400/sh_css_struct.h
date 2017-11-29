@@ -61,7 +61,7 @@ struct sh_css {
 #endif
 	hrt_vaddress                   sp_bin_addr;
 	hrt_data                       page_table_base_index;
-	unsigned int                   size_mem_words; /** \deprecated{Use ia_css_mipi_buffer_config instead.}*/
+	unsigned int                   size_mem_words; /* \deprecated{Use ia_css_mipi_buffer_config instead.}*/
 	enum ia_css_irq_type           irq_type;
 	unsigned int                   pipe_counter;
 	

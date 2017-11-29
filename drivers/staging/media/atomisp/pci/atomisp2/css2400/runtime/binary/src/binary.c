@@ -972,7 +972,7 @@ ia_css_binary_uninit(void)
 	return IA_CSS_SUCCESS;
 }
 
-/** @brief Compute decimation factor for 3A statistics and shading correction.
+/* @brief Compute decimation factor for 3A statistics and shading correction.
  *
  * @param[in]	width	Frame width in pixels.
  * @param[in]	height	Frame height in pixels.

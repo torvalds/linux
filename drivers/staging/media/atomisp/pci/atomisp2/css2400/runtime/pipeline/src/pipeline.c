@@ -13,7 +13,7 @@
  * more details.
  */
 #else
-/**
+/*
 Support for Intel Camera Imaging ISP subsystem.
 Copyright (c) 2010 - 2015, Intel Corporation.
 
@@ -114,7 +114,7 @@ void ia_css_pipeline_map(unsigned int pipe_num, bool map)
 	IA_CSS_LEAVE_PRIVATE("void");
 }
 
-/** @brief destroy a pipeline
+/* @brief destroy a pipeline
  *
  * @param[in] pipeline
  * @return    None
@@ -187,7 +187,7 @@ void ia_css_pipeline_start(enum ia_css_pipe_id pipe_id,
 	      "ia_css_pipeline_start() leave: return_void\n");
 }
 
-/**
+/*
  * @brief Query the SP thread ID.
  * Refer to "sh_css_internal.h" for details.
  */
@@ -285,7 +285,7 @@ void ia_css_pipeline_clean(struct ia_css_pipeline *pipeline)
 	IA_CSS_LEAVE_PRIVATE("void");
 }
 
-/** @brief Add a stage to pipeline.
+/* @brief Add a stage to pipeline.
  *
  * @param       pipeline      Pointer to the pipeline to be added to.
  * @param[in]   stage_desc    The description of the stage

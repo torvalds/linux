@@ -73,7 +73,7 @@ extern void csi_rx_be_ctrl_get_state(
 extern void csi_rx_be_ctrl_dump_state(
 		const csi_rx_backend_ID_t ID,
 		csi_rx_be_ctrl_state_t *state);
-/** end of NCI */
+/* end of NCI */
 
 /*****************************************************
  *
@@ -130,6 +130,6 @@ extern void csi_rx_be_ctrl_reg_store(
 	const csi_rx_backend_ID_t ID,
 	const hrt_address reg,
 	const hrt_data value);
-/** end of DLI */
+/* end of DLI */
 #endif /* USE_INPUT_SYSTEM_VERSION_2401 */
 #endif /* __CSI_RX_PUBLIC_H_INCLUDED__ */

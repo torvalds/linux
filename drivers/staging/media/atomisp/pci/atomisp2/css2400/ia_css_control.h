@@ -15,7 +15,7 @@
 #ifndef __IA_CSS_CONTROL_H
 #define __IA_CSS_CONTROL_H
 
-/** @file
+/* @file
  * This file contains functionality for starting and controlling CSS
  */
 
@@ -24,7 +24,7 @@
 #include <ia_css_firmware.h>
 #include <ia_css_irq.h>
 
-/** @brief Initialize the CSS API.
+/* @brief Initialize the CSS API.
  * @param[in]	env		Environment, provides functions to access the
  *				environment in which the CSS code runs. This is
  *				used for host side memory access and message
@@ -51,7 +51,7 @@ enum ia_css_err ia_css_init(
 	uint32_t                 l1_base,
 	enum ia_css_irq_type     irq_type);
 
-/** @brief Un-initialize the CSS API.
+/* @brief Un-initialize the CSS API.
  * @return	None
  *
  * This function deallocates all memory that has been allocated by the CSS API
@@ -66,7 +66,7 @@ enum ia_css_err ia_css_init(
 void
 ia_css_uninit(void);
 
-/** @brief Suspend CSS API for power down
+/* @brief Suspend CSS API for power down
  * @return	success or faulure code
  *
  * suspend shuts down the system by:
@@ -80,7 +80,7 @@ ia_css_uninit(void);
 enum ia_css_err
 ia_css_suspend(void);
 
-/** @brief Resume CSS API from power down
+/* @brief Resume CSS API from power down
  * @return	success or failure code
  *
  * After a power cycle, this function will bring the CSS API back into
@@ -91,7 +91,7 @@ ia_css_suspend(void);
 enum ia_css_err
 ia_css_resume(void);
 
-/** @brief Enable use of a separate queue for ISYS events.
+/* @brief Enable use of a separate queue for ISYS events.
  *
  * @param[in]	enable: enable or disable use of separate ISYS event queues.
  * @return		error if called when SP is running.
@@ -105,7 +105,7 @@ ia_css_resume(void);
 enum ia_css_err
 ia_css_enable_isys_event_queue(bool enable);
 
-/** @brief Test whether the ISP has started.
+/* @brief Test whether the ISP has started.
  *
  * @return	Boolean flag true if the ISP has started or false otherwise.
  *
@@ -114,7 +114,7 @@ ia_css_enable_isys_event_queue(bool enable);
 bool
 ia_css_isp_has_started(void);
 
-/** @brief Test whether the SP has initialized.
+/* @brief Test whether the SP has initialized.
  *
  * @return	Boolean flag true if the SP has initialized or false otherwise.
  *
@@ -123,7 +123,7 @@ ia_css_isp_has_started(void);
 bool
 ia_css_sp_has_initialized(void);
 
-/** @brief Test whether the SP has terminated.
+/* @brief Test whether the SP has terminated.
  *
  * @return	Boolean flag true if the SP has terminated or false otherwise.
  *
@@ -132,7 +132,7 @@ ia_css_sp_has_initialized(void);
 bool
 ia_css_sp_has_terminated(void);
 
-/** @brief start SP hardware
+/* @brief start SP hardware
  *
  * @return			IA_CSS_SUCCESS or error code upon error.
  *
@@ -144,7 +144,7 @@ enum ia_css_err
 ia_css_start_sp(void);
 
 
-/** @brief stop SP hardware
+/* @brief stop SP hardware
  *
  * @return			IA_CSS_SUCCESS or error code upon error.
  *

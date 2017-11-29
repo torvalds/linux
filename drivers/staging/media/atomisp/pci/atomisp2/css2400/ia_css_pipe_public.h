@@ -15,7 +15,7 @@
 #ifndef __IA_CSS_PIPE_PUBLIC_H
 #define __IA_CSS_PIPE_PUBLIC_H
 
-/** @file
+/* @file
  * This file contains the public interface for CSS pipes.
  */
 
@@ -34,7 +34,7 @@ enum {
 	IA_CSS_PIPE_MAX_OUTPUT_STAGE,
 };
 
-/** Enumeration of pipe modes. This mode can be used to create
+/* Enumeration of pipe modes. This mode can be used to create
  *  an image pipe for this mode. These pipes can be combined
  *  to configure and run streams on the ISP.
  *
@@ -42,12 +42,12 @@ enum {
  *  create a continuous capture stream.
  */
 enum ia_css_pipe_mode {
-	IA_CSS_PIPE_MODE_PREVIEW,	/**< Preview pipe */
-	IA_CSS_PIPE_MODE_VIDEO,		/**< Video pipe */
-	IA_CSS_PIPE_MODE_CAPTURE,	/**< Still capture pipe */
-	IA_CSS_PIPE_MODE_ACC,		/**< Accelerated pipe */
-	IA_CSS_PIPE_MODE_COPY,		/**< Copy pipe, only used for embedded/image data copying */
-	IA_CSS_PIPE_MODE_YUVPP,		/**< YUV post processing pipe, used for all use cases with YUV input,
+	IA_CSS_PIPE_MODE_PREVIEW,	/** Preview pipe */
+	IA_CSS_PIPE_MODE_VIDEO,		/** Video pipe */
+	IA_CSS_PIPE_MODE_CAPTURE,	/** Still capture pipe */
+	IA_CSS_PIPE_MODE_ACC,		/** Accelerated pipe */
+	IA_CSS_PIPE_MODE_COPY,		/** Copy pipe, only used for embedded/image data copying */
+	IA_CSS_PIPE_MODE_YUVPP,		/** YUV post processing pipe, used for all use cases with YUV input,
 									for SoC sensor and external ISP */
 };
 /* Temporary define  */
@@ -58,10 +58,10 @@ enum ia_css_pipe_mode {
  * the order should match with definition in sh_css_defs.h
  */
 enum ia_css_pipe_version {
-	IA_CSS_PIPE_VERSION_1 = 1,		/**< ISP1.0 pipe */
-	IA_CSS_PIPE_VERSION_2_2 = 2,		/**< ISP2.2 pipe */
-	IA_CSS_PIPE_VERSION_2_6_1 = 3,		/**< ISP2.6.1 pipe */
-	IA_CSS_PIPE_VERSION_2_7 = 4		/**< ISP2.7 pipe */
+	IA_CSS_PIPE_VERSION_1 = 1,		/** ISP1.0 pipe */
+	IA_CSS_PIPE_VERSION_2_2 = 2,		/** ISP2.2 pipe */
+	IA_CSS_PIPE_VERSION_2_6_1 = 3,		/** ISP2.6.1 pipe */
+	IA_CSS_PIPE_VERSION_2_7 = 4		/** ISP2.7 pipe */
 };
 
 /**
@@ -71,79 +71,79 @@ enum ia_css_pipe_version {
  */
 struct ia_css_pipe_config {
 	enum ia_css_pipe_mode mode;
-	/**< mode, indicates which mode the pipe should use. */
+	/** mode, indicates which mode the pipe should use. */
 	enum ia_css_pipe_version isp_pipe_version;
-	/**< pipe version, indicates which imaging pipeline the pipe should use. */
+	/** pipe version, indicates which imaging pipeline the pipe should use. */
 	struct ia_css_resolution input_effective_res;
-	/**< input effective resolution */
+	/** input effective resolution */
 	struct ia_css_resolution bayer_ds_out_res;
-	/**< bayer down scaling */
+	/** bayer down scaling */
 	struct ia_css_resolution capt_pp_in_res;
 #ifndef ISP2401
-	/**< bayer down scaling */
+	/** bayer down scaling */
 #else
-	/**< capture post processing input resolution */
+	/** capture post processing input resolution */
 #endif
 	struct ia_css_resolution vf_pp_in_res;
 #ifndef ISP2401
-	/**< bayer down scaling */
+	/** bayer down scaling */
 #else
-	/**< view finder post processing input resolution */
+	/** view finder post processing input resolution */
 	struct ia_css_resolution output_system_in_res;
-	/**< For IPU3 only: use output_system_in_res to specify what input resolution
+	/** For IPU3 only: use output_system_in_res to specify what input resolution
 	     will OSYS receive, this resolution is equal to the output resolution of GDC
 	     if not determined CSS will set output_system_in_res with main osys output pin resolution
 	     All other IPUs may ignore this property */
 #endif
 	struct ia_css_resolution dvs_crop_out_res;
-	/**< dvs crop, video only, not in use yet. Use dvs_envelope below. */
+	/** dvs crop, video only, not in use yet. Use dvs_envelope below. */
 	struct ia_css_frame_info output_info[IA_CSS_PIPE_MAX_OUTPUT_STAGE];
-	/**< output of YUV scaling */
+	/** output of YUV scaling */
 	struct ia_css_frame_info vf_output_info[IA_CSS_PIPE_MAX_OUTPUT_STAGE];
-	/**< output of VF YUV scaling */
+	/** output of VF YUV scaling */
 	struct ia_css_fw_info *acc_extension;
-	/**< Pipeline extension accelerator */
+	/** Pipeline extension accelerator */
 	struct ia_css_fw_info **acc_stages;
-	/**< Standalone accelerator stages */
+	/** Standalone accelerator stages */
 	uint32_t num_acc_stages;
-	/**< Number of standalone accelerator stages */
+	/** Number of standalone accelerator stages */
 	struct ia_css_capture_config default_capture_config;
-	/**< Default capture config for initial capture pipe configuration. */
-	struct ia_css_resolution dvs_envelope; /**< temporary */
+	/** Default capture config for initial capture pipe configuration. */
+	struct ia_css_resolution dvs_envelope; /** temporary */
 	enum ia_css_frame_delay dvs_frame_delay;
-	/**< indicates the DVS loop delay in frame periods */
+	/** indicates the DVS loop delay in frame periods */
 	int acc_num_execs;
-	/**< For acceleration pipes only: determine how many times the pipe
+	/** For acceleration pipes only: determine how many times the pipe
 	     should be run. Setting this to -1 means it will run until
 	     stopped. */
 	bool enable_dz;
-	/**< Disabling digital zoom for a pipeline, if this is set to false,
+	/** Disabling digital zoom for a pipeline, if this is set to false,
 	     then setting a zoom factor will have no effect.
 	     In some use cases this provides better performance. */
 	bool enable_dpc;
-	/**< Disabling "Defect Pixel Correction" for a pipeline, if this is set
+	/** Disabling "Defect Pixel Correction" for a pipeline, if this is set
 	     to false. In some use cases this provides better performance. */
 	bool enable_vfpp_bci;
-	/**< Enabling BCI mode will cause yuv_scale binary to be picked up
+	/** Enabling BCI mode will cause yuv_scale binary to be picked up
 	     instead of vf_pp. This only applies to viewfinder post
 	     processing stages. */
 #ifdef ISP2401
 	bool enable_luma_only;
-	/**< Enabling of monochrome mode for a pipeline. If enabled only luma processing
+	/** Enabling of monochrome mode for a pipeline. If enabled only luma processing
 	     will be done. */
 	bool enable_tnr;
-	/**< Enabling of TNR (temporal noise reduction). This is only applicable to video
+	/** Enabling of TNR (temporal noise reduction). This is only applicable to video
 	     pipes. Non video-pipes should always set this parameter to false. */
 #endif
 	struct ia_css_isp_config *p_isp_config;
-	/**< Pointer to ISP configuration */
+	/** Pointer to ISP configuration */
 	struct ia_css_resolution gdc_in_buffer_res;
-	/**< GDC in buffer resolution. */
+	/** GDC in buffer resolution. */
 	struct ia_css_point gdc_in_buffer_offset;
-	/**< GDC in buffer offset - indicates the pixel coordinates of the first valid pixel inside the buffer */
+	/** GDC in buffer offset - indicates the pixel coordinates of the first valid pixel inside the buffer */
 #ifdef ISP2401
 	struct ia_css_coordinate internal_frame_origin_bqs_on_sctbl;
-	/**< Origin of internal frame positioned on shading table at shading correction in ISP.
+	/** Origin of internal frame positioned on shading table at shading correction in ISP.
 	     NOTE: Shading table is larger than or equal to internal frame.
 		   Shading table has shading gains and internal frame has bayer data.
 		   The origin of internal frame is used in shading correction in ISP
@@ -228,20 +228,20 @@ struct ia_css_pipe_config {
 
 #endif
 
-/** Pipe info, this struct describes properties of a pipe after it's stream has
+/* Pipe info, this struct describes properties of a pipe after it's stream has
  * been created.
  * ~~~** DO NOT ADD NEW FIELD **~~~ This structure will be deprecated.
  *           - On the Behalf of CSS-API Committee.
  */
 struct ia_css_pipe_info {
 	struct ia_css_frame_info output_info[IA_CSS_PIPE_MAX_OUTPUT_STAGE];
-	/**< Info about output resolution. This contains the stride which
+	/** Info about output resolution. This contains the stride which
 	     should be used for memory allocation. */
 	struct ia_css_frame_info vf_output_info[IA_CSS_PIPE_MAX_OUTPUT_STAGE];
-	/**< Info about viewfinder output resolution (optional). This contains
+	/** Info about viewfinder output resolution (optional). This contains
 	     the stride that should be used for memory allocation. */
 	struct ia_css_frame_info raw_output_info;
-	/**< Raw output resolution. This indicates the resolution of the
+	/** Raw output resolution. This indicates the resolution of the
 	     RAW bayer output for pipes that support this. Currently, only the
 	     still capture pipes support this feature. When this resolution is
 	     smaller than the input resolution, cropping will be performed by
@@ -252,17 +252,17 @@ struct ia_css_pipe_info {
 	     the input resolution - 8x8. */
 #ifdef ISP2401
 	struct ia_css_resolution output_system_in_res_info;
-	/**< For IPU3 only. Info about output system in resolution which is considered
+	/** For IPU3 only. Info about output system in resolution which is considered
 	     as gdc out resolution. */
 #endif
 	struct ia_css_shading_info shading_info;
-	/**< After an image pipe is created, this field will contain the info
+	/** After an image pipe is created, this field will contain the info
 	     for the shading correction. */
 	struct ia_css_grid_info  grid_info;
-	/**< After an image pipe is created, this field will contain the grid
+	/** After an image pipe is created, this field will contain the grid
 	     info for 3A and DVS. */
 	int num_invalid_frames;
-	/**< The very first frames in a started stream do not contain valid data.
+	/** The very first frames in a started stream do not contain valid data.
 	     In this field, the CSS-firmware communicates to the host-driver how
 	     many initial frames will contain invalid data; this allows the
 	     host-driver to discard those initial invalid frames and start it's
@@ -299,7 +299,7 @@ struct ia_css_pipe_info {
 
 #endif
 
-/** @brief Load default pipe configuration
+/* @brief Load default pipe configuration
  * @param[out]	pipe_config The pipe configuration.
  * @return	None
  *
@@ -334,7 +334,7 @@ struct ia_css_pipe_info {
  */
 void ia_css_pipe_config_defaults(struct ia_css_pipe_config *pipe_config);
 
-/** @brief Create a pipe
+/* @brief Create a pipe
  * @param[in]	config The pipe configuration.
  * @param[out]	pipe The pipe.
  * @return	IA_CSS_SUCCESS or the error code.
@@ -346,7 +346,7 @@ enum ia_css_err
 ia_css_pipe_create(const struct ia_css_pipe_config *config,
 		   struct ia_css_pipe **pipe);
 
-/** @brief Destroy a pipe
+/* @brief Destroy a pipe
  * @param[in]	pipe The pipe.
  * @return	IA_CSS_SUCCESS or the error code.
  *
@@ -355,7 +355,7 @@ ia_css_pipe_create(const struct ia_css_pipe_config *config,
 enum ia_css_err
 ia_css_pipe_destroy(struct ia_css_pipe *pipe);
 
-/** @brief Provides information about a pipe
+/* @brief Provides information about a pipe
  * @param[in]	pipe The pipe.
  * @param[out]	pipe_info The pipe information.
  * @return	IA_CSS_SUCCESS or IA_CSS_ERR_INVALID_ARGUMENTS.
@@ -366,7 +366,7 @@ enum ia_css_err
 ia_css_pipe_get_info(const struct ia_css_pipe *pipe,
 		     struct ia_css_pipe_info *pipe_info);
 
-/** @brief Configure a pipe with filter coefficients.
+/* @brief Configure a pipe with filter coefficients.
  * @param[in]	pipe	The pipe.
  * @param[in]	config	The pointer to ISP configuration.
  * @return		IA_CSS_SUCCESS or error code upon error.
@@ -378,7 +378,7 @@ enum ia_css_err
 ia_css_pipe_set_isp_config(struct ia_css_pipe *pipe,
 						   struct ia_css_isp_config *config);
 
-/** @brief Controls when the Event generator raises an IRQ to the Host.
+/* @brief Controls when the Event generator raises an IRQ to the Host.
  *
  * @param[in]	pipe	The pipe.
  * @param[in]	or_mask	Binary or of enum ia_css_event_irq_mask_type. Each pipe
@@ -455,7 +455,7 @@ ia_css_pipe_set_irq_mask(struct ia_css_pipe *pipe,
 			 unsigned int or_mask,
 			 unsigned int and_mask);
 
-/** @brief Reads the current event IRQ mask from the CSS.
+/* @brief Reads the current event IRQ mask from the CSS.
  *
  * @param[in]	pipe The pipe.
  * @param[out]	or_mask	Current or_mask. The bits in this mask are a binary or
@@ -476,7 +476,7 @@ ia_css_event_get_irq_mask(const struct ia_css_pipe *pipe,
 			  unsigned int *or_mask,
 			  unsigned int *and_mask);
 
-/** @brief Queue a buffer for an image pipe.
+/* @brief Queue a buffer for an image pipe.
  *
  * @param[in] pipe	The pipe that will own the buffer.
  * @param[in] buffer	Pointer to the buffer.
@@ -498,7 +498,7 @@ enum ia_css_err
 ia_css_pipe_enqueue_buffer(struct ia_css_pipe *pipe,
 			   const struct ia_css_buffer *buffer);
 
-/** @brief Dequeue a buffer from an image pipe.
+/* @brief Dequeue a buffer from an image pipe.
  *
  * @param[in]    pipe	 The pipeline that the buffer queue belongs to.
  * @param[in,out] buffer The buffer is used to lookup the type which determines
@@ -519,7 +519,7 @@ ia_css_pipe_dequeue_buffer(struct ia_css_pipe *pipe,
 			   struct ia_css_buffer *buffer);
 
 
-/** @brief  Set the state (Enable or Disable) of the Extension stage in the
+/* @brief  Set the state (Enable or Disable) of the Extension stage in the
  *          given pipe.
  * @param[in] pipe         Pipe handle.
  * @param[in] fw_handle    Extension firmware Handle (ia_css_fw_info.handle)
@@ -546,7 +546,7 @@ ia_css_pipe_set_qos_ext_state (struct ia_css_pipe *pipe,
                            uint32_t fw_handle,
                            bool  enable);
 
-/** @brief  Get the state (Enable or Disable) of the Extension stage in the
+/* @brief  Get the state (Enable or Disable) of the Extension stage in the
  *          given pipe.
  * @param[in]  pipe        Pipe handle.
  * @param[in]  fw_handle   Extension firmware Handle (ia_css_fw_info.handle)
@@ -573,7 +573,7 @@ ia_css_pipe_get_qos_ext_state (struct ia_css_pipe *pipe,
                            bool * enable);
 
 #ifdef ISP2401
-/** @brief  Update mapped CSS and ISP arguments for QoS pipe during SP runtime.
+/* @brief  Update mapped CSS and ISP arguments for QoS pipe during SP runtime.
  * @param[in] pipe     	Pipe handle.
  * @param[in] fw_handle	Extension firmware Handle (ia_css_fw_info.handle).
  * @param[in] css_seg  	Parameter memory descriptors for CSS segments.
@@ -595,7 +595,7 @@ ia_css_pipe_update_qos_ext_mapped_arg(struct ia_css_pipe *pipe, uint32_t fw_hand
 			struct ia_css_isp_param_isp_segments *isp_seg);
 
 #endif
-/** @brief Get selected configuration settings
+/* @brief Get selected configuration settings
  * @param[in]	pipe	The pipe.
  * @param[out]	config	Configuration settings.
  * @return		None
@@ -604,7 +604,7 @@ void
 ia_css_pipe_get_isp_config(struct ia_css_pipe *pipe,
 			     struct ia_css_isp_config *config);
 
-/** @brief Set the scaler lut on this pipe. A copy of lut is made in the inuit
+/* @brief Set the scaler lut on this pipe. A copy of lut is made in the inuit
  *         address space. So the LUT can be freed by caller.
  * @param[in]  pipe        Pipe handle.
  * @param[in]  lut         Look up tabel
@@ -623,7 +623,7 @@ ia_css_pipe_get_isp_config(struct ia_css_pipe *pipe,
 enum ia_css_err
 ia_css_pipe_set_bci_scaler_lut( struct ia_css_pipe *pipe,
 				const void *lut);
-/** @brief Checking of DVS statistics ability
+/* @brief Checking of DVS statistics ability
  * @param[in]	pipe_info	The pipe info.
  * @return		true - has DVS statistics ability
  * 			false - otherwise
@@ -631,7 +631,7 @@ ia_css_pipe_set_bci_scaler_lut( struct ia_css_pipe *pipe,
 bool ia_css_pipe_has_dvs_stats(struct ia_css_pipe_info *pipe_info);
 
 #ifdef ISP2401
-/** @brief Override the frameformat set on the output pins.
+/* @brief Override the frameformat set on the output pins.
  * @param[in]  pipe        Pipe handle.
  * @param[in]  output_pin  Pin index to set the format on
  *                         0 - main output pin

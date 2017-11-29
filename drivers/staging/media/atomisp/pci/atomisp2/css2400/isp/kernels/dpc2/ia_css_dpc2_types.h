@@ -15,14 +15,14 @@
 #ifndef __IA_CSS_DPC2_TYPES_H
 #define __IA_CSS_DPC2_TYPES_H
 
-/** @file
+/* @file
 * CSS-API header file for Defect Pixel Correction 2 (DPC2) parameters.
 */
 
 #include "type_support.h"
 
 /**@{*/
-/** Floating point constants for different metrics. */
+/* Floating point constants for different metrics. */
 #define METRIC1_ONE_FP	(1<<12)
 #define METRIC2_ONE_FP	(1<<5)
 #define METRIC3_ONE_FP	(1<<12)
@@ -30,7 +30,7 @@
 /**@}*/
 
 /**@{*/
-/** Defect Pixel Correction 2 configuration.
+/* Defect Pixel Correction 2 configuration.
  *
  * \brief DPC2 public parameters.
  * \details Struct with all parameters for the Defect Pixel Correction 2

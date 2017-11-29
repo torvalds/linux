@@ -54,21 +54,21 @@ extern unsigned int ia_css_debug_trace_level;
  *  Values can be combined to dump a combination of sets.
  */
 enum ia_css_debug_enable_param_dump {
-	IA_CSS_DEBUG_DUMP_FPN = 1 << 0, /**< FPN table */
-	IA_CSS_DEBUG_DUMP_OB = 1 << 1,  /**< OB table */
-	IA_CSS_DEBUG_DUMP_SC = 1 << 2,  /**< Shading table */
-	IA_CSS_DEBUG_DUMP_WB = 1 << 3,  /**< White balance */
-	IA_CSS_DEBUG_DUMP_DP = 1 << 4,  /**< Defect Pixel */
-	IA_CSS_DEBUG_DUMP_BNR = 1 << 5,  /**< Bayer Noise Reductions */
-	IA_CSS_DEBUG_DUMP_S3A = 1 << 6,  /**< 3A Statistics */
-	IA_CSS_DEBUG_DUMP_DE = 1 << 7,  /**< De Mosaicing */
-	IA_CSS_DEBUG_DUMP_YNR = 1 << 8,  /**< Luma Noise Reduction */
-	IA_CSS_DEBUG_DUMP_CSC = 1 << 9,  /**< Color Space Conversion */
-	IA_CSS_DEBUG_DUMP_GC = 1 << 10,  /**< Gamma Correction */
-	IA_CSS_DEBUG_DUMP_TNR = 1 << 11,  /**< Temporal Noise Reduction */
-	IA_CSS_DEBUG_DUMP_ANR = 1 << 12,  /**< Advanced Noise Reduction */
-	IA_CSS_DEBUG_DUMP_CE = 1 << 13,  /**< Chroma Enhancement */
-	IA_CSS_DEBUG_DUMP_ALL = 1 << 14  /**< Dump all device parameters */
+	IA_CSS_DEBUG_DUMP_FPN = 1 << 0, /** FPN table */
+	IA_CSS_DEBUG_DUMP_OB = 1 << 1,  /** OB table */
+	IA_CSS_DEBUG_DUMP_SC = 1 << 2,  /** Shading table */
+	IA_CSS_DEBUG_DUMP_WB = 1 << 3,  /** White balance */
+	IA_CSS_DEBUG_DUMP_DP = 1 << 4,  /** Defect Pixel */
+	IA_CSS_DEBUG_DUMP_BNR = 1 << 5,  /** Bayer Noise Reductions */
+	IA_CSS_DEBUG_DUMP_S3A = 1 << 6,  /** 3A Statistics */
+	IA_CSS_DEBUG_DUMP_DE = 1 << 7,  /** De Mosaicing */
+	IA_CSS_DEBUG_DUMP_YNR = 1 << 8,  /** Luma Noise Reduction */
+	IA_CSS_DEBUG_DUMP_CSC = 1 << 9,  /** Color Space Conversion */
+	IA_CSS_DEBUG_DUMP_GC = 1 << 10,  /** Gamma Correction */
+	IA_CSS_DEBUG_DUMP_TNR = 1 << 11,  /** Temporal Noise Reduction */
+	IA_CSS_DEBUG_DUMP_ANR = 1 << 12,  /** Advanced Noise Reduction */
+	IA_CSS_DEBUG_DUMP_CE = 1 << 13,  /** Chroma Enhancement */
+	IA_CSS_DEBUG_DUMP_ALL = 1 << 14  /** Dump all device parameters */
 };
 
 #define IA_CSS_ERROR(fmt, ...) \
