@@ -1941,14 +1941,6 @@ static void sii8620_irq_edid(struct sii8620 *ctx)
 		ctx->mt_state = MT_STATE_DONE;
 }
 
-static void sii8620_scdt_high(struct sii8620 *ctx)
-{
-	sii8620_write_seq_static(ctx,
-		REG_INTR8_MASK, BIT_CEA_NEW_AVI | BIT_CEA_NEW_VSI,
-		REG_TPI_SC, BIT_TPI_SC_TPI_OUTPUT_MODE_0_HDMI,
-	);
-}
-
 static void sii8620_irq_scdt(struct sii8620 *ctx)
 {
 	u8 stat = sii8620_readb(ctx, REG_INTR5);
@@ -1956,51 +1948,11 @@ static void sii8620_irq_scdt(struct sii8620 *ctx)
 	if (stat & BIT_INTR_SCDT_CHANGE) {
 		u8 cstat = sii8620_readb(ctx, REG_TMDS_CSTAT_P3);
 
-		if (cstat & BIT_TMDS_CSTAT_P3_SCDT) {
-			if (ctx->sink_type == SINK_HDMI)
-				/* enable infoframe interrupt */
-				sii8620_scdt_high(ctx);
-			else
-				sii8620_start_video(ctx);
-		}
+		if (cstat & BIT_TMDS_CSTAT_P3_SCDT)
+			sii8620_start_video(ctx);
 	}
 
 	sii8620_write(ctx, REG_INTR5, stat);
-}
-
-static void sii8620_new_vsi(struct sii8620 *ctx)
-{
-	u8 vsif[11];
-
-	sii8620_write(ctx, REG_RX_HDMI_CTRL2,
-		      VAL_RX_HDMI_CTRL2_DEFVAL |
-		      BIT_RX_HDMI_CTRL2_VSI_MON_SEL_VSI);
-	sii8620_read_buf(ctx, REG_RX_HDMI_MON_PKT_HEADER1, vsif,
-			 ARRAY_SIZE(vsif));
-}
-
-static void sii8620_new_avi(struct sii8620 *ctx)
-{
-	sii8620_write(ctx, REG_RX_HDMI_CTRL2, VAL_RX_HDMI_CTRL2_DEFVAL);
-	sii8620_read_buf(ctx, REG_RX_HDMI_MON_PKT_HEADER1, ctx->avif,
-			 ARRAY_SIZE(ctx->avif));
-}
-
-static void sii8620_irq_infr(struct sii8620 *ctx)
-{
-	u8 stat = sii8620_readb(ctx, REG_INTR8)
-		& (BIT_CEA_NEW_VSI | BIT_CEA_NEW_AVI);
-
-	sii8620_write(ctx, REG_INTR8, stat);
-
-	if (stat & BIT_CEA_NEW_VSI)
-		sii8620_new_vsi(ctx);
-
-	if (stat & BIT_CEA_NEW_AVI)
-		sii8620_new_avi(ctx);
-
-	if (stat & (BIT_CEA_NEW_VSI | BIT_CEA_NEW_AVI))
-		sii8620_start_video(ctx);
 }
 
 static void sii8620_got_xdevcap(struct sii8620 *ctx, int ret)
@@ -2084,7 +2036,6 @@ static irqreturn_t sii8620_irq_thread(int irq, void *data)
 		{ BIT_FAST_INTR_STAT_EDID, sii8620_irq_edid },
 		{ BIT_FAST_INTR_STAT_DDC, sii8620_irq_ddc },
 		{ BIT_FAST_INTR_STAT_SCDT, sii8620_irq_scdt },
-		{ BIT_FAST_INTR_STAT_INFR, sii8620_irq_infr },
 	};
 	struct sii8620 *ctx = data;
 	u8 stats[LEN_FAST_INTR_STAT];
