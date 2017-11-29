@@ -281,6 +281,9 @@ static inline bool kvm_mwait_in_guest(void)
 		return false;
 	}
 
+	if (boot_cpu_has_bug(X86_BUG_MONITOR))
+		return false;
+
 	/*
 	 * Intel CPUs without CPUID5_ECX_INTERRUPT_BREAK are problematic as
 	 * they would allow guest to stop the CPU completely by disabling
