@@ -28,6 +28,7 @@
 #include <linux/uaccess.h>
 #include "optee_private.h"
 #include "optee_smc.h"
+#include "shm_pool.h"
 
 #define DRIVER_NAME "optee"
 
@@ -219,6 +220,10 @@ static void optee_get_version(struct tee_device *teedev,
 		.impl_caps = TEE_OPTEE_CAP_TZ,
 		.gen_caps = TEE_GEN_CAP_GP,
 	};
+	struct optee *optee = tee_get_drvdata(teedev);
+
+	if (optee->sec_caps & OPTEE_SMC_SEC_CAP_DYNAMIC_SHM)
+		v.gen_caps |= TEE_GEN_CAP_REG_MEM;
 	*vers = v;
 }
 
@@ -394,21 +399,22 @@ static bool optee_msg_exchange_capabilities(optee_invoke_fn *invoke_fn,
 }
 
 static struct tee_shm_pool *
-optee_config_shm_memremap(optee_invoke_fn *invoke_fn, void **memremaped_shm)
+optee_config_shm_memremap(optee_invoke_fn *invoke_fn, void **memremaped_shm,
+			  u32 sec_caps)
 {
 	union {
 		struct arm_smccc_res smccc;
 		struct optee_smc_get_shm_config_result result;
 	} res;
-	struct tee_shm_pool *pool;
 	unsigned long vaddr;
 	phys_addr_t paddr;
 	size_t size;
 	phys_addr_t begin;
 	phys_addr_t end;
 	void *va;
-	struct tee_shm_pool_mem_info priv_info;
-	struct tee_shm_pool_mem_info dmabuf_info;
+	struct tee_shm_pool_mgr *priv_mgr;
+	struct tee_shm_pool_mgr *dmabuf_mgr;
+	void *rc;
 
 	invoke_fn(OPTEE_SMC_GET_SHM_CONFIG, 0, 0, 0, 0, 0, 0, 0, &res.smccc);
 	if (res.result.status != OPTEE_SMC_RETURN_OK) {
@@ -438,22 +444,49 @@ optee_config_shm_memremap(optee_invoke_fn *invoke_fn, void **memremaped_shm)
 	}
 	vaddr = (unsigned long)va;
 
-	priv_info.vaddr = vaddr;
-	priv_info.paddr = paddr;
-	priv_info.size = OPTEE_SHM_NUM_PRIV_PAGES * PAGE_SIZE;
-	dmabuf_info.vaddr = vaddr + OPTEE_SHM_NUM_PRIV_PAGES * PAGE_SIZE;
-	dmabuf_info.paddr = paddr + OPTEE_SHM_NUM_PRIV_PAGES * PAGE_SIZE;
-	dmabuf_info.size = size - OPTEE_SHM_NUM_PRIV_PAGES * PAGE_SIZE;
+	/*
+	 * If OP-TEE can work with unregistered SHM, we will use own pool
+	 * for private shm
+	 */
+	if (sec_caps & OPTEE_SMC_SEC_CAP_DYNAMIC_SHM) {
+		rc = optee_shm_pool_alloc_pages();
+		if (IS_ERR(rc))
+			goto err_memunmap;
+		priv_mgr = rc;
+	} else {
+		const size_t sz = OPTEE_SHM_NUM_PRIV_PAGES * PAGE_SIZE;
 
-	pool = tee_shm_pool_alloc_res_mem(&priv_info, &dmabuf_info);
-	if (IS_ERR(pool)) {
-		memunmap(va);
-		goto out;
+		rc = tee_shm_pool_mgr_alloc_res_mem(vaddr, paddr, sz,
+						    3 /* 8 bytes aligned */);
+		if (IS_ERR(rc))
+			goto err_memunmap;
+		priv_mgr = rc;
+
+		vaddr += sz;
+		paddr += sz;
+		size -= sz;
 	}
 
+	rc = tee_shm_pool_mgr_alloc_res_mem(vaddr, paddr, size, PAGE_SHIFT);
+	if (IS_ERR(rc))
+		goto err_free_priv_mgr;
+	dmabuf_mgr = rc;
+
+	rc = tee_shm_pool_alloc(priv_mgr, dmabuf_mgr);
+	if (IS_ERR(rc))
+		goto err_free_dmabuf_mgr;
+
 	*memremaped_shm = va;
-out:
-	return pool;
+
+	return rc;
+
+err_free_dmabuf_mgr:
+	tee_shm_pool_mgr_destroy(dmabuf_mgr);
+err_free_priv_mgr:
+	tee_shm_pool_mgr_destroy(priv_mgr);
+err_memunmap:
+	memunmap(va);
+	return rc;
 }
 
 /* Simple wrapper functions to be able to use a function pointer */
@@ -531,7 +564,7 @@ static struct optee *optee_probe(struct device_node *np)
 	if (!(sec_caps & OPTEE_SMC_SEC_CAP_HAVE_RESERVED_SHM))
 		return ERR_PTR(-EINVAL);
 
-	pool = optee_config_shm_memremap(invoke_fn, &memremaped_shm);
+	pool = optee_config_shm_memremap(invoke_fn, &memremaped_shm, sec_caps);
 	if (IS_ERR(pool))
 		return (void *)pool;
 
