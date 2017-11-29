@@ -25,8 +25,12 @@
  * specific TEE driver.
  */
 
-#define TEE_SHM_MAPPED		0x1	/* Memory mapped by the kernel */
-#define TEE_SHM_DMA_BUF		0x2	/* Memory with dma-buf handle */
+#define TEE_SHM_MAPPED		BIT(0)	/* Memory mapped by the kernel */
+#define TEE_SHM_DMA_BUF		BIT(1)	/* Memory with dma-buf handle */
+#define TEE_SHM_EXT_DMA_BUF	BIT(2)	/* Memory with dma-buf handle */
+#define TEE_SHM_REGISTER	BIT(3)  /* Memory registered in secure world */
+#define TEE_SHM_USER_MAPPED	BIT(4)  /* Memory mapped in user space */
+#define TEE_SHM_POOL		BIT(5)  /* Memory allocated from pool */
 
 struct device;
 struct tee_device;
@@ -76,6 +80,8 @@ struct tee_param {
  * @cancel_req:		request cancel of an ongoing invoke or open
  * @supp_revc:		called for supplicant to get a command
  * @supp_send:		called for supplicant to send a response
+ * @shm_register:	register shared memory buffer in TEE
+ * @shm_unregister:	unregister shared memory buffer in TEE
  */
 struct tee_driver_ops {
 	void (*get_version)(struct tee_device *teedev,
@@ -94,6 +100,9 @@ struct tee_driver_ops {
 			 struct tee_param *param);
 	int (*supp_send)(struct tee_context *ctx, u32 ret, u32 num_params,
 			 struct tee_param *param);
+	int (*shm_register)(struct tee_context *ctx, struct tee_shm *shm,
+			    struct page **pages, size_t num_pages);
+	int (*shm_unregister)(struct tee_context *ctx, struct tee_shm *shm);
 };
 
 /**
@@ -300,6 +309,40 @@ void *tee_get_drvdata(struct tee_device *teedev);
  * @returns a pointer to 'struct tee_shm'
  */
 struct tee_shm *tee_shm_alloc(struct tee_context *ctx, size_t size, u32 flags);
+
+/**
+ * tee_shm_priv_alloc() - Allocate shared memory privately
+ * @dev:	Device that allocates the shared memory
+ * @size:	Requested size of shared memory
+ *
+ * Allocates shared memory buffer that is not associated with any client
+ * context. Such buffers are owned by TEE driver and used for internal calls.
+ *
+ * @returns a pointer to 'struct tee_shm'
+ */
+struct tee_shm *tee_shm_priv_alloc(struct tee_device *teedev, size_t size);
+
+/**
+ * tee_shm_register() - Register shared memory buffer
+ * @ctx:	Context that registers the shared memory
+ * @addr:	Address is userspace of the shared buffer
+ * @length:	Length of the shared buffer
+ * @flags:	Flags setting properties for the requested shared memory.
+ *
+ * @returns a pointer to 'struct tee_shm'
+ */
+struct tee_shm *tee_shm_register(struct tee_context *ctx, unsigned long addr,
+				 size_t length, u32 flags);
+
+/**
+ * tee_shm_is_registered() - Check if shared memory object in registered in TEE
+ * @shm:	Shared memory handle
+ * @returns true if object is registered in TEE
+ */
+static inline bool tee_shm_is_registered(struct tee_shm *shm)
+{
+	return shm && (shm->flags & TEE_SHM_REGISTER);
+}
 
 /**
  * tee_shm_free() - Free shared memory
