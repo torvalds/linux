@@ -135,6 +135,8 @@ struct mem_cgroup;
 void __init kmem_cache_init(void);
 bool slab_is_available(void);
 
+extern bool usercopy_fallback;
+
 struct kmem_cache *kmem_cache_create(const char *name, size_t size,
 			size_t align, slab_flags_t flags,
 			void (*ctor)(void *));

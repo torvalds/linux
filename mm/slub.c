@@ -3859,7 +3859,8 @@ void __check_heap_object(const void *ptr, unsigned long n, struct page *page,
 	 * whitelists.
 	 */
 	object_size = slab_ksize(s);
-	if (offset <= object_size && n <= object_size - offset) {
+	if (usercopy_fallback &&
+	    offset <= object_size && n <= object_size - offset) {
 		usercopy_warn("SLUB object", s->name, to_user, offset, n);
 		return;
 	}
