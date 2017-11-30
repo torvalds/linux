@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *    ipl/reipl/dump support for Linux on s390.
  *

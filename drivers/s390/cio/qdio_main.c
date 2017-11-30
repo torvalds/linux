@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Linux for s390 qdio support, buffer handling, qdio API and module support.
  *

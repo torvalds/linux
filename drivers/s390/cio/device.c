@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-1.0+
 /*
  *  bus driver for ccw devices
  *
@@ -5,8 +6,6 @@
  *    Author(s): Arnd Bergmann (arndb@de.ibm.com)
  *		 Cornelia Huck (cornelia.huck@de.ibm.com)
  *		 Martin Schwidefsky (schwidefsky@de.ibm.com)
- *
- * License: GPL
  */
 
 #define KMSG_COMPONENT "cio"
