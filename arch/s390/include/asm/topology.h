@@ -68,11 +68,8 @@ static inline void topology_expect_change(void) { }
 
 #ifdef CONFIG_NUMA
 
-#define cpu_to_node cpu_to_node
-static inline int cpu_to_node(int cpu)
-{
-	return cpu_topology[cpu].node_id;
-}
+extern int __cpu_to_node(int cpu);
+#define cpu_to_node __cpu_to_node
 
 /* Returns a pointer to the cpumask of CPUs on node 'node'. */
 #define cpumask_of_node cpumask_of_node
