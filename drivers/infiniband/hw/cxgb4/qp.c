@@ -1285,21 +1285,21 @@ static void __flush_qp(struct c4iw_qp *qhp, struct c4iw_cq *rchp,
 	spin_unlock_irqrestore(&rchp->lock, flag);
 
 	if (schp == rchp) {
-		if (t4_clear_cq_armed(&rchp->cq) &&
-		    (rq_flushed || sq_flushed)) {
+		if ((rq_flushed || sq_flushed) &&
+		    t4_clear_cq_armed(&rchp->cq)) {
 			spin_lock_irqsave(&rchp->comp_handler_lock, flag);
 			(*rchp->ibcq.comp_handler)(&rchp->ibcq,
 						   rchp->ibcq.cq_context);
 			spin_unlock_irqrestore(&rchp->comp_handler_lock, flag);
 		}
 	} else {
-		if (t4_clear_cq_armed(&rchp->cq) && rq_flushed) {
+		if (rq_flushed && t4_clear_cq_armed(&rchp->cq)) {
 			spin_lock_irqsave(&rchp->comp_handler_lock, flag);
 			(*rchp->ibcq.comp_handler)(&rchp->ibcq,
 						   rchp->ibcq.cq_context);
 			spin_unlock_irqrestore(&rchp->comp_handler_lock, flag);
 		}
-		if (t4_clear_cq_armed(&schp->cq) && sq_flushed) {
+		if (sq_flushed && t4_clear_cq_armed(&schp->cq)) {
 			spin_lock_irqsave(&schp->comp_handler_lock, flag);
 			(*schp->ibcq.comp_handler)(&schp->ibcq,
 						   schp->ibcq.cq_context);
