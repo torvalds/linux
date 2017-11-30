@@ -75,6 +75,7 @@ config QCOM_SMEM_STATE
 
 config QCOM_SMP2P
 	tristate "Qualcomm Shared Memory Point to Point support"
+	depends on MAILBOX
 	depends on QCOM_SMEM
 	select QCOM_SMEM_STATE
 	help
