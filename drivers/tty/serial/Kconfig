@@ -774,10 +774,11 @@ config SERIAL_SH_SCI_CONSOLE
 	default y
 
 config SERIAL_SH_SCI_EARLYCON
-	bool "Support for early console on SuperH SCI(F)"
+	bool "Support for early console on SuperH SCI(F)" if EXPERT
 	depends on SERIAL_SH_SCI=y
 	select SERIAL_CORE_CONSOLE
 	select SERIAL_EARLYCON
+	default ARCH_RENESAS || H8300
 
 config SERIAL_SH_SCI_DMA
 	bool "DMA support"
