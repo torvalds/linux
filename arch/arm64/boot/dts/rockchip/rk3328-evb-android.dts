@@ -477,7 +477,7 @@
 			<0xe7	KEY_POWER>,
 			<0xfc	KEY_POWER>,
 			<0xa9	KEY_VOLUMEDOWN>,
-			<0xa8	KEY_VOLUMEDOWN>,
+			<0xa8	KEY_PLAYPAUSE>,
 			<0xe0	KEY_VOLUMEDOWN>,
 			<0xa5	KEY_VOLUMEDOWN>,
 			<0xab	183>,
@@ -492,6 +492,7 @@
 			<0xf2	KEY_VOLUMEDOWN>,
 			<0xf3	KEY_SEARCH>,
 			<0xb4	KEY_VOLUMEDOWN>,
+			<0xa4	KEY_SETUP>,
 			<0xbe	KEY_SEARCH>;
 	};
 
