@@ -487,6 +487,11 @@ static int sfp_sm_mod_probe(struct sfp *sfp)
 		return -EINVAL;
 	}
 
+	/* If the module requires address swap mode, warn about it */
+	if (sfp->id.ext.diagmon & SFP_DIAGMON_ADDRMODE)
+		dev_warn(sfp->dev,
+			 "module address swap to access page 0xA2 is not supported.\n");
+
 	return sfp_module_insert(sfp->sfp_bus, &sfp->id);
 }
 
@@ -652,7 +657,8 @@ static int sfp_module_info(struct sfp *sfp, struct ethtool_modinfo *modinfo)
 {
 	/* locking... and check module is present */
 
-	if (sfp->id.ext.sff8472_compliance) {
+	if (sfp->id.ext.sff8472_compliance &&
+	    !(sfp->id.ext.diagmon & SFP_DIAGMON_ADDRMODE)) {
 		modinfo->type = ETH_MODULE_SFF_8472;
 		modinfo->eeprom_len = ETH_MODULE_SFF_8472_LEN;
 	} else {
