@@ -75,7 +75,7 @@ static int gup_huge_pmd(pmd_t *pmdp, pmd_t pmd, unsigned long addr,
 	if (!(pmd_val(pmd) & _PAGE_VALID))
 		return 0;
 
-	if (write && !pmd_write(pmd))
+	if (!pmd_access_permitted(pmd, write))
 		return 0;
 
 	refs = 0;
