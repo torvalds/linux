@@ -978,6 +978,11 @@ struct acpi_gpio_mapping {
 	const char *name;
 	const struct acpi_gpio_params *data;
 	unsigned int size;
+
+/* Ignore IoRestriction field */
+#define ACPI_GPIO_QUIRK_NO_IO_RESTRICTION	BIT(0)
+
+	unsigned int quirks;
 };
 
 #if defined(CONFIG_ACPI) && defined(CONFIG_GPIOLIB)

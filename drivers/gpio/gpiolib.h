@@ -75,16 +75,20 @@ struct gpio_device {
 
 /**
  * struct acpi_gpio_info - ACPI GPIO specific information
+ * @adev: reference to ACPI device which consumes GPIO resource
  * @flags: GPIO initialization flags
  * @gpioint: if %true this GPIO is of type GpioInt otherwise type is GpioIo
  * @polarity: interrupt polarity as provided by ACPI
  * @triggering: triggering type as provided by ACPI
+ * @quirks: Linux specific quirks as provided by struct acpi_gpio_mapping
  */
 struct acpi_gpio_info {
+	struct acpi_device *adev;
 	enum gpiod_flags flags;
 	bool gpioint;
 	int polarity;
 	int triggering;
+	unsigned int quirks;
 };
 
 /* gpio suffixes used for ACPI and device tree lookup */
@@ -124,7 +128,7 @@ void acpi_gpiochip_request_interrupts(struct gpio_chip *chip);
 void acpi_gpiochip_free_interrupts(struct gpio_chip *chip);
 
 int acpi_gpio_update_gpiod_flags(enum gpiod_flags *flags,
-				 enum gpiod_flags update);
+				 struct acpi_gpio_info *info);
 
 struct gpio_desc *acpi_find_gpio(struct device *dev,
 				 const char *con_id,
@@ -149,7 +153,7 @@ static inline void
 acpi_gpiochip_free_interrupts(struct gpio_chip *chip) { }
 
 static inline int
-acpi_gpio_update_gpiod_flags(enum gpiod_flags *flags, enum gpiod_flags update)
+acpi_gpio_update_gpiod_flags(enum gpiod_flags *flags, struct acpi_gpio_info *info)
 {
 	return 0;
 }
