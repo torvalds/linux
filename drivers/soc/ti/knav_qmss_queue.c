@@ -745,6 +745,9 @@ void *knav_pool_create(const char *name,
 	bool slot_found;
 	int ret;
 
+	if (!kdev)
+		return ERR_PTR(-EPROBE_DEFER);
+
 	if (!kdev->dev)
 		return ERR_PTR(-ENODEV);
 

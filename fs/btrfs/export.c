@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/fs.h>
 #include <linux/types.h>
 #include "ctree.h"
@@ -282,6 +283,11 @@ static int btrfs_get_name(struct dentry *parent, char *name,
 		name_len = btrfs_inode_ref_name_len(leaf, iref);
 	}
 
+	ret = btrfs_is_name_len_valid(leaf, path->slots[0], name_ptr, name_len);
+	if (!ret) {
+		btrfs_free_path(path);
+		return -EIO;
+	}
 	read_extent_buffer(leaf, name, name_ptr, name_len);
 	btrfs_free_path(path);
 

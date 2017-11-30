@@ -221,7 +221,7 @@ static int cn23xx_pf_soft_reset(struct octeon_device *oct)
 	/* Wait for 100ms as Octeon resets. */
 	mdelay(100);
 
-	if (octeon_read_csr64(oct, CN23XX_SLI_SCRATCH1) == 0x1234ULL) {
+	if (octeon_read_csr64(oct, CN23XX_SLI_SCRATCH1)) {
 		dev_err(&oct->pci_dev->dev, "OCTEON[%d]: Soft reset failed\n",
 			oct->octeon_id);
 		return 1;
@@ -493,9 +493,8 @@ static void cn23xx_pf_setup_global_output_regs(struct octeon_device *oct)
 	for (q_no = srn; q_no < ern; q_no++) {
 		reg_val = octeon_read_csr(oct, CN23XX_SLI_OQ_PKT_CONTROL(q_no));
 
-		/* set IPTR & DPTR */
-		reg_val |=
-		    (CN23XX_PKT_OUTPUT_CTL_IPTR | CN23XX_PKT_OUTPUT_CTL_DPTR);
+		/* set DPTR */
+		reg_val |= CN23XX_PKT_OUTPUT_CTL_DPTR;
 
 		/* reset BMODE */
 		reg_val &= ~(CN23XX_PKT_OUTPUT_CTL_BMODE);
@@ -638,7 +637,7 @@ static void cn23xx_setup_oq_regs(struct octeon_device *oct, u32 oq_no)
 	octeon_write_csr(oct, CN23XX_SLI_OQ_SIZE(oq_no), droq->max_count);
 
 	octeon_write_csr(oct, CN23XX_SLI_OQ_BUFF_INFO_SIZE(oq_no),
-			 (droq->buffer_size | (OCT_RH_SIZE << 16)));
+			 droq->buffer_size);
 
 	/* Get the mapped address of the pkt_sent and pkts_credit regs */
 	droq->pkts_sent_reg =
@@ -1151,14 +1150,50 @@ static void cn23xx_get_pcie_qlmport(struct octeon_device *oct)
 		oct->pcie_port);
 }
 
-static void cn23xx_get_pf_num(struct octeon_device *oct)
+static int cn23xx_get_pf_num(struct octeon_device *oct)
 {
 	u32 fdl_bit = 0;
+	u64 pkt0_in_ctl, d64;
+	int pfnum, mac, trs, ret;
+
+	ret = 0;
 
 	/** Read Function Dependency Link reg to get the function number */
-	pci_read_config_dword(oct->pci_dev, CN23XX_PCIE_SRIOV_FDL, &fdl_bit);
-	oct->pf_num = ((fdl_bit >> CN23XX_PCIE_SRIOV_FDL_BIT_POS) &
-		       CN23XX_PCIE_SRIOV_FDL_MASK);
+	if (pci_read_config_dword(oct->pci_dev, CN23XX_PCIE_SRIOV_FDL,
+				  &fdl_bit) == 0) {
+		oct->pf_num = ((fdl_bit >> CN23XX_PCIE_SRIOV_FDL_BIT_POS) &
+			       CN23XX_PCIE_SRIOV_FDL_MASK);
+	} else {
+		ret = EINVAL;
+
+		/* Under some virtual environments, extended PCI regs are
+		 * inaccessible, in which case the above read will have failed.
+		 * In this case, read the PF number from the
+		 * SLI_PKT0_INPUT_CONTROL reg (written by f/w)
+		 */
+		pkt0_in_ctl = octeon_read_csr64(oct,
+						CN23XX_SLI_IQ_PKT_CONTROL64(0));
+		pfnum = (pkt0_in_ctl >> CN23XX_PKT_INPUT_CTL_PF_NUM_POS) &
+			CN23XX_PKT_INPUT_CTL_PF_NUM_MASK;
+		mac = (octeon_read_csr(oct, CN23XX_SLI_MAC_NUMBER)) & 0xff;
+
+		/* validate PF num by reading RINFO; f/w writes RINFO.trs == 1*/
+		d64 = octeon_read_csr64(oct,
+					CN23XX_SLI_PKT_MAC_RINFO64(mac, pfnum));
+		trs = (int)(d64 >> CN23XX_PKT_MAC_CTL_RINFO_TRS_BIT_POS) & 0xff;
+		if (trs == 1) {
+			dev_err(&oct->pci_dev->dev,
+				"OCTEON: error reading PCI cfg space pfnum, re-read %u\n",
+				pfnum);
+			oct->pf_num = pfnum;
+			ret = 0;
+		} else {
+			dev_err(&oct->pci_dev->dev,
+				"OCTEON: error reading PCI cfg space pfnum; could not ascertain PF number\n");
+		}
+	}
+
+	return ret;
 }
 
 static void cn23xx_setup_reg_address(struct octeon_device *oct)
@@ -1270,6 +1305,26 @@ static int cn23xx_sriov_config(struct octeon_device *oct)
 
 int setup_cn23xx_octeon_pf_device(struct octeon_device *oct)
 {
+	u32 data32;
+	u64 BAR0, BAR1;
+
+	pci_read_config_dword(oct->pci_dev, PCI_BASE_ADDRESS_0, &data32);
+	BAR0 = (u64)(data32 & ~0xf);
+	pci_read_config_dword(oct->pci_dev, PCI_BASE_ADDRESS_1, &data32);
+	BAR0 |= ((u64)data32 << 32);
+	pci_read_config_dword(oct->pci_dev, PCI_BASE_ADDRESS_2, &data32);
+	BAR1 = (u64)(data32 & ~0xf);
+	pci_read_config_dword(oct->pci_dev, PCI_BASE_ADDRESS_3, &data32);
+	BAR1 |= ((u64)data32 << 32);
+
+	if (!BAR0 || !BAR1) {
+		if (!BAR0)
+			dev_err(&oct->pci_dev->dev, "device BAR0 unassigned\n");
+		if (!BAR1)
+			dev_err(&oct->pci_dev->dev, "device BAR1 unassigned\n");
+		return 1;
+	}
+
 	if (octeon_map_pci_barx(oct, 0, 0))
 		return 1;
 
@@ -1280,7 +1335,8 @@ int setup_cn23xx_octeon_pf_device(struct octeon_device *oct)
 		return 1;
 	}
 
-	cn23xx_get_pf_num(oct);
+	if (cn23xx_get_pf_num(oct) != 0)
+		return 1;
 
 	if (cn23xx_sriov_config(oct)) {
 		octeon_unmap_pci_barx(oct, 0);
@@ -1343,8 +1399,7 @@ int validate_cn23xx_pf_config_info(struct octeon_device *oct,
 		return 1;
 	}
 
-	if (!(CFG_GET_OQ_INFO_PTR(conf23xx)) ||
-	    !(CFG_GET_OQ_REFILL_THRESHOLD(conf23xx))) {
+	if (!CFG_GET_OQ_REFILL_THRESHOLD(conf23xx)) {
 		dev_err(&oct->pci_dev->dev, "%s: Invalid parameter for OQ\n",
 			__func__);
 		return 1;
@@ -1407,8 +1462,19 @@ int cn23xx_fw_loaded(struct octeon_device *oct)
 {
 	u64 val;
 
-	val = octeon_read_csr64(oct, CN23XX_SLI_SCRATCH1);
-	return (val >> 1) & 1ULL;
+	/* If there's more than one active PF on this NIC, then that
+	 * implies that the NIC firmware is loaded and running.  This check
+	 * prevents a rare false negative that might occur if we only relied
+	 * on checking the SCR2_BIT_FW_LOADED flag.  The false negative would
+	 * happen if the PF driver sees SCR2_BIT_FW_LOADED as cleared even
+	 * though the firmware was already loaded but still booting and has yet
+	 * to set SCR2_BIT_FW_LOADED.
+	 */
+	if (atomic_read(oct->adapter_refcount) > 1)
+		return 1;
+
+	val = octeon_read_csr64(oct, CN23XX_SLI_SCRATCH2);
+	return (val >> SCR2_BIT_FW_LOADED) & 1ULL;
 }
 
 void cn23xx_tell_vf_its_macaddr_changed(struct octeon_device *oct, int vfidx,

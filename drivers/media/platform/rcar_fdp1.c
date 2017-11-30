@@ -1,5 +1,5 @@
 /*
- * Renesas RCar Fine Display Processor
+ * Renesas R-Car Fine Display Processor
  *
  * Video format converter and frame deinterlacer device.
  *
@@ -258,8 +258,9 @@ MODULE_PARM_DESC(debug, "activate debug info");
 
 /* Internal Data (HW Version) */
 #define FD1_IP_INTDATA			0x0800
-#define FD1_IP_H3			0x02010101
+#define FD1_IP_H3_ES1			0x02010101
 #define FD1_IP_M3W			0x02010202
+#define FD1_IP_H3			0x02010203
 
 /* LUTs */
 #define FD1_LUT_DIF_ADJ			0x1000
@@ -2031,7 +2032,7 @@ static void fdp1_stop_streaming(struct vb2_queue *q)
 	}
 }
 
-static struct vb2_ops fdp1_qops = {
+static const struct vb2_ops fdp1_qops = {
 	.queue_setup	 = fdp1_queue_setup,
 	.buf_prepare	 = fdp1_buf_prepare,
 	.buf_queue	 = fdp1_buf_queue,
@@ -2359,11 +2360,14 @@ static int fdp1_probe(struct platform_device *pdev)
 
 	hw_version = fdp1_read(fdp1, FD1_IP_INTDATA);
 	switch (hw_version) {
-	case FD1_IP_H3:
-		dprintk(fdp1, "FDP1 Version R-Car H3\n");
+	case FD1_IP_H3_ES1:
+		dprintk(fdp1, "FDP1 Version R-Car H3 ES1\n");
 		break;
 	case FD1_IP_M3W:
 		dprintk(fdp1, "FDP1 Version R-Car M3-W\n");
+		break;
+	case FD1_IP_H3:
+		dprintk(fdp1, "FDP1 Version R-Car H3\n");
 		break;
 	default:
 		dev_err(fdp1->dev, "FDP1 Unidentifiable (0x%08x)\n",

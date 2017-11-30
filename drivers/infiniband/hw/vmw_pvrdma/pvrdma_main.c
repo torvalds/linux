@@ -102,12 +102,11 @@ static struct device_attribute *pvrdma_class_attributes[] = {
 	&dev_attr_board_id
 };
 
-static void pvrdma_get_fw_ver_str(struct ib_device *device, char *str,
-				  size_t str_len)
+static void pvrdma_get_fw_ver_str(struct ib_device *device, char *str)
 {
 	struct pvrdma_dev *dev =
 		container_of(device, struct pvrdma_dev, ib_dev);
-	snprintf(str, str_len, "%d.%d.%d\n",
+	snprintf(str, IB_FW_VERSION_NAME_MAX, "%d.%d.%d\n",
 		 (int) (dev->dsr->caps.fw_ver >> 32),
 		 (int) (dev->dsr->caps.fw_ver >> 16) & 0xffff,
 		 (int) dev->dsr->caps.fw_ver & 0xffff);
@@ -119,6 +118,7 @@ static int pvrdma_init_device(struct pvrdma_dev *dev)
 	spin_lock_init(&dev->cmd_lock);
 	sema_init(&dev->cmd_sema, 1);
 	atomic_set(&dev->num_qps, 0);
+	atomic_set(&dev->num_srqs, 0);
 	atomic_set(&dev->num_cqs, 0);
 	atomic_set(&dev->num_pds, 0);
 	atomic_set(&dev->num_ahs, 0);
@@ -129,10 +129,14 @@ static int pvrdma_init_device(struct pvrdma_dev *dev)
 static int pvrdma_port_immutable(struct ib_device *ibdev, u8 port_num,
 				 struct ib_port_immutable *immutable)
 {
+	struct pvrdma_dev *dev = to_vdev(ibdev);
 	struct ib_port_attr attr;
 	int err;
 
-	immutable->core_cap_flags = RDMA_CORE_PORT_IBA_ROCE;
+	if (dev->dsr->caps.gid_types == PVRDMA_GID_TYPE_FLAG_ROCE_V1)
+		immutable->core_cap_flags |= RDMA_CORE_PORT_IBA_ROCE;
+	else if (dev->dsr->caps.gid_types == PVRDMA_GID_TYPE_FLAG_ROCE_V2)
+		immutable->core_cap_flags |= RDMA_CORE_PORT_IBA_ROCE_UDP_ENCAP;
 
 	err = ib_query_port(ibdev, port_num, &attr);
 	if (err)
@@ -251,9 +255,32 @@ static int pvrdma_register_device(struct pvrdma_dev *dev)
 		goto err_cq_free;
 	spin_lock_init(&dev->qp_tbl_lock);
 
+	/* Check if SRQ is supported by backend */
+	if (dev->dsr->caps.max_srq) {
+		dev->ib_dev.uverbs_cmd_mask |=
+			(1ull << IB_USER_VERBS_CMD_CREATE_SRQ)	|
+			(1ull << IB_USER_VERBS_CMD_MODIFY_SRQ)	|
+			(1ull << IB_USER_VERBS_CMD_QUERY_SRQ)	|
+			(1ull << IB_USER_VERBS_CMD_DESTROY_SRQ)	|
+			(1ull << IB_USER_VERBS_CMD_POST_SRQ_RECV);
+
+		dev->ib_dev.create_srq = pvrdma_create_srq;
+		dev->ib_dev.modify_srq = pvrdma_modify_srq;
+		dev->ib_dev.query_srq = pvrdma_query_srq;
+		dev->ib_dev.destroy_srq = pvrdma_destroy_srq;
+		dev->ib_dev.post_srq_recv = pvrdma_post_srq_recv;
+
+		dev->srq_tbl = kcalloc(dev->dsr->caps.max_srq,
+				       sizeof(struct pvrdma_srq *),
+				       GFP_KERNEL);
+		if (!dev->srq_tbl)
+			goto err_qp_free;
+	}
+	spin_lock_init(&dev->srq_tbl_lock);
+
 	ret = ib_register_device(&dev->ib_dev, NULL);
 	if (ret)
-		goto err_qp_free;
+		goto err_srq_free;
 
 	for (i = 0; i < ARRAY_SIZE(pvrdma_class_attributes); ++i) {
 		ret = device_create_file(&dev->ib_dev.dev,
@@ -268,6 +295,8 @@ static int pvrdma_register_device(struct pvrdma_dev *dev)
 
 err_class:
 	ib_unregister_device(&dev->ib_dev);
+err_srq_free:
+	kfree(dev->srq_tbl);
 err_qp_free:
 	kfree(dev->qp_tbl);
 err_cq_free:
@@ -350,6 +379,35 @@ static void pvrdma_cq_event(struct pvrdma_dev *dev, u32 cqn, int type)
 	}
 }
 
+static void pvrdma_srq_event(struct pvrdma_dev *dev, u32 srqn, int type)
+{
+	struct pvrdma_srq *srq;
+	unsigned long flags;
+
+	spin_lock_irqsave(&dev->srq_tbl_lock, flags);
+	if (dev->srq_tbl)
+		srq = dev->srq_tbl[srqn % dev->dsr->caps.max_srq];
+	else
+		srq = NULL;
+	if (srq)
+		refcount_inc(&srq->refcnt);
+	spin_unlock_irqrestore(&dev->srq_tbl_lock, flags);
+
+	if (srq && srq->ibsrq.event_handler) {
+		struct ib_srq *ibsrq = &srq->ibsrq;
+		struct ib_event e;
+
+		e.device = ibsrq->device;
+		e.element.srq = ibsrq;
+		e.event = type; /* 1:1 mapping for now. */
+		ibsrq->event_handler(&e, ibsrq->srq_context);
+	}
+	if (srq) {
+		if (refcount_dec_and_test(&srq->refcnt))
+			wake_up(&srq->wait);
+	}
+}
+
 static void pvrdma_dispatch_event(struct pvrdma_dev *dev, int port,
 				  enum ib_event_type event)
 {
@@ -420,6 +478,7 @@ static irqreturn_t pvrdma_intr1_handler(int irq, void *dev_id)
 
 		case PVRDMA_EVENT_SRQ_ERR:
 		case PVRDMA_EVENT_SRQ_LIMIT_REACHED:
+			pvrdma_srq_event(dev, eqe->info, eqe->type);
 			break;
 
 		case PVRDMA_EVENT_PORT_ACTIVE:
@@ -570,6 +629,7 @@ static void pvrdma_free_slots(struct pvrdma_dev *dev)
 
 static int pvrdma_add_gid_at_index(struct pvrdma_dev *dev,
 				   const union ib_gid *gid,
+				   u8 gid_type,
 				   int index)
 {
 	int ret;
@@ -587,7 +647,7 @@ static int pvrdma_add_gid_at_index(struct pvrdma_dev *dev,
 	cmd_bind->mtu = ib_mtu_enum_to_int(IB_MTU_1024);
 	cmd_bind->vlan = 0xfff;
 	cmd_bind->index = index;
-	cmd_bind->gid_type = PVRDMA_GID_TYPE_FLAG_ROCE_V1;
+	cmd_bind->gid_type = gid_type;
 
 	ret = pvrdma_cmd_post(dev, &req, NULL, 0);
 	if (ret < 0) {
@@ -608,7 +668,9 @@ static int pvrdma_add_gid(struct ib_device *ibdev,
 {
 	struct pvrdma_dev *dev = to_vdev(ibdev);
 
-	return pvrdma_add_gid_at_index(dev, gid, index);
+	return pvrdma_add_gid_at_index(dev, gid,
+				       ib_gid_type_to_pvrdma(attr->gid_type),
+				       index);
 }
 
 static int pvrdma_del_gid_at_index(struct pvrdma_dev *dev, int index)
@@ -723,7 +785,6 @@ static int pvrdma_pci_probe(struct pci_dev *pdev,
 	int ret;
 	unsigned long start;
 	unsigned long len;
-	unsigned int version;
 	dma_addr_t slot_dma = 0;
 
 	dev_dbg(&pdev->dev, "initializing driver %s\n", pci_name(pdev));
@@ -820,13 +881,9 @@ static int pvrdma_pci_probe(struct pci_dev *pdev,
 		goto err_unmap_regs;
 	}
 
-	version = pvrdma_read_reg(dev, PVRDMA_REG_VERSION);
+	dev->dsr_version = pvrdma_read_reg(dev, PVRDMA_REG_VERSION);
 	dev_info(&pdev->dev, "device version %d, driver version %d\n",
-		 version, PVRDMA_VERSION);
-	if (version < PVRDMA_VERSION) {
-		dev_err(&pdev->dev, "incompatible device version\n");
-		goto err_uar_unmap;
-	}
+		 dev->dsr_version, PVRDMA_VERSION);
 
 	dev->dsr = dma_alloc_coherent(&pdev->dev, sizeof(*dev->dsr),
 				      &dev->dsrbase, GFP_KERNEL);
@@ -897,17 +954,9 @@ static int pvrdma_pci_probe(struct pci_dev *pdev,
 	/* Make sure the write is complete before reading status. */
 	mb();
 
-	/* Currently, the driver only supports RoCE mode. */
-	if (dev->dsr->caps.mode != PVRDMA_DEVICE_MODE_ROCE) {
-		dev_err(&pdev->dev, "unsupported transport %d\n",
-			dev->dsr->caps.mode);
-		ret = -EFAULT;
-		goto err_free_cq_ring;
-	}
-
-	/* Currently, the driver only supports RoCE V1. */
-	if (!(dev->dsr->caps.gid_types & PVRDMA_GID_TYPE_FLAG_ROCE_V1)) {
-		dev_err(&pdev->dev, "driver needs RoCE v1 support\n");
+	/* The driver supports RoCE V1 and V2. */
+	if (!PVRDMA_SUPPORTED(dev)) {
+		dev_err(&pdev->dev, "driver needs RoCE v1 or v2 support\n");
 		ret = -EFAULT;
 		goto err_free_cq_ring;
 	}
@@ -1066,6 +1115,7 @@ static void pvrdma_pci_remove(struct pci_dev *pdev)
 	iounmap(dev->regs);
 	kfree(dev->sgid_tbl);
 	kfree(dev->cq_tbl);
+	kfree(dev->srq_tbl);
 	kfree(dev->qp_tbl);
 	pvrdma_uar_table_cleanup(dev);
 	iounmap(dev->driver_uar.map);
@@ -1078,7 +1128,7 @@ static void pvrdma_pci_remove(struct pci_dev *pdev)
 	pci_set_drvdata(pdev, NULL);
 }
 
-static struct pci_device_id pvrdma_pci_table[] = {
+static const struct pci_device_id pvrdma_pci_table[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_VMWARE, PCI_DEVICE_ID_VMWARE_PVRDMA), },
 	{ 0 },
 };
@@ -1119,5 +1169,4 @@ module_exit(pvrdma_cleanup);
 
 MODULE_AUTHOR("VMware, Inc");
 MODULE_DESCRIPTION("VMware Paravirtual RDMA driver");
-MODULE_VERSION(DRV_VERSION);
 MODULE_LICENSE("Dual BSD/GPL");

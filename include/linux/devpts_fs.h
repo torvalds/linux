@@ -19,6 +19,7 @@
 
 struct pts_fs_info;
 
+struct vfsmount *devpts_mntget(struct file *, struct pts_fs_info *);
 struct pts_fs_info *devpts_acquire(struct file *);
 void devpts_release(struct pts_fs_info *);
 
@@ -32,6 +33,15 @@ void *devpts_get_priv(struct dentry *);
 /* unlink */
 void devpts_pty_kill(struct dentry *);
 
+/* in pty.c */
+int ptm_open_peer(struct file *master, struct tty_struct *tty, int flags);
+
+#else
+static inline int
+ptm_open_peer(struct file *master, struct tty_struct *tty, int flags)
+{
+	return -EIO;
+}
 #endif
 
 

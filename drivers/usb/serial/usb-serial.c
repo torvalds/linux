@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * USB Serial Converter driver
  *
@@ -5,10 +6,6 @@
  * Copyright (C) 1999 - 2012 Greg Kroah-Hartman (greg@kroah.com)
  * Copyright (C) 2000 Peter Berger (pberger@brimson.com)
  * Copyright (C) 2000 Al Borchers (borchers@steinerpoint.com)
- *
- *	This program is free software; you can redistribute it and/or
- *	modify it under the terms of the GNU General Public License version
- *	2 as published by the Free Software Foundation.
  *
  * This driver was originally based on the ACM driver by Armin Fuerst (which was
  * based on a driver by Brad Keryan)
@@ -742,6 +739,124 @@ static void find_endpoints(struct usb_serial *serial,
 	}
 }
 
+static int setup_port_bulk_in(struct usb_serial_port *port,
+					struct usb_endpoint_descriptor *epd)
+{
+	struct usb_serial_driver *type = port->serial->type;
+	struct usb_device *udev = port->serial->dev;
+	int buffer_size;
+	int i;
+
+	buffer_size = max_t(int, type->bulk_in_size, usb_endpoint_maxp(epd));
+	port->bulk_in_size = buffer_size;
+	port->bulk_in_endpointAddress = epd->bEndpointAddress;
+
+	for (i = 0; i < ARRAY_SIZE(port->read_urbs); ++i) {
+		set_bit(i, &port->read_urbs_free);
+		port->read_urbs[i] = usb_alloc_urb(0, GFP_KERNEL);
+		if (!port->read_urbs[i])
+			return -ENOMEM;
+		port->bulk_in_buffers[i] = kmalloc(buffer_size, GFP_KERNEL);
+		if (!port->bulk_in_buffers[i])
+			return -ENOMEM;
+		usb_fill_bulk_urb(port->read_urbs[i], udev,
+				usb_rcvbulkpipe(udev, epd->bEndpointAddress),
+				port->bulk_in_buffers[i], buffer_size,
+				type->read_bulk_callback, port);
+	}
+
+	port->read_urb = port->read_urbs[0];
+	port->bulk_in_buffer = port->bulk_in_buffers[0];
+
+	return 0;
+}
+
+static int setup_port_bulk_out(struct usb_serial_port *port,
+					struct usb_endpoint_descriptor *epd)
+{
+	struct usb_serial_driver *type = port->serial->type;
+	struct usb_device *udev = port->serial->dev;
+	int buffer_size;
+	int i;
+
+	if (kfifo_alloc(&port->write_fifo, PAGE_SIZE, GFP_KERNEL))
+		return -ENOMEM;
+	if (type->bulk_out_size)
+		buffer_size = type->bulk_out_size;
+	else
+		buffer_size = usb_endpoint_maxp(epd);
+	port->bulk_out_size = buffer_size;
+	port->bulk_out_endpointAddress = epd->bEndpointAddress;
+
+	for (i = 0; i < ARRAY_SIZE(port->write_urbs); ++i) {
+		set_bit(i, &port->write_urbs_free);
+		port->write_urbs[i] = usb_alloc_urb(0, GFP_KERNEL);
+		if (!port->write_urbs[i])
+			return -ENOMEM;
+		port->bulk_out_buffers[i] = kmalloc(buffer_size, GFP_KERNEL);
+		if (!port->bulk_out_buffers[i])
+			return -ENOMEM;
+		usb_fill_bulk_urb(port->write_urbs[i], udev,
+				usb_sndbulkpipe(udev, epd->bEndpointAddress),
+				port->bulk_out_buffers[i], buffer_size,
+				type->write_bulk_callback, port);
+	}
+
+	port->write_urb = port->write_urbs[0];
+	port->bulk_out_buffer = port->bulk_out_buffers[0];
+
+	return 0;
+}
+
+static int setup_port_interrupt_in(struct usb_serial_port *port,
+					struct usb_endpoint_descriptor *epd)
+{
+	struct usb_serial_driver *type = port->serial->type;
+	struct usb_device *udev = port->serial->dev;
+	int buffer_size;
+
+	port->interrupt_in_urb = usb_alloc_urb(0, GFP_KERNEL);
+	if (!port->interrupt_in_urb)
+		return -ENOMEM;
+	buffer_size = usb_endpoint_maxp(epd);
+	port->interrupt_in_endpointAddress = epd->bEndpointAddress;
+	port->interrupt_in_buffer = kmalloc(buffer_size, GFP_KERNEL);
+	if (!port->interrupt_in_buffer)
+		return -ENOMEM;
+	usb_fill_int_urb(port->interrupt_in_urb, udev,
+			usb_rcvintpipe(udev, epd->bEndpointAddress),
+			port->interrupt_in_buffer, buffer_size,
+			type->read_int_callback, port,
+			epd->bInterval);
+
+	return 0;
+}
+
+static int setup_port_interrupt_out(struct usb_serial_port *port,
+					struct usb_endpoint_descriptor *epd)
+{
+	struct usb_serial_driver *type = port->serial->type;
+	struct usb_device *udev = port->serial->dev;
+	int buffer_size;
+
+	port->interrupt_out_urb = usb_alloc_urb(0, GFP_KERNEL);
+	if (!port->interrupt_out_urb)
+		return -ENOMEM;
+	buffer_size = usb_endpoint_maxp(epd);
+	port->interrupt_out_size = buffer_size;
+	port->interrupt_out_endpointAddress = epd->bEndpointAddress;
+	port->interrupt_out_buffer = kmalloc(buffer_size, GFP_KERNEL);
+	if (!port->interrupt_out_buffer)
+		return -ENOMEM;
+	usb_fill_int_urb(port->interrupt_out_urb, udev,
+			usb_sndintpipe(udev, epd->bEndpointAddress),
+			port->interrupt_out_buffer, buffer_size,
+			type->write_int_callback, port,
+			epd->bInterval);
+
+	return 0;
+}
+
 static int usb_serial_probe(struct usb_interface *interface,
 			       const struct usb_device_id *id)
 {
@@ -749,13 +864,10 @@ static int usb_serial_probe(struct usb_interface *interface,
 	struct usb_device *dev = interface_to_usbdev(interface);
 	struct usb_serial *serial = NULL;
 	struct usb_serial_port *port;
-	struct usb_endpoint_descriptor *endpoint;
 	struct usb_serial_endpoints *epds;
 	struct usb_serial_driver *type = NULL;
 	int retval;
-	int buffer_size;
 	int i;
-	int j;
 	int num_ports = 0;
 	unsigned char max_endpoints;
 
@@ -847,8 +959,10 @@ static int usb_serial_probe(struct usb_interface *interface,
 	dev_dbg(ddev, "setting up %d port structure(s)\n", max_endpoints);
 	for (i = 0; i < max_endpoints; ++i) {
 		port = kzalloc(sizeof(struct usb_serial_port), GFP_KERNEL);
-		if (!port)
-			goto probe_error;
+		if (!port) {
+			retval = -ENOMEM;
+			goto err_free_epds;
+		}
 		tty_port_init(&port->port);
 		port->port.ops = &serial_port_ops;
 		port->serial = serial;
@@ -867,86 +981,24 @@ static int usb_serial_probe(struct usb_interface *interface,
 
 	/* set up the endpoint information */
 	for (i = 0; i < epds->num_bulk_in; ++i) {
-		endpoint = epds->bulk_in[i];
-		port = serial->port[i];
-		buffer_size = max_t(int, serial->type->bulk_in_size,
-				usb_endpoint_maxp(endpoint));
-		port->bulk_in_size = buffer_size;
-		port->bulk_in_endpointAddress = endpoint->bEndpointAddress;
-
-		for (j = 0; j < ARRAY_SIZE(port->read_urbs); ++j) {
-			set_bit(j, &port->read_urbs_free);
-			port->read_urbs[j] = usb_alloc_urb(0, GFP_KERNEL);
-			if (!port->read_urbs[j])
-				goto probe_error;
-			port->bulk_in_buffers[j] = kmalloc(buffer_size,
-								GFP_KERNEL);
-			if (!port->bulk_in_buffers[j])
-				goto probe_error;
-			usb_fill_bulk_urb(port->read_urbs[j], dev,
-					usb_rcvbulkpipe(dev,
-						endpoint->bEndpointAddress),
-					port->bulk_in_buffers[j], buffer_size,
-					serial->type->read_bulk_callback,
-					port);
-		}
-
-		port->read_urb = port->read_urbs[0];
-		port->bulk_in_buffer = port->bulk_in_buffers[0];
+		retval = setup_port_bulk_in(serial->port[i], epds->bulk_in[i]);
+		if (retval)
+			goto err_free_epds;
 	}
 
 	for (i = 0; i < epds->num_bulk_out; ++i) {
-		endpoint = epds->bulk_out[i];
-		port = serial->port[i];
-		if (kfifo_alloc(&port->write_fifo, PAGE_SIZE, GFP_KERNEL))
-			goto probe_error;
-		buffer_size = serial->type->bulk_out_size;
-		if (!buffer_size)
-			buffer_size = usb_endpoint_maxp(endpoint);
-		port->bulk_out_size = buffer_size;
-		port->bulk_out_endpointAddress = endpoint->bEndpointAddress;
-
-		for (j = 0; j < ARRAY_SIZE(port->write_urbs); ++j) {
-			set_bit(j, &port->write_urbs_free);
-			port->write_urbs[j] = usb_alloc_urb(0, GFP_KERNEL);
-			if (!port->write_urbs[j])
-				goto probe_error;
-			port->bulk_out_buffers[j] = kmalloc(buffer_size,
-								GFP_KERNEL);
-			if (!port->bulk_out_buffers[j])
-				goto probe_error;
-			usb_fill_bulk_urb(port->write_urbs[j], dev,
-					usb_sndbulkpipe(dev,
-						endpoint->bEndpointAddress),
-					port->bulk_out_buffers[j], buffer_size,
-					serial->type->write_bulk_callback,
-					port);
-		}
-
-		port->write_urb = port->write_urbs[0];
-		port->bulk_out_buffer = port->bulk_out_buffers[0];
+		retval = setup_port_bulk_out(serial->port[i],
+				epds->bulk_out[i]);
+		if (retval)
+			goto err_free_epds;
 	}
 
 	if (serial->type->read_int_callback) {
 		for (i = 0; i < epds->num_interrupt_in; ++i) {
-			endpoint = epds->interrupt_in[i];
-			port = serial->port[i];
-			port->interrupt_in_urb = usb_alloc_urb(0, GFP_KERNEL);
-			if (!port->interrupt_in_urb)
-				goto probe_error;
-			buffer_size = usb_endpoint_maxp(endpoint);
-			port->interrupt_in_endpointAddress =
-						endpoint->bEndpointAddress;
-			port->interrupt_in_buffer = kmalloc(buffer_size,
-								GFP_KERNEL);
-			if (!port->interrupt_in_buffer)
-				goto probe_error;
-			usb_fill_int_urb(port->interrupt_in_urb, dev,
-				usb_rcvintpipe(dev,
-						endpoint->bEndpointAddress),
-				port->interrupt_in_buffer, buffer_size,
-				serial->type->read_int_callback, port,
-				endpoint->bInterval);
+			retval = setup_port_interrupt_in(serial->port[i],
+					epds->interrupt_in[i]);
+			if (retval)
+				goto err_free_epds;
 		}
 	} else if (epds->num_interrupt_in) {
 		dev_dbg(ddev, "The device claims to support interrupt in transfers, but read_int_callback is not defined\n");
@@ -954,25 +1006,10 @@ static int usb_serial_probe(struct usb_interface *interface,
 
 	if (serial->type->write_int_callback) {
 		for (i = 0; i < epds->num_interrupt_out; ++i) {
-			endpoint = epds->interrupt_out[i];
-			port = serial->port[i];
-			port->interrupt_out_urb = usb_alloc_urb(0, GFP_KERNEL);
-			if (!port->interrupt_out_urb)
-				goto probe_error;
-			buffer_size = usb_endpoint_maxp(endpoint);
-			port->interrupt_out_size = buffer_size;
-			port->interrupt_out_endpointAddress =
-						endpoint->bEndpointAddress;
-			port->interrupt_out_buffer = kmalloc(buffer_size,
-								GFP_KERNEL);
-			if (!port->interrupt_out_buffer)
-				goto probe_error;
-			usb_fill_int_urb(port->interrupt_out_urb, dev,
-				usb_sndintpipe(dev,
-						  endpoint->bEndpointAddress),
-				port->interrupt_out_buffer, buffer_size,
-				serial->type->write_int_callback, port,
-				endpoint->bInterval);
+			retval = setup_port_interrupt_out(serial->port[i],
+					epds->interrupt_out[i]);
+			if (retval)
+				goto err_free_epds;
 		}
 	} else if (epds->num_interrupt_out) {
 		dev_dbg(ddev, "The device claims to support interrupt out transfers, but write_int_callback is not defined\n");
@@ -984,7 +1021,7 @@ static int usb_serial_probe(struct usb_interface *interface,
 	if (type->attach) {
 		retval = type->attach(serial);
 		if (retval < 0)
-			goto probe_error;
+			goto err_free_epds;
 		serial->attached = 1;
 		if (retval > 0) {
 			/* quietly accept this device, but don't bind to a
@@ -996,9 +1033,10 @@ static int usb_serial_probe(struct usb_interface *interface,
 		serial->attached = 1;
 	}
 
-	if (allocate_minors(serial, num_ports)) {
+	retval = allocate_minors(serial, num_ports);
+	if (retval) {
 		dev_err(ddev, "No more free serial minor numbers\n");
-		goto probe_error;
+		goto err_free_epds;
 	}
 
 	/* register all of the individual ports with the driver core */
@@ -1020,8 +1058,6 @@ exit:
 	module_put(type->driver.owner);
 	return 0;
 
-probe_error:
-	retval = -EIO;
 err_free_epds:
 	kfree(epds);
 err_put_serial:
@@ -1162,17 +1198,6 @@ static const struct tty_operations serial_ops = {
 
 struct tty_driver *usb_serial_tty_driver;
 
-/* Driver structure we register with the USB core */
-static struct usb_driver usb_serial_driver = {
-	.name =		"usbserial",
-	.probe =	usb_serial_probe,
-	.disconnect =	usb_serial_disconnect,
-	.suspend =	usb_serial_suspend,
-	.resume =	usb_serial_resume,
-	.no_dynamic_id =	1,
-	.supports_autosuspend =	1,
-};
-
 static int __init usb_serial_init(void)
 {
 	int result;
@@ -1208,13 +1233,6 @@ static int __init usb_serial_init(void)
 		goto exit_reg_driver;
 	}
 
-	/* register the USB driver */
-	result = usb_register(&usb_serial_driver);
-	if (result < 0) {
-		pr_err("%s - usb_register failed\n", __func__);
-		goto exit_tty;
-	}
-
 	/* register the generic driver, if we should */
 	result = usb_serial_generic_register();
 	if (result < 0) {
@@ -1225,9 +1243,6 @@ static int __init usb_serial_init(void)
 	return result;
 
 exit_generic:
-	usb_deregister(&usb_serial_driver);
-
-exit_tty:
 	tty_unregister_driver(usb_serial_tty_driver);
 
 exit_reg_driver:
@@ -1246,7 +1261,6 @@ static void __exit usb_serial_exit(void)
 
 	usb_serial_generic_deregister();
 
-	usb_deregister(&usb_serial_driver);
 	tty_unregister_driver(usb_serial_tty_driver);
 	put_tty_driver(usb_serial_tty_driver);
 	bus_unregister(&usb_serial_bus_type);
@@ -1421,4 +1435,4 @@ EXPORT_SYMBOL_GPL(usb_serial_deregister_drivers);
 
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");

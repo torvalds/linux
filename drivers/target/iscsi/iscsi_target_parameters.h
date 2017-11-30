@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef ISCSI_PARAMETERS_H
 #define ISCSI_PARAMETERS_H
 
@@ -46,7 +47,7 @@ extern int iscsi_extract_key_value(char *, char **, char **);
 extern int iscsi_update_param_value(struct iscsi_param *, char *);
 extern int iscsi_decode_text_input(u8, u8, char *, u32, struct iscsi_conn *);
 extern int iscsi_encode_text_output(u8, u8, char *, u32 *,
-			struct iscsi_param_list *);
+			struct iscsi_param_list *, bool);
 extern int iscsi_check_negotiated_keys(struct iscsi_param_list *);
 extern void iscsi_set_connection_parameters(struct iscsi_conn_ops *,
 			struct iscsi_param_list *);

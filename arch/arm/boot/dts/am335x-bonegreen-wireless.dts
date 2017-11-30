@@ -97,6 +97,11 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&uart3_pins &bt_pins>;
 	status = "okay";
+
+	bluetooth {
+		compatible = "ti,wl1835-st";
+		enable-gpios = <&gpio1 28 GPIO_ACTIVE_HIGH>;
+	};
 };
 
 &gpio1 {

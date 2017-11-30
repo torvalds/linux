@@ -38,7 +38,7 @@ config SND_SOC_RCAR
 	tristate "R-Car series SRU/SCU/SSIU/SSI support"
 	depends on COMMON_CLK
 	depends on OF || COMPILE_TEST
-	select SND_SIMPLE_CARD
+	select SND_SIMPLE_CARD_UTILS
 	select REGMAP_MMIO
 	help
 	  This option enables R-Car SRU/SCU/SSIU/SSI sound support

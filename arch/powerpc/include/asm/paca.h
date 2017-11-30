@@ -21,12 +21,17 @@
 #include <asm/lppaca.h>
 #include <asm/mmu.h>
 #include <asm/page.h>
+#ifdef CONFIG_PPC_BOOK3E
 #include <asm/exception-64e.h>
+#else
+#include <asm/exception-64s.h>
+#endif
 #ifdef CONFIG_KVM_BOOK3S_64_HANDLER
 #include <asm/kvm_book3s_asm.h>
 #endif
 #include <asm/accounting.h>
 #include <asm/hmi.h>
+#include <asm/cpuidle.h>
 
 register struct paca_struct *local_paca asm("r13");
 
@@ -86,26 +91,26 @@ struct paca_struct {
 	u8 cpu_start;			/* At startup, processor spins until */
 					/* this becomes non-zero. */
 	u8 kexec_state;		/* set when kexec down has irqs off */
-#ifdef CONFIG_PPC_STD_MMU_64
+#ifdef CONFIG_PPC_BOOK3S_64
 	struct slb_shadow *slb_shadow_ptr;
 	struct dtl_entry *dispatch_log;
 	struct dtl_entry *dispatch_log_end;
-#endif /* CONFIG_PPC_STD_MMU_64 */
+#endif
 	u64 dscr_default;		/* per-CPU default DSCR */
 
-#ifdef CONFIG_PPC_STD_MMU_64
+#ifdef CONFIG_PPC_BOOK3S_64
 	/*
 	 * Now, starting in cacheline 2, the exception save areas
 	 */
 	/* used for most interrupts/exceptions */
-	u64 exgen[13] __attribute__((aligned(0x80)));
-	u64 exslb[13];		/* used for SLB/segment table misses
+	u64 exgen[EX_SIZE] __attribute__((aligned(0x80)));
+	u64 exslb[EX_SIZE];	/* used for SLB/segment table misses
  				 * on the linear mapping */
 	/* SLB related definitions */
 	u16 vmalloc_sllp;
 	u16 slb_cache_ptr;
 	u32 slb_cache[SLB_CACHE_ENTRIES];
-#endif /* CONFIG_PPC_STD_MMU_64 */
+#endif /* CONFIG_PPC_BOOK3S_64 */
 
 #ifdef CONFIG_PPC_BOOK3E
 	u64 exgen[8] __aligned(0x40);
@@ -138,7 +143,7 @@ struct paca_struct {
 #ifdef CONFIG_PPC_MM_SLICES
 	u64 mm_ctx_low_slices_psize;
 	unsigned char mm_ctx_high_slices_psize[SLICE_ARRAY_SIZE];
-	unsigned long addr_limit;
+	unsigned long mm_ctx_slb_addr_limit;
 #else
 	u16 mm_ctx_user_psize;
 	u16 mm_ctx_sllp;
@@ -177,12 +182,20 @@ struct paca_struct {
 	 * to the sibling threads' paca.
 	 */
 	struct paca_struct **thread_sibling_pacas;
+	/* The PSSCR value that the kernel requested before going to stop */
+	u64 requested_psscr;
+
+	/*
+	 * Save area for additional SPRs that need to be
+	 * saved/restored during cpuidle stop.
+	 */
+	struct stop_sprs stop_sprs;
 #endif
 
-#ifdef CONFIG_PPC_STD_MMU_64
+#ifdef CONFIG_PPC_BOOK3S_64
 	/* Non-maskable exceptions that are not performance critical */
-	u64 exnmi[13];		/* used for system reset (nmi) */
-	u64 exmc[13];		/* used for machine checks */
+	u64 exnmi[EX_SIZE];	/* used for system reset (nmi) */
+	u64 exmc[EX_SIZE];	/* used for machine checks */
 #endif
 #ifdef CONFIG_PPC_BOOK3S_64
 	/* Exclusive stacks for system reset and machine check exception. */
@@ -197,6 +210,7 @@ struct paca_struct {
 	 */
 	u16 in_mce;
 	u8 hmi_event_available;		/* HMI event is available */
+	u8 hmi_p9_special_emu;		/* HMI P9 special emulation */
 #endif
 
 	/* Stuff for accurate time accounting */

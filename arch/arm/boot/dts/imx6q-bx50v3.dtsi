@@ -111,6 +111,11 @@
 };
 
 &i2c1 {
+	pinctrl-names = "default", "gpio";
+	pinctrl-1 = <&pinctrl_i2c1_gpio>;
+	sda-gpios = <&gpio5 26 GPIO_ACTIVE_HIGH>;
+	scl-gpios = <&gpio5 27 GPIO_ACTIVE_HIGH>;
+
 	pca9547: mux@70 {
 		compatible = "nxp,pca9547";
 		reg = <0x70>;
@@ -160,7 +165,7 @@
 			#size-cells = <0>;
 			reg = <0x3>;
 
-			sgtl5000: codec@0a {
+			sgtl5000: codec@a {
 				compatible = "fsl,sgtl5000";
 				reg = <0x0a>;
 				clocks = <&mclk>;
@@ -258,6 +263,43 @@
 			#size-cells = <0>;
 			reg = <0x7>;
 		};
+	};
+};
+
+&i2c2 {
+	pinctrl-names = "default", "gpio";
+	pinctrl-1 = <&pinctrl_i2c2_gpio>;
+	sda-gpios = <&gpio4 13 GPIO_ACTIVE_HIGH>;
+	scl-gpios = <&gpio4 12 GPIO_ACTIVE_HIGH>;
+};
+
+&i2c3 {
+	pinctrl-names = "default", "gpio";
+	pinctrl-1 = <&pinctrl_i2c3_gpio>;
+	sda-gpios = <&gpio1 6 GPIO_ACTIVE_HIGH>;
+	scl-gpios = <&gpio1 3 GPIO_ACTIVE_HIGH>;
+};
+
+&iomuxc {
+	pinctrl_i2c1_gpio: i2c1gpiogrp {
+		fsl,pins = <
+			MX6QDL_PAD_CSI0_DAT8__GPIO5_IO26	0x1b0b0
+			MX6QDL_PAD_CSI0_DAT9__GPIO5_IO27	0x1b0b0
+		>;
+	};
+
+	pinctrl_i2c2_gpio: i2c2gpiogrp {
+		fsl,pins = <
+			MX6QDL_PAD_KEY_COL3__GPIO4_IO12	0x1b0b0
+			MX6QDL_PAD_KEY_ROW3__GPIO4_IO13	0x1b0b0
+		>;
+	};
+
+	pinctrl_i2c3_gpio: i2c3gpiogrp {
+		fsl,pins = <
+			MX6QDL_PAD_GPIO_3__GPIO1_IO03	0x1b0b0
+			MX6QDL_PAD_GPIO_6__GPIO1_IO06	0x1b0b0
+		>;
 	};
 };
 

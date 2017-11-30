@@ -46,12 +46,18 @@
 
 #include "armada-8040.dtsi"
 
+#include <dt-bindings/gpio/gpio.h>
+
 / {
 	model = "Marvell 8040 MACHIATOBin";
 	compatible = "marvell,armada8040-mcbin", "marvell,armada8040",
 			"marvell,armada-ap806-quad", "marvell,armada-ap806";
 
-	memory@00000000 {
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
+
+	memory@0 {
 		device_type = "memory";
 		reg = <0x0 0x0 0x0 0x80000000>;
 	};
@@ -77,11 +83,13 @@
 
 	v_5v0_usb3_hst_vbus: regulator-usb3-vbus0 {
 		compatible = "regulator-fixed";
+		enable-active-high;
+		gpio = <&cpm_gpio2 15 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&cpm_xhci_vbus_pins>;
 		regulator-name = "v_5v0_usb3_hst_vbus";
 		regulator-min-microvolt = <5000000>;
 		regulator-max-microvolt = <5000000>;
-		/* actually GPIO controlled, but 8k has no GPIO support yet */
-		regulator-always-on;
 		status = "okay";
 	};
 
@@ -93,16 +101,149 @@
 
 &uart0 {
 	status = "okay";
+	pinctrl-0 = <&uart0_pins>;
+	pinctrl-names = "default";
+};
+
+&ap_sdhci0 {
+	bus-width = <8>;
+	/*
+	 * Not stable in HS modes - phy needs "more calibration", so add
+	 * the "slow-mode" and disable SDR104, SDR50 and DDR50 modes.
+	 */
+	marvell,xenon-phy-slow-mode;
+	no-1-8-v;
+	no-sd;
+	no-sdio;
+	non-removable;
+	status = "okay";
+	vqmmc-supply = <&v_vddo_h>;
 };
 
 &cpm_i2c0 {
 	clock-frequency = <100000>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&cpm_i2c0_pins>;
 	status = "okay";
+};
+
+&cpm_i2c1 {
+	clock-frequency = <100000>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&cpm_i2c1_pins>;
+	status = "okay";
+
+	i2c-switch@70 {
+		compatible = "nxp,pca9548";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		reg = <0x70>;
+
+		sfpp0_i2c: i2c@0 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0>;
+		};
+		sfpp1_i2c: i2c@1 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <1>;
+		};
+		sfp_1g_i2c: i2c@2 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <2>;
+		};
+	};
+};
+
+&cpm_mdio {
+	pinctrl-names = "default";
+	pinctrl-0 = <&cpm_ge_mdio_pins>;
+	status = "okay";
+
+	ge_phy: ethernet-phy@0 {
+		reg = <0>;
+	};
+};
+
+&cpm_pcie0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&cpm_pcie_pins>;
+	num-lanes = <4>;
+	num-viewport = <8>;
+	reset-gpio = <&cpm_gpio1 20 GPIO_ACTIVE_LOW>;
+	status = "okay";
+};
+
+&cpm_pinctrl {
+	cpm_ge_mdio_pins: ge-mdio-pins {
+		marvell,pins = "mpp32", "mpp34";
+		marvell,function = "ge";
+	};
+	cpm_i2c1_pins: i2c1-pins {
+		marvell,pins = "mpp35", "mpp36";
+		marvell,function = "i2c1";
+	};
+	cpm_i2c0_pins: i2c0-pins {
+		marvell,pins = "mpp37", "mpp38";
+		marvell,function = "i2c0";
+	};
+	cpm_xhci_vbus_pins: xhci0-vbus-pins {
+		marvell,pins = "mpp47";
+		marvell,function = "gpio";
+	};
+	cpm_pcie_pins: pcie-pins {
+		marvell,pins = "mpp52";
+		marvell,function = "gpio";
+	};
+	cpm_sdhci_pins: sdhci-pins {
+		marvell,pins = "mpp55", "mpp56", "mpp57", "mpp58", "mpp59",
+			       "mpp60", "mpp61";
+		marvell,function = "sdio";
+	};
+};
+
+&cpm_xmdio {
+	status = "okay";
+
+	phy0: ethernet-phy@0 {
+		compatible = "ethernet-phy-ieee802.3-c45";
+		reg = <0>;
+	};
+
+	phy8: ethernet-phy@8 {
+		compatible = "ethernet-phy-ieee802.3-c45";
+		reg = <8>;
+	};
+};
+
+&cpm_ethernet {
+	status = "okay";
+};
+
+&cpm_eth0 {
+	status = "okay";
+	/* Network PHY */
+	phy = <&phy0>;
+	phy-mode = "10gbase-kr";
+	/* Generic PHY, providing serdes lanes */
+	phys = <&cpm_comphy4 0>;
 };
 
 &cpm_sata0 {
 	/* CPM Lane 0 - U29 */
 	status = "okay";
+};
+
+&cpm_sdhci0 {
+	/* U6 */
+	broken-cd;
+	bus-width = <4>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&cpm_sdhci_pins>;
+	status = "okay";
+	vqmmc-supply = <&v_3_3>;
 };
 
 &cpm_usb3_0 {
@@ -115,6 +256,36 @@
 	status = "okay";
 };
 
+&cps_ethernet {
+	status = "okay";
+};
+
+&cps_eth0 {
+	status = "okay";
+	/* Network PHY */
+	phy = <&phy8>;
+	phy-mode = "10gbase-kr";
+	/* Generic PHY, providing serdes lanes */
+	phys = <&cps_comphy4 0>;
+};
+
+&cps_eth1 {
+	/* CPS Lane 0 - J5 (Gigabit RJ45) */
+	status = "okay";
+	/* Network PHY */
+	phy = <&ge_phy>;
+	phy-mode = "sgmii";
+	/* Generic PHY, providing serdes lanes */
+	phys = <&cps_comphy0 1>;
+};
+
+&cps_pinctrl {
+	cps_spi1_pins: spi1-pins {
+		marvell,pins = "mpp12", "mpp13", "mpp14", "mpp15", "mpp16";
+		marvell,function = "spi1";
+	};
+};
+
 &cps_sata0 {
 	/* CPS Lane 1 - U32 */
 	/* CPS Lane 3 - U31 */
@@ -122,6 +293,8 @@
 };
 
 &cps_spi1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&cps_spi1_pins>;
 	status = "okay";
 
 	spi-flash@0 {

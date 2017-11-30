@@ -22,7 +22,6 @@ Example:
 		interrupts = <9>;
 		clocks = <&cmu clk_HFPERCLKI2C0>;
 		clock-frequency = <100000>;
-		status = "ok";
 		energymicro,location = <3>;
 
 		eeprom@50 {

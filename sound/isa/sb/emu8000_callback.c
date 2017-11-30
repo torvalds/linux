@@ -36,7 +36,7 @@ static void reset_voice(struct snd_emux *emu, int ch);
 static void terminate_voice(struct snd_emux_voice *vp);
 static void sysex(struct snd_emux *emu, char *buf, int len, int parsed,
 		  struct snd_midi_channel_set *chset);
-#ifdef CONFIG_SND_SEQUENCER_OSS
+#if IS_ENABLED(CONFIG_SND_SEQUENCER_OSS)
 static int oss_ioctl(struct snd_emux *emu, int cmd, int p1, int p2);
 #endif
 static int load_fx(struct snd_emux *emu, int type, int mode,
@@ -62,7 +62,7 @@ static void snd_emu8000_tweak_voice(struct snd_emu8000 *emu, int ch);
 /*
  * set up operators
  */
-static struct snd_emux_operators emu8000_ops = {
+static const struct snd_emux_operators emu8000_ops = {
 	.owner =	THIS_MODULE,
 	.get_voice =	get_voice,
 	.prepare =	start_voice,
@@ -76,7 +76,7 @@ static struct snd_emux_operators emu8000_ops = {
 	.sample_reset = snd_emu8000_sample_reset,
 	.load_fx =	load_fx,
 	.sysex =	sysex,
-#ifdef CONFIG_SND_SEQUENCER_OSS
+#if IS_ENABLED(CONFIG_SND_SEQUENCER_OSS)
 	.oss_ioctl =	oss_ioctl,
 #endif
 };
@@ -477,7 +477,7 @@ sysex(struct snd_emux *emu, char *buf, int len, int parsed, struct snd_midi_chan
 }
 
 
-#ifdef CONFIG_SND_SEQUENCER_OSS
+#if IS_ENABLED(CONFIG_SND_SEQUENCER_OSS)
 /*
  * OSS ioctl callback
  */

@@ -54,7 +54,7 @@ struct ecdh {
  *
  * Return: size of the key in bytes
  */
-int crypto_ecdh_key_len(const struct ecdh *params);
+unsigned int crypto_ecdh_key_len(const struct ecdh *params);
 
 /**
  * crypto_ecdh_encode_key() - encode the private key
@@ -74,9 +74,9 @@ int crypto_ecdh_encode_key(char *buf, unsigned int len, const struct ecdh *p);
 /**
  * crypto_ecdh_decode_key() - decode a private key
  * @buf:	Buffer holding a packet key that should be decoded
- * @len:	Lenth of the packet private key buffer
+ * @len:	Length of the packet private key buffer
  * @p:		Buffer allocated by the caller that is filled with the
- *		unpacket ECDH private key.
+ *		unpacked ECDH private key.
  *
  * The unpacking obtains the private key by pointing @p to the correct location
  * in @buf. Thus, both pointers refer to the same memory.

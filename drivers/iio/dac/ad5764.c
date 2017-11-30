@@ -268,7 +268,6 @@ static int ad5764_read_raw(struct iio_dev *indio_dev,
 static const struct iio_info ad5764_info = {
 	.read_raw = ad5764_read_raw,
 	.write_raw = ad5764_write_raw,
-	.driver_module = THIS_MODULE,
 };
 
 static int ad5764_probe(struct spi_device *spi)

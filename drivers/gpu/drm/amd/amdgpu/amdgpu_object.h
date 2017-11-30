@@ -33,6 +33,72 @@
 
 #define AMDGPU_BO_INVALID_OFFSET	LONG_MAX
 
+/* bo virtual addresses in a vm */
+struct amdgpu_bo_va_mapping {
+	struct amdgpu_bo_va		*bo_va;
+	struct list_head		list;
+	struct rb_node			rb;
+	uint64_t			start;
+	uint64_t			last;
+	uint64_t			__subtree_last;
+	uint64_t			offset;
+	uint64_t			flags;
+};
+
+/* User space allocated BO in a VM */
+struct amdgpu_bo_va {
+	struct amdgpu_vm_bo_base	base;
+
+	/* protected by bo being reserved */
+	unsigned			ref_count;
+
+	/* all other members protected by the VM PD being reserved */
+	struct dma_fence	        *last_pt_update;
+
+	/* mappings for this bo_va */
+	struct list_head		invalids;
+	struct list_head		valids;
+
+	/* If the mappings are cleared or filled */
+	bool				cleared;
+};
+
+struct amdgpu_bo {
+	/* Protected by tbo.reserved */
+	u32				preferred_domains;
+	u32				allowed_domains;
+	struct ttm_place		placements[AMDGPU_GEM_DOMAIN_MAX + 1];
+	struct ttm_placement		placement;
+	struct ttm_buffer_object	tbo;
+	struct ttm_bo_kmap_obj		kmap;
+	u64				flags;
+	unsigned			pin_count;
+	u64				tiling_flags;
+	u64				metadata_flags;
+	void				*metadata;
+	u32				metadata_size;
+	unsigned			prime_shared_count;
+	/* list of all virtual address to which this bo is associated to */
+	struct list_head		va;
+	/* Constant after initialization */
+	struct drm_gem_object		gem_base;
+	struct amdgpu_bo		*parent;
+	struct amdgpu_bo		*shadow;
+
+	struct ttm_bo_kmap_obj		dma_buf_vmap;
+	struct amdgpu_mn		*mn;
+
+	union {
+		struct list_head	mn_list;
+		struct list_head	shadow_list;
+	};
+};
+
+static inline struct amdgpu_bo *ttm_to_amdgpu_bo(struct ttm_buffer_object *tbo)
+{
+	return container_of(tbo, struct amdgpu_bo, tbo);
+}
+
 /**
  * amdgpu_mem_type_to_domain - return domain corresponding to mem_type
  * @mem_type:	ttm memory type
@@ -120,7 +186,19 @@ static inline u64 amdgpu_bo_mmap_offset(struct amdgpu_bo *bo)
  */
 static inline bool amdgpu_bo_gpu_accessible(struct amdgpu_bo *bo)
 {
-	return bo->tbo.mem.mem_type != TTM_PL_SYSTEM;
+	switch (bo->tbo.mem.mem_type) {
+	case TTM_PL_TT: return amdgpu_ttm_is_bound(bo->tbo.ttm);
+	case TTM_PL_VRAM: return true;
+	default: return false;
+	}
+}
+
+/**
+ * amdgpu_bo_explicit_sync - return whether the bo is explicitly synced
+ */
+static inline bool amdgpu_bo_explicit_sync(struct amdgpu_bo *bo)
+{
+	return bo->flags & AMDGPU_GEM_CREATE_EXPLICIT_SYNC;
 }
 
 int amdgpu_bo_create(struct amdgpu_device *adev,
@@ -128,14 +206,12 @@ int amdgpu_bo_create(struct amdgpu_device *adev,
 			    bool kernel, u32 domain, u64 flags,
 			    struct sg_table *sg,
 			    struct reservation_object *resv,
+			    uint64_t init_value,
 			    struct amdgpu_bo **bo_ptr);
-int amdgpu_bo_create_restricted(struct amdgpu_device *adev,
-				unsigned long size, int byte_align,
-				bool kernel, u32 domain, u64 flags,
-				struct sg_table *sg,
-				struct ttm_placement *placement,
-			        struct reservation_object *resv,
-				struct amdgpu_bo **bo_ptr);
+int amdgpu_bo_create_reserved(struct amdgpu_device *adev,
+			      unsigned long size, int align,
+			      u32 domain, struct amdgpu_bo **bo_ptr,
+			      u64 *gpu_addr, void **cpu_addr);
 int amdgpu_bo_create_kernel(struct amdgpu_device *adev,
 			    unsigned long size, int align,
 			    u32 domain, struct amdgpu_bo **bo_ptr,
@@ -143,6 +219,7 @@ int amdgpu_bo_create_kernel(struct amdgpu_device *adev,
 void amdgpu_bo_free_kernel(struct amdgpu_bo **bo, u64 *gpu_addr,
 			   void **cpu_addr);
 int amdgpu_bo_kmap(struct amdgpu_bo *bo, void **ptr);
+void *amdgpu_bo_kptr(struct amdgpu_bo *bo);
 void amdgpu_bo_kunmap(struct amdgpu_bo *bo);
 struct amdgpu_bo *amdgpu_bo_ref(struct amdgpu_bo *bo);
 void amdgpu_bo_unref(struct amdgpu_bo **bo);

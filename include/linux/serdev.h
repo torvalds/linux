@@ -195,6 +195,7 @@ int serdev_device_open(struct serdev_device *);
 void serdev_device_close(struct serdev_device *);
 unsigned int serdev_device_set_baudrate(struct serdev_device *, unsigned int);
 void serdev_device_set_flow_control(struct serdev_device *, bool);
+int serdev_device_write_buf(struct serdev_device *, const unsigned char *, size_t);
 void serdev_device_wait_until_sent(struct serdev_device *, long);
 int serdev_device_get_tiocm(struct serdev_device *);
 int serdev_device_set_tiocm(struct serdev_device *, int, int);
@@ -236,6 +237,12 @@ static inline unsigned int serdev_device_set_baudrate(struct serdev_device *sdev
 	return 0;
 }
 static inline void serdev_device_set_flow_control(struct serdev_device *sdev, bool enable) {}
+static inline int serdev_device_write_buf(struct serdev_device *serdev,
+					  const unsigned char *buf,
+					  size_t count)
+{
+	return -ENODEV;
+}
 static inline void serdev_device_wait_until_sent(struct serdev_device *sdev, long timeout) {}
 static inline int serdev_device_get_tiocm(struct serdev_device *serdev)
 {
@@ -301,7 +308,7 @@ struct tty_driver;
 struct device *serdev_tty_port_register(struct tty_port *port,
 					struct device *parent,
 					struct tty_driver *drv, int idx);
-void serdev_tty_port_unregister(struct tty_port *port);
+int serdev_tty_port_unregister(struct tty_port *port);
 #else
 static inline struct device *serdev_tty_port_register(struct tty_port *port,
 					   struct device *parent,
@@ -309,14 +316,10 @@ static inline struct device *serdev_tty_port_register(struct tty_port *port,
 {
 	return ERR_PTR(-ENODEV);
 }
-static inline void serdev_tty_port_unregister(struct tty_port *port) {}
-#endif /* CONFIG_SERIAL_DEV_CTRL_TTYPORT */
-
-static inline int serdev_device_write_buf(struct serdev_device *serdev,
-					  const unsigned char *data,
-					  size_t count)
+static inline int serdev_tty_port_unregister(struct tty_port *port)
 {
-	return serdev_device_write(serdev, data, count, 0);
+	return -ENODEV;
 }
+#endif /* CONFIG_SERIAL_DEV_CTRL_TTYPORT */
 
 #endif /*_LINUX_SERDEV_H */

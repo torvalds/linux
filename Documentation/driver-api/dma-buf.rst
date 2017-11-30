@@ -139,9 +139,6 @@ DMA Fences
 Seqno Hardware Fences
 ~~~~~~~~~~~~~~~~~~~~~
 
-.. kernel-doc:: drivers/dma-buf/seqno-fence.c
-   :export:
-
 .. kernel-doc:: include/linux/seqno-fence.h
    :internal:
 

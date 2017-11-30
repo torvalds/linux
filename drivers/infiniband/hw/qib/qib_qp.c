@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2013 Intel Corporation.  All rights reserved.
+ * Copyright (c) 2012 - 2017 Intel Corporation.  All rights reserved.
  * Copyright (c) 2006 - 2012 QLogic Corporation.  * All rights reserved.
  * Copyright (c) 2005, 2006 PathScale, Inc. All rights reserved.
  *
@@ -104,10 +104,9 @@ const struct rvt_operation_params qib_post_parms[RVT_OPERATION_MAX] = {
 
 };
 
-static void get_map_page(struct rvt_qpn_table *qpt, struct rvt_qpn_map *map,
-			 gfp_t gfp)
+static void get_map_page(struct rvt_qpn_table *qpt, struct rvt_qpn_map *map)
 {
-	unsigned long page = get_zeroed_page(gfp);
+	unsigned long page = get_zeroed_page(GFP_KERNEL);
 
 	/*
 	 * Free the page if someone raced with us installing it.
@@ -126,7 +125,7 @@ static void get_map_page(struct rvt_qpn_table *qpt, struct rvt_qpn_map *map,
  * zero/one for QP type IB_QPT_SMI/IB_QPT_GSI.
  */
 int qib_alloc_qpn(struct rvt_dev_info *rdi, struct rvt_qpn_table *qpt,
-		  enum ib_qp_type type, u8 port, gfp_t gfp)
+		  enum ib_qp_type type, u8 port)
 {
 	u32 i, offset, max_scan, qpn;
 	struct rvt_qpn_map *map;
@@ -160,7 +159,7 @@ int qib_alloc_qpn(struct rvt_dev_info *rdi, struct rvt_qpn_table *qpt,
 	max_scan = qpt->nmaps - !offset;
 	for (i = 0;;) {
 		if (unlikely(!map->page)) {
-			get_map_page(qpt, map, gfp);
+			get_map_page(qpt, map);
 			if (unlikely(!map->page))
 				break;
 		}
@@ -317,16 +316,16 @@ u32 qib_mtu_from_qp(struct rvt_dev_info *rdi, struct rvt_qp *qp, u32 pmtu)
 	return ib_mtu_enum_to_int(pmtu);
 }
 
-void *qib_qp_priv_alloc(struct rvt_dev_info *rdi, struct rvt_qp *qp, gfp_t gfp)
+void *qib_qp_priv_alloc(struct rvt_dev_info *rdi, struct rvt_qp *qp)
 {
 	struct qib_qp_priv *priv;
 
-	priv = kzalloc(sizeof(*priv), gfp);
+	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return ERR_PTR(-ENOMEM);
 	priv->owner = qp;
 
-	priv->s_hdr = kzalloc(sizeof(*priv->s_hdr), gfp);
+	priv->s_hdr = kzalloc(sizeof(*priv->s_hdr), GFP_KERNEL);
 	if (!priv->s_hdr) {
 		kfree(priv);
 		return ERR_PTR(-ENOMEM);
@@ -416,53 +415,16 @@ int qib_check_send_wqe(struct rvt_qp *qp,
 
 #ifdef CONFIG_DEBUG_FS
 
-struct qib_qp_iter {
-	struct qib_ibdev *dev;
-	struct rvt_qp *qp;
-	int n;
-};
-
-struct qib_qp_iter *qib_qp_iter_init(struct qib_ibdev *dev)
-{
-	struct qib_qp_iter *iter;
-
-	iter = kzalloc(sizeof(*iter), GFP_KERNEL);
-	if (!iter)
-		return NULL;
-
-	iter->dev = dev;
-
-	return iter;
-}
-
-int qib_qp_iter_next(struct qib_qp_iter *iter)
-{
-	struct qib_ibdev *dev = iter->dev;
-	int n = iter->n;
-	int ret = 1;
-	struct rvt_qp *pqp = iter->qp;
-	struct rvt_qp *qp;
-
-	for (; n < dev->rdi.qp_dev->qp_table_size; n++) {
-		if (pqp)
-			qp = rcu_dereference(pqp->next);
-		else
-			qp = rcu_dereference(dev->rdi.qp_dev->qp_table[n]);
-		pqp = qp;
-		if (qp) {
-			iter->qp = qp;
-			iter->n = n;
-			return 0;
-		}
-	}
-	return ret;
-}
-
 static const char * const qp_type_str[] = {
 	"SMI", "GSI", "RC", "UC", "UD",
 };
 
-void qib_qp_iter_print(struct seq_file *s, struct qib_qp_iter *iter)
+/**
+ * qib_qp_iter_print - print information to seq_file
+ * @s - the seq_file
+ * @iter - the iterator
+ */
+void qib_qp_iter_print(struct seq_file *s, struct rvt_qp_iter *iter)
 {
 	struct rvt_swqe *wqe;
 	struct rvt_qp *qp = iter->qp;

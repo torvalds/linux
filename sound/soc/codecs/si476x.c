@@ -236,7 +236,7 @@ static struct regmap *si476x_get_regmap(struct device *dev)
 	return dev_get_regmap(dev->parent, NULL);
 }
 
-static struct snd_soc_codec_driver soc_codec_dev_si476x = {
+static const struct snd_soc_codec_driver soc_codec_dev_si476x = {
 	.get_regmap = si476x_get_regmap,
 	.component_driver = {
 		.dapm_widgets		= si476x_dapm_widgets,

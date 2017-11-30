@@ -12,7 +12,7 @@
 #include <linux/platform_device.h>
 #include <linux/io.h>
 #include <linux/mtd/mtd.h>
-#include <linux/mtd/nand.h>
+#include <linux/mtd/rawnand.h>
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/plat-ram.h>
 #include <linux/mtd/physmap.h>
@@ -22,7 +22,7 @@
 #include <linux/usb/isp1362.h>
 #endif
 #include <linux/i2c.h>
-#include <linux/i2c/adp5588.h>
+#include <linux/platform_data/adp5588.h>
 #include <linux/etherdevice.h>
 #include <linux/ata_platform.h>
 #include <linux/irq.h>
@@ -1995,7 +1995,7 @@ static struct adp5588_gpio_platform_data adp5588_gpio_data = {
 #endif
 
 #if IS_ENABLED(CONFIG_BACKLIGHT_ADP8870)
-#include <linux/i2c/adp8870.h>
+#include <linux/platform_data/adp8870.h>
 static struct led_info adp8870_leds[] = {
 	{
 		.name = "adp8870-led7",
@@ -2047,7 +2047,7 @@ static struct adp8870_backlight_platform_data adp8870_pdata = {
 #endif
 
 #if IS_ENABLED(CONFIG_BACKLIGHT_ADP8860)
-#include <linux/i2c/adp8860.h>
+#include <linux/platform_data/adp8860.h>
 static struct led_info adp8860_leds[] = {
 	{
 		.name = "adp8860-led7",

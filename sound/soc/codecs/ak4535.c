@@ -390,7 +390,7 @@ static const struct regmap_config ak4535_regmap = {
 	.num_reg_defaults = ARRAY_SIZE(ak4535_reg_defaults),
 };
 
-static struct snd_soc_codec_driver soc_codec_dev_ak4535 = {
+static const struct snd_soc_codec_driver soc_codec_dev_ak4535 = {
 	.resume =	ak4535_resume,
 	.set_bias_level = ak4535_set_bias_level,
 	.suspend_bias_off = true,

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/netdevice.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
@@ -363,15 +364,10 @@ static int dev_mc_seq_show(struct seq_file *seq, void *v)
 
 	netif_addr_lock_bh(dev);
 	netdev_for_each_mc_addr(ha, dev) {
-		int i;
-
-		seq_printf(seq, "%-4d %-15s %-5d %-5d ", dev->ifindex,
-			   dev->name, ha->refcount, ha->global_use);
-
-		for (i = 0; i < dev->addr_len; i++)
-			seq_printf(seq, "%02x", ha->addr[i]);
-
-		seq_putc(seq, '\n');
+		seq_printf(seq, "%-4d %-15s %-5d %-5d %*phN\n",
+			   dev->ifindex, dev->name,
+			   ha->refcount, ha->global_use,
+			   (int)dev->addr_len, ha->addr);
 	}
 	netif_addr_unlock_bh(dev);
 	return 0;

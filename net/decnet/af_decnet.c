@@ -447,7 +447,7 @@ static void dn_destruct(struct sock *sk)
 	dst_release(rcu_dereference_check(sk->sk_dst_cache, 1));
 }
 
-static int dn_memory_pressure;
+static unsigned long dn_memory_pressure;
 
 static void dn_enter_memory_pressure(struct sock *sk)
 {
@@ -532,10 +532,6 @@ static struct sock *dn_alloc_sock(struct net *net, struct socket *sock, gfp_t gf
 	scp->persist_fxn = NULL;
 	scp->keepalive = 10 * HZ;
 	scp->keepalive_fxn = dn_keepalive;
-
-	init_timer(&scp->delack_timer);
-	scp->delack_pending = 0;
-	scp->delack_fxn = dn_nsp_delayed_ack;
 
 	dn_start_slow_timer(sk);
 out:
@@ -634,10 +630,12 @@ static void dn_destroy_sock(struct sock *sk)
 		goto disc_reject;
 	case DN_RUN:
 		scp->state = DN_DI;
+		/* fall through */
 	case DN_DI:
 	case DN_DR:
 disc_reject:
 		dn_nsp_send_disc(sk, NSP_DISCINIT, 0, sk->sk_allocation);
+		/* fall through */
 	case DN_NC:
 	case DN_NR:
 	case DN_RJ:
@@ -651,6 +649,7 @@ disc_reject:
 		break;
 	default:
 		printk(KERN_DEBUG "DECnet: dn_destroy_sock passed socket in invalid state\n");
+		/* fall through */
 	case DN_O:
 		dn_stop_slow_timer(sk);
 

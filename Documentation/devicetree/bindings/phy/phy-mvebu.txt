@@ -18,7 +18,6 @@ Example:
 			clocks = <&gate_clk 15>;
 			clock-names = "sata";
 			#phy-cells = <0>;
-			status = "ok";
 		};
 
 Armada 375 USB cluster

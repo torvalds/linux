@@ -132,14 +132,14 @@ static struct sk_buff *mlx5e_test_get_udp_skb(struct mlx5e_priv *priv)
 	skb_reserve(skb, NET_IP_ALIGN);
 
 	/*  Reserve for ethernet and IP header  */
-	ethh = (struct ethhdr *)skb_push(skb, ETH_HLEN);
+	ethh = skb_push(skb, ETH_HLEN);
 	skb_reset_mac_header(skb);
 
 	skb_set_network_header(skb, skb->len);
-	iph = (struct iphdr *)skb_put(skb, sizeof(struct iphdr));
+	iph = skb_put(skb, sizeof(struct iphdr));
 
 	skb_set_transport_header(skb, skb->len);
-	udph = (struct udphdr *)skb_put(skb, sizeof(struct udphdr));
+	udph = skb_put(skb, sizeof(struct udphdr));
 
 	/* Fill ETH header */
 	ether_addr_copy(ethh->h_dest, priv->netdev->dev_addr);
@@ -167,12 +167,12 @@ static struct sk_buff *mlx5e_test_get_udp_skb(struct mlx5e_priv *priv)
 	ip_send_check(iph);
 
 	/* Fill test header and data */
-	mlxh = (struct mlx5ehdr *)skb_put(skb, sizeof(*mlxh));
+	mlxh = skb_put(skb, sizeof(*mlxh));
 	mlxh->version = 0;
 	mlxh->magic = cpu_to_be64(MLX5E_TEST_MAGIC);
 	strlcpy(mlxh->text, mlx5e_test_text, sizeof(mlxh->text));
 	datalen -= sizeof(*mlxh);
-	memset(skb_put(skb, datalen), 0, datalen);
+	skb_put_zero(skb, datalen);
 
 	skb->csum = 0;
 	skb->ip_summed = CHECKSUM_PARTIAL;
@@ -189,6 +189,7 @@ struct mlx5e_lbt_priv {
 	struct packet_type pt;
 	struct completion comp;
 	bool loopback_ok;
+	bool local_lb;
 };
 
 static int
@@ -236,6 +237,13 @@ static int mlx5e_test_loopback_setup(struct mlx5e_priv *priv,
 {
 	int err = 0;
 
+	/* Temporarily enable local_lb */
+	if (MLX5_CAP_GEN(priv->mdev, disable_local_lb)) {
+		mlx5_nic_vport_query_local_lb(priv->mdev, &lbtp->local_lb);
+		if (!lbtp->local_lb)
+			mlx5_nic_vport_update_local_lb(priv->mdev, true);
+	}
+
 	err = mlx5e_refresh_tirs(priv, true);
 	if (err)
 		return err;
@@ -254,6 +262,11 @@ static int mlx5e_test_loopback_setup(struct mlx5e_priv *priv,
 static void mlx5e_test_loopback_cleanup(struct mlx5e_priv *priv,
 					struct mlx5e_lbt_priv *lbtp)
 {
+	if (MLX5_CAP_GEN(priv->mdev, disable_local_lb)) {
+		if (!lbtp->local_lb)
+			mlx5_nic_vport_update_local_lb(priv->mdev, false);
+	}
+
 	dev_remove_pack(&lbtp->pt);
 	mlx5e_refresh_tirs(priv, false);
 }

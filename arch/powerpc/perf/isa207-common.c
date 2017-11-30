@@ -90,14 +90,16 @@ static void mmcra_sdar_mode(u64 event, unsigned long *mmcra)
 	 *	MMCRA[SDAR_MODE] will be set to 0b01
 	 * For rest
 	 *	MMCRA[SDAR_MODE] will be set from event code.
+	 *      If sdar_mode from event is zero, default to 0b01. Hardware
+	 *      requires that we set a non-zero value.
 	 */
 	if (cpu_has_feature(CPU_FTR_ARCH_300)) {
 		if (is_event_marked(event) || (*mmcra & MMCRA_SAMPLE_ENABLE))
 			*mmcra &= MMCRA_SDAR_MODE_NO_UPDATES;
-		else if (!cpu_has_feature(CPU_FTR_POWER9_DD1))
+		else if (!cpu_has_feature(CPU_FTR_POWER9_DD1) && p9_SDAR_MODE(event))
 			*mmcra |=  p9_SDAR_MODE(event) << MMCRA_SDAR_MODE_SHIFT;
-		else if (cpu_has_feature(CPU_FTR_POWER9_DD1))
-			*mmcra |= MMCRA_SDAR_MODE_TLB;
+		else
+			*mmcra |= MMCRA_SDAR_MODE_DCACHE;
 	} else
 		*mmcra |= MMCRA_SDAR_MODE_TLB;
 }
@@ -486,8 +488,8 @@ static int find_alternative(u64 event, const unsigned int ev_alt[][MAX_ALT], int
 	return -1;
 }
 
-int isa207_get_alternatives(u64 event, u64 alt[],
-				const unsigned int ev_alt[][MAX_ALT], int size)
+int isa207_get_alternatives(u64 event, u64 alt[], int size, unsigned int flags,
+					const unsigned int ev_alt[][MAX_ALT])
 {
 	int i, j, num_alt = 0;
 	u64 alt_event;
@@ -501,6 +503,31 @@ int isa207_get_alternatives(u64 event, u64 alt[],
 			if (alt_event && alt_event != event)
 				alt[num_alt++] = alt_event;
 		}
+	}
+
+	if (flags & PPMU_ONLY_COUNT_RUN) {
+		/*
+		 * We're only counting in RUN state, so PM_CYC is equivalent to
+		 * PM_RUN_CYC and PM_INST_CMPL === PM_RUN_INST_CMPL.
+		 */
+		j = num_alt;
+		for (i = 0; i < num_alt; ++i) {
+			switch (alt[i]) {
+			case 0x1e:			/* PMC_CYC */
+				alt[j++] = 0x600f4;	/* PM_RUN_CYC */
+				break;
+			case 0x600f4:
+				alt[j++] = 0x1e;
+				break;
+			case 0x2:			/* PM_INST_CMPL */
+				alt[j++] = 0x500fa;	/* PM_RUN_INST_CMPL */
+				break;
+			case 0x500fa:
+				alt[j++] = 0x2;
+				break;
+			}
+		}
+		num_alt = j;
 	}
 
 	return num_alt;

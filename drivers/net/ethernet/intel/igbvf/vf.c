@@ -149,7 +149,7 @@ static s32 e1000_reset_hw_vf(struct e1000_hw *hw)
 		msgbuf[0] = E1000_VF_RESET;
 		mbx->ops.write_posted(hw, msgbuf, 1);
 
-		msleep(10);
+		mdelay(10);
 
 		/* set our "perm_addr" based on info provided by PF */
 		ret_val = mbx->ops.read_posted(hw, msgbuf, 3);
@@ -230,6 +230,7 @@ static void e1000_update_mc_addr_list_vf(struct e1000_hw *hw,
 	u16 *hash_list = (u16 *)&msgbuf[1];
 	u32 hash_value;
 	u32 cnt, i;
+	s32 ret_val;
 
 	/* Each entry in the list uses 1 16 bit word.  We have 30
 	 * 16 bit words available in our HW msg buffer (minus 1 for the
@@ -250,7 +251,9 @@ static void e1000_update_mc_addr_list_vf(struct e1000_hw *hw,
 		mc_addr_list += ETH_ALEN;
 	}
 
-	mbx->ops.write_posted(hw, msgbuf, E1000_VFMAILBOX_SIZE);
+	ret_val = mbx->ops.write_posted(hw, msgbuf, E1000_VFMAILBOX_SIZE);
+	if (!ret_val)
+		mbx->ops.read_posted(hw, msgbuf, 1);
 }
 
 /**
@@ -293,11 +296,14 @@ void e1000_rlpml_set_vf(struct e1000_hw *hw, u16 max_size)
 {
 	struct e1000_mbx_info *mbx = &hw->mbx;
 	u32 msgbuf[2];
+	s32 ret_val;
 
 	msgbuf[0] = E1000_VF_SET_LPE;
 	msgbuf[1] = max_size;
 
-	mbx->ops.write_posted(hw, msgbuf, 2);
+	ret_val = mbx->ops.write_posted(hw, msgbuf, 2);
+	if (!ret_val)
+		mbx->ops.read_posted(hw, msgbuf, 1);
 }
 
 /**

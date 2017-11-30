@@ -1,0 +1,46 @@
+* Renesas R-Car generation 3 USB 3.0 PHY
+
+This file provides information on what the device node for the R-Car generation
+3 USB 3.0 PHY contains.
+If you want to enable spread spectrum clock (ssc), you should use USB_EXTAL
+instead of USB3_CLK. However, if you don't want to these features, you don't
+need this driver.
+
+Required properties:
+- compatible: "renesas,r8a7795-usb3-phy" if the device is a part of an R8A7795
+	      SoC.
+	      "renesas,r8a7796-usb3-phy" if the device is a part of an R8A7796
+	      SoC.
+	      "renesas,rcar-gen3-usb3-phy" for a generic R-Car Gen3 compatible
+	      device.
+
+	      When compatible with the generic version, nodes must list the
+	      SoC-specific version corresponding to the platform first
+	      followed by the generic version.
+
+- reg: offset and length of the USB 3.0 PHY register block.
+- clocks: A list of phandles and clock-specifier pairs.
+- clock-names: Name of the clocks.
+  - The funcional clock must be "usb3-if".
+  - The usb3's external clock must be "usb3s_clk".
+  - The usb2's external clock must be "usb_extal". If you want to use the ssc,
+    the clock-frequency must not be 0.
+- #phy-cells: see phy-bindings.txt in the same directory, must be <0>.
+
+Optional properties:
+- renesas,ssc-range: Enable/disable spread spectrum clock (ssc) by using
+		     the following values as u32:
+			- 0 (or the property doesn't exist): disable the ssc
+			- 4980: enable the ssc as -4980 ppm
+			- 4492: enable the ssc as -4492 ppm
+			- 4003: enable the ssc as -4003 ppm
+
+Example (R-Car H3):
+
+	usb-phy@e65ee000 {
+		compatible = "renesas,r8a7795-usb3-phy",
+			     "renesas,rcar-gen3-usb3-phy";
+		reg = <0 0xe65ee000 0 0x90>;
+		clocks = <&cpg CPG_MOD 328>, <&usb3s0_clk>, <&usb_extal>;
+		clock-names = "usb3-if", "usb3s_clk", "usb_extal";
+	};

@@ -201,4 +201,4 @@ static int __init pit_timer_init(struct device_node *np)
 
 	return pit_clockevent_init(clk_rate, irq);
 }
-CLOCKSOURCE_OF_DECLARE(vf610, "fsl,vf610-pit", pit_timer_init);
+TIMER_OF_DECLARE(vf610, "fsl,vf610-pit", pit_timer_init);

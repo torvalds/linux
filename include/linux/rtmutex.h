@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * RT Mutexes: blocking mutual exclusion locks with PI support
  *
@@ -22,20 +23,22 @@ extern int max_lock_depth; /* for sysctl */
  * The rt_mutex structure
  *
  * @wait_lock:	spinlock to protect the structure
- * @waiters:	rbtree root to enqueue waiters in priority order
- * @waiters_leftmost: top waiter
+ * @waiters:	rbtree root to enqueue waiters in priority order;
+ *              caches top-waiter (leftmost node).
  * @owner:	the mutex owner
  */
 struct rt_mutex {
 	raw_spinlock_t		wait_lock;
-	struct rb_root          waiters;
-	struct rb_node          *waiters_leftmost;
+	struct rb_root_cached   waiters;
 	struct task_struct	*owner;
 #ifdef CONFIG_DEBUG_RT_MUTEXES
 	int			save_state;
-	const char 		*name, *file;
+	const char		*name, *file;
 	int			line;
 	void			*magic;
+#endif
+#ifdef CONFIG_DEBUG_LOCK_ALLOC
+	struct lockdep_map	dep_map;
 #endif
 };
 
@@ -58,19 +61,33 @@ struct hrtimer_sleeper;
 #ifdef CONFIG_DEBUG_RT_MUTEXES
 # define __DEBUG_RT_MUTEX_INITIALIZER(mutexname) \
 	, .name = #mutexname, .file = __FILE__, .line = __LINE__
-# define rt_mutex_init(mutex)			__rt_mutex_init(mutex, __func__)
+
+# define rt_mutex_init(mutex) \
+do { \
+	static struct lock_class_key __key; \
+	__rt_mutex_init(mutex, __func__, &__key); \
+} while (0)
+
  extern void rt_mutex_debug_task_free(struct task_struct *tsk);
 #else
 # define __DEBUG_RT_MUTEX_INITIALIZER(mutexname)
-# define rt_mutex_init(mutex)			__rt_mutex_init(mutex, NULL)
+# define rt_mutex_init(mutex)			__rt_mutex_init(mutex, NULL, NULL)
 # define rt_mutex_debug_task_free(t)			do { } while (0)
+#endif
+
+#ifdef CONFIG_DEBUG_LOCK_ALLOC
+#define __DEP_MAP_RT_MUTEX_INITIALIZER(mutexname) \
+	, .dep_map = { .name = #mutexname }
+#else
+#define __DEP_MAP_RT_MUTEX_INITIALIZER(mutexname)
 #endif
 
 #define __RT_MUTEX_INITIALIZER(mutexname) \
 	{ .wait_lock = __RAW_SPIN_LOCK_UNLOCKED(mutexname.wait_lock) \
-	, .waiters = RB_ROOT \
+	, .waiters = RB_ROOT_CACHED \
 	, .owner = NULL \
-	__DEBUG_RT_MUTEX_INITIALIZER(mutexname)}
+	__DEBUG_RT_MUTEX_INITIALIZER(mutexname) \
+	__DEP_MAP_RT_MUTEX_INITIALIZER(mutexname)}
 
 #define DEFINE_RT_MUTEX(mutexname) \
 	struct rt_mutex mutexname = __RT_MUTEX_INITIALIZER(mutexname)
@@ -86,7 +103,7 @@ static inline int rt_mutex_is_locked(struct rt_mutex *lock)
 	return lock->owner != NULL;
 }
 
-extern void __rt_mutex_init(struct rt_mutex *lock, const char *name);
+extern void __rt_mutex_init(struct rt_mutex *lock, const char *name, struct lock_class_key *key);
 extern void rt_mutex_destroy(struct rt_mutex *lock);
 
 extern void rt_mutex_lock(struct rt_mutex *lock);

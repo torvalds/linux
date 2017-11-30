@@ -781,9 +781,9 @@ static const unsigned long ak8975_scan_masks[] = { 0x7, 0 };
 
 static const struct iio_info ak8975_info = {
 	.read_raw = &ak8975_read_raw,
-	.driver_module = THIS_MODULE,
 };
 
+#ifdef CONFIG_ACPI
 static const struct acpi_device_id ak_acpi_match[] = {
 	{"AK8975", AK8975},
 	{"AK8963", AK8963},
@@ -793,6 +793,7 @@ static const struct acpi_device_id ak_acpi_match[] = {
 	{ },
 };
 MODULE_DEVICE_TABLE(acpi, ak_acpi_match);
+#endif
 
 static const char *ak8975_match_acpi_device(struct device *dev,
 					    enum asahi_compass_chipset *chipset)

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include "units.h"
 #include <inttypes.h>
 #include <limits.h>

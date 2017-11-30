@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __METAG_UACCESS_H
 #define __METAG_UACCESS_H
 
@@ -187,8 +188,6 @@ strncpy_from_user(char *dst, const char __user *src, long count)
  * Return 0 on exception, a value greater than N if too long
  */
 extern long __must_check strnlen_user(const char __user *src, long count);
-
-#define strlen_user(str) strnlen_user(str, 32767)
 
 extern unsigned long raw_copy_from_user(void *to, const void __user *from,
 					unsigned long n);

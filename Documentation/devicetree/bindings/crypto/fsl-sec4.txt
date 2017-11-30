@@ -118,8 +118,8 @@ PROPERTIES
       Definition: A list of clock name strings in the same order as the
           clocks property.
 
-   Note: All other standard properties (see the ePAPR) are allowed
-   but are optional.
+   Note: All other standard properties (see the Devicetree Specification)
+   are allowed but are optional.
 
 
 EXAMPLE

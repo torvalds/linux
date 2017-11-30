@@ -45,10 +45,14 @@ _GLOBAL(ftrace_caller)
 	stdu	r1,-SWITCH_FRAME_SIZE(r1)
 
 	/* Save all gprs to pt_regs */
-	SAVE_8GPRS(0,r1)
-	SAVE_8GPRS(8,r1)
-	SAVE_8GPRS(16,r1)
-	SAVE_8GPRS(24,r1)
+	SAVE_GPR(0, r1)
+	SAVE_10GPRS(2, r1)
+	SAVE_10GPRS(12, r1)
+	SAVE_10GPRS(22, r1)
+
+	/* Save previous stack pointer (r1) */
+	addi	r8, r1, SWITCH_FRAME_SIZE
+	std	r8, GPR1(r1)
 
 	/* Load special regs for save below */
 	mfmsr   r8
@@ -95,18 +99,44 @@ ftrace_call:
 	bl	ftrace_stub
 	nop
 
-	/* Load ctr with the possibly modified NIP */
-	ld	r3, _NIP(r1)
-	mtctr	r3
+	/* Load the possibly modified NIP */
+	ld	r15, _NIP(r1)
+
 #ifdef CONFIG_LIVEPATCH
-	cmpd	r14,r3		/* has NIP been altered? */
+	cmpd	r14, r15	/* has NIP been altered? */
 #endif
 
+#if defined(CONFIG_LIVEPATCH) && defined(CONFIG_KPROBES_ON_FTRACE)
+	/* NIP has not been altered, skip over further checks */
+	beq	1f
+
+	/* Check if there is an active jprobe on us */
+	subi	r3, r14, 4
+	bl	__is_active_jprobe
+	nop
+
+	/*
+	 * If r3 == 1, then this is a kprobe/jprobe.
+	 * else, this is livepatched function.
+	 *
+	 * The conditional branch for livepatch_handler below will use the
+	 * result of this comparison. For kprobe/jprobe, we just need to branch to
+	 * the new NIP, not call livepatch_handler. The branch below is bne, so we
+	 * want CR0[EQ] to be true if this is a kprobe/jprobe. Which means we want
+	 * CR0[EQ] = (r3 == 1).
+	 */
+	cmpdi	r3, 1
+1:
+#endif
+
+	/* Load CTR with the possibly modified NIP */
+	mtctr	r15
+
 	/* Restore gprs */
-	REST_8GPRS(0,r1)
-	REST_8GPRS(8,r1)
-	REST_8GPRS(16,r1)
-	REST_8GPRS(24,r1)
+	REST_GPR(0,r1)
+	REST_10GPRS(2,r1)
+	REST_10GPRS(12,r1)
+	REST_10GPRS(22,r1)
 
 	/* Restore possibly modified LR */
 	ld	r0, _LINK(r1)
@@ -119,7 +149,10 @@ ftrace_call:
 	addi r1, r1, SWITCH_FRAME_SIZE
 
 #ifdef CONFIG_LIVEPATCH
-        /* Based on the cmpd above, if the NIP was altered handle livepatch */
+        /*
+	 * Based on the cmpd or cmpdi above, if the NIP was altered and we're
+	 * not on a kprobe/jprobe, then handle livepatch.
+	 */
 	bne-	livepatch_handler
 #endif
 
@@ -148,34 +181,25 @@ _GLOBAL(ftrace_stub)
 	 *  - we have no stack frame and can not allocate one
 	 *  - LR points back to the original caller (in A)
 	 *  - CTR holds the new NIP in C
-	 *  - r0 & r12 are free
-	 *
-	 * r0 can't be used as the base register for a DS-form load or store, so
-	 * we temporarily shuffle r1 (stack pointer) into r0 and then put it back.
+	 *  - r0, r11 & r12 are free
 	 */
 livepatch_handler:
 	CURRENT_THREAD_INFO(r12, r1)
 
-	/* Save stack pointer into r0 */
-	mr	r0, r1
-
 	/* Allocate 3 x 8 bytes */
-	ld	r1, TI_livepatch_sp(r12)
-	addi	r1, r1, 24
-	std	r1, TI_livepatch_sp(r12)
+	ld	r11, TI_livepatch_sp(r12)
+	addi	r11, r11, 24
+	std	r11, TI_livepatch_sp(r12)
 
 	/* Save toc & real LR on livepatch stack */
-	std	r2,  -24(r1)
+	std	r2,  -24(r11)
 	mflr	r12
-	std	r12, -16(r1)
+	std	r12, -16(r11)
 
 	/* Store stack end marker */
 	lis     r12, STACK_END_MAGIC@h
 	ori     r12, r12, STACK_END_MAGIC@l
-	std	r12, -8(r1)
-
-	/* Restore real stack pointer */
-	mr	r1, r0
+	std	r12, -8(r11)
 
 	/* Put ctr in r12 for global entry and branch there */
 	mfctr	r12
@@ -183,36 +207,30 @@ livepatch_handler:
 
 	/*
 	 * Now we are returning from the patched function to the original
-	 * caller A. We are free to use r0 and r12, and we can use r2 until we
+	 * caller A. We are free to use r11, r12 and we can use r2 until we
 	 * restore it.
 	 */
 
 	CURRENT_THREAD_INFO(r12, r1)
 
-	/* Save stack pointer into r0 */
-	mr	r0, r1
-
-	ld	r1, TI_livepatch_sp(r12)
+	ld	r11, TI_livepatch_sp(r12)
 
 	/* Check stack marker hasn't been trashed */
 	lis     r2,  STACK_END_MAGIC@h
 	ori     r2,  r2, STACK_END_MAGIC@l
-	ld	r12, -8(r1)
+	ld	r12, -8(r11)
 1:	tdne	r12, r2
 	EMIT_BUG_ENTRY 1b, __FILE__, __LINE__ - 1, 0
 
 	/* Restore LR & toc from livepatch stack */
-	ld	r12, -16(r1)
+	ld	r12, -16(r11)
 	mtlr	r12
-	ld	r2,  -24(r1)
+	ld	r2,  -24(r11)
 
 	/* Pop livepatch stack frame */
-	CURRENT_THREAD_INFO(r12, r0)
-	subi	r1, r1, 24
-	std	r1, TI_livepatch_sp(r12)
-
-	/* Restore real stack pointer */
-	mr	r1, r0
+	CURRENT_THREAD_INFO(r12, r1)
+	subi	r11, r11, 24
+	std	r11, TI_livepatch_sp(r12)
 
 	/* Return to original caller of live patched function */
 	blr

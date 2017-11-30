@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * (C) 2001 Clemson University and The University of Chicago
  *
@@ -46,8 +47,8 @@ static void run_down(struct slot_map *m)
 	spin_lock(&m->q.lock);
 	if (m->c != -1) {
 		for (;;) {
-			if (likely(list_empty(&wait.task_list)))
-				__add_wait_queue_tail(&m->q, &wait);
+			if (likely(list_empty(&wait.entry)))
+				__add_wait_queue_entry_tail(&m->q, &wait);
 			set_current_state(TASK_UNINTERRUPTIBLE);
 
 			if (m->c == -1)
@@ -84,8 +85,8 @@ static int wait_for_free(struct slot_map *m)
 
 	do {
 		long n = left, t;
-		if (likely(list_empty(&wait.task_list)))
-			__add_wait_queue_tail_exclusive(&m->q, &wait);
+		if (likely(list_empty(&wait.entry)))
+			__add_wait_queue_entry_tail_exclusive(&m->q, &wait);
 		set_current_state(TASK_INTERRUPTIBLE);
 
 		if (m->c > 0)
@@ -108,8 +109,8 @@ static int wait_for_free(struct slot_map *m)
 			left = -EINTR;
 	} while (left > 0);
 
-	if (!list_empty(&wait.task_list))
-		list_del(&wait.task_list);
+	if (!list_empty(&wait.entry))
+		list_del(&wait.entry);
 	else if (left <= 0 && waitqueue_active(&m->q))
 		__wake_up_locked_key(&m->q, TASK_INTERRUPTIBLE, NULL);
 	__set_current_state(TASK_RUNNING);
@@ -244,20 +245,14 @@ orangefs_bufmap_alloc(struct ORANGEFS_dev_map_desc *user_desc)
 
 	bufmap->buffer_index_array =
 		kzalloc(DIV_ROUND_UP(bufmap->desc_count, BITS_PER_LONG), GFP_KERNEL);
-	if (!bufmap->buffer_index_array) {
-		gossip_err("orangefs: could not allocate %d buffer indices\n",
-				bufmap->desc_count);
+	if (!bufmap->buffer_index_array)
 		goto out_free_bufmap;
-	}
 
 	bufmap->desc_array =
 		kcalloc(bufmap->desc_count, sizeof(struct orangefs_bufmap_desc),
 			GFP_KERNEL);
-	if (!bufmap->desc_array) {
-		gossip_err("orangefs: could not allocate %d descriptors\n",
-				bufmap->desc_count);
+	if (!bufmap->desc_array)
 		goto out_free_index_array;
-	}
 
 	bufmap->page_count = bufmap->total_size / PAGE_SIZE;
 

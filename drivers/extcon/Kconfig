@@ -115,6 +115,7 @@ config EXTCON_PALMAS
 
 config EXTCON_QCOM_SPMI_MISC
 	tristate "Qualcomm USB extcon support"
+	depends on ARCH_QCOM || COMPILE_TEST
 	help
 	  Say Y here to enable SPMI PMIC based USB cable detection
 	  support on Qualcomm PMICs such as PM8941.
@@ -148,5 +149,12 @@ config EXTCON_USB_GPIO
 	help
 	  Say Y here to enable GPIO based USB cable detection extcon support.
 	  Used typically if GPIO is used for USB ID pin detection.
+
+config EXTCON_USBC_CROS_EC
+	tristate "ChromeOS Embedded Controller EXTCON support"
+	depends on MFD_CROS_EC
+	help
+	  Say Y here to enable USB Type C cable detection extcon support when
+	  using Chrome OS EC based USB Type-C ports.
 
 endif

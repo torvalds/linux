@@ -163,7 +163,7 @@ static void tc589_release(struct pcmcia_device *link);
 
 static u16 read_eeprom(unsigned int ioaddr, int index);
 static void tc589_reset(struct net_device *dev);
-static void media_check(unsigned long arg);
+static void media_check(struct timer_list *t);
 static int el3_config(struct net_device *dev, struct ifmap *map);
 static int el3_open(struct net_device *dev);
 static netdev_tx_t el3_start_xmit(struct sk_buff *skb,
@@ -517,7 +517,7 @@ static int el3_open(struct net_device *dev)
 	netif_start_queue(dev);
 
 	tc589_reset(dev);
-	setup_timer(&lp->media, media_check, (unsigned long)dev);
+	timer_setup(&lp->media, media_check, 0);
 	mod_timer(&lp->media, jiffies + HZ);
 
 	dev_dbg(&link->dev, "%s: opened, status %4.4x.\n",
@@ -676,10 +676,10 @@ static irqreturn_t el3_interrupt(int irq, void *dev_id)
 	return IRQ_RETVAL(handled);
 }
 
-static void media_check(unsigned long arg)
+static void media_check(struct timer_list *t)
 {
-	struct net_device *dev = (struct net_device *)(arg);
-	struct el3_private *lp = netdev_priv(dev);
+	struct el3_private *lp = from_timer(lp, t, media);
+	struct net_device *dev = lp->p_dev->priv;
 	unsigned int ioaddr = dev->base_addr;
 	u16 media, errs;
 	unsigned long flags;

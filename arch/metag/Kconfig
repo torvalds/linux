@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 config METAG
 	def_bool y
 	select EMBEDDED
@@ -26,6 +27,7 @@ config METAG
 	select HAVE_SYSCALL_TRACEPOINTS
 	select HAVE_UNDERSCORE_SYMBOL_PREFIX
 	select IRQ_DOMAIN
+	select GENERIC_IRQ_EFFECTIVE_AFF_MASK
 	select MODULES_USE_ELF_RELA
 	select OF
 	select OF_EARLY_FLATTREE

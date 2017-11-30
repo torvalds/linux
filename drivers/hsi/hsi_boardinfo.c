@@ -49,7 +49,7 @@ int __init hsi_register_board_info(struct hsi_board_info const *info,
 {
 	struct hsi_cl_info *cl_info;
 
-	cl_info = kzalloc(sizeof(*cl_info) * len, GFP_KERNEL);
+	cl_info = kcalloc(len, sizeof(*cl_info), GFP_KERNEL);
 	if (!cl_info)
 		return -ENOMEM;
 

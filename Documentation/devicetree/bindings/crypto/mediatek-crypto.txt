@@ -6,8 +6,7 @@ Required properties:
 - interrupts: Should contain the five crypto engines interrupts in numeric
 	order. These are global system and four descriptor rings.
 - clocks: the clock used by the core
-- clock-names: the names of the clock listed in the clocks property. These are
-	"ethif", "cryp"
+- clock-names: Must contain "cryp".
 - power-domains: Must contain a reference to the PM domain.
 
 
@@ -20,8 +19,7 @@ Example:
 			     <GIC_SPI 84 IRQ_TYPE_LEVEL_LOW>,
 			     <GIC_SPI 91 IRQ_TYPE_LEVEL_LOW>,
 			     <GIC_SPI 97 IRQ_TYPE_LEVEL_LOW>;
-		clocks = <&topckgen CLK_TOP_ETHIF_SEL>,
-			 <&ethsys CLK_ETHSYS_CRYPTO>;
-		clock-names = "ethif","cryp";
+		clocks = <&ethsys CLK_ETHSYS_CRYPTO>;
+		clock-names = "cryp";
 		power-domains = <&scpsys MT2701_POWER_DOMAIN_ETH>;
 	};

@@ -89,7 +89,14 @@ acpi_size acpi_ns_get_pathname_length(struct acpi_namespace_node *node)
 {
 	acpi_size size;
 
-	ACPI_FUNCTION_ENTRY();
+	/* Validate the Node */
+
+	if (ACPI_GET_DESCRIPTOR_TYPE(node) != ACPI_DESC_TYPE_NAMED) {
+		ACPI_ERROR((AE_INFO,
+			    "Invalid/cached reference target node: %p, descriptor type %d",
+			    node, ACPI_GET_DESCRIPTOR_TYPE(node)));
+		return (0);
+	}
 
 	size = acpi_ns_build_normalized_path(node, NULL, 0, FALSE);
 	return (size);
@@ -190,9 +197,6 @@ acpi_ns_handle_to_pathname(acpi_handle target_handle,
 
 	(void)acpi_ns_build_normalized_path(node, buffer->pointer,
 					    required_size, no_trailing);
-	if (ACPI_FAILURE(status)) {
-		return_ACPI_STATUS(status);
-	}
 
 	ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "%s [%X]\n",
 			  (char *)buffer->pointer, (u32) required_size));

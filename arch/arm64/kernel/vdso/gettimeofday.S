@@ -256,7 +256,6 @@ monotonic_raw:
 	seqcnt_check fail=monotonic_raw
 
 	/* All computations are done with left-shifted nsecs. */
-	lsl	x14, x14, x12
 	get_nsec_per_sec res=x9
 	lsl	x9, x9, x12
 
@@ -310,7 +309,7 @@ ENTRY(__kernel_clock_getres)
 	b.ne	4f
 	ldr	x2, 6f
 2:
-	cbz	w1, 3f
+	cbz	x1, 3f
 	stp	xzr, x2, [x1]
 
 3:	/* res == NULL. */

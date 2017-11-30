@@ -655,6 +655,7 @@ restart:
 			break;
 		case 0: /* 4.5 */
 			state->detected_std = V4L2_STD_MN;
+			/* fall-through */
 		default:
 no_second:
 			state->second = msp3400c_carrier_detect_main[max1].cdo;

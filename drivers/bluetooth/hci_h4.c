@@ -132,7 +132,7 @@ static int h4_recv(struct hci_uart *hu, const void *data, int count)
 				 h4_recv_pkts, ARRAY_SIZE(h4_recv_pkts));
 	if (IS_ERR(h4->rx_skb)) {
 		int err = PTR_ERR(h4->rx_skb);
-		BT_ERR("%s: Frame reassembly failed (%d)", hu->hdev->name, err);
+		bt_dev_err(hu->hdev, "Frame reassembly failed (%d)", err);
 		h4->rx_skb = NULL;
 		return err;
 	}
@@ -172,7 +172,7 @@ struct sk_buff *h4_recv_buf(struct hci_dev *hdev, struct sk_buff *skb,
 			    const struct h4_recv_pkt *pkts, int pkts_count)
 {
 	struct hci_uart *hu = hci_get_drvdata(hdev);
-	u8 alignment = hu->alignment;
+	u8 alignment = hu->alignment ? hu->alignment : 1;
 
 	while (count) {
 		int i, len;
@@ -209,7 +209,7 @@ struct sk_buff *h4_recv_buf(struct hci_dev *hdev, struct sk_buff *skb,
 		}
 
 		len = min_t(uint, hci_skb_expect(skb) - skb->len, count);
-		memcpy(skb_put(skb, len), buffer, len);
+		skb_put_data(skb, buffer, len);
 
 		count -= len;
 		buffer += len;

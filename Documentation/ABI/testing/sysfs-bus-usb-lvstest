@@ -45,3 +45,16 @@ Contact:	Pratyush Anand <pratyush.anand@gmail.com>
 Description:
 		Write to this node to issue "U3 exit" for Link Layer
 		Validation device. It is needed for TD.7.36.
+
+What:		/sys/bus/usb/devices/.../enable_compliance
+Date:		July 2017
+Description:
+		Write to this node to set the port to compliance mode to test
+		with Link Layer Validation device. It is needed for TD.7.34.
+
+What:		/sys/bus/usb/devices/.../warm_reset
+Date:		July 2017
+Description:
+		Write to this node to issue "Warm Reset" for Link Layer Validation
+		device. It may be needed to properly reset an xHCI 1.1 host port if
+		compliance mode needed to be explicitly enabled.

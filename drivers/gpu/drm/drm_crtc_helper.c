@@ -562,12 +562,12 @@ int drm_crtc_helper_set_config(struct drm_mode_set *set,
 	 * Allocate space for the backup of all (non-pointer) encoder and
 	 * connector data.
 	 */
-	save_encoder_crtcs = kzalloc(dev->mode_config.num_encoder *
+	save_encoder_crtcs = kcalloc(dev->mode_config.num_encoder,
 				sizeof(struct drm_crtc *), GFP_KERNEL);
 	if (!save_encoder_crtcs)
 		return -ENOMEM;
 
-	save_connector_encoders = kzalloc(dev->mode_config.num_connector *
+	save_connector_encoders = kcalloc(dev->mode_config.num_connector,
 				sizeof(struct drm_encoder *), GFP_KERNEL);
 	if (!save_connector_encoders) {
 		kfree(save_encoder_crtcs);
@@ -863,8 +863,7 @@ static int drm_helper_choose_crtc_dpms(struct drm_crtc *crtc)
  * provided by the driver.
  *
  * This function is deprecated.  New drivers must implement atomic modeset
- * support, for which this function is unsuitable. Instead drivers should use
- * drm_atomic_helper_connector_dpms().
+ * support, where DPMS is handled in the DRM core.
  *
  * Returns:
  * Always returns 0.

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #if !defined(_GPU_SCHED_TRACE_H) || defined(TRACE_HEADER_MULTI_READ)
 #define _GPU_SCHED_TRACE_H_
 
@@ -16,16 +17,16 @@ TRACE_EVENT(amd_sched_job,
 	    TP_ARGS(sched_job),
 	    TP_STRUCT__entry(
 			     __field(struct amd_sched_entity *, entity)
-			     __field(struct amd_sched_job *, sched_job)
 			     __field(struct dma_fence *, fence)
 			     __field(const char *, name)
+			     __field(uint64_t, id)
 			     __field(u32, job_count)
 			     __field(int, hw_job_count)
 			     ),
 
 	    TP_fast_assign(
 			   __entry->entity = sched_job->s_entity;
-			   __entry->sched_job = sched_job;
+			   __entry->id = sched_job->id;
 			   __entry->fence = &sched_job->s_fence->finished;
 			   __entry->name = sched_job->sched->name;
 			   __entry->job_count = kfifo_len(
@@ -33,8 +34,9 @@ TRACE_EVENT(amd_sched_job,
 			   __entry->hw_job_count = atomic_read(
 				   &sched_job->sched->hw_rq_count);
 			   ),
-	    TP_printk("entity=%p, sched job=%p, fence=%p, ring=%s, job count:%u, hw job count:%d",
-		      __entry->entity, __entry->sched_job, __entry->fence, __entry->name,
+	    TP_printk("entity=%p, id=%llu, fence=%p, ring=%s, job count:%u, hw job count:%d",
+		      __entry->entity, __entry->id,
+		      __entry->fence, __entry->name,
 		      __entry->job_count, __entry->hw_job_count)
 );
 

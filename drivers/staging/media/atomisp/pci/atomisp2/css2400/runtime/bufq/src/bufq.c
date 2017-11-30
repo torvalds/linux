@@ -239,7 +239,7 @@ static ia_css_queue_t *bufq_get_qhandle(
 	enum sh_css_queue_id id,
 	int thread)
 {
-	ia_css_queue_t *q = 0;
+	ia_css_queue_t *q = NULL;
 
 	switch (type) {
 	case sh_css_host2sp_buffer_queue:
@@ -280,7 +280,7 @@ static ia_css_queue_t *bufq_get_qhandle(
 /* Local function to initialize a buffer queue. This reduces
  * the chances of copy-paste errors or typos.
  */
-STORAGE_CLASS_INLINE void
+static inline void
 init_bufq(unsigned int desc_offset,
 	  unsigned int elems_offset,
 	  ia_css_queue_t *handle)

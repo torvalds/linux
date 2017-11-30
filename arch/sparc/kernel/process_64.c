@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*  arch/sparc64/kernel/process.c
  *
  *  Copyright (C) 1995, 1996, 2008 David S. Miller (davem@davemloft.net)
@@ -77,8 +78,13 @@ void arch_cpu_idle(void)
 			: "=&r" (pstate)
 			: "i" (PSTATE_IE));
 
-		if (!need_resched() && !cpu_is_offline(smp_processor_id()))
+		if (!need_resched() && !cpu_is_offline(smp_processor_id())) {
 			sun4v_cpu_yield();
+			/* If resumed by cpu_poke then we need to explicitly
+			 * call scheduler_ipi().
+			 */
+			scheduler_poke();
+		}
 
 		/* Re-enable interrupts. */
 		__asm__ __volatile__(
@@ -399,25 +405,6 @@ static int __init sparc_sysrq_init(void)
 core_initcall(sparc_sysrq_init);
 
 #endif
-
-unsigned long thread_saved_pc(struct task_struct *tsk)
-{
-	struct thread_info *ti = task_thread_info(tsk);
-	unsigned long ret = 0xdeadbeefUL;
-	
-	if (ti && ti->ksp) {
-		unsigned long *sp;
-		sp = (unsigned long *)(ti->ksp + STACK_BIAS);
-		if (((unsigned long)sp & (sizeof(long) - 1)) == 0UL &&
-		    sp[14]) {
-			unsigned long *fp;
-			fp = (unsigned long *)(sp[14] + STACK_BIAS);
-			if (((unsigned long)fp & (sizeof(long) - 1)) == 0UL)
-				ret = fp[15];
-		}
-	}
-	return ret;
-}
 
 /* Free current thread data structures etc.. */
 void exit_thread(struct task_struct *tsk)

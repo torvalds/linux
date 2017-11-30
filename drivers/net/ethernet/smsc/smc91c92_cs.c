@@ -280,7 +280,7 @@ static void set_rx_mode(struct net_device *dev);
 static int s9k_config(struct net_device *dev, struct ifmap *map);
 static void smc_set_xcvr(struct net_device *dev, int if_port);
 static void smc_reset(struct net_device *dev);
-static void media_check(u_long arg);
+static void media_check(struct timer_list *t);
 static void mdio_sync(unsigned int addr);
 static int mdio_read(struct net_device *dev, int phy_id, int loc);
 static void mdio_write(struct net_device *dev, int phy_id, int loc, int value);
@@ -1070,7 +1070,7 @@ static int smc_open(struct net_device *dev)
     smc->packets_waiting = 0;
 
     smc_reset(dev);
-    setup_timer(&smc->media, media_check, (u_long)dev);
+    timer_setup(&smc->media, media_check, 0);
     mod_timer(&smc->media, jiffies + HZ);
 
     return 0;
@@ -1708,10 +1708,10 @@ static void smc_reset(struct net_device *dev)
 
 ======================================================================*/
 
-static void media_check(u_long arg)
+static void media_check(struct timer_list *t)
 {
-    struct net_device *dev = (struct net_device *) arg;
-    struct smc_private *smc = netdev_priv(dev);
+    struct smc_private *smc = from_timer(smc, t, media);
+    struct net_device *dev = smc->mii_if.dev;
     unsigned int ioaddr = dev->base_addr;
     u_short i, media, saved_bank;
     u_short link;
@@ -1843,8 +1843,8 @@ static int smc_link_ok(struct net_device *dev)
     }
 }
 
-static int smc_netdev_get_ecmd(struct net_device *dev,
-			       struct ethtool_link_ksettings *ecmd)
+static void smc_netdev_get_ecmd(struct net_device *dev,
+				struct ethtool_link_ksettings *ecmd)
 {
 	u16 tmp;
 	unsigned int ioaddr = dev->base_addr;
@@ -1865,8 +1865,6 @@ static int smc_netdev_get_ecmd(struct net_device *dev,
 
 	ethtool_convert_legacy_u32_to_link_mode(ecmd->link_modes.supported,
 						supported);
-
-	return 0;
 }
 
 static int smc_netdev_set_ecmd(struct net_device *dev,
@@ -1918,18 +1916,17 @@ static int smc_get_link_ksettings(struct net_device *dev,
 	struct smc_private *smc = netdev_priv(dev);
 	unsigned int ioaddr = dev->base_addr;
 	u16 saved_bank = inw(ioaddr + BANK_SELECT);
-	int ret;
 	unsigned long flags;
 
 	spin_lock_irqsave(&smc->lock, flags);
 	SMC_SELECT_BANK(3);
 	if (smc->cfg & CFG_MII_SELECT)
-		ret = mii_ethtool_get_link_ksettings(&smc->mii_if, ecmd);
+		mii_ethtool_get_link_ksettings(&smc->mii_if, ecmd);
 	else
-		ret = smc_netdev_get_ecmd(dev, ecmd);
+		smc_netdev_get_ecmd(dev, ecmd);
 	SMC_SELECT_BANK(saved_bank);
 	spin_unlock_irqrestore(&smc->lock, flags);
-	return ret;
+	return 0;
 }
 
 static int smc_set_link_ksettings(struct net_device *dev,

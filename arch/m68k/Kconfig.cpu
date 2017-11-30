@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 comment "Processor Type"
 
 choice
@@ -283,7 +284,7 @@ config M548x
 
 config M5441x
 	bool "MCF5441x"
-	depends on !MMU
+	select MMU_COLDFIRE if MMU
 	select GENERIC_CLOCKEVENTS
 	select HAVE_CACHE_CB
 	help

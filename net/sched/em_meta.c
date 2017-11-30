@@ -340,7 +340,7 @@ META_COLLECTOR(int_sk_refcnt)
 		*err = -1;
 		return;
 	}
-	dst->value = atomic_read(&skb->sk->sk_refcnt);
+	dst->value = refcount_read(&skb->sk->sk_refcnt);
 }
 
 META_COLLECTOR(int_sk_rcvbuf)

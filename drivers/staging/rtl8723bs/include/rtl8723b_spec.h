@@ -17,12 +17,11 @@
 
 #include <autoconf.h>
 
-
 #define HAL_NAV_UPPER_UNIT_8723B		128		/*  micro-second */
 
 /*  */
 /*  */
-/* 	0x0000h ~ 0x00FFh	System Configuration */
+/*	0x0000h ~ 0x00FFh	System Configuration */
 /*  */
 /*  */
 #define REG_RSV_CTRL_8723B				0x001C	/*  3 Byte */
@@ -42,7 +41,7 @@
 
 /*  */
 /*  */
-/* 	0x0100h ~ 0x01FFh	MACTOP General Configuration */
+/*	0x0100h ~ 0x01FFh	MACTOP General Configuration */
 /*  */
 /*  */
 #define REG_C2HEVT_CMD_ID_8723B	0x01A0
@@ -58,13 +57,13 @@
 
 /*  */
 /*  */
-/* 	0x0200h ~ 0x027Fh	TXDMA Configuration */
+/*	0x0200h ~ 0x027Fh	TXDMA Configuration */
 /*  */
 /*  */
 
 /*  */
 /*  */
-/* 	0x0280h ~ 0x02FFh	RXDMA Configuration */
+/*	0x0280h ~ 0x02FFh	RXDMA Configuration */
 /*  */
 /*  */
 #define REG_RXDMA_CONTROL_8723B		0x0286 /*  Control the RX DMA. */
@@ -72,7 +71,7 @@
 
 /*  */
 /*  */
-/* 	0x0300h ~ 0x03FFh	PCIe */
+/*	0x0300h ~ 0x03FFh	PCIe */
 /*  */
 /*  */
 #define	REG_PCIE_CTRL_REG_8723B		0x0300
@@ -99,7 +98,7 @@
 
 /*  */
 /*  */
-/* 	0x0400h ~ 0x047Fh	Protocol Configuration */
+/*	0x0400h ~ 0x047Fh	Protocol Configuration */
 /*  */
 /*  */
 #define REG_TXPKTBUF_BCNQ_BDNY_8723B	0x0424
@@ -113,17 +112,16 @@
 
 /*  */
 /*  */
-/* 	0x0500h ~ 0x05FFh	EDCA Configuration */
+/*	0x0500h ~ 0x05FFh	EDCA Configuration */
 /*  */
 /*  */
 #define REG_SECONDARY_CCA_CTRL_8723B	0x0577
 
 /*  */
 /*  */
-/* 	0x0600h ~ 0x07FFh	WMAC Configuration */
+/*	0x0600h ~ 0x07FFh	WMAC Configuration */
 /*  */
 /*  */
-
 
 /*  */
 /*  SDIO Bus Specification */
@@ -142,9 +140,8 @@
 /*  */
 #define SDIO_REG_HCPWM1_8723B	0x025 /*  HCI Current Power Mode 1 */
 
-
 /*  */
-/* 	8723 Regsiter Bit and Content definition */
+/*	8723 Register Bit and Content definition */
 /*  */
 
 /* 2 HSISR */
@@ -157,20 +154,19 @@
 
 /*  */
 /*  */
-/* 	0x0100h ~ 0x01FFh	MACTOP General Configuration */
-/*  */
-/*  */
-
-
-/*  */
-/*  */
-/* 	0x0200h ~ 0x027Fh	TXDMA Configuration */
+/*	0x0100h ~ 0x01FFh	MACTOP General Configuration */
 /*  */
 /*  */
 
 /*  */
 /*  */
-/* 	0x0280h ~ 0x02FFh	RXDMA Configuration */
+/*	0x0200h ~ 0x027Fh	TXDMA Configuration */
+/*  */
+/*  */
+
+/*  */
+/*  */
+/*	0x0280h ~ 0x02FFh	RXDMA Configuration */
 /*  */
 /*  */
 #define BIT_USB_RXDMA_AGG_EN	BIT(31)
@@ -184,7 +180,7 @@
 
 /*  */
 /*  */
-/* 	0x0400h ~ 0x047Fh	Protocol Configuration */
+/*	0x0400h ~ 0x047Fh	Protocol Configuration */
 /*  */
 /*  */
 
@@ -195,18 +191,17 @@
 
 /*  */
 /*  */
-/* 	0x0500h ~ 0x05FFh	EDCA Configuration */
+/*	0x0500h ~ 0x05FFh	EDCA Configuration */
 /*  */
 /*  */
 
 /*  */
 /*  */
-/* 	0x0600h ~ 0x07FFh	WMAC Configuration */
+/*	0x0600h ~ 0x07FFh	WMAC Configuration */
 /*  */
 /*  */
 #define EEPROM_RF_GAIN_OFFSET			0xC1
 #define EEPROM_RF_GAIN_VAL			0x1F6
-
 
 /*  */
 /*        8195 IMR/ISR bits						(offset 0xB0,  8bits) */
@@ -246,13 +241,13 @@
 #define	IMR_BCNDMAINT3_8723B				BIT23		/*  Beacon DMA Interrupt 3 */
 #define	IMR_BCNDMAINT2_8723B				BIT22		/*  Beacon DMA Interrupt 2 */
 #define	IMR_BCNDMAINT1_8723B				BIT21		/*  Beacon DMA Interrupt 1 */
-#define	IMR_BCNDOK7_8723B					BIT20		/*  Beacon Queue DMA OK Interrup 7 */
-#define	IMR_BCNDOK6_8723B					BIT19		/*  Beacon Queue DMA OK Interrup 6 */
-#define	IMR_BCNDOK5_8723B					BIT18		/*  Beacon Queue DMA OK Interrup 5 */
-#define	IMR_BCNDOK4_8723B					BIT17		/*  Beacon Queue DMA OK Interrup 4 */
-#define	IMR_BCNDOK3_8723B					BIT16		/*  Beacon Queue DMA OK Interrup 3 */
-#define	IMR_BCNDOK2_8723B					BIT15		/*  Beacon Queue DMA OK Interrup 2 */
-#define	IMR_BCNDOK1_8723B					BIT14		/*  Beacon Queue DMA OK Interrup 1 */
+#define	IMR_BCNDOK7_8723B					BIT20		/*  Beacon Queue DMA OK Interrupt 7 */
+#define	IMR_BCNDOK6_8723B					BIT19		/*  Beacon Queue DMA OK Interrupt 6 */
+#define	IMR_BCNDOK5_8723B					BIT18		/*  Beacon Queue DMA OK Interrupt 5 */
+#define	IMR_BCNDOK4_8723B					BIT17		/*  Beacon Queue DMA OK Interrupt 4 */
+#define	IMR_BCNDOK3_8723B					BIT16		/*  Beacon Queue DMA OK Interrupt 3 */
+#define	IMR_BCNDOK2_8723B					BIT15		/*  Beacon Queue DMA OK Interrupt 2 */
+#define	IMR_BCNDOK1_8723B					BIT14		/*  Beacon Queue DMA OK Interrupt 1 */
 #define	IMR_ATIMEND_E_8723B				BIT13		/*  ATIM Window End Extension for Win7 */
 #define	IMR_TXERR_8723B					BIT11		/*  Tx Error Flag Interrupt Status, write 1 clear. */
 #define	IMR_RXERR_8723B					BIT10		/*  Rx Error Flag INT Status, Write 1 clear */

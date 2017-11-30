@@ -11,7 +11,6 @@
 
 #include <linux/bitops.h>
 #include <linux/gpio/driver.h>
-#include <linux/gpio.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
@@ -358,7 +357,7 @@ static void mrfld_irq_handler(struct irq_desc *desc)
 		for_each_set_bit(gpio, &pending, 32) {
 			unsigned int irq;
 
-			irq = irq_find_mapping(gc->irqdomain, base + gpio);
+			irq = irq_find_mapping(gc->irq.domain, base + gpio);
 			generic_handle_irq(irq);
 		}
 	}

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * (C) 2001 Clemson University and The University of Chicago
  *
@@ -35,7 +36,7 @@ struct posix_acl *orangefs_get_acl(struct inode *inode, int type)
 	 * I don't do that for now.
 	 */
 	value = kmalloc(ORANGEFS_MAX_XATTR_VALUELEN, GFP_KERNEL);
-	if (value == NULL)
+	if (!value)
 		return ERR_PTR(-ENOMEM);
 
 	gossip_debug(GOSSIP_ACL_DEBUG,
@@ -61,9 +62,9 @@ struct posix_acl *orangefs_get_acl(struct inode *inode, int type)
 	return acl;
 }
 
-int orangefs_set_acl(struct inode *inode, struct posix_acl *acl, int type)
+static int __orangefs_set_acl(struct inode *inode, struct posix_acl *acl,
+			      int type)
 {
-	struct orangefs_inode_s *orangefs_inode = ORANGEFS_I(inode);
 	int error = 0;
 	void *value = NULL;
 	size_t size = 0;
@@ -72,22 +73,6 @@ int orangefs_set_acl(struct inode *inode, struct posix_acl *acl, int type)
 	switch (type) {
 	case ACL_TYPE_ACCESS:
 		name = XATTR_NAME_POSIX_ACL_ACCESS;
-		if (acl) {
-			umode_t mode;
-
-			error = posix_acl_update_mode(inode, &mode, &acl);
-			if (error) {
-				gossip_err("%s: posix_acl_update_mode err: %d\n",
-					   __func__,
-					   error);
-				return error;
-			}
-
-			if (inode->i_mode != mode)
-				SetModeFlag(orangefs_inode);
-			inode->i_mode = mode;
-			mark_inode_dirty_sync(inode);
-		}
 		break;
 	case ACL_TYPE_DEFAULT:
 		name = XATTR_NAME_POSIX_ACL_DEFAULT;
@@ -132,35 +117,72 @@ out:
 	return error;
 }
 
+int orangefs_set_acl(struct inode *inode, struct posix_acl *acl, int type)
+{
+	int error;
+	struct iattr iattr;
+	int rc;
+
+	if (type == ACL_TYPE_ACCESS && acl) {
+		/*
+		 * posix_acl_update_mode checks to see if the permissions
+		 * described by the ACL can be encoded into the
+		 * object's mode. If so, it sets "acl" to NULL
+		 * and "mode" to the new desired value. It is up to
+		 * us to propagate the new mode back to the server...
+		 */
+		error = posix_acl_update_mode(inode, &iattr.ia_mode, &acl);
+		if (error) {
+			gossip_err("%s: posix_acl_update_mode err: %d\n",
+				   __func__,
+				   error);
+			return error;
+		}
+
+		if (acl) {
+			rc = __orangefs_set_acl(inode, acl, type);
+		} else {
+			iattr.ia_valid = ATTR_MODE;
+			rc = orangefs_inode_setattr(inode, &iattr);
+		}
+
+		return rc;
+
+	} else {
+		return -EINVAL;
+	}
+}
+
 int orangefs_init_acl(struct inode *inode, struct inode *dir)
 {
-	struct orangefs_inode_s *orangefs_inode = ORANGEFS_I(inode);
 	struct posix_acl *default_acl, *acl;
 	umode_t mode = inode->i_mode;
+	struct iattr iattr;
 	int error = 0;
-
-	ClearModeFlag(orangefs_inode);
 
 	error = posix_acl_create(dir, &mode, &default_acl, &acl);
 	if (error)
 		return error;
 
 	if (default_acl) {
-		error = orangefs_set_acl(inode, default_acl, ACL_TYPE_DEFAULT);
+		error = __orangefs_set_acl(inode, default_acl,
+					   ACL_TYPE_DEFAULT);
 		posix_acl_release(default_acl);
 	}
 
 	if (acl) {
 		if (!error)
-			error = orangefs_set_acl(inode, acl, ACL_TYPE_ACCESS);
+			error = __orangefs_set_acl(inode, acl, ACL_TYPE_ACCESS);
 		posix_acl_release(acl);
 	}
 
 	/* If mode of the inode was changed, then do a forcible ->setattr */
 	if (mode != inode->i_mode) {
-		SetModeFlag(orangefs_inode);
+		memset(&iattr, 0, sizeof iattr);
 		inode->i_mode = mode;
-		orangefs_flush_inode(inode);
+		iattr.ia_mode = mode;
+		iattr.ia_valid |= ATTR_MODE;
+		orangefs_inode_setattr(inode, &iattr);
 	}
 
 	return error;

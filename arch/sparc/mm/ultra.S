@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * ultra.S: Don't expand these all over the place...
  *
@@ -969,11 +970,6 @@ xcall_receive_signal:
 	.globl		xcall_capture
 xcall_capture:
 	wr		%g0, (1 << PIL_SMP_CAPTURE), %set_softint
-	retry
-
-	.globl		xcall_new_mmu_context_version
-xcall_new_mmu_context_version:
-	wr		%g0, (1 << PIL_SMP_CTX_NEW_VERSION), %set_softint
 	retry
 
 #ifdef CONFIG_KGDB

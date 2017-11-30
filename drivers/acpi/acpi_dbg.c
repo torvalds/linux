@@ -10,7 +10,7 @@
  */
 
 /* #define DEBUG */
-#define pr_fmt(fmt) "ACPI : AML: " fmt
+#define pr_fmt(fmt) "ACPI: AML: " fmt
 
 #include <linux/kernel.h>
 #include <linux/module.h>

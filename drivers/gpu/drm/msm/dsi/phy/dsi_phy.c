@@ -373,7 +373,7 @@ static int dsi_phy_enable_resource(struct msm_dsi_phy *phy)
 static void dsi_phy_disable_resource(struct msm_dsi_phy *phy)
 {
 	clk_disable_unprepare(phy->ahb_clk);
-	pm_runtime_put_sync(&phy->pdev->dev);
+	pm_runtime_put_autosuspend(&phy->pdev->dev);
 }
 
 static const struct of_device_id dsi_phy_dt_match[] = {
@@ -482,7 +482,7 @@ static int dsi_phy_driver_probe(struct platform_device *pdev)
 		goto fail;
 	}
 
-	phy->ahb_clk = devm_clk_get(dev, "iface_clk");
+	phy->ahb_clk = msm_clk_get(pdev, "iface");
 	if (IS_ERR(phy->ahb_clk)) {
 		dev_err(dev, "%s: Unable to get ahb clk\n", __func__);
 		ret = PTR_ERR(phy->ahb_clk);

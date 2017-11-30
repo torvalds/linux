@@ -41,8 +41,62 @@ print_tuple(struct seq_file *s, const struct nf_conntrack_tuple *tuple,
             const struct nf_conntrack_l3proto *l3proto,
             const struct nf_conntrack_l4proto *l4proto)
 {
-	l3proto->print_tuple(s, tuple);
-	l4proto->print_tuple(s, tuple);
+	switch (l3proto->l3proto) {
+	case NFPROTO_IPV4:
+		seq_printf(s, "src=%pI4 dst=%pI4 ",
+			   &tuple->src.u3.ip, &tuple->dst.u3.ip);
+		break;
+	case NFPROTO_IPV6:
+		seq_printf(s, "src=%pI6 dst=%pI6 ",
+			   tuple->src.u3.ip6, tuple->dst.u3.ip6);
+		break;
+	default:
+		break;
+	}
+
+	switch (l4proto->l4proto) {
+	case IPPROTO_ICMP:
+		seq_printf(s, "type=%u code=%u id=%u ",
+			   tuple->dst.u.icmp.type,
+			   tuple->dst.u.icmp.code,
+			   ntohs(tuple->src.u.icmp.id));
+		break;
+	case IPPROTO_TCP:
+		seq_printf(s, "sport=%hu dport=%hu ",
+			   ntohs(tuple->src.u.tcp.port),
+			   ntohs(tuple->dst.u.tcp.port));
+		break;
+	case IPPROTO_UDPLITE: /* fallthrough */
+	case IPPROTO_UDP:
+		seq_printf(s, "sport=%hu dport=%hu ",
+			   ntohs(tuple->src.u.udp.port),
+			   ntohs(tuple->dst.u.udp.port));
+
+		break;
+	case IPPROTO_DCCP:
+		seq_printf(s, "sport=%hu dport=%hu ",
+			   ntohs(tuple->src.u.dccp.port),
+			   ntohs(tuple->dst.u.dccp.port));
+		break;
+	case IPPROTO_SCTP:
+		seq_printf(s, "sport=%hu dport=%hu ",
+			   ntohs(tuple->src.u.sctp.port),
+			   ntohs(tuple->dst.u.sctp.port));
+		break;
+	case IPPROTO_ICMPV6:
+		seq_printf(s, "type=%u code=%u id=%u ",
+			   tuple->dst.u.icmp.type,
+			   tuple->dst.u.icmp.code,
+			   ntohs(tuple->src.u.icmp.id));
+		break;
+	case IPPROTO_GRE:
+		seq_printf(s, "srckey=0x%x dstkey=0x%x ",
+			   ntohs(tuple->src.u.gre.key),
+			   ntohs(tuple->dst.u.gre.key));
+		break;
+	default:
+		break;
+	}
 }
 EXPORT_SYMBOL_GPL(print_tuple);
 
@@ -198,6 +252,31 @@ ct_show_delta_time(struct seq_file *s, const struct nf_conn *ct)
 }
 #endif
 
+static const char* l3proto_name(u16 proto)
+{
+	switch (proto) {
+	case AF_INET: return "ipv4";
+	case AF_INET6: return "ipv6";
+	}
+
+	return "unknown";
+}
+
+static const char* l4proto_name(u16 proto)
+{
+	switch (proto) {
+	case IPPROTO_ICMP: return "icmp";
+	case IPPROTO_TCP: return "tcp";
+	case IPPROTO_UDP: return "udp";
+	case IPPROTO_DCCP: return "dccp";
+	case IPPROTO_GRE: return "gre";
+	case IPPROTO_SCTP: return "sctp";
+	case IPPROTO_UDPLITE: return "udplite";
+	}
+
+	return "unknown";
+}
+
 /* return 0 on success, 1 in case of error */
 static int ct_seq_show(struct seq_file *s, void *v)
 {
@@ -208,7 +287,7 @@ static int ct_seq_show(struct seq_file *s, void *v)
 	struct net *net = seq_file_net(s);
 	int ret = 0;
 
-	NF_CT_ASSERT(ct);
+	WARN_ON(!ct);
 	if (unlikely(!atomic_inc_not_zero(&ct->ct_general.use)))
 		return 0;
 
@@ -225,14 +304,14 @@ static int ct_seq_show(struct seq_file *s, void *v)
 		goto release;
 
 	l3proto = __nf_ct_l3proto_find(nf_ct_l3num(ct));
-	NF_CT_ASSERT(l3proto);
+	WARN_ON(!l3proto);
 	l4proto = __nf_ct_l4proto_find(nf_ct_l3num(ct), nf_ct_protonum(ct));
-	NF_CT_ASSERT(l4proto);
+	WARN_ON(!l4proto);
 
 	ret = -ENOSPC;
 	seq_printf(s, "%-8s %u %-8s %u %ld ",
-		   l3proto->name, nf_ct_l3num(ct),
-		   l4proto->name, nf_ct_protonum(ct),
+		   l3proto_name(l3proto->l3proto), nf_ct_l3num(ct),
+		   l4proto_name(l4proto->l4proto), nf_ct_protonum(ct),
 		   nf_ct_expires(ct)  / HZ);
 
 	if (l4proto->print_conntrack)
@@ -452,9 +531,6 @@ static int log_invalid_proto_max __read_mostly = 255;
 /* size the user *wants to set */
 static unsigned int nf_conntrack_htable_size_user __read_mostly;
 
-extern unsigned int nf_conntrack_default_on;
-unsigned int nf_conntrack_default_on __read_mostly = 1;
-
 static int
 nf_conntrack_hash_sysctl(struct ctl_table *table, int write,
 			 void __user *buffer, size_t *lenp, loff_t *ppos)
@@ -517,13 +593,6 @@ static struct ctl_table nf_ct_sysctl_table[] = {
 		.procname	= "nf_conntrack_expect_max",
 		.data		= &nf_ct_expect_max,
 		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec,
-	},
-	{
-		.procname	= "nf_conntrack_default_on",
-		.data		= &nf_conntrack_default_on,
-		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec,
 	},

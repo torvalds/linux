@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *    Copyright IBM Corp. 2007
  *    Author(s): Heiko Carstens <heiko.carstens@de.ibm.com>
@@ -135,7 +136,7 @@ static ssize_t sysfs_ofb_data_write(struct file *filp, struct kobject *kobj,
 	return rc ?: count;
 }
 
-static struct bin_attribute ofb_bin_attr = {
+static const struct bin_attribute ofb_bin_attr = {
 	.attr = {
 		.name = "event_data",
 		.mode = S_IWUSR,

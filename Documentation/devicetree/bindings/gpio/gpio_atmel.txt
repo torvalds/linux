@@ -5,9 +5,13 @@ Required properties:
 - reg: Should contain GPIO controller registers location and length
 - interrupts: Should be the port interrupt shared by all the pins.
 - #gpio-cells: Should be two.  The first cell is the pin number and
-  the second cell is used to specify optional parameters (currently
-  unused).
+  the second cell is used to specify optional parameters to declare if the GPIO
+  is active high or low. See gpio.txt.
 - gpio-controller: Marks the device node as a GPIO controller.
+- interrupt-controller: Marks the device node as an interrupt controller.
+- #interrupt-cells: Should be two. The first cell is the pin number and the
+  second cell is used to specify irq type flags, see the two cell description
+  in interrupt-controller/interrupts.txt for details.
 
 optional properties:
 - #gpio-lines: Number of gpio if absent 32.
@@ -21,5 +25,7 @@ Example:
 		#gpio-cells = <2>;
 		gpio-controller;
 		#gpio-lines = <19>;
+		interrupt-controller;
+		#interrupt-cells = <2>;
 	};
 

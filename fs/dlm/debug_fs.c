@@ -68,7 +68,7 @@ static void print_format1_lock(struct seq_file *s, struct dlm_lkb *lkb,
 	if (lkb->lkb_wait_type)
 		seq_printf(s, " wait_type: %d", lkb->lkb_wait_type);
 
-	seq_puts(s, "\n");
+	seq_putc(s, '\n');
 }
 
 static void print_format1(struct dlm_rsb *res, struct seq_file *s)
@@ -111,7 +111,7 @@ static void print_format1(struct dlm_rsb *res, struct seq_file *s)
 		}
 		if (rsb_flag(res, RSB_VALNOTVALID))
 			seq_puts(s, " (INVALID)");
-		seq_puts(s, "\n");
+		seq_putc(s, '\n');
 		if (seq_has_overflowed(s))
 			goto out;
 	}
@@ -156,7 +156,7 @@ static void print_format1(struct dlm_rsb *res, struct seq_file *s)
 			   lkb->lkb_id, print_lockmode(lkb->lkb_rqmode));
 		if (lkb->lkb_wait_type)
 			seq_printf(s, " wait_type: %d", lkb->lkb_wait_type);
-		seq_puts(s, "\n");
+		seq_putc(s, '\n');
 		if (seq_has_overflowed(s))
 			goto out;
 	}
@@ -287,7 +287,7 @@ static void print_format3(struct dlm_rsb *r, struct seq_file *s)
 		else
 			seq_printf(s, " %02x", (unsigned char)r->res_name[i]);
 	}
-	seq_puts(s, "\n");
+	seq_putc(s, '\n');
 	if (seq_has_overflowed(s))
 		goto out;
 
@@ -298,7 +298,7 @@ static void print_format3(struct dlm_rsb *r, struct seq_file *s)
 
 	for (i = 0; i < lvblen; i++)
 		seq_printf(s, " %02x", (unsigned char)r->res_lvbptr[i]);
-	seq_puts(s, "\n");
+	seq_putc(s, '\n');
 	if (seq_has_overflowed(s))
 		goto out;
 
@@ -361,8 +361,7 @@ static void print_format4(struct dlm_rsb *r, struct seq_file *s)
 		else
 			seq_printf(s, " %02x", (unsigned char)r->res_name[i]);
 	}
-	seq_puts(s, "\n");
-
+	seq_putc(s, '\n');
 	unlock_rsb(r);
 }
 
@@ -436,7 +435,7 @@ static void *table_seq_start(struct seq_file *seq, loff_t *pos)
 	if (bucket >= ls->ls_rsbtbl_size)
 		return NULL;
 
-	ri = kzalloc(sizeof(struct rsbtbl_iter), GFP_NOFS);
+	ri = kzalloc(sizeof(*ri), GFP_NOFS);
 	if (!ri)
 		return NULL;
 	if (n == 0)
@@ -742,7 +741,7 @@ void dlm_delete_debug_file(struct dlm_ls *ls)
 
 int dlm_create_debug_file(struct dlm_ls *ls)
 {
-	char name[DLM_LOCKSPACE_LEN+8];
+	char name[DLM_LOCKSPACE_LEN + 8];
 
 	/* format 1 */
 
@@ -757,7 +756,7 @@ int dlm_create_debug_file(struct dlm_ls *ls)
 	/* format 2 */
 
 	memset(name, 0, sizeof(name));
-	snprintf(name, DLM_LOCKSPACE_LEN+8, "%s_locks", ls->ls_name);
+	snprintf(name, DLM_LOCKSPACE_LEN + 8, "%s_locks", ls->ls_name);
 
 	ls->ls_debug_locks_dentry = debugfs_create_file(name,
 							S_IFREG | S_IRUGO,
@@ -770,7 +769,7 @@ int dlm_create_debug_file(struct dlm_ls *ls)
 	/* format 3 */
 
 	memset(name, 0, sizeof(name));
-	snprintf(name, DLM_LOCKSPACE_LEN+8, "%s_all", ls->ls_name);
+	snprintf(name, DLM_LOCKSPACE_LEN + 8, "%s_all", ls->ls_name);
 
 	ls->ls_debug_all_dentry = debugfs_create_file(name,
 						      S_IFREG | S_IRUGO,
@@ -783,7 +782,7 @@ int dlm_create_debug_file(struct dlm_ls *ls)
 	/* format 4 */
 
 	memset(name, 0, sizeof(name));
-	snprintf(name, DLM_LOCKSPACE_LEN+8, "%s_toss", ls->ls_name);
+	snprintf(name, DLM_LOCKSPACE_LEN + 8, "%s_toss", ls->ls_name);
 
 	ls->ls_debug_toss_dentry = debugfs_create_file(name,
 						       S_IFREG | S_IRUGO,
@@ -794,7 +793,7 @@ int dlm_create_debug_file(struct dlm_ls *ls)
 		goto fail;
 
 	memset(name, 0, sizeof(name));
-	snprintf(name, DLM_LOCKSPACE_LEN+8, "%s_waiters", ls->ls_name);
+	snprintf(name, DLM_LOCKSPACE_LEN + 8, "%s_waiters", ls->ls_name);
 
 	ls->ls_debug_waiters_dentry = debugfs_create_file(name,
 							  S_IFREG | S_IRUGO,

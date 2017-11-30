@@ -25,10 +25,10 @@ struct module;
 struct tracepoint;
 struct notifier_block;
 
-struct trace_enum_map {
+struct trace_eval_map {
 	const char		*system;
-	const char		*enum_string;
-	unsigned long		enum_value;
+	const char		*eval_string;
+	unsigned long		eval_value;
 };
 
 #define TRACEPOINT_DEFAULT_PRIO	10
@@ -88,6 +88,7 @@ extern void syscall_unregfunc(void);
 #define PARAMS(args...) args
 
 #define TRACE_DEFINE_ENUM(x)
+#define TRACE_DEFINE_SIZEOF(x)
 
 #endif /* _LINUX_TRACEPOINT_H */
 

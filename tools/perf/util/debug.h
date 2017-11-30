@@ -1,9 +1,11 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* For debugging general purposes */
 #ifndef __PERF_DEBUG_H
 #define __PERF_DEBUG_H
 
 #include <stdbool.h>
 #include <string.h>
+#include <linux/compiler.h>
 #include "event.h"
 #include "../ui/helpline.h"
 #include "../ui/progress.h"
@@ -40,16 +42,16 @@ extern int debug_data_convert;
 
 #define STRERR_BUFSIZE	128	/* For the buffer size of str_error_r */
 
-int dump_printf(const char *fmt, ...) __attribute__((format(printf, 1, 2)));
+int dump_printf(const char *fmt, ...) __printf(1, 2);
 void trace_event(union perf_event *event);
 
-int ui__error(const char *format, ...) __attribute__((format(printf, 1, 2)));
-int ui__warning(const char *format, ...) __attribute__((format(printf, 1, 2)));
+int ui__error(const char *format, ...) __printf(1, 2);
+int ui__warning(const char *format, ...) __printf(1, 2);
 
 void pr_stat(const char *fmt, ...);
 
-int eprintf(int level, int var, const char *fmt, ...) __attribute__((format(printf, 3, 4)));
-int eprintf_time(int level, int var, u64 t, const char *fmt, ...) __attribute__((format(printf, 4, 5)));
+int eprintf(int level, int var, const char *fmt, ...) __printf(3, 4);
+int eprintf_time(int level, int var, u64 t, const char *fmt, ...) __printf(4, 5);
 int veprintf(int level, int var, const char *fmt, va_list args);
 
 int perf_debug_option(const char *str);

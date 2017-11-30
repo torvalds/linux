@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * GPL HEADER START
  *
@@ -38,8 +39,8 @@
  * @{
  */
 
-#include "lustre_net.h"
-#include "obd.h"
+#include <lustre_net.h>
+#include <obd.h>
 
 /* lib/debug.c */
 int dump_req(struct ptlrpc_request *req);

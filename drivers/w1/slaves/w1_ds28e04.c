@@ -20,14 +20,9 @@
 #define CRC16_INIT		0
 #define CRC16_VALID		0xb001
 
-#include "../w1.h"
-#include "../w1_int.h"
-#include "../w1_family.h"
+#include <linux/w1.h>
 
-MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Markus Franke <franke.m@sebakmt.com>, <franm@hrz.tu-chemnitz.de>");
-MODULE_DESCRIPTION("w1 family 1C driver for DS28E04, 4kb EEPROM and PIO");
-MODULE_ALIAS("w1-family-" __stringify(W1_FAMILY_DS28E04));
+#define W1_FAMILY_DS28E04	0x1C
 
 /* Allow the strong pullup to be disabled, but default to enabled.
  * If it was disabled a parasite powered device might not get the required
@@ -428,3 +423,8 @@ static struct w1_family w1_family_1C = {
 	.fops = &w1_f1C_fops,
 };
 module_w1_family(w1_family_1C);
+
+MODULE_AUTHOR("Markus Franke <franke.m@sebakmt.com>, <franm@hrz.tu-chemnitz.de>");
+MODULE_DESCRIPTION("w1 family 1C driver for DS28E04, 4kb EEPROM and PIO");
+MODULE_LICENSE("GPL");
+MODULE_ALIAS("w1-family-" __stringify(W1_FAMILY_DS28E04));

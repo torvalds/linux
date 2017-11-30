@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 menu "Platform support"
 
 source "arch/powerpc/platforms/powernv/Kconfig"
@@ -59,6 +60,17 @@ config PPC_OF_BOOT_TRAMPOLINE
 
 	  In case of doubt, say Y
 
+config PPC_DT_CPU_FTRS
+	bool "Device-tree based CPU feature discovery & setup"
+	depends on PPC_BOOK3S_64
+	default y
+	help
+	  This enables code to use a new device tree binding for describing CPU
+	  compatibility and features. Saying Y here will attempt to use the new
+	  binding if the firmware provides it. Currently only the skiboot
+	  firmware provides this binding.
+	  If you're not sure say Y.
+
 config UDBG_RTAS_CONSOLE
 	bool "RTAS based debug console"
 	depends on PPC_RTAS
@@ -67,7 +79,7 @@ config UDBG_RTAS_CONSOLE
 config PPC_SMP_MUXED_IPI
 	bool
 	help
-	  Select this opton if your platform supports SMP and your
+	  Select this option if your platform supports SMP and your
 	  interrupt controller provides less than 4 interrupts to each
 	  cpu.	This will enable the generic code to multiplex the 4
 	  messages on to one ipi.

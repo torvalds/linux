@@ -342,6 +342,12 @@ pca963x_dt_init(struct i2c_client *client, struct pca963x_chipdef *chip)
 	if (of_property_read_u32(np, "nxp,period-scale", &chip->scaling))
 		chip->scaling = 1000;
 
+	/* default to non-inverted output, unless inverted is specified */
+	if (of_property_read_bool(np, "nxp,inverted-out"))
+		pdata->dir = PCA963X_INVERTED;
+	else
+		pdata->dir = PCA963X_NORMAL;
+
 	return pdata;
 }
 
@@ -452,11 +458,18 @@ static int pca963x_probe(struct i2c_client *client,
 	i2c_smbus_write_byte_data(client, PCA963X_MODE1, BIT(4));
 
 	if (pdata) {
+		u8 mode2 = i2c_smbus_read_byte_data(pca963x->chip->client,
+						    PCA963X_MODE2);
 		/* Configure output: open-drain or totem pole (push-pull) */
 		if (pdata->outdrv == PCA963X_OPEN_DRAIN)
-			i2c_smbus_write_byte_data(client, PCA963X_MODE2, 0x01);
+			mode2 |= 0x01;
 		else
-			i2c_smbus_write_byte_data(client, PCA963X_MODE2, 0x05);
+			mode2 |= 0x05;
+		/* Configure direction: normal or inverted */
+		if (pdata->dir == PCA963X_INVERTED)
+			mode2 |= 0x10;
+		i2c_smbus_write_byte_data(pca963x->chip->client, PCA963X_MODE2,
+					  mode2);
 	}
 
 	return 0;

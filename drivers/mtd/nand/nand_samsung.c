@@ -15,7 +15,7 @@
  * GNU General Public License for more details.
  */
 
-#include <linux/mtd/nand.h>
+#include <linux/mtd/rawnand.h>
 
 static void samsung_nand_decode_id(struct nand_chip *chip)
 {
@@ -84,6 +84,9 @@ static void samsung_nand_decode_id(struct nand_chip *chip)
 			case 7:
 				chip->ecc_strength_ds = 60;
 				break;
+			default:
+				WARN(1, "Could not decode ECC info");
+				chip->ecc_step_ds = 0;
 			}
 		}
 	} else {

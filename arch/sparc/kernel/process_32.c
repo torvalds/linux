@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*  linux/arch/sparc/kernel/process.c
  *
  *  Copyright (C) 1995, 2008 David S. Miller (davem@davemloft.net)
@@ -174,14 +175,6 @@ void show_stack(struct task_struct *tsk, unsigned long *_ksp)
 		fp = rw->ins[6];
 	} while (++count < 16);
 	printk("\n");
-}
-
-/*
- * Note: sparc64 has a pretty intricated thread_saved_pc, check it out.
- */
-unsigned long thread_saved_pc(struct task_struct *tsk)
-{
-	return task_thread_info(tsk)->kpc;
 }
 
 /*

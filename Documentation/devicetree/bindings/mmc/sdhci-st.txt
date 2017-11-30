@@ -63,7 +63,6 @@ Example:
 
 mmc0: sdhci@fe81e000 {
 	compatible	= "st,sdhci";
-	status		= "disabled";
 	reg		= <0xfe81e000 0x1000>;
 	interrupts	= <GIC_SPI 127 IRQ_TYPE_NONE>;
 	interrupt-names	= "mmcirq";
@@ -75,9 +74,8 @@ mmc0: sdhci@fe81e000 {
 
 /* Example SD stih407 family configuration */
 
-mmc1: sdhci@09080000 {
+mmc1: sdhci@9080000 {
 	compatible	= "st,sdhci-stih407", "st,sdhci";
-	status		= "disabled";
 	reg		= <0x09080000 0x7ff>;
 	reg-names	= "mmc";
 	interrupts	= <GIC_SPI 90 IRQ_TYPE_NONE>;
@@ -92,9 +90,8 @@ mmc1: sdhci@09080000 {
 
 /* Example eMMC stih407 family configuration */
 
-mmc0: sdhci@09060000 {
+mmc0: sdhci@9060000 {
 	compatible	= "st,sdhci-stih407", "st,sdhci";
-	status		= "disabled";
 	reg		= <0x09060000 0x7ff>, <0x9061008 0x20>;
 	reg-names	= "mmc", "top-mmc-delay";
 	interrupts	= <GIC_SPI 92 IRQ_TYPE_NONE>;

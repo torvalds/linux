@@ -149,8 +149,8 @@ static int pnpacpi_suspend(struct pnp_dev *dev, pm_message_t state)
 	}
 
 	if (device_can_wakeup(&dev->dev)) {
-		error = acpi_pm_device_sleep_wake(&dev->dev,
-				device_may_wakeup(&dev->dev));
+		error = acpi_pm_set_device_wakeup(&dev->dev,
+					      device_may_wakeup(&dev->dev));
 		if (error)
 			return error;
 	}
@@ -185,7 +185,7 @@ static int pnpacpi_resume(struct pnp_dev *dev)
 	}
 
 	if (device_may_wakeup(&dev->dev))
-		acpi_pm_device_sleep_wake(&dev->dev, false);
+		acpi_pm_set_device_wakeup(&dev->dev, false);
 
 	if (acpi_device_power_manageable(acpi_dev))
 		error = acpi_device_set_power(acpi_dev, ACPI_STATE_D0);

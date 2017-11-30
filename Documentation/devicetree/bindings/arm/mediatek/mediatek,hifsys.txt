@@ -8,6 +8,7 @@ Required Properties:
 
 - compatible: Should be:
 	- "mediatek,mt2701-hifsys", "syscon"
+	- "mediatek,mt7622-hifsys", "syscon"
 - #clock-cells: Must be 1
 
 The hifsys controller uses the common clk binding from

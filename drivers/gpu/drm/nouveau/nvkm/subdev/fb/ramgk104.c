@@ -1424,12 +1424,7 @@ gk104_ram_init(struct nvkm_ram *ram)
 	for (i = 0; i < cnt; i++, data += 4) {
 		if (i != save >> 4) {
 			nvkm_mask(device, 0x10f65c, 0x000000f0, i << 4);
-			nvbios_exec(&(struct nvbios_init) {
-					.subdev = subdev,
-					.bios = bios,
-					.offset = nvbios_rd32(bios, data),
-					.execute = 1,
-				    });
+			nvbios_init(subdev, nvbios_rd32(bios, data));
 		}
 	}
 	nvkm_mask(device, 0x10f65c, 0x000000f0, save);
@@ -1709,8 +1704,6 @@ gk104_ram = {
 	.probe_fbpa_amount = gf100_ram_probe_fbpa_amount,
 	.dtor = gk104_ram_dtor,
 	.init = gk104_ram_init,
-	.get = gf100_ram_get,
-	.put = gf100_ram_put,
 	.calc = gk104_ram_calc,
 	.prog = gk104_ram_prog,
 	.tidy = gk104_ram_tidy,

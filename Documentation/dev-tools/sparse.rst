@@ -103,9 +103,3 @@ have already built it.
 
 The optional make variable CF can be used to pass arguments to sparse.  The
 build system passes -Wbitwise to sparse automatically.
-
-Checking RCU annotations
-~~~~~~~~~~~~~~~~~~~~~~~~
-
-RCU annotations are not checked by default.  To enable RCU annotation
-checks, include -DCONFIG_SPARSE_RCU_POINTER in your CF flags.

@@ -1962,7 +1962,8 @@ static unsigned int ni_timer_to_ns(const struct comedi_device *dev, int timer)
 static void ni_cmd_set_mite_transfer(struct mite_ring *ring,
 				     struct comedi_subdevice *sdev,
 				     const struct comedi_cmd *cmd,
-				     unsigned int max_count) {
+				     unsigned int max_count)
+{
 #ifdef PCIDMA
 	unsigned int nbytes = max_count;
 
@@ -3116,8 +3117,7 @@ static void ni_ao_cmd_set_update(struct comedi_device *dev,
 		/* following line: 2-1 per STC */
 		ni_stc_writel(dev, 1, NISTC_AO_UI_LOADA_REG);
 		ni_stc_writew(dev, NISTC_AO_CMD1_UI_LOAD, NISTC_AO_CMD1_REG);
-		/* following line: N-1 per STC */
-		ni_stc_writel(dev, trigvar - 1, NISTC_AO_UI_LOADA_REG);
+		ni_stc_writel(dev, trigvar, NISTC_AO_UI_LOADA_REG);
 	} else { /* TRIG_EXT */
 		/* FIXME:  assert scan_begin_arg != 0, ret failure otherwise */
 		devpriv->ao_cmd2  |= NISTC_AO_CMD2_BC_GATE_ENA;

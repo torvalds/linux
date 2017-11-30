@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Compatibility mode system call entry point for x86-64.
  *
@@ -183,14 +184,11 @@ ENDPROC(entry_SYSENTER_compat)
  */
 ENTRY(entry_SYSCALL_compat)
 	/* Interrupts are off on entry. */
-	SWAPGS_UNSAFE_STACK
+	swapgs
 
 	/* Stash user ESP and switch to the kernel stack. */
 	movl	%esp, %r8d
 	movq	PER_CPU_VAR(cpu_current_top_of_stack), %rsp
-
-	/* Zero-extending 32-bit regs, do not remove */
-	movl	%eax, %eax
 
 	/* Construct struct pt_regs on stack */
 	pushq	$__USER32_DS		/* pt_regs->ss */
@@ -198,6 +196,8 @@ ENTRY(entry_SYSCALL_compat)
 	pushq	%r11			/* pt_regs->flags */
 	pushq	$__USER32_CS		/* pt_regs->cs */
 	pushq	%rcx			/* pt_regs->ip */
+GLOBAL(entry_SYSCALL_compat_after_hwframe)
+	movl	%eax, %eax		/* discard orig_ax high bits */
 	pushq	%rax			/* pt_regs->orig_ax */
 	pushq	%rdi			/* pt_regs->di */
 	pushq	%rsi			/* pt_regs->si */
@@ -294,7 +294,6 @@ ENTRY(entry_INT80_compat)
 	/*
 	 * Interrupts are off on entry.
 	 */
-	PARAVIRT_ADJUST_EXCEPTION_FRAME
 	ASM_CLAC			/* Do this early to minimize exposure */
 	SWAPGS
 
@@ -338,12 +337,10 @@ ENTRY(entry_INT80_compat)
 
 	/* Go back to user mode. */
 	TRACE_IRQS_ON
-	SWAPGS
-	jmp	restore_regs_and_iret
+	jmp	swapgs_restore_regs_and_return_to_usermode
 END(entry_INT80_compat)
 
-	ALIGN
-GLOBAL(stub32_clone)
+ENTRY(stub32_clone)
 	/*
 	 * The 32-bit clone ABI is: clone(..., int tls_val, int *child_tidptr).
 	 * The 64-bit clone ABI is: clone(..., int *child_tidptr, int tls_val).
@@ -353,3 +350,4 @@ GLOBAL(stub32_clone)
 	 */
 	xchg	%r8, %rcx
 	jmp	sys_clone
+ENDPROC(stub32_clone)

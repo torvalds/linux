@@ -84,7 +84,7 @@ static int usbtv_probe(struct usb_interface *intf,
 	/* Packet size is split into 11 bits of base size and count of
 	 * extra multiplies of it.*/
 	size = usb_endpoint_maxp(&ep->desc);
-	size = (size & 0x07ff) * usb_endpoint_maxp_mult(&ep->desc);
+	size = size * usb_endpoint_maxp_mult(&ep->desc);
 
 	/* Device structure */
 	usbtv = kzalloc(sizeof(struct usbtv), GFP_KERNEL);
@@ -142,7 +142,7 @@ static void usbtv_disconnect(struct usb_interface *intf)
 	v4l2_device_put(&usbtv->v4l2_dev);
 }
 
-static struct usb_device_id usbtv_id_table[] = {
+static const struct usb_device_id usbtv_id_table[] = {
 	{ USB_DEVICE(0x1b71, 0x3002) },
 	{}
 };

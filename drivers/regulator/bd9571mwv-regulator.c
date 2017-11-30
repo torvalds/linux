@@ -43,7 +43,7 @@ enum bd9571mwv_regulators { VD09, VD18, VD25, VD33, DVFS };
 		.linear_min_sel		= _lmin,		\
 	}
 
-int bd9571mwv_avs_get_moni_state(struct regulator_dev *rdev)
+static int bd9571mwv_avs_get_moni_state(struct regulator_dev *rdev)
 {
 	unsigned int val;
 	int ret;
@@ -55,8 +55,8 @@ int bd9571mwv_avs_get_moni_state(struct regulator_dev *rdev)
 	return val & BD9571MWV_AVS_SET_MONI_MASK;
 }
 
-int bd9571mwv_avs_set_voltage_sel_regmap(struct regulator_dev *rdev,
-					 unsigned int sel)
+static int bd9571mwv_avs_set_voltage_sel_regmap(struct regulator_dev *rdev,
+						unsigned int sel)
 {
 	int ret;
 
@@ -68,7 +68,7 @@ int bd9571mwv_avs_set_voltage_sel_regmap(struct regulator_dev *rdev,
 				 rdev->desc->vsel_mask, sel);
 }
 
-int bd9571mwv_avs_get_voltage_sel_regmap(struct regulator_dev *rdev)
+static int bd9571mwv_avs_get_voltage_sel_regmap(struct regulator_dev *rdev)
 {
 	unsigned int val;
 	int ret;
@@ -87,8 +87,8 @@ int bd9571mwv_avs_get_voltage_sel_regmap(struct regulator_dev *rdev)
 	return val;
 }
 
-int bd9571mwv_reg_set_voltage_sel_regmap(struct regulator_dev *rdev,
-					 unsigned int sel)
+static int bd9571mwv_reg_set_voltage_sel_regmap(struct regulator_dev *rdev,
+						unsigned int sel)
 {
 	return regmap_write_bits(rdev->regmap, BD9571MWV_DVFS_SETVID,
 				 rdev->desc->vsel_mask, sel);

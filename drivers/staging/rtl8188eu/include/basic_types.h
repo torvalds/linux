@@ -1,4 +1,4 @@
-/******************************************************************************
+	/******************************************************************************
  *
  * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
  *
@@ -20,14 +20,15 @@
 
 /* port from fw */
 /*  TODO: Macros Below are Sync from SD7-Driver. It is necessary
- * to check correctness */
+ * to check correctness
+ */
 
 /*
  *	Call endian free function when
  *		1. Read/write packet content.
  *		2. Before write integer to IO.
  *		3. After read integer from IO.
-*/
+ */
 
 /* Convert little data endian to host ordering */
 #define EF1BYTE(_val)		\
@@ -74,9 +75,10 @@
 #define LE_P1BYTE_TO_HOST_1BYTE(__pstart) \
 	(EF1BYTE(*((u8 *)(__pstart))))
 
-/*Description:
-Translate subfield (continuous bits in little-endian) of 4-byte
-value to host byte ordering.*/
+/* Description:
+ * Translate subfield (continuous bits in little-endian) of 4-byte
+ * value to host byte ordering.
+ */
 #define LE_BITS_TO_4BYTE(__pstart, __bitoffset, __bitlen) \
 	( \
 		(LE_P4BYTE_TO_HOST_4BYTE(__pstart) >> (__bitoffset))  & \

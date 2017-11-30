@@ -44,5 +44,4 @@ Examples
 		interrupts = <0 87 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&mstp3_clks R8A7778_CLK_SDHI0>;
 		power-domains = <&cpg_clocks>;
-		status = "disabled";
 	};

@@ -8,7 +8,7 @@ RT-mutex implementation design
 
 This document tries to describe the design of the rtmutex.c implementation.
 It doesn't describe the reasons why rtmutex.c exists. For that please see
-Documentation/rt-mutex.txt.  Although this document does explain problems
+Documentation/locking/rt-mutex.txt.  Although this document does explain problems
 that happen without this code, but that is in the concept to understand
 what the code actually is doing.
 
@@ -97,9 +97,9 @@ waiter   - A waiter is a struct that is stored on the stack of a blocked
            a process being blocked on the mutex, it is fine to allocate
            the waiter on the process's stack (local variable).  This
            structure holds a pointer to the task, as well as the mutex that
-           the task is blocked on.  It also has the plist node structures to
-           place the task in the waiter_list of a mutex as well as the
-           pi_list of a mutex owner task (described below).
+           the task is blocked on.  It also has rbtree node structures to
+           place the task in the waiters rbtree of a mutex as well as the
+           pi_waiters rbtree of a mutex owner task (described below).
 
            waiter is sometimes used in reference to the task that is waiting
            on a mutex. This is the same as waiter->task.
@@ -179,53 +179,34 @@ again.
                          |
                    F->L5-+
 
+If process G has the highest priority in the chain, then all the tasks up
+the chain (A and B in this example), must have their priorities increased
+to that of G.
 
-Plist
------
-
-Before I go further and talk about how the PI chain is stored through lists
-on both mutexes and processes, I'll explain the plist.  This is similar to
-the struct list_head functionality that is already in the kernel.
-The implementation of plist is out of scope for this document, but it is
-very important to understand what it does.
-
-There are a few differences between plist and list, the most important one
-being that plist is a priority sorted linked list.  This means that the
-priorities of the plist are sorted, such that it takes O(1) to retrieve the
-highest priority item in the list.  Obviously this is useful to store processes
-based on their priorities.
-
-Another difference, which is important for implementation, is that, unlike
-list, the head of the list is a different element than the nodes of a list.
-So the head of the list is declared as struct plist_head and nodes that will
-be added to the list are declared as struct plist_node.
-
-
-Mutex Waiter List
+Mutex Waiters Tree
 -----------------
 
-Every mutex keeps track of all the waiters that are blocked on itself. The mutex
-has a plist to store these waiters by priority.  This list is protected by
-a spin lock that is located in the struct of the mutex. This lock is called
-wait_lock.  Since the modification of the waiter list is never done in
-interrupt context, the wait_lock can be taken without disabling interrupts.
+Every mutex keeps track of all the waiters that are blocked on itself. The
+mutex has a rbtree to store these waiters by priority.  This tree is protected
+by a spin lock that is located in the struct of the mutex. This lock is called
+wait_lock.
 
 
-Task PI List
+Task PI Tree
 ------------
 
-To keep track of the PI chains, each process has its own PI list.  This is
-a list of all top waiters of the mutexes that are owned by the process.
-Note that this list only holds the top waiters and not all waiters that are
+To keep track of the PI chains, each process has its own PI rbtree.  This is
+a tree of all top waiters of the mutexes that are owned by the process.
+Note that this tree only holds the top waiters and not all waiters that are
 blocked on mutexes owned by the process.
 
-The top of the task's PI list is always the highest priority task that
+The top of the task's PI tree is always the highest priority task that
 is waiting on a mutex that is owned by the task.  So if the task has
 inherited a priority, it will always be the priority of the task that is
-at the top of this list.
+at the top of this tree.
 
-This list is stored in the task structure of a process as a plist called
-pi_list.  This list is protected by a spin lock also in the task structure,
+This tree is stored in the task structure of a process as a rbtree called
+pi_waiters.  It is protected by a spin lock also in the task structure,
 called pi_lock.  This lock may also be taken in interrupt context, so when
 locking the pi_lock, interrupts must be disabled.
 
@@ -312,15 +293,12 @@ Mutex owner and flags
 
 The mutex structure contains a pointer to the owner of the mutex.  If the
 mutex is not owned, this owner is set to NULL.  Since all architectures
-have the task structure on at least a four byte alignment (and if this is
-not true, the rtmutex.c code will be broken!), this allows for the two
-least significant bits to be used as flags.  This part is also described
-in Documentation/rt-mutex.txt, but will also be briefly described here.
+have the task structure on at least a two byte alignment (and if this is
+not true, the rtmutex.c code will be broken!), this allows for the least
+significant bit to be used as a flag.  Bit 0 is used as the "Has Waiters"
+flag. It's set whenever there are waiters on a mutex.
 
-Bit 0 is used as the "Pending Owner" flag.  This is described later.
-Bit 1 is used as the "Has Waiters" flags.  This is also described later
-  in more detail, but is set whenever there are waiters on a mutex.
-
+See Documentation/locking/rt-mutex.txt for further details.
 
 cmpxchg Tricks
 --------------
@@ -359,40 +337,31 @@ Priority adjustments
 --------------------
 
 The implementation of the PI code in rtmutex.c has several places that a
-process must adjust its priority.  With the help of the pi_list of a
+process must adjust its priority.  With the help of the pi_waiters of a
 process this is rather easy to know what needs to be adjusted.
 
-The functions implementing the task adjustments are rt_mutex_adjust_prio,
-__rt_mutex_adjust_prio (same as the former, but expects the task pi_lock
-to already be taken), rt_mutex_getprio, and rt_mutex_setprio.
+The functions implementing the task adjustments are rt_mutex_adjust_prio
+and rt_mutex_setprio. rt_mutex_setprio is only used in rt_mutex_adjust_prio.
 
-rt_mutex_getprio and rt_mutex_setprio are only used in __rt_mutex_adjust_prio.
+rt_mutex_adjust_prio examines the priority of the task, and the highest
+priority process that is waiting any of mutexes owned by the task. Since
+the pi_waiters of a task holds an order by priority of all the top waiters
+of all the mutexes that the task owns, we simply need to compare the top
+pi waiter to its own normal/deadline priority and take the higher one.
+Then rt_mutex_setprio is called to adjust the priority of the task to the
+new priority. Note that rt_mutex_setprio is defined in kernel/sched/core.c
+to implement the actual change in priority.
 
-rt_mutex_getprio returns the priority that the task should have.  Either the
-task's own normal priority, or if a process of a higher priority is waiting on
-a mutex owned by the task, then that higher priority should be returned.
-Since the pi_list of a task holds an order by priority list of all the top
-waiters of all the mutexes that the task owns, rt_mutex_getprio simply needs
-to compare the top pi waiter to its own normal priority, and return the higher
-priority back.
+(Note:  For the "prio" field in task_struct, the lower the number, the
+	higher the priority. A "prio" of 5 is of higher priority than a
+	"prio" of 10.)
 
-(Note:  if looking at the code, you will notice that the lower number of
-        prio is returned.  This is because the prio field in the task structure
-        is an inverse order of the actual priority.  So a "prio" of 5 is
-        of higher priority than a "prio" of 10.)
-
-__rt_mutex_adjust_prio examines the result of rt_mutex_getprio, and if the
-result does not equal the task's current priority, then rt_mutex_setprio
-is called to adjust the priority of the task to the new priority.
-Note that rt_mutex_setprio is defined in kernel/sched/core.c to implement the
-actual change in priority.
-
-It is interesting to note that __rt_mutex_adjust_prio can either increase
+It is interesting to note that rt_mutex_adjust_prio can either increase
 or decrease the priority of the task.  In the case that a higher priority
-process has just blocked on a mutex owned by the task, __rt_mutex_adjust_prio
+process has just blocked on a mutex owned by the task, rt_mutex_adjust_prio
 would increase/boost the task's priority.  But if a higher priority task
 were for some reason to leave the mutex (timeout or signal), this same function
-would decrease/unboost the priority of the task.  That is because the pi_list
+would decrease/unboost the priority of the task.  That is because the pi_waiters
 always contains the highest priority task that is waiting on a mutex owned
 by the task, so we only need to compare the priority of that top pi waiter
 to the normal priority of the given task.
@@ -412,9 +381,10 @@ priorities.
 
 rt_mutex_adjust_prio_chain is called with a task to be checked for PI
 (de)boosting (the owner of a mutex that a process is blocking on), a flag to
-check for deadlocking, the mutex that the task owns, and a pointer to a waiter
+check for deadlocking, the mutex that the task owns, a pointer to a waiter
 that is the process's waiter struct that is blocked on the mutex (although this
-parameter may be NULL for deboosting).
+parameter may be NULL for deboosting), a pointer to the mutex on which the task
+is blocked, and a top_task as the top waiter of the mutex.
 
 For this explanation, I will not mention deadlock detection. This explanation
 will try to stay at a high level.
@@ -424,133 +394,14 @@ that the state of the owner and lock can change when entered into this function.
 
 Before this function is called, the task has already had rt_mutex_adjust_prio
 performed on it.  This means that the task is set to the priority that it
-should be at, but the plist nodes of the task's waiter have not been updated
-with the new priorities, and that this task may not be in the proper locations
-in the pi_lists and wait_lists that the task is blocked on.  This function
+should be at, but the rbtree nodes of the task's waiter have not been updated
+with the new priorities, and this task may not be in the proper locations
+in the pi_waiters and waiters trees that the task is blocked on. This function
 solves all that.
 
-A loop is entered, where task is the owner to be checked for PI changes that
-was passed by parameter (for the first iteration).  The pi_lock of this task is
-taken to prevent any more changes to the pi_list of the task.  This also
-prevents new tasks from completing the blocking on a mutex that is owned by this
-task.
-
-If the task is not blocked on a mutex then the loop is exited.  We are at
-the top of the PI chain.
-
-A check is now done to see if the original waiter (the process that is blocked
-on the current mutex) is the top pi waiter of the task.  That is, is this
-waiter on the top of the task's pi_list.  If it is not, it either means that
-there is another process higher in priority that is blocked on one of the
-mutexes that the task owns, or that the waiter has just woken up via a signal
-or timeout and has left the PI chain.  In either case, the loop is exited, since
-we don't need to do any more changes to the priority of the current task, or any
-task that owns a mutex that this current task is waiting on.  A priority chain
-walk is only needed when a new top pi waiter is made to a task.
-
-The next check sees if the task's waiter plist node has the priority equal to
-the priority the task is set at.  If they are equal, then we are done with
-the loop.  Remember that the function started with the priority of the
-task adjusted, but the plist nodes that hold the task in other processes
-pi_lists have not been adjusted.
-
-Next, we look at the mutex that the task is blocked on. The mutex's wait_lock
-is taken.  This is done by a spin_trylock, because the locking order of the
-pi_lock and wait_lock goes in the opposite direction. If we fail to grab the
-lock, the pi_lock is released, and we restart the loop.
-
-Now that we have both the pi_lock of the task as well as the wait_lock of
-the mutex the task is blocked on, we update the task's waiter's plist node
-that is located on the mutex's wait_list.
-
-Now we release the pi_lock of the task.
-
-Next the owner of the mutex has its pi_lock taken, so we can update the
-task's entry in the owner's pi_list.  If the task is the highest priority
-process on the mutex's wait_list, then we remove the previous top waiter
-from the owner's pi_list, and replace it with the task.
-
-Note: It is possible that the task was the current top waiter on the mutex,
-      in which case the task is not yet on the pi_list of the waiter.  This
-      is OK, since plist_del does nothing if the plist node is not on any
-      list.
-
-If the task was not the top waiter of the mutex, but it was before we
-did the priority updates, that means we are deboosting/lowering the
-task.  In this case, the task is removed from the pi_list of the owner,
-and the new top waiter is added.
-
-Lastly, we unlock both the pi_lock of the task, as well as the mutex's
-wait_lock, and continue the loop again.  On the next iteration of the
-loop, the previous owner of the mutex will be the task that will be
-processed.
-
-Note: One might think that the owner of this mutex might have changed
-      since we just grab the mutex's wait_lock. And one could be right.
-      The important thing to remember is that the owner could not have
-      become the task that is being processed in the PI chain, since
-      we have taken that task's pi_lock at the beginning of the loop.
-      So as long as there is an owner of this mutex that is not the same
-      process as the tasked being worked on, we are OK.
-
-      Looking closely at the code, one might be confused.  The check for the
-      end of the PI chain is when the task isn't blocked on anything or the
-      task's waiter structure "task" element is NULL.  This check is
-      protected only by the task's pi_lock.  But the code to unlock the mutex
-      sets the task's waiter structure "task" element to NULL with only
-      the protection of the mutex's wait_lock, which was not taken yet.
-      Isn't this a race condition if the task becomes the new owner?
-
-      The answer is No!  The trick is the spin_trylock of the mutex's
-      wait_lock.  If we fail that lock, we release the pi_lock of the
-      task and continue the loop, doing the end of PI chain check again.
-
-      In the code to release the lock, the wait_lock of the mutex is held
-      the entire time, and it is not let go when we grab the pi_lock of the
-      new owner of the mutex.  So if the switch of a new owner were to happen
-      after the check for end of the PI chain and the grabbing of the
-      wait_lock, the unlocking code would spin on the new owner's pi_lock
-      but never give up the wait_lock.  So the PI chain loop is guaranteed to
-      fail the spin_trylock on the wait_lock, release the pi_lock, and
-      try again.
-
-      If you don't quite understand the above, that's OK. You don't have to,
-      unless you really want to make a proof out of it ;)
-
-
-Pending Owners and Lock stealing
---------------------------------
-
-One of the flags in the owner field of the mutex structure is "Pending Owner".
-What this means is that an owner was chosen by the process releasing the
-mutex, but that owner has yet to wake up and actually take the mutex.
-
-Why is this important?  Why can't we just give the mutex to another process
-and be done with it?
-
-The PI code is to help with real-time processes, and to let the highest
-priority process run as long as possible with little latencies and delays.
-If a high priority process owns a mutex that a lower priority process is
-blocked on, when the mutex is released it would be given to the lower priority
-process.  What if the higher priority process wants to take that mutex again.
-The high priority process would fail to take that mutex that it just gave up
-and it would need to boost the lower priority process to run with full
-latency of that critical section (since the low priority process just entered
-it).
-
-There's no reason a high priority process that gives up a mutex should be
-penalized if it tries to take that mutex again.  If the new owner of the
-mutex has not woken up yet, there's no reason that the higher priority process
-could not take that mutex away.
-
-To solve this, we introduced Pending Ownership and Lock Stealing.  When a
-new process is given a mutex that it was blocked on, it is only given
-pending ownership.  This means that it's the new owner, unless a higher
-priority process comes in and tries to grab that mutex.  If a higher priority
-process does come along and wants that mutex, we let the higher priority
-process "steal" the mutex from the pending owner (only if it is still pending)
-and continue with the mutex.
-
+The main operation of this function is summarized by Thomas Gleixner in
+rtmutex.c. See the 'Chain walk basics and protection scope' comment for further
+details.
 
 Taking of a mutex (The walk through)
 ------------------------------------
@@ -563,14 +414,14 @@ done when we have CMPXCHG enabled (otherwise the fast taking automatically
 fails).  Only when the owner field of the mutex is NULL can the lock be
 taken with the CMPXCHG and nothing else needs to be done.
 
-If there is contention on the lock, whether it is owned or pending owner
-we go about the slow path (rt_mutex_slowlock).
+If there is contention on the lock, we go about the slow path
+(rt_mutex_slowlock).
 
 The slow path function is where the task's waiter structure is created on
 the stack.  This is because the waiter structure is only needed for the
 scope of this function.  The waiter structure holds the nodes to store
-the task on the wait_list of the mutex, and if need be, the pi_list of
-the owner.
+the task on the waiters tree of the mutex, and if need be, the pi_waiters
+tree of the owner.
 
 The wait_lock of the mutex is taken since the slow path of unlocking the
 mutex also takes this lock.
@@ -581,102 +432,45 @@ contention).
 
 try_to_take_rt_mutex is used every time the task tries to grab a mutex in the
 slow path.  The first thing that is done here is an atomic setting of
-the "Has Waiters" flag of the mutex's owner field.  Yes, this could really
-be false, because if the mutex has no owner, there are no waiters and
-the current task also won't have any waiters.  But we don't have the lock
-yet, so we assume we are going to be a waiter.  The reason for this is to
-play nice for those architectures that do have CMPXCHG.  By setting this flag
-now, the owner of the mutex can't release the mutex without going into the
-slow unlock path, and it would then need to grab the wait_lock, which this
-code currently holds.  So setting the "Has Waiters" flag forces the owner
-to synchronize with this code.
+the "Has Waiters" flag of the mutex's owner field. By setting this flag
+now, the current owner of the mutex being contended for can't release the mutex
+without going into the slow unlock path, and it would then need to grab the
+wait_lock, which this code currently holds. So setting the "Has Waiters" flag
+forces the current owner to synchronize with this code.
 
-Now that we know that we can't have any races with the owner releasing the
-mutex, we check to see if we can take the ownership.  This is done if the
-mutex doesn't have a owner, or if we can steal the mutex from a pending
-owner.  Let's look at the situations we have here.
+The lock is taken if the following are true:
+   1) The lock has no owner
+   2) The current task is the highest priority against all other
+      waiters of the lock
 
-  1) Has owner that is pending
-  ----------------------------
+If the task succeeds to acquire the lock, then the task is set as the
+owner of the lock, and if the lock still has waiters, the top_waiter
+(highest priority task waiting on the lock) is added to this task's
+pi_waiters tree.
 
-  The mutex has a owner, but it hasn't woken up and the mutex flag
-  "Pending Owner" is set.  The first check is to see if the owner isn't the
-  current task.  This is because this function is also used for the pending
-  owner to grab the mutex.  When a pending owner wakes up, it checks to see
-  if it can take the mutex, and this is done if the owner is already set to
-  itself.  If so, we succeed and leave the function, clearing the "Pending
-  Owner" bit.
-
-  If the pending owner is not current, we check to see if the current priority is
-  higher than the pending owner.  If not, we fail the function and return.
-
-  There's also something special about a pending owner.  That is a pending owner
-  is never blocked on a mutex.  So there is no PI chain to worry about.  It also
-  means that if the mutex doesn't have any waiters, there's no accounting needed
-  to update the pending owner's pi_list, since we only worry about processes
-  blocked on the current mutex.
-
-  If there are waiters on this mutex, and we just stole the ownership, we need
-  to take the top waiter, remove it from the pi_list of the pending owner, and
-  add it to the current pi_list.  Note that at this moment, the pending owner
-  is no longer on the list of waiters.  This is fine, since the pending owner
-  would add itself back when it realizes that it had the ownership stolen
-  from itself.  When the pending owner tries to grab the mutex, it will fail
-  in try_to_take_rt_mutex if the owner field points to another process.
-
-  2) No owner
-  -----------
-
-  If there is no owner (or we successfully stole the lock), we set the owner
-  of the mutex to current, and set the flag of "Has Waiters" if the current
-  mutex actually has waiters, or we clear the flag if it doesn't.  See, it was
-  OK that we set that flag early, since now it is cleared.
-
-  3) Failed to grab ownership
-  ---------------------------
-
-  The most interesting case is when we fail to take ownership. This means that
-  there exists an owner, or there's a pending owner with equal or higher
-  priority than the current task.
-
-We'll continue on the failed case.
-
-If the mutex has a timeout, we set up a timer to go off to break us out
-of this mutex if we failed to get it after a specified amount of time.
-
-Now we enter a loop that will continue to try to take ownership of the mutex, or
-fail from a timeout or signal.
-
-Once again we try to take the mutex.  This will usually fail the first time
-in the loop, since it had just failed to get the mutex.  But the second time
-in the loop, this would likely succeed, since the task would likely be
-the pending owner.
-
-If the mutex is TASK_INTERRUPTIBLE a check for signals and timeout is done
-here.
-
-The waiter structure has a "task" field that points to the task that is blocked
-on the mutex.  This field can be NULL the first time it goes through the loop
-or if the task is a pending owner and had its mutex stolen.  If the "task"
-field is NULL then we need to set up the accounting for it.
+If the lock is not taken by try_to_take_rt_mutex(), then the
+task_blocks_on_rt_mutex() function is called. This will add the task to
+the lock's waiter tree and propagate the pi chain of the lock as well
+as the lock's owner's pi_waiters tree. This is described in the next
+section.
 
 Task blocks on mutex
 --------------------
 
 The accounting of a mutex and process is done with the waiter structure of
 the process.  The "task" field is set to the process, and the "lock" field
-to the mutex.  The plist nodes are initialized to the processes current
-priority.
+to the mutex.  The rbtree node of waiter are initialized to the processes
+current priority.
 
 Since the wait_lock was taken at the entry of the slow lock, we can safely
-add the waiter to the wait_list.  If the current process is the highest
-priority process currently waiting on this mutex, then we remove the
-previous top waiter process (if it exists) from the pi_list of the owner,
-and add the current process to that list.  Since the pi_list of the owner
+add the waiter to the task waiter tree.  If the current process is the
+highest priority process currently waiting on this mutex, then we remove the
+previous top waiter process (if it exists) from the pi_waiters of the owner,
+and add the current process to that tree.  Since the pi_waiter of the owner
 has changed, we call rt_mutex_adjust_prio on the owner to see if the owner
 should adjust its priority accordingly.
 
-If the owner is also blocked on a lock, and had its pi_list changed
+If the owner is also blocked on a lock, and had its pi_waiters changed
 (or deadlock checking is on), we unlock the wait_lock of the mutex and go ahead
 and run rt_mutex_adjust_prio_chain on the owner, as described earlier.
 
@@ -686,30 +480,23 @@ mutex (waiter "task" field is not NULL), then we go to sleep (call schedule).
 Waking up in the loop
 ---------------------
 
-The schedule can then wake up for a few reasons.
-  1) we were given pending ownership of the mutex.
-  2) we received a signal and was TASK_INTERRUPTIBLE
-  3) we had a timeout and was TASK_INTERRUPTIBLE
+The task can then wake up for a couple of reasons:
+  1) The previous lock owner released the lock, and the task now is top_waiter
+  2) we received a signal or timeout
 
-In any of these cases, we continue the loop and once again try to grab the
-ownership of the mutex.  If we succeed, we exit the loop, otherwise we continue
-and on signal and timeout, will exit the loop, or if we had the mutex stolen
-we just simply add ourselves back on the lists and go back to sleep.
+In both cases, the task will try again to acquire the lock. If it
+does, then it will take itself off the waiters tree and set itself back
+to the TASK_RUNNING state.
 
-Note: For various reasons, because of timeout and signals, the steal mutex
-      algorithm needs to be careful. This is because the current process is
-      still on the wait_list. And because of dynamic changing of priorities,
-      especially on SCHED_OTHER tasks, the current process can be the
-      highest priority task on the wait_list.
+In first case, if the lock was acquired by another task before this task
+could get the lock, then it will go back to sleep and wait to be woken again.
 
-Failed to get mutex on Timeout or Signal
-----------------------------------------
-
-If a timeout or signal occurred, the waiter's "task" field would not be
-NULL and the task needs to be taken off the wait_list of the mutex and perhaps
-pi_list of the owner.  If this process was a high priority process, then
-the rt_mutex_adjust_prio_chain needs to be executed again on the owner,
-but this time it will be lowering the priorities.
+The second case is only applicable for tasks that are grabbing a mutex
+that can wake up before getting the lock, either due to a signal or
+a timeout (i.e. rt_mutex_timed_futex_lock()). When woken, it will try to
+take the lock again, if it succeeds, then the task will return with the
+lock held, otherwise it will return with -EINTR if the task was woken
+by a signal, or -ETIMEDOUT if it timed out.
 
 
 Unlocking the Mutex
@@ -739,25 +526,12 @@ owner still needs to make this check. If there are no waiters then the mutex
 owner field is set to NULL, the wait_lock is released and nothing more is
 needed.
 
-If there are waiters, then we need to wake one up and give that waiter
-pending ownership.
+If there are waiters, then we need to wake one up.
 
 On the wake up code, the pi_lock of the current owner is taken.  The top
-waiter of the lock is found and removed from the wait_list of the mutex
-as well as the pi_list of the current owner.  The task field of the new
-pending owner's waiter structure is set to NULL, and the owner field of the
-mutex is set to the new owner with the "Pending Owner" bit set, as well
-as the "Has Waiters" bit if there still are other processes blocked on the
-mutex.
-
-The pi_lock of the previous owner is released, and the new pending owner's
-pi_lock is taken.  Remember that this is the trick to prevent the race
-condition in rt_mutex_adjust_prio_chain from adding itself as a waiter
-on the mutex.
-
-We now clear the "pi_blocked_on" field of the new pending owner, and if
-the mutex still has waiters pending, we add the new top waiter to the pi_list
-of the pending owner.
+waiter of the lock is found and removed from the waiters tree of the mutex
+as well as the pi_waiters tree of the current owner. The "Has Waiters" bit is
+marked to prevent lower priority tasks from stealing the lock.
 
 Finally we unlock the pi_lock of the pending owner and wake it up.
 
@@ -772,10 +546,14 @@ Credits
 -------
 
 Author:  Steven Rostedt <rostedt@goodmis.org>
+Updated: Alex Shi <alex.shi@linaro.org>	- 7/6/2017
 
-Reviewers:  Ingo Molnar, Thomas Gleixner, Thomas Duetsch, and Randy Dunlap
+Original Reviewers:  Ingo Molnar, Thomas Gleixner, Thomas Duetsch, and
+		     Randy Dunlap
+Update (7/6/2017) Reviewers: Steven Rostedt and Sebastian Siewior
 
 Updates
 -------
 
 This document was originally written for 2.6.17-rc3-mm1
+was updated on 4.12

@@ -36,13 +36,12 @@
 #include <linux/delay.h>
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
+#include <linux/pm.h>
 
 #include <linux/platform_data/st_sensors_pdata.h>
 
 #include "st_lsm6dsx.h"
 
-#define ST_LSM6DSX_REG_ACC_DEC_MASK		GENMASK(2, 0)
-#define ST_LSM6DSX_REG_GYRO_DEC_MASK		GENMASK(5, 3)
 #define ST_LSM6DSX_REG_INT1_ADDR		0x0d
 #define ST_LSM6DSX_REG_INT2_ADDR		0x0e
 #define ST_LSM6DSX_REG_FIFO_FTH_IRQ_MASK	BIT(3)
@@ -53,10 +52,6 @@
 #define ST_LSM6DSX_REG_BDU_MASK			BIT(6)
 #define ST_LSM6DSX_REG_INT2_ON_INT1_ADDR	0x13
 #define ST_LSM6DSX_REG_INT2_ON_INT1_MASK	BIT(5)
-#define ST_LSM6DSX_REG_ROUNDING_ADDR		0x16
-#define ST_LSM6DSX_REG_ROUNDING_MASK		BIT(2)
-#define ST_LSM6DSX_REG_LIR_ADDR			0x58
-#define ST_LSM6DSX_REG_LIR_MASK			BIT(0)
 
 #define ST_LSM6DSX_REG_ACC_ODR_ADDR		0x10
 #define ST_LSM6DSX_REG_ACC_ODR_MASK		GENMASK(7, 4)
@@ -159,24 +154,87 @@ static const struct st_lsm6dsx_fs_table_entry st_lsm6dsx_fs_table[] = {
 static const struct st_lsm6dsx_settings st_lsm6dsx_sensor_settings[] = {
 	{
 		.wai = 0x69,
-		.max_fifo_size = 8192,
+		.max_fifo_size = 1365,
 		.id = {
 			[0] = ST_LSM6DS3_ID,
+		},
+		.decimator = {
+			[ST_LSM6DSX_ID_ACC] = {
+				.addr = 0x08,
+				.mask = GENMASK(2, 0),
+			},
+			[ST_LSM6DSX_ID_GYRO] = {
+				.addr = 0x08,
+				.mask = GENMASK(5, 3),
+			},
+		},
+		.fifo_ops = {
+			.fifo_th = {
+				.addr = 0x06,
+				.mask = GENMASK(11, 0),
+			},
+			.fifo_diff = {
+				.addr = 0x3a,
+				.mask = GENMASK(11, 0),
+			},
+			.th_wl = 3, /* 1LSB = 2B */
 		},
 	},
 	{
 		.wai = 0x69,
-		.max_fifo_size = 4096,
+		.max_fifo_size = 682,
 		.id = {
 			[0] = ST_LSM6DS3H_ID,
+		},
+		.decimator = {
+			[ST_LSM6DSX_ID_ACC] = {
+				.addr = 0x08,
+				.mask = GENMASK(2, 0),
+			},
+			[ST_LSM6DSX_ID_GYRO] = {
+				.addr = 0x08,
+				.mask = GENMASK(5, 3),
+			},
+		},
+		.fifo_ops = {
+			.fifo_th = {
+				.addr = 0x06,
+				.mask = GENMASK(11, 0),
+			},
+			.fifo_diff = {
+				.addr = 0x3a,
+				.mask = GENMASK(11, 0),
+			},
+			.th_wl = 3, /* 1LSB = 2B */
 		},
 	},
 	{
 		.wai = 0x6a,
-		.max_fifo_size = 4096,
+		.max_fifo_size = 682,
 		.id = {
 			[0] = ST_LSM6DSL_ID,
 			[1] = ST_LSM6DSM_ID,
+		},
+		.decimator = {
+			[ST_LSM6DSX_ID_ACC] = {
+				.addr = 0x08,
+				.mask = GENMASK(2, 0),
+			},
+			[ST_LSM6DSX_ID_GYRO] = {
+				.addr = 0x08,
+				.mask = GENMASK(5, 3),
+			},
+		},
+		.fifo_ops = {
+			.fifo_th = {
+				.addr = 0x06,
+				.mask = GENMASK(11, 0),
+			},
+			.fifo_diff = {
+				.addr = 0x3a,
+				.mask = GENMASK(11, 0),
+			},
+			.th_wl = 3, /* 1LSB = 2B */
 		},
 	},
 };
@@ -321,7 +379,6 @@ static int st_lsm6dsx_check_odr(struct st_lsm6dsx_sensor *sensor, u16 odr,
 		return -EINVAL;
 
 	*val = st_lsm6dsx_odr_table[sensor->id].odr_avl[i].val;
-	sensor->odr = odr;
 
 	return 0;
 }
@@ -448,6 +505,8 @@ static int st_lsm6dsx_write_raw(struct iio_dev *iio_dev,
 		u8 data;
 
 		err = st_lsm6dsx_check_odr(sensor, val, &data);
+		if (!err)
+			sensor->odr = val;
 		break;
 	}
 	default:
@@ -464,10 +523,9 @@ static int st_lsm6dsx_set_watermark(struct iio_dev *iio_dev, unsigned int val)
 {
 	struct st_lsm6dsx_sensor *sensor = iio_priv(iio_dev);
 	struct st_lsm6dsx_hw *hw = sensor->hw;
-	int err, max_fifo_len;
+	int err;
 
-	max_fifo_len = hw->settings->max_fifo_size / ST_LSM6DSX_SAMPLE_SIZE;
-	if (val < 1 || val > max_fifo_len)
+	if (val < 1 || val > hw->settings->max_fifo_size)
 		return -EINVAL;
 
 	err = st_lsm6dsx_update_watermark(sensor, val);
@@ -529,7 +587,6 @@ static const struct attribute_group st_lsm6dsx_acc_attribute_group = {
 };
 
 static const struct iio_info st_lsm6dsx_acc_info = {
-	.driver_module = THIS_MODULE,
 	.attrs = &st_lsm6dsx_acc_attribute_group,
 	.read_raw = st_lsm6dsx_read_raw,
 	.write_raw = st_lsm6dsx_write_raw,
@@ -547,7 +604,6 @@ static const struct attribute_group st_lsm6dsx_gyro_attribute_group = {
 };
 
 static const struct iio_info st_lsm6dsx_gyro_info = {
-	.driver_module = THIS_MODULE,
 	.attrs = &st_lsm6dsx_gyro_attribute_group,
 	.read_raw = st_lsm6dsx_read_raw,
 	.write_raw = st_lsm6dsx_write_raw,
@@ -607,20 +663,9 @@ static int st_lsm6dsx_init_device(struct st_lsm6dsx_hw *hw)
 
 	msleep(200);
 
-	/* latch interrupts */
-	err = st_lsm6dsx_write_with_mask(hw, ST_LSM6DSX_REG_LIR_ADDR,
-					 ST_LSM6DSX_REG_LIR_MASK, 1);
-	if (err < 0)
-		return err;
-
 	/* enable Block Data Update */
 	err = st_lsm6dsx_write_with_mask(hw, ST_LSM6DSX_REG_BDU_ADDR,
 					 ST_LSM6DSX_REG_BDU_MASK, 1);
-	if (err < 0)
-		return err;
-
-	err = st_lsm6dsx_write_with_mask(hw, ST_LSM6DSX_REG_ROUNDING_ADDR,
-					 ST_LSM6DSX_REG_ROUNDING_MASK, 1);
 	if (err < 0)
 		return err;
 
@@ -661,7 +706,6 @@ static struct iio_dev *st_lsm6dsx_alloc_iiodev(struct st_lsm6dsx_hw *hw,
 		iio_dev->num_channels = ARRAY_SIZE(st_lsm6dsx_acc_channels);
 		iio_dev->info = &st_lsm6dsx_acc_info;
 
-		sensor->decimator_mask = ST_LSM6DSX_REG_ACC_DEC_MASK;
 		scnprintf(sensor->name, sizeof(sensor->name), "%s_accel",
 			  name);
 		break;
@@ -670,7 +714,6 @@ static struct iio_dev *st_lsm6dsx_alloc_iiodev(struct st_lsm6dsx_hw *hw,
 		iio_dev->num_channels = ARRAY_SIZE(st_lsm6dsx_gyro_channels);
 		iio_dev->info = &st_lsm6dsx_gyro_info;
 
-		sensor->decimator_mask = ST_LSM6DSX_REG_GYRO_DEC_MASK;
 		scnprintf(sensor->name, sizeof(sensor->name), "%s_gyro",
 			  name);
 		break;
@@ -730,6 +773,57 @@ int st_lsm6dsx_probe(struct device *dev, int irq, int hw_id, const char *name,
 	return 0;
 }
 EXPORT_SYMBOL(st_lsm6dsx_probe);
+
+static int __maybe_unused st_lsm6dsx_suspend(struct device *dev)
+{
+	struct st_lsm6dsx_hw *hw = dev_get_drvdata(dev);
+	struct st_lsm6dsx_sensor *sensor;
+	int i, err = 0;
+
+	for (i = 0; i < ST_LSM6DSX_ID_MAX; i++) {
+		sensor = iio_priv(hw->iio_devs[i]);
+		if (!(hw->enable_mask & BIT(sensor->id)))
+			continue;
+
+		err = st_lsm6dsx_write_with_mask(hw,
+				st_lsm6dsx_odr_table[sensor->id].reg.addr,
+				st_lsm6dsx_odr_table[sensor->id].reg.mask, 0);
+		if (err < 0)
+			return err;
+	}
+
+	if (hw->fifo_mode != ST_LSM6DSX_FIFO_BYPASS)
+		err = st_lsm6dsx_flush_fifo(hw);
+
+	return err;
+}
+
+static int __maybe_unused st_lsm6dsx_resume(struct device *dev)
+{
+	struct st_lsm6dsx_hw *hw = dev_get_drvdata(dev);
+	struct st_lsm6dsx_sensor *sensor;
+	int i, err = 0;
+
+	for (i = 0; i < ST_LSM6DSX_ID_MAX; i++) {
+		sensor = iio_priv(hw->iio_devs[i]);
+		if (!(hw->enable_mask & BIT(sensor->id)))
+			continue;
+
+		err = st_lsm6dsx_set_odr(sensor, sensor->odr);
+		if (err < 0)
+			return err;
+	}
+
+	if (hw->enable_mask)
+		err = st_lsm6dsx_set_fifo_mode(hw, ST_LSM6DSX_FIFO_CONT);
+
+	return err;
+}
+
+const struct dev_pm_ops st_lsm6dsx_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(st_lsm6dsx_suspend, st_lsm6dsx_resume)
+};
+EXPORT_SYMBOL(st_lsm6dsx_pm_ops);
 
 MODULE_AUTHOR("Lorenzo Bianconi <lorenzo.bianconi@st.com>");
 MODULE_AUTHOR("Denis Ciocca <denis.ciocca@st.com>");

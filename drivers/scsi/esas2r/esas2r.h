@@ -945,8 +945,8 @@ struct esas2r_adapter {
 	struct list_head vrq_mds_head;
 	struct esas2r_mem_desc *vrq_mds;
 	int num_vrqs;
-	struct semaphore fm_api_semaphore;
-	struct semaphore fs_api_semaphore;
+	struct mutex fm_api_mutex;
+	struct mutex fs_api_mutex;
 	struct semaphore nvram_semaphore;
 	struct atto_ioctl *local_atto_ioctl;
 	u8 fw_coredump_buff[ESAS2R_FWCOREDUMP_SZ];

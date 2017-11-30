@@ -41,9 +41,10 @@ static int sas_disable_routing(struct domain_device *dev,  u8 *sas_addr);
 
 /* ---------- SMP task management ---------- */
 
-static void smp_task_timedout(unsigned long _task)
+static void smp_task_timedout(struct timer_list *t)
 {
-	struct sas_task *task = (void *) _task;
+	struct sas_task_slow *slow = from_timer(slow, t, timer);
+	struct sas_task *task = slow->task;
 	unsigned long flags;
 
 	spin_lock_irqsave(&task->task_state_lock, flags);
@@ -64,8 +65,8 @@ static void smp_task_done(struct sas_task *task)
 /* Give it some long enough timeout. In seconds. */
 #define SMP_TIMEOUT 10
 
-static int smp_execute_task(struct domain_device *dev, void *req, int req_size,
-			    void *resp, int resp_size)
+static int smp_execute_task_sg(struct domain_device *dev,
+		struct scatterlist *req, struct scatterlist *resp)
 {
 	int res, retry;
 	struct sas_task *task = NULL;
@@ -86,12 +87,11 @@ static int smp_execute_task(struct domain_device *dev, void *req, int req_size,
 		}
 		task->dev = dev;
 		task->task_proto = dev->tproto;
-		sg_init_one(&task->smp_task.smp_req, req, req_size);
-		sg_init_one(&task->smp_task.smp_resp, resp, resp_size);
+		task->smp_task.smp_req = *req;
+		task->smp_task.smp_resp = *resp;
 
 		task->task_done = smp_task_done;
 
-		task->slow_task->timer.data = (unsigned long) task;
 		task->slow_task->timer.function = smp_task_timedout;
 		task->slow_task->timer.expires = jiffies + SMP_TIMEOUT*HZ;
 		add_timer(&task->slow_task->timer);
@@ -149,6 +149,17 @@ static int smp_execute_task(struct domain_device *dev, void *req, int req_size,
 	BUG_ON(retry == 3 && task != NULL);
 	sas_free_task(task);
 	return res;
+}
+
+static int smp_execute_task(struct domain_device *dev, void *req, int req_size,
+			    void *resp, int resp_size)
+{
+	struct scatterlist req_sg;
+	struct scatterlist resp_sg;
+
+	sg_init_one(&req_sg, req, req_size);
+	sg_init_one(&resp_sg, resp, resp_size);
+	return smp_execute_task_sg(dev, &req_sg, &resp_sg);
 }
 
 /* ---------- Allocations ---------- */
@@ -2130,57 +2141,50 @@ int sas_ex_revalidate_domain(struct domain_device *port_dev)
 	return res;
 }
 
-int sas_smp_handler(struct Scsi_Host *shost, struct sas_rphy *rphy,
-		    struct request *req)
+void sas_smp_handler(struct bsg_job *job, struct Scsi_Host *shost,
+		struct sas_rphy *rphy)
 {
 	struct domain_device *dev;
-	int ret, type;
-	struct request *rsp = req->next_rq;
-
-	if (!rsp) {
-		printk("%s: space for a smp response is missing\n",
-		       __func__);
-		return -EINVAL;
-	}
+	unsigned int reslen = 0;
+	int ret = -EINVAL;
 
 	/* no rphy means no smp target support (ie aic94xx host) */
 	if (!rphy)
-		return sas_smp_host_handler(shost, req, rsp);
+		return sas_smp_host_handler(job, shost);
 
-	type = rphy->identify.device_type;
-
-	if (type != SAS_EDGE_EXPANDER_DEVICE &&
-	    type != SAS_FANOUT_EXPANDER_DEVICE) {
+	switch (rphy->identify.device_type) {
+	case SAS_EDGE_EXPANDER_DEVICE:
+	case SAS_FANOUT_EXPANDER_DEVICE:
+		break;
+	default:
 		printk("%s: can we send a smp request to a device?\n",
 		       __func__);
-		return -EINVAL;
+		goto out;
 	}
 
 	dev = sas_find_dev_by_rphy(rphy);
 	if (!dev) {
 		printk("%s: fail to find a domain_device?\n", __func__);
-		return -EINVAL;
+		goto out;
 	}
 
 	/* do we need to support multiple segments? */
-	if (bio_multiple_segments(req->bio) ||
-	    bio_multiple_segments(rsp->bio)) {
+	if (job->request_payload.sg_cnt > 1 ||
+	    job->reply_payload.sg_cnt > 1) {
 		printk("%s: multiple segments req %u, rsp %u\n",
-		       __func__, blk_rq_bytes(req), blk_rq_bytes(rsp));
-		return -EINVAL;
+		       __func__, job->request_payload.payload_len,
+		       job->reply_payload.payload_len);
+		goto out;
 	}
 
-	ret = smp_execute_task(dev, bio_data(req->bio), blk_rq_bytes(req),
-			       bio_data(rsp->bio), blk_rq_bytes(rsp));
+	ret = smp_execute_task_sg(dev, job->request_payload.sg_list,
+			job->reply_payload.sg_list);
 	if (ret > 0) {
 		/* positive number is the untransferred residual */
-		scsi_req(rsp)->resid_len = ret;
-		scsi_req(req)->resid_len = 0;
+		reslen = ret;
 		ret = 0;
-	} else if (ret == 0) {
-		scsi_req(rsp)->resid_len = 0;
-		scsi_req(req)->resid_len = 0;
 	}
 
-	return ret;
+out:
+	bsg_job_done(job, ret, reslen);
 }

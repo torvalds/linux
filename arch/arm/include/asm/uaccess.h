@@ -17,13 +17,6 @@
 #include <asm/unified.h>
 #include <asm/compiler.h>
 
-#ifndef CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS
-#include <asm-generic/uaccess-unaligned.h>
-#else
-#define __get_user_unaligned __get_user
-#define __put_user_unaligned __put_user
-#endif
-
 #include <asm/extable.h>
 
 /*
@@ -526,7 +519,6 @@ static inline unsigned long __must_check clear_user(void __user *to, unsigned lo
 /* These are from lib/ code, and use __get_user() and friends */
 extern long strncpy_from_user(char *dest, const char __user *src, long count);
 
-extern __must_check long strlen_user(const char __user *str);
 extern __must_check long strnlen_user(const char __user *str, long n);
 
 #endif /* _ASMARM_UACCESS_H */

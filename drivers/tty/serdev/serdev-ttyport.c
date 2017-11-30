@@ -1,14 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 2016-2017 Linaro Ltd., Rob Herring <robh@kernel.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 and
- * only version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 #include <linux/kernel.h>
 #include <linux/serdev.h>
@@ -96,19 +88,21 @@ static int ttyport_open(struct serdev_controller *ctrl)
 	struct serport *serport = serdev_controller_get_drvdata(ctrl);
 	struct tty_struct *tty;
 	struct ktermios ktermios;
+	int ret;
 
 	tty = tty_init_dev(serport->tty_drv, serport->tty_idx);
 	if (IS_ERR(tty))
 		return PTR_ERR(tty);
 	serport->tty = tty;
 
-	serport->port->client_ops = &client_ops;
-	serport->port->client_data = ctrl;
+	if (!tty->ops->open || !tty->ops->close) {
+		ret = -ENODEV;
+		goto err_unlock;
+	}
 
-	if (tty->ops->open)
-		tty->ops->open(serport->tty, NULL);
-	else
-		tty_port_open(serport->port, tty, NULL);
+	ret = tty->ops->open(serport->tty, NULL);
+	if (ret)
+		goto err_close;
 
 	/* Bring the UART into a known 8 bits no parity hw fc state */
 	ktermios = tty->termios;
@@ -125,6 +119,14 @@ static int ttyport_open(struct serdev_controller *ctrl)
 
 	tty_unlock(serport->tty);
 	return 0;
+
+err_close:
+	tty->ops->close(tty, NULL);
+err_unlock:
+	tty_unlock(tty);
+	tty_release_struct(tty, serport->tty_idx);
+
+	return ret;
 }
 
 static void ttyport_close(struct serdev_controller *ctrl)
@@ -151,7 +153,7 @@ static unsigned int ttyport_set_baudrate(struct serdev_controller *ctrl, unsigne
 
 	/* tty_set_termios() return not checked as it is always 0 */
 	tty_set_termios(tty, &ktermios);
-	return speed;
+	return ktermios.c_ospeed;
 }
 
 static void ttyport_set_flow_control(struct serdev_controller *ctrl, bool enable)
@@ -215,6 +217,7 @@ struct device *serdev_tty_port_register(struct tty_port *port,
 					struct device *parent,
 					struct tty_driver *drv, int idx)
 {
+	const struct tty_port_client_operations *old_ops;
 	struct serdev_controller *ctrl;
 	struct serport *serport;
 	int ret;
@@ -233,28 +236,37 @@ struct device *serdev_tty_port_register(struct tty_port *port,
 
 	ctrl->ops = &ctrl_ops;
 
+	old_ops = port->client_ops;
+	port->client_ops = &client_ops;
+	port->client_data = ctrl;
+
 	ret = serdev_controller_add(ctrl);
 	if (ret)
-		goto err_controller_put;
+		goto err_reset_data;
 
 	dev_info(&ctrl->dev, "tty port %s%d registered\n", drv->name, idx);
 	return &ctrl->dev;
 
-err_controller_put:
+err_reset_data:
+	port->client_data = NULL;
+	port->client_ops = old_ops;
 	serdev_controller_put(ctrl);
+
 	return ERR_PTR(ret);
 }
 
-void serdev_tty_port_unregister(struct tty_port *port)
+int serdev_tty_port_unregister(struct tty_port *port)
 {
 	struct serdev_controller *ctrl = port->client_data;
 	struct serport *serport = serdev_controller_get_drvdata(ctrl);
 
 	if (!serport)
-		return;
+		return -ENODEV;
 
 	serdev_controller_remove(ctrl);
 	port->client_ops = NULL;
 	port->client_data = NULL;
 	serdev_controller_put(ctrl);
+
+	return 0;
 }

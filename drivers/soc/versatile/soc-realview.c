@@ -85,7 +85,7 @@ static struct device_attribute realview_build_attr =
 
 static int realview_soc_probe(struct platform_device *pdev)
 {
-	static struct regmap *syscon_regmap;
+	struct regmap *syscon_regmap;
 	struct soc_device *soc_dev;
 	struct soc_device_attribute *soc_dev_attr;
 	struct device_node *np = pdev->dev.of_node;

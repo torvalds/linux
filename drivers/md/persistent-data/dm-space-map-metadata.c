@@ -11,6 +11,7 @@
 #include <linux/list.h>
 #include <linux/slab.h>
 #include <linux/device-mapper.h>
+#include <linux/kernel.h>
 
 #define DM_MSG_PREFIX "space map metadata"
 
@@ -111,7 +112,7 @@ static bool brb_empty(struct bop_ring_buffer *brb)
 static unsigned brb_next(struct bop_ring_buffer *brb, unsigned old)
 {
 	unsigned r = old + 1;
-	return (r >= (sizeof(brb->bops) / sizeof(*brb->bops))) ? 0 : r;
+	return r >= ARRAY_SIZE(brb->bops) ? 0 : r;
 }
 
 static int brb_push(struct bop_ring_buffer *brb,

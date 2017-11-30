@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * x86 single-step support code, common to 32-bit and 64-bit.
  */
@@ -13,7 +14,7 @@ unsigned long convert_ip_to_linear(struct task_struct *child, struct pt_regs *re
 	unsigned long addr, seg;
 
 	addr = regs->ip;
-	seg = regs->cs & 0xffff;
+	seg = regs->cs;
 	if (v8086_mode(regs)) {
 		addr = (addr & 0xffff) + (seg << 4);
 		return addr;
@@ -34,7 +35,7 @@ unsigned long convert_ip_to_linear(struct task_struct *child, struct pt_regs *re
 
 		mutex_lock(&child->mm->context.lock);
 		if (unlikely(!child->mm->context.ldt ||
-			     seg >= child->mm->context.ldt->size))
+			     seg >= child->mm->context.ldt->nr_entries))
 			addr = -1L; /* bogus selector, access would fault */
 		else {
 			desc = &child->mm->context.ldt->entries[seg];

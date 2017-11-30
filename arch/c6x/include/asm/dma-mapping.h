@@ -12,11 +12,6 @@
 #ifndef _ASM_C6X_DMA_MAPPING_H
 #define _ASM_C6X_DMA_MAPPING_H
 
-/*
- * DMA errors are defined by all-bits-set in the DMA address.
- */
-#define DMA_ERROR_CODE ~0
-
 extern const struct dma_map_ops c6x_dma_ops;
 
 static inline const struct dma_map_ops *get_arch_dma_ops(struct bus_type *bus)

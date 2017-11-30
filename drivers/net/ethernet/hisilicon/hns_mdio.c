@@ -261,7 +261,7 @@ static int hns_mdio_write(struct mii_bus *bus,
 
 		/* config the data needed writing */
 		cmd_reg_cfg = devad;
-		op = MDIO_C45_WRITE_ADDR;
+		op = MDIO_C45_WRITE_DATA;
 	}
 
 	MDIO_SET_REG_FIELD(mdio_dev, MDIO_WDATA_REG, MDIO_WDATA_DATA_M,

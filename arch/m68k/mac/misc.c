@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Miscellaneous Mac68K-specific stuff
  */
@@ -357,6 +358,17 @@ static void cuda_shutdown(void)
 	struct adb_request req;
 	if (cuda_request(&req, NULL, 2, CUDA_PACKET, CUDA_POWERDOWN) < 0)
 		return;
+
+	/* Avoid infinite polling loop when PSU is not under Cuda control */
+	switch (macintosh_config->ident) {
+	case MAC_MODEL_C660:
+	case MAC_MODEL_Q605:
+	case MAC_MODEL_Q605_ACC:
+	case MAC_MODEL_P475:
+	case MAC_MODEL_P475F:
+		return;
+	}
+
 	while (!req.complete)
 		cuda_poll();
 }
@@ -463,8 +475,9 @@ void mac_poweroff(void)
 		pmu_shutdown();
 #endif
 	}
-	local_irq_enable();
+
 	pr_crit("It is now safe to turn off your Macintosh.\n");
+	local_irq_disable();
 	while(1);
 }
 
@@ -554,8 +567,8 @@ void mac_reset(void)
 	}
 
 	/* should never get here */
-	local_irq_enable();
 	pr_crit("Restart failed. Please restart manually.\n");
+	local_irq_disable();
 	while(1);
 }
 

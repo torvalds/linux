@@ -121,15 +121,6 @@ struct iwl_nvm_data *
 iwl_parse_eeprom_data(struct device *dev, const struct iwl_cfg *cfg,
 		      const u8 *eeprom, size_t eeprom_size);
 
-/**
- * iwl_free_nvm_data - free NVM data
- * @data: the data to free
- */
-static inline void iwl_free_nvm_data(struct iwl_nvm_data *data)
-{
-	kfree(data);
-}
-
 int iwl_nvm_check_version(struct iwl_nvm_data *data,
 			  struct iwl_trans *trans);
 

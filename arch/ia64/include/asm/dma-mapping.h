@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_IA64_DMA_MAPPING_H
 #define _ASM_IA64_DMA_MAPPING_H
 
@@ -11,8 +12,6 @@
 #include <linux/dma-debug.h>
 
 #define ARCH_HAS_DMA_GET_REQUIRED_MASK
-
-#define DMA_ERROR_CODE 0
 
 extern const struct dma_map_ops *dma_ops;
 extern struct ia64_machine_vector ia64_mv;
@@ -44,17 +43,6 @@ static inline dma_addr_t phys_to_dma(struct device *dev, phys_addr_t paddr)
 static inline phys_addr_t dma_to_phys(struct device *dev, dma_addr_t daddr)
 {
 	return daddr;
-}
-
-static inline void
-dma_cache_sync (struct device *dev, void *vaddr, size_t size,
-	enum dma_data_direction dir)
-{
-	/*
-	 * IA-64 is cache-coherent, so this is mostly a no-op.  However, we do need to
-	 * ensure that dma_cache_sync() enforces order, hence the mb().
-	 */
-	mb();
 }
 
 #endif /* _ASM_IA64_DMA_MAPPING_H */

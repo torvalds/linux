@@ -42,10 +42,11 @@ struct cmd_struct {
 };
 
 static const char objtool_usage_string[] =
-	"objtool [OPTIONS] COMMAND [ARGS]";
+	"objtool COMMAND [ARGS]";
 
 static struct cmd_struct objtool_cmds[] = {
 	{"check",	cmd_check,	"Perform stack metadata validation on an object file" },
+	{"orc",		cmd_orc,	"Generate in-place ORC unwind tables for an object file" },
 };
 
 bool help;
@@ -69,7 +70,7 @@ static void cmd_usage(void)
 
 	printf("\n");
 
-	exit(1);
+	exit(129);
 }
 
 static void handle_options(int *argc, const char ***argv)
@@ -85,9 +86,7 @@ static void handle_options(int *argc, const char ***argv)
 			break;
 		} else {
 			fprintf(stderr, "Unknown option: %s\n", cmd);
-			fprintf(stderr, "\n Usage: %s\n",
-				objtool_usage_string);
-			exit(1);
+			cmd_usage();
 		}
 
 		(*argv)++;

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Thunderbolt Cactus Ridge driver - PCIe tunnel
  *
@@ -147,10 +148,10 @@ bool tb_pci_is_invalid(struct tb_pci_tunnel *tunnel)
 static int tb_pci_port_active(struct tb_port *port, bool active)
 {
 	u32 word = active ? 0x80000000 : 0x0;
-	int cap = tb_find_cap(port, TB_CFG_PORT, TB_CAP_PCIE);
-	if (cap <= 0) {
-		tb_port_warn(port, "TB_CAP_PCIE not found: %d\n", cap);
-		return cap ? cap : -ENXIO;
+	int cap = tb_port_find_cap(port, TB_PORT_CAP_ADAP);
+	if (cap < 0) {
+		tb_port_warn(port, "TB_PORT_CAP_ADAP not found: %d\n", cap);
+		return cap;
 	}
 	return tb_port_write(port, &word, TB_CFG_PORT, cap, 1);
 }
@@ -194,19 +195,13 @@ err:
  */
 int tb_pci_activate(struct tb_pci_tunnel *tunnel)
 {
-	int res;
 	if (tunnel->path_to_up->activated || tunnel->path_to_down->activated) {
 		tb_tunnel_WARN(tunnel,
 			       "trying to activate an already activated tunnel\n");
 		return -EINVAL;
 	}
 
-	res = tb_pci_restart(tunnel);
-	if (res)
-		return res;
-
-	list_add(&tunnel->list, &tunnel->tb->tunnel_list);
-	return 0;
+	return tb_pci_restart(tunnel);
 }
 
 
@@ -227,6 +222,5 @@ void tb_pci_deactivate(struct tb_pci_tunnel *tunnel)
 		tb_path_deactivate(tunnel->path_to_down);
 	if (tunnel->path_to_up->activated)
 		tb_path_deactivate(tunnel->path_to_up);
-	list_del_init(&tunnel->list);
 }
 

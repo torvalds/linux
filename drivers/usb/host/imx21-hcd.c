@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * USB Host Controller Driver for IMX21
  *
@@ -5,20 +6,6 @@
  * Copyright (C) 2009 Martin Fuzzey
  * Originally written by Jay Monkman <jtm@lopingdog.com>
  * Ported to 2.6.30, debugged and enhanced by Martin Fuzzey
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
- * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- * for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 
@@ -1779,7 +1766,7 @@ static void imx21_hc_stop(struct usb_hcd *hcd)
 /* Driver glue		 			*/
 /* =========================================== */
 
-static struct hc_driver imx21_hc_driver = {
+static const struct hc_driver imx21_hc_driver = {
 	.description = hcd_name,
 	.product_desc = "IMX21 USB Host Controller",
 	.hcd_priv_size = sizeof(struct imx21),
@@ -1849,8 +1836,10 @@ static int imx21_probe(struct platform_device *pdev)
 	if (!res)
 		return -ENODEV;
 	irq = platform_get_irq(pdev, 0);
-	if (irq < 0)
-		return -ENXIO;
+	if (irq < 0) {
+		dev_err(&pdev->dev, "Failed to get IRQ: %d\n", irq);
+		return irq;
+	}
 
 	hcd = usb_create_hcd(&imx21_hc_driver,
 		&pdev->dev, dev_name(&pdev->dev));

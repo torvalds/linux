@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 #ifndef _XT_CONNSECMARK_H_target
 #define _XT_CONNSECMARK_H_target
 

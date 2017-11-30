@@ -159,6 +159,8 @@ extern int mga_dma_bootstrap(struct drm_device *dev, void *data,
 			     struct drm_file *file_priv);
 extern int mga_dma_init(struct drm_device *dev, void *data,
 			struct drm_file *file_priv);
+extern int mga_getparam(struct drm_device *dev, void *data,
+			struct drm_file *file_priv);
 extern int mga_dma_flush(struct drm_device *dev, void *data,
 			 struct drm_file *file_priv);
 extern int mga_dma_reset(struct drm_device *dev, void *data,

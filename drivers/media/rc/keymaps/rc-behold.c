@@ -118,10 +118,10 @@ static struct rc_map_table behold[] = {
 
 static struct rc_map_list behold_map = {
 	.map = {
-		.scan    = behold,
-		.size    = ARRAY_SIZE(behold),
-		.rc_type = RC_TYPE_NEC,
-		.name    = RC_MAP_BEHOLD,
+		.scan     = behold,
+		.size     = ARRAY_SIZE(behold),
+		.rc_proto = RC_PROTO_NEC,
+		.name     = RC_MAP_BEHOLD,
 	}
 };
 

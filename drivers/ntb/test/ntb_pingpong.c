@@ -90,6 +90,9 @@ static unsigned long db_init = 0x7;
 module_param(db_init, ulong, 0644);
 MODULE_PARM_DESC(db_init, "Initial doorbell bits to ring on the peer");
 
+/* Only two-ports NTB devices are supported */
+#define PIDX		NTB_DEF_PEER_IDX
+
 struct pp_ctx {
 	struct ntb_dev			*ntb;
 	u64				db_bits;
@@ -104,9 +107,9 @@ struct pp_ctx {
 
 static struct dentry *pp_debugfs_dir;
 
-static void pp_ping(unsigned long ctx)
+static void pp_ping(struct timer_list *t)
 {
-	struct pp_ctx *pp = (void *)ctx;
+	struct pp_ctx *pp = from_timer(pp, t, db_timer);
 	unsigned long irqflags;
 	u64 db_bits, db_mask;
 	u32 spad_rd, spad_wr;
@@ -135,7 +138,7 @@ static void pp_ping(unsigned long ctx)
 			"Ping bits %#llx read %#x write %#x\n",
 			db_bits, spad_rd, spad_wr);
 
-		ntb_peer_spad_write(pp->ntb, 0, spad_wr);
+		ntb_peer_spad_write(pp->ntb, PIDX, 0, spad_wr);
 		ntb_peer_db_set(pp->ntb, db_bits);
 		ntb_db_clear_mask(pp->ntb, db_mask);
 
@@ -150,7 +153,7 @@ static void pp_link_event(void *ctx)
 
 	if (ntb_link_is_up(pp->ntb, NULL, NULL) == 1) {
 		dev_dbg(&pp->ntb->dev, "link is up\n");
-		pp_ping((unsigned long)pp);
+		pp_ping(&pp->db_timer);
 	} else {
 		dev_dbg(&pp->ntb->dev, "link is down\n");
 		del_timer(&pp->db_timer);
@@ -222,6 +225,12 @@ static int pp_probe(struct ntb_client *client,
 		}
 	}
 
+	if (ntb_spad_count(ntb) < 1) {
+		dev_dbg(&ntb->dev, "no enough scratchpads\n");
+		rc = -EINVAL;
+		goto err_pp;
+	}
+
 	if (ntb_spad_is_unsafe(ntb)) {
 		dev_dbg(&ntb->dev, "scratchpad is unsafe\n");
 		if (!unsafe) {
@@ -229,6 +238,9 @@ static int pp_probe(struct ntb_client *client,
 			goto err_pp;
 		}
 	}
+
+	if (ntb_peer_port_count(ntb) != NTB_DEF_PEER_CNT)
+		dev_warn(&ntb->dev, "multi-port NTB is unsupported\n");
 
 	pp = kmalloc(sizeof(*pp), GFP_KERNEL);
 	if (!pp) {
@@ -240,7 +252,7 @@ static int pp_probe(struct ntb_client *client,
 	pp->db_bits = 0;
 	atomic_set(&pp->count, 0);
 	spin_lock_init(&pp->db_lock);
-	setup_timer(&pp->db_timer, pp_ping, (unsigned long)pp);
+	timer_setup(&pp->db_timer, pp_ping, 0);
 	pp->db_delay = msecs_to_jiffies(delay_ms);
 
 	rc = ntb_set_ctx(ntb, pp, &pp_ops);

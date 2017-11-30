@@ -4,8 +4,11 @@ Required properties:
 
 - compatible: should be "fsl,<soc-name>-msi" to identify
 	      Layerscape PCIe MSI controller block such as:
-              "fsl,1s1021a-msi"
-              "fsl,1s1043a-msi"
+              "fsl,ls1021a-msi"
+              "fsl,ls1043a-msi"
+              "fsl,ls1046a-msi"
+              "fsl,ls1043a-v1.1-msi"
+              "fsl,ls1012a-msi"
 - msi-controller: indicates that this is a PCIe MSI controller node
 - reg: physical base address of the controller and length of memory mapped.
 - interrupts: an interrupt to the parent interrupt controller.
@@ -23,7 +26,7 @@ MSI controller node
 Examples:
 
 	msi1: msi-controller@1571000 {
-		compatible = "fsl,1s1043a-msi";
+		compatible = "fsl,ls1043a-msi";
 		reg = <0x0 0x1571000 0x0 0x8>,
 		msi-controller;
 		interrupts = <0 116 0x4>;

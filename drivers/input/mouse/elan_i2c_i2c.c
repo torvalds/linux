@@ -34,9 +34,12 @@
 #define ETP_I2C_DESC_CMD		0x0001
 #define ETP_I2C_REPORT_DESC_CMD		0x0002
 #define ETP_I2C_STAND_CMD		0x0005
+#define ETP_I2C_PATTERN_CMD		0x0100
 #define ETP_I2C_UNIQUEID_CMD		0x0101
 #define ETP_I2C_FW_VERSION_CMD		0x0102
-#define ETP_I2C_SM_VERSION_CMD		0x0103
+#define ETP_I2C_IC_TYPE_CMD		0x0103
+#define ETP_I2C_OSM_VERSION_CMD		0x0103
+#define ETP_I2C_NSM_VERSION_CMD		0x0104
 #define ETP_I2C_XY_TRACENUM_CMD		0x0105
 #define ETP_I2C_MAX_X_AXIS_CMD		0x0106
 #define ETP_I2C_MAX_Y_AXIS_CMD		0x0107
@@ -239,11 +242,33 @@ static int elan_i2c_get_baseline_data(struct i2c_client *client,
 	return 0;
 }
 
+static int elan_i2c_get_pattern(struct i2c_client *client, u8 *pattern)
+{
+	int error;
+	u8 val[3];
+
+	error = elan_i2c_read_cmd(client, ETP_I2C_PATTERN_CMD, val);
+	if (error) {
+		dev_err(&client->dev, "failed to get pattern: %d\n", error);
+		return error;
+	}
+	*pattern = val[1];
+
+	return 0;
+}
+
 static int elan_i2c_get_version(struct i2c_client *client,
 				bool iap, u8 *version)
 {
 	int error;
+	u8 pattern_ver;
 	u8 val[3];
+
+	error = elan_i2c_get_pattern(client, &pattern_ver);
+	if (error) {
+		dev_err(&client->dev, "failed to get pattern version\n");
+		return error;
+	}
 
 	error = elan_i2c_read_cmd(client,
 				  iap ? ETP_I2C_IAP_VERSION_CMD :
@@ -255,24 +280,65 @@ static int elan_i2c_get_version(struct i2c_client *client,
 		return error;
 	}
 
-	*version = val[0];
+	if (pattern_ver == 0x01)
+		*version = iap ? val[1] : val[0];
+	else
+		*version = val[0];
 	return 0;
 }
 
 static int elan_i2c_get_sm_version(struct i2c_client *client,
-				   u8 *ic_type, u8 *version)
+				   u16 *ic_type, u8 *version,
+				   u8 *clickpad)
 {
 	int error;
+	u8 pattern_ver;
 	u8 val[3];
 
-	error = elan_i2c_read_cmd(client, ETP_I2C_SM_VERSION_CMD, val);
+	error = elan_i2c_get_pattern(client, &pattern_ver);
 	if (error) {
-		dev_err(&client->dev, "failed to get SM version: %d\n", error);
+		dev_err(&client->dev, "failed to get pattern version\n");
 		return error;
 	}
 
-	*version = val[0];
-	*ic_type = val[1];
+	if (pattern_ver == 0x01) {
+		error = elan_i2c_read_cmd(client, ETP_I2C_IC_TYPE_CMD, val);
+		if (error) {
+			dev_err(&client->dev, "failed to get ic type: %d\n",
+				error);
+			return error;
+		}
+		*ic_type = be16_to_cpup((__be16 *)val);
+
+		error = elan_i2c_read_cmd(client, ETP_I2C_NSM_VERSION_CMD,
+					  val);
+		if (error) {
+			dev_err(&client->dev, "failed to get SM version: %d\n",
+				error);
+			return error;
+		}
+		*version = val[1];
+		*clickpad = val[0] & 0x10;
+	} else {
+		error = elan_i2c_read_cmd(client, ETP_I2C_OSM_VERSION_CMD, val);
+		if (error) {
+			dev_err(&client->dev, "failed to get SM version: %d\n",
+				error);
+			return error;
+		}
+		*version = val[0];
+		*ic_type = val[1];
+
+		error = elan_i2c_read_cmd(client, ETP_I2C_NSM_VERSION_CMD,
+					  val);
+		if (error) {
+			dev_err(&client->dev, "failed to get SM version: %d\n",
+				error);
+			return error;
+		}
+		*clickpad = val[0] & 0x10;
+	}
+
 	return 0;
 }
 
@@ -532,7 +598,7 @@ static int elan_i2c_write_fw_block(struct i2c_client *client,
 	}
 
 	/* Wait for F/W to update one page ROM data. */
-	msleep(20);
+	msleep(35);
 
 	error = elan_i2c_read_cmd(client, ETP_I2C_IAP_CTRL_CMD, val);
 	if (error) {
@@ -554,31 +620,33 @@ static int elan_i2c_finish_fw_update(struct i2c_client *client,
 				     struct completion *completion)
 {
 	struct device *dev = &client->dev;
-	long ret;
 	int error;
 	int len;
-	u8 buffer[ETP_I2C_INF_LENGTH];
+	u8 buffer[ETP_I2C_REPORT_LEN];
+
+	len = i2c_master_recv(client, buffer, ETP_I2C_REPORT_LEN);
+	if (len != ETP_I2C_REPORT_LEN) {
+		error = len < 0 ? len : -EIO;
+		dev_warn(dev, "failed to read I2C data after FW WDT reset: %d (%d)\n",
+			error, len);
+	}
 
 	reinit_completion(completion);
 	enable_irq(client->irq);
 
 	error = elan_i2c_write_cmd(client, ETP_I2C_STAND_CMD, ETP_I2C_RESET);
-	if (!error)
-		ret = wait_for_completion_interruptible_timeout(completion,
-							msecs_to_jiffies(300));
-	disable_irq(client->irq);
-
 	if (error) {
 		dev_err(dev, "device reset failed: %d\n", error);
-		return error;
-	} else if (ret == 0) {
+	} else if (!wait_for_completion_timeout(completion,
+						msecs_to_jiffies(300))) {
 		dev_err(dev, "timeout waiting for device reset\n");
-		return -ETIMEDOUT;
-	} else if (ret < 0) {
-		error = ret;
-		dev_err(dev, "error waiting for device reset: %d\n", error);
-		return error;
+		error = -ETIMEDOUT;
 	}
+
+	disable_irq(client->irq);
+
+	if (error)
+		return error;
 
 	len = i2c_master_recv(client, buffer, ETP_I2C_INF_LENGTH);
 	if (len != ETP_I2C_INF_LENGTH) {
@@ -638,6 +706,8 @@ const struct elan_transport_ops elan_i2c_ops = {
 	.prepare_fw_update	= elan_i2c_prepare_fw_update,
 	.write_fw_block		= elan_i2c_write_fw_block,
 	.finish_fw_update	= elan_i2c_finish_fw_update,
+
+	.get_pattern		= elan_i2c_get_pattern,
 
 	.get_report		= elan_i2c_get_report,
 };

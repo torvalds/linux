@@ -58,10 +58,14 @@ static int nd_region_probe(struct device *dev)
 
 		if (devm_init_badblocks(dev, &nd_region->bb))
 			return -ENODEV;
+		nd_region->bb_state = sysfs_get_dirent(nd_region->dev.kobj.sd,
+						       "badblocks");
+		if (!nd_region->bb_state)
+			dev_warn(&nd_region->dev,
+					"'badblocks' notification disabled\n");
 		ndr_res.start = nd_region->ndr_start;
 		ndr_res.end = nd_region->ndr_start + nd_region->ndr_size - 1;
-		nvdimm_badblocks_populate(nd_region,
-				&nd_region->bb, &ndr_res);
+		nvdimm_badblocks_populate(nd_region, &nd_region->bb, &ndr_res);
 	}
 
 	nd_region->btt_seed = nd_btt_create(nd_region);
@@ -105,6 +109,13 @@ static int nd_region_remove(struct device *dev)
 	dev_set_drvdata(dev, NULL);
 	nvdimm_bus_unlock(dev);
 
+	/*
+	 * Note, this assumes device_lock() context to not race
+	 * nd_region_notify()
+	 */
+	sysfs_put(nd_region->bb_state);
+	nd_region->bb_state = NULL;
+
 	return 0;
 }
 
@@ -126,6 +137,8 @@ static void nd_region_notify(struct device *dev, enum nvdimm_event event)
 				nd_region->ndr_size - 1;
 			nvdimm_badblocks_populate(nd_region,
 					&nd_region->bb, &res);
+			if (nd_region->bb_state)
+				sysfs_notify_dirent(nd_region->bb_state);
 		}
 	}
 	device_for_each_child(dev, &event, child_notify);

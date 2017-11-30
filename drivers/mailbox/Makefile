@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 # Generic MAILBOX API
 
 obj-$(CONFIG_MAILBOX)		+= mailbox.o
@@ -31,5 +32,7 @@ obj-$(CONFIG_HI6220_MBOX)	+= hi6220-mailbox.o
 obj-$(CONFIG_BCM_PDC_MBOX)	+= bcm-pdc-mailbox.o
 
 obj-$(CONFIG_BCM_FLEXRM_MBOX)	+= bcm-flexrm-mailbox.o
+
+obj-$(CONFIG_QCOM_APCS_IPC)	+= qcom-apcs-ipc-mailbox.o
 
 obj-$(CONFIG_TEGRA_HSP_MBOX)	+= tegra-hsp.o

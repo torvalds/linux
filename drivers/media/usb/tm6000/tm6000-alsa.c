@@ -143,7 +143,7 @@ static int dsp_buffer_alloc(struct snd_pcm_substream *substream, int size)
  */
 #define DEFAULT_FIFO_SIZE	4096
 
-static struct snd_pcm_hardware snd_tm6000_digital_hw = {
+static const struct snd_pcm_hardware snd_tm6000_digital_hw = {
 	.info = SNDRV_PCM_INFO_BATCH |
 		SNDRV_PCM_INFO_MMAP |
 		SNDRV_PCM_INFO_INTERLEAVED |

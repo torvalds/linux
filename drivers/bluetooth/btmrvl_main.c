@@ -189,12 +189,12 @@ static int btmrvl_send_sync_cmd(struct btmrvl_private *priv, u16 opcode,
 		return -ENOMEM;
 	}
 
-	hdr = (struct hci_command_hdr *)skb_put(skb, HCI_COMMAND_HDR_SIZE);
+	hdr = skb_put(skb, HCI_COMMAND_HDR_SIZE);
 	hdr->opcode = cpu_to_le16(opcode);
 	hdr->plen = len;
 
 	if (len)
-		memcpy(skb_put(skb, len), param, len);
+		skb_put_data(skb, param, len);
 
 	hci_skb_pkt_type(skb) = MRVL_VENDOR_PKT;
 
@@ -602,7 +602,7 @@ static int btmrvl_service_main_thread(void *data)
 	struct btmrvl_thread *thread = data;
 	struct btmrvl_private *priv = thread->priv;
 	struct btmrvl_adapter *adapter = priv->adapter;
-	wait_queue_t wait;
+	wait_queue_entry_t wait;
 	struct sk_buff *skb;
 	ulong flags;
 

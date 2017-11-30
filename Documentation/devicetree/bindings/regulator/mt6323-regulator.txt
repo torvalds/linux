@@ -1,4 +1,4 @@
-Mediatek MT6323 Regulator Driver
+Mediatek MT6323 Regulator
 
 All voltage regulators are defined as subnodes of the regulators node. A list
 of regulators provided by this controller are defined as subnodes of the

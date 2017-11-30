@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _SPARC64_HYPERVISOR_H
 #define _SPARC64_HYPERVISOR_H
 
@@ -296,6 +297,24 @@ unsigned long sun4v_cpu_stop(unsigned long cpuid);
 
 #ifndef __ASSEMBLY__
 unsigned long sun4v_cpu_yield(void);
+#endif
+
+/* cpu_poke()
+ * TRAP:	HV_FAST_TRAP
+ * FUNCTION:	HV_FAST_CPU_POKE
+ * RET0:	status
+ * ERRORS:	ENOCPU		cpuid refers to a CPU that does not exist
+ *		EINVAL		cpuid is current CPU
+ *
+ * Poke CPU cpuid. If the target CPU is currently suspended having
+ * invoked the cpu-yield service, that vCPU will be resumed.
+ * Poke interrupts may only be sent to valid, non-local CPUs.
+ * It is not legal to poke the current vCPU.
+ */
+#define HV_FAST_CPU_POKE                0x13
+
+#ifndef __ASSEMBLY__
+unsigned long sun4v_cpu_poke(unsigned long cpuid);
 #endif
 
 /* cpu_qconf()

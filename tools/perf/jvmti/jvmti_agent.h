@@ -1,11 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __JVMTI_AGENT_H__
 #define __JVMTI_AGENT_H__
 
 #include <sys/types.h>
 #include <stdint.h>
 #include <jvmti.h>
-
-#define __unused __attribute__((unused))
 
 #if defined(__cplusplus)
 extern "C" {

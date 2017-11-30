@@ -74,14 +74,14 @@ static void do_z2_request(struct request_queue *q)
 	while (req) {
 		unsigned long start = blk_rq_pos(req) << 9;
 		unsigned long len  = blk_rq_cur_bytes(req);
-		int err = 0;
+		blk_status_t err = BLK_STS_OK;
 
 		if (start + len > z2ram_size) {
 			pr_err(DEVICE_NAME ": bad access: block=%llu, "
 			       "count=%u\n",
 			       (unsigned long long)blk_rq_pos(req),
 			       blk_rq_cur_sectors(req));
-			err = -EIO;
+			err = BLK_STS_IOERR;
 			goto done;
 		}
 		while (len) {

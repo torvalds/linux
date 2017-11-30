@@ -84,7 +84,7 @@ static int cifs_xattr_set(const struct xattr_handler *handler,
 		if (pTcon->ses->server->ops->set_EA)
 			rc = pTcon->ses->server->ops->set_EA(xid, pTcon,
 				full_path, name, value, (__u16)size,
-				cifs_sb->local_nls, cifs_remap(cifs_sb));
+				cifs_sb->local_nls, cifs_sb);
 		break;
 
 	case XATTR_CIFS_ACL: {
@@ -117,7 +117,7 @@ static int cifs_xattr_set(const struct xattr_handler *handler,
 #ifdef CONFIG_CIFS_POSIX
 		if (!value)
 			goto out;
-		if (sb->s_flags & MS_POSIXACL)
+		if (sb->s_flags & SB_POSIXACL)
 			rc = CIFSSMBSetPosixACL(xid, pTcon, full_path,
 				value, (const int)size,
 				ACL_TYPE_ACCESS, cifs_sb->local_nls,
@@ -129,7 +129,7 @@ static int cifs_xattr_set(const struct xattr_handler *handler,
 #ifdef CONFIG_CIFS_POSIX
 		if (!value)
 			goto out;
-		if (sb->s_flags & MS_POSIXACL)
+		if (sb->s_flags & SB_POSIXACL)
 			rc = CIFSSMBSetPosixACL(xid, pTcon, full_path,
 				value, (const int)size,
 				ACL_TYPE_DEFAULT, cifs_sb->local_nls,
@@ -188,8 +188,6 @@ static int cifs_creation_time_get(struct dentry *dentry, struct inode *inode,
 	pcreatetime = (__u64 *)value;
 	*pcreatetime = CIFS_I(inode)->createtime;
 	return sizeof(__u64);
-
-	return rc;
 }
 
 
@@ -235,8 +233,7 @@ static int cifs_xattr_get(const struct xattr_handler *handler,
 
 		if (pTcon->ses->server->ops->query_all_EAs)
 			rc = pTcon->ses->server->ops->query_all_EAs(xid, pTcon,
-				full_path, name, value, size,
-				cifs_sb->local_nls, cifs_remap(cifs_sb));
+				full_path, name, value, size, cifs_sb);
 		break;
 
 	case XATTR_CIFS_ACL: {
@@ -269,7 +266,7 @@ static int cifs_xattr_get(const struct xattr_handler *handler,
 
 	case XATTR_ACL_ACCESS:
 #ifdef CONFIG_CIFS_POSIX
-		if (sb->s_flags & MS_POSIXACL)
+		if (sb->s_flags & SB_POSIXACL)
 			rc = CIFSSMBGetPosixACL(xid, pTcon, full_path,
 				value, size, ACL_TYPE_ACCESS,
 				cifs_sb->local_nls,
@@ -279,7 +276,7 @@ static int cifs_xattr_get(const struct xattr_handler *handler,
 
 	case XATTR_ACL_DEFAULT:
 #ifdef CONFIG_CIFS_POSIX
-		if (sb->s_flags & MS_POSIXACL)
+		if (sb->s_flags & SB_POSIXACL)
 			rc = CIFSSMBGetPosixACL(xid, pTcon, full_path,
 				value, size, ACL_TYPE_DEFAULT,
 				cifs_sb->local_nls,
@@ -336,8 +333,7 @@ ssize_t cifs_listxattr(struct dentry *direntry, char *data, size_t buf_size)
 
 	if (pTcon->ses->server->ops->query_all_EAs)
 		rc = pTcon->ses->server->ops->query_all_EAs(xid, pTcon,
-				full_path, NULL, data, buf_size,
-				cifs_sb->local_nls, cifs_remap(cifs_sb));
+				full_path, NULL, data, buf_size, cifs_sb);
 list_ea_exit:
 	kfree(full_path);
 	free_xid(xid);

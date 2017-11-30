@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef SOUND_FIREWIRE_AMDTP_H_INCLUDED
 #define SOUND_FIREWIRE_AMDTP_H_INCLUDED
 
@@ -135,7 +136,7 @@ struct amdtp_stream {
 	/* For a PCM substream processing. */
 	struct snd_pcm_substream *pcm;
 	struct tasklet_struct period_tasklet;
-	unsigned int pcm_buffer_pointer;
+	snd_pcm_uframes_t pcm_buffer_pointer;
 	unsigned int pcm_period_pointer;
 
 	/* To wait for first packet. */
@@ -168,6 +169,7 @@ int amdtp_stream_add_pcm_hw_constraints(struct amdtp_stream *s,
 
 void amdtp_stream_pcm_prepare(struct amdtp_stream *s);
 unsigned long amdtp_stream_pcm_pointer(struct amdtp_stream *s);
+int amdtp_stream_pcm_ack(struct amdtp_stream *s);
 void amdtp_stream_pcm_abort(struct amdtp_stream *s);
 
 extern const unsigned int amdtp_syt_intervals[CIP_SFC_COUNT];
@@ -219,7 +221,7 @@ static inline bool amdtp_stream_pcm_running(struct amdtp_stream *s)
 static inline void amdtp_stream_pcm_trigger(struct amdtp_stream *s,
 					    struct snd_pcm_substream *pcm)
 {
-	ACCESS_ONCE(s->pcm) = pcm;
+	WRITE_ONCE(s->pcm, pcm);
 }
 
 static inline bool cip_sfc_is_base_44100(enum cip_sfc sfc)

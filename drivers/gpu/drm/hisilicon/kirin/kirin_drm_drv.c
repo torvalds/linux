@@ -22,6 +22,7 @@
 #include <drm/drmP.h>
 #include <drm/drm_gem_cma_helper.h>
 #include <drm/drm_fb_cma_helper.h>
+#include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_of.h>
@@ -34,14 +35,12 @@ static int kirin_drm_kms_cleanup(struct drm_device *dev)
 {
 	struct kirin_drm_private *priv = dev->dev_private;
 
-#ifdef CONFIG_DRM_FBDEV_EMULATION
 	if (priv->fbdev) {
 		drm_fbdev_cma_fini(priv->fbdev);
 		priv->fbdev = NULL;
 	}
-#endif
+
 	drm_kms_helper_poll_fini(dev);
-	drm_vblank_cleanup(dev);
 	dc_ops->cleanup(to_platform_device(dev->dev));
 	drm_mode_config_cleanup(dev);
 	devm_kfree(dev->dev, priv);
@@ -50,27 +49,16 @@ static int kirin_drm_kms_cleanup(struct drm_device *dev)
 	return 0;
 }
 
-#ifdef CONFIG_DRM_FBDEV_EMULATION
 static void kirin_fbdev_output_poll_changed(struct drm_device *dev)
 {
 	struct kirin_drm_private *priv = dev->dev_private;
 
-	if (priv->fbdev) {
-		drm_fbdev_cma_hotplug_event(priv->fbdev);
-	} else {
-		priv->fbdev = drm_fbdev_cma_init(dev, 32,
-						 dev->mode_config.num_connector);
-		if (IS_ERR(priv->fbdev))
-			priv->fbdev = NULL;
-	}
+	drm_fbdev_cma_hotplug_event(priv->fbdev);
 }
-#endif
 
 static const struct drm_mode_config_funcs kirin_drm_mode_config_funcs = {
-	.fb_create = drm_fb_cma_create,
-#ifdef CONFIG_DRM_FBDEV_EMULATION
+	.fb_create = drm_gem_fb_create,
 	.output_poll_changed = kirin_fbdev_output_poll_changed,
-#endif
 	.atomic_check = drm_atomic_helper_check,
 	.atomic_commit = drm_atomic_helper_commit,
 };
@@ -129,11 +117,18 @@ static int kirin_drm_kms_init(struct drm_device *dev)
 	/* init kms poll for handling hpd */
 	drm_kms_helper_poll_init(dev);
 
-	/* force detection after connectors init */
-	(void)drm_helper_hpd_irq_event(dev);
+	priv->fbdev = drm_fbdev_cma_init(dev, 32,
+					 dev->mode_config.num_connector);
 
+	if (IS_ERR(priv->fbdev)) {
+		DRM_ERROR("failed to initialize fbdev.\n");
+		ret = PTR_ERR(priv->fbdev);
+		goto err_cleanup_poll;
+	}
 	return 0;
 
+err_cleanup_poll:
+	drm_kms_helper_poll_fini(dev);
 err_unbind_all:
 	component_unbind_all(dev->dev, dev);
 err_dc_cleanup:
@@ -163,8 +158,6 @@ static struct drm_driver kirin_drm_driver = {
 	.gem_free_object_unlocked = drm_gem_cma_free_object,
 	.gem_vm_ops		= &drm_gem_cma_vm_ops,
 	.dumb_create		= kirin_gem_cma_dumb_create,
-	.dumb_map_offset	= drm_gem_cma_dumb_map_offset,
-	.dumb_destroy		= drm_gem_dumb_destroy,
 
 	.prime_handle_to_fd	= drm_gem_prime_handle_to_fd,
 	.prime_fd_to_handle	= drm_gem_prime_fd_to_handle,
@@ -244,8 +237,8 @@ static int kirin_drm_platform_probe(struct platform_device *pdev)
 	}
 
 	remote = of_graph_get_remote_node(np, 0, 0);
-	if (IS_ERR(remote))
-		return PTR_ERR(remote);
+	if (!remote)
+		return -ENODEV;
 
 	drm_of_component_match_add(dev, &match, compare_of, remote);
 	of_node_put(remote);

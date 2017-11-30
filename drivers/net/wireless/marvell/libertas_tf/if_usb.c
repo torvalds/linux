@@ -31,7 +31,7 @@ module_param_named(fw_name, lbtf_fw_name, charp, 0644);
 
 MODULE_FIRMWARE("lbtf_usb.bin");
 
-static struct usb_device_id if_usb_table[] = {
+static const struct usb_device_id if_usb_table[] = {
 	/* Enter the device signature inside */
 	{ USB_DEVICE(0x1286, 0x2001) },
 	{ USB_DEVICE(0x05a3, 0x8388) },
@@ -115,9 +115,9 @@ static void if_usb_setup_firmware(struct lbtf_private *priv)
 	lbtf_deb_leave(LBTF_DEB_USB);
 }
 
-static void if_usb_fw_timeo(unsigned long priv)
+static void if_usb_fw_timeo(struct timer_list *t)
 {
-	struct if_usb_card *cardp = (void *)priv;
+	struct if_usb_card *cardp = from_timer(cardp, t, fw_timeout);
 
 	lbtf_deb_enter(LBTF_DEB_USB);
 	if (!cardp->fwdnldover) {
@@ -156,7 +156,7 @@ static int if_usb_probe(struct usb_interface *intf,
 	if (!cardp)
 		goto error;
 
-	setup_timer(&cardp->fw_timeout, if_usb_fw_timeo, (unsigned long)cardp);
+	timer_setup(&cardp->fw_timeout, if_usb_fw_timeo, 0);
 	init_waitqueue_head(&cardp->fw_wq);
 
 	cardp->udev = udev;

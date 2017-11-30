@@ -22,6 +22,7 @@
  * Authors: Ben Skeggs
  */
 #include "channv50.h"
+#include "head.h"
 #include "rootnv50.h"
 
 #include <core/client.h>
@@ -48,7 +49,7 @@ nv50_disp_curs_new(const struct nv50_disp_chan_func *func,
 	if (!(ret = nvif_unpack(ret, &data, &size, args->v0, 0, 0, false))) {
 		nvif_ioctl(parent, "create disp cursor vers %d head %d\n",
 			   args->v0.version, args->v0.head);
-		if (args->v0.head > disp->base.head.nr)
+		if (!nvkm_head_find(&disp->base, args->v0.head))
 			return -EINVAL;
 		head = args->v0.head;
 	} else

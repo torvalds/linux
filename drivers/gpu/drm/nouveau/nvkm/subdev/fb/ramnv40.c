@@ -150,16 +150,8 @@ nv40_ram_prog(struct nvkm_ram *base)
 	udelay(100);
 
 	/* execute memory reset script from vbios */
-	if (!bit_entry(bios, 'M', &M)) {
-		struct nvbios_init init = {
-			.subdev = subdev,
-			.bios = bios,
-			.offset = nvbios_rd16(bios, M.offset + 0x00),
-			.execute = 1,
-		};
-
-		nvbios_exec(&init);
-	}
+	if (!bit_entry(bios, 'M', &M))
+		nvbios_init(subdev, nvbios_rd16(bios, M.offset + 0x00));
 
 	/* make sure we're in vblank (hopefully the same one as before), and
 	 * then re-enable crtc memory access
@@ -195,13 +187,13 @@ nv40_ram_func = {
 
 int
 nv40_ram_new_(struct nvkm_fb *fb, enum nvkm_ram_type type, u64 size,
-	      u32 tags, struct nvkm_ram **pram)
+	      struct nvkm_ram **pram)
 {
 	struct nv40_ram *ram;
 	if (!(ram = kzalloc(sizeof(*ram), GFP_KERNEL)))
 		return -ENOMEM;
 	*pram = &ram->base;
-	return nvkm_ram_ctor(&nv40_ram_func, fb, type, size, tags, &ram->base);
+	return nvkm_ram_ctor(&nv40_ram_func, fb, type, size, &ram->base);
 }
 
 int
@@ -210,7 +202,6 @@ nv40_ram_new(struct nvkm_fb *fb, struct nvkm_ram **pram)
 	struct nvkm_device *device = fb->subdev.device;
 	u32 pbus1218 = nvkm_rd32(device, 0x001218);
 	u32     size = nvkm_rd32(device, 0x10020c) & 0xff000000;
-	u32     tags = nvkm_rd32(device, 0x100320);
 	enum nvkm_ram_type type = NVKM_RAM_TYPE_UNKNOWN;
 	int ret;
 
@@ -221,7 +212,7 @@ nv40_ram_new(struct nvkm_fb *fb, struct nvkm_ram **pram)
 	case 0x00000300: type = NVKM_RAM_TYPE_DDR2 ; break;
 	}
 
-	ret = nv40_ram_new_(fb, type, size, tags, pram);
+	ret = nv40_ram_new_(fb, type, size, pram);
 	if (ret)
 		return ret;
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <ctype.h>
 #include <errno.h>
 #include <limits.h>
@@ -387,6 +388,22 @@ int filename__read_str(const char *filename, char **buf, size_t *sizep)
 	return err;
 }
 
+int filename__write_int(const char *filename, int value)
+{
+	int fd = open(filename, O_WRONLY), err = -1;
+	char buf[64];
+
+	if (fd < 0)
+		return err;
+
+	sprintf(buf, "%d", value);
+	if (write(fd, buf, sizeof(buf)) == sizeof(buf))
+		err = 0;
+
+	close(fd);
+	return err;
+}
+
 int procfs__read_str(const char *entry, char **buf, size_t *sizep)
 {
 	char path[PATH_MAX];
@@ -479,4 +496,18 @@ int sysctl__read_int(const char *sysctl, int *value)
 	snprintf(path, sizeof(path), "%s/sys/%s", procfs, sysctl);
 
 	return filename__read_int(path, value);
+}
+
+int sysfs__write_int(const char *entry, int value)
+{
+	char path[PATH_MAX];
+	const char *sysfs = sysfs__mountpoint();
+
+	if (!sysfs)
+		return -1;
+
+	if (snprintf(path, sizeof(path), "%s/%s", sysfs, entry) >= PATH_MAX)
+		return -1;
+
+	return filename__write_int(path, value);
 }

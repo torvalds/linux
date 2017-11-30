@@ -4,7 +4,12 @@ The GPMI nand controller provides an interface to control the
 NAND flash chips.
 
 Required properties:
-  - compatible : should be "fsl,<chip>-gpmi-nand"
+  - compatible : should be "fsl,<chip>-gpmi-nand", chip can be:
+    * imx23
+    * imx28
+    * imx6q
+    * imx6sx
+    * imx7d
   - reg : should contain registers location and length for gpmi and bch.
   - reg-names: Should contain the reg names "gpmi-nand" and "bch"
   - interrupts : BCH interrupt number.
@@ -13,6 +18,13 @@ Required properties:
     and GPMI DMA channel ID.
     Refer to dma.txt and fsl-mxs-dma.txt for details.
   - dma-names: Must be "rx-tx".
+  - clocks : clocks phandle and clock specifier corresponding to each clock
+    specified in clock-names.
+  - clock-names : The "gpmi_io" clock is always required. Which clocks are
+    exactly required depends on chip:
+    * imx23/imx28 : "gpmi_io"
+    * imx6q/sx : "gpmi_io", "gpmi_apb", "gpmi_bch", "gpmi_bch_apb", "per1_bch"
+    * imx7d : "gpmi_io", "gpmi_bch_apb"
 
 Optional properties:
   - nand-on-flash-bbt: boolean to enable on flash bbt option if not

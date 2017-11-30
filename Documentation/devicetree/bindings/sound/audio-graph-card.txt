@@ -1,0 +1,130 @@
+Audio Graph Card:
+
+Audio Graph Card specifies audio DAI connections of SoC <-> codec.
+It is based on common bindings for device graphs.
+see ${LINUX}/Documentation/devicetree/bindings/graph.txt
+
+Basically, Audio Graph Card property is same as Simple Card.
+see ${LINUX}/Documentation/devicetree/bindings/sound/simple-card.txt
+
+Below are same as Simple-Card.
+
+- label
+- widgets
+- routing
+- dai-format
+- frame-master
+- bitclock-master
+- bitclock-inversion
+- frame-inversion
+- mclk-fs
+- dai-tdm-slot-num
+- dai-tdm-slot-width
+- clocks / system-clock-frequency
+
+Required properties:
+
+- compatible				: "audio-graph-card";
+- dais					: list of CPU DAI port{s}
+
+Optional properties:
+- pa-gpios: GPIO used to control external amplifier.
+
+Example: Single DAI case
+
+	sound_card {
+		compatible = "audio-graph-card";
+
+		dais = <&cpu_port>;
+	};
+
+	dai-controller {
+		...
+		cpu_port: port {
+			cpu_endpoint: endpoint {
+				remote-endpoint = <&codec_endpoint>;
+
+				dai-format = "left_j";
+				...
+			};
+		};
+	};
+
+	audio-codec {
+		...
+		port {
+			codec_endpoint: endpoint {
+				remote-endpoint = <&cpu_endpoint>;
+			};
+		};
+	};
+
+Example: Multi DAI case
+
+	sound-card {
+		compatible = "audio-graph-card";
+
+		label = "sound-card";
+
+		dais = <&cpu_port0
+			&cpu_port1
+			&cpu_port2>;
+	};
+
+	audio-codec@0 {
+		...
+		port {
+			codec0_endpoint: endpoint {
+				remote-endpoint = <&cpu_endpoint0>;
+			};
+		};
+	};
+
+	audio-codec@1 {
+		...
+		port {
+			codec1_endpoint: endpoint {
+				remote-endpoint = <&cpu_endpoint1>;
+			};
+		};
+	};
+
+	audio-codec@2 {
+		...
+		port {
+			codec2_endpoint: endpoint {
+				remote-endpoint = <&cpu_endpoint2>;
+			};
+		};
+	};
+
+	dai-controller {
+		...
+		ports {
+			cpu_port0: port@0 {
+				cpu_endpoint0: endpoint {
+					remote-endpoint = <&codec0_endpoint>;
+
+					dai-format = "left_j";
+					...
+				};
+			};
+			cpu_port1: port@1 {
+				cpu_endpoint1: endpoint {
+					remote-endpoint = <&codec1_endpoint>;
+
+					dai-format = "i2s";
+					...
+				};
+			};
+			cpu_port2: port@2 {
+				cpu_endpoint2: endpoint {
+					remote-endpoint = <&codec2_endpoint>;
+
+					dai-format = "i2s";
+					...
+				};
+			};
+		};
+	};
+

@@ -65,7 +65,7 @@ Without options, the kernel-doc directive includes all documentation comments
 from the source file.
 
 The kernel-doc extension is included in the kernel source tree, at
-``Documentation/sphinx/kernel-doc.py``. Internally, it uses the
+``Documentation/sphinx/kerneldoc.py``. Internally, it uses the
 ``scripts/kernel-doc`` script to extract the documentation comments from the
 source.
 
@@ -148,6 +148,16 @@ Domain`_ references.
 
 ``%CONST``
   Name of a constant. (No cross-referencing, just formatting.)
+
+````literal````
+  A literal block that should be handled as-is. The output will use a
+  ``monospaced font``.
+
+  Useful if you need to use special characters that would otherwise have some
+  meaning either by kernel-doc script of by reStructuredText.
+
+  This is particularly useful if you need to use things like ``%ph`` inside
+  a function description.
 
 ``$ENVVAR``
   Name of an environment variable. (No cross-referencing, just formatting.)

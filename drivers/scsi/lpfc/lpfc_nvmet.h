@@ -22,6 +22,7 @@
  ********************************************************************/
 
 #define LPFC_NVMET_DEFAULT_SEGS		(64 + 1)	/* 256K IOs */
+#define LPFC_NVMET_RQE_DEF_COUNT	512
 #define LPFC_NVMET_SUCCESS_LEN	12
 
 /* Used for NVME Target */
@@ -34,6 +35,7 @@ struct lpfc_nvmet_tgtport {
 	atomic_t rcv_ls_req_out;
 	atomic_t rcv_ls_req_drop;
 	atomic_t xmt_ls_abort;
+	atomic_t xmt_ls_abort_cmpl;
 
 	/* Stats counters - lpfc_nvmet_xmt_ls_rsp */
 	atomic_t xmt_ls_rsp;
@@ -47,9 +49,10 @@ struct lpfc_nvmet_tgtport {
 	atomic_t rcv_fcp_cmd_in;
 	atomic_t rcv_fcp_cmd_out;
 	atomic_t rcv_fcp_cmd_drop;
+	atomic_t rcv_fcp_cmd_defer;
+	atomic_t xmt_fcp_release;
 
 	/* Stats counters - lpfc_nvmet_xmt_fcp_op */
-	atomic_t xmt_fcp_abort;
 	atomic_t xmt_fcp_drop;
 	atomic_t xmt_fcp_read_rsp;
 	atomic_t xmt_fcp_read;
@@ -62,13 +65,27 @@ struct lpfc_nvmet_tgtport {
 	atomic_t xmt_fcp_rsp_drop;
 
 
-	/* Stats counters - lpfc_nvmet_unsol_issue_abort */
+	/* Stats counters - lpfc_nvmet_xmt_fcp_abort */
+	atomic_t xmt_fcp_abort;
+	atomic_t xmt_fcp_abort_cmpl;
+	atomic_t xmt_abort_sol;
+	atomic_t xmt_abort_unsol;
 	atomic_t xmt_abort_rsp;
 	atomic_t xmt_abort_rsp_error;
-
-	/* Stats counters - lpfc_nvmet_xmt_abort_cmp */
-	atomic_t xmt_abort_cmpl;
 };
+
+struct lpfc_nvmet_ctx_info {
+	struct list_head nvmet_ctx_list;
+	spinlock_t	nvmet_ctx_list_lock; /* lock per CPU */
+	struct lpfc_nvmet_ctx_info *nvmet_ctx_next_cpu;
+	struct lpfc_nvmet_ctx_info *nvmet_ctx_start_cpu;
+	uint16_t	nvmet_ctx_list_cnt;
+	char pad[16];  /* pad to a cache-line */
+};
+
+/* This retrieves the context info associated with the specified cpu / mrq */
+#define lpfc_get_ctx_list(phba, cpu, mrq)  \
+	(phba->sli4_hba.nvmet_ctx_info + ((cpu * phba->cfg_nvmet_mrq) + mrq))
 
 struct lpfc_nvmet_rcv_ctx {
 	union {
@@ -88,14 +105,17 @@ struct lpfc_nvmet_rcv_ctx {
 	uint16_t size;
 	uint16_t entry_cnt;
 	uint16_t cpu;
+	uint16_t idx;
 	uint16_t state;
 	/* States */
-#define LPFC_NVMET_STE_FREE		0
-#define LPFC_NVMET_STE_RCV		1
-#define LPFC_NVMET_STE_DATA		2
-#define LPFC_NVMET_STE_ABORT		3
-#define LPFC_NVMET_STE_RSP		4
-#define LPFC_NVMET_STE_DONE		5
+#define LPFC_NVMET_STE_LS_RCV		1
+#define LPFC_NVMET_STE_LS_ABORT		2
+#define LPFC_NVMET_STE_LS_RSP		3
+#define LPFC_NVMET_STE_RCV		4
+#define LPFC_NVMET_STE_DATA		5
+#define LPFC_NVMET_STE_ABORT		6
+#define LPFC_NVMET_STE_DONE		7
+#define LPFC_NVMET_STE_FREE		0xff
 	uint16_t flag;
 #define LPFC_NVMET_IO_INP		0x1  /* IO is in progress on exchange */
 #define LPFC_NVMET_ABORT_OP		0x2  /* Abort WQE issued on exchange */
@@ -103,6 +123,7 @@ struct lpfc_nvmet_rcv_ctx {
 #define LPFC_NVMET_CTX_RLS		0x8  /* ctx free requested */
 #define LPFC_NVMET_ABTS_RCV		0x10  /* ABTS received on exchange */
 	struct rqb_dmabuf *rqb_buffer;
+	struct lpfc_nvmet_ctxbuf *ctxbuf;
 
 #ifdef CONFIG_SCSI_LPFC_DEBUG_FS
 	uint64_t ts_isr_cmd;

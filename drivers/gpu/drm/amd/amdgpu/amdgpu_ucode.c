@@ -197,6 +197,27 @@ void amdgpu_ucode_print_sdma_hdr(const struct common_firmware_header *hdr)
 	}
 }
 
+void amdgpu_ucode_print_gpu_info_hdr(const struct common_firmware_header *hdr)
+{
+	uint16_t version_major = le16_to_cpu(hdr->header_version_major);
+	uint16_t version_minor = le16_to_cpu(hdr->header_version_minor);
+
+	DRM_DEBUG("GPU_INFO\n");
+	amdgpu_ucode_print_common_hdr(hdr);
+
+	if (version_major == 1) {
+		const struct gpu_info_firmware_header_v1_0 *gpu_info_hdr =
+			container_of(hdr, struct gpu_info_firmware_header_v1_0, header);
+
+		DRM_DEBUG("version_major: %u\n",
+			  le16_to_cpu(gpu_info_hdr->version_major));
+		DRM_DEBUG("version_minor: %u\n",
+			  le16_to_cpu(gpu_info_hdr->version_minor));
+	} else {
+		DRM_ERROR("Unknown gpu_info ucode version: %u.%u\n", version_major, version_minor);
+	}
+}
+
 int amdgpu_ucode_validate(const struct firmware *fw)
 {
 	const struct common_firmware_header *hdr =
@@ -249,6 +270,7 @@ amdgpu_ucode_get_load_type(struct amdgpu_device *adev, int load_type)
 		else
 			return AMDGPU_FW_LOAD_SMU;
 	case CHIP_VEGA10:
+	case CHIP_RAVEN:
 		if (!load_type)
 			return AMDGPU_FW_LOAD_DIRECT;
 		else
@@ -332,51 +354,55 @@ static int amdgpu_ucode_patch_jt(struct amdgpu_firmware_info *ucode,
 			   (le32_to_cpu(header->jt_offset) * 4);
 	memcpy(dst_addr, src_addr, le32_to_cpu(header->jt_size) * 4);
 
-	ucode->ucode_size += le32_to_cpu(header->jt_size) * 4;
-
 	return 0;
 }
 
 int amdgpu_ucode_init_bo(struct amdgpu_device *adev)
 {
 	struct amdgpu_bo **bo = &adev->firmware.fw_buf;
-	uint64_t fw_mc_addr;
-	void *fw_buf_ptr = NULL;
 	uint64_t fw_offset = 0;
 	int i, err;
 	struct amdgpu_firmware_info *ucode = NULL;
 	const struct common_firmware_header *header = NULL;
 
-	err = amdgpu_bo_create(adev, adev->firmware.fw_size, PAGE_SIZE, true,
-				amdgpu_sriov_vf(adev) ? AMDGPU_GEM_DOMAIN_VRAM : AMDGPU_GEM_DOMAIN_GTT,
-				0, NULL, NULL, bo);
-	if (err) {
-		dev_err(adev->dev, "(%d) Firmware buffer allocate failed\n", err);
-		goto failed;
+	if (!adev->firmware.fw_size) {
+		dev_warn(adev->dev, "No ip firmware need to load\n");
+		return 0;
 	}
 
-	err = amdgpu_bo_reserve(*bo, false);
-	if (err) {
-		dev_err(adev->dev, "(%d) Firmware buffer reserve failed\n", err);
-		goto failed_reserve;
+	if (!amdgpu_sriov_vf(adev) || !adev->in_sriov_reset) {
+		err = amdgpu_bo_create(adev, adev->firmware.fw_size, PAGE_SIZE, true,
+					amdgpu_sriov_vf(adev) ? AMDGPU_GEM_DOMAIN_VRAM : AMDGPU_GEM_DOMAIN_GTT,
+					AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS,
+					NULL, NULL, 0, bo);
+		if (err) {
+			dev_err(adev->dev, "(%d) Firmware buffer allocate failed\n", err);
+			goto failed;
+		}
+
+		err = amdgpu_bo_reserve(*bo, false);
+		if (err) {
+			dev_err(adev->dev, "(%d) Firmware buffer reserve failed\n", err);
+			goto failed_reserve;
+		}
+
+		err = amdgpu_bo_pin(*bo, amdgpu_sriov_vf(adev) ? AMDGPU_GEM_DOMAIN_VRAM : AMDGPU_GEM_DOMAIN_GTT,
+					&adev->firmware.fw_buf_mc);
+		if (err) {
+			dev_err(adev->dev, "(%d) Firmware buffer pin failed\n", err);
+			goto failed_pin;
+		}
+
+		err = amdgpu_bo_kmap(*bo, &adev->firmware.fw_buf_ptr);
+		if (err) {
+			dev_err(adev->dev, "(%d) Firmware buffer kmap failed\n", err);
+			goto failed_kmap;
+		}
+
+		amdgpu_bo_unreserve(*bo);
 	}
 
-	err = amdgpu_bo_pin(*bo, amdgpu_sriov_vf(adev) ? AMDGPU_GEM_DOMAIN_VRAM : AMDGPU_GEM_DOMAIN_GTT,
-				&fw_mc_addr);
-	if (err) {
-		dev_err(adev->dev, "(%d) Firmware buffer pin failed\n", err);
-		goto failed_pin;
-	}
-
-	err = amdgpu_bo_kmap(*bo, &fw_buf_ptr);
-	if (err) {
-		dev_err(adev->dev, "(%d) Firmware buffer kmap failed\n", err);
-		goto failed_kmap;
-	}
-
-	amdgpu_bo_unreserve(*bo);
-
-	memset(fw_buf_ptr, 0, adev->firmware.fw_size);
+	memset(adev->firmware.fw_buf_ptr, 0, adev->firmware.fw_size);
 
 	/*
 	 * if SMU loaded firmware, it needn't add SMC, UVD, and VCE
@@ -395,14 +421,14 @@ int amdgpu_ucode_init_bo(struct amdgpu_device *adev)
 		ucode = &adev->firmware.ucode[i];
 		if (ucode->fw) {
 			header = (const struct common_firmware_header *)ucode->fw->data;
-			amdgpu_ucode_init_single_fw(adev, ucode, fw_mc_addr + fw_offset,
-						    (void *)((uint8_t *)fw_buf_ptr + fw_offset));
+			amdgpu_ucode_init_single_fw(adev, ucode, adev->firmware.fw_buf_mc + fw_offset,
+						    adev->firmware.fw_buf_ptr + fw_offset);
 			if (i == AMDGPU_UCODE_ID_CP_MEC1 &&
 			    adev->firmware.load_type != AMDGPU_FW_LOAD_PSP) {
 				const struct gfx_firmware_header_v1_0 *cp_hdr;
 				cp_hdr = (const struct gfx_firmware_header_v1_0 *)ucode->fw->data;
-				amdgpu_ucode_patch_jt(ucode, fw_mc_addr + fw_offset,
-						    fw_buf_ptr + fw_offset);
+				amdgpu_ucode_patch_jt(ucode,  adev->firmware.fw_buf_mc + fw_offset,
+						    adev->firmware.fw_buf_ptr + fw_offset);
 				fw_offset += ALIGN(le32_to_cpu(cp_hdr->jt_size) << 2, PAGE_SIZE);
 			}
 			fw_offset += ALIGN(ucode->ucode_size, PAGE_SIZE);
@@ -427,6 +453,9 @@ int amdgpu_ucode_fini_bo(struct amdgpu_device *adev)
 {
 	int i;
 	struct amdgpu_firmware_info *ucode = NULL;
+
+	if (!adev->firmware.fw_size)
+		return 0;
 
 	for (i = 0; i < adev->firmware.max_ucodes; i++) {
 		ucode = &adev->firmware.ucode[i];

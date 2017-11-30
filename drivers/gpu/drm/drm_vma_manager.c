@@ -147,7 +147,7 @@ struct drm_vma_offset_node *drm_vma_offset_lookup_locked(struct drm_vma_offset_m
 	struct rb_node *iter;
 	unsigned long offset;
 
-	iter = mgr->vm_addr_space_mm.interval_tree.rb_node;
+	iter = mgr->vm_addr_space_mm.interval_tree.rb_root.rb_node;
 	best = NULL;
 
 	while (likely(iter)) {

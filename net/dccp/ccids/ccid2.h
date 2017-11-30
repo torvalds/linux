@@ -27,7 +27,7 @@
  * CCID-2 timestamping faces the same issues as TCP timestamping.
  * Hence we reuse/share as much of the code as possible.
  */
-#define ccid2_time_stamp	tcp_time_stamp
+#define ccid2_jiffies32	((u32)jiffies)
 
 /* NUMDUPACK parameter from RFC 4341, p. 6 */
 #define NUMDUPACK	3
@@ -85,6 +85,7 @@ struct ccid2_hc_tx_sock {
 				tx_rto;
 	u64			tx_rtt_seq:48;
 	struct timer_list	tx_rtotimer;
+	struct sock		*sk;
 
 	/* Congestion Window validation (optional, RFC 2861) */
 	u32			tx_cwnd_used,

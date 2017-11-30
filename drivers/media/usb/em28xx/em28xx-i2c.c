@@ -876,13 +876,13 @@ static const struct i2c_algorithm em28xx_algo = {
 	.functionality = functionality,
 };
 
-static struct i2c_adapter em28xx_adap_template = {
+static const struct i2c_adapter em28xx_adap_template = {
 	.owner = THIS_MODULE,
 	.name = "em28xx",
 	.algo = &em28xx_algo,
 };
 
-static struct i2c_client em28xx_client_template = {
+static const struct i2c_client em28xx_client_template = {
 	.name = "em28xx internal",
 };
 
@@ -982,8 +982,6 @@ int em28xx_i2c_register(struct em28xx *dev, unsigned bus,
 			dev_err(&dev->intf->dev,
 				"%s: em28xx_i2_eeprom failed! retval [%d]\n",
 				__func__, retval);
-
-			return retval;
 		}
 	}
 

@@ -334,7 +334,7 @@ static struct attribute *rmi_f01_attrs[] = {
 	NULL
 };
 
-static struct attribute_group rmi_f01_attr_group = {
+static const struct attribute_group rmi_f01_attr_group = {
 	.attrs = rmi_f01_attrs,
 };
 
@@ -570,16 +570,12 @@ static int rmi_f01_probe(struct rmi_function *fn)
 
 	dev_set_drvdata(&fn->dev, f01);
 
-	error = sysfs_create_group(&fn->rmi_dev->dev.kobj, &rmi_f01_attr_group);
+	error = devm_device_add_group(&fn->rmi_dev->dev, &rmi_f01_attr_group);
 	if (error)
-		dev_warn(&fn->dev, "Failed to create sysfs group: %d\n", error);
+		dev_warn(&fn->dev,
+			 "Failed to create attribute group: %d\n", error);
 
 	return 0;
-}
-
-static void rmi_f01_remove(struct rmi_function *fn)
-{
-	sysfs_remove_group(&fn->rmi_dev->dev.kobj, &rmi_f01_attr_group);
 }
 
 static int rmi_f01_config(struct rmi_function *fn)
@@ -721,7 +717,6 @@ struct rmi_function_handler rmi_f01_handler = {
 	},
 	.func		= 0x01,
 	.probe		= rmi_f01_probe,
-	.remove		= rmi_f01_remove,
 	.config		= rmi_f01_config,
 	.attention	= rmi_f01_attention,
 	.suspend	= rmi_f01_suspend,

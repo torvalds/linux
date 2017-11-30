@@ -494,10 +494,9 @@ void ath6kl_connect_ap_mode_sta(struct ath6kl_vif *vif, u16 aid, u8 *mac_addr,
 	netif_wake_queue(vif->ndev);
 }
 
-void disconnect_timer_handler(unsigned long ptr)
+void disconnect_timer_handler(struct timer_list *t)
 {
-	struct net_device *dev = (struct net_device *)ptr;
-	struct ath6kl_vif *vif = netdev_priv(dev);
+	struct ath6kl_vif *vif = from_timer(vif, t, disconnect_timer);
 
 	ath6kl_init_profile_info(vif);
 	ath6kl_disconnect(vif);
@@ -1287,7 +1286,7 @@ void init_netdev(struct net_device *dev)
 	struct ath6kl *ar = ath6kl_priv(dev);
 
 	dev->netdev_ops = &ath6kl_netdev_ops;
-	dev->destructor = free_netdev;
+	dev->needs_free_netdev = true;
 	dev->watchdog_timeo = ATH6KL_TX_TIMEOUT;
 
 	dev->needed_headroom = ETH_HLEN;

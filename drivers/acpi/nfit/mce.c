@@ -26,7 +26,7 @@ static int nfit_handle_mce(struct notifier_block *nb, unsigned long val,
 	struct nfit_spa *nfit_spa;
 
 	/* We only care about memory errors */
-	if (!(mce->status & MCACOD))
+	if (!mce_is_memory_error(mce))
 		return NOTIFY_DONE;
 
 	/*
@@ -67,7 +67,7 @@ static int nfit_handle_mce(struct notifier_block *nb, unsigned long val,
 			continue;
 
 		/* If this fails due to an -ENOMEM, there is little we can do */
-		nvdimm_bus_add_poison(acpi_desc->nvdimm_bus,
+		nvdimm_bus_add_badrange(acpi_desc->nvdimm_bus,
 				ALIGN(mce->addr, L1_CACHE_BYTES),
 				L1_CACHE_BYTES);
 		nvdimm_region_notify(nfit_spa->nd_region,
@@ -79,7 +79,7 @@ static int nfit_handle_mce(struct notifier_block *nb, unsigned long val,
 			 * already in progress, just let that be the last
 			 * authoritative one
 			 */
-			acpi_nfit_ars_rescan(acpi_desc);
+			acpi_nfit_ars_rescan(acpi_desc, 0);
 		}
 		break;
 	}

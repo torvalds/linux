@@ -133,8 +133,7 @@ static inline void emac_report_timeout_error(struct emac_instance *dev,
 				  EMAC_FTR_440EP_PHY_CLK_FIX))
 		DBG(dev, "%s" NL, error);
 	else if (net_ratelimit())
-		printk(KERN_ERR "%s: %s\n", dev->ofdev->dev.of_node->full_name,
-			error);
+		printk(KERN_ERR "%pOF: %s\n", dev->ofdev->dev.of_node, error);
 }
 
 /* EMAC PHY clock workaround:
@@ -343,6 +342,7 @@ static int emac_reset(struct emac_instance *dev)
 {
 	struct emac_regs __iomem *p = dev->emacp;
 	int n = 20;
+	bool __maybe_unused try_internal_clock = false;
 
 	DBG(dev, "reset" NL);
 
@@ -355,6 +355,7 @@ static int emac_reset(struct emac_instance *dev)
 	}
 
 #ifdef CONFIG_PPC_DCR_NATIVE
+do_retry:
 	/*
 	 * PPC460EX/GT Embedded Processor Advanced User's Manual
 	 * section 28.10.1 Mode Register 0 (EMACx_MR0) states:
@@ -362,10 +363,19 @@ static int emac_reset(struct emac_instance *dev)
 	 * of the EMAC. If none is present, select the internal clock
 	 * (SDR0_ETH_CFG[EMACx_PHY_CLK] = 1).
 	 * After a soft reset, select the external clock.
+	 *
+	 * The AR8035-A PHY Meraki MR24 does not provide a TX Clk if the
+	 * ethernet cable is not attached. This causes the reset to timeout
+	 * and the PHY detection code in emac_init_phy() is unable to
+	 * communicate and detect the AR8035-A PHY. As a result, the emac
+	 * driver bails out early and the user has no ethernet.
+	 * In order to stay compatible with existing configurations, the
+	 * driver will temporarily switch to the internal clock, after
+	 * the first reset fails.
 	 */
 	if (emac_has_feature(dev, EMAC_FTR_460EX_PHY_CLK_FIX)) {
-		if (dev->phy_address == 0xffffffff &&
-		    dev->phy_map == 0xffffffff) {
+		if (try_internal_clock || (dev->phy_address == 0xffffffff &&
+					   dev->phy_map == 0xffffffff)) {
 			/* No PHY: select internal loop clock before reset */
 			dcri_clrset(SDR0, SDR0_ETH_CFG,
 				    0, SDR0_ETH_CFG_ECS << dev->cell_index);
@@ -383,8 +393,15 @@ static int emac_reset(struct emac_instance *dev)
 
 #ifdef CONFIG_PPC_DCR_NATIVE
 	if (emac_has_feature(dev, EMAC_FTR_460EX_PHY_CLK_FIX)) {
-		if (dev->phy_address == 0xffffffff &&
-		    dev->phy_map == 0xffffffff) {
+		if (!n && !try_internal_clock) {
+			/* first attempt has timed out. */
+			n = 20;
+			try_internal_clock = true;
+			goto do_retry;
+		}
+
+		if (try_internal_clock || (dev->phy_address == 0xffffffff &&
+					   dev->phy_map == 0xffffffff)) {
 			/* No PHY: restore external clock source after reset */
 			dcri_clrset(SDR0, SDR0_ETH_CFG,
 				    SDR0_ETH_CFG_ECS << dev->cell_index, 0);
@@ -2240,8 +2257,8 @@ static void emac_ethtool_get_drvinfo(struct net_device *ndev,
 
 	strlcpy(info->driver, "ibm_emac", sizeof(info->driver));
 	strlcpy(info->version, DRV_VERSION, sizeof(info->version));
-	snprintf(info->bus_info, sizeof(info->bus_info), "PPC 4xx EMAC-%d %s",
-		 dev->cell_index, dev->ofdev->dev.of_node->full_name);
+	snprintf(info->bus_info, sizeof(info->bus_info), "PPC 4xx EMAC-%d %pOF",
+		 dev->cell_index, dev->ofdev->dev.of_node);
 }
 
 static const struct ethtool_ops emac_ethtool_ops = {
@@ -2413,8 +2430,8 @@ static int emac_read_uint_prop(struct device_node *np, const char *name,
 	const u32 *prop = of_get_property(np, name, &len);
 	if (prop == NULL || len < sizeof(u32)) {
 		if (fatal)
-			printk(KERN_ERR "%s: missing %s property\n",
-			       np->full_name, name);
+			printk(KERN_ERR "%pOF: missing %s property\n",
+			       np, name);
 		return -ENODEV;
 	}
 	*val = *prop;
@@ -2460,20 +2477,24 @@ static int emac_mii_bus_reset(struct mii_bus *bus)
 	return emac_reset(dev);
 }
 
+static int emac_mdio_phy_start_aneg(struct mii_phy *phy,
+				    struct phy_device *phy_dev)
+{
+	phy_dev->autoneg = phy->autoneg;
+	phy_dev->speed = phy->speed;
+	phy_dev->duplex = phy->duplex;
+	phy_dev->advertising = phy->advertising;
+	return phy_start_aneg(phy_dev);
+}
+
 static int emac_mdio_setup_aneg(struct mii_phy *phy, u32 advertise)
 {
 	struct net_device *ndev = phy->dev;
 	struct emac_instance *dev = netdev_priv(ndev);
 
-	dev->phy.autoneg = AUTONEG_ENABLE;
-	dev->phy.speed = SPEED_1000;
-	dev->phy.duplex = DUPLEX_FULL;
-	dev->phy.advertising = advertise;
 	phy->autoneg = AUTONEG_ENABLE;
-	phy->speed = dev->phy.speed;
-	phy->duplex = dev->phy.duplex;
 	phy->advertising = advertise;
-	return phy_start_aneg(dev->phy_dev);
+	return emac_mdio_phy_start_aneg(phy, dev->phy_dev);
 }
 
 static int emac_mdio_setup_forced(struct mii_phy *phy, int speed, int fd)
@@ -2481,13 +2502,10 @@ static int emac_mdio_setup_forced(struct mii_phy *phy, int speed, int fd)
 	struct net_device *ndev = phy->dev;
 	struct emac_instance *dev = netdev_priv(ndev);
 
-	dev->phy.autoneg =  AUTONEG_DISABLE;
-	dev->phy.speed = speed;
-	dev->phy.duplex = fd;
 	phy->autoneg = AUTONEG_DISABLE;
 	phy->speed = speed;
 	phy->duplex = fd;
-	return phy_start_aneg(dev->phy_dev);
+	return emac_mdio_phy_start_aneg(phy, dev->phy_dev);
 }
 
 static int emac_mdio_poll_link(struct mii_phy *phy)
@@ -2509,16 +2527,17 @@ static int emac_mdio_read_link(struct mii_phy *phy)
 {
 	struct net_device *ndev = phy->dev;
 	struct emac_instance *dev = netdev_priv(ndev);
+	struct phy_device *phy_dev = dev->phy_dev;
 	int res;
 
-	res = phy_read_status(dev->phy_dev);
+	res = phy_read_status(phy_dev);
 	if (res)
 		return res;
 
-	dev->phy.speed = phy->speed;
-	dev->phy.duplex = phy->duplex;
-	dev->phy.pause = phy->pause;
-	dev->phy.asym_pause = phy->asym_pause;
+	phy->speed = phy_dev->speed;
+	phy->duplex = phy_dev->duplex;
+	phy->pause = phy_dev->pause;
+	phy->asym_pause = phy_dev->asym_pause;
 	return 0;
 }
 
@@ -2528,13 +2547,6 @@ static int emac_mdio_init_phy(struct mii_phy *phy)
 	struct emac_instance *dev = netdev_priv(ndev);
 
 	phy_start(dev->phy_dev);
-	dev->phy.autoneg = phy->autoneg;
-	dev->phy.speed = phy->speed;
-	dev->phy.duplex = phy->duplex;
-	dev->phy.advertising = phy->advertising;
-	dev->phy.pause = phy->pause;
-	dev->phy.asym_pause = phy->asym_pause;
-
 	return phy_init_hw(dev->phy_dev);
 }
 
@@ -2755,7 +2767,7 @@ static int emac_init_phy(struct emac_instance *dev)
 #endif
 	mutex_unlock(&emac_phy_map_lock);
 	if (i == 0x20) {
-		printk(KERN_WARNING "%s: can't find PHY!\n", np->full_name);
+		printk(KERN_WARNING "%pOF: can't find PHY!\n", np);
 		return -ENXIO;
 	}
 
@@ -2881,8 +2893,8 @@ static int emac_init_config(struct emac_instance *dev)
 #ifdef CONFIG_IBM_EMAC_NO_FLOW_CTRL
 			dev->features |= EMAC_FTR_NO_FLOW_CONTROL_40x;
 #else
-			printk(KERN_ERR "%s: Flow control not disabled!\n",
-					np->full_name);
+			printk(KERN_ERR "%pOF: Flow control not disabled!\n",
+					np);
 			return -ENXIO;
 #endif
 		}
@@ -2905,8 +2917,7 @@ static int emac_init_config(struct emac_instance *dev)
 #ifdef CONFIG_IBM_EMAC_TAH
 		dev->features |= EMAC_FTR_HAS_TAH;
 #else
-		printk(KERN_ERR "%s: TAH support not enabled !\n",
-		       np->full_name);
+		printk(KERN_ERR "%pOF: TAH support not enabled !\n", np);
 		return -ENXIO;
 #endif
 	}
@@ -2915,8 +2926,7 @@ static int emac_init_config(struct emac_instance *dev)
 #ifdef CONFIG_IBM_EMAC_ZMII
 		dev->features |= EMAC_FTR_HAS_ZMII;
 #else
-		printk(KERN_ERR "%s: ZMII support not enabled !\n",
-		       np->full_name);
+		printk(KERN_ERR "%pOF: ZMII support not enabled !\n", np);
 		return -ENXIO;
 #endif
 	}
@@ -2925,8 +2935,7 @@ static int emac_init_config(struct emac_instance *dev)
 #ifdef CONFIG_IBM_EMAC_RGMII
 		dev->features |= EMAC_FTR_HAS_RGMII;
 #else
-		printk(KERN_ERR "%s: RGMII support not enabled !\n",
-		       np->full_name);
+		printk(KERN_ERR "%pOF: RGMII support not enabled !\n", np);
 		return -ENXIO;
 #endif
 	}
@@ -2934,8 +2943,8 @@ static int emac_init_config(struct emac_instance *dev)
 	/* Read MAC-address */
 	p = of_get_property(np, "local-mac-address", NULL);
 	if (p == NULL) {
-		printk(KERN_ERR "%s: Can't find local-mac-address property\n",
-		       np->full_name);
+		printk(KERN_ERR "%pOF: Can't find local-mac-address property\n",
+		       np);
 		return -ENXIO;
 	}
 	memcpy(dev->ndev->dev_addr, p, ETH_ALEN);
@@ -3023,30 +3032,24 @@ static int emac_probe(struct platform_device *ofdev)
 
 	/* Init various config data based on device-tree */
 	err = emac_init_config(dev);
-	if (err != 0)
+	if (err)
 		goto err_free;
 
 	/* Get interrupts. EMAC irq is mandatory, WOL irq is optional */
 	dev->emac_irq = irq_of_parse_and_map(np, 0);
 	dev->wol_irq = irq_of_parse_and_map(np, 1);
 	if (!dev->emac_irq) {
-		printk(KERN_ERR "%s: Can't map main interrupt\n", np->full_name);
+		printk(KERN_ERR "%pOF: Can't map main interrupt\n", np);
+		err = -ENODEV;
 		goto err_free;
 	}
 	ndev->irq = dev->emac_irq;
 
 	/* Map EMAC regs */
-	if (of_address_to_resource(np, 0, &dev->rsrc_regs)) {
-		printk(KERN_ERR "%s: Can't get registers address\n",
-		       np->full_name);
-		goto err_irq_unmap;
-	}
-	// TODO : request_mem_region
-	dev->emacp = ioremap(dev->rsrc_regs.start,
-			     resource_size(&dev->rsrc_regs));
+	// TODO : platform_get_resource() and devm_ioremap_resource()
+	dev->emacp = of_iomap(np, 0);
 	if (dev->emacp == NULL) {
-		printk(KERN_ERR "%s: Can't map device registers!\n",
-		       np->full_name);
+		printk(KERN_ERR "%pOF: Can't map device registers!\n", np);
 		err = -ENOMEM;
 		goto err_irq_unmap;
 	}
@@ -3055,8 +3058,7 @@ static int emac_probe(struct platform_device *ofdev)
 	err = emac_wait_deps(dev);
 	if (err) {
 		printk(KERN_ERR
-		       "%s: Timeout waiting for dependent devices\n",
-		       np->full_name);
+		       "%pOF: Timeout waiting for dependent devices\n", np);
 		/*  display more info about what's missing ? */
 		goto err_reg_unmap;
 	}
@@ -3071,8 +3073,8 @@ static int emac_probe(struct platform_device *ofdev)
 	dev->commac.rx_chan_mask = MAL_CHAN_MASK(dev->mal_rx_chan);
 	err = mal_register_commac(dev->mal, &dev->commac);
 	if (err) {
-		printk(KERN_ERR "%s: failed to register with mal %s!\n",
-		       np->full_name, dev->mal_dev->dev.of_node->full_name);
+		printk(KERN_ERR "%pOF: failed to register with mal %pOF!\n",
+		       np, dev->mal_dev->dev.of_node);
 		goto err_rel_deps;
 	}
 	dev->rx_skb_size = emac_rx_skb_size(ndev->mtu);
@@ -3148,8 +3150,8 @@ static int emac_probe(struct platform_device *ofdev)
 
 	err = register_netdev(ndev);
 	if (err) {
-		printk(KERN_ERR "%s: failed to register net device (%d)!\n",
-		       np->full_name, err);
+		printk(KERN_ERR "%pOF: failed to register net device (%d)!\n",
+		       np, err);
 		goto err_detach_tah;
 	}
 
@@ -3163,8 +3165,8 @@ static int emac_probe(struct platform_device *ofdev)
 	wake_up_all(&emac_probe_wait);
 
 
-	printk(KERN_INFO "%s: EMAC-%d %s, MAC %pM\n",
-	       ndev->name, dev->cell_index, np->full_name, ndev->dev_addr);
+	printk(KERN_INFO "%s: EMAC-%d %pOF, MAC %pM\n",
+	       ndev->name, dev->cell_index, np, ndev->dev_addr);
 
 	if (dev->phy_mode == PHY_MODE_SGMII)
 		printk(KERN_NOTICE "%s: in SGMII mode\n", ndev->name);

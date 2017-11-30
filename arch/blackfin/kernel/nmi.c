@@ -166,7 +166,7 @@ int check_nmi_wdt_touched(void)
 	return 1;
 }
 
-static void nmi_wdt_timer(unsigned long data)
+static void nmi_wdt_timer(struct timer_list *unused)
 {
 	if (check_nmi_wdt_touched())
 		nmi_wdt_keepalive();
@@ -180,8 +180,7 @@ static int __init init_nmi_wdt(void)
 	nmi_wdt_start();
 	nmi_active = true;
 
-	init_timer(&ntimer);
-	ntimer.function = nmi_wdt_timer;
+	timer_setup(&ntimer, nmi_wdt_timer, 0);
 	ntimer.expires = jiffies + NMI_CHECK_TIMEOUT;
 	add_timer(&ntimer);
 
@@ -190,7 +189,7 @@ static int __init init_nmi_wdt(void)
 }
 device_initcall(init_nmi_wdt);
 
-void touch_nmi_watchdog(void)
+void arch_touch_nmi_watchdog(void)
 {
 	atomic_set(&nmi_touched[smp_processor_id()], 1);
 }

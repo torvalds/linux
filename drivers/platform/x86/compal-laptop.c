@@ -718,7 +718,7 @@ static struct attribute *compal_platform_attrs[] = {
 	&dev_attr_wake_up_mouse.attr,
 	NULL
 };
-static struct attribute_group compal_platform_attr_group = {
+static const struct attribute_group compal_platform_attr_group = {
 	.attrs = compal_platform_attrs
 };
 
@@ -805,7 +805,7 @@ static int dmi_check_cb_extra(const struct dmi_system_id *id)
 	return 1;
 }
 
-static struct dmi_system_id __initdata compal_dmi_table[] = {
+static const struct dmi_system_id compal_dmi_table[] __initconst = {
 	{
 		.ident = "FL90/IFL90",
 		.matches = {

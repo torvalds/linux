@@ -37,6 +37,7 @@
 #define TSE_PCS_CONTROL_AN_EN_MASK			BIT(12)
 #define TSE_PCS_CONTROL_REG				0x00
 #define TSE_PCS_CONTROL_RESTART_AN_MASK			BIT(9)
+#define TSE_PCS_CTRL_AUTONEG_SGMII			0x1140
 #define TSE_PCS_IF_MODE_REG				0x28
 #define TSE_PCS_LINK_TIMER_0_REG			0x24
 #define TSE_PCS_LINK_TIMER_1_REG			0x26
@@ -65,6 +66,7 @@
 #define TSE_PCS_SW_RESET_TIMEOUT			100
 #define TSE_PCS_USE_SGMII_AN_MASK			BIT(1)
 #define TSE_PCS_USE_SGMII_ENA				BIT(0)
+#define TSE_PCS_IF_USE_SGMII				0x03
 
 #define SGMII_ADAPTER_CTRL_REG				0x00
 #define SGMII_ADAPTER_DISABLE				0x0001
@@ -101,7 +103,9 @@ int tse_pcs_init(void __iomem *base, struct tse_pcs *pcs)
 {
 	int ret = 0;
 
-	writew(TSE_PCS_USE_SGMII_ENA, base + TSE_PCS_IF_MODE_REG);
+	writew(TSE_PCS_IF_USE_SGMII, base + TSE_PCS_IF_MODE_REG);
+
+	writew(TSE_PCS_CTRL_AUTONEG_SGMII, base + TSE_PCS_CONTROL_REG);
 
 	writew(TSE_PCS_SGMII_LINK_TIMER_0, base + TSE_PCS_LINK_TIMER_0_REG);
 	writew(TSE_PCS_SGMII_LINK_TIMER_1, base + TSE_PCS_LINK_TIMER_1_REG);
@@ -114,10 +118,9 @@ int tse_pcs_init(void __iomem *base, struct tse_pcs *pcs)
 	return ret;
 }
 
-static void pcs_link_timer_callback(unsigned long data)
+static void pcs_link_timer_callback(struct tse_pcs *pcs)
 {
 	u16 val = 0;
-	struct tse_pcs *pcs = (struct tse_pcs *)data;
 	void __iomem *tse_pcs_base = pcs->tse_pcs_base;
 	void __iomem *sgmii_adapter_base = pcs->sgmii_adapter_base;
 
@@ -134,12 +137,11 @@ static void pcs_link_timer_callback(unsigned long data)
 	}
 }
 
-static void auto_nego_timer_callback(unsigned long data)
+static void auto_nego_timer_callback(struct tse_pcs *pcs)
 {
 	u16 val = 0;
 	u16 speed = 0;
 	u16 duplex = 0;
-	struct tse_pcs *pcs = (struct tse_pcs *)data;
 	void __iomem *tse_pcs_base = pcs->tse_pcs_base;
 	void __iomem *sgmii_adapter_base = pcs->sgmii_adapter_base;
 
@@ -197,14 +199,14 @@ static void auto_nego_timer_callback(unsigned long data)
 	}
 }
 
-static void aneg_link_timer_callback(unsigned long data)
+static void aneg_link_timer_callback(struct timer_list *t)
 {
-	struct tse_pcs *pcs = (struct tse_pcs *)data;
+	struct tse_pcs *pcs = from_timer(pcs, t, aneg_link_timer);
 
 	if (pcs->autoneg == AUTONEG_ENABLE)
-		auto_nego_timer_callback(data);
+		auto_nego_timer_callback(pcs);
 	else if (pcs->autoneg == AUTONEG_DISABLE)
-		pcs_link_timer_callback(data);
+		pcs_link_timer_callback(pcs);
 }
 
 void tse_pcs_fix_mac_speed(struct tse_pcs *pcs, struct phy_device *phy_dev,
@@ -233,8 +235,8 @@ void tse_pcs_fix_mac_speed(struct tse_pcs *pcs, struct phy_device *phy_dev,
 
 		tse_pcs_reset(tse_pcs_base, pcs);
 
-		setup_timer(&pcs->aneg_link_timer,
-			    aneg_link_timer_callback, (unsigned long)pcs);
+		timer_setup(&pcs->aneg_link_timer, aneg_link_timer_callback,
+			    0);
 		mod_timer(&pcs->aneg_link_timer, jiffies +
 			  msecs_to_jiffies(AUTONEGO_LINK_TIMER));
 	} else if (phy_dev->autoneg == AUTONEG_DISABLE) {
@@ -266,8 +268,8 @@ void tse_pcs_fix_mac_speed(struct tse_pcs *pcs, struct phy_device *phy_dev,
 
 		tse_pcs_reset(tse_pcs_base, pcs);
 
-		setup_timer(&pcs->aneg_link_timer,
-			    aneg_link_timer_callback, (unsigned long)pcs);
+		timer_setup(&pcs->aneg_link_timer, aneg_link_timer_callback,
+			    0);
 		mod_timer(&pcs->aneg_link_timer, jiffies +
 			  msecs_to_jiffies(AUTONEGO_LINK_TIMER));
 	}

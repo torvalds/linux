@@ -916,12 +916,6 @@ static struct dma_async_tx_descriptor *omap_dma_prep_slave_sg(
 		return NULL;
 	}
 
-	/* When the port_window is used, one frame must cover the window */
-	if (port_window) {
-		burst = port_window;
-		port_window_bytes = port_window * es_bytes[es];
-	}
-
 	/* Now allocate and setup the descriptor. */
 	d = kzalloc(sizeof(*d) + sglen * sizeof(d->sg[0]), GFP_ATOMIC);
 	if (!d)
@@ -930,6 +924,21 @@ static struct dma_async_tx_descriptor *omap_dma_prep_slave_sg(
 	d->dir = dir;
 	d->dev_addr = dev_addr;
 	d->es = es;
+
+	/* When the port_window is used, one frame must cover the window */
+	if (port_window) {
+		burst = port_window;
+		port_window_bytes = port_window * es_bytes[es];
+
+		d->ei = 1;
+		/*
+		 * One frame covers the port_window and by  configure
+		 * the source frame index to be -1 * (port_window - 1)
+		 * we instruct the sDMA that after a frame is processed
+		 * it should move back to the start of the window.
+		 */
+		d->fi = -(port_window_bytes - 1);
+	}
 
 	d->ccr = c->ccr | CCR_SYNC_FRAME;
 	if (dir == DMA_DEV_TO_MEM) {
@@ -955,14 +964,6 @@ static struct dma_async_tx_descriptor *omap_dma_prep_slave_sg(
 		d->ccr |= CCR_SRC_AMODE_POSTINC;
 		if (port_window) {
 			d->ccr |= CCR_DST_AMODE_DBLIDX;
-			d->ei = 1;
-			/*
-			 * One frame covers the port_window and by  configure
-			 * the source frame index to be -1 * (port_window - 1)
-			 * we instruct the sDMA that after a frame is processed
-			 * it should move back to the start of the window.
-			 */
-			d->fi = -(port_window_bytes - 1);
 
 			if (port_window_bytes >= 64)
 				d->csdp |= CSDP_DST_BURST_64;
@@ -1018,16 +1019,6 @@ static struct dma_async_tx_descriptor *omap_dma_prep_slave_sg(
 		osg->addr = sg_dma_address(sgent);
 		osg->en = en;
 		osg->fn = sg_dma_len(sgent) / frame_bytes;
-		if (port_window && dir == DMA_DEV_TO_MEM) {
-			osg->ei = 1;
-			/*
-			 * One frame covers the port_window and by  configure
-			 * the source frame index to be -1 * (port_window - 1)
-			 * we instruct the sDMA that after a frame is processed
-			 * it should move back to the start of the window.
-			 */
-			osg->fi = -(port_window_bytes - 1);
-		}
 
 		if (d->using_ll) {
 			osg->t2_desc = dma_pool_alloc(od->desc_pool, GFP_ATOMIC,
@@ -1297,6 +1288,10 @@ static int omap_dma_slave_config(struct dma_chan *chan, struct dma_slave_config 
 	    cfg->dst_addr_width == DMA_SLAVE_BUSWIDTH_8_BYTES)
 		return -EINVAL;
 
+	if (cfg->src_maxburst > chan->device->max_burst ||
+	    cfg->dst_maxburst > chan->device->max_burst)
+		return -EINVAL;
+
 	memcpy(&c->cfg, cfg, sizeof(c->cfg));
 
 	return 0;
@@ -1491,6 +1486,7 @@ static int omap_dma_probe(struct platform_device *pdev)
 	od->ddev.dst_addr_widths = OMAP_DMA_BUSWIDTHS;
 	od->ddev.directions = BIT(DMA_DEV_TO_MEM) | BIT(DMA_MEM_TO_DEV);
 	od->ddev.residue_granularity = DMA_RESIDUE_GRANULARITY_BURST;
+	od->ddev.max_burst = SZ_16M - 1; /* CCEN: 24bit unsigned */
 	od->ddev.dev = &pdev->dev;
 	INIT_LIST_HEAD(&od->ddev.channels);
 	spin_lock_init(&od->lock);

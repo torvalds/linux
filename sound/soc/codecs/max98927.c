@@ -1,7 +1,7 @@
 /*
  * max98927.c  --  MAX98927 ALSA Soc Audio driver
  *
- * Copyright (C) 2016 Maxim Integrated Products
+ * Copyright (C) 2016-2017 Maxim Integrated Products
  * Author: Ryan Lee <ryans.lee@maximintegrated.com>
  *
  *  This program is free software; you can redistribute  it and/or modify it
@@ -44,9 +44,9 @@ static struct reg_default max98927_reg[] = {
 	{MAX98927_R0011_CLK_MON,  0x00},
 	{MAX98927_R0012_WDOG_CTRL,  0x00},
 	{MAX98927_R0013_WDOG_RST,  0x00},
-	{MAX98927_R0014_MEAS_ADC_THERM_WARN_THRESH,  0x00},
-	{MAX98927_R0015_MEAS_ADC_THERM_SHDN_THRESH,  0x00},
-	{MAX98927_R0016_MEAS_ADC_THERM_HYSTERESIS,  0x00},
+	{MAX98927_R0014_MEAS_ADC_THERM_WARN_THRESH,  0x75},
+	{MAX98927_R0015_MEAS_ADC_THERM_SHDN_THRESH,  0x8c},
+	{MAX98927_R0016_MEAS_ADC_THERM_HYSTERESIS,  0x08},
 	{MAX98927_R0017_PIN_CFG,  0x55},
 	{MAX98927_R0018_PCM_RX_EN_A,  0x00},
 	{MAX98927_R0019_PCM_RX_EN_B,  0x00},
@@ -82,14 +82,14 @@ static struct reg_default max98927_reg[] = {
 	{MAX98927_R003A_AMP_EN,  0x00},
 	{MAX98927_R003B_SPK_SRC_SEL,  0x00},
 	{MAX98927_R003C_SPK_GAIN,  0x00},
-	{MAX98927_R003D_SSM_CFG,  0x01},
+	{MAX98927_R003D_SSM_CFG,  0x04},
 	{MAX98927_R003E_MEAS_EN,  0x00},
 	{MAX98927_R003F_MEAS_DSP_CFG,  0x04},
 	{MAX98927_R0040_BOOST_CTRL0,  0x00},
 	{MAX98927_R0041_BOOST_CTRL3,  0x00},
 	{MAX98927_R0042_BOOST_CTRL1,  0x00},
 	{MAX98927_R0043_MEAS_ADC_CFG,  0x00},
-	{MAX98927_R0044_MEAS_ADC_BASE_MSB,  0x00},
+	{MAX98927_R0044_MEAS_ADC_BASE_MSB,  0x01},
 	{MAX98927_R0045_MEAS_ADC_BASE_LSB,  0x00},
 	{MAX98927_R0046_ADC_CH0_DIVIDE,  0x00},
 	{MAX98927_R0047_ADC_CH1_DIVIDE,  0x00},
@@ -146,6 +146,7 @@ static int max98927_dai_set_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 	struct max98927_priv *max98927 = snd_soc_codec_get_drvdata(codec);
 	unsigned int mode = 0;
 	unsigned int format = 0;
+	bool use_pdm = false;
 	unsigned int invert = 0;
 
 	dev_dbg(codec->dev, "%s: fmt 0x%08X\n", __func__, fmt);
@@ -159,7 +160,7 @@ static int max98927_dai_set_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 		mode = MAX98927_PCM_MASTER_MODE_MASTER;
 		break;
 	default:
-		dev_err(codec->dev, "DAI clock mode unsupported");
+		dev_err(codec->dev, "DAI clock mode unsupported\n");
 		return -EINVAL;
 	}
 
@@ -175,7 +176,7 @@ static int max98927_dai_set_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 		invert = MAX98927_PCM_MODE_CFG_PCM_BCLKEDGE;
 		break;
 	default:
-		dev_err(codec->dev, "DAI invert mode unsupported");
+		dev_err(codec->dev, "DAI invert mode unsupported\n");
 		return -EINVAL;
 	}
 
@@ -187,22 +188,27 @@ static int max98927_dai_set_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 	/* interface format */
 	switch (fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
 	case SND_SOC_DAIFMT_I2S:
-		max98927->iface |= SND_SOC_DAIFMT_I2S;
 		format = MAX98927_PCM_FORMAT_I2S;
 		break;
 	case SND_SOC_DAIFMT_LEFT_J:
-		max98927->iface |= SND_SOC_DAIFMT_LEFT_J;
 		format = MAX98927_PCM_FORMAT_LJ;
 		break;
+	case SND_SOC_DAIFMT_DSP_A:
+		format = MAX98927_PCM_FORMAT_TDM_MODE1;
+		break;
+	case SND_SOC_DAIFMT_DSP_B:
+		format = MAX98927_PCM_FORMAT_TDM_MODE0;
+		break;
 	case SND_SOC_DAIFMT_PDM:
-		max98927->iface |= SND_SOC_DAIFMT_PDM;
+		use_pdm = true;
 		break;
 	default:
 		return -EINVAL;
 	}
+	max98927->iface = fmt & SND_SOC_DAIFMT_FORMAT_MASK;
 
-	/* pcm channel configuration */
-	if (max98927->iface & (SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_LEFT_J)) {
+	if (!use_pdm) {
+		/* pcm channel configuration */
 		regmap_update_bits(max98927->regmap,
 			MAX98927_R0018_PCM_RX_EN_A,
 			MAX98927_PCM_RX_CH0_EN | MAX98927_PCM_RX_CH1_EN,
@@ -217,13 +223,11 @@ static int max98927_dai_set_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 			MAX98927_R003B_SPK_SRC_SEL,
 			MAX98927_SPK_SRC_MASK, 0);
 
-	} else
 		regmap_update_bits(max98927->regmap,
-			MAX98927_R0018_PCM_RX_EN_A,
-			MAX98927_PCM_RX_CH0_EN | MAX98927_PCM_RX_CH1_EN, 0);
-
-	/* pdm channel configuration */
-	if (max98927->iface & SND_SOC_DAIFMT_PDM) {
+			MAX98927_R0035_PDM_RX_CTRL,
+			MAX98927_PDM_RX_EN_MASK, 0);
+	} else {
+		/* pdm channel configuration */
 		regmap_update_bits(max98927->regmap,
 			MAX98927_R0035_PDM_RX_CTRL,
 			MAX98927_PDM_RX_EN_MASK, 1);
@@ -231,10 +235,11 @@ static int max98927_dai_set_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 		regmap_update_bits(max98927->regmap,
 			MAX98927_R003B_SPK_SRC_SEL,
 			MAX98927_SPK_SRC_MASK, 3);
-	} else
+
 		regmap_update_bits(max98927->regmap,
-			MAX98927_R0035_PDM_RX_CTRL,
-			MAX98927_PDM_RX_EN_MASK, 0);
+			MAX98927_R0018_PCM_RX_EN_A,
+			MAX98927_PCM_RX_CH0_EN | MAX98927_PCM_RX_CH1_EN, 0);
+	}
 	return 0;
 }
 
@@ -245,6 +250,21 @@ static const int rate_table[] = {
 	13000000, 19200000,
 };
 
+/* BCLKs per LRCLK */
+static const int bclk_sel_table[] = {
+	32, 48, 64, 96, 128, 192, 256, 384, 512,
+};
+
+static int max98927_get_bclk_sel(int bclk)
+{
+	int i;
+	/* match BCLKs per LRCLK */
+	for (i = 0; i < ARRAY_SIZE(bclk_sel_table); i++) {
+		if (bclk_sel_table[i] == bclk)
+			return i + 2;
+	}
+	return 0;
+}
 static int max98927_set_clock(struct max98927_priv *max98927,
 	struct snd_pcm_hw_params *params)
 {
@@ -270,23 +290,20 @@ static int max98927_set_clock(struct max98927_priv *max98927,
 			i << MAX98927_PCM_MASTER_MODE_MCLK_RATE_SHIFT);
 	}
 
-	switch (blr_clk_ratio) {
-	case 32:
-		value = 2;
-		break;
-	case 48:
-		value = 3;
-		break;
-	case 64:
-		value = 4;
-		break;
-	default:
-		return -EINVAL;
+	if (!max98927->tdm_mode) {
+		/* BCLK configuration */
+		value = max98927_get_bclk_sel(blr_clk_ratio);
+		if (!value) {
+			dev_err(codec->dev, "format unsupported %d\n",
+				params_format(params));
+			return -EINVAL;
+		}
+
+		regmap_update_bits(max98927->regmap,
+			MAX98927_R0022_PCM_CLK_SETUP,
+			MAX98927_PCM_CLK_SETUP_BSEL_MASK,
+			value);
 	}
-	regmap_update_bits(max98927->regmap,
-		MAX98927_R0022_PCM_CLK_SETUP,
-		MAX98927_PCM_CLK_SETUP_BSEL_MASK,
-		value);
 	return 0;
 }
 
@@ -311,7 +328,7 @@ static int max98927_dai_hw_params(struct snd_pcm_substream *substream,
 		chan_sz = MAX98927_PCM_MODE_CFG_CHANSZ_32;
 		break;
 	default:
-		dev_err(codec->dev, "format unsupported %d",
+		dev_err(codec->dev, "format unsupported %d\n",
 			params_format(params));
 		goto err;
 	}
@@ -386,6 +403,78 @@ err:
 	return -EINVAL;
 }
 
+static int max98927_dai_tdm_slot(struct snd_soc_dai *dai,
+	unsigned int tx_mask, unsigned int rx_mask,
+	int slots, int slot_width)
+{
+	struct snd_soc_codec *codec = dai->codec;
+	struct max98927_priv *max98927 = snd_soc_codec_get_drvdata(codec);
+	int bsel = 0;
+	unsigned int chan_sz = 0;
+
+	max98927->tdm_mode = true;
+
+	/* BCLK configuration */
+	bsel = max98927_get_bclk_sel(slots * slot_width);
+	if (bsel == 0) {
+		dev_err(codec->dev, "BCLK %d not supported\n",
+			slots * slot_width);
+		return -EINVAL;
+	}
+
+	regmap_update_bits(max98927->regmap,
+		MAX98927_R0022_PCM_CLK_SETUP,
+		MAX98927_PCM_CLK_SETUP_BSEL_MASK,
+		bsel);
+
+	/* Channel size configuration */
+	switch (slot_width) {
+	case 16:
+		chan_sz = MAX98927_PCM_MODE_CFG_CHANSZ_16;
+		break;
+	case 24:
+		chan_sz = MAX98927_PCM_MODE_CFG_CHANSZ_24;
+		break;
+	case 32:
+		chan_sz = MAX98927_PCM_MODE_CFG_CHANSZ_32;
+		break;
+	default:
+		dev_err(codec->dev, "format unsupported %d\n",
+			slot_width);
+		return -EINVAL;
+	}
+
+	regmap_update_bits(max98927->regmap,
+		MAX98927_R0020_PCM_MODE_CFG,
+		MAX98927_PCM_MODE_CFG_CHANSZ_MASK, chan_sz);
+
+	/* Rx slot configuration */
+	regmap_write(max98927->regmap,
+		MAX98927_R0018_PCM_RX_EN_A,
+		rx_mask & 0xFF);
+	regmap_write(max98927->regmap,
+		MAX98927_R0019_PCM_RX_EN_B,
+		(rx_mask & 0xFF00) >> 8);
+
+	/* Tx slot configuration */
+	regmap_write(max98927->regmap,
+		MAX98927_R001A_PCM_TX_EN_A,
+		tx_mask & 0xFF);
+	regmap_write(max98927->regmap,
+		MAX98927_R001B_PCM_TX_EN_B,
+		(tx_mask & 0xFF00) >> 8);
+
+	/* Tx slot Hi-Z configuration */
+	regmap_write(max98927->regmap,
+		MAX98927_R001C_PCM_TX_HIZ_CTRL_A,
+		~tx_mask & 0xFF);
+	regmap_write(max98927->regmap,
+		MAX98927_R001D_PCM_TX_HIZ_CTRL_B,
+		(~tx_mask & 0xFF00) >> 8);
+
+	return 0;
+}
+
 #define MAX98927_RATES SNDRV_PCM_RATE_8000_48000
 
 #define MAX98927_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | \
@@ -405,6 +494,7 @@ static const struct snd_soc_dai_ops max98927_dai_ops = {
 	.set_sysclk = max98927_dai_set_sysclk,
 	.set_fmt = max98927_dai_set_fmt,
 	.hw_params = max98927_dai_hw_params,
+	.set_tdm_slot = max98927_dai_tdm_slot,
 };
 
 static int max98927_dac_event(struct snd_soc_dapm_widget *w,
@@ -414,15 +504,13 @@ static int max98927_dac_event(struct snd_soc_dapm_widget *w,
 	struct max98927_priv *max98927 = snd_soc_codec_get_drvdata(codec);
 
 	switch (event) {
+	case SND_SOC_DAPM_PRE_PMU:
+		max98927->tdm_mode = 0;
+		break;
 	case SND_SOC_DAPM_POST_PMU:
 		regmap_update_bits(max98927->regmap,
 			MAX98927_R003A_AMP_EN,
 			MAX98927_AMP_EN_MASK, 1);
-		/* enable VMON and IMON */
-		regmap_update_bits(max98927->regmap,
-			MAX98927_R003E_MEAS_EN,
-			MAX98927_MEAS_V_EN | MAX98927_MEAS_I_EN,
-			MAX98927_MEAS_V_EN | MAX98927_MEAS_I_EN);
 		regmap_update_bits(max98927->regmap,
 			MAX98927_R00FF_GLOBAL_SHDN,
 			MAX98927_GLOBAL_EN_MASK, 1);
@@ -434,10 +522,6 @@ static int max98927_dac_event(struct snd_soc_dapm_widget *w,
 		regmap_update_bits(max98927->regmap,
 			MAX98927_R003A_AMP_EN,
 			MAX98927_AMP_EN_MASK, 0);
-		/* disable VMON and IMON */
-		regmap_update_bits(max98927->regmap,
-			MAX98927_R003E_MEAS_EN,
-			MAX98927_MEAS_V_EN | MAX98927_MEAS_I_EN, 0);
 		break;
 	default:
 		return 0;
@@ -456,14 +540,24 @@ static const struct soc_enum dai_sel_enum =
 static const struct snd_kcontrol_new max98927_dai_controls =
 	SOC_DAPM_ENUM("DAI Sel", dai_sel_enum);
 
+static const struct snd_kcontrol_new max98927_vi_control =
+	SOC_DAPM_SINGLE("Switch", MAX98927_R003F_MEAS_DSP_CFG, 2, 1, 0);
+
 static const struct snd_soc_dapm_widget max98927_dapm_widgets[] = {
-	SND_SOC_DAPM_AIF_IN("DAI_OUT", "HiFi Playback", 0, SND_SOC_NOPM, 0, 0),
 	SND_SOC_DAPM_DAC_E("Amp Enable", "HiFi Playback", MAX98927_R003A_AMP_EN,
 		0, 0, max98927_dac_event,
 		SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_POST_PMD),
 	SND_SOC_DAPM_MUX("DAI Sel Mux", SND_SOC_NOPM, 0, 0,
 		&max98927_dai_controls),
 	SND_SOC_DAPM_OUTPUT("BE_OUT"),
+	SND_SOC_DAPM_AIF_OUT("Voltage Sense", "HiFi Capture",  0,
+		MAX98927_R003E_MEAS_EN, 0, 0),
+	SND_SOC_DAPM_AIF_OUT("Current Sense", "HiFi Capture",  0,
+		MAX98927_R003E_MEAS_EN, 1, 0),
+	SND_SOC_DAPM_SWITCH("VI Sense", SND_SOC_NOPM, 0, 0,
+		&max98927_vi_control),
+	SND_SOC_DAPM_SIGGEN("VMON"),
+	SND_SOC_DAPM_SIGGEN("IMON"),
 };
 
 static DECLARE_TLV_DB_SCALE(max98927_spk_tlv, 300, 300, 0);
@@ -495,6 +589,13 @@ static bool max98927_volatile_reg(struct device *dev, unsigned int reg)
 {
 	switch (reg) {
 	case MAX98927_R0001_INT_RAW1 ... MAX98927_R0009_INT_FLAG3:
+	case MAX98927_R004C_MEAS_ADC_CH0_READ:
+	case MAX98927_R004D_MEAS_ADC_CH1_READ:
+	case MAX98927_R004E_MEAS_ADC_CH2_READ:
+	case MAX98927_R0051_BROWNOUT_STATUS:
+	case MAX98927_R0087_ENV_TRACK_BOOST_VOUT_READ:
+	case MAX98927_R01FF_REV_ID:
+	case MAX98927_R0100_SOFT_RESET:
 		return true;
 	default:
 		return false;
@@ -543,11 +644,16 @@ static const struct snd_kcontrol_new max98927_snd_controls[] = {
 };
 
 static const struct snd_soc_dapm_route max98927_audio_map[] = {
-	{"Amp Enable", NULL, "DAI_OUT"},
+	/* Plabyack */
 	{"DAI Sel Mux", "Left", "Amp Enable"},
 	{"DAI Sel Mux", "Right", "Amp Enable"},
 	{"DAI Sel Mux", "LeftRight", "Amp Enable"},
 	{"BE_OUT", NULL, "DAI Sel Mux"},
+	/* Capture */
+	{ "VI Sense", "Switch", "VMON" },
+	{ "VI Sense", "Switch", "IMON" },
+	{ "Voltage Sense", NULL, "VI Sense" },
+	{ "Current Sense", NULL, "VI Sense" },
 };
 
 static struct snd_soc_dai_driver max98927_dai[] = {
@@ -577,7 +683,6 @@ static int max98927_probe(struct snd_soc_codec *codec)
 
 	max98927->codec = codec;
 	codec->control_data = max98927->regmap;
-	codec->cache_bypass = 1;
 
 	/* Software Reset */
 	regmap_write(max98927->regmap,
@@ -694,6 +799,31 @@ static int max98927_probe(struct snd_soc_codec *codec)
 	return 0;
 }
 
+#ifdef CONFIG_PM_SLEEP
+static int max98927_suspend(struct device *dev)
+{
+	struct max98927_priv *max98927 = dev_get_drvdata(dev);
+
+	regcache_cache_only(max98927->regmap, true);
+	regcache_mark_dirty(max98927->regmap);
+	return 0;
+}
+static int max98927_resume(struct device *dev)
+{
+	struct max98927_priv *max98927 = dev_get_drvdata(dev);
+
+	regmap_write(max98927->regmap,
+		MAX98927_R0100_SOFT_RESET, MAX98927_SOFT_RESET);
+	regcache_cache_only(max98927->regmap, false);
+	regcache_sync(max98927->regmap);
+	return 0;
+}
+#endif
+
+static const struct dev_pm_ops max98927_pm = {
+	SET_SYSTEM_SLEEP_PM_OPS(max98927_suspend, max98927_resume)
+};
+
 static const struct snd_soc_codec_driver soc_codec_dev_max98927 = {
 	.probe = max98927_probe,
 	.component_driver = {
@@ -721,14 +851,14 @@ static void max98927_slot_config(struct i2c_client *i2c,
 	struct max98927_priv *max98927)
 {
 	int value;
+	struct device *dev = &i2c->dev;
 
-	if (!of_property_read_u32(i2c->dev.of_node,
-		"vmon-slot-no", &value))
+	if (!device_property_read_u32(dev, "vmon-slot-no", &value))
 		max98927->v_l_slot = value & 0xF;
 	else
 		max98927->v_l_slot = 0;
-	if (!of_property_read_u32(i2c->dev.of_node,
-		"imon-slot-no", &value))
+
+	if (!device_property_read_u32(dev, "imon-slot-no", &value))
 		max98927->i_l_slot = value & 0xF;
 	else
 		max98927->i_l_slot = 1;
@@ -827,7 +957,7 @@ static struct i2c_driver max98927_i2c_driver = {
 		.name = "max98927",
 		.of_match_table = of_match_ptr(max98927_of_match),
 		.acpi_match_table = ACPI_PTR(max98927_acpi_match),
-		.pm = NULL,
+		.pm = &max98927_pm,
 	},
 	.probe  = max98927_i2c_probe,
 	.remove = max98927_i2c_remove,

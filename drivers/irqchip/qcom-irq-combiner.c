@@ -238,7 +238,7 @@ static int __init combiner_probe(struct platform_device *pdev)
 {
 	struct combiner *combiner;
 	size_t alloc_sz;
-	u32 nregs;
+	int nregs;
 	int err;
 
 	nregs = count_registers(pdev);
@@ -288,9 +288,4 @@ static struct platform_driver qcom_irq_combiner_probe = {
 	},
 	.probe = combiner_probe,
 };
-
-static int __init register_qcom_irq_combiner(void)
-{
-	return platform_driver_register(&qcom_irq_combiner_probe);
-}
-device_initcall(register_qcom_irq_combiner);
+builtin_platform_driver(qcom_irq_combiner_probe);

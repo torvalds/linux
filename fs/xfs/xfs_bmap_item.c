@@ -396,6 +396,7 @@ xfs_bui_recover(
 	struct xfs_map_extent		*bmap;
 	xfs_fsblock_t			startblock_fsb;
 	xfs_fsblock_t			inode_fsb;
+	xfs_filblks_t			count;
 	bool				op_ok;
 	struct xfs_bud_log_item		*budp;
 	enum xfs_bmap_intent_type	type;
@@ -404,6 +405,7 @@ xfs_bui_recover(
 	struct xfs_trans		*tp;
 	struct xfs_inode		*ip = NULL;
 	struct xfs_defer_ops		dfops;
+	struct xfs_bmbt_irec		irec;
 	xfs_fsblock_t			firstfsb;
 
 	ASSERT(!test_bit(XFS_BUI_RECOVERED, &buip->bui_flags));
@@ -481,15 +483,26 @@ xfs_bui_recover(
 	}
 	xfs_trans_ijoin(tp, ip, 0);
 
+	count = bmap->me_len;
 	error = xfs_trans_log_finish_bmap_update(tp, budp, &dfops, type,
 			ip, whichfork, bmap->me_startoff,
-			bmap->me_startblock, bmap->me_len,
-			state);
+			bmap->me_startblock, &count, state);
 	if (error)
 		goto err_dfops;
 
+	if (count > 0) {
+		ASSERT(type == XFS_BMAP_UNMAP);
+		irec.br_startblock = bmap->me_startblock;
+		irec.br_blockcount = count;
+		irec.br_startoff = bmap->me_startoff;
+		irec.br_state = state;
+		error = xfs_bmap_unmap_extent(tp->t_mountp, &dfops, ip, &irec);
+		if (error)
+			goto err_dfops;
+	}
+
 	/* Finish transaction, free inodes. */
-	error = xfs_defer_finish(&tp, &dfops, NULL);
+	error = xfs_defer_finish(&tp, &dfops);
 	if (error)
 		goto err_dfops;
 

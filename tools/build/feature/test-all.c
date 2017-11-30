@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * test-all.c: Try to build all the main testcases at once.
  *
@@ -153,6 +154,10 @@
 # include "test-sdt.c"
 #undef main
 
+#define main main_test_setns
+# include "test-setns.c"
+#undef main
+
 int main(int argc, char *argv[])
 {
 	main_test_libpython();
@@ -188,6 +193,7 @@ int main(int argc, char *argv[])
 	main_test_libcrypto();
 	main_test_sched_getcpu();
 	main_test_sdt();
+	main_test_setns();
 
 	return 0;
 }

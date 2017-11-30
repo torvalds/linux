@@ -44,11 +44,22 @@ struct bnxt_re_gid_ctx {
 	u32			refcnt;
 };
 
+#define BNXT_RE_FENCE_BYTES	64
+struct bnxt_re_fence_data {
+	u32 size;
+	u8 va[BNXT_RE_FENCE_BYTES];
+	dma_addr_t dma_addr;
+	struct bnxt_re_mr *mr;
+	struct ib_mw *mw;
+	struct bnxt_qplib_swqe bind_wqe;
+	u32 bind_rkey;
+};
+
 struct bnxt_re_pd {
 	struct bnxt_re_dev	*rdev;
 	struct ib_pd		ib_pd;
 	struct bnxt_qplib_pd	qplib_pd;
-	struct bnxt_qplib_dpi	dpi;
+	struct bnxt_re_fence_data fence;
 };
 
 struct bnxt_re_ah {
@@ -62,6 +73,7 @@ struct bnxt_re_qp {
 	struct bnxt_re_dev	*rdev;
 	struct ib_qp		ib_qp;
 	spinlock_t		sq_lock;	/* protect sq */
+	spinlock_t		rq_lock;	/* protect rq */
 	struct bnxt_qplib_qp	qplib_qp;
 	struct ib_umem		*sumem;
 	struct ib_umem		*rumem;
@@ -114,7 +126,7 @@ struct bnxt_re_mw {
 struct bnxt_re_ucontext {
 	struct bnxt_re_dev	*rdev;
 	struct ib_ucontext	ib_uctx;
-	struct bnxt_qplib_dpi	*dpi;
+	struct bnxt_qplib_dpi	dpi;
 	void			*shpg;
 	spinlock_t		sh_lock;	/* protect shpg */
 };
@@ -129,9 +141,6 @@ int bnxt_re_modify_device(struct ib_device *ibdev,
 			  struct ib_device_modify *device_modify);
 int bnxt_re_query_port(struct ib_device *ibdev, u8 port_num,
 		       struct ib_port_attr *port_attr);
-int bnxt_re_modify_port(struct ib_device *ibdev, u8 port_num,
-			int port_modify_mask,
-			struct ib_port_modify *port_modify);
 int bnxt_re_get_port_immutable(struct ib_device *ibdev, u8 port_num,
 			       struct ib_port_immutable *immutable);
 int bnxt_re_query_pkey(struct ib_device *ibdev, u8 port_num,
@@ -181,12 +190,9 @@ int bnxt_re_map_mr_sg(struct ib_mr *ib_mr, struct scatterlist *sg, int sg_nents,
 struct ib_mr *bnxt_re_alloc_mr(struct ib_pd *ib_pd, enum ib_mr_type mr_type,
 			       u32 max_num_sg);
 int bnxt_re_dereg_mr(struct ib_mr *mr);
-struct ib_fmr *bnxt_re_alloc_fmr(struct ib_pd *pd, int mr_access_flags,
-				 struct ib_fmr_attr *fmr_attr);
-int bnxt_re_map_phys_fmr(struct ib_fmr *fmr, u64 *page_list, int list_len,
-			 u64 iova);
-int bnxt_re_unmap_fmr(struct list_head *fmr_list);
-int bnxt_re_dealloc_fmr(struct ib_fmr *fmr);
+struct ib_mw *bnxt_re_alloc_mw(struct ib_pd *ib_pd, enum ib_mw_type type,
+			       struct ib_udata *udata);
+int bnxt_re_dealloc_mw(struct ib_mw *mw);
 struct ib_mr *bnxt_re_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 				  u64 virt_addr, int mr_access_flags,
 				  struct ib_udata *udata);

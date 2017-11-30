@@ -1028,9 +1028,9 @@ static void atl2_tx_timeout(struct net_device *netdev)
  * atl2_watchdog - Timer Call-back
  * @data: pointer to netdev cast into an unsigned long
  */
-static void atl2_watchdog(unsigned long data)
+static void atl2_watchdog(struct timer_list *t)
 {
-	struct atl2_adapter *adapter = (struct atl2_adapter *) data;
+	struct atl2_adapter *adapter = from_timer(adapter, t, watchdog_timer);
 
 	if (!test_bit(__ATL2_DOWN, &adapter->flags)) {
 		u32 drop_rxd, drop_rxs;
@@ -1053,9 +1053,10 @@ static void atl2_watchdog(unsigned long data)
  * atl2_phy_config - Timer Call-back
  * @data: pointer to netdev cast into an unsigned long
  */
-static void atl2_phy_config(unsigned long data)
+static void atl2_phy_config(struct timer_list *t)
 {
-	struct atl2_adapter *adapter = (struct atl2_adapter *) data;
+	struct atl2_adapter *adapter = from_timer(adapter, t,
+						  phy_config_timer);
 	struct atl2_hw *hw = &adapter->hw;
 	unsigned long flags;
 
@@ -1353,6 +1354,7 @@ static int atl2_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (pci_set_dma_mask(pdev, DMA_BIT_MASK(32)) &&
 		pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(32))) {
 		printk(KERN_ERR "atl2: No usable DMA configuration, aborting\n");
+		err = -EIO;
 		goto err_dma;
 	}
 
@@ -1366,10 +1368,11 @@ static int atl2_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	 * pcibios_set_master to do the needed arch specific settings */
 	pci_set_master(pdev);
 
-	err = -ENOMEM;
 	netdev = alloc_etherdev(sizeof(struct atl2_adapter));
-	if (!netdev)
+	if (!netdev) {
+		err = -ENOMEM;
 		goto err_alloc_etherdev;
+	}
 
 	SET_NETDEV_DEV(netdev, &pdev->dev);
 
@@ -1408,8 +1411,6 @@ static int atl2_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (err)
 		goto err_sw_init;
 
-	err = -EIO;
-
 	netdev->hw_features = NETIF_F_HW_VLAN_CTAG_RX;
 	netdev->features |= (NETIF_F_HW_VLAN_CTAG_TX | NETIF_F_HW_VLAN_CTAG_RX);
 
@@ -1434,11 +1435,9 @@ static int atl2_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	atl2_check_options(adapter);
 
-	setup_timer(&adapter->watchdog_timer, atl2_watchdog,
-		    (unsigned long)adapter);
+	timer_setup(&adapter->watchdog_timer, atl2_watchdog, 0);
 
-	setup_timer(&adapter->phy_config_timer, atl2_phy_config,
-		    (unsigned long)adapter);
+	timer_setup(&adapter->phy_config_timer, atl2_phy_config, 0);
 
 	INIT_WORK(&adapter->reset_task, atl2_reset_task);
 	INIT_WORK(&adapter->link_chg_task, atl2_link_chg_task);

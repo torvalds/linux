@@ -92,7 +92,7 @@ static struct sk_buff *alloc_lc_skb(struct nfcmrvl_private *priv, uint8_t plen)
 		return NULL;
 	}
 
-	hdr = (struct nci_data_hdr *) skb_put(skb, NCI_DATA_HDR_SIZE);
+	hdr = skb_put(skb, NCI_DATA_HDR_SIZE);
 	hdr->conn_id = NCI_CORE_LC_CONNID_PROP_FW_DL;
 	hdr->rfu = 0;
 	hdr->plen = plen;
@@ -130,9 +130,9 @@ static void fw_dnld_over(struct nfcmrvl_private *priv, u32 error)
 	nfc_fw_download_done(priv->ndev->nfc_dev, priv->fw_dnld.name, error);
 }
 
-static void fw_dnld_timeout(unsigned long arg)
+static void fw_dnld_timeout(struct timer_list *t)
 {
-	struct nfcmrvl_private *priv = (struct nfcmrvl_private *) arg;
+	struct nfcmrvl_private *priv = from_timer(priv, t, fw_dnld.timer);
 
 	nfc_err(priv->dev, "FW loading timeout");
 	priv->fw_dnld.state = STATE_RESET;
@@ -292,7 +292,7 @@ static int process_state_fw_dnld(struct nfcmrvl_private *priv,
 			out_skb = alloc_lc_skb(priv, 1);
 			if (!out_skb)
 				return -ENOMEM;
-			*skb_put(out_skb, 1) = 0xBF;
+			skb_put_u8(out_skb, 0xBF);
 			nci_send_frame(priv->ndev, out_skb);
 			priv->fw_dnld.substate = SUBSTATE_WAIT_NACK_CREDIT;
 			return 0;
@@ -301,7 +301,7 @@ static int process_state_fw_dnld(struct nfcmrvl_private *priv,
 		out_skb = alloc_lc_skb(priv, 1);
 		if (!out_skb)
 			return -ENOMEM;
-		*skb_put(out_skb, 1) = HELPER_ACK_PACKET_FORMAT;
+		skb_put_u8(out_skb, HELPER_ACK_PACKET_FORMAT);
 		nci_send_frame(priv->ndev, out_skb);
 		priv->fw_dnld.substate = SUBSTATE_WAIT_ACK_CREDIT;
 		break;
@@ -324,10 +324,9 @@ static int process_state_fw_dnld(struct nfcmrvl_private *priv,
 			out_skb = alloc_lc_skb(priv, priv->fw_dnld.chunk_len);
 			if (!out_skb)
 				return -ENOMEM;
-			memcpy(skb_put(out_skb, priv->fw_dnld.chunk_len),
-			       ((uint8_t *)priv->fw_dnld.fw->data) +
-			       priv->fw_dnld.offset,
-			       priv->fw_dnld.chunk_len);
+			skb_put_data(out_skb,
+				     ((uint8_t *)priv->fw_dnld.fw->data) + priv->fw_dnld.offset,
+				     priv->fw_dnld.chunk_len);
 			nci_send_frame(priv->ndev, out_skb);
 			priv->fw_dnld.substate = SUBSTATE_WAIT_DATA_CREDIT;
 		}
@@ -458,7 +457,7 @@ int	nfcmrvl_fw_dnld_init(struct nfcmrvl_private *priv)
 
 	INIT_WORK(&priv->fw_dnld.rx_work, fw_dnld_rx_work);
 	snprintf(name, sizeof(name), "%s_nfcmrvl_fw_dnld_rx_wq",
-		 dev_name(priv->dev));
+		 dev_name(&priv->ndev->nfc_dev->dev));
 	priv->fw_dnld.rx_wq = create_singlethread_workqueue(name);
 	if (!priv->fw_dnld.rx_wq)
 		return -ENOMEM;
@@ -495,6 +494,7 @@ int nfcmrvl_fw_dnld_start(struct nci_dev *ndev, const char *firmware_name)
 {
 	struct nfcmrvl_private *priv = nci_get_drvdata(ndev);
 	struct nfcmrvl_fw_dnld *fw_dnld = &priv->fw_dnld;
+	int res;
 
 	if (!priv->support_fw_dnld)
 		return -ENOTSUPP;
@@ -510,7 +510,9 @@ int nfcmrvl_fw_dnld_start(struct nci_dev *ndev, const char *firmware_name)
 	 */
 
 	/* Retrieve FW binary */
-	if (request_firmware(&fw_dnld->fw, firmware_name, priv->dev) < 0) {
+	res = request_firmware(&fw_dnld->fw, firmware_name,
+			       &ndev->nfc_dev->dev);
+	if (res < 0) {
 		nfc_err(priv->dev, "failed to retrieve FW %s", firmware_name);
 		return -ENOENT;
 	}
@@ -536,8 +538,7 @@ int nfcmrvl_fw_dnld_start(struct nci_dev *ndev, const char *firmware_name)
 	}
 
 	/* Configure a timer for timeout */
-	setup_timer(&priv->fw_dnld.timer, fw_dnld_timeout,
-		    (unsigned long) priv);
+	timer_setup(&priv->fw_dnld.timer, fw_dnld_timeout, 0);
 	mod_timer(&priv->fw_dnld.timer,
 		  jiffies + msecs_to_jiffies(FW_DNLD_TIMEOUT));
 

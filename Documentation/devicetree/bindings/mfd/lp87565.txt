@@ -1,0 +1,43 @@
+TI LP87565 PMIC MFD driver
+
+Required properties:
+  - compatible:	"ti,lp87565", "ti,lp87565-q1"
+  - reg:		I2C slave address.
+  - gpio-controller:	Marks the device node as a GPIO Controller.
+  - #gpio-cells:	Should be two.  The first cell is the pin number and
+			the second cell is used to specify flags.
+			See ../gpio/gpio.txt for more information.
+  - xxx-in-supply:	Phandle to parent supply node of each regulator
+			populated under regulators node. xxx should match
+			the supply_name populated in driver.
+Example:
+
+lp87565_pmic: pmic@60 {
+	compatible = "ti,lp87565-q1";
+	reg = <0x60>;
+	gpio-controller;
+	#gpio-cells = <2>;
+
+	buck10-in-supply = <&vsys_3v3>;
+	buck23-in-supply = <&vsys_3v3>;
+
+	regulators: regulators {
+		buck10_reg: buck10 {
+			/* VDD_MPU */
+			regulator-name = "buck10";
+			regulator-min-microvolt = <850000>;
+			regulator-max-microvolt = <1250000>;
+			regulator-always-on;
+			regulator-boot-on;
+		};
+
+		buck23_reg: buck23 {
+			/* VDD_GPU */
+			regulator-name = "buck23";
+			regulator-min-microvolt = <850000>;
+			regulator-max-microvolt = <1250000>;
+			regulator-boot-on;
+			regulator-always-on;
+		};
+	};
+};

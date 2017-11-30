@@ -35,7 +35,7 @@ static struct bus_type ccwgroup_bus_type;
 static void __ccwgroup_remove_symlinks(struct ccwgroup_device *gdev)
 {
 	int i;
-	char str[8];
+	char str[16];
 
 	for (i = 0; i < gdev->count; i++) {
 		sprintf(str, "cdev%d", i);
@@ -238,7 +238,7 @@ static void ccwgroup_release(struct device *dev)
 
 static int __ccwgroup_create_symlinks(struct ccwgroup_device *gdev)
 {
-	char str[8];
+	char str[16];
 	int i, rc;
 
 	for (i = 0; i < gdev->count; i++) {
@@ -370,6 +370,12 @@ int ccwgroup_create_dev(struct device *parent, struct ccwgroup_driver *gdrv,
 	}
 	/* Check for trailing stuff. */
 	if (i == num_devices && strlen(buf) > 0) {
+		rc = -EINVAL;
+		goto error;
+	}
+	/* Check if the devices are bound to the required ccw driver. */
+	if (gdev->count && gdrv && gdrv->ccw_driver &&
+	    gdev->cdev[0]->drv != gdrv->ccw_driver) {
 		rc = -EINVAL;
 		goto error;
 	}

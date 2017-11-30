@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_IO_H
 #define _ASM_IO_H
 
@@ -34,10 +35,10 @@ static inline unsigned char gsc_readb(unsigned long addr)
 	unsigned char ret;
 
 	__asm__ __volatile__(
-	"	rsm	2,%0\n"
+	"	rsm	%3,%0\n"
 	"	ldbx	0(%2),%1\n"
 	"	mtsm	%0\n"
-	: "=&r" (flags), "=r" (ret) : "r" (addr) );
+	: "=&r" (flags), "=r" (ret) : "r" (addr), "i" (PSW_SM_D) );
 
 	return ret;
 }
@@ -48,10 +49,10 @@ static inline unsigned short gsc_readw(unsigned long addr)
 	unsigned short ret;
 
 	__asm__ __volatile__(
-	"	rsm	2,%0\n"
+	"	rsm	%3,%0\n"
 	"	ldhx	0(%2),%1\n"
 	"	mtsm	%0\n"
-	: "=&r" (flags), "=r" (ret) : "r" (addr) );
+	: "=&r" (flags), "=r" (ret) : "r" (addr), "i" (PSW_SM_D) );
 
 	return ret;
 }
@@ -87,20 +88,20 @@ static inline void gsc_writeb(unsigned char val, unsigned long addr)
 {
 	long flags;
 	__asm__ __volatile__(
-	"	rsm	2,%0\n"
+	"	rsm	%3,%0\n"
 	"	stbs	%1,0(%2)\n"
 	"	mtsm	%0\n"
-	: "=&r" (flags) :  "r" (val), "r" (addr) );
+	: "=&r" (flags) :  "r" (val), "r" (addr), "i" (PSW_SM_D) );
 }
 
 static inline void gsc_writew(unsigned short val, unsigned long addr)
 {
 	long flags;
 	__asm__ __volatile__(
-	"	rsm	2,%0\n"
+	"	rsm	%3,%0\n"
 	"	sths	%1,0(%2)\n"
 	"	mtsm	%0\n"
-	: "=&r" (flags) :  "r" (val), "r" (addr) );
+	: "=&r" (flags) :  "r" (val), "r" (addr), "i" (PSW_SM_D) );
 }
 
 static inline void gsc_writel(unsigned int val, unsigned long addr)

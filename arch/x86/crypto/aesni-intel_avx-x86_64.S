@@ -155,6 +155,30 @@ SHIFT_MASK:      .octa     0x0f0e0d0c0b0a09080706050403020100
 ALL_F:           .octa     0xffffffffffffffffffffffffffffffff
                  .octa     0x00000000000000000000000000000000
 
+.section .rodata
+.align 16
+.type aad_shift_arr, @object
+.size aad_shift_arr, 272
+aad_shift_arr:
+        .octa     0xffffffffffffffffffffffffffffffff
+        .octa     0xffffffffffffffffffffffffffffff0C
+        .octa     0xffffffffffffffffffffffffffff0D0C
+        .octa     0xffffffffffffffffffffffffff0E0D0C
+        .octa     0xffffffffffffffffffffffff0F0E0D0C
+        .octa     0xffffffffffffffffffffff0C0B0A0908
+        .octa     0xffffffffffffffffffff0D0C0B0A0908
+        .octa     0xffffffffffffffffff0E0D0C0B0A0908
+        .octa     0xffffffffffffffff0F0E0D0C0B0A0908
+        .octa     0xffffffffffffff0C0B0A090807060504
+        .octa     0xffffffffffff0D0C0B0A090807060504
+        .octa     0xffffffffff0E0D0C0B0A090807060504
+        .octa     0xffffffff0F0E0D0C0B0A090807060504
+        .octa     0xffffff0C0B0A09080706050403020100
+        .octa     0xffff0D0C0B0A09080706050403020100
+        .octa     0xff0E0D0C0B0A09080706050403020100
+        .octa     0x0F0E0D0C0B0A09080706050403020100
+
+
 .text
 
 
@@ -372,41 +396,72 @@ VARIABLE_OFFSET = 16*8
 
 .macro INITIAL_BLOCKS_AVX num_initial_blocks T1 T2 T3 T4 T5 CTR XMM1 XMM2 XMM3 XMM4 XMM5 XMM6 XMM7 XMM8 T6 T_key ENC_DEC
 	i = (8-\num_initial_blocks)
+	j = 0
 	setreg
 
-        mov     arg6, %r10                      # r10 = AAD
-        mov     arg7, %r12                      # r12 = aadLen
+	mov     arg6, %r10                      # r10 = AAD
+	mov     arg7, %r12                      # r12 = aadLen
 
 
-        mov     %r12, %r11
+	mov     %r12, %r11
 
-        vpxor   reg_i, reg_i, reg_i
-_get_AAD_loop\@:
-        vmovd   (%r10), \T1
-        vpslldq $12, \T1, \T1
-        vpsrldq $4, reg_i, reg_i
-        vpxor   \T1, reg_i, reg_i
+	vpxor   reg_j, reg_j, reg_j
+	vpxor   reg_i, reg_i, reg_i
+	cmp     $16, %r11
+	jl      _get_AAD_rest8\@
+_get_AAD_blocks\@:
+	vmovdqu (%r10), reg_i
+	vpshufb SHUF_MASK(%rip), reg_i, reg_i
+	vpxor   reg_i, reg_j, reg_j
+	GHASH_MUL_AVX       reg_j, \T2, \T1, \T3, \T4, \T5, \T6
+	add     $16, %r10
+	sub     $16, %r12
+	sub     $16, %r11
+	cmp     $16, %r11
+	jge     _get_AAD_blocks\@
+	vmovdqu reg_j, reg_i
+	cmp     $0, %r11
+	je      _get_AAD_done\@
 
-        add     $4, %r10
-        sub     $4, %r12
-        jg      _get_AAD_loop\@
+	vpxor   reg_i, reg_i, reg_i
 
+	/* read the last <16B of AAD. since we have at least 4B of
+	data right after the AAD (the ICV, and maybe some CT), we can
+	read 4B/8B blocks safely, and then get rid of the extra stuff */
+_get_AAD_rest8\@:
+	cmp     $4, %r11
+	jle     _get_AAD_rest4\@
+	movq    (%r10), \T1
+	add     $8, %r10
+	sub     $8, %r11
+	vpslldq $8, \T1, \T1
+	vpsrldq $8, reg_i, reg_i
+	vpxor   \T1, reg_i, reg_i
+	jmp     _get_AAD_rest8\@
+_get_AAD_rest4\@:
+	cmp     $0, %r11
+	jle      _get_AAD_rest0\@
+	mov     (%r10), %eax
+	movq    %rax, \T1
+	add     $4, %r10
+	sub     $4, %r11
+	vpslldq $12, \T1, \T1
+	vpsrldq $4, reg_i, reg_i
+	vpxor   \T1, reg_i, reg_i
+_get_AAD_rest0\@:
+	/* finalize: shift out the extra bytes we read, and align
+	left. since pslldq can only shift by an immediate, we use
+	vpshufb and an array of shuffle masks */
+	movq    %r12, %r11
+	salq    $4, %r11
+	movdqu  aad_shift_arr(%r11), \T1
+	vpshufb \T1, reg_i, reg_i
+_get_AAD_rest_final\@:
+	vpshufb SHUF_MASK(%rip), reg_i, reg_i
+	vpxor   reg_j, reg_i, reg_i
+	GHASH_MUL_AVX       reg_i, \T2, \T1, \T3, \T4, \T5, \T6
 
-        cmp     $16, %r11
-        je      _get_AAD_loop2_done\@
-        mov     $16, %r12
-
-_get_AAD_loop2\@:
-        vpsrldq $4, reg_i, reg_i
-        sub     $4, %r12
-        cmp     %r11, %r12
-        jg      _get_AAD_loop2\@
-
-_get_AAD_loop2_done\@:
-
-        #byte-reflect the AAD data
-        vpshufb SHUF_MASK(%rip), reg_i, reg_i
-
+_get_AAD_done\@:
 	# initialize the data pointer offset as zero
 	xor     %r11, %r11
 
@@ -480,7 +535,6 @@ _get_AAD_loop2_done\@:
 	i = (8-\num_initial_blocks)
 	j = (9-\num_initial_blocks)
 	setreg
-        GHASH_MUL_AVX       reg_i, \T2, \T1, \T3, \T4, \T5, \T6
 
 .rep \num_initial_blocks
         vpxor    reg_i, reg_j, reg_j
@@ -1427,19 +1481,36 @@ _return_T\@:
         cmp     $16, %r11
         je      _T_16\@
 
-        cmp     $12, %r11
-        je      _T_12\@
+        cmp     $8, %r11
+        jl      _T_4\@
 
 _T_8\@:
         vmovq   %xmm9, %rax
         mov     %rax, (%r10)
-        jmp     _return_T_done\@
-_T_12\@:
-        vmovq   %xmm9, %rax
-        mov     %rax, (%r10)
+        add     $8, %r10
+        sub     $8, %r11
         vpsrldq $8, %xmm9, %xmm9
+        cmp     $0, %r11
+        je     _return_T_done\@
+_T_4\@:
         vmovd   %xmm9, %eax
-        mov     %eax, 8(%r10)
+        mov     %eax, (%r10)
+        add     $4, %r10
+        sub     $4, %r11
+        vpsrldq     $4, %xmm9, %xmm9
+        cmp     $0, %r11
+        je     _return_T_done\@
+_T_123\@:
+        vmovd     %xmm9, %eax
+        cmp     $2, %r11
+        jl     _T_1\@
+        mov     %ax, (%r10)
+        cmp     $2, %r11
+        je     _return_T_done\@
+        add     $2, %r10
+        sar     $16, %eax
+_T_1\@:
+        mov     %al, (%r10)
         jmp     _return_T_done\@
 
 _T_16\@:
@@ -1631,41 +1702,73 @@ ENDPROC(aesni_gcm_dec_avx_gen2)
 
 .macro INITIAL_BLOCKS_AVX2 num_initial_blocks T1 T2 T3 T4 T5 CTR XMM1 XMM2 XMM3 XMM4 XMM5 XMM6 XMM7 XMM8 T6 T_key ENC_DEC VER
 	i = (8-\num_initial_blocks)
+	j = 0
 	setreg
 
-        mov     arg6, %r10                       # r10 = AAD
-        mov     arg7, %r12                       # r12 = aadLen
+	mov     arg6, %r10                       # r10 = AAD
+	mov     arg7, %r12                       # r12 = aadLen
 
 
-        mov     %r12, %r11
+	mov     %r12, %r11
 
-        vpxor   reg_i, reg_i, reg_i
-_get_AAD_loop\@:
-        vmovd   (%r10), \T1
-        vpslldq $12, \T1, \T1
-        vpsrldq $4, reg_i, reg_i
-        vpxor   \T1, reg_i, reg_i
+	vpxor   reg_j, reg_j, reg_j
+	vpxor   reg_i, reg_i, reg_i
 
-        add     $4, %r10
-        sub     $4, %r12
-        jg      _get_AAD_loop\@
+	cmp     $16, %r11
+	jl      _get_AAD_rest8\@
+_get_AAD_blocks\@:
+	vmovdqu (%r10), reg_i
+	vpshufb SHUF_MASK(%rip), reg_i, reg_i
+	vpxor   reg_i, reg_j, reg_j
+	GHASH_MUL_AVX2      reg_j, \T2, \T1, \T3, \T4, \T5, \T6
+	add     $16, %r10
+	sub     $16, %r12
+	sub     $16, %r11
+	cmp     $16, %r11
+	jge     _get_AAD_blocks\@
+	vmovdqu reg_j, reg_i
+	cmp     $0, %r11
+	je      _get_AAD_done\@
 
+	vpxor   reg_i, reg_i, reg_i
 
-        cmp     $16, %r11
-        je      _get_AAD_loop2_done\@
-        mov     $16, %r12
+	/* read the last <16B of AAD. since we have at least 4B of
+	data right after the AAD (the ICV, and maybe some CT), we can
+	read 4B/8B blocks safely, and then get rid of the extra stuff */
+_get_AAD_rest8\@:
+	cmp     $4, %r11
+	jle     _get_AAD_rest4\@
+	movq    (%r10), \T1
+	add     $8, %r10
+	sub     $8, %r11
+	vpslldq $8, \T1, \T1
+	vpsrldq $8, reg_i, reg_i
+	vpxor   \T1, reg_i, reg_i
+	jmp     _get_AAD_rest8\@
+_get_AAD_rest4\@:
+	cmp     $0, %r11
+	jle     _get_AAD_rest0\@
+	mov     (%r10), %eax
+	movq    %rax, \T1
+	add     $4, %r10
+	sub     $4, %r11
+	vpslldq $12, \T1, \T1
+	vpsrldq $4, reg_i, reg_i
+	vpxor   \T1, reg_i, reg_i
+_get_AAD_rest0\@:
+	/* finalize: shift out the extra bytes we read, and align
+	left. since pslldq can only shift by an immediate, we use
+	vpshufb and an array of shuffle masks */
+	movq    %r12, %r11
+	salq    $4, %r11
+	movdqu  aad_shift_arr(%r11), \T1
+	vpshufb \T1, reg_i, reg_i
+_get_AAD_rest_final\@:
+	vpshufb SHUF_MASK(%rip), reg_i, reg_i
+	vpxor   reg_j, reg_i, reg_i
+	GHASH_MUL_AVX2      reg_i, \T2, \T1, \T3, \T4, \T5, \T6
 
-_get_AAD_loop2\@:
-        vpsrldq $4, reg_i, reg_i
-        sub     $4, %r12
-        cmp     %r11, %r12
-        jg      _get_AAD_loop2\@
-
-_get_AAD_loop2_done\@:
-
-        #byte-reflect the AAD data
-        vpshufb SHUF_MASK(%rip), reg_i, reg_i
-
+_get_AAD_done\@:
 	# initialize the data pointer offset as zero
 	xor     %r11, %r11
 
@@ -1740,7 +1843,6 @@ _get_AAD_loop2_done\@:
 	i = (8-\num_initial_blocks)
 	j = (9-\num_initial_blocks)
 	setreg
-        GHASH_MUL_AVX2       reg_i, \T2, \T1, \T3, \T4, \T5, \T6
 
 .rep \num_initial_blocks
         vpxor    reg_i, reg_j, reg_j
@@ -2702,19 +2804,36 @@ _return_T\@:
         cmp     $16, %r11
         je      _T_16\@
 
-        cmp     $12, %r11
-        je      _T_12\@
+        cmp     $8, %r11
+        jl      _T_4\@
 
 _T_8\@:
         vmovq   %xmm9, %rax
         mov     %rax, (%r10)
-        jmp     _return_T_done\@
-_T_12\@:
-        vmovq   %xmm9, %rax
-        mov     %rax, (%r10)
+        add     $8, %r10
+        sub     $8, %r11
         vpsrldq $8, %xmm9, %xmm9
+        cmp     $0, %r11
+        je     _return_T_done\@
+_T_4\@:
         vmovd   %xmm9, %eax
-        mov     %eax, 8(%r10)
+        mov     %eax, (%r10)
+        add     $4, %r10
+        sub     $4, %r11
+        vpsrldq     $4, %xmm9, %xmm9
+        cmp     $0, %r11
+        je     _return_T_done\@
+_T_123\@:
+        vmovd     %xmm9, %eax
+        cmp     $2, %r11
+        jl     _T_1\@
+        mov     %ax, (%r10)
+        cmp     $2, %r11
+        je     _return_T_done\@
+        add     $2, %r10
+        sar     $16, %eax
+_T_1\@:
+        mov     %al, (%r10)
         jmp     _return_T_done\@
 
 _T_16\@:

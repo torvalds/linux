@@ -5,7 +5,7 @@
  *
  * Author: 林政維 (Duson Lin) <dusonlin@emc.com.tw>
  * Author: KT Liao <kt.liao@emc.com.tw>
- * Version: 1.6.2
+ * Version: 1.6.3
  *
  * Based on cyapa driver:
  * copyright (c) 2011-2012 Cypress Semiconductor, Inc.
@@ -26,6 +26,7 @@
 #include <linux/init.h>
 #include <linux/input/mt.h>
 #include <linux/interrupt.h>
+#include <linux/irq.h>
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/kernel.h>
@@ -41,7 +42,7 @@
 #include "elan_i2c.h"
 
 #define DRIVER_NAME		"elan_i2c"
-#define ELAN_DRIVER_VERSION	"1.6.2"
+#define ELAN_DRIVER_VERSION	"1.6.3"
 #define ELAN_VENDOR_ID		0x04f3
 #define ETP_MAX_PRESSURE	255
 #define ETP_FWIDTH_REDUCE	90
@@ -78,6 +79,7 @@ struct elan_tp_data {
 	unsigned int		x_res;
 	unsigned int		y_res;
 
+	u8			pattern;
 	u16			product_id;
 	u8			fw_version;
 	u8			sm_version;
@@ -85,7 +87,7 @@ struct elan_tp_data {
 	u16			fw_checksum;
 	int			pressure_adjustment;
 	u8			mode;
-	u8			ic_type;
+	u16			ic_type;
 	u16			fw_validpage_count;
 	u16			fw_signature_address;
 
@@ -94,12 +96,13 @@ struct elan_tp_data {
 	u8			min_baseline;
 	u8			max_baseline;
 	bool			baseline_ready;
+	u8			clickpad;
 };
 
-static int elan_get_fwinfo(u8 iap_version, u16 *validpage_count,
+static int elan_get_fwinfo(u16 ic_type, u16 *validpage_count,
 			   u16 *signature_address)
 {
-	switch (iap_version) {
+	switch (ic_type) {
 	case 0x00:
 	case 0x06:
 	case 0x08:
@@ -118,6 +121,9 @@ static int elan_get_fwinfo(u8 iap_version, u16 *validpage_count,
 		break;
 	case 0x0E:
 		*validpage_count = 640;
+		break;
+	case 0x10:
+		*validpage_count = 1024;
 		break;
 	default:
 		/* unknown ic type clear value */
@@ -209,7 +215,7 @@ static int elan_query_product(struct elan_tp_data *data)
 		return error;
 
 	error = data->ops->get_sm_version(data->client, &data->ic_type,
-					  &data->sm_version);
+					  &data->sm_version, &data->clickpad);
 	if (error)
 		return error;
 
@@ -305,6 +311,7 @@ static int elan_initialize(struct elan_tp_data *data)
 static int elan_query_device_info(struct elan_tp_data *data)
 {
 	int error;
+	u16 ic_type;
 
 	error = data->ops->get_version(data->client, false, &data->fw_version);
 	if (error)
@@ -324,7 +331,16 @@ static int elan_query_device_info(struct elan_tp_data *data)
 	if (error)
 		return error;
 
-	error = elan_get_fwinfo(data->iap_version, &data->fw_validpage_count,
+	error = data->ops->get_pattern(data->client, &data->pattern);
+	if (error)
+		return error;
+
+	if (data->pattern == 0x01)
+		ic_type = data->ic_type;
+	else
+		ic_type = data->iap_version;
+
+	error = elan_get_fwinfo(ic_type, &data->fw_validpage_count,
 				&data->fw_signature_address);
 	if (error)
 		dev_warn(&data->client->dev,
@@ -909,6 +925,7 @@ static void elan_report_absolute(struct elan_tp_data *data, u8 *packet)
 	}
 
 	input_report_key(input, BTN_LEFT, tp_info & 0x01);
+	input_report_key(input, BTN_RIGHT, tp_info & 0x02);
 	input_report_abs(input, ABS_DISTANCE, hover_event != 0);
 	input_mt_report_pointer_emulation(input, true);
 	input_sync(input);
@@ -977,7 +994,10 @@ static int elan_setup_input_device(struct elan_tp_data *data)
 
 	__set_bit(EV_ABS, input->evbit);
 	__set_bit(INPUT_PROP_POINTER, input->propbit);
-	__set_bit(INPUT_PROP_BUTTONPAD, input->propbit);
+	if (data->clickpad)
+		__set_bit(INPUT_PROP_BUTTONPAD, input->propbit);
+	else
+		__set_bit(BTN_RIGHT, input->keybit);
 	__set_bit(BTN_LEFT, input->keybit);
 
 	/* Set up ST parameters */
@@ -1077,6 +1097,13 @@ static int elan_probe(struct i2c_client *client,
 		return error;
 	}
 
+	/* Make sure there is something at this address */
+	error = i2c_smbus_read_byte(client);
+	if (error < 0) {
+		dev_dbg(&client->dev, "nothing at this address: %d\n", error);
+		return -ENXIO;
+	}
+
 	/* Initialize the touchpad. */
 	error = elan_initialize(data);
 	if (error)
@@ -1101,10 +1128,13 @@ static int elan_probe(struct i2c_client *client,
 		"Elan Touchpad Extra Information:\n"
 		"    Max ABS X,Y:   %d,%d\n"
 		"    Width X,Y:   %d,%d\n"
-		"    Resolution X,Y:   %d,%d (dots/mm)\n",
+		"    Resolution X,Y:   %d,%d (dots/mm)\n"
+		"    ic type: 0x%x\n"
+		"    info pattern: 0x%x\n",
 		data->max_x, data->max_y,
 		data->width_x, data->width_y,
-		data->x_res, data->y_res);
+		data->x_res, data->y_res,
+		data->ic_type, data->pattern);
 
 	/* Set up input device properties based on queried parameters. */
 	error = elan_setup_input_device(data);
@@ -1112,10 +1142,13 @@ static int elan_probe(struct i2c_client *client,
 		return error;
 
 	/*
-	 * Systems using device tree should set up interrupt via DTS,
-	 * the rest will use the default falling edge interrupts.
+	 * Platform code (ACPI, DTS) should normally set up interrupt
+	 * for us, but in case it did not let's fall back to using falling
+	 * edge to be compatible with older Chromebooks.
 	 */
-	irqflags = dev->of_node ? 0 : IRQF_TRIGGER_FALLING;
+	irqflags = irq_get_trigger_type(client->irq);
+	if (!irqflags)
+		irqflags = IRQF_TRIGGER_FALLING;
 
 	error = devm_request_threaded_irq(dev, client->irq, NULL, elan_isr,
 					  irqflags | IRQF_ONESHOT,
@@ -1223,7 +1256,13 @@ static const struct acpi_device_id elan_acpi_id[] = {
 	{ "ELAN0000", 0 },
 	{ "ELAN0100", 0 },
 	{ "ELAN0600", 0 },
+	{ "ELAN0602", 0 },
 	{ "ELAN0605", 0 },
+	{ "ELAN0608", 0 },
+	{ "ELAN0609", 0 },
+	{ "ELAN060B", 0 },
+	{ "ELAN060C", 0 },
+	{ "ELAN0611", 0 },
 	{ "ELAN1000", 0 },
 	{ }
 };

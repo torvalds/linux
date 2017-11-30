@@ -58,8 +58,9 @@
 
 /* indices for READCMB */
 enum cmb_index {
+	avg_utilization = -1,
  /* basic and exended format: */
-	cmb_ssch_rsch_count,
+	cmb_ssch_rsch_count = 0,
 	cmb_sample_count,
 	cmb_device_connect_time,
 	cmb_function_pending_time,
@@ -215,71 +216,52 @@ struct set_schib_struct {
 	unsigned long address;
 	wait_queue_head_t wait;
 	int ret;
-	struct kref kref;
 };
 
-static void cmf_set_schib_release(struct kref *kref)
-{
-	struct set_schib_struct *set_data;
-
-	set_data = container_of(kref, struct set_schib_struct, kref);
-	kfree(set_data);
-}
-
 #define CMF_PENDING 1
+#define SET_SCHIB_TIMEOUT (10 * HZ)
 
 static int set_schib_wait(struct ccw_device *cdev, u32 mme,
-				int mbfc, unsigned long address)
+			  int mbfc, unsigned long address)
 {
-	struct set_schib_struct *set_data;
-	int ret;
+	struct set_schib_struct set_data;
+	int ret = -ENODEV;
 
 	spin_lock_irq(cdev->ccwlock);
-	if (!cdev->private->cmb) {
-		ret = -ENODEV;
+	if (!cdev->private->cmb)
 		goto out;
-	}
-	set_data = kzalloc(sizeof(struct set_schib_struct), GFP_ATOMIC);
-	if (!set_data) {
-		ret = -ENOMEM;
-		goto out;
-	}
-	init_waitqueue_head(&set_data->wait);
-	kref_init(&set_data->kref);
-	set_data->mme = mme;
-	set_data->mbfc = mbfc;
-	set_data->address = address;
 
 	ret = set_schib(cdev, mme, mbfc, address);
 	if (ret != -EBUSY)
-		goto out_put;
+		goto out;
 
-	if (cdev->private->state != DEV_STATE_ONLINE) {
-		/* if the device is not online, don't even try again */
-		ret = -EBUSY;
-		goto out_put;
-	}
+	/* if the device is not online, don't even try again */
+	if (cdev->private->state != DEV_STATE_ONLINE)
+		goto out;
+
+	init_waitqueue_head(&set_data.wait);
+	set_data.mme = mme;
+	set_data.mbfc = mbfc;
+	set_data.address = address;
+	set_data.ret = CMF_PENDING;
 
 	cdev->private->state = DEV_STATE_CMFCHANGE;
-	set_data->ret = CMF_PENDING;
-	cdev->private->cmb_wait = set_data;
-
+	cdev->private->cmb_wait = &set_data;
 	spin_unlock_irq(cdev->ccwlock);
-	if (wait_event_interruptible(set_data->wait,
-				     set_data->ret != CMF_PENDING)) {
-		spin_lock_irq(cdev->ccwlock);
-		if (set_data->ret == CMF_PENDING) {
-			set_data->ret = -ERESTARTSYS;
+
+	ret = wait_event_interruptible_timeout(set_data.wait,
+					       set_data.ret != CMF_PENDING,
+					       SET_SCHIB_TIMEOUT);
+	spin_lock_irq(cdev->ccwlock);
+	if (ret <= 0) {
+		if (set_data.ret == CMF_PENDING) {
+			set_data.ret = (ret == 0) ? -ETIME : ret;
 			if (cdev->private->state == DEV_STATE_CMFCHANGE)
 				cdev->private->state = DEV_STATE_ONLINE;
 		}
-		spin_unlock_irq(cdev->ccwlock);
 	}
-	spin_lock_irq(cdev->ccwlock);
 	cdev->private->cmb_wait = NULL;
-	ret = set_data->ret;
-out_put:
-	kref_put(&set_data->kref, cmf_set_schib_release);
+	ret = set_data.ret;
 out:
 	spin_unlock_irq(cdev->ccwlock);
 	return ret;
@@ -287,28 +269,21 @@ out:
 
 void retry_set_schib(struct ccw_device *cdev)
 {
-	struct set_schib_struct *set_data;
+	struct set_schib_struct *set_data = cdev->private->cmb_wait;
 
-	set_data = cdev->private->cmb_wait;
-	if (!set_data) {
-		WARN_ON(1);
+	if (!set_data)
 		return;
-	}
-	kref_get(&set_data->kref);
+
 	set_data->ret = set_schib(cdev, set_data->mme, set_data->mbfc,
 				  set_data->address);
 	wake_up(&set_data->wait);
-	kref_put(&set_data->kref, cmf_set_schib_release);
 }
 
 static int cmf_copy_block(struct ccw_device *cdev)
 {
-	struct subchannel *sch;
-	void *reference_buf;
-	void *hw_block;
+	struct subchannel *sch = to_subchannel(cdev->dev.parent);
 	struct cmb_data *cmb_data;
-
-	sch = to_subchannel(cdev->dev.parent);
+	void *hw_block;
 
 	if (cio_update_schib(sch))
 		return -ENODEV;
@@ -323,102 +298,65 @@ static int cmf_copy_block(struct ccw_device *cdev)
 	}
 	cmb_data = cdev->private->cmb;
 	hw_block = cmb_data->hw_block;
-	if (!memcmp(cmb_data->last_block, hw_block, cmb_data->size))
-		/* No need to copy. */
-		return 0;
-	reference_buf = kzalloc(cmb_data->size, GFP_ATOMIC);
-	if (!reference_buf)
-		return -ENOMEM;
-	/* Ensure consistency of block copied from hardware. */
-	do {
-		memcpy(cmb_data->last_block, hw_block, cmb_data->size);
-		memcpy(reference_buf, hw_block, cmb_data->size);
-	} while (memcmp(cmb_data->last_block, reference_buf, cmb_data->size));
+	memcpy(cmb_data->last_block, hw_block, cmb_data->size);
 	cmb_data->last_update = get_tod_clock();
-	kfree(reference_buf);
 	return 0;
 }
 
 struct copy_block_struct {
 	wait_queue_head_t wait;
 	int ret;
-	struct kref kref;
 };
-
-static void cmf_copy_block_release(struct kref *kref)
-{
-	struct copy_block_struct *copy_block;
-
-	copy_block = container_of(kref, struct copy_block_struct, kref);
-	kfree(copy_block);
-}
 
 static int cmf_cmb_copy_wait(struct ccw_device *cdev)
 {
-	struct copy_block_struct *copy_block;
-	int ret;
-	unsigned long flags;
+	struct copy_block_struct copy_block;
+	int ret = -ENODEV;
 
-	spin_lock_irqsave(cdev->ccwlock, flags);
-	if (!cdev->private->cmb) {
-		ret = -ENODEV;
+	spin_lock_irq(cdev->ccwlock);
+	if (!cdev->private->cmb)
 		goto out;
-	}
-	copy_block = kzalloc(sizeof(struct copy_block_struct), GFP_ATOMIC);
-	if (!copy_block) {
-		ret = -ENOMEM;
-		goto out;
-	}
-	init_waitqueue_head(&copy_block->wait);
-	kref_init(&copy_block->kref);
 
 	ret = cmf_copy_block(cdev);
 	if (ret != -EBUSY)
-		goto out_put;
+		goto out;
 
-	if (cdev->private->state != DEV_STATE_ONLINE) {
-		ret = -EBUSY;
-		goto out_put;
-	}
+	if (cdev->private->state != DEV_STATE_ONLINE)
+		goto out;
+
+	init_waitqueue_head(&copy_block.wait);
+	copy_block.ret = CMF_PENDING;
 
 	cdev->private->state = DEV_STATE_CMFUPDATE;
-	copy_block->ret = CMF_PENDING;
-	cdev->private->cmb_wait = copy_block;
+	cdev->private->cmb_wait = &copy_block;
+	spin_unlock_irq(cdev->ccwlock);
 
-	spin_unlock_irqrestore(cdev->ccwlock, flags);
-	if (wait_event_interruptible(copy_block->wait,
-				     copy_block->ret != CMF_PENDING)) {
-		spin_lock_irqsave(cdev->ccwlock, flags);
-		if (copy_block->ret == CMF_PENDING) {
-			copy_block->ret = -ERESTARTSYS;
+	ret = wait_event_interruptible(copy_block.wait,
+				       copy_block.ret != CMF_PENDING);
+	spin_lock_irq(cdev->ccwlock);
+	if (ret) {
+		if (copy_block.ret == CMF_PENDING) {
+			copy_block.ret = -ERESTARTSYS;
 			if (cdev->private->state == DEV_STATE_CMFUPDATE)
 				cdev->private->state = DEV_STATE_ONLINE;
 		}
-		spin_unlock_irqrestore(cdev->ccwlock, flags);
 	}
-	spin_lock_irqsave(cdev->ccwlock, flags);
 	cdev->private->cmb_wait = NULL;
-	ret = copy_block->ret;
-out_put:
-	kref_put(&copy_block->kref, cmf_copy_block_release);
+	ret = copy_block.ret;
 out:
-	spin_unlock_irqrestore(cdev->ccwlock, flags);
+	spin_unlock_irq(cdev->ccwlock);
 	return ret;
 }
 
 void cmf_retry_copy_block(struct ccw_device *cdev)
 {
-	struct copy_block_struct *copy_block;
+	struct copy_block_struct *copy_block = cdev->private->cmb_wait;
 
-	copy_block = cdev->private->cmb_wait;
-	if (!copy_block) {
-		WARN_ON(1);
+	if (!copy_block)
 		return;
-	}
-	kref_get(&copy_block->kref);
+
 	copy_block->ret = cmf_copy_block(cdev);
 	wake_up(&copy_block->wait);
-	kref_put(&copy_block->kref, cmf_copy_block_release);
 }
 
 static void cmf_generic_reset(struct ccw_device *cdev)
@@ -650,25 +588,44 @@ static int set_cmb(struct ccw_device *cdev, u32 mme)
 	return set_schib_wait(cdev, mme, 0, offset);
 }
 
+/* calculate utilization in 0.1 percent units */
+static u64 __cmb_utilization(u64 device_connect_time, u64 function_pending_time,
+			     u64 device_disconnect_time, u64 start_time)
+{
+	u64 utilization, elapsed_time;
+
+	utilization = time_to_nsec(device_connect_time +
+				   function_pending_time +
+				   device_disconnect_time);
+
+	elapsed_time = get_tod_clock() - start_time;
+	elapsed_time = tod_to_ns(elapsed_time);
+	elapsed_time /= 1000;
+
+	return elapsed_time ? (utilization / elapsed_time) : 0;
+}
+
 static u64 read_cmb(struct ccw_device *cdev, int index)
 {
-	struct cmb *cmb;
-	u32 val;
-	int ret;
+	struct cmb_data *cmb_data;
 	unsigned long flags;
-
-	ret = cmf_cmb_copy_wait(cdev);
-	if (ret < 0)
-		return 0;
+	struct cmb *cmb;
+	u64 ret = 0;
+	u32 val;
 
 	spin_lock_irqsave(cdev->ccwlock, flags);
-	if (!cdev->private->cmb) {
-		ret = 0;
+	cmb_data = cdev->private->cmb;
+	if (!cmb_data)
 		goto out;
-	}
-	cmb = ((struct cmb_data *)cdev->private->cmb)->last_block;
 
+	cmb = cmb_data->hw_block;
 	switch (index) {
+	case avg_utilization:
+		ret = __cmb_utilization(cmb->device_connect_time,
+					cmb->function_pending_time,
+					cmb->device_disconnect_time,
+					cdev->private->cmb_start_time);
+		goto out;
 	case cmb_ssch_rsch_count:
 		ret = cmb->ssch_rsch_count;
 		goto out;
@@ -691,7 +648,6 @@ static u64 read_cmb(struct ccw_device *cdev, int index)
 		val = cmb->device_active_only_time;
 		break;
 	default:
-		ret = 0;
 		goto out;
 	}
 	ret = time_to_avg_nsec(val, cmb->sample_count);
@@ -729,8 +685,7 @@ static int readall_cmb(struct ccw_device *cdev, struct cmbdata *data)
 	/* we only know values before device_busy_time */
 	data->size = offsetof(struct cmbdata, device_busy_time);
 
-	/* convert to nanoseconds */
-	data->elapsed_time = (time * 1000) >> 12;
+	data->elapsed_time = tod_to_ns(time);
 
 	/* copy data to new structure */
 	data->ssch_rsch_count = cmb->ssch_rsch_count;
@@ -904,28 +859,27 @@ static int set_cmbe(struct ccw_device *cdev, u32 mme)
 	return set_schib_wait(cdev, mme, 1, mba);
 }
 
-
 static u64 read_cmbe(struct ccw_device *cdev, int index)
 {
-	struct cmbe *cmb;
 	struct cmb_data *cmb_data;
-	u32 val;
-	int ret;
 	unsigned long flags;
-
-	ret = cmf_cmb_copy_wait(cdev);
-	if (ret < 0)
-		return 0;
+	struct cmbe *cmb;
+	u64 ret = 0;
+	u32 val;
 
 	spin_lock_irqsave(cdev->ccwlock, flags);
 	cmb_data = cdev->private->cmb;
-	if (!cmb_data) {
-		ret = 0;
+	if (!cmb_data)
 		goto out;
-	}
-	cmb = cmb_data->last_block;
 
+	cmb = cmb_data->hw_block;
 	switch (index) {
+	case avg_utilization:
+		ret = __cmb_utilization(cmb->device_connect_time,
+					cmb->function_pending_time,
+					cmb->device_disconnect_time,
+					cdev->private->cmb_start_time);
+		goto out;
 	case cmb_ssch_rsch_count:
 		ret = cmb->ssch_rsch_count;
 		goto out;
@@ -954,7 +908,6 @@ static u64 read_cmbe(struct ccw_device *cdev, int index)
 		val = cmb->initial_command_response_time;
 		break;
 	default:
-		ret = 0;
 		goto out;
 	}
 	ret = time_to_avg_nsec(val, cmb->sample_count);
@@ -991,8 +944,7 @@ static int readall_cmbe(struct ccw_device *cdev, struct cmbdata *data)
 	/* we only know values before device_busy_time */
 	data->size = offsetof(struct cmbdata, device_busy_time);
 
-	/* conver to nanoseconds */
-	data->elapsed_time = (time * 1000) >> 12;
+	data->elapsed_time = tod_to_ns(time);
 
 	cmb = cmb_data->last_block;
 	/* copy data to new structure */
@@ -1045,19 +997,15 @@ static ssize_t cmb_show_avg_sample_interval(struct device *dev,
 					    struct device_attribute *attr,
 					    char *buf)
 {
-	struct ccw_device *cdev;
-	long interval;
+	struct ccw_device *cdev = to_ccwdev(dev);
 	unsigned long count;
-	struct cmb_data *cmb_data;
+	long interval;
 
-	cdev = to_ccwdev(dev);
 	count = cmf_read(cdev, cmb_sample_count);
 	spin_lock_irq(cdev->ccwlock);
-	cmb_data = cdev->private->cmb;
 	if (count) {
-		interval = cmb_data->last_update -
-			cdev->private->cmb_start_time;
-		interval = (interval * 1000) >> 12;
+		interval = get_tod_clock() - cdev->private->cmb_start_time;
+		interval = tod_to_ns(interval);
 		interval /= count;
 	} else
 		interval = -1;
@@ -1069,27 +1017,9 @@ static ssize_t cmb_show_avg_utilization(struct device *dev,
 					struct device_attribute *attr,
 					char *buf)
 {
-	struct cmbdata data;
-	u64 utilization;
-	unsigned long t, u;
-	int ret;
+	unsigned long u = cmf_read(to_ccwdev(dev), avg_utilization);
 
-	ret = cmf_readall(to_ccwdev(dev), &data);
-	if (ret == -EAGAIN || ret == -ENODEV)
-		/* No data (yet/currently) available to use for calculation. */
-		return sprintf(buf, "n/a\n");
-	else if (ret)
-		return ret;
-
-	utilization = data.device_connect_time +
-		      data.function_pending_time +
-		      data.device_disconnect_time;
-
-	/* calculate value in 0.1 percent units */
-	t = data.elapsed_time / 1000;
-	u = utilization / t;
-
-	return sprintf(buf, "%02ld.%01ld%%\n", u/ 10, u - (u/ 10) * 10);
+	return sprintf(buf, "%02lu.%01lu%%\n", u / 10, u % 10);
 }
 
 #define cmf_attr(name) \

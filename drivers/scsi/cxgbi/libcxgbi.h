@@ -187,6 +187,7 @@ enum cxgbi_sock_flags {
 	CTPF_HAS_ATID,		/* reserved atid */
 	CTPF_HAS_TID,		/* reserved hw tid */
 	CTPF_OFFLOAD_DOWN,	/* offload function off */
+	CTPF_LOGOUT_RSP_RCVD,   /* received logout response */
 };
 
 struct cxgbi_skb_rx_cb {
@@ -195,7 +196,8 @@ struct cxgbi_skb_rx_cb {
 };
 
 struct cxgbi_skb_tx_cb {
-	void *l2t;
+	void *handle;
+	void *arp_err_handler;
 	struct sk_buff *wr_next;
 };
 
@@ -215,13 +217,13 @@ enum cxgbi_skcb_flags {
 };
 
 struct cxgbi_skb_cb {
-	unsigned char ulp_mode;
-	unsigned long flags;
-	unsigned int seq;
 	union {
 		struct cxgbi_skb_rx_cb rx;
 		struct cxgbi_skb_tx_cb tx;
 	};
+	unsigned char ulp_mode;
+	unsigned long flags;
+	unsigned int seq;
 };
 
 #define CXGBI_SKB_CB(skb)	((struct cxgbi_skb_cb *)&((skb)->cb[0]))
@@ -374,11 +376,9 @@ static inline void cxgbi_sock_enqueue_wr(struct cxgbi_sock *csk,
 	cxgbi_skcb_tx_wr_next(skb) = NULL;
 	/*
 	 * We want to take an extra reference since both us and the driver
-	 * need to free the packet before it's really freed. We know there's
-	 * just one user currently so we use atomic_set rather than skb_get
-	 * to avoid the atomic op.
+	 * need to free the packet before it's really freed.
 	 */
-	atomic_set(&skb->users, 2);
+	skb_get(skb);
 
 	if (!csk->wr_pending_head)
 		csk->wr_pending_head = skb;
@@ -476,6 +476,7 @@ struct cxgbi_device {
 	unsigned int skb_rx_extra;	/* for msg coalesced mode */
 	unsigned int tx_max_size;
 	unsigned int rx_max_size;
+	unsigned int rxq_idx_cntr;
 	struct cxgbi_ports_map pmap;
 
 	void (*dev_ddp_cleanup)(struct cxgbi_device *);

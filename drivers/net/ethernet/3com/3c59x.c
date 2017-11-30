@@ -759,8 +759,8 @@ static int vortex_open(struct net_device *dev);
 static void mdio_sync(struct vortex_private *vp, int bits);
 static int mdio_read(struct net_device *dev, int phy_id, int location);
 static void mdio_write(struct net_device *vp, int phy_id, int location, int value);
-static void vortex_timer(unsigned long arg);
-static void rx_oom_timer(unsigned long arg);
+static void vortex_timer(struct timer_list *t);
+static void rx_oom_timer(struct timer_list *t);
 static netdev_tx_t vortex_start_xmit(struct sk_buff *skb,
 				     struct net_device *dev);
 static netdev_tx_t boomerang_start_xmit(struct sk_buff *skb,
@@ -900,7 +900,7 @@ static const struct dev_pm_ops vortex_pm_ops = {
 #endif /* !CONFIG_PM */
 
 #ifdef CONFIG_EISA
-static struct eisa_device_id vortex_eisa_ids[] = {
+static const struct eisa_device_id vortex_eisa_ids[] = {
 	{ "TCM5920", CH_3C592 },
 	{ "TCM5970", CH_3C597 },
 	{ "" }
@@ -1599,9 +1599,9 @@ vortex_up(struct net_device *dev)
 				dev->name, media_tbl[dev->if_port].name);
 	}
 
-	setup_timer(&vp->timer, vortex_timer, (unsigned long)dev);
+	timer_setup(&vp->timer, vortex_timer, 0);
 	mod_timer(&vp->timer, RUN_AT(media_tbl[dev->if_port].wait));
-	setup_timer(&vp->rx_oom_timer, rx_oom_timer, (unsigned long)dev);
+	timer_setup(&vp->rx_oom_timer, rx_oom_timer, 0);
 
 	if (vortex_debug > 1)
 		pr_debug("%s: Initial media type %s.\n",
@@ -1784,10 +1784,10 @@ out:
 }
 
 static void
-vortex_timer(unsigned long data)
+vortex_timer(struct timer_list *t)
 {
-	struct net_device *dev = (struct net_device *)data;
-	struct vortex_private *vp = netdev_priv(dev);
+	struct vortex_private *vp = from_timer(vp, t, timer);
+	struct net_device *dev = vp->mii.dev;
 	void __iomem *ioaddr = vp->ioaddr;
 	int next_tick = 60*HZ;
 	int ok = 0;
@@ -2628,9 +2628,8 @@ boomerang_rx(struct net_device *dev)
 				skb_reserve(skb, 2);	/* Align IP on 16 byte boundaries */
 				pci_dma_sync_single_for_cpu(VORTEX_PCI(vp), dma, PKT_BUF_SZ, PCI_DMA_FROMDEVICE);
 				/* 'skb_put()' points to the start of sk_buff data area. */
-				memcpy(skb_put(skb, pkt_len),
-					   vp->rx_skbuff[entry]->data,
-					   pkt_len);
+				skb_put_data(skb, vp->rx_skbuff[entry]->data,
+					     pkt_len);
 				pci_dma_sync_single_for_device(VORTEX_PCI(vp), dma, PKT_BUF_SZ, PCI_DMA_FROMDEVICE);
 				vp->rx_copy++;
 			} else {
@@ -2688,10 +2687,10 @@ boomerang_rx(struct net_device *dev)
  * for some memory.  Otherwise there is no way to restart the rx process.
  */
 static void
-rx_oom_timer(unsigned long arg)
+rx_oom_timer(struct timer_list *t)
 {
-	struct net_device *dev = (struct net_device *)arg;
-	struct vortex_private *vp = netdev_priv(dev);
+	struct vortex_private *vp = from_timer(vp, t, rx_oom_timer);
+	struct net_device *dev = vp->mii.dev;
 
 	spin_lock_irq(&vp->lock);
 	if ((vp->cur_rx - vp->dirty_rx) == RX_RING_SIZE)	/* This test is redundant, but makes me feel good */
@@ -2912,7 +2911,9 @@ static int vortex_get_link_ksettings(struct net_device *dev,
 {
 	struct vortex_private *vp = netdev_priv(dev);
 
-	return mii_ethtool_get_link_ksettings(&vp->mii, cmd);
+	mii_ethtool_get_link_ksettings(&vp->mii, cmd);
+
+	return 0;
 }
 
 static int vortex_set_link_ksettings(struct net_device *dev,

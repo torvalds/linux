@@ -134,8 +134,8 @@ static void ef4_tx_maybe_stop_queue(struct ef4_tx_queue *txq1)
 	 */
 	netif_tx_stop_queue(txq1->core_txq);
 	smp_mb();
-	txq1->old_read_count = ACCESS_ONCE(txq1->read_count);
-	txq2->old_read_count = ACCESS_ONCE(txq2->read_count);
+	txq1->old_read_count = READ_ONCE(txq1->read_count);
+	txq2->old_read_count = READ_ONCE(txq2->read_count);
 
 	fill_level = max(txq1->insert_count - txq1->old_read_count,
 			 txq2->insert_count - txq2->old_read_count);
@@ -425,24 +425,25 @@ void ef4_init_tx_queue_core_txq(struct ef4_tx_queue *tx_queue)
 				     efx->n_tx_channels : 0));
 }
 
-int ef4_setup_tc(struct net_device *net_dev, u32 handle, __be16 proto,
-		 struct tc_to_netdev *ntc)
+int ef4_setup_tc(struct net_device *net_dev, enum tc_setup_type type,
+		 void *type_data)
 {
 	struct ef4_nic *efx = netdev_priv(net_dev);
+	struct tc_mqprio_qopt *mqprio = type_data;
 	struct ef4_channel *channel;
 	struct ef4_tx_queue *tx_queue;
 	unsigned tc, num_tc;
 	int rc;
 
-	if (ntc->type != TC_SETUP_MQPRIO)
-		return -EINVAL;
+	if (type != TC_SETUP_QDISC_MQPRIO)
+		return -EOPNOTSUPP;
 
-	num_tc = ntc->mqprio->num_tc;
+	num_tc = mqprio->num_tc;
 
 	if (ef4_nic_rev(efx) < EF4_REV_FALCON_B0 || num_tc > EF4_MAX_TX_TC)
 		return -EINVAL;
 
-	ntc->mqprio->hw = TC_MQPRIO_HW_OFFLOAD_TCS;
+	mqprio->hw = TC_MQPRIO_HW_OFFLOAD_TCS;
 
 	if (num_tc == net_dev->num_tc)
 		return 0;
@@ -523,7 +524,7 @@ void ef4_xmit_done(struct ef4_tx_queue *tx_queue, unsigned int index)
 
 	/* Check whether the hardware queue is now empty */
 	if ((int)(tx_queue->read_count - tx_queue->old_write_count) >= 0) {
-		tx_queue->old_write_count = ACCESS_ONCE(tx_queue->write_count);
+		tx_queue->old_write_count = READ_ONCE(tx_queue->write_count);
 		if (tx_queue->read_count == tx_queue->old_write_count) {
 			smp_mb();
 			tx_queue->empty_read_count =

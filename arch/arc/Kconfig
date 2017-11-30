@@ -24,7 +24,7 @@ config ARC
 	select GENERIC_SMP_IDLE_THREAD
 	select HAVE_ARCH_KGDB
 	select HAVE_ARCH_TRACEHOOK
-	select HAVE_FUTEX_CMPXCHG
+	select HAVE_FUTEX_CMPXCHG if FUTEX
 	select HAVE_IOREMAP_PROT
 	select HAVE_KPROBES
 	select HAVE_KRETPROBES
@@ -39,7 +39,7 @@ config ARC
 	select OF
 	select OF_EARLY_FLATTREE
 	select OF_RESERVED_MEM
-	select PERF_USE_VMALLOC
+	select PERF_USE_VMALLOC if ARC_CACHE_VIPT_ALIASING
 	select HAVE_DEBUG_STACKOVERFLOW
 	select HAVE_GENERIC_DMA_COHERENT
 	select HAVE_KERNEL_GZIP
@@ -96,11 +96,11 @@ menu "ARC Architecture Configuration"
 
 menu "ARC Platform/SoC/Board"
 
-source "arch/arc/plat-sim/Kconfig"
 source "arch/arc/plat-tb10x/Kconfig"
 source "arch/arc/plat-axs10x/Kconfig"
 #New platform adds here
 source "arch/arc/plat-eznps/Kconfig"
+source "arch/arc/plat-hsdk/Kconfig"
 
 endmenu
 
@@ -298,7 +298,7 @@ config ARC_MMU_V1
 config ARC_MMU_V2
 	bool "MMU v2"
 	help
-	  Fixed the deficiency of v1 - possible thrashing in memcpy sceanrio
+	  Fixed the deficiency of v1 - possible thrashing in memcpy scenario
 	  when 2 D-TLB and 1 I-TLB entries index into same 2way set.
 
 config ARC_MMU_V3
@@ -371,7 +371,7 @@ config ARC_FPU_SAVE_RESTORE
 	bool "Enable FPU state persistence across context switch"
 	default n
 	help
-	  Double Precision Floating Point unit had dedictaed regs which
+	  Double Precision Floating Point unit had dedicated regs which
 	  need to be saved/restored across context-switch.
 	  Note that ARC FPU is overly simplistic, unlike say x86, which has
 	  hardware pieces to allow software to conditionally save/restore,
@@ -419,7 +419,7 @@ endif	# ISA_ARCV2
 endmenu   # "ARC CPU Configuration"
 
 config LINUX_LINK_BASE
-	hex "Linux Link Address"
+	hex "Kernel link address"
 	default "0x80000000"
 	help
 	  ARC700 divides the 32 bit phy address space into two equal halves
@@ -431,6 +431,14 @@ config LINUX_LINK_BASE
 	  Linux needs to be scooted a bit.
 	  If you don't know what the above means, leave this setting alone.
 	  This needs to match memory start address specified in Device Tree
+
+config LINUX_RAM_BASE
+	hex "RAM base address"
+	default LINUX_LINK_BASE
+	help
+	  By default Linux is linked at base of RAM. However in some special
+	  cases (such as HSDK), Linux can't be linked at start of DDR, hence
+	  this option.
 
 config HIGHMEM
 	bool "High Memory Support"
@@ -459,7 +467,7 @@ config ARC_PLAT_NEEDS_PHYS_TO_DMA
 	bool
 
 config ARC_KVADDR_SIZE
-	int "Kernel Virtaul Address Space size (MB)"
+	int "Kernel Virtual Address Space size (MB)"
 	range 0 512
 	default "256"
 	help

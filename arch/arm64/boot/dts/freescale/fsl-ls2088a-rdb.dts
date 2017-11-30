@@ -1,7 +1,8 @@
 /*
  * Device Tree file for Freescale LS2088A RDB Board.
  *
- * Copyright (C) 2016-17, Freescale Semiconductor
+ * Copyright 2016 Freescale Semiconductor, Inc.
+ * Copyright 2017 NXP
  *
  * Abhimanyu Saini <abhimanyu.saini@nxp.com>
  *
@@ -52,11 +53,6 @@
 / {
 	model = "Freescale Layerscape 2088A RDB Board";
 	compatible = "fsl,ls2088a-rdb", "fsl,ls2088a";
-
-	aliases {
-		serial0 = &serial0;
-		serial1 = &serial1;
-	};
 
 	chosen {
 		stdout-path = "serial1:115200n8";

@@ -79,7 +79,7 @@ cxgbit_ppod_init_idata(struct cxgbit_device *cdev, struct cxgbi_ppm *ppm,
 	if (!skb)
 		return NULL;
 
-	req = (struct ulp_mem_io *)__skb_put(skb, wr_len);
+	req = __skb_put(skb, wr_len);
 	INIT_ULPTX_WR(req, wr_len, 0, tid);
 	req->wr.wr_hi = htonl(FW_WR_OP_V(FW_ULPTX_WR) |
 		FW_WR_ATOMIC_V(0));
@@ -274,6 +274,14 @@ void cxgbit_release_cmd(struct iscsi_conn *conn, struct iscsi_cmd *cmd)
 			struct cxgbit_sock *csk = conn->context;
 			struct cxgbit_device *cdev = csk->com.cdev;
 			struct cxgbi_ppm *ppm = cdev2ppm(cdev);
+
+			/* Abort the TCP conn if DDP is not complete to
+			 * avoid any possibility of DDP after freeing
+			 * the cmd.
+			 */
+			if (unlikely(cmd->write_data_done !=
+				     cmd->se_cmd.data_length))
+				cxgbit_abort_conn(csk);
 
 			cxgbi_ppm_ppod_release(ppm, ttinfo->idx);
 

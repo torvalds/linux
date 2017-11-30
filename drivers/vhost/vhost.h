@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _VHOST_H
 #define _VHOST_H
 
@@ -31,7 +32,7 @@ struct vhost_work {
 struct vhost_poll {
 	poll_table                table;
 	wait_queue_head_t        *wqh;
-	wait_queue_t              wait;
+	wait_queue_entry_t              wait;
 	struct vhost_work	  work;
 	unsigned long		  mask;
 	struct vhost_dev	 *dev;
@@ -71,7 +72,7 @@ struct vhost_umem_node {
 };
 
 struct vhost_umem {
-	struct rb_root umem_tree;
+	struct rb_root_cached umem_tree;
 	struct list_head umem_list;
 	int numem;
 };
@@ -114,9 +115,6 @@ struct vhost_virtqueue {
 
 	/* Last index we used. */
 	u16 last_used_idx;
-
-	/* Last used evet we've seen */
-	u16 last_used_event;
 
 	/* Used flags */
 	u16 used_flags;

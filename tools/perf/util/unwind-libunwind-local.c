@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Post mortem Dwarf CFI based unwinding on top of regs and stack dumps.
  *
@@ -692,6 +693,17 @@ static int get_entries(struct unwind_info *ui, unwind_entry_cb_t cb,
 
 		while (!ret && (unw_step(&c) > 0) && i < max_stack) {
 			unw_get_reg(&c, UNW_REG_IP, &ips[i]);
+
+			/*
+			 * Decrement the IP for any non-activation frames.
+			 * this is required to properly find the srcline
+			 * for caller frames.
+			 * See also the documentation for dwfl_frame_pc(),
+			 * which this code tries to replicate.
+			 */
+			if (unw_is_signal_frame(&c) <= 0)
+				--ips[i];
+
 			++i;
 		}
 

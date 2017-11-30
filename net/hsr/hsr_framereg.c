@@ -158,9 +158,10 @@ struct hsr_node *hsr_add_node(struct list_head *node_db, unsigned char addr[],
 
 /* Get the hsr_node from which 'skb' was sent.
  */
-struct hsr_node *hsr_get_node(struct list_head *node_db, struct sk_buff *skb,
+struct hsr_node *hsr_get_node(struct hsr_port *port, struct sk_buff *skb,
 			      bool is_sup)
 {
+	struct list_head *node_db = &port->hsr->node_db;
 	struct hsr_node *node;
 	struct ethhdr *ethhdr;
 	u16 seq_out;
@@ -186,7 +187,11 @@ struct hsr_node *hsr_get_node(struct list_head *node_db, struct sk_buff *skb,
 		 */
 		seq_out = hsr_get_skb_sequence_nr(skb) - 1;
 	} else {
-		WARN_ONCE(1, "%s: Non-HSR frame\n", __func__);
+		/* this is called also for frames from master port and
+		 * so warn only for non master ports
+		 */
+		if (port->type != HSR_PT_MASTER)
+			WARN_ONCE(1, "%s: Non-HSR frame\n", __func__);
 		seq_out = HSR_SEQNR_START;
 	}
 
@@ -360,15 +365,13 @@ static struct hsr_port *get_late_port(struct hsr_priv *hsr,
 /* Remove stale sequence_nr records. Called by timer every
  * HSR_LIFE_CHECK_INTERVAL (two seconds or so).
  */
-void hsr_prune_nodes(unsigned long data)
+void hsr_prune_nodes(struct timer_list *t)
 {
-	struct hsr_priv *hsr;
+	struct hsr_priv *hsr = from_timer(hsr, t, prune_timer);
 	struct hsr_node *node;
 	struct hsr_port *port;
 	unsigned long timestamp;
 	unsigned long time_a, time_b;
-
-	hsr = (struct hsr_priv *) data;
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(node, &hsr->node_db, mac_list) {

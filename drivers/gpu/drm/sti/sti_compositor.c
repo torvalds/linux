@@ -129,7 +129,7 @@ static int sti_compositor_bind(struct device *dev,
 			}
 			break;
 		default:
-			DRM_ERROR("Unknown subdev compoment type\n");
+			DRM_ERROR("Unknown subdev component type\n");
 			return 1;
 		}
 

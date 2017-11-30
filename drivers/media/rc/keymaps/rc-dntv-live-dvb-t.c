@@ -55,10 +55,10 @@ static struct rc_map_table dntv_live_dvb_t[] = {
 
 static struct rc_map_list dntv_live_dvb_t_map = {
 	.map = {
-		.scan    = dntv_live_dvb_t,
-		.size    = ARRAY_SIZE(dntv_live_dvb_t),
-		.rc_type = RC_TYPE_UNKNOWN,	/* Legacy IR type */
-		.name    = RC_MAP_DNTV_LIVE_DVB_T,
+		.scan     = dntv_live_dvb_t,
+		.size     = ARRAY_SIZE(dntv_live_dvb_t),
+		.rc_proto = RC_PROTO_UNKNOWN,	/* Legacy IR type */
+		.name     = RC_MAP_DNTV_LIVE_DVB_T,
 	}
 };
 

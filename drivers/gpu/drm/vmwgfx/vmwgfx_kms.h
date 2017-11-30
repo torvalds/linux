@@ -256,10 +256,6 @@ int vmw_du_crtc_gamma_set(struct drm_crtc *crtc,
 			   u16 *r, u16 *g, u16 *b,
 			   uint32_t size,
 			   struct drm_modeset_acquire_ctx *ctx);
-int vmw_du_crtc_cursor_set2(struct drm_crtc *crtc, struct drm_file *file_priv,
-			    uint32_t handle, uint32_t width, uint32_t height,
-			    int32_t hot_x, int32_t hot_y);
-int vmw_du_crtc_cursor_move(struct drm_crtc *crtc, int x, int y);
 int vmw_du_connector_set_property(struct drm_connector *connector,
 				  struct drm_property *property,
 				  uint64_t val);
@@ -339,15 +335,6 @@ void vmw_kms_create_implicit_placement_property(struct vmw_private *dev_priv,
 /* Universal Plane Helpers */
 void vmw_du_primary_plane_destroy(struct drm_plane *plane);
 void vmw_du_cursor_plane_destroy(struct drm_plane *plane);
-int vmw_du_cursor_plane_disable(struct drm_plane *plane);
-int vmw_du_cursor_plane_update(struct drm_plane *plane,
-			       struct drm_crtc *crtc,
-			       struct drm_framebuffer *fb,
-			       int crtc_x, int crtc_y,
-			       unsigned int crtc_w,
-			       unsigned int crtc_h,
-			       uint32_t src_x, uint32_t src_y,
-			       uint32_t src_w, uint32_t src_h);
 
 /* Atomic Helpers */
 int vmw_du_primary_plane_atomic_check(struct drm_plane *plane,
@@ -356,8 +343,6 @@ int vmw_du_cursor_plane_atomic_check(struct drm_plane *plane,
 				     struct drm_plane_state *state);
 void vmw_du_cursor_plane_atomic_update(struct drm_plane *plane,
 				       struct drm_plane_state *old_state);
-void vmw_du_cursor_plane_atomic_disable(struct drm_plane *plane,
-					struct drm_plane_state *old_state);
 int vmw_du_cursor_plane_prepare_fb(struct drm_plane *plane,
 				   struct drm_plane_state *new_state);
 void vmw_du_plane_cleanup_fb(struct drm_plane *plane,
@@ -405,7 +390,6 @@ int vmw_kms_update_proxy(struct vmw_resource *res,
  * Screen Objects display functions - vmwgfx_scrn.c
  */
 int vmw_kms_sou_init_display(struct vmw_private *dev_priv);
-int vmw_kms_sou_close_display(struct vmw_private *dev_priv);
 int vmw_kms_sou_do_surface_dirty(struct vmw_private *dev_priv,
 				 struct vmw_framebuffer *framebuffer,
 				 struct drm_clip_rect *clips,
@@ -433,7 +417,6 @@ int vmw_kms_sou_readback(struct vmw_private *dev_priv,
  * Screen Target Display Unit functions - vmwgfx_stdu.c
  */
 int vmw_kms_stdu_init_display(struct vmw_private *dev_priv);
-int vmw_kms_stdu_close_display(struct vmw_private *dev_priv);
 int vmw_kms_stdu_surface_dirty(struct vmw_private *dev_priv,
 			       struct vmw_framebuffer *framebuffer,
 			       struct drm_clip_rect *clips,

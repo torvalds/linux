@@ -50,7 +50,7 @@ Arguments
 Description
 -----------
 
-This ioctl is for DVB devices only. To get events from a V4L2 decoder
+This ioctl is for Digital TV devices only. To get events from a V4L2 decoder
 use the V4L2 :ref:`VIDIOC_DQEVENT` ioctl instead.
 
 This ioctl call returns an event of type video_event if available. If

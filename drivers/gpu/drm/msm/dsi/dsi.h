@@ -17,9 +17,9 @@
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
 
-#include "drm_crtc.h"
-#include "drm_mipi_dsi.h"
-#include "drm_panel.h"
+#include <drm/drm_crtc.h>
+#include <drm/drm_mipi_dsi.h>
+#include <drm/drm_panel.h>
 
 #include "msm_drv.h"
 
@@ -179,6 +179,8 @@ void msm_dsi_host_destroy(struct mipi_dsi_host *host);
 int msm_dsi_host_modeset_init(struct mipi_dsi_host *host,
 					struct drm_device *dev);
 int msm_dsi_host_init(struct msm_dsi *msm_dsi);
+int msm_dsi_runtime_suspend(struct device *dev);
+int msm_dsi_runtime_resume(struct device *dev);
 
 /* dsi phy */
 struct msm_dsi_phy;

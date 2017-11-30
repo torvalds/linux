@@ -51,6 +51,7 @@
 #include <linux/kthread.h>
 #include <linux/tick.h>
 #include <linux/rcupdate_wait.h>
+#include <linux/sched/isolation.h>
 
 #define CREATE_TRACE_POINTS
 
@@ -62,7 +63,9 @@
 #define MODULE_PARAM_PREFIX "rcupdate."
 
 #ifndef CONFIG_TINY_RCU
+extern int rcu_expedited; /* from sysctl */
 module_param(rcu_expedited, int, 0);
+extern int rcu_normal; /* from sysctl */
 module_param(rcu_normal, int, 0);
 static int rcu_normal_after_boot;
 module_param(rcu_normal_after_boot, int, 0);
@@ -379,6 +382,7 @@ void __wait_rcu_gp(bool checktiny, int n, call_rcu_func_t *crcu_array,
 		   struct rcu_synchronize *rs_array)
 {
 	int i;
+	int j;
 
 	/* Initialize and register callbacks for each flavor specified. */
 	for (i = 0; i < n; i++) {
@@ -390,7 +394,11 @@ void __wait_rcu_gp(bool checktiny, int n, call_rcu_func_t *crcu_array,
 		}
 		init_rcu_head_on_stack(&rs_array[i].head);
 		init_completion(&rs_array[i].completion);
-		(crcu_array[i])(&rs_array[i].head, wakeme_after_rcu);
+		for (j = 0; j < i; j++)
+			if (crcu_array[j] == crcu_array[i])
+				break;
+		if (j == i)
+			(crcu_array[i])(&rs_array[i].head, wakeme_after_rcu);
 	}
 
 	/* Wait for all callbacks to be invoked. */
@@ -399,7 +407,11 @@ void __wait_rcu_gp(bool checktiny, int n, call_rcu_func_t *crcu_array,
 		    (crcu_array[i] == call_rcu ||
 		     crcu_array[i] == call_rcu_bh))
 			continue;
-		wait_for_completion(&rs_array[i].completion);
+		for (j = 0; j < i; j++)
+			if (crcu_array[j] == crcu_array[i])
+				break;
+		if (j == i)
+			wait_for_completion(&rs_array[i].completion);
 		destroy_rcu_head_on_stack(&rs_array[i].head);
 	}
 }
@@ -483,6 +495,7 @@ EXPORT_SYMBOL_GPL(do_trace_rcu_torture_read);
 #endif
 
 int rcu_cpu_stall_suppress __read_mostly; /* 1 = suppress stall warnings. */
+EXPORT_SYMBOL_GPL(rcu_cpu_stall_suppress);
 static int rcu_cpu_stall_timeout __read_mostly = CONFIG_RCU_CPU_STALL_TIMEOUT;
 
 module_param(rcu_cpu_stall_suppress, int, 0644);
@@ -557,24 +570,37 @@ static DECLARE_WAIT_QUEUE_HEAD(rcu_tasks_cbs_wq);
 static DEFINE_RAW_SPINLOCK(rcu_tasks_cbs_lock);
 
 /* Track exiting tasks in order to allow them to be waited for. */
-DEFINE_SRCU(tasks_rcu_exit_srcu);
+DEFINE_STATIC_SRCU(tasks_rcu_exit_srcu);
 
 /* Control stall timeouts.  Disable with <= 0, otherwise jiffies till stall. */
-static int rcu_task_stall_timeout __read_mostly = HZ * 60 * 10;
+#define RCU_TASK_STALL_TIMEOUT (HZ * 60 * 10)
+static int rcu_task_stall_timeout __read_mostly = RCU_TASK_STALL_TIMEOUT;
 module_param(rcu_task_stall_timeout, int, 0644);
 
-static void rcu_spawn_tasks_kthread(void);
 static struct task_struct *rcu_tasks_kthread_ptr;
 
-/*
- * Post an RCU-tasks callback.  First call must be from process context
- * after the scheduler if fully operational.
+/**
+ * call_rcu_tasks() - Queue an RCU for invocation task-based grace period
+ * @rhp: structure to be used for queueing the RCU updates.
+ * @func: actual callback function to be invoked after the grace period
+ *
+ * The callback function will be invoked some time after a full grace
+ * period elapses, in other words after all currently executing RCU
+ * read-side critical sections have completed. call_rcu_tasks() assumes
+ * that the read-side critical sections end at a voluntary context
+ * switch (not a preemption!), entry into idle, or transition to usermode
+ * execution.  As such, there are no read-side primitives analogous to
+ * rcu_read_lock() and rcu_read_unlock() because this primitive is intended
+ * to determine that all tasks have passed through a safe state, not so
+ * much for data-strcuture synchronization.
+ *
+ * See the description of call_rcu() for more detailed information on
+ * memory ordering guarantees.
  */
 void call_rcu_tasks(struct rcu_head *rhp, rcu_callback_t func)
 {
 	unsigned long flags;
 	bool needwake;
-	bool havetask = READ_ONCE(rcu_tasks_kthread_ptr);
 
 	rhp->next = NULL;
 	rhp->func = func;
@@ -584,11 +610,8 @@ void call_rcu_tasks(struct rcu_head *rhp, rcu_callback_t func)
 	rcu_tasks_cbs_tail = &rhp->next;
 	raw_spin_unlock_irqrestore(&rcu_tasks_cbs_lock, flags);
 	/* We can't create the thread unless interrupts are enabled. */
-	if ((needwake && havetask) ||
-	    (!havetask && !irqs_disabled_flags(flags))) {
-		rcu_spawn_tasks_kthread();
+	if (needwake && READ_ONCE(rcu_tasks_kthread_ptr))
 		wake_up(&rcu_tasks_cbs_wq);
-	}
 }
 EXPORT_SYMBOL_GPL(call_rcu_tasks);
 
@@ -692,7 +715,7 @@ static int __noreturn rcu_tasks_kthread(void *arg)
 	LIST_HEAD(rcu_tasks_holdouts);
 
 	/* Run on housekeeping CPUs by default.  Sysadm can move if desired. */
-	housekeeping_affine(current);
+	housekeeping_affine(current, HK_FLAG_RCU);
 
 	/*
 	 * Each pass through the following loop makes one check for
@@ -827,29 +850,53 @@ static int __noreturn rcu_tasks_kthread(void *arg)
 	}
 }
 
-/* Spawn rcu_tasks_kthread() at first call to call_rcu_tasks(). */
-static void rcu_spawn_tasks_kthread(void)
+/* Spawn rcu_tasks_kthread() at core_initcall() time. */
+static int __init rcu_spawn_tasks_kthread(void)
 {
-	static DEFINE_MUTEX(rcu_tasks_kthread_mutex);
 	struct task_struct *t;
 
-	if (READ_ONCE(rcu_tasks_kthread_ptr)) {
-		smp_mb(); /* Ensure caller sees full kthread. */
-		return;
-	}
-	mutex_lock(&rcu_tasks_kthread_mutex);
-	if (rcu_tasks_kthread_ptr) {
-		mutex_unlock(&rcu_tasks_kthread_mutex);
-		return;
-	}
 	t = kthread_run(rcu_tasks_kthread, NULL, "rcu_tasks_kthread");
 	BUG_ON(IS_ERR(t));
 	smp_mb(); /* Ensure others see full kthread. */
 	WRITE_ONCE(rcu_tasks_kthread_ptr, t);
-	mutex_unlock(&rcu_tasks_kthread_mutex);
+	return 0;
+}
+core_initcall(rcu_spawn_tasks_kthread);
+
+/* Do the srcu_read_lock() for the above synchronize_srcu().  */
+void exit_tasks_rcu_start(void)
+{
+	preempt_disable();
+	current->rcu_tasks_idx = __srcu_read_lock(&tasks_rcu_exit_srcu);
+	preempt_enable();
+}
+
+/* Do the srcu_read_unlock() for the above synchronize_srcu().  */
+void exit_tasks_rcu_finish(void)
+{
+	preempt_disable();
+	__srcu_read_unlock(&tasks_rcu_exit_srcu, current->rcu_tasks_idx);
+	preempt_enable();
 }
 
 #endif /* #ifdef CONFIG_TASKS_RCU */
+
+#ifndef CONFIG_TINY_RCU
+
+/*
+ * Print any non-default Tasks RCU settings.
+ */
+static void __init rcu_tasks_bootup_oddness(void)
+{
+#ifdef CONFIG_TASKS_RCU
+	if (rcu_task_stall_timeout != RCU_TASK_STALL_TIMEOUT)
+		pr_info("\tTasks-RCU CPU stall warnings timeout set to %d (rcu_task_stall_timeout).\n", rcu_task_stall_timeout);
+	else
+		pr_info("\tTasks RCU enabled.\n");
+#endif /* #ifdef CONFIG_TASKS_RCU */
+}
+
+#endif /* #ifndef CONFIG_TINY_RCU */
 
 #ifdef CONFIG_PROVE_RCU
 
@@ -935,3 +982,25 @@ late_initcall(rcu_verify_early_boot_tests);
 #else
 void rcu_early_boot_tests(void) {}
 #endif /* CONFIG_PROVE_RCU */
+
+#ifndef CONFIG_TINY_RCU
+
+/*
+ * Print any significant non-default boot-time settings.
+ */
+void __init rcupdate_announce_bootup_oddness(void)
+{
+	if (rcu_normal)
+		pr_info("\tNo expedited grace period (rcu_normal).\n");
+	else if (rcu_normal_after_boot)
+		pr_info("\tNo expedited grace period (rcu_normal_after_boot).\n");
+	else if (rcu_expedited)
+		pr_info("\tAll grace periods are expedited (rcu_expedited).\n");
+	if (rcu_cpu_stall_suppress)
+		pr_info("\tRCU CPU stall warnings suppressed (rcu_cpu_stall_suppress).\n");
+	if (rcu_cpu_stall_timeout != CONFIG_RCU_CPU_STALL_TIMEOUT)
+		pr_info("\tRCU CPU stall warnings timeout set to %d (rcu_cpu_stall_timeout).\n", rcu_cpu_stall_timeout);
+	rcu_tasks_bootup_oddness();
+}
+
+#endif /* #ifndef CONFIG_TINY_RCU */

@@ -118,6 +118,7 @@
 #define WINCONx_ENWIN_F			(1 << 0)
 
 /* SHADOWCON */
+#define SHADOWCON_PROTECT_MASK		GENMASK(14, 10)
 #define SHADOWCON_Wx_PROTECT(n)		(1 << (10 + (n)))
 
 /* VIDOSDxD */

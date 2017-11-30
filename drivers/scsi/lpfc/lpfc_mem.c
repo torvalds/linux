@@ -97,8 +97,8 @@ lpfc_mem_alloc(struct lpfc_hba *phba, int align)
 			i = SLI4_PAGE_SIZE;
 
 		phba->lpfc_sg_dma_buf_pool =
-			pci_pool_create("lpfc_sg_dma_buf_pool",
-					phba->pcidev,
+			dma_pool_create("lpfc_sg_dma_buf_pool",
+					&phba->pcidev->dev,
 					phba->cfg_sg_dma_buf_size,
 					i, 0);
 		if (!phba->lpfc_sg_dma_buf_pool)
@@ -106,15 +106,15 @@ lpfc_mem_alloc(struct lpfc_hba *phba, int align)
 
 	} else {
 		phba->lpfc_sg_dma_buf_pool =
-			pci_pool_create("lpfc_sg_dma_buf_pool",
-					phba->pcidev, phba->cfg_sg_dma_buf_size,
+			dma_pool_create("lpfc_sg_dma_buf_pool",
+					&phba->pcidev->dev, phba->cfg_sg_dma_buf_size,
 					align, 0);
 
 		if (!phba->lpfc_sg_dma_buf_pool)
 			goto fail;
 	}
 
-	phba->lpfc_mbuf_pool = pci_pool_create("lpfc_mbuf_pool", phba->pcidev,
+	phba->lpfc_mbuf_pool = dma_pool_create("lpfc_mbuf_pool", &phba->pcidev->dev,
 							LPFC_BPL_SIZE,
 							align, 0);
 	if (!phba->lpfc_mbuf_pool)
@@ -128,7 +128,7 @@ lpfc_mem_alloc(struct lpfc_hba *phba, int align)
 	pool->max_count = 0;
 	pool->current_count = 0;
 	for ( i = 0; i < LPFC_MBUF_POOL_SIZE; i++) {
-		pool->elements[i].virt = pci_pool_alloc(phba->lpfc_mbuf_pool,
+		pool->elements[i].virt = dma_pool_alloc(phba->lpfc_mbuf_pool,
 				       GFP_KERNEL, &pool->elements[i].phys);
 		if (!pool->elements[i].virt)
 			goto fail_free_mbuf_pool;
@@ -152,21 +152,21 @@ lpfc_mem_alloc(struct lpfc_hba *phba, int align)
 						sizeof(struct lpfc_node_rrq));
 		if (!phba->rrq_pool)
 			goto fail_free_nlp_mem_pool;
-		phba->lpfc_hrb_pool = pci_pool_create("lpfc_hrb_pool",
-					      phba->pcidev,
+		phba->lpfc_hrb_pool = dma_pool_create("lpfc_hrb_pool",
+					      &phba->pcidev->dev,
 					      LPFC_HDR_BUF_SIZE, align, 0);
 		if (!phba->lpfc_hrb_pool)
 			goto fail_free_rrq_mem_pool;
 
-		phba->lpfc_drb_pool = pci_pool_create("lpfc_drb_pool",
-					      phba->pcidev,
+		phba->lpfc_drb_pool = dma_pool_create("lpfc_drb_pool",
+					      &phba->pcidev->dev,
 					      LPFC_DATA_BUF_SIZE, align, 0);
 		if (!phba->lpfc_drb_pool)
 			goto fail_free_hrb_pool;
 		phba->lpfc_hbq_pool = NULL;
 	} else {
-		phba->lpfc_hbq_pool = pci_pool_create("lpfc_hbq_pool",
-			phba->pcidev, LPFC_BPL_SIZE, align, 0);
+		phba->lpfc_hbq_pool = dma_pool_create("lpfc_hbq_pool",
+			&phba->pcidev->dev, LPFC_BPL_SIZE, align, 0);
 		if (!phba->lpfc_hbq_pool)
 			goto fail_free_nlp_mem_pool;
 		phba->lpfc_hrb_pool = NULL;
@@ -185,10 +185,10 @@ lpfc_mem_alloc(struct lpfc_hba *phba, int align)
 
 	return 0;
 fail_free_drb_pool:
-	pci_pool_destroy(phba->lpfc_drb_pool);
+	dma_pool_destroy(phba->lpfc_drb_pool);
 	phba->lpfc_drb_pool = NULL;
  fail_free_hrb_pool:
-	pci_pool_destroy(phba->lpfc_hrb_pool);
+	dma_pool_destroy(phba->lpfc_hrb_pool);
 	phba->lpfc_hrb_pool = NULL;
  fail_free_rrq_mem_pool:
 	mempool_destroy(phba->rrq_pool);
@@ -201,17 +201,32 @@ fail_free_drb_pool:
 	phba->mbox_mem_pool = NULL;
  fail_free_mbuf_pool:
 	while (i--)
-		pci_pool_free(phba->lpfc_mbuf_pool, pool->elements[i].virt,
+		dma_pool_free(phba->lpfc_mbuf_pool, pool->elements[i].virt,
 						 pool->elements[i].phys);
 	kfree(pool->elements);
  fail_free_lpfc_mbuf_pool:
-	pci_pool_destroy(phba->lpfc_mbuf_pool);
+	dma_pool_destroy(phba->lpfc_mbuf_pool);
 	phba->lpfc_mbuf_pool = NULL;
  fail_free_dma_buf_pool:
-	pci_pool_destroy(phba->lpfc_sg_dma_buf_pool);
+	dma_pool_destroy(phba->lpfc_sg_dma_buf_pool);
 	phba->lpfc_sg_dma_buf_pool = NULL;
  fail:
 	return -ENOMEM;
+}
+
+int
+lpfc_nvmet_mem_alloc(struct lpfc_hba *phba)
+{
+	phba->lpfc_nvmet_drb_pool =
+		dma_pool_create("lpfc_nvmet_drb_pool",
+				&phba->pcidev->dev, LPFC_NVMET_DATA_BUF_SIZE,
+				SGL_ALIGN_SZ, 0);
+	if (!phba->lpfc_nvmet_drb_pool) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+				"6024 Can't enable NVME Target - no memory\n");
+		return -ENOMEM;
+	}
+	return 0;
 }
 
 /**
@@ -232,18 +247,21 @@ lpfc_mem_free(struct lpfc_hba *phba)
 
 	/* Free HBQ pools */
 	lpfc_sli_hbqbuf_free_all(phba);
+	if (phba->lpfc_nvmet_drb_pool)
+		dma_pool_destroy(phba->lpfc_nvmet_drb_pool);
+	phba->lpfc_nvmet_drb_pool = NULL;
 	if (phba->lpfc_drb_pool)
-		pci_pool_destroy(phba->lpfc_drb_pool);
+		dma_pool_destroy(phba->lpfc_drb_pool);
 	phba->lpfc_drb_pool = NULL;
 	if (phba->lpfc_hrb_pool)
-		pci_pool_destroy(phba->lpfc_hrb_pool);
+		dma_pool_destroy(phba->lpfc_hrb_pool);
 	phba->lpfc_hrb_pool = NULL;
 	if (phba->txrdy_payload_pool)
-		pci_pool_destroy(phba->txrdy_payload_pool);
+		dma_pool_destroy(phba->txrdy_payload_pool);
 	phba->txrdy_payload_pool = NULL;
 
 	if (phba->lpfc_hbq_pool)
-		pci_pool_destroy(phba->lpfc_hbq_pool);
+		dma_pool_destroy(phba->lpfc_hbq_pool);
 	phba->lpfc_hbq_pool = NULL;
 
 	if (phba->rrq_pool)
@@ -264,15 +282,15 @@ lpfc_mem_free(struct lpfc_hba *phba)
 
 	/* Free MBUF memory pool */
 	for (i = 0; i < pool->current_count; i++)
-		pci_pool_free(phba->lpfc_mbuf_pool, pool->elements[i].virt,
+		dma_pool_free(phba->lpfc_mbuf_pool, pool->elements[i].virt,
 			      pool->elements[i].phys);
 	kfree(pool->elements);
 
-	pci_pool_destroy(phba->lpfc_mbuf_pool);
+	dma_pool_destroy(phba->lpfc_mbuf_pool);
 	phba->lpfc_mbuf_pool = NULL;
 
 	/* Free DMA buffer memory pool */
-	pci_pool_destroy(phba->lpfc_sg_dma_buf_pool);
+	dma_pool_destroy(phba->lpfc_sg_dma_buf_pool);
 	phba->lpfc_sg_dma_buf_pool = NULL;
 
 	/* Free Device Data memory pool */
@@ -361,7 +379,7 @@ lpfc_mem_free_all(struct lpfc_hba *phba)
  * @handle: used to return the DMA-mapped address of the mbuf
  *
  * Description: Allocates a DMA-mapped buffer from the lpfc_mbuf_pool PCI pool.
- * Allocates from generic pci_pool_alloc function first and if that fails and
+ * Allocates from generic dma_pool_alloc function first and if that fails and
  * mem_flags has MEM_PRI set (the only defined flag), returns an mbuf from the
  * HBA's pool.
  *
@@ -379,7 +397,7 @@ lpfc_mbuf_alloc(struct lpfc_hba *phba, int mem_flags, dma_addr_t *handle)
 	unsigned long iflags;
 	void *ret;
 
-	ret = pci_pool_alloc(phba->lpfc_mbuf_pool, GFP_KERNEL, handle);
+	ret = dma_pool_alloc(phba->lpfc_mbuf_pool, GFP_KERNEL, handle);
 
 	spin_lock_irqsave(&phba->hbalock, iflags);
 	if (!ret && (mem_flags & MEM_PRI) && pool->current_count) {
@@ -415,7 +433,7 @@ __lpfc_mbuf_free(struct lpfc_hba * phba, void *virt, dma_addr_t dma)
 		pool->elements[pool->current_count].phys = dma;
 		pool->current_count++;
 	} else {
-		pci_pool_free(phba->lpfc_mbuf_pool, virt, dma);
+		dma_pool_free(phba->lpfc_mbuf_pool, virt, dma);
 	}
 	return;
 }
@@ -452,7 +470,7 @@ lpfc_mbuf_free(struct lpfc_hba * phba, void *virt, dma_addr_t dma)
  * @handle: used to return the DMA-mapped address of the nvmet_buf
  *
  * Description: Allocates a DMA-mapped buffer from the lpfc_sg_dma_buf_pool
- * PCI pool.  Allocates from generic pci_pool_alloc function.
+ * PCI pool.  Allocates from generic dma_pool_alloc function.
  *
  * Returns:
  *   pointer to the allocated nvmet_buf on success
@@ -463,7 +481,7 @@ lpfc_nvmet_buf_alloc(struct lpfc_hba *phba, int mem_flags, dma_addr_t *handle)
 {
 	void *ret;
 
-	ret = pci_pool_alloc(phba->lpfc_sg_dma_buf_pool, GFP_KERNEL, handle);
+	ret = dma_pool_alloc(phba->lpfc_sg_dma_buf_pool, GFP_KERNEL, handle);
 	return ret;
 }
 
@@ -479,7 +497,7 @@ lpfc_nvmet_buf_alloc(struct lpfc_hba *phba, int mem_flags, dma_addr_t *handle)
 void
 lpfc_nvmet_buf_free(struct lpfc_hba *phba, void *virt, dma_addr_t dma)
 {
-	pci_pool_free(phba->lpfc_sg_dma_buf_pool, virt, dma);
+	dma_pool_free(phba->lpfc_sg_dma_buf_pool, virt, dma);
 }
 
 /**
@@ -504,7 +522,7 @@ lpfc_els_hbq_alloc(struct lpfc_hba *phba)
 	if (!hbqbp)
 		return NULL;
 
-	hbqbp->dbuf.virt = pci_pool_alloc(phba->lpfc_hbq_pool, GFP_KERNEL,
+	hbqbp->dbuf.virt = dma_pool_alloc(phba->lpfc_hbq_pool, GFP_KERNEL,
 					  &hbqbp->dbuf.phys);
 	if (!hbqbp->dbuf.virt) {
 		kfree(hbqbp);
@@ -529,7 +547,7 @@ lpfc_els_hbq_alloc(struct lpfc_hba *phba)
 void
 lpfc_els_hbq_free(struct lpfc_hba *phba, struct hbq_dmabuf *hbqbp)
 {
-	pci_pool_free(phba->lpfc_hbq_pool, hbqbp->dbuf.virt, hbqbp->dbuf.phys);
+	dma_pool_free(phba->lpfc_hbq_pool, hbqbp->dbuf.virt, hbqbp->dbuf.phys);
 	kfree(hbqbp);
 	return;
 }
@@ -556,16 +574,16 @@ lpfc_sli4_rb_alloc(struct lpfc_hba *phba)
 	if (!dma_buf)
 		return NULL;
 
-	dma_buf->hbuf.virt = pci_pool_alloc(phba->lpfc_hrb_pool, GFP_KERNEL,
+	dma_buf->hbuf.virt = dma_pool_alloc(phba->lpfc_hrb_pool, GFP_KERNEL,
 					    &dma_buf->hbuf.phys);
 	if (!dma_buf->hbuf.virt) {
 		kfree(dma_buf);
 		return NULL;
 	}
-	dma_buf->dbuf.virt = pci_pool_alloc(phba->lpfc_drb_pool, GFP_KERNEL,
+	dma_buf->dbuf.virt = dma_pool_alloc(phba->lpfc_drb_pool, GFP_KERNEL,
 					    &dma_buf->dbuf.phys);
 	if (!dma_buf->dbuf.virt) {
-		pci_pool_free(phba->lpfc_hrb_pool, dma_buf->hbuf.virt,
+		dma_pool_free(phba->lpfc_hrb_pool, dma_buf->hbuf.virt,
 			      dma_buf->hbuf.phys);
 		kfree(dma_buf);
 		return NULL;
@@ -589,8 +607,8 @@ lpfc_sli4_rb_alloc(struct lpfc_hba *phba)
 void
 lpfc_sli4_rb_free(struct lpfc_hba *phba, struct hbq_dmabuf *dmab)
 {
-	pci_pool_free(phba->lpfc_hrb_pool, dmab->hbuf.virt, dmab->hbuf.phys);
-	pci_pool_free(phba->lpfc_drb_pool, dmab->dbuf.virt, dmab->dbuf.phys);
+	dma_pool_free(phba->lpfc_hrb_pool, dmab->hbuf.virt, dmab->hbuf.phys);
+	dma_pool_free(phba->lpfc_drb_pool, dmab->dbuf.virt, dmab->dbuf.phys);
 	kfree(dmab);
 }
 
@@ -611,82 +629,26 @@ struct rqb_dmabuf *
 lpfc_sli4_nvmet_alloc(struct lpfc_hba *phba)
 {
 	struct rqb_dmabuf *dma_buf;
-	struct lpfc_iocbq *nvmewqe;
-	union lpfc_wqe128 *wqe;
 
 	dma_buf = kzalloc(sizeof(struct rqb_dmabuf), GFP_KERNEL);
 	if (!dma_buf)
 		return NULL;
 
-	dma_buf->hbuf.virt = pci_pool_alloc(phba->lpfc_hrb_pool, GFP_KERNEL,
+	dma_buf->hbuf.virt = dma_pool_alloc(phba->lpfc_hrb_pool, GFP_KERNEL,
 					    &dma_buf->hbuf.phys);
 	if (!dma_buf->hbuf.virt) {
 		kfree(dma_buf);
 		return NULL;
 	}
-	dma_buf->dbuf.virt = pci_pool_alloc(phba->lpfc_drb_pool, GFP_KERNEL,
-					    &dma_buf->dbuf.phys);
+	dma_buf->dbuf.virt = dma_pool_alloc(phba->lpfc_nvmet_drb_pool,
+					    GFP_KERNEL, &dma_buf->dbuf.phys);
 	if (!dma_buf->dbuf.virt) {
-		pci_pool_free(phba->lpfc_hrb_pool, dma_buf->hbuf.virt,
+		dma_pool_free(phba->lpfc_hrb_pool, dma_buf->hbuf.virt,
 			      dma_buf->hbuf.phys);
 		kfree(dma_buf);
 		return NULL;
 	}
-	dma_buf->total_size = LPFC_DATA_BUF_SIZE;
-
-	dma_buf->context = kzalloc(sizeof(struct lpfc_nvmet_rcv_ctx),
-				   GFP_KERNEL);
-	if (!dma_buf->context) {
-		pci_pool_free(phba->lpfc_drb_pool, dma_buf->dbuf.virt,
-			      dma_buf->dbuf.phys);
-		pci_pool_free(phba->lpfc_hrb_pool, dma_buf->hbuf.virt,
-			      dma_buf->hbuf.phys);
-		kfree(dma_buf);
-		return NULL;
-	}
-
-	dma_buf->iocbq = lpfc_sli_get_iocbq(phba);
-	if (!dma_buf->iocbq) {
-		kfree(dma_buf->context);
-		pci_pool_free(phba->lpfc_drb_pool, dma_buf->dbuf.virt,
-			      dma_buf->dbuf.phys);
-		pci_pool_free(phba->lpfc_hrb_pool, dma_buf->hbuf.virt,
-			      dma_buf->hbuf.phys);
-		kfree(dma_buf);
-		lpfc_printf_log(phba, KERN_ERR, LOG_NVME,
-				"2621 Ran out of nvmet iocb/WQEs\n");
-		return NULL;
-	}
-	dma_buf->iocbq->iocb_flag = LPFC_IO_NVMET;
-	nvmewqe = dma_buf->iocbq;
-	wqe = (union lpfc_wqe128 *)&nvmewqe->wqe;
-	/* Initialize WQE */
-	memset(wqe, 0, sizeof(union lpfc_wqe));
-	/* Word 7 */
-	bf_set(wqe_ct, &wqe->generic.wqe_com, SLI4_CT_RPI);
-	bf_set(wqe_class, &wqe->generic.wqe_com, CLASS3);
-	bf_set(wqe_pu, &wqe->generic.wqe_com, 1);
-	/* Word 10 */
-	bf_set(wqe_nvme, &wqe->fcp_tsend.wqe_com, 1);
-	bf_set(wqe_ebde_cnt, &wqe->generic.wqe_com, 0);
-	bf_set(wqe_qosd, &wqe->generic.wqe_com, 0);
-
-	dma_buf->iocbq->context1 = NULL;
-	spin_lock(&phba->sli4_hba.sgl_list_lock);
-	dma_buf->sglq = __lpfc_sli_get_nvmet_sglq(phba, dma_buf->iocbq);
-	spin_unlock(&phba->sli4_hba.sgl_list_lock);
-	if (!dma_buf->sglq) {
-		lpfc_sli_release_iocbq(phba, dma_buf->iocbq);
-		kfree(dma_buf->context);
-		pci_pool_free(phba->lpfc_drb_pool, dma_buf->dbuf.virt,
-			      dma_buf->dbuf.phys);
-		pci_pool_free(phba->lpfc_hrb_pool, dma_buf->hbuf.virt,
-			      dma_buf->hbuf.phys);
-		kfree(dma_buf);
-		lpfc_printf_log(phba, KERN_ERR, LOG_NVME,
-				"6132 Ran out of nvmet XRIs\n");
-		return NULL;
-	}
+	dma_buf->total_size = LPFC_NVMET_DATA_BUF_SIZE;
 	return dma_buf;
 }
 
@@ -705,20 +667,9 @@ lpfc_sli4_nvmet_alloc(struct lpfc_hba *phba)
 void
 lpfc_sli4_nvmet_free(struct lpfc_hba *phba, struct rqb_dmabuf *dmab)
 {
-	unsigned long flags;
-
-	__lpfc_clear_active_sglq(phba, dmab->sglq->sli4_lxritag);
-	dmab->sglq->state = SGL_FREED;
-	dmab->sglq->ndlp = NULL;
-
-	spin_lock_irqsave(&phba->sli4_hba.sgl_list_lock, flags);
-	list_add_tail(&dmab->sglq->list, &phba->sli4_hba.lpfc_nvmet_sgl_list);
-	spin_unlock_irqrestore(&phba->sli4_hba.sgl_list_lock, flags);
-
-	lpfc_sli_release_iocbq(phba, dmab->iocbq);
-	kfree(dmab->context);
-	pci_pool_free(phba->lpfc_hrb_pool, dmab->hbuf.virt, dmab->hbuf.phys);
-	pci_pool_free(phba->lpfc_drb_pool, dmab->dbuf.virt, dmab->dbuf.phys);
+	dma_pool_free(phba->lpfc_hrb_pool, dmab->hbuf.virt, dmab->hbuf.phys);
+	dma_pool_free(phba->lpfc_nvmet_drb_pool,
+		      dmab->dbuf.virt, dmab->dbuf.phys);
 	kfree(dmab);
 }
 
@@ -803,6 +754,11 @@ lpfc_rq_buf_free(struct lpfc_hba *phba, struct lpfc_dmabuf *mp)
 	rc = lpfc_sli4_rq_put(rqb_entry->hrq, rqb_entry->drq, &hrqe, &drqe);
 	if (rc < 0) {
 		(rqbp->rqb_free_buffer)(phba, rqb_entry);
+		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+				"6409 Cannot post to RQ %d: %x %x\n",
+				rqb_entry->hrq->queue_id,
+				rqb_entry->hrq->host_index,
+				rqb_entry->hrq->hba_index);
 	} else {
 		list_add_tail(&rqb_entry->hbuf.list, &rqbp->rqb_buffer_list);
 		rqbp->buffer_count++;

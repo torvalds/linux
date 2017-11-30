@@ -32,8 +32,6 @@
 
 #include <linux/mfd/twl6040.h>
 
-static struct gpio_chip twl6040gpo_chip;
-
 static int twl6040gpo_get(struct gpio_chip *chip, unsigned offset)
 {
 	struct twl6040 *twl6040 = dev_get_drvdata(chip->parent->parent);

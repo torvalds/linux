@@ -272,11 +272,9 @@ static ssize_t ad7791_write_frequency(struct device *dev,
 	struct ad7791_state *st = iio_priv(indio_dev);
 	int i, ret;
 
-	for (i = 0; i < ARRAY_SIZE(ad7791_sample_freq_avail); i++)
-		if (sysfs_streq(ad7791_sample_freq_avail[i], buf))
-			break;
-	if (i == ARRAY_SIZE(ad7791_sample_freq_avail))
-		return -EINVAL;
+	i = sysfs_match_string(ad7791_sample_freq_avail, buf);
+	if (i < 0)
+		return i;
 
 	ret = iio_device_claim_direct_mode(indio_dev);
 	if (ret)
@@ -310,13 +308,11 @@ static const struct iio_info ad7791_info = {
 	.read_raw = &ad7791_read_raw,
 	.attrs = &ad7791_attribute_group,
 	.validate_trigger = ad_sd_validate_trigger,
-	.driver_module = THIS_MODULE,
 };
 
 static const struct iio_info ad7791_no_filter_info = {
 	.read_raw = &ad7791_read_raw,
 	.validate_trigger = ad_sd_validate_trigger,
-	.driver_module = THIS_MODULE,
 };
 
 static int ad7791_setup(struct ad7791_state *st,

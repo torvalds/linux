@@ -62,32 +62,36 @@
 			status = "okay";
 		};
 
-		nand0: nand@40000000 {
-			nand-bus-width = <8>;
-			nand-ecc-mode = "soft";
-			nand-on-flash-bbt;
-			status = "okay";
+		ebi: ebi@10000000 {
+			nand_controller: nand-controller {
+				nand: nand@3 {
+					partitions {
+						bootstrap@0 {
+							label = "bootstrap";
+							reg = <0x0 0x40000>;
+						};
 
-			bootstrap@0 {
-				label = "bootstrap";
-				reg = <0x0 0x40000>;
-			};
+						uboot@40000 {
+							label = "uboot";
+							reg = <0x40000 0x80000>;
+						};
 
-			uboot@40000 {
-				label = "uboot";
-				reg = <0x40000 0x80000>;
-			};
-			ubootenv@c0000 {
-				label = "ubootenv";
-				reg = <0xc0000 0x40000>;
-			};
-			kernel@100000 {
-				label = "kernel";
-				reg = <0x100000 0x400000>;
-			};
-			rootfs@500000 {
-				label = "rootfs";
-				reg = <0x500000 0x7b00000>;
+						ubootenv@c0000 {
+							label = "ubootenv";
+							reg = <0xc0000 0x40000>;
+						};
+
+						kernel@100000 {
+							label = "kernel";
+							reg = <0x100000 0x400000>;
+						};
+
+						rootfs@500000 {
+							label = "rootfs";
+							reg = <0x500000 0x7b00000>;
+						};
+					};
+				};
 			};
 		};
 	};

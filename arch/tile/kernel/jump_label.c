@@ -45,14 +45,12 @@ static void __jump_label_transform(struct jump_entry *e,
 void arch_jump_label_transform(struct jump_entry *e,
 				enum jump_label_type type)
 {
-	get_online_cpus();
 	mutex_lock(&text_mutex);
 
 	__jump_label_transform(e, type);
 	flush_icache_range(e->code, e->code + sizeof(tilegx_bundle_bits));
 
 	mutex_unlock(&text_mutex);
-	put_online_cpus();
 }
 
 __init_or_module void arch_jump_label_transform_static(struct jump_entry *e,

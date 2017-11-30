@@ -138,7 +138,7 @@ static ssize_t wl1271_sysfs_read_fwlog(struct file *filp, struct kobject *kobj,
 	return len;
 }
 
-static struct bin_attribute fwlog_attr = {
+static const struct bin_attribute fwlog_attr = {
 	.attr = {.name = "fwlog", .mode = S_IRUSR},
 	.read = wl1271_sysfs_read_fwlog,
 };

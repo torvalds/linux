@@ -22,7 +22,7 @@ static int midi_playback_open(struct snd_rawmidi_substream *substream)
 	ff->running_status[substream->number] = 0;
 	ff->rx_midi_error[substream->number] = false;
 
-	ACCESS_ONCE(ff->rx_midi_substreams[substream->number]) = substream;
+	WRITE_ONCE(ff->rx_midi_substreams[substream->number], substream);
 
 	return 0;
 }
@@ -38,7 +38,7 @@ static int midi_playback_close(struct snd_rawmidi_substream *substream)
 	struct snd_ff *ff = substream->rmidi->private_data;
 
 	cancel_work_sync(&ff->rx_midi_work[substream->number]);
-	ACCESS_ONCE(ff->rx_midi_substreams[substream->number]) = NULL;
+	WRITE_ONCE(ff->rx_midi_substreams[substream->number], NULL);
 
 	return 0;
 }
@@ -52,10 +52,10 @@ static void midi_capture_trigger(struct snd_rawmidi_substream *substream,
 	spin_lock_irqsave(&ff->lock, flags);
 
 	if (up)
-		ACCESS_ONCE(ff->tx_midi_substreams[substream->number]) =
-								substream;
+		WRITE_ONCE(ff->tx_midi_substreams[substream->number],
+			   substream);
 	else
-		ACCESS_ONCE(ff->tx_midi_substreams[substream->number]) = NULL;
+		WRITE_ONCE(ff->tx_midi_substreams[substream->number], NULL);
 
 	spin_unlock_irqrestore(&ff->lock, flags);
 }
@@ -74,18 +74,6 @@ static void midi_playback_trigger(struct snd_rawmidi_substream *substream,
 	spin_unlock_irqrestore(&ff->lock, flags);
 }
 
-static struct snd_rawmidi_ops midi_capture_ops = {
-	.open		= midi_capture_open,
-	.close		= midi_capture_close,
-	.trigger	= midi_capture_trigger,
-};
-
-static struct snd_rawmidi_ops midi_playback_ops = {
-	.open		= midi_playback_open,
-	.close		= midi_playback_close,
-	.trigger	= midi_playback_trigger,
-};
-
 static void set_midi_substream_names(struct snd_rawmidi_str *stream,
 				     const char *const name)
 {
@@ -99,6 +87,16 @@ static void set_midi_substream_names(struct snd_rawmidi_str *stream,
 
 int snd_ff_create_midi_devices(struct snd_ff *ff)
 {
+	static const struct snd_rawmidi_ops midi_capture_ops = {
+		.open		= midi_capture_open,
+		.close		= midi_capture_close,
+		.trigger	= midi_capture_trigger,
+	};
+	static const struct snd_rawmidi_ops midi_playback_ops = {
+		.open		= midi_playback_open,
+		.close		= midi_playback_close,
+		.trigger	= midi_playback_trigger,
+	};
 	struct snd_rawmidi *rmidi;
 	struct snd_rawmidi_str *stream;
 	int err;

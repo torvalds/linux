@@ -78,6 +78,7 @@ struct h5 {
 	int			(*rx_func)(struct hci_uart *hu, u8 c);
 
 	struct timer_list	timer;		/* Retransmission timer */
+	struct hci_uart		*hu;		/* Parent HCI UART */
 
 	u8			tx_seq;		/* Next seq number to send */
 	u8			tx_ack;		/* Next ack number to send */
@@ -109,7 +110,7 @@ static void h5_link_control(struct hci_uart *hu, const void *data, size_t len)
 
 	hci_skb_pkt_type(nskb) = HCI_3WIRE_LINK_PKT;
 
-	memcpy(skb_put(nskb, len), data, len);
+	skb_put_data(nskb, data, len);
 
 	skb_queue_tail(&h5->unrel, nskb);
 }
@@ -120,12 +121,12 @@ static u8 h5_cfg_field(struct h5 *h5)
 	return h5->tx_win & 0x07;
 }
 
-static void h5_timed_event(unsigned long arg)
+static void h5_timed_event(struct timer_list *t)
 {
 	const unsigned char sync_req[] = { 0x01, 0x7e };
 	unsigned char conf_req[3] = { 0x03, 0xfc };
-	struct hci_uart *hu = (struct hci_uart *)arg;
-	struct h5 *h5 = hu->priv;
+	struct h5 *h5 = from_timer(h5, t, timer);
+	struct hci_uart *hu = h5->hu;
 	struct sk_buff *skb;
 	unsigned long flags;
 
@@ -197,6 +198,7 @@ static int h5_open(struct hci_uart *hu)
 		return -ENOMEM;
 
 	hu->priv = h5;
+	h5->hu = hu;
 
 	skb_queue_head_init(&h5->unack);
 	skb_queue_head_init(&h5->rel);
@@ -204,7 +206,7 @@ static int h5_open(struct hci_uart *hu)
 
 	h5_reset_rx(h5);
 
-	setup_timer(&h5->timer, h5_timed_event, (unsigned long)hu);
+	timer_setup(&h5->timer, h5_timed_event, 0);
 
 	h5->tx_win = H5_TX_WIN_MAX;
 
@@ -487,7 +489,7 @@ static void h5_unslip_one_byte(struct h5 *h5, unsigned char c)
 		}
 	}
 
-	memcpy(skb_put(h5->rx_skb, 1), byte, 1);
+	skb_put_data(h5->rx_skb, byte, 1);
 	h5->rx_pending--;
 
 	BT_DBG("unsliped 0x%02hhx, rx_pending %zu", *byte, h5->rx_pending);
@@ -579,7 +581,7 @@ static void h5_slip_delim(struct sk_buff *skb)
 {
 	const char delim = SLIP_DELIMITER;
 
-	memcpy(skb_put(skb, 1), &delim, 1);
+	skb_put_data(skb, &delim, 1);
 }
 
 static void h5_slip_one_byte(struct sk_buff *skb, u8 c)
@@ -589,13 +591,13 @@ static void h5_slip_one_byte(struct sk_buff *skb, u8 c)
 
 	switch (c) {
 	case SLIP_DELIMITER:
-		memcpy(skb_put(skb, 2), &esc_delim, 2);
+		skb_put_data(skb, &esc_delim, 2);
 		break;
 	case SLIP_ESC:
-		memcpy(skb_put(skb, 2), &esc_esc, 2);
+		skb_put_data(skb, &esc_esc, 2);
 		break;
 	default:
-		memcpy(skb_put(skb, 1), &c, 1);
+		skb_put_data(skb, &c, 1);
 	}
 }
 

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ARM_KEXEC_H
 #define _ARM_KEXEC_H
 
@@ -18,6 +19,11 @@
 #define KEXEC_ARM_ZIMAGE_OFFSET 0x8000
 
 #ifndef __ASSEMBLY__
+
+#define ARCH_HAS_KIMAGE_ARCH
+struct kimage_arch {
+	u32 kernel_r2;
+};
 
 /**
  * crash_setup_regs() - save registers for the panic kernel

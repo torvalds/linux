@@ -105,6 +105,24 @@ Pre
 	Special PRE widget (exec before all others)
 Post
 	Special POST widget (exec after all others)
+Buffer
+	Inter widget audio data buffer within a DSP.
+Scheduler
+	DSP internal scheduler that schedules component/pipeline processing
+	work.
+Effect
+	Widget that performs an audio processing effect.
+SRC
+	Sample Rate Converter within DSP or CODEC
+ASRC
+	Asynchronous Sample Rate Converter within DSP or CODEC
+Encoder
+	Widget that encodes audio data from one format (usually PCM) to another
+	usually more compressed format.
+Decoder
+	Widget that decodes audio data from a compressed format to an
+	uncompressed format like PCM.
+
 
 (Widgets are defined in include/sound/soc-dapm.h)
 

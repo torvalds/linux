@@ -73,7 +73,7 @@
 
 		i2c@3d00 {
 			eeprom@50 {
-				compatible = "at,24c08";
+				compatible = "atmel,24c08";
 				reg = <0x50>;
 			};
 

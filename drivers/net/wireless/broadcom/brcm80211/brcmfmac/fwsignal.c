@@ -2145,7 +2145,7 @@ void brcmf_fws_add_interface(struct brcmf_if *ifp)
 	struct brcmf_fws_info *fws = drvr_to_fws(ifp->drvr);
 	struct brcmf_fws_mac_descriptor *entry;
 
-	if (!ifp->ndev || fws->fcmode == BRCMF_FWS_FCMODE_NONE)
+	if (!ifp->ndev || !brcmf_fws_queue_skbs(fws))
 		return;
 
 	entry = &fws->desc.iface[ifp->ifidx];

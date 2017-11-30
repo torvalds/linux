@@ -71,8 +71,47 @@
 		};
 	};
 
-	soc@01c00000 {
-		pwm: pwm@01c20e00 {
+	display-engine {
+		compatible = "allwinner,sun5i-a10s-display-engine";
+		allwinner,pipelines = <&fe0>;
+	};
+
+	soc@1c00000 {
+		hdmi: hdmi@1c16000 {
+			compatible = "allwinner,sun5i-a10s-hdmi";
+			reg = <0x01c16000 0x1000>;
+			interrupts = <58>;
+			clocks = <&ccu CLK_AHB_HDMI>, <&ccu CLK_HDMI>,
+				 <&ccu 9>,
+				 <&ccu 16>;
+			clock-names = "ahb", "mod", "pll-0", "pll-1";
+			dmas = <&dma SUN4I_DMA_NORMAL 16>,
+			       <&dma SUN4I_DMA_NORMAL 16>,
+			       <&dma SUN4I_DMA_DEDICATED 24>;
+			dma-names = "ddc-tx", "ddc-rx", "audio-tx";
+			status = "disabled";
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				hdmi_in: port@0 {
+					reg = <0>;
+
+					hdmi_in_tcon0: endpoint {
+						remote-endpoint = <&tcon0_out_hdmi>;
+					};
+				};
+
+				hdmi_out: port@1 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <1>;
+				};
+			};
+		};
+
+		pwm: pwm@1c20e00 {
 			compatible = "allwinner,sun5i-a10s-pwm";
 			reg = <0x01c20e00 0xc>;
 			clocks = <&ccu CLK_HOSC>;
@@ -127,4 +166,12 @@
 };
 
 &sram_a {
+};
+
+&tcon0_out {
+	tcon0_out_hdmi: endpoint@2 {
+		reg = <2>;
+		remote-endpoint = <&hdmi_in_tcon0>;
+		allwinner,tcon-channel = <1>;
+	};
 };

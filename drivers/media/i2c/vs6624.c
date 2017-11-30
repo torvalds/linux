@@ -58,7 +58,7 @@ static const struct vs6624_format {
 	},
 };
 
-static struct v4l2_mbus_framefmt vs6624_default_fmt = {
+static const struct v4l2_mbus_framefmt vs6624_default_fmt = {
 	.width = VGA_WIDTH,
 	.height = VGA_HEIGHT,
 	.code = MEDIA_BUS_FMT_UYVY8_2X8,

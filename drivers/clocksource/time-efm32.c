@@ -283,5 +283,5 @@ static int __init efm32_timer_init(struct device_node *np)
 
 	return ret;
 }
-CLOCKSOURCE_OF_DECLARE(efm32compat, "efm32,timer", efm32_timer_init);
-CLOCKSOURCE_OF_DECLARE(efm32, "energymicro,efm32-timer", efm32_timer_init);
+TIMER_OF_DECLARE(efm32compat, "efm32,timer", efm32_timer_init);
+TIMER_OF_DECLARE(efm32, "energymicro,efm32-timer", efm32_timer_init);

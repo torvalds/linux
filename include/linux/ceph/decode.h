@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __CEPH_DECODE_H
 #define __CEPH_DECODE_H
 
@@ -131,6 +132,66 @@ static inline char *ceph_extract_encoded_string(void **p, void *end,
 bad:
 	return ERR_PTR(-ERANGE);
 }
+
+/*
+ * skip helpers
+ */
+#define ceph_decode_skip_n(p, end, n, bad)			\
+	do {							\
+		ceph_decode_need(p, end, n, bad);		\
+                *p += n;					\
+	} while (0)
+
+#define ceph_decode_skip_64(p, end, bad)			\
+ceph_decode_skip_n(p, end, sizeof(u64), bad)
+
+#define ceph_decode_skip_32(p, end, bad)			\
+ceph_decode_skip_n(p, end, sizeof(u32), bad)
+
+#define ceph_decode_skip_16(p, end, bad)			\
+ceph_decode_skip_n(p, end, sizeof(u16), bad)
+
+#define ceph_decode_skip_8(p, end, bad)				\
+ceph_decode_skip_n(p, end, sizeof(u8), bad)
+
+#define ceph_decode_skip_string(p, end, bad)			\
+	do {							\
+		u32 len;					\
+								\
+		ceph_decode_32_safe(p, end, len, bad);		\
+		ceph_decode_skip_n(p, end, len, bad);		\
+	} while (0)
+
+#define ceph_decode_skip_set(p, end, type, bad)			\
+	do {							\
+		u32 len;					\
+								\
+		ceph_decode_32_safe(p, end, len, bad);		\
+		while (len--)					\
+			ceph_decode_skip_##type(p, end, bad);	\
+	} while (0)
+
+#define ceph_decode_skip_map(p, end, ktype, vtype, bad)		\
+	do {							\
+		u32 len;					\
+								\
+		ceph_decode_32_safe(p, end, len, bad);		\
+		while (len--) {					\
+			ceph_decode_skip_##ktype(p, end, bad);	\
+			ceph_decode_skip_##vtype(p, end, bad);	\
+		}						\
+	} while (0)
+
+#define ceph_decode_skip_map_of_map(p, end, ktype1, ktype2, vtype2, bad) \
+	do {							\
+		u32 len;					\
+								\
+		ceph_decode_32_safe(p, end, len, bad);		\
+		while (len--) {					\
+			ceph_decode_skip_##ktype1(p, end, bad);	\
+			ceph_decode_skip_map(p, end, ktype2, vtype2, bad); \
+		}						\
+	} while (0)
 
 /*
  * struct ceph_timespec <-> struct timespec

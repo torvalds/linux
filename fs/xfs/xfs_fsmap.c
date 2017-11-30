@@ -367,29 +367,6 @@ xfs_getfsmap_datadev_helper(
 	return xfs_getfsmap_helper(cur->bc_tp, info, rec, rec_daddr);
 }
 
-/* Transform a rtbitmap "record" into a fsmap */
-STATIC int
-xfs_getfsmap_rtdev_rtbitmap_helper(
-	struct xfs_trans		*tp,
-	struct xfs_rtalloc_rec		*rec,
-	void				*priv)
-{
-	struct xfs_mount		*mp = tp->t_mountp;
-	struct xfs_getfsmap_info	*info = priv;
-	struct xfs_rmap_irec		irec;
-	xfs_daddr_t			rec_daddr;
-
-	rec_daddr = XFS_FSB_TO_BB(mp, rec->ar_startblock);
-
-	irec.rm_startblock = rec->ar_startblock;
-	irec.rm_blockcount = rec->ar_blockcount;
-	irec.rm_owner = XFS_RMAP_OWN_NULL;	/* "free" */
-	irec.rm_offset = 0;
-	irec.rm_flags = 0;
-
-	return xfs_getfsmap_helper(tp, info, &irec, rec_daddr);
-}
-
 /* Transform a bnobt irec into a fsmap */
 STATIC int
 xfs_getfsmap_datadev_bnobt_helper(
@@ -473,6 +450,30 @@ xfs_getfsmap_logdev(
 	rmap.rm_flags = 0;
 
 	return xfs_getfsmap_helper(tp, info, &rmap, 0);
+}
+
+#ifdef CONFIG_XFS_RT
+/* Transform a rtbitmap "record" into a fsmap */
+STATIC int
+xfs_getfsmap_rtdev_rtbitmap_helper(
+	struct xfs_trans		*tp,
+	struct xfs_rtalloc_rec		*rec,
+	void				*priv)
+{
+	struct xfs_mount		*mp = tp->t_mountp;
+	struct xfs_getfsmap_info	*info = priv;
+	struct xfs_rmap_irec		irec;
+	xfs_daddr_t			rec_daddr;
+
+	rec_daddr = XFS_FSB_TO_BB(mp, rec->ar_startblock);
+
+	irec.rm_startblock = rec->ar_startblock;
+	irec.rm_blockcount = rec->ar_blockcount;
+	irec.rm_owner = XFS_RMAP_OWN_NULL;	/* "free" */
+	irec.rm_offset = 0;
+	irec.rm_flags = 0;
+
+	return xfs_getfsmap_helper(tp, info, &irec, rec_daddr);
 }
 
 /* Execute a getfsmap query against the realtime device. */
@@ -561,6 +562,7 @@ xfs_getfsmap_rtdev_rtbitmap(
 	return __xfs_getfsmap_rtdev(tp, keys, xfs_getfsmap_rtdev_rtbitmap_query,
 			info);
 }
+#endif /* CONFIG_XFS_RT */
 
 /* Execute a getfsmap query against the regular data device. */
 STATIC int
@@ -795,7 +797,15 @@ xfs_getfsmap_check_keys(
 	return false;
 }
 
+/*
+ * There are only two devices if we didn't configure RT devices at build time.
+ */
+#ifdef CONFIG_XFS_RT
 #define XFS_GETFSMAP_DEVS	3
+#else
+#define XFS_GETFSMAP_DEVS	2
+#endif /* CONFIG_XFS_RT */
+
 /*
  * Get filesystem's extents as described in head, and format for
  * output.  Calls formatter to fill the user's buffer until all
@@ -828,6 +838,7 @@ xfs_getfsmap(
 	struct xfs_fsmap		dkeys[2];	/* per-dev keys */
 	struct xfs_getfsmap_dev		handlers[XFS_GETFSMAP_DEVS];
 	struct xfs_getfsmap_info	info = { NULL };
+	bool				use_rmap;
 	int				i;
 	int				error = 0;
 
@@ -837,12 +848,14 @@ xfs_getfsmap(
 	    !xfs_getfsmap_is_valid_device(mp, &head->fmh_keys[1]))
 		return -EINVAL;
 
+	use_rmap = capable(CAP_SYS_ADMIN) &&
+		   xfs_sb_version_hasrmapbt(&mp->m_sb);
 	head->fmh_entries = 0;
 
 	/* Set up our device handlers. */
 	memset(handlers, 0, sizeof(handlers));
 	handlers[0].dev = new_encode_dev(mp->m_ddev_targp->bt_dev);
-	if (xfs_sb_version_hasrmapbt(&mp->m_sb))
+	if (use_rmap)
 		handlers[0].fn = xfs_getfsmap_datadev_rmapbt;
 	else
 		handlers[0].fn = xfs_getfsmap_datadev_bnobt;
@@ -850,10 +863,12 @@ xfs_getfsmap(
 		handlers[1].dev = new_encode_dev(mp->m_logdev_targp->bt_dev);
 		handlers[1].fn = xfs_getfsmap_logdev;
 	}
+#ifdef CONFIG_XFS_RT
 	if (mp->m_rtdev_targp) {
 		handlers[2].dev = new_encode_dev(mp->m_rtdev_targp->bt_dev);
 		handlers[2].fn = xfs_getfsmap_rtdev_rtbitmap;
 	}
+#endif /* CONFIG_XFS_RT */
 
 	xfs_sort(handlers, XFS_GETFSMAP_DEVS, sizeof(struct xfs_getfsmap_dev),
 			xfs_getfsmap_dev_compare);

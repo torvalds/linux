@@ -22,8 +22,11 @@
 
 extern int __map_without_ltlbs;
 
+static unsigned long block_mapped_ram;
+
 /*
- * Return PA for this VA if it is in IMMR area, or 0
+ * Return PA for this VA if it is in an area mapped with LTLBs.
+ * Otherwise, returns 0
  */
 phys_addr_t v_block_mapped(unsigned long va)
 {
@@ -33,11 +36,13 @@ phys_addr_t v_block_mapped(unsigned long va)
 		return 0;
 	if (va >= VIRT_IMMR_BASE && va < VIRT_IMMR_BASE + IMMR_SIZE)
 		return p + va - VIRT_IMMR_BASE;
+	if (va >= PAGE_OFFSET && va < PAGE_OFFSET + block_mapped_ram)
+		return __pa(va);
 	return 0;
 }
 
 /*
- * Return VA for a given PA or 0 if not mapped
+ * Return VA for a given PA mapped with LTLBs or 0 if not mapped
  */
 unsigned long p_block_mapped(phys_addr_t pa)
 {
@@ -47,6 +52,8 @@ unsigned long p_block_mapped(phys_addr_t pa)
 		return 0;
 	if (pa >= p && pa < p + IMMR_SIZE)
 		return VIRT_IMMR_BASE + pa - p;
+	if (pa < block_mapped_ram)
+		return (unsigned long)__va(pa);
 	return 0;
 }
 
@@ -58,7 +65,7 @@ unsigned long p_block_mapped(phys_addr_t pa)
 void __init MMU_init_hw(void)
 {
 	/* PIN up to the 3 first 8Mb after IMMR in DTLB table */
-#ifdef CONFIG_PIN_TLB
+#ifdef CONFIG_PIN_TLB_DATA
 	unsigned long ctr = mfspr(SPRN_MD_CTR) & 0xfe000000;
 	unsigned long flags = 0xf0 | MD_SPS16K | _PAGE_SHARED | _PAGE_DIRTY;
 #ifdef CONFIG_PIN_TLB_IMMR
@@ -80,7 +87,7 @@ void __init MMU_init_hw(void)
 #endif
 }
 
-static void mmu_mapin_immr(void)
+static void __init mmu_mapin_immr(void)
 {
 	unsigned long p = PHYS_IMMR_BASE;
 	unsigned long v = VIRT_IMMR_BASE;
@@ -88,7 +95,7 @@ static void mmu_mapin_immr(void)
 	int offset;
 
 	for (offset = 0; offset < IMMR_SIZE; offset += PAGE_SIZE)
-		map_page(v + offset, p + offset, f);
+		map_kernel_page(v + offset, p + offset, f);
 }
 
 /* Address of instructions to patch */
@@ -96,8 +103,11 @@ static void mmu_mapin_immr(void)
 extern unsigned int DTLBMiss_jmp;
 #endif
 extern unsigned int DTLBMiss_cmp, FixupDAR_cmp;
+#ifndef CONFIG_PIN_TLB_TEXT
+extern unsigned int ITLBMiss_cmp;
+#endif
 
-void mmu_patch_cmp_limit(unsigned int *addr, unsigned long mapped)
+static void __init mmu_patch_cmp_limit(unsigned int *addr, unsigned long mapped)
 {
 	unsigned int instr = *addr;
 
@@ -116,6 +126,9 @@ unsigned long __init mmu_mapin_ram(unsigned long top)
 #ifndef CONFIG_PIN_TLB_IMMR
 		patch_instruction(&DTLBMiss_jmp, PPC_INST_NOP);
 #endif
+#ifndef CONFIG_PIN_TLB_TEXT
+		mmu_patch_cmp_limit(&ITLBMiss_cmp, 0);
+#endif
 	} else {
 		mapped = top & ~(LARGE_PAGE_SIZE_8M - 1);
 	}
@@ -133,11 +146,13 @@ unsigned long __init mmu_mapin_ram(unsigned long top)
 	if (mapped)
 		memblock_set_current_limit(mapped);
 
+	block_mapped_ram = mapped;
+
 	return mapped;
 }
 
-void setup_initial_memory_limit(phys_addr_t first_memblock_base,
-				phys_addr_t first_memblock_size)
+void __init setup_initial_memory_limit(phys_addr_t first_memblock_base,
+				       phys_addr_t first_memblock_size)
 {
 	/* We don't currently support the first MEMBLOCK not mapping 0
 	 * physical on those processors

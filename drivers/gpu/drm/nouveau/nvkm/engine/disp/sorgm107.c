@@ -21,34 +21,47 @@
  *
  * Authors: Ben Skeggs <bskeggs@redhat.com>
  */
-#include "nv50.h"
-#include "outpdp.h"
+#include "ior.h"
 
-int
-gm107_sor_dp_pattern(struct nvkm_output_dp *outp, int pattern)
+void
+gm107_sor_dp_pattern(struct nvkm_ior *sor, int pattern)
 {
-	struct nvkm_device *device = outp->base.disp->engine.subdev.device;
-	const u32 soff = outp->base.or * 0x800;
+	struct nvkm_device *device = sor->disp->engine.subdev.device;
+	const u32 soff = nv50_ior_base(sor);
 	const u32 data = 0x01010101 * pattern;
-	if (outp->base.info.sorconf.link & 1)
+	if (sor->asy.link & 1)
 		nvkm_mask(device, 0x61c110 + soff, 0x0f0f0f0f, data);
 	else
 		nvkm_mask(device, 0x61c12c + soff, 0x0f0f0f0f, data);
-	return 0;
 }
 
-static const struct nvkm_output_dp_func
-gm107_sor_dp_func = {
-	.pattern = gm107_sor_dp_pattern,
-	.lnk_pwr = g94_sor_dp_lnk_pwr,
-	.lnk_ctl = gf119_sor_dp_lnk_ctl,
-	.drv_ctl = gf119_sor_dp_drv_ctl,
-	.vcpi = gf119_sor_dp_vcpi,
+static const struct nvkm_ior_func
+gm107_sor = {
+	.state = gf119_sor_state,
+	.power = nv50_sor_power,
+	.clock = gf119_sor_clock,
+	.hdmi = {
+		.ctrl = gk104_hdmi_ctrl,
+	},
+	.dp = {
+		.lanes = { 0, 1, 2, 3 },
+		.links = gf119_sor_dp_links,
+		.power = g94_sor_dp_power,
+		.pattern = gm107_sor_dp_pattern,
+		.drive = gf119_sor_dp_drive,
+		.vcpi = gf119_sor_dp_vcpi,
+		.audio = gf119_sor_dp_audio,
+		.audio_sym = gf119_sor_dp_audio_sym,
+		.watermark = gf119_sor_dp_watermark,
+	},
+	.hda = {
+		.hpd = gf119_hda_hpd,
+		.eld = gf119_hda_eld,
+	},
 };
 
 int
-gm107_sor_dp_new(struct nvkm_disp *disp, int index,
-		 struct dcb_output *dcbE, struct nvkm_output **poutp)
+gm107_sor_new(struct nvkm_disp *disp, int id)
 {
-	return nvkm_output_dp_new_(&gm107_sor_dp_func, disp, index, dcbE, poutp);
+	return gf119_sor_new_(&gm107_sor, disp, id);
 }

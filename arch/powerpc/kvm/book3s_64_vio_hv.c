@@ -39,6 +39,7 @@
 #include <asm/udbg.h>
 #include <asm/iommu.h>
 #include <asm/tce.h>
+#include <asm/pte-walk.h>
 
 #ifdef CONFIG_BUG
 
@@ -301,6 +302,10 @@ long kvmppc_rm_h_put_tce(struct kvm_vcpu *vcpu, unsigned long liobn,
 	/* udbg_printf("H_PUT_TCE(): liobn=0x%lx ioba=0x%lx, tce=0x%lx\n", */
 	/* 	    liobn, ioba, tce); */
 
+	/* For radix, we might be in virtual mode, so punt */
+	if (kvm_is_radix(vcpu->kvm))
+		return H_TOO_HARD;
+
 	stt = kvmppc_find_table(vcpu->kvm, liobn);
 	if (!stt)
 		return H_TOO_HARD;
@@ -349,7 +354,16 @@ static long kvmppc_rm_ua_to_hpa(struct kvm_vcpu *vcpu,
 	pte_t *ptep, pte;
 	unsigned shift = 0;
 
-	ptep = __find_linux_pte_or_hugepte(vcpu->arch.pgdir, ua, NULL, &shift);
+	/*
+	 * Called in real mode with MSR_EE = 0. We are safe here.
+	 * It is ok to do the lookup with arch.pgdir here, because
+	 * we are doing this on secondary cpus and current task there
+	 * is not the hypervisor. Also this is safe against THP in the
+	 * host, because an IPI to primary thread will wait for the secondary
+	 * to exit which will agains result in the below page table walk
+	 * to finish.
+	 */
+	ptep = __find_linux_pte(vcpu->arch.pgdir, ua, NULL, &shift);
 	if (!ptep || !pte_present(*ptep))
 		return -ENXIO;
 	pte = *ptep;
@@ -380,6 +394,10 @@ long kvmppc_rm_h_put_tce_indirect(struct kvm_vcpu *vcpu,
 	unsigned long *rmap = NULL;
 	bool prereg = false;
 	struct kvmppc_spapr_tce_iommu_table *stit;
+
+	/* For radix, we might be in virtual mode, so punt */
+	if (kvm_is_radix(vcpu->kvm))
+		return H_TOO_HARD;
 
 	stt = kvmppc_find_table(vcpu->kvm, liobn);
 	if (!stt)
@@ -491,6 +509,10 @@ long kvmppc_rm_h_stuff_tce(struct kvm_vcpu *vcpu,
 	long i, ret;
 	struct kvmppc_spapr_tce_iommu_table *stit;
 
+	/* For radix, we might be in virtual mode, so punt */
+	if (kvm_is_radix(vcpu->kvm))
+		return H_TOO_HARD;
+
 	stt = kvmppc_find_table(vcpu->kvm, liobn);
 	if (!stt)
 		return H_TOO_HARD;
@@ -527,6 +549,7 @@ long kvmppc_rm_h_stuff_tce(struct kvm_vcpu *vcpu,
 	return H_SUCCESS;
 }
 
+/* This can be called in either virtual mode or real mode */
 long kvmppc_h_get_tce(struct kvm_vcpu *vcpu, unsigned long liobn,
 		      unsigned long ioba)
 {

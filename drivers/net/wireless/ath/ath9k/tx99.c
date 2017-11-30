@@ -153,7 +153,7 @@ static int ath9k_tx99_init(struct ath_softc *sc)
 		sc->tx99_power,
 		sc->tx99_power / 2);
 
-	/* We leave the harware awake as it will be chugging on */
+	/* We leave the hardware awake as it will be chugging on */
 
 	return 0;
 }
@@ -179,6 +179,9 @@ static ssize_t write_file_tx99(struct file *file, const char __user *user_buf,
 	ssize_t len;
 	int r;
 
+	if (count < 1)
+		return -EINVAL;
+
 	if (sc->cur_chan->nvifs > 1)
 		return -EOPNOTSUPP;
 
@@ -186,25 +189,32 @@ static ssize_t write_file_tx99(struct file *file, const char __user *user_buf,
 	if (copy_from_user(buf, user_buf, len))
 		return -EFAULT;
 
+	buf[len] = '\0';
+
 	if (strtobool(buf, &start))
 		return -EINVAL;
 
+	mutex_lock(&sc->mutex);
+
 	if (start == sc->tx99_state) {
 		if (!start)
-			return count;
+			goto out;
 		ath_dbg(common, XMIT, "Resetting TX99\n");
 		ath9k_tx99_deinit(sc);
 	}
 
 	if (!start) {
 		ath9k_tx99_deinit(sc);
-		return count;
+		goto out;
 	}
 
 	r = ath9k_tx99_init(sc);
-	if (r)
+	if (r) {
+		mutex_unlock(&sc->mutex);
 		return r;
-
+	}
+out:
+	mutex_unlock(&sc->mutex);
 	return count;
 }
 

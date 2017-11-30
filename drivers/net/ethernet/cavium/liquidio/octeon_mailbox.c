@@ -178,7 +178,10 @@ int octeon_mbox_write(struct octeon_device *oct,
 					break;
 				}
 			}
-			writeq(mbox_cmd->data[i], mbox->mbox_write_reg);
+			if (ret == OCTEON_MBOX_STATUS_SUCCESS)
+				writeq(mbox_cmd->data[i], mbox->mbox_write_reg);
+			else
+				break;
 		}
 	}
 

@@ -72,7 +72,7 @@ g94_i2c_aux_init(struct g94_i2c_aux *aux)
 	return 0;
 }
 
-static int
+int
 g94_i2c_aux_xfer(struct nvkm_i2c_aux *obj, bool retry,
 		 u8 type, u32 addr, u8 *data, u8 *size)
 {
@@ -105,9 +105,9 @@ g94_i2c_aux_xfer(struct nvkm_i2c_aux *obj, bool retry,
 	}
 
 	ctrl  = nvkm_rd32(device, 0x00e4e4 + base);
-	ctrl &= ~0x0001f0ff;
+	ctrl &= ~0x0001f1ff;
 	ctrl |= type << 12;
-	ctrl |= *size - 1;
+	ctrl |= (*size ? (*size - 1) : 0x00000100);
 	nvkm_wr32(device, 0x00e4e0 + base, addr);
 
 	/* (maybe) retry transaction a number of times on failure... */
@@ -160,14 +160,10 @@ out:
 	return ret < 0 ? ret : (stat & 0x000f0000) >> 16;
 }
 
-static const struct nvkm_i2c_aux_func
-g94_i2c_aux_func = {
-	.xfer = g94_i2c_aux_xfer,
-};
-
 int
-g94_i2c_aux_new(struct nvkm_i2c_pad *pad, int index, u8 drive,
-		struct nvkm_i2c_aux **paux)
+g94_i2c_aux_new_(const struct nvkm_i2c_aux_func *func,
+		 struct nvkm_i2c_pad *pad, int index, u8 drive,
+		 struct nvkm_i2c_aux **paux)
 {
 	struct g94_i2c_aux *aux;
 
@@ -175,8 +171,20 @@ g94_i2c_aux_new(struct nvkm_i2c_pad *pad, int index, u8 drive,
 		return -ENOMEM;
 	*paux = &aux->base;
 
-	nvkm_i2c_aux_ctor(&g94_i2c_aux_func, pad, index, &aux->base);
+	nvkm_i2c_aux_ctor(func, pad, index, &aux->base);
 	aux->ch = drive;
 	aux->base.intr = 1 << aux->ch;
 	return 0;
+}
+
+static const struct nvkm_i2c_aux_func
+g94_i2c_aux = {
+	.xfer = g94_i2c_aux_xfer,
+};
+
+int
+g94_i2c_aux_new(struct nvkm_i2c_pad *pad, int index, u8 drive,
+		struct nvkm_i2c_aux **paux)
+{
+	return g94_i2c_aux_new_(&g94_i2c_aux, pad, index, drive, paux);
 }

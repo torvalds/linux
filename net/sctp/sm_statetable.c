@@ -45,26 +45,27 @@
 #include <net/sctp/sctp.h>
 #include <net/sctp/sm.h>
 
-static const sctp_sm_table_entry_t
+static const struct sctp_sm_table_entry
 primitive_event_table[SCTP_NUM_PRIMITIVE_TYPES][SCTP_STATE_NUM_STATES];
-static const sctp_sm_table_entry_t
+static const struct sctp_sm_table_entry
 other_event_table[SCTP_NUM_OTHER_TYPES][SCTP_STATE_NUM_STATES];
-static const sctp_sm_table_entry_t
+static const struct sctp_sm_table_entry
 timeout_event_table[SCTP_NUM_TIMEOUT_TYPES][SCTP_STATE_NUM_STATES];
 
-static const sctp_sm_table_entry_t *sctp_chunk_event_lookup(struct net *net,
-							    sctp_cid_t cid,
-							    sctp_state_t state);
+static const struct sctp_sm_table_entry *sctp_chunk_event_lookup(
+						struct net *net,
+						enum sctp_cid cid,
+						enum sctp_state state);
 
 
-static const sctp_sm_table_entry_t bug = {
+static const struct sctp_sm_table_entry bug = {
 	.fn = sctp_sf_bug,
 	.name = "sctp_sf_bug"
 };
 
 #define DO_LOOKUP(_max, _type, _table)					\
 ({									\
-	const sctp_sm_table_entry_t *rtn;				\
+	const struct sctp_sm_table_entry *rtn;				\
 									\
 	if ((event_subtype._type > (_max))) {				\
 		pr_warn("table %p possible attack: event %d exceeds max %d\n", \
@@ -76,10 +77,11 @@ static const sctp_sm_table_entry_t bug = {
 	rtn;								\
 })
 
-const sctp_sm_table_entry_t *sctp_sm_lookup_event(struct net *net,
-						  sctp_event_t event_type,
-						  sctp_state_t state,
-						  sctp_subtype_t event_subtype)
+const struct sctp_sm_table_entry *sctp_sm_lookup_event(
+					struct net *net,
+					enum sctp_event event_type,
+					enum sctp_state state,
+					union sctp_subtype event_subtype)
 {
 	switch (event_type) {
 	case SCTP_EVENT_T_CHUNK:
@@ -392,7 +394,8 @@ const sctp_sm_table_entry_t *sctp_sm_lookup_event(struct net *net,
  *
  * For base protocol (RFC 2960).
  */
-static const sctp_sm_table_entry_t chunk_event_table[SCTP_NUM_BASE_CHUNK_TYPES][SCTP_STATE_NUM_STATES] = {
+static const struct sctp_sm_table_entry
+chunk_event_table[SCTP_NUM_BASE_CHUNK_TYPES][SCTP_STATE_NUM_STATES] = {
 	TYPE_SCTP_DATA,
 	TYPE_SCTP_INIT,
 	TYPE_SCTP_INIT_ACK,
@@ -451,7 +454,8 @@ static const sctp_sm_table_entry_t chunk_event_table[SCTP_NUM_BASE_CHUNK_TYPES][
 /* The primary index for this table is the chunk type.
  * The secondary index for this table is the state.
  */
-static const sctp_sm_table_entry_t addip_chunk_event_table[SCTP_NUM_ADDIP_CHUNK_TYPES][SCTP_STATE_NUM_STATES] = {
+static const struct sctp_sm_table_entry
+addip_chunk_event_table[SCTP_NUM_ADDIP_CHUNK_TYPES][SCTP_STATE_NUM_STATES] = {
 	TYPE_SCTP_ASCONF,
 	TYPE_SCTP_ASCONF_ACK,
 }; /*state_fn_t addip_chunk_event_table[][] */
@@ -478,7 +482,8 @@ static const sctp_sm_table_entry_t addip_chunk_event_table[SCTP_NUM_ADDIP_CHUNK_
 /* The primary index for this table is the chunk type.
  * The secondary index for this table is the state.
  */
-static const sctp_sm_table_entry_t prsctp_chunk_event_table[SCTP_NUM_PRSCTP_CHUNK_TYPES][SCTP_STATE_NUM_STATES] = {
+static const struct sctp_sm_table_entry
+prsctp_chunk_event_table[SCTP_NUM_PRSCTP_CHUNK_TYPES][SCTP_STATE_NUM_STATES] = {
 	TYPE_SCTP_FWD_TSN,
 }; /*state_fn_t prsctp_chunk_event_table[][] */
 
@@ -504,7 +509,8 @@ static const sctp_sm_table_entry_t prsctp_chunk_event_table[SCTP_NUM_PRSCTP_CHUN
 /* The primary index for this table is the chunk type.
  * The secondary index for this table is the state.
  */
-static const sctp_sm_table_entry_t reconf_chunk_event_table[SCTP_NUM_RECONF_CHUNK_TYPES][SCTP_STATE_NUM_STATES] = {
+static const struct sctp_sm_table_entry
+reconf_chunk_event_table[SCTP_NUM_RECONF_CHUNK_TYPES][SCTP_STATE_NUM_STATES] = {
 	TYPE_SCTP_RECONF,
 }; /*state_fn_t reconf_chunk_event_table[][] */
 
@@ -530,11 +536,12 @@ static const sctp_sm_table_entry_t reconf_chunk_event_table[SCTP_NUM_RECONF_CHUN
 /* The primary index for this table is the chunk type.
  * The secondary index for this table is the state.
  */
-static const sctp_sm_table_entry_t auth_chunk_event_table[SCTP_NUM_AUTH_CHUNK_TYPES][SCTP_STATE_NUM_STATES] = {
+static const struct sctp_sm_table_entry
+auth_chunk_event_table[SCTP_NUM_AUTH_CHUNK_TYPES][SCTP_STATE_NUM_STATES] = {
 	TYPE_SCTP_AUTH,
 }; /*state_fn_t auth_chunk_event_table[][] */
 
-static const sctp_sm_table_entry_t
+static const struct sctp_sm_table_entry
 chunk_event_table_unknown[SCTP_STATE_NUM_STATES] = {
 	/* SCTP_STATE_CLOSED */
 	TYPE_SCTP_FUNC(sctp_sf_ootb),
@@ -691,7 +698,8 @@ chunk_event_table_unknown[SCTP_STATE_NUM_STATES] = {
 /* The primary index for this table is the primitive type.
  * The secondary index for this table is the state.
  */
-static const sctp_sm_table_entry_t primitive_event_table[SCTP_NUM_PRIMITIVE_TYPES][SCTP_STATE_NUM_STATES] = {
+static const struct sctp_sm_table_entry
+primitive_event_table[SCTP_NUM_PRIMITIVE_TYPES][SCTP_STATE_NUM_STATES] = {
 	TYPE_SCTP_PRIMITIVE_ASSOCIATE,
 	TYPE_SCTP_PRIMITIVE_SHUTDOWN,
 	TYPE_SCTP_PRIMITIVE_ABORT,
@@ -739,7 +747,8 @@ static const sctp_sm_table_entry_t primitive_event_table[SCTP_NUM_PRIMITIVE_TYPE
 	TYPE_SCTP_FUNC(sctp_sf_ignore_other), \
 }
 
-static const sctp_sm_table_entry_t other_event_table[SCTP_NUM_OTHER_TYPES][SCTP_STATE_NUM_STATES] = {
+static const struct sctp_sm_table_entry
+other_event_table[SCTP_NUM_OTHER_TYPES][SCTP_STATE_NUM_STATES] = {
 	TYPE_SCTP_OTHER_NO_PENDING_TSN,
 	TYPE_SCTP_OTHER_ICMP_PROTO_UNREACH,
 };
@@ -953,7 +962,8 @@ static const sctp_sm_table_entry_t other_event_table[SCTP_NUM_OTHER_TYPES][SCTP_
 	TYPE_SCTP_FUNC(sctp_sf_timer_ignore), \
 }
 
-static const sctp_sm_table_entry_t timeout_event_table[SCTP_NUM_TIMEOUT_TYPES][SCTP_STATE_NUM_STATES] = {
+static const struct sctp_sm_table_entry
+timeout_event_table[SCTP_NUM_TIMEOUT_TYPES][SCTP_STATE_NUM_STATES] = {
 	TYPE_SCTP_EVENT_TIMEOUT_NONE,
 	TYPE_SCTP_EVENT_TIMEOUT_T1_COOKIE,
 	TYPE_SCTP_EVENT_TIMEOUT_T1_INIT,
@@ -967,9 +977,10 @@ static const sctp_sm_table_entry_t timeout_event_table[SCTP_NUM_TIMEOUT_TYPES][S
 	TYPE_SCTP_EVENT_TIMEOUT_AUTOCLOSE,
 };
 
-static const sctp_sm_table_entry_t *sctp_chunk_event_lookup(struct net *net,
-							    sctp_cid_t cid,
-							    sctp_state_t state)
+static const struct sctp_sm_table_entry *sctp_chunk_event_lookup(
+						struct net *net,
+						enum sctp_cid cid,
+						enum sctp_state state)
 {
 	if (state > SCTP_STATE_MAX)
 		return &bug;

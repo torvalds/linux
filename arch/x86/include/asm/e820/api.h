@@ -1,9 +1,11 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_E820_API_H
 #define _ASM_E820_API_H
 
 #include <asm/e820/types.h>
 
 extern struct e820_table *e820_table;
+extern struct e820_table *e820_table_kexec;
 extern struct e820_table *e820_table_firmware;
 
 extern unsigned long pci_mem_start;
@@ -37,6 +39,8 @@ extern void e820__setup_pci_gap(void);
 
 extern void e820__reallocate_tables(void);
 extern void e820__register_nosave_regions(unsigned long limit_pfn);
+
+extern int  e820__get_entry_type(u64 start, u64 end);
 
 /*
  * Returns true iff the specified range [start,end) is completely contained inside

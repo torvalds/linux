@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /****************************************************************************/
 /*
  *  linux/fs/binfmt_flat.c
@@ -176,41 +177,32 @@ static int create_flat_tables(struct linux_binprm *bprm, unsigned long arg_start
 #define ENCRYPTED    0x20 /* bit 5 set: file is encrypted */
 #define RESERVED     0xC0 /* bit 6,7:   reserved */
 
-static int decompress_exec(
-	struct linux_binprm *bprm,
-	unsigned long offset,
-	char *dst,
-	long len,
-	int fd)
+static int decompress_exec(struct linux_binprm *bprm, loff_t fpos, char *dst,
+		long len, int fd)
 {
 	unsigned char *buf;
 	z_stream strm;
-	loff_t fpos;
 	int ret, retval;
 
-	pr_debug("decompress_exec(offset=%lx,buf=%p,len=%lx)\n", offset, dst, len);
+	pr_debug("decompress_exec(offset=%llx,buf=%p,len=%lx)\n", fpos, dst, len);
 
 	memset(&strm, 0, sizeof(strm));
 	strm.workspace = kmalloc(zlib_inflate_workspacesize(), GFP_KERNEL);
-	if (strm.workspace == NULL) {
-		pr_debug("no memory for decompress workspace\n");
+	if (!strm.workspace)
 		return -ENOMEM;
-	}
+
 	buf = kmalloc(LBUFSIZE, GFP_KERNEL);
-	if (buf == NULL) {
-		pr_debug("no memory for read buffer\n");
+	if (!buf) {
 		retval = -ENOMEM;
 		goto out_free;
 	}
 
 	/* Read in first chunk of data and parse gzip header. */
-	fpos = offset;
-	ret = kernel_read(bprm->file, offset, buf, LBUFSIZE);
+	ret = kernel_read(bprm->file, buf, LBUFSIZE, &fpos);
 
 	strm.next_in = buf;
 	strm.avail_in = ret;
 	strm.total_in = 0;
-	fpos += ret;
 
 	retval = -ENOEXEC;
 
@@ -276,7 +268,7 @@ static int decompress_exec(
 	}
 
 	while ((ret = zlib_inflate(&strm, Z_NO_FLUSH)) == Z_OK) {
-		ret = kernel_read(bprm->file, fpos, buf, LBUFSIZE);
+		ret = kernel_read(bprm->file, buf, LBUFSIZE, &fpos);
 		if (ret <= 0)
 			break;
 		len -= ret;
@@ -284,7 +276,6 @@ static int decompress_exec(
 		strm.next_in = buf;
 		strm.avail_in = ret;
 		strm.total_in = 0;
-		fpos += ret;
 	}
 
 	if (ret < 0) {
@@ -422,9 +413,9 @@ static int load_flat_file(struct linux_binprm *bprm,
 {
 	struct flat_hdr *hdr;
 	unsigned long textpos, datapos, realdatastart;
-	unsigned long text_len, data_len, bss_len, stack_len, full_data, flags;
+	u32 text_len, data_len, bss_len, stack_len, full_data, flags;
 	unsigned long len, memp, memp_size, extra, rlim;
-	unsigned long __user *reloc, *rp;
+	u32 __user *reloc, *rp;
 	struct inode *inode;
 	int i, rev, relocs;
 	loff_t fpos;
@@ -574,7 +565,7 @@ static int load_flat_file(struct linux_binprm *bprm,
 				MAX_SHARED_LIBS * sizeof(unsigned long),
 				FLAT_DATA_ALIGN);
 
-		pr_debug("Allocated data+bss+stack (%ld bytes): %lx\n",
+		pr_debug("Allocated data+bss+stack (%u bytes): %lx\n",
 			 data_len + bss_len + stack_len, datapos);
 
 		fpos = ntohl(hdr->data_start);
@@ -596,13 +587,13 @@ static int load_flat_file(struct linux_binprm *bprm,
 			goto err;
 		}
 
-		reloc = (unsigned long __user *)
+		reloc = (u32 __user *)
 			(datapos + (ntohl(hdr->reloc_start) - text_len));
 		memp = realdatastart;
 		memp_size = len;
 	} else {
 
-		len = text_len + data_len + extra + MAX_SHARED_LIBS * sizeof(unsigned long);
+		len = text_len + data_len + extra + MAX_SHARED_LIBS * sizeof(u32);
 		len = PAGE_ALIGN(len);
 		textpos = vm_mmap(NULL, 0, len,
 			PROT_READ | PROT_EXEC | PROT_WRITE, MAP_PRIVATE, 0);
@@ -618,10 +609,10 @@ static int load_flat_file(struct linux_binprm *bprm,
 
 		realdatastart = textpos + ntohl(hdr->data_start);
 		datapos = ALIGN(realdatastart +
-				MAX_SHARED_LIBS * sizeof(unsigned long),
+				MAX_SHARED_LIBS * sizeof(u32),
 				FLAT_DATA_ALIGN);
 
-		reloc = (unsigned long __user *)
+		reloc = (u32 __user *)
 			(datapos + (ntohl(hdr->reloc_start) - text_len));
 		memp = textpos;
 		memp_size = len;
@@ -694,7 +685,7 @@ static int load_flat_file(struct linux_binprm *bprm,
 			ret = result;
 			pr_err("Unable to read code+data+bss, errno %d\n", ret);
 			vm_munmap(textpos, text_len + data_len + extra +
-				MAX_SHARED_LIBS * sizeof(unsigned long));
+				MAX_SHARED_LIBS * sizeof(u32));
 			goto err;
 		}
 	}
@@ -754,8 +745,8 @@ static int load_flat_file(struct linux_binprm *bprm,
 	 * image.
 	 */
 	if (flags & FLAT_FLAG_GOTPIC) {
-		for (rp = (unsigned long __user *)datapos; ; rp++) {
-			unsigned long addr, rp_val;
+		for (rp = (u32 __user *)datapos; ; rp++) {
+			u32 addr, rp_val;
 			if (get_user(rp_val, rp))
 				return -EFAULT;
 			if (rp_val == 0xffffffff)
@@ -784,9 +775,9 @@ static int load_flat_file(struct linux_binprm *bprm,
 	 * __start to address 4 so that is okay).
 	 */
 	if (rev > OLD_FLAT_VERSION) {
-		unsigned long __maybe_unused persistent = 0;
+		u32 __maybe_unused persistent = 0;
 		for (i = 0; i < relocs; i++) {
-			unsigned long addr, relval;
+			u32 addr, relval;
 
 			/*
 			 * Get the address of the pointer to be
@@ -799,15 +790,18 @@ static int load_flat_file(struct linux_binprm *bprm,
 			if (flat_set_persistent(relval, &persistent))
 				continue;
 			addr = flat_get_relocate_addr(relval);
-			rp = (unsigned long __user *)calc_reloc(addr, libinfo, id, 1);
-			if (rp == (unsigned long __user *)RELOC_FAILED) {
+			rp = (u32 __user *)calc_reloc(addr, libinfo, id, 1);
+			if (rp == (u32 __user *)RELOC_FAILED) {
 				ret = -ENOEXEC;
 				goto err;
 			}
 
 			/* Get the pointer's value.  */
-			addr = flat_get_addr_from_rp(rp, relval, flags,
-							&persistent);
+			ret = flat_get_addr_from_rp(rp, relval, flags,
+							&addr, &persistent);
+			if (unlikely(ret))
+				goto err;
+
 			if (addr != 0) {
 				/*
 				 * Do the relocation.  PIC relocs in the data section are
@@ -822,12 +816,14 @@ static int load_flat_file(struct linux_binprm *bprm,
 				}
 
 				/* Write back the relocated pointer.  */
-				flat_put_addr_at_rp(rp, addr, relval);
+				ret = flat_put_addr_at_rp(rp, addr, relval);
+				if (unlikely(ret))
+					goto err;
 			}
 		}
 	} else {
 		for (i = 0; i < relocs; i++) {
-			unsigned long relval;
+			u32 relval;
 			if (get_user(relval, reloc + i))
 				return -EFAULT;
 			relval = ntohl(relval);
@@ -885,7 +881,7 @@ static int load_flat_shared_library(int id, struct lib_info *libs)
 	 * as we're past the point of no return and are dealing with shared
 	 * libraries.
 	 */
-	bprm.cred_prepared = 1;
+	bprm.called_set_creds = 1;
 
 	res = prepare_binprm(&bprm);
 

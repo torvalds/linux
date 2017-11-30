@@ -1,6 +1,8 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 
+#include <asm/cpu.h>
+
 #include "mce_amd.h"
 
 static struct amd_decoder_ops *fam_ops;
@@ -161,7 +163,7 @@ static const char * const smca_ls_mce_desc[] = {
 	"Sys Read data error thread 0",
 	"Sys read data error thread 1",
 	"DC tag error type 2",
-	"DC data error type 1 (poison comsumption)",
+	"DC data error type 1 (poison consumption)",
 	"DC data error type 2",
 	"DC data error type 3",
 	"DC tag error type 4",
@@ -744,7 +746,7 @@ static void decode_mc3_mce(struct mce *m)
 
 static void decode_mc4_mce(struct mce *m)
 {
-	struct cpuinfo_x86 *c = &boot_cpu_data;
+	unsigned int fam = x86_family(m->cpuid);
 	int node_id = amd_get_nb_id(m->extcpu);
 	u16 ec = EC(m->status);
 	u8 xec = XEC(m->status, 0x1f);
@@ -758,7 +760,7 @@ static void decode_mc4_mce(struct mce *m)
 		/* special handling for DRAM ECCs */
 		if (xec == 0x0 || xec == 0x8) {
 			/* no ECCs on F11h */
-			if (c->x86 == 0x11)
+			if (fam == 0x11)
 				goto wrong_mc4_mce;
 
 			pr_cont("%s.\n", mc4_mce_desc[xec]);
@@ -779,7 +781,7 @@ static void decode_mc4_mce(struct mce *m)
 		return;
 
 	case 0x19:
-		if (boot_cpu_data.x86 == 0x15 || boot_cpu_data.x86 == 0x16)
+		if (fam == 0x15 || fam == 0x16)
 			pr_cont("Compute Unit Data Error.\n");
 		else
 			goto wrong_mc4_mce;
@@ -802,11 +804,11 @@ static void decode_mc4_mce(struct mce *m)
 
 static void decode_mc5_mce(struct mce *m)
 {
-	struct cpuinfo_x86 *c = &boot_cpu_data;
+	unsigned int fam = x86_family(m->cpuid);
 	u16 ec = EC(m->status);
 	u8 xec = XEC(m->status, xec_mask);
 
-	if (c->x86 == 0xf || c->x86 == 0x11)
+	if (fam == 0xf || fam == 0x11)
 		goto wrong_mc5_mce;
 
 	pr_emerg(HW_ERR "MC5 Error: ");
@@ -849,7 +851,7 @@ static void decode_mc6_mce(struct mce *m)
 }
 
 /* Decode errors according to Scalable MCA specification */
-static void decode_smca_errors(struct mce *m)
+static void decode_smca_error(struct mce *m)
 {
 	struct smca_hwid *hwid;
 	unsigned int bank_type;
@@ -859,7 +861,7 @@ static void decode_smca_errors(struct mce *m)
 	if (m->bank >= ARRAY_SIZE(smca_banks))
 		return;
 
-	if (boot_cpu_data.x86 >= 0x17 && m->bank == 4)
+	if (x86_family(m->cpuid) >= 0x17 && m->bank == 4)
 		pr_emerg(HW_ERR "Bank 4 is reserved on Fam17h.\n");
 
 	hwid = smca_banks[m->bank].hwid;
@@ -878,12 +880,8 @@ static void decode_smca_errors(struct mce *m)
 		pr_cont("%s.\n", smca_mce_descs[bank_type].descs[xec]);
 	}
 
-	/*
-	 * amd_get_nb_id() returns the last level cache id.
-	 * The last level cache on Fam17h is 1 level below the node.
-	 */
 	if (bank_type == SMCA_UMC && xec == 0 && decode_dram_ecc)
-		decode_dram_ecc(amd_get_nb_id(m->extcpu) >> 1, m);
+		decode_dram_ecc(cpu_to_node(m->extcpu), m);
 }
 
 static inline void amd_decode_err_code(u16 ec)
@@ -915,12 +913,10 @@ static inline void amd_decode_err_code(u16 ec)
  */
 static bool amd_filter_mce(struct mce *m)
 {
-	u8 xec = (m->status >> 16) & 0x1f;
-
 	/*
 	 * NB GART TLB error reporting is disabled by default.
 	 */
-	if (m->bank == 4 && xec == 0x5 && !report_gart_errors)
+	if (m->bank == 4 && XEC(m->status, 0x1f) == 0x5 && !report_gart_errors)
 		return true;
 
 	return false;
@@ -946,7 +942,7 @@ static int
 amd_decode_mce(struct notifier_block *nb, unsigned long val, void *data)
 {
 	struct mce *m = (struct mce *)data;
-	struct cpuinfo_x86 *c = &cpu_data(m->extcpu);
+	unsigned int fam = x86_family(m->cpuid);
 	int ecc;
 
 	if (amd_filter_mce(m))
@@ -956,7 +952,7 @@ amd_decode_mce(struct notifier_block *nb, unsigned long val, void *data)
 
 	pr_emerg(HW_ERR "CPU:%d (%x:%x:%x) MC%d_STATUS[%s|%s|%s|%s|%s",
 		m->extcpu,
-		c->x86, c->x86_model, c->x86_mask,
+		fam, x86_model(m->cpuid), x86_stepping(m->cpuid),
 		m->bank,
 		((m->status & MCI_STATUS_OVER)	? "Over"  : "-"),
 		((m->status & MCI_STATUS_UC)	? "UE"	  :
@@ -965,11 +961,11 @@ amd_decode_mce(struct notifier_block *nb, unsigned long val, void *data)
 		((m->status & MCI_STATUS_PCC)	? "PCC"	  : "-"),
 		((m->status & MCI_STATUS_ADDRV)	? "AddrV" : "-"));
 
-	if (c->x86 >= 0x15) {
+	if (fam >= 0x15) {
 		pr_cont("|%s", (m->status & MCI_STATUS_DEFERRED ? "Deferred" : "-"));
 
 		/* F15h, bank4, bit 43 is part of McaStatSubCache. */
-		if (c->x86 != 0x15 || m->bank != 4)
+		if (fam != 0x15 || m->bank != 4)
 			pr_cont("|%s", (m->status & MCI_STATUS_POISON ? "Poison" : "-"));
 	}
 
@@ -1002,7 +998,7 @@ amd_decode_mce(struct notifier_block *nb, unsigned long val, void *data)
 
 		pr_cont("\n");
 
-		decode_smca_errors(m);
+		decode_smca_error(m);
 		goto err_code;
 	}
 

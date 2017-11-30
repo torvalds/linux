@@ -18,8 +18,7 @@
 #include <linux/delay.h>
 #include <linux/export.h>
 
-#include "w1_family.h"
-#include "w1.h"
+#include "w1_internal.h"
 
 DEFINE_SPINLOCK(w1_flock);
 static LIST_HEAD(w1_families);
@@ -55,6 +54,7 @@ int w1_register_family(struct w1_family *newf)
 
 	return ret;
 }
+EXPORT_SYMBOL(w1_register_family);
 
 /**
  * w1_unregister_family() - unregister a device family driver
@@ -87,6 +87,7 @@ void w1_unregister_family(struct w1_family *fent)
 			flush_signals(current);
 	}
 }
+EXPORT_SYMBOL(w1_unregister_family);
 
 /*
  * Should be called under w1_flock held.
@@ -136,6 +137,3 @@ void __w1_family_get(struct w1_family *f)
 	atomic_inc(&f->refcnt);
 	smp_mb__after_atomic();
 }
-
-EXPORT_SYMBOL(w1_unregister_family);
-EXPORT_SYMBOL(w1_register_family);

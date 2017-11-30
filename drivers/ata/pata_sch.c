@@ -81,7 +81,7 @@ static struct ata_port_operations sch_pata_ops = {
 	.set_dmamode		= sch_set_dmamode,
 };
 
-static struct ata_port_info sch_port_info = {
+static const struct ata_port_info sch_port_info = {
 	.flags		= ATA_FLAG_SLAVE_POSS,
 	.pio_mask	= ATA_PIO4,
 	.mwdma_mask	= ATA_MWDMA2,

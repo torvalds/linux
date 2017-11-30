@@ -145,7 +145,7 @@ static void xtkbd_disconnect(struct serio *serio)
 	kfree(xtkbd);
 }
 
-static struct serio_device_id xtkbd_serio_ids[] = {
+static const struct serio_device_id xtkbd_serio_ids[] = {
 	{
 		.type	= SERIO_XT,
 		.proto	= SERIO_ANY,

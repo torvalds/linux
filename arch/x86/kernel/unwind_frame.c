@@ -10,20 +10,22 @@
 
 #define FRAME_HEADER_SIZE (sizeof(long) * 2)
 
-/*
- * This disables KASAN checking when reading a value from another task's stack,
- * since the other task could be running on another CPU and could have poisoned
- * the stack in the meantime.
- */
-#define READ_ONCE_TASK_STACK(task, x)			\
-({							\
-	unsigned long val;				\
-	if (task == current)				\
-		val = READ_ONCE(x);			\
-	else						\
-		val = READ_ONCE_NOCHECK(x);		\
-	val;						\
-})
+unsigned long unwind_get_return_address(struct unwind_state *state)
+{
+	if (unwind_done(state))
+		return 0;
+
+	return __kernel_text_address(state->ip) ? state->ip : 0;
+}
+EXPORT_SYMBOL_GPL(unwind_get_return_address);
+
+unsigned long *unwind_get_return_address_ptr(struct unwind_state *state)
+{
+	if (unwind_done(state))
+		return NULL;
+
+	return state->regs ? &state->regs->ip : state->bp + 1;
+}
 
 static void unwind_dump(struct unwind_state *state)
 {
@@ -42,7 +44,8 @@ static void unwind_dump(struct unwind_state *state)
 			state->stack_info.type, state->stack_info.next_sp,
 			state->stack_mask, state->graph_idx);
 
-	for (sp = state->orig_sp; sp; sp = PTR_ALIGN(stack_info.next_sp, sizeof(long))) {
+	for (sp = PTR_ALIGN(state->orig_sp, sizeof(long)); sp;
+	     sp = PTR_ALIGN(stack_info.next_sp, sizeof(long))) {
 		if (get_stack_info(sp, state->task, &stack_info, &visit_mask))
 			break;
 
@@ -66,15 +69,6 @@ static void unwind_dump(struct unwind_state *state)
 	}
 }
 
-unsigned long unwind_get_return_address(struct unwind_state *state)
-{
-	if (unwind_done(state))
-		return 0;
-
-	return __kernel_text_address(state->ip) ? state->ip : 0;
-}
-EXPORT_SYMBOL_GPL(unwind_get_return_address);
-
 static size_t regs_size(struct pt_regs *regs)
 {
 	/* x86_32 regs from kernel mode are two words shorter: */
@@ -91,10 +85,8 @@ static bool in_entry_code(unsigned long ip)
 	if (addr >= __entry_text_start && addr < __entry_text_end)
 		return true;
 
-#if defined(CONFIG_FUNCTION_GRAPH_TRACER) || defined(CONFIG_KASAN)
 	if (addr >= __irqentry_text_start && addr < __irqentry_text_end)
 		return true;
-#endif
 
 	return false;
 }
@@ -102,6 +94,11 @@ static bool in_entry_code(unsigned long ip)
 static inline unsigned long *last_frame(struct unwind_state *state)
 {
 	return (unsigned long *)task_pt_regs(state->task) - 2;
+}
+
+static bool is_last_frame(struct unwind_state *state)
+{
+	return state->bp == last_frame(state);
 }
 
 #ifdef CONFIG_X86_32
@@ -115,16 +112,15 @@ static inline unsigned long *last_aligned_frame(struct unwind_state *state)
 	return last_frame(state) - GCC_REALIGN_WORDS;
 }
 
-static bool is_last_task_frame(struct unwind_state *state)
+static bool is_last_aligned_frame(struct unwind_state *state)
 {
 	unsigned long *last_bp = last_frame(state);
 	unsigned long *aligned_bp = last_aligned_frame(state);
 
 	/*
-	 * We have to check for the last task frame at two different locations
-	 * because gcc can occasionally decide to realign the stack pointer and
-	 * change the offset of the stack frame in the prologue of a function
-	 * called by head/entry code.  Examples:
+	 * GCC can occasionally decide to realign the stack pointer and change
+	 * the offset of the stack frame in the prologue of a function called
+	 * by head/entry code.  Examples:
 	 *
 	 * <start_secondary>:
 	 *      push   %edi
@@ -141,17 +137,45 @@ static bool is_last_task_frame(struct unwind_state *state)
 	 *      push   %rbp
 	 *      mov    %rsp,%rbp
 	 *
-	 * Note that after aligning the stack, it pushes a duplicate copy of
-	 * the return address before pushing the frame pointer.
+	 * After aligning the stack, it pushes a duplicate copy of the return
+	 * address before pushing the frame pointer.
 	 */
-	return (state->bp == last_bp ||
-		(state->bp == aligned_bp && *(aligned_bp+1) == *(last_bp+1)));
+	return (state->bp == aligned_bp && *(aligned_bp + 1) == *(last_bp + 1));
+}
+
+static bool is_last_ftrace_frame(struct unwind_state *state)
+{
+	unsigned long *last_bp = last_frame(state);
+	unsigned long *last_ftrace_bp = last_bp - 3;
+
+	/*
+	 * When unwinding from an ftrace handler of a function called by entry
+	 * code, the stack layout of the last frame is:
+	 *
+	 *   bp
+	 *   parent ret addr
+	 *   bp
+	 *   function ret addr
+	 *   parent ret addr
+	 *   pt_regs
+	 *   -----------------
+	 */
+	return (state->bp == last_ftrace_bp &&
+		*state->bp == *(state->bp + 2) &&
+		*(state->bp + 1) == *(state->bp + 4));
+}
+
+static bool is_last_task_frame(struct unwind_state *state)
+{
+	return is_last_frame(state) || is_last_aligned_frame(state) ||
+	       is_last_ftrace_frame(state);
 }
 
 /*
  * This determines if the frame pointer actually contains an encoded pointer to
  * pt_regs on the stack.  See ENCODE_FRAME_POINTER.
  */
+#ifdef CONFIG_X86_64
 static struct pt_regs *decode_frame_pointer(unsigned long *bp)
 {
 	unsigned long regs = (unsigned long)bp;
@@ -161,6 +185,23 @@ static struct pt_regs *decode_frame_pointer(unsigned long *bp)
 
 	return (struct pt_regs *)(regs & ~0x1);
 }
+#else
+static struct pt_regs *decode_frame_pointer(unsigned long *bp)
+{
+	unsigned long regs = (unsigned long)bp;
+
+	if (regs & 0x80000000)
+		return NULL;
+
+	return (struct pt_regs *)(regs | 0x80000000);
+}
+#endif
+
+#ifdef CONFIG_X86_32
+#define KERNEL_REGS_SIZE (sizeof(struct pt_regs) - 2*sizeof(long))
+#else
+#define KERNEL_REGS_SIZE (sizeof(struct pt_regs))
+#endif
 
 static bool update_stack_state(struct unwind_state *state,
 			       unsigned long *next_bp)
@@ -180,7 +221,7 @@ static bool update_stack_state(struct unwind_state *state,
 	regs = decode_frame_pointer(next_bp);
 	if (regs) {
 		frame = (unsigned long *)regs;
-		len = regs_size(regs);
+		len = KERNEL_REGS_SIZE;
 		state->got_irq = true;
 	} else {
 		frame = next_bp;
@@ -202,6 +243,14 @@ static bool update_stack_state(struct unwind_state *state,
 	/* Make sure it only unwinds up and doesn't overlap the prev frame: */
 	if (state->orig_sp && state->stack_info.type == prev_type &&
 	    frame < prev_frame_end)
+		return false;
+
+	/*
+	 * On 32-bit with user mode regs, make sure the last two regs are safe
+	 * to access:
+	 */
+	if (IS_ENABLED(CONFIG_X86_32) && regs && user_mode(regs) &&
+	    !on_stack(info, frame, len + 2*sizeof(long)))
 		return false;
 
 	/* Move state to the next frame: */
@@ -304,6 +353,13 @@ bad_address:
 	if (state->regs &&
 	    state->regs->sp >= (unsigned long)last_aligned_frame(state) &&
 	    state->regs->sp < (unsigned long)task_pt_regs(state->task))
+		goto the_end;
+
+	/*
+	 * There are some known frame pointer issues on 32-bit.  Disable
+	 * unwinder warnings on 32-bit until it gets objtool support.
+	 */
+	if (IS_ENABLED(CONFIG_X86_32))
 		goto the_end;
 
 	if (state->regs) {

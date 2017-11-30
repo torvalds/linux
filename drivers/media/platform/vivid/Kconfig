@@ -26,7 +26,8 @@ config VIDEO_VIVID
 
 config VIDEO_VIVID_CEC
 	bool "Enable CEC emulation support"
-	depends on VIDEO_VIVID && CEC_CORE
+	depends on VIDEO_VIVID
+	select CEC_CORE
 	---help---
 	  When selected the vivid module will emulate the optional
 	  HDMI CEC feature.

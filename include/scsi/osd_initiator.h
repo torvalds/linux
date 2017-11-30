@@ -157,7 +157,7 @@ struct osd_request {
 
 	osd_req_done_fn *async_done;
 	void *async_private;
-	int async_error;
+	blk_status_t async_error;
 	int req_errors;
 };
 

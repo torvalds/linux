@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __OF_IRQ_H
 #define __OF_IRQ_H
 
@@ -8,7 +9,7 @@
 #include <linux/ioport.h>
 #include <linux/of.h>
 
-typedef int const (*of_irq_init_cb_t)(struct device_node *, struct device_node *);
+typedef int (*of_irq_init_cb_t)(struct device_node *, struct device_node *);
 
 /*
  * Workarounds only applied to 32bit powermac machines

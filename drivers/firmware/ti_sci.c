@@ -202,7 +202,8 @@ static int ti_sci_debugfs_create(struct platform_device *pdev,
 	info->debug_buffer[info->debug_region_size] = 0;
 
 	info->d = debugfs_create_file(strncat(debug_name, dev_name(dev),
-					      sizeof(debug_name)),
+					      sizeof(debug_name) -
+					      sizeof("ti_sci_debug@")),
 				      0444, NULL, info, &ti_sci_debug_fops);
 	if (IS_ERR(info->d))
 		return PTR_ERR(info->d);
@@ -438,7 +439,7 @@ static inline int ti_sci_do_xfer(struct ti_sci_info *info,
 	/* And we wait for the response. */
 	timeout = msecs_to_jiffies(info->desc->max_rx_timeout_ms);
 	if (!wait_for_completion_timeout(&xfer->done, timeout)) {
-		dev_err(dev, "Mbox timedout in resp(caller: %pF)\n",
+		dev_err(dev, "Mbox timedout in resp(caller: %pS)\n",
 			(void *)_RET_IP_);
 		ret = -ETIMEDOUT;
 	}

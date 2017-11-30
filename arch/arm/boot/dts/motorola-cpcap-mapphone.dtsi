@@ -26,6 +26,22 @@
 			#io-channel-cells = <1>;
 		};
 
+		cpcap_battery: battery {
+			compatible = "motorola,cpcap-battery";
+			interrupts-extended = <
+				&cpcap 6 0 &cpcap 5 0 &cpcap 3 0
+				&cpcap 20 0 &cpcap 54 0
+			>;
+			interrupt-names =
+				"eol", "lowbph", "lowbpl",
+				"chrgcurr1", "battdetb";
+			io-channels = <&cpcap_adc 0 &cpcap_adc 1
+				       &cpcap_adc 5 &cpcap_adc 6>;
+			io-channel-names = "battdetb", "battp",
+					   "chg_isense", "batti";
+			power-supplies = <&cpcap_charger>;
+		};
+
 		cpcap_charger: charger {
 			compatible = "motorola,mapphone-cpcap-charger";
 			interrupts-extended = <
@@ -239,5 +255,6 @@
 		regulator-min-microvolt = <2775000>;
 		regulator-max-microvolt = <2775000>;
 		regulator-enable-ramp-delay = <1000>;
+		regulator-initial-mode = <0x00>; /* NORMAL */
 	};
 };

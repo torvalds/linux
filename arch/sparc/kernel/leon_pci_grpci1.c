@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * leon_pci_grpci1.c: GRPCI1 Host PCI driver
  *
@@ -695,7 +696,7 @@ err1:
 	return err;
 }
 
-static struct of_device_id grpci1_of_match[] = {
+static const struct of_device_id grpci1_of_match[] __initconst = {
 	{
 	 .name = "GAISLER_PCIFBRG",
 	 },

@@ -1,0 +1,19 @@
+* TSYS01 - Measurement Specialties temperature sensor
+
+Required properties:
+
+	- compatible: should be "meas,tsys01"
+	- reg: I2C address of the sensor (changeable via CSB pin)
+
+		------------------------
+		| CSB | Device Address |
+		------------------------
+		   1         0x76
+		   0	     0x77
+
+Example:
+
+tsys01@76 {
+	compatible = "meas,tsys01";
+	reg = <0x76>;
+};

@@ -34,8 +34,6 @@ struct aq_vec_s {
 #define AQ_VEC_RX_ID 1
 
 static int aq_vec_poll(struct napi_struct *napi, int budget)
-__releases(&self->lock)
-__acquires(&self->lock)
 {
 	struct aq_vec_s *self = container_of(napi, struct aq_vec_s, napi);
 	struct aq_ring_s *ring = NULL;
@@ -47,7 +45,7 @@ __acquires(&self->lock)
 
 	if (!self) {
 		err = -EINVAL;
-	} else if (spin_trylock(&self->header.lock)) {
+	} else {
 		for (i = 0U, ring = self->ring[0];
 			self->tx_rings > i; ++i, ring = self->ring[i]) {
 			if (self->aq_hw_ops->hw_ring_tx_head_update) {
@@ -61,12 +59,7 @@ __acquires(&self->lock)
 			if (ring[AQ_VEC_TX_ID].sw_head !=
 			    ring[AQ_VEC_TX_ID].hw_head) {
 				aq_ring_tx_clean(&ring[AQ_VEC_TX_ID]);
-
-				if (aq_ring_avail_dx(&ring[AQ_VEC_TX_ID]) >
-				    AQ_CFG_SKB_FRAGS_MAX) {
-					aq_nic_ndev_queue_start(self->aq_nic,
-						ring[AQ_VEC_TX_ID].idx);
-				}
+				aq_ring_update_queue_state(&ring[AQ_VEC_TX_ID]);
 				was_tx_cleaned = true;
 			}
 
@@ -78,6 +71,7 @@ __acquires(&self->lock)
 			if (ring[AQ_VEC_RX_ID].sw_head !=
 				ring[AQ_VEC_RX_ID].hw_head) {
 				err = aq_ring_rx_clean(&ring[AQ_VEC_RX_ID],
+						       napi,
 						       &work_done,
 						       budget - work_done);
 				if (err < 0)
@@ -105,11 +99,8 @@ __acquires(&self->lock)
 			self->aq_hw_ops->hw_irq_enable(self->aq_hw,
 					1U << self->aq_ring_param.vec_idx);
 		}
-
-err_exit:
-		spin_unlock(&self->header.lock);
 	}
-
+err_exit:
 	return work_done;
 }
 
@@ -184,8 +175,6 @@ int aq_vec_init(struct aq_vec_s *self, struct aq_hw_ops *aq_hw_ops,
 
 	self->aq_hw_ops = aq_hw_ops;
 	self->aq_hw = aq_hw;
-
-	spin_lock_init(&self->header.lock);
 
 	for (i = 0U, ring = self->ring[0];
 		self->tx_rings > i; ++i, ring = self->ring[i]) {
@@ -370,6 +359,7 @@ void aq_vec_add_stats(struct aq_vec_s *self,
 		stats_tx->packets += tx->packets;
 		stats_tx->bytes += tx->bytes;
 		stats_tx->errors += tx->errors;
+		stats_tx->queue_restarts += tx->queue_restarts;
 	}
 }
 
@@ -383,8 +373,11 @@ int aq_vec_get_sw_stats(struct aq_vec_s *self, u64 *data, unsigned int *p_count)
 	memset(&stats_tx, 0U, sizeof(struct aq_ring_stats_tx_s));
 	aq_vec_add_stats(self, &stats_rx, &stats_tx);
 
+	/* This data should mimic aq_ethtool_queue_stat_names structure
+	 */
 	data[count] += stats_rx.packets;
 	data[++count] += stats_tx.packets;
+	data[++count] += stats_tx.queue_restarts;
 	data[++count] += stats_rx.jumbo_packets;
 	data[++count] += stats_rx.lro_packets;
 	data[++count] += stats_rx.errors;

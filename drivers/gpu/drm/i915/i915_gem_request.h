@@ -30,6 +30,8 @@
 #include "i915_gem.h"
 #include "i915_sw_fence.h"
 
+#include <uapi/drm/i915_drm.h>
+
 struct drm_file;
 struct drm_i915_gem_object;
 struct drm_i915_gem_request;
@@ -67,10 +69,21 @@ struct i915_dependency {
 struct i915_priotree {
 	struct list_head signalers_list; /* those before us, we depend upon */
 	struct list_head waiters_list; /* those after us, they depend upon us */
-	struct rb_node node;
+	struct list_head link;
 	int priority;
-#define I915_PRIORITY_MAX 1024
-#define I915_PRIORITY_MIN (-I915_PRIORITY_MAX)
+};
+
+enum {
+	I915_PRIORITY_MIN = I915_CONTEXT_MIN_USER_PRIORITY - 1,
+	I915_PRIORITY_NORMAL = I915_CONTEXT_DEFAULT_PRIORITY,
+	I915_PRIORITY_MAX = I915_CONTEXT_MAX_USER_PRIORITY + 1,
+
+	I915_PRIORITY_INVALID = INT_MIN
+};
+
+struct i915_gem_capture_list {
+	struct i915_gem_capture_list *next;
+	struct i915_vma *vma;
 };
 
 /**
@@ -123,7 +136,7 @@ struct drm_i915_gem_request {
 	 * It is used by the driver to then queue the request for execution.
 	 */
 	struct i915_sw_fence submit;
-	wait_queue_t submitq;
+	wait_queue_entry_t submitq;
 	wait_queue_head_t execute;
 
 	/* A list of everyone we wait upon, and everyone who waits upon us.
@@ -167,10 +180,18 @@ struct drm_i915_gem_request {
 	 * error state dump only).
 	 */
 	struct i915_vma *batch;
+	/** Additional buffers requested by userspace to be captured upon
+	 * a GPU hang. The vma/obj on this list are protected by their
+	 * active reference - all objects on this list must also be
+	 * on the active_list (of their final request).
+	 */
+	struct i915_gem_capture_list *capture_list;
 	struct list_head active_list;
 
 	/** Time at which this request was emitted, in jiffies. */
 	unsigned long emitted_jiffies;
+
+	bool waitboost;
 
 	/** engine->request_list entry for this request */
 	struct list_head link;
@@ -299,26 +320,6 @@ static inline bool i915_seqno_passed(u32 seq1, u32 seq2)
 }
 
 static inline bool
-__i915_gem_request_started(const struct drm_i915_gem_request *req, u32 seqno)
-{
-	GEM_BUG_ON(!seqno);
-	return i915_seqno_passed(intel_engine_get_seqno(req->engine),
-				 seqno - 1);
-}
-
-static inline bool
-i915_gem_request_started(const struct drm_i915_gem_request *req)
-{
-	u32 seqno;
-
-	seqno = i915_gem_request_global_seqno(req);
-	if (!seqno)
-		return false;
-
-	return __i915_gem_request_started(req, seqno);
-}
-
-static inline bool
 __i915_gem_request_completed(const struct drm_i915_gem_request *req, u32 seqno)
 {
 	GEM_BUG_ON(!seqno);
@@ -336,21 +337,6 @@ i915_gem_request_completed(const struct drm_i915_gem_request *req)
 		return false;
 
 	return __i915_gem_request_completed(req, seqno);
-}
-
-bool __i915_spin_request(const struct drm_i915_gem_request *request,
-			 u32 seqno, int state, unsigned long timeout_us);
-static inline bool i915_spin_request(const struct drm_i915_gem_request *request,
-				     int state, unsigned long timeout_us)
-{
-	u32 seqno;
-
-	seqno = i915_gem_request_global_seqno(request);
-	if (!seqno)
-		return 0;
-
-	return (__i915_gem_request_started(request, seqno) &&
-		__i915_spin_request(request, seqno, state, timeout_us));
 }
 
 /* We treat requests as fences. This is not be to confused with our

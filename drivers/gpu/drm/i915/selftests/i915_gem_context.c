@@ -38,8 +38,6 @@ gpu_fill_dw(struct i915_vma *vma, u64 offset, unsigned long count, u32 value)
 	u32 *cmd;
 	int err;
 
-	GEM_BUG_ON(!igt_can_mi_store_dword_imm(vma->vm->i915));
-
 	size = (4 * count + 1) * sizeof(u32);
 	size = round_up(size, PAGE_SIZE);
 	obj = i915_gem_object_create_internal(vma->vm->i915, size);
@@ -123,6 +121,7 @@ static int gpu_fill(struct drm_i915_gem_object *obj,
 	int err;
 
 	GEM_BUG_ON(obj->base.size > vm->total);
+	GEM_BUG_ON(!intel_engine_can_store_dword(engine));
 
 	vma = i915_vma_instance(obj, vm, NULL);
 	if (IS_ERR(vma))
@@ -320,7 +319,7 @@ static unsigned long max_dwords(struct drm_i915_gem_object *obj)
 static int igt_ctx_exec(void *arg)
 {
 	struct drm_i915_private *i915 = arg;
-	struct drm_i915_gem_object *obj;
+	struct drm_i915_gem_object *obj = NULL;
 	struct drm_file *file;
 	IGT_TIMEOUT(end_time);
 	LIST_HEAD(objects);
@@ -359,7 +358,10 @@ static int igt_ctx_exec(void *arg)
 		}
 
 		for_each_engine(engine, i915, id) {
-			if (dw == 0) {
+			if (!intel_engine_can_store_dword(engine))
+				continue;
+
+			if (!obj) {
 				obj = create_test_object(ctx, file, &objects);
 				if (IS_ERR(obj)) {
 					err = PTR_ERR(obj);
@@ -376,8 +378,10 @@ static int igt_ctx_exec(void *arg)
 				goto out_unlock;
 			}
 
-			if (++dw == max_dwords(obj))
+			if (++dw == max_dwords(obj)) {
+				obj = NULL;
 				dw = 0;
+			}
 			ndwords++;
 		}
 		ncontexts++;
@@ -413,7 +417,7 @@ static int fake_aliasing_ppgtt_enable(struct drm_i915_private *i915)
 	if (err)
 		return err;
 
-	list_for_each_entry(obj, &i915->mm.bound_list, global_link) {
+	list_for_each_entry(obj, &i915->mm.bound_list, mm.link) {
 		struct i915_vma *vma;
 
 		vma = i915_vma_instance(obj, &i915->ggtt.base, NULL);

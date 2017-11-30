@@ -1,0 +1,36 @@
+Lantiq XWAY SoC GPHY binding
+============================
+
+This binding describes a software-defined ethernet PHY, provided by the RCU
+module on newer Lantiq XWAY SoCs (xRX200 and newer).
+
+-------------------------------------------------------------------------------
+Required properties:
+- compatible		: Should be one of
+				"lantiq,xrx200a1x-gphy"
+				"lantiq,xrx200a2x-gphy"
+				"lantiq,xrx300-gphy"
+				"lantiq,xrx330-gphy"
+- reg			: Addrress of the GPHY FW load address register
+- resets		: Must reference the RCU GPHY reset bit
+- reset-names		: One entry, value must be "gphy" or optional "gphy2"
+- clocks		: A reference to the (PMU) GPHY clock gate
+
+Optional properties:
+- lantiq,gphy-mode	: GPHY_MODE_GE (default) or GPHY_MODE_FE as defined in
+			  <dt-bindings/mips/lantiq_xway_gphy.h>
+
+
+-------------------------------------------------------------------------------
+Example for the GPHys on the xRX200 SoCs:
+
+#include <dt-bindings/mips/lantiq_rcu_gphy.h>
+	gphy0: gphy@20 {
+		compatible = "lantiq,xrx200a2x-gphy";
+		reg = <0x20 0x4>;
+
+		resets = <&reset0 31 30>, <&reset1 7 7>;
+		reset-names = "gphy", "gphy2";
+		clocks = <&pmu0 XRX200_PMU_GATE_GPHY>;
+		lantiq,gphy-mode = <GPHY_MODE_GE>;
+	};

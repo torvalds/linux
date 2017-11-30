@@ -584,10 +584,6 @@ static int hv_memory_notifier(struct notifier_block *nb, unsigned long val,
 
 	switch (val) {
 	case MEM_ONLINE:
-		spin_lock_irqsave(&dm_device.ha_lock, flags);
-		dm_device.num_pages_onlined += mem->nr_pages;
-		spin_unlock_irqrestore(&dm_device.ha_lock, flags);
-		/* Fall through */
 	case MEM_CANCEL_ONLINE:
 		if (dm_device.ha_waiting) {
 			dm_device.ha_waiting = false;
@@ -644,6 +640,9 @@ static void hv_page_online_one(struct hv_hotadd_state *has, struct page *pg)
 	__online_page_set_limits(pg);
 	__online_page_increment_counters(pg);
 	__online_page_free(pg);
+
+	WARN_ON_ONCE(!spin_is_locked(&dm_device.ha_lock));
+	dm_device.num_pages_onlined++;
 }
 
 static void hv_bring_pgs_online(struct hv_hotadd_state *has,
@@ -1036,8 +1035,8 @@ static void process_info(struct hv_dynmem_device *dm, struct dm_info_msg *msg)
 		if (info_hdr->data_size == sizeof(__u64)) {
 			__u64 *max_page_count = (__u64 *)&info_hdr[1];
 
-			pr_info("INFO_TYPE_MAX_PAGE_CNT = %llu\n",
-				*max_page_count);
+			pr_info("Max. dynamic memory size: %llu MB\n",
+				(*max_page_count) >> (20 - PAGE_SHIFT));
 		}
 
 		break;
@@ -1656,6 +1655,7 @@ static int balloon_probe(struct hv_device *dev,
 	}
 
 	dm_device.state = DM_INITIALIZED;
+	last_post_time = jiffies;
 
 	return 0;
 

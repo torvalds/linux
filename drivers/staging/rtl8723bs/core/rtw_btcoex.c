@@ -55,7 +55,7 @@ void rtw_btcoex_ConnectNotify(struct adapter *padapter, u8 action)
 
 void rtw_btcoex_MediaStatusNotify(struct adapter *padapter, u8 mediaStatus)
 {
-	if ((RT_MEDIA_CONNECT == mediaStatus)
+	if ((mediaStatus == RT_MEDIA_CONNECT)
 		&& (check_fwstate(&padapter->mlmepriv, WIFI_AP_STATE) == true)) {
 		rtw_hal_set_hwreg(padapter, HW_VAR_DL_RSVD_PAGE, NULL);
 	}
@@ -207,11 +207,11 @@ void rtw_btcoex_RejectApAggregatedPacket(struct adapter *padapter, u8 enable)
 	psta = rtw_get_stainfo(&padapter->stapriv, get_bssid(&padapter->mlmepriv));
 
 	if (true == enable) {
-		pmlmeinfo->bAcceptAddbaReq = false;
+		pmlmeinfo->accept_addba_req = false;
 		if (psta)
 			send_delba(padapter, 0, psta->hwaddr);
 	} else{
-		pmlmeinfo->bAcceptAddbaReq = true;
+		pmlmeinfo->accept_addba_req = true;
 	}
 }
 

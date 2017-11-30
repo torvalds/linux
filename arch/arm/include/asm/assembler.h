@@ -87,6 +87,8 @@
 #define CALGN(code...)
 #endif
 
+#define IMM12_MASK 0xfff
+
 /*
  * Enable and disable interrupts
  */
@@ -513,6 +515,24 @@ THUMB(	orr	\reg , \reg , #PSR_T_BIT	)
 	ret	\reg
 #ifdef CONFIG_THUMB2_KERNEL
 	nop
+#endif
+	.endm
+
+	.macro	bug, msg, line
+#ifdef CONFIG_THUMB2_KERNEL
+1:	.inst	0xde02
+#else
+1:	.inst	0xe7f001f2
+#endif
+#ifdef CONFIG_DEBUG_BUGVERBOSE
+	.pushsection .rodata.str, "aMS", %progbits, 1
+2:	.asciz	"\msg"
+	.popsection
+	.pushsection __bug_table, "aw"
+	.align	2
+	.word	1b, 2b
+	.hword	\line
+	.popsection
 #endif
 	.endm
 

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_S390_TOPOLOGY_H
 #define _ASM_S390_TOPOLOGY_H
 
@@ -16,6 +17,7 @@ struct cpu_topology_s390 {
 	unsigned short book_id;
 	unsigned short drawer_id;
 	unsigned short node_id;
+	unsigned short dedicated : 1;
 	cpumask_t thread_mask;
 	cpumask_t core_mask;
 	cpumask_t book_mask;
@@ -34,6 +36,7 @@ extern cpumask_t cpus_with_topology;
 #define topology_book_cpumask(cpu)	  (&cpu_topology[cpu].book_mask)
 #define topology_drawer_id(cpu)		  (cpu_topology[cpu].drawer_id)
 #define topology_drawer_cpumask(cpu)	  (&cpu_topology[cpu].drawer_mask)
+#define topology_cpu_dedicated(cpu)	  (cpu_topology[cpu].dedicated)
 
 #define mc_capable() 1
 
@@ -76,12 +79,6 @@ static inline const struct cpumask *cpumask_of_node(int node)
 {
 	return &node_to_cpumask_map[node];
 }
-
-/*
- * Returns the number of the node containing node 'node'. This
- * architecture is flat, so it is a pretty simple function!
- */
-#define parent_node(node) (node)
 
 #define pcibus_to_node(bus) __pcibus_to_node(bus)
 

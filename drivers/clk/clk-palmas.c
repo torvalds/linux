@@ -229,6 +229,7 @@ static int palmas_clks_init_configure(struct palmas_clock_info *cinfo)
 		if (ret < 0) {
 			dev_err(cinfo->dev, "Ext config for %s failed, %d\n",
 				cinfo->clk_desc->clk_name, ret);
+			clk_unprepare(cinfo->hw.clk);
 			return ret;
 		}
 	}

@@ -55,10 +55,6 @@ struct mdp5_kms {
 	struct mdp5_state *state;
 	struct drm_modeset_lock state_lock;
 
-	/* mapper-id used to request GEM buffer mapped for scanout: */
-	int id;
-	struct msm_gem_address_space *aspace;
-
 	struct mdp5_smp *smp;
 	struct mdp5_ctl_manager *ctlm;
 
@@ -80,6 +76,8 @@ struct mdp5_kms {
 	bool rpm_enabled;
 
 	struct mdp_irq error_handler;
+
+	int enable_count;
 };
 #define to_mdp5_kms(x) container_of(x, struct mdp5_kms, base)
 
@@ -171,11 +169,13 @@ struct mdp5_encoder {
 
 static inline void mdp5_write(struct mdp5_kms *mdp5_kms, u32 reg, u32 data)
 {
+	WARN_ON(mdp5_kms->enable_count <= 0);
 	msm_writel(data, mdp5_kms->mmio + reg);
 }
 
 static inline u32 mdp5_read(struct mdp5_kms *mdp5_kms, u32 reg)
 {
+	WARN_ON(mdp5_kms->enable_count <= 0);
 	return msm_readl(mdp5_kms->mmio + reg);
 }
 
@@ -258,9 +258,6 @@ static inline uint32_t lm2ppdone(struct mdp5_hw_mixer *mixer)
 {
 	return MDP5_IRQ_PING_PONG_0_DONE << mixer->pp;
 }
-
-int mdp5_disable(struct mdp5_kms *mdp5_kms);
-int mdp5_enable(struct mdp5_kms *mdp5_kms);
 
 void mdp5_set_irqmask(struct mdp_kms *mdp_kms, uint32_t irqmask,
 		uint32_t old_irqmask);

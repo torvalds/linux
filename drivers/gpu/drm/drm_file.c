@@ -75,7 +75,7 @@ DEFINE_MUTEX(drm_global_mutex);
  * for drivers which use the CMA GEM helpers it's drm_gem_cma_mmap().
  *
  * No other file operations are supported by the DRM userspace API. Overall the
- * following is an example #file_operations structure::
+ * following is an example &file_operations structure::
  *
  *     static const example_drm_fops = {
  *             .owner = THIS_MODULE,
@@ -92,6 +92,11 @@ DEFINE_MUTEX(drm_global_mutex);
  * For plain GEM based drivers there is the DEFINE_DRM_GEM_FOPS() macro, and for
  * CMA based drivers there is the DEFINE_DRM_GEM_CMA_FOPS() macro to make this
  * simpler.
+ *
+ * The driver's &file_operations must be stored in &drm_driver.fops.
+ *
+ * For driver-private IOCTL handling see the more detailed discussion in
+ * :ref:`IOCTL support in the userland interfaces chapter<drm_driver_ioctl>`.
  */
 
 static int drm_open_helper(struct file *filp, struct drm_minor *minor);
@@ -229,6 +234,9 @@ static int drm_open_helper(struct file *filp, struct drm_minor *minor)
 	if (drm_core_check_feature(dev, DRIVER_GEM))
 		drm_gem_open(dev, priv);
 
+	if (drm_core_check_feature(dev, DRIVER_SYNCOBJ))
+		drm_syncobj_open(priv);
+
 	if (drm_core_check_feature(dev, DRIVER_PRIME))
 		drm_prime_init_file_private(&priv->prime);
 
@@ -276,6 +284,8 @@ out_close:
 out_prime_destroy:
 	if (drm_core_check_feature(dev, DRIVER_PRIME))
 		drm_prime_destroy_file_private(&priv->prime);
+	if (drm_core_check_feature(dev, DRIVER_SYNCOBJ))
+		drm_syncobj_release(priv);
 	if (drm_core_check_feature(dev, DRIVER_GEM))
 		drm_gem_release(dev, priv);
 	put_pid(priv->pid);
@@ -351,9 +361,8 @@ void drm_lastclose(struct drm_device * dev)
  *
  * This function must be used by drivers as their &file_operations.release
  * method. It frees any resources associated with the open file, and calls the
- * &drm_driver.preclose and &drm_driver.lastclose driver callbacks. If this is
- * the last open file for the DRM device also proceeds to call the
- * &drm_driver.lastclose driver callback.
+ * &drm_driver.postclose driver callback. If this is the last open file for the
+ * DRM device also proceeds to call the &drm_driver.lastclose driver callback.
  *
  * RETURNS:
  *
@@ -373,7 +382,8 @@ int drm_release(struct inode *inode, struct file *filp)
 	list_del(&file_priv->lhead);
 	mutex_unlock(&dev->filelist_mutex);
 
-	if (dev->driver->preclose)
+	if (drm_core_check_feature(dev, DRIVER_LEGACY) &&
+	    dev->driver->preclose)
 		dev->driver->preclose(dev, file_priv);
 
 	/* ========================================================
@@ -397,6 +407,9 @@ int drm_release(struct inode *inode, struct file *filp)
 		drm_fb_release(file_priv);
 		drm_property_destroy_user_blobs(dev, file_priv);
 	}
+
+	if (drm_core_check_feature(dev, DRIVER_SYNCOBJ))
+		drm_syncobj_release(file_priv);
 
 	if (drm_core_check_feature(dev, DRIVER_GEM))
 		drm_gem_release(dev, file_priv);
@@ -423,7 +436,7 @@ int drm_release(struct inode *inode, struct file *filp)
 
 	if (!--dev->open_count) {
 		drm_lastclose(dev);
-		if (drm_device_is_unplugged(dev))
+		if (drm_dev_is_unplugged(dev))
 			drm_put_dev(dev);
 	}
 	mutex_unlock(&drm_global_mutex);

@@ -232,7 +232,7 @@ static int tz1090_gpio_request(struct gpio_chip *chip, unsigned int offset)
 	struct tz1090_gpio_bank *bank = gpiochip_get_data(chip);
 	int ret;
 
-	ret = pinctrl_request_gpio(chip->base + offset);
+	ret = pinctrl_gpio_request(chip->base + offset);
 	if (ret)
 		return ret;
 
@@ -246,7 +246,7 @@ static void tz1090_gpio_free(struct gpio_chip *chip, unsigned int offset)
 {
 	struct tz1090_gpio_bank *bank = gpiochip_get_data(chip);
 
-	pinctrl_free_gpio(chip->base + offset);
+	pinctrl_gpio_free(chip->base + offset);
 
 	tz1090_gpio_clear_bit(bank, REG_GPIO_BIT_EN, offset);
 }
@@ -527,13 +527,12 @@ static void tz1090_gpio_register_banks(struct tz1090_gpio *priv)
 
 		ret = of_property_read_u32(node, "reg", &addr);
 		if (ret) {
-			dev_err(priv->dev, "invalid reg on %s\n",
-				node->full_name);
+			dev_err(priv->dev, "invalid reg on %pOF\n", node);
 			continue;
 		}
 		if (addr >= 3) {
-			dev_err(priv->dev, "index %u in %s out of range\n",
-				addr, node->full_name);
+			dev_err(priv->dev, "index %u in %pOF out of range\n",
+				addr, node);
 			continue;
 		}
 
@@ -543,8 +542,7 @@ static void tz1090_gpio_register_banks(struct tz1090_gpio *priv)
 
 		ret = tz1090_gpio_bank_probe(&info);
 		if (ret) {
-			dev_err(priv->dev, "failure registering %s\n",
-				node->full_name);
+			dev_err(priv->dev, "failure registering %pOF\n", node);
 			of_node_put(node);
 			continue;
 		}

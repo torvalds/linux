@@ -30,10 +30,12 @@ union PM4_MES_TYPE_3_HEADER {
 	struct {
 		uint32_t reserved1 : 8; /* < reserved */
 		uint32_t opcode    : 8; /* < IT opcode */
-		uint32_t count     : 14;/* < number of DWORDs - 1 in the
-		information body. */
-		uint32_t type      : 2; /* < packet identifier.
-					It should be 3 for type 3 packets */
+		uint32_t count     : 14;/* < Number of DWORDS - 1 in the
+					 *   information body
+					 */
+		uint32_t type      : 2; /* < packet identifier
+					 *   It should be 3 for type 3 packets
+					 */
 	};
 	uint32_t u32All;
 };
@@ -124,9 +126,10 @@ struct pm4_mes_runlist {
 			uint32_t ib_size:20;
 			uint32_t chain:1;
 			uint32_t offload_polling:1;
-			uint32_t reserved3:1;
+			uint32_t reserved2:1;
 			uint32_t valid:1;
-			uint32_t reserved4:8;
+			uint32_t process_cnt:4;
+			uint32_t reserved3:4;
 		} bitfields4;
 		uint32_t ordinal4;
 	};
@@ -141,8 +144,8 @@ struct pm4_mes_runlist {
 
 struct pm4_mes_map_process {
 	union {
-		union PM4_MES_TYPE_3_HEADER   header;            /* header */
-		uint32_t            ordinal1;
+		union PM4_MES_TYPE_3_HEADER header;	/* header */
+		uint32_t ordinal1;
 	};
 
 	union {
@@ -153,36 +156,48 @@ struct pm4_mes_map_process {
 			uint32_t process_quantum:7;
 		} bitfields2;
 		uint32_t ordinal2;
-};
+	};
 
 	union {
 		struct {
 			uint32_t page_table_base:28;
-			uint32_t reserved2:4;
+			uint32_t reserved3:4;
 		} bitfields3;
 		uint32_t ordinal3;
 	};
 
+	uint32_t reserved;
+
 	uint32_t sh_mem_bases;
+	uint32_t sh_mem_config;
 	uint32_t sh_mem_ape1_base;
 	uint32_t sh_mem_ape1_limit;
-	uint32_t sh_mem_config;
+
+	uint32_t sh_hidden_private_base_vmid;
+
+	uint32_t reserved2;
+	uint32_t reserved3;
+
 	uint32_t gds_addr_lo;
 	uint32_t gds_addr_hi;
 
 	union {
 		struct {
 			uint32_t num_gws:6;
-			uint32_t reserved3:2;
+			uint32_t reserved4:2;
 			uint32_t num_oac:4;
-			uint32_t reserved4:4;
+			uint32_t reserved5:4;
 			uint32_t gds_size:6;
 			uint32_t num_queues:10;
 		} bitfields10;
 		uint32_t ordinal10;
 	};
 
+	uint32_t completion_signal_lo;
+	uint32_t completion_signal_hi;
+
 };
+
 #endif
 
 /*--------------------MES_MAP_QUEUES--------------------*/
@@ -335,7 +350,7 @@ enum mes_unmap_queues_engine_sel_enum {
 	engine_sel__mes_unmap_queues__sdmal = 3
 };
 
-struct PM4_MES_UNMAP_QUEUES {
+struct pm4_mes_unmap_queues {
 	union {
 		union PM4_MES_TYPE_3_HEADER   header;            /* header */
 		uint32_t            ordinal1;
@@ -394,5 +409,102 @@ struct PM4_MES_UNMAP_QUEUES {
 	};
 };
 #endif
+
+#ifndef PM4_MEC_RELEASE_MEM_DEFINED
+#define PM4_MEC_RELEASE_MEM_DEFINED
+enum RELEASE_MEM_event_index_enum {
+	event_index___release_mem__end_of_pipe = 5,
+	event_index___release_mem__shader_done = 6
+};
+
+enum RELEASE_MEM_cache_policy_enum {
+	cache_policy___release_mem__lru = 0,
+	cache_policy___release_mem__stream = 1,
+	cache_policy___release_mem__bypass = 2
+};
+
+enum RELEASE_MEM_dst_sel_enum {
+	dst_sel___release_mem__memory_controller = 0,
+	dst_sel___release_mem__tc_l2 = 1,
+	dst_sel___release_mem__queue_write_pointer_register = 2,
+	dst_sel___release_mem__queue_write_pointer_poll_mask_bit = 3
+};
+
+enum RELEASE_MEM_int_sel_enum {
+	int_sel___release_mem__none = 0,
+	int_sel___release_mem__send_interrupt_only = 1,
+	int_sel___release_mem__send_interrupt_after_write_confirm = 2,
+	int_sel___release_mem__send_data_after_write_confirm = 3
+};
+
+enum RELEASE_MEM_data_sel_enum {
+	data_sel___release_mem__none = 0,
+	data_sel___release_mem__send_32_bit_low = 1,
+	data_sel___release_mem__send_64_bit_data = 2,
+	data_sel___release_mem__send_gpu_clock_counter = 3,
+	data_sel___release_mem__send_cp_perfcounter_hi_lo = 4,
+	data_sel___release_mem__store_gds_data_to_memory = 5
+};
+
+struct pm4_mec_release_mem {
+	union {
+		union PM4_MES_TYPE_3_HEADER header;     /*header */
+		unsigned int ordinal1;
+	};
+
+	union {
+		struct {
+			unsigned int event_type:6;
+			unsigned int reserved1:2;
+			enum RELEASE_MEM_event_index_enum event_index:4;
+			unsigned int tcl1_vol_action_ena:1;
+			unsigned int tc_vol_action_ena:1;
+			unsigned int reserved2:1;
+			unsigned int tc_wb_action_ena:1;
+			unsigned int tcl1_action_ena:1;
+			unsigned int tc_action_ena:1;
+			unsigned int reserved3:6;
+			unsigned int atc:1;
+			enum RELEASE_MEM_cache_policy_enum cache_policy:2;
+			unsigned int reserved4:5;
+		} bitfields2;
+		unsigned int ordinal2;
+	};
+
+	union {
+		struct {
+			unsigned int reserved5:16;
+			enum RELEASE_MEM_dst_sel_enum dst_sel:2;
+			unsigned int reserved6:6;
+			enum RELEASE_MEM_int_sel_enum int_sel:3;
+			unsigned int reserved7:2;
+			enum RELEASE_MEM_data_sel_enum data_sel:3;
+		} bitfields3;
+		unsigned int ordinal3;
+	};
+
+	union {
+		struct {
+			unsigned int reserved8:2;
+			unsigned int address_lo_32b:30;
+		} bitfields4;
+		struct {
+			unsigned int reserved9:3;
+			unsigned int address_lo_64b:29;
+		} bitfields5;
+		unsigned int ordinal4;
+	};
+
+	unsigned int address_hi;
+
+	unsigned int data_lo;
+
+	unsigned int data_hi;
+};
+#endif
+
+enum {
+	CACHE_FLUSH_AND_INV_TS_EVENT = 0x00000014
+};
 
 #endif

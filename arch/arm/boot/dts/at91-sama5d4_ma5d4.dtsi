@@ -75,7 +75,7 @@
 					reg = <0>;
 					clocks = <&clk20m>;
 					interrupt-parent = <&pioE>;
-					interrupts = <6 GPIO_ACTIVE_LOW>;
+					interrupts = <6 IRQ_TYPE_EDGE_RISING>;
 					spi-max-frequency = <10000000>;
 				};
 
@@ -84,7 +84,7 @@
 					reg = <1>;
 					clocks = <&clk20m>;
 					interrupt-parent = <&pioE>;
-					interrupts = <7 GPIO_ACTIVE_LOW>;
+					interrupts = <7 IRQ_TYPE_EDGE_RISING>;
 					spi-max-frequency = <10000000>;
 				};
 			};

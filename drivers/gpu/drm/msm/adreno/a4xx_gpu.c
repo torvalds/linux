@@ -31,6 +31,7 @@
 
 extern bool hang_debug;
 static void a4xx_dump(struct msm_gpu *gpu);
+static bool a4xx_idle(struct msm_gpu *gpu);
 
 /*
  * a4xx_enable_hwcg() - Program the clock control registers
@@ -115,7 +116,7 @@ static void a4xx_enable_hwcg(struct msm_gpu *gpu)
 
 static bool a4xx_me_init(struct msm_gpu *gpu)
 {
-	struct msm_ringbuffer *ring = gpu->rb;
+	struct msm_ringbuffer *ring = gpu->rb[0];
 
 	OUT_PKT3(ring, CP_ME_INIT, 17);
 	OUT_RING(ring, 0x000003f7);
@@ -136,8 +137,8 @@ static bool a4xx_me_init(struct msm_gpu *gpu)
 	OUT_RING(ring, 0x00000000);
 	OUT_RING(ring, 0x00000000);
 
-	gpu->funcs->flush(gpu);
-	return gpu->funcs->idle(gpu);
+	gpu->funcs->flush(gpu, ring);
+	return a4xx_idle(gpu);
 }
 
 static int a4xx_hw_init(struct msm_gpu *gpu)
@@ -336,7 +337,7 @@ static void a4xx_destroy(struct msm_gpu *gpu)
 static bool a4xx_idle(struct msm_gpu *gpu)
 {
 	/* wait for ringbuffer to drain: */
-	if (!adreno_idle(gpu))
+	if (!adreno_idle(gpu, gpu->rb[0]))
 		return false;
 
 	/* then wait for GPU to finish: */
@@ -531,10 +532,9 @@ static const struct adreno_gpu_funcs funcs = {
 		.pm_suspend = a4xx_pm_suspend,
 		.pm_resume = a4xx_pm_resume,
 		.recover = a4xx_recover,
-		.last_fence = adreno_last_fence,
 		.submit = adreno_submit,
 		.flush = adreno_flush,
-		.idle = a4xx_idle,
+		.active_ring = adreno_active_ring,
 		.irq = a4xx_irq,
 		.destroy = a4xx_destroy,
 #ifdef CONFIG_DEBUG_FS
@@ -568,15 +568,13 @@ struct msm_gpu *a4xx_gpu_init(struct drm_device *dev)
 	adreno_gpu = &a4xx_gpu->base;
 	gpu = &adreno_gpu->base;
 
-	a4xx_gpu->pdev = pdev;
-
 	gpu->perfcntrs = NULL;
 	gpu->num_perfcntrs = 0;
 
 	adreno_gpu->registers = a4xx_registers;
 	adreno_gpu->reg_offsets = a4xx_register_offsets;
 
-	ret = adreno_gpu_init(dev, pdev, adreno_gpu, &funcs);
+	ret = adreno_gpu_init(dev, pdev, adreno_gpu, &funcs, 1);
 	if (ret)
 		goto fail;
 

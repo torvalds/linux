@@ -54,7 +54,7 @@ typedef struct {
 	int size;			/* size of magic/mask */
 	char *magic;			/* magic or filename extension */
 	char *mask;			/* mask, NULL for exact match */
-	char *interpreter;		/* filename of interpreter */
+	const char *interpreter;	/* filename of interpreter */
 	char *name;
 	struct dentry *dentry;
 	struct file *interp_file;
@@ -131,27 +131,26 @@ static int load_misc_binary(struct linux_binprm *bprm)
 {
 	Node *fmt;
 	struct file *interp_file = NULL;
-	char iname[BINPRM_BUF_SIZE];
-	const char *iname_addr = iname;
 	int retval;
 	int fd_binary = -1;
 
 	retval = -ENOEXEC;
 	if (!enabled)
-		goto ret;
+		return retval;
 
 	/* to keep locking time low, we copy the interpreter string */
 	read_lock(&entries_lock);
 	fmt = check_file(bprm);
 	if (fmt)
-		strlcpy(iname, fmt->interpreter, BINPRM_BUF_SIZE);
+		dget(fmt->dentry);
 	read_unlock(&entries_lock);
 	if (!fmt)
-		goto ret;
+		return retval;
 
 	/* Need to be able to load the file after exec */
+	retval = -ENOENT;
 	if (bprm->interp_flags & BINPRM_FLAGS_PATH_INACCESSIBLE)
-		return -ENOENT;
+		goto ret;
 
 	if (!(fmt->flags & MISC_FMT_PRESERVE_ARGV0)) {
 		retval = remove_arg_zero(bprm);
@@ -195,22 +194,22 @@ static int load_misc_binary(struct linux_binprm *bprm)
 	bprm->argc++;
 
 	/* add the interp as argv[0] */
-	retval = copy_strings_kernel(1, &iname_addr, bprm);
+	retval = copy_strings_kernel(1, &fmt->interpreter, bprm);
 	if (retval < 0)
 		goto error;
 	bprm->argc++;
 
 	/* Update interp in case binfmt_script needs it. */
-	retval = bprm_change_interp(iname, bprm);
+	retval = bprm_change_interp(fmt->interpreter, bprm);
 	if (retval < 0)
 		goto error;
 
-	if (fmt->flags & MISC_FMT_OPEN_FILE && fmt->interp_file) {
+	if (fmt->flags & MISC_FMT_OPEN_FILE) {
 		interp_file = filp_clone_open(fmt->interp_file);
 		if (!IS_ERR(interp_file))
 			deny_write_access(interp_file);
 	} else {
-		interp_file = open_exec(iname);
+		interp_file = open_exec(fmt->interpreter);
 	}
 	retval = PTR_ERR(interp_file);
 	if (IS_ERR(interp_file))
@@ -218,12 +217,15 @@ static int load_misc_binary(struct linux_binprm *bprm)
 
 	bprm->file = interp_file;
 	if (fmt->flags & MISC_FMT_CREDENTIALS) {
+		loff_t pos = 0;
+
 		/*
 		 * No need to call prepare_binprm(), it's already been
 		 * done.  bprm->buf is stale, update from interp_file.
 		 */
 		memset(bprm->buf, 0, BINPRM_BUF_SIZE);
-		retval = kernel_read(bprm->file, 0, bprm->buf, BINPRM_BUF_SIZE);
+		retval = kernel_read(bprm->file, bprm->buf, BINPRM_BUF_SIZE,
+				&pos);
 	} else
 		retval = prepare_binprm(bprm);
 
@@ -235,6 +237,7 @@ static int load_misc_binary(struct linux_binprm *bprm)
 		goto error;
 
 ret:
+	dput(fmt->dentry);
 	return retval;
 error:
 	if (fd_binary > 0)
@@ -591,8 +594,13 @@ static struct inode *bm_get_inode(struct super_block *sb, int mode)
 
 static void bm_evict_inode(struct inode *inode)
 {
+	Node *e = inode->i_private;
+
+	if (e && e->flags & MISC_FMT_OPEN_FILE)
+		filp_close(e->interp_file, NULL);
+
 	clear_inode(inode);
-	kfree(inode->i_private);
+	kfree(e);
 }
 
 static void kill_node(Node *e)
@@ -600,24 +608,14 @@ static void kill_node(Node *e)
 	struct dentry *dentry;
 
 	write_lock(&entries_lock);
-	dentry = e->dentry;
-	if (dentry) {
-		list_del_init(&e->list);
-		e->dentry = NULL;
-	}
+	list_del_init(&e->list);
 	write_unlock(&entries_lock);
 
-	if ((e->flags & MISC_FMT_OPEN_FILE) && e->interp_file) {
-		filp_close(e->interp_file, NULL);
-		e->interp_file = NULL;
-	}
-
-	if (dentry) {
-		drop_nlink(d_inode(dentry));
-		d_drop(dentry);
-		dput(dentry);
-		simple_release_fs(&bm_mnt, &entry_count);
-	}
+	dentry = e->dentry;
+	drop_nlink(d_inode(dentry));
+	d_drop(dentry);
+	dput(dentry);
+	simple_release_fs(&bm_mnt, &entry_count);
 }
 
 /* /<entry> */
@@ -662,7 +660,8 @@ static ssize_t bm_entry_write(struct file *file, const char __user *buffer,
 		root = file_inode(file)->i_sb->s_root;
 		inode_lock(d_inode(root));
 
-		kill_node(e);
+		if (!list_empty(&e->list))
+			kill_node(e);
 
 		inode_unlock(d_inode(root));
 		break;
@@ -791,7 +790,7 @@ static ssize_t bm_status_write(struct file *file, const char __user *buffer,
 		inode_lock(d_inode(root));
 
 		while (!list_empty(&entries))
-			kill_node(list_entry(entries.next, Node, list));
+			kill_node(list_first_entry(&entries, Node, list));
 
 		inode_unlock(d_inode(root));
 		break;

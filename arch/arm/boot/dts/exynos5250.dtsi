@@ -93,7 +93,7 @@
 	};
 
 	soc: soc {
-		sysram@02020000 {
+		sysram@2020000 {
 			compatible = "mmio-sram";
 			reg = <0x02020000 0x30000>;
 			#address-cells = <1>;
@@ -153,10 +153,10 @@
 
 		timer {
 			compatible = "arm,armv7-timer";
-			interrupts = <1 13 0xf08>,
-				     <1 14 0xf08>,
-				     <1 11 0xf08>,
-				     <1 10 0xf08>;
+			interrupts = <GIC_PPI 13 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>,
+				     <GIC_PPI 14 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>,
+				     <GIC_PPI 11 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>,
+				     <GIC_PPI 10 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>;
 			/*
 			 * Unfortunately we need this since some versions
 			 * of U-Boot on Exynos don't set the CNTFRQ register,
@@ -219,7 +219,7 @@
 			interrupts = <GIC_SPI 50 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
-		pinctrl_3: pinctrl@03860000 {
+		pinctrl_3: pinctrl@3860000 {
 			compatible = "samsung,exynos5250-pinctrl";
 			reg = <0x03860000 0x1000>;
 			interrupts = <GIC_SPI 47 IRQ_TYPE_LEVEL_HIGH>;
@@ -367,6 +367,11 @@
 			clocks = <&clock CLK_I2C_HDMI>;
 			clock-names = "i2c";
 			status = "disabled";
+
+			hdmiphy: hdmiphy@38 {
+				compatible = "samsung,exynos4212-hdmiphy";
+				reg = <0x38>;
+			};
 		};
 
 		i2c_9: i2c@121D0000 {
@@ -475,7 +480,7 @@
 			status = "disabled";
 		};
 
-		i2s0: i2s@03830000 {
+		i2s0: i2s@3830000 {
 			compatible = "samsung,s5pv210-i2s";
 			status = "disabled";
 			reg = <0x03830000 0x100>;
@@ -637,7 +642,7 @@
 		};
 
 		gsc_0:  gsc@13e00000 {
-			compatible = "samsung,exynos5-gsc";
+			compatible = "samsung,exynos5250-gsc", "samsung,exynos5-gsc";
 			reg = <0x13e00000 0x1000>;
 			interrupts = <GIC_SPI 85 IRQ_TYPE_LEVEL_HIGH>;
 			power-domains = <&pd_gsc>;
@@ -647,7 +652,7 @@
 		};
 
 		gsc_1:  gsc@13e10000 {
-			compatible = "samsung,exynos5-gsc";
+			compatible = "samsung,exynos5250-gsc", "samsung,exynos5-gsc";
 			reg = <0x13e10000 0x1000>;
 			interrupts = <GIC_SPI 86 IRQ_TYPE_LEVEL_HIGH>;
 			power-domains = <&pd_gsc>;
@@ -657,7 +662,7 @@
 		};
 
 		gsc_2:  gsc@13e20000 {
-			compatible = "samsung,exynos5-gsc";
+			compatible = "samsung,exynos5250-gsc", "samsung,exynos5-gsc";
 			reg = <0x13e20000 0x1000>;
 			interrupts = <GIC_SPI 87 IRQ_TYPE_LEVEL_HIGH>;
 			power-domains = <&pd_gsc>;
@@ -667,7 +672,7 @@
 		};
 
 		gsc_3:  gsc@13e30000 {
-			compatible = "samsung,exynos5-gsc";
+			compatible = "samsung,exynos5250-gsc", "samsung,exynos5-gsc";
 			reg = <0x13e30000 0x1000>;
 			interrupts = <GIC_SPI 88 IRQ_TYPE_LEVEL_HIGH>;
 			power-domains = <&pd_gsc>;
@@ -687,9 +692,24 @@
 			clock-names = "hdmi", "sclk_hdmi", "sclk_pixel",
 					"sclk_hdmiphy", "mout_hdmi";
 			samsung,syscon-phandle = <&pmu_system_controller>;
+			phy = <&hdmiphy>;
+			status = "disabled";
 		};
 
-		mixer@14450000 {
+		hdmicec: cec@101B0000 {
+			compatible = "samsung,s5p-cec";
+			reg = <0x101B0000 0x200>;
+			interrupts = <GIC_SPI 114 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&clock CLK_HDMI_CEC>;
+			clock-names = "hdmicec";
+			samsung,syscon-phandle = <&pmu_system_controller>;
+			hdmi-phandle = <&hdmi>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&hdmi_cec>;
+			status = "disabled";
+		};
+
+		mixer: mixer@14450000 {
 			compatible = "samsung,exynos5250-mixer";
 			reg = <0x14450000 0x10000>;
 			power-domains = <&pd_disp1>;
@@ -698,6 +718,7 @@
 				 <&clock CLK_SCLK_HDMI>;
 			clock-names = "mixer", "hdmi", "sclk_hdmi";
 			iommus = <&sysmmu_tv>;
+			status = "disabled";
 		};
 
 		dp_phy: video-phy {

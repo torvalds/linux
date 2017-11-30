@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * GPL HEADER START
  *
@@ -35,7 +36,8 @@
  */
 
 #define DEBUG_SUBSYSTEM S_LNET
-#include "../../include/linux/lnet/lib-lnet.h"
+
+#include <linux/lnet/lib-lnet.h>
 
 /**
  * Create an event queue that has room for \a count number of events.
@@ -312,7 +314,7 @@ __must_hold(&the_lnet.ln_eq_wait_lock)
 {
 	int tms = *timeout_ms;
 	int wait;
-	wait_queue_t wl;
+	wait_queue_entry_t wl;
 	unsigned long now;
 
 	if (!tms)

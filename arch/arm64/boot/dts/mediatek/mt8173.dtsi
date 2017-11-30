@@ -682,8 +682,7 @@
 		};
 
 		mmc0: mmc@11230000 {
-			compatible = "mediatek,mt8173-mmc",
-				     "mediatek,mt8135-mmc";
+			compatible = "mediatek,mt8173-mmc";
 			reg = <0 0x11230000 0 0x1000>;
 			interrupts = <GIC_SPI 71 IRQ_TYPE_LEVEL_LOW>;
 			clocks = <&pericfg CLK_PERI_MSDC30_0>,
@@ -693,8 +692,7 @@
 		};
 
 		mmc1: mmc@11240000 {
-			compatible = "mediatek,mt8173-mmc",
-				     "mediatek,mt8135-mmc";
+			compatible = "mediatek,mt8173-mmc";
 			reg = <0 0x11240000 0 0x1000>;
 			interrupts = <GIC_SPI 72 IRQ_TYPE_LEVEL_LOW>;
 			clocks = <&pericfg CLK_PERI_MSDC30_1>,
@@ -704,8 +702,7 @@
 		};
 
 		mmc2: mmc@11250000 {
-			compatible = "mediatek,mt8173-mmc",
-				     "mediatek,mt8135-mmc";
+			compatible = "mediatek,mt8173-mmc";
 			reg = <0 0x11250000 0 0x1000>;
 			interrupts = <GIC_SPI 73 IRQ_TYPE_LEVEL_LOW>;
 			clocks = <&pericfg CLK_PERI_MSDC30_2>,
@@ -715,8 +712,7 @@
 		};
 
 		mmc3: mmc@11260000 {
-			compatible = "mediatek,mt8173-mmc",
-				     "mediatek,mt8135-mmc";
+			compatible = "mediatek,mt8173-mmc";
 			reg = <0 0x11260000 0 0x1000>;
 			interrupts = <GIC_SPI 74 IRQ_TYPE_LEVEL_LOW>;
 			clocks = <&pericfg CLK_PERI_MSDC30_3>,
@@ -731,8 +727,9 @@
 			      <0 0x11280700 0 0x0100>;
 			reg-names = "mac", "ippc";
 			interrupts = <GIC_SPI 64 IRQ_TYPE_LEVEL_LOW>;
-			phys = <&phy_port0 PHY_TYPE_USB3>,
-			       <&phy_port1 PHY_TYPE_USB2>;
+			phys = <&u2port0 PHY_TYPE_USB2>,
+			       <&u3port0 PHY_TYPE_USB3>,
+			       <&u2port1 PHY_TYPE_USB2>;
 			power-domains = <&scpsys MT8173_POWER_DOMAIN_USB>;
 			clocks = <&topckgen CLK_TOP_USB30_SEL>,
 				 <&clk26m>,
@@ -763,21 +760,31 @@
 		u3phy: usb-phy@11290000 {
 			compatible = "mediatek,mt8173-u3phy";
 			reg = <0 0x11290000 0 0x800>;
-			clocks = <&apmixedsys CLK_APMIXED_REF2USB_TX>;
-			clock-names = "u3phya_ref";
 			#address-cells = <2>;
 			#size-cells = <2>;
 			ranges;
 			status = "okay";
 
-			phy_port0: port@11290800 {
-				reg = <0 0x11290800 0 0x800>;
+			u2port0: usb-phy@11290800 {
+				reg = <0 0x11290800 0 0x100>;
+				clocks = <&apmixedsys CLK_APMIXED_REF2USB_TX>;
+				clock-names = "ref";
 				#phy-cells = <1>;
 				status = "okay";
 			};
 
-			phy_port1: port@11291000 {
-				reg = <0 0x11291000 0 0x800>;
+			u3port0: usb-phy@11290900 {
+				reg = <0 0x11290900 0 0x700>;
+				clocks = <&clk26m>;
+				clock-names = "ref";
+				#phy-cells = <1>;
+				status = "okay";
+			};
+
+			u2port1: usb-phy@11291000 {
+				reg = <0 0x11291000 0 0x100>;
+				clocks = <&apmixedsys CLK_APMIXED_REF2USB_TX>;
+				clock-names = "ref";
 				#phy-cells = <1>;
 				status = "okay";
 			};
@@ -792,80 +799,74 @@
 			#clock-cells = <1>;
 		};
 
-		mdp {
-			compatible = "mediatek,mt8173-mdp";
-			#address-cells = <2>;
-			#size-cells = <2>;
-			ranges;
+		mdp_rdma0: rdma@14001000 {
+			compatible = "mediatek,mt8173-mdp-rdma",
+				     "mediatek,mt8173-mdp";
+			reg = <0 0x14001000 0 0x1000>;
+			clocks = <&mmsys CLK_MM_MDP_RDMA0>,
+				 <&mmsys CLK_MM_MUTEX_32K>;
+			power-domains = <&scpsys MT8173_POWER_DOMAIN_MM>;
+			iommus = <&iommu M4U_PORT_MDP_RDMA0>;
+			mediatek,larb = <&larb0>;
 			mediatek,vpu = <&vpu>;
+		};
 
-			mdp_rdma0: rdma@14001000 {
-				compatible = "mediatek,mt8173-mdp-rdma";
-				reg = <0 0x14001000 0 0x1000>;
-				clocks = <&mmsys CLK_MM_MDP_RDMA0>,
-					 <&mmsys CLK_MM_MUTEX_32K>;
-				power-domains = <&scpsys MT8173_POWER_DOMAIN_MM>;
-				iommus = <&iommu M4U_PORT_MDP_RDMA0>;
-				mediatek,larb = <&larb0>;
-			};
+		mdp_rdma1: rdma@14002000 {
+			compatible = "mediatek,mt8173-mdp-rdma";
+			reg = <0 0x14002000 0 0x1000>;
+			clocks = <&mmsys CLK_MM_MDP_RDMA1>,
+				 <&mmsys CLK_MM_MUTEX_32K>;
+			power-domains = <&scpsys MT8173_POWER_DOMAIN_MM>;
+			iommus = <&iommu M4U_PORT_MDP_RDMA1>;
+			mediatek,larb = <&larb4>;
+		};
 
-			mdp_rdma1: rdma@14002000 {
-				compatible = "mediatek,mt8173-mdp-rdma";
-				reg = <0 0x14002000 0 0x1000>;
-				clocks = <&mmsys CLK_MM_MDP_RDMA1>,
-					 <&mmsys CLK_MM_MUTEX_32K>;
-				power-domains = <&scpsys MT8173_POWER_DOMAIN_MM>;
-				iommus = <&iommu M4U_PORT_MDP_RDMA1>;
-				mediatek,larb = <&larb4>;
-			};
+		mdp_rsz0: rsz@14003000 {
+			compatible = "mediatek,mt8173-mdp-rsz";
+			reg = <0 0x14003000 0 0x1000>;
+			clocks = <&mmsys CLK_MM_MDP_RSZ0>;
+			power-domains = <&scpsys MT8173_POWER_DOMAIN_MM>;
+		};
 
-			mdp_rsz0: rsz@14003000 {
-				compatible = "mediatek,mt8173-mdp-rsz";
-				reg = <0 0x14003000 0 0x1000>;
-				clocks = <&mmsys CLK_MM_MDP_RSZ0>;
-				power-domains = <&scpsys MT8173_POWER_DOMAIN_MM>;
-			};
+		mdp_rsz1: rsz@14004000 {
+			compatible = "mediatek,mt8173-mdp-rsz";
+			reg = <0 0x14004000 0 0x1000>;
+			clocks = <&mmsys CLK_MM_MDP_RSZ1>;
+			power-domains = <&scpsys MT8173_POWER_DOMAIN_MM>;
+		};
 
-			mdp_rsz1: rsz@14004000 {
-				compatible = "mediatek,mt8173-mdp-rsz";
-				reg = <0 0x14004000 0 0x1000>;
-				clocks = <&mmsys CLK_MM_MDP_RSZ1>;
-				power-domains = <&scpsys MT8173_POWER_DOMAIN_MM>;
-			};
+		mdp_rsz2: rsz@14005000 {
+			compatible = "mediatek,mt8173-mdp-rsz";
+			reg = <0 0x14005000 0 0x1000>;
+			clocks = <&mmsys CLK_MM_MDP_RSZ2>;
+			power-domains = <&scpsys MT8173_POWER_DOMAIN_MM>;
+		};
 
-			mdp_rsz2: rsz@14005000 {
-				compatible = "mediatek,mt8173-mdp-rsz";
-				reg = <0 0x14005000 0 0x1000>;
-				clocks = <&mmsys CLK_MM_MDP_RSZ2>;
-				power-domains = <&scpsys MT8173_POWER_DOMAIN_MM>;
-			};
+		mdp_wdma0: wdma@14006000 {
+			compatible = "mediatek,mt8173-mdp-wdma";
+			reg = <0 0x14006000 0 0x1000>;
+			clocks = <&mmsys CLK_MM_MDP_WDMA>;
+			power-domains = <&scpsys MT8173_POWER_DOMAIN_MM>;
+			iommus = <&iommu M4U_PORT_MDP_WDMA>;
+			mediatek,larb = <&larb0>;
+		};
 
-			mdp_wdma0: wdma@14006000 {
-				compatible = "mediatek,mt8173-mdp-wdma";
-				reg = <0 0x14006000 0 0x1000>;
-				clocks = <&mmsys CLK_MM_MDP_WDMA>;
-				power-domains = <&scpsys MT8173_POWER_DOMAIN_MM>;
-				iommus = <&iommu M4U_PORT_MDP_WDMA>;
-				mediatek,larb = <&larb0>;
-			};
+		mdp_wrot0: wrot@14007000 {
+			compatible = "mediatek,mt8173-mdp-wrot";
+			reg = <0 0x14007000 0 0x1000>;
+			clocks = <&mmsys CLK_MM_MDP_WROT0>;
+			power-domains = <&scpsys MT8173_POWER_DOMAIN_MM>;
+			iommus = <&iommu M4U_PORT_MDP_WROT0>;
+			mediatek,larb = <&larb0>;
+		};
 
-			mdp_wrot0: wrot@14007000 {
-				compatible = "mediatek,mt8173-mdp-wrot";
-				reg = <0 0x14007000 0 0x1000>;
-				clocks = <&mmsys CLK_MM_MDP_WROT0>;
-				power-domains = <&scpsys MT8173_POWER_DOMAIN_MM>;
-				iommus = <&iommu M4U_PORT_MDP_WROT0>;
-				mediatek,larb = <&larb0>;
-			};
-
-			mdp_wrot1: wrot@14008000 {
-				compatible = "mediatek,mt8173-mdp-wrot";
-				reg = <0 0x14008000 0 0x1000>;
-				clocks = <&mmsys CLK_MM_MDP_WROT1>;
-				power-domains = <&scpsys MT8173_POWER_DOMAIN_MM>;
-				iommus = <&iommu M4U_PORT_MDP_WROT1>;
-				mediatek,larb = <&larb4>;
-			};
+		mdp_wrot1: wrot@14008000 {
+			compatible = "mediatek,mt8173-mdp-wrot";
+			reg = <0 0x14008000 0 0x1000>;
+			clocks = <&mmsys CLK_MM_MDP_WROT1>;
+			power-domains = <&scpsys MT8173_POWER_DOMAIN_MM>;
+			iommus = <&iommu M4U_PORT_MDP_WROT1>;
+			mediatek,larb = <&larb4>;
 		};
 
 		ovl0: ovl@1400c000 {

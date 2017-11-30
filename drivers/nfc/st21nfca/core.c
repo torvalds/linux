@@ -782,12 +782,12 @@ static int st21nfca_hci_im_transceive(struct nfc_hci_dev *hdev,
 		if (target->supported_protocols == NFC_PROTO_NFC_DEP_MASK)
 			return st21nfca_im_send_dep_req(hdev, skb);
 
-		*skb_push(skb, 1) = 0x1a;
+		*(u8 *)skb_push(skb, 1) = 0x1a;
 		return nfc_hci_send_cmd_async(hdev, target->hci_reader_gate,
 					      ST21NFCA_WR_XCHG_DATA, skb->data,
 					      skb->len, cb, cb_context);
 	case ST21NFCA_RF_READER_14443_3_A_GATE:
-		*skb_push(skb, 1) = 0x1a;	/* CTR, see spec:10.2.2.1 */
+		*(u8 *)skb_push(skb, 1) = 0x1a;	/* CTR, see spec:10.2.2.1 */
 
 		return nfc_hci_send_cmd_async(hdev, target->hci_reader_gate,
 					      ST21NFCA_WR_XCHG_DATA, skb->data,
@@ -797,7 +797,7 @@ static int st21nfca_hci_im_transceive(struct nfc_hci_dev *hdev,
 		info->async_cb = cb;
 		info->async_cb_context = cb_context;
 
-		*skb_push(skb, 1) = 0x17;
+		*(u8 *)skb_push(skb, 1) = 0x17;
 
 		return nfc_hci_send_cmd_async(hdev, target->hci_reader_gate,
 					      ST21NFCA_WR_XCHG_DATA, skb->data,

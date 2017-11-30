@@ -79,8 +79,8 @@ union mips_vdso_data {
 	struct {
 		u64 xtime_sec;
 		u64 xtime_nsec;
-		u32 wall_to_mono_sec;
-		u32 wall_to_mono_nsec;
+		u64 wall_to_mono_sec;
+		u64 wall_to_mono_nsec;
 		u32 seq_count;
 		u32 cs_shift;
 		u8 clock_mode;
@@ -99,7 +99,7 @@ static inline u32 vdso_data_read_begin(const union mips_vdso_data *data)
 	u32 seq;
 
 	while (true) {
-		seq = ACCESS_ONCE(data->seq_count);
+		seq = READ_ONCE(data->seq_count);
 		if (likely(!(seq & 1))) {
 			/* Paired with smp_wmb() in vdso_data_write_*(). */
 			smp_rmb();

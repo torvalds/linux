@@ -99,7 +99,7 @@ static int st_rtc_read_time(struct device *dev, struct rtc_time *tm)
 
 	lpt = ((unsigned long long)lpt_msb << 32) | lpt_lsb;
 	do_div(lpt, rtc->clkrate);
-	rtc_time_to_tm(lpt, tm);
+	rtc_time64_to_tm(lpt, tm);
 
 	return 0;
 }
@@ -107,13 +107,10 @@ static int st_rtc_read_time(struct device *dev, struct rtc_time *tm)
 static int st_rtc_set_time(struct device *dev, struct rtc_time *tm)
 {
 	struct st_rtc *rtc = dev_get_drvdata(dev);
-	unsigned long long lpt;
-	unsigned long secs, flags;
-	int ret;
+	unsigned long long lpt, secs;
+	unsigned long flags;
 
-	ret = rtc_tm_to_time(tm, &secs);
-	if (ret)
-		return ret;
+	secs = rtc_tm_to_time64(tm);
 
 	lpt = (unsigned long long)secs * rtc->clkrate;
 
@@ -161,13 +158,13 @@ static int st_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *t)
 {
 	struct st_rtc *rtc = dev_get_drvdata(dev);
 	struct rtc_time now;
-	unsigned long now_secs;
-	unsigned long alarm_secs;
+	unsigned long long now_secs;
+	unsigned long long alarm_secs;
 	unsigned long long lpa;
 
 	st_rtc_read_time(dev, &now);
-	rtc_tm_to_time(&now, &now_secs);
-	rtc_tm_to_time(&t->time, &alarm_secs);
+	now_secs = rtc_tm_to_time64(&now);
+	alarm_secs = rtc_tm_to_time64(&t->time);
 
 	/* Invalid alarm time */
 	if (now_secs > alarm_secs)

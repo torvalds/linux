@@ -103,7 +103,6 @@ static int adis16060_read_raw(struct iio_dev *indio_dev,
 
 static const struct iio_info adis16060_info = {
 	.read_raw = adis16060_read_raw,
-	.driver_module = THIS_MODULE,
 };
 
 static const struct iio_chan_spec adis16060_channels[] = {

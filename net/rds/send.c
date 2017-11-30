@@ -170,8 +170,8 @@ restart:
 	 * The acquire_in_xmit() check above ensures that only one
 	 * caller can increment c_send_gen at any time.
 	 */
-	cp->cp_send_gen++;
-	send_gen = cp->cp_send_gen;
+	send_gen = READ_ONCE(cp->cp_send_gen) + 1;
+	WRITE_ONCE(cp->cp_send_gen, send_gen);
 
 	/*
 	 * rds_conn_shutdown() sets the conn state and then tests RDS_IN_XMIT,
@@ -273,7 +273,7 @@ restart:
 			len = ntohl(rm->m_inc.i_hdr.h_len);
 			if (cp->cp_unacked_packets == 0 ||
 			    cp->cp_unacked_bytes < len) {
-				__set_bit(RDS_MSG_ACK_REQUIRED, &rm->m_flags);
+				set_bit(RDS_MSG_ACK_REQUIRED, &rm->m_flags);
 
 				cp->cp_unacked_packets =
 					rds_sysctl_max_unacked_packets;
@@ -428,14 +428,18 @@ over_batch:
 	 * some work and we will skip our goto
 	 */
 	if (ret == 0) {
+		bool raced;
+
 		smp_mb();
+		raced = send_gen != READ_ONCE(cp->cp_send_gen);
+
 		if ((test_bit(0, &conn->c_map_queued) ||
-		     !list_empty(&cp->cp_send_queue)) &&
-		    send_gen == cp->cp_send_gen) {
-			rds_stats_inc(s_send_lock_queue_raced);
+		    !list_empty(&cp->cp_send_queue)) && !raced) {
 			if (batch_count < send_batch_count)
 				goto restart;
 			queue_delayed_work(rds_wq, &cp->cp_send_w, 1);
+		} else if (raced) {
+			rds_stats_inc(s_send_lock_queue_raced);
 		}
 	}
 out:
@@ -829,7 +833,7 @@ static int rds_send_queue_rm(struct rds_sock *rs, struct rds_connection *conn,
 		 * throughput hits a certain threshold.
 		 */
 		if (rs->rs_snd_bytes >= rds_sk_sndbuf(rs) / 2)
-			__set_bit(RDS_MSG_ACK_REQUIRED, &rm->m_flags);
+			set_bit(RDS_MSG_ACK_REQUIRED, &rm->m_flags);
 
 		list_add_tail(&rm->m_sock_item, &rs->rs_send_queue);
 		set_bit(RDS_MSG_ON_SOCK, &rm->m_flags);
@@ -971,8 +975,6 @@ static int rds_cmsg_send(struct rds_sock *rs, struct rds_message *rm,
 	return ret;
 }
 
-static void rds_send_ping(struct rds_connection *conn);
-
 static int rds_send_mprds_hash(struct rds_sock *rs, struct rds_connection *conn)
 {
 	int hash;
@@ -982,7 +984,7 @@ static int rds_send_mprds_hash(struct rds_sock *rs, struct rds_connection *conn)
 	else
 		hash = RDS_MPATH_HASH(rs, conn->c_npaths);
 	if (conn->c_npaths == 0 && hash != 0) {
-		rds_send_ping(conn);
+		rds_send_ping(conn, 0);
 
 		if (conn->c_npaths == 0) {
 			wait_event_interruptible(conn->c_hs_waitq,
@@ -1246,15 +1248,17 @@ rds_send_probe(struct rds_conn_path *cp, __be16 sport,
 	rm->m_inc.i_hdr.h_flags |= h_flags;
 	cp->cp_next_tx_seq++;
 
-	if (RDS_HS_PROBE(sport, dport) && cp->cp_conn->c_trans->t_mp_capable) {
-		u16 npaths = RDS_MPATH_WORKERS;
+	if (RDS_HS_PROBE(be16_to_cpu(sport), be16_to_cpu(dport)) &&
+	    cp->cp_conn->c_trans->t_mp_capable) {
+		u16 npaths = cpu_to_be16(RDS_MPATH_WORKERS);
+		u32 my_gen_num = cpu_to_be32(cp->cp_conn->c_my_gen_num);
 
 		rds_message_add_extension(&rm->m_inc.i_hdr,
 					  RDS_EXTHDR_NPATHS, &npaths,
 					  sizeof(npaths));
 		rds_message_add_extension(&rm->m_inc.i_hdr,
 					  RDS_EXTHDR_GEN_NUM,
-					  &cp->cp_conn->c_my_gen_num,
+					  &my_gen_num,
 					  sizeof(u32));
 	}
 	spin_unlock_irqrestore(&cp->cp_lock, flags);
@@ -1280,11 +1284,11 @@ rds_send_pong(struct rds_conn_path *cp, __be16 dport)
 	return rds_send_probe(cp, 0, dport, 0);
 }
 
-static void
-rds_send_ping(struct rds_connection *conn)
+void
+rds_send_ping(struct rds_connection *conn, int cp_index)
 {
 	unsigned long flags;
-	struct rds_conn_path *cp = &conn->c_path[0];
+	struct rds_conn_path *cp = &conn->c_path[cp_index];
 
 	spin_lock_irqsave(&cp->cp_lock, flags);
 	if (conn->c_ping_triggered) {
@@ -1293,5 +1297,6 @@ rds_send_ping(struct rds_connection *conn)
 	}
 	conn->c_ping_triggered = 1;
 	spin_unlock_irqrestore(&cp->cp_lock, flags);
-	rds_send_probe(&conn->c_path[0], RDS_FLAG_PROBE_PORT, 0, 0);
+	rds_send_probe(cp, cpu_to_be16(RDS_FLAG_PROBE_PORT), 0, 0);
 }
+EXPORT_SYMBOL_GPL(rds_send_ping);

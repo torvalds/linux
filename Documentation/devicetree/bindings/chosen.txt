@@ -5,12 +5,35 @@ The chosen node does not represent a real device, but serves as a place
 for passing data between firmware and the operating system, like boot
 arguments. Data in the chosen node does not represent the hardware.
 
+The following properties are recognized:
 
-stdout-path property
---------------------
+
+kaslr-seed
+-----------
+
+This property is used when booting with CONFIG_RANDOMIZE_BASE as the
+entropy used to randomize the kernel image base address location. Since
+it is used directly, this value is intended only for KASLR, and should
+not be used for other purposes (as it may leak information about KASLR
+offsets). It is parsed as a u64 value, e.g.
+
+/ {
+	chosen {
+		kaslr-seed = <0xfeedbeef 0xc0def00d>;
+	};
+};
+
+Note that if this property is set from UEFI (or a bootloader in EFI
+mode) when EFI_RNG_PROTOCOL is supported, it will be overwritten by
+the Linux EFI stub (which will populate the property itself, using
+EFI_RNG_PROTOCOL).
+
+stdout-path
+-----------
 
 Device trees may specify the device to be used for boot console output
-with a stdout-path property under /chosen, as described in ePAPR, e.g.
+with a stdout-path property under /chosen, as described in the Devicetree
+Specification, e.g.
 
 / {
 	chosen {

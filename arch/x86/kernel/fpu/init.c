@@ -90,6 +90,7 @@ static void fpu__init_system_early_generic(struct cpuinfo_x86 *c)
  * Boot time FPU feature detection code:
  */
 unsigned int mxcsr_feature_mask __read_mostly = 0xffffffffu;
+EXPORT_SYMBOL_GPL(mxcsr_feature_mask);
 
 static void __init fpu__init_system_mxcsr(void)
 {
@@ -239,7 +240,7 @@ static void __init fpu__init_system_ctx_switch(void)
 	WARN_ON_FPU(!on_boot_cpu);
 	on_boot_cpu = 0;
 
-	WARN_ON_FPU(current->thread.fpu.fpstate_active);
+	WARN_ON_FPU(current->thread.fpu.initialized);
 }
 
 /*
@@ -248,6 +249,10 @@ static void __init fpu__init_system_ctx_switch(void)
  */
 static void __init fpu__init_parse_early_param(void)
 {
+	char arg[32];
+	char *argptr = arg;
+	int bit;
+
 	if (cmdline_find_option_bool(boot_command_line, "no387"))
 		setup_clear_cpu_cap(X86_FEATURE_FPU);
 
@@ -265,6 +270,13 @@ static void __init fpu__init_parse_early_param(void)
 
 	if (cmdline_find_option_bool(boot_command_line, "noxsaves"))
 		setup_clear_cpu_cap(X86_FEATURE_XSAVES);
+
+	if (cmdline_find_option(boot_command_line, "clearcpuid", arg,
+				sizeof(arg)) &&
+	    get_option(&argptr, &bit) &&
+	    bit >= 0 &&
+	    bit < NCAPINTS * 32)
+		setup_clear_cpu_cap(bit);
 }
 
 /*

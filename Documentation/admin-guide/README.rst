@@ -55,12 +55,6 @@ Documentation
    contains information about the problems, which may result by upgrading
    your kernel.
 
- - The Documentation/DocBook/ subdirectory contains several guides for
-   kernel developers and users.  These guides can be rendered in a
-   number of formats:  PostScript (.ps), PDF, HTML, & man-pages, among others.
-   After installation, ``make psdocs``, ``make pdfdocs``, ``make htmldocs``,
-   or ``make mandocs`` will render the documentation in the requested format.
-
 Installing the kernel source
 ----------------------------
 
@@ -356,7 +350,7 @@ If something goes wrong
    help debugging the problem.  The text above the dump is also
    important: it tells something about why the kernel dumped code (in
    the above example, it's due to a bad kernel pointer). More information
-   on making sense of the dump is in Documentation/admin-guide/oops-tracing.rst
+   on making sense of the dump is in Documentation/admin-guide/bug-hunting.rst
 
  - If you compiled the kernel with CONFIG_KALLSYMS you can send the dump
    as is, otherwise you will have to use the ``ksymoops`` program to make

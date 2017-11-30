@@ -63,7 +63,7 @@ void bnxt_tx_int_xdp(struct bnxt *bp, struct bnxt_napi *bnapi, int nr_pkts)
 		tx_buf = &txr->tx_buf_ring[last_tx_cons];
 		rx_prod = tx_buf->rx_prod;
 	}
-	writel(DB_KEY_RX | rx_prod, rxr->rx_doorbell);
+	bnxt_db_write(bp, rxr->rx_doorbell, DB_KEY_RX | rx_prod);
 }
 
 /* returns the following:
@@ -94,6 +94,7 @@ bool bnxt_rx_xdp(struct bnxt *bp, struct bnxt_rx_ring_info *rxr, u16 cons,
 
 	xdp.data_hard_start = *data_ptr - offset;
 	xdp.data = *data_ptr;
+	xdp_set_data_meta_invalid(&xdp);
 	xdp.data_end = *data_ptr + *len;
 	orig_data = xdp.data;
 	mapping = rx_buf->mapping - bp->rx_dma_offset;
@@ -169,8 +170,8 @@ static int bnxt_xdp_set(struct bnxt *bp, struct bpf_prog *prog)
 	tc = netdev_get_num_tc(dev);
 	if (!tc)
 		tc = 1;
-	rc = bnxt_reserve_rings(bp, bp->tx_nr_rings_per_tc, bp->rx_nr_rings,
-				tc, tx_xdp);
+	rc = bnxt_check_rings(bp, bp->tx_nr_rings_per_tc, bp->rx_nr_rings,
+			      true, tc, tx_xdp);
 	if (rc) {
 		netdev_warn(dev, "Unable to reserve enough TX rings to support XDP.\n");
 		return rc;
@@ -207,7 +208,7 @@ static int bnxt_xdp_set(struct bnxt *bp, struct bpf_prog *prog)
 	return 0;
 }
 
-int bnxt_xdp(struct net_device *dev, struct netdev_xdp *xdp)
+int bnxt_xdp(struct net_device *dev, struct netdev_bpf *xdp)
 {
 	struct bnxt *bp = netdev_priv(dev);
 	int rc;
@@ -218,6 +219,7 @@ int bnxt_xdp(struct net_device *dev, struct netdev_xdp *xdp)
 		break;
 	case XDP_QUERY_PROG:
 		xdp->prog_attached = !!bp->xdp_prog;
+		xdp->prog_id = bp->xdp_prog ? bp->xdp_prog->aux->id : 0;
 		rc = 0;
 		break;
 	default:

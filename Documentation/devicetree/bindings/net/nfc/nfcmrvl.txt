@@ -25,7 +25,6 @@ Optional I2C-based chip specific properties:
 Example (for ARM-based BeagleBoard Black with 88W8887 on UART5):
 
 &uart5 {
-	status = "okay";
 
 	nfcmrvluart: nfcmrvluart@5 {
 		compatible = "marvell,nfc-uart";
@@ -41,7 +40,6 @@ Example (for ARM-based BeagleBoard Black with 88W8887 on UART5):
 Example (for ARM-based BeagleBoard Black with 88W8887 on I2C1):
 
 &i2c1 {
-	status = "okay";
 	clock-frequency = <400000>;
 
 	nfcmrvli2c0: i2c@1 {

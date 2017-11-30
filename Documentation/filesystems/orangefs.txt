@@ -45,14 +45,11 @@ upstream version of the kernel client.
 BUILDING THE USERSPACE FILESYSTEM ON A SINGLE SERVER
 ====================================================
 
-When Orangefs is upstream, "--with-kernel" shouldn't be needed, but
-until then the path to where the kernel with the Orangefs kernel client
-patch was built is needed to ensure that pvfs2-client-core (the bridge
-between kernel space and user space) will build properly. You can omit
---prefix if you don't care that things are sprinkled around in
-/usr/local.
+You can omit --prefix if you don't care that things are sprinkled around in
+/usr/local. As of version 2.9.6, Orangefs uses Berkeley DB by default, we
+will probably be changing the default to lmdb soon.
 
-./configure --prefix=/opt/ofs --with-kernel=/path/to/orangefs/kernel
+./configure --prefix=/opt/ofs --with-db-backend=lmdb
 
 make
 
@@ -81,9 +78,6 @@ Now the server is running. At this point you might like to
 prove things are working with:
 
 /opt/osf/bin/pvfs2-ls /mymountpoint
-
-You might not want to enforce selinux, it doesn't seem to matter by
-linux 3.11...
 
 If stuff seems to be working, turn on the client core:
 /opt/osf/sbin/pvfs2-client -p /opt/osf/sbin/pvfs2-client-core

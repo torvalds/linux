@@ -15,7 +15,7 @@ FE_SET_VOLTAGE - Allow setting the DC level sent to the antenna subsystem.
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, FE_SET_VOLTAGE, enum fe_sec_voltage *voltage )
+.. c:function:: int ioctl( int fd, FE_SET_VOLTAGE, enum fe_sec_voltage voltage )
     :name: FE_SET_VOLTAGE
 
 
@@ -26,10 +26,7 @@ Arguments
     File descriptor returned by :ref:`open() <frontend_f_open>`.
 
 ``voltage``
-    pointer to enum :c:type:`fe_sec_voltage`
-
-    Valid values are described at enum
-    :c:type:`fe_sec_voltage`.
+    an integer enumered value described at :c:type:`fe_sec_voltage`
 
 
 Description
@@ -56,6 +53,10 @@ power up the LNBf.
 Return Value
 ============
 
-On success 0 is returned, on error -1 and the ``errno`` variable is set
-appropriately. The generic error codes are described at the
+On success 0 is returned.
+
+On error -1 is returned, and the ``errno`` variable is set
+appropriately.
+
+Generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.

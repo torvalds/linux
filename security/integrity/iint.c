@@ -182,7 +182,7 @@ security_initcall(integrity_iintcache_init);
  *
  */
 int integrity_kernel_read(struct file *file, loff_t offset,
-			  char *addr, unsigned long count)
+			  void *addr, unsigned long count)
 {
 	mm_segment_t old_fs;
 	char __user *buf = (char __user *)addr;
@@ -197,55 +197,6 @@ int integrity_kernel_read(struct file *file, loff_t offset,
 	set_fs(old_fs);
 
 	return ret;
-}
-
-/*
- * integrity_read_file - read entire file content into the buffer
- *
- * This is function opens a file, allocates the buffer of required
- * size, read entire file content to the buffer and closes the file
- *
- * It is used only by init code.
- *
- */
-int __init integrity_read_file(const char *path, char **data)
-{
-	struct file *file;
-	loff_t size;
-	char *buf;
-	int rc = -EINVAL;
-
-	if (!path || !*path)
-		return -EINVAL;
-
-	file = filp_open(path, O_RDONLY, 0);
-	if (IS_ERR(file)) {
-		rc = PTR_ERR(file);
-		pr_err("Unable to open file: %s (%d)", path, rc);
-		return rc;
-	}
-
-	size = i_size_read(file_inode(file));
-	if (size <= 0)
-		goto out;
-
-	buf = kmalloc(size, GFP_KERNEL);
-	if (!buf) {
-		rc = -ENOMEM;
-		goto out;
-	}
-
-	rc = integrity_kernel_read(file, 0, buf, size);
-	if (rc == size) {
-		*data = buf;
-	} else {
-		kfree(buf);
-		if (rc >= 0)
-			rc = -EIO;
-	}
-out:
-	fput(file);
-	return rc;
 }
 
 /*

@@ -199,7 +199,6 @@ void i40iw_cqp_spawn_worker(struct i40iw_sc_dev *dev,
 			    struct i40iw_virtchnl_work_info *work_info, u32 iw_vf_idx);
 void *i40iw_remove_head(struct list_head *list);
 void i40iw_qp_suspend_resume(struct i40iw_sc_dev *dev, struct i40iw_sc_qp *qp, bool suspend);
-void i40iw_qp_mss_modify(struct i40iw_sc_dev *dev, struct i40iw_sc_qp *qp);
 
 void i40iw_term_modify_qp(struct i40iw_sc_qp *qp, u8 next_state, u8 term, u8 term_len);
 void i40iw_terminate_done(struct i40iw_sc_qp *qp, int timeout_occurred);

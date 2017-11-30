@@ -18,8 +18,12 @@ config SND_DMAENGINE_PCM
 config SND_HWDEP
 	tristate
 
+config SND_SEQ_DEVICE
+	tristate
+
 config SND_RAWMIDI
 	tristate
+	select SND_SEQ_DEVICE if SND_SEQUENCER != n
 
 config SND_COMPRESS_OFFLOAD
 	tristate
@@ -33,38 +37,15 @@ config SND_JACK_INPUT_DEV
 	depends on SND_JACK
 	default y if INPUT=y || INPUT=SND
 
-config SND_SEQUENCER
-	tristate "Sequencer support"
-	select SND_TIMER
-	help
-	  Say Y or M to enable MIDI sequencer and router support.  This
-	  feature allows routing and enqueueing of MIDI events.  Events
-	  can be processed at a given time.
-
-	  Many programs require this feature, so you should enable it
-	  unless you know what you're doing.
-
-config SND_SEQ_DUMMY
-	tristate "Sequencer dummy client"
-	depends on SND_SEQUENCER
-	help
-	  Say Y here to enable the dummy sequencer client.  This client
-	  is a simple MIDI-through client: all normal input events are
-	  redirected to the output port immediately.
-
-	  You don't need this unless you want to connect many MIDI
-	  devices or applications together.
-
-	  To compile this driver as a module, choose M here: the module
-	  will be called snd-seq-dummy.
-
 config SND_OSSEMUL
+	bool "Enable OSS Emulation"
 	select SOUND_OSS_CORE
-	bool
+	help
+	  This option enables the build of OSS emulation layer.
 
 config SND_MIXER_OSS
 	tristate "OSS Mixer API"
-	select SND_OSSEMUL
+	depends on SND_OSSEMUL
 	help
 	  To enable OSS mixer API emulation (/dev/mixer*), say Y here
 	  and read <file:Documentation/sound/alsa/OSS-Emulation.txt>.
@@ -76,7 +57,7 @@ config SND_MIXER_OSS
 
 config SND_PCM_OSS
 	tristate "OSS PCM (digital audio) API"
-	select SND_OSSEMUL
+	depends on SND_OSSEMUL
 	select SND_PCM
 	help
 	  To enable OSS digital audio (PCM) emulation (/dev/dsp*), say Y
@@ -107,20 +88,6 @@ config SND_PCM_TIMER
 	  For some embedded devices, we may disable it to reduce memory
 	  footprint, about 20KB on x86_64 platform.
 
-config SND_SEQUENCER_OSS
-	bool "OSS Sequencer API"
-	depends on SND_SEQUENCER
-	select SND_OSSEMUL
-	help
-	  Say Y here to enable OSS sequencer emulation (both
-	  /dev/sequencer and /dev/music interfaces).
-
-	  Many programs still use the OSS API, so say Y.
-
-	  If you choose M in "Sequencer support" (SND_SEQUENCER),
-	  this will be compiled as a module. The module will be called
-	  snd-seq-oss.
-
 config SND_HRTIMER
 	tristate "HR-timer backend support"
 	depends on HIGH_RES_TIMERS
@@ -132,14 +99,6 @@ config SND_HRTIMER
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-hrtimer.
-
-config SND_SEQ_HRTIMER_DEFAULT
-	bool "Use HR-timer as default sequencer timer"
-	depends on SND_HRTIMER && SND_SEQUENCER
-	default y
-	help
-	  Say Y here to use the HR-timer backend as the default sequencer
-	  timer.
 
 config SND_DYNAMIC_MINORS
 	bool "Dynamic device file minor numbers"

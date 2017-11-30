@@ -124,7 +124,7 @@
 		};
 	};
 
-	ns_sram: sram@00200000 {
+	ns_sram: sram@200000 {
 		compatible = "mmio-sram";
 		reg = <0x00200000 0x20000>;
 	};
@@ -135,7 +135,13 @@
 		#size-cells = <1>;
 		ranges;
 
-		usb0: gadget@00300000 {
+		nfc_sram: sram@100000 {
+			compatible = "mmio-sram";
+			no-memory-wc;
+			reg = <0x00100000 0x2400>;
+		};
+
+		usb0: gadget@300000 {
 			#address-cells = <1>;
 			#size-cells = <0>;
 			compatible = "atmel,sama5d3-udc";
@@ -265,7 +271,7 @@
 			};
 		};
 
-		usb1: ohci@00400000 {
+		usb1: ohci@400000 {
 			compatible = "atmel,at91rm9200-ohci", "usb-ohci";
 			reg = <0x00400000 0x100000>;
 			interrupts = <41 IRQ_TYPE_LEVEL_HIGH 2>;
@@ -274,7 +280,7 @@
 			status = "disabled";
 		};
 
-		usb2: ehci@00500000 {
+		usb2: ehci@500000 {
 			compatible = "atmel,at91sam9g45-ehci", "usb-ehci";
 			reg = <0x00500000 0x100000>;
 			interrupts = <41 IRQ_TYPE_LEVEL_HIGH 2>;
@@ -283,12 +289,38 @@
 			status = "disabled";
 		};
 
-		L2: cache-controller@00a00000 {
+		L2: cache-controller@a00000 {
 			compatible = "arm,pl310-cache";
 			reg = <0x00a00000 0x1000>;
 			interrupts = <63 IRQ_TYPE_LEVEL_HIGH 4>;
 			cache-unified;
 			cache-level = <2>;
+		};
+
+		ebi: ebi@10000000 {
+			compatible = "atmel,sama5d3-ebi";
+			#address-cells = <2>;
+			#size-cells = <1>;
+			atmel,smc = <&hsmc>;
+			reg = <0x10000000 0x10000000
+			       0x60000000 0x30000000>;
+			ranges = <0x0 0x0 0x10000000 0x10000000
+				  0x1 0x0 0x60000000 0x10000000
+				  0x2 0x0 0x70000000 0x10000000
+				  0x3 0x0 0x80000000 0x10000000>;
+			clocks = <&mck>;
+			status = "disabled";
+
+			nand_controller: nand-controller {
+				compatible = "atmel,sama5d3-nand-controller";
+				atmel,nfc-sram = <&nfc_sram>;
+				atmel,nfc-io = <&nfc_io>;
+				ecc-engine = <&pmecc>;
+				#address-cells = <2>;
+				#size-cells = <1>;
+				ranges;
+				status = "disabled";
+			};
 		};
 
 		nand0: nand@80000000 {
@@ -347,6 +379,11 @@
 			status = "disabled";
 		};
 
+		nfc_io: nfc-io@c0000000 {
+			compatible = "atmel,sama5d3-nfc-io", "syscon";
+			reg = <0xc0000000 0x8000000>;
+		};
+
 		apb {
 			compatible = "simple-bus";
 			#address-cells = <1>;
@@ -377,6 +414,17 @@
 					compatible = "atmel,hlcdc-pwm";
 					#pwm-cells = <3>;
 				};
+			};
+
+			isc: isc@f0008000 {
+				compatible = "atmel,sama5d2-isc";
+				reg = <0xf0008000 0x4000>;
+				interrupts = <46 IRQ_TYPE_LEVEL_HIGH 5>;
+				clocks = <&isc_clk>, <&iscck>, <&isc_gclk>;
+				clock-names = "hclock", "iscck", "gck";
+				#clock-cells = <0>;
+				clock-output-names = "isc-mck";
+				status = "disabled";
 			};
 
 			ramc0: ramc@f000c000 {
@@ -455,6 +503,24 @@
 					compatible = "atmel,at91sam9x5-clk-plldiv";
 					#clock-cells = <0>;
 					clocks = <&plla>;
+				};
+
+				audio_pll_frac: audiopll_fracck {
+					compatible = "atmel,sama5d2-clk-audio-pll-frac";
+					#clock-cells = <0>;
+					clocks = <&main>;
+				};
+
+				audio_pll_pad: audiopll_padck {
+					compatible = "atmel,sama5d2-clk-audio-pll-pad";
+					#clock-cells = <0>;
+					clocks = <&audio_pll_frac>;
+				};
+
+				audio_pll_pmc: audiopll_pmcck {
+					compatible = "atmel,sama5d2-clk-audio-pll-pmc";
+					#clock-cells = <0>;
+					clocks = <&audio_pll_frac>;
 				};
 
 				utmi: utmick {
@@ -762,6 +828,18 @@
 						atmel,clk-output-range = <0 83000000>;
 					};
 
+					can0_clk: can0_clk {
+						#clock-cells = <0>;
+						reg = <56>;
+						atmel,clk-output-range = <0 83000000>;
+					};
+
+					can1_clk: can1_clk {
+						#clock-cells = <0>;
+						reg = <57>;
+						atmel,clk-output-range = <0 83000000>;
+					};
+
 					classd_clk: classd_clk {
 						#clock-cells = <0>;
 						reg = <59>;
@@ -846,7 +924,7 @@
 					#address-cells = <1>;
 					#size-cells = <0>;
 					interrupt-parent = <&pmc>;
-					clocks = <&clk32k>, <&main>, <&plladiv>, <&utmi>, <&mck>;
+					clocks = <&clk32k>, <&main>, <&plladiv>, <&utmi>, <&mck>, <&audio_pll_pmc>;
 
 					sdmmc0_gclk: sdmmc0_gclk {
 						#clock-cells = <0>;
@@ -876,6 +954,11 @@
 						atmel,clk-output-range = <0 83000000>;
 					};
 
+					isc_gclk: isc_gclk {
+						#clock-cells = <0>;
+						reg = <46>;
+					};
+
 					pdmic_gclk: pdmic_gclk {
 						#clock-cells = <0>;
 						reg = <48>;
@@ -890,7 +973,47 @@
 						#clock-cells = <0>;
 						reg = <55>;
 					};
+
+					can0_gclk: can0_gclk {
+						#clock-cells = <0>;
+						reg = <56>;
+						atmel,clk-output-range = <0 80000000>;
+					};
+
+					can1_gclk: can1_gclk {
+						#clock-cells = <0>;
+						reg = <57>;
+						atmel,clk-output-range = <0 80000000>;
+					};
+
+					classd_gclk: classd_gclk {
+						#clock-cells = <0>;
+						reg = <59>;
+						atmel,clk-output-range = <0 100000000>;
+					};
 				};
+			};
+
+			qspi0: spi@f0020000 {
+				compatible = "atmel,sama5d2-qspi";
+				reg = <0xf0020000 0x100>, <0xd0000000 0x08000000>;
+				reg-names = "qspi_base", "qspi_mmap";
+				interrupts = <52 IRQ_TYPE_LEVEL_HIGH 7>;
+				clocks = <&qspi0_clk>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				status = "disabled";
+			};
+
+			qspi1: spi@f0024000 {
+				compatible = "atmel,sama5d2-qspi";
+				reg = <0xf0024000 0x100>, <0xd8000000 0x08000000>;
+				reg-names = "qspi_base", "qspi_mmap";
+				interrupts = <53 IRQ_TYPE_LEVEL_HIGH 7>;
+				clocks = <&qspi1_clk>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				status = "disabled";
 			};
 
 			sha@f0028000 {
@@ -986,6 +1109,22 @@
 				clock-names = "t0_clk", "slow_clk";
 			};
 
+			hsmc: hsmc@f8014000 {
+				compatible = "atmel,sama5d2-smc", "syscon", "simple-mfd";
+				reg = <0xf8014000 0x1000>;
+				interrupts = <17 IRQ_TYPE_LEVEL_HIGH 6>;
+				clocks = <&hsmc_clk>;
+				#address-cells = <1>;
+				#size-cells = <1>;
+				ranges;
+
+				pmecc: ecc-engine@f8014070 {
+					compatible = "atmel,sama5d2-pmecc";
+					reg = <0xf8014070 0x490>,
+					      <0xf8014500 0x100>;
+				};
+			};
+
 			pdmic: pdmic@f8018000 {
 				compatible = "atmel,sama5d2-pdmic";
 				reg = <0xf8018000 0x124>;
@@ -1065,6 +1204,14 @@
 				status = "disabled";
 			};
 
+			pwm0: pwm@f802c000 {
+				compatible = "atmel,sama5d2-pwm";
+				reg = <0xf802c000 0x4000>;
+				interrupts = <38 IRQ_TYPE_LEVEL_HIGH 7>;
+				#pwm-cells = <3>;
+				clocks = <&pwm_clk>;
+			};
+
 			sfr: sfr@f8030000 {
 				compatible = "atmel,sama5d2-sfr", "syscon";
 				reg = <0xf8030000 0x98>;
@@ -1142,6 +1289,22 @@
 				reg = <0xf80480b0 0x30>;
 				interrupts = <74 IRQ_TYPE_LEVEL_HIGH 7>;
 				clocks = <&clk32k>;
+			};
+
+			can0: can@f8054000 {
+				compatible = "bosch,m_can";
+				reg = <0xf8054000 0x4000>, <0x210000 0x4000>;
+				reg-names = "m_can", "message_ram";
+				interrupts = <56 IRQ_TYPE_LEVEL_HIGH 7>,
+					     <64 IRQ_TYPE_LEVEL_HIGH 7>;
+				interrupt-names = "int0", "int1";
+				clocks = <&can0_clk>, <&can0_gclk>;
+				clock-names = "hclk", "cclk";
+				assigned-clocks = <&can0_gclk>;
+				assigned-clock-parents = <&utmi>;
+				assigned-clock-rates = <40000000>;
+				bosch,mram-cfg = <0x0 0 0 64 0 0 32 32>;
+				status = "disabled";
 			};
 
 			spi1: spi@fc000000 {
@@ -1267,6 +1430,7 @@
 				atmel,min-sample-rate-hz = <200000>;
 				atmel,max-sample-rate-hz = <20000000>;
 				atmel,startup-time-ms = <4>;
+				atmel,trigger-edge-type = <IRQ_TYPE_EDGE_RISING>;
 				status = "disabled";
 			};
 
@@ -1303,6 +1467,35 @@
 				clocks = <&tdes_clk>;
 				clock-names = "tdes_clk";
 				status = "okay";
+			};
+
+			classd: classd@fc048000 {
+				compatible = "atmel,sama5d2-classd";
+				reg = <0xfc048000 0x100>;
+				interrupts = <59 IRQ_TYPE_LEVEL_HIGH 7>;
+				dmas = <&dma0
+					(AT91_XDMAC_DT_MEM_IF(0) | AT91_XDMAC_DT_PER_IF(1) |
+					 AT91_XDMAC_DT_PERID(47))>;
+				dma-names = "tx";
+				clocks = <&classd_clk>, <&classd_gclk>;
+				clock-names = "pclk", "gclk";
+				status = "disabled";
+			};
+
+			can1: can@fc050000 {
+				compatible = "bosch,m_can";
+				reg = <0xfc050000 0x4000>, <0x210000 0x4000>;
+				reg-names = "m_can", "message_ram";
+				interrupts = <57 IRQ_TYPE_LEVEL_HIGH 7>,
+					     <65 IRQ_TYPE_LEVEL_HIGH 7>;
+				interrupt-names = "int0", "int1";
+				clocks = <&can1_clk>, <&can1_gclk>;
+				clock-names = "hclk", "cclk";
+				assigned-clocks = <&can1_gclk>;
+				assigned-clock-parents = <&utmi>;
+				assigned-clock-rates = <40000000>;
+				bosch,mram-cfg = <0x1100 0 0 64 0 0 32 32>;
+				status = "disabled";
 			};
 
 			sfrbu: sfr@fc05c000 {

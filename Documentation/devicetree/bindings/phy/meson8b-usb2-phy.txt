@@ -1,7 +1,8 @@
-* Amlogic Meson8b and GXBB USB2 PHY
+* Amlogic Meson8, Meson8b and GXBB USB2 PHY
 
 Required properties:
 - compatible:	Depending on the platform this should be one of:
+	"amlogic,meson8-usb2-phy"
 	"amlogic,meson8b-usb2-phy"
 	"amlogic,meson-gxbb-usb2-phy"
 - reg:		The base address and length of the registers

@@ -819,9 +819,8 @@ mv64xxx_of_config(struct mv64xxx_i2c_data *drv_data,
 		rc = -EINVAL;
 		goto out;
 	}
-	drv_data->irq = irq_of_parse_and_map(np, 0);
 
-	drv_data->rstc = devm_reset_control_get_optional(dev, NULL);
+	drv_data->rstc = devm_reset_control_get_optional_exclusive(dev, NULL);
 	if (IS_ERR(drv_data->rstc)) {
 		rc = PTR_ERR(drv_data->rstc);
 		goto out;
@@ -902,10 +901,11 @@ mv64xxx_i2c_probe(struct platform_device *pd)
 	if (!IS_ERR(drv_data->clk))
 		clk_prepare_enable(drv_data->clk);
 
+	drv_data->irq = platform_get_irq(pd, 0);
+
 	if (pdata) {
 		drv_data->freq_m = pdata->freq_m;
 		drv_data->freq_n = pdata->freq_n;
-		drv_data->irq = platform_get_irq(pd, 0);
 		drv_data->adapter.timeout = msecs_to_jiffies(pdata->timeout);
 		drv_data->offload_enabled = false;
 		memcpy(&drv_data->reg_offsets, &mv64xxx_i2c_regs_mv64xxx, sizeof(drv_data->reg_offsets));
@@ -915,7 +915,7 @@ mv64xxx_i2c_probe(struct platform_device *pd)
 			goto exit_clk;
 	}
 	if (drv_data->irq < 0) {
-		rc = -ENXIO;
+		rc = drv_data->irq;
 		goto exit_reset;
 	}
 
@@ -975,8 +975,7 @@ mv64xxx_i2c_remove(struct platform_device *dev)
 #ifdef CONFIG_PM
 static int mv64xxx_i2c_resume(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct mv64xxx_i2c_data *drv_data = platform_get_drvdata(pdev);
+	struct mv64xxx_i2c_data *drv_data = dev_get_drvdata(dev);
 
 	mv64xxx_i2c_hw_init(drv_data);
 

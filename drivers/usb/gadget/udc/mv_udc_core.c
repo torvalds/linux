@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2011 Marvell International Ltd. All rights reserved.
  * Author: Chao Xie <chao.xie@marvell.com>
  *	   Neil Zhang <zhangwm@marvell.com>
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
  */
 
 #include <linux/module.h>
@@ -39,7 +35,6 @@
 #include "mv_udc.h"
 
 #define DRIVER_DESC		"Marvell PXA USB Device Controller driver"
-#define DRIVER_VERSION		"8 Nov 2010"
 
 #define ep_dir(ep)	(((ep)->ep_num == 0) ? \
 				((ep)->udc->ep0_dir) : ((ep)->direction))
@@ -960,9 +955,9 @@ static const struct usb_ep_ops mv_ep_ops = {
 	.fifo_flush	= mv_ep_fifo_flush,	/* flush fifo */
 };
 
-static void udc_clock_enable(struct mv_udc *udc)
+static int udc_clock_enable(struct mv_udc *udc)
 {
-	clk_prepare_enable(udc->clk);
+	return clk_prepare_enable(udc->clk);
 }
 
 static void udc_clock_disable(struct mv_udc *udc)
@@ -1070,7 +1065,10 @@ static int mv_udc_enable_internal(struct mv_udc *udc)
 		return 0;
 
 	dev_dbg(&udc->dev->dev, "enable udc\n");
-	udc_clock_enable(udc);
+	retval = udc_clock_enable(udc);
+	if (retval)
+		return retval;
+
 	if (udc->pdata->phy_init) {
 		retval = udc->pdata->phy_init(udc->phy_regs);
 		if (retval) {
@@ -2424,5 +2422,4 @@ module_platform_driver(udc_driver);
 MODULE_ALIAS("platform:mv-udc");
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_AUTHOR("Chao Xie <chao.xie@marvell.com>");
-MODULE_VERSION(DRIVER_VERSION);
 MODULE_LICENSE("GPL");

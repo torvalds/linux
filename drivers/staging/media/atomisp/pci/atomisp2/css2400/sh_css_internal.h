@@ -154,18 +154,11 @@
 /* Number of SP's */
 #define NUM_OF_SPS 1
 
-#if defined(HAS_BL)
-#define NUM_OF_BLS 1
-#else
 #define NUM_OF_BLS 0
-#endif
 
 /* Enum for order of Binaries */
 enum sh_css_order_binaries {
 	SP_FIRMWARE = 0,
-#if defined(HAS_BL)
-	BOOTLOADER_FIRMWARE,
-#endif
 	ISP_FIRMWARE
 };
 
@@ -968,7 +961,7 @@ struct host_sp_queues {
 
 extern int (*sh_css_printf)(const char *fmt, va_list args);
 
-STORAGE_CLASS_INLINE void
+static inline void
 sh_css_print(const char *fmt, ...)
 {
 	va_list ap;
@@ -980,7 +973,7 @@ sh_css_print(const char *fmt, ...)
 	}
 }
 
-STORAGE_CLASS_INLINE void
+static inline void
 sh_css_vprint(const char *fmt, va_list args)
 {
 	if (sh_css_printf)

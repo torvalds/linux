@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Interface for controlling IO bandwidth on a request queue
  *
@@ -22,11 +23,18 @@ static int throtl_quantum = 32;
 #define DFL_THROTL_SLICE_HD (HZ / 10)
 #define DFL_THROTL_SLICE_SSD (HZ / 50)
 #define MAX_THROTL_SLICE (HZ)
-#define DFL_IDLE_THRESHOLD_SSD (1000L) /* 1 ms */
-#define DFL_IDLE_THRESHOLD_HD (100L * 1000) /* 100 ms */
 #define MAX_IDLE_TIME (5L * 1000 * 1000) /* 5 s */
-/* default latency target is 0, eg, guarantee IO latency by default */
-#define DFL_LATENCY_TARGET (0)
+#define MIN_THROTL_BPS (320 * 1024)
+#define MIN_THROTL_IOPS (10)
+#define DFL_LATENCY_TARGET (-1L)
+#define DFL_IDLE_THRESHOLD (0)
+#define DFL_HD_BASELINE_LATENCY (4000L) /* 4ms */
+#define LATENCY_FILTERED_SSD (0)
+/*
+ * For HD, very small latency comes from sequential IO. Such IO is helpless to
+ * help determine if its IO is impacted by others, hence we ignore the IO
+ */
+#define LATENCY_FILTERED_HD (1000L) /* 1ms */
 
 #define SKIP_LATENCY (((u64)1) << BLK_STAT_RES_SHIFT)
 
@@ -157,6 +165,7 @@ struct throtl_grp {
 	unsigned long last_check_time;
 
 	unsigned long latency_target; /* us */
+	unsigned long latency_target_conf; /* us */
 	/* When did we start a new slice */
 	unsigned long slice_start[2];
 	unsigned long slice_end[2];
@@ -165,6 +174,7 @@ struct throtl_grp {
 	unsigned long checked_last_finish_time; /* ns / 1024 */
 	unsigned long avg_idletime; /* ns / 1024 */
 	unsigned long idletime_threshold; /* us */
+	unsigned long idletime_threshold_conf; /* us */
 
 	unsigned int bio_cnt; /* total bios */
 	unsigned int bad_bio_cnt; /* bios exceeding latency threshold */
@@ -201,8 +211,6 @@ struct throtl_data
 	unsigned int limit_index;
 	bool limit_valid[LIMIT_CNT];
 
-	unsigned long dft_idletime_threshold; /* us */
-
 	unsigned long low_upgrade_time;
 	unsigned long low_downgrade_time;
 
@@ -212,11 +220,12 @@ struct throtl_data
 	struct avg_latency_bucket avg_buckets[LATENCY_BUCKET_SIZE];
 	struct latency_bucket __percpu *latency_buckets;
 	unsigned long last_calculate_time;
+	unsigned long filtered_latency;
 
 	bool track_bio_latency;
 };
 
-static void throtl_pending_timer_fn(unsigned long arg);
+static void throtl_pending_timer_fn(struct timer_list *t);
 
 static inline struct throtl_grp *pd_to_tg(struct blkg_policy_data *pd)
 {
@@ -294,8 +303,14 @@ static uint64_t tg_bps_limit(struct throtl_grp *tg, int rw)
 
 	td = tg->td;
 	ret = tg->bps[rw][td->limit_index];
-	if (ret == 0 && td->limit_index == LIMIT_LOW)
-		return tg->bps[rw][LIMIT_MAX];
+	if (ret == 0 && td->limit_index == LIMIT_LOW) {
+		/* intermediate node or iops isn't 0 */
+		if (!list_empty(&blkg->blkcg->css.children) ||
+		    tg->iops[rw][td->limit_index])
+			return U64_MAX;
+		else
+			return MIN_THROTL_BPS;
+	}
 
 	if (td->limit_index == LIMIT_MAX && tg->bps[rw][LIMIT_LOW] &&
 	    tg->bps[rw][LIMIT_LOW] != tg->bps[rw][LIMIT_MAX]) {
@@ -315,10 +330,17 @@ static unsigned int tg_iops_limit(struct throtl_grp *tg, int rw)
 
 	if (cgroup_subsys_on_dfl(io_cgrp_subsys) && !blkg->parent)
 		return UINT_MAX;
+
 	td = tg->td;
 	ret = tg->iops[rw][td->limit_index];
-	if (ret == 0 && tg->td->limit_index == LIMIT_LOW)
-		return tg->iops[rw][LIMIT_MAX];
+	if (ret == 0 && tg->td->limit_index == LIMIT_LOW) {
+		/* intermediate node or bps isn't 0 */
+		if (!list_empty(&blkg->blkcg->css.children) ||
+		    tg->bps[rw][td->limit_index])
+			return UINT_MAX;
+		else
+			return MIN_THROTL_IOPS;
+	}
 
 	if (td->limit_index == LIMIT_MAX && tg->iops[rw][LIMIT_LOW] &&
 	    tg->iops[rw][LIMIT_LOW] != tg->iops[rw][LIMIT_MAX]) {
@@ -352,14 +374,20 @@ static unsigned int tg_iops_limit(struct throtl_grp *tg, int rw)
 	if (likely(!blk_trace_note_message_enabled(__td->queue)))	\
 		break;							\
 	if ((__tg)) {							\
-		char __pbuf[128];					\
-									\
-		blkg_path(tg_to_blkg(__tg), __pbuf, sizeof(__pbuf));	\
-		blk_add_trace_msg(__td->queue, "throtl %s " fmt, __pbuf, ##args); \
+		blk_add_cgroup_trace_msg(__td->queue,			\
+			tg_to_blkg(__tg)->blkcg, "throtl " fmt, ##args);\
 	} else {							\
 		blk_add_trace_msg(__td->queue, "throtl " fmt, ##args);	\
 	}								\
 } while (0)
+
+static inline unsigned int throtl_bio_data_size(struct bio *bio)
+{
+	/* assume it's one sector */
+	if (unlikely(bio_op(bio) == REQ_OP_DISCARD))
+		return 512;
+	return bio->bi_iter.bi_size;
+}
 
 static void throtl_qnode_init(struct throtl_qnode *qn, struct throtl_grp *tg)
 {
@@ -450,8 +478,7 @@ static void throtl_service_queue_init(struct throtl_service_queue *sq)
 	INIT_LIST_HEAD(&sq->queued[0]);
 	INIT_LIST_HEAD(&sq->queued[1]);
 	sq->pending_tree = RB_ROOT;
-	setup_timer(&sq->pending_timer, throtl_pending_timer_fn,
-		    (unsigned long)sq);
+	timer_setup(&sq->pending_timer, throtl_pending_timer_fn, 0);
 }
 
 static struct blkg_policy_data *throtl_pd_alloc(gfp_t gfp, int node)
@@ -482,6 +509,9 @@ static struct blkg_policy_data *throtl_pd_alloc(gfp_t gfp, int node)
 	/* LIMIT_LOW will have default value 0 */
 
 	tg->latency_target = DFL_LATENCY_TARGET;
+	tg->latency_target_conf = DFL_LATENCY_TARGET;
+	tg->idletime_threshold = DFL_IDLE_THRESHOLD;
+	tg->idletime_threshold_conf = DFL_IDLE_THRESHOLD;
 
 	return &tg->pd;
 }
@@ -510,8 +540,6 @@ static void throtl_pd_init(struct blkg_policy_data *pd)
 	if (cgroup_subsys_on_dfl(io_cgrp_subsys) && blkg->parent)
 		sq->parent_sq = &blkg_to_tg(blkg->parent)->service_queue;
 	tg->td = td;
-
-	tg->idletime_threshold = td->dft_idletime_threshold;
 }
 
 /*
@@ -684,7 +712,7 @@ static void throtl_dequeue_tg(struct throtl_grp *tg)
 static void throtl_schedule_pending_timer(struct throtl_service_queue *sq,
 					  unsigned long expires)
 {
-	unsigned long max_expire = jiffies + 8 * sq_to_tg(sq)->td->throtl_slice;
+	unsigned long max_expire = jiffies + 8 * sq_to_td(sq)->throtl_slice;
 
 	/*
 	 * Since we are adjusting the throttle limit dynamically, the sleep
@@ -912,6 +940,7 @@ static bool tg_with_in_bps_limit(struct throtl_grp *tg, struct bio *bio,
 	bool rw = bio_data_dir(bio);
 	u64 bytes_allowed, extra_bytes, tmp;
 	unsigned long jiffy_elapsed, jiffy_wait, jiffy_elapsed_rnd;
+	unsigned int bio_size = throtl_bio_data_size(bio);
 
 	jiffy_elapsed = jiffy_elapsed_rnd = jiffies - tg->slice_start[rw];
 
@@ -925,14 +954,14 @@ static bool tg_with_in_bps_limit(struct throtl_grp *tg, struct bio *bio,
 	do_div(tmp, HZ);
 	bytes_allowed = tmp;
 
-	if (tg->bytes_disp[rw] + bio->bi_iter.bi_size <= bytes_allowed) {
+	if (tg->bytes_disp[rw] + bio_size <= bytes_allowed) {
 		if (wait)
 			*wait = 0;
 		return true;
 	}
 
 	/* Calc approx time to dispatch */
-	extra_bytes = tg->bytes_disp[rw] + bio->bi_iter.bi_size - bytes_allowed;
+	extra_bytes = tg->bytes_disp[rw] + bio_size - bytes_allowed;
 	jiffy_wait = div64_u64(extra_bytes * HZ, tg_bps_limit(tg, rw));
 
 	if (!jiffy_wait)
@@ -1012,11 +1041,12 @@ static bool tg_may_dispatch(struct throtl_grp *tg, struct bio *bio,
 static void throtl_charge_bio(struct throtl_grp *tg, struct bio *bio)
 {
 	bool rw = bio_data_dir(bio);
+	unsigned int bio_size = throtl_bio_data_size(bio);
 
 	/* Charge the bio to the group */
-	tg->bytes_disp[rw] += bio->bi_iter.bi_size;
+	tg->bytes_disp[rw] += bio_size;
 	tg->io_disp[rw]++;
-	tg->last_bytes_disp[rw] += bio->bi_iter.bi_size;
+	tg->last_bytes_disp[rw] += bio_size;
 	tg->last_io_disp[rw]++;
 
 	/*
@@ -1218,9 +1248,9 @@ static bool throtl_can_upgrade(struct throtl_data *td,
  * the top-level service_tree is reached, throtl_data->dispatch_work is
  * kicked so that the ready bio's are issued.
  */
-static void throtl_pending_timer_fn(unsigned long arg)
+static void throtl_pending_timer_fn(struct timer_list *t)
 {
-	struct throtl_service_queue *sq = (void *)arg;
+	struct throtl_service_queue *sq = from_timer(sq, t, pending_timer);
 	struct throtl_grp *tg = sq_to_tg(sq);
 	struct throtl_data *td = sq_to_td(sq);
 	struct request_queue *q = td->queue;
@@ -1349,7 +1379,7 @@ static int tg_print_conf_uint(struct seq_file *sf, void *v)
 	return 0;
 }
 
-static void tg_conf_updated(struct throtl_grp *tg)
+static void tg_conf_updated(struct throtl_grp *tg, bool global)
 {
 	struct throtl_service_queue *sq = &tg->service_queue;
 	struct cgroup_subsys_state *pos_css;
@@ -1367,8 +1397,26 @@ static void tg_conf_updated(struct throtl_grp *tg)
 	 * restrictions in the whole hierarchy and allows them to bypass
 	 * blk-throttle.
 	 */
-	blkg_for_each_descendant_pre(blkg, pos_css, tg_to_blkg(tg))
-		tg_update_has_rules(blkg_to_tg(blkg));
+	blkg_for_each_descendant_pre(blkg, pos_css,
+			global ? tg->td->queue->root_blkg : tg_to_blkg(tg)) {
+		struct throtl_grp *this_tg = blkg_to_tg(blkg);
+		struct throtl_grp *parent_tg;
+
+		tg_update_has_rules(this_tg);
+		/* ignore root/second level */
+		if (!cgroup_subsys_on_dfl(io_cgrp_subsys) || !blkg->parent ||
+		    !blkg->parent->parent)
+			continue;
+		parent_tg = blkg_to_tg(blkg->parent);
+		/*
+		 * make sure all children has lower idle time threshold and
+		 * higher latency target
+		 */
+		this_tg->idletime_threshold = min(this_tg->idletime_threshold,
+				parent_tg->idletime_threshold);
+		this_tg->latency_target = max(this_tg->latency_target,
+				parent_tg->latency_target);
+	}
 
 	/*
 	 * We're already holding queue_lock and know @tg is valid.  Let's
@@ -1413,7 +1461,7 @@ static ssize_t tg_set_conf(struct kernfs_open_file *of,
 	else
 		*(unsigned int *)((void *)tg + of_cft(of)->private) = v;
 
-	tg_conf_updated(tg);
+	tg_conf_updated(tg, false);
 	ret = 0;
 out_finish:
 	blkg_conf_finish(&ctx);
@@ -1497,34 +1545,34 @@ static u64 tg_prfill_limit(struct seq_file *sf, struct blkg_policy_data *pd,
 	    tg->iops_conf[READ][off] == iops_dft &&
 	    tg->iops_conf[WRITE][off] == iops_dft &&
 	    (off != LIMIT_LOW ||
-	     (tg->idletime_threshold == tg->td->dft_idletime_threshold &&
-	      tg->latency_target == DFL_LATENCY_TARGET)))
+	     (tg->idletime_threshold_conf == DFL_IDLE_THRESHOLD &&
+	      tg->latency_target_conf == DFL_LATENCY_TARGET)))
 		return 0;
 
-	if (tg->bps_conf[READ][off] != bps_dft)
+	if (tg->bps_conf[READ][off] != U64_MAX)
 		snprintf(bufs[0], sizeof(bufs[0]), "%llu",
 			tg->bps_conf[READ][off]);
-	if (tg->bps_conf[WRITE][off] != bps_dft)
+	if (tg->bps_conf[WRITE][off] != U64_MAX)
 		snprintf(bufs[1], sizeof(bufs[1]), "%llu",
 			tg->bps_conf[WRITE][off]);
-	if (tg->iops_conf[READ][off] != iops_dft)
+	if (tg->iops_conf[READ][off] != UINT_MAX)
 		snprintf(bufs[2], sizeof(bufs[2]), "%u",
 			tg->iops_conf[READ][off]);
-	if (tg->iops_conf[WRITE][off] != iops_dft)
+	if (tg->iops_conf[WRITE][off] != UINT_MAX)
 		snprintf(bufs[3], sizeof(bufs[3]), "%u",
 			tg->iops_conf[WRITE][off]);
 	if (off == LIMIT_LOW) {
-		if (tg->idletime_threshold == ULONG_MAX)
+		if (tg->idletime_threshold_conf == ULONG_MAX)
 			strcpy(idle_time, " idle=max");
 		else
 			snprintf(idle_time, sizeof(idle_time), " idle=%lu",
-				tg->idletime_threshold);
+				tg->idletime_threshold_conf);
 
-		if (tg->latency_target == ULONG_MAX)
+		if (tg->latency_target_conf == ULONG_MAX)
 			strcpy(latency_time, " latency=max");
 		else
 			snprintf(latency_time, sizeof(latency_time),
-				" latency=%lu", tg->latency_target);
+				" latency=%lu", tg->latency_target_conf);
 	}
 
 	seq_printf(sf, "%s rbps=%s wbps=%s riops=%s wiops=%s%s%s\n",
@@ -1563,8 +1611,8 @@ static ssize_t tg_set_limit(struct kernfs_open_file *of,
 	v[2] = tg->iops_conf[READ][index];
 	v[3] = tg->iops_conf[WRITE][index];
 
-	idle_time = tg->idletime_threshold;
-	latency_time = tg->latency_target;
+	idle_time = tg->idletime_threshold_conf;
+	latency_time = tg->latency_target_conf;
 	while (true) {
 		char tok[27];	/* wiops=18446744073709551616 */
 		char *p;
@@ -1623,17 +1671,33 @@ static ssize_t tg_set_limit(struct kernfs_open_file *of,
 		tg->iops_conf[READ][LIMIT_MAX]);
 	tg->iops[WRITE][LIMIT_LOW] = min(tg->iops_conf[WRITE][LIMIT_LOW],
 		tg->iops_conf[WRITE][LIMIT_MAX]);
+	tg->idletime_threshold_conf = idle_time;
+	tg->latency_target_conf = latency_time;
 
-	if (index == LIMIT_LOW) {
-		blk_throtl_update_limit_valid(tg->td);
-		if (tg->td->limit_valid[LIMIT_LOW])
-			tg->td->limit_index = LIMIT_LOW;
-		tg->idletime_threshold = (idle_time == ULONG_MAX) ?
-			ULONG_MAX : idle_time;
-		tg->latency_target = (latency_time == ULONG_MAX) ?
-			ULONG_MAX : latency_time;
+	/* force user to configure all settings for low limit  */
+	if (!(tg->bps[READ][LIMIT_LOW] || tg->iops[READ][LIMIT_LOW] ||
+	      tg->bps[WRITE][LIMIT_LOW] || tg->iops[WRITE][LIMIT_LOW]) ||
+	    tg->idletime_threshold_conf == DFL_IDLE_THRESHOLD ||
+	    tg->latency_target_conf == DFL_LATENCY_TARGET) {
+		tg->bps[READ][LIMIT_LOW] = 0;
+		tg->bps[WRITE][LIMIT_LOW] = 0;
+		tg->iops[READ][LIMIT_LOW] = 0;
+		tg->iops[WRITE][LIMIT_LOW] = 0;
+		tg->idletime_threshold = DFL_IDLE_THRESHOLD;
+		tg->latency_target = DFL_LATENCY_TARGET;
+	} else if (index == LIMIT_LOW) {
+		tg->idletime_threshold = tg->idletime_threshold_conf;
+		tg->latency_target = tg->latency_target_conf;
 	}
-	tg_conf_updated(tg);
+
+	blk_throtl_update_limit_valid(tg->td);
+	if (tg->td->limit_valid[LIMIT_LOW]) {
+		if (index == LIMIT_LOW)
+			tg->td->limit_index = LIMIT_LOW;
+	} else
+		tg->td->limit_index = LIMIT_MAX;
+	tg_conf_updated(tg, index == LIMIT_LOW &&
+		tg->td->limit_valid[LIMIT_LOW]);
 	ret = 0;
 out_finish:
 	blkg_conf_finish(&ctx);
@@ -1722,17 +1786,25 @@ static bool throtl_tg_is_idle(struct throtl_grp *tg)
 	/*
 	 * cgroup is idle if:
 	 * - single idle is too long, longer than a fixed value (in case user
-	 *   configure a too big threshold) or 4 times of slice
+	 *   configure a too big threshold) or 4 times of idletime threshold
 	 * - average think time is more than threshold
 	 * - IO latency is largely below threshold
 	 */
-	unsigned long time = jiffies_to_usecs(4 * tg->td->throtl_slice);
+	unsigned long time;
+	bool ret;
 
-	time = min_t(unsigned long, MAX_IDLE_TIME, time);
-	return (ktime_get_ns() >> 10) - tg->last_finish_time > time ||
-	       tg->avg_idletime > tg->idletime_threshold ||
-	       (tg->latency_target && tg->bio_cnt &&
+	time = min_t(unsigned long, MAX_IDLE_TIME, 4 * tg->idletime_threshold);
+	ret = tg->latency_target == DFL_LATENCY_TARGET ||
+	      tg->idletime_threshold == DFL_IDLE_THRESHOLD ||
+	      (ktime_get_ns() >> 10) - tg->last_finish_time > time ||
+	      tg->avg_idletime > tg->idletime_threshold ||
+	      (tg->latency_target && tg->bio_cnt &&
 		tg->bad_bio_cnt * 5 < tg->bio_cnt);
+	throtl_log(&tg->service_queue,
+		"avg_idle=%ld, idle_threshold=%ld, bad_bio=%d, total_bio=%d, is_idle=%d, scale=%d",
+		tg->avg_idletime, tg->idletime_threshold, tg->bad_bio_cnt,
+		tg->bio_cnt, ret, tg->td->scale);
+	return ret;
 }
 
 static bool throtl_tg_can_upgrade(struct throtl_grp *tg)
@@ -1828,6 +1900,7 @@ static void throtl_upgrade_state(struct throtl_data *td)
 	struct cgroup_subsys_state *pos_css;
 	struct blkcg_gq *blkg;
 
+	throtl_log(&td->service_queue, "upgrade to max");
 	td->limit_index = LIMIT_MAX;
 	td->low_upgrade_time = jiffies;
 	td->scale = 0;
@@ -1838,11 +1911,11 @@ static void throtl_upgrade_state(struct throtl_data *td)
 
 		tg->disptime = jiffies - 1;
 		throtl_select_dispatch(sq);
-		throtl_schedule_next_dispatch(sq, false);
+		throtl_schedule_next_dispatch(sq, true);
 	}
 	rcu_read_unlock();
 	throtl_select_dispatch(&td->service_queue);
-	throtl_schedule_next_dispatch(&td->service_queue, false);
+	throtl_schedule_next_dispatch(&td->service_queue, true);
 	queue_work(kthrotld_workqueue, &td->dispatch_work);
 }
 
@@ -1850,6 +1923,7 @@ static void throtl_downgrade_state(struct throtl_data *td, int new)
 {
 	td->scale /= 2;
 
+	throtl_log(&td->service_queue, "downgrade, scale %d", td->scale);
 	if (td->scale) {
 		td->low_upgrade_time = jiffies - td->scale * td->throtl_slice;
 		return;
@@ -2023,6 +2097,11 @@ static void throtl_update_latency_buckets(struct throtl_data *td)
 		td->avg_buckets[i].valid = true;
 		last_latency = td->avg_buckets[i].latency;
 	}
+
+	for (i = 0; i < LATENCY_BUCKET_SIZE; i++)
+		throtl_log(&td->service_queue,
+			"Latency bucket %d: latency=%ld, valid=%d", i,
+			td->avg_buckets[i].latency, td->avg_buckets[i].valid);
 }
 #else
 static inline void throtl_update_latency_buckets(struct throtl_data *td)
@@ -2033,14 +2112,13 @@ static inline void throtl_update_latency_buckets(struct throtl_data *td)
 static void blk_throtl_assoc_bio(struct throtl_grp *tg, struct bio *bio)
 {
 #ifdef CONFIG_BLK_DEV_THROTTLING_LOW
-	int ret;
-
-	ret = bio_associate_current(bio);
-	if (ret == 0 || ret == -EBUSY)
+	if (bio->bi_css) {
+		if (bio->bi_cg_private)
+			blkg_put(tg_to_blkg(bio->bi_cg_private));
 		bio->bi_cg_private = tg;
+		blkg_get(tg_to_blkg(tg));
+	}
 	blk_stat_set_issue(&bio->bi_issue_stat, bio_sectors(bio));
-#else
-	bio_associate_current(bio);
 #endif
 }
 
@@ -2209,8 +2287,10 @@ void blk_throtl_bio_endio(struct bio *bio)
 
 	start_time = blk_stat_time(&bio->bi_issue_stat) >> 10;
 	finish_time = __blk_stat_time(finish_time_ns) >> 10;
-	if (!start_time || finish_time <= start_time)
+	if (!start_time || finish_time <= start_time) {
+		blkg_put(tg_to_blkg(tg));
 		return;
+	}
 
 	lat = finish_time - start_time;
 	/* this is only for bio based driver */
@@ -2218,7 +2298,7 @@ void blk_throtl_bio_endio(struct bio *bio)
 		throtl_track_latency(tg->td, blk_stat_size(&bio->bi_issue_stat),
 			bio_op(bio), lat);
 
-	if (tg->latency_target) {
+	if (tg->latency_target && lat >= tg->td->filtered_latency) {
 		int bucket;
 		unsigned int threshold;
 
@@ -2240,6 +2320,8 @@ void blk_throtl_bio_endio(struct bio *bio)
 		tg->bio_cnt /= 2;
 		tg->bad_bio_cnt /= 2;
 	}
+
+	blkg_put(tg_to_blkg(tg));
 }
 #endif
 
@@ -2354,18 +2436,19 @@ void blk_throtl_exit(struct request_queue *q)
 void blk_throtl_register_queue(struct request_queue *q)
 {
 	struct throtl_data *td;
-	struct cgroup_subsys_state *pos_css;
-	struct blkcg_gq *blkg;
+	int i;
 
 	td = q->td;
 	BUG_ON(!td);
 
 	if (blk_queue_nonrot(q)) {
 		td->throtl_slice = DFL_THROTL_SLICE_SSD;
-		td->dft_idletime_threshold = DFL_IDLE_THRESHOLD_SSD;
+		td->filtered_latency = LATENCY_FILTERED_SSD;
 	} else {
 		td->throtl_slice = DFL_THROTL_SLICE_HD;
-		td->dft_idletime_threshold = DFL_IDLE_THRESHOLD_HD;
+		td->filtered_latency = LATENCY_FILTERED_HD;
+		for (i = 0; i < LATENCY_BUCKET_SIZE; i++)
+			td->avg_buckets[i].latency = DFL_HD_BASELINE_LATENCY;
 	}
 #ifndef CONFIG_BLK_DEV_THROTTLING_LOW
 	/* if no low limit, use previous default */
@@ -2375,18 +2458,6 @@ void blk_throtl_register_queue(struct request_queue *q)
 	td->track_bio_latency = !q->mq_ops && !q->request_fn;
 	if (!td->track_bio_latency)
 		blk_stat_enable_accounting(q);
-
-	/*
-	 * some tg are created before queue is fully initialized, eg, nonrot
-	 * isn't initialized yet
-	 */
-	rcu_read_lock();
-	blkg_for_each_descendant_post(blkg, pos_css, q->root_blkg) {
-		struct throtl_grp *tg = blkg_to_tg(blkg);
-
-		tg->idletime_threshold = td->dft_idletime_threshold;
-	}
-	rcu_read_unlock();
 }
 
 #ifdef CONFIG_BLK_DEV_THROTTLING_LOW

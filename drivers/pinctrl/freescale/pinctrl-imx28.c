@@ -373,7 +373,7 @@ static const struct pinctrl_pin_desc imx28_pins[] = {
 	MXS_PINCTRL_PIN(EMI_CKE),
 };
 
-static struct mxs_regs imx28_regs = {
+static const struct mxs_regs imx28_regs = {
 	.muxsel = 0x100,
 	.drive = 0x300,
 	.pull = 0x600,

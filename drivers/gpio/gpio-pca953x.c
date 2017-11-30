@@ -187,10 +187,9 @@ static int pca953x_write_regs_8(struct pca953x_chip *chip, int reg, u8 *val)
 
 static int pca953x_write_regs_16(struct pca953x_chip *chip, int reg, u8 *val)
 {
-	__le16 word = cpu_to_le16(get_unaligned((u16 *)val));
+	u16 word = get_unaligned((u16 *)val);
 
-	return i2c_smbus_write_word_data(chip->client,
-					 reg << 1, (__force u16)word);
+	return i2c_smbus_write_word_data(chip->client, reg << 1, word);
 }
 
 static int pca957x_write_regs_16(struct pca953x_chip *chip, int reg, u8 *val)
@@ -241,8 +240,7 @@ static int pca953x_read_regs_16(struct pca953x_chip *chip, int reg, u8 *val)
 	int ret;
 
 	ret = i2c_smbus_read_word_data(chip->client, reg << 1);
-	val[0] = (u16)ret & 0xFF;
-	val[1] = (u16)ret >> 8;
+	put_unaligned(ret, (u16 *)val);
 
 	return ret;
 }
@@ -610,7 +608,7 @@ static irqreturn_t pca953x_irq_handler(int irq, void *devid)
 	for (i = 0; i < NBANK(chip); i++) {
 		while (pending[i]) {
 			level = __ffs(pending[i]);
-			handle_nested_irq(irq_find_mapping(chip->gpio_chip.irqdomain,
+			handle_nested_irq(irq_find_mapping(chip->gpio_chip.irq.domain,
 							level + (BANK_SZ * i)));
 			pending[i] &= ~(1 << level);
 			nhandled++;

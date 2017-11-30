@@ -33,6 +33,11 @@ struct background_tracker *btracker_create(unsigned max_work)
 {
 	struct background_tracker *b = kmalloc(sizeof(*b), GFP_KERNEL);
 
+	if (!b) {
+		DMERR("couldn't create background_tracker");
+		return NULL;
+	}
+
 	b->max_work = max_work;
 	atomic_set(&b->pending_promotes, 0);
 	atomic_set(&b->pending_writebacks, 0);
@@ -156,8 +161,17 @@ EXPORT_SYMBOL_GPL(btracker_nr_demotions_queued);
 
 static bool max_work_reached(struct background_tracker *b)
 {
-	// FIXME: finish
-	return false;
+	return atomic_read(&b->pending_promotes) +
+		atomic_read(&b->pending_writebacks) +
+		atomic_read(&b->pending_demotes) >= b->max_work;
+}
+
+struct bt_work *alloc_work(struct background_tracker *b)
+{
+	if (max_work_reached(b))
+		return NULL;
+
+	return kmem_cache_alloc(b->work_cache, GFP_NOWAIT);
 }
 
 int btracker_queue(struct background_tracker *b,
@@ -169,10 +183,7 @@ int btracker_queue(struct background_tracker *b,
 	if (pwork)
 		*pwork = NULL;
 
-	if (max_work_reached(b))
-		return -ENOMEM;
-
-	w = kmem_cache_alloc(b->work_cache, GFP_NOWAIT);
+	w = alloc_work(b);
 	if (!w)
 		return -ENOMEM;
 

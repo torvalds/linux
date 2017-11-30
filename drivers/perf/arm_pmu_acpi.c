@@ -29,6 +29,17 @@ static int arm_pmu_acpi_register_irq(int cpu)
 		return -EINVAL;
 
 	gsi = gicc->performance_interrupt;
+
+	/*
+	 * Per the ACPI spec, the MADT cannot describe a PMU that doesn't
+	 * have an interrupt. QEMU advertises this by using a GSI of zero,
+	 * which is not known to be valid on any hardware despite being
+	 * valid per the spec. Take the pragmatic approach and reject a
+	 * GSI of zero for now.
+	 */
+	if (!gsi)
+		return 0;
+
 	if (gicc->flags & ACPI_MADT_PERFORMANCE_IRQ_MODE)
 		trigger = ACPI_EDGE_SENSITIVE;
 	else
@@ -182,9 +193,6 @@ int arm_pmu_acpi_probe(armpmu_init_fn init_fn)
 	int pmu_idx = 0;
 	int cpu, ret;
 
-	if (acpi_disabled)
-		return 0;
-
 	/*
 	 * Initialise and register the set of PMUs which we know about right
 	 * now. Ideally we'd do this in arm_pmu_acpi_cpu_starting() so that we
@@ -224,6 +232,7 @@ int arm_pmu_acpi_probe(armpmu_init_fn init_fn)
 		ret = armpmu_register(pmu);
 		if (ret) {
 			pr_warn("Failed to register PMU for CPU%d\n", cpu);
+			kfree(pmu->name);
 			return ret;
 		}
 	}

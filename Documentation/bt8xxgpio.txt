@@ -1,12 +1,8 @@
-===============================================================
-==  BT8XXGPIO driver                                         ==
-==                                                           ==
-==  A driver for a selfmade cheap BT8xx based PCI GPIO-card  ==
-==                                                           ==
-==  For advanced documentation, see                          ==
-==  http://www.bu3sch.de/btgpio.php                          ==
-===============================================================
+===================================================================
+A driver for a selfmade cheap BT8xx based PCI GPIO-card (bt8xxgpio)
+===================================================================
 
+For advanced documentation, see http://www.bu3sch.de/btgpio.php
 
 A generic digital 24-port PCI GPIO card can be built out of an ordinary
 Brooktree bt848, bt849, bt878 or bt879 based analog TV tuner card. The
@@ -17,9 +13,8 @@ The bt8xx chip does have 24 digital GPIO ports.
 These ports are accessible via 24 pins on the SMD chip package.
 
 
-==============================================
-==  How to physically access the GPIO pins  ==
-==============================================
+How to physically access the GPIO pins
+======================================
 
 The are several ways to access these pins. One might unsolder the whole chip
 and put it on a custom PCI board, or one might only unsolder each individual
@@ -27,7 +22,7 @@ GPIO pin and solder that to some tiny wire. As the chip package really is tiny
 there are some advanced soldering skills needed in any case.
 
 The physical pinouts are drawn in the following ASCII art.
-The GPIO pins are marked with G00-G23
+The GPIO pins are marked with G00-G23::
 
                                            G G G G G G G G G G G G     G G G G G G
                                            0 0 0 0 0 0 0 0 0 0 1 1     1 1 1 1 1 1

@@ -618,7 +618,7 @@ static void multiorder_account(void)
 	__radix_tree_insert(&tree, 1 << 5, 5, (void *)0x12);
 	__radix_tree_lookup(&tree, 1 << 5, &node, &slot);
 	assert(node->count == node->exceptional * 2);
-	__radix_tree_replace(&tree, node, slot, NULL, NULL, NULL);
+	__radix_tree_replace(&tree, node, slot, NULL, NULL);
 	assert(node->exceptional == 0);
 
 	item_kill_tree(&tree);

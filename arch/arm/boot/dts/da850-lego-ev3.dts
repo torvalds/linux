@@ -172,6 +172,18 @@
 		gpio = <&gpio 111 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
 	};
+
+	/*
+	 * The EV3 can use 6-AA batteries or a rechargeable Li-ion battery pack.
+	 */
+	battery {
+		pinctrl-names = "default";
+		pintctrl-0 = <&battery_pins>;
+		compatible = "lego,ev3-battery";
+		io-channels = <&adc 4>, <&adc 3>;
+		io-channel-names = "voltage", "current";
+		rechargeable-gpios = <&gpio 136 GPIO_ACTIVE_LOW>;
+	};
 };
 
 &pmx_core {
@@ -226,6 +238,24 @@
 		pinctrl-single,bits = <
 			/* GP6[15] */
 			0x34 0x00000008 0x0000000f
+		>;
+	};
+
+	battery_pins: pinmux_battery_pins {
+		pinctrl-single,bits = <
+			/* GP0[6] */
+			0x04 0x00000080 0x000000f0
+			/* GP8[8] */
+			0x4c 0x00000080 0x000000f0
+		>;
+	};
+
+	ev3_lcd_pins: pinmux_lcd {
+		pinctrl-single,bits = <
+			/* SIMO, GP2[11], GP2[12], CLK */
+			0x14 0x00188100 0x00ffff00
+			/* GP5[0] */
+			0x30 0x80000000 0xf0000000
 		>;
 	};
 };
@@ -336,12 +366,34 @@
 	};
 };
 
+&spi1 {
+	status = "okay";
+	pinctrl-0 = <&ev3_lcd_pins>;
+	pinctrl-names = "default";
+	cs-gpios = <&gpio 44 GPIO_ACTIVE_LOW>;
+
+	display@0{
+		compatible = "lego,ev3-lcd";
+		reg = <0>;
+		spi-max-frequency = <10000000>;
+		a0-gpios = <&gpio 43 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&gpio 80 GPIO_ACTIVE_HIGH>;
+	};
+};
+
 &ehrpwm0 {
 	status = "okay";
 };
 
 &gpio {
 	status = "okay";
+
+	/* Don't pull down battery voltage adc io channel */
+	batt_volt_en {
+		gpio-hog;
+		gpios = <6 GPIO_ACTIVE_HIGH>;
+		output-low;
+	};
 };
 
 &usb_phy {

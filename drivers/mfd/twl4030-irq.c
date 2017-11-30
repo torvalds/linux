@@ -33,7 +33,7 @@
 #include <linux/slab.h>
 #include <linux/of.h>
 #include <linux/irqdomain.h>
-#include <linux/i2c/twl.h>
+#include <linux/mfd/twl.h>
 
 #include "twl-core.h"
 
@@ -638,8 +638,10 @@ int twl4030_sih_setup(struct device *dev, int module, int irq_base)
 		}
 	}
 
-	if (status < 0)
+	if (status < 0) {
+		dev_err(dev, "module to setup SIH for not found\n");
 		return status;
+	}
 
 	agent = kzalloc(sizeof(*agent), GFP_KERNEL);
 	if (!agent)

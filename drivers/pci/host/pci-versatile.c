@@ -120,30 +120,35 @@ out_release_res:
 
 static int versatile_pci_probe(struct platform_device *pdev)
 {
+	struct device *dev = &pdev->dev;
 	struct resource *res;
 	int ret, i, myslot = -1;
 	u32 val;
 	void __iomem *local_pci_cfg_base;
 	struct pci_bus *bus, *child;
+	struct pci_host_bridge *bridge;
 	LIST_HEAD(pci_res);
 
+	bridge = devm_pci_alloc_host_bridge(dev, 0);
+	if (!bridge)
+		return -ENOMEM;
+
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	versatile_pci_base = devm_ioremap_resource(&pdev->dev, res);
+	versatile_pci_base = devm_ioremap_resource(dev, res);
 	if (IS_ERR(versatile_pci_base))
 		return PTR_ERR(versatile_pci_base);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-	versatile_cfg_base[0] = devm_ioremap_resource(&pdev->dev, res);
+	versatile_cfg_base[0] = devm_ioremap_resource(dev, res);
 	if (IS_ERR(versatile_cfg_base[0]))
 		return PTR_ERR(versatile_cfg_base[0]);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 2);
-	versatile_cfg_base[1] = devm_pci_remap_cfg_resource(&pdev->dev,
-							    res);
+	versatile_cfg_base[1] = devm_pci_remap_cfg_resource(dev, res);
 	if (IS_ERR(versatile_cfg_base[1]))
 		return PTR_ERR(versatile_cfg_base[1]);
 
-	ret = versatile_pci_parse_request_of_pci_ranges(&pdev->dev, &pci_res);
+	ret = versatile_pci_parse_request_of_pci_ranges(dev, &pci_res);
 	if (ret)
 		return ret;
 
@@ -159,7 +164,7 @@ static int versatile_pci_probe(struct platform_device *pdev)
 		}
 	}
 	if (myslot == -1) {
-		dev_err(&pdev->dev, "Cannot find PCI core!\n");
+		dev_err(dev, "Cannot find PCI core!\n");
 		return -EIO;
 	}
 	/*
@@ -167,7 +172,7 @@ static int versatile_pci_probe(struct platform_device *pdev)
 	 */
 	pci_slot_ignore |= (1 << myslot);
 
-	dev_info(&pdev->dev, "PCI core found (slot %d)\n", myslot);
+	dev_info(dev, "PCI core found (slot %d)\n", myslot);
 
 	writel(myslot, PCI_SELFID);
 	local_pci_cfg_base = versatile_cfg_base[1] + (myslot << 11);
@@ -199,11 +204,20 @@ static int versatile_pci_probe(struct platform_device *pdev)
 	pci_add_flags(PCI_ENABLE_PROC_DOMAINS);
 	pci_add_flags(PCI_REASSIGN_ALL_BUS | PCI_REASSIGN_ALL_RSRC);
 
-	bus = pci_scan_root_bus(&pdev->dev, 0, &pci_versatile_ops, NULL, &pci_res);
-	if (!bus)
-		return -ENOMEM;
+	list_splice_init(&pci_res, &bridge->windows);
+	bridge->dev.parent = dev;
+	bridge->sysdata = NULL;
+	bridge->busnr = 0;
+	bridge->ops = &pci_versatile_ops;
+	bridge->map_irq = of_irq_parse_and_map_pci;
+	bridge->swizzle_irq = pci_common_swizzle;
 
-	pci_fixup_irqs(pci_common_swizzle, of_irq_parse_and_map_pci);
+	ret = pci_scan_root_bus_bridge(bridge);
+	if (ret < 0)
+		return ret;
+
+	bus = bridge->bus;
+
 	pci_assign_unassigned_bus_resources(bus);
 	list_for_each_entry(child, &bus->children, node)
 		pcie_bus_configure_settings(child);

@@ -99,11 +99,11 @@ static inline bool tegra_ivc_empty(struct tegra_ivc *ivc,
 {
 	/*
 	 * This function performs multiple checks on the same values with
-	 * security implications, so create snapshots with ACCESS_ONCE() to
+	 * security implications, so create snapshots with READ_ONCE() to
 	 * ensure that these checks use the same values.
 	 */
-	u32 tx = ACCESS_ONCE(header->tx.count);
-	u32 rx = ACCESS_ONCE(header->rx.count);
+	u32 tx = READ_ONCE(header->tx.count);
+	u32 rx = READ_ONCE(header->rx.count);
 
 	/*
 	 * Perform an over-full check to prevent denial of service attacks
@@ -124,8 +124,8 @@ static inline bool tegra_ivc_empty(struct tegra_ivc *ivc,
 static inline bool tegra_ivc_full(struct tegra_ivc *ivc,
 				  struct tegra_ivc_header *header)
 {
-	u32 tx = ACCESS_ONCE(header->tx.count);
-	u32 rx = ACCESS_ONCE(header->rx.count);
+	u32 tx = READ_ONCE(header->tx.count);
+	u32 rx = READ_ONCE(header->rx.count);
 
 	/*
 	 * Invalid cases where the counters indicate that the queue is over
@@ -137,8 +137,8 @@ static inline bool tegra_ivc_full(struct tegra_ivc *ivc,
 static inline u32 tegra_ivc_available(struct tegra_ivc *ivc,
 				      struct tegra_ivc_header *header)
 {
-	u32 tx = ACCESS_ONCE(header->tx.count);
-	u32 rx = ACCESS_ONCE(header->rx.count);
+	u32 tx = READ_ONCE(header->tx.count);
+	u32 rx = READ_ONCE(header->rx.count);
 
 	/*
 	 * This function isn't expected to be used in scenarios where an
@@ -151,8 +151,8 @@ static inline u32 tegra_ivc_available(struct tegra_ivc *ivc,
 
 static inline void tegra_ivc_advance_tx(struct tegra_ivc *ivc)
 {
-	ACCESS_ONCE(ivc->tx.channel->tx.count) =
-		ACCESS_ONCE(ivc->tx.channel->tx.count) + 1;
+	WRITE_ONCE(ivc->tx.channel->tx.count,
+		   READ_ONCE(ivc->tx.channel->tx.count) + 1);
 
 	if (ivc->tx.position == ivc->num_frames - 1)
 		ivc->tx.position = 0;
@@ -162,8 +162,8 @@ static inline void tegra_ivc_advance_tx(struct tegra_ivc *ivc)
 
 static inline void tegra_ivc_advance_rx(struct tegra_ivc *ivc)
 {
-	ACCESS_ONCE(ivc->rx.channel->rx.count) =
-		ACCESS_ONCE(ivc->rx.channel->rx.count) + 1;
+	WRITE_ONCE(ivc->rx.channel->rx.count,
+		   READ_ONCE(ivc->rx.channel->rx.count) + 1);
 
 	if (ivc->rx.position == ivc->num_frames - 1)
 		ivc->rx.position = 0;
@@ -428,7 +428,7 @@ int tegra_ivc_notified(struct tegra_ivc *ivc)
 
 	/* Copy the receiver's state out of shared memory. */
 	tegra_ivc_invalidate(ivc, ivc->rx.phys + offset);
-	state = ACCESS_ONCE(ivc->rx.channel->tx.state);
+	state = READ_ONCE(ivc->rx.channel->tx.state);
 
 	if (state == TEGRA_IVC_STATE_SYNC) {
 		offset = offsetof(struct tegra_ivc_header, tx.count);
@@ -646,12 +646,12 @@ int tegra_ivc_init(struct tegra_ivc *ivc, struct device *peer, void *rx,
 	if (peer) {
 		ivc->rx.phys = dma_map_single(peer, rx, queue_size,
 					      DMA_BIDIRECTIONAL);
-		if (ivc->rx.phys == DMA_ERROR_CODE)
+		if (dma_mapping_error(peer, ivc->rx.phys))
 			return -ENOMEM;
 
 		ivc->tx.phys = dma_map_single(peer, tx, queue_size,
 					      DMA_BIDIRECTIONAL);
-		if (ivc->tx.phys == DMA_ERROR_CODE) {
+		if (dma_mapping_error(peer, ivc->tx.phys)) {
 			dma_unmap_single(peer, ivc->rx.phys, queue_size,
 					 DMA_BIDIRECTIONAL);
 			return -ENOMEM;

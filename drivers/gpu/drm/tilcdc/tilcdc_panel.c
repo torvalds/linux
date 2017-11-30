@@ -189,7 +189,6 @@ static struct drm_encoder *panel_connector_best_encoder(
 
 static const struct drm_connector_funcs panel_connector_funcs = {
 	.destroy            = panel_connector_destroy,
-	.dpms               = drm_atomic_helper_connector_dpms,
 	.fill_modes         = drm_helper_probe_single_connector_modes,
 	.reset              = drm_atomic_helper_connector_reset,
 	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
@@ -419,7 +418,7 @@ static int panel_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct of_device_id panel_of_match[] = {
+static const struct of_device_id panel_of_match[] = {
 		{ .compatible = "ti,tilcdc,panel", },
 		{ },
 };

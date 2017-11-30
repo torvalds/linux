@@ -87,6 +87,9 @@ EXPORT_SYMBOL_GPL(cec_notifier_put);
 
 void cec_notifier_set_phys_addr(struct cec_notifier *n, u16 pa)
 {
+	if (n == NULL)
+		return;
+
 	mutex_lock(&n->lock);
 	n->phys_addr = pa;
 	if (n->callback)
@@ -99,6 +102,9 @@ void cec_notifier_set_phys_addr_from_edid(struct cec_notifier *n,
 					  const struct edid *edid)
 {
 	u16 pa = CEC_PHYS_ADDR_INVALID;
+
+	if (n == NULL)
+		return;
 
 	if (edid && edid->extensions)
 		pa = cec_get_edid_phys_addr((const u8 *)edid,

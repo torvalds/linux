@@ -16,17 +16,18 @@
 #include <linux/etherdevice.h>
 #include "rtl819x_TS.h"
 
-static void TsSetupTimeOut(unsigned long data)
+static void TsSetupTimeOut(struct timer_list *unused)
 {
 }
 
-static void TsInactTimeout(unsigned long data)
+static void TsInactTimeout(struct timer_list *unused)
 {
 }
 
-static void RxPktPendingTimeout(unsigned long data)
+static void RxPktPendingTimeout(struct timer_list *t)
 {
-	struct rx_ts_record *pRxTs = (struct rx_ts_record *)data;
+	struct rx_ts_record *pRxTs = from_timer(pRxTs, t,
+						     RxPktPendingTimer);
 	struct rtllib_device *ieee = container_of(pRxTs, struct rtllib_device,
 						  RxTsRecord[pRxTs->num]);
 
@@ -96,9 +97,9 @@ static void RxPktPendingTimeout(unsigned long data)
 	spin_unlock_irqrestore(&(ieee->reorder_spinlock), flags);
 }
 
-static void TsAddBaProcess(unsigned long data)
+static void TsAddBaProcess(struct timer_list *t)
 {
-	struct tx_ts_record *pTxTs = (struct tx_ts_record *)data;
+	struct tx_ts_record *pTxTs = from_timer(pTxTs, t, TsAddBaTimer);
 	u8 num = pTxTs->num;
 	struct rtllib_device *ieee = container_of(pTxTs, struct rtllib_device,
 				     TxTsRecord[num]);
@@ -150,24 +151,18 @@ void TSInitialize(struct rtllib_device *ieee)
 
 	for (count = 0; count < TOTAL_TS_NUM; count++) {
 		pTxTS->num = count;
-		setup_timer(&pTxTS->TsCommonInfo.SetupTimer,
-			    TsSetupTimeOut,
-			    (unsigned long) pTxTS);
+		timer_setup(&pTxTS->TsCommonInfo.SetupTimer, TsSetupTimeOut,
+			    0);
 
-		setup_timer(&pTxTS->TsCommonInfo.InactTimer,
-			    TsInactTimeout,
-			    (unsigned long) pTxTS);
+		timer_setup(&pTxTS->TsCommonInfo.InactTimer, TsInactTimeout,
+			    0);
 
-		setup_timer(&pTxTS->TsAddBaTimer,
-			    TsAddBaProcess,
-			    (unsigned long) pTxTS);
+		timer_setup(&pTxTS->TsAddBaTimer, TsAddBaProcess, 0);
 
-		setup_timer(&pTxTS->TxPendingBARecord.Timer,
-			    BaSetupTimeOut,
-			    (unsigned long) pTxTS);
-		setup_timer(&pTxTS->TxAdmittedBARecord.Timer,
-			    TxBaInactTimeout,
-			    (unsigned long) pTxTS);
+		timer_setup(&pTxTS->TxPendingBARecord.Timer, BaSetupTimeOut,
+			    0);
+		timer_setup(&pTxTS->TxAdmittedBARecord.Timer,
+			    TxBaInactTimeout, 0);
 
 		ResetTxTsEntry(pTxTS);
 		list_add_tail(&pTxTS->TsCommonInfo.List,
@@ -182,21 +177,16 @@ void TSInitialize(struct rtllib_device *ieee)
 		pRxTS->num = count;
 		INIT_LIST_HEAD(&pRxTS->RxPendingPktList);
 
-		setup_timer(&pRxTS->TsCommonInfo.SetupTimer,
-			    TsSetupTimeOut,
-			    (unsigned long) pRxTS);
+		timer_setup(&pRxTS->TsCommonInfo.SetupTimer, TsSetupTimeOut,
+			    0);
 
-		setup_timer(&pRxTS->TsCommonInfo.InactTimer,
-			    TsInactTimeout,
-			    (unsigned long) pRxTS);
+		timer_setup(&pRxTS->TsCommonInfo.InactTimer, TsInactTimeout,
+			    0);
 
-		setup_timer(&pRxTS->RxAdmittedBARecord.Timer,
-			    RxBaInactTimeout,
-			    (unsigned long) pRxTS);
+		timer_setup(&pRxTS->RxAdmittedBARecord.Timer,
+			    RxBaInactTimeout, 0);
 
-		setup_timer(&pRxTS->RxPktPendingTimer,
-			    RxPktPendingTimeout,
-			    (unsigned long) pRxTS);
+		timer_setup(&pRxTS->RxPktPendingTimer, RxPktPendingTimeout, 0);
 
 		ResetRxTsEntry(pRxTS);
 		list_add_tail(&pRxTS->TsCommonInfo.List,
@@ -306,11 +296,6 @@ static void MakeTSEntry(struct ts_common_info *pTsCommonInfo, u8 *Addr,
 	pTsCommonInfo->TClasNum = TCLAS_Num;
 }
 
-static bool IsACValid(unsigned int tid)
-{
-	return tid < 7;
-}
-
 bool GetTs(struct rtllib_device *ieee, struct ts_common_info **ppTS,
 	   u8 *Addr, u8 TID, enum tr_select TxRxSelect, bool bAddNewTs)
 {
@@ -328,12 +313,6 @@ bool GetTs(struct rtllib_device *ieee, struct ts_common_info **ppTS,
 	if (ieee->current_network.qos_data.supported == 0) {
 		UP = 0;
 	} else {
-		if (!IsACValid(TID)) {
-			netdev_warn(ieee->dev, "%s(): TID(%d) is not valid\n",
-				    __func__, TID);
-			return false;
-		}
-
 		switch (TID) {
 		case 0:
 		case 3:
@@ -351,6 +330,10 @@ bool GetTs(struct rtllib_device *ieee, struct ts_common_info **ppTS,
 		case 7:
 			UP = 7;
 			break;
+		default:
+			netdev_warn(ieee->dev, "%s(): TID(%d) is not valid\n",
+				    __func__, TID);
+			return false;
 		}
 	}
 

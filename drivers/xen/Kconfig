@@ -196,6 +196,29 @@ config XEN_PCIDEV_BACKEND
 
 	  If in doubt, say m.
 
+config XEN_PVCALLS_FRONTEND
+	tristate "XEN PV Calls frontend driver"
+	depends on INET && XEN
+	default n
+	select XEN_XENBUS_FRONTEND
+	help
+	  Experimental frontend for the Xen PV Calls protocol
+	  (https://xenbits.xen.org/docs/unstable/misc/pvcalls.html). It
+	  sends a small set of POSIX calls to the backend, which
+	  implements them.
+
+config XEN_PVCALLS_BACKEND
+	bool "XEN PV Calls backend driver"
+	depends on INET && XEN && XEN_BACKEND
+	default n
+	help
+	  Experimental backend for the Xen PV Calls protocol
+	  (https://xenbits.xen.org/docs/unstable/misc/pvcalls.html). It
+	  allows PV Calls frontends to send POSIX calls to the backend,
+	  which implements them.
+
+	  If in doubt, say n.
+
 config XEN_SCSI_BACKEND
 	tristate "XEN SCSI backend driver"
 	depends on XEN && XEN_BACKEND && TARGET_CORE

@@ -24,7 +24,7 @@
 #include <linux/virtio_net.h>
 
 #define TUN_OFFLOADS (NETIF_F_HW_CSUM | NETIF_F_TSO_ECN | NETIF_F_TSO | \
-		      NETIF_F_TSO6 | NETIF_F_UFO)
+		      NETIF_F_TSO6)
 
 static dev_t ipvtap_major;
 static struct cdev ipvtap_cdev;
@@ -73,10 +73,9 @@ static void ipvtap_update_features(struct tap_dev *tap,
 	netdev_update_features(vlan->dev);
 }
 
-static int ipvtap_newlink(struct net *src_net,
-			  struct net_device *dev,
-			  struct nlattr *tb[],
-			  struct nlattr *data[])
+static int ipvtap_newlink(struct net *src_net, struct net_device *dev,
+			  struct nlattr *tb[], struct nlattr *data[],
+			  struct netlink_ext_ack *extack)
 {
 	struct ipvtap_dev *vlantap = netdev_priv(dev);
 	int err;
@@ -98,7 +97,7 @@ static int ipvtap_newlink(struct net *src_net,
 	/* Don't put anything that may fail after macvlan_common_newlink
 	 * because we can't undo what it does.
 	 */
-	err =  ipvlan_link_new(src_net, dev, tb, data);
+	err =  ipvlan_link_new(src_net, dev, tb, data, extack);
 	if (err) {
 		netdev_rx_handler_unregister(dev);
 		return err;
@@ -198,8 +197,8 @@ static int ipvtap_init(void)
 {
 	int err;
 
-	err = tap_create_cdev(&ipvtap_cdev, &ipvtap_major, "ipvtap");
-
+	err = tap_create_cdev(&ipvtap_cdev, &ipvtap_major, "ipvtap",
+			      THIS_MODULE);
 	if (err)
 		goto out1;
 

@@ -15,6 +15,8 @@ Required Properties:
 	- "rockchip,rk3288-dw-mshc": for Rockchip RK3288
 	- "rockchip,rv1108-dw-mshc", "rockchip,rk3288-dw-mshc": for Rockchip RV1108
 	- "rockchip,rk3036-dw-mshc", "rockchip,rk3288-dw-mshc": for Rockchip RK3036
+	- "rockchip,rk3228-dw-mshc", "rockchip,rk3288-dw-mshc": for Rockchip RK322x
+	- "rockchip,rk3328-dw-mshc", "rockchip,rk3288-dw-mshc": for Rockchip RK3328
 	- "rockchip,rk3368-dw-mshc", "rockchip,rk3288-dw-mshc": for Rockchip RK3368
 	- "rockchip,rk3399-dw-mshc", "rockchip,rk3288-dw-mshc": for Rockchip RK3399
 
@@ -30,6 +32,10 @@ Optional Properties:
 * rockchip,default-sample-phase: The default phase to set ciu_sample at
   probing, low speeds or in case where all phases work at tuning time.
   If not specified 0 deg will be used.
+
+* rockchip,desired-num-phases: The desired number of times that the host
+  execute tuning when needed. If not specified, the host will do tuning
+  for 360 times, namely tuning for each degree.
 
 Example:
 

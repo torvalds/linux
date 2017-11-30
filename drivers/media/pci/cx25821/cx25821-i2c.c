@@ -285,13 +285,13 @@ static const struct i2c_algorithm cx25821_i2c_algo_template = {
 #endif
 };
 
-static struct i2c_adapter cx25821_i2c_adap_template = {
+static const struct i2c_adapter cx25821_i2c_adap_template = {
 	.name = "cx25821",
 	.owner = THIS_MODULE,
 	.algo = &cx25821_i2c_algo_template,
 };
 
-static struct i2c_client cx25821_i2c_client_template = {
+static const struct i2c_client cx25821_i2c_client_template = {
 	.name = "cx25821 internal",
 };
 

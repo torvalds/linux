@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _LINUX_MODULE_PARAMS_H
 #define _LINUX_MODULE_PARAMS_H
 /* (C) Copyright 2001, 2002 Rusty Russell IBM Corporation */
@@ -227,19 +228,11 @@ struct kparam_array
 	    VERIFY_OCTAL_PERMISSIONS(perm), level, flags, { arg } }
 
 /* Obsolete - use module_param_cb() */
-#define module_param_call(name, set, get, arg, perm)			\
-	static const struct kernel_param_ops __param_ops_##name =		\
-		{ .flags = 0, (void *)set, (void *)get };		\
+#define module_param_call(name, _set, _get, arg, perm)			\
+	static const struct kernel_param_ops __param_ops_##name =	\
+		{ .flags = 0, .set = _set, .get = _get };		\
 	__module_param_call(MODULE_PARAM_PREFIX,			\
-			    name, &__param_ops_##name, arg,		\
-			    (perm) + sizeof(__check_old_set_param(set))*0, -1, 0)
-
-/* We don't get oldget: it's often a new-style param_get_uint, etc. */
-static inline int
-__check_old_set_param(int (*oldset)(const char *, struct kernel_param *))
-{
-	return 0;
-}
+			    name, &__param_ops_##name, arg, perm, -1, 0)
 
 #ifdef CONFIG_SYSFS
 extern void kernel_param_lock(struct module *mod);
@@ -457,7 +450,7 @@ enum hwparam_type {
 	hwparam_ioport,		/* Module parameter configures an I/O port */
 	hwparam_iomem,		/* Module parameter configures an I/O mem address */
 	hwparam_ioport_or_iomem, /* Module parameter could be either, depending on other option */
-	hwparam_irq,		/* Module parameter configures an I/O port */
+	hwparam_irq,		/* Module parameter configures an IRQ */
 	hwparam_dma,		/* Module parameter configures a DMA channel */
 	hwparam_dma_addr,	/* Module parameter configures a DMA buffer address */
 	hwparam_other,		/* Module parameter configures some other value */

@@ -57,7 +57,6 @@ unsigned int list_header_only;
 unsigned int dump_only;
 unsigned int do_snb_cstates;
 unsigned int do_knl_cstates;
-unsigned int do_skl_residency;
 unsigned int do_slm_cstates;
 unsigned int use_c1_residency_msr;
 unsigned int has_aperf;
@@ -151,6 +150,8 @@ size_t cpu_present_setsize, cpu_affinity_setsize, cpu_subset_size;
 #define MAX_ADDED_COUNTERS 16
 
 struct thread_data {
+	struct timeval tv_begin;
+	struct timeval tv_end;
 	unsigned long long tsc;
 	unsigned long long aperf;
 	unsigned long long mperf;
@@ -384,7 +385,13 @@ struct msr_counter bic[] = {
 	{ 0x0, "CPU" },
 	{ 0x0, "Mod%c6" },
 	{ 0x0, "sysfs" },
+	{ 0x0, "Totl%C0" },
+	{ 0x0, "Any%C0" },
+	{ 0x0, "GFX%C0" },
+	{ 0x0, "CPUGFX%" },
 };
+
+
 
 #define MAX_BIC (sizeof(bic) / sizeof(struct msr_counter))
 #define	BIC_Package	(1ULL << 0)
@@ -426,6 +433,10 @@ struct msr_counter bic[] = {
 #define	BIC_CPU		(1ULL << 36)
 #define	BIC_Mod_c6	(1ULL << 37)
 #define	BIC_sysfs	(1ULL << 38)
+#define	BIC_Totl_c0	(1ULL << 39)
+#define	BIC_Any_c0	(1ULL << 40)
+#define	BIC_GFX_c0	(1ULL << 41)
+#define	BIC_CPUGFX	(1ULL << 42)
 
 unsigned long long bic_enabled = 0xFFFFFFFFFFFFFFFFULL;
 unsigned long long bic_present = BIC_sysfs;
@@ -521,6 +532,8 @@ void print_header(char *delim)
 	struct msr_counter *mp;
 	int printed = 0;
 
+	if (debug)
+		outp += sprintf(outp, "usec %s", delim);
 	if (DO_BIC(BIC_Package))
 		outp += sprintf(outp, "%sPackage", (printed++ ? delim : ""));
 	if (DO_BIC(BIC_Core))
@@ -599,12 +612,14 @@ void print_header(char *delim)
 	if (DO_BIC(BIC_GFXMHz))
 		outp += sprintf(outp, "%sGFXMHz", (printed++ ? delim : ""));
 
-	if (do_skl_residency) {
+	if (DO_BIC(BIC_Totl_c0))
 		outp += sprintf(outp, "%sTotl%%C0", (printed++ ? delim : ""));
+	if (DO_BIC(BIC_Any_c0))
 		outp += sprintf(outp, "%sAny%%C0", (printed++ ? delim : ""));
+	if (DO_BIC(BIC_GFX_c0))
 		outp += sprintf(outp, "%sGFX%%C0", (printed++ ? delim : ""));
+	if (DO_BIC(BIC_CPUGFX))
 		outp += sprintf(outp, "%sCPUGFX%%", (printed++ ? delim : ""));
-	}
 
 	if (DO_BIC(BIC_Pkgpc2))
 		outp += sprintf(outp, "%sPkg%%pc2", (printed++ ? delim : ""));
@@ -771,6 +786,14 @@ int format_counters(struct thread_data *t, struct core_data *c,
 		(cpu_subset && !CPU_ISSET_S(t->cpu_id, cpu_subset_size, cpu_subset)))
 		return 0;
 
+	if (debug) {
+		/* on each row, print how many usec each timestamp took to gather */
+		struct timeval tv;
+
+		timersub(&t->tv_end, &t->tv_begin, &tv);
+		outp += sprintf(outp, "%5ld\t", tv.tv_sec * 1000000 + tv.tv_usec);
+	}
+
 	interval_float = tv_delta.tv_sec + tv_delta.tv_usec/1000000.0;
 
 	tsc = t->tsc * tsc_tweak;
@@ -912,12 +935,14 @@ int format_counters(struct thread_data *t, struct core_data *c,
 		outp += sprintf(outp, "%s%d", (printed++ ? delim : ""), p->gfx_mhz);
 
 	/* Totl%C0, Any%C0 GFX%C0 CPUGFX% */
-	if (do_skl_residency) {
+	if (DO_BIC(BIC_Totl_c0))
 		outp += sprintf(outp, "%s%.2f", (printed++ ? delim : ""), 100.0 * p->pkg_wtd_core_c0/tsc);
+	if (DO_BIC(BIC_Any_c0))
 		outp += sprintf(outp, "%s%.2f", (printed++ ? delim : ""), 100.0 * p->pkg_any_core_c0/tsc);
+	if (DO_BIC(BIC_GFX_c0))
 		outp += sprintf(outp, "%s%.2f", (printed++ ? delim : ""), 100.0 * p->pkg_any_gfxe_c0/tsc);
+	if (DO_BIC(BIC_CPUGFX))
 		outp += sprintf(outp, "%s%.2f", (printed++ ? delim : ""), 100.0 * p->pkg_both_core_gfxe_c0/tsc);
-	}
 
 	if (DO_BIC(BIC_Pkgpc2))
 		outp += sprintf(outp, "%s%.2f", (printed++ ? delim : ""), 100.0 * p->pc2/tsc);
@@ -1038,12 +1063,16 @@ delta_package(struct pkg_data *new, struct pkg_data *old)
 	int i;
 	struct msr_counter *mp;
 
-	if (do_skl_residency) {
+
+	if (DO_BIC(BIC_Totl_c0))
 		old->pkg_wtd_core_c0 = new->pkg_wtd_core_c0 - old->pkg_wtd_core_c0;
+	if (DO_BIC(BIC_Any_c0))
 		old->pkg_any_core_c0 = new->pkg_any_core_c0 - old->pkg_any_core_c0;
+	if (DO_BIC(BIC_GFX_c0))
 		old->pkg_any_gfxe_c0 = new->pkg_any_gfxe_c0 - old->pkg_any_gfxe_c0;
+	if (DO_BIC(BIC_CPUGFX))
 		old->pkg_both_core_gfxe_c0 = new->pkg_both_core_gfxe_c0 - old->pkg_both_core_gfxe_c0;
-	}
+
 	old->pc2 = new->pc2 - old->pc2;
 	if (DO_BIC(BIC_Pkgpc3))
 		old->pc3 = new->pc3 - old->pc3;
@@ -1292,12 +1321,14 @@ int sum_counters(struct thread_data *t, struct core_data *c,
 	if (!(t->flags & CPU_IS_FIRST_CORE_IN_PACKAGE))
 		return 0;
 
-	if (do_skl_residency) {
+	if (DO_BIC(BIC_Totl_c0))
 		average.packages.pkg_wtd_core_c0 += p->pkg_wtd_core_c0;
+	if (DO_BIC(BIC_Any_c0))
 		average.packages.pkg_any_core_c0 += p->pkg_any_core_c0;
+	if (DO_BIC(BIC_GFX_c0))
 		average.packages.pkg_any_gfxe_c0 += p->pkg_any_gfxe_c0;
+	if (DO_BIC(BIC_CPUGFX))
 		average.packages.pkg_both_core_gfxe_c0 += p->pkg_both_core_gfxe_c0;
-	}
 
 	average.packages.pc2 += p->pc2;
 	if (DO_BIC(BIC_Pkgpc3))
@@ -1357,12 +1388,14 @@ void compute_average(struct thread_data *t, struct core_data *c,
 	average.cores.c7 /= topo.num_cores;
 	average.cores.mc6_us /= topo.num_cores;
 
-	if (do_skl_residency) {
+	if (DO_BIC(BIC_Totl_c0))
 		average.packages.pkg_wtd_core_c0 /= topo.num_packages;
+	if (DO_BIC(BIC_Any_c0))
 		average.packages.pkg_any_core_c0 /= topo.num_packages;
+	if (DO_BIC(BIC_GFX_c0))
 		average.packages.pkg_any_gfxe_c0 /= topo.num_packages;
+	if (DO_BIC(BIC_CPUGFX))
 		average.packages.pkg_both_core_gfxe_c0 /= topo.num_packages;
-	}
 
 	average.packages.pc2 /= topo.num_packages;
 	if (DO_BIC(BIC_Pkgpc3))
@@ -1482,6 +1515,9 @@ int get_counters(struct thread_data *t, struct core_data *c, struct pkg_data *p)
 	struct msr_counter *mp;
 	int i;
 
+
+	gettimeofday(&t->tv_begin, (struct timezone *)NULL);
+
 	if (cpu_migrate(cpu)) {
 		fprintf(outf, "Could not migrate to CPU %d\n", cpu);
 		return -1;
@@ -1565,7 +1601,7 @@ retry:
 
 	/* collect core counters only for 1st thread in core */
 	if (!(t->flags & CPU_IS_FIRST_THREAD_IN_CORE))
-		return 0;
+		goto done;
 
 	if (DO_BIC(BIC_CPU_c3) && !do_slm_cstates && !do_knl_cstates) {
 		if (get_msr(cpu, MSR_CORE_C3_RESIDENCY, &c->c3))
@@ -1601,15 +1637,21 @@ retry:
 
 	/* collect package counters only for 1st core in package */
 	if (!(t->flags & CPU_IS_FIRST_CORE_IN_PACKAGE))
-		return 0;
+		goto done;
 
-	if (do_skl_residency) {
+	if (DO_BIC(BIC_Totl_c0)) {
 		if (get_msr(cpu, MSR_PKG_WEIGHTED_CORE_C0_RES, &p->pkg_wtd_core_c0))
 			return -10;
+	}
+	if (DO_BIC(BIC_Any_c0)) {
 		if (get_msr(cpu, MSR_PKG_ANY_CORE_C0_RES, &p->pkg_any_core_c0))
 			return -11;
+	}
+	if (DO_BIC(BIC_GFX_c0)) {
 		if (get_msr(cpu, MSR_PKG_ANY_GFXE_C0_RES, &p->pkg_any_gfxe_c0))
 			return -12;
+	}
+	if (DO_BIC(BIC_CPUGFX)) {
 		if (get_msr(cpu, MSR_PKG_BOTH_CORE_GFXE_C0_RES, &p->pkg_both_core_gfxe_c0))
 			return -13;
 	}
@@ -1688,6 +1730,8 @@ retry:
 		if (get_mp(cpu, mp, &p->counter[i]))
 			return -10;
 	}
+done:
+	gettimeofday(&t->tv_end, (struct timezone *)NULL);
 
 	return 0;
 }
@@ -3895,6 +3939,9 @@ void decode_misc_enable_msr(void)
 {
 	unsigned long long msr;
 
+	if (!genuine_intel)
+		return;
+
 	if (!get_msr(base_cpu, MSR_IA32_MISC_ENABLE, &msr))
 		fprintf(outf, "cpu%d: MSR_IA32_MISC_ENABLE: 0x%08llx (%sTCC %sEIST %sMWAIT %sPREFETCH %sTURBO)\n",
 			base_cpu, msr,
@@ -4198,7 +4245,12 @@ void process_cpuid()
 		BIC_PRESENT(BIC_Pkgpc10);
 	}
 	do_irtl_hsw = has_hsw_msrs(family, model);
-	do_skl_residency = has_skl_msrs(family, model);
+	if (has_skl_msrs(family, model)) {
+		BIC_PRESENT(BIC_Totl_c0);
+		BIC_PRESENT(BIC_Any_c0);
+		BIC_PRESENT(BIC_GFX_c0);
+		BIC_PRESENT(BIC_CPUGFX);
+	}
 	do_slm_cstates = is_slm(family, model);
 	do_knl_cstates  = is_knl(family, model);
 
@@ -4578,7 +4630,7 @@ int get_and_dump_counters(void)
 }
 
 void print_version() {
-	fprintf(outf, "turbostat version 17.04.12"
+	fprintf(outf, "turbostat version 17.06.23"
 		" - Len Brown <lenb@kernel.org>\n");
 }
 

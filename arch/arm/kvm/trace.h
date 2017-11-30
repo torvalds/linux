@@ -1,5 +1,6 @@
-#if !defined(_TRACE_KVM_H) || defined(TRACE_HEADER_MULTI_READ)
-#define _TRACE_KVM_H
+/* SPDX-License-Identifier: GPL-2.0 */
+#if !defined(_TRACE_ARM_KVM_H) || defined(TRACE_HEADER_MULTI_READ)
+#define _TRACE_ARM_KVM_H
 
 #include <linux/tracepoint.h>
 
@@ -74,10 +75,10 @@ TRACE_EVENT(kvm_hvc,
 		  __entry->vcpu_pc, __entry->r0, __entry->imm)
 );
 
-#endif /* _TRACE_KVM_H */
+#endif /* _TRACE_ARM_KVM_H */
 
 #undef TRACE_INCLUDE_PATH
-#define TRACE_INCLUDE_PATH arch/arm/kvm
+#define TRACE_INCLUDE_PATH .
 #undef TRACE_INCLUDE_FILE
 #define TRACE_INCLUDE_FILE trace
 

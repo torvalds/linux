@@ -86,7 +86,6 @@ struct kvmppc_vcore {
 	u16 last_cpu;
 	u8 vcore_state;
 	u8 in_guest;
-	struct kvmppc_vcore *master_vcore;
 	struct kvm_vcpu *runnable_threads[MAX_SMT_THREADS];
 	struct list_head preempt_list;
 	spinlock_t lock;
@@ -217,7 +216,8 @@ extern kvm_pfn_t kvmppc_gpa_to_pfn(struct kvm_vcpu *vcpu, gpa_t gpa,
 			bool writing, bool *writable);
 extern void kvmppc_add_revmap_chain(struct kvm *kvm, struct revmap_entry *rev,
 			unsigned long *rmap, long pte_index, int realmode);
-extern void kvmppc_update_rmap_change(unsigned long *rmap, unsigned long psize);
+extern void kvmppc_update_dirty_map(struct kvm_memory_slot *memslot,
+			unsigned long gfn, unsigned long psize);
 extern void kvmppc_invalidate_hpte(struct kvm *kvm, __be64 *hptep,
 			unsigned long pte_index);
 void kvmppc_clear_ref_hpte(struct kvm *kvm, __be64 *hptep,

@@ -137,16 +137,11 @@ nv50_devinit_init(struct nvkm_devinit *base)
 	while (init->base.post && dcb_outp_parse(bios, i, &ver, &hdr, &outp)) {
 		if (nvbios_outp_match(bios, outp.hasht, outp.hashm,
 				      &ver, &hdr, &cnt, &len, &info)) {
-			struct nvbios_init exec = {
-				.subdev = subdev,
-				.bios = bios,
-				.offset = info.script[0],
-				.outp = &outp,
-				.crtc = -1,
-				.execute = 1,
-			};
-
-			nvbios_exec(&exec);
+			nvbios_init(subdev, info.script[0],
+				init.outp = &outp;
+				init.or   = ffs(outp.or) - 1;
+				init.link = outp.sorconf.link == 2;
+			);
 		}
 		i++;
 	}

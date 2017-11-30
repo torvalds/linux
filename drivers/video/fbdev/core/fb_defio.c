@@ -69,7 +69,7 @@ int fb_deferred_io_fsync(struct file *file, loff_t start, loff_t end, int datasy
 {
 	struct fb_info *info = file->private_data;
 	struct inode *inode = file_inode(file);
-	int err = filemap_write_and_wait_range(inode->i_mapping, start, end);
+	int err = file_write_and_wait_range(file, start, end);
 	if (err)
 		return err;
 

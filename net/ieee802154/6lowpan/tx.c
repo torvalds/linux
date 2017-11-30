@@ -121,8 +121,7 @@ lowpan_alloc_frag(struct sk_buff *skb, int size,
 		*mac_cb(frag) = *mac_cb(skb);
 
 		if (frag1) {
-			memcpy(skb_put(frag, skb->mac_len),
-			       skb_mac_header(skb), skb->mac_len);
+			skb_put_data(frag, skb_mac_header(skb), skb->mac_len);
 		} else {
 			rc = wpan_dev_hard_header(frag, wdev,
 						  &master_hdr->dest,
@@ -152,8 +151,8 @@ lowpan_xmit_fragment(struct sk_buff *skb, const struct ieee802154_hdr *wpan_hdr,
 	if (IS_ERR(frag))
 		return PTR_ERR(frag);
 
-	memcpy(skb_put(frag, frag_hdrlen), frag_hdr, frag_hdrlen);
-	memcpy(skb_put(frag, len), skb_network_header(skb) + offset, len);
+	skb_put_data(frag, frag_hdr, frag_hdrlen);
+	skb_put_data(frag, skb_network_header(skb) + offset, len);
 
 	raw_dump_table(__func__, " fragment dump", frag->data, frag->len);
 

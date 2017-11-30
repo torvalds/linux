@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _FS_CEPH_LIBCEPH_H
 #define _FS_CEPH_LIBCEPH_H
 
@@ -83,17 +84,6 @@ struct ceph_options {
 #define CEPH_MSG_MAX_DATA_LEN	(16*1024*1024)
 
 #define CEPH_AUTH_NAME_DEFAULT   "guest"
-
-/*
- * Delay telling the MDS we no longer want caps, in case we reopen
- * the file.  Delay a minimum amount of time, even if we send a cap
- * message for some other reason.  Otherwise, take the oppotunity to
- * update the mds to avoid sending another message later.
- */
-#define CEPH_CAPS_WANTED_DELAY_MIN_DEFAULT      5  /* cap release delay */
-#define CEPH_CAPS_WANTED_DELAY_MAX_DEFAULT     60  /* cap release delay */
-
-#define CEPH_CAP_RELEASE_SAFETY_DEFAULT        (CEPH_CAPS_PER_RELEASE * 4)
 
 /* mount state */
 enum {
@@ -184,10 +174,11 @@ static inline int calc_pages_for(u64 off, u64 len)
 		(off >> PAGE_SHIFT);
 }
 
-/*
- * These are not meant to be generic - an integer key is assumed.
- */
-#define DEFINE_RB_INSDEL_FUNCS(name, type, keyfld, nodefld)		\
+#define RB_BYVAL(a)      (a)
+#define RB_BYPTR(a)      (&(a))
+#define RB_CMP3WAY(a, b) ((a) < (b) ? -1 : (a) > (b))
+
+#define DEFINE_RB_INSDEL_FUNCS2(name, type, keyfld, cmpexp, keyexp, nodefld) \
 static void insert_##name(struct rb_root *root, type *t)		\
 {									\
 	struct rb_node **n = &root->rb_node;				\
@@ -197,11 +188,13 @@ static void insert_##name(struct rb_root *root, type *t)		\
 									\
 	while (*n) {							\
 		type *cur = rb_entry(*n, type, nodefld);		\
+		int cmp;						\
 									\
 		parent = *n;						\
-		if (t->keyfld < cur->keyfld)				\
+		cmp = cmpexp(keyexp(t->keyfld), keyexp(cur->keyfld));	\
+		if (cmp < 0)						\
 			n = &(*n)->rb_left;				\
-		else if (t->keyfld > cur->keyfld)			\
+		else if (cmp > 0)					\
 			n = &(*n)->rb_right;				\
 		else							\
 			BUG();						\
@@ -217,19 +210,24 @@ static void erase_##name(struct rb_root *root, type *t)			\
 	RB_CLEAR_NODE(&t->nodefld);					\
 }
 
-#define DEFINE_RB_LOOKUP_FUNC(name, type, keyfld, nodefld)		\
-extern type __lookup_##name##_key;					\
-static type *lookup_##name(struct rb_root *root,			\
-			   typeof(__lookup_##name##_key.keyfld) key)	\
+/*
+ * @lookup_param_type is a parameter and not constructed from (@type,
+ * @keyfld) with typeof() because adding const is too unwieldy.
+ */
+#define DEFINE_RB_LOOKUP_FUNC2(name, type, keyfld, cmpexp, keyexp,	\
+			       lookup_param_type, nodefld)		\
+static type *lookup_##name(struct rb_root *root, lookup_param_type key)	\
 {									\
 	struct rb_node *n = root->rb_node;				\
 									\
 	while (n) {							\
 		type *cur = rb_entry(n, type, nodefld);			\
+		int cmp;						\
 									\
-		if (key < cur->keyfld)					\
+		cmp = cmpexp(key, keyexp(cur->keyfld));			\
+		if (cmp < 0)						\
 			n = n->rb_left;					\
-		else if (key > cur->keyfld)				\
+		else if (cmp > 0)					\
 			n = n->rb_right;				\
 		else							\
 			return cur;					\
@@ -237,6 +235,23 @@ static type *lookup_##name(struct rb_root *root,			\
 									\
 	return NULL;							\
 }
+
+#define DEFINE_RB_FUNCS2(name, type, keyfld, cmpexp, keyexp,		\
+			 lookup_param_type, nodefld)			\
+DEFINE_RB_INSDEL_FUNCS2(name, type, keyfld, cmpexp, keyexp, nodefld)	\
+DEFINE_RB_LOOKUP_FUNC2(name, type, keyfld, cmpexp, keyexp,		\
+		       lookup_param_type, nodefld)
+
+/*
+ * Shorthands for integer keys.
+ */
+#define DEFINE_RB_INSDEL_FUNCS(name, type, keyfld, nodefld)		\
+DEFINE_RB_INSDEL_FUNCS2(name, type, keyfld, RB_CMP3WAY, RB_BYVAL, nodefld)
+
+#define DEFINE_RB_LOOKUP_FUNC(name, type, keyfld, nodefld)		\
+extern type __lookup_##name##_key;					\
+DEFINE_RB_LOOKUP_FUNC2(name, type, keyfld, RB_CMP3WAY, RB_BYVAL,	\
+		       typeof(__lookup_##name##_key.keyfld), nodefld)
 
 #define DEFINE_RB_FUNCS(name, type, keyfld, nodefld)			\
 DEFINE_RB_INSDEL_FUNCS(name, type, keyfld, nodefld)			\

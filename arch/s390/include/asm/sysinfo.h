@@ -109,7 +109,7 @@ struct sysinfo_2_2_2 {
 	unsigned short cpus_shared;
 	char reserved_4[3];
 	unsigned char vsne;
-	uuid_be uuid;
+	uuid_t uuid;
 	char reserved_5[160];
 	char ext_name[256];
 };
@@ -134,7 +134,7 @@ struct sysinfo_3_2_2 {
 		char reserved_1[3];
 		unsigned char evmne;
 		unsigned int reserved_2;
-		uuid_be uuid;
+		uuid_t uuid;
 	} vm[8];
 	char reserved_3[1504];
 	char ext_names[8][256];
@@ -146,7 +146,7 @@ extern int topology_max_mnest;
  * Returns the maximum nesting level supported by the cpu topology code.
  * The current maximum level is 4 which is the drawer level.
  */
-static inline int topology_mnest_limit(void)
+static inline unsigned char topology_mnest_limit(void)
 {
 	return min(topology_max_mnest, 4);
 }
@@ -156,7 +156,8 @@ static inline int topology_mnest_limit(void)
 struct topology_core {
 	unsigned char nl;
 	unsigned char reserved0[3];
-	unsigned char :6;
+	unsigned char :5;
+	unsigned char d:1;
 	unsigned char pp:2;
 	unsigned char reserved1;
 	unsigned short origin;
@@ -198,4 +199,5 @@ struct service_level {
 int register_service_level(struct service_level *);
 int unregister_service_level(struct service_level *);
 
+int sthyi_fill(void *dst, u64 *rc);
 #endif /* __ASM_S390_SYSINFO_H */

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  * x86_emulate.h
  *
@@ -23,6 +24,7 @@ struct x86_exception {
 	u16 error_code;
 	bool nested_page_fault;
 	u64 address; /* cr2 or nested page fault gpa */
+	u8 async_page_fault;
 };
 
 /*
@@ -218,12 +220,14 @@ struct x86_emulate_ops {
 			 struct x86_instruction_info *info,
 			 enum x86_intercept_stage stage);
 
-	void (*get_cpuid)(struct x86_emulate_ctxt *ctxt,
-			  u32 *eax, u32 *ebx, u32 *ecx, u32 *edx);
+	bool (*get_cpuid)(struct x86_emulate_ctxt *ctxt, u32 *eax, u32 *ebx,
+			  u32 *ecx, u32 *edx, bool check_limit);
 	void (*set_nmi_mask)(struct x86_emulate_ctxt *ctxt, bool masked);
 
 	unsigned (*get_hflags)(struct x86_emulate_ctxt *ctxt);
 	void (*set_hflags)(struct x86_emulate_ctxt *ctxt, unsigned hflags);
+	int (*pre_leave_smm)(struct x86_emulate_ctxt *ctxt, u64 smbase);
+
 };
 
 typedef u32 __attribute__((vector_size(16))) sse128_t;
@@ -296,6 +300,7 @@ struct x86_emulate_ctxt {
 
 	bool perm_ok; /* do not check permissions if true */
 	bool ud;	/* inject an #UD if host doesn't support insn */
+	bool tf;	/* TF value before instruction (after for syscall/sysret) */
 
 	bool have_exception;
 	struct x86_exception exception;

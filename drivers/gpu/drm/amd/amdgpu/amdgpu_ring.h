@@ -24,6 +24,7 @@
 #ifndef __AMDGPU_RING_H__
 #define __AMDGPU_RING_H__
 
+#include <drm/amdgpu_drm.h>
 #include "gpu_scheduler.h"
 
 /* max number of rings */
@@ -47,13 +48,16 @@ enum amdgpu_ring_type {
 	AMDGPU_RING_TYPE_UVD,
 	AMDGPU_RING_TYPE_VCE,
 	AMDGPU_RING_TYPE_KIQ,
-	AMDGPU_RING_TYPE_UVD_ENC
+	AMDGPU_RING_TYPE_UVD_ENC,
+	AMDGPU_RING_TYPE_VCN_DEC,
+	AMDGPU_RING_TYPE_VCN_ENC
 };
 
 struct amdgpu_device;
 struct amdgpu_ring;
 struct amdgpu_ib;
 struct amdgpu_cs_parser;
+struct amdgpu_job;
 
 /*
  * Fences.
@@ -76,6 +80,7 @@ struct amdgpu_fence_driver {
 int amdgpu_fence_driver_init(struct amdgpu_device *adev);
 void amdgpu_fence_driver_fini(struct amdgpu_device *adev);
 void amdgpu_fence_driver_force_completion(struct amdgpu_device *adev);
+void amdgpu_fence_driver_force_completion_ring(struct amdgpu_ring *ring);
 
 int amdgpu_fence_driver_init_ring(struct amdgpu_ring *ring,
 				  unsigned num_hw_submission);
@@ -85,8 +90,12 @@ int amdgpu_fence_driver_start_ring(struct amdgpu_ring *ring,
 void amdgpu_fence_driver_suspend(struct amdgpu_device *adev);
 void amdgpu_fence_driver_resume(struct amdgpu_device *adev);
 int amdgpu_fence_emit(struct amdgpu_ring *ring, struct dma_fence **fence);
+int amdgpu_fence_emit_polling(struct amdgpu_ring *ring, uint32_t *s);
 void amdgpu_fence_process(struct amdgpu_ring *ring);
 int amdgpu_fence_wait_empty(struct amdgpu_ring *ring);
+signed long amdgpu_fence_wait_polling(struct amdgpu_ring *ring,
+				      uint32_t wait_seq,
+				      signed long timeout);
 unsigned amdgpu_fence_count_emitted(struct amdgpu_ring *ring);
 
 /*
@@ -130,6 +139,7 @@ struct amdgpu_ring_funcs {
 	int (*test_ib)(struct amdgpu_ring *ring, long timeout);
 	/* insert NOP packets */
 	void (*insert_nop)(struct amdgpu_ring *ring, uint32_t count);
+	void (*insert_start)(struct amdgpu_ring *ring);
 	void (*insert_end)(struct amdgpu_ring *ring);
 	/* pad the indirect buffer to the necessary number of dw */
 	void (*pad_ib)(struct amdgpu_ring *ring, struct amdgpu_ib *ib);
@@ -142,6 +152,10 @@ struct amdgpu_ring_funcs {
 	void (*emit_cntxcntl) (struct amdgpu_ring *ring, uint32_t flags);
 	void (*emit_rreg)(struct amdgpu_ring *ring, uint32_t reg);
 	void (*emit_wreg)(struct amdgpu_ring *ring, uint32_t reg, uint32_t val);
+	void (*emit_tmz)(struct amdgpu_ring *ring, bool start);
+	/* priority functions */
+	void (*set_priority) (struct amdgpu_ring *ring,
+			      enum amd_sched_priority priority);
 };
 
 struct amdgpu_ring {
@@ -149,6 +163,7 @@ struct amdgpu_ring {
 	const struct amdgpu_ring_funcs	*funcs;
 	struct amdgpu_fence_driver	fence_drv;
 	struct amd_gpu_scheduler	sched;
+	struct list_head		lru_list;
 
 	struct amdgpu_bo	*ring_obj;
 	volatile uint32_t	*ring;
@@ -180,6 +195,13 @@ struct amdgpu_ring {
 	u64			cond_exe_gpu_addr;
 	volatile u32		*cond_exe_cpu_addr;
 	unsigned		vm_inv_eng;
+	bool			has_compute_vm_bug;
+
+	atomic_t		num_jobs[AMD_SCHED_PRIORITY_MAX];
+	struct mutex		priority_mutex;
+	/* protected by priority_mutex */
+	int			priority;
+
 #if defined(CONFIG_DEBUG_FS)
 	struct dentry *ent;
 #endif
@@ -190,16 +212,64 @@ void amdgpu_ring_insert_nop(struct amdgpu_ring *ring, uint32_t count);
 void amdgpu_ring_generic_pad_ib(struct amdgpu_ring *ring, struct amdgpu_ib *ib);
 void amdgpu_ring_commit(struct amdgpu_ring *ring);
 void amdgpu_ring_undo(struct amdgpu_ring *ring);
+void amdgpu_ring_priority_get(struct amdgpu_ring *ring,
+			      enum amd_sched_priority priority);
+void amdgpu_ring_priority_put(struct amdgpu_ring *ring,
+			      enum amd_sched_priority priority);
 int amdgpu_ring_init(struct amdgpu_device *adev, struct amdgpu_ring *ring,
 		     unsigned ring_size, struct amdgpu_irq_src *irq_src,
 		     unsigned irq_type);
 void amdgpu_ring_fini(struct amdgpu_ring *ring);
+int amdgpu_ring_lru_get(struct amdgpu_device *adev, int type,
+			int *blacklist, int num_blacklist,
+			bool lru_pipe_order, struct amdgpu_ring **ring);
+void amdgpu_ring_lru_touch(struct amdgpu_device *adev, struct amdgpu_ring *ring);
 static inline void amdgpu_ring_clear_ring(struct amdgpu_ring *ring)
 {
 	int i = 0;
 	while (i <= ring->buf_mask)
 		ring->ring[i++] = ring->funcs->nop;
 
+}
+
+static inline void amdgpu_ring_write(struct amdgpu_ring *ring, uint32_t v)
+{
+	if (ring->count_dw <= 0)
+		DRM_ERROR("amdgpu: writing more dwords to the ring than expected!\n");
+	ring->ring[ring->wptr++ & ring->buf_mask] = v;
+	ring->wptr &= ring->ptr_mask;
+	ring->count_dw--;
+}
+
+static inline void amdgpu_ring_write_multiple(struct amdgpu_ring *ring,
+					      void *src, int count_dw)
+{
+	unsigned occupied, chunk1, chunk2;
+	void *dst;
+
+	if (unlikely(ring->count_dw < count_dw))
+		DRM_ERROR("amdgpu: writing more dwords to the ring than expected!\n");
+
+	occupied = ring->wptr & ring->buf_mask;
+	dst = (void *)&ring->ring[occupied];
+	chunk1 = ring->buf_mask + 1 - occupied;
+	chunk1 = (chunk1 >= count_dw) ? count_dw: chunk1;
+	chunk2 = count_dw - chunk1;
+	chunk1 <<= 2;
+	chunk2 <<= 2;
+
+	if (chunk1)
+		memcpy(dst, src, chunk1);
+
+	if (chunk2) {
+		src += chunk1;
+		dst = (void *)ring->ring;
+		memcpy(dst, src, chunk2);
+	}
+
+	ring->wptr += count_dw;
+	ring->wptr &= ring->ptr_mask;
+	ring->count_dw -= count_dw;
 }
 
 #endif

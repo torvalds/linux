@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _RAID5_LOG_H
 #define _RAID5_LOG_H
 
@@ -8,7 +9,7 @@ extern void r5l_write_stripe_run(struct r5l_log *log);
 extern void r5l_flush_stripe_to_raid(struct r5l_log *log);
 extern void r5l_stripe_write_finished(struct stripe_head *sh);
 extern int r5l_handle_flush_request(struct r5l_log *log, struct bio *bio);
-extern void r5l_quiesce(struct r5l_log *log, int state);
+extern void r5l_quiesce(struct r5l_log *log, int quiesce);
 extern bool r5l_log_disk_error(struct r5conf *conf);
 extern bool r5c_is_writeback(struct r5l_log *log);
 extern int
@@ -28,7 +29,8 @@ extern void r5c_flush_cache(struct r5conf *conf, int num);
 extern void r5c_check_stripe_cache_usage(struct r5conf *conf);
 extern void r5c_check_cached_full_stripe(struct r5conf *conf);
 extern struct md_sysfs_entry r5c_journal_mode;
-extern void r5c_update_on_rdev_error(struct mddev *mddev);
+extern void r5c_update_on_rdev_error(struct mddev *mddev,
+				     struct md_rdev *rdev);
 extern bool r5c_big_stripe_cached(struct r5conf *conf, sector_t sect);
 
 extern struct dma_async_tx_descriptor *

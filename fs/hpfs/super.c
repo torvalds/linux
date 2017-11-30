@@ -21,7 +21,7 @@
 
 static void mark_dirty(struct super_block *s, int remount)
 {
-	if (hpfs_sb(s)->sb_chkdsk && (remount || !(s->s_flags & MS_RDONLY))) {
+	if (hpfs_sb(s)->sb_chkdsk && (remount || !sb_rdonly(s))) {
 		struct buffer_head *bh;
 		struct hpfs_spare_block *sb;
 		if ((sb = hpfs_map_sector(s, 17, &bh, 0))) {
@@ -41,7 +41,7 @@ static void unmark_dirty(struct super_block *s)
 {
 	struct buffer_head *bh;
 	struct hpfs_spare_block *sb;
-	if (s->s_flags & MS_RDONLY) return;
+	if (sb_rdonly(s)) return;
 	sync_blockdev(s->s_bdev);
 	if ((sb = hpfs_map_sector(s, 17, &bh, 0))) {
 		sb->dirty = hpfs_sb(s)->sb_chkdsk > 1 - hpfs_sb(s)->sb_was_error;
@@ -73,14 +73,14 @@ void hpfs_error(struct super_block *s, const char *fmt, ...)
 			mark_dirty(s, 0);
 			panic("HPFS panic");
 		} else if (hpfs_sb(s)->sb_err == 1) {
-			if (s->s_flags & MS_RDONLY)
+			if (sb_rdonly(s))
 				pr_cont("; already mounted read-only\n");
 			else {
 				pr_cont("; remounting read-only\n");
 				mark_dirty(s, 0);
-				s->s_flags |= MS_RDONLY;
+				s->s_flags |= SB_RDONLY;
 			}
-		} else if (s->s_flags & MS_RDONLY)
+		} else if (sb_rdonly(s))
 				pr_cont("; going on - but anything won't be destroyed because it's read-only\n");
 		else
 			pr_cont("; corrupted filesystem mounted read/write - your computer will explode within 20 seconds ... but you wanted it so!\n");
@@ -457,7 +457,7 @@ static int hpfs_remount_fs(struct super_block *s, int *flags, char *data)
 
 	sync_filesystem(s);
 
-	*flags |= MS_NOATIME;
+	*flags |= SB_NOATIME;
 
 	hpfs_lock(s);
 	uid = sbi->sb_uid; gid = sbi->sb_gid;
@@ -488,7 +488,7 @@ static int hpfs_remount_fs(struct super_block *s, int *flags, char *data)
 	sbi->sb_eas = eas; sbi->sb_chk = chk; sbi->sb_chkdsk = chkdsk;
 	sbi->sb_err = errs; sbi->sb_timeshift = timeshift;
 
-	if (!(*flags & MS_RDONLY)) mark_dirty(s, 1);
+	if (!(*flags & SB_RDONLY)) mark_dirty(s, 1);
 
 	hpfs_unlock(s);
 	return 0;
@@ -607,15 +607,14 @@ static int hpfs_fill_super(struct super_block *s, void *options, int silent)
 	}
 
 	/* Check version */
-	if (!(s->s_flags & MS_RDONLY) &&
-	      superblock->funcversion != 2 && superblock->funcversion != 3) {
+	if (!sb_rdonly(s) && superblock->funcversion != 2 && superblock->funcversion != 3) {
 		pr_err("Bad version %d,%d. Mount readonly to go around\n",
 			(int)superblock->version, (int)superblock->funcversion);
 		pr_err("please try recent version of HPFS driver at http://artax.karlin.mff.cuni.cz/~mikulas/vyplody/hpfs/index-e.cgi and if it still can't understand this format, contact author - mikulas@artax.karlin.mff.cuni.cz\n");
 		goto bail4;
 	}
 
-	s->s_flags |= MS_NOATIME;
+	s->s_flags |= SB_NOATIME;
 
 	/* Fill superblock stuff */
 	s->s_magic = HPFS_SUPER_MAGIC;
@@ -666,7 +665,7 @@ static int hpfs_fill_super(struct super_block *s, void *options, int silent)
 		hpfs_error(s, "improperly stopped");
 	}
 
-	if (!(s->s_flags & MS_RDONLY)) {
+	if (!sb_rdonly(s)) {
 		spareblock->dirty = 1;
 		spareblock->old_wrote = 0;
 		mark_buffer_dirty(bh2);

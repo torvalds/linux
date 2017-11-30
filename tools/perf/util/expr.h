@@ -1,7 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef PARSE_CTX_H
 #define PARSE_CTX_H 1
 
-#define EXPR_MAX_OTHER 8
+#define EXPR_MAX_OTHER 15
 #define MAX_PARSE_ID EXPR_MAX_OTHER
 
 struct parse_id {

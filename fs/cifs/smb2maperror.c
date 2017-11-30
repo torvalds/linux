@@ -214,7 +214,7 @@ static const struct status_to_posix_error smb2_error_map_table[] = {
 	{STATUS_DATATYPE_MISALIGNMENT, -EIO, "STATUS_DATATYPE_MISALIGNMENT"},
 	{STATUS_BREAKPOINT, -EIO, "STATUS_BREAKPOINT"},
 	{STATUS_SINGLE_STEP, -EIO, "STATUS_SINGLE_STEP"},
-	{STATUS_BUFFER_OVERFLOW, -EIO, "STATUS_BUFFER_OVERFLOW"},
+	{STATUS_BUFFER_OVERFLOW, -E2BIG, "STATUS_BUFFER_OVERFLOW"},
 	{STATUS_NO_MORE_FILES, -ENODATA, "STATUS_NO_MORE_FILES"},
 	{STATUS_WAKE_SYSTEM_DEBUGGER, -EIO, "STATUS_WAKE_SYSTEM_DEBUGGER"},
 	{STATUS_HANDLES_CLOSED, -EIO, "STATUS_HANDLES_CLOSED"},
@@ -2475,8 +2475,8 @@ map_smb2_to_linux_error(char *buf, bool log_err)
 
 	/* on error mapping not found  - return EIO */
 
-	cifs_dbg(FYI, "Mapping SMB2 status code %d to POSIX err %d\n",
-		 smb2err, rc);
+	cifs_dbg(FYI, "Mapping SMB2 status code 0x%08x to POSIX err %d\n",
+		 __le32_to_cpu(smb2err), rc);
 
 	return rc;
 }

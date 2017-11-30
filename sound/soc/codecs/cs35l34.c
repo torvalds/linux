@@ -567,12 +567,12 @@ static int cs35l34_pcm_hw_params(struct snd_pcm_substream *substream,
 	return ret;
 }
 
-static unsigned int cs35l34_src_rates[] = {
+static const unsigned int cs35l34_src_rates[] = {
 	8000, 11025, 12000, 16000, 22050, 24000, 32000, 44100, 48000
 };
 
 
-static struct snd_pcm_hw_constraint_list cs35l34_constraints = {
+static const struct snd_pcm_hw_constraint_list cs35l34_constraints = {
 	.count  = ARRAY_SIZE(cs35l34_src_rates),
 	.list   = cs35l34_src_rates,
 };
@@ -779,7 +779,7 @@ static int cs35l34_probe(struct snd_soc_codec *codec)
 }
 
 
-static struct snd_soc_codec_driver soc_codec_dev_cs35l34 = {
+static const struct snd_soc_codec_driver soc_codec_dev_cs35l34 = {
 	.probe = cs35l34_probe,
 
 	.component_driver = {
@@ -1138,8 +1138,7 @@ static int cs35l34_i2c_remove(struct i2c_client *client)
 
 	snd_soc_unregister_codec(&client->dev);
 
-	if (cs35l34->reset_gpio)
-		gpiod_set_value_cansleep(cs35l34->reset_gpio, 0);
+	gpiod_set_value_cansleep(cs35l34->reset_gpio, 0);
 
 	pm_runtime_disable(&client->dev);
 	regulator_bulk_disable(cs35l34->num_core_supplies,

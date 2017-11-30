@@ -213,6 +213,19 @@ static void l_del(struct entry_space *es, struct ilist *l, struct entry *e)
 		l->nr_elts--;
 }
 
+static struct entry *l_pop_head(struct entry_space *es, struct ilist *l)
+{
+	struct entry *e;
+
+	for (e = l_head(es, l); e; e = l_next(es, e))
+		if (!e->sentinel) {
+			l_del(es, l, e);
+			return e;
+		}
+
+	return NULL;
+}
+
 static struct entry *l_pop_tail(struct entry_space *es, struct ilist *l)
 {
 	struct entry *e;
@@ -719,7 +732,7 @@ static struct entry *alloc_entry(struct entry_alloc *ea)
 	if (l_empty(&ea->free))
 		return NULL;
 
-	e = l_pop_tail(ea->es, &ea->free);
+	e = l_pop_head(ea->es, &ea->free);
 	init_entry(e);
 	ea->nr_allocated++;
 
@@ -1120,8 +1133,6 @@ static bool clean_target_met(struct smq_policy *mq, bool idle)
 	 * Cache entries may not be populated.  So we cannot rely on the
 	 * size of the clean queue.
 	 */
-	unsigned nr_clean;
-
 	if (idle) {
 		/*
 		 * We'd like to clean everything.
@@ -1129,17 +1140,15 @@ static bool clean_target_met(struct smq_policy *mq, bool idle)
 		return q_size(&mq->dirty) == 0u;
 	}
 
-	nr_clean = from_cblock(mq->cache_size) - q_size(&mq->dirty);
-	return (nr_clean + btracker_nr_writebacks_queued(mq->bg_work)) >=
-		percent_to_target(mq, CLEAN_TARGET);
+	/*
+	 * If we're busy we don't worry about cleaning at all.
+	 */
+	return true;
 }
 
-static bool free_target_met(struct smq_policy *mq, bool idle)
+static bool free_target_met(struct smq_policy *mq)
 {
 	unsigned nr_free;
-
-	if (!idle)
-		return true;
 
 	nr_free = from_cblock(mq->cache_size) - mq->cache_alloc.nr_allocated;
 	return (nr_free + btracker_nr_demotions_queued(mq->bg_work)) >=
@@ -1162,13 +1171,13 @@ static void clear_pending(struct smq_policy *mq, struct entry *e)
 	e->pending_work = false;
 }
 
-static void queue_writeback(struct smq_policy *mq)
+static void queue_writeback(struct smq_policy *mq, bool idle)
 {
 	int r;
 	struct policy_work work;
 	struct entry *e;
 
-	e = q_peek(&mq->dirty, mq->dirty.nr_levels, !mq->migrations_allowed);
+	e = q_peek(&mq->dirty, mq->dirty.nr_levels, idle);
 	if (e) {
 		mark_pending(mq, e);
 		q_del(&mq->dirty, e);
@@ -1178,22 +1187,26 @@ static void queue_writeback(struct smq_policy *mq)
 		work.cblock = infer_cblock(mq, e);
 
 		r = btracker_queue(mq->bg_work, &work, NULL);
-		WARN_ON_ONCE(r); // FIXME: finish, I think we have to get rid of this race.
+		if (r) {
+			clear_pending(mq, e);
+			q_push_front(&mq->dirty, e);
+		}
 	}
 }
 
 static void queue_demotion(struct smq_policy *mq)
 {
+	int r;
 	struct policy_work work;
 	struct entry *e;
 
 	if (unlikely(WARN_ON_ONCE(!mq->migrations_allowed)))
 		return;
 
-	e = q_peek(&mq->clean, mq->clean.nr_levels, true);
+	e = q_peek(&mq->clean, mq->clean.nr_levels / 2, true);
 	if (!e) {
-		if (!clean_target_met(mq, false))
-			queue_writeback(mq);
+		if (!clean_target_met(mq, true))
+			queue_writeback(mq, false);
 		return;
 	}
 
@@ -1203,12 +1216,17 @@ static void queue_demotion(struct smq_policy *mq)
 	work.op = POLICY_DEMOTE;
 	work.oblock = e->oblock;
 	work.cblock = infer_cblock(mq, e);
-	btracker_queue(mq->bg_work, &work, NULL);
+	r = btracker_queue(mq->bg_work, &work, NULL);
+	if (r) {
+		clear_pending(mq, e);
+		q_push_front(&mq->clean, e);
+	}
 }
 
 static void queue_promotion(struct smq_policy *mq, dm_oblock_t oblock,
 			    struct policy_work **workp)
 {
+	int r;
 	struct entry *e;
 	struct policy_work work;
 
@@ -1220,7 +1238,7 @@ static void queue_promotion(struct smq_policy *mq, dm_oblock_t oblock,
 		 * We always claim to be 'idle' to ensure some demotions happen
 		 * with continuous loads.
 		 */
-		if (!free_target_met(mq, true))
+		if (!free_target_met(mq))
 			queue_demotion(mq);
 		return;
 	}
@@ -1238,7 +1256,9 @@ static void queue_promotion(struct smq_policy *mq, dm_oblock_t oblock,
 	work.op = POLICY_PROMOTE;
 	work.oblock = oblock;
 	work.cblock = infer_cblock(mq, e);
-	btracker_queue(mq->bg_work, &work, workp);
+	r = btracker_queue(mq->bg_work, &work, workp);
+	if (r)
+		free_entry(&mq->cache_alloc, e);
 }
 
 /*----------------------------------------------------------------*/
@@ -1421,14 +1441,10 @@ static int smq_get_background_work(struct dm_cache_policy *p, bool idle,
 	spin_lock_irqsave(&mq->lock, flags);
 	r = btracker_issue(mq->bg_work, result);
 	if (r == -ENODATA) {
-		/* find some writeback work to do */
-		if (mq->migrations_allowed && !free_target_met(mq, idle))
-			queue_demotion(mq);
-
-		else if (!clean_target_met(mq, idle))
-			queue_writeback(mq);
-
-		r = btracker_issue(mq->bg_work, result);
+		if (!clean_target_met(mq, idle)) {
+			queue_writeback(mq, idle);
+			r = btracker_issue(mq->bg_work, result);
+		}
 	}
 	spin_unlock_irqrestore(&mq->lock, flags);
 
@@ -1452,6 +1468,7 @@ static void __complete_background_work(struct smq_policy *mq,
 		clear_pending(mq, e);
 		if (success) {
 			e->oblock = work->oblock;
+			e->level = NR_CACHE_LEVELS - 1;
 			push(mq, e);
 			// h, q, a
 		} else {
@@ -1785,7 +1802,7 @@ static struct dm_cache_policy *__smq_create(dm_cblock_t cache_size,
 	mq->next_hotspot_period = jiffies;
 	mq->next_cache_period = jiffies;
 
-	mq->bg_work = btracker_create(10240); /* FIXME: hard coded value */
+	mq->bg_work = btracker_create(4096); /* FIXME: hard coded value */
 	if (!mq->bg_work)
 		goto bad_btracker;
 

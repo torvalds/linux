@@ -265,18 +265,16 @@ static unsigned int rdac_failover_get(struct rdac_controller *ctlr,
 				      struct list_head *list,
 				      unsigned char *cdb)
 {
-	struct scsi_device *sdev = ctlr->ms_sdev;
-	struct rdac_dh_data *h = sdev->handler_data;
 	struct rdac_mode_common *common;
 	unsigned data_size;
 	struct rdac_queue_data *qdata;
 	u8 *lun_table;
 
-	if (h->ctlr->use_ms10) {
+	if (ctlr->use_ms10) {
 		struct rdac_pg_expanded *rdac_pg;
 
 		data_size = sizeof(struct rdac_pg_expanded);
-		rdac_pg = &h->ctlr->mode_select.expanded;
+		rdac_pg = &ctlr->mode_select.expanded;
 		memset(rdac_pg, 0, data_size);
 		common = &rdac_pg->common;
 		rdac_pg->page_code = RDAC_PAGE_CODE_REDUNDANT_CONTROLLER + 0x40;
@@ -288,7 +286,7 @@ static unsigned int rdac_failover_get(struct rdac_controller *ctlr,
 		struct rdac_pg_legacy *rdac_pg;
 
 		data_size = sizeof(struct rdac_pg_legacy);
-		rdac_pg = &h->ctlr->mode_select.legacy;
+		rdac_pg = &ctlr->mode_select.legacy;
 		memset(rdac_pg, 0, data_size);
 		common = &rdac_pg->common;
 		rdac_pg->page_code = RDAC_PAGE_CODE_REDUNDANT_CONTROLLER;
@@ -304,7 +302,7 @@ static unsigned int rdac_failover_get(struct rdac_controller *ctlr,
 	}
 
 	/* Prepare the command. */
-	if (h->ctlr->use_ms10) {
+	if (ctlr->use_ms10) {
 		cdb[0] = MODE_SELECT_10;
 		cdb[7] = data_size >> 8;
 		cdb[8] = data_size & 0xff;
@@ -731,7 +729,7 @@ static int rdac_bus_attach(struct scsi_device *sdev)
 
 	h = kzalloc(sizeof(*h) , GFP_KERNEL);
 	if (!h)
-		return -ENOMEM;
+		return SCSI_DH_NOMEM;
 	h->lun = UNINITIALIZED_LUN;
 	h->state = RDAC_STATE_ACTIVE;
 
@@ -757,7 +755,7 @@ static int rdac_bus_attach(struct scsi_device *sdev)
 		    lun_state[(int)h->lun_state]);
 
 	sdev->handler_data = h;
-	return 0;
+	return SCSI_DH_OK;
 
 clean_ctlr:
 	spin_lock(&list_lock);
@@ -766,7 +764,7 @@ clean_ctlr:
 
 failed:
 	kfree(h);
-	return -EINVAL;
+	return err;
 }
 
 static void rdac_bus_detach( struct scsi_device *sdev )

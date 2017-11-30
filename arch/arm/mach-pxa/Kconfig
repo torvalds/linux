@@ -566,6 +566,7 @@ config MACH_ICONTROL
 config ARCH_PXA_ESERIES
 	bool "PXA based Toshiba e-series PDAs"
 	select FB_W100
+	select FB
 	select PXA25x
 
 config MACH_E330

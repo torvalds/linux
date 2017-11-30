@@ -50,7 +50,9 @@ static int kvmppc_h_pr_enter(struct kvm_vcpu *vcpu)
 	pteg_addr = get_pteg_addr(vcpu, pte_index);
 
 	mutex_lock(&vcpu->kvm->arch.hpt_mutex);
-	copy_from_user(pteg, (void __user *)pteg_addr, sizeof(pteg));
+	ret = H_FUNCTION;
+	if (copy_from_user(pteg, (void __user *)pteg_addr, sizeof(pteg)))
+		goto done;
 	hpte = pteg;
 
 	ret = H_PTEG_FULL;
@@ -71,7 +73,9 @@ static int kvmppc_h_pr_enter(struct kvm_vcpu *vcpu)
 	hpte[0] = cpu_to_be64(kvmppc_get_gpr(vcpu, 6));
 	hpte[1] = cpu_to_be64(kvmppc_get_gpr(vcpu, 7));
 	pteg_addr += i * HPTE_SIZE;
-	copy_to_user((void __user *)pteg_addr, hpte, HPTE_SIZE);
+	ret = H_FUNCTION;
+	if (copy_to_user((void __user *)pteg_addr, hpte, HPTE_SIZE))
+		goto done;
 	kvmppc_set_gpr(vcpu, 4, pte_index | i);
 	ret = H_SUCCESS;
 
@@ -93,7 +97,9 @@ static int kvmppc_h_pr_remove(struct kvm_vcpu *vcpu)
 
 	pteg = get_pteg_addr(vcpu, pte_index);
 	mutex_lock(&vcpu->kvm->arch.hpt_mutex);
-	copy_from_user(pte, (void __user *)pteg, sizeof(pte));
+	ret = H_FUNCTION;
+	if (copy_from_user(pte, (void __user *)pteg, sizeof(pte)))
+		goto done;
 	pte[0] = be64_to_cpu((__force __be64)pte[0]);
 	pte[1] = be64_to_cpu((__force __be64)pte[1]);
 
@@ -103,7 +109,9 @@ static int kvmppc_h_pr_remove(struct kvm_vcpu *vcpu)
 	    ((flags & H_ANDCOND) && (pte[0] & avpn) != 0))
 		goto done;
 
-	copy_to_user((void __user *)pteg, &v, sizeof(v));
+	ret = H_FUNCTION;
+	if (copy_to_user((void __user *)pteg, &v, sizeof(v)))
+		goto done;
 
 	rb = compute_tlbie_rb(pte[0], pte[1], pte_index);
 	vcpu->arch.mmu.tlbie(vcpu, rb, rb & 1 ? true : false);
@@ -171,7 +179,10 @@ static int kvmppc_h_pr_bulk_remove(struct kvm_vcpu *vcpu)
 		}
 
 		pteg = get_pteg_addr(vcpu, tsh & H_BULK_REMOVE_PTEX);
-		copy_from_user(pte, (void __user *)pteg, sizeof(pte));
+		if (copy_from_user(pte, (void __user *)pteg, sizeof(pte))) {
+			ret = H_FUNCTION;
+			break;
+		}
 		pte[0] = be64_to_cpu((__force __be64)pte[0]);
 		pte[1] = be64_to_cpu((__force __be64)pte[1]);
 
@@ -184,7 +195,10 @@ static int kvmppc_h_pr_bulk_remove(struct kvm_vcpu *vcpu)
 			tsh |= H_BULK_REMOVE_NOT_FOUND;
 		} else {
 			/* Splat the pteg in (userland) hpt */
-			copy_to_user((void __user *)pteg, &v, sizeof(v));
+			if (copy_to_user((void __user *)pteg, &v, sizeof(v))) {
+				ret = H_FUNCTION;
+				break;
+			}
 
 			rb = compute_tlbie_rb(pte[0], pte[1],
 					      tsh & H_BULK_REMOVE_PTEX);
@@ -211,7 +225,9 @@ static int kvmppc_h_pr_protect(struct kvm_vcpu *vcpu)
 
 	pteg = get_pteg_addr(vcpu, pte_index);
 	mutex_lock(&vcpu->kvm->arch.hpt_mutex);
-	copy_from_user(pte, (void __user *)pteg, sizeof(pte));
+	ret = H_FUNCTION;
+	if (copy_from_user(pte, (void __user *)pteg, sizeof(pte)))
+		goto done;
 	pte[0] = be64_to_cpu((__force __be64)pte[0]);
 	pte[1] = be64_to_cpu((__force __be64)pte[1]);
 
@@ -234,27 +250,15 @@ static int kvmppc_h_pr_protect(struct kvm_vcpu *vcpu)
 	vcpu->arch.mmu.tlbie(vcpu, rb, rb & 1 ? true : false);
 	pte[0] = (__force u64)cpu_to_be64(pte[0]);
 	pte[1] = (__force u64)cpu_to_be64(pte[1]);
-	copy_to_user((void __user *)pteg, pte, sizeof(pte));
+	ret = H_FUNCTION;
+	if (copy_to_user((void __user *)pteg, pte, sizeof(pte)))
+		goto done;
 	ret = H_SUCCESS;
 
  done:
 	mutex_unlock(&vcpu->kvm->arch.hpt_mutex);
 	kvmppc_set_gpr(vcpu, 3, ret);
 
-	return EMULATE_DONE;
-}
-
-static int kvmppc_h_pr_put_tce(struct kvm_vcpu *vcpu)
-{
-	unsigned long liobn = kvmppc_get_gpr(vcpu, 4);
-	unsigned long ioba = kvmppc_get_gpr(vcpu, 5);
-	unsigned long tce = kvmppc_get_gpr(vcpu, 6);
-	long rc;
-
-	rc = kvmppc_h_put_tce(vcpu, liobn, ioba, tce);
-	if (rc == H_TOO_HARD)
-		return EMULATE_FAIL;
-	kvmppc_set_gpr(vcpu, 3, rc);
 	return EMULATE_DONE;
 }
 
@@ -274,6 +278,21 @@ static int kvmppc_h_pr_logical_ci_store(struct kvm_vcpu *vcpu)
 	long rc;
 
 	rc = kvmppc_h_logical_ci_store(vcpu);
+	if (rc == H_TOO_HARD)
+		return EMULATE_FAIL;
+	kvmppc_set_gpr(vcpu, 3, rc);
+	return EMULATE_DONE;
+}
+
+#ifdef CONFIG_SPAPR_TCE_IOMMU
+static int kvmppc_h_pr_put_tce(struct kvm_vcpu *vcpu)
+{
+	unsigned long liobn = kvmppc_get_gpr(vcpu, 4);
+	unsigned long ioba = kvmppc_get_gpr(vcpu, 5);
+	unsigned long tce = kvmppc_get_gpr(vcpu, 6);
+	long rc;
+
+	rc = kvmppc_h_put_tce(vcpu, liobn, ioba, tce);
 	if (rc == H_TOO_HARD)
 		return EMULATE_FAIL;
 	kvmppc_set_gpr(vcpu, 3, rc);
@@ -310,6 +329,23 @@ static int kvmppc_h_pr_stuff_tce(struct kvm_vcpu *vcpu)
 	kvmppc_set_gpr(vcpu, 3, rc);
 	return EMULATE_DONE;
 }
+
+#else /* CONFIG_SPAPR_TCE_IOMMU */
+static int kvmppc_h_pr_put_tce(struct kvm_vcpu *vcpu)
+{
+	return EMULATE_FAIL;
+}
+
+static int kvmppc_h_pr_put_tce_indirect(struct kvm_vcpu *vcpu)
+{
+	return EMULATE_FAIL;
+}
+
+static int kvmppc_h_pr_stuff_tce(struct kvm_vcpu *vcpu)
+{
+	return EMULATE_FAIL;
+}
+#endif /* CONFIG_SPAPR_TCE_IOMMU */
 
 static int kvmppc_h_pr_xics_hcall(struct kvm_vcpu *vcpu, u32 cmd)
 {
@@ -383,6 +419,8 @@ int kvmppc_hcall_impl_pr(unsigned long cmd)
 	case H_PROTECT:
 	case H_BULK_REMOVE:
 	case H_PUT_TCE:
+	case H_PUT_TCE_INDIRECT:
+	case H_STUFF_TCE:
 	case H_CEDE:
 	case H_LOGICAL_CI_LOAD:
 	case H_LOGICAL_CI_STORE:

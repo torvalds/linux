@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * This header provides Tegra124-specific constants for binding
  * nvidia,tegra124-car.

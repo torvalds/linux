@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 Broadcom. All Rights Reserved.
+ * Copyright 2017 Broadcom. All Rights Reserved.
  * The term "Broadcom" refers to Broadcom Limited and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or
@@ -82,8 +82,8 @@ struct iscsi_cls_session *beiscsi_session_create(struct iscsi_endpoint *ep,
 		return NULL;
 	sess = cls_session->dd_data;
 	beiscsi_sess = sess->dd_data;
-	beiscsi_sess->bhs_pool =  pci_pool_create("beiscsi_bhs_pool",
-						   phba->pcidev,
+	beiscsi_sess->bhs_pool =  dma_pool_create("beiscsi_bhs_pool",
+						   &phba->pcidev->dev,
 						   sizeof(struct be_cmd_bhs),
 						   64, 0);
 	if (!beiscsi_sess->bhs_pool)
@@ -108,7 +108,7 @@ void beiscsi_session_destroy(struct iscsi_cls_session *cls_session)
 	struct beiscsi_session *beiscsi_sess = sess->dd_data;
 
 	printk(KERN_INFO "In beiscsi_session_destroy\n");
-	pci_pool_destroy(beiscsi_sess->bhs_pool);
+	dma_pool_destroy(beiscsi_sess->bhs_pool);
 	iscsi_session_teardown(cls_session);
 }
 
@@ -684,41 +684,6 @@ int beiscsi_set_param(struct iscsi_cls_conn *cls_conn,
 }
 
 /**
- * beiscsi_get_initname - Read Initiator Name from flash
- * @buf: buffer bointer
- * @phba: The device priv structure instance
- *
- * returns number of bytes
- */
-static int beiscsi_get_initname(char *buf, struct beiscsi_hba *phba)
-{
-	int rc;
-	unsigned int tag;
-	struct be_mcc_wrb *wrb;
-	struct be_cmd_hba_name *resp;
-
-	tag = be_cmd_get_initname(phba);
-	if (!tag) {
-		beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_CONFIG,
-			    "BS_%d : Getting Initiator Name Failed\n");
-
-		return -EBUSY;
-	}
-
-	rc = beiscsi_mccq_compl_wait(phba, tag, &wrb, NULL);
-	if (rc) {
-		beiscsi_log(phba, KERN_ERR,
-			    BEISCSI_LOG_CONFIG | BEISCSI_LOG_MBOX,
-			    "BS_%d : Initiator Name MBX Failed\n");
-		return rc;
-	}
-
-	resp = embedded_payload(wrb);
-	rc = sprintf(buf, "%s\n", resp->initiator_name);
-	return rc;
-}
-
-/**
  * beiscsi_get_port_state - Get the Port State
  * @shost : pointer to scsi_host structure
  *
@@ -772,7 +737,6 @@ static void beiscsi_get_port_speed(struct Scsi_Host *shost)
  * @param: parameter type identifier
  * @buf: buffer pointer
  *
- * returns host parameter
  */
 int beiscsi_get_host_param(struct Scsi_Host *shost,
 			   enum iscsi_host_param param, char *buf)
@@ -783,7 +747,7 @@ int beiscsi_get_host_param(struct Scsi_Host *shost,
 	if (!beiscsi_hba_is_online(phba)) {
 		beiscsi_log(phba, KERN_INFO, BEISCSI_LOG_CONFIG,
 			    "BS_%d : HBA in error 0x%lx\n", phba->state);
-		return -EBUSY;
+		return 0;
 	}
 	beiscsi_log(phba, KERN_INFO, BEISCSI_LOG_CONFIG,
 		    "BS_%d : In beiscsi_get_host_param, param = %d\n", param);
@@ -794,15 +758,19 @@ int beiscsi_get_host_param(struct Scsi_Host *shost,
 		if (status < 0) {
 			beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_CONFIG,
 				    "BS_%d : beiscsi_get_macaddr Failed\n");
-			return status;
+			return 0;
 		}
 		break;
 	case ISCSI_HOST_PARAM_INITIATOR_NAME:
-		status = beiscsi_get_initname(buf, phba);
+		/* try fetching user configured name first */
+		status = beiscsi_get_initiator_name(phba, buf, true);
 		if (status < 0) {
-			beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_CONFIG,
-				    "BS_%d : Retreiving Initiator Name Failed\n");
-			return status;
+			status = beiscsi_get_initiator_name(phba, buf, false);
+			if (status < 0) {
+				beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_CONFIG,
+					    "BS_%d : Retreiving Initiator Name Failed\n");
+				status = 0;
+			}
 		}
 		break;
 	case ISCSI_HOST_PARAM_PORT_STATE:

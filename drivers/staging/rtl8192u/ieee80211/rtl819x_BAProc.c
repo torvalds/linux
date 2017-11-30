@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /********************************************************************************************************************************
  * This file is created to process BA Action Frame. According to 802.11 spec, there are 3 BA action types at all. And as BA is
  * related to TS, this part need some structure defined in QOS side code. Also TX RX is going to be resturctured, so how to send
@@ -125,7 +126,7 @@ static struct sk_buff *ieee80211_ADDBA(struct ieee80211_device *ieee, u8 *Dst, P
 	memset(skb->data, 0, sizeof( struct rtl_80211_hdr_3addr));	//I wonder whether it's necessary. Apparently kernel will not do it when alloc a skb.
 	skb_reserve(skb, ieee->tx_headroom);
 
-	BAReq = ( struct rtl_80211_hdr_3addr *) skb_put(skb,sizeof( struct rtl_80211_hdr_3addr));
+	BAReq = skb_put(skb, sizeof(struct rtl_80211_hdr_3addr));
 
 	memcpy(BAReq->addr1, Dst, ETH_ALEN);
 	memcpy(BAReq->addr2, ieee->dev->dev_addr, ETH_ALEN);
@@ -135,7 +136,7 @@ static struct sk_buff *ieee80211_ADDBA(struct ieee80211_device *ieee, u8 *Dst, P
 	BAReq->frame_ctl = cpu_to_le16(IEEE80211_STYPE_MANAGE_ACT); //action frame
 
 	//tag += sizeof( struct rtl_80211_hdr_3addr); //move to action field
-	tag = (u8 *)skb_put(skb, 9);
+	tag = skb_put(skb, 9);
 	*tag ++= ACT_CAT_BA;
 	*tag ++= type;
 	// Dialog Token
@@ -143,7 +144,7 @@ static struct sk_buff *ieee80211_ADDBA(struct ieee80211_device *ieee, u8 *Dst, P
 
 	if (ACT_ADDBARSP == type) {
 		// Status Code
-		printk(KERN_INFO "=====>to send ADDBARSP\n");
+		netdev_info(ieee->dev, "=====>to send ADDBARSP\n");
 
 		put_unaligned_le16(StatusCode, tag);
 		tag += 2;
@@ -209,14 +210,14 @@ static struct sk_buff *ieee80211_DELBA(
 //	memset(skb->data, 0, len+sizeof( struct rtl_80211_hdr_3addr));
 	skb_reserve(skb, ieee->tx_headroom);
 
-	Delba = ( struct rtl_80211_hdr_3addr *) skb_put(skb,sizeof( struct rtl_80211_hdr_3addr));
+	Delba = skb_put(skb, sizeof(struct rtl_80211_hdr_3addr));
 
 	memcpy(Delba->addr1, dst, ETH_ALEN);
 	memcpy(Delba->addr2, ieee->dev->dev_addr, ETH_ALEN);
 	memcpy(Delba->addr3, ieee->current_network.bssid, ETH_ALEN);
 	Delba->frame_ctl = cpu_to_le16(IEEE80211_STYPE_MANAGE_ACT); //action frame
 
-	tag = (u8 *)skb_put(skb, 6);
+	tag = skb_put(skb, 6);
 
 	*tag ++= ACT_CAT_BA;
 	*tag ++= ACT_DELBA;
@@ -345,7 +346,7 @@ int ieee80211_rx_ADDBAReq(struct ieee80211_device *ieee, struct sk_buff *skb)
 	pBaTimeoutVal = (u16 *)(tag + 5);
 	pBaStartSeqCtrl = (PSEQUENCE_CONTROL)(req + 7);
 
-	printk(KERN_INFO "====================>rx ADDBAREQ from :%pM\n", dst);
+	netdev_info(ieee->dev, "====================>rx ADDBAREQ from :%pM\n", dst);
 //some other capability is not ready now.
 	if ((ieee->current_network.qos_data.active == 0) ||
 		(!ieee->pHTInfo->bCurrentHTSupport)) //||
@@ -672,18 +673,18 @@ TsInitDelBA( struct ieee80211_device *ieee, PTS_COMMON_INFO pTsCommonInfo, TR_SE
  *  return:  NULL
  *  notice:
  ********************************************************************************************************************/
-void BaSetupTimeOut(unsigned long data)
+void BaSetupTimeOut(struct timer_list *t)
 {
-	PTX_TS_RECORD	pTxTs = (PTX_TS_RECORD)data;
+	PTX_TS_RECORD	pTxTs = from_timer(pTxTs, t, TxPendingBARecord.Timer);
 
 	pTxTs->bAddBaReqInProgress = false;
 	pTxTs->bAddBaReqDelayed = true;
 	pTxTs->TxPendingBARecord.bValid = false;
 }
 
-void TxBaInactTimeout(unsigned long data)
+void TxBaInactTimeout(struct timer_list *t)
 {
-	PTX_TS_RECORD	pTxTs = (PTX_TS_RECORD)data;
+	PTX_TS_RECORD	pTxTs = from_timer(pTxTs, t, TxAdmittedBARecord.Timer);
 	struct ieee80211_device *ieee = container_of(pTxTs, struct ieee80211_device, TxTsRecord[pTxTs->num]);
 	TxTsDeleteBA(ieee, pTxTs);
 	ieee80211_send_DELBA(
@@ -694,9 +695,9 @@ void TxBaInactTimeout(unsigned long data)
 		DELBA_REASON_TIMEOUT);
 }
 
-void RxBaInactTimeout(unsigned long data)
+void RxBaInactTimeout(struct timer_list *t)
 {
-	PRX_TS_RECORD	pRxTs = (PRX_TS_RECORD)data;
+	PRX_TS_RECORD	pRxTs = from_timer(pRxTs, t, RxAdmittedBARecord.Timer);
 	struct ieee80211_device *ieee = container_of(pRxTs, struct ieee80211_device, RxTsRecord[pRxTs->num]);
 
 	RxTsDeleteBA(ieee, pRxTs);

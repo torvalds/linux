@@ -148,9 +148,7 @@ int skb_ether_to_p80211(struct wlandevice *wlandev, u32 ethconv,
 			skb_pull(skb, ETH_HLEN);
 
 			/* tack on SNAP */
-			e_snap =
-			    (struct wlan_snap *)skb_push(skb,
-				sizeof(struct wlan_snap));
+			e_snap = skb_push(skb, sizeof(struct wlan_snap));
 			e_snap->type = htons(proto);
 			if (ethconv == WLAN_ETHCONV_8021h &&
 			    p80211_stt_findproto(proto)) {
@@ -162,9 +160,7 @@ int skb_ether_to_p80211(struct wlandevice *wlandev, u32 ethconv,
 			}
 
 			/* tack on llc */
-			e_llc =
-			    (struct wlan_llc *)skb_push(skb,
-				sizeof(struct wlan_llc));
+			e_llc = skb_push(skb, sizeof(struct wlan_llc));
 			e_llc->dsap = 0xAA;	/* SNAP, see IEEE 802 */
 			e_llc->ssap = 0xAA;
 			e_llc->ctl = 0x03;
@@ -217,6 +213,7 @@ int skb_ether_to_p80211(struct wlandevice *wlandev, u32 ethconv,
 			netdev_warn(wlandev->netdev,
 				    "Host en-WEP failed, dropping frame (%d).\n",
 				    foo);
+			kfree(p80211_wep->data);
 			return 2;
 		}
 		fc |= cpu_to_le16(WLAN_SET_FC_ISWEP(1));
@@ -407,7 +404,7 @@ int skb_p80211_to_ether(struct wlandevice *wlandev, u32 ethconv,
 		skb_pull(skb, payload_offset);
 
 		/* create 802.3 header at beginning of skb. */
-		e_hdr = (struct wlan_ethhdr *)skb_push(skb, ETH_HLEN);
+		e_hdr = skb_push(skb, ETH_HLEN);
 		ether_addr_copy(e_hdr->daddr, daddr);
 		ether_addr_copy(e_hdr->saddr, saddr);
 		e_hdr->type = htons(payload_length);
@@ -448,7 +445,7 @@ int skb_p80211_to_ether(struct wlandevice *wlandev, u32 ethconv,
 		skb_pull(skb, sizeof(struct wlan_snap));
 
 		/* create 802.3 header at beginning of skb. */
-		e_hdr = (struct wlan_ethhdr *)skb_push(skb, ETH_HLEN);
+		e_hdr = skb_push(skb, ETH_HLEN);
 		e_hdr->type = e_snap->type;
 		ether_addr_copy(e_hdr->daddr, daddr);
 		ether_addr_copy(e_hdr->saddr, saddr);
@@ -475,7 +472,7 @@ int skb_p80211_to_ether(struct wlandevice *wlandev, u32 ethconv,
 		skb_pull(skb, payload_offset);
 
 		/* create 802.3 header at beginning of skb. */
-		e_hdr = (struct wlan_ethhdr *)skb_push(skb, ETH_HLEN);
+		e_hdr = skb_push(skb, ETH_HLEN);
 		ether_addr_copy(e_hdr->daddr, daddr);
 		ether_addr_copy(e_hdr->saddr, saddr);
 		e_hdr->type = htons(payload_length);

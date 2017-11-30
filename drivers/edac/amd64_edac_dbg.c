@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include "amd64_edac.h"
 
 #define EDAC_DCT_ATTR_SHOW(reg)						\

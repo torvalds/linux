@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *  H8S TPU Driver
  *
@@ -154,4 +155,4 @@ free_clk:
 	return ret;
 }
 
-CLOCKSOURCE_OF_DECLARE(h8300_tpu, "renesas,tpu", h8300_tpu_init);
+TIMER_OF_DECLARE(h8300_tpu, "renesas,tpu", h8300_tpu_init);

@@ -3,9 +3,10 @@
 #
 
 menu "Performance monitor support"
+	depends on PERF_EVENTS
 
 config ARM_PMU
-	depends on PERF_EVENTS && (ARM || ARM64)
+	depends on ARM || ARM64
 	bool "ARM PMU framework"
 	default y
 	help
@@ -16,9 +17,16 @@ config ARM_PMU_ACPI
 	depends on ARM_PMU && ACPI
 	def_bool y
 
+config HISI_PMU
+       bool "HiSilicon SoC PMU"
+       depends on ARM64 && ACPI
+       help
+         Support for HiSilicon SoC uncore performance monitoring
+         unit (PMU), such as: L3C, HHA and DDRC.
+
 config QCOM_L2_PMU
 	bool "Qualcomm Technologies L2-cache PMU"
-	depends on ARCH_QCOM && ARM64 && PERF_EVENTS && ACPI
+	depends on ARCH_QCOM && ARM64 && ACPI
 	  help
 	  Provides support for the L2 cache performance monitor unit (PMU)
 	  in Qualcomm Technologies processors.
@@ -27,7 +35,7 @@ config QCOM_L2_PMU
 
 config QCOM_L3_PMU
 	bool "Qualcomm Technologies L3-cache PMU"
-	depends on ARCH_QCOM && ARM64 && PERF_EVENTS && ACPI
+	depends on ARCH_QCOM && ARM64 && ACPI
 	select QCOM_IRQ_COMBINER
 	help
 	   Provides support for the L3 cache performance monitor unit (PMU)
@@ -36,10 +44,18 @@ config QCOM_L3_PMU
 	   monitoring L3 cache events.
 
 config XGENE_PMU
-        depends on PERF_EVENTS && ARCH_XGENE
+        depends on ARCH_XGENE
         bool "APM X-Gene SoC PMU"
         default n
         help
           Say y if you want to use APM X-Gene SoC performance monitors.
+
+config ARM_SPE_PMU
+	tristate "Enable support for the ARMv8.2 Statistical Profiling Extension"
+	depends on PERF_EVENTS && ARM64
+	help
+	  Enable perf support for the ARMv8.2 Statistical Profiling
+	  Extension, which provides periodic sampling of operations in
+	  the CPU pipeline and reports this via the perf AUX interface.
 
 endmenu

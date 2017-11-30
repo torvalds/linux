@@ -695,5 +695,5 @@ cpus {
 [4] ARM Architecture Reference Manuals
     http://infocenter.arm.com/help/index.jsp
 
-[5] ePAPR standard
-    https://www.power.org/documentation/epapr-version-1-1/
+[5] Devicetree Specification
+    https://www.devicetree.org/specifications/

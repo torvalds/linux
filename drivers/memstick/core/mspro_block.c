@@ -709,7 +709,8 @@ try_again:
 					       msb->req_sg);
 
 		if (!msb->seg_count) {
-			chunk = __blk_end_request_cur(msb->block_req, -ENOMEM);
+			chunk = __blk_end_request_cur(msb->block_req,
+					BLK_STS_RESOURCE);
 			continue;
 		}
 
@@ -776,7 +777,8 @@ static int mspro_block_complete_req(struct memstick_dev *card, int error)
 		if (error && !t_len)
 			t_len = blk_rq_cur_bytes(msb->block_req);
 
-		chunk = __blk_end_request(msb->block_req, error, t_len);
+		chunk = __blk_end_request(msb->block_req,
+				errno_to_blk_status(error), t_len);
 
 		error = mspro_block_issue_req(card, chunk);
 
@@ -838,7 +840,7 @@ static void mspro_block_submit_req(struct request_queue *q)
 
 	if (msb->eject) {
 		while ((req = blk_fetch_request(q)) != NULL)
-			__blk_end_request_all(req, -ENODEV);
+			__blk_end_request_all(req, BLK_STS_IOERR);
 
 		return;
 	}

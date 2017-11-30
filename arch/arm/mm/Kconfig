@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 comment "Processor Type"
 
 # Select CPU types depending on the architecture selected.  This selects
@@ -679,7 +680,7 @@ config ARCH_DMA_ADDR_T_64BIT
 	bool
 
 config ARM_THUMB
-	bool "Support Thumb user binaries" if !CPU_THUMBONLY
+	bool "Support Thumb user binaries" if !CPU_THUMBONLY && EXPERT
 	depends on CPU_THUMB_CAPABLE
 	default y
 	help
@@ -689,6 +690,10 @@ config ARM_THUMB
 	  The Thumb instruction set is a compressed form of the standard ARM
 	  instruction set resulting in smaller binaries at the expense of
 	  slightly less efficient code.
+
+	  If this option is disabled, and you run userspace that switches to
+	  Thumb mode, signal handling will not work correctly, resulting in
+	  segmentation faults or illegal instruction aborts.
 
 	  If you don't know what this all is, saying Y is a safe choice.
 
@@ -1045,8 +1050,8 @@ config ARM_L1_CACHE_SHIFT
 	default 5
 
 config ARM_DMA_MEM_BUFFERABLE
-	bool "Use non-cacheable memory for DMA" if (CPU_V6 || CPU_V6K) && !CPU_V7
-	default y if CPU_V6 || CPU_V6K || CPU_V7
+	bool "Use non-cacheable memory for DMA" if (CPU_V6 || CPU_V6K || CPU_V7M) && !CPU_V7
+	default y if CPU_V6 || CPU_V6K || CPU_V7 || CPU_V7M
 	help
 	  Historically, the kernel has used strongly ordered mappings to
 	  provide DMA coherent memory.  With the advent of ARMv7, mapping
@@ -1060,6 +1065,10 @@ config ARM_DMA_MEM_BUFFERABLE
 	  However, drivers may be missing the necessary barriers for ARMv6,
 	  and therefore turning this on may result in unpredictable driver
 	  behaviour.  Therefore, we offer this as an option.
+
+	  On some of the beefier ARMv7-M machines (with DMA and write
+	  buffers) you likely want this enabled, while those that
+	  didn't need it until now also won't need it in the future.
 
 	  You are recommended say 'Y' here and debug any affected drivers.
 

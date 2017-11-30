@@ -1,23 +1,10 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR BSD-3-Clause)
 /*
  * RocketPort device driver for Linux
  *
  * Written by Theodore Ts'o, 1995, 1996, 1997, 1998, 1999, 2000.
  * 
  * Copyright (C) 1995, 1996, 1997, 1998, 1999, 2000, 2003 by Comtrol, Inc.
- * 
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; either version 2 of the
- * License, or (at your option) any later version.
- * 
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- * 
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 /*
@@ -99,7 +86,7 @@
 
 /****** RocketPort Local Variables ******/
 
-static void rp_do_poll(unsigned long dummy);
+static void rp_do_poll(struct timer_list *unused);
 
 static struct tty_driver *rocket_driver;
 
@@ -111,7 +98,7 @@ static struct r_port *rp_table[MAX_RP_PORTS];	       /*  The main repository of 
 static unsigned int xmit_flags[NUM_BOARDS];	       /*  Bit significant, indicates port had data to transmit. */
 						       /*  eg.  Bit 0 indicates port 0 has xmit data, ...        */
 static atomic_t rp_num_ports_open;	               /*  Number of serial ports open                           */
-static DEFINE_TIMER(rocket_timer, rp_do_poll, 0, 0);
+static DEFINE_TIMER(rocket_timer, rp_do_poll);
 
 static unsigned long board1;	                       /* ISA addresses, retrieved from rocketport.conf          */
 static unsigned long board2;
@@ -538,7 +525,7 @@ static void rp_handle_port(struct r_port *info)
 /*
  *  The top level polling routine.  Repeats every 1/100 HZ (10ms).
  */
-static void rp_do_poll(unsigned long dummy)
+static void rp_do_poll(struct timer_list *unused)
 {
 	CONTROLLER_t *ctlp;
 	int ctrl, aiop, ch, line;
@@ -947,18 +934,6 @@ static int rp_open(struct tty_struct *tty, struct file *filp)
 
 		tty_port_set_initialized(&info->port, 1);
 
-		/*
-		 * Set up the tty->alt_speed kludge
-		 */
-		if ((info->flags & ROCKET_SPD_MASK) == ROCKET_SPD_HI)
-			tty->alt_speed = 57600;
-		if ((info->flags & ROCKET_SPD_MASK) == ROCKET_SPD_VHI)
-			tty->alt_speed = 115200;
-		if ((info->flags & ROCKET_SPD_MASK) == ROCKET_SPD_SHI)
-			tty->alt_speed = 230400;
-		if ((info->flags & ROCKET_SPD_MASK) == ROCKET_SPD_WARP)
-			tty->alt_speed = 460800;
-
 		configure_r_port(tty, info, NULL);
 		if (C_BAUD(tty)) {
 			sSetDTR(cp);
@@ -1219,23 +1194,20 @@ static int set_config(struct tty_struct *tty, struct r_port *info,
 			return -EPERM;
 		}
 		info->flags = ((info->flags & ~ROCKET_USR_MASK) | (new_serial.flags & ROCKET_USR_MASK));
-		configure_r_port(tty, info, NULL);
 		mutex_unlock(&info->port.mutex);
 		return 0;
+	}
+
+	if ((new_serial.flags ^ info->flags) & ROCKET_SPD_MASK) {
+		/* warn about deprecation, unless clearing */
+		if (new_serial.flags & ROCKET_SPD_MASK)
+			dev_warn_ratelimited(tty->dev, "use of SPD flags is deprecated\n");
 	}
 
 	info->flags = ((info->flags & ~ROCKET_FLAGS) | (new_serial.flags & ROCKET_FLAGS));
 	info->port.close_delay = new_serial.close_delay;
 	info->port.closing_wait = new_serial.closing_wait;
 
-	if ((info->flags & ROCKET_SPD_MASK) == ROCKET_SPD_HI)
-		tty->alt_speed = 57600;
-	if ((info->flags & ROCKET_SPD_MASK) == ROCKET_SPD_VHI)
-		tty->alt_speed = 115200;
-	if ((info->flags & ROCKET_SPD_MASK) == ROCKET_SPD_SHI)
-		tty->alt_speed = 230400;
-	if ((info->flags & ROCKET_SPD_MASK) == ROCKET_SPD_WARP)
-		tty->alt_speed = 460800;
 	mutex_unlock(&info->port.mutex);
 
 	configure_r_port(tty, info, NULL);

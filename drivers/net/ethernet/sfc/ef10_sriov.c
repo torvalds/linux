@@ -661,8 +661,6 @@ restore_filters:
 		up_write(&vf->efx->filter_sem);
 		mutex_unlock(&vf->efx->mac_lock);
 
-		up_write(&vf->efx->filter_sem);
-
 		rc2 = efx_net_open(vf->efx->net_dev);
 		if (rc2)
 			goto reset_nic;

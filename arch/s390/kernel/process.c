@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * This file handles the architecture dependent parts of process handling.
  *
@@ -41,54 +42,16 @@
 
 asmlinkage void ret_from_fork(void) asm ("ret_from_fork");
 
-/*
- * Return saved PC of a blocked thread. used in kernel/sched.
- * resume in entry.S does not create a new stack frame, it
- * just stores the registers %r6-%r15 to the frame given by
- * schedule. We want to return the address of the caller of
- * schedule, so we have to walk the backchain one time to
- * find the frame schedule() store its return address.
- */
-unsigned long thread_saved_pc(struct task_struct *tsk)
-{
-	struct stack_frame *sf, *low, *high;
-
-	if (!tsk || !task_stack_page(tsk))
-		return 0;
-	low = task_stack_page(tsk);
-	high = (struct stack_frame *) task_pt_regs(tsk);
-	sf = (struct stack_frame *) tsk->thread.ksp;
-	if (sf <= low || sf > high)
-		return 0;
-	sf = (struct stack_frame *) sf->back_chain;
-	if (sf <= low || sf > high)
-		return 0;
-	return sf->gprs[8];
-}
-
 extern void kernel_thread_starter(void);
-
-/*
- * Free current thread data structures etc..
- */
-void exit_thread(struct task_struct *tsk)
-{
-	if (tsk == current) {
-		exit_thread_runtime_instr();
-		exit_thread_gs();
-	}
-}
 
 void flush_thread(void)
 {
 }
 
-void release_thread(struct task_struct *dead_task)
-{
-}
-
 void arch_release_task_struct(struct task_struct *tsk)
 {
+	runtime_instr_release(tsk);
+	guarded_storage_release(tsk);
 }
 
 int arch_dup_task_struct(struct task_struct *dst, struct task_struct *src)
@@ -124,6 +87,7 @@ int copy_thread_tls(unsigned long clone_flags, unsigned long new_stackp,
 	memset(&p->thread.per_user, 0, sizeof(p->thread.per_user));
 	memset(&p->thread.per_event, 0, sizeof(p->thread.per_event));
 	clear_tsk_thread_flag(p, TIF_SINGLE_STEP);
+	p->thread.per_flags = 0;
 	/* Initialize per thread user and system timer values */
 	p->thread.user_timer = 0;
 	p->thread.guest_timer = 0;

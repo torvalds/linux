@@ -1,4 +1,6 @@
+===============
 What is an IRQ?
+===============
 
 An IRQ is an interrupt request from a device.
 Currently they can come in over a pin, or over a packet.

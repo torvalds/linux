@@ -1,5 +1,5 @@
 /*
- * Copyright(c) 2015, 2016 Intel Corporation.
+ * Copyright(c) 2015 - 2017 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
@@ -52,6 +52,13 @@
 
 #include "hfi.h"
 
+#define tidtype_name(type) { PT_##type, #type }
+#define show_tidtype(type)                   \
+__print_symbolic(type,                       \
+	tidtype_name(EXPECTED),              \
+	tidtype_name(EAGER),                 \
+	tidtype_name(INVALID))               \
+
 #undef TRACE_SYSTEM
 #define TRACE_SYSTEM hfi1_rx
 
@@ -98,24 +105,24 @@ TRACE_EVENT(hfi1_rcvhdr,
 );
 
 TRACE_EVENT(hfi1_receive_interrupt,
-	    TP_PROTO(struct hfi1_devdata *dd, u32 ctxt),
-	    TP_ARGS(dd, ctxt),
+	    TP_PROTO(struct hfi1_devdata *dd, struct hfi1_ctxtdata *rcd),
+	    TP_ARGS(dd, rcd),
 	    TP_STRUCT__entry(DD_DEV_ENTRY(dd)
 			     __field(u32, ctxt)
 			     __field(u8, slow_path)
 			     __field(u8, dma_rtail)
 			     ),
 	    TP_fast_assign(DD_DEV_ASSIGN(dd);
-			__entry->ctxt = ctxt;
-			if (dd->rcd[ctxt]->do_interrupt ==
+			__entry->ctxt = rcd->ctxt;
+			if (rcd->do_interrupt ==
 			    &handle_receive_interrupt) {
 				__entry->slow_path = 1;
 				__entry->dma_rtail = 0xFF;
-			} else if (dd->rcd[ctxt]->do_interrupt ==
+			} else if (rcd->do_interrupt ==
 					&handle_receive_interrupt_dma_rtail){
 				__entry->dma_rtail = 1;
 				__entry->slow_path = 0;
-			} else if (dd->rcd[ctxt]->do_interrupt ==
+			} else if (rcd->do_interrupt ==
 					&handle_receive_interrupt_nodma_rtail) {
 				__entry->dma_rtail = 0;
 				__entry->slow_path = 0;
@@ -129,7 +136,8 @@ TRACE_EVENT(hfi1_receive_interrupt,
 		      )
 );
 
-TRACE_EVENT(hfi1_exp_tid_reg,
+DECLARE_EVENT_CLASS(
+	    hfi1_exp_tid_reg_unreg,
 	    TP_PROTO(unsigned int ctxt, u16 subctxt, u32 rarr,
 		     u32 npages, unsigned long va, unsigned long pa,
 		     dma_addr_t dma),
@@ -163,38 +171,45 @@ TRACE_EVENT(hfi1_exp_tid_reg,
 		      )
 	);
 
-TRACE_EVENT(hfi1_exp_tid_unreg,
-	    TP_PROTO(unsigned int ctxt, u16 subctxt, u32 rarr, u32 npages,
-		     unsigned long va, unsigned long pa, dma_addr_t dma),
-	    TP_ARGS(ctxt, subctxt, rarr, npages, va, pa, dma),
-	    TP_STRUCT__entry(
-			     __field(unsigned int, ctxt)
-			     __field(u16, subctxt)
-			     __field(u32, rarr)
-			     __field(u32, npages)
-			     __field(unsigned long, va)
-			     __field(unsigned long, pa)
-			     __field(dma_addr_t, dma)
-			     ),
-	    TP_fast_assign(
-			   __entry->ctxt = ctxt;
-			   __entry->subctxt = subctxt;
-			   __entry->rarr = rarr;
-			   __entry->npages = npages;
-			   __entry->va = va;
-			   __entry->pa = pa;
-			   __entry->dma = dma;
-			   ),
-	    TP_printk("[%u:%u] entry:%u, %u pages @ 0x%lx, va:0x%lx dma:0x%llx",
-		      __entry->ctxt,
-		      __entry->subctxt,
-		      __entry->rarr,
-		      __entry->npages,
-		      __entry->pa,
-		      __entry->va,
-		      __entry->dma
-		      )
-	);
+DEFINE_EVENT(
+	hfi1_exp_tid_reg_unreg, hfi1_exp_tid_unreg,
+	TP_PROTO(unsigned int ctxt, u16 subctxt, u32 rarr, u32 npages,
+		 unsigned long va, unsigned long pa, dma_addr_t dma),
+	TP_ARGS(ctxt, subctxt, rarr, npages, va, pa, dma));
+
+DEFINE_EVENT(
+	hfi1_exp_tid_reg_unreg, hfi1_exp_tid_reg,
+	TP_PROTO(unsigned int ctxt, u16 subctxt, u32 rarr, u32 npages,
+		 unsigned long va, unsigned long pa, dma_addr_t dma),
+	TP_ARGS(ctxt, subctxt, rarr, npages, va, pa, dma));
+
+TRACE_EVENT(
+	hfi1_put_tid,
+	TP_PROTO(struct hfi1_devdata *dd,
+		 u32 index, u32 type, unsigned long pa, u16 order),
+	TP_ARGS(dd, index, type, pa, order),
+	TP_STRUCT__entry(
+		DD_DEV_ENTRY(dd)
+		__field(unsigned long, pa);
+		__field(u32, index);
+		__field(u32, type);
+		__field(u16, order);
+	),
+	TP_fast_assign(
+		DD_DEV_ASSIGN(dd);
+		__entry->pa = pa;
+		__entry->index = index;
+		__entry->type = type;
+		__entry->order = order;
+	),
+	TP_printk("[%s] type %s pa %lx index %u order %u",
+		  __get_str(dev),
+		  show_tidtype(__entry->type),
+		  __entry->pa,
+		  __entry->index,
+		  __entry->order
+	)
+);
 
 TRACE_EVENT(hfi1_exp_tid_inval,
 	    TP_PROTO(unsigned int ctxt, u16 subctxt, unsigned long va, u32 rarr,

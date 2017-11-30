@@ -17,6 +17,9 @@
  * (at your option) any later version.
  */
 
+#ifndef __PINCTRL_SAMSUNG_EXYNOS_H
+#define __PINCTRL_SAMSUNG_EXYNOS_H
+
 /* External GPIO and wakeup interrupt related definitions */
 #define EXYNOS_GPIO_ECON_OFFSET		0x700
 #define EXYNOS_GPIO_EFLTCON_OFFSET	0x800
@@ -29,7 +32,6 @@
 #define EXYNOS7_WKUP_EMASK_OFFSET	0x900
 #define EXYNOS7_WKUP_EPEND_OFFSET	0xA00
 #define EXYNOS_SVC_OFFSET		0xB08
-#define EXYNOS_EINT_FUNC		0xF
 
 /* helpers to access interrupt service register */
 #define EXYNOS_SVC_GROUP_SHIFT		3
@@ -131,3 +133,13 @@ struct exynos_muxed_weint_data {
 	unsigned int nr_banks;
 	struct samsung_pin_bank *banks[];
 };
+
+int exynos_eint_gpio_init(struct samsung_pinctrl_drv_data *d);
+int exynos_eint_wkup_init(struct samsung_pinctrl_drv_data *d);
+void exynos_pinctrl_suspend(struct samsung_pinctrl_drv_data *drvdata);
+void exynos_pinctrl_resume(struct samsung_pinctrl_drv_data *drvdata);
+struct samsung_retention_ctrl *
+exynos_retention_init(struct samsung_pinctrl_drv_data *drvdata,
+		      const struct samsung_retention_data *data);
+
+#endif /* __PINCTRL_SAMSUNG_EXYNOS_H */

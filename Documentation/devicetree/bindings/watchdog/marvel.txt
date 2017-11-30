@@ -41,6 +41,5 @@ Example:
 		reg = <0x20300 0x28>, <0x20108 0x4>;
 		interrupts = <3>;
 		timeout-sec = <10>;
-		status = "okay";
 		clocks = <&gate_clk 7>;
 	};

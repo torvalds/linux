@@ -191,12 +191,9 @@ static int traverse_pages_block(unsigned nelem, size_t size,
 				void *state)
 {
 	void *pagedata;
-	unsigned pageidx;
 	int ret = 0;
 
 	BUG_ON(size > PAGE_SIZE);
-
-	pageidx = PAGE_SIZE;
 
 	while (nelem) {
 		int nr = (PAGE_SIZE/size);
@@ -362,8 +359,8 @@ static int mmap_batch_fn(void *data, int nr, void *state)
 				st->global_error = 1;
 		}
 	}
-	st->va += PAGE_SIZE * nr;
-	st->index += nr;
+	st->va += XEN_PAGE_SIZE * nr;
+	st->index += nr / XEN_PFN_PER_PAGE;
 
 	return 0;
 }

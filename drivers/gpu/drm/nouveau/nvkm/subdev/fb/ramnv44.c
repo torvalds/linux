@@ -38,5 +38,5 @@ nv44_ram_new(struct nvkm_fb *fb, struct nvkm_ram **pram)
 	if (fb474 & 0x00000001)
 		type = NVKM_RAM_TYPE_DDR1;
 
-	return nv40_ram_new_(fb, type, size, 0, pram);
+	return nv40_ram_new_(fb, type, size, pram);
 }

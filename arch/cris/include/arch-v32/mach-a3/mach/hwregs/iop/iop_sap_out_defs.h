@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __iop_sap_out_defs_h
 #define __iop_sap_out_defs_h
 

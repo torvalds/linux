@@ -192,8 +192,8 @@ static inline void
 xfs_set_projid(struct xfs_inode *ip,
 		prid_t projid)
 {
-	ip->i_d.di_projid_hi = (__uint16_t) (projid >> 16);
-	ip->i_d.di_projid_lo = (__uint16_t) (projid & 0xffff);
+	ip->i_d.di_projid_hi = (uint16_t) (projid >> 16);
+	ip->i_d.di_projid_lo = (uint16_t) (projid & 0xffff);
 }
 
 static inline prid_t
@@ -391,7 +391,7 @@ void		xfs_inactive(struct xfs_inode *ip);
 int		xfs_lookup(struct xfs_inode *dp, struct xfs_name *name,
 			   struct xfs_inode **ipp, struct xfs_name *ci_name);
 int		xfs_create(struct xfs_inode *dp, struct xfs_name *name,
-			   umode_t mode, xfs_dev_t rdev, struct xfs_inode **ipp);
+			   umode_t mode, dev_t rdev, struct xfs_inode **ipp);
 int		xfs_create_tmpfile(struct xfs_inode *dp, struct dentry *dentry,
 			   umode_t mode, struct xfs_inode **ipp);
 int		xfs_remove(struct xfs_inode *dp, struct xfs_name *name,
@@ -428,7 +428,7 @@ xfs_extlen_t	xfs_get_extsz_hint(struct xfs_inode *ip);
 xfs_extlen_t	xfs_get_cowextsz_hint(struct xfs_inode *ip);
 
 int		xfs_dir_ialloc(struct xfs_trans **, struct xfs_inode *, umode_t,
-			       xfs_nlink_t, xfs_dev_t, prid_t, int,
+			       xfs_nlink_t, dev_t, prid_t, int,
 			       struct xfs_inode **, int *);
 
 /* from xfs_file.c */
@@ -445,9 +445,6 @@ int	xfs_zero_eof(struct xfs_inode *ip, xfs_off_t offset,
 		     xfs_fsize_t isize, bool *did_zeroing);
 int	xfs_zero_range(struct xfs_inode *ip, xfs_off_t pos, xfs_off_t count,
 		bool *did_zero);
-loff_t	__xfs_seek_hole_data(struct inode *inode, loff_t start,
-			     loff_t eof, int whence);
-
 
 /* from xfs_iops.c */
 extern void xfs_setup_inode(struct xfs_inode *ip);

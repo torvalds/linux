@@ -140,7 +140,7 @@ struct function_and_rules_block {
  *   + 0x000A 'MRP     ' (MCL3 'PK' or CEX2C 'PK')
  * - VUD block
  */
-static struct CPRBX static_cprbx = {
+static const struct CPRBX static_cprbx = {
 	.cprb_len	=  0x00DC,
 	.cprb_ver_id	=  0x02,
 	.func_id	= {0x54, 0x32},
@@ -291,7 +291,7 @@ static int ICAMEX_msg_to_type6MEX_msgX(struct zcrypt_queue *zq,
 		return -EFAULT;
 
 	/* Set up key which is located after the variable length text. */
-	size = zcrypt_type6_mex_key_en(mex, msg->text+mex->inputdatalength, 1);
+	size = zcrypt_type6_mex_key_en(mex, msg->text+mex->inputdatalength);
 	if (size < 0)
 		return size;
 	size += sizeof(*msg) + mex->inputdatalength;
@@ -353,7 +353,7 @@ static int ICACRT_msg_to_type6CRT_msgX(struct zcrypt_queue *zq,
 		return -EFAULT;
 
 	/* Set up key which is located after the variable length text. */
-	size = zcrypt_type6_crt_key(crt, msg->text + crt->inputdatalength, 1);
+	size = zcrypt_type6_crt_key(crt, msg->text + crt->inputdatalength);
 	if (size < 0)
 		return size;
 	size += sizeof(*msg) + crt->inputdatalength;	/* total size of msg */
@@ -474,7 +474,8 @@ static int XCRB_msg_to_type6CPRB_msgX(struct ap_message *ap_msg,
 	*fcode = (msg->hdr.function_code[0] << 8) | msg->hdr.function_code[1];
 	*dom = (unsigned short *)&msg->cprbx.domain;
 
-	if (memcmp(function_code, "US", 2) == 0)
+	if (memcmp(function_code, "US", 2) == 0
+	    || memcmp(function_code, "AU", 2) == 0)
 		ap_msg->special = 1;
 	else
 		ap_msg->special = 0;

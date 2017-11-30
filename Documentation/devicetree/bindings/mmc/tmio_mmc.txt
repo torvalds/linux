@@ -10,11 +10,13 @@ described in mmc.txt, can be used. Additionally the following tmio_mmc-specific
 optional bindings can be used.
 
 Required properties:
-- compatible:	"renesas,sdhi-shmobile" - a generic sh-mobile SDHI unit
+- compatible: should contain one or more of the following:
 		"renesas,sdhi-sh73a0" - SDHI IP on SH73A0 SoC
 		"renesas,sdhi-r7s72100" - SDHI IP on R7S72100 SoC
 		"renesas,sdhi-r8a73a4" - SDHI IP on R8A73A4 SoC
 		"renesas,sdhi-r8a7740" - SDHI IP on R8A7740 SoC
+		"renesas,sdhi-r8a7743" - SDHI IP on R8A7743 SoC
+		"renesas,sdhi-r8a7745" - SDHI IP on R8A7745 SoC
 		"renesas,sdhi-r8a7778" - SDHI IP on R8A7778 SoC
 		"renesas,sdhi-r8a7779" - SDHI IP on R8A7779 SoC
 		"renesas,sdhi-r8a7790" - SDHI IP on R8A7790 SoC
@@ -24,6 +26,16 @@ Required properties:
 		"renesas,sdhi-r8a7794" - SDHI IP on R8A7794 SoC
 		"renesas,sdhi-r8a7795" - SDHI IP on R8A7795 SoC
 		"renesas,sdhi-r8a7796" - SDHI IP on R8A7796 SoC
+		"renesas,sdhi-shmobile" - a generic sh-mobile SDHI controller
+		"renesas,rcar-gen1-sdhi" - a generic R-Car Gen1 SDHI controller
+		"renesas,rcar-gen2-sdhi" - a generic R-Car Gen2 or RZ/G1
+					   SDHI controller
+		"renesas,rcar-gen3-sdhi" - a generic R-Car Gen3 SDHI controller
+
+
+		When compatible with the generic version, nodes must list
+		the SoC-specific version corresponding to the platform
+		first followed by the generic version.
 
 - clocks: Most controllers only have 1 clock source per channel. However, on
 	  some variations of this controller, the internal card detection
@@ -33,13 +45,69 @@ Required properties:
 	  If 2 clocks are specified by the hardware, you must name them as
 	  "core" and "cd". If the controller only has 1 clock, naming is not
 	  required.
-	  Below is the number clocks for each supported SoC:
-	   1: SH73A0, R8A73A4, R8A7740, R8A7778, R8A7779, R8A7790
-	      R8A7791, R8A7792, R8A7793, R8A7794, R8A7795, R8A7796
-	   2: R7S72100
+	  Devices which have more than 1 clock are listed below:
+	  2: R7S72100
 
 Optional properties:
 - toshiba,mmc-wrprotect-disable: write-protect detection is unavailable
 - pinctrl-names: should be "default", "state_uhs"
 - pinctrl-0: should contain default/high speed pin ctrl
 - pinctrl-1: should contain uhs mode pin ctrl
+
+Example: R8A7790 (R-Car H2) SDHI controller nodes
+
+	sdhi0: sd@ee100000 {
+		compatible = "renesas,sdhi-r8a7790", "renesas,rcar-gen2-sdhi";
+		reg = <0 0xee100000 0 0x328>;
+		interrupts = <GIC_SPI 165 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cpg CPG_MOD 314>;
+		dmas = <&dmac0 0xcd>, <&dmac0 0xce>,
+		       <&dmac1 0xcd>, <&dmac1 0xce>;
+		dma-names = "tx", "rx", "tx", "rx";
+		max-frequency = <195000000>;
+		power-domains = <&sysc R8A7790_PD_ALWAYS_ON>;
+		resets = <&cpg 314>;
+		status = "disabled";
+	};
+
+	sdhi1: sd@ee120000 {
+		compatible = "renesas,sdhi-r8a7790", "renesas,rcar-gen2-sdhi";
+		reg = <0 0xee120000 0 0x328>;
+		interrupts = <GIC_SPI 166 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cpg CPG_MOD 313>;
+		dmas = <&dmac0 0xc9>, <&dmac0 0xca>,
+		       <&dmac1 0xc9>, <&dmac1 0xca>;
+		dma-names = "tx", "rx", "tx", "rx";
+		max-frequency = <195000000>;
+		power-domains = <&sysc R8A7790_PD_ALWAYS_ON>;
+		resets = <&cpg 313>;
+		status = "disabled";
+	};
+
+	sdhi2: sd@ee140000 {
+		compatible = "renesas,sdhi-r8a7790", "renesas,rcar-gen2-sdhi";
+		reg = <0 0xee140000 0 0x100>;
+		interrupts = <GIC_SPI 167 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cpg CPG_MOD 312>;
+		dmas = <&dmac0 0xc1>, <&dmac0 0xc2>,
+		       <&dmac1 0xc1>, <&dmac1 0xc2>;
+		dma-names = "tx", "rx", "tx", "rx";
+		max-frequency = <97500000>;
+		power-domains = <&sysc R8A7790_PD_ALWAYS_ON>;
+		resets = <&cpg 312>;
+		status = "disabled";
+	};
+
+	sdhi3: sd@ee160000 {
+		compatible = "renesas,sdhi-r8a7790", "renesas,rcar-gen2-sdhi";
+		reg = <0 0xee160000 0 0x100>;
+		interrupts = <GIC_SPI 168 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cpg CPG_MOD 311>;
+		dmas = <&dmac0 0xd3>, <&dmac0 0xd4>,
+		       <&dmac1 0xd3>, <&dmac1 0xd4>;
+		dma-names = "tx", "rx", "tx", "rx";
+		max-frequency = <97500000>;
+		power-domains = <&sysc R8A7790_PD_ALWAYS_ON>;
+		resets = <&cpg 311>;
+		status = "disabled";
+	};

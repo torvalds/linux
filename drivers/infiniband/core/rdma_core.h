@@ -39,9 +39,15 @@
 
 #include <linux/idr.h>
 #include <rdma/uverbs_types.h>
+#include <rdma/uverbs_ioctl.h>
 #include <rdma/ib_verbs.h>
 #include <linux/mutex.h>
 
+int uverbs_ns_idx(u16 *id, unsigned int ns_count);
+const struct uverbs_object_spec *uverbs_get_object(const struct ib_device *ibdev,
+						   uint16_t object);
+const struct uverbs_method_spec *uverbs_get_method(const struct uverbs_object_spec *object,
+						   uint16_t method);
 /*
  * These functions initialize the context and cleanups its uobjects.
  * The context has a list of objects which is protected by a mutex
@@ -74,5 +80,41 @@ void uverbs_uobject_put(struct ib_uobject *uobject);
  * This must be called from the release file_operations of the file!
  */
 void uverbs_close_fd(struct file *f);
+
+/*
+ * Get an ib_uobject that corresponds to the given id from ucontext, assuming
+ * the object is from the given type. Lock it to the required access when
+ * applicable.
+ * This function could create (access == NEW), destroy (access == DESTROY)
+ * or unlock (access == READ || access == WRITE) objects if required.
+ * The action will be finalized only when uverbs_finalize_object or
+ * uverbs_finalize_objects are called.
+ */
+struct ib_uobject *uverbs_get_uobject_from_context(const struct uverbs_obj_type *type_attrs,
+						   struct ib_ucontext *ucontext,
+						   enum uverbs_obj_access access,
+						   int id);
+int uverbs_finalize_object(struct ib_uobject *uobj,
+			   enum uverbs_obj_access access,
+			   bool commit);
+/*
+ * Note that certain finalize stages could return a status:
+ *   (a) alloc_commit could return a failure if the object is committed at the
+ *       same time when the context is destroyed.
+ *   (b) remove_commit could fail if the object wasn't destroyed successfully.
+ * Since multiple objects could be finalized in one transaction, it is very NOT
+ * recommended to have several finalize actions which have side effects.
+ * For example, it's NOT recommended to have a certain action which has both
+ * a commit action and a destroy action or two destroy objects in the same
+ * action. The rule of thumb is to have one destroy or commit action with
+ * multiple lookups.
+ * The first non zero return value of finalize_object is returned from this
+ * function. For example, this could happen when we couldn't destroy an
+ * object.
+ */
+int uverbs_finalize_objects(struct uverbs_attr_bundle *attrs_bundle,
+			    struct uverbs_attr_spec_hash * const *spec_hash,
+			    size_t num,
+			    bool commit);
 
 #endif /* RDMA_CORE_H */

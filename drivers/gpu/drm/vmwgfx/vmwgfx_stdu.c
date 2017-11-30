@@ -56,6 +56,8 @@ enum stdu_content_type {
  * @right: Right side of bounding box.
  * @top: Top side of bounding box.
  * @bottom: Bottom side of bounding box.
+ * @fb_left: Left side of the framebuffer/content bounding box
+ * @fb_top: Top of the framebuffer/content bounding box
  * @buf: DMA buffer when DMA-ing between buffer and screen targets.
  * @sid: Surface ID when copying between surface and screen targets.
  */
@@ -63,6 +65,7 @@ struct vmw_stdu_dirty {
 	struct vmw_kms_dirty base;
 	SVGA3dTransferType  transfer;
 	s32 left, right, top, bottom;
+	s32 fb_left, fb_top;
 	u32 pitch;
 	union {
 		struct vmw_dma_buffer *buf;
@@ -409,7 +412,8 @@ static void vmw_stdu_crtc_helper_prepare(struct drm_crtc *crtc)
 }
 
 
-static void vmw_stdu_crtc_helper_commit(struct drm_crtc *crtc)
+static void vmw_stdu_crtc_atomic_enable(struct drm_crtc *crtc,
+					struct drm_crtc_state *old_state)
 {
 	struct vmw_private *dev_priv;
 	struct vmw_screen_target_display_unit *stdu;
@@ -429,7 +433,8 @@ static void vmw_stdu_crtc_helper_commit(struct drm_crtc *crtc)
 		vmw_kms_del_active(dev_priv, &stdu->base);
 }
 
-static void vmw_stdu_crtc_helper_disable(struct drm_crtc *crtc)
+static void vmw_stdu_crtc_atomic_disable(struct drm_crtc *crtc,
+					 struct drm_crtc_state *old_state)
 {
 	struct vmw_private *dev_priv;
 	struct vmw_screen_target_display_unit *stdu;
@@ -544,8 +549,8 @@ static int vmw_stdu_crtc_page_flip(struct drm_crtc *crtc,
 
 		ret = vmw_event_fence_action_queue(file_priv, fence,
 						   &event->base,
-						   &event->event.tv_sec,
-						   &event->event.tv_usec,
+						   &event->event.vbl.tv_sec,
+						   &event->event.vbl.tv_usec,
 						   true);
 		vmw_fence_obj_unreference(&fence);
 	} else {
@@ -647,7 +652,7 @@ static void vmw_stdu_dmabuf_fifo_commit(struct vmw_kms_dirty *dirty)
  *
  * @dirty: The closure structure.
  *
- * This function calculates the bounding box for all the incoming clips
+ * This function calculates the bounding box for all the incoming clips.
  */
 static void vmw_stdu_dmabuf_cpu_clip(struct vmw_kms_dirty *dirty)
 {
@@ -656,11 +661,19 @@ static void vmw_stdu_dmabuf_cpu_clip(struct vmw_kms_dirty *dirty)
 
 	dirty->num_hits = 1;
 
-	/* Calculate bounding box */
+	/* Calculate destination bounding box */
 	ddirty->left = min_t(s32, ddirty->left, dirty->unit_x1);
 	ddirty->top = min_t(s32, ddirty->top, dirty->unit_y1);
 	ddirty->right = max_t(s32, ddirty->right, dirty->unit_x2);
 	ddirty->bottom = max_t(s32, ddirty->bottom, dirty->unit_y2);
+
+	/*
+	 * Calculate content bounding box.  We only need the top-left
+	 * coordinate because width and height will be the same as the
+	 * destination bounding box above
+	 */
+	ddirty->fb_left = min_t(s32, ddirty->fb_left, dirty->fb_x);
+	ddirty->fb_top  = min_t(s32, ddirty->fb_top, dirty->fb_y);
 }
 
 
@@ -697,11 +710,11 @@ static void vmw_stdu_dmabuf_cpu_commit(struct vmw_kms_dirty *dirty)
 	/* Assume we are blitting from Host (display_srf) to Guest (dmabuf) */
 	src_pitch = stdu->display_srf->base_size.width * stdu->cpp;
 	src = ttm_kmap_obj_virtual(&stdu->host_map, &not_used);
-	src += dirty->unit_y1 * src_pitch + dirty->unit_x1 * stdu->cpp;
+	src += ddirty->top * src_pitch + ddirty->left * stdu->cpp;
 
 	dst_pitch = ddirty->pitch;
 	dst = ttm_kmap_obj_virtual(&stdu->guest_map, &not_used);
-	dst += dirty->fb_y * dst_pitch + dirty->fb_x * stdu->cpp;
+	dst += ddirty->fb_top * dst_pitch + ddirty->fb_left * stdu->cpp;
 
 
 	/* Figure out the real direction */
@@ -760,7 +773,7 @@ static void vmw_stdu_dmabuf_cpu_commit(struct vmw_kms_dirty *dirty)
 	}
 
 out_cleanup:
-	ddirty->left = ddirty->top = S32_MAX;
+	ddirty->left = ddirty->top = ddirty->fb_left = ddirty->fb_top = S32_MAX;
 	ddirty->right = ddirty->bottom = S32_MIN;
 }
 
@@ -812,6 +825,7 @@ int vmw_kms_stdu_dma(struct vmw_private *dev_priv,
 		SVGA3D_READ_HOST_VRAM;
 	ddirty.left = ddirty.top = S32_MAX;
 	ddirty.right = ddirty.bottom = S32_MIN;
+	ddirty.fb_left = ddirty.fb_top = S32_MAX;
 	ddirty.pitch = vfb->base.pitches[0];
 	ddirty.buf = buf;
 	ddirty.base.fifo_commit = vmw_stdu_dmabuf_fifo_commit;
@@ -1355,6 +1369,11 @@ vmw_stdu_primary_plane_atomic_update(struct drm_plane *plane,
 		DRM_ERROR("Failed to bind surface to STDU.\n");
 	else
 		crtc->primary->fb = plane->state->fb;
+
+	ret = vmw_stdu_update_st(dev_priv, stdu);
+
+	if (ret)
+		DRM_ERROR("Failed to update STDU.\n");
 }
 
 
@@ -1398,12 +1417,12 @@ drm_plane_helper_funcs vmw_stdu_primary_plane_helper_funcs = {
 
 static const struct drm_crtc_helper_funcs vmw_stdu_crtc_helper_funcs = {
 	.prepare = vmw_stdu_crtc_helper_prepare,
-	.commit = vmw_stdu_crtc_helper_commit,
-	.disable = vmw_stdu_crtc_helper_disable,
 	.mode_set_nofb = vmw_stdu_crtc_mode_set_nofb,
 	.atomic_check = vmw_du_crtc_atomic_check,
 	.atomic_begin = vmw_du_crtc_atomic_begin,
 	.atomic_flush = vmw_du_crtc_atomic_flush,
+	.atomic_enable = vmw_stdu_crtc_atomic_enable,
+	.atomic_disable = vmw_stdu_crtc_atomic_disable,
 };
 
 
@@ -1456,7 +1475,7 @@ static int vmw_stdu_init(struct vmw_private *dev_priv, unsigned unit)
 				       0, &vmw_stdu_plane_funcs,
 				       vmw_primary_plane_formats,
 				       ARRAY_SIZE(vmw_primary_plane_formats),
-				       DRM_PLANE_TYPE_PRIMARY, NULL);
+				       NULL, DRM_PLANE_TYPE_PRIMARY, NULL);
 	if (ret) {
 		DRM_ERROR("Failed to initialize primary plane");
 		goto err_free;
@@ -1471,7 +1490,7 @@ static int vmw_stdu_init(struct vmw_private *dev_priv, unsigned unit)
 			0, &vmw_stdu_cursor_funcs,
 			vmw_cursor_plane_formats,
 			ARRAY_SIZE(vmw_cursor_plane_formats),
-			DRM_PLANE_TYPE_CURSOR, NULL);
+			NULL, DRM_PLANE_TYPE_CURSOR, NULL);
 	if (ret) {
 		DRM_ERROR("Failed to initialize cursor plane");
 		drm_plane_cleanup(&stdu->base.primary);
@@ -1623,8 +1642,8 @@ int vmw_kms_stdu_init_display(struct vmw_private *dev_priv)
 		 * something arbitrarily large and we will reject any layout
 		 * that doesn't fit prim_bb_mem later
 		 */
-		dev->mode_config.max_width = 16384;
-		dev->mode_config.max_height = 16384;
+		dev->mode_config.max_width = 8192;
+		dev->mode_config.max_height = 8192;
 	}
 
 	vmw_kms_create_implicit_placement_property(dev_priv, false);
@@ -1634,36 +1653,11 @@ int vmw_kms_stdu_init_display(struct vmw_private *dev_priv)
 
 		if (unlikely(ret != 0)) {
 			DRM_ERROR("Failed to initialize STDU %d", i);
-			goto err_vblank_cleanup;
+			return ret;
 		}
 	}
 
 	DRM_INFO("Screen Target Display device initialized\n");
-
-	return 0;
-
-err_vblank_cleanup:
-	drm_vblank_cleanup(dev);
-	return ret;
-}
-
-
-
-/**
- * vmw_kms_stdu_close_display - Cleans up after vmw_kms_stdu_init_display
- *
- * @dev_priv: VMW DRM device
- *
- * Frees up any resources allocated by vmw_kms_stdu_init_display
- *
- * RETURNS:
- * 0 on success
- */
-int vmw_kms_stdu_close_display(struct vmw_private *dev_priv)
-{
-	struct drm_device *dev = dev_priv->dev;
-
-	drm_vblank_cleanup(dev);
 
 	return 0;
 }

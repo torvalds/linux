@@ -53,7 +53,7 @@ int mxm_wmi_call_mxds(int adapter)
 
 	printk("calling mux switch %d\n", adapter);
 
-	status = wmi_evaluate_method(MXM_WMMX_GUID, 0x1, adapter, &input,
+	status = wmi_evaluate_method(MXM_WMMX_GUID, 0x0, adapter, &input,
 				     &output);
 
 	if (ACPI_FAILURE(status))
@@ -78,7 +78,7 @@ int mxm_wmi_call_mxmx(int adapter)
 
 	printk("calling mux switch %d\n", adapter);
 
-	status = wmi_evaluate_method(MXM_WMMX_GUID, 0x1, adapter, &input,
+	status = wmi_evaluate_method(MXM_WMMX_GUID, 0x0, adapter, &input,
 				     &output);
 
 	if (ACPI_FAILURE(status))

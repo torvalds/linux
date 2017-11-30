@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * GPL HEADER START
  *
@@ -42,9 +43,9 @@
  * @{
  */
 
-#include "lprocfs_status.h"
-#include "lustre/lustre_idl.h"
-#include "lustre_dlm.h"
+#include <lprocfs_status.h>
+#include <uapi/linux/lustre/lustre_idl.h>
+#include <lustre_dlm.h>
 
 enum obd_option {
 	OBD_OPT_FORCE =	 0x0001,

@@ -32,10 +32,6 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-#include "fman_port.h"
-#include "fman.h"
-#include "fman_sp.h"
-
 #include <linux/io.h>
 #include <linux/slab.h>
 #include <linux/module.h>
@@ -44,6 +40,11 @@
 #include <linux/of_address.h>
 #include <linux/delay.h>
 #include <linux/libfdt_env.h>
+
+#include "fman.h"
+#include "fman_port.h"
+#include "fman_sp.h"
+#include "fman_keygen.h"
 
 /* Queue ID */
 #define DFLT_FQ_ID		0x00FFFFFF
@@ -184,6 +185,7 @@
 #define NIA_ENG_QMI_ENQ					0x00540000
 #define NIA_ENG_QMI_DEQ					0x00580000
 #define NIA_ENG_HWP					0x00440000
+#define NIA_ENG_HWK					0x00480000
 #define NIA_BMI_AC_ENQ_FRAME				0x00000002
 #define NIA_BMI_AC_TX_RELEASE				0x000002C0
 #define NIA_BMI_AC_RELEASE				0x000000C0
@@ -394,6 +396,8 @@ struct fman_port_bpools {
 struct fman_port_cfg {
 	u32 dflt_fqid;
 	u32 err_fqid;
+	u32 pcd_base_fqid;
+	u32 pcd_fqs_count;
 	u8 deq_sp;
 	bool deq_high_priority;
 	enum fman_port_deq_type deq_type;
@@ -1271,6 +1275,10 @@ static void set_rx_dflt_cfg(struct fman_port *port,
 		port_params->specific_params.rx_params.err_fqid;
 	port->cfg->dflt_fqid =
 		port_params->specific_params.rx_params.dflt_fqid;
+	port->cfg->pcd_base_fqid =
+		port_params->specific_params.rx_params.pcd_base_fqid;
+	port->cfg->pcd_fqs_count =
+		port_params->specific_params.rx_params.pcd_fqs_count;
 }
 
 static void set_tx_dflt_cfg(struct fman_port *port,
@@ -1331,8 +1339,10 @@ int fman_port_config(struct fman_port *port, struct fman_port_params *params)
 	switch (port->port_type) {
 	case FMAN_PORT_TYPE_RX:
 		set_rx_dflt_cfg(port, params);
+		/* fall through */
 	case FMAN_PORT_TYPE_TX:
 		set_tx_dflt_cfg(port, params, &port->dts_params);
+		/* fall through */
 	default:
 		set_dflt_cfg(port, params);
 	}
@@ -1398,6 +1408,24 @@ err_port_cfg:
 EXPORT_SYMBOL(fman_port_config);
 
 /**
+ * fman_port_use_kg_hash
+ * port:        A pointer to a FM Port module.
+ * Sets the HW KeyGen or the BMI as HW Parser next engine, enabling
+ * or bypassing the KeyGen hashing of Rx traffic
+ */
+void fman_port_use_kg_hash(struct fman_port *port, bool enable)
+{
+	if (enable)
+		/* After the Parser frames go to KeyGen */
+		iowrite32be(NIA_ENG_HWK, &port->bmi_regs->rx.fmbm_rfpne);
+	else
+		/* After the Parser frames go to BMI */
+		iowrite32be(NIA_ENG_BMI | NIA_BMI_AC_ENQ_FRAME,
+			    &port->bmi_regs->rx.fmbm_rfpne);
+}
+EXPORT_SYMBOL(fman_port_use_kg_hash);
+
+/**
  * fman_port_init
  * port:	A pointer to a FM Port module.
  * Initializes the FM PORT module by defining the software structure and
@@ -1407,9 +1435,10 @@ EXPORT_SYMBOL(fman_port_config);
  */
 int fman_port_init(struct fman_port *port)
 {
+	struct fman_port_init_params params;
+	struct fman_keygen *keygen;
 	struct fman_port_cfg *cfg;
 	int err;
-	struct fman_port_init_params params;
 
 	if (is_init_done(port->cfg))
 		return -EINVAL;
@@ -1471,6 +1500,17 @@ int fman_port_init(struct fman_port *port)
 	err = init_low_level_driver(port);
 	if (err)
 		return err;
+
+	if (port->cfg->pcd_fqs_count) {
+		keygen = port->dts_params.fman->keygen;
+		err = keygen_port_hashing_init(keygen, port->port_id,
+					       port->cfg->pcd_base_fqid,
+					       port->cfg->pcd_fqs_count);
+		if (err)
+			return err;
+
+		fman_port_use_kg_hash(port, true);
+	}
 
 	kfree(port->cfg);
 	port->cfg = NULL;
@@ -1682,6 +1722,17 @@ u32 fman_port_get_qman_channel_id(struct fman_port *port)
 }
 EXPORT_SYMBOL(fman_port_get_qman_channel_id);
 
+int fman_port_get_hash_result_offset(struct fman_port *port, u32 *offset)
+{
+	if (port->buffer_offsets.hash_result_offset == ILLEGAL_BASE)
+		return -EINVAL;
+
+	*offset = port->buffer_offsets.hash_result_offset;
+
+	return 0;
+}
+EXPORT_SYMBOL(fman_port_get_hash_result_offset);
+
 static int fman_port_probe(struct platform_device *of_dev)
 {
 	struct fman_port *port;
@@ -1720,8 +1771,8 @@ static int fman_port_probe(struct platform_device *of_dev)
 
 	err = of_property_read_u32(port_node, "cell-index", &val);
 	if (err) {
-		dev_err(port->dev, "%s: reading cell-index for %s failed\n",
-			__func__, port_node->full_name);
+		dev_err(port->dev, "%s: reading cell-index for %pOF failed\n",
+			__func__, port_node);
 		err = -EINVAL;
 		goto return_err;
 	}

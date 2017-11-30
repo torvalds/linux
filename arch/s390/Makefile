@@ -21,7 +21,7 @@ KBUILD_CFLAGS	+= -m64
 KBUILD_AFLAGS	+= -m64
 UTS_MACHINE	:= s390x
 STACK_SIZE	:= 16384
-CHECKFLAGS	+= -D__s390__ -D__s390x__
+CHECKFLAGS	+= -D__s390__ -D__s390x__ -mbig-endian
 
 export LD_BFD
 
@@ -31,7 +31,8 @@ mflags-$(CONFIG_MARCH_Z9_109) := -march=z9-109
 mflags-$(CONFIG_MARCH_Z10)    := -march=z10
 mflags-$(CONFIG_MARCH_Z196)   := -march=z196
 mflags-$(CONFIG_MARCH_ZEC12)  := -march=zEC12
-mflags-$(CONFIG_MARCH_Z13)   := -march=z13
+mflags-$(CONFIG_MARCH_Z13)    := -march=z13
+mflags-$(CONFIG_MARCH_Z14)    := -march=z14
 
 export CC_FLAGS_MARCH := $(mflags-y)
 
@@ -44,7 +45,8 @@ cflags-$(CONFIG_MARCH_Z9_109_TUNE)	+= -mtune=z9-109
 cflags-$(CONFIG_MARCH_Z10_TUNE)		+= -mtune=z10
 cflags-$(CONFIG_MARCH_Z196_TUNE)	+= -mtune=z196
 cflags-$(CONFIG_MARCH_ZEC12_TUNE)	+= -mtune=zEC12
-cflags-$(CONFIG_MARCH_Z13_TUNE)	+= -mtune=z13
+cflags-$(CONFIG_MARCH_Z13_TUNE)		+= -mtune=z13
+cflags-$(CONFIG_MARCH_Z14_TUNE)		+= -mtune=z14
 
 cflags-y += -Wa,-I$(srctree)/arch/$(ARCH)/include
 
@@ -131,6 +133,7 @@ archclean:
 
 archprepare:
 	$(Q)$(MAKE) $(build)=$(tools) include/generated/facilities.h
+	$(Q)$(MAKE) $(build)=$(tools) include/generated/dis.h
 
 # Don't use tabs in echo arguments
 define archhelp

@@ -20,8 +20,8 @@
 	};
 
 	i2c-gpio-0 {
-		rv3029c2@56 {
-			compatible = "rv3029c2";
+		rtc@56 {
+			compatible = "microcrystal,rv3029";
 			reg = <0x56>;
 		};
 	};

@@ -41,6 +41,9 @@
 
 struct tegra_pwm_soc {
 	unsigned int num_channels;
+
+	/* Maximum IP frequency for given SoCs */
+	unsigned long max_frequency;
 };
 
 struct tegra_pwm_chip {
@@ -201,10 +204,21 @@ static int tegra_pwm_probe(struct platform_device *pdev)
 	if (IS_ERR(pwm->clk))
 		return PTR_ERR(pwm->clk);
 
-	/* Read PWM clock rate from source */
+	/* Set maximum frequency of the IP */
+	ret = clk_set_rate(pwm->clk, pwm->soc->max_frequency);
+	if (ret < 0) {
+		dev_err(&pdev->dev, "Failed to set max frequency: %d\n", ret);
+		return ret;
+	}
+
+	/*
+	 * The requested and configured frequency may differ due to
+	 * clock register resolutions. Get the configured frequency
+	 * so that PWM period can be calculated more accurately.
+	 */
 	pwm->clk_rate = clk_get_rate(pwm->clk);
 
-	pwm->rst = devm_reset_control_get(&pdev->dev, "pwm");
+	pwm->rst = devm_reset_control_get_exclusive(&pdev->dev, "pwm");
 	if (IS_ERR(pwm->rst)) {
 		ret = PTR_ERR(pwm->rst);
 		dev_err(&pdev->dev, "Reset control is not found: %d\n", ret);
@@ -273,10 +287,12 @@ static int tegra_pwm_resume(struct device *dev)
 
 static const struct tegra_pwm_soc tegra20_pwm_soc = {
 	.num_channels = 4,
+	.max_frequency = 48000000UL,
 };
 
 static const struct tegra_pwm_soc tegra186_pwm_soc = {
 	.num_channels = 1,
+	.max_frequency = 102000000UL,
 };
 
 static const struct of_device_id tegra_pwm_of_match[] = {

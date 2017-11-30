@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _SCSI_SCSI_REQUEST_H
 #define _SCSI_SCSI_REQUEST_H
 
@@ -27,6 +28,6 @@ static inline void scsi_req_free_cmd(struct scsi_request *req)
 		kfree(req->cmd);
 }
 
-void scsi_req_init(struct request *);
+void scsi_req_init(struct scsi_request *req);
 
 #endif /* _SCSI_SCSI_REQUEST_H */

@@ -17,7 +17,7 @@
  */
 
 #include <drm/drm_atomic_helper.h>
-#include <ttm/ttm_page_alloc.h>
+#include <drm/ttm/ttm_page_alloc.h>
 
 #include "hibmc_drm_drv.h"
 
@@ -444,7 +444,7 @@ int hibmc_dumb_create(struct drm_file *file, struct drm_device *dev,
 	}
 
 	ret = drm_gem_handle_create(file, gobj, &handle);
-	drm_gem_object_unreference_unlocked(gobj);
+	drm_gem_object_put_unlocked(gobj);
 	if (ret) {
 		DRM_ERROR("failed to unreference GEM object: %d\n", ret);
 		return ret;
@@ -479,7 +479,7 @@ int hibmc_dumb_mmap_offset(struct drm_file *file, struct drm_device *dev,
 	bo = gem_to_hibmc_bo(obj);
 	*offset = hibmc_bo_mmap_offset(bo);
 
-	drm_gem_object_unreference_unlocked(obj);
+	drm_gem_object_put_unlocked(obj);
 	return 0;
 }
 
@@ -487,7 +487,7 @@ static void hibmc_user_framebuffer_destroy(struct drm_framebuffer *fb)
 {
 	struct hibmc_framebuffer *hibmc_fb = to_hibmc_framebuffer(fb);
 
-	drm_gem_object_unreference_unlocked(hibmc_fb->obj);
+	drm_gem_object_put_unlocked(hibmc_fb->obj);
 	drm_framebuffer_cleanup(fb);
 	kfree(hibmc_fb);
 }
@@ -543,7 +543,7 @@ hibmc_user_framebuffer_create(struct drm_device *dev,
 
 	hibmc_fb = hibmc_framebuffer_init(dev, mode_cmd, obj);
 	if (IS_ERR(hibmc_fb)) {
-		drm_gem_object_unreference_unlocked(obj);
+		drm_gem_object_put_unlocked(obj);
 		return ERR_PTR((long)hibmc_fb);
 	}
 	return &hibmc_fb->fb;

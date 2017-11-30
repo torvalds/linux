@@ -1450,7 +1450,7 @@ smc911x_ethtool_get_link_ksettings(struct net_device *dev,
 				   struct ethtool_link_ksettings *cmd)
 {
 	struct smc911x_local *lp = netdev_priv(dev);
-	int ret, status;
+	int status;
 	unsigned long flags;
 	u32 supported;
 
@@ -1458,7 +1458,7 @@ smc911x_ethtool_get_link_ksettings(struct net_device *dev,
 
 	if (lp->phy_type != 0) {
 		spin_lock_irqsave(&lp->lock, flags);
-		ret = mii_ethtool_get_link_ksettings(&lp->mii, cmd);
+		mii_ethtool_get_link_ksettings(&lp->mii, cmd);
 		spin_unlock_irqrestore(&lp->lock, flags);
 	} else {
 		supported = SUPPORTED_10baseT_Half |
@@ -1480,10 +1480,9 @@ smc911x_ethtool_get_link_ksettings(struct net_device *dev,
 		ethtool_convert_legacy_u32_to_link_mode(
 			cmd->link_modes.supported, supported);
 
-		ret = 0;
 	}
 
-	return ret;
+	return 0;
 }
 
 static int

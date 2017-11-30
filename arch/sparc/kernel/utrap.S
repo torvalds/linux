@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 	.globl		utrap_trap
 	.type		utrap_trap,#function
 utrap_trap:		/* %g3=handler,%g4=level */

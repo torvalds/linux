@@ -1079,7 +1079,7 @@ static struct attribute *i7core_addrmatch_attrs[] = {
 	NULL
 };
 
-static struct attribute_group addrmatch_grp = {
+static const struct attribute_group addrmatch_grp = {
 	.attrs	= i7core_addrmatch_attrs,
 };
 
@@ -1094,7 +1094,7 @@ static void addrmatch_release(struct device *device)
 	kfree(device);
 }
 
-static struct device_type addrmatch_type = {
+static const struct device_type addrmatch_type = {
 	.groups		= addrmatch_groups,
 	.release	= addrmatch_release,
 };
@@ -1110,7 +1110,7 @@ static struct attribute *i7core_udimm_counters_attrs[] = {
 	NULL
 };
 
-static struct attribute_group all_channel_counts_grp = {
+static const struct attribute_group all_channel_counts_grp = {
 	.attrs	= i7core_udimm_counters_attrs,
 };
 
@@ -1125,7 +1125,7 @@ static void all_channel_counts_release(struct device *device)
 	kfree(device);
 }
 
-static struct device_type all_channel_counts_type = {
+static const struct device_type all_channel_counts_type = {
 	.groups		= all_channel_counts_groups,
 	.release	= all_channel_counts_release,
 };
@@ -2159,9 +2159,13 @@ static int i7core_register_mci(struct i7core_dev *i7core_dev)
 	mci->edac_ctl_cap = EDAC_FLAG_NONE;
 	mci->edac_cap = EDAC_FLAG_NONE;
 	mci->mod_name = "i7core_edac.c";
-	mci->mod_ver = I7CORE_REVISION;
-	mci->ctl_name = kasprintf(GFP_KERNEL, "i7 core #%d",
-				  i7core_dev->socket);
+
+	mci->ctl_name = kasprintf(GFP_KERNEL, "i7 core #%d", i7core_dev->socket);
+	if (!mci->ctl_name) {
+		rc = -ENOMEM;
+		goto fail1;
+	}
+
 	mci->dev_name = pci_name(i7core_dev->pdev[0]);
 	mci->ctl_page_to_phys = NULL;
 
@@ -2215,6 +2219,8 @@ static int i7core_register_mci(struct i7core_dev *i7core_dev)
 
 fail0:
 	kfree(mci->ctl_name);
+
+fail1:
 	edac_mc_free(mci);
 	i7core_dev->mci = NULL;
 	return rc;

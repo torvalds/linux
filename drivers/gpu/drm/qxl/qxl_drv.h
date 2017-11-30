@@ -36,20 +36,18 @@
 #include <linux/firmware.h>
 #include <linux/platform_device.h>
 
-#include "drmP.h"
-#include "drm_crtc.h"
-#include <ttm/ttm_bo_api.h>
-#include <ttm/ttm_bo_driver.h>
-#include <ttm/ttm_placement.h>
-#include <ttm/ttm_module.h>
-
+#include <drm/drm_crtc.h>
 #include <drm/drm_encoder.h>
 #include <drm/drm_gem.h>
-
+#include <drm/drmP.h>
+#include <drm/ttm/ttm_bo_api.h>
+#include <drm/ttm/ttm_bo_driver.h>
 /* just for ttm_validate_buffer */
-#include <ttm/ttm_execbuf_util.h>
-
+#include <drm/ttm/ttm_execbuf_util.h>
+#include <drm/ttm/ttm_module.h>
+#include <drm/ttm/ttm_placement.h>
 #include <drm/qxl_drm.h>
+
 #include "qxl_dev.h"
 
 #define DRIVER_AUTHOR		"Dave Airlie"
@@ -64,31 +62,8 @@
 
 #define QXL_DEBUGFS_MAX_COMPONENTS		32
 
-extern int qxl_log_level;
 extern int qxl_num_crtc;
-
-enum {
-	QXL_INFO_LEVEL = 1,
-	QXL_DEBUG_LEVEL = 2,
-};
-
-#define QXL_INFO(qdev, fmt, ...) do { \
-		if (qxl_log_level >= QXL_INFO_LEVEL) {	\
-			qxl_io_log(qdev, fmt, __VA_ARGS__); \
-		}	\
-	} while (0)
-#define QXL_DEBUG(qdev, fmt, ...) do { \
-		if (qxl_log_level >= QXL_DEBUG_LEVEL) {	\
-			qxl_io_log(qdev, fmt, __VA_ARGS__); \
-		}	\
-	} while (0)
-#define QXL_INFO_ONCE(qdev, fmt, ...) do { \
-		static int done;		\
-		if (!done) {			\
-			done = 1;			\
-			QXL_INFO(qdev, fmt, __VA_ARGS__);	\
-		}						\
-	} while (0)
+extern int qxl_max_ioctls;
 
 #define DRM_FILE_OFFSET 0x100000000ULL
 #define DRM_FILE_PAGE_OFFSET (DRM_FILE_OFFSET >> PAGE_SHIFT)
@@ -114,6 +89,8 @@ struct qxl_bo {
 	/* Constant after initialization */
 	struct drm_gem_object		gem_base;
 	bool is_primary; /* is this now a primary surface */
+	bool is_dumb;
+	struct qxl_bo *shadow;
 	bool hw_surf_alloc;
 	struct qxl_surface surf;
 	uint32_t surface_id;
@@ -352,7 +329,7 @@ int qxl_check_idle(struct qxl_ring *ring);
 static inline void *
 qxl_fb_virtual_address(struct qxl_device *qdev, unsigned long physical)
 {
-	QXL_INFO(qdev, "not implemented (%lu)\n", physical);
+	DRM_DEBUG_DRIVER("not implemented (%lu)\n", physical);
 	return 0;
 }
 

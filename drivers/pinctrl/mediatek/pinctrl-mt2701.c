@@ -565,6 +565,7 @@ static int mt2701_pinctrl_probe(struct platform_device *pdev)
 
 static const struct of_device_id mt2701_pctrl_match[] = {
 	{ .compatible = "mediatek,mt2701-pinctrl", },
+	{ .compatible = "mediatek,mt7623-pinctrl", },
 	{}
 };
 MODULE_DEVICE_TABLE(of, mt2701_pctrl_match);

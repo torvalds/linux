@@ -175,7 +175,7 @@ static u32 puv3_i2c_func(struct i2c_adapter *adapter)
 	return I2C_FUNC_I2C | I2C_FUNC_SMBUS_EMUL;
 }
 
-static struct i2c_algorithm puv3_i2c_algorithm = {
+static const struct i2c_algorithm puv3_i2c_algorithm = {
 	.master_xfer	= puv3_i2c_xfer,
 	.functionality	= puv3_i2c_func,
 };

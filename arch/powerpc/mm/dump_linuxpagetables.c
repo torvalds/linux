@@ -16,6 +16,7 @@
  */
 #include <linux/debugfs.h>
 #include <linux/fs.h>
+#include <linux/hugetlb.h>
 #include <linux/io.h>
 #include <linux/mm.h>
 #include <linux/sched.h>
@@ -111,7 +112,7 @@ struct flag_info {
 
 static const struct flag_info flag_array[] = {
 	{
-#ifdef CONFIG_PPC_STD_MMU_64
+#ifdef CONFIG_PPC_BOOK3S_64
 		.mask	= _PAGE_PRIVILEGED,
 		.val	= 0,
 #else
@@ -146,7 +147,7 @@ static const struct flag_info flag_array[] = {
 		.set	= "present",
 		.clear	= "       ",
 	}, {
-#ifdef CONFIG_PPC_STD_MMU_64
+#ifdef CONFIG_PPC_BOOK3S_64
 		.mask	= H_PAGE_HASHPTE,
 		.val	= H_PAGE_HASHPTE,
 #else
@@ -156,7 +157,7 @@ static const struct flag_info flag_array[] = {
 		.set	= "hpte",
 		.clear	= "    ",
 	}, {
-#ifndef CONFIG_PPC_STD_MMU_64
+#ifndef CONFIG_PPC_BOOK3S_64
 		.mask	= _PAGE_GUARDED,
 		.val	= _PAGE_GUARDED,
 		.set	= "guarded",
@@ -173,7 +174,7 @@ static const struct flag_info flag_array[] = {
 		.set	= "accessed",
 		.clear	= "        ",
 	}, {
-#ifndef CONFIG_PPC_STD_MMU_64
+#ifndef CONFIG_PPC_BOOK3S_64
 		.mask	= _PAGE_WRITETHRU,
 		.val	= _PAGE_WRITETHRU,
 		.set	= "write through",
@@ -349,7 +350,7 @@ static void note_page(struct pg_state *st, unsigned long addr,
 					  st->current_flags,
 					  pg_level[st->level].num);
 
-			seq_puts(st->seq, "\n");
+			seq_putc(st->seq, '\n');
 		}
 
 		/*
@@ -391,7 +392,7 @@ static void walk_pmd(struct pg_state *st, pud_t *pud, unsigned long start)
 
 	for (i = 0; i < PTRS_PER_PMD; i++, pmd++) {
 		addr = start + i * PMD_SIZE;
-		if (!pmd_none(*pmd))
+		if (!pmd_none(*pmd) && !pmd_huge(*pmd))
 			/* pmd exists */
 			walk_pte(st, pmd, addr);
 		else
@@ -407,7 +408,7 @@ static void walk_pud(struct pg_state *st, pgd_t *pgd, unsigned long start)
 
 	for (i = 0; i < PTRS_PER_PUD; i++, pud++) {
 		addr = start + i * PUD_SIZE;
-		if (!pud_none(*pud))
+		if (!pud_none(*pud) && !pud_huge(*pud))
 			/* pud exists */
 			walk_pmd(st, pud, addr);
 		else
@@ -427,7 +428,7 @@ static void walk_pagetables(struct pg_state *st)
 	 */
 	for (i = 0; i < PTRS_PER_PGD; i++, pgd++) {
 		addr = KERN_VIRT_START + i * PGDIR_SIZE;
-		if (!pgd_none(*pgd))
+		if (!pgd_none(*pgd) && !pgd_huge(*pgd))
 			/* pgd exists */
 			walk_pud(st, pgd, addr);
 		else
@@ -449,7 +450,7 @@ static void populate_markers(void)
 	address_markers[i++].start_address = PHB_IO_END;
 	address_markers[i++].start_address = IOREMAP_BASE;
 	address_markers[i++].start_address = IOREMAP_END;
-#ifdef CONFIG_PPC_STD_MMU_64
+#ifdef CONFIG_PPC_BOOK3S_64
 	address_markers[i++].start_address =  H_VMEMMAP_BASE;
 #else
 	address_markers[i++].start_address =  VMEMMAP_BASE;

@@ -79,6 +79,7 @@
 #define CX231XX_BOARD_HAUPPAUGE_955Q 21
 #define CX231XX_BOARD_TERRATEC_GRABBY 22
 #define CX231XX_BOARD_EVROMEDIA_FULL_HYBRID_FULLHD 23
+#define CX231XX_BOARD_ASTROMETA_T2HYBRID 24
 
 /* Limits minimum and default number of buffers */
 #define CX231XX_MIN_BUF                 4
@@ -475,7 +476,7 @@ struct cx231xx_i2c {
 
 	/* i2c i/o */
 	struct i2c_adapter i2c_adap;
-	u32 i2c_rc;
+	int i2c_rc;
 
 	/* different settings for each bus */
 	u8 i2c_period;
@@ -761,7 +762,7 @@ int cx231xx_reset_analog_tuner(struct cx231xx *dev);
 /* Provided by cx231xx-i2c.c */
 void cx231xx_do_i2c_scan(struct cx231xx *dev, int i2c_port);
 int cx231xx_i2c_register(struct cx231xx_i2c *bus);
-int cx231xx_i2c_unregister(struct cx231xx_i2c *bus);
+void cx231xx_i2c_unregister(struct cx231xx_i2c *bus);
 int cx231xx_i2c_mux_create(struct cx231xx *dev);
 int cx231xx_i2c_mux_register(struct cx231xx *dev, int mux_no);
 void cx231xx_i2c_mux_unregister(struct cx231xx *dev);

@@ -60,7 +60,7 @@ _GLOBAL(__tlbil_va)
 	isync
 1:	blr
 
-#elif defined(CONFIG_8xx)
+#elif defined(CONFIG_PPC_8xx)
 
 /*
  * Nothing to do for 8xx, everything is inline

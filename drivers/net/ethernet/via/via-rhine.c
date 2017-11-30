@@ -995,8 +995,8 @@ static int rhine_init_one_common(struct device *hwdev, u32 quirks,
 	else
 		name = "Rhine III";
 
-	netdev_info(dev, "VIA %s at 0x%lx, %pM, IRQ %d\n",
-		    name, (long)ioaddr, dev->dev_addr, rp->irq);
+	netdev_info(dev, "VIA %s at %p, %pM, IRQ %d\n",
+		    name, ioaddr, dev->dev_addr, rp->irq);
 
 	dev_set_drvdata(hwdev, dev);
 
@@ -2307,13 +2307,12 @@ static int netdev_get_link_ksettings(struct net_device *dev,
 				     struct ethtool_link_ksettings *cmd)
 {
 	struct rhine_private *rp = netdev_priv(dev);
-	int rc;
 
 	mutex_lock(&rp->task_lock);
-	rc = mii_ethtool_get_link_ksettings(&rp->mii_if, cmd);
+	mii_ethtool_get_link_ksettings(&rp->mii_if, cmd);
 	mutex_unlock(&rp->task_lock);
 
-	return rc;
+	return 0;
 }
 
 static int netdev_set_link_ksettings(struct net_device *dev,
@@ -2599,7 +2598,7 @@ static struct platform_driver rhine_driver_platform = {
 	}
 };
 
-static struct dmi_system_id rhine_dmi_table[] __initdata = {
+static const struct dmi_system_id rhine_dmi_table[] __initconst = {
 	{
 		.ident = "EPIA-M",
 		.matches = {

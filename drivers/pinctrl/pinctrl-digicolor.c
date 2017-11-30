@@ -79,7 +79,7 @@ static int dc_get_group_pins(struct pinctrl_dev *pctldev, unsigned selector,
 	return 0;
 }
 
-static struct pinctrl_ops dc_pinctrl_ops = {
+static const struct pinctrl_ops dc_pinctrl_ops = {
 	.get_groups_count	= dc_get_groups_count,
 	.get_group_name		= dc_get_group_name,
 	.get_group_pins		= dc_get_group_pins,
@@ -161,7 +161,7 @@ static int dc_pmx_request_gpio(struct pinctrl_dev *pcdev,
 	return 0;
 }
 
-static struct pinmux_ops dc_pmxops = {
+static const struct pinmux_ops dc_pmxops = {
 	.get_functions_count	= dc_get_functions_count,
 	.get_function_name	= dc_get_fname,
 	.get_function_groups	= dc_get_groups,

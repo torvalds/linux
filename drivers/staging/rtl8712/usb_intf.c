@@ -47,7 +47,7 @@ static int r871xu_drv_init(struct usb_interface *pusb_intf,
 
 static void r871xu_dev_remove(struct usb_interface *pusb_intf);
 
-static struct usb_device_id rtl871x_usb_id_tbl[] = {
+static const struct usb_device_id rtl871x_usb_id_tbl[] = {
 
 /* RTL8188SU */
 	/* Realtek */
@@ -590,9 +590,10 @@ static int r871xu_drv_init(struct usb_interface *pusb_intf,
 			mac[0] &= 0xFE;
 			dev_info(&udev->dev,
 				"r8712u: MAC Address from user = %pM\n", mac);
-		} else
+		} else {
 			dev_info(&udev->dev,
 				"r8712u: MAC Address from efuse = %pM\n", mac);
+		}
 		ether_addr_copy(pnetdev->dev_addr, mac);
 	}
 	/* step 6. Load the firmware asynchronously */

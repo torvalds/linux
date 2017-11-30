@@ -79,7 +79,7 @@
 
 		i2c@3000 {
 			eeprom@53 {
-				compatible = "at24,24c04";
+				compatible = "atmel,24c04";
 				reg = <0x53>;
 			};
 

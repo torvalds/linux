@@ -33,6 +33,8 @@ long compat_keyctl_dh_compute(struct keyctl_dh_params __user *params,
 	kdfcopy.hashname = compat_ptr(compat_kdfcopy.hashname);
 	kdfcopy.otherinfo = compat_ptr(compat_kdfcopy.otherinfo);
 	kdfcopy.otherinfolen = compat_kdfcopy.otherinfolen;
+	memcpy(kdfcopy.__spare, compat_kdfcopy.__spare,
+	       sizeof(kdfcopy.__spare));
 
 	return __keyctl_dh_compute(params, buffer, buflen, &kdfcopy);
 }

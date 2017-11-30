@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _TOOLS_LINUX_COMPILER_H_
 #define _TOOLS_LINUX_COMPILER_H_
 
@@ -15,6 +16,10 @@
 
 #ifndef __always_inline
 # define __always_inline	inline __attribute__((always_inline))
+#endif
+
+#ifndef noinline
+#define noinline
 #endif
 
 /* Are two types/vars the same type (ignoring qualifiers)? */
@@ -45,6 +50,10 @@
 # define __maybe_unused		__attribute__((unused))
 #endif
 
+#ifndef __used
+# define __used		__attribute__((__unused__))
+#endif
+
 #ifndef __packed
 # define __packed		__attribute__((__packed__))
 #endif
@@ -63,6 +72,14 @@
 
 #ifndef unlikely
 # define unlikely(x)		__builtin_expect(!!(x), 0)
+#endif
+
+#ifndef __init
+# define __init
+#endif
+
+#ifndef noinline
+# define noinline
 #endif
 
 #define uninitialized_var(x) x = *(&(x))

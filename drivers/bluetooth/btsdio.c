@@ -144,7 +144,8 @@ static int btsdio_rx_packet(struct btsdio_data *data)
 	if (!skb) {
 		/* Out of memory. Prepare a read retry and just
 		 * return with the expectation that the next time
-		 * we're called we'll have more memory. */
+		 * we're called we'll have more memory.
+		 */
 		return -ENOMEM;
 	}
 

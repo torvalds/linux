@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/ieee80211.h>
 #include <linux/export.h>
 #include <net/cfg80211.h>
@@ -173,6 +174,14 @@ int __cfg80211_join_mesh(struct cfg80211_registered_device *rdev,
 		setup->basic_rates = ieee80211_mandatory_rates(sband,
 							       scan_width);
 	}
+
+	err = cfg80211_chandef_dfs_required(&rdev->wiphy,
+					    &setup->chandef,
+					    NL80211_IFTYPE_MESH_POINT);
+	if (err < 0)
+		return err;
+	if (err > 0 && !setup->userspace_handles_dfs)
+		return -EINVAL;
 
 	if (!cfg80211_reg_can_beacon(&rdev->wiphy, &setup->chandef,
 				     NL80211_IFTYPE_MESH_POINT))

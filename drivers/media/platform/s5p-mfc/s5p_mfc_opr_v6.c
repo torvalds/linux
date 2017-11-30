@@ -1650,7 +1650,7 @@ static inline int s5p_mfc_run_init_dec_buffers(struct s5p_mfc_ctx *ctx)
 	 * s5p_mfc_alloc_dec_buffers(ctx); */
 
 	if (ctx->capture_state != QUEUE_BUFS_MMAPED) {
-		mfc_err("It seems that not all destionation buffers were\n"
+		mfc_err("It seems that not all destination buffers were\n"
 			"mmaped.MFC requires that all destination are mmaped\n"
 			"before starting processing.\n");
 		return -EAGAIN;

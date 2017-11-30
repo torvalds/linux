@@ -157,6 +157,18 @@ struct p9_client {
 	enum p9_trans_status status;
 	void *trans;
 
+	union {
+		struct {
+			int rfd;
+			int wfd;
+		} fd;
+		struct {
+			u16 port;
+			bool privport;
+
+		} tcp;
+	} trans_opts;
+
 	struct p9_idpool *fidpool;
 	struct list_head fidlist;
 
@@ -213,6 +225,7 @@ struct p9_dirent {
 
 struct iov_iter;
 
+int p9_show_client_options(struct seq_file *m, struct p9_client *clnt);
 int p9_client_statfs(struct p9_fid *fid, struct p9_rstatfs *sb);
 int p9_client_rename(struct p9_fid *fid, struct p9_fid *newdirfid,
 		     const char *name);

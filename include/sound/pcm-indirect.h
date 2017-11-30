@@ -43,7 +43,7 @@ typedef void (*snd_pcm_indirect_copy_t)(struct snd_pcm_substream *substream,
 /*
  * helper function for playback ack callback
  */
-static inline void
+static inline int
 snd_pcm_indirect_playback_transfer(struct snd_pcm_substream *substream,
 				   struct snd_pcm_indirect *rec,
 				   snd_pcm_indirect_copy_t copy)
@@ -56,6 +56,8 @@ snd_pcm_indirect_playback_transfer(struct snd_pcm_substream *substream,
 	if (diff) {
 		if (diff < -(snd_pcm_sframes_t) (runtime->boundary / 2))
 			diff += runtime->boundary;
+		if (diff < 0)
+			return -EINVAL;
 		rec->sw_ready += (int)frames_to_bytes(runtime, diff);
 		rec->appl_ptr = appl_ptr;
 	}
@@ -82,6 +84,7 @@ snd_pcm_indirect_playback_transfer(struct snd_pcm_substream *substream,
 		rec->hw_ready += bytes;
 		rec->sw_ready -= bytes;
 	}
+	return 0;
 }
 
 /*
@@ -109,7 +112,7 @@ snd_pcm_indirect_playback_pointer(struct snd_pcm_substream *substream,
 /*
  * helper function for capture ack callback
  */
-static inline void
+static inline int
 snd_pcm_indirect_capture_transfer(struct snd_pcm_substream *substream,
 				  struct snd_pcm_indirect *rec,
 				  snd_pcm_indirect_copy_t copy)
@@ -121,6 +124,8 @@ snd_pcm_indirect_capture_transfer(struct snd_pcm_substream *substream,
 	if (diff) {
 		if (diff < -(snd_pcm_sframes_t) (runtime->boundary / 2))
 			diff += runtime->boundary;
+		if (diff < 0)
+			return -EINVAL;
 		rec->sw_ready -= frames_to_bytes(runtime, diff);
 		rec->appl_ptr = appl_ptr;
 	}
@@ -147,6 +152,7 @@ snd_pcm_indirect_capture_transfer(struct snd_pcm_substream *substream,
 		rec->hw_ready -= bytes;
 		rec->sw_ready += bytes;
 	}
+	return 0;
 }
 
 /*

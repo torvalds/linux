@@ -96,7 +96,7 @@
 #define CHIP_DEF(id, family, flags)					\
 	{ PCI_VENDOR_ID_ATI, id, PCI_ANY_ID, PCI_ANY_ID, 0, 0, (flags) | (CHIP_FAMILY_##family) }
 
-static struct pci_device_id radeonfb_pci_table[] = {
+static const struct pci_device_id radeonfb_pci_table[] = {
         /* Radeon Xpress 200m */
 	CHIP_DEF(PCI_CHIP_RS480_5955,   RS480,  CHIP_HAS_CRTC2 | CHIP_IS_IGP | CHIP_IS_MOBILITY),
 	CHIP_DEF(PCI_CHIP_RS482_5975,	RS480,	CHIP_HAS_CRTC2 | CHIP_IS_IGP | CHIP_IS_MOBILITY),
@@ -1454,9 +1454,9 @@ static void radeon_write_pll_regs(struct radeonfb_info *rinfo, struct radeon_reg
 /*
  * Timer function for delayed LVDS panel power up/down
  */
-static void radeon_lvds_timer_func(unsigned long data)
+static void radeon_lvds_timer_func(struct timer_list *t)
 {
-	struct radeonfb_info *rinfo = (struct radeonfb_info *)data;
+	struct radeonfb_info *rinfo = from_timer(rinfo, t, lvds_timer);
 
 	radeon_engine_idle();
 
@@ -1534,7 +1534,7 @@ void radeon_write_mode (struct radeonfb_info *rinfo, struct radeon_regs *mode,
 static void radeon_calc_pll_regs(struct radeonfb_info *rinfo, struct radeon_regs *regs,
 				 unsigned long freq)
 {
-	const struct {
+	static const struct {
 		int divider;
 		int bitvalue;
 	} *post_div,
@@ -2241,7 +2241,7 @@ static ssize_t radeon_show_edid2(struct file *filp, struct kobject *kobj,
 	return radeon_show_one_edid(buf, off, count, rinfo->mon2_EDID);
 }
 
-static struct bin_attribute edid1_attr = {
+static const struct bin_attribute edid1_attr = {
 	.attr   = {
 		.name	= "edid1",
 		.mode	= 0444,
@@ -2250,7 +2250,7 @@ static struct bin_attribute edid1_attr = {
 	.read	= radeon_show_edid1,
 };
 
-static struct bin_attribute edid2_attr = {
+static const struct bin_attribute edid2_attr = {
 	.attr   = {
 		.name	= "edid2",
 		.mode	= 0444,
@@ -2291,9 +2291,7 @@ static int radeonfb_pci_register(struct pci_dev *pdev,
 	rinfo->pdev = pdev;
 	
 	spin_lock_init(&rinfo->reg_lock);
-	init_timer(&rinfo->lvds_timer);
-	rinfo->lvds_timer.function = radeon_lvds_timer_func;
-	rinfo->lvds_timer.data = (unsigned long)rinfo;
+	timer_setup(&rinfo->lvds_timer, radeon_lvds_timer_func, 0);
 
 	c1 = ent->device >> 8;
 	c2 = ent->device & 0xff;

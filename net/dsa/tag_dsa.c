@@ -11,14 +11,14 @@
 #include <linux/etherdevice.h>
 #include <linux/list.h>
 #include <linux/slab.h>
-#include <net/dsa.h>
+
 #include "dsa_priv.h"
 
 #define DSA_HLEN	4
 
 static struct sk_buff *dsa_xmit(struct sk_buff *skb, struct net_device *dev)
 {
-	struct dsa_slave_priv *p = netdev_priv(dev);
+	struct dsa_port *dp = dsa_slave_to_port(dev);
 	u8 *dsa_header;
 
 	/*
@@ -28,14 +28,14 @@ static struct sk_buff *dsa_xmit(struct sk_buff *skb, struct net_device *dev)
 	 */
 	if (skb->protocol == htons(ETH_P_8021Q)) {
 		if (skb_cow_head(skb, 0) < 0)
-			goto out_free;
+			return NULL;
 
 		/*
 		 * Construct tagged FROM_CPU DSA tag from 802.1q tag.
 		 */
 		dsa_header = skb->data + 2 * ETH_ALEN;
-		dsa_header[0] = 0x60 | p->dp->ds->index;
-		dsa_header[1] = p->dp->index << 3;
+		dsa_header[0] = 0x60 | dp->ds->index;
+		dsa_header[1] = dp->index << 3;
 
 		/*
 		 * Move CFI field from byte 2 to byte 1.
@@ -46,7 +46,7 @@ static struct sk_buff *dsa_xmit(struct sk_buff *skb, struct net_device *dev)
 		}
 	} else {
 		if (skb_cow_head(skb, DSA_HLEN) < 0)
-			goto out_free;
+			return NULL;
 		skb_push(skb, DSA_HLEN);
 
 		memmove(skb->data, skb->data + DSA_HLEN, 2 * ETH_ALEN);
@@ -55,31 +55,24 @@ static struct sk_buff *dsa_xmit(struct sk_buff *skb, struct net_device *dev)
 		 * Construct untagged FROM_CPU DSA tag.
 		 */
 		dsa_header = skb->data + 2 * ETH_ALEN;
-		dsa_header[0] = 0x40 | p->dp->ds->index;
-		dsa_header[1] = p->dp->index << 3;
+		dsa_header[0] = 0x40 | dp->ds->index;
+		dsa_header[1] = dp->index << 3;
 		dsa_header[2] = 0x00;
 		dsa_header[3] = 0x00;
 	}
 
 	return skb;
-
-out_free:
-	kfree_skb(skb);
-	return NULL;
 }
 
 static struct sk_buff *dsa_rcv(struct sk_buff *skb, struct net_device *dev,
-			       struct packet_type *pt,
-			       struct net_device *orig_dev)
+			       struct packet_type *pt)
 {
-	struct dsa_switch_tree *dst = dev->dsa_ptr;
-	struct dsa_switch *ds;
 	u8 *dsa_header;
 	int source_device;
 	int source_port;
 
 	if (unlikely(!pskb_may_pull(skb, DSA_HLEN)))
-		goto out_drop;
+		return NULL;
 
 	/*
 	 * The ethertype field is part of the DSA header.
@@ -90,7 +83,7 @@ static struct sk_buff *dsa_rcv(struct sk_buff *skb, struct net_device *dev,
 	 * Check that frame type is either TO_CPU or FORWARD.
 	 */
 	if ((dsa_header[0] & 0xc0) != 0x00 && (dsa_header[0] & 0xc0) != 0xc0)
-		goto out_drop;
+		return NULL;
 
 	/*
 	 * Determine source device and port.
@@ -98,19 +91,9 @@ static struct sk_buff *dsa_rcv(struct sk_buff *skb, struct net_device *dev,
 	source_device = dsa_header[0] & 0x1f;
 	source_port = (dsa_header[1] >> 3) & 0x1f;
 
-	/*
-	 * Check that the source device exists and that the source
-	 * port is a registered DSA port.
-	 */
-	if (source_device >= DSA_MAX_SWITCHES)
-		goto out_drop;
-
-	ds = dst->ds[source_device];
-	if (!ds)
-		goto out_drop;
-
-	if (source_port >= ds->num_ports || !ds->ports[source_port].netdev)
-		goto out_drop;
+	skb->dev = dsa_master_find_slave(dev, source_device, source_port);
+	if (!skb->dev)
+		return NULL;
 
 	/*
 	 * Convert the DSA header to an 802.1q header if the 'tagged'
@@ -158,12 +141,9 @@ static struct sk_buff *dsa_rcv(struct sk_buff *skb, struct net_device *dev,
 			2 * ETH_ALEN);
 	}
 
-	skb->dev = ds->ports[source_port].netdev;
+	skb->offload_fwd_mark = 1;
 
 	return skb;
-
-out_drop:
-	return NULL;
 }
 
 const struct dsa_device_ops dsa_netdev_ops = {

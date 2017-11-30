@@ -70,13 +70,13 @@ config CORESIGHT_SOURCE_ETM4X
 	  for instruction level tracing. Depending on the implemented version
 	  data tracing may also be available.
 
-config CORESIGHT_QCOM_REPLICATOR
-	bool "Qualcomm CoreSight Replicator driver"
+config CORESIGHT_DYNAMIC_REPLICATOR
+	bool "CoreSight Programmable Replicator driver"
 	depends on CORESIGHT_LINKS_AND_SINKS
 	help
-	  This enables support for Qualcomm CoreSight link driver. The
-	  programmable ATB replicator sends the ATB trace stream from the
-	  ETB/ETF to the TPIUi and ETR.
+	  This enables support for dynamic CoreSight replicator link driver.
+	  The programmable ATB replicator allows independent filtering of the
+	  trace data based on the traceid.
 
 config CORESIGHT_STM
 	bool "CoreSight System Trace Macrocell driver"
@@ -88,5 +88,19 @@ config CORESIGHT_STM
 	  instrumentation based tracing. This is primarily used for
 	  logging useful software events or data coming from various entities
 	  in the system, possibly running different OSs
+
+config CORESIGHT_CPU_DEBUG
+	tristate "CoreSight CPU Debug driver"
+	depends on ARM || ARM64
+	depends on DEBUG_FS
+	help
+	  This driver provides support for coresight debugging module. This
+	  is primarily used to dump sample-based profiling registers when
+	  system triggers panic, the driver will parse context registers so
+	  can quickly get to know program counter (PC), secure state,
+	  exception level, etc. Before use debugging functionality, platform
+	  needs to ensure the clock domain and power domain are enabled
+	  properly, please refer Documentation/trace/coresight-cpu-debug.txt
+	  for detailed description and the example for usage.
 
 endif

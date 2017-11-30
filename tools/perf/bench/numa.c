@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * numa.c
  *
@@ -700,7 +701,7 @@ static inline uint32_t lfsr_32(uint32_t lfsr)
  * kernel (KSM, zero page, etc.) cannot optimize away RAM
  * accesses:
  */
-static inline u64 access_data(u64 *data __attribute__((unused)), u64 val)
+static inline u64 access_data(u64 *data, u64 val)
 {
 	if (g->p.data_reads)
 		val += *data;

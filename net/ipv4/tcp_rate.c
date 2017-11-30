@@ -78,7 +78,7 @@ void tcp_rate_skb_delivered(struct sock *sk, struct sk_buff *skb,
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct tcp_skb_cb *scb = TCP_SKB_CB(skb);
 
-	if (!scb->tx.delivered_mstamp.v64)
+	if (!scb->tx.delivered_mstamp)
 		return;
 
 	if (!rs->prior_delivered ||
@@ -89,9 +89,9 @@ void tcp_rate_skb_delivered(struct sock *sk, struct sk_buff *skb,
 		rs->is_retrans	     = scb->sacked & TCPCB_RETRANS;
 
 		/* Find the duration of the "send phase" of this window: */
-		rs->interval_us      = skb_mstamp_us_delta(
-						&skb->skb_mstamp,
-						&scb->tx.first_tx_mstamp);
+		rs->interval_us      = tcp_stamp_us_delta(
+						skb->skb_mstamp,
+						scb->tx.first_tx_mstamp);
 
 		/* Record send time of most recently ACKed packet: */
 		tp->first_tx_mstamp  = skb->skb_mstamp;
@@ -101,7 +101,7 @@ void tcp_rate_skb_delivered(struct sock *sk, struct sk_buff *skb,
 	 * we don't need to reset since it'll be freed soon.
 	 */
 	if (scb->sacked & TCPCB_SACKED_ACKED)
-		scb->tx.delivered_mstamp.v64 = 0;
+		scb->tx.delivered_mstamp = 0;
 }
 
 /* Update the connection delivery information and generate a rate sample. */
@@ -125,7 +125,7 @@ void tcp_rate_gen(struct sock *sk, u32 delivered, u32 lost,
 	rs->acked_sacked = delivered;	/* freshly ACKed or SACKed */
 	rs->losses = lost;		/* freshly marked lost */
 	/* Return an invalid sample if no timing information is available. */
-	if (!rs->prior_mstamp.v64) {
+	if (!rs->prior_mstamp) {
 		rs->delivered = -1;
 		rs->interval_us = -1;
 		return;
@@ -138,8 +138,8 @@ void tcp_rate_gen(struct sock *sk, u32 delivered, u32 lost,
 	 * longer phase.
 	 */
 	snd_us = rs->interval_us;				/* send phase */
-	ack_us = skb_mstamp_us_delta(&tp->tcp_mstamp,
-				     &rs->prior_mstamp); /* ack phase */
+	ack_us = tcp_stamp_us_delta(tp->tcp_mstamp,
+				    rs->prior_mstamp); /* ack phase */
 	rs->interval_us = max(snd_us, ack_us);
 
 	/* Normally we expect interval_us >= min-rtt.
@@ -185,3 +185,4 @@ void tcp_rate_check_app_limited(struct sock *sk)
 		tp->app_limited =
 			(tp->delivered + tcp_packets_in_flight(tp)) ? : 1;
 }
+EXPORT_SYMBOL_GPL(tcp_rate_check_app_limited);

@@ -2,9 +2,7 @@
 # PPS support configuration
 #
 
-menu "PPS support"
-
-config PPS
+menuconfig PPS
 	tristate "PPS support"
 	---help---
 	  PPS (Pulse Per Second) is a special pulse provided by some GPS
@@ -20,6 +18,7 @@ config PPS
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called pps_core.ko.
+
 if PPS
 
 config PPS_DEBUG
@@ -38,10 +37,8 @@ config NTP_PPS
 
 	  It doesn't work on tickless systems at the moment.
 
-endif
-
 source drivers/pps/clients/Kconfig
 
 source drivers/pps/generators/Kconfig
 
-endmenu
+endif # PPS

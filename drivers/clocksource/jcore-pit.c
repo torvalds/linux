@@ -246,4 +246,4 @@ static int __init jcore_pit_init(struct device_node *node)
 	return 0;
 }
 
-CLOCKSOURCE_OF_DECLARE(jcore_pit, "jcore,pit", jcore_pit_init);
+TIMER_OF_DECLARE(jcore_pit, "jcore,pit", jcore_pit_init);

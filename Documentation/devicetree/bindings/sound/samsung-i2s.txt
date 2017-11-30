@@ -63,7 +63,7 @@ Optional SoC Specific Properties:
 
 Example:
 
-i2s0: i2s@03830000 {
+i2s0: i2s@3830000 {
 	compatible = "samsung,s5pv210-i2s";
 	reg = <0x03830000 0x100>;
 	dmas = <&pdma0 10

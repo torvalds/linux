@@ -269,7 +269,7 @@ static void au0828_rc_stop(struct rc_dev *rc)
 static int au0828_probe_i2c_ir(struct au0828_dev *dev)
 {
 	int i = 0;
-	const unsigned short addr_list[] = {
+	static const unsigned short addr_list[] = {
 		 0x47, I2C_CLIENT_END
 	};
 
@@ -335,7 +335,7 @@ int au0828_rc_register(struct au0828_dev *dev)
 	usb_make_path(dev->usbdev, ir->phys, sizeof(ir->phys));
 	strlcat(ir->phys, "/input0", sizeof(ir->phys));
 
-	rc->input_name = ir->name;
+	rc->device_name = ir->name;
 	rc->input_phys = ir->phys;
 	rc->input_id.bustype = BUS_USB;
 	rc->input_id.version = 1;
@@ -343,15 +343,15 @@ int au0828_rc_register(struct au0828_dev *dev)
 	rc->input_id.product = le16_to_cpu(dev->usbdev->descriptor.idProduct);
 	rc->dev.parent = &dev->usbdev->dev;
 	rc->driver_name = "au0828-input";
-	rc->allowed_protocols = RC_BIT_NEC | RC_BIT_NECX | RC_BIT_NEC32 |
-								RC_BIT_RC5;
+	rc->allowed_protocols = RC_PROTO_BIT_NEC | RC_PROTO_BIT_NECX |
+				RC_PROTO_BIT_NEC32 | RC_PROTO_BIT_RC5;
 
 	/* all done */
 	err = rc_register_device(rc);
 	if (err)
 		goto error;
 
-	pr_info("Remote controller %s initalized\n", ir->name);
+	pr_info("Remote controller %s initialized\n", ir->name);
 
 	return 0;
 

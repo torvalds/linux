@@ -47,12 +47,14 @@
 
 #define SATA_ECC_DISABLE	0x00020000
 #define ECC_DIS_ARMV8_CH2	0x80000000
+#define ECC_DIS_LS1088A		0x40000000
 
 enum ahci_qoriq_type {
 	AHCI_LS1021A,
 	AHCI_LS1043A,
 	AHCI_LS2080A,
 	AHCI_LS1046A,
+	AHCI_LS1088A,
 	AHCI_LS2088A,
 };
 
@@ -68,6 +70,7 @@ static const struct of_device_id ahci_qoriq_of_match[] = {
 	{ .compatible = "fsl,ls1043a-ahci", .data = (void *)AHCI_LS1043A},
 	{ .compatible = "fsl,ls2080a-ahci", .data = (void *)AHCI_LS2080A},
 	{ .compatible = "fsl,ls1046a-ahci", .data = (void *)AHCI_LS1046A},
+	{ .compatible = "fsl,ls1088a-ahci", .data = (void *)AHCI_LS1088A},
 	{ .compatible = "fsl,ls2088a-ahci", .data = (void *)AHCI_LS2088A},
 	{},
 };
@@ -197,6 +200,17 @@ static int ahci_qoriq_phy_init(struct ahci_host_priv *hpriv)
 			return -EINVAL;
 		writel(readl(qpriv->ecc_addr) | ECC_DIS_ARMV8_CH2,
 				qpriv->ecc_addr);
+		writel(AHCI_PORT_PHY_1_CFG, reg_base + PORT_PHY1);
+		writel(AHCI_PORT_TRANS_CFG, reg_base + PORT_TRANS);
+		if (qpriv->is_dmacoherent)
+			writel(AHCI_PORT_AXICC_CFG, reg_base + PORT_AXICC);
+		break;
+
+	case AHCI_LS1088A:
+		if (!qpriv->ecc_addr)
+			return -EINVAL;
+		writel(readl(qpriv->ecc_addr) | ECC_DIS_LS1088A,
+		       qpriv->ecc_addr);
 		writel(AHCI_PORT_PHY_1_CFG, reg_base + PORT_PHY1);
 		writel(AHCI_PORT_TRANS_CFG, reg_base + PORT_TRANS);
 		if (qpriv->is_dmacoherent)

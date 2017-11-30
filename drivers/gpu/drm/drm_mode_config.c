@@ -122,10 +122,12 @@ int drm_mode_getresources(struct drm_device *dev, void *data,
 	count = 0;
 	crtc_id = u64_to_user_ptr(card_res->crtc_id_ptr);
 	drm_for_each_crtc(crtc, dev) {
-		if (count < card_res->count_crtcs &&
-		    put_user(crtc->base.id, crtc_id + count))
-			return -EFAULT;
-		count++;
+		if (drm_lease_held(file_priv, crtc->base.id)) {
+			if (count < card_res->count_crtcs &&
+			    put_user(crtc->base.id, crtc_id + count))
+				return -EFAULT;
+			count++;
+		}
 	}
 	card_res->count_crtcs = count;
 
@@ -143,12 +145,14 @@ int drm_mode_getresources(struct drm_device *dev, void *data,
 	count = 0;
 	connector_id = u64_to_user_ptr(card_res->connector_id_ptr);
 	drm_for_each_connector_iter(connector, &conn_iter) {
-		if (count < card_res->count_connectors &&
-		    put_user(connector->base.id, connector_id + count)) {
-			drm_connector_list_iter_end(&conn_iter);
-			return -EFAULT;
+		if (drm_lease_held(file_priv, connector->base.id)) {
+			if (count < card_res->count_connectors &&
+			    put_user(connector->base.id, connector_id + count)) {
+				drm_connector_list_iter_end(&conn_iter);
+				return -EFAULT;
+			}
+			count++;
 		}
-		count++;
 	}
 	card_res->count_connectors = count;
 	drm_connector_list_iter_end(&conn_iter);
@@ -337,6 +341,13 @@ static int drm_mode_create_standard_properties(struct drm_device *dev)
 		return -ENOMEM;
 	dev->mode_config.gamma_lut_size_property = prop;
 
+	prop = drm_property_create(dev,
+				   DRM_MODE_PROP_IMMUTABLE | DRM_MODE_PROP_BLOB,
+				   "IN_FORMATS", 0);
+	if (!prop)
+		return -ENOMEM;
+	dev->mode_config.modifiers_property = prop;
+
 	return 0;
 }
 
@@ -378,7 +389,6 @@ void drm_mode_config_init(struct drm_device *dev)
 	dev->mode_config.num_connector = 0;
 	dev->mode_config.num_crtc = 0;
 	dev->mode_config.num_encoder = 0;
-	dev->mode_config.num_overlay_plane = 0;
 	dev->mode_config.num_total_plane = 0;
 }
 EXPORT_SYMBOL(drm_mode_config_init);

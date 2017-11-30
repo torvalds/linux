@@ -216,4 +216,14 @@ config GREYBUS_USB
 	  will be called gb-usb.ko
 
 endif	# GREYBUS_BRIDGED_PHY
+
+config GREYBUS_ARCHE
+	tristate "Greybus Arche Platform driver"
+	depends on USB_HSIC_USB3613 || COMPILE_TEST
+	---help---
+	  Select this option if you have an Arche device.
+
+	  To compile this code as a module, chose M here: the module
+	  will be called gb-arche.ko
+
 endif	# GREYBUS

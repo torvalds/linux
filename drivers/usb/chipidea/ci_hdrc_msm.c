@@ -1,9 +1,5 @@
-/* Copyright (c) 2010, Code Aurora Forum. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 and
- * only version 2 as published by the Free Software Foundation.
- */
+// SPDX-License-Identifier: GPL-2.0
+/* Copyright (c) 2010, Code Aurora Forum. All rights reserved. */
 
 #include <linux/module.h>
 #include <linux/platform_device.h>
@@ -251,7 +247,7 @@ static int ci_hdrc_msm_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_mux;
 
-	ulpi_node = of_find_node_by_name(pdev->dev.of_node, "ulpi");
+	ulpi_node = of_find_node_by_name(of_node_get(pdev->dev.of_node), "ulpi");
 	if (ulpi_node) {
 		phy_node = of_get_next_available_child(ulpi_node, NULL);
 		ci->hsic = of_device_is_compatible(phy_node, "qcom,usb-hsic-phy");

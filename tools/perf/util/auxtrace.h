@@ -59,6 +59,8 @@ enum itrace_period_type {
  * @instructions: whether to synthesize 'instructions' events
  * @branches: whether to synthesize 'branches' events
  * @transactions: whether to synthesize events for transactions
+ * @ptwrites: whether to synthesize events for ptwrites
+ * @pwr_events: whether to synthesize power events
  * @errors: whether to synthesize decoder error events
  * @dont_decode: whether to skip decoding entirely
  * @log: write a decoding log
@@ -72,6 +74,7 @@ enum itrace_period_type {
  * @period: 'instructions' events period
  * @period_type: 'instructions' events period type
  * @initial_skip: skip N events at the beginning.
+ * @cpu_bitmap: CPUs for which to synthesize events, or NULL for all
  */
 struct itrace_synth_opts {
 	bool			set;
@@ -79,6 +82,8 @@ struct itrace_synth_opts {
 	bool			instructions;
 	bool			branches;
 	bool			transactions;
+	bool			ptwrites;
+	bool			pwr_events;
 	bool			errors;
 	bool			dont_decode;
 	bool			log;
@@ -92,6 +97,7 @@ struct itrace_synth_opts {
 	unsigned long long	period;
 	enum itrace_period_type	period_type;
 	unsigned long		initial_skip;
+	unsigned long		*cpu_bitmap;
 };
 
 /**
@@ -372,7 +378,7 @@ struct addr_filters {
 static inline u64 auxtrace_mmap__read_snapshot_head(struct auxtrace_mmap *mm)
 {
 	struct perf_event_mmap_page *pc = mm->userpg;
-	u64 head = ACCESS_ONCE(pc->aux_head);
+	u64 head = READ_ONCE(pc->aux_head);
 
 	/* Ensure all reads are done after we read the head */
 	rmb();
@@ -383,7 +389,7 @@ static inline u64 auxtrace_mmap__read_head(struct auxtrace_mmap *mm)
 {
 	struct perf_event_mmap_page *pc = mm->userpg;
 #if BITS_PER_LONG == 64 || !defined(HAVE_SYNC_COMPARE_AND_SWAP_SUPPORT)
-	u64 head = ACCESS_ONCE(pc->aux_head);
+	u64 head = READ_ONCE(pc->aux_head);
 #else
 	u64 head = __sync_val_compare_and_swap(&pc->aux_head, 0, 0);
 #endif

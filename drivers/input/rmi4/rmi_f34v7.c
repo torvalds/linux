@@ -9,13 +9,14 @@
  * the Free Software Foundation.
  */
 
+#include <linux/bitops.h>
 #include <linux/kernel.h>
 #include <linux/rmi.h>
 #include <linux/firmware.h>
-#include <asm/unaligned.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
 #include <linux/jiffies.h>
+#include <asm/unaligned.h>
 
 #include "rmi_driver.h"
 #include "rmi_f34.h"
@@ -464,7 +465,7 @@ static int rmi_f34v7_read_queries_bl_version(struct f34_data *f34)
 static int rmi_f34v7_read_queries(struct f34_data *f34)
 {
 	int ret;
-	int i, j;
+	int i;
 	u8 base;
 	int offset;
 	u8 *ptable;
@@ -518,10 +519,7 @@ static int rmi_f34v7_read_queries(struct f34_data *f34)
 			query_1_7.partition_support[1] & HAS_GUEST_CODE;
 
 	if (query_0 & HAS_CONFIG_ID) {
-		char f34_ctrl[CONFIG_ID_SIZE];
-		int i = 0;
-		u8 *p = f34->configuration_id;
-		*p = '\0';
+		u8 f34_ctrl[CONFIG_ID_SIZE];
 
 		ret = rmi_read_block(f34->fn->rmi_dev,
 				f34->fn->fd.control_base_addr,
@@ -531,13 +529,11 @@ static int rmi_f34v7_read_queries(struct f34_data *f34)
 			return ret;
 
 		/* Eat leading zeros */
-		while (i < sizeof(f34_ctrl) && !f34_ctrl[i])
-			i++;
+		for (i = 0; i < sizeof(f34_ctrl) - 1 && !f34_ctrl[i]; i++)
+			/* Empty */;
 
-		for (; i < sizeof(f34_ctrl); i++)
-			p += snprintf(p, f34->configuration_id
-				      + sizeof(f34->configuration_id) - p,
-				      "%02X", f34_ctrl[i]);
+		snprintf(f34->configuration_id, sizeof(f34->configuration_id),
+			 "%*phN", (int)sizeof(f34_ctrl) - i, f34_ctrl + i);
 
 		rmi_dbg(RMI_DEBUG_FN, &f34->fn->dev, "Configuration ID: %s\n",
 			f34->configuration_id);
@@ -545,9 +541,7 @@ static int rmi_f34v7_read_queries(struct f34_data *f34)
 
 	f34->v7.partitions = 0;
 	for (i = 0; i < sizeof(query_1_7.partition_support); i++)
-		for (j = 0; j < 8; j++)
-			if (query_1_7.partition_support[i] & (1 << j))
-				f34->v7.partitions++;
+		f34->v7.partitions += hweight8(query_1_7.partition_support[i]);
 
 	rmi_dbg(RMI_DEBUG_FN, &f34->fn->dev, "%s: Supported partitions: %*ph\n",
 		__func__, sizeof(query_1_7.partition_support),

@@ -621,10 +621,8 @@ static int __m_can_get_berr_counter(const struct net_device *dev,
 	return 0;
 }
 
-static int m_can_get_berr_counter(const struct net_device *dev,
-				  struct can_berr_counter *bec)
+static int m_can_clk_start(struct m_can_priv *priv)
 {
-	struct m_can_priv *priv = netdev_priv(dev);
 	int err;
 
 	err = clk_prepare_enable(priv->hclk);
@@ -632,15 +630,31 @@ static int m_can_get_berr_counter(const struct net_device *dev,
 		return err;
 
 	err = clk_prepare_enable(priv->cclk);
-	if (err) {
+	if (err)
 		clk_disable_unprepare(priv->hclk);
+
+	return err;
+}
+
+static void m_can_clk_stop(struct m_can_priv *priv)
+{
+	clk_disable_unprepare(priv->cclk);
+	clk_disable_unprepare(priv->hclk);
+}
+
+static int m_can_get_berr_counter(const struct net_device *dev,
+				  struct can_berr_counter *bec)
+{
+	struct m_can_priv *priv = netdev_priv(dev);
+	int err;
+
+	err = m_can_clk_start(priv);
+	if (err)
 		return err;
-	}
 
 	__m_can_get_berr_counter(dev, bec);
 
-	clk_disable_unprepare(priv->cclk);
-	clk_disable_unprepare(priv->hclk);
+	m_can_clk_stop(priv);
 
 	return 0;
 }
@@ -1276,19 +1290,15 @@ static int m_can_open(struct net_device *dev)
 	struct m_can_priv *priv = netdev_priv(dev);
 	int err;
 
-	err = clk_prepare_enable(priv->hclk);
+	err = m_can_clk_start(priv);
 	if (err)
 		return err;
-
-	err = clk_prepare_enable(priv->cclk);
-	if (err)
-		goto exit_disable_hclk;
 
 	/* open the can device */
 	err = open_candev(dev);
 	if (err) {
 		netdev_err(dev, "failed to open can device\n");
-		goto exit_disable_cclk;
+		goto exit_disable_clks;
 	}
 
 	/* register interrupt handler */
@@ -1310,10 +1320,8 @@ static int m_can_open(struct net_device *dev)
 
 exit_irq_fail:
 	close_candev(dev);
-exit_disable_cclk:
-	clk_disable_unprepare(priv->cclk);
-exit_disable_hclk:
-	clk_disable_unprepare(priv->hclk);
+exit_disable_clks:
+	m_can_clk_stop(priv);
 	return err;
 }
 
@@ -1323,9 +1331,6 @@ static void m_can_stop(struct net_device *dev)
 
 	/* disable all interrupts */
 	m_can_disable_all_interrupts(priv);
-
-	clk_disable_unprepare(priv->hclk);
-	clk_disable_unprepare(priv->cclk);
 
 	/* set the state as STOPPED */
 	priv->can.state = CAN_STATE_STOPPED;
@@ -1338,6 +1343,7 @@ static int m_can_close(struct net_device *dev)
 	netif_stop_queue(dev);
 	napi_disable(&priv->napi);
 	m_can_stop(dev);
+	m_can_clk_stop(priv);
 	free_irq(dev->irq, dev);
 	close_candev(dev);
 	can_led_event(dev, CAN_LED_EVENT_STOP);
@@ -1489,11 +1495,23 @@ static int register_m_can_dev(struct net_device *dev)
 	return register_candev(dev);
 }
 
+static void m_can_init_ram(struct m_can_priv *priv)
+{
+	int end, i, start;
+
+	/* initialize the entire Message RAM in use to avoid possible
+	 * ECC/parity checksum errors when reading an uninitialized buffer
+	 */
+	start = priv->mcfg[MRAM_SIDF].off;
+	end = priv->mcfg[MRAM_TXB].off +
+		priv->mcfg[MRAM_TXB].num * TXB_ELEMENT_SIZE;
+	for (i = start; i < end; i += 4)
+		writel(0x0, priv->mram_base + i);
+}
+
 static void m_can_of_parse_mram(struct m_can_priv *priv,
 				const u32 *mram_config_vals)
 {
-	int i, start, end;
-
 	priv->mcfg[MRAM_SIDF].off = mram_config_vals[0];
 	priv->mcfg[MRAM_SIDF].num = mram_config_vals[1];
 	priv->mcfg[MRAM_XIDF].off = priv->mcfg[MRAM_SIDF].off +
@@ -1529,15 +1547,7 @@ static void m_can_of_parse_mram(struct m_can_priv *priv,
 		priv->mcfg[MRAM_TXE].off, priv->mcfg[MRAM_TXE].num,
 		priv->mcfg[MRAM_TXB].off, priv->mcfg[MRAM_TXB].num);
 
-	/* initialize the entire Message RAM in use to avoid possible
-	 * ECC/parity checksum errors when reading an uninitialized buffer
-	 */
-	start = priv->mcfg[MRAM_SIDF].off;
-	end = priv->mcfg[MRAM_TXB].off +
-		priv->mcfg[MRAM_TXB].num * TXB_ELEMENT_SIZE;
-	for (i = start; i < end; i += 4)
-		writel(0x0, priv->mram_base + i);
-
+	m_can_init_ram(priv);
 }
 
 static int m_can_plat_probe(struct platform_device *pdev)
@@ -1658,6 +1668,8 @@ failed_ret:
 	return ret;
 }
 
+/* TODO: runtime PM with power down or sleep mode  */
+
 static __maybe_unused int m_can_suspend(struct device *dev)
 {
 	struct net_device *ndev = dev_get_drvdata(dev);
@@ -1666,9 +1678,9 @@ static __maybe_unused int m_can_suspend(struct device *dev)
 	if (netif_running(ndev)) {
 		netif_stop_queue(ndev);
 		netif_device_detach(ndev);
+		m_can_stop(ndev);
+		m_can_clk_stop(priv);
 	}
-
-	/* TODO: enter low power */
 
 	priv->can.state = CAN_STATE_SLEEPING;
 
@@ -1680,11 +1692,18 @@ static __maybe_unused int m_can_resume(struct device *dev)
 	struct net_device *ndev = dev_get_drvdata(dev);
 	struct m_can_priv *priv = netdev_priv(ndev);
 
-	/* TODO: exit low power */
+	m_can_init_ram(priv);
 
 	priv->can.state = CAN_STATE_ERROR_ACTIVE;
 
 	if (netif_running(ndev)) {
+		int ret;
+
+		ret = m_can_clk_start(priv);
+		if (ret)
+			return ret;
+
+		m_can_start(ndev);
 		netif_device_attach(ndev);
 		netif_start_queue(ndev);
 	}

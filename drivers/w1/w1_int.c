@@ -21,9 +21,8 @@
 #include <linux/export.h>
 #include <linux/moduleparam.h>
 
-#include "w1.h"
+#include "w1_internal.h"
 #include "w1_netlink.h"
-#include "w1_int.h"
 
 static int w1_search_count = -1; /* Default is continual scan */
 module_param_named(search_count, w1_search_count, int, 0);
@@ -179,6 +178,7 @@ err_out_free_dev:
 
 	return retval;
 }
+EXPORT_SYMBOL(w1_add_master_device);
 
 void __w1_remove_master_device(struct w1_master *dev)
 {
@@ -251,6 +251,4 @@ void w1_remove_master_device(struct w1_bus_master *bm)
 
 	__w1_remove_master_device(found);
 }
-
-EXPORT_SYMBOL(w1_add_master_device);
 EXPORT_SYMBOL(w1_remove_master_device);

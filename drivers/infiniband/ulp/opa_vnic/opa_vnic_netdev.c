@@ -69,9 +69,9 @@ static void opa_vnic_get_stats64(struct net_device *netdev,
 	struct opa_vnic_stats vstats;
 
 	memset(&vstats, 0, sizeof(vstats));
-	mutex_lock(&adapter->stats_lock);
+	spin_lock(&adapter->stats_lock);
 	adapter->rn_ops->ndo_get_stats64(netdev, &vstats.netstats);
-	mutex_unlock(&adapter->stats_lock);
+	spin_unlock(&adapter->stats_lock);
 	memcpy(stats, &vstats.netstats, sizeof(*stats));
 }
 
@@ -103,13 +103,34 @@ static u16 opa_vnic_select_queue(struct net_device *netdev, struct sk_buff *skb,
 	int rc;
 
 	/* pass entropy and vl as metadata in skb */
-	mdata = (struct opa_vnic_skb_mdata *)skb_push(skb, sizeof(*mdata));
+	mdata = skb_push(skb, sizeof(*mdata));
 	mdata->entropy =  opa_vnic_calc_entropy(adapter, skb);
 	mdata->vl = opa_vnic_get_vl(adapter, skb);
 	rc = adapter->rn_ops->ndo_select_queue(netdev, skb,
 					       accel_priv, fallback);
 	skb_pull(skb, sizeof(*mdata));
 	return rc;
+}
+
+static void opa_vnic_update_state(struct opa_vnic_adapter *adapter, bool up)
+{
+	struct __opa_veswport_info *info = &adapter->info;
+
+	mutex_lock(&adapter->lock);
+	/* Operational state can only be DROP_ALL or FORWARDING */
+	if ((info->vport.config_state == OPA_VNIC_STATE_FORWARDING) && up) {
+		info->vport.oper_state = OPA_VNIC_STATE_FORWARDING;
+		info->vport.eth_link_status = OPA_VNIC_ETH_LINK_UP;
+	} else {
+		info->vport.oper_state = OPA_VNIC_STATE_DROP_ALL;
+		info->vport.eth_link_status = OPA_VNIC_ETH_LINK_DOWN;
+	}
+
+	if (info->vport.config_state == OPA_VNIC_STATE_FORWARDING)
+		netif_dormant_off(adapter->netdev);
+	else
+		netif_dormant_on(adapter->netdev);
+	mutex_unlock(&adapter->lock);
 }
 
 /* opa_vnic_process_vema_config - process vema configuration updates */
@@ -130,7 +151,7 @@ void opa_vnic_process_vema_config(struct opa_vnic_adapter *adapter)
 		memcpy(saddr.sa_data, info->vport.base_mac_addr,
 		       ARRAY_SIZE(info->vport.base_mac_addr));
 		mutex_lock(&adapter->lock);
-		eth_mac_addr(netdev, &saddr);
+		eth_commit_mac_addr_change(netdev, &saddr);
 		memcpy(adapter->vema_mac_addr,
 		       info->vport.base_mac_addr, ETH_ALEN);
 		mutex_unlock(&adapter->lock);
@@ -140,7 +161,7 @@ void opa_vnic_process_vema_config(struct opa_vnic_adapter *adapter)
 
 	/* Handle MTU limit change */
 	rtnl_lock();
-	netdev->max_mtu = max_t(unsigned int, info->vesw.eth_mtu_non_vlan,
+	netdev->max_mtu = max_t(unsigned int, info->vesw.eth_mtu,
 				netdev->min_mtu);
 	if (netdev->mtu > netdev->max_mtu)
 		dev_set_mtu(netdev, netdev->max_mtu);
@@ -164,14 +185,8 @@ void opa_vnic_process_vema_config(struct opa_vnic_adapter *adapter)
 		adapter->flow_tbl[i] = port_count ? port_num[i % port_count] :
 						    OPA_VNIC_INVALID_PORT;
 
-	/* Operational state can only be DROP_ALL or FORWARDING */
-	if (info->vport.config_state == OPA_VNIC_STATE_FORWARDING) {
-		info->vport.oper_state = OPA_VNIC_STATE_FORWARDING;
-		netif_dormant_off(netdev);
-	} else {
-		info->vport.oper_state = OPA_VNIC_STATE_DROP_ALL;
-		netif_dormant_on(netdev);
-	}
+	/* update state */
+	opa_vnic_update_state(adapter, !!(netdev->flags & IFF_UP));
 }
 
 /*
@@ -183,6 +198,7 @@ static inline void opa_vnic_set_pod_values(struct opa_vnic_adapter *adapter)
 	adapter->info.vport.max_smac_ent = OPA_VNIC_MAX_SMAC_LIMIT;
 	adapter->info.vport.config_state = OPA_VNIC_STATE_DROP_ALL;
 	adapter->info.vport.eth_link_status = OPA_VNIC_ETH_LINK_DOWN;
+	adapter->info.vesw.eth_mtu = ETH_DATA_LEN;
 }
 
 /* opa_vnic_set_mac_addr - change mac address */
@@ -268,8 +284,8 @@ static int opa_netdev_open(struct net_device *netdev)
 		return rc;
 	}
 
-	/* Update eth link status and send trap */
-	adapter->info.vport.eth_link_status = OPA_VNIC_ETH_LINK_UP;
+	/* Update status and send trap */
+	opa_vnic_update_state(adapter, true);
 	opa_vnic_vema_report_event(adapter,
 				   OPA_VESWPORT_TRAP_ETH_LINK_STATUS_CHANGE);
 	return 0;
@@ -287,8 +303,8 @@ static int opa_netdev_close(struct net_device *netdev)
 		return rc;
 	}
 
-	/* Update eth link status and send trap */
-	adapter->info.vport.eth_link_status = OPA_VNIC_ETH_LINK_DOWN;
+	/* Update status and send trap */
+	opa_vnic_update_state(adapter, false);
 	opa_vnic_vema_report_event(adapter,
 				   OPA_VESWPORT_TRAP_ETH_LINK_STATUS_CHANGE);
 	return 0;
@@ -323,13 +339,13 @@ struct opa_vnic_adapter *opa_vnic_add_netdev(struct ib_device *ibdev,
 	else if (IS_ERR(netdev))
 		return ERR_CAST(netdev);
 
+	rn = netdev_priv(netdev);
 	adapter = kzalloc(sizeof(*adapter), GFP_KERNEL);
 	if (!adapter) {
 		rc = -ENOMEM;
 		goto adapter_err;
 	}
 
-	rn = netdev_priv(netdev);
 	rn->clnt_priv = adapter;
 	rn->hca = ibdev;
 	rn->port_num = port_num;
@@ -344,7 +360,7 @@ struct opa_vnic_adapter *opa_vnic_add_netdev(struct ib_device *ibdev,
 	netdev->hard_header_len += OPA_VNIC_SKB_HEADROOM;
 	mutex_init(&adapter->lock);
 	mutex_init(&adapter->mactbl_lock);
-	mutex_init(&adapter->stats_lock);
+	spin_lock_init(&adapter->stats_lock);
 
 	SET_NETDEV_DEV(netdev, ibdev->dev.parent);
 
@@ -364,10 +380,9 @@ struct opa_vnic_adapter *opa_vnic_add_netdev(struct ib_device *ibdev,
 netdev_err:
 	mutex_destroy(&adapter->lock);
 	mutex_destroy(&adapter->mactbl_lock);
-	mutex_destroy(&adapter->stats_lock);
 	kfree(adapter);
 adapter_err:
-	ibdev->free_rdma_netdev(netdev);
+	rn->free_rdma_netdev(netdev);
 
 	return ERR_PTR(rc);
 }
@@ -376,14 +391,13 @@ adapter_err:
 void opa_vnic_rem_netdev(struct opa_vnic_adapter *adapter)
 {
 	struct net_device *netdev = adapter->netdev;
-	struct ib_device *ibdev = adapter->ibdev;
+	struct rdma_netdev *rn = netdev_priv(netdev);
 
 	v_info("removing\n");
 	unregister_netdev(netdev);
 	opa_vnic_release_mac_tbl(adapter);
 	mutex_destroy(&adapter->lock);
 	mutex_destroy(&adapter->mactbl_lock);
-	mutex_destroy(&adapter->stats_lock);
 	kfree(adapter);
-	ibdev->free_rdma_netdev(netdev);
+	rn->free_rdma_netdev(netdev);
 }

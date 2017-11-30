@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __ADAU17X1_H__
 #define __ADAU17X1_H__
 
@@ -128,6 +129,8 @@ bool adau17x1_has_dsp(struct adau *adau);
 #define ADAU17X1_CONVERTER1_ADC_PAIR_MASK	0x3
 
 #define ADAU17X1_CONVERTER0_CONVSR_MASK		0x7
+
+#define ADAU17X1_CONVERTER0_ADOSR		BIT(3)
 
 
 #endif

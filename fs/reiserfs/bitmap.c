@@ -513,9 +513,17 @@ static void __discard_prealloc(struct reiserfs_transaction_handle *th,
 			       "inode has negative prealloc blocks count.");
 #endif
 	while (ei->i_prealloc_count > 0) {
-		reiserfs_free_prealloc_block(th, inode, ei->i_prealloc_block);
-		ei->i_prealloc_block++;
+		b_blocknr_t block_to_free;
+
+		/*
+		 * reiserfs_free_prealloc_block can drop the write lock,
+		 * which could allow another caller to free the same block.
+		 * We can protect against it by modifying the prealloc
+		 * state before calling it.
+		 */
+		block_to_free = ei->i_prealloc_block++;
 		ei->i_prealloc_count--;
+		reiserfs_free_prealloc_block(th, inode, block_to_free);
 		dirty = 1;
 	}
 	if (dirty)
@@ -1128,7 +1136,7 @@ static int determine_prealloc_size(reiserfs_blocknr_hint_t * hint)
 	hint->prealloc_size = 0;
 
 	if (!hint->formatted_node && hint->preallocate) {
-		if (S_ISREG(hint->inode->i_mode)
+		if (S_ISREG(hint->inode->i_mode) && !IS_PRIVATE(hint->inode)
 		    && hint->inode->i_size >=
 		    REISERFS_SB(hint->th->t_super)->s_alloc_options.
 		    preallocmin * hint->inode->i_sb->s_blocksize)

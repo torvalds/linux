@@ -267,7 +267,7 @@ void xgbe_ptp_register(struct xgbe_prv_data *pdata)
 			 ktime_to_ns(ktime_get_real()));
 
 	/* Disable all timestamping to start */
-	XGMAC_IOWRITE(pdata, MAC_TCR, 0);
+	XGMAC_IOWRITE(pdata, MAC_TSCR, 0);
 	pdata->tstamp_config.tx_type = HWTSTAMP_TX_OFF;
 	pdata->tstamp_config.rx_filter = HWTSTAMP_FILTER_NONE;
 }

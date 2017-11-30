@@ -90,14 +90,7 @@ struct drm_plane_helper_funcs;
  * @plane_mask: bitmask of (1 << drm_plane_index(plane)) of attached planes
  * @connector_mask: bitmask of (1 << drm_connector_index(connector)) of attached connectors
  * @encoder_mask: bitmask of (1 << drm_encoder_index(encoder)) of attached encoders
- * @adjusted_mode: for use by helpers and drivers to compute adjusted mode timings
- * @mode: current mode timings
  * @mode_blob: &drm_property_blob for @mode
- * @degamma_lut: Lookup table for converting framebuffer pixel data
- *	before apply the conversion matrix
- * @ctm: Transformation matrix
- * @gamma_lut: Lookup table for converting pixel data after the
- *	conversion matrix
  * @state: backpointer to global drm_atomic_state
  *
  * Note that the distinction between @enable and @active is rather subtile:
@@ -136,17 +129,62 @@ struct drm_crtc_state {
 	u32 connector_mask;
 	u32 encoder_mask;
 
-	/* adjusted_mode: for use by helpers and drivers */
+	/**
+	 * @adjusted_mode:
+	 *
+	 * Internal display timings which can be used by the driver to handle
+	 * differences between the mode requested by userspace in @mode and what
+	 * is actually programmed into the hardware. It is purely driver
+	 * implementation defined what exactly this adjusted mode means. Usually
+	 * it is used to store the hardware display timings used between the
+	 * CRTC and encoder blocks.
+	 */
 	struct drm_display_mode adjusted_mode;
 
+	/**
+	 * @mode:
+	 *
+	 * Display timings requested by userspace. The driver should try to
+	 * match the refresh rate as close as possible (but note that it's
+	 * undefined what exactly is close enough, e.g. some of the HDMI modes
+	 * only differ in less than 1% of the refresh rate). The active width
+	 * and height as observed by userspace for positioning planes must match
+	 * exactly.
+	 *
+	 * For external connectors where the sink isn't fixed (like with a
+	 * built-in panel), this mode here should match the physical mode on the
+	 * wire to the last details (i.e. including sync polarities and
+	 * everything).
+	 */
 	struct drm_display_mode mode;
 
 	/* blob property to expose current mode to atomic userspace */
 	struct drm_property_blob *mode_blob;
 
-	/* blob property to expose color management to userspace */
+	/**
+	 * @degamma_lut:
+	 *
+	 * Lookup table for converting framebuffer pixel data before apply the
+	 * color conversion matrix @ctm. See drm_crtc_enable_color_mgmt(). The
+	 * blob (if not NULL) is an array of &struct drm_color_lut.
+	 */
 	struct drm_property_blob *degamma_lut;
+
+	/**
+	 * @ctm:
+	 *
+	 * Color transformation matrix. See drm_crtc_enable_color_mgmt(). The
+	 * blob (if not NULL) is a &struct drm_color_ctm.
+	 */
 	struct drm_property_blob *ctm;
+
+	/**
+	 * @gamma_lut:
+	 *
+	 * Lookup table for converting pixel data after the color conversion
+	 * matrix @ctm.  See drm_crtc_enable_color_mgmt(). The blob (if not
+	 * NULL) is an array of &struct drm_color_lut.
+	 */
 	struct drm_property_blob *gamma_lut;
 
 	/**
@@ -176,7 +214,9 @@ struct drm_crtc_state {
 	 *    atomic commit. In that case the event can be send out any time
 	 *    after the hardware has stopped scanning out the current
 	 *    framebuffers. It should contain the timestamp and counter for the
-	 *    last vblank before the display pipeline was shut off.
+	 *    last vblank before the display pipeline was shut off. The simplest
+	 *    way to achieve that is calling drm_crtc_send_vblank_event()
+	 *    somewhen after drm_crtc_vblank_off() has been called.
 	 *
 	 *  - For a CRTC which is enabled at the end of the commit (even when it
 	 *    undergoes an full modeset) the vblank timestamp and counter must
@@ -212,6 +252,15 @@ struct drm_crtc_state {
 	 * update, but it should avoid tearing.
 	 */
 	struct drm_pending_vblank_event *event;
+
+	/**
+	 * @commit:
+	 *
+	 * This tracks how the commit for this update proceeds through the
+	 * various phases. This is never cleared, except when we destroy the
+	 * state, so that subsequent commits can synchronize with previous ones.
+	 */
+	struct drm_crtc_commit *commit;
 
 	struct drm_atomic_state *state;
 };
@@ -313,13 +362,11 @@ struct drm_crtc_funcs {
 	 *
 	 * This callback is optional.
 	 *
-	 * NOTE:
-	 *
-	 * Drivers that support gamma tables and also fbdev emulation through
-	 * the provided helper library need to take care to fill out the gamma
-	 * hooks for both. Currently there's a bit an unfortunate duplication
-	 * going on, which should eventually be unified to just one set of
-	 * hooks.
+	 * Atomic drivers who want to support gamma tables should implement the
+	 * atomic color management support, enabled by calling
+	 * drm_crtc_enable_color_mgmt(), which then supports the legacy gamma
+	 * interface through the drm_atomic_helper_legacy_gamma_set()
+	 * compatibility implementation.
 	 */
 	int (*gamma_set)(struct drm_crtc *crtc, u16 *r, u16 *g, u16 *b,
 			 uint32_t size,
@@ -435,11 +482,9 @@ struct drm_crtc_funcs {
 	 * This is the legacy entry point to update a property attached to the
 	 * CRTC.
 	 *
-	 * Drivers implementing atomic modeset should use
-	 * drm_atomic_helper_crtc_set_property() to implement this hook.
-	 *
 	 * This callback is optional if the driver does not support any legacy
-	 * driver-private properties.
+	 * driver-private properties. For atomic drivers it is not used because
+	 * property handling is done entirely in the DRM core.
 	 *
 	 * RETURNS:
 	 *
@@ -639,6 +684,9 @@ struct drm_crtc_funcs {
 	 * drm_crtc_vblank_off() and drm_crtc_vblank_on() when disabling or
 	 * enabling a CRTC.
 	 *
+	 * See also &drm_device.vblank_disable_immediate and
+	 * &drm_device.max_vblank_count.
+	 *
 	 * Returns:
 	 *
 	 * Raw vblank counter value.
@@ -758,10 +806,10 @@ struct drm_crtc {
 	 * This is protected by @mutex. Note that nonblocking atomic commits
 	 * access the current CRTC state without taking locks. Either by going
 	 * through the &struct drm_atomic_state pointers, see
-	 * for_each_crtc_in_state(), for_each_oldnew_crtc_in_state(),
-	 * for_each_old_crtc_in_state() and for_each_new_crtc_in_state(). Or
-	 * through careful ordering of atomic commit operations as implemented
-	 * in the atomic helpers, see &struct drm_crtc_commit.
+	 * for_each_oldnew_crtc_in_state(), for_each_old_crtc_in_state() and
+	 * for_each_new_crtc_in_state(). Or through careful ordering of atomic
+	 * commit operations as implemented in the atomic helpers, see
+	 * &struct drm_crtc_commit.
 	 */
 	struct drm_crtc_state *state;
 
@@ -769,10 +817,16 @@ struct drm_crtc {
 	 * @commit_list:
 	 *
 	 * List of &drm_crtc_commit structures tracking pending commits.
-	 * Protected by @commit_lock. This list doesn't hold its own full
-	 * reference, but burrows it from the ongoing commit. Commit entries
-	 * must be removed from this list once the commit is fully completed,
-	 * but before it's correspoding &drm_atomic_state gets destroyed.
+	 * Protected by @commit_lock. This list holds its own full reference,
+	 * as does the ongoing commit.
+	 *
+	 * "Note that the commit for a state change is also tracked in
+	 * &drm_crtc_state.commit. For accessing the immediately preceding
+	 * commit in an atomic update it is recommended to just use that
+	 * pointer in the old CRTC state, since accessing that doesn't need
+	 * any locking or list-walking. @commit_list should only be used to
+	 * stall for framebuffer cleanup that's signalled through
+	 * &drm_crtc_commit.cleanup_done."
 	 */
 	struct list_head commit_list;
 
@@ -898,6 +952,7 @@ struct drm_crtc *drm_crtc_from_index(struct drm_device *dev, int idx);
 /**
  * drm_crtc_find - look up a CRTC object from its ID
  * @dev: DRM device
+ * @file_priv: drm file to check for lease against.
  * @id: &drm_mode_object ID
  *
  * This can be used to look up a CRTC from its userspace ID. Only used by
@@ -905,10 +960,11 @@ struct drm_crtc *drm_crtc_from_index(struct drm_device *dev, int idx);
  * userspace interface should be done using &drm_property.
  */
 static inline struct drm_crtc *drm_crtc_find(struct drm_device *dev,
-	uint32_t id)
+		struct drm_file *file_priv,
+		uint32_t id)
 {
 	struct drm_mode_object *mo;
-	mo = drm_mode_object_find(dev, id, DRM_MODE_OBJECT_CRTC);
+	mo = drm_mode_object_find(dev, file_priv, id, DRM_MODE_OBJECT_CRTC);
 	return mo ? obj_to_crtc(mo) : NULL;
 }
 

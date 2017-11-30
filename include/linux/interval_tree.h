@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _LINUX_INTERVAL_TREE_H
 #define _LINUX_INTERVAL_TREE_H
 
@@ -11,13 +12,15 @@ struct interval_tree_node {
 };
 
 extern void
-interval_tree_insert(struct interval_tree_node *node, struct rb_root *root);
+interval_tree_insert(struct interval_tree_node *node,
+		     struct rb_root_cached *root);
 
 extern void
-interval_tree_remove(struct interval_tree_node *node, struct rb_root *root);
+interval_tree_remove(struct interval_tree_node *node,
+		     struct rb_root_cached *root);
 
 extern struct interval_tree_node *
-interval_tree_iter_first(struct rb_root *root,
+interval_tree_iter_first(struct rb_root_cached *root,
 			 unsigned long start, unsigned long last);
 
 extern struct interval_tree_node *

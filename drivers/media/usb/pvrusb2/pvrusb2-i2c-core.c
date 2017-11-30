@@ -488,7 +488,7 @@ static int pvr2_i2c_xfer(struct i2c_adapter *i2c_adap,
 			if ((ret > 0) || !(msgs[idx].flags & I2C_M_RD)) {
 				if (cnt > 8) cnt = 8;
 				printk(KERN_CONT " [");
-				for (offs = 0; offs < (cnt>8?8:cnt); offs++) {
+				for (offs = 0; offs < cnt; offs++) {
 					if (offs) printk(KERN_CONT " ");
 					printk(KERN_CONT "%02x",msgs[idx].buf[offs]);
 				}
@@ -514,12 +514,12 @@ static u32 pvr2_i2c_functionality(struct i2c_adapter *adap)
 	return I2C_FUNC_SMBUS_EMUL | I2C_FUNC_I2C;
 }
 
-static struct i2c_algorithm pvr2_i2c_algo_template = {
+static const struct i2c_algorithm pvr2_i2c_algo_template = {
 	.master_xfer   = pvr2_i2c_xfer,
 	.functionality = pvr2_i2c_functionality,
 };
 
-static struct i2c_adapter pvr2_i2c_adap_template = {
+static const struct i2c_adapter pvr2_i2c_adap_template = {
 	.owner         = THIS_MODULE,
 	.class	       = 0,
 };
@@ -567,7 +567,7 @@ static void pvr2_i2c_register_ir(struct pvr2_hdw *hdw)
 	case PVR2_IR_SCHEME_29XXX: /* Original 29xxx device */
 		init_data->ir_codes              = RC_MAP_HAUPPAUGE;
 		init_data->internal_get_key_func = IR_KBD_GET_KEY_HAUP;
-		init_data->type                  = RC_BIT_RC5;
+		init_data->type                  = RC_PROTO_BIT_RC5;
 		init_data->name                  = hdw->hdw_desc->description;
 		init_data->polling_interval      = 100; /* ms From ir-kbd-i2c */
 		/* IR Receiver */
@@ -580,11 +580,11 @@ static void pvr2_i2c_register_ir(struct pvr2_hdw *hdw)
 		break;
 	case PVR2_IR_SCHEME_ZILOG:     /* HVR-1950 style */
 	case PVR2_IR_SCHEME_24XXX_MCE: /* 24xxx MCE device */
-		init_data->ir_codes              = RC_MAP_HAUPPAUGE;
+		init_data->ir_codes = RC_MAP_HAUPPAUGE;
 		init_data->internal_get_key_func = IR_KBD_GET_KEY_HAUP_XVR;
-		init_data->type                  = RC_BIT_RC5 | RC_BIT_RC6_MCE |
-							RC_BIT_RC6_6A_32;
-		init_data->name                  = hdw->hdw_desc->description;
+		init_data->type = RC_PROTO_BIT_RC5 | RC_PROTO_BIT_RC6_MCE |
+							RC_PROTO_BIT_RC6_6A_32;
+		init_data->name = hdw->hdw_desc->description;
 		/* IR Receiver */
 		info.addr          = 0x71;
 		info.platform_data = init_data;

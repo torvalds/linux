@@ -183,6 +183,26 @@ static inline int irq_to_gpio(unsigned irq)
 {
 	return irq - GPIO_IRQ_BASE;
 }
+
+#else /* CONFIG_PINCTRL */
+
+/*
+ * CONFIG_PM is not working with pin control and should probably
+ * avoid being selected when pin control is active, but so far,
+ * these stubs are here to make allyesconfig and allmodconfig
+ * compile properly. These functions are normally backed by the
+ * CONFIG_ADI_GPIO custom GPIO implementation.
+ */
+
+static inline int bfin_pm_standby_setup(void)
+{
+	return 0;
+}
+
+static inline void bfin_pm_standby_restore(void)
+{
+}
+
 #endif /* CONFIG_PINCTRL */
 
 #include <asm/irq.h>

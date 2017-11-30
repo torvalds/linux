@@ -18,10 +18,11 @@
 #include <linux/platform_device.h>
 #include <linux/mutex.h>
 
-#include "../w1.h"
-#include "../w1_int.h"
-#include "../w1_family.h"
+#include <linux/w1.h>
+
 #include "w1_ds2781.h"
+
+#define W1_FAMILY_DS2781	0x3D
 
 static int w1_ds2781_do_io(struct device *dev, char *buf, int addr,
 			size_t count, int io)
@@ -153,7 +154,7 @@ static struct w1_family w1_ds2781_family = {
 };
 module_w1_family(w1_ds2781_family);
 
-MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Renata Sayakhova <renata@oktetlabs.ru>");
 MODULE_DESCRIPTION("1-wire Driver for Maxim/Dallas DS2781 Stand-Alone Fuel Gauge IC");
+MODULE_LICENSE("GPL");
 MODULE_ALIAS("w1-family-" __stringify(W1_FAMILY_DS2781));

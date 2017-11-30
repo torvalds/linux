@@ -35,8 +35,9 @@ static int __init make_uml_dir(void)
 
 		err = -ENOENT;
 		if (home == NULL) {
-			printk(UM_KERN_ERR "make_uml_dir : no value in "
-			       "environment for $HOME\n");
+			printk(UM_KERN_ERR
+				"%s: no value in environment for $HOME\n",
+				__func__);
 			goto err;
 		}
 		strlcpy(dir, home, sizeof(dir));
@@ -50,13 +51,15 @@ static int __init make_uml_dir(void)
 	err = -ENOMEM;
 	uml_dir = malloc(strlen(dir) + 1);
 	if (uml_dir == NULL) {
-		printf("make_uml_dir : malloc failed, errno = %d\n", errno);
+		printk(UM_KERN_ERR "%s : malloc failed, errno = %d\n",
+			__func__, errno);
 		goto err;
 	}
 	strcpy(uml_dir, dir);
 
 	if ((mkdir(uml_dir, 0777) < 0) && (errno != EEXIST)) {
-	        printf("Failed to mkdir '%s': %s\n", uml_dir, strerror(errno));
+		printk(UM_KERN_ERR "Failed to mkdir '%s': %s\n",
+			uml_dir, strerror(errno));
 		err = -errno;
 		goto err_free;
 	}
@@ -351,7 +354,7 @@ char *get_umid(void)
 static int __init set_uml_dir(char *name, int *add)
 {
 	if (*name == '\0') {
-		printf("uml_dir can't be an empty string\n");
+		os_warn("uml_dir can't be an empty string\n");
 		return 0;
 	}
 
@@ -362,7 +365,7 @@ static int __init set_uml_dir(char *name, int *add)
 
 	uml_dir = malloc(strlen(name) + 2);
 	if (uml_dir == NULL) {
-		printf("Failed to malloc uml_dir - error = %d\n", errno);
+		os_warn("Failed to malloc uml_dir - error = %d\n", errno);
 
 		/*
 		 * Return 0 here because do_initcalls doesn't look at
@@ -387,8 +390,8 @@ static void remove_umid_dir(void)
 	sprintf(dir, "%s%s", uml_dir, umid);
 	err = remove_files_and_dir(dir);
 	if (err)
-		printf("remove_umid_dir - remove_files_and_dir failed with "
-		       "err = %d\n", err);
+		os_warn("%s - remove_files_and_dir failed with err = %d\n",
+			__func__, err);
 }
 
 __uml_exitcall(remove_umid_dir);

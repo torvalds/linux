@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 menu "Board support"
 
 config SOLUTION_ENGINE
@@ -10,7 +11,7 @@ config SH_DEVICE_TREE
 	bool "Board Described by Device Tree"
 	select OF
 	select OF_EARLY_FLATTREE
-	select CLKSRC_OF
+	select TIMER_OF
 	select COMMON_CLK
 	select GENERIC_CALIBRATE_DELAY
 	help

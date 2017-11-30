@@ -320,7 +320,7 @@ int smk_netlbl_mls(int, char *, struct netlbl_lsm_secattr *, int);
 struct smack_known *smk_import_entry(const char *, int);
 void smk_insert_entry(struct smack_known *skp);
 struct smack_known *smk_find_entry(const char *);
-int smack_privileged(int cap);
+bool smack_privileged(int cap);
 void smk_destroy_label_list(struct list_head *list);
 
 /*

@@ -30,7 +30,6 @@
 #include <linux/etherdevice.h>
 #include <linux/uaccess.h>
 #include "mostcore.h"
-#include "networking.h"
 
 #define USB_MTU			512
 #define NO_ISOCHRONOUS_URB	0
@@ -126,6 +125,8 @@ struct most_dev {
 	struct mutex io_mutex;
 	struct timer_list link_stat_timer;
 	struct work_struct poll_work_obj;
+	void (*on_netinfo)(struct most_interface *, unsigned char,
+			   unsigned char *);
 };
 
 #define to_mdev(d) container_of(d, struct most_dev, iface)
@@ -719,12 +720,19 @@ exit:
  * polls for the NI state of the INIC every 2 seconds.
  *
  */
-static void hdm_request_netinfo(struct most_interface *iface, int channel)
+static void hdm_request_netinfo(struct most_interface *iface, int channel,
+				void (*on_netinfo)(struct most_interface *,
+						   unsigned char,
+						   unsigned char *))
 {
 	struct most_dev *mdev;
 
 	BUG_ON(!iface);
 	mdev = to_mdev(iface);
+	mdev->on_netinfo = on_netinfo;
+	if (!on_netinfo)
+		return;
+
 	mdev->link_stat_timer.expires = jiffies + HZ;
 	mod_timer(&mdev->link_stat_timer, mdev->link_stat_timer.expires);
 }
@@ -736,9 +744,9 @@ static void hdm_request_netinfo(struct most_interface *iface, int channel)
  * The handler runs in interrupt context. That's why we need to defer the
  * tasks to a work queue.
  */
-static void link_stat_timer_handler(unsigned long data)
+static void link_stat_timer_handler(struct timer_list *t)
 {
-	struct most_dev *mdev = (struct most_dev *)data;
+	struct most_dev *mdev = from_timer(mdev, t, link_stat_timer);
 
 	schedule_work(&mdev->poll_work_obj);
 	mdev->link_stat_timer.expires = jiffies + (2 * HZ);
@@ -786,7 +794,8 @@ static void wq_netinfo(struct work_struct *wq_obj)
 	hw_addr[4] = lo >> 8;
 	hw_addr[5] = lo;
 
-	most_deliver_netinfo(&mdev->iface, link, hw_addr);
+	if (mdev->on_netinfo)
+		mdev->on_netinfo(&mdev->iface, link, hw_addr);
 }
 
 /**
@@ -823,7 +832,7 @@ static const struct file_operations hdm_usb_fops = {
 /**
  * usb_device_id - ID table for HCD device probing
  */
-static struct usb_device_id usbid[] = {
+static const struct usb_device_id usbid[] = {
 	{ USB_DEVICE(USB_VENDOR_ID_SMSC, USB_DEV_ID_BRDG), },
 	{ USB_DEVICE(USB_VENDOR_ID_SMSC, USB_DEV_ID_OS81118), },
 	{ USB_DEVICE(USB_VENDOR_ID_SMSC, USB_DEV_ID_OS81119), },
@@ -1129,8 +1138,7 @@ hdm_probe(struct usb_interface *interface, const struct usb_device_id *id)
 	num_endpoints = usb_iface_desc->desc.bNumEndpoints;
 	mutex_init(&mdev->io_mutex);
 	INIT_WORK(&mdev->poll_work_obj, wq_netinfo);
-	setup_timer(&mdev->link_stat_timer, link_stat_timer_handler,
-		    (unsigned long)mdev);
+	timer_setup(&mdev->link_stat_timer, link_stat_timer_handler, 0);
 
 	mdev->usb_device = usb_dev;
 	mdev->link_stat_timer.expires = jiffies + (2 * HZ);
@@ -1292,25 +1300,7 @@ static struct usb_driver hdm_usb = {
 	.disconnect = hdm_disconnect,
 };
 
-static int __init hdm_usb_init(void)
-{
-	pr_info("hdm_usb_init()\n");
-	if (usb_register(&hdm_usb)) {
-		pr_err("could not register hdm_usb driver\n");
-		return -EIO;
-	}
-
-	return 0;
-}
-
-static void __exit hdm_usb_exit(void)
-{
-	pr_info("hdm_usb_exit()\n");
-	usb_deregister(&hdm_usb);
-}
-
-module_init(hdm_usb_init);
-module_exit(hdm_usb_exit);
+module_usb_driver(hdm_usb);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Christian Gromm <christian.gromm@microchip.com>");
 MODULE_DESCRIPTION("HDM_4_USB");
