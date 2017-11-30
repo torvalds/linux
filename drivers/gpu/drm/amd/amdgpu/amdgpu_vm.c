@@ -383,7 +383,6 @@ static int amdgpu_vm_alloc_levels(struct amdgpu_device *adev,
 			spin_lock(&vm->status_lock);
 			list_add(&entry->base.vm_status, &vm->relocated);
 			spin_unlock(&vm->status_lock);
-			entry->addr = 0;
 		}
 
 		if (level < adev->vm_manager.num_level) {
@@ -1125,14 +1124,11 @@ static int amdgpu_vm_update_pde(struct amdgpu_device *adev,
 	pt = amdgpu_bo_gpu_offset(bo);
 	pt = amdgpu_gart_get_vm_pde(adev, pt);
 	/* Don't update huge pages here */
-	if (entry->addr & AMDGPU_PDE_PTE ||
-	    entry->addr == (pt | AMDGPU_PTE_VALID)) {
+	if (entry->huge) {
 		if (!vm->use_cpu_for_update)
 			amdgpu_job_free(job);
 		return 0;
 	}
-
-	entry->addr = pt | AMDGPU_PTE_VALID;
 
 	if (shadow) {
 		pde = shadow_addr + (entry - parent->entries) * 8;
@@ -1199,7 +1195,6 @@ static void amdgpu_vm_invalidate_level(struct amdgpu_device *adev,
 		if (!entry->base.bo)
 			continue;
 
-		entry->addr = ~0ULL;
 		spin_lock(&vm->status_lock);
 		if (list_empty(&entry->base.vm_status))
 			list_add(&entry->base.vm_status, &vm->relocated);
@@ -1332,10 +1327,10 @@ static void amdgpu_vm_handle_huge_pages(struct amdgpu_pte_update_params *p,
 		flags |= AMDGPU_PDE_PTE;
 	}
 
-	if (entry->addr == (dst | flags))
+	if (!entry->huge && !(flags & AMDGPU_PDE_PTE))
 		return;
 
-	entry->addr = (dst | flags);
+	entry->huge = !!(flags & AMDGPU_PDE_PTE);
 
 	if (use_cpu_update) {
 		/* In case a huge page is replaced with a system
@@ -1409,7 +1404,7 @@ static int amdgpu_vm_update_ptes(struct amdgpu_pte_update_params *params,
 		amdgpu_vm_handle_huge_pages(params, entry, parent,
 					    nptes, dst, flags);
 		/* We don't need to update PTEs for huge pages */
-		if (entry->addr & AMDGPU_PDE_PTE)
+		if (entry->huge)
 			continue;
 
 		pt = entry->base.bo;
