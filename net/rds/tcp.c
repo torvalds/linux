@@ -506,7 +506,7 @@ static void rds_tcp_kill_sock(struct net *net)
 	rds_tcp_listen_stop(lsock, &rtn->rds_tcp_accept_w);
 	spin_lock_irq(&rds_tcp_conn_lock);
 	list_for_each_entry_safe(tc, _tc, &rds_tcp_conn_list, t_tcp_node) {
-		struct net *c_net = tc->t_cpath->cp_conn->c_net;
+		struct net *c_net = read_pnet(&tc->t_cpath->cp_conn->c_net);
 
 		if (net != c_net || !tc->t_sock)
 			continue;
@@ -563,7 +563,7 @@ static void rds_tcp_sysctl_reset(struct net *net)
 
 	spin_lock_irq(&rds_tcp_conn_lock);
 	list_for_each_entry_safe(tc, _tc, &rds_tcp_conn_list, t_tcp_node) {
-		struct net *c_net = tc->t_cpath->cp_conn->c_net;
+		struct net *c_net = read_pnet(&tc->t_cpath->cp_conn->c_net);
 
 		if (net != c_net || !tc->t_sock)
 			continue;
