@@ -383,9 +383,18 @@ static const struct i2c_device_id max31785_id[] = {
 
 MODULE_DEVICE_TABLE(i2c, max31785_id);
 
+static const struct of_device_id max31785_of_match[] = {
+	{ .compatible = "maxim,max31785" },
+	{ .compatible = "maxim,max31785a" },
+	{ },
+};
+
+MODULE_DEVICE_TABLE(of, max31785_of_match);
+
 static struct i2c_driver max31785_driver = {
 	.driver = {
 		.name = "max31785",
+		.of_match_table = max31785_of_match,
 	},
 	.probe = max31785_probe,
 	.remove = pmbus_do_remove,
