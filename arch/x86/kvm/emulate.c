@@ -4014,6 +4014,26 @@ static int em_fxsave(struct x86_emulate_ctxt *ctxt)
 		                   fxstate_size(ctxt));
 }
 
+/*
+ * FXRSTOR might restore XMM registers not provided by the guest. Fill
+ * in the host registers (via FXSAVE) instead, so they won't be modified.
+ * (preemption has to stay disabled until FXRSTOR).
+ *
+ * Use noinline to keep the stack for other functions called by callers small.
+ */
+static noinline int fxregs_fixup(struct fxregs_state *fx_state,
+				 const size_t used_size)
+{
+	struct fxregs_state fx_tmp;
+	int rc;
+
+	rc = asm_safe("fxsave %[fx]", , [fx] "+m"(fx_tmp));
+	memcpy((void *)fx_state + used_size, (void *)&fx_tmp + used_size,
+	       __fxstate_size(16) - used_size);
+
+	return rc;
+}
+
 static int em_fxrstor(struct x86_emulate_ctxt *ctxt)
 {
 	struct fxregs_state fx_state;
@@ -4024,18 +4044,18 @@ static int em_fxrstor(struct x86_emulate_ctxt *ctxt)
 	if (rc != X86EMUL_CONTINUE)
 		return rc;
 
+	size = fxstate_size(ctxt);
+	rc = segmented_read_std(ctxt, ctxt->memop.addr.mem, &fx_state, size);
+	if (rc != X86EMUL_CONTINUE)
+		return rc;
+
 	ctxt->ops->get_fpu(ctxt);
 
-	size = fxstate_size(ctxt);
 	if (size < __fxstate_size(16)) {
-		rc = asm_safe("fxsave %[fx]", , [fx] "+m"(fx_state));
+		rc = fxregs_fixup(&fx_state, size);
 		if (rc != X86EMUL_CONTINUE)
 			goto out;
 	}
-
-	rc = segmented_read_std(ctxt, ctxt->memop.addr.mem, &fx_state, size);
-	if (rc != X86EMUL_CONTINUE)
-		goto out;
 
 	if (fx_state.mxcsr >> 16) {
 		rc = emulate_gp(ctxt, 0);
@@ -5000,6 +5020,8 @@ int x86_decode_insn(struct x86_emulate_ctxt *ctxt, void *insn, int insn_len)
 	bool op_prefix = false;
 	bool has_seg_override = false;
 	struct opcode opcode;
+	u16 dummy;
+	struct desc_struct desc;
 
 	ctxt->memop.type = OP_NONE;
 	ctxt->memopp = NULL;
@@ -5018,6 +5040,11 @@ int x86_decode_insn(struct x86_emulate_ctxt *ctxt, void *insn, int insn_len)
 	switch (mode) {
 	case X86EMUL_MODE_REAL:
 	case X86EMUL_MODE_VM86:
+		def_op_bytes = def_ad_bytes = 2;
+		ctxt->ops->get_segment(ctxt, &dummy, &desc, NULL, VCPU_SREG_CS);
+		if (desc.d)
+			def_op_bytes = def_ad_bytes = 4;
+		break;
 	case X86EMUL_MODE_PROT16:
 		def_op_bytes = def_ad_bytes = 2;
 		break;
