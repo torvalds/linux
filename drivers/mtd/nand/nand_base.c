@@ -2989,11 +2989,17 @@ out:
 static int single_erase(struct mtd_info *mtd, int page)
 {
 	struct nand_chip *chip = mtd_to_nand(mtd);
+	int status;
+
 	/* Send commands to erase a block */
 	chip->cmdfunc(mtd, NAND_CMD_ERASE1, -1, page);
 	chip->cmdfunc(mtd, NAND_CMD_ERASE2, -1, -1);
 
-	return chip->waitfunc(mtd, chip);
+	status = chip->waitfunc(mtd, chip);
+	if (status < 0)
+		return status;
+
+	return status & NAND_STATUS_FAIL ? -EIO : 0;
 }
 
 /**
@@ -3077,7 +3083,7 @@ int nand_erase_nand(struct mtd_info *mtd, struct erase_info *instr,
 		status = chip->erase(mtd, page & chip->pagemask);
 
 		/* See if block erase succeeded */
-		if (status & NAND_STATUS_FAIL) {
+		if (status) {
 			pr_debug("%s: failed erase, page 0x%08x\n",
 					__func__, page);
 			instr->state = MTD_ERASE_FAILED;

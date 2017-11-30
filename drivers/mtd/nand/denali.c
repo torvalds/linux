@@ -951,7 +951,7 @@ static int denali_erase(struct mtd_info *mtd, int page)
 	irq_status = denali_wait_for_irq(denali,
 					 INTR__ERASE_COMP | INTR__ERASE_FAIL);
 
-	return irq_status & INTR__ERASE_COMP ? 0 : NAND_STATUS_FAIL;
+	return irq_status & INTR__ERASE_COMP ? 0 : -EIO;
 }
 
 static int denali_setup_data_interface(struct mtd_info *mtd, int chipnr,
