@@ -3194,6 +3194,20 @@ static inline bool vma_is_dax(struct vm_area_struct *vma)
 	return vma->vm_file && IS_DAX(vma->vm_file->f_mapping->host);
 }
 
+static inline bool vma_is_fsdax(struct vm_area_struct *vma)
+{
+	struct inode *inode;
+
+	if (!vma->vm_file)
+		return false;
+	if (!vma_is_dax(vma))
+		return false;
+	inode = file_inode(vma->vm_file);
+	if (inode->i_mode == S_IFCHR)
+		return false; /* device-dax */
+	return true;
+}
+
 static inline int iocb_flags(struct file *file)
 {
 	int res = 0;
