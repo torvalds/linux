@@ -14557,6 +14557,13 @@ S:	Maintained
 F:	drivers/virtio/virtio_input.c
 F:	include/uapi/linux/virtio_input.h
 
+VIRTUAL BOX GUEST DEVICE DRIVER
+M:	Hans de Goede <hdegoede@redhat.com>
+M:	Arnd Bergmann <arnd@arndb.de>
+M:	Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+S:	Maintained
+F:	include/uapi/linux/vbox*.h
+
 VIRTUAL SERIO DEVICE DRIVER
 M:	Stephen Chandler Paul <thatslyude@gmail.com>
 S:	Maintained
