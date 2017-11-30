@@ -133,12 +133,6 @@ enum nand_ecc_algo {
  */
 #define NAND_ECC_GENERIC_ERASED_CHECK	BIT(0)
 #define NAND_ECC_MAXIMIZE		BIT(1)
-/*
- * If your controller already sends the required NAND commands when
- * reading or writing a page, then the framework is not supposed to
- * send READ0 and SEQIN/PAGEPROG respectively.
- */
-#define NAND_ECC_CUSTOM_PAGE_ACCESS	BIT(2)
 
 /* Bit mask for flags passed to do_nand_read_ecc */
 #define NAND_GET_DEVICE		0x80
@@ -601,11 +595,6 @@ struct nand_ecc_ctrl {
 	int (*write_oob)(struct mtd_info *mtd, struct nand_chip *chip,
 			int page);
 };
-
-static inline int nand_standard_page_accessors(struct nand_ecc_ctrl *ecc)
-{
-	return !(ecc->options & NAND_ECC_CUSTOM_PAGE_ACCESS);
-}
 
 /**
  * struct nand_buffers - buffer structure for read/write

@@ -761,6 +761,8 @@ static int mtk_nfc_write_page(struct mtd_info *mtd, struct nand_chip *chip,
 	u32 reg;
 	int ret;
 
+	nand_prog_page_begin_op(chip, page, 0, NULL, 0);
+
 	if (!raw) {
 		/* OOB => FDM: from register,  ECC: from HW */
 		reg = nfi_readw(nfc, NFI_CNFG) | CNFG_AUTO_FMT_EN;
@@ -794,7 +796,10 @@ static int mtk_nfc_write_page(struct mtd_info *mtd, struct nand_chip *chip,
 	if (!raw)
 		mtk_ecc_disable(nfc->ecc);
 
-	return ret;
+	if (ret)
+		return ret;
+
+	return nand_prog_page_end_op(chip);
 }
 
 static int mtk_nfc_write_page_hwecc(struct mtd_info *mtd,
@@ -832,15 +837,7 @@ static int mtk_nfc_write_subpage_hwecc(struct mtd_info *mtd,
 static int mtk_nfc_write_oob_std(struct mtd_info *mtd, struct nand_chip *chip,
 				 int page)
 {
-	int ret;
-
-	nand_prog_page_begin_op(chip, page, 0, NULL, 0);
-
-	ret = mtk_nfc_write_page_raw(mtd, chip, NULL, 1, page);
-	if (ret < 0)
-		return -EIO;
-
-	return nand_prog_page_end_op(chip);
+	return mtk_nfc_write_page_raw(mtd, chip, NULL, 1, page);
 }
 
 static int mtk_nfc_update_ecc_stats(struct mtd_info *mtd, u8 *buf, u32 sectors)
@@ -889,8 +886,7 @@ static int mtk_nfc_read_subpage(struct mtd_info *mtd, struct nand_chip *chip,
 	len = sectors * chip->ecc.size + (raw ? sectors * spare : 0);
 	buf = bufpoi + start * chip->ecc.size;
 
-	if (column != 0)
-		nand_change_read_column_op(chip, column, NULL, 0, false);
+	nand_read_page_op(chip, page, column, NULL, 0);
 
 	addr = dma_map_single(nfc->dev, buf, len, DMA_FROM_DEVICE);
 	rc = dma_mapping_error(nfc->dev, addr);
@@ -1013,8 +1009,6 @@ static int mtk_nfc_read_page_raw(struct mtd_info *mtd, struct nand_chip *chip,
 static int mtk_nfc_read_oob_std(struct mtd_info *mtd, struct nand_chip *chip,
 				int page)
 {
-	nand_read_page_op(chip, page, 0, NULL, 0);
-
 	return mtk_nfc_read_page_raw(mtd, chip, NULL, 1, page);
 }
 

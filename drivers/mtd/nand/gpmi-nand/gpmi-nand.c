@@ -1043,6 +1043,8 @@ static int gpmi_ecc_read_page(struct mtd_info *mtd, struct nand_chip *chip,
 	unsigned int  max_bitflips = 0;
 	int           ret;
 
+	nand_read_page_op(chip, page, 0, NULL, 0);
+
 	dev_dbg(this->dev, "page number is : %d\n", page);
 	ret = read_page_prepare(this, buf, nfc_geo->payload_size,
 					this->payload_virt, this->payload_phys,
@@ -1220,11 +1222,11 @@ static int gpmi_ecc_read_subpage(struct mtd_info *mtd, struct nand_chip *chip,
 	meta = geo->metadata_size;
 	if (first) {
 		col = meta + (size + ecc_parity_size) * first;
-		nand_change_read_column_op(chip, col, NULL, 0, false);
-
 		meta = 0;
 		buf = buf + first * size;
 	}
+
+	nand_read_page_op(chip, page, col, NULL, 0);
 
 	/* Save the old environment */
 	r1_old = r1_new = readl(bch_regs + HW_BCH_FLASH0LAYOUT0);
@@ -1277,6 +1279,9 @@ static int gpmi_ecc_write_page(struct mtd_info *mtd, struct nand_chip *chip,
 	int        ret;
 
 	dev_dbg(this->dev, "ecc write page.\n");
+
+	nand_prog_page_begin_op(chip, page, 0, NULL, 0);
+
 	if (this->swap_block_mark) {
 		/*
 		 * If control arrives here, we're doing block mark swapping.
@@ -1338,7 +1343,10 @@ exit_auxiliary:
 				payload_virt, payload_phys);
 	}
 
-	return 0;
+	if (ret)
+		return ret;
+
+	return nand_prog_page_end_op(chip);
 }
 
 /*
@@ -1472,8 +1480,8 @@ static int gpmi_ecc_read_page_raw(struct mtd_info *mtd,
 	uint8_t *oob = chip->oob_poi;
 	int step;
 
-	chip->read_buf(mtd, tmp_buf,
-		       mtd->writesize + mtd->oobsize);
+	nand_read_page_op(chip, page, 0, tmp_buf,
+			  mtd->writesize + mtd->oobsize);
 
 	/*
 	 * If required, swap the bad block marker and the data stored in the
@@ -1609,24 +1617,19 @@ static int gpmi_ecc_write_page_raw(struct mtd_info *mtd,
 	if (this->swap_block_mark)
 		swap(tmp_buf[0], tmp_buf[mtd->writesize]);
 
-	chip->write_buf(mtd, tmp_buf, mtd->writesize + mtd->oobsize);
-
-	return 0;
+	return nand_prog_page_op(chip, page, 0, tmp_buf,
+				 mtd->writesize + mtd->oobsize);
 }
 
 static int gpmi_ecc_read_oob_raw(struct mtd_info *mtd, struct nand_chip *chip,
 				 int page)
 {
-	nand_read_page_op(chip, page, 0, NULL, 0);
-
 	return gpmi_ecc_read_page_raw(mtd, chip, NULL, 1, page);
 }
 
 static int gpmi_ecc_write_oob_raw(struct mtd_info *mtd, struct nand_chip *chip,
 				 int page)
 {
-	nand_prog_page_begin_op(chip, page, 0, NULL, 0);
-
 	return gpmi_ecc_write_page_raw(mtd, chip, NULL, 1, page);
 }
 
@@ -1798,9 +1801,7 @@ static int mx23_write_transcription_stamp(struct gpmi_nand_data *this)
 		/* Write the first page of the current stride. */
 		dev_dbg(dev, "Writing an NCB fingerprint in page 0x%x\n", page);
 
-		nand_prog_page_begin_op(chip, page, 0, NULL, 0);
-		chip->ecc.write_page_raw(mtd, chip, buffer, 0, page);
-		status = nand_prog_page_end_op(chip);
+		status = chip->ecc.write_page_raw(mtd, chip, buffer, 0, page);
 		if (status)
 			dev_err(dev, "[%s] Write failed.\n", __func__);
 	}

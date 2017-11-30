@@ -713,7 +713,7 @@ static int fsl_elbc_read_page(struct mtd_info *mtd, struct nand_chip *chip,
 	struct fsl_lbc_ctrl *ctrl = priv->ctrl;
 	struct fsl_elbc_fcm_ctrl *elbc_fcm_ctrl = ctrl->nand;
 
-	fsl_elbc_read_buf(mtd, buf, mtd->writesize);
+	nand_read_page_op(chip, page, 0, buf, mtd->writesize);
 	if (oob_required)
 		fsl_elbc_read_buf(mtd, chip->oob_poi, mtd->oobsize);
 
@@ -729,10 +729,10 @@ static int fsl_elbc_read_page(struct mtd_info *mtd, struct nand_chip *chip,
 static int fsl_elbc_write_page(struct mtd_info *mtd, struct nand_chip *chip,
 				const uint8_t *buf, int oob_required, int page)
 {
-	fsl_elbc_write_buf(mtd, buf, mtd->writesize);
+	nand_prog_page_begin_op(chip, page, 0, buf, mtd->writesize);
 	fsl_elbc_write_buf(mtd, chip->oob_poi, mtd->oobsize);
 
-	return 0;
+	return nand_prog_page_end_op(chip);
 }
 
 /* ECC will be calculated automatically, and errors will be detected in
@@ -742,10 +742,10 @@ static int fsl_elbc_write_subpage(struct mtd_info *mtd, struct nand_chip *chip,
 				uint32_t offset, uint32_t data_len,
 				const uint8_t *buf, int oob_required, int page)
 {
+	nand_prog_page_begin_op(chip, page, 0, NULL, 0);
 	fsl_elbc_write_buf(mtd, buf, mtd->writesize);
 	fsl_elbc_write_buf(mtd, chip->oob_poi, mtd->oobsize);
-
-	return 0;
+	return nand_prog_page_end_op(chip);
 }
 
 static int fsl_elbc_chip_init(struct fsl_elbc_mtd *priv)

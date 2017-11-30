@@ -383,7 +383,7 @@ static int cafe_nand_read_page(struct mtd_info *mtd, struct nand_chip *chip,
 		     cafe_readl(cafe, NAND_ECC_RESULT),
 		     cafe_readl(cafe, NAND_ECC_SYN01));
 
-	chip->read_buf(mtd, buf, mtd->writesize);
+	nand_read_page_op(chip, page, 0, buf, mtd->writesize);
 	chip->read_buf(mtd, chip->oob_poi, mtd->oobsize);
 
 	if (checkecc && cafe_readl(cafe, NAND_ECC_RESULT) & (1<<18)) {
@@ -541,13 +541,13 @@ static int cafe_nand_write_page_lowlevel(struct mtd_info *mtd,
 {
 	struct cafe_priv *cafe = nand_get_controller_data(chip);
 
-	chip->write_buf(mtd, buf, mtd->writesize);
+	nand_prog_page_begin_op(chip, page, 0, buf, mtd->writesize);
 	chip->write_buf(mtd, chip->oob_poi, mtd->oobsize);
 
 	/* Set up ECC autogeneration */
 	cafe->ctl2 |= (1<<30);
 
-	return 0;
+	return nand_prog_page_end_op(chip);
 }
 
 static int cafe_nand_block_bad(struct mtd_info *mtd, loff_t ofs)

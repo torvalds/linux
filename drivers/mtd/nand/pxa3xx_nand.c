@@ -1348,10 +1348,10 @@ static int pxa3xx_nand_write_page_hwecc(struct mtd_info *mtd,
 		struct nand_chip *chip, const uint8_t *buf, int oob_required,
 		int page)
 {
-	chip->write_buf(mtd, buf, mtd->writesize);
+	nand_prog_page_begin_op(chip, page, 0, buf, mtd->writesize);
 	chip->write_buf(mtd, chip->oob_poi, mtd->oobsize);
 
-	return 0;
+	return nand_prog_page_end_op(chip);
 }
 
 static int pxa3xx_nand_read_page_hwecc(struct mtd_info *mtd,
@@ -1361,7 +1361,7 @@ static int pxa3xx_nand_read_page_hwecc(struct mtd_info *mtd,
 	struct pxa3xx_nand_host *host = nand_get_controller_data(chip);
 	struct pxa3xx_nand_info *info = host->info_data;
 
-	chip->read_buf(mtd, buf, mtd->writesize);
+	nand_read_page_op(chip, page, 0, buf, mtd->writesize);
 	chip->read_buf(mtd, chip->oob_poi, mtd->oobsize);
 
 	if (info->retcode == ERR_CORERR && info->use_ecc) {

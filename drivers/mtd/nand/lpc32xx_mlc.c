@@ -522,6 +522,8 @@ static int lpc32xx_write_page_lowlevel(struct mtd_info *mtd,
 		memcpy(dma_buf, buf, mtd->writesize);
 	}
 
+	nand_prog_page_begin_op(chip, page, 0, NULL, 0);
+
 	for (i = 0; i < host->mlcsubpages; i++) {
 		/* Start Encode */
 		writeb(0x00, MLC_ECC_ENC_REG(host->io_base));
@@ -550,7 +552,8 @@ static int lpc32xx_write_page_lowlevel(struct mtd_info *mtd,
 		/* Wait for Controller Ready */
 		lpc32xx_waitfunc_controller(mtd, chip);
 	}
-	return 0;
+
+	return nand_prog_page_end_op(chip);
 }
 
 static int lpc32xx_read_oob(struct mtd_info *mtd, struct nand_chip *chip,

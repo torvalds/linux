@@ -1689,7 +1689,6 @@ static int brcmstb_nand_verify_erased_page(struct mtd_info *mtd,
 	sas = mtd->oobsize / chip->ecc.steps;
 
 	/* read without ecc for verification */
-	nand_read_page_op(chip, page, 0, NULL, 0);
 	ret = chip->ecc.read_page_raw(mtd, chip, buf, true, page);
 	if (ret)
 		return ret;
@@ -1793,6 +1792,8 @@ static int brcmnand_read_page(struct mtd_info *mtd, struct nand_chip *chip,
 	struct brcmnand_host *host = nand_get_controller_data(chip);
 	u8 *oob = oob_required ? (u8 *)chip->oob_poi : NULL;
 
+	nand_read_page_op(chip, page, 0, NULL, 0);
+
 	return brcmnand_read(mtd, chip, host->last_addr,
 			mtd->writesize >> FC_SHIFT, (u32 *)buf, oob);
 }
@@ -1803,6 +1804,8 @@ static int brcmnand_read_page_raw(struct mtd_info *mtd, struct nand_chip *chip,
 	struct brcmnand_host *host = nand_get_controller_data(chip);
 	u8 *oob = oob_required ? (u8 *)chip->oob_poi : NULL;
 	int ret;
+
+	nand_read_page_op(chip, page, 0, NULL, 0);
 
 	brcmnand_set_ecc_enabled(host, 0);
 	ret = brcmnand_read(mtd, chip, host->last_addr,
@@ -1909,8 +1912,10 @@ static int brcmnand_write_page(struct mtd_info *mtd, struct nand_chip *chip,
 	struct brcmnand_host *host = nand_get_controller_data(chip);
 	void *oob = oob_required ? chip->oob_poi : NULL;
 
+	nand_prog_page_begin_op(chip, page, 0, NULL, 0);
 	brcmnand_write(mtd, chip, host->last_addr, (const u32 *)buf, oob);
-	return 0;
+
+	return nand_prog_page_end_op(chip);
 }
 
 static int brcmnand_write_page_raw(struct mtd_info *mtd,
@@ -1920,10 +1925,12 @@ static int brcmnand_write_page_raw(struct mtd_info *mtd,
 	struct brcmnand_host *host = nand_get_controller_data(chip);
 	void *oob = oob_required ? chip->oob_poi : NULL;
 
+	nand_prog_page_begin_op(chip, page, 0, NULL, 0);
 	brcmnand_set_ecc_enabled(host, 0);
 	brcmnand_write(mtd, chip, host->last_addr, (const u32 *)buf, oob);
 	brcmnand_set_ecc_enabled(host, 1);
-	return 0;
+
+	return nand_prog_page_end_op(chip);
 }
 
 static int brcmnand_write_oob(struct mtd_info *mtd, struct nand_chip *chip,

@@ -1358,7 +1358,6 @@ int denali_init(struct denali_nand_info *denali)
 		chip->read_buf = denali_read_buf;
 		chip->write_buf = denali_write_buf;
 	}
-	chip->ecc.options |= NAND_ECC_CUSTOM_PAGE_ACCESS;
 	chip->ecc.read_page = denali_read_page;
 	chip->ecc.read_page_raw = denali_read_page_raw;
 	chip->ecc.write_page = denali_write_page;

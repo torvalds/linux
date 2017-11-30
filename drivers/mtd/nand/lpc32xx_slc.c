@@ -686,6 +686,8 @@ static int lpc32xx_nand_write_page_syndrome(struct mtd_info *mtd,
 	uint8_t *pb;
 	int error;
 
+	nand_prog_page_begin_op(chip, page, 0, NULL, 0);
+
 	/* Write data, calculate ECC on outbound data */
 	error = lpc32xx_xfer(mtd, (uint8_t *)buf, chip->ecc.steps, 0);
 	if (error)
@@ -704,7 +706,8 @@ static int lpc32xx_nand_write_page_syndrome(struct mtd_info *mtd,
 
 	/* Write ECC data to device */
 	chip->write_buf(mtd, chip->oob_poi, mtd->oobsize);
-	return 0;
+
+	return nand_prog_page_end_op(chip);
 }
 
 /*
@@ -717,9 +720,11 @@ static int lpc32xx_nand_write_page_raw_syndrome(struct mtd_info *mtd,
 						int oob_required, int page)
 {
 	/* Raw writes can just use the FIFO interface */
-	chip->write_buf(mtd, buf, chip->ecc.size * chip->ecc.steps);
+	nand_prog_page_begin_op(chip, page, 0, buf,
+				chip->ecc.size * chip->ecc.steps);
 	chip->write_buf(mtd, chip->oob_poi, mtd->oobsize);
-	return 0;
+
+	return nand_prog_page_end_op(chip);
 }
 
 static int lpc32xx_nand_dma_setup(struct lpc32xx_nand_host *host)

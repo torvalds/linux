@@ -580,7 +580,6 @@ static int chip_init(struct device *dev, struct device_node *np)
 	ecc->write_page = tango_write_page;
 	ecc->read_oob = tango_read_oob;
 	ecc->write_oob = tango_write_oob;
-	ecc->options = NAND_ECC_CUSTOM_PAGE_ACCESS;
 
 	err = nand_scan_tail(mtd);
 	if (err)

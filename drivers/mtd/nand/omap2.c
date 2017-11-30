@@ -1532,6 +1532,8 @@ static int omap_write_page_bch(struct mtd_info *mtd, struct nand_chip *chip,
 	int ret;
 	uint8_t *ecc_calc = chip->buffers->ecccalc;
 
+	nand_prog_page_begin_op(chip, page, 0, NULL, 0);
+
 	/* Enable GPMC ecc engine */
 	chip->ecc.hwctl(mtd, NAND_ECC_WRITE);
 
@@ -1548,7 +1550,8 @@ static int omap_write_page_bch(struct mtd_info *mtd, struct nand_chip *chip,
 
 	/* Write ecc vector to OOB area */
 	chip->write_buf(mtd, chip->oob_poi, mtd->oobsize);
-	return 0;
+
+	return nand_prog_page_end_op(chip);
 }
 
 /**
@@ -1582,6 +1585,7 @@ static int omap_write_subpage_bch(struct mtd_info *mtd,
 	 * ECC is calculated for all subpages but we choose
 	 * only what we want.
 	 */
+	nand_prog_page_begin_op(chip, page, 0, NULL, 0);
 
 	/* Enable GPMC ECC engine */
 	chip->ecc.hwctl(mtd, NAND_ECC_WRITE);
@@ -1614,7 +1618,7 @@ static int omap_write_subpage_bch(struct mtd_info *mtd,
 	/* write OOB buffer to NAND device */
 	chip->write_buf(mtd, chip->oob_poi, mtd->oobsize);
 
-	return 0;
+	return nand_prog_page_end_op(chip);
 }
 
 /**
@@ -1639,6 +1643,8 @@ static int omap_read_page_bch(struct mtd_info *mtd, struct nand_chip *chip,
 	uint8_t *ecc_code = chip->buffers->ecccode;
 	int stat, ret;
 	unsigned int max_bitflips = 0;
+
+	nand_read_page_op(chip, page, 0, NULL, 0);
 
 	/* Enable GPMC ecc engine */
 	chip->ecc.hwctl(mtd, NAND_ECC_READ);
