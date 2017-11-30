@@ -22,6 +22,7 @@
 #include "vsp1_lif.h"
 #include "vsp1_pipe.h"
 #include "vsp1_rwpf.h"
+#include "vsp1_uif.h"
 
 #define BRX_NAME(e)	(e)->type == VSP1_ENTITY_BRU ? "BRU" : "BRS"
 
@@ -35,8 +36,13 @@ static void vsp1_du_pipeline_frame_end(struct vsp1_pipeline *pipe,
 	struct vsp1_drm_pipeline *drm_pipe = to_vsp1_drm_pipeline(pipe);
 	bool complete = completion == VSP1_DL_FRAME_END_COMPLETED;
 
-	if (drm_pipe->du_complete)
-		drm_pipe->du_complete(drm_pipe->du_private, complete, 0);
+	if (drm_pipe->du_complete) {
+		struct vsp1_entity *uif = drm_pipe->uif;
+		u32 crc;
+
+		crc = uif ? vsp1_uif_get_crc(to_uif(&uif->subdev)) : 0;
+		drm_pipe->du_complete(drm_pipe->du_private, complete, crc);
+	}
 
 	if (completion & VSP1_DL_FRAME_END_INTERNAL) {
 		drm_pipe->force_brx_release = false;
@@ -48,10 +54,66 @@ static void vsp1_du_pipeline_frame_end(struct vsp1_pipeline *pipe,
  * Pipeline Configuration
  */
 
+/*
+ * Insert the UIF in the pipeline between the prev and next entities. If no UIF
+ * is available connect the two entities directly.
+ */
+static int vsp1_du_insert_uif(struct vsp1_device *vsp1,
+			      struct vsp1_pipeline *pipe,
+			      struct vsp1_entity *uif,
+			      struct vsp1_entity *prev, unsigned int prev_pad,
+			      struct vsp1_entity *next, unsigned int next_pad)
+{
+	struct v4l2_subdev_format format;
+	int ret;
+
+	if (!uif) {
+		/*
+		 * If there's no UIF to be inserted, connect the previous and
+		 * next entities directly.
+		 */
+		prev->sink = next;
+		prev->sink_pad = next_pad;
+		return 0;
+	}
+
+	prev->sink = uif;
+	prev->sink_pad = UIF_PAD_SINK;
+
+	memset(&format, 0, sizeof(format));
+	format.which = V4L2_SUBDEV_FORMAT_ACTIVE;
+	format.pad = prev_pad;
+
+	ret = v4l2_subdev_call(&prev->subdev, pad, get_fmt, NULL, &format);
+	if (ret < 0)
+		return ret;
+
+	format.pad = UIF_PAD_SINK;
+
+	ret = v4l2_subdev_call(&uif->subdev, pad, set_fmt, NULL, &format);
+	if (ret < 0)
+		return ret;
+
+	dev_dbg(vsp1->dev, "%s: set format %ux%u (%x) on UIF sink\n",
+		__func__, format.format.width, format.format.height,
+		format.format.code);
+
+	/*
+	 * The UIF doesn't mangle the format between its sink and source pads,
+	 * so there is no need to retrieve the format on its source pad.
+	 */
+
+	uif->sink = next;
+	uif->sink_pad = next_pad;
+
+	return 0;
+}
+
 /* Setup one RPF and the connected BRx sink pad. */
 static int vsp1_du_pipeline_setup_rpf(struct vsp1_device *vsp1,
 				      struct vsp1_pipeline *pipe,
 				      struct vsp1_rwpf *rpf,
+				      struct vsp1_entity *uif,
 				      unsigned int brx_input)
 {
 	struct v4l2_subdev_selection sel;
@@ -119,6 +181,12 @@ static int vsp1_du_pipeline_setup_rpf(struct vsp1_device *vsp1,
 
 	ret = v4l2_subdev_call(&rpf->entity.subdev, pad, set_fmt, NULL,
 			       &format);
+	if (ret < 0)
+		return ret;
+
+	/* Insert and configure the UIF if available. */
+	ret = vsp1_du_insert_uif(vsp1, pipe, uif, &rpf->entity, RWPF_PAD_SOURCE,
+				 pipe->brx, brx_input);
 	if (ret < 0)
 		return ret;
 
@@ -297,7 +365,10 @@ static unsigned int rpf_zpos(struct vsp1_device *vsp1, struct vsp1_rwpf *rpf)
 static int vsp1_du_pipeline_setup_inputs(struct vsp1_device *vsp1,
 					struct vsp1_pipeline *pipe)
 {
+	struct vsp1_drm_pipeline *drm_pipe = to_vsp1_drm_pipeline(pipe);
 	struct vsp1_rwpf *inputs[VSP1_MAX_RPF] = { NULL, };
+	struct vsp1_entity *uif;
+	bool use_uif = false;
 	struct vsp1_brx *brx;
 	unsigned int i;
 	int ret;
@@ -358,13 +429,42 @@ static int vsp1_du_pipeline_setup_inputs(struct vsp1_device *vsp1,
 		dev_dbg(vsp1->dev, "%s: connecting RPF.%u to %s:%u\n",
 			__func__, rpf->entity.index, BRX_NAME(pipe->brx), i);
 
-		ret = vsp1_du_pipeline_setup_rpf(vsp1, pipe, rpf, i);
+		uif = drm_pipe->crc.source == VSP1_DU_CRC_PLANE &&
+		      drm_pipe->crc.index == i ? drm_pipe->uif : NULL;
+		if (uif)
+			use_uif = true;
+		ret = vsp1_du_pipeline_setup_rpf(vsp1, pipe, rpf, uif, i);
 		if (ret < 0) {
 			dev_err(vsp1->dev,
 				"%s: failed to setup RPF.%u\n",
 				__func__, rpf->entity.index);
 			return ret;
 		}
+	}
+
+	/* Insert and configure the UIF at the BRx output if available. */
+	uif = drm_pipe->crc.source == VSP1_DU_CRC_OUTPUT ? drm_pipe->uif : NULL;
+	if (uif)
+		use_uif = true;
+	ret = vsp1_du_insert_uif(vsp1, pipe, uif,
+				 pipe->brx, pipe->brx->source_pad,
+				 &pipe->output->entity, 0);
+	if (ret < 0)
+		dev_err(vsp1->dev, "%s: failed to setup UIF after %s\n",
+			__func__, BRX_NAME(pipe->brx));
+
+	/*
+	 * If the UIF is not in use schedule it for removal by setting its pipe
+	 * pointer to NULL, vsp1_du_pipeline_configure() will remove it from the
+	 * hardware pipeline and from the pipeline's list of entities. Otherwise
+	 * make sure it is present in the pipeline's list of entities if it
+	 * wasn't already.
+	 */
+	if (!use_uif) {
+		drm_pipe->uif->pipe = NULL;
+	} else if (!drm_pipe->uif->pipe) {
+		drm_pipe->uif->pipe = pipe;
+		list_add_tail(&drm_pipe->uif->list_pipe, &pipe->entities);
 	}
 
 	return 0;
@@ -748,6 +848,8 @@ void vsp1_du_atomic_flush(struct device *dev, unsigned int pipe_index,
 	struct vsp1_drm_pipeline *drm_pipe = &vsp1->drm->pipe[pipe_index];
 	struct vsp1_pipeline *pipe = &drm_pipe->pipe;
 
+	drm_pipe->crc = cfg->crc;
+
 	vsp1_du_pipeline_setup_inputs(vsp1, pipe);
 	vsp1_du_pipeline_configure(pipe);
 	mutex_unlock(&vsp1->drm->lock);
@@ -816,6 +918,13 @@ int vsp1_drm_init(struct vsp1_device *vsp1)
 
 		pipe->lif->pipe = pipe;
 		list_add_tail(&pipe->lif->list_pipe, &pipe->entities);
+
+		/*
+		 * CRC computation is initially disabled, don't add the UIF to
+		 * the pipeline.
+		 */
+		if (i < vsp1->info->uif_count)
+			drm_pipe->uif = &vsp1->uif[i]->entity;
 	}
 
 	/* Disable all RPFs initially. */

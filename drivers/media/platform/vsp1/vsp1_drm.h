@@ -13,6 +13,8 @@
 #include <linux/videodev2.h>
 #include <linux/wait.h>
 
+#include <media/vsp1.h>
+
 #include "vsp1_pipe.h"
 
 /**
@@ -22,6 +24,8 @@
  * @height: output display height
  * @force_brx_release: when set, release the BRx during the next reconfiguration
  * @wait_queue: wait queue to wait for BRx release completion
+ * @uif: UIF entity if available for the pipeline
+ * @crc: CRC computation configuration
  * @du_complete: frame completion callback for the DU driver (optional)
  * @du_private: data to be passed to the du_complete callback
  */
@@ -33,6 +37,9 @@ struct vsp1_drm_pipeline {
 
 	bool force_brx_release;
 	wait_queue_head_t wait_queue;
+
+	struct vsp1_entity *uif;
+	struct vsp1_du_crc_config crc;
 
 	/* Frame synchronisation */
 	void (*du_complete)(void *data, bool completed, u32 crc);
