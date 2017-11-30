@@ -21,6 +21,7 @@
 #include <linux/sched.h>
 #include <linux/prefetch.h>
 #include <net/lwtunnel.h>
+#include <net/xfrm.h>
 
 #include <net/dst.h>
 #include <net/dst_metadata.h>
@@ -62,15 +63,12 @@ void dst_init(struct dst_entry *dst, struct dst_ops *ops,
 	      struct net_device *dev, int initial_ref, int initial_obsolete,
 	      unsigned short flags)
 {
-	dst->child = NULL;
 	dst->dev = dev;
 	if (dev)
 		dev_hold(dev);
 	dst->ops = ops;
 	dst_init_metrics(dst, dst_default_metrics.metrics, true);
 	dst->expires = 0UL;
-	dst->path = dst;
-	dst->from = NULL;
 #ifdef CONFIG_XFRM
 	dst->xfrm = NULL;
 #endif
@@ -88,7 +86,6 @@ void dst_init(struct dst_entry *dst, struct dst_ops *ops,
 	dst->__use = 0;
 	dst->lastuse = jiffies;
 	dst->flags = flags;
-	dst->next = NULL;
 	if (!(flags & DST_NOCOUNT))
 		dst_entries_add(ops, 1);
 }
@@ -116,12 +113,17 @@ EXPORT_SYMBOL(dst_alloc);
 
 struct dst_entry *dst_destroy(struct dst_entry * dst)
 {
-	struct dst_entry *child;
+	struct dst_entry *child = NULL;
 
 	smp_rmb();
 
-	child = dst->child;
+#ifdef CONFIG_XFRM
+	if (dst->xfrm) {
+		struct xfrm_dst *xdst = (struct xfrm_dst *) dst;
 
+		child = xdst->child;
+	}
+#endif
 	if (!(dst->flags & DST_NOCOUNT))
 		dst_entries_add(dst->ops, -1);
 

@@ -186,7 +186,7 @@ static void rt6_uncached_list_flush_dev(struct net *net, struct net_device *dev)
 
 static u32 *rt6_pcpu_cow_metrics(struct rt6_info *rt)
 {
-	return dst_metrics_write_ptr(rt->dst.from);
+	return dst_metrics_write_ptr(&rt->from->dst);
 }
 
 static u32 *ipv6_cow_metrics(struct dst_entry *dst, unsigned long old)
@@ -391,7 +391,7 @@ static void ip6_dst_destroy(struct dst_entry *dst)
 {
 	struct rt6_info *rt = (struct rt6_info *)dst;
 	struct rt6_exception_bucket *bucket;
-	struct dst_entry *from = dst->from;
+	struct rt6_info *from = rt->from;
 	struct inet6_dev *idev;
 
 	dst_destroy_metrics_generic(dst);
@@ -409,8 +409,8 @@ static void ip6_dst_destroy(struct dst_entry *dst)
 		kfree(bucket);
 	}
 
-	dst->from = NULL;
-	dst_release(from);
+	rt->from = NULL;
+	dst_release(&from->dst);
 }
 
 static void ip6_dst_ifdown(struct dst_entry *dst, struct net_device *dev,
@@ -443,9 +443,9 @@ static bool rt6_check_expired(const struct rt6_info *rt)
 	if (rt->rt6i_flags & RTF_EXPIRES) {
 		if (time_after(jiffies, rt->dst.expires))
 			return true;
-	} else if (rt->dst.from) {
+	} else if (rt->from) {
 		return rt->dst.obsolete != DST_OBSOLETE_FORCE_CHK ||
-		       rt6_check_expired((struct rt6_info *)rt->dst.from);
+			rt6_check_expired(rt->from);
 	}
 	return false;
 }
@@ -502,7 +502,7 @@ static inline struct rt6_info *rt6_device_match(struct net *net,
 	if (!oif && ipv6_addr_any(saddr))
 		goto out;
 
-	for (sprt = rt; sprt; sprt = rcu_dereference(sprt->dst.rt6_next)) {
+	for (sprt = rt; sprt; sprt = rcu_dereference(sprt->rt6_next)) {
 		struct net_device *dev = sprt->dst.dev;
 
 		if (oif) {
@@ -721,7 +721,7 @@ static struct rt6_info *find_rr_leaf(struct fib6_node *fn,
 
 	match = NULL;
 	cont = NULL;
-	for (rt = rr_head; rt; rt = rcu_dereference(rt->dst.rt6_next)) {
+	for (rt = rr_head; rt; rt = rcu_dereference(rt->rt6_next)) {
 		if (rt->rt6i_metric != metric) {
 			cont = rt;
 			break;
@@ -731,7 +731,7 @@ static struct rt6_info *find_rr_leaf(struct fib6_node *fn,
 	}
 
 	for (rt = leaf; rt && rt != rr_head;
-	     rt = rcu_dereference(rt->dst.rt6_next)) {
+	     rt = rcu_dereference(rt->rt6_next)) {
 		if (rt->rt6i_metric != metric) {
 			cont = rt;
 			break;
@@ -743,7 +743,7 @@ static struct rt6_info *find_rr_leaf(struct fib6_node *fn,
 	if (match || !cont)
 		return match;
 
-	for (rt = cont; rt; rt = rcu_dereference(rt->dst.rt6_next))
+	for (rt = cont; rt; rt = rcu_dereference(rt->rt6_next))
 		match = find_match(rt, oif, strict, &mpri, match, do_rr);
 
 	return match;
@@ -781,7 +781,7 @@ static struct rt6_info *rt6_select(struct net *net, struct fib6_node *fn,
 			     &do_rr);
 
 	if (do_rr) {
-		struct rt6_info *next = rcu_dereference(rt0->dst.rt6_next);
+		struct rt6_info *next = rcu_dereference(rt0->rt6_next);
 
 		/* no entries matched; do round-robin */
 		if (!next || next->rt6i_metric != rt0->rt6i_metric)
@@ -1054,7 +1054,7 @@ static struct rt6_info *ip6_rt_cache_alloc(struct rt6_info *ort,
 	 */
 
 	if (ort->rt6i_flags & (RTF_CACHE | RTF_PCPU))
-		ort = (struct rt6_info *)ort->dst.from;
+		ort = ort->from;
 
 	rcu_read_lock();
 	dev = ip6_rt_get_dev_rcu(ort);
@@ -1274,7 +1274,7 @@ static int rt6_insert_exception(struct rt6_info *nrt,
 
 	/* ort can't be a cache or pcpu route */
 	if (ort->rt6i_flags & (RTF_CACHE | RTF_PCPU))
-		ort = (struct rt6_info *)ort->dst.from;
+		ort = ort->from;
 	WARN_ON_ONCE(ort->rt6i_flags & (RTF_CACHE | RTF_PCPU));
 
 	spin_lock_bh(&rt6_exception_lock);
@@ -1415,8 +1415,8 @@ static struct rt6_info *rt6_find_cached_rt(struct rt6_info *rt,
 /* Remove the passed in cached rt from the hash table that contains it */
 int rt6_remove_exception_rt(struct rt6_info *rt)
 {
-	struct rt6_info *from = (struct rt6_info *)rt->dst.from;
 	struct rt6_exception_bucket *bucket;
+	struct rt6_info *from = rt->from;
 	struct in6_addr *src_key = NULL;
 	struct rt6_exception *rt6_ex;
 	int err;
@@ -1460,8 +1460,8 @@ int rt6_remove_exception_rt(struct rt6_info *rt)
  */
 static void rt6_update_exception_stamp_rt(struct rt6_info *rt)
 {
-	struct rt6_info *from = (struct rt6_info *)rt->dst.from;
 	struct rt6_exception_bucket *bucket;
+	struct rt6_info *from = rt->from;
 	struct in6_addr *src_key = NULL;
 	struct rt6_exception *rt6_ex;
 
@@ -1929,9 +1929,9 @@ struct dst_entry *ip6_blackhole_route(struct net *net, struct dst_entry *dst_ori
 
 static void rt6_dst_from_metrics_check(struct rt6_info *rt)
 {
-	if (rt->dst.from &&
-	    dst_metrics_ptr(&rt->dst) != dst_metrics_ptr(rt->dst.from))
-		dst_init_metrics(&rt->dst, dst_metrics_ptr(rt->dst.from), true);
+	if (rt->from &&
+	    dst_metrics_ptr(&rt->dst) != dst_metrics_ptr(&rt->from->dst))
+		dst_init_metrics(&rt->dst, dst_metrics_ptr(&rt->from->dst), true);
 }
 
 static struct dst_entry *rt6_check(struct rt6_info *rt, u32 cookie)
@@ -1951,7 +1951,7 @@ static struct dst_entry *rt6_dst_from_check(struct rt6_info *rt, u32 cookie)
 {
 	if (!__rt6_check_expired(rt) &&
 	    rt->dst.obsolete == DST_OBSOLETE_FORCE_CHK &&
-	    rt6_check((struct rt6_info *)(rt->dst.from), cookie))
+	    rt6_check(rt->from, cookie))
 		return &rt->dst;
 	else
 		return NULL;
@@ -1971,7 +1971,7 @@ static struct dst_entry *ip6_dst_check(struct dst_entry *dst, u32 cookie)
 	rt6_dst_from_metrics_check(rt);
 
 	if (rt->rt6i_flags & RTF_PCPU ||
-	    (unlikely(!list_empty(&rt->rt6i_uncached)) && rt->dst.from))
+	    (unlikely(!list_empty(&rt->rt6i_uncached)) && rt->from))
 		return rt6_dst_from_check(rt, cookie);
 	else
 		return rt6_check(rt, cookie);
@@ -3055,11 +3055,11 @@ out:
 
 static void rt6_set_from(struct rt6_info *rt, struct rt6_info *from)
 {
-	BUG_ON(from->dst.from);
+	BUG_ON(from->from);
 
 	rt->rt6i_flags &= ~RTF_EXPIRES;
 	dst_hold(&from->dst);
-	rt->dst.from = &from->dst;
+	rt->from = from;
 	dst_init_metrics(&rt->dst, dst_metrics_ptr(&from->dst), true);
 }
 
@@ -4596,8 +4596,6 @@ static int __net_init ip6_route_net_init(struct net *net)
 					   GFP_KERNEL);
 	if (!net->ipv6.ip6_null_entry)
 		goto out_ip6_dst_entries;
-	net->ipv6.ip6_null_entry->dst.path =
-		(struct dst_entry *)net->ipv6.ip6_null_entry;
 	net->ipv6.ip6_null_entry->dst.ops = &net->ipv6.ip6_dst_ops;
 	dst_init_metrics(&net->ipv6.ip6_null_entry->dst,
 			 ip6_template_metrics, true);
@@ -4609,8 +4607,6 @@ static int __net_init ip6_route_net_init(struct net *net)
 					       GFP_KERNEL);
 	if (!net->ipv6.ip6_prohibit_entry)
 		goto out_ip6_null_entry;
-	net->ipv6.ip6_prohibit_entry->dst.path =
-		(struct dst_entry *)net->ipv6.ip6_prohibit_entry;
 	net->ipv6.ip6_prohibit_entry->dst.ops = &net->ipv6.ip6_dst_ops;
 	dst_init_metrics(&net->ipv6.ip6_prohibit_entry->dst,
 			 ip6_template_metrics, true);
@@ -4620,8 +4616,6 @@ static int __net_init ip6_route_net_init(struct net *net)
 					       GFP_KERNEL);
 	if (!net->ipv6.ip6_blk_hole_entry)
 		goto out_ip6_prohibit_entry;
-	net->ipv6.ip6_blk_hole_entry->dst.path =
-		(struct dst_entry *)net->ipv6.ip6_blk_hole_entry;
 	net->ipv6.ip6_blk_hole_entry->dst.ops = &net->ipv6.ip6_dst_ops;
 	dst_init_metrics(&net->ipv6.ip6_blk_hole_entry->dst,
 			 ip6_template_metrics, true);
