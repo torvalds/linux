@@ -18,6 +18,7 @@
 
 struct idr {
 	struct radix_tree_root	idr_rt;
+	unsigned int		idr_base;
 	unsigned int		idr_next;
 };
 
@@ -30,11 +31,19 @@ struct idr {
 /* Set the IDR flag and the IDR_FREE tag */
 #define IDR_RT_MARKER		((__force gfp_t)(3 << __GFP_BITS_SHIFT))
 
-#define IDR_INIT							\
-{									\
-	.idr_rt = RADIX_TREE_INIT(IDR_RT_MARKER)			\
+#define IDR_INIT_BASE(base) {						\
+	.idr_rt = RADIX_TREE_INIT(IDR_RT_MARKER),			\
+	.idr_base = (base),						\
+	.idr_next = 0,							\
 }
 #define DEFINE_IDR(name)	struct idr name = IDR_INIT
+
+/**
+ * IDR_INIT() - Initialise an IDR.
+ *
+ * A freshly-initialised IDR contains no IDs.
+ */
+#define IDR_INIT	IDR_INIT_BASE(0)
 
 /**
  * idr_get_cursor - Return the current position of the cyclic allocator
@@ -81,10 +90,12 @@ static inline void idr_set_cursor(struct idr *idr, unsigned int val)
 
 void idr_preload(gfp_t gfp_mask);
 
-int idr_alloc(struct idr *, void *, int start, int end, gfp_t);
-int __must_check idr_alloc_u32(struct idr *, void *ptr, u32 *nextid,
+int idr_alloc(struct idr *, void *ptr, int start, int end, gfp_t);
+int __must_check idr_alloc_u32(struct idr *, void *ptr, u32 *id,
 				unsigned long max, gfp_t);
-int idr_alloc_cyclic(struct idr *, void *entry, int start, int end, gfp_t);
+int idr_alloc_cyclic(struct idr *, void *ptr, int start, int end, gfp_t);
+void *idr_remove(struct idr *, unsigned long id);
+void *idr_find(const struct idr *, unsigned long id);
 int idr_for_each(const struct idr *,
 		 int (*fn)(int id, void *p, void *data), void *data);
 void *idr_get_next(struct idr *, int *nextid);
@@ -92,15 +103,31 @@ void *idr_get_next_ul(struct idr *, unsigned long *nextid);
 void *idr_replace(struct idr *, void *, unsigned long id);
 void idr_destroy(struct idr *);
 
-static inline void *idr_remove(struct idr *idr, unsigned long id)
-{
-	return radix_tree_delete_item(&idr->idr_rt, id, NULL);
-}
-
-static inline void idr_init(struct idr *idr)
+/**
+ * idr_init_base() - Initialise an IDR.
+ * @idr: IDR handle.
+ * @base: The base value for the IDR.
+ *
+ * This variation of idr_init() creates an IDR which will allocate IDs
+ * starting at %base.
+ */
+static inline void idr_init_base(struct idr *idr, int base)
 {
 	INIT_RADIX_TREE(&idr->idr_rt, IDR_RT_MARKER);
+	idr->idr_base = base;
 	idr->idr_next = 0;
+}
+
+/**
+ * idr_init() - Initialise an IDR.
+ * @idr: IDR handle.
+ *
+ * Initialise a dynamically allocated IDR.  To initialise a
+ * statically allocated IDR, use DEFINE_IDR().
+ */
+static inline void idr_init(struct idr *idr)
+{
+	idr_init_base(idr, 0);
 }
 
 static inline bool idr_is_empty(const struct idr *idr)
@@ -118,25 +145,6 @@ static inline bool idr_is_empty(const struct idr *idr)
 static inline void idr_preload_end(void)
 {
 	preempt_enable();
-}
-
-/**
- * idr_find() - Return pointer for given ID.
- * @idr: IDR handle.
- * @id: Pointer ID.
- *
- * Looks up the pointer associated with this ID.  A %NULL pointer may
- * indicate that @id is not allocated or that the %NULL pointer was
- * associated with this ID.
- *
- * This function can be called under rcu_read_lock(), given that the leaf
- * pointers lifetimes are correctly managed.
- *
- * Return: The pointer associated with this ID.
- */
-static inline void *idr_find(const struct idr *idr, unsigned long id)
-{
-	return radix_tree_lookup(&idr->idr_rt, id);
 }
 
 /**

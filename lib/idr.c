@@ -36,18 +36,21 @@ int idr_alloc_u32(struct idr *idr, void *ptr, u32 *nextid,
 {
 	struct radix_tree_iter iter;
 	void __rcu **slot;
+	int base = idr->idr_base;
+	int id = *nextid;
 
 	if (WARN_ON_ONCE(radix_tree_is_internal_node(ptr)))
 		return -EINVAL;
 	if (WARN_ON_ONCE(!(idr->idr_rt.gfp_mask & ROOT_IS_IDR)))
 		idr->idr_rt.gfp_mask |= IDR_RT_MARKER;
 
-	radix_tree_iter_init(&iter, *nextid);
-	slot = idr_get_free(&idr->idr_rt, &iter, gfp, max);
+	id = (id < base) ? 0 : id - base;
+	radix_tree_iter_init(&iter, id);
+	slot = idr_get_free(&idr->idr_rt, &iter, gfp, max - base);
 	if (IS_ERR(slot))
 		return PTR_ERR(slot);
 
-	*nextid = iter.index;
+	*nextid = iter.index + base;
 	/* there is a memory barrier inside radix_tree_iter_replace() */
 	radix_tree_iter_replace(&idr->idr_rt, &iter, slot, ptr);
 	radix_tree_iter_tag_clear(&idr->idr_rt, &iter, IDR_FREE);
@@ -136,6 +139,46 @@ int idr_alloc_cyclic(struct idr *idr, void *ptr, int start, int end, gfp_t gfp)
 EXPORT_SYMBOL(idr_alloc_cyclic);
 
 /**
+ * idr_remove() - Remove an ID from the IDR.
+ * @idr: IDR handle.
+ * @id: Pointer ID.
+ *
+ * Removes this ID from the IDR.  If the ID was not previously in the IDR,
+ * this function returns %NULL.
+ *
+ * Since this function modifies the IDR, the caller should provide their
+ * own locking to ensure that concurrent modification of the same IDR is
+ * not possible.
+ *
+ * Return: The pointer formerly associated with this ID.
+ */
+void *idr_remove(struct idr *idr, unsigned long id)
+{
+	return radix_tree_delete_item(&idr->idr_rt, id - idr->idr_base, NULL);
+}
+EXPORT_SYMBOL_GPL(idr_remove);
+
+/**
+ * idr_find() - Return pointer for given ID.
+ * @idr: IDR handle.
+ * @id: Pointer ID.
+ *
+ * Looks up the pointer associated with this ID.  A %NULL pointer may
+ * indicate that @id is not allocated or that the %NULL pointer was
+ * associated with this ID.
+ *
+ * This function can be called under rcu_read_lock(), given that the leaf
+ * pointers lifetimes are correctly managed.
+ *
+ * Return: The pointer associated with this ID.
+ */
+void *idr_find(const struct idr *idr, unsigned long id)
+{
+	return radix_tree_lookup(&idr->idr_rt, id - idr->idr_base);
+}
+EXPORT_SYMBOL_GPL(idr_find);
+
+/**
  * idr_for_each() - Iterate through all stored pointers.
  * @idr: IDR handle.
  * @fn: Function to be called for each pointer.
@@ -157,13 +200,14 @@ int idr_for_each(const struct idr *idr,
 {
 	struct radix_tree_iter iter;
 	void __rcu **slot;
+	int base = idr->idr_base;
 
 	radix_tree_for_each_slot(slot, &idr->idr_rt, &iter, 0) {
 		int ret;
 
 		if (WARN_ON_ONCE(iter.index > INT_MAX))
 			break;
-		ret = fn(iter.index, rcu_dereference_raw(*slot), data);
+		ret = fn(iter.index + base, rcu_dereference_raw(*slot), data);
 		if (ret)
 			return ret;
 	}
@@ -186,15 +230,19 @@ void *idr_get_next(struct idr *idr, int *nextid)
 {
 	struct radix_tree_iter iter;
 	void __rcu **slot;
+	int base = idr->idr_base;
+	int id = *nextid;
 
-	slot = radix_tree_iter_find(&idr->idr_rt, &iter, *nextid);
+	id = (id < base) ? 0 : id - base;
+	slot = radix_tree_iter_find(&idr->idr_rt, &iter, id);
 	if (!slot)
 		return NULL;
+	id = iter.index + base;
 
-	if (WARN_ON_ONCE(iter.index > INT_MAX))
+	if (WARN_ON_ONCE(id > INT_MAX))
 		return NULL;
 
-	*nextid = iter.index;
+	*nextid = id;
 	return rcu_dereference_raw(*slot);
 }
 EXPORT_SYMBOL(idr_get_next);
@@ -213,12 +261,15 @@ void *idr_get_next_ul(struct idr *idr, unsigned long *nextid)
 {
 	struct radix_tree_iter iter;
 	void __rcu **slot;
+	unsigned long base = idr->idr_base;
+	unsigned long id = *nextid;
 
-	slot = radix_tree_iter_find(&idr->idr_rt, &iter, *nextid);
+	id = (id < base) ? 0 : id - base;
+	slot = radix_tree_iter_find(&idr->idr_rt, &iter, id);
 	if (!slot)
 		return NULL;
 
-	*nextid = iter.index;
+	*nextid = iter.index + base;
 	return rcu_dereference_raw(*slot);
 }
 EXPORT_SYMBOL(idr_get_next_ul);
@@ -245,6 +296,7 @@ void *idr_replace(struct idr *idr, void *ptr, unsigned long id)
 
 	if (WARN_ON_ONCE(radix_tree_is_internal_node(ptr)))
 		return ERR_PTR(-EINVAL);
+	id -= idr->idr_base;
 
 	entry = __radix_tree_lookup(&idr->idr_rt, id, &node, &slot);
 	if (!slot || radix_tree_tag_get(&idr->idr_rt, id, IDR_FREE))

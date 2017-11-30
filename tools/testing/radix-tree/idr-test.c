@@ -153,11 +153,12 @@ void idr_nowait_test(void)
 	idr_destroy(&idr);
 }
 
-void idr_get_next_test(void)
+void idr_get_next_test(int base)
 {
 	unsigned long i;
 	int nextid;
 	DEFINE_IDR(idr);
+	idr_init_base(&idr, base);
 
 	int indices[] = {4, 7, 9, 15, 65, 128, 1000, 99999, 0};
 
@@ -244,7 +245,9 @@ void idr_checks(void)
 	idr_alloc_test();
 	idr_null_test();
 	idr_nowait_test();
-	idr_get_next_test();
+	idr_get_next_test(0);
+	idr_get_next_test(1);
+	idr_get_next_test(4);
 }
 
 /*
