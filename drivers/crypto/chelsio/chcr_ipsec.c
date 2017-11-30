@@ -199,13 +199,8 @@ out:
  */
 static int chcr_xfrm_add_state(struct xfrm_state *x)
 {
-	struct net_device *netdev = x->xso.dev;
-	struct port_info *pi  = netdev_priv(netdev);
 	struct ipsec_sa_entry *sa_entry;
-	struct adapter *adap;
 	int res = 0;
-
-	adap = pi->adapter;
 
 	if (x->props.aalgo != SADB_AALG_NONE) {
 		pr_debug("CHCR: Cannot offload authenticated xfrm states\n");
@@ -570,7 +565,7 @@ int chcr_ipsec_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct xfrm_state *x = xfrm_input_state(skb);
 	struct ipsec_sa_entry *sa_entry;
-	u64 *pos, *end, *before, cntrl, *sgl;
+	u64 *pos, *end, *before, *sgl;
 	int qidx, left, credits;
 	unsigned int flits = 0, ndesc, kctx_len;
 	struct adapter *adap;
@@ -596,7 +591,6 @@ out_free:       dev_kfree_skb_any(skb);
 	q = &adap->sge.ethtxq[qidx + pi->first_qset];
 
 	cxgb4_reclaim_completed_tx(adap, &q->q, true);
-	cntrl = TXPKT_L4CSUM_DIS_F | TXPKT_IPCSUM_DIS_F;
 
 	flits = calc_tx_sec_flits(skb, sa_entry->kctx_len);
 	ndesc = flits_to_desc(flits);
