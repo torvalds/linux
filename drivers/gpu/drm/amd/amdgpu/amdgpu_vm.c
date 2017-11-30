@@ -1069,18 +1069,20 @@ static int amdgpu_vm_wait_pd(struct amdgpu_device *adev, struct amdgpu_vm *vm,
  * Makes sure all entries in @parent are up to date.
  * Returns 0 for success, error for failure.
  */
-static int amdgpu_vm_update_level(struct amdgpu_device *adev,
-				  struct amdgpu_vm *vm,
-				  struct amdgpu_vm_pt *parent)
+static int amdgpu_vm_update_pde(struct amdgpu_device *adev,
+				struct amdgpu_vm *vm,
+				struct amdgpu_vm_pt *parent,
+				struct amdgpu_vm_pt *entry)
 {
+	struct amdgpu_pte_update_params params;
+	struct amdgpu_bo *bo = entry->base.bo;
 	struct amdgpu_bo *shadow;
 	struct amdgpu_ring *ring = NULL;
 	uint64_t pd_addr, shadow_addr = 0;
-	unsigned pt_idx, ndw = 0;
 	struct amdgpu_job *job;
-	struct amdgpu_pte_update_params params;
 	struct dma_fence *fence = NULL;
-	uint32_t incr;
+	unsigned ndw = 0;
+	uint64_t pde, pt;
 
 	int r;
 
@@ -1102,20 +1104,14 @@ static int amdgpu_vm_update_level(struct amdgpu_device *adev,
 		ring = container_of(vm->entity.sched, struct amdgpu_ring,
 				    sched);
 
-		/* padding, etc. */
+		/* should be sufficient for two commands plus padding, etc. */
 		ndw = 64;
 
-		/* assume the worst case */
-		ndw += parent->last_entry_used * 6;
-
 		pd_addr = amdgpu_bo_gpu_offset(parent->base.bo);
-
-		if (shadow) {
+		if (shadow)
 			shadow_addr = amdgpu_bo_gpu_offset(shadow);
-			ndw *= 2;
-		} else {
+		else
 			shadow_addr = 0;
-		}
 
 		r = amdgpu_job_alloc_with_ib(adev, ndw * 4, &job);
 		if (r)
@@ -1125,39 +1121,29 @@ static int amdgpu_vm_update_level(struct amdgpu_device *adev,
 		params.func = amdgpu_vm_do_set_ptes;
 	}
 
+	spin_lock(&vm->status_lock);
+	list_del_init(&entry->base.vm_status);
+	spin_unlock(&vm->status_lock);
 
-	/* walk over the address space and update the directory */
-	for (pt_idx = 0; pt_idx <= parent->last_entry_used; ++pt_idx) {
-		struct amdgpu_vm_pt *entry = &parent->entries[pt_idx];
-		struct amdgpu_bo *bo = entry->base.bo;
-		uint64_t pde, pt;
-
-		if (bo == NULL)
-			continue;
-
-		spin_lock(&vm->status_lock);
-		list_del_init(&entry->base.vm_status);
-		spin_unlock(&vm->status_lock);
-
-		pt = amdgpu_bo_gpu_offset(bo);
-		pt = amdgpu_gart_get_vm_pde(adev, pt);
-		/* Don't update huge pages here */
-		if ((parent->entries[pt_idx].addr & AMDGPU_PDE_PTE) ||
-		    parent->entries[pt_idx].addr == (pt | AMDGPU_PTE_VALID))
-			continue;
-
-		parent->entries[pt_idx].addr = pt | AMDGPU_PTE_VALID;
-
-		incr = amdgpu_bo_size(bo);
-		if (shadow) {
-			pde = shadow_addr + pt_idx * 8;
-			params.func(&params, pde, pt, 1, incr,
-				    AMDGPU_PTE_VALID);
-		}
-
-		pde = pd_addr + pt_idx * 8;
-		params.func(&params, pde, pt, 1, incr, AMDGPU_PTE_VALID);
+	pt = amdgpu_bo_gpu_offset(bo);
+	pt = amdgpu_gart_get_vm_pde(adev, pt);
+	/* Don't update huge pages here */
+	if (entry->addr & AMDGPU_PDE_PTE ||
+	    entry->addr == (pt | AMDGPU_PTE_VALID)) {
+		if (!vm->use_cpu_for_update)
+			amdgpu_job_free(job);
+		return 0;
 	}
+
+	entry->addr = pt | AMDGPU_PTE_VALID;
+
+	if (shadow) {
+		pde = shadow_addr + (entry - parent->entries) * 8;
+		params.func(&params, pde, pt, 1, 0, AMDGPU_PTE_VALID);
+	}
+
+	pde = pd_addr + (entry - parent->entries) * 8;
+	params.func(&params, pde, pt, 1, 0, AMDGPU_PTE_VALID);
 
 	if (!vm->use_cpu_for_update) {
 		if (params.ib->length_dw == 0) {
@@ -1249,14 +1235,16 @@ int amdgpu_vm_update_directories(struct amdgpu_device *adev,
 		bo = bo_base->bo->parent;
 		if (bo) {
 			struct amdgpu_vm_bo_base *parent;
-			struct amdgpu_vm_pt *pt;
+			struct amdgpu_vm_pt *pt, *entry;
 
 			parent = list_first_entry(&bo->va,
 						  struct amdgpu_vm_bo_base,
 						  bo_list);
 			pt = container_of(parent, struct amdgpu_vm_pt, base);
+			entry = container_of(bo_base, struct amdgpu_vm_pt,
+					     base);
 
-			r = amdgpu_vm_update_level(adev, vm, pt);
+			r = amdgpu_vm_update_pde(adev, vm, pt, entry);
 			if (r) {
 				amdgpu_vm_invalidate_level(vm, &vm->root);
 				return r;
