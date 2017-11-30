@@ -439,7 +439,7 @@ int f2fs_build_stats(struct f2fs_sb_info *sbi)
 	struct f2fs_super_block *raw_super = F2FS_RAW_SUPER(sbi);
 	struct f2fs_stat_info *si;
 
-	si = kzalloc(sizeof(struct f2fs_stat_info), GFP_KERNEL);
+	si = f2fs_kzalloc(sbi, sizeof(struct f2fs_stat_info), GFP_KERNEL);
 	if (!si)
 		return -ENOMEM;
 

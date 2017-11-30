@@ -2581,8 +2581,8 @@ static int __get_nat_bitmaps(struct f2fs_sb_info *sbi)
 
 	nm_i->nat_bits_blocks = F2FS_BYTES_TO_BLK((nat_bits_bytes << 1) + 8 +
 						F2FS_BLKSIZE - 1);
-	nm_i->nat_bits = kzalloc(nm_i->nat_bits_blocks << F2FS_BLKSIZE_BITS,
-						GFP_KERNEL);
+	nm_i->nat_bits = f2fs_kzalloc(sbi,
+			nm_i->nat_bits_blocks << F2FS_BLKSIZE_BITS, GFP_KERNEL);
 	if (!nm_i->nat_bits)
 		return -ENOMEM;
 
@@ -2728,7 +2728,8 @@ int build_node_manager(struct f2fs_sb_info *sbi)
 {
 	int err;
 
-	sbi->nm_info = kzalloc(sizeof(struct f2fs_nm_info), GFP_KERNEL);
+	sbi->nm_info = f2fs_kzalloc(sbi, sizeof(struct f2fs_nm_info),
+							GFP_KERNEL);
 	if (!sbi->nm_info)
 		return -ENOMEM;
 

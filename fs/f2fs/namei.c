@@ -533,7 +533,7 @@ static int f2fs_symlink(struct inode *dir, struct dentry *dentry,
 		struct qstr istr = QSTR_INIT(symname, len);
 		struct fscrypt_str ostr;
 
-		sd = kzalloc(disk_link.len, GFP_NOFS);
+		sd = f2fs_kzalloc(sbi, disk_link.len, GFP_NOFS);
 		if (!sd) {
 			err = -ENOMEM;
 			goto err_out;
