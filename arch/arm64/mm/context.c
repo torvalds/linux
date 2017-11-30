@@ -96,12 +96,6 @@ static void flush_context(unsigned int cpu)
 
 	set_reserved_asid_bits();
 
-	/*
-	 * Ensure the generation bump is observed before we xchg the
-	 * active_asids.
-	 */
-	smp_wmb();
-
 	for_each_possible_cpu(i) {
 		asid = atomic64_xchg_relaxed(&per_cpu(active_asids, i), 0);
 		/*
@@ -205,11 +199,18 @@ void check_and_switch_context(struct mm_struct *mm, unsigned int cpu)
 	asid = atomic64_read(&mm->context.id);
 
 	/*
-	 * The memory ordering here is subtle. We rely on the control
-	 * dependency between the generation read and the update of
-	 * active_asids to ensure that we are synchronised with a
-	 * parallel rollover (i.e. this pairs with the smp_wmb() in
-	 * flush_context).
+	 * The memory ordering here is subtle.
+	 * If our ASID matches the current generation, then we update
+	 * our active_asids entry with a relaxed xchg. Racing with a
+	 * concurrent rollover means that either:
+	 *
+	 * - We get a zero back from the xchg and end up waiting on the
+	 *   lock. Taking the lock synchronises with the rollover and so
+	 *   we are forced to see the updated generation.
+	 *
+	 * - We get a valid ASID back from the xchg, which means the
+	 *   relaxed xchg in flush_context will treat us as reserved
+	 *   because atomic RmWs are totally ordered for a given location.
 	 */
 	if (!((asid ^ atomic64_read(&asid_generation)) >> asid_bits)
 	    && atomic64_xchg_relaxed(&per_cpu(active_asids, cpu), asid))
