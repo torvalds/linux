@@ -60,6 +60,9 @@ static char __initdata builtin_cmdline[COMMAND_LINE_SIZE] = CONFIG_CMDLINE;
 unsigned long va_pa_offset;
 unsigned long pfn_base;
 
+unsigned long empty_zero_page[PAGE_SIZE / sizeof(unsigned long)] __page_aligned_bss;
+EXPORT_SYMBOL(empty_zero_page);
+
 /* The lucky hart to first increment this variable will boot the other cores */
 atomic_t hart_lottery;
 
