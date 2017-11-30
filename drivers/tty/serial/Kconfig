@@ -768,9 +768,10 @@ config SERIAL_SH_SCI_NR_UARTS
 	default "18" if ARCH_RENESAS
 
 config SERIAL_SH_SCI_CONSOLE
-	bool "Support for console on SuperH SCI(F)"
+	bool "Support for console on SuperH SCI(F)" if EXPERT
 	depends on SERIAL_SH_SCI=y
 	select SERIAL_CORE_CONSOLE
+	default y
 
 config SERIAL_SH_SCI_EARLYCON
 	bool "Support for early console on SuperH SCI(F)"
