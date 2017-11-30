@@ -2199,20 +2199,8 @@ int genpd_dev_pm_attach(struct device *dev)
 
 	ret = of_parse_phandle_with_args(dev->of_node, "power-domains",
 					"#power-domain-cells", 0, &pd_args);
-	if (ret < 0) {
-		if (ret != -ENOENT)
-			return ret;
-
-		/*
-		 * Try legacy Samsung-specific bindings
-		 * (for backwards compatibility of DT ABI)
-		 */
-		pd_args.args_count = 0;
-		pd_args.np = of_parse_phandle(dev->of_node,
-						"samsung,power-domain", 0);
-		if (!pd_args.np)
-			return -ENOENT;
-	}
+	if (ret < 0)
+		return ret;
 
 	mutex_lock(&gpd_list_lock);
 	pd = genpd_get_from_provider(&pd_args);
