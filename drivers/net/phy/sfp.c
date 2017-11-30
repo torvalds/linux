@@ -358,7 +358,7 @@ static void sfp_sm_link_check_los(struct sfp *sfp)
 	 * SFP_OPTIONS_LOS_NORMAL are set?  For now, we assume
 	 * the same as SFP_OPTIONS_LOS_NORMAL set.
 	 */
-	if (sfp->id.ext.options & SFP_OPTIONS_LOS_INVERTED)
+	if (sfp->id.ext.options & cpu_to_be16(SFP_OPTIONS_LOS_INVERTED))
 		los ^= SFP_F_LOS;
 
 	if (los)
@@ -583,7 +583,8 @@ static void sfp_sm_event(struct sfp *sfp, unsigned int event)
 		if (event == SFP_E_TX_FAULT)
 			sfp_sm_fault(sfp, true);
 		else if (event ==
-			 (sfp->id.ext.options & SFP_OPTIONS_LOS_INVERTED ?
+			 (sfp->id.ext.options &
+			  cpu_to_be16(SFP_OPTIONS_LOS_INVERTED) ?
 			  SFP_E_LOS_HIGH : SFP_E_LOS_LOW))
 			sfp_sm_link_up(sfp);
 		break;
@@ -593,7 +594,8 @@ static void sfp_sm_event(struct sfp *sfp, unsigned int event)
 			sfp_sm_link_down(sfp);
 			sfp_sm_fault(sfp, true);
 		} else if (event ==
-			   (sfp->id.ext.options & SFP_OPTIONS_LOS_INVERTED ?
+			   (sfp->id.ext.options &
+			    cpu_to_be16(SFP_OPTIONS_LOS_INVERTED) ?
 			    SFP_E_LOS_LOW : SFP_E_LOS_HIGH)) {
 			sfp_sm_link_down(sfp);
 			sfp_sm_next(sfp, SFP_S_WAIT_LOS, 0);
