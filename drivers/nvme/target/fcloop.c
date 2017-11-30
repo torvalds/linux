@@ -249,14 +249,15 @@ struct fcloop_fcpreq {
 	u16				status;
 	bool				active;
 	bool				aborted;
-	struct work_struct		work;
+	struct work_struct		fcp_rcv_work;
+	struct work_struct		abort_rcv_work;
+	struct work_struct		tio_done_work;
 	struct nvmefc_tgt_fcp_req	tgt_fcp_req;
 };
 
 struct fcloop_ini_fcpreq {
 	struct nvmefc_fcp_req		*fcpreq;
 	struct fcloop_fcpreq		*tfcp_req;
-	struct work_struct		iniwork;
 };
 
 static inline struct fcloop_lsreq *
@@ -347,17 +348,58 @@ fcloop_xmt_ls_rsp(struct nvmet_fc_target_port *tport,
 	return 0;
 }
 
-/*
- * FCP IO operation done by initiator abort.
- * call back up initiator "done" flows.
- */
 static void
-fcloop_tgt_fcprqst_ini_done_work(struct work_struct *work)
+fcloop_fcp_recv_work(struct work_struct *work)
 {
-	struct fcloop_ini_fcpreq *inireq =
-		container_of(work, struct fcloop_ini_fcpreq, iniwork);
+	struct fcloop_fcpreq *tfcp_req =
+		container_of(work, struct fcloop_fcpreq, fcp_rcv_work);
+	struct nvmefc_fcp_req *fcpreq = tfcp_req->fcpreq;
+	struct fcloop_ini_fcpreq *inireq = NULL;
+	int ret = 0;
 
-	inireq->fcpreq->done(inireq->fcpreq);
+	ret = nvmet_fc_rcv_fcp_req(tfcp_req->tport->targetport,
+				&tfcp_req->tgt_fcp_req,
+				fcpreq->cmdaddr, fcpreq->cmdlen);
+	if (ret) {
+		inireq = fcpreq->private;
+		inireq->tfcp_req = NULL;
+
+		fcpreq->status = tfcp_req->status;
+		fcpreq->done(fcpreq);
+	}
+}
+
+static void
+fcloop_call_host_done(struct nvmefc_fcp_req *fcpreq,
+			struct fcloop_fcpreq *tfcp_req, int status)
+{
+	struct fcloop_ini_fcpreq *inireq = NULL;
+
+	if (fcpreq) {
+		inireq = fcpreq->private;
+		inireq->tfcp_req = NULL;
+
+		fcpreq->status = status;
+		fcpreq->done(fcpreq);
+	}
+}
+
+static void
+fcloop_fcp_abort_recv_work(struct work_struct *work)
+{
+	struct fcloop_fcpreq *tfcp_req =
+		container_of(work, struct fcloop_fcpreq, abort_rcv_work);
+	struct nvmefc_fcp_req *fcpreq = tfcp_req->fcpreq;
+
+	if (tfcp_req->tport->targetport)
+		nvmet_fc_rcv_fcp_abort(tfcp_req->tport->targetport,
+					&tfcp_req->tgt_fcp_req);
+
+	spin_lock(&tfcp_req->reqlock);
+	tfcp_req->fcpreq = NULL;
+	spin_unlock(&tfcp_req->reqlock);
+
+	fcloop_call_host_done(fcpreq, tfcp_req, -ECANCELED);
 }
 
 /*
@@ -368,8 +410,7 @@ static void
 fcloop_tgt_fcprqst_done_work(struct work_struct *work)
 {
 	struct fcloop_fcpreq *tfcp_req =
-		container_of(work, struct fcloop_fcpreq, work);
-	struct fcloop_tport *tport = tfcp_req->tport;
+		container_of(work, struct fcloop_fcpreq, tio_done_work);
 	struct nvmefc_fcp_req *fcpreq;
 
 	spin_lock(&tfcp_req->reqlock);
@@ -377,10 +418,7 @@ fcloop_tgt_fcprqst_done_work(struct work_struct *work)
 	tfcp_req->fcpreq = NULL;
 	spin_unlock(&tfcp_req->reqlock);
 
-	if (tport->remoteport && fcpreq) {
-		fcpreq->status = tfcp_req->status;
-		fcpreq->done(fcpreq);
-	}
+	fcloop_call_host_done(fcpreq, tfcp_req, tfcp_req->status);
 
 	kfree(tfcp_req);
 }
@@ -395,7 +433,6 @@ fcloop_fcp_req(struct nvme_fc_local_port *localport,
 	struct fcloop_rport *rport = remoteport->private;
 	struct fcloop_ini_fcpreq *inireq = fcpreq->private;
 	struct fcloop_fcpreq *tfcp_req;
-	int ret = 0;
 
 	if (!rport->targetport)
 		return -ECONNREFUSED;
@@ -406,16 +443,16 @@ fcloop_fcp_req(struct nvme_fc_local_port *localport,
 
 	inireq->fcpreq = fcpreq;
 	inireq->tfcp_req = tfcp_req;
-	INIT_WORK(&inireq->iniwork, fcloop_tgt_fcprqst_ini_done_work);
 	tfcp_req->fcpreq = fcpreq;
 	tfcp_req->tport = rport->targetport->private;
 	spin_lock_init(&tfcp_req->reqlock);
-	INIT_WORK(&tfcp_req->work, fcloop_tgt_fcprqst_done_work);
+	INIT_WORK(&tfcp_req->fcp_rcv_work, fcloop_fcp_recv_work);
+	INIT_WORK(&tfcp_req->abort_rcv_work, fcloop_fcp_abort_recv_work);
+	INIT_WORK(&tfcp_req->tio_done_work, fcloop_tgt_fcprqst_done_work);
 
-	ret = nvmet_fc_rcv_fcp_req(rport->targetport, &tfcp_req->tgt_fcp_req,
-				 fcpreq->cmdaddr, fcpreq->cmdlen);
+	schedule_work(&tfcp_req->fcp_rcv_work);
 
-	return ret;
+	return 0;
 }
 
 static void
@@ -594,7 +631,7 @@ fcloop_fcp_req_release(struct nvmet_fc_target_port *tgtport,
 {
 	struct fcloop_fcpreq *tfcp_req = tgt_fcp_req_to_fcpreq(tgt_fcpreq);
 
-	schedule_work(&tfcp_req->work);
+	schedule_work(&tfcp_req->tio_done_work);
 }
 
 static void
@@ -610,13 +647,12 @@ fcloop_fcp_abort(struct nvme_fc_local_port *localport,
 			void *hw_queue_handle,
 			struct nvmefc_fcp_req *fcpreq)
 {
-	struct fcloop_rport *rport = remoteport->private;
 	struct fcloop_ini_fcpreq *inireq = fcpreq->private;
 	struct fcloop_fcpreq *tfcp_req = inireq->tfcp_req;
 
 	if (!tfcp_req)
 		/* abort has already been called */
-		goto finish;
+		return;
 
 	/* break initiator/target relationship for io */
 	spin_lock(&tfcp_req->reqlock);
@@ -624,14 +660,7 @@ fcloop_fcp_abort(struct nvme_fc_local_port *localport,
 	tfcp_req->fcpreq = NULL;
 	spin_unlock(&tfcp_req->reqlock);
 
-	if (rport->targetport)
-		nvmet_fc_rcv_fcp_abort(rport->targetport,
-					&tfcp_req->tgt_fcp_req);
-
-finish:
-	/* post the aborted io completion */
-	fcpreq->status = -ECANCELED;
-	schedule_work(&inireq->iniwork);
+	WARN_ON(!schedule_work(&tfcp_req->abort_rcv_work));
 }
 
 static void
@@ -721,8 +750,7 @@ static struct nvmet_fc_target_template tgttemplate = {
 	.max_dif_sgl_segments	= FCLOOP_SGL_SEGS,
 	.dma_boundary		= FCLOOP_DMABOUND_4G,
 	/* optional features */
-	.target_features	= NVMET_FCTGTFEAT_CMD_IN_ISR |
-				  NVMET_FCTGTFEAT_OPDONE_IN_ISR,
+	.target_features	= 0,
 	/* sizes of additional private data for data structures */
 	.target_priv_sz		= sizeof(struct fcloop_tport),
 };
