@@ -1376,6 +1376,9 @@ static int bnxt_firmware_reset(struct net_device *dev,
 		req.embedded_proc_type = FW_RESET_REQ_EMBEDDED_PROC_TYPE_CHIP;
 		req.selfrst_status = FW_RESET_REQ_SELFRST_STATUS_SELFRSTASAP;
 		break;
+	case BNXT_FW_RESET_AP:
+		req.embedded_proc_type = FW_RESET_REQ_EMBEDDED_PROC_TYPE_AP;
+		break;
 	default:
 		return -EINVAL;
 	}
@@ -2522,6 +2525,14 @@ static int bnxt_reset(struct net_device *dev, u32 *flags)
 		rc = bnxt_firmware_reset(dev, BNXT_FW_RESET_CHIP);
 		if (!rc)
 			netdev_info(dev, "Reset request successful. Reload driver to complete reset\n");
+	} else if (*flags == ETH_RESET_AP) {
+		/* This feature is not supported in older firmware versions */
+		if (bp->hwrm_spec_code < 0x10803)
+			return -EOPNOTSUPP;
+
+		rc = bnxt_firmware_reset(dev, BNXT_FW_RESET_AP);
+		if (!rc)
+			netdev_info(dev, "Reset Application Processor request successful.\n");
 	} else {
 		rc = -EINVAL;
 	}
