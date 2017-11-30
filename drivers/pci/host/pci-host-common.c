@@ -142,7 +142,7 @@ int pci_host_common_probe(struct platform_device *pdev,
 
 	/* Do not reassign resources if probe only */
 	if (!pci_has_flag(PCI_PROBE_ONLY))
-		pci_add_flags(PCI_REASSIGN_ALL_RSRC | PCI_REASSIGN_ALL_BUS);
+		pci_add_flags(PCI_REASSIGN_ALL_BUS);
 
 	list_splice_init(&resources, &bridge->windows);
 	bridge->dev.parent = dev;
