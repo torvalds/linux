@@ -164,9 +164,31 @@
 #define GEM_DCFG5		0x0290 /* Design Config 5 */
 #define GEM_DCFG6		0x0294 /* Design Config 6 */
 #define GEM_DCFG7		0x0298 /* Design Config 7 */
+#define GEM_DCFG8		0x029C /* Design Config 8 */
 
 #define GEM_TXBDCTRL	0x04cc /* TX Buffer Descriptor control register */
 #define GEM_RXBDCTRL	0x04d0 /* RX Buffer Descriptor control register */
+
+/* Screener Type 2 match registers */
+#define GEM_SCRT2		0x540
+
+/* EtherType registers */
+#define GEM_ETHT		0x06E0
+
+/* Type 2 compare registers */
+#define GEM_T2CMPW0		0x0700
+#define GEM_T2CMPW1		0x0704
+#define T2CMP_OFST(t2idx)	(t2idx * 2)
+
+/* type 2 compare registers
+ * each location requires 3 compare regs
+ */
+#define GEM_IP4SRC_CMP(idx)		(idx * 3)
+#define GEM_IP4DST_CMP(idx)		(idx * 3 + 1)
+#define GEM_PORT_CMP(idx)		(idx * 3 + 2)
+
+/* Which screening type 2 EtherType register will be used (0 - 7) */
+#define SCRT2_ETHT		0
 
 #define GEM_ISR(hw_q)		(0x0400 + ((hw_q) << 2))
 #define GEM_TBQP(hw_q)		(0x0440 + ((hw_q) << 2))
@@ -457,6 +479,16 @@
 #define GEM_DAW64_OFFSET			23
 #define GEM_DAW64_SIZE				1
 
+/* Bitfields in DCFG8. */
+#define GEM_T1SCR_OFFSET			24
+#define GEM_T1SCR_SIZE				8
+#define GEM_T2SCR_OFFSET			16
+#define GEM_T2SCR_SIZE				8
+#define GEM_SCR2ETH_OFFSET			8
+#define GEM_SCR2ETH_SIZE			8
+#define GEM_SCR2CMP_OFFSET			0
+#define GEM_SCR2CMP_SIZE			8
+
 /* Bitfields in TISUBN */
 #define GEM_SUBNSINCR_OFFSET			0
 #define GEM_SUBNSINCR_SIZE			16
@@ -484,6 +516,66 @@
 /* Bitfields in RXBDCTRL */
 #define GEM_RXTSMODE_OFFSET			4 /* RX Descriptor Timestamp Insertion mode */
 #define GEM_RXTSMODE_SIZE			2
+
+/* Bitfields in SCRT2 */
+#define GEM_QUEUE_OFFSET			0 /* Queue Number */
+#define GEM_QUEUE_SIZE				4
+#define GEM_VLANPR_OFFSET			4 /* VLAN Priority */
+#define GEM_VLANPR_SIZE				3
+#define GEM_VLANEN_OFFSET			8 /* VLAN Enable */
+#define GEM_VLANEN_SIZE				1
+#define GEM_ETHT2IDX_OFFSET			9 /* Index to screener type 2 EtherType register */
+#define GEM_ETHT2IDX_SIZE			3
+#define GEM_ETHTEN_OFFSET			12 /* EtherType Enable */
+#define GEM_ETHTEN_SIZE				1
+#define GEM_CMPA_OFFSET				13 /* Compare A - Index to screener type 2 Compare register */
+#define GEM_CMPA_SIZE				5
+#define GEM_CMPAEN_OFFSET			18 /* Compare A Enable */
+#define GEM_CMPAEN_SIZE				1
+#define GEM_CMPB_OFFSET				19 /* Compare B - Index to screener type 2 Compare register */
+#define GEM_CMPB_SIZE				5
+#define GEM_CMPBEN_OFFSET			24 /* Compare B Enable */
+#define GEM_CMPBEN_SIZE				1
+#define GEM_CMPC_OFFSET				25 /* Compare C - Index to screener type 2 Compare register */
+#define GEM_CMPC_SIZE				5
+#define GEM_CMPCEN_OFFSET			30 /* Compare C Enable */
+#define GEM_CMPCEN_SIZE				1
+
+/* Bitfields in ETHT */
+#define GEM_ETHTCMP_OFFSET			0 /* EtherType compare value */
+#define GEM_ETHTCMP_SIZE			16
+
+/* Bitfields in T2CMPW0 */
+#define GEM_T2CMP_OFFSET			16 /* 0xFFFF0000 compare value */
+#define GEM_T2CMP_SIZE				16
+#define GEM_T2MASK_OFFSET			0 /* 0x0000FFFF compare value or mask */
+#define GEM_T2MASK_SIZE				16
+
+/* Bitfields in T2CMPW1 */
+#define GEM_T2DISMSK_OFFSET			9 /* disable mask */
+#define GEM_T2DISMSK_SIZE			1
+#define GEM_T2CMPOFST_OFFSET			7 /* compare offset */
+#define GEM_T2CMPOFST_SIZE			2
+#define GEM_T2OFST_OFFSET			0 /* offset value */
+#define GEM_T2OFST_SIZE				7
+
+/* Offset for screener type 2 compare values (T2CMPOFST).
+ * Note the offset is applied after the specified point,
+ * e.g. GEM_T2COMPOFST_ETYPE denotes the EtherType field, so an offset
+ * of 12 bytes from this would be the source IP address in an IP header
+ */
+#define GEM_T2COMPOFST_SOF		0
+#define GEM_T2COMPOFST_ETYPE	1
+#define GEM_T2COMPOFST_IPHDR	2
+#define GEM_T2COMPOFST_TCPUDP	3
+
+/* offset from EtherType to IP address */
+#define ETYPE_SRCIP_OFFSET			12
+#define ETYPE_DSTIP_OFFSET			16
+
+/* offset from IP header to port */
+#define IPHDR_SRCPORT_OFFSET		0
+#define IPHDR_DSTPORT_OFFSET		2
 
 /* Transmit DMA buffer descriptor Word 1 */
 #define GEM_DMA_TXVALID_OFFSET		23 /* timestamp has been captured in the Buffer Descriptor */
@@ -585,6 +677,8 @@
 #define gem_writel(port, reg, value)	(port)->macb_reg_writel((port), GEM_##reg, (value))
 #define queue_readl(queue, reg)		(queue)->bp->macb_reg_readl((queue)->bp, (queue)->reg)
 #define queue_writel(queue, reg, value)	(queue)->bp->macb_reg_writel((queue)->bp, (queue)->reg, (value))
+#define gem_readl_n(port, reg, idx)		(port)->macb_reg_readl((port), GEM_##reg + idx * 4)
+#define gem_writel_n(port, reg, idx, value)	(port)->macb_reg_writel((port), GEM_##reg + idx * 4, (value))
 
 #define PTP_TS_BUFFER_SIZE		128 /* must be power of 2 */
 
@@ -1026,6 +1120,16 @@ struct macb_queue {
 #endif
 };
 
+struct ethtool_rx_fs_item {
+	struct ethtool_rx_flow_spec fs;
+	struct list_head list;
+};
+
+struct ethtool_rx_fs_list {
+	struct list_head list;
+	unsigned int count;
+};
+
 struct macb {
 	void __iomem		*regs;
 	bool			native_io;
@@ -1092,6 +1196,11 @@ struct macb {
 	struct ptp_clock_info ptp_clock_info;
 	struct tsu_incr tsu_incr;
 	struct hwtstamp_config tstamp_config;
+
+	/* RX queue filer rule set*/
+	struct ethtool_rx_fs_list rx_fs_list;
+	spinlock_t rx_fs_lock;
+	unsigned int max_tuples;
 };
 
 #ifdef CONFIG_MACB_USE_HWSTAMP

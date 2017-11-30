@@ -2668,6 +2668,308 @@ static int macb_get_ts_info(struct net_device *netdev,
 	return ethtool_op_get_ts_info(netdev, info);
 }
 
+static void gem_enable_flow_filters(struct macb *bp, bool enable)
+{
+	struct ethtool_rx_fs_item *item;
+	u32 t2_scr;
+	int num_t2_scr;
+
+	num_t2_scr = GEM_BFEXT(T2SCR, gem_readl(bp, DCFG8));
+
+	list_for_each_entry(item, &bp->rx_fs_list.list, list) {
+		struct ethtool_rx_flow_spec *fs = &item->fs;
+		struct ethtool_tcpip4_spec *tp4sp_m;
+
+		if (fs->location >= num_t2_scr)
+			continue;
+
+		t2_scr = gem_readl_n(bp, SCRT2, fs->location);
+
+		/* enable/disable screener regs for the flow entry */
+		t2_scr = GEM_BFINS(ETHTEN, enable, t2_scr);
+
+		/* only enable fields with no masking */
+		tp4sp_m = &(fs->m_u.tcp_ip4_spec);
+
+		if (enable && (tp4sp_m->ip4src == 0xFFFFFFFF))
+			t2_scr = GEM_BFINS(CMPAEN, 1, t2_scr);
+		else
+			t2_scr = GEM_BFINS(CMPAEN, 0, t2_scr);
+
+		if (enable && (tp4sp_m->ip4dst == 0xFFFFFFFF))
+			t2_scr = GEM_BFINS(CMPBEN, 1, t2_scr);
+		else
+			t2_scr = GEM_BFINS(CMPBEN, 0, t2_scr);
+
+		if (enable && ((tp4sp_m->psrc == 0xFFFF) || (tp4sp_m->pdst == 0xFFFF)))
+			t2_scr = GEM_BFINS(CMPCEN, 1, t2_scr);
+		else
+			t2_scr = GEM_BFINS(CMPCEN, 0, t2_scr);
+
+		gem_writel_n(bp, SCRT2, fs->location, t2_scr);
+	}
+}
+
+static void gem_prog_cmp_regs(struct macb *bp, struct ethtool_rx_flow_spec *fs)
+{
+	struct ethtool_tcpip4_spec *tp4sp_v, *tp4sp_m;
+	uint16_t index = fs->location;
+	u32 w0, w1, t2_scr;
+	bool cmp_a = false;
+	bool cmp_b = false;
+	bool cmp_c = false;
+
+	tp4sp_v = &(fs->h_u.tcp_ip4_spec);
+	tp4sp_m = &(fs->m_u.tcp_ip4_spec);
+
+	/* ignore field if any masking set */
+	if (tp4sp_m->ip4src == 0xFFFFFFFF) {
+		/* 1st compare reg - IP source address */
+		w0 = 0;
+		w1 = 0;
+		w0 = tp4sp_v->ip4src;
+		w1 = GEM_BFINS(T2DISMSK, 1, w1); /* 32-bit compare */
+		w1 = GEM_BFINS(T2CMPOFST, GEM_T2COMPOFST_ETYPE, w1);
+		w1 = GEM_BFINS(T2OFST, ETYPE_SRCIP_OFFSET, w1);
+		gem_writel_n(bp, T2CMPW0, T2CMP_OFST(GEM_IP4SRC_CMP(index)), w0);
+		gem_writel_n(bp, T2CMPW1, T2CMP_OFST(GEM_IP4SRC_CMP(index)), w1);
+		cmp_a = true;
+	}
+
+	/* ignore field if any masking set */
+	if (tp4sp_m->ip4dst == 0xFFFFFFFF) {
+		/* 2nd compare reg - IP destination address */
+		w0 = 0;
+		w1 = 0;
+		w0 = tp4sp_v->ip4dst;
+		w1 = GEM_BFINS(T2DISMSK, 1, w1); /* 32-bit compare */
+		w1 = GEM_BFINS(T2CMPOFST, GEM_T2COMPOFST_ETYPE, w1);
+		w1 = GEM_BFINS(T2OFST, ETYPE_DSTIP_OFFSET, w1);
+		gem_writel_n(bp, T2CMPW0, T2CMP_OFST(GEM_IP4DST_CMP(index)), w0);
+		gem_writel_n(bp, T2CMPW1, T2CMP_OFST(GEM_IP4DST_CMP(index)), w1);
+		cmp_b = true;
+	}
+
+	/* ignore both port fields if masking set in both */
+	if ((tp4sp_m->psrc == 0xFFFF) || (tp4sp_m->pdst == 0xFFFF)) {
+		/* 3rd compare reg - source port, destination port */
+		w0 = 0;
+		w1 = 0;
+		w1 = GEM_BFINS(T2CMPOFST, GEM_T2COMPOFST_IPHDR, w1);
+		if (tp4sp_m->psrc == tp4sp_m->pdst) {
+			w0 = GEM_BFINS(T2MASK, tp4sp_v->psrc, w0);
+			w0 = GEM_BFINS(T2CMP, tp4sp_v->pdst, w0);
+			w1 = GEM_BFINS(T2DISMSK, 1, w1); /* 32-bit compare */
+			w1 = GEM_BFINS(T2OFST, IPHDR_SRCPORT_OFFSET, w1);
+		} else {
+			/* only one port definition */
+			w1 = GEM_BFINS(T2DISMSK, 0, w1); /* 16-bit compare */
+			w0 = GEM_BFINS(T2MASK, 0xFFFF, w0);
+			if (tp4sp_m->psrc == 0xFFFF) { /* src port */
+				w0 = GEM_BFINS(T2CMP, tp4sp_v->psrc, w0);
+				w1 = GEM_BFINS(T2OFST, IPHDR_SRCPORT_OFFSET, w1);
+			} else { /* dst port */
+				w0 = GEM_BFINS(T2CMP, tp4sp_v->pdst, w0);
+				w1 = GEM_BFINS(T2OFST, IPHDR_DSTPORT_OFFSET, w1);
+			}
+		}
+		gem_writel_n(bp, T2CMPW0, T2CMP_OFST(GEM_PORT_CMP(index)), w0);
+		gem_writel_n(bp, T2CMPW1, T2CMP_OFST(GEM_PORT_CMP(index)), w1);
+		cmp_c = true;
+	}
+
+	t2_scr = 0;
+	t2_scr = GEM_BFINS(QUEUE, (fs->ring_cookie) & 0xFF, t2_scr);
+	t2_scr = GEM_BFINS(ETHT2IDX, SCRT2_ETHT, t2_scr);
+	if (cmp_a)
+		t2_scr = GEM_BFINS(CMPA, GEM_IP4SRC_CMP(index), t2_scr);
+	if (cmp_b)
+		t2_scr = GEM_BFINS(CMPB, GEM_IP4DST_CMP(index), t2_scr);
+	if (cmp_c)
+		t2_scr = GEM_BFINS(CMPC, GEM_PORT_CMP(index), t2_scr);
+	gem_writel_n(bp, SCRT2, index, t2_scr);
+}
+
+static int gem_add_flow_filter(struct net_device *netdev,
+		struct ethtool_rxnfc *cmd)
+{
+	struct macb *bp = netdev_priv(netdev);
+	struct ethtool_rx_flow_spec *fs = &cmd->fs;
+	struct ethtool_rx_fs_item *item, *newfs;
+	int ret = -EINVAL;
+	bool added = false;
+
+	newfs = kmalloc(sizeof(*newfs), GFP_KERNEL);
+	if (newfs == NULL)
+		return -ENOMEM;
+	memcpy(&newfs->fs, fs, sizeof(newfs->fs));
+
+	netdev_dbg(netdev,
+			"Adding flow filter entry,type=%u,queue=%u,loc=%u,src=%08X,dst=%08X,ps=%u,pd=%u\n",
+			fs->flow_type, (int)fs->ring_cookie, fs->location,
+			htonl(fs->h_u.tcp_ip4_spec.ip4src),
+			htonl(fs->h_u.tcp_ip4_spec.ip4dst),
+			htons(fs->h_u.tcp_ip4_spec.psrc), htons(fs->h_u.tcp_ip4_spec.pdst));
+
+	/* find correct place to add in list */
+	if (list_empty(&bp->rx_fs_list.list))
+		list_add(&newfs->list, &bp->rx_fs_list.list);
+	else {
+		list_for_each_entry(item, &bp->rx_fs_list.list, list) {
+			if (item->fs.location > newfs->fs.location) {
+				list_add_tail(&newfs->list, &item->list);
+				added = true;
+				break;
+			} else if (item->fs.location == fs->location) {
+				netdev_err(netdev, "Rule not added: location %d not free!\n",
+						fs->location);
+				ret = -EBUSY;
+				goto err;
+			}
+		}
+		if (!added)
+			list_add_tail(&newfs->list, &bp->rx_fs_list.list);
+	}
+
+	gem_prog_cmp_regs(bp, fs);
+	bp->rx_fs_list.count++;
+	/* enable filtering if NTUPLE on */
+	if (netdev->features & NETIF_F_NTUPLE)
+		gem_enable_flow_filters(bp, 1);
+
+	return 0;
+
+err:
+	kfree(newfs);
+	return ret;
+}
+
+static int gem_del_flow_filter(struct net_device *netdev,
+		struct ethtool_rxnfc *cmd)
+{
+	struct macb *bp = netdev_priv(netdev);
+	struct ethtool_rx_fs_item *item;
+	struct ethtool_rx_flow_spec *fs;
+
+	if (list_empty(&bp->rx_fs_list.list))
+		return -EINVAL;
+
+	list_for_each_entry(item, &bp->rx_fs_list.list, list) {
+		if (item->fs.location == cmd->fs.location) {
+			/* disable screener regs for the flow entry */
+			fs = &(item->fs);
+			netdev_dbg(netdev,
+					"Deleting flow filter entry,type=%u,queue=%u,loc=%u,src=%08X,dst=%08X,ps=%u,pd=%u\n",
+					fs->flow_type, (int)fs->ring_cookie, fs->location,
+					htonl(fs->h_u.tcp_ip4_spec.ip4src),
+					htonl(fs->h_u.tcp_ip4_spec.ip4dst),
+					htons(fs->h_u.tcp_ip4_spec.psrc),
+					htons(fs->h_u.tcp_ip4_spec.pdst));
+
+			gem_writel_n(bp, SCRT2, fs->location, 0);
+
+			list_del(&item->list);
+			kfree(item);
+			bp->rx_fs_list.count--;
+			return 0;
+		}
+	}
+
+	return -EINVAL;
+}
+
+static int gem_get_flow_entry(struct net_device *netdev,
+		struct ethtool_rxnfc *cmd)
+{
+	struct macb *bp = netdev_priv(netdev);
+	struct ethtool_rx_fs_item *item;
+
+	list_for_each_entry(item, &bp->rx_fs_list.list, list) {
+		if (item->fs.location == cmd->fs.location) {
+			memcpy(&cmd->fs, &item->fs, sizeof(cmd->fs));
+			return 0;
+		}
+	}
+	return -EINVAL;
+}
+
+static int gem_get_all_flow_entries(struct net_device *netdev,
+		struct ethtool_rxnfc *cmd, u32 *rule_locs)
+{
+	struct macb *bp = netdev_priv(netdev);
+	struct ethtool_rx_fs_item *item;
+	uint32_t cnt = 0;
+
+	list_for_each_entry(item, &bp->rx_fs_list.list, list) {
+		if (cnt == cmd->rule_cnt)
+			return -EMSGSIZE;
+		rule_locs[cnt] = item->fs.location;
+		cnt++;
+	}
+	cmd->data = bp->max_tuples;
+	cmd->rule_cnt = cnt;
+
+	return 0;
+}
+
+static int gem_get_rxnfc(struct net_device *netdev, struct ethtool_rxnfc *cmd,
+		u32 *rule_locs)
+{
+	struct macb *bp = netdev_priv(netdev);
+	int ret = 0;
+
+	switch (cmd->cmd) {
+	case ETHTOOL_GRXRINGS:
+		cmd->data = bp->num_queues;
+		break;
+	case ETHTOOL_GRXCLSRLCNT:
+		cmd->rule_cnt = bp->rx_fs_list.count;
+		break;
+	case ETHTOOL_GRXCLSRULE:
+		ret = gem_get_flow_entry(netdev, cmd);
+		break;
+	case ETHTOOL_GRXCLSRLALL:
+		ret = gem_get_all_flow_entries(netdev, cmd, rule_locs);
+		break;
+	default:
+		netdev_err(netdev,
+			  "Command parameter %d is not supported\n", cmd->cmd);
+		ret = -EOPNOTSUPP;
+	}
+
+	return ret;
+}
+
+static int gem_set_rxnfc(struct net_device *netdev, struct ethtool_rxnfc *cmd)
+{
+	struct macb *bp = netdev_priv(netdev);
+	unsigned long flags;
+	int ret;
+
+	spin_lock_irqsave(&bp->rx_fs_lock, flags);
+
+	switch (cmd->cmd) {
+	case ETHTOOL_SRXCLSRLINS:
+		if ((cmd->fs.location >= bp->max_tuples)
+				|| (cmd->fs.ring_cookie >= bp->num_queues)) {
+			ret = -EINVAL;
+			break;
+		}
+		ret = gem_add_flow_filter(netdev, cmd);
+		break;
+	case ETHTOOL_SRXCLSRLDEL:
+		ret = gem_del_flow_filter(netdev, cmd);
+		break;
+	default:
+		netdev_err(netdev,
+			  "Command parameter %d is not supported\n", cmd->cmd);
+		ret = -EOPNOTSUPP;
+	}
+
+	spin_unlock_irqrestore(&bp->rx_fs_lock, flags);
+	return ret;
+}
+
 static const struct ethtool_ops macb_ethtool_ops = {
 	.get_regs_len		= macb_get_regs_len,
 	.get_regs		= macb_get_regs,
@@ -2693,6 +2995,8 @@ static const struct ethtool_ops gem_ethtool_ops = {
 	.set_link_ksettings     = phy_ethtool_set_link_ksettings,
 	.get_ringparam		= macb_get_ringparam,
 	.set_ringparam		= macb_set_ringparam,
+	.get_rxnfc			= gem_get_rxnfc,
+	.set_rxnfc			= gem_set_rxnfc,
 };
 
 static int macb_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
@@ -2750,6 +3054,12 @@ static int macb_set_features(struct net_device *netdev,
 		gem_writel(bp, NCFGR, netcfg);
 	}
 
+	/* RX Flow Filters */
+	if ((changed & NETIF_F_NTUPLE) && macb_is_gem(bp)) {
+		bool turn_on = features & NETIF_F_NTUPLE;
+
+		gem_enable_flow_filters(bp, turn_on);
+	}
 	return 0;
 }
 
@@ -2915,7 +3225,7 @@ static int macb_init(struct platform_device *pdev)
 	struct macb *bp = netdev_priv(dev);
 	struct macb_queue *queue;
 	int err;
-	u32 val;
+	u32 val, reg;
 
 	bp->tx_ring_size = DEFAULT_TX_RING_SIZE;
 	bp->rx_ring_size = DEFAULT_RX_RING_SIZE;
@@ -3012,6 +3322,30 @@ static int macb_init(struct platform_device *pdev)
 	if (bp->caps & MACB_CAPS_SG_DISABLED)
 		dev->hw_features &= ~NETIF_F_SG;
 	dev->features = dev->hw_features;
+
+	/* Check RX Flow Filters support.
+	 * Max Rx flows set by availability of screeners & compare regs:
+	 * each 4-tuple define requires 1 T2 screener reg + 3 compare regs
+	 */
+	reg = gem_readl(bp, DCFG8);
+	bp->max_tuples = min((GEM_BFEXT(SCR2CMP, reg) / 3),
+			GEM_BFEXT(T2SCR, reg));
+	if (bp->max_tuples > 0) {
+		/* also needs one ethtype match to check IPv4 */
+		if (GEM_BFEXT(SCR2ETH, reg) > 0) {
+			/* program this reg now */
+			reg = 0;
+			reg = GEM_BFINS(ETHTCMP, (uint16_t)ETH_P_IP, reg);
+			gem_writel_n(bp, ETHT, SCRT2_ETHT, reg);
+			/* Filtering is supported in hw but don't enable it in kernel now */
+			dev->hw_features |= NETIF_F_NTUPLE;
+			/* init Rx flow definitions */
+			INIT_LIST_HEAD(&bp->rx_fs_list.list);
+			bp->rx_fs_list.count = 0;
+			spin_lock_init(&bp->rx_fs_lock);
+		} else
+			bp->max_tuples = 0;
+	}
 
 	if (!(bp->caps & MACB_CAPS_USRIO_DISABLED)) {
 		val = 0;
