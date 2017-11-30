@@ -1865,11 +1865,9 @@ static struct fotg210_qh *fotg210_qh_alloc(struct fotg210_hcd *fotg210,
 	qh = kzalloc(sizeof(*qh), GFP_ATOMIC);
 	if (!qh)
 		goto done;
-	qh->hw = (struct fotg210_qh_hw *)
-		dma_pool_alloc(fotg210->qh_pool, flags, &dma);
+	qh->hw = dma_pool_zalloc(fotg210->qh_pool, flags, &dma);
 	if (!qh->hw)
 		goto fail;
-	memset(qh->hw, 0, sizeof(*qh->hw));
 	qh->qh_dma = dma;
 	INIT_LIST_HEAD(&qh->qtd_list);
 
@@ -4121,7 +4119,7 @@ static int itd_urb_transaction(struct fotg210_iso_stream *stream,
 		} else {
 alloc_itd:
 			spin_unlock_irqrestore(&fotg210->lock, flags);
-			itd = dma_pool_alloc(fotg210->itd_pool, mem_flags,
+			itd = dma_pool_zalloc(fotg210->itd_pool, mem_flags,
 					&itd_dma);
 			spin_lock_irqsave(&fotg210->lock, flags);
 			if (!itd) {
@@ -4131,7 +4129,6 @@ alloc_itd:
 			}
 		}
 
-		memset(itd, 0, sizeof(*itd));
 		itd->itd_dma = itd_dma;
 		list_add(&itd->itd_list, &sched->td_list);
 	}
