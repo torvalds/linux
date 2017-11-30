@@ -123,7 +123,7 @@ static void __rxrpc_propose_ACK(struct rxrpc_call *call, u8 ack_reason,
 		else
 			ack_at = expiry;
 
-		ack_at = jiffies + expiry;
+		ack_at += now;
 		if (time_before(ack_at, call->ack_at)) {
 			WRITE_ONCE(call->ack_at, ack_at);
 			rxrpc_reduce_call_timer(call, ack_at, now,
@@ -426,7 +426,7 @@ recheck_state:
 	next = call->expect_rx_by;
 
 #define set(T) { t = READ_ONCE(T); if (time_before(t, next)) next = t; }
-	
+
 	set(call->expect_req_by);
 	set(call->expect_term_by);
 	set(call->ack_at);
