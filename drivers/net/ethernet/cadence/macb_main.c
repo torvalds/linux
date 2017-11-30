@@ -759,7 +759,9 @@ static void macb_tx_error_task(struct work_struct *work)
 					    macb_tx_ring_wrap(bp, tail),
 					    skb->data);
 				bp->dev->stats.tx_packets++;
+				queue->stats.tx_packets++;
 				bp->dev->stats.tx_bytes += skb->len;
+				queue->stats.tx_bytes += skb->len;
 			}
 		} else {
 			/* "Buffers exhausted mid-frame" errors may only happen
@@ -859,7 +861,9 @@ static void macb_tx_interrupt(struct macb_queue *queue)
 					    macb_tx_ring_wrap(bp, tail),
 					    skb->data);
 				bp->dev->stats.tx_packets++;
+				queue->stats.tx_packets++;
 				bp->dev->stats.tx_bytes += skb->len;
+				queue->stats.tx_bytes += skb->len;
 			}
 
 			/* Now we can safely release resources */
@@ -994,6 +998,7 @@ static int gem_rx(struct macb_queue *queue, int budget)
 			netdev_err(bp->dev,
 				   "not whole frame pointed by descriptor\n");
 			bp->dev->stats.rx_dropped++;
+			queue->stats.rx_dropped++;
 			break;
 		}
 		skb = queue->rx_skbuff[entry];
@@ -1001,6 +1006,7 @@ static int gem_rx(struct macb_queue *queue, int budget)
 			netdev_err(bp->dev,
 				   "inconsistent Rx descriptor chain\n");
 			bp->dev->stats.rx_dropped++;
+			queue->stats.rx_dropped++;
 			break;
 		}
 		/* now everything is ready for receiving packet */
@@ -1021,7 +1027,9 @@ static int gem_rx(struct macb_queue *queue, int budget)
 			skb->ip_summed = CHECKSUM_UNNECESSARY;
 
 		bp->dev->stats.rx_packets++;
+		queue->stats.rx_packets++;
 		bp->dev->stats.rx_bytes += skb->len;
+		queue->stats.rx_bytes += skb->len;
 
 		gem_ptp_do_rxstamp(bp, skb, desc);
 
@@ -2304,7 +2312,10 @@ static int macb_change_mtu(struct net_device *dev, int new_mtu)
 
 static void gem_update_stats(struct macb *bp)
 {
-	unsigned int i;
+	struct macb_queue *queue;
+	unsigned int i, q, idx;
+	unsigned long *stat;
+
 	u32 *p = &bp->hw_stats.gem.tx_octets_31_0;
 
 	for (i = 0; i < GEM_STATS_LEN; ++i, ++p) {
@@ -2321,6 +2332,11 @@ static void gem_update_stats(struct macb *bp)
 			*(++p) += val;
 		}
 	}
+
+	idx = GEM_STATS_LEN;
+	for (q = 0, queue = bp->queues; q < bp->num_queues; ++q, ++queue)
+		for (i = 0, stat = &queue->stats.first; i < QUEUE_STATS_LEN; ++i, ++stat)
+			bp->ethtool_stats[idx++] = *stat;
 }
 
 static struct net_device_stats *gem_get_stats(struct macb *bp)
@@ -2368,14 +2384,17 @@ static void gem_get_ethtool_stats(struct net_device *dev,
 
 	bp = netdev_priv(dev);
 	gem_update_stats(bp);
-	memcpy(data, &bp->ethtool_stats, sizeof(u64) * GEM_STATS_LEN);
+	memcpy(data, &bp->ethtool_stats, sizeof(u64)
+			* (GEM_STATS_LEN + QUEUE_STATS_LEN * MACB_MAX_QUEUES));
 }
 
 static int gem_get_sset_count(struct net_device *dev, int sset)
 {
+	struct macb *bp = netdev_priv(dev);
+
 	switch (sset) {
 	case ETH_SS_STATS:
-		return GEM_STATS_LEN;
+		return GEM_STATS_LEN + bp->num_queues * QUEUE_STATS_LEN;
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -2383,13 +2402,25 @@ static int gem_get_sset_count(struct net_device *dev, int sset)
 
 static void gem_get_ethtool_strings(struct net_device *dev, u32 sset, u8 *p)
 {
+	char stat_string[ETH_GSTRING_LEN];
+	struct macb *bp = netdev_priv(dev);
+	struct macb_queue *queue;
 	unsigned int i;
+	unsigned int q;
 
 	switch (sset) {
 	case ETH_SS_STATS:
 		for (i = 0; i < GEM_STATS_LEN; i++, p += ETH_GSTRING_LEN)
 			memcpy(p, gem_statistics[i].stat_string,
 			       ETH_GSTRING_LEN);
+
+		for (q = 0, queue = bp->queues; q < bp->num_queues; ++q, ++queue) {
+			for (i = 0; i < QUEUE_STATS_LEN; i++, p += ETH_GSTRING_LEN) {
+				snprintf(stat_string, ETH_GSTRING_LEN, "q%d_%s",
+						q, queue_statistics[i].stat_string);
+				memcpy(p, stat_string, ETH_GSTRING_LEN);
+			}
+		}
 		break;
 	}
 }

@@ -922,6 +922,34 @@ static const struct gem_statistic gem_statistics[] = {
 
 #define GEM_STATS_LEN ARRAY_SIZE(gem_statistics)
 
+#define QUEUE_STAT_TITLE(title) {	\
+	.stat_string = title,			\
+}
+
+/* per queue statistics, each should be unsigned long type */
+struct queue_stats {
+	union {
+		unsigned long first;
+		unsigned long rx_packets;
+	};
+	unsigned long rx_bytes;
+	unsigned long rx_dropped;
+	unsigned long tx_packets;
+	unsigned long tx_bytes;
+	unsigned long tx_dropped;
+};
+
+static const struct gem_statistic queue_statistics[] = {
+		QUEUE_STAT_TITLE("rx_packets"),
+		QUEUE_STAT_TITLE("rx_bytes"),
+		QUEUE_STAT_TITLE("rx_dropped"),
+		QUEUE_STAT_TITLE("tx_packets"),
+		QUEUE_STAT_TITLE("tx_bytes"),
+		QUEUE_STAT_TITLE("tx_dropped"),
+};
+
+#define QUEUE_STATS_LEN ARRAY_SIZE(queue_statistics)
+
 struct macb;
 struct macb_queue;
 
@@ -989,6 +1017,7 @@ struct macb_queue {
 	struct sk_buff		**rx_skbuff;
 	void			*rx_buffers;
 	struct napi_struct	napi;
+	struct queue_stats stats;
 
 #ifdef CONFIG_MACB_USE_HWSTAMP
 	struct work_struct	tx_ts_task;
@@ -1046,7 +1075,7 @@ struct macb {
 	int skb_length;				/* saved skb length for pci_unmap_single */
 	unsigned int		max_tx_length;
 
-	u64			ethtool_stats[GEM_STATS_LEN];
+	u64			ethtool_stats[GEM_STATS_LEN + QUEUE_STATS_LEN * MACB_MAX_QUEUES];
 
 	unsigned int		rx_frm_len_mask;
 	unsigned int		jumbo_max_len;
