@@ -1076,8 +1076,7 @@ static int amdgpu_vm_update_level(struct amdgpu_device *adev,
 	struct amdgpu_bo *shadow;
 	struct amdgpu_ring *ring = NULL;
 	uint64_t pd_addr, shadow_addr = 0;
-	uint64_t last_pde = ~0, last_pt = ~0, last_shadow = ~0;
-	unsigned count = 0, pt_idx, ndw = 0;
+	unsigned pt_idx, ndw = 0;
 	struct amdgpu_job *job;
 	struct amdgpu_pte_update_params params;
 	struct dma_fence *fence = NULL;
@@ -1149,41 +1148,15 @@ static int amdgpu_vm_update_level(struct amdgpu_device *adev,
 
 		parent->entries[pt_idx].addr = pt | AMDGPU_PTE_VALID;
 
-		pde = pd_addr + pt_idx * 8;
 		incr = amdgpu_bo_size(bo);
-		if (((last_pde + 8 * count) != pde) ||
-		    ((last_pt + incr * count) != pt) ||
-		    (count == AMDGPU_VM_MAX_UPDATE_SIZE)) {
-
-			if (count) {
-				if (shadow)
-					params.func(&params,
-						    last_shadow,
-						    last_pt, count,
-						    incr,
-						    AMDGPU_PTE_VALID);
-
-				params.func(&params, last_pde,
-					    last_pt, count, incr,
-					    AMDGPU_PTE_VALID);
-			}
-
-			count = 1;
-			last_pde = pde;
-			last_shadow = shadow_addr + pt_idx * 8;
-			last_pt = pt;
-		} else {
-			++count;
+		if (shadow) {
+			pde = shadow_addr + pt_idx * 8;
+			params.func(&params, pde, pt, 1, incr,
+				    AMDGPU_PTE_VALID);
 		}
-	}
 
-	if (count) {
-		if (vm->root.base.bo->shadow)
-			params.func(&params, last_shadow, last_pt,
-				    count, incr, AMDGPU_PTE_VALID);
-
-		params.func(&params, last_pde, last_pt,
-			    count, incr, AMDGPU_PTE_VALID);
+		pde = pd_addr + pt_idx * 8;
+		params.func(&params, pde, pt, 1, incr, AMDGPU_PTE_VALID);
 	}
 
 	if (!vm->use_cpu_for_update) {
