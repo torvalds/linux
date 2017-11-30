@@ -497,13 +497,13 @@ struct phy_device {
  * flags: A bitfield defining certain other features this PHY
  *   supports (like interrupts)
  *
- * The drivers must implement config_aneg and read_status.  All
- * other functions are optional. Note that none of these
- * functions should be called from interrupt time.  The goal is
- * for the bus read/write functions to be able to block when the
- * bus transaction is happening, and be freed up by an interrupt
- * (The MPC85xx has this ability, though it is not currently
- * supported in the driver).
+ * All functions are optional. If config_aneg or read_status
+ * are not implemented, the phy core uses the genphy versions.
+ * Note that none of these functions should be called from
+ * interrupt time. The goal is for the bus read/write functions
+ * to be able to block when the bus transaction is happening,
+ * and be freed up by an interrupt (The MPC85xx has this ability,
+ * though it is not currently supported in the driver).
  */
 struct phy_driver {
 	struct mdio_driver_common mdiodrv;
@@ -841,14 +841,6 @@ int phy_aneg_done(struct phy_device *phydev);
 int phy_stop_interrupts(struct phy_device *phydev);
 int phy_restart_aneg(struct phy_device *phydev);
 
-static inline int phy_read_status(struct phy_device *phydev)
-{
-	if (!phydev->drv)
-		return -EIO;
-
-	return phydev->drv->read_status(phydev);
-}
-
 #define phydev_err(_phydev, format, args...)	\
 	dev_err(&_phydev->mdio.dev, format, ##args)
 
@@ -889,6 +881,17 @@ int genphy_c45_read_lpa(struct phy_device *phydev);
 int genphy_c45_read_pma(struct phy_device *phydev);
 int genphy_c45_pma_setup_forced(struct phy_device *phydev);
 int genphy_c45_an_disable_aneg(struct phy_device *phydev);
+
+static inline int phy_read_status(struct phy_device *phydev)
+{
+	if (!phydev->drv)
+		return -EIO;
+
+	if (phydev->drv->read_status)
+		return phydev->drv->read_status(phydev);
+	else
+		return genphy_read_status(phydev);
+}
 
 void phy_driver_unregister(struct phy_driver *drv);
 void phy_drivers_unregister(struct phy_driver *drv, int n);
