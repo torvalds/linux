@@ -559,8 +559,7 @@ static int ksz_port_vlan_filtering(struct dsa_switch *ds, int port, bool flag)
 }
 
 static int ksz_port_vlan_prepare(struct dsa_switch *ds, int port,
-				 const struct switchdev_obj_port_vlan *vlan,
-				 struct switchdev_trans *trans)
+				 const struct switchdev_obj_port_vlan *vlan)
 {
 	/* nothing needed */
 
@@ -568,8 +567,7 @@ static int ksz_port_vlan_prepare(struct dsa_switch *ds, int port,
 }
 
 static void ksz_port_vlan_add(struct dsa_switch *ds, int port,
-			      const struct switchdev_obj_port_vlan *vlan,
-			      struct switchdev_trans *trans)
+			      const struct switchdev_obj_port_vlan *vlan)
 {
 	struct ksz_device *dev = ds->priv;
 	u32 vlan_table[3];

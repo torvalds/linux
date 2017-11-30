@@ -1029,8 +1029,7 @@ int b53_vlan_filtering(struct dsa_switch *ds, int port, bool vlan_filtering)
 EXPORT_SYMBOL(b53_vlan_filtering);
 
 int b53_vlan_prepare(struct dsa_switch *ds, int port,
-		     const struct switchdev_obj_port_vlan *vlan,
-		     struct switchdev_trans *trans)
+		     const struct switchdev_obj_port_vlan *vlan)
 {
 	struct b53_device *dev = ds->priv;
 
@@ -1047,8 +1046,7 @@ int b53_vlan_prepare(struct dsa_switch *ds, int port,
 EXPORT_SYMBOL(b53_vlan_prepare);
 
 void b53_vlan_add(struct dsa_switch *ds, int port,
-		  const struct switchdev_obj_port_vlan *vlan,
-		  struct switchdev_trans *trans)
+		  const struct switchdev_obj_port_vlan *vlan)
 {
 	struct b53_device *dev = ds->priv;
 	bool untagged = vlan->flags & BRIDGE_VLAN_INFO_UNTAGGED;

@@ -174,9 +174,9 @@ static int dsa_loop_port_vlan_filtering(struct dsa_switch *ds, int port,
 	return 0;
 }
 
-static int dsa_loop_port_vlan_prepare(struct dsa_switch *ds, int port,
-				      const struct switchdev_obj_port_vlan *vlan,
-				      struct switchdev_trans *trans)
+static int
+dsa_loop_port_vlan_prepare(struct dsa_switch *ds, int port,
+			   const struct switchdev_obj_port_vlan *vlan)
 {
 	struct dsa_loop_priv *ps = ds->priv;
 	struct mii_bus *bus = ps->bus;
@@ -193,8 +193,7 @@ static int dsa_loop_port_vlan_prepare(struct dsa_switch *ds, int port,
 }
 
 static void dsa_loop_port_vlan_add(struct dsa_switch *ds, int port,
-				   const struct switchdev_obj_port_vlan *vlan,
-				   struct switchdev_trans *trans)
+				   const struct switchdev_obj_port_vlan *vlan)
 {
 	bool untagged = vlan->flags & BRIDGE_VLAN_INFO_UNTAGGED;
 	bool pvid = vlan->flags & BRIDGE_VLAN_INFO_PVID;

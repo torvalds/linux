@@ -178,7 +178,7 @@ static int dsa_switch_vlan_add(struct dsa_switch *ds,
 			return -EOPNOTSUPP;
 
 		for_each_set_bit(port, members, ds->num_ports) {
-			err = ds->ops->port_vlan_prepare(ds, port, vlan, trans);
+			err = ds->ops->port_vlan_prepare(ds, port, vlan);
 			if (err)
 				return err;
 		}
@@ -187,7 +187,7 @@ static int dsa_switch_vlan_add(struct dsa_switch *ds,
 	}
 
 	for_each_set_bit(port, members, ds->num_ports)
-		ds->ops->port_vlan_add(ds, port, vlan, trans);
+		ds->ops->port_vlan_add(ds, port, vlan);
 
 	return 0;
 }
