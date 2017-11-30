@@ -817,7 +817,7 @@ static inline __poll_t do_pollfd(struct pollfd *pollfd, poll_table *pwait,
 		mask = POLLNVAL;
 		if (f.file) {
 			/* userland u16 ->events contains POLL... bitmap */
-			__poll_t filter = (__force __poll_t)pollfd->events |
+			__poll_t filter = demangle_poll(pollfd->events) |
 						POLLERR | POLLHUP;
 			mask = DEFAULT_POLLMASK;
 			if (f.file->f_op->poll) {
@@ -833,7 +833,7 @@ static inline __poll_t do_pollfd(struct pollfd *pollfd, poll_table *pwait,
 		}
 	}
 	/* ... and so does ->revents */
-	pollfd->revents = (__force u16)mask;
+	pollfd->revents = mangle_poll(mask);
 
 	return mask;
 }

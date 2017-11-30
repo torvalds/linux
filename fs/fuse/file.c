@@ -2764,7 +2764,7 @@ __poll_t fuse_file_poll(struct file *file, poll_table *wait)
 		return DEFAULT_POLLMASK;
 
 	poll_wait(file, &ff->poll_wait, wait);
-	inarg.events = (__u32)poll_requested_events(wait);
+	inarg.events = mangle_poll(poll_requested_events(wait));
 
 	/*
 	 * Ask for notification iff there's someone waiting for it.
@@ -2786,7 +2786,7 @@ __poll_t fuse_file_poll(struct file *file, poll_table *wait)
 	err = fuse_simple_request(fc, &args);
 
 	if (!err)
-		return outarg.revents;
+		return demangle_poll(outarg.revents);
 	if (err == -ENOSYS) {
 		fc->no_poll = 1;
 		return DEFAULT_POLLMASK;

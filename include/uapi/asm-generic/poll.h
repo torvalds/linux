@@ -33,6 +33,20 @@
 
 #define POLL_BUSY_LOOP	(__force __poll_t)0x8000
 
+#ifdef __KERNEL__
+#ifndef __ARCH_HAS_MANGLED_POLL
+static inline __u16 mangle_poll(__poll_t val)
+{
+	return (__force __u16)val;
+}
+
+static inline __poll_t demangle_poll(__u16 v)
+{
+	return (__force __poll_t)v;
+}
+#endif
+#endif
+
 struct pollfd {
 	int fd;
 	short events;
