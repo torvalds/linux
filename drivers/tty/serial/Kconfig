@@ -781,8 +781,9 @@ config SERIAL_SH_SCI_EARLYCON
 	default ARCH_RENESAS || H8300
 
 config SERIAL_SH_SCI_DMA
-	bool "DMA support"
+	bool "DMA support" if EXPERT
 	depends on SERIAL_SH_SCI && DMA_ENGINE
+	default ARCH_RENESAS
 
 config SERIAL_PNX8XXX
 	bool "Enable PNX8XXX SoCs' UART Support"
