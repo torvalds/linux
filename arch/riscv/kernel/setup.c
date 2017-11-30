@@ -58,7 +58,9 @@ static char __initdata builtin_cmdline[COMMAND_LINE_SIZE] = CONFIG_CMDLINE;
 #endif /* CONFIG_CMDLINE_BOOL */
 
 unsigned long va_pa_offset;
+EXPORT_SYMBOL(va_pa_offset);
 unsigned long pfn_base;
+EXPORT_SYMBOL(pfn_base);
 
 unsigned long empty_zero_page[PAGE_SIZE / sizeof(unsigned long)] __page_aligned_bss;
 EXPORT_SYMBOL(empty_zero_page);
