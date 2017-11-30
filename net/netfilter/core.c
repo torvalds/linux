@@ -395,63 +395,10 @@ EXPORT_SYMBOL(nf_register_net_hooks);
 void nf_unregister_net_hooks(struct net *net, const struct nf_hook_ops *reg,
 			     unsigned int hookcount)
 {
-	struct nf_hook_entries *to_free[16], *p;
-	struct nf_hook_entries __rcu **pp;
-	unsigned int i, j, n;
+	unsigned int i;
 
-	mutex_lock(&nf_hook_mutex);
-	for (i = 0; i < hookcount; i++) {
-		pp = nf_hook_entry_head(net, &reg[i]);
-		if (!pp)
-			continue;
-
-		p = nf_entry_dereference(*pp);
-		if (WARN_ON_ONCE(!p))
-			continue;
-		__nf_unregister_net_hook(p, &reg[i]);
-	}
-	mutex_unlock(&nf_hook_mutex);
-
-	do {
-		n = min_t(unsigned int, hookcount, ARRAY_SIZE(to_free));
-
-		mutex_lock(&nf_hook_mutex);
-
-		for (i = 0, j = 0; i < hookcount && j < n; i++) {
-			pp = nf_hook_entry_head(net, &reg[i]);
-			if (!pp)
-				continue;
-
-			p = nf_entry_dereference(*pp);
-			if (!p)
-				continue;
-
-			to_free[j] = __nf_hook_entries_try_shrink(pp);
-			if (to_free[j])
-				++j;
-		}
-
-		mutex_unlock(&nf_hook_mutex);
-
-		if (j) {
-			unsigned int nfq;
-
-			synchronize_net();
-
-			/* need 2nd synchronize_net() if nfqueue is used, skb
-			 * can get reinjected right before nf_queue_hook_drop()
-			 */
-			nfq = nf_queue_nf_hook_drop(net);
-			if (nfq)
-				synchronize_net();
-
-			for (i = 0; i < j; i++)
-				kvfree(to_free[i]);
-		}
-
-		reg += n;
-		hookcount -= n;
-	} while (hookcount > 0);
+	for (i = 0; i < hookcount; i++)
+		nf_unregister_net_hook(net, &reg[i]);
 }
 EXPORT_SYMBOL(nf_unregister_net_hooks);
 
