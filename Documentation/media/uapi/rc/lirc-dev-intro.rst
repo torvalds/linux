@@ -46,13 +46,13 @@ on the following table.
     This mode is for both sending and receiving IR.
 
     For transmitting (aka sending), create a ``struct lirc_scancode`` with
-    the desired scancode set in the ``scancode`` member, ``rc_proto`` set
-    the IR protocol, and all other members set to 0. Write this struct to
+    the desired scancode set in the ``scancode`` member, :c:type:`rc_proto`
+    set the IR protocol, and all other members set to 0. Write this struct to
     the lirc device.
 
     For receiving, you read ``struct lirc_scancode`` from the lirc device,
     with ``scancode`` set to the received scancode and the IR protocol
-    ``rc_proto``. If the scancode maps to a valid key code, this is set
+    :c:type:`rc_proto`. If the scancode maps to a valid key code, this is set
     in the ``keycode`` field, else it is set to ``KEY_RESERVED``.
 
     The ``flags`` can have ``LIRC_SCANCODE_FLAG_TOGGLE`` set if the toggle
@@ -73,9 +73,6 @@ on the following table.
 
     The ``timestamp`` field is filled with the time nanoseconds
     (in ``CLOCK_MONOTONIC``) when the scancode was decoded.
-
-    An ``enum rc_proto`` in the :ref:`lirc_header` lists all the supported
-    IR protocols.
 
 .. _lirc-mode-mode2:
 
@@ -125,3 +122,13 @@ on the following table.
     of entries.
 
     This mode is used only for IR send.
+
+
+**************************
+Remote Controller protocol
+**************************
+
+An enum :c:type:`rc_proto` in the :ref:`lirc_header` lists all the
+supported IR protocols:
+
+.. kernel-doc:: include/uapi/linux/lirc.h

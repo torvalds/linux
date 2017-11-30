@@ -54,7 +54,7 @@ read from the chardev.
 
 Alternatively, :ref:`LIRC_MODE_SCANCODE <lirc-mode-scancode>` can be available,
 in this mode scancodes which are either decoded by software decoders, or
-by hardware decoders. The ``rc_proto`` member is set to the
+by hardware decoders. The :c:type:`rc_proto` member is set to the
 protocol used for transmission, and ``scancode`` to the decoded scancode,
 and the ``keycode`` set to the keycode or ``KEY_RESERVED``.
 
