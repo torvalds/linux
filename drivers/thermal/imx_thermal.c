@@ -394,27 +394,27 @@ static void imx_init_temp_grade(struct platform_device *pdev, u32 ocotp_mem0)
 
 	/* The maximum die temp is specified by the Temperature Grade */
 	switch ((ocotp_mem0 >> 6) & 0x3) {
-	case 0: /* Commercial (0 to 95C) */
+	case 0: /* Commercial (0 to 95 °C) */
 		data->temp_grade = "Commercial";
 		data->temp_max = 95000;
 		break;
-	case 1: /* Extended Commercial (-20 to 105C) */
+	case 1: /* Extended Commercial (-20 °C to 105 °C) */
 		data->temp_grade = "Extended Commercial";
 		data->temp_max = 105000;
 		break;
-	case 2: /* Industrial (-40 to 105C) */
+	case 2: /* Industrial (-40 °C to 105 °C) */
 		data->temp_grade = "Industrial";
 		data->temp_max = 105000;
 		break;
-	case 3: /* Automotive (-40 to 125C) */
+	case 3: /* Automotive (-40 °C to 125 °C) */
 		data->temp_grade = "Automotive";
 		data->temp_max = 125000;
 		break;
 	}
 
 	/*
-	 * Set the critical trip point at 5C under max
-	 * Set the passive trip point at 10C under max (can change via sysfs)
+	 * Set the critical trip point at 5 °C under max
+	 * Set the passive trip point at 10 °C under max (changeable via sysfs)
 	 */
 	data->temp_critical = data->temp_max - (1000 * 5);
 	data->temp_passive = data->temp_max - (1000 * 10);
