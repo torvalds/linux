@@ -12,8 +12,10 @@ tree nodes.
 
 The first part of NFC is NAND Controller Interface (NFI) HW.
 Required NFI properties:
-- compatible:			Should be one of "mediatek,mt2701-nfc",
-				"mediatek,mt2712-nfc".
+- compatible:			Should be one of
+				"mediatek,mt2701-nfc",
+				"mediatek,mt2712-nfc",
+				"mediatek,mt7622-nfc".
 - reg:				Base physical address and size of NFI.
 - interrupts:			Interrupts of NFI.
 - clocks:			NFI required clocks.
@@ -142,7 +144,10 @@ Example:
 ==============
 
 Required BCH properties:
-- compatible:	Should be one of "mediatek,mt2701-ecc", "mediatek,mt2712-ecc".
+- compatible:	Should be one of
+		"mediatek,mt2701-ecc",
+		"mediatek,mt2712-ecc",
+		"mediatek,mt7622-ecc".
 - reg:		Base physical address and size of ECC.
 - interrupts:	Interrupts of ECC.
 - clocks:	ECC required clocks.
