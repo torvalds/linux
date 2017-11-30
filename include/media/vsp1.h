@@ -41,6 +41,16 @@ struct vsp1_du_lif_config {
 int vsp1_du_setup_lif(struct device *dev, unsigned int pipe_index,
 		      const struct vsp1_du_lif_config *cfg);
 
+/**
+ * struct vsp1_du_atomic_config - VSP atomic configuration parameters
+ * @pixelformat: plane pixel format (V4L2 4CC)
+ * @pitch: line pitch in bytes, for all planes
+ * @mem: DMA memory address for each plane of the frame buffer
+ * @src: source rectangle in the frame buffer (integer coordinates)
+ * @dst: destination rectangle on the display (integer coordinates)
+ * @alpha: alpha value (0: fully transparent, 255: fully opaque)
+ * @zpos: Z position of the plane (from 0 to number of planes minus 1)
+ */
 struct vsp1_du_atomic_config {
 	u32 pixelformat;
 	unsigned int pitch;
