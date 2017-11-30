@@ -214,11 +214,9 @@ int ext4_get_encryption_info(struct inode *inode)
 	if (ei->i_crypt_info)
 		return 0;
 
-	if (!ext4_read_workqueue) {
-		res = ext4_init_crypto();
-		if (res)
-			return res;
-	}
+	res = ext4_init_crypto();
+	if (res)
+		return res;
 
 	res = ext4_xattr_get(inode, EXT4_XATTR_INDEX_ENCRYPTION,
 				 EXT4_XATTR_NAME_ENCRYPTION_CONTEXT,
