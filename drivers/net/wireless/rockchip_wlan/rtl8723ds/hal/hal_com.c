@@ -3879,7 +3879,7 @@ static void rtw_hal_release_rx_dma(_adapter *adapter)
 	rtw_write32(adapter, REG_RXPKT_NUM, (val32 & (~RW_RELEASE_EN)));
 
 	RTW_INFO("%s, [0x%04x]: 0x%08x\n",
-		 __func__, REG_RXPKT_NUM, (val32 & (~RW_RELEASE_EN)));
+		 __func__, REG_RXPKT_NUM, (unsigned int)(val32 & (~RW_RELEASE_EN)));
 }
 
 static u8 rtw_hal_pause_rx_dma(_adapter *adapter)
