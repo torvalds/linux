@@ -374,6 +374,7 @@ fcloop_tgt_fcprqst_done_work(struct work_struct *work)
 
 	spin_lock(&tfcp_req->reqlock);
 	fcpreq = tfcp_req->fcpreq;
+	tfcp_req->fcpreq = NULL;
 	spin_unlock(&tfcp_req->reqlock);
 
 	if (tport->remoteport && fcpreq) {
@@ -615,11 +616,7 @@ fcloop_fcp_abort(struct nvme_fc_local_port *localport,
 
 	if (!tfcp_req)
 		/* abort has already been called */
-		return;
-
-	if (rport->targetport)
-		nvmet_fc_rcv_fcp_abort(rport->targetport,
-					&tfcp_req->tgt_fcp_req);
+		goto finish;
 
 	/* break initiator/target relationship for io */
 	spin_lock(&tfcp_req->reqlock);
@@ -627,6 +624,11 @@ fcloop_fcp_abort(struct nvme_fc_local_port *localport,
 	tfcp_req->fcpreq = NULL;
 	spin_unlock(&tfcp_req->reqlock);
 
+	if (rport->targetport)
+		nvmet_fc_rcv_fcp_abort(rport->targetport,
+					&tfcp_req->tgt_fcp_req);
+
+finish:
 	/* post the aborted io completion */
 	fcpreq->status = -ECANCELED;
 	schedule_work(&inireq->iniwork);
