@@ -695,6 +695,8 @@ struct dispc_ops {
 	int (*get_num_ovls)(void);
 	int (*get_num_mgrs)(void);
 
+	u32 (*get_memory_bandwidth_limit)(void);
+
 	void (*mgr_enable)(enum omap_channel channel, bool enable);
 	bool (*mgr_is_enabled)(enum omap_channel channel);
 	u32 (*mgr_get_vsync_irq)(enum omap_channel channel);
