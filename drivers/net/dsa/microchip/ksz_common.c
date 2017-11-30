@@ -856,16 +856,14 @@ exit:
 }
 
 static int ksz_port_mdb_prepare(struct dsa_switch *ds, int port,
-				const struct switchdev_obj_port_mdb *mdb,
-				struct switchdev_trans *trans)
+				const struct switchdev_obj_port_mdb *mdb)
 {
 	/* nothing to do */
 	return 0;
 }
 
 static void ksz_port_mdb_add(struct dsa_switch *ds, int port,
-			     const struct switchdev_obj_port_mdb *mdb,
-			     struct switchdev_trans *trans)
+			     const struct switchdev_obj_port_mdb *mdb)
 {
 	struct ksz_device *dev = ds->priv;
 	u32 static_table[4];

@@ -129,7 +129,7 @@ static int dsa_switch_mdb_add(struct dsa_switch *ds,
 			return -EOPNOTSUPP;
 
 		for_each_set_bit(port, group, ds->num_ports) {
-			err = ds->ops->port_mdb_prepare(ds, port, mdb, trans);
+			err = ds->ops->port_mdb_prepare(ds, port, mdb);
 			if (err)
 				return err;
 		}
@@ -138,7 +138,7 @@ static int dsa_switch_mdb_add(struct dsa_switch *ds,
 	}
 
 	for_each_set_bit(port, group, ds->num_ports)
-		ds->ops->port_mdb_add(ds, port, mdb, trans);
+		ds->ops->port_mdb_add(ds, port, mdb);
 
 	return 0;
 }

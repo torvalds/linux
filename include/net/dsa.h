@@ -431,12 +431,10 @@ struct dsa_switch_ops {
 	/*
 	 * Multicast database
 	 */
-	int	(*port_mdb_prepare)(struct dsa_switch *ds, int port,
-				    const struct switchdev_obj_port_mdb *mdb,
-				    struct switchdev_trans *trans);
-	void	(*port_mdb_add)(struct dsa_switch *ds, int port,
-				const struct switchdev_obj_port_mdb *mdb,
-				struct switchdev_trans *trans);
+	int (*port_mdb_prepare)(struct dsa_switch *ds, int port,
+				const struct switchdev_obj_port_mdb *mdb);
+	void (*port_mdb_add)(struct dsa_switch *ds, int port,
+			     const struct switchdev_obj_port_mdb *mdb);
 	int	(*port_mdb_del)(struct dsa_switch *ds, int port,
 				const struct switchdev_obj_port_mdb *mdb);
 	/*
