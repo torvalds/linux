@@ -514,6 +514,10 @@ static int linehandle_create(struct gpio_device *gdev, void __user *ip)
 		if (lflags & GPIOHANDLE_REQUEST_OPEN_SOURCE)
 			set_bit(FLAG_OPEN_SOURCE, &desc->flags);
 
+		ret = gpiod_set_transitory(desc, false);
+		if (ret < 0)
+			goto out_free_descs;
+
 		/*
 		 * Lines have to be requested explicitly for input
 		 * or output, else the line will be treated "as is".
@@ -2530,6 +2534,49 @@ int gpiod_set_debounce(struct gpio_desc *desc, unsigned debounce)
 EXPORT_SYMBOL_GPL(gpiod_set_debounce);
 
 /**
+ * gpiod_set_transitory - Lose or retain GPIO state on suspend or reset
+ * @desc: descriptor of the GPIO for which to configure persistence
+ * @transitory: True to lose state on suspend or reset, false for persistence
+ *
+ * Returns:
+ * 0 on success, otherwise a negative error code.
+ */
+int gpiod_set_transitory(struct gpio_desc *desc, bool transitory)
+{
+	struct gpio_chip *chip;
+	unsigned long packed;
+	int gpio;
+	int rc;
+
+	/*
+	 * Handle FLAG_TRANSITORY first, enabling queries to gpiolib for
+	 * persistence state.
+	 */
+	if (transitory)
+		set_bit(FLAG_TRANSITORY, &desc->flags);
+	else
+		clear_bit(FLAG_TRANSITORY, &desc->flags);
+
+	/* If the driver supports it, set the persistence state now */
+	chip = desc->gdev->chip;
+	if (!chip->set_config)
+		return 0;
+
+	packed = pinconf_to_config_packed(PIN_CONFIG_PERSIST_STATE,
+					  !transitory);
+	gpio = gpio_chip_hwgpio(desc);
+	rc = chip->set_config(chip, gpio, packed);
+	if (rc == -ENOTSUPP) {
+		dev_dbg(&desc->gdev->dev, "Persistence not supported for GPIO %d\n",
+				gpio);
+		return 0;
+	}
+
+	return rc;
+}
+EXPORT_SYMBOL_GPL(gpiod_set_transitory);
+
+/**
  * gpiod_is_active_low - test whether a GPIO is active-low or not
  * @desc: the gpio descriptor to test
  *
@@ -3116,8 +3163,7 @@ bool gpiochip_line_is_persistent(struct gpio_chip *chip, unsigned int offset)
 	if (offset >= chip->ngpio)
 		return false;
 
-	return !test_bit(FLAG_SLEEP_MAY_LOSE_VALUE,
-			 &chip->gpiodev->descs[offset].flags);
+	return !test_bit(FLAG_TRANSITORY, &chip->gpiodev->descs[offset].flags);
 }
 EXPORT_SYMBOL_GPL(gpiochip_line_is_persistent);
 
@@ -3554,8 +3600,10 @@ int gpiod_configure_flags(struct gpio_desc *desc, const char *con_id,
 
 	if (lflags & GPIO_OPEN_SOURCE)
 		set_bit(FLAG_OPEN_SOURCE, &desc->flags);
-	if (lflags & GPIO_SLEEP_MAY_LOSE_VALUE)
-		set_bit(FLAG_SLEEP_MAY_LOSE_VALUE, &desc->flags);
+
+	status = gpiod_set_transitory(desc, (lflags & GPIO_TRANSITORY));
+	if (status < 0)
+		return status;
 
 	/* No particular flag request, return here... */
 	if (!(dflags & GPIOD_FLAGS_BIT_DIR_SET)) {
@@ -3669,6 +3717,7 @@ struct gpio_desc *fwnode_get_named_gpiod(struct fwnode_handle *fwnode,
 	bool active_low = false;
 	bool single_ended = false;
 	bool open_drain = false;
+	bool transitory = false;
 	int ret;
 
 	if (!fwnode)
@@ -3683,6 +3732,7 @@ struct gpio_desc *fwnode_get_named_gpiod(struct fwnode_handle *fwnode,
 			active_low = flags & OF_GPIO_ACTIVE_LOW;
 			single_ended = flags & OF_GPIO_SINGLE_ENDED;
 			open_drain = flags & OF_GPIO_OPEN_DRAIN;
+			transitory = flags & OF_GPIO_TRANSITORY;
 		}
 	} else if (is_acpi_node(fwnode)) {
 		struct acpi_gpio_info info;
@@ -3710,6 +3760,9 @@ struct gpio_desc *fwnode_get_named_gpiod(struct fwnode_handle *fwnode,
 		else
 			lflags |= GPIO_OPEN_SOURCE;
 	}
+
+	if (transitory)
+		lflags |= GPIO_TRANSITORY;
 
 	ret = gpiod_configure_flags(desc, propname, lflags, dflags);
 	if (ret < 0) {
