@@ -66,7 +66,7 @@ MODULE_PARM_DESC(c4iw_wr_log_size_order,
 
 static LIST_HEAD(uld_ctx_list);
 static DEFINE_MUTEX(dev_mutex);
-struct workqueue_struct *reg_workq;
+static struct workqueue_struct *reg_workq;
 
 #define DB_FC_RESUME_SIZE 64
 #define DB_FC_RESUME_DELAY 1
