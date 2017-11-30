@@ -2513,6 +2513,12 @@ enum rw_hint {
 	WRITE_LIFE_EXTREME	= 5, /* RWH_WRITE_LIFE_EXTREME */
 };
 
+static inline void *f2fs_kzalloc(struct f2fs_sb_info *sbi,
+					size_t size, gfp_t flags)
+{
+	return f2fs_kmalloc(sbi, size, flags | __GFP_ZERO);
+}
+
 static inline int get_extra_isize(struct inode *inode)
 {
 	return F2FS_I(inode)->i_extra_isize / sizeof(__le32);
