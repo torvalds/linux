@@ -172,6 +172,8 @@
 #define GEM_TBQP(hw_q)		(0x0440 + ((hw_q) << 2))
 #define GEM_TBQPH(hw_q)		(0x04C8)
 #define GEM_RBQP(hw_q)		(0x0480 + ((hw_q) << 2))
+#define GEM_RBQS(hw_q)		(0x04A0 + ((hw_q) << 2))
+#define GEM_RBQPH(hw_q)		(0x04D4)
 #define GEM_IER(hw_q)		(0x0600 + ((hw_q) << 2))
 #define GEM_IDR(hw_q)		(0x0620 + ((hw_q) << 2))
 #define GEM_IMR(hw_q)		(0x0640 + ((hw_q) << 2))
@@ -921,12 +923,13 @@ static const struct gem_statistic gem_statistics[] = {
 #define GEM_STATS_LEN ARRAY_SIZE(gem_statistics)
 
 struct macb;
+struct macb_queue;
 
 struct macb_or_gem_ops {
 	int	(*mog_alloc_rx_buffers)(struct macb *bp);
 	void	(*mog_free_rx_buffers)(struct macb *bp);
 	void	(*mog_init_rings)(struct macb *bp);
-	int	(*mog_rx)(struct macb *bp, int budget);
+	int	(*mog_rx)(struct macb_queue *queue, int budget);
 };
 
 /* MACB-PTP interface: adapt to platform needs. */
@@ -968,12 +971,24 @@ struct macb_queue {
 	unsigned int		IMR;
 	unsigned int		TBQP;
 	unsigned int		TBQPH;
+	unsigned int		RBQS;
+	unsigned int		RBQP;
+	unsigned int		RBQPH;
 
 	unsigned int		tx_head, tx_tail;
 	struct macb_dma_desc	*tx_ring;
 	struct macb_tx_skb	*tx_skb;
 	dma_addr_t		tx_ring_dma;
 	struct work_struct	tx_error_task;
+
+	dma_addr_t		rx_ring_dma;
+	dma_addr_t		rx_buffers_dma;
+	unsigned int		rx_tail;
+	unsigned int		rx_prepared_head;
+	struct macb_dma_desc	*rx_ring;
+	struct sk_buff		**rx_skbuff;
+	void			*rx_buffers;
+	struct napi_struct	napi;
 
 #ifdef CONFIG_MACB_USE_HWSTAMP
 	struct work_struct	tx_ts_task;
@@ -990,11 +1005,6 @@ struct macb {
 	u32	(*macb_reg_readl)(struct macb *bp, int offset);
 	void	(*macb_reg_writel)(struct macb *bp, int offset, u32 value);
 
-	unsigned int		rx_tail;
-	unsigned int		rx_prepared_head;
-	struct macb_dma_desc	*rx_ring;
-	struct sk_buff		**rx_skbuff;
-	void			*rx_buffers;
 	size_t			rx_buffer_size;
 
 	unsigned int		rx_ring_size;
@@ -1011,14 +1021,10 @@ struct macb {
 	struct clk		*tx_clk;
 	struct clk		*rx_clk;
 	struct net_device	*dev;
-	struct napi_struct	napi;
 	union {
 		struct macb_stats	macb;
 		struct gem_stats	gem;
 	}			hw_stats;
-
-	dma_addr_t		rx_ring_dma;
-	dma_addr_t		rx_buffers_dma;
 
 	struct macb_or_gem_ops	macbgem_ops;
 
