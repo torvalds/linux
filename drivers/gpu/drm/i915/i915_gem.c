@@ -4774,17 +4774,19 @@ int i915_gem_suspend(struct drm_i915_private *dev_priv)
 	 * state. Fortunately, the kernel_context is disposable and we do
 	 * not rely on its state.
 	 */
-	ret = i915_gem_switch_to_kernel_context(dev_priv);
-	if (ret)
-		goto err_unlock;
+	if (!i915_terminally_wedged(&dev_priv->gpu_error)) {
+		ret = i915_gem_switch_to_kernel_context(dev_priv);
+		if (ret)
+			goto err_unlock;
 
-	ret = i915_gem_wait_for_idle(dev_priv,
-				     I915_WAIT_INTERRUPTIBLE |
-				     I915_WAIT_LOCKED);
-	if (ret && ret != -EIO)
-		goto err_unlock;
+		ret = i915_gem_wait_for_idle(dev_priv,
+					     I915_WAIT_INTERRUPTIBLE |
+					     I915_WAIT_LOCKED);
+		if (ret && ret != -EIO)
+			goto err_unlock;
 
-	assert_kernel_context_is_current(dev_priv);
+		assert_kernel_context_is_current(dev_priv);
+	}
 	i915_gem_contexts_lost(dev_priv);
 	mutex_unlock(&dev->struct_mutex);
 
