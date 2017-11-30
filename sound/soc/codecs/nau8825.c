@@ -1733,10 +1733,9 @@ static irqreturn_t nau8825_interrupt(int irq, void *data)
 			nau8825->xtalk_event_mask = event_mask;
 		}
 	} else if (active_irq & NAU8825_IMPEDANCE_MEAS_IRQ) {
-		if (nau8825->xtalk_enable) {
+		if (nau8825->xtalk_enable)
 			schedule_work(&nau8825->xtalk_work);
-			clear_irq = NAU8825_IMPEDANCE_MEAS_IRQ;
-		}
+		clear_irq = NAU8825_IMPEDANCE_MEAS_IRQ;
 	} else if ((active_irq & NAU8825_JACK_INSERTION_IRQ_MASK) ==
 		NAU8825_JACK_INSERTION_DETECTED) {
 		/* One more step to check GPIO status directly. Thus, the
