@@ -108,13 +108,42 @@ static int dsa_switch_fdb_del(struct dsa_switch *ds,
 				     info->vid);
 }
 
+static int
+dsa_switch_mdb_prepare_bitmap(struct dsa_switch *ds,
+			      const struct switchdev_obj_port_mdb *mdb,
+			      const unsigned long *bitmap)
+{
+	int port, err;
+
+	if (!ds->ops->port_mdb_prepare || !ds->ops->port_mdb_add)
+		return -EOPNOTSUPP;
+
+	for_each_set_bit(port, bitmap, ds->num_ports) {
+		err = ds->ops->port_mdb_prepare(ds, port, mdb);
+		if (err)
+			return err;
+	}
+
+	return 0;
+}
+
+static void dsa_switch_mdb_add_bitmap(struct dsa_switch *ds,
+				      const struct switchdev_obj_port_mdb *mdb,
+				      const unsigned long *bitmap)
+{
+	int port;
+
+	for_each_set_bit(port, bitmap, ds->num_ports)
+		ds->ops->port_mdb_add(ds, port, mdb);
+}
+
 static int dsa_switch_mdb_add(struct dsa_switch *ds,
 			      struct dsa_notifier_mdb_info *info)
 {
 	const struct switchdev_obj_port_mdb *mdb = info->mdb;
 	struct switchdev_trans *trans = info->trans;
 	DECLARE_BITMAP(group, ds->num_ports);
-	int port, err;
+	int port;
 
 	/* Build a mask of Multicast group members */
 	bitmap_zero(group, ds->num_ports);
@@ -124,21 +153,10 @@ static int dsa_switch_mdb_add(struct dsa_switch *ds,
 		if (dsa_is_dsa_port(ds, port))
 			set_bit(port, group);
 
-	if (switchdev_trans_ph_prepare(trans)) {
-		if (!ds->ops->port_mdb_prepare || !ds->ops->port_mdb_add)
-			return -EOPNOTSUPP;
+	if (switchdev_trans_ph_prepare(trans))
+		return dsa_switch_mdb_prepare_bitmap(ds, mdb, group);
 
-		for_each_set_bit(port, group, ds->num_ports) {
-			err = ds->ops->port_mdb_prepare(ds, port, mdb);
-			if (err)
-				return err;
-		}
-
-		return 0;
-	}
-
-	for_each_set_bit(port, group, ds->num_ports)
-		ds->ops->port_mdb_add(ds, port, mdb);
+	dsa_switch_mdb_add_bitmap(ds, mdb, group);
 
 	return 0;
 }
