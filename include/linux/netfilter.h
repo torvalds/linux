@@ -77,17 +77,28 @@ struct nf_hook_entry {
 	void				*priv;
 };
 
+struct nf_hook_entries_rcu_head {
+	struct rcu_head head;
+	void	*allocation;
+};
+
 struct nf_hook_entries {
 	u16				num_hook_entries;
 	/* padding */
 	struct nf_hook_entry		hooks[];
 
-	/* trailer: pointers to original orig_ops of each hook.
+	/* trailer: pointers to original orig_ops of each hook,
+	 * followed by rcu_head and scratch space used for freeing
+	 * the structure via call_rcu.
 	 *
-	 * This is not part of struct nf_hook_entry since its only
-	 * needed in slow path (hook register/unregister).
-	 *
+	 *   This is not part of struct nf_hook_entry since its only
+	 *   needed in slow path (hook register/unregister):
 	 * const struct nf_hook_ops     *orig_ops[]
+	 *
+	 *   For the same reason, we store this at end -- its
+	 *   only needed when a hook is deleted, not during
+	 *   packet path processing:
+	 * struct nf_hook_entries_rcu_head     head
 	 */
 };
 

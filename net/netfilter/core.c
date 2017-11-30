@@ -74,7 +74,8 @@ static struct nf_hook_entries *allocate_hook_entries_size(u16 num)
 	struct nf_hook_entries *e;
 	size_t alloc = sizeof(*e) +
 		       sizeof(struct nf_hook_entry) * num +
-		       sizeof(struct nf_hook_ops *) * num;
+		       sizeof(struct nf_hook_ops *) * num +
+		       sizeof(struct nf_hook_entries_rcu_head);
 
 	if (num == 0)
 		return NULL;
@@ -83,6 +84,30 @@ static struct nf_hook_entries *allocate_hook_entries_size(u16 num)
 	if (e)
 		e->num_hook_entries = num;
 	return e;
+}
+
+static void __nf_hook_entries_free(struct rcu_head *h)
+{
+	struct nf_hook_entries_rcu_head *head;
+
+	head = container_of(h, struct nf_hook_entries_rcu_head, head);
+	kvfree(head->allocation);
+}
+
+static void nf_hook_entries_free(struct nf_hook_entries *e)
+{
+	struct nf_hook_entries_rcu_head *head;
+	struct nf_hook_ops **ops;
+	unsigned int num;
+
+	if (!e)
+		return;
+
+	num = e->num_hook_entries;
+	ops = nf_hook_entries_get_hook_ops(e);
+	head = (void *)&ops[num];
+	head->allocation = e;
+	call_rcu(&head->head, __nf_hook_entries_free);
 }
 
 static unsigned int accept_all(void *priv,
@@ -291,9 +316,8 @@ int nf_register_net_hook(struct net *net, const struct nf_hook_ops *reg)
 #ifdef HAVE_JUMP_LABEL
 	static_key_slow_inc(&nf_hooks_needed[reg->pf][reg->hooknum]);
 #endif
-	synchronize_net();
 	BUG_ON(p == new_hooks);
-	kvfree(p);
+	nf_hook_entries_free(p);
 	return 0;
 }
 EXPORT_SYMBOL(nf_register_net_hook);
@@ -361,10 +385,8 @@ void nf_unregister_net_hook(struct net *net, const struct nf_hook_ops *reg)
 	if (!p)
 		return;
 
-	synchronize_net();
-
 	nf_queue_nf_hook_drop(net);
-	kvfree(p);
+	nf_hook_entries_free(p);
 }
 EXPORT_SYMBOL(nf_unregister_net_hook);
 
