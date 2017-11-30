@@ -97,7 +97,6 @@
 
 #define MTK_TIMEOUT		(500000)
 #define MTK_RESET_TIMEOUT	(1000000)
-#define MTK_MAX_SECTOR		(16)
 #define MTK_NAND_MAX_NSELS	(2)
 #define MTK_NFC_MIN_SPARE	(16)
 #define ACCTIMING(tpoecs, tprecs, tc2r, tw2r, twh, twst, trlt) \
@@ -109,6 +108,8 @@ struct mtk_nfc_caps {
 	u8 num_spare_size;
 	u8 pageformat_spare_shift;
 	u8 nfi_clk_div;
+	u8 max_sector;
+	u32 max_sector_size;
 };
 
 struct mtk_nfc_bad_mark_ctl {
@@ -450,7 +451,7 @@ static inline u8 mtk_nfc_read_byte(struct mtd_info *mtd)
 		 * set to max sector to allow the HW to continue reading over
 		 * unaligned accesses
 		 */
-		reg = (MTK_MAX_SECTOR << CON_SEC_SHIFT) | CON_BRD;
+		reg = (nfc->caps->max_sector << CON_SEC_SHIFT) | CON_BRD;
 		nfi_writel(nfc, reg, NFI_CON);
 
 		/* trigger to fetch data */
@@ -481,7 +482,7 @@ static void mtk_nfc_write_byte(struct mtd_info *mtd, u8 byte)
 		reg = nfi_readw(nfc, NFI_CNFG) | CNFG_BYTE_RW;
 		nfi_writew(nfc, reg, NFI_CNFG);
 
-		reg = MTK_MAX_SECTOR << CON_SEC_SHIFT | CON_BWR;
+		reg = nfc->caps->max_sector << CON_SEC_SHIFT | CON_BWR;
 		nfi_writel(nfc, reg, NFI_CON);
 
 		nfi_writew(nfc, STAR_EN, NFI_STRDATA);
@@ -1117,9 +1118,11 @@ static void mtk_nfc_set_fdm(struct mtk_nfc_fdm *fdm, struct mtd_info *mtd)
 {
 	struct nand_chip *nand = mtd_to_nand(mtd);
 	struct mtk_nfc_nand_chip *chip = to_mtk_nand(nand);
+	struct mtk_nfc *nfc = nand_get_controller_data(nand);
 	u32 ecc_bytes;
 
-	ecc_bytes = DIV_ROUND_UP(nand->ecc.strength * ECC_PARITY_BITS, 8);
+	ecc_bytes = DIV_ROUND_UP(nand->ecc.strength *
+				 mtk_ecc_get_parity_bits(nfc->ecc), 8);
 
 	fdm->reg_size = chip->spare_per_sector - ecc_bytes;
 	if (fdm->reg_size > NFI_FDM_MAX_SIZE)
@@ -1199,7 +1202,8 @@ static int mtk_nfc_ecc_init(struct device *dev, struct mtd_info *mtd)
 		 * this controller only supports 512 and 1024 sizes
 		 */
 		if (nand->ecc.size < 1024) {
-			if (mtd->writesize > 512) {
+			if (mtd->writesize > 512 &&
+			    nfc->caps->max_sector_size > 512) {
 				nand->ecc.size = 1024;
 				nand->ecc.strength <<= 1;
 			} else {
@@ -1214,7 +1218,8 @@ static int mtk_nfc_ecc_init(struct device *dev, struct mtd_info *mtd)
 			return ret;
 
 		/* calculate oob bytes except ecc parity data */
-		free = ((nand->ecc.strength * ECC_PARITY_BITS) + 7) >> 3;
+		free = (nand->ecc.strength * mtk_ecc_get_parity_bits(nfc->ecc)
+			+ 7) >> 3;
 		free = spare - free;
 
 		/*
@@ -1224,10 +1229,12 @@ static int mtk_nfc_ecc_init(struct device *dev, struct mtd_info *mtd)
 		 */
 		if (free > NFI_FDM_MAX_SIZE) {
 			spare -= NFI_FDM_MAX_SIZE;
-			nand->ecc.strength = (spare << 3) / ECC_PARITY_BITS;
+			nand->ecc.strength = (spare << 3) /
+					     mtk_ecc_get_parity_bits(nfc->ecc);
 		} else if (free < 0) {
 			spare -= NFI_FDM_MIN_SIZE;
-			nand->ecc.strength = (spare << 3) / ECC_PARITY_BITS;
+			nand->ecc.strength = (spare << 3) /
+					     mtk_ecc_get_parity_bits(nfc->ecc);
 		}
 	}
 
@@ -1380,6 +1387,8 @@ static const struct mtk_nfc_caps mtk_nfc_caps_mt2701 = {
 	.num_spare_size = 16,
 	.pageformat_spare_shift = 4,
 	.nfi_clk_div = 1,
+	.max_sector = 16,
+	.max_sector_size = 1024,
 };
 
 static const struct mtk_nfc_caps mtk_nfc_caps_mt2712 = {
@@ -1387,6 +1396,8 @@ static const struct mtk_nfc_caps mtk_nfc_caps_mt2712 = {
 	.num_spare_size = 19,
 	.pageformat_spare_shift = 16,
 	.nfi_clk_div = 2,
+	.max_sector = 16,
+	.max_sector_size = 1024,
 };
 
 static const struct of_device_id mtk_nfc_id_table[] = {
