@@ -84,10 +84,10 @@ static void ima_rdwr_violation_check(struct file *file,
 				     struct integrity_iint_cache *iint,
 				     int must_measure,
 				     char **pathbuf,
-				     const char **pathname)
+				     const char **pathname,
+				     char *filename)
 {
 	struct inode *inode = file_inode(file);
-	char filename[NAME_MAX];
 	fmode_t mode = file->f_mode;
 	bool send_tomtou = false, send_writers = false;
 
@@ -210,7 +210,7 @@ static int process_measurement(struct file *file, char *buf, loff_t size,
 
 	if (!rc && violation_check)
 		ima_rdwr_violation_check(file, iint, action & IMA_MEASURE,
-					 &pathbuf, &pathname);
+					 &pathbuf, &pathname, filename);
 
 	inode_unlock(inode);
 
