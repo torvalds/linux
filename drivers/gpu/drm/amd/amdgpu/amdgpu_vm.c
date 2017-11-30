@@ -1056,118 +1056,46 @@ static int amdgpu_vm_wait_pd(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 }
 
 /*
- * amdgpu_vm_update_level - update a single level in the hierarchy
+ * amdgpu_vm_update_pde - update a single level in the hierarchy
  *
- * @adev: amdgpu_device pointer
+ * @param: parameters for the update
  * @vm: requested vm
  * @parent: parent directory
+ * @entry: entry to update
  *
- * Makes sure all entries in @parent are up to date.
- * Returns 0 for success, error for failure.
+ * Makes sure the requested entry in parent is up to date.
  */
-static int amdgpu_vm_update_pde(struct amdgpu_device *adev,
-				struct amdgpu_vm *vm,
-				struct amdgpu_vm_pt *parent,
-				struct amdgpu_vm_pt *entry)
+static void amdgpu_vm_update_pde(struct amdgpu_pte_update_params *params,
+				 struct amdgpu_vm *vm,
+				 struct amdgpu_vm_pt *parent,
+				 struct amdgpu_vm_pt *entry)
 {
-	struct amdgpu_pte_update_params params;
-	struct amdgpu_bo *bo = entry->base.bo;
-	struct amdgpu_bo *shadow;
-	struct amdgpu_ring *ring = NULL;
+	struct amdgpu_bo *bo = entry->base.bo, *shadow = NULL;
 	uint64_t pd_addr, shadow_addr = 0;
-	struct amdgpu_job *job;
-	struct dma_fence *fence = NULL;
-	unsigned ndw = 0;
 	uint64_t pde, pt;
 
-	int r;
-
-	if (!parent->entries)
-		return 0;
-
-	memset(&params, 0, sizeof(params));
-	params.adev = adev;
-	shadow = parent->base.bo->shadow;
+	/* Don't update huge pages here */
+	if (entry->huge)
+		return;
 
 	if (vm->use_cpu_for_update) {
 		pd_addr = (unsigned long)amdgpu_bo_kptr(parent->base.bo);
-		r = amdgpu_vm_wait_pd(adev, vm, AMDGPU_FENCE_OWNER_VM);
-		if (unlikely(r))
-			return r;
-
-		params.func = amdgpu_vm_cpu_set_ptes;
 	} else {
-		ring = container_of(vm->entity.sched, struct amdgpu_ring,
-				    sched);
-
-		/* should be sufficient for two commands plus padding, etc. */
-		ndw = 64;
-
 		pd_addr = amdgpu_bo_gpu_offset(parent->base.bo);
+		shadow = parent->base.bo->shadow;
 		if (shadow)
 			shadow_addr = amdgpu_bo_gpu_offset(shadow);
-		else
-			shadow_addr = 0;
-
-		r = amdgpu_job_alloc_with_ib(adev, ndw * 4, &job);
-		if (r)
-			return r;
-
-		params.ib = &job->ibs[0];
-		params.func = amdgpu_vm_do_set_ptes;
 	}
-
-	spin_lock(&vm->status_lock);
-	list_del_init(&entry->base.vm_status);
-	spin_unlock(&vm->status_lock);
 
 	pt = amdgpu_bo_gpu_offset(bo);
-	pt = amdgpu_gart_get_vm_pde(adev, pt);
-	/* Don't update huge pages here */
-	if (entry->huge) {
-		if (!vm->use_cpu_for_update)
-			amdgpu_job_free(job);
-		return 0;
-	}
-
+	pt = amdgpu_gart_get_vm_pde(params->adev, pt);
 	if (shadow) {
 		pde = shadow_addr + (entry - parent->entries) * 8;
-		params.func(&params, pde, pt, 1, 0, AMDGPU_PTE_VALID);
+		params->func(params, pde, pt, 1, 0, AMDGPU_PTE_VALID);
 	}
 
 	pde = pd_addr + (entry - parent->entries) * 8;
-	params.func(&params, pde, pt, 1, 0, AMDGPU_PTE_VALID);
-
-	if (!vm->use_cpu_for_update) {
-		if (params.ib->length_dw == 0) {
-			amdgpu_job_free(job);
-		} else {
-			amdgpu_ring_pad_ib(ring, params.ib);
-			amdgpu_sync_resv(adev, &job->sync,
-					 parent->base.bo->tbo.resv,
-					 AMDGPU_FENCE_OWNER_VM, false);
-			if (shadow)
-				amdgpu_sync_resv(adev, &job->sync,
-						 shadow->tbo.resv,
-						 AMDGPU_FENCE_OWNER_VM, false);
-
-			WARN_ON(params.ib->length_dw > ndw);
-			r = amdgpu_job_submit(job, ring, &vm->entity,
-					AMDGPU_FENCE_OWNER_VM, &fence);
-			if (r)
-				goto error_free;
-
-			amdgpu_bo_fence(parent->base.bo, fence, true);
-			dma_fence_put(vm->last_update);
-			vm->last_update = fence;
-		}
-	}
-
-	return 0;
-
-error_free:
-	amdgpu_job_free(job);
-	return r;
+	params->func(params, pde, pt, 1, 0, AMDGPU_PTE_VALID);
 }
 
 /*
@@ -1215,41 +1143,63 @@ static void amdgpu_vm_invalidate_level(struct amdgpu_device *adev,
 int amdgpu_vm_update_directories(struct amdgpu_device *adev,
 				 struct amdgpu_vm *vm)
 {
+	struct amdgpu_pte_update_params params;
+	struct amdgpu_job *job;
+	unsigned ndw = 0;
 	int r = 0;
+
+	if (list_empty(&vm->relocated))
+		return 0;
+
+restart:
+	memset(&params, 0, sizeof(params));
+	params.adev = adev;
+
+	if (vm->use_cpu_for_update) {
+		r = amdgpu_vm_wait_pd(adev, vm, AMDGPU_FENCE_OWNER_VM);
+		if (unlikely(r))
+			return r;
+
+		params.func = amdgpu_vm_cpu_set_ptes;
+	} else {
+		ndw = 512 * 8;
+		r = amdgpu_job_alloc_with_ib(adev, ndw * 4, &job);
+		if (r)
+			return r;
+
+		params.ib = &job->ibs[0];
+		params.func = amdgpu_vm_do_set_ptes;
+	}
 
 	spin_lock(&vm->status_lock);
 	while (!list_empty(&vm->relocated)) {
-		struct amdgpu_vm_bo_base *bo_base;
+		struct amdgpu_vm_bo_base *bo_base, *parent;
+		struct amdgpu_vm_pt *pt, *entry;
 		struct amdgpu_bo *bo;
 
 		bo_base = list_first_entry(&vm->relocated,
 					   struct amdgpu_vm_bo_base,
 					   vm_status);
+		list_del_init(&bo_base->vm_status);
 		spin_unlock(&vm->status_lock);
 
 		bo = bo_base->bo->parent;
-		if (bo) {
-			struct amdgpu_vm_bo_base *parent;
-			struct amdgpu_vm_pt *pt, *entry;
-
-			parent = list_first_entry(&bo->va,
-						  struct amdgpu_vm_bo_base,
-						  bo_list);
-			pt = container_of(parent, struct amdgpu_vm_pt, base);
-			entry = container_of(bo_base, struct amdgpu_vm_pt,
-					     base);
-
-			r = amdgpu_vm_update_pde(adev, vm, pt, entry);
-			if (r) {
-				amdgpu_vm_invalidate_level(adev, vm,
-							   &vm->root, 0);
-				return r;
-			}
+		if (!bo) {
 			spin_lock(&vm->status_lock);
-		} else {
-			spin_lock(&vm->status_lock);
-			list_del_init(&bo_base->vm_status);
+			continue;
 		}
+
+		parent = list_first_entry(&bo->va, struct amdgpu_vm_bo_base,
+					  bo_list);
+		pt = container_of(parent, struct amdgpu_vm_pt, base);
+		entry = container_of(bo_base, struct amdgpu_vm_pt, base);
+
+		amdgpu_vm_update_pde(&params, vm, pt, entry);
+
+		spin_lock(&vm->status_lock);
+		if (!vm->use_cpu_for_update &&
+		    (ndw - params.ib->length_dw) < 32)
+			break;
 	}
 	spin_unlock(&vm->status_lock);
 
@@ -1257,8 +1207,43 @@ int amdgpu_vm_update_directories(struct amdgpu_device *adev,
 		/* Flush HDP */
 		mb();
 		amdgpu_gart_flush_gpu_tlb(adev, 0);
+	} else if (params.ib->length_dw == 0) {
+		amdgpu_job_free(job);
+	} else {
+		struct amdgpu_bo *root = vm->root.base.bo;
+		struct amdgpu_ring *ring;
+		struct dma_fence *fence;
+
+		ring = container_of(vm->entity.sched, struct amdgpu_ring,
+				    sched);
+
+		amdgpu_ring_pad_ib(ring, params.ib);
+		amdgpu_sync_resv(adev, &job->sync, root->tbo.resv,
+				 AMDGPU_FENCE_OWNER_VM, false);
+		if (root->shadow)
+			amdgpu_sync_resv(adev, &job->sync,
+					 root->shadow->tbo.resv,
+					 AMDGPU_FENCE_OWNER_VM, false);
+
+		WARN_ON(params.ib->length_dw > ndw);
+		r = amdgpu_job_submit(job, ring, &vm->entity,
+				      AMDGPU_FENCE_OWNER_VM, &fence);
+		if (r)
+			goto error;
+
+		amdgpu_bo_fence(root, fence, true);
+		dma_fence_put(vm->last_update);
+		vm->last_update = fence;
 	}
 
+	if (!list_empty(&vm->relocated))
+		goto restart;
+
+	return 0;
+
+error:
+	amdgpu_vm_invalidate_level(adev, vm, &vm->root, 0);
+	amdgpu_job_free(job);
 	return r;
 }
 
