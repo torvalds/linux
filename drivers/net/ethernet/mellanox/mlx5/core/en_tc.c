@@ -994,7 +994,7 @@ mlx5e_tc_add_fdb_flow(struct mlx5e_priv *priv,
 	}
 
 	if (attr->action & MLX5_FLOW_CONTEXT_ACTION_COUNT) {
-		counter = mlx5_fc_create(esw->dev, true);
+		counter = mlx5_fc_create(attr->counter_dev, true);
 		if (IS_ERR(counter)) {
 			err = PTR_ERR(counter);
 			goto err_create_counter;
@@ -1023,7 +1023,7 @@ mlx5e_tc_add_fdb_flow(struct mlx5e_priv *priv,
 	return 0;
 
 err_add_rule:
-	mlx5_fc_destroy(esw->dev, counter);
+	mlx5_fc_destroy(attr->counter_dev, counter);
 err_create_counter:
 	if (attr->action & MLX5_FLOW_CONTEXT_ACTION_MOD_HDR)
 		mlx5e_detach_mod_hdr(priv, flow);
@@ -1064,7 +1064,7 @@ static void mlx5e_tc_del_fdb_flow(struct mlx5e_priv *priv,
 		mlx5e_detach_mod_hdr(priv, flow);
 
 	if (attr->action & MLX5_FLOW_CONTEXT_ACTION_COUNT)
-		mlx5_fc_destroy(esw->dev, attr->counter);
+		mlx5_fc_destroy(attr->counter_dev, attr->counter);
 }
 
 void mlx5e_tc_encap_flows_add(struct mlx5e_priv *priv,
@@ -2746,6 +2746,7 @@ __mlx5e_add_fdb_flow(struct mlx5e_priv *priv,
 		     struct mlx5e_tc_flow **__flow)
 {
 	struct netlink_ext_ack *extack = f->common.extack;
+	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
 	struct mlx5e_tc_flow_parse_attr *parse_attr;
 	struct mlx5e_tc_flow *flow;
 	int attr_size, err;
@@ -2771,6 +2772,13 @@ __mlx5e_add_fdb_flow(struct mlx5e_priv *priv,
 
 	flow->esw_attr->in_rep = in_rep;
 	flow->esw_attr->in_mdev = in_mdev;
+
+	if (MLX5_CAP_ESW(esw->dev, counter_eswitch_affinity) ==
+	    MLX5_COUNTER_SOURCE_ESWITCH)
+		flow->esw_attr->counter_dev = in_mdev;
+	else
+		flow->esw_attr->counter_dev = priv->mdev;
+
 	err = mlx5e_tc_add_fdb_flow(priv, parse_attr, flow, extack);
 	if (err)
 		goto err_free;
