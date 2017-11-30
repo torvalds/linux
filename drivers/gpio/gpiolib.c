@@ -600,6 +600,9 @@ out_free_lh:
  * @events: KFIFO for the GPIO events
  * @read_lock: mutex lock to protect reads from colliding with adding
  * new events to the FIFO
+ * @timestamp: cache for the timestamp storing it between hardirq
+ * and IRQ thread, used to bring the timestamp close to the actual
+ * event
  */
 struct lineevent_state {
 	struct gpio_device *gdev;
@@ -610,6 +613,7 @@ struct lineevent_state {
 	wait_queue_head_t wait;
 	DECLARE_KFIFO(events, struct gpioevent_data, 16);
 	struct mutex read_lock;
+	u64 timestamp;
 };
 
 #define GPIOEVENT_REQUEST_VALID_FLAGS \
@@ -747,7 +751,7 @@ static irqreturn_t lineevent_irq_thread(int irq, void *p)
 	/* Do not leak kernel stack to userspace */
 	memset(&ge, 0, sizeof(ge));
 
-	ge.timestamp = ktime_get_real_ns();
+	ge.timestamp = le->timestamp;
 	level = gpiod_get_value_cansleep(le->desc);
 
 	if (le->eflags & GPIOEVENT_REQUEST_RISING_EDGE
@@ -773,6 +777,19 @@ static irqreturn_t lineevent_irq_thread(int irq, void *p)
 		wake_up_poll(&le->wait, POLLIN);
 
 	return IRQ_HANDLED;
+}
+
+static irqreturn_t lineevent_irq_handler(int irq, void *p)
+{
+	struct lineevent_state *le = p;
+
+	/*
+	 * Just store the timestamp in hardirq context so we get it as
+	 * close in time as possible to the actual event.
+	 */
+	le->timestamp = ktime_get_real_ns();
+
+	return IRQ_WAKE_THREAD;
 }
 
 static int lineevent_create(struct gpio_device *gdev, void __user *ip)
@@ -867,7 +884,7 @@ static int lineevent_create(struct gpio_device *gdev, void __user *ip)
 
 	/* Request a thread to read the events */
 	ret = request_threaded_irq(le->irq,
-			NULL,
+			lineevent_irq_handler,
 			lineevent_irq_thread,
 			irqflags,
 			le->label,
