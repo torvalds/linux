@@ -563,6 +563,11 @@ static int pdev_probe(struct platform_device *pdev)
 	ddev->dev_private = priv;
 	platform_set_drvdata(pdev, ddev);
 
+	/* Get memory bandwidth limits */
+	if (priv->dispc_ops->get_memory_bandwidth_limit)
+		priv->max_bandwidth =
+				priv->dispc_ops->get_memory_bandwidth_limit();
+
 	omap_gem_init(ddev);
 
 	ret = omap_modeset_init(ddev);
