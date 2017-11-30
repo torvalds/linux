@@ -1027,7 +1027,7 @@
 		};
 	};
 
-	sdmmc: rksdmmc@ff500000 {
+	sdmmc: dwmmc@ff500000 {
 		compatible = "rockchip,rk3328-dw-mshc", "rockchip,rk3288-dw-mshc";
 		reg = <0x0 0xff500000 0x0 0x4000>;
 		clock-freq-min-max = <400000 150000000>;
@@ -1050,7 +1050,7 @@
 		status = "disabled";
 	};
 
-	emmc: rksdmmc@ff520000 {
+	emmc: dwmmc@ff520000 {
 		compatible = "rockchip,rk3328-dw-mshc", "rockchip,rk3288-dw-mshc";
 		reg = <0x0 0xff520000 0x0 0x4000>;
 		clock-freq-min-max = <400000 150000000>;
@@ -1144,7 +1144,7 @@
 		status = "disabled";
 	};
 
-	sdmmc_ext: rksdmmc@ff5f0000 {
+	sdmmc_ext: dwmmc@ff5f0000 {
 		compatible = "rockchip,rk3328-dw-mshc", "rockchip,rk3288-dw-mshc";
 		reg = <0x0 0xff5f0000 0x0 0x4000>;
 		clock-freq-min-max = <400000 150000000>;
