@@ -83,6 +83,10 @@ static const u8 ecc_strength_mt2712[] = {
 	40, 44, 48, 52, 56, 60, 68, 72, 80
 };
 
+static const u8 ecc_strength_mt7622[] = {
+	4, 6, 8, 10, 12, 14, 16
+};
+
 enum mtk_ecc_regs {
 	ECC_ENCPAR00,
 	ECC_ENCIRQ_EN,
@@ -108,6 +112,15 @@ static int mt2712_ecc_regs[] = {
 	[ECC_DECDONE] =         0x124,
 	[ECC_DECIRQ_EN] =       0x200,
 	[ECC_DECIRQ_STA] =      0x204,
+};
+
+static int mt7622_ecc_regs[] = {
+	[ECC_ENCPAR00] =        0x10,
+	[ECC_ENCIRQ_EN] =       0x30,
+	[ECC_ENCIRQ_STA] =      0x34,
+	[ECC_DECDONE] =         0x11c,
+	[ECC_DECIRQ_EN] =       0x140,
+	[ECC_DECIRQ_STA] =      0x144,
 };
 
 static inline void mtk_ecc_wait_idle(struct mtk_ecc *ecc,
@@ -458,6 +471,16 @@ static const struct mtk_ecc_caps mtk_ecc_caps_mt2712 = {
 	.pg_irq_sel = 1,
 };
 
+static const struct mtk_ecc_caps mtk_ecc_caps_mt7622 = {
+	.err_mask = 0x3f,
+	.ecc_strength = ecc_strength_mt7622,
+	.ecc_regs = mt7622_ecc_regs,
+	.num_ecc_strength = 7,
+	.ecc_mode_shift = 4,
+	.parity_bits = 13,
+	.pg_irq_sel = 0,
+};
+
 static const struct of_device_id mtk_ecc_dt_match[] = {
 	{
 		.compatible = "mediatek,mt2701-ecc",
@@ -465,6 +488,9 @@ static const struct of_device_id mtk_ecc_dt_match[] = {
 	}, {
 		.compatible = "mediatek,mt2712-ecc",
 		.data = &mtk_ecc_caps_mt2712,
+	}, {
+		.compatible = "mediatek,mt7622-ecc",
+		.data = &mtk_ecc_caps_mt7622,
 	},
 	{},
 };

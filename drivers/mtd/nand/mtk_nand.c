@@ -174,6 +174,10 @@ static const u8 spare_size_mt2712[] = {
 	74
 };
 
+static const u8 spare_size_mt7622[] = {
+	16, 26, 27, 28
+};
+
 static inline struct mtk_nfc_nand_chip *to_mtk_nand(struct nand_chip *nand)
 {
 	return container_of(nand, struct mtk_nfc_nand_chip, nand);
@@ -1400,6 +1404,15 @@ static const struct mtk_nfc_caps mtk_nfc_caps_mt2712 = {
 	.max_sector_size = 1024,
 };
 
+static const struct mtk_nfc_caps mtk_nfc_caps_mt7622 = {
+	.spare_size = spare_size_mt7622,
+	.num_spare_size = 4,
+	.pageformat_spare_shift = 4,
+	.nfi_clk_div = 1,
+	.max_sector = 8,
+	.max_sector_size = 512,
+};
+
 static const struct of_device_id mtk_nfc_id_table[] = {
 	{
 		.compatible = "mediatek,mt2701-nfc",
@@ -1407,6 +1420,9 @@ static const struct of_device_id mtk_nfc_id_table[] = {
 	}, {
 		.compatible = "mediatek,mt2712-nfc",
 		.data = &mtk_nfc_caps_mt2712,
+	}, {
+		.compatible = "mediatek,mt7622-nfc",
+		.data = &mtk_nfc_caps_mt7622,
 	},
 	{}
 };
