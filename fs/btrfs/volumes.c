@@ -2384,7 +2384,7 @@ int btrfs_init_new_device(struct btrfs_fs_info *fs_info, const char *device_path
 	set_blocksize(device->bdev, BTRFS_BDEV_BLOCKSIZE);
 
 	if (seeding_dev) {
-		sb->s_flags &= ~MS_RDONLY;
+		sb->s_flags &= ~SB_RDONLY;
 		ret = btrfs_prepare_sprout(fs_info);
 		if (ret) {
 			btrfs_abort_transaction(trans, ret);
@@ -2497,7 +2497,7 @@ error_sysfs:
 	btrfs_sysfs_rm_device_link(fs_info->fs_devices, device);
 error_trans:
 	if (seeding_dev)
-		sb->s_flags |= MS_RDONLY;
+		sb->s_flags |= SB_RDONLY;
 	if (trans)
 		btrfs_end_transaction(trans);
 	rcu_string_free(device->name);

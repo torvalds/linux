@@ -650,7 +650,7 @@ static int udf_remount_fs(struct super_block *sb, int *flags, char *options)
 	sync_filesystem(sb);
 	if (lvidiu) {
 		int write_rev = le16_to_cpu(lvidiu->minUDFWriteRev);
-		if (write_rev > UDF_MAX_WRITE_VERSION && !(*flags & MS_RDONLY))
+		if (write_rev > UDF_MAX_WRITE_VERSION && !(*flags & SB_RDONLY))
 			return -EACCES;
 	}
 
@@ -673,10 +673,10 @@ static int udf_remount_fs(struct super_block *sb, int *flags, char *options)
 	sbi->s_dmode = uopt.dmode;
 	write_unlock(&sbi->s_cred_lock);
 
-	if ((bool)(*flags & MS_RDONLY) == sb_rdonly(sb))
+	if ((bool)(*flags & SB_RDONLY) == sb_rdonly(sb))
 		goto out_unlock;
 
-	if (*flags & MS_RDONLY)
+	if (*flags & SB_RDONLY)
 		udf_close_lvid(sb);
 	else
 		udf_open_lvid(sb);

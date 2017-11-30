@@ -107,7 +107,7 @@ static void btrfs_handle_error(struct btrfs_fs_info *fs_info)
 		return;
 
 	if (test_bit(BTRFS_FS_STATE_ERROR, &fs_info->fs_state)) {
-		sb->s_flags |= MS_RDONLY;
+		sb->s_flags |= SB_RDONLY;
 		btrfs_info(fs_info, "forced readonly");
 		/*
 		 * Note that a running device replace operation is not
@@ -137,7 +137,7 @@ void __btrfs_handle_fs_error(struct btrfs_fs_info *fs_info, const char *function
 
 	/*
 	 * Special case: if the error is EROFS, and we're already
-	 * under MS_RDONLY, then it is safe here.
+	 * under SB_RDONLY, then it is safe here.
 	 */
 	if (errno == -EROFS && sb_rdonly(sb))
   		return;
@@ -168,7 +168,7 @@ void __btrfs_handle_fs_error(struct btrfs_fs_info *fs_info, const char *function
 	set_bit(BTRFS_FS_STATE_ERROR, &fs_info->fs_state);
 
 	/* Don't go through full error handling during mount */
-	if (sb->s_flags & MS_BORN)
+	if (sb->s_flags & SB_BORN)
 		btrfs_handle_error(fs_info);
 }
 
@@ -625,7 +625,7 @@ int btrfs_parse_options(struct btrfs_fs_info *info, char *options,
 			break;
 		case Opt_acl:
 #ifdef CONFIG_BTRFS_FS_POSIX_ACL
-			info->sb->s_flags |= MS_POSIXACL;
+			info->sb->s_flags |= SB_POSIXACL;
 			break;
 #else
 			btrfs_err(info, "support for ACL not compiled in!");
@@ -633,7 +633,7 @@ int btrfs_parse_options(struct btrfs_fs_info *info, char *options,
 			goto out;
 #endif
 		case Opt_noacl:
-			info->sb->s_flags &= ~MS_POSIXACL;
+			info->sb->s_flags &= ~SB_POSIXACL;
 			break;
 		case Opt_notreelog:
 			btrfs_set_and_info(info, NOTREELOG,
@@ -851,7 +851,7 @@ check:
 	/*
 	 * Extra check for current option against current flag
 	 */
-	if (btrfs_test_opt(info, NOLOGREPLAY) && !(new_flags & MS_RDONLY)) {
+	if (btrfs_test_opt(info, NOLOGREPLAY) && !(new_flags & SB_RDONLY)) {
 		btrfs_err(info,
 			  "nologreplay must be used with ro mount option");
 		ret = -EINVAL;
@@ -1147,7 +1147,7 @@ static int btrfs_fill_super(struct super_block *sb,
 	sb->s_xattr = btrfs_xattr_handlers;
 	sb->s_time_gran = 1;
 #ifdef CONFIG_BTRFS_FS_POSIX_ACL
-	sb->s_flags |= MS_POSIXACL;
+	sb->s_flags |= SB_POSIXACL;
 #endif
 	sb->s_flags |= SB_I_VERSION;
 	sb->s_iflags |= SB_I_CGROUPWB;
@@ -1180,7 +1180,7 @@ static int btrfs_fill_super(struct super_block *sb,
 	}
 
 	cleancache_init_fs(sb);
-	sb->s_flags |= MS_ACTIVE;
+	sb->s_flags |= SB_ACTIVE;
 	return 0;
 
 fail_close:
@@ -1277,7 +1277,7 @@ static int btrfs_show_options(struct seq_file *seq, struct dentry *dentry)
 		seq_puts(seq, ",flushoncommit");
 	if (btrfs_test_opt(info, DISCARD))
 		seq_puts(seq, ",discard");
-	if (!(info->sb->s_flags & MS_POSIXACL))
+	if (!(info->sb->s_flags & SB_POSIXACL))
 		seq_puts(seq, ",noacl");
 	if (btrfs_test_opt(info, SPACE_CACHE))
 		seq_puts(seq, ",space_cache");
@@ -1409,11 +1409,11 @@ static struct dentry *mount_subvol(const char *subvol_name, u64 subvol_objectid,
 
 	mnt = vfs_kern_mount(&btrfs_fs_type, flags, device_name, newargs);
 	if (PTR_ERR_OR_ZERO(mnt) == -EBUSY) {
-		if (flags & MS_RDONLY) {
-			mnt = vfs_kern_mount(&btrfs_fs_type, flags & ~MS_RDONLY,
+		if (flags & SB_RDONLY) {
+			mnt = vfs_kern_mount(&btrfs_fs_type, flags & ~SB_RDONLY,
 					     device_name, newargs);
 		} else {
-			mnt = vfs_kern_mount(&btrfs_fs_type, flags | MS_RDONLY,
+			mnt = vfs_kern_mount(&btrfs_fs_type, flags | SB_RDONLY,
 					     device_name, newargs);
 			if (IS_ERR(mnt)) {
 				root = ERR_CAST(mnt);
@@ -1565,7 +1565,7 @@ static struct dentry *btrfs_mount(struct file_system_type *fs_type, int flags,
 	u64 subvol_objectid = 0;
 	int error = 0;
 
-	if (!(flags & MS_RDONLY))
+	if (!(flags & SB_RDONLY))
 		mode |= FMODE_WRITE;
 
 	error = btrfs_parse_early_options(data, mode, fs_type,
@@ -1619,13 +1619,13 @@ static struct dentry *btrfs_mount(struct file_system_type *fs_type, int flags,
 	if (error)
 		goto error_fs_info;
 
-	if (!(flags & MS_RDONLY) && fs_devices->rw_devices == 0) {
+	if (!(flags & SB_RDONLY) && fs_devices->rw_devices == 0) {
 		error = -EACCES;
 		goto error_close_devices;
 	}
 
 	bdev = fs_devices->latest_bdev;
-	s = sget(fs_type, btrfs_test_super, btrfs_set_super, flags | MS_NOSEC,
+	s = sget(fs_type, btrfs_test_super, btrfs_set_super, flags | SB_NOSEC,
 		 fs_info);
 	if (IS_ERR(s)) {
 		error = PTR_ERR(s);
@@ -1635,7 +1635,7 @@ static struct dentry *btrfs_mount(struct file_system_type *fs_type, int flags,
 	if (s->s_root) {
 		btrfs_close_devices(fs_devices);
 		free_fs_info(fs_info);
-		if ((flags ^ s->s_flags) & MS_RDONLY)
+		if ((flags ^ s->s_flags) & SB_RDONLY)
 			error = -EBUSY;
 	} else {
 		snprintf(s->s_id, sizeof(s->s_id), "%pg", bdev);
@@ -1702,11 +1702,11 @@ static inline void btrfs_remount_begin(struct btrfs_fs_info *fs_info,
 {
 	if (btrfs_raw_test_opt(old_opts, AUTO_DEFRAG) &&
 	    (!btrfs_raw_test_opt(fs_info->mount_opt, AUTO_DEFRAG) ||
-	     (flags & MS_RDONLY))) {
+	     (flags & SB_RDONLY))) {
 		/* wait for any defraggers to finish */
 		wait_event(fs_info->transaction_wait,
 			   (atomic_read(&fs_info->defrag_running) == 0));
-		if (flags & MS_RDONLY)
+		if (flags & SB_RDONLY)
 			sync_filesystem(fs_info->sb);
 	}
 }
@@ -1766,10 +1766,10 @@ static int btrfs_remount(struct super_block *sb, int *flags, char *data)
 	btrfs_resize_thread_pool(fs_info,
 		fs_info->thread_pool_size, old_thread_pool_size);
 
-	if ((bool)(*flags & MS_RDONLY) == sb_rdonly(sb))
+	if ((bool)(*flags & SB_RDONLY) == sb_rdonly(sb))
 		goto out;
 
-	if (*flags & MS_RDONLY) {
+	if (*flags & SB_RDONLY) {
 		/*
 		 * this also happens on 'umount -rf' or on shutdown, when
 		 * the filesystem is busy.
@@ -1781,10 +1781,10 @@ static int btrfs_remount(struct super_block *sb, int *flags, char *data)
 		/* avoid complains from lockdep et al. */
 		up(&fs_info->uuid_tree_rescan_sem);
 
-		sb->s_flags |= MS_RDONLY;
+		sb->s_flags |= SB_RDONLY;
 
 		/*
-		 * Setting MS_RDONLY will put the cleaner thread to
+		 * Setting SB_RDONLY will put the cleaner thread to
 		 * sleep at the next loop if it's already active.
 		 * If it's already asleep, we'll leave unused block
 		 * groups on disk until we're mounted read-write again
@@ -1856,7 +1856,7 @@ static int btrfs_remount(struct super_block *sb, int *flags, char *data)
 				goto restore;
 			}
 		}
-		sb->s_flags &= ~MS_RDONLY;
+		sb->s_flags &= ~SB_RDONLY;
 
 		set_bit(BTRFS_FS_OPEN, &fs_info->flags);
 	}
@@ -1866,9 +1866,9 @@ out:
 	return 0;
 
 restore:
-	/* We've hit an error - don't reset MS_RDONLY */
+	/* We've hit an error - don't reset SB_RDONLY */
 	if (sb_rdonly(sb))
-		old_flags |= MS_RDONLY;
+		old_flags |= SB_RDONLY;
 	sb->s_flags = old_flags;
 	fs_info->mount_opt = old_opts;
 	fs_info->compress_type = old_compress_type;

@@ -2068,7 +2068,7 @@ int migrate_misplaced_transhuge_page(struct mm_struct *mm,
 	}
 
 	entry = mk_huge_pmd(new_page, vma->vm_page_prot);
-	entry = maybe_pmd_mkwrite(pmd_mkdirty(entry), vma);
+	entry = maybe_pmd_mkwrite(entry, vma, false);
 
 	/*
 	 * Clear the old entry under pagetable lock and establish the new PTE.

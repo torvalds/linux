@@ -830,7 +830,7 @@ static int snd_dummy_capsrc_put(struct snd_kcontrol *kcontrol, struct snd_ctl_el
 static int snd_dummy_iobox_info(struct snd_kcontrol *kcontrol,
 				struct snd_ctl_elem_info *info)
 {
-	const char *const names[] = { "None", "CD Player" };
+	static const char *const names[] = { "None", "CD Player" };
 
 	return snd_ctl_enum_info(info, 1, 2, names);
 }
