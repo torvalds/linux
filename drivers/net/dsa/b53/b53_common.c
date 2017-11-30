@@ -1495,8 +1495,7 @@ static bool b53_can_enable_brcm_tags(struct dsa_switch *ds, int port)
 	return false;
 }
 
-static enum dsa_tag_protocol b53_get_tag_protocol(struct dsa_switch *ds,
-						  int port)
+enum dsa_tag_protocol b53_get_tag_protocol(struct dsa_switch *ds, int port)
 {
 	struct b53_device *dev = ds->priv;
 
@@ -1514,6 +1513,7 @@ static enum dsa_tag_protocol b53_get_tag_protocol(struct dsa_switch *ds,
 
 	return DSA_TAG_PROTO_BRCM;
 }
+EXPORT_SYMBOL(b53_get_tag_protocol);
 
 int b53_mirror_add(struct dsa_switch *ds, int port,
 		   struct dsa_mall_mirror_tc_entry *mirror, bool ingress)
