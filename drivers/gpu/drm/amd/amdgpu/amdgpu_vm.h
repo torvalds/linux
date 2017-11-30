@@ -142,7 +142,6 @@ struct amdgpu_vm_pt {
 
 	/* array of page tables, one for each directory entry */
 	struct amdgpu_vm_pt		*entries;
-	unsigned			last_entry_used;
 };
 
 #define AMDGPU_VM_FAULT(pasid, addr) (((u64)(pasid) << 48) | (addr))
