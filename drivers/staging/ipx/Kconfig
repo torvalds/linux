@@ -3,6 +3,7 @@
 #
 config IPX
 	tristate "The IPX protocol"
+	depends on NET
 	select LLC
 	---help---
 	  This is support for the Novell networking protocol, IPX, commonly
