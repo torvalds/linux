@@ -19,7 +19,7 @@
 
 #include <linux/ratelimit.h>
 
-char const *audit_point_name[] = {
+static char const *audit_point_name[] = {
 	"pre page fault",
 	"post page fault",
 	"pre pte write",
