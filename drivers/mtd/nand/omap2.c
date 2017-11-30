@@ -1647,10 +1647,10 @@ static int omap_read_page_bch(struct mtd_info *mtd, struct nand_chip *chip,
 	chip->read_buf(mtd, buf, mtd->writesize);
 
 	/* Read oob bytes */
-	chip->cmdfunc(mtd, NAND_CMD_RNDOUT,
-		      mtd->writesize + BADBLOCK_MARKER_LENGTH, -1);
-	chip->read_buf(mtd, chip->oob_poi + BADBLOCK_MARKER_LENGTH,
-		       chip->ecc.total);
+	nand_change_read_column_op(chip,
+				   mtd->writesize + BADBLOCK_MARKER_LENGTH,
+				   chip->oob_poi + BADBLOCK_MARKER_LENGTH,
+				   chip->ecc.total, false);
 
 	/* Calculate ecc bytes */
 	omap_calculate_ecc_bch_multi(mtd, buf, ecc_calc);

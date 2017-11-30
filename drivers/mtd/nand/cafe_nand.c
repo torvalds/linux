@@ -353,23 +353,15 @@ static void cafe_nand_bug(struct mtd_info *mtd)
 static int cafe_nand_write_oob(struct mtd_info *mtd,
 			       struct nand_chip *chip, int page)
 {
-	int status = 0;
-
-	chip->cmdfunc(mtd, NAND_CMD_SEQIN, mtd->writesize, page);
-	chip->write_buf(mtd, chip->oob_poi, mtd->oobsize);
-	chip->cmdfunc(mtd, NAND_CMD_PAGEPROG, -1, -1);
-	status = chip->waitfunc(mtd, chip);
-
-	return status & NAND_STATUS_FAIL ? -EIO : 0;
+	return nand_prog_page_op(chip, page, mtd->writesize, chip->oob_poi,
+				 mtd->oobsize);
 }
 
 /* Don't use -- use nand_read_oob_std for now */
 static int cafe_nand_read_oob(struct mtd_info *mtd, struct nand_chip *chip,
 			      int page)
 {
-	chip->cmdfunc(mtd, NAND_CMD_READOOB, 0, page);
-	chip->read_buf(mtd, chip->oob_poi, mtd->oobsize);
-	return 0;
+	return nand_read_oob_op(chip, page, 0, chip->oob_poi, mtd->oobsize);
 }
 /**
  * cafe_nand_read_page_syndrome - [REPLACEABLE] hardware ecc syndrome based page read

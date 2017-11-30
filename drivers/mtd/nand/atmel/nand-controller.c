@@ -1000,7 +1000,7 @@ static int atmel_hsmc_nand_pmecc_read_pg(struct nand_chip *chip, u8 *buf,
 	 * to the non-optimized one.
 	 */
 	if (nand->activecs->rb.type != ATMEL_NAND_NATIVE_RB) {
-		chip->cmdfunc(mtd, NAND_CMD_READ0, 0x00, page);
+		nand_read_page_op(chip, page, 0, NULL, 0);
 
 		return atmel_nand_pmecc_read_pg(chip, buf, oob_required, page,
 						raw);

@@ -192,6 +192,7 @@ tmio_nand_wait(struct mtd_info *mtd, struct nand_chip *nand_chip)
 {
 	struct tmio_nand *tmio = mtd_to_tmio(mtd);
 	long timeout;
+	u8 status;
 
 	/* enable RDYREQ interrupt */
 	tmio_iowrite8(0x0f, tmio->fcr + FCR_ISR);
@@ -212,8 +213,8 @@ tmio_nand_wait(struct mtd_info *mtd, struct nand_chip *nand_chip)
 		dev_warn(&tmio->dev->dev, "timeout waiting for interrupt\n");
 	}
 
-	nand_chip->cmdfunc(mtd, NAND_CMD_STATUS, -1, -1);
-	return nand_chip->read_byte(mtd);
+	nand_status_op(nand_chip, &status);
+	return status;
 }
 
 /*

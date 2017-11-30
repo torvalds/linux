@@ -461,7 +461,7 @@ static int lpc32xx_read_page(struct mtd_info *mtd, struct nand_chip *chip,
 	}
 
 	/* Writing Command and Address */
-	chip->cmdfunc(mtd, NAND_CMD_READ0, 0, page);
+	nand_read_page_op(chip, page, 0, NULL, 0);
 
 	/* For all sub-pages */
 	for (i = 0; i < host->mlcsubpages; i++) {

@@ -520,15 +520,13 @@ static int pxa3xx_nand_init_timings_compat(struct pxa3xx_nand_host *host,
 	struct nand_chip *chip = &host->chip;
 	struct pxa3xx_nand_info *info = host->info_data;
 	const struct pxa3xx_nand_flash *f = NULL;
-	struct mtd_info *mtd = nand_to_mtd(&host->chip);
 	int i, id, ntypes;
+	u8 idbuf[2];
 
 	ntypes = ARRAY_SIZE(builtin_flash_types);
 
-	chip->cmdfunc(mtd, NAND_CMD_READID, 0x00, -1);
-
-	id = chip->read_byte(mtd);
-	id |= chip->read_byte(mtd) << 0x8;
+	nand_readid_op(chip, 0, idbuf, sizeof(idbuf));
+	id = idbuf[0] | (idbuf[1] << 8);
 
 	for (i = 0; i < ntypes; i++) {
 		f = &builtin_flash_types[i];

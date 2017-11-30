@@ -1316,6 +1316,35 @@ int nand_write_page_raw(struct mtd_info *mtd, struct nand_chip *chip,
 /* Reset and initialize a NAND device */
 int nand_reset(struct nand_chip *chip, int chipnr);
 
+/* NAND operation helpers */
+int nand_reset_op(struct nand_chip *chip);
+int nand_readid_op(struct nand_chip *chip, u8 addr, void *buf,
+		   unsigned int len);
+int nand_status_op(struct nand_chip *chip, u8 *status);
+int nand_exit_status_op(struct nand_chip *chip);
+int nand_erase_op(struct nand_chip *chip, unsigned int eraseblock);
+int nand_read_page_op(struct nand_chip *chip, unsigned int page,
+		      unsigned int offset_in_page, void *buf, unsigned int len);
+int nand_change_read_column_op(struct nand_chip *chip,
+			       unsigned int offset_in_page, void *buf,
+			       unsigned int len, bool force_8bit);
+int nand_read_oob_op(struct nand_chip *chip, unsigned int page,
+		     unsigned int offset_in_page, void *buf, unsigned int len);
+int nand_prog_page_begin_op(struct nand_chip *chip, unsigned int page,
+			    unsigned int offset_in_page, const void *buf,
+			    unsigned int len);
+int nand_prog_page_end_op(struct nand_chip *chip);
+int nand_prog_page_op(struct nand_chip *chip, unsigned int page,
+		      unsigned int offset_in_page, const void *buf,
+		      unsigned int len);
+int nand_change_write_column_op(struct nand_chip *chip,
+				unsigned int offset_in_page, const void *buf,
+				unsigned int len, bool force_8bit);
+int nand_read_data_op(struct nand_chip *chip, void *buf, unsigned int len,
+		      bool force_8bit);
+int nand_write_data_op(struct nand_chip *chip, const void *buf,
+		       unsigned int len, bool force_8bit);
+
 /* Free resources held by the NAND device */
 void nand_cleanup(struct nand_chip *chip);
 

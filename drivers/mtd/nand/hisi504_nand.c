@@ -574,8 +574,7 @@ static int hisi_nand_read_oob(struct mtd_info *mtd, struct nand_chip *chip,
 {
 	struct hinfc_host *host = nand_get_controller_data(chip);
 
-	chip->cmdfunc(mtd, NAND_CMD_READOOB, 0, page);
-	chip->read_buf(mtd, chip->oob_poi, mtd->oobsize);
+	nand_read_oob_op(chip, page, 0, chip->oob_poi, mtd->oobsize);
 
 	if (host->irq_status & HINFC504_INTS_UE) {
 		host->irq_status = 0;

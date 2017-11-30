@@ -834,16 +834,13 @@ static int mtk_nfc_write_oob_std(struct mtd_info *mtd, struct nand_chip *chip,
 {
 	int ret;
 
-	chip->cmdfunc(mtd, NAND_CMD_SEQIN, 0x00, page);
+	nand_prog_page_begin_op(chip, page, 0, NULL, 0);
 
 	ret = mtk_nfc_write_page_raw(mtd, chip, NULL, 1, page);
 	if (ret < 0)
 		return -EIO;
 
-	chip->cmdfunc(mtd, NAND_CMD_PAGEPROG, -1, -1);
-	ret = chip->waitfunc(mtd, chip);
-
-	return ret & NAND_STATUS_FAIL ? -EIO : 0;
+	return nand_prog_page_end_op(chip);
 }
 
 static int mtk_nfc_update_ecc_stats(struct mtd_info *mtd, u8 *buf, u32 sectors)
@@ -893,7 +890,7 @@ static int mtk_nfc_read_subpage(struct mtd_info *mtd, struct nand_chip *chip,
 	buf = bufpoi + start * chip->ecc.size;
 
 	if (column != 0)
-		chip->cmdfunc(mtd, NAND_CMD_RNDOUT, column, -1);
+		nand_change_read_column_op(chip, column, NULL, 0, false);
 
 	addr = dma_map_single(nfc->dev, buf, len, DMA_FROM_DEVICE);
 	rc = dma_mapping_error(nfc->dev, addr);
@@ -1016,7 +1013,7 @@ static int mtk_nfc_read_page_raw(struct mtd_info *mtd, struct nand_chip *chip,
 static int mtk_nfc_read_oob_std(struct mtd_info *mtd, struct nand_chip *chip,
 				int page)
 {
-	chip->cmdfunc(mtd, NAND_CMD_READ0, 0, page);
+	nand_read_page_op(chip, page, 0, NULL, 0);
 
 	return mtk_nfc_read_page_raw(mtd, chip, NULL, 1, page);
 }

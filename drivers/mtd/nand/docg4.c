@@ -864,7 +864,7 @@ static int docg4_read_oob(struct mtd_info *mtd, struct nand_chip *nand,
 
 	dev_dbg(doc->dev, "%s: page %x\n", __func__, page);
 
-	docg4_command(mtd, NAND_CMD_READ0, nand->ecc.size, page);
+	nand_read_page_op(nand, page, nand->ecc.size, NULL, 0);
 
 	writew(DOC_ECCCONF0_READ_MODE | DOCG4_OOB_SIZE, docptr + DOC_ECCCONF0);
 	write_nop(docptr);

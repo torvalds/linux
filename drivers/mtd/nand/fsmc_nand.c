@@ -697,7 +697,7 @@ static int fsmc_read_page_hwecc(struct mtd_info *mtd, struct nand_chip *chip,
 	unsigned int max_bitflips = 0;
 
 	for (i = 0, s = 0; s < eccsteps; s++, i += eccbytes, p += eccsize) {
-		chip->cmdfunc(mtd, NAND_CMD_READ0, s * eccsize, page);
+		nand_read_page_op(chip, page, s * eccsize, NULL, 0);
 		chip->ecc.hwctl(mtd, NAND_ECC_READ);
 		chip->read_buf(mtd, p, eccsize);
 
@@ -720,8 +720,7 @@ static int fsmc_read_page_hwecc(struct mtd_info *mtd, struct nand_chip *chip,
 			if (chip->options & NAND_BUSWIDTH_16)
 				len = roundup(len, 2);
 
-			chip->cmdfunc(mtd, NAND_CMD_READOOB, off, page);
-			chip->read_buf(mtd, oob + j, len);
+			nand_read_oob_op(chip, page, off, oob + j, len);
 			j += len;
 		}
 

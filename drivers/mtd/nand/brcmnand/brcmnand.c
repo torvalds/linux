@@ -1071,7 +1071,7 @@ static void brcmnand_wp(struct mtd_info *mtd, int wp)
 			return;
 
 		brcmnand_set_wp(ctrl, wp);
-		chip->cmdfunc(mtd, NAND_CMD_STATUS, -1, -1);
+		nand_status_op(chip, NULL);
 		/* NAND_STATUS_WP 0x00 = protected, 0x80 = not protected */
 		ret = bcmnand_ctrl_poll_status(ctrl,
 					       NAND_CTRL_RDY |
@@ -1453,7 +1453,7 @@ static uint8_t brcmnand_read_byte(struct mtd_info *mtd)
 
 		/* At FC_BYTES boundary, switch to next column */
 		if (host->last_byte > 0 && offs == 0)
-			chip->cmdfunc(mtd, NAND_CMD_RNDOUT, addr, -1);
+			nand_change_read_column_op(chip, addr, NULL, 0, false);
 
 		ret = ctrl->flash_cache[offs];
 		break;
@@ -1689,7 +1689,7 @@ static int brcmstb_nand_verify_erased_page(struct mtd_info *mtd,
 	sas = mtd->oobsize / chip->ecc.steps;
 
 	/* read without ecc for verification */
-	chip->cmdfunc(mtd, NAND_CMD_READ0, 0x00, page);
+	nand_read_page_op(chip, page, 0, NULL, 0);
 	ret = chip->ecc.read_page_raw(mtd, chip, buf, true, page);
 	if (ret)
 		return ret;
@@ -2369,12 +2369,11 @@ static int brcmnand_resume(struct device *dev)
 
 	list_for_each_entry(host, &ctrl->host_list, node) {
 		struct nand_chip *chip = &host->chip;
-		struct mtd_info *mtd = nand_to_mtd(chip);
 
 		brcmnand_save_restore_cs_config(host, 1);
 
 		/* Reset the chip, required by some chips after power-up */
-		chip->cmdfunc(mtd, NAND_CMD_RESET, -1, -1);
+		nand_reset_op(chip);
 	}
 
 	return 0;
