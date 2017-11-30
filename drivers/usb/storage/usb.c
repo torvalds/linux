@@ -211,8 +211,8 @@ int usb_stor_reset_resume(struct usb_interface *iface)
 	usb_stor_report_bus_reset(us);
 
 	/*
-	 * FIXME: Notify the subdrivers that they need to reinitialize
-	 * the device
+	 * If any of the subdrivers implemented a reinitialization scheme,
+	 * this is where the callback would be invoked.
 	 */
 	return 0;
 }
@@ -243,8 +243,8 @@ int usb_stor_post_reset(struct usb_interface *iface)
 	usb_stor_report_bus_reset(us);
 
 	/*
-	 * FIXME: Notify the subdrivers that they need to reinitialize
-	 * the device
+	 * If any of the subdrivers implemented a reinitialization scheme,
+	 * this is where the callback would be invoked.
 	 */
 
 	mutex_unlock(&us->dev_mutex);
