@@ -351,17 +351,34 @@ static void sfp_sm_link_check_los(struct sfp *sfp)
 {
 	unsigned int los = sfp->state & SFP_F_LOS;
 
-	/* FIXME: what if neither SFP_OPTIONS_LOS_INVERTED nor
-	 * SFP_OPTIONS_LOS_NORMAL are set?  For now, we assume
-	 * the same as SFP_OPTIONS_LOS_NORMAL set.
+	/* If neither SFP_OPTIONS_LOS_INVERTED nor SFP_OPTIONS_LOS_NORMAL
+	 * are set, we assume that no LOS signal is available.
 	 */
 	if (sfp->id.ext.options & cpu_to_be16(SFP_OPTIONS_LOS_INVERTED))
 		los ^= SFP_F_LOS;
+	else if (!(sfp->id.ext.options & cpu_to_be16(SFP_OPTIONS_LOS_NORMAL)))
+		los = 0;
 
 	if (los)
 		sfp_sm_next(sfp, SFP_S_WAIT_LOS, 0);
 	else
 		sfp_sm_link_up(sfp);
+}
+
+static bool sfp_los_event_active(struct sfp *sfp, unsigned int event)
+{
+	return (sfp->id.ext.options & cpu_to_be16(SFP_OPTIONS_LOS_INVERTED) &&
+		event == SFP_E_LOS_LOW) ||
+	       (sfp->id.ext.options & cpu_to_be16(SFP_OPTIONS_LOS_NORMAL) &&
+		event == SFP_E_LOS_HIGH);
+}
+
+static bool sfp_los_event_inactive(struct sfp *sfp, unsigned int event)
+{
+	return (sfp->id.ext.options & cpu_to_be16(SFP_OPTIONS_LOS_INVERTED) &&
+		event == SFP_E_LOS_HIGH) ||
+	       (sfp->id.ext.options & cpu_to_be16(SFP_OPTIONS_LOS_NORMAL) &&
+		event == SFP_E_LOS_LOW);
 }
 
 static void sfp_sm_fault(struct sfp *sfp, bool warn)
@@ -581,10 +598,7 @@ static void sfp_sm_event(struct sfp *sfp, unsigned int event)
 	case SFP_S_WAIT_LOS:
 		if (event == SFP_E_TX_FAULT)
 			sfp_sm_fault(sfp, true);
-		else if (event ==
-			 (sfp->id.ext.options &
-			  cpu_to_be16(SFP_OPTIONS_LOS_INVERTED) ?
-			  SFP_E_LOS_HIGH : SFP_E_LOS_LOW))
+		else if (sfp_los_event_inactive(sfp, event))
 			sfp_sm_link_up(sfp);
 		break;
 
@@ -592,10 +606,7 @@ static void sfp_sm_event(struct sfp *sfp, unsigned int event)
 		if (event == SFP_E_TX_FAULT) {
 			sfp_sm_link_down(sfp);
 			sfp_sm_fault(sfp, true);
-		} else if (event ==
-			   (sfp->id.ext.options &
-			    cpu_to_be16(SFP_OPTIONS_LOS_INVERTED) ?
-			    SFP_E_LOS_LOW : SFP_E_LOS_HIGH)) {
+		} else if (sfp_los_event_active(sfp, event)) {
 			sfp_sm_link_down(sfp);
 			sfp_sm_next(sfp, SFP_S_WAIT_LOS, 0);
 		}
