@@ -341,7 +341,6 @@ void nf_unregister_net_hook(struct net *net, const struct nf_hook_ops *reg)
 {
 	struct nf_hook_entries __rcu **pp;
 	struct nf_hook_entries *p;
-	unsigned int nfq;
 
 	pp = nf_hook_entry_head(net, reg);
 	if (!pp)
@@ -364,10 +363,7 @@ void nf_unregister_net_hook(struct net *net, const struct nf_hook_ops *reg)
 
 	synchronize_net();
 
-	/* other cpu might still process nfqueue verdict that used reg */
-	nfq = nf_queue_nf_hook_drop(net);
-	if (nfq)
-		synchronize_net();
+	nf_queue_nf_hook_drop(net);
 	kvfree(p);
 }
 EXPORT_SYMBOL(nf_unregister_net_hook);
