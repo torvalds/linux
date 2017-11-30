@@ -187,9 +187,9 @@ static int iio_bfin_tmr_trigger_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	st->irq = platform_get_irq(pdev, 0);
-	if (!st->irq) {
+	if (st->irq < 0) {
 		dev_err(&pdev->dev, "No IRQs specified");
-		return -ENODEV;
+		return st->irq;
 	}
 
 	ret = iio_bfin_tmr_get_number(st->irq);
