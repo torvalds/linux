@@ -425,7 +425,7 @@ static int rk_pwm_probe(struct platform_device *pdev)
 		clk = devm_clk_get(&pdev->dev, "pwm");
 		p_clk = devm_clk_get(&pdev->dev, "pclk");
 	} else {
-		clk = devm_clk_get(&pdev->dev, "pclk_pwm");
+		clk = devm_clk_get(&pdev->dev, NULL);
 		p_clk = clk;
 	}
 	if (IS_ERR(clk)) {
