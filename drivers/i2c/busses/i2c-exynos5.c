@@ -170,7 +170,7 @@
 #define HSI2C_HS_TX_CLOCK	1000000
 #define HSI2C_FS_TX_CLOCK	100000
 
-#define EXYNOS5_I2C_TIMEOUT (msecs_to_jiffies(1000))
+#define EXYNOS5_I2C_TIMEOUT (msecs_to_jiffies(100))
 
 #define HSI2C_EXYNOS7	BIT(0)
 
