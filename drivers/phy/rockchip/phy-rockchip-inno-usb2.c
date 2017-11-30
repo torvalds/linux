@@ -980,9 +980,6 @@ static void rockchip_usb2phy_otg_sm_work(struct work_struct *work)
 				case POWER_SUPPLY_TYPE_USB_DCP:
 					dev_dbg(&rport->phy->dev, "dcp cable is connected\n");
 					cable = EXTCON_CHG_USB_DCP;
-					mutex_unlock(&rport->mutex);
-					rockchip_usb2phy_power_off(rport->phy);
-					mutex_lock(&rport->mutex);
 					sch_work = true;
 					break;
 				case POWER_SUPPLY_TYPE_USB_CDP:
