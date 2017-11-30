@@ -115,7 +115,6 @@ static struct nf_conntrack_helper nf_conntrack_helper_h245;
 static struct nf_conntrack_helper nf_conntrack_helper_q931[];
 static struct nf_conntrack_helper nf_conntrack_helper_ras[];
 
-/****************************************************************************/
 static int get_tpkt_data(struct sk_buff *skb, unsigned int protoff,
 			 struct nf_conn *ct, enum ip_conntrack_info ctinfo,
 			 unsigned char **data, int *datalen, int *dataoff)
@@ -219,7 +218,6 @@ static int get_tpkt_data(struct sk_buff *skb, unsigned int protoff,
 	return 0;
 }
 
-/****************************************************************************/
 static int get_h245_addr(struct nf_conn *ct, const unsigned char *data,
 			 H245_TransportAddress *taddr,
 			 union nf_inet_addr *addr, __be16 *port)
@@ -254,7 +252,6 @@ static int get_h245_addr(struct nf_conn *ct, const unsigned char *data,
 	return 1;
 }
 
-/****************************************************************************/
 static int expect_rtp_rtcp(struct sk_buff *skb, struct nf_conn *ct,
 			   enum ip_conntrack_info ctinfo,
 			   unsigned int protoff,
@@ -328,7 +325,6 @@ static int expect_rtp_rtcp(struct sk_buff *skb, struct nf_conn *ct,
 	return ret;
 }
 
-/****************************************************************************/
 static int expect_t120(struct sk_buff *skb,
 		       struct nf_conn *ct,
 		       enum ip_conntrack_info ctinfo,
@@ -380,7 +376,6 @@ static int expect_t120(struct sk_buff *skb,
 	return ret;
 }
 
-/****************************************************************************/
 static int process_h245_channel(struct sk_buff *skb,
 				struct nf_conn *ct,
 				enum ip_conntrack_info ctinfo,
@@ -410,7 +405,6 @@ static int process_h245_channel(struct sk_buff *skb,
 	return 0;
 }
 
-/****************************************************************************/
 static int process_olc(struct sk_buff *skb, struct nf_conn *ct,
 		       enum ip_conntrack_info ctinfo,
 		       unsigned int protoff,
@@ -472,7 +466,6 @@ static int process_olc(struct sk_buff *skb, struct nf_conn *ct,
 	return 0;
 }
 
-/****************************************************************************/
 static int process_olca(struct sk_buff *skb, struct nf_conn *ct,
 			enum ip_conntrack_info ctinfo,
 			unsigned int protoff, unsigned char **data, int dataoff,
@@ -542,7 +535,6 @@ static int process_olca(struct sk_buff *skb, struct nf_conn *ct,
 	return 0;
 }
 
-/****************************************************************************/
 static int process_h245(struct sk_buff *skb, struct nf_conn *ct,
 			enum ip_conntrack_info ctinfo,
 			unsigned int protoff, unsigned char **data, int dataoff,
@@ -578,7 +570,6 @@ static int process_h245(struct sk_buff *skb, struct nf_conn *ct,
 	return 0;
 }
 
-/****************************************************************************/
 static int h245_help(struct sk_buff *skb, unsigned int protoff,
 		     struct nf_conn *ct, enum ip_conntrack_info ctinfo)
 {
@@ -628,7 +619,6 @@ static int h245_help(struct sk_buff *skb, unsigned int protoff,
 	return NF_DROP;
 }
 
-/****************************************************************************/
 static const struct nf_conntrack_expect_policy h245_exp_policy = {
 	.max_expected	= H323_RTP_CHANNEL_MAX * 4 + 2 /* T.120 */,
 	.timeout	= 240,
@@ -643,7 +633,6 @@ static struct nf_conntrack_helper nf_conntrack_helper_h245 __read_mostly = {
 	.expect_policy		= &h245_exp_policy,
 };
 
-/****************************************************************************/
 int get_h225_addr(struct nf_conn *ct, unsigned char *data,
 		  TransportAddress *taddr,
 		  union nf_inet_addr *addr, __be16 *port)
@@ -675,7 +664,6 @@ int get_h225_addr(struct nf_conn *ct, unsigned char *data,
 	return 1;
 }
 
-/****************************************************************************/
 static int expect_h245(struct sk_buff *skb, struct nf_conn *ct,
 		       enum ip_conntrack_info ctinfo,
 		       unsigned int protoff, unsigned char **data, int dataoff,
@@ -726,7 +714,8 @@ static int expect_h245(struct sk_buff *skb, struct nf_conn *ct,
 }
 
 /* If the calling party is on the same side of the forward-to party,
- * we don't need to track the second call */
+ * we don't need to track the second call
+ */
 static int callforward_do_filter(struct net *net,
 				 const union nf_inet_addr *src,
 				 const union nf_inet_addr *dst,
@@ -794,7 +783,6 @@ static int callforward_do_filter(struct net *net,
 
 }
 
-/****************************************************************************/
 static int expect_callforwarding(struct sk_buff *skb,
 				 struct nf_conn *ct,
 				 enum ip_conntrack_info ctinfo,
@@ -815,7 +803,8 @@ static int expect_callforwarding(struct sk_buff *skb,
 		return 0;
 
 	/* If the calling party is on the same side of the forward-to party,
-	 * we don't need to track the second call */
+	 * we don't need to track the second call
+	 */
 	if (callforward_filter &&
 	    callforward_do_filter(net, &addr, &ct->tuplehash[!dir].tuple.src.u3,
 				  nf_ct_l3num(ct))) {
@@ -854,7 +843,6 @@ static int expect_callforwarding(struct sk_buff *skb,
 	return ret;
 }
 
-/****************************************************************************/
 static int process_setup(struct sk_buff *skb, struct nf_conn *ct,
 			 enum ip_conntrack_info ctinfo,
 			 unsigned int protoff,
@@ -925,7 +913,6 @@ static int process_setup(struct sk_buff *skb, struct nf_conn *ct,
 	return 0;
 }
 
-/****************************************************************************/
 static int process_callproceeding(struct sk_buff *skb,
 				  struct nf_conn *ct,
 				  enum ip_conntrack_info ctinfo,
@@ -958,7 +945,6 @@ static int process_callproceeding(struct sk_buff *skb,
 	return 0;
 }
 
-/****************************************************************************/
 static int process_connect(struct sk_buff *skb, struct nf_conn *ct,
 			   enum ip_conntrack_info ctinfo,
 			   unsigned int protoff,
@@ -990,7 +976,6 @@ static int process_connect(struct sk_buff *skb, struct nf_conn *ct,
 	return 0;
 }
 
-/****************************************************************************/
 static int process_alerting(struct sk_buff *skb, struct nf_conn *ct,
 			    enum ip_conntrack_info ctinfo,
 			    unsigned int protoff,
@@ -1022,7 +1007,6 @@ static int process_alerting(struct sk_buff *skb, struct nf_conn *ct,
 	return 0;
 }
 
-/****************************************************************************/
 static int process_facility(struct sk_buff *skb, struct nf_conn *ct,
 			    enum ip_conntrack_info ctinfo,
 			    unsigned int protoff,
@@ -1063,7 +1047,6 @@ static int process_facility(struct sk_buff *skb, struct nf_conn *ct,
 	return 0;
 }
 
-/****************************************************************************/
 static int process_progress(struct sk_buff *skb, struct nf_conn *ct,
 			    enum ip_conntrack_info ctinfo,
 			    unsigned int protoff,
@@ -1095,7 +1078,6 @@ static int process_progress(struct sk_buff *skb, struct nf_conn *ct,
 	return 0;
 }
 
-/****************************************************************************/
 static int process_q931(struct sk_buff *skb, struct nf_conn *ct,
 			enum ip_conntrack_info ctinfo,
 			unsigned int protoff, unsigned char **data, int dataoff,
@@ -1154,7 +1136,6 @@ static int process_q931(struct sk_buff *skb, struct nf_conn *ct,
 	return 0;
 }
 
-/****************************************************************************/
 static int q931_help(struct sk_buff *skb, unsigned int protoff,
 		     struct nf_conn *ct, enum ip_conntrack_info ctinfo)
 {
@@ -1203,7 +1184,6 @@ static int q931_help(struct sk_buff *skb, unsigned int protoff,
 	return NF_DROP;
 }
 
-/****************************************************************************/
 static const struct nf_conntrack_expect_policy q931_exp_policy = {
 	/* T.120 and H.245 */
 	.max_expected		= H323_RTP_CHANNEL_MAX * 4 + 4,
@@ -1231,7 +1211,6 @@ static struct nf_conntrack_helper nf_conntrack_helper_q931[] __read_mostly = {
 	},
 };
 
-/****************************************************************************/
 static unsigned char *get_udp_data(struct sk_buff *skb, unsigned int protoff,
 				   int *datalen)
 {
@@ -1249,7 +1228,6 @@ static unsigned char *get_udp_data(struct sk_buff *skb, unsigned int protoff,
 	return skb_header_pointer(skb, dataoff, *datalen, h323_buffer);
 }
 
-/****************************************************************************/
 static struct nf_conntrack_expect *find_expect(struct nf_conn *ct,
 					       union nf_inet_addr *addr,
 					       __be16 port)
@@ -1270,7 +1248,6 @@ static struct nf_conntrack_expect *find_expect(struct nf_conn *ct,
 	return NULL;
 }
 
-/****************************************************************************/
 static int expect_q931(struct sk_buff *skb, struct nf_conn *ct,
 		       enum ip_conntrack_info ctinfo,
 		       unsigned int protoff, unsigned char **data,
@@ -1328,7 +1305,6 @@ static int expect_q931(struct sk_buff *skb, struct nf_conn *ct,
 	return ret;
 }
 
-/****************************************************************************/
 static int process_grq(struct sk_buff *skb, struct nf_conn *ct,
 		       enum ip_conntrack_info ctinfo,
 		       unsigned int protoff,
@@ -1346,7 +1322,6 @@ static int process_grq(struct sk_buff *skb, struct nf_conn *ct,
 	return 0;
 }
 
-/****************************************************************************/
 static int process_gcf(struct sk_buff *skb, struct nf_conn *ct,
 		       enum ip_conntrack_info ctinfo,
 		       unsigned int protoff,
@@ -1391,7 +1366,6 @@ static int process_gcf(struct sk_buff *skb, struct nf_conn *ct,
 	return ret;
 }
 
-/****************************************************************************/
 static int process_rrq(struct sk_buff *skb, struct nf_conn *ct,
 		       enum ip_conntrack_info ctinfo,
 		       unsigned int protoff,
@@ -1428,7 +1402,6 @@ static int process_rrq(struct sk_buff *skb, struct nf_conn *ct,
 	return 0;
 }
 
-/****************************************************************************/
 static int process_rcf(struct sk_buff *skb, struct nf_conn *ct,
 		       enum ip_conntrack_info ctinfo,
 		       unsigned int protoff,
@@ -1480,7 +1453,6 @@ static int process_rcf(struct sk_buff *skb, struct nf_conn *ct,
 	return 0;
 }
 
-/****************************************************************************/
 static int process_urq(struct sk_buff *skb, struct nf_conn *ct,
 		       enum ip_conntrack_info ctinfo,
 		       unsigned int protoff,
@@ -1514,7 +1486,6 @@ static int process_urq(struct sk_buff *skb, struct nf_conn *ct,
 	return 0;
 }
 
-/****************************************************************************/
 static int process_arq(struct sk_buff *skb, struct nf_conn *ct,
 		       enum ip_conntrack_info ctinfo,
 		       unsigned int protoff,
@@ -1559,7 +1530,6 @@ static int process_arq(struct sk_buff *skb, struct nf_conn *ct,
 	return 0;
 }
 
-/****************************************************************************/
 static int process_acf(struct sk_buff *skb, struct nf_conn *ct,
 		       enum ip_conntrack_info ctinfo,
 		       unsigned int protoff,
@@ -1608,7 +1578,6 @@ static int process_acf(struct sk_buff *skb, struct nf_conn *ct,
 	return ret;
 }
 
-/****************************************************************************/
 static int process_lrq(struct sk_buff *skb, struct nf_conn *ct,
 		       enum ip_conntrack_info ctinfo,
 		       unsigned int protoff,
@@ -1626,7 +1595,6 @@ static int process_lrq(struct sk_buff *skb, struct nf_conn *ct,
 	return 0;
 }
 
-/****************************************************************************/
 static int process_lcf(struct sk_buff *skb, struct nf_conn *ct,
 		       enum ip_conntrack_info ctinfo,
 		       unsigned int protoff,
@@ -1666,7 +1634,6 @@ static int process_lcf(struct sk_buff *skb, struct nf_conn *ct,
 	return ret;
 }
 
-/****************************************************************************/
 static int process_irr(struct sk_buff *skb, struct nf_conn *ct,
 		       enum ip_conntrack_info ctinfo,
 		       unsigned int protoff,
@@ -1700,7 +1667,6 @@ static int process_irr(struct sk_buff *skb, struct nf_conn *ct,
 	return 0;
 }
 
-/****************************************************************************/
 static int process_ras(struct sk_buff *skb, struct nf_conn *ct,
 		       enum ip_conntrack_info ctinfo,
 		       unsigned int protoff,
@@ -1745,7 +1711,6 @@ static int process_ras(struct sk_buff *skb, struct nf_conn *ct,
 	return 0;
 }
 
-/****************************************************************************/
 static int ras_help(struct sk_buff *skb, unsigned int protoff,
 		    struct nf_conn *ct, enum ip_conntrack_info ctinfo)
 {
@@ -1788,7 +1753,6 @@ static int ras_help(struct sk_buff *skb, unsigned int protoff,
 	return NF_DROP;
 }
 
-/****************************************************************************/
 static const struct nf_conntrack_expect_policy ras_exp_policy = {
 	.max_expected		= 32,
 	.timeout		= 240,
@@ -1849,7 +1813,6 @@ static void __exit h323_helper_exit(void)
 	nf_conntrack_helper_unregister(&nf_conntrack_helper_h245);
 }
 
-/****************************************************************************/
 static void __exit nf_conntrack_h323_fini(void)
 {
 	h323_helper_exit();
@@ -1857,7 +1820,6 @@ static void __exit nf_conntrack_h323_fini(void)
 	pr_debug("nf_ct_h323: fini\n");
 }
 
-/****************************************************************************/
 static int __init nf_conntrack_h323_init(void)
 {
 	int ret;
@@ -1877,7 +1839,6 @@ err1:
 	return ret;
 }
 
-/****************************************************************************/
 module_init(nf_conntrack_h323_init);
 module_exit(nf_conntrack_h323_fini);
 

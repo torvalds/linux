@@ -1,4 +1,4 @@
-/****************************************************************************
+/*
  * ip_conntrack_helper_h323_asn1.c - BER and PER decoding library for H.323
  * 			      	     conntrack/NAT module.
  *
@@ -8,7 +8,7 @@
  *
  * See ip_conntrack_helper_h323_asn1.h for details.
  *
- ****************************************************************************/
+ */
 
 #ifdef __KERNEL__
 #include <linux/kernel.h>
@@ -140,14 +140,15 @@ static const decoder_t Decoders[] = {
 	decode_choice,
 };
 
-/****************************************************************************
+/*
  * H.323 Types
- ****************************************************************************/
+ */
 #include "nf_conntrack_h323_types.c"
 
-/****************************************************************************
+/*
  * Functions
- ****************************************************************************/
+ */
+
 /* Assume bs is aligned && v < 16384 */
 static unsigned int get_len(struct bitstr *bs)
 {
@@ -177,7 +178,6 @@ static int nf_h323_error_boundary(struct bitstr *bs, size_t bytes, size_t bits)
 	return 0;
 }
 
-/****************************************************************************/
 static unsigned int get_bit(struct bitstr *bs)
 {
 	unsigned int b = (*bs->cur) & (0x80 >> bs->bit);
@@ -187,7 +187,6 @@ static unsigned int get_bit(struct bitstr *bs)
 	return b;
 }
 
-/****************************************************************************/
 /* Assume b <= 8 */
 static unsigned int get_bits(struct bitstr *bs, unsigned int b)
 {
@@ -213,7 +212,6 @@ static unsigned int get_bits(struct bitstr *bs, unsigned int b)
 	return v;
 }
 
-/****************************************************************************/
 /* Assume b <= 32 */
 static unsigned int get_bitmap(struct bitstr *bs, unsigned int b)
 {
@@ -251,9 +249,9 @@ static unsigned int get_bitmap(struct bitstr *bs, unsigned int b)
 	return v;
 }
 
-/****************************************************************************
+/*
  * Assume bs is aligned and sizeof(unsigned int) == 4
- ****************************************************************************/
+ */
 static unsigned int get_uint(struct bitstr *bs, int b)
 {
 	unsigned int v = 0;
@@ -278,7 +276,6 @@ static unsigned int get_uint(struct bitstr *bs, int b)
 	return v;
 }
 
-/****************************************************************************/
 static int decode_nul(struct bitstr *bs, const struct field_t *f,
                       char *base, int level)
 {
@@ -287,7 +284,6 @@ static int decode_nul(struct bitstr *bs, const struct field_t *f,
 	return H323_ERROR_NONE;
 }
 
-/****************************************************************************/
 static int decode_bool(struct bitstr *bs, const struct field_t *f,
                        char *base, int level)
 {
@@ -299,7 +295,6 @@ static int decode_bool(struct bitstr *bs, const struct field_t *f,
 	return H323_ERROR_NONE;
 }
 
-/****************************************************************************/
 static int decode_oid(struct bitstr *bs, const struct field_t *f,
                       char *base, int level)
 {
@@ -319,7 +314,6 @@ static int decode_oid(struct bitstr *bs, const struct field_t *f,
 	return H323_ERROR_NONE;
 }
 
-/****************************************************************************/
 static int decode_int(struct bitstr *bs, const struct field_t *f,
                       char *base, int level)
 {
@@ -367,7 +361,6 @@ static int decode_int(struct bitstr *bs, const struct field_t *f,
 	return H323_ERROR_NONE;
 }
 
-/****************************************************************************/
 static int decode_enum(struct bitstr *bs, const struct field_t *f,
                        char *base, int level)
 {
@@ -384,7 +377,6 @@ static int decode_enum(struct bitstr *bs, const struct field_t *f,
 	return H323_ERROR_NONE;
 }
 
-/****************************************************************************/
 static int decode_bitstr(struct bitstr *bs, const struct field_t *f,
                          char *base, int level)
 {
@@ -421,7 +413,6 @@ static int decode_bitstr(struct bitstr *bs, const struct field_t *f,
 	return H323_ERROR_NONE;
 }
 
-/****************************************************************************/
 static int decode_numstr(struct bitstr *bs, const struct field_t *f,
                          char *base, int level)
 {
@@ -442,7 +433,6 @@ static int decode_numstr(struct bitstr *bs, const struct field_t *f,
 	return H323_ERROR_NONE;
 }
 
-/****************************************************************************/
 static int decode_octstr(struct bitstr *bs, const struct field_t *f,
                          char *base, int level)
 {
@@ -496,7 +486,6 @@ static int decode_octstr(struct bitstr *bs, const struct field_t *f,
 	return H323_ERROR_NONE;
 }
 
-/****************************************************************************/
 static int decode_bmpstr(struct bitstr *bs, const struct field_t *f,
                          char *base, int level)
 {
@@ -526,7 +515,6 @@ static int decode_bmpstr(struct bitstr *bs, const struct field_t *f,
 	return H323_ERROR_NONE;
 }
 
-/****************************************************************************/
 static int decode_seq(struct bitstr *bs, const struct field_t *f,
                       char *base, int level)
 {
@@ -656,7 +644,6 @@ static int decode_seq(struct bitstr *bs, const struct field_t *f,
 	return H323_ERROR_NONE;
 }
 
-/****************************************************************************/
 static int decode_seqof(struct bitstr *bs, const struct field_t *f,
                         char *base, int level)
 {
@@ -753,8 +740,6 @@ static int decode_seqof(struct bitstr *bs, const struct field_t *f,
 	return H323_ERROR_NONE;
 }
 
-
-/****************************************************************************/
 static int decode_choice(struct bitstr *bs, const struct field_t *f,
                          char *base, int level)
 {
@@ -836,7 +821,6 @@ static int decode_choice(struct bitstr *bs, const struct field_t *f,
 	return H323_ERROR_NONE;
 }
 
-/****************************************************************************/
 int DecodeRasMessage(unsigned char *buf, size_t sz, RasMessage *ras)
 {
 	static const struct field_t ras_message = {
@@ -852,7 +836,6 @@ int DecodeRasMessage(unsigned char *buf, size_t sz, RasMessage *ras)
 	return decode_choice(&bs, &ras_message, (char *) ras, 0);
 }
 
-/****************************************************************************/
 static int DecodeH323_UserInformation(unsigned char *buf, unsigned char *beg,
 				      size_t sz, H323_UserInformation *uuie)
 {
@@ -870,7 +853,6 @@ static int DecodeH323_UserInformation(unsigned char *buf, unsigned char *beg,
 	return decode_seq(&bs, &h323_userinformation, (char *) uuie, 0);
 }
 
-/****************************************************************************/
 int DecodeMultimediaSystemControlMessage(unsigned char *buf, size_t sz,
 					 MultimediaSystemControlMessage *
 					 mscm)
@@ -889,7 +871,6 @@ int DecodeMultimediaSystemControlMessage(unsigned char *buf, size_t sz,
 			     (char *) mscm, 0);
 }
 
-/****************************************************************************/
 int DecodeQ931(unsigned char *buf, size_t sz, Q931 *q931)
 {
 	unsigned char *p = buf;
