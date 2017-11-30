@@ -79,6 +79,7 @@ static const struct clk_div_table clk_table2[] = {
 	{ .val = 1, .div = 4, },
 	{ .val = 0, .div = 0, }, /* last entry */
 };
+
 static const struct clk_ops clk_double_div_ops;
 
 #define PERIPH_GATE(_name, _bit)		\
@@ -217,7 +218,7 @@ PERIPH_CLK_FULL(counter, 23, 20, DIV_SEL0, 23, clk_table6);
 PERIPH_CLK_FULL_DD(eip97, 24, 24, DIV_SEL2, DIV_SEL2, 22, 19);
 PERIPH_CLK_MUX_DIV(cpu, 22, DIV_SEL0, 28, clk_table6);
 
-static struct clk_periph_data data_nb[] ={
+static struct clk_periph_data data_nb[] = {
 	REF_CLK_FULL_DD(mmc),
 	REF_CLK_FULL_DD(sata_host),
 	REF_CLK_FULL_DD(sec_at),
@@ -281,7 +282,7 @@ static unsigned int get_div(void __iomem *reg, int shift)
 }
 
 static unsigned long clk_double_div_recalc_rate(struct clk_hw *hw,
-		unsigned long parent_rate)
+						unsigned long parent_rate)
 {
 	struct clk_double_div *double_div = to_clk_double_div(hw);
 	unsigned int div;
@@ -303,6 +304,7 @@ static const struct of_device_id armada_3700_periph_clock_of_match[] = {
 	.data = data_sb, },
 	{ }
 };
+
 static int armada_3700_add_composite_clk(const struct clk_periph_data *data,
 					 void __iomem *reg, spinlock_t *lock,
 					 struct device *dev, struct clk_hw **hw)
@@ -355,9 +357,9 @@ static int armada_3700_add_composite_clk(const struct clk_periph_data *data,
 	}
 
 	*hw = clk_hw_register_composite(dev, data->name, data->parent_names,
-				       data->num_parents, mux_hw,
-				       mux_ops, rate_hw, rate_ops,
-				       gate_hw, gate_ops, CLK_IGNORE_UNUSED);
+					data->num_parents, mux_hw,
+					mux_ops, rate_hw, rate_ops,
+					gate_hw, gate_ops, CLK_IGNORE_UNUSED);
 
 	if (IS_ERR(*hw))
 		return PTR_ERR(*hw);
@@ -406,12 +408,11 @@ static int armada_3700_periph_clock_probe(struct platform_device *pdev)
 		if (armada_3700_add_composite_clk(&data[i], reg,
 						  &driver_data->lock, dev, hw))
 			dev_err(dev, "Can't register periph clock %s\n",
-			       data[i].name);
-
+				data[i].name);
 	}
 
 	ret = of_clk_add_hw_provider(np, of_clk_hw_onecell_get,
-				  driver_data->hw_data);
+				     driver_data->hw_data);
 	if (ret) {
 		for (i = 0; i < num_periph; i++)
 			clk_hw_unregister(driver_data->hw_data->hws[i]);
