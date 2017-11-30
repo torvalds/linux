@@ -1907,9 +1907,7 @@ static struct phy_driver genphy_driver = {
 	.features	= PHY_GBIT_FEATURES | SUPPORTED_MII |
 			  SUPPORTED_AUI | SUPPORTED_FIBRE |
 			  SUPPORTED_BNC,
-	.config_aneg	= genphy_config_aneg,
 	.aneg_done	= genphy_aneg_done,
-	.read_status	= genphy_read_status,
 	.suspend	= genphy_suspend,
 	.resume		= genphy_resume,
 	.set_loopback   = genphy_loopback,

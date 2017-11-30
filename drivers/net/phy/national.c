@@ -136,8 +136,6 @@ static struct phy_driver dp83865_driver[] = { {
 	.features = PHY_GBIT_FEATURES,
 	.flags = PHY_HAS_INTERRUPT,
 	.config_init = ns_config_init,
-	.config_aneg = genphy_config_aneg,
-	.read_status = genphy_read_status,
 	.ack_interrupt = ns_ack_interrupt,
 	.config_intr = ns_config_intr,
 } };
