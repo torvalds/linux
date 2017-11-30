@@ -65,6 +65,13 @@ EXPORT_SYMBOL_GPL(cpu_topology);
 
 cpumask_t cpus_with_topology;
 
+int __cpu_to_node(int cpu)
+{
+	return cpu_topology[cpu].node_id;
+}
+
+EXPORT_SYMBOL(__cpu_to_node);
+
 static cpumask_t cpu_group_map(struct mask_info *info, unsigned int cpu)
 {
 	cpumask_t mask;
