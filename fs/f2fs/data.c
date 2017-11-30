@@ -987,9 +987,9 @@ next_block:
 						blkaddr == NULL_ADDR) {
 				if (map->m_next_pgofs)
 					*map->m_next_pgofs = pgofs + 1;
+				goto sync_out;
 			}
-			if (flag != F2FS_GET_BLOCK_FIEMAP ||
-						blkaddr != NEW_ADDR)
+			if (flag != F2FS_GET_BLOCK_FIEMAP)
 				goto sync_out;
 		}
 	}
