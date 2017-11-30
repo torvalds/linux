@@ -359,32 +359,28 @@ static int imx_init_calib(struct platform_device *pdev, u32 ocotp_ana1)
 	}
 
 	/*
-	 * Sensor data layout:
-	 *   [31:20] - sensor value @ 25C
-	 * Use universal formula now and only need sensor value @ 25C
-	 * slope = 0.4297157 - (0.0015976 * 25C fuse)
+	 * The sensor is calibrated at 25 °C (aka T1) and the value measured
+	 * (aka N1) at this temperature is provided in bits [31:20] in the
+	 * i.MX's OCOTP value ANA1.
+	 * To find the actual temperature T, the following formula has to be used
+	 * when reading value n from the sensor:
+	 *
+	 * T = T1 + (N - N1) / (0.4297157 - 0.0015976 * N1) °C
+	 *   = [T1 - N1 / (0.4297157 - 0.0015976 * N1) °C] + N / (0.4297157 - 0.0015976 * N1) °C
+	 *   = [T1 + N1 / (0.0015976 * N1 - 0.4297157) °C] - N / (0.0015976 * N1 - 0.4297157) °C
+	 *   = c2 - c1 * N
+	 *
+	 * with
+	 *
+	 *   c1 = 1 / (0.0015976 * N1 - 0.4297157) °C
+	 *   c2 = T1 + N1 / (0.0015976 * N1 - 0.4297157) °C
+	 *      = T1 + N1 * C1
 	 */
 	n1 = ocotp_ana1 >> 20;
-	t1 = 25; /* t1 always 25C */
+	t1 = 25; /* °C */
 
-	/*
-	 * Derived from linear interpolation:
-	 * slope = 0.4297157 - (0.0015976 * 25C fuse)
-	 * slope = (FACTOR2 - FACTOR1 * n1) / FACTOR0
-	 * (Nmeas - n1) / (Tmeas - t1) = slope
-	 * We want to reduce this down to the minimum computation necessary
-	 * for each temperature read.  Also, we want Tmeas in millicelsius
-	 * and we don't want to lose precision from integer division. So...
-	 * Tmeas = (Nmeas - n1) / slope + t1
-	 * milli_Tmeas = 1000 * (Nmeas - n1) / slope + 1000 * t1
-	 * milli_Tmeas = -1000 * (n1 - Nmeas) / slope + 1000 * t1
-	 * Let constant c1 = (-1000 / slope)
-	 * milli_Tmeas = (n1 - Nmeas) * c1 + 1000 * t1
-	 * Let constant c2 = n1 *c1 + 1000 * t1
-	 * milli_Tmeas = c2 - Nmeas * c1
-	 */
-	temp64 = FACTOR0;
-	temp64 *= 1000;
+	temp64 = FACTOR0; /* 10^7 for FACTOR1 and FACTOR2 */
+	temp64 *= 1000; /* to get result in °mC */
 	do_div(temp64, FACTOR1 * n1 - FACTOR2);
 	data->c1 = temp64;
 	data->c2 = n1 * data->c1 + 1000 * t1;
