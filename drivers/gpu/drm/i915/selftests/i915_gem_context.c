@@ -376,7 +376,9 @@ static int igt_ctx_exec(void *arg)
 				}
 			}
 
+			intel_runtime_pm_get(i915);
 			err = gpu_fill(obj, ctx, engine, dw);
+			intel_runtime_pm_put(i915);
 			if (err) {
 				pr_err("Failed to fill dword %lu [%lu/%lu] with gpu (%s) in ctx %u [full-ppgtt? %s], err=%d\n",
 				       ndwords, dw, max_dwords(obj),
