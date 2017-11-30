@@ -14562,7 +14562,9 @@ M:	Hans de Goede <hdegoede@redhat.com>
 M:	Arnd Bergmann <arnd@arndb.de>
 M:	Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 S:	Maintained
+F:	include/linux/vbox_utils.h
 F:	include/uapi/linux/vbox*.h
+F:	drivers/virt/vboxguest/
 
 VIRTUAL SERIO DEVICE DRIVER
 M:	Stephen Chandler Paul <thatslyude@gmail.com>
