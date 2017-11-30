@@ -350,7 +350,7 @@ inline void *copy_cpltx_pktxt(struct sk_buff *skb,
 	struct port_info *pi;
 	struct sge_eth_txq *q;
 	struct cpl_tx_pkt_core *cpl;
-	u64 cntrl;
+	u64 cntrl = 0;
 	u32 ctrl0, qidx;
 
 	pi = netdev_priv(dev);
