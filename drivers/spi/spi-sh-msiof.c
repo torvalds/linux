@@ -912,9 +912,8 @@ static int sh_msiof_transfer_one(struct spi_master *master,
 
 		ret = sh_msiof_dma_once(p, tx_buf, rx_buf, l);
 		if (ret == -EAGAIN) {
-			pr_warn_once("%s %s: DMA not available, falling back to PIO\n",
-				     dev_driver_string(&p->pdev->dev),
-				     dev_name(&p->pdev->dev));
+			dev_warn_once(&p->pdev->dev,
+				"DMA not available, falling back to PIO\n");
 			break;
 		}
 		if (ret)
