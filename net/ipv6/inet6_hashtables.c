@@ -134,31 +134,24 @@ struct sock *inet6_lookup_listener(struct net *net,
 {
 	unsigned int hash = inet_lhashfn(net, hnum);
 	struct inet_listen_hashbucket *ilb = &hashinfo->listening_hash[hash];
-	int score, hiscore = 0, matches = 0, reuseport = 0;
 	bool exact_dif = inet6_exact_dif_match(net, skb);
 	struct sock *sk, *result = NULL;
+	int score, hiscore = 0;
 	u32 phash = 0;
 
 	sk_for_each(sk, &ilb->head) {
 		score = compute_score(sk, net, hnum, daddr, dif, sdif, exact_dif);
 		if (score > hiscore) {
-			reuseport = sk->sk_reuseport;
-			if (reuseport) {
+			if (sk->sk_reuseport) {
 				phash = inet6_ehashfn(net, daddr, hnum,
 						      saddr, sport);
 				result = reuseport_select_sock(sk, phash,
 							       skb, doff);
 				if (result)
 					return result;
-				matches = 1;
 			}
 			result = sk;
 			hiscore = score;
-		} else if (score == hiscore && reuseport) {
-			matches++;
-			if (reciprocal_scale(phash, matches) == 0)
-				result = sk;
-			phash = next_pseudo_random32(phash);
 		}
 	}
 	return result;
