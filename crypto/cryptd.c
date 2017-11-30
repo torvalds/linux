@@ -32,7 +32,7 @@
 #include <linux/sched.h>
 #include <linux/slab.h>
 
-unsigned int cryptd_max_cpu_qlen = 1000;
+static unsigned int cryptd_max_cpu_qlen = 1000;
 module_param(cryptd_max_cpu_qlen, uint, 0);
 MODULE_PARM_DESC(cryptd_max_cpu_qlen, "Set cryptd Max queue depth");
 
