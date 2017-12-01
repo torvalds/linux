@@ -652,8 +652,13 @@ static int venc_set_properties(struct venus_inst *inst)
 			return ret;
 	}
 
+	/* IDR periodicity, n:
+	 * n = 0 - only the first I-frame is IDR frame
+	 * n = 1 - all I-frames will be IDR frames
+	 * n > 1 - every n-th I-frame will be IDR frame
+	 */
 	ptype = HFI_PROPERTY_CONFIG_VENC_IDR_PERIOD;
-	idrp.idr_period = ctr->gop_size;
+	idrp.idr_period = 0;
 	ret = hfi_session_set_property(inst, ptype, &idrp);
 	if (ret)
 		return ret;
@@ -666,10 +671,6 @@ static int venc_set_properties(struct venus_inst *inst)
 		if (ret)
 			return ret;
 	}
-
-	/* intra_period = pframes + bframes + 1 */
-	if (!ctr->num_p_frames)
-		ctr->num_p_frames = 2 * 15 - 1,
 
 	ptype = HFI_PROPERTY_CONFIG_VENC_INTRA_PERIOD;
 	intra_period.pframes = ctr->num_p_frames;
@@ -764,6 +765,10 @@ static int venc_init_session(struct venus_inst *inst)
 		goto deinit;
 
 	ret = venus_helper_set_color_format(inst, inst->fmt_out->pixfmt);
+	if (ret)
+		goto deinit;
+
+	ret = venc_set_properties(inst);
 	if (ret)
 		goto deinit;
 
