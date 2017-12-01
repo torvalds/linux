@@ -188,9 +188,11 @@ static int shadow_context_status_change(struct notifier_block *nb,
 		atomic_set(&workload->shadow_ctx_active, 1);
 		break;
 	case INTEL_CONTEXT_SCHEDULE_OUT:
-	case INTEL_CONTEXT_SCHEDULE_PREEMPTED:
 		save_ring_hw_state(workload->vgpu, ring_id);
 		atomic_set(&workload->shadow_ctx_active, 0);
+		break;
+	case INTEL_CONTEXT_SCHEDULE_PREEMPTED:
+		save_ring_hw_state(workload->vgpu, ring_id);
 		break;
 	default:
 		WARN_ON(1);
