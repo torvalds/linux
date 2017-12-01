@@ -50,6 +50,19 @@ struct of_drconf_cell_v1 {
 	__be32	flags;
 };
 
+/*
+ * Version 2 of the ibm,dynamic-memory property is defined as a
+ * 32-bit value specifying the number of LMB sets followed by an
+ * array of of_drconf_cell_v2 entries, one per LMB set.
+ */
+struct of_drconf_cell_v2 {
+	u32	seq_lmbs;
+	u64	base_addr;
+	u32	drc_index;
+	u32	aa_index;
+	u32	flags;
+} __packed;
+
 #define DRCONF_MEM_ASSIGNED	0x00000008
 #define DRCONF_MEM_AI_INVALID	0x00000040
 #define DRCONF_MEM_RESERVED	0x00000080

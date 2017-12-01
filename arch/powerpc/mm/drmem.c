@@ -92,6 +92,84 @@ static int drmem_update_dt_v1(struct device_node *memory,
 	return 0;
 }
 
+static void init_drconf_v2_cell(struct of_drconf_cell_v2 *dr_cell,
+				struct drmem_lmb *lmb)
+{
+	dr_cell->base_addr = cpu_to_be64(lmb->base_addr);
+	dr_cell->drc_index = cpu_to_be32(lmb->drc_index);
+	dr_cell->aa_index = cpu_to_be32(lmb->aa_index);
+	dr_cell->flags = cpu_to_be32(lmb->flags);
+}
+
+static int drmem_update_dt_v2(struct device_node *memory,
+			      struct property *prop)
+{
+	struct property *new_prop;
+	struct of_drconf_cell_v2 *dr_cell;
+	struct drmem_lmb *lmb, *prev_lmb;
+	u32 lmb_sets, prop_sz, seq_lmbs;
+	u32 *p;
+
+	/* First pass, determine how many LMB sets are needed. */
+	lmb_sets = 0;
+	prev_lmb = NULL;
+	for_each_drmem_lmb(lmb) {
+		if (!prev_lmb) {
+			prev_lmb = lmb;
+			lmb_sets++;
+			continue;
+		}
+
+		if (prev_lmb->aa_index != lmb->aa_index ||
+		    prev_lmb->flags != lmb->flags)
+			lmb_sets++;
+
+		prev_lmb = lmb;
+	}
+
+	prop_sz = lmb_sets * sizeof(*dr_cell) + sizeof(__be32);
+	new_prop = clone_property(prop, prop_sz);
+	if (!new_prop)
+		return -1;
+
+	p = new_prop->value;
+	*p++ = cpu_to_be32(lmb_sets);
+
+	dr_cell = (struct of_drconf_cell_v2 *)p;
+
+	/* Second pass, populate the LMB set data */
+	prev_lmb = NULL;
+	seq_lmbs = 0;
+	for_each_drmem_lmb(lmb) {
+		if (prev_lmb == NULL) {
+			/* Start of first LMB set */
+			prev_lmb = lmb;
+			init_drconf_v2_cell(dr_cell, lmb);
+			seq_lmbs++;
+			continue;
+		}
+
+		if (prev_lmb->aa_index != lmb->aa_index ||
+		    prev_lmb->flags != lmb->flags) {
+			/* end of one set, start of another */
+			dr_cell->seq_lmbs = cpu_to_be32(seq_lmbs);
+			dr_cell++;
+
+			init_drconf_v2_cell(dr_cell, lmb);
+			seq_lmbs = 1;
+		} else {
+			seq_lmbs++;
+		}
+
+		prev_lmb = lmb;
+	}
+
+	/* close out last LMB set */
+	dr_cell->seq_lmbs = cpu_to_be32(seq_lmbs);
+	of_update_property(memory, new_prop);
+	return 0;
+}
+
 int drmem_update_dt(void)
 {
 	struct device_node *memory;
@@ -103,8 +181,13 @@ int drmem_update_dt(void)
 		return -1;
 
 	prop = of_find_property(memory, "ibm,dynamic-memory", NULL);
-	if (prop)
+	if (prop) {
 		rc = drmem_update_dt_v1(memory, prop);
+	} else {
+		prop = of_find_property(memory, "ibm,dynamic-memory-v2", NULL);
+		if (prop)
+			rc = drmem_update_dt_v2(memory, prop);
+	}
 
 	of_node_put(memory);
 	return rc;
@@ -140,6 +223,47 @@ static void __init __walk_drmem_v1_lmbs(const __be32 *prop, const __be32 *usm,
 	}
 }
 
+static void __init read_drconf_v2_cell(struct of_drconf_cell_v2 *dr_cell,
+				       const __be32 **prop)
+{
+	const __be32 *p = *prop;
+
+	dr_cell->seq_lmbs = of_read_number(p++, 1);
+	dr_cell->base_addr = dt_mem_next_cell(dt_root_addr_cells, &p);
+	dr_cell->drc_index = of_read_number(p++, 1);
+	dr_cell->aa_index = of_read_number(p++, 1);
+	dr_cell->flags = of_read_number(p++, 1);
+
+	*prop = p;
+}
+
+static void __init __walk_drmem_v2_lmbs(const __be32 *prop, const __be32 *usm,
+			void (*func)(struct drmem_lmb *, const __be32 **))
+{
+	struct of_drconf_cell_v2 dr_cell;
+	struct drmem_lmb lmb;
+	u32 i, j, lmb_sets;
+
+	lmb_sets = of_read_number(prop++, 1);
+
+	for (i = 0; i < lmb_sets; i++) {
+		read_drconf_v2_cell(&dr_cell, &prop);
+
+		for (j = 0; j < dr_cell.seq_lmbs; j++) {
+			lmb.base_addr = dr_cell.base_addr;
+			dr_cell.base_addr += drmem_lmb_size();
+
+			lmb.drc_index = dr_cell.drc_index;
+			dr_cell.drc_index++;
+
+			lmb.aa_index = dr_cell.aa_index;
+			lmb.flags = dr_cell.flags;
+
+			func(&lmb, &usm);
+		}
+	}
+}
+
 #ifdef CONFIG_PPC_PSERIES
 void __init walk_drmem_lmbs_early(unsigned long node,
 			void (*func)(struct drmem_lmb *, const __be32 **))
@@ -156,8 +280,14 @@ void __init walk_drmem_lmbs_early(unsigned long node,
 	usm = of_get_flat_dt_prop(node, "linux,drconf-usable-memory", &len);
 
 	prop = of_get_flat_dt_prop(node, "ibm,dynamic-memory", &len);
-	if (prop)
+	if (prop) {
 		__walk_drmem_v1_lmbs(prop, usm, func);
+	} else {
+		prop = of_get_flat_dt_prop(node, "ibm,dynamic-memory-v2",
+					   &len);
+		if (prop)
+			__walk_drmem_v2_lmbs(prop, usm, func);
+	}
 
 	memblock_dump_all();
 }
@@ -210,8 +340,13 @@ void __init walk_drmem_lmbs(struct device_node *dn,
 	usm = of_get_usable_memory(dn);
 
 	prop = of_get_property(dn, "ibm,dynamic-memory", NULL);
-	if (prop)
+	if (prop) {
 		__walk_drmem_v1_lmbs(prop, usm, func);
+	} else {
+		prop = of_get_property(dn, "ibm,dynamic-memory-v2", NULL);
+		if (prop)
+			__walk_drmem_v2_lmbs(prop, usm, func);
+	}
 }
 
 static void __init init_drmem_v1_lmbs(const __be32 *prop)
@@ -227,6 +362,50 @@ static void __init init_drmem_v1_lmbs(const __be32 *prop)
 
 	for_each_drmem_lmb(lmb)
 		read_drconf_v1_cell(lmb, &prop);
+}
+
+static void __init init_drmem_v2_lmbs(const __be32 *prop)
+{
+	struct drmem_lmb *lmb;
+	struct of_drconf_cell_v2 dr_cell;
+	const __be32 *p;
+	u32 i, j, lmb_sets;
+	int lmb_index;
+
+	lmb_sets = of_read_number(prop++, 1);
+
+	/* first pass, calculate the number of LMBs */
+	p = prop;
+	for (i = 0; i < lmb_sets; i++) {
+		read_drconf_v2_cell(&dr_cell, &p);
+		drmem_info->n_lmbs += dr_cell.seq_lmbs;
+	}
+
+	drmem_info->lmbs = kcalloc(drmem_info->n_lmbs, sizeof(*lmb),
+				   GFP_KERNEL);
+	if (!drmem_info->lmbs)
+		return;
+
+	/* second pass, read in the LMB information */
+	lmb_index = 0;
+	p = prop;
+
+	for (i = 0; i < lmb_sets; i++) {
+		read_drconf_v2_cell(&dr_cell, &p);
+
+		for (j = 0; j < dr_cell.seq_lmbs; j++) {
+			lmb = &drmem_info->lmbs[lmb_index++];
+
+			lmb->base_addr = dr_cell.base_addr;
+			dr_cell.base_addr += drmem_info->lmb_size;
+
+			lmb->drc_index = dr_cell.drc_index;
+			dr_cell.drc_index++;
+
+			lmb->aa_index = dr_cell.aa_index;
+			lmb->flags = dr_cell.flags;
+		}
+	}
 }
 
 static int __init drmem_init(void)
@@ -246,8 +425,13 @@ static int __init drmem_init(void)
 	}
 
 	prop = of_get_property(dn, "ibm,dynamic-memory", NULL);
-	if (prop)
+	if (prop) {
 		init_drmem_v1_lmbs(prop);
+	} else {
+		prop = of_get_property(dn, "ibm,dynamic-memory-v2", NULL);
+		if (prop)
+			init_drmem_v2_lmbs(prop);
+	}
 
 	of_node_put(dn);
 	return 0;
