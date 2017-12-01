@@ -1666,17 +1666,9 @@ leave_nomem:
 	return 0;
 }
 
-struct scrub_bio_ret {
-	struct completion event;
-	blk_status_t status;
-};
-
 static void scrub_bio_wait_endio(struct bio *bio)
 {
-	struct scrub_bio_ret *ret = bio->bi_private;
-
-	ret->status = bio->bi_status;
-	complete(&ret->event);
+	complete(bio->bi_private);
 }
 
 static inline int scrub_is_page_on_raid56(struct scrub_page *page)
@@ -1689,11 +1681,9 @@ static int scrub_submit_raid56_bio_wait(struct btrfs_fs_info *fs_info,
 					struct bio *bio,
 					struct scrub_page *page)
 {
-	struct scrub_bio_ret done;
+	DECLARE_COMPLETION_ONSTACK(done);
 	int ret;
 
-	init_completion(&done.event);
-	done.status = 0;
 	bio->bi_iter.bi_sector = page->logical >> 9;
 	bio->bi_private = &done;
 	bio->bi_end_io = scrub_bio_wait_endio;
@@ -1704,11 +1694,8 @@ static int scrub_submit_raid56_bio_wait(struct btrfs_fs_info *fs_info,
 	if (ret)
 		return ret;
 
-	wait_for_completion_io(&done.event);
-	if (done.status)
-		return -EIO;
-
-	return 0;
+	wait_for_completion_io(&done);
+	return blk_status_to_errno(bio->bi_status);
 }
 
 /*
