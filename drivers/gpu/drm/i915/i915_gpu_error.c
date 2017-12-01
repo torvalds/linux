@@ -1424,6 +1424,7 @@ capture_object(struct drm_i915_private *dev_priv,
 	if (obj && i915_gem_object_has_pages(obj)) {
 		struct i915_vma fake = {
 			.node = { .start = U64_MAX, .size = obj->base.size },
+			.size = obj->base.size,
 			.pages = obj->mm.pages,
 			.obj = obj,
 		};
