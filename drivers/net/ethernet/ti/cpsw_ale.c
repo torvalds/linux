@@ -816,9 +816,9 @@ void cpsw_ale_start(struct cpsw_ale *ale)
 		 "ALE Table size %ld\n", ale->params.ale_entries);
 
 	/* set default bits for existing h/w */
-	ale->port_mask_bits = 3;
-	ale->port_num_bits = 2;
-	ale->vlan_field_bits = 3;
+	ale->port_mask_bits = ale->params.ale_ports;
+	ale->port_num_bits = order_base_2(ale->params.ale_ports);
+	ale->vlan_field_bits = ale->params.ale_ports;
 
 	/* Set defaults override for ALE on NetCP NU switch and for version
 	 * 1R3
@@ -847,13 +847,6 @@ void cpsw_ale_start(struct cpsw_ale *ale)
 		ale_controls[ALE_PORT_UNTAGGED_EGRESS].shift = 0;
 		ale_controls[ALE_PORT_UNTAGGED_EGRESS].offset =
 					ALE_UNKNOWNVLAN_FORCE_UNTAG_EGRESS;
-		ale->port_mask_bits = ale->params.ale_ports;
-		ale->port_num_bits = ale->params.ale_ports - 1;
-		ale->vlan_field_bits = ale->params.ale_ports;
-	} else if (ale->version == ALE_VERSION_1R3) {
-		ale->port_mask_bits = ale->params.ale_ports;
-		ale->port_num_bits = 3;
-		ale->vlan_field_bits = ale->params.ale_ports;
 	}
 
 	cpsw_ale_control_set(ale, 0, ALE_ENABLE, 1);
