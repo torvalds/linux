@@ -468,7 +468,10 @@ static int nand_prase_cmdline_part(struct nand_part *pdisk_part)
 	unsigned int cap_size = rk_ftl_get_capacity();
 	char *cmdline;
 
-	cmdline = strstr(saved_command_line, "mtdparts=") + 9;
+	cmdline = strstr(saved_command_line, "mtdparts=");
+	if (!cmdline)
+		return 0;
+	cmdline += 9;
 	if (!memcmp(cmdline, "rk29xxnand:", strlen("rk29xxnand:"))) {
 		pbuf = cmdline + strlen("rk29xxnand:");
 		rknand_get_part(pbuf, pdisk_part, &part_num);
@@ -578,6 +581,7 @@ static int nand_add_dev(struct nand_blk_ops *nandr, struct nand_part *part)
 
 	gd->major = nandr->major;
 	gd->first_minor = (dev->devnum) << nandr->minorbits;
+
 	gd->fops = &nand_blktrans_ops;
 
 	if (part->name[0])
@@ -599,6 +603,15 @@ static int nand_add_dev(struct nand_blk_ops *nandr, struct nand_part *part)
 	dev->blkcore_priv = gd;
 	gd->queue = nandr->rq;
 	gd->queue->bypass_depth = 1;
+	if (part->size == rk_ftl_get_capacity()) {
+		gd->flags = GENHD_FL_EXT_DEVT;
+		gd->minors = 255;
+		snprintf(gd->disk_name,
+			 sizeof(gd->disk_name),
+			 "%s%d",
+			 nandr->name,
+			 dev->devnum);
+	}
 
 	if (part->type == PART_NO_ACCESS)
 		dev->disable_access = 1;
@@ -646,7 +659,8 @@ static int nand_blk_register(struct nand_blk_ops *nandr)
 {
 	struct task_struct *tsk;
 	int i, ret;
-	int offset;
+	u32 offset;
+	u32 part_size;
 
 	rk_nand_schedule_enable_config(1);
 	nandr->quit = 0;
@@ -681,15 +695,20 @@ static int nand_blk_register(struct nand_blk_ops *nandr)
 	tsk = kthread_run(nand_blktrans_thread, (void *)nandr, "rknand");
 
 	g_max_part_num = nand_prase_cmdline_part(disk_array);
-	offset = 0;
-	nandr->last_dev_index = 0;
-	for (i = 0; i < g_max_part_num; i++) {
-		pr_info("%10s: 0x%09llx -- 0x%09llx (%llu MB)\n",
-			disk_array[i].name,
-			(u64)disk_array[i].offset * 512,
-			(u64)(disk_array[i].offset + disk_array[i].size) * 512,
-			(u64)disk_array[i].size / 2048);
-		nand_add_dev(nandr, &disk_array[i]);
+	if (g_max_part_num) {
+		offset = 0;
+		nandr->last_dev_index = 0;
+		for (i = 0; i < g_max_part_num; i++) {
+			part_size = (disk_array[i].offset + disk_array[i].size);
+			pr_info("%10s: 0x%09llx -- 0x%09llx (%llu MB)\n",
+				disk_array[i].name,
+				(u64)disk_array[i].offset * 512,
+				(u64)part_size * 512,
+				(u64)disk_array[i].size / 2048);
+			nand_add_dev(nandr, &disk_array[i]);
+		}
+	} else {
+		nand_blk_add_whole_disk();
 	}
 
 	rknand_create_procfs();
