@@ -2918,6 +2918,7 @@ static const struct net_device_ops qeth_l3_osa_netdev_ops = {
 	.ndo_stop		= qeth_l3_stop,
 	.ndo_get_stats		= qeth_get_stats,
 	.ndo_start_xmit		= qeth_l3_hard_start_xmit,
+	.ndo_features_check	= qeth_features_check,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_rx_mode	= qeth_l3_set_multicast_list,
 	.ndo_do_ioctl		= qeth_do_ioctl,
@@ -2958,6 +2959,7 @@ static int qeth_l3_setup_netdev(struct qeth_card *card)
 				card->dev->vlan_features = NETIF_F_SG |
 					NETIF_F_RXCSUM | NETIF_F_IP_CSUM |
 					NETIF_F_TSO;
+				card->dev->features |= NETIF_F_SG;
 			}
 		}
 	} else if (card->info.type == QETH_CARD_TYPE_IQD) {

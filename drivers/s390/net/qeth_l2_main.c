@@ -960,6 +960,7 @@ static const struct net_device_ops qeth_l2_netdev_ops = {
 	.ndo_stop		= qeth_l2_stop,
 	.ndo_get_stats		= qeth_get_stats,
 	.ndo_start_xmit		= qeth_l2_hard_start_xmit,
+	.ndo_features_check	= qeth_features_check,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_rx_mode	= qeth_l2_set_rx_mode,
 	.ndo_do_ioctl		= qeth_do_ioctl,
@@ -1010,6 +1011,7 @@ static int qeth_l2_setup_netdev(struct qeth_card *card)
 	if (card->info.type == QETH_CARD_TYPE_OSD && !card->info.guestlan) {
 		card->dev->hw_features = NETIF_F_SG;
 		card->dev->vlan_features = NETIF_F_SG;
+		card->dev->features |= NETIF_F_SG;
 		/* OSA 3S and earlier has no RX/TX support */
 		if (qeth_is_supported(card, IPA_OUTBOUND_CHECKSUM)) {
 			card->dev->hw_features |= NETIF_F_IP_CSUM;
