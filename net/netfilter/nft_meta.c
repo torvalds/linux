@@ -151,8 +151,34 @@ void nft_meta_get_eval(const struct nft_expr *expr,
 			else
 				*dest = PACKET_BROADCAST;
 			break;
+		case NFPROTO_NETDEV:
+			switch (skb->protocol) {
+			case htons(ETH_P_IP): {
+				int noff = skb_network_offset(skb);
+				struct iphdr *iph, _iph;
+
+				iph = skb_header_pointer(skb, noff,
+							 sizeof(_iph), &_iph);
+				if (!iph)
+					goto err;
+
+				if (ipv4_is_multicast(iph->daddr))
+					*dest = PACKET_MULTICAST;
+				else
+					*dest = PACKET_BROADCAST;
+
+				break;
+			}
+			case htons(ETH_P_IPV6):
+				*dest = PACKET_MULTICAST;
+				break;
+			default:
+				WARN_ON_ONCE(1);
+				goto err;
+			}
+			break;
 		default:
-			WARN_ON(1);
+			WARN_ON_ONCE(1);
 			goto err;
 		}
 		break;

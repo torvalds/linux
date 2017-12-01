@@ -250,7 +250,7 @@ config ARM_PXA2xx_CPUFREQ
 
 config ACPI_CPPC_CPUFREQ
 	tristate "CPUFreq driver based on the ACPI CPPC spec"
-	depends on ACPI
+	depends on ACPI_PROCESSOR
 	select ACPI_CPPC_LIB
 	default n
 	help

@@ -164,14 +164,14 @@ static struct resource axp22x_pek_resources[] = {
 static struct resource axp288_power_button_resources[] = {
 	{
 		.name	= "PEK_DBR",
-		.start	= AXP288_IRQ_POKN,
-		.end	= AXP288_IRQ_POKN,
+		.start	= AXP288_IRQ_POKP,
+		.end	= AXP288_IRQ_POKP,
 		.flags	= IORESOURCE_IRQ,
 	},
 	{
 		.name	= "PEK_DBF",
-		.start	= AXP288_IRQ_POKP,
-		.end	= AXP288_IRQ_POKP,
+		.start	= AXP288_IRQ_POKN,
+		.end	= AXP288_IRQ_POKN,
 		.flags	= IORESOURCE_IRQ,
 	},
 };

@@ -224,19 +224,6 @@ config CPU_FREQ_GOV_CONSERVATIVE
 
 	  If in doubt, say N.
 
-config CPU_FREQ_GOV_SCHED
-	bool "'sched' cpufreq governor"
-	depends on CPU_FREQ
-	depends on SMP
-	select CPU_FREQ_GOV_COMMON
-	help
-	  'sched' - this governor scales cpu frequency from the
-	  scheduler as a function of cpu capacity utilization. It does
-	  not evaluate utilization on a periodic basis (as ondemand
-	  does) but instead is event-driven by the scheduler.
-
-	  If in doubt, say N.
-
 config CPU_FREQ_GOV_SCHEDUTIL
 	bool "'schedutil' cpufreq policy governor"
 	depends on CPU_FREQ && SMP

@@ -350,8 +350,8 @@ static void async_completion(struct nvme_queue *nvmeq, void *ctx,
 	struct async_cmd_info *cmdinfo = ctx;
 	cmdinfo->result = le32_to_cpup(&cqe->result);
 	cmdinfo->status = le16_to_cpup(&cqe->status) >> 1;
-	queue_kthread_work(cmdinfo->worker, &cmdinfo->work);
 	blk_mq_free_request(cmdinfo->req);
+	queue_kthread_work(cmdinfo->worker, &cmdinfo->work);
 }
 
 static inline struct nvme_cmd_info *get_cmd_from_tag(struct nvme_queue *nvmeq,

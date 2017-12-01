@@ -1300,6 +1300,9 @@ int mei_cl_notify_request(struct mei_cl *cl, struct file *file, u8 request)
 		return -EOPNOTSUPP;
 	}
 
+	if (!mei_cl_is_connected(cl))
+		return -ENODEV;
+
 	rets = pm_runtime_get(dev->dev);
 	if (rets < 0 && rets != -EINPROGRESS) {
 		pm_runtime_put_noidle(dev->dev);

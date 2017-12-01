@@ -347,7 +347,7 @@
 		};
 
 		uart1: uart@48020000 {
-			compatible = "ti,omap3-uart";
+			compatible = "ti,am3352-uart", "ti,omap3-uart";
 			ti,hwmods = "uart1";
 			reg = <0x48020000 0x2000>;
 			clock-frequency = <48000000>;
@@ -357,7 +357,7 @@
 		};
 
 		uart2: uart@48022000 {
-			compatible = "ti,omap3-uart";
+			compatible = "ti,am3352-uart", "ti,omap3-uart";
 			ti,hwmods = "uart2";
 			reg = <0x48022000 0x2000>;
 			clock-frequency = <48000000>;
@@ -367,7 +367,7 @@
 		};
 
 		uart3: uart@48024000 {
-			compatible = "ti,omap3-uart";
+			compatible = "ti,am3352-uart", "ti,omap3-uart";
 			ti,hwmods = "uart3";
 			reg = <0x48024000 0x2000>;
 			clock-frequency = <48000000>;
