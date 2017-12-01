@@ -713,34 +713,44 @@ static void remove_notification(struct mqueue_inode_info *info)
 	info->notify_user_ns = NULL;
 }
 
-/*
- * Invoked when creating a new queue via sys_mq_open
- */
-static int do_create(struct ipc_namespace *ipc_ns, struct inode *dir,
-			struct path *path, int oflag, umode_t mode,
+static int prepare_open(struct dentry *dentry, int oflag, int ro,
+			umode_t mode, struct filename *name,
 			struct mq_attr *attr)
-{
-	return vfs_mkobj(path->dentry, mode & ~current_umask(),
-			mqueue_create_attr, attr);
-}
-
-/* Opens existing queue */
-static int do_open(struct path *path, int oflag)
 {
 	static const int oflag2acc[O_ACCMODE] = { MAY_READ, MAY_WRITE,
 						  MAY_READ | MAY_WRITE };
 	int acc;
+
+	if (oflag & O_CREAT) {
+		if (d_really_is_positive(dentry)) {	/* entry already exists */
+			audit_inode(name, dentry, 0);
+			if (oflag & O_EXCL)
+				return -EEXIST;
+		} else {
+			if (ro)
+				return ro;
+
+			audit_inode_parent_hidden(name, dentry->d_parent);
+			return vfs_mkobj(dentry, mode & ~current_umask(),
+				  mqueue_create_attr, attr);
+		}
+	} else {
+		if (d_really_is_negative(dentry)) {
+			return -ENOENT;
+		} else {
+			audit_inode(name, dentry, 0);
+		}
+	}
 	if ((oflag & O_ACCMODE) == (O_RDWR | O_WRONLY))
 		return -EINVAL;
 	acc = oflag2acc[oflag & O_ACCMODE];
-	return inode_permission(d_inode(path->dentry), acc);
+	return inode_permission(d_inode(dentry), acc);
 }
 
 static int do_mq_open(const char __user *u_name, int oflag, umode_t mode,
 		      struct mq_attr *attr)
 {
 	struct path path;
-	struct file *filp;
 	struct filename *name;
 	int fd, error;
 	struct ipc_namespace *ipc_ns = current->nsproxy->ipc_ns;
@@ -767,39 +777,14 @@ static int do_mq_open(const char __user *u_name, int oflag, umode_t mode,
 	}
 	path.mnt = mntget(mnt);
 
-	if (oflag & O_CREAT) {
-		if (d_really_is_positive(path.dentry)) {	/* entry already exists */
-			audit_inode(name, path.dentry, 0);
-			if (oflag & O_EXCL)
-				error = -EEXIST;
-			else
-				error = do_open(&path, oflag);
-		} else {
-			if (ro) {
-				error = ro;
-			} else {
-				audit_inode_parent_hidden(name, root);
-				error = do_create(ipc_ns, d_inode(root), &path,
-						 oflag, mode, attr);
-			}
-		}
-	} else {
-		if (d_really_is_negative(path.dentry)) {
-			error = -ENOENT;
-		} else {
-			audit_inode(name, path.dentry, 0);
-			error = do_open(&path, oflag);
-		}
+	error = prepare_open(path.dentry, oflag, ro, mode, name, attr);
+	if (!error) {
+		struct file *file = dentry_open(&path, oflag, current_cred());
+		if (!IS_ERR(file))
+			fd_install(fd, file);
+		else
+			error = PTR_ERR(file);
 	}
-	if (error)
-		goto out;
-	filp = dentry_open(&path, oflag, current_cred());
-
-	if (!IS_ERR(filp))
-		fd_install(fd, filp);
-	else
-		error = PTR_ERR(filp);
-out:
 	path_put(&path);
 out_putfd:
 	if (error) {
