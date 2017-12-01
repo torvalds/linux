@@ -1871,32 +1871,28 @@ bool clk_has_parent(struct clk *clk, struct clk *parent)
 }
 EXPORT_SYMBOL_GPL(clk_has_parent);
 
-static int clk_core_set_parent(struct clk_core *core, struct clk_core *parent)
+static int clk_core_set_parent_nolock(struct clk_core *core,
+				      struct clk_core *parent)
 {
 	int ret = 0;
 	int p_index = 0;
 	unsigned long p_rate = 0;
 
+	lockdep_assert_held(&prepare_lock);
+
 	if (!core)
 		return 0;
 
-	/* prevent racing with updates to the clock topology */
-	clk_prepare_lock();
-
 	if (core->parent == parent)
-		goto out;
+		return 0;
 
 	/* verify ops for for multi-parent clks */
-	if ((core->num_parents > 1) && (!core->ops->set_parent)) {
-		ret = -EPERM;
-		goto out;
-	}
+	if (core->num_parents > 1 && !core->ops->set_parent)
+		return -EPERM;
 
 	/* check that we are allowed to re-parent if the clock is in use */
-	if ((core->flags & CLK_SET_PARENT_GATE) && core->prepare_count) {
-		ret = -EBUSY;
-		goto out;
-	}
+	if ((core->flags & CLK_SET_PARENT_GATE) && core->prepare_count)
+		return -EBUSY;
 
 	/* try finding the new parent index */
 	if (parent) {
@@ -1904,15 +1900,14 @@ static int clk_core_set_parent(struct clk_core *core, struct clk_core *parent)
 		if (p_index < 0) {
 			pr_debug("%s: clk %s can not be parent of clk %s\n",
 					__func__, parent->name, core->name);
-			ret = p_index;
-			goto out;
+			return p_index;
 		}
 		p_rate = parent->rate;
 	}
 
 	ret = clk_pm_runtime_get(core);
 	if (ret)
-		goto out;
+		return ret;
 
 	/* propagate PRE_RATE_CHANGE notifications */
 	ret = __clk_speculate_rates(core, p_rate);
@@ -1934,8 +1929,6 @@ static int clk_core_set_parent(struct clk_core *core, struct clk_core *parent)
 
 runtime_put:
 	clk_pm_runtime_put(core);
-out:
-	clk_prepare_unlock();
 
 	return ret;
 }
@@ -1959,10 +1952,17 @@ out:
  */
 int clk_set_parent(struct clk *clk, struct clk *parent)
 {
+	int ret;
+
 	if (!clk)
 		return 0;
 
-	return clk_core_set_parent(clk->core, parent ? parent->core : NULL);
+	clk_prepare_lock();
+	ret = clk_core_set_parent_nolock(clk->core,
+					 parent ? parent->core : NULL);
+	clk_prepare_unlock();
+
+	return ret;
 }
 EXPORT_SYMBOL_GPL(clk_set_parent);
 
@@ -2851,7 +2851,7 @@ void clk_unregister(struct clk *clk)
 		/* Reparent all children to the orphan list. */
 		hlist_for_each_entry_safe(child, t, &clk->core->children,
 					  child_node)
-			clk_core_set_parent(child, NULL);
+			clk_core_set_parent_nolock(child, NULL);
 	}
 
 	hlist_del_init(&clk->core->child_node);
