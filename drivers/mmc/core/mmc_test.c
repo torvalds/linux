@@ -2328,10 +2328,17 @@ static int mmc_test_reset(struct mmc_test_card *test)
 	int err;
 
 	err = mmc_hw_reset(host);
-	if (!err)
+	if (!err) {
+		/*
+		 * Reset will re-enable the card's command queue, but tests
+		 * expect it to be disabled.
+		 */
+		if (card->ext_csd.cmdq_en)
+			mmc_cmdq_disable(card);
 		return RESULT_OK;
-	else if (err == -EOPNOTSUPP)
+	} else if (err == -EOPNOTSUPP) {
 		return RESULT_UNSUP_HOST;
+	}
 
 	return RESULT_FAIL;
 }
