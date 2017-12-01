@@ -317,17 +317,19 @@ static int sun8i_mixer_bind(struct device *dev, struct device *master,
 	regmap_write(mixer->engine.regs, SUN8I_MIXER_GLOBAL_CTL,
 		     SUN8I_MIXER_GLOBAL_CTL_RT_EN);
 
+	/* Set background color to black */
+	regmap_write(mixer->engine.regs, SUN8I_MIXER_BLEND_BKCOLOR,
+		     SUN8I_MIXER_BLEND_COLOR_BLACK);
+
 	/* Initialize blender */
 	regmap_write(mixer->engine.regs, SUN8I_MIXER_BLEND_FCOLOR_CTL,
 		     SUN8I_MIXER_BLEND_FCOLOR_CTL_DEF);
-	regmap_write(mixer->engine.regs, SUN8I_MIXER_BLEND_BKCOLOR,
-		     SUN8I_MIXER_BLEND_BKCOLOR_DEF);
 	regmap_write(mixer->engine.regs, SUN8I_MIXER_BLEND_MODE(0),
 		     SUN8I_MIXER_BLEND_MODE_DEF);
 
 	regmap_write(mixer->engine.regs,
 		     SUN8I_MIXER_BLEND_ATTR_FCOLOR(0),
-		     SUN8I_MIXER_BLEND_ATTR_FCOLOR_DEF);
+		     SUN8I_MIXER_BLEND_COLOR_BLACK);
 
 	/* Select the first UI channel */
 	DRM_DEBUG_DRIVER("Selecting channel %d (first UI channel)\n",
