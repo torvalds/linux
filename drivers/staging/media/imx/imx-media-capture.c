@@ -449,9 +449,6 @@ static int capture_start_streaming(struct vb2_queue *vq, unsigned int count)
 	unsigned long flags;
 	int ret;
 
-	if (vb2_is_streaming(vq))
-		return 0;
-
 	ret = imx_media_pipeline_set_stream(priv->md, &priv->src_sd->entity,
 					    true);
 	if (ret) {
@@ -479,9 +476,6 @@ static void capture_stop_streaming(struct vb2_queue *vq)
 	struct imx_media_buffer *frame;
 	unsigned long flags;
 	int ret;
-
-	if (!vb2_is_streaming(vq))
-		return;
 
 	spin_lock_irqsave(&priv->q_lock, flags);
 	priv->stop = true;
