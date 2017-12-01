@@ -94,6 +94,7 @@ typedef int (*instr_cb_t)(struct nfp_prog *, struct nfp_insn_meta *);
  * @insn: BPF instruction
  * @ptr: pointer type for memory operations
  * @ptr_not_const: pointer is not always constant
+ * @jmp_dst: destination info for jump instructions
  * @off: index of first generated machine instruction (in nfp_prog.prog)
  * @n: eBPF instruction number
  * @skip: skip this instruction (optimized out)
@@ -102,8 +103,13 @@ typedef int (*instr_cb_t)(struct nfp_prog *, struct nfp_insn_meta *);
  */
 struct nfp_insn_meta {
 	struct bpf_insn insn;
-	struct bpf_reg_state ptr;
-	bool ptr_not_const;
+	union {
+		struct {
+			struct bpf_reg_state ptr;
+			bool ptr_not_const;
+		};
+		struct nfp_insn_meta *jmp_dst;
+	};
 	unsigned int off;
 	unsigned short n;
 	bool skip;
@@ -191,4 +197,7 @@ int nfp_bpf_translate(struct nfp_app *app, struct nfp_net *nn,
 		      struct bpf_prog *prog);
 int nfp_bpf_destroy(struct nfp_app *app, struct nfp_net *nn,
 		    struct bpf_prog *prog);
+struct nfp_insn_meta *
+nfp_bpf_goto_meta(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
+		  unsigned int insn_idx, unsigned int n_insns);
 #endif

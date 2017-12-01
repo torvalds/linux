@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016 Netronome Systems, Inc.
+ * Copyright (C) 2016-2017 Netronome Systems, Inc.
  *
  * This software is dual licensed under the GNU General License Version 2,
  * June 1991 as shown in the file COPYING in the top-level directory of this
@@ -55,11 +55,10 @@ static int
 nfp_prog_prepare(struct nfp_prog *nfp_prog, const struct bpf_insn *prog,
 		 unsigned int cnt)
 {
+	struct nfp_insn_meta *meta;
 	unsigned int i;
 
 	for (i = 0; i < cnt; i++) {
-		struct nfp_insn_meta *meta;
-
 		meta = kzalloc(sizeof(*meta), GFP_KERNEL);
 		if (!meta)
 			return -ENOMEM;
@@ -68,6 +67,23 @@ nfp_prog_prepare(struct nfp_prog *nfp_prog, const struct bpf_insn *prog,
 		meta->n = i;
 
 		list_add_tail(&meta->l, &nfp_prog->insns);
+	}
+
+	/* Another pass to record jump information. */
+	list_for_each_entry(meta, &nfp_prog->insns, l) {
+		u64 code = meta->insn.code;
+
+		if (BPF_CLASS(code) == BPF_JMP && BPF_OP(code) != BPF_EXIT &&
+		    BPF_OP(code) != BPF_CALL) {
+			struct nfp_insn_meta *dst_meta;
+			unsigned short dst_indx;
+
+			dst_indx = meta->n + 1 + meta->insn.off;
+			dst_meta = nfp_bpf_goto_meta(nfp_prog, meta, dst_indx,
+						     cnt);
+
+			meta->jmp_dst = dst_meta;
+		}
 	}
 
 	return 0;

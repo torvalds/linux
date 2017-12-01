@@ -66,12 +66,6 @@
 	     next2 = nfp_meta_next(next))
 
 static bool
-nfp_meta_has_next(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
-{
-	return meta->l.next != &nfp_prog->insns;
-}
-
-static bool
 nfp_meta_has_prev(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 {
 	return meta->l.prev != &nfp_prog->insns;
@@ -1864,9 +1858,8 @@ static void br_set_offset(u64 *instr, u16 offset)
 /* --- Assembler logic --- */
 static int nfp_fixup_branches(struct nfp_prog *nfp_prog)
 {
-	struct nfp_insn_meta *meta, *next;
+	struct nfp_insn_meta *meta, *jmp_dst;
 	u32 idx, br_idx;
-	int off;
 
 	list_for_each_entry(meta, &nfp_prog->insns, l) {
 		if (meta->skip)
@@ -1874,13 +1867,10 @@ static int nfp_fixup_branches(struct nfp_prog *nfp_prog)
 		if (BPF_CLASS(meta->insn.code) != BPF_JMP)
 			continue;
 
-		if (list_is_last(&meta->l, &nfp_prog->insns)) {
-			next = NULL;
+		if (list_is_last(&meta->l, &nfp_prog->insns))
 			idx = nfp_prog->last_bpf_off;
-		} else {
-			next = list_next_entry(meta, l);
-			idx = next->off - 1;
-		}
+		else
+			idx = list_next_entry(meta, l)->off - 1;
 
 		br_idx = nfp_prog_offset_to_index(nfp_prog, idx);
 
@@ -1893,43 +1883,14 @@ static int nfp_fixup_branches(struct nfp_prog *nfp_prog)
 		if (FIELD_GET(OP_BR_SPECIAL, nfp_prog->prog[br_idx]))
 			continue;
 
-		/* Find the target offset in assembler realm */
-		off = meta->insn.off;
-		if (!off) {
-			pr_err("Fixup found zero offset!!\n");
+		if (!meta->jmp_dst) {
+			pr_err("Non-exit jump doesn't have destination info recorded!!\n");
 			return -ELOOP;
 		}
 
-		if (!next) {
-			/* When "next" is NULL, "meta" is the last node in the
-			 * list. Given it is an JMP, it then must be a backward
-			 * jump.
-			 *
-			 * For eBPF, the jump offset is against pc + 1, so we
-			 * need to compensate the offset by 1 as we are pointing
-			 * "next" to the current node "meta".
-			 */
-			if (WARN_ON_ONCE(off > -2))
-				return -ELOOP;
+		jmp_dst = meta->jmp_dst;
 
-			next = meta;
-			off += 1;
-		}
-
-		while (off > 0 && nfp_meta_has_next(nfp_prog, next)) {
-			next = nfp_meta_next(next);
-			off--;
-		}
-		while (off < 0 && nfp_meta_has_prev(nfp_prog, next)) {
-			next = nfp_meta_prev(next);
-			off++;
-		}
-		if (off) {
-			pr_err("Fixup found too large jump!! %d\n", off);
-			return -ELOOP;
-		}
-
-		if (next->skip) {
+		if (jmp_dst->skip) {
 			pr_err("Branch landing on removed instruction!!\n");
 			return -ELOOP;
 		}
@@ -1938,7 +1899,7 @@ static int nfp_fixup_branches(struct nfp_prog *nfp_prog)
 		     idx <= br_idx; idx++) {
 			if (!nfp_is_br(nfp_prog->prog[idx]))
 				continue;
-			br_set_offset(&nfp_prog->prog[idx], next->off);
+			br_set_offset(&nfp_prog->prog[idx], jmp_dst->off);
 		}
 	}
 
