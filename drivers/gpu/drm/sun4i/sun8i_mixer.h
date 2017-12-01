@@ -52,35 +52,6 @@
 
 #define SUN8I_MIXER_BLEND_OUTCTL_INTERLACED	BIT(1)
 
-/*
- * VI channels are not used now, but the support of them may be introduced in
- * the future.
- */
-
-#define SUN8I_MIXER_CHAN_UI_LAYER_ATTR(ch, layer) \
-			(0x2000 + 0x1000 * (ch) + 0x20 * (layer) + 0x0)
-#define SUN8I_MIXER_CHAN_UI_LAYER_SIZE(ch, layer) \
-			(0x2000 + 0x1000 * (ch) + 0x20 * (layer) + 0x4)
-#define SUN8I_MIXER_CHAN_UI_LAYER_COORD(ch, layer) \
-			(0x2000 + 0x1000 * (ch) + 0x20 * (layer) + 0x8)
-#define SUN8I_MIXER_CHAN_UI_LAYER_PITCH(ch, layer) \
-			(0x2000 + 0x1000 * (ch) + 0x20 * (layer) + 0xc)
-#define SUN8I_MIXER_CHAN_UI_LAYER_TOP_LADDR(ch, layer) \
-			(0x2000 + 0x1000 * (ch) + 0x20 * (layer) + 0x10)
-#define SUN8I_MIXER_CHAN_UI_LAYER_BOT_LADDR(ch, layer) \
-			(0x2000 + 0x1000 * (ch) + 0x20 * (layer) + 0x14)
-#define SUN8I_MIXER_CHAN_UI_LAYER_FCOLOR(ch, layer) \
-			(0x2000 + 0x1000 * (ch) + 0x20 * (layer) + 0x18)
-#define SUN8I_MIXER_CHAN_UI_TOP_HADDR(ch)	(0x2000 + 0x1000 * (ch) + 0x80)
-#define SUN8I_MIXER_CHAN_UI_BOT_HADDR(ch)	(0x2000 + 0x1000 * (ch) + 0x84)
-#define SUN8I_MIXER_CHAN_UI_OVL_SIZE(ch)	(0x2000 + 0x1000 * (ch) + 0x88)
-
-#define SUN8I_MIXER_CHAN_UI_LAYER_ATTR_EN		BIT(0)
-#define SUN8I_MIXER_CHAN_UI_LAYER_ATTR_ALPHA_MODE_MASK	GENMASK(2, 1)
-#define SUN8I_MIXER_CHAN_UI_LAYER_ATTR_FBFMT_MASK	GENMASK(12, 8)
-#define SUN8I_MIXER_CHAN_UI_LAYER_ATTR_FBFMT_OFFSET	8
-#define SUN8I_MIXER_CHAN_UI_LAYER_ATTR_ALPHA_MASK	GENMASK(31, 24)
-
 #define SUN8I_MIXER_FBFMT_ARGB8888	0
 #define SUN8I_MIXER_FBFMT_ABGR8888	1
 #define SUN8I_MIXER_FBFMT_RGBA8888	2
@@ -118,6 +89,11 @@
 #define SUN8I_MIXER_FCC_EN			0xaa000
 #define SUN8I_MIXER_DCSC_EN			0xb0000
 
+struct de2_fmt_info {
+	u32 drm_fmt;
+	u32 de2_fmt;
+};
+
 struct sun8i_mixer_cfg {
 	int		vi_num;
 	int		ui_num;
@@ -140,12 +116,5 @@ engine_to_sun8i_mixer(struct sunxi_engine *engine)
 	return container_of(engine, struct sun8i_mixer, engine);
 }
 
-void sun8i_mixer_layer_enable(struct sun8i_mixer *mixer, int channel,
-			      int overlay, bool enable);
-int sun8i_mixer_update_layer_coord(struct sun8i_mixer *mixer, int channel,
-				   int overlay, struct drm_plane *plane);
-int sun8i_mixer_update_layer_formats(struct sun8i_mixer *mixer, int channel,
-				     int overlay, struct drm_plane *plane);
-int sun8i_mixer_update_layer_buffer(struct sun8i_mixer *mixer, int channel,
-				    int overlay, struct drm_plane *plane);
+const struct de2_fmt_info *sun8i_mixer_format_info(u32 format);
 #endif /* _SUN8I_MIXER_H_ */

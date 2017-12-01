@@ -26,13 +26,8 @@
 
 #include "sun4i_drv.h"
 #include "sun8i_mixer.h"
-#include "sun8i_layer.h"
+#include "sun8i_ui_layer.h"
 #include "sunxi_engine.h"
-
-struct de2_fmt_info {
-	u32 drm_fmt;
-	u32 de2_fmt;
-};
 
 static const struct de2_fmt_info de2_formats[] = {
 	{
@@ -117,7 +112,7 @@ static const struct de2_fmt_info de2_formats[] = {
 	},
 };
 
-static const struct de2_fmt_info *sun8i_mixer_format_info(u32 format)
+const struct de2_fmt_info *sun8i_mixer_format_info(u32 format)
 {
 	unsigned int i;
 
@@ -136,157 +131,32 @@ static void sun8i_mixer_commit(struct sunxi_engine *engine)
 		     SUN8I_MIXER_GLOBAL_DBUFF_ENABLE);
 }
 
-void sun8i_mixer_layer_enable(struct sun8i_mixer *mixer, int channel,
-			      int overlay, bool enable)
+static struct drm_plane **sun8i_layers_init(struct drm_device *drm,
+					    struct sunxi_engine *engine)
 {
-	u32 val;
+	struct drm_plane **planes;
+	struct sun8i_mixer *mixer = engine_to_sun8i_mixer(engine);
+	int i;
 
-	DRM_DEBUG_DRIVER("%sabling channel %d overlay %d\n",
-			 enable ? "En" : "Dis", channel, overlay);
+	planes = devm_kcalloc(drm->dev, mixer->cfg->ui_num + 1,
+			      sizeof(*planes), GFP_KERNEL);
+	if (!planes)
+		return ERR_PTR(-ENOMEM);
 
-	if (enable)
-		val = SUN8I_MIXER_CHAN_UI_LAYER_ATTR_EN;
-	else
-		val = 0;
+	for (i = 0; i < mixer->cfg->ui_num; i++) {
+		struct sun8i_ui_layer *layer;
 
-	regmap_update_bits(mixer->engine.regs,
-			   SUN8I_MIXER_CHAN_UI_LAYER_ATTR(channel, overlay),
-			   SUN8I_MIXER_CHAN_UI_LAYER_ATTR_EN, val);
+		layer = sun8i_ui_layer_init_one(drm, mixer, i);
+		if (IS_ERR(layer)) {
+			dev_err(drm->dev, "Couldn't initialize %s plane\n",
+				i ? "overlay" : "primary");
+			return ERR_CAST(layer);
+		};
 
-	if (enable)
-		val = SUN8I_MIXER_BLEND_PIPE_CTL_EN(channel);
-	else
-		val = 0;
+		planes[i] = &layer->plane;
+	};
 
-	regmap_update_bits(mixer->engine.regs,
-			   SUN8I_MIXER_BLEND_PIPE_CTL,
-			   SUN8I_MIXER_BLEND_PIPE_CTL_EN(channel), val);
-}
-
-int sun8i_mixer_update_layer_coord(struct sun8i_mixer *mixer, int channel,
-				   int overlay, struct drm_plane *plane)
-{
-	struct drm_plane_state *state = plane->state;
-	u32 width, height, size;
-
-	DRM_DEBUG_DRIVER("Updating channel %d overlay %d\n", channel, overlay);
-
-	/*
-	 * Same source and destination width and height are guaranteed
-	 * by atomic check function.
-	 */
-	width = drm_rect_width(&state->dst);
-	height = drm_rect_height(&state->dst);
-	size = SUN8I_MIXER_SIZE(width, height);
-
-	if (plane->type == DRM_PLANE_TYPE_PRIMARY) {
-		bool interlaced = false;
-		u32 val;
-
-		DRM_DEBUG_DRIVER("Primary layer, updating global size W: %u H: %u\n",
-				 width, height);
-		regmap_write(mixer->engine.regs,
-			     SUN8I_MIXER_GLOBAL_SIZE,
-			     size);
-		regmap_write(mixer->engine.regs, SUN8I_MIXER_BLEND_OUTSIZE,
-			     size);
-
-		if (state->crtc)
-			interlaced = state->crtc->state->adjusted_mode.flags
-				& DRM_MODE_FLAG_INTERLACE;
-
-		if (interlaced)
-			val = SUN8I_MIXER_BLEND_OUTCTL_INTERLACED;
-		else
-			val = 0;
-
-		regmap_update_bits(mixer->engine.regs,
-				   SUN8I_MIXER_BLEND_OUTCTL,
-				   SUN8I_MIXER_BLEND_OUTCTL_INTERLACED,
-				   val);
-
-		DRM_DEBUG_DRIVER("Switching display mixer interlaced mode %s\n",
-				 interlaced ? "on" : "off");
-	}
-
-	/* Set height and width */
-	DRM_DEBUG_DRIVER("Layer size W: %u H: %u\n", width, height);
-	regmap_write(mixer->engine.regs,
-		     SUN8I_MIXER_CHAN_UI_LAYER_SIZE(channel, overlay),
-		     size);
-	regmap_write(mixer->engine.regs,
-		     SUN8I_MIXER_CHAN_UI_OVL_SIZE(channel),
-		     size);
-
-	/* Set base coordinates */
-	DRM_DEBUG_DRIVER("Layer coordinates X: %d Y: %d\n",
-			 state->dst.x1, state->dst.y1);
-	regmap_write(mixer->engine.regs,
-		     SUN8I_MIXER_BLEND_ATTR_COORD(channel),
-		     SUN8I_MIXER_COORD(state->dst.x1, state->dst.y1));
-	regmap_write(mixer->engine.regs,
-		     SUN8I_MIXER_BLEND_ATTR_INSIZE(channel),
-		     size);
-
-	return 0;
-}
-
-int sun8i_mixer_update_layer_formats(struct sun8i_mixer *mixer, int channel,
-				     int overlay, struct drm_plane *plane)
-{
-	struct drm_plane_state *state = plane->state;
-	const struct de2_fmt_info *fmt_info;
-	u32 val;
-
-	fmt_info = sun8i_mixer_format_info(state->fb->format->format);
-	if (!fmt_info) {
-		DRM_DEBUG_DRIVER("Invalid format\n");
-		return -EINVAL;
-	}
-
-	val = fmt_info->de2_fmt << SUN8I_MIXER_CHAN_UI_LAYER_ATTR_FBFMT_OFFSET;
-	regmap_update_bits(mixer->engine.regs,
-			   SUN8I_MIXER_CHAN_UI_LAYER_ATTR(channel, overlay),
-			   SUN8I_MIXER_CHAN_UI_LAYER_ATTR_FBFMT_MASK, val);
-
-	return 0;
-}
-
-int sun8i_mixer_update_layer_buffer(struct sun8i_mixer *mixer, int channel,
-				    int overlay, struct drm_plane *plane)
-{
-	struct drm_plane_state *state = plane->state;
-	struct drm_framebuffer *fb = state->fb;
-	struct drm_gem_cma_object *gem;
-	dma_addr_t paddr;
-	int bpp;
-
-	/* Get the physical address of the buffer in memory */
-	gem = drm_fb_cma_get_gem_obj(fb, 0);
-
-	DRM_DEBUG_DRIVER("Using GEM @ %pad\n", &gem->paddr);
-
-	/* Compute the start of the displayed memory */
-	bpp = fb->format->cpp[0];
-	paddr = gem->paddr + fb->offsets[0];
-
-	/* Fixup framebuffer address for src coordinates */
-	paddr += (state->src.x1 >> 16) * bpp;
-	paddr += (state->src.y1 >> 16) * fb->pitches[0];
-
-	/* Set the line width */
-	DRM_DEBUG_DRIVER("Layer line width: %d bytes\n", fb->pitches[0]);
-	regmap_write(mixer->engine.regs,
-		     SUN8I_MIXER_CHAN_UI_LAYER_PITCH(channel, overlay),
-		     fb->pitches[0]);
-
-	DRM_DEBUG_DRIVER("Setting buffer address to %pad\n", &paddr);
-
-	regmap_write(mixer->engine.regs,
-		     SUN8I_MIXER_CHAN_UI_LAYER_TOP_LADDR(channel, overlay),
-		     lower_32_bits(paddr));
-
-	return 0;
+	return planes;
 }
 
 static const struct sunxi_engine_ops sun8i_engine_ops = {
