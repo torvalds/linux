@@ -532,10 +532,8 @@ static int hwrm_cfa_decap_filter_alloc(struct bnxt *bp,
 	}
 
 	if (flow->flags & BNXT_TC_FLOW_FLAGS_TUNL_ETH_ADDRS) {
-		enables |= CFA_DECAP_FILTER_ALLOC_REQ_ENABLES_DST_MACADDR |
-			   CFA_DECAP_FILTER_ALLOC_REQ_ENABLES_SRC_MACADDR;
+		enables |= CFA_DECAP_FILTER_ALLOC_REQ_ENABLES_DST_MACADDR;
 		ether_addr_copy(req.dst_macaddr, l2_info->dmac);
-		ether_addr_copy(req.src_macaddr, l2_info->smac);
 	}
 	if (l2_info->num_vlans) {
 		enables |= CFA_DECAP_FILTER_ALLOC_REQ_ENABLES_T_IVLAN_VID;
@@ -1012,10 +1010,9 @@ static int bnxt_tc_get_decap_handle(struct bnxt *bp, struct bnxt_tc_flow *flow,
 	if (rc)
 		goto put_decap;
 
-	decap_key->ttl = tun_key.ttl;
 	decap_l2_info = &decap_node->l2_info;
+	/* decap smac is wildcarded */
 	ether_addr_copy(decap_l2_info->dmac, l2_info.smac);
-	ether_addr_copy(decap_l2_info->smac, l2_info.dmac);
 	if (l2_info.num_vlans) {
 		decap_l2_info->num_vlans = l2_info.num_vlans;
 		decap_l2_info->inner_vlan_tpid = l2_info.inner_vlan_tpid;
