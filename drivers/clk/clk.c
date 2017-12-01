@@ -905,25 +905,15 @@ static int clk_disable_unused(void)
 }
 late_initcall_sync(clk_disable_unused);
 
-static int clk_core_round_rate_nolock(struct clk_core *core,
-				      struct clk_rate_request *req)
+static int clk_core_determine_round_nolock(struct clk_core *core,
+					   struct clk_rate_request *req)
 {
-	struct clk_core *parent;
 	long rate;
 
 	lockdep_assert_held(&prepare_lock);
 
 	if (!core)
 		return 0;
-
-	parent = core->parent;
-	if (parent) {
-		req->best_parent_hw = parent->hw;
-		req->best_parent_rate = parent->rate;
-	} else {
-		req->best_parent_hw = NULL;
-		req->best_parent_rate = 0;
-	}
 
 	if (core->ops->determine_rate) {
 		return core->ops->determine_rate(core->hw, req);
@@ -934,12 +924,55 @@ static int clk_core_round_rate_nolock(struct clk_core *core,
 			return rate;
 
 		req->rate = rate;
-	} else if (core->flags & CLK_SET_RATE_PARENT) {
-		return clk_core_round_rate_nolock(parent, req);
 	} else {
-		req->rate = core->rate;
+		return -EINVAL;
 	}
 
+	return 0;
+}
+
+static void clk_core_init_rate_req(struct clk_core * const core,
+				   struct clk_rate_request *req)
+{
+	struct clk_core *parent;
+
+	if (WARN_ON(!core || !req))
+		return;
+
+	parent = core->parent;
+	if (parent) {
+		req->best_parent_hw = parent->hw;
+		req->best_parent_rate = parent->rate;
+	} else {
+		req->best_parent_hw = NULL;
+		req->best_parent_rate = 0;
+	}
+}
+
+static bool clk_core_can_round(struct clk_core * const core)
+{
+	if (core->ops->determine_rate || core->ops->round_rate)
+		return true;
+
+	return false;
+}
+
+static int clk_core_round_rate_nolock(struct clk_core *core,
+				      struct clk_rate_request *req)
+{
+	lockdep_assert_held(&prepare_lock);
+
+	if (!core)
+		return 0;
+
+	clk_core_init_rate_req(core, req);
+
+	if (clk_core_can_round(core))
+		return clk_core_determine_round_nolock(core, req);
+	else if (core->flags & CLK_SET_RATE_PARENT)
+		return clk_core_round_rate_nolock(core->parent, req);
+
+	req->rate = core->rate;
 	return 0;
 }
 
@@ -1432,34 +1465,23 @@ static struct clk_core *clk_calc_new_rates(struct clk_core *core,
 	clk_core_get_boundaries(core, &min_rate, &max_rate);
 
 	/* find the closest rate and parent clk/rate */
-	if (core->ops->determine_rate) {
+	if (clk_core_can_round(core)) {
 		struct clk_rate_request req;
 
 		req.rate = rate;
 		req.min_rate = min_rate;
 		req.max_rate = max_rate;
-		if (parent) {
-			req.best_parent_hw = parent->hw;
-			req.best_parent_rate = parent->rate;
-		} else {
-			req.best_parent_hw = NULL;
-			req.best_parent_rate = 0;
-		}
 
-		ret = core->ops->determine_rate(core->hw, &req);
+		clk_core_init_rate_req(core, &req);
+
+		ret = clk_core_determine_round_nolock(core, &req);
 		if (ret < 0)
 			return NULL;
 
 		best_parent_rate = req.best_parent_rate;
 		new_rate = req.rate;
 		parent = req.best_parent_hw ? req.best_parent_hw->core : NULL;
-	} else if (core->ops->round_rate) {
-		ret = core->ops->round_rate(core->hw, rate,
-					    &best_parent_rate);
-		if (ret < 0)
-			return NULL;
 
-		new_rate = ret;
 		if (new_rate < min_rate || new_rate > max_rate)
 			return NULL;
 	} else if (!parent || !(core->flags & CLK_SET_RATE_PARENT)) {
