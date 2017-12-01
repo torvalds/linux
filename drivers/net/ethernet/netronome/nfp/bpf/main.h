@@ -89,6 +89,8 @@ typedef int (*instr_cb_t)(struct nfp_prog *, struct nfp_insn_meta *);
 #define nfp_meta_next(meta)	list_next_entry(meta, l)
 #define nfp_meta_prev(meta)	list_prev_entry(meta, l)
 
+#define FLAG_INSN_IS_JUMP_DST	BIT(0)
+
 /**
  * struct nfp_insn_meta - BPF instruction wrapper
  * @insn: BPF instruction
@@ -97,6 +99,7 @@ typedef int (*instr_cb_t)(struct nfp_prog *, struct nfp_insn_meta *);
  * @jmp_dst: destination info for jump instructions
  * @off: index of first generated machine instruction (in nfp_prog.prog)
  * @n: eBPF instruction number
+ * @flags: eBPF instruction extra optimization flags
  * @skip: skip this instruction (optimized out)
  * @double_cb: callback for second part of the instruction
  * @l: link on nfp_prog->insns list
@@ -112,6 +115,7 @@ struct nfp_insn_meta {
 	};
 	unsigned int off;
 	unsigned short n;
+	unsigned short flags;
 	bool skip;
 	instr_cb_t double_cb;
 

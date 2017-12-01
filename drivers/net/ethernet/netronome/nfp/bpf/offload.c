@@ -83,6 +83,7 @@ nfp_prog_prepare(struct nfp_prog *nfp_prog, const struct bpf_insn *prog,
 						     cnt);
 
 			meta->jmp_dst = dst_meta;
+			dst_meta->flags |= FLAG_INSN_IS_JUMP_DST;
 		}
 	}
 
