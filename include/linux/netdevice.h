@@ -820,6 +820,8 @@ struct netdev_bpf {
 		struct {
 			u8 prog_attached;
 			u32 prog_id;
+			/* flags with which program was installed */
+			u32 prog_flags;
 		};
 		/* BPF_OFFLOAD_VERIFIER_PREP */
 		struct {
