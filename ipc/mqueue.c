@@ -743,12 +743,11 @@ static int prepare_open(struct dentry *dentry, int oflag, int ro,
 static int do_mq_open(const char __user *u_name, int oflag, umode_t mode,
 		      struct mq_attr *attr)
 {
-	struct path path;
-	struct filename *name;
-	int fd, error;
-	struct ipc_namespace *ipc_ns = current->nsproxy->ipc_ns;
-	struct vfsmount *mnt = ipc_ns->mq_mnt;
+	struct vfsmount *mnt = current->nsproxy->ipc_ns->mq_mnt;
 	struct dentry *root = mnt->mnt_root;
+	struct filename *name;
+	struct path path;
+	int fd, error;
 	int ro;
 
 	audit_mq_open(oflag, mode, attr);
@@ -761,7 +760,6 @@ static int do_mq_open(const char __user *u_name, int oflag, umode_t mode,
 		goto out_putname;
 
 	ro = mnt_want_write(mnt);	/* we'll drop it in any case */
-	error = 0;
 	inode_lock(d_inode(root));
 	path.dentry = lookup_one_len(name->name, root, strlen(name->name));
 	if (IS_ERR(path.dentry)) {
@@ -769,7 +767,6 @@ static int do_mq_open(const char __user *u_name, int oflag, umode_t mode,
 		goto out_putfd;
 	}
 	path.mnt = mntget(mnt);
-
 	error = prepare_open(path.dentry, oflag, ro, mode, name, attr);
 	if (!error) {
 		struct file *file = dentry_open(&path, oflag, current_cred());
