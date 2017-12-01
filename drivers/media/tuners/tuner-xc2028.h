@@ -1,7 +1,8 @@
-/* tuner-xc2028
+/*
+ * SPDX-License-Identifier: GPL-2.0
+ * tuner-xc2028
  *
  * Copyright (c) 2007-2008 Mauro Carvalho Chehab (mchehab@infradead.org)
- * This code is placed under the terms of the GNU General Public License v2
  */
 
 #ifndef __TUNER_XC2028_H__
