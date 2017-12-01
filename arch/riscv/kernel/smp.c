@@ -38,6 +38,13 @@ enum ipi_message_type {
 	IPI_MAX
 };
 
+
+/* Unsupported */
+int setup_profiling_timer(unsigned int multiplier)
+{
+	return -EINVAL;
+}
+
 irqreturn_t handle_ipi(void)
 {
 	unsigned long *pending_ipis = &ipi_data[smp_processor_id()].bits;
