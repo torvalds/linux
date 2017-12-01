@@ -27,6 +27,7 @@
 #include "sun4i_drv.h"
 #include "sun8i_mixer.h"
 #include "sun8i_ui_layer.h"
+#include "sun8i_vi_layer.h"
 #include "sunxi_engine.h"
 
 static const struct de2_fmt_info de2_formats[] = {
@@ -138,10 +139,24 @@ static struct drm_plane **sun8i_layers_init(struct drm_device *drm,
 	struct sun8i_mixer *mixer = engine_to_sun8i_mixer(engine);
 	int i;
 
-	planes = devm_kcalloc(drm->dev, mixer->cfg->ui_num + 1,
+	planes = devm_kcalloc(drm->dev,
+			      mixer->cfg->vi_num + mixer->cfg->ui_num + 1,
 			      sizeof(*planes), GFP_KERNEL);
 	if (!planes)
 		return ERR_PTR(-ENOMEM);
+
+	for (i = 0; i < mixer->cfg->vi_num; i++) {
+		struct sun8i_vi_layer *layer;
+
+		layer = sun8i_vi_layer_init_one(drm, mixer, i);
+		if (IS_ERR(layer)) {
+			dev_err(drm->dev,
+				"Couldn't initialize overlay plane\n");
+			return ERR_CAST(layer);
+		};
+
+		planes[i] = &layer->plane;
+	};
 
 	for (i = 0; i < mixer->cfg->ui_num; i++) {
 		struct sun8i_ui_layer *layer;
@@ -153,7 +168,7 @@ static struct drm_plane **sun8i_layers_init(struct drm_device *drm,
 			return ERR_CAST(layer);
 		};
 
-		planes[i] = &layer->plane;
+		planes[mixer->cfg->vi_num + i] = &layer->plane;
 	};
 
 	return planes;
