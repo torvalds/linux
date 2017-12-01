@@ -245,13 +245,14 @@ static const unsigned short logtable[256] = {
  * tasks are allowed to acquire the semaphore, calling this function will
  * put the task to sleep. If the semaphore is not released within the
  * specified number of jiffies, this function returns.
- * Acquires the semaphore without jiffies. If no more tasks are allowed
- * to acquire the semaphore, calling this function will put the task to
- * sleep until the semaphore is released.
  * If the semaphore is not released within the specified number of jiffies,
- * this function returns -ETIME.
- * If the sleep is interrupted by a signal, this function will return -EINTR.
- * It returns 0 if the semaphore was acquired successfully.
+ * this function returns -ETIME. If the sleep is interrupted by a signal,
+ * this function will return -EINTR. It returns 0 if the semaphore was
+ * acquired successfully.
+ *
+ * Acquires the semaphore without jiffies. Try to acquire the semaphore
+ * atomically. Returns 0 if the semaphore has been acquired successfully
+ * or 1 if it it cannot be acquired.
  */
 static int nau8825_sema_acquire(struct nau8825 *nau8825, long timeout)
 {
@@ -262,8 +263,8 @@ static int nau8825_sema_acquire(struct nau8825 *nau8825, long timeout)
 		if (ret < 0)
 			dev_warn(nau8825->dev, "Acquire semaphore timeout\n");
 	} else {
-		ret = down_interruptible(&nau8825->xtalk_sem);
-		if (ret < 0)
+		ret = down_trylock(&nau8825->xtalk_sem);
+		if (ret)
 			dev_warn(nau8825->dev, "Acquire semaphore fail\n");
 	}
 
@@ -1246,8 +1247,10 @@ static int nau8825_hw_params(struct snd_pcm_substream *substream,
 		regmap_read(nau8825->regmap, NAU8825_REG_DAC_CTRL1, &osr);
 		osr &= NAU8825_DAC_OVERSAMPLE_MASK;
 		if (nau8825_clock_check(nau8825, substream->stream,
-			params_rate(params), osr))
+			params_rate(params), osr)) {
+			nau8825_sema_release(nau8825);
 			return -EINVAL;
+		}
 		regmap_update_bits(nau8825->regmap, NAU8825_REG_CLK_DIVIDER,
 			NAU8825_CLK_DAC_SRC_MASK,
 			osr_dac_sel[osr].clk_src << NAU8825_CLK_DAC_SRC_SFT);
@@ -1255,8 +1258,10 @@ static int nau8825_hw_params(struct snd_pcm_substream *substream,
 		regmap_read(nau8825->regmap, NAU8825_REG_ADC_RATE, &osr);
 		osr &= NAU8825_ADC_SYNC_DOWN_MASK;
 		if (nau8825_clock_check(nau8825, substream->stream,
-			params_rate(params), osr))
+			params_rate(params), osr)) {
+			nau8825_sema_release(nau8825);
 			return -EINVAL;
+		}
 		regmap_update_bits(nau8825->regmap, NAU8825_REG_CLK_DIVIDER,
 			NAU8825_CLK_ADC_SRC_MASK,
 			osr_adc_sel[osr].clk_src << NAU8825_CLK_ADC_SRC_SFT);
@@ -1273,8 +1278,10 @@ static int nau8825_hw_params(struct snd_pcm_substream *substream,
 			bclk_div = 1;
 		else if (bclk_fs <= 128)
 			bclk_div = 0;
-		else
+		else {
+			nau8825_sema_release(nau8825);
 			return -EINVAL;
+		}
 		regmap_update_bits(nau8825->regmap, NAU8825_REG_I2S_PCM_CTRL2,
 			NAU8825_I2S_LRC_DIV_MASK | NAU8825_I2S_BLK_DIV_MASK,
 			((bclk_div + 1) << NAU8825_I2S_LRC_DIV_SFT) | bclk_div);
@@ -1294,6 +1301,7 @@ static int nau8825_hw_params(struct snd_pcm_substream *substream,
 		val_len |= NAU8825_I2S_DL_32;
 		break;
 	default:
+		nau8825_sema_release(nau8825);
 		return -EINVAL;
 	}
 
@@ -1311,8 +1319,6 @@ static int nau8825_set_dai_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 	struct snd_soc_codec *codec = codec_dai->codec;
 	struct nau8825 *nau8825 = snd_soc_codec_get_drvdata(codec);
 	unsigned int ctrl1_val = 0, ctrl2_val = 0;
-
-	nau8825_sema_acquire(nau8825, 3 * HZ);
 
 	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
 	case SND_SOC_DAIFMT_CBM_CFM:
@@ -1354,6 +1360,8 @@ static int nau8825_set_dai_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 	default:
 		return -EINVAL;
 	}
+
+	nau8825_sema_acquire(nau8825, 3 * HZ);
 
 	regmap_update_bits(nau8825->regmap, NAU8825_REG_I2S_PCM_CTRL1,
 		NAU8825_I2S_DL_MASK | NAU8825_I2S_DF_MASK |
@@ -1701,7 +1709,7 @@ static irqreturn_t nau8825_interrupt(int irq, void *data)
 					int ret;
 					nau8825->xtalk_protect = true;
 					ret = nau8825_sema_acquire(nau8825, 0);
-					if (ret < 0)
+					if (ret)
 						nau8825->xtalk_protect = false;
 				}
 				/* Startup cross talk detection process */
@@ -2383,7 +2391,7 @@ static int __maybe_unused nau8825_resume(struct snd_soc_codec *codec)
 	regcache_sync(nau8825->regmap);
 	nau8825->xtalk_protect = true;
 	ret = nau8825_sema_acquire(nau8825, 0);
-	if (ret < 0)
+	if (ret)
 		nau8825->xtalk_protect = false;
 	enable_irq(nau8825->irq);
 
