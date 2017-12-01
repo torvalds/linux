@@ -69,6 +69,12 @@ static void sun8i_mixer_layer_atomic_update(struct drm_plane *plane,
 	struct sun8i_layer *layer = plane_to_sun8i_layer(plane);
 	struct sun8i_mixer *mixer = layer->mixer;
 
+	if (!plane->state->visible) {
+		sun8i_mixer_layer_enable(mixer, layer->channel,
+					 layer->overlay, false);
+		return;
+	}
+
 	sun8i_mixer_update_layer_coord(mixer, layer->channel,
 				       layer->overlay, plane);
 	sun8i_mixer_update_layer_formats(mixer, layer->channel,
