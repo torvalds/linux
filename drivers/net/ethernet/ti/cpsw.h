@@ -17,26 +17,9 @@
 #include <linux/if_ether.h>
 #include <linux/phy.h>
 
-struct cpsw_slave_data {
-	struct device_node *phy_node;
-	char		phy_id[MII_BUS_ID_SIZE];
-	int		phy_if;
-	u8		mac_addr[ETH_ALEN];
-	u16		dual_emac_res_vlan;	/* Reserved VLAN for DualEMAC */
-};
-
-struct cpsw_platform_data {
-	struct cpsw_slave_data	*slave_data;
-	u32	ss_reg_ofs;	/* Subsystem control register offset */
-	u32	channels;	/* number of cpdma channels (symmetric) */
-	u32	slaves;		/* number of slave cpgmac ports */
-	u32	active_slave; /* time stamping, ethtool and SIOCGMIIPHY slave */
-	u32	ale_entries;	/* ale table size */
-	u32	bd_ram_size;  /*buffer descriptor ram size */
-	u32	mac_control;	/* Mac control register */
-	u16	default_vlan;	/* Def VLAN for ALE lookup in VLAN aware mode*/
-	bool	dual_emac;	/* Enable Dual EMAC mode */
-};
+#define mac_hi(mac)	(((mac)[0] << 0) | ((mac)[1] << 8) |	\
+			 ((mac)[2] << 16) | ((mac)[3] << 24))
+#define mac_lo(mac)	(((mac)[4] << 0) | ((mac)[5] << 8))
 
 void cpsw_phy_sel(struct device *dev, phy_interface_t phy_mode, int slave);
 int ti_cm_get_macid(struct device *dev, int slave, u8 *mac_addr);
