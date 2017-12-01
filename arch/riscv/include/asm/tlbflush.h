@@ -17,6 +17,8 @@
 
 #ifdef CONFIG_MMU
 
+#include <linux/mm_types.h>
+
 /*
  * Flush entire local TLB.  'sfence.vma' implicitly fences with the instruction
  * cache as well, so a 'fence.i' is not necessary.
