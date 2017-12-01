@@ -4739,8 +4739,6 @@ static int dm_update_planes_state(struct dc *dc,
 static int amdgpu_dm_atomic_check(struct drm_device *dev,
 				  struct drm_atomic_state *state)
 {
-	int i;
-	int ret;
 	struct amdgpu_device *adev = dev->dev_private;
 	struct dc *dc = adev->dm.dc;
 	struct dm_atomic_state *dm_state = to_dm_atomic_state(state);
@@ -4748,6 +4746,7 @@ static int amdgpu_dm_atomic_check(struct drm_device *dev,
 	struct drm_connector_state *old_con_state, *new_con_state;
 	struct drm_crtc *crtc;
 	struct drm_crtc_state *old_crtc_state, *new_crtc_state;
+	int ret, i;
 
 	/*
 	 * This bool will be set for true for any modeset/reset
@@ -4759,37 +4758,21 @@ static int amdgpu_dm_atomic_check(struct drm_device *dev,
 	if (ret)
 		goto fail;
 
-	/*
-	 * legacy_cursor_update should be made false for SoC's having
-	 * a dedicated hardware plane for cursor in amdgpu_dm_atomic_commit(),
-	 * otherwise for software cursor plane,
-	 * we should not add it to list of affected planes.
-	 */
-	if (state->legacy_cursor_update) {
-		for_each_new_crtc_in_state(state, crtc, new_crtc_state, i) {
-			if (new_crtc_state->color_mgmt_changed) {
-				ret = drm_atomic_add_affected_planes(state, crtc);
-				if (ret)
-					goto fail;
-			}
-		}
-	} else {
-		for_each_oldnew_crtc_in_state(state, crtc, old_crtc_state, new_crtc_state, i) {
-			if (!drm_atomic_crtc_needs_modeset(new_crtc_state) &&
-					!new_crtc_state->color_mgmt_changed)
-				continue;
+	for_each_oldnew_crtc_in_state(state, crtc, old_crtc_state, new_crtc_state, i) {
+		if (!drm_atomic_crtc_needs_modeset(new_crtc_state) &&
+		    !new_crtc_state->color_mgmt_changed)
+			continue;
 
-			if (!new_crtc_state->enable)
-				continue;
+		if (!new_crtc_state->enable)
+			continue;
 
-			ret = drm_atomic_add_affected_connectors(state, crtc);
-			if (ret)
-				return ret;
+		ret = drm_atomic_add_affected_connectors(state, crtc);
+		if (ret)
+			return ret;
 
-			ret = drm_atomic_add_affected_planes(state, crtc);
-			if (ret)
-				goto fail;
-		}
+		ret = drm_atomic_add_affected_planes(state, crtc);
+		if (ret)
+			goto fail;
 	}
 
 	dm_state->context = dc_create_state();
