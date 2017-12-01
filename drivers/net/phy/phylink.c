@@ -751,6 +751,12 @@ void phylink_start(struct phylink *pl)
 	phylink_resolve_flow(pl, &pl->link_config);
 	phylink_mac_config(pl, &pl->link_config);
 
+	/* Restart autonegotiation if using 802.3z to ensure that the link
+	 * parameters are properly negotiated.  This is necessary for DSA
+	 * switches using 802.3z negotiation to ensure they see our modes.
+	 */
+	phylink_mac_an_restart(pl);
+
 	clear_bit(PHYLINK_DISABLE_STOPPED, &pl->phylink_disable_state);
 	phylink_run_resolve(pl);
 
