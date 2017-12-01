@@ -44,7 +44,8 @@ void sun8i_mixer_layer_enable(struct sun8i_mixer *mixer,
 	/* Currently the first UI channel is used */
 	int chan = mixer->cfg->vi_num;
 
-	DRM_DEBUG_DRIVER("Enabling layer %d in channel %d\n", layer, chan);
+	DRM_DEBUG_DRIVER("%sabling layer %d in channel %d\n",
+			 enable ? "En" : "Dis", layer, chan);
 
 	if (enable)
 		val = SUN8I_MIXER_CHAN_UI_LAYER_ATTR_EN;
