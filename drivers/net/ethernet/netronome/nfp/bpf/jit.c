@@ -2181,6 +2181,10 @@ static void nfp_bpf_opt_ld_shift(struct nfp_prog *nfp_prog)
 		if (next1.imm != 0x20 || next2.imm != 0x20)
 			continue;
 
+		if (meta2->flags & FLAG_INSN_IS_JUMP_DST ||
+		    meta3->flags & FLAG_INSN_IS_JUMP_DST)
+			continue;
+
 		meta2->skip = true;
 		meta3->skip = true;
 	}
