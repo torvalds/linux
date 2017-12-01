@@ -36,7 +36,11 @@ enum {
 	PHYLINK_DISABLE_LINK,
 };
 
+/**
+ * struct phylink - internal data type for phylink
+ */
 struct phylink {
+	/* private: */
 	struct net_device *netdev;
 	const struct phylink_mac_ops *ops;
 
@@ -87,6 +91,13 @@ static inline bool linkmode_empty(const unsigned long *src)
 	return bitmap_empty(src, __ETHTOOL_LINK_MODE_MASK_NBITS);
 }
 
+/**
+ * phylink_set_port_modes() - set the port type modes in the ethtool mask
+ * @mask: ethtool link mode mask
+ *
+ * Sets all the port type modes in the ethtool mask.  MAC drivers should
+ * use this in their 'validate' callback.
+ */
 void phylink_set_port_modes(unsigned long *mask)
 {
 	phylink_set(mask, TP);
@@ -496,6 +507,19 @@ static int phylink_register_sfp(struct phylink *pl, struct device_node *np)
 	return 0;
 }
 
+/**
+ * phylink_create() - create a phylink instance
+ * @ndev: a pointer to the &struct net_device
+ * @np: a pointer to a &struct device_node describing the network interface
+ * @iface: the desired link mode defined by &typedef phy_interface_t
+ * @ops: a pointer to a &struct phylink_mac_ops for the MAC.
+ *
+ * Create a new phylink instance, and parse the link parameters found in @np.
+ * This will parse in-band modes, fixed-link or SFP configuration.
+ *
+ * Returns a pointer to a &struct phylink, or an error-pointer value. Users
+ * must use IS_ERR() to check for errors from this function.
+ */
 struct phylink *phylink_create(struct net_device *ndev, struct device_node *np,
 			       phy_interface_t iface,
 			       const struct phylink_mac_ops *ops)
@@ -548,6 +572,13 @@ struct phylink *phylink_create(struct net_device *ndev, struct device_node *np,
 }
 EXPORT_SYMBOL_GPL(phylink_create);
 
+/**
+ * phylink_destroy() - cleanup and destroy the phylink instance
+ * @pl: a pointer to a &struct phylink returned from phylink_create()
+ *
+ * Destroy a phylink instance. Any PHY that has been attached must have been
+ * cleaned up via phylink_disconnect_phy() prior to calling this function.
+ */
 void phylink_destroy(struct phylink *pl)
 {
 	if (pl->sfp_bus)
@@ -644,6 +675,21 @@ static int phylink_bringup_phy(struct phylink *pl, struct phy_device *phy)
 	return 0;
 }
 
+/**
+ * phylink_connect_phy() - connect a PHY to the phylink instance
+ * @pl: a pointer to a &struct phylink returned from phylink_create()
+ * @phy: a pointer to a &struct phy_device.
+ *
+ * Connect @phy to the phylink instance specified by @pl by calling
+ * phy_attach_direct(). Configure the @phy according to the MAC driver's
+ * capabilities, start the PHYLIB state machine and enable any interrupts
+ * that the PHY supports.
+ *
+ * This updates the phylink's ethtool supported and advertising link mode
+ * masks.
+ *
+ * Returns 0 on success or a negative errno.
+ */
 int phylink_connect_phy(struct phylink *pl, struct phy_device *phy)
 {
 	int ret;
@@ -665,6 +711,17 @@ int phylink_connect_phy(struct phylink *pl, struct phy_device *phy)
 }
 EXPORT_SYMBOL_GPL(phylink_connect_phy);
 
+/**
+ * phylink_of_phy_connect() - connect the PHY specified in the DT mode.
+ * @pl: a pointer to a &struct phylink returned from phylink_create()
+ * @dn: a pointer to a &struct device_node.
+ *
+ * Connect the phy specified in the device node @dn to the phylink instance
+ * specified by @pl. Actions specified in phylink_connect_phy() will be
+ * performed.
+ *
+ * Returns 0 on success or a negative errno.
+ */
 int phylink_of_phy_connect(struct phylink *pl, struct device_node *dn)
 {
 	struct device_node *phy_node;
@@ -706,6 +763,13 @@ int phylink_of_phy_connect(struct phylink *pl, struct device_node *dn)
 }
 EXPORT_SYMBOL_GPL(phylink_of_phy_connect);
 
+/**
+ * phylink_disconnect_phy() - disconnect any PHY attached to the phylink
+ *   instance.
+ * @pl: a pointer to a &struct phylink returned from phylink_create()
+ *
+ * Disconnect any current PHY from the phylink instance described by @pl.
+ */
 void phylink_disconnect_phy(struct phylink *pl)
 {
 	struct phy_device *phy;
@@ -727,6 +791,14 @@ void phylink_disconnect_phy(struct phylink *pl)
 }
 EXPORT_SYMBOL_GPL(phylink_disconnect_phy);
 
+/**
+ * phylink_mac_change() - notify phylink of a change in MAC state
+ * @pl: a pointer to a &struct phylink returned from phylink_create()
+ * @up: indicates whether the link is currently up.
+ *
+ * The MAC driver should call this driver when the state of its link
+ * changes (eg, link failure, new negotiation results, etc.)
+ */
 void phylink_mac_change(struct phylink *pl, bool up)
 {
 	if (!up)
@@ -736,6 +808,14 @@ void phylink_mac_change(struct phylink *pl, bool up)
 }
 EXPORT_SYMBOL_GPL(phylink_mac_change);
 
+/**
+ * phylink_start() - start a phylink instance
+ * @pl: a pointer to a &struct phylink returned from phylink_create()
+ *
+ * Start the phylink instance specified by @pl, configuring the MAC for the
+ * desired link mode(s) and negotiation style. This should be called from the
+ * network device driver's &struct net_device_ops ndo_open() method.
+ */
 void phylink_start(struct phylink *pl)
 {
 	WARN_ON(!lockdep_rtnl_is_held());
@@ -767,6 +847,15 @@ void phylink_start(struct phylink *pl)
 }
 EXPORT_SYMBOL_GPL(phylink_start);
 
+/**
+ * phylink_stop() - stop a phylink instance
+ * @pl: a pointer to a &struct phylink returned from phylink_create()
+ *
+ * Stop the phylink instance specified by @pl. This should be called from the
+ * network device driver's &struct net_device_ops ndo_stop() method.  The
+ * network device's carrier state should not be changed prior to calling this
+ * function.
+ */
 void phylink_stop(struct phylink *pl)
 {
 	WARN_ON(!lockdep_rtnl_is_held());
@@ -782,6 +871,15 @@ void phylink_stop(struct phylink *pl)
 }
 EXPORT_SYMBOL_GPL(phylink_stop);
 
+/**
+ * phylink_ethtool_get_wol() - get the wake on lan parameters for the PHY
+ * @pl: a pointer to a &struct phylink returned from phylink_create()
+ * @wol: a pointer to &struct ethtool_wolinfo to hold the read parameters
+ *
+ * Read the wake on lan parameters from the PHY attached to the phylink
+ * instance specified by @pl. If no PHY is currently attached, report no
+ * support for wake on lan.
+ */
 void phylink_ethtool_get_wol(struct phylink *pl, struct ethtool_wolinfo *wol)
 {
 	WARN_ON(!lockdep_rtnl_is_held());
@@ -794,6 +892,17 @@ void phylink_ethtool_get_wol(struct phylink *pl, struct ethtool_wolinfo *wol)
 }
 EXPORT_SYMBOL_GPL(phylink_ethtool_get_wol);
 
+/**
+ * phylink_ethtool_set_wol() - set wake on lan parameters
+ * @pl: a pointer to a &struct phylink returned from phylink_create()
+ * @wol: a pointer to &struct ethtool_wolinfo for the desired parameters
+ *
+ * Set the wake on lan parameters for the PHY attached to the phylink
+ * instance specified by @pl. If no PHY is attached, returns %EOPNOTSUPP
+ * error.
+ *
+ * Returns zero on success or negative errno code.
+ */
 int phylink_ethtool_set_wol(struct phylink *pl, struct ethtool_wolinfo *wol)
 {
 	int ret = -EOPNOTSUPP;
@@ -829,6 +938,15 @@ static void phylink_get_ksettings(const struct phylink_link_state *state,
 				AUTONEG_DISABLE;
 }
 
+/**
+ * phylink_ethtool_ksettings_get() - get the current link settings
+ * @pl: a pointer to a &struct phylink returned from phylink_create()
+ * @kset: a pointer to a &struct ethtool_link_ksettings to hold link settings
+ *
+ * Read the current link settings for the phylink instance specified by @pl.
+ * This will be the link settings read from the MAC, PHY or fixed link
+ * settings depending on the current negotiation mode.
+ */
 int phylink_ethtool_ksettings_get(struct phylink *pl,
 				  struct ethtool_link_ksettings *kset)
 {
@@ -875,6 +993,11 @@ int phylink_ethtool_ksettings_get(struct phylink *pl,
 }
 EXPORT_SYMBOL_GPL(phylink_ethtool_ksettings_get);
 
+/**
+ * phylink_ethtool_ksettings_set() - set the link settings
+ * @pl: a pointer to a &struct phylink returned from phylink_create()
+ * @kset: a pointer to a &struct ethtool_link_ksettings for the desired modes
+ */
 int phylink_ethtool_ksettings_set(struct phylink *pl,
 				  const struct ethtool_link_ksettings *kset)
 {
@@ -968,6 +1091,17 @@ int phylink_ethtool_ksettings_set(struct phylink *pl,
 }
 EXPORT_SYMBOL_GPL(phylink_ethtool_ksettings_set);
 
+/**
+ * phylink_ethtool_nway_reset() - restart negotiation
+ * @pl: a pointer to a &struct phylink returned from phylink_create()
+ *
+ * Restart negotiation for the phylink instance specified by @pl. This will
+ * cause any attached phy to restart negotiation with the link partner, and
+ * if the MAC is in a BaseX mode, the MAC will also be requested to restart
+ * negotiation.
+ *
+ * Returns zero on success, or negative error code.
+ */
 int phylink_ethtool_nway_reset(struct phylink *pl)
 {
 	int ret = 0;
@@ -982,6 +1116,11 @@ int phylink_ethtool_nway_reset(struct phylink *pl)
 }
 EXPORT_SYMBOL_GPL(phylink_ethtool_nway_reset);
 
+/**
+ * phylink_ethtool_get_pauseparam() - get the current pause parameters
+ * @pl: a pointer to a &struct phylink returned from phylink_create()
+ * @pause: a pointer to a &struct ethtool_pauseparam
+ */
 void phylink_ethtool_get_pauseparam(struct phylink *pl,
 				    struct ethtool_pauseparam *pause)
 {
@@ -993,6 +1132,11 @@ void phylink_ethtool_get_pauseparam(struct phylink *pl,
 }
 EXPORT_SYMBOL_GPL(phylink_ethtool_get_pauseparam);
 
+/**
+ * phylink_ethtool_set_pauseparam() - set the current pause parameters
+ * @pl: a pointer to a &struct phylink returned from phylink_create()
+ * @pause: a pointer to a &struct ethtool_pauseparam
+ */
 int phylink_ethtool_set_pauseparam(struct phylink *pl,
 				   struct ethtool_pauseparam *pause)
 {
@@ -1070,6 +1214,16 @@ int phylink_ethtool_get_module_eeprom(struct phylink *pl,
 }
 EXPORT_SYMBOL_GPL(phylink_ethtool_get_module_eeprom);
 
+/**
+ * phylink_ethtool_get_eee_err() - read the energy efficient ethernet error
+ *   counter
+ * @pl: a pointer to a &struct phylink returned from phylink_create().
+ *
+ * Read the Energy Efficient Ethernet error counter from the PHY associated
+ * with the phylink instance specified by @pl.
+ *
+ * Returns positive error counter value, or negative error code.
+ */
 int phylink_get_eee_err(struct phylink *pl)
 {
 	int ret = 0;
@@ -1083,6 +1237,11 @@ int phylink_get_eee_err(struct phylink *pl)
 }
 EXPORT_SYMBOL_GPL(phylink_get_eee_err);
 
+/**
+ * phylink_ethtool_get_eee() - read the energy efficient ethernet parameters
+ * @pl: a pointer to a &struct phylink returned from phylink_create()
+ * @eee: a pointer to a &struct ethtool_eee for the read parameters
+ */
 int phylink_ethtool_get_eee(struct phylink *pl, struct ethtool_eee *eee)
 {
 	int ret = -EOPNOTSUPP;
@@ -1096,6 +1255,11 @@ int phylink_ethtool_get_eee(struct phylink *pl, struct ethtool_eee *eee)
 }
 EXPORT_SYMBOL_GPL(phylink_ethtool_get_eee);
 
+/**
+ * phylink_ethtool_set_eee() - set the energy efficient ethernet parameters
+ * @pl: a pointer to a &struct phylink returned from phylink_create()
+ * @eee: a pointer to a &struct ethtool_eee for the desired parameters
+ */
 int phylink_ethtool_set_eee(struct phylink *pl, struct ethtool_eee *eee)
 {
 	int ret = -EOPNOTSUPP;
@@ -1267,6 +1431,24 @@ static int phylink_mii_write(struct phylink *pl, unsigned int phy_id,
 	return 0;
 }
 
+/**
+ * phylink_mii_ioctl() - generic mii ioctl interface
+ * @pl: a pointer to a &struct phylink returned from phylink_create()
+ * @ifr: a pointer to a &struct ifreq for socket ioctls
+ * @cmd: ioctl cmd to execute
+ *
+ * Perform the specified MII ioctl on the PHY attached to the phylink instance
+ * specified by @pl. If no PHY is attached, emulate the presence of the PHY.
+ *
+ * Returns: zero on success or negative error code.
+ *
+ * %SIOCGMIIPHY:
+ *  read register from the current PHY.
+ * %SIOCGMIIREG:
+ *  read register from the specified PHY.
+ * %SIOCSMIIREG:
+ *  set a register on the specified PHY.
+ */
 int phylink_mii_ioctl(struct phylink *pl, struct ifreq *ifr, int cmd)
 {
 	struct mii_ioctl_data *mii = if_mii(ifr);
