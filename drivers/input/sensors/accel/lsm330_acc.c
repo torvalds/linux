@@ -158,11 +158,12 @@ static int gsensor_report_value(struct i2c_client *client,
 	struct sensor_private_data *sensor =
 		(struct sensor_private_data *)i2c_get_clientdata(client);
 
-	input_report_abs(sensor->input_dev, ABS_X, axis->x);
-	input_report_abs(sensor->input_dev, ABS_Y, axis->y);
-	input_report_abs(sensor->input_dev, ABS_Z, axis->z);
-	input_sync(sensor->input_dev);
-	DBG("Gsensor x==%d  y==%d z==%d\n", axis->x, axis->y, axis->z);
+	if (sensor->status_cur == SENSOR_ON) {
+		input_report_abs(sensor->input_dev, ABS_X, axis->x);
+		input_report_abs(sensor->input_dev, ABS_Y, axis->y);
+		input_report_abs(sensor->input_dev, ABS_Z, axis->z);
+		input_sync(sensor->input_dev);
+	}
 
 	return 0;
 }
@@ -210,18 +211,10 @@ static int sensor_report_value(struct i2c_client *client)
 		(pdata->orientation[7]) * y +
 		(pdata->orientation[8]) * z;
 
-	axis.x = 61 * axis.x;
-	axis.y = 61 * axis.y;
-	axis.z = 61 * axis.z;
-
-	if ((abs(sensor->axis.x - axis.x) > GSENSOR_MIN) ||
-	    (abs(sensor->axis.y - axis.y) > GSENSOR_MIN) ||
-	    (abs(sensor->axis.z - axis.z) > GSENSOR_MIN)) {
-		gsensor_report_value(client, &axis);
-		mutex_lock(&sensor->data_mutex);
-		sensor->axis = axis;
-		mutex_unlock(&sensor->data_mutex);
-	}
+	gsensor_report_value(client, &axis);
+	mutex_lock(&sensor->data_mutex);
+	sensor->axis = axis;
+	mutex_unlock(&sensor->data_mutex);
 
 	if (sensor->pdata->irq_enable) {
 		value = sensor_read_reg(client, sensor->ops->int_status_reg);
@@ -235,17 +228,17 @@ struct sensor_operate gsensor_lsm330_ops = {
 	.name			= "lsm330_acc",
 	.type			= SENSOR_TYPE_ACCEL,
 	.id_i2c			= ACCEL_ID_LSM330,
-	.read_reg		= OUT_X_L_A,
-	.read_len		= 6,
+	.read_reg			= OUT_X_L_A,
+	.read_len			= 6,
 	.id_reg			= WHO_AM_I_A,
-	.id_data		= LSM330_DEVICE_ID_A,
-	.precision		= 16,
-	.ctrl_reg		= CTRL_REG5_A,
+	.id_data			= LSM330_DEVICE_ID_A,
+	.precision			= 16,
+	.ctrl_reg			= CTRL_REG5_A,
 	.int_status_reg	= STATUS_REG_A,
-	.range			= {-0xffff, 0xffff},
-	.trig			= IRQF_TRIGGER_HIGH | IRQF_ONESHOT,
+	.range			= {-32768, 32768},
+	.trig				= IRQF_TRIGGER_HIGH | IRQF_ONESHOT,
 	.active			= sensor_active,
-	.init			= sensor_init,
+	.init				= sensor_init,
 	.report			= sensor_report_value,
 };
 

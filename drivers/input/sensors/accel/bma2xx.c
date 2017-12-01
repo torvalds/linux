@@ -1064,7 +1064,7 @@
 
 #define BAM2X2_ENABLE	0X80
 
-#define BMA2XX_RANGE	2000000
+#define BMA2XX_RANGE	32768
 
 #define X_AXIS_COMPEN	0/*X_AXIS  not compensation */
 /*Y_AXIS offset is caused by screws, there needs to be compensation 3.5*/
@@ -1851,12 +1851,13 @@ static int gsensor_report_value
 	struct sensor_private_data *sensor =
 		(struct sensor_private_data *)i2c_get_clientdata(client);
 
-	/* Report acceleration sensor information */
-	input_report_abs(sensor->input_dev, ABS_X, axis->x);
-	input_report_abs(sensor->input_dev, ABS_Y, axis->y);
-	input_report_abs(sensor->input_dev, ABS_Z, axis->z);
-	input_sync(sensor->input_dev);
-	DBG("Gsensor x==%d  y==%d z==%d\n", axis->x, axis->y, axis->z);
+	if (sensor->status_cur == SENSOR_ON) {
+		/* Report acceleration sensor information */
+		input_report_abs(sensor->input_dev, ABS_X, axis->x);
+		input_report_abs(sensor->input_dev, ABS_Y, axis->y);
+		input_report_abs(sensor->input_dev, ABS_Z, axis->z);
+		input_sync(sensor->input_dev);
+	}
 
 	return 0;
 }

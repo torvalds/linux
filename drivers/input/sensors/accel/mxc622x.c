@@ -153,10 +153,7 @@ static int sensor_convert_data(struct i2c_client *client, char high_byte, char l
 	//int precision = sensor->ops->precision;
 		
 	result = (int)low_byte;
-	if (result < MXC6225_BOUNDARY)
-		result = result* MXC6225_GRAVITY_STEP;
-	else
-		result = ~(((~result & 0x7f) + 1) * MXC6225_GRAVITY_STEP) + 1;    
+	result *= 256;
 
     	return (int)result;
 }
@@ -166,12 +163,13 @@ static int gsensor_report_value(struct i2c_client *client, struct sensor_axis *a
 	struct sensor_private_data *sensor =
 	    (struct sensor_private_data *) i2c_get_clientdata(client);	
 
-	/* Report acceleration sensor information */
-	input_report_abs(sensor->input_dev, ABS_X, axis->x);
-	input_report_abs(sensor->input_dev, ABS_Y, axis->y);
-	input_report_abs(sensor->input_dev, ABS_Z, axis->z);
-	input_sync(sensor->input_dev);
-	DBG("Gsensor x==%d  y==%d z==%d\n",axis->x,axis->y,axis->z);
+	if (sensor->status_cur == SENSOR_ON) {
+		/* Report acceleration sensor information */
+		input_report_abs(sensor->input_dev, ABS_X, axis->x);
+		input_report_abs(sensor->input_dev, ABS_Y, axis->y);
+		input_report_abs(sensor->input_dev, ABS_Z, axis->z);
+		input_sync(sensor->input_dev);
+	}
 
 	return 0;
 }
@@ -214,33 +212,11 @@ static int sensor_report_value(struct i2c_client *client)
 	axis.y = (pdata->orientation[3])*x + (pdata->orientation[4])*y + (pdata->orientation[5])*z; 
 	axis.z = (pdata->orientation[6])*x + (pdata->orientation[7])*y + (pdata->orientation[8])*z;
 
-	
-	axis_average.x_average += axis.x;
-	axis_average.y_average += axis.y;
-	axis_average.z_average += axis.z;
-	axis_average.count++;
-	
-	if(axis_average.count >= MXC6225_COUNT_AVERAGE)
-	{
-		axis.x = axis_average.x_average / axis_average.count;	
-		axis.y = axis_average.y_average / axis_average.count;	
-		axis.z = axis_average.z_average / axis_average.count;
-		
-		DBG( "%s: axis = %d  %d  %d \n", __func__, axis.x, axis.y, axis.z);
-		
-		memset(&axis_average, 0, sizeof(struct sensor_axis_average));
-		
-		//Report event only while value is changed to save some power
-		if((abs(sensor->axis.x - axis.x) > GSENSOR_MIN) || (abs(sensor->axis.y - axis.y) > GSENSOR_MIN) || (abs(sensor->axis.z - axis.z) > GSENSOR_MIN))
-		{
-			gsensor_report_value(client, &axis);
+	gsensor_report_value(client, &axis);
 
-			/* »¥³âµØ»º´æÊý¾Ý. */
-			mutex_lock(&(sensor->data_mutex) );
-			sensor->axis = axis;
-			mutex_unlock(&(sensor->data_mutex) );
-		}
-	}
+	mutex_lock(&sensor->data_mutex);
+	sensor->axis = axis;
+	mutex_unlock(&sensor->data_mutex);
 	
 	if((sensor->pdata->irq_enable)&& (sensor->ops->int_status_reg >= 0))	//read sensor intterupt status register
 	{
@@ -254,19 +230,19 @@ static int sensor_report_value(struct i2c_client *client)
 
 
 struct sensor_operate gsensor_mxc6225_ops = {
-	.name				= "mxc6225",
-	.type				= SENSOR_TYPE_ACCEL,			//sensor type and it should be correct
-	.id_i2c				= ACCEL_ID_MXC6225,			//i2c id number
-	.read_reg			= MXC6225_REG_DATA,			//read data
-	.read_len			= 3,					//data length
-	.id_reg				= SENSOR_UNKNOW_DATA,			//read device id from this register
-	.id_data 			= SENSOR_UNKNOW_DATA,			//device id
-	.precision			= MXC6225_PRECISION,			//12 bit
-	.ctrl_reg 			= MXC6225_REG_MODE,			//enable or disable 	
-	.int_status_reg 		= SENSOR_UNKNOW_DATA,			//intterupt status register
-	.range				= {-MXC6225_RANGE,MXC6225_RANGE},	//range
-	.trig				= IRQF_TRIGGER_LOW |IRQF_ONESHOT,		
-	.active				= sensor_active,	
+	.name			= "mxc6225",
+	.type			= SENSOR_TYPE_ACCEL,
+	.id_i2c			= ACCEL_ID_MXC6225,
+	.read_reg			= MXC6225_REG_DATA,
+	.read_len			= 3,
+	.id_reg			= SENSOR_UNKNOW_DATA,
+	.id_data			= SENSOR_UNKNOW_DATA,
+	.precision			= MXC6225_PRECISION,
+	.ctrl_reg			= MXC6225_REG_MODE,
+	.int_status_reg	= SENSOR_UNKNOW_DATA,
+	.range			= {-32768, 32768},
+	.trig				= IRQF_TRIGGER_LOW | IRQF_ONESHOT,
+	.active			= sensor_active,
 	.init				= sensor_init,
 	.report 			= sensor_report_value,
 };
