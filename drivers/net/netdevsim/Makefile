@@ -4,3 +4,4 @@ obj-$(CONFIG_NETDEVSIM) += netdevsim.o
 
 netdevsim-objs := \
 	netdev.o \
+	bpf.o \

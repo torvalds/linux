@@ -14,13 +14,53 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/list.h>
 #include <linux/netdevice.h>
 #include <linux/u64_stats_sync.h>
 
 #define DRV_NAME	"netdevsim"
 
+#define NSIM_XDP_MAX_MTU	4000
+
+#define NSIM_EA(extack, msg)	NL_SET_ERR_MSG_MOD((extack), msg)
+
+struct bpf_prog;
+struct dentry;
+
 struct netdevsim {
+	struct net_device *netdev;
+
 	u64 tx_packets;
 	u64 tx_bytes;
 	struct u64_stats_sync syncp;
+
+	struct dentry *ddir;
+
+	struct bpf_prog	*bpf_offloaded;
+	u32 bpf_offloaded_id;
+
+	u32 xdp_flags;
+	int xdp_prog_mode;
+	struct bpf_prog	*xdp_prog;
+
+	u32 prog_id_gen;
+
+	bool bpf_bind_accept;
+	u32 bpf_bind_verifier_delay;
+	struct dentry *ddir_bpf_bound_progs;
+	struct list_head bpf_bound_progs;
+
+	bool bpf_tc_accept;
+	bool bpf_tc_non_bound_accept;
+	bool bpf_xdpdrv_accept;
+	bool bpf_xdpoffload_accept;
 };
+
+extern struct dentry *nsim_ddir;
+
+int nsim_bpf_init(struct netdevsim *ns);
+void nsim_bpf_uninit(struct netdevsim *ns);
+int nsim_bpf(struct net_device *dev, struct netdev_bpf *bpf);
+int nsim_bpf_disable_tc(struct netdevsim *ns);
+int nsim_bpf_setup_tc_block_cb(enum tc_setup_type type,
+			       void *type_data, void *cb_priv);
