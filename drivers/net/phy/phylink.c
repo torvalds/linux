@@ -1352,6 +1352,8 @@ static int phylink_sfp_module_insert(void *upstream,
 	switch (iface) {
 	case PHY_INTERFACE_MODE_SGMII:
 	case PHY_INTERFACE_MODE_1000BASEX:
+	case PHY_INTERFACE_MODE_2500BASEX:
+	case PHY_INTERFACE_MODE_10GKR:
 		mode = MLO_AN_INBAND;
 		break;
 	default:
