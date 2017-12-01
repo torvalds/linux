@@ -721,26 +721,19 @@ static int prepare_open(struct dentry *dentry, int oflag, int ro,
 						  MAY_READ | MAY_WRITE };
 	int acc;
 
-	if (oflag & O_CREAT) {
-		if (d_really_is_positive(dentry)) {	/* entry already exists */
-			audit_inode(name, dentry, 0);
-			if (oflag & O_EXCL)
-				return -EEXIST;
-		} else {
-			if (ro)
-				return ro;
-
-			audit_inode_parent_hidden(name, dentry->d_parent);
-			return vfs_mkobj(dentry, mode & ~current_umask(),
-				  mqueue_create_attr, attr);
-		}
-	} else {
-		if (d_really_is_negative(dentry)) {
+	if (d_really_is_negative(dentry)) {
+		if (!(oflag & O_CREAT))
 			return -ENOENT;
-		} else {
-			audit_inode(name, dentry, 0);
-		}
+		if (ro)
+			return ro;
+		audit_inode_parent_hidden(name, dentry->d_parent);
+		return vfs_mkobj(dentry, mode & ~current_umask(),
+				  mqueue_create_attr, attr);
 	}
+	/* it already existed */
+	audit_inode(name, dentry, 0);
+	if ((oflag & (O_CREAT|O_EXCL)) == (O_CREAT|O_EXCL))
+		return -EEXIST;
 	if ((oflag & O_ACCMODE) == (O_RDWR | O_WRONLY))
 		return -EINVAL;
 	acc = oflag2acc[oflag & O_ACCMODE];
