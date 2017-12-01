@@ -320,14 +320,10 @@ static int sun8i_mixer_bind(struct device *dev, struct device *master,
 	/* Initialize blender */
 	regmap_write(mixer->engine.regs, SUN8I_MIXER_BLEND_FCOLOR_CTL,
 		     SUN8I_MIXER_BLEND_FCOLOR_CTL_DEF);
-	regmap_write(mixer->engine.regs, SUN8I_MIXER_BLEND_PREMULTIPLY,
-		     SUN8I_MIXER_BLEND_PREMULTIPLY_DEF);
 	regmap_write(mixer->engine.regs, SUN8I_MIXER_BLEND_BKCOLOR,
 		     SUN8I_MIXER_BLEND_BKCOLOR_DEF);
 	regmap_write(mixer->engine.regs, SUN8I_MIXER_BLEND_MODE(0),
 		     SUN8I_MIXER_BLEND_MODE_DEF);
-	regmap_write(mixer->engine.regs, SUN8I_MIXER_BLEND_CK_CTL,
-		     SUN8I_MIXER_BLEND_CK_CTL_DEF);
 
 	regmap_write(mixer->engine.regs,
 		     SUN8I_MIXER_BLEND_ATTR_FCOLOR(0),
