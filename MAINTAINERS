@@ -2833,6 +2833,8 @@ S:	Maintained
 F:	arch/arm/mach-bcm/*brcmstb*
 F:	arch/arm/boot/dts/bcm7*.dts*
 F:	drivers/bus/brcmstb_gisb.c
+F:	arch/arm/mm/cache-b15-rac.c
+F:	arch/arm/include/asm/hardware/cache-b15-rac.h
 N:	brcmstb
 
 BROADCOM BMIPS CPUFREQ DRIVER
