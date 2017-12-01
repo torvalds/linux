@@ -536,7 +536,9 @@ static void afs_kill_super(struct super_block *sb)
 }
 
 /*
- * initialise an inode cache slab element prior to any use
+ * Initialise an inode cache slab element prior to any use.  Note that
+ * afs_alloc_inode() *must* reset anything that could incorrectly leak from one
+ * inode to another.
  */
 static void afs_i_init_once(void *_vnode)
 {
@@ -568,11 +570,21 @@ static struct inode *afs_alloc_inode(struct super_block *sb)
 
 	atomic_inc(&afs_count_active_inodes);
 
+	/* Reset anything that shouldn't leak from one inode to the next. */
 	memset(&vnode->fid, 0, sizeof(vnode->fid));
 	memset(&vnode->status, 0, sizeof(vnode->status));
 
 	vnode->volume		= NULL;
+	vnode->lock_key		= NULL;
+	vnode->permit_cache	= NULL;
+	vnode->cb_interest	= NULL;
+#ifdef CONFIG_AFS_FSCACHE
+	vnode->cache		= NULL;
+#endif
+
 	vnode->flags		= 1 << AFS_VNODE_UNSET;
+	vnode->cb_type		= 0;
+	vnode->lock_state	= AFS_VNODE_LOCK_NONE;
 
 	_leave(" = %p", &vnode->vfs_inode);
 	return &vnode->vfs_inode;
