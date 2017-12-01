@@ -197,18 +197,18 @@ static void hdac_hdmi_jack_report(struct hdac_hdmi_pcm *pcm,
 /*
  * Get the no devices that can be connected to a port on the Pin widget.
  */
-static int hdac_hdmi_get_port_len(struct hdac_ext_device *hdac, hda_nid_t nid)
+static int hdac_hdmi_get_port_len(struct hdac_ext_device *edev, hda_nid_t nid)
 {
 	unsigned int caps;
 	unsigned int type, param;
 
-	caps = get_wcaps(&hdac->hdac, nid);
+	caps = get_wcaps(&edev->hdac, nid);
 	type = get_wcaps_type(caps);
 
 	if (!(caps & AC_WCAP_DIGITAL) || (type != AC_WID_PIN))
 		return 0;
 
-	param = snd_hdac_read_parm_uncached(&hdac->hdac, nid,
+	param = snd_hdac_read_parm_uncached(&edev->hdac, nid,
 					AC_PAR_DEVLIST_LEN);
 	if (param == -1)
 		return param;
@@ -221,10 +221,10 @@ static int hdac_hdmi_get_port_len(struct hdac_ext_device *hdac, hda_nid_t nid)
  * id selected on the pin. Return 0 means the first port entry
  * is selected or MST is not supported.
  */
-static int hdac_hdmi_port_select_get(struct hdac_ext_device *hdac,
+static int hdac_hdmi_port_select_get(struct hdac_ext_device *edev,
 					struct hdac_hdmi_port *port)
 {
-	return snd_hdac_codec_read(&hdac->hdac, port->pin->nid,
+	return snd_hdac_codec_read(&edev->hdac, port->pin->nid,
 				0, AC_VERB_GET_DEVICE_SEL, 0);
 }
 
@@ -232,7 +232,7 @@ static int hdac_hdmi_port_select_get(struct hdac_ext_device *hdac,
  * Sets the selected port entry for the configuring Pin widget verb.
  * returns error if port set is not equal to port get otherwise success
  */
-static int hdac_hdmi_port_select_set(struct hdac_ext_device *hdac,
+static int hdac_hdmi_port_select_set(struct hdac_ext_device *edev,
 					struct hdac_hdmi_port *port)
 {
 	int num_ports;
@@ -241,7 +241,7 @@ static int hdac_hdmi_port_select_set(struct hdac_ext_device *hdac,
 		return 0;
 
 	/* AC_PAR_DEVLIST_LEN is 0 based. */
-	num_ports = hdac_hdmi_get_port_len(hdac, port->pin->nid);
+	num_ports = hdac_hdmi_get_port_len(edev, port->pin->nid);
 
 	if (num_ports < 0)
 		return -EIO;
@@ -252,13 +252,13 @@ static int hdac_hdmi_port_select_set(struct hdac_ext_device *hdac,
 	if (num_ports + 1  < port->id)
 		return 0;
 
-	snd_hdac_codec_write(&hdac->hdac, port->pin->nid, 0,
+	snd_hdac_codec_write(&edev->hdac, port->pin->nid, 0,
 			AC_VERB_SET_DEVICE_SEL, port->id);
 
-	if (port->id != hdac_hdmi_port_select_get(hdac, port))
+	if (port->id != hdac_hdmi_port_select_get(edev, port))
 		return -EIO;
 
-	dev_dbg(&hdac->hdac.dev, "Selected the port=%d\n", port->id);
+	dev_dbg(&edev->hdac.dev, "Selected the port=%d\n", port->id);
 
 	return 0;
 }
@@ -323,14 +323,14 @@ format_constraint:
 }
 
 static void
-hdac_hdmi_set_dip_index(struct hdac_ext_device *hdac, hda_nid_t pin_nid,
+hdac_hdmi_set_dip_index(struct hdac_ext_device *edev, hda_nid_t pin_nid,
 				int packet_index, int byte_index)
 {
 	int val;
 
 	val = (packet_index << 5) | (byte_index & 0x1f);
 
-	snd_hdac_codec_write(&hdac->hdac, pin_nid, 0,
+	snd_hdac_codec_write(&edev->hdac, pin_nid, 0,
 				AC_VERB_SET_HDMI_DIP_INDEX, val);
 }
 
@@ -346,14 +346,14 @@ struct dp_audio_infoframe {
 	u8 LFEPBL01_LSV36_DM_INH7;
 };
 
-static int hdac_hdmi_setup_audio_infoframe(struct hdac_ext_device *hdac,
+static int hdac_hdmi_setup_audio_infoframe(struct hdac_ext_device *edev,
 		   struct hdac_hdmi_pcm *pcm, struct hdac_hdmi_port *port)
 {
 	uint8_t buffer[HDMI_INFOFRAME_HEADER_SIZE + HDMI_AUDIO_INFOFRAME_SIZE];
 	struct hdmi_audio_infoframe frame;
 	struct hdac_hdmi_pin *pin = port->pin;
 	struct dp_audio_infoframe dp_ai;
-	struct hdac_hdmi_priv *hdmi = hdev_to_hdmi_priv(&hdac->hdac);
+	struct hdac_hdmi_priv *hdmi = hdev_to_hdmi_priv(&edev->hdac);
 	struct hdac_hdmi_cvt *cvt = pcm->cvt;
 	u8 *dip;
 	int ret;
@@ -362,11 +362,11 @@ static int hdac_hdmi_setup_audio_infoframe(struct hdac_ext_device *hdac,
 	u8 conn_type;
 	int channels, ca;
 
-	ca = snd_hdac_channel_allocation(&hdac->hdac, port->eld.info.spk_alloc,
+	ca = snd_hdac_channel_allocation(&edev->hdac, port->eld.info.spk_alloc,
 			pcm->channels, pcm->chmap_set, true, pcm->chmap);
 
 	channels = snd_hdac_get_active_channels(ca);
-	hdmi->chmap.ops.set_channel_count(&hdac->hdac, cvt->nid, channels);
+	hdmi->chmap.ops.set_channel_count(&edev->hdac, cvt->nid, channels);
 
 	snd_hdac_setup_channel_mapping(&hdmi->chmap, pin->nid, false, ca,
 				pcm->channels, pcm->chmap, pcm->chmap_set);
@@ -399,32 +399,32 @@ static int hdac_hdmi_setup_audio_infoframe(struct hdac_ext_device *hdac,
 		break;
 
 	default:
-		dev_err(&hdac->hdac.dev, "Invalid connection type: %d\n",
+		dev_err(&edev->hdac.dev, "Invalid connection type: %d\n",
 						conn_type);
 		return -EIO;
 	}
 
 	/* stop infoframe transmission */
-	hdac_hdmi_set_dip_index(hdac, pin->nid, 0x0, 0x0);
-	snd_hdac_codec_write(&hdac->hdac, pin->nid, 0,
+	hdac_hdmi_set_dip_index(edev, pin->nid, 0x0, 0x0);
+	snd_hdac_codec_write(&edev->hdac, pin->nid, 0,
 			AC_VERB_SET_HDMI_DIP_XMIT, AC_DIPXMIT_DISABLE);
 
 
 	/*  Fill infoframe. Index auto-incremented */
-	hdac_hdmi_set_dip_index(hdac, pin->nid, 0x0, 0x0);
+	hdac_hdmi_set_dip_index(edev, pin->nid, 0x0, 0x0);
 	if (conn_type == DRM_ELD_CONN_TYPE_HDMI) {
 		for (i = 0; i < sizeof(buffer); i++)
-			snd_hdac_codec_write(&hdac->hdac, pin->nid, 0,
+			snd_hdac_codec_write(&edev->hdac, pin->nid, 0,
 				AC_VERB_SET_HDMI_DIP_DATA, buffer[i]);
 	} else {
 		for (i = 0; i < sizeof(dp_ai); i++)
-			snd_hdac_codec_write(&hdac->hdac, pin->nid, 0,
+			snd_hdac_codec_write(&edev->hdac, pin->nid, 0,
 				AC_VERB_SET_HDMI_DIP_DATA, dip[i]);
 	}
 
 	/* Start infoframe */
-	hdac_hdmi_set_dip_index(hdac, pin->nid, 0x0, 0x0);
-	snd_hdac_codec_write(&hdac->hdac, pin->nid, 0,
+	hdac_hdmi_set_dip_index(edev, pin->nid, 0x0, 0x0);
+	snd_hdac_codec_write(&edev->hdac, pin->nid, 0,
 			AC_VERB_SET_HDMI_DIP_XMIT, AC_DIPXMIT_BEST);
 
 	return 0;
@@ -454,8 +454,8 @@ static int hdac_hdmi_set_tdm_slot(struct snd_soc_dai *dai,
 static int hdac_hdmi_set_hw_params(struct snd_pcm_substream *substream,
 	struct snd_pcm_hw_params *hparams, struct snd_soc_dai *dai)
 {
-	struct hdac_ext_device *hdac = snd_soc_dai_get_drvdata(dai);
-	struct hdac_hdmi_priv *hdmi = hdev_to_hdmi_priv(&hdac->hdac);
+	struct hdac_ext_device *edev = snd_soc_dai_get_drvdata(dai);
+	struct hdac_hdmi_priv *hdmi = hdev_to_hdmi_priv(&edev->hdac);
 	struct hdac_hdmi_dai_port_map *dai_map;
 	struct hdac_hdmi_port *port;
 	struct hdac_hdmi_pcm *pcm;
@@ -468,7 +468,7 @@ static int hdac_hdmi_set_hw_params(struct snd_pcm_substream *substream,
 		return -ENODEV;
 
 	if ((!port->eld.monitor_present) || (!port->eld.eld_valid)) {
-		dev_err(&hdac->hdac.dev,
+		dev_err(&edev->hdac.dev,
 			"device is not configured for this pin:port%d:%d\n",
 					port->pin->nid, port->id);
 		return -ENODEV;
@@ -488,28 +488,28 @@ static int hdac_hdmi_set_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static int hdac_hdmi_query_port_connlist(struct hdac_ext_device *hdac,
+static int hdac_hdmi_query_port_connlist(struct hdac_ext_device *edev,
 					struct hdac_hdmi_pin *pin,
 					struct hdac_hdmi_port *port)
 {
-	if (!(get_wcaps(&hdac->hdac, pin->nid) & AC_WCAP_CONN_LIST)) {
-		dev_warn(&hdac->hdac.dev,
+	if (!(get_wcaps(&edev->hdac, pin->nid) & AC_WCAP_CONN_LIST)) {
+		dev_warn(&edev->hdac.dev,
 			"HDMI: pin %d wcaps %#x does not support connection list\n",
-			pin->nid, get_wcaps(&hdac->hdac, pin->nid));
+			pin->nid, get_wcaps(&edev->hdac, pin->nid));
 		return -EINVAL;
 	}
 
-	if (hdac_hdmi_port_select_set(hdac, port) < 0)
+	if (hdac_hdmi_port_select_set(edev, port) < 0)
 		return -EIO;
 
-	port->num_mux_nids = snd_hdac_get_connections(&hdac->hdac, pin->nid,
+	port->num_mux_nids = snd_hdac_get_connections(&edev->hdac, pin->nid,
 			port->mux_nids, HDA_MAX_CONNECTIONS);
 	if (port->num_mux_nids == 0)
-		dev_warn(&hdac->hdac.dev,
+		dev_warn(&edev->hdac.dev,
 			"No connections found for pin:port %d:%d\n",
 						pin->nid, port->id);
 
-	dev_dbg(&hdac->hdac.dev, "num_mux_nids %d for pin:port %d:%d\n",
+	dev_dbg(&edev->hdac.dev, "num_mux_nids %d for pin:port %d:%d\n",
 			port->num_mux_nids, pin->nid, port->id);
 
 	return port->num_mux_nids;
@@ -567,8 +567,8 @@ static struct hdac_hdmi_port *hdac_hdmi_get_port_from_cvt(
 static int hdac_hdmi_pcm_open(struct snd_pcm_substream *substream,
 			struct snd_soc_dai *dai)
 {
-	struct hdac_ext_device *hdac = snd_soc_dai_get_drvdata(dai);
-	struct hdac_hdmi_priv *hdmi = hdev_to_hdmi_priv(&hdac->hdac);
+	struct hdac_ext_device *edev = snd_soc_dai_get_drvdata(dai);
+	struct hdac_hdmi_priv *hdmi = hdev_to_hdmi_priv(&edev->hdac);
 	struct hdac_hdmi_dai_port_map *dai_map;
 	struct hdac_hdmi_cvt *cvt;
 	struct hdac_hdmi_port *port;
@@ -577,7 +577,7 @@ static int hdac_hdmi_pcm_open(struct snd_pcm_substream *substream,
 	dai_map = &hdmi->dai_map[dai->id];
 
 	cvt = dai_map->cvt;
-	port = hdac_hdmi_get_port_from_cvt(hdac, hdmi, cvt);
+	port = hdac_hdmi_get_port_from_cvt(edev, hdmi, cvt);
 
 	/*
 	 * To make PA and other userland happy.
@@ -588,7 +588,7 @@ static int hdac_hdmi_pcm_open(struct snd_pcm_substream *substream,
 	if ((!port->eld.monitor_present) ||
 			(!port->eld.eld_valid)) {
 
-		dev_warn(&hdac->hdac.dev,
+		dev_warn(&edev->hdac.dev,
 			"Failed: present?:%d ELD valid?:%d pin:port: %d:%d\n",
 			port->eld.monitor_present, port->eld.eld_valid,
 			port->pin->nid, port->id);
@@ -610,8 +610,8 @@ static int hdac_hdmi_pcm_open(struct snd_pcm_substream *substream,
 static void hdac_hdmi_pcm_close(struct snd_pcm_substream *substream,
 		struct snd_soc_dai *dai)
 {
-	struct hdac_ext_device *hdac = snd_soc_dai_get_drvdata(dai);
-	struct hdac_hdmi_priv *hdmi = hdev_to_hdmi_priv(&hdac->hdac);
+	struct hdac_ext_device *edev = snd_soc_dai_get_drvdata(dai);
+	struct hdac_hdmi_priv *hdmi = hdev_to_hdmi_priv(&edev->hdac);
 	struct hdac_hdmi_dai_port_map *dai_map;
 	struct hdac_hdmi_pcm *pcm;
 
