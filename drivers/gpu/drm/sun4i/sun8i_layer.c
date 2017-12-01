@@ -13,7 +13,9 @@
  * the License, or (at your option) any later version.
  */
 
+#include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
+#include <drm/drm_crtc.h>
 #include <drm/drm_plane_helper.h>
 #include <drm/drmP.h>
 
@@ -25,6 +27,31 @@ struct sun8i_plane_desc {
 	       const uint32_t          *formats;
 	       uint32_t                nformats;
 };
+
+static int sun8i_mixer_layer_atomic_check(struct drm_plane *plane,
+					  struct drm_plane_state *state)
+{
+	struct drm_crtc *crtc = state->crtc;
+	struct drm_crtc_state *crtc_state;
+	struct drm_rect clip;
+
+	if (!crtc)
+		return 0;
+
+	crtc_state = drm_atomic_get_existing_crtc_state(state->state, crtc);
+	if (WARN_ON(!crtc_state))
+		return -EINVAL;
+
+	clip.x1 = 0;
+	clip.y1 = 0;
+	clip.x2 = crtc_state->adjusted_mode.hdisplay;
+	clip.y2 = crtc_state->adjusted_mode.vdisplay;
+
+	return drm_atomic_helper_check_plane_state(state, crtc_state, &clip,
+						   DRM_PLANE_HELPER_NO_SCALING,
+						   DRM_PLANE_HELPER_NO_SCALING,
+						   true, true);
+}
 
 static void sun8i_mixer_layer_atomic_disable(struct drm_plane *plane,
 					       struct drm_plane_state *old_state)
@@ -53,6 +80,7 @@ static void sun8i_mixer_layer_atomic_update(struct drm_plane *plane,
 }
 
 static struct drm_plane_helper_funcs sun8i_mixer_layer_helper_funcs = {
+	.atomic_check	= sun8i_mixer_layer_atomic_check,
 	.atomic_disable	= sun8i_mixer_layer_atomic_disable,
 	.atomic_update	= sun8i_mixer_layer_atomic_update,
 };
