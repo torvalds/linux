@@ -1922,7 +1922,8 @@ static int dtv_property_process_set(struct dvb_frontend *fe,
 	return r;
 }
 
-static int dvb_frontend_ioctl(struct file *file, unsigned int cmd, void *parg)
+static int dvb_frontend_do_ioctl(struct file *file, unsigned int cmd,
+				 void *parg)
 {
 	struct dvb_device *dvbdev = file->private_data;
 	struct dvb_frontend *fe = dvbdev->priv;
@@ -1963,6 +1964,17 @@ static int dvb_frontend_ioctl(struct file *file, unsigned int cmd, void *parg)
 
 	up(&fepriv->sem);
 	return err;
+}
+
+static long dvb_frontend_ioctl(struct file *file, unsigned int cmd,
+			       unsigned long arg)
+{
+	struct dvb_device *dvbdev = file->private_data;
+
+	if (!dvbdev)
+		return -ENODEV;
+
+	return dvb_usercopy(file, cmd, arg, dvb_frontend_do_ioctl);
 }
 
 static int dtv_set_frontend(struct dvb_frontend *fe)
@@ -2648,7 +2660,7 @@ static int dvb_frontend_release(struct inode *inode, struct file *file)
 
 static const struct file_operations dvb_frontend_fops = {
 	.owner		= THIS_MODULE,
-	.unlocked_ioctl	= dvb_generic_ioctl,
+	.unlocked_ioctl	= dvb_frontend_ioctl,
 	.poll		= dvb_frontend_poll,
 	.open		= dvb_frontend_open,
 	.release	= dvb_frontend_release,
@@ -2716,7 +2728,6 @@ int dvb_register_frontend(struct dvb_adapter* dvb,
 #if defined(CONFIG_MEDIA_CONTROLLER_DVB)
 		.name = fe->ops.info.name,
 #endif
-		.kernel_ioctl = dvb_frontend_ioctl
 	};
 
 	dev_dbg(dvb->device, "%s:\n", __func__);
