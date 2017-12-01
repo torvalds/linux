@@ -154,7 +154,7 @@ static int sun8i_ui_layer_update_formats(struct sun8i_mixer *mixer, int channel,
 	u32 val;
 
 	fmt_info = sun8i_mixer_format_info(state->fb->format->format);
-	if (!fmt_info) {
+	if (!fmt_info || !fmt_info->rgb) {
 		DRM_DEBUG_DRIVER("Invalid format\n");
 		return -EINVAL;
 	}

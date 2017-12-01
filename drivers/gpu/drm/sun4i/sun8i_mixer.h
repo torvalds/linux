@@ -14,6 +14,7 @@
 #include <linux/regmap.h>
 #include <linux/reset.h>
 
+#include "sun8i_csc.h"
 #include "sunxi_engine.h"
 
 #define SUN8I_MIXER_SIZE(w, h)			(((h) - 1) << 16 | ((w) - 1))
@@ -73,6 +74,22 @@
 #define SUN8I_MIXER_FBFMT_RGBA5551	18
 #define SUN8I_MIXER_FBFMT_BGRA5551	19
 
+#define SUN8I_MIXER_FBFMT_YUYV		0
+#define SUN8I_MIXER_FBFMT_UYVY		1
+#define SUN8I_MIXER_FBFMT_YVYU		2
+#define SUN8I_MIXER_FBFMT_VYUY		3
+#define SUN8I_MIXER_FBFMT_NV16		4
+#define SUN8I_MIXER_FBFMT_NV61		5
+#define SUN8I_MIXER_FBFMT_YUV422	6
+/* format 7 doesn't exist */
+#define SUN8I_MIXER_FBFMT_NV12		8
+#define SUN8I_MIXER_FBFMT_NV21		9
+#define SUN8I_MIXER_FBFMT_YUV420	10
+/* format 11 doesn't exist */
+/* format 12 is semi-planar YUV411 UVUV */
+/* format 13 is semi-planar YUV411 VUVU */
+#define SUN8I_MIXER_FBFMT_YUV411	14
+
 /*
  * These sub-engines are still unknown now, the EN registers are here only to
  * be used to disable these sub-engines.
@@ -86,8 +103,10 @@
 #define SUN8I_MIXER_DCSC_EN			0xb0000
 
 struct de2_fmt_info {
-	u32 drm_fmt;
-	u32 de2_fmt;
+	u32			drm_fmt;
+	u32			de2_fmt;
+	bool			rgb;
+	enum sun8i_csc_mode	csc;
 };
 
 /**
