@@ -180,10 +180,10 @@ nfp_verify_insn(struct bpf_verifier_env *env, int insn_idx, int prev_insn_idx)
 	if (meta->insn.code == (BPF_JMP | BPF_EXIT))
 		return nfp_bpf_check_exit(nfp_prog, env);
 
-	if ((meta->insn.code & ~BPF_SIZE_MASK) == (BPF_LDX | BPF_MEM))
+	if (is_mbpf_load(meta))
 		return nfp_bpf_check_ptr(nfp_prog, meta, env,
 					 meta->insn.src_reg);
-	if ((meta->insn.code & ~BPF_SIZE_MASK) == (BPF_STX | BPF_MEM))
+	if (is_mbpf_store(meta))
 		return nfp_bpf_check_ptr(nfp_prog, meta, env,
 					 meta->insn.dst_reg);
 
