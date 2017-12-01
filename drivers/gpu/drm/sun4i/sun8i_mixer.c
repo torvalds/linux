@@ -104,6 +104,9 @@ int sun8i_mixer_update_layer_coord(struct sun8i_mixer *mixer, int channel,
 	size = SUN8I_MIXER_SIZE(width, height);
 
 	if (plane->type == DRM_PLANE_TYPE_PRIMARY) {
+		bool interlaced = false;
+		u32 val;
+
 		DRM_DEBUG_DRIVER("Primary layer, updating global size W: %u H: %u\n",
 				 width, height);
 		regmap_write(mixer->engine.regs,
@@ -111,6 +114,23 @@ int sun8i_mixer_update_layer_coord(struct sun8i_mixer *mixer, int channel,
 			     size);
 		regmap_write(mixer->engine.regs, SUN8I_MIXER_BLEND_OUTSIZE,
 			     size);
+
+		if (state->crtc)
+			interlaced = state->crtc->state->adjusted_mode.flags
+				& DRM_MODE_FLAG_INTERLACE;
+
+		if (interlaced)
+			val = SUN8I_MIXER_BLEND_OUTCTL_INTERLACED;
+		else
+			val = 0;
+
+		regmap_update_bits(mixer->engine.regs,
+				   SUN8I_MIXER_BLEND_OUTCTL,
+				   SUN8I_MIXER_BLEND_OUTCTL_INTERLACED,
+				   val);
+
+		DRM_DEBUG_DRIVER("Switching display mixer interlaced mode %s\n",
+				 interlaced ? "on" : "off");
 	}
 
 	/* Set height and width */
@@ -140,21 +160,8 @@ int sun8i_mixer_update_layer_formats(struct sun8i_mixer *mixer, int channel,
 {
 	struct drm_plane_state *state = plane->state;
 	struct drm_framebuffer *fb = state->fb;
-	bool interlaced = false;
 	u32 val;
 	int ret;
-
-	if (plane->state->crtc)
-		interlaced = plane->state->crtc->state->adjusted_mode.flags
-			& DRM_MODE_FLAG_INTERLACE;
-
-	regmap_update_bits(mixer->engine.regs, SUN8I_MIXER_BLEND_OUTCTL,
-			   SUN8I_MIXER_BLEND_OUTCTL_INTERLACED,
-			   interlaced ?
-			   SUN8I_MIXER_BLEND_OUTCTL_INTERLACED : 0);
-
-	DRM_DEBUG_DRIVER("Switching display mixer interlaced mode %s\n",
-			 interlaced ? "on" : "off");
 
 	ret = sun8i_mixer_drm_format_to_layer(plane, fb->format->format,
 						&val);
