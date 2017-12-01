@@ -1030,8 +1030,6 @@ static int qeth_l2_setup_netdev(struct qeth_card *card)
 
 	card->info.broadcast_capable = 1;
 	qeth_l2_request_initial_mac(card);
-	card->dev->gso_max_size = (QETH_MAX_BUFFER_ELEMENTS(card) - 1) *
-				  PAGE_SIZE;
 	SET_NETDEV_DEV(card->dev, &card->gdev->dev);
 	netif_napi_add(card->dev, &card->napi, qeth_poll, QETH_NAPI_WEIGHT);
 	netif_carrier_off(card->dev);
