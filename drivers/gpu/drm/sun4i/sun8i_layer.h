@@ -22,7 +22,8 @@ struct sun8i_layer {
 	struct drm_plane	plane;
 	struct sun4i_drv	*drv;
 	struct sun8i_mixer	*mixer;
-	int			id;
+	int			channel;
+	int			overlay;
 };
 
 static inline struct sun8i_layer *

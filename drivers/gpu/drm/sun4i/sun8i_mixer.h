@@ -123,12 +123,12 @@ engine_to_sun8i_mixer(struct sunxi_engine *engine)
 	return container_of(engine, struct sun8i_mixer, engine);
 }
 
-void sun8i_mixer_layer_enable(struct sun8i_mixer *mixer,
-				int layer, bool enable);
-int sun8i_mixer_update_layer_coord(struct sun8i_mixer *mixer,
-				     int layer, struct drm_plane *plane);
-int sun8i_mixer_update_layer_formats(struct sun8i_mixer *mixer,
-				       int layer, struct drm_plane *plane);
-int sun8i_mixer_update_layer_buffer(struct sun8i_mixer *mixer,
-				      int layer, struct drm_plane *plane);
+void sun8i_mixer_layer_enable(struct sun8i_mixer *mixer, int channel,
+			      int overlay, bool enable);
+int sun8i_mixer_update_layer_coord(struct sun8i_mixer *mixer, int channel,
+				   int overlay, struct drm_plane *plane);
+int sun8i_mixer_update_layer_formats(struct sun8i_mixer *mixer, int channel,
+				     int overlay, struct drm_plane *plane);
+int sun8i_mixer_update_layer_buffer(struct sun8i_mixer *mixer, int channel,
+				    int overlay, struct drm_plane *plane);
 #endif /* _SUN8I_MIXER_H_ */

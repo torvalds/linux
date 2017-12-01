@@ -32,7 +32,8 @@ static void sun8i_mixer_layer_atomic_disable(struct drm_plane *plane,
 	struct sun8i_layer *layer = plane_to_sun8i_layer(plane);
 	struct sun8i_mixer *mixer = layer->mixer;
 
-	sun8i_mixer_layer_enable(mixer, layer->id, false);
+	sun8i_mixer_layer_enable(mixer, layer->channel,
+				 layer->overlay, false);
 }
 
 static void sun8i_mixer_layer_atomic_update(struct drm_plane *plane,
@@ -41,10 +42,14 @@ static void sun8i_mixer_layer_atomic_update(struct drm_plane *plane,
 	struct sun8i_layer *layer = plane_to_sun8i_layer(plane);
 	struct sun8i_mixer *mixer = layer->mixer;
 
-	sun8i_mixer_update_layer_coord(mixer, layer->id, plane);
-	sun8i_mixer_update_layer_formats(mixer, layer->id, plane);
-	sun8i_mixer_update_layer_buffer(mixer, layer->id, plane);
-	sun8i_mixer_layer_enable(mixer, layer->id, true);
+	sun8i_mixer_update_layer_coord(mixer, layer->channel,
+				       layer->overlay, plane);
+	sun8i_mixer_update_layer_formats(mixer, layer->channel,
+					 layer->overlay, plane);
+	sun8i_mixer_update_layer_buffer(mixer, layer->channel,
+					layer->overlay, plane);
+	sun8i_mixer_layer_enable(mixer, layer->channel,
+				 layer->overlay, true);
 }
 
 static struct drm_plane_helper_funcs sun8i_mixer_layer_helper_funcs = {
@@ -126,7 +131,8 @@ struct drm_plane **sun8i_layers_init(struct drm_device *drm,
 			return ERR_CAST(layer);
 		};
 
-		layer->id = i;
+		layer->channel = mixer->cfg->vi_num + i;
+		layer->overlay = 0;
 		planes[i] = &layer->plane;
 	};
 
