@@ -60,6 +60,26 @@
 		stdout-path = "serial0:115200n8";
 	};
 
+	leds {
+		compatible = "gpio-leds";
+
+		pwr-led {
+			label = "bananapi-m64:red:pwr";
+			gpios = <&pio 3 24 GPIO_ACTIVE_HIGH>; /* PD24 */
+			default-state = "on";
+		};
+
+		green {
+			label = "bananapi-m64:green:user";
+			gpios = <&pio 4 14 GPIO_ACTIVE_HIGH>; /* PE14 */
+		};
+
+		blue {
+			label = "bananapi-m64:blue:user";
+			gpios = <&pio 4 15 GPIO_ACTIVE_HIGH>; /* PE15 */
+		};
+	};
+
 	wifi_pwrseq: wifi_pwrseq {
 		compatible = "mmc-pwrseq-simple";
 		reset-gpios = <&r_pio 0 2 GPIO_ACTIVE_LOW>; /* PL2 */
@@ -152,6 +172,17 @@
 
 #include "axp803.dtsi"
 
+&reg_aldo1 {
+	/*
+	 * This regulator also drives the PE pingroup GPIOs,
+	 * which also controls two LEDs.
+	 */
+	regulator-always-on;
+	regulator-min-microvolt = <2800000>;
+	regulator-max-microvolt = <2800000>;
+	regulator-name = "afvcc-csi";
+};
+
 &reg_aldo2 {
 	regulator-always-on;
 	regulator-min-microvolt = <1800000>;
@@ -167,6 +198,11 @@
 };
 
 &reg_dc1sw {
+	/*
+	 * This regulator also indirectly drives the PD pingroup GPIOs,
+	 * which also controls the power LED.
+	 */
+	regulator-always-on;
 	regulator-name = "vcc-phy";
 };
 
