@@ -276,7 +276,8 @@ static int rpm_get_suppliers(struct device *dev)
 			continue;
 
 		retval = pm_runtime_get_sync(link->supplier);
-		if (retval < 0) {
+		/* Ignore suppliers with disabled runtime PM. */
+		if (retval < 0 && retval != -EACCES) {
 			pm_runtime_put_noidle(link->supplier);
 			return retval;
 		}
