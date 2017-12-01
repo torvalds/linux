@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016 Netronome Systems, Inc.
+ * Copyright (C) 2016-2017 Netronome Systems, Inc.
  *
  * This software is dual licensed under the GNU General License Version 2,
  * June 1991 as shown in the file COPYING in the top-level directory of this
@@ -142,6 +142,7 @@ static inline u8 mbpf_mode(const struct nfp_insn_meta *meta)
  * @verifier_meta: temporary storage for verifier's insn meta
  * @type: BPF program type
  * @start_off: address of the first instruction in the memory
+ * @last_bpf_off: address of the last instruction translated from BPF
  * @tgt_out: jump target for normal exit
  * @tgt_abort: jump target for abort (e.g. access outside of packet buffer)
  * @tgt_done: jump target to get the next packet
@@ -160,6 +161,7 @@ struct nfp_prog {
 	enum bpf_prog_type type;
 
 	unsigned int start_off;
+	unsigned int last_bpf_off;
 	unsigned int tgt_out;
 	unsigned int tgt_abort;
 	unsigned int tgt_done;

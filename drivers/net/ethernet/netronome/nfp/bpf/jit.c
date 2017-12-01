@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016 Netronome Systems, Inc.
+ * Copyright (C) 2016-2017 Netronome Systems, Inc.
  *
  * This software is dual licensed under the GNU General License Version 2,
  * June 1991 as shown in the file COPYING in the top-level directory of this
@@ -975,9 +975,6 @@ wrp_test_reg(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
 {
 	const struct bpf_insn *insn = &meta->insn;
 
-	if (insn->off < 0) /* TODO */
-		return -EOPNOTSUPP;
-
 	wrp_test_reg_one(nfp_prog, insn->dst_reg * 2, alu_op,
 			 insn->src_reg * 2, br_mask, insn->off);
 	wrp_test_reg_one(nfp_prog, insn->dst_reg * 2 + 1, alu_op,
@@ -994,9 +991,6 @@ wrp_cmp_imm(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
 	u64 imm = insn->imm; /* sign extend */
 	u8 reg = insn->dst_reg * 2;
 	swreg tmp_reg;
-
-	if (insn->off < 0) /* TODO */
-		return -EOPNOTSUPP;
 
 	tmp_reg = ur_load_imm_any(nfp_prog, imm & ~0U, imm_b(nfp_prog));
 	if (!swap)
@@ -1026,9 +1020,6 @@ wrp_cmp_reg(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
 
 	areg = insn->dst_reg * 2;
 	breg = insn->src_reg * 2;
-
-	if (insn->off < 0) /* TODO */
-		return -EOPNOTSUPP;
 
 	if (swap) {
 		areg ^= breg;
@@ -1630,8 +1621,6 @@ static int mem_stx8(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 
 static int jump(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 {
-	if (meta->insn.off < 0) /* TODO */
-		return -EOPNOTSUPP;
 	emit_br(nfp_prog, BR_UNC, meta->insn.off, 0);
 
 	return 0;
@@ -1645,9 +1634,6 @@ static int jeq_imm(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 
 	or1 = reg_a(insn->dst_reg * 2);
 	or2 = reg_b(insn->dst_reg * 2 + 1);
-
-	if (insn->off < 0) /* TODO */
-		return -EOPNOTSUPP;
 
 	if (imm & ~0U) {
 		tmp_reg = ur_load_imm_any(nfp_prog, imm & ~0U, imm_b(nfp_prog));
@@ -1695,9 +1681,6 @@ static int jset_imm(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 	u64 imm = insn->imm; /* sign extend */
 	swreg tmp_reg;
 
-	if (insn->off < 0) /* TODO */
-		return -EOPNOTSUPP;
-
 	if (!imm) {
 		meta->skip = true;
 		return 0;
@@ -1726,9 +1709,6 @@ static int jne_imm(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 	u64 imm = insn->imm; /* sign extend */
 	swreg tmp_reg;
 
-	if (insn->off < 0) /* TODO */
-		return -EOPNOTSUPP;
-
 	if (!imm) {
 		emit_alu(nfp_prog, reg_none(), reg_a(insn->dst_reg * 2),
 			 ALU_OP_OR, reg_b(insn->dst_reg * 2 + 1));
@@ -1752,9 +1732,6 @@ static int jne_imm(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 static int jeq_reg(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 {
 	const struct bpf_insn *insn = &meta->insn;
-
-	if (insn->off < 0) /* TODO */
-		return -EOPNOTSUPP;
 
 	emit_alu(nfp_prog, imm_a(nfp_prog), reg_a(insn->dst_reg * 2),
 		 ALU_OP_XOR, reg_b(insn->src_reg * 2));
@@ -1888,16 +1865,25 @@ static void br_set_offset(u64 *instr, u16 offset)
 static int nfp_fixup_branches(struct nfp_prog *nfp_prog)
 {
 	struct nfp_insn_meta *meta, *next;
-	u32 off, br_idx;
-	u32 idx;
+	u32 idx, br_idx;
+	int off;
 
-	nfp_for_each_insn_walk2(nfp_prog, meta, next) {
+	list_for_each_entry(meta, &nfp_prog->insns, l) {
 		if (meta->skip)
 			continue;
 		if (BPF_CLASS(meta->insn.code) != BPF_JMP)
 			continue;
 
-		br_idx = nfp_prog_offset_to_index(nfp_prog, next->off) - 1;
+		if (list_is_last(&meta->l, &nfp_prog->insns)) {
+			next = NULL;
+			idx = nfp_prog->last_bpf_off;
+		} else {
+			next = list_next_entry(meta, l);
+			idx = next->off - 1;
+		}
+
+		br_idx = nfp_prog_offset_to_index(nfp_prog, idx);
+
 		if (!nfp_is_br(nfp_prog->prog[br_idx])) {
 			pr_err("Fixup found block not ending in branch %d %02x %016llx!!\n",
 			       br_idx, meta->insn.code, nfp_prog->prog[br_idx]);
@@ -1914,9 +1900,29 @@ static int nfp_fixup_branches(struct nfp_prog *nfp_prog)
 			return -ELOOP;
 		}
 
-		while (off && nfp_meta_has_next(nfp_prog, next)) {
+		if (!next) {
+			/* When "next" is NULL, "meta" is the last node in the
+			 * list. Given it is an JMP, it then must be a backward
+			 * jump.
+			 *
+			 * For eBPF, the jump offset is against pc + 1, so we
+			 * need to compensate the offset by 1 as we are pointing
+			 * "next" to the current node "meta".
+			 */
+			if (WARN_ON_ONCE(off > -2))
+				return -ELOOP;
+
+			next = meta;
+			off += 1;
+		}
+
+		while (off > 0 && nfp_meta_has_next(nfp_prog, next)) {
 			next = nfp_meta_next(next);
 			off--;
+		}
+		while (off < 0 && nfp_meta_has_prev(nfp_prog, next)) {
+			next = nfp_meta_prev(next);
+			off++;
 		}
 		if (off) {
 			pr_err("Fixup found too large jump!! %d\n", off);
@@ -2104,6 +2110,8 @@ static int nfp_translate(struct nfp_prog *nfp_prog)
 
 		nfp_prog->n_translated++;
 	}
+
+	nfp_prog->last_bpf_off = nfp_prog_current_offset(nfp_prog) - 1;
 
 	nfp_outro(nfp_prog);
 	if (nfp_prog->error)
