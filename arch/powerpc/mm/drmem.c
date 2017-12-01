@@ -29,6 +29,87 @@ u64 drmem_lmb_memory_max(void)
 	return last_lmb->base_addr + drmem_lmb_size();
 }
 
+static u32 drmem_lmb_flags(struct drmem_lmb *lmb)
+{
+	/*
+	 * Return the value of the lmb flags field minus the reserved
+	 * bit used internally for hotplug processing.
+	 */
+	return lmb->flags & ~DRMEM_LMB_RESERVED;
+}
+
+static struct property *clone_property(struct property *prop, u32 prop_sz)
+{
+	struct property *new_prop;
+
+	new_prop = kzalloc(sizeof(*new_prop), GFP_KERNEL);
+	if (!new_prop)
+		return NULL;
+
+	new_prop->name = kstrdup(prop->name, GFP_KERNEL);
+	new_prop->value = kzalloc(prop_sz, GFP_KERNEL);
+	if (!new_prop->name || !new_prop->value) {
+		kfree(new_prop->name);
+		kfree(new_prop->value);
+		kfree(new_prop);
+		return NULL;
+	}
+
+	new_prop->length = prop_sz;
+#if defined(CONFIG_OF_DYNAMIC)
+	of_property_set_flag(new_prop, OF_DYNAMIC);
+#endif
+	return new_prop;
+}
+
+static int drmem_update_dt_v1(struct device_node *memory,
+			      struct property *prop)
+{
+	struct property *new_prop;
+	struct of_drconf_cell *dr_cell;
+	struct drmem_lmb *lmb;
+	u32 *p;
+
+	new_prop = clone_property(prop, prop->length);
+	if (!new_prop)
+		return -1;
+
+	p = new_prop->value;
+	*p++ = cpu_to_be32(drmem_info->n_lmbs);
+
+	dr_cell = (struct of_drconf_cell *)p;
+
+	for_each_drmem_lmb(lmb) {
+		dr_cell->base_addr = cpu_to_be64(lmb->base_addr);
+		dr_cell->drc_index = cpu_to_be32(lmb->drc_index);
+		dr_cell->aa_index = cpu_to_be32(lmb->aa_index);
+		dr_cell->flags = cpu_to_be32(drmem_lmb_flags(lmb));
+
+		dr_cell++;
+	}
+
+	of_update_property(memory, new_prop);
+	return 0;
+}
+
+int drmem_update_dt(void)
+{
+	struct device_node *memory;
+	struct property *prop;
+	int rc = -1;
+
+	memory = of_find_node_by_path("/ibm,dynamic-reconfiguration-memory");
+	if (!memory)
+		return -1;
+
+	prop = of_find_property(memory, "ibm,dynamic-memory", NULL);
+	if (prop)
+		rc = drmem_update_dt_v1(memory, prop);
+
+	of_node_put(memory);
+	return rc;
+}
+
 static void __init read_drconf_v1_cell(struct drmem_lmb *lmb,
 				       const __be32 **prop)
 {

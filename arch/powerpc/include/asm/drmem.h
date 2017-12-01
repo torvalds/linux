@@ -40,9 +40,27 @@ static inline u32 drmem_lmb_size(void)
 	return drmem_info->lmb_size;
 }
 
+#define DRMEM_LMB_RESERVED	0x80000000
+
+static inline void drmem_mark_lmb_reserved(struct drmem_lmb *lmb)
+{
+	lmb->flags |= DRMEM_LMB_RESERVED;
+}
+
+static inline void drmem_remove_lmb_reservation(struct drmem_lmb *lmb)
+{
+	lmb->flags &= ~DRMEM_LMB_RESERVED;
+}
+
+static inline bool drmem_lmb_reserved(struct drmem_lmb *lmb)
+{
+	return lmb->flags & DRMEM_LMB_RESERVED;
+}
+
 u64 drmem_lmb_memory_max(void);
 void __init walk_drmem_lmbs(struct device_node *dn,
 			void (*func)(struct drmem_lmb *, const __be32 **));
+int drmem_update_dt(void);
 
 #ifdef CONFIG_PPC_PSERIES
 void __init walk_drmem_lmbs_early(unsigned long node,
