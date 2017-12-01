@@ -2955,8 +2955,9 @@ static int check_cond_jmp_op(struct bpf_verifier_env *env,
 	if (BPF_SRC(insn->code) == BPF_K &&
 	    (opcode == BPF_JEQ || opcode == BPF_JNE) &&
 	    dst_reg->type == SCALAR_VALUE &&
-	    tnum_equals_const(dst_reg->var_off, insn->imm)) {
-		if (opcode == BPF_JEQ) {
+	    tnum_is_const(dst_reg->var_off)) {
+		if ((opcode == BPF_JEQ && dst_reg->var_off.value == insn->imm) ||
+		    (opcode == BPF_JNE && dst_reg->var_off.value != insn->imm)) {
 			/* if (imm == imm) goto pc+off;
 			 * only follow the goto, ignore fall-through
 			 */
