@@ -120,7 +120,8 @@ int swreg_to_unrestricted(swreg dst, swreg lreg, swreg rreg,
 	reg->dst = nfp_swreg_to_unreg(dst, true);
 
 	/* Decode source operands */
-	if (swreg_type(lreg) == swreg_type(rreg))
+	if (swreg_type(lreg) == swreg_type(rreg) &&
+	    swreg_type(lreg) != NN_REG_NONE)
 		return -EFAULT;
 
 	if (swreg_type(lreg) == NN_REG_GPR_B ||
@@ -200,7 +201,8 @@ int swreg_to_restricted(swreg dst, swreg lreg, swreg rreg,
 	reg->dst = nfp_swreg_to_rereg(dst, true, false, NULL);
 
 	/* Decode source operands */
-	if (swreg_type(lreg) == swreg_type(rreg))
+	if (swreg_type(lreg) == swreg_type(rreg) &&
+	    swreg_type(lreg) != NN_REG_NONE)
 		return -EFAULT;
 
 	if (swreg_type(lreg) == NN_REG_GPR_B ||
