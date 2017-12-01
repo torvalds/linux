@@ -59,6 +59,23 @@ static int __init fsp2_probe(void)
 	mtdcr(DCRN_PLB6_HD, 0xffff0000);
 	mtdcr(DCRN_PLB6_SHD, 0xffff0000);
 
+	/* TVSENSE reset is blocked (clock gated) by the POR default of the TVS
+	 * sleep config bit. As a consequence, TVSENSE will provide erratic
+	 * sensor values, which may result in spurious (parity) errors
+	 * recorded in the CMU FIR and leading to erroneous interrupt requests
+	 * once the CMU interrupt is unmasked.
+	 */
+
+	/* 1. set TVS1[UNDOZE] */
+	val = mfcmu(CMUN_TVS1);
+	val |= 0x4;
+	mtcmu(CMUN_TVS1, val);
+
+	/* 2. clear FIR[TVS] and FIR[TVSPAR] */
+	val = mfcmu(CMUN_FIR0);
+	val |= 0x30000000;
+	mtcmu(CMUN_FIR0, val);
+
 	/* L2 machine checks */
 	mtl2(L2PLBMCKEN0, 0xffffffff);
 	mtl2(L2PLBMCKEN1, 0x0000ffff);
