@@ -270,13 +270,30 @@ static struct inode *mqueue_get_inode(struct super_block *sb,
 		 * that means the min(mq_maxmsg, max_priorities) * struct
 		 * posix_msg_tree_node.
 		 */
+
+		ret = -EINVAL;
+		if (info->attr.mq_maxmsg <= 0 || info->attr.mq_msgsize <= 0)
+			goto out_inode;
+		if (capable(CAP_SYS_RESOURCE)) {
+			if (info->attr.mq_maxmsg > HARD_MSGMAX ||
+			    info->attr.mq_msgsize > HARD_MSGSIZEMAX)
+				goto out_inode;
+		} else {
+			if (info->attr.mq_maxmsg > ipc_ns->mq_msg_max ||
+					info->attr.mq_msgsize > ipc_ns->mq_msgsize_max)
+				goto out_inode;
+		}
+		ret = -EOVERFLOW;
+		/* check for overflow */
+		if (info->attr.mq_msgsize > ULONG_MAX/info->attr.mq_maxmsg)
+			goto out_inode;
 		mq_treesize = info->attr.mq_maxmsg * sizeof(struct msg_msg) +
 			min_t(unsigned int, info->attr.mq_maxmsg, MQ_PRIO_MAX) *
 			sizeof(struct posix_msg_tree_node);
-
-		mq_bytes = mq_treesize + (info->attr.mq_maxmsg *
-					  info->attr.mq_msgsize);
-
+		mq_bytes = info->attr.mq_maxmsg * info->attr.mq_msgsize;
+		if (mq_bytes + mq_treesize < mq_bytes)
+			goto out_inode;
+		mq_bytes += mq_treesize;
 		spin_lock(&mq_lock);
 		if (u->mq_bytes + mq_bytes < u->mq_bytes ||
 		    u->mq_bytes + mq_bytes > rlimit(RLIMIT_MSGQUEUE)) {
@@ -696,34 +713,6 @@ static void remove_notification(struct mqueue_inode_info *info)
 	info->notify_user_ns = NULL;
 }
 
-static int mq_attr_ok(struct ipc_namespace *ipc_ns, struct mq_attr *attr)
-{
-	int mq_treesize;
-	unsigned long total_size;
-
-	if (attr->mq_maxmsg <= 0 || attr->mq_msgsize <= 0)
-		return -EINVAL;
-	if (capable(CAP_SYS_RESOURCE)) {
-		if (attr->mq_maxmsg > HARD_MSGMAX ||
-		    attr->mq_msgsize > HARD_MSGSIZEMAX)
-			return -EINVAL;
-	} else {
-		if (attr->mq_maxmsg > ipc_ns->mq_msg_max ||
-				attr->mq_msgsize > ipc_ns->mq_msgsize_max)
-			return -EINVAL;
-	}
-	/* check for overflow */
-	if (attr->mq_msgsize > ULONG_MAX/attr->mq_maxmsg)
-		return -EOVERFLOW;
-	mq_treesize = attr->mq_maxmsg * sizeof(struct msg_msg) +
-		min_t(unsigned int, attr->mq_maxmsg, MQ_PRIO_MAX) *
-		sizeof(struct posix_msg_tree_node);
-	total_size = attr->mq_maxmsg * attr->mq_msgsize;
-	if (total_size + mq_treesize < total_size)
-		return -EOVERFLOW;
-	return 0;
-}
-
 /*
  * Invoked when creating a new queue via sys_mq_open
  */
@@ -731,24 +720,6 @@ static int do_create(struct ipc_namespace *ipc_ns, struct inode *dir,
 			struct path *path, int oflag, umode_t mode,
 			struct mq_attr *attr)
 {
-	int ret;
-
-	if (attr) {
-		ret = mq_attr_ok(ipc_ns, attr);
-		if (ret)
-			return ret;
-	} else {
-		struct mq_attr def_attr;
-
-		def_attr.mq_maxmsg = min(ipc_ns->mq_msg_max,
-					 ipc_ns->mq_msg_default);
-		def_attr.mq_msgsize = min(ipc_ns->mq_msgsize_max,
-					  ipc_ns->mq_msgsize_default);
-		ret = mq_attr_ok(ipc_ns, &def_attr);
-		if (ret)
-			return ret;
-	}
-
 	return vfs_mkobj(path->dentry, mode & ~current_umask(),
 			mqueue_create_attr, attr);
 }
