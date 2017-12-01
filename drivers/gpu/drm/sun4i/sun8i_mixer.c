@@ -109,15 +109,7 @@ int sun8i_mixer_update_layer_coord(struct sun8i_mixer *mixer, int channel,
 		regmap_write(mixer->engine.regs,
 			     SUN8I_MIXER_GLOBAL_SIZE,
 			     size);
-		DRM_DEBUG_DRIVER("Updating blender size\n");
-		regmap_write(mixer->engine.regs,
-			     SUN8I_MIXER_BLEND_ATTR_INSIZE(channel),
-			     size);
 		regmap_write(mixer->engine.regs, SUN8I_MIXER_BLEND_OUTSIZE,
-			     size);
-		DRM_DEBUG_DRIVER("Updating channel size\n");
-		regmap_write(mixer->engine.regs,
-			     SUN8I_MIXER_CHAN_UI_OVL_SIZE(channel),
 			     size);
 	}
 
@@ -126,6 +118,9 @@ int sun8i_mixer_update_layer_coord(struct sun8i_mixer *mixer, int channel,
 	regmap_write(mixer->engine.regs,
 		     SUN8I_MIXER_CHAN_UI_LAYER_SIZE(channel, overlay),
 		     size);
+	regmap_write(mixer->engine.regs,
+		     SUN8I_MIXER_CHAN_UI_OVL_SIZE(channel),
+		     size);
 
 	/* Set base coordinates */
 	DRM_DEBUG_DRIVER("Layer coordinates X: %d Y: %d\n",
@@ -133,6 +128,9 @@ int sun8i_mixer_update_layer_coord(struct sun8i_mixer *mixer, int channel,
 	regmap_write(mixer->engine.regs,
 		     SUN8I_MIXER_BLEND_ATTR_COORD(channel),
 		     SUN8I_MIXER_COORD(state->dst.x1, state->dst.y1));
+	regmap_write(mixer->engine.regs,
+		     SUN8I_MIXER_BLEND_ATTR_INSIZE(channel),
+		     size);
 
 	return 0;
 }
