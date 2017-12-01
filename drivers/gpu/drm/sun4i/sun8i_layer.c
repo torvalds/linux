@@ -22,12 +22,6 @@
 #include "sun8i_layer.h"
 #include "sun8i_mixer.h"
 
-struct sun8i_plane_desc {
-	       enum drm_plane_type     type;
-	       const uint32_t          *formats;
-	       uint32_t                nformats;
-};
-
 static int sun8i_mixer_layer_atomic_check(struct drm_plane *plane,
 					  struct drm_plane_state *state)
 {
@@ -106,32 +100,35 @@ static const uint32_t sun8i_mixer_layer_formats[] = {
 	DRM_FORMAT_XRGB8888,
 };
 
-static const struct sun8i_plane_desc sun8i_mixer_planes[] = {
-	{
-		.type = DRM_PLANE_TYPE_PRIMARY,
-		.formats = sun8i_mixer_layer_formats,
-		.nformats = ARRAY_SIZE(sun8i_mixer_layer_formats),
-	},
-};
-
 static struct sun8i_layer *sun8i_layer_init_one(struct drm_device *drm,
 						struct sun8i_mixer *mixer,
-						const struct sun8i_plane_desc *plane)
+						int index)
 {
 	struct sun8i_layer *layer;
+	enum drm_plane_type type;
 	int ret;
 
 	layer = devm_kzalloc(drm->dev, sizeof(*layer), GFP_KERNEL);
 	if (!layer)
 		return ERR_PTR(-ENOMEM);
 
+	type = index == 0 ? DRM_PLANE_TYPE_PRIMARY : DRM_PLANE_TYPE_OVERLAY;
+
 	/* possible crtcs are set later */
 	ret = drm_universal_plane_init(drm, &layer->plane, 0,
 				       &sun8i_mixer_layer_funcs,
-				       plane->formats, plane->nformats,
-				       NULL, plane->type, NULL);
+				       sun8i_mixer_layer_formats,
+				       ARRAY_SIZE(sun8i_mixer_layer_formats),
+				       NULL, type, NULL);
 	if (ret) {
 		dev_err(drm->dev, "Couldn't initialize layer\n");
+		return ERR_PTR(ret);
+	}
+
+	/* fixed zpos for now */
+	ret = drm_plane_create_zpos_immutable_property(&layer->plane, index);
+	if (ret) {
+		dev_err(drm->dev, "Couldn't add zpos property\n");
 		return ERR_PTR(ret);
 	}
 
@@ -149,16 +146,15 @@ struct drm_plane **sun8i_layers_init(struct drm_device *drm,
 	struct sun8i_mixer *mixer = engine_to_sun8i_mixer(engine);
 	int i;
 
-	planes = devm_kcalloc(drm->dev, ARRAY_SIZE(sun8i_mixer_planes) + 1,
+	planes = devm_kcalloc(drm->dev, mixer->cfg->ui_num + 1,
 			      sizeof(*planes), GFP_KERNEL);
 	if (!planes)
 		return ERR_PTR(-ENOMEM);
 
-	for (i = 0; i < ARRAY_SIZE(sun8i_mixer_planes); i++) {
-		const struct sun8i_plane_desc *plane = &sun8i_mixer_planes[i];
+	for (i = 0; i < mixer->cfg->ui_num; i++) {
 		struct sun8i_layer *layer;
 
-		layer = sun8i_layer_init_one(drm, mixer, plane);
+		layer = sun8i_layer_init_one(drm, mixer, i);
 		if (IS_ERR(layer)) {
 			dev_err(drm->dev, "Couldn't initialize %s plane\n",
 				i ? "overlay" : "primary");
