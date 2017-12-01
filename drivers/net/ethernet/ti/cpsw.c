@@ -88,6 +88,7 @@ do {								\
 #define CPSW_VERSION_4		0x190112
 
 #define HOST_PORT_NUM		0
+#define CPSW_ALE_PORTS_NUM	3
 #define SLIVER_SIZE		0x40
 
 #define CPSW1_HOST_PORT_OFFSET	0x028
@@ -3074,7 +3075,7 @@ static int cpsw_probe(struct platform_device *pdev)
 	ale_params.dev			= &pdev->dev;
 	ale_params.ale_ageout		= ale_ageout;
 	ale_params.ale_entries		= data->ale_entries;
-	ale_params.ale_ports		= data->slaves;
+	ale_params.ale_ports		= CPSW_ALE_PORTS_NUM;
 
 	cpsw->ale = cpsw_ale_create(&ale_params);
 	if (!cpsw->ale) {
