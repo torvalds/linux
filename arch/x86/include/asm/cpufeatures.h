@@ -22,6 +22,11 @@
  * this feature bit is not displayed in /proc/cpuinfo at all.
  */
 
+/*
+ * When adding new features here that depend on other features,
+ * please update the table in kernel/cpu/cpuid-deps.c
+ */
+
 /* Intel-defined CPU features, CPUID level 0x00000001 (edx), word 0 */
 #define X86_FEATURE_FPU		( 0*32+ 0) /* Onboard FPU */
 #define X86_FEATURE_VME		( 0*32+ 1) /* Virtual Mode Extensions */
@@ -295,6 +300,12 @@
 #define X86_FEATURE_AVX512VBMI  (16*32+ 1) /* AVX512 Vector Bit Manipulation instructions*/
 #define X86_FEATURE_PKU		(16*32+ 3) /* Protection Keys for Userspace */
 #define X86_FEATURE_OSPKE	(16*32+ 4) /* OS Protection Keys Enable */
+#define X86_FEATURE_AVX512_VBMI2 (16*32+ 6) /* Additional AVX512 Vector Bit Manipulation Instructions */
+#define X86_FEATURE_GFNI	(16*32+ 8) /* Galois Field New Instructions */
+#define X86_FEATURE_VAES	(16*32+ 9) /* Vector AES */
+#define X86_FEATURE_VPCLMULQDQ	(16*32+ 10) /* Carry-Less Multiplication Double Quadword */
+#define X86_FEATURE_AVX512_VNNI (16*32+ 11) /* Vector Neural Network Instructions */
+#define X86_FEATURE_AVX512_BITALG (16*32+12) /* Support for VPOPCNT[B,W] and VPSHUF-BITQMB */
 #define X86_FEATURE_AVX512_VPOPCNTDQ (16*32+14) /* POPCNT for vectors of DW/QW */
 #define X86_FEATURE_LA57	(16*32+16) /* 5-level page tables */
 #define X86_FEATURE_RDPID	(16*32+22) /* RDPID instruction */

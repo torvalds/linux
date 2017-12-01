@@ -1301,18 +1301,16 @@ void print_cpu_info(struct cpuinfo_x86 *c)
 		pr_cont(")\n");
 }
 
-static __init int setup_disablecpuid(char *arg)
+/*
+ * clearcpuid= was already parsed in fpu__init_parse_early_param.
+ * But we need to keep a dummy __setup around otherwise it would
+ * show up as an environment variable for init.
+ */
+static __init int setup_clearcpuid(char *arg)
 {
-	int bit;
-
-	if (get_option(&arg, &bit) && bit >= 0 && bit < NCAPINTS * 32)
-		setup_clear_cpu_cap(bit);
-	else
-		return 0;
-
 	return 1;
 }
-__setup("clearcpuid=", setup_disablecpuid);
+__setup("clearcpuid=", setup_clearcpuid);
 
 #ifdef CONFIG_X86_64
 DEFINE_PER_CPU_FIRST(union irq_stack_union,
@@ -1572,9 +1570,13 @@ void cpu_init(void)
 	initialize_tlbstate_and_flush();
 	enter_lazy_tlb(&init_mm, me);
 
-	load_sp0(t, &current->thread);
+	/*
+	 * Initialize the TSS.  Don't bother initializing sp0, as the initial
+	 * task never enters user mode.
+	 */
 	set_tss_desc(cpu, t);
 	load_TR_desc();
+
 	load_mm_ldt(&init_mm);
 
 	clear_all_debug_regs();
@@ -1596,7 +1598,6 @@ void cpu_init(void)
 	int cpu = smp_processor_id();
 	struct task_struct *curr = current;
 	struct tss_struct *t = &per_cpu(cpu_tss, cpu);
-	struct thread_struct *thread = &curr->thread;
 
 	wait_for_master_cpu(cpu);
 
@@ -1627,9 +1628,13 @@ void cpu_init(void)
 	initialize_tlbstate_and_flush();
 	enter_lazy_tlb(&init_mm, curr);
 
-	load_sp0(t, thread);
+	/*
+	 * Initialize the TSS.  Don't bother initializing sp0, as the initial
+	 * task never enters user mode.
+	 */
 	set_tss_desc(cpu, t);
 	load_TR_desc();
+
 	load_mm_ldt(&init_mm);
 
 	t->x86_tss.io_bitmap_base = offsetof(struct tss_struct, io_bitmap);
