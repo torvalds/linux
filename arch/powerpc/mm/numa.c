@@ -509,26 +509,30 @@ static int of_get_assoc_arrays(struct assoc_arrays *aa)
  * This is like of_node_to_nid_single() for memory represented in the
  * ibm,dynamic-reconfiguration-memory node.
  */
-static int of_drconf_to_nid_single(struct of_drconf_cell *drmem,
-				   struct assoc_arrays *aa)
+static int of_drconf_to_nid_single(struct of_drconf_cell *drmem)
 {
+	struct assoc_arrays aa = { .arrays = NULL };
 	int default_nid = 0;
 	int nid = default_nid;
-	int index;
+	int rc, index;
 
-	if (min_common_depth > 0 && min_common_depth <= aa->array_sz &&
+	rc = of_get_assoc_arrays(&aa);
+	if (rc)
+		return default_nid;
+
+	if (min_common_depth > 0 && min_common_depth <= aa.array_sz &&
 	    !(drmem->flags & DRCONF_MEM_AI_INVALID) &&
-	    drmem->aa_index < aa->n_arrays) {
-		index = drmem->aa_index * aa->array_sz + min_common_depth - 1;
-		nid = of_read_number(&aa->arrays[index], 1);
+	    drmem->aa_index < aa.n_arrays) {
+		index = drmem->aa_index * aa.array_sz + min_common_depth - 1;
+		nid = of_read_number(&aa.arrays[index], 1);
 
 		if (nid == 0xffff || nid >= MAX_NUMNODES)
 			nid = default_nid;
 
 		if (nid > 0) {
-			index = drmem->aa_index * aa->array_sz;
+			index = drmem->aa_index * aa.array_sz;
 			initialize_distance_lookup_table(nid,
-							&aa->arrays[index]);
+							&aa.arrays[index]);
 		}
 	}
 
@@ -664,10 +668,9 @@ static inline int __init read_usm_ranges(const __be32 **usm)
 static void __init parse_drconf_memory(struct device_node *memory)
 {
 	const __be32 *uninitialized_var(dm), *usm;
-	unsigned int n, rc, ranges, is_kexec_kdump = 0;
+	unsigned int n, ranges, is_kexec_kdump = 0;
 	unsigned long lmb_size, base, size, sz;
 	int nid;
-	struct assoc_arrays aa = { .arrays = NULL };
 
 	n = of_get_drconf_memory(memory, &dm);
 	if (!n)
@@ -675,10 +678,6 @@ static void __init parse_drconf_memory(struct device_node *memory)
 
 	lmb_size = of_get_lmb_size(memory);
 	if (!lmb_size)
-		return;
-
-	rc = of_get_assoc_arrays(&aa);
-	if (rc)
 		return;
 
 	/* check if this is a kexec/kdump kernel */
@@ -711,7 +710,7 @@ static void __init parse_drconf_memory(struct device_node *memory)
 				base = read_n_cells(n_mem_addr_cells, &usm);
 				size = read_n_cells(n_mem_size_cells, &usm);
 			}
-			nid = of_drconf_to_nid_single(&drmem, &aa);
+			nid = of_drconf_to_nid_single(&drmem);
 			fake_numa_create_new_node(
 				((base + size) >> PAGE_SHIFT),
 					   &nid);
@@ -999,9 +998,8 @@ static int hot_add_drconf_scn_to_nid(struct device_node *memory,
 				     unsigned long scn_addr)
 {
 	const __be32 *dm;
-	unsigned int drconf_cell_cnt, rc;
+	unsigned int drconf_cell_cnt;
 	unsigned long lmb_size;
-	struct assoc_arrays aa;
 	int nid = -1;
 
 	drconf_cell_cnt = of_get_drconf_memory(memory, &dm);
@@ -1010,10 +1008,6 @@ static int hot_add_drconf_scn_to_nid(struct device_node *memory,
 
 	lmb_size = of_get_lmb_size(memory);
 	if (!lmb_size)
-		return -1;
-
-	rc = of_get_assoc_arrays(&aa);
-	if (rc)
 		return -1;
 
 	for (; drconf_cell_cnt != 0; --drconf_cell_cnt) {
@@ -1031,7 +1025,7 @@ static int hot_add_drconf_scn_to_nid(struct device_node *memory,
 		    || (scn_addr >= (drmem.base_addr + lmb_size)))
 			continue;
 
-		nid = of_drconf_to_nid_single(&drmem, &aa);
+		nid = of_drconf_to_nid_single(&drmem);
 		break;
 	}
 
