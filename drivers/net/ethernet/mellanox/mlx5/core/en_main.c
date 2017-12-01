@@ -4308,9 +4308,6 @@ static void mlx5e_nic_cleanup(struct mlx5e_priv *priv)
 {
 	mlx5e_ipsec_cleanup(priv);
 	mlx5e_vxlan_cleanup(priv);
-
-	if (priv->channels.params.xdp_prog)
-		bpf_prog_put(priv->channels.params.xdp_prog);
 }
 
 static int mlx5e_init_nic_rx(struct mlx5e_priv *priv)

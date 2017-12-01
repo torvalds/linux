@@ -3562,9 +3562,6 @@ struct nfp_net *nfp_net_alloc(struct pci_dev *pdev, bool needs_netdev,
  */
 void nfp_net_free(struct nfp_net *nn)
 {
-	if (nn->xdp_prog)
-		bpf_prog_put(nn->xdp_prog);
-
 	if (nn->dp.netdev)
 		free_netdev(nn->dp.netdev);
 	else

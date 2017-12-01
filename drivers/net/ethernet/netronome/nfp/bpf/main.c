@@ -82,12 +82,6 @@ static const char *nfp_bpf_extra_cap(struct nfp_app *app, struct nfp_net *nn)
 	return nfp_net_ebpf_capable(nn) ? "BPF" : "";
 }
 
-static void nfp_bpf_vnic_free(struct nfp_app *app, struct nfp_net *nn)
-{
-	if (nn->dp.bpf_offload_xdp)
-		nfp_bpf_xdp_offload(app, nn, NULL);
-}
-
 static int nfp_bpf_setup_tc_block_cb(enum tc_setup_type type,
 				     void *type_data, void *cb_priv)
 {
@@ -168,7 +162,6 @@ const struct nfp_app_type app_bpf = {
 	.extra_cap	= nfp_bpf_extra_cap,
 
 	.vnic_alloc	= nfp_app_nic_vnic_alloc,
-	.vnic_free	= nfp_bpf_vnic_free,
 
 	.setup_tc	= nfp_bpf_setup_tc,
 	.tc_busy	= nfp_bpf_tc_busy,

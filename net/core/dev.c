@@ -7110,6 +7110,27 @@ static int dev_xdp_install(struct net_device *dev, bpf_op_t bpf_op,
 	return bpf_op(dev, &xdp);
 }
 
+static void dev_xdp_uninstall(struct net_device *dev)
+{
+	struct netdev_bpf xdp;
+	bpf_op_t ndo_bpf;
+
+	/* Remove generic XDP */
+	WARN_ON(dev_xdp_install(dev, generic_xdp_install, NULL, 0, NULL));
+
+	/* Remove from the driver */
+	ndo_bpf = dev->netdev_ops->ndo_bpf;
+	if (!ndo_bpf)
+		return;
+
+	__dev_xdp_query(dev, ndo_bpf, &xdp);
+	if (xdp.prog_attached == XDP_ATTACHED_NONE)
+		return;
+
+	/* Program removal should always succeed */
+	WARN_ON(dev_xdp_install(dev, ndo_bpf, NULL, xdp.prog_flags, NULL));
+}
+
 /**
  *	dev_change_xdp_fd - set or clear a bpf program for a device rx path
  *	@dev: device
@@ -7240,6 +7261,7 @@ static void rollback_registered_many(struct list_head *head)
 		/* Shutdown queueing discipline. */
 		dev_shutdown(dev);
 
+		dev_xdp_uninstall(dev);
 
 		/* Notify protocols, that we are about to destroy
 		 * this device. They should clean all the things.
@@ -8199,7 +8221,6 @@ EXPORT_SYMBOL(alloc_netdev_mqs);
 void free_netdev(struct net_device *dev)
 {
 	struct napi_struct *p, *n;
-	struct bpf_prog *prog;
 
 	might_sleep();
 	netif_free_tx_queues(dev);
@@ -8217,12 +8238,6 @@ void free_netdev(struct net_device *dev)
 
 	free_percpu(dev->pcpu_refcnt);
 	dev->pcpu_refcnt = NULL;
-
-	prog = rcu_dereference_protected(dev->xdp_prog, 1);
-	if (prog) {
-		bpf_prog_put(prog);
-		static_key_slow_dec(&generic_xdp_needed);
-	}
 
 	/*  Compatibility with error handling in drivers */
 	if (dev->reg_state == NETREG_UNINITIALIZED) {

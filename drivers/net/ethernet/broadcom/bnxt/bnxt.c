@@ -7800,8 +7800,6 @@ static void bnxt_remove_one(struct pci_dev *pdev)
 	bnxt_dcb_free(bp);
 	kfree(bp->edev);
 	bp->edev = NULL;
-	if (bp->xdp_prog)
-		bpf_prog_put(bp->xdp_prog);
 	bnxt_cleanup_pci(bp);
 	free_netdev(dev);
 }
