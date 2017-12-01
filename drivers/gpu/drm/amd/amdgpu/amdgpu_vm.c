@@ -1285,11 +1285,11 @@ void amdgpu_vm_get_entry(struct amdgpu_pte_update_params *p, uint64_t addr,
 	*parent = NULL;
 	*entry = &p->vm->root;
 	while ((*entry)->entries) {
-		unsigned idx = addr >> amdgpu_vm_level_shift(p->adev, level++);
+		unsigned shift = amdgpu_vm_level_shift(p->adev, level++);
 
-		idx %= amdgpu_bo_size((*entry)->base.bo) / 8;
 		*parent = *entry;
-		*entry = &(*entry)->entries[idx];
+		*entry = &(*entry)->entries[addr >> shift];
+		addr &= (1ULL << shift) - 1;
 	}
 
 	if (level != p->adev->vm_manager.num_level)
