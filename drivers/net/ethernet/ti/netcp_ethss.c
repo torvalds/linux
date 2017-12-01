@@ -27,6 +27,7 @@
 #include <linux/net_tstamp.h>
 #include <linux/ethtool.h>
 
+#include "cpsw.h"
 #include "cpsw_ale.h"
 #include "netcp.h"
 #include "cpts.h"
@@ -2046,10 +2047,6 @@ static const struct ethtool_ops keystone_ethtool_ops = {
 	.set_link_ksettings	= keystone_set_link_ksettings,
 	.get_ts_info		= keystone_get_ts_info,
 };
-
-#define mac_hi(mac)	(((mac)[0] << 0) | ((mac)[1] << 8) |	\
-			 ((mac)[2] << 16) | ((mac)[3] << 24))
-#define mac_lo(mac)	(((mac)[4] << 0) | ((mac)[5] << 8))
 
 static void gbe_set_slave_mac(struct gbe_slave *slave,
 			      struct gbe_intf *gbe_intf)
