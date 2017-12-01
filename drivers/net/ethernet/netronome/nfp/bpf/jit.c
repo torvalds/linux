@@ -224,9 +224,11 @@ emit_immed(struct nfp_prog *nfp_prog, swreg dst, u16 imm,
 		return;
 	}
 
-	__emit_immed(nfp_prog, reg.areg, reg.breg, imm >> 8, width,
-		     invert, shift, reg.wr_both,
-		     reg.dst_lmextn, reg.src_lmextn);
+	/* Use reg.dst when destination is No-Dest. */
+	__emit_immed(nfp_prog,
+		     swreg_type(dst) == NN_REG_NONE ? reg.dst : reg.areg,
+		     reg.breg, imm >> 8, width, invert, shift,
+		     reg.wr_both, reg.dst_lmextn, reg.src_lmextn);
 }
 
 static void
