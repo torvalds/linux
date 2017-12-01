@@ -416,11 +416,11 @@ static void mqueue_evict_inode(struct inode *inode)
 		put_ipc_ns(ipc_ns);
 }
 
-static int mqueue_create(struct inode *dir, struct dentry *dentry,
-				umode_t mode, bool excl)
+static int mqueue_create_attr(struct dentry *dentry, umode_t mode, void *arg)
 {
+	struct inode *dir = dentry->d_parent->d_inode;
 	struct inode *inode;
-	struct mq_attr *attr = dentry->d_fsdata;
+	struct mq_attr *attr = arg;
 	int error;
 	struct ipc_namespace *ipc_ns;
 
@@ -459,6 +459,12 @@ out_unlock:
 	if (ipc_ns)
 		put_ipc_ns(ipc_ns);
 	return error;
+}
+
+static int mqueue_create(struct inode *dir, struct dentry *dentry,
+				umode_t mode, bool excl)
+{
+	return mqueue_create_attr(dentry, mode, NULL);
 }
 
 static int mqueue_unlink(struct inode *dir, struct dentry *dentry)
@@ -732,8 +738,6 @@ static struct file *do_create(struct ipc_namespace *ipc_ns, struct inode *dir,
 		ret = mq_attr_ok(ipc_ns, attr);
 		if (ret)
 			return ERR_PTR(ret);
-		/* store for use during create */
-		path->dentry->d_fsdata = attr;
 	} else {
 		struct mq_attr def_attr;
 
@@ -746,9 +750,8 @@ static struct file *do_create(struct ipc_namespace *ipc_ns, struct inode *dir,
 			return ERR_PTR(ret);
 	}
 
-	mode &= ~current_umask();
-	ret = vfs_create(dir, path->dentry, mode, true);
-	path->dentry->d_fsdata = NULL;
+	ret = vfs_mkobj(path->dentry, mode & ~current_umask(),
+			mqueue_create_attr, attr);
 	if (ret)
 		return ERR_PTR(ret);
 	return dentry_open(path, oflag, cred);
