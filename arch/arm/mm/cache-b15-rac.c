@@ -1,0 +1,177 @@
+/*
+ * Broadcom Brahma-B15 CPU read-ahead cache management functions
+ *
+ * Copyright (C) 2015-2016 Broadcom
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+#include <linux/err.h>
+#include <linux/spinlock.h>
+#include <linux/io.h>
+#include <linux/bitops.h>
+#include <linux/of_address.h>
+
+#include <asm/cacheflush.h>
+#include <asm/hardware/cache-b15-rac.h>
+
+extern void v7_flush_kern_cache_all(void);
+
+/* RAC register offsets, relative to the HIF_CPU_BIUCTRL register base */
+#define RAC_CONFIG0_REG			(0x78)
+#define  RACENPREF_MASK			(0x3)
+#define  RACPREFINST_SHIFT		(0)
+#define  RACENINST_SHIFT		(2)
+#define  RACPREFDATA_SHIFT		(4)
+#define  RACENDATA_SHIFT		(6)
+#define  RAC_CPU_SHIFT			(8)
+#define  RACCFG_MASK			(0xff)
+#define RAC_CONFIG1_REG			(0x7c)
+#define RAC_FLUSH_REG			(0x80)
+#define  FLUSH_RAC			(1 << 0)
+
+/* Bitmask to enable instruction and data prefetching with a 256-bytes stride */
+#define RAC_DATA_INST_EN_MASK		(1 << RACPREFINST_SHIFT | \
+					 RACENPREF_MASK << RACENINST_SHIFT | \
+					 1 << RACPREFDATA_SHIFT | \
+					 RACENPREF_MASK << RACENDATA_SHIFT)
+
+#define RAC_ENABLED			0
+
+static void __iomem *b15_rac_base;
+static DEFINE_SPINLOCK(rac_lock);
+
+/* Initialization flag to avoid checking for b15_rac_base, and to prevent
+ * multi-platform kernels from crashing here as well.
+ */
+static unsigned long b15_rac_flags;
+
+static inline u32 __b15_rac_disable(void)
+{
+	u32 val = __raw_readl(b15_rac_base + RAC_CONFIG0_REG);
+	__raw_writel(0, b15_rac_base + RAC_CONFIG0_REG);
+	dmb();
+	return val;
+}
+
+static inline void __b15_rac_flush(void)
+{
+	u32 reg;
+
+	__raw_writel(FLUSH_RAC, b15_rac_base + RAC_FLUSH_REG);
+	do {
+		/* This dmb() is required to force the Bus Interface Unit
+		 * to clean oustanding writes, and forces an idle cycle
+		 * to be inserted.
+		 */
+		dmb();
+		reg = __raw_readl(b15_rac_base + RAC_FLUSH_REG);
+	} while (reg & FLUSH_RAC);
+}
+
+static inline u32 b15_rac_disable_and_flush(void)
+{
+	u32 reg;
+
+	reg = __b15_rac_disable();
+	__b15_rac_flush();
+	return reg;
+}
+
+static inline void __b15_rac_enable(u32 val)
+{
+	__raw_writel(val, b15_rac_base + RAC_CONFIG0_REG);
+	/* dsb() is required here to be consistent with __flush_icache_all() */
+	dsb();
+}
+
+#define BUILD_RAC_CACHE_OP(name, bar)				\
+void b15_flush_##name(void)					\
+{								\
+	unsigned int do_flush;					\
+	u32 val = 0;						\
+								\
+	spin_lock(&rac_lock);					\
+	do_flush = test_bit(RAC_ENABLED, &b15_rac_flags);	\
+	if (do_flush)						\
+		val = b15_rac_disable_and_flush();		\
+	v7_flush_##name();					\
+	if (!do_flush)						\
+		bar;						\
+	else							\
+		__b15_rac_enable(val);				\
+	spin_unlock(&rac_lock);					\
+}
+
+#define nobarrier
+
+/* The readahead cache present in the Brahma-B15 CPU is a special piece of
+ * hardware after the integrated L2 cache of the B15 CPU complex whose purpose
+ * is to prefetch instruction and/or data with a line size of either 64 bytes
+ * or 256 bytes. The rationale is that the data-bus of the CPU interface is
+ * optimized for 256-bytes transactions, and enabling the readahead cache
+ * provides a significant performance boost we want it enabled (typically
+ * twice the performance for a memcpy benchmark application).
+ *
+ * The readahead cache is transparent for Modified Virtual Addresses
+ * cache maintenance operations: ICIMVAU, DCIMVAC, DCCMVAC, DCCMVAU and
+ * DCCIMVAC.
+ *
+ * It is however not transparent for the following cache maintenance
+ * operations: DCISW, DCCSW, DCCISW, ICIALLUIS and ICIALLU which is precisely
+ * what we are patching here with our BUILD_RAC_CACHE_OP here.
+ */
+BUILD_RAC_CACHE_OP(kern_cache_all, nobarrier);
+
+static void b15_rac_enable(void)
+{
+	unsigned int cpu;
+	u32 enable = 0;
+
+	for_each_possible_cpu(cpu)
+		enable |= (RAC_DATA_INST_EN_MASK << (cpu * RAC_CPU_SHIFT));
+
+	b15_rac_disable_and_flush();
+	__b15_rac_enable(enable);
+}
+
+static int __init b15_rac_init(void)
+{
+	struct device_node *dn;
+	int ret = 0, cpu;
+	u32 reg, en_mask = 0;
+
+	dn = of_find_compatible_node(NULL, NULL, "brcm,brcmstb-cpu-biu-ctrl");
+	if (!dn)
+		return -ENODEV;
+
+	if (WARN(num_possible_cpus() > 4, "RAC only supports 4 CPUs\n"))
+		goto out;
+
+	b15_rac_base = of_iomap(dn, 0);
+	if (!b15_rac_base) {
+		pr_err("failed to remap BIU control base\n");
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	spin_lock(&rac_lock);
+	reg = __raw_readl(b15_rac_base + RAC_CONFIG0_REG);
+	for_each_possible_cpu(cpu)
+		en_mask |= ((1 << RACPREFDATA_SHIFT) << (cpu * RAC_CPU_SHIFT));
+	WARN(reg & en_mask, "Read-ahead cache not previously disabled\n");
+
+	b15_rac_enable();
+	set_bit(RAC_ENABLED, &b15_rac_flags);
+	spin_unlock(&rac_lock);
+
+	pr_info("Broadcom Brahma-B15 readahead cache at: 0x%p\n",
+		b15_rac_base + RAC_CONFIG0_REG);
+
+out:
+	of_node_put(dn);
+	return ret;
+}
+arch_initcall(b15_rac_init);
