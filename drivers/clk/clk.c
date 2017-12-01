@@ -1888,7 +1888,7 @@ static int clk_core_set_parent(struct clk_core *core, struct clk_core *parent)
 
 	/* verify ops for for multi-parent clks */
 	if ((core->num_parents > 1) && (!core->ops->set_parent)) {
-		ret = -ENOSYS;
+		ret = -EPERM;
 		goto out;
 	}
 
