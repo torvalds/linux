@@ -68,7 +68,7 @@ struct dpp_funcs {
 
 	void (*dpp_set_csc_adjustment)(
 		struct dpp *dpp,
-		const struct out_csc_color_matrix *tbl_entry);
+		const uint16_t *regval);
 
 	void (*dpp_power_on_regamma_lut)(
 		struct dpp *dpp,

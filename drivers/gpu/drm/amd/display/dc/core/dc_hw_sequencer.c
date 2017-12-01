@@ -28,6 +28,8 @@
 #include "timing_generator.h"
 #include "hw_sequencer.h"
 
+#define NUM_ELEMENTS(a) (sizeof(a) / sizeof((a)[0]))
+
 /* used as index in array of black_color_format */
 enum black_color_format {
 	BLACK_COLOR_FORMAT_RGB_FULLRANGE = 0,
@@ -36,6 +38,15 @@ enum black_color_format {
 	BLACK_COLOR_FORMAT_YUV_CV,
 	BLACK_COLOR_FORMAT_YUV_SUPER_AA,
 	BLACK_COLOR_FORMAT_DEBUG,
+};
+
+enum dc_color_space_type {
+	COLOR_SPACE_RGB_TYPE,
+	COLOR_SPACE_RGB_LIMITED_TYPE,
+	COLOR_SPACE_YCBCR601_TYPE,
+	COLOR_SPACE_YCBCR709_TYPE,
+	COLOR_SPACE_YCBCR601_LIMITED_TYPE,
+	COLOR_SPACE_YCBCR709_LIMITED_TYPE
 };
 
 static const struct tg_color black_color_format[] = {
@@ -52,6 +63,140 @@ static const struct tg_color black_color_format[] = {
 	/* visual confirm debug */
 	{0xff, 0xff, 0},
 };
+
+struct out_csc_color_matrix_type {
+	enum dc_color_space_type color_space_type;
+	uint16_t regval[12];
+};
+
+static const struct out_csc_color_matrix_type output_csc_matrix[] = {
+	{ COLOR_SPACE_RGB_TYPE,
+		{ 0x2000, 0, 0, 0, 0, 0x2000, 0, 0, 0, 0, 0x2000, 0} },
+	{ COLOR_SPACE_RGB_LIMITED_TYPE,
+		{ 0x1B67, 0, 0, 0x201, 0, 0x1B67, 0, 0x201, 0, 0, 0x1B67, 0x201} },
+	{ COLOR_SPACE_YCBCR601_TYPE,
+		{ 0xE04, 0xF444, 0xFDB9, 0x1004, 0x831, 0x1016, 0x320, 0x201, 0xFB45,
+				0xF6B7, 0xE04, 0x1004} },
+	{ COLOR_SPACE_YCBCR709_TYPE,
+		{ 0xE04, 0xF345, 0xFEB7, 0x1004, 0x5D3, 0x1399, 0x1FA,
+				0x201, 0xFCCA, 0xF533, 0xE04, 0x1004} },
+
+	/* TODO: correct values below */
+	{ COLOR_SPACE_YCBCR601_LIMITED_TYPE,
+		{ 0xE00, 0xF447, 0xFDB9, 0x1000, 0x991,
+				0x12C9, 0x3A6, 0x200, 0xFB47, 0xF6B9, 0xE00, 0x1000} },
+	{ COLOR_SPACE_YCBCR709_LIMITED_TYPE,
+		{ 0xE00, 0xF349, 0xFEB7, 0x1000, 0x6CE, 0x16E3,
+				0x24F, 0x200, 0xFCCB, 0xF535, 0xE00, 0x1000} },
+};
+
+static bool is_rgb_type(
+		enum dc_color_space color_space)
+{
+	bool ret = false;
+
+	if (color_space == COLOR_SPACE_SRGB			||
+		color_space == COLOR_SPACE_XR_RGB		||
+		color_space == COLOR_SPACE_MSREF_SCRGB		||
+		color_space == COLOR_SPACE_2020_RGB_FULLRANGE	||
+		color_space == COLOR_SPACE_ADOBERGB		||
+		color_space == COLOR_SPACE_DCIP3	||
+		color_space == COLOR_SPACE_DOLBYVISION)
+		ret = true;
+	return ret;
+}
+
+static bool is_rgb_limited_type(
+		enum dc_color_space color_space)
+{
+	bool ret = false;
+
+	if (color_space == COLOR_SPACE_SRGB_LIMITED		||
+		color_space == COLOR_SPACE_2020_RGB_LIMITEDRANGE)
+		ret = true;
+	return ret;
+}
+
+static bool is_ycbcr601_type(
+		enum dc_color_space color_space)
+{
+	bool ret = false;
+
+	if (color_space == COLOR_SPACE_YCBCR601	||
+		color_space == COLOR_SPACE_XV_YCC_601)
+		ret = true;
+	return ret;
+}
+
+static bool is_ycbcr601_limited_type(
+		enum dc_color_space color_space)
+{
+	bool ret = false;
+
+	if (color_space == COLOR_SPACE_YCBCR601_LIMITED)
+		ret = true;
+	return ret;
+}
+
+static bool is_ycbcr709_type(
+		enum dc_color_space color_space)
+{
+	bool ret = false;
+
+	if (color_space == COLOR_SPACE_YCBCR709	||
+		color_space == COLOR_SPACE_XV_YCC_709)
+		ret = true;
+	return ret;
+}
+
+static bool is_ycbcr709_limited_type(
+		enum dc_color_space color_space)
+{
+	bool ret = false;
+
+	if (color_space == COLOR_SPACE_YCBCR709_LIMITED)
+		ret = true;
+	return ret;
+}
+enum dc_color_space_type get_color_space_type(enum dc_color_space color_space)
+{
+	enum dc_color_space_type type = COLOR_SPACE_RGB_TYPE;
+
+	if (is_rgb_type(color_space))
+		type = COLOR_SPACE_RGB_TYPE;
+	else if (is_rgb_limited_type(color_space))
+		type = COLOR_SPACE_RGB_LIMITED_TYPE;
+	else if (is_ycbcr601_type(color_space))
+		type = COLOR_SPACE_YCBCR601_TYPE;
+	else if (is_ycbcr709_type(color_space))
+		type = COLOR_SPACE_YCBCR709_TYPE;
+	else if (is_ycbcr601_limited_type(color_space))
+		type = COLOR_SPACE_YCBCR601_LIMITED_TYPE;
+	else if (is_ycbcr709_limited_type(color_space))
+		type = COLOR_SPACE_YCBCR709_LIMITED_TYPE;
+
+	return type;
+}
+
+const uint16_t *find_color_matrix(enum dc_color_space color_space,
+							uint32_t *array_size)
+{
+	int i;
+	enum dc_color_space_type type;
+	const uint16_t *val = NULL;
+	int arr_size = NUM_ELEMENTS(output_csc_matrix);
+
+	type = get_color_space_type(color_space);
+	for (i = 0; i < arr_size; i++)
+		if (output_csc_matrix[i].color_space_type == type) {
+			val = output_csc_matrix[i].regval;
+			*array_size = 12;
+			break;
+		}
+
+	return val;
+}
+
 
 void color_space_to_black_color(
 	const struct dc *dc,

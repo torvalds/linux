@@ -1370,7 +1370,7 @@ void dpp1_cm_program_regamma_lutb_settings(
 		const struct pwl_params *params);
 void dpp1_cm_set_output_csc_adjustment(
 		struct dpp *dpp_base,
-		const struct out_csc_color_matrix *tbl_entry);
+		const uint16_t *regval);
 
 void dpp1_cm_set_output_csc_default(
 		struct dpp *dpp_base,

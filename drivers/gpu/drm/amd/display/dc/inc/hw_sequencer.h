@@ -207,4 +207,8 @@ void color_space_to_black_color(
 bool hwss_wait_for_blank_complete(
 		struct timing_generator *tg);
 
+const uint16_t *find_color_matrix(
+		enum dc_color_space color_space,
+		uint32_t *array_size);
+
 #endif /* __DC_HW_SEQUENCER_H__ */

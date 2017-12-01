@@ -1429,22 +1429,9 @@ static void program_csc_matrix(struct pipe_ctx *pipe_ctx,
 		enum dc_color_space colorspace,
 		uint16_t *matrix)
 {
-	int i;
-	struct out_csc_color_matrix tbl_entry;
-
 	if (pipe_ctx->stream->csc_color_matrix.enable_adjustment == true) {
-			enum dc_color_space color_space =
-				pipe_ctx->stream->output_color_space;
-
-			//uint16_t matrix[12];
-			for (i = 0; i < 12; i++)
-				tbl_entry.regval[i] = pipe_ctx->stream->csc_color_matrix.matrix[i];
-
-			tbl_entry.color_space = color_space;
-			//tbl_entry.regval = matrix;
-
 			if (pipe_ctx->plane_res.dpp->funcs->dpp_set_csc_adjustment != NULL)
-				pipe_ctx->plane_res.dpp->funcs->dpp_set_csc_adjustment(pipe_ctx->plane_res.dpp, &tbl_entry);
+				pipe_ctx->plane_res.dpp->funcs->dpp_set_csc_adjustment(pipe_ctx->plane_res.dpp, matrix);
 	} else {
 		if (pipe_ctx->plane_res.dpp->funcs->dpp_set_csc_default != NULL)
 			pipe_ctx->plane_res.dpp->funcs->dpp_set_csc_default(pipe_ctx->plane_res.dpp, colorspace);
