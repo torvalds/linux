@@ -81,6 +81,49 @@ int _gre_get_tunnel(struct __sk_buff *skb)
 	return TC_ACT_OK;
 }
 
+SEC("ip6gretap_set_tunnel")
+int _ip6gretap_set_tunnel(struct __sk_buff *skb)
+{
+	struct bpf_tunnel_key key;
+	int ret;
+
+	__builtin_memset(&key, 0x0, sizeof(key));
+	key.remote_ipv6[3] = _htonl(0x11); /* ::11 */
+	key.tunnel_id = 2;
+	key.tunnel_tos = 0;
+	key.tunnel_ttl = 64;
+	key.tunnel_label = 0xabcde;
+
+	ret = bpf_skb_set_tunnel_key(skb, &key, sizeof(key),
+				     BPF_F_TUNINFO_IPV6 | BPF_F_ZERO_CSUM_TX);
+	if (ret < 0) {
+		ERROR(ret);
+		return TC_ACT_SHOT;
+	}
+
+	return TC_ACT_OK;
+}
+
+SEC("ip6gretap_get_tunnel")
+int _ip6gretap_get_tunnel(struct __sk_buff *skb)
+{
+	char fmt[] = "key %d remote ip6 ::%x label %x\n";
+	struct bpf_tunnel_key key;
+	int ret;
+
+	ret = bpf_skb_get_tunnel_key(skb, &key, sizeof(key),
+				     BPF_F_TUNINFO_IPV6);
+	if (ret < 0) {
+		ERROR(ret);
+		return TC_ACT_SHOT;
+	}
+
+	bpf_trace_printk(fmt, sizeof(fmt),
+			 key.tunnel_id, key.remote_ipv6[3], key.tunnel_label);
+
+	return TC_ACT_OK;
+}
+
 SEC("erspan_set_tunnel")
 int _erspan_set_tunnel(struct __sk_buff *skb)
 {
