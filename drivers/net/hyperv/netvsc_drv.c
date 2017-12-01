@@ -177,17 +177,15 @@ out:
 	return ret;
 }
 
-static void *init_ppi_data(struct rndis_message *msg, u32 ppi_size,
-			   int pkt_type)
+static inline void *init_ppi_data(struct rndis_message *msg,
+				  u32 ppi_size, u32 pkt_type)
 {
-	struct rndis_packet *rndis_pkt;
+	struct rndis_packet *rndis_pkt = &msg->msg.pkt;
 	struct rndis_per_packet_info *ppi;
 
-	rndis_pkt = &msg->msg.pkt;
 	rndis_pkt->data_offset += ppi_size;
-
-	ppi = (struct rndis_per_packet_info *)((void *)rndis_pkt +
-		rndis_pkt->per_pkt_info_offset + rndis_pkt->per_pkt_info_len);
+	ppi = (void *)rndis_pkt + rndis_pkt->per_pkt_info_offset
+		+ rndis_pkt->per_pkt_info_len;
 
 	ppi->size = ppi_size;
 	ppi->type = pkt_type;
@@ -195,7 +193,7 @@ static void *init_ppi_data(struct rndis_message *msg, u32 ppi_size,
 
 	rndis_pkt->per_pkt_info_len += ppi_size;
 
-	return ppi;
+	return ppi + 1;
 }
 
 /* Azure hosts don't support non-TCP port numbers in hashing for fragmented
@@ -472,10 +470,8 @@ static int netvsc_start_xmit(struct sk_buff *skb, struct net_device *net)
 	int ret;
 	unsigned int num_data_pgs;
 	struct rndis_message *rndis_msg;
-	struct rndis_packet *rndis_pkt;
 	struct net_device *vf_netdev;
 	u32 rndis_msg_size;
-	struct rndis_per_packet_info *ppi;
 	u32 hash;
 	struct hv_page_buffer pb[MAX_PAGE_BUFFER_COUNT];
 
@@ -530,34 +526,36 @@ static int netvsc_start_xmit(struct sk_buff *skb, struct net_device *net)
 
 	rndis_msg = (struct rndis_message *)skb->head;
 
-	memset(rndis_msg, 0, RNDIS_AND_PPI_SIZE);
-
 	/* Add the rndis header */
 	rndis_msg->ndis_msg_type = RNDIS_MSG_PACKET;
 	rndis_msg->msg_len = packet->total_data_buflen;
-	rndis_pkt = &rndis_msg->msg.pkt;
-	rndis_pkt->data_offset = sizeof(struct rndis_packet);
-	rndis_pkt->data_len = packet->total_data_buflen;
-	rndis_pkt->per_pkt_info_offset = sizeof(struct rndis_packet);
+
+	rndis_msg->msg.pkt = (struct rndis_packet) {
+		.data_offset = sizeof(struct rndis_packet),
+		.data_len = packet->total_data_buflen,
+		.per_pkt_info_offset = sizeof(struct rndis_packet),
+	};
 
 	rndis_msg_size = RNDIS_MESSAGE_SIZE(struct rndis_packet);
 
 	hash = skb_get_hash_raw(skb);
 	if (hash != 0 && net->real_num_tx_queues > 1) {
+		u32 *hash_info;
+
 		rndis_msg_size += NDIS_HASH_PPI_SIZE;
-		ppi = init_ppi_data(rndis_msg, NDIS_HASH_PPI_SIZE,
-				    NBL_HASH_VALUE);
-		*(u32 *)((void *)ppi + ppi->ppi_offset) = hash;
+		hash_info = init_ppi_data(rndis_msg, NDIS_HASH_PPI_SIZE,
+					  NBL_HASH_VALUE);
+		*hash_info = hash;
 	}
 
 	if (skb_vlan_tag_present(skb)) {
 		struct ndis_pkt_8021q_info *vlan;
 
 		rndis_msg_size += NDIS_VLAN_PPI_SIZE;
-		ppi = init_ppi_data(rndis_msg, NDIS_VLAN_PPI_SIZE,
-				    IEEE_8021Q_INFO);
+		vlan = init_ppi_data(rndis_msg, NDIS_VLAN_PPI_SIZE,
+				     IEEE_8021Q_INFO);
 
-		vlan = (void *)ppi + ppi->ppi_offset;
+		vlan->value = 0;
 		vlan->vlanid = skb->vlan_tci & VLAN_VID_MASK;
 		vlan->pri = (skb->vlan_tci & VLAN_PRIO_MASK) >>
 				VLAN_PRIO_SHIFT;
@@ -567,11 +565,10 @@ static int netvsc_start_xmit(struct sk_buff *skb, struct net_device *net)
 		struct ndis_tcp_lso_info *lso_info;
 
 		rndis_msg_size += NDIS_LSO_PPI_SIZE;
-		ppi = init_ppi_data(rndis_msg, NDIS_LSO_PPI_SIZE,
-				    TCP_LARGESEND_PKTINFO);
+		lso_info = init_ppi_data(rndis_msg, NDIS_LSO_PPI_SIZE,
+					 TCP_LARGESEND_PKTINFO);
 
-		lso_info = (void *)ppi + ppi->ppi_offset;
-
+		lso_info->value = 0;
 		lso_info->lso_v2_transmit.type = NDIS_TCP_LARGE_SEND_OFFLOAD_V2_TYPE;
 		if (skb->protocol == htons(ETH_P_IP)) {
 			lso_info->lso_v2_transmit.ip_version =
@@ -596,12 +593,10 @@ static int netvsc_start_xmit(struct sk_buff *skb, struct net_device *net)
 			struct ndis_tcp_ip_checksum_info *csum_info;
 
 			rndis_msg_size += NDIS_CSUM_PPI_SIZE;
-			ppi = init_ppi_data(rndis_msg, NDIS_CSUM_PPI_SIZE,
-					    TCPIP_CHKSUM_PKTINFO);
+			csum_info = init_ppi_data(rndis_msg, NDIS_CSUM_PPI_SIZE,
+						  TCPIP_CHKSUM_PKTINFO);
 
-			csum_info = (struct ndis_tcp_ip_checksum_info *)((void *)ppi +
-									 ppi->ppi_offset);
-
+			csum_info->value = 0;
 			csum_info->transmit.tcp_header_offset = skb_transport_offset(skb);
 
 			if (skb->protocol == htons(ETH_P_IP)) {
