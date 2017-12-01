@@ -87,6 +87,16 @@ static struct rb_node *saved_value_new(struct rblist *rblist __maybe_unused,
 	return &nd->rb_node;
 }
 
+static void saved_value_delete(struct rblist *rblist __maybe_unused,
+			       struct rb_node *rb_node)
+{
+	struct saved_value *v;
+
+	BUG_ON(!rb_node);
+	v = container_of(rb_node, struct saved_value, rb_node);
+	free(v);
+}
+
 static struct saved_value *saved_value_lookup(struct perf_evsel *evsel,
 					      int cpu,
 					      bool create)
@@ -114,7 +124,7 @@ void perf_stat__init_shadow_stats(void)
 	rblist__init(&runtime_saved_values);
 	runtime_saved_values.node_cmp = saved_value_cmp;
 	runtime_saved_values.node_new = saved_value_new;
-	/* No delete for now */
+	runtime_saved_values.node_delete = saved_value_delete;
 }
 
 static int evsel_context(struct perf_evsel *evsel)
