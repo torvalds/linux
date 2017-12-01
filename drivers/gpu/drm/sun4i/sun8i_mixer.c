@@ -239,6 +239,7 @@ static int sun8i_mixer_bind(struct device *dev, struct device *master,
 	struct sun8i_mixer *mixer;
 	struct resource *res;
 	void __iomem *regs;
+	int plane_cnt;
 	int i, ret;
 
 	/*
@@ -324,8 +325,6 @@ static int sun8i_mixer_bind(struct device *dev, struct device *master,
 	/* Initialize blender */
 	regmap_write(mixer->engine.regs, SUN8I_MIXER_BLEND_FCOLOR_CTL,
 		     SUN8I_MIXER_BLEND_FCOLOR_CTL_DEF);
-	regmap_write(mixer->engine.regs, SUN8I_MIXER_BLEND_MODE(0),
-		     SUN8I_MIXER_BLEND_MODE_DEF);
 
 	regmap_write(mixer->engine.regs,
 		     SUN8I_MIXER_BLEND_ATTR_FCOLOR(0),
@@ -336,6 +335,11 @@ static int sun8i_mixer_bind(struct device *dev, struct device *master,
 			 mixer->cfg->vi_num);
 	regmap_write(mixer->engine.regs, SUN8I_MIXER_BLEND_ROUTE,
 		     mixer->cfg->vi_num);
+
+	plane_cnt = mixer->cfg->vi_num + mixer->cfg->ui_num;
+	for (i = 0; i < plane_cnt; i++)
+		regmap_write(mixer->engine.regs, SUN8I_MIXER_BLEND_MODE(i),
+			     SUN8I_MIXER_BLEND_MODE_DEF);
 
 	return 0;
 
