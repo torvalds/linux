@@ -7073,17 +7073,21 @@ int dev_change_proto_down(struct net_device *dev, bool proto_down)
 }
 EXPORT_SYMBOL(dev_change_proto_down);
 
-u8 __dev_xdp_attached(struct net_device *dev, bpf_op_t bpf_op, u32 *prog_id)
+void __dev_xdp_query(struct net_device *dev, bpf_op_t bpf_op,
+		     struct netdev_bpf *xdp)
+{
+	memset(xdp, 0, sizeof(*xdp));
+	xdp->command = XDP_QUERY_PROG;
+
+	/* Query must always succeed. */
+	WARN_ON(bpf_op(dev, xdp) < 0);
+}
+
+static u8 __dev_xdp_attached(struct net_device *dev, bpf_op_t bpf_op)
 {
 	struct netdev_bpf xdp;
 
-	memset(&xdp, 0, sizeof(xdp));
-	xdp.command = XDP_QUERY_PROG;
-
-	/* Query must always succeed. */
-	WARN_ON(bpf_op(dev, &xdp) < 0);
-	if (prog_id)
-		*prog_id = xdp.prog_id;
+	__dev_xdp_query(dev, bpf_op, &xdp);
 
 	return xdp.prog_attached;
 }
@@ -7134,10 +7138,10 @@ int dev_change_xdp_fd(struct net_device *dev, struct netlink_ext_ack *extack,
 		bpf_chk = generic_xdp_install;
 
 	if (fd >= 0) {
-		if (bpf_chk && __dev_xdp_attached(dev, bpf_chk, NULL))
+		if (bpf_chk && __dev_xdp_attached(dev, bpf_chk))
 			return -EEXIST;
 		if ((flags & XDP_FLAGS_UPDATE_IF_NOEXIST) &&
-		    __dev_xdp_attached(dev, bpf_op, NULL))
+		    __dev_xdp_attached(dev, bpf_op))
 			return -EBUSY;
 
 		prog = bpf_prog_get_type_dev(fd, BPF_PROG_TYPE_XDP,

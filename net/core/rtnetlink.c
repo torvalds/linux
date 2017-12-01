@@ -1261,6 +1261,7 @@ static u8 rtnl_xdp_attached_mode(struct net_device *dev, u32 *prog_id)
 {
 	const struct net_device_ops *ops = dev->netdev_ops;
 	const struct bpf_prog *generic_xdp_prog;
+	struct netdev_bpf xdp;
 
 	ASSERT_RTNL();
 
@@ -1273,7 +1274,10 @@ static u8 rtnl_xdp_attached_mode(struct net_device *dev, u32 *prog_id)
 	if (!ops->ndo_bpf)
 		return XDP_ATTACHED_NONE;
 
-	return __dev_xdp_attached(dev, ops->ndo_bpf, prog_id);
+	__dev_xdp_query(dev, ops->ndo_bpf, &xdp);
+	*prog_id = xdp.prog_id;
+
+	return xdp.prog_attached;
 }
 
 static int rtnl_xdp_fill(struct sk_buff *skb, struct net_device *dev)
