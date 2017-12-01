@@ -1,0 +1,61 @@
+Rockchip RK618 display bridge bindings
+======================================
+
+LVDS Encoder
+------------
+
+Required properties:
+- compatible: value should be one of the following:
+   "rockchip,rk618-lvds"
+- clocks: must include clock specifiers corresponding to entries in the
+	  clock-names property.
+	  See ../clocks/clock-bindings.txt for details.
+- clock-names: list of clock names sorted in the same order as the clocks
+	       property. Must contain "lvds", "dither", "vif", "scaler".
+
+The LVDS has two video ports. Their connections are modeled using the OF
+graph bindings specified in Documentation/devicetree/bindings/graph.txt.
+
+- Video port 0 for DPI input
+- Video port 1 for LVDS output
+
+&rk618 {
+	status = "okay";
+
+	lvds {
+		compatible = "rockchip,rk618-lvds";
+		clocks = <&CRU LVDS_CLK>, <&CRU DITHER_CLK>,
+			 <&CRU VIF0_CLK>, <&CRU SCALER_CLK>;
+		clock-names = "lvds", "dither", "vif", "scaler";
+		status = "okay";
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				lvds_input_vop: endpoint@0 {
+					reg = <0>;
+					remote-endpoint = <&vop_output_lvds>;
+				};
+
+				lvds_input_bridge: endpoint@1 {
+					reg = <1>;
+					remote-endpoint = <&hdmi_output_bridge>;
+				};
+			};
+
+			port@1 {
+				reg = <1>;
+
+				lvds_output_panel: endpoint {
+					remote-endpoint = <&panel_input_lvds>;
+				};
+			};
+		};
+	};
+};

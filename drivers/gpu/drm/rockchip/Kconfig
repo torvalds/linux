@@ -106,3 +106,5 @@ config ROCKCHIP_RK3066_HDMI
 	  This selects support for Rockchip SoC specific extensions
 	  for the Innosilicon HDMI driver. If you want to enable
 	  HDMI on RK3066 based SoC, you should select this option.
+
+source "drivers/gpu/drm/rockchip/rk618/Kconfig"
