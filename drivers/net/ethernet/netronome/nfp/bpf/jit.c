@@ -544,16 +544,18 @@ static int nfp_cpp_memcpy(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 	unsigned int i;
 	u8 xfer_num;
 
-	if (WARN_ON_ONCE(len > 32))
-		return -EOPNOTSUPP;
-
 	off = re_load_imm_any(nfp_prog, meta->insn.off, imm_b(nfp_prog));
 	src_base = reg_a(meta->insn.src_reg * 2);
 	xfer_num = round_up(len, 4) / 4;
 
+	/* Setup PREV_ALU fields to override memory read length. */
+	if (len > 32)
+		wrp_immed(nfp_prog, reg_none(),
+			  CMD_OVE_LEN | FIELD_PREP(CMD_OV_LEN, xfer_num - 1));
+
 	/* Memory read from source addr into transfer-in registers. */
-	emit_cmd(nfp_prog, CMD_TGT_READ32_SWAP, CMD_MODE_32b, 0, src_base, off,
-		 xfer_num - 1, true);
+	emit_cmd_any(nfp_prog, CMD_TGT_READ32_SWAP, CMD_MODE_32b, 0, src_base,
+		     off, xfer_num - 1, true, len > 32);
 
 	/* Move from transfer-in to transfer-out. */
 	for (i = 0; i < xfer_num; i++)
@@ -566,18 +568,54 @@ static int nfp_cpp_memcpy(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 		emit_cmd(nfp_prog, CMD_TGT_WRITE8_SWAP, CMD_MODE_32b, 0,
 			 reg_a(meta->paired_st->dst_reg * 2), off, len - 1,
 			 true);
-	} else if (IS_ALIGNED(len, 4)) {
+	} else if (len <= 32 && IS_ALIGNED(len, 4)) {
 		/* Use single direct_ref write32. */
 		emit_cmd(nfp_prog, CMD_TGT_WRITE32_SWAP, CMD_MODE_32b, 0,
 			 reg_a(meta->paired_st->dst_reg * 2), off, xfer_num - 1,
 			 true);
-	} else {
+	} else if (len <= 32) {
 		/* Use single indirect_ref write8. */
 		wrp_immed(nfp_prog, reg_none(),
 			  CMD_OVE_LEN | FIELD_PREP(CMD_OV_LEN, len - 1));
 		emit_cmd_indir(nfp_prog, CMD_TGT_WRITE8_SWAP, CMD_MODE_32b, 0,
 			       reg_a(meta->paired_st->dst_reg * 2), off,
 			       len - 1, true);
+	} else if (IS_ALIGNED(len, 4)) {
+		/* Use single indirect_ref write32. */
+		wrp_immed(nfp_prog, reg_none(),
+			  CMD_OVE_LEN | FIELD_PREP(CMD_OV_LEN, xfer_num - 1));
+		emit_cmd_indir(nfp_prog, CMD_TGT_WRITE32_SWAP, CMD_MODE_32b, 0,
+			       reg_a(meta->paired_st->dst_reg * 2), off,
+			       xfer_num - 1, true);
+	} else if (len <= 40) {
+		/* Use one direct_ref write32 to write the first 32-bytes, then
+		 * another direct_ref write8 to write the remaining bytes.
+		 */
+		emit_cmd(nfp_prog, CMD_TGT_WRITE32_SWAP, CMD_MODE_32b, 0,
+			 reg_a(meta->paired_st->dst_reg * 2), off, 7,
+			 true);
+
+		off = re_load_imm_any(nfp_prog, meta->paired_st->off + 32,
+				      imm_b(nfp_prog));
+		emit_cmd(nfp_prog, CMD_TGT_WRITE8_SWAP, CMD_MODE_32b, 8,
+			 reg_a(meta->paired_st->dst_reg * 2), off, len - 33,
+			 true);
+	} else {
+		/* Use one indirect_ref write32 to write 4-bytes aligned length,
+		 * then another direct_ref write8 to write the remaining bytes.
+		 */
+		u8 new_off;
+
+		wrp_immed(nfp_prog, reg_none(),
+			  CMD_OVE_LEN | FIELD_PREP(CMD_OV_LEN, xfer_num - 2));
+		emit_cmd_indir(nfp_prog, CMD_TGT_WRITE32_SWAP, CMD_MODE_32b, 0,
+			       reg_a(meta->paired_st->dst_reg * 2), off,
+			       xfer_num - 2, true);
+		new_off = meta->paired_st->off + (xfer_num - 1) * 4;
+		off = re_load_imm_any(nfp_prog, new_off, imm_b(nfp_prog));
+		emit_cmd(nfp_prog, CMD_TGT_WRITE8_SWAP, CMD_MODE_32b,
+			 xfer_num - 1, reg_a(meta->paired_st->dst_reg * 2), off,
+			 (len & 0x3) - 1, true);
 	}
 
 	/* TODO: The following extra load is to make sure data flow be identical
