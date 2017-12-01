@@ -80,6 +80,21 @@ extern void of_instantiate_rtc(void);
 
 extern int of_get_ibm_chip_id(struct device_node *np);
 
+struct of_drc_info {
+	char *drc_type;
+	char *drc_name_prefix;
+	u32 drc_index_start;
+	u32 drc_name_suffix_start;
+	u32 num_sequential_elems;
+	u32 sequential_inc;
+	u32 drc_power_domain;
+	u32 last_drc_index;
+};
+
+extern int of_read_drc_info_cell(struct property **prop,
+			const __be32 **curval, struct of_drc_info *data);
+
+
 /*
  * There are two methods for telling firmware what our capabilities are.
  * Newer machines have an "ibm,client-architecture-support" method on the
