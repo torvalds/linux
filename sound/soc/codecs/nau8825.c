@@ -194,10 +194,10 @@ static const struct reg_default nau8825_reg_defaults[] = {
 
 /* register backup table when cross talk detection */
 static struct reg_default nau8825_xtalk_baktab[] = {
-	{ NAU8825_REG_ADC_DGAIN_CTRL, 0 },
+	{ NAU8825_REG_ADC_DGAIN_CTRL, 0x00cf },
 	{ NAU8825_REG_HSVOL_CTRL, 0 },
-	{ NAU8825_REG_DACL_CTRL, 0 },
-	{ NAU8825_REG_DACR_CTRL, 0 },
+	{ NAU8825_REG_DACL_CTRL, 0x00cf },
+	{ NAU8825_REG_DACR_CTRL, 0x02cf },
 };
 
 static const unsigned short logtable[256] = {
@@ -455,22 +455,32 @@ static void nau8825_xtalk_backup(struct nau8825 *nau8825)
 {
 	int i;
 
+	if (nau8825->xtalk_baktab_initialized)
+		return;
+
 	/* Backup some register values to backup table */
 	for (i = 0; i < ARRAY_SIZE(nau8825_xtalk_baktab); i++)
 		regmap_read(nau8825->regmap, nau8825_xtalk_baktab[i].reg,
 				&nau8825_xtalk_baktab[i].def);
+
+	nau8825->xtalk_baktab_initialized = true;
 }
 
-static void nau8825_xtalk_restore(struct nau8825 *nau8825)
+static void nau8825_xtalk_restore(struct nau8825 *nau8825, bool cause_cancel)
 {
 	int i, volume;
 
+	if (!nau8825->xtalk_baktab_initialized)
+		return;
+
 	/* Restore register values from backup table; When the driver restores
-	 * the headphone volumem, it needs recover to original level gradually
-	 * with 3dB per step for less pop noise.
+	 * the headphone volume in XTALK_DONE state, it needs recover to
+	 * original level gradually with 3dB per step for less pop noise.
+	 * Otherwise, the restore should do ASAP.
 	 */
 	for (i = 0; i < ARRAY_SIZE(nau8825_xtalk_baktab); i++) {
-		if (nau8825_xtalk_baktab[i].reg == NAU8825_REG_HSVOL_CTRL) {
+		if (!cause_cancel && nau8825_xtalk_baktab[i].reg ==
+			NAU8825_REG_HSVOL_CTRL) {
 			/* Ramping up the volume change to reduce pop noise */
 			volume = nau8825_xtalk_baktab[i].def &
 				NAU8825_HPR_VOL_MASK;
@@ -480,6 +490,8 @@ static void nau8825_xtalk_restore(struct nau8825 *nau8825)
 		regmap_write(nau8825->regmap, nau8825_xtalk_baktab[i].reg,
 				nau8825_xtalk_baktab[i].def);
 	}
+
+	nau8825->xtalk_baktab_initialized = false;
 }
 
 static void nau8825_xtalk_prepare_dac(struct nau8825 *nau8825)
@@ -645,7 +657,7 @@ static void nau8825_xtalk_clean_adc(struct nau8825 *nau8825)
 		NAU8825_POWERUP_ADCL | NAU8825_ADC_VREFSEL_MASK, 0);
 }
 
-static void nau8825_xtalk_clean(struct nau8825 *nau8825)
+static void nau8825_xtalk_clean(struct nau8825 *nau8825, bool cause_cancel)
 {
 	/* Enable internal VCO needed for interruptions */
 	nau8825_configure_sysclk(nau8825, NAU8825_CLK_INTERNAL, 0);
@@ -661,7 +673,7 @@ static void nau8825_xtalk_clean(struct nau8825 *nau8825)
 		NAU8825_I2S_MS_MASK | NAU8825_I2S_LRC_DIV_MASK |
 		NAU8825_I2S_BLK_DIV_MASK, NAU8825_I2S_MS_SLAVE);
 	/* Restore value of specific register for cross talk */
-	nau8825_xtalk_restore(nau8825);
+	nau8825_xtalk_restore(nau8825, cause_cancel);
 }
 
 static void nau8825_xtalk_imm_start(struct nau8825 *nau8825, int vol)
@@ -780,7 +792,7 @@ static void nau8825_xtalk_measure(struct nau8825 *nau8825)
 		dev_dbg(nau8825->dev, "cross talk sidetone: %x\n", sidetone);
 		regmap_write(nau8825->regmap, NAU8825_REG_DAC_DGAIN_CTRL,
 					(sidetone << 8) | sidetone);
-		nau8825_xtalk_clean(nau8825);
+		nau8825_xtalk_clean(nau8825, false);
 		nau8825->xtalk_state = NAU8825_XTALK_DONE;
 		break;
 	default:
@@ -823,7 +835,7 @@ static void nau8825_xtalk_cancel(struct nau8825 *nau8825)
 	if (nau8825->xtalk_enable && nau8825->xtalk_state !=
 		NAU8825_XTALK_DONE) {
 		cancel_work_sync(&nau8825->xtalk_work);
-		nau8825_xtalk_clean(nau8825);
+		nau8825_xtalk_clean(nau8825, true);
 	}
 	/* Reset parameters for cross talk suppression function */
 	nau8825_sema_reset(nau8825);
@@ -1713,8 +1725,11 @@ static irqreturn_t nau8825_interrupt(int irq, void *data)
 						nau8825->xtalk_protect = false;
 				}
 				/* Startup cross talk detection process */
-				nau8825->xtalk_state = NAU8825_XTALK_PREPARE;
-				schedule_work(&nau8825->xtalk_work);
+				if (nau8825->xtalk_protect) {
+					nau8825->xtalk_state =
+						NAU8825_XTALK_PREPARE;
+					schedule_work(&nau8825->xtalk_work);
+				}
 			} else {
 				/* The cross talk suppression shouldn't apply
 				 * in the headset with high impedance. Thus,
@@ -1741,7 +1756,8 @@ static irqreturn_t nau8825_interrupt(int irq, void *data)
 			nau8825->xtalk_event_mask = event_mask;
 		}
 	} else if (active_irq & NAU8825_IMPEDANCE_MEAS_IRQ) {
-		if (nau8825->xtalk_enable)
+		/* crosstalk detection enable and process on going */
+		if (nau8825->xtalk_enable && nau8825->xtalk_protect)
 			schedule_work(&nau8825->xtalk_work);
 		clear_irq = NAU8825_IMPEDANCE_MEAS_IRQ;
 	} else if ((active_irq & NAU8825_JACK_INSERTION_IRQ_MASK) ==
@@ -2578,6 +2594,7 @@ static int nau8825_i2c_probe(struct i2c_client *i2c,
 	 */
 	nau8825->xtalk_state = NAU8825_XTALK_DONE;
 	nau8825->xtalk_protect = false;
+	nau8825->xtalk_baktab_initialized = false;
 	sema_init(&nau8825->xtalk_sem, 1);
 	INIT_WORK(&nau8825->xtalk_work, nau8825_xtalk_work);
 
