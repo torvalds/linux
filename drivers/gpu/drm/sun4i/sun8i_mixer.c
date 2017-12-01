@@ -323,8 +323,9 @@ static int sun8i_mixer_bind(struct device *dev, struct device *master,
 		     SUN8I_MIXER_BLEND_COLOR_BLACK);
 
 	/* Initialize blender */
-	regmap_write(mixer->engine.regs, SUN8I_MIXER_BLEND_FCOLOR_CTL,
-		     SUN8I_MIXER_BLEND_FCOLOR_CTL_DEF);
+	regmap_write(mixer->engine.regs, SUN8I_MIXER_BLEND_PIPE_CTL,
+		     SUN8I_MIXER_BLEND_PIPE_CTL_EN(0) |
+		     SUN8I_MIXER_BLEND_PIPE_CTL_FC_EN(0));
 
 	regmap_write(mixer->engine.regs,
 		     SUN8I_MIXER_BLEND_ATTR_FCOLOR(0),

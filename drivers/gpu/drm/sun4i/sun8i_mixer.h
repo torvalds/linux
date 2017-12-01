@@ -16,8 +16,6 @@
 
 #include "sunxi_engine.h"
 
-#define SUN8I_MIXER_MAX_CHAN_COUNT		4
-
 #define SUN8I_MIXER_SIZE(w, h)			(((h) - 1) << 16 | ((w) - 1))
 #define SUN8I_MIXER_COORD(x, y)			((y) << 16 | (x))
 
@@ -26,14 +24,14 @@
 #define SUN8I_MIXER_GLOBAL_DBUFF		0x8
 #define SUN8I_MIXER_GLOBAL_SIZE			0xc
 
-#define SUN8I_MIXER_GLOBAL_CTL_RT_EN		0x1
+#define SUN8I_MIXER_GLOBAL_CTL_RT_EN		BIT(0)
 
-#define SUN8I_MIXER_GLOBAL_DBUFF_ENABLE		0x1
+#define SUN8I_MIXER_GLOBAL_DBUFF_ENABLE		BIT(0)
 
-#define SUN8I_MIXER_BLEND_FCOLOR_CTL		0x1000
+#define SUN8I_MIXER_BLEND_PIPE_CTL		0x1000
 #define SUN8I_MIXER_BLEND_ATTR_FCOLOR(x)	(0x1004 + 0x10 * (x) + 0x0)
 #define SUN8I_MIXER_BLEND_ATTR_INSIZE(x)	(0x1004 + 0x10 * (x) + 0x4)
-#define SUN8I_MIXER_BLEND_ATTR_OFFSET(x)	(0x1004 + 0x10 * (x) + 0x8)
+#define SUN8I_MIXER_BLEND_ATTR_COORD(x)		(0x1004 + 0x10 * (x) + 0x8)
 #define SUN8I_MIXER_BLEND_ROUTE			0x1080
 #define SUN8I_MIXER_BLEND_PREMULTIPLY		0x1084
 #define SUN8I_MIXER_BLEND_BKCOLOR		0x1088
@@ -45,10 +43,11 @@
 #define SUN8I_MIXER_BLEND_CK_MIN(x)		(0x10e0 + 0x04 * (x))
 #define SUN8I_MIXER_BLEND_OUTCTL		0x10fc
 
+#define SUN8I_MIXER_BLEND_PIPE_CTL_EN(pipe)	BIT(8 + pipe)
+#define SUN8I_MIXER_BLEND_PIPE_CTL_FC_EN(pipe)	BIT(pipe)
 /* colors are always in AARRGGBB format */
 #define SUN8I_MIXER_BLEND_COLOR_BLACK		0xff000000
 /* The following numbers are some still unknown magic numbers */
-#define SUN8I_MIXER_BLEND_FCOLOR_CTL_DEF	0x00000101
 #define SUN8I_MIXER_BLEND_MODE_DEF		0x03010301
 
 #define SUN8I_MIXER_BLEND_OUTCTL_INTERLACED	BIT(1)
