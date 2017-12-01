@@ -29,6 +29,105 @@
 #include "sun8i_layer.h"
 #include "sunxi_engine.h"
 
+struct de2_fmt_info {
+	u32 drm_fmt;
+	u32 de2_fmt;
+};
+
+static const struct de2_fmt_info de2_formats[] = {
+	{
+		.drm_fmt = DRM_FORMAT_ARGB8888,
+		.de2_fmt = SUN8I_MIXER_FBFMT_ARGB8888,
+	},
+	{
+		.drm_fmt = DRM_FORMAT_ABGR8888,
+		.de2_fmt = SUN8I_MIXER_FBFMT_ABGR8888,
+	},
+	{
+		.drm_fmt = DRM_FORMAT_RGBA8888,
+		.de2_fmt = SUN8I_MIXER_FBFMT_RGBA8888,
+	},
+	{
+		.drm_fmt = DRM_FORMAT_BGRA8888,
+		.de2_fmt = SUN8I_MIXER_FBFMT_BGRA8888,
+	},
+	{
+		.drm_fmt = DRM_FORMAT_XRGB8888,
+		.de2_fmt = SUN8I_MIXER_FBFMT_XRGB8888,
+	},
+	{
+		.drm_fmt = DRM_FORMAT_XBGR8888,
+		.de2_fmt = SUN8I_MIXER_FBFMT_XBGR8888,
+	},
+	{
+		.drm_fmt = DRM_FORMAT_RGBX8888,
+		.de2_fmt = SUN8I_MIXER_FBFMT_RGBX8888,
+	},
+	{
+		.drm_fmt = DRM_FORMAT_BGRX8888,
+		.de2_fmt = SUN8I_MIXER_FBFMT_BGRX8888,
+	},
+	{
+		.drm_fmt = DRM_FORMAT_RGB888,
+		.de2_fmt = SUN8I_MIXER_FBFMT_RGB888,
+	},
+	{
+		.drm_fmt = DRM_FORMAT_BGR888,
+		.de2_fmt = SUN8I_MIXER_FBFMT_BGR888,
+	},
+	{
+		.drm_fmt = DRM_FORMAT_RGB565,
+		.de2_fmt = SUN8I_MIXER_FBFMT_RGB565,
+	},
+	{
+		.drm_fmt = DRM_FORMAT_BGR565,
+		.de2_fmt = SUN8I_MIXER_FBFMT_BGR565,
+	},
+	{
+		.drm_fmt = DRM_FORMAT_ARGB4444,
+		.de2_fmt = SUN8I_MIXER_FBFMT_ARGB4444,
+	},
+	{
+		.drm_fmt = DRM_FORMAT_ABGR4444,
+		.de2_fmt = SUN8I_MIXER_FBFMT_ABGR4444,
+	},
+	{
+		.drm_fmt = DRM_FORMAT_RGBA4444,
+		.de2_fmt = SUN8I_MIXER_FBFMT_RGBA4444,
+	},
+	{
+		.drm_fmt = DRM_FORMAT_BGRA4444,
+		.de2_fmt = SUN8I_MIXER_FBFMT_BGRA4444,
+	},
+	{
+		.drm_fmt = DRM_FORMAT_ARGB1555,
+		.de2_fmt = SUN8I_MIXER_FBFMT_ARGB1555,
+	},
+	{
+		.drm_fmt = DRM_FORMAT_ABGR1555,
+		.de2_fmt = SUN8I_MIXER_FBFMT_ABGR1555,
+	},
+	{
+		.drm_fmt = DRM_FORMAT_RGBA5551,
+		.de2_fmt = SUN8I_MIXER_FBFMT_RGBA5551,
+	},
+	{
+		.drm_fmt = DRM_FORMAT_BGRA5551,
+		.de2_fmt = SUN8I_MIXER_FBFMT_BGRA5551,
+	},
+};
+
+static const struct de2_fmt_info *sun8i_mixer_format_info(u32 format)
+{
+	unsigned int i;
+
+	for (i = 0; i < ARRAY_SIZE(de2_formats); ++i)
+		if (de2_formats[i].drm_fmt == format)
+			return &de2_formats[i];
+
+	return NULL;
+}
+
 static void sun8i_mixer_commit(struct sunxi_engine *engine)
 {
 	DRM_DEBUG_DRIVER("Committing changes\n");
@@ -62,29 +161,6 @@ void sun8i_mixer_layer_enable(struct sun8i_mixer *mixer, int channel,
 	regmap_update_bits(mixer->engine.regs,
 			   SUN8I_MIXER_BLEND_PIPE_CTL,
 			   SUN8I_MIXER_BLEND_PIPE_CTL_EN(channel), val);
-}
-
-static int sun8i_mixer_drm_format_to_layer(struct drm_plane *plane,
-					     u32 format, u32 *mode)
-{
-	switch (format) {
-	case DRM_FORMAT_ARGB8888:
-		*mode = SUN8I_MIXER_FBFMT_ARGB8888;
-		break;
-
-	case DRM_FORMAT_XRGB8888:
-		*mode = SUN8I_MIXER_FBFMT_XRGB8888;
-		break;
-
-	case DRM_FORMAT_RGB888:
-		*mode = SUN8I_MIXER_FBFMT_RGB888;
-		break;
-
-	default:
-		return -EINVAL;
-	}
-
-	return 0;
 }
 
 int sun8i_mixer_update_layer_coord(struct sun8i_mixer *mixer, int channel,
@@ -159,18 +235,16 @@ int sun8i_mixer_update_layer_formats(struct sun8i_mixer *mixer, int channel,
 				     int overlay, struct drm_plane *plane)
 {
 	struct drm_plane_state *state = plane->state;
-	struct drm_framebuffer *fb = state->fb;
+	const struct de2_fmt_info *fmt_info;
 	u32 val;
-	int ret;
 
-	ret = sun8i_mixer_drm_format_to_layer(plane, fb->format->format,
-						&val);
-	if (ret) {
+	fmt_info = sun8i_mixer_format_info(state->fb->format->format);
+	if (!fmt_info) {
 		DRM_DEBUG_DRIVER("Invalid format\n");
-		return ret;
+		return -EINVAL;
 	}
 
-	val <<= SUN8I_MIXER_CHAN_UI_LAYER_ATTR_FBFMT_OFFSET;
+	val = fmt_info->de2_fmt << SUN8I_MIXER_CHAN_UI_LAYER_ATTR_FBFMT_OFFSET;
 	regmap_update_bits(mixer->engine.regs,
 			   SUN8I_MIXER_CHAN_UI_LAYER_ATTR(channel, overlay),
 			   SUN8I_MIXER_CHAN_UI_LAYER_ATTR_FBFMT_MASK, val);
