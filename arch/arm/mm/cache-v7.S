@@ -15,6 +15,7 @@
 #include <asm/assembler.h>
 #include <asm/errno.h>
 #include <asm/unwind.h>
+#include <asm/hardware/cache-b15-rac.h>
 
 #include "proc-macros.S"
 
@@ -446,3 +447,23 @@ ENDPROC(v7_dma_unmap_area)
 
 	@ define struct cpu_cache_fns (see <asm/cacheflush.h> and proc-macros.S)
 	define_cache_functions v7
+
+	/* The Broadcom Brahma-B15 read-ahead cache requires some modifications
+	 * to the v7_cache_fns, we only override the ones we need
+	 */
+#ifndef CONFIG_CACHE_B15_RAC
+	globl_equ	b15_flush_kern_cache_all,	v7_flush_kern_cache_all
+#endif
+	globl_equ	b15_flush_icache_all,		v7_flush_icache_all
+	globl_equ	b15_flush_kern_cache_louis,	v7_flush_kern_cache_louis
+	globl_equ	b15_flush_user_cache_all,	v7_flush_user_cache_all
+	globl_equ	b15_flush_user_cache_range,	v7_flush_user_cache_range
+	globl_equ	b15_coherent_kern_range,	v7_coherent_kern_range
+	globl_equ	b15_coherent_user_range,	v7_coherent_user_range
+	globl_equ	b15_flush_kern_dcache_area,	v7_flush_kern_dcache_area
+
+	globl_equ	b15_dma_map_area,		v7_dma_map_area
+	globl_equ	b15_dma_unmap_area,		v7_dma_unmap_area
+	globl_equ	b15_dma_flush_range,		v7_dma_flush_range
+
+	define_cache_functions b15
