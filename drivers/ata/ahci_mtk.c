@@ -25,7 +25,7 @@
 #include <linux/reset.h>
 #include "ahci.h"
 
-#define DRV_NAME		"ahci"
+#define DRV_NAME		"ahci-mtk"
 
 #define SYS_CFG			0x14
 #define SYS_CFG_SATA_MSK	GENMASK(31, 30)
