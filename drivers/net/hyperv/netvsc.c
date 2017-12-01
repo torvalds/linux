@@ -31,6 +31,7 @@
 #include <linux/vmalloc.h>
 #include <linux/rtnetlink.h>
 #include <linux/prefetch.h>
+#include <linux/reciprocal_div.h>
 
 #include <asm/sync_bitops.h>
 
@@ -588,14 +589,11 @@ void netvsc_device_remove(struct hv_device *device)
  * Get the percentage of available bytes to write in the ring.
  * The return value is in range from 0 to 100.
  */
-static inline u32 hv_ringbuf_avail_percent(
-		struct hv_ring_buffer_info *ring_info)
+static u32 hv_ringbuf_avail_percent(const struct hv_ring_buffer_info *ring_info)
 {
-	u32 avail_read, avail_write;
+	u32 avail_write = hv_get_bytes_to_write(ring_info);
 
-	hv_get_ringbuffer_availbytes(ring_info, &avail_read, &avail_write);
-
-	return avail_write * 100 / ring_info->ring_datasize;
+	return reciprocal_divide(avail_write  * 100, netvsc_ring_reciprocal);
 }
 
 static inline void netvsc_free_send_slot(struct netvsc_device *net_device,
@@ -1249,7 +1247,6 @@ struct netvsc_device *netvsc_device_add(struct hv_device *device,
 				const struct netvsc_device_info *device_info)
 {
 	int i, ret = 0;
-	int ring_size = device_info->ring_size;
 	struct netvsc_device *net_device;
 	struct net_device *ndev = hv_get_drvdata(device);
 	struct net_device_context *net_device_ctx = netdev_priv(ndev);
@@ -1260,8 +1257,6 @@ struct netvsc_device *netvsc_device_add(struct hv_device *device,
 
 	for (i = 0; i < VRSS_SEND_TAB_SIZE; i++)
 		net_device_ctx->tx_table[i] = 0;
-
-	net_device->ring_size = ring_size;
 
 	/* Because the device uses NAPI, all the interrupt batching and
 	 * control is done via Net softirq, not the channel handling
@@ -1289,10 +1284,9 @@ struct netvsc_device *netvsc_device_add(struct hv_device *device,
 		       netvsc_poll, NAPI_POLL_WEIGHT);
 
 	/* Open the channel */
-	ret = vmbus_open(device->channel, ring_size * PAGE_SIZE,
-			 ring_size * PAGE_SIZE, NULL, 0,
-			 netvsc_channel_cb,
-			 net_device->chan_table);
+	ret = vmbus_open(device->channel, netvsc_ring_bytes,
+			 netvsc_ring_bytes,  NULL, 0,
+			 netvsc_channel_cb, net_device->chan_table);
 
 	if (ret != 0) {
 		netif_napi_del(&net_device->chan_table[0].napi);

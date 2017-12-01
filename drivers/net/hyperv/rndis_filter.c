@@ -1040,8 +1040,8 @@ static void netvsc_sc_open(struct vmbus_channel *new_sc)
 	/* Set the channel before opening.*/
 	nvchan->channel = new_sc;
 
-	ret = vmbus_open(new_sc, nvscdev->ring_size * PAGE_SIZE,
-			 nvscdev->ring_size * PAGE_SIZE, NULL, 0,
+	ret = vmbus_open(new_sc, netvsc_ring_bytes,
+			 netvsc_ring_bytes, NULL, 0,
 			 netvsc_channel_cb, nvchan);
 	if (ret == 0)
 		napi_enable(&nvchan->napi);
