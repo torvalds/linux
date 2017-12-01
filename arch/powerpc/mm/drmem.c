@@ -66,7 +66,7 @@ static int drmem_update_dt_v1(struct device_node *memory,
 			      struct property *prop)
 {
 	struct property *new_prop;
-	struct of_drconf_cell *dr_cell;
+	struct of_drconf_cell_v1 *dr_cell;
 	struct drmem_lmb *lmb;
 	u32 *p;
 
@@ -77,7 +77,7 @@ static int drmem_update_dt_v1(struct device_node *memory,
 	p = new_prop->value;
 	*p++ = cpu_to_be32(drmem_info->n_lmbs);
 
-	dr_cell = (struct of_drconf_cell *)p;
+	dr_cell = (struct of_drconf_cell_v1 *)p;
 
 	for_each_drmem_lmb(lmb) {
 		dr_cell->base_addr = cpu_to_be64(lmb->base_addr);

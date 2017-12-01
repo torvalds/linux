@@ -35,6 +35,25 @@ extern struct drmem_lmb_info *drmem_info;
 		&drmem_info->lmbs[0],				\
 		&drmem_info->lmbs[drmem_info->n_lmbs - 1])
 
+/*
+ * The of_drconf_cell_v1 struct defines the layout of the LMB data
+ * specified in the ibm,dynamic-memory device tree property.
+ * The property itself is a 32-bit value specifying the number of
+ * LMBs followed by an array of of_drconf_cell_v1 entries, one
+ * per LMB.
+ */
+struct of_drconf_cell_v1 {
+	__be64	base_addr;
+	__be32	drc_index;
+	__be32	reserved;
+	__be32	aa_index;
+	__be32	flags;
+};
+
+#define DRCONF_MEM_ASSIGNED	0x00000008
+#define DRCONF_MEM_AI_INVALID	0x00000040
+#define DRCONF_MEM_RESERVED	0x00000080
+
 static inline u32 drmem_lmb_size(void)
 {
 	return drmem_info->lmb_size;
