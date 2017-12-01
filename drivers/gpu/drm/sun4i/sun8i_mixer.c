@@ -336,6 +336,7 @@ static int sun8i_mixer_remove(struct platform_device *pdev)
 static const struct sun8i_mixer_cfg sun8i_v3s_mixer_cfg = {
 	.vi_num = 2,
 	.ui_num = 1,
+	.scaler_mask = 0x3,
 };
 
 static const struct of_device_id sun8i_mixer_of_table[] = {

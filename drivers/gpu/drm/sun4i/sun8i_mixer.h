@@ -94,9 +94,19 @@ struct de2_fmt_info {
 	u32 de2_fmt;
 };
 
+/**
+ * struct sun8i_mixer_cfg - mixer HW configuration
+ * @vi_num: number of VI channels
+ * @ui_num: number of UI channels
+ * @scaler_mask: bitmask which tells which channel supports scaling
+ *	First, scaler supports for VI channels is defined and after that, scaler
+ *	support for UI channels. For example, if mixer has 2 VI channels without
+ *	scaler and 2 UI channels with scaler, bitmask would be 0xC.
+ */
 struct sun8i_mixer_cfg {
 	int		vi_num;
 	int		ui_num;
+	int		scaler_mask;
 };
 
 struct sun8i_mixer {
