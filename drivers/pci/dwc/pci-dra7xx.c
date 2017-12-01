@@ -810,7 +810,7 @@ static int dra7xx_pcie_resume_noirq(struct device *dev)
 }
 #endif
 
-void dra7xx_pcie_shutdown(struct platform_device *pdev)
+static void dra7xx_pcie_shutdown(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct dra7xx_pcie *dra7xx = dev_get_drvdata(dev);
