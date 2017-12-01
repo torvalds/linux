@@ -36,6 +36,7 @@ struct __ip6_tnl_parm {
 	__be32			o_key;
 
 	__u32			fwmark;
+	__u32			index;	/* ERSPAN type II index */
 };
 
 /* IPv6 tunnel */

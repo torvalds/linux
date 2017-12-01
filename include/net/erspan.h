@@ -58,4 +58,55 @@ struct erspanhdr {
 	struct erspan_metadata md;
 };
 
+static inline u8 tos_to_cos(u8 tos)
+{
+	u8 dscp, cos;
+
+	dscp = tos >> 2;
+	cos = dscp >> 3;
+	return cos;
+}
+
+static inline void erspan_build_header(struct sk_buff *skb,
+				__be32 id, u32 index,
+				bool truncate, bool is_ipv4)
+{
+	struct ethhdr *eth = eth_hdr(skb);
+	enum erspan_encap_type enc_type;
+	struct erspanhdr *ershdr;
+	struct qtag_prefix {
+		__be16 eth_type;
+		__be16 tci;
+	} *qp;
+	u16 vlan_tci = 0;
+	u8 tos;
+
+	tos = is_ipv4 ? ip_hdr(skb)->tos :
+			(ipv6_hdr(skb)->priority << 4) +
+			(ipv6_hdr(skb)->flow_lbl[0] >> 4);
+
+	enc_type = ERSPAN_ENCAP_NOVLAN;
+
+	/* If mirrored packet has vlan tag, extract tci and
+	 *  perserve vlan header in the mirrored frame.
+	 */
+	if (eth->h_proto == htons(ETH_P_8021Q)) {
+		qp = (struct qtag_prefix *)(skb->data + 2 * ETH_ALEN);
+		vlan_tci = ntohs(qp->tci);
+		enc_type = ERSPAN_ENCAP_INFRAME;
+	}
+
+	skb_push(skb, sizeof(*ershdr));
+	ershdr = (struct erspanhdr *)skb->data;
+	memset(ershdr, 0, sizeof(*ershdr));
+
+	ershdr->ver_vlan = htons((vlan_tci & VLAN_MASK) |
+				 (ERSPAN_VERSION << VER_OFFSET));
+	ershdr->session_id = htons((u16)(ntohl(id) & ID_MASK) |
+			   ((tos_to_cos(tos) << COS_OFFSET) & COS_MASK) |
+			   (enc_type << EN_OFFSET & EN_MASK) |
+			   ((truncate << T_OFFSET) & T_MASK));
+	ershdr->md.index = htonl(index & INDEX_MASK);
+}
+
 #endif
