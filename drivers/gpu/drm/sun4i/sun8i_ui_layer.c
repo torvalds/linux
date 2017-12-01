@@ -24,6 +24,7 @@
 
 #include "sun8i_ui_layer.h"
 #include "sun8i_mixer.h"
+#include "sun8i_ui_scaler.h"
 
 static void sun8i_ui_layer_enable(struct sun8i_mixer *mixer, int channel,
 				  int overlay, bool enable)
@@ -56,29 +57,35 @@ static int sun8i_ui_layer_update_coord(struct sun8i_mixer *mixer, int channel,
 				       int overlay, struct drm_plane *plane)
 {
 	struct drm_plane_state *state = plane->state;
-	u32 width, height, size;
+	u32 src_w, src_h, dst_w, dst_h;
+	u32 outsize, insize;
+	u32 hphase, vphase;
 
-	DRM_DEBUG_DRIVER("Updating channel %d overlay %d\n", channel, overlay);
+	DRM_DEBUG_DRIVER("Updating UI channel %d overlay %d\n",
+			 channel, overlay);
 
-	/*
-	 * Same source and destination width and height are guaranteed
-	 * by atomic check function.
-	 */
-	width = drm_rect_width(&state->dst);
-	height = drm_rect_height(&state->dst);
-	size = SUN8I_MIXER_SIZE(width, height);
+	src_w = drm_rect_width(&state->src) >> 16;
+	src_h = drm_rect_height(&state->src) >> 16;
+	dst_w = drm_rect_width(&state->dst);
+	dst_h = drm_rect_height(&state->dst);
+
+	hphase = state->src.x1 & 0xffff;
+	vphase = state->src.y1 & 0xffff;
+
+	insize = SUN8I_MIXER_SIZE(src_w, src_h);
+	outsize = SUN8I_MIXER_SIZE(dst_w, dst_h);
 
 	if (plane->type == DRM_PLANE_TYPE_PRIMARY) {
 		bool interlaced = false;
 		u32 val;
 
 		DRM_DEBUG_DRIVER("Primary layer, updating global size W: %u H: %u\n",
-				 width, height);
+				 dst_w, dst_h);
 		regmap_write(mixer->engine.regs,
 			     SUN8I_MIXER_GLOBAL_SIZE,
-			     size);
+			     outsize);
 		regmap_write(mixer->engine.regs, SUN8I_MIXER_BLEND_OUTSIZE,
-			     size);
+			     outsize);
 
 		if (state->crtc)
 			interlaced = state->crtc->state->adjusted_mode.flags
@@ -99,23 +106,42 @@ static int sun8i_ui_layer_update_coord(struct sun8i_mixer *mixer, int channel,
 	}
 
 	/* Set height and width */
-	DRM_DEBUG_DRIVER("Layer size W: %u H: %u\n", width, height);
+	DRM_DEBUG_DRIVER("Layer source offset X: %d Y: %d\n",
+			 state->src.x1 >> 16, state->src.y1 >> 16);
+	DRM_DEBUG_DRIVER("Layer source size W: %d H: %d\n", src_w, src_h);
 	regmap_write(mixer->engine.regs,
 		     SUN8I_MIXER_CHAN_UI_LAYER_SIZE(channel, overlay),
-		     size);
+		     insize);
 	regmap_write(mixer->engine.regs,
 		     SUN8I_MIXER_CHAN_UI_OVL_SIZE(channel),
-		     size);
+		     insize);
+
+	if (insize != outsize || hphase || vphase) {
+		u32 hscale, vscale;
+
+		DRM_DEBUG_DRIVER("HW scaling is enabled\n");
+
+		hscale = state->src_w / state->crtc_w;
+		vscale = state->src_h / state->crtc_h;
+
+		sun8i_ui_scaler_setup(mixer, channel, src_w, src_h, dst_w,
+				      dst_h, hscale, vscale, hphase, vphase);
+		sun8i_ui_scaler_enable(mixer, channel, true);
+	} else {
+		DRM_DEBUG_DRIVER("HW scaling is not needed\n");
+		sun8i_ui_scaler_enable(mixer, channel, false);
+	}
 
 	/* Set base coordinates */
-	DRM_DEBUG_DRIVER("Layer coordinates X: %d Y: %d\n",
+	DRM_DEBUG_DRIVER("Layer destination coordinates X: %d Y: %d\n",
 			 state->dst.x1, state->dst.y1);
+	DRM_DEBUG_DRIVER("Layer destination size W: %d H: %d\n", dst_w, dst_h);
 	regmap_write(mixer->engine.regs,
 		     SUN8I_MIXER_BLEND_ATTR_COORD(channel),
 		     SUN8I_MIXER_COORD(state->dst.x1, state->dst.y1));
 	regmap_write(mixer->engine.regs,
 		     SUN8I_MIXER_BLEND_ATTR_INSIZE(channel),
-		     size);
+		     outsize);
 
 	return 0;
 }
@@ -181,8 +207,10 @@ static int sun8i_ui_layer_update_buffer(struct sun8i_mixer *mixer, int channel,
 static int sun8i_ui_layer_atomic_check(struct drm_plane *plane,
 				       struct drm_plane_state *state)
 {
+	struct sun8i_ui_layer *layer = plane_to_sun8i_ui_layer(plane);
 	struct drm_crtc *crtc = state->crtc;
 	struct drm_crtc_state *crtc_state;
+	int min_scale, max_scale;
 	struct drm_rect clip;
 
 	if (!crtc)
@@ -197,9 +225,16 @@ static int sun8i_ui_layer_atomic_check(struct drm_plane *plane,
 	clip.x2 = crtc_state->adjusted_mode.hdisplay;
 	clip.y2 = crtc_state->adjusted_mode.vdisplay;
 
+	min_scale = DRM_PLANE_HELPER_NO_SCALING;
+	max_scale = DRM_PLANE_HELPER_NO_SCALING;
+
+	if (layer->mixer->cfg->scaler_mask & BIT(layer->channel)) {
+		min_scale = SUN8I_UI_SCALER_SCALE_MIN;
+		max_scale = SUN8I_UI_SCALER_SCALE_MAX;
+	}
+
 	return drm_atomic_helper_check_plane_state(state, crtc_state, &clip,
-						   DRM_PLANE_HELPER_NO_SCALING,
-						   DRM_PLANE_HELPER_NO_SCALING,
+						   min_scale, max_scale,
 						   true, true);
 }
 

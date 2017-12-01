@@ -77,10 +77,6 @@
  * These sub-engines are still unknown now, the EN registers are here only to
  * be used to disable these sub-engines.
  */
-#define SUN8I_MIXER_VSU_EN			0x20000
-#define SUN8I_MIXER_GSU1_EN			0x30000
-#define SUN8I_MIXER_GSU2_EN			0x40000
-#define SUN8I_MIXER_GSU3_EN			0x50000
 #define SUN8I_MIXER_FCE_EN			0xa0000
 #define SUN8I_MIXER_BWS_EN			0xa2000
 #define SUN8I_MIXER_LTI_EN			0xa4000
