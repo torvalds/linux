@@ -40,6 +40,7 @@
 #include <linux/jiffies.h>
 #include <linux/kthread.h>
 #include <linux/ktime.h>
+#include <linux/compat.h>
 #include <asm/processor.h>
 
 #include "dvb_frontend.h"
@@ -1977,6 +1978,14 @@ static long dvb_frontend_ioctl(struct file *file, unsigned int cmd,
 	return dvb_usercopy(file, cmd, arg, dvb_frontend_do_ioctl);
 }
 
+#ifdef CONFIG_COMPAT
+static long dvb_frontend_compat_ioctl(struct file *file, unsigned int cmd,
+				      unsigned long arg)
+{
+	return dvb_frontend_ioctl(file, cmd, (unsigned long)compat_ptr(arg));
+}
+#endif
+
 static int dtv_set_frontend(struct dvb_frontend *fe)
 {
 	struct dvb_frontend_private *fepriv = fe->frontend_priv;
@@ -2661,6 +2670,9 @@ static int dvb_frontend_release(struct inode *inode, struct file *file)
 static const struct file_operations dvb_frontend_fops = {
 	.owner		= THIS_MODULE,
 	.unlocked_ioctl	= dvb_frontend_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl	= dvb_frontend_compat_ioctl,
+#endif
 	.poll		= dvb_frontend_poll,
 	.open		= dvb_frontend_open,
 	.release	= dvb_frontend_release,
