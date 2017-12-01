@@ -3087,14 +3087,14 @@ static int cpsw_probe(struct platform_device *pdev)
 	cpsw->cpts = cpts_create(cpsw->dev, cpts_regs, cpsw->dev->of_node);
 	if (IS_ERR(cpsw->cpts)) {
 		ret = PTR_ERR(cpsw->cpts);
-		goto clean_ale_ret;
+		goto clean_dma_ret;
 	}
 
 	ndev->irq = platform_get_irq(pdev, 1);
 	if (ndev->irq < 0) {
 		dev_err(priv->dev, "error getting irq resource\n");
 		ret = ndev->irq;
-		goto clean_ale_ret;
+		goto clean_dma_ret;
 	}
 
 	of_id = of_match_device(cpsw_of_mtable, &pdev->dev);
@@ -3118,7 +3118,7 @@ static int cpsw_probe(struct platform_device *pdev)
 	if (ret) {
 		dev_err(priv->dev, "error registering net device\n");
 		ret = -ENODEV;
-		goto clean_ale_ret;
+		goto clean_dma_ret;
 	}
 
 	if (cpsw->data.dual_emac) {
@@ -3141,7 +3141,7 @@ static int cpsw_probe(struct platform_device *pdev)
 	irq = platform_get_irq(pdev, 1);
 	if (irq < 0) {
 		ret = irq;
-		goto clean_ale_ret;
+		goto clean_dma_ret;
 	}
 
 	cpsw->irqs_table[0] = irq;
@@ -3149,14 +3149,14 @@ static int cpsw_probe(struct platform_device *pdev)
 			       0, dev_name(&pdev->dev), cpsw);
 	if (ret < 0) {
 		dev_err(priv->dev, "error attaching irq (%d)\n", ret);
-		goto clean_ale_ret;
+		goto clean_dma_ret;
 	}
 
 	/* TX IRQ */
 	irq = platform_get_irq(pdev, 2);
 	if (irq < 0) {
 		ret = irq;
-		goto clean_ale_ret;
+		goto clean_dma_ret;
 	}
 
 	cpsw->irqs_table[1] = irq;
@@ -3164,7 +3164,7 @@ static int cpsw_probe(struct platform_device *pdev)
 			       0, dev_name(&pdev->dev), cpsw);
 	if (ret < 0) {
 		dev_err(priv->dev, "error attaching irq (%d)\n", ret);
-		goto clean_ale_ret;
+		goto clean_dma_ret;
 	}
 
 	cpsw_notice(priv, probe,
@@ -3177,8 +3177,6 @@ static int cpsw_probe(struct platform_device *pdev)
 
 clean_unregister_netdev_ret:
 	unregister_netdev(ndev);
-clean_ale_ret:
-	cpsw_ale_destroy(cpsw->ale);
 clean_dma_ret:
 	cpdma_ctlr_destroy(cpsw->dma);
 clean_dt_ret:
@@ -3208,7 +3206,6 @@ static int cpsw_remove(struct platform_device *pdev)
 	unregister_netdev(ndev);
 
 	cpts_release(cpsw->cpts);
-	cpsw_ale_destroy(cpsw->ale);
 	cpdma_ctlr_destroy(cpsw->dma);
 	cpsw_remove_dt(pdev);
 	pm_runtime_put_sync(&pdev->dev);

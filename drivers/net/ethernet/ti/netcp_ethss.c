@@ -3689,7 +3689,6 @@ static int gbe_remove(struct netcp_device *netcp_device, void *inst_priv)
 	del_timer_sync(&gbe_dev->timer);
 	cpts_release(gbe_dev->cpts);
 	cpsw_ale_stop(gbe_dev->ale);
-	cpsw_ale_destroy(gbe_dev->ale);
 	netcp_txpipe_close(&gbe_dev->tx_pipe);
 	free_secondary_ports(gbe_dev);
 

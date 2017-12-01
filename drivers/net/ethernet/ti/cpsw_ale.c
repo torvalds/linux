@@ -802,7 +802,7 @@ struct cpsw_ale *cpsw_ale_create(struct cpsw_ale_params *params)
 	struct cpsw_ale *ale;
 	u32 rev, ale_entries;
 
-	ale = kzalloc(sizeof(*ale), GFP_KERNEL);
+	ale = devm_kzalloc(params->dev, sizeof(*ale), GFP_KERNEL);
 	if (!ale)
 		return NULL;
 
@@ -880,15 +880,6 @@ struct cpsw_ale *cpsw_ale_create(struct cpsw_ale_params *params)
 	return ale;
 }
 EXPORT_SYMBOL_GPL(cpsw_ale_create);
-
-int cpsw_ale_destroy(struct cpsw_ale *ale)
-{
-	if (!ale)
-		return -EINVAL;
-	kfree(ale);
-	return 0;
-}
-EXPORT_SYMBOL_GPL(cpsw_ale_destroy);
 
 void cpsw_ale_dump(struct cpsw_ale *ale, u32 *data)
 {
