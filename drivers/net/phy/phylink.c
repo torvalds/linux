@@ -423,6 +423,7 @@ static void phylink_resolve(struct work_struct *w)
 			break;
 
 		case MLO_AN_SGMII:
+		case MLO_AN_8023Z:
 			phylink_get_mac_state(pl, &link_state);
 			if (pl->phydev) {
 				bool changed = false;
@@ -447,10 +448,6 @@ static void phylink_resolve(struct work_struct *w)
 					phylink_mac_config(pl, &link_state);
 				}
 			}
-			break;
-
-		case MLO_AN_8023Z:
-			phylink_get_mac_state(pl, &link_state);
 			break;
 		}
 	}
@@ -656,6 +653,10 @@ int phylink_connect_phy(struct phylink *pl, struct phy_device *phy)
 {
 	int ret;
 
+	if (WARN_ON(pl->link_an_mode == MLO_AN_FIXED ||
+		    pl->link_an_mode == MLO_AN_8023Z))
+		return -EINVAL;
+
 	ret = phy_attach_direct(pl->netdev, phy, 0, pl->link_interface);
 	if (ret)
 		return ret;
@@ -674,8 +675,9 @@ int phylink_of_phy_connect(struct phylink *pl, struct device_node *dn)
 	struct phy_device *phy_dev;
 	int ret;
 
-	/* Fixed links are handled without needing a PHY */
-	if (pl->link_an_mode == MLO_AN_FIXED)
+	/* Fixed links and 802.3z are handled without needing a PHY */
+	if (pl->link_an_mode == MLO_AN_FIXED ||
+	    pl->link_an_mode == MLO_AN_8023Z)
 		return 0;
 
 	phy_node = of_parse_phandle(dn, "phy-handle", 0);
@@ -850,13 +852,13 @@ int phylink_ethtool_ksettings_get(struct phylink *pl,
 		break;
 
 	case MLO_AN_SGMII:
+	case MLO_AN_8023Z:
 		/* If there is a phy attached, then use the reported
 		 * settings from the phy with no modification.
 		 */
 		if (pl->phydev)
 			break;
 
-	case MLO_AN_8023Z:
 		phylink_get_mac_state(pl, &link_state);
 
 		/* The MAC is reporting the link results from its own PCS
