@@ -91,7 +91,6 @@ int sun8i_mixer_update_layer_coord(struct sun8i_mixer *mixer, int channel,
 				   int overlay, struct drm_plane *plane)
 {
 	struct drm_plane_state *state = plane->state;
-	struct drm_framebuffer *fb = state->fb;
 	u32 width, height, size;
 
 	DRM_DEBUG_DRIVER("Updating channel %d overlay %d\n", channel, overlay);
@@ -121,12 +120,6 @@ int sun8i_mixer_update_layer_coord(struct sun8i_mixer *mixer, int channel,
 			     SUN8I_MIXER_CHAN_UI_OVL_SIZE(channel),
 			     size);
 	}
-
-	/* Set the line width */
-	DRM_DEBUG_DRIVER("Layer line width: %d bytes\n", fb->pitches[0]);
-	regmap_write(mixer->engine.regs,
-		     SUN8I_MIXER_CHAN_UI_LAYER_PITCH(channel, overlay),
-		     fb->pitches[0]);
 
 	/* Set height and width */
 	DRM_DEBUG_DRIVER("Layer size W: %u H: %u\n", width, height);
@@ -201,6 +194,12 @@ int sun8i_mixer_update_layer_buffer(struct sun8i_mixer *mixer, int channel,
 	/* Fixup framebuffer address for src coordinates */
 	paddr += (state->src.x1 >> 16) * bpp;
 	paddr += (state->src.y1 >> 16) * fb->pitches[0];
+
+	/* Set the line width */
+	DRM_DEBUG_DRIVER("Layer line width: %d bytes\n", fb->pitches[0]);
+	regmap_write(mixer->engine.regs,
+		     SUN8I_MIXER_CHAN_UI_LAYER_PITCH(channel, overlay),
+		     fb->pitches[0]);
 
 	DRM_DEBUG_DRIVER("Setting buffer address to %pad\n", &paddr);
 
