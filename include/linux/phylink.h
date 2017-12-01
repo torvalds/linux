@@ -20,13 +20,12 @@ enum {
 
 	MLO_AN_PHY = 0,	/* Conventional PHY */
 	MLO_AN_FIXED,	/* Fixed-link mode */
-	MLO_AN_SGMII,	/* Cisco SGMII protocol */
-	MLO_AN_8023Z,	/* 1000base-X protocol */
+	MLO_AN_INBAND,	/* In-band protocol */
 };
 
 static inline bool phylink_autoneg_inband(unsigned int mode)
 {
-	return mode == MLO_AN_SGMII || mode == MLO_AN_8023Z;
+	return mode == MLO_AN_INBAND;
 }
 
 struct phylink_link_state {
@@ -69,7 +68,7 @@ struct phylink_mac_ops {
 	/**
 	 * mac_config: configure the MAC for the selected mode and state
 	 * @ndev: net_device structure for the MAC
-	 * @mode: one of MLO_AN_FIXED, MLO_AN_PHY, MLO_AN_8023Z, MLO_AN_SGMII
+	 * @mode: one of MLO_AN_FIXED, MLO_AN_PHY, MLO_AN_INBAND
 	 * @state: state structure
 	 *
 	 * The action performed depends on the currently selected mode:
@@ -77,14 +76,10 @@ struct phylink_mac_ops {
 	 * %MLO_AN_FIXED, %MLO_AN_PHY:
 	 *   set the specified speed, duplex, pause mode, and phy interface
 	 *   mode in the provided @state.
-	 * %MLO_AN_8023Z:
-	 *   place the link in 1000base-X mode, advertising the parameters
-	 *   given in advertising in @state.
-	 * %MLO_AN_SGMII:
-	 *   place the link in Cisco SGMII mode - there is no advertisment
-	 *   to make as the PHY communicates the speed and duplex to the
-	 *   MAC over the in-band control word.  Configuration of the pause
-	 *   mode is as per MLO_AN_PHY since this is not included.
+	 * %MLO_AN_INBAND:
+	 *   place the link in an inband negotiation mode (such as
+	 *   1000base-X or Cisco SGMII mode depending on the phy interface
+	 *   mode), advertising the parameters given in advertising in @state.
 	 */
 	void (*mac_config)(struct net_device *ndev, unsigned int mode,
 			   const struct phylink_link_state *state);

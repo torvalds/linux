@@ -117,8 +117,7 @@ static const char *phylink_an_mode_str(unsigned int mode)
 	static const char *modestr[] = {
 		[MLO_AN_PHY] = "phy",
 		[MLO_AN_FIXED] = "fixed",
-		[MLO_AN_SGMII] = "SGMII",
-		[MLO_AN_8023Z] = "802.3z",
+		[MLO_AN_INBAND] = "inband",
 	};
 
 	return mode < ARRAY_SIZE(modestr) ? modestr[mode] : "unknown";
@@ -244,6 +243,7 @@ static int phylink_parse_mode(struct phylink *pl, struct device_node *np)
 		phylink_set(pl->supported, Asym_Pause);
 		phylink_set(pl->supported, Pause);
 		pl->link_config.an_enabled = true;
+		pl->link_an_mode = MLO_AN_INBAND;
 
 		switch (pl->link_config.interface) {
 		case PHY_INTERFACE_MODE_SGMII:
@@ -253,17 +253,14 @@ static int phylink_parse_mode(struct phylink *pl, struct device_node *np)
 			phylink_set(pl->supported, 100baseT_Full);
 			phylink_set(pl->supported, 1000baseT_Half);
 			phylink_set(pl->supported, 1000baseT_Full);
-			pl->link_an_mode = MLO_AN_SGMII;
 			break;
 
 		case PHY_INTERFACE_MODE_1000BASEX:
 			phylink_set(pl->supported, 1000baseX_Full);
-			pl->link_an_mode = MLO_AN_8023Z;
 			break;
 
 		case PHY_INTERFACE_MODE_2500BASEX:
 			phylink_set(pl->supported, 2500baseX_Full);
-			pl->link_an_mode = MLO_AN_8023Z;
 			break;
 
 		case PHY_INTERFACE_MODE_10GKR:
@@ -280,7 +277,6 @@ static int phylink_parse_mode(struct phylink *pl, struct device_node *np)
 			phylink_set(pl->supported, 10000baseLR_Full);
 			phylink_set(pl->supported, 10000baseLRM_Full);
 			phylink_set(pl->supported, 10000baseER_Full);
-			pl->link_an_mode = MLO_AN_SGMII;
 			break;
 
 		default:
@@ -422,8 +418,7 @@ static void phylink_resolve(struct work_struct *w)
 			phylink_mac_config(pl, &link_state);
 			break;
 
-		case MLO_AN_SGMII:
-		case MLO_AN_8023Z:
+		case MLO_AN_INBAND:
 			phylink_get_mac_state(pl, &link_state);
 			if (pl->phydev) {
 				bool changed = false;
@@ -654,7 +649,8 @@ int phylink_connect_phy(struct phylink *pl, struct phy_device *phy)
 	int ret;
 
 	if (WARN_ON(pl->link_an_mode == MLO_AN_FIXED ||
-		    pl->link_an_mode == MLO_AN_8023Z))
+		    (pl->link_an_mode == MLO_AN_INBAND &&
+		     phy_interface_mode_is_8023z(pl->link_interface))))
 		return -EINVAL;
 
 	ret = phy_attach_direct(pl->netdev, phy, 0, pl->link_interface);
@@ -677,7 +673,8 @@ int phylink_of_phy_connect(struct phylink *pl, struct device_node *dn)
 
 	/* Fixed links and 802.3z are handled without needing a PHY */
 	if (pl->link_an_mode == MLO_AN_FIXED ||
-	    pl->link_an_mode == MLO_AN_8023Z)
+	    (pl->link_an_mode == MLO_AN_INBAND &&
+	     phy_interface_mode_is_8023z(pl->link_interface)))
 		return 0;
 
 	phy_node = of_parse_phandle(dn, "phy-handle", 0);
@@ -851,8 +848,7 @@ int phylink_ethtool_ksettings_get(struct phylink *pl,
 		phylink_get_ksettings(&link_state, kset);
 		break;
 
-	case MLO_AN_SGMII:
-	case MLO_AN_8023Z:
+	case MLO_AN_INBAND:
 		/* If there is a phy attached, then use the reported
 		 * settings from the phy with no modification.
 		 */
@@ -1029,8 +1025,7 @@ int phylink_ethtool_set_pauseparam(struct phylink *pl,
 			phylink_mac_config(pl, config);
 			break;
 
-		case MLO_AN_SGMII:
-		case MLO_AN_8023Z:
+		case MLO_AN_INBAND:
 			phylink_mac_config(pl, config);
 			phylink_mac_an_restart(pl);
 			break;
@@ -1247,9 +1242,7 @@ static int phylink_mii_read(struct phylink *pl, unsigned int phy_id,
 	case MLO_AN_PHY:
 		return -EOPNOTSUPP;
 
-	case MLO_AN_SGMII:
-		/* No phy, fall through to 8023z method */
-	case MLO_AN_8023Z:
+	case MLO_AN_INBAND:
 		if (phy_id == 0) {
 			val = phylink_get_mac_state(pl, &state);
 			if (val < 0)
@@ -1274,9 +1267,7 @@ static int phylink_mii_write(struct phylink *pl, unsigned int phy_id,
 	case MLO_AN_PHY:
 		return -EOPNOTSUPP;
 
-	case MLO_AN_SGMII:
-		/* No phy, fall through to 8023z method */
-	case MLO_AN_8023Z:
+	case MLO_AN_INBAND:
 		break;
 	}
 
@@ -1291,7 +1282,7 @@ int phylink_mii_ioctl(struct phylink *pl, struct ifreq *ifr, int cmd)
 	WARN_ON(!lockdep_rtnl_is_held());
 
 	if (pl->phydev) {
-		/* PHYs only exist for MLO_AN_PHY and MLO_AN_SGMII */
+		/* PHYs only exist for MLO_AN_PHY and SGMII */
 		switch (cmd) {
 		case SIOCGMIIPHY:
 			mii->phy_id = pl->phydev->mdio.addr;
@@ -1360,10 +1351,8 @@ static int phylink_sfp_module_insert(void *upstream,
 
 	switch (iface) {
 	case PHY_INTERFACE_MODE_SGMII:
-		mode = MLO_AN_SGMII;
-		break;
 	case PHY_INTERFACE_MODE_1000BASEX:
-		mode = MLO_AN_8023Z;
+		mode = MLO_AN_INBAND;
 		break;
 	default:
 		return -EINVAL;
@@ -1390,7 +1379,7 @@ static int phylink_sfp_module_insert(void *upstream,
 		   phylink_an_mode_str(mode), phy_modes(config.interface),
 		   __ETHTOOL_LINK_MODE_MASK_NBITS, support);
 
-	if (mode == MLO_AN_8023Z && pl->phydev)
+	if (phy_interface_mode_is_8023z(iface) && pl->phydev)
 		return -EINVAL;
 
 	changed = !bitmap_equal(pl->supported, support,
