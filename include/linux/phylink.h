@@ -7,6 +7,7 @@
 
 struct device_node;
 struct ethtool_cmd;
+struct fwnode_handle;
 struct net_device;
 
 enum {
@@ -182,7 +183,7 @@ void mac_link_up(struct net_device *ndev, unsigned int mode,
 		 struct phy_device *phy);
 #endif
 
-struct phylink *phylink_create(struct net_device *, struct device_node *,
+struct phylink *phylink_create(struct net_device *, struct fwnode_handle *,
 	phy_interface_t iface, const struct phylink_mac_ops *ops);
 void phylink_destroy(struct phylink *);
 

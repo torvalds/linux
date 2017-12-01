@@ -142,59 +142,64 @@ static int phylink_validate(struct phylink *pl, unsigned long *supported,
 	return phylink_is_empty_linkmode(supported) ? -EINVAL : 0;
 }
 
-static int phylink_parse_fixedlink(struct phylink *pl, struct device_node *np)
+static int phylink_parse_fixedlink(struct phylink *pl,
+				   struct fwnode_handle *fwnode)
 {
-	struct device_node *fixed_node;
+	struct fwnode_handle *fixed_node;
 	const struct phy_setting *s;
 	struct gpio_desc *desc;
-	const __be32 *fixed_prop;
 	u32 speed;
-	int ret, len;
+	int ret;
 
-	fixed_node = of_get_child_by_name(np, "fixed-link");
+	fixed_node = fwnode_get_named_child_node(fwnode, "fixed-link");
 	if (fixed_node) {
-		ret = of_property_read_u32(fixed_node, "speed", &speed);
+		ret = fwnode_property_read_u32(fixed_node, "speed", &speed);
 
 		pl->link_config.speed = speed;
 		pl->link_config.duplex = DUPLEX_HALF;
 
-		if (of_property_read_bool(fixed_node, "full-duplex"))
+		if (fwnode_property_read_bool(fixed_node, "full-duplex"))
 			pl->link_config.duplex = DUPLEX_FULL;
 
 		/* We treat the "pause" and "asym-pause" terminology as
 		 * defining the link partner's ability. */
-		if (of_property_read_bool(fixed_node, "pause"))
+		if (fwnode_property_read_bool(fixed_node, "pause"))
 			pl->link_config.pause |= MLO_PAUSE_SYM;
-		if (of_property_read_bool(fixed_node, "asym-pause"))
+		if (fwnode_property_read_bool(fixed_node, "asym-pause"))
 			pl->link_config.pause |= MLO_PAUSE_ASYM;
 
 		if (ret == 0) {
-			desc = fwnode_get_named_gpiod(&fixed_node->fwnode,
-						      "link-gpios", 0,
-						      GPIOD_IN, "?");
+			desc = fwnode_get_named_gpiod(fixed_node, "link-gpios",
+						      0, GPIOD_IN, "?");
 
 			if (!IS_ERR(desc))
 				pl->link_gpio = desc;
 			else if (desc == ERR_PTR(-EPROBE_DEFER))
 				ret = -EPROBE_DEFER;
 		}
-		of_node_put(fixed_node);
+		fwnode_handle_put(fixed_node);
 
 		if (ret)
 			return ret;
 	} else {
-		fixed_prop = of_get_property(np, "fixed-link", &len);
-		if (!fixed_prop) {
+		u32 prop[5];
+
+		ret = fwnode_property_read_u32_array(fwnode, "fixed-link",
+						     NULL, 0);
+		if (ret != ARRAY_SIZE(prop)) {
 			netdev_err(pl->netdev, "broken fixed-link?\n");
 			return -EINVAL;
 		}
-		if (len == 5 * sizeof(*fixed_prop)) {
-			pl->link_config.duplex = be32_to_cpu(fixed_prop[1]) ?
+
+		ret = fwnode_property_read_u32_array(fwnode, "fixed-link",
+						     prop, ARRAY_SIZE(prop));
+		if (!ret) {
+			pl->link_config.duplex = prop[1] ?
 						DUPLEX_FULL : DUPLEX_HALF;
-			pl->link_config.speed = be32_to_cpu(fixed_prop[2]);
-			if (be32_to_cpu(fixed_prop[3]))
+			pl->link_config.speed = prop[2];
+			if (prop[3])
 				pl->link_config.pause |= MLO_PAUSE_SYM;
-			if (be32_to_cpu(fixed_prop[4]))
+			if (prop[4])
 				pl->link_config.pause |= MLO_PAUSE_ASYM;
 		}
 	}
@@ -230,17 +235,17 @@ static int phylink_parse_fixedlink(struct phylink *pl, struct device_node *np)
 	return 0;
 }
 
-static int phylink_parse_mode(struct phylink *pl, struct device_node *np)
+static int phylink_parse_mode(struct phylink *pl, struct fwnode_handle *fwnode)
 {
-	struct device_node *dn;
+	struct fwnode_handle *dn;
 	const char *managed;
 
-	dn = of_get_child_by_name(np, "fixed-link");
-	if (dn || of_find_property(np, "fixed-link", NULL))
+	dn = fwnode_get_named_child_node(fwnode, "fixed-link");
+	if (dn || fwnode_property_present(fwnode, "fixed-link"))
 		pl->link_an_mode = MLO_AN_FIXED;
-	of_node_put(dn);
+	fwnode_handle_put(dn);
 
-	if (of_property_read_string(np, "managed", &managed) == 0 &&
+	if (fwnode_property_read_string(fwnode, "managed", &managed) == 0 &&
 	    strcmp(managed, "in-band-status") == 0) {
 		if (pl->link_an_mode == MLO_AN_FIXED) {
 			netdev_err(pl->netdev,
@@ -491,16 +496,24 @@ static void phylink_run_resolve(struct phylink *pl)
 
 static const struct sfp_upstream_ops sfp_phylink_ops;
 
-static int phylink_register_sfp(struct phylink *pl, struct device_node *np)
+static int phylink_register_sfp(struct phylink *pl,
+				struct fwnode_handle *fwnode)
 {
-	struct device_node *sfp_np;
+	struct fwnode_reference_args ref;
+	int ret;
 
-	sfp_np = of_parse_phandle(np, "sfp", 0);
-	if (!sfp_np)
-		return 0;
+	ret = fwnode_property_get_reference_args(fwnode, "sfp", NULL,
+						 0, 0, &ref);
+	if (ret < 0) {
+		if (ret == -ENOENT)
+			return 0;
 
-	pl->sfp_bus = sfp_register_upstream(of_fwnode_handle(sfp_np),
-					    pl->netdev, pl,
+		netdev_err(pl->netdev, "unable to parse \"sfp\" node: %d\n",
+			   ret);
+		return ret;
+	}
+
+	pl->sfp_bus = sfp_register_upstream(ref.fwnode, pl->netdev, pl,
 					    &sfp_phylink_ops);
 	if (!pl->sfp_bus)
 		return -ENOMEM;
@@ -511,7 +524,8 @@ static int phylink_register_sfp(struct phylink *pl, struct device_node *np)
 /**
  * phylink_create() - create a phylink instance
  * @ndev: a pointer to the &struct net_device
- * @np: a pointer to a &struct device_node describing the network interface
+ * @fwnode: a pointer to a &struct fwnode_handle describing the network
+ *	interface
  * @iface: the desired link mode defined by &typedef phy_interface_t
  * @ops: a pointer to a &struct phylink_mac_ops for the MAC.
  *
@@ -521,7 +535,8 @@ static int phylink_register_sfp(struct phylink *pl, struct device_node *np)
  * Returns a pointer to a &struct phylink, or an error-pointer value. Users
  * must use IS_ERR() to check for errors from this function.
  */
-struct phylink *phylink_create(struct net_device *ndev, struct device_node *np,
+struct phylink *phylink_create(struct net_device *ndev,
+			       struct fwnode_handle *fwnode,
 			       phy_interface_t iface,
 			       const struct phylink_mac_ops *ops)
 {
@@ -549,21 +564,21 @@ struct phylink *phylink_create(struct net_device *ndev, struct device_node *np,
 	linkmode_copy(pl->link_config.advertising, pl->supported);
 	phylink_validate(pl, pl->supported, &pl->link_config);
 
-	ret = phylink_parse_mode(pl, np);
+	ret = phylink_parse_mode(pl, fwnode);
 	if (ret < 0) {
 		kfree(pl);
 		return ERR_PTR(ret);
 	}
 
 	if (pl->link_an_mode == MLO_AN_FIXED) {
-		ret = phylink_parse_fixedlink(pl, np);
+		ret = phylink_parse_fixedlink(pl, fwnode);
 		if (ret < 0) {
 			kfree(pl);
 			return ERR_PTR(ret);
 		}
 	}
 
-	ret = phylink_register_sfp(pl, np);
+	ret = phylink_register_sfp(pl, fwnode);
 	if (ret < 0) {
 		kfree(pl);
 		return ERR_PTR(ret);
