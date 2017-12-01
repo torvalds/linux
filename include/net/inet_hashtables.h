@@ -111,6 +111,7 @@ struct inet_bind_hashbucket {
  */
 struct inet_listen_hashbucket {
 	spinlock_t		lock;
+	unsigned int		count;
 	struct hlist_head	head;
 };
 

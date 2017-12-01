@@ -476,6 +476,7 @@ int __inet_hash(struct sock *sk, struct sock *osk)
 		hlist_add_tail_rcu(&sk->sk_node, &ilb->head);
 	else
 		hlist_add_head_rcu(&sk->sk_node, &ilb->head);
+	ilb->count++;
 	sock_set_flag(sk, SOCK_RCU_FREE);
 	sock_prot_inuse_add(sock_net(sk), sk->sk_prot, 1);
 unlock:
@@ -502,6 +503,7 @@ EXPORT_SYMBOL_GPL(inet_hash);
 void inet_unhash(struct sock *sk)
 {
 	struct inet_hashinfo *hashinfo = sk->sk_prot->h.hashinfo;
+	struct inet_listen_hashbucket *ilb;
 	spinlock_t *lock;
 	bool listener = false;
 	int done;
@@ -510,7 +512,8 @@ void inet_unhash(struct sock *sk)
 		return;
 
 	if (sk->sk_state == TCP_LISTEN) {
-		lock = &hashinfo->listening_hash[inet_sk_listen_hashfn(sk)].lock;
+		ilb = &hashinfo->listening_hash[inet_sk_listen_hashfn(sk)];
+		lock = &ilb->lock;
 		listener = true;
 	} else {
 		lock = inet_ehash_lockp(hashinfo, sk->sk_hash);
@@ -522,8 +525,11 @@ void inet_unhash(struct sock *sk)
 		done = __sk_del_node_init(sk);
 	else
 		done = __sk_nulls_del_node_init_rcu(sk);
-	if (done)
+	if (done) {
+		if (listener)
+			ilb->count--;
 		sock_prot_inuse_add(sock_net(sk), sk->sk_prot, -1);
+	}
 	spin_unlock_bh(lock);
 }
 EXPORT_SYMBOL_GPL(inet_unhash);
@@ -658,6 +664,7 @@ void inet_hashinfo_init(struct inet_hashinfo *h)
 	for (i = 0; i < INET_LHTABLE_SIZE; i++) {
 		spin_lock_init(&h->listening_hash[i].lock);
 		INIT_HLIST_HEAD(&h->listening_hash[i].head);
+		h->listening_hash[i].count = 0;
 	}
 }
 EXPORT_SYMBOL_GPL(inet_hashinfo_init);
