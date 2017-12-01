@@ -156,4 +156,34 @@ void nvmf_free_options(struct nvmf_ctrl_options *opts);
 int nvmf_get_address(struct nvme_ctrl *ctrl, char *buf, int size);
 bool nvmf_should_reconnect(struct nvme_ctrl *ctrl);
 
+static inline blk_status_t nvmf_check_init_req(struct nvme_ctrl *ctrl,
+		struct request *rq)
+{
+	struct nvme_command *cmd = nvme_req(rq)->cmd;
+
+	/*
+	 * We cannot accept any other command until the connect command has
+	 * completed, so only allow connect to pass.
+	 */
+	if (!blk_rq_is_passthrough(rq) ||
+	    cmd->common.opcode != nvme_fabrics_command ||
+	    cmd->fabrics.fctype != nvme_fabrics_type_connect) {
+		/*
+		 * Reconnecting state means transport disruption, which can take
+		 * a long time and even might fail permanently, fail fast to
+		 * give upper layers a chance to failover.
+		 * Deleting state means that the ctrl will never accept commands
+		 * again, fail it permanently.
+		 */
+		if (ctrl->state == NVME_CTRL_RECONNECTING ||
+		    ctrl->state == NVME_CTRL_DELETING) {
+			nvme_req(rq)->status = NVME_SC_ABORT_REQ;
+			return BLK_STS_IOERR;
+		}
+		return BLK_STS_RESOURCE; /* try again later */
+	}
+
+	return BLK_STS_OK;
+}
+
 #endif /* _NVME_FABRICS_H */

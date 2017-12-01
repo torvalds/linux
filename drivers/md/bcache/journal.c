@@ -170,6 +170,11 @@ int bch_journal_read(struct cache_set *c, struct list_head *list)
 		 * find a sequence of buckets with valid journal entries
 		 */
 		for (i = 0; i < ca->sb.njournal_buckets; i++) {
+			/*
+			 * We must try the index l with ZERO first for
+			 * correctness due to the scenario that the journal
+			 * bucket is circular buffer which might have wrapped
+			 */
 			l = (i * 2654435769U) % ca->sb.njournal_buckets;
 
 			if (test_bit(l, bitmap))
@@ -507,7 +512,7 @@ static void journal_reclaim(struct cache_set *c)
 			continue;
 
 		ja->cur_idx = next;
-		k->ptr[n++] = PTR(0,
+		k->ptr[n++] = MAKE_PTR(0,
 				  bucket_to_sector(c, ca->sb.d[ja->cur_idx]),
 				  ca->sb.nr_this_dev);
 	}
