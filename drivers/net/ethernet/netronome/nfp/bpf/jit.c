@@ -2142,6 +2142,9 @@ static void nfp_bpf_opt_ld_mask(struct nfp_prog *nfp_prog)
 		if (next.src_reg || next.dst_reg)
 			continue;
 
+		if (meta2->flags & FLAG_INSN_IS_JUMP_DST)
+			continue;
+
 		meta2->skip = true;
 	}
 }
