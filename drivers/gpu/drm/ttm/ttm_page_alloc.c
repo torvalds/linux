@@ -455,6 +455,7 @@ ttm_pool_shrink_scan(struct shrinker *shrink, struct shrink_control *sc)
 		freed += (nr_free_pool - shrink_pages) << pool->order;
 		if (freed >= sc->nr_to_scan)
 			break;
+		shrink_pages <<= pool->order;
 	}
 	mutex_unlock(&lock);
 	return freed;
