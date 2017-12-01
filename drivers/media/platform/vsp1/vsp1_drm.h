@@ -35,7 +35,7 @@ struct vsp1_drm_pipeline {
 	wait_queue_head_t wait_queue;
 
 	/* Frame synchronisation */
-	void (*du_complete)(void *, bool);
+	void (*du_complete)(void *data, bool completed, u32 crc);
 	void *du_private;
 };
 

@@ -34,7 +34,7 @@ struct vsp1_du_lif_config {
 	unsigned int width;
 	unsigned int height;
 
-	void (*callback)(void *, bool);
+	void (*callback)(void *data, bool completed, u32 crc);
 	void *callback_data;
 };
 
@@ -61,11 +61,42 @@ struct vsp1_du_atomic_config {
 	unsigned int zpos;
 };
 
+/**
+ * enum vsp1_du_crc_source - Source used for CRC calculation
+ * @VSP1_DU_CRC_NONE: CRC calculation disabled
+ * @VSP1_DU_CRC_PLANE: Perform CRC calculation on an input plane
+ * @VSP1_DU_CRC_OUTPUT: Perform CRC calculation on the composed output
+ */
+enum vsp1_du_crc_source {
+	VSP1_DU_CRC_NONE,
+	VSP1_DU_CRC_PLANE,
+	VSP1_DU_CRC_OUTPUT,
+};
+
+/**
+ * struct vsp1_du_crc_config - VSP CRC computation configuration parameters
+ * @source: source for CRC calculation
+ * @index: index of the CRC source plane (when source is set to plane)
+ */
+struct vsp1_du_crc_config {
+	enum vsp1_du_crc_source source;
+	unsigned int index;
+};
+
+/**
+ * struct vsp1_du_atomic_pipe_config - VSP atomic pipe configuration parameters
+ * @crc: CRC computation configuration
+ */
+struct vsp1_du_atomic_pipe_config {
+	struct vsp1_du_crc_config crc;
+};
+
 void vsp1_du_atomic_begin(struct device *dev, unsigned int pipe_index);
 int vsp1_du_atomic_update(struct device *dev, unsigned int pipe_index,
 			  unsigned int rpf,
 			  const struct vsp1_du_atomic_config *cfg);
-void vsp1_du_atomic_flush(struct device *dev, unsigned int pipe_index);
+void vsp1_du_atomic_flush(struct device *dev, unsigned int pipe_index,
+			  const struct vsp1_du_atomic_pipe_config *cfg);
 int vsp1_du_map_sg(struct device *dev, struct sg_table *sgt);
 void vsp1_du_unmap_sg(struct device *dev, struct sg_table *sgt);
 

@@ -31,7 +31,7 @@
 #include "rcar_du_kms.h"
 #include "rcar_du_vsp.h"
 
-static void rcar_du_vsp_complete(void *private, bool completed)
+static void rcar_du_vsp_complete(void *private, bool completed, u32 crc)
 {
 	struct rcar_du_crtc *crtc = private;
 
@@ -102,7 +102,9 @@ void rcar_du_vsp_atomic_begin(struct rcar_du_crtc *crtc)
 
 void rcar_du_vsp_atomic_flush(struct rcar_du_crtc *crtc)
 {
-	vsp1_du_atomic_flush(crtc->vsp->vsp, crtc->vsp_pipe);
+	struct vsp1_du_atomic_pipe_config cfg = { { 0, } };
+
+	vsp1_du_atomic_flush(crtc->vsp->vsp, crtc->vsp_pipe, &cfg);
 }
 
 /* Keep the two tables in sync. */

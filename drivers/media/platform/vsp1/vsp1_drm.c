@@ -36,7 +36,7 @@ static void vsp1_du_pipeline_frame_end(struct vsp1_pipeline *pipe,
 	bool complete = completion == VSP1_DL_FRAME_END_COMPLETED;
 
 	if (drm_pipe->du_complete)
-		drm_pipe->du_complete(drm_pipe->du_private, complete);
+		drm_pipe->du_complete(drm_pipe->du_private, complete, 0);
 
 	if (completion & VSP1_DL_FRAME_END_INTERNAL) {
 		drm_pipe->force_brx_release = false;
@@ -739,8 +739,10 @@ EXPORT_SYMBOL_GPL(vsp1_du_atomic_update);
  * vsp1_du_atomic_flush - Commit an atomic update
  * @dev: the VSP device
  * @pipe_index: the DRM pipeline index
+ * @cfg: atomic pipe configuration
  */
-void vsp1_du_atomic_flush(struct device *dev, unsigned int pipe_index)
+void vsp1_du_atomic_flush(struct device *dev, unsigned int pipe_index,
+			  const struct vsp1_du_atomic_pipe_config *cfg)
 {
 	struct vsp1_device *vsp1 = dev_get_drvdata(dev);
 	struct vsp1_drm_pipeline *drm_pipe = &vsp1->drm->pipe[pipe_index];
