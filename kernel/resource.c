@@ -1022,6 +1022,7 @@ static void __init __reserve_region_with_split(struct resource *root,
 	struct resource *conflict;
 	struct resource *res = alloc_resource(GFP_ATOMIC);
 	struct resource *next_res = NULL;
+	int type = resource_type(root);
 
 	if (!res)
 		return;
@@ -1029,7 +1030,7 @@ static void __init __reserve_region_with_split(struct resource *root,
 	res->name = name;
 	res->start = start;
 	res->end = end;
-	res->flags = IORESOURCE_BUSY;
+	res->flags = type | IORESOURCE_BUSY;
 	res->desc = IORES_DESC_NONE;
 
 	while (1) {
@@ -1064,7 +1065,7 @@ static void __init __reserve_region_with_split(struct resource *root,
 				next_res->name = name;
 				next_res->start = conflict->end + 1;
 				next_res->end = end;
-				next_res->flags = IORESOURCE_BUSY;
+				next_res->flags = type | IORESOURCE_BUSY;
 				next_res->desc = IORES_DESC_NONE;
 			}
 		} else {
