@@ -14,6 +14,7 @@
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/slab.h>
+#include <linux/debugfs.h>
 
 struct component;
 
@@ -38,6 +39,7 @@ struct master {
 	const struct component_master_ops *ops;
 	struct device *dev;
 	struct component_match *match;
+	struct dentry *dentry;
 };
 
 struct component {
@@ -52,6 +54,80 @@ struct component {
 static DEFINE_MUTEX(component_mutex);
 static LIST_HEAD(component_list);
 static LIST_HEAD(masters);
+
+#ifdef CONFIG_DEBUG_FS
+
+static struct dentry *component_debugfs_dir;
+
+static int component_devices_show(struct seq_file *s, void *data)
+{
+	struct master *m = s->private;
+	struct component_match *match = m->match;
+	size_t i;
+
+	mutex_lock(&component_mutex);
+	seq_printf(s, "%-40s %20s\n", "master name", "status");
+	seq_puts(s, "-------------------------------------------------------------\n");
+	seq_printf(s, "%-40s %20s\n\n",
+		   dev_name(m->dev), m->bound ? "bound" : "not bound");
+
+	seq_printf(s, "%-40s %20s\n", "device name", "status");
+	seq_puts(s, "-------------------------------------------------------------\n");
+	for (i = 0; i < match->num; i++) {
+		struct device *d = (struct device *)match->compare[i].data;
+
+		seq_printf(s, "%-40s %20s\n", dev_name(d),
+			   match->compare[i].component ?
+			   "registered" : "not registered");
+	}
+	mutex_unlock(&component_mutex);
+
+	return 0;
+}
+
+static int component_devices_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, component_devices_show, inode->i_private);
+}
+
+static const struct file_operations component_devices_fops = {
+	.open = component_devices_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
+};
+
+static int __init component_debug_init(void)
+{
+	component_debugfs_dir = debugfs_create_dir("device_component", NULL);
+
+	return 0;
+}
+
+core_initcall(component_debug_init);
+
+static void component_master_debugfs_add(struct master *m)
+{
+	m->dentry = debugfs_create_file(dev_name(m->dev), 0444,
+					component_debugfs_dir,
+					m, &component_devices_fops);
+}
+
+static void component_master_debugfs_del(struct master *m)
+{
+	debugfs_remove(m->dentry);
+	m->dentry = NULL;
+}
+
+#else
+
+static void component_master_debugfs_add(struct master *m)
+{ }
+
+static void component_master_debugfs_del(struct master *m)
+{ }
+
+#endif
 
 static struct master *__master_find(struct device *dev,
 	const struct component_master_ops *ops)
@@ -287,6 +363,7 @@ static void free_master(struct master *master)
 	struct component_match *match = master->match;
 	int i;
 
+	component_master_debugfs_del(master);
 	list_del(&master->node);
 
 	if (match) {
@@ -320,6 +397,7 @@ int component_master_add_with_match(struct device *dev,
 	master->ops = ops;
 	master->match = match;
 
+	component_master_debugfs_add(master);
 	/* Add to the list of available masters. */
 	mutex_lock(&component_mutex);
 	list_add(&master->node, &masters);
