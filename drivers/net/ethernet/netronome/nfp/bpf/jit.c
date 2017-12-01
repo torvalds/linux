@@ -155,6 +155,13 @@ emit_cmd(struct nfp_prog *nfp_prog, enum cmd_tgt_map op, u8 mode, u8 xfer,
 }
 
 static void
+emit_cmd_indir(struct nfp_prog *nfp_prog, enum cmd_tgt_map op, u8 mode, u8 xfer,
+	       swreg lreg, swreg rreg, u8 size, bool sync)
+{
+	emit_cmd_any(nfp_prog, op, mode, xfer, lreg, rreg, size, sync, true);
+}
+
+static void
 __emit_br(struct nfp_prog *nfp_prog, enum br_mask mask, enum br_ev_pip ev_pip,
 	  enum br_ctx_signal_state css, u16 addr, u8 defer)
 {
@@ -513,6 +520,109 @@ static void wrp_mov(struct nfp_prog *nfp_prog, swreg dst, swreg src)
 static void wrp_reg_mov(struct nfp_prog *nfp_prog, u16 dst, u16 src)
 {
 	wrp_mov(nfp_prog, reg_both(dst), reg_b(src));
+}
+
+/* wrp_reg_subpart() - load @field_len bytes from @offset of @src, write the
+ * result to @dst from low end.
+ */
+static void
+wrp_reg_subpart(struct nfp_prog *nfp_prog, swreg dst, swreg src, u8 field_len,
+		u8 offset)
+{
+	enum shf_sc sc = offset ? SHF_SC_R_SHF : SHF_SC_NONE;
+	u8 mask = (1 << field_len) - 1;
+
+	emit_ld_field_any(nfp_prog, dst, mask, src, sc, offset * 8, true);
+}
+
+/* NFP has Command Push Pull bus which supports bluk memory operations. */
+static int nfp_cpp_memcpy(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
+{
+	bool descending_seq = meta->ldst_gather_len < 0;
+	s16 len = abs(meta->ldst_gather_len);
+	swreg src_base, off;
+	unsigned int i;
+	u8 xfer_num;
+
+	if (WARN_ON_ONCE(len > 32))
+		return -EOPNOTSUPP;
+
+	off = re_load_imm_any(nfp_prog, meta->insn.off, imm_b(nfp_prog));
+	src_base = reg_a(meta->insn.src_reg * 2);
+	xfer_num = round_up(len, 4) / 4;
+
+	/* Memory read from source addr into transfer-in registers. */
+	emit_cmd(nfp_prog, CMD_TGT_READ32_SWAP, CMD_MODE_32b, 0, src_base, off,
+		 xfer_num - 1, true);
+
+	/* Move from transfer-in to transfer-out. */
+	for (i = 0; i < xfer_num; i++)
+		wrp_mov(nfp_prog, reg_xfer(i), reg_xfer(i));
+
+	off = re_load_imm_any(nfp_prog, meta->paired_st->off, imm_b(nfp_prog));
+
+	if (len <= 8) {
+		/* Use single direct_ref write8. */
+		emit_cmd(nfp_prog, CMD_TGT_WRITE8_SWAP, CMD_MODE_32b, 0,
+			 reg_a(meta->paired_st->dst_reg * 2), off, len - 1,
+			 true);
+	} else if (IS_ALIGNED(len, 4)) {
+		/* Use single direct_ref write32. */
+		emit_cmd(nfp_prog, CMD_TGT_WRITE32_SWAP, CMD_MODE_32b, 0,
+			 reg_a(meta->paired_st->dst_reg * 2), off, xfer_num - 1,
+			 true);
+	} else {
+		/* Use single indirect_ref write8. */
+		wrp_immed(nfp_prog, reg_none(),
+			  CMD_OVE_LEN | FIELD_PREP(CMD_OV_LEN, len - 1));
+		emit_cmd_indir(nfp_prog, CMD_TGT_WRITE8_SWAP, CMD_MODE_32b, 0,
+			       reg_a(meta->paired_st->dst_reg * 2), off,
+			       len - 1, true);
+	}
+
+	/* TODO: The following extra load is to make sure data flow be identical
+	 *  before and after we do memory copy optimization.
+	 *
+	 *  The load destination register is not guaranteed to be dead, so we
+	 *  need to make sure it is loaded with the value the same as before
+	 *  this transformation.
+	 *
+	 *  These extra loads could be removed once we have accurate register
+	 *  usage information.
+	 */
+	if (descending_seq)
+		xfer_num = 0;
+	else if (BPF_SIZE(meta->insn.code) != BPF_DW)
+		xfer_num = xfer_num - 1;
+	else
+		xfer_num = xfer_num - 2;
+
+	switch (BPF_SIZE(meta->insn.code)) {
+	case BPF_B:
+		wrp_reg_subpart(nfp_prog, reg_both(meta->insn.dst_reg * 2),
+				reg_xfer(xfer_num), 1,
+				IS_ALIGNED(len, 4) ? 3 : (len & 3) - 1);
+		break;
+	case BPF_H:
+		wrp_reg_subpart(nfp_prog, reg_both(meta->insn.dst_reg * 2),
+				reg_xfer(xfer_num), 2, (len & 3) ^ 2);
+		break;
+	case BPF_W:
+		wrp_mov(nfp_prog, reg_both(meta->insn.dst_reg * 2),
+			reg_xfer(0));
+		break;
+	case BPF_DW:
+		wrp_mov(nfp_prog, reg_both(meta->insn.dst_reg * 2),
+			reg_xfer(xfer_num));
+		wrp_mov(nfp_prog, reg_both(meta->insn.dst_reg * 2 + 1),
+			reg_xfer(xfer_num + 1));
+		break;
+	}
+
+	if (BPF_SIZE(meta->insn.code) != BPF_DW)
+		wrp_immed(nfp_prog, reg_both(meta->insn.dst_reg * 2 + 1), 0);
+
+	return 0;
 }
 
 static int
@@ -1490,6 +1600,9 @@ static int
 mem_ldx(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
 	unsigned int size)
 {
+	if (meta->ldst_gather_len)
+		return nfp_cpp_memcpy(nfp_prog, meta);
+
 	if (meta->ptr.type == PTR_TO_CTX) {
 		if (nfp_prog->type == BPF_PROG_TYPE_XDP)
 			return mem_ldx_xdp(nfp_prog, meta, size);

@@ -220,6 +220,7 @@ struct cmd_tgt_act {
 enum cmd_tgt_map {
 	CMD_TGT_READ8,
 	CMD_TGT_WRITE8_SWAP,
+	CMD_TGT_WRITE32_SWAP,
 	CMD_TGT_READ32,
 	CMD_TGT_READ32_LE,
 	CMD_TGT_READ32_SWAP,
@@ -240,6 +241,9 @@ enum cmd_ctx_swap {
 	CMD_CTX_SWAP = 0,
 	CMD_CTX_NO_SWAP = 3,
 };
+
+#define CMD_OVE_LEN	BIT(7)
+#define CMD_OV_LEN	GENMASK(12, 8)
 
 #define OP_LCSR_BASE		0x0fc00000000ULL
 #define OP_LCSR_A_SRC		0x000000003ffULL

@@ -95,6 +95,8 @@ typedef int (*instr_cb_t)(struct nfp_prog *, struct nfp_insn_meta *);
  * struct nfp_insn_meta - BPF instruction wrapper
  * @insn: BPF instruction
  * @ptr: pointer type for memory operations
+ * @ldst_gather_len: memcpy length gathered from load/store sequence
+ * @paired_st: the paired store insn at the head of the sequence
  * @ptr_not_const: pointer is not always constant
  * @jmp_dst: destination info for jump instructions
  * @off: index of first generated machine instruction (in nfp_prog.prog)
@@ -109,6 +111,8 @@ struct nfp_insn_meta {
 	union {
 		struct {
 			struct bpf_reg_state ptr;
+			struct bpf_insn *paired_st;
+			s16 ldst_gather_len;
 			bool ptr_not_const;
 		};
 		struct nfp_insn_meta *jmp_dst;
