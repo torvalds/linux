@@ -88,12 +88,12 @@ struct board_ops {
 	void (*flush_uart_read)(struct channel_t *ch);
 	void (*disable_receiver)(struct channel_t *ch);
 	void (*enable_receiver)(struct channel_t *ch);
-	void (*send_break)(struct channel_t *ch, int);
+	void (*send_break)(struct channel_t *ch, int msec);
 	void (*send_start_character)(struct channel_t *ch);
 	void (*send_stop_character)(struct channel_t *ch);
 	void (*copy_data_from_queue_to_uart)(struct channel_t *ch);
 	uint (*get_uart_bytes_left)(struct channel_t *ch);
-	void (*send_immediate_char)(struct channel_t *ch, unsigned char);
+	void (*send_immediate_char)(struct channel_t *ch, unsigned char c);
 };
 
 /* Device flag definitions for bd_flags. */
