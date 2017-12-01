@@ -7305,7 +7305,7 @@ struct extent_map *btrfs_get_extent_fiemap(struct btrfs_inode *inode,
 			em->block_start = EXTENT_MAP_DELALLOC;
 			em->block_len = found;
 		}
-	} else if (hole_em) {
+	} else {
 		return hole_em;
 	}
 out:
