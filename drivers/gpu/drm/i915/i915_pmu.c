@@ -413,12 +413,12 @@ static u64 __i915_pmu_event_read(struct perf_event *event)
 						     IS_VALLEYVIEW(i915) ?
 						     VLV_GT_RENDER_RC6 :
 						     GEN6_GT_GFX_RC6);
-			if (HAS_RC6p(i915)) {
+			if (HAS_RC6p(i915))
 				val += intel_rc6_residency_ns(i915,
 							      GEN6_GT_GFX_RC6p);
+			if (HAS_RC6pp(i915))
 				val += intel_rc6_residency_ns(i915,
 							      GEN6_GT_GFX_RC6pp);
-			}
 			intel_runtime_pm_put(i915);
 			break;
 		}

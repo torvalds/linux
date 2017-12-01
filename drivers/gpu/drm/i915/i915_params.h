@@ -34,7 +34,6 @@
 	param(int, lvds_channel_mode, 0) \
 	param(int, panel_use_ssc, -1) \
 	param(int, vbt_sdvo_panel_type, -1) \
-	param(int, enable_rc6, -1) \
 	param(int, enable_dc, -1) \
 	param(int, enable_fbc, -1) \
 	param(int, enable_ppgtt, -1) \

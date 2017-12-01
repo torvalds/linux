@@ -52,9 +52,6 @@
  * which brings the most power savings; deeper states save more power, but
  * require higher latency to switch to and wake up.
  */
-#define INTEL_RC6_ENABLE			(1<<0)
-#define INTEL_RC6p_ENABLE			(1<<1)
-#define INTEL_RC6pp_ENABLE			(1<<2)
 
 static void gen9_init_clock_gating(struct drm_i915_private *dev_priv)
 {
@@ -6417,26 +6414,6 @@ static void valleyview_disable_rps(struct drm_i915_private *dev_priv)
 	I915_WRITE(GEN6_RP_CONTROL, 0);
 }
 
-static void intel_print_rc6_info(struct drm_i915_private *dev_priv, u32 mode)
-{
-	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {
-		if (mode & (GEN7_RC_CTL_TO_MODE | GEN6_RC_CTL_EI_MODE(1)))
-			mode = GEN6_RC_CTL_RC6_ENABLE;
-		else
-			mode = 0;
-	}
-	if (HAS_RC6p(dev_priv))
-		DRM_DEBUG_DRIVER("Enabling RC6 states: "
-				 "RC6 %s RC6p %s RC6pp %s\n",
-				 onoff(mode & GEN6_RC_CTL_RC6_ENABLE),
-				 onoff(mode & GEN6_RC_CTL_RC6p_ENABLE),
-				 onoff(mode & GEN6_RC_CTL_RC6pp_ENABLE));
-
-	else
-		DRM_DEBUG_DRIVER("Enabling RC6 states: RC6 %s\n",
-				 onoff(mode & GEN6_RC_CTL_RC6_ENABLE));
-}
-
 static bool bxt_check_bios_rc6_setup(struct drm_i915_private *dev_priv)
 {
 	struct i915_ggtt *ggtt = &dev_priv->ggtt;
@@ -6499,42 +6476,30 @@ static bool bxt_check_bios_rc6_setup(struct drm_i915_private *dev_priv)
 	return enable_rc6;
 }
 
-int sanitize_rc6_option(struct drm_i915_private *dev_priv, int enable_rc6)
+static bool sanitize_rc6(struct drm_i915_private *i915)
 {
-	/* No RC6 before Ironlake and code is gone for ilk. */
-	if (INTEL_INFO(dev_priv)->gen < 6)
-		return 0;
+	struct intel_device_info *info = mkwrite_device_info(i915);
 
-	if (!enable_rc6)
-		return 0;
+	/* Powersaving is controlled by the host when inside a VM */
+	if (intel_vgpu_active(i915))
+		info->has_rc6 = 0;
 
-	if (IS_GEN9_LP(dev_priv) && !bxt_check_bios_rc6_setup(dev_priv)) {
+	if (info->has_rc6 &&
+	    IS_GEN9_LP(i915) && !bxt_check_bios_rc6_setup(i915)) {
 		DRM_INFO("RC6 disabled by BIOS\n");
-		return 0;
+		info->has_rc6 = 0;
 	}
 
-	/* Respect the kernel parameter if it is set */
-	if (enable_rc6 >= 0) {
-		int mask;
+	/*
+	 * We assume that we do not have any deep rc6 levels if we don't have
+	 * have the previous rc6 level supported, i.e. we use HAS_RC6()
+	 * as the initial coarse check for rc6 in general, moving on to
+	 * progressively finer/deeper levels.
+	 */
+	if (!info->has_rc6 && info->has_rc6p)
+		info->has_rc6p = 0;
 
-		if (HAS_RC6p(dev_priv))
-			mask = INTEL_RC6_ENABLE | INTEL_RC6p_ENABLE |
-			       INTEL_RC6pp_ENABLE;
-		else
-			mask = INTEL_RC6_ENABLE;
-
-		if ((enable_rc6 & mask) != enable_rc6)
-			DRM_DEBUG_DRIVER("Adjusting RC6 mask to %d "
-					 "(requested %d, valid %d)\n",
-					 enable_rc6 & mask, enable_rc6, mask);
-
-		return enable_rc6 & mask;
-	}
-
-	if (IS_IVYBRIDGE(dev_priv))
-		return (INTEL_RC6_ENABLE | INTEL_RC6p_ENABLE);
-
-	return INTEL_RC6_ENABLE;
+	return info->has_rc6;
 }
 
 static void gen6_init_rps_frequencies(struct drm_i915_private *dev_priv)
@@ -6627,7 +6592,7 @@ static void gen9_enable_rc6(struct drm_i915_private *dev_priv)
 {
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
-	u32 rc6_mode, rc6_mask = 0;
+	u32 rc6_mode;
 
 	/* 1a: Software RC state - RC0 */
 	I915_WRITE(GEN6_RC_STATE, 0);
@@ -6668,9 +6633,6 @@ static void gen9_enable_rc6(struct drm_i915_private *dev_priv)
 	I915_WRITE(GEN9_RENDER_PG_IDLE_HYSTERESIS, 25);
 
 	/* 3a: Enable RC6 */
-	if (intel_rc6_enabled() & INTEL_RC6_ENABLE)
-		rc6_mask = GEN6_RC_CTL_RC6_ENABLE;
-	DRM_INFO("RC6 %s\n", onoff(rc6_mask & GEN6_RC_CTL_RC6_ENABLE));
 	I915_WRITE(GEN6_RC6_THRESHOLD, 37500); /* 37.5/125ms per EI */
 
 	/* WaRsUseTimeoutMode:cnl (pre-prod) */
@@ -6680,7 +6642,9 @@ static void gen9_enable_rc6(struct drm_i915_private *dev_priv)
 		rc6_mode = GEN6_RC_CTL_EI_MODE(1);
 
 	I915_WRITE(GEN6_RC_CONTROL,
-		   GEN6_RC_CTL_HW_ENABLE | rc6_mode | rc6_mask);
+		   GEN6_RC_CTL_HW_ENABLE |
+		   GEN6_RC_CTL_RC6_ENABLE |
+		   rc6_mode);
 
 	/*
 	 * 3b: Enable Coarse Power Gating only when RC6 is enabled.
@@ -6689,8 +6653,8 @@ static void gen9_enable_rc6(struct drm_i915_private *dev_priv)
 	if (NEEDS_WaRsDisableCoarsePowerGating(dev_priv))
 		I915_WRITE(GEN9_PG_ENABLE, 0);
 	else
-		I915_WRITE(GEN9_PG_ENABLE, (rc6_mask & GEN6_RC_CTL_RC6_ENABLE) ?
-				(GEN9_RENDER_PG_ENABLE | GEN9_MEDIA_PG_ENABLE) : 0);
+		I915_WRITE(GEN9_PG_ENABLE,
+			   GEN9_RENDER_PG_ENABLE | GEN9_MEDIA_PG_ENABLE);
 
 	intel_uncore_forcewake_put(dev_priv, FORCEWAKE_ALL);
 }
@@ -6699,7 +6663,6 @@ static void gen8_enable_rc6(struct drm_i915_private *dev_priv)
 {
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
-	uint32_t rc6_mask = 0;
 
 	/* 1a: Software RC state - RC0 */
 	I915_WRITE(GEN6_RC_STATE, 0);
@@ -6721,13 +6684,11 @@ static void gen8_enable_rc6(struct drm_i915_private *dev_priv)
 	I915_WRITE(GEN6_RC6_THRESHOLD, 625); /* 800us/1.28 for TO */
 
 	/* 3: Enable RC6 */
-	if (intel_rc6_enabled() & INTEL_RC6_ENABLE)
-		rc6_mask = GEN6_RC_CTL_RC6_ENABLE;
-	intel_print_rc6_info(dev_priv, rc6_mask);
 
-	I915_WRITE(GEN6_RC_CONTROL, GEN6_RC_CTL_HW_ENABLE |
-			GEN7_RC_CTL_TO_MODE |
-			rc6_mask);
+	I915_WRITE(GEN6_RC_CONTROL,
+		   GEN6_RC_CTL_HW_ENABLE |
+		   GEN7_RC_CTL_TO_MODE |
+		   GEN6_RC_CTL_RC6_ENABLE);
 
 	intel_uncore_forcewake_put(dev_priv, FORCEWAKE_ALL);
 }
@@ -6776,9 +6737,8 @@ static void gen6_enable_rc6(struct drm_i915_private *dev_priv)
 {
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
-	u32 rc6vids, rc6_mask = 0;
+	u32 rc6vids, rc6_mask;
 	u32 gtfifodbg;
-	int rc6_mode;
 	int ret;
 
 	I915_WRITE(GEN6_RC_STATE, 0);
@@ -6813,22 +6773,12 @@ static void gen6_enable_rc6(struct drm_i915_private *dev_priv)
 	I915_WRITE(GEN6_RC6p_THRESHOLD, 150000);
 	I915_WRITE(GEN6_RC6pp_THRESHOLD, 64000); /* unused */
 
-	/* Check if we are enabling RC6 */
-	rc6_mode = intel_rc6_enabled();
-	if (rc6_mode & INTEL_RC6_ENABLE)
-		rc6_mask |= GEN6_RC_CTL_RC6_ENABLE;
-
 	/* We don't use those on Haswell */
-	if (!IS_HASWELL(dev_priv)) {
-		if (rc6_mode & INTEL_RC6p_ENABLE)
-			rc6_mask |= GEN6_RC_CTL_RC6p_ENABLE;
-
-		if (rc6_mode & INTEL_RC6pp_ENABLE)
-			rc6_mask |= GEN6_RC_CTL_RC6pp_ENABLE;
-	}
-
-	intel_print_rc6_info(dev_priv, rc6_mask);
-
+	rc6_mask = GEN6_RC_CTL_RC6_ENABLE;
+	if (HAS_RC6p(dev_priv))
+		rc6_mask |= GEN6_RC_CTL_RC6p_ENABLE;
+	if (HAS_RC6pp(dev_priv))
+		rc6_mask |= GEN6_RC_CTL_RC6pp_ENABLE;
 	I915_WRITE(GEN6_RC_CONTROL,
 		   rc6_mask |
 		   GEN6_RC_CTL_EI_MODE(1) |
@@ -7271,7 +7221,7 @@ static void cherryview_enable_rc6(struct drm_i915_private *dev_priv)
 {
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
-	u32 gtfifodbg, rc6_mode = 0, pcbr;
+	u32 gtfifodbg, rc6_mode, pcbr;
 
 	gtfifodbg = I915_READ(GTFIFODBG) & ~(GT_FIFO_SBDEDICATE_FREE_ENTRY_CHV |
 					     GT_FIFO_FREE_ENTRIES_CHV);
@@ -7312,10 +7262,9 @@ static void cherryview_enable_rc6(struct drm_i915_private *dev_priv)
 	pcbr = I915_READ(VLV_PCBR);
 
 	/* 3: Enable RC6 */
-	if ((intel_rc6_enabled() & INTEL_RC6_ENABLE) &&
-	    (pcbr >> VLV_PCBR_ADDR_SHIFT))
+	rc6_mode = 0;
+	if (pcbr >> VLV_PCBR_ADDR_SHIFT)
 		rc6_mode = GEN7_RC_CTL_TO_MODE;
-
 	I915_WRITE(GEN6_RC_CONTROL, rc6_mode);
 
 	intel_uncore_forcewake_put(dev_priv, FORCEWAKE_ALL);
@@ -7367,7 +7316,7 @@ static void valleyview_enable_rc6(struct drm_i915_private *dev_priv)
 {
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
-	u32 gtfifodbg, rc6_mode = 0;
+	u32 gtfifodbg;
 
 	valleyview_check_pctx(dev_priv);
 
@@ -7400,12 +7349,8 @@ static void valleyview_enable_rc6(struct drm_i915_private *dev_priv)
 				      VLV_MEDIA_RC6_COUNT_EN |
 				      VLV_RENDER_RC6_COUNT_EN));
 
-	if (intel_rc6_enabled() & INTEL_RC6_ENABLE)
-		rc6_mode = GEN7_RC_CTL_TO_MODE | VLV_RC_CTL_CTX_RST_PARALLEL;
-
-	intel_print_rc6_info(dev_priv, rc6_mode);
-
-	I915_WRITE(GEN6_RC_CONTROL, rc6_mode);
+	I915_WRITE(GEN6_RC_CONTROL,
+		   GEN7_RC_CTL_TO_MODE | VLV_RC_CTL_CTX_RST_PARALLEL);
 
 	intel_uncore_forcewake_put(dev_priv, FORCEWAKE_ALL);
 }
@@ -7932,7 +7877,7 @@ void intel_init_gt_powersave(struct drm_i915_private *dev_priv)
 	 * RPM depends on RC6 to save restore the GT HW context, so make RC6 a
 	 * requirement.
 	 */
-	if (!i915_modparams.enable_rc6) {
+	if (!sanitize_rc6(dev_priv)) {
 		DRM_INFO("RC6 disabled, disabling runtime PM support\n");
 		intel_runtime_pm_get(dev_priv);
 	}
@@ -7985,7 +7930,7 @@ void intel_cleanup_gt_powersave(struct drm_i915_private *dev_priv)
 	if (IS_VALLEYVIEW(dev_priv))
 		valleyview_cleanup_gt_powersave(dev_priv);
 
-	if (!i915_modparams.enable_rc6)
+	if (!HAS_RC6(dev_priv))
 		intel_runtime_pm_put(dev_priv);
 }
 
@@ -8152,7 +8097,8 @@ void intel_enable_gt_powersave(struct drm_i915_private *dev_priv)
 
 	mutex_lock(&dev_priv->pcu_lock);
 
-	intel_enable_rc6(dev_priv);
+	if (HAS_RC6(dev_priv))
+		intel_enable_rc6(dev_priv);
 	intel_enable_rps(dev_priv);
 	if (HAS_LLC(dev_priv))
 		intel_enable_llc_pstate(dev_priv);
@@ -9444,7 +9390,7 @@ u64 intel_rc6_residency_ns(struct drm_i915_private *dev_priv,
 	u64 time_hw;
 	u32 mul, div;
 
-	if (!intel_rc6_enabled())
+	if (!HAS_RC6(dev_priv))
 		return 0;
 
 	/* On VLV and CHV, residency time is in CZ units rather than 1.28us */

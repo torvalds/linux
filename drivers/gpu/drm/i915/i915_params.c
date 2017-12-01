@@ -46,13 +46,6 @@ i915_param_named_unsafe(panel_ignore_lid, int, 0600,
 	"Override lid status (0=autodetect, 1=autodetect disabled [default], "
 	"-1=force lid closed, -2=force lid open)");
 
-i915_param_named_unsafe(enable_rc6, int, 0400,
-	"Enable power-saving render C-state 6. "
-	"Different stages can be selected via bitmask values "
-	"(0 = disable; 1 = enable rc6; 2 = enable deep rc6; 4 = enable deepest rc6). "
-	"For example, 3 would enable rc6 and deep rc6, and 7 would enable everything. "
-	"default: -1 (use per-chip default)");
-
 i915_param_named_unsafe(enable_dc, int, 0400,
 	"Enable power-saving display C-states. "
 	"(-1=auto [default]; 0=disable; 1=up to DC5; 2=up to DC6)");

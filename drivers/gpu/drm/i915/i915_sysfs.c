@@ -54,7 +54,18 @@ static u32 calc_residency(struct drm_i915_private *dev_priv,
 static ssize_t
 show_rc6_mask(struct device *kdev, struct device_attribute *attr, char *buf)
 {
-	return snprintf(buf, PAGE_SIZE, "%x\n", intel_rc6_enabled());
+	struct drm_i915_private *dev_priv = kdev_minor_to_i915(kdev);
+	unsigned int mask;
+
+	mask = 0;
+	if (HAS_RC6(dev_priv))
+		mask |= BIT(0);
+	if (HAS_RC6p(dev_priv))
+		mask |= BIT(1);
+	if (HAS_RC6pp(dev_priv))
+		mask |= BIT(2);
+
+	return snprintf(buf, PAGE_SIZE, "%x\n", mask);
 }
 
 static ssize_t

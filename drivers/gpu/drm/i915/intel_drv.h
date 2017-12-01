@@ -1908,15 +1908,10 @@ bool skl_ddb_allocation_overlaps(struct drm_i915_private *dev_priv,
 				 const struct skl_ddb_entry *ddb,
 				 int ignore);
 bool ilk_disable_lp_wm(struct drm_device *dev);
-int sanitize_rc6_option(struct drm_i915_private *dev_priv, int enable_rc6);
 int skl_check_pipe_max_pixel_rate(struct intel_crtc *intel_crtc,
 				  struct intel_crtc_state *cstate);
 void intel_init_ipc(struct drm_i915_private *dev_priv);
 void intel_enable_ipc(struct drm_i915_private *dev_priv);
-static inline int intel_rc6_enabled(void)
-{
-	return i915_modparams.enable_rc6;
-}
 
 /* intel_sdvo.c */
 bool intel_sdvo_init(struct drm_i915_private *dev_priv,
