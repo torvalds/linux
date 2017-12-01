@@ -769,6 +769,7 @@
 
 &hsi2c_7 {
 	status = "okay";
+	clock-frequency = <1000000>;
 
 	sii8620@39 {
 		reg = <0x39>;
