@@ -1064,19 +1064,6 @@ int phylink_ethtool_get_module_eeprom(struct phylink *pl,
 }
 EXPORT_SYMBOL_GPL(phylink_ethtool_get_module_eeprom);
 
-int phylink_init_eee(struct phylink *pl, bool clk_stop_enable)
-{
-	int ret = -EPROTONOSUPPORT;
-
-	WARN_ON(!lockdep_rtnl_is_held());
-
-	if (pl->phydev)
-		ret = phy_init_eee(pl->phydev, clk_stop_enable);
-
-	return ret;
-}
-EXPORT_SYMBOL_GPL(phylink_init_eee);
-
 int phylink_get_eee_err(struct phylink *pl)
 {
 	int ret = 0;
