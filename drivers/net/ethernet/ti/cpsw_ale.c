@@ -723,7 +723,7 @@ int cpsw_ale_control_set(struct cpsw_ale *ale, int port, int control,
 	if (info->port_offset == 0 && info->port_shift == 0)
 		port = 0; /* global, port is a dont care */
 
-	if (port < 0 || port > ale->params.ale_ports)
+	if (port < 0 || port >= ale->params.ale_ports)
 		return -EINVAL;
 
 	mask = BITMASK(info->bits);
@@ -754,7 +754,7 @@ int cpsw_ale_control_get(struct cpsw_ale *ale, int port, int control)
 	if (info->port_offset == 0 && info->port_shift == 0)
 		port = 0; /* global, port is a dont care */
 
-	if (port < 0 || port > ale->params.ale_ports)
+	if (port < 0 || port >= ale->params.ale_ports)
 		return -EINVAL;
 
 	offset = info->offset + (port * info->port_offset);
