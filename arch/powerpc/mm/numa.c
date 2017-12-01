@@ -184,11 +184,19 @@ static const __be32 *of_get_associativity(struct device_node *dev)
  * it exists (the property exists only in kexec/kdump kernels,
  * added by kexec-tools)
  */
-static const __be32 *of_get_usable_memory(struct device_node *memory)
+static const __be32 *of_get_usable_memory(void)
 {
+	struct device_node *memory;
 	const __be32 *prop;
 	u32 len;
+
+	memory = of_find_node_by_path("/ibm,dynamic-reconfiguration-memory");
+	if (!memory)
+		return NULL;
+
 	prop = of_get_property(memory, "linux,drconf-usable-memory", &len);
+	of_node_put(memory);
+
 	if (!prop || len < sizeof(unsigned int))
 		return NULL;
 	return prop;
@@ -674,7 +682,7 @@ static void __init parse_drconf_memory(struct device_node *memory)
 		return;
 
 	/* check if this is a kexec/kdump kernel */
-	usm = of_get_usable_memory(memory);
+	usm = of_get_usable_memory();
 	if (usm != NULL)
 		is_kexec_kdump = 1;
 
