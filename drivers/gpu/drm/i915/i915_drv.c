@@ -1877,7 +1877,9 @@ void i915_reset(struct drm_i915_private *i915, unsigned int flags)
 {
 	struct i915_gpu_error *error = &i915->gpu_error;
 	int ret;
+	int i;
 
+	might_sleep();
 	lockdep_assert_held(&i915->drm.struct_mutex);
 	GEM_BUG_ON(!test_bit(I915_RESET_BACKOFF, &error->flags));
 
@@ -1900,12 +1902,20 @@ void i915_reset(struct drm_i915_private *i915, unsigned int flags)
 		goto error;
 	}
 
-	ret = intel_gpu_reset(i915, ALL_ENGINES);
+	if (!intel_has_gpu_reset(i915)) {
+		DRM_DEBUG_DRIVER("GPU reset disabled\n");
+		goto error;
+	}
+
+	for (i = 0; i < 3; i++) {
+		ret = intel_gpu_reset(i915, ALL_ENGINES);
+		if (ret == 0)
+			break;
+
+		msleep(100);
+	}
 	if (ret) {
-		if (ret != -ENODEV)
-			DRM_ERROR("Failed to reset chip: %i\n", ret);
-		else
-			DRM_DEBUG_DRIVER("GPU reset disabled\n");
+		dev_err(i915->drm.dev, "Failed to reset chip\n");
 		goto error;
 	}
 
