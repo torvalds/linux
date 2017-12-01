@@ -71,15 +71,15 @@ static int sun8i_mixer_drm_format_to_layer(struct drm_plane *plane,
 {
 	switch (format) {
 	case DRM_FORMAT_ARGB8888:
-		*mode = SUN8I_MIXER_CHAN_UI_LAYER_ATTR_FBFMT_ARGB8888;
+		*mode = SUN8I_MIXER_FBFMT_ARGB8888;
 		break;
 
 	case DRM_FORMAT_XRGB8888:
-		*mode = SUN8I_MIXER_CHAN_UI_LAYER_ATTR_FBFMT_XRGB8888;
+		*mode = SUN8I_MIXER_FBFMT_XRGB8888;
 		break;
 
 	case DRM_FORMAT_RGB888:
-		*mode = SUN8I_MIXER_CHAN_UI_LAYER_ATTR_FBFMT_RGB888;
+		*mode = SUN8I_MIXER_FBFMT_RGB888;
 		break;
 
 	default:
@@ -173,6 +173,7 @@ int sun8i_mixer_update_layer_formats(struct sun8i_mixer *mixer,
 		return ret;
 	}
 
+	val <<= SUN8I_MIXER_CHAN_UI_LAYER_ATTR_FBFMT_OFFSET;
 	regmap_update_bits(mixer->engine.regs,
 			   SUN8I_MIXER_CHAN_UI_LAYER_ATTR(chan, layer),
 			   SUN8I_MIXER_CHAN_UI_LAYER_ATTR_FBFMT_MASK, val);
