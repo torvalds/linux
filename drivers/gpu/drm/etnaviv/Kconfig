@@ -6,6 +6,7 @@ config DRM_ETNAVIV
 	depends on MMU
 	select SHMEM
 	select SYNC_FILE
+	select THERMAL if DRM_ETNAVIV_THERMAL
 	select TMPFS
 	select IOMMU_API
 	select IOMMU_SUPPORT
@@ -14,6 +15,14 @@ config DRM_ETNAVIV
 	select DMA_CMA if HAVE_DMA_CONTIGUOUS
 	help
 	  DRM driver for Vivante GPUs.
+
+config DRM_ETNAVIV_THERMAL
+	bool "enable ETNAVIV thermal throttling"
+	depends on DRM_ETNAVIV
+	default y
+	help
+	  Compile in support for thermal throttling.
+	  Say Y unless you want to risk burning your SoC.
 
 config DRM_ETNAVIV_REGISTER_LOGGING
 	bool "enable ETNAVIV register logging"
