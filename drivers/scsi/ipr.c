@@ -9653,8 +9653,8 @@ static int ipr_alloc_cmd_blks(struct ipr_ioa_cfg *ioa_cfg)
 			if (i == 0) {
 				entries_each_hrrq = IPR_NUM_INTERNAL_CMD_BLKS;
 				ioa_cfg->hrrq[i].min_cmd_id = 0;
-					ioa_cfg->hrrq[i].max_cmd_id =
-						(entries_each_hrrq - 1);
+				ioa_cfg->hrrq[i].max_cmd_id =
+					(entries_each_hrrq - 1);
 			} else {
 				entries_each_hrrq =
 					IPR_NUM_BASE_CMD_BLKS/
