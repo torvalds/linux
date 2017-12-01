@@ -291,7 +291,7 @@ static struct sfp_bus *sfp_bus_get(struct device_node *np)
 	return found;
 }
 
-static void sfp_bus_release(struct kref *kref) __releases(sfp_mutex)
+static void sfp_bus_release(struct kref *kref)
 {
 	struct sfp_bus *bus = container_of(kref, struct sfp_bus, kref);
 
