@@ -98,11 +98,16 @@ struct de2_fmt_info {
  *	First, scaler supports for VI channels is defined and after that, scaler
  *	support for UI channels. For example, if mixer has 2 VI channels without
  *	scaler and 2 UI channels with scaler, bitmask would be 0xC.
+ * @ccsc: select set of CCSC base addresses
+ *	Set value to 0 if this is first mixer or second mixer with VEP support.
+ *	Set value to 1 if this is second mixer without VEP support. Other values
+ *	are invalid.
  */
 struct sun8i_mixer_cfg {
 	int		vi_num;
 	int		ui_num;
 	int		scaler_mask;
+	int		ccsc;
 };
 
 struct sun8i_mixer {
