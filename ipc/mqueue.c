@@ -727,17 +727,16 @@ static int mq_attr_ok(struct ipc_namespace *ipc_ns, struct mq_attr *attr)
 /*
  * Invoked when creating a new queue via sys_mq_open
  */
-static struct file *do_create(struct ipc_namespace *ipc_ns, struct inode *dir,
+static int do_create(struct ipc_namespace *ipc_ns, struct inode *dir,
 			struct path *path, int oflag, umode_t mode,
 			struct mq_attr *attr)
 {
-	const struct cred *cred = current_cred();
 	int ret;
 
 	if (attr) {
 		ret = mq_attr_ok(ipc_ns, attr);
 		if (ret)
-			return ERR_PTR(ret);
+			return ret;
 	} else {
 		struct mq_attr def_attr;
 
@@ -747,28 +746,23 @@ static struct file *do_create(struct ipc_namespace *ipc_ns, struct inode *dir,
 					  ipc_ns->mq_msgsize_default);
 		ret = mq_attr_ok(ipc_ns, &def_attr);
 		if (ret)
-			return ERR_PTR(ret);
+			return ret;
 	}
 
-	ret = vfs_mkobj(path->dentry, mode & ~current_umask(),
+	return vfs_mkobj(path->dentry, mode & ~current_umask(),
 			mqueue_create_attr, attr);
-	if (ret)
-		return ERR_PTR(ret);
-	return dentry_open(path, oflag, cred);
 }
 
 /* Opens existing queue */
-static struct file *do_open(struct path *path, int oflag)
+static int do_open(struct path *path, int oflag)
 {
 	static const int oflag2acc[O_ACCMODE] = { MAY_READ, MAY_WRITE,
 						  MAY_READ | MAY_WRITE };
 	int acc;
 	if ((oflag & O_ACCMODE) == (O_RDWR | O_WRONLY))
-		return ERR_PTR(-EINVAL);
+		return -EINVAL;
 	acc = oflag2acc[oflag & O_ACCMODE];
-	if (inode_permission(d_inode(path->dentry), acc))
-		return ERR_PTR(-EACCES);
-	return dentry_open(path, oflag, current_cred());
+	return inode_permission(d_inode(path->dentry), acc);
 }
 
 static int do_mq_open(const char __user *u_name, int oflag, umode_t mode,
@@ -805,28 +799,30 @@ static int do_mq_open(const char __user *u_name, int oflag, umode_t mode,
 	if (oflag & O_CREAT) {
 		if (d_really_is_positive(path.dentry)) {	/* entry already exists */
 			audit_inode(name, path.dentry, 0);
-			if (oflag & O_EXCL) {
+			if (oflag & O_EXCL)
 				error = -EEXIST;
-				goto out;
-			}
-			filp = do_open(&path, oflag);
+			else
+				error = do_open(&path, oflag);
 		} else {
 			if (ro) {
 				error = ro;
-				goto out;
+			} else {
+				audit_inode_parent_hidden(name, root);
+				error = do_create(ipc_ns, d_inode(root), &path,
+						 oflag, mode, attr);
 			}
-			audit_inode_parent_hidden(name, root);
-			filp = do_create(ipc_ns, d_inode(root), &path,
-					 oflag, mode, attr);
 		}
 	} else {
 		if (d_really_is_negative(path.dentry)) {
 			error = -ENOENT;
-			goto out;
+		} else {
+			audit_inode(name, path.dentry, 0);
+			error = do_open(&path, oflag);
 		}
-		audit_inode(name, path.dentry, 0);
-		filp = do_open(&path, oflag);
 	}
+	if (error)
+		goto out;
+	filp = dentry_open(&path, oflag, current_cred());
 
 	if (!IS_ERR(filp))
 		fd_install(fd, filp);
