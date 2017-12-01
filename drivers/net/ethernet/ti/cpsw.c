@@ -2298,7 +2298,6 @@ static int cpsw_check_ch_settings(struct cpsw_common *cpsw,
 
 static int cpsw_update_channels_res(struct cpsw_priv *priv, int ch_num, int rx)
 {
-	int (*poll)(struct napi_struct *, int);
 	struct cpsw_common *cpsw = priv->cpsw;
 	void (*handler)(void *, int, int);
 	struct netdev_queue *queue;
@@ -2309,12 +2308,10 @@ static int cpsw_update_channels_res(struct cpsw_priv *priv, int ch_num, int rx)
 		ch = &cpsw->rx_ch_num;
 		vec = cpsw->rxv;
 		handler = cpsw_rx_handler;
-		poll = cpsw_rx_poll;
 	} else {
 		ch = &cpsw->tx_ch_num;
 		vec = cpsw->txv;
 		handler = cpsw_tx_handler;
-		poll = cpsw_tx_poll;
 	}
 
 	while (*ch < ch_num) {
