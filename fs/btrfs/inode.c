@@ -6948,7 +6948,6 @@ struct extent_map *btrfs_get_extent(struct btrfs_inode *inode,
 	struct extent_map *em = NULL;
 	struct extent_map_tree *em_tree = &inode->extent_tree;
 	struct extent_io_tree *io_tree = &inode->io_tree;
-	struct btrfs_trans_handle *trans = NULL;
 	const bool new_inline = !page || create;
 
 	read_lock(&em_tree->lock);
@@ -6989,8 +6988,7 @@ struct extent_map *btrfs_get_extent(struct btrfs_inode *inode,
 		path->reada = READA_FORWARD;
 	}
 
-	ret = btrfs_lookup_file_extent(trans, root, path,
-				       objectid, start, trans != NULL);
+	ret = btrfs_lookup_file_extent(NULL, root, path, objectid, start, 0);
 	if (ret < 0) {
 		err = ret;
 		goto out;
@@ -7186,11 +7184,6 @@ out:
 	trace_btrfs_get_extent(root, inode, em);
 
 	btrfs_free_path(path);
-	if (trans) {
-		ret = btrfs_end_transaction(trans);
-		if (!err)
-			err = ret;
-	}
 	if (err) {
 		free_extent_map(em);
 		return ERR_PTR(err);
