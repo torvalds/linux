@@ -48,6 +48,12 @@
 	interrupt-controller;
 	#interrupt-cells = <1>;
 
+	axp_gpio: axp-gpio {
+		compatible = "x-powers,axp813-gpio";
+		gpio-controller;
+		#gpio-cells = <2>;
+	};
+
 	regulators {
 		/* Default work frequency for buck regulators */
 		x-powers,dcdc-freq = <3000>;
