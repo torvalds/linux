@@ -779,7 +779,35 @@ static void cpsw_ale_timer(struct timer_list *t)
 
 void cpsw_ale_start(struct cpsw_ale *ale)
 {
+	cpsw_ale_control_set(ale, 0, ALE_ENABLE, 1);
+	cpsw_ale_control_set(ale, 0, ALE_CLEAR, 1);
+
+	timer_setup(&ale->timer, cpsw_ale_timer, 0);
+	if (ale->ageout) {
+		ale->timer.expires = jiffies + ale->ageout;
+		add_timer(&ale->timer);
+	}
+}
+EXPORT_SYMBOL_GPL(cpsw_ale_start);
+
+void cpsw_ale_stop(struct cpsw_ale *ale)
+{
+	del_timer_sync(&ale->timer);
+	cpsw_ale_control_set(ale, 0, ALE_ENABLE, 0);
+}
+EXPORT_SYMBOL_GPL(cpsw_ale_stop);
+
+struct cpsw_ale *cpsw_ale_create(struct cpsw_ale_params *params)
+{
+	struct cpsw_ale *ale;
 	u32 rev, ale_entries;
+
+	ale = kzalloc(sizeof(*ale), GFP_KERNEL);
+	if (!ale)
+		return NULL;
+
+	ale->params = *params;
+	ale->ageout = ale->params.ale_ageout * HZ;
 
 	rev = readl_relaxed(ale->params.ale_regs + ALE_IDVER);
 	if (!ale->params.major_ver_mask)
@@ -848,35 +876,6 @@ void cpsw_ale_start(struct cpsw_ale *ale)
 		ale_controls[ALE_PORT_UNTAGGED_EGRESS].offset =
 					ALE_UNKNOWNVLAN_FORCE_UNTAG_EGRESS;
 	}
-
-	cpsw_ale_control_set(ale, 0, ALE_ENABLE, 1);
-	cpsw_ale_control_set(ale, 0, ALE_CLEAR, 1);
-
-	timer_setup(&ale->timer, cpsw_ale_timer, 0);
-	if (ale->ageout) {
-		ale->timer.expires = jiffies + ale->ageout;
-		add_timer(&ale->timer);
-	}
-}
-EXPORT_SYMBOL_GPL(cpsw_ale_start);
-
-void cpsw_ale_stop(struct cpsw_ale *ale)
-{
-	del_timer_sync(&ale->timer);
-	cpsw_ale_control_set(ale, 0, ALE_ENABLE, 0);
-}
-EXPORT_SYMBOL_GPL(cpsw_ale_stop);
-
-struct cpsw_ale *cpsw_ale_create(struct cpsw_ale_params *params)
-{
-	struct cpsw_ale *ale;
-
-	ale = kzalloc(sizeof(*ale), GFP_KERNEL);
-	if (!ale)
-		return NULL;
-
-	ale->params = *params;
-	ale->ageout = ale->params.ale_ageout * HZ;
 
 	return ale;
 }
