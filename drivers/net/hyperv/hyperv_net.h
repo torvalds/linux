@@ -1425,32 +1425,6 @@ struct rndis_message {
 	(sizeof(msg) + (sizeof(struct rndis_message) -	\
 	 sizeof(union rndis_message_container)))
 
-/* get pointer to info buffer with message pointer */
-#define MESSAGE_TO_INFO_BUFFER(msg)				\
-	(((unsigned char *)(msg)) + msg->info_buf_offset)
-
-/* get pointer to status buffer with message pointer */
-#define MESSAGE_TO_STATUS_BUFFER(msg)			\
-	(((unsigned char *)(msg)) + msg->status_buf_offset)
-
-/* get pointer to OOBD buffer with message pointer */
-#define MESSAGE_TO_OOBD_BUFFER(msg)				\
-	(((unsigned char *)(msg)) + msg->oob_data_offset)
-
-/* get pointer to data buffer with message pointer */
-#define MESSAGE_TO_DATA_BUFFER(msg)				\
-	(((unsigned char *)(msg)) + msg->per_pkt_info_offset)
-
-/* get pointer to contained message from NDIS_MESSAGE pointer */
-#define RNDIS_MESSAGE_PTR_TO_MESSAGE_PTR(rndis_msg)		\
-	((void *) &rndis_msg->msg)
-
-/* get pointer to contained message from NDIS_MESSAGE pointer */
-#define RNDIS_MESSAGE_RAW_PTR_TO_MESSAGE_PTR(rndis_msg)	\
-	((void *) rndis_msg)
-
-
-
 #define RNDIS_HEADER_SIZE	(sizeof(struct rndis_message) - \
 				 sizeof(union rndis_message_container))
 
