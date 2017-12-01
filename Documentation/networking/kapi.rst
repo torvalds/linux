@@ -157,3 +157,15 @@ PHYLINK
    :internal:
 
 .. kernel-doc:: drivers/net/phy/phylink.c
+
+SFP support
+-----------
+
+.. kernel-doc:: drivers/net/phy/sfp-bus.c
+   :internal:
+
+.. kernel-doc:: include/linux/sfp.h
+   :internal:
+
+.. kernel-doc:: drivers/net/phy/sfp-bus.c
+   :export:

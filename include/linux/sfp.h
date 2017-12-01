@@ -3,7 +3,7 @@
 
 #include <linux/phy.h>
 
-struct __packed sfp_eeprom_base {
+struct sfp_eeprom_base {
 	u8 phys_id;
 	u8 phys_ext_id;
 	u8 connector;
@@ -166,12 +166,12 @@ struct __packed sfp_eeprom_base {
 	union {
 		__be16 optical_wavelength;
 		u8 cable_spec;
-	};
+	} __packed;
 	u8 reserved62;
 	u8 cc_base;
-};
+} __packed;
 
-struct __packed sfp_eeprom_ext {
+struct sfp_eeprom_ext {
 	__be16 options;
 	u8 br_max;
 	u8 br_min;
@@ -181,12 +181,21 @@ struct __packed sfp_eeprom_ext {
 	u8 enhopts;
 	u8 sff8472_compliance;
 	u8 cc_ext;
-};
+} __packed;
 
-struct __packed sfp_eeprom_id {
+/**
+ * struct sfp_eeprom_id - raw SFP module identification information
+ * @base: base SFP module identification structure
+ * @ext: extended SFP module identification structure
+ *
+ * See the SFF-8472 specification and related documents for the definition
+ * of these structure members. This can be obtained from
+ * ftp://ftp.seagate.com/sff
+ */
+struct sfp_eeprom_id {
 	struct sfp_eeprom_base base;
 	struct sfp_eeprom_ext ext;
-};
+} __packed;
 
 /* SFP EEPROM registers */
 enum {
@@ -353,13 +362,26 @@ struct ethtool_modinfo;
 struct net_device;
 struct sfp_bus;
 
+/**
+ * struct sfp_upstream_ops - upstream operations structure
+ * @module_insert: called after a module has been detected to determine
+ *   whether the module is supported for the upstream device.
+ * @module_remove: called after the module has been removed.
+ * @link_down: called when the link is non-operational for whatever
+ *   reason.
+ * @link_up: called when the link is operational.
+ * @connect_phy: called when an I2C accessible PHY has been detected
+ *   on the module.
+ * @disconnect_phy: called when a module with an I2C accessible PHY has
+ *   been removed.
+ */
 struct sfp_upstream_ops {
-	int (*module_insert)(void *, const struct sfp_eeprom_id *id);
-	void (*module_remove)(void *);
-	void (*link_down)(void *);
-	void (*link_up)(void *);
-	int (*connect_phy)(void *, struct phy_device *);
-	void (*disconnect_phy)(void *);
+	int (*module_insert)(void *priv, const struct sfp_eeprom_id *id);
+	void (*module_remove)(void *priv);
+	void (*link_down)(void *priv);
+	void (*link_up)(void *priv);
+	int (*connect_phy)(void *priv, struct phy_device *);
+	void (*disconnect_phy)(void *priv);
 };
 
 #if IS_ENABLED(CONFIG_SFP)
