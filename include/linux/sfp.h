@@ -356,7 +356,7 @@ enum {
 	SFP_PAGE			= 0x7f,
 };
 
-struct device_node;
+struct fwnode_handle;
 struct ethtool_eeprom;
 struct ethtool_modinfo;
 struct net_device;
@@ -397,7 +397,7 @@ int sfp_get_module_eeprom(struct sfp_bus *bus, struct ethtool_eeprom *ee,
 			  u8 *data);
 void sfp_upstream_start(struct sfp_bus *bus);
 void sfp_upstream_stop(struct sfp_bus *bus);
-struct sfp_bus *sfp_register_upstream(struct device_node *np,
+struct sfp_bus *sfp_register_upstream(struct fwnode_handle *fwnode,
 				      struct net_device *ndev, void *upstream,
 				      const struct sfp_upstream_ops *ops);
 void sfp_unregister_upstream(struct sfp_bus *bus);
@@ -441,7 +441,8 @@ static inline void sfp_upstream_stop(struct sfp_bus *bus)
 {
 }
 
-static inline struct sfp_bus *sfp_register_upstream(struct device_node *np,
+static inline struct sfp_bus *sfp_register_upstream(
+	struct fwnode_handle *fwnode,
 	struct net_device *ndev, void *upstream,
 	const struct sfp_upstream_ops *ops)
 {

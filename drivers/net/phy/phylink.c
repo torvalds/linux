@@ -499,7 +499,8 @@ static int phylink_register_sfp(struct phylink *pl, struct device_node *np)
 	if (!sfp_np)
 		return 0;
 
-	pl->sfp_bus = sfp_register_upstream(sfp_np, pl->netdev, pl,
+	pl->sfp_bus = sfp_register_upstream(of_fwnode_handle(sfp_np),
+					    pl->netdev, pl,
 					    &sfp_phylink_ops);
 	if (!pl->sfp_bus)
 		return -ENOMEM;
