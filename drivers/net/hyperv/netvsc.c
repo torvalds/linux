@@ -848,7 +848,6 @@ int netvsc_send(struct net_device_context *ndev_ctx,
 	struct hv_netvsc_packet *msd_send = NULL, *cur_send = NULL;
 	struct sk_buff *msd_skb = NULL;
 	bool try_batch;
-	bool xmit_more = (skb != NULL) ? skb->xmit_more : false;
 
 	/* If device is rescinded, return error and packet will get dropped. */
 	if (unlikely(!net_device || net_device->destroy))
@@ -922,7 +921,7 @@ int netvsc_send(struct net_device_context *ndev_ctx,
 		if (msdp->skb)
 			dev_consume_skb_any(msdp->skb);
 
-		if (xmit_more && !packet->cp_partial) {
+		if (skb->xmit_more && !packet->cp_partial) {
 			msdp->skb = skb;
 			msdp->pkt = packet;
 			msdp->count++;
