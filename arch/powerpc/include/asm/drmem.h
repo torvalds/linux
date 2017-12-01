@@ -40,6 +40,10 @@ static inline u32 drmem_lmb_size(void)
 	return drmem_info->lmb_size;
 }
 
+u64 drmem_lmb_memory_max(void);
+void __init walk_drmem_lmbs(struct device_node *dn,
+			void (*func)(struct drmem_lmb *, const __be32 **));
+
 #ifdef CONFIG_PPC_PSERIES
 void __init walk_drmem_lmbs_early(unsigned long node,
 			void (*func)(struct drmem_lmb *, const __be32 **));

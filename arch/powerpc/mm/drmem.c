@@ -21,7 +21,14 @@
 static struct drmem_lmb_info __drmem_info;
 struct drmem_lmb_info *drmem_info = &__drmem_info;
 
-#ifdef CONFIG_PPC_PSERIES
+u64 drmem_lmb_memory_max(void)
+{
+	struct drmem_lmb *last_lmb;
+
+	last_lmb = &drmem_info->lmbs[drmem_info->n_lmbs - 1];
+	return last_lmb->base_addr + drmem_lmb_size();
+}
+
 static void __init read_drconf_v1_cell(struct drmem_lmb *lmb,
 				       const __be32 **prop)
 {
@@ -52,6 +59,7 @@ static void __init __walk_drmem_v1_lmbs(const __be32 *prop, const __be32 *usm,
 	}
 }
 
+#ifdef CONFIG_PPC_PSERIES
 void __init walk_drmem_lmbs_early(unsigned long node,
 			void (*func)(struct drmem_lmb *, const __be32 **))
 {
@@ -74,3 +82,93 @@ void __init walk_drmem_lmbs_early(unsigned long node,
 }
 
 #endif
+
+static int __init init_drmem_lmb_size(struct device_node *dn)
+{
+	const __be32 *prop;
+	int len;
+
+	if (drmem_info->lmb_size)
+		return 0;
+
+	prop = of_get_property(dn, "ibm,lmb-size", &len);
+	if (!prop || len < dt_root_size_cells * sizeof(__be32)) {
+		pr_info("Could not determine LMB size\n");
+		return -1;
+	}
+
+	drmem_info->lmb_size = dt_mem_next_cell(dt_root_size_cells, &prop);
+	return 0;
+}
+
+/*
+ * Returns the property linux,drconf-usable-memory if
+ * it exists (the property exists only in kexec/kdump kernels,
+ * added by kexec-tools)
+ */
+static const __be32 *of_get_usable_memory(struct device_node *dn)
+{
+	const __be32 *prop;
+	u32 len;
+
+	prop = of_get_property(dn, "linux,drconf-usable-memory", &len);
+	if (!prop || len < sizeof(unsigned int))
+		return NULL;
+
+	return prop;
+}
+
+void __init walk_drmem_lmbs(struct device_node *dn,
+			    void (*func)(struct drmem_lmb *, const __be32 **))
+{
+	const __be32 *prop, *usm;
+
+	if (init_drmem_lmb_size(dn))
+		return;
+
+	usm = of_get_usable_memory(dn);
+
+	prop = of_get_property(dn, "ibm,dynamic-memory", NULL);
+	if (prop)
+		__walk_drmem_v1_lmbs(prop, usm, func);
+}
+
+static void __init init_drmem_v1_lmbs(const __be32 *prop)
+{
+	struct drmem_lmb *lmb;
+
+	drmem_info->n_lmbs = of_read_number(prop++, 1);
+
+	drmem_info->lmbs = kcalloc(drmem_info->n_lmbs, sizeof(*lmb),
+				   GFP_KERNEL);
+	if (!drmem_info->lmbs)
+		return;
+
+	for_each_drmem_lmb(lmb)
+		read_drconf_v1_cell(lmb, &prop);
+}
+
+static int __init drmem_init(void)
+{
+	struct device_node *dn;
+	const __be32 *prop;
+
+	dn = of_find_node_by_path("/ibm,dynamic-reconfiguration-memory");
+	if (!dn) {
+		pr_info("No dynamic reconfiguration memory found\n");
+		return 0;
+	}
+
+	if (init_drmem_lmb_size(dn)) {
+		of_node_put(dn);
+		return 0;
+	}
+
+	prop = of_get_property(dn, "ibm,dynamic-memory", NULL);
+	if (prop)
+		init_drmem_v1_lmbs(prop);
+
+	of_node_put(dn);
+	return 0;
+}
+late_initcall(drmem_init);

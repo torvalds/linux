@@ -40,6 +40,7 @@
 #include <asm/hvcall.h>
 #include <asm/setup.h>
 #include <asm/vdso.h>
+#include <asm/drmem.h>
 
 static int numa_enabled = 1;
 
@@ -177,29 +178,6 @@ static void unmap_cpu_from_node(unsigned long cpu)
 static const __be32 *of_get_associativity(struct device_node *dev)
 {
 	return of_get_property(dev, "ibm,associativity", NULL);
-}
-
-/*
- * Returns the property linux,drconf-usable-memory if
- * it exists (the property exists only in kexec/kdump kernels,
- * added by kexec-tools)
- */
-static const __be32 *of_get_usable_memory(void)
-{
-	struct device_node *memory;
-	const __be32 *prop;
-	u32 len;
-
-	memory = of_find_node_by_path("/ibm,dynamic-reconfiguration-memory");
-	if (!memory)
-		return NULL;
-
-	prop = of_get_property(memory, "linux,drconf-usable-memory", &len);
-	of_node_put(memory);
-
-	if (!prop || len < sizeof(unsigned int))
-		return NULL;
-	return prop;
 }
 
 int __node_distance(int a, int b)
@@ -395,69 +373,6 @@ static unsigned long read_n_cells(int n, const __be32 **buf)
 	return result;
 }
 
-/*
- * Read the next memblock list entry from the ibm,dynamic-memory property
- * and return the information in the provided of_drconf_cell structure.
- */
-static void read_drconf_cell(struct of_drconf_cell *drmem, const __be32 **cellp)
-{
-	const __be32 *cp;
-
-	drmem->base_addr = read_n_cells(n_mem_addr_cells, cellp);
-
-	cp = *cellp;
-	drmem->drc_index = of_read_number(cp, 1);
-	drmem->reserved = of_read_number(&cp[1], 1);
-	drmem->aa_index = of_read_number(&cp[2], 1);
-	drmem->flags = of_read_number(&cp[3], 1);
-
-	*cellp = cp + 4;
-}
-
-/*
- * Retrieve and validate the ibm,dynamic-memory property of the device tree.
- *
- * The layout of the ibm,dynamic-memory property is a number N of memblock
- * list entries followed by N memblock list entries.  Each memblock list entry
- * contains information as laid out in the of_drconf_cell struct above.
- */
-static int of_get_drconf_memory(struct device_node *memory, const __be32 **dm)
-{
-	const __be32 *prop;
-	u32 len, entries;
-
-	prop = of_get_property(memory, "ibm,dynamic-memory", &len);
-	if (!prop || len < sizeof(unsigned int))
-		return 0;
-
-	entries = of_read_number(prop++, 1);
-
-	/* Now that we know the number of entries, revalidate the size
-	 * of the property read in to ensure we have everything
-	 */
-	if (len < (entries * (n_mem_addr_cells + 4) + 1) * sizeof(unsigned int))
-		return 0;
-
-	*dm = prop;
-	return entries;
-}
-
-/*
- * Retrieve and validate the ibm,lmb-size property for drconf memory
- * from the device tree.
- */
-static u64 of_get_lmb_size(struct device_node *memory)
-{
-	const __be32 *prop;
-	u32 len;
-
-	prop = of_get_property(memory, "ibm,lmb-size", &len);
-	if (!prop || len < sizeof(unsigned int))
-		return 0;
-
-	return read_n_cells(n_mem_size_cells, &prop);
-}
-
 struct assoc_arrays {
 	u32	n_arrays;
 	u32	array_sz;
@@ -509,7 +424,7 @@ static int of_get_assoc_arrays(struct assoc_arrays *aa)
  * This is like of_node_to_nid_single() for memory represented in the
  * ibm,dynamic-reconfiguration-memory node.
  */
-static int of_drconf_to_nid_single(struct of_drconf_cell *drmem)
+static int of_drconf_to_nid_single(struct drmem_lmb *lmb)
 {
 	struct assoc_arrays aa = { .arrays = NULL };
 	int default_nid = 0;
@@ -521,16 +436,16 @@ static int of_drconf_to_nid_single(struct of_drconf_cell *drmem)
 		return default_nid;
 
 	if (min_common_depth > 0 && min_common_depth <= aa.array_sz &&
-	    !(drmem->flags & DRCONF_MEM_AI_INVALID) &&
-	    drmem->aa_index < aa.n_arrays) {
-		index = drmem->aa_index * aa.array_sz + min_common_depth - 1;
+	    !(lmb->flags & DRCONF_MEM_AI_INVALID) &&
+	    lmb->aa_index < aa.n_arrays) {
+		index = lmb->aa_index * aa.array_sz + min_common_depth - 1;
 		nid = of_read_number(&aa.arrays[index], 1);
 
 		if (nid == 0xffff || nid >= MAX_NUMNODES)
 			nid = default_nid;
 
 		if (nid > 0) {
-			index = drmem->aa_index * aa.array_sz;
+			index = lmb->aa_index * aa.array_sz;
 			initialize_distance_lookup_table(nid,
 							&aa.arrays[index]);
 		}
@@ -665,62 +580,48 @@ static inline int __init read_usm_ranges(const __be32 **usm)
  * Extract NUMA information from the ibm,dynamic-reconfiguration-memory
  * node.  This assumes n_mem_{addr,size}_cells have been set.
  */
-static void __init parse_drconf_memory(struct device_node *memory)
+static void __init numa_setup_drmem_lmb(struct drmem_lmb *lmb,
+					const __be32 **usm)
 {
-	const __be32 *uninitialized_var(dm), *usm;
-	unsigned int n, ranges, is_kexec_kdump = 0;
-	unsigned long lmb_size, base, size, sz;
+	unsigned int ranges, is_kexec_kdump = 0;
+	unsigned long base, size, sz;
 	int nid;
 
-	n = of_get_drconf_memory(memory, &dm);
-	if (!n)
+	/*
+	 * Skip this block if the reserved bit is set in flags (0x80)
+	 * or if the block is not assigned to this partition (0x8)
+	 */
+	if ((lmb->flags & DRCONF_MEM_RESERVED)
+	    || !(lmb->flags & DRCONF_MEM_ASSIGNED))
 		return;
 
-	lmb_size = of_get_lmb_size(memory);
-	if (!lmb_size)
-		return;
-
-	/* check if this is a kexec/kdump kernel */
-	usm = of_get_usable_memory();
-	if (usm != NULL)
+	if (*usm)
 		is_kexec_kdump = 1;
 
-	for (; n != 0; --n) {
-		struct of_drconf_cell drmem;
+	base = lmb->base_addr;
+	size = drmem_lmb_size();
+	ranges = 1;
 
-		read_drconf_cell(&drmem, &dm);
-
-		/* skip this block if the reserved bit is set in flags (0x80)
-		   or if the block is not assigned to this partition (0x8) */
-		if ((drmem.flags & DRCONF_MEM_RESERVED)
-		    || !(drmem.flags & DRCONF_MEM_ASSIGNED))
-			continue;
-
-		base = drmem.base_addr;
-		size = lmb_size;
-		ranges = 1;
-
-		if (is_kexec_kdump) {
-			ranges = read_usm_ranges(&usm);
-			if (!ranges) /* there are no (base, size) duple */
-				continue;
-		}
-		do {
-			if (is_kexec_kdump) {
-				base = read_n_cells(n_mem_addr_cells, &usm);
-				size = read_n_cells(n_mem_size_cells, &usm);
-			}
-			nid = of_drconf_to_nid_single(&drmem);
-			fake_numa_create_new_node(
-				((base + size) >> PAGE_SHIFT),
-					   &nid);
-			node_set_online(nid);
-			sz = numa_enforce_memory_limit(base, size);
-			if (sz)
-				memblock_set_node(base, sz,
-						  &memblock.memory, nid);
-		} while (--ranges);
+	if (is_kexec_kdump) {
+		ranges = read_usm_ranges(usm);
+		if (!ranges) /* there are no (base, size) duple */
+			return;
 	}
+
+	do {
+		if (is_kexec_kdump) {
+			base = read_n_cells(n_mem_addr_cells, usm);
+			size = read_n_cells(n_mem_size_cells, usm);
+		}
+
+		nid = of_drconf_to_nid_single(lmb);
+		fake_numa_create_new_node(((base + size) >> PAGE_SHIFT),
+					  &nid);
+		node_set_online(nid);
+		sz = numa_enforce_memory_limit(base, size);
+		if (sz)
+			memblock_set_node(base, sz, &memblock.memory, nid);
+	} while (--ranges);
 }
 
 static int __init parse_numa_properties(void)
@@ -815,8 +716,10 @@ new_range:
 	 * ibm,dynamic-reconfiguration-memory node.
 	 */
 	memory = of_find_node_by_path("/ibm,dynamic-reconfiguration-memory");
-	if (memory)
-		parse_drconf_memory(memory);
+	if (memory) {
+		walk_drmem_lmbs(memory, numa_setup_drmem_lmb);
+		of_node_put(memory);
+	}
 
 	return 0;
 }
@@ -994,38 +897,26 @@ early_param("topology_updates", early_topology_updates);
  * memory represented in the device tree by the property
  * ibm,dynamic-reconfiguration-memory/ibm,dynamic-memory.
  */
-static int hot_add_drconf_scn_to_nid(struct device_node *memory,
-				     unsigned long scn_addr)
+static int hot_add_drconf_scn_to_nid(unsigned long scn_addr)
 {
-	const __be32 *dm;
-	unsigned int drconf_cell_cnt;
+	struct drmem_lmb *lmb;
 	unsigned long lmb_size;
 	int nid = -1;
 
-	drconf_cell_cnt = of_get_drconf_memory(memory, &dm);
-	if (!drconf_cell_cnt)
-		return -1;
+	lmb_size = drmem_lmb_size();
 
-	lmb_size = of_get_lmb_size(memory);
-	if (!lmb_size)
-		return -1;
-
-	for (; drconf_cell_cnt != 0; --drconf_cell_cnt) {
-		struct of_drconf_cell drmem;
-
-		read_drconf_cell(&drmem, &dm);
-
+	for_each_drmem_lmb(lmb) {
 		/* skip this block if it is reserved or not assigned to
 		 * this partition */
-		if ((drmem.flags & DRCONF_MEM_RESERVED)
-		    || !(drmem.flags & DRCONF_MEM_ASSIGNED))
+		if ((lmb->flags & DRCONF_MEM_RESERVED)
+		    || !(lmb->flags & DRCONF_MEM_ASSIGNED))
 			continue;
 
-		if ((scn_addr < drmem.base_addr)
-		    || (scn_addr >= (drmem.base_addr + lmb_size)))
+		if ((scn_addr < lmb->base_addr)
+		    || (scn_addr >= (lmb->base_addr + lmb_size)))
 			continue;
 
-		nid = of_drconf_to_nid_single(&drmem);
+		nid = of_drconf_to_nid_single(lmb);
 		break;
 	}
 
@@ -1090,7 +981,7 @@ int hot_add_scn_to_nid(unsigned long scn_addr)
 
 	memory = of_find_node_by_path("/ibm,dynamic-reconfiguration-memory");
 	if (memory) {
-		nid = hot_add_drconf_scn_to_nid(memory, scn_addr);
+		nid = hot_add_drconf_scn_to_nid(scn_addr);
 		of_node_put(memory);
 	} else {
 		nid = hot_add_node_scn_to_nid(scn_addr);
@@ -1106,11 +997,7 @@ static u64 hot_add_drconf_memory_max(void)
 {
 	struct device_node *memory = NULL;
 	struct device_node *dn = NULL;
-	unsigned int drconf_cell_cnt = 0;
-	u64 lmb_size = 0;
-	const __be32 *dm = NULL;
 	const __be64 *lrdr = NULL;
-	struct of_drconf_cell drmem;
 
 	dn = of_find_node_by_path("/rtas");
 	if (dn) {
@@ -1122,14 +1009,8 @@ static u64 hot_add_drconf_memory_max(void)
 
 	memory = of_find_node_by_path("/ibm,dynamic-reconfiguration-memory");
 	if (memory) {
-		drconf_cell_cnt = of_get_drconf_memory(memory, &dm);
-		lmb_size = of_get_lmb_size(memory);
-
-		/* Advance to the last cell, each cell has 6 32 bit integers */
-		dm += (drconf_cell_cnt - 1) * 6;
-		read_drconf_cell(&drmem, &dm);
 		of_node_put(memory);
-		return drmem.base_addr + lmb_size;
+		return drmem_lmb_memory_max();
 	}
 	return 0;
 }
