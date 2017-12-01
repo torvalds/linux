@@ -59,6 +59,14 @@ static inline void vcpu_reset_hcr(struct kvm_vcpu *vcpu)
 
 	if (test_bit(KVM_ARM_VCPU_EL1_32BIT, vcpu->arch.features))
 		vcpu->arch.hcr_el2 &= ~HCR_RW;
+
+	/*
+	 * TID3: trap feature register accesses that we virtualise.
+	 * For now this is conditional, since no AArch32 feature regs
+	 * are currently virtualised.
+	 */
+	if (vcpu->arch.hcr_el2 & HCR_RW)
+		vcpu->arch.hcr_el2 |= HCR_TID3;
 }
 
 static inline unsigned long vcpu_get_hcr(struct kvm_vcpu *vcpu)
