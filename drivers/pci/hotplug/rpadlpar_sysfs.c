@@ -16,6 +16,7 @@
 #include <linux/string.h>
 #include <linux/pci.h>
 #include <linux/pci_hotplug.h>
+#include "rpaphp.h"
 #include "rpadlpar.h"
 #include "../pci.h"
 
@@ -26,8 +27,6 @@
  */
 #define ADD_SLOT_ATTR_NAME    add_slot
 #define REMOVE_SLOT_ATTR_NAME remove_slot
-
-#define MAX_DRC_NAME_LEN 64
 
 static ssize_t add_slot_store(struct kobject *kobj, struct kobj_attribute *attr,
 			      const char *buf, size_t nbytes)
