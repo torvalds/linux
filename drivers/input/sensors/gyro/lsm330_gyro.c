@@ -144,11 +144,12 @@ static int gyro_report_value(struct i2c_client *client,
 	struct sensor_private_data *sensor =
 		(struct sensor_private_data *)i2c_get_clientdata(client);
 
-	input_report_rel(sensor->input_dev, ABS_RX, axis->x);
-	input_report_rel(sensor->input_dev, ABS_RY, axis->y);
-	input_report_rel(sensor->input_dev, ABS_RZ, axis->z);
-	input_sync(sensor->input_dev);
-	DBG("gyro x==%d  y==%d z==%d\n", axis->x, axis->y, axis->z);
+	if (sensor->status_cur == SENSOR_ON) {
+		input_report_rel(sensor->input_dev, ABS_RX, axis->x);
+		input_report_rel(sensor->input_dev, ABS_RY, axis->y);
+		input_report_rel(sensor->input_dev, ABS_RZ, axis->z);
+		input_sync(sensor->input_dev);
+	}
 
 	return 0;
 }
@@ -194,18 +195,10 @@ static int sensor_report_value(struct i2c_client *client)
 		(pdata->orientation[7]) * y +
 		(pdata->orientation[8]) * z;
 
-	axis.x = (axis.x * 872) / 1000;
-	axis.y = (axis.y * 872) / 1000;
-	axis.z = (axis.z * 872) / 1000;
-
-	if ((abs(axis.x) > pdata->x_min) ||
-		(abs(axis.y) > pdata->y_min) ||
-		(abs(axis.z) > pdata->z_min)) {
-		gyro_report_value(client, &axis);
-		mutex_lock(&sensor->data_mutex);
-		sensor->axis = axis;
-		mutex_unlock(&sensor->data_mutex);
-	}
+	gyro_report_value(client, &axis);
+	mutex_lock(&sensor->data_mutex);
+	sensor->axis = axis;
+	mutex_unlock(&sensor->data_mutex);
 
 	if (sensor->pdata->irq_enable) {
 		value = sensor_read_reg(client, sensor->ops->int_status_reg);
@@ -226,7 +219,7 @@ struct sensor_operate gyro_lsm330_ops = {
 	.precision		= 16,
 	.ctrl_reg		= CTRL_REG1_G,
 	.int_status_reg	= INT1_SRC_G,
-	.range			= {-0xffff, 0xffff},
+	.range			= {-32768, 32768},
 	.trig			= IRQF_TRIGGER_HIGH | IRQF_ONESHOT,
 	.active			= sensor_active,
 	.init			= sensor_init,

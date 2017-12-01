@@ -338,12 +338,13 @@ static int gyro_report_value(struct i2c_client *client, struct sensor_axis *axis
 	struct sensor_private_data *sensor =
 	    	(struct sensor_private_data *) i2c_get_clientdata(client);
 
-	/* Report GYRO  information */
-	input_report_rel(sensor->input_dev, ABS_RX, axis->x);
-	input_report_rel(sensor->input_dev, ABS_RY, axis->y);
-	input_report_rel(sensor->input_dev, ABS_RZ, axis->z);
-	input_sync(sensor->input_dev);
-	DBG("gyro x==%d  y==%d z==%d\n",axis->x,axis->y,axis->z);
+	if (sensor->status_cur == SENSOR_ON) {
+		/* Report GYRO  information */
+		input_report_rel(sensor->input_dev, ABS_RX, axis->x);
+		input_report_rel(sensor->input_dev, ABS_RY, axis->y);
+		input_report_rel(sensor->input_dev, ABS_RZ, axis->z);
+		input_sync(sensor->input_dev);
+	}
 
 	return 0;
 }
@@ -395,37 +396,32 @@ static int sensor_report_value(struct i2c_client *client)
 		axis.z = z;
 	}
 
-	//filter gyro data
-	if((abs(axis.x) > pdata->x_min)||(abs(axis.y) > pdata->y_min)||(abs(axis.z) > pdata->z_min))
-	{
-		gyro_report_value(client, &axis);
+	gyro_report_value(client, &axis);
 
-		 /* »¥³âµØ»º´æÊý¾Ý. */
-		mutex_lock(&(sensor->data_mutex) );
-		sensor->axis = axis;
-		mutex_unlock(&(sensor->data_mutex) );
-	}
+	mutex_lock(&sensor->data_mutex);
+	sensor->axis = axis;
+	mutex_unlock(&sensor->data_mutex);
 
 	return ret;
 }
 
 
 struct sensor_operate gyro_ewtsa_ops = {
-	.name				= "ewtsa",
-	.type				= SENSOR_TYPE_GYROSCOPE,//sensor type and it should be correct
-	.id_i2c				= GYRO_ID_EWTSA,		//i2c id number
-	.read_reg			= GYRO_DATA_REG,		//read data
-	.read_len			= 6,				//data length
-	.id_reg				= -1,		//read device id from this register
-	.id_data 			= -1,		//device id
-	.precision			= 8,				//8 bits
-	.ctrl_reg 			= REG_PWR_MGM,		//enable or disable
-	.int_status_reg 		= REG_INT_STATUS,			//intterupt status register,if no exist then -1
-	.range				= {-32768,32768},		//range
-	.trig				= IRQF_TRIGGER_HIGH|IRQF_ONESHOT,
-	.active				= sensor_active,
+	.name			= "ewtsa",
+	.type			= SENSOR_TYPE_GYROSCOPE,
+	.id_i2c			= GYRO_ID_EWTSA,
+	.read_reg			= GYRO_DATA_REG,
+	.read_len			= 6,
+	.id_reg			= -1,
+	.id_data			= -1,
+	.precision			= 16,
+	.ctrl_reg			= REG_PWR_MGM,
+	.int_status_reg	= REG_INT_STATUS,
+	.range			= {-32768, 32768},
+	.trig				= IRQF_TRIGGER_HIGH | IRQF_ONESHOT,
+	.active			= sensor_active,
 	.init				= sensor_init,
-	.report				= sensor_report_value,
+	.report			= sensor_report_value,
 };
 
 /****************operate according to sensor chip:end************/
