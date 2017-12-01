@@ -96,7 +96,7 @@ nfp_prog_offset_to_index(struct nfp_prog *nfp_prog, unsigned int offset)
 /* --- Emitters --- */
 static void
 __emit_cmd(struct nfp_prog *nfp_prog, enum cmd_tgt_map op,
-	   u8 mode, u8 xfer, u8 areg, u8 breg, u8 size, bool sync)
+	   u8 mode, u8 xfer, u8 areg, u8 breg, u8 size, bool sync, bool indir)
 {
 	enum cmd_ctx_swap ctx;
 	u64 insn;
@@ -114,14 +114,15 @@ __emit_cmd(struct nfp_prog *nfp_prog, enum cmd_tgt_map op,
 		FIELD_PREP(OP_CMD_CNT, size) |
 		FIELD_PREP(OP_CMD_SIG, sync) |
 		FIELD_PREP(OP_CMD_TGT_CMD, cmd_tgt_act[op].tgt_cmd) |
+		FIELD_PREP(OP_CMD_INDIR, indir) |
 		FIELD_PREP(OP_CMD_MODE, mode);
 
 	nfp_prog_push(nfp_prog, insn);
 }
 
 static void
-emit_cmd(struct nfp_prog *nfp_prog, enum cmd_tgt_map op,
-	 u8 mode, u8 xfer, swreg lreg, swreg rreg, u8 size, bool sync)
+emit_cmd_any(struct nfp_prog *nfp_prog, enum cmd_tgt_map op, u8 mode, u8 xfer,
+	     swreg lreg, swreg rreg, u8 size, bool sync, bool indir)
 {
 	struct nfp_insn_re_regs reg;
 	int err;
@@ -142,7 +143,15 @@ emit_cmd(struct nfp_prog *nfp_prog, enum cmd_tgt_map op,
 		return;
 	}
 
-	__emit_cmd(nfp_prog, op, mode, xfer, reg.areg, reg.breg, size, sync);
+	__emit_cmd(nfp_prog, op, mode, xfer, reg.areg, reg.breg, size, sync,
+		   indir);
+}
+
+static void
+emit_cmd(struct nfp_prog *nfp_prog, enum cmd_tgt_map op, u8 mode, u8 xfer,
+	 swreg lreg, swreg rreg, u8 size, bool sync)
+{
+	emit_cmd_any(nfp_prog, op, mode, xfer, lreg, rreg, size, sync, false);
 }
 
 static void
