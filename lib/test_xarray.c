@@ -465,6 +465,120 @@ static noinline void check_find(struct xarray *xa)
 	check_multi_find_2(xa);
 }
 
+static noinline void check_move_small(struct xarray *xa, unsigned long idx)
+{
+	XA_STATE(xas, xa, 0);
+	unsigned long i;
+
+	xa_store_index(xa, 0, GFP_KERNEL);
+	xa_store_index(xa, idx, GFP_KERNEL);
+
+	rcu_read_lock();
+	for (i = 0; i < idx * 4; i++) {
+		void *entry = xas_next(&xas);
+		if (i <= idx)
+			XA_BUG_ON(xa, xas.xa_node == XAS_RESTART);
+		XA_BUG_ON(xa, xas.xa_index != i);
+		if (i == 0 || i == idx)
+			XA_BUG_ON(xa, entry != xa_mk_value(i));
+		else
+			XA_BUG_ON(xa, entry != NULL);
+	}
+	xas_next(&xas);
+	XA_BUG_ON(xa, xas.xa_index != i);
+
+	do {
+		void *entry = xas_prev(&xas);
+		i--;
+		if (i <= idx)
+			XA_BUG_ON(xa, xas.xa_node == XAS_RESTART);
+		XA_BUG_ON(xa, xas.xa_index != i);
+		if (i == 0 || i == idx)
+			XA_BUG_ON(xa, entry != xa_mk_value(i));
+		else
+			XA_BUG_ON(xa, entry != NULL);
+	} while (i > 0);
+
+	xas_set(&xas, ULONG_MAX);
+	XA_BUG_ON(xa, xas_next(&xas) != NULL);
+	XA_BUG_ON(xa, xas.xa_index != ULONG_MAX);
+	XA_BUG_ON(xa, xas_next(&xas) != xa_mk_value(0));
+	XA_BUG_ON(xa, xas.xa_index != 0);
+	XA_BUG_ON(xa, xas_prev(&xas) != NULL);
+	XA_BUG_ON(xa, xas.xa_index != ULONG_MAX);
+	rcu_read_unlock();
+
+	xa_erase_index(xa, 0);
+	xa_erase_index(xa, idx);
+	XA_BUG_ON(xa, !xa_empty(xa));
+}
+
+static noinline void check_move(struct xarray *xa)
+{
+	XA_STATE(xas, xa, (1 << 16) - 1);
+	unsigned long i;
+
+	for (i = 0; i < (1 << 16); i++)
+		XA_BUG_ON(xa, xa_store_index(xa, i, GFP_KERNEL) != NULL);
+
+	rcu_read_lock();
+	do {
+		void *entry = xas_prev(&xas);
+		i--;
+		XA_BUG_ON(xa, entry != xa_mk_value(i));
+		XA_BUG_ON(xa, i != xas.xa_index);
+	} while (i != 0);
+
+	XA_BUG_ON(xa, xas_prev(&xas) != NULL);
+	XA_BUG_ON(xa, xas.xa_index != ULONG_MAX);
+
+	do {
+		void *entry = xas_next(&xas);
+		XA_BUG_ON(xa, entry != xa_mk_value(i));
+		XA_BUG_ON(xa, i != xas.xa_index);
+		i++;
+	} while (i < (1 << 16));
+	rcu_read_unlock();
+
+	for (i = (1 << 8); i < (1 << 15); i++)
+		xa_erase_index(xa, i);
+
+	i = xas.xa_index;
+
+	rcu_read_lock();
+	do {
+		void *entry = xas_prev(&xas);
+		i--;
+		if ((i < (1 << 8)) || (i >= (1 << 15)))
+			XA_BUG_ON(xa, entry != xa_mk_value(i));
+		else
+			XA_BUG_ON(xa, entry != NULL);
+		XA_BUG_ON(xa, i != xas.xa_index);
+	} while (i != 0);
+
+	XA_BUG_ON(xa, xas_prev(&xas) != NULL);
+	XA_BUG_ON(xa, xas.xa_index != ULONG_MAX);
+
+	do {
+		void *entry = xas_next(&xas);
+		if ((i < (1 << 8)) || (i >= (1 << 15)))
+			XA_BUG_ON(xa, entry != xa_mk_value(i));
+		else
+			XA_BUG_ON(xa, entry != NULL);
+		XA_BUG_ON(xa, i != xas.xa_index);
+		i++;
+	} while (i < (1 << 16));
+	rcu_read_unlock();
+
+	xa_destroy(xa);
+
+	for (i = 0; i < 16; i++)
+		check_move_small(xa, 1UL << i);
+
+	for (i = 2; i < 16; i++)
+		check_move_small(xa, (1UL << i) - 1);
+}
+
 static noinline void check_destroy(struct xarray *xa)
 {
 	unsigned long index;
@@ -512,6 +626,7 @@ static int xarray_checks(void)
 	check_multi_store(&array);
 	check_find(&array);
 	check_destroy(&array);
+	check_move(&array);
 
 	printk("XArray: %u of %u tests passed\n", tests_passed, tests_run);
 	return (tests_run == tests_passed) ? 0 : -EINVAL;
