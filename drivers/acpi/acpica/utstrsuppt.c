@@ -370,7 +370,7 @@ acpi_ut_insert_digit(u64 *accumulated_value, u32 base, int ascii_digit)
 static acpi_status
 acpi_ut_strtoul_multiply64(u64 multiplicand, u32 base, u64 *out_product)
 {
-	u64 val;
+	u64 product;
 	u64 quotient;
 
 	/* Exit if either operand is zero */
@@ -393,15 +393,15 @@ acpi_ut_strtoul_multiply64(u64 multiplicand, u32 base, u64 *out_product)
 		return (AE_NUMERIC_OVERFLOW);
 	}
 
-	val = multiplicand * base;
+	product = multiplicand * base;
 
 	/* Check for 32-bit overflow if necessary */
 
-	if ((acpi_gbl_integer_bit_width == 32) && (val > ACPI_UINT32_MAX)) {
+	if ((acpi_gbl_integer_bit_width == 32) && (product > ACPI_UINT32_MAX)) {
 		return (AE_NUMERIC_OVERFLOW);
 	}
 
-	*out_product = val;
+	*out_product = product;
 	return (AE_OK);
 }
 
