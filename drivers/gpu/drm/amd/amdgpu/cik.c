@@ -1023,22 +1023,101 @@ static const struct amdgpu_allowed_register_entry cik_allowed_read_registers[] =
 	{mmPA_SC_RASTER_CONFIG_1, true},
 };
 
-static uint32_t cik_read_indexed_register(struct amdgpu_device *adev,
-					  u32 se_num, u32 sh_num,
-					  u32 reg_offset)
+
+static uint32_t cik_get_register_value(struct amdgpu_device *adev,
+				       bool indexed, u32 se_num,
+				       u32 sh_num, u32 reg_offset)
 {
-	uint32_t val;
+	if (indexed) {
+		uint32_t val;
+		unsigned se_idx = (se_num == 0xffffffff) ? 0 : se_num;
+		unsigned sh_idx = (sh_num == 0xffffffff) ? 0 : sh_num;
 
-	mutex_lock(&adev->grbm_idx_mutex);
-	if (se_num != 0xffffffff || sh_num != 0xffffffff)
-		amdgpu_gfx_select_se_sh(adev, se_num, sh_num, 0xffffffff);
+		switch (reg_offset) {
+		case mmCC_RB_BACKEND_DISABLE:
+			return adev->gfx.config.rb_config[se_idx][sh_idx].rb_backend_disable;
+		case mmGC_USER_RB_BACKEND_DISABLE:
+			return adev->gfx.config.rb_config[se_idx][sh_idx].user_rb_backend_disable;
+		case mmPA_SC_RASTER_CONFIG:
+			return adev->gfx.config.rb_config[se_idx][sh_idx].raster_config;
+		case mmPA_SC_RASTER_CONFIG_1:
+			return adev->gfx.config.rb_config[se_idx][sh_idx].raster_config_1;
+		}
 
-	val = RREG32(reg_offset);
+		mutex_lock(&adev->grbm_idx_mutex);
+		if (se_num != 0xffffffff || sh_num != 0xffffffff)
+			amdgpu_gfx_select_se_sh(adev, se_num, sh_num, 0xffffffff);
 
-	if (se_num != 0xffffffff || sh_num != 0xffffffff)
-		amdgpu_gfx_select_se_sh(adev, 0xffffffff, 0xffffffff, 0xffffffff);
-	mutex_unlock(&adev->grbm_idx_mutex);
-	return val;
+		val = RREG32(reg_offset);
+
+		if (se_num != 0xffffffff || sh_num != 0xffffffff)
+			amdgpu_gfx_select_se_sh(adev, 0xffffffff, 0xffffffff, 0xffffffff);
+		mutex_unlock(&adev->grbm_idx_mutex);
+		return val;
+	} else {
+		unsigned idx;
+
+		switch (reg_offset) {
+		case mmGB_ADDR_CONFIG:
+			return adev->gfx.config.gb_addr_config;
+		case mmMC_ARB_RAMCFG:
+			return adev->gfx.config.mc_arb_ramcfg;
+		case mmGB_TILE_MODE0:
+		case mmGB_TILE_MODE1:
+		case mmGB_TILE_MODE2:
+		case mmGB_TILE_MODE3:
+		case mmGB_TILE_MODE4:
+		case mmGB_TILE_MODE5:
+		case mmGB_TILE_MODE6:
+		case mmGB_TILE_MODE7:
+		case mmGB_TILE_MODE8:
+		case mmGB_TILE_MODE9:
+		case mmGB_TILE_MODE10:
+		case mmGB_TILE_MODE11:
+		case mmGB_TILE_MODE12:
+		case mmGB_TILE_MODE13:
+		case mmGB_TILE_MODE14:
+		case mmGB_TILE_MODE15:
+		case mmGB_TILE_MODE16:
+		case mmGB_TILE_MODE17:
+		case mmGB_TILE_MODE18:
+		case mmGB_TILE_MODE19:
+		case mmGB_TILE_MODE20:
+		case mmGB_TILE_MODE21:
+		case mmGB_TILE_MODE22:
+		case mmGB_TILE_MODE23:
+		case mmGB_TILE_MODE24:
+		case mmGB_TILE_MODE25:
+		case mmGB_TILE_MODE26:
+		case mmGB_TILE_MODE27:
+		case mmGB_TILE_MODE28:
+		case mmGB_TILE_MODE29:
+		case mmGB_TILE_MODE30:
+		case mmGB_TILE_MODE31:
+			idx = (reg_offset - mmGB_TILE_MODE0);
+			return adev->gfx.config.tile_mode_array[idx];
+		case mmGB_MACROTILE_MODE0:
+		case mmGB_MACROTILE_MODE1:
+		case mmGB_MACROTILE_MODE2:
+		case mmGB_MACROTILE_MODE3:
+		case mmGB_MACROTILE_MODE4:
+		case mmGB_MACROTILE_MODE5:
+		case mmGB_MACROTILE_MODE6:
+		case mmGB_MACROTILE_MODE7:
+		case mmGB_MACROTILE_MODE8:
+		case mmGB_MACROTILE_MODE9:
+		case mmGB_MACROTILE_MODE10:
+		case mmGB_MACROTILE_MODE11:
+		case mmGB_MACROTILE_MODE12:
+		case mmGB_MACROTILE_MODE13:
+		case mmGB_MACROTILE_MODE14:
+		case mmGB_MACROTILE_MODE15:
+			idx = (reg_offset - mmGB_MACROTILE_MODE0);
+			return adev->gfx.config.macrotile_mode_array[idx];
+		default:
+			return RREG32(reg_offset);
+		}
+	}
 }
 
 static int cik_read_register(struct amdgpu_device *adev, u32 se_num,
@@ -1048,13 +1127,13 @@ static int cik_read_register(struct amdgpu_device *adev, u32 se_num,
 
 	*value = 0;
 	for (i = 0; i < ARRAY_SIZE(cik_allowed_read_registers); i++) {
+		bool indexed = cik_allowed_read_registers[i].grbm_indexed;
+
 		if (reg_offset != cik_allowed_read_registers[i].reg_offset)
 			continue;
 
-		*value = cik_allowed_read_registers[i].grbm_indexed ?
-			 cik_read_indexed_register(adev, se_num,
-						   sh_num, reg_offset) :
-			 RREG32(reg_offset);
+		*value = cik_get_register_value(adev, indexed, se_num, sh_num,
+						reg_offset);
 		return 0;
 	}
 	return -EINVAL;
