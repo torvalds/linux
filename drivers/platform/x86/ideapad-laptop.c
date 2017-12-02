@@ -231,7 +231,7 @@ static int write_ec_cmd(acpi_handle handle, int cmd, unsigned long data)
 		if (val == 0)
 			return 0;
 	}
-	pr_err("timeout in write_ec_cmd\n");
+	pr_err("timeout in %s\n", __func__);
 	return -1;
 }
 
