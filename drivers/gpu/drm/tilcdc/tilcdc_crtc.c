@@ -272,7 +272,7 @@ static void tilcdc_crtc_set_clk(struct drm_crtc *crtc)
 				LCDC_V2_CORE_CLK_EN);
 }
 
-uint tilcdc_mode_hvtotal(const struct drm_display_mode *mode)
+static uint tilcdc_mode_hvtotal(const struct drm_display_mode *mode)
 {
 	return (uint) div_u64(1000llu * mode->htotal * mode->vtotal,
 			      mode->clock);
