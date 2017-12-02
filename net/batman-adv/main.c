@@ -256,8 +256,8 @@ void batadv_mesh_free(struct net_device *soft_iface)
 }
 
 /**
- * batadv_is_my_mac - check if the given mac address belongs to any of the real
- * interfaces in the current mesh
+ * batadv_is_my_mac() - check if the given mac address belongs to any of the
+ *  real interfaces in the current mesh
  * @bat_priv: the bat priv with all the soft interface information
  * @addr: the address to check
  *
@@ -287,7 +287,7 @@ bool batadv_is_my_mac(struct batadv_priv *bat_priv, const u8 *addr)
 
 #ifdef CONFIG_BATMAN_ADV_DEBUGFS
 /**
- * batadv_seq_print_text_primary_if_get - called from debugfs table printing
+ * batadv_seq_print_text_primary_if_get() - called from debugfs table printing
  *  function that requires the primary interface
  * @seq: debugfs table seq_file struct
  *
@@ -324,7 +324,7 @@ out:
 #endif
 
 /**
- * batadv_max_header_len - calculate maximum encapsulation overhead for a
+ * batadv_max_header_len() - calculate maximum encapsulation overhead for a
  *  payload packet
  *
  * Return: the maximum encapsulation overhead in bytes.
@@ -349,7 +349,7 @@ int batadv_max_header_len(void)
 }
 
 /**
- * batadv_skb_set_priority - sets skb priority according to packet content
+ * batadv_skb_set_priority() - sets skb priority according to packet content
  * @skb: the packet to be sent
  * @offset: offset to the packet content
  *
@@ -559,7 +559,7 @@ void batadv_recv_handler_unregister(u8 packet_type)
 }
 
 /**
- * batadv_skb_crc32 - calculate CRC32 of the whole packet and skip bytes in
+ * batadv_skb_crc32() - calculate CRC32 of the whole packet and skip bytes in
  *  the header
  * @skb: skb pointing to fragmented socket buffers
  * @payload_ptr: Pointer to position inside the head buffer of the skb
@@ -592,7 +592,7 @@ __be32 batadv_skb_crc32(struct sk_buff *skb, u8 *payload_ptr)
 }
 
 /**
- * batadv_get_vid - extract the VLAN identifier from skb if any
+ * batadv_get_vid() - extract the VLAN identifier from skb if any
  * @skb: the buffer containing the packet
  * @header_len: length of the batman header preceding the ethernet header
  *
@@ -619,7 +619,7 @@ unsigned short batadv_get_vid(struct sk_buff *skb, size_t header_len)
 }
 
 /**
- * batadv_vlan_ap_isola_get - return the AP isolation status for the given vlan
+ * batadv_vlan_ap_isola_get() - return AP isolation status for the given vlan
  * @bat_priv: the bat priv with all the soft interface information
  * @vid: the VLAN identifier for which the AP isolation attributed as to be
  *  looked up

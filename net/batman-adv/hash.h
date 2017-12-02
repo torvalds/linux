@@ -63,7 +63,7 @@ void batadv_hash_set_lock_class(struct batadv_hashtable *hash,
 void batadv_hash_destroy(struct batadv_hashtable *hash);
 
 /**
- *	batadv_hash_add - adds data to the hashtable
+ *	batadv_hash_add() - adds data to the hashtable
  *	@hash: storage hash table
  *	@compare: callback to determine if 2 hash elements are identical
  *	@choose: callback calculating the hash index

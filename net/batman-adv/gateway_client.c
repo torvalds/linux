@@ -69,8 +69,8 @@
 #define BATADV_DHCP_CHADDR_OFFSET	28
 
 /**
- * batadv_gw_node_release - release gw_node from lists and queue for free after
- *  rcu grace period
+ * batadv_gw_node_release() - release gw_node from lists and queue for free
+ *  after rcu grace period
  * @ref: kref pointer of the gw_node
  */
 static void batadv_gw_node_release(struct kref *ref)
@@ -84,7 +84,8 @@ static void batadv_gw_node_release(struct kref *ref)
 }
 
 /**
- * batadv_gw_node_put - decrement the gw_node refcounter and possibly release it
+ * batadv_gw_node_put() - decrement the gw_node refcounter and possibly release
+ *  it
  * @gw_node: gateway node to free
  */
 void batadv_gw_node_put(struct batadv_gw_node *gw_node)
@@ -156,7 +157,7 @@ static void batadv_gw_select(struct batadv_priv *bat_priv,
 }
 
 /**
- * batadv_gw_reselect - force a gateway reselection
+ * batadv_gw_reselect() - force a gateway reselection
  * @bat_priv: the bat priv with all the soft interface information
  *
  * Set a flag to remind the GW component to perform a new gateway reselection.
@@ -172,7 +173,7 @@ void batadv_gw_reselect(struct batadv_priv *bat_priv)
 }
 
 /**
- * batadv_gw_check_client_stop - check if client mode has been switched off
+ * batadv_gw_check_client_stop() - check if client mode has been switched off
  * @bat_priv: the bat priv with all the soft interface information
  *
  * This function assumes the caller has checked that the gw state *is actually
@@ -322,7 +323,7 @@ out:
 }
 
 /**
- * batadv_gw_node_add - add gateway node to list of available gateways
+ * batadv_gw_node_add() - add gateway node to list of available gateways
  * @bat_priv: the bat priv with all the soft interface information
  * @orig_node: originator announcing gateway capabilities
  * @gateway: announced bandwidth information
@@ -365,7 +366,7 @@ static void batadv_gw_node_add(struct batadv_priv *bat_priv,
 }
 
 /**
- * batadv_gw_node_get - retrieve gateway node from list of available gateways
+ * batadv_gw_node_get() - retrieve gateway node from list of available gateways
  * @bat_priv: the bat priv with all the soft interface information
  * @orig_node: originator announcing gateway capabilities
  *
@@ -394,7 +395,7 @@ struct batadv_gw_node *batadv_gw_node_get(struct batadv_priv *bat_priv,
 }
 
 /**
- * batadv_gw_node_update - update list of available gateways with changed
+ * batadv_gw_node_update() - update list of available gateways with changed
  *  bandwidth information
  * @bat_priv: the bat priv with all the soft interface information
  * @orig_node: originator announcing gateway capabilities
@@ -515,7 +516,7 @@ int batadv_gw_client_seq_print_text(struct seq_file *seq, void *offset)
 #endif
 
 /**
- * batadv_gw_dump - Dump gateways into a message
+ * batadv_gw_dump() - Dump gateways into a message
  * @msg: Netlink message to dump into
  * @cb: Control block containing additional options
  *
@@ -568,7 +569,7 @@ out:
 }
 
 /**
- * batadv_gw_dhcp_recipient_get - check if a packet is a DHCP message
+ * batadv_gw_dhcp_recipient_get() - check if a packet is a DHCP message
  * @skb: the packet to check
  * @header_len: a pointer to the batman-adv header size
  * @chaddr: buffer where the client address will be stored. Valid
@@ -687,7 +688,8 @@ batadv_gw_dhcp_recipient_get(struct sk_buff *skb, unsigned int *header_len,
 }
 
 /**
- * batadv_gw_out_of_range - check if the dhcp request destination is the best gw
+ * batadv_gw_out_of_range() - check if the dhcp request destination is the best
+ *  gateway
  * @bat_priv: the bat priv with all the soft interface information
  * @skb: the outgoing packet
  *

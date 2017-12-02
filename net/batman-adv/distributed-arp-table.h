@@ -49,7 +49,7 @@ bool batadv_dat_drop_broadcast_packet(struct batadv_priv *bat_priv,
 				      struct batadv_forw_packet *forw_packet);
 
 /**
- * batadv_dat_init_orig_node_addr - assign a DAT address to the orig_node
+ * batadv_dat_init_orig_node_addr() - assign a DAT address to the orig_node
  * @orig_node: the node to assign the DAT address to
  */
 static inline void
@@ -62,7 +62,7 @@ batadv_dat_init_orig_node_addr(struct batadv_orig_node *orig_node)
 }
 
 /**
- * batadv_dat_init_own_addr - assign a DAT address to the node itself
+ * batadv_dat_init_own_addr() - assign a DAT address to the node itself
  * @bat_priv: the bat priv with all the soft interface information
  * @primary_if: a pointer to the primary interface
  */
@@ -83,7 +83,7 @@ void batadv_dat_free(struct batadv_priv *bat_priv);
 int batadv_dat_cache_seq_print_text(struct seq_file *seq, void *offset);
 
 /**
- * batadv_dat_inc_counter - increment the correct DAT packet counter
+ * batadv_dat_inc_counter() - increment the correct DAT packet counter
  * @bat_priv: the bat priv with all the soft interface information
  * @subtype: the 4addr subtype of the packet to be counted
  *

@@ -65,7 +65,7 @@ static struct batadv_priv *batadv_kobj_to_batpriv(struct kobject *obj)
 }
 
 /**
- * batadv_vlan_kobj_to_batpriv - convert a vlan kobj in the associated batpriv
+ * batadv_vlan_kobj_to_batpriv() - convert a vlan kobj in the associated batpriv
  * @obj: kobject to covert
  *
  * Return: the associated batadv_priv struct.
@@ -85,7 +85,7 @@ static struct batadv_priv *batadv_vlan_kobj_to_batpriv(struct kobject *obj)
 }
 
 /**
- * batadv_kobj_to_vlan - convert a kobj in the associated softif_vlan struct
+ * batadv_kobj_to_vlan() - convert a kobj in the associated softif_vlan struct
  * @bat_priv: the bat priv with all the soft interface information
  * @obj: kobject to covert
  *
@@ -600,7 +600,7 @@ static ssize_t batadv_store_gw_bwidth(struct kobject *kobj,
 }
 
 /**
- * batadv_show_isolation_mark - print the current isolation mark/mask
+ * batadv_show_isolation_mark() - print the current isolation mark/mask
  * @kobj: kobject representing the private mesh sysfs directory
  * @attr: the batman-adv attribute the user is interacting with
  * @buff: the buffer that will contain the data to send back to the user
@@ -618,8 +618,8 @@ static ssize_t batadv_show_isolation_mark(struct kobject *kobj,
 }
 
 /**
- * batadv_store_isolation_mark - parse and store the isolation mark/mask entered
- *  by the user
+ * batadv_store_isolation_mark() - parse and store the isolation mark/mask
+ *  entered by the user
  * @kobj: kobject representing the private mesh sysfs directory
  * @attr: the batman-adv attribute the user is interacting with
  * @buff: the buffer containing the user data
@@ -790,7 +790,7 @@ void batadv_sysfs_del_meshif(struct net_device *dev)
 }
 
 /**
- * batadv_sysfs_add_vlan - add all the needed sysfs objects for the new vlan
+ * batadv_sysfs_add_vlan() - add all the needed sysfs objects for the new vlan
  * @dev: netdev of the mesh interface
  * @vlan: private data of the newly added VLAN interface
  *
@@ -851,7 +851,7 @@ out:
 }
 
 /**
- * batadv_sysfs_del_vlan - remove all the sysfs objects for a given VLAN
+ * batadv_sysfs_del_vlan() - remove all the sysfs objects for a given VLAN
  * @bat_priv: the bat priv with all the soft interface information
  * @vlan: the private data of the VLAN to destroy
  */
@@ -896,7 +896,7 @@ static ssize_t batadv_show_mesh_iface(struct kobject *kobj,
 }
 
 /**
- * batadv_store_mesh_iface_finish - store new hardif mesh_iface state
+ * batadv_store_mesh_iface_finish() - store new hardif mesh_iface state
  * @net_dev: netdevice to add/remove to/from batman-adv soft-interface
  * @ifname: name of soft-interface to modify
  *
@@ -949,7 +949,7 @@ out:
 }
 
 /**
- * batadv_store_mesh_iface_work - store new hardif mesh_iface state
+ * batadv_store_mesh_iface_work() - store new hardif mesh_iface state
  * @work: work queue item
  *
  * Changes the parts of the hard+soft interface which can not be modified under
@@ -1045,7 +1045,7 @@ static ssize_t batadv_show_iface_status(struct kobject *kobj,
 #ifdef CONFIG_BATMAN_ADV_BATMAN_V
 
 /**
- * batadv_store_throughput_override - parse and store throughput override
+ * batadv_store_throughput_override() - parse and store throughput override
  *  entered by the user
  * @kobj: kobject representing the private mesh sysfs directory
  * @attr: the batman-adv attribute the user is interacting with

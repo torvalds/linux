@@ -83,7 +83,7 @@ int batadv_hardif_no_broadcast(struct batadv_hard_iface *if_outgoing,
 			       u8 *orig_addr, u8 *orig_neigh);
 
 /**
- * batadv_hardif_put - decrement the hard interface refcounter and possibly
+ * batadv_hardif_put() - decrement the hard interface refcounter and possibly
  *  release it
  * @hard_iface: the hard interface to free
  */

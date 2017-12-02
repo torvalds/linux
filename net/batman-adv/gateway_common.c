@@ -34,8 +34,8 @@
 #include "tvlv.h"
 
 /**
- * batadv_parse_throughput - parse supplied string buffer to extract throughput
- *  information
+ * batadv_parse_throughput() - parse supplied string buffer to extract
+ *  throughput information
  * @net_dev: the soft interface net device
  * @buff: string buffer to parse
  * @description: text shown when throughput string cannot be parsed
@@ -101,8 +101,8 @@ bool batadv_parse_throughput(struct net_device *net_dev, char *buff,
 }
 
 /**
- * batadv_parse_gw_bandwidth - parse supplied string buffer to extract download
- *  and upload bandwidth information
+ * batadv_parse_gw_bandwidth() - parse supplied string buffer to extract
+ *  download and upload bandwidth information
  * @net_dev: the soft interface net device
  * @buff: string buffer to parse
  * @down: pointer holding the returned download bandwidth information
@@ -137,8 +137,8 @@ static bool batadv_parse_gw_bandwidth(struct net_device *net_dev, char *buff,
 }
 
 /**
- * batadv_gw_tvlv_container_update - update the gw tvlv container after gateway
- *  setting change
+ * batadv_gw_tvlv_container_update() - update the gw tvlv container after
+ *  gateway setting change
  * @bat_priv: the bat priv with all the soft interface information
  */
 void batadv_gw_tvlv_container_update(struct batadv_priv *bat_priv)
@@ -208,7 +208,7 @@ ssize_t batadv_gw_bandwidth_set(struct net_device *net_dev, char *buff,
 }
 
 /**
- * batadv_gw_tvlv_ogm_handler_v1 - process incoming gateway tvlv container
+ * batadv_gw_tvlv_ogm_handler_v1() - process incoming gateway tvlv container
  * @bat_priv: the bat priv with all the soft interface information
  * @orig: the orig_node of the ogm
  * @flags: flags indicating the tvlv state (see batadv_tvlv_handler_flags)
@@ -249,7 +249,7 @@ static void batadv_gw_tvlv_ogm_handler_v1(struct batadv_priv *bat_priv,
 }
 
 /**
- * batadv_gw_init - initialise the gateway handling internals
+ * batadv_gw_init() - initialise the gateway handling internals
  * @bat_priv: the bat priv with all the soft interface information
  */
 void batadv_gw_init(struct batadv_priv *bat_priv)
@@ -265,7 +265,7 @@ void batadv_gw_init(struct batadv_priv *bat_priv)
 }
 
 /**
- * batadv_gw_free - free the gateway handling internals
+ * batadv_gw_free() - free the gateway handling internals
  * @bat_priv: the bat priv with all the soft interface information
  */
 void batadv_gw_free(struct batadv_priv *bat_priv)

@@ -66,8 +66,8 @@ static int batadv_originators_open(struct inode *inode, struct file *file)
 }
 
 /**
- * batadv_originators_hardif_open - handles debugfs output for the
- *  originator table of an hard interface
+ * batadv_originators_hardif_open() - handles debugfs output for the originator
+ *  table of an hard interface
  * @inode: inode pointer to debugfs file
  * @file: pointer to the seq_file
  *
@@ -117,7 +117,7 @@ static int batadv_bla_backbone_table_open(struct inode *inode,
 
 #ifdef CONFIG_BATMAN_ADV_DAT
 /**
- * batadv_dat_cache_open - Prepare file handler for reads from dat_chache
+ * batadv_dat_cache_open() - Prepare file handler for reads from dat_chache
  * @inode: inode which was opened
  * @file: file handle to be initialized
  *
@@ -154,7 +154,7 @@ static int batadv_nc_nodes_open(struct inode *inode, struct file *file)
 
 #ifdef CONFIG_BATMAN_ADV_MCAST
 /**
- * batadv_mcast_flags_open - prepare file handler for reads from mcast_flags
+ * batadv_mcast_flags_open() - prepare file handler for reads from mcast_flags
  * @inode: inode which was opened
  * @file: file handle to be initialized
  *
@@ -296,7 +296,7 @@ void batadv_debugfs_destroy(void)
 }
 
 /**
- * batadv_debugfs_add_hardif - creates the base directory for a hard interface
+ * batadv_debugfs_add_hardif() - creates the base directory for a hard interface
  *  in debugfs.
  * @hard_iface: hard interface which should be added.
  *
@@ -338,7 +338,7 @@ out:
 }
 
 /**
- * batadv_debugfs_del_hardif - delete the base directory for a hard interface
+ * batadv_debugfs_del_hardif() - delete the base directory for a hard interface
  *  in debugfs.
  * @hard_iface: hard interface which is deleted.
  */

@@ -38,7 +38,8 @@ char batadv_routing_algo[20] = "BATMAN_IV";
 static struct hlist_head batadv_algo_list;
 
 /**
- * batadv_algo_init - Initialize batman-adv algorithm management data structures
+ * batadv_algo_init() - Initialize batman-adv algorithm management data
+ *  structures
  */
 void batadv_algo_init(void)
 {
@@ -149,7 +150,7 @@ module_param_cb(routing_algo, &batadv_param_ops_ra, &batadv_param_string_ra,
 		0644);
 
 /**
- * batadv_algo_dump_entry - fill in information about one supported routing
+ * batadv_algo_dump_entry() - fill in information about one supported routing
  *  algorithm
  * @msg: netlink message to be sent back
  * @portid: Port to reply to
@@ -180,7 +181,7 @@ static int batadv_algo_dump_entry(struct sk_buff *msg, u32 portid, u32 seq,
 }
 
 /**
- * batadv_algo_dump - fill in information about supported routing
+ * batadv_algo_dump() - fill in information about supported routing
  *  algorithms
  * @msg: netlink message to be sent back
  * @cb: Parameters to the netlink request

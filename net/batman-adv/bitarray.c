@@ -33,7 +33,7 @@ static void batadv_bitmap_shift_left(unsigned long *seq_bits, s32 n)
 }
 
 /**
- * batadv_bit_get_packet - receive and process one packet within the sequence
+ * batadv_bit_get_packet() - receive and process one packet within the sequence
  *  number window
  * @priv: the bat priv with all the soft interface information
  * @seq_bits: pointer to the sequence number receive packet

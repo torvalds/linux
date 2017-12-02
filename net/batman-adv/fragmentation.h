@@ -40,7 +40,7 @@ int batadv_frag_send_packet(struct sk_buff *skb,
 			    struct batadv_neigh_node *neigh_node);
 
 /**
- * batadv_frag_check_entry - check if a list of fragments has timed out
+ * batadv_frag_check_entry() - check if a list of fragments has timed out
  * @frags_entry: table entry to check
  *
  * Return: true if the frags entry has timed out, false otherwise.

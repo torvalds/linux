@@ -53,7 +53,7 @@
 #include "translation-table.h"
 
 /**
- * batadv_hardif_release - release hard interface from lists and queue for
+ * batadv_hardif_release() - release hard interface from lists and queue for
  *  free after rcu grace period
  * @ref: kref pointer of the hard interface
  */
@@ -87,7 +87,7 @@ out:
 }
 
 /**
- * batadv_getlink_net - return link net namespace (of use fallback)
+ * batadv_getlink_net() - return link net namespace (of use fallback)
  * @netdev: net_device to check
  * @fallback_net: return in case get_link_net is not available for @netdev
  *
@@ -106,7 +106,7 @@ static struct net *batadv_getlink_net(const struct net_device *netdev,
 }
 
 /**
- * batadv_mutual_parents - check if two devices are each others parent
+ * batadv_mutual_parents() - check if two devices are each others parent
  * @dev1: 1st net dev
  * @net1: 1st devices netns
  * @dev2: 2nd net dev
@@ -139,7 +139,7 @@ static bool batadv_mutual_parents(const struct net_device *dev1,
 }
 
 /**
- * batadv_is_on_batman_iface - check if a device is a batman iface descendant
+ * batadv_is_on_batman_iface() - check if a device is a batman iface descendant
  * @net_dev: the device to check
  *
  * If the user creates any virtual device on top of a batman-adv interface, it
@@ -203,7 +203,7 @@ static bool batadv_is_valid_iface(const struct net_device *net_dev)
 }
 
 /**
- * batadv_get_real_netdevice - check if the given netdev struct is a virtual
+ * batadv_get_real_netdevice() - check if the given netdev struct is a virtual
  *  interface on top of another 'real' interface
  * @netdev: the device to check
  *
@@ -247,7 +247,7 @@ out:
 }
 
 /**
- * batadv_get_real_netdev - check if the given net_device struct is a virtual
+ * batadv_get_real_netdev() - check if the given net_device struct is a virtual
  *  interface on top of another 'real' interface
  * @net_device: the device to check
  *
@@ -266,7 +266,7 @@ struct net_device *batadv_get_real_netdev(struct net_device *net_device)
 }
 
 /**
- * batadv_is_wext_netdev - check if the given net_device struct is a
+ * batadv_is_wext_netdev() - check if the given net_device struct is a
  *  wext wifi interface
  * @net_device: the device to check
  *
@@ -290,7 +290,7 @@ static bool batadv_is_wext_netdev(struct net_device *net_device)
 }
 
 /**
- * batadv_is_cfg80211_netdev - check if the given net_device struct is a
+ * batadv_is_cfg80211_netdev() - check if the given net_device struct is a
  *  cfg80211 wifi interface
  * @net_device: the device to check
  *
@@ -310,7 +310,7 @@ static bool batadv_is_cfg80211_netdev(struct net_device *net_device)
 }
 
 /**
- * batadv_wifi_flags_evaluate - calculate wifi flags for net_device
+ * batadv_wifi_flags_evaluate() - calculate wifi flags for net_device
  * @net_device: the device to check
  *
  * Return: batadv_hard_iface_wifi_flags flags of the device
@@ -345,7 +345,7 @@ out:
 }
 
 /**
- * batadv_is_cfg80211_hardif - check if the given hardif is a cfg80211 wifi
+ * batadv_is_cfg80211_hardif() - check if the given hardif is a cfg80211 wifi
  *  interface
  * @hard_iface: the device to check
  *
@@ -363,7 +363,7 @@ bool batadv_is_cfg80211_hardif(struct batadv_hard_iface *hard_iface)
 }
 
 /**
- * batadv_is_wifi_hardif - check if the given hardif is a wifi interface
+ * batadv_is_wifi_hardif() - check if the given hardif is a wifi interface
  * @hard_iface: the device to check
  *
  * Return: true if the net device is a 802.11 wireless device, false otherwise.
@@ -377,7 +377,7 @@ bool batadv_is_wifi_hardif(struct batadv_hard_iface *hard_iface)
 }
 
 /**
- * batadv_hardif_no_broadcast - check whether (re)broadcast is necessary
+ * batadv_hardif_no_broadcast() - check whether (re)broadcast is necessary
  * @if_outgoing: the outgoing interface checked and considered for (re)broadcast
  * @orig_addr: the originator of this packet
  * @orig_neigh: originator address of the forwarder we just got the packet from
@@ -668,7 +668,7 @@ batadv_hardif_deactivate_interface(struct batadv_hard_iface *hard_iface)
 }
 
 /**
- * batadv_master_del_slave - remove hard_iface from the current master interface
+ * batadv_master_del_slave() - remove hard_iface from the current master iface
  * @slave: the interface enslaved in another master
  * @master: the master from which slave has to be removed
  *

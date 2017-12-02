@@ -27,7 +27,7 @@
 #include <linux/types.h>
 
 /**
- * batadv_test_bit - check if bit is set in the current window
+ * batadv_test_bit() - check if bit is set in the current window
  *
  * @seq_bits: pointer to the sequence number receive packet
  * @last_seqno: latest sequence number in seq_bits
