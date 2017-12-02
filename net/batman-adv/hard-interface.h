@@ -42,25 +42,40 @@ enum batadv_hard_if_state {
 
 /**
  * enum batadv_hard_if_bcast - broadcast avoidance options
- * @BATADV_HARDIF_BCAST_OK: Do broadcast on according hard interface
- * @BATADV_HARDIF_BCAST_NORECIPIENT: Broadcast not needed, there is no recipient
- * @BATADV_HARDIF_BCAST_DUPFWD: There is just the neighbor we got it from
- * @BATADV_HARDIF_BCAST_DUPORIG: There is just the originator
  */
 enum batadv_hard_if_bcast {
+	/** @BATADV_HARDIF_BCAST_OK: Do broadcast on according hard interface */
 	BATADV_HARDIF_BCAST_OK = 0,
+
+	/**
+	 * @BATADV_HARDIF_BCAST_NORECIPIENT: Broadcast not needed, there is no
+	 *  recipient
+	 */
 	BATADV_HARDIF_BCAST_NORECIPIENT,
+
+	/**
+	 * @BATADV_HARDIF_BCAST_DUPFWD: There is just the neighbor we got it
+	 *  from
+	 */
 	BATADV_HARDIF_BCAST_DUPFWD,
+
+	/** @BATADV_HARDIF_BCAST_DUPORIG: There is just the originator */
 	BATADV_HARDIF_BCAST_DUPORIG,
 };
 
 /**
  * enum batadv_hard_if_cleanup - Cleanup modi for soft_iface after slave removal
- * @BATADV_IF_CLEANUP_KEEP: Don't automatically delete soft-interface
- * @BATADV_IF_CLEANUP_AUTO: Delete soft-interface after last slave was removed
  */
 enum batadv_hard_if_cleanup {
+	/**
+	 * @BATADV_IF_CLEANUP_KEEP: Don't automatically delete soft-interface
+	 */
 	BATADV_IF_CLEANUP_KEEP,
+
+	/**
+	 * @BATADV_IF_CLEANUP_AUTO: Delete soft-interface after last slave was
+	 *  removed
+	 */
 	BATADV_IF_CLEANUP_AUTO,
 };
 
