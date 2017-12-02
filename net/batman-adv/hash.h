@@ -46,10 +46,18 @@ typedef bool (*batadv_hashdata_compare_cb)(const struct hlist_node *,
 typedef u32 (*batadv_hashdata_choose_cb)(const void *, u32);
 typedef void (*batadv_hashdata_free_cb)(struct hlist_node *, void *);
 
+/**
+ * struct batadv_hashtable - Wrapper of simple hlist based hashtable
+ */
 struct batadv_hashtable {
-	struct hlist_head *table;   /* the hashtable itself with the buckets */
-	spinlock_t *list_locks;     /* spinlock for each hash list entry */
-	u32 size;		    /* size of hashtable */
+	/** @table: the hashtable itself with the buckets */
+	struct hlist_head *table;
+
+	/** @list_locks: spinlock for each hash list entry */
+	spinlock_t *list_locks;
+
+	/** @size: size of hashtable */
+	u32 size;
 };
 
 /* allocates and clears the hash */
