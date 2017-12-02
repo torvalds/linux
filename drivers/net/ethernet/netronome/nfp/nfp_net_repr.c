@@ -84,16 +84,13 @@ nfp_repr_phy_port_get_stats64(struct nfp_port *port,
 {
 	u8 __iomem *mem = port->eth_stats;
 
-	/* TX and RX stats are flipped as we are returning the stats as seen
-	 * at the switch port corresponding to the phys port.
-	 */
-	stats->tx_packets = readq(mem + NFP_MAC_STATS_RX_FRAMES_RECEIVED_OK);
-	stats->tx_bytes = readq(mem + NFP_MAC_STATS_RX_IN_OCTETS);
-	stats->tx_dropped = readq(mem + NFP_MAC_STATS_RX_IN_ERRORS);
+	stats->tx_packets = readq(mem + NFP_MAC_STATS_TX_FRAMES_TRANSMITTED_OK);
+	stats->tx_bytes = readq(mem + NFP_MAC_STATS_TX_OUT_OCTETS);
+	stats->tx_dropped = readq(mem + NFP_MAC_STATS_TX_OUT_ERRORS);
 
-	stats->rx_packets = readq(mem + NFP_MAC_STATS_TX_FRAMES_TRANSMITTED_OK);
-	stats->rx_bytes = readq(mem + NFP_MAC_STATS_TX_OUT_OCTETS);
-	stats->rx_dropped = readq(mem + NFP_MAC_STATS_TX_OUT_ERRORS);
+	stats->rx_packets = readq(mem + NFP_MAC_STATS_RX_FRAMES_RECEIVED_OK);
+	stats->rx_bytes = readq(mem + NFP_MAC_STATS_RX_IN_OCTETS);
+	stats->rx_dropped = readq(mem + NFP_MAC_STATS_RX_IN_ERRORS);
 }
 
 static void
