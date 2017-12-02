@@ -165,6 +165,7 @@
 			clocks = <&clks IMX5_CLK_DUMMY>;
 			clock-names = "main_clk";
 			reset-gpios = <&gpio2 5 GPIO_ACTIVE_LOW>;
+			vcc-supply = <&vusb_reg>;
 			#phy-cells = <0>;
 		};
 	};
@@ -239,6 +240,10 @@
 			vsd_reg: vsd {
 				regulator-min-microvolt = <1800000>;
 				regulator-max-microvolt = <3150000>;
+			};
+
+			vusb_reg: vusb {
+				regulator-boot-on;
 			};
 
 			vusb2_reg: vusb2 {
@@ -412,6 +417,10 @@
 	fsl,usbphy = <&usbh1phy>;
 	phy_type = "ulpi";
 	status = "okay";
+};
+
+&usbphy0 {
+	vcc-supply = <&vusb_reg>;
 };
 
 &usbotg {
