@@ -2640,12 +2640,19 @@ static int rs_adjust_data_offsets(struct raid_set *rs)
 	 * Make sure we got a minimum amount of free sectors per device
 	 */
 	if (rs->data_offset &&
-	    to_sector(i_size_read(rdev->bdev->bd_inode)) - rdev->sectors < MIN_FREE_RESHAPE_SPACE) {
+	    to_sector(i_size_read(rdev->bdev->bd_inode)) - rs->md.dev_sectors < MIN_FREE_RESHAPE_SPACE) {
 		rs->ti->error = data_offset ? "No space for forward reshape" :
 					      "No space for backward reshape";
 		return -ENOSPC;
 	}
 out:
+	/*
+	 * Raise recovery_cp in case data_offset != 0 to
+	 * avoid false recovery positives in the constructor.
+	 */
+	if (rs->md.recovery_cp < rs->md.dev_sectors)
+		rs->md.recovery_cp += rs->dev[0].rdev.data_offset;
+
 	/* Adjust data offsets on all rdevs but on any raid4/5/6 journal device */
 	rdev_for_each(rdev, &rs->md) {
 		if (!test_bit(Journal, &rdev->flags)) {
@@ -2777,6 +2784,23 @@ static int rs_prepare_reshape(struct raid_set *rs)
 	return 0;
 }
 
+/* Get reshape sectors from data_offsets or raid set */
+static sector_t _get_reshape_sectors(struct raid_set *rs)
+{
+	struct md_rdev *rdev;
+	sector_t reshape_sectors = 0;
+
+	rdev_for_each(rdev, &rs->md)
+		if (!test_bit(Journal, &rdev->flags)) {
+			reshape_sectors = (rdev->data_offset > rdev->new_data_offset) ?
+					rdev->data_offset - rdev->new_data_offset :
+					rdev->new_data_offset - rdev->data_offset;
+			break;
+		}
+
+	return max(reshape_sectors, (sector_t) rs->data_offset);
+}
+
 /*
  *
  * - change raid layout
@@ -2788,6 +2812,7 @@ static int rs_setup_reshape(struct raid_set *rs)
 {
 	int r = 0;
 	unsigned int cur_raid_devs, d;
+	sector_t reshape_sectors = _get_reshape_sectors(rs);
 	struct mddev *mddev = &rs->md;
 	struct md_rdev *rdev;
 
@@ -2804,13 +2829,13 @@ static int rs_setup_reshape(struct raid_set *rs)
 	/*
 	 * Adjust array size:
 	 *
-	 * - in case of adding disks, array size has
+	 * - in case of adding disk(s), array size has
 	 *   to grow after the disk adding reshape,
 	 *   which'll hapen in the event handler;
 	 *   reshape will happen forward, so space has to
 	 *   be available at the beginning of each disk
 	 *
-	 * - in case of removing disks, array size
+	 * - in case of removing disk(s), array size
 	 *   has to shrink before starting the reshape,
 	 *   which'll happen here;
 	 *   reshape will happen backward, so space has to
@@ -2841,7 +2866,7 @@ static int rs_setup_reshape(struct raid_set *rs)
 			rdev->recovery_offset = rs_is_raid1(rs) ? 0 : MaxSector;
 		}
 
-		mddev->reshape_backwards = 0; /* adding disks -> forward reshape */
+		mddev->reshape_backwards = 0; /* adding disk(s) -> forward reshape */
 
 	/* Remove disk(s) */
 	} else if (rs->delta_disks < 0) {
@@ -2873,6 +2898,15 @@ static int rs_setup_reshape(struct raid_set *rs)
 		 */
 		mddev->reshape_backwards = rs->dev[0].rdev.data_offset ? 0 : 1;
 	}
+
+	/*
+	 * Adjust device size for forward reshape
+	 * because md_finish_reshape() reduces it.
+	 */
+	if (!mddev->reshape_backwards)
+		rdev_for_each(rdev, &rs->md)
+			if (!test_bit(Journal, &rdev->flags))
+				rdev->sectors += reshape_sectors;
 
 	return r;
 }
