@@ -21,7 +21,7 @@
 #define RTL821x_PHYSR_DUPLEX	BIT(13)
 #define RTL821x_PHYSR_SPEED	GENMASK(15, 14)
 #define RTL821x_INER		0x12
-#define RTL821x_INER_INIT	0x6400
+#define RTL8211B_INER_INIT	0x6400
 #define RTL821x_INSR		0x13
 #define RTL821x_PAGE_SELECT	0x1f
 #define RTL8211E_INER_LINK_STATUS	BIT(10)
@@ -92,7 +92,7 @@ static int rtl8211b_config_intr(struct phy_device *phydev)
 
 	if (phydev->interrupts == PHY_INTERRUPT_ENABLED)
 		err = phy_write(phydev, RTL821x_INER,
-				RTL821x_INER_INIT);
+				RTL8211B_INER_INIT);
 	else
 		err = phy_write(phydev, RTL821x_INER, 0);
 
