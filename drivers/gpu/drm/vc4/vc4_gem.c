@@ -829,8 +829,10 @@ vc4_complete_exec(struct drm_device *dev, struct vc4_exec_info *exec)
 	/* If we got force-completed because of GPU reset rather than
 	 * through our IRQ handler, signal the fence now.
 	 */
-	if (exec->fence)
+	if (exec->fence) {
 		dma_fence_signal(exec->fence);
+		dma_fence_put(exec->fence);
+	}
 
 	if (exec->bo) {
 		for (i = 0; i < exec->bo_count; i++)
