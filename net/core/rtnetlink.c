@@ -238,7 +238,7 @@ int rtnl_register_module(struct module *owner,
 EXPORT_SYMBOL_GPL(rtnl_register_module);
 
 /**
- * __rtnl_register - Register a rtnetlink message type
+ * rtnl_register - Register a rtnetlink message type
  * @protocol: Protocol family or PF_UNSPEC
  * @msgtype: rtnetlink message type
  * @doit: Function pointer called for each request message
@@ -252,35 +252,18 @@ EXPORT_SYMBOL_GPL(rtnl_register_module);
  * The special protocol family PF_UNSPEC may be used to define fallback
  * function pointers for the case when no entry for the specific protocol
  * family exists.
- *
- * Returns 0 on success or a negative error code.
- */
-int __rtnl_register(int protocol, int msgtype,
-		    rtnl_doit_func doit, rtnl_dumpit_func dumpit,
-		    unsigned int flags)
-{
-	return rtnl_register_internal(NULL, protocol, msgtype,
-				      doit, dumpit, flags);
-}
-EXPORT_SYMBOL_GPL(__rtnl_register);
-
-/**
- * rtnl_register - Register a rtnetlink message type
- *
- * Identical to __rtnl_register() but panics on failure. This is useful
- * as failure of this function is very unlikely, it can only happen due
- * to lack of memory when allocating the chain to store all message
- * handlers for a protocol. Meant for use in init functions where lack
- * of memory implies no sense in continuing.
  */
 void rtnl_register(int protocol, int msgtype,
 		   rtnl_doit_func doit, rtnl_dumpit_func dumpit,
 		   unsigned int flags)
 {
-	if (__rtnl_register(protocol, msgtype, doit, dumpit, flags) < 0)
-		panic("Unable to register rtnetlink message handler, "
-		      "protocol = %d, message type = %d\n",
-		      protocol, msgtype);
+	int err;
+
+	err = rtnl_register_internal(NULL, protocol, msgtype, doit, dumpit,
+				     flags);
+	if (err)
+		pr_err("Unable to register rtnetlink message handler, "
+		       "protocol = %d, message type = %d\n", protocol, msgtype);
 }
 EXPORT_SYMBOL_GPL(rtnl_register);
 

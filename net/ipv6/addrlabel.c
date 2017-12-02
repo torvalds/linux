@@ -549,11 +549,10 @@ static int ip6addrlbl_get(struct sk_buff *in_skb, struct nlmsghdr *nlh,
 
 void __init ipv6_addr_label_rtnl_register(void)
 {
-	__rtnl_register(PF_INET6, RTM_NEWADDRLABEL, ip6addrlbl_newdel,
-			NULL, RTNL_FLAG_DOIT_UNLOCKED);
-	__rtnl_register(PF_INET6, RTM_DELADDRLABEL, ip6addrlbl_newdel,
-			NULL, RTNL_FLAG_DOIT_UNLOCKED);
-	__rtnl_register(PF_INET6, RTM_GETADDRLABEL, ip6addrlbl_get,
-			ip6addrlbl_dump, RTNL_FLAG_DOIT_UNLOCKED);
+	rtnl_register(PF_INET6, RTM_NEWADDRLABEL, ip6addrlbl_newdel,
+		      NULL, RTNL_FLAG_DOIT_UNLOCKED);
+	rtnl_register(PF_INET6, RTM_DELADDRLABEL, ip6addrlbl_newdel,
+		      NULL, RTNL_FLAG_DOIT_UNLOCKED);
+	rtnl_register(PF_INET6, RTM_GETADDRLABEL, ip6addrlbl_get,
+		      ip6addrlbl_dump, RTNL_FLAG_DOIT_UNLOCKED);
 }
-

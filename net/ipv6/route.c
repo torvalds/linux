@@ -4772,11 +4772,20 @@ int __init ip6_route_init(void)
 	if (ret)
 		goto fib6_rules_init;
 
-	ret = -ENOBUFS;
-	if (__rtnl_register(PF_INET6, RTM_NEWROUTE, inet6_rtm_newroute, NULL, 0) ||
-	    __rtnl_register(PF_INET6, RTM_DELROUTE, inet6_rtm_delroute, NULL, 0) ||
-	    __rtnl_register(PF_INET6, RTM_GETROUTE, inet6_rtm_getroute, NULL,
-			    RTNL_FLAG_DOIT_UNLOCKED))
+	ret = rtnl_register_module(THIS_MODULE, PF_INET6, RTM_NEWROUTE,
+				   inet6_rtm_newroute, NULL, 0);
+	if (ret < 0)
+		goto out_register_late_subsys;
+
+	ret = rtnl_register_module(THIS_MODULE, PF_INET6, RTM_DELROUTE,
+				   inet6_rtm_delroute, NULL, 0);
+	if (ret < 0)
+		goto out_register_late_subsys;
+
+	ret = rtnl_register_module(THIS_MODULE, PF_INET6, RTM_GETROUTE,
+				   inet6_rtm_getroute, NULL,
+				   RTNL_FLAG_DOIT_UNLOCKED);
+	if (ret < 0)
 		goto out_register_late_subsys;
 
 	ret = register_netdevice_notifier(&ip6_route_dev_notifier);
@@ -4794,6 +4803,7 @@ out:
 	return ret;
 
 out_register_late_subsys:
+	rtnl_unregister_all(PF_INET6);
 	unregister_pernet_subsys(&ip6_route_net_late_ops);
 fib6_rules_init:
 	fib6_rules_cleanup();
