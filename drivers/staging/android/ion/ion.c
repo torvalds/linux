@@ -557,9 +557,9 @@ void ion_device_add_heap(struct ion_heap *heap)
 		char debug_name[64];
 
 		snprintf(debug_name, 64, "%s_shrink", heap->name);
-		debug_file = debugfs_create_file(
-			debug_name, 0644, dev->debug_root, heap,
-			&debug_shrink_fops);
+		debug_file = debugfs_create_file(debug_name,
+						 0644, dev->debug_root, heap,
+						 &debug_shrink_fops);
 		if (!debug_file) {
 			char buf[256], *path;
 
