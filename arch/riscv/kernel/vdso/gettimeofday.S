@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2012 Regents of the University of California
+ * Copyright (C) 2017 SiFive
  *
  *   This program is free software; you can redistribute it and/or
  *   modify it under the terms of the GNU General Public License
@@ -11,20 +11,16 @@
  *   GNU General Public License for more details.
  */
 
+#include <linux/linkage.h>
+#include <asm/unistd.h>
 
-#ifndef _ASM_RISCV_MMU_H
-#define _ASM_RISCV_MMU_H
-
-#ifndef __ASSEMBLY__
-
-typedef struct {
-	void *vdso;
-#ifdef CONFIG_SMP
-	/* A local icache flush is needed before user execution can resume. */
-	cpumask_t icache_stale_mask;
-#endif
-} mm_context_t;
-
-#endif /* __ASSEMBLY__ */
-
-#endif /* _ASM_RISCV_MMU_H */
+	.text
+/* int __vdso_gettimeofday(struct timeval *tv, struct timezone *tz); */
+ENTRY(__vdso_gettimeofday)
+	.cfi_startproc
+	/* For now, just do the syscall. */
+	li a7, __NR_gettimeofday
+	ecall
+	ret
+	.cfi_endproc
+ENDPROC(__vdso_gettimeofday)

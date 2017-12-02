@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2012 Regents of the University of California
+ * Copyright (C) 2017 SiFive
  *
  *   This program is free software; you can redistribute it and/or
  *   modify it under the terms of the GNU General Public License
@@ -11,20 +11,21 @@
  *   GNU General Public License for more details.
  */
 
+#include <linux/linkage.h>
+#include <asm/unistd.h>
+#include <asm/vdso-syscalls.h>
 
-#ifndef _ASM_RISCV_MMU_H
-#define _ASM_RISCV_MMU_H
-
-#ifndef __ASSEMBLY__
-
-typedef struct {
-	void *vdso;
+	.text
+/* int __vdso_flush_icache(void *start, void *end, unsigned long flags); */
+ENTRY(__vdso_flush_icache)
+	.cfi_startproc
 #ifdef CONFIG_SMP
-	/* A local icache flush is needed before user execution can resume. */
-	cpumask_t icache_stale_mask;
+	li a7, __NR_riscv_flush_icache
+	ecall
+#else
+	fence.i
+	li a0, 0
 #endif
-} mm_context_t;
-
-#endif /* __ASSEMBLY__ */
-
-#endif /* _ASM_RISCV_MMU_H */
+	ret
+	.cfi_endproc
+ENDPROC(__vdso_flush_icache)

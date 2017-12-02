@@ -27,8 +27,8 @@
 typedef u32 bug_insn_t;
 
 #ifdef CONFIG_GENERIC_BUG_RELATIVE_POINTERS
-#define __BUG_ENTRY_ADDR	INT " 1b - 2b"
-#define __BUG_ENTRY_FILE	INT " %0 - 2b"
+#define __BUG_ENTRY_ADDR	RISCV_INT " 1b - 2b"
+#define __BUG_ENTRY_FILE	RISCV_INT " %0 - 2b"
 #else
 #define __BUG_ENTRY_ADDR	RISCV_PTR " 1b"
 #define __BUG_ENTRY_FILE	RISCV_PTR " %0"
@@ -38,7 +38,7 @@ typedef u32 bug_insn_t;
 #define __BUG_ENTRY			\
 	__BUG_ENTRY_ADDR "\n\t"		\
 	__BUG_ENTRY_FILE "\n\t"		\
-	SHORT " %1"
+	RISCV_SHORT " %1"
 #else
 #define __BUG_ENTRY			\
 	__BUG_ENTRY_ADDR

@@ -19,6 +19,8 @@
 #ifndef _ASM_RISCV_IO_H
 #define _ASM_RISCV_IO_H
 
+#include <linux/types.h>
+
 #ifdef CONFIG_MMU
 
 extern void __iomem *ioremap(phys_addr_t offset, unsigned long size);
@@ -32,7 +34,7 @@ extern void __iomem *ioremap(phys_addr_t offset, unsigned long size);
 #define ioremap_wc(addr, size) ioremap((addr), (size))
 #define ioremap_wt(addr, size) ioremap((addr), (size))
 
-extern void iounmap(void __iomem *addr);
+extern void iounmap(volatile void __iomem *addr);
 
 #endif /* CONFIG_MMU */
 
@@ -250,7 +252,7 @@ static inline u64 __raw_readq(const volatile void __iomem *addr)
 			const ctype *buf = buffer;				\
 										\
 			do {							\
-				__raw_writeq(*buf++, addr);			\
+				__raw_write ## len(*buf++, addr);		\
 			} while (--count);					\
 		}								\
 		afence;								\
@@ -266,9 +268,9 @@ __io_reads_ins(reads, u32, l, __io_br(), __io_ar())
 __io_reads_ins(ins,  u8, b, __io_pbr(), __io_par())
 __io_reads_ins(ins, u16, w, __io_pbr(), __io_par())
 __io_reads_ins(ins, u32, l, __io_pbr(), __io_par())
-#define insb(addr, buffer, count) __insb((void __iomem *)addr, buffer, count)
-#define insw(addr, buffer, count) __insw((void __iomem *)addr, buffer, count)
-#define insl(addr, buffer, count) __insl((void __iomem *)addr, buffer, count)
+#define insb(addr, buffer, count) __insb((void __iomem *)(long)addr, buffer, count)
+#define insw(addr, buffer, count) __insw((void __iomem *)(long)addr, buffer, count)
+#define insl(addr, buffer, count) __insl((void __iomem *)(long)addr, buffer, count)
 
 __io_writes_outs(writes,  u8, b, __io_bw(), __io_aw())
 __io_writes_outs(writes, u16, w, __io_bw(), __io_aw())
@@ -280,9 +282,9 @@ __io_writes_outs(writes, u32, l, __io_bw(), __io_aw())
 __io_writes_outs(outs,  u8, b, __io_pbw(), __io_paw())
 __io_writes_outs(outs, u16, w, __io_pbw(), __io_paw())
 __io_writes_outs(outs, u32, l, __io_pbw(), __io_paw())
-#define outsb(addr, buffer, count) __outsb((void __iomem *)addr, buffer, count)
-#define outsw(addr, buffer, count) __outsw((void __iomem *)addr, buffer, count)
-#define outsl(addr, buffer, count) __outsl((void __iomem *)addr, buffer, count)
+#define outsb(addr, buffer, count) __outsb((void __iomem *)(long)addr, buffer, count)
+#define outsw(addr, buffer, count) __outsw((void __iomem *)(long)addr, buffer, count)
+#define outsl(addr, buffer, count) __outsl((void __iomem *)(long)addr, buffer, count)
 
 #ifdef CONFIG_64BIT
 __io_reads_ins(reads, u64, q, __io_br(), __io_ar())
