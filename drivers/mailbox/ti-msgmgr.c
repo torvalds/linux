@@ -283,7 +283,7 @@ static int ti_msgmgr_send_data(struct mbox_chan *chan, void *data)
 	desc = inst->desc;
 
 	if (desc->max_message_size < message->len) {
-		dev_err(dev, "Queue %s message length %d > max %d\n",
+		dev_err(dev, "Queue %s message length %zu > max %d\n",
 			qinst->name, message->len, desc->max_message_size);
 		return -EINVAL;
 	}
