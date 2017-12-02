@@ -1580,6 +1580,24 @@ static sector_t __rdev_sectors(struct raid_set *rs)
 	return 0;
 }
 
+/* Check that calculated dev_sectors fits all component devices. */
+static int _check_data_dev_sectors(struct raid_set *rs)
+{
+	sector_t ds = ~0;
+	struct md_rdev *rdev;
+
+	rdev_for_each(rdev, &rs->md)
+		if (!test_bit(Journal, &rdev->flags) && rdev->bdev) {
+			ds = min(ds, to_sector(i_size_read(rdev->bdev->bd_inode)));
+			if (ds < rs->md.dev_sectors) {
+				rs->ti->error = "Component device(s) too small";
+				return -EINVAL;
+			}
+		}
+
+	return 0;
+}
+
 /* Calculate the sectors per device and per array used for @rs */
 static int rs_set_dev_and_array_sectors(struct raid_set *rs, bool use_mddev)
 {
@@ -1629,7 +1647,7 @@ static int rs_set_dev_and_array_sectors(struct raid_set *rs, bool use_mddev)
 	mddev->array_sectors = array_sectors;
 	mddev->dev_sectors = dev_sectors;
 
-	return 0;
+	return _check_data_dev_sectors(rs);
 bad:
 	rs->ti->error = "Target length not divisible by number of data devices";
 	return -EINVAL;
