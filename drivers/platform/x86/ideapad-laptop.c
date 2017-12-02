@@ -124,10 +124,10 @@ static int read_method_int(acpi_handle handle, const char *method, int *val)
 	if (ACPI_FAILURE(status)) {
 		*val = -1;
 		return -1;
-	} else {
-		*val = result;
-		return 0;
 	}
+	*val = result;
+	return 0;
+
 }
 
 static int method_gbmd(acpi_handle handle, unsigned long *ret)
@@ -164,10 +164,10 @@ static int method_vpcr(acpi_handle handle, int cmd, int *ret)
 	if (ACPI_FAILURE(status)) {
 		*ret = -1;
 		return -1;
-	} else {
-		*ret = result;
-		return 0;
 	}
+	*ret = result;
+	return 0;
+
 }
 
 static int method_vpcw(acpi_handle handle, int cmd, int data)
