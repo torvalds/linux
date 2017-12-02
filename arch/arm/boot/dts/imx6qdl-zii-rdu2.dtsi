@@ -584,7 +584,6 @@
 
 	host@0 {
 		reg = <0 0 0 0 0>;
-		device_type = "pci";
 
 		#address-cells = <3>;
 		#size-cells = <2>;
