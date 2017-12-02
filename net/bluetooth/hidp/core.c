@@ -775,6 +775,11 @@ static int hidp_setup_hid(struct hidp_session *session,
 	hid->version = req->version;
 	hid->country = req->country;
 
+	/* A Bluetooth HID emulator working in a computer usually packs multiple
+	   devices into the single interface. Then add HID_QUIRK_MULTI_INPUT for
+	   maximal compatibility. */
+	hid->quirks = HID_QUIRK_MULTI_INPUT;
+
 	strncpy(hid->name, req->name, sizeof(req->name) - 1);
 
 	snprintf(hid->phys, sizeof(hid->phys), "%pMR",
