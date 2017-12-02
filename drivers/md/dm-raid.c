@@ -227,7 +227,6 @@ struct rs_layout {
 struct raid_set {
 	struct dm_target *ti;
 
-	uint32_t bitmap_loaded;
 	uint32_t stripe_cache_entries;
 	unsigned long ctr_flags;
 	unsigned long runtime_flags;
@@ -3964,9 +3963,6 @@ static void raid_resume(struct dm_target *ti)
 		attempt_restore_of_faulty_devices(rs);
 	}
 
-	mddev->ro = 0;
-	mddev->in_sync = 0;
-
 	/* Only reduce raid set size before running a disk removing reshape. */
 	if (mddev->delta_disks < 0)
 		rs_set_capacity(rs);
@@ -3989,6 +3985,8 @@ static void raid_resume(struct dm_target *ti)
 
 	if (test_and_clear_bit(RT_FLAG_RS_SUSPENDED, &rs->runtime_flags)) {
 		mddev_lock_nointr(mddev);
+		mddev->ro = 0;
+		mddev->in_sync = 0;
 		mddev_resume(mddev);
 		mddev_unlock(mddev);
 	}
