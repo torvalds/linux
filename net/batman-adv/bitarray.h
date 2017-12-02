@@ -47,7 +47,12 @@ static inline bool batadv_test_bit(const unsigned long *seq_bits,
 	return test_bit(diff, seq_bits) != 0;
 }
 
-/* turn corresponding bit on, so we can remember that we got the packet */
+/**
+ * batadv_set_bit() - Turn corresponding bit on, so we can remember that we got
+ *  the packet
+ * @seq_bits: bitmap of the packet receive window
+ * @n: relative sequence number of newly received packet
+ */
 static inline void batadv_set_bit(unsigned long *seq_bits, s32 n)
 {
 	/* if too old, just drop it */

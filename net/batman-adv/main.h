@@ -298,40 +298,96 @@ static inline bool batadv_has_timed_out(unsigned long timestamp,
 	return time_is_before_jiffies(timestamp + msecs_to_jiffies(timeout));
 }
 
+/**
+ * batadv_atomic_dec_not_zero() - Decrease unless the number is 0
+ * @v: pointer of type atomic_t
+ *
+ * Return: non-zero if v was not 0, and zero otherwise.
+ */
 #define batadv_atomic_dec_not_zero(v)	atomic_add_unless((v), -1, 0)
 
-/* Returns the smallest signed integer in two's complement with the sizeof x */
+/**
+ * batadv_smallest_signed_int() - Returns the smallest signed integer in two's
+ *  complement with the sizeof x
+ * @x: type of integer
+ *
+ * Return: smallest signed integer of type
+ */
 #define batadv_smallest_signed_int(x) (1u << (7u + 8u * (sizeof(x) - 1u)))
 
-/* Checks if a sequence number x is a predecessor/successor of y.
- * they handle overflows/underflows and can correctly check for a
- * predecessor/successor unless the variable sequence number has grown by
- * more then 2**(bitwidth(x)-1)-1.
+/**
+ * batadv_seq_before() - Checks if a sequence number x is a predecessor of y
+ * @x: potential predecessor of @y
+ * @y: value to compare @x against
+ *
+ * It handles overflows/underflows and can correctly check for a predecessor
+ * unless the variable sequence number has grown by more then
+ * 2**(bitwidth(x)-1)-1.
+ *
  * This means that for a u8 with the maximum value 255, it would think:
- *  - when adding nothing - it is neither a predecessor nor a successor
- *  - before adding more than 127 to the starting value - it is a predecessor,
- *  - when adding 128 - it is neither a predecessor nor a successor,
- *  - after adding more than 127 to the starting value - it is a successor
+ *
+ * * when adding nothing - it is neither a predecessor nor a successor
+ * * before adding more than 127 to the starting value - it is a predecessor,
+ * * when adding 128 - it is neither a predecessor nor a successor,
+ * * after adding more than 127 to the starting value - it is a successor
+ *
+ * Return: true when x is a predecessor of y, false otherwise
  */
 #define batadv_seq_before(x, y) ({typeof(x)_d1 = (x); \
 				 typeof(y)_d2 = (y); \
 				 typeof(x)_dummy = (_d1 - _d2); \
 				 (void)(&_d1 == &_d2); \
 				 _dummy > batadv_smallest_signed_int(_dummy); })
+
+/**
+ * batadv_seq_after() - Checks if a sequence number x is a successor of y
+ * @x: potential sucessor of @y
+ * @y: value to compare @x against
+ *
+ * It handles overflows/underflows and can correctly check for a successor
+ * unless the variable sequence number has grown by more then
+ * 2**(bitwidth(x)-1)-1.
+ *
+ * This means that for a u8 with the maximum value 255, it would think:
+ *
+ * * when adding nothing - it is neither a predecessor nor a successor
+ * * before adding more than 127 to the starting value - it is a predecessor,
+ * * when adding 128 - it is neither a predecessor nor a successor,
+ * * after adding more than 127 to the starting value - it is a successor
+ *
+ * Return: true when x is a successor of y, false otherwise
+ */
 #define batadv_seq_after(x, y) batadv_seq_before(y, x)
 
-/* Stop preemption on local cpu while incrementing the counter */
+/**
+ * batadv_add_counter() - Add to per cpu statistics counter of soft interface
+ * @bat_priv: the bat priv with all the soft interface information
+ * @idx: counter index which should be modified
+ * @count: value to increase counter by
+ *
+ * Stop preemption on local cpu while incrementing the counter
+ */
 static inline void batadv_add_counter(struct batadv_priv *bat_priv, size_t idx,
 				      size_t count)
 {
 	this_cpu_add(bat_priv->bat_counters[idx], count);
 }
 
+/**
+ * batadv_inc_counter() - Increase per cpu statistics counter of soft interface
+ * @b: the bat priv with all the soft interface information
+ * @i: counter index which should be modified
+ */
 #define batadv_inc_counter(b, i) batadv_add_counter(b, i, 1)
 
-/* Define a macro to reach the control buffer of the skb. The members of the
- * control buffer are defined in struct batadv_skb_cb in types.h.
- * The macro is inspired by the similar macro TCP_SKB_CB() in tcp.h.
+/**
+ * BATADV_SKB_CB() - Get batadv_skb_cb from skb control buffer
+ * @__skb: skb holding the control buffer
+ *
+ * The members of the control buffer are defined in struct batadv_skb_cb in
+ * types.h. The macro is inspired by the similar macro TCP_SKB_CB() in tcp.h.
+ *
+ * Return: pointer to the batadv_skb_cb of the skb
  */
 #define BATADV_SKB_CB(__skb)       ((struct batadv_skb_cb *)&((__skb)->cb[0]))
 

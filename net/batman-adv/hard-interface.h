@@ -130,6 +130,12 @@ static inline void batadv_hardif_put(struct batadv_hard_iface *hard_iface)
 	kref_put(&hard_iface->refcount, batadv_hardif_release);
 }
 
+/**
+ * batadv_primary_if_get_selected() - Get reference to primary interface
+ * @bat_priv: the bat priv with all the soft interface information
+ *
+ * Return: primary interface (with increased refcnt), otherwise NULL
+ */
 static inline struct batadv_hard_iface *
 batadv_primary_if_get_selected(struct batadv_priv *bat_priv)
 {

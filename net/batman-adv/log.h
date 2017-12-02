@@ -79,7 +79,14 @@ enum batadv_dbg_level {
 int batadv_debug_log(struct batadv_priv *bat_priv, const char *fmt, ...)
 __printf(2, 3);
 
-/* possibly ratelimited debug output */
+/**
+ * _batadv_dbg() - Store debug output with(out) ratelimiting
+ * @type: type of debug message
+ * @bat_priv: the bat priv with all the soft interface information
+ * @ratelimited: whether output should be rate limited
+ * @fmt: format string
+ * @arg...: variable arguments
+ */
 #define _batadv_dbg(type, bat_priv, ratelimited, fmt, arg...)		\
 	do {								\
 		struct batadv_priv *__batpriv = (bat_priv);		\
@@ -98,11 +105,30 @@ static inline void _batadv_dbg(int type __always_unused,
 }
 #endif
 
+/**
+ * batadv_dbg() - Store debug output without ratelimiting
+ * @type: type of debug message
+ * @bat_priv: the bat priv with all the soft interface information
+ * @arg...: format string and variable arguments
+ */
 #define batadv_dbg(type, bat_priv, arg...) \
 	_batadv_dbg(type, bat_priv, 0, ## arg)
+
+/**
+ * batadv_dbg_ratelimited() - Store debug output with ratelimiting
+ * @type: type of debug message
+ * @bat_priv: the bat priv with all the soft interface information
+ * @arg...: format string and variable arguments
+ */
 #define batadv_dbg_ratelimited(type, bat_priv, arg...) \
 	_batadv_dbg(type, bat_priv, 1, ## arg)
 
+/**
+ * batadv_info() - Store message in debug buffer and print it to kmsg buffer
+ * @net_dev: the soft interface net device
+ * @fmt: format string
+ * @arg...: variable arguments
+ */
 #define batadv_info(net_dev, fmt, arg...)				\
 	do {								\
 		struct net_device *_netdev = (net_dev);                 \
@@ -110,6 +136,13 @@ static inline void _batadv_dbg(int type __always_unused,
 		batadv_dbg(BATADV_DBG_ALL, _batpriv, fmt, ## arg);	\
 		pr_info("%s: " fmt, _netdev->name, ## arg);		\
 	} while (0)
+
+/**
+ * batadv_err() - Store error in debug buffer and print it to kmsg buffer
+ * @net_dev: the soft interface net device
+ * @fmt: format string
+ * @arg...: variable arguments
+ */
 #define batadv_err(net_dev, fmt, arg...)				\
 	do {								\
 		struct net_device *_netdev = (net_dev);                 \

@@ -121,8 +121,15 @@ out:
 	return ret;
 }
 
-/* removes data from hash, if found. data could be the structure you use with
- * just the key filled, we just need the key for comparing.
+/**
+ * batadv_hash_remove() - Removes data from hash, if found
+ * @hash: hash table
+ * @compare: callback to determine if 2 hash elements are identical
+ * @choose: callback calculating the hash index
+ * @data: data passed to the aforementioned callbacks as argument
+ *
+ * ata could be the structure you use with  just the key filled, we just need
+ * the key for comparing.
  *
  * Return: returns pointer do data on success, so you can remove the used
  * structure yourself, or NULL on error

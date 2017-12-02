@@ -84,8 +84,13 @@ batadv_orig_node_vlan_get(struct batadv_orig_node *orig_node,
 			  unsigned short vid);
 void batadv_orig_node_vlan_put(struct batadv_orig_node_vlan *orig_vlan);
 
-/* hashfunction to choose an entry in a hash table of given size
- * hash algorithm from http://en.wikipedia.org/wiki/Hash_table
+/**
+ * batadv_choose_orig() - Return the index of the orig entry in the hash table
+ * @data: mac address of the originator node
+ * @size: the size of the hash table
+ *
+ * Return: the hash index where the object represented by @data should be
+ * stored at.
  */
 static inline u32 batadv_choose_orig(const void *data, u32 size)
 {
