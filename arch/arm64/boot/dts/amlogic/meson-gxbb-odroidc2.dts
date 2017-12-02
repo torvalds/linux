@@ -174,8 +174,10 @@
 		#size-cells = <0>;
 
 		eth_phy0: ethernet-phy@0 {
+			/* Realtek RTL8211F (0x001cc916) */
 			reg = <0>;
 			interrupt-parent = <&gpio_intc>;
+			/* MAC_INTR on GPIOZ_15 */
 			interrupts = <29 IRQ_TYPE_LEVEL_LOW>;
 			eee-broken-1000t;
 		};

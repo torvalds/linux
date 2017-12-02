@@ -111,6 +111,7 @@
 		reg = <0>;
 		max-speed = <1000>;
 		interrupt-parent = <&gpio_intc>;
+		/* MAC_INTR on GPIOH_3 */
 		interrupts = <29 IRQ_TYPE_LEVEL_LOW>;
 	};
 };
