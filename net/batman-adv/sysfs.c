@@ -735,6 +735,12 @@ static struct batadv_attribute *batadv_vlan_attrs[] = {
 	NULL,
 };
 
+/**
+ * batadv_sysfs_add_meshif() - Add soft interface specific sysfs entries
+ * @dev: netdev struct of the soft interface
+ *
+ * Return: 0 on success or negative error number in case of failure
+ */
 int batadv_sysfs_add_meshif(struct net_device *dev)
 {
 	struct kobject *batif_kobject = &dev->dev.kobj;
@@ -775,6 +781,10 @@ out:
 	return -ENOMEM;
 }
 
+/**
+ * batadv_sysfs_del_meshif() - Remove soft interface specific sysfs entries
+ * @dev: netdev struct of the soft interface
+ */
 void batadv_sysfs_del_meshif(struct net_device *dev)
 {
 	struct batadv_priv *bat_priv = netdev_priv(dev);
@@ -1132,6 +1142,13 @@ static struct batadv_attribute *batadv_batman_attrs[] = {
 	NULL,
 };
 
+/**
+ * batadv_sysfs_add_hardif() - Add hard interface specific sysfs entries
+ * @hardif_obj: address where to store the pointer to new sysfs folder
+ * @dev: netdev struct of the hard interface
+ *
+ * Return: 0 on success or negative error number in case of failure
+ */
 int batadv_sysfs_add_hardif(struct kobject **hardif_obj, struct net_device *dev)
 {
 	struct kobject *hardif_kobject = &dev->dev.kobj;
@@ -1166,6 +1183,11 @@ out:
 	return -ENOMEM;
 }
 
+/**
+ * batadv_sysfs_del_hardif() - Remove hard interface specific sysfs entries
+ * @hardif_obj: address to the pointer to which stores batman-adv sysfs folder
+ *  of the hard interface
+ */
 void batadv_sysfs_del_hardif(struct kobject **hardif_obj)
 {
 	kobject_uevent(*hardif_obj, KOBJ_REMOVE);
@@ -1174,6 +1196,16 @@ void batadv_sysfs_del_hardif(struct kobject **hardif_obj)
 	*hardif_obj = NULL;
 }
 
+/**
+ * batadv_throw_uevent() - Send an uevent with batman-adv specific env data
+ * @bat_priv: the bat priv with all the soft interface information
+ * @type: subsystem type of event. Stored in uevent's BATTYPE
+ * @action: action type of event. Stored in uevent's BATACTION
+ * @data: string with additional information to the event (ignored for
+ *  BATADV_UEV_DEL). Stored in uevent's BATDATA
+ *
+ * Return: 0 on success or negative error number in case of failure
+ */
 int batadv_throw_uevent(struct batadv_priv *bat_priv, enum batadv_uev_type type,
 			enum batadv_uev_action action, const char *data)
 {

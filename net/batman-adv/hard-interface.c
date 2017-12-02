@@ -67,6 +67,12 @@ void batadv_hardif_release(struct kref *ref)
 	kfree_rcu(hard_iface, rcu);
 }
 
+/**
+ * batadv_hardif_get_by_netdev() - Get hard interface object of a net_device
+ * @net_dev: net_device to search for
+ *
+ * Return: batadv_hard_iface of net_dev (with increased refcnt), NULL on errors
+ */
 struct batadv_hard_iface *
 batadv_hardif_get_by_netdev(const struct net_device *net_dev)
 {
@@ -561,6 +567,13 @@ static void batadv_hardif_recalc_extra_skbroom(struct net_device *soft_iface)
 	soft_iface->needed_tailroom = lower_tailroom;
 }
 
+/**
+ * batadv_hardif_min_mtu() - Calculate maximum MTU for soft interface
+ * @soft_iface: netdev struct of the soft interface
+ *
+ * Return: MTU for the soft-interface (limited by the minimal MTU of all active
+ *  slave interfaces)
+ */
 int batadv_hardif_min_mtu(struct net_device *soft_iface)
 {
 	struct batadv_priv *bat_priv = netdev_priv(soft_iface);
@@ -607,7 +620,11 @@ out:
 	return min_t(int, min_mtu - batadv_max_header_len(), ETH_DATA_LEN);
 }
 
-/* adjusts the MTU if a new interface with a smaller MTU appeared. */
+/**
+ * batadv_update_min_mtu() - Adjusts the MTU if a new interface with a smaller
+ *  MTU appeared
+ * @soft_iface: netdev struct of the soft interface
+ */
 void batadv_update_min_mtu(struct net_device *soft_iface)
 {
 	soft_iface->mtu = batadv_hardif_min_mtu(soft_iface);
@@ -692,6 +709,14 @@ static int batadv_master_del_slave(struct batadv_hard_iface *slave,
 	return ret;
 }
 
+/**
+ * batadv_hardif_enable_interface() - Enslave hard interface to soft interface
+ * @hard_iface: hard interface to add to soft interface
+ * @net: the applicable net namespace
+ * @iface_name: name of the soft interface
+ *
+ * Return: 0 on success or negative error number in case of failure
+ */
 int batadv_hardif_enable_interface(struct batadv_hard_iface *hard_iface,
 				   struct net *net, const char *iface_name)
 {
@@ -803,6 +828,12 @@ err:
 	return ret;
 }
 
+/**
+ * batadv_hardif_disable_interface() - Remove hard interface from soft interface
+ * @hard_iface: hard interface to be removed
+ * @autodel: whether to delete soft interface when it doesn't contain any other
+ *  slave interfaces
+ */
 void batadv_hardif_disable_interface(struct batadv_hard_iface *hard_iface,
 				     enum batadv_hard_if_cleanup autodel)
 {
@@ -937,6 +968,9 @@ static void batadv_hardif_remove_interface(struct batadv_hard_iface *hard_iface)
 	batadv_hardif_put(hard_iface);
 }
 
+/**
+ * batadv_hardif_remove_interfaces() - Remove all hard interfaces
+ */
 void batadv_hardif_remove_interfaces(void)
 {
 	struct batadv_hard_iface *hard_iface, *hard_iface_tmp;

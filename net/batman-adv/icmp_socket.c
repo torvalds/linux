@@ -57,6 +57,9 @@ static void batadv_socket_add_packet(struct batadv_socket_client *socket_client,
 				     struct batadv_icmp_header *icmph,
 				     size_t icmp_len);
 
+/**
+ * batadv_socket_init() - Initialize soft interface independent socket data
+ */
 void batadv_socket_init(void)
 {
 	memset(batadv_socket_client_hash, 0, sizeof(batadv_socket_client_hash));
@@ -316,6 +319,12 @@ static const struct file_operations batadv_fops = {
 	.llseek = no_llseek,
 };
 
+/**
+ * batadv_socket_setup() - Create debugfs "socket" file
+ * @bat_priv: the bat priv with all the soft interface information
+ *
+ * Return: 0 on success or negative error number in case of failure
+ */
 int batadv_socket_setup(struct batadv_priv *bat_priv)
 {
 	struct dentry *d;

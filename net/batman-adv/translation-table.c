@@ -1055,6 +1055,14 @@ container_register:
 }
 
 #ifdef CONFIG_BATMAN_ADV_DEBUGFS
+
+/**
+ * batadv_tt_local_seq_print_text() - Print the local tt table in a seq file
+ * @seq: seq file to print on
+ * @offset: not used
+ *
+ * Return: always 0
+ */
 int batadv_tt_local_seq_print_text(struct seq_file *seq, void *offset)
 {
 	struct net_device *net_dev = (struct net_device *)seq->private;
@@ -1927,6 +1935,13 @@ print_list:
 	}
 }
 
+/**
+ * batadv_tt_global_seq_print_text() - Print the global tt table in a seq file
+ * @seq: seq file to print on
+ * @offset: not used
+ *
+ * Return: always 0
+ */
 int batadv_tt_global_seq_print_text(struct seq_file *seq, void *offset)
 {
 	struct net_device *net_dev = (struct net_device *)seq->private;
@@ -3729,6 +3744,10 @@ static void batadv_tt_purge(struct work_struct *work)
 			   msecs_to_jiffies(BATADV_TT_WORK_PERIOD));
 }
 
+/**
+ * batadv_tt_free() - Free translation table of soft interface
+ * @bat_priv: the bat priv with all the soft interface information
+ */
 void batadv_tt_free(struct batadv_priv *bat_priv)
 {
 	batadv_tvlv_container_unregister(bat_priv, BATADV_TVLV_TT, 1);
@@ -3876,6 +3895,15 @@ void batadv_tt_local_commit_changes(struct batadv_priv *bat_priv)
 	spin_unlock_bh(&bat_priv->tt.commit_lock);
 }
 
+/**
+ * batadv_is_ap_isolated() - Check if packet from upper layer should be dropped
+ * @bat_priv: the bat priv with all the soft interface information
+ * @src: source mac address of packet
+ * @dst: destination mac address of packet
+ * @vid: vlan id of packet
+ *
+ * Return: true when src+dst(+vid) pair should be isolated, false otherwise
+ */
 bool batadv_is_ap_isolated(struct batadv_priv *bat_priv, u8 *src, u8 *dst,
 			   unsigned short vid)
 {
@@ -4047,6 +4075,15 @@ out:
 	return ret;
 }
 
+/**
+ * batadv_tt_add_temporary_global_entry() - Add temporary entry to global TT
+ * @bat_priv: the bat priv with all the soft interface information
+ * @orig_node: orig node which the temporary entry should be associated with
+ * @addr: mac address of the client
+ * @vid: VLAN id of the new temporary global translation table
+ *
+ * Return: true when temporary tt entry could be added, false otherwise
+ */
 bool batadv_tt_add_temporary_global_entry(struct batadv_priv *bat_priv,
 					  struct batadv_orig_node *orig_node,
 					  const unsigned char *addr,

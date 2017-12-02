@@ -65,6 +65,13 @@
 #include "sysfs.h"
 #include "translation-table.h"
 
+/**
+ * batadv_skb_head_push() - Increase header size and move (push) head pointer
+ * @skb: packet buffer which should be modified
+ * @len: number of bytes to add
+ *
+ * Return: 0 on success or negative error number in case of failure
+ */
 int batadv_skb_head_push(struct sk_buff *skb, unsigned int len)
 {
 	int result;
@@ -1064,6 +1071,13 @@ static void batadv_softif_init_early(struct net_device *dev)
 	dev->ethtool_ops = &batadv_ethtool_ops;
 }
 
+/**
+ * batadv_softif_create() - Create and register soft interface
+ * @net: the applicable net namespace
+ * @name: name of the new soft interface
+ *
+ * Return: newly allocated soft_interface, NULL on errors
+ */
 struct net_device *batadv_softif_create(struct net *net, const char *name)
 {
 	struct net_device *soft_iface;
@@ -1141,6 +1155,12 @@ static void batadv_softif_destroy_netlink(struct net_device *soft_iface,
 	unregister_netdevice_queue(soft_iface, head);
 }
 
+/**
+ * batadv_softif_is_valid() - Check whether device is a batadv soft interface
+ * @net_dev: device which should be checked
+ *
+ * Return: true when net_dev is a batman-adv interface, false otherwise
+ */
 bool batadv_softif_is_valid(const struct net_device *net_dev)
 {
 	if (net_dev->netdev_ops->ndo_start_xmit == batadv_interface_tx)

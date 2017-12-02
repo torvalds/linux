@@ -61,6 +61,12 @@ static struct batadv_algo_ops *batadv_algo_get(char *name)
 	return bat_algo_ops;
 }
 
+/**
+ * batadv_algo_register() - Register callbacks for a mesh algorithm
+ * @bat_algo_ops: mesh algorithm callbacks to add
+ *
+ * Return: 0 on success or negative error number in case of failure
+ */
 int batadv_algo_register(struct batadv_algo_ops *bat_algo_ops)
 {
 	struct batadv_algo_ops *bat_algo_ops_tmp;
@@ -90,6 +96,19 @@ int batadv_algo_register(struct batadv_algo_ops *bat_algo_ops)
 	return 0;
 }
 
+/**
+ * batadv_algo_select() - Select algorithm of soft interface
+ * @bat_priv: the bat priv with all the soft interface information
+ * @name: name of the algorithm to select
+ *
+ * The algorithm callbacks for the soft interface will be set when the algorithm
+ * with the correct name was found. Any previous selected algorithm will not be
+ * deinitialized and the new selected algorithm will also not be initialized.
+ * It is therefore not allowed to call batadv_algo_select outside the creation
+ * function of the soft interface.
+ *
+ * Return: 0 on success or negative error number in case of failure
+ */
 int batadv_algo_select(struct batadv_priv *bat_priv, char *name)
 {
 	struct batadv_algo_ops *bat_algo_ops;
@@ -104,6 +123,14 @@ int batadv_algo_select(struct batadv_priv *bat_priv, char *name)
 }
 
 #ifdef CONFIG_BATMAN_ADV_DEBUGFS
+
+/**
+ * batadv_algo_seq_print_text() - Print the supported algorithms in a seq file
+ * @seq: seq file to print on
+ * @offset: not used
+ *
+ * Return: always 0
+ */
 int batadv_algo_seq_print_text(struct seq_file *seq, void *offset)
 {
 	struct batadv_algo_ops *bat_algo_ops;

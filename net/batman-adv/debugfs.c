@@ -259,6 +259,9 @@ static struct batadv_debuginfo *batadv_hardif_debuginfos[] = {
 	NULL,
 };
 
+/**
+ * batadv_debugfs_init() - Initialize soft interface independent debugfs entries
+ */
 void batadv_debugfs_init(void)
 {
 	struct batadv_debuginfo **bat_debug;
@@ -289,6 +292,9 @@ err:
 	batadv_debugfs = NULL;
 }
 
+/**
+ * batadv_debugfs_destroy() - Remove all debugfs entries
+ */
 void batadv_debugfs_destroy(void)
 {
 	debugfs_remove_recursive(batadv_debugfs);
@@ -355,6 +361,12 @@ void batadv_debugfs_del_hardif(struct batadv_hard_iface *hard_iface)
 	}
 }
 
+/**
+ * batadv_debugfs_add_meshif() - Initialize interface dependent debugfs entries
+ * @dev: netdev struct of the soft interface
+ *
+ * Return: 0 on success or negative error number in case of failure
+ */
 int batadv_debugfs_add_meshif(struct net_device *dev)
 {
 	struct batadv_priv *bat_priv = netdev_priv(dev);
@@ -401,6 +413,10 @@ out:
 	return -ENOMEM;
 }
 
+/**
+ * batadv_debugfs_del_meshif() - Remove interface dependent debugfs entries
+ * @dev: netdev struct of the soft interface
+ */
 void batadv_debugfs_del_meshif(struct net_device *dev)
 {
 	struct batadv_priv *bat_priv = netdev_priv(dev);

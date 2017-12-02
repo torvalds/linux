@@ -58,6 +58,13 @@
 /* hash class keys */
 static struct lock_class_key batadv_orig_hash_lock_class_key;
 
+/**
+ * batadv_orig_hash_find() - Find and return originator from orig_hash
+ * @bat_priv: the bat priv with all the soft interface information
+ * @data: mac address of the originator
+ *
+ * Return: orig_node (with increased refcnt), NULL on errors
+ */
 struct batadv_orig_node *
 batadv_orig_hash_find(struct batadv_priv *bat_priv, const void *data)
 {
@@ -201,6 +208,12 @@ void batadv_orig_node_vlan_put(struct batadv_orig_node_vlan *orig_vlan)
 	kref_put(&orig_vlan->refcount, batadv_orig_node_vlan_release);
 }
 
+/**
+ * batadv_originator_init() - Initialize all originator structures
+ * @bat_priv: the bat priv with all the soft interface information
+ *
+ * Return: 0 on success or negative error number in case of failure
+ */
 int batadv_originator_init(struct batadv_priv *bat_priv)
 {
 	if (bat_priv->orig_hash)
@@ -959,6 +972,10 @@ void batadv_orig_node_put(struct batadv_orig_node *orig_node)
 	kref_put(&orig_node->refcount, batadv_orig_node_release);
 }
 
+/**
+ * batadv_originator_free() - Free all originator structures
+ * @bat_priv: the bat priv with all the soft interface information
+ */
 void batadv_originator_free(struct batadv_priv *bat_priv)
 {
 	struct batadv_hashtable *hash = bat_priv->orig_hash;
@@ -1374,12 +1391,24 @@ static void batadv_purge_orig(struct work_struct *work)
 			   msecs_to_jiffies(BATADV_ORIG_WORK_PERIOD));
 }
 
+/**
+ * batadv_purge_orig_ref() - Purge all outdated originators
+ * @bat_priv: the bat priv with all the soft interface information
+ */
 void batadv_purge_orig_ref(struct batadv_priv *bat_priv)
 {
 	_batadv_purge_orig(bat_priv);
 }
 
 #ifdef CONFIG_BATMAN_ADV_DEBUGFS
+
+/**
+ * batadv_orig_seq_print_text() - Print the originator table in a seq file
+ * @seq: seq file to print on
+ * @offset: not used
+ *
+ * Return: always 0
+ */
 int batadv_orig_seq_print_text(struct seq_file *seq, void *offset)
 {
 	struct net_device *net_dev = (struct net_device *)seq->private;
@@ -1532,6 +1561,13 @@ int batadv_orig_dump(struct sk_buff *msg, struct netlink_callback *cb)
 	return ret;
 }
 
+/**
+ * batadv_orig_hash_add_if() - Add interface to originators in orig_hash
+ * @hard_iface: hard interface to add (already slave of the soft interface)
+ * @max_if_num: new number of interfaces
+ *
+ * Return: 0 on success or negative error number in case of failure
+ */
 int batadv_orig_hash_add_if(struct batadv_hard_iface *hard_iface,
 			    int max_if_num)
 {
@@ -1567,6 +1603,13 @@ err:
 	return -ENOMEM;
 }
 
+/**
+ * batadv_orig_hash_del_if() - Remove interface from originators in orig_hash
+ * @hard_iface: hard interface to remove (still slave of the soft interface)
+ * @max_if_num: new number of interfaces
+ *
+ * Return: 0 on success or negative error number in case of failure
+ */
 int batadv_orig_hash_del_if(struct batadv_hard_iface *hard_iface,
 			    int max_if_num)
 {

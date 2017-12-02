@@ -124,12 +124,30 @@ send_skb_err:
 	return NET_XMIT_DROP;
 }
 
+/**
+ * batadv_send_broadcast_skb() - Send broadcast packet via hard interface
+ * @skb: packet to be transmitted (with batadv header and no outer eth header)
+ * @hard_iface: outgoing interface
+ *
+ * Return: A negative errno code is returned on a failure. A success does not
+ * guarantee the frame will be transmitted as it may be dropped due
+ * to congestion or traffic shaping.
+ */
 int batadv_send_broadcast_skb(struct sk_buff *skb,
 			      struct batadv_hard_iface *hard_iface)
 {
 	return batadv_send_skb_packet(skb, hard_iface, batadv_broadcast_addr);
 }
 
+/**
+ * batadv_send_unicast_skb() - Send unicast packet to neighbor
+ * @skb: packet to be transmitted (with batadv header and no outer eth header)
+ * @neigh: neighbor which is used as next hop to destination
+ *
+ * Return: A negative errno code is returned on a failure. A success does not
+ * guarantee the frame will be transmitted as it may be dropped due
+ * to congestion or traffic shaping.
+ */
 int batadv_send_unicast_skb(struct sk_buff *skb,
 			    struct batadv_neigh_node *neigh)
 {

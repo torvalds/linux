@@ -93,6 +93,12 @@ void batadv_gw_node_put(struct batadv_gw_node *gw_node)
 	kref_put(&gw_node->refcount, batadv_gw_node_release);
 }
 
+/**
+ * batadv_gw_get_selected_gw_node() - Get currently selected gateway
+ * @bat_priv: the bat priv with all the soft interface information
+ *
+ * Return: selected gateway (with increased refcnt), NULL on errors
+ */
 struct batadv_gw_node *
 batadv_gw_get_selected_gw_node(struct batadv_priv *bat_priv)
 {
@@ -111,6 +117,12 @@ out:
 	return gw_node;
 }
 
+/**
+ * batadv_gw_get_selected_orig() - Get originator of currently selected gateway
+ * @bat_priv: the bat priv with all the soft interface information
+ *
+ * Return: orig_node of selected gateway (with increased refcnt), NULL on errors
+ */
 struct batadv_orig_node *
 batadv_gw_get_selected_orig(struct batadv_priv *bat_priv)
 {
@@ -204,6 +216,10 @@ void batadv_gw_check_client_stop(struct batadv_priv *bat_priv)
 	batadv_gw_node_put(curr_gw);
 }
 
+/**
+ * batadv_gw_election() - Elect the best gateway
+ * @bat_priv: the bat priv with all the soft interface information
+ */
 void batadv_gw_election(struct batadv_priv *bat_priv)
 {
 	struct batadv_gw_node *curr_gw = NULL;
@@ -292,6 +308,11 @@ out:
 		batadv_neigh_ifinfo_put(router_ifinfo);
 }
 
+/**
+ * batadv_gw_check_election() - Elect orig node as best gateway when eligible
+ * @bat_priv: the bat priv with all the soft interface information
+ * @orig_node: orig node which is to be checked
+ */
 void batadv_gw_check_election(struct batadv_priv *bat_priv,
 			      struct batadv_orig_node *orig_node)
 {
@@ -460,6 +481,11 @@ out:
 		batadv_gw_node_put(gw_node);
 }
 
+/**
+ * batadv_gw_node_delete() - Remove orig_node from gateway list
+ * @bat_priv: the bat priv with all the soft interface information
+ * @orig_node: orig node which is currently in process of being removed
+ */
 void batadv_gw_node_delete(struct batadv_priv *bat_priv,
 			   struct batadv_orig_node *orig_node)
 {
@@ -471,6 +497,10 @@ void batadv_gw_node_delete(struct batadv_priv *bat_priv,
 	batadv_gw_node_update(bat_priv, orig_node, &gateway);
 }
 
+/**
+ * batadv_gw_node_free() - Free gateway information from soft interface
+ * @bat_priv: the bat priv with all the soft interface information
+ */
 void batadv_gw_node_free(struct batadv_priv *bat_priv)
 {
 	struct batadv_gw_node *gw_node;
@@ -486,6 +516,14 @@ void batadv_gw_node_free(struct batadv_priv *bat_priv)
 }
 
 #ifdef CONFIG_BATMAN_ADV_DEBUGFS
+
+/**
+ * batadv_gw_client_seq_print_text() - Print the gateway table in a seq file
+ * @seq: seq file to print on
+ * @offset: not used
+ *
+ * Return: always 0
+ */
 int batadv_gw_client_seq_print_text(struct seq_file *seq, void *offset)
 {
 	struct net_device *net_dev = (struct net_device *)seq->private;

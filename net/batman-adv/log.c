@@ -88,6 +88,13 @@ static int batadv_fdebug_log(struct batadv_priv_debug_log *debug_log,
 	return 0;
 }
 
+/**
+ * batadv_debug_log() - Add debug log entry
+ * @bat_priv: the bat priv with all the soft interface information
+ * @fmt: format string
+ *
+ * Return: 0 on success or negative error number in case of failure
+ */
 int batadv_debug_log(struct batadv_priv *bat_priv, const char *fmt, ...)
 {
 	va_list args;
@@ -199,6 +206,12 @@ static const struct file_operations batadv_log_fops = {
 	.llseek         = no_llseek,
 };
 
+/**
+ * batadv_debug_log_setup() - Initialize debug log
+ * @bat_priv: the bat priv with all the soft interface information
+ *
+ * Return: 0 on success or negative error number in case of failure
+ */
 int batadv_debug_log_setup(struct batadv_priv *bat_priv)
 {
 	struct dentry *d;
@@ -224,6 +237,10 @@ err:
 	return -ENOMEM;
 }
 
+/**
+ * batadv_debug_log_cleanup() - Destroy debug log
+ * @bat_priv: the bat priv with all the soft interface information
+ */
 void batadv_debug_log_cleanup(struct batadv_priv *bat_priv)
 {
 	kfree(bat_priv->debug_log);

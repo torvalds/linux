@@ -140,6 +140,12 @@ static void __exit batadv_exit(void)
 	batadv_tt_cache_destroy();
 }
 
+/**
+ * batadv_mesh_init() - Initialize soft interface
+ * @soft_iface: netdev struct of the soft interface
+ *
+ * Return: 0 on success or negative error number in case of failure
+ */
 int batadv_mesh_init(struct net_device *soft_iface)
 {
 	struct batadv_priv *bat_priv = netdev_priv(soft_iface);
@@ -217,6 +223,10 @@ err:
 	return ret;
 }
 
+/**
+ * batadv_mesh_free() - Deinitialize soft interface
+ * @soft_iface: netdev struct of the soft interface
+ */
 void batadv_mesh_free(struct net_device *soft_iface)
 {
 	struct batadv_priv *bat_priv = netdev_priv(soft_iface);
@@ -413,6 +423,16 @@ static int batadv_recv_unhandled_packet(struct sk_buff *skb,
 /* incoming packets with the batman ethertype received on any active hard
  * interface
  */
+
+/**
+ * batadv_batman_skb_recv() - Handle incoming message from an hard interface
+ * @skb: the received packet
+ * @dev: the net device that the packet was received on
+ * @ptype: packet type of incoming packet (ETH_P_BATMAN)
+ * @orig_dev: the original receive net device (e.g. bonded device)
+ *
+ * Return: NET_RX_SUCCESS on success or NET_RX_DROP in case of failure
+ */
 int batadv_batman_skb_recv(struct sk_buff *skb, struct net_device *dev,
 			   struct packet_type *ptype,
 			   struct net_device *orig_dev)
@@ -536,6 +556,13 @@ static void batadv_recv_handler_init(void)
 	batadv_rx_handler[BATADV_UNICAST_FRAG] = batadv_recv_frag_packet;
 }
 
+/**
+ * batadv_recv_handler_register() - Register handler for batman-adv packet type
+ * @packet_type: batadv_packettype which should be handled
+ * @recv_handler: receive handler for the packet type
+ *
+ * Return: 0 on success or negative error number in case of failure
+ */
 int
 batadv_recv_handler_register(u8 packet_type,
 			     int (*recv_handler)(struct sk_buff *,
@@ -553,6 +580,10 @@ batadv_recv_handler_register(u8 packet_type,
 	return 0;
 }
 
+/**
+ * batadv_recv_handler_unregister() - Unregister handler for packet type
+ * @packet_type: batadv_packettype which should no longer be handled
+ */
 void batadv_recv_handler_unregister(u8 packet_type)
 {
 	batadv_rx_handler[packet_type] = batadv_recv_unhandled_packet;

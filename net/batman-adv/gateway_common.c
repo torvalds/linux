@@ -165,6 +165,15 @@ void batadv_gw_tvlv_container_update(struct batadv_priv *bat_priv)
 	}
 }
 
+/**
+ * batadv_gw_bandwidth_set() - Parse and set download/upload gateway bandwidth
+ *  from supplied string buffer
+ * @net_dev: netdev struct of the soft interface
+ * @buff: the buffer containing the user data
+ * @count: number of bytes in the buffer
+ *
+ * Return: 'count' on success or a negative error code in case of failure
+ */
 ssize_t batadv_gw_bandwidth_set(struct net_device *net_dev, char *buff,
 				size_t count)
 {

@@ -2853,6 +2853,11 @@ static struct batadv_algo_ops batadv_batman_iv __read_mostly = {
 	},
 };
 
+/**
+ * batadv_iv_init() - B.A.T.M.A.N. IV initialization function
+ *
+ * Return: 0 on success or negative error number in case of failure
+ */
 int __init batadv_iv_init(void)
 {
 	int ret;

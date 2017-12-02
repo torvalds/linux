@@ -181,6 +181,14 @@ bool batadv_window_protected(struct batadv_priv *bat_priv, s32 seq_num_diff,
 	return false;
 }
 
+/**
+ * batadv_check_management_packet() - Check preconditions for management packets
+ * @skb: incoming packet buffer
+ * @hard_iface: incoming hard interface
+ * @header_len: minimal header length of packet type
+ *
+ * Return: true when management preconditions are met, false otherwise
+ */
 bool batadv_check_management_packet(struct sk_buff *skb,
 				    struct batadv_hard_iface *hard_iface,
 				    int header_len)
@@ -348,6 +356,13 @@ out:
 	return ret;
 }
 
+/**
+ * batadv_recv_icmp_packet() - Process incoming icmp packet
+ * @skb: incoming packet buffer
+ * @recv_if: incoming hard interface
+ *
+ * Return: NET_RX_SUCCESS on success or NET_RX_DROP in case of failure
+ */
 int batadv_recv_icmp_packet(struct sk_buff *skb,
 			    struct batadv_hard_iface *recv_if)
 {
@@ -936,6 +951,13 @@ free_skb:
 	return NET_RX_DROP;
 }
 
+/**
+ * batadv_recv_unicast_packet() - Process incoming unicast packet
+ * @skb: incoming packet buffer
+ * @recv_if: incoming hard interface
+ *
+ * Return: NET_RX_SUCCESS on success or NET_RX_DROP in case of failure
+ */
 int batadv_recv_unicast_packet(struct sk_buff *skb,
 			       struct batadv_hard_iface *recv_if)
 {
@@ -1156,6 +1178,13 @@ free_skb:
 	return ret;
 }
 
+/**
+ * batadv_recv_bcast_packet() - Process incoming broadcast packet
+ * @skb: incoming packet buffer
+ * @recv_if: incoming hard interface
+ *
+ * Return: NET_RX_SUCCESS on success or NET_RX_DROP in case of failure
+ */
 int batadv_recv_bcast_packet(struct sk_buff *skb,
 			     struct batadv_hard_iface *recv_if)
 {
