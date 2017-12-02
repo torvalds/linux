@@ -972,6 +972,7 @@ struct iwl_mvm {
 
 	/* Tx queues */
 	u16 aux_queue;
+	u16 snif_queue;
 	u16 probe_queue;
 	u16 p2p_dev_queue;
 

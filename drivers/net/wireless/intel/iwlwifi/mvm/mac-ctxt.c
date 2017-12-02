@@ -787,7 +787,7 @@ static int iwl_mvm_mac_ctxt_cmd_listener(struct iwl_mvm *mvm,
 					 u32 action)
 {
 	struct iwl_mac_ctx_cmd cmd = {};
-	u32 tfd_queue_msk = 0;
+	u32 tfd_queue_msk = BIT(mvm->snif_queue);
 	int ret;
 
 	WARN_ON(vif->type != NL80211_IFTYPE_MONITOR);
