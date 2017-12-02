@@ -297,7 +297,7 @@ static int iwl_mvm_load_ucode_wait_alive(struct iwl_mvm *mvm,
 	if (ret) {
 		struct iwl_trans *trans = mvm->trans;
 
-		if (trans->cfg->device_family == IWL_DEVICE_FAMILY_A000)
+		if (trans->cfg->device_family == IWL_DEVICE_FAMILY_22000)
 			IWL_ERR(mvm,
 				"SecBoot CPU1 Status: 0x%x, CPU2 Status: 0x%x\n",
 				iwl_read_prph(trans, UMAG_SB_CPU_1_STATUS),
@@ -998,9 +998,9 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 		goto error;
 
 	/* Init RSS configuration */
-	/* TODO - remove a000 disablement when we have RXQ config API */
+	/* TODO - remove 22000 disablement when we have RXQ config API */
 	if (iwl_mvm_has_new_rx_api(mvm) &&
-	    mvm->trans->cfg->device_family != IWL_DEVICE_FAMILY_A000) {
+	    mvm->trans->cfg->device_family != IWL_DEVICE_FAMILY_22000) {
 		ret = iwl_send_rss_cfg_cmd(mvm);
 		if (ret) {
 			IWL_ERR(mvm, "Failed to configure RSS queues: %d\n",
