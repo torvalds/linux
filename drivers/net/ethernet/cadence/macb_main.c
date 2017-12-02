@@ -2799,7 +2799,7 @@ static int gem_add_flow_filter(struct net_device *netdev,
 	int ret = -EINVAL;
 	bool added = false;
 
-	newfs = kmalloc(sizeof(*newfs), GFP_KERNEL);
+	newfs = kmalloc(sizeof(*newfs), GFP_ATOMIC);
 	if (newfs == NULL)
 		return -ENOMEM;
 	memcpy(&newfs->fs, fs, sizeof(newfs->fs));
