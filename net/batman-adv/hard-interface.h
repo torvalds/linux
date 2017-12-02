@@ -31,12 +31,35 @@
 struct net_device;
 struct net;
 
+/**
+ * enum batadv_hard_if_state - State of a hard interface
+ */
 enum batadv_hard_if_state {
+	/**
+	 * @BATADV_IF_NOT_IN_USE: interface is not used as slave interface of a
+	 * batman-adv soft interface
+	 */
 	BATADV_IF_NOT_IN_USE,
+
+	/**
+	 * @BATADV_IF_TO_BE_REMOVED: interface will be removed from soft
+	 * interface
+	 */
 	BATADV_IF_TO_BE_REMOVED,
+
+	/** @BATADV_IF_INACTIVE: interface is deactivated */
 	BATADV_IF_INACTIVE,
+
+	/** @BATADV_IF_ACTIVE: interface is used */
 	BATADV_IF_ACTIVE,
+
+	/** @BATADV_IF_TO_BE_ACTIVATED: interface is getting activated */
 	BATADV_IF_TO_BE_ACTIVATED,
+
+	/**
+	 * @BATADV_IF_I_WANT_YOU: interface is queued up (using sysfs) for being
+	 * added as slave interface of a batman-adv soft interface
+	 */
 	BATADV_IF_I_WANT_YOU,
 };
 

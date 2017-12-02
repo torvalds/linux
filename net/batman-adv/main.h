@@ -141,24 +141,56 @@
  */
 #define BATADV_TP_MAX_NUM 5
 
+/**
+ * enum batadv_mesh_state - State of a soft interface
+ */
 enum batadv_mesh_state {
+	/** @BATADV_MESH_INACTIVE: soft interface is not yet running */
 	BATADV_MESH_INACTIVE,
+
+	/** @BATADV_MESH_ACTIVE: interface is up and running */
 	BATADV_MESH_ACTIVE,
+
+	/** @BATADV_MESH_DEACTIVATING: interface is getting shut down */
 	BATADV_MESH_DEACTIVATING,
 };
 
 #define BATADV_BCAST_QUEUE_LEN		256
 #define BATADV_BATMAN_QUEUE_LEN	256
 
+/**
+ * enum batadv_uev_action - action type of uevent
+ */
 enum batadv_uev_action {
+	/** @BATADV_UEV_ADD: gateway was selected (after none was selected) */
 	BATADV_UEV_ADD = 0,
+
+	/**
+	 * @BATADV_UEV_DEL: selected gateway was removed and none is selected
+	 * anymore
+	 */
 	BATADV_UEV_DEL,
+
+	/**
+	 * @BATADV_UEV_CHANGE: a different gateway was selected as based gateway
+	 */
 	BATADV_UEV_CHANGE,
+
+	/**
+	 * @BATADV_UEV_LOOPDETECT: loop was detected which cannot be handled by
+	 * bridge loop avoidance
+	 */
 	BATADV_UEV_LOOPDETECT,
 };
 
+/**
+ * enum batadv_uev_type - Type of uevent
+ */
 enum batadv_uev_type {
+	/** @BATADV_UEV_GW: selected gateway was modified */
 	BATADV_UEV_GW = 0,
+
+	/** @BATADV_UEV_BLA: bridge loop avoidance event */
 	BATADV_UEV_BLA,
 };
 
