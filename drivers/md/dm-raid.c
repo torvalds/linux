@@ -3899,7 +3899,7 @@ static int raid_preresume(struct dm_target *ti)
 	}
 
 	/* Check for any reshape request unless new raid set */
-	if (test_and_clear_bit(RT_FLAG_RESHAPE_RS, &rs->runtime_flags)) {
+	if (test_bit(RT_FLAG_RESHAPE_RS, &rs->runtime_flags)) {
 		/* Initiate a reshape. */
 		rs_set_rdev_sectors(rs);
 		mddev_lock_nointr(mddev);
@@ -3941,8 +3941,14 @@ static void raid_resume(struct dm_target *ti)
 	 * This ensures that the constructor for the inactive table
 	 * retrieves an up-to-date reshape_position.
 	 */
-	if (!(rs->ctr_flags & RESUME_STAY_FROZEN_FLAGS))
-		clear_bit(MD_RECOVERY_FROZEN, &mddev->recovery);
+	if (!test_and_clear_bit(RT_FLAG_RESHAPE_RS, &rs->runtime_flags) &&
+	    !(rs->ctr_flags & RESUME_STAY_FROZEN_FLAGS)) {
+		if (rs_is_reshapable(rs)) {
+			if (!rs_is_reshaping(rs) || _get_reshape_sectors(rs))
+				clear_bit(MD_RECOVERY_FROZEN, &mddev->recovery);
+		} else
+			clear_bit(MD_RECOVERY_FROZEN, &mddev->recovery);
+	}
 
 	if (test_and_clear_bit(RT_FLAG_RS_SUSPENDED, &rs->runtime_flags)) {
 		mddev_lock_nointr(mddev);
