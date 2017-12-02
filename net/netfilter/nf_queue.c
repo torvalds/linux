@@ -201,6 +201,23 @@ repeat:
 	return NF_ACCEPT;
 }
 
+static struct nf_hook_entries *nf_hook_entries_head(const struct net *net, u8 pf, u8 hooknum)
+{
+	switch (pf) {
+	case NFPROTO_BRIDGE:
+		return rcu_dereference(net->nf.hooks_bridge[hooknum]);
+	case NFPROTO_IPV4:
+		return rcu_dereference(net->nf.hooks_ipv4[hooknum]);
+	case NFPROTO_IPV6:
+		return rcu_dereference(net->nf.hooks_ipv6[hooknum]);
+	default:
+		WARN_ON_ONCE(1);
+		return NULL;
+	}
+
+	return NULL;
+}
+
 /* Caller must hold rcu read-side lock */
 void nf_reinject(struct nf_queue_entry *entry, unsigned int verdict)
 {
@@ -216,12 +233,12 @@ void nf_reinject(struct nf_queue_entry *entry, unsigned int verdict)
 	net = entry->state.net;
 	pf = entry->state.pf;
 
-	hooks = rcu_dereference(net->nf.hooks[pf][entry->state.hook]);
+	hooks = nf_hook_entries_head(net, pf, entry->state.hook);
 
 	nf_queue_entry_release_refs(entry);
 
 	i = entry->hook_index;
-	if (WARN_ON_ONCE(i >= hooks->num_hook_entries)) {
+	if (WARN_ON_ONCE(!hooks || i >= hooks->num_hook_entries)) {
 		kfree_skb(skb);
 		kfree(entry);
 		return;

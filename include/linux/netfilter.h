@@ -195,7 +195,7 @@ static inline int nf_hook(u_int8_t pf, unsigned int hook, struct net *net,
 			  struct net_device *indev, struct net_device *outdev,
 			  int (*okfn)(struct net *, struct sock *, struct sk_buff *))
 {
-	struct nf_hook_entries *hook_head;
+	struct nf_hook_entries *hook_head = NULL;
 	int ret = 1;
 
 #ifdef HAVE_JUMP_LABEL
@@ -206,7 +206,27 @@ static inline int nf_hook(u_int8_t pf, unsigned int hook, struct net *net,
 #endif
 
 	rcu_read_lock();
-	hook_head = rcu_dereference(net->nf.hooks[pf][hook]);
+	switch (pf) {
+	case NFPROTO_IPV4:
+		hook_head = rcu_dereference(net->nf.hooks_ipv4[hook]);
+		break;
+	case NFPROTO_IPV6:
+		hook_head = rcu_dereference(net->nf.hooks_ipv6[hook]);
+		break;
+	case NFPROTO_ARP:
+		hook_head = rcu_dereference(net->nf.hooks_arp[hook]);
+		break;
+	case NFPROTO_BRIDGE:
+		hook_head = rcu_dereference(net->nf.hooks_bridge[hook]);
+		break;
+	case NFPROTO_DECNET:
+		hook_head = rcu_dereference(net->nf.hooks_decnet[hook]);
+		break;
+	default:
+		WARN_ON_ONCE(1);
+		break;
+	}
+
 	if (hook_head) {
 		struct nf_hook_state state;
 

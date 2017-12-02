@@ -264,8 +264,23 @@ out_assign:
 
 static struct nf_hook_entries __rcu **nf_hook_entry_head(struct net *net, const struct nf_hook_ops *reg)
 {
-	if (reg->pf != NFPROTO_NETDEV)
-		return net->nf.hooks[reg->pf]+reg->hooknum;
+	switch (reg->pf) {
+	case NFPROTO_NETDEV:
+		break;
+	case NFPROTO_ARP:
+		return net->nf.hooks_arp + reg->hooknum;
+	case NFPROTO_BRIDGE:
+		return net->nf.hooks_bridge + reg->hooknum;
+	case NFPROTO_IPV4:
+		return net->nf.hooks_ipv4 + reg->hooknum;
+	case NFPROTO_IPV6:
+		return net->nf.hooks_ipv6 + reg->hooknum;
+	case NFPROTO_DECNET:
+		return net->nf.hooks_decnet + reg->hooknum;
+	default:
+		WARN_ON_ONCE(1);
+		return NULL;
+	}
 
 #ifdef CONFIG_NETFILTER_INGRESS
 	if (reg->hooknum == NF_NETDEV_INGRESS) {
@@ -534,14 +549,21 @@ void (*nf_nat_decode_session_hook)(struct sk_buff *, struct flowi *);
 EXPORT_SYMBOL(nf_nat_decode_session_hook);
 #endif
 
+static void __net_init __netfilter_net_init(struct nf_hook_entries *e[NF_MAX_HOOKS])
+{
+	int h;
+
+	for (h = 0; h < NF_MAX_HOOKS; h++)
+		RCU_INIT_POINTER(e[h], NULL);
+}
+
 static int __net_init netfilter_net_init(struct net *net)
 {
-	int i, h;
-
-	for (i = 0; i < ARRAY_SIZE(net->nf.hooks); i++) {
-		for (h = 0; h < NF_MAX_HOOKS; h++)
-			RCU_INIT_POINTER(net->nf.hooks[i][h], NULL);
-	}
+	__netfilter_net_init(net->nf.hooks_ipv4);
+	__netfilter_net_init(net->nf.hooks_ipv6);
+	__netfilter_net_init(net->nf.hooks_arp);
+	__netfilter_net_init(net->nf.hooks_bridge);
+	__netfilter_net_init(net->nf.hooks_decnet);
 
 #ifdef CONFIG_PROC_FS
 	net->nf.proc_netfilter = proc_net_mkdir(net, "netfilter",
