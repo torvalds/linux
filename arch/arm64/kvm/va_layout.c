@@ -16,24 +16,60 @@
  */
 
 #include <linux/kvm_host.h>
+#include <linux/random.h>
+#include <linux/memblock.h>
 #include <asm/alternative.h>
 #include <asm/debug-monitors.h>
 #include <asm/insn.h>
 #include <asm/kvm_mmu.h>
 
+/*
+ * The LSB of the random hyp VA tag or 0 if no randomization is used.
+ */
+static u8 tag_lsb;
+/*
+ * The random hyp VA tag value with the region bit if hyp randomization is used
+ */
+static u64 tag_val;
 static u64 va_mask;
 
 static void compute_layout(void)
 {
 	phys_addr_t idmap_addr = __pa_symbol(__hyp_idmap_text_start);
 	u64 hyp_va_msb;
+	int kva_msb;
 
 	/* Where is my RAM region? */
 	hyp_va_msb  = idmap_addr & BIT(VA_BITS - 1);
 	hyp_va_msb ^= BIT(VA_BITS - 1);
 
-	va_mask  = GENMASK_ULL(VA_BITS - 2, 0);
-	va_mask |= hyp_va_msb;
+	kva_msb = fls64((u64)phys_to_virt(memblock_start_of_DRAM()) ^
+			(u64)(high_memory - 1));
+
+	if (kva_msb == (VA_BITS - 1)) {
+		/*
+		 * No space in the address, let's compute the mask so
+		 * that it covers (VA_BITS - 1) bits, and the region
+		 * bit. The tag stays set to zero.
+		 */
+		va_mask  = BIT(VA_BITS - 1) - 1;
+		va_mask |= hyp_va_msb;
+	} else {
+		/*
+		 * We do have some free bits to insert a random tag.
+		 * Hyp VAs are now created from kernel linear map VAs
+		 * using the following formula (with V == VA_BITS):
+		 *
+		 *  63 ... V |     V-1    | V-2 .. tag_lsb | tag_lsb - 1 .. 0
+		 *  ---------------------------------------------------------
+		 * | 0000000 | hyp_va_msb |    random tag  |  kern linear VA |
+		 */
+		tag_lsb = kva_msb;
+		va_mask = GENMASK_ULL(tag_lsb - 1, 0);
+		tag_val = get_random_long() & GENMASK_ULL(VA_BITS - 2, tag_lsb);
+		tag_val |= hyp_va_msb;
+		tag_val >>= tag_lsb;
+	}
 }
 
 static u32 compute_instruction(int n, u32 rd, u32 rn)
@@ -46,6 +82,33 @@ static u32 compute_instruction(int n, u32 rd, u32 rn)
 							  AARCH64_INSN_VARIANT_64BIT,
 							  rn, rd, va_mask);
 		break;
+
+	case 1:
+		/* ROR is a variant of EXTR with Rm = Rn */
+		insn = aarch64_insn_gen_extr(AARCH64_INSN_VARIANT_64BIT,
+					     rn, rn, rd,
+					     tag_lsb);
+		break;
+
+	case 2:
+		insn = aarch64_insn_gen_add_sub_imm(rd, rn,
+						    tag_val & GENMASK(11, 0),
+						    AARCH64_INSN_VARIANT_64BIT,
+						    AARCH64_INSN_ADSB_ADD);
+		break;
+
+	case 3:
+		insn = aarch64_insn_gen_add_sub_imm(rd, rn,
+						    tag_val & GENMASK(23, 12),
+						    AARCH64_INSN_VARIANT_64BIT,
+						    AARCH64_INSN_ADSB_ADD);
+		break;
+
+	case 4:
+		/* ROR is a variant of EXTR with Rm = Rn */
+		insn = aarch64_insn_gen_extr(AARCH64_INSN_VARIANT_64BIT,
+					     rn, rn, rd, 64 - tag_lsb);
+		break;
 	}
 
 	return insn;
@@ -56,8 +119,7 @@ void __init kvm_update_va_mask(struct alt_instr *alt,
 {
 	int i;
 
-	/* We only expect a single instruction in the alternative sequence */
-	BUG_ON(nr_inst != 1);
+	BUG_ON(nr_inst != 5);
 
 	if (!has_vhe() && !va_mask)
 		compute_layout();
@@ -68,8 +130,12 @@ void __init kvm_update_va_mask(struct alt_instr *alt,
 		/*
 		 * VHE doesn't need any address translation, let's NOP
 		 * everything.
+		 *
+		 * Alternatively, if we don't have any spare bits in
+		 * the address, NOP everything after masking that
+		 * kernel VA.
 		 */
-		if (has_vhe()) {
+		if (has_vhe() || (!tag_lsb && i > 0)) {
 			updptr[i] = cpu_to_le32(aarch64_insn_gen_nop());
 			continue;
 		}

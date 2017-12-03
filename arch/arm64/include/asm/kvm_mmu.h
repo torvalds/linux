@@ -85,7 +85,11 @@
  */
 .macro kern_hyp_va	reg
 alternative_cb kvm_update_va_mask
-	and     \reg, \reg, #1
+	and     \reg, \reg, #1		/* mask with va_mask */
+	ror	\reg, \reg, #1		/* rotate to the first tag bit */
+	add	\reg, \reg, #0		/* insert the low 12 bits of the tag */
+	add	\reg, \reg, #0, lsl 12	/* insert the top 12 bits of the tag */
+	ror	\reg, \reg, #63		/* rotate back */
 alternative_cb_end
 .endm
 
@@ -102,7 +106,11 @@ void kvm_update_va_mask(struct alt_instr *alt,
 
 static inline unsigned long __kern_hyp_va(unsigned long v)
 {
-	asm volatile(ALTERNATIVE_CB("and %0, %0, #1\n",
+	asm volatile(ALTERNATIVE_CB("and %0, %0, #1\n"
+				    "ror %0, %0, #1\n"
+				    "add %0, %0, #0\n"
+				    "add %0, %0, #0, lsl 12\n"
+				    "ror %0, %0, #63\n",
 				    kvm_update_va_mask)
 		     : "+r" (v));
 	return v;
