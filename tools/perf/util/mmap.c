@@ -21,32 +21,12 @@ size_t perf_mmap__mmap_len(struct perf_mmap *map)
 }
 
 /* When check_messup is true, 'end' must points to a good entry */
-static union perf_event *perf_mmap__read(struct perf_mmap *map, bool check_messup,
+static union perf_event *perf_mmap__read(struct perf_mmap *map,
 					 u64 start, u64 end, u64 *prev)
 {
 	unsigned char *data = map->base + page_size;
 	union perf_event *event = NULL;
 	int diff = end - start;
-
-	if (check_messup) {
-		/*
-		 * If we're further behind than half the buffer, there's a chance
-		 * the writer will bite our tail and mess up the samples under us.
-		 *
-		 * If we somehow ended up ahead of the 'end', we got messed up.
-		 *
-		 * In either case, truncate and restart at 'end'.
-		 */
-		if (diff > map->mask / 2 || diff < 0) {
-			fprintf(stderr, "WARNING: failed to keep up with mmap data.\n");
-
-			/*
-			 * 'end' points to a known good entry, start there.
-			 */
-			start = end;
-			diff = 0;
-		}
-	}
 
 	if (diff >= (int)sizeof(event->header)) {
 		size_t size;
@@ -89,7 +69,7 @@ broken_event:
 	return event;
 }
 
-union perf_event *perf_mmap__read_forward(struct perf_mmap *map, bool check_messup)
+union perf_event *perf_mmap__read_forward(struct perf_mmap *map)
 {
 	u64 head;
 	u64 old = map->prev;
@@ -102,7 +82,7 @@ union perf_event *perf_mmap__read_forward(struct perf_mmap *map, bool check_mess
 
 	head = perf_mmap__read_head(map);
 
-	return perf_mmap__read(map, check_messup, old, head, &map->prev);
+	return perf_mmap__read(map, old, head, &map->prev);
 }
 
 union perf_event *perf_mmap__read_backward(struct perf_mmap *map)
@@ -138,7 +118,7 @@ union perf_event *perf_mmap__read_backward(struct perf_mmap *map)
 	else
 		end = head + map->mask + 1;
 
-	return perf_mmap__read(map, false, start, end, &map->prev);
+	return perf_mmap__read(map, start, end, &map->prev);
 }
 
 void perf_mmap__read_catchup(struct perf_mmap *map)

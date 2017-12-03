@@ -86,7 +86,7 @@ static inline void perf_mmap__write_tail(struct perf_mmap *md, u64 tail)
 	pc->data_tail = tail;
 }
 
-union perf_event *perf_mmap__read_forward(struct perf_mmap *map, bool check_messup);
+union perf_event *perf_mmap__read_forward(struct perf_mmap *map);
 union perf_event *perf_mmap__read_backward(struct perf_mmap *map);
 
 int perf_mmap__push(struct perf_mmap *md, bool backward,

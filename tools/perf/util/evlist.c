@@ -711,7 +711,7 @@ union perf_event *perf_evlist__mmap_read_forward(struct perf_evlist *evlist, int
 	 * No need for read-write ring buffer: kernel stop outputting when
 	 * it hit md->prev (perf_mmap__consume()).
 	 */
-	return perf_mmap__read_forward(md, false);
+	return perf_mmap__read_forward(md);
 }
 
 union perf_event *perf_evlist__mmap_read_backward(struct perf_evlist *evlist, int idx)
