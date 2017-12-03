@@ -111,7 +111,7 @@ static irqreturn_t cc_isr(int irq, void *dev_id)
 
 	drvdata->irq = irr;
 	/* Completion interrupt - most probable */
-	if ((irr & SSI_COMP_IRQ_MASK)) {
+	if (irr & SSI_COMP_IRQ_MASK) {
 		/* Mask AXI completion interrupt - will be unmasked in
 		 * Deferred service handler
 		 */
@@ -121,7 +121,7 @@ static irqreturn_t cc_isr(int irq, void *dev_id)
 	}
 #ifdef CC_SUPPORT_FIPS
 	/* TEE FIPS interrupt */
-	if ((irr & SSI_GPR0_IRQ_MASK)) {
+	if (irr & SSI_GPR0_IRQ_MASK) {
 		/* Mask interrupt - will be unmasked in Deferred service
 		 * handler
 		 */
@@ -131,7 +131,7 @@ static irqreturn_t cc_isr(int irq, void *dev_id)
 	}
 #endif
 	/* AXI error interrupt */
-	if ((irr & SSI_AXI_ERR_IRQ_MASK)) {
+	if (irr & SSI_AXI_ERR_IRQ_MASK) {
 		u32 axi_err;
 
 		/* Read the AXI error ID */

@@ -221,7 +221,7 @@ static int request_mgr_queues_status_check(
 		return -EBUSY;
 	}
 
-	if ((req_mgr_h->q_free_slots >= total_seq_len))
+	if (req_mgr_h->q_free_slots >= total_seq_len)
 		return 0;
 
 	/* Wait for space in HW queue. Poll constant num of iterations. */

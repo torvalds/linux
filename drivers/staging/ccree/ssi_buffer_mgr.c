@@ -882,7 +882,7 @@ static int cc_aead_chain_assoc(
 	else
 		areq_ctx->assoc_buff_type = SSI_DMA_BUF_MLLI;
 
-	if ((do_chain) || areq_ctx->assoc_buff_type == SSI_DMA_BUF_MLLI) {
+	if (do_chain || areq_ctx->assoc_buff_type == SSI_DMA_BUF_MLLI) {
 		dev_dbg(dev, "Chain assoc: buff_type=%s nents=%u\n",
 			cc_dma_buf_type(areq_ctx->assoc_buff_type),
 			areq_ctx->assoc.nents);
@@ -1656,7 +1656,7 @@ void cc_unmap_hash_request(struct device *dev, void *ctx,
 			      areq_ctx->mlli_params.mlli_dma_addr);
 	}
 
-	if ((src) && areq_ctx->in_nents) {
+	if (src && areq_ctx->in_nents) {
 		dev_dbg(dev, "Unmapped sg src: virt=%pK dma=%pad len=0x%X\n",
 			sg_virt(src), &sg_dma_address(src), sg_dma_len(src));
 		dma_unmap_sg(dev, src,
