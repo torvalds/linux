@@ -146,7 +146,6 @@ struct hv_netvsc_packet {
 
 struct netvsc_device_info {
 	unsigned char mac_adr[ETH_ALEN];
-	int  ring_size;
 	u32  num_chn;
 	u32  send_sections;
 	u32  recv_sections;
@@ -187,6 +186,9 @@ struct rndis_device {
 struct rndis_message;
 struct netvsc_device;
 struct net_device_context;
+
+extern u32 netvsc_ring_bytes;
+extern struct reciprocal_value netvsc_ring_reciprocal;
 
 struct netvsc_device *netvsc_device_add(struct hv_device *device,
 					const struct netvsc_device_info *info);
@@ -803,8 +805,6 @@ struct netvsc_device {
 	wait_queue_head_t subchan_open;
 
 	struct rndis_device *extension;
-
-	int ring_size;
 
 	u32 max_pkt; /* max number of pkt in one send, e.g. 8 */
 	u32 pkt_align; /* alignment bytes, e.g. 8 */
@@ -1424,32 +1424,6 @@ struct rndis_message {
 #define RNDIS_MESSAGE_SIZE(msg)				\
 	(sizeof(msg) + (sizeof(struct rndis_message) -	\
 	 sizeof(union rndis_message_container)))
-
-/* get pointer to info buffer with message pointer */
-#define MESSAGE_TO_INFO_BUFFER(msg)				\
-	(((unsigned char *)(msg)) + msg->info_buf_offset)
-
-/* get pointer to status buffer with message pointer */
-#define MESSAGE_TO_STATUS_BUFFER(msg)			\
-	(((unsigned char *)(msg)) + msg->status_buf_offset)
-
-/* get pointer to OOBD buffer with message pointer */
-#define MESSAGE_TO_OOBD_BUFFER(msg)				\
-	(((unsigned char *)(msg)) + msg->oob_data_offset)
-
-/* get pointer to data buffer with message pointer */
-#define MESSAGE_TO_DATA_BUFFER(msg)				\
-	(((unsigned char *)(msg)) + msg->per_pkt_info_offset)
-
-/* get pointer to contained message from NDIS_MESSAGE pointer */
-#define RNDIS_MESSAGE_PTR_TO_MESSAGE_PTR(rndis_msg)		\
-	((void *) &rndis_msg->msg)
-
-/* get pointer to contained message from NDIS_MESSAGE pointer */
-#define RNDIS_MESSAGE_RAW_PTR_TO_MESSAGE_PTR(rndis_msg)	\
-	((void *) rndis_msg)
-
-
 
 #define RNDIS_HEADER_SIZE	(sizeof(struct rndis_message) - \
 				 sizeof(union rndis_message_container))
