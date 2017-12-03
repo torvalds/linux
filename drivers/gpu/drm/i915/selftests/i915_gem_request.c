@@ -332,7 +332,7 @@ static int live_nop_request(void *arg)
 	struct intel_engine_cs *engine;
 	struct live_test t;
 	unsigned int id;
-	int err;
+	int err = -ENODEV;
 
 	/* Submit various sized batches of empty requests, to each engine
 	 * (individually), and wait for the batch to complete. We can check

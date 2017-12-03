@@ -83,8 +83,11 @@
 	(typeof(ptr))(__v & -BIT(n));					\
 })
 
-#define ptr_pack_bits(ptr, bits, n)					\
-	((typeof(ptr))((unsigned long)(ptr) | (bits)))
+#define ptr_pack_bits(ptr, bits, n) ({					\
+	unsigned long __bits = (bits);					\
+	GEM_BUG_ON(__bits & -BIT(n));					\
+	((typeof(ptr))((unsigned long)(ptr) | __bits));			\
+})
 
 #define page_mask_bits(ptr) ptr_mask_bits(ptr, PAGE_SHIFT)
 #define page_unmask_bits(ptr) ptr_unmask_bits(ptr, PAGE_SHIFT)

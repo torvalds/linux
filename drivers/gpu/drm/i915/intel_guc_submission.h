@@ -52,7 +52,7 @@ struct drm_i915_private;
  * queue (a circular array of work items), again described in the process
  * descriptor. Work queue pages are mapped momentarily as required.
  */
-struct i915_guc_client {
+struct intel_guc_client {
 	struct i915_vma *vma;
 	void *vaddr;
 	struct i915_gem_context *owner;
@@ -67,14 +67,15 @@ struct i915_guc_client {
 	u16 doorbell_id;
 	unsigned long doorbell_offset;
 
+	/* Protects GuC client's WQ access */
 	spinlock_t wq_lock;
 	/* Per-engine counts of GuC submissions */
 	u64 submissions[I915_NUM_ENGINES];
 };
 
-int i915_guc_submission_init(struct drm_i915_private *dev_priv);
-int i915_guc_submission_enable(struct drm_i915_private *dev_priv);
-void i915_guc_submission_disable(struct drm_i915_private *dev_priv);
-void i915_guc_submission_fini(struct drm_i915_private *dev_priv);
+int intel_guc_submission_init(struct intel_guc *guc);
+int intel_guc_submission_enable(struct intel_guc *guc);
+void intel_guc_submission_disable(struct intel_guc *guc);
+void intel_guc_submission_fini(struct intel_guc *guc);
 
 #endif

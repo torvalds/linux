@@ -263,13 +263,9 @@ skl_update_plane(struct intel_plane *plane,
 
 	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
 
-	if (IS_GEMINILAKE(dev_priv) || IS_CANNONLAKE(dev_priv)) {
+	if (INTEL_GEN(dev_priv) >= 10 || IS_GEMINILAKE(dev_priv))
 		I915_WRITE_FW(PLANE_COLOR_CTL(pipe, plane_id),
-			      PLANE_COLOR_PIPE_GAMMA_ENABLE |
-			      PLANE_COLOR_PIPE_CSC_ENABLE |
-			      PLANE_COLOR_PLANE_GAMMA_DISABLE);
-	}
-
+			      plane_state->color_ctl);
 	if (key->flags) {
 		I915_WRITE_FW(PLANE_KEYVAL(pipe, plane_id), key->min_value);
 		I915_WRITE_FW(PLANE_KEYMAX(pipe, plane_id), key->max_value);
@@ -977,6 +973,9 @@ intel_check_sprite_plane(struct intel_plane *plane,
 
 		state->ctl = g4x_sprite_ctl(crtc_state, state);
 	}
+
+	if (INTEL_GEN(dev_priv) >= 10 || IS_GEMINILAKE(dev_priv))
+		state->color_ctl = glk_plane_color_ctl(crtc_state, state);
 
 	return 0;
 }

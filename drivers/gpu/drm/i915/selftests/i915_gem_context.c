@@ -325,7 +325,7 @@ static int igt_ctx_exec(void *arg)
 	LIST_HEAD(objects);
 	unsigned long ncontexts, ndwords, dw;
 	bool first_shared_gtt = true;
-	int err;
+	int err = -ENODEV;
 
 	/* Create a few different contexts (with different mm) and write
 	 * through each ctx/mm using the GPU making sure those writes end

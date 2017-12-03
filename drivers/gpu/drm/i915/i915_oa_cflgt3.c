@@ -29,7 +29,7 @@
 #include <linux/sysfs.h>
 
 #include "i915_drv.h"
-#include "i915_oa_kblgt2.h"
+#include "i915_oa_cflgt3.h"
 
 static const struct i915_oa_reg b_counter_config_test_oa[] = {
 	{ _MMIO(0x2740), 0x00000000 },
@@ -82,11 +82,11 @@ show_test_oa_id(struct device *kdev, struct device_attribute *attr, char *buf)
 }
 
 void
-i915_perf_load_test_config_kblgt2(struct drm_i915_private *dev_priv)
+i915_perf_load_test_config_cflgt3(struct drm_i915_private *dev_priv)
 {
-	strlcpy(dev_priv->perf.oa.test_config.uuid,
-		"baa3c7e4-52b6-4b85-801e-465a94b746dd",
-		sizeof(dev_priv->perf.oa.test_config.uuid));
+	strncpy(dev_priv->perf.oa.test_config.uuid,
+		"577e8e2c-3fa0-4875-8743-3538d585e3b0",
+		UUID_STRING_LEN);
 	dev_priv->perf.oa.test_config.id = 1;
 
 	dev_priv->perf.oa.test_config.mux_regs = mux_config_test_oa;
@@ -98,7 +98,7 @@ i915_perf_load_test_config_kblgt2(struct drm_i915_private *dev_priv)
 	dev_priv->perf.oa.test_config.flex_regs = flex_eu_config_test_oa;
 	dev_priv->perf.oa.test_config.flex_regs_len = ARRAY_SIZE(flex_eu_config_test_oa);
 
-	dev_priv->perf.oa.test_config.sysfs_metric.name = "baa3c7e4-52b6-4b85-801e-465a94b746dd";
+	dev_priv->perf.oa.test_config.sysfs_metric.name = "577e8e2c-3fa0-4875-8743-3538d585e3b0";
 	dev_priv->perf.oa.test_config.sysfs_metric.attrs = dev_priv->perf.oa.test_config.attrs;
 
 	dev_priv->perf.oa.test_config.attrs[0] = &dev_priv->perf.oa.test_config.sysfs_metric_id.attr;

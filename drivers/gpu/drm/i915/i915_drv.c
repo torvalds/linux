@@ -372,9 +372,8 @@ static int i915_getparam(struct drm_device *dev, void *data,
 			value |= I915_SCHEDULER_CAP_ENABLED;
 			value |= I915_SCHEDULER_CAP_PRIORITY;
 
-			if (INTEL_INFO(dev_priv)->has_logical_ring_preemption &&
-			    i915_modparams.enable_execlists &&
-			    !i915_modparams.enable_guc_submission)
+			if (HAS_LOGICAL_RING_PREEMPTION(dev_priv) &&
+			    i915_modparams.enable_execlists)
 				value |= I915_SCHEDULER_CAP_PREEMPTION;
 		}
 		break;
@@ -407,6 +406,9 @@ static int i915_getparam(struct drm_device *dev, void *data,
 		 */
 		value = 1;
 		break;
+	case I915_PARAM_HAS_CONTEXT_ISOLATION:
+		value = intel_engines_has_context_isolation(dev_priv);
+		break;
 	case I915_PARAM_SLICE_MASK:
 		value = INTEL_INFO(dev_priv)->sseu.slice_mask;
 		if (!value)
@@ -416,6 +418,9 @@ static int i915_getparam(struct drm_device *dev, void *data,
 		value = INTEL_INFO(dev_priv)->sseu.subslice_mask;
 		if (!value)
 			return -ENODEV;
+		break;
+	case I915_PARAM_CS_TIMESTAMP_FREQUENCY:
+		value = 1000 * INTEL_INFO(dev_priv)->cs_timestamp_frequency_khz;
 		break;
 	default:
 		DRM_DEBUG("Unknown parameter %d\n", param->param);
@@ -677,7 +682,7 @@ static int i915_load_modeset_init(struct drm_device *dev)
 	if (ret)
 		goto cleanup_uc;
 
-	intel_modeset_gem_init(dev);
+	intel_setup_overlay(dev_priv);
 
 	if (INTEL_INFO(dev_priv)->num_pipes == 0)
 		return 0;
@@ -838,6 +843,11 @@ static void i915_workqueues_cleanup(struct drm_i915_private *dev_priv)
  * We don't keep the workarounds for pre-production hardware, so we expect our
  * driver to fail on these machines in one way or another. A little warning on
  * dmesg may help both the user and the bug triagers.
+ *
+ * Our policy for removing pre-production workarounds is to keep the
+ * current gen workarounds as a guide to the bring-up of the next gen
+ * (workarounds have a habit of persisting!). Anything older than that
+ * should be removed along with the complications they introduce.
  */
 static void intel_detect_preproduction_hw(struct drm_i915_private *dev_priv)
 {
@@ -892,7 +902,6 @@ static int i915_driver_init_early(struct drm_i915_private *dev_priv,
 	mutex_init(&dev_priv->backlight_lock);
 	spin_lock_init(&dev_priv->uncore.lock);
 
-	spin_lock_init(&dev_priv->mm.object_stat_lock);
 	mutex_init(&dev_priv->sb_lock);
 	mutex_init(&dev_priv->modeset_restore_lock);
 	mutex_init(&dev_priv->av_mutex);
@@ -1682,8 +1691,6 @@ static int i915_drm_resume(struct drm_device *dev)
 
 	intel_csr_ucode_resume(dev_priv);
 
-	i915_gem_resume(dev_priv);
-
 	i915_restore_state(dev_priv);
 	intel_pps_unlock_regs_wa(dev_priv);
 	intel_opregion_setup(dev_priv);
@@ -1704,14 +1711,7 @@ static int i915_drm_resume(struct drm_device *dev)
 
 	drm_mode_config_reset(dev);
 
-	mutex_lock(&dev->struct_mutex);
-	if (i915_gem_init_hw(dev_priv)) {
-		DRM_ERROR("failed to re-initialize GPU, declaring wedged!\n");
-		i915_gem_set_wedged(dev_priv);
-	}
-	mutex_unlock(&dev->struct_mutex);
-
-	intel_guc_resume(dev_priv);
+	i915_gem_resume(dev_priv);
 
 	intel_modeset_init_hw(dev);
 	intel_init_clock_gating(dev_priv);
@@ -1744,8 +1744,6 @@ static int i915_drm_resume(struct drm_device *dev)
 	mutex_unlock(&dev_priv->modeset_restore_lock);
 
 	intel_opregion_notify_adapter(dev_priv, PCI_D0);
-
-	intel_autoenable_gt_powersave(dev_priv);
 
 	enable_rpm_wakeref_asserts(dev_priv);
 
@@ -1952,6 +1950,12 @@ error:
 	goto finish;
 }
 
+static inline int intel_gt_reset_engine(struct drm_i915_private *dev_priv,
+					struct intel_engine_cs *engine)
+{
+	return intel_gpu_reset(dev_priv, intel_engine_flag(engine));
+}
+
 /**
  * i915_reset_engine - reset GPU engine to recover from a hang
  * @engine: engine to reset
@@ -1986,10 +1990,14 @@ int i915_reset_engine(struct intel_engine_cs *engine, unsigned int flags)
 		goto out;
 	}
 
-	ret = intel_gpu_reset(engine->i915, intel_engine_flag(engine));
+	if (!engine->i915->guc.execbuf_client)
+		ret = intel_gt_reset_engine(engine->i915, engine);
+	else
+		ret = intel_guc_reset_engine(&engine->i915->guc, engine);
 	if (ret) {
 		/* If we fail here, we expect to fallback to a global reset */
-		DRM_DEBUG_DRIVER("Failed to reset %s, ret=%d\n",
+		DRM_DEBUG_DRIVER("%sFailed to reset %s, ret=%d\n",
+				 engine->i915->guc.execbuf_client ? "GuC " : "",
 				 engine->name, ret);
 		goto out;
 	}
@@ -2524,6 +2532,8 @@ static int intel_runtime_suspend(struct device *kdev)
 
 	intel_runtime_pm_disable_interrupts(dev_priv);
 
+	intel_uncore_suspend(dev_priv);
+
 	ret = 0;
 	if (IS_GEN9_LP(dev_priv)) {
 		bxt_display_core_uninit(dev_priv);
@@ -2536,14 +2546,14 @@ static int intel_runtime_suspend(struct device *kdev)
 
 	if (ret) {
 		DRM_ERROR("Runtime suspend failed, disabling it (%d)\n", ret);
+		intel_uncore_runtime_resume(dev_priv);
+
 		intel_runtime_pm_enable_interrupts(dev_priv);
 
 		enable_rpm_wakeref_asserts(dev_priv);
 
 		return ret;
 	}
-
-	intel_uncore_suspend(dev_priv);
 
 	enable_rpm_wakeref_asserts(dev_priv);
 	WARN_ON_ONCE(atomic_read(&dev_priv->runtime_pm.wakeref_count));

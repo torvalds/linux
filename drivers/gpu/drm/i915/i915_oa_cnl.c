@@ -29,21 +29,20 @@
 #include <linux/sysfs.h>
 
 #include "i915_drv.h"
-#include "i915_oa_kblgt2.h"
+#include "i915_oa_cnl.h"
 
 static const struct i915_oa_reg b_counter_config_test_oa[] = {
 	{ _MMIO(0x2740), 0x00000000 },
-	{ _MMIO(0x2744), 0x00800000 },
-	{ _MMIO(0x2714), 0xf0800000 },
 	{ _MMIO(0x2710), 0x00000000 },
-	{ _MMIO(0x2724), 0xf0800000 },
+	{ _MMIO(0x2714), 0xf0800000 },
 	{ _MMIO(0x2720), 0x00000000 },
+	{ _MMIO(0x2724), 0xf0800000 },
 	{ _MMIO(0x2770), 0x00000004 },
-	{ _MMIO(0x2774), 0x00000000 },
+	{ _MMIO(0x2774), 0x0000ffff },
 	{ _MMIO(0x2778), 0x00000003 },
-	{ _MMIO(0x277c), 0x00000000 },
+	{ _MMIO(0x277c), 0x0000ffff },
 	{ _MMIO(0x2780), 0x00000007 },
-	{ _MMIO(0x2784), 0x00000000 },
+	{ _MMIO(0x2784), 0x0000ffff },
 	{ _MMIO(0x2788), 0x00100002 },
 	{ _MMIO(0x278c), 0x0000fff7 },
 	{ _MMIO(0x2790), 0x00100002 },
@@ -60,19 +59,32 @@ static const struct i915_oa_reg flex_eu_config_test_oa[] = {
 };
 
 static const struct i915_oa_reg mux_config_test_oa[] = {
-	{ _MMIO(0x9840), 0x00000080 },
-	{ _MMIO(0x9888), 0x11810000 },
-	{ _MMIO(0x9888), 0x07810013 },
-	{ _MMIO(0x9888), 0x1f810000 },
-	{ _MMIO(0x9888), 0x1d810000 },
-	{ _MMIO(0x9888), 0x1b930040 },
-	{ _MMIO(0x9888), 0x07e54000 },
-	{ _MMIO(0x9888), 0x1f908000 },
-	{ _MMIO(0x9888), 0x11900000 },
-	{ _MMIO(0x9888), 0x37900000 },
-	{ _MMIO(0x9888), 0x53900000 },
-	{ _MMIO(0x9888), 0x45900000 },
-	{ _MMIO(0x9888), 0x33900000 },
+	{ _MMIO(0xd04), 0x00000200 },
+	{ _MMIO(0x9884), 0x00000007 },
+	{ _MMIO(0x9888), 0x17060000 },
+	{ _MMIO(0x9840), 0x00000000 },
+	{ _MMIO(0x9884), 0x00000007 },
+	{ _MMIO(0x9888), 0x13034000 },
+	{ _MMIO(0x9884), 0x00000007 },
+	{ _MMIO(0x9888), 0x07060066 },
+	{ _MMIO(0x9884), 0x00000007 },
+	{ _MMIO(0x9888), 0x05060000 },
+	{ _MMIO(0x9884), 0x00000007 },
+	{ _MMIO(0x9888), 0x0f080040 },
+	{ _MMIO(0x9884), 0x00000007 },
+	{ _MMIO(0x9888), 0x07091000 },
+	{ _MMIO(0x9884), 0x00000007 },
+	{ _MMIO(0x9888), 0x0f041000 },
+	{ _MMIO(0x9884), 0x00000007 },
+	{ _MMIO(0x9888), 0x1d004000 },
+	{ _MMIO(0x9884), 0x00000007 },
+	{ _MMIO(0x9888), 0x35000000 },
+	{ _MMIO(0x9884), 0x00000007 },
+	{ _MMIO(0x9888), 0x49000000 },
+	{ _MMIO(0x9884), 0x00000007 },
+	{ _MMIO(0x9888), 0x3d000000 },
+	{ _MMIO(0x9884), 0x00000007 },
+	{ _MMIO(0x9888), 0x31000000 },
 };
 
 static ssize_t
@@ -82,11 +94,11 @@ show_test_oa_id(struct device *kdev, struct device_attribute *attr, char *buf)
 }
 
 void
-i915_perf_load_test_config_kblgt2(struct drm_i915_private *dev_priv)
+i915_perf_load_test_config_cnl(struct drm_i915_private *dev_priv)
 {
-	strlcpy(dev_priv->perf.oa.test_config.uuid,
-		"baa3c7e4-52b6-4b85-801e-465a94b746dd",
-		sizeof(dev_priv->perf.oa.test_config.uuid));
+	strncpy(dev_priv->perf.oa.test_config.uuid,
+		"db41edd4-d8e7-4730-ad11-b9a2d6833503",
+		UUID_STRING_LEN);
 	dev_priv->perf.oa.test_config.id = 1;
 
 	dev_priv->perf.oa.test_config.mux_regs = mux_config_test_oa;
@@ -98,7 +110,7 @@ i915_perf_load_test_config_kblgt2(struct drm_i915_private *dev_priv)
 	dev_priv->perf.oa.test_config.flex_regs = flex_eu_config_test_oa;
 	dev_priv->perf.oa.test_config.flex_regs_len = ARRAY_SIZE(flex_eu_config_test_oa);
 
-	dev_priv->perf.oa.test_config.sysfs_metric.name = "baa3c7e4-52b6-4b85-801e-465a94b746dd";
+	dev_priv->perf.oa.test_config.sysfs_metric.name = "db41edd4-d8e7-4730-ad11-b9a2d6833503";
 	dev_priv->perf.oa.test_config.sysfs_metric.attrs = dev_priv->perf.oa.test_config.attrs;
 
 	dev_priv->perf.oa.test_config.attrs[0] = &dev_priv->perf.oa.test_config.sysfs_metric_id.attr;

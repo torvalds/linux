@@ -147,6 +147,7 @@ static u32 gen9_render_mocs_L3[32];
 static void handle_tlb_pending_event(struct intel_vgpu *vgpu, int ring_id)
 {
 	struct drm_i915_private *dev_priv = vgpu->gvt->dev_priv;
+	struct intel_vgpu_submission *s = &vgpu->submission;
 	enum forcewake_domains fw;
 	i915_reg_t reg;
 	u32 regs[] = {
@@ -160,7 +161,7 @@ static void handle_tlb_pending_event(struct intel_vgpu *vgpu, int ring_id)
 	if (WARN_ON(ring_id >= ARRAY_SIZE(regs)))
 		return;
 
-	if (!test_and_clear_bit(ring_id, (void *)vgpu->tlb_handle_pending))
+	if (!test_and_clear_bit(ring_id, (void *)s->tlb_handle_pending))
 		return;
 
 	reg = _MMIO(regs[ring_id]);
@@ -208,7 +209,7 @@ static void load_mocs(struct intel_vgpu *vgpu, int ring_id)
 	offset.reg = regs[ring_id];
 	for (i = 0; i < 64; i++) {
 		gen9_render_mocs[ring_id][i] = I915_READ_FW(offset);
-		I915_WRITE(offset, vgpu_vreg(vgpu, offset));
+		I915_WRITE_FW(offset, vgpu_vreg(vgpu, offset));
 		offset.reg += 4;
 	}
 
@@ -261,14 +262,15 @@ static void restore_mocs(struct intel_vgpu *vgpu, int ring_id)
 static void switch_mmio_to_vgpu(struct intel_vgpu *vgpu, int ring_id)
 {
 	struct drm_i915_private *dev_priv = vgpu->gvt->dev_priv;
-	struct render_mmio *mmio;
-	u32 v;
-	int i, array_size;
-	u32 *reg_state = vgpu->shadow_ctx->engine[ring_id].lrc_reg_state;
+	struct intel_vgpu_submission *s = &vgpu->submission;
+	u32 *reg_state = s->shadow_ctx->engine[ring_id].lrc_reg_state;
 	u32 ctx_ctrl = reg_state[CTX_CONTEXT_CONTROL_VAL];
 	u32 inhibit_mask =
 		_MASKED_BIT_ENABLE(CTX_CTRL_ENGINE_CTX_RESTORE_INHIBIT);
 	i915_reg_t last_reg = _MMIO(0);
+	struct render_mmio *mmio;
+	u32 v;
+	int i, array_size;
 
 	if (IS_SKYLAKE(vgpu->gvt->dev_priv)
 		|| IS_KABYLAKE(vgpu->gvt->dev_priv)) {

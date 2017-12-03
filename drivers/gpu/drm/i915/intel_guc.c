@@ -23,6 +23,7 @@
  */
 
 #include "intel_guc.h"
+#include "intel_guc_submission.h"
 #include "i915_drv.h"
 
 static void gen8_guc_raise_irq(struct intel_guc *guc)
@@ -268,7 +269,6 @@ int intel_guc_auth_huc(struct intel_guc *guc, u32 rsa_offset)
 int intel_guc_suspend(struct drm_i915_private *dev_priv)
 {
 	struct intel_guc *guc = &dev_priv->guc;
-	struct i915_gem_context *ctx;
 	u32 data[3];
 
 	if (guc->fw.load_status != INTEL_UC_FIRMWARE_SUCCESS)
@@ -276,14 +276,33 @@ int intel_guc_suspend(struct drm_i915_private *dev_priv)
 
 	gen9_disable_guc_interrupts(dev_priv);
 
-	ctx = dev_priv->kernel_context;
-
 	data[0] = INTEL_GUC_ACTION_ENTER_S_STATE;
 	/* any value greater than GUC_POWER_D0 */
 	data[1] = GUC_POWER_D1;
-	/* first page is shared data with GuC */
-	data[2] = guc_ggtt_offset(ctx->engine[RCS].state) +
-		  LRC_GUCSHR_PN * PAGE_SIZE;
+	data[2] = guc_ggtt_offset(guc->shared_data);
+
+	return intel_guc_send(guc, data, ARRAY_SIZE(data));
+}
+
+/**
+ * intel_guc_reset_engine() - ask GuC to reset an engine
+ * @guc:	intel_guc structure
+ * @engine:	engine to be reset
+ */
+int intel_guc_reset_engine(struct intel_guc *guc,
+			   struct intel_engine_cs *engine)
+{
+	u32 data[7];
+
+	GEM_BUG_ON(!guc->execbuf_client);
+
+	data[0] = INTEL_GUC_ACTION_REQUEST_ENGINE_RESET;
+	data[1] = engine->guc_id;
+	data[2] = 0;
+	data[3] = 0;
+	data[4] = 0;
+	data[5] = guc->execbuf_client->stage_id;
+	data[6] = guc_ggtt_offset(guc->shared_data);
 
 	return intel_guc_send(guc, data, ARRAY_SIZE(data));
 }
@@ -295,7 +314,6 @@ int intel_guc_suspend(struct drm_i915_private *dev_priv)
 int intel_guc_resume(struct drm_i915_private *dev_priv)
 {
 	struct intel_guc *guc = &dev_priv->guc;
-	struct i915_gem_context *ctx;
 	u32 data[3];
 
 	if (guc->fw.load_status != INTEL_UC_FIRMWARE_SUCCESS)
@@ -304,13 +322,9 @@ int intel_guc_resume(struct drm_i915_private *dev_priv)
 	if (i915_modparams.guc_log_level >= 0)
 		gen9_enable_guc_interrupts(dev_priv);
 
-	ctx = dev_priv->kernel_context;
-
 	data[0] = INTEL_GUC_ACTION_EXIT_S_STATE;
 	data[1] = GUC_POWER_D0;
-	/* first page is shared data with GuC */
-	data[2] = guc_ggtt_offset(ctx->engine[RCS].state) +
-		  LRC_GUCSHR_PN * PAGE_SIZE;
+	data[2] = guc_ggtt_offset(guc->shared_data);
 
 	return intel_guc_send(guc, data, ARRAY_SIZE(data));
 }

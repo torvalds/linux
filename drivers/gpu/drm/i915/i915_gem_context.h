@@ -157,7 +157,6 @@ struct i915_gem_context {
 		u32 *lrc_reg_state;
 		u64 lrc_desc;
 		int pin_count;
-		bool initialised;
 	} engine[I915_NUM_ENGINES];
 
 	/** ring_size: size for allocating the per-engine ring buffer */
@@ -291,6 +290,9 @@ int i915_gem_context_setparam_ioctl(struct drm_device *dev, void *data,
 				    struct drm_file *file_priv);
 int i915_gem_context_reset_stats_ioctl(struct drm_device *dev, void *data,
 				       struct drm_file *file);
+
+struct i915_gem_context *
+i915_gem_context_create_kernel(struct drm_i915_private *i915, int prio);
 
 static inline struct i915_gem_context *
 i915_gem_context_get(struct i915_gem_context *ctx)

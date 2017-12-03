@@ -822,7 +822,7 @@ intel_enable_tv(struct intel_encoder *encoder,
 
 	/* Prevents vblank waits from timing out in intel_tv_detect_type() */
 	intel_wait_for_vblank(dev_priv,
-			      to_intel_crtc(encoder->base.crtc)->pipe);
+			      to_intel_crtc(pipe_config->base.crtc)->pipe);
 
 	I915_WRITE(TV_CTL, I915_READ(TV_CTL) | TV_ENC_ENABLE);
 }
@@ -868,6 +868,8 @@ static void
 intel_tv_get_config(struct intel_encoder *encoder,
 		    struct intel_crtc_state *pipe_config)
 {
+	pipe_config->output_types |= BIT(INTEL_OUTPUT_TVOUT);
+
 	pipe_config->base.adjusted_mode.crtc_clock = pipe_config->port_clock;
 }
 
@@ -980,7 +982,7 @@ static void intel_tv_pre_enable(struct intel_encoder *encoder,
 				const struct drm_connector_state *conn_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-	struct intel_crtc *intel_crtc = to_intel_crtc(encoder->base.crtc);
+	struct intel_crtc *intel_crtc = to_intel_crtc(pipe_config->base.crtc);
 	struct intel_tv *intel_tv = enc_to_tv(encoder);
 	const struct tv_mode *tv_mode = intel_tv_mode_find(conn_state);
 	u32 tv_ctl;

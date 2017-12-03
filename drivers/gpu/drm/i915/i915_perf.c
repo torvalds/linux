@@ -207,6 +207,8 @@
 #include "i915_oa_kblgt3.h"
 #include "i915_oa_glk.h"
 #include "i915_oa_cflgt2.h"
+#include "i915_oa_cflgt3.h"
+#include "i915_oa_cnl.h"
 
 /* HW requires this to be a power of two, between 128k and 16M, though driver
  * is currently generally designed assuming the largest 16M size is used such
@@ -1851,7 +1853,7 @@ static int gen8_enable_metric_set(struct drm_i915_private *dev_priv,
 	 * be read back from automatically triggered reports, as part of the
 	 * RPT_ID field.
 	 */
-	if (IS_GEN9(dev_priv)) {
+	if (IS_GEN9(dev_priv) || IS_GEN10(dev_priv)) {
 		I915_WRITE(GEN8_OA_DEBUG,
 			   _MASKED_BIT_ENABLE(GEN9_OA_DEBUG_DISABLE_CLK_RATIO_REPORTS |
 					      GEN9_OA_DEBUG_INCLUDE_CLK_RATIO));
@@ -1882,6 +1884,16 @@ static void gen8_disable_metric_set(struct drm_i915_private *dev_priv)
 	I915_WRITE(GDT_CHICKEN_BITS, (I915_READ(GDT_CHICKEN_BITS) &
 				      ~GT_NOA_ENABLE));
 
+}
+
+static void gen10_disable_metric_set(struct drm_i915_private *dev_priv)
+{
+	/* Reset all contexts' slices/subslices configurations. */
+	gen8_configure_all_contexts(dev_priv, NULL, false);
+
+	/* Make sure we disable noa to save power. */
+	I915_WRITE(RPM_CONFIG1,
+		   I915_READ(RPM_CONFIG1) & ~GEN10_GT_NOA_ENABLE);
 }
 
 static void gen7_oa_enable(struct drm_i915_private *dev_priv)
@@ -2934,6 +2946,10 @@ void i915_perf_register(struct drm_i915_private *dev_priv)
 	} else if (IS_COFFEELAKE(dev_priv)) {
 		if (IS_CFL_GT2(dev_priv))
 			i915_perf_load_test_config_cflgt2(dev_priv);
+		if (IS_CFL_GT3(dev_priv))
+			i915_perf_load_test_config_cflgt3(dev_priv);
+	} else if (IS_CANNONLAKE(dev_priv)) {
+		i915_perf_load_test_config_cnl(dev_priv);
 	}
 
 	if (dev_priv->perf.oa.test_config.id == 0)
@@ -3019,11 +3035,18 @@ static bool gen8_is_valid_mux_addr(struct drm_i915_private *dev_priv, u32 addr)
 		(addr >= RPM_CONFIG0.reg && addr <= NOA_CONFIG(8).reg);
 }
 
+static bool gen10_is_valid_mux_addr(struct drm_i915_private *dev_priv, u32 addr)
+{
+	return gen8_is_valid_mux_addr(dev_priv, addr) ||
+		(addr >= OA_PERFCNT3_LO.reg && addr <= OA_PERFCNT4_HI.reg);
+}
+
 static bool hsw_is_valid_mux_addr(struct drm_i915_private *dev_priv, u32 addr)
 {
 	return gen7_is_valid_mux_addr(dev_priv, addr) ||
 		(addr >= 0x25100 && addr <= 0x2FF90) ||
-		addr == 0x9ec0;
+		(addr >= HSW_MBVID2_NOA0.reg && addr <= HSW_MBVID2_NOA9.reg) ||
+		addr == HSW_MBVID2_MISR0.reg;
 }
 
 static bool chv_is_valid_mux_addr(struct drm_i915_private *dev_priv, u32 addr)
@@ -3419,41 +3442,46 @@ void i915_perf_init(struct drm_i915_private *dev_priv)
 		 * worth the complexity to maintain now that BDW+ enable
 		 * execlist mode by default.
 		 */
-		dev_priv->perf.oa.ops.is_valid_b_counter_reg =
-			gen7_is_valid_b_counter_addr;
-		dev_priv->perf.oa.ops.is_valid_mux_reg =
-			gen8_is_valid_mux_addr;
-		dev_priv->perf.oa.ops.is_valid_flex_reg =
-			gen8_is_valid_flex_addr;
+		dev_priv->perf.oa.oa_formats = gen8_plus_oa_formats;
 
 		dev_priv->perf.oa.ops.init_oa_buffer = gen8_init_oa_buffer;
-		dev_priv->perf.oa.ops.enable_metric_set = gen8_enable_metric_set;
-		dev_priv->perf.oa.ops.disable_metric_set = gen8_disable_metric_set;
 		dev_priv->perf.oa.ops.oa_enable = gen8_oa_enable;
 		dev_priv->perf.oa.ops.oa_disable = gen8_oa_disable;
 		dev_priv->perf.oa.ops.read = gen8_oa_read;
 		dev_priv->perf.oa.ops.oa_hw_tail_read = gen8_oa_hw_tail_read;
 
-		dev_priv->perf.oa.oa_formats = gen8_plus_oa_formats;
+		if (IS_GEN8(dev_priv) || IS_GEN9(dev_priv)) {
+			dev_priv->perf.oa.ops.is_valid_b_counter_reg =
+				gen7_is_valid_b_counter_addr;
+			dev_priv->perf.oa.ops.is_valid_mux_reg =
+				gen8_is_valid_mux_addr;
+			dev_priv->perf.oa.ops.is_valid_flex_reg =
+				gen8_is_valid_flex_addr;
 
-		if (IS_GEN8(dev_priv)) {
-			dev_priv->perf.oa.ctx_oactxctrl_offset = 0x120;
-			dev_priv->perf.oa.ctx_flexeu0_offset = 0x2ce;
-
-			dev_priv->perf.oa.timestamp_frequency = 12500000;
-
-			dev_priv->perf.oa.gen8_valid_ctx_bit = (1<<25);
 			if (IS_CHERRYVIEW(dev_priv)) {
 				dev_priv->perf.oa.ops.is_valid_mux_reg =
 					chv_is_valid_mux_addr;
 			}
-		} else if (IS_GEN9(dev_priv)) {
-			dev_priv->perf.oa.ctx_oactxctrl_offset = 0x128;
-			dev_priv->perf.oa.ctx_flexeu0_offset = 0x3de;
 
-			dev_priv->perf.oa.gen8_valid_ctx_bit = (1<<16);
+			dev_priv->perf.oa.ops.enable_metric_set = gen8_enable_metric_set;
+			dev_priv->perf.oa.ops.disable_metric_set = gen8_disable_metric_set;
+
+			if (IS_GEN8(dev_priv)) {
+				dev_priv->perf.oa.ctx_oactxctrl_offset = 0x120;
+				dev_priv->perf.oa.ctx_flexeu0_offset = 0x2ce;
+
+				dev_priv->perf.oa.gen8_valid_ctx_bit = (1<<25);
+			} else {
+				dev_priv->perf.oa.ctx_oactxctrl_offset = 0x128;
+				dev_priv->perf.oa.ctx_flexeu0_offset = 0x3de;
+
+				dev_priv->perf.oa.gen8_valid_ctx_bit = (1<<16);
+			}
 
 			switch (dev_priv->info.platform) {
+			case INTEL_BROADWELL:
+				dev_priv->perf.oa.timestamp_frequency = 12500000;
+				break;
 			case INTEL_BROXTON:
 			case INTEL_GEMINILAKE:
 				dev_priv->perf.oa.timestamp_frequency = 19200000;
@@ -3464,11 +3492,28 @@ void i915_perf_init(struct drm_i915_private *dev_priv)
 				dev_priv->perf.oa.timestamp_frequency = 12000000;
 				break;
 			default:
-				/* Leave timestamp_frequency to 0 so we can
-				 * detect unsupported platforms.
-				 */
 				break;
 			}
+		} else if (IS_GEN10(dev_priv)) {
+			dev_priv->perf.oa.ops.is_valid_b_counter_reg =
+				gen7_is_valid_b_counter_addr;
+			dev_priv->perf.oa.ops.is_valid_mux_reg =
+				gen10_is_valid_mux_addr;
+			dev_priv->perf.oa.ops.is_valid_flex_reg =
+				gen8_is_valid_flex_addr;
+
+			dev_priv->perf.oa.ops.enable_metric_set = gen8_enable_metric_set;
+			dev_priv->perf.oa.ops.disable_metric_set = gen10_disable_metric_set;
+
+			dev_priv->perf.oa.ctx_oactxctrl_offset = 0x128;
+			dev_priv->perf.oa.ctx_flexeu0_offset = 0x3de;
+
+			dev_priv->perf.oa.gen8_valid_ctx_bit = (1<<16);
+
+			/* Default frequency, although we need to read it from
+			 * the register as it might vary between parts.
+			 */
+			dev_priv->perf.oa.timestamp_frequency = 12000000;
 		}
 	}
 

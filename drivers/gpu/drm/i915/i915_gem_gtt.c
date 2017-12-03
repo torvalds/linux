@@ -454,6 +454,14 @@ static void vm_free_pages_release(struct i915_address_space *vm,
 
 static void vm_free_page(struct i915_address_space *vm, struct page *page)
 {
+	/*
+	 * On !llc, we need to change the pages back to WB. We only do so
+	 * in bulk, so we rarely need to change the page attributes here,
+	 * but doing so requires a stop_machine() from deep inside arch/x86/mm.
+	 * To make detection of the possible sleep more likely, use an
+	 * unconditional might_sleep() for everybody.
+	 */
+	might_sleep();
 	if (!pagevec_add(&vm->free_pages, page))
 		vm_free_pages_release(vm, false);
 }
@@ -2248,35 +2256,62 @@ static bool needs_idle_maps(struct drm_i915_private *dev_priv)
 	return IS_GEN5(dev_priv) && IS_MOBILE(dev_priv) && intel_vtd_active();
 }
 
-void i915_check_and_clear_faults(struct drm_i915_private *dev_priv)
+static void gen6_check_and_clear_faults(struct drm_i915_private *dev_priv)
 {
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
-
-	if (INTEL_INFO(dev_priv)->gen < 6)
-		return;
+	u32 fault;
 
 	for_each_engine(engine, dev_priv, id) {
-		u32 fault_reg;
-		fault_reg = I915_READ(RING_FAULT_REG(engine));
-		if (fault_reg & RING_FAULT_VALID) {
+		fault = I915_READ(RING_FAULT_REG(engine));
+		if (fault & RING_FAULT_VALID) {
 			DRM_DEBUG_DRIVER("Unexpected fault\n"
 					 "\tAddr: 0x%08lx\n"
 					 "\tAddress space: %s\n"
 					 "\tSource ID: %d\n"
 					 "\tType: %d\n",
-					 fault_reg & PAGE_MASK,
-					 fault_reg & RING_FAULT_GTTSEL_MASK ? "GGTT" : "PPGTT",
-					 RING_FAULT_SRCID(fault_reg),
-					 RING_FAULT_FAULT_TYPE(fault_reg));
+					 fault & PAGE_MASK,
+					 fault & RING_FAULT_GTTSEL_MASK ? "GGTT" : "PPGTT",
+					 RING_FAULT_SRCID(fault),
+					 RING_FAULT_FAULT_TYPE(fault));
 			I915_WRITE(RING_FAULT_REG(engine),
-				   fault_reg & ~RING_FAULT_VALID);
+				   fault & ~RING_FAULT_VALID);
 		}
 	}
 
-	/* Engine specific init may not have been done till this point. */
-	if (dev_priv->engine[RCS])
-		POSTING_READ(RING_FAULT_REG(dev_priv->engine[RCS]));
+	POSTING_READ(RING_FAULT_REG(dev_priv->engine[RCS]));
+}
+
+static void gen8_check_and_clear_faults(struct drm_i915_private *dev_priv)
+{
+	u32 fault = I915_READ(GEN8_RING_FAULT_REG);
+
+	if (fault & RING_FAULT_VALID) {
+		DRM_DEBUG_DRIVER("Unexpected fault\n"
+				 "\tAddr: 0x%08lx\n"
+				 "\tEngine ID: %d\n"
+				 "\tSource ID: %d\n"
+				 "\tType: %d\n",
+				 fault & PAGE_MASK,
+				 GEN8_RING_FAULT_ENGINE_ID(fault),
+				 RING_FAULT_SRCID(fault),
+				 RING_FAULT_FAULT_TYPE(fault));
+		I915_WRITE(GEN8_RING_FAULT_REG,
+			   fault & ~RING_FAULT_VALID);
+	}
+
+	POSTING_READ(GEN8_RING_FAULT_REG);
+}
+
+void i915_check_and_clear_faults(struct drm_i915_private *dev_priv)
+{
+	/* From GEN8 onwards we only have one 'All Engine Fault Register' */
+	if (INTEL_GEN(dev_priv) >= 8)
+		gen8_check_and_clear_faults(dev_priv);
+	else if (INTEL_GEN(dev_priv) >= 6)
+		gen6_check_and_clear_faults(dev_priv);
+	else
+		return;
 }
 
 void i915_gem_suspend_gtt_mappings(struct drm_i915_private *dev_priv)
@@ -3041,7 +3076,7 @@ const struct intel_ppat_entry *
 intel_ppat_get(struct drm_i915_private *i915, u8 value)
 {
 	struct intel_ppat *ppat = &i915->ppat;
-	struct intel_ppat_entry *entry;
+	struct intel_ppat_entry *entry = NULL;
 	unsigned int scanned, best_score;
 	int i;
 
@@ -3064,7 +3099,7 @@ intel_ppat_get(struct drm_i915_private *i915, u8 value)
 	}
 
 	if (scanned == ppat->max_entries) {
-		if (!best_score)
+		if (!entry)
 			return ERR_PTR(-ENOSPC);
 
 		kref_get(&entry->ref);
@@ -3170,12 +3205,6 @@ static void cnl_setup_private_ppat(struct intel_ppat *ppat)
 	ppat->update_hw = cnl_private_pat_update_hw;
 	ppat->match = bdw_private_pat_match;
 	ppat->clear_value = GEN8_PPAT_WB | GEN8_PPAT_LLCELLC | GEN8_PPAT_AGE(3);
-
-	/* XXX: spec is unclear if this is still needed for CNL+ */
-	if (!USES_PPGTT(ppat->i915)) {
-		__alloc_ppat_entry(ppat, 0, GEN8_PPAT_UC);
-		return;
-	}
 
 	__alloc_ppat_entry(ppat, 0, GEN8_PPAT_WB | GEN8_PPAT_LLC);
 	__alloc_ppat_entry(ppat, 1, GEN8_PPAT_WC | GEN8_PPAT_LLCELLC);
