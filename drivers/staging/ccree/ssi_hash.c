@@ -114,7 +114,7 @@ static void ssi_hash_create_data_desc(
 	bool is_not_last_data,
 	unsigned int *seq_size);
 
-static inline void ssi_set_hash_endianity(u32 mode, struct cc_hw_desc *desc)
+static void ssi_set_hash_endianity(u32 mode, struct cc_hw_desc *desc)
 {
 	if (unlikely(mode == DRV_HASH_MD5 ||
 		     mode == DRV_HASH_SHA384 ||

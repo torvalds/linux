@@ -165,7 +165,7 @@ req_mgr_init_err:
 	return rc;
 }
 
-static inline void enqueue_seq(
+static void enqueue_seq(
 	void __iomem *cc_base,
 	struct cc_hw_desc seq[], unsigned int seq_len)
 {
@@ -202,7 +202,7 @@ static void request_mgr_complete(struct device *dev, void *dx_compl_h)
 	complete(this_compl);
 }
 
-static inline int request_mgr_queues_status_check(
+static int request_mgr_queues_status_check(
 		struct ssi_drvdata *drvdata,
 		struct ssi_request_mgr_handle *req_mgr_h,
 		unsigned int total_seq_len)

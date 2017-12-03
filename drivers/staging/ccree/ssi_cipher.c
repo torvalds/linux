@@ -432,7 +432,7 @@ static int ssi_blkcipher_setkey(struct crypto_tfm *tfm,
 	return 0;
 }
 
-static inline void
+static void
 ssi_blkcipher_create_setup_desc(
 	struct crypto_tfm *tfm,
 	struct blkcipher_req_ctx *req_ctx,
@@ -562,7 +562,7 @@ ssi_blkcipher_create_setup_desc(
 }
 
 #if SSI_CC_HAS_MULTI2
-static inline void ssi_blkcipher_create_multi2_setup_desc(
+static void ssi_blkcipher_create_multi2_setup_desc(
 	struct crypto_tfm *tfm,
 	struct blkcipher_req_ctx *req_ctx,
 	unsigned int ivsize,
@@ -606,7 +606,7 @@ static inline void ssi_blkcipher_create_multi2_setup_desc(
 }
 #endif /*SSI_CC_HAS_MULTI2*/
 
-static inline void
+static void
 ssi_blkcipher_create_data_desc(
 	struct crypto_tfm *tfm,
 	struct blkcipher_req_ctx *req_ctx,

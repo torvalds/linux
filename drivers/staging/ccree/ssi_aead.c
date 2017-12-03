@@ -733,7 +733,7 @@ static int ssi_ccm_setauthsize(struct crypto_aead *authenc,
 }
 #endif /*SSI_CC_HAS_AES_CCM*/
 
-static inline void
+static void
 ssi_aead_create_assoc_desc(
 	struct aead_request *areq,
 	unsigned int flow_mode,
@@ -776,7 +776,7 @@ ssi_aead_create_assoc_desc(
 	*seq_size = (++idx);
 }
 
-static inline void
+static void
 ssi_aead_process_authenc_data_desc(
 	struct aead_request *areq,
 	unsigned int flow_mode,
@@ -843,7 +843,7 @@ ssi_aead_process_authenc_data_desc(
 	*seq_size = (++idx);
 }
 
-static inline void
+static void
 ssi_aead_process_cipher_data_desc(
 	struct aead_request *areq,
 	unsigned int flow_mode,
@@ -891,7 +891,7 @@ ssi_aead_process_cipher_data_desc(
 	*seq_size = (++idx);
 }
 
-static inline void ssi_aead_process_digest_result_desc(
+static void ssi_aead_process_digest_result_desc(
 	struct aead_request *req,
 	struct cc_hw_desc desc[],
 	unsigned int *seq_size)
@@ -942,7 +942,7 @@ static inline void ssi_aead_process_digest_result_desc(
 	*seq_size = (++idx);
 }
 
-static inline void ssi_aead_setup_cipher_desc(
+static void ssi_aead_setup_cipher_desc(
 	struct aead_request *req,
 	struct cc_hw_desc desc[],
 	unsigned int *seq_size)
@@ -988,7 +988,7 @@ static inline void ssi_aead_setup_cipher_desc(
 	*seq_size = idx;
 }
 
-static inline void ssi_aead_process_cipher(
+static void ssi_aead_process_cipher(
 	struct aead_request *req,
 	struct cc_hw_desc desc[],
 	unsigned int *seq_size,
@@ -1014,7 +1014,7 @@ static inline void ssi_aead_process_cipher(
 	*seq_size = idx;
 }
 
-static inline void ssi_aead_hmac_setup_digest_desc(
+static void ssi_aead_hmac_setup_digest_desc(
 	struct aead_request *req,
 	struct cc_hw_desc desc[],
 	unsigned int *seq_size)
@@ -1051,7 +1051,7 @@ static inline void ssi_aead_hmac_setup_digest_desc(
 	*seq_size = idx;
 }
 
-static inline void ssi_aead_xcbc_setup_digest_desc(
+static void ssi_aead_xcbc_setup_digest_desc(
 	struct aead_request *req,
 	struct cc_hw_desc desc[],
 	unsigned int *seq_size)
@@ -1113,7 +1113,7 @@ static inline void ssi_aead_xcbc_setup_digest_desc(
 	*seq_size = idx;
 }
 
-static inline void ssi_aead_process_digest_header_desc(
+static void ssi_aead_process_digest_header_desc(
 	struct aead_request *req,
 	struct cc_hw_desc desc[],
 	unsigned int *seq_size)
@@ -1127,7 +1127,7 @@ static inline void ssi_aead_process_digest_header_desc(
 	*seq_size = idx;
 }
 
-static inline void ssi_aead_process_digest_scheme_desc(
+static void ssi_aead_process_digest_scheme_desc(
 	struct aead_request *req,
 	struct cc_hw_desc desc[],
 	unsigned int *seq_size)
@@ -1192,7 +1192,7 @@ static inline void ssi_aead_process_digest_scheme_desc(
 	*seq_size = idx;
 }
 
-static inline void ssi_aead_load_mlli_to_sram(
+static void ssi_aead_load_mlli_to_sram(
 	struct aead_request *req,
 	struct cc_hw_desc desc[],
 	unsigned int *seq_size)
@@ -1222,7 +1222,7 @@ static inline void ssi_aead_load_mlli_to_sram(
 	}
 }
 
-static inline enum cc_flow_mode ssi_aead_get_data_flow_mode(
+static enum cc_flow_mode ssi_aead_get_data_flow_mode(
 	enum drv_crypto_direction direct,
 	enum cc_flow_mode setup_flow_mode,
 	bool is_single_pass)
@@ -1248,7 +1248,7 @@ static inline enum cc_flow_mode ssi_aead_get_data_flow_mode(
 	return data_flow_mode;
 }
 
-static inline void ssi_aead_hmac_authenc(
+static void ssi_aead_hmac_authenc(
 	struct aead_request *req,
 	struct cc_hw_desc desc[],
 	unsigned int *seq_size)
@@ -1304,7 +1304,7 @@ static inline void ssi_aead_hmac_authenc(
 	}
 }
 
-static inline void
+static void
 ssi_aead_xcbc_authenc(
 	struct aead_request *req,
 	struct cc_hw_desc desc[],
@@ -1456,7 +1456,7 @@ static int set_msg_len(u8 *block, unsigned int msglen, unsigned int csize)
 	return 0;
 }
 
-static inline int ssi_aead_ccm(
+static int ssi_aead_ccm(
 	struct aead_request *req,
 	struct cc_hw_desc desc[],
 	unsigned int *seq_size)
@@ -1667,7 +1667,7 @@ static void ssi_rfc4309_ccm_process(struct aead_request *req)
 
 #if SSI_CC_HAS_AES_GCM
 
-static inline void ssi_aead_gcm_setup_ghash_desc(
+static void ssi_aead_gcm_setup_ghash_desc(
 	struct aead_request *req,
 	struct cc_hw_desc desc[],
 	unsigned int *seq_size)
@@ -1747,7 +1747,7 @@ static inline void ssi_aead_gcm_setup_ghash_desc(
 	*seq_size = idx;
 }
 
-static inline void ssi_aead_gcm_setup_gctr_desc(
+static void ssi_aead_gcm_setup_gctr_desc(
 	struct aead_request *req,
 	struct cc_hw_desc desc[],
 	unsigned int *seq_size)
@@ -1785,7 +1785,7 @@ static inline void ssi_aead_gcm_setup_gctr_desc(
 	*seq_size = idx;
 }
 
-static inline void ssi_aead_process_gcm_result_desc(
+static void ssi_aead_process_gcm_result_desc(
 	struct aead_request *req,
 	struct cc_hw_desc desc[],
 	unsigned int *seq_size)
@@ -1851,7 +1851,7 @@ static inline void ssi_aead_process_gcm_result_desc(
 	*seq_size = idx;
 }
 
-static inline int ssi_aead_gcm(
+static int ssi_aead_gcm(
 	struct aead_request *req,
 	struct cc_hw_desc desc[],
 	unsigned int *seq_size)
@@ -1892,7 +1892,7 @@ static inline int ssi_aead_gcm(
 }
 
 #ifdef CC_DEBUG
-static inline void ssi_aead_dump_gcm(
+static void ssi_aead_dump_gcm(
 	const char *title,
 	struct aead_request *req)
 {

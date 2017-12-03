@@ -80,8 +80,8 @@ static inline char *cc_dma_buf_type(enum ssi_req_dma_buf_type type)
  * @req: aead request object
  * @dir: [IN] copy from/to sgl
  */
-static inline void cc_copy_mac(struct device *dev, struct aead_request *req,
-			       enum ssi_sg_cpy_direct dir)
+static void cc_copy_mac(struct device *dev, struct aead_request *req,
+			enum ssi_sg_cpy_direct dir)
 {
 	struct aead_req_ctx *areq_ctx = aead_request_ctx(req);
 	struct crypto_aead *tfm = crypto_aead_reqtfm(req);
@@ -168,7 +168,7 @@ void cc_copy_sg_portion(
 		       (direct == SSI_SG_TO_BUF));
 }
 
-static inline int cc_render_buff_to_mlli(
+static int cc_render_buff_to_mlli(
 	struct device *dev, dma_addr_t buff_dma, u32 buff_size,
 	u32 *curr_nents, u32 **mlli_entry_pp)
 {
@@ -204,7 +204,7 @@ static inline int cc_render_buff_to_mlli(
 	return 0;
 }
 
-static inline int cc_render_sg_to_mlli(
+static int cc_render_sg_to_mlli(
 	struct device *dev, struct scatterlist *sgl,
 	u32 sgl_data_len, u32 sgl_offset, u32 *curr_nents,
 	u32 **mlli_entry_pp)
@@ -293,7 +293,7 @@ build_mlli_exit:
 	return rc;
 }
 
-static inline void cc_add_buffer_entry(
+static void cc_add_buffer_entry(
 	struct device *dev, struct buffer_array *sgl_data,
 	dma_addr_t buffer_dma, unsigned int buffer_len,
 	bool is_last_entry, u32 *mlli_nents)
@@ -314,7 +314,7 @@ static inline void cc_add_buffer_entry(
 	sgl_data->num_of_buffers++;
 }
 
-static inline void cc_add_sg_entry(
+static void cc_add_sg_entry(
 	struct device *dev,
 	struct buffer_array *sgl_data,
 	unsigned int nents,
@@ -425,7 +425,7 @@ static int cc_map_sg(
 	return 0;
 }
 
-static inline int
+static int
 ssi_aead_handle_config_buf(struct device *dev,
 			   struct aead_req_ctx *areq_ctx,
 			   u8 *config_data,
@@ -455,11 +455,10 @@ ssi_aead_handle_config_buf(struct device *dev,
 	return 0;
 }
 
-static inline int ssi_ahash_handle_curr_buf(struct device *dev,
-					    struct ahash_req_ctx *areq_ctx,
-					    u8 *curr_buff,
-					    u32 curr_buff_cnt,
-					    struct buffer_array *sg_data)
+static int ssi_ahash_handle_curr_buf(struct device *dev,
+				     struct ahash_req_ctx *areq_ctx,
+				     u8 *curr_buff, u32 curr_buff_cnt,
+				     struct buffer_array *sg_data)
 {
 	dev_dbg(dev, " handle curr buff %x set to   DLLI\n", curr_buff_cnt);
 	/* create sg for the current buffer */
@@ -710,7 +709,7 @@ void cc_unmap_aead_request(struct device *dev, struct aead_request *req)
 	}
 }
 
-static inline int cc_get_aead_icv_nents(
+static int cc_get_aead_icv_nents(
 	struct device *dev,
 	struct scatterlist *sgl,
 	unsigned int sgl_nents,
@@ -764,7 +763,7 @@ static inline int cc_get_aead_icv_nents(
 	return nents;
 }
 
-static inline int cc_aead_chain_iv(
+static int cc_aead_chain_iv(
 	struct ssi_drvdata *drvdata,
 	struct aead_request *req,
 	struct buffer_array *sg_data,
@@ -809,7 +808,7 @@ chain_iv_exit:
 	return rc;
 }
 
-static inline int cc_aead_chain_assoc(
+static int cc_aead_chain_assoc(
 	struct ssi_drvdata *drvdata,
 	struct aead_request *req,
 	struct buffer_array *sg_data,
@@ -904,7 +903,7 @@ chain_assoc_exit:
 	return rc;
 }
 
-static inline void cc_prepare_aead_data_dlli(
+static void cc_prepare_aead_data_dlli(
 	struct aead_request *req,
 	u32 *src_last_bytes, u32 *dst_last_bytes)
 {
@@ -940,7 +939,7 @@ static inline void cc_prepare_aead_data_dlli(
 	}
 }
 
-static inline int cc_prepare_aead_data_mlli(
+static int cc_prepare_aead_data_mlli(
 	struct ssi_drvdata *drvdata,
 	struct aead_request *req,
 	struct buffer_array *sg_data,
@@ -1075,7 +1074,7 @@ prepare_data_mlli_exit:
 	return rc;
 }
 
-static inline int cc_aead_chain_data(
+static int cc_aead_chain_data(
 	struct ssi_drvdata *drvdata,
 	struct aead_request *req,
 	struct buffer_array *sg_data,
