@@ -711,7 +711,7 @@ union perf_event *perf_evlist__mmap_read_forward(struct perf_evlist *evlist, int
 	 * No need for read-write ring buffer: kernel stop outputting when
 	 * it hit md->prev (perf_mmap__consume()).
 	 */
-	return perf_mmap__read_forward(md, evlist->overwrite);
+	return perf_mmap__read_forward(md, false);
 }
 
 union perf_event *perf_evlist__mmap_read_backward(struct perf_evlist *evlist, int idx)
@@ -738,7 +738,7 @@ void perf_evlist__mmap_read_catchup(struct perf_evlist *evlist, int idx)
 
 void perf_evlist__mmap_consume(struct perf_evlist *evlist, int idx)
 {
-	perf_mmap__consume(&evlist->mmap[idx], evlist->overwrite);
+	perf_mmap__consume(&evlist->mmap[idx], false);
 }
 
 static void perf_evlist__munmap_nofree(struct perf_evlist *evlist)
@@ -1070,7 +1070,6 @@ int perf_evlist__mmap_ex(struct perf_evlist *evlist, unsigned int pages,
 	if (evlist->pollfd.entries == NULL && perf_evlist__alloc_pollfd(evlist) < 0)
 		return -ENOMEM;
 
-	evlist->overwrite = false;
 	evlist->mmap_len = perf_evlist__mmap_size(pages);
 	pr_debug("mmap size %zuB\n", evlist->mmap_len);
 	mp.mask = evlist->mmap_len - page_size - 1;
