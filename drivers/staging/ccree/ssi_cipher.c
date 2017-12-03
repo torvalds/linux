@@ -907,6 +907,7 @@ static int ssi_ablkcipher_encrypt(struct ablkcipher_request *req)
 	unsigned int ivsize = crypto_ablkcipher_ivsize(ablk_tfm);
 
 	req_ctx->is_giv = false;
+	req_ctx->backup_info = NULL;
 
 	return ssi_blkcipher_process(tfm, req_ctx, req->dst, req->src,
 				     req->nbytes, req->info, ivsize,
