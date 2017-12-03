@@ -100,6 +100,9 @@ void __init mem_init(void)
 
 	mem_init_print_info(NULL);
 	pr_info("virtual kernel memory layout:\n"
+#ifdef CONFIG_KASAN
+		"    kasan   : 0x%08lx - 0x%08lx  (%5lu MB)\n"
+#endif
 #ifdef CONFIG_MMU
 		"    vmalloc : 0x%08lx - 0x%08lx  (%5lu MB)\n"
 #endif
@@ -108,6 +111,10 @@ void __init mem_init(void)
 		"    fixmap  : 0x%08lx - 0x%08lx  (%5lu kB)\n"
 #endif
 		"    lowmem  : 0x%08lx - 0x%08lx  (%5lu MB)\n",
+#ifdef CONFIG_KASAN
+		KASAN_SHADOW_START, KASAN_SHADOW_START + KASAN_SHADOW_SIZE,
+		KASAN_SHADOW_SIZE >> 20,
+#endif
 #ifdef CONFIG_MMU
 		VMALLOC_START, VMALLOC_END,
 		(VMALLOC_END - VMALLOC_START) >> 20,

@@ -71,6 +71,8 @@ Default MMUv2-compatible layout.
 +------------------+
 | Page table       |  XCHAL_PAGE_TABLE_VADDR   0x80000000  XCHAL_PAGE_TABLE_SIZE
 +------------------+
+| KASAN shadow map |  KASAN_SHADOW_START       0x80400000  KASAN_SHADOW_SIZE
++------------------+                           0x8e400000
 +------------------+
 | VMALLOC area     |  VMALLOC_START            0xc0000000  128MB - 64KB
 +------------------+  VMALLOC_END
@@ -111,6 +113,8 @@ Default MMUv2-compatible layout.
 +------------------+
 | Page table       |  XCHAL_PAGE_TABLE_VADDR   0x80000000  XCHAL_PAGE_TABLE_SIZE
 +------------------+
+| KASAN shadow map |  KASAN_SHADOW_START       0x80400000  KASAN_SHADOW_SIZE
++------------------+                           0x8e400000
 +------------------+
 | VMALLOC area     |  VMALLOC_START            0xa0000000  128MB - 64KB
 +------------------+  VMALLOC_END
@@ -152,6 +156,8 @@ Default MMUv2-compatible layout.
 +------------------+
 | Page table       |  XCHAL_PAGE_TABLE_VADDR   0x80000000  XCHAL_PAGE_TABLE_SIZE
 +------------------+
+| KASAN shadow map |  KASAN_SHADOW_START       0x80400000  KASAN_SHADOW_SIZE
++------------------+                           0x8e400000
 +------------------+
 | VMALLOC area     |  VMALLOC_START            0x90000000  128MB - 64KB
 +------------------+  VMALLOC_END

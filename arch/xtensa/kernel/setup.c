@@ -36,6 +36,7 @@
 #endif
 
 #include <asm/bootparam.h>
+#include <asm/kasan.h>
 #include <asm/mmu_context.h>
 #include <asm/pgtable.h>
 #include <asm/processor.h>
@@ -251,6 +252,10 @@ void __init init_arch(bp_tag_t *bp_start)
 
 	init_mmu();
 
+	/* Initialize initial KASAN shadow map */
+
+	kasan_early_init();
+
 	/* Parse boot parameters */
 
 	if (bp_start)
@@ -388,7 +393,7 @@ void __init setup_arch(char **cmdline_p)
 #endif
 	parse_early_param();
 	bootmem_init();
-
+	kasan_init();
 	unflatten_and_copy_device_tree();
 
 #ifdef CONFIG_SMP

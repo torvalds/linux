@@ -109,7 +109,8 @@
 	addi	a5, a5,  2
 	j	.Ldstaligned	# dst is now aligned, return to main algorithm
 
-ENTRY(memcpy)
+ENTRY(__memcpy)
+WEAK(memcpy)
 
 	entry	sp, 16		# minimal stack frame
 	# a2/ dst, a3/ src, a4/ len
@@ -271,7 +272,7 @@ ENTRY(memcpy)
 	s8i	a6, a5,  0
 	retw
 
-ENDPROC(memcpy)
+ENDPROC(__memcpy)
 
 /*
  * void bcopy(const void *src, void *dest, size_t n);
@@ -376,7 +377,8 @@ ENDPROC(bcopy)
 	j	.Lbackdstaligned	# dst is now aligned,
 					# return to main algorithm
 
-ENTRY(memmove)
+ENTRY(__memmove)
+WEAK(memmove)
 
 	entry	sp, 16		# minimal stack frame
 	# a2/ dst, a3/ src, a4/ len
@@ -548,4 +550,4 @@ ENTRY(memmove)
 	s8i	a6, a5,  0
 	retw
 
-ENDPROC(memmove)
+ENDPROC(__memmove)

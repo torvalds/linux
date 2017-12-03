@@ -31,7 +31,8 @@
  */
 
 .text
-ENTRY(memset)
+ENTRY(__memset)
+WEAK(memset)
 
 	entry	sp, 16		# minimal stack frame
 	# a2/ dst, a3/ c, a4/ length
@@ -140,7 +141,7 @@ EX(10f) s8i	a3, a5, 0
 .Lbytesetdone:
 	retw
 
-ENDPROC(memset)
+ENDPROC(__memset)
 
 	.section .fixup, "ax"
 	.align	4
