@@ -22,6 +22,7 @@
 #include <net/flow.h>
 #include <net/flow_dissector.h>
 #include <net/snmp.h>
+#include <net/netns/hash.h>
 
 #define SIN6_LEN_RFC2133	24
 
@@ -671,6 +672,22 @@ static inline bool ipv6_addr_v4mapped(const struct in6_addr *a)
 #endif
 		(__force unsigned long)(a->s6_addr32[2] ^
 					cpu_to_be32(0x0000ffff))) == 0UL;
+}
+
+static inline u32 ipv6_portaddr_hash(const struct net *net,
+				     const struct in6_addr *addr6,
+				     unsigned int port)
+{
+	unsigned int hash, mix = net_hash_mix(net);
+
+	if (ipv6_addr_any(addr6))
+		hash = jhash_1word(0, mix);
+	else if (ipv6_addr_v4mapped(addr6))
+		hash = jhash_1word((__force u32)addr6->s6_addr32[3], mix);
+	else
+		hash = jhash2((__force u32 *)addr6->s6_addr32, 4, mix);
+
+	return hash ^ port;
 }
 
 /*

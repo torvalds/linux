@@ -357,18 +357,12 @@ fail:
 }
 EXPORT_SYMBOL(udp_lib_get_port);
 
-static u32 udp4_portaddr_hash(const struct net *net, __be32 saddr,
-			      unsigned int port)
-{
-	return jhash_1word((__force u32)saddr, net_hash_mix(net)) ^ port;
-}
-
 int udp_v4_get_port(struct sock *sk, unsigned short snum)
 {
 	unsigned int hash2_nulladdr =
-		udp4_portaddr_hash(sock_net(sk), htonl(INADDR_ANY), snum);
+		ipv4_portaddr_hash(sock_net(sk), htonl(INADDR_ANY), snum);
 	unsigned int hash2_partial =
-		udp4_portaddr_hash(sock_net(sk), inet_sk(sk)->inet_rcv_saddr, 0);
+		ipv4_portaddr_hash(sock_net(sk), inet_sk(sk)->inet_rcv_saddr, 0);
 
 	/* precompute partial secondary hash */
 	udp_sk(sk)->udp_portaddr_hash = hash2_partial;
@@ -485,7 +479,7 @@ struct sock *__udp4_lib_lookup(struct net *net, __be32 saddr,
 	u32 hash = 0;
 
 	if (hslot->count > 10) {
-		hash2 = udp4_portaddr_hash(net, daddr, hnum);
+		hash2 = ipv4_portaddr_hash(net, daddr, hnum);
 		slot2 = hash2 & udptable->mask;
 		hslot2 = &udptable->hash2[slot2];
 		if (hslot->count < hslot2->count)
@@ -496,7 +490,7 @@ struct sock *__udp4_lib_lookup(struct net *net, __be32 saddr,
 					  exact_dif, hslot2, skb);
 		if (!result) {
 			unsigned int old_slot2 = slot2;
-			hash2 = udp4_portaddr_hash(net, htonl(INADDR_ANY), hnum);
+			hash2 = ipv4_portaddr_hash(net, htonl(INADDR_ANY), hnum);
 			slot2 = hash2 & udptable->mask;
 			/* avoid searching the same slot again. */
 			if (unlikely(slot2 == old_slot2))
@@ -1761,7 +1755,7 @@ EXPORT_SYMBOL(udp_lib_rehash);
 
 static void udp_v4_rehash(struct sock *sk)
 {
-	u16 new_hash = udp4_portaddr_hash(sock_net(sk),
+	u16 new_hash = ipv4_portaddr_hash(sock_net(sk),
 					  inet_sk(sk)->inet_rcv_saddr,
 					  inet_sk(sk)->inet_num);
 	udp_lib_rehash(sk, new_hash);
@@ -1952,9 +1946,9 @@ static int __udp4_lib_mcast_deliver(struct net *net, struct sk_buff *skb,
 	struct sk_buff *nskb;
 
 	if (use_hash2) {
-		hash2_any = udp4_portaddr_hash(net, htonl(INADDR_ANY), hnum) &
+		hash2_any = ipv4_portaddr_hash(net, htonl(INADDR_ANY), hnum) &
 			    udptable->mask;
-		hash2 = udp4_portaddr_hash(net, daddr, hnum) & udptable->mask;
+		hash2 = ipv4_portaddr_hash(net, daddr, hnum) & udptable->mask;
 start_lookup:
 		hslot = &udptable->hash2[hash2];
 		offset = offsetof(typeof(*sk), __sk_common.skc_portaddr_node);
@@ -2186,7 +2180,7 @@ static struct sock *__udp4_lib_demux_lookup(struct net *net,
 					    int dif, int sdif)
 {
 	unsigned short hnum = ntohs(loc_port);
-	unsigned int hash2 = udp4_portaddr_hash(net, loc_addr, hnum);
+	unsigned int hash2 = ipv4_portaddr_hash(net, loc_addr, hnum);
 	unsigned int slot2 = hash2 & udp_table.mask;
 	struct udp_hslot *hslot2 = &udp_table.hash2[slot2];
 	INET_ADDR_COOKIE(acookie, rmt_addr, loc_addr);
