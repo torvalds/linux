@@ -319,6 +319,7 @@ __AARCH64_INSN_FUNCS(and_imm,	0x7F800000, 0x12000000)
 __AARCH64_INSN_FUNCS(orr_imm,	0x7F800000, 0x32000000)
 __AARCH64_INSN_FUNCS(eor_imm,	0x7F800000, 0x52000000)
 __AARCH64_INSN_FUNCS(ands_imm,	0x7F800000, 0x72000000)
+__AARCH64_INSN_FUNCS(extr,	0x7FA00000, 0x13800000)
 __AARCH64_INSN_FUNCS(b,		0xFC000000, 0x14000000)
 __AARCH64_INSN_FUNCS(bl,	0xFC000000, 0x94000000)
 __AARCH64_INSN_FUNCS(cbz,	0x7F000000, 0x34000000)
@@ -433,6 +434,11 @@ u32 aarch64_insn_gen_logical_immediate(enum aarch64_insn_logic_type type,
 				       enum aarch64_insn_register Rn,
 				       enum aarch64_insn_register Rd,
 				       u64 imm);
+u32 aarch64_insn_gen_extr(enum aarch64_insn_variant variant,
+			  enum aarch64_insn_register Rm,
+			  enum aarch64_insn_register Rn,
+			  enum aarch64_insn_register Rd,
+			  u8 lsb);
 u32 aarch64_insn_gen_prefetch(enum aarch64_insn_register base,
 			      enum aarch64_insn_prfm_type type,
 			      enum aarch64_insn_prfm_target target,
