@@ -377,6 +377,20 @@
 			power-domains = <&k2g_pds 0xc>;
 			clocks = <&k2g_clks 0xc 1>, <&k2g_clks 0xc 2>;
 			clock-names = "fck", "mmchsdb_fck";
+		};
+
+		qspi: qspi@2940000 {
+			compatible = "ti,k2g-qspi", "cdns,qspi-nor";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x02940000 0x1000>,
+			      <0x24000000 0x4000000>;
+			interrupts = <GIC_SPI 198 IRQ_TYPE_EDGE_RISING>;
+			cdns,fifo-depth = <256>;
+			cdns,fifo-width = <4>;
+			cdns,trigger-address = <0x24000000>;
+			clocks = <&k2g_clks 0x43 0x0>;
+			power-domains = <&k2g_pds 0x43>;
 			status = "disabled";
 		};
 
