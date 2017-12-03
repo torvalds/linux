@@ -301,7 +301,7 @@ static int record__mmap_evlist(struct record *rec,
 	struct record_opts *opts = &rec->opts;
 	char msg[512];
 
-	if (perf_evlist__mmap_ex(evlist, opts->mmap_pages, false,
+	if (perf_evlist__mmap_ex(evlist, opts->mmap_pages,
 				 opts->auxtrace_mmap_pages,
 				 opts->auxtrace_snapshot_mode) < 0) {
 		if (errno == EPERM) {

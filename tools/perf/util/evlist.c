@@ -1052,14 +1052,14 @@ int perf_evlist__parse_mmap_pages(const struct option *opt, const char *str,
  * Return: %0 on success, negative error code otherwise.
  */
 int perf_evlist__mmap_ex(struct perf_evlist *evlist, unsigned int pages,
-			 bool overwrite, unsigned int auxtrace_pages,
+			 unsigned int auxtrace_pages,
 			 bool auxtrace_overwrite)
 {
 	struct perf_evsel *evsel;
 	const struct cpu_map *cpus = evlist->cpus;
 	const struct thread_map *threads = evlist->threads;
 	struct mmap_params mp = {
-		.prot = PROT_READ | (overwrite ? 0 : PROT_WRITE),
+		.prot = PROT_READ | PROT_WRITE,
 	};
 
 	if (!evlist->mmap)
@@ -1070,7 +1070,7 @@ int perf_evlist__mmap_ex(struct perf_evlist *evlist, unsigned int pages,
 	if (evlist->pollfd.entries == NULL && perf_evlist__alloc_pollfd(evlist) < 0)
 		return -ENOMEM;
 
-	evlist->overwrite = overwrite;
+	evlist->overwrite = false;
 	evlist->mmap_len = perf_evlist__mmap_size(pages);
 	pr_debug("mmap size %zuB\n", evlist->mmap_len);
 	mp.mask = evlist->mmap_len - page_size - 1;
@@ -1093,7 +1093,7 @@ int perf_evlist__mmap_ex(struct perf_evlist *evlist, unsigned int pages,
 
 int perf_evlist__mmap(struct perf_evlist *evlist, unsigned int pages)
 {
-	return perf_evlist__mmap_ex(evlist, pages, false, 0, false);
+	return perf_evlist__mmap_ex(evlist, pages, 0, false);
 }
 
 int perf_evlist__create_maps(struct perf_evlist *evlist, struct target *target)
