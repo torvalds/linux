@@ -365,9 +365,9 @@ static int init_cc_resources(struct platform_device *plat_dev)
 		goto post_cipher_err;
 	}
 
-	rc = ssi_aead_alloc(new_drvdata);
+	rc = cc_aead_alloc(new_drvdata);
 	if (rc) {
-		dev_err(dev, "ssi_aead_alloc failed\n");
+		dev_err(dev, "cc_aead_alloc failed\n");
 		goto post_hash_err;
 	}
 
@@ -417,7 +417,7 @@ static void cleanup_cc_resources(struct platform_device *plat_dev)
 	struct ssi_drvdata *drvdata =
 		(struct ssi_drvdata *)platform_get_drvdata(plat_dev);
 
-	ssi_aead_free(drvdata);
+	cc_aead_free(drvdata);
 	ssi_hash_free(drvdata);
 	ssi_ablkcipher_free(drvdata);
 	ssi_ivgen_fini(drvdata);

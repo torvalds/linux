@@ -116,7 +116,7 @@ struct aead_req_ctx {
 	bool plaintext_authenticate_only; //for gcm_rfc4543
 };
 
-int ssi_aead_alloc(struct ssi_drvdata *drvdata);
-int ssi_aead_free(struct ssi_drvdata *drvdata);
+int cc_aead_alloc(struct ssi_drvdata *drvdata);
+int cc_aead_free(struct ssi_drvdata *drvdata);
 
 #endif /*__SSI_AEAD_H__*/
