@@ -908,6 +908,7 @@ static int ssi_ablkcipher_decrypt(struct ablkcipher_request *req)
 	scatterwalk_map_and_copy(req_ctx->backup_info, req->src,
 				 (req->nbytes - ivsize), ivsize, 0);
 	req_ctx->is_giv = false;
+	req_ctx->backup_info = NULL;
 
 	return ssi_blkcipher_process(tfm, req_ctx, req->dst, req->src, req->nbytes, req->info, ivsize, (void *)req, DRV_CRYPTO_DIRECTION_DECRYPT);
 }
