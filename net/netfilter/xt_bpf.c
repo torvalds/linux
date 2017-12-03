@@ -52,18 +52,8 @@ static int __bpf_mt_check_fd(int fd, struct bpf_prog **ret)
 
 static int __bpf_mt_check_path(const char *path, struct bpf_prog **ret)
 {
-	mm_segment_t oldfs = get_fs();
-	int retval, fd;
-
-	set_fs(KERNEL_DS);
-	fd = bpf_obj_get_user(path, 0);
-	set_fs(oldfs);
-	if (fd < 0)
-		return fd;
-
-	retval = __bpf_mt_check_fd(fd, ret);
-	sys_close(fd);
-	return retval;
+	*ret = bpf_prog_get_type_path(path, BPF_PROG_TYPE_SOCKET_FILTER);
+	return PTR_ERR_OR_ZERO(*ret);
 }
 
 static int bpf_mt_check(const struct xt_mtchk_param *par)
