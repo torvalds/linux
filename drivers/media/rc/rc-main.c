@@ -68,6 +68,8 @@ static const struct {
 		.scancode_bits = 0x1fff, .repeat_period = 250 },
 	[RC_PROTO_XMP] = { .name = "xmp", .repeat_period = 250 },
 	[RC_PROTO_CEC] = { .name = "cec", .repeat_period = 550 },
+	[RC_PROTO_IMON] = { .name = "imon",
+		.scancode_bits = 0x7fffffff, .repeat_period = 250 },
 };
 
 /* Used to keep track of known keymaps */
@@ -1004,6 +1006,7 @@ static const struct {
 	  RC_PROTO_BIT_MCIR2_MSE, "mce_kbd",	"ir-mce_kbd-decoder"	},
 	{ RC_PROTO_BIT_XMP,	"xmp",		"ir-xmp-decoder"	},
 	{ RC_PROTO_BIT_CEC,	"cec",		NULL			},
+	{ RC_PROTO_BIT_IMON,	"imon",		"ir-imon-decoder"	},
 };
 
 /**

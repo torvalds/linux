@@ -118,6 +118,12 @@ struct ir_raw_event_ctrl {
 		unsigned count;
 		u32 durations[16];
 	} xmp;
+	struct imon_dec {
+		int state;
+		int count;
+		int last_chk;
+		unsigned int bits;
+	} imon;
 };
 
 /* macros for IR decoders */
