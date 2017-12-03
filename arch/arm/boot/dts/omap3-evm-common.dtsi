@@ -29,6 +29,7 @@
 		compatible = "usb-nop-xceiv";
 		reset-gpios = <&gpio1 21 GPIO_ACTIVE_LOW>; /* gpio_21 */
 		vcc-supply = <&hsusb2_power>;
+		#phy-cells = <0>;
 	};
 
 	leds {

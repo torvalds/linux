@@ -715,6 +715,7 @@
 				compatible = "ti,ohci-omap3";
 				reg = <0x48064400 0x400>;
 				interrupts = <76>;
+				remote-wakeup-connected;
 			};
 
 			usbhsehci: ehci@48064800 {
