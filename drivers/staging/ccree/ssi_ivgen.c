@@ -143,7 +143,7 @@ int ssi_ivgen_init_sram_pool(struct ssi_drvdata *drvdata)
 
 	/* Generate initial pool */
 	rc = ssi_ivgen_generate_pool(ivgen_ctx, iv_seq, &iv_seq_len);
-	if (unlikely(rc))
+	if (rc)
 		return rc;
 
 	/* Fire-and-forget */

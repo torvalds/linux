@@ -100,7 +100,7 @@ static irqreturn_t cc_isr(int irq, void *dev_id)
 	/* read the interrupt status */
 	irr = cc_ioread(drvdata, CC_REG(HOST_IRR));
 	dev_dbg(dev, "Got IRR=0x%08X\n", irr);
-	if (unlikely(irr == 0)) { /* Probably shared interrupt line */
+	if (irr == 0) { /* Probably shared interrupt line */
 		dev_err(dev, "Got interrupt with empty IRR\n");
 		return IRQ_NONE;
 	}
@@ -111,7 +111,7 @@ static irqreturn_t cc_isr(int irq, void *dev_id)
 
 	drvdata->irq = irr;
 	/* Completion interrupt - most probable */
-	if (likely((irr & SSI_COMP_IRQ_MASK))) {
+	if ((irr & SSI_COMP_IRQ_MASK)) {
 		/* Mask AXI completion interrupt - will be unmasked in
 		 * Deferred service handler
 		 */
@@ -121,7 +121,7 @@ static irqreturn_t cc_isr(int irq, void *dev_id)
 	}
 #ifdef CC_SUPPORT_FIPS
 	/* TEE FIPS interrupt */
-	if (likely((irr & SSI_GPR0_IRQ_MASK))) {
+	if ((irr & SSI_GPR0_IRQ_MASK)) {
 		/* Mask interrupt - will be unmasked in Deferred service
 		 * handler
 		 */
@@ -131,7 +131,7 @@ static irqreturn_t cc_isr(int irq, void *dev_id)
 	}
 #endif
 	/* AXI error interrupt */
-	if (unlikely((irr & SSI_AXI_ERR_IRQ_MASK))) {
+	if ((irr & SSI_AXI_ERR_IRQ_MASK)) {
 		u32 axi_err;
 
 		/* Read the AXI error ID */
@@ -142,7 +142,7 @@ static irqreturn_t cc_isr(int irq, void *dev_id)
 		irr &= ~SSI_AXI_ERR_IRQ_MASK;
 	}
 
-	if (unlikely(irr)) {
+	if (irr) {
 		dev_dbg(dev, "IRR includes unknown cause bits (0x%08X)\n",
 			irr);
 		/* Just warning */
@@ -295,78 +295,78 @@ static int init_cc_resources(struct platform_device *plat_dev)
 		 DRV_MODULE_VERSION);
 
 	rc = init_cc_regs(new_drvdata, true);
-	if (unlikely(rc)) {
+	if (rc) {
 		dev_err(dev, "init_cc_regs failed\n");
 		goto post_clk_err;
 	}
 
 #ifdef ENABLE_CC_SYSFS
 	rc = ssi_sysfs_init(&dev->kobj, new_drvdata);
-	if (unlikely(rc)) {
+	if (rc) {
 		dev_err(dev, "init_stat_db failed\n");
 		goto post_regs_err;
 	}
 #endif
 
 	rc = ssi_fips_init(new_drvdata);
-	if (unlikely(rc)) {
+	if (rc) {
 		dev_err(dev, "SSI_FIPS_INIT failed 0x%x\n", rc);
 		goto post_sysfs_err;
 	}
 	rc = ssi_sram_mgr_init(new_drvdata);
-	if (unlikely(rc)) {
+	if (rc) {
 		dev_err(dev, "ssi_sram_mgr_init failed\n");
 		goto post_fips_init_err;
 	}
 
 	new_drvdata->mlli_sram_addr =
 		cc_sram_alloc(new_drvdata, MAX_MLLI_BUFF_SIZE);
-	if (unlikely(new_drvdata->mlli_sram_addr == NULL_SRAM_ADDR)) {
+	if (new_drvdata->mlli_sram_addr == NULL_SRAM_ADDR) {
 		dev_err(dev, "Failed to alloc MLLI Sram buffer\n");
 		rc = -ENOMEM;
 		goto post_sram_mgr_err;
 	}
 
 	rc = request_mgr_init(new_drvdata);
-	if (unlikely(rc)) {
+	if (rc) {
 		dev_err(dev, "request_mgr_init failed\n");
 		goto post_sram_mgr_err;
 	}
 
 	rc = cc_buffer_mgr_init(new_drvdata);
-	if (unlikely(rc)) {
+	if (rc) {
 		dev_err(dev, "buffer_mgr_init failed\n");
 		goto post_req_mgr_err;
 	}
 
 	rc = cc_pm_init(new_drvdata);
-	if (unlikely(rc)) {
+	if (rc) {
 		dev_err(dev, "ssi_power_mgr_init failed\n");
 		goto post_buf_mgr_err;
 	}
 
 	rc = ssi_ivgen_init(new_drvdata);
-	if (unlikely(rc)) {
+	if (rc) {
 		dev_err(dev, "ssi_ivgen_init failed\n");
 		goto post_power_mgr_err;
 	}
 
 	/* Allocate crypto algs */
 	rc = ssi_ablkcipher_alloc(new_drvdata);
-	if (unlikely(rc)) {
+	if (rc) {
 		dev_err(dev, "ssi_ablkcipher_alloc failed\n");
 		goto post_ivgen_err;
 	}
 
 	/* hash must be allocated before aead since hash exports APIs */
 	rc = ssi_hash_alloc(new_drvdata);
-	if (unlikely(rc)) {
+	if (rc) {
 		dev_err(dev, "ssi_hash_alloc failed\n");
 		goto post_cipher_err;
 	}
 
 	rc = ssi_aead_alloc(new_drvdata);
-	if (unlikely(rc)) {
+	if (rc) {
 		dev_err(dev, "ssi_aead_alloc failed\n");
 		goto post_hash_err;
 	}

@@ -115,7 +115,7 @@ int request_mgr_init(struct ssi_drvdata *drvdata)
 #ifdef COMP_IN_WQ
 	dev_dbg(dev, "Initializing completion workqueue\n");
 	req_mgr_h->workq = create_singlethread_workqueue("arm_cc7x_wq");
-	if (unlikely(!req_mgr_h->workq)) {
+	if (!req_mgr_h->workq) {
 		dev_err(dev, "Failed creating work queue\n");
 		rc = -ENOMEM;
 		goto req_mgr_init_err;
@@ -214,27 +214,25 @@ static int request_mgr_queues_status_check(
 	 * be chaned during the poll because the spinlock_bh
 	 * is held by the thread
 	 */
-	if (unlikely(((req_mgr_h->req_queue_head + 1) &
-		      (MAX_REQUEST_QUEUE_SIZE - 1)) ==
-		     req_mgr_h->req_queue_tail)) {
+	if (((req_mgr_h->req_queue_head + 1) & (MAX_REQUEST_QUEUE_SIZE - 1)) ==
+	    req_mgr_h->req_queue_tail) {
 		dev_err(dev, "SW FIFO is full. req_queue_head=%d sw_fifo_len=%d\n",
 			req_mgr_h->req_queue_head, MAX_REQUEST_QUEUE_SIZE);
 		return -EBUSY;
 	}
 
-	if ((likely(req_mgr_h->q_free_slots >= total_seq_len)))
+	if ((req_mgr_h->q_free_slots >= total_seq_len))
 		return 0;
 
 	/* Wait for space in HW queue. Poll constant num of iterations. */
 	for (poll_queue = 0; poll_queue < SSI_MAX_POLL_ITER ; poll_queue++) {
 		req_mgr_h->q_free_slots =
 			cc_ioread(drvdata, CC_REG(DSCRPTR_QUEUE_CONTENT));
-		if (unlikely(req_mgr_h->q_free_slots <
-						req_mgr_h->min_free_hw_slots)) {
+		if (req_mgr_h->q_free_slots < req_mgr_h->min_free_hw_slots) {
 			req_mgr_h->min_free_hw_slots = req_mgr_h->q_free_slots;
 		}
 
-		if (likely(req_mgr_h->q_free_slots >= total_seq_len)) {
+		if (req_mgr_h->q_free_slots >= total_seq_len) {
 			/* If there is enough place return */
 			return 0;
 		}
@@ -296,7 +294,7 @@ int send_request(
 		 */
 		rc = request_mgr_queues_status_check(drvdata, req_mgr_h,
 						     max_required_seq_len);
-		if (likely(rc == 0))
+		if (rc == 0)
 			/* There is enough place in the queue */
 			break;
 		/* something wrong release the spinlock*/
@@ -340,7 +338,7 @@ int send_request(
 				     ssi_req->ivgen_dma_addr_len,
 				     ssi_req->ivgen_size, iv_seq, &iv_seq_len);
 
-		if (unlikely(rc)) {
+		if (rc) {
 			dev_err(dev, "Failed to generate IV (rc=%d)\n", rc);
 			spin_unlock_bh(&req_mgr_h->hw_lock);
 #if defined(CONFIG_PM)
@@ -355,7 +353,7 @@ int send_request(
 	used_sw_slots = ((req_mgr_h->req_queue_head -
 			  req_mgr_h->req_queue_tail) &
 			 (MAX_REQUEST_QUEUE_SIZE - 1));
-	if (unlikely(used_sw_slots > req_mgr_h->max_used_sw_slots))
+	if (used_sw_slots > req_mgr_h->max_used_sw_slots)
 		req_mgr_h->max_used_sw_slots = used_sw_slots;
 
 	/* Enqueue request - must be locked with HW lock*/
@@ -381,7 +379,7 @@ int send_request(
 	enqueue_seq(cc_base, desc, len);
 	enqueue_seq(cc_base, &req_mgr_h->compl_desc, (is_dout ? 0 : 1));
 
-	if (unlikely(req_mgr_h->q_free_slots < total_seq_len)) {
+	if (req_mgr_h->q_free_slots < total_seq_len) {
 		/* This situation should never occur. Maybe indicating problem
 		 * with resuming power. Set the free slot count to 0 and hope
 		 * for the best.
@@ -429,7 +427,7 @@ int send_request_init(
 	 */
 	rc = request_mgr_queues_status_check(drvdata, req_mgr_h,
 					     total_seq_len);
-	if (unlikely(rc))
+	if (rc)
 		return rc;
 
 	set_queue_last_ind(&desc[(len - 1)]);
@@ -489,7 +487,7 @@ static void proc_completions(struct ssi_drvdata *drvdata)
 		request_mgr_handle->axi_completed--;
 
 		/* Dequeue request */
-		if (unlikely(*head == *tail)) {
+		if (*head == *tail) {
 			/* We are supposed to handle a completion but our
 			 * queue is empty. This is not normal. Return and
 			 * hope for the best.
@@ -518,7 +516,7 @@ static void proc_completions(struct ssi_drvdata *drvdata)
 		}
 #endif /* COMPLETION_DELAY */
 
-		if (likely(ssi_req->user_cb))
+		if (ssi_req->user_cb)
 			ssi_req->user_cb(dev, ssi_req->user_arg);
 		*tail = (*tail + 1) & (MAX_REQUEST_QUEUE_SIZE - 1);
 		dev_dbg(dev, "Dequeue request tail=%u\n", *tail);

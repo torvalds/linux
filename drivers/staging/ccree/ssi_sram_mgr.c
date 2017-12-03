@@ -75,12 +75,12 @@ ssi_sram_addr_t cc_sram_alloc(struct ssi_drvdata *drvdata, u32 size)
 	struct device *dev = drvdata_to_dev(drvdata);
 	ssi_sram_addr_t p;
 
-	if (unlikely((size & 0x3))) {
+	if ((size & 0x3)) {
 		dev_err(dev, "Requested buffer size (%u) is not multiple of 4",
 			size);
 		return NULL_SRAM_ADDR;
 	}
-	if (unlikely(size > (SSI_CC_SRAM_SIZE - smgr_ctx->sram_free_offset))) {
+	if (size > (SSI_CC_SRAM_SIZE - smgr_ctx->sram_free_offset)) {
 		dev_err(dev, "Not enough space to allocate %u B (at offset %llu)\n",
 			size, smgr_ctx->sram_free_offset);
 		return NULL_SRAM_ADDR;

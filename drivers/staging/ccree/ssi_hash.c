@@ -116,9 +116,8 @@ static void ssi_hash_create_data_desc(
 
 static void ssi_set_hash_endianity(u32 mode, struct cc_hw_desc *desc)
 {
-	if (unlikely(mode == DRV_HASH_MD5 ||
-		     mode == DRV_HASH_SHA384 ||
-		     mode == DRV_HASH_SHA512)) {
+	if (mode == DRV_HASH_MD5 || mode == DRV_HASH_SHA384 ||
+	    mode == DRV_HASH_SHA512) {
 		set_bytes_swap(desc, 1);
 	} else {
 		set_cipher_config0(desc, HASH_DIGEST_RESULT_LITTLE_ENDIAN);
@@ -133,7 +132,7 @@ static int ssi_hash_map_result(struct device *dev,
 		dma_map_single(dev, (void *)state->digest_result_buff,
 			       digestsize,
 			       DMA_BIDIRECTIONAL);
-	if (unlikely(dma_mapping_error(dev, state->digest_result_dma_addr))) {
+	if (dma_mapping_error(dev, state->digest_result_dma_addr)) {
 		dev_err(dev, "Mapping digest result buffer %u B for DMA failed\n",
 			digestsize);
 		return -ENOMEM;
@@ -219,8 +218,8 @@ static int ssi_hash_map_request(struct device *dev,
 			memcpy(state->digest_buff, ctx->digest_buff,
 			       ctx->inter_digestsize);
 #if (DX_DEV_SHA_MAX > 256)
-			if (unlikely(ctx->hash_mode == DRV_HASH_SHA512 ||
-				     ctx->hash_mode == DRV_HASH_SHA384))
+			if (ctx->hash_mode == DRV_HASH_SHA512 ||
+			    ctx->hash_mode == DRV_HASH_SHA384)
 				memcpy(state->digest_bytes_len,
 				       digest_len_sha512_init, HASH_LEN_SIZE);
 			else
@@ -254,7 +253,7 @@ static int ssi_hash_map_request(struct device *dev,
 		set_flow_mode(&desc, BYPASS);
 
 		rc = send_request(ctx->drvdata, &ssi_req, &desc, 1, 0);
-		if (unlikely(rc)) {
+		if (rc) {
 			dev_err(dev, "send_request() failed (rc=%d)\n", rc);
 			goto fail4;
 		}
@@ -446,18 +445,17 @@ static int ssi_hash_digest(struct ahash_req_ctx *state,
 	dev_dbg(dev, "===== %s-digest (%d) ====\n", is_hmac ? "hmac" : "hash",
 		nbytes);
 
-	if (unlikely(ssi_hash_map_request(dev, state, ctx))) {
+	if (ssi_hash_map_request(dev, state, ctx)) {
 		dev_err(dev, "map_ahash_source() failed\n");
 		return -ENOMEM;
 	}
 
-	if (unlikely(ssi_hash_map_result(dev, state, digestsize))) {
+	if (ssi_hash_map_result(dev, state, digestsize)) {
 		dev_err(dev, "map_ahash_digest() failed\n");
 		return -ENOMEM;
 	}
 
-	if (unlikely(cc_map_hash_request_final(ctx->drvdata, state,
-					       src, nbytes, 1))) {
+	if (cc_map_hash_request_final(ctx->drvdata, state, src, nbytes, 1)) {
 		dev_err(dev, "map_ahash_request_final() failed\n");
 		return -ENOMEM;
 	}
@@ -494,7 +492,7 @@ static int ssi_hash_digest(struct ahash_req_ctx *state,
 			     NS_BIT);
 	} else {
 		set_din_const(&desc[idx], 0, HASH_LEN_SIZE);
-		if (likely(nbytes))
+		if (nbytes)
 			set_cipher_config1(&desc[idx], HASH_PADDING_ENABLED);
 		else
 			set_cipher_do(&desc[idx], DO_PAD);
@@ -576,7 +574,7 @@ ctx->drvdata, ctx->hash_mode), HASH_LEN_SIZE);
 
 	if (async_req) {
 		rc = send_request(ctx->drvdata, &ssi_req, desc, idx, 1);
-		if (unlikely(rc != -EINPROGRESS)) {
+		if (rc != -EINPROGRESS) {
 			dev_err(dev, "send_request() failed (rc=%d)\n", rc);
 			cc_unmap_hash_request(dev, state, src, true);
 			ssi_hash_unmap_result(dev, state, digestsize, result);
@@ -619,7 +617,7 @@ static int ssi_hash_update(struct ahash_req_ctx *state,
 
 	rc = cc_map_hash_request_update(ctx->drvdata, state, src, nbytes,
 					block_size);
-	if (unlikely(rc)) {
+	if (rc) {
 		if (rc == 1) {
 			dev_dbg(dev, " data size not require HW update %x\n",
 				nbytes);
@@ -677,7 +675,7 @@ static int ssi_hash_update(struct ahash_req_ctx *state,
 
 	if (async_req) {
 		rc = send_request(ctx->drvdata, &ssi_req, desc, idx, 1);
-		if (unlikely(rc != -EINPROGRESS)) {
+		if (rc != -EINPROGRESS) {
 			dev_err(dev, "send_request() failed (rc=%d)\n", rc);
 			cc_unmap_hash_request(dev, state, src, true);
 		}
@@ -711,12 +709,11 @@ static int ssi_hash_finup(struct ahash_req_ctx *state,
 	dev_dbg(dev, "===== %s-finup (%d) ====\n", is_hmac ? "hmac" : "hash",
 		nbytes);
 
-	if (unlikely(cc_map_hash_request_final(ctx->drvdata, state, src,
-					       nbytes, 1))) {
+	if (cc_map_hash_request_final(ctx->drvdata, state, src, nbytes, 1)) {
 		dev_err(dev, "map_ahash_request_final() failed\n");
 		return -ENOMEM;
 	}
-	if (unlikely(ssi_hash_map_result(dev, state, digestsize))) {
+	if (ssi_hash_map_result(dev, state, digestsize)) {
 		dev_err(dev, "map_ahash_digest() failed\n");
 		return -ENOMEM;
 	}
@@ -809,7 +806,7 @@ ctx->drvdata, ctx->hash_mode), HASH_LEN_SIZE);
 
 	if (async_req) {
 		rc = send_request(ctx->drvdata, &ssi_req, desc, idx, 1);
-		if (unlikely(rc != -EINPROGRESS)) {
+		if (rc != -EINPROGRESS) {
 			dev_err(dev, "send_request() failed (rc=%d)\n", rc);
 			cc_unmap_hash_request(dev, state, src, true);
 			ssi_hash_unmap_result(dev, state, digestsize, result);
@@ -847,13 +844,12 @@ static int ssi_hash_final(struct ahash_req_ctx *state,
 	dev_dbg(dev, "===== %s-final (%d) ====\n", is_hmac ? "hmac" : "hash",
 		nbytes);
 
-	if (unlikely(cc_map_hash_request_final(ctx->drvdata, state, src,
-					       nbytes, 0))) {
+	if (cc_map_hash_request_final(ctx->drvdata, state, src, nbytes, 0)) {
 		dev_err(dev, "map_ahash_request_final() failed\n");
 		return -ENOMEM;
 	}
 
-	if (unlikely(ssi_hash_map_result(dev, state, digestsize))) {
+	if (ssi_hash_map_result(dev, state, digestsize)) {
 		dev_err(dev, "map_ahash_digest() failed\n");
 		return -ENOMEM;
 	}
@@ -955,7 +951,7 @@ ctx->drvdata, ctx->hash_mode), HASH_LEN_SIZE);
 
 	if (async_req) {
 		rc = send_request(ctx->drvdata, &ssi_req, desc, idx, 1);
-		if (unlikely(rc != -EINPROGRESS)) {
+		if (rc != -EINPROGRESS) {
 			dev_err(dev, "send_request() failed (rc=%d)\n", rc);
 			cc_unmap_hash_request(dev, state, src, true);
 			ssi_hash_unmap_result(dev, state, digestsize, result);
@@ -1019,8 +1015,7 @@ static int ssi_ahash_setkey(struct crypto_ahash *ahash, const u8 *key,
 		ctx->key_params.key_dma_addr = dma_map_single(
 						dev, (void *)key,
 						keylen, DMA_TO_DEVICE);
-		if (unlikely(dma_mapping_error(dev,
-					       ctx->key_params.key_dma_addr))) {
+		if (dma_mapping_error(dev, ctx->key_params.key_dma_addr)) {
 			dev_err(dev, "Mapping key va=0x%p len=%u for DMA failed\n",
 				key, keylen);
 			return -ENOMEM;
@@ -1105,7 +1100,7 @@ static int ssi_ahash_setkey(struct crypto_ahash *ahash, const u8 *key,
 	}
 
 	rc = send_request(ctx->drvdata, &ssi_req, desc, idx, 0);
-	if (unlikely(rc)) {
+	if (rc) {
 		dev_err(dev, "send_request() failed (rc=%d)\n", rc);
 		goto out;
 	}
@@ -1201,7 +1196,7 @@ static int ssi_xcbc_setkey(struct crypto_ahash *ahash,
 	ctx->key_params.key_dma_addr = dma_map_single(
 					dev, (void *)key,
 					keylen, DMA_TO_DEVICE);
-	if (unlikely(dma_mapping_error(dev, ctx->key_params.key_dma_addr))) {
+	if (dma_mapping_error(dev, ctx->key_params.key_dma_addr)) {
 		dev_err(dev, "Mapping key va=0x%p len=%u for DMA failed\n",
 			key, keylen);
 		return -ENOMEM;
@@ -1415,7 +1410,7 @@ static int ssi_mac_update(struct ahash_request *req)
 
 	rc = cc_map_hash_request_update(ctx->drvdata, state, req->src,
 					req->nbytes, block_size);
-	if (unlikely(rc)) {
+	if (rc) {
 		if (rc == 1) {
 			dev_dbg(dev, " data size not require HW update %x\n",
 				req->nbytes);
@@ -1448,7 +1443,7 @@ static int ssi_mac_update(struct ahash_request *req)
 	ssi_req.user_arg = (void *)req;
 
 	rc = send_request(ctx->drvdata, &ssi_req, desc, idx, 1);
-	if (unlikely(rc != -EINPROGRESS)) {
+	if (rc != -EINPROGRESS) {
 		dev_err(dev, "send_request() failed (rc=%d)\n", rc);
 		cc_unmap_hash_request(dev, state, req->src, true);
 	}
@@ -1482,13 +1477,13 @@ static int ssi_mac_final(struct ahash_request *req)
 
 	dev_dbg(dev, "===== final  xcbc reminder (%d) ====\n", rem_cnt);
 
-	if (unlikely(cc_map_hash_request_final(ctx->drvdata, state, req->src,
-					       req->nbytes, 0))) {
+	if (cc_map_hash_request_final(ctx->drvdata, state, req->src,
+				      req->nbytes, 0)) {
 		dev_err(dev, "map_ahash_request_final() failed\n");
 		return -ENOMEM;
 	}
 
-	if (unlikely(ssi_hash_map_result(dev, state, digestsize))) {
+	if (ssi_hash_map_result(dev, state, digestsize)) {
 		dev_err(dev, "map_ahash_digest() failed\n");
 		return -ENOMEM;
 	}
@@ -1562,7 +1557,7 @@ static int ssi_mac_final(struct ahash_request *req)
 	idx++;
 
 	rc = send_request(ctx->drvdata, &ssi_req, desc, idx, 1);
-	if (unlikely(rc != -EINPROGRESS)) {
+	if (rc != -EINPROGRESS) {
 		dev_err(dev, "send_request() failed (rc=%d)\n", rc);
 		cc_unmap_hash_request(dev, state, req->src, true);
 		ssi_hash_unmap_result(dev, state, digestsize, req->result);
@@ -1589,12 +1584,12 @@ static int ssi_mac_finup(struct ahash_request *req)
 		return ssi_mac_final(req);
 	}
 
-	if (unlikely(cc_map_hash_request_final(ctx->drvdata, state, req->src,
-					       req->nbytes, 1))) {
+	if (cc_map_hash_request_final(ctx->drvdata, state, req->src,
+				      req->nbytes, 1)) {
 		dev_err(dev, "map_ahash_request_final() failed\n");
 		return -ENOMEM;
 	}
-	if (unlikely(ssi_hash_map_result(dev, state, digestsize))) {
+	if (ssi_hash_map_result(dev, state, digestsize)) {
 		dev_err(dev, "map_ahash_digest() failed\n");
 		return -ENOMEM;
 	}
@@ -1635,7 +1630,7 @@ static int ssi_mac_finup(struct ahash_request *req)
 	idx++;
 
 	rc = send_request(ctx->drvdata, &ssi_req, desc, idx, 1);
-	if (unlikely(rc != -EINPROGRESS)) {
+	if (rc != -EINPROGRESS) {
 		dev_err(dev, "send_request() failed (rc=%d)\n", rc);
 		cc_unmap_hash_request(dev, state, req->src, true);
 		ssi_hash_unmap_result(dev, state, digestsize, req->result);
@@ -1658,17 +1653,17 @@ static int ssi_mac_digest(struct ahash_request *req)
 
 	dev_dbg(dev, "===== -digest mac (%d) ====\n",  req->nbytes);
 
-	if (unlikely(ssi_hash_map_request(dev, state, ctx))) {
+	if (ssi_hash_map_request(dev, state, ctx)) {
 		dev_err(dev, "map_ahash_source() failed\n");
 		return -ENOMEM;
 	}
-	if (unlikely(ssi_hash_map_result(dev, state, digestsize))) {
+	if (ssi_hash_map_result(dev, state, digestsize)) {
 		dev_err(dev, "map_ahash_digest() failed\n");
 		return -ENOMEM;
 	}
 
-	if (unlikely(cc_map_hash_request_final(ctx->drvdata, state, req->src,
-					       req->nbytes, 1))) {
+	if (cc_map_hash_request_final(ctx->drvdata, state, req->src,
+				      req->nbytes, 1)) {
 		dev_err(dev, "map_ahash_request_final() failed\n");
 		return -ENOMEM;
 	}
@@ -1709,7 +1704,7 @@ static int ssi_mac_digest(struct ahash_request *req)
 	idx++;
 
 	rc = send_request(ctx->drvdata, &ssi_req, desc, idx, 1);
-	if (unlikely(rc != -EINPROGRESS)) {
+	if (rc != -EINPROGRESS) {
 		dev_err(dev, "send_request() failed (rc=%d)\n", rc);
 		cc_unmap_hash_request(dev, state, req->src, true);
 		ssi_hash_unmap_result(dev, state, digestsize, req->result);
@@ -2153,7 +2148,7 @@ int ssi_hash_init_sram_digest_consts(struct ssi_drvdata *drvdata)
 			 ARRAY_SIZE(digest_len_init), larval_seq,
 			 &larval_seq_len);
 	rc = send_request_init(drvdata, larval_seq, larval_seq_len);
-	if (unlikely(rc))
+	if (rc)
 		goto init_digest_const_err;
 
 	sram_buff_ofs += sizeof(digest_len_init);
@@ -2165,7 +2160,7 @@ int ssi_hash_init_sram_digest_consts(struct ssi_drvdata *drvdata)
 			 ARRAY_SIZE(digest_len_sha512_init),
 			 larval_seq, &larval_seq_len);
 	rc = send_request_init(drvdata, larval_seq, larval_seq_len);
-	if (unlikely(rc))
+	if (rc)
 		goto init_digest_const_err;
 
 	sram_buff_ofs += sizeof(digest_len_sha512_init);
@@ -2180,7 +2175,7 @@ int ssi_hash_init_sram_digest_consts(struct ssi_drvdata *drvdata)
 			 ARRAY_SIZE(md5_init), larval_seq,
 			 &larval_seq_len);
 	rc = send_request_init(drvdata, larval_seq, larval_seq_len);
-	if (unlikely(rc))
+	if (rc)
 		goto init_digest_const_err;
 	sram_buff_ofs += sizeof(md5_init);
 	larval_seq_len = 0;
@@ -2189,7 +2184,7 @@ int ssi_hash_init_sram_digest_consts(struct ssi_drvdata *drvdata)
 			 ARRAY_SIZE(sha1_init), larval_seq,
 			 &larval_seq_len);
 	rc = send_request_init(drvdata, larval_seq, larval_seq_len);
-	if (unlikely(rc))
+	if (rc)
 		goto init_digest_const_err;
 	sram_buff_ofs += sizeof(sha1_init);
 	larval_seq_len = 0;
@@ -2198,7 +2193,7 @@ int ssi_hash_init_sram_digest_consts(struct ssi_drvdata *drvdata)
 			 ARRAY_SIZE(sha224_init), larval_seq,
 			 &larval_seq_len);
 	rc = send_request_init(drvdata, larval_seq, larval_seq_len);
-	if (unlikely(rc))
+	if (rc)
 		goto init_digest_const_err;
 	sram_buff_ofs += sizeof(sha224_init);
 	larval_seq_len = 0;
@@ -2207,7 +2202,7 @@ int ssi_hash_init_sram_digest_consts(struct ssi_drvdata *drvdata)
 			 ARRAY_SIZE(sha256_init), larval_seq,
 			 &larval_seq_len);
 	rc = send_request_init(drvdata, larval_seq, larval_seq_len);
-	if (unlikely(rc))
+	if (rc)
 		goto init_digest_const_err;
 	sram_buff_ofs += sizeof(sha256_init);
 	larval_seq_len = 0;
@@ -2228,7 +2223,7 @@ int ssi_hash_init_sram_digest_consts(struct ssi_drvdata *drvdata)
 		sram_buff_ofs += sizeof(u32);
 	}
 	rc = send_request_init(drvdata, larval_seq, larval_seq_len);
-	if (unlikely(rc)) {
+	if (rc) {
 		dev_err(dev, "send_request() failed (rc = %d)\n", rc);
 		goto init_digest_const_err;
 	}
@@ -2246,7 +2241,7 @@ int ssi_hash_init_sram_digest_consts(struct ssi_drvdata *drvdata)
 		sram_buff_ofs += sizeof(u32);
 	}
 	rc = send_request_init(drvdata, larval_seq, larval_seq_len);
-	if (unlikely(rc)) {
+	if (rc) {
 		dev_err(dev, "send_request() failed (rc = %d)\n", rc);
 		goto init_digest_const_err;
 	}
@@ -2295,7 +2290,7 @@ int ssi_hash_alloc(struct ssi_drvdata *drvdata)
 
 	/*must be set before the alg registration as it is being used there*/
 	rc = ssi_hash_init_sram_digest_consts(drvdata);
-	if (unlikely(rc)) {
+	if (rc) {
 		dev_err(dev, "Init digest CONST failed (rc=%d)\n", rc);
 		goto fail;
 	}
@@ -2316,7 +2311,7 @@ int ssi_hash_alloc(struct ssi_drvdata *drvdata)
 		t_alg->drvdata = drvdata;
 
 		rc = crypto_register_ahash(&t_alg->ahash_alg);
-		if (unlikely(rc)) {
+		if (rc) {
 			dev_err(dev, "%s alg registration failed\n",
 				driver_hash[alg].driver_name);
 			kfree(t_alg);
@@ -2341,7 +2336,7 @@ int ssi_hash_alloc(struct ssi_drvdata *drvdata)
 		t_alg->drvdata = drvdata;
 
 		rc = crypto_register_ahash(&t_alg->ahash_alg);
-		if (unlikely(rc)) {
+		if (rc) {
 			dev_err(dev, "%s alg registration failed\n",
 				driver_hash[alg].driver_name);
 			kfree(t_alg);
@@ -2480,7 +2475,7 @@ static void ssi_hash_create_data_desc(struct ahash_req_ctx *areq_ctx,
 	unsigned int idx = *seq_size;
 	struct device *dev = drvdata_to_dev(ctx->drvdata);
 
-	if (likely(areq_ctx->data_dma_buf_type == SSI_DMA_BUF_DLLI)) {
+	if (areq_ctx->data_dma_buf_type == SSI_DMA_BUF_DLLI) {
 		hw_desc_init(&desc[idx]);
 		set_din_type(&desc[idx], DMA_DLLI,
 			     sg_dma_address(areq_ctx->curr_sg),
