@@ -372,7 +372,6 @@
 			dma-names = "tx", "rx";
 			bus-width = <8>;
 			ti,needs-special-reset;
-			ti,non-removable;
 			max-frequency = <96000000>;
 			power-domains = <&k2g_pds 0xc>;
 			clocks = <&k2g_clks 0xc 1>, <&k2g_clks 0xc 2>;
