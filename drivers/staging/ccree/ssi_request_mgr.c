@@ -228,9 +228,8 @@ static int request_mgr_queues_status_check(
 	for (poll_queue = 0; poll_queue < SSI_MAX_POLL_ITER ; poll_queue++) {
 		req_mgr_h->q_free_slots =
 			cc_ioread(drvdata, CC_REG(DSCRPTR_QUEUE_CONTENT));
-		if (req_mgr_h->q_free_slots < req_mgr_h->min_free_hw_slots) {
+		if (req_mgr_h->q_free_slots < req_mgr_h->min_free_hw_slots)
 			req_mgr_h->min_free_hw_slots = req_mgr_h->q_free_slots;
-		}
 
 		if (req_mgr_h->q_free_slots >= total_seq_len) {
 			/* If there is enough place return */
