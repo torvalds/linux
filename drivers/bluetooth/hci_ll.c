@@ -674,11 +674,15 @@ static int ll_setup(struct hci_uart *hu)
 	serdev_device_set_flow_control(serdev, true);
 
 	do {
-		/* Configure BT_EN to HIGH state */
+		/* Reset the Bluetooth device */
 		gpiod_set_value_cansleep(lldev->enable_gpio, 0);
 		msleep(5);
 		gpiod_set_value_cansleep(lldev->enable_gpio, 1);
-		msleep(100);
+		err = serdev_device_wait_for_cts(serdev, true, 200);
+		if (err) {
+			bt_dev_err(hu->hdev, "Failed to get CTS");
+			return err;
+		}
 
 		err = download_firmware(lldev);
 		if (!err)
