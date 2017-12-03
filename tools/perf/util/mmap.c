@@ -299,7 +299,7 @@ static int rb_find_range(void *data, int mask, u64 head, u64 old,
 	return backward_rb_find_range(data, mask, head, start, end);
 }
 
-int perf_mmap__push(struct perf_mmap *md, bool overwrite, bool backward,
+int perf_mmap__push(struct perf_mmap *md, bool backward,
 		    void *to, int push(void *to, void *buf, size_t size))
 {
 	u64 head = perf_mmap__read_head(md);
@@ -321,7 +321,7 @@ int perf_mmap__push(struct perf_mmap *md, bool overwrite, bool backward,
 		WARN_ONCE(1, "failed to keep up with mmap data. (warn only once)\n");
 
 		md->prev = head;
-		perf_mmap__consume(md, overwrite || backward);
+		perf_mmap__consume(md, backward);
 		return 0;
 	}
 
@@ -346,7 +346,7 @@ int perf_mmap__push(struct perf_mmap *md, bool overwrite, bool backward,
 	}
 
 	md->prev = head;
-	perf_mmap__consume(md, overwrite || backward);
+	perf_mmap__consume(md, backward);
 out:
 	return rc;
 }
