@@ -9314,11 +9314,12 @@ static int intel_check_cursor(struct intel_crtc_state *crtc_state,
 	u32 offset;
 	int ret;
 
-	ret = drm_plane_helper_check_state(&plane_state->base,
-					   &plane_state->clip,
-					   DRM_PLANE_HELPER_NO_SCALING,
-					   DRM_PLANE_HELPER_NO_SCALING,
-					   true, true);
+	ret = drm_atomic_helper_check_plane_state(&plane_state->base,
+						  &crtc_state->base,
+						  &plane_state->clip,
+						  DRM_PLANE_HELPER_NO_SCALING,
+						  DRM_PLANE_HELPER_NO_SCALING,
+						  true, true);
 	if (ret)
 		return ret;
 
@@ -12794,10 +12795,11 @@ intel_check_primary_plane(struct intel_plane *plane,
 		can_position = true;
 	}
 
-	ret = drm_plane_helper_check_state(&state->base,
-					   &state->clip,
-					   min_scale, max_scale,
-					   can_position, true);
+	ret = drm_atomic_helper_check_plane_state(&state->base,
+						  &crtc_state->base,
+						  &state->clip,
+						  min_scale, max_scale,
+						  can_position, true);
 	if (ret)
 		return ret;
 

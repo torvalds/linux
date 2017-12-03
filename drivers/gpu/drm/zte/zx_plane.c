@@ -80,9 +80,9 @@ static int zx_vl_plane_atomic_check(struct drm_plane *plane,
 	clip.x2 = crtc_state->adjusted_mode.hdisplay;
 	clip.y2 = crtc_state->adjusted_mode.vdisplay;
 
-	return drm_plane_helper_check_state(plane_state, &clip,
-					    min_scale, max_scale,
-					    true, true);
+	return drm_atomic_helper_check_plane_state(plane_state, crtc_state,
+						   &clip, min_scale, max_scale,
+						   true, true);
 }
 
 static int zx_vl_get_fmt(uint32_t format)
@@ -315,10 +315,11 @@ static int zx_gl_plane_atomic_check(struct drm_plane *plane,
 	clip.x2 = crtc_state->adjusted_mode.hdisplay;
 	clip.y2 = crtc_state->adjusted_mode.vdisplay;
 
-	return drm_plane_helper_check_state(plane_state, &clip,
-					    DRM_PLANE_HELPER_NO_SCALING,
-					    DRM_PLANE_HELPER_NO_SCALING,
-					    false, true);
+	return drm_atomic_helper_check_plane_state(plane_state, crtc_state,
+						   &clip,
+						   DRM_PLANE_HELPER_NO_SCALING,
+						   DRM_PLANE_HELPER_NO_SCALING,
+						   false, true);
 }
 
 static int zx_gl_get_fmt(uint32_t format)

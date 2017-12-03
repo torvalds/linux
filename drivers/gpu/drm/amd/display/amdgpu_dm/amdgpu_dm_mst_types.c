@@ -177,12 +177,7 @@ static const struct drm_connector_funcs dm_dp_mst_connector_funcs = {
 static int dm_connector_update_modes(struct drm_connector *connector,
 				struct edid *edid)
 {
-	int ret;
-
-	ret = drm_add_edid_modes(connector, edid);
-	drm_edid_to_eld(connector, edid);
-
-	return ret;
+	return drm_add_edid_modes(connector, edid);
 }
 
 static int dm_dp_mst_get_modes(struct drm_connector *connector)

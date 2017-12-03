@@ -3333,8 +3333,6 @@ static void amdgpu_dm_connector_ddc_get_modes(struct drm_connector *connector,
 		amdgpu_dm_connector->num_modes =
 				drm_add_edid_modes(connector, edid);
 
-		drm_edid_to_eld(connector, edid);
-
 		amdgpu_dm_get_native_mode(connector);
 	} else {
 		amdgpu_dm_connector->num_modes = 0;

@@ -1143,10 +1143,11 @@ nv50_curs_acquire(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw,
 {
 	int ret;
 
-	ret = drm_plane_helper_check_state(&asyw->state, &asyw->clip,
-					   DRM_PLANE_HELPER_NO_SCALING,
-					   DRM_PLANE_HELPER_NO_SCALING,
-					   true, true);
+	ret = drm_atomic_helper_check_plane_state(&asyw->state, &asyh->state,
+						  &asyw->clip,
+						  DRM_PLANE_HELPER_NO_SCALING,
+						  DRM_PLANE_HELPER_NO_SCALING,
+						  true, true);
 	asyh->curs.visible = asyw->state.visible;
 	if (ret || !asyh->curs.visible)
 		return ret;
@@ -1432,10 +1433,11 @@ nv50_base_acquire(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw,
 	if (!fb->format->depth)
 		return -EINVAL;
 
-	ret = drm_plane_helper_check_state(&asyw->state, &asyw->clip,
-					   DRM_PLANE_HELPER_NO_SCALING,
-					   DRM_PLANE_HELPER_NO_SCALING,
-					   false, true);
+	ret = drm_atomic_helper_check_plane_state(&asyw->state, &asyh->state,
+						  &asyw->clip,
+						  DRM_PLANE_HELPER_NO_SCALING,
+						  DRM_PLANE_HELPER_NO_SCALING,
+						  false, true);
 	if (ret)
 		return ret;
 
@@ -2688,7 +2690,6 @@ nv50_audio_enable(struct drm_encoder *encoder, struct drm_display_mode *mode)
 	if (!drm_detect_monitor_audio(nv_connector->edid))
 		return;
 
-	drm_edid_to_eld(&nv_connector->base, nv_connector->edid);
 	memcpy(args.data, nv_connector->base.eld, sizeof(args.data));
 
 	nvif_mthd(disp->disp, 0, &args,
@@ -2755,7 +2756,8 @@ nv50_hdmi_enable(struct drm_encoder *encoder, struct drm_display_mode *mode)
 			= hdmi_infoframe_pack(&avi_frame, args.infoframes, 17);
 	}
 
-	ret = drm_hdmi_vendor_infoframe_from_display_mode(&vendor_frame.vendor.hdmi, mode);
+	ret = drm_hdmi_vendor_infoframe_from_display_mode(&vendor_frame.vendor.hdmi,
+							  &nv_connector->base, mode);
 	if (!ret) {
 		/* We have a Vendor InfoFrame, populate it to the display */
 		args.pwr.vendor_infoframe_length
@@ -3064,10 +3066,8 @@ nv50_mstc_get_modes(struct drm_connector *connector)
 
 	mstc->edid = drm_dp_mst_get_edid(&mstc->connector, mstc->port->mgr, mstc->port);
 	drm_mode_connector_update_edid_property(&mstc->connector, mstc->edid);
-	if (mstc->edid) {
+	if (mstc->edid)
 		ret = drm_add_edid_modes(&mstc->connector, mstc->edid);
-		drm_edid_to_eld(&mstc->connector, mstc->edid);
-	}
 
 	if (!mstc->connector.display_info.bpc)
 		mstc->connector.display_info.bpc = 8;

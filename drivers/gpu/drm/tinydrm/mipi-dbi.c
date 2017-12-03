@@ -961,10 +961,6 @@ static const struct file_operations mipi_dbi_debugfs_command_fops = {
 	.write = mipi_dbi_debugfs_command_write,
 };
 
-static const struct drm_info_list mipi_dbi_debugfs_list[] = {
-	{ "fb",   drm_fb_cma_debugfs_show, 0 },
-};
-
 /**
  * mipi_dbi_debugfs_init - Create debugfs entries
  * @minor: DRM minor
@@ -987,9 +983,7 @@ int mipi_dbi_debugfs_init(struct drm_minor *minor)
 	debugfs_create_file("command", mode, minor->debugfs_root, mipi,
 			    &mipi_dbi_debugfs_command_fops);
 
-	return drm_debugfs_create_files(mipi_dbi_debugfs_list,
-					ARRAY_SIZE(mipi_dbi_debugfs_list),
-					minor->debugfs_root, minor);
+	return 0;
 }
 EXPORT_SYMBOL(mipi_dbi_debugfs_init);
 

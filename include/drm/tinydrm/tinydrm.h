@@ -46,6 +46,7 @@ pipe_to_tinydrm(struct drm_simple_display_pipe *pipe)
  */
 #define TINYDRM_GEM_DRIVER_OPS \
 	.gem_free_object	= tinydrm_gem_cma_free_object, \
+	.gem_print_info		= drm_gem_cma_print_info, \
 	.gem_vm_ops		= &drm_gem_cma_vm_ops, \
 	.prime_handle_to_fd	= drm_gem_prime_handle_to_fd, \
 	.prime_fd_to_handle	= drm_gem_prime_fd_to_handle, \

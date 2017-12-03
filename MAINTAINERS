@@ -4587,6 +4587,7 @@ F:	include/linux/vga*
 DRM DRIVERS AND MISC GPU PATCHES
 M:	Daniel Vetter <daniel.vetter@intel.com>
 M:	Jani Nikula <jani.nikula@linux.intel.com>
+M:	Gustavo Padovan <gustavo@padovan.org>
 M:	Sean Paul <seanpaul@chromium.org>
 W:	https://01.org/linuxgraphics/gfx-docs/maintainer-tools/drm-misc.html
 S:	Maintained
@@ -4715,7 +4716,8 @@ F:	Documentation/devicetree/bindings/display/bridge/renesas,dw-hdmi.txt
 F:	Documentation/devicetree/bindings/display/renesas,du.txt
 
 DRM DRIVERS FOR ROCKCHIP
-M:	Mark Yao <mark.yao@rock-chips.com>
+M:	Sandy Huang <hjc@rock-chips.com>
+M:	Heiko Stübner <heiko@sntech.de>
 L:	dri-devel@lists.freedesktop.org
 S:	Maintained
 F:	drivers/gpu/drm/rockchip/

@@ -270,6 +270,11 @@ struct drm_display_info {
 	bool dvi_dual;
 
 	/**
+	 * @has_hdmi_infoframe: Does the sink support the HDMI infoframe?
+	 */
+	bool has_hdmi_infoframe;
+
+	/**
 	 * @edid_hdmi_dc_modes: Mask of supported hdmi deep color modes. Even
 	 * more stuff redundant with @bus_formats.
 	 */
@@ -704,7 +709,6 @@ struct drm_cmdline_mode {
  * @force: a DRM_FORCE_<foo> state for forced mode sets
  * @override_edid: has the EDID been overwritten through debugfs for testing?
  * @encoder_ids: valid encoders for this connector
- * @encoder: encoder driving this connector, if any
  * @eld: EDID-like data, if present
  * @latency_present: AV delay info from ELD, if found
  * @video_latency: video latency info from ELD, if found
@@ -874,7 +878,13 @@ struct drm_connector {
 
 #define DRM_CONNECTOR_MAX_ENCODER 3
 	uint32_t encoder_ids[DRM_CONNECTOR_MAX_ENCODER];
-	struct drm_encoder *encoder; /* currently active encoder */
+	/**
+	 * @encoder: Currently bound encoder driving this connector, if any.
+	 * Only really meaningful for non-atomic drivers. Atomic drivers should
+	 * instead look at &drm_connector_state.best_encoder, and in case they
+	 * need the CRTC driving this output, &drm_connector_state.crtc.
+	 */
+	struct drm_encoder *encoder;
 
 #define MAX_ELD_BYTES	128
 	/* EDID bits */
