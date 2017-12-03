@@ -1238,10 +1238,10 @@ static enum cc_flow_mode ssi_aead_get_data_flow_mode(
 	} else { /* Decrypt */
 		if (setup_flow_mode == S_DIN_to_AES)
 			data_flow_mode = is_single_pass ?
-					AES_and_HASH : DIN_AES_DOUT;
+				AES_and_HASH : DIN_AES_DOUT;
 		else
 			data_flow_mode = is_single_pass ?
-					DES_and_HASH : DIN_DES_DOUT;
+				DES_and_HASH : DIN_DES_DOUT;
 	}
 
 	return data_flow_mode;
