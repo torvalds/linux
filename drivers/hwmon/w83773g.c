@@ -102,7 +102,7 @@ static int get_fault(struct regmap *regmap, int index, long *val)
 	if (ret < 0)
 		return ret;
 
-	*val = (u8)regval & 0x04 >> 2;
+	*val = (regval & 0x04) >> 2;
 	return 0;
 }
 
