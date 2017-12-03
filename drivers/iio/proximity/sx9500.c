@@ -1022,6 +1022,7 @@ static const struct dev_pm_ops sx9500_pm_ops = {
 
 static const struct acpi_device_id sx9500_acpi_match[] = {
 	{"SSX9500", 0},
+	{"SASX9500", 0},
 	{ },
 };
 MODULE_DEVICE_TABLE(acpi, sx9500_acpi_match);

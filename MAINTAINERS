@@ -262,6 +262,7 @@ ACCES 104-QUAD-8 IIO DRIVER
 M:	William Breathitt Gray <vilhelm.gray@gmail.com>
 L:	linux-iio@vger.kernel.org
 S:	Maintained
+F:	Documentation/ABI/testing/sysfs-bus-iio-counter-104-quad-8
 F:	drivers/iio/counter/104-quad-8.c
 
 ACCES PCI-IDIO-16 GPIO DRIVER
@@ -845,6 +846,8 @@ M:	Michael Hennerich <Michael.Hennerich@analog.com>
 W:	http://wiki.analog.com/
 W:	http://ez.analog.com/community/linux-device-drivers
 S:	Supported
+F:	Documentation/ABI/testing/sysfs-bus-iio-frequency-ad9523
+F:	Documentation/ABI/testing/sysfs-bus-iio-frequency-adf4350
 F:	drivers/iio/*/ad*
 F:	drivers/iio/adc/ltc2497*
 X:	drivers/iio/*/adjd*
@@ -4126,6 +4129,7 @@ DEVANTECH SRF ULTRASONIC RANGER IIO DRIVER
 M:	Andreas Klinger <ak@it-klinger.de>
 L:	linux-iio@vger.kernel.org
 S:	Maintained
+F:	Documentation/ABI/testing/sysfs-bus-iio-distance-srf08
 F:	drivers/iio/proximity/srf*.c
 
 DEVICE COREDUMP (DEV_COREDUMP)
@@ -6829,6 +6833,8 @@ R:	Peter Meerwald-Stadler <pmeerw@pmeerw.net>
 L:	linux-iio@vger.kernel.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jic23/iio.git
 S:	Maintained
+F:	Documentation/ABI/testing/configfs-iio*
+F:	Documentation/ABI/testing/sysfs-bus-iio*
 F:	Documentation/devicetree/bindings/iio/
 F:	drivers/iio/
 F:	drivers/staging/iio/

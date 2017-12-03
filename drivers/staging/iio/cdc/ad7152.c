@@ -118,22 +118,23 @@ static inline ssize_t ad7152_start_calib(struct device *dev,
 
 	mutex_lock(&chip->state_lock);
 	ret = i2c_smbus_write_byte_data(chip->client, AD7152_REG_CFG, regval);
-	if (ret < 0) {
-		mutex_unlock(&chip->state_lock);
-		return ret;
-	}
+	if (ret < 0)
+		goto unlock;
 
 	do {
 		mdelay(20);
 		ret = i2c_smbus_read_byte_data(chip->client, AD7152_REG_CFG);
-		if (ret < 0) {
-			mutex_unlock(&chip->state_lock);
-			return ret;
-		}
+		if (ret < 0)
+			goto unlock;
+
 	} while ((ret == regval) && timeout--);
 
 	mutex_unlock(&chip->state_lock);
 	return len;
+
+unlock:
+	mutex_unlock(&chip->state_lock);
+	return ret;
 }
 
 static ssize_t ad7152_start_offset_calib(struct device *dev,

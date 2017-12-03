@@ -196,8 +196,7 @@ void inv_mpu_acpi_delete_mux_client(struct i2c_client *client)
 {
 	struct inv_mpu6050_state *st = iio_priv(dev_get_drvdata(&client->dev));
 
-	if (st->mux_client)
-		i2c_unregister_device(st->mux_client);
+	i2c_unregister_device(st->mux_client);
 }
 #else
 
