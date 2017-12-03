@@ -1217,8 +1217,7 @@ static int lan9303_port_fdb_dump(struct dsa_switch *ds, int port,
 }
 
 static int lan9303_port_mdb_prepare(struct dsa_switch *ds, int port,
-				    const struct switchdev_obj_port_mdb *mdb,
-				    struct switchdev_trans *trans)
+				    const struct switchdev_obj_port_mdb *mdb)
 {
 	struct lan9303 *chip = ds->priv;
 
@@ -1235,8 +1234,7 @@ static int lan9303_port_mdb_prepare(struct dsa_switch *ds, int port,
 }
 
 static void lan9303_port_mdb_add(struct dsa_switch *ds, int port,
-				 const struct switchdev_obj_port_mdb *mdb,
-				 struct switchdev_trans *trans)
+				 const struct switchdev_obj_port_mdb *mdb)
 {
 	struct lan9303 *chip = ds->priv;
 
