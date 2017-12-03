@@ -42,7 +42,7 @@ struct cfs_overlay_item {
 
 static int create_overlay(struct cfs_overlay_item *overlay, void *blob)
 {
-	int err;
+	int ovcs_id, err;
 
 	/* unflatten the tree */
 	of_fdt_unflatten_tree(blob, NULL, &overlay->overlay);
@@ -64,7 +64,8 @@ static int create_overlay(struct cfs_overlay_item *overlay, void *blob)
 	}
 	pr_debug("%s: resolved OK\n", __func__);
 
-	err = of_overlay_create(overlay->overlay);
+	ovcs_id = 0;
+	err = of_overlay_apply(overlay->overlay, ovcs_id);
 	if (err < 0) {
 		pr_err("%s: Failed to create overlay (err=%d)\n",
 				__func__, err);
@@ -215,7 +216,7 @@ static void cfs_overlay_release(struct config_item *item)
 	struct cfs_overlay_item *overlay = to_cfs_overlay_item(item);
 
 	if (overlay->ov_id >= 0)
-		of_overlay_destroy(overlay->ov_id);
+		of_overlay_remove(&overlay->ov_id);
 	if (overlay->fw)
 		release_firmware(overlay->fw);
 	/* kfree with NULL is safe */
