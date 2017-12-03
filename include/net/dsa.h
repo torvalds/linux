@@ -296,20 +296,23 @@ static inline u32 dsa_user_ports(struct dsa_switch *ds)
 	return mask;
 }
 
+/* Return the local port used to reach an arbitrary switch port */
+static inline unsigned int dsa_towards_port(struct dsa_switch *ds, int device,
+					    int port)
+{
+	if (device == ds->index)
+		return port;
+	else
+		return ds->rtable[device];
+}
+
+/* Return the local port used to reach the dedicated CPU port */
 static inline u8 dsa_upstream_port(struct dsa_switch *ds)
 {
 	struct dsa_switch_tree *dst = ds->dst;
+	struct dsa_port *cpu_dp = dst->cpu_dp;
 
-	/*
-	 * If this is the root switch (i.e. the switch that connects
-	 * to the CPU), return the cpu port number on this switch.
-	 * Else return the (DSA) port number that connects to the
-	 * switch that is one hop closer to the cpu.
-	 */
-	if (dst->cpu_dp->ds == ds)
-		return dst->cpu_dp->index;
-	else
-		return ds->rtable[dst->cpu_dp->ds->index];
+	return dsa_towards_port(ds, cpu_dp->ds->index, cpu_dp->index);
 }
 
 typedef int dsa_fdb_dump_cb_t(const unsigned char *addr, u16 vid,

@@ -83,29 +83,23 @@ static int dsa_switch_bridge_leave(struct dsa_switch *ds,
 static int dsa_switch_fdb_add(struct dsa_switch *ds,
 			      struct dsa_notifier_fdb_info *info)
 {
-	/* Do not care yet about other switch chips of the fabric */
-	if (ds->index != info->sw_index)
-		return 0;
+	int port = dsa_towards_port(ds, info->sw_index, info->port);
 
 	if (!ds->ops->port_fdb_add)
 		return -EOPNOTSUPP;
 
-	return ds->ops->port_fdb_add(ds, info->port, info->addr,
-				     info->vid);
+	return ds->ops->port_fdb_add(ds, port, info->addr, info->vid);
 }
 
 static int dsa_switch_fdb_del(struct dsa_switch *ds,
 			      struct dsa_notifier_fdb_info *info)
 {
-	/* Do not care yet about other switch chips of the fabric */
-	if (ds->index != info->sw_index)
-		return 0;
+	int port = dsa_towards_port(ds, info->sw_index, info->port);
 
 	if (!ds->ops->port_fdb_del)
 		return -EOPNOTSUPP;
 
-	return ds->ops->port_fdb_del(ds, info->port, info->addr,
-				     info->vid);
+	return ds->ops->port_fdb_del(ds, port, info->addr, info->vid);
 }
 
 static int
