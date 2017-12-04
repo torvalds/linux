@@ -407,7 +407,9 @@ static void deferred_error_interrupt_enable(struct cpuinfo_x86 *c)
 	    (deferred_error_int_vector != amd_deferred_error_interrupt))
 		deferred_error_int_vector = amd_deferred_error_interrupt;
 
-	low = (low & ~MASK_DEF_INT_TYPE) | DEF_INT_TYPE_APIC;
+	if (!mce_flags.smca)
+		low = (low & ~MASK_DEF_INT_TYPE) | DEF_INT_TYPE_APIC;
+
 	wrmsr(MSR_CU_DEF_ERR, low, high);
 }
 
