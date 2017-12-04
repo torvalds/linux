@@ -540,7 +540,7 @@ void cec_transmit_done_ts(struct cec_adapter *adap, u8 status,
 	unsigned int attempts_made = arb_lost_cnt + nack_cnt +
 				     low_drive_cnt + error_cnt;
 
-	dprintk(2, "%s: status %02x\n", __func__, status);
+	dprintk(2, "%s: status 0x%02x\n", __func__, status);
 	if (attempts_made < 1)
 		attempts_made = 1;
 
