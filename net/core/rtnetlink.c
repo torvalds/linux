@@ -129,7 +129,7 @@ bool lockdep_rtnl_is_held(void)
 EXPORT_SYMBOL(lockdep_rtnl_is_held);
 #endif /* #ifdef CONFIG_PROVE_LOCKING */
 
-static struct rtnl_link __rcu **rtnl_msg_handlers[RTNL_FAMILY_MAX + 1];
+static struct rtnl_link *__rcu *rtnl_msg_handlers[RTNL_FAMILY_MAX + 1];
 
 static inline int rtm_msgindex(int msgtype)
 {
@@ -164,7 +164,8 @@ static int rtnl_register_internal(struct module *owner,
 				  rtnl_doit_func doit, rtnl_dumpit_func dumpit,
 				  unsigned int flags)
 {
-	struct rtnl_link **tab, *link, *old;
+	struct rtnl_link *link, *old;
+	struct rtnl_link __rcu **tab;
 	int msgindex;
 	int ret = -ENOBUFS;
 
