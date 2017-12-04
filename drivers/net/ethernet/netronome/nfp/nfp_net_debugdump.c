@@ -45,6 +45,7 @@
 enum nfp_dumpspec_type {
 	NFP_DUMPSPEC_TYPE_RTSYM = 4,
 	NFP_DUMPSPEC_TYPE_HWINFO = 5,
+	NFP_DUMPSPEC_TYPE_FWNAME = 6,
 	NFP_DUMPSPEC_TYPE_HWINFO_FIELD = 7,
 	NFP_DUMPSPEC_TYPE_PROLOG = 10000,
 	NFP_DUMPSPEC_TYPE_ERROR = 10001,
@@ -198,6 +199,13 @@ static int nfp_dump_error_tlv_size(struct nfp_dump_tl *spec)
 		      be32_to_cpu(spec->length));
 }
 
+static int nfp_calc_fwname_tlv_size(struct nfp_pf *pf)
+{
+	u32 fwname_len = strlen(nfp_mip_name(pf->mip));
+
+	return sizeof(struct nfp_dump_tl) + ALIGN8(fwname_len + 1);
+}
+
 static int nfp_calc_hwinfo_field_sz(struct nfp_pf *pf, struct nfp_dump_tl *spec)
 {
 	u32 tl_len, key_len;
@@ -244,6 +252,9 @@ nfp_add_tlv_size(struct nfp_pf *pf, struct nfp_dump_tl *tl, void *param)
 	u32 hwinfo_size;
 
 	switch (be32_to_cpu(tl->type)) {
+	case NFP_DUMPSPEC_TYPE_FWNAME:
+		*size += nfp_calc_fwname_tlv_size(pf);
+		break;
 	case NFP_DUMPSPEC_TYPE_RTSYM:
 		*size += nfp_calc_rtsym_dump_sz(pf, tl);
 		break;
@@ -329,6 +340,26 @@ nfp_dump_error_tlv(struct nfp_dump_tl *spec, int error,
 
 	dump_header->error = cpu_to_be32(error);
 	memcpy(dump_header->spec, spec, total_spec_size);
+
+	return 0;
+}
+
+static int nfp_dump_fwname(struct nfp_pf *pf, struct nfp_dump_state *dump)
+{
+	struct nfp_dump_tl *dump_header = dump->p;
+	u32 fwname_len, total_size;
+	const char *fwname;
+	int err;
+
+	fwname = nfp_mip_name(pf->mip);
+	fwname_len = strlen(fwname);
+	total_size = sizeof(*dump_header) + ALIGN8(fwname_len + 1);
+
+	err = nfp_add_tlv(NFP_DUMPSPEC_TYPE_FWNAME, total_size, dump);
+	if (err)
+		return err;
+
+	memcpy(dump_header->data, fwname, fwname_len);
 
 	return 0;
 }
@@ -451,6 +482,11 @@ nfp_dump_for_tlv(struct nfp_pf *pf, struct nfp_dump_tl *tl, void *param)
 	int err;
 
 	switch (be32_to_cpu(tl->type)) {
+	case NFP_DUMPSPEC_TYPE_FWNAME:
+		err = nfp_dump_fwname(pf, dump);
+		if (err)
+			return err;
+		break;
 	case NFP_DUMPSPEC_TYPE_RTSYM:
 		spec_rtsym = (struct nfp_dumpspec_rtsym *)tl;
 		err = nfp_dump_single_rtsym(pf, spec_rtsym, dump);
