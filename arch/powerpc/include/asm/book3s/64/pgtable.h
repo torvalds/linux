@@ -546,6 +546,30 @@ static inline int pte_present(pte_t pte)
 {
 	return !!(pte_raw(pte) & cpu_to_be64(_PAGE_PRESENT));
 }
+
+#define pte_access_permitted pte_access_permitted
+static inline bool pte_access_permitted(pte_t pte, bool write)
+{
+	unsigned long pteval = pte_val(pte);
+	/* Also check for pte_user */
+	unsigned long clear_pte_bits = _PAGE_PRIVILEGED;
+	/*
+	 * _PAGE_READ is needed for any access and will be
+	 * cleared for PROT_NONE
+	 */
+	unsigned long need_pte_bits = _PAGE_PRESENT | _PAGE_READ;
+
+	if (write)
+		need_pte_bits |= _PAGE_WRITE;
+
+	if ((pteval & need_pte_bits) != need_pte_bits)
+		return false;
+
+	if ((pteval & clear_pte_bits) == clear_pte_bits)
+		return false;
+	return true;
+}
+
 /*
  * Conversion functions: convert a page and protection to a page entry,
  * and a page entry and page directory to the page they refer to.
@@ -850,6 +874,11 @@ static inline int pud_bad(pud_t pud)
 	return hash__pud_bad(pud);
 }
 
+#define pud_access_permitted pud_access_permitted
+static inline bool pud_access_permitted(pud_t pud, bool write)
+{
+	return pte_access_permitted(pud_pte(pud), write);
+}
 
 #define pgd_write(pgd)		pte_write(pgd_pte(pgd))
 static inline void pgd_set(pgd_t *pgdp, unsigned long val)
@@ -887,6 +916,12 @@ static inline int pgd_bad(pgd_t pgd)
 	if (radix_enabled())
 		return radix__pgd_bad(pgd);
 	return hash__pgd_bad(pgd);
+}
+
+#define pgd_access_permitted pgd_access_permitted
+static inline bool pgd_access_permitted(pgd_t pgd, bool write)
+{
+	return pte_access_permitted(pgd_pte(pgd), write);
 }
 
 extern struct page *pgd_page(pgd_t pgd);
@@ -1008,6 +1043,12 @@ static inline int pmd_protnone(pmd_t pmd)
 #define pmd_write(pmd)		pte_write(pmd_pte(pmd))
 #define __pmd_write(pmd)	__pte_write(pmd_pte(pmd))
 #define pmd_savedwrite(pmd)	pte_savedwrite(pmd_pte(pmd))
+
+#define pmd_access_permitted pmd_access_permitted
+static inline bool pmd_access_permitted(pmd_t pmd, bool write)
+{
+	return pte_access_permitted(pmd_pte(pmd), write);
+}
 
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
 extern pmd_t pfn_pmd(unsigned long pfn, pgprot_t pgprot);
