@@ -65,11 +65,17 @@ struct kvm_resize_hpt {
 	u32 order;
 
 	/* These fields protected by kvm->lock */
-	int error;
-	bool prepare_done;
 
-	/* Private to the work thread, until prepare_done is true,
-	 * then protected by kvm->resize_hpt_sem */
+	/* Possible values and their usage:
+	 *  <0     an error occurred during allocation,
+	 *  -EBUSY allocation is in the progress,
+	 *  0      allocation made successfuly.
+	 */
+	int error;
+
+	/* Private to the work thread, until error != -EBUSY,
+	 * then protected by kvm->lock.
+	 */
 	struct kvm_hpt_info hpt;
 };
 
@@ -1433,15 +1439,23 @@ static void resize_hpt_prepare_work(struct work_struct *work)
 	struct kvm *kvm = resize->kvm;
 	int err;
 
+	if (WARN_ON(resize->error != -EBUSY))
+		return;
+
 	resize_hpt_debug(resize, "resize_hpt_prepare_work(): order = %d\n",
 			 resize->order);
 
 	err = resize_hpt_allocate(resize);
 
+	/* We have strict assumption about -EBUSY
+	 * when preparing for HPT resize.
+	 */
+	if (WARN_ON(err == -EBUSY))
+		err = -EINPROGRESS;
+
 	mutex_lock(&kvm->lock);
 
 	resize->error = err;
-	resize->prepare_done = true;
 
 	mutex_unlock(&kvm->lock);
 }
@@ -1466,14 +1480,12 @@ long kvm_vm_ioctl_resize_hpt_prepare(struct kvm *kvm,
 
 	if (resize) {
 		if (resize->order == shift) {
-			/* Suitable resize in progress */
-			if (resize->prepare_done) {
-				ret = resize->error;
-				if (ret != 0)
-					resize_hpt_release(kvm, resize);
-			} else {
+			/* Suitable resize in progress? */
+			ret = resize->error;
+			if (ret == -EBUSY)
 				ret = 100; /* estimated time in ms */
-			}
+			else if (ret)
+				resize_hpt_release(kvm, resize);
 
 			goto out;
 		}
@@ -1493,6 +1505,8 @@ long kvm_vm_ioctl_resize_hpt_prepare(struct kvm *kvm,
 		ret = -ENOMEM;
 		goto out;
 	}
+
+	resize->error = -EBUSY;
 	resize->order = shift;
 	resize->kvm = kvm;
 	INIT_WORK(&resize->work, resize_hpt_prepare_work);
@@ -1547,16 +1561,12 @@ long kvm_vm_ioctl_resize_hpt_commit(struct kvm *kvm,
 	if (!resize || (resize->order != shift))
 		goto out;
 
-	ret = -EBUSY;
-	if (!resize->prepare_done)
-		goto out;
-
 	ret = resize->error;
-	if (ret != 0)
+	if (ret)
 		goto out;
 
 	ret = resize_hpt_rehash(resize);
-	if (ret != 0)
+	if (ret)
 		goto out;
 
 	resize_hpt_pivot(resize);
