@@ -81,6 +81,16 @@ config KVM_AMD
 	  To compile this as a module, choose M here: the module
 	  will be called kvm-amd.
 
+config KVM_AMD_SEV
+	def_bool y
+	bool "AMD Secure Encrypted Virtualization (SEV) support"
+	depends on KVM_AMD && X86_64
+	select CRYPTO_DEV_CCP
+	select CRYPTO_DEV_CCP_DD
+	select CRYPTO_DEV_SP_PSP
+	---help---
+	Provides support for launching Encrypted VMs on AMD processors.
+
 config KVM_MMU_AUDIT
 	bool "Audit KVM MMU"
 	depends on KVM && TRACEPOINTS
