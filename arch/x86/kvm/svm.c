@@ -1443,8 +1443,10 @@ static void init_vmcb(struct vcpu_svm *svm)
 		svm->vmcb->control.int_ctl |= V_GIF_ENABLE_MASK;
 	}
 
-	if (sev_guest(svm->vcpu.kvm))
+	if (sev_guest(svm->vcpu.kvm)) {
 		svm->vmcb->control.nested_ctl |= SVM_NESTED_CTL_SEV_ENABLE;
+		clr_exception_intercept(svm, UD_VECTOR);
+	}
 
 	mark_all_dirty(svm->vmcb);
 
