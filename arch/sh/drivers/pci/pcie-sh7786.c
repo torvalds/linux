@@ -33,6 +33,7 @@ struct sh7786_pcie_port {
 
 static struct sh7786_pcie_port *sh7786_pcie_ports;
 static unsigned int nr_ports;
+static unsigned long dma_pfn_offset;
 
 static struct sh7786_pcie_hwops {
 	int (*core_init)(void);
@@ -370,6 +371,8 @@ static int __init pcie_init(struct sh7786_pcie_port *port)
 	memstart = ALIGN_DOWN(memstart, memsize);
 	memsize = roundup_pow_of_two(memend - memstart);
 
+	dma_pfn_offset = memstart >> PAGE_SHIFT;
+
 	/*
 	 * If there's more than 512MB of memory, we need to roll over to
 	 * LAR1/LAMR1.
@@ -483,6 +486,11 @@ static int __init pcie_init(struct sh7786_pcie_port *port)
 int pcibios_map_platform_irq(const struct pci_dev *pdev, u8 slot, u8 pin)
 {
         return evt2irq(0xae0);
+}
+
+void pcibios_bus_add_device(struct pci_dev *pdev)
+{
+	pdev->dev.dma_pfn_offset = dma_pfn_offset;
 }
 
 static int __init sh7786_pcie_core_init(void)
