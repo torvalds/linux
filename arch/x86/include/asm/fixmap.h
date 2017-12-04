@@ -61,6 +61,8 @@ struct cpu_entry_area {
 	 * of the TSS region.
 	 */
 	struct tss_struct tss;
+
+	char entry_trampoline[PAGE_SIZE];
 };
 
 #define CPU_ENTRY_AREA_PAGES (sizeof(struct cpu_entry_area) / PAGE_SIZE)
