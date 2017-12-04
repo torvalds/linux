@@ -3171,43 +3171,136 @@ void qla24xx_async_gpnid_done(scsi_qla_host_t *vha, srb_t *sp)
 
 void qla24xx_handle_gpnid_event(scsi_qla_host_t *vha, struct event_arg *ea)
 {
-	fc_port_t *fcport;
-	unsigned long flags;
+	fc_port_t *fcport, *conflict, *t;
 
-	spin_lock_irqsave(&vha->hw->tgt.sess_lock, flags);
-	fcport = qla2x00_find_fcport_by_wwpn(vha, ea->port_name, 1);
-	spin_unlock_irqrestore(&vha->hw->tgt.sess_lock, flags);
+	ql_dbg(ql_dbg_disc, vha, 0xffff,
+	    "%s %d port_id: %06x\n",
+	    __func__, __LINE__, ea->id.b24);
 
-	if (fcport) {
-		/* cable moved. just plugged in */
-		fcport->rscn_gen++;
-		fcport->d_id = ea->id;
-		fcport->scan_state = QLA_FCPORT_FOUND;
-		fcport->flags |= FCF_FABRIC_DEVICE;
-
-		switch (fcport->disc_state) {
-		case DSC_DELETED:
-			ql_dbg(ql_dbg_disc, vha, 0x210d,
-			    "%s %d %8phC login\n", __func__, __LINE__,
-			    fcport->port_name);
-			qla24xx_fcport_handle_login(vha, fcport);
-			break;
-		case DSC_DELETE_PEND:
-			break;
-		default:
-			ql_dbg(ql_dbg_disc, vha, 0x2064,
-			    "%s %d %8phC post del sess\n",
-			    __func__, __LINE__, fcport->port_name);
-			qlt_schedule_sess_for_deletion_lock(fcport);
-			break;
+	if (ea->rc) {
+		/* cable is disconnected */
+		list_for_each_entry_safe(fcport, t, &vha->vp_fcports, list) {
+			if (fcport->d_id.b24 == ea->id.b24) {
+				ql_dbg(ql_dbg_disc, vha, 0xffff,
+				    "%s %d %8phC DS %d\n",
+				    __func__, __LINE__,
+				    fcport->port_name,
+				    fcport->disc_state);
+				fcport->scan_state = QLA_FCPORT_SCAN;
+				switch (fcport->disc_state) {
+				case DSC_DELETED:
+				case DSC_DELETE_PEND:
+					break;
+				default:
+					ql_dbg(ql_dbg_disc, vha, 0xffff,
+					    "%s %d %8phC post del sess\n",
+					    __func__, __LINE__,
+					    fcport->port_name);
+					qlt_schedule_sess_for_deletion_lock
+						(fcport);
+					break;
+				}
+			}
 		}
 	} else {
-		/* create new fcport */
-		ql_dbg(ql_dbg_disc, vha, 0x2065,
-		    "%s %d %8phC post new sess\n",
-		    __func__, __LINE__, ea->port_name);
+		/* cable is connected */
+		fcport = qla2x00_find_fcport_by_wwpn(vha, ea->port_name, 1);
+		if (fcport) {
+			list_for_each_entry_safe(conflict, t, &vha->vp_fcports,
+			    list) {
+				if ((conflict->d_id.b24 == ea->id.b24) &&
+				    (fcport != conflict)) {
+					/* 2 fcports with conflict Nport ID or
+					 * an existing fcport is having nport ID
+					 * conflict with new fcport.
+					 */
 
-		qla24xx_post_newsess_work(vha, &ea->id, ea->port_name, NULL);
+					ql_dbg(ql_dbg_disc, vha, 0xffff,
+					    "%s %d %8phC DS %d\n",
+					    __func__, __LINE__,
+					    conflict->port_name,
+					    conflict->disc_state);
+					conflict->scan_state = QLA_FCPORT_SCAN;
+					switch (conflict->disc_state) {
+					case DSC_DELETED:
+					case DSC_DELETE_PEND:
+						break;
+					default:
+						ql_dbg(ql_dbg_disc, vha, 0xffff,
+						    "%s %d %8phC post del sess\n",
+						    __func__, __LINE__,
+						    conflict->port_name);
+						qlt_schedule_sess_for_deletion_lock
+							(conflict);
+						break;
+					}
+				}
+			}
+
+			fcport->rscn_gen++;
+			fcport->scan_state = QLA_FCPORT_FOUND;
+			fcport->flags |= FCF_FABRIC_DEVICE;
+			switch (fcport->disc_state) {
+			case DSC_LOGIN_COMPLETE:
+				/* recheck session is still intact. */
+				ql_dbg(ql_dbg_disc, vha, 0x210d,
+				    "%s %d %8phC revalidate session with ADISC\n",
+				    __func__, __LINE__, fcport->port_name);
+				qla24xx_post_gpdb_work(vha, fcport,
+				    PDO_FORCE_ADISC);
+				break;
+			case DSC_DELETED:
+				ql_dbg(ql_dbg_disc, vha, 0x210d,
+				    "%s %d %8phC login\n", __func__, __LINE__,
+				    fcport->port_name);
+				fcport->d_id = ea->id;
+				qla24xx_fcport_handle_login(vha, fcport);
+				break;
+			case DSC_DELETE_PEND:
+				fcport->d_id = ea->id;
+				break;
+			default:
+				fcport->d_id = ea->id;
+				break;
+			}
+		} else {
+			list_for_each_entry_safe(conflict, t, &vha->vp_fcports,
+			    list) {
+				if (conflict->d_id.b24 == ea->id.b24) {
+					/* 2 fcports with conflict Nport ID or
+					 * an existing fcport is having nport ID
+					 * conflict with new fcport.
+					 */
+					ql_dbg(ql_dbg_disc, vha, 0xffff,
+					    "%s %d %8phC DS %d\n",
+					    __func__, __LINE__,
+					    conflict->port_name,
+					    conflict->disc_state);
+
+					conflict->scan_state = QLA_FCPORT_SCAN;
+					switch (conflict->disc_state) {
+					case DSC_DELETED:
+					case DSC_DELETE_PEND:
+						break;
+					default:
+						ql_dbg(ql_dbg_disc, vha, 0xffff,
+						    "%s %d %8phC post del sess\n",
+						    __func__, __LINE__,
+						    conflict->port_name);
+						qlt_schedule_sess_for_deletion_lock
+							(conflict);
+						break;
+					}
+				}
+			}
+
+			/* create new fcport */
+			ql_dbg(ql_dbg_disc, vha, 0x2065,
+			    "%s %d %8phC post new sess\n",
+			    __func__, __LINE__, ea->port_name);
+			qla24xx_post_newsess_work(vha, &ea->id,
+			    ea->port_name, NULL);
+		}
 	}
 }
 
@@ -3248,12 +3341,13 @@ static void qla2x00_async_gpnid_sp_done(void *s, int res)
 	spin_unlock_irqrestore(&vha->hw->tgt.sess_lock, flags);
 
 	if (res) {
-		if (res == QLA_FUNCTION_TIMEOUT)
+		if (res == QLA_FUNCTION_TIMEOUT) {
 			qla24xx_post_gpnid_work(sp->vha, &ea.id);
-		sp->free(sp);
-		return;
+			sp->free(sp);
+			return;
+		}
 	} else if (sp->gen1) {
-		/* There was anoter RSNC for this Nport ID */
+		/* There was another RSCN for this Nport ID */
 		qla24xx_post_gpnid_work(sp->vha, &ea.id);
 		sp->free(sp);
 		return;
