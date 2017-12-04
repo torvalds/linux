@@ -1151,7 +1151,8 @@ static void update_curr_dl(struct rq *rq)
 {
 	struct task_struct *curr = rq->curr;
 	struct sched_dl_entity *dl_se = &curr->dl;
-	u64 delta_exec;
+	u64 delta_exec, scaled_delta_exec;
+	int cpu = cpu_of(rq);
 
 	if (!dl_task(curr) || !on_dl_rq(dl_se))
 		return;
@@ -1185,9 +1186,26 @@ static void update_curr_dl(struct rq *rq)
 	if (dl_entity_is_special(dl_se))
 		return;
 
-	if (unlikely(dl_se->flags & SCHED_FLAG_RECLAIM))
-		delta_exec = grub_reclaim(delta_exec, rq, &curr->dl);
-	dl_se->runtime -= delta_exec;
+	/*
+	 * For tasks that participate in GRUB, we implement GRUB-PA: the
+	 * spare reclaimed bandwidth is used to clock down frequency.
+	 *
+	 * For the others, we still need to scale reservation parameters
+	 * according to current frequency and CPU maximum capacity.
+	 */
+	if (unlikely(dl_se->flags & SCHED_FLAG_RECLAIM)) {
+		scaled_delta_exec = grub_reclaim(delta_exec,
+						 rq,
+						 &curr->dl);
+	} else {
+		unsigned long scale_freq = arch_scale_freq_capacity(cpu);
+		unsigned long scale_cpu = arch_scale_cpu_capacity(NULL, cpu);
+
+		scaled_delta_exec = cap_scale(delta_exec, scale_freq);
+		scaled_delta_exec = cap_scale(scaled_delta_exec, scale_cpu);
+	}
+
+	dl_se->runtime -= scaled_delta_exec;
 
 throttle:
 	if (dl_runtime_exceeded(dl_se) || dl_se->dl_yielded) {
