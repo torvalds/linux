@@ -38,6 +38,7 @@
 #include <linux/hashtable.h>
 #include <linux/frame.h>
 #include <linux/psp-sev.h>
+#include <linux/file.h>
 
 #include <asm/apic.h>
 #include <asm/perf_event.h>
@@ -325,6 +326,20 @@ enum {
 #define VMCB_AVIC_APIC_BAR_MASK		0xFFFFFFFFFF000ULL
 
 static unsigned int max_sev_asid;
+static unsigned int min_sev_asid;
+static unsigned long *sev_asid_bitmap;
+
+static inline bool svm_sev_enabled(void)
+{
+	return max_sev_asid;
+}
+
+static inline bool sev_guest(struct kvm *kvm)
+{
+	struct kvm_sev_info *sev = &kvm->arch.sev_info;
+
+	return sev->active;
+}
 
 static inline void mark_all_dirty(struct vmcb *vmcb)
 {
@@ -1065,6 +1080,15 @@ static __init int sev_hardware_setup(void)
 	if (!max_sev_asid)
 		return 1;
 
+	/* Minimum ASID value that should be used for SEV guest */
+	min_sev_asid = cpuid_edx(0x8000001F);
+
+	/* Initialize SEV ASID bitmap */
+	sev_asid_bitmap = kcalloc(BITS_TO_LONGS(max_sev_asid),
+				sizeof(unsigned long), GFP_KERNEL);
+	if (!sev_asid_bitmap)
+		return 1;
+
 	status = kmalloc(sizeof(*status), GFP_KERNEL);
 	if (!status)
 		return 1;
@@ -1193,6 +1217,9 @@ err:
 static __exit void svm_hardware_unsetup(void)
 {
 	int cpu;
+
+	if (svm_sev_enabled())
+		kfree(sev_asid_bitmap);
 
 	for_each_possible_cpu(cpu)
 		svm_cpu_uninit(cpu);
@@ -1384,6 +1411,9 @@ static void init_vmcb(struct vcpu_svm *svm)
 		svm->vmcb->control.int_ctl |= V_GIF_ENABLE_MASK;
 	}
 
+	if (sev_guest(svm->vcpu.kvm))
+		svm->vmcb->control.nested_ctl |= SVM_NESTED_CTL_SEV_ENABLE;
+
 	mark_all_dirty(svm->vmcb);
 
 	enable_gif(svm);
@@ -1466,6 +1496,29 @@ static int avic_init_backing_page(struct kvm_vcpu *vcpu)
 	return 0;
 }
 
+static void __sev_asid_free(int asid)
+{
+	int pos;
+
+	pos = asid - 1;
+	clear_bit(pos, sev_asid_bitmap);
+}
+
+static void sev_asid_free(struct kvm *kvm)
+{
+	struct kvm_sev_info *sev = &kvm->arch.sev_info;
+
+	__sev_asid_free(sev->asid);
+}
+
+static void sev_vm_destroy(struct kvm *kvm)
+{
+	if (!sev_guest(kvm))
+		return;
+
+	sev_asid_free(kvm);
+}
+
 static void avic_vm_destroy(struct kvm *kvm)
 {
 	unsigned long flags;
@@ -1482,6 +1535,12 @@ static void avic_vm_destroy(struct kvm *kvm)
 	spin_lock_irqsave(&svm_vm_data_hash_lock, flags);
 	hash_del(&vm_data->hnode);
 	spin_unlock_irqrestore(&svm_vm_data_hash_lock, flags);
+}
+
+static void svm_vm_destroy(struct kvm *kvm)
+{
+	avic_vm_destroy(kvm);
+	sev_vm_destroy(kvm);
 }
 
 static int avic_vm_init(struct kvm *kvm)
@@ -5556,6 +5615,75 @@ static int enable_smi_window(struct kvm_vcpu *vcpu)
 	return 0;
 }
 
+static int sev_asid_new(void)
+{
+	int pos;
+
+	/*
+	 * SEV-enabled guest must use asid from min_sev_asid to max_sev_asid.
+	 */
+	pos = find_next_zero_bit(sev_asid_bitmap, max_sev_asid, min_sev_asid - 1);
+	if (pos >= max_sev_asid)
+		return -EBUSY;
+
+	set_bit(pos, sev_asid_bitmap);
+	return pos + 1;
+}
+
+static int sev_guest_init(struct kvm *kvm, struct kvm_sev_cmd *argp)
+{
+	struct kvm_sev_info *sev = &kvm->arch.sev_info;
+	int asid, ret;
+
+	ret = -EBUSY;
+	asid = sev_asid_new();
+	if (asid < 0)
+		return ret;
+
+	ret = sev_platform_init(&argp->error);
+	if (ret)
+		goto e_free;
+
+	sev->active = true;
+	sev->asid = asid;
+
+	return 0;
+
+e_free:
+	__sev_asid_free(asid);
+	return ret;
+}
+
+static int svm_mem_enc_op(struct kvm *kvm, void __user *argp)
+{
+	struct kvm_sev_cmd sev_cmd;
+	int r;
+
+	if (!svm_sev_enabled())
+		return -ENOTTY;
+
+	if (copy_from_user(&sev_cmd, argp, sizeof(struct kvm_sev_cmd)))
+		return -EFAULT;
+
+	mutex_lock(&kvm->lock);
+
+	switch (sev_cmd.id) {
+	case KVM_SEV_INIT:
+		r = sev_guest_init(kvm, &sev_cmd);
+		break;
+	default:
+		r = -EINVAL;
+		goto out;
+	}
+
+	if (copy_to_user(argp, &sev_cmd, sizeof(struct kvm_sev_cmd)))
+		r = -EFAULT;
+
+out:
+	mutex_unlock(&kvm->lock);
+	return r;
+}
+
 static struct kvm_x86_ops svm_x86_ops __ro_after_init = {
 	.cpu_has_kvm_support = has_svm,
 	.disabled_by_bios = is_disabled,
@@ -5572,7 +5700,7 @@ static struct kvm_x86_ops svm_x86_ops __ro_after_init = {
 	.vcpu_reset = svm_vcpu_reset,
 
 	.vm_init = avic_vm_init,
-	.vm_destroy = avic_vm_destroy,
+	.vm_destroy = svm_vm_destroy,
 
 	.prepare_guest_switch = svm_prepare_guest_switch,
 	.vcpu_load = svm_vcpu_load,
@@ -5671,6 +5799,8 @@ static struct kvm_x86_ops svm_x86_ops __ro_after_init = {
 	.pre_enter_smm = svm_pre_enter_smm,
 	.pre_leave_smm = svm_pre_leave_smm,
 	.enable_smi_window = enable_smi_window,
+
+	.mem_enc_op = svm_mem_enc_op,
 };
 
 static int __init svm_init(void)

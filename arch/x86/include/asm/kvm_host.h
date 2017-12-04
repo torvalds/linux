@@ -747,6 +747,11 @@ enum kvm_irqchip_mode {
 	KVM_IRQCHIP_SPLIT,        /* created with KVM_CAP_SPLIT_IRQCHIP */
 };
 
+struct kvm_sev_info {
+	bool active;		/* SEV enabled guest */
+	unsigned int asid;	/* ASID used for this guest */
+};
+
 struct kvm_arch {
 	unsigned int n_used_mmu_pages;
 	unsigned int n_requested_mmu_pages;
@@ -834,6 +839,8 @@ struct kvm_arch {
 
 	bool x2apic_format;
 	bool x2apic_broadcast_quirk_disabled;
+
+	struct kvm_sev_info sev_info;
 };
 
 struct kvm_vm_stat {
