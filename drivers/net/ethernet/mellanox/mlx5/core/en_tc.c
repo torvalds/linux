@@ -1032,10 +1032,8 @@ void mlx5e_tc_update_neigh_used_value(struct mlx5e_neigh_hash_entry *nhe)
 		 * dst ip pair
 		 */
 		n = neigh_lookup(tbl, &m_neigh->dst_ip, m_neigh->dev);
-		if (!n) {
-			WARN(1, "The neighbour already freed\n");
+		if (!n)
 			return;
-		}
 
 		neigh_event_send(n, NULL);
 		neigh_release(n);
