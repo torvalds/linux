@@ -554,13 +554,13 @@ S:	Orphan
 F:	Documentation/filesystems/affs.txt
 F:	fs/affs/
 
-AFS FILESYSTEM & AF_RXRPC SOCKET DOMAIN
+AFS FILESYSTEM
 M:	David Howells <dhowells@redhat.com>
 L:	linux-afs@lists.infradead.org
 S:	Supported
 F:	fs/afs/
-F:	include/net/af_rxrpc.h
-F:	net/rxrpc/af_rxrpc.c
+F:	include/trace/events/afs.h
+F:	Documentation/filesystems/afs.txt
 W:	https://www.infradead.org/~dhowells/kafs/
 
 AGPGART DRIVER
@@ -11775,6 +11775,18 @@ L:	linux-wireless@vger.kernel.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jes/linux.git rtl8xxxu-devel
 S:	Maintained
 F:	drivers/net/wireless/realtek/rtl8xxxu/
+
+RXRPC SOCKETS (AF_RXRPC)
+M:	David Howells <dhowells@redhat.com>
+L:	linux-afs@lists.infradead.org
+S:	Supported
+F:	net/rxrpc/
+F:	include/keys/rxrpc-type.h
+F:	include/net/af_rxrpc.h
+F:	include/trace/events/rxrpc.h
+F:	include/uapi/linux/rxrpc.h
+F:	Documentation/networking/rxrpc.txt
+W:	https://www.infradead.org/~dhowells/kafs/
 
 S3 SAVAGE FRAMEBUFFER DRIVER
 M:	Antonino Daplas <adaplas@gmail.com>

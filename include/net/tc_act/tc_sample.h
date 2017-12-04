@@ -14,7 +14,6 @@ struct tcf_sample {
 	struct psample_group __rcu *psample_group;
 	u32 psample_group_num;
 	struct list_head tcfm_list;
-	struct rcu_head rcu;
 };
 #define to_sample(a) ((struct tcf_sample *)a)
 
