@@ -71,4 +71,7 @@
 
 #endif
 
+#define KERNEL_STACK_SHIFT	13
+#define KERNEL_STACK_SIZE	(1 << KERNEL_STACK_SHIFT)
+
 #endif

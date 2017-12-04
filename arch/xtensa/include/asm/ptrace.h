@@ -10,6 +10,7 @@
 #ifndef _XTENSA_PTRACE_H
 #define _XTENSA_PTRACE_H
 
+#include <asm/kmem_layout.h>
 #include <uapi/asm/ptrace.h>
 
 /*
@@ -37,8 +38,6 @@
  *		|  struct thread_info   |  |  |  |
  *		+-----------------------+ --------
  */
-
-#define KERNEL_STACK_SIZE (2 * PAGE_SIZE)
 
 /*  Offsets for exception_handlers[] (3 x 64-entries x 4-byte tables). */
 
