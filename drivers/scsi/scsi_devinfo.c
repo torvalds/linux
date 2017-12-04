@@ -361,7 +361,8 @@ static int scsi_dev_info_list_add(int compatible, char *vendor, char *model,
  * Returns: 0 OK, -error on failure.
  **/
 int scsi_dev_info_list_add_keyed(int compatible, char *vendor, char *model,
-				 char *strflags, blist_flags_t flags, int key)
+				 char *strflags, blist_flags_t flags,
+				 enum scsi_devinfo_key key)
 {
 	struct scsi_dev_info_list *devinfo;
 	struct scsi_dev_info_list_table *devinfo_table =
@@ -412,7 +413,7 @@ EXPORT_SYMBOL(scsi_dev_info_list_add_keyed);
  * Returns: pointer to matching entry, or ERR_PTR on failure.
  **/
 static struct scsi_dev_info_list *scsi_dev_info_list_find(const char *vendor,
-		const char *model, int key)
+		const char *model, enum scsi_devinfo_key key)
 {
 	struct scsi_dev_info_list *devinfo;
 	struct scsi_dev_info_list_table *devinfo_table =
@@ -494,7 +495,8 @@ static struct scsi_dev_info_list *scsi_dev_info_list_find(const char *vendor,
  *
  * Returns: 0 OK, -error on failure.
  **/
-int scsi_dev_info_list_del_keyed(char *vendor, char *model, int key)
+int scsi_dev_info_list_del_keyed(char *vendor, char *model,
+				 enum scsi_devinfo_key key)
 {
 	struct scsi_dev_info_list *found;
 
@@ -596,7 +598,7 @@ blist_flags_t scsi_get_device_flags(struct scsi_device *sdev,
 blist_flags_t scsi_get_device_flags_keyed(struct scsi_device *sdev,
 				const unsigned char *vendor,
 				const unsigned char *model,
-				int key)
+				enum scsi_devinfo_key key)
 {
 	struct scsi_dev_info_list *devinfo;
 
@@ -778,7 +780,7 @@ void scsi_exit_devinfo(void)
  * Adds the requested list, returns zero on success, -EEXIST if the
  * key is already registered to a list, or other error on failure.
  */
-int scsi_dev_info_add_list(int key, const char *name)
+int scsi_dev_info_add_list(enum scsi_devinfo_key key, const char *name)
 {
 	struct scsi_dev_info_list_table *devinfo_table =
 		scsi_devinfo_lookup_by_key(key);
@@ -810,7 +812,7 @@ EXPORT_SYMBOL(scsi_dev_info_add_list);
  * frees the list itself.  Returns 0 on success or -EINVAL if the key
  * can't be found.
  */
-int scsi_dev_info_remove_list(int key)
+int scsi_dev_info_remove_list(enum scsi_devinfo_key key)
 {
 	struct list_head *lh, *lh_next;
 	struct scsi_dev_info_list_table *devinfo_table =
