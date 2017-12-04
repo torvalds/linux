@@ -85,20 +85,26 @@ static inline u64 inc_mm_tlb_gen(struct mm_struct *mm)
  */
 #define MAX_ASID_AVAILABLE ((1 << CR3_AVAIL_ASID_BITS) - 2)
 
-/*
- * If PCID is on, ASID-aware code paths put the ASID+1 into the PCID bits.
- * This serves two purposes.  It prevents a nasty situation in which
- * PCID-unaware code saves CR3, loads some other value (with PCID == 0),
- * and then restores CR3, thus corrupting the TLB for ASID 0 if the saved
- * ASID was nonzero.  It also means that any bugs involving loading a
- * PCID-enabled CR3 with CR4.PCIDE off will trigger deterministically.
- */
+static inline u16 kern_pcid(u16 asid)
+{
+	VM_WARN_ON_ONCE(asid > MAX_ASID_AVAILABLE);
+	/*
+	 * If PCID is on, ASID-aware code paths put the ASID+1 into the
+	 * PCID bits.  This serves two purposes.  It prevents a nasty
+	 * situation in which PCID-unaware code saves CR3, loads some other
+	 * value (with PCID == 0), and then restores CR3, thus corrupting
+	 * the TLB for ASID 0 if the saved ASID was nonzero.  It also means
+	 * that any bugs involving loading a PCID-enabled CR3 with
+	 * CR4.PCIDE off will trigger deterministically.
+	 */
+	return asid + 1;
+}
+
 struct pgd_t;
 static inline unsigned long build_cr3(pgd_t *pgd, u16 asid)
 {
 	if (static_cpu_has(X86_FEATURE_PCID)) {
-		VM_WARN_ON_ONCE(asid > MAX_ASID_AVAILABLE);
-		return __sme_pa(pgd) | (asid + 1);
+		return __sme_pa(pgd) | kern_pcid(asid);
 	} else {
 		VM_WARN_ON_ONCE(asid != 0);
 		return __sme_pa(pgd);
@@ -108,7 +114,8 @@ static inline unsigned long build_cr3(pgd_t *pgd, u16 asid)
 static inline unsigned long build_cr3_noflush(pgd_t *pgd, u16 asid)
 {
 	VM_WARN_ON_ONCE(asid > MAX_ASID_AVAILABLE);
-	return __sme_pa(pgd) | (asid + 1) | CR3_NOFLUSH;
+	VM_WARN_ON_ONCE(!this_cpu_has(X86_FEATURE_PCID));
+	return __sme_pa(pgd) | kern_pcid(asid) | CR3_NOFLUSH;
 }
 
 #ifdef CONFIG_PARAVIRT
