@@ -5170,6 +5170,12 @@ static void svm_set_supported_cpuid(u32 func, struct kvm_cpuid_entry2 *entry)
 			entry->edx |= SVM_FEATURE_NPT;
 
 		break;
+	case 0x8000001F:
+		/* Support memory encryption cpuid if host supports it */
+		if (boot_cpu_has(X86_FEATURE_SEV))
+			cpuid(0x8000001f, &entry->eax, &entry->ebx,
+				&entry->ecx, &entry->edx);
+
 	}
 }
 
