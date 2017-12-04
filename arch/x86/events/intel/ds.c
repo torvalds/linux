@@ -8,11 +8,12 @@
 
 #include "../perf_event.h"
 
+/* Waste a full page so it can be mapped into the cpu_entry_area */
+DEFINE_PER_CPU_PAGE_ALIGNED(struct debug_store, cpu_debug_store);
+
 /* The size of a BTS record in bytes: */
 #define BTS_RECORD_SIZE		24
 
-#define BTS_BUFFER_SIZE		(PAGE_SIZE << 4)
-#define PEBS_BUFFER_SIZE	(PAGE_SIZE << 4)
 #define PEBS_FIXUP_SIZE		PAGE_SIZE
 
 /*

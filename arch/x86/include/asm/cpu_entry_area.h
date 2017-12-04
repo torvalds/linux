@@ -5,6 +5,7 @@
 
 #include <linux/percpu-defs.h>
 #include <asm/processor.h>
+#include <asm/intel_ds.h>
 
 /*
  * cpu_entry_area is a percpu region that contains things needed by the CPU
@@ -39,6 +40,18 @@ struct cpu_entry_area {
 	 * with guard pages between them.
 	 */
 	char exception_stacks[(N_EXCEPTION_STACKS - 1) * EXCEPTION_STKSZ + DEBUG_STKSZ];
+#endif
+#ifdef CONFIG_CPU_SUP_INTEL
+	/*
+	 * Per CPU debug store for Intel performance monitoring. Wastes a
+	 * full page at the moment.
+	 */
+	struct debug_store cpu_debug_store;
+	/*
+	 * The actual PEBS/BTS buffers must be mapped to user space
+	 * Reserve enough fixmap PTEs.
+	 */
+	struct debug_store_buffers cpu_debug_buffers;
 #endif
 };
 

@@ -38,6 +38,32 @@ cea_map_percpu_pages(void *cea_vaddr, void *ptr, int pages, pgprot_t prot)
 		cea_set_pte(cea_vaddr, per_cpu_ptr_to_phys(ptr), prot);
 }
 
+static void percpu_setup_debug_store(int cpu)
+{
+#ifdef CONFIG_CPU_SUP_INTEL
+	int npages;
+	void *cea;
+
+	if (boot_cpu_data.x86_vendor != X86_VENDOR_INTEL)
+		return;
+
+	cea = &get_cpu_entry_area(cpu)->cpu_debug_store;
+	npages = sizeof(struct debug_store) / PAGE_SIZE;
+	BUILD_BUG_ON(sizeof(struct debug_store) % PAGE_SIZE != 0);
+	cea_map_percpu_pages(cea, &per_cpu(cpu_debug_store, cpu), npages,
+			     PAGE_KERNEL);
+
+	cea = &get_cpu_entry_area(cpu)->cpu_debug_buffers;
+	/*
+	 * Force the population of PMDs for not yet allocated per cpu
+	 * memory like debug store buffers.
+	 */
+	npages = sizeof(struct debug_store_buffers) / PAGE_SIZE;
+	for (; npages; npages--, cea += PAGE_SIZE)
+		cea_set_pte(cea, 0, PAGE_NONE);
+#endif
+}
+
 /* Setup the fixmap mappings only once per-processor */
 static void __init setup_cpu_entry_area(int cpu)
 {
@@ -109,6 +135,7 @@ static void __init setup_cpu_entry_area(int cpu)
 	cea_set_pte(&get_cpu_entry_area(cpu)->entry_trampoline,
 		     __pa_symbol(_entry_trampoline), PAGE_KERNEL_RX);
 #endif
+	percpu_setup_debug_store(cpu);
 }
 
 static __init void setup_cpu_entry_area_ptes(void)
