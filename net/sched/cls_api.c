@@ -211,8 +211,12 @@ static void tcf_chain_flush(struct tcf_chain *chain)
 
 static void tcf_chain_destroy(struct tcf_chain *chain)
 {
+	struct tcf_block *block = chain->block;
+
 	list_del(&chain->list);
 	kfree(chain);
+	if (list_empty(&block->chain_list))
+		kfree(block);
 }
 
 static void tcf_chain_hold(struct tcf_chain *chain)
@@ -276,26 +280,12 @@ err_chain_create:
 }
 EXPORT_SYMBOL(tcf_block_get);
 
-static void tcf_block_put_final(struct work_struct *work)
-{
-	struct tcf_block *block = container_of(work, struct tcf_block, work);
-	struct tcf_chain *chain, *tmp;
-
-	rtnl_lock();
-
-	/* At this point, all the chains should have refcnt == 1. */
-	list_for_each_entry_safe(chain, tmp, &block->chain_list, list)
-		tcf_chain_put(chain);
-	rtnl_unlock();
-	kfree(block);
-}
-
 /* XXX: Standalone actions are not allowed to jump to any chain, and bound
  * actions should be all removed after flushing.
  */
 void tcf_block_put(struct tcf_block *block)
 {
-	struct tcf_chain *chain;
+	struct tcf_chain *chain, *tmp;
 
 	if (!block)
 		return;
@@ -310,12 +300,11 @@ void tcf_block_put(struct tcf_block *block)
 	list_for_each_entry(chain, &block->chain_list, list)
 		tcf_chain_flush(chain);
 
-	INIT_WORK(&block->work, tcf_block_put_final);
-	/* Wait for RCU callbacks to release the reference count and make
-	 * sure their works have been queued before this.
+	/* At this point, all the chains should have refcnt >= 1. Block will be
+	 * freed after all chains are gone.
 	 */
-	rcu_barrier();
-	tcf_queue_work(&block->work);
+	list_for_each_entry_safe(chain, tmp, &block->chain_list, list)
+		tcf_chain_put(chain);
 }
 EXPORT_SYMBOL(tcf_block_put);
 
