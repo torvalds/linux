@@ -1623,11 +1623,13 @@ void cpu_init(void)
 	setup_cpu_entry_area(cpu);
 
 	/*
-	 * Initialize the TSS.  Don't bother initializing sp0, as the initial
-	 * task never enters user mode.
+	 * Initialize the TSS.  sp0 points to the entry trampoline stack
+	 * regardless of what task is running.
 	 */
 	set_tss_desc(cpu, &get_cpu_entry_area(cpu)->tss.x86_tss);
 	load_TR_desc();
+	load_sp0((unsigned long)&get_cpu_entry_area(cpu)->tss +
+		 offsetofend(struct tss_struct, SYSENTER_stack));
 
 	load_mm_ldt(&init_mm);
 
