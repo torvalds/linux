@@ -43,6 +43,25 @@ bool in_task_stack(unsigned long *stack, struct task_struct *task,
 	return true;
 }
 
+bool in_sysenter_stack(unsigned long *stack, struct stack_info *info)
+{
+	struct tss_struct *tss = this_cpu_ptr(&cpu_tss);
+
+	/* Treat the canary as part of the stack for unwinding purposes. */
+	void *begin = &tss->SYSENTER_stack_canary;
+	void *end = (void *)&tss->SYSENTER_stack + sizeof(tss->SYSENTER_stack);
+
+	if ((void *)stack < begin || (void *)stack >= end)
+		return false;
+
+	info->type	= STACK_TYPE_SYSENTER;
+	info->begin	= begin;
+	info->end	= end;
+	info->next_sp	= NULL;
+
+	return true;
+}
+
 static void printk_stack_address(unsigned long address, int reliable,
 				 char *log_lvl)
 {
