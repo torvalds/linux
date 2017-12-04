@@ -341,7 +341,6 @@ struct tss_struct {
 	 * Space for the temporary SYSENTER stack, used for SYSENTER
 	 * and the entry trampoline as well.
 	 */
-	unsigned long		SYSENTER_stack_canary;
 	unsigned long		SYSENTER_stack[64];
 
 	/*
