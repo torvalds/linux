@@ -112,24 +112,28 @@ void show_trace_log_lvl(struct task_struct *task, struct pt_regs *regs,
 	 * - task stack
 	 * - interrupt stack
 	 * - HW exception stacks (double fault, nmi, debug, mce)
+	 * - SYSENTER stack
 	 *
-	 * x86-32 can have up to three stacks:
+	 * x86-32 can have up to four stacks:
 	 * - task stack
 	 * - softirq stack
 	 * - hardirq stack
+	 * - SYSENTER stack
 	 */
 	for (regs = NULL; stack; stack = PTR_ALIGN(stack_info.next_sp, sizeof(long))) {
 		const char *stack_name;
 
-		/*
-		 * If we overflowed the task stack into a guard page, jump back
-		 * to the bottom of the usable stack.
-		 */
-		if (task_stack_page(task) - (void *)stack < PAGE_SIZE)
-			stack = task_stack_page(task);
-
-		if (get_stack_info(stack, task, &stack_info, &visit_mask))
-			break;
+		if (get_stack_info(stack, task, &stack_info, &visit_mask)) {
+			/*
+			 * We weren't on a valid stack.  It's possible that
+			 * we overflowed a valid stack into a guard page.
+			 * See if the next page up is valid so that we can
+			 * generate some kind of backtrace if this happens.
+			 */
+			stack = (unsigned long *)PAGE_ALIGN((unsigned long)stack);
+			if (get_stack_info(stack, task, &stack_info, &visit_mask))
+				break;
+		}
 
 		stack_name = stack_type_name(stack_info.type);
 		if (stack_name)
