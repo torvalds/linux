@@ -122,6 +122,7 @@ struct switchtec_ntb {
 	bool link_is_up;
 	enum ntb_speed link_speed;
 	enum ntb_width link_width;
+	struct work_struct link_reinit_work;
 };
 
 static struct switchtec_ntb *ntb_sndev(struct ntb_dev *ntb)
@@ -494,17 +495,42 @@ static void crosslink_init_dbmsgs(struct switchtec_ntb *sndev)
 		  &sndev->mmio_peer_dbmsg->odb_mask);
 }
 
-enum {
+enum switchtec_msg {
 	LINK_MESSAGE = 0,
 	MSG_LINK_UP = 1,
 	MSG_LINK_DOWN = 2,
 	MSG_CHECK_LINK = 3,
+	MSG_LINK_FORCE_DOWN = 4,
 };
 
-static void switchtec_ntb_check_link(struct switchtec_ntb *sndev)
+static int switchtec_ntb_reinit_peer(struct switchtec_ntb *sndev);
+
+static void link_reinit_work(struct work_struct *work)
+{
+	struct switchtec_ntb *sndev;
+
+	sndev = container_of(work, struct switchtec_ntb, link_reinit_work);
+
+	switchtec_ntb_reinit_peer(sndev);
+}
+
+static void switchtec_ntb_check_link(struct switchtec_ntb *sndev,
+				     enum switchtec_msg msg)
 {
 	int link_sta;
 	int old = sndev->link_is_up;
+
+	if (msg == MSG_LINK_FORCE_DOWN) {
+		schedule_work(&sndev->link_reinit_work);
+
+		if (sndev->link_is_up) {
+			sndev->link_is_up = 0;
+			ntb_link_event(&sndev->ntb);
+			dev_info(&sndev->stdev->dev, "ntb link forced down\n");
+		}
+
+		return;
+	}
 
 	link_sta = sndev->self_shared->link_sta;
 	if (link_sta) {
@@ -534,7 +560,7 @@ static void switchtec_ntb_link_notification(struct switchtec_dev *stdev)
 {
 	struct switchtec_ntb *sndev = stdev->sndev;
 
-	switchtec_ntb_check_link(sndev);
+	switchtec_ntb_check_link(sndev, MSG_CHECK_LINK);
 }
 
 static u64 switchtec_ntb_link_is_up(struct ntb_dev *ntb,
@@ -562,7 +588,7 @@ static int switchtec_ntb_link_enable(struct ntb_dev *ntb,
 	sndev->self_shared->link_sta = 1;
 	switchtec_ntb_send_msg(sndev, LINK_MESSAGE, MSG_LINK_UP);
 
-	switchtec_ntb_check_link(sndev);
+	switchtec_ntb_check_link(sndev, MSG_CHECK_LINK);
 
 	return 0;
 }
@@ -574,9 +600,9 @@ static int switchtec_ntb_link_disable(struct ntb_dev *ntb)
 	dev_dbg(&sndev->stdev->dev, "disabling link\n");
 
 	sndev->self_shared->link_sta = 0;
-	switchtec_ntb_send_msg(sndev, LINK_MESSAGE, MSG_LINK_UP);
+	switchtec_ntb_send_msg(sndev, LINK_MESSAGE, MSG_LINK_DOWN);
 
-	switchtec_ntb_check_link(sndev);
+	switchtec_ntb_check_link(sndev, MSG_CHECK_LINK);
 
 	return 0;
 }
@@ -821,6 +847,8 @@ static int switchtec_ntb_init_sndev(struct switchtec_ntb *sndev)
 	sndev->ntb.pdev = sndev->stdev->pdev;
 	sndev->ntb.topo = NTB_TOPO_SWITCH;
 	sndev->ntb.ops = &switchtec_ntb_ops;
+
+	INIT_WORK(&sndev->link_reinit_work, link_reinit_work);
 
 	sndev->self_partition = sndev->stdev->partition;
 
@@ -1368,7 +1396,7 @@ static irqreturn_t switchtec_ntb_message_isr(int irq, void *dev)
 			iowrite8(1, &sndev->mmio_self_dbmsg->imsg[i].status);
 
 			if (i == LINK_MESSAGE)
-				switchtec_ntb_check_link(sndev);
+				switchtec_ntb_check_link(sndev, msg);
 		}
 	}
 
@@ -1429,6 +1457,14 @@ static void switchtec_ntb_deinit_db_msg_irq(struct switchtec_ntb *sndev)
 	free_irq(sndev->message_irq, sndev);
 }
 
+static int switchtec_ntb_reinit_peer(struct switchtec_ntb *sndev)
+{
+	dev_info(&sndev->stdev->dev, "peer reinitialized\n");
+	switchtec_ntb_deinit_shared_mw(sndev);
+	switchtec_ntb_init_mw(sndev);
+	return switchtec_ntb_init_shared_mw(sndev);
+}
+
 static int switchtec_ntb_add(struct device *dev,
 			     struct class_interface *class_intf)
 {
@@ -1470,6 +1506,13 @@ static int switchtec_ntb_add(struct device *dev,
 	rc = switchtec_ntb_init_db_msg_irq(sndev);
 	if (rc)
 		goto deinit_shared_and_exit;
+
+	/*
+	 * If this host crashed, the other host may think the link is
+	 * still up. Tell them to force it down (it will go back up
+	 * once we register the ntb device).
+	 */
+	switchtec_ntb_send_msg(sndev, LINK_MESSAGE, MSG_LINK_FORCE_DOWN);
 
 	rc = ntb_register_device(&sndev->ntb);
 	if (rc)
