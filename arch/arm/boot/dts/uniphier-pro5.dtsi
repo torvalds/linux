@@ -355,6 +355,39 @@
 			};
 		};
 
+		soc-glue@5f900000 {
+			compatible = "socionext,uniphier-pro5-soc-glue-debug",
+				     "simple-mfd";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0 0x5f900000 0x2000>;
+
+			efuse@100 {
+				compatible = "socionext,uniphier-efuse";
+				reg = <0x100 0x28>;
+			};
+
+			efuse@130 {
+				compatible = "socionext,uniphier-efuse";
+				reg = <0x130 0x8>;
+			};
+
+			efuse@200 {
+				compatible = "socionext,uniphier-efuse";
+				reg = <0x200 0x28>;
+			};
+
+			efuse@300 {
+				compatible = "socionext,uniphier-efuse";
+				reg = <0x300 0x14>;
+			};
+
+			efuse@400 {
+				compatible = "socionext,uniphier-efuse";
+				reg = <0x400 0x8>;
+			};
+		};
+
 		aidet: aidet@5fc20000 {
 			compatible = "socionext,uniphier-pro5-aidet";
 			reg = <0x5fc20000 0x200>;
