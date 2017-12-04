@@ -705,7 +705,7 @@ static int btrfs_open_one_device(struct btrfs_fs_devices *fs_devices,
 		fs_devices->rotating = 1;
 
 	device->bdev = bdev;
-	device->in_fs_metadata = 0;
+	clear_bit(BTRFS_DEV_STATE_IN_FS_METADATA, &device->dev_state);
 	device->mode = flags;
 
 	fs_devices->open_devices++;
@@ -909,7 +909,8 @@ void btrfs_close_extra_devices(struct btrfs_fs_devices *fs_devices, int step)
 again:
 	/* This is the initialized path, it is safe to release the devices. */
 	list_for_each_entry_safe(device, next, &fs_devices->devices, dev_list) {
-		if (device->in_fs_metadata) {
+		if (test_bit(BTRFS_DEV_STATE_IN_FS_METADATA,
+							&device->dev_state)) {
 			if (!device->is_tgtdev_for_dev_replace &&
 			    (!latest_dev ||
 			     device->generation > latest_dev->generation)) {
@@ -1634,7 +1635,7 @@ static int btrfs_alloc_dev_extent(struct btrfs_trans_handle *trans,
 	struct extent_buffer *leaf;
 	struct btrfs_key key;
 
-	WARN_ON(!device->in_fs_metadata);
+	WARN_ON(!test_bit(BTRFS_DEV_STATE_IN_FS_METADATA, &device->dev_state));
 	WARN_ON(device->is_tgtdev_for_dev_replace);
 	path = btrfs_alloc_path();
 	if (!path)
@@ -1975,7 +1976,7 @@ int btrfs_rm_device(struct btrfs_fs_info *fs_info, const char *device_path,
 	if (ret)
 		goto error_undo;
 
-	device->in_fs_metadata = 0;
+	clear_bit(BTRFS_DEV_STATE_IN_FS_METADATA, &device->dev_state);
 	btrfs_scrub_cancel_dev(fs_info, device);
 
 	/*
@@ -2195,7 +2196,8 @@ int btrfs_find_device_missing_or_by_path(struct btrfs_fs_info *fs_info,
 		 * is held by the caller.
 		 */
 		list_for_each_entry(tmp, devices, dev_list) {
-			if (tmp->in_fs_metadata && !tmp->bdev) {
+			if (test_bit(BTRFS_DEV_STATE_IN_FS_METADATA,
+					&tmp->dev_state) && !tmp->bdev) {
 				*device = tmp;
 				break;
 			}
@@ -2447,7 +2449,7 @@ int btrfs_init_new_device(struct btrfs_fs_info *fs_info, const char *device_path
 	device->commit_total_bytes = device->total_bytes;
 	device->fs_info = fs_info;
 	device->bdev = bdev;
-	device->in_fs_metadata = 1;
+	set_bit(BTRFS_DEV_STATE_IN_FS_METADATA, &device->dev_state);
 	device->is_tgtdev_for_dev_replace = 0;
 	device->mode = FMODE_EXCL;
 	device->dev_stats_valid = 1;
@@ -2656,7 +2658,7 @@ int btrfs_init_dev_replace_tgtdev(struct btrfs_fs_info *fs_info,
 	device->commit_bytes_used = device->bytes_used;
 	device->fs_info = fs_info;
 	device->bdev = bdev;
-	device->in_fs_metadata = 1;
+	set_bit(BTRFS_DEV_STATE_IN_FS_METADATA, &device->dev_state);
 	device->is_tgtdev_for_dev_replace = 1;
 	device->mode = FMODE_EXCL;
 	device->dev_stats_valid = 1;
@@ -2685,7 +2687,7 @@ void btrfs_init_dev_replace_tgtdev_for_resume(struct btrfs_fs_info *fs_info,
 	tgtdev->io_align = sectorsize;
 	tgtdev->sector_size = sectorsize;
 	tgtdev->fs_info = fs_info;
-	tgtdev->in_fs_metadata = 1;
+	set_bit(BTRFS_DEV_STATE_IN_FS_METADATA, &tgtdev->dev_state);
 }
 
 static noinline int btrfs_update_device(struct btrfs_trans_handle *trans,
@@ -4737,8 +4739,9 @@ static int __btrfs_alloc_chunk(struct btrfs_trans_handle *trans,
 			continue;
 		}
 
-		if (!device->in_fs_metadata ||
-		    device->is_tgtdev_for_dev_replace)
+		if (!test_bit(BTRFS_DEV_STATE_IN_FS_METADATA,
+					&device->dev_state) ||
+		     device->is_tgtdev_for_dev_replace)
 			continue;
 
 		if (device->total_bytes > device->bytes_used)
@@ -6529,7 +6532,9 @@ static int read_one_chunk(struct btrfs_fs_info *fs_info, struct btrfs_key *key,
 			}
 			btrfs_report_missing_device(fs_info, devid, uuid, false);
 		}
-		map->stripes[i].dev->in_fs_metadata = 1;
+		set_bit(BTRFS_DEV_STATE_IN_FS_METADATA,
+				&(map->stripes[i].dev->dev_state));
+
 	}
 
 	write_lock(&map_tree->map_tree.lock);
@@ -6704,7 +6709,7 @@ static int read_one_dev(struct btrfs_fs_info *fs_info,
 	}
 
 	fill_device_from_item(leaf, dev_item, device);
-	device->in_fs_metadata = 1;
+	set_bit(BTRFS_DEV_STATE_IN_FS_METADATA, &device->dev_state);
 	if (test_bit(BTRFS_DEV_STATE_WRITEABLE, &device->dev_state) &&
 	    !device->is_tgtdev_for_dev_replace) {
 		device->fs_devices->total_rw_bytes += device->total_bytes;
