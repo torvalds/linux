@@ -45,11 +45,10 @@ bool in_task_stack(unsigned long *stack, struct task_struct *task,
 
 bool in_sysenter_stack(unsigned long *stack, struct stack_info *info)
 {
-	int cpu = smp_processor_id();
-	struct tss_struct *tss = &get_cpu_entry_area(cpu)->tss;
+	struct SYSENTER_stack *ss = cpu_SYSENTER_stack(smp_processor_id());
 
-	void *begin = &tss->SYSENTER_stack;
-	void *end = (void *)&tss->SYSENTER_stack + sizeof(tss->SYSENTER_stack);
+	void *begin = ss;
+	void *end = ss + 1;
 
 	if ((void *)stack < begin || (void *)stack >= end)
 		return false;

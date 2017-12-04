@@ -154,7 +154,7 @@ END(native_usergs_sysret64)
 	_entry_trampoline - CPU_ENTRY_AREA_entry_trampoline(%rip)
 
 /* The top word of the SYSENTER stack is hot and is usable as scratch space. */
-#define RSP_SCRATCH	CPU_ENTRY_AREA_tss + CPU_TSS_SYSENTER_stack + \
+#define RSP_SCRATCH	CPU_ENTRY_AREA_tss + TSS_STRUCT_SYSENTER_stack + \
 			SIZEOF_SYSENTER_stack - 8 + CPU_ENTRY_AREA
 
 ENTRY(entry_SYSCALL_64_trampoline)

@@ -245,5 +245,10 @@ static inline struct cpu_entry_area *get_cpu_entry_area(int cpu)
 	return (struct cpu_entry_area *)__fix_to_virt(__get_cpu_entry_area_page_index(cpu, 0));
 }
 
+static inline struct SYSENTER_stack *cpu_SYSENTER_stack(int cpu)
+{
+	return &get_cpu_entry_area(cpu)->tss.SYSENTER_stack;
+}
+
 #endif /* !__ASSEMBLY__ */
 #endif /* _ASM_X86_FIXMAP_H */

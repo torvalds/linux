@@ -336,12 +336,16 @@ struct x86_hw_tss {
 #define IO_BITMAP_OFFSET		(offsetof(struct tss_struct, io_bitmap) - offsetof(struct tss_struct, x86_tss))
 #define INVALID_IO_BITMAP_OFFSET	0x8000
 
+struct SYSENTER_stack {
+	unsigned long		words[64];
+};
+
 struct tss_struct {
 	/*
 	 * Space for the temporary SYSENTER stack, used for SYSENTER
 	 * and the entry trampoline as well.
 	 */
-	unsigned long		SYSENTER_stack[64];
+	struct SYSENTER_stack	SYSENTER_stack;
 
 	/*
 	 * The fixed hardware portion.  This must not cross a page boundary
