@@ -752,6 +752,7 @@ struct kvm_sev_info {
 	unsigned int asid;	/* ASID used for this guest */
 	unsigned int handle;	/* SEV firmware handle */
 	int fd;			/* SEV device fd */
+	unsigned long pages_locked; /* Number of pages locked */
 };
 
 struct kvm_arch {

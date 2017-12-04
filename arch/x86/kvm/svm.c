@@ -39,6 +39,8 @@
 #include <linux/frame.h>
 #include <linux/psp-sev.h>
 #include <linux/file.h>
+#include <linux/pagemap.h>
+#include <linux/swap.h>
 
 #include <asm/apic.h>
 #include <asm/perf_event.h>
@@ -331,6 +333,7 @@ enum {
 static unsigned int max_sev_asid;
 static unsigned int min_sev_asid;
 static unsigned long *sev_asid_bitmap;
+#define __sme_page_pa(x) __sme_set(page_to_pfn(x) << PAGE_SHIFT)
 
 static inline bool svm_sev_enabled(void)
 {
@@ -1567,6 +1570,83 @@ static void sev_unbind_asid(struct kvm *kvm, unsigned int handle)
 	sev_guest_decommission(decommission, NULL);
 
 	kfree(decommission);
+}
+
+static struct page **sev_pin_memory(struct kvm *kvm, unsigned long uaddr,
+				    unsigned long ulen, unsigned long *n,
+				    int write)
+{
+	struct kvm_sev_info *sev = &kvm->arch.sev_info;
+	unsigned long npages, npinned, size;
+	unsigned long locked, lock_limit;
+	struct page **pages;
+	int first, last;
+
+	/* Calculate number of pages. */
+	first = (uaddr & PAGE_MASK) >> PAGE_SHIFT;
+	last = ((uaddr + ulen - 1) & PAGE_MASK) >> PAGE_SHIFT;
+	npages = (last - first + 1);
+
+	locked = sev->pages_locked + npages;
+	lock_limit = rlimit(RLIMIT_MEMLOCK) >> PAGE_SHIFT;
+	if (locked > lock_limit && !capable(CAP_IPC_LOCK)) {
+		pr_err("SEV: %lu locked pages exceed the lock limit of %lu.\n", locked, lock_limit);
+		return NULL;
+	}
+
+	/* Avoid using vmalloc for smaller buffers. */
+	size = npages * sizeof(struct page *);
+	if (size > PAGE_SIZE)
+		pages = vmalloc(size);
+	else
+		pages = kmalloc(size, GFP_KERNEL);
+
+	if (!pages)
+		return NULL;
+
+	/* Pin the user virtual address. */
+	npinned = get_user_pages_fast(uaddr, npages, write ? FOLL_WRITE : 0, pages);
+	if (npinned != npages) {
+		pr_err("SEV: Failure locking %lu pages.\n", npages);
+		goto err;
+	}
+
+	*n = npages;
+	sev->pages_locked = locked;
+
+	return pages;
+
+err:
+	if (npinned > 0)
+		release_pages(pages, npinned);
+
+	kvfree(pages);
+	return NULL;
+}
+
+static void sev_unpin_memory(struct kvm *kvm, struct page **pages,
+			     unsigned long npages)
+{
+	struct kvm_sev_info *sev = &kvm->arch.sev_info;
+
+	release_pages(pages, npages);
+	kvfree(pages);
+	sev->pages_locked -= npages;
+}
+
+static void sev_clflush_pages(struct page *pages[], unsigned long npages)
+{
+	uint8_t *page_virtual;
+	unsigned long i;
+
+	if (npages == 0 || pages == NULL)
+		return;
+
+	for (i = 0; i < npages; i++) {
+		page_virtual = kmap_atomic(pages[i]);
+		clflush_cache_range(page_virtual, PAGE_SIZE);
+		kunmap_atomic(page_virtual);
+	}
 }
 
 static void sev_vm_destroy(struct kvm *kvm)
@@ -5767,7 +5847,7 @@ static int sev_bind_asid(struct kvm *kvm, unsigned int handle, int *error)
 	return ret;
 }
 
-static int sev_issue_cmd(int fd, int id, void *data, int *error)
+static int __sev_issue_cmd(int fd, int id, void *data, int *error)
 {
 	struct fd f;
 	int ret;
@@ -5780,6 +5860,13 @@ static int sev_issue_cmd(int fd, int id, void *data, int *error)
 
 	fdput(f);
 	return ret;
+}
+
+static int sev_issue_cmd(struct kvm *kvm, int id, void *data, int *error)
+{
+	struct kvm_sev_info *sev = &kvm->arch.sev_info;
+
+	return __sev_issue_cmd(sev->fd, id, data, error);
 }
 
 static int sev_launch_start(struct kvm *kvm, struct kvm_sev_cmd *argp)
@@ -5829,7 +5916,7 @@ static int sev_launch_start(struct kvm *kvm, struct kvm_sev_cmd *argp)
 	start->policy = params.policy;
 
 	/* create memory encryption context */
-	ret = sev_issue_cmd(argp->sev_fd, SEV_CMD_LAUNCH_START, start, error);
+	ret = __sev_issue_cmd(argp->sev_fd, SEV_CMD_LAUNCH_START, start, error);
 	if (ret)
 		goto e_free_session;
 
@@ -5858,6 +5945,103 @@ e_free:
 	return ret;
 }
 
+static int get_num_contig_pages(int idx, struct page **inpages,
+				unsigned long npages)
+{
+	unsigned long paddr, next_paddr;
+	int i = idx + 1, pages = 1;
+
+	/* find the number of contiguous pages starting from idx */
+	paddr = __sme_page_pa(inpages[idx]);
+	while (i < npages) {
+		next_paddr = __sme_page_pa(inpages[i++]);
+		if ((paddr + PAGE_SIZE) == next_paddr) {
+			pages++;
+			paddr = next_paddr;
+			continue;
+		}
+		break;
+	}
+
+	return pages;
+}
+
+static int sev_launch_update_data(struct kvm *kvm, struct kvm_sev_cmd *argp)
+{
+	unsigned long vaddr, vaddr_end, next_vaddr, npages, size;
+	struct kvm_sev_info *sev = &kvm->arch.sev_info;
+	struct kvm_sev_launch_update_data params;
+	struct sev_data_launch_update_data *data;
+	struct page **inpages;
+	int i, ret, pages;
+
+	if (!sev_guest(kvm))
+		return -ENOTTY;
+
+	if (copy_from_user(&params, (void __user *)(uintptr_t)argp->data, sizeof(params)))
+		return -EFAULT;
+
+	data = kzalloc(sizeof(*data), GFP_KERNEL);
+	if (!data)
+		return -ENOMEM;
+
+	vaddr = params.uaddr;
+	size = params.len;
+	vaddr_end = vaddr + size;
+
+	/* Lock the user memory. */
+	inpages = sev_pin_memory(kvm, vaddr, size, &npages, 1);
+	if (!inpages) {
+		ret = -ENOMEM;
+		goto e_free;
+	}
+
+	/*
+	 * The LAUNCH_UPDATE command will perform in-place encryption of the
+	 * memory content (i.e it will write the same memory region with C=1).
+	 * It's possible that the cache may contain the data with C=0, i.e.,
+	 * unencrypted so invalidate it first.
+	 */
+	sev_clflush_pages(inpages, npages);
+
+	for (i = 0; vaddr < vaddr_end; vaddr = next_vaddr, i += pages) {
+		int offset, len;
+
+		/*
+		 * If the user buffer is not page-aligned, calculate the offset
+		 * within the page.
+		 */
+		offset = vaddr & (PAGE_SIZE - 1);
+
+		/* Calculate the number of pages that can be encrypted in one go. */
+		pages = get_num_contig_pages(i, inpages, npages);
+
+		len = min_t(size_t, ((pages * PAGE_SIZE) - offset), size);
+
+		data->handle = sev->handle;
+		data->len = len;
+		data->address = __sme_page_pa(inpages[i]) + offset;
+		ret = sev_issue_cmd(kvm, SEV_CMD_LAUNCH_UPDATE_DATA, data, &argp->error);
+		if (ret)
+			goto e_unpin;
+
+		size -= len;
+		next_vaddr = vaddr + len;
+	}
+
+e_unpin:
+	/* content of memory is updated, mark pages dirty */
+	for (i = 0; i < npages; i++) {
+		set_page_dirty_lock(inpages[i]);
+		mark_page_accessed(inpages[i]);
+	}
+	/* unlock the user pages */
+	sev_unpin_memory(kvm, inpages, npages);
+e_free:
+	kfree(data);
+	return ret;
+}
+
 static int svm_mem_enc_op(struct kvm *kvm, void __user *argp)
 {
 	struct kvm_sev_cmd sev_cmd;
@@ -5877,6 +6061,9 @@ static int svm_mem_enc_op(struct kvm *kvm, void __user *argp)
 		break;
 	case KVM_SEV_LAUNCH_START:
 		r = sev_launch_start(kvm, &sev_cmd);
+		break;
+	case KVM_SEV_LAUNCH_UPDATE_DATA:
+		r = sev_launch_update_data(kvm, &sev_cmd);
 		break;
 	default:
 		r = -EINVAL;
