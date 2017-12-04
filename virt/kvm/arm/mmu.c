@@ -709,26 +709,30 @@ int create_hyp_mappings(void *from, void *to, pgprot_t prot)
 }
 
 /**
- * create_hyp_io_mappings - duplicate a kernel IO mapping into Hyp mode
- * @from:	The kernel start VA of the range
- * @to:		The kernel end VA of the range (exclusive)
+ * create_hyp_io_mappings - Map IO into both kernel and HYP
  * @phys_addr:	The physical start address which gets mapped
+ * @size:	Size of the region being mapped
+ * @kaddr:	Kernel VA for this mapping
  *
  * The resulting HYP VA is the same as the kernel VA, modulo
  * HYP_PAGE_OFFSET.
  */
-int create_hyp_io_mappings(void *from, void *to, phys_addr_t phys_addr)
+int create_hyp_io_mappings(phys_addr_t phys_addr, size_t size,
+			   void __iomem **kaddr)
 {
-	unsigned long start = kern_hyp_va((unsigned long)from);
-	unsigned long end = kern_hyp_va((unsigned long)to);
+	unsigned long start, end;
 
-	if (is_kernel_in_hyp_mode())
+	*kaddr = ioremap(phys_addr, size);
+	if (!*kaddr)
+		return -ENOMEM;
+
+	if (is_kernel_in_hyp_mode()) {
 		return 0;
+	}
 
-	/* Check for a valid kernel IO mapping */
-	if (!is_vmalloc_addr(from) || !is_vmalloc_addr(to - 1))
-		return -EINVAL;
 
+	start = kern_hyp_va((unsigned long)*kaddr);
+	end = kern_hyp_va((unsigned long)*kaddr + size);
 	return __create_hyp_mappings(hyp_pgd, PTRS_PER_PGD, start, end,
 				     __phys_to_pfn(phys_addr), PAGE_HYP_DEVICE);
 }

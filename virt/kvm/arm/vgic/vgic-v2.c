@@ -360,16 +360,10 @@ int vgic_v2_probe(const struct gic_kvm_info *info)
 	if (!PAGE_ALIGNED(info->vcpu.start) ||
 	    !PAGE_ALIGNED(resource_size(&info->vcpu))) {
 		kvm_info("GICV region size/alignment is unsafe, using trapping (reduced performance)\n");
-		kvm_vgic_global_state.vcpu_base_va = ioremap(info->vcpu.start,
-							     resource_size(&info->vcpu));
-		if (!kvm_vgic_global_state.vcpu_base_va) {
-			kvm_err("Cannot ioremap GICV\n");
-			return -ENOMEM;
-		}
 
-		ret = create_hyp_io_mappings(kvm_vgic_global_state.vcpu_base_va,
-					     kvm_vgic_global_state.vcpu_base_va + resource_size(&info->vcpu),
-					     info->vcpu.start);
+		ret = create_hyp_io_mappings(info->vcpu.start,
+					     resource_size(&info->vcpu),
+					     &kvm_vgic_global_state.vcpu_base_va);
 		if (ret) {
 			kvm_err("Cannot map GICV into hyp\n");
 			goto out;
@@ -378,25 +372,16 @@ int vgic_v2_probe(const struct gic_kvm_info *info)
 		static_branch_enable(&vgic_v2_cpuif_trap);
 	}
 
-	kvm_vgic_global_state.vctrl_base = ioremap(info->vctrl.start,
-						   resource_size(&info->vctrl));
-	if (!kvm_vgic_global_state.vctrl_base) {
-		kvm_err("Cannot ioremap GICH\n");
-		ret = -ENOMEM;
+	ret = create_hyp_io_mappings(info->vctrl.start,
+				     resource_size(&info->vctrl),
+				     &kvm_vgic_global_state.vctrl_base);
+	if (ret) {
+		kvm_err("Cannot map VCTRL into hyp\n");
 		goto out;
 	}
 
 	vtr = readl_relaxed(kvm_vgic_global_state.vctrl_base + GICH_VTR);
 	kvm_vgic_global_state.nr_lr = (vtr & 0x3f) + 1;
-
-	ret = create_hyp_io_mappings(kvm_vgic_global_state.vctrl_base,
-				     kvm_vgic_global_state.vctrl_base +
-					 resource_size(&info->vctrl),
-				     info->vctrl.start);
-	if (ret) {
-		kvm_err("Cannot map VCTRL into hyp\n");
-		goto out;
-	}
 
 	ret = kvm_register_vgic_device(KVM_DEV_TYPE_ARM_VGIC_V2);
 	if (ret) {
