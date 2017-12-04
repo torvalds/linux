@@ -213,6 +213,9 @@ struct vcpu_svm {
 	 */
 	struct list_head ir_list;
 	spinlock_t ir_list_lock;
+
+	/* which host CPU was used for running this vcpu */
+	unsigned int last_cpu;
 };
 
 /*
@@ -339,6 +342,13 @@ static inline bool sev_guest(struct kvm *kvm)
 	struct kvm_sev_info *sev = &kvm->arch.sev_info;
 
 	return sev->active;
+}
+
+static inline int sev_get_asid(struct kvm *kvm)
+{
+	struct kvm_sev_info *sev = &kvm->arch.sev_info;
+
+	return sev->asid;
 }
 
 static inline void mark_all_dirty(struct vmcb *vmcb)
@@ -551,6 +561,9 @@ struct svm_cpu_data {
 	struct kvm_ldttss_desc *tss_desc;
 
 	struct page *save_area;
+
+	/* index = sev_asid, value = vmcb pointer */
+	struct vmcb **sev_vmcbs;
 };
 
 static DEFINE_PER_CPU(struct svm_cpu_data *, svm_data);
@@ -864,6 +877,7 @@ static void svm_cpu_uninit(int cpu)
 		return;
 
 	per_cpu(svm_data, raw_smp_processor_id()) = NULL;
+	kfree(sd->sev_vmcbs);
 	__free_page(sd->save_area);
 	kfree(sd);
 }
@@ -877,10 +891,17 @@ static int svm_cpu_init(int cpu)
 	if (!sd)
 		return -ENOMEM;
 	sd->cpu = cpu;
-	sd->save_area = alloc_page(GFP_KERNEL);
 	r = -ENOMEM;
+	sd->save_area = alloc_page(GFP_KERNEL);
 	if (!sd->save_area)
 		goto err_1;
+
+	if (svm_sev_enabled()) {
+		r = -ENOMEM;
+		sd->sev_vmcbs = kmalloc((max_sev_asid + 1) * sizeof(void *), GFP_KERNEL);
+		if (!sd->sev_vmcbs)
+			goto err_1;
+	}
 
 	per_cpu(svm_data, cpu) = sd;
 
@@ -1498,10 +1519,16 @@ static int avic_init_backing_page(struct kvm_vcpu *vcpu)
 
 static void __sev_asid_free(int asid)
 {
-	int pos;
+	struct svm_cpu_data *sd;
+	int cpu, pos;
 
 	pos = asid - 1;
 	clear_bit(pos, sev_asid_bitmap);
+
+	for_each_possible_cpu(cpu) {
+		sd = per_cpu(svm_data, cpu);
+		sd->sev_vmcbs[pos] = NULL;
+	}
 }
 
 static void sev_asid_free(struct kvm *kvm)
@@ -4466,11 +4493,38 @@ static void reload_tss(struct kvm_vcpu *vcpu)
 	load_TR_desc();
 }
 
+static void pre_sev_run(struct vcpu_svm *svm, int cpu)
+{
+	struct svm_cpu_data *sd = per_cpu(svm_data, cpu);
+	int asid = sev_get_asid(svm->vcpu.kvm);
+
+	/* Assign the asid allocated with this SEV guest */
+	svm->vmcb->control.asid = asid;
+
+	/*
+	 * Flush guest TLB:
+	 *
+	 * 1) when different VMCB for the same ASID is to be run on the same host CPU.
+	 * 2) or this VMCB was executed on different host CPU in previous VMRUNs.
+	 */
+	if (sd->sev_vmcbs[asid] == svm->vmcb &&
+	    svm->last_cpu == cpu)
+		return;
+
+	svm->last_cpu = cpu;
+	sd->sev_vmcbs[asid] = svm->vmcb;
+	svm->vmcb->control.tlb_ctl = TLB_CONTROL_FLUSH_ASID;
+	mark_dirty(svm->vmcb, VMCB_ASID);
+}
+
 static void pre_svm_run(struct vcpu_svm *svm)
 {
 	int cpu = raw_smp_processor_id();
 
 	struct svm_cpu_data *sd = per_cpu(svm_data, cpu);
+
+	if (sev_guest(svm->vcpu.kvm))
+		return pre_sev_run(svm, cpu);
 
 	/* FIXME: handle wraparound of asid_generation */
 	if (svm->asid_generation != sd->asid_generation)
