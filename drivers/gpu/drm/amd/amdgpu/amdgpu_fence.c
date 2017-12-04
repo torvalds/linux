@@ -187,7 +187,7 @@ int amdgpu_fence_emit_polling(struct amdgpu_ring *ring, uint32_t *s)
 
 	seq = ++ring->fence_drv.sync_seq;
 	amdgpu_ring_emit_fence(ring, ring->fence_drv.gpu_addr,
-			       seq, AMDGPU_FENCE_FLAG_INT);
+			       seq, 0);
 
 	*s = seq;
 
