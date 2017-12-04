@@ -1205,7 +1205,8 @@ void qlt_schedule_sess_for_deletion(struct fc_port *sess,
 	ql_dbg(ql_dbg_tgt, sess->vha, 0xe001,
 	    "Scheduling sess %p for deletion\n", sess);
 
-	schedule_work(&sess->del_work);
+	INIT_WORK(&sess->del_work, qla24xx_delete_sess_fn);
+	queue_work(sess->vha->hw->wq, &sess->del_work);
 }
 
 void qlt_schedule_sess_for_deletion_lock(struct fc_port *sess)
