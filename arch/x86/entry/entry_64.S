@@ -1288,7 +1288,7 @@ ENTRY(paranoid_exit)
 	testl	%ebx, %ebx			/* swapgs needed? */
 	jnz	.Lparanoid_exit_no_swapgs
 	TRACE_IRQS_IRETQ
-	RESTORE_CR3	save_reg=%r14
+	RESTORE_CR3	scratch_reg=%rbx save_reg=%r14
 	SWAPGS_UNSAFE_STACK
 	jmp	.Lparanoid_exit_restore
 .Lparanoid_exit_no_swapgs:
@@ -1730,7 +1730,7 @@ end_repeat_nmi:
 	movq	$-1, %rsi
 	call	do_nmi
 
-	RESTORE_CR3 save_reg=%r14
+	RESTORE_CR3 scratch_reg=%r15 save_reg=%r14
 
 	testl	%ebx, %ebx			/* swapgs needed? */
 	jnz	nmi_restore
