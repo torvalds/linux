@@ -556,6 +556,51 @@ static void bsp_init_amd(struct cpuinfo_x86 *c)
 	}
 }
 
+static void early_detect_mem_encrypt(struct cpuinfo_x86 *c)
+{
+	u64 msr;
+
+	/*
+	 * BIOS support is required for SME and SEV.
+	 *   For SME: If BIOS has enabled SME then adjust x86_phys_bits by
+	 *	      the SME physical address space reduction value.
+	 *	      If BIOS has not enabled SME then don't advertise the
+	 *	      SME feature (set in scattered.c).
+	 *   For SEV: If BIOS has not enabled SEV then don't advertise the
+	 *            SEV feature (set in scattered.c).
+	 *
+	 *   In all cases, since support for SME and SEV requires long mode,
+	 *   don't advertise the feature under CONFIG_X86_32.
+	 */
+	if (cpu_has(c, X86_FEATURE_SME) || cpu_has(c, X86_FEATURE_SEV)) {
+		/* Check if memory encryption is enabled */
+		rdmsrl(MSR_K8_SYSCFG, msr);
+		if (!(msr & MSR_K8_SYSCFG_MEM_ENCRYPT))
+			goto clear_all;
+
+		/*
+		 * Always adjust physical address bits. Even though this
+		 * will be a value above 32-bits this is still done for
+		 * CONFIG_X86_32 so that accurate values are reported.
+		 */
+		c->x86_phys_bits -= (cpuid_ebx(0x8000001f) >> 6) & 0x3f;
+
+		if (IS_ENABLED(CONFIG_X86_32))
+			goto clear_all;
+
+		rdmsrl(MSR_K7_HWCR, msr);
+		if (!(msr & MSR_K7_HWCR_SMMLOCK))
+			goto clear_sev;
+
+		return;
+
+clear_all:
+		clear_cpu_cap(c, X86_FEATURE_SME);
+clear_sev:
+		clear_cpu_cap(c, X86_FEATURE_SEV);
+	}
+}
+
 static void early_init_amd(struct cpuinfo_x86 *c)
 {
 	u32 dummy;
@@ -627,26 +672,7 @@ static void early_init_amd(struct cpuinfo_x86 *c)
 	if (cpu_has_amd_erratum(c, amd_erratum_400))
 		set_cpu_bug(c, X86_BUG_AMD_E400);
 
-	/*
-	 * BIOS support is required for SME. If BIOS has enabled SME then
-	 * adjust x86_phys_bits by the SME physical address space reduction
-	 * value. If BIOS has not enabled SME then don't advertise the
-	 * feature (set in scattered.c). Also, since the SME support requires
-	 * long mode, don't advertise the feature under CONFIG_X86_32.
-	 */
-	if (cpu_has(c, X86_FEATURE_SME)) {
-		u64 msr;
-
-		/* Check if SME is enabled */
-		rdmsrl(MSR_K8_SYSCFG, msr);
-		if (msr & MSR_K8_SYSCFG_MEM_ENCRYPT) {
-			c->x86_phys_bits -= (cpuid_ebx(0x8000001f) >> 6) & 0x3f;
-			if (IS_ENABLED(CONFIG_X86_32))
-				clear_cpu_cap(c, X86_FEATURE_SME);
-		} else {
-			clear_cpu_cap(c, X86_FEATURE_SME);
-		}
-	}
+	early_detect_mem_encrypt(c);
 }
 
 static void init_amd_k8(struct cpuinfo_x86 *c)
