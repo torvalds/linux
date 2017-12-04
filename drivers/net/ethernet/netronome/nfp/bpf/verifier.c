@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016 Netronome Systems, Inc.
+ * Copyright (C) 2016-2017 Netronome Systems, Inc.
  *
  * This software is dual licensed under the GNU General License Version 2,
  * June 1991 as shown in the file COPYING in the top-level directory of this
@@ -40,7 +40,7 @@
 
 #include "main.h"
 
-static struct nfp_insn_meta *
+struct nfp_insn_meta *
 nfp_bpf_goto_meta(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
 		  unsigned int insn_idx, unsigned int n_insns)
 {
@@ -180,10 +180,10 @@ nfp_verify_insn(struct bpf_verifier_env *env, int insn_idx, int prev_insn_idx)
 	if (meta->insn.code == (BPF_JMP | BPF_EXIT))
 		return nfp_bpf_check_exit(nfp_prog, env);
 
-	if ((meta->insn.code & ~BPF_SIZE_MASK) == (BPF_LDX | BPF_MEM))
+	if (is_mbpf_load(meta))
 		return nfp_bpf_check_ptr(nfp_prog, meta, env,
 					 meta->insn.src_reg);
-	if ((meta->insn.code & ~BPF_SIZE_MASK) == (BPF_STX | BPF_MEM))
+	if (is_mbpf_store(meta))
 		return nfp_bpf_check_ptr(nfp_prog, meta, env,
 					 meta->insn.dst_reg);
 

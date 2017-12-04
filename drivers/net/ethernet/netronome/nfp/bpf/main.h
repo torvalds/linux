@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016 Netronome Systems, Inc.
+ * Copyright (C) 2016-2017 Netronome Systems, Inc.
  *
  * This software is dual licensed under the GNU General License Version 2,
  * June 1991 as shown in the file COPYING in the top-level directory of this
@@ -89,23 +89,37 @@ typedef int (*instr_cb_t)(struct nfp_prog *, struct nfp_insn_meta *);
 #define nfp_meta_next(meta)	list_next_entry(meta, l)
 #define nfp_meta_prev(meta)	list_prev_entry(meta, l)
 
+#define FLAG_INSN_IS_JUMP_DST	BIT(0)
+
 /**
  * struct nfp_insn_meta - BPF instruction wrapper
  * @insn: BPF instruction
  * @ptr: pointer type for memory operations
+ * @ldst_gather_len: memcpy length gathered from load/store sequence
+ * @paired_st: the paired store insn at the head of the sequence
  * @ptr_not_const: pointer is not always constant
+ * @jmp_dst: destination info for jump instructions
  * @off: index of first generated machine instruction (in nfp_prog.prog)
  * @n: eBPF instruction number
+ * @flags: eBPF instruction extra optimization flags
  * @skip: skip this instruction (optimized out)
  * @double_cb: callback for second part of the instruction
  * @l: link on nfp_prog->insns list
  */
 struct nfp_insn_meta {
 	struct bpf_insn insn;
-	struct bpf_reg_state ptr;
-	bool ptr_not_const;
+	union {
+		struct {
+			struct bpf_reg_state ptr;
+			struct bpf_insn *paired_st;
+			s16 ldst_gather_len;
+			bool ptr_not_const;
+		};
+		struct nfp_insn_meta *jmp_dst;
+	};
 	unsigned int off;
 	unsigned short n;
+	unsigned short flags;
 	bool skip;
 	instr_cb_t double_cb;
 
@@ -134,6 +148,16 @@ static inline u8 mbpf_mode(const struct nfp_insn_meta *meta)
 	return BPF_MODE(meta->insn.code);
 }
 
+static inline bool is_mbpf_load(const struct nfp_insn_meta *meta)
+{
+	return (meta->insn.code & ~BPF_SIZE_MASK) == (BPF_LDX | BPF_MEM);
+}
+
+static inline bool is_mbpf_store(const struct nfp_insn_meta *meta)
+{
+	return (meta->insn.code & ~BPF_SIZE_MASK) == (BPF_STX | BPF_MEM);
+}
+
 /**
  * struct nfp_prog - nfp BPF program
  * @prog: machine code
@@ -142,6 +166,7 @@ static inline u8 mbpf_mode(const struct nfp_insn_meta *meta)
  * @verifier_meta: temporary storage for verifier's insn meta
  * @type: BPF program type
  * @start_off: address of the first instruction in the memory
+ * @last_bpf_off: address of the last instruction translated from BPF
  * @tgt_out: jump target for normal exit
  * @tgt_abort: jump target for abort (e.g. access outside of packet buffer)
  * @tgt_done: jump target to get the next packet
@@ -160,6 +185,7 @@ struct nfp_prog {
 	enum bpf_prog_type type;
 
 	unsigned int start_off;
+	unsigned int last_bpf_off;
 	unsigned int tgt_out;
 	unsigned int tgt_abort;
 	unsigned int tgt_done;
@@ -189,4 +215,7 @@ int nfp_bpf_translate(struct nfp_app *app, struct nfp_net *nn,
 		      struct bpf_prog *prog);
 int nfp_bpf_destroy(struct nfp_app *app, struct nfp_net *nn,
 		    struct bpf_prog *prog);
+struct nfp_insn_meta *
+nfp_bpf_goto_meta(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
+		  unsigned int insn_idx, unsigned int n_insns);
 #endif

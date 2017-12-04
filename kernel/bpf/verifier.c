@@ -216,6 +216,17 @@ static const char * const reg_type_str[] = {
 	[PTR_TO_PACKET_END]	= "pkt_end",
 };
 
+static void print_liveness(struct bpf_verifier_env *env,
+			   enum bpf_reg_liveness live)
+{
+	if (live & (REG_LIVE_READ | REG_LIVE_WRITTEN))
+	    verbose(env, "_");
+	if (live & REG_LIVE_READ)
+		verbose(env, "r");
+	if (live & REG_LIVE_WRITTEN)
+		verbose(env, "w");
+}
+
 static void print_verifier_state(struct bpf_verifier_env *env,
 				 struct bpf_verifier_state *state)
 {
@@ -228,7 +239,9 @@ static void print_verifier_state(struct bpf_verifier_env *env,
 		t = reg->type;
 		if (t == NOT_INIT)
 			continue;
-		verbose(env, " R%d=%s", i, reg_type_str[t]);
+		verbose(env, " R%d", i);
+		print_liveness(env, reg->live);
+		verbose(env, "=%s", reg_type_str[t]);
 		if ((t == SCALAR_VALUE || t == PTR_TO_STACK) &&
 		    tnum_is_const(reg->var_off)) {
 			/* reg->off should be 0 for SCALAR_VALUE */
@@ -277,10 +290,13 @@ static void print_verifier_state(struct bpf_verifier_env *env,
 		}
 	}
 	for (i = 0; i < state->allocated_stack / BPF_REG_SIZE; i++) {
-		if (state->stack[i].slot_type[0] == STACK_SPILL)
-			verbose(env, " fp%d=%s",
-				-MAX_BPF_STACK + i * BPF_REG_SIZE,
+		if (state->stack[i].slot_type[0] == STACK_SPILL) {
+			verbose(env, " fp%d",
+				(-i - 1) * BPF_REG_SIZE);
+			print_liveness(env, state->stack[i].spilled_ptr.live);
+			verbose(env, "=%s",
 				reg_type_str[state->stack[i].spilled_ptr.type]);
+		}
 	}
 	verbose(env, "\n");
 }
@@ -568,8 +584,8 @@ static void mark_reg_unknown(struct bpf_verifier_env *env,
 {
 	if (WARN_ON(regno >= MAX_BPF_REG)) {
 		verbose(env, "mark_reg_unknown(regs, %u)\n", regno);
-		/* Something bad happened, let's kill all regs */
-		for (regno = 0; regno < MAX_BPF_REG; regno++)
+		/* Something bad happened, let's kill all regs except FP */
+		for (regno = 0; regno < BPF_REG_FP; regno++)
 			__mark_reg_not_init(regs + regno);
 		return;
 	}
@@ -587,8 +603,8 @@ static void mark_reg_not_init(struct bpf_verifier_env *env,
 {
 	if (WARN_ON(regno >= MAX_BPF_REG)) {
 		verbose(env, "mark_reg_not_init(regs, %u)\n", regno);
-		/* Something bad happened, let's kill all regs */
-		for (regno = 0; regno < MAX_BPF_REG; regno++)
+		/* Something bad happened, let's kill all regs except FP */
+		for (regno = 0; regno < BPF_REG_FP; regno++)
 			__mark_reg_not_init(regs + regno);
 		return;
 	}
@@ -779,6 +795,11 @@ static int check_stack_read(struct bpf_verifier_env *env,
 		if (value_regno >= 0) {
 			/* restore register state from stack */
 			state->regs[value_regno] = state->stack[spi].spilled_ptr;
+			/* mark reg as written since spilled pointer state likely
+			 * has its liveness marks cleared by is_state_visited()
+			 * which resets stack/reg liveness for state transitions
+			 */
+			state->regs[value_regno].live |= REG_LIVE_WRITTEN;
 			mark_stack_slot_read(state, spi);
 		}
 		return 0;
@@ -1244,9 +1265,9 @@ static int check_xadd(struct bpf_verifier_env *env, int insn_idx, struct bpf_ins
 }
 
 /* Does this register contain a constant zero? */
-static bool register_is_null(struct bpf_reg_state reg)
+static bool register_is_null(struct bpf_reg_state *reg)
 {
-	return reg.type == SCALAR_VALUE && tnum_equals_const(reg.var_off, 0);
+	return reg->type == SCALAR_VALUE && tnum_equals_const(reg->var_off, 0);
 }
 
 /* when register 'regno' is passed into function that will read 'access_size'
@@ -1259,31 +1280,31 @@ static int check_stack_boundary(struct bpf_verifier_env *env, int regno,
 				int access_size, bool zero_size_allowed,
 				struct bpf_call_arg_meta *meta)
 {
+	struct bpf_reg_state *reg = cur_regs(env) + regno;
 	struct bpf_verifier_state *state = env->cur_state;
-	struct bpf_reg_state *regs = state->regs;
 	int off, i, slot, spi;
 
-	if (regs[regno].type != PTR_TO_STACK) {
+	if (reg->type != PTR_TO_STACK) {
 		/* Allow zero-byte read from NULL, regardless of pointer type */
 		if (zero_size_allowed && access_size == 0 &&
-		    register_is_null(regs[regno]))
+		    register_is_null(reg))
 			return 0;
 
 		verbose(env, "R%d type=%s expected=%s\n", regno,
-			reg_type_str[regs[regno].type],
+			reg_type_str[reg->type],
 			reg_type_str[PTR_TO_STACK]);
 		return -EACCES;
 	}
 
 	/* Only allow fixed-offset stack reads */
-	if (!tnum_is_const(regs[regno].var_off)) {
+	if (!tnum_is_const(reg->var_off)) {
 		char tn_buf[48];
 
-		tnum_strn(tn_buf, sizeof(tn_buf), regs[regno].var_off);
+		tnum_strn(tn_buf, sizeof(tn_buf), reg->var_off);
 		verbose(env, "invalid variable stack read R%d var_off=%s\n",
 			regno, tn_buf);
 	}
-	off = regs[regno].off + regs[regno].var_off.value;
+	off = reg->off + reg->var_off.value;
 	if (off >= 0 || off < -MAX_BPF_STACK || off + access_size > 0 ||
 	    access_size < 0 || (access_size == 0 && !zero_size_allowed)) {
 		verbose(env, "invalid stack type R%d off=%d access_size=%d\n",
@@ -1391,7 +1412,7 @@ static int check_func_arg(struct bpf_verifier_env *env, u32 regno,
 		 * passed in as argument, it's a SCALAR_VALUE type. Final test
 		 * happens during stack boundary checking.
 		 */
-		if (register_is_null(*reg) &&
+		if (register_is_null(reg) &&
 		    arg_type == ARG_PTR_TO_MEM_OR_NULL)
 			/* final test in check_stack_boundary() */;
 		else if (!type_is_pkt_pointer(type) &&
@@ -2934,8 +2955,9 @@ static int check_cond_jmp_op(struct bpf_verifier_env *env,
 	if (BPF_SRC(insn->code) == BPF_K &&
 	    (opcode == BPF_JEQ || opcode == BPF_JNE) &&
 	    dst_reg->type == SCALAR_VALUE &&
-	    tnum_equals_const(dst_reg->var_off, insn->imm)) {
-		if (opcode == BPF_JEQ) {
+	    tnum_is_const(dst_reg->var_off)) {
+		if ((opcode == BPF_JEQ && dst_reg->var_off.value == insn->imm) ||
+		    (opcode == BPF_JNE && dst_reg->var_off.value != insn->imm)) {
 			/* if (imm == imm) goto pc+off;
 			 * only follow the goto, ignore fall-through
 			 */

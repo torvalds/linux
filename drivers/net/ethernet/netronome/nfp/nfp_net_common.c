@@ -3392,6 +3392,7 @@ static int nfp_net_xdp(struct net_device *netdev, struct netdev_bpf *xdp)
 		if (nn->dp.bpf_offload_xdp)
 			xdp->prog_attached = XDP_ATTACHED_HW;
 		xdp->prog_id = nn->xdp_prog ? nn->xdp_prog->aux->id : 0;
+		xdp->flags = nn->xdp_prog ? nn->xdp_flags : 0;
 		return 0;
 	case BPF_OFFLOAD_VERIFIER_PREP:
 		return nfp_app_bpf_verifier_prep(nn->app, nn, xdp);
@@ -3561,9 +3562,6 @@ struct nfp_net *nfp_net_alloc(struct pci_dev *pdev, bool needs_netdev,
  */
 void nfp_net_free(struct nfp_net *nn)
 {
-	if (nn->xdp_prog)
-		bpf_prog_put(nn->xdp_prog);
-
 	if (nn->dp.netdev)
 		free_netdev(nn->dp.netdev);
 	else

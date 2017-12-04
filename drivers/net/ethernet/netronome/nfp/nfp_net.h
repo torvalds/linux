@@ -548,6 +548,8 @@ struct nfp_net_dp {
  * @max_r_vecs:		Number of allocated interrupt vectors for RX/TX
  * @max_tx_rings:       Maximum number of TX rings supported by the Firmware
  * @max_rx_rings:       Maximum number of RX rings supported by the Firmware
+ * @stride_rx:		Queue controller RX queue spacing
+ * @stride_tx:		Queue controller TX queue spacing
  * @r_vecs:             Pre-allocated array of ring vectors
  * @irq_entries:        Pre-allocated array of MSI-X entries
  * @lsc_handler:        Handler for Link State Change interrupt

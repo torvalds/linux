@@ -41,6 +41,7 @@
 
 const struct cmd_tgt_act cmd_tgt_act[__CMD_TGT_MAP_SIZE] = {
 	[CMD_TGT_WRITE8_SWAP] =		{ 0x02, 0x42 },
+	[CMD_TGT_WRITE32_SWAP] =	{ 0x02, 0x5f },
 	[CMD_TGT_READ8] =		{ 0x01, 0x43 },
 	[CMD_TGT_READ32] =		{ 0x00, 0x5c },
 	[CMD_TGT_READ32_LE] =		{ 0x01, 0x5c },
@@ -120,7 +121,8 @@ int swreg_to_unrestricted(swreg dst, swreg lreg, swreg rreg,
 	reg->dst = nfp_swreg_to_unreg(dst, true);
 
 	/* Decode source operands */
-	if (swreg_type(lreg) == swreg_type(rreg))
+	if (swreg_type(lreg) == swreg_type(rreg) &&
+	    swreg_type(lreg) != NN_REG_NONE)
 		return -EFAULT;
 
 	if (swreg_type(lreg) == NN_REG_GPR_B ||
@@ -200,7 +202,8 @@ int swreg_to_restricted(swreg dst, swreg lreg, swreg rreg,
 	reg->dst = nfp_swreg_to_rereg(dst, true, false, NULL);
 
 	/* Decode source operands */
-	if (swreg_type(lreg) == swreg_type(rreg))
+	if (swreg_type(lreg) == swreg_type(rreg) &&
+	    swreg_type(lreg) != NN_REG_NONE)
 		return -EFAULT;
 
 	if (swreg_type(lreg) == NN_REG_GPR_B ||

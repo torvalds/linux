@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016 Netronome Systems, Inc.
+ * Copyright (C) 2016-2017 Netronome Systems, Inc.
  *
  * This software is dual licensed under the GNU General License Version 2,
  * June 1991 as shown in the file COPYING in the top-level directory of this
@@ -209,6 +209,7 @@ enum alu_dst_ab {
 #define OP_CMD_CNT		0x0000e000000ULL
 #define OP_CMD_SIG		0x000f0000000ULL
 #define OP_CMD_TGT_CMD		0x07f00000000ULL
+#define OP_CMD_INDIR		0x20000000000ULL
 #define OP_CMD_MODE	       0x1c0000000000ULL
 
 struct cmd_tgt_act {
@@ -219,6 +220,7 @@ struct cmd_tgt_act {
 enum cmd_tgt_map {
 	CMD_TGT_READ8,
 	CMD_TGT_WRITE8_SWAP,
+	CMD_TGT_WRITE32_SWAP,
 	CMD_TGT_READ32,
 	CMD_TGT_READ32_LE,
 	CMD_TGT_READ32_SWAP,
@@ -239,6 +241,9 @@ enum cmd_ctx_swap {
 	CMD_CTX_SWAP = 0,
 	CMD_CTX_NO_SWAP = 3,
 };
+
+#define CMD_OVE_LEN	BIT(7)
+#define CMD_OV_LEN	GENMASK(12, 8)
 
 #define OP_LCSR_BASE		0x0fc00000000ULL
 #define OP_LCSR_A_SRC		0x000000003ffULL

@@ -820,6 +820,8 @@ struct netdev_bpf {
 		struct {
 			u8 prog_attached;
 			u32 prog_id;
+			/* flags with which program was installed */
+			u32 prog_flags;
 		};
 		/* BPF_OFFLOAD_VERIFIER_PREP */
 		struct {
@@ -3330,7 +3332,8 @@ struct sk_buff *dev_hard_start_xmit(struct sk_buff *skb, struct net_device *dev,
 typedef int (*bpf_op_t)(struct net_device *dev, struct netdev_bpf *bpf);
 int dev_change_xdp_fd(struct net_device *dev, struct netlink_ext_ack *extack,
 		      int fd, u32 flags);
-u8 __dev_xdp_attached(struct net_device *dev, bpf_op_t xdp_op, u32 *prog_id);
+void __dev_xdp_query(struct net_device *dev, bpf_op_t xdp_op,
+		     struct netdev_bpf *xdp);
 
 int __dev_forward_skb(struct net_device *dev, struct sk_buff *skb);
 int dev_forward_skb(struct net_device *dev, struct sk_buff *skb);
