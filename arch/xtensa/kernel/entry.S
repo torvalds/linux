@@ -125,6 +125,7 @@
  *
  * Note: _user_exception might be at an odd address. Don't use call0..call12
  */
+	.literal_position
 
 ENTRY(user_exception)
 
@@ -777,6 +778,8 @@ ENDPROC(kernel_exception)
  * When we get here,  a0 is trashed and saved to excsave[debuglevel]
  */
 
+	.literal_position
+
 ENTRY(debug_exception)
 
 	rsr	a0, SREG_EPS + XCHAL_DEBUGLEVEL
@@ -915,6 +918,8 @@ ENDPROC(debug_exception)
 	.align 4
 unrecoverable_text:
 	.ascii "Unrecoverable error in exception handler\0"
+
+	.literal_position
 
 ENTRY(unrecoverable_exception)
 
@@ -1116,6 +1121,8 @@ ENDPROC(fast_syscall_unrecoverable)
  *	 CATCH	<set return code>
  *		j done
  */
+
+	.literal_position
 
 #ifdef CONFIG_FAST_SYSCALL_XTENSA
 
@@ -1887,6 +1894,7 @@ ENDPROC(fast_store_prohibited)
  * void system_call (struct pt_regs* regs, int exccause)
  *                            a2                 a3
  */
+	.literal_position
 
 ENTRY(system_call)
 

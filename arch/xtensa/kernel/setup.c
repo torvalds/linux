@@ -277,13 +277,13 @@ extern char _end[];
 extern char _stext[];
 extern char _WindowVectors_text_start;
 extern char _WindowVectors_text_end;
-extern char _DebugInterruptVector_literal_start;
+extern char _DebugInterruptVector_text_start;
 extern char _DebugInterruptVector_text_end;
-extern char _KernelExceptionVector_literal_start;
+extern char _KernelExceptionVector_text_start;
 extern char _KernelExceptionVector_text_end;
-extern char _UserExceptionVector_literal_start;
+extern char _UserExceptionVector_text_start;
 extern char _UserExceptionVector_text_end;
-extern char _DoubleExceptionVector_literal_start;
+extern char _DoubleExceptionVector_text_start;
 extern char _DoubleExceptionVector_text_end;
 #if XCHAL_EXCM_LEVEL >= 2
 extern char _Level2InterruptVector_text_start;
@@ -339,16 +339,16 @@ void __init setup_arch(char **cmdline_p)
 	mem_reserve(__pa(&_WindowVectors_text_start),
 		    __pa(&_WindowVectors_text_end));
 
-	mem_reserve(__pa(&_DebugInterruptVector_literal_start),
+	mem_reserve(__pa(&_DebugInterruptVector_text_start),
 		    __pa(&_DebugInterruptVector_text_end));
 
-	mem_reserve(__pa(&_KernelExceptionVector_literal_start),
+	mem_reserve(__pa(&_KernelExceptionVector_text_start),
 		    __pa(&_KernelExceptionVector_text_end));
 
-	mem_reserve(__pa(&_UserExceptionVector_literal_start),
+	mem_reserve(__pa(&_UserExceptionVector_text_start),
 		    __pa(&_UserExceptionVector_text_end));
 
-	mem_reserve(__pa(&_DoubleExceptionVector_literal_start),
+	mem_reserve(__pa(&_DoubleExceptionVector_text_start),
 		    __pa(&_DoubleExceptionVector_text_end));
 
 #if XCHAL_EXCM_LEVEL >= 2
