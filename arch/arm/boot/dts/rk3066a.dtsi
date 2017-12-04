@@ -63,26 +63,74 @@
 		      <0x10090000 0x100>,
 		      <0x10093000 0x100>,
 		      <0x10098000 0x1100>,
-		      <0x10094000 0x100>;
-
+		      <0x10094000 0x100>,
+		      <0x1009A000 0x1100>,
+		      <0x10095000 0x100>,
+		      <0x1009C000 0x1100>,
+		      <0x10096000 0x100>,
+		      <0x1009E000 0x1100>,
+		      <0x10097000 0x100>;
 		reg-names = "Mali_L2",
 			    "Mali_GP",
 			    "Mali_GP_MMU",
 			    "Mali_PP0",
-			    "Mali_PP0_MMU";
+			    "Mali_PP0_MMU",
+			    "Mali_PP1",
+			    "Mali_PP1_MMU",
+			    "Mali_PP2",
+			    "Mali_PP2_MMU",
+			    "Mali_PP3",
+			    "Mali_PP3_MMU";
 
 		interrupts = <GIC_SPI 5 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 6 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 7 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 6 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 7 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 6 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 7 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 6 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 7 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 6 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "Mali_GP_IRQ",
 				  "Mali_GP_MMU_IRQ",
 				  "Mali_PP0_IRQ",
-				  "Mali_PP0_MMU_IRQ";
-
+				  "Mali_PP0_MMU_IRQ",
+				  "Mali_PP1_IRQ",
+				  "Mali_PP1_MMU_IRQ",
+				  "Mali_PP2_IRQ",
+				  "Mali_PP2_MMU_IRQ",
+				  "Mali_PP3_IRQ",
+				  "Mali_PP3_MMU_IRQ";
 		clocks = <&cru ACLK_GPU>;
 		clock-names = "clk_mali";
+
+		operating-points-v2 = <&gpu_opp_table>;
 		status = "disabled";
+
+		gpu_power_model: power_model {
+			compatible = "arm,mali-simple-power-model";
+			voltage = <950>;
+			frequency = <500>;
+			static-power = <300>;
+			dynamic-power = <396>;
+			ts = <32000 4700 (-80) 2>;
+			thermal-zone = "gpu-thermal";
+		};
+	};
+
+	gpu_opp_table: opp-table2 {
+		compatible = "operating-points-v2";
+		opp-300000000 {
+			opp-hz = /bits/ 64 <300000000>;
+			opp-microvolt = <1050000>;
+			status = "disabled";
+		};
+		opp-400000000 {
+			opp-hz = /bits/ 64 <400000000>;
+			opp-microvolt = <1275000>;
+			status = "disabled";
+		};
 	};
 
 	vop0: vop@1010c000 {
