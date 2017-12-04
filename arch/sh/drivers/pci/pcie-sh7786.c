@@ -19,6 +19,7 @@
 #include <linux/clk.h>
 #include <linux/sh_clk.h>
 #include <linux/sh_intc.h>
+#include <cpu/sh7786.h>
 #include "pcie-sh7786.h"
 #include <asm/sizes.h>
 
@@ -530,6 +531,7 @@ static struct sh7786_pcie_hwops sh7786_65nm_pcie_hwops __initdata = {
 static int __init sh7786_pcie_init(void)
 {
 	struct clk *platclk;
+	u32 mm_sel;
 	int i;
 
 	printk(KERN_NOTICE "PCI: Starting initialization.\n");
@@ -562,6 +564,16 @@ static int __init sh7786_pcie_init(void)
 	}
 
 	clk_enable(platclk);
+
+	mm_sel = sh7786_mm_sel();
+
+	/*
+	 * Depending on the MMSELR register value, the PCIe0 MEM 1
+	 * area may not be available. See Table 13.11 of the SH7786
+	 * datasheet.
+	 */
+	if (mm_sel != 1 && mm_sel != 2 && mm_sel != 5 && mm_sel != 6)
+		sh7786_pci0_resources[2].flags |= IORESOURCE_DISABLED;
 
 	printk(KERN_NOTICE "PCI: probing %d ports.\n", nr_ports);
 
