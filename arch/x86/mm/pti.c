@@ -288,6 +288,15 @@ static void __init pti_clone_user_shared(void)
 }
 
 /*
+ * Clone the populated PMDs of the entry and irqentry text and force it RO.
+ */
+static void __init pti_clone_entry_text(void)
+{
+	pti_clone_pmds((unsigned long) __entry_text_start,
+			(unsigned long) __irqentry_text_end, _PAGE_RW);
+}
+
+/*
  * Initialize kernel page table isolation
  */
 void __init pti_init(void)
@@ -298,4 +307,5 @@ void __init pti_init(void)
 	pr_info("enabled\n");
 
 	pti_clone_user_shared();
+	pti_clone_entry_text();
 }
