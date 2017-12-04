@@ -338,7 +338,6 @@
 
 		stmpe_touchscreen {
 			compatible = "st,stmpe-ts";
-			reg = <0>;
 			/* 3.25 MHz ADC clock speed */
 			st,adc-freq = <1>;
 			/* 8 sample average control */
