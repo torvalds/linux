@@ -1187,7 +1187,7 @@ static void sh_eth_ring_free(struct net_device *ndev)
 			}
 		}
 		ringsize = sizeof(struct sh_eth_rxdesc) * mdp->num_rx_ring;
-		dma_free_coherent(NULL, ringsize, mdp->rx_ring,
+		dma_free_coherent(&mdp->pdev->dev, ringsize, mdp->rx_ring,
 				  mdp->rx_desc_dma);
 		mdp->rx_ring = NULL;
 	}
@@ -1204,7 +1204,7 @@ static void sh_eth_ring_free(struct net_device *ndev)
 		sh_eth_tx_free(ndev, false);
 
 		ringsize = sizeof(struct sh_eth_txdesc) * mdp->num_tx_ring;
-		dma_free_coherent(NULL, ringsize, mdp->tx_ring,
+		dma_free_coherent(&mdp->pdev->dev, ringsize, mdp->tx_ring,
 				  mdp->tx_desc_dma);
 		mdp->tx_ring = NULL;
 	}
@@ -1324,8 +1324,8 @@ static int sh_eth_ring_init(struct net_device *ndev)
 
 	/* Allocate all Rx descriptors. */
 	rx_ringsize = sizeof(struct sh_eth_rxdesc) * mdp->num_rx_ring;
-	mdp->rx_ring = dma_alloc_coherent(NULL, rx_ringsize, &mdp->rx_desc_dma,
-					  GFP_KERNEL);
+	mdp->rx_ring = dma_alloc_coherent(&mdp->pdev->dev, rx_ringsize,
+					  &mdp->rx_desc_dma, GFP_KERNEL);
 	if (!mdp->rx_ring)
 		goto ring_free;
 
@@ -1333,8 +1333,8 @@ static int sh_eth_ring_init(struct net_device *ndev)
 
 	/* Allocate all Tx descriptors. */
 	tx_ringsize = sizeof(struct sh_eth_txdesc) * mdp->num_tx_ring;
-	mdp->tx_ring = dma_alloc_coherent(NULL, tx_ringsize, &mdp->tx_desc_dma,
-					  GFP_KERNEL);
+	mdp->tx_ring = dma_alloc_coherent(&mdp->pdev->dev, tx_ringsize,
+					  &mdp->tx_desc_dma, GFP_KERNEL);
 	if (!mdp->tx_ring)
 		goto ring_free;
 	return 0;
