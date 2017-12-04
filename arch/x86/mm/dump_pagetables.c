@@ -530,8 +530,12 @@ void ptdump_walk_pgd_level(struct seq_file *m, pgd_t *pgd)
 	ptdump_walk_pgd_level_core(m, pgd, false, true);
 }
 
-void ptdump_walk_pgd_level_debugfs(struct seq_file *m, pgd_t *pgd)
+void ptdump_walk_pgd_level_debugfs(struct seq_file *m, pgd_t *pgd, bool user)
 {
+#ifdef CONFIG_PAGE_TABLE_ISOLATION
+	if (user && static_cpu_has(X86_FEATURE_PTI))
+		pgd = kernel_to_user_pgdp(pgd);
+#endif
 	ptdump_walk_pgd_level_core(m, pgd, false, false);
 }
 EXPORT_SYMBOL_GPL(ptdump_walk_pgd_level_debugfs);
