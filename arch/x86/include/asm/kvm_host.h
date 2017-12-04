@@ -1068,6 +1068,8 @@ struct kvm_x86_ops {
 	int (*enable_smi_window)(struct kvm_vcpu *vcpu);
 
 	int (*mem_enc_op)(struct kvm *kvm, void __user *argp);
+	int (*mem_enc_reg_region)(struct kvm *kvm, struct kvm_enc_region *argp);
+	int (*mem_enc_unreg_region)(struct kvm *kvm, struct kvm_enc_region *argp);
 };
 
 struct kvm_arch_async_pf {

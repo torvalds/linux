@@ -3410,6 +3410,40 @@ Currently, this ioctl is used for issuing Secure Encrypted Virtualization
 (SEV) commands on AMD Processors. The SEV commands are defined in
 Documentation/virtual/kvm/amd-memory-encryption.txt.
 
+4.110 KVM_MEMORY_ENCRYPT_REG_REGION
+
+Capability: basic
+Architectures: x86
+Type: system
+Parameters: struct kvm_enc_region (in)
+Returns: 0 on success; -1 on error
+
+This ioctl can be used to register a guest memory region which may
+contain encrypted data (e.g. guest RAM, SMRAM etc).
+
+It is used in the SEV-enabled guest. When encryption is enabled, a guest
+memory region may contain encrypted data. The SEV memory encryption
+engine uses a tweak such that two identical plaintext pages, each at
+different locations will have differing ciphertexts. So swapping or
+moving ciphertext of those pages will not result in plaintext being
+swapped. So relocating (or migrating) physical backing pages for the SEV
+guest will require some additional steps.
+
+Note: The current SEV key management spec does not provide commands to
+swap or migrate (move) ciphertext pages. Hence, for now we pin the guest
+memory region registered with the ioctl.
+
+4.111 KVM_MEMORY_ENCRYPT_UNREG_REGION
+
+Capability: basic
+Architectures: x86
+Type: system
+Parameters: struct kvm_enc_region (in)
+Returns: 0 on success; -1 on error
+
+This ioctl can be used to unregister the guest memory region registered
+with KVM_MEMORY_ENCRYPT_REG_REGION ioctl above.
+
 5. The kvm_run structure
 ------------------------
 
