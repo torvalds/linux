@@ -156,6 +156,16 @@ static const struct regulator_linear_range rk816_buck4_voltage_ranges[] = {
 	REGULATOR_LINEAR_RANGE(3500000, 27, 31, 0),	/* 3.5v */
 };
 
+static unsigned int rk8xx_regulator_of_map_mode(unsigned int mode)
+{
+	if (mode == 1)
+		return REGULATOR_MODE_FAST;
+	if (mode == 2)
+		return REGULATOR_MODE_NORMAL;
+
+	return -EINVAL;
+}
+
 static int rk808_buck1_2_get_voltage_sel_regmap(struct regulator_dev *rdev)
 {
 	struct rk808_regulator_data *pdata = rdev_get_drvdata(rdev);
@@ -715,6 +725,7 @@ static const struct regulator_desc rk816_reg[] = {
 		.enable_mask = BIT(4) | BIT(0),
 		.enable_val = BIT(4) | BIT(0),
 		.disable_val = BIT(4),
+		.of_map_mode = rk8xx_regulator_of_map_mode,
 		.owner = THIS_MODULE,
 	}, {
 		.name = "DCDC_REG2",
@@ -733,6 +744,7 @@ static const struct regulator_desc rk816_reg[] = {
 		.enable_mask = BIT(5) | BIT(1),
 		.enable_val = BIT(5) | BIT(1),
 		.disable_val = BIT(5),
+		.of_map_mode = rk8xx_regulator_of_map_mode,
 		.owner = THIS_MODULE,
 	}, {
 		.name = "DCDC_REG3",
@@ -747,6 +759,7 @@ static const struct regulator_desc rk816_reg[] = {
 		.enable_mask = BIT(6) | BIT(2),
 		.enable_val =  BIT(6) | BIT(2),
 		.disable_val = BIT(6),
+		.of_map_mode = rk8xx_regulator_of_map_mode,
 		.owner = THIS_MODULE,
 	}, {
 		.name = "DCDC_REG4",
@@ -765,6 +778,7 @@ static const struct regulator_desc rk816_reg[] = {
 		.enable_mask = BIT(7) | BIT(3),
 		.enable_val = BIT(7) | BIT(3),
 		.disable_val = BIT(7),
+		.of_map_mode = rk8xx_regulator_of_map_mode,
 		.owner = THIS_MODULE,
 	},
 	RK816_DESC(RK816_ID_LDO1, "LDO_REG1", "vcc5", 800, 3400, 100,

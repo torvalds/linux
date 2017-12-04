@@ -25,6 +25,10 @@ Optional properties:
 - vcc5-supply:  The input supply for LDO_REG1, LDO_REG2, LDO_REG3
 - vcc6-supply:  The input supply for LDO_REG4, LDO_REG5, LDO_REG6
 
+- regulator-initial-mode: default mode to set on startup
+- regulator-initial-mode is set as:
+	REGULATOR_MODE_FAST			0x1
+	REGULATOR_MODE_NORMAL			0x2
 Regulators: All the regulators of RK816 to be instantiated shall be
 listed in a child node named 'regulators'. Each regulator is represented
 by a child node of the 'regulators' node.
@@ -104,6 +108,7 @@ Example:
 				regulator-min-microvolt = <750000>;
 				regulator-max-microvolt = <1450000>;
 				regulator-ramp-delay = <6001>;
+				regulator-initial-mode = <1>;
 				regulator-state-mem {
 					regulator-off-in-suspend;
 				};
@@ -115,6 +120,7 @@ Example:
 				regulator-min-microvolt = <800000>;
 				regulator-max-microvolt = <1250000>;
 				regulator-ramp-delay = <6001>;
+				regulator-initial-mode = <1>;
 				regulator-state-mem {
 					regulator-on-in-suspend;
 					regulator-suspend-microvolt = <1000000>;
@@ -125,6 +131,7 @@ Example:
 				regulator-always-on;
 				regulator-boot-on;
 				regulator-name = "vcc_ddr";
+				regulator-initial-mode = <1>;
 				regulator-state-mem {
 					regulator-on-in-suspend;
 				};
@@ -136,6 +143,7 @@ Example:
 				regulator-min-microvolt = <3300000>;
 				regulator-max-microvolt = <3300000>;
 				regulator-name = "vcc33_io";
+				regulator-initial-mode = <1>;
 				regulator-state-mem {
 					regulator-on-in-suspend;
 					regulator-suspend-microvolt = <3300000>;
