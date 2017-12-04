@@ -45,6 +45,7 @@
 #include <linux/pci.h>
 #include <linux/firmware.h>
 #include <linux/vermagic.h>
+#include <linux/vmalloc.h>
 #include <net/devlink.h>
 
 #include "nfpcore/nfp.h"
@@ -509,6 +510,9 @@ static int nfp_pci_probe(struct pci_dev *pdev,
 	pf->mip = nfp_mip_open(pf->cpp);
 	pf->rtbl = __nfp_rtsym_table_read(pf->cpp, pf->mip);
 
+	pf->dump_flag = NFP_DUMP_NSP_DIAG;
+	pf->dumpspec = nfp_net_dump_load_dumpspec(pf->cpp, pf->rtbl);
+
 	err = nfp_pcie_sriov_read_nfd_limit(pf);
 	if (err)
 		goto err_fw_unload;
@@ -544,6 +548,7 @@ err_fw_unload:
 		nfp_fw_unload(pf);
 	kfree(pf->eth_tbl);
 	kfree(pf->nspi);
+	vfree(pf->dumpspec);
 err_devlink_unreg:
 	devlink_unregister(devlink);
 err_hwinfo_free:
@@ -579,6 +584,7 @@ static void nfp_pci_remove(struct pci_dev *pdev)
 
 	devlink_unregister(devlink);
 
+	vfree(pf->dumpspec);
 	kfree(pf->rtbl);
 	nfp_mip_close(pf->mip);
 	if (pf->fw_loaded)
