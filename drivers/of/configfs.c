@@ -42,7 +42,7 @@ struct cfs_overlay_item {
 
 static int create_overlay(struct cfs_overlay_item *overlay, void *blob)
 {
-	int ovcs_id, err;
+	int err;
 
 	/* unflatten the tree */
 	of_fdt_unflatten_tree(blob, NULL, &overlay->overlay);
@@ -64,14 +64,12 @@ static int create_overlay(struct cfs_overlay_item *overlay, void *blob)
 	}
 	pr_debug("%s: resolved OK\n", __func__);
 
-	ovcs_id = 0;
-	err = of_overlay_apply(overlay->overlay, ovcs_id);
+	err = of_overlay_apply(overlay->overlay, &overlay->ov_id);
 	if (err < 0) {
 		pr_err("%s: Failed to create overlay (err=%d)\n",
 				__func__, err);
 		goto out_err;
 	}
-	overlay->ov_id = err;
 
 out_err:
 	return err;
