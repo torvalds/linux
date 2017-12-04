@@ -446,6 +446,8 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *run)
 {
 	int r = -EINTR;
 
+	vcpu_load(vcpu);
+
 	kvm_sigset_activate(vcpu);
 
 	if (vcpu->mmio_needed) {
@@ -480,6 +482,7 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *run)
 out:
 	kvm_sigset_deactivate(vcpu);
 
+	vcpu_put(vcpu);
 	return r;
 }
 

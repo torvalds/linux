@@ -7280,8 +7280,8 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 {
 	int r;
 
+	vcpu_load(vcpu);
 	kvm_sigset_activate(vcpu);
-
 	kvm_load_guest_fpu(vcpu);
 
 	if (unlikely(vcpu->arch.mp_state == KVM_MP_STATE_UNINITIALIZED)) {
@@ -7328,6 +7328,7 @@ out:
 	post_kvm_run_save(vcpu);
 	kvm_sigset_deactivate(vcpu);
 
+	vcpu_put(vcpu);
 	return r;
 }
 

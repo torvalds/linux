@@ -619,21 +619,27 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *run)
 	if (unlikely(!kvm_vcpu_initialized(vcpu)))
 		return -ENOEXEC;
 
+	vcpu_load(vcpu);
+
 	ret = kvm_vcpu_first_run_init(vcpu);
 	if (ret)
-		return ret;
+		goto out;
 
 	if (run->exit_reason == KVM_EXIT_MMIO) {
 		ret = kvm_handle_mmio_return(vcpu, vcpu->run);
 		if (ret)
-			return ret;
-		if (kvm_arm_handle_step_debug(vcpu, vcpu->run))
-			return 0;
+			goto out;
+		if (kvm_arm_handle_step_debug(vcpu, vcpu->run)) {
+			ret = 0;
+			goto out;
+		}
 
 	}
 
-	if (run->immediate_exit)
-		return -EINTR;
+	if (run->immediate_exit) {
+		ret = -EINTR;
+		goto out;
+	}
 
 	kvm_sigset_activate(vcpu);
 
@@ -772,6 +778,8 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *run)
 
 	kvm_sigset_deactivate(vcpu);
 
+out:
+	vcpu_put(vcpu);
 	return ret;
 }
 
