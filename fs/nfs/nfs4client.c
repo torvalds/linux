@@ -1123,19 +1123,36 @@ struct nfs_server *nfs4_create_referral_server(struct nfs_clone_mount *data,
 	/* Initialise the client representation from the parent server */
 	nfs_server_copy_userdata(server, parent_server);
 
-	/* Get a client representation.
-	 * Note: NFSv4 always uses TCP, */
+	/* Get a client representation */
+#ifdef CONFIG_SUNRPC_XPRT_RDMA
+	rpc_set_port(data->addr, NFS_RDMA_PORT);
 	error = nfs4_set_client(server, data->hostname,
 				data->addr,
 				data->addrlen,
 				parent_client->cl_ipaddr,
-				rpc_protocol(parent_server->client),
+				XPRT_TRANSPORT_RDMA,
+				parent_server->client->cl_timeout,
+				parent_client->cl_mvops->minor_version,
+				parent_client->cl_net);
+	if (!error)
+		goto init_server;
+#endif	/* CONFIG_SUNRPC_XPRT_RDMA */
+
+	rpc_set_port(data->addr, NFS_PORT);
+	error = nfs4_set_client(server, data->hostname,
+				data->addr,
+				data->addrlen,
+				parent_client->cl_ipaddr,
+				XPRT_TRANSPORT_TCP,
 				parent_server->client->cl_timeout,
 				parent_client->cl_mvops->minor_version,
 				parent_client->cl_net);
 	if (error < 0)
 		goto error;
 
+#ifdef CONFIG_SUNRPC_XPRT_RDMA
+init_server:
+#endif
 	error = nfs_init_server_rpcclient(server, parent_server->client->cl_timeout, data->authflavor);
 	if (error < 0)
 		goto error;
