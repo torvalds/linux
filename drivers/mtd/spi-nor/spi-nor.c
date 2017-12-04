@@ -330,8 +330,22 @@ static inline int spi_nor_fsr_ready(struct spi_nor *nor)
 	int fsr = read_fsr(nor);
 	if (fsr < 0)
 		return fsr;
-	else
-		return fsr & FSR_READY;
+
+	if (fsr & (FSR_E_ERR | FSR_P_ERR)) {
+		if (fsr & FSR_E_ERR)
+			dev_err(nor->dev, "Erase operation failed.\n");
+		else
+			dev_err(nor->dev, "Program operation failed.\n");
+
+		if (fsr & FSR_PT_ERR)
+			dev_err(nor->dev,
+			"Attempted to modify a protected sector.\n");
+
+		nor->write_reg(nor, SPINOR_OP_CLFSR, NULL, 0);
+		return -EIO;
+	}
+
+	return fsr & FSR_READY;
 }
 
 static int spi_nor_ready(struct spi_nor *nor)
