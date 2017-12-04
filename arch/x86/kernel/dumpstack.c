@@ -45,7 +45,8 @@ bool in_task_stack(unsigned long *stack, struct task_struct *task,
 
 bool in_sysenter_stack(unsigned long *stack, struct stack_info *info)
 {
-	struct tss_struct *tss = this_cpu_ptr(&cpu_tss);
+	int cpu = smp_processor_id();
+	struct tss_struct *tss = &get_cpu_entry_area(cpu)->tss;
 
 	/* Treat the canary as part of the stack for unwinding purposes. */
 	void *begin = &tss->SYSENTER_stack_canary;

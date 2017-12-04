@@ -54,6 +54,13 @@ extern unsigned long __FIXADDR_TOP;
  */
 struct cpu_entry_area {
 	char gdt[PAGE_SIZE];
+
+	/*
+	 * The GDT is just below cpu_tss and thus serves (on x86_64) as a
+	 * a read-only guard page for the SYSENTER stack at the bottom
+	 * of the TSS region.
+	 */
+	struct tss_struct tss;
 };
 
 #define CPU_ENTRY_AREA_PAGES (sizeof(struct cpu_entry_area) / PAGE_SIZE)

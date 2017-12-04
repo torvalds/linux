@@ -466,6 +466,22 @@ void load_percpu_segment(int cpu)
 	load_stack_canary_segment();
 }
 
+static void set_percpu_fixmap_pages(int fixmap_index, void *ptr,
+				    int pages, pgprot_t prot)
+{
+	int i;
+
+	for (i = 0; i < pages; i++) {
+		__set_fixmap(fixmap_index - i,
+			     per_cpu_ptr_to_phys(ptr + i * PAGE_SIZE), prot);
+	}
+}
+
+#ifdef CONFIG_X86_32
+/* The 32-bit entry code needs to find cpu_entry_area. */
+DEFINE_PER_CPU(struct cpu_entry_area *, cpu_entry_area);
+#endif
+
 /* Setup the fixmap mappings only once per-processor */
 static inline void setup_cpu_entry_area(int cpu)
 {
@@ -507,7 +523,15 @@ static inline void setup_cpu_entry_area(int cpu)
 	 */
 	BUILD_BUG_ON((offsetof(struct tss_struct, x86_tss) ^
 		      offsetofend(struct tss_struct, x86_tss)) & PAGE_MASK);
+	BUILD_BUG_ON(sizeof(struct tss_struct) % PAGE_SIZE != 0);
+	set_percpu_fixmap_pages(get_cpu_entry_area_index(cpu, tss),
+				&per_cpu(cpu_tss, cpu),
+				sizeof(struct tss_struct) / PAGE_SIZE,
+				PAGE_KERNEL);
 
+#ifdef CONFIG_X86_32
+	this_cpu_write(cpu_entry_area, get_cpu_entry_area(cpu));
+#endif
 }
 
 /* Load the original GDT from the per-cpu structure */
@@ -1257,7 +1281,8 @@ void enable_sep_cpu(void)
 	wrmsr(MSR_IA32_SYSENTER_CS, tss->x86_tss.ss1, 0);
 
 	wrmsr(MSR_IA32_SYSENTER_ESP,
-	      (unsigned long)tss + offsetofend(struct tss_struct, SYSENTER_stack),
+	      (unsigned long)&get_cpu_entry_area(cpu)->tss +
+	      offsetofend(struct tss_struct, SYSENTER_stack),
 	      0);
 
 	wrmsr(MSR_IA32_SYSENTER_EIP, (unsigned long)entry_SYSENTER_32, 0);
@@ -1370,6 +1395,8 @@ static DEFINE_PER_CPU_PAGE_ALIGNED(char, exception_stacks
 /* May not be marked __init: used by software suspend */
 void syscall_init(void)
 {
+	int cpu = smp_processor_id();
+
 	wrmsr(MSR_STAR, 0, (__USER32_CS << 16) | __KERNEL_CS);
 	wrmsrl(MSR_LSTAR, (unsigned long)entry_SYSCALL_64);
 
@@ -1383,7 +1410,7 @@ void syscall_init(void)
 	 */
 	wrmsrl_safe(MSR_IA32_SYSENTER_CS, (u64)__KERNEL_CS);
 	wrmsrl_safe(MSR_IA32_SYSENTER_ESP,
-		    (unsigned long)this_cpu_ptr(&cpu_tss) +
+		    (unsigned long)&get_cpu_entry_area(cpu)->tss +
 		    offsetofend(struct tss_struct, SYSENTER_stack));
 	wrmsrl_safe(MSR_IA32_SYSENTER_EIP, (u64)entry_SYSENTER_compat);
 #else
@@ -1593,11 +1620,13 @@ void cpu_init(void)
 	initialize_tlbstate_and_flush();
 	enter_lazy_tlb(&init_mm, me);
 
+	setup_cpu_entry_area(cpu);
+
 	/*
 	 * Initialize the TSS.  Don't bother initializing sp0, as the initial
 	 * task never enters user mode.
 	 */
-	set_tss_desc(cpu, &t->x86_tss);
+	set_tss_desc(cpu, &get_cpu_entry_area(cpu)->tss.x86_tss);
 	load_TR_desc();
 
 	load_mm_ldt(&init_mm);
@@ -1610,7 +1639,6 @@ void cpu_init(void)
 	if (is_uv_system())
 		uv_cpu_init();
 
-	setup_cpu_entry_area(cpu);
 	load_fixmap_gdt(cpu);
 }
 
@@ -1651,11 +1679,13 @@ void cpu_init(void)
 	initialize_tlbstate_and_flush();
 	enter_lazy_tlb(&init_mm, curr);
 
+	setup_cpu_entry_area(cpu);
+
 	/*
 	 * Initialize the TSS.  Don't bother initializing sp0, as the initial
 	 * task never enters user mode.
 	 */
-	set_tss_desc(cpu, &t->x86_tss);
+	set_tss_desc(cpu, &get_cpu_entry_area(cpu)->tss.x86_tss);
 	load_TR_desc();
 
 	load_mm_ldt(&init_mm);
@@ -1672,7 +1702,6 @@ void cpu_init(void)
 
 	fpu__init_cpu();
 
-	setup_cpu_entry_area(cpu);
 	load_fixmap_gdt(cpu);
 }
 #endif
