@@ -1339,7 +1339,10 @@ void syscall_init(void)
 		(entry_SYSCALL_64_trampoline - _entry_trampoline);
 
 	wrmsr(MSR_STAR, 0, (__USER32_CS << 16) | __KERNEL_CS);
-	wrmsrl(MSR_LSTAR, SYSCALL64_entry_trampoline);
+	if (static_cpu_has(X86_FEATURE_PTI))
+		wrmsrl(MSR_LSTAR, SYSCALL64_entry_trampoline);
+	else
+		wrmsrl(MSR_LSTAR, (unsigned long)entry_SYSCALL_64);
 
 #ifdef CONFIG_IA32_EMULATION
 	wrmsrl(MSR_CSTAR, (unsigned long)entry_SYSCALL_compat);
