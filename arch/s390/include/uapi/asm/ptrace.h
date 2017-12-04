@@ -291,6 +291,17 @@ typedef struct
 } s390_regs;
 
 /*
+ * The user_pt_regs structure exports the beginning of
+ * the in-kernel pt_regs structure to user space.
+ */
+typedef struct
+{
+	unsigned long args[1];
+	psw_t psw;
+	unsigned long gprs[NUM_GPRS];
+} user_pt_regs;
+
+/*
  * Now for the user space program event recording (trace) definitions.
  * The following structures are used only for the ptrace interface, don't
  * touch or even look at it if you don't want to modify the user-space
