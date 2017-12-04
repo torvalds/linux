@@ -385,6 +385,9 @@ endef
 kernel.img: zImage
 	$(Q)scripts/mkkrnlimg $(objtree)/arch/arm/boot/zImage $(objtree)/kernel.img >/dev/null
 	@echo '  Image:  kernel.img (with zImage) is ready'
+ifdef CONFIG_MODULES
+	$(Q)if [ "$(srctree)" = "$(objtree)" ]; then $(MAKE) modules; fi
+endif
 
 ifdef CONFIG_FB
 LOGO := $(notdir $(wildcard $(srctree)/logo.bmp))

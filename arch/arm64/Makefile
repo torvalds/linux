@@ -172,6 +172,9 @@ endef
 kernel.img: Image.lz4
 	$(Q)scripts/mkkrnlimg $(objtree)/arch/arm64/boot/Image $(objtree)/kernel.img >/dev/null
 	@echo '  Image:  kernel.img is ready'
+ifdef CONFIG_MODULES
+	$(Q)if [ "$(srctree)" = "$(objtree)" ]; then $(MAKE) modules; fi
+endif
 
 LOGO := $(notdir $(wildcard $(srctree)/logo.bmp))
 LOGO_KERNEL := $(notdir $(wildcard $(srctree)/logo_kernel.bmp))
