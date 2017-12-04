@@ -265,7 +265,6 @@ void rtnl_register(int protocol, int msgtype,
 		pr_err("Unable to register rtnetlink message handler, "
 		       "protocol = %d, message type = %d\n", protocol, msgtype);
 }
-EXPORT_SYMBOL_GPL(rtnl_register);
 
 /**
  * rtnl_unregister - Unregister a rtnetlink message type

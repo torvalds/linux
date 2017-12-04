@@ -1425,10 +1425,13 @@ int __init ip6_mr_init(void)
 		goto add_proto_fail;
 	}
 #endif
-	rtnl_register(RTNL_FAMILY_IP6MR, RTM_GETROUTE, NULL,
-		      ip6mr_rtm_dumproute, 0);
-	return 0;
+	err = rtnl_register_module(THIS_MODULE, RTNL_FAMILY_IP6MR, RTM_GETROUTE,
+				   NULL, ip6mr_rtm_dumproute, 0);
+	if (err == 0)
+		return 0;
+
 #ifdef CONFIG_IPV6_PIMSM_V2
+	inet6_del_protocol(&pim6_protocol, IPPROTO_PIM);
 add_proto_fail:
 	unregister_netdevice_notifier(&ip6_mr_notifier);
 #endif

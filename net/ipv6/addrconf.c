@@ -6627,7 +6627,9 @@ int __init addrconf_init(void)
 				   RTNL_FLAG_DOIT_UNLOCKED);
 	if (err < 0)
 		goto errout;
-	ipv6_addr_label_rtnl_register();
+	err = ipv6_addr_label_rtnl_register();
+	if (err < 0)
+		goto errout;
 
 	return 0;
 errout:
