@@ -302,7 +302,7 @@ static int __init pcie_init(struct sh7786_pcie_port *port)
 {
 	struct pci_channel *chan = port->hose;
 	unsigned int data;
-	phys_addr_t memphys;
+	phys_addr_t memstart, memend;
 	size_t memsize;
 	int ret, i, win;
 
@@ -358,15 +358,24 @@ static int __init pcie_init(struct sh7786_pcie_port *port)
 	data |= (0xff << 16);
 	pci_write_reg(chan, data, SH4A_PCIEMACCTLR);
 
-	memphys = __pa(memory_start);
-	memsize = roundup_pow_of_two(memory_end - memory_start);
+	memstart = __pa(memory_start);
+	memend   = __pa(memory_end);
+	memsize = roundup_pow_of_two(memend - memstart);
+
+	/*
+	 * The start address must be aligned on its size. So we round
+	 * it down, and then recalculate the size so that it covers
+	 * the entire memory.
+	 */
+	memstart = ALIGN_DOWN(memstart, memsize);
+	memsize = roundup_pow_of_two(memend - memstart);
 
 	/*
 	 * If there's more than 512MB of memory, we need to roll over to
 	 * LAR1/LAMR1.
 	 */
 	if (memsize > SZ_512M) {
-		pci_write_reg(chan, memphys + SZ_512M, SH4A_PCIELAR1);
+		pci_write_reg(chan, memstart + SZ_512M, SH4A_PCIELAR1);
 		pci_write_reg(chan, ((memsize - SZ_512M) - SZ_256) | 1,
 			      SH4A_PCIELAMR1);
 		memsize = SZ_512M;
@@ -382,7 +391,7 @@ static int __init pcie_init(struct sh7786_pcie_port *port)
 	 * LAR0/LAMR0 covers up to the first 512MB, which is enough to
 	 * cover all of lowmem on most platforms.
 	 */
-	pci_write_reg(chan, memphys, SH4A_PCIELAR0);
+	pci_write_reg(chan, memstart, SH4A_PCIELAR0);
 	pci_write_reg(chan, (memsize - SZ_256) | 1, SH4A_PCIELAMR0);
 
 	/* Finish initialization */
