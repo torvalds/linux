@@ -334,6 +334,8 @@ struct mipi_dphy {
 struct dw_mipi_dsi {
 	struct drm_encoder encoder;
 	struct drm_connector connector;
+	struct drm_bridge *bridge;
+	struct device_node *client;
 	struct mipi_dsi_host dsi_host;
 	struct mipi_dphy dphy;
 	struct drm_panel *panel;
@@ -720,16 +722,11 @@ static int dw_mipi_dsi_host_attach(struct mipi_dsi_host *host,
 		return -EINVAL;
 	}
 
+	dsi->client = device->dev.of_node;
 	dsi->lanes = device->lanes;
 	dsi->channel = device->channel;
 	dsi->format = device->format;
 	dsi->mode_flags = device->mode_flags;
-
-	dsi->panel = of_drm_find_panel(device->dev.of_node);
-	if (!dsi->panel) {
-		DRM_ERROR("failed to find panel\n");
-		return -ENODEV;
-	}
 
 	return 0;
 }
@@ -1415,20 +1412,46 @@ static int dw_mipi_dsi_register(struct drm_device *drm,
 		return ret;
 	}
 
-	drm_connector_helper_add(connector,
-			&dw_mipi_dsi_connector_helper_funcs);
+	/* If there's a bridge, attach to it and let it create the connector. */
+	if (dsi->bridge) {
+		dsi->bridge->driver_private = &dsi->dsi_host;
+		dsi->bridge->encoder = encoder;
 
-	drm_connector_init(drm, &dsi->connector,
-			   &dw_mipi_dsi_atomic_connector_funcs,
-			   DRM_MODE_CONNECTOR_DSI);
+		ret = drm_bridge_attach(drm, dsi->bridge);
+		if (ret) {
+			dev_err(dev, "Failed to attach bridge: %d\n", ret);
+			goto encoder_cleanup;
+		}
 
-	drm_panel_attach(dsi->panel, &dsi->connector);
+		encoder->bridge = dsi->bridge;
+	/* Otherwise create our own connector and attach to a panel */
+	} else {
+		dsi->connector.port = dev->of_node;
+		ret = drm_connector_init(drm, &dsi->connector,
+					 &dw_mipi_dsi_atomic_connector_funcs,
+					 DRM_MODE_CONNECTOR_DSI);
+		if (ret) {
+			dev_err(dev, "Failed to initialize connector\n");
+			goto encoder_cleanup;
+		}
+		drm_connector_helper_add(connector,
+					 &dw_mipi_dsi_connector_helper_funcs);
+		drm_mode_connector_attach_encoder(connector, encoder);
 
-	dsi->connector.port = dev->of_node;
-
-	drm_mode_connector_attach_encoder(connector, encoder);
+		ret = drm_panel_attach(dsi->panel, &dsi->connector);
+		if (ret) {
+			dev_err(dev, "Failed to attach panel: %d\n", ret);
+			goto connector_cleanup;
+		}
+	}
 
 	return 0;
+
+connector_cleanup:
+	drm_connector_cleanup(connector);
+encoder_cleanup:
+	drm_encoder_cleanup(encoder);
+	return ret;
 }
 
 static int dw_mipi_dsi_bind(struct device *dev, struct device *master,
@@ -1445,8 +1468,12 @@ static int dw_mipi_dsi_bind(struct device *dev, struct device *master,
 	if (dsi->master)
 		return 0;
 
-	if (!dsi->panel)
-		return -EPROBE_DEFER;
+	dsi->panel = of_drm_find_panel(dsi->client);
+	if (!dsi->panel) {
+		dsi->bridge = of_drm_find_bridge(dsi->client);
+		if (!dsi->bridge)
+			return -EPROBE_DEFER;
+	}
 
 	ret = dw_mipi_dsi_register(drm, dsi);
 	if (ret) {
@@ -1519,6 +1546,28 @@ static int mipi_dphy_attach(struct dw_mipi_dsi *dsi)
 	return 0;
 }
 
+static int dw_mipi_dsi_parse_dt(struct dw_mipi_dsi *dsi)
+{
+	struct device *dev = dsi->dev;
+	struct device_node *np = dev->of_node;
+	struct device_node *endpoint, *remote = NULL;
+
+	endpoint = of_graph_get_endpoint_by_regs(np, 1, -1);
+	if (endpoint) {
+		remote = of_graph_get_remote_port_parent(endpoint);
+		of_node_put(endpoint);
+		if (!remote) {
+			dev_err(dev, "no panel/bridge connected\n");
+			return -ENODEV;
+		}
+		of_node_put(remote);
+	}
+
+	dsi->client = remote;
+
+	return 0;
+}
+
 static const struct regmap_config dw_mipi_dsi_regmap_config = {
 	.reg_bits = 32,
 	.val_bits = 32,
@@ -1548,6 +1597,12 @@ static int dw_mipi_dsi_probe(struct platform_device *pdev)
 	dsi->dev = dev;
 	dsi->pdata = of_device_get_match_data(dev);
 	platform_set_drvdata(pdev, dsi);
+
+	ret = dw_mipi_dsi_parse_dt(dsi);
+	if (ret) {
+		dev_err(dev, "failed to parse DT\n");
+		return ret;
+	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	regs = devm_ioremap_resource(dev, res);
