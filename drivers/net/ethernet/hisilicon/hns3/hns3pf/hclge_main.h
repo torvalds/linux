@@ -99,6 +99,8 @@ enum HCLGE_DEV_STATE {
 	HCLGE_STATE_REMOVING,
 	HCLGE_STATE_SERVICE_INITED,
 	HCLGE_STATE_SERVICE_SCHED,
+	HCLGE_STATE_RST_SERVICE_SCHED,
+	HCLGE_STATE_RST_HANDLING,
 	HCLGE_STATE_MBX_HANDLING,
 	HCLGE_STATE_MBX_IRQ,
 	HCLGE_STATE_RESET_INT,
@@ -426,6 +428,7 @@ struct hclge_dev {
 	unsigned long state;
 
 	enum hnae3_reset_type reset_type;
+	unsigned long reset_request;	/* reset has been requested */
 	unsigned long reset_pending;	/* client rst is pending to be served */
 	u32 fw_version;
 	u16 num_vmdq_vport;		/* Num vmdq vport this PF has set up */
@@ -476,6 +479,7 @@ struct hclge_dev {
 	unsigned long service_timer_previous;
 	struct timer_list service_timer;
 	struct work_struct service_task;
+	struct work_struct rst_service_task;
 
 	bool cur_promisc;
 	int num_alloc_vfs;	/* Actual number of VFs allocated */
