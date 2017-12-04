@@ -486,6 +486,8 @@ DEFINE_PER_CPU(struct cpu_entry_area *, cpu_entry_area);
 static inline void setup_cpu_entry_area(int cpu)
 {
 #ifdef CONFIG_X86_64
+	extern char _entry_trampoline[];
+
 	/* On 64-bit systems, we use a read-only fixmap GDT. */
 	pgprot_t gdt_prot = PAGE_KERNEL_RO;
 #else
@@ -531,6 +533,11 @@ static inline void setup_cpu_entry_area(int cpu)
 
 #ifdef CONFIG_X86_32
 	this_cpu_write(cpu_entry_area, get_cpu_entry_area(cpu));
+#endif
+
+#ifdef CONFIG_X86_64
+	__set_fixmap(get_cpu_entry_area_index(cpu, entry_trampoline),
+		     __pa_symbol(_entry_trampoline), PAGE_KERNEL_RX);
 #endif
 }
 
@@ -1395,10 +1402,16 @@ static DEFINE_PER_CPU_PAGE_ALIGNED(char, exception_stacks
 /* May not be marked __init: used by software suspend */
 void syscall_init(void)
 {
+	extern char _entry_trampoline[];
+	extern char entry_SYSCALL_64_trampoline[];
+
 	int cpu = smp_processor_id();
+	unsigned long SYSCALL64_entry_trampoline =
+		(unsigned long)get_cpu_entry_area(cpu)->entry_trampoline +
+		(entry_SYSCALL_64_trampoline - _entry_trampoline);
 
 	wrmsr(MSR_STAR, 0, (__USER32_CS << 16) | __KERNEL_CS);
-	wrmsrl(MSR_LSTAR, (unsigned long)entry_SYSCALL_64);
+	wrmsrl(MSR_LSTAR, SYSCALL64_entry_trampoline);
 
 #ifdef CONFIG_IA32_EMULATION
 	wrmsrl(MSR_CSTAR, (unsigned long)entry_SYSCALL_compat);
