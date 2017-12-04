@@ -302,3 +302,13 @@ const char *nfp_hwinfo_lookup(struct nfp_hwinfo *hwinfo, const char *lookup)
 
 	return NULL;
 }
+
+char *nfp_hwinfo_get_packed_strings(struct nfp_hwinfo *hwinfo)
+{
+	return hwinfo->data;
+}
+
+u32 nfp_hwinfo_get_packed_str_size(struct nfp_hwinfo *hwinfo)
+{
+	return le32_to_cpu(hwinfo->size) - sizeof(u32);
+}
