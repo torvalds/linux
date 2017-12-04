@@ -1014,9 +1014,9 @@ bool dcn_validate_bandwidth(
 			if (pipe->top_pipe && pipe->top_pipe->plane_state == pipe->plane_state)
 				continue;
 
-			pipe->pipe_dlg_param.vupdate_width = v->v_update_width[input_idx];
-			pipe->pipe_dlg_param.vupdate_offset = v->v_update_offset[input_idx];
-			pipe->pipe_dlg_param.vready_offset = v->v_ready_offset[input_idx];
+			pipe->pipe_dlg_param.vupdate_width = v->v_update_width[input_idx][v->dpp_per_plane[input_idx] == 2 ? 1 : 0];
+			pipe->pipe_dlg_param.vupdate_offset = v->v_update_offset[input_idx][v->dpp_per_plane[input_idx] == 2 ? 1 : 0];
+			pipe->pipe_dlg_param.vready_offset = v->v_ready_offset[input_idx][v->dpp_per_plane[input_idx] == 2 ? 1 : 0];
 			pipe->pipe_dlg_param.vstartup_start = v->v_startup[input_idx];
 
 			pipe->pipe_dlg_param.htotal = pipe->stream->timing.h_total;
@@ -1055,9 +1055,9 @@ bool dcn_validate_bandwidth(
 					 TIMING_3D_FORMAT_SIDE_BY_SIDE))) {
 					if (hsplit_pipe && hsplit_pipe->plane_state == pipe->plane_state) {
 						/* update previously split pipe */
-						hsplit_pipe->pipe_dlg_param.vupdate_width = v->v_update_width[input_idx];
-						hsplit_pipe->pipe_dlg_param.vupdate_offset = v->v_update_offset[input_idx];
-						hsplit_pipe->pipe_dlg_param.vready_offset = v->v_ready_offset[input_idx];
+						hsplit_pipe->pipe_dlg_param.vupdate_width = v->v_update_width[input_idx][v->dpp_per_plane[input_idx] == 2 ? 1 : 0];
+						hsplit_pipe->pipe_dlg_param.vupdate_offset = v->v_update_offset[input_idx][v->dpp_per_plane[input_idx] == 2 ? 1 : 0];
+						hsplit_pipe->pipe_dlg_param.vready_offset = v->v_ready_offset[input_idx][v->dpp_per_plane[input_idx] == 2 ? 1 : 0];
 						hsplit_pipe->pipe_dlg_param.vstartup_start = v->v_startup[input_idx];
 
 						hsplit_pipe->pipe_dlg_param.htotal = pipe->stream->timing.h_total;
