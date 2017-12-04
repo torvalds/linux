@@ -326,8 +326,24 @@ syscall_return_via_sysret:
 	popq	%rsi	/* skip rcx */
 	popq	%rdx
 	popq	%rsi
+
+	/*
+	 * Now all regs are restored except RSP and RDI.
+	 * Save old stack pointer and switch to trampoline stack.
+	 */
+	movq	%rsp, %rdi
+	movq	PER_CPU_VAR(cpu_tss + TSS_sp0), %rsp
+
+	pushq	RSP-RDI(%rdi)	/* RSP */
+	pushq	(%rdi)		/* RDI */
+
+	/*
+	 * We are on the trampoline stack.  All regs except RDI are live.
+	 * We can do future final exit work right here.
+	 */
+
 	popq	%rdi
-	movq	RSP-ORIG_RAX(%rsp), %rsp
+	popq	%rsp
 	USERGS_SYSRET64
 END(entry_SYSCALL_64)
 
@@ -630,10 +646,41 @@ GLOBAL(swapgs_restore_regs_and_return_to_usermode)
 	ud2
 1:
 #endif
-	SWAPGS
 	POP_EXTRA_REGS
-	POP_C_REGS
-	addq	$8, %rsp	/* skip regs->orig_ax */
+	popq	%r11
+	popq	%r10
+	popq	%r9
+	popq	%r8
+	popq	%rax
+	popq	%rcx
+	popq	%rdx
+	popq	%rsi
+
+	/*
+	 * The stack is now user RDI, orig_ax, RIP, CS, EFLAGS, RSP, SS.
+	 * Save old stack pointer and switch to trampoline stack.
+	 */
+	movq	%rsp, %rdi
+	movq	PER_CPU_VAR(cpu_tss + TSS_sp0), %rsp
+
+	/* Copy the IRET frame to the trampoline stack. */
+	pushq	6*8(%rdi)	/* SS */
+	pushq	5*8(%rdi)	/* RSP */
+	pushq	4*8(%rdi)	/* EFLAGS */
+	pushq	3*8(%rdi)	/* CS */
+	pushq	2*8(%rdi)	/* RIP */
+
+	/* Push user RDI on the trampoline stack. */
+	pushq	(%rdi)
+
+	/*
+	 * We are on the trampoline stack.  All regs except RDI are live.
+	 * We can do future final exit work right here.
+	 */
+
+	/* Restore RDI. */
+	popq	%rdi
+	SWAPGS
 	INTERRUPT_RETURN
 
 
