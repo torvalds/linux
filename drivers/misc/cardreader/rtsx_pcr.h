@@ -107,7 +107,7 @@ void rtsx_pci_disable_ocp(struct rtsx_pcr *pcr);
 void rtsx_pci_enable_ocp(struct rtsx_pcr *pcr);
 int rtsx_pci_get_ocpstat(struct rtsx_pcr *pcr, u8 *val);
 void rtsx_pci_clear_ocpstat(struct rtsx_pcr *pcr);
-int sd_power_off_card3v3(struct rtsx_pcr *pcr);
-int ms_power_off_card3v3(struct rtsx_pcr *pcr);
+int rtsx_sd_power_off_card3v3(struct rtsx_pcr *pcr);
+int rtsx_ms_power_off_card3v3(struct rtsx_pcr *pcr);
 
 #endif

@@ -1208,7 +1208,7 @@ void rtsx_pci_clear_ocpstat(struct rtsx_pcr *pcr)
 	}
 }
 
-int sd_power_off_card3v3(struct rtsx_pcr *pcr)
+int rtsx_sd_power_off_card3v3(struct rtsx_pcr *pcr)
 {
 	rtsx_pci_write_register(pcr, CARD_CLK_EN, SD_CLK_EN |
 		MS_CLK_EN | SD40_CLK_EN, 0);
@@ -1223,7 +1223,7 @@ int sd_power_off_card3v3(struct rtsx_pcr *pcr)
 	return 0;
 }
 
-int ms_power_off_card3v3(struct rtsx_pcr *pcr)
+int rtsx_ms_power_off_card3v3(struct rtsx_pcr *pcr)
 {
 	rtsx_pci_write_register(pcr, CARD_CLK_EN, SD_CLK_EN |
 		MS_CLK_EN | SD40_CLK_EN, 0);

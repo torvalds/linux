@@ -426,9 +426,9 @@ void rts5260_process_ocp(struct rtsx_pcr *pcr)
 	rtsx_pci_get_ocpstat(pcr, &pcr->ocp_stat);
 	rts5260_get_ocpstat2(pcr, &pcr->ocp_stat2);
 	if (pcr->card_exist & SD_EXIST)
-		sd_power_off_card3v3(pcr);
+		rtsx_sd_power_off_card3v3(pcr);
 	else if (pcr->card_exist & MS_EXIST)
-		ms_power_off_card3v3(pcr);
+		rtsx_ms_power_off_card3v3(pcr);
 
 	if (!(pcr->card_exist & MS_EXIST) && !(pcr->card_exist & SD_EXIST)) {
 		if ((pcr->ocp_stat & (SD_OC_NOW | SD_OC_EVER |
