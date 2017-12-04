@@ -3348,7 +3348,7 @@ static void write_dev_flush(struct btrfs_device *device)
 	bio->bi_private = &device->flush_wait;
 
 	btrfsic_submit_bio(bio);
-	device->flush_bio_sent = 1;
+	set_bit(BTRFS_DEV_STATE_FLUSH_SENT, &device->dev_state);
 }
 
 /*
@@ -3358,10 +3358,10 @@ static blk_status_t wait_dev_flush(struct btrfs_device *device)
 {
 	struct bio *bio = device->flush_bio;
 
-	if (!device->flush_bio_sent)
+	if (!test_bit(BTRFS_DEV_STATE_FLUSH_SENT, &device->dev_state))
 		return BLK_STS_OK;
 
-	device->flush_bio_sent = 0;
+	clear_bit(BTRFS_DEV_STATE_FLUSH_SENT, &device->dev_state);
 	wait_for_completion_io(&device->flush_wait);
 
 	return bio->bi_status;
