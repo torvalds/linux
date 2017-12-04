@@ -1528,7 +1528,7 @@ static noinline int btrfs_ioctl_resize(struct file *file,
 		}
 	}
 
-	if (device->is_tgtdev_for_dev_replace) {
+	if (test_bit(BTRFS_DEV_STATE_REPLACE_TGT, &device->dev_state)) {
 		ret = -EPERM;
 		goto out_free;
 	}

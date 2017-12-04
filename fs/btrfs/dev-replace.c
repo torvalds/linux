@@ -172,7 +172,8 @@ no_valid_dev_replace_entry_found:
 				dev_replace->tgtdev->commit_bytes_used =
 					dev_replace->srcdev->commit_bytes_used;
 			}
-			dev_replace->tgtdev->is_tgtdev_for_dev_replace = 1;
+			set_bit(BTRFS_DEV_STATE_REPLACE_TGT,
+				&dev_replace->tgtdev->dev_state);
 			btrfs_init_dev_replace_tgtdev_for_resume(fs_info,
 				dev_replace->tgtdev);
 		}
@@ -566,7 +567,7 @@ static int btrfs_dev_replace_finishing(struct btrfs_fs_info *fs_info,
 			  btrfs_dev_name(src_device),
 			  src_device->devid,
 			  rcu_str_deref(tgt_device->name));
-	tgt_device->is_tgtdev_for_dev_replace = 0;
+	clear_bit(BTRFS_DEV_STATE_REPLACE_TGT, &tgt_device->dev_state);
 	tgt_device->devid = src_device->devid;
 	src_device->devid = BTRFS_DEV_REPLACE_DEVID;
 	memcpy(uuid_tmp, tgt_device->uuid, sizeof(uuid_tmp));

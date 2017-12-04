@@ -9693,7 +9693,7 @@ int btrfs_can_relocate(struct btrfs_fs_info *fs_info, u64 bytenr)
 		 * space to fit our block group in.
 		 */
 		if (device->total_bytes > device->bytes_used + min_free &&
-		    !device->is_tgtdev_for_dev_replace) {
+		    !test_bit(BTRFS_DEV_STATE_REPLACE_TGT, &device->dev_state)) {
 			ret = find_free_dev_extent(trans, device, min_free,
 						   &dev_offset, NULL);
 			if (!ret)

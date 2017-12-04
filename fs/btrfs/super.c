@@ -1974,7 +1974,8 @@ static int btrfs_calc_avail_data_space(struct btrfs_fs_info *fs_info,
 	list_for_each_entry_rcu(device, &fs_devices->devices, dev_list) {
 		if (!test_bit(BTRFS_DEV_STATE_IN_FS_METADATA,
 						&device->dev_state) ||
-		    !device->bdev || device->is_tgtdev_for_dev_replace)
+		    !device->bdev ||
+		    test_bit(BTRFS_DEV_STATE_REPLACE_TGT, &device->dev_state))
 			continue;
 
 		if (i >= nr_devices)
