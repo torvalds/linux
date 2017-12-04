@@ -34,6 +34,7 @@
 #include <linux/ethtool.h>
 #include <linux/vmalloc.h>
 
+#include "nfp_asm.h"
 #include "nfp_main.h"
 #include "nfpcore/nfp.h"
 #include "nfpcore/nfp_nffw.h"
@@ -46,6 +47,7 @@ enum nfp_dumpspec_type {
 	NFP_DUMPSPEC_TYPE_CPP_CSR = 0,
 	NFP_DUMPSPEC_TYPE_XPB_CSR = 1,
 	NFP_DUMPSPEC_TYPE_ME_CSR = 2,
+	NFP_DUMPSPEC_TYPE_INDIRECT_ME_CSR = 3,
 	NFP_DUMPSPEC_TYPE_RTSYM = 4,
 	NFP_DUMPSPEC_TYPE_HWINFO = 5,
 	NFP_DUMPSPEC_TYPE_FWNAME = 6,
@@ -299,6 +301,15 @@ nfp_add_tlv_size(struct nfp_pf *pf, struct nfp_dump_tl *tl, void *param)
 			*size += ALIGN8(sizeof(struct nfp_dump_csr)) +
 				 ALIGN8(be32_to_cpu(spec_csr->cpp.dump_length));
 		break;
+	case NFP_DUMPSPEC_TYPE_INDIRECT_ME_CSR:
+		spec_csr = (struct nfp_dumpspec_csr *)tl;
+		if (!nfp_csr_spec_valid(spec_csr))
+			*size += nfp_dump_error_tlv_size(tl);
+		else
+			*size += ALIGN8(sizeof(struct nfp_dump_csr)) +
+				 ALIGN8(be32_to_cpu(spec_csr->cpp.dump_length) *
+					NFP_IND_NUM_CONTEXTS);
+		break;
 	case NFP_DUMPSPEC_TYPE_RTSYM:
 		*size += nfp_calc_rtsym_dump_sz(pf, tl);
 		break;
@@ -510,6 +521,102 @@ nfp_dump_csr_range(struct nfp_pf *pf, struct nfp_dumpspec_csr *spec_csr,
 	return 0;
 }
 
+/* Write context to CSRCtxPtr, then read from it. Then the value can be read
+ * from IndCtxStatus.
+ */
+static int
+nfp_read_indirect_csr(struct nfp_cpp *cpp,
+		      struct nfp_dumpspec_cpp_isl_id cpp_params, u32 offset,
+		      u32 reg_sz, u32 context, void *dest)
+{
+	u32 csr_ctx_ptr_offs;
+	u32 cpp_id;
+	int result;
+
+	csr_ctx_ptr_offs = nfp_get_ind_csr_ctx_ptr_offs(offset);
+	cpp_id = NFP_CPP_ISLAND_ID(cpp_params.target,
+				   NFP_IND_ME_REFL_WR_SIG_INIT,
+				   cpp_params.token, cpp_params.island);
+	result = nfp_cpp_writel(cpp, cpp_id, csr_ctx_ptr_offs, context);
+	if (result != sizeof(context))
+		return result < 0 ? result : -EIO;
+
+	cpp_id = nfp_get_numeric_cpp_id(&cpp_params);
+	result = nfp_cpp_read(cpp, cpp_id, csr_ctx_ptr_offs, dest, reg_sz);
+	if (result != reg_sz)
+		return result < 0 ? result : -EIO;
+
+	result = nfp_cpp_read(cpp, cpp_id, offset, dest, reg_sz);
+	if (result != reg_sz)
+		return result < 0 ? result : -EIO;
+
+	return 0;
+}
+
+static int
+nfp_read_all_indirect_csr_ctx(struct nfp_cpp *cpp,
+			      struct nfp_dumpspec_csr *spec_csr, u32 address,
+			      u32 reg_sz, void *dest)
+{
+	u32 ctx;
+	int err;
+
+	for (ctx = 0; ctx < NFP_IND_NUM_CONTEXTS; ctx++) {
+		err = nfp_read_indirect_csr(cpp, spec_csr->cpp.cpp_id, address,
+					    reg_sz, ctx, dest + ctx * reg_sz);
+		if (err)
+			return err;
+	}
+
+	return 0;
+}
+
+static int
+nfp_dump_indirect_csr_range(struct nfp_pf *pf,
+			    struct nfp_dumpspec_csr *spec_csr,
+			    struct nfp_dump_state *dump)
+{
+	struct nfp_dump_csr *dump_header = dump->p;
+	u32 reg_sz, header_size, total_size;
+	u32 cpp_rd_addr, max_rd_addr;
+	u32 reg_data_length;
+	void *dest;
+	int err;
+
+	if (!nfp_csr_spec_valid(spec_csr))
+		return nfp_dump_error_tlv(&spec_csr->tl, -EINVAL, dump);
+
+	reg_sz = be32_to_cpu(spec_csr->register_width) / BITS_PER_BYTE;
+	header_size = ALIGN8(sizeof(*dump_header));
+	reg_data_length = be32_to_cpu(spec_csr->cpp.dump_length) *
+			  NFP_IND_NUM_CONTEXTS;
+	total_size = header_size + ALIGN8(reg_data_length);
+	dest = dump->p + header_size;
+
+	err = nfp_add_tlv(be32_to_cpu(spec_csr->tl.type), total_size, dump);
+	if (err)
+		return err;
+
+	dump_header->cpp = spec_csr->cpp;
+	dump_header->register_width = spec_csr->register_width;
+
+	cpp_rd_addr = be32_to_cpu(spec_csr->cpp.offset);
+	max_rd_addr = cpp_rd_addr + be32_to_cpu(spec_csr->cpp.dump_length);
+	while (cpp_rd_addr < max_rd_addr) {
+		err = nfp_read_all_indirect_csr_ctx(pf->cpp, spec_csr,
+						    cpp_rd_addr, reg_sz, dest);
+		if (err) {
+			dump_header->error = cpu_to_be32(err);
+			dump_header->error_offset = cpu_to_be32(cpp_rd_addr);
+			break;
+		}
+		cpp_rd_addr += reg_sz;
+		dest += reg_sz * NFP_IND_NUM_CONTEXTS;
+	}
+
+	return 0;
+}
+
 static int
 nfp_dump_single_rtsym(struct nfp_pf *pf, struct nfp_dumpspec_rtsym *spec,
 		      struct nfp_dump_state *dump)
@@ -586,6 +693,12 @@ nfp_dump_for_tlv(struct nfp_pf *pf, struct nfp_dump_tl *tl, void *param)
 	case NFP_DUMPSPEC_TYPE_ME_CSR:
 		spec_csr = (struct nfp_dumpspec_csr *)tl;
 		err = nfp_dump_csr_range(pf, spec_csr, dump);
+		if (err)
+			return err;
+		break;
+	case NFP_DUMPSPEC_TYPE_INDIRECT_ME_CSR:
+		spec_csr = (struct nfp_dumpspec_csr *)tl;
+		err = nfp_dump_indirect_csr_range(pf, spec_csr, dump);
 		if (err)
 			return err;
 		break;
