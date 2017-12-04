@@ -281,8 +281,34 @@ For 32-bit we have the following conventions - kernel is built with
 .Ldone_\@:
 .endm
 
-.macro RESTORE_CR3 save_reg:req
+.macro RESTORE_CR3 scratch_reg:req save_reg:req
 	ALTERNATIVE "jmp .Lend_\@", "", X86_FEATURE_PTI
+
+	ALTERNATIVE "jmp .Lwrcr3_\@", "", X86_FEATURE_PCID
+
+	/*
+	 * KERNEL pages can always resume with NOFLUSH as we do
+	 * explicit flushes.
+	 */
+	bt	$X86_CR3_PTI_SWITCH_BIT, \save_reg
+	jnc	.Lnoflush_\@
+
+	/*
+	 * Check if there's a pending flush for the user ASID we're
+	 * about to set.
+	 */
+	movq	\save_reg, \scratch_reg
+	andq	$(0x7FF), \scratch_reg
+	bt	\scratch_reg, THIS_CPU_user_pcid_flush_mask
+	jnc	.Lnoflush_\@
+
+	btr	\scratch_reg, THIS_CPU_user_pcid_flush_mask
+	jmp	.Lwrcr3_\@
+
+.Lnoflush_\@:
+	SET_NOFLUSH_BIT \save_reg
+
+.Lwrcr3_\@:
 	/*
 	 * The CR3 write could be avoided when not changing its value,
 	 * but would require a CR3 read *and* a scratch register.
@@ -301,7 +327,7 @@ For 32-bit we have the following conventions - kernel is built with
 .endm
 .macro SAVE_AND_SWITCH_TO_KERNEL_CR3 scratch_reg:req save_reg:req
 .endm
-.macro RESTORE_CR3 save_reg:req
+.macro RESTORE_CR3 scratch_reg:req save_reg:req
 .endm
 
 #endif
