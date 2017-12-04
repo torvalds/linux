@@ -29,7 +29,6 @@
 
 #include <asm/pgalloc.h>
 #include <asm/ptrace.h>
-#include <asm/uaccess.h>
 
 /*
  * This routine handles page faults.  It determines the address and the
