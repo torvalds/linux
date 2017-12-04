@@ -1314,12 +1314,7 @@ void enable_sep_cpu(void)
 
 	tss->x86_tss.ss1 = __KERNEL_CS;
 	wrmsr(MSR_IA32_SYSENTER_CS, tss->x86_tss.ss1, 0);
-
-	wrmsr(MSR_IA32_SYSENTER_ESP,
-	      (unsigned long)&get_cpu_entry_area(cpu)->tss +
-	      offsetofend(struct tss_struct, SYSENTER_stack),
-	      0);
-
+	wrmsr(MSR_IA32_SYSENTER_ESP, (unsigned long)(cpu_SYSENTER_stack(cpu) + 1), 0);
 	wrmsr(MSR_IA32_SYSENTER_EIP, (unsigned long)entry_SYSENTER_32, 0);
 
 	put_cpu();
@@ -1436,9 +1431,7 @@ void syscall_init(void)
 	 * AMD doesn't allow SYSENTER in long mode (either 32- or 64-bit).
 	 */
 	wrmsrl_safe(MSR_IA32_SYSENTER_CS, (u64)__KERNEL_CS);
-	wrmsrl_safe(MSR_IA32_SYSENTER_ESP,
-		    (unsigned long)&get_cpu_entry_area(cpu)->tss +
-		    offsetofend(struct tss_struct, SYSENTER_stack));
+	wrmsrl_safe(MSR_IA32_SYSENTER_ESP, (unsigned long)(cpu_SYSENTER_stack(cpu) + 1));
 	wrmsrl_safe(MSR_IA32_SYSENTER_EIP, (u64)entry_SYSENTER_compat);
 #else
 	wrmsrl(MSR_CSTAR, (unsigned long)ignore_sysret);
@@ -1653,8 +1646,7 @@ void cpu_init(void)
 	 */
 	set_tss_desc(cpu, &get_cpu_entry_area(cpu)->tss.x86_tss);
 	load_TR_desc();
-	load_sp0((unsigned long)&get_cpu_entry_area(cpu)->tss +
-		 offsetofend(struct tss_struct, SYSENTER_stack));
+	load_sp0((unsigned long)(cpu_SYSENTER_stack(cpu) + 1));
 
 	load_mm_ldt(&init_mm);
 
