@@ -105,6 +105,12 @@ enum HCLGE_DEV_STATE {
 	HCLGE_STATE_MAX
 };
 
+enum hclge_evt_cause {
+	HCLGE_VECTOR0_EVENT_RST,
+	HCLGE_VECTOR0_EVENT_MBX,
+	HCLGE_VECTOR0_EVENT_OTHER,
+};
+
 #define HCLGE_MPF_ENBALE 1
 struct hclge_caps {
 	u16 num_tqp;
@@ -420,6 +426,7 @@ struct hclge_dev {
 	unsigned long state;
 
 	enum hnae3_reset_type reset_type;
+	unsigned long reset_pending;	/* client rst is pending to be served */
 	u32 fw_version;
 	u16 num_vmdq_vport;		/* Num vmdq vport this PF has set up */
 	u16 num_tqps;			/* Num task queue pairs of this PF */
