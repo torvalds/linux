@@ -1125,7 +1125,14 @@ static inline int pud_write(pud_t pud)
  */
 static inline void clone_pgd_range(pgd_t *dst, pgd_t *src, int count)
 {
-       memcpy(dst, src, count * sizeof(pgd_t));
+	memcpy(dst, src, count * sizeof(pgd_t));
+#ifdef CONFIG_PAGE_TABLE_ISOLATION
+	if (!static_cpu_has(X86_FEATURE_PTI))
+		return;
+	/* Clone the user space pgd as well */
+	memcpy(kernel_to_user_pgdp(dst), kernel_to_user_pgdp(src),
+	       count * sizeof(pgd_t));
+#endif
 }
 
 #define PTE_SHIFT ilog2(PTRS_PER_PTE)
