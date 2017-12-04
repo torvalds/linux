@@ -85,6 +85,18 @@ static inline u16 kern_pcid(u16 asid)
 	return asid + 1;
 }
 
+/*
+ * The user PCID is just the kernel one, plus the "switch bit".
+ */
+static inline u16 user_pcid(u16 asid)
+{
+	u16 ret = kern_pcid(asid);
+#ifdef CONFIG_PAGE_TABLE_ISOLATION
+	ret |= 1 << X86_CR3_PTI_SWITCH_BIT;
+#endif
+	return ret;
+}
+
 struct pgd_t;
 static inline unsigned long build_cr3(pgd_t *pgd, u16 asid)
 {
@@ -335,6 +347,8 @@ static inline void __native_flush_tlb_global(void)
 		/*
 		 * Using INVPCID is considerably faster than a pair of writes
 		 * to CR4 sandwiched inside an IRQ flag save/restore.
+		 *
+		 * Note, this works with CR4.PCIDE=0 or 1.
 		 */
 		invpcid_flush_all();
 		return;
@@ -368,7 +382,14 @@ static inline void __native_flush_tlb_single(unsigned long addr)
 	if (!static_cpu_has(X86_FEATURE_PTI))
 		return;
 
-	invalidate_user_asid(loaded_mm_asid);
+	/*
+	 * Some platforms #GP if we call invpcid(type=1/2) before CR4.PCIDE=1.
+	 * Just use invalidate_user_asid() in case we are called early.
+	 */
+	if (!this_cpu_has(X86_FEATURE_INVPCID_SINGLE))
+		invalidate_user_asid(loaded_mm_asid);
+	else
+		invpcid_flush_one(user_pcid(loaded_mm_asid), addr);
 }
 
 /*
