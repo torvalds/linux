@@ -43,6 +43,7 @@
 #define ALIGN8(x)	ALIGN(x, 8)
 
 enum nfp_dumpspec_type {
+	NFP_DUMPSPEC_TYPE_RTSYM = 4,
 	NFP_DUMPSPEC_TYPE_PROLOG = 10000,
 	NFP_DUMPSPEC_TYPE_ERROR = 10001,
 };
@@ -57,6 +58,34 @@ struct nfp_dump_tl {
 	__be32 type;
 	__be32 length;	/* chunk length to follow, aligned to 8 bytes */
 	char data[0];
+};
+
+/* NFP CPP parameters */
+struct nfp_dumpspec_cpp_isl_id {
+	u8 target;
+	u8 action;
+	u8 token;
+	u8 island;
+};
+
+struct nfp_dump_common_cpp {
+	struct nfp_dumpspec_cpp_isl_id cpp_id;
+	__be32 offset;		/* address to start dump */
+	__be32 dump_length;	/* total bytes to dump, aligned to reg size */
+};
+
+struct nfp_dumpspec_rtsym {
+	struct nfp_dump_tl tl;
+	char rtsym[0];
+};
+
+struct nfp_dump_rtsym {
+	struct nfp_dump_tl tl;
+	struct nfp_dump_common_cpp cpp;
+	__be32 error;		/* error code encountered while reading */
+	u8 padded_name_length;	/* pad so data starts at 8 byte boundary */
+	char rtsym[0];
+	/* after padded_name_length, there is dump_length data */
 };
 
 struct nfp_dump_prolog {
@@ -122,6 +151,12 @@ nfp_traverse_tlvs(struct nfp_pf *pf, void *data, u32 data_length, void *param,
 	return 0;
 }
 
+static u32 nfp_get_numeric_cpp_id(struct nfp_dumpspec_cpp_isl_id *cpp_id)
+{
+	return NFP_CPP_ISLAND_ID(cpp_id->target, cpp_id->action, cpp_id->token,
+				 cpp_id->island);
+}
+
 struct nfp_dumpspec *
 nfp_net_dump_load_dumpspec(struct nfp_cpp *cpp, struct nfp_rtsym_table *rtbl)
 {
@@ -162,11 +197,36 @@ static int nfp_dump_error_tlv_size(struct nfp_dump_tl *spec)
 }
 
 static int
+nfp_calc_rtsym_dump_sz(struct nfp_pf *pf, struct nfp_dump_tl *spec)
+{
+	struct nfp_rtsym_table *rtbl = pf->rtbl;
+	struct nfp_dumpspec_rtsym *spec_rtsym;
+	const struct nfp_rtsym *sym;
+	u32 tl_len, key_len;
+
+	spec_rtsym = (struct nfp_dumpspec_rtsym *)spec;
+	tl_len = be32_to_cpu(spec->length);
+	key_len = strnlen(spec_rtsym->rtsym, tl_len);
+	if (key_len == tl_len)
+		return nfp_dump_error_tlv_size(spec);
+
+	sym = nfp_rtsym_lookup(rtbl, spec_rtsym->rtsym);
+	if (!sym)
+		return nfp_dump_error_tlv_size(spec);
+
+	return ALIGN8(offsetof(struct nfp_dump_rtsym, rtsym) + key_len + 1) +
+	       ALIGN8(sym->size);
+}
+
+static int
 nfp_add_tlv_size(struct nfp_pf *pf, struct nfp_dump_tl *tl, void *param)
 {
 	u32 *size = param;
 
 	switch (be32_to_cpu(tl->type)) {
+	case NFP_DUMPSPEC_TYPE_RTSYM:
+		*size += nfp_calc_rtsym_dump_sz(pf, tl);
+		break;
 	default:
 		*size += nfp_dump_error_tlv_size(tl);
 		break;
@@ -247,12 +307,76 @@ nfp_dump_error_tlv(struct nfp_dump_tl *spec, int error,
 }
 
 static int
+nfp_dump_single_rtsym(struct nfp_pf *pf, struct nfp_dumpspec_rtsym *spec,
+		      struct nfp_dump_state *dump)
+{
+	struct nfp_dump_rtsym *dump_header = dump->p;
+	struct nfp_dumpspec_cpp_isl_id cpp_params;
+	struct nfp_rtsym_table *rtbl = pf->rtbl;
+	const struct nfp_rtsym *sym;
+	u32 header_size, total_size;
+	u32 tl_len, key_len;
+	int bytes_read;
+	u32 cpp_id;
+	void *dest;
+	int err;
+
+	tl_len = be32_to_cpu(spec->tl.length);
+	key_len = strnlen(spec->rtsym, tl_len);
+	if (key_len == tl_len)
+		return nfp_dump_error_tlv(&spec->tl, -EINVAL, dump);
+
+	sym = nfp_rtsym_lookup(rtbl, spec->rtsym);
+	if (!sym)
+		return nfp_dump_error_tlv(&spec->tl, -ENOENT, dump);
+
+	header_size =
+		ALIGN8(offsetof(struct nfp_dump_rtsym, rtsym) + key_len + 1);
+	total_size = header_size + ALIGN8(sym->size);
+	dest = dump->p + header_size;
+
+	err = nfp_add_tlv(be32_to_cpu(spec->tl.type), total_size, dump);
+	if (err)
+		return err;
+
+	dump_header->padded_name_length =
+		header_size - offsetof(struct nfp_dump_rtsym, rtsym);
+	memcpy(dump_header->rtsym, spec->rtsym, key_len + 1);
+
+	cpp_params.target = sym->target;
+	cpp_params.action = NFP_CPP_ACTION_RW;
+	cpp_params.token  = 0;
+	cpp_params.island = sym->domain;
+	cpp_id = nfp_get_numeric_cpp_id(&cpp_params);
+
+	dump_header->cpp.cpp_id = cpp_params;
+	dump_header->cpp.offset = cpu_to_be32(sym->addr);
+	dump_header->cpp.dump_length = cpu_to_be32(sym->size);
+
+	bytes_read = nfp_cpp_read(pf->cpp, cpp_id, sym->addr, dest, sym->size);
+	if (bytes_read != sym->size) {
+		if (bytes_read >= 0)
+			bytes_read = -EIO;
+		dump_header->error = cpu_to_be32(bytes_read);
+	}
+
+	return 0;
+}
+
+static int
 nfp_dump_for_tlv(struct nfp_pf *pf, struct nfp_dump_tl *tl, void *param)
 {
+	struct nfp_dumpspec_rtsym *spec_rtsym;
 	struct nfp_dump_state *dump = param;
 	int err;
 
 	switch (be32_to_cpu(tl->type)) {
+	case NFP_DUMPSPEC_TYPE_RTSYM:
+		spec_rtsym = (struct nfp_dumpspec_rtsym *)tl;
+		err = nfp_dump_single_rtsym(pf, spec_rtsym, dump);
+		if (err)
+			return err;
+		break;
 	default:
 		err = nfp_dump_error_tlv(tl, -EOPNOTSUPP, dump);
 		if (err)
