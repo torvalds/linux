@@ -315,17 +315,21 @@ static unsigned int sugov_next_freq_shared(struct sugov_cpu *sg_cpu, u64 time)
 		s64 delta_ns;
 
 		/*
-		 * If the CPU utilization was last updated before the previous
-		 * frequency update and the time elapsed between the last update
-		 * of the CPU utilization and the last frequency update is long
-		 * enough, don't take the CPU into account as it probably is
-		 * idle now (and clear iowait_boost for it).
+		 * If the CFS CPU utilization was last updated before the
+		 * previous frequency update and the time elapsed between the
+		 * last update of the CPU utilization and the last frequency
+		 * update is long enough, reset iowait_boost and util_cfs, as
+		 * they are now probably stale. However, still consider the
+		 * CPU contribution if it has some DEADLINE utilization
+		 * (util_dl).
 		 */
 		delta_ns = time - j_sg_cpu->last_update;
 		if (delta_ns > TICK_NSEC) {
 			j_sg_cpu->iowait_boost = 0;
 			j_sg_cpu->iowait_boost_pending = false;
-			continue;
+			j_sg_cpu->util_cfs = 0;
+			if (j_sg_cpu->util_dl == 0)
+				continue;
 		}
 		if (j_sg_cpu->flags & SCHED_CPUFREQ_RT)
 			return policy->cpuinfo.max_freq;
