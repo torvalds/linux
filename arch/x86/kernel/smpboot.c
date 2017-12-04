@@ -106,7 +106,7 @@ EXPORT_SYMBOL(__max_logical_packages);
 static unsigned int logical_packages __read_mostly;
 
 /* Maximum number of SMT threads on any online core */
-int __max_smt_threads __read_mostly;
+int __read_mostly __max_smt_threads = 1;
 
 /* Flag to indicate if a complete sched domain rebuild is required */
 bool x86_topology_update;
@@ -1304,7 +1304,7 @@ void __init native_smp_cpus_done(unsigned int max_cpus)
 	 * Today neither Intel nor AMD support heterogenous systems so
 	 * extrapolate the boot cpu's data to all packages.
 	 */
-	ncpus = cpu_data(0).booted_cores * smp_num_siblings;
+	ncpus = cpu_data(0).booted_cores * topology_max_smt_threads();
 	__max_logical_packages = DIV_ROUND_UP(nr_cpu_ids, ncpus);
 	pr_info("Max logical packages: %u\n", __max_logical_packages);
 
