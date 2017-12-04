@@ -3389,7 +3389,7 @@ static int barrier_all_devices(struct btrfs_fs_info *info)
 	/* send down all the barriers */
 	head = &info->fs_devices->devices;
 	list_for_each_entry(dev, head, dev_list) {
-		if (dev->missing)
+		if (test_bit(BTRFS_DEV_STATE_MISSING, &dev->dev_state))
 			continue;
 		if (!dev->bdev)
 			continue;
@@ -3403,7 +3403,7 @@ static int barrier_all_devices(struct btrfs_fs_info *info)
 
 	/* wait for all the barriers */
 	list_for_each_entry(dev, head, dev_list) {
-		if (dev->missing)
+		if (test_bit(BTRFS_DEV_STATE_MISSING, &dev->dev_state))
 			continue;
 		if (!dev->bdev) {
 			errors_wait++;

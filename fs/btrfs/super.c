@@ -2270,7 +2270,7 @@ static int btrfs_show_devname(struct seq_file *m, struct dentry *root)
 	while (cur_devices) {
 		head = &cur_devices->devices;
 		list_for_each_entry(dev, head, dev_list) {
-			if (dev->missing)
+			if (test_bit(BTRFS_DEV_STATE_MISSING, &dev->dev_state))
 				continue;
 			if (!dev->name)
 				continue;

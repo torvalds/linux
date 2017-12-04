@@ -825,9 +825,9 @@ static noinline int device_list_add(const char *path,
 			return -ENOMEM;
 		rcu_string_free(device->name);
 		rcu_assign_pointer(device->name, name);
-		if (device->missing) {
+		if (test_bit(BTRFS_DEV_STATE_MISSING, &device->dev_state)) {
 			fs_devices->missing_devices--;
-			device->missing = 0;
+			clear_bit(BTRFS_DEV_STATE_MISSING, &device->dev_state);
 		}
 	}
 
@@ -996,7 +996,7 @@ static void btrfs_prepare_close_one_device(struct btrfs_device *device)
 		fs_devices->rw_devices--;
 	}
 
-	if (device->missing)
+	if (test_bit(BTRFS_DEV_STATE_MISSING, &device->dev_state))
 		fs_devices->missing_devices--;
 
 	new_device = btrfs_alloc_device(NULL, &device->devid,
@@ -1882,7 +1882,8 @@ static struct btrfs_device * btrfs_find_next_active_device(
 
 	list_for_each_entry(next_device, &fs_devs->devices, dev_list) {
 		if (next_device != device &&
-			!next_device->missing && next_device->bdev)
+		    !test_bit(BTRFS_DEV_STATE_MISSING, &next_device->dev_state)
+		    && next_device->bdev)
 			return next_device;
 	}
 
@@ -1996,7 +1997,7 @@ int btrfs_rm_device(struct btrfs_fs_info *fs_info, const char *device_path,
 	device->fs_devices->num_devices--;
 	device->fs_devices->total_devices--;
 
-	if (device->missing)
+	if (test_bit(BTRFS_DEV_STATE_MISSING, &device->dev_state))
 		device->fs_devices->missing_devices--;
 
 	btrfs_assign_next_active_device(fs_info, device, NULL);
@@ -2071,7 +2072,7 @@ void btrfs_rm_dev_replace_remove_srcdev(struct btrfs_fs_info *fs_info,
 	list_del_rcu(&srcdev->dev_list);
 	list_del(&srcdev->dev_alloc_list);
 	fs_devices->num_devices--;
-	if (srcdev->missing)
+	if (test_bit(BTRFS_DEV_STATE_MISSING, &srcdev->dev_state))
 		fs_devices->missing_devices--;
 
 	if (test_bit(BTRFS_DEV_STATE_WRITEABLE, &srcdev->dev_state))
@@ -5089,7 +5090,8 @@ int btrfs_chunk_readonly(struct btrfs_fs_info *fs_info, u64 chunk_offset)
 
 	map = em->map_lookup;
 	for (i = 0; i < map->num_stripes; i++) {
-		if (map->stripes[i].dev->missing) {
+		if (test_bit(BTRFS_DEV_STATE_MISSING,
+					&map->stripes[i].dev->dev_state)) {
 			miss_ndevs++;
 			continue;
 		}
@@ -6117,7 +6119,8 @@ static noinline void btrfs_schedule_bio(struct btrfs_device *device,
 	int should_queue = 1;
 	struct btrfs_pending_bios *pending_bios;
 
-	if (device->missing || !device->bdev) {
+	if (test_bit(BTRFS_DEV_STATE_MISSING, &device->dev_state) ||
+	    !device->bdev) {
 		bio_io_error(bio);
 		return;
 	}
@@ -6313,7 +6316,7 @@ static struct btrfs_device *add_missing_dev(struct btrfs_fs_devices *fs_devices,
 	device->fs_devices = fs_devices;
 	fs_devices->num_devices++;
 
-	device->missing = 1;
+	set_bit(BTRFS_DEV_STATE_MISSING, &device->dev_state);
 	fs_devices->missing_devices++;
 
 	return device;
@@ -6675,7 +6678,8 @@ static int read_one_dev(struct btrfs_fs_info *fs_info,
 							dev_uuid, false);
 		}
 
-		if(!device->bdev && !device->missing) {
+		if (!device->bdev &&
+		    !test_bit(BTRFS_DEV_STATE_MISSING, &device->dev_state)) {
 			/*
 			 * this happens when a device that was properly setup
 			 * in the device info lists suddenly goes bad.
@@ -6683,12 +6687,13 @@ static int read_one_dev(struct btrfs_fs_info *fs_info,
 			 * device->missing to one here
 			 */
 			device->fs_devices->missing_devices++;
-			device->missing = 1;
+			set_bit(BTRFS_DEV_STATE_MISSING, &device->dev_state);
 		}
 
 		/* Move the device to its own fs_devices */
 		if (device->fs_devices != fs_devices) {
-			ASSERT(device->missing);
+			ASSERT(test_bit(BTRFS_DEV_STATE_MISSING,
+							&device->dev_state));
 
 			list_move(&device->dev_list, &fs_devices->devices);
 			device->fs_devices->num_devices--;
@@ -6874,7 +6879,8 @@ bool btrfs_check_rw_degradable(struct btrfs_fs_info *fs_info)
 		for (i = 0; i < map->num_stripes; i++) {
 			struct btrfs_device *dev = map->stripes[i].dev;
 
-			if (!dev || !dev->bdev || dev->missing ||
+			if (!dev || !dev->bdev ||
+			    test_bit(BTRFS_DEV_STATE_MISSING, &dev->dev_state) ||
 			    dev->last_flush_error)
 				missing++;
 		}

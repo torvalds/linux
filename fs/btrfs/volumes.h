@@ -49,6 +49,7 @@ struct btrfs_pending_bios {
 
 #define BTRFS_DEV_STATE_WRITEABLE	(0)
 #define BTRFS_DEV_STATE_IN_FS_METADATA	(1)
+#define BTRFS_DEV_STATE_MISSING		(2)
 
 struct btrfs_device {
 	struct list_head dev_list;
@@ -73,7 +74,6 @@ struct btrfs_device {
 	fmode_t mode;
 
 	unsigned long dev_state;
-	int missing;
 	int is_tgtdev_for_dev_replace;
 	blk_status_t last_flush_error;
 	int flush_bio_sent;
