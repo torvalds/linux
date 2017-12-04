@@ -205,7 +205,7 @@
 		reset-gpios = <&gpio6 15 GPIO_ACTIVE_LOW>;
 		/* IRQ has a wrong pull resistor which renders it useless  */
 
-		port@0 {
+		port {
 			tc358743_out: endpoint {
 				remote-endpoint = <&mipi_csi2_in>;
 				data-lanes = <1 2 3 4>;
@@ -348,7 +348,7 @@
 &mipi_csi {
 	status = "okay";
 
-	port@0 {
+	port {
 		mipi_csi2_in: endpoint {
 			remote-endpoint = <&tc358743_out>;
 			data-lanes = <1 2 3 4>;
