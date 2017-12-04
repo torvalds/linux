@@ -3737,24 +3737,25 @@ long kvm_arch_vcpu_ioctl(struct file *filp,
 	case KVM_S390_IRQ: {
 		struct kvm_s390_irq s390irq;
 
-		r = -EFAULT;
 		if (copy_from_user(&s390irq, argp, sizeof(s390irq)))
-			break;
-		r = kvm_s390_inject_vcpu(vcpu, &s390irq);
-		break;
+			return -EFAULT;
+		return kvm_s390_inject_vcpu(vcpu, &s390irq);
 	}
 	case KVM_S390_INTERRUPT: {
 		struct kvm_s390_interrupt s390int;
 		struct kvm_s390_irq s390irq;
 
-		r = -EFAULT;
 		if (copy_from_user(&s390int, argp, sizeof(s390int)))
-			break;
+			return -EFAULT;
 		if (s390int_to_s390irq(&s390int, &s390irq))
 			return -EINVAL;
-		r = kvm_s390_inject_vcpu(vcpu, &s390irq);
-		break;
+		return kvm_s390_inject_vcpu(vcpu, &s390irq);
 	}
+	}
+
+	vcpu_load(vcpu);
+
+	switch (ioctl) {
 	case KVM_S390_STORE_STATUS:
 		idx = srcu_read_lock(&vcpu->kvm->srcu);
 		r = kvm_s390_vcpu_store_status(vcpu, arg);
@@ -3879,6 +3880,8 @@ long kvm_arch_vcpu_ioctl(struct file *filp,
 	default:
 		r = -ENOTTY;
 	}
+
+	vcpu_put(vcpu);
 	return r;
 }
 
