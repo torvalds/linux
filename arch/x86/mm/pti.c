@@ -265,6 +265,29 @@ pti_clone_pmds(unsigned long start, unsigned long end, pmdval_t clear)
 }
 
 /*
+ * Clone a single p4d (i.e. a top-level entry on 4-level systems and a
+ * next-level entry on 5-level systems.
+ */
+static void __init pti_clone_p4d(unsigned long addr)
+{
+	p4d_t *kernel_p4d, *user_p4d;
+	pgd_t *kernel_pgd;
+
+	user_p4d = pti_user_pagetable_walk_p4d(addr);
+	kernel_pgd = pgd_offset_k(addr);
+	kernel_p4d = p4d_offset(kernel_pgd, addr);
+	*user_p4d = *kernel_p4d;
+}
+
+/*
+ * Clone the CPU_ENTRY_AREA into the user space visible page table.
+ */
+static void __init pti_clone_user_shared(void)
+{
+	pti_clone_p4d(CPU_ENTRY_AREA_BASE);
+}
+
+/*
  * Initialize kernel page table isolation
  */
 void __init pti_init(void)
@@ -273,4 +296,6 @@ void __init pti_init(void)
 		return;
 
 	pr_info("enabled\n");
+
+	pti_clone_user_shared();
 }
