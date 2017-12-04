@@ -166,12 +166,6 @@ int kvm_vgic_create(struct kvm *kvm, u32 type)
 	kvm->arch.vgic.in_kernel = true;
 	kvm->arch.vgic.vgic_model = type;
 
-	/*
-	 * kvm_vgic_global_state.vctrl_base is set on vgic probe (kvm_arch_init)
-	 * it is stored in distributor struct for asm save/restore purpose
-	 */
-	kvm->arch.vgic.vctrl_base = kvm_vgic_global_state.vctrl_base;
-
 	kvm->arch.vgic.vgic_dist_base = VGIC_ADDR_UNDEF;
 	kvm->arch.vgic.vgic_cpu_base = VGIC_ADDR_UNDEF;
 	kvm->arch.vgic.vgic_redist_base = VGIC_ADDR_UNDEF;

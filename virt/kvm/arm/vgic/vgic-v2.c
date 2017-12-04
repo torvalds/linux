@@ -363,7 +363,8 @@ int vgic_v2_probe(const struct gic_kvm_info *info)
 
 		ret = create_hyp_io_mappings(info->vcpu.start,
 					     resource_size(&info->vcpu),
-					     &kvm_vgic_global_state.vcpu_base_va);
+					     &kvm_vgic_global_state.vcpu_base_va,
+					     &kvm_vgic_global_state.vcpu_hyp_va);
 		if (ret) {
 			kvm_err("Cannot map GICV into hyp\n");
 			goto out;
@@ -374,7 +375,8 @@ int vgic_v2_probe(const struct gic_kvm_info *info)
 
 	ret = create_hyp_io_mappings(info->vctrl.start,
 				     resource_size(&info->vctrl),
-				     &kvm_vgic_global_state.vctrl_base);
+				     &kvm_vgic_global_state.vctrl_base,
+				     &kvm_vgic_global_state.vctrl_hyp);
 	if (ret) {
 		kvm_err("Cannot map VCTRL into hyp\n");
 		goto out;
@@ -429,9 +431,7 @@ static void save_lrs(struct kvm_vcpu *vcpu, void __iomem *base)
 
 void vgic_v2_save_state(struct kvm_vcpu *vcpu)
 {
-	struct kvm *kvm = vcpu->kvm;
-	struct vgic_dist *vgic = &kvm->arch.vgic;
-	void __iomem *base = vgic->vctrl_base;
+	void __iomem *base = kvm_vgic_global_state.vctrl_base;
 	u64 used_lrs = vcpu->arch.vgic_cpu.used_lrs;
 
 	if (!base)
@@ -445,10 +445,8 @@ void vgic_v2_save_state(struct kvm_vcpu *vcpu)
 
 void vgic_v2_restore_state(struct kvm_vcpu *vcpu)
 {
-	struct kvm *kvm = vcpu->kvm;
-	struct vgic_dist *vgic = &kvm->arch.vgic;
 	struct vgic_v2_cpu_if *cpu_if = &vcpu->arch.vgic_cpu.vgic_v2;
-	void __iomem *base = vgic->vctrl_base;
+	void __iomem *base = kvm_vgic_global_state.vctrl_base;
 	u64 used_lrs = vcpu->arch.vgic_cpu.used_lrs;
 	int i;
 
@@ -467,17 +465,17 @@ void vgic_v2_restore_state(struct kvm_vcpu *vcpu)
 void vgic_v2_load(struct kvm_vcpu *vcpu)
 {
 	struct vgic_v2_cpu_if *cpu_if = &vcpu->arch.vgic_cpu.vgic_v2;
-	struct vgic_dist *vgic = &vcpu->kvm->arch.vgic;
 
-	writel_relaxed(cpu_if->vgic_vmcr, vgic->vctrl_base + GICH_VMCR);
-	writel_relaxed(cpu_if->vgic_apr, vgic->vctrl_base + GICH_APR);
+	writel_relaxed(cpu_if->vgic_vmcr,
+		       kvm_vgic_global_state.vctrl_base + GICH_VMCR);
+	writel_relaxed(cpu_if->vgic_apr,
+		       kvm_vgic_global_state.vctrl_base + GICH_APR);
 }
 
 void vgic_v2_put(struct kvm_vcpu *vcpu)
 {
 	struct vgic_v2_cpu_if *cpu_if = &vcpu->arch.vgic_cpu.vgic_v2;
-	struct vgic_dist *vgic = &vcpu->kvm->arch.vgic;
 
-	cpu_if->vgic_vmcr = readl_relaxed(vgic->vctrl_base + GICH_VMCR);
-	cpu_if->vgic_apr = readl_relaxed(vgic->vctrl_base + GICH_APR);
+	cpu_if->vgic_vmcr = readl_relaxed(kvm_vgic_global_state.vctrl_base + GICH_VMCR);
+	cpu_if->vgic_apr = readl_relaxed(kvm_vgic_global_state.vctrl_base + GICH_APR);
 }

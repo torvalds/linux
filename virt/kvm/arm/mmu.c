@@ -713,28 +713,38 @@ int create_hyp_mappings(void *from, void *to, pgprot_t prot)
  * @phys_addr:	The physical start address which gets mapped
  * @size:	Size of the region being mapped
  * @kaddr:	Kernel VA for this mapping
- *
- * The resulting HYP VA is the same as the kernel VA, modulo
- * HYP_PAGE_OFFSET.
+ * @haddr:	HYP VA for this mapping
  */
 int create_hyp_io_mappings(phys_addr_t phys_addr, size_t size,
-			   void __iomem **kaddr)
+			   void __iomem **kaddr,
+			   void __iomem **haddr)
 {
 	unsigned long start, end;
+	int ret;
 
 	*kaddr = ioremap(phys_addr, size);
 	if (!*kaddr)
 		return -ENOMEM;
 
 	if (is_kernel_in_hyp_mode()) {
+		*haddr = *kaddr;
 		return 0;
 	}
 
 
 	start = kern_hyp_va((unsigned long)*kaddr);
 	end = kern_hyp_va((unsigned long)*kaddr + size);
-	return __create_hyp_mappings(hyp_pgd, PTRS_PER_PGD, start, end,
+	ret = __create_hyp_mappings(hyp_pgd, PTRS_PER_PGD, start, end,
 				     __phys_to_pfn(phys_addr), PAGE_HYP_DEVICE);
+
+	if (ret) {
+		iounmap(*kaddr);
+		*kaddr = NULL;
+		return ret;
+	}
+
+	*haddr = (void __iomem *)start;
+	return 0;
 }
 
 /**

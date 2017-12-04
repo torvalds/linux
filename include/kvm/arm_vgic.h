@@ -57,11 +57,15 @@ struct vgic_global {
 	/* Physical address of vgic virtual cpu interface */
 	phys_addr_t		vcpu_base;
 
-	/* GICV mapping */
+	/* GICV mapping, kernel VA */
 	void __iomem		*vcpu_base_va;
+	/* GICV mapping, HYP VA */
+	void __iomem		*vcpu_hyp_va;
 
-	/* virtual control interface mapping */
+	/* virtual control interface mapping, kernel VA */
 	void __iomem		*vctrl_base;
+	/* virtual control interface mapping, HYP VA */
+	void __iomem		*vctrl_hyp;
 
 	/* Number of implemented list registers */
 	int			nr_lr;
@@ -208,10 +212,6 @@ struct vgic_dist {
 	bool			msis_require_devid;
 
 	int			nr_spis;
-
-	/* TODO: Consider moving to global state */
-	/* Virtual control interface mapping */
-	void __iomem		*vctrl_base;
 
 	/* base addresses in guest physical address space: */
 	gpa_t			vgic_dist_base;		/* distributor */
