@@ -4117,7 +4117,8 @@ int btrfs_scrub_dev(struct btrfs_fs_info *fs_info, u64 devid, u64 start,
 		return -ENODEV;
 	}
 
-	if (!is_dev_replace && !readonly && !dev->writeable) {
+	if (!is_dev_replace && !readonly &&
+	    !test_bit(BTRFS_DEV_STATE_WRITEABLE, &dev->dev_state)) {
 		mutex_unlock(&fs_info->fs_devices->device_list_mutex);
 		rcu_read_lock();
 		name = rcu_dereference(dev->name);

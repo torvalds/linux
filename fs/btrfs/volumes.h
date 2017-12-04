@@ -47,6 +47,8 @@ struct btrfs_pending_bios {
 #define btrfs_device_data_ordered_init(device) do { } while (0)
 #endif
 
+#define BTRFS_DEV_STATE_WRITEABLE	(0)
+
 struct btrfs_device {
 	struct list_head dev_list;
 	struct list_head dev_alloc_list;
@@ -69,7 +71,7 @@ struct btrfs_device {
 	/* the mode sent to blkdev_get */
 	fmode_t mode;
 
-	int writeable;
+	unsigned long dev_state;
 	int in_fs_metadata;
 	int missing;
 	int is_tgtdev_for_dev_replace;

@@ -10878,7 +10878,7 @@ static int btrfs_trim_free_extents(struct btrfs_device *device,
 	*trimmed = 0;
 
 	/* Not writeable = nothing to do. */
-	if (!device->writeable)
+	if (!test_bit(BTRFS_DEV_STATE_WRITEABLE, &device->dev_state))
 		return 0;
 
 	/* No free space = nothing to do. */
