@@ -162,7 +162,7 @@ enum cpuid_regs_idx {
 extern struct cpuinfo_x86	boot_cpu_data;
 extern struct cpuinfo_x86	new_cpu_data;
 
-extern struct tss_struct	doublefault_tss;
+extern struct x86_hw_tss	doublefault_tss;
 extern __u32			cpu_caps_cleared[NCAPINTS];
 extern __u32			cpu_caps_set[NCAPINTS];
 
@@ -252,6 +252,11 @@ static inline void load_cr3(pgd_t *pgdir)
 	write_cr3(__sme_pa(pgdir));
 }
 
+/*
+ * Note that while the legacy 'TSS' name comes from 'Task State Segment',
+ * on modern x86 CPUs the TSS also holds information important to 64-bit mode,
+ * unrelated to the task-switch mechanism:
+ */
 #ifdef CONFIG_X86_32
 /* This is the TSS defined by the hardware. */
 struct x86_hw_tss {
@@ -322,7 +327,7 @@ struct x86_hw_tss {
 #define IO_BITMAP_BITS			65536
 #define IO_BITMAP_BYTES			(IO_BITMAP_BITS/8)
 #define IO_BITMAP_LONGS			(IO_BITMAP_BYTES/sizeof(long))
-#define IO_BITMAP_OFFSET		offsetof(struct tss_struct, io_bitmap)
+#define IO_BITMAP_OFFSET		(offsetof(struct tss_struct, io_bitmap) - offsetof(struct tss_struct, x86_tss))
 #define INVALID_IO_BITMAP_OFFSET	0x8000
 
 struct tss_struct {

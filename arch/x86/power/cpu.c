@@ -165,12 +165,13 @@ static void fix_processor_context(void)
 	struct desc_struct *desc = get_cpu_gdt_rw(cpu);
 	tss_desc tss;
 #endif
-	set_tss_desc(cpu, t);	/*
-				 * This just modifies memory; should not be
-				 * necessary. But... This is necessary, because
-				 * 386 hardware has concept of busy TSS or some
-				 * similar stupidity.
-				 */
+
+	/*
+	 * This just modifies memory; should not be necessary. But... This is
+	 * necessary, because 386 hardware has concept of busy TSS or some
+	 * similar stupidity.
+	 */
+	set_tss_desc(cpu, &t->x86_tss);
 
 #ifdef CONFIG_X86_64
 	memcpy(&tss, &desc[GDT_ENTRY_TSS], sizeof(tss_desc));

@@ -178,7 +178,7 @@ static inline void set_tssldt_descriptor(void *d, unsigned long addr,
 #endif
 }
 
-static inline void __set_tss_desc(unsigned cpu, unsigned int entry, void *addr)
+static inline void __set_tss_desc(unsigned cpu, unsigned int entry, struct x86_hw_tss *addr)
 {
 	struct desc_struct *d = get_cpu_gdt_rw(cpu);
 	tss_desc tss;
