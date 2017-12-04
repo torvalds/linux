@@ -3394,6 +3394,22 @@ invalid, if invalid pages are written to (e.g. after the end of memory)
 or if no page table is present for the addresses (e.g. when using
 hugepages).
 
+4.109 KVM_MEMORY_ENCRYPT_OP
+
+Capability: basic
+Architectures: x86
+Type: system
+Parameters: an opaque platform specific structure (in/out)
+Returns: 0 on success; -1 on error
+
+If the platform supports creating encrypted VMs then this ioctl can be used
+for issuing platform-specific memory encryption commands to manage those
+encrypted VMs.
+
+Currently, this ioctl is used for issuing Secure Encrypted Virtualization
+(SEV) commands on AMD Processors. The SEV commands are defined in
+Documentation/virtual/kvm/amd-memory-encryption.txt.
+
 5. The kvm_run structure
 ------------------------
 
