@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _CAN_PLATFORM_SJA1000_H
 #define _CAN_PLATFORM_SJA1000_H
 

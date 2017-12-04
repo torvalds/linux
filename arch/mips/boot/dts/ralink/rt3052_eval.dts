@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /dts-v1/;
 
 #include "rt3050.dtsi"
@@ -46,6 +47,6 @@
 	};
 
 	usb@101c0000 {
-		status = "ok";
+		status = "okay";
 	};
 };

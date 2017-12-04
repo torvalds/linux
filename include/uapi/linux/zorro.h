@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *  linux/zorro.h -- Amiga AutoConfig (Zorro) Bus Definitions
  *

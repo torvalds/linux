@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 #
 # For a description of the syntax of this configuration file,
 # see Documentation/kbuild/kconfig-language.txt.
@@ -135,6 +136,7 @@ config CFAG12864B_RATE
 
 config IMG_ASCII_LCD
 	tristate "Imagination Technologies ASCII LCD Display"
+	depends on HAS_IOMEM
 	default y if MIPS_MALTA || MIPS_SEAD3
 	select SYSCON
 	help

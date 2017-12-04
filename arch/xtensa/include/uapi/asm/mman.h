@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  * include/asm-xtensa/mman.h
  *
@@ -35,6 +36,7 @@
  */
 #define MAP_SHARED	0x001		/* Share changes */
 #define MAP_PRIVATE	0x002		/* Changes are private */
+#define MAP_SHARED_VALIDATE 0x003	/* share + validate extension flags */
 #define MAP_TYPE	0x00f		/* Mask for type of mapping */
 #define MAP_FIXED	0x010		/* Interpret addr exactly */
 

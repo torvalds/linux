@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __ASM_SH_RENESAS_R7780RP_H
 #define __ASM_SH_RENESAS_R7780RP_H
 

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Definitions for diskquota-operations. When diskquota is configured these
  * macros expand to the right source-code.

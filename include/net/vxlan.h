@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __NET_VXLAN_H
 #define __NET_VXLAN_H 1
 

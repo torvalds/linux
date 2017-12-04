@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 static uint32_t gf100_ce_data[] = {
 /* 0x0000: ctx_object */
 	0x00000000,

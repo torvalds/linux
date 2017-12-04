@@ -389,6 +389,7 @@ struct vega10_hwmgr {
 	uint32_t                       config_telemetry;
 	uint32_t                       smu_version;
 	uint32_t                       acg_loop_state;
+	uint32_t                       mem_channels;
 };
 
 #define VEGA10_DPM2_NEAR_TDP_DEC                      10

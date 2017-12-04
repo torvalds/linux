@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *	include/linux/bfs_fs.h - BFS data structures on disk.
  *	Copyright (C) 1999 Tigran Aivazian <tigran@veritas.com>
@@ -75,7 +76,7 @@ struct bfs_super_block {
 #define BFS_FILEBLOCKS(ip) \
         ((ip)->i_sblock == 0 ? 0 : (le32_to_cpu((ip)->i_eblock) + 1) -  le32_to_cpu((ip)->i_sblock))
 #define BFS_UNCLEAN(bfs_sb, sb)	\
-	((le32_to_cpu(bfs_sb->s_from) != -1) && (le32_to_cpu(bfs_sb->s_to) != -1) && !(sb->s_flags & MS_RDONLY))
+	((le32_to_cpu(bfs_sb->s_from) != -1) && (le32_to_cpu(bfs_sb->s_to) != -1) && !(sb->s_flags & SB_RDONLY))
 
 
 #endif	/* _LINUX_BFS_FS_H */

@@ -1,7 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef IOPRIO_H
 #define IOPRIO_H
 
 #include <linux/sched.h>
+#include <linux/sched/rt.h>
 #include <linux/iocontext.h>
 
 /*
@@ -62,7 +64,7 @@ static inline int task_nice_ioclass(struct task_struct *task)
 {
 	if (task->policy == SCHED_IDLE)
 		return IOPRIO_CLASS_IDLE;
-	else if (task->policy == SCHED_FIFO || task->policy == SCHED_RR)
+	else if (task_is_realtime(task))
 		return IOPRIO_CLASS_RT;
 	else
 		return IOPRIO_CLASS_BE;

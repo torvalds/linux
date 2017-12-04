@@ -86,6 +86,22 @@ enum i915_mocs_table_index {
 	I915_MOCS_CACHED,
 };
 
+/*
+ * Different engines serve different roles, and there may be more than one
+ * engine serving each role. enum drm_i915_gem_engine_class provides a
+ * classification of the role of the engine, which may be used when requesting
+ * operations to be performed on a certain subset of engines, or for providing
+ * information about that group.
+ */
+enum drm_i915_gem_engine_class {
+	I915_ENGINE_CLASS_RENDER	= 0,
+	I915_ENGINE_CLASS_COPY		= 1,
+	I915_ENGINE_CLASS_VIDEO		= 2,
+	I915_ENGINE_CLASS_VIDEO_ENHANCE	= 3,
+
+	I915_ENGINE_CLASS_INVALID	= -1
+};
+
 /* Each region is a minimum of 16k, and there are at most 255 of them.
  */
 #define I915_NR_TEX_REGIONS 255	/* table size 2k - maximum due to use
@@ -449,6 +465,27 @@ typedef struct drm_i915_irq_wait {
  * drm_i915_gem_exec_fence structures.  See I915_EXEC_FENCE_ARRAY.
  */
 #define I915_PARAM_HAS_EXEC_FENCE_ARRAY  49
+
+/*
+ * Query whether every context (both per-file default and user created) is
+ * isolated (insofar as HW supports). If this parameter is not true, then
+ * freshly created contexts may inherit values from an existing context,
+ * rather than default HW values. If true, it also ensures (insofar as HW
+ * supports) that all state set by this context will not leak to any other
+ * context.
+ *
+ * As not every engine across every gen support contexts, the returned
+ * value reports the support of context isolation for individual engines by
+ * returning a bitmask of each engine class set to true if that class supports
+ * isolation.
+ */
+#define I915_PARAM_HAS_CONTEXT_ISOLATION 50
+
+/* Frequency of the command streamer timestamps given by the *_TIMESTAMP
+ * registers. This used to be fixed per platform but from CNL onwards, this
+ * might vary depending on the parts.
+ */
+#define I915_PARAM_CS_TIMESTAMP_FREQUENCY 51
 
 typedef struct drm_i915_getparam {
 	__s32 param;
@@ -839,6 +876,7 @@ struct drm_i915_gem_exec_fence {
 
 #define I915_EXEC_FENCE_WAIT            (1<<0)
 #define I915_EXEC_FENCE_SIGNAL          (1<<1)
+#define __I915_EXEC_FENCE_UNKNOWN_FLAGS (-(I915_EXEC_FENCE_SIGNAL << 1))
 	__u32 flags;
 };
 

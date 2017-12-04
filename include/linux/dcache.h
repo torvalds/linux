@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __LINUX_DCACHE_H
 #define __LINUX_DCACHE_H
 
@@ -519,7 +520,7 @@ static inline struct inode *d_inode(const struct dentry *dentry)
 }
 
 /**
- * d_inode_rcu - Get the actual inode of this dentry with ACCESS_ONCE()
+ * d_inode_rcu - Get the actual inode of this dentry with READ_ONCE()
  * @dentry: The dentry to query
  *
  * This is the helper normal filesystems should use to get at their own inodes
@@ -527,7 +528,7 @@ static inline struct inode *d_inode(const struct dentry *dentry)
  */
 static inline struct inode *d_inode_rcu(const struct dentry *dentry)
 {
-	return ACCESS_ONCE(dentry->d_inode);
+	return READ_ONCE(dentry->d_inode);
 }
 
 /**

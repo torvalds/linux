@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include "builtin.h"
 #include "perf.h"
 
@@ -1700,14 +1701,16 @@ static int perf_sched__read_events(struct perf_sched *sched)
 		{ "sched:sched_migrate_task", process_sched_migrate_task_event, },
 	};
 	struct perf_session *session;
-	struct perf_data_file file = {
-		.path = input_name,
-		.mode = PERF_DATA_MODE_READ,
-		.force = sched->force,
+	struct perf_data data = {
+		.file      = {
+			.path = input_name,
+		},
+		.mode      = PERF_DATA_MODE_READ,
+		.force     = sched->force,
 	};
 	int rc = -1;
 
-	session = perf_session__new(&file, false, &sched->tool);
+	session = perf_session__new(&data, false, &sched->tool);
 	if (session == NULL) {
 		pr_debug("No Memory for session\n");
 		return -1;
@@ -2902,10 +2905,12 @@ static int perf_sched__timehist(struct perf_sched *sched)
 	const struct perf_evsel_str_handler migrate_handlers[] = {
 		{ "sched:sched_migrate_task", timehist_migrate_task_event, },
 	};
-	struct perf_data_file file = {
-		.path = input_name,
-		.mode = PERF_DATA_MODE_READ,
-		.force = sched->force,
+	struct perf_data data = {
+		.file      = {
+			.path = input_name,
+		},
+		.mode      = PERF_DATA_MODE_READ,
+		.force     = sched->force,
 	};
 
 	struct perf_session *session;
@@ -2930,7 +2935,7 @@ static int perf_sched__timehist(struct perf_sched *sched)
 
 	symbol_conf.use_callchain = sched->show_callchain;
 
-	session = perf_session__new(&file, false, &sched->tool);
+	session = perf_session__new(&data, false, &sched->tool);
 	if (session == NULL)
 		return -ENOMEM;
 
@@ -3363,6 +3368,10 @@ int cmd_sched(int argc, const char **argv)
 	OPT_STRING(0, "time", &sched.time_str, "str",
 		   "Time span for analysis (start,stop)"),
 	OPT_BOOLEAN(0, "state", &sched.show_state, "Show task state when sched-out"),
+	OPT_STRING('p', "pid", &symbol_conf.pid_list_str, "pid[,pid...]",
+		   "analyze events only for given process id(s)"),
+	OPT_STRING('t', "tid", &symbol_conf.tid_list_str, "tid[,tid...]",
+		   "analyze events only for given thread id(s)"),
 	OPT_PARENT(sched_options)
 	};
 

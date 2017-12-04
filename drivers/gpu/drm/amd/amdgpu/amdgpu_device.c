@@ -31,6 +31,7 @@
 #include <linux/debugfs.h>
 #include <drm/drmP.h>
 #include <drm/drm_crtc_helper.h>
+#include <drm/drm_atomic_helper.h>
 #include <drm/amdgpu_drm.h>
 #include <linux/vgaarb.h>
 #include <linux/vga_switcheroo.h>
@@ -2046,6 +2047,52 @@ static void amdgpu_device_detect_sriov_bios(struct amdgpu_device *adev)
 	}
 }
 
+bool amdgpu_device_asic_has_dc_support(enum amd_asic_type asic_type)
+{
+	switch (asic_type) {
+#if defined(CONFIG_DRM_AMD_DC)
+	case CHIP_BONAIRE:
+	case CHIP_HAWAII:
+	case CHIP_KAVERI:
+	case CHIP_CARRIZO:
+	case CHIP_STONEY:
+	case CHIP_POLARIS11:
+	case CHIP_POLARIS10:
+	case CHIP_POLARIS12:
+	case CHIP_TONGA:
+	case CHIP_FIJI:
+#if defined(CONFIG_DRM_AMD_DC_PRE_VEGA)
+		return amdgpu_dc != 0;
+#endif
+	case CHIP_KABINI:
+	case CHIP_MULLINS:
+		return amdgpu_dc > 0;
+	case CHIP_VEGA10:
+#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
+	case CHIP_RAVEN:
+#endif
+		return amdgpu_dc != 0;
+#endif
+	default:
+		return false;
+	}
+}
+
+/**
+ * amdgpu_device_has_dc_support - check if dc is supported
+ *
+ * @adev: amdgpu_device_pointer
+ *
+ * Returns true for supported, false for not supported
+ */
+bool amdgpu_device_has_dc_support(struct amdgpu_device *adev)
+{
+	if (amdgpu_sriov_vf(adev))
+		return false;
+
+	return amdgpu_device_asic_has_dc_support(adev->asic_type);
+}
+
 /**
  * amdgpu_device_init - initialize the driver
  *
@@ -2099,7 +2146,6 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 	adev->gc_cac_wreg = &amdgpu_invalid_wreg;
 	adev->audio_endpt_rreg = &amdgpu_block_invalid_rreg;
 	adev->audio_endpt_wreg = &amdgpu_block_invalid_wreg;
-
 
 	DRM_INFO("initializing kernel modesetting (%s 0x%04X:0x%04X 0x%04X:0x%04X 0x%02X).\n",
 		 amdgpu_asic_name[adev->asic_type], pdev->vendor, pdev->device,
@@ -2242,7 +2288,8 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 			goto failed;
 		}
 		/* init i2c buses */
-		amdgpu_atombios_i2c_init(adev);
+		if (!amdgpu_device_has_dc_support(adev))
+			amdgpu_atombios_i2c_init(adev);
 	}
 
 	/* Fence driver */
@@ -2378,7 +2425,8 @@ void amdgpu_device_fini(struct amdgpu_device *adev)
 	adev->accel_working = false;
 	cancel_delayed_work_sync(&adev->late_init_work);
 	/* free i2c buses */
-	amdgpu_i2c_fini(adev);
+	if (!amdgpu_device_has_dc_support(adev))
+		amdgpu_i2c_fini(adev);
 	amdgpu_atombios_fini(adev);
 	kfree(adev->bios);
 	adev->bios = NULL;
@@ -2429,12 +2477,14 @@ int amdgpu_device_suspend(struct drm_device *dev, bool suspend, bool fbcon)
 
 	drm_kms_helper_poll_disable(dev);
 
-	/* turn off display hw */
-	drm_modeset_lock_all(dev);
-	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
-		drm_helper_connector_dpms(connector, DRM_MODE_DPMS_OFF);
+	if (!amdgpu_device_has_dc_support(adev)) {
+		/* turn off display hw */
+		drm_modeset_lock_all(dev);
+		list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
+			drm_helper_connector_dpms(connector, DRM_MODE_DPMS_OFF);
+		}
+		drm_modeset_unlock_all(dev);
 	}
-	drm_modeset_unlock_all(dev);
 
 	amdgpu_amdkfd_suspend(adev);
 
@@ -2577,13 +2627,25 @@ int amdgpu_device_resume(struct drm_device *dev, bool resume, bool fbcon)
 
 	/* blat the mode back in */
 	if (fbcon) {
-		drm_helper_resume_force_mode(dev);
-		/* turn on display hw */
-		drm_modeset_lock_all(dev);
-		list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
-			drm_helper_connector_dpms(connector, DRM_MODE_DPMS_ON);
+		if (!amdgpu_device_has_dc_support(adev)) {
+			/* pre DCE11 */
+			drm_helper_resume_force_mode(dev);
+
+			/* turn on display hw */
+			drm_modeset_lock_all(dev);
+			list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
+				drm_helper_connector_dpms(connector, DRM_MODE_DPMS_ON);
+			}
+			drm_modeset_unlock_all(dev);
+		} else {
+			/*
+			 * There is no equivalent atomic helper to turn on
+			 * display, so we defined our own function for this,
+			 * once suspend resume is supported by the atomic
+			 * framework this will be reworked
+			 */
+			amdgpu_dm_display_resume(adev);
 		}
-		drm_modeset_unlock_all(dev);
 	}
 
 	drm_kms_helper_poll_enable(dev);
@@ -2600,7 +2662,10 @@ int amdgpu_device_resume(struct drm_device *dev, bool resume, bool fbcon)
 #ifdef CONFIG_PM
 	dev->dev->power.disable_depth++;
 #endif
-	drm_helper_hpd_irq_event(dev);
+	if (!amdgpu_device_has_dc_support(adev))
+		drm_helper_hpd_irq_event(dev);
+	else
+		drm_kms_helper_hotplug_event(dev);
 #ifdef CONFIG_PM
 	dev->dev->power.disable_depth--;
 #endif
@@ -2900,6 +2965,7 @@ give_up_reset:
  */
 int amdgpu_gpu_reset(struct amdgpu_device *adev)
 {
+	struct drm_atomic_state *state = NULL;
 	int i, r;
 	int resched;
 	bool need_full_reset, vram_lost = false;
@@ -2913,6 +2979,9 @@ int amdgpu_gpu_reset(struct amdgpu_device *adev)
 
 	/* block TTM */
 	resched = ttm_bo_lock_delayed_workqueue(&adev->mman.bdev);
+	/* store modesetting */
+	if (amdgpu_device_has_dc_support(adev))
+		state = drm_atomic_helper_suspend(adev->ddev);
 
 	/* block scheduler */
 	for (i = 0; i < AMDGPU_MAX_RINGS; ++i) {
@@ -3029,7 +3098,11 @@ out:
 		}
 	}
 
-	drm_helper_resume_force_mode(adev->ddev);
+	if (amdgpu_device_has_dc_support(adev)) {
+		r = drm_atomic_helper_resume(adev->ddev, state);
+		amdgpu_dm_display_resume(adev);
+	} else
+		drm_helper_resume_force_mode(adev->ddev);
 
 	ttm_bo_unlock_delayed_workqueue(&adev->mman.bdev, resched);
 	if (r) {
@@ -3188,9 +3261,9 @@ static ssize_t amdgpu_debugfs_regs_read(struct file *f, char __user *buf,
 	pm_pg_lock = (*pos >> 23) & 1;
 
 	if (*pos & (1ULL << 62)) {
-		se_bank = (*pos >> 24) & 0x3FF;
-		sh_bank = (*pos >> 34) & 0x3FF;
-		instance_bank = (*pos >> 44) & 0x3FF;
+		se_bank = (*pos & GENMASK_ULL(33, 24)) >> 24;
+		sh_bank = (*pos & GENMASK_ULL(43, 34)) >> 34;
+		instance_bank = (*pos & GENMASK_ULL(53, 44)) >> 44;
 
 		if (se_bank == 0x3FF)
 			se_bank = 0xFFFFFFFF;
@@ -3264,9 +3337,9 @@ static ssize_t amdgpu_debugfs_regs_write(struct file *f, const char __user *buf,
 	pm_pg_lock = (*pos >> 23) & 1;
 
 	if (*pos & (1ULL << 62)) {
-		se_bank = (*pos >> 24) & 0x3FF;
-		sh_bank = (*pos >> 34) & 0x3FF;
-		instance_bank = (*pos >> 44) & 0x3FF;
+		se_bank = (*pos & GENMASK_ULL(33, 24)) >> 24;
+		sh_bank = (*pos & GENMASK_ULL(43, 34)) >> 34;
+		instance_bank = (*pos & GENMASK_ULL(53, 44)) >> 44;
 
 		if (se_bank == 0x3FF)
 			se_bank = 0xFFFFFFFF;
@@ -3614,12 +3687,12 @@ static ssize_t amdgpu_debugfs_wave_read(struct file *f, char __user *buf,
 		return -EINVAL;
 
 	/* decode offset */
-	offset = (*pos & 0x7F);
-	se = ((*pos >> 7) & 0xFF);
-	sh = ((*pos >> 15) & 0xFF);
-	cu = ((*pos >> 23) & 0xFF);
-	wave = ((*pos >> 31) & 0xFF);
-	simd = ((*pos >> 37) & 0xFF);
+	offset = (*pos & GENMASK_ULL(6, 0));
+	se = (*pos & GENMASK_ULL(14, 7)) >> 7;
+	sh = (*pos & GENMASK_ULL(22, 15)) >> 15;
+	cu = (*pos & GENMASK_ULL(30, 23)) >> 23;
+	wave = (*pos & GENMASK_ULL(36, 31)) >> 31;
+	simd = (*pos & GENMASK_ULL(44, 37)) >> 37;
 
 	/* switch to the specific se/sh/cu */
 	mutex_lock(&adev->grbm_idx_mutex);
@@ -3664,14 +3737,14 @@ static ssize_t amdgpu_debugfs_gpr_read(struct file *f, char __user *buf,
 		return -EINVAL;
 
 	/* decode offset */
-	offset = (*pos & 0xFFF);       /* in dwords */
-	se = ((*pos >> 12) & 0xFF);
-	sh = ((*pos >> 20) & 0xFF);
-	cu = ((*pos >> 28) & 0xFF);
-	wave = ((*pos >> 36) & 0xFF);
-	simd = ((*pos >> 44) & 0xFF);
-	thread = ((*pos >> 52) & 0xFF);
-	bank = ((*pos >> 60) & 1);
+	offset = *pos & GENMASK_ULL(11, 0);
+	se = (*pos & GENMASK_ULL(19, 12)) >> 12;
+	sh = (*pos & GENMASK_ULL(27, 20)) >> 20;
+	cu = (*pos & GENMASK_ULL(35, 28)) >> 28;
+	wave = (*pos & GENMASK_ULL(43, 36)) >> 36;
+	simd = (*pos & GENMASK_ULL(51, 44)) >> 44;
+	thread = (*pos & GENMASK_ULL(59, 52)) >> 52;
+	bank = (*pos & GENMASK_ULL(61, 60)) >> 60;
 
 	data = kmalloc_array(1024, sizeof(*data), GFP_KERNEL);
 	if (!data)

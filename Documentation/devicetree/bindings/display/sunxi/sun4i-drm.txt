@@ -278,7 +278,7 @@ connector {
 	};
 };
 
-hdmi: hdmi@01c16000 {
+hdmi: hdmi@1c16000 {
 	compatible = "allwinner,sun5i-a10s-hdmi";
 	reg = <0x01c16000 0x1000>;
 	interrupts = <58>;
@@ -317,7 +317,7 @@ hdmi: hdmi@01c16000 {
 	};
 };
 
-tve0: tv-encoder@01c0a000 {
+tve0: tv-encoder@1c0a000 {
 	compatible = "allwinner,sun4i-a10-tv-encoder";
 	reg = <0x01c0a000 0x1000>;
 	clocks = <&ahb_gates 34>;

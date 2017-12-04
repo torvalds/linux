@@ -57,6 +57,16 @@ config LEDS_AAT1290
 	depends on PINCTRL
 	help
 	 This option enables support for the LEDs on the AAT1290.
+config LEDS_APU
+	tristate "Front panel LED support for PC Engines APU/APU2 boards"
+	depends on LEDS_CLASS
+	depends on X86 && DMI
+	help
+	  This driver makes the PC Engines APU/APU2 front panel LEDs
+	  accessible from userspace programs through the LED subsystem.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called leds-apu.
 
 config LEDS_AS3645A
 	tristate "AS3645A LED flash controller support"

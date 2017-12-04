@@ -773,7 +773,7 @@ void arch_setup_pdev_archdata(struct platform_device *pdev)
 static __init void print_system_info(void)
 {
 	pr_info("-----------------------------------------------------\n");
-#ifdef CONFIG_PPC_STD_MMU_64
+#ifdef CONFIG_PPC_BOOK3S_64
 	pr_info("ppc64_pft_size    = 0x%llx\n", ppc64_pft_size);
 #endif
 #ifdef CONFIG_PPC_STD_MMU_32
@@ -800,7 +800,7 @@ static __init void print_system_info(void)
 	pr_info("firmware_features = 0x%016lx\n", powerpc_firmware_features);
 #endif
 
-#ifdef CONFIG_PPC_STD_MMU_64
+#ifdef CONFIG_PPC_BOOK3S_64
 	if (htab_address)
 		pr_info("htab_address      = 0x%p\n", htab_address);
 	if (htab_hash_mask)
@@ -898,7 +898,8 @@ void __init setup_arch(char **cmdline_p)
 
 #ifdef CONFIG_PPC_MM_SLICES
 #ifdef CONFIG_PPC64
-	init_mm.context.addr_limit = DEFAULT_MAP_WINDOW_USER64;
+	if (!radix_enabled())
+		init_mm.context.slb_addr_limit = DEFAULT_MAP_WINDOW_USER64;
 #else
 #error	"context.addr_limit not initialized."
 #endif

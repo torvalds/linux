@@ -82,6 +82,8 @@
 #define EDID_QUIRK_FORCE_6BPC			(1 << 10)
 /* Force 10bpc */
 #define EDID_QUIRK_FORCE_10BPC			(1 << 11)
+/* Non desktop display (i.e. HMD) */
+#define EDID_QUIRK_NON_DESKTOP			(1 << 12)
 
 struct detailed_mode_closure {
 	struct drm_connector *connector;
@@ -157,6 +159,9 @@ static const struct edid_quirk {
 
 	/* Rotel RSX-1058 forwards sink's EDID but only does HDMI 1.1*/
 	{ "ETR", 13896, EDID_QUIRK_FORCE_8BPC },
+
+	/* HTC Vive VR Headset */
+	{ "HVR", 0xaa01, EDID_QUIRK_NON_DESKTOP },
 };
 
 /*
@@ -4408,7 +4413,7 @@ static void drm_parse_cea_ext(struct drm_connector *connector,
 }
 
 static void drm_add_display_info(struct drm_connector *connector,
-				 struct edid *edid)
+				 struct edid *edid, u32 quirks)
 {
 	struct drm_display_info *info = &connector->display_info;
 
@@ -4422,6 +4427,8 @@ static void drm_add_display_info(struct drm_connector *connector,
 	info->max_tmds_clock = 0;
 	info->dvi_dual = false;
 	info->has_hdmi_infoframe = false;
+
+	info->non_desktop = !!(quirks & EDID_QUIRK_NON_DESKTOP);
 
 	if (edid->revision < 3)
 		return;
@@ -4647,7 +4654,7 @@ int drm_add_edid_modes(struct drm_connector *connector, struct edid *edid)
 	 * To avoid multiple parsing of same block, lets parse that map
 	 * from sink info, before parsing CEA modes.
 	 */
-	drm_add_display_info(connector, edid);
+	drm_add_display_info(connector, edid, quirks);
 
 	/*
 	 * EDID spec says modes should be preferred in this order:
@@ -4844,7 +4851,8 @@ void
 drm_hdmi_avi_infoframe_quant_range(struct hdmi_avi_infoframe *frame,
 				   const struct drm_display_mode *mode,
 				   enum hdmi_quantization_range rgb_quant_range,
-				   bool rgb_quant_range_selectable)
+				   bool rgb_quant_range_selectable,
+				   bool is_hdmi2_sink)
 {
 	/*
 	 * CEA-861:
@@ -4868,8 +4876,15 @@ drm_hdmi_avi_infoframe_quant_range(struct hdmi_avi_infoframe *frame,
 	 *  YQ-field to match the RGB Quantization Range being transmitted
 	 *  (e.g., when Limited Range RGB, set YQ=0 or when Full Range RGB,
 	 *  set YQ=1) and the Sink shall ignore the YQ-field."
+	 *
+	 * Unfortunate certain sinks (eg. VIZ Model 67/E261VA) get confused
+	 * by non-zero YQ when receiving RGB. There doesn't seem to be any
+	 * good way to tell which version of CEA-861 the sink supports, so
+	 * we limit non-zero YQ to HDMI 2.0 sinks only as HDMI 2.0 is based
+	 * on on CEA-861-F.
 	 */
-	if (rgb_quant_range == HDMI_QUANTIZATION_RANGE_LIMITED)
+	if (!is_hdmi2_sink ||
+	    rgb_quant_range == HDMI_QUANTIZATION_RANGE_LIMITED)
 		frame->ycc_quantization_range =
 			HDMI_YCC_QUANTIZATION_RANGE_LIMITED;
 	else

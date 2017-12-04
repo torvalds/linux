@@ -30,6 +30,8 @@
 #include <generated/utsrelease.h>
 #include <linux/stop_machine.h>
 #include <linux/zlib.h>
+#include <drm/drm_print.h>
+
 #include "i915_drv.h"
 
 static const char *engine_str(int engine)
@@ -174,6 +176,21 @@ static void i915_error_puts(struct drm_i915_error_state_buf *e,
 
 #define err_printf(e, ...) i915_error_printf(e, __VA_ARGS__)
 #define err_puts(e, s) i915_error_puts(e, s)
+
+static void __i915_printfn_error(struct drm_printer *p, struct va_format *vaf)
+{
+	i915_error_vprintf(p->arg, vaf->fmt, *vaf->va);
+}
+
+static inline struct drm_printer
+i915_error_printer(struct drm_i915_error_state_buf *e)
+{
+	struct drm_printer p = {
+		.printfn = __i915_printfn_error,
+		.arg = e,
+	};
+	return p;
+}
 
 #ifdef CONFIG_DRM_I915_COMPRESS_ERROR
 
@@ -589,6 +606,21 @@ static void err_print_pciid(struct drm_i915_error_state_buf *m,
 		   pdev->subsystem_device);
 }
 
+static void err_print_uc(struct drm_i915_error_state_buf *m,
+			 const struct i915_error_uc *error_uc)
+{
+	struct drm_printer p = i915_error_printer(m);
+	const struct i915_gpu_state *error =
+		container_of(error_uc, typeof(*error), uc);
+
+	if (!error->device_info.has_guc)
+		return;
+
+	intel_uc_fw_dump(&error_uc->guc_fw, &p);
+	intel_uc_fw_dump(&error_uc->huc_fw, &p);
+	print_error_obj(m, NULL, "GuC log buffer", error_uc->guc_log);
+}
+
 int i915_error_state_to_str(struct drm_i915_error_state_buf *m,
 			    const struct i915_gpu_state *error)
 {
@@ -763,8 +795,6 @@ int i915_error_state_to_str(struct drm_i915_error_state_buf *m,
 
 	print_error_obj(m, NULL, "Semaphores", error->semaphore);
 
-	print_error_obj(m, NULL, "GuC log buffer", error->guc_log);
-
 	if (error->overlay)
 		intel_overlay_print_error_state(m, error->overlay);
 
@@ -773,6 +803,7 @@ int i915_error_state_to_str(struct drm_i915_error_state_buf *m,
 
 	err_print_capabilities(m, &error->device_info);
 	err_print_params(m, &error->params);
+	err_print_uc(m, &error->uc);
 
 	if (m->bytes == 0 && m->err)
 		return m->err;
@@ -831,6 +862,22 @@ static __always_inline void free_param(const char *type, void *x)
 		kfree(*(void **)x);
 }
 
+static void cleanup_params(struct i915_gpu_state *error)
+{
+#define FREE(T, x, ...) free_param(#T, &error->params.x);
+	I915_PARAMS_FOR_EACH(FREE);
+#undef FREE
+}
+
+static void cleanup_uc_state(struct i915_gpu_state *error)
+{
+	struct i915_error_uc *error_uc = &error->uc;
+
+	kfree(error_uc->guc_fw.path);
+	kfree(error_uc->huc_fw.path);
+	i915_error_object_free(error_uc->guc_log);
+}
+
 void __i915_gpu_state_free(struct kref *error_ref)
 {
 	struct i915_gpu_state *error =
@@ -857,7 +904,6 @@ void __i915_gpu_state_free(struct kref *error_ref)
 	}
 
 	i915_error_object_free(error->semaphore);
-	i915_error_object_free(error->guc_log);
 
 	for (i = 0; i < ARRAY_SIZE(error->active_bo); i++)
 		kfree(error->active_bo[i]);
@@ -866,9 +912,8 @@ void __i915_gpu_state_free(struct kref *error_ref)
 	kfree(error->overlay);
 	kfree(error->display);
 
-#define FREE(T, x, ...) free_param(#T, &error->params.x);
-	I915_PARAMS_FOR_EACH(FREE);
-#undef FREE
+	cleanup_params(error);
+	cleanup_uc_state(error);
 
 	kfree(error);
 }
@@ -1172,11 +1217,13 @@ static void error_record_engine_registers(struct i915_gpu_state *error,
 
 	if (INTEL_GEN(dev_priv) >= 6) {
 		ee->rc_psmi = I915_READ(RING_PSMI_CTL(engine->mmio_base));
-		ee->fault_reg = I915_READ(RING_FAULT_REG(engine));
-		if (INTEL_GEN(dev_priv) >= 8)
+		if (INTEL_GEN(dev_priv) >= 8) {
 			gen8_record_semaphore_state(error, engine, ee);
-		else
+			ee->fault_reg = I915_READ(GEN8_RING_FAULT_REG);
+		} else {
 			gen6_record_semaphore_state(engine, ee);
+			ee->fault_reg = I915_READ(RING_FAULT_REG(engine));
+		}
 	}
 
 	if (INTEL_GEN(dev_priv) >= 4) {
@@ -1559,15 +1606,25 @@ static void i915_capture_pinned_buffers(struct drm_i915_private *dev_priv,
 	error->pinned_bo = bo;
 }
 
-static void i915_gem_capture_guc_log_buffer(struct drm_i915_private *dev_priv,
-					    struct i915_gpu_state *error)
+static void capture_uc_state(struct i915_gpu_state *error)
 {
-	/* Capturing log buf contents won't be useful if logging was disabled */
-	if (!dev_priv->guc.log.vma || (i915_modparams.guc_log_level < 0))
+	struct drm_i915_private *i915 = error->i915;
+	struct i915_error_uc *error_uc = &error->uc;
+
+	/* Capturing uC state won't be useful if there is no GuC */
+	if (!error->device_info.has_guc)
 		return;
 
-	error->guc_log = i915_error_object_create(dev_priv,
-						  dev_priv->guc.log.vma);
+	error_uc->guc_fw = i915->guc.fw;
+	error_uc->huc_fw = i915->huc.fw;
+
+	/* Non-default firmware paths will be specified by the modparam.
+	 * As modparams are generally accesible from the userspace make
+	 * explicit copies of the firmware paths.
+	 */
+	error_uc->guc_fw.path = kstrdup(i915->guc.fw.path, GFP_ATOMIC);
+	error_uc->huc_fw.path = kstrdup(i915->huc.fw.path, GFP_ATOMIC);
+	error_uc->guc_log = i915_error_object_create(i915, i915->guc.log.vma);
 }
 
 /* Capture all registers which don't fit into another category. */
@@ -1695,6 +1752,14 @@ static __always_inline void dup_param(const char *type, void *x)
 		*(void **)x = kstrdup(*(void **)x, GFP_ATOMIC);
 }
 
+static void capture_params(struct i915_gpu_state *error)
+{
+	error->params = i915_modparams;
+#define DUP(T, x, ...) dup_param(#T, &error->params.x);
+	I915_PARAMS_FOR_EACH(DUP);
+#undef DUP
+}
+
 static int capture(void *data)
 {
 	struct i915_gpu_state *error = data;
@@ -1705,10 +1770,8 @@ static int capture(void *data)
 		ktime_to_timeval(ktime_sub(ktime_get(),
 					   error->i915->gt.last_init_time));
 
-	error->params = i915_modparams;
-#define DUP(T, x, ...) dup_param(#T, &error->params.x);
-	I915_PARAMS_FOR_EACH(DUP);
-#undef DUP
+	capture_params(error);
+	capture_uc_state(error);
 
 	i915_capture_gen_state(error->i915, error);
 	i915_capture_reg_state(error->i915, error);
@@ -1716,7 +1779,6 @@ static int capture(void *data)
 	i915_gem_record_rings(error->i915, error);
 	i915_capture_active_buffers(error->i915, error);
 	i915_capture_pinned_buffers(error->i915, error);
-	i915_gem_capture_guc_log_buffer(error->i915, error);
 
 	error->overlay = intel_overlay_capture_error_state(error->i915);
 	error->display = intel_display_capture_error_state(error->i915);

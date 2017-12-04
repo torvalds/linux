@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __REG_BITS_2700G_
 #define __REG_BITS_2700G_
 

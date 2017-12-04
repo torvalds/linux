@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 rtl8723be-objs :=		\
 		dm.o		\
 		fw.o		\

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __DRM_FB_CMA_HELPER_H__
 #define __DRM_FB_CMA_HELPER_H__
 

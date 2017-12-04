@@ -320,6 +320,7 @@ struct bus_type host1x_bus_type = {
 	.name = "host1x",
 	.match = host1x_device_match,
 	.pm = &host1x_device_pm_ops,
+	.force_dma = true,
 };
 
 static void __host1x_device_del(struct host1x_device *device)

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * This file contains the 64-bit "server" PowerPC variant
  * of the low level exception handling including exception
@@ -113,6 +114,7 @@ EXC_VIRT_NONE(0x4000, 0x100)
 	cmpwi	cr3,r10,2 ;						\
 	BRANCH_TO_C000(r10, system_reset_idle_common) ;			\
 1:									\
+	KVMTEST_PR(n) ;							\
 	END_FTR_SECTION_IFSET(CPU_FTR_HVMODE | CPU_FTR_ARCH_206)
 #else
 #define IDLETEST NOTEST
@@ -129,6 +131,7 @@ EXC_REAL_BEGIN(system_reset, 0x100, 0x100)
 
 EXC_REAL_END(system_reset, 0x100, 0x100)
 EXC_VIRT_NONE(0x4100, 0x100)
+TRAMP_KVM(PACA_EXNMI, 0x100)
 
 #ifdef CONFIG_PPC_P7_NAP
 EXC_COMMON_BEGIN(system_reset_idle_common)
@@ -232,7 +235,7 @@ BEGIN_FTR_SECTION
 	addi	r10,r10,1		/* increment paca->in_mce */
 	sth	r10,PACA_IN_MCE(r13)
 	/* Limit nested MCE to level 4 to avoid stack overflow */
-	cmpwi	r10,4
+	cmpwi	r10,MAX_MCE_DEPTH
 	bgt	2f			/* Check if we hit limit of 4 */
 	std	r11,GPR1(r1)		/* Save r1 on the stack. */
 	std	r11,0(r1)		/* make stack chain pointer */
@@ -541,7 +544,7 @@ EXC_COMMON_BEGIN(instruction_access_common)
 	RECONCILE_IRQ_STATE(r10, r11)
 	ld	r12,_MSR(r1)
 	ld	r3,_NIP(r1)
-	andis.	r4,r12,DSISR_BAD_FAULT_64S@h
+	andis.	r4,r12,DSISR_SRR1_MATCH_64S@h
 	li	r5,0x400
 	std	r3,_DAR(r1)
 	std	r4,_DSISR(r1)
@@ -605,7 +608,7 @@ EXC_COMMON_BEGIN(slb_miss_common)
 	cmpdi	cr5,r11,MSR_RI
 
 	crset	4*cr0+eq
-#ifdef CONFIG_PPC_STD_MMU_64
+#ifdef CONFIG_PPC_BOOK3S_64
 BEGIN_MMU_FTR_SECTION
 	bl	slb_allocate
 END_MMU_FTR_SECTION_IFCLR(MMU_FTR_TYPE_RADIX)
@@ -887,12 +890,6 @@ EXC_COMMON(trap_0b_common, 0xb00, unknown_exception)
 #define LOAD_SYSCALL_HANDLER(reg)					\
 	__LOAD_HANDLER(reg, system_call_common)
 
-#define SYSCALL_FASTENDIAN_TEST					\
-BEGIN_FTR_SECTION						\
-	cmpdi	r0,0x1ebe ; 					\
-	beq-	1f ;						\
-END_FTR_SECTION_IFSET(CPU_FTR_REAL_LE)				\
-
 /*
  * After SYSCALL_KVMTEST, we reach here with PACA in r13, r13 in r9,
  * and HMT_MEDIUM.
@@ -907,6 +904,13 @@ END_FTR_SECTION_IFSET(CPU_FTR_REAL_LE)				\
 	rfid ; 							\
 	b	. ;	/* prevent speculative execution */
 
+#ifdef CONFIG_PPC_FAST_ENDIAN_SWITCH
+#define SYSCALL_FASTENDIAN_TEST					\
+BEGIN_FTR_SECTION						\
+	cmpdi	r0,0x1ebe ; 					\
+	beq-	1f ;						\
+END_FTR_SECTION_IFSET(CPU_FTR_REAL_LE)				\
+
 #define SYSCALL_FASTENDIAN					\
 	/* Fast LE/BE switch system call */			\
 1:	mfspr	r12,SPRN_SRR1 ;					\
@@ -915,6 +919,10 @@ END_FTR_SECTION_IFSET(CPU_FTR_REAL_LE)				\
 	mr	r13,r9 ;					\
 	rfid ;		/* return to userspace */		\
 	b	. ;	/* prevent speculative execution */
+#else
+#define SYSCALL_FASTENDIAN_TEST
+#define SYSCALL_FASTENDIAN
+#endif /* CONFIG_PPC_FAST_ENDIAN_SWITCH */
 
 #if defined(CONFIG_RELOCATABLE)
 	/*
@@ -1032,6 +1040,8 @@ TRAMP_REAL_BEGIN(hmi_exception_early)
 	EXCEPTION_PROLOG_COMMON_3(0xe60)
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	BRANCH_LINK_TO_FAR(hmi_exception_realmode) /* Function call ABI */
+	cmpdi	cr0,r3,0
+
 	/* Windup the stack. */
 	/* Move original HSRR0 and HSRR1 into the respective regs */
 	ld	r9,_MSR(r1)
@@ -1048,10 +1058,15 @@ TRAMP_REAL_BEGIN(hmi_exception_early)
 	REST_8GPRS(2, r1)
 	REST_GPR(10, r1)
 	ld	r11,_CCR(r1)
+	REST_2GPRS(12, r1)
+	bne	1f
 	mtcr	r11
 	REST_GPR(11, r1)
-	REST_2GPRS(12, r1)
-	/* restore original r1. */
+	ld	r1,GPR1(r1)
+	hrfid
+
+1:	mtcr	r11
+	REST_GPR(11, r1)
 	ld	r1,GPR1(r1)
 
 	/*
@@ -1064,8 +1079,9 @@ hmi_exception_after_realmode:
 	EXCEPTION_PROLOG_0(PACA_EXGEN)
 	b	tramp_real_hmi_exception
 
-EXC_COMMON_ASYNC(hmi_exception_common, 0xe60, handle_hmi_exception)
-
+EXC_COMMON_BEGIN(hmi_exception_common)
+EXCEPTION_COMMON(PACA_EXGEN, 0xe60, hmi_exception_common, handle_hmi_exception,
+        ret_from_except, FINISH_NAP;ADD_NVGPRS;ADD_RECONCILE;RUNLATCH_ON)
 
 EXC_REAL_OOL_MASKABLE_HV(h_doorbell, 0xe80, 0x20)
 EXC_VIRT_OOL_MASKABLE_HV(h_doorbell, 0x4e80, 0x20, 0xe80)
@@ -1504,8 +1520,8 @@ USE_TEXT_SECTION()
  */
 	.balign	IFETCH_ALIGN_BYTES
 do_hash_page:
-	#ifdef CONFIG_PPC_STD_MMU_64
-	lis	r0,DSISR_BAD_FAULT_64S@h
+#ifdef CONFIG_PPC_BOOK3S_64
+	lis	r0,(DSISR_BAD_FAULT_64S|DSISR_DABRMATCH)@h
 	ori	r0,r0,DSISR_BAD_FAULT_64S@l
 	and.	r0,r4,r0		/* weird error? */
 	bne-	handle_page_fault	/* if not, try to insert a HPTE */
@@ -1535,7 +1551,7 @@ do_hash_page:
 
 	/* Reload DSISR into r4 for the DABR check below */
 	ld      r4,_DSISR(r1)
-#endif /* CONFIG_PPC_STD_MMU_64 */
+#endif /* CONFIG_PPC_BOOK3S_64 */
 
 /* Here we have a page fault that hash_page can't handle. */
 handle_page_fault:
@@ -1564,7 +1580,7 @@ handle_dabr_fault:
 12:	b       ret_from_except_lite
 
 
-#ifdef CONFIG_PPC_STD_MMU_64
+#ifdef CONFIG_PPC_BOOK3S_64
 /* We have a page fault that hash_page could handle but HV refused
  * the PTE insertion
  */

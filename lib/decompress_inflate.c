@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #ifdef STATIC
 #define PREBOOT
 /* Pre-boot environment: included */

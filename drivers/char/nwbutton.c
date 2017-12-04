@@ -23,11 +23,11 @@
 #define __NWBUTTON_C		/* Tell the header file who we are */
 #include "nwbutton.h"
 
-static void button_sequence_finished (unsigned long parameters);
+static void button_sequence_finished(struct timer_list *unused);
 
 static int button_press_count;		/* The count of button presses */
 /* Times for the end of a sequence */
-static DEFINE_TIMER(button_timer, button_sequence_finished, 0, 0);
+static DEFINE_TIMER(button_timer, button_sequence_finished);
 static DECLARE_WAIT_QUEUE_HEAD(button_wait_queue); /* Used for blocking read */
 static char button_output_buffer[32];	/* Stores data to write out of device */
 static int bcount;			/* The number of bytes in the buffer */
@@ -127,7 +127,7 @@ static void button_consume_callbacks (int bpcount)
  * any matching registered function callbacks, initiate reboot, etc.).
  */
 
-static void button_sequence_finished (unsigned long parameters)
+static void button_sequence_finished(struct timer_list *unused)
 {
 	if (IS_ENABLED(CONFIG_NWBUTTON_REBOOT) &&
 	    button_press_count == reboot_count)

@@ -294,6 +294,18 @@ static void g4x_get_stolen_reserved(struct drm_i915_private *dev_priv,
 				     ELK_STOLEN_RESERVED);
 	dma_addr_t stolen_top = dev_priv->mm.stolen_base + ggtt->stolen_size;
 
+	if ((reg_val & G4X_STOLEN_RESERVED_ENABLE) == 0) {
+		*base = 0;
+		*size = 0;
+		return;
+	}
+
+	/*
+	 * Whether ILK really reuses the ELK register for this is unclear.
+	 * Let's see if we catch anyone with this supposedly enabled on ILK.
+	 */
+	WARN(IS_GEN5(dev_priv), "ILK stolen reserved found? 0x%08x\n", reg_val);
+
 	*base = (reg_val & G4X_STOLEN_RESERVED_ADDR2_MASK) << 16;
 
 	WARN_ON((reg_val & G4X_STOLEN_RESERVED_ADDR1_MASK) < *base);
@@ -312,6 +324,12 @@ static void gen6_get_stolen_reserved(struct drm_i915_private *dev_priv,
 				     dma_addr_t *base, u32 *size)
 {
 	uint32_t reg_val = I915_READ(GEN6_STOLEN_RESERVED);
+
+	if ((reg_val & GEN6_STOLEN_RESERVED_ENABLE) == 0) {
+		*base = 0;
+		*size = 0;
+		return;
+	}
 
 	*base = reg_val & GEN6_STOLEN_RESERVED_ADDR_MASK;
 
@@ -339,6 +357,12 @@ static void gen7_get_stolen_reserved(struct drm_i915_private *dev_priv,
 {
 	uint32_t reg_val = I915_READ(GEN6_STOLEN_RESERVED);
 
+	if ((reg_val & GEN6_STOLEN_RESERVED_ENABLE) == 0) {
+		*base = 0;
+		*size = 0;
+		return;
+	}
+
 	*base = reg_val & GEN7_STOLEN_RESERVED_ADDR_MASK;
 
 	switch (reg_val & GEN7_STOLEN_RESERVED_SIZE_MASK) {
@@ -358,6 +382,12 @@ static void chv_get_stolen_reserved(struct drm_i915_private *dev_priv,
 				    dma_addr_t *base, u32 *size)
 {
 	uint32_t reg_val = I915_READ(GEN6_STOLEN_RESERVED);
+
+	if ((reg_val & GEN6_STOLEN_RESERVED_ENABLE) == 0) {
+		*base = 0;
+		*size = 0;
+		return;
+	}
 
 	*base = reg_val & GEN6_STOLEN_RESERVED_ADDR_MASK;
 
@@ -386,6 +416,12 @@ static void bdw_get_stolen_reserved(struct drm_i915_private *dev_priv,
 	struct i915_ggtt *ggtt = &dev_priv->ggtt;
 	uint32_t reg_val = I915_READ(GEN6_STOLEN_RESERVED);
 	dma_addr_t stolen_top;
+
+	if ((reg_val & GEN6_STOLEN_RESERVED_ENABLE) == 0) {
+		*base = 0;
+		*size = 0;
+		return;
+	}
 
 	stolen_top = dev_priv->mm.stolen_base + ggtt->stolen_size;
 
@@ -436,14 +472,12 @@ int i915_gem_init_stolen(struct drm_i915_private *dev_priv)
 	case 3:
 		break;
 	case 4:
-		if (IS_G4X(dev_priv))
-			g4x_get_stolen_reserved(dev_priv,
-						&reserved_base, &reserved_size);
-		break;
+		if (!IS_G4X(dev_priv))
+			break;
+		/* fall through */
 	case 5:
-		/* Assume the gen6 maximum for the older platforms. */
-		reserved_size = 1024 * 1024;
-		reserved_base = stolen_top - reserved_size;
+		g4x_get_stolen_reserved(dev_priv,
+					&reserved_base, &reserved_size);
 		break;
 	case 6:
 		gen6_get_stolen_reserved(dev_priv,
@@ -473,9 +507,9 @@ int i915_gem_init_stolen(struct drm_i915_private *dev_priv)
 	if (reserved_base < dev_priv->mm.stolen_base ||
 	    reserved_base + reserved_size > stolen_top) {
 		dma_addr_t reserved_top = reserved_base + reserved_size;
-		DRM_DEBUG_KMS("Stolen reserved area [%pad - %pad] outside stolen memory [%pad - %pad]\n",
-			      &reserved_base, &reserved_top,
-			      &dev_priv->mm.stolen_base, &stolen_top);
+		DRM_ERROR("Stolen reserved area [%pad - %pad] outside stolen memory [%pad - %pad]\n",
+			  &reserved_base, &reserved_top,
+			  &dev_priv->mm.stolen_base, &stolen_top);
 		return 0;
 	}
 

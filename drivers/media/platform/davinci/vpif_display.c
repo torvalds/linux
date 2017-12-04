@@ -1232,6 +1232,11 @@ static int vpif_async_complete(struct v4l2_async_notifier *notifier)
 	return vpif_probe_complete();
 }
 
+static const struct v4l2_async_notifier_operations vpif_async_ops = {
+	.bound = vpif_async_bound,
+	.complete = vpif_async_complete,
+};
+
 /*
  * vpif_probe: This function creates device entries by register itself to the
  * V4L2 driver and initializes fields of each channel objects
@@ -1313,8 +1318,7 @@ static __init int vpif_probe(struct platform_device *pdev)
 	} else {
 		vpif_obj.notifier.subdevs = vpif_obj.config->asd;
 		vpif_obj.notifier.num_subdevs = vpif_obj.config->asd_sizes[0];
-		vpif_obj.notifier.bound = vpif_async_bound;
-		vpif_obj.notifier.complete = vpif_async_complete;
+		vpif_obj.notifier.ops = &vpif_async_ops;
 		err = v4l2_async_notifier_register(&vpif_obj.v4l2_dev,
 						   &vpif_obj.notifier);
 		if (err) {

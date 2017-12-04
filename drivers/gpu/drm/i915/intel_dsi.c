@@ -662,11 +662,11 @@ static void vlv_dsi_clear_device_ready(struct intel_encoder *encoder)
 	}
 }
 
-static void intel_dsi_port_enable(struct intel_encoder *encoder)
+static void intel_dsi_port_enable(struct intel_encoder *encoder,
+				  const struct intel_crtc_state *crtc_state)
 {
-	struct drm_device *dev = encoder->base.dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct intel_crtc *intel_crtc = to_intel_crtc(encoder->base.crtc);
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
 	enum port port;
 
@@ -705,7 +705,7 @@ static void intel_dsi_port_enable(struct intel_encoder *encoder)
 			if (IS_BROXTON(dev_priv))
 				temp |= LANE_CONFIGURATION_DUAL_LINK_A;
 			else
-				temp |= intel_crtc->pipe ?
+				temp |= crtc->pipe ?
 					LANE_CONFIGURATION_DUAL_LINK_B :
 					LANE_CONFIGURATION_DUAL_LINK_A;
 		}
@@ -875,7 +875,7 @@ static void intel_dsi_pre_enable(struct intel_encoder *encoder,
 
 		intel_dsi_vbt_exec_sequence(intel_dsi, MIPI_SEQ_DISPLAY_ON);
 
-		intel_dsi_port_enable(encoder);
+		intel_dsi_port_enable(encoder, pipe_config);
 	}
 
 	intel_panel_enable_backlight(pipe_config, conn_state);
@@ -1082,7 +1082,7 @@ static void bxt_dsi_get_pipe_config(struct intel_encoder *encoder,
 	struct drm_display_mode *adjusted_mode =
 					&pipe_config->base.adjusted_mode;
 	struct drm_display_mode *adjusted_mode_sw;
-	struct intel_crtc *intel_crtc;
+	struct intel_crtc *crtc = to_intel_crtc(pipe_config->base.crtc);
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
 	unsigned int lane_count = intel_dsi->lane_count;
 	unsigned int bpp, fmt;
@@ -1093,8 +1093,7 @@ static void bxt_dsi_get_pipe_config(struct intel_encoder *encoder,
 				crtc_hblank_start_sw, crtc_hblank_end_sw;
 
 	/* FIXME: hw readout should not depend on SW state */
-	intel_crtc = to_intel_crtc(encoder->base.crtc);
-	adjusted_mode_sw = &intel_crtc->config->base.adjusted_mode;
+	adjusted_mode_sw = &crtc->config->base.adjusted_mode;
 
 	/*
 	 * Atleast one port is active as encoder->get_config called only if
@@ -1242,6 +1241,8 @@ static void intel_dsi_get_config(struct intel_encoder *encoder,
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	u32 pclk;
 	DRM_DEBUG_KMS("\n");
+
+	pipe_config->output_types |= BIT(INTEL_OUTPUT_DSI);
 
 	if (IS_GEN9_LP(dev_priv))
 		bxt_dsi_get_pipe_config(encoder, pipe_config);

@@ -23,8 +23,8 @@
  */
 
 #include "intel_uc.h"
+#include "intel_guc_submission.h"
 #include "i915_drv.h"
-#include "i915_guc_submission.h"
 
 /* Reset GuC providing us with fresh state for both GuC and HuC.
  */
@@ -33,9 +33,9 @@ static int __intel_uc_reset_hw(struct drm_i915_private *dev_priv)
 	int ret;
 	u32 guc_status;
 
-	ret = intel_guc_reset(dev_priv);
+	ret = intel_reset_guc(dev_priv);
 	if (ret) {
-		DRM_ERROR("GuC reset failed, ret = %d\n", ret);
+		DRM_ERROR("Failed to reset GuC, ret = %d\n", ret);
 		return ret;
 	}
 
@@ -168,7 +168,7 @@ int intel_uc_init_hw(struct drm_i915_private *dev_priv)
 		 * This is stuff we need to have available at fw load time
 		 * if we are planning to enable submission later
 		 */
-		ret = i915_guc_submission_init(dev_priv);
+		ret = intel_guc_submission_init(guc);
 		if (ret)
 			goto err_guc;
 	}
@@ -217,7 +217,7 @@ int intel_uc_init_hw(struct drm_i915_private *dev_priv)
 		if (i915_modparams.guc_log_level >= 0)
 			gen9_enable_guc_interrupts(dev_priv);
 
-		ret = i915_guc_submission_enable(dev_priv);
+		ret = intel_guc_submission_enable(guc);
 		if (ret)
 			goto err_interrupts;
 	}
@@ -246,7 +246,7 @@ err_log_capture:
 	guc_capture_load_err_log(guc);
 err_submission:
 	if (i915_modparams.enable_guc_submission)
-		i915_guc_submission_fini(dev_priv);
+		intel_guc_submission_fini(guc);
 err_guc:
 	i915_ggtt_disable_guc(dev_priv);
 
@@ -271,19 +271,21 @@ err_guc:
 
 void intel_uc_fini_hw(struct drm_i915_private *dev_priv)
 {
-	guc_free_load_err_log(&dev_priv->guc);
+	struct intel_guc *guc = &dev_priv->guc;
+
+	guc_free_load_err_log(guc);
 
 	if (!i915_modparams.enable_guc_loading)
 		return;
 
 	if (i915_modparams.enable_guc_submission)
-		i915_guc_submission_disable(dev_priv);
+		intel_guc_submission_disable(guc);
 
-	guc_disable_communication(&dev_priv->guc);
+	guc_disable_communication(guc);
 
 	if (i915_modparams.enable_guc_submission) {
 		gen9_disable_guc_interrupts(dev_priv);
-		i915_guc_submission_fini(dev_priv);
+		intel_guc_submission_fini(guc);
 	}
 
 	i915_ggtt_disable_guc(dev_priv);

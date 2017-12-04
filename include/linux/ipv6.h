@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _IPV6_H
 #define _IPV6_H
 
@@ -72,6 +73,7 @@ struct ipv6_devconf {
 	__u32		enhanced_dad;
 	__u32		addr_gen_mode;
 	__s32		disable_policy;
+	__s32           ndisc_tclass;
 
 	struct ctl_table_header *sysctl_header;
 };

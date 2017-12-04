@@ -282,8 +282,16 @@ static struct attribute *nd_pfn_attributes[] = {
 	NULL,
 };
 
+static umode_t pfn_visible(struct kobject *kobj, struct attribute *a, int n)
+{
+	if (a == &dev_attr_resource.attr)
+		return 0400;
+	return a->mode;
+}
+
 struct attribute_group nd_pfn_attribute_group = {
 	.attrs = nd_pfn_attributes,
+	.is_visible = pfn_visible,
 };
 
 static const struct attribute_group *nd_pfn_attribute_groups[] = {

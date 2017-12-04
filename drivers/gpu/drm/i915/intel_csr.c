@@ -37,8 +37,8 @@
 #define I915_CSR_GLK "i915/glk_dmc_ver1_04.bin"
 #define GLK_CSR_VERSION_REQUIRED	CSR_VERSION(1, 4)
 
-#define I915_CSR_CNL "i915/cnl_dmc_ver1_04.bin"
-#define CNL_CSR_VERSION_REQUIRED	CSR_VERSION(1, 4)
+#define I915_CSR_CNL "i915/cnl_dmc_ver1_06.bin"
+#define CNL_CSR_VERSION_REQUIRED	CSR_VERSION(1, 6)
 
 #define I915_CSR_KBL "i915/kbl_dmc_ver1_01.bin"
 MODULE_FIRMWARE(I915_CSR_KBL);
@@ -198,6 +198,7 @@ intel_get_stepping_info(struct drm_i915_private *dev_priv)
 		si = bxt_stepping_info;
 	} else {
 		size = 0;
+		si = NULL;
 	}
 
 	if (INTEL_REVID(dev_priv) < size)

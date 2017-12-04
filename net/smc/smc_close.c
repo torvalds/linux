@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *  Shared Memory Communications over RDMA (SMC-R) and RoCE
  *
@@ -360,7 +361,8 @@ static void smc_close_passive_work(struct work_struct *work)
 	case SMC_PEERCLOSEWAIT1:
 		if (rxflags->peer_done_writing)
 			sk->sk_state = SMC_PEERCLOSEWAIT2;
-		/* fall through to check for closing */
+		/* fall through */
+		/* to check for closing */
 	case SMC_PEERCLOSEWAIT2:
 	case SMC_PEERFINCLOSEWAIT:
 		if (!smc_cdc_rxed_any_close(&smc->conn))

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *  linux/fs/proc/array.c
  *
@@ -137,7 +138,7 @@ static const char * const task_state_array[] = {
 static inline const char *get_task_state(struct task_struct *tsk)
 {
 	BUILD_BUG_ON(1 + ilog2(TASK_REPORT_MAX) != ARRAY_SIZE(task_state_array));
-	return task_state_array[__get_task_state(tsk)];
+	return task_state_array[task_state_index(tsk)];
 }
 
 static inline int get_task_umask(struct task_struct *tsk)
@@ -365,6 +366,11 @@ static void task_cpus_allowed(struct seq_file *m, struct task_struct *task)
 		   cpumask_pr_args(&task->cpus_allowed));
 }
 
+static inline void task_core_dumping(struct seq_file *m, struct mm_struct *mm)
+{
+	seq_printf(m, "CoreDumping:\t%d\n", !!mm->core_state);
+}
+
 int proc_pid_status(struct seq_file *m, struct pid_namespace *ns,
 			struct pid *pid, struct task_struct *task)
 {
@@ -375,6 +381,7 @@ int proc_pid_status(struct seq_file *m, struct pid_namespace *ns,
 
 	if (mm) {
 		task_mem(m, mm);
+		task_core_dumping(m, mm);
 		mmput(mm);
 	}
 	task_sig(m, task);
@@ -453,7 +460,7 @@ static int do_task_stat(struct seq_file *m, struct pid_namespace *ns,
 		cutime = sig->cutime;
 		cstime = sig->cstime;
 		cgtime = sig->cgtime;
-		rsslim = ACCESS_ONCE(sig->rlim[RLIMIT_RSS].rlim_cur);
+		rsslim = READ_ONCE(sig->rlim[RLIMIT_RSS].rlim_cur);
 
 		/* add up live thread stats at the group level */
 		if (whole) {

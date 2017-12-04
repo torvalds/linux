@@ -343,6 +343,10 @@ eb_vma_misplaced(const struct drm_i915_gem_exec_object2 *entry,
 	    (vma->node.start + vma->node.size - 1) >> 32)
 		return true;
 
+	if (flags & __EXEC_OBJECT_NEEDS_MAP &&
+	    !i915_vma_is_map_and_fenceable(vma))
+		return true;
+
 	return false;
 }
 
@@ -2070,23 +2074,27 @@ static struct drm_syncobj **
 get_fence_array(struct drm_i915_gem_execbuffer2 *args,
 		struct drm_file *file)
 {
-	const unsigned int nfences = args->num_cliprects;
+	const unsigned long nfences = args->num_cliprects;
 	struct drm_i915_gem_exec_fence __user *user;
 	struct drm_syncobj **fences;
-	unsigned int n;
+	unsigned long n;
 	int err;
 
 	if (!(args->flags & I915_EXEC_FENCE_ARRAY))
 		return NULL;
 
-	if (nfences > SIZE_MAX / sizeof(*fences))
+	/* Check multiplication overflow for access_ok() and kvmalloc_array() */
+	BUILD_BUG_ON(sizeof(size_t) > sizeof(unsigned long));
+	if (nfences > min_t(unsigned long,
+			    ULONG_MAX / sizeof(*user),
+			    SIZE_MAX / sizeof(*fences)))
 		return ERR_PTR(-EINVAL);
 
 	user = u64_to_user_ptr(args->cliprects_ptr);
-	if (!access_ok(VERIFY_READ, user, nfences * 2 * sizeof(u32)))
+	if (!access_ok(VERIFY_READ, user, nfences * sizeof(*user)))
 		return ERR_PTR(-EFAULT);
 
-	fences = kvmalloc_array(args->num_cliprects, sizeof(*fences),
+	fences = kvmalloc_array(nfences, sizeof(*fences),
 				__GFP_NOWARN | GFP_KERNEL);
 	if (!fences)
 		return ERR_PTR(-ENOMEM);
@@ -2100,12 +2108,20 @@ get_fence_array(struct drm_i915_gem_execbuffer2 *args,
 			goto err;
 		}
 
+		if (fence.flags & __I915_EXEC_FENCE_UNKNOWN_FLAGS) {
+			err = -EINVAL;
+			goto err;
+		}
+
 		syncobj = drm_syncobj_find(file, fence.handle);
 		if (!syncobj) {
 			DRM_DEBUG("Invalid syncobj handle provided\n");
 			err = -ENOENT;
 			goto err;
 		}
+
+		BUILD_BUG_ON(~(ARCH_KMALLOC_MINALIGN - 1) &
+			     ~__I915_EXEC_FENCE_UNKNOWN_FLAGS);
 
 		fences[n] = ptr_pack_bits(syncobj, fence.flags, 2);
 	}
@@ -2435,6 +2451,26 @@ err_in_fence:
 	return err;
 }
 
+static size_t eb_element_size(void)
+{
+	return (sizeof(struct drm_i915_gem_exec_object2) +
+		sizeof(struct i915_vma *) +
+		sizeof(unsigned int));
+}
+
+static bool check_buffer_count(size_t count)
+{
+	const size_t sz = eb_element_size();
+
+	/*
+	 * When using LUT_HANDLE, we impose a limit of INT_MAX for the lookup
+	 * array size (see eb_create()). Otherwise, we can accept an array as
+	 * large as can be addressed (though use large arrays at your peril)!
+	 */
+
+	return !(count < 1 || count > INT_MAX || count > SIZE_MAX / sz - 1);
+}
+
 /*
  * Legacy execbuffer just creates an exec2 list from the original exec object
  * list array and passes it to the real function.
@@ -2443,18 +2479,16 @@ int
 i915_gem_execbuffer(struct drm_device *dev, void *data,
 		    struct drm_file *file)
 {
-	const size_t sz = (sizeof(struct drm_i915_gem_exec_object2) +
-			   sizeof(struct i915_vma *) +
-			   sizeof(unsigned int));
 	struct drm_i915_gem_execbuffer *args = data;
 	struct drm_i915_gem_execbuffer2 exec2;
 	struct drm_i915_gem_exec_object *exec_list = NULL;
 	struct drm_i915_gem_exec_object2 *exec2_list = NULL;
+	const size_t count = args->buffer_count;
 	unsigned int i;
 	int err;
 
-	if (args->buffer_count < 1 || args->buffer_count > SIZE_MAX / sz - 1) {
-		DRM_DEBUG("execbuf2 with %d buffers\n", args->buffer_count);
+	if (!check_buffer_count(count)) {
+		DRM_DEBUG("execbuf2 with %zd buffers\n", count);
 		return -EINVAL;
 	}
 
@@ -2473,9 +2507,9 @@ i915_gem_execbuffer(struct drm_device *dev, void *data,
 		return -EINVAL;
 
 	/* Copy in the exec list from userland */
-	exec_list = kvmalloc_array(args->buffer_count, sizeof(*exec_list),
+	exec_list = kvmalloc_array(count, sizeof(*exec_list),
 				   __GFP_NOWARN | GFP_KERNEL);
-	exec2_list = kvmalloc_array(args->buffer_count + 1, sz,
+	exec2_list = kvmalloc_array(count + 1, eb_element_size(),
 				    __GFP_NOWARN | GFP_KERNEL);
 	if (exec_list == NULL || exec2_list == NULL) {
 		DRM_DEBUG("Failed to allocate exec list for %d buffers\n",
@@ -2486,7 +2520,7 @@ i915_gem_execbuffer(struct drm_device *dev, void *data,
 	}
 	err = copy_from_user(exec_list,
 			     u64_to_user_ptr(args->buffers_ptr),
-			     sizeof(*exec_list) * args->buffer_count);
+			     sizeof(*exec_list) * count);
 	if (err) {
 		DRM_DEBUG("copy %d exec entries failed %d\n",
 			  args->buffer_count, err);
@@ -2536,16 +2570,14 @@ int
 i915_gem_execbuffer2(struct drm_device *dev, void *data,
 		     struct drm_file *file)
 {
-	const size_t sz = (sizeof(struct drm_i915_gem_exec_object2) +
-			   sizeof(struct i915_vma *) +
-			   sizeof(unsigned int));
 	struct drm_i915_gem_execbuffer2 *args = data;
 	struct drm_i915_gem_exec_object2 *exec2_list;
 	struct drm_syncobj **fences = NULL;
+	const size_t count = args->buffer_count;
 	int err;
 
-	if (args->buffer_count < 1 || args->buffer_count > SIZE_MAX / sz - 1) {
-		DRM_DEBUG("execbuf2 with %d buffers\n", args->buffer_count);
+	if (!check_buffer_count(count)) {
+		DRM_DEBUG("execbuf2 with %zd buffers\n", count);
 		return -EINVAL;
 	}
 
@@ -2553,17 +2585,17 @@ i915_gem_execbuffer2(struct drm_device *dev, void *data,
 		return -EINVAL;
 
 	/* Allocate an extra slot for use by the command parser */
-	exec2_list = kvmalloc_array(args->buffer_count + 1, sz,
+	exec2_list = kvmalloc_array(count + 1, eb_element_size(),
 				    __GFP_NOWARN | GFP_KERNEL);
 	if (exec2_list == NULL) {
-		DRM_DEBUG("Failed to allocate exec list for %d buffers\n",
-			  args->buffer_count);
+		DRM_DEBUG("Failed to allocate exec list for %zd buffers\n",
+			  count);
 		return -ENOMEM;
 	}
 	if (copy_from_user(exec2_list,
 			   u64_to_user_ptr(args->buffers_ptr),
-			   sizeof(*exec2_list) * args->buffer_count)) {
-		DRM_DEBUG("copy %d exec entries failed\n", args->buffer_count);
+			   sizeof(*exec2_list) * count)) {
+		DRM_DEBUG("copy %zd exec entries failed\n", count);
 		kvfree(exec2_list);
 		return -EFAULT;
 	}

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * blockops.S: Common block zero optimized routines.
  *

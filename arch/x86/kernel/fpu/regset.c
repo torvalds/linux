@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * FPU register's regset abstraction, for ptrace, core dumps, etc.
  */

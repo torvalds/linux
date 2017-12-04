@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __ALPHA_HWRPB_H
 #define __ALPHA_HWRPB_H
 

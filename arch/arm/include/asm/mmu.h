@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __ARM_MMU_H
 #define __ARM_MMU_H
 
@@ -13,6 +14,10 @@ typedef struct {
 	unsigned long	sigpage;
 #ifdef CONFIG_VDSO
 	unsigned long	vdso;
+#endif
+#ifdef CONFIG_BINFMT_ELF_FDPIC
+	unsigned long	exec_fdpic_loadmap;
+	unsigned long	interp_fdpic_loadmap;
 #endif
 } mm_context_t;
 
@@ -33,6 +38,10 @@ typedef struct {
  */
 typedef struct {
 	unsigned long	end_brk;
+#ifdef CONFIG_BINFMT_ELF_FDPIC
+	unsigned long	exec_fdpic_loadmap;
+	unsigned long	interp_fdpic_loadmap;
+#endif
 } mm_context_t;
 
 #endif

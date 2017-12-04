@@ -171,7 +171,7 @@ static int qtnf_mac_init_single_band(struct wiphy *wiphy,
 
 	wiphy->bands[band]->band = band;
 
-	ret = qtnf_cmd_get_mac_chan_info(mac, wiphy->bands[band]);
+	ret = qtnf_cmd_band_info_get(mac, wiphy->bands[band]);
 	if (ret) {
 		pr_err("MAC%u: band %u: failed to get chans info: %d\n",
 		       mac->macid, band, ret);
@@ -179,7 +179,6 @@ static int qtnf_mac_init_single_band(struct wiphy *wiphy,
 	}
 
 	qtnf_band_init_rates(wiphy->bands[band]);
-	qtnf_band_setup_htvht_caps(&mac->macinfo, wiphy->bands[band]);
 
 	return 0;
 }
@@ -289,7 +288,7 @@ static struct qtnf_wmac *qtnf_core_mac_alloc(struct qtnf_bus *bus,
 		mac->iflist[i].vifid = i;
 		qtnf_sta_list_init(&mac->iflist[i].sta_list);
 		mutex_init(&mac->mac_lock);
-		init_timer(&mac->scan_timeout);
+		timer_setup(&mac->scan_timeout, NULL, 0);
 	}
 
 	qtnf_mac_init_primary_intf(mac);
@@ -617,6 +616,33 @@ out:
 	return ndev;
 }
 EXPORT_SYMBOL_GPL(qtnf_classify_skb);
+
+void qtnf_wake_all_queues(struct net_device *ndev)
+{
+	struct qtnf_vif *vif = qtnf_netdev_get_priv(ndev);
+	struct qtnf_wmac *mac;
+	struct qtnf_bus *bus;
+	int macid;
+	int i;
+
+	if (unlikely(!vif || !vif->mac || !vif->mac->bus))
+		return;
+
+	bus = vif->mac->bus;
+
+	for (macid = 0; macid < QTNF_MAX_MAC; macid++) {
+		if (!(bus->hw_info.mac_bitmap & BIT(macid)))
+			continue;
+
+		mac = bus->mac[macid];
+		for (i = 0; i < QTNF_MAX_INTF; i++) {
+			vif = &mac->iflist[i];
+			if (vif->netdev && netif_queue_stopped(vif->netdev))
+				netif_tx_wake_all_queues(vif->netdev);
+		}
+	}
+}
+EXPORT_SYMBOL_GPL(qtnf_wake_all_queues);
 
 MODULE_AUTHOR("Quantenna Communications");
 MODULE_DESCRIPTION("Quantenna 802.11 wireless LAN FullMAC driver.");

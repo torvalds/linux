@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _LINUX_IF_TAP_H_
 #define _LINUX_IF_TAP_H_
 
@@ -22,6 +23,10 @@ static inline struct skb_array *tap_get_skb_array(struct file *f)
 #include <net/sock.h>
 #include <linux/skb_array.h>
 
+/*
+ * Maximum times a tap device can be opened. This can be used to
+ * configure the number of receive queue, e.g. for multiqueue virtio.
+ */
 #define MAX_TAP_QUEUES 256
 
 struct tap_queue;

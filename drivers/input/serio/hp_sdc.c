@@ -794,7 +794,7 @@ int hp_sdc_release_cooked_irq(hp_sdc_irqhook *callback)
 
 /************************* Keepalive timer task *********************/
 
-static void hp_sdc_kicker(unsigned long data)
+static void hp_sdc_kicker(struct timer_list *unused)
 {
 	tasklet_schedule(&hp_sdc.task);
 	/* Re-insert the periodic task. */
@@ -909,9 +909,8 @@ static int __init hp_sdc_init(void)
 	down(&s_sync); /* Wait for t_sync to complete */
 
 	/* Create the keepalive task */
-	init_timer(&hp_sdc.kicker);
+	timer_setup(&hp_sdc.kicker, hp_sdc_kicker, 0);
 	hp_sdc.kicker.expires = jiffies + HZ;
-	hp_sdc.kicker.function = &hp_sdc_kicker;
 	add_timer(&hp_sdc.kicker);
 
 	hp_sdc.dev_err = 0;

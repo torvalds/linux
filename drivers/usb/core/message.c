@@ -1,8 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * message.c - synchronous message handling
  *
  * Released under the GPLv2 only.
- * SPDX-License-Identifier: GPL-2.0
  */
 
 #include <linux/pci.h>	/* for scatterlist macros */
@@ -918,7 +918,8 @@ int usb_get_device_descriptor(struct usb_device *dev, unsigned int size)
 /**
  * usb_get_status - issues a GET_STATUS call
  * @dev: the device whose status is being checked
- * @type: USB_RECIP_*; for device, interface, or endpoint
+ * @recip: USB_RECIP_*; for device, interface, or endpoint
+ * @type: USB_STATUS_TYPE_*; for standard or PTM status types
  * @target: zero (for device), else interface or endpoint number
  * @data: pointer to two bytes of bitmap data
  * Context: !in_interrupt ()
@@ -937,24 +938,58 @@ int usb_get_device_descriptor(struct usb_device *dev, unsigned int size)
  * Returns 0 and the status value in *@data (in host byte order) on success,
  * or else the status code from the underlying usb_control_msg() call.
  */
-int usb_get_status(struct usb_device *dev, int type, int target, void *data)
+int usb_get_status(struct usb_device *dev, int recip, int type, int target,
+		void *data)
 {
 	int ret;
-	__le16 *status = kmalloc(sizeof(*status), GFP_KERNEL);
+	void *status;
+	int length;
 
+	switch (type) {
+	case USB_STATUS_TYPE_STANDARD:
+		length = 2;
+		break;
+	case USB_STATUS_TYPE_PTM:
+		if (recip != USB_RECIP_DEVICE)
+			return -EINVAL;
+
+		length = 4;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	status =  kmalloc(length, GFP_KERNEL);
 	if (!status)
 		return -ENOMEM;
 
 	ret = usb_control_msg(dev, usb_rcvctrlpipe(dev, 0),
-		USB_REQ_GET_STATUS, USB_DIR_IN | type, 0, target, status,
-		sizeof(*status), USB_CTRL_GET_TIMEOUT);
+		USB_REQ_GET_STATUS, USB_DIR_IN | recip, USB_STATUS_TYPE_STANDARD,
+		target, status, length, USB_CTRL_GET_TIMEOUT);
 
-	if (ret == 2) {
-		*(u16 *) data = le16_to_cpu(*status);
+	switch (ret) {
+	case 4:
+		if (type != USB_STATUS_TYPE_PTM) {
+			ret = -EIO;
+			break;
+		}
+
+		*(u32 *) data = le32_to_cpu(*(__le32 *) status);
 		ret = 0;
-	} else if (ret >= 0) {
+		break;
+	case 2:
+		if (type != USB_STATUS_TYPE_STANDARD) {
+			ret = -EIO;
+			break;
+		}
+
+		*(u16 *) data = le16_to_cpu(*(__le16 *) status);
+		ret = 0;
+		break;
+	default:
 		ret = -EIO;
 	}
+
 	kfree(status);
 	return ret;
 }

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Definitions for the "Baboon" custom IC on the PowerBook 190.
  */

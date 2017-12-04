@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * xHCI host controller driver
  *
@@ -5,19 +6,6 @@
  *
  * Author: Sarah Sharp
  * Some code borrowed from the Linux EHCI driver.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
- * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- * for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 
@@ -634,7 +622,10 @@ static int xhci_enter_test_mode(struct xhci_hcd *xhci,
 	xhci_dbg(xhci, "Disable all slots\n");
 	spin_unlock_irqrestore(&xhci->lock, *flags);
 	for (i = 1; i <= HCS_MAX_SLOTS(xhci->hcs_params1); i++) {
-		retval = xhci_disable_slot(xhci, NULL, i);
+		if (!xhci->devs[i])
+			continue;
+
+		retval = xhci_disable_slot(xhci, i);
 		if (retval)
 			xhci_err(xhci, "Failed to disable slot %d, %d. Enter test mode anyway\n",
 				 i, retval);
@@ -1374,6 +1365,7 @@ int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 			break;
 		case USB_PORT_FEAT_C_SUSPEND:
 			bus_state->port_c_suspend &= ~(1 << wIndex);
+			/* fall through */
 		case USB_PORT_FEAT_C_RESET:
 		case USB_PORT_FEAT_C_BH_PORT_RESET:
 		case USB_PORT_FEAT_C_CONNECTION:

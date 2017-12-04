@@ -116,6 +116,6 @@ int intel_uc_fw_upload(struct intel_uc_fw *uc_fw,
 		       int (*xfer)(struct intel_uc_fw *uc_fw,
 				   struct i915_vma *vma));
 void intel_uc_fw_fini(struct intel_uc_fw *uc_fw);
-void intel_uc_fw_dump(struct intel_uc_fw *uc_fw, struct drm_printer *p);
+void intel_uc_fw_dump(const struct intel_uc_fw *uc_fw, struct drm_printer *p);
 
 #endif

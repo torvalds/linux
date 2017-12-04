@@ -75,9 +75,6 @@ static void gen9_init_clock_gating(struct drm_i915_private *dev_priv)
 	I915_WRITE(CHICKEN_PAR1_1,
 		   I915_READ(CHICKEN_PAR1_1) | SKL_EDP_PSR_FIX_RDWRAP);
 
-	I915_WRITE(GEN8_CONFIG0,
-		   I915_READ(GEN8_CONFIG0) | GEN9_DEFAULT_FIXES);
-
 	/* WaEnableChickenDCPR:skl,bxt,kbl,glk,cfl */
 	I915_WRITE(GEN8_CHICKEN_DCPR_1,
 		   I915_READ(GEN8_CHICKEN_DCPR_1) | MASK_WAKEMEM);
@@ -124,7 +121,6 @@ static void bxt_init_clock_gating(struct drm_i915_private *dev_priv)
 
 static void glk_init_clock_gating(struct drm_i915_private *dev_priv)
 {
-	u32 val;
 	gen9_init_clock_gating(dev_priv);
 
 	/*
@@ -144,11 +140,6 @@ static void glk_init_clock_gating(struct drm_i915_private *dev_priv)
 		I915_WRITE(CHICKEN_MISC_2, val);
 	}
 
-	/* Display WA #1133: WaFbcSkipSegments:glk */
-	val = I915_READ(ILK_DPFC_CHICKEN);
-	val &= ~GLK_SKIP_SEG_COUNT_MASK;
-	val |= GLK_SKIP_SEG_EN | GLK_SKIP_SEG_COUNT(1);
-	I915_WRITE(ILK_DPFC_CHICKEN, val);
 }
 
 static void i915_pineview_get_mem_freq(struct drm_i915_private *dev_priv)
@@ -928,7 +919,7 @@ static void pineview_update_wm(struct intel_crtc *unused_crtc)
  *  and the size of 8 whole lines. This adjustment is always performed
  *  in the actual pixel depth regardless of whether FBC is enabled or not."
  */
-static int g4x_tlb_miss_wa(int fifo_size, int width, int cpp)
+static unsigned int g4x_tlb_miss_wa(int fifo_size, int width, int cpp)
 {
 	int tlb_miss = fifo_size * 64 - width * cpp * 8;
 
@@ -1105,8 +1096,8 @@ static uint16_t g4x_compute_wm(const struct intel_crtc_state *crtc_state,
 	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
 	const struct drm_display_mode *adjusted_mode =
 		&crtc_state->base.adjusted_mode;
-	int clock, htotal, cpp, width, wm;
-	int latency = dev_priv->wm.pri_latency[level] * 10;
+	unsigned int latency = dev_priv->wm.pri_latency[level] * 10;
+	unsigned int clock, htotal, cpp, width, wm;
 
 	if (latency == 0)
 		return USHRT_MAX;
@@ -1145,7 +1136,7 @@ static uint16_t g4x_compute_wm(const struct intel_crtc_state *crtc_state,
 		   level == G4X_WM_LEVEL_NORMAL) {
 		wm = intel_wm_method1(clock, cpp, latency);
 	} else {
-		int small, large;
+		unsigned int small, large;
 
 		small = intel_wm_method1(clock, cpp, latency);
 		large = intel_wm_method2(clock, htotal, width, cpp, latency);
@@ -1158,7 +1149,7 @@ static uint16_t g4x_compute_wm(const struct intel_crtc_state *crtc_state,
 
 	wm = DIV_ROUND_UP(wm, 64) + 2;
 
-	return min_t(int, wm, USHRT_MAX);
+	return min_t(unsigned int, wm, USHRT_MAX);
 }
 
 static bool g4x_raw_plane_wm_set(struct intel_crtc_state *crtc_state,
@@ -1409,17 +1400,29 @@ static int g4x_compute_pipe_wm(struct intel_crtc_state *crtc_state)
 
 static int g4x_compute_intermediate_wm(struct drm_device *dev,
 				       struct intel_crtc *crtc,
-				       struct intel_crtc_state *crtc_state)
+				       struct intel_crtc_state *new_crtc_state)
 {
-	struct g4x_wm_state *intermediate = &crtc_state->wm.g4x.intermediate;
-	const struct g4x_wm_state *optimal = &crtc_state->wm.g4x.optimal;
-	const struct g4x_wm_state *active = &crtc->wm.active.g4x;
+	struct g4x_wm_state *intermediate = &new_crtc_state->wm.g4x.intermediate;
+	const struct g4x_wm_state *optimal = &new_crtc_state->wm.g4x.optimal;
+	struct intel_atomic_state *intel_state =
+		to_intel_atomic_state(new_crtc_state->base.state);
+	const struct intel_crtc_state *old_crtc_state =
+		intel_atomic_get_old_crtc_state(intel_state, crtc);
+	const struct g4x_wm_state *active = &old_crtc_state->wm.g4x.optimal;
 	enum plane_id plane_id;
 
+	if (!new_crtc_state->base.active || drm_atomic_crtc_needs_modeset(&new_crtc_state->base)) {
+		*intermediate = *optimal;
+
+		intermediate->cxsr = false;
+		intermediate->hpll_en = false;
+		goto out;
+	}
+
 	intermediate->cxsr = optimal->cxsr && active->cxsr &&
-		!crtc_state->disable_cxsr;
+		!new_crtc_state->disable_cxsr;
 	intermediate->hpll_en = optimal->hpll_en && active->hpll_en &&
-		!crtc_state->disable_cxsr;
+		!new_crtc_state->disable_cxsr;
 	intermediate->fbc_en = optimal->fbc_en && active->fbc_en;
 
 	for_each_plane_id_on_crtc(crtc, plane_id) {
@@ -1461,12 +1464,13 @@ static int g4x_compute_intermediate_wm(struct drm_device *dev,
 	WARN_ON(intermediate->hpll.fbc > g4x_fbc_fifo_size(2) &&
 		intermediate->fbc_en && intermediate->hpll_en);
 
+out:
 	/*
 	 * If our intermediate WM are identical to the final WM, then we can
 	 * omit the post-vblank programming; only update if it's different.
 	 */
 	if (memcmp(intermediate, optimal, sizeof(*intermediate)) != 0)
-		crtc_state->wm.need_postvbl_update = true;
+		new_crtc_state->wm.need_postvbl_update = true;
 
 	return 0;
 }
@@ -1602,7 +1606,7 @@ static uint16_t vlv_compute_wm_level(const struct intel_crtc_state *crtc_state,
 	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
 	const struct drm_display_mode *adjusted_mode =
 		&crtc_state->base.adjusted_mode;
-	int clock, htotal, cpp, width, wm;
+	unsigned int clock, htotal, cpp, width, wm;
 
 	if (dev_priv->wm.pri_latency[level] == 0)
 		return USHRT_MAX;
@@ -1628,7 +1632,7 @@ static uint16_t vlv_compute_wm_level(const struct intel_crtc_state *crtc_state,
 				    dev_priv->wm.pri_latency[level] * 10);
 	}
 
-	return min_t(int, wm, USHRT_MAX);
+	return min_t(unsigned int, wm, USHRT_MAX);
 }
 
 static bool vlv_need_sprite0_fifo_workaround(unsigned int active_planes)
@@ -2029,16 +2033,27 @@ static void vlv_atomic_update_fifo(struct intel_atomic_state *state,
 
 static int vlv_compute_intermediate_wm(struct drm_device *dev,
 				       struct intel_crtc *crtc,
-				       struct intel_crtc_state *crtc_state)
+				       struct intel_crtc_state *new_crtc_state)
 {
-	struct vlv_wm_state *intermediate = &crtc_state->wm.vlv.intermediate;
-	const struct vlv_wm_state *optimal = &crtc_state->wm.vlv.optimal;
-	const struct vlv_wm_state *active = &crtc->wm.active.vlv;
+	struct vlv_wm_state *intermediate = &new_crtc_state->wm.vlv.intermediate;
+	const struct vlv_wm_state *optimal = &new_crtc_state->wm.vlv.optimal;
+	struct intel_atomic_state *intel_state =
+		to_intel_atomic_state(new_crtc_state->base.state);
+	const struct intel_crtc_state *old_crtc_state =
+		intel_atomic_get_old_crtc_state(intel_state, crtc);
+	const struct vlv_wm_state *active = &old_crtc_state->wm.vlv.optimal;
 	int level;
+
+	if (!new_crtc_state->base.active || drm_atomic_crtc_needs_modeset(&new_crtc_state->base)) {
+		*intermediate = *optimal;
+
+		intermediate->cxsr = false;
+		goto out;
+	}
 
 	intermediate->num_levels = min(optimal->num_levels, active->num_levels);
 	intermediate->cxsr = optimal->cxsr && active->cxsr &&
-		!crtc_state->disable_cxsr;
+		!new_crtc_state->disable_cxsr;
 
 	for (level = 0; level < intermediate->num_levels; level++) {
 		enum plane_id plane_id;
@@ -2057,12 +2072,13 @@ static int vlv_compute_intermediate_wm(struct drm_device *dev,
 
 	vlv_invalidate_wms(crtc, intermediate, level);
 
+out:
 	/*
 	 * If our intermediate WM are identical to the final WM, then we can
 	 * omit the post-vblank programming; only update if it's different.
 	 */
 	if (memcmp(intermediate, optimal, sizeof(*intermediate)) != 0)
-		crtc_state->wm.need_postvbl_update = true;
+		new_crtc_state->wm.need_postvbl_update = true;
 
 	return 0;
 }
@@ -2721,9 +2737,9 @@ static void ilk_compute_wm_level(const struct drm_i915_private *dev_priv,
 				 const struct intel_crtc *intel_crtc,
 				 int level,
 				 struct intel_crtc_state *cstate,
-				 struct intel_plane_state *pristate,
-				 struct intel_plane_state *sprstate,
-				 struct intel_plane_state *curstate,
+				 const struct intel_plane_state *pristate,
+				 const struct intel_plane_state *sprstate,
+				 const struct intel_plane_state *curstate,
 				 struct intel_wm_level *result)
 {
 	uint16_t pri_latency = dev_priv->wm.pri_latency[level];
@@ -3043,28 +3059,24 @@ static int ilk_compute_pipe_wm(struct intel_crtc_state *cstate)
 	struct intel_pipe_wm *pipe_wm;
 	struct drm_device *dev = state->dev;
 	const struct drm_i915_private *dev_priv = to_i915(dev);
-	struct intel_plane *intel_plane;
-	struct intel_plane_state *pristate = NULL;
-	struct intel_plane_state *sprstate = NULL;
-	struct intel_plane_state *curstate = NULL;
+	struct drm_plane *plane;
+	const struct drm_plane_state *plane_state;
+	const struct intel_plane_state *pristate = NULL;
+	const struct intel_plane_state *sprstate = NULL;
+	const struct intel_plane_state *curstate = NULL;
 	int level, max_level = ilk_wm_max_level(dev_priv), usable_level;
 	struct ilk_wm_maximums max;
 
 	pipe_wm = &cstate->wm.ilk.optimal;
 
-	for_each_intel_plane_on_crtc(dev, intel_crtc, intel_plane) {
-		struct intel_plane_state *ps;
+	drm_atomic_crtc_state_for_each_plane_state(plane, plane_state, &cstate->base) {
+		const struct intel_plane_state *ps = to_intel_plane_state(plane_state);
 
-		ps = intel_atomic_get_existing_plane_state(state,
-							   intel_plane);
-		if (!ps)
-			continue;
-
-		if (intel_plane->base.type == DRM_PLANE_TYPE_PRIMARY)
+		if (plane->type == DRM_PLANE_TYPE_PRIMARY)
 			pristate = ps;
-		else if (intel_plane->base.type == DRM_PLANE_TYPE_OVERLAY)
+		else if (plane->type == DRM_PLANE_TYPE_OVERLAY)
 			sprstate = ps;
-		else if (intel_plane->base.type == DRM_PLANE_TYPE_CURSOR)
+		else if (plane->type == DRM_PLANE_TYPE_CURSOR)
 			curstate = ps;
 	}
 
@@ -3086,11 +3098,9 @@ static int ilk_compute_pipe_wm(struct intel_crtc_state *cstate)
 	if (pipe_wm->sprites_scaled)
 		usable_level = 0;
 
-	ilk_compute_wm_level(dev_priv, intel_crtc, 0, cstate,
-			     pristate, sprstate, curstate, &pipe_wm->raw_wm[0]);
-
 	memset(&pipe_wm->wm, 0, sizeof(pipe_wm->wm));
-	pipe_wm->wm[0] = pipe_wm->raw_wm[0];
+	ilk_compute_wm_level(dev_priv, intel_crtc, 0, cstate,
+			     pristate, sprstate, curstate, &pipe_wm->wm[0]);
 
 	if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv))
 		pipe_wm->linetime = hsw_compute_linetime_wm(cstate);
@@ -3100,8 +3110,8 @@ static int ilk_compute_pipe_wm(struct intel_crtc_state *cstate)
 
 	ilk_compute_wm_reg_maximums(dev_priv, 1, &max);
 
-	for (level = 1; level <= max_level; level++) {
-		struct intel_wm_level *wm = &pipe_wm->raw_wm[level];
+	for (level = 1; level <= usable_level; level++) {
+		struct intel_wm_level *wm = &pipe_wm->wm[level];
 
 		ilk_compute_wm_level(dev_priv, intel_crtc, level, cstate,
 				     pristate, sprstate, curstate, wm);
@@ -3111,13 +3121,10 @@ static int ilk_compute_pipe_wm(struct intel_crtc_state *cstate)
 		 * register maximums since such watermarks are
 		 * always invalid.
 		 */
-		if (level > usable_level)
-			continue;
-
-		if (ilk_validate_wm_level(level, &max, wm))
-			pipe_wm->wm[level] = *wm;
-		else
-			usable_level = level;
+		if (!ilk_validate_wm_level(level, &max, wm)) {
+			memset(wm, 0, sizeof(*wm));
+			break;
+		}
 	}
 
 	return 0;
@@ -3939,6 +3946,7 @@ skl_pipe_downscale_amount(const struct intel_crtc_state *crtc_state)
 int skl_check_pipe_max_pixel_rate(struct intel_crtc *intel_crtc,
 				  struct intel_crtc_state *cstate)
 {
+	struct drm_i915_private *dev_priv = to_i915(intel_crtc->base.dev);
 	struct drm_crtc_state *crtc_state = &cstate->base;
 	struct drm_atomic_state *state = crtc_state->state;
 	struct drm_plane *plane;
@@ -3981,7 +3989,7 @@ int skl_check_pipe_max_pixel_rate(struct intel_crtc *intel_crtc,
 	crtc_clock = crtc_state->adjusted_mode.crtc_clock;
 	dotclk = to_intel_atomic_state(state)->cdclk.logical.cdclk;
 
-	if (IS_GEMINILAKE(to_i915(intel_crtc->base.dev)))
+	if (IS_GEMINILAKE(dev_priv) || INTEL_GEN(dev_priv) >= 10)
 		dotclk *= 2;
 
 	pipe_max_pixel_rate = div_round_up_u32_fixed16(dotclk, pipe_downscale);
@@ -6629,12 +6637,19 @@ static void gen9_enable_rc6(struct drm_i915_private *dev_priv)
 	I915_WRITE(GEN6_RC_CONTROL, 0);
 
 	/* 2b: Program RC6 thresholds.*/
-
-	/* WaRsDoubleRc6WrlWithCoarsePowerGating: Doubling WRL only when CPG is enabled */
-	if (IS_SKYLAKE(dev_priv))
+	if (INTEL_GEN(dev_priv) >= 10) {
+		I915_WRITE(GEN6_RC6_WAKE_RATE_LIMIT, 54 << 16 | 85);
+		I915_WRITE(GEN10_MEDIA_WAKE_RATE_LIMIT, 150);
+	} else if (IS_SKYLAKE(dev_priv)) {
+		/*
+		 * WaRsDoubleRc6WrlWithCoarsePowerGating:skl Doubling WRL only
+		 * when CPG is enabled
+		 */
 		I915_WRITE(GEN6_RC6_WAKE_RATE_LIMIT, 108 << 16);
-	else
+	} else {
 		I915_WRITE(GEN6_RC6_WAKE_RATE_LIMIT, 54 << 16);
+	}
+
 	I915_WRITE(GEN6_RC_EVALUATION_INTERVAL, 125000); /* 12500 * 1280ns */
 	I915_WRITE(GEN6_RC_IDLE_HYSTERSIS, 25); /* 25 * 1280ns */
 	for_each_engine(engine, dev_priv, id)
@@ -7919,7 +7934,6 @@ void intel_init_gt_powersave(struct drm_i915_private *dev_priv)
 		intel_runtime_pm_get(dev_priv);
 	}
 
-	mutex_lock(&dev_priv->drm.struct_mutex);
 	mutex_lock(&dev_priv->pcu_lock);
 
 	/* Initialize RPS limits (for userspace) */
@@ -7961,9 +7975,6 @@ void intel_init_gt_powersave(struct drm_i915_private *dev_priv)
 	rps->boost_freq = rps->max_freq;
 
 	mutex_unlock(&dev_priv->pcu_lock);
-	mutex_unlock(&dev_priv->drm.struct_mutex);
-
-	intel_autoenable_gt_powersave(dev_priv);
 }
 
 void intel_cleanup_gt_powersave(struct drm_i915_private *dev_priv)
@@ -7987,9 +7998,6 @@ void intel_suspend_gt_powersave(struct drm_i915_private *dev_priv)
 {
 	if (INTEL_GEN(dev_priv) < 6)
 		return;
-
-	if (cancel_delayed_work_sync(&dev_priv->gt_pm.autoenable_work))
-		intel_runtime_pm_put(dev_priv);
 
 	/* gen6_rps_idle() will be called later to disable interrupts */
 }
@@ -8147,65 +8155,6 @@ void intel_enable_gt_powersave(struct drm_i915_private *dev_priv)
 		intel_enable_llc_pstate(dev_priv);
 
 	mutex_unlock(&dev_priv->pcu_lock);
-}
-
-static void __intel_autoenable_gt_powersave(struct work_struct *work)
-{
-	struct drm_i915_private *dev_priv =
-		container_of(work,
-			     typeof(*dev_priv),
-			     gt_pm.autoenable_work.work);
-	struct intel_engine_cs *rcs;
-	struct drm_i915_gem_request *req;
-
-	rcs = dev_priv->engine[RCS];
-	if (rcs->last_retired_context)
-		goto out;
-
-	if (!rcs->init_context)
-		goto out;
-
-	mutex_lock(&dev_priv->drm.struct_mutex);
-
-	req = i915_gem_request_alloc(rcs, dev_priv->kernel_context);
-	if (IS_ERR(req))
-		goto unlock;
-
-	if (!i915_modparams.enable_execlists && i915_switch_context(req) == 0)
-		rcs->init_context(req);
-
-	/* Mark the device busy, calling intel_enable_gt_powersave() */
-	i915_add_request(req);
-
-unlock:
-	mutex_unlock(&dev_priv->drm.struct_mutex);
-out:
-	intel_runtime_pm_put(dev_priv);
-}
-
-void intel_autoenable_gt_powersave(struct drm_i915_private *dev_priv)
-{
-	if (IS_IRONLAKE_M(dev_priv)) {
-		ironlake_enable_drps(dev_priv);
-		intel_init_emon(dev_priv);
-	} else if (INTEL_INFO(dev_priv)->gen >= 6) {
-		/*
-		 * PCU communication is slow and this doesn't need to be
-		 * done at any specific time, so do this out of our fast path
-		 * to make resume and init faster.
-		 *
-		 * We depend on the HW RC6 power context save/restore
-		 * mechanism when entering D3 through runtime PM suspend. So
-		 * disable RPM until RPS/RC6 is properly setup. We can only
-		 * get here via the driver load/system resume/runtime resume
-		 * paths, so the _noresume version is enough (and in case of
-		 * runtime resume it's necessary).
-		 */
-		if (queue_delayed_work(dev_priv->wq,
-				       &dev_priv->gt_pm.autoenable_work,
-				       round_jiffies_up_relative(HZ)))
-			intel_runtime_pm_get_noresume(dev_priv);
-	}
 }
 
 static void ibx_init_clock_gating(struct drm_i915_private *dev_priv)
@@ -8541,17 +8490,13 @@ static void cnl_init_clock_gating(struct drm_i915_private *dev_priv)
 	I915_WRITE(DISP_ARB_CTL, I915_READ(DISP_ARB_CTL) |
 		   DISP_FBC_MEMORY_WAKE);
 
+	val = I915_READ(SLICE_UNIT_LEVEL_CLKGATE);
+	/* ReadHitWriteOnlyDisable:cnl */
+	val |= RCCUNIT_CLKGATE_DIS;
 	/* WaSarbUnitClockGatingDisable:cnl (pre-prod) */
 	if (IS_CNL_REVID(dev_priv, CNL_REVID_A0, CNL_REVID_B0))
-		I915_WRITE(SLICE_UNIT_LEVEL_CLKGATE,
-			   I915_READ(SLICE_UNIT_LEVEL_CLKGATE) |
-			   SARBUNIT_CLKGATE_DIS);
-
-	/* Display WA #1133: WaFbcSkipSegments:cnl */
-	val = I915_READ(ILK_DPFC_CHICKEN);
-	val &= ~GLK_SKIP_SEG_COUNT_MASK;
-	val |= GLK_SKIP_SEG_EN | GLK_SKIP_SEG_COUNT(1);
-	I915_WRITE(ILK_DPFC_CHICKEN, val);
+		val |= SARBUNIT_CLKGATE_DIS;
+	I915_WRITE(SLICE_UNIT_LEVEL_CLKGATE, val);
 }
 
 static void cfl_init_clock_gating(struct drm_i915_private *dev_priv)
@@ -9438,8 +9383,6 @@ void intel_pm_setup(struct drm_i915_private *dev_priv)
 {
 	mutex_init(&dev_priv->pcu_lock);
 
-	INIT_DELAYED_WORK(&dev_priv->gt_pm.autoenable_work,
-			  __intel_autoenable_gt_powersave);
 	atomic_set(&dev_priv->gt_pm.rps.num_waiters, 0);
 
 	dev_priv->runtime_pm.suspended = false;

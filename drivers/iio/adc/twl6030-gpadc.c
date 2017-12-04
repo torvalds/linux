@@ -843,7 +843,6 @@ static const struct iio_chan_spec twl6032_gpadc_iio_channels[] = {
 
 static const struct iio_info twl6030_gpadc_iio_info = {
 	.read_raw = &twl6030_gpadc_read_raw,
-	.driver_module = THIS_MODULE,
 };
 
 static const struct twl6030_gpadc_platform_data twl6030_pdata = {

@@ -120,10 +120,10 @@ static int intel_uncore_check_forcewake_domains(struct drm_i915_private *dev_pri
 	    !IS_CHERRYVIEW(dev_priv))
 		return 0;
 
-	if (IS_VALLEYVIEW(dev_priv)) /* XXX system lockup! */
-		return 0;
-
-	if (IS_BROADWELL(dev_priv)) /* XXX random GPU hang afterwards! */
+	/*
+	 * This test may lockup the machine or cause GPU hangs afterwards.
+	 */
+	if (!IS_ENABLED(CONFIG_DRM_I915_SELFTEST_BROKEN))
 		return 0;
 
 	valid = kzalloc(BITS_TO_LONGS(FW_RANGE) * sizeof(*valid),
@@ -148,7 +148,10 @@ static int intel_uncore_check_forcewake_domains(struct drm_i915_private *dev_pri
 	for_each_set_bit(offset, valid, FW_RANGE) {
 		i915_reg_t reg = { offset };
 
+		iosf_mbi_punit_acquire();
 		intel_uncore_forcewake_reset(dev_priv, false);
+		iosf_mbi_punit_release();
+
 		check_for_unclaimed_mmio(dev_priv);
 
 		(void)I915_READ(reg);

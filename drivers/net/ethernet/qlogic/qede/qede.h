@@ -503,7 +503,7 @@ void qede_fill_rss_params(struct qede_dev *edev,
 void qede_udp_tunnel_add(struct net_device *dev, struct udp_tunnel_info *ti);
 void qede_udp_tunnel_del(struct net_device *dev, struct udp_tunnel_info *ti);
 
-int qede_xdp(struct net_device *dev, struct netdev_xdp *xdp);
+int qede_xdp(struct net_device *dev, struct netdev_bpf *xdp);
 
 #ifdef CONFIG_DCB
 void qede_set_dcbnl_ops(struct net_device *ndev);

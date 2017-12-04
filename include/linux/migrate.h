@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _LINUX_MIGRATE_H
 #define _LINUX_MIGRATE_H
 
@@ -53,7 +54,7 @@ static inline struct page *new_page_nodemask(struct page *page,
 	new_page = __alloc_pages_nodemask(gfp_mask, order,
 				preferred_nid, nodemask);
 
-	if (new_page && PageTransHuge(page))
+	if (new_page && PageTransHuge(new_page))
 		prep_transhuge_page(new_page);
 
 	return new_page;

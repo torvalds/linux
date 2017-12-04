@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * GPL HEADER START
  *
@@ -328,11 +329,11 @@ ptlrpc_server_post_idle_rqbds(struct ptlrpc_service_part *svcpt)
 	return -1;
 }
 
-static void ptlrpc_at_timer(unsigned long castmeharder)
+static void ptlrpc_at_timer(struct timer_list *t)
 {
 	struct ptlrpc_service_part *svcpt;
 
-	svcpt = (struct ptlrpc_service_part *)castmeharder;
+	svcpt = from_timer(svcpt, t, scp_at_timer);
 
 	svcpt->scp_at_check = 1;
 	svcpt->scp_at_checktime = cfs_time_current();
@@ -505,8 +506,7 @@ ptlrpc_service_part_init(struct ptlrpc_service *svc,
 	if (!array->paa_reqs_count)
 		goto free_reqs_array;
 
-	setup_timer(&svcpt->scp_at_timer, ptlrpc_at_timer,
-		    (unsigned long)svcpt);
+	timer_setup(&svcpt->scp_at_timer, ptlrpc_at_timer, 0);
 
 	/* At SOW, service time should be quick; 10s seems generous. If client
 	 * timeout is less than this, we'll be sending an early reply.
@@ -925,7 +925,7 @@ static void ptlrpc_at_set_timer(struct ptlrpc_service_part *svcpt)
 	next = (__s32)(array->paa_deadline - ktime_get_real_seconds() -
 		       at_early_margin);
 	if (next <= 0) {
-		ptlrpc_at_timer((unsigned long)svcpt);
+		ptlrpc_at_timer(&svcpt->scp_at_timer);
 	} else {
 		mod_timer(&svcpt->scp_at_timer, cfs_time_shift(next));
 		CDEBUG(D_INFO, "armed %s at %+ds\n",

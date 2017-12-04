@@ -749,9 +749,9 @@ int iscsit_check_post_dataout(
 	}
 }
 
-static void iscsit_handle_time2retain_timeout(unsigned long data)
+void iscsit_handle_time2retain_timeout(struct timer_list *t)
 {
-	struct iscsi_session *sess = (struct iscsi_session *) data;
+	struct iscsi_session *sess = from_timer(sess, t, time2retain_timer);
 	struct iscsi_portal_group *tpg = sess->tpg;
 	struct se_portal_group *se_tpg = &tpg->tpg_se_tpg;
 
@@ -809,14 +809,10 @@ void iscsit_start_time2retain_handler(struct iscsi_session *sess)
 	pr_debug("Starting Time2Retain timer for %u seconds on"
 		" SID: %u\n", sess->sess_ops->DefaultTime2Retain, sess->sid);
 
-	init_timer(&sess->time2retain_timer);
-	sess->time2retain_timer.expires =
-		(get_jiffies_64() + sess->sess_ops->DefaultTime2Retain * HZ);
-	sess->time2retain_timer.data = (unsigned long)sess;
-	sess->time2retain_timer.function = iscsit_handle_time2retain_timeout;
 	sess->time2retain_timer_flags &= ~ISCSI_TF_STOP;
 	sess->time2retain_timer_flags |= ISCSI_TF_RUNNING;
-	add_timer(&sess->time2retain_timer);
+	mod_timer(&sess->time2retain_timer,
+		  jiffies + sess->sess_ops->DefaultTime2Retain * HZ);
 }
 
 /*

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
   File: linux/posix_acl_xattr.h
 

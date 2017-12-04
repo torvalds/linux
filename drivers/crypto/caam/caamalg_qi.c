@@ -7,7 +7,7 @@
  */
 
 #include "compat.h"
-
+#include "ctrl.h"
 #include "regs.h"
 #include "intern.h"
 #include "desc_constr.h"
@@ -2311,6 +2311,11 @@ static int __init caam_qi_algapi_init(void)
 	 */
 	if (!priv || !priv->qi_present)
 		return -ENODEV;
+
+	if (caam_dpaa2) {
+		dev_info(ctrldev, "caam/qi frontend driver not suitable for DPAA 2.x, aborting...\n");
+		return -ENODEV;
+	}
 
 	INIT_LIST_HEAD(&alg_list);
 

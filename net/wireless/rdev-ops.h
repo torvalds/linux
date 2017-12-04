@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __CFG80211_RDEV_OPS
 #define __CFG80211_RDEV_OPS
 

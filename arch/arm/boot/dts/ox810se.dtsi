@@ -207,7 +207,7 @@
 				};
 			};
 
-			gpio0: gpio@000000 {
+			gpio0: gpio@0 {
 				compatible = "oxsemi,ox810se-gpio";
 				reg = <0x000000 0x100000>;
 				interrupts = <21>;
@@ -296,7 +296,7 @@
 			compatible = "simple-bus";
 			ranges = <0 0x45000000 0x1000000>;
 
-			sys: sys-ctrl@000000 {
+			sys: sys-ctrl@0 {
 				compatible = "oxsemi,ox810se-sys-ctrl", "syscon", "simple-mfd";
 				reg = <0x000000 0x100000>;
 

@@ -187,7 +187,8 @@ Description:	Processor frequency boosting control
 		This switch controls the boost setting for the whole system.
 		Boosting allows the CPU and the firmware to run at a frequency
 		beyound it's nominal limit.
-		More details can be found in Documentation/cpu-freq/boost.txt
+		More details can be found in
+		Documentation/admin-guide/pm/cpufreq.rst
 
 
 What:		/sys/devices/system/cpu/cpu#/crash_notes
@@ -223,7 +224,8 @@ Description:	Parameters for the Intel P-state driver
 		no_turbo: limits the driver to selecting P states below the turbo
 		frequency range.
 
-		More details can be found in Documentation/cpu-freq/intel-pstate.txt
+		More details can be found in
+		Documentation/admin-guide/pm/intel_pstate.rst
 
 What:		/sys/devices/system/cpu/cpu*/cache/index*/<set_of_attributes_mentioned_below>
 Date:		July 2014(documented, existed before August 2008)

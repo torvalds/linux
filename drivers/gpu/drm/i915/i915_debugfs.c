@@ -30,7 +30,7 @@
 #include <linux/sort.h>
 #include <linux/sched/mm.h>
 #include "intel_drv.h"
-#include "i915_guc_submission.h"
+#include "intel_guc_submission.h"
 
 static inline struct drm_i915_private *node_to_i915(struct drm_info_node *node)
 {
@@ -1974,7 +1974,6 @@ static int i915_context_status(struct seq_file *m, void *unused)
 			struct intel_context *ce = &ctx->engine[engine->id];
 
 			seq_printf(m, "%s: ", engine->name);
-			seq_putc(m, ce->initialised ? 'I' : 'i');
 			if (ce->state)
 				describe_obj(m, ce->state->obj);
 			if (ce->ring)
@@ -2434,7 +2433,7 @@ static void i915_guc_log_info(struct seq_file *m,
 
 static void i915_guc_client_info(struct seq_file *m,
 				 struct drm_i915_private *dev_priv,
-				 struct i915_guc_client *client)
+				 struct intel_guc_client *client)
 {
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
@@ -2484,6 +2483,8 @@ static int i915_guc_info(struct seq_file *m, void *data)
 
 	seq_printf(m, "\nGuC execbuf client @ %p:\n", guc->execbuf_client);
 	i915_guc_client_info(m, dev_priv, guc->execbuf_client);
+	seq_printf(m, "\nGuC preempt client @ %p:\n", guc->preempt_client);
+	i915_guc_client_info(m, dev_priv, guc->preempt_client);
 
 	i915_guc_log_info(m, dev_priv);
 
@@ -2497,7 +2498,7 @@ static int i915_guc_stage_pool(struct seq_file *m, void *data)
 	struct drm_i915_private *dev_priv = node_to_i915(m->private);
 	const struct intel_guc *guc = &dev_priv->guc;
 	struct guc_stage_desc *desc = guc->stage_desc_pool_vaddr;
-	struct i915_guc_client *client = guc->execbuf_client;
+	struct intel_guc_client *client = guc->execbuf_client;
 	unsigned int tmp;
 	int index;
 
@@ -2734,39 +2735,76 @@ static int i915_sink_crc(struct seq_file *m, void *data)
 	struct intel_connector *connector;
 	struct drm_connector_list_iter conn_iter;
 	struct intel_dp *intel_dp = NULL;
+	struct drm_modeset_acquire_ctx ctx;
 	int ret;
 	u8 crc[6];
 
-	drm_modeset_lock_all(dev);
+	drm_modeset_acquire_init(&ctx, DRM_MODESET_ACQUIRE_INTERRUPTIBLE);
+
 	drm_connector_list_iter_begin(dev, &conn_iter);
+
 	for_each_intel_connector_iter(connector, &conn_iter) {
 		struct drm_crtc *crtc;
-
-		if (!connector->base.state->best_encoder)
-			continue;
-
-		crtc = connector->base.state->crtc;
-		if (!crtc->state->active)
-			continue;
+		struct drm_connector_state *state;
+		struct intel_crtc_state *crtc_state;
 
 		if (connector->base.connector_type != DRM_MODE_CONNECTOR_eDP)
 			continue;
 
-		intel_dp = enc_to_intel_dp(connector->base.state->best_encoder);
-
-		ret = intel_dp_sink_crc(intel_dp, crc);
+retry:
+		ret = drm_modeset_lock(&dev->mode_config.connection_mutex, &ctx);
 		if (ret)
-			goto out;
+			goto err;
+
+		state = connector->base.state;
+		if (!state->best_encoder)
+			continue;
+
+		crtc = state->crtc;
+		ret = drm_modeset_lock(&crtc->mutex, &ctx);
+		if (ret)
+			goto err;
+
+		crtc_state = to_intel_crtc_state(crtc->state);
+		if (!crtc_state->base.active)
+			continue;
+
+		/*
+		 * We need to wait for all crtc updates to complete, to make
+		 * sure any pending modesets and plane updates are completed.
+		 */
+		if (crtc_state->base.commit) {
+			ret = wait_for_completion_interruptible(&crtc_state->base.commit->hw_done);
+
+			if (ret)
+				goto err;
+		}
+
+		intel_dp = enc_to_intel_dp(state->best_encoder);
+
+		ret = intel_dp_sink_crc(intel_dp, crtc_state, crc);
+		if (ret)
+			goto err;
 
 		seq_printf(m, "%02x%02x%02x%02x%02x%02x\n",
 			   crc[0], crc[1], crc[2],
 			   crc[3], crc[4], crc[5]);
 		goto out;
+
+err:
+		if (ret == -EDEADLK) {
+			ret = drm_modeset_backoff(&ctx);
+			if (!ret)
+				goto retry;
+		}
+		goto out;
 	}
 	ret = -ENODEV;
 out:
 	drm_connector_list_iter_end(&conn_iter);
-	drm_modeset_unlock_all(dev);
+	drm_modeset_drop_locks(&ctx);
+	drm_modeset_acquire_fini(&ctx);
+
 	return ret;
 }
 
@@ -3049,7 +3087,7 @@ static void intel_connector_info(struct seq_file *m,
 		break;
 	case DRM_MODE_CONNECTOR_HDMIA:
 		if (intel_encoder->type == INTEL_OUTPUT_HDMI ||
-		    intel_encoder->type == INTEL_OUTPUT_UNKNOWN)
+		    intel_encoder->type == INTEL_OUTPUT_DDI)
 			intel_hdmi_info(m, intel_connector);
 		break;
 	default:
@@ -3244,6 +3282,8 @@ static int i915_engine_info(struct seq_file *m, void *unused)
 		   yesno(dev_priv->gt.awake));
 	seq_printf(m, "Global active requests: %d\n",
 		   dev_priv->gt.active_requests);
+	seq_printf(m, "CS timestamp frequency: %u kHz\n",
+		   dev_priv->info.cs_timestamp_frequency_khz);
 
 	p = drm_seq_file_printer(m);
 	for_each_engine(engine, dev_priv, id)
@@ -3601,7 +3641,7 @@ static int i915_dp_mst_info(struct seq_file *m, void *unused)
 			continue;
 
 		seq_printf(m, "MST Source Port %c\n",
-			   port_name(intel_dig_port->port));
+			   port_name(intel_dig_port->base.port));
 		drm_dp_mst_dump_topology(m, &intel_dig_port->dp.mst_mgr);
 	}
 	drm_connector_list_iter_end(&conn_iter);
@@ -4448,6 +4488,61 @@ static void cherryview_sseu_device_status(struct drm_i915_private *dev_priv,
 	}
 }
 
+static void gen10_sseu_device_status(struct drm_i915_private *dev_priv,
+				     struct sseu_dev_info *sseu)
+{
+	const struct intel_device_info *info = INTEL_INFO(dev_priv);
+	int s_max = 6, ss_max = 4;
+	int s, ss;
+	u32 s_reg[s_max], eu_reg[2 * s_max], eu_mask[2];
+
+	for (s = 0; s < s_max; s++) {
+		/*
+		 * FIXME: Valid SS Mask respects the spec and read
+		 * only valid bits for those registers, excluding reserverd
+		 * although this seems wrong because it would leave many
+		 * subslices without ACK.
+		 */
+		s_reg[s] = I915_READ(GEN10_SLICE_PGCTL_ACK(s)) &
+			GEN10_PGCTL_VALID_SS_MASK(s);
+		eu_reg[2 * s] = I915_READ(GEN10_SS01_EU_PGCTL_ACK(s));
+		eu_reg[2 * s + 1] = I915_READ(GEN10_SS23_EU_PGCTL_ACK(s));
+	}
+
+	eu_mask[0] = GEN9_PGCTL_SSA_EU08_ACK |
+		     GEN9_PGCTL_SSA_EU19_ACK |
+		     GEN9_PGCTL_SSA_EU210_ACK |
+		     GEN9_PGCTL_SSA_EU311_ACK;
+	eu_mask[1] = GEN9_PGCTL_SSB_EU08_ACK |
+		     GEN9_PGCTL_SSB_EU19_ACK |
+		     GEN9_PGCTL_SSB_EU210_ACK |
+		     GEN9_PGCTL_SSB_EU311_ACK;
+
+	for (s = 0; s < s_max; s++) {
+		if ((s_reg[s] & GEN9_PGCTL_SLICE_ACK) == 0)
+			/* skip disabled slice */
+			continue;
+
+		sseu->slice_mask |= BIT(s);
+		sseu->subslice_mask = info->sseu.subslice_mask;
+
+		for (ss = 0; ss < ss_max; ss++) {
+			unsigned int eu_cnt;
+
+			if (!(s_reg[s] & (GEN9_PGCTL_SS_ACK(ss))))
+				/* skip disabled subslice */
+				continue;
+
+			eu_cnt = 2 * hweight32(eu_reg[2 * s + ss / 2] &
+					       eu_mask[ss % 2]);
+			sseu->eu_total += eu_cnt;
+			sseu->eu_per_subslice = max_t(unsigned int,
+						      sseu->eu_per_subslice,
+						      eu_cnt);
+		}
+	}
+}
+
 static void gen9_sseu_device_status(struct drm_i915_private *dev_priv,
 				    struct sseu_dev_info *sseu)
 {
@@ -4483,7 +4578,7 @@ static void gen9_sseu_device_status(struct drm_i915_private *dev_priv,
 
 		sseu->slice_mask |= BIT(s);
 
-		if (IS_GEN9_BC(dev_priv) || IS_CANNONLAKE(dev_priv))
+		if (IS_GEN9_BC(dev_priv))
 			sseu->subslice_mask =
 				INTEL_INFO(dev_priv)->sseu.subslice_mask;
 
@@ -4589,8 +4684,10 @@ static int i915_sseu_status(struct seq_file *m, void *unused)
 		cherryview_sseu_device_status(dev_priv, &sseu);
 	} else if (IS_BROADWELL(dev_priv)) {
 		broadwell_sseu_device_status(dev_priv, &sseu);
-	} else if (INTEL_GEN(dev_priv) >= 9) {
+	} else if (IS_GEN9(dev_priv)) {
 		gen9_sseu_device_status(dev_priv, &sseu);
+	} else if (INTEL_GEN(dev_priv) >= 10) {
+		gen10_sseu_device_status(dev_priv, &sseu);
 	}
 
 	intel_runtime_pm_put(dev_priv);

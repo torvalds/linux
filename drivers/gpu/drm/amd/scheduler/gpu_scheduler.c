@@ -188,7 +188,7 @@ static bool amd_sched_entity_is_ready(struct amd_sched_entity *entity)
 	if (kfifo_is_empty(&entity->job_queue))
 		return false;
 
-	if (ACCESS_ONCE(entity->dependency))
+	if (READ_ONCE(entity->dependency))
 		return false;
 
 	return true;

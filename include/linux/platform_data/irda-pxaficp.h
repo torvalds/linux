@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef ASMARM_ARCH_IRDA_H
 #define ASMARM_ARCH_IRDA_H
 

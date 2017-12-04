@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __ASM_MACH_TX39XX_MANGLE_PORT_H
 #define __ASM_MACH_TX39XX_MANGLE_PORT_H
 

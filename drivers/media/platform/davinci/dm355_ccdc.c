@@ -841,7 +841,7 @@ static int ccdc_set_hw_if_params(struct vpfe_hw_if_param *params)
 	return 0;
 }
 
-static struct ccdc_hw_device ccdc_hw_dev = {
+static const struct ccdc_hw_device ccdc_hw_dev = {
 	.name = "DM355 CCDC",
 	.owner = THIS_MODULE,
 	.hw_ops = {

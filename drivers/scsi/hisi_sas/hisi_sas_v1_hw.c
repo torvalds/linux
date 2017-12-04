@@ -807,9 +807,9 @@ static void phy_hard_reset_v1_hw(struct hisi_hba *hisi_hba, int phy_no)
 	start_phy_v1_hw(hisi_hba, phy_no);
 }
 
-static void start_phys_v1_hw(unsigned long data)
+static void start_phys_v1_hw(struct timer_list *t)
 {
-	struct hisi_hba *hisi_hba = (struct hisi_hba *)data;
+	struct hisi_hba *hisi_hba = from_timer(hisi_hba, t, timer);
 	int i;
 
 	for (i = 0; i < hisi_hba->n_phy; i++) {
@@ -828,7 +828,7 @@ static void phys_init_v1_hw(struct hisi_hba *hisi_hba)
 		hisi_sas_phy_read32(hisi_hba, i, CHL_INT2_MSK);
 	}
 
-	setup_timer(timer, start_phys_v1_hw, (unsigned long)hisi_hba);
+	timer_setup(timer, start_phys_v1_hw, 0);
 	mod_timer(timer, jiffies + HZ);
 }
 
@@ -1857,7 +1857,7 @@ static const struct hisi_sas_hw hisi_sas_v1_hw = {
 	.start_delivery = start_delivery_v1_hw,
 	.slot_complete = slot_complete_v1_hw,
 	.phys_init = phys_init_v1_hw,
-	.phy_enable = enable_phy_v1_hw,
+	.phy_start = start_phy_v1_hw,
 	.phy_disable = disable_phy_v1_hw,
 	.phy_hard_reset = phy_hard_reset_v1_hw,
 	.phy_set_linkrate = phy_set_linkrate_v1_hw,

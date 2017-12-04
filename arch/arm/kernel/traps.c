@@ -154,30 +154,26 @@ static void dump_mem(const char *lvl, const char *str, unsigned long bottom,
 	set_fs(fs);
 }
 
-static void dump_instr(const char *lvl, struct pt_regs *regs)
+static void __dump_instr(const char *lvl, struct pt_regs *regs)
 {
 	unsigned long addr = instruction_pointer(regs);
 	const int thumb = thumb_mode(regs);
 	const int width = thumb ? 4 : 8;
-	mm_segment_t fs;
 	char str[sizeof("00000000 ") * 5 + 2 + 1], *p = str;
 	int i;
 
 	/*
-	 * We need to switch to kernel mode so that we can use __get_user
-	 * to safely read from kernel space.  Note that we now dump the
-	 * code first, just in case the backtrace kills us.
+	 * Note that we now dump the code first, just in case the backtrace
+	 * kills us.
 	 */
-	fs = get_fs();
-	set_fs(KERNEL_DS);
 
 	for (i = -4; i < 1 + !!thumb; i++) {
 		unsigned int val, bad;
 
 		if (thumb)
-			bad = __get_user(val, &((u16 *)addr)[i]);
+			bad = get_user(val, &((u16 *)addr)[i]);
 		else
-			bad = __get_user(val, &((u32 *)addr)[i]);
+			bad = get_user(val, &((u32 *)addr)[i]);
 
 		if (!bad)
 			p += sprintf(p, i == 0 ? "(%0*x) " : "%0*x ",
@@ -188,8 +184,20 @@ static void dump_instr(const char *lvl, struct pt_regs *regs)
 		}
 	}
 	printk("%sCode: %s\n", lvl, str);
+}
 
-	set_fs(fs);
+static void dump_instr(const char *lvl, struct pt_regs *regs)
+{
+	mm_segment_t fs;
+
+	if (!user_mode(regs)) {
+		fs = get_fs();
+		set_fs(KERNEL_DS);
+		__dump_instr(lvl, regs);
+		set_fs(fs);
+	} else {
+		__dump_instr(lvl, regs);
+	}
 }
 
 #ifdef CONFIG_ARM_UNWIND
@@ -646,6 +654,9 @@ asmlinkage int arm_syscall(int no, struct pt_regs *regs)
 	case NR(set_tls):
 		set_tls(regs->ARM_r0);
 		return 0;
+
+	case NR(get_tls):
+		return current_thread_info()->tp_value[0];
 
 	default:
 		/* Calls 9f00xx..9f07ff are defined to return -ENOSYS

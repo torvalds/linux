@@ -665,7 +665,7 @@ static int vfio_dev_viable(struct device *dev, void *data)
 {
 	struct vfio_group *group = data;
 	struct vfio_device *device;
-	struct device_driver *drv = ACCESS_ONCE(dev->driver);
+	struct device_driver *drv = READ_ONCE(dev->driver);
 	struct vfio_unbound_dev *unbound;
 	int ret = -EINVAL;
 

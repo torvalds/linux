@@ -38,10 +38,14 @@
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_plane_helper.h>
+#include <drm/drm_fb_helper.h>
 #include <linux/i2c.h>
 #include <linux/i2c-algo-bit.h>
 #include <linux/hrtimer.h>
 #include "amdgpu_irq.h"
+
+#include <drm/drm_dp_mst_helper.h>
+#include "modules/inc/mod_freesync.h"
 
 struct amdgpu_bo;
 struct amdgpu_device;
@@ -53,9 +57,13 @@ struct amdgpu_hpd;
 #define to_amdgpu_connector(x) container_of(x, struct amdgpu_connector, base)
 #define to_amdgpu_encoder(x) container_of(x, struct amdgpu_encoder, base)
 #define to_amdgpu_framebuffer(x) container_of(x, struct amdgpu_framebuffer, base)
+#define to_amdgpu_plane(x)	container_of(x, struct amdgpu_plane, base)
+
+#define to_dm_plane_state(x)	container_of(x, struct dm_plane_state, base);
 
 #define AMDGPU_MAX_HPD_PINS 6
 #define AMDGPU_MAX_CRTCS 6
+#define AMDGPU_MAX_PLANES 6
 #define AMDGPU_MAX_AFMT_BLOCKS 9
 
 enum amdgpu_rmx_type {
@@ -292,6 +300,30 @@ struct amdgpu_display_funcs {
 			      uint16_t connector_object_id,
 			      struct amdgpu_hpd *hpd,
 			      struct amdgpu_router *router);
+	/* it is used to enter or exit into free sync mode */
+	int (*notify_freesync)(struct drm_device *dev, void *data,
+			       struct drm_file *filp);
+	/* it is used to allow enablement of freesync mode */
+	int (*set_freesync_property)(struct drm_connector *connector,
+				     struct drm_property *property,
+				     uint64_t val);
+
+
+};
+
+struct amdgpu_framebuffer {
+	struct drm_framebuffer base;
+	struct drm_gem_object *obj;
+
+	/* caching for later use */
+	uint64_t address;
+};
+
+struct amdgpu_fbdev {
+	struct drm_fb_helper helper;
+	struct amdgpu_framebuffer rfb;
+	struct list_head fbdev_list;
+	struct amdgpu_device *adev;
 };
 
 struct amdgpu_mode_info {
@@ -299,6 +331,7 @@ struct amdgpu_mode_info {
 	struct card_info *atom_card_info;
 	bool mode_config_initialized;
 	struct amdgpu_crtc *crtcs[AMDGPU_MAX_CRTCS];
+	struct amdgpu_plane *planes[AMDGPU_MAX_PLANES];
 	struct amdgpu_afmt *afmt[AMDGPU_MAX_AFMT_BLOCKS];
 	/* DVI-I properties */
 	struct drm_property *coherent_mode_property;
@@ -328,6 +361,7 @@ struct amdgpu_mode_info {
 	int			num_dig; /* number of dig blocks */
 	int			disp_priority;
 	const struct amdgpu_display_funcs *funcs;
+	const enum drm_plane_type *plane_type;
 };
 
 #define AMDGPU_MAX_BL_LEVEL 0xFF
@@ -400,6 +434,14 @@ struct amdgpu_crtc {
 	/* for virtual dce */
 	struct hrtimer vblank_timer;
 	enum amdgpu_interrupt_state vsync_timer_enabled;
+
+	int otg_inst;
+	struct drm_pending_vblank_event *event;
+};
+
+struct amdgpu_plane {
+	struct drm_plane base;
+	enum drm_plane_type plane_type;
 };
 
 struct amdgpu_encoder_atom_dig {
@@ -489,6 +531,19 @@ enum amdgpu_connector_dither {
 	AMDGPU_FMT_DITHER_ENABLE = 1,
 };
 
+struct amdgpu_dm_dp_aux {
+	struct drm_dp_aux aux;
+	struct ddc_service *ddc_service;
+};
+
+struct amdgpu_i2c_adapter {
+	struct i2c_adapter base;
+
+	struct ddc_service *ddc_service;
+};
+
+#define TO_DM_AUX(x) container_of((x), struct amdgpu_dm_dp_aux, aux)
+
 struct amdgpu_connector {
 	struct drm_connector base;
 	uint32_t connector_id;
@@ -500,6 +555,14 @@ struct amdgpu_connector {
 	/* we need to mind the EDID between detect
 	   and get modes due to analog/digital/tvencoder */
 	struct edid *edid;
+	/* number of modes generated from EDID at 'dc_sink' */
+	int num_modes;
+	/* The 'old' sink - before an HPD.
+	 * The 'current' sink is in dc_link->sink. */
+	struct dc_sink *dc_sink;
+	struct dc_link *dc_link;
+	struct dc_sink *dc_em_sink;
+	const struct dc_stream *stream;
 	void *con_priv;
 	bool dac_load_detect;
 	bool detected_by_load; /* if the connection status was determined by load */
@@ -510,11 +573,39 @@ struct amdgpu_connector {
 	enum amdgpu_connector_audio audio;
 	enum amdgpu_connector_dither dither;
 	unsigned pixelclock_for_modeset;
+
+	struct drm_dp_mst_topology_mgr mst_mgr;
+	struct amdgpu_dm_dp_aux dm_dp_aux;
+	struct drm_dp_mst_port *port;
+	struct amdgpu_connector *mst_port;
+	struct amdgpu_encoder *mst_encoder;
+	struct semaphore mst_sem;
+
+	/* TODO see if we can merge with ddc_bus or make a dm_connector */
+	struct amdgpu_i2c_adapter *i2c;
+
+	/* Monitor range limits */
+	int min_vfreq ;
+	int max_vfreq ;
+	int pixel_clock_mhz;
+
+	/*freesync caps*/
+	struct mod_freesync_caps caps;
+
+	struct mutex hpd_lock;
+
 };
 
-struct amdgpu_framebuffer {
-	struct drm_framebuffer base;
-	struct drm_gem_object *obj;
+/* TODO: start to use this struct and remove same field from base one */
+struct amdgpu_mst_connector {
+	struct amdgpu_connector base;
+
+	struct drm_dp_mst_topology_mgr mst_mgr;
+	struct amdgpu_dm_dp_aux dm_dp_aux;
+	struct drm_dp_mst_port *port;
+	struct amdgpu_connector *mst_port;
+	bool is_mst_connector;
+	struct amdgpu_encoder *mst_encoder;
 };
 
 #define ENCODER_MODE_IS_DP(em) (((em) == ATOM_ENCODER_MODE_DP) || \

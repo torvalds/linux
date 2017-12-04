@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  *  linux/arch/x86_64/entry.S
  *
@@ -50,13 +51,17 @@ ENTRY(native_usergs_sysret64)
 END(native_usergs_sysret64)
 #endif /* CONFIG_PARAVIRT */
 
-.macro TRACE_IRQS_IRETQ
+.macro TRACE_IRQS_FLAGS flags:req
 #ifdef CONFIG_TRACE_IRQFLAGS
-	bt	$9, EFLAGS(%rsp)		/* interrupts off? */
+	bt	$9, \flags		/* interrupts off? */
 	jnc	1f
 	TRACE_IRQS_ON
 1:
 #endif
+.endm
+
+.macro TRACE_IRQS_IRETQ
+	TRACE_IRQS_FLAGS EFLAGS(%rsp)
 .endm
 
 /*
@@ -147,8 +152,6 @@ ENTRY(entry_SYSCALL_64)
 	movq	%rsp, PER_CPU_VAR(rsp_scratch)
 	movq	PER_CPU_VAR(cpu_current_top_of_stack), %rsp
 
-	TRACE_IRQS_OFF
-
 	/* Construct struct pt_regs on stack */
 	pushq	$__USER_DS			/* pt_regs->ss */
 	pushq	PER_CPU_VAR(rsp_scratch)	/* pt_regs->sp */
@@ -168,6 +171,8 @@ GLOBAL(entry_SYSCALL_64_after_hwframe)
 	pushq	%r11				/* pt_regs->r11 */
 	sub	$(6*8), %rsp			/* pt_regs->bp, bx, r12-15 not saved */
 	UNWIND_HINT_REGS extra=0
+
+	TRACE_IRQS_OFF
 
 	/*
 	 * If we need to do entry work or if we guess we'll need to do
@@ -220,10 +225,9 @@ entry_SYSCALL_64_fastpath:
 	TRACE_IRQS_ON		/* user mode is traced as IRQs on */
 	movq	RIP(%rsp), %rcx
 	movq	EFLAGS(%rsp), %r11
-	RESTORE_C_REGS_EXCEPT_RCX_R11
-	movq	RSP(%rsp), %rsp
+	addq	$6*8, %rsp	/* skip extra regs -- they were preserved */
 	UNWIND_HINT_EMPTY
-	USERGS_SYSRET64
+	jmp	.Lpop_c_regs_except_rcx_r11_and_sysret
 
 1:
 	/*
@@ -245,17 +249,18 @@ entry_SYSCALL64_slow_path:
 	call	do_syscall_64		/* returns with IRQs disabled */
 
 return_from_SYSCALL_64:
-	RESTORE_EXTRA_REGS
 	TRACE_IRQS_IRETQ		/* we're about to change IF */
 
 	/*
 	 * Try to use SYSRET instead of IRET if we're returning to
-	 * a completely clean 64-bit userspace context.
+	 * a completely clean 64-bit userspace context.  If we're not,
+	 * go to the slow exit path.
 	 */
 	movq	RCX(%rsp), %rcx
 	movq	RIP(%rsp), %r11
-	cmpq	%rcx, %r11			/* RCX == RIP */
-	jne	opportunistic_sysret_failed
+
+	cmpq	%rcx, %r11	/* SYSRET requires RCX == RIP */
+	jne	swapgs_restore_regs_and_return_to_usermode
 
 	/*
 	 * On Intel CPUs, SYSRET with non-canonical RCX/RIP will #GP
@@ -273,14 +278,14 @@ return_from_SYSCALL_64:
 
 	/* If this changed %rcx, it was not canonical */
 	cmpq	%rcx, %r11
-	jne	opportunistic_sysret_failed
+	jne	swapgs_restore_regs_and_return_to_usermode
 
 	cmpq	$__USER_CS, CS(%rsp)		/* CS must match SYSRET */
-	jne	opportunistic_sysret_failed
+	jne	swapgs_restore_regs_and_return_to_usermode
 
 	movq	R11(%rsp), %r11
 	cmpq	%r11, EFLAGS(%rsp)		/* R11 == RFLAGS */
-	jne	opportunistic_sysret_failed
+	jne	swapgs_restore_regs_and_return_to_usermode
 
 	/*
 	 * SYSCALL clears RF when it saves RFLAGS in R11 and SYSRET cannot
@@ -301,12 +306,12 @@ return_from_SYSCALL_64:
 	 * would never get past 'stuck_here'.
 	 */
 	testq	$(X86_EFLAGS_RF|X86_EFLAGS_TF), %r11
-	jnz	opportunistic_sysret_failed
+	jnz	swapgs_restore_regs_and_return_to_usermode
 
 	/* nothing to check for RSP */
 
 	cmpq	$__USER_DS, SS(%rsp)		/* SS must match SYSRET */
-	jne	opportunistic_sysret_failed
+	jne	swapgs_restore_regs_and_return_to_usermode
 
 	/*
 	 * We win! This label is here just for ease of understanding
@@ -314,14 +319,20 @@ return_from_SYSCALL_64:
 	 */
 syscall_return_via_sysret:
 	/* rcx and r11 are already restored (see code above) */
-	RESTORE_C_REGS_EXCEPT_RCX_R11
-	movq	RSP(%rsp), %rsp
 	UNWIND_HINT_EMPTY
+	POP_EXTRA_REGS
+.Lpop_c_regs_except_rcx_r11_and_sysret:
+	popq	%rsi	/* skip r11 */
+	popq	%r10
+	popq	%r9
+	popq	%r8
+	popq	%rax
+	popq	%rsi	/* skip rcx */
+	popq	%rdx
+	popq	%rsi
+	popq	%rdi
+	movq	RSP-ORIG_RAX(%rsp), %rsp
 	USERGS_SYSRET64
-
-opportunistic_sysret_failed:
-	SWAPGS
-	jmp	restore_c_regs_and_iret
 END(entry_SYSCALL_64)
 
 ENTRY(stub_ptregs_64)
@@ -422,8 +433,7 @@ ENTRY(ret_from_fork)
 	movq	%rsp, %rdi
 	call	syscall_return_slowpath	/* returns with IRQs disabled */
 	TRACE_IRQS_ON			/* user mode is traced as IRQS on */
-	SWAPGS
-	jmp	restore_regs_and_iret
+	jmp	swapgs_restore_regs_and_return_to_usermode
 
 1:
 	/* kernel thread */
@@ -611,8 +621,21 @@ GLOBAL(retint_user)
 	mov	%rsp,%rdi
 	call	prepare_exit_to_usermode
 	TRACE_IRQS_IRETQ
+
+GLOBAL(swapgs_restore_regs_and_return_to_usermode)
+#ifdef CONFIG_DEBUG_ENTRY
+	/* Assert that pt_regs indicates user mode. */
+	testb	$3, CS(%rsp)
+	jnz	1f
+	ud2
+1:
+#endif
 	SWAPGS
-	jmp	restore_regs_and_iret
+	POP_EXTRA_REGS
+	POP_C_REGS
+	addq	$8, %rsp	/* skip regs->orig_ax */
+	INTERRUPT_RETURN
+
 
 /* Returning to kernel space */
 retint_kernel:
@@ -632,15 +655,17 @@ retint_kernel:
 	 */
 	TRACE_IRQS_IRETQ
 
-/*
- * At this label, code paths which return to kernel and to user,
- * which come from interrupts/exception and from syscalls, merge.
- */
-GLOBAL(restore_regs_and_iret)
-	RESTORE_EXTRA_REGS
-restore_c_regs_and_iret:
-	RESTORE_C_REGS
-	REMOVE_PT_GPREGS_FROM_STACK 8
+GLOBAL(restore_regs_and_return_to_kernel)
+#ifdef CONFIG_DEBUG_ENTRY
+	/* Assert that pt_regs indicates kernel mode. */
+	testb	$3, CS(%rsp)
+	jz	1f
+	ud2
+1:
+#endif
+	POP_EXTRA_REGS
+	POP_C_REGS
+	addq	$8, %rsp	/* skip regs->orig_ax */
 	INTERRUPT_RETURN
 
 ENTRY(native_iret)
@@ -817,7 +842,7 @@ ENTRY(\sym)
 
 	ASM_CLAC
 
-	.ifeq \has_error_code
+	.if \has_error_code == 0
 	pushq	$-1				/* ORIG_RAX: no syscall to restart */
 	.endif
 
@@ -922,11 +947,13 @@ ENTRY(native_load_gs_index)
 	FRAME_BEGIN
 	pushfq
 	DISABLE_INTERRUPTS(CLBR_ANY & ~CLBR_RDI)
+	TRACE_IRQS_OFF
 	SWAPGS
 .Lgs_change:
 	movl	%edi, %gs
 2:	ALTERNATIVE "", "mfence", X86_BUG_SWAPGS_FENCE
 	SWAPGS
+	TRACE_IRQS_FLAGS (%rsp)
 	popfq
 	FRAME_END
 	ret
@@ -1058,6 +1085,7 @@ idtentry int3			do_int3			has_error_code=0	paranoid=1 shift_ist=DEBUG_STACK
 idtentry stack_segment		do_stack_segment	has_error_code=1
 
 #ifdef CONFIG_XEN
+idtentry xennmi			do_nmi			has_error_code=0
 idtentry xendebug		do_debug		has_error_code=0
 idtentry xenint3		do_int3			has_error_code=0
 #endif
@@ -1111,17 +1139,14 @@ ENTRY(paranoid_exit)
 	DISABLE_INTERRUPTS(CLBR_ANY)
 	TRACE_IRQS_OFF_DEBUG
 	testl	%ebx, %ebx			/* swapgs needed? */
-	jnz	paranoid_exit_no_swapgs
+	jnz	.Lparanoid_exit_no_swapgs
 	TRACE_IRQS_IRETQ
 	SWAPGS_UNSAFE_STACK
-	jmp	paranoid_exit_restore
-paranoid_exit_no_swapgs:
+	jmp	.Lparanoid_exit_restore
+.Lparanoid_exit_no_swapgs:
 	TRACE_IRQS_IRETQ_DEBUG
-paranoid_exit_restore:
-	RESTORE_EXTRA_REGS
-	RESTORE_C_REGS
-	REMOVE_PT_GPREGS_FROM_STACK 8
-	INTERRUPT_RETURN
+.Lparanoid_exit_restore:
+	jmp restore_regs_and_return_to_kernel
 END(paranoid_exit)
 
 /*
@@ -1222,10 +1247,13 @@ ENTRY(error_exit)
 	jmp	retint_user
 END(error_exit)
 
-/* Runs on exception stack */
-/* XXX: broken on Xen PV */
+/*
+ * Runs on exception stack.  Xen PV does not go through this path at all,
+ * so we can use real assembly here.
+ */
 ENTRY(nmi)
 	UNWIND_HINT_IRET_REGS
+
 	/*
 	 * We allow breakpoints in NMIs. If a breakpoint occurs, then
 	 * the iretq it performs will take us out of NMI context.
@@ -1283,7 +1311,7 @@ ENTRY(nmi)
 	 * stacks lest we corrupt the "NMI executing" variable.
 	 */
 
-	SWAPGS_UNSAFE_STACK
+	swapgs
 	cld
 	movq	%rsp, %rdx
 	movq	PER_CPU_VAR(cpu_current_top_of_stack), %rsp
@@ -1327,8 +1355,7 @@ ENTRY(nmi)
 	 * Return back to user mode.  We must *not* do the normal exit
 	 * work, because we don't want to enable interrupts.
 	 */
-	SWAPGS
-	jmp	restore_regs_and_iret
+	jmp	swapgs_restore_regs_and_return_to_usermode
 
 .Lnmi_from_kernel:
 	/*
@@ -1449,7 +1476,7 @@ nested_nmi_out:
 	popq	%rdx
 
 	/* We are returning to kernel mode, so this cannot result in a fault. */
-	INTERRUPT_RETURN
+	iretq
 
 first_nmi:
 	/* Restore rdx. */
@@ -1480,7 +1507,7 @@ first_nmi:
 	pushfq			/* RFLAGS */
 	pushq	$__KERNEL_CS	/* CS */
 	pushq	$1f		/* RIP */
-	INTERRUPT_RETURN	/* continues at repeat_nmi below */
+	iretq			/* continues at repeat_nmi below */
 	UNWIND_HINT_IRET_REGS
 1:
 #endif
@@ -1543,29 +1570,34 @@ end_repeat_nmi:
 nmi_swapgs:
 	SWAPGS_UNSAFE_STACK
 nmi_restore:
-	RESTORE_EXTRA_REGS
-	RESTORE_C_REGS
+	POP_EXTRA_REGS
+	POP_C_REGS
 
-	/* Point RSP at the "iret" frame. */
-	REMOVE_PT_GPREGS_FROM_STACK 6*8
+	/*
+	 * Skip orig_ax and the "outermost" frame to point RSP at the "iret"
+	 * at the "iret" frame.
+	 */
+	addq	$6*8, %rsp
 
 	/*
 	 * Clear "NMI executing".  Set DF first so that we can easily
 	 * distinguish the remaining code between here and IRET from
-	 * the SYSCALL entry and exit paths.  On a native kernel, we
-	 * could just inspect RIP, but, on paravirt kernels,
-	 * INTERRUPT_RETURN can translate into a jump into a
-	 * hypercall page.
+	 * the SYSCALL entry and exit paths.
+	 *
+	 * We arguably should just inspect RIP instead, but I (Andy) wrote
+	 * this code when I had the misapprehension that Xen PV supported
+	 * NMIs, and Xen PV would break that approach.
 	 */
 	std
 	movq	$0, 5*8(%rsp)		/* clear "NMI executing" */
 
 	/*
-	 * INTERRUPT_RETURN reads the "iret" frame and exits the NMI
-	 * stack in a single instruction.  We are returning to kernel
-	 * mode, so this cannot result in a fault.
+	 * iretq reads the "iret" frame and exits the NMI stack in a
+	 * single instruction.  We are returning to kernel mode, so this
+	 * cannot result in a fault.  Similarly, we don't need to worry
+	 * about espfix64 on the way back to kernel mode.
 	 */
-	INTERRUPT_RETURN
+	iretq
 END(nmi)
 
 ENTRY(ignore_sysret)

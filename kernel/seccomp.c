@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * linux/kernel/seccomp.c
  *
@@ -189,7 +190,7 @@ static u32 seccomp_run_filters(const struct seccomp_data *sd,
 	u32 ret = SECCOMP_RET_ALLOW;
 	/* Make sure cross-thread synced filter points somewhere sane. */
 	struct seccomp_filter *f =
-			lockless_dereference(current->seccomp.filter);
+			READ_ONCE(current->seccomp.filter);
 
 	/* Ensure unexpected behavior doesn't result in failing open. */
 	if (unlikely(WARN_ON(f == NULL)))

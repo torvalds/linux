@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _LINUX_DAX_H
 #define _LINUX_DAX_H
 
@@ -95,7 +96,9 @@ bool dax_write_cache_enabled(struct dax_device *dax_dev);
 ssize_t dax_iomap_rw(struct kiocb *iocb, struct iov_iter *iter,
 		const struct iomap_ops *ops);
 int dax_iomap_fault(struct vm_fault *vmf, enum page_entry_size pe_size,
-		    const struct iomap_ops *ops);
+		    pfn_t *pfnp, const struct iomap_ops *ops);
+int dax_finish_sync_fault(struct vm_fault *vmf, enum page_entry_size pe_size,
+			  pfn_t pfn);
 int dax_delete_mapping_entry(struct address_space *mapping, pgoff_t index);
 int dax_invalidate_mapping_entry_sync(struct address_space *mapping,
 				      pgoff_t index);

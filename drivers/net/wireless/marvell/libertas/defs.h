@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * This header file contains global constant/enum definitions,
  * global variable declaration.

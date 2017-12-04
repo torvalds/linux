@@ -257,7 +257,7 @@ static struct tap_queue *tap_get_queue(struct tap_dev *tap,
 	 * and validate that the result isn't NULL - in case we are
 	 * racing against queue removal.
 	 */
-	int numvtaps = ACCESS_ONCE(tap->numvtaps);
+	int numvtaps = READ_ONCE(tap->numvtaps);
 	__u32 rxq;
 
 	if (!numvtaps)
@@ -1032,6 +1032,8 @@ static long tap_ioctl(struct file *file, unsigned int cmd,
 	case TUNSETSNDBUF:
 		if (get_user(s, sp))
 			return -EFAULT;
+		if (s <= 0)
+			return -EINVAL;
 
 		q->sk.sk_sndbuf = s;
 		return 0;
@@ -1075,7 +1077,7 @@ static long tap_ioctl(struct file *file, unsigned int cmd,
 	case TUNSETOFFLOAD:
 		/* let the user check for future flags */
 		if (arg & ~(TUN_F_CSUM | TUN_F_TSO4 | TUN_F_TSO6 |
-			    TUN_F_TSO_ECN))
+			    TUN_F_TSO_ECN | TUN_F_UFO))
 			return -EINVAL;
 
 		rtnl_lock();

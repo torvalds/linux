@@ -28,6 +28,7 @@ config DRM_I915_DEBUG
 	select SW_SYNC # signaling validation framework (igt/syncobj*)
 	select DRM_I915_SW_FENCE_DEBUG_OBJECTS
 	select DRM_I915_SELFTEST
+	select DRM_I915_TRACE_GEM
         default n
         help
           Choose this option to turn on extra driver debugging that may affect
@@ -48,6 +49,19 @@ config DRM_I915_DEBUG_GEM
           Recommended for driver developers only.
 
           If in doubt, say "N".
+
+config DRM_I915_TRACE_GEM
+	bool "Insert extra ftrace output from the GEM internals"
+	select TRACING
+	default n
+	help
+	  Enable additional and verbose debugging output that will spam
+	  ordinary tests, but may be vital for post-mortem debugging when
+	  used with /proc/sys/kernel/ftrace_dump_on_oops
+
+	  Recommended for driver developers only.
+
+	  If in doubt, say "N".
 
 config DRM_I915_SW_FENCE_DEBUG_OBJECTS
         bool "Enable additional driver debugging for fence objects"
@@ -87,6 +101,20 @@ config DRM_I915_SELFTEST
 	  module initialisation afterwards) use i915.selftest=-1.
 
 	  Recommended for driver developers only.
+
+	  If in doubt, say "N".
+
+config DRM_I915_SELFTEST_BROKEN
+	bool "Enable broken and dangerous selftests"
+	depends on DRM_I915_SELFTEST
+	depends on BROKEN
+	default n
+	help
+	  This option enables the execution of selftests that are "dangerous"
+	  and may trigger unintended HW side-effects as they break strict
+	  rules given in the HW specification. For science.
+
+	  Recommended for masochistic driver developers only.
 
 	  If in doubt, say "N".
 

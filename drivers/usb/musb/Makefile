@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 #
 # for USB OTG silicon based on Mentor Graphics INVENTRA designs
 #

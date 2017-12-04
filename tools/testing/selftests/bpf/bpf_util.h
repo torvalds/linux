@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __BPF_UTIL__
 #define __BPF_UTIL__
 

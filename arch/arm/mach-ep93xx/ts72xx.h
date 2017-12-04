@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * arch/arm/mach-ep93xx/include/mach/ts72xx.h
  */
@@ -37,9 +38,6 @@
 
 #define TS72XX_OPTIONS2_TS9420		0x04
 #define TS72XX_OPTIONS2_TS9420_BOOT	0x02
-
-#define TS72XX_WDT_CONTROL_PHYS_BASE	0x23800000
-#define TS72XX_WDT_FEED_PHYS_BASE	0x23c00000
 
 #ifndef __ASSEMBLY__
 

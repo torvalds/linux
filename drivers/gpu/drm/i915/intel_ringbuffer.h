@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _INTEL_RINGBUFFER_H_
 #define _INTEL_RINGBUFFER_H_
 
@@ -165,7 +166,6 @@ struct i915_ctx_workarounds {
 };
 
 struct drm_i915_gem_request;
-struct intel_render_state;
 
 /*
  * Engine IDs definitions.
@@ -194,9 +194,9 @@ struct i915_priolist {
  */
 struct intel_engine_execlists {
 	/**
-	 * @irq_tasklet: softirq tasklet for bottom handler
+	 * @tasklet: softirq tasklet for bottom handler
 	 */
-	struct tasklet_struct irq_tasklet;
+	struct tasklet_struct tasklet;
 
 	/**
 	 * @default_priolist: priority list for I915_PRIORITY_NORMAL
@@ -289,10 +289,13 @@ struct intel_engine_execlists {
 struct intel_engine_cs {
 	struct drm_i915_private *i915;
 	char name[INTEL_ENGINE_CS_MAX_NAME];
+
 	enum intel_engine_id id;
-	unsigned int uabi_id;
 	unsigned int hw_id;
 	unsigned int guc_id;
+
+	u8 uabi_id;
+	u8 uabi_class;
 
 	u8 class;
 	u8 instance;
@@ -303,7 +306,7 @@ struct intel_engine_cs {
 	struct intel_ring *buffer;
 	struct intel_timeline *timeline;
 
-	struct intel_render_state *render_state;
+	struct drm_i915_gem_object *default_state;
 
 	atomic_t irq_count;
 	unsigned long irq_posted;
@@ -339,9 +342,9 @@ struct intel_engine_cs {
 		struct timer_list hangcheck; /* detect missed interrupts */
 
 		unsigned int hangcheck_interrupts;
+		unsigned int irq_enabled;
 
 		bool irq_armed : 1;
-		bool irq_enabled : 1;
 		I915_SELFTEST_DECLARE(bool mock : 1);
 	} breadcrumbs;
 
@@ -364,6 +367,9 @@ struct intel_engine_cs {
 	int		(*init_hw)(struct intel_engine_cs *engine);
 	void		(*reset_hw)(struct intel_engine_cs *engine,
 				    struct drm_i915_gem_request *req);
+
+	void		(*park)(struct intel_engine_cs *engine);
+	void		(*unpark)(struct intel_engine_cs *engine);
 
 	void		(*set_default_submission)(struct intel_engine_cs *engine);
 
@@ -554,6 +560,12 @@ execlists_is_active(const struct intel_engine_execlists *execlists,
 	return test_bit(bit, (unsigned long *)&execlists->active);
 }
 
+void
+execlists_cancel_port_requests(struct intel_engine_execlists * const execlists);
+
+void
+execlists_unwind_incomplete_requests(struct intel_engine_execlists *execlists);
+
 static inline unsigned int
 execlists_num_ports(const struct intel_engine_execlists * const execlists)
 {
@@ -623,6 +635,8 @@ intel_write_status_page(struct intel_engine_cs *engine, int reg, u32 value)
  */
 #define I915_GEM_HWS_INDEX		0x30
 #define I915_GEM_HWS_INDEX_ADDR (I915_GEM_HWS_INDEX << MI_STORE_DWORD_INDEX_SHIFT)
+#define I915_GEM_HWS_PREEMPT_INDEX	0x32
+#define I915_GEM_HWS_PREEMPT_ADDR (I915_GEM_HWS_PREEMPT_INDEX << MI_STORE_DWORD_INDEX_SHIFT)
 #define I915_GEM_HWS_SCRATCH_INDEX	0x40
 #define I915_GEM_HWS_SCRATCH_ADDR (I915_GEM_HWS_SCRATCH_INDEX << MI_STORE_DWORD_INDEX_SHIFT)
 
@@ -647,6 +661,7 @@ void intel_legacy_submission_resume(struct drm_i915_private *dev_priv);
 
 int __must_check intel_ring_cacheline_align(struct drm_i915_gem_request *req);
 
+int intel_ring_wait_for_space(struct intel_ring *ring, unsigned int bytes);
 u32 __must_check *intel_ring_begin(struct drm_i915_gem_request *req,
 				   unsigned int n);
 
@@ -775,6 +790,11 @@ static inline u32 intel_hws_seqno_address(struct intel_engine_cs *engine)
 	return engine->status_page.ggtt_offset + I915_GEM_HWS_INDEX_ADDR;
 }
 
+static inline u32 intel_hws_preempt_done_address(struct intel_engine_cs *engine)
+{
+	return engine->status_page.ggtt_offset + I915_GEM_HWS_PREEMPT_ADDR;
+}
+
 /* intel_breadcrumbs.c -- user interrupt bottom-half for waiters */
 int intel_engine_init_breadcrumbs(struct intel_engine_cs *engine);
 
@@ -845,6 +865,9 @@ unsigned int intel_engine_wakeup(struct intel_engine_cs *engine);
 #define ENGINE_WAKEUP_WAITER BIT(0)
 #define ENGINE_WAKEUP_ASLEEP BIT(1)
 
+void intel_engine_pin_breadcrumbs_irq(struct intel_engine_cs *engine);
+void intel_engine_unpin_breadcrumbs_irq(struct intel_engine_cs *engine);
+
 void __intel_engine_disarm_breadcrumbs(struct intel_engine_cs *engine);
 void intel_engine_disarm_breadcrumbs(struct intel_engine_cs *engine);
 
@@ -863,11 +886,54 @@ static inline u32 *gen8_emit_pipe_control(u32 *batch, u32 flags, u32 offset)
 	return batch + 6;
 }
 
+static inline u32 *
+gen8_emit_ggtt_write_rcs(u32 *cs, u32 value, u32 gtt_offset)
+{
+	/* We're using qword write, offset should be aligned to 8 bytes. */
+	GEM_BUG_ON(!IS_ALIGNED(gtt_offset, 8));
+
+	/* w/a for post sync ops following a GPGPU operation we
+	 * need a prior CS_STALL, which is emitted by the flush
+	 * following the batch.
+	 */
+	*cs++ = GFX_OP_PIPE_CONTROL(6);
+	*cs++ = PIPE_CONTROL_GLOBAL_GTT_IVB | PIPE_CONTROL_CS_STALL |
+		PIPE_CONTROL_QW_WRITE;
+	*cs++ = gtt_offset;
+	*cs++ = 0;
+	*cs++ = value;
+	/* We're thrashing one dword of HWS. */
+	*cs++ = 0;
+
+	return cs;
+}
+
+static inline u32 *
+gen8_emit_ggtt_write(u32 *cs, u32 value, u32 gtt_offset)
+{
+	/* w/a: bit 5 needs to be zero for MI_FLUSH_DW address. */
+	GEM_BUG_ON(gtt_offset & (1 << 5));
+	/* Offset should be aligned to 8 bytes for both (QW/DW) write types */
+	GEM_BUG_ON(!IS_ALIGNED(gtt_offset, 8));
+
+	*cs++ = (MI_FLUSH_DW + 1) | MI_FLUSH_DW_OP_STOREDW;
+	*cs++ = gtt_offset | MI_FLUSH_DW_USE_GTT;
+	*cs++ = 0;
+	*cs++ = value;
+
+	return cs;
+}
+
 bool intel_engine_is_idle(struct intel_engine_cs *engine);
 bool intel_engines_are_idle(struct drm_i915_private *dev_priv);
 
-void intel_engines_mark_idle(struct drm_i915_private *i915);
+bool intel_engine_has_kernel_context(const struct intel_engine_cs *engine);
+
+void intel_engines_park(struct drm_i915_private *i915);
+void intel_engines_unpark(struct drm_i915_private *i915);
+
 void intel_engines_reset_default_submission(struct drm_i915_private *i915);
+unsigned int intel_engines_has_context_isolation(struct drm_i915_private *i915);
 
 bool intel_engine_can_store_dword(struct intel_engine_cs *engine);
 

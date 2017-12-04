@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *  linux/fs/affs/amigaffs.c
  *
@@ -452,7 +453,7 @@ affs_error(struct super_block *sb, const char *function, const char *fmt, ...)
 	pr_crit("error (device %s): %s(): %pV\n", sb->s_id, function, &vaf);
 	if (!sb_rdonly(sb))
 		pr_warn("Remounting filesystem read-only\n");
-	sb->s_flags |= MS_RDONLY;
+	sb->s_flags |= SB_RDONLY;
 	va_end(args);
 }
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * f_fs.c -- user mode file system API for USB composite function controllers
  *
@@ -7,11 +8,6 @@
  * Based on inode.c (GadgetFS) which was:
  * Copyright (C) 2003-2004 David Brownell
  * Copyright (C) 2003 Agilent Technologies
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 
@@ -3385,7 +3381,7 @@ static struct configfs_item_operations ffs_item_ops = {
 	.release	= ffs_attr_release,
 };
 
-static struct config_item_type ffs_func_type = {
+static const struct config_item_type ffs_func_type = {
 	.ct_item_ops	= &ffs_item_ops,
 	.ct_owner	= THIS_MODULE,
 };
@@ -3677,6 +3673,7 @@ static void ffs_closed(struct ffs_data *ffs)
 		goto done;
 
 	ffs_obj->desc_ready = false;
+	ffs_obj->ffs_data = NULL;
 
 	if (test_and_clear_bit(FFS_FL_CALL_CLOSED_CALLBACK, &ffs->flags) &&
 	    ffs_obj->ffs_closed_callback)

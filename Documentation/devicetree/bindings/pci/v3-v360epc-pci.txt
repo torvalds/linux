@@ -2,14 +2,75 @@ V3 Semiconductor V360 EPC PCI bridge
 
 This bridge is found in the ARM Integrator/AP (Application Platform)
 
-Integrator-specific notes:
-
-- syscon: should contain a link to the syscon device node (since
-  on the Integrator, some registers in the syscon are required to
-  operate the V3).
-
-V360 EPC specific notes:
-
-- reg: should contain the base address of the V3 adapter.
+Required properties:
+- compatible: should be one of:
+  "v3,v360epc-pci"
+  "arm,integrator-ap-pci", "v3,v360epc-pci"
+- reg: should contain two register areas:
+  first the base address of the V3 host bridge controller, 64KB
+  second the configuration area register space, 16MB
 - interrupts: should contain a reference to the V3 error interrupt
   as routed on the system.
+- bus-range: see pci.txt
+- ranges: this follows the standard PCI bindings in the IEEE Std
+  1275-1994 (see pci.txt) with the following restriction:
+  - The non-prefetchable and prefetchable memory windows must
+    each be exactly 256MB (0x10000000) in size.
+  - The prefetchable memory window must be immediately adjacent
+    to the non-prefetcable memory window
+- dma-ranges: three ranges for the inbound memory region. The ranges must
+  be aligned to a 1MB boundary, and may be 1MB, 2MB, 4MB, 8MB, 16MB, 32MB,
+  64MB, 128MB, 256MB, 512MB, 1GB or 2GB in size. The memory should be marked
+  as pre-fetchable. Two ranges are supported by the hardware.
+
+Integrator-specific required properties:
+- syscon: should contain a link to the syscon device node, since
+  on the Integrator, some registers in the syscon are required to
+  operate the V3 host bridge.
+
+Example:
+
+pci: pciv3@62000000 {
+	compatible = "arm,integrator-ap-pci", "v3,v360epc-pci";
+	#interrupt-cells = <1>;
+	#size-cells = <2>;
+	#address-cells = <3>;
+	reg = <0x62000000 0x10000>, <0x61000000 0x01000000>;
+	interrupt-parent = <&pic>;
+	interrupts = <17>; /* Bus error IRQ */
+	clocks = <&pciclk>;
+	bus-range = <0x00 0xff>;
+	ranges = 0x01000000 0 0x00000000 /* I/O space @00000000 */
+		0x60000000 0 0x01000000 /* 16 MiB @ LB 60000000 */
+		0x02000000 0 0x40000000 /* non-prefectable memory @40000000 */
+		0x40000000 0 0x10000000 /* 256 MiB @ LB 40000000 1:1 */
+		0x42000000 0 0x50000000 /* prefetchable memory @50000000 */
+		0x50000000 0 0x10000000>; /* 256 MiB @ LB 50000000 1:1 */
+	dma-ranges = <0x02000000 0 0x20000000 /* EBI memory space */
+		0x20000000 0 0x20000000 /* 512 MB @ LB 20000000 1:1 */
+		0x02000000 0 0x80000000 /* Core module alias memory */
+		0x80000000 0 0x40000000>; /* 1GB @ LB 80000000 */
+	interrupt-map-mask = <0xf800 0 0 0x7>;
+	interrupt-map = <
+	/* IDSEL 9 */
+	0x4800 0 0 1 &pic 13 /* INT A on slot 9 is irq 13 */
+	0x4800 0 0 2 &pic 14 /* INT B on slot 9 is irq 14 */
+	0x4800 0 0 3 &pic 15 /* INT C on slot 9 is irq 15 */
+	0x4800 0 0 4 &pic 16 /* INT D on slot 9 is irq 16 */
+	/* IDSEL 10 */
+	0x5000 0 0 1 &pic 14 /* INT A on slot 10 is irq 14 */
+	0x5000 0 0 2 &pic 15 /* INT B on slot 10 is irq 15 */
+	0x5000 0 0 3 &pic 16 /* INT C on slot 10 is irq 16 */
+	0x5000 0 0 4 &pic 13 /* INT D on slot 10 is irq 13 */
+	/* IDSEL 11 */
+	0x5800 0 0 1 &pic 15 /* INT A on slot 11 is irq 15 */
+	0x5800 0 0 2 &pic 16 /* INT B on slot 11 is irq 16 */
+	0x5800 0 0 3 &pic 13 /* INT C on slot 11 is irq 13 */
+	0x5800 0 0 4 &pic 14 /* INT D on slot 11 is irq 14 */
+	/* IDSEL 12 */
+	0x6000 0 0 1 &pic 16 /* INT A on slot 12 is irq 16 */
+	0x6000 0 0 2 &pic 13 /* INT B on slot 12 is irq 13 */
+	0x6000 0 0 3 &pic 14 /* INT C on slot 12 is irq 14 */
+	0x6000 0 0 4 &pic 15 /* INT D on slot 12 is irq 15 */
+	>;
+};

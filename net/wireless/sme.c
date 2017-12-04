@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * SME code for cfg80211
  * both driver SME event handling and the SME implementation
@@ -955,7 +956,6 @@ void cfg80211_roamed(struct net_device *dev, struct cfg80211_roam_info *info,
 	ev->rm.resp_ie_len = info->resp_ie_len;
 	memcpy((void *)ev->rm.resp_ie, info->resp_ie, info->resp_ie_len);
 	ev->rm.bss = info->bss;
-	ev->rm.authorized = info->authorized;
 
 	spin_lock_irqsave(&wdev->event_lock, flags);
 	list_add_tail(&ev->list, &wdev->event_list);
@@ -963,6 +963,50 @@ void cfg80211_roamed(struct net_device *dev, struct cfg80211_roam_info *info,
 	queue_work(cfg80211_wq, &rdev->event_work);
 }
 EXPORT_SYMBOL(cfg80211_roamed);
+
+void __cfg80211_port_authorized(struct wireless_dev *wdev, const u8 *bssid)
+{
+	ASSERT_WDEV_LOCK(wdev);
+
+	if (WARN_ON(wdev->iftype != NL80211_IFTYPE_STATION))
+		return;
+
+	if (WARN_ON(!wdev->current_bss) ||
+	    WARN_ON(!ether_addr_equal(wdev->current_bss->pub.bssid, bssid)))
+		return;
+
+	nl80211_send_port_authorized(wiphy_to_rdev(wdev->wiphy), wdev->netdev,
+				     bssid);
+}
+
+void cfg80211_port_authorized(struct net_device *dev, const u8 *bssid,
+			      gfp_t gfp)
+{
+	struct wireless_dev *wdev = dev->ieee80211_ptr;
+	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wdev->wiphy);
+	struct cfg80211_event *ev;
+	unsigned long flags;
+
+	if (WARN_ON(!bssid))
+		return;
+
+	ev = kzalloc(sizeof(*ev), gfp);
+	if (!ev)
+		return;
+
+	ev->type = EVENT_PORT_AUTHORIZED;
+	memcpy(ev->pa.bssid, bssid, ETH_ALEN);
+
+	/*
+	 * Use the wdev event list so that if there are pending
+	 * connected/roamed events, they will be reported first.
+	 */
+	spin_lock_irqsave(&wdev->event_lock, flags);
+	list_add_tail(&ev->list, &wdev->event_list);
+	spin_unlock_irqrestore(&wdev->event_lock, flags);
+	queue_work(cfg80211_wq, &rdev->event_work);
+}
+EXPORT_SYMBOL(cfg80211_port_authorized);
 
 void __cfg80211_disconnected(struct net_device *dev, const u8 *ie,
 			     size_t ie_len, u16 reason, bool from_ap)

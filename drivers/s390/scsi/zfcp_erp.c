@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * zfcp device driver
  *
@@ -563,21 +564,24 @@ void zfcp_erp_notify(struct zfcp_erp_action *erp_action, unsigned long set_mask)
  * zfcp_erp_timeout_handler - Trigger ERP action from timed out ERP request
  * @data: ERP action (from timer data)
  */
-void zfcp_erp_timeout_handler(unsigned long data)
+void zfcp_erp_timeout_handler(struct timer_list *t)
 {
-	struct zfcp_erp_action *act = (struct zfcp_erp_action *) data;
+	struct zfcp_fsf_req *fsf_req = from_timer(fsf_req, t, timer);
+	struct zfcp_erp_action *act = fsf_req->erp_action;
+
 	zfcp_erp_notify(act, ZFCP_STATUS_ERP_TIMEDOUT);
 }
 
-static void zfcp_erp_memwait_handler(unsigned long data)
+static void zfcp_erp_memwait_handler(struct timer_list *t)
 {
-	zfcp_erp_notify((struct zfcp_erp_action *)data, 0);
+	struct zfcp_erp_action *act = from_timer(act, t, timer);
+
+	zfcp_erp_notify(act, 0);
 }
 
 static void zfcp_erp_strategy_memwait(struct zfcp_erp_action *erp_action)
 {
-	setup_timer(&erp_action->timer, zfcp_erp_memwait_handler,
-		    (unsigned long) erp_action);
+	timer_setup(&erp_action->timer, zfcp_erp_memwait_handler, 0);
 	erp_action->timer.expires = jiffies + HZ;
 	add_timer(&erp_action->timer);
 }
