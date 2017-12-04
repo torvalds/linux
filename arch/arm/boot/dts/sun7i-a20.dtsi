@@ -580,8 +580,8 @@
 			reg = <0x01c16000 0x1000>;
 			interrupts = <GIC_SPI 58 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&ccu CLK_AHB_HDMI0>, <&ccu CLK_HDMI>,
-				 <&ccu 9>,
-				 <&ccu 18>;
+				 <&ccu CLK_PLL_VIDEO0_2X>,
+				 <&ccu CLK_PLL_VIDEO1_2X>;
 			clock-names = "ahb", "mod", "pll-0", "pll-1";
 			dmas = <&dma SUN4I_DMA_NORMAL 16>,
 			       <&dma SUN4I_DMA_NORMAL 16>,
