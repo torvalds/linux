@@ -49,6 +49,9 @@
 #include <asm/pgalloc.h>
 #include <asm/stage2_pgtable.h>
 
+/* Ensure compatibility with arm64 */
+#define VA_BITS			32
+
 int create_hyp_mappings(void *from, void *to, pgprot_t prot);
 int create_hyp_io_mappings(phys_addr_t phys_addr, size_t size,
 			   void __iomem **kaddr,
