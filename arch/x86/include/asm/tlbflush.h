@@ -135,6 +135,17 @@ struct tlb_state {
 	bool is_lazy;
 
 	/*
+	 * If set we changed the page tables in such a way that we
+	 * needed an invalidation of all contexts (aka. PCIDs / ASIDs).
+	 * This tells us to go invalidate all the non-loaded ctxs[]
+	 * on the next context switch.
+	 *
+	 * The current ctx was kept up-to-date as it ran and does not
+	 * need to be invalidated.
+	 */
+	bool invalidate_other;
+
+	/*
 	 * Access to this CR4 shadow and to H/W CR4 is protected by
 	 * disabling interrupts when modifying either one.
 	 */
@@ -209,6 +220,14 @@ static inline void cr4_toggle_bits(unsigned long mask)
 static inline unsigned long cr4_read_shadow(void)
 {
 	return this_cpu_read(cpu_tlbstate.cr4);
+}
+
+/*
+ * Mark all other ASIDs as invalid, preserves the current.
+ */
+static inline void invalidate_other_asid(void)
+{
+	this_cpu_write(cpu_tlbstate.invalidate_other, true);
 }
 
 /*
@@ -298,14 +317,6 @@ static inline void __flush_tlb_all(void)
 		 */
 		__flush_tlb();
 	}
-
-	/*
-	 * Note: if we somehow had PCID but not PGE, then this wouldn't work --
-	 * we'd end up flushing kernel translations for the current ASID but
-	 * we might fail to flush kernel translations for other cached ASIDs.
-	 *
-	 * To avoid this issue, we force PCID off if PGE is off.
-	 */
 }
 
 /*
@@ -315,6 +326,16 @@ static inline void __flush_tlb_one(unsigned long addr)
 {
 	count_vm_tlb_event(NR_TLB_LOCAL_FLUSH_ONE);
 	__flush_tlb_single(addr);
+
+	if (!static_cpu_has(X86_FEATURE_PTI))
+		return;
+
+	/*
+	 * __flush_tlb_single() will have cleared the TLB entry for this ASID,
+	 * but since kernel space is replicated across all, we must also
+	 * invalidate all others.
+	 */
+	invalidate_other_asid();
 }
 
 #define TLB_FLUSH_ALL	-1UL
