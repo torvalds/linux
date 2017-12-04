@@ -32,13 +32,45 @@
  */
 
 #include <linux/ethtool.h>
+#include <linux/vmalloc.h>
 
 #include "nfp_main.h"
+#include "nfpcore/nfp.h"
+#include "nfpcore/nfp_nffw.h"
+
+#define NFP_DUMP_SPEC_RTSYM	"_abi_dump_spec"
 
 struct nfp_dumpspec *
 nfp_net_dump_load_dumpspec(struct nfp_cpp *cpp, struct nfp_rtsym_table *rtbl)
 {
-	return NULL;
+	const struct nfp_rtsym *specsym;
+	struct nfp_dumpspec *dumpspec;
+	int bytes_read;
+	u32 cpp_id;
+
+	specsym = nfp_rtsym_lookup(rtbl, NFP_DUMP_SPEC_RTSYM);
+	if (!specsym)
+		return NULL;
+
+	/* expected size of this buffer is in the order of tens of kilobytes */
+	dumpspec = vmalloc(sizeof(*dumpspec) + specsym->size);
+	if (!dumpspec)
+		return NULL;
+
+	dumpspec->size = specsym->size;
+
+	cpp_id = NFP_CPP_ISLAND_ID(specsym->target, NFP_CPP_ACTION_RW, 0,
+				   specsym->domain);
+
+	bytes_read = nfp_cpp_read(cpp, cpp_id, specsym->addr, dumpspec->data,
+				  specsym->size);
+	if (bytes_read != specsym->size) {
+		vfree(dumpspec);
+		nfp_warn(cpp, "Debug dump specification read failed.\n");
+		return NULL;
+	}
+
+	return dumpspec;
 }
 
 s64 nfp_net_dump_calculate_size(struct nfp_pf *pf, struct nfp_dumpspec *spec,
