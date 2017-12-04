@@ -1398,7 +1398,7 @@ static int hws_pga_write(struct intel_vgpu *vgpu, unsigned int offset,
 	 * update the VM CSB status correctly. Here listed registers can
 	 * support BDW, SKL or other platforms with same HWSP registers.
 	 */
-	if (unlikely(ring_id < 0 || ring_id > I915_NUM_ENGINES)) {
+	if (unlikely(ring_id < 0 || ring_id >= I915_NUM_ENGINES)) {
 		gvt_vgpu_err("VM(%d) access unknown hardware status page register:0x%x\n",
 			     vgpu->id, offset);
 		return -EINVAL;
@@ -1507,7 +1507,7 @@ static int elsp_mmio_write(struct intel_vgpu *vgpu, unsigned int offset,
 	u32 data = *(u32 *)p_data;
 	int ret = 0;
 
-	if (WARN_ON(ring_id < 0 || ring_id > I915_NUM_ENGINES - 1))
+	if (WARN_ON(ring_id < 0 || ring_id >= I915_NUM_ENGINES))
 		return -EINVAL;
 
 	execlist = &vgpu->submission.execlist[ring_id];
