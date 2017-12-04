@@ -96,6 +96,47 @@ enable:
 	setup_force_cpu_cap(X86_FEATURE_PTI);
 }
 
+pgd_t __pti_set_user_pgd(pgd_t *pgdp, pgd_t pgd)
+{
+	/*
+	 * Changes to the high (kernel) portion of the kernelmode page
+	 * tables are not automatically propagated to the usermode tables.
+	 *
+	 * Users should keep in mind that, unlike the kernelmode tables,
+	 * there is no vmalloc_fault equivalent for the usermode tables.
+	 * Top-level entries added to init_mm's usermode pgd after boot
+	 * will not be automatically propagated to other mms.
+	 */
+	if (!pgdp_maps_userspace(pgdp))
+		return pgd;
+
+	/*
+	 * The user page tables get the full PGD, accessible from
+	 * userspace:
+	 */
+	kernel_to_user_pgdp(pgdp)->pgd = pgd.pgd;
+
+	/*
+	 * If this is normal user memory, make it NX in the kernel
+	 * pagetables so that, if we somehow screw up and return to
+	 * usermode with the kernel CR3 loaded, we'll get a page fault
+	 * instead of allowing user code to execute with the wrong CR3.
+	 *
+	 * As exceptions, we don't set NX if:
+	 *  - _PAGE_USER is not set.  This could be an executable
+	 *     EFI runtime mapping or something similar, and the kernel
+	 *     may execute from it
+	 *  - we don't have NX support
+	 *  - we're clearing the PGD (i.e. the new pgd is not present).
+	 */
+	if ((pgd.pgd & (_PAGE_USER|_PAGE_PRESENT)) == (_PAGE_USER|_PAGE_PRESENT) &&
+	    (__supported_pte_mask & _PAGE_NX))
+		pgd.pgd |= _PAGE_NX;
+
+	/* return the copy of the PGD we want the kernel to use: */
+	return pgd;
+}
+
 /*
  * Initialize kernel page table isolation
  */
