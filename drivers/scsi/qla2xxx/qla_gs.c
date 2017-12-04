@@ -175,6 +175,9 @@ qla2x00_chk_ms_status(scsi_qla_host_t *vha, ms_iocb_entry_t *ms_pkt,
 				set_bit(LOCAL_LOOP_UPDATE, &vha->dpc_flags);
 			}
 			break;
+		case CS_TIMEOUT:
+			rval = QLA_FUNCTION_TIMEOUT;
+			/* drop through */
 		default:
 			ql_dbg(ql_dbg_disc, vha, 0x2033,
 			    "%s failed, completion status (%x) on port_id: "
@@ -2889,9 +2892,22 @@ static void qla2x00_async_gidpn_sp_done(void *s, int res)
 	ea.rc = res;
 	ea.event = FCME_GIDPN_DONE;
 
-	ql_dbg(ql_dbg_disc, vha, 0x204f,
-	    "Async done-%s res %x, WWPN %8phC ID %3phC \n",
-	    sp->name, res, fcport->port_name, id);
+	if (res == QLA_FUNCTION_TIMEOUT) {
+		ql_dbg(ql_dbg_disc, sp->vha, 0xffff,
+		    "Async done-%s WWPN %8phC timed out.\n",
+		    sp->name, fcport->port_name);
+		qla24xx_post_gidpn_work(sp->vha, fcport);
+		sp->free(sp);
+		return;
+	} else if (res) {
+		ql_dbg(ql_dbg_disc, sp->vha, 0xffff,
+		    "Async done-%s fail res %x, WWPN %8phC\n",
+		    sp->name, res, fcport->port_name);
+	} else {
+		ql_dbg(ql_dbg_disc, vha, 0x204f,
+		    "Async done-%s good WWPN %8phC ID %3phC\n",
+		    sp->name, fcport->port_name, id);
+	}
 
 	qla2x00_fcport_event_handler(vha, &ea);
 
@@ -3217,11 +3233,6 @@ static void qla2x00_async_gpnid_sp_done(void *s, int res)
 		    sp->name, ct_req->req.port_id.port_id,
 		    ct_rsp->rsp.gpn_id.port_name);
 
-	if (res) {
-		sp->free(sp);
-		return;
-	}
-
 	memset(&ea, 0, sizeof(ea));
 	memcpy(ea.port_name, ct_rsp->rsp.gpn_id.port_name, WWN_SIZE);
 	ea.sp = sp;
@@ -3230,6 +3241,13 @@ static void qla2x00_async_gpnid_sp_done(void *s, int res)
 	ea.id.b.al_pa = ct_req->req.port_id.port_id[2];
 	ea.rc = res;
 	ea.event = FCME_GPNID_DONE;
+
+	if (res) {
+		if (res == QLA_FUNCTION_TIMEOUT)
+			qla24xx_post_gpnid_work(sp->vha, &ea.id);
+		sp->free(sp);
+		return;
+	}
 
 	qla2x00_fcport_event_handler(vha, &ea);
 
