@@ -174,8 +174,10 @@ void enter_failsafe_mode(struct intel_vgpu *vgpu, int reason)
 		break;
 	case GVT_FAILSAFE_INSUFFICIENT_RESOURCE:
 		pr_err("Graphics resource is not enough for the guest\n");
+		break;
 	case GVT_FAILSAFE_GUEST_ERR:
 		pr_err("GVT Internal error  for the guest\n");
+		break;
 	default:
 		break;
 	}
