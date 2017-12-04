@@ -339,14 +339,11 @@ struct tss_struct {
 	 */
 	unsigned long		io_bitmap[IO_BITMAP_LONGS + 1];
 
-#ifdef CONFIG_X86_32
 	/*
 	 * Space for the temporary SYSENTER stack.
 	 */
 	unsigned long		SYSENTER_stack_canary;
 	unsigned long		SYSENTER_stack[64];
-#endif
-
 } ____cacheline_aligned;
 
 DECLARE_PER_CPU_SHARED_ALIGNED(struct tss_struct, cpu_tss);
