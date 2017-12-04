@@ -53,6 +53,8 @@ Optional Properties:
   to ensure the integrated PHY is used. The absence of this property indicates
   the muxers should be configured so that the external PHY is used.
 
+- reset-gpios: The GPIO phandle and specifier for the PHY reset signal.
+
 Example:
 
 ethernet-phy@0 {

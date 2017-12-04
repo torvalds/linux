@@ -38,6 +38,7 @@
 #include <linux/phy.h>
 #include <linux/io.h>
 #include <linux/uaccess.h>
+#include <linux/gpio/consumer.h>
 
 #include <asm/irq.h>
 
@@ -48,8 +49,25 @@
 
 int mdiobus_register_device(struct mdio_device *mdiodev)
 {
+	struct gpio_desc *gpiod = NULL;
+
 	if (mdiodev->bus->mdio_map[mdiodev->addr])
 		return -EBUSY;
+
+	/* Deassert the optional reset signal */
+	if (mdiodev->dev.of_node)
+		gpiod = fwnode_get_named_gpiod(&mdiodev->dev.of_node->fwnode,
+					       "reset-gpios", 0, GPIOD_OUT_LOW,
+					       "PHY reset");
+	if (PTR_ERR(gpiod) == -ENOENT)
+		gpiod = NULL;
+	else if (IS_ERR(gpiod))
+		return PTR_ERR(gpiod);
+
+	mdiodev->reset = gpiod;
+
+	/* Assert the reset signal again */
+	mdio_device_reset(mdiodev, 1);
 
 	mdiodev->bus->mdio_map[mdiodev->addr] = mdiodev;
 
@@ -419,6 +437,9 @@ void mdiobus_unregister(struct mii_bus *bus)
 		mdiodev = bus->mdio_map[i];
 		if (!mdiodev)
 			continue;
+
+		if (mdiodev->reset)
+			gpiod_put(mdiodev->reset);
 
 		mdiodev->device_remove(mdiodev);
 		mdiodev->device_free(mdiodev);

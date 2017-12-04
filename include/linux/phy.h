@@ -854,6 +854,11 @@ int phy_aneg_done(struct phy_device *phydev);
 int phy_stop_interrupts(struct phy_device *phydev);
 int phy_restart_aneg(struct phy_device *phydev);
 
+static inline void phy_device_reset(struct phy_device *phydev, int value)
+{
+	mdio_device_reset(&phydev->mdio, value);
+}
+
 #define phydev_err(_phydev, format, args...)	\
 	dev_err(&_phydev->mdio.dev, format, ##args)
 
