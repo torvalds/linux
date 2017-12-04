@@ -511,7 +511,7 @@ bool tipc_topsrv_kern_subscr(struct net *net, u32 port, u32 type,
 	s = con->server;
 	scbr = s->tipc_conn_new(*conid);
 	if (!scbr) {
-		tipc_close_conn(con);
+		conn_put(con);
 		return false;
 	}
 
