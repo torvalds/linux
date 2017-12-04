@@ -13647,10 +13647,8 @@ F:	drivers/net/wireless/ti/
 F:	include/linux/wl12xx.h
 
 TILE ARCHITECTURE
-M:	Chris Metcalf <cmetcalf@mellanox.com>
 W:	http://www.mellanox.com/repository/solutions/tile-scm/
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/cmetcalf/linux-tile.git
-S:	Supported
+S:	Orphan
 F:	arch/tile/
 F:	drivers/char/tile-srom.c
 F:	drivers/edac/tile_edac.c
