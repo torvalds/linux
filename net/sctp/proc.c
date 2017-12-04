@@ -288,12 +288,8 @@ struct sctp_ht_iter {
 static void *sctp_transport_seq_start(struct seq_file *seq, loff_t *pos)
 {
 	struct sctp_ht_iter *iter = seq->private;
-	int err = sctp_transport_walk_start(&iter->hti);
 
-	if (err) {
-		iter->start_fail = 1;
-		return ERR_PTR(err);
-	}
+	sctp_transport_walk_start(&iter->hti);
 
 	iter->start_fail = 0;
 	return sctp_transport_get_idx(seq_file_net(seq), &iter->hti, *pos);

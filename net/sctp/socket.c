@@ -4676,20 +4676,11 @@ int sctp_get_sctp_info(struct sock *sk, struct sctp_association *asoc,
 EXPORT_SYMBOL_GPL(sctp_get_sctp_info);
 
 /* use callback to avoid exporting the core structure */
-int sctp_transport_walk_start(struct rhashtable_iter *iter)
+void sctp_transport_walk_start(struct rhashtable_iter *iter)
 {
-	int err;
-
 	rhltable_walk_enter(&sctp_transport_hashtable, iter);
 
-	err = rhashtable_walk_start(iter);
-	if (err && err != -EAGAIN) {
-		rhashtable_walk_stop(iter);
-		rhashtable_walk_exit(iter);
-		return err;
-	}
-
-	return 0;
+	rhashtable_walk_start(iter);
 }
 
 void sctp_transport_walk_stop(struct rhashtable_iter *iter)
@@ -4780,12 +4771,10 @@ int sctp_for_each_transport(int (*cb)(struct sctp_transport *, void *),
 			    struct net *net, int *pos, void *p) {
 	struct rhashtable_iter hti;
 	struct sctp_transport *tsp;
-	int ret;
+	int ret = 0;
 
 again:
-	ret = sctp_transport_walk_start(&hti);
-	if (ret)
-		return ret;
+	sctp_transport_walk_start(&hti);
 
 	tsp = sctp_transport_get_idx(net, &hti, *pos + 1);
 	for (; !IS_ERR_OR_NULL(tsp); tsp = sctp_transport_get_next(net, &hti)) {

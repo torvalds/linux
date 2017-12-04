@@ -1412,11 +1412,7 @@ bnxt_tc_flow_stats_batch_prep(struct bnxt *bp,
 	void *flow_node;
 	int rc, i;
 
-	rc = rhashtable_walk_start(iter);
-	if (rc && rc != -EAGAIN) {
-		i = 0;
-		goto done;
-	}
+	rhashtable_walk_start(iter);
 
 	rc = 0;
 	for (i = 0; i < BNXT_FLOW_STATS_BATCH_MAX; i++) {

@@ -2478,8 +2478,9 @@ static int netlink_walk_start(struct nl_seq_iter *iter)
 		return err;
 	}
 
-	err = rhashtable_walk_start(&iter->hti);
-	return err == -EAGAIN ? 0 : err;
+	rhashtable_walk_start(&iter->hti);
+
+	return 0;
 }
 
 static void netlink_walk_stop(struct nl_seq_iter *iter)

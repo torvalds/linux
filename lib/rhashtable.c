@@ -732,7 +732,7 @@ void rhashtable_walk_exit(struct rhashtable_iter *iter)
 EXPORT_SYMBOL_GPL(rhashtable_walk_exit);
 
 /**
- * rhashtable_walk_start - Start a hash table walk
+ * rhashtable_walk_start_check - Start a hash table walk
  * @iter:	Hash table iterator
  *
  * Start a hash table walk at the current iterator position.  Note that we take
@@ -744,8 +744,12 @@ EXPORT_SYMBOL_GPL(rhashtable_walk_exit);
  * Returns -EAGAIN if resize event occured.  Note that the iterator
  * will rewind back to the beginning and you may use it immediately
  * by calling rhashtable_walk_next.
+ *
+ * rhashtable_walk_start is defined as an inline variant that returns
+ * void. This is preferred in cases where the caller would ignore
+ * resize events and always continue.
  */
-int rhashtable_walk_start(struct rhashtable_iter *iter)
+int rhashtable_walk_start_check(struct rhashtable_iter *iter)
 	__acquires(RCU)
 {
 	struct rhashtable *ht = iter->ht;
@@ -764,7 +768,7 @@ int rhashtable_walk_start(struct rhashtable_iter *iter)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(rhashtable_walk_start);
+EXPORT_SYMBOL_GPL(rhashtable_walk_start_check);
 
 /**
  * rhashtable_walk_next - Return the next object and advance the iterator
