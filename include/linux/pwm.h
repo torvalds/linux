@@ -48,6 +48,29 @@ enum {
 	PWMF_EXPORTED = 1 << 1,
 };
 
+/**
+ * enum pwm_output_type - output type of the PWM signal
+ * @PWM_OUTPUT_FIXED: PWM output is fixed until a change request
+ * @PWM_OUTPUT_MODULATED: PWM output is modulated in hardware
+ * autonomously with a predefined pattern
+ */
+enum pwm_output_type {
+	PWM_OUTPUT_FIXED = 1 << 0,
+	PWM_OUTPUT_MODULATED = 1 << 1,
+};
+
+/**
+ * struct pwm_output_pattern - PWM duty pattern for MODULATED duty type
+ * @duty_pattern: PWM duty cycles in the pattern for duty modulation
+ * @num_entries: number of entries in the pattern
+ * @cycles_per_duty: number of PWM period cycles an entry stays at
+ */
+struct pwm_output_pattern {
+	unsigned int *duty_pattern;
+	unsigned int num_entries;
+	unsigned int cycles_per_duty;
+};
+
 /*
  * struct pwm_state - state of a PWM channel
  * @period: PWM period (in nanoseconds)
@@ -59,6 +82,8 @@ struct pwm_state {
 	unsigned int period;
 	unsigned int duty_cycle;
 	enum pwm_polarity polarity;
+	enum pwm_output_type output_type;
+	struct pwm_output_pattern *output_pattern;
 	bool enabled;
 };
 
@@ -142,6 +167,26 @@ static inline enum pwm_polarity pwm_get_polarity(const struct pwm_device *pwm)
 	pwm_get_state(pwm, &state);
 
 	return state.polarity;
+}
+
+static inline enum pwm_output_type pwm_get_output_type(
+		const struct pwm_device *pwm)
+{
+	struct pwm_state state;
+
+	pwm_get_state(pwm, &state);
+
+	return state.output_type;
+}
+
+static inline struct pwm_output_pattern *pwm_get_output_pattern(
+				struct pwm_device *pwm)
+{
+	struct pwm_state state;
+
+	pwm_get_state(pwm, &state);
+
+	return pwm->state.output_pattern ?: NULL;
 }
 
 static inline void pwm_get_args(const struct pwm_device *pwm,
@@ -247,6 +292,9 @@ pwm_set_relative_duty_cycle(struct pwm_state *state, unsigned int duty_cycle,
  * @capture: capture and report PWM signal
  * @enable: enable PWM output toggling
  * @disable: disable PWM output toggling
+ * @get_output_type_supported: get the supported output type
+ * @set_output_type: set PWM output type
+ * @set_output_pattern: set the pattern for the modulated output
  * @apply: atomically apply a new PWM config. The state argument
  *	   should be adjusted with the real hardware config (if the
  *	   approximate the period or duty_cycle value, state should
@@ -268,6 +316,13 @@ struct pwm_ops {
 		       struct pwm_capture *result, unsigned long timeout);
 	int (*enable)(struct pwm_chip *chip, struct pwm_device *pwm);
 	void (*disable)(struct pwm_chip *chip, struct pwm_device *pwm);
+	int (*get_output_type_supported)(struct pwm_chip *chip,
+			struct pwm_device *pwm);
+	int (*set_output_type)(struct pwm_chip *chip, struct pwm_device *pwm,
+			enum pwm_output_type output_type);
+	int (*set_output_pattern)(struct pwm_chip *chip,
+			struct pwm_device *pwm,
+			struct pwm_output_pattern *output_pattern);
 	int (*apply)(struct pwm_chip *chip, struct pwm_device *pwm,
 		     struct pwm_state *state);
 	void (*get_state)(struct pwm_chip *chip, struct pwm_device *pwm,
@@ -319,6 +374,21 @@ struct pwm_device *pwm_request(int pwm_id, const char *label);
 void pwm_free(struct pwm_device *pwm);
 int pwm_apply_state(struct pwm_device *pwm, struct pwm_state *state);
 int pwm_adjust_config(struct pwm_device *pwm);
+
+/**
+ * pwm_output_type_support()
+ * @pwm: PWM device
+ *
+ * Returns:  output types supported by the PWM device
+ */
+static inline int pwm_get_output_type_supported(struct pwm_device *pwm)
+{
+	if (pwm->chip->ops->get_output_type_supported != NULL)
+		return pwm->chip->ops->get_output_type_supported(pwm->chip,
+								 pwm);
+	else
+		return PWM_OUTPUT_FIXED;
+}
 
 /**
  * pwm_config() - change a PWM device configuration
