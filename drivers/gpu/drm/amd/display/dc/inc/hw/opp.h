@@ -282,25 +282,6 @@ struct opp_funcs {
 			bool enable,
 			bool rightEyePolarity);
 
-	void (*opp_set_test_pattern)(
-			struct output_pixel_processor *opp,
-			enum controller_dp_test_pattern test_pattern,
-			enum dc_color_depth color_depth,
-			int width,
-			int height);
-
-	void (*opp_dpg_blank_enable)(
-			struct output_pixel_processor *opp,
-			bool enable,
-			const struct tg_color *color,
-			int width,
-			int height);
-
-	void (*opp_convert_pti)(
-		struct output_pixel_processor *opp,
-		bool enable,
-		bool polarity);
-
 };
 
 #endif

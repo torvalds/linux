@@ -32,7 +32,7 @@
 #include "dce/dce_hwseq.h"
 #include "abm.h"
 #include "dmcu.h"
-#include "dcn10/dcn10_timing_generator.h"
+#include "dcn10_optc.h"
 #include "dcn10/dcn10_dpp.h"
 #include "dcn10/dcn10_mpc.h"
 #include "timing_generator.h"
@@ -465,6 +465,8 @@ static enum dc_status dcn10_prog_pixclk_crtc_otg(
 	bool enableStereo    = stream->timing.timing_3d_format == TIMING_3D_FORMAT_NONE ?
 			false:true;
 	bool rightEyePolarity = stream->timing.flags.RIGHT_EYE_3D_POLARITY;
+	int width = stream->timing.h_addressable + stream->timing.h_border_left + stream->timing.h_border_right;
+	int height = stream->timing.v_addressable + stream->timing.v_border_bottom + stream->timing.v_border_top;
 
 	/* by upper caller loop, pipe0 is parent pipe and be called first.
 	 * back end is set up by for pipe0. Other children pipe share back end
@@ -518,11 +520,14 @@ static enum dc_status dcn10_prog_pixclk_crtc_otg(
 	/* program otg blank color */
 	color_space = stream->output_color_space;
 	color_space_to_black_color(dc, color_space, &black_color);
-	pipe_ctx->stream_res.tg->funcs->set_blank_color(
-			pipe_ctx->stream_res.tg,
-			&black_color);
 
-	if (!pipe_ctx->stream_res.tg->funcs->is_blanked(pipe_ctx->stream_res.tg)) {
+	if (pipe_ctx->stream_res.tg->funcs->set_blank_color)
+		pipe_ctx->stream_res.tg->funcs->set_blank_color(
+				pipe_ctx->stream_res.tg,
+				&black_color);
+
+	if (pipe_ctx->stream_res.tg->funcs->is_blanked &&
+			!pipe_ctx->stream_res.tg->funcs->is_blanked(pipe_ctx->stream_res.tg)) {
 		pipe_ctx->stream_res.tg->funcs->set_blank(pipe_ctx->stream_res.tg, true);
 		hwss_wait_for_blank_complete(pipe_ctx->stream_res.tg);
 		false_optc_underflow_wa(dc, pipe_ctx->stream, pipe_ctx->stream_res.tg);
@@ -1808,6 +1813,10 @@ static void program_all_pipe_in_tree(
 		struct pipe_ctx *pipe_ctx,
 		struct dc_state *context)
 {
+	struct dc_stream_state *stream = pipe_ctx->stream;
+	int width = stream->timing.h_addressable + stream->timing.h_border_left + stream->timing.h_border_right;
+	int height = stream->timing.v_addressable + stream->timing.v_border_bottom + stream->timing.v_border_top;
+
 	if (pipe_ctx->top_pipe == NULL) {
 
 		pipe_ctx->stream_res.tg->dlg_otg_param.vready_offset = pipe_ctx->pipe_dlg_param.vready_offset;
@@ -1818,7 +1827,11 @@ static void program_all_pipe_in_tree(
 
 		pipe_ctx->stream_res.tg->funcs->program_global_sync(
 				pipe_ctx->stream_res.tg);
-		pipe_ctx->stream_res.tg->funcs->set_blank(pipe_ctx->stream_res.tg, !is_pipe_tree_visible(pipe_ctx));
+
+		if (pipe_ctx->stream_res.tg->funcs->set_blank)
+			pipe_ctx->stream_res.tg->funcs->set_blank(
+					pipe_ctx->stream_res.tg,
+					!is_pipe_tree_visible(pipe_ctx));
 	}
 
 	if (pipe_ctx->plane_state != NULL) {
@@ -1925,15 +1938,20 @@ static void dcn10_apply_ctx_for_surface(
 {
 	int i;
 	struct timing_generator *tg;
+	struct output_pixel_processor *opp;
 	bool removed_pipe[4] = { false };
 	unsigned int ref_clk_mhz = dc->res_pool->ref_clock_inKhz/1000;
 	bool program_water_mark = false;
+	int width = stream->timing.h_addressable + stream->timing.h_border_left + stream->timing.h_border_right;
+	int height = stream->timing.v_addressable + stream->timing.v_border_bottom + stream->timing.v_border_top;
 
 	struct pipe_ctx *top_pipe_to_program =
 			find_top_pipe_for_stream(dc, context, stream);
 
 	if (!top_pipe_to_program)
 		return;
+
+	opp = top_pipe_to_program->stream_res.opp;
 
 	tg = top_pipe_to_program->stream_res.tg;
 
@@ -1942,7 +1960,8 @@ static void dcn10_apply_ctx_for_surface(
 	if (num_planes == 0) {
 
 		/* OTG blank before remove all front end */
-		tg->funcs->set_blank(tg, true);
+		if (tg->funcs->set_blank)
+			tg->funcs->set_blank(tg, true);
 	}
 
 	/* Disconnect unused mpcc */

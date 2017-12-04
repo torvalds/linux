@@ -23,8 +23,9 @@
  *
  */
 
+
 #include "reg_helper.h"
-#include "dcn10_timing_generator.h"
+#include "dcn10_optc.h"
 #include "dc.h"
 
 #define REG(reg)\
@@ -251,8 +252,7 @@ void optc1_program_timing(
 		v_init = v_init / 2;
 		if ((optc->dlg_otg_param.vstartup_start/2)*2 > asic_blank_end)
 			v_fp2 = v_fp2 / 2;
-	}
-	else
+	} else
 		REG_UPDATE(OTG_INTERLACE_CONTROL,
 				OTG_INTERLACE_ENABLE, 0);
 

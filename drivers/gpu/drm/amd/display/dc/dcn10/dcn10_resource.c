@@ -34,7 +34,7 @@
 #include "dcn10/dcn10_mpc.h"
 #include "irq/dcn10/irq_service_dcn10.h"
 #include "dcn10/dcn10_dpp.h"
-#include "dcn10/dcn10_timing_generator.h"
+#include "dcn10_optc.h"
 #include "dcn10/dcn10_hw_sequencer.h"
 #include "dce110/dce110_hw_sequencer.h"
 #include "dcn10/dcn10_opp.h"

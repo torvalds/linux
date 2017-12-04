@@ -28,6 +28,7 @@
 #include "dc_types.h"
 #include "clock_source.h"
 #include "inc/hw/timing_generator.h"
+#include "inc/hw/opp.h"
 #include "inc/hw/link_encoder.h"
 #include "core_status.h"
 
