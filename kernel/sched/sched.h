@@ -157,12 +157,36 @@ static inline int task_has_dl_policy(struct task_struct *p)
 }
 
 /*
+ * !! For sched_setattr_nocheck() (kernel) only !!
+ *
+ * This is actually gross. :(
+ *
+ * It is used to make schedutil kworker(s) higher priority than SCHED_DEADLINE
+ * tasks, but still be able to sleep. We need this on platforms that cannot
+ * atomically change clock frequency. Remove once fast switching will be
+ * available on such platforms.
+ *
+ * SUGOV stands for SchedUtil GOVernor.
+ */
+#define SCHED_FLAG_SUGOV	0x10000000
+
+static inline bool dl_entity_is_special(struct sched_dl_entity *dl_se)
+{
+#ifdef CONFIG_CPU_FREQ_GOV_SCHEDUTIL
+	return unlikely(dl_se->flags & SCHED_FLAG_SUGOV);
+#else
+	return false;
+#endif
+}
+
+/*
  * Tells if entity @a should preempt entity @b.
  */
 static inline bool
 dl_entity_preempt(struct sched_dl_entity *a, struct sched_dl_entity *b)
 {
-	return dl_time_before(a->deadline, b->deadline);
+	return dl_entity_is_special(a) ||
+	       dl_time_before(a->deadline, b->deadline);
 }
 
 /*
@@ -2085,6 +2109,8 @@ static inline void cpufreq_update_util(struct rq *rq, unsigned int flags) {}
 #define arch_scale_freq_invariant()	(false)
 #endif
 
+#ifdef CONFIG_CPU_FREQ_GOV_SCHEDUTIL
+
 static inline unsigned long cpu_util_dl(struct rq *rq)
 {
 	return (rq->dl.running_bw * SCHED_CAPACITY_SCALE) >> BW_SHIFT;
@@ -2094,3 +2120,5 @@ static inline unsigned long cpu_util_cfs(struct rq *rq)
 {
 	return rq->cfs.avg.util_avg;
 }
+
+#endif
