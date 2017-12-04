@@ -41,73 +41,73 @@ static struct sh7786_pcie_hwops {
 
 static struct resource sh7786_pci0_resources[] = {
 	{
-		.name	= "PCIe0 IO",
+		.name	= "PCIe0 MEM 0",
 		.start	= 0xfd000000,
 		.end	= 0xfd000000 + SZ_8M - 1,
-		.flags	= IORESOURCE_IO,
+		.flags	= IORESOURCE_MEM,
 	}, {
-		.name	= "PCIe0 MEM 0",
+		.name	= "PCIe0 MEM 1",
 		.start	= 0xc0000000,
 		.end	= 0xc0000000 + SZ_512M - 1,
 		.flags	= IORESOURCE_MEM | IORESOURCE_MEM_32BIT,
 	}, {
-		.name	= "PCIe0 MEM 1",
+		.name	= "PCIe0 MEM 2",
 		.start	= 0x10000000,
 		.end	= 0x10000000 + SZ_64M - 1,
 		.flags	= IORESOURCE_MEM,
 	}, {
-		.name	= "PCIe0 MEM 2",
+		.name	= "PCIe0 IO",
 		.start	= 0xfe100000,
 		.end	= 0xfe100000 + SZ_1M - 1,
-		.flags	= IORESOURCE_MEM,
+		.flags	= IORESOURCE_IO,
 	},
 };
 
 static struct resource sh7786_pci1_resources[] = {
 	{
-		.name	= "PCIe1 IO",
+		.name	= "PCIe1 MEM 0",
 		.start	= 0xfd800000,
 		.end	= 0xfd800000 + SZ_8M - 1,
-		.flags	= IORESOURCE_IO,
+		.flags	= IORESOURCE_MEM,
 	}, {
-		.name	= "PCIe1 MEM 0",
+		.name	= "PCIe1 MEM 1",
 		.start	= 0xa0000000,
 		.end	= 0xa0000000 + SZ_512M - 1,
 		.flags	= IORESOURCE_MEM | IORESOURCE_MEM_32BIT,
 	}, {
-		.name	= "PCIe1 MEM 1",
+		.name	= "PCIe1 MEM 2",
 		.start	= 0x30000000,
 		.end	= 0x30000000 + SZ_256M - 1,
 		.flags	= IORESOURCE_MEM | IORESOURCE_MEM_32BIT,
 	}, {
-		.name	= "PCIe1 MEM 2",
+		.name	= "PCIe1 IO",
 		.start	= 0xfe300000,
 		.end	= 0xfe300000 + SZ_1M - 1,
-		.flags	= IORESOURCE_MEM,
+		.flags	= IORESOURCE_IO,
 	},
 };
 
 static struct resource sh7786_pci2_resources[] = {
 	{
-		.name	= "PCIe2 IO",
+		.name	= "PCIe2 MEM 0",
 		.start	= 0xfc800000,
 		.end	= 0xfc800000 + SZ_4M - 1,
-		.flags	= IORESOURCE_IO,
+		.flags	= IORESOURCE_MEM,
 	}, {
-		.name	= "PCIe2 MEM 0",
+		.name	= "PCIe2 MEM 1",
 		.start	= 0x80000000,
 		.end	= 0x80000000 + SZ_512M - 1,
 		.flags	= IORESOURCE_MEM | IORESOURCE_MEM_32BIT,
 	}, {
-		.name	= "PCIe2 MEM 1",
+		.name	= "PCIe2 MEM 2",
 		.start	= 0x20000000,
 		.end	= 0x20000000 + SZ_256M - 1,
 		.flags	= IORESOURCE_MEM | IORESOURCE_MEM_32BIT,
 	}, {
-		.name	= "PCIe2 MEM 2",
+		.name	= "PCIe2 IO",
 		.start	= 0xfcd00000,
 		.end	= 0xfcd00000 + SZ_1M - 1,
-		.flags	= IORESOURCE_MEM,
+		.flags	= IORESOURCE_IO,
 	},
 };
 
