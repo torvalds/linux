@@ -25,8 +25,20 @@
 #include <linux/interrupt.h>
 #include <linux/irqreturn.h>
 #include <linux/dmaengine.h>
+#include <linux/psp-sev.h>
+#include <linux/miscdevice.h>
 
 #include "sp-dev.h"
+
+#define PSP_C2PMSG(_num)		((_num) << 2)
+#define PSP_CMDRESP			PSP_C2PMSG(32)
+#define PSP_CMDBUFF_ADDR_LO		PSP_C2PMSG(56)
+#define PSP_CMDBUFF_ADDR_HI             PSP_C2PMSG(57)
+#define PSP_FEATURE_REG			PSP_C2PMSG(63)
+
+#define PSP_P2CMSG(_num)		((_num) << 2)
+#define PSP_CMD_COMPLETE_REG		1
+#define PSP_CMD_COMPLETE		PSP_P2CMSG(PSP_CMD_COMPLETE_REG)
 
 #define PSP_P2CMSG_INTEN		0x0110
 #define PSP_P2CMSG_INTSTS		0x0114
@@ -44,6 +56,11 @@
 
 #define MAX_PSP_NAME_LEN		16
 
+struct sev_misc_dev {
+	struct kref refcount;
+	struct miscdevice misc;
+};
+
 struct psp_device {
 	struct list_head entry;
 
@@ -54,6 +71,13 @@ struct psp_device {
 	struct sp_device *sp;
 
 	void __iomem *io_regs;
+
+	int sev_state;
+	unsigned int sev_int_rcvd;
+	wait_queue_head_t sev_int_queue;
+	struct sev_misc_dev *sev_misc;
+	struct sev_user_data_status status_cmd_buf;
+	struct sev_data_init init_cmd_buf;
 };
 
 #endif /* __PSP_DEV_H */

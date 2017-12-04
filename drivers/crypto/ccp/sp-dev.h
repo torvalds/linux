@@ -143,12 +143,16 @@ static inline int ccp_dev_resume(struct sp_device *sp)
 #ifdef CONFIG_CRYPTO_DEV_SP_PSP
 
 int psp_dev_init(struct sp_device *sp);
+void psp_pci_init(void);
 void psp_dev_destroy(struct sp_device *sp);
+void psp_pci_exit(void);
 
 #else /* !CONFIG_CRYPTO_DEV_SP_PSP */
 
 static inline int psp_dev_init(struct sp_device *sp) { return 0; }
+static inline void psp_pci_init(void) { }
 static inline void psp_dev_destroy(struct sp_device *sp) { }
+static inline void psp_pci_exit(void) { }
 
 #endif /* CONFIG_CRYPTO_DEV_SP_PSP */
 
