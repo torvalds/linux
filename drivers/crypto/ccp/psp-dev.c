@@ -274,6 +274,21 @@ static int sev_ioctl_do_reset(struct sev_issue_cmd *argp)
 	return __sev_do_cmd_locked(SEV_CMD_FACTORY_RESET, 0, &argp->error);
 }
 
+static int sev_ioctl_do_platform_status(struct sev_issue_cmd *argp)
+{
+	struct sev_user_data_status *data = &psp_master->status_cmd_buf;
+	int ret;
+
+	ret = __sev_do_cmd_locked(SEV_CMD_PLATFORM_STATUS, data, &argp->error);
+	if (ret)
+		return ret;
+
+	if (copy_to_user((void __user *)argp->data, data, sizeof(*data)))
+		ret = -EFAULT;
+
+	return ret;
+}
+
 static long sev_ioctl(struct file *file, unsigned int ioctl, unsigned long arg)
 {
 	void __user *argp = (void __user *)arg;
@@ -298,6 +313,9 @@ static long sev_ioctl(struct file *file, unsigned int ioctl, unsigned long arg)
 
 	case SEV_FACTORY_RESET:
 		ret = sev_ioctl_do_reset(&input);
+		break;
+	case SEV_PLATFORM_STATUS:
+		ret = sev_ioctl_do_platform_status(&input);
 		break;
 	default:
 		ret = -EINVAL;
