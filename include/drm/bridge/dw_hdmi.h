@@ -139,7 +139,7 @@ struct dw_hdmi_phy_ops {
 
 struct dw_hdmi_property_ops {
 	void (*attatch_properties)(struct drm_connector *connector,
-				   int version,
+				   unsigned int color, int version,
 				   void *data);
 	void (*destroy_properties)(struct drm_connector *connector,
 				   void *data);
