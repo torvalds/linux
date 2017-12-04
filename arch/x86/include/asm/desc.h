@@ -63,7 +63,7 @@ static inline struct desc_struct *get_current_gdt_rw(void)
 /* Get the fixmap index for a specific processor */
 static inline unsigned int get_cpu_gdt_ro_index(int cpu)
 {
-	return FIX_GDT_REMAP_BEGIN + cpu;
+	return FIX_GDT_REMAP_END - cpu;
 }
 
 /* Provide the fixmap address of the remapped GDT */
