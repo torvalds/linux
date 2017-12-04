@@ -812,6 +812,7 @@ static int perf_evlist__mmap_per_evsel(struct perf_evlist *evlist, int idx,
 		int fd;
 		int cpu;
 
+		mp->prot = PROT_READ | PROT_WRITE;
 		if (evsel->attr.write_backward) {
 			output = _output_backward;
 			maps = evlist->backward_mmap;
@@ -824,6 +825,7 @@ static int perf_evlist__mmap_per_evsel(struct perf_evlist *evlist, int idx,
 				if (evlist->bkw_mmap_state == BKW_MMAP_NOTREADY)
 					perf_evlist__toggle_bkw_mmap(evlist, BKW_MMAP_RUNNING);
 			}
+			mp->prot &= ~PROT_WRITE;
 		}
 
 		if (evsel->system_wide && thread)
@@ -1058,9 +1060,12 @@ int perf_evlist__mmap_ex(struct perf_evlist *evlist, unsigned int pages,
 	struct perf_evsel *evsel;
 	const struct cpu_map *cpus = evlist->cpus;
 	const struct thread_map *threads = evlist->threads;
-	struct mmap_params mp = {
-		.prot = PROT_READ | PROT_WRITE,
-	};
+	/*
+	 * Delay setting mp.prot: set it before calling perf_mmap__mmap.
+	 * Its value is decided by evsel's write_backward.
+	 * So &mp should not be passed through const pointer.
+	 */
+	struct mmap_params mp;
 
 	if (!evlist->mmap)
 		evlist->mmap = perf_evlist__alloc_mmap(evlist);
