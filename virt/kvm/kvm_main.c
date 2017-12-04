@@ -2634,9 +2634,7 @@ out_free1:
 	case KVM_GET_MP_STATE: {
 		struct kvm_mp_state mp_state;
 
-		vcpu_load(vcpu);
 		r = kvm_arch_vcpu_ioctl_get_mpstate(vcpu, &mp_state);
-		vcpu_put(vcpu);
 		if (r)
 			goto out;
 		r = -EFAULT;
