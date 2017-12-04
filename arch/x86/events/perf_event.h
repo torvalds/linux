@@ -199,6 +199,8 @@ struct cpu_hw_events {
 	 * Intel DebugStore bits
 	 */
 	struct debug_store	*ds;
+	void			*ds_pebs_vaddr;
+	void			*ds_bts_vaddr;
 	u64			pebs_enabled;
 	int			n_pebs;
 	int			n_large_pebs;
