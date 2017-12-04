@@ -1070,7 +1070,7 @@ static void usb_rebind_intf(struct usb_interface *intf)
 	if (!intf->dev.power.is_prepared) {
 		intf->needs_binding = 0;
 		rc = device_attach(&intf->dev);
-		if (rc < 0)
+		if (rc < 0 && rc != -EPROBE_DEFER)
 			dev_warn(&intf->dev, "rebind failed: %d\n", rc);
 	}
 }
