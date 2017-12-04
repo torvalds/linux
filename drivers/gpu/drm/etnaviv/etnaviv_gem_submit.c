@@ -170,29 +170,33 @@ fail:
 	return ret;
 }
 
-static int submit_fence_sync(const struct etnaviv_gem_submit *submit)
+static int submit_fence_sync(struct etnaviv_gem_submit *submit)
 {
-	unsigned int context = submit->gpu->fence_context;
 	int i, ret = 0;
 
 	for (i = 0; i < submit->nr_bos; i++) {
-		struct etnaviv_gem_object *etnaviv_obj = submit->bos[i].obj;
-		bool write = submit->bos[i].flags & ETNA_SUBMIT_BO_WRITE;
-		bool explicit = !!(submit->flags & ETNA_SUBMIT_NO_IMPLICIT);
+		struct etnaviv_gem_submit_bo *bo = &submit->bos[i];
+		struct reservation_object *robj = bo->obj->resv;
 
-		ret = etnaviv_gpu_fence_sync_obj(etnaviv_obj, context, write,
-						 explicit);
-		if (ret)
-			break;
-	}
+		if (!(bo->flags & ETNA_SUBMIT_BO_WRITE)) {
+			ret = reservation_object_reserve_shared(robj);
+			if (ret)
+				return ret;
+		}
 
-	if (submit->flags & ETNA_SUBMIT_FENCE_FD_IN) {
-		/*
-		 * Wait if the fence is from a foreign context, or if the fence
-		 * array contains any fence from a foreign context.
-		 */
-		if (!dma_fence_match_context(submit->in_fence, context))
-			ret = dma_fence_wait(submit->in_fence, true);
+		if (submit->flags & ETNA_SUBMIT_NO_IMPLICIT)
+			continue;
+
+		if (bo->flags & ETNA_SUBMIT_BO_WRITE) {
+			ret = reservation_object_get_fences_rcu(robj, &bo->excl,
+								&bo->nr_shared,
+								&bo->shared);
+			if (ret)
+				return ret;
+		} else {
+			bo->excl = reservation_object_get_excl_rcu(robj);
+		}
+
 	}
 
 	return ret;

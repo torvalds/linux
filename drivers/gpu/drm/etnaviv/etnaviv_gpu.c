@@ -1084,54 +1084,6 @@ static struct dma_fence *etnaviv_gpu_fence_alloc(struct etnaviv_gpu *gpu)
 	return &f->base;
 }
 
-int etnaviv_gpu_fence_sync_obj(struct etnaviv_gem_object *etnaviv_obj,
-	unsigned int context, bool exclusive, bool explicit)
-{
-	struct reservation_object *robj = etnaviv_obj->resv;
-	struct reservation_object_list *fobj;
-	struct dma_fence *fence;
-	int i, ret;
-
-	if (!exclusive) {
-		ret = reservation_object_reserve_shared(robj);
-		if (ret)
-			return ret;
-	}
-
-	if (explicit)
-		return 0;
-
-	/*
-	 * If we have any shared fences, then the exclusive fence
-	 * should be ignored as it will already have been signalled.
-	 */
-	fobj = reservation_object_get_list(robj);
-	if (!fobj || fobj->shared_count == 0) {
-		/* Wait on any existing exclusive fence which isn't our own */
-		fence = reservation_object_get_excl(robj);
-		if (fence && fence->context != context) {
-			ret = dma_fence_wait(fence, true);
-			if (ret)
-				return ret;
-		}
-	}
-
-	if (!exclusive || !fobj)
-		return 0;
-
-	for (i = 0; i < fobj->shared_count; i++) {
-		fence = rcu_dereference_protected(fobj->shared[i],
-						reservation_object_held(robj));
-		if (fence->context != context) {
-			ret = dma_fence_wait(fence, true);
-			if (ret)
-				return ret;
-		}
-	}
-
-	return 0;
-}
-
 /*
  * event management:
  */

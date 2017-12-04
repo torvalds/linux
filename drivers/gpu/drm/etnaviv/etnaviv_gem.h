@@ -94,6 +94,9 @@ struct etnaviv_gem_submit_bo {
 	u32 flags;
 	struct etnaviv_gem_object *obj;
 	struct etnaviv_vram_mapping *mapping;
+	struct dma_fence *excl;
+	unsigned int nr_shared;
+	struct dma_fence **shared;
 };
 
 /* Created per submit-ioctl, to track bo's and cmdstream bufs, etc,
