@@ -1083,7 +1083,7 @@ static struct irq_chip intel_gpio_irqchip = {
 static int intel_gpio_add_pin_ranges(struct intel_pinctrl *pctrl,
 				     const struct intel_community *community)
 {
-	int ret, i;
+	int ret = 0, i;
 
 	for (i = 0; i < community->ngpps; i++) {
 		const struct intel_padgroup *gpp = &community->gpps[i];
