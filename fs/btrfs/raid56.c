@@ -594,12 +594,10 @@ static int rbio_can_merge(struct btrfs_raid_bio *last,
 	 * bio list here, anyone else that wants to
 	 * change this stripe needs to do their own rmw.
 	 */
-	if (last->operation == BTRFS_RBIO_PARITY_SCRUB ||
-	    cur->operation == BTRFS_RBIO_PARITY_SCRUB)
+	if (last->operation == BTRFS_RBIO_PARITY_SCRUB)
 		return 0;
 
-	if (last->operation == BTRFS_RBIO_REBUILD_MISSING ||
-	    cur->operation == BTRFS_RBIO_REBUILD_MISSING)
+	if (last->operation == BTRFS_RBIO_REBUILD_MISSING)
 		return 0;
 
 	return 1;
