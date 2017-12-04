@@ -48,8 +48,7 @@ bool in_sysenter_stack(unsigned long *stack, struct stack_info *info)
 	int cpu = smp_processor_id();
 	struct tss_struct *tss = &get_cpu_entry_area(cpu)->tss;
 
-	/* Treat the canary as part of the stack for unwinding purposes. */
-	void *begin = &tss->SYSENTER_stack_canary;
+	void *begin = &tss->SYSENTER_stack;
 	void *end = (void *)&tss->SYSENTER_stack + sizeof(tss->SYSENTER_stack);
 
 	if ((void *)stack < begin || (void *)stack >= end)

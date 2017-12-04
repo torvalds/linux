@@ -81,7 +81,6 @@ __visible DEFINE_PER_CPU_SHARED_ALIGNED(struct tss_struct, cpu_tss) = {
 	  */
 	.io_bitmap		= { [0 ... IO_BITMAP_LONGS] = ~0 },
 #endif
-	.SYSENTER_stack_canary	= STACK_END_MAGIC,
 };
 EXPORT_PER_CPU_SYMBOL(cpu_tss);
 
