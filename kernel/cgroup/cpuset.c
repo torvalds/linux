@@ -812,18 +812,6 @@ done:
 	return ndoms;
 }
 
-static void cpuset_sched_change_begin(void)
-{
-	cpus_read_lock();
-	mutex_lock(&cpuset_mutex);
-}
-
-static void cpuset_sched_change_end(void)
-{
-	mutex_unlock(&cpuset_mutex);
-	cpus_read_unlock();
-}
-
 /*
  * Rebuild scheduler domains.
  *
@@ -833,14 +821,16 @@ static void cpuset_sched_change_end(void)
  * 'cpus' is removed, then call this routine to rebuild the
  * scheduler's dynamic sched domains.
  *
+ * Call with cpuset_mutex held.  Takes get_online_cpus().
  */
-static void rebuild_sched_domains_cpuslocked(void)
+static void rebuild_sched_domains_locked(void)
 {
 	struct sched_domain_attr *attr;
 	cpumask_var_t *doms;
 	int ndoms;
 
 	lockdep_assert_held(&cpuset_mutex);
+	get_online_cpus();
 
 	/*
 	 * We have raced with CPU hotplug. Don't do anything to avoid
@@ -848,25 +838,27 @@ static void rebuild_sched_domains_cpuslocked(void)
 	 * Anyways, hotplug work item will rebuild sched domains.
 	 */
 	if (!cpumask_equal(top_cpuset.effective_cpus, cpu_active_mask))
-		return;
+		goto out;
 
 	/* Generate domain masks and attrs */
 	ndoms = generate_sched_domains(&doms, &attr);
 
 	/* Have scheduler rebuild the domains */
 	partition_sched_domains(ndoms, doms, attr);
+out:
+	put_online_cpus();
 }
 #else /* !CONFIG_SMP */
-static void rebuild_sched_domains_cpuslocked(void)
+static void rebuild_sched_domains_locked(void)
 {
 }
 #endif /* CONFIG_SMP */
 
 void rebuild_sched_domains(void)
 {
-	cpuset_sched_change_begin();
-	rebuild_sched_domains_cpuslocked();
-	cpuset_sched_change_end();
+	mutex_lock(&cpuset_mutex);
+	rebuild_sched_domains_locked();
+	mutex_unlock(&cpuset_mutex);
 }
 
 /**
@@ -952,7 +944,7 @@ static void update_cpumasks_hier(struct cpuset *cs, struct cpumask *new_cpus)
 	rcu_read_unlock();
 
 	if (need_rebuild_sched_domains)
-		rebuild_sched_domains_cpuslocked();
+		rebuild_sched_domains_locked();
 }
 
 /**
@@ -1284,7 +1276,7 @@ static int update_relax_domain_level(struct cpuset *cs, s64 val)
 		cs->relax_domain_level = val;
 		if (!cpumask_empty(cs->cpus_allowed) &&
 		    is_sched_load_balance(cs))
-			rebuild_sched_domains_cpuslocked();
+			rebuild_sched_domains_locked();
 	}
 
 	return 0;
@@ -1317,6 +1309,7 @@ static void update_tasks_flags(struct cpuset *cs)
  *
  * Call with cpuset_mutex held.
  */
+
 static int update_flag(cpuset_flagbits_t bit, struct cpuset *cs,
 		       int turning_on)
 {
@@ -1349,7 +1342,7 @@ static int update_flag(cpuset_flagbits_t bit, struct cpuset *cs,
 	spin_unlock_irq(&callback_lock);
 
 	if (!cpumask_empty(trialcs->cpus_allowed) && balance_flag_changed)
-		rebuild_sched_domains_cpuslocked();
+		rebuild_sched_domains_locked();
 
 	if (spread_flag_changed)
 		update_tasks_flags(cs);
@@ -1617,7 +1610,7 @@ static int cpuset_write_u64(struct cgroup_subsys_state *css, struct cftype *cft,
 	cpuset_filetype_t type = cft->private;
 	int retval = 0;
 
-	cpuset_sched_change_begin();
+	mutex_lock(&cpuset_mutex);
 	if (!is_cpuset_online(cs)) {
 		retval = -ENODEV;
 		goto out_unlock;
@@ -1653,7 +1646,7 @@ static int cpuset_write_u64(struct cgroup_subsys_state *css, struct cftype *cft,
 		break;
 	}
 out_unlock:
-	cpuset_sched_change_end();
+	mutex_unlock(&cpuset_mutex);
 	return retval;
 }
 
@@ -1664,7 +1657,7 @@ static int cpuset_write_s64(struct cgroup_subsys_state *css, struct cftype *cft,
 	cpuset_filetype_t type = cft->private;
 	int retval = -ENODEV;
 
-	cpuset_sched_change_begin();
+	mutex_lock(&cpuset_mutex);
 	if (!is_cpuset_online(cs))
 		goto out_unlock;
 
@@ -1677,7 +1670,7 @@ static int cpuset_write_s64(struct cgroup_subsys_state *css, struct cftype *cft,
 		break;
 	}
 out_unlock:
-	cpuset_sched_change_end();
+	mutex_unlock(&cpuset_mutex);
 	return retval;
 }
 
@@ -1716,7 +1709,7 @@ static ssize_t cpuset_write_resmask(struct kernfs_open_file *of,
 	kernfs_break_active_protection(of->kn);
 	flush_work(&cpuset_hotplug_work);
 
-	cpuset_sched_change_begin();
+	mutex_lock(&cpuset_mutex);
 	if (!is_cpuset_online(cs))
 		goto out_unlock;
 
@@ -1740,7 +1733,7 @@ static ssize_t cpuset_write_resmask(struct kernfs_open_file *of,
 
 	free_trial_cpuset(trialcs);
 out_unlock:
-	cpuset_sched_change_end();
+	mutex_unlock(&cpuset_mutex);
 	kernfs_unbreak_active_protection(of->kn);
 	css_put(&cs->css);
 	flush_workqueue(cpuset_migrate_mm_wq);
@@ -2041,14 +2034,14 @@ out_unlock:
 /*
  * If the cpuset being removed has its flag 'sched_load_balance'
  * enabled, then simulate turning sched_load_balance off, which
- * will call rebuild_sched_domains_cpuslocked().
+ * will call rebuild_sched_domains_locked().
  */
 
 static void cpuset_css_offline(struct cgroup_subsys_state *css)
 {
 	struct cpuset *cs = css_cs(css);
 
-	cpuset_sched_change_begin();
+	mutex_lock(&cpuset_mutex);
 
 	if (is_sched_load_balance(cs))
 		update_flag(CS_SCHED_LOAD_BALANCE, cs, 0);
@@ -2056,7 +2049,7 @@ static void cpuset_css_offline(struct cgroup_subsys_state *css)
 	cpuset_dec();
 	clear_bit(CS_ONLINE, &cs->flags);
 
-	cpuset_sched_change_end();
+	mutex_unlock(&cpuset_mutex);
 }
 
 static void cpuset_css_free(struct cgroup_subsys_state *css)
