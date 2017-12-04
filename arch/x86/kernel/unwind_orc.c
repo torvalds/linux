@@ -553,8 +553,18 @@ void __unwind_start(struct unwind_state *state, struct task_struct *task,
 	}
 
 	if (get_stack_info((unsigned long *)state->sp, state->task,
-			   &state->stack_info, &state->stack_mask))
-		return;
+			   &state->stack_info, &state->stack_mask)) {
+		/*
+		 * We weren't on a valid stack.  It's possible that
+		 * we overflowed a valid stack into a guard page.
+		 * See if the next page up is valid so that we can
+		 * generate some kind of backtrace if this happens.
+		 */
+		void *next_page = (void *)PAGE_ALIGN((unsigned long)state->sp);
+		if (get_stack_info(next_page, state->task, &state->stack_info,
+				   &state->stack_mask))
+			return;
+	}
 
 	/*
 	 * The caller can provide the address of the first frame directly
