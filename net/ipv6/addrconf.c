@@ -6595,27 +6595,43 @@ int __init addrconf_init(void)
 
 	rtnl_af_register(&inet6_ops);
 
-	err = __rtnl_register(PF_INET6, RTM_GETLINK, NULL, inet6_dump_ifinfo,
-			      0);
+	err = rtnl_register_module(THIS_MODULE, PF_INET6, RTM_GETLINK,
+				   NULL, inet6_dump_ifinfo, 0);
 	if (err < 0)
 		goto errout;
 
-	/* Only the first call to __rtnl_register can fail */
-	__rtnl_register(PF_INET6, RTM_NEWADDR, inet6_rtm_newaddr, NULL, 0);
-	__rtnl_register(PF_INET6, RTM_DELADDR, inet6_rtm_deladdr, NULL, 0);
-	__rtnl_register(PF_INET6, RTM_GETADDR, inet6_rtm_getaddr,
-			inet6_dump_ifaddr, RTNL_FLAG_DOIT_UNLOCKED);
-	__rtnl_register(PF_INET6, RTM_GETMULTICAST, NULL,
-			inet6_dump_ifmcaddr, 0);
-	__rtnl_register(PF_INET6, RTM_GETANYCAST, NULL,
-			inet6_dump_ifacaddr, 0);
-	__rtnl_register(PF_INET6, RTM_GETNETCONF, inet6_netconf_get_devconf,
-			inet6_netconf_dump_devconf, RTNL_FLAG_DOIT_UNLOCKED);
-
+	err = rtnl_register_module(THIS_MODULE, PF_INET6, RTM_NEWADDR,
+				   inet6_rtm_newaddr, NULL, 0);
+	if (err < 0)
+		goto errout;
+	err = rtnl_register_module(THIS_MODULE, PF_INET6, RTM_DELADDR,
+				   inet6_rtm_deladdr, NULL, 0);
+	if (err < 0)
+		goto errout;
+	err = rtnl_register_module(THIS_MODULE, PF_INET6, RTM_GETADDR,
+				   inet6_rtm_getaddr, inet6_dump_ifaddr,
+				   RTNL_FLAG_DOIT_UNLOCKED);
+	if (err < 0)
+		goto errout;
+	err = rtnl_register_module(THIS_MODULE, PF_INET6, RTM_GETMULTICAST,
+				   NULL, inet6_dump_ifmcaddr, 0);
+	if (err < 0)
+		goto errout;
+	err = rtnl_register_module(THIS_MODULE, PF_INET6, RTM_GETANYCAST,
+				   NULL, inet6_dump_ifacaddr, 0);
+	if (err < 0)
+		goto errout;
+	err = rtnl_register_module(THIS_MODULE, PF_INET6, RTM_GETNETCONF,
+				   inet6_netconf_get_devconf,
+				   inet6_netconf_dump_devconf,
+				   RTNL_FLAG_DOIT_UNLOCKED);
+	if (err < 0)
+		goto errout;
 	ipv6_addr_label_rtnl_register();
 
 	return 0;
 errout:
+	rtnl_unregister_all(PF_INET6);
 	rtnl_af_unregister(&inet6_ops);
 	unregister_netdevice_notifier(&ipv6_dev_notf);
 errlo:

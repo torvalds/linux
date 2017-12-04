@@ -1923,11 +1923,11 @@ void __init dn_route_init(void)
 		    &dn_rt_cache_seq_fops);
 
 #ifdef CONFIG_DECNET_ROUTER
-	rtnl_register(PF_DECnet, RTM_GETROUTE, dn_cache_getroute,
-		      dn_fib_dump, 0);
+	rtnl_register_module(THIS_MODULE, PF_DECnet, RTM_GETROUTE,
+			     dn_cache_getroute, dn_fib_dump, 0);
 #else
-	rtnl_register(PF_DECnet, RTM_GETROUTE, dn_cache_getroute,
-		      dn_cache_dump, 0);
+	rtnl_register_module(THIS_MODULE, PF_DECnet, RTM_GETROUTE,
+			     dn_cache_getroute, dn_cache_dump, 0);
 #endif
 }
 
