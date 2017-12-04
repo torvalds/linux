@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: GPL-2.0
 
 """
 tdc.py - Linux tc (Traffic Control) unit test driver
@@ -49,7 +50,7 @@ def exec_cmd(command, nsonly=True):
         stderr=subprocess.PIPE)
     (rawout, serr) = proc.communicate()
 
-    if proc.returncode != 0:
+    if proc.returncode != 0 and len(serr) > 0:
         foutput = serr.decode("utf-8")
     else:
         foutput = rawout.decode("utf-8")
@@ -88,7 +89,7 @@ def prepare_env(cmdlist):
             exit(1)
 
 
-def test_runner(filtered_tests):
+def test_runner(filtered_tests, args):
     """
     Driver function for the unit tests.
 
@@ -105,6 +106,8 @@ def test_runner(filtered_tests):
     for tidx in testlist:
         result = True
         tresult = ""
+        if "flower" in tidx["category"] and args.device == None:
+            continue
         print("Test " + tidx["id"] + ": " + tidx["name"])
         prepare_env(tidx["setup"])
         (p, procout) = exec_cmd(tidx["cmdUnderTest"])
@@ -150,7 +153,11 @@ def ns_create():
         exec_cmd(cmd, False)
         cmd = 'ip link set $DEV0 up'
         exec_cmd(cmd, False)
-        cmd = 'ip -s $NS link set $DEV1 up'
+        cmd = 'ip -n $NS link set $DEV1 up'
+        exec_cmd(cmd, False)
+        cmd = 'ip link set $DEV2 netns $NS'
+        exec_cmd(cmd, False)
+        cmd = 'ip -n $NS link set $DEV2 up'
         exec_cmd(cmd, False)
 
 
@@ -173,15 +180,20 @@ def has_blank_ids(idlist):
 
 def load_from_file(filename):
     """
-    Open the JSON file containing the test cases and return them as an
-    ordered dictionary object.
+    Open the JSON file containing the test cases and return them
+    as list of ordered dictionary objects.
     """
-    with open(filename) as test_data:
-        testlist = json.load(test_data, object_pairs_hook=OrderedDict)
-    idlist = get_id_list(testlist)
-    if (has_blank_ids(idlist)):
-        for k in testlist:
-            k['filename'] = filename
+    try:
+        with open(filename) as test_data:
+            testlist = json.load(test_data, object_pairs_hook=OrderedDict)
+    except json.JSONDecodeError as jde:
+        print('IGNORING test case file {}\n\tBECAUSE:  {}'.format(filename, jde))
+        testlist = list()
+    else:
+        idlist = get_id_list(testlist)
+        if (has_blank_ids(idlist)):
+            for k in testlist:
+                k['filename'] = filename
     return testlist
 
 
@@ -203,7 +215,7 @@ def set_args(parser):
                         help='Run tests only from the specified category, or if no category is specified, list known categories.')
     parser.add_argument('-f', '--file', type=str,
                         help='Run tests from the specified file')
-    parser.add_argument('-l', '--list', type=str, nargs='?', const="", metavar='CATEGORY',
+    parser.add_argument('-l', '--list', type=str, nargs='?', const="++", metavar='CATEGORY',
                         help='List all test cases, or those only within the specified category')
     parser.add_argument('-s', '--show', type=str, nargs=1, metavar='ID', dest='showID',
                         help='Display the test case with specified id')
@@ -211,7 +223,8 @@ def set_args(parser):
                         help='Execute the single test case with specified ID')
     parser.add_argument('-i', '--id', action='store_true', dest='gen_id',
                         help='Generate ID numbers for new test cases')
-    return parser
+    parser.add_argument('-d', '--device',
+                        help='Execute the test case in flower category')
     return parser
 
 
@@ -225,6 +238,8 @@ def check_default_settings(args):
 
     if args.path != None:
          NAMES['TC'] = args.path
+    if args.device != None:
+         NAMES['DEV2'] = args.device
     if not os.path.isfile(NAMES['TC']):
         print("The specified tc path " + NAMES['TC'] + " does not exist.")
         exit(1)
@@ -357,10 +372,10 @@ def set_operation_mode(args):
     testcases = get_categorized_testlist(alltests, ucat)
 
     if args.list:
-        if (len(args.list) == 0):
+        if (args.list == "++"):
             list_test_cases(alltests)
             exit(0)
-        elif(len(args.list > 0)):
+        elif(len(args.list) > 0):
             if (args.list not in ucat):
                 print("Unknown category " + args.list)
                 print("Available categories:")
@@ -381,14 +396,17 @@ def set_operation_mode(args):
             if (len(alltests) == 0):
                 print("Cannot find a test case with ID matching " + target_id)
                 exit(1)
-        catresults = test_runner(alltests)
+        catresults = test_runner(alltests, args)
         print("All test results: " + "\n\n" + catresults)
     elif (len(target_category) > 0):
+        if (target_category == "flower") and args.device == None:
+            print("Please specify a NIC device (-d) to run category flower")
+            exit(1)
         if (target_category not in ucat):
             print("Specified category is not present in this file.")
             exit(1)
         else:
-            catresults = test_runner(testcases[target_category])
+            catresults = test_runner(testcases[target_category], args)
             print("Category " + target_category + "\n\n" + catresults)
 
     ns_destroy()

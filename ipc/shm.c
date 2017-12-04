@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * linux/ipc/shm.c
  * Copyright (C) 1992, 1993 Krishna Balasubramanian
@@ -600,6 +601,7 @@ static int newseg(struct ipc_namespace *ns, struct ipc_params *params)
 	shp->shm_file = file;
 	shp->shm_creator = current;
 
+	/* ipc_addid() locks shp upon success. */
 	error = ipc_addid(&shm_ids(ns), &shp->shm_perm, ns->shm_ctlmni);
 	if (error < 0)
 		goto no_id;
@@ -1193,10 +1195,10 @@ static int copy_compat_shmid_from_user(struct shmid64_ds *out, void __user *buf,
 {
 	memset(out, 0, sizeof(*out));
 	if (version == IPC_64) {
-		struct compat_shmid64_ds *p = buf;
+		struct compat_shmid64_ds __user *p = buf;
 		return get_compat_ipc64_perm(&out->shm_perm, &p->shm_perm);
 	} else {
-		struct compat_shmid_ds *p = buf;
+		struct compat_shmid_ds __user *p = buf;
 		return get_compat_ipc_perm(&out->shm_perm, &p->shm_perm);
 	}
 }

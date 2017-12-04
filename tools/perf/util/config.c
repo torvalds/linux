@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * config.c
  *
@@ -700,10 +701,7 @@ struct perf_config_set *perf_config_set__new(void)
 
 	if (set) {
 		INIT_LIST_HEAD(&set->sections);
-		if (perf_config_set__init(set) < 0) {
-			perf_config_set__delete(set);
-			set = NULL;
-		}
+		perf_config_set__init(set);
 	}
 
 	return set;

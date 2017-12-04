@@ -49,8 +49,8 @@
 		reg = <0x40000000 0x40000000>;
 	};
 
-	soc@01c00000 {
-		codec: codec@01c22c00 {
+	soc@1c00000 {
+		codec: codec@1c22c00 {
 			#sound-dai-cells = <0>;
 			compatible = "allwinner,sun8i-a23-codec";
 			reg = <0x01c22c00 0x400>;

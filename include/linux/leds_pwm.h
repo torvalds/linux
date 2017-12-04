@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * PWM LED driver data - see drivers/leds/leds-pwm.c
  */

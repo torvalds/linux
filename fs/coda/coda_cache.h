@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* Coda filesystem -- Linux Minicache
  *
  * Copyright (C) 1989 - 1997 Carnegie Mellon University

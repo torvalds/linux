@@ -47,30 +47,6 @@
 / {
 	model = "Engicam i.CoreM6 Quad/Dual RQS Starter Kit";
 	compatible = "engicam,imx6-icore-rqs", "fsl,imx6q";
-
-	sound {
-		compatible = "fsl,imx-audio-sgtl5000";
-		model = "imx-audio-sgtl5000";
-		ssi-controller = <&ssi1>;
-		audio-codec = <&codec>;
-		audio-routing =
-			"MIC_IN", "Mic Jack",
-			"Mic Jack", "Mic Bias",
-			"Headphone Jack", "HP_OUT";
-		mux-int-port = <1>;
-		mux-ext-port = <4>;
-	};
-};
-
-&i2c3 {
-	codec: sgtl5000@0a {
-		compatible = "fsl,sgtl5000";
-		reg = <0x0a>;
-		clocks = <&clks IMX6QDL_CLK_CKO>;
-		VDDA-supply = <&reg_2p5v>;
-		VDDIO-supply = <&reg_3p3v>;
-		VDDD-supply = <&reg_1p8v>;
-	};
 };
 
 &sata {

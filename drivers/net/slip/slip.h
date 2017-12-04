@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * slip.h	Define the SLIP device driver interface and constants.
  *

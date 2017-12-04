@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __ASMARM_ELF_H
 #define __ASMARM_ELF_H
 
@@ -100,10 +101,15 @@ struct elf32_hdr;
 extern int elf_check_arch(const struct elf32_hdr *);
 #define elf_check_arch elf_check_arch
 
+#define ELFOSABI_ARM_FDPIC  65	/* ARM FDPIC platform */
+#define elf_check_fdpic(x)  ((x)->e_ident[EI_OSABI] == ELFOSABI_ARM_FDPIC)
+#define elf_check_const_displacement(x)  ((x)->e_flags & EF_ARM_PIC)
+#define ELF_FDPIC_CORE_EFLAGS  0
+
 #define vmcore_elf64_check_arch(x) (0)
 
-extern int arm_elf_read_implies_exec(const struct elf32_hdr *, int);
-#define elf_read_implies_exec(ex,stk) arm_elf_read_implies_exec(&(ex), stk)
+extern int arm_elf_read_implies_exec(int);
+#define elf_read_implies_exec(ex,stk) arm_elf_read_implies_exec(stk)
 
 struct task_struct;
 int dump_task_regs(struct task_struct *t, elf_gregset_t *elfregs);
@@ -119,6 +125,13 @@ int dump_task_regs(struct task_struct *t, elf_gregset_t *elfregs);
    registered with atexit, as per the SVR4 ABI.  A value of 0 means we 
    have no such handler.  */
 #define ELF_PLAT_INIT(_r, load_addr)	(_r)->ARM_r0 = 0
+
+#define ELF_FDPIC_PLAT_INIT(_r, _exec_map_addr, _interp_map_addr, dynamic_addr) \
+	do { \
+		(_r)->ARM_r7 = _exec_map_addr; \
+		(_r)->ARM_r8 = _interp_map_addr; \
+		(_r)->ARM_r9 = dynamic_addr; \
+	} while(0)
 
 extern void elf_set_personality(const struct elf32_hdr *);
 #define SET_PERSONALITY(ex)	elf_set_personality(&(ex))

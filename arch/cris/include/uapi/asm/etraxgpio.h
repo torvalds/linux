@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  * The following devices are accessible using this driver using
  * GPIO_MAJOR (120) and a couple of minor numbers.

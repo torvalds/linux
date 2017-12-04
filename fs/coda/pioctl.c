@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Pioctl operations for Coda.
  * Original version: (C) 1996 Peter Braam

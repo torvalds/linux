@@ -690,15 +690,15 @@ cas_action:
 	/* ELF32 Process entry path */
 lws_compare_and_swap_2:
 #ifdef CONFIG_64BIT
-	/* Clip the input registers */
+	/* Clip the input registers. We don't need to clip %r23 as we
+	   only use it for word operations */
 	depdi	0, 31, 32, %r26
 	depdi	0, 31, 32, %r25
 	depdi	0, 31, 32, %r24
-	depdi	0, 31, 32, %r23
 #endif
 
 	/* Check the validity of the size pointer */
-	subi,>>= 4, %r23, %r0
+	subi,>>= 3, %r23, %r0
 	b,n	lws_exit_nosys
 
 	/* Jump to the functions which will load the old and new values into
@@ -742,7 +742,7 @@ lws_compare_and_swap_2:
 10:	ldd	0(%r25), %r25
 11:	ldd	0(%r24), %r24
 #else
-	/* Load new value into r22/r23 - high/low */
+	/* Load old value into r22/r23 - high/low */
 10:	ldw	0(%r25), %r22
 11:	ldw	4(%r25), %r23
 	/* Load new value into fr4 for atomic store later */
@@ -834,11 +834,11 @@ cas2_action:
 	copy	%r0, %r28
 #else
 	/* Compare first word */
-19:	ldw,ma	0(%r26), %r29
+19:	ldw	0(%r26), %r29
 	sub,=	%r29, %r22, %r0
 	b,n	cas2_end
 	/* Compare second word */
-20:	ldw,ma	4(%r26), %r29
+20:	ldw	4(%r26), %r29
 	sub,=	%r29, %r23, %r0
 	b,n	cas2_end
 	/* Perform the store */

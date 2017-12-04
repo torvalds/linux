@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #undef __s390x__
 #include <asm/unistd.h>
 #include "audit.h"

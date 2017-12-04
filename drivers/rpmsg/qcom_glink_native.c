@@ -227,6 +227,7 @@ static struct glink_channel *qcom_glink_alloc_channel(struct qcom_glink *glink,
 
 	init_completion(&channel->open_req);
 	init_completion(&channel->open_ack);
+	init_completion(&channel->intent_req_comp);
 
 	INIT_LIST_HEAD(&channel->done_intents);
 	INIT_WORK(&channel->intent_work, qcom_glink_rx_done_work);
@@ -635,19 +636,18 @@ qcom_glink_alloc_intent(struct qcom_glink *glink,
 	unsigned long flags;
 
 	intent = kzalloc(sizeof(*intent), GFP_KERNEL);
-
 	if (!intent)
 		return NULL;
 
 	intent->data = kzalloc(size, GFP_KERNEL);
 	if (!intent->data)
-		return NULL;
+		goto free_intent;
 
 	spin_lock_irqsave(&channel->intent_lock, flags);
 	ret = idr_alloc_cyclic(&channel->liids, intent, 1, -1, GFP_ATOMIC);
 	if (ret < 0) {
 		spin_unlock_irqrestore(&channel->intent_lock, flags);
-		return NULL;
+		goto free_data;
 	}
 	spin_unlock_irqrestore(&channel->intent_lock, flags);
 
@@ -656,6 +656,12 @@ qcom_glink_alloc_intent(struct qcom_glink *glink,
 	intent->reuse = reuseable;
 
 	return intent;
+
+free_data:
+	kfree(intent->data);
+free_intent:
+	kfree(intent);
+	return NULL;
 }
 
 static void qcom_glink_handle_rx_done(struct qcom_glink *glink,
@@ -1143,19 +1149,38 @@ static struct rpmsg_endpoint *qcom_glink_create_ept(struct rpmsg_device *rpdev,
 static int qcom_glink_announce_create(struct rpmsg_device *rpdev)
 {
 	struct glink_channel *channel = to_glink_channel(rpdev->ept);
-	struct glink_core_rx_intent *intent;
+	struct device_node *np = rpdev->dev.of_node;
 	struct qcom_glink *glink = channel->glink;
-	int num_intents = glink->intentless ? 0 : 5;
+	struct glink_core_rx_intent *intent;
+	const struct property *prop = NULL;
+	__be32 defaults[] = { cpu_to_be32(SZ_1K), cpu_to_be32(5) };
+	int num_intents;
+	int num_groups = 1;
+	__be32 *val = defaults;
+	int size;
 
-	/* Channel is now open, advertise base set of intents */
-	while (num_intents--) {
-		intent = qcom_glink_alloc_intent(glink, channel, SZ_1K, true);
-		if (!intent)
-			break;
+	if (glink->intentless)
+		return 0;
 
-		qcom_glink_advertise_intent(glink, channel, intent);
+	prop = of_find_property(np, "qcom,intents", NULL);
+	if (prop) {
+		val = prop->value;
+		num_groups = prop->length / sizeof(u32) / 2;
 	}
 
+	/* Channel is now open, advertise base set of intents */
+	while (num_groups--) {
+		size = be32_to_cpup(val++);
+		num_intents = be32_to_cpup(val++);
+		while (num_intents--) {
+			intent = qcom_glink_alloc_intent(glink, channel, size,
+							 true);
+			if (!intent)
+				break;
+
+			qcom_glink_advertise_intent(glink, channel, intent);
+		}
+	}
 	return 0;
 }
 
@@ -1197,7 +1222,7 @@ static int qcom_glink_request_intent(struct qcom_glink *glink,
 
 	ret = qcom_glink_tx(glink, &cmd, sizeof(cmd), NULL, 0, true);
 	if (ret)
-		return ret;
+		goto unlock;
 
 	ret = wait_for_completion_timeout(&channel->intent_req_comp, 10 * HZ);
 	if (!ret) {
@@ -1207,6 +1232,7 @@ static int qcom_glink_request_intent(struct qcom_glink *glink,
 		ret = channel->intent_req_result ? 0 : -ECANCELED;
 	}
 
+unlock:
 	mutex_unlock(&channel->intent_req_lock);
 	return ret;
 }
@@ -1231,11 +1257,16 @@ static int __qcom_glink_send(struct glink_channel *channel,
 			spin_lock_irqsave(&channel->intent_lock, flags);
 			idr_for_each_entry(&channel->riids, tmp, iid) {
 				if (tmp->size >= len && !tmp->in_use) {
-					tmp->in_use = true;
-					intent = tmp;
-					break;
+					if (!intent)
+						intent = tmp;
+					else if (intent->size > tmp->size)
+						intent = tmp;
+					if (intent->size == len)
+						break;
 				}
 			}
+			if (intent)
+				intent->in_use = true;
 			spin_unlock_irqrestore(&channel->intent_lock, flags);
 
 			/* We found an available intent */
@@ -1545,6 +1576,7 @@ struct qcom_glink *qcom_glink_native_probe(struct device *dev,
 	idr_init(&glink->rcids);
 
 	glink->mbox_client.dev = dev;
+	glink->mbox_client.knows_txdone = true;
 	glink->mbox_chan = mbox_request_channel(&glink->mbox_client, 0);
 	if (IS_ERR(glink->mbox_chan)) {
 		if (PTR_ERR(glink->mbox_chan) != -EPROBE_DEFER)
@@ -1610,3 +1642,6 @@ void qcom_glink_native_unregister(struct qcom_glink *glink)
 	device_unregister(glink->dev);
 }
 EXPORT_SYMBOL_GPL(qcom_glink_native_unregister);
+
+MODULE_DESCRIPTION("Qualcomm GLINK driver");
+MODULE_LICENSE("GPL v2");

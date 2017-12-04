@@ -10,6 +10,9 @@
 
 . $(dirname $0)/lib/probe.sh
 
+ld=$(realpath /lib64/ld*.so.* | uniq)
+libc=$(echo $ld | sed 's/ld/libc/g')
+
 trace_libc_inet_pton_backtrace() {
 	idx=0
 	expected[0]="PING.*bytes"
@@ -18,8 +21,8 @@ trace_libc_inet_pton_backtrace() {
 	expected[3]=".*packets transmitted.*"
 	expected[4]="rtt min.*"
 	expected[5]="[0-9]+\.[0-9]+[[:space:]]+probe_libc:inet_pton:\([[:xdigit:]]+\)"
-	expected[6]=".*inet_pton[[:space:]]\(/usr/lib.*/libc-[0-9]+\.[0-9]+\.so\)$"
-	expected[7]="getaddrinfo[[:space:]]\(/usr/lib.*/libc-[0-9]+\.[0-9]+\.so\)$"
+	expected[6]=".*inet_pton[[:space:]]\($libc\)$"
+	expected[7]="getaddrinfo[[:space:]]\($libc\)$"
 	expected[8]=".*\(.*/bin/ping.*\)$"
 
 	perf trace --no-syscalls -e probe_libc:inet_pton/max-stack=3/ ping -6 -c 1 ::1 2>&1 | grep -v ^$ | while read line ; do
@@ -35,7 +38,7 @@ trace_libc_inet_pton_backtrace() {
 }
 
 skip_if_no_perf_probe && \
-perf probe -q /lib64/libc-*.so inet_pton && \
+perf probe -q $libc inet_pton && \
 trace_libc_inet_pton_backtrace
 err=$?
 rm -f ${file}

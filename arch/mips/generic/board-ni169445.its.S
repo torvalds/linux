@@ -1,4 +1,4 @@
-{
+/ {
 	images {
 		fdt@ni169445 {
 			description = "NI 169445 device tree";

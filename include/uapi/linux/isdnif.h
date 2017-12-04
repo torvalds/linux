@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-1.0+ WITH Linux-syscall-note */
 /* $Id: isdnif.h,v 1.43.2.2 2004/01/12 23:08:35 keil Exp $
  *
  * Linux ISDN subsystem

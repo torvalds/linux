@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 void convert_to_tag_list(struct tag *tags);
 
 #ifdef CONFIG_ATAGS

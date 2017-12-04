@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_IA64_MACHVEC_HPZX1_h
 #define _ASM_IA64_MACHVEC_HPZX1_h
 

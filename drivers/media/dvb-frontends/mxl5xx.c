@@ -43,7 +43,7 @@
 #define BYTE2(v) ((v >> 16) & 0xff)
 #define BYTE3(v) ((v >> 24) & 0xff)
 
-LIST_HEAD(mxllist);
+static LIST_HEAD(mxllist);
 
 struct mxl_base {
 	struct list_head     mxllist;

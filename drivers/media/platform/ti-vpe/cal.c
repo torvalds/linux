@@ -1522,6 +1522,11 @@ static int cal_async_complete(struct v4l2_async_notifier *notifier)
 	return 0;
 }
 
+static const struct v4l2_async_notifier_operations cal_async_ops = {
+	.bound = cal_async_bound,
+	.complete = cal_async_complete,
+};
+
 static int cal_complete_ctx(struct cal_ctx *ctx)
 {
 	struct video_device *vfd;
@@ -1736,8 +1741,7 @@ static int of_cal_create_instance(struct cal_ctx *ctx, int inst)
 	ctx->asd_list[0] = asd;
 	ctx->notifier.subdevs = ctx->asd_list;
 	ctx->notifier.num_subdevs = 1;
-	ctx->notifier.bound = cal_async_bound;
-	ctx->notifier.complete = cal_async_complete;
+	ctx->notifier.ops = &cal_async_ops;
 	ret = v4l2_async_notifier_register(&ctx->v4l2_dev,
 					   &ctx->notifier);
 	if (ret) {

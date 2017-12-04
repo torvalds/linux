@@ -730,7 +730,7 @@ try_again:
 
 	ret = -EIO;
 	if (!(lflags & KEY_LOOKUP_PARTIAL) &&
-	    !test_bit(KEY_FLAG_INSTANTIATED, &key->flags))
+	    key_read_state(key) == KEY_IS_UNINSTANTIATED)
 		goto invalid_key;
 
 	/* check the permissions */
@@ -738,7 +738,7 @@ try_again:
 	if (ret < 0)
 		goto invalid_key;
 
-	key->last_used_at = current_kernel_time().tv_sec;
+	key->last_used_at = ktime_get_real_seconds();
 
 error:
 	put_cred(ctx.cred);

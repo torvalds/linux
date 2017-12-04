@@ -28,6 +28,8 @@
 #include <asm/msr.h>
 #include <asm/trace/irq_vectors.h>
 
+#include "mce-internal.h"
+
 #define NR_BLOCKS         5
 #define THRESHOLD_MAX     0xFFF
 #define INT_TYPE_APIC     0x00020000

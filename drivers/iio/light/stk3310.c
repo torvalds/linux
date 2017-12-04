@@ -409,7 +409,6 @@ static int stk3310_write_raw(struct iio_dev *indio_dev,
 }
 
 static const struct iio_info stk3310_info = {
-	.driver_module		= THIS_MODULE,
 	.read_raw		= stk3310_read_raw,
 	.write_raw		= stk3310_write_raw,
 	.attrs			= &stk3310_attribute_group,

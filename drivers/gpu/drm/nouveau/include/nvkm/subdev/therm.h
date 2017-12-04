@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __NVKM_THERM_H__
 #define __NVKM_THERM_H__
 #include <core/subdev.h>
@@ -97,4 +98,5 @@ int gt215_therm_new(struct nvkm_device *, int, struct nvkm_therm **);
 int gf119_therm_new(struct nvkm_device *, int, struct nvkm_therm **);
 int gm107_therm_new(struct nvkm_device *, int, struct nvkm_therm **);
 int gm200_therm_new(struct nvkm_device *, int, struct nvkm_therm **);
+int gp100_therm_new(struct nvkm_device *, int, struct nvkm_therm **);
 #endif

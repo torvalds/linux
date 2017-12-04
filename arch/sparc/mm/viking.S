@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * viking.S: High speed Viking cache/mmu operations
  *

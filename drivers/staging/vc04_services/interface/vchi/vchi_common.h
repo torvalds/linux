@@ -34,7 +34,6 @@
 #ifndef VCHI_COMMON_H_
 #define VCHI_COMMON_H_
 
-
 //flags used when sending messages (must be bitmapped)
 typedef enum {
    VCHI_FLAGS_NONE                      = 0x0,
@@ -118,13 +117,10 @@ typedef enum {
    VCHI_SERVICE_OPTION_MAX
 } VCHI_SERVICE_OPTION_T;
 
-
 //Callback used by all services / bulk transfers
 typedef void (*VCHI_CALLBACK_T)(void *callback_param, //my service local param
 				 VCHI_CALLBACK_REASON_T reason,
 				 void *handle); //for transmitting msg's only
-
-
 
 /*
  * Define vector struct for scatter-gather (vector) operations
@@ -154,7 +150,6 @@ typedef struct opaque_vchi_connection_api_t VCHI_CONNECTION_API_T;
 // Opaque type for a message driver
 typedef struct opaque_vchi_message_driver_t VCHI_MESSAGE_DRIVER_T;
 
-
 // Iterator structure for reading ahead through received message queue. Allocated by client,
 // initialised by vchi_msg_look_ahead. Fields are for internal VCHI use only.
 // Iterates over messages in queue at the instant of the call to vchi_msg_lookahead -
@@ -167,6 +162,5 @@ typedef struct {
    void *next;
    void *remove;
 } VCHI_MSG_ITER_T;
-
 
 #endif // VCHI_COMMON_H_

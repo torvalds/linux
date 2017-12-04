@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-1.0+ WITH Linux-syscall-note */
 /*
  * IEEE 802.2 User Interface SAPs for Linux, data structures and indicators.
  *

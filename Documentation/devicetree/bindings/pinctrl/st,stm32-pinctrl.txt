@@ -143,6 +143,24 @@ Required properties:
       * 16 : Alternate Function 15
       * 17 : Analog
 
+  To simplify the usage, macro is available to generate "pinmux" field.
+  This macro is available here:
+    - include/dt-bindings/pinctrl/stm32-pinfunc.h
+
+  Some examples of using macro:
+    /* GPIO A9 set as alernate function 2 */
+    ... {
+		pinmux = <STM32_PINMUX('A', 9, AF2)>;
+    };
+    /* GPIO A9 set as GPIO  */
+    ... {
+		pinmux = <STM32_PINMUX('A', 9, GPIO)>;
+    };
+    /* GPIO A9 set as analog */
+    ... {
+		pinmux = <STM32_PINMUX('A', 9, ANALOG)>;
+    };
+
 Optional properties:
 - GENERIC_PINCONFIG: is the generic pinconfig options to use.
   Available options are:
@@ -165,13 +183,13 @@ pin-controller {
 ...
 	usart1_pins_a: usart1@0 {
 		pins1 {
-			pinmux = <STM32F429_PA9_FUNC_USART1_TX>;
+			pinmux = <STM32_PINMUX('A', 9, AF7)>;
 			bias-disable;
 			drive-push-pull;
 			slew-rate = <0>;
 		};
 		pins2 {
-			pinmux = <STM32F429_PA10_FUNC_USART1_RX>;
+			pinmux = <STM32_PINMUX('A', 10, AF7)>;
 			bias-disable;
 		};
 	};

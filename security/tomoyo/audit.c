@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * security/tomoyo/audit.c
  *
@@ -156,7 +157,7 @@ static char *tomoyo_print_header(struct tomoyo_request_info *r)
 	if (!buffer)
 		return NULL;
 
-	tomoyo_convert_time(get_seconds(), &stamp);
+	tomoyo_convert_time(ktime_get_real_seconds(), &stamp);
 
 	pos = snprintf(buffer, tomoyo_buffer_len - 1,
 		       "#%04u/%02u/%02u %02u:%02u:%02u# profile=%u mode=%s "

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* memmove.S: Simple memmove implementation.
  *
  * Copyright (C) 1997, 2004 David S. Miller (davem@redhat.com)

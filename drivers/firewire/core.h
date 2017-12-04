@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _FIREWIRE_CORE_H
 #define _FIREWIRE_CORE_H
 

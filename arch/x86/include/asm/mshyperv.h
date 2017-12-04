@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_X86_MSHYPER_H
 #define _ASM_X86_MSHYPER_H
 
@@ -289,6 +290,7 @@ static inline u64 hv_do_rep_hypercall(u16 code, u16 rep_count, u16 varhead_size,
  * to this information.
  */
 extern u32 *hv_vp_index;
+extern u32 hv_max_vp_index;
 
 /**
  * hv_cpu_number_to_vp_number() - Map CPU to VP.
@@ -309,7 +311,7 @@ static inline int hv_cpu_number_to_vp_number(int cpu_number)
 void hyperv_init(void);
 void hyperv_setup_mmu_ops(void);
 void hyper_alloc_mmu(void);
-void hyperv_report_panic(struct pt_regs *regs);
+void hyperv_report_panic(struct pt_regs *regs, long err);
 bool hv_is_hypercall_page_setup(void);
 void hyperv_cleanup(void);
 #else /* CONFIG_HYPERV */

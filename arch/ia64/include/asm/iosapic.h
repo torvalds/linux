@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __ASM_IA64_IOSAPIC_H
 #define __ASM_IA64_IOSAPIC_H
 

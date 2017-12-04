@@ -1190,7 +1190,7 @@ static int meson_mmc_probe(struct platform_device *pdev)
 	/* Get regulators and the supported OCR mask */
 	host->vqmmc_enabled = false;
 	ret = mmc_regulator_get_supply(mmc);
-	if (ret == -EPROBE_DEFER)
+	if (ret)
 		goto free_host;
 
 	ret = mmc_of_parse(mmc);

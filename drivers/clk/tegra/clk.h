@@ -662,6 +662,9 @@ struct tegra_periph_init_data {
 			_clk_num, _gate_flags, _clk_id,\
 			NULL, 0, NULL)
 
+struct clk *tegra_clk_register_periph_data(void __iomem *clk_base,
+					   struct tegra_periph_init_data *init);
+
 /**
  * struct clk_super_mux - super clock
  *

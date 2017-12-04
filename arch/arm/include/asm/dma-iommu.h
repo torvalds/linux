@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef ASMARM_DMA_IOMMU_H
 #define ASMARM_DMA_IOMMU_H
 
@@ -6,7 +7,6 @@
 #include <linux/mm_types.h>
 #include <linux/scatterlist.h>
 #include <linux/dma-debug.h>
-#include <linux/kmemcheck.h>
 #include <linux/kref.h>
 
 #define ARM_MAPPING_ERROR		(~(dma_addr_t)0x0)

@@ -186,12 +186,12 @@ struct binder_buffer *binder_alloc_prepare_to_free(struct binder_alloc *alloc,
 }
 
 static int binder_update_page_range(struct binder_alloc *alloc, int allocate,
-				    void *start, void *end,
-				    struct vm_area_struct *vma)
+				    void *start, void *end)
 {
 	void *page_addr;
 	unsigned long user_page_addr;
 	struct binder_lru_page *page;
+	struct vm_area_struct *vma = NULL;
 	struct mm_struct *mm = NULL;
 	bool need_mm = false;
 
@@ -215,17 +215,12 @@ static int binder_update_page_range(struct binder_alloc *alloc, int allocate,
 		}
 	}
 
-	if (!vma && need_mm)
-		mm = get_task_mm(alloc->tsk);
+	if (need_mm && mmget_not_zero(alloc->vma_vm_mm))
+		mm = alloc->vma_vm_mm;
 
 	if (mm) {
 		down_write(&mm->mmap_sem);
 		vma = alloc->vma;
-		if (vma && mm != alloc->vma_vm_mm) {
-			pr_err("%d: vma mm and task mm mismatch\n",
-				alloc->pid);
-			vma = NULL;
-		}
 	}
 
 	if (!vma && need_mm) {
@@ -442,7 +437,7 @@ struct binder_buffer *binder_alloc_new_buf_locked(struct binder_alloc *alloc,
 	if (end_page_addr > has_page_addr)
 		end_page_addr = has_page_addr;
 	ret = binder_update_page_range(alloc, 1,
-	    (void *)PAGE_ALIGN((uintptr_t)buffer->data), end_page_addr, NULL);
+	    (void *)PAGE_ALIGN((uintptr_t)buffer->data), end_page_addr);
 	if (ret)
 		return ERR_PTR(ret);
 
@@ -483,7 +478,7 @@ struct binder_buffer *binder_alloc_new_buf_locked(struct binder_alloc *alloc,
 err_alloc_buf_struct_failed:
 	binder_update_page_range(alloc, 0,
 				 (void *)PAGE_ALIGN((uintptr_t)buffer->data),
-				 end_page_addr, NULL);
+				 end_page_addr);
 	return ERR_PTR(-ENOMEM);
 }
 
@@ -565,10 +560,9 @@ static void binder_delete_free_buffer(struct binder_alloc *alloc,
 		binder_alloc_debug(BINDER_DEBUG_BUFFER_ALLOC,
 				   "%d: merge free, buffer %pK do not share page with %pK or %pK\n",
 				   alloc->pid, buffer->data,
-				   prev->data, next->data);
+				   prev->data, next ? next->data : NULL);
 		binder_update_page_range(alloc, 0, buffer_start_page(buffer),
-					 buffer_start_page(buffer) + PAGE_SIZE,
-					 NULL);
+					 buffer_start_page(buffer) + PAGE_SIZE);
 	}
 	list_del(&buffer->entry);
 	kfree(buffer);
@@ -605,8 +599,7 @@ static void binder_free_buf_locked(struct binder_alloc *alloc,
 
 	binder_update_page_range(alloc, 0,
 		(void *)PAGE_ALIGN((uintptr_t)buffer->data),
-		(void *)(((uintptr_t)buffer->data + buffer_size) & PAGE_MASK),
-		NULL);
+		(void *)(((uintptr_t)buffer->data + buffer_size) & PAGE_MASK));
 
 	rb_erase(&buffer->rb_node, &alloc->allocated_buffers);
 	buffer->free = 1;
@@ -720,6 +713,7 @@ int binder_alloc_mmap_handler(struct binder_alloc *alloc,
 	barrier();
 	alloc->vma = vma;
 	alloc->vma_vm_mm = vma->vm_mm;
+	mmgrab(alloc->vma_vm_mm);
 
 	return 0;
 
@@ -795,6 +789,8 @@ void binder_alloc_deferred_release(struct binder_alloc *alloc)
 		vfree(alloc->buffer);
 	}
 	mutex_unlock(&alloc->mutex);
+	if (alloc->vma_vm_mm)
+		mmdrop(alloc->vma_vm_mm);
 
 	binder_alloc_debug(BINDER_DEBUG_OPEN_CLOSE,
 		     "%s: %d buffers %d, pages %d\n",
@@ -889,7 +885,6 @@ int binder_alloc_get_allocated_count(struct binder_alloc *alloc)
 void binder_alloc_vma_close(struct binder_alloc *alloc)
 {
 	WRITE_ONCE(alloc->vma, NULL);
-	WRITE_ONCE(alloc->vma_vm_mm, NULL);
 }
 
 /**
@@ -926,9 +921,9 @@ enum lru_status binder_alloc_free_page(struct list_head *item,
 	page_addr = (uintptr_t)alloc->buffer + index * PAGE_SIZE;
 	vma = alloc->vma;
 	if (vma) {
-		mm = get_task_mm(alloc->tsk);
-		if (!mm)
-			goto err_get_task_mm_failed;
+		if (!mmget_not_zero(alloc->vma_vm_mm))
+			goto err_mmget;
+		mm = alloc->vma_vm_mm;
 		if (!down_write_trylock(&mm->mmap_sem))
 			goto err_down_write_mmap_sem_failed;
 	}
@@ -963,7 +958,7 @@ enum lru_status binder_alloc_free_page(struct list_head *item,
 
 err_down_write_mmap_sem_failed:
 	mmput_async(mm);
-err_get_task_mm_failed:
+err_mmget:
 err_page_already_freed:
 	mutex_unlock(&alloc->mutex);
 err_get_alloc_mutex_failed:
@@ -987,7 +982,7 @@ binder_shrink_scan(struct shrinker *shrink, struct shrink_control *sc)
 	return ret;
 }
 
-struct shrinker binder_shrinker = {
+static struct shrinker binder_shrinker = {
 	.count_objects = binder_shrink_count,
 	.scan_objects = binder_shrink_scan,
 	.seeks = DEFAULT_SEEKS,
@@ -1002,7 +997,6 @@ struct shrinker binder_shrinker = {
  */
 void binder_alloc_init(struct binder_alloc *alloc)
 {
-	alloc->tsk = current->group_leader;
 	alloc->pid = current->group_leader->pid;
 	mutex_init(&alloc->mutex);
 	INIT_LIST_HEAD(&alloc->buffers);

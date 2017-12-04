@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *  linux/fs/nfs/nfs3proc.c
  *
@@ -187,6 +188,7 @@ static int nfs3_proc_access(struct inode *inode, struct nfs_access_entry *entry)
 {
 	struct nfs3_accessargs	arg = {
 		.fh		= NFS_FH(inode),
+		.access		= entry->mask,
 	};
 	struct nfs3_accessres	res;
 	struct rpc_message msg = {
@@ -195,25 +197,9 @@ static int nfs3_proc_access(struct inode *inode, struct nfs_access_entry *entry)
 		.rpc_resp	= &res,
 		.rpc_cred	= entry->cred,
 	};
-	int mode = entry->mask;
 	int status = -ENOMEM;
 
 	dprintk("NFS call  access\n");
-
-	if (mode & MAY_READ)
-		arg.access |= NFS3_ACCESS_READ;
-	if (S_ISDIR(inode->i_mode)) {
-		if (mode & MAY_WRITE)
-			arg.access |= NFS3_ACCESS_MODIFY | NFS3_ACCESS_EXTEND | NFS3_ACCESS_DELETE;
-		if (mode & MAY_EXEC)
-			arg.access |= NFS3_ACCESS_LOOKUP;
-	} else {
-		if (mode & MAY_WRITE)
-			arg.access |= NFS3_ACCESS_MODIFY | NFS3_ACCESS_EXTEND;
-		if (mode & MAY_EXEC)
-			arg.access |= NFS3_ACCESS_EXECUTE;
-	}
-
 	res.fattr = nfs_alloc_fattr();
 	if (res.fattr == NULL)
 		goto out;

@@ -93,8 +93,8 @@ static const struct nf_hook_ops ebt_ops_nat[] = {
 
 static int __net_init frame_nat_net_init(struct net *net)
 {
-	net->xt.frame_nat = ebt_register_table(net, &frame_nat, ebt_ops_nat);
-	return PTR_ERR_OR_ZERO(net->xt.frame_nat);
+	return ebt_register_table(net, &frame_nat, ebt_ops_nat,
+				  &net->xt.frame_nat);
 }
 
 static void __net_exit frame_nat_net_exit(struct net *net)

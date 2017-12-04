@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Skeleton device tree in the 64 bits version; the bare minimum
  * needed to boot; just include and add a compatible value.  The

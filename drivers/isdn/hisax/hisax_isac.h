@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __HISAX_ISAC_H__
 #define __HISAX_ISAC_H__
 

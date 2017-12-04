@@ -212,7 +212,6 @@ static int twl4030_madc_read(struct iio_dev *iio_dev,
 
 static const struct iio_info twl4030_madc_iio_info = {
 	.read_raw = &twl4030_madc_read,
-	.driver_module = THIS_MODULE,
 };
 
 #define TWL4030_ADC_CHANNEL(_channel, _type, _name) {	\

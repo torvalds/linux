@@ -155,6 +155,7 @@ int dlm_rcom_status(struct dlm_ls *ls, int nodeid, uint32_t status_flags)
 		goto out;
 	}
 
+retry:
 	error = create_rcom(ls, nodeid, DLM_RCOM_STATUS,
 			    sizeof(struct rcom_status), &rc, &mh);
 	if (error)
@@ -169,6 +170,8 @@ int dlm_rcom_status(struct dlm_ls *ls, int nodeid, uint32_t status_flags)
 
 	error = dlm_wait_function(ls, &rcom_response);
 	disallow_sync_reply(ls);
+	if (error == -ETIMEDOUT)
+		goto retry;
 	if (error)
 		goto out;
 
@@ -276,6 +279,7 @@ int dlm_rcom_names(struct dlm_ls *ls, int nodeid, char *last_name, int last_len)
 
 	ls->ls_recover_nodeid = nodeid;
 
+retry:
 	error = create_rcom(ls, nodeid, DLM_RCOM_NAMES, last_len, &rc, &mh);
 	if (error)
 		goto out;
@@ -288,6 +292,8 @@ int dlm_rcom_names(struct dlm_ls *ls, int nodeid, char *last_name, int last_len)
 
 	error = dlm_wait_function(ls, &rcom_response);
 	disallow_sync_reply(ls);
+	if (error == -ETIMEDOUT)
+		goto retry;
  out:
 	return error;
 }
@@ -332,25 +338,6 @@ int dlm_send_rcom_lookup(struct dlm_rsb *r, int dir_nodeid)
 	return error;
 }
 
-int dlm_send_rcom_lookup_dump(struct dlm_rsb *r, int to_nodeid)
-{
-	struct dlm_rcom *rc;
-	struct dlm_mhandle *mh;
-	struct dlm_ls *ls = r->res_ls;
-	int error;
-
-	error = create_rcom(ls, to_nodeid, DLM_RCOM_LOOKUP, r->res_length,
-			    &rc, &mh);
-	if (error)
-		goto out;
-	memcpy(rc->rc_buf, r->res_name, r->res_length);
-	rc->rc_id = 0xFFFFFFFF;
-
-	send_rcom(ls, mh, rc);
- out:
-	return error;
-}
-
 static void receive_rcom_lookup(struct dlm_ls *ls, struct dlm_rcom *rc_in)
 {
 	struct dlm_rcom *rc;
@@ -362,6 +349,7 @@ static void receive_rcom_lookup(struct dlm_ls *ls, struct dlm_rcom *rc_in)
 	if (error)
 		return;
 
+	/* Old code would send this special id to trigger a debug dump. */
 	if (rc_in->rc_id == 0xFFFFFFFF) {
 		log_error(ls, "receive_rcom_lookup dump from %d", nodeid);
 		dlm_dump_rsb_name(ls, rc_in->rc_buf, len);

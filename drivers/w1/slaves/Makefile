@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 #
 # Makefile for the Dallas's 1-wire slaves.
 #
@@ -17,3 +18,4 @@ obj-$(CONFIG_W1_SLAVE_DS2760)	+= w1_ds2760.o
 obj-$(CONFIG_W1_SLAVE_DS2780)	+= w1_ds2780.o
 obj-$(CONFIG_W1_SLAVE_DS2781)	+= w1_ds2781.o
 obj-$(CONFIG_W1_SLAVE_DS28E04)	+= w1_ds28e04.o
+obj-$(CONFIG_W1_SLAVE_DS28E17)	+= w1_ds28e17.o

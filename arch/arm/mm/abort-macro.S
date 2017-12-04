@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * The ARM LDRD and Thumb LDRSB instructions use bit 20/11 (ARM/Thumb)
  * differently than every other instruction, so it is set to 0 (write)

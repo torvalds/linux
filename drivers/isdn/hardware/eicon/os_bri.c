@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /* $Id: os_bri.c,v 1.21 2004/03/21 17:26:01 armin Exp $ */
 
 #include "platform.h"

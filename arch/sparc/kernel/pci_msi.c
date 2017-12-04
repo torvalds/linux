@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /* pci_msi.c: Sparc64 MSI support common layer.
  *
  * Copyright (C) 2007 David S. Miller (davem@davemloft.net)

@@ -193,8 +193,8 @@ static void set_acp_sysmem_dma_descriptors(void __iomem *acp_mmio,
 		dmadscr[i].xfer_val = 0;
 		if (direction == SNDRV_PCM_STREAM_PLAYBACK) {
 			dma_dscr_idx = PLAYBACK_START_DMA_DESCR_CH12 + i;
-			dmadscr[i].dest = ACP_SHARED_RAM_BANK_1_ADDRESS +
-					(size / 2) - (i * (size/2));
+			dmadscr[i].dest = ACP_SHARED_RAM_BANK_1_ADDRESS
+					+ (i * (size/2));
 			dmadscr[i].src = ACP_INTERNAL_APERTURE_WINDOW_0_ADDRESS
 				+ (pte_offset * SZ_4K) + (i * (size/2));
 			switch (asic_type) {
@@ -655,9 +655,9 @@ static irqreturn_t dma_irq_handler(int irq, void *arg)
 		valid_irq = true;
 		if (acp_reg_read(acp_mmio, mmACP_DMA_CUR_DSCR_13) ==
 				PLAYBACK_START_DMA_DESCR_CH13)
-			dscr_idx = PLAYBACK_START_DMA_DESCR_CH12;
-		else
 			dscr_idx = PLAYBACK_END_DMA_DESCR_CH12;
+		else
+			dscr_idx = PLAYBACK_START_DMA_DESCR_CH12;
 		config_acp_dma_channel(acp_mmio, SYSRAM_TO_ACP_CH_NUM, dscr_idx,
 				       1, 0);
 		acp_dma_start(acp_mmio, SYSRAM_TO_ACP_CH_NUM, false);
@@ -819,40 +819,48 @@ static int acp_dma_hw_free(struct snd_pcm_substream *substream)
 	return snd_pcm_lib_free_pages(substream);
 }
 
+static u64 acp_get_byte_count(void __iomem *acp_mmio, int stream)
+{
+	union acp_dma_count playback_dma_count;
+	union acp_dma_count capture_dma_count;
+	u64 bytescount = 0;
+
+	if (stream == SNDRV_PCM_STREAM_PLAYBACK) {
+		playback_dma_count.bcount.high = acp_reg_read(acp_mmio,
+					mmACP_I2S_TRANSMIT_BYTE_CNT_HIGH);
+		playback_dma_count.bcount.low  = acp_reg_read(acp_mmio,
+					mmACP_I2S_TRANSMIT_BYTE_CNT_LOW);
+		bytescount = playback_dma_count.bytescount;
+	} else {
+		capture_dma_count.bcount.high = acp_reg_read(acp_mmio,
+					mmACP_I2S_RECEIVED_BYTE_CNT_HIGH);
+		capture_dma_count.bcount.low  = acp_reg_read(acp_mmio,
+					mmACP_I2S_RECEIVED_BYTE_CNT_LOW);
+		bytescount = capture_dma_count.bytescount;
+	}
+	return bytescount;
+}
+
 static snd_pcm_uframes_t acp_dma_pointer(struct snd_pcm_substream *substream)
 {
-	u16 dscr;
-	u32 mul, dma_config, period_bytes;
+	u32 buffersize;
 	u32 pos = 0;
+	u64 bytescount = 0;
 
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct audio_substream_data *rtd = runtime->private_data;
 
-	period_bytes = frames_to_bytes(runtime, runtime->period_size);
+	buffersize = frames_to_bytes(runtime, runtime->buffer_size);
+	bytescount = acp_get_byte_count(rtd->acp_mmio, substream->stream);
+
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
-		dscr = acp_reg_read(rtd->acp_mmio, mmACP_DMA_CUR_DSCR_13);
-
-		if (dscr == PLAYBACK_START_DMA_DESCR_CH13)
-			mul = 0;
-		else
-			mul = 1;
-		pos =  (mul * period_bytes);
+		if (bytescount > rtd->renderbytescount)
+			bytescount = bytescount - rtd->renderbytescount;
 	} else {
-		dma_config = acp_reg_read(rtd->acp_mmio, mmACP_DMA_CNTL_14);
-		if (dma_config != 0) {
-			dscr = acp_reg_read(rtd->acp_mmio,
-						mmACP_DMA_CUR_DSCR_14);
-			if (dscr == CAPTURE_START_DMA_DESCR_CH14)
-				mul = 1;
-			else
-				mul = 2;
-			pos = (mul * period_bytes);
-		}
-
-		if (pos >= (2 * period_bytes))
-			pos = 0;
-
+		if (bytescount > rtd->capturebytescount)
+			bytescount = bytescount - rtd->capturebytescount;
 	}
+	pos = do_div(bytescount, buffersize);
 	return bytes_to_frames(runtime, pos);
 }
 
@@ -874,23 +882,6 @@ static int acp_dma_prepare(struct snd_pcm_substream *substream)
 		config_acp_dma_channel(rtd->acp_mmio, ACP_TO_I2S_DMA_CH_NUM,
 					PLAYBACK_START_DMA_DESCR_CH13,
 					NUM_DSCRS_PER_CHANNEL, 0);
-		/* Fill ACP SRAM (2 periods) with zeros from System RAM
-		 * which is zero-ed in hw_params
-		*/
-		acp_dma_start(rtd->acp_mmio, SYSRAM_TO_ACP_CH_NUM, false);
-
-		/* ACP SRAM (2 periods of buffer size) is intially filled with
-		 * zeros. Before rendering starts, 2nd half of SRAM will be
-		 * filled with valid audio data DMA'ed from first half of system
-		 * RAM and 1st half of SRAM will be filled with Zeros. This is
-		 * the initial scenario when redering starts from SRAM. Later
-		 * on, 2nd half of system memory will be DMA'ed to 1st half of
-		 * SRAM, 1st half of system memory will be DMA'ed to 2nd half of
-		 * SRAM in ping-pong way till rendering stops.
-		*/
-		config_acp_dma_channel(rtd->acp_mmio, SYSRAM_TO_ACP_CH_NUM,
-					PLAYBACK_START_DMA_DESCR_CH12,
-					1, 0);
 	} else {
 		config_acp_dma_channel(rtd->acp_mmio, ACP_TO_SYSRAM_CH_NUM,
 					CAPTURE_START_DMA_DESCR_CH14,
@@ -905,7 +896,8 @@ static int acp_dma_prepare(struct snd_pcm_substream *substream)
 static int acp_dma_trigger(struct snd_pcm_substream *substream, int cmd)
 {
 	int ret;
-	u32 loops = 1000;
+	u32 loops = 4000;
+	u64 bytescount = 0;
 
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct snd_soc_pcm_runtime *prtd = substream->private_data;
@@ -917,7 +909,11 @@ static int acp_dma_trigger(struct snd_pcm_substream *substream, int cmd)
 	case SNDRV_PCM_TRIGGER_START:
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
 	case SNDRV_PCM_TRIGGER_RESUME:
+		bytescount = acp_get_byte_count(rtd->acp_mmio,
+						substream->stream);
 		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
+			if (rtd->renderbytescount == 0)
+				rtd->renderbytescount = bytescount;
 			acp_dma_start(rtd->acp_mmio,
 						SYSRAM_TO_ACP_CH_NUM, false);
 			while (acp_reg_read(rtd->acp_mmio, mmACP_DMA_CH_STS) &
@@ -934,6 +930,8 @@ static int acp_dma_trigger(struct snd_pcm_substream *substream, int cmd)
 					ACP_TO_I2S_DMA_CH_NUM, true);
 
 		} else {
+			if (rtd->capturebytescount == 0)
+				rtd->capturebytescount = bytescount;
 			acp_dma_start(rtd->acp_mmio,
 					    I2S_TO_ACP_DMA_CH_NUM, true);
 		}
@@ -947,12 +945,15 @@ static int acp_dma_trigger(struct snd_pcm_substream *substream, int cmd)
 		 * channels will stopped automatically after its transfer
 		 * completes : SYSRAM_TO_ACP_CH_NUM / ACP_TO_SYSRAM_CH_NUM
 		 */
-		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
+		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 			ret = acp_dma_stop(rtd->acp_mmio,
 					ACP_TO_I2S_DMA_CH_NUM);
-		else
+			rtd->renderbytescount = 0;
+		} else {
 			ret = acp_dma_stop(rtd->acp_mmio,
 					I2S_TO_ACP_DMA_CH_NUM);
+			rtd->capturebytescount = 0;
+		}
 		break;
 	default:
 		ret = -EINVAL;
@@ -1050,6 +1051,11 @@ static int acp_audio_probe(struct platform_device *pdev)
 	struct resource *res;
 	const u32 *pdata = pdev->dev.platform_data;
 
+	if (!pdata) {
+		dev_err(&pdev->dev, "Missing platform data\n");
+		return -ENODEV;
+	}
+
 	audio_drv_data = devm_kzalloc(&pdev->dev, sizeof(struct audio_drv_data),
 					GFP_KERNEL);
 	if (audio_drv_data == NULL)
@@ -1057,6 +1063,8 @@ static int acp_audio_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	audio_drv_data->acp_mmio = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(audio_drv_data->acp_mmio))
+		return PTR_ERR(audio_drv_data->acp_mmio);
 
 	/* The following members gets populated in device 'open'
 	 * function. Till then interrupts are disabled in 'acp_init'

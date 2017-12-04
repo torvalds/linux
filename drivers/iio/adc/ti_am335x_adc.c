@@ -533,7 +533,6 @@ err_unlock:
 
 static const struct iio_info tiadc_info = {
 	.read_raw = &tiadc_read_raw,
-	.driver_module = THIS_MODULE,
 };
 
 static int tiadc_request_dma(struct platform_device *pdev,

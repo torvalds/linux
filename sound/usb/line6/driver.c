@@ -78,6 +78,13 @@ static int line6_start_listen(struct usb_line6 *line6)
 			line6->buffer_listen, LINE6_BUFSIZE_LISTEN,
 			line6_data_received, line6);
 	}
+
+	/* sanity checks of EP before actually submitting */
+	if (usb_urb_ep_type_check(line6->urb_listen)) {
+		dev_err(line6->ifcdev, "invalid control EP\n");
+		return -EINVAL;
+	}
+
 	line6->urb_listen->actual_length = 0;
 	err = usb_submit_urb(line6->urb_listen, GFP_ATOMIC);
 	return err;
@@ -168,26 +175,33 @@ static int line6_send_raw_message_async_part(struct message *msg,
 	}
 
 	msg->done += bytes;
-	retval = usb_submit_urb(urb, GFP_ATOMIC);
 
-	if (retval < 0) {
-		dev_err(line6->ifcdev, "%s: usb_submit_urb failed (%d)\n",
-			__func__, retval);
-		usb_free_urb(urb);
-		kfree(msg);
-		return retval;
-	}
+	/* sanity checks of EP before actually submitting */
+	retval = usb_urb_ep_type_check(urb);
+	if (retval < 0)
+		goto error;
+
+	retval = usb_submit_urb(urb, GFP_ATOMIC);
+	if (retval < 0)
+		goto error;
 
 	return 0;
+
+ error:
+	dev_err(line6->ifcdev, "%s: usb_submit_urb failed (%d)\n",
+		__func__, retval);
+	usb_free_urb(urb);
+	kfree(msg);
+	return retval;
 }
 
 /*
 	Setup and start timer.
 */
 void line6_start_timer(struct timer_list *timer, unsigned long msecs,
-		       void (*function)(unsigned long), unsigned long data)
+		       void (*function)(struct timer_list *t))
 {
-	setup_timer(timer, function, data);
+	timer->function = function;
 	mod_timer(timer, jiffies + msecs_to_jiffies(msecs));
 }
 EXPORT_SYMBOL_GPL(line6_start_timer);
@@ -779,9 +793,10 @@ int line6_probe(struct usb_interface *interface,
 	return 0;
 
  error:
-	if (line6->disconnect)
-		line6->disconnect(line6);
-	snd_card_free(card);
+	/* we can call disconnect callback here because no close-sync is
+	 * needed yet at this point
+	 */
+	line6_disconnect(interface);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(line6_probe);

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _DIB07X0_H_
 #define _DIB07X0_H_
 

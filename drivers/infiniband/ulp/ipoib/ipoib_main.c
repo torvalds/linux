@@ -51,7 +51,6 @@
 #include <net/addrconf.h>
 #include <linux/inetdevice.h>
 #include <rdma/ib_cache.h>
-#include <linux/pci.h>
 
 #define DRV_VERSION "1.0.0"
 
@@ -1617,13 +1616,29 @@ static void ipoib_neigh_hash_uninit(struct net_device *dev)
 	wait_for_completion(&priv->ntbl.deleted);
 }
 
+static void ipoib_napi_add(struct net_device *dev)
+{
+	struct ipoib_dev_priv *priv = ipoib_priv(dev);
+
+	netif_napi_add(dev, &priv->recv_napi, ipoib_rx_poll, IPOIB_NUM_WC);
+	netif_napi_add(dev, &priv->send_napi, ipoib_tx_poll, MAX_SEND_CQE);
+}
+
+static void ipoib_napi_del(struct net_device *dev)
+{
+	struct ipoib_dev_priv *priv = ipoib_priv(dev);
+
+	netif_napi_del(&priv->recv_napi);
+	netif_napi_del(&priv->send_napi);
+}
+
 static void ipoib_dev_uninit_default(struct net_device *dev)
 {
 	struct ipoib_dev_priv *priv = ipoib_priv(dev);
 
 	ipoib_transport_dev_cleanup(dev);
 
-	netif_napi_del(&priv->napi);
+	ipoib_napi_del(dev);
 
 	ipoib_cm_dev_cleanup(dev);
 
@@ -1638,7 +1653,7 @@ static int ipoib_dev_init_default(struct net_device *dev)
 {
 	struct ipoib_dev_priv *priv = ipoib_priv(dev);
 
-	netif_napi_add(dev, &priv->napi, ipoib_poll, NAPI_POLL_WEIGHT);
+	ipoib_napi_add(dev);
 
 	/* Allocate RX/TX "rings" to hold queued skbs */
 	priv->rx_ring =	kzalloc(ipoib_recvq_size * sizeof *priv->rx_ring,
@@ -1666,9 +1681,6 @@ static int ipoib_dev_init_default(struct net_device *dev)
 	priv->dev->dev_addr[2] = (priv->qp->qp_num >>  8) & 0xff;
 	priv->dev->dev_addr[3] = (priv->qp->qp_num) & 0xff;
 
-	setup_timer(&priv->poll_timer, ipoib_ib_tx_timer_func,
-		    (unsigned long)dev);
-
 	return 0;
 
 out_tx_ring_cleanup:
@@ -1678,7 +1690,7 @@ out_rx_ring_cleanup:
 	kfree(priv->rx_ring);
 
 out:
-	netif_napi_del(&priv->napi);
+	ipoib_napi_del(dev);
 	return -ENOMEM;
 }
 
@@ -2314,7 +2326,8 @@ static void ipoib_add_one(struct ib_device *device)
 	}
 
 	if (!count) {
-		kfree(dev_list);
+		pr_err("Failed to init port, removing it\n");
+		ipoib_remove_one(device, dev_list);
 		return;
 	}
 

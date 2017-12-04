@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _LINUX_TIMER_H
 #define _LINUX_TIMER_H
 
@@ -16,8 +17,7 @@ struct timer_list {
 	 */
 	struct hlist_node	entry;
 	unsigned long		expires;
-	void			(*function)(unsigned long);
-	unsigned long		data;
+	void			(*function)(struct timer_list *);
 	u32			flags;
 
 #ifdef CONFIG_LOCKDEP
@@ -63,121 +63,82 @@ struct timer_list {
 
 #define TIMER_TRACE_FLAGMASK	(TIMER_MIGRATING | TIMER_DEFERRABLE | TIMER_PINNED | TIMER_IRQSAFE)
 
-#define __TIMER_INITIALIZER(_function, _expires, _data, _flags) { \
+#define __TIMER_INITIALIZER(_function, _flags) {		\
 		.entry = { .next = TIMER_ENTRY_STATIC },	\
 		.function = (_function),			\
-		.expires = (_expires),				\
-		.data = (_data),				\
 		.flags = (_flags),				\
 		__TIMER_LOCKDEP_MAP_INITIALIZER(		\
 			__FILE__ ":" __stringify(__LINE__))	\
 	}
 
-#define TIMER_INITIALIZER(_function, _expires, _data)		\
-	__TIMER_INITIALIZER((_function), (_expires), (_data), 0)
-
-#define TIMER_PINNED_INITIALIZER(_function, _expires, _data)	\
-	__TIMER_INITIALIZER((_function), (_expires), (_data), TIMER_PINNED)
-
-#define TIMER_DEFERRED_INITIALIZER(_function, _expires, _data)	\
-	__TIMER_INITIALIZER((_function), (_expires), (_data), TIMER_DEFERRABLE)
-
-#define TIMER_PINNED_DEFERRED_INITIALIZER(_function, _expires, _data)	\
-	__TIMER_INITIALIZER((_function), (_expires), (_data), TIMER_DEFERRABLE | TIMER_PINNED)
-
-#define DEFINE_TIMER(_name, _function, _expires, _data)		\
+#define DEFINE_TIMER(_name, _function)				\
 	struct timer_list _name =				\
-		TIMER_INITIALIZER(_function, _expires, _data)
+		__TIMER_INITIALIZER(_function, 0)
 
-void init_timer_key(struct timer_list *timer, unsigned int flags,
+/*
+ * LOCKDEP and DEBUG timer interfaces.
+ */
+void init_timer_key(struct timer_list *timer,
+		    void (*func)(struct timer_list *), unsigned int flags,
 		    const char *name, struct lock_class_key *key);
 
 #ifdef CONFIG_DEBUG_OBJECTS_TIMERS
 extern void init_timer_on_stack_key(struct timer_list *timer,
+				    void (*func)(struct timer_list *),
 				    unsigned int flags, const char *name,
 				    struct lock_class_key *key);
-extern void destroy_timer_on_stack(struct timer_list *timer);
 #else
-static inline void destroy_timer_on_stack(struct timer_list *timer) { }
 static inline void init_timer_on_stack_key(struct timer_list *timer,
-					   unsigned int flags, const char *name,
+					   void (*func)(struct timer_list *),
+					   unsigned int flags,
+					   const char *name,
 					   struct lock_class_key *key)
 {
-	init_timer_key(timer, flags, name, key);
+	init_timer_key(timer, func, flags, name, key);
 }
 #endif
 
 #ifdef CONFIG_LOCKDEP
-#define __init_timer(_timer, _flags)					\
+#define __init_timer(_timer, _fn, _flags)				\
 	do {								\
 		static struct lock_class_key __key;			\
-		init_timer_key((_timer), (_flags), #_timer, &__key);	\
+		init_timer_key((_timer), (_fn), (_flags), #_timer, &__key);\
 	} while (0)
 
-#define __init_timer_on_stack(_timer, _flags)				\
+#define __init_timer_on_stack(_timer, _fn, _flags)			\
 	do {								\
 		static struct lock_class_key __key;			\
-		init_timer_on_stack_key((_timer), (_flags), #_timer, &__key); \
+		init_timer_on_stack_key((_timer), (_fn), (_flags),	\
+					#_timer, &__key);		 \
 	} while (0)
 #else
-#define __init_timer(_timer, _flags)					\
-	init_timer_key((_timer), (_flags), NULL, NULL)
-#define __init_timer_on_stack(_timer, _flags)				\
-	init_timer_on_stack_key((_timer), (_flags), NULL, NULL)
+#define __init_timer(_timer, _fn, _flags)				\
+	init_timer_key((_timer), (_fn), (_flags), NULL, NULL)
+#define __init_timer_on_stack(_timer, _fn, _flags)			\
+	init_timer_on_stack_key((_timer), (_fn), (_flags), NULL, NULL)
 #endif
 
-#define init_timer(timer)						\
-	__init_timer((timer), 0)
-#define init_timer_pinned(timer)					\
-	__init_timer((timer), TIMER_PINNED)
-#define init_timer_deferrable(timer)					\
-	__init_timer((timer), TIMER_DEFERRABLE)
-#define init_timer_pinned_deferrable(timer)				\
-	__init_timer((timer), TIMER_DEFERRABLE | TIMER_PINNED)
-#define init_timer_on_stack(timer)					\
-	__init_timer_on_stack((timer), 0)
+/**
+ * timer_setup - prepare a timer for first use
+ * @timer: the timer in question
+ * @callback: the function to call when timer expires
+ * @flags: any TIMER_* flags
+ *
+ * Regular timer initialization should use either DEFINE_TIMER() above,
+ * or timer_setup(). For timers on the stack, timer_setup_on_stack() must
+ * be used and must be balanced with a call to destroy_timer_on_stack().
+ */
+#define timer_setup(timer, callback, flags)			\
+	__init_timer((timer), (callback), (flags))
 
-#define __setup_timer(_timer, _fn, _data, _flags)			\
-	do {								\
-		__init_timer((_timer), (_flags));			\
-		(_timer)->function = (_fn);				\
-		(_timer)->data = (_data);				\
-	} while (0)
+#define timer_setup_on_stack(timer, callback, flags)		\
+	__init_timer_on_stack((timer), (callback), (flags))
 
-#define __setup_timer_on_stack(_timer, _fn, _data, _flags)		\
-	do {								\
-		__init_timer_on_stack((_timer), (_flags));		\
-		(_timer)->function = (_fn);				\
-		(_timer)->data = (_data);				\
-	} while (0)
-
-#define setup_timer(timer, fn, data)					\
-	__setup_timer((timer), (fn), (data), 0)
-#define setup_pinned_timer(timer, fn, data)				\
-	__setup_timer((timer), (fn), (data), TIMER_PINNED)
-#define setup_deferrable_timer(timer, fn, data)				\
-	__setup_timer((timer), (fn), (data), TIMER_DEFERRABLE)
-#define setup_pinned_deferrable_timer(timer, fn, data)			\
-	__setup_timer((timer), (fn), (data), TIMER_DEFERRABLE | TIMER_PINNED)
-#define setup_timer_on_stack(timer, fn, data)				\
-	__setup_timer_on_stack((timer), (fn), (data), 0)
-#define setup_pinned_timer_on_stack(timer, fn, data)			\
-	__setup_timer_on_stack((timer), (fn), (data), TIMER_PINNED)
-#define setup_deferrable_timer_on_stack(timer, fn, data)		\
-	__setup_timer_on_stack((timer), (fn), (data), TIMER_DEFERRABLE)
-#define setup_pinned_deferrable_timer_on_stack(timer, fn, data)		\
-	__setup_timer_on_stack((timer), (fn), (data), TIMER_DEFERRABLE | TIMER_PINNED)
-
-#define TIMER_DATA_TYPE		unsigned long
-#define TIMER_FUNC_TYPE		void (*)(TIMER_DATA_TYPE)
-
-static inline void timer_setup(struct timer_list *timer,
-			       void (*callback)(struct timer_list *),
-			       unsigned int flags)
-{
-	__setup_timer(timer, (TIMER_FUNC_TYPE)callback,
-		      (TIMER_DATA_TYPE)timer, flags);
-}
+#ifdef CONFIG_DEBUG_OBJECTS_TIMERS
+extern void destroy_timer_on_stack(struct timer_list *timer);
+#else
+static inline void destroy_timer_on_stack(struct timer_list *timer) { }
+#endif
 
 #define from_timer(var, callback_timer, timer_fieldname) \
 	container_of(callback_timer, typeof(*var), timer_fieldname)
@@ -201,6 +162,7 @@ extern void add_timer_on(struct timer_list *timer, int cpu);
 extern int del_timer(struct timer_list * timer);
 extern int mod_timer(struct timer_list *timer, unsigned long expires);
 extern int mod_timer_pending(struct timer_list *timer, unsigned long expires);
+extern int timer_reduce(struct timer_list *timer, unsigned long expires);
 
 /*
  * The jiffies value which is added to now, when there is no timer

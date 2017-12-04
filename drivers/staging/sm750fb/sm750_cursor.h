@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef LYNX_CURSOR_H__
 #define LYNX_CURSOR_H__
 

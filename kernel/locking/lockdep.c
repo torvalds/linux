@@ -47,7 +47,6 @@
 #include <linux/stringify.h>
 #include <linux/bitops.h>
 #include <linux/gfp.h>
-#include <linux/kmemcheck.h>
 #include <linux/random.h>
 #include <linux/jhash.h>
 
@@ -75,6 +74,19 @@ module_param(lock_stat, int, 0644);
 #else
 #define lock_stat 0
 #endif
+
+#ifdef CONFIG_BOOTPARAM_LOCKDEP_CROSSRELEASE_FULLSTACK
+static int crossrelease_fullstack = 1;
+#else
+static int crossrelease_fullstack;
+#endif
+static int __init allow_crossrelease_fullstack(char *str)
+{
+	crossrelease_fullstack = 1;
+	return 0;
+}
+
+early_param("crossrelease_fullstack", allow_crossrelease_fullstack);
 
 /*
  * lockdep_lock: protects the lockdep graph, the hashes and the
@@ -1873,10 +1885,10 @@ check_prev_add(struct task_struct *curr, struct held_lock *prev,
 	       struct held_lock *next, int distance, struct stack_trace *trace,
 	       int (*save)(struct stack_trace *trace))
 {
-	struct lock_list *entry;
-	int ret;
-	struct lock_list this;
 	struct lock_list *uninitialized_var(target_entry);
+	struct lock_list *entry;
+	struct lock_list this;
+	int ret;
 
 	/*
 	 * Prove that the new <prev> -> <next> dependency would not
@@ -1890,8 +1902,17 @@ check_prev_add(struct task_struct *curr, struct held_lock *prev,
 	this.class = hlock_class(next);
 	this.parent = NULL;
 	ret = check_noncircular(&this, hlock_class(prev), &target_entry);
-	if (unlikely(!ret))
+	if (unlikely(!ret)) {
+		if (!trace->entries) {
+			/*
+			 * If @save fails here, the printing might trigger
+			 * a WARN but because of the !nr_entries it should
+			 * not do bad things.
+			 */
+			save(trace);
+		}
 		return print_circular_bug(&this, target_entry, next, prev, trace);
+	}
 	else if (unlikely(ret < 0))
 		return print_bfs_bug(ret);
 
@@ -1938,7 +1959,7 @@ check_prev_add(struct task_struct *curr, struct held_lock *prev,
 		return print_bfs_bug(ret);
 
 
-	if (save && !save(trace))
+	if (!trace->entries && !save(trace))
 		return 0;
 
 	/*
@@ -1958,20 +1979,6 @@ check_prev_add(struct task_struct *curr, struct held_lock *prev,
 	if (!ret)
 		return 0;
 
-	/*
-	 * Debugging printouts:
-	 */
-	if (verbose(hlock_class(prev)) || verbose(hlock_class(next))) {
-		graph_unlock();
-		printk("\n new dependency: ");
-		print_lock_name(hlock_class(prev));
-		printk(KERN_CONT " => ");
-		print_lock_name(hlock_class(next));
-		printk(KERN_CONT "\n");
-		dump_stack();
-		if (!graph_lock())
-			return 0;
-	}
 	return 2;
 }
 
@@ -1986,8 +1993,12 @@ check_prevs_add(struct task_struct *curr, struct held_lock *next)
 {
 	int depth = curr->lockdep_depth;
 	struct held_lock *hlock;
-	struct stack_trace trace;
-	int (*save)(struct stack_trace *trace) = save_trace;
+	struct stack_trace trace = {
+		.nr_entries = 0,
+		.max_entries = 0,
+		.entries = NULL,
+		.skip = 0,
+	};
 
 	/*
 	 * Debugging checks.
@@ -2018,16 +2029,9 @@ check_prevs_add(struct task_struct *curr, struct held_lock *next)
 			 */
 			if (hlock->read != 2 && hlock->check) {
 				int ret = check_prev_add(curr, hlock, next,
-							 distance, &trace, save);
+							 distance, &trace, save_trace);
 				if (!ret)
 					return 0;
-
-				/*
-				 * Stop saving stack_trace if save_trace() was
-				 * called at least once:
-				 */
-				if (save && ret == 2)
-					save = NULL;
 
 				/*
 				 * Stop after the first non-trylock entry,
@@ -3232,8 +3236,6 @@ static void __lockdep_init_map(struct lockdep_map *lock, const char *name,
 		      struct lock_class_key *key, int subclass)
 {
 	int i;
-
-	kmemcheck_mark_initialized(lock, sizeof(*lock));
 
 	for (i = 0; i < NR_LOCKDEP_CACHING_CLASSES; i++)
 		lock->class_cache[i] = NULL;
@@ -4871,8 +4873,14 @@ static void add_xhlock(struct held_lock *hlock)
 	xhlock->trace.nr_entries = 0;
 	xhlock->trace.max_entries = MAX_XHLOCK_TRACE_ENTRIES;
 	xhlock->trace.entries = xhlock->trace_entries;
-	xhlock->trace.skip = 3;
-	save_stack_trace(&xhlock->trace);
+
+	if (crossrelease_fullstack) {
+		xhlock->trace.skip = 3;
+		save_stack_trace(&xhlock->trace);
+	} else {
+		xhlock->trace.nr_entries = 1;
+		xhlock->trace.entries[0] = hlock->acquire_ip;
+	}
 }
 
 static inline int same_context_xhlock(struct hist_lock *xhlock)
