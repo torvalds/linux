@@ -12,6 +12,7 @@
 #include <dirent.h>
 #include <api/fs/fs.h>
 #include <locale.h>
+#include <regex.h>
 #include "util.h"
 #include "pmu.h"
 #include "parse-events.h"
@@ -609,14 +610,31 @@ struct pmu_events_map *perf_pmu__find_map(struct perf_pmu *pmu)
 
 	i = 0;
 	for (;;) {
+		regex_t re;
+		regmatch_t pmatch[1];
+		int match;
+
 		map = &pmu_events_map[i++];
 		if (!map->table) {
 			map = NULL;
 			break;
 		}
 
-		if (!strcmp(map->cpuid, cpuid))
+		if (regcomp(&re, map->cpuid, REG_EXTENDED) != 0) {
+			/* Warn unable to generate match particular string. */
+			pr_info("Invalid regular expression %s\n", map->cpuid);
 			break;
+		}
+
+		match = !regexec(&re, cpuid, 1, pmatch, 0);
+		regfree(&re);
+		if (match) {
+			size_t match_len = (pmatch[0].rm_eo - pmatch[0].rm_so);
+
+			/* Verify the entire string matched. */
+			if (match_len == strlen(cpuid))
+				break;
+		}
 	}
 	free(cpuid);
 	return map;
