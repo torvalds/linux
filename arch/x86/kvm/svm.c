@@ -2436,7 +2436,8 @@ static int pf_interception(struct vcpu_svm *svm)
 	u64 error_code = svm->vmcb->control.exit_info_1;
 
 	return kvm_handle_page_fault(&svm->vcpu, error_code, fault_address,
-			svm->vmcb->control.insn_bytes,
+			static_cpu_has(X86_FEATURE_DECODEASSISTS) ?
+			svm->vmcb->control.insn_bytes : NULL,
 			svm->vmcb->control.insn_len);
 }
 
@@ -2447,7 +2448,8 @@ static int npf_interception(struct vcpu_svm *svm)
 
 	trace_kvm_page_fault(fault_address, error_code);
 	return kvm_mmu_page_fault(&svm->vcpu, fault_address, error_code,
-			svm->vmcb->control.insn_bytes,
+			static_cpu_has(X86_FEATURE_DECODEASSISTS) ?
+			svm->vmcb->control.insn_bytes : NULL,
 			svm->vmcb->control.insn_len);
 }
 
