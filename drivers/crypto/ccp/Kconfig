@@ -1,5 +1,6 @@
 config CRYPTO_DEV_CCP_DD
 	tristate "Secure Processor device driver"
+	depends on CPU_SUP_AMD || ARM64
 	default m
 	help
 	  Provides AMD Secure Processor device driver.
