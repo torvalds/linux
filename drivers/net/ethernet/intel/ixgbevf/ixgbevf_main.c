@@ -554,7 +554,6 @@ static void ixgbevf_process_skb_fields(struct ixgbevf_ring *rx_ring,
  * ixgbevf_is_non_eop - process handling of non-EOP buffers
  * @rx_ring: Rx ring being processed
  * @rx_desc: Rx descriptor for current buffer
- * @skb: current socket buffer containing buffer in progress
  *
  * This function updates next to clean.  If the buffer is an EOP buffer
  * this function exits returning false, otherwise it will place the
@@ -2741,7 +2740,7 @@ void ixgbevf_update_stats(struct ixgbevf_adapter *adapter)
 
 /**
  * ixgbevf_service_timer - Timer Call-back
- * @data: pointer to adapter cast into an unsigned long
+ * @t: pointer to timer_list struct
  **/
 static void ixgbevf_service_timer(struct timer_list *t)
 {
@@ -2884,7 +2883,7 @@ static void ixgbevf_watchdog_link_is_down(struct ixgbevf_adapter *adapter)
 
 /**
  * ixgbevf_watchdog_subtask - worker thread to bring link up
- * @work: pointer to work_struct containing our data
+ * @adapter: board private structure
  **/
 static void ixgbevf_watchdog_subtask(struct ixgbevf_adapter *adapter)
 {
@@ -4364,6 +4363,7 @@ static void __exit ixgbevf_exit_module(void)
 /**
  * ixgbevf_get_hw_dev_name - return device name string
  * used by hardware layer to print debugging information
+ * @hw: pointer to private hardware struct
  **/
 char *ixgbevf_get_hw_dev_name(struct ixgbe_hw *hw)
 {

@@ -146,6 +146,7 @@ static s32 ixgbevf_reset_hw_vf(struct ixgbe_hw *hw)
 /**
  * Hyper-V variant; the VF/PF communication is through the PCI
  * config space.
+ * @hw: pointer to private hardware struct
  */
 static s32 ixgbevf_hv_reset_hw_vf(struct ixgbe_hw *hw)
 {
@@ -303,7 +304,7 @@ static s32 ixgbevf_hv_set_uc_addr_vf(struct ixgbe_hw *hw, u32 index, u8 *addr)
 
 /**
  * ixgbevf_get_reta_locked - get the RSS redirection table (RETA) contents.
- * @adapter: pointer to the port handle
+ * @hw: pointer to hardware structure
  * @reta: buffer to fill with RETA contents.
  * @num_rx_queues: Number of Rx queues configured for this port
  *
@@ -536,6 +537,8 @@ static s32 ixgbevf_update_mc_addr_list_vf(struct ixgbe_hw *hw,
 
 /**
  * Hyper-V variant - just a stub.
+ * @hw: unused
+ * @netdev: unused
  */
 static s32 ixgbevf_hv_update_mc_addr_list_vf(struct ixgbe_hw *hw,
 					     struct net_device *netdev)
@@ -584,6 +587,8 @@ static s32 ixgbevf_update_xcast_mode(struct ixgbe_hw *hw, int xcast_mode)
 
 /**
  * Hyper-V variant - just a stub.
+ * @hw: unused
+ * @xcast_mode: unused
  */
 static s32 ixgbevf_hv_update_xcast_mode(struct ixgbe_hw *hw, int xcast_mode)
 {
@@ -626,6 +631,10 @@ mbx_err:
 
 /**
  * Hyper-V variant - just a stub.
+ * @hw: unused
+ * @vlan: unused
+ * @vind: unused
+ * @vlan_on: unused
  */
 static s32 ixgbevf_hv_set_vfta_vf(struct ixgbe_hw *hw, u32 vlan, u32 vind,
 				  bool vlan_on)
@@ -655,7 +664,7 @@ static s32 ixgbevf_setup_mac_link_vf(struct ixgbe_hw *hw,
  *  @hw: pointer to hardware structure
  *  @speed: pointer to link speed
  *  @link_up: true is link is up, false otherwise
- *  @autoneg_wait_to_complete: true when waiting for completion is needed
+ *  @autoneg_wait_to_complete: unused
  *
  *  Reads the links register to determine if link is up and the current speed
  **/
@@ -740,6 +749,10 @@ out:
 
 /**
  * Hyper-V variant; there is no mailbox communication.
+ * @hw: pointer to private hardware struct
+ * @speed: pointer to link speed
+ * @link_up: true is link is up, false otherwise
+ * @autoneg_wait_to_complete: unused
  */
 static s32 ixgbevf_hv_check_mac_link_vf(struct ixgbe_hw *hw,
 					ixgbe_link_speed *speed,
