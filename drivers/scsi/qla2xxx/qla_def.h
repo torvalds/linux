@@ -4110,6 +4110,7 @@ typedef struct scsi_qla_host {
 #define LOOP_READY	5
 #define LOOP_DEAD	6
 
+	unsigned long   relogin_jif;
 	unsigned long   dpc_flags;
 #define RESET_MARKER_NEEDED	0	/* Send marker to ISP. */
 #define RESET_ACTIVE		1

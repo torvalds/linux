@@ -343,15 +343,21 @@ qla2x00_do_dpc_vp(scsi_qla_host_t *vha)
 		    "FCPort update end.\n");
 	}
 
-	if ((test_and_clear_bit(RELOGIN_NEEDED, &vha->dpc_flags)) &&
-		!test_bit(LOOP_RESYNC_NEEDED, &vha->dpc_flags) &&
-		atomic_read(&vha->loop_state) != LOOP_DOWN) {
+	if (test_bit(RELOGIN_NEEDED, &vha->dpc_flags) &&
+	    !test_bit(LOOP_RESYNC_NEEDED, &vha->dpc_flags) &&
+	    atomic_read(&vha->loop_state) != LOOP_DOWN) {
 
-		ql_dbg(ql_dbg_dpc, vha, 0x4018,
-		    "Relogin needed scheduled.\n");
-		qla2x00_relogin(vha);
-		ql_dbg(ql_dbg_dpc, vha, 0x4019,
-		    "Relogin needed end.\n");
+		if (!vha->relogin_jif ||
+		    time_after_eq(jiffies, vha->relogin_jif)) {
+			vha->relogin_jif = jiffies + HZ;
+			clear_bit(RELOGIN_NEEDED, &vha->dpc_flags);
+
+			ql_dbg(ql_dbg_dpc, vha, 0x4018,
+			    "Relogin needed scheduled.\n");
+			qla2x00_relogin(vha);
+			ql_dbg(ql_dbg_dpc, vha, 0x4019,
+			    "Relogin needed end.\n");
+		}
 	}
 
 	if (test_and_clear_bit(RESET_MARKER_NEEDED, &vha->dpc_flags) &&
