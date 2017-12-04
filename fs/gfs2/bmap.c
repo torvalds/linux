@@ -1078,7 +1078,7 @@ out:
  * @mp: current metapath fully populated with buffers
  * @btotal: place to keep count of total blocks freed
  * @hgt: height we're processing
- * @first: true if this is the first call to this function for this height
+ * @keep_start: preserve the first meta pointer
  *
  * We sweep a metadata buffer (provided by the metapath) for blocks we need to
  * free, and free them all. However, we do it one rgrp at a time. If this
@@ -1094,7 +1094,7 @@ out:
  */
 static int sweep_bh_for_rgrps(struct gfs2_inode *ip, struct gfs2_holder *rd_gh,
 			      const struct metapath *mp, u32 *btotal, int hgt,
-			      bool preserve1)
+			      bool keep_start)
 {
 	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
 	struct gfs2_rgrpd *rgd;
@@ -1119,7 +1119,7 @@ more_rgrps:
 	top = metapointer(hgt, mp); /* first ptr from metapath */
 	/* If we're keeping some data at the truncation point, we've got to
 	   preserve the metadata tree by adding 1 to the starting metapath. */
-	if (preserve1)
+	if (keep_start)
 		top++;
 
 	bottom = (__be64 *)(bh->b_data + bh->b_size);
@@ -1286,9 +1286,9 @@ enum dealloc_states {
 	DEALLOC_DONE = 3,       /* process complete */
 };
 
-static bool mp_eq_to_hgt(struct metapath *mp, __u16 *nbof, unsigned int h)
+static bool mp_eq_to_hgt(struct metapath *mp, __u16 *list, unsigned int h)
 {
-	if (memcmp(mp->mp_list, nbof, h * sizeof(mp->mp_list[0])))
+	if (memcmp(mp->mp_list, list, h * sizeof(mp->mp_list[0])))
 		return false;
 	return true;
 }
@@ -1310,24 +1310,35 @@ static int trunc_dealloc(struct gfs2_inode *ip, u64 newsize)
 	struct metapath mp;
 	struct buffer_head *dibh, *bh;
 	struct gfs2_holder rd_gh;
-	u64 lblock;
-	__u16 nbof[GFS2_MAX_META_HEIGHT]; /* new beginning of truncation */
+	unsigned int bsize_shift = sdp->sd_sb.sb_bsize_shift;
+	u64 lblock = (newsize + (1 << bsize_shift) - 1) >> bsize_shift;
+	__u16 start_list[GFS2_MAX_META_HEIGHT]; /* new beginning of truncation */
+	unsigned int start_aligned;
 	unsigned int strip_h = ip->i_height - 1;
 	u32 btotal = 0;
 	int ret, state;
 	int mp_h; /* metapath buffers are read in to this height */
 	u64 prev_bnr = 0;
-	bool preserve1; /* need to preserve the first meta pointer? */
-
-	if (!newsize)
-		lblock = 0;
-	else
-		lblock = (newsize - 1) >> sdp->sd_sb.sb_bsize_shift;
+	bool keep_start; /* need to preserve the first meta pointer? */
 
 	memset(&mp, 0, sizeof(mp));
 	find_metapath(sdp, lblock, &mp, ip->i_height);
 
-	memcpy(&nbof, &mp.mp_list, sizeof(nbof));
+	memcpy(start_list, mp.mp_list, sizeof(start_list));
+
+	/*
+	 * Set start_aligned to the metadata height up to which the truncate
+	 * point is aligned to the metadata tree (i.e., the truncate point is a
+	 * multiple of the granularity at the height above).  This determines
+	 * at which heights an additional meta pointer needs to be preserved:
+	 * an additional meta pointer is needed at a given height if
+	 * height < start_aligned.
+	 */
+	for (mp_h = ip->i_height - 1; mp_h > 0; mp_h--) {
+		if (start_list[mp_h])
+			break;
+	}
+	start_aligned = mp_h;
 
 	ret = gfs2_meta_inode_buffer(ip, &dibh);
 	if (ret)
@@ -1363,10 +1374,6 @@ static int trunc_dealloc(struct gfs2_inode *ip, u64 newsize)
 		/* Truncate a full metapath at the given strip height.
 		 * Note that strip_h == mp_h in order to be in this state. */
 		case DEALLOC_MP_FULL:
-			/* If we're truncating to a non-zero size and the mp is
-			   at the beginning of file for the strip height, we
-			   need to preserve the first metadata pointer. */
-			preserve1 = (newsize && mp_eq_to_hgt(&mp, nbof, mp_h));
 			bh = mp.mp_bh[mp_h];
 			gfs2_assert_withdraw(sdp, bh);
 			if (gfs2_assert_withdraw(sdp,
@@ -1378,8 +1385,12 @@ static int trunc_dealloc(struct gfs2_inode *ip, u64 newsize)
 				       prev_bnr, ip->i_height, strip_h, mp_h);
 			}
 			prev_bnr = bh->b_blocknr;
+
+			keep_start = mp_h < start_aligned &&
+				     mp_eq_to_hgt(&mp, start_list, mp_h);
+
 			ret = sweep_bh_for_rgrps(ip, &rd_gh, &mp, &btotal,
-						 mp_h, preserve1);
+						 mp_h, keep_start);
 			/* If we hit an error or just swept dinode buffer,
 			   just exit. */
 			if (ret || !mp_h) {
@@ -1403,7 +1414,7 @@ static int trunc_dealloc(struct gfs2_inode *ip, u64 newsize)
 			   stripping the previous level of metadata. */
 			if (mp_h == 0) {
 				strip_h--;
-				memcpy(&mp.mp_list, &nbof, sizeof(nbof));
+				memcpy(mp.mp_list, start_list, sizeof(start_list));
 				mp_h = strip_h;
 				state = DEALLOC_FILL_MP;
 				break;
