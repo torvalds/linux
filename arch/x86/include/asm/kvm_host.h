@@ -750,6 +750,8 @@ enum kvm_irqchip_mode {
 struct kvm_sev_info {
 	bool active;		/* SEV enabled guest */
 	unsigned int asid;	/* ASID used for this guest */
+	unsigned int handle;	/* SEV firmware handle */
+	int fd;			/* SEV device fd */
 };
 
 struct kvm_arch {
