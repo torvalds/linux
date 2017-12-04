@@ -599,17 +599,12 @@ blist_flags_t scsi_get_device_flags_keyed(struct scsi_device *sdev,
 				int key)
 {
 	struct scsi_dev_info_list *devinfo;
-	int err;
 
 	devinfo = scsi_dev_info_list_find(vendor, model, key);
 	if (!IS_ERR(devinfo))
 		return devinfo->flags;
 
-	err = PTR_ERR(devinfo);
-	if (err != -ENOENT)
-		return err;
-
-	/* nothing found, return nothing */
+	/* key or device not found: return nothing */
 	if (key != SCSI_DEVINFO_GLOBAL)
 		return 0;
 
