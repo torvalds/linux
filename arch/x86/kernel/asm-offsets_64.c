@@ -66,6 +66,7 @@ int main(void)
 
 	OFFSET(TSS_ist, tss_struct, x86_tss.ist);
 	OFFSET(TSS_sp0, tss_struct, x86_tss.sp0);
+	OFFSET(TSS_sp1, tss_struct, x86_tss.sp1);
 	BLANK();
 
 #ifdef CONFIG_CC_STACKPROTECTOR

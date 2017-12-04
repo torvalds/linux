@@ -56,6 +56,16 @@ __visible DEFINE_PER_CPU_SHARED_ALIGNED(struct tss_struct, cpu_tss) = {
 		 * Poison it.
 		 */
 		.sp0 = (1UL << (BITS_PER_LONG-1)) + 1,
+
+#ifdef CONFIG_X86_64
+		/*
+		 * .sp1 is cpu_current_top_of_stack.  The init task never
+		 * runs user code, but cpu_current_top_of_stack should still
+		 * be well defined before the first context switch.
+		 */
+		.sp1 = TOP_OF_INIT_STACK,
+#endif
+
 #ifdef CONFIG_X86_32
 		.ss0 = __KERNEL_DS,
 		.ss1 = __KERNEL_CS,

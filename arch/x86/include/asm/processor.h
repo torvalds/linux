@@ -309,7 +309,13 @@ struct x86_hw_tss {
 struct x86_hw_tss {
 	u32			reserved1;
 	u64			sp0;
+
+	/*
+	 * We store cpu_current_top_of_stack in sp1 so it's always accessible.
+	 * Linux does not use ring 1, so sp1 is not otherwise needed.
+	 */
 	u64			sp1;
+
 	u64			sp2;
 	u64			reserved2;
 	u64			ist[7];
@@ -368,6 +374,8 @@ DECLARE_PER_CPU_PAGE_ALIGNED(struct tss_struct, cpu_tss);
 
 #ifdef CONFIG_X86_32
 DECLARE_PER_CPU(unsigned long, cpu_current_top_of_stack);
+#else
+#define cpu_current_top_of_stack cpu_tss.x86_tss.sp1
 #endif
 
 /*
@@ -539,12 +547,12 @@ static inline void native_swapgs(void)
 
 static inline unsigned long current_top_of_stack(void)
 {
-#ifdef CONFIG_X86_64
-	return this_cpu_read_stable(cpu_tss.x86_tss.sp0);
-#else
-	/* sp0 on x86_32 is special in and around vm86 mode. */
+	/*
+	 *  We can't read directly from tss.sp0: sp0 on x86_32 is special in
+	 *  and around vm86 mode and sp0 on x86_64 is special because of the
+	 *  entry trampoline.
+	 */
 	return this_cpu_read_stable(cpu_current_top_of_stack);
-#endif
 }
 
 static inline bool on_thread_stack(void)
