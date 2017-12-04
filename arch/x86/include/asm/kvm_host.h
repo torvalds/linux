@@ -753,6 +753,7 @@ struct kvm_sev_info {
 	unsigned int handle;	/* SEV firmware handle */
 	int fd;			/* SEV device fd */
 	unsigned long pages_locked; /* Number of pages locked */
+	struct list_head regions_list;  /* List of registered regions */
 };
 
 struct kvm_arch {

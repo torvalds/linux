@@ -335,6 +335,14 @@ static unsigned int min_sev_asid;
 static unsigned long *sev_asid_bitmap;
 #define __sme_page_pa(x) __sme_set(page_to_pfn(x) << PAGE_SHIFT)
 
+struct enc_region {
+	struct list_head list;
+	unsigned long npages;
+	struct page **pages;
+	unsigned long uaddr;
+	unsigned long size;
+};
+
 static inline bool svm_sev_enabled(void)
 {
 	return max_sev_asid;
@@ -1649,12 +1657,45 @@ static void sev_clflush_pages(struct page *pages[], unsigned long npages)
 	}
 }
 
+static void __unregister_enc_region_locked(struct kvm *kvm,
+					   struct enc_region *region)
+{
+	/*
+	 * The guest may change the memory encryption attribute from C=0 -> C=1
+	 * or vice versa for this memory range. Lets make sure caches are
+	 * flushed to ensure that guest data gets written into memory with
+	 * correct C-bit.
+	 */
+	sev_clflush_pages(region->pages, region->npages);
+
+	sev_unpin_memory(kvm, region->pages, region->npages);
+	list_del(&region->list);
+	kfree(region);
+}
+
 static void sev_vm_destroy(struct kvm *kvm)
 {
 	struct kvm_sev_info *sev = &kvm->arch.sev_info;
+	struct list_head *head = &sev->regions_list;
+	struct list_head *pos, *q;
 
 	if (!sev_guest(kvm))
 		return;
+
+	mutex_lock(&kvm->lock);
+
+	/*
+	 * if userspace was terminated before unregistering the memory regions
+	 * then lets unpin all the registered memory.
+	 */
+	if (!list_empty(head)) {
+		list_for_each_safe(pos, q, head) {
+			__unregister_enc_region_locked(kvm,
+				list_entry(pos, struct enc_region, list));
+		}
+	}
+
+	mutex_unlock(&kvm->lock);
 
 	sev_unbind_asid(kvm, sev->handle);
 	sev_asid_free(kvm);
@@ -5814,6 +5855,7 @@ static int sev_guest_init(struct kvm *kvm, struct kvm_sev_cmd *argp)
 
 	sev->active = true;
 	sev->asid = asid;
+	INIT_LIST_HEAD(&sev->regions_list);
 
 	return 0;
 
@@ -6516,6 +6558,94 @@ out:
 	return r;
 }
 
+static int svm_register_enc_region(struct kvm *kvm,
+				   struct kvm_enc_region *range)
+{
+	struct kvm_sev_info *sev = &kvm->arch.sev_info;
+	struct enc_region *region;
+	int ret = 0;
+
+	if (!sev_guest(kvm))
+		return -ENOTTY;
+
+	region = kzalloc(sizeof(*region), GFP_KERNEL);
+	if (!region)
+		return -ENOMEM;
+
+	region->pages = sev_pin_memory(kvm, range->addr, range->size, &region->npages, 1);
+	if (!region->pages) {
+		ret = -ENOMEM;
+		goto e_free;
+	}
+
+	/*
+	 * The guest may change the memory encryption attribute from C=0 -> C=1
+	 * or vice versa for this memory range. Lets make sure caches are
+	 * flushed to ensure that guest data gets written into memory with
+	 * correct C-bit.
+	 */
+	sev_clflush_pages(region->pages, region->npages);
+
+	region->uaddr = range->addr;
+	region->size = range->size;
+
+	mutex_lock(&kvm->lock);
+	list_add_tail(&region->list, &sev->regions_list);
+	mutex_unlock(&kvm->lock);
+
+	return ret;
+
+e_free:
+	kfree(region);
+	return ret;
+}
+
+static struct enc_region *
+find_enc_region(struct kvm *kvm, struct kvm_enc_region *range)
+{
+	struct kvm_sev_info *sev = &kvm->arch.sev_info;
+	struct list_head *head = &sev->regions_list;
+	struct enc_region *i;
+
+	list_for_each_entry(i, head, list) {
+		if (i->uaddr == range->addr &&
+		    i->size == range->size)
+			return i;
+	}
+
+	return NULL;
+}
+
+
+static int svm_unregister_enc_region(struct kvm *kvm,
+				     struct kvm_enc_region *range)
+{
+	struct enc_region *region;
+	int ret;
+
+	mutex_lock(&kvm->lock);
+
+	if (!sev_guest(kvm)) {
+		ret = -ENOTTY;
+		goto failed;
+	}
+
+	region = find_enc_region(kvm, range);
+	if (!region) {
+		ret = -EINVAL;
+		goto failed;
+	}
+
+	__unregister_enc_region_locked(kvm, region);
+
+	mutex_unlock(&kvm->lock);
+	return 0;
+
+failed:
+	mutex_unlock(&kvm->lock);
+	return ret;
+}
+
 static struct kvm_x86_ops svm_x86_ops __ro_after_init = {
 	.cpu_has_kvm_support = has_svm,
 	.disabled_by_bios = is_disabled,
@@ -6633,6 +6763,8 @@ static struct kvm_x86_ops svm_x86_ops __ro_after_init = {
 	.enable_smi_window = enable_smi_window,
 
 	.mem_enc_op = svm_mem_enc_op,
+	.mem_enc_reg_region = svm_register_enc_region,
+	.mem_enc_unreg_region = svm_unregister_enc_region,
 };
 
 static int __init svm_init(void)
