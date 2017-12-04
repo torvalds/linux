@@ -17,7 +17,7 @@
 #include <linux/netdevice.h>
 #include <linux/pci.h>
 #include <linux/platform_device.h>
-
+#include <net/rtnetlink.h>
 #include "hclge_cmd.h"
 #include "hclge_dcb.h"
 #include "hclge_main.h"
@@ -2569,12 +2569,12 @@ static int hclge_func_reset_cmd(struct hclge_dev *hdev, int func_id)
 	return ret;
 }
 
-static void hclge_do_reset(struct hclge_dev *hdev, enum hnae3_reset_type type)
+static void hclge_do_reset(struct hclge_dev *hdev)
 {
 	struct pci_dev *pdev = hdev->pdev;
 	u32 val;
 
-	switch (type) {
+	switch (hdev->reset_type) {
 	case HNAE3_GLOBAL_RESET:
 		val = hclge_read_dev(&hdev->hw, HCLGE_GLOBAL_RESET_REG);
 		hnae_set_bit(val, HCLGE_GLOBAL_RESET_BIT, 1);
@@ -2596,9 +2596,54 @@ static void hclge_do_reset(struct hclge_dev *hdev, enum hnae3_reset_type type)
 		break;
 	default:
 		dev_warn(&pdev->dev,
-			 "Unsupported reset type: %d\n", type);
+			 "Unsupported reset type: %d\n", hdev->reset_type);
 		break;
 	}
+}
+
+static enum hnae3_reset_type hclge_get_reset_level(struct hclge_dev *hdev,
+						   unsigned long *addr)
+{
+	enum hnae3_reset_type rst_level = HNAE3_NONE_RESET;
+
+	/* return the highest priority reset level amongst all */
+	if (test_bit(HNAE3_GLOBAL_RESET, addr))
+		rst_level = HNAE3_GLOBAL_RESET;
+	else if (test_bit(HNAE3_CORE_RESET, addr))
+		rst_level = HNAE3_CORE_RESET;
+	else if (test_bit(HNAE3_IMP_RESET, addr))
+		rst_level = HNAE3_IMP_RESET;
+	else if (test_bit(HNAE3_FUNC_RESET, addr))
+		rst_level = HNAE3_FUNC_RESET;
+
+	/* now, clear all other resets */
+	clear_bit(HNAE3_GLOBAL_RESET, addr);
+	clear_bit(HNAE3_CORE_RESET, addr);
+	clear_bit(HNAE3_IMP_RESET, addr);
+	clear_bit(HNAE3_FUNC_RESET, addr);
+
+	return rst_level;
+}
+
+static void hclge_reset(struct hclge_dev *hdev)
+{
+	/* perform reset of the stack & ae device for a client */
+
+	hclge_notify_client(hdev, HNAE3_DOWN_CLIENT);
+
+	if (!hclge_reset_wait(hdev)) {
+		rtnl_lock();
+		hclge_notify_client(hdev, HNAE3_UNINIT_CLIENT);
+		hclge_reset_ae_dev(hdev->ae_dev);
+		hclge_notify_client(hdev, HNAE3_INIT_CLIENT);
+		rtnl_unlock();
+	} else {
+		/* schedule again to check pending resets later */
+		set_bit(hdev->reset_type, &hdev->reset_pending);
+		hclge_reset_task_schedule(hdev);
+	}
+
+	hclge_notify_client(hdev, HNAE3_UP_CLIENT);
 }
 
 static void hclge_reset_event(struct hnae3_handle *handle,
@@ -2626,39 +2671,24 @@ static void hclge_reset_event(struct hnae3_handle *handle,
 
 static void hclge_reset_subtask(struct hclge_dev *hdev)
 {
-	bool do_reset;
+	/* check if there is any ongoing reset in the hardware. This status can
+	 * be checked from reset_pending. If there is then, we need to wait for
+	 * hardware to complete reset.
+	 *    a. If we are able to figure out in reasonable time that hardware
+	 *       has fully resetted then, we can proceed with driver, client
+	 *       reset.
+	 *    b. else, we can come back later to check this status so re-sched
+	 *       now.
+	 */
+	hdev->reset_type = hclge_get_reset_level(hdev, &hdev->reset_pending);
+	if (hdev->reset_type != HNAE3_NONE_RESET)
+		hclge_reset(hdev);
 
-	do_reset = hdev->reset_type != HNAE3_NONE_RESET;
+	/* check if we got any *new* reset requests to be honored */
+	hdev->reset_type = hclge_get_reset_level(hdev, &hdev->reset_request);
+	if (hdev->reset_type != HNAE3_NONE_RESET)
+		hclge_do_reset(hdev);
 
-
-	if (hdev->reset_type == HNAE3_NONE_RESET)
-		return;
-
-	switch (hdev->reset_type) {
-	case HNAE3_FUNC_RESET:
-	case HNAE3_CORE_RESET:
-	case HNAE3_GLOBAL_RESET:
-	case HNAE3_IMP_RESET:
-		hclge_notify_client(hdev, HNAE3_DOWN_CLIENT);
-
-		if (do_reset)
-			hclge_do_reset(hdev, hdev->reset_type);
-		else
-			set_bit(HCLGE_STATE_RESET_INT, &hdev->state);
-
-		if (!hclge_reset_wait(hdev)) {
-			hclge_notify_client(hdev, HNAE3_UNINIT_CLIENT);
-			hclge_reset_ae_dev(hdev->ae_dev);
-			hclge_notify_client(hdev, HNAE3_INIT_CLIENT);
-			clear_bit(HCLGE_STATE_RESET_INT, &hdev->state);
-		}
-		hclge_notify_client(hdev, HNAE3_UP_CLIENT);
-		break;
-	default:
-		dev_err(&hdev->pdev->dev, "Unsupported reset type:%d\n",
-			hdev->reset_type);
-		break;
-	}
 	hdev->reset_type = HNAE3_NONE_RESET;
 }
 
