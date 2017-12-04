@@ -2612,9 +2612,7 @@ out_free1:
 		r = -ENOMEM;
 		if (!kvm_sregs)
 			goto out;
-		vcpu_load(vcpu);
 		r = kvm_arch_vcpu_ioctl_get_sregs(vcpu, kvm_sregs);
-		vcpu_put(vcpu);
 		if (r)
 			goto out;
 		r = -EFAULT;
