@@ -1921,6 +1921,17 @@ int uvc_register_video_device(struct uvc_device *dev,
 		vdev->vfl_dir = VFL_DIR_TX;
 	else
 		vdev->vfl_dir = VFL_DIR_RX;
+
+	switch (type) {
+	case V4L2_BUF_TYPE_VIDEO_CAPTURE:
+	default:
+		vdev->device_caps = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_STREAMING;
+		break;
+	case V4L2_BUF_TYPE_VIDEO_OUTPUT:
+		vdev->device_caps = V4L2_CAP_VIDEO_OUTPUT | V4L2_CAP_STREAMING;
+		break;
+	}
+
 	strlcpy(vdev->name, dev->name, sizeof vdev->name);
 
 	/*
