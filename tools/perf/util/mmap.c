@@ -234,18 +234,18 @@ int perf_mmap__mmap(struct perf_mmap *map, struct mmap_params *mp, int fd)
 	return 0;
 }
 
-static int backward_rb_find_range(void *buf, int mask, u64 head, u64 *start, u64 *end)
+static int overwrite_rb_find_range(void *buf, int mask, u64 head, u64 *start, u64 *end)
 {
 	struct perf_event_header *pheader;
 	u64 evt_head = head;
 	int size = mask + 1;
 
-	pr_debug2("backward_rb_find_range: buf=%p, head=%"PRIx64"\n", buf, head);
+	pr_debug2("overwrite_rb_find_range: buf=%p, head=%"PRIx64"\n", buf, head);
 	pheader = (struct perf_event_header *)(buf + (head & mask));
 	*start = head;
 	while (true) {
 		if (evt_head - head >= (unsigned int)size) {
-			pr_debug("Finished reading backward ring buffer: rewind\n");
+			pr_debug("Finished reading overwrite ring buffer: rewind\n");
 			if (evt_head - head > (unsigned int)size)
 				evt_head -= pheader->size;
 			*end = evt_head;
@@ -255,7 +255,7 @@ static int backward_rb_find_range(void *buf, int mask, u64 head, u64 *start, u64
 		pheader = (struct perf_event_header *)(buf + (evt_head & mask));
 
 		if (pheader->size == 0) {
-			pr_debug("Finished reading backward ring buffer: get start\n");
+			pr_debug("Finished reading overwrite ring buffer: get start\n");
 			*end = evt_head;
 			return 0;
 		}
@@ -267,7 +267,7 @@ static int backward_rb_find_range(void *buf, int mask, u64 head, u64 *start, u64
 	return -1;
 }
 
-int perf_mmap__push(struct perf_mmap *md, bool backward,
+int perf_mmap__push(struct perf_mmap *md, bool overwrite,
 		    void *to, int push(void *to, void *buf, size_t size))
 {
 	u64 head = perf_mmap__read_head(md);
@@ -278,19 +278,19 @@ int perf_mmap__push(struct perf_mmap *md, bool backward,
 	void *buf;
 	int rc = 0;
 
-	start = backward ? head : old;
-	end = backward ? old : head;
+	start = overwrite ? head : old;
+	end = overwrite ? old : head;
 
 	if (start == end)
 		return 0;
 
 	size = end - start;
 	if (size > (unsigned long)(md->mask) + 1) {
-		if (!backward) {
+		if (!overwrite) {
 			WARN_ONCE(1, "failed to keep up with mmap data. (warn only once)\n");
 
 			md->prev = head;
-			perf_mmap__consume(md, backward);
+			perf_mmap__consume(md, overwrite);
 			return 0;
 		}
 
@@ -298,7 +298,7 @@ int perf_mmap__push(struct perf_mmap *md, bool backward,
 		 * Backward ring buffer is full. We still have a chance to read
 		 * most of data from it.
 		 */
-		if (backward_rb_find_range(data, md->mask, head, &start, &end))
+		if (overwrite_rb_find_range(data, md->mask, head, &start, &end))
 			return -1;
 	}
 
@@ -323,7 +323,7 @@ int perf_mmap__push(struct perf_mmap *md, bool backward,
 	}
 
 	md->prev = head;
-	perf_mmap__consume(md, backward);
+	perf_mmap__consume(md, overwrite);
 out:
 	return rc;
 }

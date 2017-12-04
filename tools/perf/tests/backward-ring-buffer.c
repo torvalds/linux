@@ -33,8 +33,8 @@ static int count_samples(struct perf_evlist *evlist, int *sample_count,
 	for (i = 0; i < evlist->nr_mmaps; i++) {
 		union perf_event *event;
 
-		perf_mmap__read_catchup(&evlist->backward_mmap[i]);
-		while ((event = perf_mmap__read_backward(&evlist->backward_mmap[i])) != NULL) {
+		perf_mmap__read_catchup(&evlist->overwrite_mmap[i]);
+		while ((event = perf_mmap__read_backward(&evlist->overwrite_mmap[i])) != NULL) {
 			const u32 type = event->header.type;
 
 			switch (type) {
