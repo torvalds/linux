@@ -2430,7 +2430,7 @@ static void svm_set_dr7(struct kvm_vcpu *vcpu, unsigned long value)
 
 static int pf_interception(struct vcpu_svm *svm)
 {
-	u64 fault_address = svm->vmcb->control.exit_info_2;
+	u64 fault_address = __sme_clr(svm->vmcb->control.exit_info_2);
 	u64 error_code = svm->vmcb->control.exit_info_1;
 
 	return kvm_handle_page_fault(&svm->vcpu, error_code, fault_address,
@@ -2440,7 +2440,7 @@ static int pf_interception(struct vcpu_svm *svm)
 
 static int npf_interception(struct vcpu_svm *svm)
 {
-	u64 fault_address = svm->vmcb->control.exit_info_2;
+	u64 fault_address = __sme_clr(svm->vmcb->control.exit_info_2);
 	u64 error_code = svm->vmcb->control.exit_info_1;
 
 	trace_kvm_page_fault(fault_address, error_code);
