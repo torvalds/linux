@@ -93,4 +93,9 @@ void common(void) {
 
 	BLANK();
 	DEFINE(PTREGS_SIZE, sizeof(struct pt_regs));
+
+	/* Offset from cpu_tss to SYSENTER_stack */
+	OFFSET(CPU_TSS_SYSENTER_stack, tss_struct, SYSENTER_stack);
+	/* Size of SYSENTER_stack */
+	DEFINE(SIZEOF_SYSENTER_stack, sizeof(((struct tss_struct *)0)->SYSENTER_stack));
 }

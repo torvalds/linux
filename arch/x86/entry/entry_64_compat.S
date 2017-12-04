@@ -48,7 +48,7 @@
  */
 ENTRY(entry_SYSENTER_compat)
 	/* Interrupts are off on entry. */
-	SWAPGS_UNSAFE_STACK
+	SWAPGS
 	movq	PER_CPU_VAR(cpu_current_top_of_stack), %rsp
 
 	/*
