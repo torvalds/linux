@@ -462,12 +462,13 @@ END(irq_entries_start)
 
 .macro DEBUG_ENTRY_ASSERT_IRQS_OFF
 #ifdef CONFIG_DEBUG_ENTRY
-	pushfq
-	testl $X86_EFLAGS_IF, (%rsp)
+	pushq %rax
+	SAVE_FLAGS(CLBR_RAX)
+	testl $X86_EFLAGS_IF, %eax
 	jz .Lokay_\@
 	ud2
 .Lokay_\@:
-	addq $8, %rsp
+	popq %rax
 #endif
 .endm
 
