@@ -225,7 +225,7 @@ static void nvmet_execute_io_connect(struct nvmet_req *req)
 		goto out_ctrl_put;
 	}
 
-	pr_info("adding queue %d to ctrl %d.\n", qid, ctrl->cntlid);
+	pr_debug("adding queue %d to ctrl %d.\n", qid, ctrl->cntlid);
 
 out:
 	kfree(d);
