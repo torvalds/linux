@@ -379,6 +379,7 @@
 				regulator-min-microvolt = <750000>;
 				regulator-max-microvolt = <1500000>;
 				regulator-ramp-delay = <6001>;
+				regulator-initial-mode = <1>;
 				regulator-always-on;
 				regulator-boot-on;
 				regulator-state-mem {
@@ -392,6 +393,7 @@
 				regulator-min-microvolt = <750000>;
 				regulator-max-microvolt = <1500000>;
 				regulator-ramp-delay = <6001>;
+				regulator-initial-mode = <1>;
 				regulator-always-on;
 				regulator-boot-on;
 				regulator-state-mem {
@@ -404,12 +406,14 @@
 				regulator-name = "vcc_ddr";
 				regulator-always-on;
 				regulator-boot-on;
+				regulator-initial-mode = <1>;
 			};
 
 			vcc_io: DCDC_REG4 {
 				regulator-name = "vcc_io";
 				regulator-min-microvolt = <3300000>;
 				regulator-max-microvolt = <3300000>;
+				regulator-initial-mode = <1>;
 				regulator-always-on;
 				regulator-boot-on;
 				regulator-state-mem {
