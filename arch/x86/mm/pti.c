@@ -48,6 +48,11 @@
 #undef pr_fmt
 #define pr_fmt(fmt)     "Kernel/User page tables isolation: " fmt
 
+/* Backporting helper */
+#ifndef __GFP_NOTRACK
+#define __GFP_NOTRACK	0
+#endif
+
 static void __init pti_print_if_insecure(const char *reason)
 {
 	if (boot_cpu_has_bug(X86_BUG_CPU_INSECURE))
@@ -135,6 +140,128 @@ pgd_t __pti_set_user_pgd(pgd_t *pgdp, pgd_t pgd)
 
 	/* return the copy of the PGD we want the kernel to use: */
 	return pgd;
+}
+
+/*
+ * Walk the user copy of the page tables (optionally) trying to allocate
+ * page table pages on the way down.
+ *
+ * Returns a pointer to a P4D on success, or NULL on failure.
+ */
+static p4d_t *pti_user_pagetable_walk_p4d(unsigned long address)
+{
+	pgd_t *pgd = kernel_to_user_pgdp(pgd_offset_k(address));
+	gfp_t gfp = (GFP_KERNEL | __GFP_NOTRACK | __GFP_ZERO);
+
+	if (address < PAGE_OFFSET) {
+		WARN_ONCE(1, "attempt to walk user address\n");
+		return NULL;
+	}
+
+	if (pgd_none(*pgd)) {
+		unsigned long new_p4d_page = __get_free_page(gfp);
+		if (!new_p4d_page)
+			return NULL;
+
+		if (pgd_none(*pgd)) {
+			set_pgd(pgd, __pgd(_KERNPG_TABLE | __pa(new_p4d_page)));
+			new_p4d_page = 0;
+		}
+		if (new_p4d_page)
+			free_page(new_p4d_page);
+	}
+	BUILD_BUG_ON(pgd_large(*pgd) != 0);
+
+	return p4d_offset(pgd, address);
+}
+
+/*
+ * Walk the user copy of the page tables (optionally) trying to allocate
+ * page table pages on the way down.
+ *
+ * Returns a pointer to a PMD on success, or NULL on failure.
+ */
+static pmd_t *pti_user_pagetable_walk_pmd(unsigned long address)
+{
+	gfp_t gfp = (GFP_KERNEL | __GFP_NOTRACK | __GFP_ZERO);
+	p4d_t *p4d = pti_user_pagetable_walk_p4d(address);
+	pud_t *pud;
+
+	BUILD_BUG_ON(p4d_large(*p4d) != 0);
+	if (p4d_none(*p4d)) {
+		unsigned long new_pud_page = __get_free_page(gfp);
+		if (!new_pud_page)
+			return NULL;
+
+		if (p4d_none(*p4d)) {
+			set_p4d(p4d, __p4d(_KERNPG_TABLE | __pa(new_pud_page)));
+			new_pud_page = 0;
+		}
+		if (new_pud_page)
+			free_page(new_pud_page);
+	}
+
+	pud = pud_offset(p4d, address);
+	/* The user page tables do not use large mappings: */
+	if (pud_large(*pud)) {
+		WARN_ON(1);
+		return NULL;
+	}
+	if (pud_none(*pud)) {
+		unsigned long new_pmd_page = __get_free_page(gfp);
+		if (!new_pmd_page)
+			return NULL;
+
+		if (pud_none(*pud)) {
+			set_pud(pud, __pud(_KERNPG_TABLE | __pa(new_pmd_page)));
+			new_pmd_page = 0;
+		}
+		if (new_pmd_page)
+			free_page(new_pmd_page);
+	}
+
+	return pmd_offset(pud, address);
+}
+
+static void __init
+pti_clone_pmds(unsigned long start, unsigned long end, pmdval_t clear)
+{
+	unsigned long addr;
+
+	/*
+	 * Clone the populated PMDs which cover start to end. These PMD areas
+	 * can have holes.
+	 */
+	for (addr = start; addr < end; addr += PMD_SIZE) {
+		pmd_t *pmd, *target_pmd;
+		pgd_t *pgd;
+		p4d_t *p4d;
+		pud_t *pud;
+
+		pgd = pgd_offset_k(addr);
+		if (WARN_ON(pgd_none(*pgd)))
+			return;
+		p4d = p4d_offset(pgd, addr);
+		if (WARN_ON(p4d_none(*p4d)))
+			return;
+		pud = pud_offset(p4d, addr);
+		if (pud_none(*pud))
+			continue;
+		pmd = pmd_offset(pud, addr);
+		if (pmd_none(*pmd))
+			continue;
+
+		target_pmd = pti_user_pagetable_walk_pmd(addr);
+		if (WARN_ON(!target_pmd))
+			return;
+
+		/*
+		 * Copy the PMD.  That is, the kernelmode and usermode
+		 * tables will share the last-level page tables of this
+		 * address range
+		 */
+		*target_pmd = pmd_clear_flags(*pmd, clear);
+	}
 }
 
 /*
