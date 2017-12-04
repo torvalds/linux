@@ -4,10 +4,6 @@
  *
  * Copyright IBM Corp. 2017
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License (version 2 only)
- * as published by the Free Software Foundation.
- *
  * Author(s): Tony Krowiak <akrowia@linux.vnet.ibm.com>
  *	      Martin Schwidefsky <schwidefsky@de.ibm.com>
  *	      Harald Freudenberger <freude@de.ibm.com>
