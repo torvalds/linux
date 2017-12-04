@@ -28,6 +28,38 @@
  *	Implement flush IPI by CALL_FUNCTION_VECTOR, Alex Shi
  */
 
+/*
+ * We get here when we do something requiring a TLB invalidation
+ * but could not go invalidate all of the contexts.  We do the
+ * necessary invalidation by clearing out the 'ctx_id' which
+ * forces a TLB flush when the context is loaded.
+ */
+void clear_asid_other(void)
+{
+	u16 asid;
+
+	/*
+	 * This is only expected to be set if we have disabled
+	 * kernel _PAGE_GLOBAL pages.
+	 */
+	if (!static_cpu_has(X86_FEATURE_PTI)) {
+		WARN_ON_ONCE(1);
+		return;
+	}
+
+	for (asid = 0; asid < TLB_NR_DYN_ASIDS; asid++) {
+		/* Do not need to flush the current asid */
+		if (asid == this_cpu_read(cpu_tlbstate.loaded_mm_asid))
+			continue;
+		/*
+		 * Make sure the next time we go to switch to
+		 * this asid, we do a flush:
+		 */
+		this_cpu_write(cpu_tlbstate.ctxs[asid].ctx_id, 0);
+	}
+	this_cpu_write(cpu_tlbstate.invalidate_other, false);
+}
+
 atomic64_t last_mm_ctx_id = ATOMIC64_INIT(1);
 
 
@@ -41,6 +73,9 @@ static void choose_new_asid(struct mm_struct *next, u64 next_tlb_gen,
 		*need_flush = true;
 		return;
 	}
+
+	if (this_cpu_read(cpu_tlbstate.invalidate_other))
+		clear_asid_other();
 
 	for (asid = 0; asid < TLB_NR_DYN_ASIDS; asid++) {
 		if (this_cpu_read(cpu_tlbstate.ctxs[asid].ctx_id) !=
