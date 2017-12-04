@@ -1128,6 +1128,9 @@ static void ixgbe_tx_timeout_reset(struct ixgbe_adapter *adapter)
 
 /**
  * ixgbe_tx_maxrate - callback to set the maximum per-queue bitrate
+ * @netdev: network interface device structure
+ * @queue_index: Tx queue to set
+ * @maxrate: desired maximum transmit bitrate
  **/
 static int ixgbe_tx_maxrate(struct net_device *netdev,
 			    int queue_index, u32 maxrate)
@@ -2025,8 +2028,8 @@ static bool ixgbe_can_reuse_rx_page(struct ixgbe_rx_buffer *rx_buffer)
  * ixgbe_add_rx_frag - Add contents of Rx buffer to sk_buff
  * @rx_ring: rx descriptor ring to transact packets on
  * @rx_buffer: buffer containing page to add
- * @rx_desc: descriptor containing length of buffer written by hardware
  * @skb: sk_buff to place the data into
+ * @size: size of data in rx_buffer
  *
  * This function will add the data contained in rx_buffer->page to the skb.
  * This is done either through a direct copy if the data in the buffer is
@@ -3017,6 +3020,8 @@ static inline void ixgbe_irq_disable_queues(struct ixgbe_adapter *adapter,
 /**
  * ixgbe_irq_enable - Enable default interrupt generation settings
  * @adapter: board private structure
+ * @queues: enable irqs for queues
+ * @flush: flush register write
  **/
 static inline void ixgbe_irq_enable(struct ixgbe_adapter *adapter, bool queues,
 				    bool flush)
@@ -3472,6 +3477,7 @@ static inline void ixgbe_irq_disable(struct ixgbe_adapter *adapter)
 
 /**
  * ixgbe_configure_msi_and_legacy - Initialize PIN (INTA...) and MSI interrupts
+ * @adapter: board private structure
  *
  **/
 static void ixgbe_configure_msi_and_legacy(struct ixgbe_adapter *adapter)
@@ -4000,8 +4006,8 @@ static void ixgbe_setup_mrqc(struct ixgbe_adapter *adapter)
 
 /**
  * ixgbe_configure_rscctl - enable RSC for the indicated ring
- * @adapter:    address of board private structure
- * @index:      index of ring to set
+ * @adapter: address of board private structure
+ * @ring: structure containing ring specific data
  **/
 static void ixgbe_configure_rscctl(struct ixgbe_adapter *adapter,
 				   struct ixgbe_ring *ring)
@@ -4857,9 +4863,11 @@ int ixgbe_del_mac_filter(struct ixgbe_adapter *adapter,
 
 	return -ENOMEM;
 }
+
 /**
  * ixgbe_write_uc_addr_list - write unicast addresses to RAR table
  * @netdev: network interface device structure
+ * @vfn: pool to associate with unicast addresses
  *
  * Writes unicast address list to the RAR table.
  * Returns: -ENOMEM on failure/insufficient address space
@@ -6037,6 +6045,7 @@ static void ixgbe_init_dcb(struct ixgbe_adapter *adapter)
 /**
  * ixgbe_sw_init - Initialize general software structures (struct ixgbe_adapter)
  * @adapter: board private structure to initialize
+ * @ii: pointer to ixgbe_info for device
  *
  * ixgbe_sw_init initializes the Adapter private data structure.
  * Fields are initialized based on PCI device information and
@@ -6321,6 +6330,7 @@ err_setup_tx:
 
 /**
  * ixgbe_setup_rx_resources - allocate Rx resources (Descriptors)
+ * @adapter: pointer to ixgbe_adapter
  * @rx_ring:    rx descriptor ring (for a specific queue) to setup
  *
  * Returns 0 on success, negative on failure
@@ -7133,7 +7143,6 @@ static void ixgbe_check_hang_subtask(struct ixgbe_adapter *adapter)
 /**
  * ixgbe_watchdog_update_link - update the link status
  * @adapter: pointer to the device adapter structure
- * @link_speed: pointer to a u32 to store the link_speed
  **/
 static void ixgbe_watchdog_update_link(struct ixgbe_adapter *adapter)
 {
@@ -7586,7 +7595,7 @@ static void ixgbe_sfp_link_config_subtask(struct ixgbe_adapter *adapter)
 
 /**
  * ixgbe_service_timer - Timer Call-back
- * @data: pointer to adapter cast into an unsigned long
+ * @t: pointer to timer_list structure
  **/
 static void ixgbe_service_timer(struct timer_list *t)
 {
@@ -8574,7 +8583,7 @@ static int ixgbe_ioctl(struct net_device *netdev, struct ifreq *req, int cmd)
 /**
  * ixgbe_add_sanmac_netdev - Add the SAN MAC address to the corresponding
  * netdev->dev_addrs
- * @netdev: network interface device structure
+ * @dev: network interface device structure
  *
  * Returns non-zero on failure
  **/
@@ -8598,7 +8607,7 @@ static int ixgbe_add_sanmac_netdev(struct net_device *dev)
 /**
  * ixgbe_del_sanmac_netdev - Removes the SAN MAC address to the corresponding
  * netdev->dev_addrs
- * @netdev: network interface device structure
+ * @dev: network interface device structure
  *
  * Returns non-zero on failure
  **/
@@ -8765,7 +8774,7 @@ static void ixgbe_set_prio_tc_map(struct ixgbe_adapter *adapter)
 /**
  * ixgbe_setup_tc - configure net_device for multiple traffic classes
  *
- * @netdev: net device to configure
+ * @dev: net device to configure
  * @tc: number of traffic classes to enable
  */
 int ixgbe_setup_tc(struct net_device *dev, u8 tc)
@@ -9602,8 +9611,8 @@ static int ixgbe_ndo_fdb_add(struct ndmsg *ndm, struct nlattr *tb[],
 
 /**
  * ixgbe_configure_bridge_mode - set various bridge modes
- * @adapter - the private structure
- * @mode - requested bridge mode
+ * @adapter: the private structure
+ * @mode: requested bridge mode
  *
  * Configure some settings require for various bridge modes.
  **/
@@ -10071,7 +10080,7 @@ static inline int ixgbe_enumerate_functions(struct ixgbe_adapter *adapter)
  * ixgbe_wol_supported - Check whether device supports WoL
  * @adapter: the adapter private structure
  * @device_id: the device ID
- * @subdev_id: the subsystem device ID
+ * @subdevice_id: the subsystem device ID
  *
  * This function is used by probe and ethtool to determine
  * which devices have WoL support
