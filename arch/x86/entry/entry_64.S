@@ -154,7 +154,7 @@ END(native_usergs_sysret64)
 	_entry_trampoline - CPU_ENTRY_AREA_entry_trampoline(%rip)
 
 /* The top word of the SYSENTER stack is hot and is usable as scratch space. */
-#define RSP_SCRATCH	CPU_ENTRY_AREA_tss + TSS_STRUCT_SYSENTER_stack + \
+#define RSP_SCRATCH	CPU_ENTRY_AREA_SYSENTER_stack + \
 			SIZEOF_SYSENTER_stack - 8 + CPU_ENTRY_AREA
 
 ENTRY(entry_SYSCALL_64_trampoline)
@@ -390,7 +390,7 @@ syscall_return_via_sysret:
 	 * Save old stack pointer and switch to trampoline stack.
 	 */
 	movq	%rsp, %rdi
-	movq	PER_CPU_VAR(cpu_tss + TSS_sp0), %rsp
+	movq	PER_CPU_VAR(cpu_tss_rw + TSS_sp0), %rsp
 
 	pushq	RSP-RDI(%rdi)	/* RSP */
 	pushq	(%rdi)		/* RDI */
@@ -719,7 +719,7 @@ GLOBAL(swapgs_restore_regs_and_return_to_usermode)
 	 * Save old stack pointer and switch to trampoline stack.
 	 */
 	movq	%rsp, %rdi
-	movq	PER_CPU_VAR(cpu_tss + TSS_sp0), %rsp
+	movq	PER_CPU_VAR(cpu_tss_rw + TSS_sp0), %rsp
 
 	/* Copy the IRET frame to the trampoline stack. */
 	pushq	6*8(%rdi)	/* SS */
@@ -934,7 +934,7 @@ apicinterrupt IRQ_WORK_VECTOR			irq_work_interrupt		smp_irq_work_interrupt
 /*
  * Exception entry points.
  */
-#define CPU_TSS_IST(x) PER_CPU_VAR(cpu_tss) + (TSS_ist + ((x) - 1) * 8)
+#define CPU_TSS_IST(x) PER_CPU_VAR(cpu_tss_rw) + (TSS_ist + ((x) - 1) * 8)
 
 /*
  * Switch to the thread stack.  This is called with the IRET frame and

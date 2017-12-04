@@ -487,6 +487,9 @@ static DEFINE_PER_CPU_PAGE_ALIGNED(char, exception_stacks
 	[(N_EXCEPTION_STACKS - 1) * EXCEPTION_STKSZ + DEBUG_STKSZ]);
 #endif
 
+static DEFINE_PER_CPU_PAGE_ALIGNED(struct SYSENTER_stack_page,
+				   SYSENTER_stack_storage);
+
 static void __init
 set_percpu_fixmap_pages(int idx, void *ptr, int pages, pgprot_t prot)
 {
@@ -500,23 +503,29 @@ static void __init setup_cpu_entry_area(int cpu)
 #ifdef CONFIG_X86_64
 	extern char _entry_trampoline[];
 
-	/* On 64-bit systems, we use a read-only fixmap GDT. */
+	/* On 64-bit systems, we use a read-only fixmap GDT and TSS. */
 	pgprot_t gdt_prot = PAGE_KERNEL_RO;
+	pgprot_t tss_prot = PAGE_KERNEL_RO;
 #else
 	/*
 	 * On native 32-bit systems, the GDT cannot be read-only because
 	 * our double fault handler uses a task gate, and entering through
-	 * a task gate needs to change an available TSS to busy.  If the GDT
-	 * is read-only, that will triple fault.
+	 * a task gate needs to change an available TSS to busy.  If the
+	 * GDT is read-only, that will triple fault.  The TSS cannot be
+	 * read-only because the CPU writes to it on task switches.
 	 *
-	 * On Xen PV, the GDT must be read-only because the hypervisor requires
-	 * it.
+	 * On Xen PV, the GDT must be read-only because the hypervisor
+	 * requires it.
 	 */
 	pgprot_t gdt_prot = boot_cpu_has(X86_FEATURE_XENPV) ?
 		PAGE_KERNEL_RO : PAGE_KERNEL;
+	pgprot_t tss_prot = PAGE_KERNEL;
 #endif
 
 	__set_fixmap(get_cpu_entry_area_index(cpu, gdt), get_cpu_gdt_paddr(cpu), gdt_prot);
+	set_percpu_fixmap_pages(get_cpu_entry_area_index(cpu, SYSENTER_stack_page),
+				per_cpu_ptr(&SYSENTER_stack_storage, cpu), 1,
+				PAGE_KERNEL);
 
 	/*
 	 * The Intel SDM says (Volume 3, 7.2.1):
@@ -539,9 +548,9 @@ static void __init setup_cpu_entry_area(int cpu)
 		      offsetofend(struct tss_struct, x86_tss)) & PAGE_MASK);
 	BUILD_BUG_ON(sizeof(struct tss_struct) % PAGE_SIZE != 0);
 	set_percpu_fixmap_pages(get_cpu_entry_area_index(cpu, tss),
-				&per_cpu(cpu_tss, cpu),
+				&per_cpu(cpu_tss_rw, cpu),
 				sizeof(struct tss_struct) / PAGE_SIZE,
-				PAGE_KERNEL);
+				tss_prot);
 
 #ifdef CONFIG_X86_32
 	per_cpu(cpu_entry_area, cpu) = get_cpu_entry_area(cpu);
@@ -1305,7 +1314,7 @@ void enable_sep_cpu(void)
 		return;
 
 	cpu = get_cpu();
-	tss = &per_cpu(cpu_tss, cpu);
+	tss = &per_cpu(cpu_tss_rw, cpu);
 
 	/*
 	 * We cache MSR_IA32_SYSENTER_CS's value in the TSS's ss1 field --
@@ -1575,7 +1584,7 @@ void cpu_init(void)
 	if (cpu)
 		load_ucode_ap();
 
-	t = &per_cpu(cpu_tss, cpu);
+	t = &per_cpu(cpu_tss_rw, cpu);
 	oist = &per_cpu(orig_ist, cpu);
 
 #ifdef CONFIG_NUMA
@@ -1667,7 +1676,7 @@ void cpu_init(void)
 {
 	int cpu = smp_processor_id();
 	struct task_struct *curr = current;
-	struct tss_struct *t = &per_cpu(cpu_tss, cpu);
+	struct tss_struct *t = &per_cpu(cpu_tss_rw, cpu);
 
 	wait_for_master_cpu(cpu);
 

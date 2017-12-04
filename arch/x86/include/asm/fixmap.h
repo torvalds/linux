@@ -56,9 +56,14 @@ struct cpu_entry_area {
 	char gdt[PAGE_SIZE];
 
 	/*
-	 * The GDT is just below cpu_tss and thus serves (on x86_64) as a
-	 * a read-only guard page for the SYSENTER stack at the bottom
-	 * of the TSS region.
+	 * The GDT is just below SYSENTER_stack and thus serves (on x86_64) as
+	 * a a read-only guard page.
+	 */
+	struct SYSENTER_stack_page SYSENTER_stack_page;
+
+	/*
+	 * On x86_64, the TSS is mapped RO.  On x86_32, it's mapped RW because
+	 * we need task switches to work, and task switches write to the TSS.
 	 */
 	struct tss_struct tss;
 
@@ -247,7 +252,7 @@ static inline struct cpu_entry_area *get_cpu_entry_area(int cpu)
 
 static inline struct SYSENTER_stack *cpu_SYSENTER_stack(int cpu)
 {
-	return &get_cpu_entry_area(cpu)->tss.SYSENTER_stack;
+	return &get_cpu_entry_area(cpu)->SYSENTER_stack_page.stack;
 }
 
 #endif /* !__ASSEMBLY__ */

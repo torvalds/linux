@@ -340,13 +340,11 @@ struct SYSENTER_stack {
 	unsigned long		words[64];
 };
 
-struct tss_struct {
-	/*
-	 * Space for the temporary SYSENTER stack, used for SYSENTER
-	 * and the entry trampoline as well.
-	 */
-	struct SYSENTER_stack	SYSENTER_stack;
+struct SYSENTER_stack_page {
+	struct SYSENTER_stack stack;
+} __aligned(PAGE_SIZE);
 
+struct tss_struct {
 	/*
 	 * The fixed hardware portion.  This must not cross a page boundary
 	 * at risk of violating the SDM's advice and potentially triggering
@@ -363,7 +361,7 @@ struct tss_struct {
 	unsigned long		io_bitmap[IO_BITMAP_LONGS + 1];
 } __aligned(PAGE_SIZE);
 
-DECLARE_PER_CPU_PAGE_ALIGNED(struct tss_struct, cpu_tss);
+DECLARE_PER_CPU_PAGE_ALIGNED(struct tss_struct, cpu_tss_rw);
 
 /*
  * sizeof(unsigned long) coming from an extra "long" at the end
@@ -378,7 +376,8 @@ DECLARE_PER_CPU_PAGE_ALIGNED(struct tss_struct, cpu_tss);
 #ifdef CONFIG_X86_32
 DECLARE_PER_CPU(unsigned long, cpu_current_top_of_stack);
 #else
-#define cpu_current_top_of_stack cpu_tss.x86_tss.sp1
+/* The RO copy can't be accessed with this_cpu_xyz(), so use the RW copy. */
+#define cpu_current_top_of_stack cpu_tss_rw.x86_tss.sp1
 #endif
 
 /*
@@ -538,7 +537,7 @@ static inline void native_set_iopl_mask(unsigned mask)
 static inline void
 native_load_sp0(unsigned long sp0)
 {
-	this_cpu_write(cpu_tss.x86_tss.sp0, sp0);
+	this_cpu_write(cpu_tss_rw.x86_tss.sp0, sp0);
 }
 
 static inline void native_swapgs(void)
