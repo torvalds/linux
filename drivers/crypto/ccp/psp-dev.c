@@ -365,6 +365,84 @@ e_free:
 	return ret;
 }
 
+void *psp_copy_user_blob(u64 __user uaddr, u32 len)
+{
+	void *data;
+
+	if (!uaddr || !len)
+		return ERR_PTR(-EINVAL);
+
+	/* verify that blob length does not exceed our limit */
+	if (len > SEV_FW_BLOB_MAX_SIZE)
+		return ERR_PTR(-EINVAL);
+
+	data = kmalloc(len, GFP_KERNEL);
+	if (!data)
+		return ERR_PTR(-ENOMEM);
+
+	if (copy_from_user(data, (void __user *)(uintptr_t)uaddr, len))
+		goto e_free;
+
+	return data;
+
+e_free:
+	kfree(data);
+	return ERR_PTR(-EFAULT);
+}
+EXPORT_SYMBOL_GPL(psp_copy_user_blob);
+
+static int sev_ioctl_do_pek_import(struct sev_issue_cmd *argp)
+{
+	struct sev_user_data_pek_cert_import input;
+	struct sev_data_pek_cert_import *data;
+	void *pek_blob, *oca_blob;
+	int ret;
+
+	if (copy_from_user(&input, (void __user *)argp->data, sizeof(input)))
+		return -EFAULT;
+
+	data = kzalloc(sizeof(*data), GFP_KERNEL);
+	if (!data)
+		return -ENOMEM;
+
+	/* copy PEK certificate blobs from userspace */
+	pek_blob = psp_copy_user_blob(input.pek_cert_address, input.pek_cert_len);
+	if (IS_ERR(pek_blob)) {
+		ret = PTR_ERR(pek_blob);
+		goto e_free;
+	}
+
+	data->pek_cert_address = __psp_pa(pek_blob);
+	data->pek_cert_len = input.pek_cert_len;
+
+	/* copy PEK certificate blobs from userspace */
+	oca_blob = psp_copy_user_blob(input.oca_cert_address, input.oca_cert_len);
+	if (IS_ERR(oca_blob)) {
+		ret = PTR_ERR(oca_blob);
+		goto e_free_pek;
+	}
+
+	data->oca_cert_address = __psp_pa(oca_blob);
+	data->oca_cert_len = input.oca_cert_len;
+
+	/* If platform is not in INIT state then transition it to INIT */
+	if (psp_master->sev_state != SEV_STATE_INIT) {
+		ret = __sev_platform_init_locked(&argp->error);
+		if (ret)
+			goto e_free_oca;
+	}
+
+	ret = __sev_do_cmd_locked(SEV_CMD_PEK_CERT_IMPORT, data, &argp->error);
+
+e_free_oca:
+	kfree(oca_blob);
+e_free_pek:
+	kfree(pek_blob);
+e_free:
+	kfree(data);
+	return ret;
+}
+
 static long sev_ioctl(struct file *file, unsigned int ioctl, unsigned long arg)
 {
 	void __user *argp = (void __user *)arg;
@@ -401,6 +479,9 @@ static long sev_ioctl(struct file *file, unsigned int ioctl, unsigned long arg)
 		break;
 	case SEV_PEK_CSR:
 		ret = sev_ioctl_do_pek_csr(&input);
+		break;
+	case SEV_PEK_CERT_IMPORT:
+		ret = sev_ioctl_do_pek_import(&input);
 		break;
 	default:
 		ret = -EINVAL;
