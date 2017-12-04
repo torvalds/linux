@@ -716,6 +716,14 @@ void uvc_video_clock_update(struct uvc_streaming *stream,
 			    struct vb2_v4l2_buffer *vbuf,
 			    struct uvc_buffer *buf);
 
+int uvc_register_video_device(struct uvc_device *dev,
+			      struct uvc_streaming *stream,
+			      struct video_device *vdev,
+			      struct uvc_video_queue *queue,
+			      enum v4l2_buf_type type,
+			      const struct v4l2_file_operations *fops,
+			      const struct v4l2_ioctl_ops *ioctl_ops);
+
 /* Status */
 extern int uvc_status_init(struct uvc_device *dev);
 extern void uvc_status_cleanup(struct uvc_device *dev);
