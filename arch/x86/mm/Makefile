@@ -43,9 +43,10 @@ obj-$(CONFIG_AMD_NUMA)		+= amdtopology.o
 obj-$(CONFIG_ACPI_NUMA)		+= srat.o
 obj-$(CONFIG_NUMA_EMU)		+= numa_emulation.o
 
-obj-$(CONFIG_X86_INTEL_MPX)	+= mpx.o
-obj-$(CONFIG_X86_INTEL_MEMORY_PROTECTION_KEYS) += pkeys.o
-obj-$(CONFIG_RANDOMIZE_MEMORY) += kaslr.o
+obj-$(CONFIG_X86_INTEL_MPX)			+= mpx.o
+obj-$(CONFIG_X86_INTEL_MEMORY_PROTECTION_KEYS)	+= pkeys.o
+obj-$(CONFIG_RANDOMIZE_MEMORY)			+= kaslr.o
+obj-$(CONFIG_PAGE_TABLE_ISOLATION)		+= pti.o
 
 obj-$(CONFIG_AMD_MEM_ENCRYPT)	+= mem_encrypt.o
 obj-$(CONFIG_AMD_MEM_ENCRYPT)	+= mem_encrypt_boot.o
