@@ -195,6 +195,11 @@ struct tun_flow_entry {
 
 #define TUN_NUM_FLOW_ENTRIES 1024
 
+struct tun_steering_prog {
+	struct rcu_head rcu;
+	struct bpf_prog *prog;
+};
+
 /* Since the socket were moved to tun_file, to preserve the behavior of persist
  * device, socket filter, sndbuf and vnet header size were restore when the
  * file were attached to a persist device.
@@ -232,6 +237,7 @@ struct tun_struct {
 	u32 rx_batched;
 	struct tun_pcpu_stats __percpu *pcpu_stats;
 	struct bpf_prog __rcu *xdp_prog;
+	struct tun_steering_prog __rcu *steering_prog;
 };
 
 static int tun_napi_receive(struct napi_struct *napi, int budget)
@@ -537,15 +543,12 @@ static inline void tun_flow_save_rps_rxhash(struct tun_flow_entry *e, u32 hash)
  * different rxq no. here. If we could not get rxhash, then we would
  * hope the rxq no. may help here.
  */
-static u16 tun_select_queue(struct net_device *dev, struct sk_buff *skb,
-			    void *accel_priv, select_queue_fallback_t fallback)
+static u16 tun_automq_select_queue(struct tun_struct *tun, struct sk_buff *skb)
 {
-	struct tun_struct *tun = netdev_priv(dev);
 	struct tun_flow_entry *e;
 	u32 txq = 0;
 	u32 numqueues = 0;
 
-	rcu_read_lock();
 	numqueues = READ_ONCE(tun->numqueues);
 
 	txq = __skb_get_hash_symmetric(skb);
@@ -563,8 +566,35 @@ static u16 tun_select_queue(struct net_device *dev, struct sk_buff *skb,
 			txq -= numqueues;
 	}
 
-	rcu_read_unlock();
 	return txq;
+}
+
+static u16 tun_ebpf_select_queue(struct tun_struct *tun, struct sk_buff *skb)
+{
+	struct tun_steering_prog *prog;
+	u16 ret = 0;
+
+	prog = rcu_dereference(tun->steering_prog);
+	if (prog)
+		ret = bpf_prog_run_clear_cb(prog->prog, skb);
+
+	return ret % tun->numqueues;
+}
+
+static u16 tun_select_queue(struct net_device *dev, struct sk_buff *skb,
+			    void *accel_priv, select_queue_fallback_t fallback)
+{
+	struct tun_struct *tun = netdev_priv(dev);
+	u16 ret;
+
+	rcu_read_lock();
+	if (rcu_dereference(tun->steering_prog))
+		ret = tun_ebpf_select_queue(tun, skb);
+	else
+		ret = tun_automq_select_queue(tun, skb);
+	rcu_read_unlock();
+
+	return ret;
 }
 
 static inline bool tun_not_capable(struct tun_struct *tun)
@@ -933,23 +963,10 @@ static int tun_net_close(struct net_device *dev)
 }
 
 /* Net device start xmit */
-static netdev_tx_t tun_net_xmit(struct sk_buff *skb, struct net_device *dev)
+static void tun_automq_xmit(struct tun_struct *tun, struct sk_buff *skb)
 {
-	struct tun_struct *tun = netdev_priv(dev);
-	int txq = skb->queue_mapping;
-	struct tun_file *tfile;
-	u32 numqueues = 0;
-
-	rcu_read_lock();
-	tfile = rcu_dereference(tun->tfiles[txq]);
-	numqueues = READ_ONCE(tun->numqueues);
-
-	/* Drop packet if interface is not attached */
-	if (txq >= numqueues)
-		goto drop;
-
 #ifdef CONFIG_RPS
-	if (numqueues == 1 && static_key_false(&rps_needed)) {
+	if (tun->numqueues == 1 && static_key_false(&rps_needed)) {
 		/* Select queue was not called for the skbuff, so we extract the
 		 * RPS hash and save it into the flow_table here.
 		 */
@@ -965,6 +982,26 @@ static netdev_tx_t tun_net_xmit(struct sk_buff *skb, struct net_device *dev)
 		}
 	}
 #endif
+}
+
+/* Net device start xmit */
+static netdev_tx_t tun_net_xmit(struct sk_buff *skb, struct net_device *dev)
+{
+	struct tun_struct *tun = netdev_priv(dev);
+	int txq = skb->queue_mapping;
+	struct tun_file *tfile;
+	u32 numqueues = 0;
+
+	rcu_read_lock();
+	tfile = rcu_dereference(tun->tfiles[txq]);
+	numqueues = READ_ONCE(tun->numqueues);
+
+	/* Drop packet if interface is not attached */
+	if (txq >= numqueues)
+		goto drop;
+
+	if (!rcu_dereference(tun->steering_prog))
+		tun_automq_xmit(tun, skb);
 
 	tun_debug(KERN_INFO, tun, "tun_net_xmit %d\n", skb->len);
 
@@ -1547,7 +1584,7 @@ static ssize_t tun_get_user(struct tun_struct *tun, struct tun_file *tfile,
 	int copylen;
 	bool zerocopy = false;
 	int err;
-	u32 rxhash;
+	u32 rxhash = 0;
 	int skb_xdp = 1;
 	bool frags = tun_napi_frags_enabled(tun);
 
@@ -1735,7 +1772,10 @@ static ssize_t tun_get_user(struct tun_struct *tun, struct tun_file *tfile,
 		rcu_read_unlock();
 	}
 
-	rxhash = __skb_get_hash_symmetric(skb);
+	rcu_read_lock();
+	if (!rcu_dereference(tun->steering_prog))
+		rxhash = __skb_get_hash_symmetric(skb);
+	rcu_read_unlock();
 
 	if (frags) {
 		/* Exercise flow dissector code path. */
@@ -1779,7 +1819,9 @@ static ssize_t tun_get_user(struct tun_struct *tun, struct tun_file *tfile,
 	u64_stats_update_end(&stats->syncp);
 	put_cpu_ptr(stats);
 
-	tun_flow_update(tun, rxhash, tfile);
+	if (rxhash)
+		tun_flow_update(tun, rxhash, tfile);
+
 	return total_len;
 }
 
@@ -1987,6 +2029,36 @@ static ssize_t tun_chr_read_iter(struct kiocb *iocb, struct iov_iter *to)
 	return ret;
 }
 
+static void tun_steering_prog_free(struct rcu_head *rcu)
+{
+	struct tun_steering_prog *prog = container_of(rcu,
+					 struct tun_steering_prog, rcu);
+
+	bpf_prog_destroy(prog->prog);
+	kfree(prog);
+}
+
+static int __tun_set_steering_ebpf(struct tun_struct *tun,
+				   struct bpf_prog *prog)
+{
+	struct tun_steering_prog *old, *new = NULL;
+
+	if (prog) {
+		new = kmalloc(sizeof(*new), GFP_KERNEL);
+		if (!new)
+			return -ENOMEM;
+		new->prog = prog;
+	}
+
+	old = rtnl_dereference(tun->steering_prog);
+	rcu_assign_pointer(tun->steering_prog, new);
+
+	if (old)
+		call_rcu(&old->rcu, tun_steering_prog_free);
+
+	return 0;
+}
+
 static void tun_free_netdev(struct net_device *dev)
 {
 	struct tun_struct *tun = netdev_priv(dev);
@@ -1995,6 +2067,9 @@ static void tun_free_netdev(struct net_device *dev)
 	free_percpu(tun->pcpu_stats);
 	tun_flow_uninit(tun);
 	security_tun_dev_free_security(tun->security);
+	rtnl_lock();
+	__tun_set_steering_ebpf(tun, NULL);
+	rtnl_unlock();
 }
 
 static void tun_setup(struct net_device *dev)
@@ -2283,6 +2358,7 @@ static int tun_set_iff(struct net *net, struct file *file, struct ifreq *ifr)
 		tun->filter_attached = false;
 		tun->sndbuf = tfile->socket.sk->sk_sndbuf;
 		tun->rx_batched = 0;
+		RCU_INIT_POINTER(tun->steering_prog, NULL);
 
 		tun->pcpu_stats = netdev_alloc_pcpu_stats(struct tun_pcpu_stats);
 		if (!tun->pcpu_stats) {
@@ -2473,6 +2549,25 @@ static int tun_set_queue(struct file *file, struct ifreq *ifr)
 unlock:
 	rtnl_unlock();
 	return ret;
+}
+
+static int tun_set_steering_ebpf(struct tun_struct *tun, void __user *data)
+{
+	struct bpf_prog *prog;
+	int fd;
+
+	if (copy_from_user(&fd, data, sizeof(fd)))
+		return -EFAULT;
+
+	if (fd == -1) {
+		prog = NULL;
+	} else {
+		prog = bpf_prog_get_type(fd, BPF_PROG_TYPE_SOCKET_FILTER);
+		if (IS_ERR(prog))
+			return PTR_ERR(prog);
+	}
+
+	return __tun_set_steering_ebpf(tun, prog);
 }
 
 static long __tun_chr_ioctl(struct file *file, unsigned int cmd,
@@ -2749,6 +2844,10 @@ static long __tun_chr_ioctl(struct file *file, unsigned int cmd,
 		if (copy_to_user(argp, &tun->fprog, sizeof(tun->fprog)))
 			break;
 		ret = 0;
+		break;
+
+	case TUNSETSTEERINGEBPF:
+		ret = tun_set_steering_ebpf(tun, argp);
 		break;
 
 	default:
