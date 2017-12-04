@@ -43,6 +43,9 @@
 #define ALIGN8(x)	ALIGN(x, 8)
 
 enum nfp_dumpspec_type {
+	NFP_DUMPSPEC_TYPE_CPP_CSR = 0,
+	NFP_DUMPSPEC_TYPE_XPB_CSR = 1,
+	NFP_DUMPSPEC_TYPE_ME_CSR = 2,
 	NFP_DUMPSPEC_TYPE_RTSYM = 4,
 	NFP_DUMPSPEC_TYPE_HWINFO = 5,
 	NFP_DUMPSPEC_TYPE_FWNAME = 6,
@@ -77,9 +80,25 @@ struct nfp_dump_common_cpp {
 	__be32 dump_length;	/* total bytes to dump, aligned to reg size */
 };
 
+/* CSR dumpables */
+struct nfp_dumpspec_csr {
+	struct nfp_dump_tl tl;
+	struct nfp_dump_common_cpp cpp;
+	__be32 register_width;	/* in bits */
+};
+
 struct nfp_dumpspec_rtsym {
 	struct nfp_dump_tl tl;
 	char rtsym[0];
+};
+
+/* header for register dumpable */
+struct nfp_dump_csr {
+	struct nfp_dump_tl tl;
+	struct nfp_dump_common_cpp cpp;
+	__be32 register_width;	/* in bits */
+	__be32 error;		/* error code encountered while reading */
+	__be32 error_offset;	/* offset being read when error occurred */
 };
 
 struct nfp_dump_rtsym {
@@ -223,6 +242,20 @@ static int nfp_calc_hwinfo_field_sz(struct nfp_pf *pf, struct nfp_dump_tl *spec)
 	return sizeof(struct nfp_dump_tl) + ALIGN8(key_len + strlen(value) + 2);
 }
 
+static bool nfp_csr_spec_valid(struct nfp_dumpspec_csr *spec_csr)
+{
+	u32 required_read_sz = sizeof(*spec_csr) - sizeof(spec_csr->tl);
+	u32 available_sz = be32_to_cpu(spec_csr->tl.length);
+	u32 reg_width;
+
+	if (available_sz < required_read_sz)
+		return false;
+
+	reg_width = be32_to_cpu(spec_csr->register_width);
+
+	return reg_width == 32 || reg_width == 64;
+}
+
 static int
 nfp_calc_rtsym_dump_sz(struct nfp_pf *pf, struct nfp_dump_tl *spec)
 {
@@ -248,12 +281,23 @@ nfp_calc_rtsym_dump_sz(struct nfp_pf *pf, struct nfp_dump_tl *spec)
 static int
 nfp_add_tlv_size(struct nfp_pf *pf, struct nfp_dump_tl *tl, void *param)
 {
+	struct nfp_dumpspec_csr *spec_csr;
 	u32 *size = param;
 	u32 hwinfo_size;
 
 	switch (be32_to_cpu(tl->type)) {
 	case NFP_DUMPSPEC_TYPE_FWNAME:
 		*size += nfp_calc_fwname_tlv_size(pf);
+		break;
+	case NFP_DUMPSPEC_TYPE_CPP_CSR:
+	case NFP_DUMPSPEC_TYPE_XPB_CSR:
+	case NFP_DUMPSPEC_TYPE_ME_CSR:
+		spec_csr = (struct nfp_dumpspec_csr *)tl;
+		if (!nfp_csr_spec_valid(spec_csr))
+			*size += nfp_dump_error_tlv_size(tl);
+		else
+			*size += ALIGN8(sizeof(struct nfp_dump_csr)) +
+				 ALIGN8(be32_to_cpu(spec_csr->cpp.dump_length));
 		break;
 	case NFP_DUMPSPEC_TYPE_RTSYM:
 		*size += nfp_calc_rtsym_dump_sz(pf, tl);
@@ -418,6 +462,55 @@ static int nfp_dump_hwinfo_field(struct nfp_pf *pf, struct nfp_dump_tl *spec,
 }
 
 static int
+nfp_dump_csr_range(struct nfp_pf *pf, struct nfp_dumpspec_csr *spec_csr,
+		   struct nfp_dump_state *dump)
+{
+	struct nfp_dump_csr *dump_header = dump->p;
+	u32 reg_sz, header_size, total_size;
+	u32 cpp_rd_addr, max_rd_addr;
+	int bytes_read;
+	void *dest;
+	u32 cpp_id;
+	int err;
+
+	if (!nfp_csr_spec_valid(spec_csr))
+		return nfp_dump_error_tlv(&spec_csr->tl, -EINVAL, dump);
+
+	reg_sz = be32_to_cpu(spec_csr->register_width) / BITS_PER_BYTE;
+	header_size = ALIGN8(sizeof(*dump_header));
+	total_size = header_size +
+		     ALIGN8(be32_to_cpu(spec_csr->cpp.dump_length));
+	dest = dump->p + header_size;
+
+	err = nfp_add_tlv(be32_to_cpu(spec_csr->tl.type), total_size, dump);
+	if (err)
+		return err;
+
+	dump_header->cpp = spec_csr->cpp;
+	dump_header->register_width = spec_csr->register_width;
+
+	cpp_id = nfp_get_numeric_cpp_id(&spec_csr->cpp.cpp_id);
+	cpp_rd_addr = be32_to_cpu(spec_csr->cpp.offset);
+	max_rd_addr = cpp_rd_addr + be32_to_cpu(spec_csr->cpp.dump_length);
+
+	while (cpp_rd_addr < max_rd_addr) {
+		bytes_read = nfp_cpp_read(pf->cpp, cpp_id, cpp_rd_addr, dest,
+					  reg_sz);
+		if (bytes_read != reg_sz) {
+			if (bytes_read >= 0)
+				bytes_read = -EIO;
+			dump_header->error = cpu_to_be32(bytes_read);
+			dump_header->error_offset = cpu_to_be32(cpp_rd_addr);
+			break;
+		}
+		cpp_rd_addr += reg_sz;
+		dest += reg_sz;
+	}
+
+	return 0;
+}
+
+static int
 nfp_dump_single_rtsym(struct nfp_pf *pf, struct nfp_dumpspec_rtsym *spec,
 		      struct nfp_dump_state *dump)
 {
@@ -479,11 +572,20 @@ nfp_dump_for_tlv(struct nfp_pf *pf, struct nfp_dump_tl *tl, void *param)
 {
 	struct nfp_dumpspec_rtsym *spec_rtsym;
 	struct nfp_dump_state *dump = param;
+	struct nfp_dumpspec_csr *spec_csr;
 	int err;
 
 	switch (be32_to_cpu(tl->type)) {
 	case NFP_DUMPSPEC_TYPE_FWNAME:
 		err = nfp_dump_fwname(pf, dump);
+		if (err)
+			return err;
+		break;
+	case NFP_DUMPSPEC_TYPE_CPP_CSR:
+	case NFP_DUMPSPEC_TYPE_XPB_CSR:
+	case NFP_DUMPSPEC_TYPE_ME_CSR:
+		spec_csr = (struct nfp_dumpspec_csr *)tl;
+		err = nfp_dump_csr_range(pf, spec_csr, dump);
 		if (err)
 			return err;
 		break;
