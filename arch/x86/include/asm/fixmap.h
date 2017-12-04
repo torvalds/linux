@@ -63,9 +63,21 @@ struct cpu_entry_area {
 	struct tss_struct tss;
 
 	char entry_trampoline[PAGE_SIZE];
+
+#ifdef CONFIG_X86_64
+	/*
+	 * Exception stacks used for IST entries.
+	 *
+	 * In the future, this should have a separate slot for each stack
+	 * with guard pages between them.
+	 */
+	char exception_stacks[(N_EXCEPTION_STACKS - 1) * EXCEPTION_STKSZ + DEBUG_STKSZ];
+#endif
 };
 
 #define CPU_ENTRY_AREA_PAGES (sizeof(struct cpu_entry_area) / PAGE_SIZE)
+
+extern void setup_cpu_entry_areas(void);
 
 /*
  * Here we define all the compile-time 'special' virtual
