@@ -575,14 +575,15 @@ qla25xx_free_rsp_que(struct scsi_qla_host *vha, struct rsp_que *rsp)
 int
 qla25xx_delete_req_que(struct scsi_qla_host *vha, struct req_que *req)
 {
-	int ret = -1;
+	int ret = QLA_SUCCESS;
 
-	if (req) {
+	if (req && vha->flags.qpairs_req_created) {
 		req->options |= BIT_0;
 		ret = qla25xx_init_req_que(vha, req);
+		if (ret != QLA_SUCCESS)
+			return QLA_FUNCTION_FAILED;
 	}
-	if (ret == QLA_SUCCESS)
-		qla25xx_free_req_que(vha, req);
+	qla25xx_free_req_que(vha, req);
 
 	return ret;
 }
@@ -590,14 +591,15 @@ qla25xx_delete_req_que(struct scsi_qla_host *vha, struct req_que *req)
 int
 qla25xx_delete_rsp_que(struct scsi_qla_host *vha, struct rsp_que *rsp)
 {
-	int ret = -1;
+	int ret = QLA_SUCCESS;
 
-	if (rsp) {
+	if (rsp && vha->flags.qpairs_rsp_created) {
 		rsp->options |= BIT_0;
 		ret = qla25xx_init_rsp_que(vha, rsp);
+		if (ret != QLA_SUCCESS)
+			return QLA_FUNCTION_FAILED;
 	}
-	if (ret == QLA_SUCCESS)
-		qla25xx_free_rsp_que(vha, rsp);
+	qla25xx_free_rsp_que(vha, rsp);
 
 	return ret;
 }
