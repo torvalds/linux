@@ -65,42 +65,6 @@ EXPORT_SYMBOL_GPL(lockdep_rht_bucket_is_held);
 #define ASSERT_RHT_MUTEX(HT)
 #endif
 
-
-static int alloc_bucket_locks(struct rhashtable *ht, struct bucket_table *tbl,
-			      gfp_t gfp)
-{
-	unsigned int i, size;
-#if defined(CONFIG_PROVE_LOCKING)
-	unsigned int nr_pcpus = 2;
-#else
-	unsigned int nr_pcpus = num_possible_cpus();
-#endif
-
-	nr_pcpus = min_t(unsigned int, nr_pcpus, 64UL);
-	size = roundup_pow_of_two(nr_pcpus * ht->p.locks_mul);
-
-	/* Never allocate more than 0.5 locks per bucket */
-	size = min_t(unsigned int, size, tbl->size >> 1);
-
-	if (tbl->nest)
-		size = min(size, 1U << tbl->nest);
-
-	if (sizeof(spinlock_t) != 0) {
-		if (gfpflags_allow_blocking(gfp))
-			tbl->locks = kvmalloc(size * sizeof(spinlock_t), gfp);
-		else
-			tbl->locks = kmalloc_array(size, sizeof(spinlock_t),
-						   gfp);
-		if (!tbl->locks)
-			return -ENOMEM;
-		for (i = 0; i < size; i++)
-			spin_lock_init(&tbl->locks[i]);
-	}
-	tbl->locks_mask = size - 1;
-
-	return 0;
-}
-
 static void nested_table_free(union nested_table *ntbl, unsigned int size)
 {
 	const unsigned int shift = PAGE_SHIFT - ilog2(sizeof(void *));
@@ -140,7 +104,7 @@ static void bucket_table_free(const struct bucket_table *tbl)
 	if (tbl->nest)
 		nested_bucket_table_free(tbl);
 
-	kvfree(tbl->locks);
+	free_bucket_spinlocks(tbl->locks);
 	kvfree(tbl);
 }
 
@@ -207,7 +171,7 @@ static struct bucket_table *bucket_table_alloc(struct rhashtable *ht,
 					       gfp_t gfp)
 {
 	struct bucket_table *tbl = NULL;
-	size_t size;
+	size_t size, max_locks;
 	int i;
 
 	size = sizeof(*tbl) + nbuckets * sizeof(tbl->buckets[0]);
@@ -227,7 +191,12 @@ static struct bucket_table *bucket_table_alloc(struct rhashtable *ht,
 
 	tbl->size = size;
 
-	if (alloc_bucket_locks(ht, tbl, gfp) < 0) {
+	max_locks = size >> 1;
+	if (tbl->nest)
+		max_locks = min_t(size_t, max_locks, 1U << tbl->nest);
+
+	if (alloc_bucket_spinlocks(&tbl->locks, &tbl->locks_mask, max_locks,
+				   ht->p.locks_mul, gfp) < 0) {
 		bucket_table_free(tbl);
 		return NULL;
 	}
