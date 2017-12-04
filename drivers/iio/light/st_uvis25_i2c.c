@@ -19,7 +19,7 @@
 
 #define UVIS25_I2C_AUTO_INCREMENT	BIT(7)
 
-const struct regmap_config st_uvis25_i2c_regmap_config = {
+static const struct regmap_config st_uvis25_i2c_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
 	.write_flag_mask = UVIS25_I2C_AUTO_INCREMENT,

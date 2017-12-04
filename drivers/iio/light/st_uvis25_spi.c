@@ -19,7 +19,7 @@
 #define UVIS25_SENSORS_SPI_READ		BIT(7)
 #define UVIS25_SPI_AUTO_INCREMENT	BIT(6)
 
-const struct regmap_config st_uvis25_spi_regmap_config = {
+static const struct regmap_config st_uvis25_spi_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
 	.read_flag_mask = UVIS25_SENSORS_SPI_READ | UVIS25_SPI_AUTO_INCREMENT,
