@@ -855,9 +855,7 @@ int gup_hugepte(pte_t *ptep, unsigned long sz, unsigned long addr,
 
 	pte = READ_ONCE(*ptep);
 
-	if (!pte_present(pte) || !pte_read(pte))
-		return 0;
-	if (write && !pte_write(pte))
+	if (!pte_access_permitted(pte, write))
 		return 0;
 
 	/* hugepages are never "special" */
