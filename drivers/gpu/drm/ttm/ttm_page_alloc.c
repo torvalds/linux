@@ -877,7 +877,7 @@ static int ttm_get_pages(struct page **pages, unsigned npages, int flags,
 #endif
 	struct list_head plist;
 	struct page *p = NULL;
-	unsigned count;
+	unsigned count, first;
 	int r;
 
 	/* No pool for cached pages */
@@ -918,12 +918,17 @@ static int ttm_get_pages(struct page **pages, unsigned npages, int flags,
 		}
 #endif
 
+		first = i;
 		while (npages) {
 			p = alloc_page(gfp_flags);
 			if (!p) {
 				pr_debug("Unable to allocate page\n");
 				return -ENOMEM;
 			}
+
+			/* Swap the pages if we detect consecutive order */
+			if (i > first && pages[i - 1] == p - 1)
+				swap(p, pages[i - 1]);
 
 			pages[i++] = p;
 			--npages;
