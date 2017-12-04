@@ -203,34 +203,44 @@ static void __init probe_page_size_mask(void)
 
 static void setup_pcid(void)
 {
-#ifdef CONFIG_X86_64
-	if (boot_cpu_has(X86_FEATURE_PCID)) {
-		if (boot_cpu_has(X86_FEATURE_PGE)) {
-			/*
-			 * This can't be cr4_set_bits_and_update_boot() --
-			 * the trampoline code can't handle CR4.PCIDE and
-			 * it wouldn't do any good anyway.  Despite the name,
-			 * cr4_set_bits_and_update_boot() doesn't actually
-			 * cause the bits in question to remain set all the
-			 * way through the secondary boot asm.
-			 *
-			 * Instead, we brute-force it and set CR4.PCIDE
-			 * manually in start_secondary().
-			 */
-			cr4_set_bits(X86_CR4_PCIDE);
-		} else {
-			/*
-			 * flush_tlb_all(), as currently implemented, won't
-			 * work if PCID is on but PGE is not.  Since that
-			 * combination doesn't exist on real hardware, there's
-			 * no reason to try to fully support it, but it's
-			 * polite to avoid corrupting data if we're on
-			 * an improperly configured VM.
-			 */
-			setup_clear_cpu_cap(X86_FEATURE_PCID);
-		}
+	if (!IS_ENABLED(CONFIG_X86_64))
+		return;
+
+	if (!boot_cpu_has(X86_FEATURE_PCID))
+		return;
+
+	if (boot_cpu_has(X86_FEATURE_PGE)) {
+		/*
+		 * This can't be cr4_set_bits_and_update_boot() -- the
+		 * trampoline code can't handle CR4.PCIDE and it wouldn't
+		 * do any good anyway.  Despite the name,
+		 * cr4_set_bits_and_update_boot() doesn't actually cause
+		 * the bits in question to remain set all the way through
+		 * the secondary boot asm.
+		 *
+		 * Instead, we brute-force it and set CR4.PCIDE manually in
+		 * start_secondary().
+		 */
+		cr4_set_bits(X86_CR4_PCIDE);
+
+		/*
+		 * INVPCID's single-context modes (2/3) only work if we set
+		 * X86_CR4_PCIDE, *and* we INVPCID support.  It's unusable
+		 * on systems that have X86_CR4_PCIDE clear, or that have
+		 * no INVPCID support at all.
+		 */
+		if (boot_cpu_has(X86_FEATURE_INVPCID))
+			setup_force_cpu_cap(X86_FEATURE_INVPCID_SINGLE);
+	} else {
+		/*
+		 * flush_tlb_all(), as currently implemented, won't work if
+		 * PCID is on but PGE is not.  Since that combination
+		 * doesn't exist on real hardware, there's no reason to try
+		 * to fully support it, but it's polite to avoid corrupting
+		 * data if we're on an improperly configured VM.
+		 */
+		setup_clear_cpu_cap(X86_FEATURE_PCID);
 	}
-#endif
 }
 
 #ifdef CONFIG_X86_32
