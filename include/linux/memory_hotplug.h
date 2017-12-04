@@ -220,6 +220,8 @@ void mem_hotplug_done(void);
 extern void set_zone_contiguous(struct zone *zone);
 extern void clear_zone_contiguous(struct zone *zone);
 
+void set_default_mem_hotplug_zone(enum zone_type zone);
+
 #else /* ! CONFIG_MEMORY_HOTPLUG */
 #define pfn_to_online_page(pfn)			\
 ({						\
@@ -262,6 +264,8 @@ static inline void put_online_mems(void) {}
 
 static inline void mem_hotplug_begin(void) {}
 static inline void mem_hotplug_done(void) {}
+
+static inline void set_default_mem_hotplug_zone(enum zone_type zone) {}
 
 static inline bool movable_node_is_enabled(void)
 {
