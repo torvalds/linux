@@ -275,9 +275,9 @@ sysret32_from_system_call:
 	 * switch until after after the last reference to the process
 	 * stack.
 	 *
-	 * %r8 is zeroed before the sysret, thus safe to clobber.
+	 * %r8/%r9 are zeroed before the sysret, thus safe to clobber.
 	 */
-	SWITCH_TO_USER_CR3 scratch_reg=%r8
+	SWITCH_TO_USER_CR3_NOSTACK scratch_reg=%r8 scratch_reg2=%r9
 
 	xorq	%r8, %r8
 	xorq	%r9, %r9

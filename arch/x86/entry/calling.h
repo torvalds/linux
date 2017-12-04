@@ -3,6 +3,9 @@
 #include <asm/unwind_hints.h>
 #include <asm/cpufeatures.h>
 #include <asm/page_types.h>
+#include <asm/percpu.h>
+#include <asm/asm-offsets.h>
+#include <asm/processor-flags.h>
 
 /*
 
@@ -191,17 +194,21 @@ For 32-bit we have the following conventions - kernel is built with
 
 #ifdef CONFIG_PAGE_TABLE_ISOLATION
 
-/* PAGE_TABLE_ISOLATION PGDs are 8k.  Flip bit 12 to switch between the two halves: */
-#define PTI_SWITCH_MASK (1<<PAGE_SHIFT)
+/*
+ * PAGE_TABLE_ISOLATION PGDs are 8k.  Flip bit 12 to switch between the two
+ * halves:
+ */
+#define PTI_SWITCH_PGTABLES_MASK	(1<<PAGE_SHIFT)
+#define PTI_SWITCH_MASK		(PTI_SWITCH_PGTABLES_MASK|(1<<X86_CR3_PTI_SWITCH_BIT))
 
-.macro ADJUST_KERNEL_CR3 reg:req
-	/* Clear "PAGE_TABLE_ISOLATION bit", point CR3 at kernel pagetables: */
-	andq	$(~PTI_SWITCH_MASK), \reg
+.macro SET_NOFLUSH_BIT	reg:req
+	bts	$X86_CR3_PCID_NOFLUSH_BIT, \reg
 .endm
 
-.macro ADJUST_USER_CR3 reg:req
-	/* Move CR3 up a page to the user page tables: */
-	orq	$(PTI_SWITCH_MASK), \reg
+.macro ADJUST_KERNEL_CR3 reg:req
+	ALTERNATIVE "", "SET_NOFLUSH_BIT \reg", X86_FEATURE_PCID
+	/* Clear PCID and "PAGE_TABLE_ISOLATION bit", point CR3 at kernel pagetables: */
+	andq    $(~PTI_SWITCH_MASK), \reg
 .endm
 
 .macro SWITCH_TO_KERNEL_CR3 scratch_reg:req
@@ -212,12 +219,43 @@ For 32-bit we have the following conventions - kernel is built with
 .Lend_\@:
 .endm
 
-.macro SWITCH_TO_USER_CR3 scratch_reg:req
+#define THIS_CPU_user_pcid_flush_mask   \
+	PER_CPU_VAR(cpu_tlbstate) + TLB_STATE_user_pcid_flush_mask
+
+.macro SWITCH_TO_USER_CR3_NOSTACK scratch_reg:req scratch_reg2:req
 	ALTERNATIVE "jmp .Lend_\@", "", X86_FEATURE_PTI
 	mov	%cr3, \scratch_reg
-	ADJUST_USER_CR3 \scratch_reg
+
+	ALTERNATIVE "jmp .Lwrcr3_\@", "", X86_FEATURE_PCID
+
+	/*
+	 * Test if the ASID needs a flush.
+	 */
+	movq	\scratch_reg, \scratch_reg2
+	andq	$(0x7FF), \scratch_reg		/* mask ASID */
+	bt	\scratch_reg, THIS_CPU_user_pcid_flush_mask
+	jnc	.Lnoflush_\@
+
+	/* Flush needed, clear the bit */
+	btr	\scratch_reg, THIS_CPU_user_pcid_flush_mask
+	movq	\scratch_reg2, \scratch_reg
+	jmp	.Lwrcr3_\@
+
+.Lnoflush_\@:
+	movq	\scratch_reg2, \scratch_reg
+	SET_NOFLUSH_BIT \scratch_reg
+
+.Lwrcr3_\@:
+	/* Flip the PGD and ASID to the user version */
+	orq     $(PTI_SWITCH_MASK), \scratch_reg
 	mov	\scratch_reg, %cr3
 .Lend_\@:
+.endm
+
+.macro SWITCH_TO_USER_CR3_STACK	scratch_reg:req
+	pushq	%rax
+	SWITCH_TO_USER_CR3_NOSTACK scratch_reg=\scratch_reg scratch_reg2=%rax
+	popq	%rax
 .endm
 
 .macro SAVE_AND_SWITCH_TO_KERNEL_CR3 scratch_reg:req save_reg:req
@@ -225,8 +263,14 @@ For 32-bit we have the following conventions - kernel is built with
 	movq	%cr3, \scratch_reg
 	movq	\scratch_reg, \save_reg
 	/*
-	 * Is the switch bit zero?  This means the address is
-	 * up in real PAGE_TABLE_ISOLATION patches in a moment.
+	 * Is the "switch mask" all zero?  That means that both of
+	 * these are zero:
+	 *
+	 *	1. The user/kernel PCID bit, and
+	 *	2. The user/kernel "bit" that points CR3 to the
+	 *	   bottom half of the 8k PGD
+	 *
+	 * That indicates a kernel CR3 value, not a user CR3.
 	 */
 	testq	$(PTI_SWITCH_MASK), \scratch_reg
 	jz	.Ldone_\@
@@ -251,7 +295,9 @@ For 32-bit we have the following conventions - kernel is built with
 
 .macro SWITCH_TO_KERNEL_CR3 scratch_reg:req
 .endm
-.macro SWITCH_TO_USER_CR3 scratch_reg:req
+.macro SWITCH_TO_USER_CR3_NOSTACK scratch_reg:req scratch_reg2:req
+.endm
+.macro SWITCH_TO_USER_CR3_STACK scratch_reg:req
 .endm
 .macro SAVE_AND_SWITCH_TO_KERNEL_CR3 scratch_reg:req save_reg:req
 .endm
