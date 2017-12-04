@@ -757,6 +757,9 @@ int intel_vgpu_init_gvt_context(struct intel_vgpu *vgpu)
 	if (IS_ERR(vgpu->shadow_ctx))
 		return PTR_ERR(vgpu->shadow_ctx);
 
+	if (INTEL_INFO(vgpu->gvt->dev_priv)->has_logical_ring_preemption)
+		vgpu->shadow_ctx->priority = INT_MAX;
+
 	vgpu->shadow_ctx->engine[RCS].initialised = true;
 
 	bitmap_zero(vgpu->shadow_ctx_desc_updated, I915_NUM_ENGINES);
