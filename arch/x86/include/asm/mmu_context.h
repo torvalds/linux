@@ -291,33 +291,6 @@ static inline bool arch_vma_access_permitted(struct vm_area_struct *vma,
 }
 
 /*
- * If PCID is on, ASID-aware code paths put the ASID+1 into the PCID
- * bits.  This serves two purposes.  It prevents a nasty situation in
- * which PCID-unaware code saves CR3, loads some other value (with PCID
- * == 0), and then restores CR3, thus corrupting the TLB for ASID 0 if
- * the saved ASID was nonzero.  It also means that any bugs involving
- * loading a PCID-enabled CR3 with CR4.PCIDE off will trigger
- * deterministically.
- */
-
-static inline unsigned long build_cr3(struct mm_struct *mm, u16 asid)
-{
-	if (static_cpu_has(X86_FEATURE_PCID)) {
-		VM_WARN_ON_ONCE(asid > 4094);
-		return __sme_pa(mm->pgd) | (asid + 1);
-	} else {
-		VM_WARN_ON_ONCE(asid != 0);
-		return __sme_pa(mm->pgd);
-	}
-}
-
-static inline unsigned long build_cr3_noflush(struct mm_struct *mm, u16 asid)
-{
-	VM_WARN_ON_ONCE(asid > 4094);
-	return __sme_pa(mm->pgd) | (asid + 1) | CR3_NOFLUSH;
-}
-
-/*
  * This can be used from process context to figure out what the value of
  * CR3 is without needing to do a (slow) __read_cr3().
  *
@@ -326,7 +299,7 @@ static inline unsigned long build_cr3_noflush(struct mm_struct *mm, u16 asid)
  */
 static inline unsigned long __get_current_cr3_fast(void)
 {
-	unsigned long cr3 = build_cr3(this_cpu_read(cpu_tlbstate.loaded_mm),
+	unsigned long cr3 = build_cr3(this_cpu_read(cpu_tlbstate.loaded_mm)->pgd,
 		this_cpu_read(cpu_tlbstate.loaded_mm_asid));
 
 	/* For now, be very restrictive about when this can be called. */
