@@ -707,6 +707,7 @@ void rhashtable_walk_enter(struct rhashtable *ht, struct rhashtable_iter *iter)
 	iter->p = NULL;
 	iter->slot = 0;
 	iter->skip = 0;
+	iter->end_of_table = 0;
 
 	spin_lock(&ht->lock);
 	iter->walker.tbl =
@@ -761,7 +762,7 @@ int rhashtable_walk_start_check(struct rhashtable_iter *iter)
 		list_del(&iter->walker.list);
 	spin_unlock(&ht->lock);
 
-	if (!iter->walker.tbl) {
+	if (!iter->walker.tbl && !iter->end_of_table) {
 		iter->walker.tbl = rht_dereference_rcu(ht->tbl, ht);
 		return -EAGAIN;
 	}
@@ -771,18 +772,16 @@ int rhashtable_walk_start_check(struct rhashtable_iter *iter)
 EXPORT_SYMBOL_GPL(rhashtable_walk_start_check);
 
 /**
- * rhashtable_walk_next - Return the next object and advance the iterator
+ * __rhashtable_walk_find_next - Find the next element in a table (or the first
+ * one in case of a new walk).
+ *
  * @iter:	Hash table iterator
  *
- * Note that you must call rhashtable_walk_stop when you are finished
- * with the walk.
+ * Returns the found object or NULL when the end of the table is reached.
  *
- * Returns the next object or NULL when the end of the table is reached.
- *
- * Returns -EAGAIN if resize event occured.  Note that the iterator
- * will rewind back to the beginning and you may continue to use it.
+ * Returns -EAGAIN if resize event occurred.
  */
-void *rhashtable_walk_next(struct rhashtable_iter *iter)
+static void *__rhashtable_walk_find_next(struct rhashtable_iter *iter)
 {
 	struct bucket_table *tbl = iter->walker.tbl;
 	struct rhlist_head *list = iter->list;
@@ -790,13 +789,8 @@ void *rhashtable_walk_next(struct rhashtable_iter *iter)
 	struct rhash_head *p = iter->p;
 	bool rhlist = ht->rhlist;
 
-	if (p) {
-		if (!rhlist || !(list = rcu_dereference(list->next))) {
-			p = rcu_dereference(p->next);
-			list = container_of(p, struct rhlist_head, rhead);
-		}
-		goto next;
-	}
+	if (!tbl)
+		return NULL;
 
 	for (; iter->slot < tbl->size; iter->slot++) {
 		int skip = iter->skip;
@@ -840,11 +834,88 @@ next:
 		iter->slot = 0;
 		iter->skip = 0;
 		return ERR_PTR(-EAGAIN);
+	} else {
+		iter->end_of_table = true;
 	}
 
 	return NULL;
 }
+
+/**
+ * rhashtable_walk_next - Return the next object and advance the iterator
+ * @iter:	Hash table iterator
+ *
+ * Note that you must call rhashtable_walk_stop when you are finished
+ * with the walk.
+ *
+ * Returns the next object or NULL when the end of the table is reached.
+ *
+ * Returns -EAGAIN if resize event occurred.  Note that the iterator
+ * will rewind back to the beginning and you may continue to use it.
+ */
+void *rhashtable_walk_next(struct rhashtable_iter *iter)
+{
+	struct rhlist_head *list = iter->list;
+	struct rhashtable *ht = iter->ht;
+	struct rhash_head *p = iter->p;
+	bool rhlist = ht->rhlist;
+
+	if (p) {
+		if (!rhlist || !(list = rcu_dereference(list->next))) {
+			p = rcu_dereference(p->next);
+			list = container_of(p, struct rhlist_head, rhead);
+		}
+		if (!rht_is_a_nulls(p)) {
+			iter->skip++;
+			iter->p = p;
+			iter->list = list;
+			return rht_obj(ht, rhlist ? &list->rhead : p);
+		}
+
+		/* At the end of this slot, switch to next one and then find
+		 * next entry from that point.
+		 */
+		iter->skip = 0;
+		iter->slot++;
+	}
+
+	return __rhashtable_walk_find_next(iter);
+}
 EXPORT_SYMBOL_GPL(rhashtable_walk_next);
+
+/**
+ * rhashtable_walk_peek - Return the next object but don't advance the iterator
+ * @iter:	Hash table iterator
+ *
+ * Returns the next object or NULL when the end of the table is reached.
+ *
+ * Returns -EAGAIN if resize event occurred.  Note that the iterator
+ * will rewind back to the beginning and you may continue to use it.
+ */
+void *rhashtable_walk_peek(struct rhashtable_iter *iter)
+{
+	struct rhlist_head *list = iter->list;
+	struct rhashtable *ht = iter->ht;
+	struct rhash_head *p = iter->p;
+
+	if (p)
+		return rht_obj(ht, ht->rhlist ? &list->rhead : p);
+
+	/* No object found in current iter, find next one in the table. */
+
+	if (iter->skip) {
+		/* A nonzero skip value points to the next entry in the table
+		 * beyond that last one that was found. Decrement skip so
+		 * we find the current value. __rhashtable_walk_find_next
+		 * will restore the original value of skip assuming that
+		 * the table hasn't changed.
+		 */
+		iter->skip--;
+	}
+
+	return __rhashtable_walk_find_next(iter);
+}
+EXPORT_SYMBOL_GPL(rhashtable_walk_peek);
 
 /**
  * rhashtable_walk_stop - Finish a hash table walk
