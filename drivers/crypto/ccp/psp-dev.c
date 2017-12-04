@@ -232,9 +232,84 @@ static int sev_platform_shutdown(int *error)
 	return rc;
 }
 
+static int sev_get_platform_state(int *state, int *error)
+{
+	int rc;
+
+	rc = __sev_do_cmd_locked(SEV_CMD_PLATFORM_STATUS,
+				 &psp_master->status_cmd_buf, error);
+	if (rc)
+		return rc;
+
+	*state = psp_master->status_cmd_buf.state;
+	return rc;
+}
+
+static int sev_ioctl_do_reset(struct sev_issue_cmd *argp)
+{
+	int state, rc;
+
+	/*
+	 * The SEV spec requires that FACTORY_RESET must be issued in
+	 * UNINIT state. Before we go further lets check if any guest is
+	 * active.
+	 *
+	 * If FW is in WORKING state then deny the request otherwise issue
+	 * SHUTDOWN command do INIT -> UNINIT before issuing the FACTORY_RESET.
+	 *
+	 */
+	rc = sev_get_platform_state(&state, &argp->error);
+	if (rc)
+		return rc;
+
+	if (state == SEV_STATE_WORKING)
+		return -EBUSY;
+
+	if (state == SEV_STATE_INIT) {
+		rc = __sev_platform_shutdown_locked(&argp->error);
+		if (rc)
+			return rc;
+	}
+
+	return __sev_do_cmd_locked(SEV_CMD_FACTORY_RESET, 0, &argp->error);
+}
+
 static long sev_ioctl(struct file *file, unsigned int ioctl, unsigned long arg)
 {
-	return -ENOTTY;
+	void __user *argp = (void __user *)arg;
+	struct sev_issue_cmd input;
+	int ret = -EFAULT;
+
+	if (!psp_master)
+		return -ENODEV;
+
+	if (ioctl != SEV_ISSUE_CMD)
+		return -EINVAL;
+
+	if (copy_from_user(&input, argp, sizeof(struct sev_issue_cmd)))
+		return -EFAULT;
+
+	if (input.cmd > SEV_MAX)
+		return -EINVAL;
+
+	mutex_lock(&sev_cmd_mutex);
+
+	switch (input.cmd) {
+
+	case SEV_FACTORY_RESET:
+		ret = sev_ioctl_do_reset(&input);
+		break;
+	default:
+		ret = -EINVAL;
+		goto out;
+	}
+
+	if (copy_to_user(argp, &input, sizeof(struct sev_issue_cmd)))
+		ret = -EFAULT;
+out:
+	mutex_unlock(&sev_cmd_mutex);
+
+	return ret;
 }
 
 static const struct file_operations sev_fops = {
