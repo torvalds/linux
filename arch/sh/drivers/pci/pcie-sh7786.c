@@ -438,6 +438,9 @@ static int __init pcie_init(struct sh7786_pcie_port *port)
 		 * mode, so just skip them entirely.
 		 */
 		if ((res->flags & IORESOURCE_MEM_32BIT) && __in_29bit_mode())
+			res->flags |= IORESOURCE_DISABLED;
+
+		if (res->flags & IORESOURCE_DISABLED)
 			continue;
 
 		pci_write_reg(chan, 0x00000000, SH4A_PCIEPTCTLR(win));
