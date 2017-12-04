@@ -88,6 +88,7 @@ static void mlx5e_vxlan_add_port(struct work_struct *work)
 	struct mlx5e_vxlan *vxlan;
 	int err;
 
+	mutex_lock(&priv->state_lock);
 	vxlan = mlx5e_vxlan_lookup_port(priv, port);
 	if (vxlan) {
 		atomic_inc(&vxlan->refcount);
@@ -117,6 +118,7 @@ err_free:
 err_delete_port:
 	mlx5e_vxlan_core_del_port_cmd(priv->mdev, port);
 free_work:
+	mutex_unlock(&priv->state_lock);
 	kfree(vxlan_work);
 }
 
@@ -130,6 +132,7 @@ static void mlx5e_vxlan_del_port(struct work_struct *work)
 	struct mlx5e_vxlan *vxlan;
 	bool remove = false;
 
+	mutex_lock(&priv->state_lock);
 	spin_lock_bh(&vxlan_db->lock);
 	vxlan = radix_tree_lookup(&vxlan_db->tree, port);
 	if (!vxlan)
@@ -147,6 +150,7 @@ out_unlock:
 		mlx5e_vxlan_core_del_port_cmd(priv->mdev, port);
 		kfree(vxlan);
 	}
+	mutex_unlock(&priv->state_lock);
 	kfree(vxlan_work);
 }
 
