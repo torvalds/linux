@@ -822,6 +822,17 @@ static inline bool xas_valid(const struct xa_state *xas)
 	return !xas_invalid(xas);
 }
 
+/**
+ * xas_is_node() - Does the xas point to a node?
+ * @xas: XArray operation state.
+ *
+ * Return: %true if the xas currently references a node.
+ */
+static inline bool xas_is_node(const struct xa_state *xas)
+{
+	return xas_valid(xas) && xas->xa_node;
+}
+
 /* True if the pointer is something other than a node */
 static inline bool xas_not_node(struct xa_node *node)
 {
@@ -888,6 +899,8 @@ void xas_init_marks(const struct xa_state *);
 
 bool xas_nomem(struct xa_state *, gfp_t);
 void xas_pause(struct xa_state *);
+
+void xas_create_range(struct xa_state *);
 
 /**
  * xas_reload() - Refetch an entry from the xarray.

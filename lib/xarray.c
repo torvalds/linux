@@ -637,6 +637,56 @@ static void *xas_create(struct xa_state *xas)
 	return entry;
 }
 
+/**
+ * xas_create_range() - Ensure that stores to this range will succeed
+ * @xas: XArray operation state.
+ *
+ * Creates all of the slots in the range covered by @xas.  Sets @xas to
+ * create single-index entries and positions it at the beginning of the
+ * range.  This is for the benefit of users which have not yet been
+ * converted to use multi-index entries.
+ */
+void xas_create_range(struct xa_state *xas)
+{
+	unsigned long index = xas->xa_index;
+	unsigned char shift = xas->xa_shift;
+	unsigned char sibs = xas->xa_sibs;
+
+	xas->xa_index |= ((sibs + 1) << shift) - 1;
+	if (xas_is_node(xas) && xas->xa_node->shift == xas->xa_shift)
+		xas->xa_offset |= sibs;
+	xas->xa_shift = 0;
+	xas->xa_sibs = 0;
+
+	for (;;) {
+		xas_create(xas);
+		if (xas_error(xas))
+			goto restore;
+		if (xas->xa_index <= (index | XA_CHUNK_MASK))
+			goto success;
+		xas->xa_index -= XA_CHUNK_SIZE;
+
+		for (;;) {
+			struct xa_node *node = xas->xa_node;
+			xas->xa_node = xa_parent_locked(xas->xa, node);
+			xas->xa_offset = node->offset - 1;
+			if (node->offset != 0)
+				break;
+		}
+	}
+
+restore:
+	xas->xa_shift = shift;
+	xas->xa_sibs = sibs;
+	xas->xa_index = index;
+	return;
+success:
+	xas->xa_index = index;
+	if (xas->xa_node)
+		xas_set_offset(xas);
+}
+EXPORT_SYMBOL_GPL(xas_create_range);
+
 static void update_node(struct xa_state *xas, struct xa_node *node,
 		int count, int values)
 {
