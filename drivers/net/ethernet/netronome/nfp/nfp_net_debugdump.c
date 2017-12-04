@@ -40,6 +40,37 @@
 
 #define NFP_DUMP_SPEC_RTSYM	"_abi_dump_spec"
 
+#define ALIGN8(x)	ALIGN(x, 8)
+
+enum nfp_dumpspec_type {
+	NFP_DUMPSPEC_TYPE_PROLOG = 10000,
+};
+
+/* The following structs must be carefully aligned so that they can be used to
+ * interpret the binary dumpspec and populate the dump data in a deterministic
+ * way.
+ */
+
+/* generic type plus length */
+struct nfp_dump_tl {
+	__be32 type;
+	__be32 length;	/* chunk length to follow, aligned to 8 bytes */
+	char data[0];
+};
+
+struct nfp_dump_prolog {
+	struct nfp_dump_tl tl;
+	__be32 dump_level;
+};
+
+/* to track state during debug dump creation TLV traversal */
+struct nfp_dump_state {
+	u32 requested_level;	/* input param */
+	u32 dumped_size;	/* adds up to size of dumped data */
+	u32 buf_size;		/* size of buffer pointer to by p */
+	void *p;		/* current point in dump buffer */
+};
+
 struct nfp_dumpspec *
 nfp_net_dump_load_dumpspec(struct nfp_cpp *cpp, struct nfp_rtsym_table *rtbl)
 {
@@ -76,11 +107,64 @@ nfp_net_dump_load_dumpspec(struct nfp_cpp *cpp, struct nfp_rtsym_table *rtbl)
 s64 nfp_net_dump_calculate_size(struct nfp_pf *pf, struct nfp_dumpspec *spec,
 				u32 flag)
 {
-	return -EOPNOTSUPP;
+	return ALIGN8(sizeof(struct nfp_dump_prolog));
+}
+
+static int nfp_add_tlv(u32 type, u32 total_tlv_sz, struct nfp_dump_state *dump)
+{
+	struct nfp_dump_tl *tl = dump->p;
+
+	if (total_tlv_sz > dump->buf_size)
+		return -ENOSPC;
+
+	if (dump->buf_size - total_tlv_sz < dump->dumped_size)
+		return -ENOSPC;
+
+	tl->type = cpu_to_be32(type);
+	tl->length = cpu_to_be32(total_tlv_sz - sizeof(*tl));
+
+	dump->dumped_size += total_tlv_sz;
+	dump->p += total_tlv_sz;
+
+	return 0;
+}
+
+static int nfp_dump_populate_prolog(struct nfp_dump_state *dump)
+{
+	struct nfp_dump_prolog *prolog = dump->p;
+	u32 total_size;
+	int err;
+
+	total_size = ALIGN8(sizeof(*prolog));
+
+	err = nfp_add_tlv(NFP_DUMPSPEC_TYPE_PROLOG, total_size, dump);
+	if (err)
+		return err;
+
+	prolog->dump_level = cpu_to_be32(dump->requested_level);
+
+	return 0;
 }
 
 int nfp_net_dump_populate_buffer(struct nfp_pf *pf, struct nfp_dumpspec *spec,
 				 struct ethtool_dump *dump_param, void *dest)
 {
-	return -EOPNOTSUPP;
+	struct nfp_dump_state dump;
+	int err;
+
+	dump.requested_level = dump_param->flag;
+	dump.dumped_size = 0;
+	dump.p = dest;
+	dump.buf_size = dump_param->len;
+
+	err = nfp_dump_populate_prolog(&dump);
+	if (err)
+		return err;
+
+	/* Set size of actual dump, to trigger warning if different from
+	 * calculated size.
+	 */
+	dump_param->len = dump.dumped_size;
+
+	return 0;
 }
