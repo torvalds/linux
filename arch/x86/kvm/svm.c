@@ -37,6 +37,7 @@
 #include <linux/amd-iommu.h>
 #include <linux/hashtable.h>
 #include <linux/frame.h>
+#include <linux/psp-sev.h>
 
 #include <asm/apic.h>
 #include <asm/perf_event.h>
@@ -283,6 +284,10 @@ module_param(vls, int, 0444);
 /* enable/disable Virtual GIF */
 static int vgif = true;
 module_param(vgif, int, 0444);
+
+/* enable/disable SEV support */
+static int sev = IS_ENABLED(CONFIG_AMD_MEM_ENCRYPT_ACTIVE_BY_DEFAULT);
+module_param(sev, int, 0444);
 
 static void svm_set_cr0(struct kvm_vcpu *vcpu, unsigned long cr0);
 static void svm_flush_tlb(struct kvm_vcpu *vcpu);
@@ -1049,6 +1054,39 @@ static int avic_ga_log_notifier(u32 ga_tag)
 	return 0;
 }
 
+static __init int sev_hardware_setup(void)
+{
+	struct sev_user_data_status *status;
+	int rc;
+
+	/* Maximum number of encrypted guests supported simultaneously */
+	max_sev_asid = cpuid_ecx(0x8000001F);
+
+	if (!max_sev_asid)
+		return 1;
+
+	status = kmalloc(sizeof(*status), GFP_KERNEL);
+	if (!status)
+		return 1;
+
+	/*
+	 * Check SEV platform status.
+	 *
+	 * PLATFORM_STATUS can be called in any state, if we failed to query
+	 * the PLATFORM status then either PSP firmware does not support SEV
+	 * feature or SEV firmware is dead.
+	 */
+	rc = sev_platform_status(status, NULL);
+	if (rc)
+		goto err;
+
+	pr_info("SEV supported\n");
+
+err:
+	kfree(status);
+	return rc;
+}
+
 static __init int svm_hardware_setup(void)
 {
 	int cpu;
@@ -1082,6 +1120,17 @@ static __init int svm_hardware_setup(void)
 	if (nested) {
 		printk(KERN_INFO "kvm: Nested Virtualization enabled\n");
 		kvm_enable_efer_bits(EFER_SVME | EFER_LMSLE);
+	}
+
+	if (sev) {
+		if (boot_cpu_has(X86_FEATURE_SEV) &&
+		    IS_ENABLED(CONFIG_KVM_AMD_SEV)) {
+			r = sev_hardware_setup();
+			if (r)
+				sev = false;
+		} else {
+			sev = false;
+		}
 	}
 
 	for_each_possible_cpu(cpu) {
