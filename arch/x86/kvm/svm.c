@@ -6163,6 +6163,155 @@ e_free:
 	return ret;
 }
 
+static int __sev_issue_dbg_cmd(struct kvm *kvm, unsigned long src,
+			       unsigned long dst, int size,
+			       int *error, bool enc)
+{
+	struct kvm_sev_info *sev = &kvm->arch.sev_info;
+	struct sev_data_dbg *data;
+	int ret;
+
+	data = kzalloc(sizeof(*data), GFP_KERNEL);
+	if (!data)
+		return -ENOMEM;
+
+	data->handle = sev->handle;
+	data->dst_addr = dst;
+	data->src_addr = src;
+	data->len = size;
+
+	ret = sev_issue_cmd(kvm,
+			    enc ? SEV_CMD_DBG_ENCRYPT : SEV_CMD_DBG_DECRYPT,
+			    data, error);
+	kfree(data);
+	return ret;
+}
+
+static int __sev_dbg_decrypt(struct kvm *kvm, unsigned long src_paddr,
+			     unsigned long dst_paddr, int sz, int *err)
+{
+	int offset;
+
+	/*
+	 * Its safe to read more than we are asked, caller should ensure that
+	 * destination has enough space.
+	 */
+	src_paddr = round_down(src_paddr, 16);
+	offset = src_paddr & 15;
+	sz = round_up(sz + offset, 16);
+
+	return __sev_issue_dbg_cmd(kvm, src_paddr, dst_paddr, sz, err, false);
+}
+
+static int __sev_dbg_decrypt_user(struct kvm *kvm, unsigned long paddr,
+				  unsigned long __user dst_uaddr,
+				  unsigned long dst_paddr,
+				  int size, int *err)
+{
+	struct page *tpage = NULL;
+	int ret, offset;
+
+	/* if inputs are not 16-byte then use intermediate buffer */
+	if (!IS_ALIGNED(dst_paddr, 16) ||
+	    !IS_ALIGNED(paddr,     16) ||
+	    !IS_ALIGNED(size,      16)) {
+		tpage = (void *)alloc_page(GFP_KERNEL);
+		if (!tpage)
+			return -ENOMEM;
+
+		dst_paddr = __sme_page_pa(tpage);
+	}
+
+	ret = __sev_dbg_decrypt(kvm, paddr, dst_paddr, size, err);
+	if (ret)
+		goto e_free;
+
+	if (tpage) {
+		offset = paddr & 15;
+		if (copy_to_user((void __user *)(uintptr_t)dst_uaddr,
+				 page_address(tpage) + offset, size))
+			ret = -EFAULT;
+	}
+
+e_free:
+	if (tpage)
+		__free_page(tpage);
+
+	return ret;
+}
+
+static int sev_dbg_crypt(struct kvm *kvm, struct kvm_sev_cmd *argp, bool dec)
+{
+	unsigned long vaddr, vaddr_end, next_vaddr;
+	unsigned long dst_vaddr, dst_vaddr_end;
+	struct page **src_p, **dst_p;
+	struct kvm_sev_dbg debug;
+	unsigned long n;
+	int ret, size;
+
+	if (!sev_guest(kvm))
+		return -ENOTTY;
+
+	if (copy_from_user(&debug, (void __user *)(uintptr_t)argp->data, sizeof(debug)))
+		return -EFAULT;
+
+	vaddr = debug.src_uaddr;
+	size = debug.len;
+	vaddr_end = vaddr + size;
+	dst_vaddr = debug.dst_uaddr;
+	dst_vaddr_end = dst_vaddr + size;
+
+	for (; vaddr < vaddr_end; vaddr = next_vaddr) {
+		int len, s_off, d_off;
+
+		/* lock userspace source and destination page */
+		src_p = sev_pin_memory(kvm, vaddr & PAGE_MASK, PAGE_SIZE, &n, 0);
+		if (!src_p)
+			return -EFAULT;
+
+		dst_p = sev_pin_memory(kvm, dst_vaddr & PAGE_MASK, PAGE_SIZE, &n, 1);
+		if (!dst_p) {
+			sev_unpin_memory(kvm, src_p, n);
+			return -EFAULT;
+		}
+
+		/*
+		 * The DBG_{DE,EN}CRYPT commands will perform {dec,en}cryption of the
+		 * memory content (i.e it will write the same memory region with C=1).
+		 * It's possible that the cache may contain the data with C=0, i.e.,
+		 * unencrypted so invalidate it first.
+		 */
+		sev_clflush_pages(src_p, 1);
+		sev_clflush_pages(dst_p, 1);
+
+		/*
+		 * Since user buffer may not be page aligned, calculate the
+		 * offset within the page.
+		 */
+		s_off = vaddr & ~PAGE_MASK;
+		d_off = dst_vaddr & ~PAGE_MASK;
+		len = min_t(size_t, (PAGE_SIZE - s_off), size);
+
+		ret = __sev_dbg_decrypt_user(kvm,
+					     __sme_page_pa(src_p[0]) + s_off,
+					     dst_vaddr,
+					     __sme_page_pa(dst_p[0]) + d_off,
+					     len, &argp->error);
+
+		sev_unpin_memory(kvm, src_p, 1);
+		sev_unpin_memory(kvm, dst_p, 1);
+
+		if (ret)
+			goto err;
+
+		next_vaddr = vaddr + len;
+		dst_vaddr = dst_vaddr + len;
+		size -= len;
+	}
+err:
+	return ret;
+}
+
 static int svm_mem_enc_op(struct kvm *kvm, void __user *argp)
 {
 	struct kvm_sev_cmd sev_cmd;
@@ -6194,6 +6343,9 @@ static int svm_mem_enc_op(struct kvm *kvm, void __user *argp)
 		break;
 	case KVM_SEV_GUEST_STATUS:
 		r = sev_guest_status(kvm, &sev_cmd);
+		break;
+	case KVM_SEV_DBG_DECRYPT:
+		r = sev_dbg_crypt(kvm, &sev_cmd, true);
 		break;
 	default:
 		r = -EINVAL;
