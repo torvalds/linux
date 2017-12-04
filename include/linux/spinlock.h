@@ -414,4 +414,10 @@ extern int _atomic_dec_and_lock(atomic_t *atomic, spinlock_t *lock);
 #define atomic_dec_and_lock(atomic, lock) \
 		__cond_lock(lock, _atomic_dec_and_lock(atomic, lock))
 
+int alloc_bucket_spinlocks(spinlock_t **locks, unsigned int *lock_mask,
+			   size_t max_size, unsigned int cpu_mult,
+			   gfp_t gfp);
+
+void free_bucket_spinlocks(spinlock_t *locks);
+
 #endif /* __LINUX_SPINLOCK_H */
