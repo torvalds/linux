@@ -545,7 +545,7 @@ struct skl_clk_parent_src *skl_get_parent_clk(u8 clk_id)
 	return NULL;
 }
 
-void init_skl_xtal_rate(int pci_id)
+static void init_skl_xtal_rate(int pci_id)
 {
 	switch (pci_id) {
 	case 0x9d70:
