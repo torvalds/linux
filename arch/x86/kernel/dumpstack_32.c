@@ -26,6 +26,9 @@ const char *stack_type_name(enum stack_type type)
 	if (type == STACK_TYPE_SOFTIRQ)
 		return "SOFTIRQ";
 
+	if (type == STACK_TYPE_SYSENTER)
+		return "SYSENTER";
+
 	return NULL;
 }
 
@@ -92,6 +95,9 @@ int get_stack_info(unsigned long *stack, struct task_struct *task,
 
 	if (task != current)
 		goto unknown;
+
+	if (in_sysenter_stack(stack, info))
+		goto recursion_check;
 
 	if (in_hardirq_stack(stack, info))
 		goto recursion_check;
