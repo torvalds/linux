@@ -2369,7 +2369,6 @@ qla2x00_status_entry(scsi_qla_host_t *vha, struct rsp_que *rsp, void *pkt)
 	int res = 0;
 	uint16_t state_flags = 0;
 	uint16_t retry_delay = 0;
-	uint8_t no_logout = 0;
 
 	sts = (sts_entry_t *) pkt;
 	sts24 = (struct sts_entry_24xx *) pkt;
@@ -2640,7 +2639,6 @@ check_scsi_status:
 		break;
 
 	case CS_PORT_LOGGED_OUT:
-		no_logout = 1;
 	case CS_PORT_CONFIG_CHG:
 	case CS_PORT_BUSY:
 	case CS_INCOMPLETE:
@@ -2670,9 +2668,6 @@ check_scsi_status:
 				fcport->d_id.b.area, fcport->d_id.b.al_pa,
 				port_state_str[atomic_read(&fcport->state)],
 				comp_status);
-
-			if (no_logout)
-				fcport->logout_on_delete = 0;
 
 			qla2x00_mark_device_lost(fcport->vha, fcport, 1, 1);
 			qlt_schedule_sess_for_deletion_lock(fcport);

@@ -2833,7 +2833,7 @@ void qla24xx_handle_gidpn_event(scsi_qla_host_t *vha, struct event_arg *ea)
 				}
 			} else { /* fcport->d_id.b24 != ea->id.b24 */
 				fcport->d_id.b24 = ea->id.b24;
-				if (fcport->deleted == QLA_SESS_DELETED) {
+				if (fcport->deleted != QLA_SESS_DELETED) {
 					ql_dbg(ql_dbg_disc, vha, 0x2021,
 					    "%s %d %8phC post del sess\n",
 					    __func__, __LINE__, fcport->port_name);
@@ -3206,10 +3206,16 @@ static void qla2x00_async_gpnid_sp_done(void *s, int res)
 	struct event_arg ea;
 	struct qla_work_evt *e;
 
-	ql_dbg(ql_dbg_disc, vha, 0x2066,
-	    "Async done-%s res %x ID %3phC. %8phC\n",
-	    sp->name, res, ct_req->req.port_id.port_id,
-	    ct_rsp->rsp.gpn_id.port_name);
+	if (res)
+		ql_dbg(ql_dbg_disc, vha, 0x2066,
+		    "Async done-%s fail res %x ID %3phC. %8phC\n",
+		    sp->name, res, ct_req->req.port_id.port_id,
+		    ct_rsp->rsp.gpn_id.port_name);
+	else
+		ql_dbg(ql_dbg_disc, vha, 0x2066,
+		    "Async done-%s good ID %3phC. %8phC\n",
+		    sp->name, ct_req->req.port_id.port_id,
+		    ct_rsp->rsp.gpn_id.port_name);
 
 	if (res) {
 		sp->free(sp);
