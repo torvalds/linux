@@ -56,6 +56,9 @@
 
 #include "hci_uart.h"
 
+/* Vendor-specific HCI commands */
+#define HCI_VS_UPDATE_UART_HCI_BAUDRATE		0xff36
+
 /* HCILL commands */
 #define HCILL_GO_TO_SLEEP_IND	0x30
 #define HCILL_GO_TO_SLEEP_ACK	0x31
@@ -620,7 +623,7 @@ static int download_firmware(struct ll_device *lldev)
 		case ACTION_SEND_COMMAND:	/* action send */
 			bt_dev_dbg(lldev->hu.hdev, "S");
 			cmd = (struct hci_command *)action_ptr;
-			if (cmd->opcode == 0xff36) {
+			if (cmd->opcode == HCI_VS_UPDATE_UART_HCI_BAUDRATE) {
 				/* ignore remote change
 				 * baud rate HCI VS command
 				 */
@@ -704,7 +707,10 @@ static int ll_setup(struct hci_uart *hu)
 		speed = 0;
 
 	if (speed) {
-		struct sk_buff *skb = __hci_cmd_sync(hu->hdev, 0xff36, sizeof(speed), &speed, HCI_INIT_TIMEOUT);
+		struct sk_buff *skb;
+
+		skb = __hci_cmd_sync(hu->hdev, HCI_VS_UPDATE_UART_HCI_BAUDRATE,
+				     sizeof(speed), &speed, HCI_INIT_TIMEOUT);
 		if (!IS_ERR(skb)) {
 			kfree_skb(skb);
 			serdev_device_set_baudrate(serdev, speed);
