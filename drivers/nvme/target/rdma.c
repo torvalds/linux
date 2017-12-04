@@ -921,7 +921,7 @@ static void nvmet_rdma_destroy_queue_ib(struct nvmet_rdma_queue *queue)
 
 static void nvmet_rdma_free_queue(struct nvmet_rdma_queue *queue)
 {
-	pr_info("freeing queue %d\n", queue->idx);
+	pr_debug("freeing queue %d\n", queue->idx);
 
 	nvmet_sq_destroy(&queue->nvme_sq);
 
