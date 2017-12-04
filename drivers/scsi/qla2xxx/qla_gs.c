@@ -3221,16 +3221,17 @@ static void qla2x00_async_gpnid_sp_done(void *s, int res)
 	    (struct ct_sns_rsp *)sp->u.iocb_cmd.u.ctarg.rsp;
 	struct event_arg ea;
 	struct qla_work_evt *e;
+	unsigned long flags;
 
 	if (res)
 		ql_dbg(ql_dbg_disc, vha, 0x2066,
-		    "Async done-%s fail res %x ID %3phC. %8phC\n",
-		    sp->name, res, ct_req->req.port_id.port_id,
+		    "Async done-%s fail res %x rscn gen %d ID %3phC. %8phC\n",
+		    sp->name, res, sp->gen1, ct_req->req.port_id.port_id,
 		    ct_rsp->rsp.gpn_id.port_name);
 	else
 		ql_dbg(ql_dbg_disc, vha, 0x2066,
-		    "Async done-%s good ID %3phC. %8phC\n",
-		    sp->name, ct_req->req.port_id.port_id,
+		    "Async done-%s good rscn gen %d ID %3phC. %8phC\n",
+		    sp->name, sp->gen1, ct_req->req.port_id.port_id,
 		    ct_rsp->rsp.gpn_id.port_name);
 
 	memset(&ea, 0, sizeof(ea));
@@ -3242,9 +3243,18 @@ static void qla2x00_async_gpnid_sp_done(void *s, int res)
 	ea.rc = res;
 	ea.event = FCME_GPNID_DONE;
 
+	spin_lock_irqsave(&vha->hw->tgt.sess_lock, flags);
+	list_del(&sp->elem);
+	spin_unlock_irqrestore(&vha->hw->tgt.sess_lock, flags);
+
 	if (res) {
 		if (res == QLA_FUNCTION_TIMEOUT)
 			qla24xx_post_gpnid_work(sp->vha, &ea.id);
+		sp->free(sp);
+		return;
+	} else if (sp->gen1) {
+		/* There was anoter RSNC for this Nport ID */
+		qla24xx_post_gpnid_work(sp->vha, &ea.id);
 		sp->free(sp);
 		return;
 	}
@@ -3282,8 +3292,9 @@ int qla24xx_async_gpnid(scsi_qla_host_t *vha, port_id_t *id)
 {
 	int rval = QLA_FUNCTION_FAILED;
 	struct ct_sns_req       *ct_req;
-	srb_t *sp;
+	srb_t *sp, *tsp;
 	struct ct_sns_pkt *ct_sns;
+	unsigned long flags;
 
 	if (!vha->flags.online)
 		goto done;
@@ -3294,7 +3305,21 @@ int qla24xx_async_gpnid(scsi_qla_host_t *vha, port_id_t *id)
 
 	sp->type = SRB_CT_PTHRU_CMD;
 	sp->name = "gpnid";
+	sp->u.iocb_cmd.u.ctarg.id = *id;
+	sp->gen1 = 0;
 	qla2x00_init_timer(sp, qla2x00_get_async_timeout(vha) + 2);
+
+	spin_lock_irqsave(&vha->hw->tgt.sess_lock, flags);
+	list_for_each_entry(tsp, &vha->gpnid_list, elem) {
+		if (tsp->u.iocb_cmd.u.ctarg.id.b24 == id->b24) {
+			tsp->gen1++;
+			spin_unlock_irqrestore(&vha->hw->tgt.sess_lock, flags);
+			sp->free(sp);
+			goto done;
+		}
+	}
+	list_add_tail(&sp->elem, &vha->gpnid_list);
+	spin_unlock_irqrestore(&vha->hw->tgt.sess_lock, flags);
 
 	sp->u.iocb_cmd.u.ctarg.req = dma_alloc_coherent(&vha->hw->pdev->dev,
 		sizeof(struct ct_sns_pkt), &sp->u.iocb_cmd.u.ctarg.req_dma,
