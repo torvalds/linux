@@ -69,6 +69,32 @@ static inline u64 inc_mm_tlb_gen(struct mm_struct *mm)
 	return atomic64_inc_return(&mm->context.tlb_gen);
 }
 
+/*
+ * If PCID is on, ASID-aware code paths put the ASID+1 into the PCID bits.
+ * This serves two purposes.  It prevents a nasty situation in which
+ * PCID-unaware code saves CR3, loads some other value (with PCID == 0),
+ * and then restores CR3, thus corrupting the TLB for ASID 0 if the saved
+ * ASID was nonzero.  It also means that any bugs involving loading a
+ * PCID-enabled CR3 with CR4.PCIDE off will trigger deterministically.
+ */
+struct pgd_t;
+static inline unsigned long build_cr3(pgd_t *pgd, u16 asid)
+{
+	if (static_cpu_has(X86_FEATURE_PCID)) {
+		VM_WARN_ON_ONCE(asid > 4094);
+		return __sme_pa(pgd) | (asid + 1);
+	} else {
+		VM_WARN_ON_ONCE(asid != 0);
+		return __sme_pa(pgd);
+	}
+}
+
+static inline unsigned long build_cr3_noflush(pgd_t *pgd, u16 asid)
+{
+	VM_WARN_ON_ONCE(asid > 4094);
+	return __sme_pa(pgd) | (asid + 1) | CR3_NOFLUSH;
+}
+
 #ifdef CONFIG_PARAVIRT
 #include <asm/paravirt.h>
 #else
