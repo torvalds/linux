@@ -330,16 +330,9 @@ int i915_gem_object_unbind(struct drm_i915_gem_object *obj)
 	 * must wait for all rendering to complete to the object (as unbinding
 	 * must anyway), and retire the requests.
 	 */
-	ret = i915_gem_object_wait(obj,
-				   I915_WAIT_INTERRUPTIBLE |
-				   I915_WAIT_LOCKED |
-				   I915_WAIT_ALL,
-				   MAX_SCHEDULE_TIMEOUT,
-				   NULL);
+	ret = i915_gem_object_set_to_cpu_domain(obj, false);
 	if (ret)
 		return ret;
-
-	i915_gem_retire_requests(to_i915(obj->base.dev));
 
 	while ((vma = list_first_entry_or_null(&obj->vma_list,
 					       struct i915_vma,
