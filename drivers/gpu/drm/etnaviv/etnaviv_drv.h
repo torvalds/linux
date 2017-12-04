@@ -34,6 +34,7 @@
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_gem.h>
 #include <drm/etnaviv_drm.h>
+#include <drm/gpu_scheduler.h>
 
 struct etnaviv_cmdbuf;
 struct etnaviv_gpu;
@@ -42,11 +43,11 @@ struct etnaviv_gem_object;
 struct etnaviv_gem_submit;
 
 struct etnaviv_file_private {
-	/* currently we don't do anything useful with this.. but when
-	 * per-context address spaces are supported we'd keep track of
+	/*
+	 * When per-context address spaces are supported we'd keep track of
 	 * the context's page-tables here.
 	 */
-	int dummy;
+	struct drm_sched_entity		sched_entity[ETNA_MAX_PIPES];
 };
 
 struct etnaviv_drm_private {

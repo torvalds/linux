@@ -101,6 +101,7 @@ struct etnaviv_gem_submit_bo {
  * make it easier to unwind when things go wrong, etc).
  */
 struct etnaviv_gem_submit {
+	struct drm_sched_job sched_job;
 	struct kref refcount;
 	struct etnaviv_gpu *gpu;
 	struct dma_fence *out_fence, *in_fence;

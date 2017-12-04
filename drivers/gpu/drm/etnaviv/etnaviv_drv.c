@@ -101,11 +101,24 @@ static void load_gpu(struct drm_device *dev)
 
 static int etnaviv_open(struct drm_device *dev, struct drm_file *file)
 {
+	struct etnaviv_drm_private *priv = dev->dev_private;
 	struct etnaviv_file_private *ctx;
+	int i;
 
 	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
 		return -ENOMEM;
+
+	for (i = 0; i < ETNA_MAX_PIPES; i++) {
+		struct etnaviv_gpu *gpu = priv->gpu[i];
+
+		if (gpu) {
+			drm_sched_entity_init(&gpu->sched,
+				&ctx->sched_entity[i],
+				&gpu->sched.sched_rq[DRM_SCHED_PRIORITY_NORMAL],
+				32, NULL);
+			}
+	}
 
 	file->driver_priv = ctx;
 
@@ -126,6 +139,9 @@ static void etnaviv_postclose(struct drm_device *dev, struct drm_file *file)
 			if (gpu->lastctx == ctx)
 				gpu->lastctx = NULL;
 			mutex_unlock(&gpu->lock);
+
+			drm_sched_entity_fini(&gpu->sched,
+					      &ctx->sched_entity[i]);
 		}
 	}
 

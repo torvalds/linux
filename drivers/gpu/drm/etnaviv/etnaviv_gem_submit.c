@@ -22,6 +22,7 @@
 #include "etnaviv_gpu.h"
 #include "etnaviv_gem.h"
 #include "etnaviv_perfmon.h"
+#include "etnaviv_sched.h"
 
 /*
  * Cmdstream submission:
@@ -381,8 +382,13 @@ static void submit_cleanup(struct kref *kref)
 
 	if (submit->in_fence)
 		dma_fence_put(submit->in_fence);
-	if (submit->out_fence)
+	if (submit->out_fence) {
+		/* first remove from IDR, so fence can not be found anymore */
+		mutex_lock(&submit->gpu->fence_idr_lock);
+		idr_remove(&submit->gpu->fence_idr, submit->out_fence_id);
+		mutex_unlock(&submit->gpu->fence_idr_lock);
 		dma_fence_put(submit->out_fence);
+	}
 	kfree(submit->pmrs);
 	kfree(submit);
 }
@@ -395,6 +401,7 @@ void etnaviv_submit_put(struct etnaviv_gem_submit *submit)
 int etnaviv_ioctl_gem_submit(struct drm_device *dev, void *data,
 		struct drm_file *file)
 {
+	struct etnaviv_file_private *ctx = file->driver_priv;
 	struct etnaviv_drm_private *priv = dev->dev_private;
 	struct drm_etnaviv_gem_submit *args = data;
 	struct drm_etnaviv_gem_submit_reloc *relocs;
@@ -541,7 +548,7 @@ int etnaviv_ioctl_gem_submit(struct drm_device *dev, void *data,
 	memcpy(submit->cmdbuf.vaddr, stream, args->stream_size);
 	submit->cmdbuf.user_size = ALIGN(args->stream_size, 8);
 
-	ret = etnaviv_gpu_submit(gpu, submit);
+	ret = etnaviv_sched_push_job(&ctx->sched_entity[args->pipe], submit);
 	if (ret)
 		goto err_submit_objects;
 
