@@ -966,8 +966,6 @@ static int mdp5_plane_mode_set(struct drm_plane *plane,
 	uint32_t src_x, src_y;
 	uint32_t src_w, src_h;
 	uint32_t src_img_w, src_img_h;
-	uint32_t src_x_r;
-	int crtc_x_r;
 	int ret;
 
 	nplanes = fb->format->num_planes;
@@ -1012,9 +1010,6 @@ static int mdp5_plane_mode_set(struct drm_plane *plane,
 		crtc_w /= 2;
 		src_w /= 2;
 		src_img_w /= 2;
-
-		crtc_x_r = crtc_x + crtc_w;
-		src_x_r = src_x + src_w;
 	}
 
 	ret = calc_scalex_steps(plane, pix_format, src_w, crtc_w, step.x);
@@ -1054,9 +1049,9 @@ static int mdp5_plane_mode_set(struct drm_plane *plane,
 	if (right_hwpipe)
 		mdp5_hwpipe_mode_set(mdp5_kms, right_hwpipe, fb, &step, &pe,
 				     config, hdecm, vdecm, hflip, vflip,
-				     crtc_x_r, crtc_y, crtc_w, crtc_h,
+				     crtc_x + crtc_w, crtc_y, crtc_w, crtc_h,
 				     src_img_w, src_img_h,
-				     src_x_r, src_y, src_w, src_h);
+				     src_x + src_w, src_y, src_w, src_h);
 
 	plane->fb = fb;
 
