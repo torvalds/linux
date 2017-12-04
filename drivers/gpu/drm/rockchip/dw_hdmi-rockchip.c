@@ -663,10 +663,45 @@ static const struct drm_prop_enum_list drm_hdmi_output_enum_list[] = {
 
 static void
 dw_hdmi_rockchip_attach_properties(struct drm_connector *connector,
-				    int version, void *data)
+				   unsigned int color, int version,
+				   void *data)
 {
 	struct rockchip_hdmi *hdmi = (struct rockchip_hdmi *)data;
 	struct drm_property *prop;
+
+	switch (color) {
+	case MEDIA_BUS_FMT_RGB101010_1X30:
+		hdmi->hdmi_output = DRM_HDMI_OUTPUT_DEFAULT_RGB;
+		hdmi->colordepth = 10;
+		break;
+	case MEDIA_BUS_FMT_YUV8_1X24:
+		hdmi->hdmi_output = DRM_HDMI_OUTPUT_YCBCR444;
+		hdmi->colordepth = 8;
+		break;
+	case MEDIA_BUS_FMT_YUV10_1X30:
+		hdmi->hdmi_output = DRM_HDMI_OUTPUT_YCBCR444;
+		hdmi->colordepth = 10;
+		break;
+	case MEDIA_BUS_FMT_UYVY10_1X20:
+		hdmi->hdmi_output = DRM_HDMI_OUTPUT_YCBCR422;
+		hdmi->colordepth = 10;
+		break;
+	case MEDIA_BUS_FMT_UYVY8_1X16:
+		hdmi->hdmi_output = DRM_HDMI_OUTPUT_YCBCR422;
+		hdmi->colordepth = 8;
+		break;
+	case MEDIA_BUS_FMT_UYYVYY8_0_5X24:
+		hdmi->hdmi_output = DRM_HDMI_OUTPUT_YCBCR420;
+		hdmi->colordepth = 8;
+		break;
+	case MEDIA_BUS_FMT_UYYVYY10_0_5X30:
+		hdmi->hdmi_output = DRM_HDMI_OUTPUT_YCBCR420;
+		hdmi->colordepth = 10;
+		break;
+	default:
+		hdmi->hdmi_output = DRM_HDMI_OUTPUT_DEFAULT_RGB;
+		hdmi->colordepth = 8;
+	}
 
 	/* RK3368 does not support deep color mode */
 	if (!hdmi->color_depth_property && !hdmi->unsupported_deep_color) {

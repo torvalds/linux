@@ -2363,6 +2363,7 @@ dw_hdmi_connector_atomic_flush(struct drm_connector *connector,
 	struct dw_hdmi *hdmi = container_of(connector, struct dw_hdmi,
 					     connector);
 	struct drm_display_mode *mode = NULL;
+	void *data = hdmi->plat_data->phy_data;
 
 	if (!hdmi->hpd_state || !conn_state->crtc)
 		return;
@@ -2374,6 +2375,19 @@ dw_hdmi_connector_atomic_flush(struct drm_connector *connector,
 	 * drm_display_mode and set phy status to enabled.
 	 */
 	if (!hdmi->hdmi_data.video_mode.mpixelclock) {
+		if (hdmi->plat_data->get_enc_in_encoding)
+			hdmi->hdmi_data.enc_in_encoding =
+				hdmi->plat_data->get_enc_in_encoding(data);
+		if (hdmi->plat_data->get_enc_out_encoding)
+			hdmi->hdmi_data.enc_out_encoding =
+				hdmi->plat_data->get_enc_out_encoding(data);
+		if (hdmi->plat_data->get_input_bus_format)
+			hdmi->hdmi_data.enc_in_bus_format =
+				hdmi->plat_data->get_input_bus_format(data);
+		if (hdmi->plat_data->get_output_bus_format)
+			hdmi->hdmi_data.enc_out_bus_format =
+				hdmi->plat_data->get_output_bus_format(data);
+
 		mode = &conn_state->crtc->mode;
 		memcpy(&hdmi->previous_mode, mode, sizeof(hdmi->previous_mode));
 		hdmi->hdmi_data.video_mode.mpixelclock = mode->clock;
@@ -2468,13 +2482,54 @@ static const struct drm_connector_helper_funcs dw_hdmi_connector_helper_funcs = 
 
 static void dw_hdmi_attach_properties(struct dw_hdmi *hdmi)
 {
+	unsigned int color = MEDIA_BUS_FMT_RGB888_1X24;
+	int video_mapping, colorspace;
+	enum drm_connector_status connect_status =
+		hdmi->phy.ops->read_hpd(hdmi, hdmi->phy.data);
 	const struct dw_hdmi_property_ops *ops =
 				hdmi->plat_data->property_ops;
 
+	if (connect_status == connector_status_connected) {
+		video_mapping = (hdmi_readb(hdmi, HDMI_TX_INVID0) &
+				  HDMI_TX_INVID0_VIDEO_MAPPING_MASK);
+		colorspace = (hdmi_readb(hdmi, HDMI_FC_AVICONF0) &
+			      HDMI_FC_AVICONF0_PIX_FMT_MASK);
+		switch (video_mapping) {
+		case 0x01:
+			color = MEDIA_BUS_FMT_RGB888_1X24;
+			break;
+		case 0x03:
+			color = MEDIA_BUS_FMT_RGB101010_1X30;
+			break;
+		case 0x09:
+			if (colorspace == HDMI_COLORSPACE_YUV420)
+				color = MEDIA_BUS_FMT_UYYVYY8_0_5X24;
+			else
+				color = MEDIA_BUS_FMT_YUV8_1X24;
+			break;
+		case 0x0b:
+			if (colorspace == HDMI_COLORSPACE_YUV420)
+				color = MEDIA_BUS_FMT_UYYVYY10_0_5X30;
+			else
+				color = MEDIA_BUS_FMT_YUV10_1X30;
+			break;
+		case 0x14:
+			color = MEDIA_BUS_FMT_UYVY10_1X20;
+			break;
+		case 0x16:
+			color = MEDIA_BUS_FMT_UYVY8_1X16;
+			break;
+		default:
+			color = MEDIA_BUS_FMT_RGB888_1X24;
+			dev_err(hdmi->dev, "unexpected mapping: 0x%x\n",
+				video_mapping);
+		}
+	}
+
 	if (ops && ops->attach_properties)
 		return ops->attach_properties(&hdmi->connector,
-					       hdmi->version,
-					       hdmi->plat_data->phy_data);
+					      color, hdmi->version,
+					      hdmi->plat_data->phy_data);
 }
 
 static void dw_hdmi_destroy_properties(struct dw_hdmi *hdmi)
