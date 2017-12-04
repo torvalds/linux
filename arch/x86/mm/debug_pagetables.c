@@ -22,21 +22,26 @@ static const struct file_operations ptdump_fops = {
 	.release	= single_release,
 };
 
-static struct dentry *pe;
+static struct dentry *dir, *pe;
 
 static int __init pt_dump_debug_init(void)
 {
-	pe = debugfs_create_file("kernel_page_tables", S_IRUSR, NULL, NULL,
-				 &ptdump_fops);
-	if (!pe)
+	dir = debugfs_create_dir("page_tables", NULL);
+	if (!dir)
 		return -ENOMEM;
 
+	pe = debugfs_create_file("kernel", 0400, dir, NULL, &ptdump_fops);
+	if (!pe)
+		goto err;
 	return 0;
+err:
+	debugfs_remove_recursive(dir);
+	return -ENOMEM;
 }
 
 static void __exit pt_dump_debug_exit(void)
 {
-	debugfs_remove_recursive(pe);
+	debugfs_remove_recursive(dir);
 }
 
 module_init(pt_dump_debug_init);
