@@ -364,7 +364,7 @@ dotraplinkage void do_double_fault(struct pt_regs *regs, long error_code)
 		regs->cs == __KERNEL_CS &&
 		regs->ip == (unsigned long)native_irq_return_iret)
 	{
-		struct pt_regs *gpregs = (struct pt_regs *)this_cpu_read(cpu_tss.x86_tss.sp0) - 1;
+		struct pt_regs *gpregs = (struct pt_regs *)this_cpu_read(cpu_tss_rw.x86_tss.sp0) - 1;
 
 		/*
 		 * regs->sp points to the failing IRET frame on the
@@ -649,7 +649,7 @@ struct bad_iret_stack *fixup_bad_iret(struct bad_iret_stack *s)
 	 * exception came from the IRET target.
 	 */
 	struct bad_iret_stack *new_stack =
-		(struct bad_iret_stack *)this_cpu_read(cpu_tss.x86_tss.sp0) - 1;
+		(struct bad_iret_stack *)this_cpu_read(cpu_tss_rw.x86_tss.sp0) - 1;
 
 	/* Copy the IRET target to the new stack. */
 	memmove(&new_stack->regs.ip, (void *)s->regs.sp, 5*8);
