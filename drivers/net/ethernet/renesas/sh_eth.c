@@ -1149,7 +1149,8 @@ static int sh_eth_tx_free(struct net_device *ndev, bool sent_only)
 			   entry, le32_to_cpu(txdesc->status));
 		/* Free the original skb. */
 		if (mdp->tx_skbuff[entry]) {
-			dma_unmap_single(&ndev->dev, le32_to_cpu(txdesc->addr),
+			dma_unmap_single(&mdp->pdev->dev,
+					 le32_to_cpu(txdesc->addr),
 					 le32_to_cpu(txdesc->len) >> 16,
 					 DMA_TO_DEVICE);
 			dev_kfree_skb_irq(mdp->tx_skbuff[entry]);
@@ -1179,7 +1180,7 @@ static void sh_eth_ring_free(struct net_device *ndev)
 			if (mdp->rx_skbuff[i]) {
 				struct sh_eth_rxdesc *rxdesc = &mdp->rx_ring[i];
 
-				dma_unmap_single(&ndev->dev,
+				dma_unmap_single(&mdp->pdev->dev,
 						 le32_to_cpu(rxdesc->addr),
 						 ALIGN(mdp->rx_buf_sz, 32),
 						 DMA_FROM_DEVICE);
@@ -1245,9 +1246,9 @@ static void sh_eth_ring_format(struct net_device *ndev)
 
 		/* The size of the buffer is a multiple of 32 bytes. */
 		buf_len = ALIGN(mdp->rx_buf_sz, 32);
-		dma_addr = dma_map_single(&ndev->dev, skb->data, buf_len,
+		dma_addr = dma_map_single(&mdp->pdev->dev, skb->data, buf_len,
 					  DMA_FROM_DEVICE);
-		if (dma_mapping_error(&ndev->dev, dma_addr)) {
+		if (dma_mapping_error(&mdp->pdev->dev, dma_addr)) {
 			kfree_skb(skb);
 			break;
 		}
@@ -1527,7 +1528,7 @@ static int sh_eth_rx(struct net_device *ndev, u32 intr_status, int *quota)
 			mdp->rx_skbuff[entry] = NULL;
 			if (mdp->cd->rpadir)
 				skb_reserve(skb, NET_IP_ALIGN);
-			dma_unmap_single(&ndev->dev, dma_addr,
+			dma_unmap_single(&mdp->pdev->dev, dma_addr,
 					 ALIGN(mdp->rx_buf_sz, 32),
 					 DMA_FROM_DEVICE);
 			skb_put(skb, pkt_len);
@@ -1555,9 +1556,9 @@ static int sh_eth_rx(struct net_device *ndev, u32 intr_status, int *quota)
 			if (skb == NULL)
 				break;	/* Better luck next round. */
 			sh_eth_set_receive_align(skb);
-			dma_addr = dma_map_single(&ndev->dev, skb->data,
+			dma_addr = dma_map_single(&mdp->pdev->dev, skb->data,
 						  buf_len, DMA_FROM_DEVICE);
-			if (dma_mapping_error(&ndev->dev, dma_addr)) {
+			if (dma_mapping_error(&mdp->pdev->dev, dma_addr)) {
 				kfree_skb(skb);
 				break;
 			}
@@ -2441,9 +2442,9 @@ static int sh_eth_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 	/* soft swap. */
 	if (!mdp->cd->hw_swap)
 		sh_eth_soft_swap(PTR_ALIGN(skb->data, 4), skb->len + 2);
-	dma_addr = dma_map_single(&ndev->dev, skb->data, skb->len,
+	dma_addr = dma_map_single(&mdp->pdev->dev, skb->data, skb->len,
 				  DMA_TO_DEVICE);
-	if (dma_mapping_error(&ndev->dev, dma_addr)) {
+	if (dma_mapping_error(&mdp->pdev->dev, dma_addr)) {
 		kfree_skb(skb);
 		return NETDEV_TX_OK;
 	}
