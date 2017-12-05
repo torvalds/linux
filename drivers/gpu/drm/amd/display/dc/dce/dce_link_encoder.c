@@ -82,13 +82,6 @@
 #define DCE110_DIG_FE_SOURCE_SELECT_DIGF 0x20
 #define DCE110_DIG_FE_SOURCE_SELECT_DIGG 0x40
 
-/* Minimum pixel clock, in KHz. For TMDS signal is 25.00 MHz */
-#define TMDS_MIN_PIXEL_CLOCK 25000
-/* Maximum pixel clock, in KHz. For TMDS signal is 165.00 MHz */
-#define TMDS_MAX_PIXEL_CLOCK 165000
-/* For current ASICs pixel clock - 600MHz */
-#define MAX_ENCODER_CLOCK 600000
-
 enum {
 	DP_MST_UPDATE_MAX_RETRY = 50
 };
