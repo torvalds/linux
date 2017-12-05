@@ -413,14 +413,6 @@ out:
 	return ret;
 }
 
-void
-nouveau_fbcon_output_poll_changed(struct drm_device *dev)
-{
-	struct nouveau_drm *drm = nouveau_drm(dev);
-	if (drm->fbcon)
-		drm_fb_helper_hotplug_event(&drm->fbcon->helper);
-}
-
 static int
 nouveau_fbcon_destroy(struct drm_device *dev, struct nouveau_fbdev *fbcon)
 {
