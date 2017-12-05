@@ -479,9 +479,6 @@ void kvm_timer_vcpu_load(struct kvm_vcpu *vcpu)
 
 	vtimer_restore_state(vcpu);
 
-	if (has_vhe())
-		disable_el1_phys_timer_access();
-
 	/* Set the background timer for the physical timer emulation. */
 	phys_timer_emulate(vcpu);
 }
@@ -509,9 +506,6 @@ void kvm_timer_vcpu_put(struct kvm_vcpu *vcpu)
 
 	if (unlikely(!timer->enabled))
 		return;
-
-	if (has_vhe())
-		enable_el1_phys_timer_access();
 
 	vtimer_save_state(vcpu);
 
@@ -841,7 +835,10 @@ int kvm_timer_enable(struct kvm_vcpu *vcpu)
 no_vgic:
 	preempt_disable();
 	timer->enabled = 1;
-	kvm_timer_vcpu_load_vgic(vcpu);
+	if (!irqchip_in_kernel(vcpu->kvm))
+		kvm_timer_vcpu_load_user(vcpu);
+	else
+		kvm_timer_vcpu_load_vgic(vcpu);
 	preempt_enable();
 
 	return 0;
