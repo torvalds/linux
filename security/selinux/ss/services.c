@@ -860,6 +860,9 @@ int security_bounded_transition(u32 old_sid, u32 new_sid)
 	int index;
 	int rc;
 
+	if (!ss_initialized)
+		return 0;
+
 	read_lock(&policy_rwlock);
 
 	rc = -EINVAL;
