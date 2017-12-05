@@ -29,7 +29,7 @@ int rf69_set_mode(struct spi_device *spi, enum mode mode);
 int rf69_set_data_mode(struct spi_device *spi, enum dataMode dataMode);
 int rf69_set_modulation(struct spi_device *spi, enum modulation modulation);
 enum modulation rf69_get_modulation(struct spi_device *spi);
-int rf69_set_modulation_shaping(struct spi_device *spi, enum modShaping modShaping);
+int rf69_set_modulation_shaping(struct spi_device *spi, enum mod_shaping mod_shaping);
 int rf69_set_bit_rate(struct spi_device *spi, u16 bitRate);
 int rf69_set_deviation(struct spi_device *spi, u32 deviation);
 int rf69_set_frequency(struct spi_device *spi, u32 frequency);

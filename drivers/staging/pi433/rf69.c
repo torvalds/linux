@@ -133,27 +133,28 @@ enum modulation rf69_get_modulation(struct spi_device *spi)
 	}
 }
 
-int rf69_set_modulation_shaping(struct spi_device *spi, enum modShaping modShaping)
+int rf69_set_modulation_shaping(struct spi_device *spi,
+				enum mod_shaping mod_shaping)
 {
 	#ifdef DEBUG
 		dev_dbg(&spi->dev, "set: mod shaping");
 	#endif
 
 	if (rf69_get_modulation(spi) == FSK) {
-		switch (modShaping) {
-		case shapingOff: return rf69_read_mod_write(spi, REG_DATAMODUL, MASK_DATAMODUL_MODULATION_SHAPE, DATAMODUL_MODULATION_SHAPE_NONE);
-		case shaping1_0: return rf69_read_mod_write(spi, REG_DATAMODUL, MASK_DATAMODUL_MODULATION_SHAPE, DATAMODUL_MODULATION_SHAPE_1_0);
-		case shaping0_5: return rf69_read_mod_write(spi, REG_DATAMODUL, MASK_DATAMODUL_MODULATION_SHAPE, DATAMODUL_MODULATION_SHAPE_0_3);
-		case shaping0_3: return rf69_read_mod_write(spi, REG_DATAMODUL, MASK_DATAMODUL_MODULATION_SHAPE, DATAMODUL_MODULATION_SHAPE_0_5);
+		switch (mod_shaping) {
+		case SHAPING_OFF: return rf69_read_mod_write(spi, REG_DATAMODUL, MASK_DATAMODUL_MODULATION_SHAPE, DATAMODUL_MODULATION_SHAPE_NONE);
+		case SHAPING_1_0: return rf69_read_mod_write(spi, REG_DATAMODUL, MASK_DATAMODUL_MODULATION_SHAPE, DATAMODUL_MODULATION_SHAPE_1_0);
+		case SHAPING_0_5: return rf69_read_mod_write(spi, REG_DATAMODUL, MASK_DATAMODUL_MODULATION_SHAPE, DATAMODUL_MODULATION_SHAPE_0_3);
+		case SHAPING_0_3: return rf69_read_mod_write(spi, REG_DATAMODUL, MASK_DATAMODUL_MODULATION_SHAPE, DATAMODUL_MODULATION_SHAPE_0_5);
 		default:
 			dev_dbg(&spi->dev, "set: illegal input param");
 			return -EINVAL;
 		}
 	} else {
-		switch (modShaping) {
-		case shapingOff: return rf69_read_mod_write(spi, REG_DATAMODUL, MASK_DATAMODUL_MODULATION_SHAPE, DATAMODUL_MODULATION_SHAPE_NONE);
-		case shapingBR:	 return rf69_read_mod_write(spi, REG_DATAMODUL, MASK_DATAMODUL_MODULATION_SHAPE, DATAMODUL_MODULATION_SHAPE_BR);
-		case shaping2BR: return rf69_read_mod_write(spi, REG_DATAMODUL, MASK_DATAMODUL_MODULATION_SHAPE, DATAMODUL_MODULATION_SHAPE_2BR);
+		switch (mod_shaping) {
+		case SHAPING_OFF: return rf69_read_mod_write(spi, REG_DATAMODUL, MASK_DATAMODUL_MODULATION_SHAPE, DATAMODUL_MODULATION_SHAPE_NONE);
+		case SHAPING_BR:  return rf69_read_mod_write(spi, REG_DATAMODUL, MASK_DATAMODUL_MODULATION_SHAPE, DATAMODUL_MODULATION_SHAPE_BR);
+		case SHAPING_2BR: return rf69_read_mod_write(spi, REG_DATAMODUL, MASK_DATAMODUL_MODULATION_SHAPE, DATAMODUL_MODULATION_SHAPE_2BR);
 		default:
 			dev_dbg(&spi->dev, "set: illegal input param");
 			return -EINVAL;

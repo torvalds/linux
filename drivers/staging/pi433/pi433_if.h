@@ -63,7 +63,7 @@ struct pi433_tx_cfg {
 	__u16			bit_rate;
 	__u32			dev_frequency;
 	enum modulation		modulation;
-	enum modShaping		modShaping;
+	enum mod_shaping	mod_shaping;
 
 	enum paRamp		pa_ramp;
 

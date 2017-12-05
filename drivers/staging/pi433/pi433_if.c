@@ -260,7 +260,7 @@ rf69_set_tx_cfg(struct pi433_device *dev, struct pi433_tx_cfg *tx_cfg)
 	SET_CHECKED(rf69_set_modulation	(dev->spi, tx_cfg->modulation));
 	SET_CHECKED(rf69_set_deviation	(dev->spi, tx_cfg->dev_frequency));
 	SET_CHECKED(rf69_set_pa_ramp	(dev->spi, tx_cfg->pa_ramp));
-	SET_CHECKED(rf69_set_modulation_shaping(dev->spi, tx_cfg->modShaping));
+	SET_CHECKED(rf69_set_modulation_shaping(dev->spi, tx_cfg->mod_shaping));
 	SET_CHECKED(rf69_set_tx_start_condition(dev->spi, tx_cfg->tx_start_condition));
 
 	/* packet format enable */

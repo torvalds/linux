@@ -42,13 +42,13 @@ enum modulation {
 	FSK
 };
 
-enum modShaping {
-	shapingOff,
-	shaping1_0,
-	shaping0_5,
-	shaping0_3,
-	shapingBR,
-	shaping2BR
+enum mod_shaping {
+	SHAPING_OFF,
+	SHAPING_1_0,
+	SHAPING_0_5,
+	SHAPING_0_3,
+	SHAPING_BR,
+	SHAPING_2BR
 };
 
 enum paRamp {
