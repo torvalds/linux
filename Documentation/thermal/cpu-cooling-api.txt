@@ -51,8 +51,7 @@ Dynamic power).  "plat_static_func" is a function to calculate the
 static power consumed by these cpus (See 2.2 Static power).
 
 1.1.4 struct thermal_cooling_device *of_cpufreq_power_cooling_register(
-    struct device_node *np, const struct cpumask *clip_cpus, u32 capacitance,
-    get_static_t plat_static_func)
+					struct cpufreq_policy *policy)
 
 Similar to cpufreq_power_cooling_register, this function register a
 cpufreq cooling device with power extensions using the device tree
@@ -76,8 +75,8 @@ cpu.  If you are using CONFIG_CPUFREQ_DT then the
 device.
 
 The `plat_static_func` parameter of `cpufreq_power_cooling_register()`
-and `of_cpufreq_power_cooling_register()` is optional.  If you don't
-provide it, only dynamic power will be considered.
+is optional.  If you don't provide it, only dynamic power will be
+considered.
 
 2.1 Dynamic power
 
