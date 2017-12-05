@@ -405,19 +405,20 @@ static void scpi_process_cmd(struct scpi_chan *ch, u32 cmd)
 		unsigned int len;
 
 		if (scpi_info->is_legacy) {
-			struct legacy_scpi_shared_mem *mem = ch->rx_payload;
+			struct legacy_scpi_shared_mem __iomem *mem =
+							ch->rx_payload;
 
 			/* RX Length is not replied by the legacy Firmware */
 			len = match->rx_len;
 
-			match->status = le32_to_cpu(mem->status);
+			match->status = ioread32(&mem->status);
 			memcpy_fromio(match->rx_buf, mem->payload, len);
 		} else {
-			struct scpi_shared_mem *mem = ch->rx_payload;
+			struct scpi_shared_mem __iomem *mem = ch->rx_payload;
 
 			len = min(match->rx_len, CMD_SIZE(cmd));
 
-			match->status = le32_to_cpu(mem->status);
+			match->status = ioread32(&mem->status);
 			memcpy_fromio(match->rx_buf, mem->payload, len);
 		}
 
@@ -431,11 +432,11 @@ static void scpi_process_cmd(struct scpi_chan *ch, u32 cmd)
 static void scpi_handle_remote_msg(struct mbox_client *c, void *msg)
 {
 	struct scpi_chan *ch = container_of(c, struct scpi_chan, cl);
-	struct scpi_shared_mem *mem = ch->rx_payload;
+	struct scpi_shared_mem __iomem *mem = ch->rx_payload;
 	u32 cmd = 0;
 
 	if (!scpi_info->is_legacy)
-		cmd = le32_to_cpu(mem->command);
+		cmd = ioread32(&mem->command);
 
 	scpi_process_cmd(ch, cmd);
 }
@@ -445,7 +446,7 @@ static void scpi_tx_prepare(struct mbox_client *c, void *msg)
 	unsigned long flags;
 	struct scpi_xfer *t = msg;
 	struct scpi_chan *ch = container_of(c, struct scpi_chan, cl);
-	struct scpi_shared_mem *mem = ch->tx_payload;
+	struct scpi_shared_mem __iomem *mem = ch->tx_payload;
 
 	if (t->tx_buf) {
 		if (scpi_info->is_legacy)
@@ -464,7 +465,7 @@ static void scpi_tx_prepare(struct mbox_client *c, void *msg)
 	}
 
 	if (!scpi_info->is_legacy)
-		mem->command = cpu_to_le32(t->cmd);
+		iowrite32(t->cmd, &mem->command);
 }
 
 static struct scpi_xfer *get_scpi_xfer(struct scpi_chan *ch)
