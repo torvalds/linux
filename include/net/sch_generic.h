@@ -161,7 +161,8 @@ struct Qdisc_class_ops {
 	void			(*walk)(struct Qdisc *, struct qdisc_walker * arg);
 
 	/* Filter manipulation */
-	struct tcf_block *	(*tcf_block)(struct Qdisc *, unsigned long);
+	struct tcf_block *	(*tcf_block)(struct Qdisc *sch,
+					     unsigned long arg);
 	unsigned long		(*bind_tcf)(struct Qdisc *, unsigned long,
 					u32 classid);
 	void			(*unbind_tcf)(struct Qdisc *, unsigned long);
@@ -185,11 +186,12 @@ struct Qdisc_ops {
 	struct sk_buff *	(*dequeue)(struct Qdisc *);
 	struct sk_buff *	(*peek)(struct Qdisc *);
 
-	int			(*init)(struct Qdisc *, struct nlattr *arg);
+	int			(*init)(struct Qdisc *sch, struct nlattr *arg);
 	void			(*reset)(struct Qdisc *);
 	void			(*destroy)(struct Qdisc *);
-	int			(*change)(struct Qdisc *, struct nlattr *arg);
-	void			(*attach)(struct Qdisc *);
+	int			(*change)(struct Qdisc *sch,
+					  struct nlattr *arg);
+	void			(*attach)(struct Qdisc *sch);
 
 	int			(*dump)(struct Qdisc *, struct sk_buff *);
 	int			(*dump_stats)(struct Qdisc *, struct gnet_dump *);
