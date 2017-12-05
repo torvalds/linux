@@ -842,36 +842,6 @@ of_cpufreq_cooling_register(struct device_node *np,
 EXPORT_SYMBOL_GPL(of_cpufreq_cooling_register);
 
 /**
- * cpufreq_power_cooling_register() - create cpufreq cooling device with power extensions
- * @policy:		cpufreq policy
- * @capacitance:	dynamic power coefficient for these cpus
- * @plat_static_func:	function to calculate the static power consumed by these
- *			cpus (optional)
- *
- * This interface function registers the cpufreq cooling device with
- * the name "thermal-cpufreq-%x".  This api can support multiple
- * instances of cpufreq cooling devices.  Using this function, the
- * cooling device will implement the power extensions by using a
- * simple cpu power model.  The cpus must have registered their OPPs
- * using the OPP library.
- *
- * An optional @plat_static_func may be provided to calculate the
- * static power consumed by these cpus.  If the platform's static
- * power consumption is unknown or negligible, make it NULL.
- *
- * Return: a valid struct thermal_cooling_device pointer on success,
- * on failure, it returns a corresponding ERR_PTR().
- */
-struct thermal_cooling_device *
-cpufreq_power_cooling_register(struct cpufreq_policy *policy, u32 capacitance,
-			       get_static_t plat_static_func)
-{
-	return __cpufreq_cooling_register(NULL, policy, capacitance,
-				plat_static_func);
-}
-EXPORT_SYMBOL(cpufreq_power_cooling_register);
-
-/**
  * of_cpufreq_power_cooling_register() - create cpufreq cooling device with power extensions
  * @policy: CPUFreq policy.
  *

@@ -41,10 +41,6 @@ typedef int (*get_static_t)(cpumask_t *cpumask, int interval,
 struct thermal_cooling_device *
 cpufreq_cooling_register(struct cpufreq_policy *policy);
 
-struct thermal_cooling_device *
-cpufreq_power_cooling_register(struct cpufreq_policy *policy,
-			       u32 capacitance, get_static_t plat_static_func);
-
 /**
  * of_cpufreq_cooling_register - create cpufreq cooling device based on DT.
  * @np: a valid struct device_node to the cooling device device tree node.
@@ -83,12 +79,6 @@ static inline struct thermal_cooling_device *
 cpufreq_cooling_register(struct cpufreq_policy *policy)
 {
 	return ERR_PTR(-ENOSYS);
-}
-static inline struct thermal_cooling_device *
-cpufreq_power_cooling_register(struct cpufreq_policy *policy,
-			       u32 capacitance, get_static_t plat_static_func)
-{
-	return NULL;
 }
 
 static inline struct thermal_cooling_device *
