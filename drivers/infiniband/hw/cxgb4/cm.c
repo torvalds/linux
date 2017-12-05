@@ -4097,9 +4097,15 @@ static void process_work(struct work_struct *work)
 		dev = *((struct c4iw_dev **) (skb->cb + sizeof(void *)));
 		opcode = rpl->ot.opcode;
 
-		ret = work_handlers[opcode](dev, skb);
-		if (!ret)
+		if (opcode >= ARRAY_SIZE(work_handlers) ||
+		    !work_handlers[opcode]) {
+			pr_err("No handler for opcode 0x%x.\n", opcode);
 			kfree_skb(skb);
+		} else {
+			ret = work_handlers[opcode](dev, skb);
+			if (!ret)
+				kfree_skb(skb);
+		}
 		process_timedout_eps();
 	}
 }
