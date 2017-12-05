@@ -312,13 +312,26 @@ static int malidp_irq_init(struct platform_device *pdev)
 
 DEFINE_DRM_GEM_CMA_FOPS(fops);
 
+static int malidp_dumb_create(struct drm_file *file_priv,
+			      struct drm_device *drm,
+			      struct drm_mode_create_dumb *args)
+{
+	struct malidp_drm *malidp = drm->dev_private;
+	/* allocate for the worst case scenario, i.e. rotated buffers */
+	u8 alignment = malidp_hw_get_pitch_align(malidp->dev, 1);
+
+	args->pitch = ALIGN(DIV_ROUND_UP(args->width * args->bpp, 8), alignment);
+
+	return drm_gem_cma_dumb_create_internal(file_priv, drm, args);
+}
+
 static struct drm_driver malidp_driver = {
 	.driver_features = DRIVER_GEM | DRIVER_MODESET | DRIVER_ATOMIC |
 			   DRIVER_PRIME,
 	.lastclose = drm_fb_helper_lastclose,
 	.gem_free_object_unlocked = drm_gem_cma_free_object,
 	.gem_vm_ops = &drm_gem_cma_vm_ops,
-	.dumb_create = drm_gem_cma_dumb_create,
+	.dumb_create = malidp_dumb_create,
 	.prime_handle_to_fd = drm_gem_prime_handle_to_fd,
 	.prime_fd_to_handle = drm_gem_prime_fd_to_handle,
 	.gem_prime_export = drm_gem_prime_export,
