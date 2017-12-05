@@ -198,7 +198,7 @@ rf69_set_rx_cfg(struct pi433_device *dev, struct pi433_rx_cfg *rx_cfg)
 	/* packet config */
 	/* enable */
 	SET_CHECKED(rf69_set_sync_enable(dev->spi, rx_cfg->enable_sync));
-	if (rx_cfg->enable_sync == optionOn)
+	if (rx_cfg->enable_sync == OPTION_ON)
 	{
 		SET_CHECKED(rf69_set_fifo_fill_condition(dev->spi, afterSyncInterrupt));
 	}
@@ -206,7 +206,7 @@ rf69_set_rx_cfg(struct pi433_device *dev, struct pi433_rx_cfg *rx_cfg)
 	{
 		SET_CHECKED(rf69_set_fifo_fill_condition(dev->spi, always));
 	}
-	if (rx_cfg->enable_length_byte == optionOn) {
+	if (rx_cfg->enable_length_byte == OPTION_ON) {
 		ret = rf69_set_packet_format(dev->spi, packetLengthVar);
 		if (ret < 0)
 			return ret;
@@ -220,14 +220,14 @@ rf69_set_rx_cfg(struct pi433_device *dev, struct pi433_rx_cfg *rx_cfg)
 
 	/* lengths */
 	SET_CHECKED(rf69_set_sync_size(dev->spi, rx_cfg->sync_length));
-	if (rx_cfg->enable_length_byte == optionOn)
+	if (rx_cfg->enable_length_byte == OPTION_ON)
 	{
 		SET_CHECKED(rf69_set_payload_length(dev->spi, 0xff));
 	}
 	else if (rx_cfg->fixed_message_length != 0)
 	{
 		payload_length = rx_cfg->fixed_message_length;
-		if (rx_cfg->enable_length_byte  == optionOn) payload_length++;
+		if (rx_cfg->enable_length_byte  == OPTION_ON) payload_length++;
 		if (rx_cfg->enable_address_filtering != filteringOff) payload_length++;
 		SET_CHECKED(rf69_set_payload_length(dev->spi, payload_length));
 	}
@@ -237,7 +237,7 @@ rf69_set_rx_cfg(struct pi433_device *dev, struct pi433_rx_cfg *rx_cfg)
 	}
 
 	/* values */
-	if (rx_cfg->enable_sync == optionOn)
+	if (rx_cfg->enable_sync == OPTION_ON)
 	{
 		SET_CHECKED(rf69_set_sync_values(dev->spi, rx_cfg->sync_pattern));
 	}
@@ -264,7 +264,7 @@ rf69_set_tx_cfg(struct pi433_device *dev, struct pi433_tx_cfg *tx_cfg)
 	SET_CHECKED(rf69_set_tx_start_condition(dev->spi, tx_cfg->tx_start_condition));
 
 	/* packet format enable */
-	if (tx_cfg->enable_preamble == optionOn)
+	if (tx_cfg->enable_preamble == OPTION_ON)
 	{
 		SET_CHECKED(rf69_set_preamble_length(dev->spi, tx_cfg->preamble_length));
 	}
@@ -273,7 +273,7 @@ rf69_set_tx_cfg(struct pi433_device *dev, struct pi433_tx_cfg *tx_cfg)
 		SET_CHECKED(rf69_set_preamble_length(dev->spi, 0));
 	}
 	SET_CHECKED(rf69_set_sync_enable  (dev->spi, tx_cfg->enable_sync));
-	if (tx_cfg->enable_length_byte == optionOn) {
+	if (tx_cfg->enable_length_byte == OPTION_ON) {
 		ret = rf69_set_packet_format(dev->spi, packetLengthVar);
 		if (ret < 0)
 			return ret;
@@ -285,7 +285,7 @@ rf69_set_tx_cfg(struct pi433_device *dev, struct pi433_tx_cfg *tx_cfg)
 	SET_CHECKED(rf69_set_crc_enable	  (dev->spi, tx_cfg->enable_crc));
 
 	/* configure sync, if enabled */
-	if (tx_cfg->enable_sync == optionOn) {
+	if (tx_cfg->enable_sync == OPTION_ON) {
 		SET_CHECKED(rf69_set_sync_size(dev->spi, tx_cfg->sync_length));
 		SET_CHECKED(rf69_set_sync_values(dev->spi, tx_cfg->sync_pattern));
 	}
@@ -400,7 +400,7 @@ pi433_receive(void *data)
 	}
 
 	/* length byte enabled? */
-	if (dev->rx_cfg.enable_length_byte == optionOn)
+	if (dev->rx_cfg.enable_length_byte == OPTION_ON)
 	{
 		retval = wait_event_interruptible(dev->fifo_wait_queue,
 						  dev->free_in_fifo < FIFO_SIZE);
@@ -525,11 +525,11 @@ pi433_tx_thread(void *data)
 			size = tx_cfg.fixed_message_length;
 
 		/* increase size, if len byte is requested */
-		if (tx_cfg.enable_length_byte == optionOn)
+		if (tx_cfg.enable_length_byte == OPTION_ON)
 			size++;
 
 		/* increase size, if adr byte is requested */
-		if (tx_cfg.enable_address_byte == optionOn)
+		if (tx_cfg.enable_address_byte == OPTION_ON)
 			size++;
 
 		/* prime buffer */
@@ -537,11 +537,11 @@ pi433_tx_thread(void *data)
 		position = 0;
 
 		/* add length byte, if requested */
-		if (tx_cfg.enable_length_byte  == optionOn)
+		if (tx_cfg.enable_length_byte  == OPTION_ON)
 			buffer[position++] = size-1; /* according to spec length byte itself must be excluded from the length calculation */
 
 		/* add adr byte, if requested */
-		if (tx_cfg.enable_address_byte == optionOn)
+		if (tx_cfg.enable_address_byte == OPTION_ON)
 			buffer[position++] = tx_cfg.address_byte;
 
 		/* finally get message data from fifo */
@@ -577,7 +577,7 @@ pi433_tx_thread(void *data)
 		/* clear fifo, set fifo threshold, set payload length */
 		SET_CHECKED(rf69_set_mode(spi, standby)); /* this clears the fifo */
 		SET_CHECKED(rf69_set_fifo_threshold(spi, FIFO_THRESHOLD));
-		if (tx_cfg.enable_length_byte == optionOn)
+		if (tx_cfg.enable_length_byte == OPTION_ON)
 		{
 			SET_CHECKED(rf69_set_payload_length(spi, size * tx_cfg.repetitions));
 		}
@@ -1091,9 +1091,9 @@ static int pi433_probe(struct spi_device *spi)
 	/* setup the radio module */
 	SET_CHECKED(rf69_set_mode		(spi, standby));
 	SET_CHECKED(rf69_set_data_mode		(spi, packet));
-	SET_CHECKED(rf69_set_amplifier_0	(spi, optionOn));
-	SET_CHECKED(rf69_set_amplifier_1	(spi, optionOff));
-	SET_CHECKED(rf69_set_amplifier_2	(spi, optionOff));
+	SET_CHECKED(rf69_set_amplifier_0	(spi, OPTION_ON));
+	SET_CHECKED(rf69_set_amplifier_1	(spi, OPTION_OFF));
+	SET_CHECKED(rf69_set_amplifier_2	(spi, OPTION_OFF));
 	SET_CHECKED(rf69_set_output_power_level	(spi, 13));
 	SET_CHECKED(rf69_set_antenna_impedance	(spi, fiftyOhm));
 

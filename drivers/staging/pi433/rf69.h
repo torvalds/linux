@@ -33,9 +33,12 @@ int rf69_set_modulation_shaping(struct spi_device *spi, enum modShaping modShapi
 int rf69_set_bit_rate(struct spi_device *spi, u16 bitRate);
 int rf69_set_deviation(struct spi_device *spi, u32 deviation);
 int rf69_set_frequency(struct spi_device *spi, u32 frequency);
-int rf69_set_amplifier_0(struct spi_device *spi, enum optionOnOff optionOnOff);
-int rf69_set_amplifier_1(struct spi_device *spi, enum optionOnOff optionOnOff);
-int rf69_set_amplifier_2(struct spi_device *spi, enum optionOnOff optionOnOff);
+int rf69_set_amplifier_0(struct spi_device *spi,
+			 enum option_on_off option_on_off);
+int rf69_set_amplifier_1(struct spi_device *spi,
+			 enum option_on_off option_on_off);
+int rf69_set_amplifier_2(struct spi_device *spi,
+			 enum option_on_off option_on_off);
 int rf69_set_output_power_level(struct spi_device *spi, u8 powerLevel);
 int rf69_set_pa_ramp(struct spi_device *spi, enum paRamp paRamp);
 int rf69_set_antenna_impedance(struct spi_device *spi, enum antennaImpedance antennaImpedance);
@@ -56,13 +59,15 @@ int rf69_set_rssi_threshold(struct spi_device *spi, u8 threshold);
 int rf69_set_rx_start_timeout(struct spi_device *spi, u8 timeout);
 int rf69_set_rssi_timeout(struct spi_device *spi, u8 timeout);
 int rf69_set_preamble_length(struct spi_device *spi, u16 preambleLength);
-int rf69_set_sync_enable(struct spi_device *spi, enum optionOnOff optionOnOff);
+int rf69_set_sync_enable(struct spi_device *spi,
+			 enum option_on_off option_on_off);
 int rf69_set_fifo_fill_condition(struct spi_device *spi, enum fifoFillCondition fifoFillCondition);
 int rf69_set_sync_size(struct spi_device *spi, u8 sync_size);
 int rf69_set_sync_tolerance(struct spi_device *spi, u8 syncTolerance);
 int rf69_set_sync_values(struct spi_device *spi, u8 syncValues[8]);
 int rf69_set_packet_format(struct spi_device *spi, enum packetFormat packetFormat);
-int rf69_set_crc_enable(struct spi_device *spi, enum optionOnOff optionOnOff);
+int rf69_set_crc_enable(struct spi_device *spi,
+			enum option_on_off option_on_off);
 int rf69_set_adressFiltering(struct spi_device *spi, enum addressFiltering addressFiltering);
 int rf69_set_payload_length(struct spi_device *spi, u8 payloadLength);
 u8  rf69_get_payload_length(struct spi_device *spi);

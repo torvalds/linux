@@ -272,45 +272,48 @@ int rf69_set_frequency(struct spi_device *spi, u32 frequency)
 	return 0;
 }
 
-int rf69_set_amplifier_0(struct spi_device *spi, enum optionOnOff optionOnOff)
+int rf69_set_amplifier_0(struct spi_device *spi,
+			 enum option_on_off option_on_off)
 {
 	#ifdef DEBUG
 		dev_dbg(&spi->dev, "set: amp #0");
 	#endif
 
-	switch (optionOnOff) {
-	case optionOn:	return WRITE_REG(REG_PALEVEL, (READ_REG(REG_PALEVEL) |  MASK_PALEVEL_PA0));
-	case optionOff:	return WRITE_REG(REG_PALEVEL, (READ_REG(REG_PALEVEL) & ~MASK_PALEVEL_PA0));
+	switch (option_on_off) {
+	case OPTION_ON:  return WRITE_REG(REG_PALEVEL, (READ_REG(REG_PALEVEL) |  MASK_PALEVEL_PA0));
+	case OPTION_OFF: return WRITE_REG(REG_PALEVEL, (READ_REG(REG_PALEVEL) & ~MASK_PALEVEL_PA0));
 	default:
 		dev_dbg(&spi->dev, "set: illegal input param");
 		return -EINVAL;
 	}
 }
 
-int rf69_set_amplifier_1(struct spi_device *spi, enum optionOnOff optionOnOff)
+int rf69_set_amplifier_1(struct spi_device *spi,
+			 enum option_on_off option_on_off)
 {
 	#ifdef DEBUG
 		dev_dbg(&spi->dev, "set: amp #1");
 	#endif
 
-	switch (optionOnOff) {
-	case optionOn:	return WRITE_REG(REG_PALEVEL, (READ_REG(REG_PALEVEL) |  MASK_PALEVEL_PA1));
-	case optionOff: return WRITE_REG(REG_PALEVEL, (READ_REG(REG_PALEVEL) & ~MASK_PALEVEL_PA1));
+	switch (option_on_off) {
+	case OPTION_ON:  return WRITE_REG(REG_PALEVEL, (READ_REG(REG_PALEVEL) |  MASK_PALEVEL_PA1));
+	case OPTION_OFF: return WRITE_REG(REG_PALEVEL, (READ_REG(REG_PALEVEL) & ~MASK_PALEVEL_PA1));
 	default:
 		dev_dbg(&spi->dev, "set: illegal input param");
 		return -EINVAL;
 	}
 }
 
-int rf69_set_amplifier_2(struct spi_device *spi, enum optionOnOff optionOnOff)
+int rf69_set_amplifier_2(struct spi_device *spi,
+			 enum option_on_off option_on_off)
 {
 	#ifdef DEBUG
 		dev_dbg(&spi->dev, "set: amp #2");
 	#endif
 
-	switch (optionOnOff) {
-	case optionOn:	return WRITE_REG(REG_PALEVEL, (READ_REG(REG_PALEVEL) |  MASK_PALEVEL_PA2));
-	case optionOff:	return WRITE_REG(REG_PALEVEL, (READ_REG(REG_PALEVEL) & ~MASK_PALEVEL_PA2));
+	switch (option_on_off) {
+	case OPTION_ON:	 return WRITE_REG(REG_PALEVEL, (READ_REG(REG_PALEVEL) |  MASK_PALEVEL_PA2));
+	case OPTION_OFF: return WRITE_REG(REG_PALEVEL, (READ_REG(REG_PALEVEL) & ~MASK_PALEVEL_PA2));
 	default:
 		dev_dbg(&spi->dev, "set: illegal input param");
 		return -EINVAL;
@@ -720,15 +723,16 @@ int rf69_set_preamble_length(struct spi_device *spi, u16 preambleLength)
 	return WRITE_REG(REG_PREAMBLE_LSB, lsb);
 }
 
-int rf69_set_sync_enable(struct spi_device *spi, enum optionOnOff optionOnOff)
+int rf69_set_sync_enable(struct spi_device *spi,
+			 enum option_on_off option_on_off)
 {
 	#ifdef DEBUG
 		dev_dbg(&spi->dev, "set: sync enable");
 	#endif
 
-	switch (optionOnOff) {
-	case optionOn:	return WRITE_REG(REG_SYNC_CONFIG, (READ_REG(REG_SYNC_CONFIG) |  MASK_SYNC_CONFIG_SYNC_ON));
-	case optionOff:	return WRITE_REG(REG_SYNC_CONFIG, (READ_REG(REG_SYNC_CONFIG) & ~MASK_SYNC_CONFIG_SYNC_ON));
+	switch (option_on_off) {
+	case OPTION_ON:  return WRITE_REG(REG_SYNC_CONFIG, (READ_REG(REG_SYNC_CONFIG) |  MASK_SYNC_CONFIG_SYNC_ON));
+	case OPTION_OFF: return WRITE_REG(REG_SYNC_CONFIG, (READ_REG(REG_SYNC_CONFIG) & ~MASK_SYNC_CONFIG_SYNC_ON));
 	default:
 		dev_dbg(&spi->dev, "set: illegal input param");
 		return -EINVAL;
@@ -817,15 +821,16 @@ int rf69_set_packet_format(struct spi_device *spi, enum packetFormat packetForma
 	}
 }
 
-int rf69_set_crc_enable(struct spi_device *spi, enum optionOnOff optionOnOff)
+int rf69_set_crc_enable(struct spi_device *spi,
+			enum option_on_off option_on_off)
 {
 	#ifdef DEBUG
 		dev_dbg(&spi->dev, "set: crc enable");
 	#endif
 
-	switch (optionOnOff) {
-	case optionOn:	return WRITE_REG(REG_PACKETCONFIG1, (READ_REG(REG_PACKETCONFIG1) |  MASK_PACKETCONFIG1_CRC_ON));
-	case optionOff:	return WRITE_REG(REG_PACKETCONFIG1, (READ_REG(REG_PACKETCONFIG1) & ~MASK_PACKETCONFIG1_CRC_ON));
+	switch (option_on_off) {
+	case OPTION_ON:  return WRITE_REG(REG_PACKETCONFIG1, (READ_REG(REG_PACKETCONFIG1) |  MASK_PACKETCONFIG1_CRC_ON));
+	case OPTION_OFF: return WRITE_REG(REG_PACKETCONFIG1, (READ_REG(REG_PACKETCONFIG1) & ~MASK_PACKETCONFIG1_CRC_ON));
 	default:
 		dev_dbg(&spi->dev, "set: illegal input param");
 		return -EINVAL;
