@@ -56,10 +56,10 @@ struct cpu_entry_area {
 	char gdt[PAGE_SIZE];
 
 	/*
-	 * The GDT is just below SYSENTER_stack and thus serves (on x86_64) as
+	 * The GDT is just below entry_stack and thus serves (on x86_64) as
 	 * a a read-only guard page.
 	 */
-	struct SYSENTER_stack_page SYSENTER_stack_page;
+	struct entry_stack_page entry_stack_page;
 
 	/*
 	 * On x86_64, the TSS is mapped RO.  On x86_32, it's mapped RW because
@@ -250,9 +250,9 @@ static inline struct cpu_entry_area *get_cpu_entry_area(int cpu)
 	return (struct cpu_entry_area *)__fix_to_virt(__get_cpu_entry_area_page_index(cpu, 0));
 }
 
-static inline struct SYSENTER_stack *cpu_SYSENTER_stack(int cpu)
+static inline struct entry_stack *cpu_entry_stack(int cpu)
 {
-	return &get_cpu_entry_area(cpu)->SYSENTER_stack_page.stack;
+	return &get_cpu_entry_area(cpu)->entry_stack_page.stack;
 }
 
 #endif /* !__ASSEMBLY__ */
