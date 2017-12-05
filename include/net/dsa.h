@@ -307,10 +307,13 @@ static inline unsigned int dsa_towards_port(struct dsa_switch *ds, int device,
 }
 
 /* Return the local port used to reach the dedicated CPU port */
-static inline u8 dsa_upstream_port(struct dsa_switch *ds)
+static inline unsigned int dsa_upstream_port(struct dsa_switch *ds, int port)
 {
-	struct dsa_switch_tree *dst = ds->dst;
-	struct dsa_port *cpu_dp = dst->cpu_dp;
+	const struct dsa_port *dp = dsa_to_port(ds, port);
+	const struct dsa_port *cpu_dp = dp->cpu_dp;
+
+	if (!cpu_dp)
+		return port;
 
 	return dsa_towards_port(ds, cpu_dp->ds->index, cpu_dp->index);
 }

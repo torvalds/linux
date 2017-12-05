@@ -1750,7 +1750,7 @@ static int mv88e6xxx_setup_upstream_port(struct mv88e6xxx_chip *chip, int port)
 	int upstream_port;
 	int err;
 
-	upstream_port = dsa_upstream_port(ds);
+	upstream_port = dsa_upstream_port(ds, port);
 	if (chip->info->ops->port_set_upstream_port) {
 		err = chip->info->ops->port_set_upstream_port(chip, port,
 							      upstream_port);
