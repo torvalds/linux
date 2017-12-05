@@ -51,13 +51,10 @@
 #include "nfpcore/nfp.h"
 #include "nfpcore/nfp_nsp.h"
 #include "nfp_app.h"
+#include "nfp_main.h"
 #include "nfp_net_ctrl.h"
 #include "nfp_net.h"
 #include "nfp_port.h"
-
-enum nfp_dump_diag {
-	NFP_DUMP_NSP_DIAG = 0,
-};
 
 struct nfp_et_stat {
 	char name[ETH_GSTRING_LEN];
@@ -1066,15 +1063,34 @@ exit_release:
 	return ret;
 }
 
+/* Set the dump flag/level. Calculate the dump length for flag > 0 only (new TLV
+ * based dumps), since flag 0 (default) calculates the length in
+ * nfp_app_get_dump_flag(), and we need to support triggering a level 0 dump
+ * without setting the flag first, for backward compatibility.
+ */
 static int nfp_app_set_dump(struct net_device *netdev, struct ethtool_dump *val)
 {
 	struct nfp_app *app = nfp_app_from_netdev(netdev);
+	s64 len;
 
 	if (!app)
 		return -EOPNOTSUPP;
 
-	if (val->flag != NFP_DUMP_NSP_DIAG)
-		return -EINVAL;
+	if (val->flag == NFP_DUMP_NSP_DIAG) {
+		app->pf->dump_flag = val->flag;
+		return 0;
+	}
+
+	if (!app->pf->dumpspec)
+		return -EOPNOTSUPP;
+
+	len = nfp_net_dump_calculate_size(app->pf, app->pf->dumpspec,
+					  val->flag);
+	if (len < 0)
+		return len;
+
+	app->pf->dump_flag = val->flag;
+	app->pf->dump_len = len;
 
 	return 0;
 }
@@ -1082,14 +1098,37 @@ static int nfp_app_set_dump(struct net_device *netdev, struct ethtool_dump *val)
 static int
 nfp_app_get_dump_flag(struct net_device *netdev, struct ethtool_dump *dump)
 {
-	return nfp_dump_nsp_diag(nfp_app_from_netdev(netdev), dump, NULL);
+	struct nfp_app *app = nfp_app_from_netdev(netdev);
+
+	if (!app)
+		return -EOPNOTSUPP;
+
+	if (app->pf->dump_flag == NFP_DUMP_NSP_DIAG)
+		return nfp_dump_nsp_diag(app, dump, NULL);
+
+	dump->flag = app->pf->dump_flag;
+	dump->len = app->pf->dump_len;
+
+	return 0;
 }
 
 static int
 nfp_app_get_dump_data(struct net_device *netdev, struct ethtool_dump *dump,
 		      void *buffer)
 {
-	return nfp_dump_nsp_diag(nfp_app_from_netdev(netdev), dump, buffer);
+	struct nfp_app *app = nfp_app_from_netdev(netdev);
+
+	if (!app)
+		return -EOPNOTSUPP;
+
+	if (app->pf->dump_flag == NFP_DUMP_NSP_DIAG)
+		return nfp_dump_nsp_diag(app, dump, buffer);
+
+	dump->flag = app->pf->dump_flag;
+	dump->len = app->pf->dump_len;
+
+	return nfp_net_dump_populate_buffer(app->pf, app->pf->dumpspec, dump,
+					    buffer);
 }
 
 static int nfp_net_set_coalesce(struct net_device *netdev,
