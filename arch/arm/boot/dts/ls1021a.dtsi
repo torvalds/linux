@@ -108,6 +108,13 @@
 			     <GIC_SPI 139 IRQ_TYPE_LEVEL_HIGH>;
 	};
 
+	reboot {
+		compatible = "syscon-reboot";
+		regmap = <&dcfg>;
+		offset = <0xb0>;
+		mask = <0x02>;
+	};
+
 	soc {
 		compatible = "simple-bus";
 		#address-cells = <2>;
