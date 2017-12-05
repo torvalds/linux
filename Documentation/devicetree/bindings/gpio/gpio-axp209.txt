@@ -9,7 +9,9 @@ Documentation/devicetree/bindings/pinctrl/pinctrl-bindings.txt
 This driver employs the per-pin muxing pattern.
 
 Required properties:
-- compatible: Should be "x-powers,axp209-gpio"
+- compatible: Should be one of:
+	- "x-powers,axp209-gpio"
+	- "x-powers,axp813-gpio"
 - #gpio-cells: Should be two. The first cell is the pin number and the
   second is the GPIO flags.
 - gpio-controller: Marks the device node as a GPIO controller.
@@ -57,8 +59,17 @@ GPIOs and their functions
 Each GPIO is independent from the other (i.e. GPIO0 in gpio_in function does
 not force GPIO1 and GPIO2 to be in gpio_in function as well).
 
+axp209
+------
 GPIO	|	Functions
 ------------------------
 GPIO0	|	gpio_in, gpio_out, ldo, adc
 GPIO1	|	gpio_in, gpio_out, ldo, adc
 GPIO2	|	gpio_in, gpio_out
+
+axp813
+------
+GPIO	|	Functions
+------------------------
+GPIO0	|	gpio_in, gpio_out, ldo, adc
+GPIO1	|	gpio_in, gpio_out, ldo

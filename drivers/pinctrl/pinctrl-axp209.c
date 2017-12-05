@@ -19,6 +19,7 @@
 #include <linux/mfd/axp20x.h>
 #include <linux/module.h>
 #include <linux/of.h>
+#include <linux/of_device.h>
 #include <linux/pinctrl/pinconf-generic.h>
 #include <linux/pinctrl/pinctrl.h>
 #include <linux/pinctrl/pinmux.h>
@@ -40,6 +41,8 @@
 #define AXP20X_MUX_GPIO_OUT		0
 #define AXP20X_MUX_GPIO_IN		BIT(1)
 #define AXP20X_MUX_ADC			BIT(2)
+
+#define AXP813_MUX_ADC			(BIT(2) | BIT(0))
 
 struct axp20x_pctrl_desc {
 	const struct pinctrl_pin_desc	*pins;
@@ -74,6 +77,11 @@ static const struct pinctrl_pin_desc axp209_pins[] = {
 	PINCTRL_PIN(2, "GPIO2"),
 };
 
+static const struct pinctrl_pin_desc axp813_pins[] = {
+	PINCTRL_PIN(0, "GPIO0"),
+	PINCTRL_PIN(1, "GPIO1"),
+};
+
 static const struct axp20x_pctrl_desc axp20x_data = {
 	.pins	= axp209_pins,
 	.npins	= ARRAY_SIZE(axp209_pins),
@@ -81,6 +89,15 @@ static const struct axp20x_pctrl_desc axp20x_data = {
 	.adc_mask = BIT(0) | BIT(1),
 	.gpio_status_offset = 4,
 	.adc_mux = AXP20X_MUX_ADC,
+};
+
+static const struct axp20x_pctrl_desc axp813_data = {
+	.pins	= axp813_pins,
+	.npins	= ARRAY_SIZE(axp813_pins),
+	.ldo_mask = BIT(0) | BIT(1),
+	.adc_mask = BIT(0),
+	.gpio_status_offset = 0,
+	.adc_mux = AXP813_MUX_ADC,
 };
 
 static int axp20x_gpio_get_reg(unsigned int offset)
@@ -357,10 +374,18 @@ static void axp20x_build_funcs_groups(struct platform_device *pdev)
 				      pctl->desc->pins);
 }
 
+static const struct of_device_id axp20x_pctl_match[] = {
+	{ .compatible = "x-powers,axp209-gpio", .data = &axp20x_data, },
+	{ .compatible = "x-powers,axp813-gpio", .data = &axp813_data, },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, axp20x_pctl_match);
+
 static int axp20x_pctl_probe(struct platform_device *pdev)
 {
 	struct axp20x_dev *axp20x = dev_get_drvdata(pdev->dev.parent);
 	struct axp20x_pctl *pctl;
+	struct device *dev = &pdev->dev;
 	struct pinctrl_desc *pctrl_desc;
 	int ret;
 
@@ -388,9 +413,9 @@ static int axp20x_pctl_probe(struct platform_device *pdev)
 	pctl->chip.set			= axp20x_gpio_set;
 	pctl->chip.direction_input	= axp20x_gpio_input;
 	pctl->chip.direction_output	= axp20x_gpio_output;
-	pctl->chip.ngpio		= 3;
+	pctl->chip.ngpio		= pctl->desc->npins;
 
-	pctl->desc = &axp20x_data;
+	pctl->desc = (struct axp20x_pctrl_desc *)of_device_get_match_data(dev);
 	pctl->regmap = axp20x->regmap;
 	pctl->dev = &pdev->dev;
 
@@ -434,12 +459,6 @@ static int axp20x_pctl_probe(struct platform_device *pdev)
 
 	return 0;
 }
-
-static const struct of_device_id axp20x_pctl_match[] = {
-	{ .compatible = "x-powers,axp209-gpio" },
-	{ }
-};
-MODULE_DEVICE_TABLE(of, axp20x_pctl_match);
 
 static struct platform_driver axp20x_pctl_driver = {
 	.probe		= axp20x_pctl_probe,
