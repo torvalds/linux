@@ -178,13 +178,15 @@ EXPORT_SYMBOL(drm_fb_helper_add_one_connector);
  */
 int drm_fb_helper_single_add_all_connectors(struct drm_fb_helper *fb_helper)
 {
-	struct drm_device *dev = fb_helper->dev;
+	struct drm_device *dev;
 	struct drm_connector *connector;
 	struct drm_connector_list_iter conn_iter;
 	int i, ret = 0;
 
 	if (!drm_fbdev_emulation || !fb_helper)
 		return 0;
+
+	dev = fb_helper->dev;
 
 	mutex_lock(&fb_helper->lock);
 	drm_connector_list_iter_begin(dev, &conn_iter);
