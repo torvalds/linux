@@ -1744,6 +1744,23 @@ static int mv88e6xxx_serdes_power(struct mv88e6xxx_chip *chip, int port,
 	return 0;
 }
 
+static int mv88e6xxx_setup_upstream_port(struct mv88e6xxx_chip *chip, int port)
+{
+	struct dsa_switch *ds = chip->ds;
+	int upstream_port;
+	int err;
+
+	upstream_port = dsa_upstream_port(ds);
+	if (chip->info->ops->port_set_upstream_port) {
+		err = chip->info->ops->port_set_upstream_port(chip, port,
+							      upstream_port);
+		if (err)
+			return err;
+	}
+
+	return 0;
+}
+
 static int mv88e6xxx_setup_port(struct mv88e6xxx_chip *chip, int port)
 {
 	struct dsa_switch *ds = chip->ds;
@@ -1814,13 +1831,9 @@ static int mv88e6xxx_setup_port(struct mv88e6xxx_chip *chip, int port)
 	if (err)
 		return err;
 
-	reg = 0;
-	if (chip->info->ops->port_set_upstream_port) {
-		err = chip->info->ops->port_set_upstream_port(
-			chip, port, dsa_upstream_port(ds));
-		if (err)
-			return err;
-	}
+	err = mv88e6xxx_setup_upstream_port(chip, port);
+	if (err)
+		return err;
 
 	err = mv88e6xxx_port_set_8021q_mode(chip, port,
 				MV88E6XXX_PORT_CTL2_8021Q_MODE_DISABLED);
