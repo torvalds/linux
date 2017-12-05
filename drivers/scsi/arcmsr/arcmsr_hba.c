@@ -743,6 +743,7 @@ static void arcmsr_message_isr_bh_fn(struct work_struct *work)
 	struct scsi_device *psdev;
 	char diff, temp;
 
+	acb->acb_flags &= ~ACB_F_MSG_GET_CONFIG;
 	switch (acb->adapter_type) {
 	case ACB_ADAPTER_TYPE_A: {
 		struct MessageUnit_A __iomem *reg  = acb->pmuA;
@@ -2328,7 +2329,8 @@ static void arcmsr_hbaA_message_isr(struct AdapterControlBlock *acb)
 	struct MessageUnit_A __iomem *reg  = acb->pmuA;
 	/*clear interrupt and message state*/
 	writel(ARCMSR_MU_OUTBOUND_MESSAGE0_INT, &reg->outbound_intstatus);
-	schedule_work(&acb->arcmsr_do_message_isr_bh);
+	if (acb->acb_flags & ACB_F_MSG_GET_CONFIG)
+		schedule_work(&acb->arcmsr_do_message_isr_bh);
 }
 static void arcmsr_hbaB_message_isr(struct AdapterControlBlock *acb)
 {
@@ -2336,7 +2338,8 @@ static void arcmsr_hbaB_message_isr(struct AdapterControlBlock *acb)
 
 	/*clear interrupt and message state*/
 	writel(ARCMSR_MESSAGE_INT_CLEAR_PATTERN, reg->iop2drv_doorbell);
-	schedule_work(&acb->arcmsr_do_message_isr_bh);
+	if (acb->acb_flags & ACB_F_MSG_GET_CONFIG)
+		schedule_work(&acb->arcmsr_do_message_isr_bh);
 }
 /*
 **********************************************************************************
@@ -2352,7 +2355,8 @@ static void arcmsr_hbaC_message_isr(struct AdapterControlBlock *acb)
 	struct MessageUnit_C __iomem *reg  = acb->pmuC;
 	/*clear interrupt and message state*/
 	writel(ARCMSR_HBCMU_IOP2DRV_MESSAGE_CMD_DONE_DOORBELL_CLEAR, &reg->outbound_doorbell_clear);
-	schedule_work(&acb->arcmsr_do_message_isr_bh);
+	if (acb->acb_flags & ACB_F_MSG_GET_CONFIG)
+		schedule_work(&acb->arcmsr_do_message_isr_bh);
 }
 
 static void arcmsr_hbaD_message_isr(struct AdapterControlBlock *acb)
@@ -2361,7 +2365,8 @@ static void arcmsr_hbaD_message_isr(struct AdapterControlBlock *acb)
 
 	writel(ARCMSR_ARC1214_IOP2DRV_MESSAGE_CMD_DONE, reg->outbound_doorbell);
 	readl(reg->outbound_doorbell);
-	schedule_work(&acb->arcmsr_do_message_isr_bh);
+	if (acb->acb_flags & ACB_F_MSG_GET_CONFIG)
+		schedule_work(&acb->arcmsr_do_message_isr_bh);
 }
 
 static void arcmsr_hbaE_message_isr(struct AdapterControlBlock *acb)
@@ -2369,7 +2374,8 @@ static void arcmsr_hbaE_message_isr(struct AdapterControlBlock *acb)
 	struct MessageUnit_E __iomem *reg  = acb->pmuE;
 
 	writel(0, &reg->host_int_status);
-	schedule_work(&acb->arcmsr_do_message_isr_bh);
+	if (acb->acb_flags & ACB_F_MSG_GET_CONFIG)
+		schedule_work(&acb->arcmsr_do_message_isr_bh);
 }
 
 static int arcmsr_hbaA_handle_isr(struct AdapterControlBlock *acb)
@@ -3826,6 +3832,7 @@ static void arcmsr_hbaA_request_device_map(struct AdapterControlBlock *acb)
 			return;
 		}
 		writel(ARCMSR_INBOUND_MESG0_GET_CONFIG, &reg->inbound_msgaddr0);
+		acb->acb_flags |= ACB_F_MSG_GET_CONFIG;
 		mod_timer(&acb->eternal_timer, jiffies + msecs_to_jiffies(6 * HZ));
 	}
 	return;
@@ -3848,6 +3855,7 @@ static void arcmsr_hbaB_request_device_map(struct AdapterControlBlock *acb)
 			return;
 		}
 		writel(ARCMSR_MESSAGE_GET_CONFIG, reg->drv2iop_doorbell);
+		acb->acb_flags |= ACB_F_MSG_GET_CONFIG;
 		mod_timer(&acb->eternal_timer, jiffies + msecs_to_jiffies(6 * HZ));
 	}
 	return;
@@ -3871,6 +3879,7 @@ static void arcmsr_hbaC_request_device_map(struct AdapterControlBlock *acb)
 		}
 		writel(ARCMSR_INBOUND_MESG0_GET_CONFIG, &reg->inbound_msgaddr0);
 		writel(ARCMSR_HBCMU_DRV2IOP_MESSAGE_CMD_DONE, &reg->inbound_doorbell);
+		acb->acb_flags |= ACB_F_MSG_GET_CONFIG;
 		mod_timer(&acb->eternal_timer, jiffies + msecs_to_jiffies(6 * HZ));
 	}
 	return;
@@ -3900,6 +3909,7 @@ static void arcmsr_hbaD_request_device_map(struct AdapterControlBlock *acb)
 		}
 		writel(ARCMSR_INBOUND_MESG0_GET_CONFIG,
 			reg->inbound_msgaddr0);
+		acb->acb_flags |= ACB_F_MSG_GET_CONFIG;
 		mod_timer(&acb->eternal_timer, jiffies +
 			msecs_to_jiffies(6 * HZ));
 	}
@@ -3930,6 +3940,7 @@ static void arcmsr_hbaE_request_device_map(struct AdapterControlBlock *acb)
 		writel(ARCMSR_INBOUND_MESG0_GET_CONFIG, &reg->inbound_msgaddr0);
 		acb->out_doorbell ^= ARCMSR_HBEMU_DRV2IOP_MESSAGE_CMD_DONE;
 		writel(acb->out_doorbell, &reg->iobound_doorbell);
+		acb->acb_flags |= ACB_F_MSG_GET_CONFIG;
 		mod_timer(&acb->eternal_timer, jiffies +
 			msecs_to_jiffies(6 * HZ));
 	}
