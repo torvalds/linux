@@ -1002,6 +1002,14 @@ struct drm_connector_helper_funcs {
 			      struct drm_connector_state *state);
 
 	/**
+	 * @atomic_begin:
+	 *
+	 * begin atomic update.
+	 */
+	void (*atomic_begin)(struct drm_connector *connector,
+			     struct drm_connector_state *conn_state);
+
+	/**
 	 * @atomic_flush:
 	 *
 	 * flush atomic update.
