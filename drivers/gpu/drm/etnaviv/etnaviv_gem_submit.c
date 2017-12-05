@@ -514,10 +514,6 @@ int etnaviv_ioctl_gem_submit(struct drm_device *dev, void *data,
 	if (ret)
 		goto err_submit_objects;
 
-	ret = submit_lock_objects(submit, &ticket);
-	if (ret)
-		goto err_submit_objects;
-
 	if (!etnaviv_cmd_validate_one(gpu, stream, args->stream_size / 4,
 				      relocs, args->nr_relocs)) {
 		ret = -EINVAL;
@@ -531,10 +527,6 @@ int etnaviv_ioctl_gem_submit(struct drm_device *dev, void *data,
 			goto err_submit_objects;
 		}
 	}
-
-	ret = submit_fence_sync(submit);
-	if (ret)
-		goto err_submit_objects;
 
 	ret = submit_pin_objects(submit);
 	if (ret)
@@ -551,6 +543,14 @@ int etnaviv_ioctl_gem_submit(struct drm_device *dev, void *data,
 
 	memcpy(submit->cmdbuf.vaddr, stream, args->stream_size);
 	submit->cmdbuf.user_size = ALIGN(args->stream_size, 8);
+
+	ret = submit_lock_objects(submit, &ticket);
+	if (ret)
+		goto err_submit_objects;
+
+	ret = submit_fence_sync(submit);
+	if (ret)
+		goto err_submit_objects;
 
 	ret = etnaviv_sched_push_job(&ctx->sched_entity[args->pipe], submit);
 	if (ret)
