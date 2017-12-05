@@ -360,14 +360,15 @@ retry:
 	return inode;
 }
 
-int update_inode(struct inode *inode, struct page *node_page)
+void update_inode(struct inode *inode, struct page *node_page)
 {
 	struct f2fs_inode *ri;
 	struct extent_tree *et = F2FS_I(inode)->extent_tree;
 
-	f2fs_inode_synced(inode);
-
 	f2fs_wait_on_page_writeback(node_page, NODE, true);
+	set_page_dirty(node_page);
+
+	f2fs_inode_synced(inode);
 
 	ri = F2FS_INODE(node_page);
 
@@ -426,14 +427,12 @@ int update_inode(struct inode *inode, struct page *node_page)
 	if (inode->i_nlink == 0)
 		clear_inline_node(node_page);
 
-	return set_page_dirty(node_page);
 }
 
-int update_inode_page(struct inode *inode)
+void update_inode_page(struct inode *inode)
 {
 	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
 	struct page *node_page;
-	int ret = 0;
 retry:
 	node_page = get_node_page(sbi, inode->i_ino);
 	if (IS_ERR(node_page)) {
@@ -444,11 +443,10 @@ retry:
 		} else if (err != -ENOENT) {
 			f2fs_stop_checkpoint(sbi, false);
 		}
-		return 0;
+		return;
 	}
-	ret = update_inode(inode, node_page);
+	update_inode(inode, node_page);
 	f2fs_put_page(node_page, 1);
-	return ret;
 }
 
 int f2fs_write_inode(struct inode *inode, struct writeback_control *wbc)
