@@ -79,6 +79,10 @@ static int host_can_queue = ARCMSR_DEFAULT_OUTSTANDING_CMD;
 module_param(host_can_queue, int, S_IRUGO);
 MODULE_PARM_DESC(host_can_queue, " adapter queue depth(32 ~ 1024), default is 128");
 
+static int cmd_per_lun = ARCMSR_DEFAULT_CMD_PERLUN;
+module_param(cmd_per_lun, int, S_IRUGO);
+MODULE_PARM_DESC(cmd_per_lun, " device queue depth(1 ~ 128), default is 32");
+
 #define	ARCMSR_SLEEPTIME	10
 #define	ARCMSR_RETRYCOUNT	12
 
@@ -141,7 +145,7 @@ static struct scsi_host_template arcmsr_scsi_host_template = {
 	.this_id			= ARCMSR_SCSI_INITIATOR_ID,
 	.sg_tablesize	        	= ARCMSR_DEFAULT_SG_ENTRIES, 
 	.max_sectors    	    	= ARCMSR_MAX_XFER_SECTORS_C, 
-	.cmd_per_lun		= ARCMSR_MAX_CMD_PERLUN,
+	.cmd_per_lun		= ARCMSR_DEFAULT_CMD_PERLUN,
 	.use_clustering		= ENABLE_CLUSTERING,
 	.shost_attrs		= arcmsr_host_attrs,
 	.no_write_same		= 1,
@@ -884,7 +888,9 @@ static int arcmsr_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if ((host_can_queue < ARCMSR_MIN_OUTSTANDING_CMD) || (host_can_queue > ARCMSR_MAX_OUTSTANDING_CMD))
 		host_can_queue = ARCMSR_DEFAULT_OUTSTANDING_CMD;
 	host->can_queue = host_can_queue;	/* max simultaneous cmds */
-	host->cmd_per_lun = ARCMSR_MAX_CMD_PERLUN;	    
+	if ((cmd_per_lun < ARCMSR_MIN_CMD_PERLUN) || (cmd_per_lun > ARCMSR_MAX_CMD_PERLUN))
+		cmd_per_lun = ARCMSR_DEFAULT_CMD_PERLUN;
+	host->cmd_per_lun = cmd_per_lun;
 	host->this_id = ARCMSR_SCSI_INITIATOR_ID;
 	host->unique_id = (bus << 8) | dev_fun;
 	pci_set_drvdata(pdev, host);
