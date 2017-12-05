@@ -706,12 +706,11 @@ int of_overlay_apply(struct device_node *tree, int *ovcs_id)
 	}
 
 	of_overlay_mutex_lock();
+	mutex_lock(&of_mutex);
 
 	ret = of_resolve_phandles(tree);
 	if (ret)
-		goto err_overlay_unlock;
-
-	mutex_lock(&of_mutex);
+		goto err_free_overlay_changeset;
 
 	ret = init_overlay_changeset(ovcs, tree);
 	if (ret)
@@ -754,18 +753,14 @@ int of_overlay_apply(struct device_node *tree, int *ovcs_id)
 			ret = ret_tmp;
 	}
 
-	mutex_unlock(&of_mutex);
-	of_overlay_mutex_unlock();
-
-	goto out;
-
-err_overlay_unlock:
-	of_overlay_mutex_unlock();
+	goto out_unlock;
 
 err_free_overlay_changeset:
 	free_overlay_changeset(ovcs);
 
+out_unlock:
 	mutex_unlock(&of_mutex);
+	of_overlay_mutex_unlock();
 
 out:
 	pr_debug("%s() err=%d\n", __func__, ret);
