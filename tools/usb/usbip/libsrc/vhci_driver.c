@@ -106,7 +106,7 @@ static int parse_status(const char *value)
 	return 0;
 }
 
-#define MAX_STATUS_NAME 16
+#define MAX_STATUS_NAME 18
 
 static int refresh_imported_device_list(void)
 {
