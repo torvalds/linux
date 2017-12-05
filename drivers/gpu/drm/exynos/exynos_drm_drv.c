@@ -16,6 +16,7 @@
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc_helper.h>
+#include <drm/drm_fb_helper.h>
 
 #include <linux/component.h>
 
@@ -89,11 +90,6 @@ static void exynos_drm_postclose(struct drm_device *dev, struct drm_file *file)
 	file->driver_priv = NULL;
 }
 
-static void exynos_drm_lastclose(struct drm_device *dev)
-{
-	exynos_drm_fbdev_restore_mode(dev);
-}
-
 static const struct vm_operations_struct exynos_drm_gem_vm_ops = {
 	.fault = exynos_drm_gem_fault,
 	.open = drm_gem_vm_open,
@@ -140,7 +136,7 @@ static struct drm_driver exynos_drm_driver = {
 	.driver_features	= DRIVER_MODESET | DRIVER_GEM | DRIVER_PRIME
 				  | DRIVER_ATOMIC | DRIVER_RENDER,
 	.open			= exynos_drm_open,
-	.lastclose		= exynos_drm_lastclose,
+	.lastclose		= drm_fb_helper_lastclose,
 	.postclose		= exynos_drm_postclose,
 	.gem_free_object_unlocked = exynos_drm_gem_free_object,
 	.gem_vm_ops		= &exynos_drm_gem_vm_ops,
