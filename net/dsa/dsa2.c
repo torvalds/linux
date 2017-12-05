@@ -241,7 +241,7 @@ static int dsa_tree_setup_default_cpu(struct dsa_switch_tree *dst)
 		for (port = 0; port < ds->num_ports; port++) {
 			dp = &ds->ports[port];
 
-			if (dsa_port_is_user(dp))
+			if (dsa_port_is_user(dp) || dsa_port_is_dsa(dp))
 				dp->cpu_dp = dst->cpu_dp;
 		}
 	}
