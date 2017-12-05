@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Driver for STM32 Digital Camera Memory Interface
  *
@@ -5,7 +6,6 @@
  * Authors: Yannick Fertre <yannick.fertre@st.com>
  *          Hugues Fruchet <hugues.fruchet@st.com>
  *          for STMicroelectronics.
- * License terms:  GNU General Public License (GPL), version 2
  *
  * This driver is based on atmel_isi.c
  *
