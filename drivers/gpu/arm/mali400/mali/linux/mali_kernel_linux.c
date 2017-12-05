@@ -588,9 +588,9 @@ static int mali_probe(struct platform_device *pdev)
 		mdev->clock = NULL;
 		/* Allow probe to continue without clock. */
 	} else {
-		err = clk_prepare_enable(mdev->clock);
+		err = clk_prepare(mdev->clock);
 		if (err) {
-			MALI_PRINT_ERROR(("Failed to prepare and enable clock (%d)\n", err));
+			MALI_PRINT_ERROR(("Failed to prepare clock (%d)\n", err));
 			goto clock_prepare_failed;
 		}
 	}
@@ -640,7 +640,7 @@ static int mali_probe(struct platform_device *pdev)
 devfreq_init_failed:
 	mali_pm_metrics_term(mdev);
 pm_metrics_init_failed:
-	clk_disable_unprepare(mdev->clock);
+	clk_unprepare(mdev->clock);
 clock_prepare_failed:
 	clk_put(mdev->clock);
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 19, 0)) && defined(CONFIG_OF) \
@@ -680,7 +680,7 @@ static int mali_remove(struct platform_device *pdev)
 	mali_pm_metrics_term(mdev);
 
 	if (mdev->clock) {
-		clk_disable_unprepare(mdev->clock);
+		clk_unprepare(mdev->clock);
 		clk_put(mdev->clock);
 		mdev->clock = NULL;
 	}
