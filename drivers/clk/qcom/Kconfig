@@ -22,6 +22,17 @@ config QCOM_A53PLL
 	  Say Y if you want to support higher CPU frequencies on MSM8916
 	  devices.
 
+config QCOM_CLK_APCS_MSM8916
+	tristate "MSM8916 APCS Clock Controller"
+	depends on COMMON_CLK_QCOM
+	depends on QCOM_APCS_IPC || COMPILE_TEST
+	default ARCH_QCOM
+	help
+	  Support for the APCS Clock Controller on msm8916 devices. The
+	  APCS is managing the mux and divider which feeds the CPUs.
+	  Say Y if you want to support CPU frequency scaling on devices
+	  such as msm8916.
+
 config QCOM_CLK_RPM
 	tristate "RPM based Clock Controller"
 	depends on COMMON_CLK_QCOM && MFD_QCOM_RPM
