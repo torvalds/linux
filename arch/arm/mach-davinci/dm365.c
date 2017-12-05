@@ -928,6 +928,7 @@ static struct resource edma_resources[] = {
 static const struct platform_device_info dm365_edma_device __initconst = {
 	.name		= "edma",
 	.id		= 0,
+	.dma_mask	= DMA_BIT_MASK(32),
 	.res		= edma_resources,
 	.num_res	= ARRAY_SIZE(edma_resources),
 	.data		= &dm365_edma_pdata,
