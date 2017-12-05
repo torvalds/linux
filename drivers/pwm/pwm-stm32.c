@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) STMicroelectronics 2016
  *
  * Author: Gerald Baeza <gerald.baeza@st.com>
- *
- * License terms: GNU General Public License (GPL), version 2
  *
  * Inspired by timer-stm32.c from Maxime Coquelin
  *             pwm-atmel.c from Bo Shen
