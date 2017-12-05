@@ -51,7 +51,8 @@ enum ath10k_pktlog_filter {
 	ATH10K_PKTLOG_RCFIND     = 0x000000004,
 	ATH10K_PKTLOG_RCUPDATE   = 0x000000008,
 	ATH10K_PKTLOG_DBG_PRINT  = 0x000000010,
-	ATH10K_PKTLOG_ANY        = 0x00000001f,
+	ATH10K_PKTLOG_PEER_STATS = 0x000000040,
+	ATH10K_PKTLOG_ANY        = 0x00000005f,
 };
 
 enum ath10k_dbg_aggr_mode {
@@ -59,6 +60,21 @@ enum ath10k_dbg_aggr_mode {
 	ATH10K_DBG_AGGR_MODE_MANUAL,
 	ATH10K_DBG_AGGR_MODE_MAX,
 };
+
+/* Types of packet log events */
+enum ath_pktlog_type {
+	ATH_PKTLOG_TYPE_TX_CTRL = 1,
+	ATH_PKTLOG_TYPE_TX_STAT,
+};
+
+struct ath10k_pktlog_hdr {
+	__le16 flags;
+	__le16 missed_cnt;
+	__le16 log_type; /* Type of log information foll this header */
+	__le16 size; /* Size of variable length log information in bytes */
+	__le32 timestamp;
+	u8 payload[0];
+} __packed;
 
 /* FIXME: How to calculate the buffer size sanely? */
 #define ATH10K_FW_STATS_BUF_SIZE (1024 * 1024)
