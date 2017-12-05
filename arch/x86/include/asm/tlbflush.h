@@ -60,19 +60,13 @@ static inline void invpcid_flush_all_nonglobals(void)
 
 static inline u64 inc_mm_tlb_gen(struct mm_struct *mm)
 {
-	u64 new_tlb_gen;
-
 	/*
 	 * Bump the generation count.  This also serves as a full barrier
 	 * that synchronizes with switch_mm(): callers are required to order
 	 * their read of mm_cpumask after their writes to the paging
 	 * structures.
 	 */
-	smp_mb__before_atomic();
-	new_tlb_gen = atomic64_inc_return(&mm->context.tlb_gen);
-	smp_mb__after_atomic();
-
-	return new_tlb_gen;
+	return atomic64_inc_return(&mm->context.tlb_gen);
 }
 
 #ifdef CONFIG_PARAVIRT
