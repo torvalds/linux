@@ -224,6 +224,7 @@ static struct hns_roce_hem *hns_roce_alloc_hem(struct hns_roce_dev *hr_dev,
 			sg_init_table(chunk->mem, HNS_ROCE_HEM_CHUNK_LEN);
 			chunk->npages = 0;
 			chunk->nsg = 0;
+			memset(chunk->buf, 0, sizeof(chunk->buf));
 			list_add_tail(&chunk->list, &hem->chunk_list);
 		}
 
@@ -240,8 +241,7 @@ static struct hns_roce_hem *hns_roce_alloc_hem(struct hns_roce_dev *hr_dev,
 		if (!buf)
 			goto fail;
 
-		sg_set_buf(mem, buf, PAGE_SIZE << order);
-		WARN_ON(mem->offset);
+		chunk->buf[chunk->npages] = buf;
 		sg_dma_len(mem) = PAGE_SIZE << order;
 
 		++chunk->npages;
@@ -267,8 +267,8 @@ void hns_roce_free_hem(struct hns_roce_dev *hr_dev, struct hns_roce_hem *hem)
 	list_for_each_entry_safe(chunk, tmp, &hem->chunk_list, list) {
 		for (i = 0; i < chunk->npages; ++i)
 			dma_free_coherent(hr_dev->dev,
-				   chunk->mem[i].length,
-				   lowmem_page_address(sg_page(&chunk->mem[i])),
+				   sg_dma_len(&chunk->mem[i]),
+				   chunk->buf[i],
 				   sg_dma_address(&chunk->mem[i]));
 		kfree(chunk);
 	}
@@ -722,11 +722,12 @@ void *hns_roce_table_find(struct hns_roce_dev *hr_dev,
 	struct hns_roce_hem_chunk *chunk;
 	struct hns_roce_hem_mhop mhop;
 	struct hns_roce_hem *hem;
-	struct page *page = NULL;
+	void *addr = NULL;
 	unsigned long mhop_obj = obj;
 	unsigned long obj_per_chunk;
 	unsigned long idx_offset;
 	int offset, dma_offset;
+	int length;
 	int i, j;
 	u32 hem_idx = 0;
 
@@ -763,25 +764,25 @@ void *hns_roce_table_find(struct hns_roce_dev *hr_dev,
 
 	list_for_each_entry(chunk, &hem->chunk_list, list) {
 		for (i = 0; i < chunk->npages; ++i) {
+			length = sg_dma_len(&chunk->mem[i]);
 			if (dma_handle && dma_offset >= 0) {
-				if (sg_dma_len(&chunk->mem[i]) >
-				    (u32)dma_offset)
+				if (length > (u32)dma_offset)
 					*dma_handle = sg_dma_address(
 						&chunk->mem[i]) + dma_offset;
-				dma_offset -= sg_dma_len(&chunk->mem[i]);
+				dma_offset -= length;
 			}
 
-			if (chunk->mem[i].length > (u32)offset) {
-				page = sg_page(&chunk->mem[i]);
+			if (length > (u32)offset) {
+				addr = chunk->buf[i] + offset;
 				goto out;
 			}
-			offset -= chunk->mem[i].length;
+			offset -= length;
 		}
 	}
 
 out:
 	mutex_unlock(&table->mutex);
-	return page ? lowmem_page_address(page) + offset : NULL;
+	return addr;
 }
 EXPORT_SYMBOL_GPL(hns_roce_table_find);
 
