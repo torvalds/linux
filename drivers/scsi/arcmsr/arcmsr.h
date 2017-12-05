@@ -65,6 +65,7 @@ struct device_attribute;
 #define ARCMSR_MAX_HBB_POSTQUEUE						264
 #define ARCMSR_MAX_ARC1214_POSTQUEUE	256
 #define ARCMSR_MAX_ARC1214_DONEQUEUE	257
+#define ARCMSR_MAX_HBE_DONEQUEUE	512
 #define ARCMSR_MAX_XFER_LEN							0x26000 /* 152K */
 #define ARCMSR_CDB_SG_PAGE_LENGTH						256 
 #define ARCMST_NUM_MSIX_VECTORS		4
@@ -76,6 +77,9 @@ struct device_attribute;
 #endif
 #ifndef PCI_DEVICE_ID_ARECA_1203
 	#define PCI_DEVICE_ID_ARECA_1203	0x1203
+#endif
+#ifndef PCI_DEVICE_ID_ARECA_1884
+	#define PCI_DEVICE_ID_ARECA_1884	0x1884
 #endif
 /*
 **********************************************************************************
@@ -407,6 +411,31 @@ struct FIRMWARE_INFO
 #define ARCMSR_ARC1214_OUTBOUND_LIST_INTERRUPT_CLEAR	0x00000001
 /*
 *******************************************************************************
+**                SPEC. for Areca Type E adapter
+*******************************************************************************
+*/
+#define ARCMSR_SIGNATURE_1884			0x188417D3
+
+#define ARCMSR_HBEMU_DRV2IOP_DATA_WRITE_OK	0x00000002
+#define ARCMSR_HBEMU_DRV2IOP_DATA_READ_OK	0x00000004
+#define ARCMSR_HBEMU_DRV2IOP_MESSAGE_CMD_DONE	0x00000008
+
+#define ARCMSR_HBEMU_IOP2DRV_DATA_WRITE_OK	0x00000002
+#define ARCMSR_HBEMU_IOP2DRV_DATA_READ_OK	0x00000004
+#define ARCMSR_HBEMU_IOP2DRV_MESSAGE_CMD_DONE	0x00000008
+
+#define ARCMSR_HBEMU_MESSAGE_FIRMWARE_OK	0x80000000
+
+#define ARCMSR_HBEMU_OUTBOUND_DOORBELL_ISR	0x00000001
+#define ARCMSR_HBEMU_OUTBOUND_POSTQUEUE_ISR	0x00000008
+#define ARCMSR_HBEMU_ALL_INTMASKENABLE		0x00000009
+
+/* ARC-1884 doorbell sync */
+#define ARCMSR_HBEMU_DOORBELL_SYNC		0x100
+#define ARCMSR_ARC188X_RESET_ADAPTER		0x00000004
+#define ARCMSR_ARC1884_DiagWrite_ENABLE		0x00000080
+/*
+*******************************************************************************
 **    ARECA SCSI COMMAND DESCRIPTOR BLOCK size 0x1F8 (504)
 *******************************************************************************
 */
@@ -614,6 +643,88 @@ struct MessageUnit_D {
 	u32 __iomem *msgcode_rwbuffer;		/* 0x2200 */
 };
 /*
+*********************************************************************
+**     Messaging Unit (MU) of Type E processor(LSI)
+*********************************************************************
+*/
+struct MessageUnit_E{
+	uint32_t	iobound_doorbell;			/*0000 0003*/
+	uint32_t	write_sequence_3xxx;			/*0004 0007*/
+	uint32_t	host_diagnostic_3xxx;			/*0008 000B*/
+	uint32_t	posted_outbound_doorbell;		/*000C 000F*/
+	uint32_t	master_error_attribute;			/*0010 0013*/
+	uint32_t	master_error_address_low;		/*0014 0017*/
+	uint32_t	master_error_address_high;		/*0018 001B*/
+	uint32_t	hcb_size;				/*001C 001F*/
+	uint32_t	inbound_doorbell;			/*0020 0023*/
+	uint32_t	diagnostic_rw_data;			/*0024 0027*/
+	uint32_t	diagnostic_rw_address_low;		/*0028 002B*/
+	uint32_t	diagnostic_rw_address_high;		/*002C 002F*/
+	uint32_t	host_int_status;			/*0030 0033*/
+	uint32_t	host_int_mask;				/*0034 0037*/
+	uint32_t	dcr_data;				/*0038 003B*/
+	uint32_t	dcr_address;				/*003C 003F*/
+	uint32_t	inbound_queueport;			/*0040 0043*/
+	uint32_t	outbound_queueport;			/*0044 0047*/
+	uint32_t	hcb_pci_address_low;			/*0048 004B*/
+	uint32_t	hcb_pci_address_high;			/*004C 004F*/
+	uint32_t	iop_int_status;				/*0050 0053*/
+	uint32_t	iop_int_mask;				/*0054 0057*/
+	uint32_t	iop_inbound_queue_port;			/*0058 005B*/
+	uint32_t	iop_outbound_queue_port;		/*005C 005F*/
+	uint32_t	inbound_free_list_index;		/*0060 0063*/
+	uint32_t	inbound_post_list_index;		/*0064 0067*/
+	uint32_t	reply_post_producer_index;		/*0068 006B*/
+	uint32_t	reply_post_consumer_index;		/*006C 006F*/
+	uint32_t	inbound_doorbell_clear;			/*0070 0073*/
+	uint32_t	i2o_message_unit_control;		/*0074 0077*/
+	uint32_t	last_used_message_source_address_low;	/*0078 007B*/
+	uint32_t	last_used_message_source_address_high;	/*007C 007F*/
+	uint32_t	pull_mode_data_byte_count[4];		/*0080 008F*/
+	uint32_t	message_dest_address_index;		/*0090 0093*/
+	uint32_t	done_queue_not_empty_int_counter_timer;	/*0094 0097*/
+	uint32_t	utility_A_int_counter_timer;		/*0098 009B*/
+	uint32_t	outbound_doorbell;			/*009C 009F*/
+	uint32_t	outbound_doorbell_clear;		/*00A0 00A3*/
+	uint32_t	message_source_address_index;		/*00A4 00A7*/
+	uint32_t	message_done_queue_index;		/*00A8 00AB*/
+	uint32_t	reserved0;				/*00AC 00AF*/
+	uint32_t	inbound_msgaddr0;			/*00B0 00B3*/
+	uint32_t	inbound_msgaddr1;			/*00B4 00B7*/
+	uint32_t	outbound_msgaddr0;			/*00B8 00BB*/
+	uint32_t	outbound_msgaddr1;			/*00BC 00BF*/
+	uint32_t	inbound_queueport_low;			/*00C0 00C3*/
+	uint32_t	inbound_queueport_high;			/*00C4 00C7*/
+	uint32_t	outbound_queueport_low;			/*00C8 00CB*/
+	uint32_t	outbound_queueport_high;		/*00CC 00CF*/
+	uint32_t	iop_inbound_queue_port_low;		/*00D0 00D3*/
+	uint32_t	iop_inbound_queue_port_high;		/*00D4 00D7*/
+	uint32_t	iop_outbound_queue_port_low;		/*00D8 00DB*/
+	uint32_t	iop_outbound_queue_port_high;		/*00DC 00DF*/
+	uint32_t	message_dest_queue_port_low;		/*00E0 00E3*/
+	uint32_t	message_dest_queue_port_high;		/*00E4 00E7*/
+	uint32_t	last_used_message_dest_address_low;	/*00E8 00EB*/
+	uint32_t	last_used_message_dest_address_high;	/*00EC 00EF*/
+	uint32_t	message_done_queue_base_address_low;	/*00F0 00F3*/
+	uint32_t	message_done_queue_base_address_high;	/*00F4 00F7*/
+	uint32_t	host_diagnostic;			/*00F8 00FB*/
+	uint32_t	write_sequence;				/*00FC 00FF*/
+	uint32_t	reserved1[34];				/*0100 0187*/
+	uint32_t	reserved2[1950];			/*0188 1FFF*/
+	uint32_t	message_wbuffer[32];			/*2000 207F*/
+	uint32_t	reserved3[32];				/*2080 20FF*/
+	uint32_t	message_rbuffer[32];			/*2100 217F*/
+	uint32_t	reserved4[32];				/*2180 21FF*/
+	uint32_t	msgcode_rwbuffer[256];			/*2200 23FF*/
+};
+
+typedef struct deliver_completeQ {
+	uint16_t	cmdFlag;
+	uint16_t	cmdSMID;
+	uint16_t	cmdLMID;        // reserved (0)
+	uint16_t	cmdFlag2;       // reserved (0)
+} DeliverQ, CompletionQ, *pDeliver_Q, *pCompletion_Q;
+/*
 *******************************************************************************
 **                 Adapter Control Block
 *******************************************************************************
@@ -625,6 +736,7 @@ struct AdapterControlBlock
 	#define ACB_ADAPTER_TYPE_B	0x00000001	/* hbb M IOP */
 	#define ACB_ADAPTER_TYPE_C	0x00000002	/* hbc L IOP */
 	#define ACB_ADAPTER_TYPE_D	0x00000003	/* hbd M IOP */
+	#define ACB_ADAPTER_TYPE_E	0x00000004	/* hba L IOP */
 	u32				roundup_ccbsize;
 	struct pci_dev *		pdev;
 	struct Scsi_Host *		host;
@@ -644,6 +756,7 @@ struct AdapterControlBlock
 		struct MessageUnit_B 	*pmuB;
 		struct MessageUnit_C __iomem *pmuC;
 		struct MessageUnit_D 	*pmuD;
+		struct MessageUnit_E __iomem *pmuE;
 	};
 	/* message unit ATU inbound base address0 */
 	void __iomem *mem_base0;
@@ -723,6 +836,12 @@ struct AdapterControlBlock
 	atomic_t			ante_token_value;
 	uint32_t	maxOutstanding;
 	int		vector_count;
+	uint32_t		doneq_index;
+	uint32_t		ccbsize;
+	uint32_t		in_doorbell;
+	uint32_t		out_doorbell;
+	uint32_t		completionQ_entry;
+	pCompletion_Q		pCompletionQ;
 };/* HW_DEVICE_EXTENSION */
 /*
 *******************************************************************************
@@ -748,12 +867,13 @@ struct CommandControlBlock{
 	#define			ARCMSR_CCB_START		0x55AA
 	#define			ARCMSR_CCB_ABORTED		0xAA55
 	#define			ARCMSR_CCB_ILLEGAL		0xFFFF
+	uint32_t			smid;
 	#if BITS_PER_LONG == 64
 	/*  ======================512+64 bytes========================  */
-		uint32_t                        	reserved[5];		/*24 byte*/
+		uint32_t		reserved[4];		/*16 byte*/
 	#else
 	/*  ======================512+32 bytes========================  */
-		uint32_t                        	reserved;		/*8  byte*/
+	//	uint32_t		reserved;		/*4  byte*/
 	#endif
 	/*  =======================================================   */
 	struct ARCMSR_CDB		arcmsr_cdb;
