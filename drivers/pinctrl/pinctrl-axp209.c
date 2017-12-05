@@ -49,6 +49,7 @@ struct axp20x_pctrl_desc {
 	/* Stores the pins supporting ADC function. Bit offset is pin number. */
 	u8				adc_mask;
 	u8				gpio_status_offset;
+	u8				adc_mux;
 };
 
 struct axp20x_pinctrl_function {
@@ -79,6 +80,7 @@ static const struct axp20x_pctrl_desc axp20x_data = {
 	.ldo_mask = BIT(0) | BIT(1),
 	.adc_mask = BIT(0) | BIT(1),
 	.gpio_status_offset = 4,
+	.adc_mux = AXP20X_MUX_ADC,
 };
 
 static int axp20x_gpio_get_reg(unsigned int offset)
@@ -334,7 +336,7 @@ static void axp20x_build_funcs_groups(struct platform_device *pdev)
 	 * See comment in axp20x_pmx_set_mux.
 	 */
 	pctl->funcs[AXP20X_FUNC_ADC].name = "adc";
-	pctl->funcs[AXP20X_FUNC_ADC].muxval = AXP20X_MUX_ADC;
+	pctl->funcs[AXP20X_FUNC_ADC].muxval = pctl->desc->adc_mux;
 
 	/* Every pin supports GPIO_OUT and GPIO_IN functions */
 	for (i = 0; i <= AXP20X_FUNC_GPIO_IN; i++) {
