@@ -43,7 +43,7 @@ struct apq8016_sbc_data {
 static int apq8016_sbc_dai_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
-	struct snd_soc_codec *codec;
+	struct snd_soc_component *component;
 	struct snd_soc_dai_link *dai_link = rtd->dai_link;
 	struct snd_soc_card *card = rtd->card;
 	struct apq8016_sbc_data *pdata = snd_soc_card_get_drvdata(card);
@@ -102,15 +102,15 @@ static int apq8016_sbc_dai_init(struct snd_soc_pcm_runtime *rtd)
 	for (i = 0 ; i < dai_link->num_codecs; i++) {
 		struct snd_soc_dai *dai = rtd->codec_dais[i];
 
-		codec = dai->codec;
+		component = dai->component;
 		/* Set default mclk for internal codec */
-		rval = snd_soc_codec_set_sysclk(codec, 0, 0, DEFAULT_MCLK_RATE,
+		rval = snd_soc_component_set_sysclk(component, 0, 0, DEFAULT_MCLK_RATE,
 				       SND_SOC_CLOCK_IN);
 		if (rval != 0 && rval != -ENOTSUPP) {
 			dev_warn(card->dev, "Failed to set mclk: %d\n", rval);
 			return rval;
 		}
-		rval = snd_soc_codec_set_jack(codec, &pdata->jack, NULL);
+		rval = snd_soc_component_set_jack(component, &pdata->jack, NULL);
 		if (rval != 0 && rval != -ENOTSUPP) {
 			dev_warn(card->dev, "Failed to set jack: %d\n", rval);
 			return rval;
