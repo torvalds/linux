@@ -42,7 +42,6 @@
 #include <crypto/authenc.h>
 #include <crypto/skcipher.h>
 #include <crypto/hash.h>
-#include <crypto/aes.h>
 #include <crypto/sha3.h>
 
 #include "util.h"
