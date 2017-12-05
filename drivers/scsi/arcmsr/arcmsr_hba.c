@@ -4453,7 +4453,7 @@ static int arcmsr_bus_reset(struct scsi_cmnd *cmd)
 
 	if (acb->acb_flags & ACB_F_BUS_RESET) {
 		long timeout;
-		pr_notice("arcmsr: there is an bus reset eh proceeding...\n");
+		pr_notice("arcmsr: there is a bus reset eh proceeding...\n");
 		timeout = wait_event_timeout(wait_q, (acb->acb_flags
 			& ACB_F_BUS_RESET) == 0, 220 * HZ);
 		if (timeout)
