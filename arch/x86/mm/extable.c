@@ -82,7 +82,7 @@ bool ex_handler_refcount(const struct exception_table_entry *fixup,
 
 	return true;
 }
-EXPORT_SYMBOL_GPL(ex_handler_refcount);
+EXPORT_SYMBOL(ex_handler_refcount);
 
 /*
  * Handler for when we fail to restore a task's FPU state.  We should never get
