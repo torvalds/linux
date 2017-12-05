@@ -12,6 +12,16 @@ config COMMON_CLK_QCOM
 	select REGMAP_MMIO
 	select RESET_CONTROLLER
 
+config QCOM_A53PLL
+	tristate "MSM8916 A53 PLL"
+	depends on COMMON_CLK_QCOM
+	default ARCH_QCOM
+	help
+	  Support for the A53 PLL on MSM8916 devices. It provides
+	  the CPU with frequencies above 1GHz.
+	  Say Y if you want to support higher CPU frequencies on MSM8916
+	  devices.
+
 config QCOM_CLK_RPM
 	tristate "RPM based Clock Controller"
 	depends on COMMON_CLK_QCOM && MFD_QCOM_RPM
