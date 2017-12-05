@@ -487,8 +487,8 @@ static DEFINE_PER_CPU_PAGE_ALIGNED(char, exception_stacks
 	[(N_EXCEPTION_STACKS - 1) * EXCEPTION_STKSZ + DEBUG_STKSZ]);
 #endif
 
-static DEFINE_PER_CPU_PAGE_ALIGNED(struct SYSENTER_stack_page,
-				   SYSENTER_stack_storage);
+static DEFINE_PER_CPU_PAGE_ALIGNED(struct entry_stack_page,
+				   entry_stack_storage);
 
 static void __init
 set_percpu_fixmap_pages(int idx, void *ptr, int pages, pgprot_t prot)
@@ -523,8 +523,8 @@ static void __init setup_cpu_entry_area(int cpu)
 #endif
 
 	__set_fixmap(get_cpu_entry_area_index(cpu, gdt), get_cpu_gdt_paddr(cpu), gdt_prot);
-	set_percpu_fixmap_pages(get_cpu_entry_area_index(cpu, SYSENTER_stack_page),
-				per_cpu_ptr(&SYSENTER_stack_storage, cpu), 1,
+	set_percpu_fixmap_pages(get_cpu_entry_area_index(cpu, entry_stack_page),
+				per_cpu_ptr(&entry_stack_storage, cpu), 1,
 				PAGE_KERNEL);
 
 	/*
@@ -1323,7 +1323,7 @@ void enable_sep_cpu(void)
 
 	tss->x86_tss.ss1 = __KERNEL_CS;
 	wrmsr(MSR_IA32_SYSENTER_CS, tss->x86_tss.ss1, 0);
-	wrmsr(MSR_IA32_SYSENTER_ESP, (unsigned long)(cpu_SYSENTER_stack(cpu) + 1), 0);
+	wrmsr(MSR_IA32_SYSENTER_ESP, (unsigned long)(cpu_entry_stack(cpu) + 1), 0);
 	wrmsr(MSR_IA32_SYSENTER_EIP, (unsigned long)entry_SYSENTER_32, 0);
 
 	put_cpu();
@@ -1440,7 +1440,7 @@ void syscall_init(void)
 	 * AMD doesn't allow SYSENTER in long mode (either 32- or 64-bit).
 	 */
 	wrmsrl_safe(MSR_IA32_SYSENTER_CS, (u64)__KERNEL_CS);
-	wrmsrl_safe(MSR_IA32_SYSENTER_ESP, (unsigned long)(cpu_SYSENTER_stack(cpu) + 1));
+	wrmsrl_safe(MSR_IA32_SYSENTER_ESP, (unsigned long)(cpu_entry_stack(cpu) + 1));
 	wrmsrl_safe(MSR_IA32_SYSENTER_EIP, (u64)entry_SYSENTER_compat);
 #else
 	wrmsrl(MSR_CSTAR, (unsigned long)ignore_sysret);
@@ -1655,7 +1655,7 @@ void cpu_init(void)
 	 */
 	set_tss_desc(cpu, &get_cpu_entry_area(cpu)->tss.x86_tss);
 	load_TR_desc();
-	load_sp0((unsigned long)(cpu_SYSENTER_stack(cpu) + 1));
+	load_sp0((unsigned long)(cpu_entry_stack(cpu) + 1));
 
 	load_mm_ldt(&init_mm);
 
