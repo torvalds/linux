@@ -1723,9 +1723,11 @@ static int mv88e6xxx_setup_message_port(struct mv88e6xxx_chip *chip, int port)
 
 static int mv88e6xxx_setup_egress_floods(struct mv88e6xxx_chip *chip, int port)
 {
-	bool flood = port == dsa_upstream_port(chip->ds);
+	struct dsa_switch *ds = chip->ds;
+	bool flood;
 
 	/* Upstream ports flood frames with unknown unicast or multicast DA */
+	flood = dsa_is_cpu_port(ds, port) || dsa_is_dsa_port(ds, port);
 	if (chip->info->ops->port_set_egress_floods)
 		return chip->info->ops->port_set_egress_floods(chip, port,
 							       flood, flood);
@@ -1738,6 +1740,39 @@ static int mv88e6xxx_serdes_power(struct mv88e6xxx_chip *chip, int port,
 {
 	if (chip->info->ops->serdes_power)
 		return chip->info->ops->serdes_power(chip, port, on);
+
+	return 0;
+}
+
+static int mv88e6xxx_setup_upstream_port(struct mv88e6xxx_chip *chip, int port)
+{
+	struct dsa_switch *ds = chip->ds;
+	int upstream_port;
+	int err;
+
+	upstream_port = dsa_upstream_port(ds, port);
+	if (chip->info->ops->port_set_upstream_port) {
+		err = chip->info->ops->port_set_upstream_port(chip, port,
+							      upstream_port);
+		if (err)
+			return err;
+	}
+
+	if (port == upstream_port) {
+		if (chip->info->ops->set_cpu_port) {
+			err = chip->info->ops->set_cpu_port(chip,
+							    upstream_port);
+			if (err)
+				return err;
+		}
+
+		if (chip->info->ops->set_egress_port) {
+			err = chip->info->ops->set_egress_port(chip,
+							       upstream_port);
+			if (err)
+				return err;
+		}
+	}
 
 	return 0;
 }
@@ -1812,13 +1847,9 @@ static int mv88e6xxx_setup_port(struct mv88e6xxx_chip *chip, int port)
 	if (err)
 		return err;
 
-	reg = 0;
-	if (chip->info->ops->port_set_upstream_port) {
-		err = chip->info->ops->port_set_upstream_port(
-			chip, port, dsa_upstream_port(ds));
-		if (err)
-			return err;
-	}
+	err = mv88e6xxx_setup_upstream_port(chip, port);
+	if (err)
+		return err;
 
 	err = mv88e6xxx_port_set_8021q_mode(chip, port,
 				MV88E6XXX_PORT_CTL2_8021Q_MODE_DISABLED);
@@ -1944,20 +1975,7 @@ static int mv88e6xxx_set_ageing_time(struct dsa_switch *ds,
 static int mv88e6xxx_g1_setup(struct mv88e6xxx_chip *chip)
 {
 	struct dsa_switch *ds = chip->ds;
-	u32 upstream_port = dsa_upstream_port(ds);
 	int err;
-
-	if (chip->info->ops->set_cpu_port) {
-		err = chip->info->ops->set_cpu_port(chip, upstream_port);
-		if (err)
-			return err;
-	}
-
-	if (chip->info->ops->set_egress_port) {
-		err = chip->info->ops->set_egress_port(chip, upstream_port);
-		if (err)
-			return err;
-	}
 
 	/* Disable remote management, and set the switch's DSA device number. */
 	err = mv88e6xxx_g1_write(chip, MV88E6XXX_G1_CTL2,
