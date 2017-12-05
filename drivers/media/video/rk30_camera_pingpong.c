@@ -40,7 +40,6 @@
 #include <linux/rockchip/iomap.h>
 
 #include "../../video/rockchip/rga/rga.h"
-#include "../../../drivers/soc/rockchip/rk30_camera.h"/*yzm*/
 
 /*******yzm*********
 

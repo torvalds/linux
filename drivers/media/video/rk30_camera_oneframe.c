@@ -40,7 +40,7 @@
 #include <media/videobuf-core.h>
 
 #include "../../video/rockchip/rga/rga.h"
-#include "../../../drivers/soc/rockchip/rk30_camera.h"
+#include "../../soc/rockchip/rk_camera.h"
 #include <linux/regmap.h>
 #include <linux/pm_runtime.h>
 
@@ -53,11 +53,13 @@
 #include <media/camsys_head.h>
 #include <linux/of.h>
 #include <linux/of_irq.h>
- 
+#include <linux/mfd/syscon.h>
+#include <linux/dma-iommu.h>
+
 static int debug;
 module_param(debug, int, S_IRUGO|S_IWUSR);
 
-#define CAMMODULE_NAME     "rk_cam_cif"   
+#define CAMMODULE_NAME     "rk_cam_cif"
 
 #define wprintk(level, fmt, arg...) do {			\
 	if (debug >= level) 					\
@@ -160,7 +162,8 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 #define ENABLE_32BIT_BYPASS                (0x01<<6)
 #define DISABLE_32BIT_BYPASS               (0x00<<6)
 
-extern struct regmap *rk_cif_grf_base;
+struct regmap *rk_cif_grf_base;
+extern struct rk29camera_platform_data rk_camera_platform_data;
 
 #define MIN(x,y)   ((x<y) ? x: y)
 #define MAX(x,y)    ((x>y) ? x: y)
@@ -255,8 +258,10 @@ static inline unsigned int read_grf_reg(unsigned int addr)
 *       1. supprot rk3228h
 *v0.4.0:
 *       1.cif uses dmabuf,in this case,vb->boff is buffer fd.
+*v0.5.0:
+*	1. Only register cif driver here.
 */
-#define RK_CAM_VERSION_CODE KERNEL_VERSION(0, 4, 0)
+#define RK_CAM_VERSION_CODE KERNEL_VERSION(0, 5, 0)
 static int version = RK_CAM_VERSION_CODE;
 module_param(version, int, S_IRUGO);
 
@@ -394,73 +399,77 @@ struct rk_cif_irqinfo
 
 struct rk_camera_dev
 {
-    struct soc_camera_host	soc_host;    
-    struct device		*dev;
-    /* RK2827x is only supposed to handle one camera on its Quick Capture
-     * interface. If anyone ever builds hardware to enable more than
-     * one camera, they will have to modify this driver too */
-    struct soc_camera_device *icd;
-    void __iomem *base;
-    int frame_inval;           /* ddl@rock-chips.com : The first frames is invalidate  */
+	struct soc_camera_host soc_host;
+	struct device *dev;
+	/*
+	 * RK2827x is only supposed to handle one camera on its Quick Capture
+	 * interface. If anyone ever builds hardware to enable more than
+	 * one camera, they will have to modify this driver too
+	 */
+	struct soc_camera_device *icd;
+	void __iomem *base;
+	/* ddl@rock-chips.com : The first frames is invalidate  */
+	int frame_inval;
 
-    unsigned int fps;
-    unsigned int last_fps;
-    unsigned long frame_interval;
-    unsigned int pixfmt;
-    /*for ipp	*/
-    unsigned long vipmem_phybase;
-    void __iomem *vipmem_virbase;
-    unsigned int vipmem_size;
-    unsigned int vipmem_bsize;
-#if CAMERA_VIDEOBUF_ARM_ACCESS    
-    struct rk29_camera_vbinfo *vbinfo;
-    unsigned int vbinfo_count;
-#endif    
-    int host_width;
-    int host_height;
-    int host_left;  /*sensor output size ?*/
-    int host_top;
-    int hostid;
-    int icd_width;
-    int icd_height;
+	unsigned int fps;
+	unsigned int last_fps;
+	unsigned long frame_interval;
+	unsigned int pixfmt;
+	/*for ipp	*/
+	unsigned long vipmem_phybase;
+	void __iomem *vipmem_virbase;
+	unsigned int vipmem_size;
+	unsigned int vipmem_bsize;
+#if CAMERA_VIDEOBUF_ARM_ACCESS
+	struct rk29_camera_vbinfo *vbinfo;
+	unsigned int vbinfo_count;
+#endif
+	int host_width;
+	int host_height;
+	int host_left;  /*sensor output size ?*/
+	int host_top;
+	int hostid;
+	int icd_width;
+	int icd_height;
 	int capture_pingpong;
 
-    struct rk_cif_crop cropinfo;
-    struct rk_cif_irqinfo irqinfo;
+	struct rk_cif_crop cropinfo;
+	struct rk_cif_irqinfo irqinfo;
 
-    struct rk29camera_platform_data *pdata;
-    struct resource		*res;
-    struct list_head	capture;
-    struct rk_camera_zoominfo zoominfo;
+	struct rk29camera_platform_data *pdata;
+	struct resource *res;
+	struct list_head capture;
+	struct rk_camera_zoominfo zoominfo;
 
-    spinlock_t		lock;
+	spinlock_t lock;
 
-    struct videobuf_buffer	*active;
-	struct videobuf_buffer	*active1;
-	struct videobuf_buffer	*active_delay;
-    struct rk_camera_reg reginfo_suspend;
-    struct workqueue_struct *camera_wq;
-    struct rk_camera_work *camera_work;
-    struct list_head camera_work_queue;
-    spinlock_t camera_work_lock;
-    unsigned int camera_work_count;
-    struct rk_camera_timer fps_timer;
-    struct rk_camera_work camera_reinit_work;
-    int icd_init;
-    rk29_camera_sensor_cb_s icd_cb;
-    struct rk_camera_frmivalinfo icd_frmival[2];
-    bool timer_get_fps;
-    unsigned int reinit_times; 
-    struct videobuf_queue *video_vq;
-    atomic_t stop_cif;
+	struct videobuf_buffer *active;
+	struct videobuf_buffer *active1;
+	struct videobuf_buffer *active_delay;
+	struct rk_camera_reg reginfo_suspend;
+	struct workqueue_struct *camera_wq;
+	struct rk_camera_work *camera_work;
+	struct list_head camera_work_queue;
+	spinlock_t camera_work_lock;
+	unsigned int camera_work_count;
+	struct rk_camera_timer fps_timer;
+	struct rk_camera_work camera_reinit_work;
+	int icd_init;
+	rk29_camera_sensor_cb_s icd_cb;
+	struct rk_camera_frmivalinfo icd_frmival[2];
+	bool timer_get_fps;
+	unsigned int reinit_times;
+	struct videobuf_queue *video_vq;
+	atomic_t stop_cif;
 	wait_queue_head_t cif_stop_done;
 	volatile  bool cif_stopped;
-    struct timeval first_tv;
-    int chip_id;
-    #ifdef RK_CAMERA_MODE_DMA_SG
-		struct rk_camera_dma_buf_s dma_buffer[DMABUF_MAX_FRAME];
-		int dma_buf_cnt;
-    #endif
+	struct timeval first_tv;
+	int chip_id;
+#ifdef RK_CAMERA_MODE_DMA_SG
+	struct rk_camera_dma_buf_s dma_buffer[DMABUF_MAX_FRAME];
+	int dma_buf_cnt;
+#endif
+	struct iommu_domain *domain;
 };
 
 static const struct v4l2_queryctrl rk_camera_controls[] =
@@ -560,19 +569,39 @@ static void rk_camera_cif_reset(struct rk_camera_dev *pcdev, int only_rst)
 #ifdef RK_CAMERA_MODE_DMA_SG
 static int rk_camera_dma_attach_device(struct rk_camera_dev *pcdev)
 {
+	struct iommu_domain *domain = pcdev->domain;
 	struct device *dev = pcdev->dev;
 	int ret;
-	//to do something iommu future
+
 	ret = dma_set_coherent_mask(dev, DMA_BIT_MASK(32));
 	if (ret)
 		return ret;
 
-	return 0;
+	if (domain) {
+		dma_set_max_seg_size(pcdev->dev, DMA_BIT_MASK(32));
+		ret = iommu_attach_device(domain, dev);
+		if (ret) {
+			dev_err(dev, "Failed to attach iommu device!\n");
+			return ret;
+		}
+
+		if (!common_iommu_setup_dma_ops(dev, 0x10000000, SZ_2G, domain->ops)) {
+			dev_err(dev, "Failed to set dma_ops!\n");
+			iommu_detach_device(domain, dev);
+			ret = -ENODEV;
+		}
+	}
+
+	return ret;
 }
 
 static void rk_camera_dma_detach_device(struct rk_camera_dev *pcdev)
 {
-	//to do something iommu future
+	struct iommu_domain *domain = pcdev->domain;
+	struct device *dev = pcdev->dev;
+
+	if (domain)
+		iommu_detach_device(domain, dev);
 }
 
 static int rk_camera_dmabuf_cb(struct rk_camera_dev *pcdev,
@@ -795,8 +824,10 @@ static void rk_videobuf_free(struct videobuf_queue *vq, struct rk_camera_buffer 
 static int rk_videobuf_prepare(struct videobuf_queue *vq, struct videobuf_buffer *vb, enum v4l2_field field)
 {
     struct soc_camera_device *icd = vq->priv_data;
+#ifdef RK_CAMERA_MODE_DMA_SG
 	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
 	struct rk_camera_dev *pcdev = ici->priv;
+#endif
     struct rk_camera_buffer *buf;
     int ret;
     int bytes_per_line = soc_mbus_bytes_per_line(icd->user_width,
@@ -896,9 +927,13 @@ static inline void rk_videobuf_capture_mix(struct videobuf_buffer *vb,
 		     __FILE__, __LINE__, __func__);
 
 	if (vb) {
+#ifdef RK_CAMERA_MODE_DMA_SG
+		y_addr = (unsigned long)pcdev->dma_buffer[vb->i].dma_addr;
+		uv_addr = y_addr + vb->width * vb->height;
+#else
 		y_addr = vb->boff;
 		uv_addr = y_addr + vb->width * vb->height;
-
+#endif
 		switch (fmt_ready) {
 		case 0:
 			write_cif_reg(pcdev->base,
@@ -3439,300 +3474,383 @@ static int rk_camera_cif_iomux(struct device *dev)
                 }
     }
     return 0;
-            
 }
-static int rk_camera_probe(struct platform_device *pdev)
+
+static int rk_camera_pltfrm_init(struct device *dev,
+				 struct rk_camera_dev *pcdev)
 {
-    struct rk_camera_dev *pcdev;
-    struct resource *res;
-    struct rk_camera_frmivalenum *fival_list,*fival_nxt;
-    int irq,i;
-    int err = 0;
-    struct rk_cif_clk *clk=NULL;
-	struct device *dev_cif = ((struct rk29camera_platform_data*)pdev->dev.platform_data)->cif_dev;
+	int err;
+	struct rk_cif_clk *clk = NULL;
+	const char *compatible = NULL;
+	struct device_node *node = NULL, *vpu_node = NULL;
+	int vpu_iommu_enabled = 0;
+	struct iommu_domain *domain = NULL;
+	struct iommu_group *group = NULL;
+	struct rk29camera_platform_data *data = pcdev->pdata;
 
-	debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()\n", __FILE__, __LINE__,__FUNCTION__);
+	err = of_property_read_string(dev->of_node->parent,
+				      "compatible",
+				      &compatible);
+	if (err < 0) {
+		dev_err(dev, "Get rockchip compatible failed!!!!!!");
+		return -ENODEV;
+	}
+	data->rockchip_name = compatible;
+	RKCAMERA_TR("chip name is %s\n", data->rockchip_name);
 
-	RKCAMERA_TR("%s version: v%d.%d.%d  Zoom by %s",RK29_CAM_DRV_NAME,(RK_CAM_VERSION_CODE&0xff0000)>>16,
-        (RK_CAM_VERSION_CODE&0xff00)>>8,RK_CAM_VERSION_CODE&0xff,CAMERA_SCALE_CROP_MACHINE);    
+	rk_camera_diffchips(data->rockchip_name);
 
-    if ((pdev->id == RK_CAM_PLATFORM_DEV_ID_1) && (RK_SUPPORT_CIF1 == 0)) {
-        RKCAMERA_TR("%s(%d): This chip is not support CIF1!!\n",__FUNCTION__,__LINE__);
-        BUG();
-    }
+	vpu_node = of_find_node_by_name(NULL, "vpu_service");
+	if (vpu_node) {
+		err = of_property_read_u32(vpu_node,
+					   "iommu_enabled",
+					   &vpu_iommu_enabled);
+		data->iommu_enabled = vpu_iommu_enabled;
+		of_node_put(vpu_node);
+	} else {
+		dev_err(dev, "get vpu_node failed, vpu_iommu_enabled == 0!\n");
+	}
 
-    if ((pdev->id == RK_CAM_PLATFORM_DEV_ID_0) && (RK_SUPPORT_CIF0 == 0)) {
-        RKCAMERA_TR("%s(%d): This chip is not support CIF0!!\n",__FUNCTION__,__LINE__);
-        BUG();
-    }
+	/* get grf base */
+	node = of_parse_phandle(dev->of_node, "rockchip,grf", 0);
+	if (node) {
+		rk_cif_grf_base = syscon_node_to_regmap(node);
+		if (IS_ERR(rk_cif_grf_base))
+			dev_err(dev, "%s regmap grf faile, d.\n", compatible);
 
-	rk_camera_diffchips(((struct rk29camera_platform_data*)pdev->dev.platform_data)->rockchip_name);
-
-    res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-    irq = platform_get_irq(pdev, 0);
-
-	/*	irq = irq_of_parse_and_map(dev_cif->of_node, 0);
-	debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n res = [%x--%x] \n",res->start , res->end);
-	debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n irq_num = %d\n", irq);
-	*/
-    if (!res || irq < 0) {
-        err = -ENODEV;
-        goto exit;
-    }
-    pcdev = kzalloc(sizeof(*pcdev), GFP_KERNEL);
-    if (!pcdev) {
-        dev_err(&pdev->dev, "Could not allocate pcdev\n");
-        err = -ENOMEM;
-        goto exit_alloc;
-    }
-
-    pcdev->zoominfo.zoom_rate = 100;
-    pcdev->hostid = pdev->id;        /* get host id*/
-    #ifdef CONFIG_SOC_RK3028
-    pcdev->chip_id = rk3028_version_val();
-    #else
-    pcdev->chip_id = -1;
-    #endif
+		of_node_put(node);
+	}
 
 	if (IS_CIF0()) {
 		debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$/is_cif0\n");
 		clk = &cif_clk[0];
 		if (CHIP_NAME == 3368)
 			clk->pclk_cif =
-				devm_clk_get(dev_cif, "pclk_cif");
-		clk->aclk_cif = devm_clk_get(dev_cif, "aclk_cif0");
-		clk->hclk_cif = devm_clk_get(dev_cif, "hclk_cif0");
+				devm_clk_get(dev, "pclk_cif");
+		clk->aclk_cif = devm_clk_get(dev, "aclk_cif0");
+		clk->hclk_cif = devm_clk_get(dev, "hclk_cif0");
 		if (CHIP_NAME != 3228)
-			clk->cif_clk_in = devm_clk_get(dev_cif, "cif0_in");
-		clk->cif_clk_out = devm_clk_get(dev_cif, "cif0_out");
-		clk->cif_rst = devm_reset_control_get(dev_cif, "rst_cif");
+			clk->cif_clk_in = devm_clk_get(dev, "cif0_in");
+		clk->cif_clk_out = devm_clk_get(dev, "cif0_out");
+		clk->cif_rst = devm_reset_control_get(dev, "rst_cif");
 		if (IS_ERR_OR_NULL(clk->cif_rst)) {
 			printk(KERN_ERR "no cif reset resource define\n");
 			clk->cif_rst = NULL;
 		}
 		/* spin_lock_init(&cif_clk[0].lock); */
 		clk->on = false;
-		rk_camera_cif_iomux(dev_cif);
+		rk_camera_cif_iomux(dev);
 	} else {
 		clk = &cif_clk[1];
 
-		clk->aclk_cif = devm_clk_get(dev_cif, "aclk_cif0");
-		clk->hclk_cif = devm_clk_get(dev_cif, "hclk_cif0");
+		clk->aclk_cif = devm_clk_get(dev, "aclk_cif0");
+		clk->hclk_cif = devm_clk_get(dev, "hclk_cif0");
 		if (CHIP_NAME != 3228)
-			clk->cif_clk_in = devm_clk_get(dev_cif, "cif0_in");
-		clk->cif_clk_out = devm_clk_get(dev_cif, "cif0_out");
+			clk->cif_clk_in = devm_clk_get(dev, "cif0_in");
+		clk->cif_clk_out = devm_clk_get(dev, "cif0_out");
 		/* spin_lock_init(&cif_clk[1].lock); */
 		clk->on = false;
-		rk_camera_cif_iomux(dev_cif);
+		rk_camera_cif_iomux(dev);
 	}
 
-	debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()\n", __FILE__, __LINE__,__FUNCTION__);
+	node = of_parse_phandle(dev->of_node, "iommus", 0);
+	if (node) {
+		/* iommu domain */
+		domain = iommu_domain_alloc(&platform_bus_type);
+		if (!domain)
+			goto err_return;
 
-    dev_set_drvdata(&pdev->dev, pcdev);
-    pcdev->res = res;
-    pcdev->pdata = pdev->dev.platform_data;             /* ddl@rock-chips.com : Request IO in init function */
-	if (pcdev->pdata && pcdev->pdata->io_init) {
-		
-        pcdev->pdata->io_init();
+		err = iommu_get_dma_cookie(domain);
+		if (err)
+			goto err_free_domain;
 
-        if (pcdev->pdata->sensor_mclk == NULL)
-            pcdev->pdata->sensor_mclk = rk_camera_mclk_ctrl;
-    }
+		group = iommu_group_get(dev);
+		if (!group) {
+			group = iommu_group_alloc();
+			if (IS_ERR(group)) {
+				dev_err(dev, "Failed to alloc IOMMU group\n");
+				goto err_put_cookie;
+			}
 
-    INIT_LIST_HEAD(&pcdev->capture);
-    INIT_LIST_HEAD(&pcdev->camera_work_queue);
-    spin_lock_init(&pcdev->lock);
-    spin_lock_init(&pcdev->camera_work_lock);
+			err = iommu_group_add_device(group, dev);
+			iommu_group_put(group);
+			if (err) {
+				dev_err(dev, "failed to add device to IOMMU group\n");
+				goto err_put_cookie;
+			}
+		}
 
-    memset(&pcdev->cropinfo.c,0x00,sizeof(struct v4l2_rect));
-    spin_lock_init(&pcdev->cropinfo.lock);
-    sema_init(&pcdev->zoominfo.sem,1);
+		pcdev->domain = domain;
+	} else {
+		pcdev->domain = NULL;
+	}
 
-    /*
-     * Request the regions.
-     */
-    if(res) {
-        if (!request_mem_region(res->start, res->end - res->start + 1,
-                                RK29_CAM_DRV_NAME)) {
-            err = -EBUSY;
-            goto exit_reqmem_vip;
-        }
-        pcdev->base = ioremap(res->start, res->end - res->start + 1);
-        if (pcdev->base == NULL) {
-            dev_err(pcdev->dev, "ioremap() of registers failed\n");
-            err = -ENXIO;
-            goto exit_ioremap_vip;
-        }
-    }
-    pcdev->irqinfo.irq = irq;
-    pcdev->dev = &pdev->dev;
+	return 0;
+err_put_cookie:
+	if (domain)
+		iommu_put_dma_cookie(domain);
+
+err_free_domain:
+	if (domain)
+		iommu_domain_free(domain);
+
+err_return:
+	return err;
+}
+
+static const struct of_device_id rk_cif_of_match[] = {
+	{.compatible = "rockchip,cif",
+	.data = (void *)&rk_camera_platform_data},
+	{},
+};
+
+static int rk_camera_probe(struct platform_device *pdev)
+{
+	struct rk_camera_dev *pcdev;
+	struct resource *res;
+	struct rk_camera_frmivalenum *fival_list, *fival_nxt;
+	int irq, i;
+	int err = 0;
+	const struct of_device_id *match;
+	struct device_node *node = pdev->dev.of_node;
+
+	RKCAMERA_TR("%s version: v%d.%d.%d  Zoom by %s",
+		    RK29_CAM_DRV_NAME,
+		    (RK_CAM_VERSION_CODE & 0xff0000) >> 16,
+		    (RK_CAM_VERSION_CODE & 0xff00) >> 8,
+		    RK_CAM_VERSION_CODE & 0xff,
+		    CAMERA_SCALE_CROP_MACHINE);
+
+	pdev->id = RK_CAM_PLATFORM_DEV_ID_0;
+
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	irq = platform_get_irq(pdev, 0);
+	if (!res || IS_ERR_VALUE(irq)) {
+		err = -ENODEV;
+		goto exit;
+	}
+
+	pcdev = devm_kzalloc(&pdev->dev,
+			     sizeof(struct rk_camera_dev),
+			     GFP_KERNEL);
+	if (IS_ERR_OR_NULL(pcdev)) {
+		dev_err(&pdev->dev, "Could not allocate pcdev\n");
+		err = -ENOMEM;
+		goto exit;
+	}
+	match = of_match_node(rk_cif_of_match, node);
+	pcdev->pdata = (struct rk29camera_platform_data *)match->data;
+	err = rk_camera_pltfrm_init(&pdev->dev, pcdev);
+	if (IS_ERR_VALUE(err)) {
+		dev_err(&pdev->dev, "pltfrm init failed\n");
+		goto exit;
+	}
+	if (!rk_camera_platform_data.sensor_mclk)
+		rk_camera_platform_data.sensor_mclk = rk_camera_mclk_ctrl;
+
+	pcdev->zoominfo.zoom_rate = 100;
+	pcdev->hostid = pdev->id;        /* get host id*/
+#ifdef CONFIG_SOC_RK3028
+	pcdev->chip_id = rk3028_version_val();
+#else
+	pcdev->chip_id = -1;
+#endif
+
+	dev_set_drvdata(&pdev->dev, pcdev);
+	pcdev->res = res;
+	if (pcdev->pdata && pcdev->pdata->io_init)
+		pcdev->pdata->io_init();
+
+	INIT_LIST_HEAD(&pcdev->capture);
+	INIT_LIST_HEAD(&pcdev->camera_work_queue);
+	spin_lock_init(&pcdev->lock);
+	spin_lock_init(&pcdev->camera_work_lock);
+
+	memset(&pcdev->cropinfo.c, 0x00, sizeof(struct v4l2_rect));
+	spin_lock_init(&pcdev->cropinfo.lock);
+	sema_init(&pcdev->zoominfo.sem, 1);
+
+	/*
+	 * Request the regions.
+	 */
+	if (res) {
+		pcdev->base = devm_ioremap_resource(&pdev->dev, res);
+		if (IS_ERR_OR_NULL(pcdev->base)) {
+			dev_err(pcdev->dev, "ioremap() of registers failed\n");
+			err = -ENXIO;
+			goto exit;
+		}
+	}
+	pcdev->irqinfo.irq = irq;
+	pcdev->dev = &pdev->dev;
 	priv_camera_dev = pcdev;
 
 	/* config buffer address */
 	/* request irq */
 	if (irq > 0) {
-		err = request_irq(pcdev->irqinfo.irq, rk_camera_irq,
-				  IRQF_SHARED, RK29_CAM_DRV_NAME, pcdev);
-        if (err) {
-            dev_err(pcdev->dev, "Camera interrupt register failed \n");
-            goto exit_reqirq;
-        }
+		err = devm_request_irq(&pdev->dev,
+				       irq,
+				       rk_camera_irq,
+				       IRQF_SHARED,
+				       RK29_CAM_DRV_NAME,
+				       pcdev);
+		if (IS_ERR_VALUE(err)) {
+			dev_err(&pdev->dev, "Camera interrupt register failed\n");
+			goto exit;
+		}
    	}
-    if(IS_CIF0()) {
-    	pcdev->camera_wq = create_workqueue("rk_cam_wkque_cif0");
-    } else {
-    	pcdev->camera_wq = create_workqueue("rk_cam_wkque_cif1");
-    }
-    if (pcdev->camera_wq == NULL) {
-        RKCAMERA_TR("%s(%d): Create workqueue failed!\n",__FUNCTION__,__LINE__);
-        goto exit_free_irq;
-    }
+
+	if (IS_CIF0())
+		pcdev->camera_wq = create_workqueue("rk_cam_wkque_cif0");
+	else
+		pcdev->camera_wq = create_workqueue("rk_cam_wkque_cif1");
+	if (!pcdev->camera_wq) {
+		dev_err(&pdev->dev, "Create workqueue failed!\n");
+		goto exit_free_irq;
+	}
 
 	pcdev->camera_reinit_work.pcdev = pcdev;
 	INIT_WORK(&(pcdev->camera_reinit_work.work), rk_camera_reinit_work);
 
-    for (i=0; i<2; i++) {
-        pcdev->icd_frmival[i].icd = NULL;
-        pcdev->icd_frmival[i].fival_list = kzalloc(sizeof(struct rk_camera_frmivalenum),GFP_KERNEL);
-        
-    }
-    pcdev->soc_host.drv_name	= RK29_CAM_DRV_NAME;
-    pcdev->soc_host.ops		= &rk_soc_camera_host_ops;
-    pcdev->soc_host.priv		= pcdev;
-    pcdev->soc_host.v4l2_dev.dev	= &pdev->dev;
-    pcdev->soc_host.nr		= pdev->id;
+	for (i = 0; i < 2; i++) {
+		pcdev->icd_frmival[i].icd = NULL;
+		pcdev->icd_frmival[i].fival_list =
+			devm_kzalloc(&pdev->dev,
+				     sizeof(struct rk_camera_frmivalenum),
+				     GFP_KERNEL);
+		if (IS_ERR_OR_NULL(pcdev->icd_frmival[i].fival_list)) {
+			dev_err(&pdev->dev, "Couldn't allocate fival_list[%d]\n",
+				i);
+			err = -ENOMEM;
+			goto exit;
+		}
+	}
+
+	pcdev->soc_host.drv_name	= RK29_CAM_DRV_NAME;
+	pcdev->soc_host.ops		= &rk_soc_camera_host_ops;
+	pcdev->soc_host.priv		= pcdev;
+	pcdev->soc_host.v4l2_dev.dev	= &pdev->dev;
+	pcdev->soc_host.nr		= pdev->id;
+	pdev->dev.of_node = NULL;
 	debug_printk("/$$$$$$$$$$$$$$$$$$$$$$/next soc_camera_host_register\n");
-    err = soc_camera_host_register(&pcdev->soc_host);
+	err = soc_camera_host_register(&pcdev->soc_host);
+	if (err) {
+		dev_err(&pdev->dev, "soc_camera_host_register failed\n");
+		goto exit_free_irq;
+	}
 
 	pm_runtime_enable(&pdev->dev);
 
-    if (err) {
-        RKCAMERA_TR("%s(%d): soc_camera_host_register failed\n",__FUNCTION__,__LINE__);
-        goto exit_free_irq;
-    }
 	pcdev->fps_timer.pcdev = pcdev;
-	hrtimer_init(&(pcdev->fps_timer.timer), CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+	hrtimer_init(&pcdev->fps_timer.timer,
+		     CLOCK_MONOTONIC,
+		     HRTIMER_MODE_REL);
 	pcdev->fps_timer.timer.function = rk_camera_fps_func;
-    pcdev->icd_cb.sensor_cb = NULL;
+	pcdev->icd_cb.sensor_cb = NULL;
 
 #if (CONFIG_CAMERA_SCALE_CROP_MACHINE == RK_CAM_SCALE_CROP_IPP)
-    pcdev->icd_cb.scale_crop_cb = rk_camera_scale_crop_ipp;
+	pcdev->icd_cb.scale_crop_cb = rk_camera_scale_crop_ipp;
 #elif (CONFIG_CAMERA_SCALE_CROP_MACHINE == RK_CAM_SCALE_CROP_ARM)
-    pcdev->icd_cb.scale_crop_cb = rk_camera_scale_crop_arm;
+	pcdev->icd_cb.scale_crop_cb = rk_camera_scale_crop_arm;
 #elif (CONFIG_CAMERA_SCALE_CROP_MACHINE == RK_CAM_SCALE_CROP_RGA)
-    pcdev->icd_cb.scale_crop_cb = rk_camera_scale_crop_rga;	
+	pcdev->icd_cb.scale_crop_cb = rk_camera_scale_crop_rga;
 #elif(CONFIG_CAMERA_SCALE_CROP_MACHINE == RK_CAM_SCALE_CROP_PP)
-	pcdev->icd_cb.scale_crop_cb = rk_camera_scale_crop_pp; 
+	pcdev->icd_cb.scale_crop_cb = rk_camera_scale_crop_pp;
 #endif
-    return 0;
+
+	return 0;
 
 exit_free_irq:
-    
-    for (i=0; i<2; i++) {
-        fival_list = pcdev->icd_frmival[i].fival_list;
-        fival_nxt = fival_list;
-        while(fival_nxt != NULL) {
-            fival_nxt = fival_list->nxt;
-            kfree(fival_list);
-            fival_list = fival_nxt;
-        }
-    }
-    
-    free_irq(pcdev->irqinfo.irq, pcdev);
+	for (i = 0; i < 2; i++) {
+		fival_list = pcdev->icd_frmival[i].fival_list;
+		fival_nxt = fival_list;
+		while (fival_nxt) {
+			fival_nxt = fival_list->nxt;
+			fival_list = fival_nxt;
+		}
+	}
+
 	if (pcdev->camera_wq) {
 		destroy_workqueue(pcdev->camera_wq);
 		pcdev->camera_wq = NULL;
 	}
-exit_reqirq:
-    iounmap(pcdev->base);
-exit_ioremap_vip:
-    release_mem_region(res->start, res->end - res->start + 1);
-exit_reqmem_vip:
-	kfree(pcdev);
-exit_alloc:
-
 exit:
-    return err;
+	return err;
 }
 
 static int rk_camera_remove(struct platform_device *pdev)
 {
-    struct rk_camera_dev *pcdev = platform_get_drvdata(pdev);
-    struct resource *res;
-    struct rk_camera_frmivalenum *fival_list,*fival_nxt;
-    int i;
+	struct rk_camera_dev *pcdev = platform_get_drvdata(pdev);
+	struct rk_camera_frmivalenum *fival_list, *fival_nxt;
+	int i;
 
 	debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()/n", __FILE__, __LINE__,__FUNCTION__);
-
-	
-    free_irq(pcdev->irqinfo.irq, pcdev);
 
 	if (pcdev->camera_wq) {
 		destroy_workqueue(pcdev->camera_wq);
 		pcdev->camera_wq = NULL;
 	}
 
-    for (i=0; i<2; i++) {
-        fival_list = pcdev->icd_frmival[i].fival_list;
-        fival_nxt = fival_list;
-        while(fival_nxt != NULL) {
-            fival_nxt = fival_list->nxt;
-            kfree(fival_list);
-            fival_list = fival_nxt;
-        }
-    }
+	for (i = 0; i < 2; i++) {
+		fival_list = pcdev->icd_frmival[i].fival_list;
+		fival_nxt = fival_list;
+		while (fival_nxt) {
+			fival_nxt = fival_list->nxt;
+			fival_list = fival_nxt;
+		}
+	}
 
-    soc_camera_host_unregister(&pcdev->soc_host);
+	soc_camera_host_unregister(&pcdev->soc_host);
 
-    res = pcdev->res;
-    iounmap((void __iomem*)pcdev->base);
-    release_mem_region(res->start, res->end - res->start + 1);
-    if (pcdev->pdata && pcdev->pdata->io_deinit) {         /* ddl@rock-chips.com : Free IO in deinit function */
-        pcdev->pdata->io_deinit(0);
-        pcdev->pdata->io_deinit(1);
-    }
+	/* ddl@rock-chips.com : Free IO in deinit function */
+	if (pcdev->pdata && pcdev->pdata->io_deinit) {
+		pcdev->pdata->io_deinit(0);
+		pcdev->pdata->io_deinit(1);
+	}
 
 	pm_runtime_disable(&pdev->dev);
 
-    kfree(pcdev);
+	if (pcdev->domain) {
+		iommu_group_remove_device(&pdev->dev);
+		iommu_put_dma_cookie(pcdev->domain);
+		iommu_domain_free(pcdev->domain);
+	}
 
-    dev_info(&pdev->dev, "RK28 Camera driver unloaded\n");
+	dev_info(&pdev->dev, "RK28 Camera driver unloaded\n");
 
-    return 0;
+	return 0;
 }
 
 static struct platform_driver rk_camera_driver =
 {
-    .driver 	= {
-        .name	= RK29_CAM_DRV_NAME,       /*host */      
-    },
-    .probe		= rk_camera_probe,
-    .remove		= (rk_camera_remove),
+	.driver		= {
+		.name	= RK29_CAM_DRV_NAME,
+		.of_match_table = of_match_ptr(rk_cif_of_match),
+	},
+	.probe		= rk_camera_probe,
+	.remove		= (rk_camera_remove),
 };
 
 static int rk_camera_init_async(void *unused)
 {
 
 	debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()\n", __FILE__, __LINE__,__FUNCTION__);
-    platform_driver_register(&rk_camera_driver);	
-    return 0;
+	platform_driver_register(&rk_camera_driver);
+	return 0;
 }
 
 static int __init rk_camera_init(void)
 {
 
 	debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()\n", __FILE__, __LINE__,__FUNCTION__);
-
-    kthread_run(rk_camera_init_async, NULL, "rk_camera_init");
-	
-    return 0;
+	kthread_run(rk_camera_init_async, NULL, "rk_camera_init");
+	return 0;
 }
 
 static void __exit rk_camera_exit(void)
 {
 	debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()/n", __FILE__, __LINE__,__FUNCTION__);
-
-    platform_driver_unregister(&rk_camera_driver);
+	platform_driver_unregister(&rk_camera_driver);
 }
 
 device_initcall_sync(rk_camera_init);

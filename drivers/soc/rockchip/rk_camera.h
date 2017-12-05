@@ -24,6 +24,7 @@
 #include <linux/platform_device.h>
 #include <linux/v4l2-mediabus.h>
 #include "rk_camera_sensor_info.h"
+#include <dt-bindings/pinctrl/rockchip-rk3288.h>
 
 #define RK29_CAM_PLATFORM_DEV_ID 33
 #define RK_CAM_PLATFORM_DEV_ID_0 RK29_CAM_PLATFORM_DEV_ID
@@ -123,6 +124,25 @@
 #define RK_VIDEOBUF_HDR_EXPOSURE_FINISH         0x03
 #define RK_VIDEOBUF_CODE_SET(rk_code,type)  rk_code = (('R'<<24)|('K'<<16)|type)
 #define RK_VIDEOBUF_CODE_CHK(rk_code)       ((rk_code&(('R'<<24)|('K'<<16)))==(('R'<<24)|('K'<<16)))
+
+#define CONFIG_CAMERA_INPUT_FMT_SUPPORT     (RK_CAM_INPUT_FMT_YUV422)
+#ifdef CONFIG_SOC_RK3028
+#define CONFIG_CAMERA_SCALE_CROP_MACHINE    RK_CAM_SCALE_CROP_ARM
+#else
+#define CONFIG_CAMERA_SCALE_CROP_MACHINE    RK_CAM_SCALE_CROP_IPP
+#endif
+#if (CONFIG_CAMERA_SCALE_CROP_MACHINE == RK_CAM_SCALE_CROP_ARM)
+    #define CAMERA_SCALE_CROP_MACHINE  "arm"
+#elif (CONFIG_CAMERA_SCALE_CROP_MACHINE == RK_CAM_SCALE_CROP_IPP)
+    #define CAMERA_SCALE_CROP_MACHINE  "ipp"
+#elif (CONFIG_CAMERA_SCALE_CROP_MACHINE == RK_CAM_SCALE_CROP_RGA)
+    #define CAMERA_SCALE_CROP_MACHINE  "rga"
+#elif (CONFIG_CAMERA_SCALE_CROP_MACHINE == RK_CAM_SCALE_CROP_PP)
+    #define CAMERA_SCALE_CROP_MACHINE  "pp"
+#endif
+
+#define RK29_CAM_DRV_NAME "rk312x-camera"
+#define CAMERA_VIDEOBUF_ARM_ACCESS   0
 
 enum rk29camera_ioctrl_cmd
 {

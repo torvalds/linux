@@ -28,7 +28,6 @@
 #include <linux/module.h>
 #include <linux/regulator/consumer.h>
 #include "rk_camera.h"
-#include "rk30_camera.h"
 
 static int camio_version = KERNEL_VERSION(0, 1, 9);
 module_param(camio_version, int, S_IRUGO);
@@ -62,13 +61,11 @@ static int rk_sensor_power(struct device *dev, int on);
 static int rk_sensor_register(void);
 static int rk_dts_sensor_probe(struct platform_device *pdev);
 static int rk_dts_sensor_remove(struct platform_device *pdev);
-static int rk_dts_cif_probe(struct platform_device *pdev);
-static int rk_dts_cif_remove(struct platform_device *pdev);
 static int rk_sensor_powerdown(struct device *dev, int on);
 
 static struct rkcamera_platform_data *new_camera_head;
 
-static struct rk29camera_platform_data rk_camera_platform_data = {
+struct rk29camera_platform_data rk_camera_platform_data = {
 	.io_init = rk_sensor_io_init,
 	.io_deinit = rk_sensor_io_deinit,
 	.sensor_ioctrl = rk_sensor_ioctrl,
@@ -83,58 +80,6 @@ struct rk29camera_platform_ioctl_cb sensor_ioctl_cb = {
 	.sensor_af_cb = NULL,
 };
 
-static u64 rockchip_device_camera_dmamask = 0xffffffffUL;
-#if RK_SUPPORT_CIF0
-static struct resource rk_camera_resource_host_0[2] = {};
-#endif
-#if RK_SUPPORT_CIF1
-static struct resource rk_camera_resource_host_1[2] = {};
-#endif
-
-#if RK_SUPPORT_CIF0
-struct platform_device rk_device_camera_host_0 = {
-	.name			= RK29_CAM_DRV_NAME,
-	/* This is used to put cameras on this interface*/
-	.id			= RK_CAM_PLATFORM_DEV_ID_0,
-	.num_resources		= ARRAY_SIZE(rk_camera_resource_host_0),
-	.resource		= rk_camera_resource_host_0,
-	.dev			= {
-		.dma_mask = &rockchip_device_camera_dmamask,
-		.coherent_dma_mask = 0xffffffffUL,
-		.platform_data	= &rk_camera_platform_data,
-	}
-};
-#endif
-
-#if RK_SUPPORT_CIF1
-struct platform_device rk_device_camera_host_1 = {
-	.name			= RK29_CAM_DRV_NAME,
-	/* This is used to put cameras on this interface */
-	.id			= RK_CAM_PLATFORM_DEV_ID_1,
-	.num_resources		= ARRAY_SIZE(rk_camera_resource_host_1),
-	.resource		= rk_camera_resource_host_1,
-	.dev			= {
-		.dma_mask = &rockchip_device_camera_dmamask,
-		.coherent_dma_mask = 0xffffffffUL,
-		.platform_data	= &rk_camera_platform_data,
-	}
-};
-#endif
-
-static const struct of_device_id of_match_cif[] = {
-	{.compatible = "rockchip,cif",},
-	{},
-};
-MODULE_DEVICE_TABLE(of, of_match_cif);
-static struct platform_driver rk_cif_driver = {
-	.driver		= {
-		.name		= RK_CIF_NAME,
-		.of_match_table = of_match_ptr(of_match_cif),
-	},
-	.probe		= rk_dts_cif_probe,
-	.remove		= rk_dts_cif_remove,
-};
-
 static const struct of_device_id of_match_sensor[] = {
 	{.compatible = "rockchip,sensor",},
 	{},
@@ -142,14 +87,12 @@ static const struct of_device_id of_match_sensor[] = {
 MODULE_DEVICE_TABLE(of, of_match_sensor);
 static struct platform_driver rk_sensor_driver = {
 	.driver = {
-		.name	= RK_SENSOR_NAME,
+		.name	= "rk_sensor",
 		.of_match_table = of_match_ptr(of_match_sensor),
 	},
 	.probe		= rk_dts_sensor_probe,
 	.remove		= rk_dts_sensor_remove,
 };
-
-struct regmap *rk_cif_grf_base;
 
 static int rk_dts_sensor_remove(struct platform_device *pdev)
 {
@@ -434,78 +377,6 @@ static int rk_dts_sensor_probe(struct platform_device *pdev)
 		debug_printk("******************* /n module_name = %s\n", new_camera->dev.desc_info.host_desc.module_name);
 	}
 	new_camera_list->next_camera = NULL;
-
-	return 0;
-}
-
-static int rk_dts_cif_remove(struct platform_device *pdev)
-{
-	return 0;
-}
-
-static int rk_dts_cif_probe(struct platform_device *pdev)
-{
-	int irq, err;
-	struct device *dev = &pdev->dev;
-	const char *compatible = NULL;
-	struct device_node * vpu_node =NULL;
-	int vpu_iommu_enabled = 0;
-
-	debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()\n", __FILE__, __LINE__,__FUNCTION__);
-
-	rk_camera_platform_data.cif_dev = &pdev->dev;
-
-	err = of_address_to_resource(dev->of_node, 0, &rk_camera_resource_host_0[0]);
-	if (err < 0) {
-		printk(KERN_EMERG "Get register resource from %s platform device failed!", pdev->name);
-		return -ENODEV;
-	}
-	rk_camera_resource_host_0[0].flags = IORESOURCE_MEM;
-	/*map irqs*/
-	irq = irq_of_parse_and_map(dev->of_node, 0);
-	if (irq < 0) {
-		printk(KERN_EMERG "Get irq resource from %s platform device failed!", pdev->name);
-		return -ENODEV;;
-	}
-	err = of_property_read_string(dev->of_node->parent, "compatible", &compatible);
-	rk_camera_platform_data.rockchip_name = compatible;
-
-	vpu_node = of_find_node_by_name(NULL, "vpu_service");
-	if (vpu_node) {
-		err = of_property_read_u32(vpu_node, "iommu_enabled", &vpu_iommu_enabled);
-		rk_camera_platform_data.iommu_enabled = vpu_iommu_enabled;
-		of_node_put(vpu_node);
-	} else {
-		printk(KERN_ERR "get vpu_node failed, vpu_iommu_enabled == 0 !!!!!!\n");
-	}
-
-	/* get grf base */
-	vpu_node = of_parse_phandle(dev->of_node, "rockchip,grf", 0);
-	if (vpu_node) {
-		rk_cif_grf_base = syscon_node_to_regmap(vpu_node);
-		if (IS_ERR(rk_cif_grf_base)) {
-			printk(KERN_ERR "%s regmap grf faile, d.\n", compatible);
-		}
-	}
-
-	if (err < 0){
-		printk(KERN_EMERG "Get rockchip compatible failed!!!!!!");
-		return -ENODEV;
-	}
-
-	rk_camera_resource_host_0[1].start = irq;
-	rk_camera_resource_host_0[1].end   = irq;
-	rk_camera_resource_host_0[1].flags = IORESOURCE_IRQ;
-	return 0;
-}
-
-static int rk_cif_sensor_init(void)
-{
-	debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()/n", __FILE__, __LINE__,__FUNCTION__);
-
-	platform_driver_register(&rk_cif_driver);
-
-	platform_driver_register(&rk_sensor_driver);
 
 	return 0;
 }
@@ -1311,4 +1182,14 @@ int rk_sensor_register(void)
 	return 0;
 }
 
-#include "../../../drivers/media/video/rk30_camera.c"
+static int rk_register_camera_devices(void)
+{
+	platform_driver_register(&rk_sensor_driver);
+
+	if (rk_camera_platform_data.sensor_register)
+		rk_camera_platform_data.sensor_register();
+
+	return 0;
+}
+
+module_init(rk_register_camera_devices);

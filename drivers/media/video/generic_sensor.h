@@ -26,8 +26,8 @@
 #include <linux/of_gpio.h>
 #include <linux/vmalloc.h>
 #include <linux/module.h>
-#include "../../../drivers/soc/rockchip/rk30_camera.h"
 #include <linux/kernel.h>
+#include "../../soc/rockchip/rk_camera.h"
 /* Camera Sensor driver */
 
 #define MIN(x, y)	((x < y) ? x : y)
