@@ -81,6 +81,7 @@
 #define SCLK_MIPIDSI_24M	126
 #define SCLK_VIP_OUT		127
 #define SCLK_DDRCLK		128
+#define SCLK_I2S_SRC		129
 
 #define SCLK_MAC_PLL		150
 #define SCLK_MAC		151
