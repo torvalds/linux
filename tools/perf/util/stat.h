@@ -90,6 +90,8 @@ struct perf_stat_config {
 	bool		scale;
 	FILE		*output;
 	unsigned int	interval;
+	struct runtime_stat *stats;
+	int		stats_num;
 };
 
 void update_stats(struct stats *stats, u64 val);
