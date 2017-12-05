@@ -361,20 +361,6 @@ static void tegra_fbdev_exit(struct tegra_fbdev *fbdev)
 	drm_fb_helper_fini(&fbdev->base);
 	tegra_fbdev_free(fbdev);
 }
-
-void tegra_fbdev_restore_mode(struct tegra_fbdev *fbdev)
-{
-	if (fbdev)
-		drm_fb_helper_restore_fbdev_mode_unlocked(&fbdev->base);
-}
-
-void tegra_fb_output_poll_changed(struct drm_device *drm)
-{
-	struct tegra_drm *tegra = drm->dev_private;
-
-	if (tegra->fbdev)
-		drm_fb_helper_hotplug_event(&tegra->fbdev->base);
-}
 #endif
 
 int tegra_drm_fb_prepare(struct drm_device *drm)
