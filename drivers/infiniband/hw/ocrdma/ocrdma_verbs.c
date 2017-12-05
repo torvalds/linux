@@ -461,7 +461,7 @@ retry:
 static inline int is_ucontext_pd(struct ocrdma_ucontext *uctx,
 				 struct ocrdma_pd *pd)
 {
-	return (uctx->cntxt_pd == pd ? true : false);
+	return (uctx->cntxt_pd == pd);
 }
 
 static int _ocrdma_dealloc_pd(struct ocrdma_dev *dev,
