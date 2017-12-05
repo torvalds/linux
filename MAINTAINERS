@@ -859,7 +859,8 @@ F:	kernel/configs/android*
 ANDROID DRIVERS
 M:	Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 M:	Arve Hjønnevåg <arve@android.com>
-M:	Riley Andrews <riandrews@android.com>
+M:	Todd Kjos <tkjos@android.com>
+M:	Martijn Coenen <maco@android.com>
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/gregkh/staging.git
 L:	devel@driverdev.osuosl.org
 S:	Supported
