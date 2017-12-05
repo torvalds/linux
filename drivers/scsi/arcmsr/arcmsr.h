@@ -831,6 +831,7 @@ struct AdapterControlBlock
 	atomic_t			ante_token_value;
 	uint32_t	maxOutstanding;
 	int		vector_count;
+	uint32_t		maxFreeCCB;
 	uint32_t		doneq_index;
 	uint32_t		ccbsize;
 	uint32_t		in_doorbell;
