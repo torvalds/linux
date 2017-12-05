@@ -514,6 +514,8 @@ static const struct nand_ecc_caps __name = {			\
  * @postpad:	padding information for syndrome based ECC generators
  * @options:	ECC specific options (see NAND_ECC_XXX flags defined above)
  * @priv:	pointer to private ECC control data
+ * @calc_buf:	buffer for calculated ECC, size is oobsize.
+ * @code_buf:	buffer for ECC read from flash, size is oobsize.
  * @hwctl:	function to control hardware ECC generator. Must only
  *		be provided if an hardware ECC is available
  * @calculate:	function for ECC calculation or readback from ECC hardware
@@ -564,6 +566,8 @@ struct nand_ecc_ctrl {
 	int postpad;
 	unsigned int options;
 	void *priv;
+	u8 *calc_buf;
+	u8 *code_buf;
 	void (*hwctl)(struct mtd_info *mtd, int mode);
 	int (*calculate)(struct mtd_info *mtd, const uint8_t *dat,
 			uint8_t *ecc_code);
@@ -589,21 +593,6 @@ struct nand_ecc_ctrl {
 	int (*read_oob)(struct mtd_info *mtd, struct nand_chip *chip, int page);
 	int (*write_oob)(struct mtd_info *mtd, struct nand_chip *chip,
 			int page);
-};
-
-/**
- * struct nand_buffers - buffer structure for read/write
- * @ecccalc:	buffer pointer for calculated ECC, size is oobsize.
- * @ecccode:	buffer pointer for ECC read from flash, size is oobsize.
- * @databuf:	buffer pointer for data, size is (page size + oobsize).
- *
- * Do not change the order of buffers. databuf and oobrbuf must be in
- * consecutive order.
- */
-struct nand_buffers {
-	uint8_t	*ecccalc;
-	uint8_t	*ecccode;
-	uint8_t *databuf;
 };
 
 /**
@@ -774,7 +763,6 @@ struct nand_manufacturer_ops {
  * @setup_read_retry:	[FLASHSPECIFIC] flash (vendor) specific function for
  *			setting the read-retry mode. Mostly needed for MLC NAND.
  * @ecc:		[BOARDSPECIFIC] ECC control structure
- * @buffers:		buffer structure for read/write
  * @buf_align:		minimum buffer alignment required by a platform
  * @hwcontrol:		platform-specific hardware control structure
  * @erase:		[REPLACEABLE] erase function
@@ -814,6 +802,7 @@ struct nand_manufacturer_ops {
  * @numchips:		[INTERN] number of physical chips
  * @chipsize:		[INTERN] the size of one chip for multichip arrays
  * @pagemask:		[INTERN] page number mask = number of (pages / chip) - 1
+ * @data_buf:		[INTERN] buffer for data, size is (page size + oobsize).
  * @pagebuf:		[INTERN] holds the pagenumber which is currently in
  *			data_buf.
  * @pagebuf_bitflips:	[INTERN] holds the bitflip count for the page which is
@@ -892,6 +881,7 @@ struct nand_chip {
 	int numchips;
 	uint64_t chipsize;
 	int pagemask;
+	u8 *data_buf;
 	int pagebuf;
 	unsigned int pagebuf_bitflips;
 	int subpagesize;
@@ -922,7 +912,6 @@ struct nand_chip {
 	struct nand_hw_control *controller;
 
 	struct nand_ecc_ctrl ecc;
-	struct nand_buffers *buffers;
 	unsigned long buf_align;
 	struct nand_hw_control hwcontrol;
 

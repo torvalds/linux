@@ -330,7 +330,7 @@ static int denali_check_erased_page(struct mtd_info *mtd,
 				    unsigned long uncor_ecc_flags,
 				    unsigned int max_bitflips)
 {
-	uint8_t *ecc_code = chip->buffers->ecccode;
+	uint8_t *ecc_code = chip->ecc.code_buf;
 	int ecc_steps = chip->ecc.steps;
 	int ecc_size = chip->ecc.size;
 	int ecc_bytes = chip->ecc.bytes;

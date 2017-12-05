@@ -1555,7 +1555,7 @@ static int sunxi_nfc_hw_common_ecc_read_oob(struct mtd_info *mtd,
 {
 	chip->pagebuf = -1;
 
-	return chip->ecc.read_page(mtd, chip, chip->buffers->databuf, 1, page);
+	return chip->ecc.read_page(mtd, chip, chip->data_buf, 1, page);
 }
 
 static int sunxi_nfc_hw_common_ecc_write_oob(struct mtd_info *mtd,
@@ -1566,8 +1566,8 @@ static int sunxi_nfc_hw_common_ecc_write_oob(struct mtd_info *mtd,
 
 	chip->pagebuf = -1;
 
-	memset(chip->buffers->databuf, 0xff, mtd->writesize);
-	ret = chip->ecc.write_page(mtd, chip, chip->buffers->databuf, 1, page);
+	memset(chip->data_buf, 0xff, mtd->writesize);
+	ret = chip->ecc.write_page(mtd, chip, chip->data_buf, 1, page);
 	if (ret)
 		return ret;
 

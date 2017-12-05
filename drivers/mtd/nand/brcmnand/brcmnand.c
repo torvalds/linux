@@ -1681,7 +1681,7 @@ static int brcmstb_nand_verify_erased_page(struct mtd_info *mtd,
 	int ret;
 
 	if (!buf) {
-		buf = chip->buffers->databuf;
+		buf = chip->data_buf;
 		/* Invalidate page cache */
 		chip->pagebuf = -1;
 	}

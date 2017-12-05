@@ -1530,7 +1530,7 @@ static int omap_write_page_bch(struct mtd_info *mtd, struct nand_chip *chip,
 			       const uint8_t *buf, int oob_required, int page)
 {
 	int ret;
-	uint8_t *ecc_calc = chip->buffers->ecccalc;
+	uint8_t *ecc_calc = chip->ecc.calc_buf;
 
 	nand_prog_page_begin_op(chip, page, 0, NULL, 0);
 
@@ -1571,7 +1571,7 @@ static int omap_write_subpage_bch(struct mtd_info *mtd,
 				  u32 data_len, const u8 *buf,
 				  int oob_required, int page)
 {
-	u8 *ecc_calc = chip->buffers->ecccalc;
+	u8 *ecc_calc = chip->ecc.calc_buf;
 	int ecc_size      = chip->ecc.size;
 	int ecc_bytes     = chip->ecc.bytes;
 	int ecc_steps     = chip->ecc.steps;
@@ -1609,7 +1609,7 @@ static int omap_write_subpage_bch(struct mtd_info *mtd,
 
 	/* copy calculated ECC for whole page to chip->buffer->oob */
 	/* this include masked-value(0xFF) for unwritten subpages */
-	ecc_calc = chip->buffers->ecccalc;
+	ecc_calc = chip->ecc.calc_buf;
 	ret = mtd_ooblayout_set_eccbytes(mtd, ecc_calc, chip->oob_poi, 0,
 					 chip->ecc.total);
 	if (ret)
@@ -1639,8 +1639,8 @@ static int omap_write_subpage_bch(struct mtd_info *mtd,
 static int omap_read_page_bch(struct mtd_info *mtd, struct nand_chip *chip,
 				uint8_t *buf, int oob_required, int page)
 {
-	uint8_t *ecc_calc = chip->buffers->ecccalc;
-	uint8_t *ecc_code = chip->buffers->ecccode;
+	uint8_t *ecc_calc = chip->ecc.calc_buf;
+	uint8_t *ecc_code = chip->ecc.code_buf;
 	int stat, ret;
 	unsigned int max_bitflips = 0;
 
