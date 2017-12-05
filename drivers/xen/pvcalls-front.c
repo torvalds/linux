@@ -1128,6 +1128,8 @@ static int pvcalls_front_probe(struct xenbus_device *dev,
 	}
 
 	versions = xenbus_read(XBT_NIL, dev->otherend, "versions", &len);
+	if (IS_ERR(versions))
+		return PTR_ERR(versions);
 	if (!len)
 		return -EINVAL;
 	if (strcmp(versions, "1")) {
