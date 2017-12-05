@@ -5319,34 +5319,29 @@ int nand_scan_tail(struct mtd_info *mtd)
 		return -EINVAL;
 	}
 
-	if (!(chip->options & NAND_OWN_BUFFERS)) {
-		nbuf = kzalloc(sizeof(*nbuf), GFP_KERNEL);
-		if (!nbuf)
-			return -ENOMEM;
-
-		nbuf->ecccalc = kmalloc(mtd->oobsize, GFP_KERNEL);
-		if (!nbuf->ecccalc) {
-			ret = -ENOMEM;
-			goto err_free_nbuf;
-		}
-
-		nbuf->ecccode = kmalloc(mtd->oobsize, GFP_KERNEL);
-		if (!nbuf->ecccode) {
-			ret = -ENOMEM;
-			goto err_free_nbuf;
-		}
-
-		nbuf->databuf = kmalloc(mtd->writesize + mtd->oobsize,
-					GFP_KERNEL);
-		if (!nbuf->databuf) {
-			ret = -ENOMEM;
-			goto err_free_nbuf;
-		}
-
-		chip->buffers = nbuf;
-	} else if (!chip->buffers) {
+	nbuf = kzalloc(sizeof(*nbuf), GFP_KERNEL);
+	if (!nbuf)
 		return -ENOMEM;
+
+	nbuf->ecccalc = kmalloc(mtd->oobsize, GFP_KERNEL);
+	if (!nbuf->ecccalc) {
+		ret = -ENOMEM;
+		goto err_free_nbuf;
 	}
+
+	nbuf->ecccode = kmalloc(mtd->oobsize, GFP_KERNEL);
+	if (!nbuf->ecccode) {
+		ret = -ENOMEM;
+		goto err_free_nbuf;
+	}
+
+	nbuf->databuf = kmalloc(mtd->writesize + mtd->oobsize, GFP_KERNEL);
+	if (!nbuf->databuf) {
+		ret = -ENOMEM;
+		goto err_free_nbuf;
+	}
+
+	chip->buffers = nbuf;
 
 	/*
 	 * FIXME: some NAND manufacturer drivers expect the first die to be
@@ -5701,7 +5696,7 @@ void nand_cleanup(struct nand_chip *chip)
 
 	/* Free bad block table memory */
 	kfree(chip->bbt);
-	if (!(chip->options & NAND_OWN_BUFFERS) && chip->buffers) {
+	if (chip->buffers) {
 		kfree(chip->buffers->databuf);
 		kfree(chip->buffers->ecccode);
 		kfree(chip->buffers->ecccalc);
