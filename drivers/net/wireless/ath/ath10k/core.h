@@ -363,11 +363,11 @@ struct ath10k_sta {
 	struct rate_info txrate;
 
 	struct work_struct update_wk;
+	u64 rx_duration;
 
 #ifdef CONFIG_MAC80211_DEBUGFS
 	/* protected by conf_mutex */
 	bool aggr_mode;
-	u64 rx_duration;
 #endif
 };
 
