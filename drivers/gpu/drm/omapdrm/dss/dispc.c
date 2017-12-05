@@ -4696,7 +4696,7 @@ static const struct dev_pm_ops dispc_pm_ops = {
 	.runtime_resume = dispc_runtime_resume,
 };
 
-static struct platform_driver omap_dispchw_driver = {
+struct platform_driver omap_dispchw_driver = {
 	.probe		= dispc_probe,
 	.remove         = dispc_remove,
 	.driver         = {
@@ -4706,13 +4706,3 @@ static struct platform_driver omap_dispchw_driver = {
 		.suppress_bind_attrs = true,
 	},
 };
-
-int __init dispc_init_platform_driver(void)
-{
-	return platform_driver_register(&omap_dispchw_driver);
-}
-
-void dispc_uninit_platform_driver(void)
-{
-	platform_driver_unregister(&omap_dispchw_driver);
-}

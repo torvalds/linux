@@ -1534,7 +1534,7 @@ static const struct dev_pm_ops dss_pm_ops = {
 	.runtime_resume = dss_runtime_resume,
 };
 
-static struct platform_driver omap_dsshw_driver = {
+struct platform_driver omap_dsshw_driver = {
 	.probe		= dss_probe,
 	.remove		= dss_remove,
 	.shutdown	= dss_shutdown,
@@ -1545,13 +1545,3 @@ static struct platform_driver omap_dsshw_driver = {
 		.suppress_bind_attrs = true,
 	},
 };
-
-int __init dss_init_platform_driver(void)
-{
-	return platform_driver_register(&omap_dsshw_driver);
-}
-
-void dss_uninit_platform_driver(void)
-{
-	platform_driver_unregister(&omap_dsshw_driver);
-}
