@@ -185,6 +185,8 @@ struct drm_connector_helper_funcs {
 	struct drm_encoder *(*best_encoder)(struct drm_connector *connector);
 	struct drm_encoder *(*atomic_best_encoder)(struct drm_connector *connector,
 						   struct drm_connector_state *connector_state);
+	void (*atomic_begin)(struct drm_connector *connector,
+			     struct drm_connector_state *conn_state);
 	void (*atomic_flush)(struct drm_connector *connector,
 			     struct drm_connector_state *conn_state);
 };
