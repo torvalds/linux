@@ -228,6 +228,9 @@ static inline void cr4_set_bits_and_update_boot(unsigned long mask)
 
 extern void initialize_tlbstate_and_flush(void);
 
+/*
+ * flush the entire current user mapping
+ */
 static inline void __native_flush_tlb(void)
 {
 	/*
@@ -240,6 +243,9 @@ static inline void __native_flush_tlb(void)
 	preempt_enable();
 }
 
+/*
+ * flush everything
+ */
 static inline void __native_flush_tlb_global(void)
 {
 	unsigned long cr4, flags;
@@ -269,17 +275,27 @@ static inline void __native_flush_tlb_global(void)
 	raw_local_irq_restore(flags);
 }
 
+/*
+ * flush one page in the user mapping
+ */
 static inline void __native_flush_tlb_single(unsigned long addr)
 {
 	asm volatile("invlpg (%0)" ::"r" (addr) : "memory");
 }
 
+/*
+ * flush everything
+ */
 static inline void __flush_tlb_all(void)
 {
-	if (boot_cpu_has(X86_FEATURE_PGE))
+	if (boot_cpu_has(X86_FEATURE_PGE)) {
 		__flush_tlb_global();
-	else
+	} else {
+		/*
+		 * !PGE -> !PCID (setup_pcid()), thus every flush is total.
+		 */
 		__flush_tlb();
+	}
 
 	/*
 	 * Note: if we somehow had PCID but not PGE, then this wouldn't work --
@@ -290,6 +306,9 @@ static inline void __flush_tlb_all(void)
 	 */
 }
 
+/*
+ * flush one page in the kernel mapping
+ */
 static inline void __flush_tlb_one(unsigned long addr)
 {
 	count_vm_tlb_event(NR_TLB_LOCAL_FLUSH_ONE);
