@@ -223,7 +223,7 @@ static int is31fl3216_software_shutdown(struct is31fl32xx_priv *priv,
  * are equivalent. Poking the Update register merely applies all PWM
  * register writes up to that point.
  */
-static int is31fl32xx_brightness_set(struct led_classdev *led_cdev,
+static void is31fl32xx_brightness_set(struct led_classdev *led_cdev,
 				     enum led_brightness brightness)
 {
 	const struct is31fl32xx_led_data *led_data =
@@ -244,9 +244,11 @@ static int is31fl32xx_brightness_set(struct led_classdev *led_cdev,
 			       cdef->pwm_register_base + pwm_register_offset,
 			       brightness);
 	if (ret)
-		return ret;
+		dev_err(led_cdev->dev,
+			"set brightness %d for led[%d] failed\n",
+			brightness, pwm_register_offset);
 
-	return is31fl32xx_write(led_data->priv, cdef->pwm_update_reg, 0);
+	is31fl32xx_write(led_data->priv, cdef->pwm_update_reg, 0);
 }
 
 static int is31fl32xx_reset_regs(struct is31fl32xx_priv *priv)
@@ -335,7 +337,7 @@ static inline size_t sizeof_is31fl32xx_priv(int num_leds)
 }
 
 static int is31fl32xx_parse_child_dt(const struct device *dev,
-				     const struct device_node *child,
+				     struct device_node *child,
 				     struct is31fl32xx_led_data *led_data)
 {
 	struct led_classdev *cdev = &led_data->cdev;
@@ -357,7 +359,7 @@ static int is31fl32xx_parse_child_dt(const struct device *dev,
 	of_property_read_string(child, "linux,default-trigger",
 				&cdev->default_trigger);
 
-	cdev->brightness_set_blocking = is31fl32xx_brightness_set;
+	cdev->brightness_set = is31fl32xx_brightness_set;
 
 	return 0;
 }
