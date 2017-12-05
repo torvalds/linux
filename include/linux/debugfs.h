@@ -216,6 +216,8 @@ static inline void debugfs_remove(struct dentry *dentry)
 static inline void debugfs_remove_recursive(struct dentry *dentry)
 { }
 
+const struct file_operations *debugfs_real_fops(const struct file *filp);
+
 static inline int debugfs_file_get(struct dentry *dentry)
 {
 	return 0;
