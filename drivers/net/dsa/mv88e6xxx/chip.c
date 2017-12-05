@@ -1758,6 +1758,22 @@ static int mv88e6xxx_setup_upstream_port(struct mv88e6xxx_chip *chip, int port)
 			return err;
 	}
 
+	if (port == upstream_port) {
+		if (chip->info->ops->set_cpu_port) {
+			err = chip->info->ops->set_cpu_port(chip,
+							    upstream_port);
+			if (err)
+				return err;
+		}
+
+		if (chip->info->ops->set_egress_port) {
+			err = chip->info->ops->set_egress_port(chip,
+							       upstream_port);
+			if (err)
+				return err;
+		}
+	}
+
 	return 0;
 }
 
@@ -1959,20 +1975,7 @@ static int mv88e6xxx_set_ageing_time(struct dsa_switch *ds,
 static int mv88e6xxx_g1_setup(struct mv88e6xxx_chip *chip)
 {
 	struct dsa_switch *ds = chip->ds;
-	u32 upstream_port = dsa_upstream_port(ds);
 	int err;
-
-	if (chip->info->ops->set_cpu_port) {
-		err = chip->info->ops->set_cpu_port(chip, upstream_port);
-		if (err)
-			return err;
-	}
-
-	if (chip->info->ops->set_egress_port) {
-		err = chip->info->ops->set_egress_port(chip, upstream_port);
-		if (err)
-			return err;
-	}
 
 	/* Disable remote management, and set the switch's DSA device number. */
 	err = mv88e6xxx_g1_write(chip, MV88E6XXX_G1_CTL2,
