@@ -309,6 +309,19 @@ static int ppc_nest_imc_cpu_offline(unsigned int cpu)
 		return 0;
 
 	/*
+	 * Check whether nest_imc is registered. We could end up here if the
+	 * cpuhotplug callback registration fails. i.e, callback invokes the
+	 * offline path for all successfully registered nodes. At this stage,
+	 * nest_imc pmu will not be registered and we should return here.
+	 *
+	 * We return with a zero since this is not an offline failure. And
+	 * cpuhp_setup_state() returns the actual failure reason to the caller,
+	 * which in turn will call the cleanup routine.
+	 */
+	if (!nest_pmus)
+		return 0;
+
+	/*
 	 * Now that this cpu is one of the designated,
 	 * find a next cpu a) which is online and b) in same chip.
 	 */
