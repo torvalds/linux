@@ -323,13 +323,16 @@ out_free_threads:
 }
 
 struct thread_map *thread_map__new_str(const char *pid, const char *tid,
-				       uid_t uid)
+				       uid_t uid, bool per_thread)
 {
 	if (pid)
 		return thread_map__new_by_pid_str(pid);
 
 	if (!tid && uid != UINT_MAX)
 		return thread_map__new_by_uid(uid);
+
+	if (per_thread)
+		return thread_map__new_all_cpus();
 
 	return thread_map__new_by_tid_str(tid);
 }
