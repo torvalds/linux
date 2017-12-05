@@ -346,28 +346,28 @@
 #define  DIO5					5
 
 /* DIO Mapping values (packet mode) */
-#define  DIO_ModeReady_DIO4			0x00
-#define  DIO_ModeReady_DIO5			0x03
-#define  DIO_ClkOut				0x00
-#define  DIO_Data				0x01
-#define  DIO_TimeOut_DIO1			0x03
-#define  DIO_TimeOut_DIO4			0x00
-#define  DIO_Rssi_DIO0				0x03
-#define  DIO_Rssi_DIO3_4			0x01
-#define  DIO_RxReady				0x02
-#define  DIO_PLLLock				0x03
-#define  DIO_TxReady				0x01
-#define  DIO_FifoFull_DIO1			0x01
-#define  DIO_FifoFull_DIO3			0x00
-#define  DIO_SyncAddress			0x02
-#define  DIO_FifoNotEmpty_DIO1			0x02
-#define  DIO_FifoNotEmpty_FIO2			0x00
-#define  DIO_Automode				0x04
-#define  DIO_FifoLevel				0x00
-#define  DIO_CrcOk				0x00
-#define  DIO_PayloadReady			0x01
-#define  DIO_PacketSent				0x00
-#define  DIO_Dclk				0x00
+#define  DIO_MODE_READY_DIO4			0x00
+#define  DIO_MODE_READY_DIO5			0x03
+#define  DIO_CLK_OUT				0x00
+#define  DIO_DATA				0x01
+#define  DIO_TIMEOUT_DIO1			0x03
+#define  DIO_TIMEOUT_DIO4			0x00
+#define  DIO_RSSI_DIO0				0x03
+#define  DIO_RSSI_DIO3_4			0x01
+#define  DIO_RX_READY				0x02
+#define  DIO_PLL_LOCK				0x03
+#define  DIO_TX_READY				0x01
+#define  DIO_FIFO_FULL_DIO1			0x01
+#define  DIO_FIFO_FULL_DIO3			0x00
+#define  DIO_SYNC_ADDRESS			0x02
+#define  DIO_FIFO_NOT_EMPTY_DIO1		0x02
+#define  DIO_FIFO_NOT_EMPTY_FIO2		0x00
+#define  DIO_AUTOMODE				0x04
+#define  DIO_FIFO_LEVEL				0x00
+#define  DIO_CRC_OK				0x00
+#define  DIO_PAYLOAD_READY			0x01
+#define  DIO_PACKET_SENT			0x00
+#define  DIO_DCLK				0x00
 
 /* RegDioMapping2 CLK_OUT part */
 #define  MASK_DIOMAPPING2_CLK_OUT		0x07

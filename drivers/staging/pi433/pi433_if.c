@@ -133,20 +133,20 @@ static irqreturn_t DIO0_irq_handler(int irq, void *dev_id)
 {
 	struct pi433_device *device = dev_id;
 
-	if      (device->irq_state[DIO0] == DIO_PacketSent)
+	if      (device->irq_state[DIO0] == DIO_PACKET_SENT)
 	{
 		device->free_in_fifo = FIFO_SIZE;
 		dev_dbg(device->dev, "DIO0 irq: Packet sent\n");
 		wake_up_interruptible(&device->fifo_wait_queue);
 	}
-	else if (device->irq_state[DIO0] == DIO_Rssi_DIO0)
+	else if (device->irq_state[DIO0] == DIO_RSSI_DIO0)
 	{
 		dev_dbg(device->dev, "DIO0 irq: RSSI level over threshold\n");
 		wake_up_interruptible(&device->rx_wait_queue);
 	}
-	else if (device->irq_state[DIO0] == DIO_PayloadReady)
+	else if (device->irq_state[DIO0] == DIO_PAYLOAD_READY)
 	{
-		dev_dbg(device->dev, "DIO0 irq: PayloadReady\n");
+		dev_dbg(device->dev, "DIO0 irq: Payload ready\n");
 		device->free_in_fifo = 0;
 		wake_up_interruptible(&device->fifo_wait_queue);
 	}
@@ -158,11 +158,11 @@ static irqreturn_t DIO1_irq_handler(int irq, void *dev_id)
 {
 	struct pi433_device *device = dev_id;
 
-	if      (device->irq_state[DIO1] == DIO_FifoNotEmpty_DIO1)
+	if      (device->irq_state[DIO1] == DIO_FIFO_NOT_EMPTY_DIO1)
 	{
 		device->free_in_fifo = FIFO_SIZE;
 	}
-	else if (device->irq_state[DIO1] == DIO_FifoLevel)
+	else if (device->irq_state[DIO1] == DIO_FIFO_LEVEL)
 	{
 		if (device->rx_active)	device->free_in_fifo = FIFO_THRESHOLD - 1;
 		else			device->free_in_fifo = FIFO_SIZE - FIFO_THRESHOLD - 1;
@@ -309,14 +309,14 @@ pi433_start_rx(struct pi433_device *dev)
 	if (retval) return retval;
 
 	/* setup rssi irq */
-	SET_CHECKED(rf69_set_dio_mapping(dev->spi, DIO0, DIO_Rssi_DIO0));
-	dev->irq_state[DIO0] = DIO_Rssi_DIO0;
+	SET_CHECKED(rf69_set_dio_mapping(dev->spi, DIO0, DIO_RSSI_DIO0));
+	dev->irq_state[DIO0] = DIO_RSSI_DIO0;
 	irq_set_irq_type(dev->irq_num[DIO0], IRQ_TYPE_EDGE_RISING);
 
 	/* setup fifo level interrupt */
 	SET_CHECKED(rf69_set_fifo_threshold(dev->spi, FIFO_SIZE - FIFO_THRESHOLD));
-	SET_CHECKED(rf69_set_dio_mapping(dev->spi, DIO1, DIO_FifoLevel));
-	dev->irq_state[DIO1] = DIO_FifoLevel;
+	SET_CHECKED(rf69_set_dio_mapping(dev->spi, DIO1, DIO_FIFO_LEVEL));
+	dev->irq_state[DIO1] = DIO_FIFO_LEVEL;
 	irq_set_irq_type(dev->irq_num[DIO1], IRQ_TYPE_EDGE_RISING);
 
 	/* set module to receiving mode */
@@ -378,8 +378,8 @@ pi433_receive(void *data)
 	}
 
 	/* configure payload ready irq */
-	SET_CHECKED(rf69_set_dio_mapping(spi, DIO0, DIO_PayloadReady));
-	dev->irq_state[DIO0] = DIO_PayloadReady;
+	SET_CHECKED(rf69_set_dio_mapping(spi, DIO0, DIO_PAYLOAD_READY));
+	dev->irq_state[DIO0] = DIO_PAYLOAD_READY;
 	irq_set_irq_type(dev->irq_num[DIO0], IRQ_TYPE_EDGE_RISING);
 
 	/* fixed or unlimited length? */
@@ -590,13 +590,13 @@ pi433_tx_thread(void *data)
 		rf69_set_tx_cfg(device, &tx_cfg);
 
 		/* enable fifo level interrupt */
-		SET_CHECKED(rf69_set_dio_mapping(spi, DIO1, DIO_FifoLevel));
-		device->irq_state[DIO1] = DIO_FifoLevel;
+		SET_CHECKED(rf69_set_dio_mapping(spi, DIO1, DIO_FIFO_LEVEL));
+		device->irq_state[DIO1] = DIO_FIFO_LEVEL;
 		irq_set_irq_type(device->irq_num[DIO1], IRQ_TYPE_EDGE_FALLING);
 
 		/* enable packet sent interrupt */
-		SET_CHECKED(rf69_set_dio_mapping(spi, DIO0, DIO_PacketSent));
-		device->irq_state[DIO0] = DIO_PacketSent;
+		SET_CHECKED(rf69_set_dio_mapping(spi, DIO0, DIO_PACKET_SENT));
+		device->irq_state[DIO0] = DIO_PACKET_SENT;
 		irq_set_irq_type(device->irq_num[DIO0], IRQ_TYPE_EDGE_RISING);
 		enable_irq(device->irq_num[DIO0]); /* was disabled by rx active check */
 
