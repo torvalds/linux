@@ -788,9 +788,7 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
  */
 void amdgpu_driver_lastclose_kms(struct drm_device *dev)
 {
-	struct amdgpu_device *adev = dev->dev_private;
-
-	amdgpu_fbdev_restore_mode(adev);
+	drm_fb_helper_lastclose(dev);
 	vga_switcheroo_process_delayed_switch();
 }
 
