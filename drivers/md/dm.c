@@ -2050,9 +2050,6 @@ int dm_setup_md_queue(struct mapped_device *md, struct dm_table *t)
 		 */
 		bioset_free(md->queue->bio_split);
 		md->queue->bio_split = NULL;
-
-		if (type == DM_TYPE_DAX_BIO_BASED)
-			queue_flag_set_unlocked(QUEUE_FLAG_DAX, md->queue);
 		break;
 	case DM_TYPE_NONE:
 		WARN_ON_ONCE(true);
