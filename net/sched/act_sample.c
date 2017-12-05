@@ -96,7 +96,7 @@ static int tcf_sample_init(struct net *net, struct nlattr *nla,
 	return ret;
 }
 
-static void tcf_sample_cleanup(struct tc_action *a, int bind)
+static void tcf_sample_cleanup(struct tc_action *a)
 {
 	struct tcf_sample *s = to_sample(a);
 	struct psample_group *psample_group;

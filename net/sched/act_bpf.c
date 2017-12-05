@@ -357,7 +357,7 @@ out:
 	return ret;
 }
 
-static void tcf_bpf_cleanup(struct tc_action *act, int bind)
+static void tcf_bpf_cleanup(struct tc_action *act)
 {
 	struct tcf_bpf_cfg tmp;
 

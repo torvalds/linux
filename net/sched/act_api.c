@@ -99,7 +99,7 @@ int __tcf_idr_release(struct tc_action *p, bool bind, bool strict)
 		p->tcfa_refcnt--;
 		if (p->tcfa_bindcnt <= 0 && p->tcfa_refcnt <= 0) {
 			if (p->ops->cleanup)
-				p->ops->cleanup(p, bind);
+				p->ops->cleanup(p);
 			tcf_idr_remove(p->idrinfo, p);
 			ret = ACT_P_DELETED;
 		}

@@ -50,7 +50,7 @@ static bool tcf_mirred_act_wants_ingress(int action)
 	}
 }
 
-static void tcf_mirred_release(struct tc_action *a, int bind)
+static void tcf_mirred_release(struct tc_action *a)
 {
 	struct tcf_mirred *m = to_mirred(a);
 	struct net_device *dev;

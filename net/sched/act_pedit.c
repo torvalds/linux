@@ -216,7 +216,7 @@ static int tcf_pedit_init(struct net *net, struct nlattr *nla,
 	return ret;
 }
 
-static void tcf_pedit_cleanup(struct tc_action *a, int bind)
+static void tcf_pedit_cleanup(struct tc_action *a)
 {
 	struct tcf_pedit *p = to_pedit(a);
 	struct tc_pedit_key *keys = p->tcfp_keys;

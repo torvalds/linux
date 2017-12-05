@@ -47,7 +47,7 @@ static int tcf_simp(struct sk_buff *skb, const struct tc_action *a,
 	return d->tcf_action;
 }
 
-static void tcf_simp_release(struct tc_action *a, int bind)
+static void tcf_simp_release(struct tc_action *a)
 {
 	struct tcf_defact *d = to_defact(a);
 	kfree(d->tcfd_defdata);

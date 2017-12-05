@@ -77,7 +77,7 @@ static void ipt_destroy_target(struct xt_entry_target *t)
 	module_put(par.target->me);
 }
 
-static void tcf_ipt_release(struct tc_action *a, int bind)
+static void tcf_ipt_release(struct tc_action *a)
 {
 	struct tcf_ipt *ipt = to_ipt(a);
 	ipt_destroy_target(ipt->tcfi_t);

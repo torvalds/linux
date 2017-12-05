@@ -201,7 +201,7 @@ err_out:
 	return ret;
 }
 
-static void tunnel_key_release(struct tc_action *a, int bind)
+static void tunnel_key_release(struct tc_action *a)
 {
 	struct tcf_tunnel_key *t = to_tunnel_key(a);
 	struct tcf_tunnel_key_params *params;

@@ -219,7 +219,7 @@ static int tcf_vlan_init(struct net *net, struct nlattr *nla,
 	return ret;
 }
 
-static void tcf_vlan_cleanup(struct tc_action *a, int bind)
+static void tcf_vlan_cleanup(struct tc_action *a)
 {
 	struct tcf_vlan *v = to_vlan(a);
 	struct tcf_vlan_params *p;

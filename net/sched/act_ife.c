@@ -387,7 +387,7 @@ out_nlmsg_trim:
 }
 
 /* under ife->tcf_lock */
-static void _tcf_ife_cleanup(struct tc_action *a, int bind)
+static void _tcf_ife_cleanup(struct tc_action *a)
 {
 	struct tcf_ife_info *ife = to_ife(a);
 	struct tcf_meta_info *e, *n;
@@ -405,13 +405,13 @@ static void _tcf_ife_cleanup(struct tc_action *a, int bind)
 	}
 }
 
-static void tcf_ife_cleanup(struct tc_action *a, int bind)
+static void tcf_ife_cleanup(struct tc_action *a)
 {
 	struct tcf_ife_info *ife = to_ife(a);
 	struct tcf_ife_params *p;
 
 	spin_lock_bh(&ife->tcf_lock);
-	_tcf_ife_cleanup(a, bind);
+	_tcf_ife_cleanup(a);
 	spin_unlock_bh(&ife->tcf_lock);
 
 	p = rcu_dereference_protected(ife->params, 1);
@@ -546,7 +546,7 @@ metadata_parse_err:
 			if (exists)
 				tcf_idr_release(*a, bind);
 			if (ret == ACT_P_CREATED)
-				_tcf_ife_cleanup(*a, bind);
+				_tcf_ife_cleanup(*a);
 
 			if (exists)
 				spin_unlock_bh(&ife->tcf_lock);
@@ -567,7 +567,7 @@ metadata_parse_err:
 		err = use_all_metadata(ife);
 		if (err) {
 			if (ret == ACT_P_CREATED)
-				_tcf_ife_cleanup(*a, bind);
+				_tcf_ife_cleanup(*a);
 
 			if (exists)
 				spin_unlock_bh(&ife->tcf_lock);
