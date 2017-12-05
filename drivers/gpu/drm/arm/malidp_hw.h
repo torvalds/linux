@@ -285,10 +285,16 @@ void malidp_se_irq_fini(struct drm_device *drm);
 u8 malidp_hw_get_format_id(const struct malidp_hw_regmap *map,
 			   u8 layer_id, u32 format);
 
-static inline bool malidp_hw_pitch_valid(struct malidp_hw_device *hwdev,
-					 unsigned int pitch)
+static inline u8 malidp_hw_get_pitch_align(struct malidp_hw_device *hwdev, bool rotated)
 {
-	return !(pitch & (hwdev->hw->map.bus_align_bytes - 1));
+	/*
+	 * only hardware that cannot do 8 bytes bus alignments have further
+	 * constraints on rotated planes
+	 */
+	if (hwdev->hw->map.bus_align_bytes == 8)
+		return 8;
+	else
+		return hwdev->hw->map.bus_align_bytes << (rotated ? 2 : 0);
 }
 
 /* U16.16 */

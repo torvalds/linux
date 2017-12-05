@@ -175,6 +175,7 @@ static int malidp_de_plane_check(struct drm_plane *plane,
 {
 	struct malidp_plane *mp = to_malidp_plane(plane);
 	struct malidp_plane_state *ms = to_malidp_plane_state(state);
+	bool rotated = state->rotation & MALIDP_ROTATED_MASK;
 	struct drm_framebuffer *fb;
 	int i, ret;
 
@@ -191,7 +192,8 @@ static int malidp_de_plane_check(struct drm_plane *plane,
 
 	ms->n_planes = fb->format->num_planes;
 	for (i = 0; i < ms->n_planes; i++) {
-		if (!malidp_hw_pitch_valid(mp->hwdev, fb->pitches[i])) {
+		u8 alignment = malidp_hw_get_pitch_align(mp->hwdev, rotated);
+		if (fb->pitches[i] & (alignment - 1)) {
 			DRM_DEBUG_KMS("Invalid pitch %u for plane %d\n",
 				      fb->pitches[i], i);
 			return -EINVAL;
