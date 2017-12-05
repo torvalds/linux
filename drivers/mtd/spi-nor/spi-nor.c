@@ -566,6 +566,27 @@ erase_err:
 	return ret;
 }
 
+/* Write status register and ensure bits in mask match written values */
+static int write_sr_and_check(struct spi_nor *nor, u8 status_new, u8 mask)
+{
+	int ret;
+
+	write_enable(nor);
+	ret = write_sr(nor, status_new);
+	if (ret)
+		return ret;
+
+	ret = spi_nor_wait_till_ready(nor);
+	if (ret)
+		return ret;
+
+	ret = read_sr(nor);
+	if (ret < 0)
+		return ret;
+
+	return ((ret & mask) != (status_new & mask)) ? -EIO : 0;
+}
+
 static void stm_get_locked_range(struct spi_nor *nor, u8 sr, loff_t *ofs,
 				 uint64_t *len)
 {
@@ -664,7 +685,6 @@ static int stm_lock(struct spi_nor *nor, loff_t ofs, uint64_t len)
 	loff_t lock_len;
 	bool can_be_top = true, can_be_bottom = nor->flags & SNOR_F_HAS_SR_TB;
 	bool use_top;
-	int ret;
 
 	status_old = read_sr(nor);
 	if (status_old < 0)
@@ -728,11 +748,7 @@ static int stm_lock(struct spi_nor *nor, loff_t ofs, uint64_t len)
 	if ((status_new & mask) < (status_old & mask))
 		return -EINVAL;
 
-	write_enable(nor);
-	ret = write_sr(nor, status_new);
-	if (ret)
-		return ret;
-	return spi_nor_wait_till_ready(nor);
+	return write_sr_and_check(nor, status_new, mask);
 }
 
 /*
@@ -749,7 +765,6 @@ static int stm_unlock(struct spi_nor *nor, loff_t ofs, uint64_t len)
 	loff_t lock_len;
 	bool can_be_top = true, can_be_bottom = nor->flags & SNOR_F_HAS_SR_TB;
 	bool use_top;
-	int ret;
 
 	status_old = read_sr(nor);
 	if (status_old < 0)
@@ -816,11 +831,7 @@ static int stm_unlock(struct spi_nor *nor, loff_t ofs, uint64_t len)
 	if ((status_new & mask) > (status_old & mask))
 		return -EINVAL;
 
-	write_enable(nor);
-	ret = write_sr(nor, status_new);
-	if (ret)
-		return ret;
-	return spi_nor_wait_till_ready(nor);
+	return write_sr_and_check(nor, status_new, mask);
 }
 
 /*
