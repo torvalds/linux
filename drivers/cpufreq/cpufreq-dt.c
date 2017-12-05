@@ -320,7 +320,7 @@ static void cpufreq_ready(struct cpufreq_policy *policy)
 {
 	struct private_data *priv = policy->driver_data;
 
-	priv->cdev = of_cpufreq_power_cooling_register(policy);
+	priv->cdev = of_cpufreq_cooling_register(policy);
 }
 
 static struct cpufreq_driver dt_cpufreq_driver = {

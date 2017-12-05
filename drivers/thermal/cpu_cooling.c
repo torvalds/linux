@@ -819,7 +819,6 @@ EXPORT_SYMBOL_GPL(cpufreq_cooling_register);
 
 /**
  * of_cpufreq_cooling_register - function to create cpufreq cooling device.
- * @np: a valid struct device_node to the cooling device device tree node
  * @policy: cpufreq policy
  *
  * This interface function registers the cpufreq cooling device with the name
@@ -827,29 +826,6 @@ EXPORT_SYMBOL_GPL(cpufreq_cooling_register);
  * cooling devices. Using this API, the cpufreq cooling device will be
  * linked to the device tree node provided.
  *
- * Return: a valid struct thermal_cooling_device pointer on success,
- * on failure, it returns a corresponding ERR_PTR().
- */
-struct thermal_cooling_device *
-of_cpufreq_cooling_register(struct device_node *np,
-			    struct cpufreq_policy *policy)
-{
-	if (!np)
-		return ERR_PTR(-EINVAL);
-
-	return __cpufreq_cooling_register(np, policy, 0, NULL);
-}
-EXPORT_SYMBOL_GPL(of_cpufreq_cooling_register);
-
-/**
- * of_cpufreq_power_cooling_register() - create cpufreq cooling device with power extensions
- * @policy: CPUFreq policy.
- *
- * This interface function registers the cpufreq cooling device with
- * the name "thermal-cpufreq-%x".  This api can support multiple
- * instances of cpufreq cooling devices.  Using this API, the cpufreq
- * cooling device will be linked to the device tree node of the provided
- * policy's CPU.
  * Using this function, the cooling device will implement the power
  * extensions by using a simple cpu power model.  The cpus must have
  * registered their OPPs using the OPP library.
@@ -861,7 +837,7 @@ EXPORT_SYMBOL_GPL(of_cpufreq_cooling_register);
  * and NULL on failure.
  */
 struct thermal_cooling_device *
-of_cpufreq_power_cooling_register(struct cpufreq_policy *policy)
+of_cpufreq_cooling_register(struct cpufreq_policy *policy)
 {
 	struct device_node *np = of_get_cpu_node(policy->cpu, NULL);
 	struct thermal_cooling_device *cdev = NULL;
@@ -889,7 +865,7 @@ of_cpufreq_power_cooling_register(struct cpufreq_policy *policy)
 	of_node_put(np);
 	return cdev;
 }
-EXPORT_SYMBOL(of_cpufreq_power_cooling_register);
+EXPORT_SYMBOL_GPL(of_cpufreq_cooling_register);
 
 /**
  * cpufreq_cooling_unregister - function to remove cpufreq cooling device.

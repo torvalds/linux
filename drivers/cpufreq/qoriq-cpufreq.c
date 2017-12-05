@@ -276,7 +276,7 @@ static void qoriq_cpufreq_ready(struct cpufreq_policy *policy)
 {
 	struct cpu_data *cpud = policy->driver_data;
 
-	cpud->cdev = of_cpufreq_power_cooling_register(policy);
+	cpud->cdev = of_cpufreq_cooling_register(policy);
 }
 
 static struct cpufreq_driver qoriq_cpufreq_driver = {

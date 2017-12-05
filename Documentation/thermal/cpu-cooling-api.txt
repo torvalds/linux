@@ -26,24 +26,16 @@ the user. The registration APIs returns the cooling device pointer.
    clip_cpus: cpumask of cpus where the frequency constraints will happen.
 
 1.1.2 struct thermal_cooling_device *of_cpufreq_cooling_register(
-	struct device_node *np, const struct cpumask *clip_cpus)
+					struct cpufreq_policy *policy)
 
     This interface function registers the cpufreq cooling device with
     the name "thermal-cpufreq-%x" linking it with a device tree node, in
     order to bind it via the thermal DT code. This api can support multiple
     instances of cpufreq cooling devices.
 
-    np: pointer to the cooling device device tree node
-    clip_cpus: cpumask of cpus where the frequency constraints will happen.
+    policy: CPUFreq policy.
 
-1.1.3 struct thermal_cooling_device *of_cpufreq_power_cooling_register(
-					struct cpufreq_policy *policy)
-
-Similar to cpufreq_cooling_register, this function register a
-cpufreq cooling device with power extensions using the device tree
-information supplied by the np parameter.
-
-1.1.4 void cpufreq_cooling_unregister(struct thermal_cooling_device *cdev)
+1.1.3 void cpufreq_cooling_unregister(struct thermal_cooling_device *cdev)
 
     This interface function unregisters the "thermal-cpufreq-%x" cooling device.
 

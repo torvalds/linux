@@ -311,7 +311,7 @@ static void mtk_cpufreq_ready(struct cpufreq_policy *policy)
 {
 	struct mtk_cpu_dvfs_info *info = policy->driver_data;
 
-	info->cdev = of_cpufreq_power_cooling_register(policy);
+	info->cdev = of_cpufreq_cooling_register(policy);
 }
 
 static int mtk_cpu_dvfs_info_init(struct mtk_cpu_dvfs_info *info, int cpu)
