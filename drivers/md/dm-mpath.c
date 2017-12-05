@@ -221,13 +221,18 @@ static int alloc_multipath_stage2(struct dm_target *ti, struct multipath *m)
 			m->queue_mode = DM_TYPE_MQ_REQUEST_BASED;
 		else
 			m->queue_mode = DM_TYPE_REQUEST_BASED;
-	} else if (m->queue_mode == DM_TYPE_BIO_BASED) {
+
+	} else if (m->queue_mode == DM_TYPE_BIO_BASED ||
+		   m->queue_mode == DM_TYPE_NVME_BIO_BASED) {
 		INIT_WORK(&m->process_queued_bios, process_queued_bios);
-		/*
-		 * bio-based doesn't support any direct scsi_dh management;
-		 * it just discovers if a scsi_dh is attached.
-		 */
-		set_bit(MPATHF_RETAIN_ATTACHED_HW_HANDLER, &m->flags);
+
+		if (m->queue_mode == DM_TYPE_BIO_BASED) {
+			/*
+			 * bio-based doesn't support any direct scsi_dh management;
+			 * it just discovers if a scsi_dh is attached.
+			 */
+			set_bit(MPATHF_RETAIN_ATTACHED_HW_HANDLER, &m->flags);
+		}
 	}
 
 	dm_table_set_type(ti->table, m->queue_mode);
@@ -609,7 +614,8 @@ static void process_queued_io_list(struct multipath *m)
 {
 	if (m->queue_mode == DM_TYPE_MQ_REQUEST_BASED)
 		dm_mq_kick_requeue_list(dm_table_get_md(m->ti->table));
-	else if (m->queue_mode == DM_TYPE_BIO_BASED)
+	else if (m->queue_mode == DM_TYPE_BIO_BASED ||
+		 m->queue_mode == DM_TYPE_NVME_BIO_BASED)
 		queue_work(kmultipathd, &m->process_queued_bios);
 }
 
@@ -925,7 +931,8 @@ static int parse_hw_handler(struct dm_arg_set *as, struct multipath *m)
 	if (!hw_argc)
 		return 0;
 
-	if (m->queue_mode == DM_TYPE_BIO_BASED) {
+	if (m->queue_mode == DM_TYPE_BIO_BASED ||
+	    m->queue_mode == DM_TYPE_NVME_BIO_BASED) {
 		dm_consume_args(as, hw_argc);
 		DMERR("bio-based multipath doesn't allow hardware handler args");
 		return 0;
@@ -1014,6 +1021,8 @@ static int parse_features(struct dm_arg_set *as, struct multipath *m)
 
 			if (!strcasecmp(queue_mode_name, "bio"))
 				m->queue_mode = DM_TYPE_BIO_BASED;
+			else if (!strcasecmp(queue_mode_name, "nvme"))
+				m->queue_mode = DM_TYPE_NVME_BIO_BASED;
 			else if (!strcasecmp(queue_mode_name, "rq"))
 				m->queue_mode = DM_TYPE_REQUEST_BASED;
 			else if (!strcasecmp(queue_mode_name, "mq"))
@@ -1114,7 +1123,7 @@ static int multipath_ctr(struct dm_target *ti, unsigned argc, char **argv)
 	ti->num_discard_bios = 1;
 	ti->num_write_same_bios = 1;
 	ti->num_write_zeroes_bios = 1;
-	if (m->queue_mode == DM_TYPE_BIO_BASED)
+	if (m->queue_mode == DM_TYPE_BIO_BASED || m->queue_mode == DM_TYPE_NVME_BIO_BASED)
 		ti->per_io_data_size = multipath_per_bio_data_size();
 	else
 		ti->per_io_data_size = sizeof(struct dm_mpath_io);
@@ -1659,6 +1668,9 @@ static void multipath_status(struct dm_target *ti, status_type_t type,
 			switch(m->queue_mode) {
 			case DM_TYPE_BIO_BASED:
 				DMEMIT("queue_mode bio ");
+				break;
+			case DM_TYPE_NVME_BIO_BASED:
+				DMEMIT("queue_mode nvme ");
 				break;
 			case DM_TYPE_MQ_REQUEST_BASED:
 				DMEMIT("queue_mode mq ");
