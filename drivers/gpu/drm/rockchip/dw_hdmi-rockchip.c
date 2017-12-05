@@ -505,6 +505,8 @@ dw_hdmi_rockchip_select_output(struct drm_connector_state *conn_state,
 	struct hdr_static_metadata *hdr_metadata;
 	u32 vic = drm_match_cea_mode(mode);
 	unsigned long tmdsclock, pixclock = mode->crtc_clock;
+	bool support_dc = false;
+	u32 max_tmds_clock = info->max_tmds_clock;
 
 	*color_format = DRM_HDMI_OUTPUT_DEFAULT_RGB;
 
@@ -545,21 +547,23 @@ dw_hdmi_rockchip_select_output(struct drm_connector_state *conn_state,
 		break;
 	}
 
+	if (*color_format == DRM_HDMI_OUTPUT_DEFAULT_RGB &&
+	    info->edid_hdmi_dc_modes & DRM_EDID_HDMI_DC_30)
+		support_dc = true;
 	if (*color_format == DRM_HDMI_OUTPUT_YCBCR444 &&
-	    !(info->edid_hdmi_dc_modes & DRM_EDID_HDMI_DC_Y444))
-		*color_depth = 8;
-	else if (!hdmi->colordepth)
-		*color_depth = info->bpc;
-	else
-		*color_depth = hdmi->colordepth;
+	    info->edid_hdmi_dc_modes &
+	    (DRM_EDID_HDMI_DC_Y444 | DRM_EDID_HDMI_DC_30))
+		support_dc = true;
+	if (*color_format == DRM_HDMI_OUTPUT_YCBCR422)
+		support_dc = true;
+	if (*color_format == DRM_HDMI_OUTPUT_YCBCR420 &&
+	    info->hdmi.y420_dc_modes & DRM_EDID_YCBCR420_DC_30)
+		support_dc = true;
 
-	/* Color depth on rockchip platform is limited up to 10bit */
-	if (*color_depth > 10) {
+	if (hdmi->colordepth > 8 && support_dc)
 		*color_depth = 10;
-		if (*color_format == DRM_HDMI_OUTPUT_YCBCR420 &&
-		    !(info->hdmi.y420_dc_modes & DRM_EDID_YCBCR420_DC_30))
-			*color_depth = 8;
-	}
+	else
+		*color_depth = 8;
 
 	*eotf = HDMI_EOTF_TRADITIONAL_GAMMA_SDR;
 	if (conn_state->hdr_output_metadata) {
@@ -575,7 +579,7 @@ dw_hdmi_rockchip_select_output(struct drm_connector_state *conn_state,
 	    BIT(*eotf))
 		*enc_out_encoding = V4L2_YCBCR_ENC_BT2020;
 	else if ((vic == 6) || (vic == 7) || (vic == 21) || (vic == 22) ||
-		   (vic == 2) || (vic == 3) || (vic == 17) || (vic == 18))
+		 (vic == 2) || (vic == 3) || (vic == 17) || (vic == 18))
 		*enc_out_encoding = V4L2_YCBCR_ENC_601;
 	else
 		*enc_out_encoding = V4L2_YCBCR_ENC_709;
@@ -600,16 +604,15 @@ dw_hdmi_rockchip_select_output(struct drm_connector_state *conn_state,
 
 	if (*color_format == DRM_HDMI_OUTPUT_YCBCR420)
 		tmdsclock /= 2;
-	/*
-	 * For some display device, max_tmds_clock is 0, we think
-	 * max_tmds_clock is 340MHz. If tmdsclock > max_tmds_clock,
-	 * fallback to 8bit. If mode support YCBCR420, use YCBCR420.
-	 */
-	if ((!info->max_tmds_clock && tmdsclock > 340000) ||
-	    (info->max_tmds_clock && tmdsclock > info->max_tmds_clock) ||
-	    tmdsclock > hdmi->max_tmdsclk) {
+
+	/* XXX: max_tmds_clock of some sink is 0, we think it is 340MHz. */
+	if (!max_tmds_clock)
+		max_tmds_clock = 340000;
+
+	if (tmdsclock > max_tmds_clock) {
 		*color_depth = 8;
-		if (drm_mode_is_420(info, mode))
+		if (tmdsclock > 340000 && drm_mode_is_420(info, mode) &&
+		    (max_tmds_clock <= 340000 || hdmi->max_tmdsclk <= 340000))
 			*color_format = DRM_HDMI_OUTPUT_YCBCR420;
 	}
 }
