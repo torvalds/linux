@@ -1005,12 +1005,21 @@ static int scpi_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	dev_info(dev, "SCP Protocol %lu.%lu Firmware %lu.%lu.%lu version\n",
-		 FIELD_GET(PROTO_REV_MAJOR_MASK, scpi_info->protocol_version),
-		 FIELD_GET(PROTO_REV_MINOR_MASK, scpi_info->protocol_version),
-		 FIELD_GET(FW_REV_MAJOR_MASK, scpi_info->firmware_version),
-		 FIELD_GET(FW_REV_MINOR_MASK, scpi_info->firmware_version),
-		 FIELD_GET(FW_REV_PATCH_MASK, scpi_info->firmware_version));
+	if (scpi_info->is_legacy && !scpi_info->protocol_version &&
+	    !scpi_info->firmware_version)
+		dev_info(dev, "SCP Protocol legacy pre-1.0 firmware\n");
+	else
+		dev_info(dev, "SCP Protocol %lu.%lu Firmware %lu.%lu.%lu version\n",
+			 FIELD_GET(PROTO_REV_MAJOR_MASK,
+				   scpi_info->protocol_version),
+			 FIELD_GET(PROTO_REV_MINOR_MASK,
+				   scpi_info->protocol_version),
+			 FIELD_GET(FW_REV_MAJOR_MASK,
+				   scpi_info->firmware_version),
+			 FIELD_GET(FW_REV_MINOR_MASK,
+				   scpi_info->firmware_version),
+			 FIELD_GET(FW_REV_PATCH_MASK,
+				   scpi_info->firmware_version));
 	scpi_info->scpi_ops = &scpi_ops;
 
 	ret = devm_device_add_groups(dev, versions_groups);
