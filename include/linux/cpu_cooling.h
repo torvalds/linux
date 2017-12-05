@@ -30,9 +30,6 @@
 
 struct cpufreq_policy;
 
-typedef int (*get_static_t)(cpumask_t *cpumask, int interval,
-			    unsigned long voltage, u32 *power);
-
 #ifdef CONFIG_CPU_THERMAL
 /**
  * cpufreq_cooling_register - function to create cpufreq cooling device.
