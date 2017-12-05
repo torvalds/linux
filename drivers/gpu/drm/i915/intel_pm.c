@@ -58,7 +58,7 @@ static void gen9_init_clock_gating(struct drm_i915_private *dev_priv)
 	if (HAS_LLC(dev_priv)) {
 		/*
 		 * WaCompressedResourceDisplayNewHashMode:skl,kbl
-		 * Display WA#0390: skl,kbl
+		 * Display WA #0390: skl,kbl
 		 *
 		 * Must match Sampler, Pixel Back End, and Media. See
 		 * WaCompressedResourceSamplerPbeMediaNewHashMode.
@@ -8417,7 +8417,7 @@ static void cnp_init_clock_gating(struct drm_i915_private *dev_priv)
 	if (!HAS_PCH_CNP(dev_priv))
 		return;
 
-	/* Wa #1181 */
+	/* Display WA #1181 */
 	I915_WRITE(SOUTH_DSPCLK_GATE_D, I915_READ(SOUTH_DSPCLK_GATE_D) |
 		   CNP_PWM_CGE_GATING_DISABLE);
 }
