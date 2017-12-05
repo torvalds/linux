@@ -28,6 +28,7 @@ enum dm_queue_mode {
 	DM_TYPE_REQUEST_BASED	 = 2,
 	DM_TYPE_MQ_REQUEST_BASED = 3,
 	DM_TYPE_DAX_BIO_BASED	 = 4,
+	DM_TYPE_NVME_BIO_BASED	 = 5,
 };
 
 typedef enum { STATUSTYPE_INFO, STATUSTYPE_TABLE } status_type_t;

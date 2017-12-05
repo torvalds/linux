@@ -866,7 +866,8 @@ EXPORT_SYMBOL(dm_consume_args);
 static bool __table_type_bio_based(enum dm_queue_mode table_type)
 {
 	return (table_type == DM_TYPE_BIO_BASED ||
-		table_type == DM_TYPE_DAX_BIO_BASED);
+		table_type == DM_TYPE_DAX_BIO_BASED ||
+		table_type == DM_TYPE_NVME_BIO_BASED);
 }
 
 static bool __table_type_request_based(enum dm_queue_mode table_type)
@@ -909,6 +910,8 @@ static bool dm_table_supports_dax(struct dm_table *t)
 	return true;
 }
 
+static bool dm_table_does_not_support_partial_completion(struct dm_table *t);
+
 static int dm_table_determine_type(struct dm_table *t)
 {
 	unsigned i;
@@ -923,6 +926,14 @@ static int dm_table_determine_type(struct dm_table *t)
 		/* target already set the table's type */
 		if (t->type == DM_TYPE_BIO_BASED)
 			return 0;
+		else if (t->type == DM_TYPE_NVME_BIO_BASED) {
+			if (!dm_table_does_not_support_partial_completion(t)) {
+				DMERR("nvme bio-based is only possible with devices"
+				      " that don't support partial completion");
+				return -EINVAL;
+			}
+			/* Fallthru, also verify all devices are blk-mq */
+		}
 		BUG_ON(t->type == DM_TYPE_DAX_BIO_BASED);
 		goto verify_rq_based;
 	}
@@ -937,8 +948,8 @@ static int dm_table_determine_type(struct dm_table *t)
 			bio_based = 1;
 
 		if (bio_based && request_based) {
-			DMWARN("Inconsistent table: different target types"
-			       " can't be mixed up");
+			DMERR("Inconsistent table: different target types"
+			      " can't be mixed up");
 			return -EINVAL;
 		}
 	}
@@ -959,8 +970,14 @@ static int dm_table_determine_type(struct dm_table *t)
 		/* We must use this table as bio-based */
 		t->type = DM_TYPE_BIO_BASED;
 		if (dm_table_supports_dax(t) ||
-		    (list_empty(devices) && live_md_type == DM_TYPE_DAX_BIO_BASED))
+		    (list_empty(devices) && live_md_type == DM_TYPE_DAX_BIO_BASED)) {
 			t->type = DM_TYPE_DAX_BIO_BASED;
+		} else if ((dm_table_get_immutable_target(t) &&
+			    dm_table_does_not_support_partial_completion(t)) ||
+			   (list_empty(devices) && live_md_type == DM_TYPE_NVME_BIO_BASED)) {
+			t->type = DM_TYPE_NVME_BIO_BASED;
+			goto verify_rq_based;
+		}
 		return 0;
 	}
 
@@ -980,7 +997,8 @@ verify_rq_based:
 	 * (e.g. request completion process for partial completion.)
 	 */
 	if (t->num_targets > 1) {
-		DMWARN("Request-based dm doesn't support multiple targets yet");
+		DMERR("%s DM doesn't support multiple targets",
+		      t->type == DM_TYPE_NVME_BIO_BASED ? "nvme bio-based" : "request-based");
 		return -EINVAL;
 	}
 
@@ -995,6 +1013,15 @@ verify_rq_based:
 		}
 		dm_put_live_table(t->md, srcu_idx);
 		return 0;
+	}
+
+	tgt = dm_table_get_immutable_target(t);
+	if (!tgt) {
+		DMERR("table load rejected: immutable target is required");
+		return -EINVAL;
+	} else if (tgt->max_io_len) {
+		DMERR("table load rejected: immutable target that splits IO is not supported");
+		return -EINVAL;
 	}
 
 	/* Non-request-stackable devices can't be used for request-based dm */
@@ -1018,7 +1045,8 @@ verify_rq_based:
 	}
 	t->all_blk_mq = mq_count > 0;
 
-	if (t->type == DM_TYPE_MQ_REQUEST_BASED && !t->all_blk_mq) {
+	if (!t->all_blk_mq &&
+	    (t->type == DM_TYPE_MQ_REQUEST_BASED || t->type == DM_TYPE_NVME_BIO_BASED)) {
 		DMERR("table load rejected: all devices are not blk-mq request-stackable");
 		return -EINVAL;
 	}
@@ -1706,6 +1734,20 @@ static bool dm_table_all_devices_attribute(struct dm_table *t,
 	}
 
 	return true;
+}
+
+static int device_no_partial_completion(struct dm_target *ti, struct dm_dev *dev,
+					sector_t start, sector_t len, void *data)
+{
+	char b[BDEVNAME_SIZE];
+
+	/* For now, NVMe devices are the only devices of this class */
+	return (strncmp(bdevname(dev->bdev, b), "nvme", 3) == 0);
+}
+
+static bool dm_table_does_not_support_partial_completion(struct dm_table *t)
+{
+	return dm_table_all_devices_attribute(t, device_no_partial_completion);
 }
 
 static int device_not_write_same_capable(struct dm_target *ti, struct dm_dev *dev,
