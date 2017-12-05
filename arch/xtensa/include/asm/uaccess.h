@@ -261,7 +261,7 @@ raw_copy_to_user(void __user *to, const void *from, unsigned long n)
 static inline unsigned long
 __xtensa_clear_user(void *addr, unsigned long size)
 {
-	if ( ! memset(addr, 0, size) )
+	if (!__memset(addr, 0, size))
 		return size;
 	return 0;
 }
