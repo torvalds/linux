@@ -522,7 +522,7 @@ static int init_overlay_changeset(struct overlay_changeset *ovcs,
 	struct device_node *node, *overlay_node;
 	struct fragment *fragment;
 	struct fragment *fragments;
-	int cnt, ret;
+	int cnt, id, ret;
 
 	/*
 	 * Warn for some issues.  Can not return -EINVAL for these until
@@ -543,9 +543,9 @@ static int init_overlay_changeset(struct overlay_changeset *ovcs,
 
 	of_changeset_init(&ovcs->cset);
 
-	ovcs->id = idr_alloc(&ovcs_idr, ovcs, 1, 0, GFP_KERNEL);
-	if (ovcs->id <= 0)
-		return ovcs->id;
+	id = idr_alloc(&ovcs_idr, ovcs, 1, 0, GFP_KERNEL);
+	if (id <= 0)
+		return id;
 
 	cnt = 0;
 
@@ -611,6 +611,7 @@ static int init_overlay_changeset(struct overlay_changeset *ovcs,
 		goto err_free_fragments;
 	}
 
+	ovcs->id = id;
 	ovcs->count = cnt;
 	ovcs->fragments = fragments;
 
@@ -619,7 +620,7 @@ static int init_overlay_changeset(struct overlay_changeset *ovcs,
 err_free_fragments:
 	kfree(fragments);
 err_free_idr:
-	idr_remove(&ovcs_idr, ovcs->id);
+	idr_remove(&ovcs_idr, id);
 
 	pr_err("%s() failed, ret = %d\n", __func__, ret);
 
@@ -630,9 +631,8 @@ static void free_overlay_changeset(struct overlay_changeset *ovcs)
 {
 	int i;
 
-	if (!ovcs->cset.entries.next)
-		return;
-	of_changeset_destroy(&ovcs->cset);
+	if (ovcs->cset.entries.next)
+		of_changeset_destroy(&ovcs->cset);
 
 	if (ovcs->id)
 		idr_remove(&ovcs_idr, ovcs->id);
