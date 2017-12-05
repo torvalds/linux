@@ -277,7 +277,7 @@ static int create_perf_stat_counter(struct perf_evsel *evsel)
 			attr->enable_on_exec = 1;
 	}
 
-	if (target__has_cpu(&target))
+	if (target__has_cpu(&target) && !target__has_per_thread(&target))
 		return perf_evsel__open_per_cpu(evsel, perf_evsel__cpus(evsel));
 
 	return perf_evsel__open_per_thread(evsel, evsel_list->threads);
@@ -340,7 +340,7 @@ static int read_counter(struct perf_evsel *counter)
 	int nthreads = thread_map__nr(evsel_list->threads);
 	int ncpus, cpu, thread;
 
-	if (target__has_cpu(&target))
+	if (target__has_cpu(&target) && !target__has_per_thread(&target))
 		ncpus = perf_evsel__nr_cpus(counter);
 	else
 		ncpus = 1;
@@ -2743,12 +2743,16 @@ int cmd_stat(int argc, const char **argv)
 		run_count = 1;
 	}
 
-	if ((stat_config.aggr_mode == AGGR_THREAD) && !target__has_task(&target)) {
-		fprintf(stderr, "The --per-thread option is only available "
-			"when monitoring via -p -t options.\n");
-		parse_options_usage(NULL, stat_options, "p", 1);
-		parse_options_usage(NULL, stat_options, "t", 1);
-		goto out;
+	if ((stat_config.aggr_mode == AGGR_THREAD) &&
+		!target__has_task(&target)) {
+		if (!target.system_wide || target.cpu_list) {
+			fprintf(stderr, "The --per-thread option is only "
+				"available when monitoring via -p -t -a "
+				"options or only --per-thread.\n");
+			parse_options_usage(NULL, stat_options, "p", 1);
+			parse_options_usage(NULL, stat_options, "t", 1);
+			goto out;
+		}
 	}
 
 	/*
@@ -2771,6 +2775,9 @@ int cmd_stat(int argc, const char **argv)
 		goto out;
 
 	target__validate(&target);
+
+	if ((stat_config.aggr_mode == AGGR_THREAD) && (target.system_wide))
+		target.per_thread = true;
 
 	if (perf_evlist__create_maps(evsel_list, &target) < 0) {
 		if (target__has_task(&target)) {
