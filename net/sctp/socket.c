@@ -5080,7 +5080,6 @@ static int sctp_getsockopt_peeloff_common(struct sock *sk, sctp_peeloff_arg_t *p
 	*newfile = sock_alloc_file(newsock, 0, NULL);
 	if (IS_ERR(*newfile)) {
 		put_unused_fd(retval);
-		sock_release(newsock);
 		retval = PTR_ERR(*newfile);
 		*newfile = NULL;
 		return retval;

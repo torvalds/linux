@@ -406,8 +406,10 @@ struct file *sock_alloc_file(struct socket *sock, int flags, const char *dname)
 		name.len = strlen(name.name);
 	}
 	path.dentry = d_alloc_pseudo(sock_mnt->mnt_sb, &name);
-	if (unlikely(!path.dentry))
+	if (unlikely(!path.dentry)) {
+		sock_release(sock);
 		return ERR_PTR(-ENOMEM);
+	}
 	path.mnt = mntget(sock_mnt);
 
 	d_instantiate(path.dentry, SOCK_INODE(sock));
@@ -415,9 +417,11 @@ struct file *sock_alloc_file(struct socket *sock, int flags, const char *dname)
 	file = alloc_file(&path, FMODE_READ | FMODE_WRITE,
 		  &socket_file_ops);
 	if (IS_ERR(file)) {
-		/* drop dentry, keep inode */
+		/* drop dentry, keep inode for a bit */
 		ihold(d_inode(path.dentry));
 		path_put(&path);
+		/* ... and now kill it properly */
+		sock_release(sock);
 		return file;
 	}
 
@@ -1330,19 +1334,9 @@ SYSCALL_DEFINE3(socket, int, family, int, type, int, protocol)
 
 	retval = sock_create(family, type, protocol, &sock);
 	if (retval < 0)
-		goto out;
+		return retval;
 
-	retval = sock_map_fd(sock, flags & (O_CLOEXEC | O_NONBLOCK));
-	if (retval < 0)
-		goto out_release;
-
-out:
-	/* It may be already another descriptor 8) Not kernel problem. */
-	return retval;
-
-out_release:
-	sock_release(sock);
-	return retval;
+	return sock_map_fd(sock, flags & (O_CLOEXEC | O_NONBLOCK));
 }
 
 /*
@@ -1412,7 +1406,6 @@ SYSCALL_DEFINE4(socketpair, int, family, int, type, int, protocol,
 	newfile1 = sock_alloc_file(sock1, flags, NULL);
 	if (IS_ERR(newfile1)) {
 		err = PTR_ERR(newfile1);
-		sock_release(sock1);
 		sock_release(sock2);
 		goto out;
 	}
@@ -1420,7 +1413,6 @@ SYSCALL_DEFINE4(socketpair, int, family, int, type, int, protocol,
 	newfile2 = sock_alloc_file(sock2, flags, NULL);
 	if (IS_ERR(newfile2)) {
 		err = PTR_ERR(newfile2);
-		sock_release(sock2);
 		fput(newfile1);
 		goto out;
 	}
@@ -1549,7 +1541,6 @@ SYSCALL_DEFINE4(accept4, int, fd, struct sockaddr __user *, upeer_sockaddr,
 	if (IS_ERR(newfile)) {
 		err = PTR_ERR(newfile);
 		put_unused_fd(newfd);
-		sock_release(newsock);
 		goto out_put;
 	}
 
