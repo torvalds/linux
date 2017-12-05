@@ -776,27 +776,6 @@ void hubp1_read_state(struct dcn10_hubp *hubp1,
 			QoS_LEVEL_HIGH_WM, &s->qos_level_high_wm);
 }
 
-bool hubp1_cursor_program_control(
-		struct dcn10_hubp *hubp1,
-		bool pixel_data_invert,
-		enum dc_cursor_color_format color_format)
-{
-	if (REG(CURSOR_SETTINS))
-		REG_SET_2(CURSOR_SETTINS, 0,
-				/* no shift of the cursor HDL schedule */
-				CURSOR0_DST_Y_OFFSET, 0,
-				 /* used to shift the cursor chunk request deadline */
-				CURSOR0_CHUNK_HDL_ADJUST, 3);
-	else
-		REG_SET_2(CURSOR_SETTINGS, 0,
-				/* no shift of the cursor HDL schedule */
-				CURSOR0_DST_Y_OFFSET, 0,
-				 /* used to shift the cursor chunk request deadline */
-				CURSOR0_CHUNK_HDL_ADJUST, 3);
-
-	return true;
-}
-
 enum cursor_pitch hubp1_get_cursor_pitch(unsigned int pitch)
 {
 	enum cursor_pitch hw_pitch;
@@ -866,9 +845,11 @@ void hubp1_cursor_set_attributes(
 			CURSOR_PITCH, hw_pitch,
 			CURSOR_LINES_PER_CHUNK, lpc);
 
-	hubp1_cursor_program_control(hubp1,
-			attr->attribute_flags.bits.INVERT_PIXEL_DATA,
-			attr->color_format);
+	REG_SET_2(CURSOR_SETTINS, 0,
+			/* no shift of the cursor HDL schedule */
+			CURSOR0_DST_Y_OFFSET, 0,
+			 /* used to shift the cursor chunk request deadline */
+			CURSOR0_CHUNK_HDL_ADJUST, 3);
 }
 
 void hubp1_cursor_set_position(
