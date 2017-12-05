@@ -1785,7 +1785,7 @@ arcmsr_Read_iop_rqbuffer_data(struct AdapterControlBlock *acb,
 	uint8_t __iomem *iop_data;
 	uint32_t iop_len;
 
-	if (acb->adapter_type & (ACB_ADAPTER_TYPE_C | ACB_ADAPTER_TYPE_D))
+	if (acb->adapter_type > ACB_ADAPTER_TYPE_B)
 		return arcmsr_Read_iop_rqbuffer_in_DWORD(acb, prbuffer);
 	iop_data = (uint8_t __iomem *)prbuffer->data;
 	iop_len = readl(&prbuffer->data_len);
@@ -1871,7 +1871,7 @@ arcmsr_write_ioctldata2iop(struct AdapterControlBlock *acb)
 	uint8_t __iomem *iop_data;
 	int32_t allxfer_len = 0;
 
-	if (acb->adapter_type & (ACB_ADAPTER_TYPE_C | ACB_ADAPTER_TYPE_D)) {
+	if (acb->adapter_type > ACB_ADAPTER_TYPE_B) {
 		arcmsr_write_ioctldata2iop_in_DWORD(acb);
 		return;
 	}

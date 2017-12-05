@@ -621,10 +621,10 @@ struct MessageUnit_D {
 struct AdapterControlBlock
 {
 	uint32_t  adapter_type;                /* adapter A,B..... */
-	#define ACB_ADAPTER_TYPE_A            0x00000001	/* hba I IOP */
-	#define ACB_ADAPTER_TYPE_B            0x00000002	/* hbb M IOP */
-	#define ACB_ADAPTER_TYPE_C            0x00000004	/* hbc P IOP */
-	#define ACB_ADAPTER_TYPE_D            0x00000008	/* hbd A IOP */
+	#define ACB_ADAPTER_TYPE_A	0x00000000	/* hba I IOP */
+	#define ACB_ADAPTER_TYPE_B	0x00000001	/* hbb M IOP */
+	#define ACB_ADAPTER_TYPE_C	0x00000002	/* hbc L IOP */
+	#define ACB_ADAPTER_TYPE_D	0x00000003	/* hbd M IOP */
 	u32				roundup_ccbsize;
 	struct pci_dev *		pdev;
 	struct Scsi_Host *		host;
