@@ -80,6 +80,8 @@ struct device_attribute;
 #ifndef PCI_DEVICE_ID_ARECA_1884
 	#define PCI_DEVICE_ID_ARECA_1884	0x1884
 #endif
+#define	ARCMSR_HOURS			(1000 * 60 * 60 * 4)
+#define	ARCMSR_MINUTES			(1000 * 60 * 60)
 /*
 **********************************************************************************
 **
@@ -280,6 +282,7 @@ struct FIRMWARE_INFO
 #define ARCMSR_MESSAGE_FLUSH_CACHE                    0x00050008
 /* (ARCMSR_INBOUND_MESG0_START_BGRB<<16)|ARCMSR_DRV2IOP_MESSAGE_CMD_POSTED) */
 #define ARCMSR_MESSAGE_START_BGRB		      0x00060008
+#define ARCMSR_MESSAGE_SYNC_TIMER			0x00080008
 #define ARCMSR_MESSAGE_START_DRIVER_MODE	      0x000E0008
 #define ARCMSR_MESSAGE_SET_POST_WINDOW		      0x000F0008
 #define ARCMSR_MESSAGE_ACTIVE_EOI_MODE		    0x00100008
@@ -837,6 +840,7 @@ struct AdapterControlBlock
 	uint32_t	maxOutstanding;
 	int		vector_count;
 	uint32_t		maxFreeCCB;
+	struct timer_list	refresh_timer;
 	uint32_t		doneq_index;
 	uint32_t		ccbsize;
 	uint32_t		in_doorbell;
