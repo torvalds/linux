@@ -5318,21 +5318,9 @@ int nand_scan_tail(struct mtd_info *mtd)
 		return -EINVAL;
 	}
 
-	ecc->calc_buf = kmalloc(mtd->oobsize, GFP_KERNEL);
-	if (!ecc->calc_buf)
-		return -ENOMEM;
-
-	ecc->code_buf = kmalloc(mtd->oobsize, GFP_KERNEL);
-	if (!ecc->code_buf) {
-		ret = -ENOMEM;
-		goto err_free_buf;
-	}
-
 	chip->data_buf = kmalloc(mtd->writesize + mtd->oobsize, GFP_KERNEL);
-	if (!chip->data_buf) {
-		ret = -ENOMEM;
-		goto err_free_buf;
-	}
+	if (!chip->data_buf)
+		return -ENOMEM;
 
 	/*
 	 * FIXME: some NAND manufacturer drivers expect the first die to be
@@ -5493,6 +5481,15 @@ int nand_scan_tail(struct mtd_info *mtd)
 		WARN(1, "Invalid NAND_ECC_MODE %d\n", ecc->mode);
 		ret = -EINVAL;
 		goto err_nand_manuf_cleanup;
+	}
+
+	if (ecc->correct || ecc->calculate) {
+		ecc->calc_buf = kmalloc(mtd->oobsize, GFP_KERNEL);
+		ecc->code_buf = kmalloc(mtd->oobsize, GFP_KERNEL);
+		if (!ecc->calc_buf || !ecc->code_buf) {
+			ret = -ENOMEM;
+			goto err_nand_manuf_cleanup;
+		}
 	}
 
 	/* For many systems, the standard OOB write also works for raw */
