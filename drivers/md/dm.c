@@ -2034,9 +2034,6 @@ int dm_setup_md_queue(struct mapped_device *md, struct dm_table *t)
 	case DM_TYPE_DAX_BIO_BASED:
 		dm_init_normal_md_queue(md);
 		blk_queue_make_request(md->queue, dm_make_request);
-
-		if (type == DM_TYPE_DAX_BIO_BASED)
-			queue_flag_set_unlocked(QUEUE_FLAG_DAX, md->queue);
 		break;
 	case DM_TYPE_NONE:
 		WARN_ON_ONCE(true);
