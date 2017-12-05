@@ -118,6 +118,10 @@
 # include "test-pthread-attr-setaffinity-np.c"
 #undef main
 
+#define main main_test_pthread_barrier
+# include "test-pthread-barrier.c"
+#undef main
+
 #define main main_test_sched_getcpu
 # include "test-sched_getcpu.c"
 #undef main
@@ -187,6 +191,7 @@ int main(int argc, char *argv[])
 	main_test_sync_compare_and_swap(argc, argv);
 	main_test_zlib();
 	main_test_pthread_attr_setaffinity_np();
+	main_test_pthread_barrier();
 	main_test_lzma();
 	main_test_get_cpuid();
 	main_test_bpf();
