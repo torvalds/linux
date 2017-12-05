@@ -252,6 +252,20 @@ static void mark_busy(struct drm_i915_private *i915)
 	GEM_BUG_ON(!i915->gt.active_requests);
 
 	intel_runtime_pm_get_noresume(i915);
+
+	/*
+	 * It seems that the DMC likes to transition between the DC states a lot
+	 * when there are no connected displays (no active power domains) during
+	 * command submission.
+	 *
+	 * This activity has negative impact on the performance of the chip with
+	 * huge latencies observed in the interrupt handler and elsewhere.
+	 *
+	 * Work around it by grabbing a GT IRQ power domain whilst there is any
+	 * GT activity, preventing any DC state transitions.
+	 */
+	intel_display_power_get(i915, POWER_DOMAIN_GT_IRQ);
+
 	i915->gt.awake = true;
 
 	intel_enable_gt_powersave(i915);
