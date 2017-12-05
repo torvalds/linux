@@ -551,7 +551,7 @@ static void do_kernel_range_flush(void *info)
 
 	/* flush range by one by one 'invlpg' */
 	for (addr = f->start; addr < f->end; addr += PAGE_SIZE)
-		__flush_tlb_single(addr);
+		__flush_tlb_one(addr);
 }
 
 void flush_tlb_kernel_range(unsigned long start, unsigned long end)
