@@ -476,6 +476,21 @@ static void gmc_v9_0_get_vm_pde(struct amdgpu_device *adev, int level,
 		*addr = adev->vm_manager.vram_base_offset + *addr -
 			adev->mc.vram_start;
 	BUG_ON(*addr & 0xFFFF00000000003FULL);
+
+	if (!adev->mc.translate_further)
+		return;
+
+	if (level == AMDGPU_VM_PDB1) {
+		/* Set the block fragment size */
+		if (!(*flags & AMDGPU_PDE_PTE))
+			*flags |= AMDGPU_PDE_BFS(0x9);
+
+	} else if (level == AMDGPU_VM_PDB0) {
+		if (*flags & AMDGPU_PDE_PTE)
+			*flags &= ~AMDGPU_PDE_PTE;
+		else
+			*flags |= AMDGPU_PTE_TF;
+	}
 }
 
 static const struct amdgpu_gart_funcs gmc_v9_0_gart_funcs = {
@@ -773,11 +788,14 @@ static int gmc_v9_0_sw_init(void *handle)
 	switch (adev->asic_type) {
 	case CHIP_RAVEN:
 		adev->mc.vram_type = AMDGPU_VRAM_TYPE_UNKNOWN;
-		if (adev->rev_id == 0x0 || adev->rev_id == 0x1)
+		if (adev->rev_id == 0x0 || adev->rev_id == 0x1) {
 			amdgpu_vm_adjust_size(adev, 256 * 1024, 9, 3, 48);
-		else
-			/* vm_size is 64GB for legacy 2-level page support */
-			amdgpu_vm_adjust_size(adev, 64, 9, 1, 48);
+		} else {
+			/* vm_size is 128TB + 512GB for legacy 3-level page support */
+			amdgpu_vm_adjust_size(adev, 128 * 1024 + 512, 9, 2, 48);
+			adev->mc.translate_further =
+				adev->vm_manager.num_level > 1;
+		}
 		break;
 	case CHIP_VEGA10:
 		/* XXX Don't know how to get VRAM type yet. */

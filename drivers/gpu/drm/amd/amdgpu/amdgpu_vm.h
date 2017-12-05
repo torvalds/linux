@@ -70,6 +70,12 @@ struct amdgpu_bo_list_entry;
 /* PDE is handled as PTE for VEGA10 */
 #define AMDGPU_PDE_PTE		(1ULL << 54)
 
+/* PTE is handled as PDE for VEGA10 (Translate Further) */
+#define AMDGPU_PTE_TF		(1ULL << 56)
+
+/* PDE Block Fragment Size for VEGA10 */
+#define AMDGPU_PDE_BFS(a)	((uint64_t)a << 59)
+
 /* VEGA10 only */
 #define AMDGPU_PTE_MTYPE(a)    ((uint64_t)a << 57)
 #define AMDGPU_PTE_MTYPE_MASK	AMDGPU_PTE_MTYPE(3ULL)
