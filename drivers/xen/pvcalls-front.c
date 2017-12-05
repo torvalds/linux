@@ -1103,7 +1103,7 @@ static int pvcalls_front_remove(struct xenbus_device *dev)
 			kfree(map);
 		}
 	}
-	if (bedata->ref >= 0)
+	if (bedata->ref != -1)
 		gnttab_end_foreign_access(bedata->ref, 0, 0);
 	kfree(bedata->ring.sring);
 	kfree(bedata);
