@@ -32,7 +32,7 @@ struct axp20x_gpio {
 	struct regmap		*regmap;
 };
 
-static int axp20x_gpio_get_reg(unsigned offset)
+static int axp20x_gpio_get_reg(unsigned int offset)
 {
 	switch (offset) {
 	case 0:
@@ -46,7 +46,7 @@ static int axp20x_gpio_get_reg(unsigned offset)
 	return -EINVAL;
 }
 
-static int axp20x_gpio_input(struct gpio_chip *chip, unsigned offset)
+static int axp20x_gpio_input(struct gpio_chip *chip, unsigned int offset)
 {
 	struct axp20x_gpio *gpio = gpiochip_get_data(chip);
 	int reg;
@@ -60,7 +60,7 @@ static int axp20x_gpio_input(struct gpio_chip *chip, unsigned offset)
 				  AXP20X_GPIO_FUNCTION_INPUT);
 }
 
-static int axp20x_gpio_get(struct gpio_chip *chip, unsigned offset)
+static int axp20x_gpio_get(struct gpio_chip *chip, unsigned int offset)
 {
 	struct axp20x_gpio *gpio = gpiochip_get_data(chip);
 	unsigned int val;
@@ -73,7 +73,8 @@ static int axp20x_gpio_get(struct gpio_chip *chip, unsigned offset)
 	return !!(val & BIT(offset + 4));
 }
 
-static int axp20x_gpio_get_direction(struct gpio_chip *chip, unsigned offset)
+static int axp20x_gpio_get_direction(struct gpio_chip *chip,
+				     unsigned int offset)
 {
 	struct axp20x_gpio *gpio = gpiochip_get_data(chip);
 	unsigned int val;
@@ -102,7 +103,7 @@ static int axp20x_gpio_get_direction(struct gpio_chip *chip, unsigned offset)
 	return val & 2;
 }
 
-static int axp20x_gpio_output(struct gpio_chip *chip, unsigned offset,
+static int axp20x_gpio_output(struct gpio_chip *chip, unsigned int offset,
 			      int value)
 {
 	struct axp20x_gpio *gpio = gpiochip_get_data(chip);
@@ -118,7 +119,7 @@ static int axp20x_gpio_output(struct gpio_chip *chip, unsigned offset,
 				  : AXP20X_GPIO_FUNCTION_OUT_LOW);
 }
 
-static void axp20x_gpio_set(struct gpio_chip *chip, unsigned offset,
+static void axp20x_gpio_set(struct gpio_chip *chip, unsigned int offset,
 			    int value)
 {
 	axp20x_gpio_output(chip, offset, value);
