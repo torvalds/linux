@@ -273,8 +273,7 @@ static struct dm_bio_details *get_bio_details_from_bio(struct bio *bio)
 	return bio_details;
 }
 
-static void multipath_init_per_bio_data(struct bio *bio, struct dm_mpath_io **mpio_p,
-					struct dm_bio_details **bio_details_p)
+static void multipath_init_per_bio_data(struct bio *bio, struct dm_mpath_io **mpio_p)
 {
 	struct dm_mpath_io *mpio = get_mpio_from_bio(bio);
 	struct dm_bio_details *bio_details = get_bio_details_from_bio(bio);
@@ -285,8 +284,6 @@ static void multipath_init_per_bio_data(struct bio *bio, struct dm_mpath_io **mp
 
 	if (mpio_p)
 		*mpio_p = mpio;
-	if (bio_details_p)
-		*bio_details_p = bio_details;
 }
 
 /*-----------------------------------------------
@@ -610,8 +607,7 @@ static int multipath_map_bio(struct dm_target *ti, struct bio *bio)
 	struct multipath *m = ti->private;
 	struct dm_mpath_io *mpio = NULL;
 
-	multipath_init_per_bio_data(bio, &mpio, NULL);
-
+	multipath_init_per_bio_data(bio, &mpio);
 	return __multipath_map_bio(m, bio, mpio);
 }
 
