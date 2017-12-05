@@ -45,13 +45,8 @@
 #include <linux/interrupt.h>
 struct device_attribute;
 /*The limit of outstanding scsi command that firmware can handle*/
-#ifdef CONFIG_XEN
-	#define ARCMSR_MAX_FREECCB_NUM	160
-#define ARCMSR_MAX_OUTSTANDING_CMD	155
-#else
-	#define ARCMSR_MAX_FREECCB_NUM	320
-#define ARCMSR_MAX_OUTSTANDING_CMD	255
-#endif
+#define ARCMSR_MAX_FREECCB_NUM		1024
+#define ARCMSR_MAX_OUTSTANDING_CMD	1024
 #define ARCMSR_DRIVER_VERSION		"v1.30.00.22-20151126"
 #define ARCMSR_SCSI_INITIATOR_ID						255
 #define ARCMSR_MAX_XFER_SECTORS							512
