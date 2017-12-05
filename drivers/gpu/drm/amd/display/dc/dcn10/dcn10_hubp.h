@@ -681,4 +681,11 @@ struct dcn_hubp_state {
 void hubp1_read_state(struct dcn10_hubp *hubp1,
 		struct dcn_hubp_state *s);
 
+enum cursor_pitch hubp1_get_cursor_pitch(unsigned int pitch);
+
+bool hubp1_cursor_program_control(
+		struct dcn10_hubp *hubp1,
+		bool pixel_data_invert,
+		enum dc_cursor_color_format color_format);
+
 #endif

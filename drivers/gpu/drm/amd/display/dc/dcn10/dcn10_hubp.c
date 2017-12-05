@@ -776,20 +776,7 @@ void hubp1_read_state(struct dcn10_hubp *hubp1,
 			QoS_LEVEL_HIGH_WM, &s->qos_level_high_wm);
 }
 
-enum cursor_pitch {
-	CURSOR_PITCH_64_PIXELS = 0,
-	CURSOR_PITCH_128_PIXELS,
-	CURSOR_PITCH_256_PIXELS
-};
-
-enum cursor_lines_per_chunk {
-	CURSOR_LINE_PER_CHUNK_2 = 1,
-	CURSOR_LINE_PER_CHUNK_4,
-	CURSOR_LINE_PER_CHUNK_8,
-	CURSOR_LINE_PER_CHUNK_16
-};
-
-static bool ippn10_cursor_program_control(
+bool hubp1_cursor_program_control(
 		struct dcn10_hubp *hubp1,
 		bool pixel_data_invert,
 		enum dc_cursor_color_format color_format)
@@ -810,8 +797,7 @@ static bool ippn10_cursor_program_control(
 	return true;
 }
 
-static enum cursor_pitch ippn10_get_cursor_pitch(
-		unsigned int pitch)
+enum cursor_pitch hubp1_get_cursor_pitch(unsigned int pitch)
 {
 	enum cursor_pitch hw_pitch;
 
@@ -834,7 +820,7 @@ static enum cursor_pitch ippn10_get_cursor_pitch(
 	return hw_pitch;
 }
 
-static enum cursor_lines_per_chunk ippn10_get_lines_per_chunk(
+static enum cursor_lines_per_chunk hubp1_get_lines_per_chunk(
 		unsigned int cur_width,
 		enum dc_cursor_color_format format)
 {
@@ -860,8 +846,8 @@ void hubp1_cursor_set_attributes(
 		const struct dc_cursor_attributes *attr)
 {
 	struct dcn10_hubp *hubp1 = TO_DCN10_HUBP(hubp);
-	enum cursor_pitch hw_pitch = ippn10_get_cursor_pitch(attr->pitch);
-	enum cursor_lines_per_chunk lpc = ippn10_get_lines_per_chunk(
+	enum cursor_pitch hw_pitch = hubp1_get_cursor_pitch(attr->pitch);
+	enum cursor_lines_per_chunk lpc = hubp1_get_lines_per_chunk(
 			attr->width, attr->color_format);
 
 	hubp->curs_attr = *attr;
@@ -874,11 +860,13 @@ void hubp1_cursor_set_attributes(
 	REG_UPDATE_2(CURSOR_SIZE,
 			CURSOR_WIDTH, attr->width,
 			CURSOR_HEIGHT, attr->height);
+
 	REG_UPDATE_3(CURSOR_CONTROL,
 			CURSOR_MODE, attr->color_format,
 			CURSOR_PITCH, hw_pitch,
 			CURSOR_LINES_PER_CHUNK, lpc);
-	ippn10_cursor_program_control(hubp1,
+
+	hubp1_cursor_program_control(hubp1,
 			attr->attribute_flags.bits.INVERT_PIXEL_DATA,
 			attr->color_format);
 }
@@ -920,7 +908,8 @@ void hubp1_cursor_set_position(
 		cur_en = 0;  /* not visible beyond left edge*/
 
 	if (cur_en && REG_READ(CURSOR_SURFACE_ADDRESS) == 0)
-		hubp1_cursor_set_attributes(hubp, &hubp->curs_attr);
+		hubp->funcs->set_cursor_attributes(hubp, &hubp->curs_attr);
+
 	REG_UPDATE(CURSOR_CONTROL,
 			CURSOR_ENABLE, cur_en);
 
