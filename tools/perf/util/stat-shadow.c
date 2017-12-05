@@ -45,7 +45,10 @@ struct stats walltime_nsecs_stats;
 struct saved_value {
 	struct rb_node rb_node;
 	struct perf_evsel *evsel;
+	enum stat_type type;
+	int ctx;
 	int cpu;
+	struct runtime_stat *stat;
 	struct stats stats;
 };
 
@@ -58,6 +61,30 @@ static int saved_value_cmp(struct rb_node *rb_node, const void *entry)
 
 	if (a->cpu != b->cpu)
 		return a->cpu - b->cpu;
+
+	/*
+	 * Previously the rbtree was used to link generic metrics.
+	 * The keys were evsel/cpu. Now the rbtree is extended to support
+	 * per-thread shadow stats. For shadow stats case, the keys
+	 * are cpu/type/ctx/stat (evsel is NULL). For generic metrics
+	 * case, the keys are still evsel/cpu (type/ctx/stat are 0 or NULL).
+	 */
+	if (a->type != b->type)
+		return a->type - b->type;
+
+	if (a->ctx != b->ctx)
+		return a->ctx - b->ctx;
+
+	if (a->evsel == NULL && b->evsel == NULL) {
+		if (a->stat == b->stat)
+			return 0;
+
+		if ((char *)a->stat < (char *)b->stat)
+			return -1;
+
+		return 1;
+	}
+
 	if (a->evsel == b->evsel)
 		return 0;
 	if ((char *)a->evsel < (char *)b->evsel)
