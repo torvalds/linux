@@ -1,7 +1,7 @@
 /*
  * Generic MIPI DPI Panel Driver
  *
- * Copyright (C) 2013 Texas Instruments
+ * Copyright (C) 2013 Texas Instruments Incorporated - http://www.ti.com/
  * Author: Tomi Valkeinen <tomi.valkeinen@ti.com>
  *
  * This program is free software; you can redistribute it and/or modify it

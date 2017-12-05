@@ -1,7 +1,7 @@
 /*
  * HDMI driver for OMAP5
  *
- * Copyright (C) 2014 Texas Instruments Incorporated
+ * Copyright (C) 2014 Texas Instruments Incorporated - http://www.ti.com/
  *
  * Authors:
  *	Yong Zhi

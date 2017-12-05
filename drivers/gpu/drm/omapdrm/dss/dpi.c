@@ -1,6 +1,4 @@
 /*
- * linux/drivers/video/omap2/dss/dpi.c
- *
  * Copyright (C) 2009 Nokia Corporation
  * Author: Tomi Valkeinen <tomi.valkeinen@nokia.com>
  *

@@ -1,5 +1,4 @@
 /*
- *
  * Copyright (C) 2011 Texas Instruments Incorporated - http://www.ti.com/
  * Author: Rob Clark <rob@ti.com>
  *         Andy Gross <andy.gross@ti.com>
@@ -13,6 +12,7 @@
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  */
+
 #ifndef OMAP_DMM_PRIV_H
 #define OMAP_DMM_PRIV_H
 

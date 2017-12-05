@@ -1,5 +1,6 @@
 /*
  * HDMI interface DSS driver for TI's OMAP4 family of SoCs.
+ *
  * Copyright (C) 2010-2011 Texas Instruments Incorporated - http://www.ti.com/
  * Authors: Yong Zhi
  *	Mythri pk <mythripk@ti.com>
