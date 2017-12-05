@@ -1781,7 +1781,7 @@ static int ssi_ahash_import(struct ahash_request *req, const void *in)
 	struct device *dev = &ctx->drvdata->plat_dev->dev;
 	struct ahash_req_ctx *state = ahash_request_ctx(req);
 	u32 tmp;
-	int rc;
+	int rc = 0;
 
 	memcpy(&tmp, in, sizeof(u32));
 	if (tmp != CC_EXPORT_MAGIC) {
