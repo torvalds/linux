@@ -762,6 +762,20 @@ static inline bool phy_interface_mode_is_rgmii(phy_interface_t mode)
 };
 
 /**
+ * phy_interface_mode_is_8023z() - does the phy interface mode use 802.3z
+ *   negotiation
+ * @mode: one of &enum phy_interface_t
+ *
+ * Returns true if the phy interface mode uses the 16-bit negotiation
+ * word as defined in 802.3z. (See 802.3-2015 37.2.1 Config_Reg encoding)
+ */
+static inline bool phy_interface_mode_is_8023z(phy_interface_t mode)
+{
+	return mode == PHY_INTERFACE_MODE_1000BASEX ||
+	       mode == PHY_INTERFACE_MODE_2500BASEX;
+}
+
+/**
  * phy_interface_is_rgmii - Convenience function for testing if a PHY interface
  * is RGMII (all variants)
  * @phydev: the phy_device struct
