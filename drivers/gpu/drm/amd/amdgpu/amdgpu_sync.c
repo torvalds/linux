@@ -120,7 +120,7 @@ static void amdgpu_sync_keep_later(struct dma_fence **keep,
  * Tries to add the fence to an existing hash entry. Returns true when an entry
  * was found, false otherwise.
  */
-static bool amdgpu_sync_add_later(struct amdgpu_sync *sync, struct dma_fence *f)
+static bool amdgpu_sync_add_later(struct amdgpu_sync *sync, struct dma_fence *f, bool explicit)
 {
 	struct amdgpu_sync_entry *e;
 
@@ -129,6 +129,10 @@ static bool amdgpu_sync_add_later(struct amdgpu_sync *sync, struct dma_fence *f)
 			continue;
 
 		amdgpu_sync_keep_later(&e->fence, f);
+
+		/* Preserve eplicit flag to not loose pipe line sync */
+		e->explicit |= explicit;
+
 		return true;
 	}
 	return false;
@@ -148,12 +152,11 @@ int amdgpu_sync_fence(struct amdgpu_device *adev, struct amdgpu_sync *sync,
 
 	if (!f)
 		return 0;
-
 	if (amdgpu_sync_same_dev(adev, f) &&
 	    amdgpu_sync_get_owner(f) == AMDGPU_FENCE_OWNER_VM)
 		amdgpu_sync_keep_later(&sync->last_vm_update, f);
 
-	if (amdgpu_sync_add_later(sync, f))
+	if (amdgpu_sync_add_later(sync, f, explicit))
 		return 0;
 
 	e = kmem_cache_alloc(amdgpu_sync_slab, GFP_KERNEL);
