@@ -36,6 +36,16 @@ static const struct snd_pcm_hw_constraint_list constraints_12288 = {
 	.list	= rates_12288,
 };
 
+static unsigned int ratios_12000[] = {
+	8000, 11025, 12000, 16000, 22050, 24000, 32000, 44100, 48000,
+	48000, 88235, 96000,
+};
+
+static struct snd_pcm_hw_constraint_list constraints_12000 = {
+	.count = ARRAY_SIZE(ratios_12000),
+	.list = ratios_12000,
+};
+
 static const unsigned int rates_11289[] = {
 	8018, 11025, 22050, 44100, 88200,
 };
@@ -573,6 +583,14 @@ static int es8328_set_sysclk(struct snd_soc_dai *codec_dai,
 	case 12288000:
 		es8328->sysclk_constraints = &constraints_12288;
 		es8328->mclk_ratios = ratios_12288;
+		break;
+
+	case 24000000:
+		mclkdiv2 = 1;
+		fallthrough;
+	case 12000000:
+		es8328->sysclk_constraints = &constraints_12000;
+		es8328->mclk_ratios = ratios_12000;
 		break;
 	default:
 		return -EINVAL;
