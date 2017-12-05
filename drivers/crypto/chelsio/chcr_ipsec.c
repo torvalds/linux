@@ -423,7 +423,7 @@ inline void *copy_key_cpltx_pktxt(struct sk_buff *skb,
 			memcpy(pos, sa_entry->key, left);
 			memcpy(q->q.desc, sa_entry->key + left,
 			       key_len - left);
-			pos = q->q.desc + (key_len - left);
+			pos = (u8 *)q->q.desc + (key_len - left);
 		}
 	}
 	/* Copy CPL TX PKT XT */
