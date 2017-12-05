@@ -1897,9 +1897,9 @@ void i915_reset(struct drm_i915_private *i915, unsigned int flags)
 	disable_irq(i915->drm.irq);
 	ret = i915_gem_reset_prepare(i915);
 	if (ret) {
-		DRM_ERROR("GPU recovery failed\n");
+		dev_err(i915->drm.dev, "GPU recovery failed\n");
 		intel_gpu_reset(i915, ALL_ENGINES);
-		goto error;
+		goto taint;
 	}
 
 	if (!intel_has_gpu_reset(i915)) {
@@ -1916,7 +1916,7 @@ void i915_reset(struct drm_i915_private *i915, unsigned int flags)
 	}
 	if (ret) {
 		dev_err(i915->drm.dev, "Failed to reset chip\n");
-		goto error;
+		goto taint;
 	}
 
 	i915_gem_reset(i915);
@@ -1959,6 +1959,20 @@ wakeup:
 	wake_up_bit(&error->flags, I915_RESET_HANDOFF);
 	return;
 
+taint:
+	/*
+	 * History tells us that if we cannot reset the GPU now, we
+	 * never will. This then impacts everything that is run
+	 * subsequently. On failing the reset, we mark the driver
+	 * as wedged, preventing further execution on the GPU.
+	 * We also want to go one step further and add a taint to the
+	 * kernel so that any subsequent faults can be traced back to
+	 * this failure. This is important for CI, where if the
+	 * GPU/driver fails we would like to reboot and restart testing
+	 * rather than continue on into oblivion. For everyone else,
+	 * the system should still plod along, but they have been warned!
+	 */
+	add_taint(TAINT_WARN, LOCKDEP_STILL_OK);
 error:
 	i915_gem_set_wedged(i915);
 	i915_gem_retire_requests(i915);
