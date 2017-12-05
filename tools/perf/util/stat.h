@@ -5,6 +5,7 @@
 #include <linux/types.h>
 #include <stdio.h>
 #include "xyarray.h"
+#include "rblist.h"
 
 struct stats
 {
@@ -41,6 +42,47 @@ enum aggr_mode {
 	AGGR_CORE,
 	AGGR_THREAD,
 	AGGR_UNSET,
+};
+
+enum {
+	CTX_BIT_USER	= 1 << 0,
+	CTX_BIT_KERNEL	= 1 << 1,
+	CTX_BIT_HV	= 1 << 2,
+	CTX_BIT_HOST	= 1 << 3,
+	CTX_BIT_IDLE	= 1 << 4,
+	CTX_BIT_MAX	= 1 << 5,
+};
+
+#define NUM_CTX CTX_BIT_MAX
+
+enum stat_type {
+	STAT_NONE = 0,
+	STAT_NSECS,
+	STAT_CYCLES,
+	STAT_STALLED_CYCLES_FRONT,
+	STAT_STALLED_CYCLES_BACK,
+	STAT_BRANCHES,
+	STAT_CACHEREFS,
+	STAT_L1_DCACHE,
+	STAT_L1_ICACHE,
+	STAT_LL_CACHE,
+	STAT_ITLB_CACHE,
+	STAT_DTLB_CACHE,
+	STAT_CYCLES_IN_TX,
+	STAT_TRANSACTION,
+	STAT_ELISION,
+	STAT_TOPDOWN_TOTAL_SLOTS,
+	STAT_TOPDOWN_SLOTS_ISSUED,
+	STAT_TOPDOWN_SLOTS_RETIRED,
+	STAT_TOPDOWN_FETCH_BUBBLES,
+	STAT_TOPDOWN_RECOVERY_BUBBLES,
+	STAT_SMI_NUM,
+	STAT_APERF,
+	STAT_MAX
+};
+
+struct runtime_stat {
+	struct rblist value_list;
 };
 
 struct perf_stat_config {
@@ -92,7 +134,6 @@ struct perf_stat_output_ctx {
 	bool force_header;
 };
 
-struct rblist;
 void perf_stat__print_shadow_stats(struct perf_evsel *evsel,
 				   double avg, int cpu,
 				   struct perf_stat_output_ctx *out,
