@@ -1432,11 +1432,8 @@ static void hdmi_video_packetize(struct dw_hdmi *hdmi)
 	}
 
 	/* set the packetizer registers */
-	val = ((color_depth << HDMI_VP_PR_CD_COLOR_DEPTH_OFFSET) &
-		HDMI_VP_PR_CD_COLOR_DEPTH_MASK) |
-		((hdmi_data->pix_repet_factor <<
-		HDMI_VP_PR_CD_DESIRED_PR_FACTOR_OFFSET) &
-		HDMI_VP_PR_CD_DESIRED_PR_FACTOR_MASK);
+	val = (color_depth << HDMI_VP_PR_CD_COLOR_DEPTH_OFFSET) &
+	      HDMI_VP_PR_CD_COLOR_DEPTH_MASK;
 	hdmi_writeb(hdmi, val, HDMI_VP_PR_CD);
 
 	hdmi_modb(hdmi, HDMI_VP_STUFF_PR_STUFFING_STUFFING_MODE,
