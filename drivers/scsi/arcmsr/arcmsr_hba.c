@@ -75,6 +75,10 @@ MODULE_DESCRIPTION("Areca ARC11xx/12xx/16xx/188x SAS/SATA RAID Controller Driver
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_VERSION(ARCMSR_DRIVER_VERSION);
 
+static int msix_enable = 1;
+module_param(msix_enable, int, S_IRUGO);
+MODULE_PARM_DESC(msix_enable, "Enable MSI-X interrupt(0 ~ 1), msix_enable=1(enable), =0(disable)");
+
 static int msi_enable = 1;
 module_param(msi_enable, int, S_IRUGO);
 MODULE_PARM_DESC(msi_enable, "Enable MSI interrupt(0 ~ 1), msi_enable=1(enable), =0(disable)");
@@ -829,12 +833,15 @@ arcmsr_request_irq(struct pci_dev *pdev, struct AdapterControlBlock *acb)
 	unsigned long flags;
 	int nvec, i;
 
+	if (msix_enable == 0)
+		goto msi_int0;
 	nvec = pci_alloc_irq_vectors(pdev, 1, ARCMST_NUM_MSIX_VECTORS,
 			PCI_IRQ_MSIX);
 	if (nvec > 0) {
 		pr_info("arcmsr%d: msi-x enabled\n", acb->host->host_no);
 		flags = 0;
 	} else {
+msi_int0:
 		if (msi_enable == 1) {
 			nvec = pci_alloc_irq_vectors(pdev, 1, 1, PCI_IRQ_MSI);
 			if (nvec == 1) {
