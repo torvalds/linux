@@ -857,6 +857,17 @@ out_free_irq:
 	return FAILED;
 }
 
+static void arcmsr_init_get_devmap_timer(struct AdapterControlBlock *pacb)
+{
+	INIT_WORK(&pacb->arcmsr_do_message_isr_bh, arcmsr_message_isr_bh_fn);
+	atomic_set(&pacb->rq_map_token, 16);
+	atomic_set(&pacb->ante_token_value, 16);
+	pacb->fw_flag = FW_NORMAL;
+	timer_setup(&pacb->eternal_timer, arcmsr_request_device_map, 0);
+	pacb->eternal_timer.expires = jiffies + msecs_to_jiffies(6 * HZ);
+	add_timer(&pacb->eternal_timer);
+}
+
 static void arcmsr_init_set_datetime_timer(struct AdapterControlBlock *pacb)
 {
 	timer_setup(&pacb->refresh_timer, arcmsr_set_iop_datetime, 0);
@@ -946,13 +957,7 @@ static int arcmsr_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (arcmsr_request_irq(pdev, acb) == FAILED)
 		goto scsi_host_remove;
 	arcmsr_iop_init(acb);
-	INIT_WORK(&acb->arcmsr_do_message_isr_bh, arcmsr_message_isr_bh_fn);
-	atomic_set(&acb->rq_map_token, 16);
-	atomic_set(&acb->ante_token_value, 16);
-	acb->fw_flag = FW_NORMAL;
-	timer_setup(&acb->eternal_timer, arcmsr_request_device_map, 0);
-	acb->eternal_timer.expires = jiffies + msecs_to_jiffies(6 * HZ);
-	add_timer(&acb->eternal_timer);
+	arcmsr_init_get_devmap_timer(acb);
 	if (set_date_time)
 		arcmsr_init_set_datetime_timer(acb);
 	if(arcmsr_alloc_sysfs_attr(acb))
@@ -1043,13 +1048,7 @@ static int arcmsr_resume(struct pci_dev *pdev)
 	if (arcmsr_request_irq(pdev, acb) == FAILED)
 		goto controller_stop;
 	arcmsr_iop_init(acb);
-	INIT_WORK(&acb->arcmsr_do_message_isr_bh, arcmsr_message_isr_bh_fn);
-	atomic_set(&acb->rq_map_token, 16);
-	atomic_set(&acb->ante_token_value, 16);
-	acb->fw_flag = FW_NORMAL;
-	timer_setup(&acb->eternal_timer, arcmsr_request_device_map, 0);
-	acb->eternal_timer.expires = jiffies + msecs_to_jiffies(6 * HZ);
-	add_timer(&acb->eternal_timer);
+	arcmsr_init_get_devmap_timer(acb);
 	if (set_date_time)
 		arcmsr_init_set_datetime_timer(acb);
 	return 0;
