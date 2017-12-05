@@ -195,6 +195,7 @@ err2:
 err1:
 	rmnet_unregister_real_device(real_dev, port);
 err0:
+	kfree(ep);
 	return err;
 }
 
