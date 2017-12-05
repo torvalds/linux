@@ -117,12 +117,15 @@ bool __perf_evsel_stat__is(struct perf_evsel *evsel,
 
 void perf_stat_evsel_id_init(struct perf_evsel *evsel);
 
+extern struct runtime_stat rt_stat;
 extern struct stats walltime_nsecs_stats;
 
 typedef void (*print_metric_t)(void *ctx, const char *color, const char *unit,
 			       const char *fmt, double val);
 typedef void (*new_line_t )(void *ctx);
 
+void runtime_stat__init(struct runtime_stat *st);
+void runtime_stat__exit(struct runtime_stat *st);
 void perf_stat__init_shadow_stats(void);
 void perf_stat__reset_shadow_stats(void);
 void perf_stat__update_shadow_stats(struct perf_evsel *counter, u64 count,

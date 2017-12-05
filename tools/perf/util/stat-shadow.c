@@ -40,6 +40,7 @@ static struct stats runtime_aperf_stats[NUM_CTX][MAX_NR_CPUS];
 static struct rblist runtime_saved_values;
 static bool have_frontend_stalled;
 
+struct runtime_stat rt_stat;
 struct stats walltime_nsecs_stats;
 
 struct saved_value {
@@ -134,6 +135,21 @@ static struct saved_value *saved_value_lookup(struct perf_evsel *evsel,
 	return NULL;
 }
 
+void runtime_stat__init(struct runtime_stat *st)
+{
+	struct rblist *rblist = &st->value_list;
+
+	rblist__init(rblist);
+	rblist->node_cmp = saved_value_cmp;
+	rblist->node_new = saved_value_new;
+	rblist->node_delete = saved_value_delete;
+}
+
+void runtime_stat__exit(struct runtime_stat *st)
+{
+	rblist__exit(&st->value_list);
+}
+
 void perf_stat__init_shadow_stats(void)
 {
 	have_frontend_stalled = pmu_have_event("cpu", "stalled-cycles-frontend");
@@ -141,6 +157,7 @@ void perf_stat__init_shadow_stats(void)
 	runtime_saved_values.node_cmp = saved_value_cmp;
 	runtime_saved_values.node_new = saved_value_new;
 	runtime_saved_values.node_delete = saved_value_delete;
+	runtime_stat__init(&rt_stat);
 }
 
 static int evsel_context(struct perf_evsel *evsel)
