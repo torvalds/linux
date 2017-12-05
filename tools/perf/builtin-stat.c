@@ -1372,8 +1372,13 @@ static void print_aggr_thread(struct perf_evsel *counter, char *prefix)
 			fprintf(output, "%s", prefix);
 
 		uval = val * counter->scale;
-		printout(thread, 0, counter, uval, prefix, run, ena, 1.0,
-			 &rt_stat);
+
+		if (stat_config.stats)
+			printout(thread, 0, counter, uval, prefix, run, ena,
+				 1.0, &stat_config.stats[thread]);
+		else
+			printout(thread, 0, counter, uval, prefix, run, ena,
+				 1.0, &rt_stat);
 		fputc('\n', output);
 	}
 }
