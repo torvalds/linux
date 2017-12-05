@@ -47,6 +47,8 @@ struct device_attribute;
 /*The limit of outstanding scsi command that firmware can handle*/
 #define ARCMSR_MAX_FREECCB_NUM		1024
 #define ARCMSR_MAX_OUTSTANDING_CMD	1024
+#define ARCMSR_DEFAULT_OUTSTANDING_CMD	128
+#define ARCMSR_MIN_OUTSTANDING_CMD	32
 #define ARCMSR_DRIVER_VERSION		"v1.30.00.22-20151126"
 #define ARCMSR_SCSI_INITIATOR_ID						255
 #define ARCMSR_MAX_XFER_SECTORS							512

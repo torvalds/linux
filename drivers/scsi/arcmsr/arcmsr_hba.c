@@ -75,6 +75,10 @@ MODULE_DESCRIPTION("Areca ARC11xx/12xx/16xx/188x SAS/SATA RAID Controller Driver
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_VERSION(ARCMSR_DRIVER_VERSION);
 
+static int host_can_queue = ARCMSR_DEFAULT_OUTSTANDING_CMD;
+module_param(host_can_queue, int, S_IRUGO);
+MODULE_PARM_DESC(host_can_queue, " adapter queue depth(32 ~ 1024), default is 128");
+
 #define	ARCMSR_SLEEPTIME	10
 #define	ARCMSR_RETRYCOUNT	12
 
@@ -133,7 +137,7 @@ static struct scsi_host_template arcmsr_scsi_host_template = {
 	.eh_bus_reset_handler	= arcmsr_bus_reset,
 	.bios_param		= arcmsr_bios_param,
 	.change_queue_depth	= arcmsr_adjust_disk_queue_depth,
-	.can_queue		= ARCMSR_MAX_OUTSTANDING_CMD,
+	.can_queue		= ARCMSR_DEFAULT_OUTSTANDING_CMD,
 	.this_id			= ARCMSR_SCSI_INITIATOR_ID,
 	.sg_tablesize	        	= ARCMSR_DEFAULT_SG_ENTRIES, 
 	.max_sectors    	    	= ARCMSR_MAX_XFER_SECTORS_C, 
@@ -877,7 +881,9 @@ static int arcmsr_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	host->max_lun = ARCMSR_MAX_TARGETLUN;
 	host->max_id = ARCMSR_MAX_TARGETID;		/*16:8*/
 	host->max_cmd_len = 16;	 			/*this is issue of 64bit LBA ,over 2T byte*/
-	host->can_queue = ARCMSR_MAX_OUTSTANDING_CMD;
+	if ((host_can_queue < ARCMSR_MIN_OUTSTANDING_CMD) || (host_can_queue > ARCMSR_MAX_OUTSTANDING_CMD))
+		host_can_queue = ARCMSR_DEFAULT_OUTSTANDING_CMD;
+	host->can_queue = host_can_queue;	/* max simultaneous cmds */
 	host->cmd_per_lun = ARCMSR_MAX_CMD_PERLUN;	    
 	host->this_id = ARCMSR_SCSI_INITIATOR_ID;
 	host->unique_id = (bus << 8) | dev_fun;
@@ -3234,11 +3240,11 @@ static bool arcmsr_get_firmware_spec(struct AdapterControlBlock *acb)
 	default:
 		break;
 	}
-	if (acb->firm_numbers_queue > ARCMSR_MAX_OUTSTANDING_CMD)
-		acb->maxOutstanding = ARCMSR_MAX_OUTSTANDING_CMD;
+	acb->maxOutstanding = acb->firm_numbers_queue - 1;
+	if (acb->host->can_queue >= acb->firm_numbers_queue)
+		acb->host->can_queue = acb->maxOutstanding;
 	else
-		acb->maxOutstanding = acb->firm_numbers_queue - 1;
-	acb->host->can_queue = acb->maxOutstanding;
+		acb->maxOutstanding = acb->host->can_queue;
 	acb->maxFreeCCB = acb->host->can_queue;
 	if (acb->maxFreeCCB < ARCMSR_MAX_FREECCB_NUM)
 		acb->maxFreeCCB += 64;
