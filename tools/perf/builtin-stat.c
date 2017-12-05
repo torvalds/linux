@@ -1214,7 +1214,8 @@ static void aggr_update_shadow(void)
 				val += perf_counts(counter->counts, cpu, 0)->val;
 			}
 			perf_stat__update_shadow_stats(counter, val,
-						       first_shadow_cpu(counter, id));
+					first_shadow_cpu(counter, id),
+					&rt_stat);
 		}
 	}
 }

@@ -116,19 +116,29 @@ static void saved_value_delete(struct rblist *rblist __maybe_unused,
 
 static struct saved_value *saved_value_lookup(struct perf_evsel *evsel,
 					      int cpu,
-					      bool create)
+					      bool create,
+					      enum stat_type type,
+					      int ctx,
+					      struct runtime_stat *st)
 {
+	struct rblist *rblist;
 	struct rb_node *nd;
 	struct saved_value dm = {
 		.cpu = cpu,
 		.evsel = evsel,
+		.type = type,
+		.ctx = ctx,
+		.stat = st,
 	};
-	nd = rblist__find(&runtime_saved_values, &dm);
+
+	rblist = &st->value_list;
+
+	nd = rblist__find(rblist, &dm);
 	if (nd)
 		return container_of(nd, struct saved_value, rb_node);
 	if (create) {
-		rblist__add_node(&runtime_saved_values, &dm);
-		nd = rblist__find(&runtime_saved_values, &dm);
+		rblist__add_node(rblist, &dm);
+		nd = rblist__find(rblist, &dm);
 		if (nd)
 			return container_of(nd, struct saved_value, rb_node);
 	}
@@ -217,13 +227,24 @@ void perf_stat__reset_shadow_stats(void)
 	}
 }
 
+static void update_runtime_stat(struct runtime_stat *st,
+				enum stat_type type,
+				int ctx, int cpu, u64 count)
+{
+	struct saved_value *v = saved_value_lookup(NULL, cpu, true,
+						   type, ctx, st);
+
+	if (v)
+		update_stats(&v->stats, count);
+}
+
 /*
  * Update various tracking values we maintain to print
  * more semantic information such as miss/hit ratios,
  * instruction rates, etc:
  */
 void perf_stat__update_shadow_stats(struct perf_evsel *counter, u64 count,
-				    int cpu)
+				    int cpu, struct runtime_stat *st)
 {
 	int ctx = evsel_context(counter);
 
@@ -231,50 +252,58 @@ void perf_stat__update_shadow_stats(struct perf_evsel *counter, u64 count,
 
 	if (perf_evsel__match(counter, SOFTWARE, SW_TASK_CLOCK) ||
 	    perf_evsel__match(counter, SOFTWARE, SW_CPU_CLOCK))
-		update_stats(&runtime_nsecs_stats[cpu], count);
+		update_runtime_stat(st, STAT_NSECS, 0, cpu, count);
 	else if (perf_evsel__match(counter, HARDWARE, HW_CPU_CYCLES))
-		update_stats(&runtime_cycles_stats[ctx][cpu], count);
+		update_runtime_stat(st, STAT_CYCLES, ctx, cpu, count);
 	else if (perf_stat_evsel__is(counter, CYCLES_IN_TX))
-		update_stats(&runtime_cycles_in_tx_stats[ctx][cpu], count);
+		update_runtime_stat(st, STAT_CYCLES_IN_TX, ctx, cpu, count);
 	else if (perf_stat_evsel__is(counter, TRANSACTION_START))
-		update_stats(&runtime_transaction_stats[ctx][cpu], count);
+		update_runtime_stat(st, STAT_TRANSACTION, ctx, cpu, count);
 	else if (perf_stat_evsel__is(counter, ELISION_START))
-		update_stats(&runtime_elision_stats[ctx][cpu], count);
+		update_runtime_stat(st, STAT_ELISION, ctx, cpu, count);
 	else if (perf_stat_evsel__is(counter, TOPDOWN_TOTAL_SLOTS))
-		update_stats(&runtime_topdown_total_slots[ctx][cpu], count);
+		update_runtime_stat(st, STAT_TOPDOWN_TOTAL_SLOTS,
+				    ctx, cpu, count);
 	else if (perf_stat_evsel__is(counter, TOPDOWN_SLOTS_ISSUED))
-		update_stats(&runtime_topdown_slots_issued[ctx][cpu], count);
+		update_runtime_stat(st, STAT_TOPDOWN_SLOTS_ISSUED,
+				    ctx, cpu, count);
 	else if (perf_stat_evsel__is(counter, TOPDOWN_SLOTS_RETIRED))
-		update_stats(&runtime_topdown_slots_retired[ctx][cpu], count);
+		update_runtime_stat(st, STAT_TOPDOWN_SLOTS_RETIRED,
+				    ctx, cpu, count);
 	else if (perf_stat_evsel__is(counter, TOPDOWN_FETCH_BUBBLES))
-		update_stats(&runtime_topdown_fetch_bubbles[ctx][cpu], count);
+		update_runtime_stat(st, STAT_TOPDOWN_FETCH_BUBBLES,
+				    ctx, cpu, count);
 	else if (perf_stat_evsel__is(counter, TOPDOWN_RECOVERY_BUBBLES))
-		update_stats(&runtime_topdown_recovery_bubbles[ctx][cpu], count);
+		update_runtime_stat(st, STAT_TOPDOWN_RECOVERY_BUBBLES,
+				    ctx, cpu, count);
 	else if (perf_evsel__match(counter, HARDWARE, HW_STALLED_CYCLES_FRONTEND))
-		update_stats(&runtime_stalled_cycles_front_stats[ctx][cpu], count);
+		update_runtime_stat(st, STAT_STALLED_CYCLES_FRONT,
+				    ctx, cpu, count);
 	else if (perf_evsel__match(counter, HARDWARE, HW_STALLED_CYCLES_BACKEND))
-		update_stats(&runtime_stalled_cycles_back_stats[ctx][cpu], count);
+		update_runtime_stat(st, STAT_STALLED_CYCLES_BACK,
+				    ctx, cpu, count);
 	else if (perf_evsel__match(counter, HARDWARE, HW_BRANCH_INSTRUCTIONS))
-		update_stats(&runtime_branches_stats[ctx][cpu], count);
+		update_runtime_stat(st, STAT_BRANCHES, ctx, cpu, count);
 	else if (perf_evsel__match(counter, HARDWARE, HW_CACHE_REFERENCES))
-		update_stats(&runtime_cacherefs_stats[ctx][cpu], count);
+		update_runtime_stat(st, STAT_CACHEREFS, ctx, cpu, count);
 	else if (perf_evsel__match(counter, HW_CACHE, HW_CACHE_L1D))
-		update_stats(&runtime_l1_dcache_stats[ctx][cpu], count);
+		update_runtime_stat(st, STAT_L1_DCACHE, ctx, cpu, count);
 	else if (perf_evsel__match(counter, HW_CACHE, HW_CACHE_L1I))
-		update_stats(&runtime_ll_cache_stats[ctx][cpu], count);
+		update_runtime_stat(st, STAT_L1_ICACHE, ctx, cpu, count);
 	else if (perf_evsel__match(counter, HW_CACHE, HW_CACHE_LL))
-		update_stats(&runtime_ll_cache_stats[ctx][cpu], count);
+		update_runtime_stat(st, STAT_LL_CACHE, ctx, cpu, count);
 	else if (perf_evsel__match(counter, HW_CACHE, HW_CACHE_DTLB))
-		update_stats(&runtime_dtlb_cache_stats[ctx][cpu], count);
+		update_runtime_stat(st, STAT_DTLB_CACHE, ctx, cpu, count);
 	else if (perf_evsel__match(counter, HW_CACHE, HW_CACHE_ITLB))
-		update_stats(&runtime_itlb_cache_stats[ctx][cpu], count);
+		update_runtime_stat(st, STAT_ITLB_CACHE, ctx, cpu, count);
 	else if (perf_stat_evsel__is(counter, SMI_NUM))
-		update_stats(&runtime_smi_num_stats[ctx][cpu], count);
+		update_runtime_stat(st, STAT_SMI_NUM, ctx, cpu, count);
 	else if (perf_stat_evsel__is(counter, APERF))
-		update_stats(&runtime_aperf_stats[ctx][cpu], count);
+		update_runtime_stat(st, STAT_APERF, ctx, cpu, count);
 
 	if (counter->collect_stat) {
-		struct saved_value *v = saved_value_lookup(counter, cpu, true);
+		struct saved_value *v = saved_value_lookup(counter, cpu, true,
+							   STAT_NONE, 0, st);
 		update_stats(&v->stats, count);
 	}
 }
@@ -694,7 +723,8 @@ static void generic_metric(const char *metric_expr,
 			stats = &walltime_nsecs_stats;
 			scale = 1e-9;
 		} else {
-			v = saved_value_lookup(metric_events[i], cpu, false);
+			v = saved_value_lookup(metric_events[i], cpu, false,
+					       STAT_NONE, 0, &rt_stat);
 			if (!v)
 				break;
 			stats = &v->stats;
