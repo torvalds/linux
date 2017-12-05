@@ -331,10 +331,6 @@ struct dvfs_set {
 	u8 index;
 } __packed;
 
-struct sensor_capabilities {
-	__le16 sensors;
-} __packed;
-
 struct _scpi_sensor_info {
 	__le16 sensor_id;
 	u8 class;
@@ -730,13 +726,13 @@ static int scpi_dvfs_add_opps_to_device(struct device *dev)
 
 static int scpi_sensor_get_capability(u16 *sensors)
 {
-	struct sensor_capabilities cap_buf;
+	__le16 cap;
 	int ret;
 
-	ret = scpi_send_message(CMD_SENSOR_CAPABILITIES, NULL, 0, &cap_buf,
-				sizeof(cap_buf));
+	ret = scpi_send_message(CMD_SENSOR_CAPABILITIES, NULL, 0, &cap,
+				sizeof(cap));
 	if (!ret)
-		*sensors = le16_to_cpu(cap_buf.sensors);
+		*sensors = le16_to_cpu(cap);
 
 	return ret;
 }
