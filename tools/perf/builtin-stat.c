@@ -1351,13 +1351,24 @@ static void print_aggr(char *prefix)
 	}
 }
 
-static void print_aggr_thread(struct perf_evsel *counter, char *prefix)
+static int cmp_val(const void *a, const void *b)
 {
-	FILE *output = stat_config.output;
-	int nthreads = thread_map__nr(counter->threads);
-	int ncpus = cpu_map__nr(counter->cpus);
-	int cpu, thread;
+	return ((struct perf_aggr_thread_value *)b)->val -
+		((struct perf_aggr_thread_value *)a)->val;
+}
+
+static struct perf_aggr_thread_value *sort_aggr_thread(
+					struct perf_evsel *counter,
+					int nthreads, int ncpus,
+					int *ret)
+{
+	int cpu, thread, i = 0;
 	double uval;
+	struct perf_aggr_thread_value *buf;
+
+	buf = calloc(nthreads, sizeof(struct perf_aggr_thread_value));
+	if (!buf)
+		return NULL;
 
 	for (thread = 0; thread < nthreads; thread++) {
 		u64 ena = 0, run = 0, val = 0;
@@ -1368,19 +1379,63 @@ static void print_aggr_thread(struct perf_evsel *counter, char *prefix)
 			run += perf_counts(counter->counts, cpu, thread)->run;
 		}
 
+		uval = val * counter->scale;
+
+		/*
+		 * Skip value 0 when enabling --per-thread globally,
+		 * otherwise too many 0 output.
+		 */
+		if (uval == 0.0 && target__has_per_thread(&target))
+			continue;
+
+		buf[i].counter = counter;
+		buf[i].id = thread;
+		buf[i].uval = uval;
+		buf[i].val = val;
+		buf[i].run = run;
+		buf[i].ena = ena;
+		i++;
+	}
+
+	qsort(buf, i, sizeof(struct perf_aggr_thread_value), cmp_val);
+
+	if (ret)
+		*ret = i;
+
+	return buf;
+}
+
+static void print_aggr_thread(struct perf_evsel *counter, char *prefix)
+{
+	FILE *output = stat_config.output;
+	int nthreads = thread_map__nr(counter->threads);
+	int ncpus = cpu_map__nr(counter->cpus);
+	int thread, sorted_threads, id;
+	struct perf_aggr_thread_value *buf;
+
+	buf = sort_aggr_thread(counter, nthreads, ncpus, &sorted_threads);
+	if (!buf) {
+		perror("cannot sort aggr thread");
+		return;
+	}
+
+	for (thread = 0; thread < sorted_threads; thread++) {
 		if (prefix)
 			fprintf(output, "%s", prefix);
 
-		uval = val * counter->scale;
-
+		id = buf[thread].id;
 		if (stat_config.stats)
-			printout(thread, 0, counter, uval, prefix, run, ena,
-				 1.0, &stat_config.stats[thread]);
+			printout(id, 0, buf[thread].counter, buf[thread].uval,
+				 prefix, buf[thread].run, buf[thread].ena, 1.0,
+				 &stat_config.stats[id]);
 		else
-			printout(thread, 0, counter, uval, prefix, run, ena,
-				 1.0, &rt_stat);
+			printout(id, 0, buf[thread].counter, buf[thread].uval,
+				 prefix, buf[thread].run, buf[thread].ena, 1.0,
+				 &rt_stat);
 		fputc('\n', output);
 	}
+
+	free(buf);
 }
 
 struct caggr_data {

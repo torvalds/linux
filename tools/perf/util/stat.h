@@ -111,6 +111,15 @@ static inline void init_stats(struct stats *stats)
 struct perf_evsel;
 struct perf_evlist;
 
+struct perf_aggr_thread_value {
+	struct perf_evsel *counter;
+	int id;
+	double uval;
+	u64 val;
+	u64 run;
+	u64 ena;
+};
+
 bool __perf_evsel_stat__is(struct perf_evsel *evsel,
 			   enum perf_stat_evsel_id id);
 
