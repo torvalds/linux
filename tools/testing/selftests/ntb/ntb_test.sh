@@ -138,6 +138,11 @@ function check_file()
 	fi
 }
 
+function subdirname()
+{
+	echo $(basename $(dirname $1)) 2> /dev/null
+}
+
 function find_pidx()
 {
 	PORT=$1
@@ -183,9 +188,9 @@ function link_test()
 	REM=$2
 	EXP=0
 
-	echo "Running link tests on: $(basename $LOC) / $(basename $REM)"
+	echo "Running link tests on: $(subdirname $LOC) / $(subdirname $REM)"
 
-	if ! write_file "N" "$LOC/link" 2> /dev/null; then
+	if ! write_file "N" "$LOC/../link" 2> /dev/null; then
 		echo "  Unsupported"
 		return
 	fi
@@ -193,12 +198,11 @@ function link_test()
 	write_file "N" "$LOC/link_event"
 
 	if [[ $(read_file "$REM/link") != "N" ]]; then
-		echo "Expected remote link to be down in $REM/link" >&2
+		echo "Expected link to be down in $REM/link" >&2
 		exit -1
 	fi
 
-	write_file "Y" "$LOC/link"
-	write_file "Y" "$LOC/link_event"
+	write_file "Y" "$LOC/../link"
 
 	echo "  Passed"
 }
@@ -379,15 +383,15 @@ function ntb_tool_tests()
 
 	port_test "$LOCAL_TOOL" "$REMOTE_TOOL"
 
-	write_file "Y" "$LOCAL_TOOL/link_event"
-	write_file "Y" "$REMOTE_TOOL/link_event"
+	LOCAL_PEER_TOOL="$LOCAL_TOOL/peer$LOCAL_PIDX"
+	REMOTE_PEER_TOOL="$REMOTE_TOOL/peer$REMOTE_PIDX"
 
-	link_test "$LOCAL_TOOL" "$REMOTE_TOOL"
-	link_test "$REMOTE_TOOL" "$LOCAL_TOOL"
+	link_test "$LOCAL_PEER_TOOL" "$REMOTE_PEER_TOOL"
+	link_test "$REMOTE_PEER_TOOL" "$LOCAL_PEER_TOOL"
 
 	#Ensure the link is up on both sides before continuing
-	write_file "Y" "$LOCAL_TOOL/link_event"
-	write_file "Y" "$REMOTE_TOOL/link_event"
+	write_file "Y" "$LOCAL_PEER_TOOL/link_event"
+	write_file "Y" "$REMOTE_PEER_TOOL/link_event"
 
 	for PEER_TRANS in $(ls "$LOCAL_TOOL"/peer_trans*); do
 		PT=$(basename $PEER_TRANS)
