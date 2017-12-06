@@ -243,6 +243,10 @@ SECTIONS
 	HEAD_SYMBOLS
 }
 
+#ifdef CONFIG_UNMAP_KERNEL_AT_EL0
+ASSERT((__entry_tramp_text_end - __entry_tramp_text_start) == PAGE_SIZE,
+	"Entry trampoline text too big")
+#endif
 /*
  * The HYP init code and ID map text can't be longer than a page each,
  * and should not cross a page boundary.
