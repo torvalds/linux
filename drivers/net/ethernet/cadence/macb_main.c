@@ -2812,24 +2812,20 @@ static int gem_add_flow_filter(struct net_device *netdev,
 			htons(fs->h_u.tcp_ip4_spec.psrc), htons(fs->h_u.tcp_ip4_spec.pdst));
 
 	/* find correct place to add in list */
-	if (list_empty(&bp->rx_fs_list.list))
-		list_add(&newfs->list, &bp->rx_fs_list.list);
-	else {
-		list_for_each_entry(item, &bp->rx_fs_list.list, list) {
-			if (item->fs.location > newfs->fs.location) {
-				list_add_tail(&newfs->list, &item->list);
-				added = true;
-				break;
-			} else if (item->fs.location == fs->location) {
-				netdev_err(netdev, "Rule not added: location %d not free!\n",
-						fs->location);
-				ret = -EBUSY;
-				goto err;
-			}
+	list_for_each_entry(item, &bp->rx_fs_list.list, list) {
+		if (item->fs.location > newfs->fs.location) {
+			list_add_tail(&newfs->list, &item->list);
+			added = true;
+			break;
+		} else if (item->fs.location == fs->location) {
+			netdev_err(netdev, "Rule not added: location %d not free!\n",
+					fs->location);
+			ret = -EBUSY;
+			goto err;
 		}
-		if (!added)
-			list_add_tail(&newfs->list, &bp->rx_fs_list.list);
 	}
+	if (!added)
+		list_add_tail(&newfs->list, &bp->rx_fs_list.list);
 
 	gem_prog_cmp_regs(bp, fs);
 	bp->rx_fs_list.count++;
@@ -2850,9 +2846,6 @@ static int gem_del_flow_filter(struct net_device *netdev,
 	struct macb *bp = netdev_priv(netdev);
 	struct ethtool_rx_fs_item *item;
 	struct ethtool_rx_flow_spec *fs;
-
-	if (list_empty(&bp->rx_fs_list.list))
-		return -EINVAL;
 
 	list_for_each_entry(item, &bp->rx_fs_list.list, list) {
 		if (item->fs.location == cmd->fs.location) {
