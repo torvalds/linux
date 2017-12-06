@@ -90,6 +90,7 @@ struct i915_vma {
 #define I915_VMA_CLOSED		BIT(10)
 #define I915_VMA_USERFAULT_BIT	11
 #define I915_VMA_USERFAULT	BIT(I915_VMA_USERFAULT_BIT)
+#define I915_VMA_GGTT_WRITE	BIT(12)
 
 	unsigned int active;
 	struct i915_gem_active last_read[I915_NUM_ENGINES];
@@ -137,6 +138,24 @@ static inline bool i915_vma_is_ggtt(const struct i915_vma *vma)
 {
 	return vma->flags & I915_VMA_GGTT;
 }
+
+static inline bool i915_vma_has_ggtt_write(const struct i915_vma *vma)
+{
+	return vma->flags & I915_VMA_GGTT_WRITE;
+}
+
+static inline void i915_vma_set_ggtt_write(struct i915_vma *vma)
+{
+	GEM_BUG_ON(!i915_vma_is_ggtt(vma));
+	vma->flags |= I915_VMA_GGTT_WRITE;
+}
+
+static inline void i915_vma_unset_ggtt_write(struct i915_vma *vma)
+{
+	vma->flags &= ~I915_VMA_GGTT_WRITE;
+}
+
+void i915_vma_flush_writes(struct i915_vma *vma);
 
 static inline bool i915_vma_is_map_and_fenceable(const struct i915_vma *vma)
 {

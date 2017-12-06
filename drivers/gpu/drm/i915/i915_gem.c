@@ -666,17 +666,13 @@ fb_write_origin(struct drm_i915_gem_object *obj, unsigned int domain)
 		obj->frontbuffer_ggtt_origin : ORIGIN_CPU);
 }
 
-static void
-flush_write_domain(struct drm_i915_gem_object *obj, unsigned int flush_domains)
+void i915_gem_flush_ggtt_writes(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = to_i915(obj->base.dev);
-
-	if (!(obj->base.write_domain & flush_domains))
-		return;
-
-	/* No actual flushing is required for the GTT write domain.  Writes
-	 * to it "immediately" go to main memory as far as we know, so there's
-	 * no chipset flush.  It also doesn't land in render cache.
+	/*
+	 * No actual flushing is required for the GTT write domain for reads
+	 * from the GTT domain. Writes to it "immediately" go to main memory
+	 * as far as we know, so there's no chipset flush. It also doesn't
+	 * land in the GPU render cache.
 	 *
 	 * However, we do have to enforce the order so that all writes through
 	 * the GTT land before any writes to the device, such as updates to
@@ -687,22 +683,46 @@ flush_write_domain(struct drm_i915_gem_object *obj, unsigned int flush_domains)
 	 * timing. This issue has only been observed when switching quickly
 	 * between GTT writes and CPU reads from inside the kernel on recent hw,
 	 * and it appears to only affect discrete GTT blocks (i.e. on LLC
-	 * system agents we cannot reproduce this behaviour).
+	 * system agents we cannot reproduce this behaviour, until Cannonlake
+	 * that was!).
 	 */
+
 	wmb();
+
+	intel_runtime_pm_get(dev_priv);
+	spin_lock_irq(&dev_priv->uncore.lock);
+
+	POSTING_READ_FW(RING_HEAD(RENDER_RING_BASE));
+
+	spin_unlock_irq(&dev_priv->uncore.lock);
+	intel_runtime_pm_put(dev_priv);
+}
+
+static void
+flush_write_domain(struct drm_i915_gem_object *obj, unsigned int flush_domains)
+{
+	struct drm_i915_private *dev_priv = to_i915(obj->base.dev);
+	struct i915_vma *vma;
+
+	if (!(obj->base.write_domain & flush_domains))
+		return;
 
 	switch (obj->base.write_domain) {
 	case I915_GEM_DOMAIN_GTT:
-		if (!HAS_LLC(dev_priv)) {
-			intel_runtime_pm_get(dev_priv);
-			spin_lock_irq(&dev_priv->uncore.lock);
-			POSTING_READ_FW(RING_HEAD(dev_priv->engine[RCS]->mmio_base));
-			spin_unlock_irq(&dev_priv->uncore.lock);
-			intel_runtime_pm_put(dev_priv);
-		}
+		i915_gem_flush_ggtt_writes(dev_priv);
 
 		intel_fb_obj_flush(obj,
 				   fb_write_origin(obj, I915_GEM_DOMAIN_GTT));
+
+		list_for_each_entry(vma, &obj->vma_list, obj_link) {
+			if (!i915_vma_is_ggtt(vma))
+				break;
+
+			if (vma->iomap)
+				continue;
+
+			i915_vma_unset_ggtt_write(vma);
+		}
 		break;
 
 	case I915_GEM_DOMAIN_CPU:
@@ -1964,6 +1984,8 @@ int i915_gem_fault(struct vm_fault *vmf)
 	if (!i915_vma_set_userfault(vma) && !obj->userfault_count++)
 		list_add(&obj->userfault_link, &dev_priv->mm.userfault_list);
 	GEM_BUG_ON(!obj->userfault_count);
+
+	i915_vma_set_ggtt_write(vma);
 
 err_fence:
 	i915_vma_unpin_fence(vma);
