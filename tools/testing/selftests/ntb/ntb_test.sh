@@ -239,35 +239,44 @@ function doorbell_test()
 	echo "  Passed"
 }
 
-function read_spad()
+function get_files_count()
 {
-       VPATH=$1
-       IDX=$2
+	NAME=$1
+	LOC=$2
 
-       ROW=($(read_file "$VPATH" | grep -e "^$IDX"))
-       let VAL=${ROW[1]} || true
-       echo $VAL
+	split_remote $LOC
+
+	if [[ "$REMOTE" == "" ]]; then
+		echo $(ls -1 "$LOC"/${NAME}* 2>/dev/null | wc -l)
+	else
+		echo $(ssh "$REMOTE" "ls -1 \"$VPATH\"/${NAME}* | \
+		       wc -l" 2> /dev/null)
+	fi
 }
 
 function scratchpad_test()
 {
 	LOC=$1
 	REM=$2
-	CNT=$(read_file "$LOC/spad" | wc -l)
 
-	echo "Running spad tests on: $(basename $LOC) / $(basename $REM)"
+	echo "Running spad tests on: $(subdirname $LOC) / $(subdirname $REM)"
+
+	CNT=$(get_files_count "spad" "$LOC")
+
+	if [[ $CNT -eq 0 ]]; then
+		echo "  Unsupported"
+		return
+	fi
 
 	for ((i = 0; i < $CNT; i++)); do
 		VAL=$RANDOM
-		write_file "$i $VAL" "$LOC/peer_spad"
-		RVAL=$(read_spad "$REM/spad" $i)
+		write_file "$VAL" "$LOC/spad$i"
+		RVAL=$(read_file "$REM/../spad$i")
 
-		if [[ "$VAL" != "$RVAL" ]]; then
-			echo "Scratchpad doesn't match expected value $VAL " \
-			     "in $REM/spad, got $RVAL" >&2
+		if [[ "$VAL" -ne "$RVAL" ]]; then
+			echo "Scratchpad $i value $RVAL doesn't match $VAL" >&2
 			exit -1
 		fi
-
 	done
 
 	echo "  Passed"
@@ -402,14 +411,14 @@ function ntb_tool_tests()
 	doorbell_test "$LOCAL_TOOL" "$REMOTE_TOOL"
 	doorbell_test "$REMOTE_TOOL" "$LOCAL_TOOL"
 
+	scratchpad_test "$LOCAL_PEER_TOOL" "$REMOTE_PEER_TOOL"
+	scratchpad_test "$REMOTE_PEER_TOOL" "$LOCAL_PEER_TOOL"
+
 	for PEER_TRANS in $(ls "$LOCAL_TOOL"/peer_trans*); do
 		PT=$(basename $PEER_TRANS)
 		write_file $MW_SIZE "$LOCAL_TOOL/$PT"
 		write_file $MW_SIZE "$REMOTE_TOOL/$PT"
 	done
-
-	scratchpad_test "$LOCAL_TOOL" "$REMOTE_TOOL"
-	scratchpad_test "$REMOTE_TOOL" "$LOCAL_TOOL"
 
 	for MW in $(ls "$LOCAL_TOOL"/mw*); do
 		MW=$(basename $MW)
