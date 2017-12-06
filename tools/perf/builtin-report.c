@@ -921,13 +921,6 @@ int cmd_report(int argc, const char **argv)
 		return -EINVAL;
 	}
 
-	if (report.use_stdio)
-		use_browser = 0;
-	else if (report.use_tui)
-		use_browser = 1;
-	else if (report.use_gtk)
-		use_browser = 2;
-
 	if (report.inverted_callchain)
 		callchain_param.order = ORDER_CALLER;
 	if (symbol_conf.cumulate_callchain && !callchain_param.order_set)
@@ -1013,6 +1006,13 @@ repeat:
 
 		perf_hpp_list.need_collapse = true;
 	}
+
+	if (report.use_stdio)
+		use_browser = 0;
+	else if (report.use_tui)
+		use_browser = 1;
+	else if (report.use_gtk)
+		use_browser = 2;
 
 	/* Force tty output for header output and per-thread stat. */
 	if (report.header || report.header_only || report.show_threads)

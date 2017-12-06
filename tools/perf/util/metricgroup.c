@@ -38,6 +38,10 @@ struct metric_event *metricgroup__lookup(struct rblist *metric_events,
 	struct metric_event me = {
 		.evsel = evsel
 	};
+
+	if (!metric_events)
+		return NULL;
+
 	nd = rblist__find(metric_events, &me);
 	if (nd)
 		return container_of(nd, struct metric_event, nd);
@@ -270,7 +274,7 @@ static void metricgroup__print_strlist(struct strlist *metrics, bool raw)
 void metricgroup__print(bool metrics, bool metricgroups, char *filter,
 			bool raw)
 {
-	struct pmu_events_map *map = perf_pmu__find_map();
+	struct pmu_events_map *map = perf_pmu__find_map(NULL);
 	struct pmu_event *pe;
 	int i;
 	struct rblist groups;
@@ -368,7 +372,7 @@ void metricgroup__print(bool metrics, bool metricgroups, char *filter,
 static int metricgroup__add_metric(const char *metric, struct strbuf *events,
 				   struct list_head *group_list)
 {
-	struct pmu_events_map *map = perf_pmu__find_map();
+	struct pmu_events_map *map = perf_pmu__find_map(NULL);
 	struct pmu_event *pe;
 	int ret = -EINVAL;
 	int i, j;

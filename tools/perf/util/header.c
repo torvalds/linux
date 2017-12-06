@@ -3258,6 +3258,74 @@ int perf_event__synthesize_attrs(struct perf_tool *tool,
 	return err;
 }
 
+static bool has_unit(struct perf_evsel *counter)
+{
+	return counter->unit && *counter->unit;
+}
+
+static bool has_scale(struct perf_evsel *counter)
+{
+	return counter->scale != 1;
+}
+
+int perf_event__synthesize_extra_attr(struct perf_tool *tool,
+				      struct perf_evlist *evsel_list,
+				      perf_event__handler_t process,
+				      bool is_pipe)
+{
+	struct perf_evsel *counter;
+	int err;
+
+	/*
+	 * Synthesize other events stuff not carried within
+	 * attr event - unit, scale, name
+	 */
+	evlist__for_each_entry(evsel_list, counter) {
+		if (!counter->supported)
+			continue;
+
+		/*
+		 * Synthesize unit and scale only if it's defined.
+		 */
+		if (has_unit(counter)) {
+			err = perf_event__synthesize_event_update_unit(tool, counter, process);
+			if (err < 0) {
+				pr_err("Couldn't synthesize evsel unit.\n");
+				return err;
+			}
+		}
+
+		if (has_scale(counter)) {
+			err = perf_event__synthesize_event_update_scale(tool, counter, process);
+			if (err < 0) {
+				pr_err("Couldn't synthesize evsel counter.\n");
+				return err;
+			}
+		}
+
+		if (counter->own_cpus) {
+			err = perf_event__synthesize_event_update_cpus(tool, counter, process);
+			if (err < 0) {
+				pr_err("Couldn't synthesize evsel cpus.\n");
+				return err;
+			}
+		}
+
+		/*
+		 * Name is needed only for pipe output,
+		 * perf.data carries event names.
+		 */
+		if (is_pipe) {
+			err = perf_event__synthesize_event_update_name(tool, counter, process);
+			if (err < 0) {
+				pr_err("Couldn't synthesize evsel name.\n");
+				return err;
+			}
+		}
+	}
+	return 0;
+}
+
 int perf_event__process_attr(struct perf_tool *tool __maybe_unused,
 			     union perf_event *event,
 			     struct perf_evlist **pevlist)

@@ -45,7 +45,6 @@ include/uapi/asm-generic/mman-common.h
 
 check () {
   file=$1
-  opts="--ignore-blank-lines --ignore-space-change"
 
   shift
   while [ -n "$*" ]; do
