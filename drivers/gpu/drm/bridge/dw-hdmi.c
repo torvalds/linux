@@ -1418,6 +1418,10 @@ static int hdmi_phy_configure_dwc_hdmi_3d_tx(struct dw_hdmi *hdmi,
 	unsigned int depth =
 		hdmi_bus_fmt_color_depth(hdmi->hdmi_data.enc_out_bus_format);
 
+	if (hdmi_bus_fmt_is_yuv420(hdmi->hdmi_data.enc_out_bus_format) &&
+	    pdata->mpll_cfg_420)
+		mpll_config = pdata->mpll_cfg_420;
+
 	/* PLL/MPLL Cfg - always match on final entry */
 	for (; mpll_config->mpixelclock != ~0UL; mpll_config++)
 		if (mpixelclock <= mpll_config->mpixelclock)
@@ -1443,18 +1447,8 @@ static int hdmi_phy_configure_dwc_hdmi_3d_tx(struct dw_hdmi *hdmi,
 	if (depth)
 		depth--;
 
-	/*
-	 * RK3399 mpll clock source is vpll, also is vop clock source.
-	 * vpll rate is twice of mpixelclock in YCBCR420 mode, we need
-	 * to enable mpll output divider.
-	 */
-	if (hdmi_bus_fmt_is_yuv420(hdmi->hdmi_data.enc_out_bus_format) &&
-	    (hdmi->dev_type == RK3399_HDMI || hdmi->dev_type == RK3368_HDMI))
-		dw_hdmi_phy_i2c_write(hdmi, mpll_config->res[depth].cpce | 1,
-				      HDMI_3D_TX_PHY_CPCE_CTRL);
-	else
-		dw_hdmi_phy_i2c_write(hdmi, mpll_config->res[depth].cpce,
-				      HDMI_3D_TX_PHY_CPCE_CTRL);
+	dw_hdmi_phy_i2c_write(hdmi, mpll_config->res[depth].cpce,
+			      HDMI_3D_TX_PHY_CPCE_CTRL);
 	dw_hdmi_phy_i2c_write(hdmi, mpll_config->res[depth].gmp,
 			      HDMI_3D_TX_PHY_GMPCTRL);
 	dw_hdmi_phy_i2c_write(hdmi, curr_ctrl->curr[depth],
@@ -1911,14 +1905,14 @@ static void hdmi_av_composer(struct dw_hdmi *hdmi,
 
 	vmode->previous_pixelclock = vmode->mpixelclock;
 	vmode->mpixelclock = mode->crtc_clock * 1000;
-	if (hdmi_bus_fmt_is_yuv420(hdmi->hdmi_data.enc_out_bus_format))
-		vmode->mpixelclock /= 2;
 	if ((mode->flags & DRM_MODE_FLAG_3D_MASK) ==
 		DRM_MODE_FLAG_3D_FRAME_PACKING)
 		vmode->mpixelclock *= 2;
 	dev_dbg(hdmi->dev, "final pixclk = %d\n", vmode->mpixelclock);
 	vmode->previous_tmdsclock = vmode->mtmdsclock;
 	vmode->mtmdsclock = hdmi_get_tmdsclock(hdmi, vmode->mpixelclock);
+	if (hdmi_bus_fmt_is_yuv420(hdmi->hdmi_data.enc_out_bus_format))
+		vmode->mtmdsclock /= 2;
 	dev_dbg(hdmi->dev, "final tmdsclk = %d\n", vmode->mtmdsclock);
 
 	/* Set up HDMI_FC_INVIDCONF
