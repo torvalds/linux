@@ -780,8 +780,8 @@ static int takedown_cpu(unsigned int cpu)
 	BUG_ON(cpu_online(cpu));
 
 	/*
-	 * The CPUHP_AP_SCHED_MIGRATE_DYING callback will have removed all
-	 * runnable tasks from the cpu, there's only the idle task left now
+	 * The teardown callback for CPUHP_AP_SCHED_STARTING will have removed
+	 * all runnable tasks from the CPU, there's only the idle task left now
 	 * that the migration thread is done doing the stop_machine thing.
 	 *
 	 * Wait for the stop thread to go away.
