@@ -139,6 +139,24 @@ struct amdgpu_prt_cb {
 };
 
 /**
+ * amdgpu_vm_level_shift - return the addr shift for each level
+ *
+ * @adev: amdgpu_device pointer
+ *
+ * Returns the number of bits the pfn needs to be right shifted for a level.
+ */
+static unsigned amdgpu_vm_level_shift(struct amdgpu_device *adev,
+				      unsigned level)
+{
+	if (level != adev->vm_manager.num_level)
+		return 9 * (adev->vm_manager.num_level - level - 1) +
+			adev->vm_manager.block_size;
+	else
+		/* For the page tables on the leaves */
+		return 0;
+}
+
+/**
  * amdgpu_vm_num_entries - return the number of entries in a PD/PT
  *
  * @adev: amdgpu_device pointer
@@ -148,17 +166,17 @@ struct amdgpu_prt_cb {
 static unsigned amdgpu_vm_num_entries(struct amdgpu_device *adev,
 				      unsigned level)
 {
+	unsigned shift = amdgpu_vm_level_shift(adev, 0);
+
 	if (level == 0)
 		/* For the root directory */
-		return adev->vm_manager.max_pfn >>
-			(adev->vm_manager.block_size *
-			 adev->vm_manager.num_level);
-	else if (level == adev->vm_manager.num_level)
+		return round_up(adev->vm_manager.max_pfn, 1 << shift) >> shift;
+	else if (level != adev->vm_manager.num_level)
+		/* Everything in between */
+		return 512;
+	else
 		/* For the page tables on the leaves */
 		return AMDGPU_VM_PTE_COUNT(adev);
-	else
-		/* Everything in between */
-		return 1 << adev->vm_manager.block_size;
 }
 
 /**
@@ -288,8 +306,7 @@ static int amdgpu_vm_alloc_levels(struct amdgpu_device *adev,
 				  uint64_t saddr, uint64_t eaddr,
 				  unsigned level)
 {
-	unsigned shift = (adev->vm_manager.num_level - level) *
-		adev->vm_manager.block_size;
+	unsigned shift = amdgpu_vm_level_shift(adev, level);
 	unsigned pt_idx, from, to;
 	int r;
 	u64 flags;
@@ -471,7 +488,7 @@ static int amdgpu_vm_grab_reserved_vmid_locked(struct amdgpu_vm *vm,
 		id->pd_gpu_addr = 0;
 		tmp = amdgpu_sync_peek_fence(&id->active, ring);
 		if (tmp) {
-			r = amdgpu_sync_fence(adev, sync, tmp);
+			r = amdgpu_sync_fence(adev, sync, tmp, false);
 			return r;
 		}
 	}
@@ -479,7 +496,7 @@ static int amdgpu_vm_grab_reserved_vmid_locked(struct amdgpu_vm *vm,
 	/* Good we can use this VMID. Remember this submission as
 	* user of the VMID.
 	*/
-	r = amdgpu_sync_fence(ring->adev, &id->active, fence);
+	r = amdgpu_sync_fence(ring->adev, &id->active, fence, false);
 	if (r)
 		goto out;
 
@@ -566,7 +583,7 @@ int amdgpu_vm_grab_id(struct amdgpu_vm *vm, struct amdgpu_ring *ring,
 		}
 
 
-		r = amdgpu_sync_fence(ring->adev, sync, &array->base);
+		r = amdgpu_sync_fence(ring->adev, sync, &array->base, false);
 		dma_fence_put(&array->base);
 		if (r)
 			goto error;
@@ -609,7 +626,7 @@ int amdgpu_vm_grab_id(struct amdgpu_vm *vm, struct amdgpu_ring *ring,
 		/* Good we can use this VMID. Remember this submission as
 		 * user of the VMID.
 		 */
-		r = amdgpu_sync_fence(ring->adev, &id->active, fence);
+		r = amdgpu_sync_fence(ring->adev, &id->active, fence, false);
 		if (r)
 			goto error;
 
@@ -629,7 +646,7 @@ int amdgpu_vm_grab_id(struct amdgpu_vm *vm, struct amdgpu_ring *ring,
 	id = idle;
 
 	/* Remember this submission as user of the VMID */
-	r = amdgpu_sync_fence(ring->adev, &id->active, fence);
+	r = amdgpu_sync_fence(ring->adev, &id->active, fence, false);
 	if (r)
 		goto error;
 
@@ -1302,18 +1319,19 @@ void amdgpu_vm_get_entry(struct amdgpu_pte_update_params *p, uint64_t addr,
 			 struct amdgpu_vm_pt **entry,
 			 struct amdgpu_vm_pt **parent)
 {
-	unsigned idx, level = p->adev->vm_manager.num_level;
+	unsigned level = 0;
 
 	*parent = NULL;
 	*entry = &p->vm->root;
 	while ((*entry)->entries) {
-		idx = addr >> (p->adev->vm_manager.block_size * level--);
+		unsigned idx = addr >> amdgpu_vm_level_shift(p->adev, level++);
+
 		idx %= amdgpu_bo_size((*entry)->base.bo) / 8;
 		*parent = *entry;
 		*entry = &(*entry)->entries[idx];
 	}
 
-	if (level)
+	if (level != p->adev->vm_manager.num_level)
 		*entry = NULL;
 }
 
@@ -1639,7 +1657,7 @@ static int amdgpu_vm_bo_update_mapping(struct amdgpu_device *adev,
 		addr = 0;
 	}
 
-	r = amdgpu_sync_fence(adev, &job->sync, exclusive);
+	r = amdgpu_sync_fence(adev, &job->sync, exclusive, false);
 	if (r)
 		goto error_free;
 
@@ -2556,47 +2574,57 @@ static uint32_t amdgpu_vm_get_block_size(uint64_t vm_size)
 }
 
 /**
- * amdgpu_vm_set_fragment_size - adjust fragment size in PTE
- *
- * @adev: amdgpu_device pointer
- * @fragment_size_default: the default fragment size if it's set auto
- */
-void amdgpu_vm_set_fragment_size(struct amdgpu_device *adev,
-				 uint32_t fragment_size_default)
-{
-	if (amdgpu_vm_fragment_size == -1)
-		adev->vm_manager.fragment_size = fragment_size_default;
-	else
-		adev->vm_manager.fragment_size = amdgpu_vm_fragment_size;
-}
-
-/**
  * amdgpu_vm_adjust_size - adjust vm size, block size and fragment size
  *
  * @adev: amdgpu_device pointer
  * @vm_size: the default vm size if it's set auto
  */
-void amdgpu_vm_adjust_size(struct amdgpu_device *adev, uint64_t vm_size,
-			   uint32_t fragment_size_default)
+void amdgpu_vm_adjust_size(struct amdgpu_device *adev, uint32_t vm_size,
+			   uint32_t fragment_size_default, unsigned max_level,
+			   unsigned max_bits)
 {
-	/* adjust vm size firstly */
-	if (amdgpu_vm_size == -1)
-		adev->vm_manager.vm_size = vm_size;
-	else
-		adev->vm_manager.vm_size = amdgpu_vm_size;
+	uint64_t tmp;
 
-	/* block size depends on vm size */
-	if (amdgpu_vm_block_size == -1)
+	/* adjust vm size first */
+	if (amdgpu_vm_size != -1) {
+		unsigned max_size = 1 << (max_bits - 30);
+
+		vm_size = amdgpu_vm_size;
+		if (vm_size > max_size) {
+			dev_warn(adev->dev, "VM size (%d) too large, max is %u GB\n",
+				 amdgpu_vm_size, max_size);
+			vm_size = max_size;
+		}
+	}
+
+	adev->vm_manager.max_pfn = (uint64_t)vm_size << 18;
+
+	tmp = roundup_pow_of_two(adev->vm_manager.max_pfn);
+	if (amdgpu_vm_block_size != -1)
+		tmp >>= amdgpu_vm_block_size - 9;
+	tmp = DIV_ROUND_UP(fls64(tmp) - 1, 9) - 1;
+	adev->vm_manager.num_level = min(max_level, (unsigned)tmp);
+
+	/* block size depends on vm size and hw setup*/
+	if (amdgpu_vm_block_size != -1)
 		adev->vm_manager.block_size =
-			amdgpu_vm_get_block_size(adev->vm_manager.vm_size);
+			min((unsigned)amdgpu_vm_block_size, max_bits
+			    - AMDGPU_GPU_PAGE_SHIFT
+			    - 9 * adev->vm_manager.num_level);
+	else if (adev->vm_manager.num_level > 1)
+		adev->vm_manager.block_size = 9;
 	else
-		adev->vm_manager.block_size = amdgpu_vm_block_size;
+		adev->vm_manager.block_size = amdgpu_vm_get_block_size(tmp);
 
-	amdgpu_vm_set_fragment_size(adev, fragment_size_default);
+	if (amdgpu_vm_fragment_size == -1)
+		adev->vm_manager.fragment_size = fragment_size_default;
+	else
+		adev->vm_manager.fragment_size = amdgpu_vm_fragment_size;
 
-	DRM_INFO("vm size is %llu GB, block size is %u-bit, fragment size is %u-bit\n",
-		adev->vm_manager.vm_size, adev->vm_manager.block_size,
-		adev->vm_manager.fragment_size);
+	DRM_INFO("vm size is %u GB, %u levels, block size is %u-bit, fragment size is %u-bit\n",
+		 vm_size, adev->vm_manager.num_level + 1,
+		 adev->vm_manager.block_size,
+		 adev->vm_manager.fragment_size);
 }
 
 /**
@@ -2637,7 +2665,7 @@ int amdgpu_vm_init(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 	ring = adev->vm_manager.vm_pte_rings[ring_instance];
 	rq = &ring->sched.sched_rq[AMD_SCHED_PRIORITY_KERNEL];
 	r = amd_sched_entity_init(&ring->sched, &vm->entity,
-				  rq, amdgpu_sched_jobs);
+				  rq, amdgpu_sched_jobs, NULL);
 	if (r)
 		return r;
 

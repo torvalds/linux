@@ -28,6 +28,12 @@
 #include "dc_hw_types.h"
 #include "opp.h"
 
+enum mpc_output_csc_mode {
+	MPC_OUTPUT_CSC_DISABLE = 0,
+	MPC_OUTPUT_CSC_COEF_A,
+	MPC_OUTPUT_CSC_COEF_B
+};
+
 struct mpcc_cfg {
 	int dpp_id;
 	int opp_id;
@@ -55,6 +61,18 @@ struct mpc_funcs {
 	void (*wait_for_idle)(struct mpc *mpc, int id);
 
 	void (*update_blend_mode)(struct mpc *mpc, struct mpcc_cfg *cfg);
+
+	int (*get_opp_id)(struct mpc *mpc, int mpcc_id);
+
+	void (*set_output_csc)(struct mpc *mpc,
+			int opp_id,
+			const struct out_csc_color_matrix *tbl_entry,
+			enum mpc_output_csc_mode ocsc_mode);
+
+	void (*set_ocsc_default)(struct mpc *mpc,
+			int opp_id,
+			enum dc_color_space color_space,
+			enum mpc_output_csc_mode ocsc_mode);
 
 };
 

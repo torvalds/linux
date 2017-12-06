@@ -36,9 +36,9 @@
 #include "../dce110/i2c_hw_engine_dce110.h"
 #include "../dce110/i2caux_dce110.h"
 
-#include "raven1/DCN/dcn_1_0_offset.h"
-#include "raven1/DCN/dcn_1_0_sh_mask.h"
-#include "vega10/soc15ip.h"
+#include "dcn/dcn_1_0_offset.h"
+#include "dcn/dcn_1_0_sh_mask.h"
+#include "soc15ip.h"
 
 /* begin *********************
  * macros to expend register list macro defined in HW object header file */

@@ -281,29 +281,29 @@ void xgpu_vi_init_golden_registers(struct amdgpu_device *adev)
 	case CHIP_FIJI:
 		amdgpu_program_register_sequence(adev,
 						 xgpu_fiji_mgcg_cgcg_init,
-						 (const u32)ARRAY_SIZE(
+						 ARRAY_SIZE(
 						 xgpu_fiji_mgcg_cgcg_init));
 		amdgpu_program_register_sequence(adev,
 						 xgpu_fiji_golden_settings_a10,
-						 (const u32)ARRAY_SIZE(
+						 ARRAY_SIZE(
 						 xgpu_fiji_golden_settings_a10));
 		amdgpu_program_register_sequence(adev,
 						 xgpu_fiji_golden_common_all,
-						 (const u32)ARRAY_SIZE(
+						 ARRAY_SIZE(
 						 xgpu_fiji_golden_common_all));
 		break;
 	case CHIP_TONGA:
 		amdgpu_program_register_sequence(adev,
 						 xgpu_tonga_mgcg_cgcg_init,
-						 (const u32)ARRAY_SIZE(
+						 ARRAY_SIZE(
 						 xgpu_tonga_mgcg_cgcg_init));
 		amdgpu_program_register_sequence(adev,
 						 xgpu_tonga_golden_settings_a11,
-						 (const u32)ARRAY_SIZE(
+						 ARRAY_SIZE(
 						 xgpu_tonga_golden_settings_a11));
 		amdgpu_program_register_sequence(adev,
 						 xgpu_tonga_golden_common_all,
-						 (const u32)ARRAY_SIZE(
+						 ARRAY_SIZE(
 						 xgpu_tonga_golden_common_all));
 		break;
 	default:
@@ -446,8 +446,10 @@ static int xgpu_vi_send_access_requests(struct amdgpu_device *adev,
 		request == IDH_REQ_GPU_FINI_ACCESS ||
 		request == IDH_REQ_GPU_RESET_ACCESS) {
 		r = xgpu_vi_poll_msg(adev, IDH_READY_TO_ACCESS_GPU);
-		if (r)
-			pr_err("Doesn't get ack from pf, continue\n");
+		if (r) {
+			pr_err("Doesn't get ack from pf, give up\n");
+			return r;
+		}
 	}
 
 	return 0;
@@ -456,6 +458,11 @@ static int xgpu_vi_send_access_requests(struct amdgpu_device *adev,
 static int xgpu_vi_request_reset(struct amdgpu_device *adev)
 {
 	return xgpu_vi_send_access_requests(adev, IDH_REQ_GPU_RESET_ACCESS);
+}
+
+static int xgpu_vi_wait_reset_cmpl(struct amdgpu_device *adev)
+{
+	return xgpu_vi_poll_msg(adev, IDH_FLR_NOTIFICATION_CMPL);
 }
 
 static int xgpu_vi_request_full_gpu_access(struct amdgpu_device *adev,
@@ -514,7 +521,7 @@ static void xgpu_vi_mailbox_flr_work(struct work_struct *work)
 	}
 
 	/* Trigger recovery due to world switch failure */
-	amdgpu_sriov_gpu_reset(adev, NULL);
+	amdgpu_gpu_recover(adev, NULL);
 }
 
 static int xgpu_vi_set_mailbox_rcv_irq(struct amdgpu_device *adev,
@@ -613,5 +620,6 @@ const struct amdgpu_virt_ops xgpu_vi_virt_ops = {
 	.req_full_gpu		= xgpu_vi_request_full_gpu_access,
 	.rel_full_gpu		= xgpu_vi_release_full_gpu_access,
 	.reset_gpu		= xgpu_vi_request_reset,
+	.wait_reset             = xgpu_vi_wait_reset_cmpl,
 	.trans_msg		= NULL, /* Does not need to trans VF errors to host. */
 };

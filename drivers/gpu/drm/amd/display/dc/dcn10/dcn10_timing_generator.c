@@ -290,6 +290,16 @@ static void tgn10_program_timing(
 
 }
 
+static void tgn10_set_blank_data_double_buffer(struct timing_generator *tg, bool enable)
+{
+	struct dcn10_timing_generator *tgn10 = DCN10TG_FROM_TG(tg);
+
+	uint32_t blank_data_double_buffer_enable = enable ? 1 : 0;
+
+	REG_UPDATE(OTG_DOUBLE_BUFFER_CONTROL,
+			OTG_BLANK_DATA_DOUBLE_BUFFER_EN, blank_data_double_buffer_enable);
+}
+
 /**
  * unblank_crtc
  * Call ASIC Control Object to UnBlank CRTC.
@@ -306,8 +316,7 @@ static void tgn10_unblank_crtc(struct timing_generator *tg)
 	 * this check will be removed.
 	 */
 	if (vertical_interrupt_enable)
-		REG_UPDATE(OTG_DOUBLE_BUFFER_CONTROL,
-				OTG_BLANK_DATA_DOUBLE_BUFFER_EN, 1);
+		tgn10_set_blank_data_double_buffer(tg, true);
 
 	REG_UPDATE_2(OTG_BLANK_CONTROL,
 			OTG_BLANK_DATA_EN, 0,
@@ -334,8 +343,7 @@ static void tgn10_blank_crtc(struct timing_generator *tg)
 			OTG_BLANK_DATA_EN, 1,
 			1, 100000);
 
-	REG_UPDATE(OTG_DOUBLE_BUFFER_CONTROL,
-			OTG_BLANK_DATA_DOUBLE_BUFFER_EN, 0);
+	tgn10_set_blank_data_double_buffer(tg, false);
 }
 
 static void tgn10_set_blank(struct timing_generator *tg,
@@ -385,19 +393,9 @@ static void tgn10_enable_optc_clock(struct timing_generator *tg, bool enable)
 				OTG_CLOCK_GATE_DIS, 0,
 				OTG_CLOCK_EN, 0);
 
-		if (tg->ctx->dce_environment != DCE_ENV_FPGA_MAXIMUS)
-			REG_WAIT(OTG_CLOCK_CONTROL,
-					OTG_CLOCK_ON, 0,
-					1, 1000);
-
 		REG_UPDATE_2(OPTC_INPUT_CLOCK_CONTROL,
 				OPTC_INPUT_CLK_GATE_DIS, 0,
 				OPTC_INPUT_CLK_EN, 0);
-
-		if (tg->ctx->dce_environment != DCE_ENV_FPGA_MAXIMUS)
-			REG_WAIT(OPTC_INPUT_CLOCK_CONTROL,
-					OPTC_INPUT_CLK_ON, 0,
-					1, 1000);
 	}
 }
 
@@ -560,10 +558,11 @@ static void tgn10_lock(struct timing_generator *tg)
 	REG_SET(OTG_MASTER_UPDATE_LOCK, 0,
 			OTG_MASTER_UPDATE_LOCK, 1);
 
+	/* Should be fast, status does not update on maximus */
 	if (tg->ctx->dce_environment != DCE_ENV_FPGA_MAXIMUS)
 		REG_WAIT(OTG_MASTER_UPDATE_LOCK,
 				UPDATE_LOCK_STATUS, 1,
-				1, 100);
+				1, 10);
 }
 
 static void tgn10_unlock(struct timing_generator *tg)
@@ -572,11 +571,6 @@ static void tgn10_unlock(struct timing_generator *tg)
 
 	REG_SET(OTG_MASTER_UPDATE_LOCK, 0,
 			OTG_MASTER_UPDATE_LOCK, 0);
-
-	/* why are we waiting here? */
-	REG_WAIT(OTG_DOUBLE_BUFFER_CONTROL,
-			OTG_UPDATE_PENDING, 0,
-			1, 100000);
 }
 
 static void tgn10_get_position(struct timing_generator *tg,
@@ -610,12 +604,28 @@ static bool tgn10_did_triggered_reset_occur(
 	struct timing_generator *tg)
 {
 	struct dcn10_timing_generator *tgn10 = DCN10TG_FROM_TG(tg);
-	uint32_t occurred;
+	uint32_t occurred_force, occurred_vsync;
 
 	REG_GET(OTG_FORCE_COUNT_NOW_CNTL,
-		OTG_FORCE_COUNT_NOW_OCCURRED, &occurred);
+		OTG_FORCE_COUNT_NOW_OCCURRED, &occurred_force);
 
-	return occurred != 0;
+	REG_GET(OTG_VERT_SYNC_CONTROL,
+		OTG_FORCE_VSYNC_NEXT_LINE_OCCURRED, &occurred_vsync);
+
+	return occurred_vsync != 0 || occurred_force != 0;
+}
+
+static void tgn10_disable_reset_trigger(struct timing_generator *tg)
+{
+	struct dcn10_timing_generator *tgn10 = DCN10TG_FROM_TG(tg);
+
+	REG_WRITE(OTG_TRIGA_CNTL, 0);
+
+	REG_SET(OTG_FORCE_COUNT_NOW_CNTL, 0,
+		OTG_FORCE_COUNT_NOW_CLEAR, 1);
+
+	REG_SET(OTG_VERT_SYNC_CONTROL, 0,
+		OTG_FORCE_VSYNC_NEXT_LINE_CLEAR, 1);
 }
 
 static void tgn10_enable_reset_trigger(struct timing_generator *tg, int source_tg_inst)
@@ -652,14 +662,49 @@ static void tgn10_enable_reset_trigger(struct timing_generator *tg, int source_t
 			OTG_FORCE_COUNT_NOW_MODE, 2);
 }
 
-static void tgn10_disable_reset_trigger(struct timing_generator *tg)
+void tgn10_enable_crtc_reset(
+		struct timing_generator *tg,
+		int source_tg_inst,
+		struct crtc_trigger_info *crtc_tp)
 {
 	struct dcn10_timing_generator *tgn10 = DCN10TG_FROM_TG(tg);
+	uint32_t falling_edge = 0;
+	uint32_t rising_edge = 0;
 
-	REG_WRITE(OTG_TRIGA_CNTL, 0);
+	switch (crtc_tp->event) {
 
-	REG_SET(OTG_FORCE_COUNT_NOW_CNTL, 0,
-			OTG_FORCE_COUNT_NOW_CLEAR, 1);
+	case CRTC_EVENT_VSYNC_RISING:
+		rising_edge = 1;
+		break;
+
+	case CRTC_EVENT_VSYNC_FALLING:
+		falling_edge = 1;
+		break;
+	}
+
+	REG_SET_4(OTG_TRIGA_CNTL, 0,
+		 /* vsync signal from selected OTG pipe based
+		  * on OTG_TRIG_SOURCE_PIPE_SELECT setting
+		  */
+		  OTG_TRIGA_SOURCE_SELECT, 20,
+		  OTG_TRIGA_SOURCE_PIPE_SELECT, source_tg_inst,
+		  /* always detect falling edge */
+		  OTG_TRIGA_RISING_EDGE_DETECT_CNTL, rising_edge,
+		  OTG_TRIGA_FALLING_EDGE_DETECT_CNTL, falling_edge);
+
+	switch (crtc_tp->delay) {
+	case TRIGGER_DELAY_NEXT_LINE:
+		REG_SET(OTG_VERT_SYNC_CONTROL, 0,
+				OTG_AUTO_FORCE_VSYNC_MODE, 1);
+		break;
+	case TRIGGER_DELAY_NEXT_PIXEL:
+		REG_SET(OTG_FORCE_COUNT_NOW_CNTL, 0,
+			/* force H count to H_TOTAL and V count to V_TOTAL in
+			 * progressive mode and V_TOTAL-1 in interlaced mode
+			 */
+			OTG_FORCE_COUNT_NOW_MODE, 2);
+		break;
+	}
 }
 
 static void tgn10_wait_for_state(struct timing_generator *tg,
@@ -1154,7 +1199,24 @@ void tgn10_read_otg_state(struct dcn10_timing_generator *tgn10,
 			OPTC_UNDERFLOW_OCCURRED_STATUS, &s->underflow_occurred_status);
 }
 
+static void tgn10_tg_init(struct timing_generator *tg)
+{
+	struct dcn10_timing_generator *tgn10 = DCN10TG_FROM_TG(tg);
 
+	tgn10_set_blank_data_double_buffer(tg, true);
+	REG_UPDATE(OPTC_INPUT_GLOBAL_CONTROL, OPTC_UNDERFLOW_CLEAR, 1);
+}
+
+static bool tgn10_is_tg_enabled(struct timing_generator *tg)
+{
+	struct dcn10_timing_generator *tgn10 = DCN10TG_FROM_TG(tg);
+	uint32_t otg_enabled = 0;
+
+	REG_GET(OTG_CONTROL, OTG_MASTER_EN, &otg_enabled);
+
+	return (otg_enabled != 0);
+
+}
 static const struct timing_generator_funcs dcn10_tg_funcs = {
 		.validate_timing = tgn10_validate_timing,
 		.program_timing = tgn10_program_timing,
@@ -1174,6 +1236,7 @@ static const struct timing_generator_funcs dcn10_tg_funcs = {
 		.set_blank_color = tgn10_program_blank_color,
 		.did_triggered_reset_occur = tgn10_did_triggered_reset_occur,
 		.enable_reset_trigger = tgn10_enable_reset_trigger,
+		.enable_crtc_reset = tgn10_enable_crtc_reset,
 		.disable_reset_trigger = tgn10_disable_reset_trigger,
 		.lock = tgn10_lock,
 		.unlock = tgn10_unlock,
@@ -1182,7 +1245,10 @@ static const struct timing_generator_funcs dcn10_tg_funcs = {
 		.set_static_screen_control = tgn10_set_static_screen_control,
 		.set_test_pattern = tgn10_set_test_pattern,
 		.program_stereo = tgn10_program_stereo,
-		.is_stereo_left_eye = tgn10_is_stereo_left_eye
+		.is_stereo_left_eye = tgn10_is_stereo_left_eye,
+		.set_blank_data_double_buffer = tgn10_set_blank_data_double_buffer,
+		.tg_init = tgn10_tg_init,
+		.is_tg_enabled = tgn10_is_tg_enabled,
 };
 
 void dcn10_timing_generator_init(struct dcn10_timing_generator *tgn10)

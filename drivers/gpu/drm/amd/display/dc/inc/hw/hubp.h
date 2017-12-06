@@ -34,9 +34,12 @@ struct hubp {
 	struct dc_plane_address request_address;
 	struct dc_plane_address current_address;
 	int inst;
+
+	/* run time states */
 	int opp_id;
 	int mpcc_id;
 	struct dc_cursor_attributes curs_attr;
+	bool power_gated;
 };
 
 
@@ -99,6 +102,8 @@ struct hubp_funcs {
 			struct hubp *hubp,
 			const struct dc_cursor_position *pos,
 			const struct dc_cursor_mi_param *param);
+
+	void (*hubp_disconnect)(struct hubp *hubp);
 
 };
 

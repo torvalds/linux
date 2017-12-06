@@ -27,9 +27,19 @@
 
 #include "dm_services_types.h"
 
+struct abm_backlight_registers {
+	unsigned int BL_PWM_CNTL;
+	unsigned int BL_PWM_CNTL2;
+	unsigned int BL_PWM_PERIOD_CNTL;
+	unsigned int LVTMA_PWRSEQ_REF_DIV_BL_PWM_REF_DIV;
+};
+
 struct abm {
 	struct dc_context *ctx;
 	const struct abm_funcs *funcs;
+
+	/* registers setting needs to be saved and restored at InitBacklight */
+	struct abm_backlight_registers stored_backlight_registers;
 };
 
 struct abm_funcs {

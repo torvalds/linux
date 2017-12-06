@@ -96,6 +96,19 @@ struct amdgpu_bo_list_entry;
 /* hardcode that limit for now */
 #define AMDGPU_VA_RESERVED_SIZE			(8ULL << 20)
 
+/* VA hole for 48bit addresses on Vega10 */
+#define AMDGPU_VA_HOLE_START			0x0000800000000000ULL
+#define AMDGPU_VA_HOLE_END			0xffff800000000000ULL
+
+/*
+ * Hardware is programmed as if the hole doesn't exists with start and end
+ * address values.
+ *
+ * This mask is used to remove the upper 16bits of the VA and so come up with
+ * the linear addr value.
+ */
+#define AMDGPU_VA_HOLE_MASK			0x0000ffffffffffffULL
+
 /* max vmids dedicated for process */
 #define AMDGPU_VM_MAX_RESERVED_VMID	1
 
@@ -221,7 +234,6 @@ struct amdgpu_vm_manager {
 
 	uint64_t				max_pfn;
 	uint32_t				num_level;
-	uint64_t				vm_size;
 	uint32_t				block_size;
 	uint32_t				fragment_size;
 	/* vram base address for page table entry  */
@@ -312,10 +324,9 @@ struct amdgpu_bo_va_mapping *amdgpu_vm_bo_lookup_mapping(struct amdgpu_vm *vm,
 							 uint64_t addr);
 void amdgpu_vm_bo_rmv(struct amdgpu_device *adev,
 		      struct amdgpu_bo_va *bo_va);
-void amdgpu_vm_set_fragment_size(struct amdgpu_device *adev,
-				uint32_t fragment_size_default);
-void amdgpu_vm_adjust_size(struct amdgpu_device *adev, uint64_t vm_size,
-				uint32_t fragment_size_default);
+void amdgpu_vm_adjust_size(struct amdgpu_device *adev, uint32_t vm_size,
+			   uint32_t fragment_size_default, unsigned max_level,
+			   unsigned max_bits);
 int amdgpu_vm_ioctl(struct drm_device *dev, void *data, struct drm_file *filp);
 bool amdgpu_vm_need_pipeline_sync(struct amdgpu_ring *ring,
 				  struct amdgpu_job *job);

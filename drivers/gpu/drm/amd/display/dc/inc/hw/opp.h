@@ -284,6 +284,18 @@ struct opp_funcs {
 	void (*opp_set_test_pattern)(
 			struct output_pixel_processor *opp,
 			bool enable);
+
+	void (*opp_dpg_blank_enable)(
+			struct output_pixel_processor *opp,
+			bool enable,
+			const struct tg_color *color,
+			int width,
+			int height);
+
+	void (*opp_convert_pti)(
+		struct output_pixel_processor *opp,
+		bool enable,
+		bool polarity);
 };
 
 #endif

@@ -73,7 +73,7 @@ struct pwl_result_data {
 
 struct pwl_params {
 	struct gamma_curve arr_curve_points[34];
-	struct curve_points arr_points[3];
+	struct curve_points arr_points[2];
 	struct pwl_result_data rgb_resulted[256 + 3];
 	uint32_t hw_points_num;
 };
@@ -131,11 +131,51 @@ struct out_csc_color_matrix {
 	uint16_t regval[12];
 };
 
+struct output_csc_matrix {
+	enum dc_color_space color_space;
+	uint16_t regval[12];
+};
+
+static const struct output_csc_matrix output_csc_matrix[] = {
+	{ COLOR_SPACE_SRGB,
+		{ 0x2000, 0, 0, 0, 0, 0x2000, 0, 0, 0, 0, 0x2000, 0} },
+	{ COLOR_SPACE_SRGB_LIMITED,
+		{ 0x1B67, 0, 0, 0x201, 0, 0x1B67, 0, 0x201, 0, 0, 0x1B67, 0x201} },
+	{ COLOR_SPACE_YCBCR601,
+		{ 0xE04, 0xF444, 0xFDB9, 0x1004, 0x831, 0x1016, 0x320, 0x201, 0xFB45,
+				0xF6B7, 0xE04, 0x1004} },
+	{ COLOR_SPACE_YCBCR709,
+		{ 0xE04, 0xF345, 0xFEB7, 0x1004, 0x5D3, 0x1399, 0x1FA,
+				0x201, 0xFCCA, 0xF533, 0xE04, 0x1004} },
+
+	/* TODO: correct values below */
+	{ COLOR_SPACE_YCBCR601_LIMITED,
+		{ 0xE00, 0xF447, 0xFDB9, 0x1000, 0x991,
+				0x12C9, 0x3A6, 0x200, 0xFB47, 0xF6B9, 0xE00, 0x1000} },
+	{ COLOR_SPACE_YCBCR709_LIMITED,
+		{ 0xE00, 0xF349, 0xFEB7, 0x1000, 0x6CE, 0x16E3,
+				0x24F, 0x200, 0xFCCB, 0xF535, 0xE00, 0x1000} },
+};
+
 enum opp_regamma {
 	OPP_REGAMMA_BYPASS = 0,
 	OPP_REGAMMA_SRGB,
 	OPP_REGAMMA_3_6,
 	OPP_REGAMMA_USER
+};
+
+struct csc_transform {
+	uint16_t matrix[12];
+	bool enable_adjustment;
+};
+
+struct dc_bias_and_scale {
+	uint16_t scale_red;
+	uint16_t bias_red;
+	uint16_t scale_green;
+	uint16_t bias_green;
+	uint16_t scale_blue;
+	uint16_t bias_blue;
 };
 
 #endif /* __DAL_HW_SHARED_H__ */

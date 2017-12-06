@@ -220,6 +220,18 @@ struct dm_atomic_state {
 
 #define to_dm_atomic_state(x) container_of(x, struct dm_atomic_state, base)
 
+struct dm_connector_state {
+	struct drm_connector_state base;
+
+	enum amdgpu_rmx_type scaling;
+	uint8_t underscan_vborder;
+	uint8_t underscan_hborder;
+	bool underscan_enable;
+	struct mod_freesync_user_enable user_enable;
+};
+
+#define to_dm_connector_state(x)\
+	container_of((x), struct dm_connector_state, base)
 
 void amdgpu_dm_connector_funcs_reset(struct drm_connector *connector);
 struct drm_connector_state *

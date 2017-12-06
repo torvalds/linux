@@ -220,8 +220,7 @@ static void dpcd_set_lt_pattern_and_lane_settings(
 		size_in_bytes);
 
 	dm_logger_write(link->ctx->logger, LOG_HW_LINK_TRAINING,
-		"%s:\n %x VS set = %x  PE set = %x \
-		max VS Reached = %x  max PE Reached = %x\n",
+		"%s:\n %x VS set = %x  PE set = %x max VS Reached = %x  max PE Reached = %x\n",
 		__func__,
 		DP_TRAINING_LANE0_SET,
 		dpcd_lane[0].bits.VOLTAGE_SWING_SET,
@@ -558,8 +557,7 @@ static void dpcd_set_lane_settings(
 	*/
 
 	dm_logger_write(link->ctx->logger, LOG_HW_LINK_TRAINING,
-		"%s\n %x VS set = %x  PE set = %x \
-		max VS Reached = %x  max PE Reached = %x\n",
+		"%s\n %x VS set = %x  PE set = %x max VS Reached = %x  max PE Reached = %x\n",
 		__func__,
 		DP_TRAINING_LANE0_SET,
 		dpcd_lane[0].bits.VOLTAGE_SWING_SET,
@@ -872,9 +870,8 @@ static bool perform_clock_recovery_sequence(
 	if (retry_count >= LINK_TRAINING_MAX_CR_RETRY) {
 		ASSERT(0);
 		dm_logger_write(link->ctx->logger, LOG_ERROR,
-			"%s: Link Training Error, could not \
-			 get CR after %d tries. \
-			Possibly voltage swing issue", __func__,
+			"%s: Link Training Error, could not get CR after %d tries. Possibly voltage swing issue",
+			__func__,
 			LINK_TRAINING_MAX_CR_RETRY);
 
 	}
@@ -2127,7 +2124,7 @@ static void get_active_converter_info(
 
 				union dwnstream_port_caps_byte3_hdmi
 					hdmi_caps = {.raw = det_caps[3] };
-				union dwnstream_port_caps_byte1
+				union dwnstream_port_caps_byte2
 					hdmi_color_caps = {.raw = det_caps[2] };
 				link->dpcd_caps.dongle_caps.dp_hdmi_max_pixel_clk =
 					det_caps[1] * 25000;

@@ -24,11 +24,11 @@
 #include "amdgpu_atombios.h"
 #include "nbio_v7_0.h"
 
-#include "vega10/soc15ip.h"
-#include "raven1/NBIO/nbio_7_0_default.h"
-#include "raven1/NBIO/nbio_7_0_offset.h"
-#include "raven1/NBIO/nbio_7_0_sh_mask.h"
-#include "vega10/vega10_enum.h"
+#include "soc15ip.h"
+#include "nbio/nbio_7_0_default.h"
+#include "nbio/nbio_7_0_offset.h"
+#include "nbio/nbio_7_0_sh_mask.h"
+#include "vega10_enum.h"
 
 #define smnNBIF_MGCG_CTRL_LCLK	0x1013a05c
 

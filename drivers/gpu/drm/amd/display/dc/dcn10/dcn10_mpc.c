@@ -335,11 +335,22 @@ void mpc10_update_blend_mode(
 			MPCC_ALPHA_MULTIPLIED_MODE, cfg->pre_multiplied_alpha);
 }
 
+int mpc10_get_opp_id(struct mpc *mpc, int mpcc_id)
+{
+	struct dcn10_mpc *mpc10 = TO_DCN10_MPC(mpc);
+	int opp_id = 0xF;
+
+	REG_GET(MPCC_OPP_ID[mpcc_id], MPCC_OPP_ID, &opp_id);
+
+	return opp_id;
+}
+
 const struct mpc_funcs dcn10_mpc_funcs = {
 		.add = mpc10_mpcc_add,
 		.remove = mpc10_mpcc_remove,
 		.wait_for_idle = mpc10_assert_idle_mpcc,
 		.update_blend_mode = mpc10_update_blend_mode,
+		.get_opp_id = mpc10_get_opp_id,
 };
 
 void dcn10_mpc_construct(struct dcn10_mpc *mpc10,

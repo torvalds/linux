@@ -283,12 +283,6 @@ out:
 	return ret;
 }
 
-void amdgpu_fb_output_poll_changed(struct amdgpu_device *adev)
-{
-	if (adev->mode_info.rfbdev)
-		drm_fb_helper_hotplug_event(&adev->mode_info.rfbdev->helper);
-}
-
 static int amdgpu_fbdev_destroy(struct drm_device *dev, struct amdgpu_fbdev *rfbdev)
 {
 	struct amdgpu_framebuffer *rfb = &rfbdev->rfb;
@@ -392,25 +386,4 @@ bool amdgpu_fbdev_robj_is_fb(struct amdgpu_device *adev, struct amdgpu_bo *robj)
 	if (robj == gem_to_amdgpu_bo(adev->mode_info.rfbdev->rfb.obj))
 		return true;
 	return false;
-}
-
-void amdgpu_fbdev_restore_mode(struct amdgpu_device *adev)
-{
-	struct amdgpu_fbdev *afbdev;
-	struct drm_fb_helper *fb_helper;
-	int ret;
-
-	if (!adev)
-		return;
-
-	afbdev = adev->mode_info.rfbdev;
-
-	if (!afbdev)
-		return;
-
-	fb_helper = &afbdev->helper;
-
-	ret = drm_fb_helper_restore_fbdev_mode_unlocked(fb_helper);
-	if (ret)
-		DRM_DEBUG("failed to restore crtc mode\n");
 }

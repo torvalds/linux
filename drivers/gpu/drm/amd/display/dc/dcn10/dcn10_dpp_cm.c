@@ -117,8 +117,6 @@ static const struct dcn10_input_csc_matrix dcn10_input_csc_matrix[] = {
 						0x2568, 0x43ee, 0xdbb2} }
 };
 
-
-
 static void program_gamut_remap(
 		struct dcn10_dpp *dpp,
 		const uint16_t *regval,
@@ -223,70 +221,6 @@ void dpp1_cm_set_gamut_remap(
 	}
 }
 
-void dpp1_cm_set_output_csc_default(
-		struct dpp *dpp_base,
-		const struct default_adjustment *default_adjust)
-{
-
-	struct dcn10_dpp *dpp = TO_DCN10_DPP(dpp_base);
-	uint32_t ocsc_mode = 0;
-
-	if (default_adjust != NULL) {
-		switch (default_adjust->out_color_space) {
-		case COLOR_SPACE_SRGB:
-		case COLOR_SPACE_2020_RGB_FULLRANGE:
-			ocsc_mode = 0;
-			break;
-		case COLOR_SPACE_SRGB_LIMITED:
-		case COLOR_SPACE_2020_RGB_LIMITEDRANGE:
-			ocsc_mode = 1;
-			break;
-		case COLOR_SPACE_YCBCR601:
-		case COLOR_SPACE_YCBCR601_LIMITED:
-			ocsc_mode = 2;
-			break;
-		case COLOR_SPACE_YCBCR709:
-		case COLOR_SPACE_YCBCR709_LIMITED:
-		case COLOR_SPACE_2020_YCBCR:
-			ocsc_mode = 3;
-			break;
-		case COLOR_SPACE_UNKNOWN:
-		default:
-			break;
-		}
-	}
-
-	REG_SET(CM_OCSC_CONTROL, 0, CM_OCSC_MODE, ocsc_mode);
-
-}
-
-static void dpp1_cm_get_reg_field(
-		struct dcn10_dpp *dpp,
-		struct xfer_func_reg *reg)
-{
-	reg->shifts.exp_region0_lut_offset = dpp->tf_shift->CM_RGAM_RAMA_EXP_REGION0_LUT_OFFSET;
-	reg->masks.exp_region0_lut_offset = dpp->tf_mask->CM_RGAM_RAMA_EXP_REGION0_LUT_OFFSET;
-	reg->shifts.exp_region0_num_segments = dpp->tf_shift->CM_RGAM_RAMA_EXP_REGION0_NUM_SEGMENTS;
-	reg->masks.exp_region0_num_segments = dpp->tf_mask->CM_RGAM_RAMA_EXP_REGION0_NUM_SEGMENTS;
-	reg->shifts.exp_region1_lut_offset = dpp->tf_shift->CM_RGAM_RAMA_EXP_REGION1_LUT_OFFSET;
-	reg->masks.exp_region1_lut_offset = dpp->tf_mask->CM_RGAM_RAMA_EXP_REGION1_LUT_OFFSET;
-	reg->shifts.exp_region1_num_segments = dpp->tf_shift->CM_RGAM_RAMA_EXP_REGION1_NUM_SEGMENTS;
-	reg->masks.exp_region1_num_segments = dpp->tf_mask->CM_RGAM_RAMA_EXP_REGION1_NUM_SEGMENTS;
-
-	reg->shifts.field_region_end = dpp->tf_shift->CM_RGAM_RAMB_EXP_REGION_END_B;
-	reg->masks.field_region_end = dpp->tf_mask->CM_RGAM_RAMB_EXP_REGION_END_B;
-	reg->shifts.field_region_end_slope = dpp->tf_shift->CM_RGAM_RAMB_EXP_REGION_END_SLOPE_B;
-	reg->masks.field_region_end_slope = dpp->tf_mask->CM_RGAM_RAMB_EXP_REGION_END_SLOPE_B;
-	reg->shifts.field_region_end_base = dpp->tf_shift->CM_RGAM_RAMB_EXP_REGION_END_BASE_B;
-	reg->masks.field_region_end_base = dpp->tf_mask->CM_RGAM_RAMB_EXP_REGION_END_BASE_B;
-	reg->shifts.field_region_linear_slope = dpp->tf_shift->CM_RGAM_RAMB_EXP_REGION_LINEAR_SLOPE_B;
-	reg->masks.field_region_linear_slope = dpp->tf_mask->CM_RGAM_RAMB_EXP_REGION_LINEAR_SLOPE_B;
-	reg->shifts.exp_region_start = dpp->tf_shift->CM_RGAM_RAMB_EXP_REGION_START_B;
-	reg->masks.exp_region_start = dpp->tf_mask->CM_RGAM_RAMB_EXP_REGION_START_B;
-	reg->shifts.exp_resion_start_segment = dpp->tf_shift->CM_RGAM_RAMB_EXP_REGION_START_SEGMENT_B;
-	reg->masks.exp_resion_start_segment = dpp->tf_mask->CM_RGAM_RAMB_EXP_REGION_START_SEGMENT_B;
-}
-
 static void dpp1_cm_program_color_matrix(
 		struct dcn10_dpp *dpp,
 		const struct out_csc_color_matrix *tbl_entry)
@@ -328,6 +262,57 @@ static void dpp1_cm_program_color_matrix(
 	}
 }
 
+void dpp1_cm_set_output_csc_default(
+		struct dpp *dpp_base,
+		enum dc_color_space colorspace)
+{
+
+	struct dcn10_dpp *dpp = TO_DCN10_DPP(dpp_base);
+	struct out_csc_color_matrix tbl_entry;
+	int i, j;
+	int arr_size = sizeof(output_csc_matrix) / sizeof(struct output_csc_matrix);
+	uint32_t ocsc_mode = 4;
+
+	tbl_entry.color_space = colorspace;
+
+	for (i = 0; i < arr_size; i++)
+		if (output_csc_matrix[i].color_space == colorspace) {
+			for (j = 0; j < 12; j++)
+				tbl_entry.regval[j] = output_csc_matrix[i].regval[j];
+			break;
+		}
+
+	REG_SET(CM_OCSC_CONTROL, 0, CM_OCSC_MODE, ocsc_mode);
+	dpp1_cm_program_color_matrix(dpp, &tbl_entry);
+}
+
+static void dpp1_cm_get_reg_field(
+		struct dcn10_dpp *dpp,
+		struct xfer_func_reg *reg)
+{
+	reg->shifts.exp_region0_lut_offset = dpp->tf_shift->CM_RGAM_RAMA_EXP_REGION0_LUT_OFFSET;
+	reg->masks.exp_region0_lut_offset = dpp->tf_mask->CM_RGAM_RAMA_EXP_REGION0_LUT_OFFSET;
+	reg->shifts.exp_region0_num_segments = dpp->tf_shift->CM_RGAM_RAMA_EXP_REGION0_NUM_SEGMENTS;
+	reg->masks.exp_region0_num_segments = dpp->tf_mask->CM_RGAM_RAMA_EXP_REGION0_NUM_SEGMENTS;
+	reg->shifts.exp_region1_lut_offset = dpp->tf_shift->CM_RGAM_RAMA_EXP_REGION1_LUT_OFFSET;
+	reg->masks.exp_region1_lut_offset = dpp->tf_mask->CM_RGAM_RAMA_EXP_REGION1_LUT_OFFSET;
+	reg->shifts.exp_region1_num_segments = dpp->tf_shift->CM_RGAM_RAMA_EXP_REGION1_NUM_SEGMENTS;
+	reg->masks.exp_region1_num_segments = dpp->tf_mask->CM_RGAM_RAMA_EXP_REGION1_NUM_SEGMENTS;
+
+	reg->shifts.field_region_end = dpp->tf_shift->CM_RGAM_RAMB_EXP_REGION_END_B;
+	reg->masks.field_region_end = dpp->tf_mask->CM_RGAM_RAMB_EXP_REGION_END_B;
+	reg->shifts.field_region_end_slope = dpp->tf_shift->CM_RGAM_RAMB_EXP_REGION_END_SLOPE_B;
+	reg->masks.field_region_end_slope = dpp->tf_mask->CM_RGAM_RAMB_EXP_REGION_END_SLOPE_B;
+	reg->shifts.field_region_end_base = dpp->tf_shift->CM_RGAM_RAMB_EXP_REGION_END_BASE_B;
+	reg->masks.field_region_end_base = dpp->tf_mask->CM_RGAM_RAMB_EXP_REGION_END_BASE_B;
+	reg->shifts.field_region_linear_slope = dpp->tf_shift->CM_RGAM_RAMB_EXP_REGION_LINEAR_SLOPE_B;
+	reg->masks.field_region_linear_slope = dpp->tf_mask->CM_RGAM_RAMB_EXP_REGION_LINEAR_SLOPE_B;
+	reg->shifts.exp_region_start = dpp->tf_shift->CM_RGAM_RAMB_EXP_REGION_START_B;
+	reg->masks.exp_region_start = dpp->tf_mask->CM_RGAM_RAMB_EXP_REGION_START_B;
+	reg->shifts.exp_resion_start_segment = dpp->tf_shift->CM_RGAM_RAMB_EXP_REGION_START_SEGMENT_B;
+	reg->masks.exp_resion_start_segment = dpp->tf_mask->CM_RGAM_RAMB_EXP_REGION_START_SEGMENT_B;
+}
+
 void dpp1_cm_set_output_csc_adjustment(
 		struct dpp *dpp_base,
 		const struct out_csc_color_matrix *tbl_entry)
@@ -367,34 +352,31 @@ void dpp1_cm_set_output_csc_adjustment(
 	dpp1_cm_program_color_matrix(dpp, tbl_entry);
 }
 
-void dpp1_cm_power_on_regamma_lut(
-	struct dpp *dpp_base,
-	bool power_on)
+void dpp1_cm_power_on_regamma_lut(struct dpp *dpp_base,
+				  bool power_on)
 {
 	struct dcn10_dpp *dpp = TO_DCN10_DPP(dpp_base);
+
 	REG_SET(CM_MEM_PWR_CTRL, 0,
-			RGAM_MEM_PWR_FORCE, power_on == true ? 0:1);
+		RGAM_MEM_PWR_FORCE, power_on == true ? 0:1);
 
 }
 
-void dpp1_cm_program_regamma_lut(
-		struct dpp *dpp_base,
-		const struct pwl_result_data *rgb,
-		uint32_t num)
+void dpp1_cm_program_regamma_lut(struct dpp *dpp_base,
+				 const struct pwl_result_data *rgb,
+				 uint32_t num)
 {
 	uint32_t i;
 	struct dcn10_dpp *dpp = TO_DCN10_DPP(dpp_base);
+
 	for (i = 0 ; i < num; i++) {
 		REG_SET(CM_RGAM_LUT_DATA, 0, CM_RGAM_LUT_DATA, rgb[i].red_reg);
 		REG_SET(CM_RGAM_LUT_DATA, 0, CM_RGAM_LUT_DATA, rgb[i].green_reg);
 		REG_SET(CM_RGAM_LUT_DATA, 0, CM_RGAM_LUT_DATA, rgb[i].blue_reg);
 
-		REG_SET(CM_RGAM_LUT_DATA, 0,
-				CM_RGAM_LUT_DATA, rgb[i].delta_red_reg);
-		REG_SET(CM_RGAM_LUT_DATA, 0,
-				CM_RGAM_LUT_DATA, rgb[i].delta_green_reg);
-		REG_SET(CM_RGAM_LUT_DATA, 0,
-				CM_RGAM_LUT_DATA, rgb[i].delta_blue_reg);
+		REG_SET(CM_RGAM_LUT_DATA, 0, CM_RGAM_LUT_DATA, rgb[i].delta_red_reg);
+		REG_SET(CM_RGAM_LUT_DATA, 0, CM_RGAM_LUT_DATA, rgb[i].delta_green_reg);
+		REG_SET(CM_RGAM_LUT_DATA, 0, CM_RGAM_LUT_DATA, rgb[i].delta_blue_reg);
 
 	}
 
@@ -473,7 +455,8 @@ void dpp1_cm_program_regamma_lutb_settings(
 void dpp1_program_input_csc(
 		struct dpp *dpp_base,
 		enum dc_color_space color_space,
-		enum dcn10_input_csc_select select)
+		enum dcn10_input_csc_select select,
+		const struct out_csc_color_matrix *tbl_entry)
 {
 	struct dcn10_dpp *dpp = TO_DCN10_DPP(dpp_base);
 	int i;
@@ -487,15 +470,19 @@ void dpp1_program_input_csc(
 		return;
 	}
 
-	for (i = 0; i < arr_size; i++)
-		if (dcn10_input_csc_matrix[i].color_space == color_space) {
-			regval = dcn10_input_csc_matrix[i].regval;
-			break;
-		}
+	if (tbl_entry == NULL) {
+		for (i = 0; i < arr_size; i++)
+			if (dcn10_input_csc_matrix[i].color_space == color_space) {
+				regval = dcn10_input_csc_matrix[i].regval;
+				break;
+			}
 
-	if (regval == NULL) {
-		BREAK_TO_DEBUGGER();
-		return;
+		if (regval == NULL) {
+			BREAK_TO_DEBUGGER();
+			return;
+		}
+	} else {
+		regval = tbl_entry->regval;
 	}
 
 	if (select == INPUT_CSC_SELECT_COMA)
@@ -528,6 +515,27 @@ void dpp1_program_input_csc(
 				regval,
 				&gam_regs);
 	}
+}
+
+//keep here for now, decide multi dce support later
+void dpp1_program_bias_and_scale(
+	struct dpp *dpp_base,
+	struct dc_bias_and_scale *params)
+{
+	struct dcn10_dpp *dpp = TO_DCN10_DPP(dpp_base);
+
+	REG_SET_2(CM_BNS_VALUES_R, 0,
+		CM_BNS_SCALE_R, params->scale_red,
+		CM_BNS_BIAS_R, params->bias_red);
+
+	REG_SET_2(CM_BNS_VALUES_G, 0,
+		CM_BNS_SCALE_G, params->scale_green,
+		CM_BNS_BIAS_G, params->bias_green);
+
+	REG_SET_2(CM_BNS_VALUES_B, 0,
+		CM_BNS_SCALE_B, params->scale_blue,
+		CM_BNS_BIAS_B, params->bias_blue);
+
 }
 
 /*program de gamma RAM B*/

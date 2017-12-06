@@ -34,18 +34,18 @@
 #include "atom.h"
 #include "amd_pcie.h"
 
-#include "vega10/soc15ip.h"
-#include "vega10/UVD/uvd_7_0_offset.h"
-#include "vega10/GC/gc_9_0_offset.h"
-#include "vega10/GC/gc_9_0_sh_mask.h"
-#include "vega10/SDMA0/sdma0_4_0_offset.h"
-#include "vega10/SDMA1/sdma1_4_0_offset.h"
-#include "vega10/HDP/hdp_4_0_offset.h"
-#include "vega10/HDP/hdp_4_0_sh_mask.h"
-#include "vega10/MP/mp_9_0_offset.h"
-#include "vega10/MP/mp_9_0_sh_mask.h"
-#include "vega10/SMUIO/smuio_9_0_offset.h"
-#include "vega10/SMUIO/smuio_9_0_sh_mask.h"
+#include "soc15ip.h"
+#include "uvd/uvd_7_0_offset.h"
+#include "gc/gc_9_0_offset.h"
+#include "gc/gc_9_0_sh_mask.h"
+#include "sdma0/sdma0_4_0_offset.h"
+#include "sdma1/sdma1_4_0_offset.h"
+#include "hdp/hdp_4_0_offset.h"
+#include "hdp/hdp_4_0_sh_mask.h"
+#include "mp/mp_9_0_offset.h"
+#include "mp/mp_9_0_sh_mask.h"
+#include "smuio/smuio_9_0_offset.h"
+#include "smuio/smuio_9_0_sh_mask.h"
 
 #include "soc15.h"
 #include "soc15_common.h"
@@ -265,12 +265,12 @@ static void soc15_init_golden_registers(struct amdgpu_device *adev)
 	case CHIP_VEGA10:
 		amdgpu_program_register_sequence(adev,
 						 vega10_golden_init,
-						 (const u32)ARRAY_SIZE(vega10_golden_init));
+						 ARRAY_SIZE(vega10_golden_init));
 		break;
 	case CHIP_RAVEN:
 		amdgpu_program_register_sequence(adev,
 						 raven_golden_init,
-						 (const u32)ARRAY_SIZE(raven_golden_init));
+						 ARRAY_SIZE(raven_golden_init));
 		break;
 	default:
 		break;

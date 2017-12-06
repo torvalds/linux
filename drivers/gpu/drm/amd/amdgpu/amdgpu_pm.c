@@ -30,7 +30,6 @@
 #include <linux/hwmon.h>
 #include <linux/hwmon-sysfs.h>
 
-#include "amd_powerplay.h"
 
 static int amdgpu_debugfs_pm_init(struct amdgpu_device *adev);
 

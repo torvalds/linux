@@ -27,15 +27,15 @@
 #include "amdgpu_ucode.h"
 #include "amdgpu_trace.h"
 
-#include "vega10/soc15ip.h"
-#include "vega10/SDMA0/sdma0_4_0_offset.h"
-#include "vega10/SDMA0/sdma0_4_0_sh_mask.h"
-#include "vega10/SDMA1/sdma1_4_0_offset.h"
-#include "vega10/SDMA1/sdma1_4_0_sh_mask.h"
-#include "vega10/MMHUB/mmhub_1_0_offset.h"
-#include "vega10/MMHUB/mmhub_1_0_sh_mask.h"
-#include "vega10/HDP/hdp_4_0_offset.h"
-#include "raven1/SDMA0/sdma0_4_1_default.h"
+#include "soc15ip.h"
+#include "sdma0/sdma0_4_0_offset.h"
+#include "sdma0/sdma0_4_0_sh_mask.h"
+#include "sdma1/sdma1_4_0_offset.h"
+#include "sdma1/sdma1_4_0_sh_mask.h"
+#include "mmhub/mmhub_1_0_offset.h"
+#include "mmhub/mmhub_1_0_sh_mask.h"
+#include "hdp/hdp_4_0_offset.h"
+#include "sdma0/sdma0_4_1_default.h"
 
 #include "soc15_common.h"
 #include "soc15.h"
@@ -132,18 +132,18 @@ static void sdma_v4_0_init_golden_registers(struct amdgpu_device *adev)
 	case CHIP_VEGA10:
 		amdgpu_program_register_sequence(adev,
 						 golden_settings_sdma_4,
-						 (const u32)ARRAY_SIZE(golden_settings_sdma_4));
+						 ARRAY_SIZE(golden_settings_sdma_4));
 		amdgpu_program_register_sequence(adev,
 						 golden_settings_sdma_vg10,
-						 (const u32)ARRAY_SIZE(golden_settings_sdma_vg10));
+						 ARRAY_SIZE(golden_settings_sdma_vg10));
 		break;
 	case CHIP_RAVEN:
 		amdgpu_program_register_sequence(adev,
 						 golden_settings_sdma_4_1,
-						 (const u32)ARRAY_SIZE(golden_settings_sdma_4_1));
+						 ARRAY_SIZE(golden_settings_sdma_4_1));
 		amdgpu_program_register_sequence(adev,
 						 golden_settings_sdma_rv1,
-						 (const u32)ARRAY_SIZE(golden_settings_sdma_rv1));
+						 ARRAY_SIZE(golden_settings_sdma_rv1));
 		break;
 	default:
 		break;
@@ -919,7 +919,7 @@ static int sdma_v4_0_ring_test_ring(struct amdgpu_ring *ring)
 	}
 
 	if (i < adev->usec_timeout) {
-		DRM_INFO("ring test on %d succeeded in %d usecs\n", ring->idx, i);
+		DRM_DEBUG("ring test on %d succeeded in %d usecs\n", ring->idx, i);
 	} else {
 		DRM_ERROR("amdgpu: ring %d test failed (0x%08X)\n",
 			  ring->idx, tmp);
@@ -990,7 +990,7 @@ static int sdma_v4_0_ring_test_ib(struct amdgpu_ring *ring, long timeout)
 	}
 	tmp = le32_to_cpu(adev->wb.wb[index]);
 	if (tmp == 0xDEADBEEF) {
-		DRM_INFO("ib test on ring %d succeeded\n", ring->idx);
+		DRM_DEBUG("ib test on ring %d succeeded\n", ring->idx);
 		r = 0;
 	} else {
 		DRM_ERROR("amdgpu: ib test failed (0x%08X)\n", tmp);

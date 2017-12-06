@@ -38,7 +38,6 @@
 	oppn10->base.ctx
 
 
-
 /************* FORMATTER ************/
 
 /**
@@ -47,7 +46,7 @@
  *	2) enable truncation
  *	3) HW remove 12bit FMT support for DCE11 power saving reason.
  */
-static void set_truncation(
+static void opp1_set_truncation(
 		struct dcn10_opp *oppn10,
 		const struct bit_depth_reduction_params *params)
 {
@@ -57,7 +56,7 @@ static void set_truncation(
 		FMT_TRUNCATE_MODE, params->flags.TRUNCATE_MODE);
 }
 
-static void set_spatial_dither(
+static void opp1_set_spatial_dither(
 	struct dcn10_opp *oppn10,
 	const struct bit_depth_reduction_params *params)
 {
@@ -136,14 +135,14 @@ static void set_spatial_dither(
 			FMT_RGB_RANDOM_ENABLE, params->flags.RGB_RANDOM);
 }
 
-static void oppn10_program_bit_depth_reduction(
+void opp1_program_bit_depth_reduction(
 	struct output_pixel_processor *opp,
 	const struct bit_depth_reduction_params *params)
 {
 	struct dcn10_opp *oppn10 = TO_DCN10_OPP(opp);
 
-	set_truncation(oppn10, params);
-	set_spatial_dither(oppn10, params);
+	opp1_set_truncation(oppn10, params);
+	opp1_set_spatial_dither(oppn10, params);
 	/* TODO
 	 * set_temporal_dither(oppn10, params);
 	 */
@@ -156,7 +155,7 @@ static void oppn10_program_bit_depth_reduction(
  *		0: RGB 4:4:4 or YCbCr 4:4:4 or YOnly
  *		1: YCbCr 4:2:2
  */
-static void set_pixel_encoding(
+static void opp1_set_pixel_encoding(
 	struct dcn10_opp *oppn10,
 	const struct clamping_and_pixel_encoding_params *params)
 {
@@ -186,7 +185,7 @@ static void set_pixel_encoding(
  *		7 for programable
  *	2) Enable clamp if Limited range requested
  */
-static void opp_set_clamping(
+static void opp1_set_clamping(
 	struct dcn10_opp *oppn10,
 	const struct clamping_and_pixel_encoding_params *params)
 {
@@ -224,7 +223,7 @@ static void opp_set_clamping(
 
 }
 
-static void oppn10_set_dyn_expansion(
+void opp1_set_dyn_expansion(
 	struct output_pixel_processor *opp,
 	enum dc_color_space color_sp,
 	enum dc_color_depth color_dpth,
@@ -264,17 +263,17 @@ static void oppn10_set_dyn_expansion(
 	}
 }
 
-static void opp_program_clamping_and_pixel_encoding(
+static void opp1_program_clamping_and_pixel_encoding(
 	struct output_pixel_processor *opp,
 	const struct clamping_and_pixel_encoding_params *params)
 {
 	struct dcn10_opp *oppn10 = TO_DCN10_OPP(opp);
 
-	opp_set_clamping(oppn10, params);
-	set_pixel_encoding(oppn10, params);
+	opp1_set_clamping(oppn10, params);
+	opp1_set_pixel_encoding(oppn10, params);
 }
 
-static void oppn10_program_fmt(
+void opp1_program_fmt(
 	struct output_pixel_processor *opp,
 	struct bit_depth_reduction_params *fmt_bit_depth,
 	struct clamping_and_pixel_encoding_params *clamping)
@@ -286,20 +285,18 @@ static void oppn10_program_fmt(
 
 	/* dithering is affected by <CrtcSourceSelect>, hence should be
 	 * programmed afterwards */
-	oppn10_program_bit_depth_reduction(
+	opp1_program_bit_depth_reduction(
 		opp,
 		fmt_bit_depth);
 
-	opp_program_clamping_and_pixel_encoding(
+	opp1_program_clamping_and_pixel_encoding(
 		opp,
 		clamping);
 
 	return;
 }
 
-
-
-static void oppn10_set_stereo_polarity(
+void opp1_set_stereo_polarity(
 		struct output_pixel_processor *opp,
 		bool enable, bool rightEyePolarity)
 {
@@ -312,18 +309,18 @@ static void oppn10_set_stereo_polarity(
 /* Constructor, Destructor               */
 /*****************************************/
 
-static void dcn10_opp_destroy(struct output_pixel_processor **opp)
+void opp1_destroy(struct output_pixel_processor **opp)
 {
 	kfree(TO_DCN10_OPP(*opp));
 	*opp = NULL;
 }
 
 static struct opp_funcs dcn10_opp_funcs = {
-		.opp_set_dyn_expansion = oppn10_set_dyn_expansion,
-		.opp_program_fmt = oppn10_program_fmt,
-		.opp_program_bit_depth_reduction = oppn10_program_bit_depth_reduction,
-		.opp_set_stereo_polarity = oppn10_set_stereo_polarity,
-		.opp_destroy = dcn10_opp_destroy
+		.opp_set_dyn_expansion = opp1_set_dyn_expansion,
+		.opp_program_fmt = opp1_program_fmt,
+		.opp_program_bit_depth_reduction = opp1_program_bit_depth_reduction,
+		.opp_set_stereo_polarity = opp1_set_stereo_polarity,
+		.opp_destroy = opp1_destroy
 };
 
 void dcn10_opp_construct(struct dcn10_opp *oppn10,
@@ -333,16 +330,9 @@ void dcn10_opp_construct(struct dcn10_opp *oppn10,
 	const struct dcn10_opp_shift *opp_shift,
 	const struct dcn10_opp_mask *opp_mask)
 {
-	int i;
 	oppn10->base.ctx = ctx;
 	oppn10->base.inst = inst;
 	oppn10->base.funcs = &dcn10_opp_funcs;
-
-	oppn10->base.mpc_tree.dpp[0] = inst;
-	oppn10->base.mpc_tree.mpcc[0] = inst;
-	oppn10->base.mpc_tree.num_pipes = 1;
-	for (i = 0; i < MAX_PIPES; i++)
-		oppn10->base.mpcc_disconnect_pending[i] = false;
 
 	oppn10->regs = regs;
 	oppn10->opp_shift = opp_shift;

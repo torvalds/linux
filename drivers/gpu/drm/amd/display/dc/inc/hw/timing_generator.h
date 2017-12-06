@@ -158,7 +158,11 @@ struct timing_generator_funcs {
 							const struct dcp_gsl_params *gsl_params);
 	void (*unlock)(struct timing_generator *tg);
 	void (*lock)(struct timing_generator *tg);
-	void (*enable_reset_trigger)(struct timing_generator *tg, int source_tg_inst);
+	void (*enable_reset_trigger)(struct timing_generator *tg,
+				     int source_tg_inst);
+	void (*enable_crtc_reset)(struct timing_generator *tg,
+				  int source_tg_inst,
+				  struct crtc_trigger_info *crtc_tp);
 	void (*disable_reset_trigger)(struct timing_generator *tg);
 	void (*tear_down_global_swap_lock)(struct timing_generator *tg);
 	void (*enable_advanced_request)(struct timing_generator *tg,
@@ -178,6 +182,11 @@ struct timing_generator_funcs {
 	void (*program_stereo)(struct timing_generator *tg,
 		const struct dc_crtc_timing *timing, struct crtc_stereo_flags *flags);
 	bool (*is_stereo_left_eye)(struct timing_generator *tg);
+
+	void (*set_blank_data_double_buffer)(struct timing_generator *tg, bool enable);
+
+	void (*tg_init)(struct timing_generator *tg);
+	bool (*is_tg_enabled)(struct timing_generator *tg);
 };
 
 #endif

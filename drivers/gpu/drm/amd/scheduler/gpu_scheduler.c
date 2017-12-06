@@ -28,8 +28,13 @@
 #include <drm/drmP.h>
 #include "gpu_scheduler.h"
 
+#include "spsc_queue.h"
+
 #define CREATE_TRACE_POINTS
 #include "gpu_sched_trace.h"
+
+#define to_amd_sched_job(sched_job)		\
+		container_of((sched_job), struct amd_sched_job, queue_node)
 
 static bool amd_sched_entity_is_ready(struct amd_sched_entity *entity);
 static void amd_sched_wakeup(struct amd_gpu_scheduler *sched);
@@ -121,10 +126,8 @@ amd_sched_rq_select_entity(struct amd_sched_rq *rq)
 int amd_sched_entity_init(struct amd_gpu_scheduler *sched,
 			  struct amd_sched_entity *entity,
 			  struct amd_sched_rq *rq,
-			  uint32_t jobs)
+			  uint32_t jobs, atomic_t *guilty)
 {
-	int r;
-
 	if (!(sched && entity && rq))
 		return -EINVAL;
 
@@ -132,12 +135,11 @@ int amd_sched_entity_init(struct amd_gpu_scheduler *sched,
 	INIT_LIST_HEAD(&entity->list);
 	entity->rq = rq;
 	entity->sched = sched;
+	entity->guilty = guilty;
 
 	spin_lock_init(&entity->rq_lock);
 	spin_lock_init(&entity->queue_lock);
-	r = kfifo_alloc(&entity->job_queue, jobs * sizeof(void *), GFP_KERNEL);
-	if (r)
-		return r;
+	spsc_queue_init(&entity->job_queue);
 
 	atomic_set(&entity->fence_seq, 0);
 	entity->fence_context = dma_fence_context_alloc(2);
@@ -170,7 +172,7 @@ static bool amd_sched_entity_is_initialized(struct amd_gpu_scheduler *sched,
 static bool amd_sched_entity_is_idle(struct amd_sched_entity *entity)
 {
 	rmb();
-	if (kfifo_is_empty(&entity->job_queue))
+	if (spsc_queue_peek(&entity->job_queue) == NULL)
 		return true;
 
 	return false;
@@ -185,7 +187,7 @@ static bool amd_sched_entity_is_idle(struct amd_sched_entity *entity)
  */
 static bool amd_sched_entity_is_ready(struct amd_sched_entity *entity)
 {
-	if (kfifo_is_empty(&entity->job_queue))
+	if (spsc_queue_peek(&entity->job_queue) == NULL)
 		return false;
 
 	if (READ_ONCE(entity->dependency))
@@ -227,17 +229,23 @@ void amd_sched_entity_fini(struct amd_gpu_scheduler *sched,
 		 */
 		kthread_park(sched->thread);
 		kthread_unpark(sched->thread);
-		while (kfifo_out(&entity->job_queue, &job, sizeof(job))) {
+		if (entity->dependency) {
+			dma_fence_remove_callback(entity->dependency,
+						  &entity->cb);
+			dma_fence_put(entity->dependency);
+			entity->dependency = NULL;
+		}
+
+		while ((job = to_amd_sched_job(spsc_queue_pop(&entity->job_queue)))) {
 			struct amd_sched_fence *s_fence = job->s_fence;
 			amd_sched_fence_scheduled(s_fence);
 			dma_fence_set_error(&s_fence->finished, -ESRCH);
 			amd_sched_fence_finished(s_fence);
+			WARN_ON(s_fence->parent);
 			dma_fence_put(&s_fence->finished);
 			sched->ops->free_job(job);
 		}
-
 	}
-	kfifo_free(&entity->job_queue);
 }
 
 static void amd_sched_entity_wakeup(struct dma_fence *f, struct dma_fence_cb *cb)
@@ -332,40 +340,44 @@ static bool amd_sched_entity_add_dependency_cb(struct amd_sched_entity *entity)
 }
 
 static struct amd_sched_job *
-amd_sched_entity_peek_job(struct amd_sched_entity *entity)
+amd_sched_entity_pop_job(struct amd_sched_entity *entity)
 {
 	struct amd_gpu_scheduler *sched = entity->sched;
-	struct amd_sched_job *sched_job;
+	struct amd_sched_job *sched_job = to_amd_sched_job(
+						spsc_queue_peek(&entity->job_queue));
 
-	if (!kfifo_out_peek(&entity->job_queue, &sched_job, sizeof(sched_job)))
+	if (!sched_job)
 		return NULL;
 
-	while ((entity->dependency = sched->ops->dependency(sched_job)))
+	while ((entity->dependency = sched->ops->dependency(sched_job, entity)))
 		if (amd_sched_entity_add_dependency_cb(entity))
 			return NULL;
 
+	/* skip jobs from entity that marked guilty */
+	if (entity->guilty && atomic_read(entity->guilty))
+		dma_fence_set_error(&sched_job->s_fence->finished, -ECANCELED);
+
+	spsc_queue_pop(&entity->job_queue);
 	return sched_job;
 }
 
 /**
- * Helper to submit a job to the job queue
+ * Submit a job to the job queue
  *
  * @sched_job		The pointer to job required to submit
  *
- * Returns true if we could submit the job.
+ * Returns 0 for success, negative error code otherwise.
  */
-static bool amd_sched_entity_in(struct amd_sched_job *sched_job)
+void amd_sched_entity_push_job(struct amd_sched_job *sched_job,
+			       struct amd_sched_entity *entity)
 {
 	struct amd_gpu_scheduler *sched = sched_job->sched;
-	struct amd_sched_entity *entity = sched_job->s_entity;
-	bool added, first = false;
+	bool first = false;
+
+	trace_amd_sched_job(sched_job, entity);
 
 	spin_lock(&entity->queue_lock);
-	added = kfifo_in(&entity->job_queue, &sched_job,
-			sizeof(sched_job)) == sizeof(sched_job);
-
-	if (added && kfifo_len(&entity->job_queue) == sizeof(sched_job))
-		first = true;
+	first = spsc_queue_push(&entity->job_queue, &sched_job->queue_node);
 
 	spin_unlock(&entity->queue_lock);
 
@@ -377,7 +389,6 @@ static bool amd_sched_entity_in(struct amd_sched_job *sched_job)
 		spin_unlock(&entity->rq_lock);
 		amd_sched_wakeup(sched);
 	}
-	return added;
 }
 
 /* job_finish is called after hw fence signaled
@@ -442,9 +453,11 @@ static void amd_sched_job_timedout(struct work_struct *work)
 	job->sched->ops->timedout_job(job);
 }
 
-void amd_sched_hw_job_reset(struct amd_gpu_scheduler *sched)
+void amd_sched_hw_job_reset(struct amd_gpu_scheduler *sched, struct amd_sched_job *bad)
 {
 	struct amd_sched_job *s_job;
+	struct amd_sched_entity *entity, *tmp;
+	int i;;
 
 	spin_lock(&sched->job_list_lock);
 	list_for_each_entry_reverse(s_job, &sched->ring_mirror_list, node) {
@@ -457,6 +470,30 @@ void amd_sched_hw_job_reset(struct amd_gpu_scheduler *sched)
 		}
 	}
 	spin_unlock(&sched->job_list_lock);
+
+	if (bad && bad->s_priority != AMD_SCHED_PRIORITY_KERNEL) {
+		atomic_inc(&bad->karma);
+		/* don't increase @bad's karma if it's from KERNEL RQ,
+		 * becuase sometimes GPU hang would cause kernel jobs (like VM updating jobs)
+		 * corrupt but keep in mind that kernel jobs always considered good.
+		 */
+		for (i = AMD_SCHED_PRIORITY_MIN; i < AMD_SCHED_PRIORITY_KERNEL; i++ ) {
+			struct amd_sched_rq *rq = &sched->sched_rq[i];
+
+			spin_lock(&rq->lock);
+			list_for_each_entry_safe(entity, tmp, &rq->entities, list) {
+				if (bad->s_fence->scheduled.context == entity->fence_context) {
+				    if (atomic_read(&bad->karma) > bad->sched->hang_limit)
+						if (entity->guilty)
+							atomic_set(entity->guilty, 1);
+					break;
+				}
+			}
+			spin_unlock(&rq->lock);
+			if (&entity->list != &rq->entities)
+				break;
+		}
+	}
 }
 
 void amd_sched_job_kickout(struct amd_sched_job *s_job)
@@ -471,6 +508,7 @@ void amd_sched_job_kickout(struct amd_sched_job *s_job)
 void amd_sched_job_recovery(struct amd_gpu_scheduler *sched)
 {
 	struct amd_sched_job *s_job, *tmp;
+	bool found_guilty = false;
 	int r;
 
 	spin_lock(&sched->job_list_lock);
@@ -482,6 +520,15 @@ void amd_sched_job_recovery(struct amd_gpu_scheduler *sched)
 	list_for_each_entry_safe(s_job, tmp, &sched->ring_mirror_list, node) {
 		struct amd_sched_fence *s_fence = s_job->s_fence;
 		struct dma_fence *fence;
+		uint64_t guilty_context;
+
+		if (!found_guilty && atomic_read(&s_job->karma) > sched->hang_limit) {
+			found_guilty = true;
+			guilty_context = s_job->s_fence->scheduled.context;
+		}
+
+		if (found_guilty && s_job->s_fence->scheduled.context == guilty_context)
+			dma_fence_set_error(&s_fence->finished, -ECANCELED);
 
 		spin_unlock(&sched->job_list_lock);
 		fence = sched->ops->run_job(s_job);
@@ -497,28 +544,11 @@ void amd_sched_job_recovery(struct amd_gpu_scheduler *sched)
 					  r);
 			dma_fence_put(fence);
 		} else {
-			DRM_ERROR("Failed to run job!\n");
 			amd_sched_process_job(NULL, &s_fence->cb);
 		}
 		spin_lock(&sched->job_list_lock);
 	}
 	spin_unlock(&sched->job_list_lock);
-}
-
-/**
- * Submit a job to the job queue
- *
- * @sched_job		The pointer to job required to submit
- *
- * Returns 0 for success, negative error code otherwise.
- */
-void amd_sched_entity_push_job(struct amd_sched_job *sched_job)
-{
-	struct amd_sched_entity *entity = sched_job->s_entity;
-
-	trace_amd_sched_job(sched_job);
-	wait_event(entity->sched->job_scheduled,
-		   amd_sched_entity_in(sched_job));
 }
 
 /* init a sched_job with basic field */
@@ -528,7 +558,7 @@ int amd_sched_job_init(struct amd_sched_job *job,
 		       void *owner)
 {
 	job->sched = sched;
-	job->s_entity = entity;
+	job->s_priority = entity->rq - sched->sched_rq;
 	job->s_fence = amd_sched_fence_create(entity, owner);
 	if (!job->s_fence)
 		return -ENOMEM;
@@ -610,7 +640,7 @@ static int amd_sched_main(void *param)
 {
 	struct sched_param sparam = {.sched_priority = 1};
 	struct amd_gpu_scheduler *sched = (struct amd_gpu_scheduler *)param;
-	int r, count;
+	int r;
 
 	sched_setscheduler(current, SCHED_FIFO, &sparam);
 
@@ -628,7 +658,7 @@ static int amd_sched_main(void *param)
 		if (!entity)
 			continue;
 
-		sched_job = amd_sched_entity_peek_job(entity);
+		sched_job = amd_sched_entity_pop_job(entity);
 		if (!sched_job)
 			continue;
 
@@ -651,13 +681,9 @@ static int amd_sched_main(void *param)
 					  r);
 			dma_fence_put(fence);
 		} else {
-			DRM_ERROR("Failed to run job!\n");
 			amd_sched_process_job(NULL, &s_fence->cb);
 		}
 
-		count = kfifo_out(&entity->job_queue, &sched_job,
-				sizeof(sched_job));
-		WARN_ON(count != sizeof(sched_job));
 		wake_up(&sched->job_scheduled);
 	}
 	return 0;
@@ -675,13 +701,17 @@ static int amd_sched_main(void *param)
 */
 int amd_sched_init(struct amd_gpu_scheduler *sched,
 		   const struct amd_sched_backend_ops *ops,
-		   unsigned hw_submission, long timeout, const char *name)
+		   unsigned hw_submission,
+		   unsigned hang_limit,
+		   long timeout,
+		   const char *name)
 {
 	int i;
 	sched->ops = ops;
 	sched->hw_submission_limit = hw_submission;
 	sched->name = name;
 	sched->timeout = timeout;
+	sched->hang_limit = hang_limit;
 	for (i = AMD_SCHED_PRIORITY_MIN; i < AMD_SCHED_PRIORITY_MAX; i++)
 		amd_sched_rq_init(&sched->sched_rq[i]);
 

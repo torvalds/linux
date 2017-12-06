@@ -25,9 +25,7 @@
 
 struct drm_framebuffer *
 amdgpu_user_framebuffer_create(struct drm_device *dev,
-						       struct drm_file *file_priv,
-							   const struct drm_mode_fb_cmd2 *mode_cmd);
-
-void amdgpu_output_poll_changed(struct drm_device *dev);
+			       struct drm_file *file_priv,
+			       const struct drm_mode_fb_cmd2 *mode_cmd);
 
 #endif

@@ -35,6 +35,7 @@
 struct amdgpu_sync_entry {
 	struct hlist_node	node;
 	struct dma_fence	*fence;
+	bool	explicit;
 };
 
 static struct kmem_cache *amdgpu_sync_slab;
@@ -141,7 +142,7 @@ static bool amdgpu_sync_add_later(struct amdgpu_sync *sync, struct dma_fence *f)
  *
  */
 int amdgpu_sync_fence(struct amdgpu_device *adev, struct amdgpu_sync *sync,
-		      struct dma_fence *f)
+		      struct dma_fence *f, bool explicit)
 {
 	struct amdgpu_sync_entry *e;
 
@@ -158,6 +159,8 @@ int amdgpu_sync_fence(struct amdgpu_device *adev, struct amdgpu_sync *sync,
 	e = kmem_cache_alloc(amdgpu_sync_slab, GFP_KERNEL);
 	if (!e)
 		return -ENOMEM;
+
+	e->explicit = explicit;
 
 	hash_add(sync->fences, &e->node, f->context);
 	e->fence = dma_fence_get(f);
@@ -189,10 +192,7 @@ int amdgpu_sync_resv(struct amdgpu_device *adev,
 
 	/* always sync to the exclusive fence */
 	f = reservation_object_get_excl(resv);
-	r = amdgpu_sync_fence(adev, sync, f);
-
-	if (explicit_sync)
-		return r;
+	r = amdgpu_sync_fence(adev, sync, f, false);
 
 	flist = reservation_object_get_list(resv);
 	if (!flist || r)
@@ -212,15 +212,15 @@ int amdgpu_sync_resv(struct amdgpu_device *adev,
 			     (fence_owner == AMDGPU_FENCE_OWNER_VM)))
 				continue;
 
-			/* Ignore fence from the same owner as
+			/* Ignore fence from the same owner and explicit one as
 			 * long as it isn't undefined.
 			 */
 			if (owner != AMDGPU_FENCE_OWNER_UNDEFINED &&
-			    fence_owner == owner)
+			    (fence_owner == owner || explicit_sync))
 				continue;
 		}
 
-		r = amdgpu_sync_fence(adev, sync, f);
+		r = amdgpu_sync_fence(adev, sync, f, false);
 		if (r)
 			break;
 	}
@@ -275,19 +275,21 @@ struct dma_fence *amdgpu_sync_peek_fence(struct amdgpu_sync *sync,
  * amdgpu_sync_get_fence - get the next fence from the sync object
  *
  * @sync: sync object to use
+ * @explicit: true if the next fence is explicit
  *
  * Get and removes the next fence from the sync object not signaled yet.
  */
-struct dma_fence *amdgpu_sync_get_fence(struct amdgpu_sync *sync)
+struct dma_fence *amdgpu_sync_get_fence(struct amdgpu_sync *sync, bool *explicit)
 {
 	struct amdgpu_sync_entry *e;
 	struct hlist_node *tmp;
 	struct dma_fence *f;
 	int i;
-
 	hash_for_each_safe(sync->fences, i, tmp, e, node) {
 
 		f = e->fence;
+		if (explicit)
+			*explicit = e->explicit;
 
 		hash_del(&e->node);
 		kmem_cache_free(amdgpu_sync_slab, e);

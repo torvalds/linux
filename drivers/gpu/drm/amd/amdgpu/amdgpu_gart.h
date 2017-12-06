@@ -39,7 +39,7 @@ struct amdgpu_gart_funcs;
 #define AMDGPU_GPU_PAGE_ALIGN(a) (((a) + AMDGPU_GPU_PAGE_MASK) & ~AMDGPU_GPU_PAGE_MASK)
 
 struct amdgpu_gart {
-	dma_addr_t			table_addr;
+	u64				table_addr;
 	struct amdgpu_bo		*robj;
 	void				*ptr;
 	unsigned			num_gpu_pages;
@@ -56,8 +56,6 @@ struct amdgpu_gart {
 	const struct amdgpu_gart_funcs *gart_funcs;
 };
 
-int amdgpu_gart_table_ram_alloc(struct amdgpu_device *adev);
-void amdgpu_gart_table_ram_free(struct amdgpu_device *adev);
 int amdgpu_gart_table_vram_alloc(struct amdgpu_device *adev);
 void amdgpu_gart_table_vram_free(struct amdgpu_device *adev);
 int amdgpu_gart_table_vram_pin(struct amdgpu_device *adev);

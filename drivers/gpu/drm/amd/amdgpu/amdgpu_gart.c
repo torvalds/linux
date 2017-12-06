@@ -57,63 +57,6 @@
  */
 
 /**
- * amdgpu_gart_table_ram_alloc - allocate system ram for gart page table
- *
- * @adev: amdgpu_device pointer
- *
- * Allocate system memory for GART page table
- * (r1xx-r3xx, non-pcie r4xx, rs400).  These asics require the
- * gart table to be in system memory.
- * Returns 0 for success, -ENOMEM for failure.
- */
-int amdgpu_gart_table_ram_alloc(struct amdgpu_device *adev)
-{
-	void *ptr;
-
-	ptr = pci_alloc_consistent(adev->pdev, adev->gart.table_size,
-				   &adev->gart.table_addr);
-	if (ptr == NULL) {
-		return -ENOMEM;
-	}
-#ifdef CONFIG_X86
-	if (0) {
-		set_memory_uc((unsigned long)ptr,
-			      adev->gart.table_size >> PAGE_SHIFT);
-	}
-#endif
-	adev->gart.ptr = ptr;
-	memset((void *)adev->gart.ptr, 0, adev->gart.table_size);
-	return 0;
-}
-
-/**
- * amdgpu_gart_table_ram_free - free system ram for gart page table
- *
- * @adev: amdgpu_device pointer
- *
- * Free system memory for GART page table
- * (r1xx-r3xx, non-pcie r4xx, rs400).  These asics require the
- * gart table to be in system memory.
- */
-void amdgpu_gart_table_ram_free(struct amdgpu_device *adev)
-{
-	if (adev->gart.ptr == NULL) {
-		return;
-	}
-#ifdef CONFIG_X86
-	if (0) {
-		set_memory_wb((unsigned long)adev->gart.ptr,
-			      adev->gart.table_size >> PAGE_SHIFT);
-	}
-#endif
-	pci_free_consistent(adev->pdev, adev->gart.table_size,
-			    (void *)adev->gart.ptr,
-			    adev->gart.table_addr);
-	adev->gart.ptr = NULL;
-	adev->gart.table_addr = 0;
-}
-
-/**
  * amdgpu_gart_table_vram_alloc - allocate vram for gart page table
  *
  * @adev: amdgpu_device pointer
@@ -377,10 +320,8 @@ int amdgpu_gart_init(struct amdgpu_device *adev)
 #ifdef CONFIG_DRM_AMDGPU_GART_DEBUGFS
 	/* Allocate pages table */
 	adev->gart.pages = vzalloc(sizeof(void *) * adev->gart.num_cpu_pages);
-	if (adev->gart.pages == NULL) {
-		amdgpu_gart_fini(adev);
+	if (adev->gart.pages == NULL)
 		return -ENOMEM;
-	}
 #endif
 
 	return 0;
@@ -395,11 +336,6 @@ int amdgpu_gart_init(struct amdgpu_device *adev)
  */
 void amdgpu_gart_fini(struct amdgpu_device *adev)
 {
-	if (adev->gart.ready) {
-		/* unbind pages */
-		amdgpu_gart_unbind(adev, 0, adev->gart.num_cpu_pages);
-	}
-	adev->gart.ready = false;
 #ifdef CONFIG_DRM_AMDGPU_GART_DEBUGFS
 	vfree(adev->gart.pages);
 	adev->gart.pages = NULL;
