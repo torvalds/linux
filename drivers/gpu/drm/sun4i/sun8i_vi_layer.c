@@ -253,6 +253,9 @@ static int sun8i_vi_layer_atomic_check(struct drm_plane *plane,
 	clip.x2 = crtc_state->adjusted_mode.hdisplay;
 	clip.y2 = crtc_state->adjusted_mode.vdisplay;
 
+	min_scale = DRM_PLANE_HELPER_NO_SCALING;
+	max_scale = DRM_PLANE_HELPER_NO_SCALING;
+
 	if (layer->mixer->cfg->scaler_mask & BIT(layer->channel)) {
 		min_scale = SUN8I_VI_SCALER_SCALE_MIN;
 		max_scale = SUN8I_VI_SCALER_SCALE_MAX;
