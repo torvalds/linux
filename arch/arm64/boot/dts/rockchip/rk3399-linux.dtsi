@@ -198,12 +198,6 @@
 			rockchip,pins = <1 3 RK_FUNC_1 &pcfg_pull_none>;
 		};
 
-		isp_prelight: isp-prelight {
-			/* ISP_PRELIGHTTRIG */
-			/* used as pwrdn in excavator Evb_ExtBoard_MipiCam */
-			/* rockchip,pins = <1 4 RK_FUNC_1 &pcfg_pull_none>; */
-		};
-
 		isp_flash_trigger_as_gpio: isp-flash-trigger-as-gpio {
 			/* ISP_FLASHTRIGOU */
 			rockchip,pins = <0 17 RK_FUNC_GPIO &pcfg_pull_none>;
