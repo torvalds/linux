@@ -3453,6 +3453,8 @@ static int vop_plane_init(struct vop *vop, struct vop_win *win,
 		feature |= BIT(ROCKCHIP_DRM_PLANE_FEATURE_HDR2SDR);
 	if (win->feature & WIN_FEATURE_SDR2HDR)
 		feature |= BIT(ROCKCHIP_DRM_PLANE_FEATURE_SDR2HDR);
+	if (win->feature & WIN_FEATURE_AFBDC)
+		feature |= BIT(ROCKCHIP_DRM_PLANE_FEATURE_AFBDC);
 
 	drm_object_attach_property(&win->base.base, vop->plane_feature_prop,
 				   feature);
@@ -3704,6 +3706,7 @@ static int vop_win_init(struct vop *vop)
 		{ ROCKCHIP_DRM_PLANE_FEATURE_ALPHA, "alpha" },
 		{ ROCKCHIP_DRM_PLANE_FEATURE_HDR2SDR, "hdr2sdr" },
 		{ ROCKCHIP_DRM_PLANE_FEATURE_SDR2HDR, "sdr2hdr" },
+		{ ROCKCHIP_DRM_PLANE_FEATURE_AFBDC, "afbdc" },
 	};
 	static const struct drm_prop_enum_list crtc_props[] = {
 		{ ROCKCHIP_DRM_CRTC_FEATURE_AFBDC, "afbdc" },
@@ -3761,7 +3764,8 @@ static int vop_win_init(struct vop *vop)
 				BIT(ROCKCHIP_DRM_PLANE_FEATURE_SCALE) |
 				BIT(ROCKCHIP_DRM_PLANE_FEATURE_ALPHA) |
 				BIT(ROCKCHIP_DRM_PLANE_FEATURE_HDR2SDR) |
-				BIT(ROCKCHIP_DRM_PLANE_FEATURE_SDR2HDR));
+				BIT(ROCKCHIP_DRM_PLANE_FEATURE_SDR2HDR) |
+				BIT(ROCKCHIP_DRM_PLANE_FEATURE_AFBDC));
 	if (!vop->plane_feature_prop) {
 		DRM_ERROR("failed to create feature property\n");
 		return -EINVAL;
