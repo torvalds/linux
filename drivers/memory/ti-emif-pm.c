@@ -300,7 +300,6 @@ fail_free_sram:
 
 static int ti_emif_remove(struct platform_device *pdev)
 {
-	struct device *dev = &pdev->dev;
 	struct ti_emif_data *emif_data = emif_instance;
 
 	emif_instance = NULL;
