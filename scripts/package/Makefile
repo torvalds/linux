@@ -32,10 +32,14 @@ MKSPEC     := $(srctree)/scripts/package/mkspec
 
 quiet_cmd_src_tar = TAR     $(2).tar.gz
       cmd_src_tar = \
+set -e; \
 if test "$(objtree)" != "$(srctree)"; then \
-	echo "Building source tarball is not possible outside the"; \
-	echo "kernel source tree. Don't set KBUILD_OUTPUT, or use the"; \
-	echo "binrpm-pkg or bindeb-pkg target instead."; \
+	echo >&2; \
+	echo >&2 "  ERROR:"; \
+	echo >&2 "  Building source tarball is not possible outside the"; \
+	echo >&2 "  kernel source tree. Don't set KBUILD_OUTPUT, or use the"; \
+	echo >&2 "  binrpm-pkg or bindeb-pkg target instead."; \
+	echo >&2; \
 	false; \
 fi ; \
 $(srctree)/scripts/setlocalversion --save-scmversion; \
