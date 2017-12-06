@@ -256,15 +256,9 @@ static void usbhsf_send_terminator(struct usbhs_pipe *pipe,
 static int usbhsf_fifo_barrier(struct usbhs_priv *priv,
 			       struct usbhs_fifo *fifo)
 {
-	int timeout = 1024;
-
-	do {
-		/* The FIFO port is accessible */
-		if (usbhs_read(priv, fifo->ctr) & FRDY)
-			return 0;
-
-		udelay(10);
-	} while (timeout--);
+	/* The FIFO port is accessible */
+	if (usbhs_read(priv, fifo->ctr) & FRDY)
+		return 0;
 
 	return -EBUSY;
 }
@@ -278,8 +272,8 @@ static void usbhsf_fifo_clear(struct usbhs_pipe *pipe,
 	if (!usbhs_pipe_is_dcp(pipe)) {
 		/*
 		 * This driver checks the pipe condition first to avoid -EBUSY
-		 * from usbhsf_fifo_barrier() with about 10 msec delay in
-		 * the interrupt handler if the pipe is RX direction and empty.
+		 * from usbhsf_fifo_barrier() if the pipe is RX direction and
+		 * empty.
 		 */
 		if (usbhs_pipe_is_dir_in(pipe))
 			ret = usbhs_pipe_is_accessible(pipe);
