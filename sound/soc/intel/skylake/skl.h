@@ -29,6 +29,8 @@
 
 #define SKL_SUSPEND_DELAY 2000
 
+#define SKL_MAX_ASTATE_CFG		3
+
 #define AZX_PCIREG_PGCTL		0x44
 #define AZX_PGCTL_LSRMD_MASK		(1 << 4)
 #define AZX_PCIREG_CGCTL		0x48
@@ -45,6 +47,20 @@ struct skl_dsp_resource {
 };
 
 struct skl_debug;
+
+struct skl_astate_param {
+	u32 kcps;
+	u32 clk_src;
+};
+
+struct skl_astate_config {
+	u32 count;
+	struct skl_astate_param astate_table[0];
+};
+
+struct skl_fw_config {
+	struct skl_astate_config *astate_cfg;
+};
 
 struct skl {
 	struct hdac_ext_bus ebus;
@@ -77,6 +93,7 @@ struct skl {
 	u8 nr_modules;
 	struct skl_module **modules;
 	bool use_tplg_pcm;
+	struct skl_fw_config cfg;
 };
 
 #define skl_to_ebus(s)	(&(s)->ebus)
