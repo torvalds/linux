@@ -639,7 +639,9 @@ static void process_queued_bios(struct work_struct *work)
 
 	blk_start_plug(&plug);
 	while ((bio = bio_list_pop(&bios))) {
-		r = __multipath_map_bio(m, bio, get_mpio_from_bio(bio));
+		struct dm_mpath_io *mpio = get_mpio_from_bio(bio);
+		dm_bio_restore(get_bio_details_from_mpio(mpio), bio);
+		r = __multipath_map_bio(m, bio, mpio);
 		switch (r) {
 		case DM_MAPIO_KILL:
 			bio->bi_status = BLK_STS_IOERR;
@@ -1550,9 +1552,6 @@ static int multipath_end_io_bio(struct dm_target *ti, struct bio *clone,
 		}
 		goto done;
 	}
-
-	/* Queue for the daemon to resubmit */
-	dm_bio_restore(get_bio_details_from_mpio(mpio), clone);
 
 	spin_lock_irqsave(&m->lock, flags);
 	bio_list_add(&m->queued_bios, clone);
