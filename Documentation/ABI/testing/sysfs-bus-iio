@@ -1413,6 +1413,16 @@ Description:
 		the available samples after the timeout expires and thus have a
 		maximum delay guarantee.
 
+What:		/sys/bus/iio/devices/iio:deviceX/buffer/data_available
+KernelVersion: 4.16
+Contact:	linux-iio@vger.kernel.org
+Description:
+		A read-only value indicating the bytes of data available in the
+		buffer. In the case of an output buffer, this indicates the
+		amount of empty space available to write data to. In the case of
+		an input buffer, this indicates the amount of data available for
+		reading.
+
 What:		/sys/bus/iio/devices/iio:deviceX/buffer/hwfifo_enabled
 KernelVersion: 4.2
 Contact:	linux-iio@vger.kernel.org
