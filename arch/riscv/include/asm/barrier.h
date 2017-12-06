@@ -38,6 +38,25 @@
 #define smp_rmb()	RISCV_FENCE(r,r)
 #define smp_wmb()	RISCV_FENCE(w,w)
 
+/*
+ * This is a very specific barrier: it's currently only used in two places in
+ * the kernel, both in the scheduler.  See include/linux/spinlock.h for the two
+ * orderings it guarantees, but the "critical section is RCsc" guarantee
+ * mandates a barrier on RISC-V.  The sequence looks like:
+ *
+ *    lr.aq lock
+ *    sc    lock <= LOCKED
+ *    smp_mb__after_spinlock()
+ *    // critical section
+ *    lr    lock
+ *    sc.rl lock <= UNLOCKED
+ *
+ * The AQ/RL pair provides a RCpc critical section, but there's not really any
+ * way we can take advantage of that here because the ordering is only enforced
+ * on that one lock.  Thus, we're just doing a full fence.
+ */
+#define smp_mb__after_spinlock()	RISCV_FENCE(rw,rw)
+
 #include <asm-generic/barrier.h>
 
 #endif /* __ASSEMBLY__ */
