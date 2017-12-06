@@ -2973,7 +2973,7 @@ static int dw_hdmi_status_show(struct seq_file *s, void *v)
 	struct dw_hdmi *hdmi = s->private;
 	u32 val;
 
-	seq_puts(s, "PHY ");
+	seq_puts(s, "PHY: ");
 	if (!hdmi->phy.enabled) {
 		seq_puts(s, "disabled\n");
 		return 0;
@@ -2983,9 +2983,12 @@ static int dw_hdmi_status_show(struct seq_file *s, void *v)
 		seq_puts(s, "HDMI\n");
 	else
 		seq_puts(s, "DVI\n");
+	if (hdmi->hdmi_data.video_mode.mtmdsclock > 340000000)
+		val = hdmi->hdmi_data.video_mode.mtmdsclock / 4;
+	else
+		val = hdmi->hdmi_data.video_mode.mtmdsclock;
 	seq_printf(s, "Pixel Clk: %uHz\t\tTMDS Clk: %uHz\n",
-		   hdmi->hdmi_data.video_mode.mpixelclock,
-		   hdmi->hdmi_data.video_mode.mtmdsclock);
+		   hdmi->hdmi_data.video_mode.mpixelclock, val);
 	seq_puts(s, "Color Format: ");
 	if (hdmi_bus_fmt_is_rgb(hdmi->hdmi_data.enc_out_bus_format))
 		seq_puts(s, "RGB");
