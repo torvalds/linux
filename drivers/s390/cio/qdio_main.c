@@ -502,8 +502,8 @@ static inline void inbound_primed(struct qdio_q *q, int count)
 
 static int get_inbound_buffer_frontier(struct qdio_q *q)
 {
-	int count, stop;
 	unsigned char state = 0;
+	int count;
 
 	q->timestamp = get_tod_clock_fast();
 
@@ -512,9 +512,7 @@ static int get_inbound_buffer_frontier(struct qdio_q *q)
 	 * would return 0.
 	 */
 	count = min(atomic_read(&q->nr_buf_used), QDIO_MAX_BUFFERS_MASK);
-	stop = add_buf(q->first_to_check, count);
-
-	if (q->first_to_check == stop)
+	if (!count)
 		goto out;
 
 	/*
@@ -734,8 +732,8 @@ void qdio_inbound_processing(unsigned long data)
 
 static int get_outbound_buffer_frontier(struct qdio_q *q)
 {
-	int count, stop;
 	unsigned char state = 0;
+	int count;
 
 	q->timestamp = get_tod_clock_fast();
 
@@ -751,8 +749,7 @@ static int get_outbound_buffer_frontier(struct qdio_q *q)
 	 * would return 0.
 	 */
 	count = min(atomic_read(&q->nr_buf_used), QDIO_MAX_BUFFERS_MASK);
-	stop = add_buf(q->first_to_check, count);
-	if (q->first_to_check == stop)
+	if (!count)
 		goto out;
 
 	count = get_buf_states(q, q->first_to_check, &state, count, 0, 1);
