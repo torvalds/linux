@@ -122,9 +122,9 @@
 #define HCLK_OTG0		451
 #define HCLK_EMAC		452
 #define HCLK_SPDIF		453
-#define HCLK_I2S0		454
-#define HCLK_I2S1		455
-#define HCLK_I2S2		456
+#define HCLK_I2S0_2CH		454
+#define HCLK_I2S1_2CH		455
+#define HCLK_I2S_8CH		456
 #define HCLK_OTG1		457
 #define HCLK_HSIC		458
 #define HCLK_HSADC		459
