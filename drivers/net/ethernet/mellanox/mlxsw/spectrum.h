@@ -270,6 +270,7 @@ struct mlxsw_sp_port {
 	struct mlxsw_sp_port_sample *sample;
 	struct list_head vlans_list;
 	struct mlxsw_sp_qdisc root_qdisc;
+	unsigned acl_rule_count;
 };
 
 static inline bool
