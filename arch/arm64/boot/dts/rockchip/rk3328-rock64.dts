@@ -132,6 +132,8 @@
 	assigned-clocks = <&cru SCLK_MAC2IO>, <&cru SCLK_MAC2IO_EXT>;
 	assigned-clock-parents = <&gmac_clkin>, <&gmac_clkin>;
 	clock_in_out = "input";
+	/* shows instability at 1GBit right now */
+	max-speed = <100>;
 	phy-supply = <&vcc_io>;
 	phy-mode = "rgmii";
 	pinctrl-names = "default";
