@@ -35,7 +35,7 @@ struct intel_huc {
 };
 
 void intel_huc_init_early(struct intel_huc *huc);
-void intel_huc_init_hw(struct intel_huc *huc);
-void intel_huc_auth(struct intel_huc *huc);
+int intel_huc_init_hw(struct intel_huc *huc);
+int intel_huc_auth(struct intel_huc *huc);
 
 #endif

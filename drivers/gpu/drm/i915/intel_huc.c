@@ -181,17 +181,17 @@ static int huc_ucode_xfer(struct intel_uc_fw *huc_fw, struct i915_vma *vma)
  * intel_huc_init_hw() - load HuC uCode to device
  * @huc: intel_huc structure
  *
- * Called from guc_setup() during driver loading and also after a GPU reset.
- * Be note that HuC loading must be done before GuC loading.
+ * Called from intel_uc_init_hw() during driver loading and also after a GPU
+ * reset. Be note that HuC loading must be done before GuC loading.
  *
  * The firmware image should have already been fetched into memory by the
- * earlier call to intel_huc_init(), so here we need only check that
+ * earlier call to intel_uc_init_fw(), so here we need only check that
  * is succeeded, and then transfer the image to the h/w.
  *
  */
-void intel_huc_init_hw(struct intel_huc *huc)
+int intel_huc_init_hw(struct intel_huc *huc)
 {
-	intel_uc_fw_upload(&huc->fw, huc_ucode_xfer);
+	return intel_uc_fw_upload(&huc->fw, huc_ucode_xfer);
 }
 
 /**
@@ -205,7 +205,7 @@ void intel_huc_init_hw(struct intel_huc *huc)
  * signature through intel_guc_auth_huc(). It then waits for 50ms for
  * firmware verification ACK and unpins the object.
  */
-void intel_huc_auth(struct intel_huc *huc)
+int intel_huc_auth(struct intel_huc *huc)
 {
 	struct drm_i915_private *i915 = huc_to_i915(huc);
 	struct intel_guc *guc = &i915->guc;
@@ -213,14 +213,14 @@ void intel_huc_auth(struct intel_huc *huc)
 	int ret;
 
 	if (huc->fw.load_status != INTEL_UC_FIRMWARE_SUCCESS)
-		return;
+		return -ENOEXEC;
 
 	vma = i915_gem_object_ggtt_pin(huc->fw.obj, NULL, 0, 0,
 				PIN_OFFSET_BIAS | GUC_WOPCM_TOP);
 	if (IS_ERR(vma)) {
-		DRM_ERROR("failed to pin huc fw object %d\n",
-				(int)PTR_ERR(vma));
-		return;
+		ret = PTR_ERR(vma);
+		DRM_ERROR("HuC: Failed to pin huc fw object %d\n", ret);
+		return ret;
 	}
 
 	ret = intel_guc_auth_huc(guc,
@@ -243,4 +243,5 @@ void intel_huc_auth(struct intel_huc *huc)
 
 out:
 	i915_vma_unpin(vma);
+	return ret;
 }
