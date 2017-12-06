@@ -4777,7 +4777,8 @@ void lockdep_invariant_state(bool force)
 	 * Verify the former, enforce the latter.
 	 */
 	WARN_ON_ONCE(!force && current->lockdep_depth);
-	invalidate_xhlock(&xhlock(current->xhlock_idx));
+	if (current->xhlocks)
+		invalidate_xhlock(&xhlock(current->xhlock_idx));
 }
 
 static int cross_lock(struct lockdep_map *lock)
