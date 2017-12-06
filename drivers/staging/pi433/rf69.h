@@ -26,7 +26,7 @@
 #define FIFO_THRESHOLD	15		/* in byte */
 
 int rf69_set_mode(struct spi_device *spi, enum mode mode);
-int rf69_set_data_mode(struct spi_device *spi, enum dataMode dataMode);
+int rf69_set_data_mode(struct spi_device *spi, u8 data_mode);
 int rf69_set_modulation(struct spi_device *spi, enum modulation modulation);
 enum modulation rf69_get_modulation(struct spi_device *spi);
 int rf69_set_modulation_shaping(struct spi_device *spi, enum mod_shaping mod_shaping);

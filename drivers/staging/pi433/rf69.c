@@ -85,20 +85,9 @@ int rf69_set_mode(struct spi_device *spi, enum mode mode)
 
 }
 
-int rf69_set_data_mode(struct spi_device *spi, enum dataMode dataMode)
+int rf69_set_data_mode(struct spi_device *spi, u8 data_mode)
 {
-	#ifdef DEBUG
-		dev_dbg(&spi->dev, "set: data mode");
-	#endif
-
-	switch (dataMode) {
-	case packet:		return rf69_read_mod_write(spi, REG_DATAMODUL, MASK_DATAMODUL_MODE, DATAMODUL_MODE_PACKET);
-	case continuous:	return rf69_read_mod_write(spi, REG_DATAMODUL, MASK_DATAMODUL_MODE, DATAMODUL_MODE_CONTINUOUS);
-	case continuousNoSync:	return rf69_read_mod_write(spi, REG_DATAMODUL, MASK_DATAMODUL_MODE, DATAMODUL_MODE_CONTINUOUS_NOSYNC);
-	default:
-		dev_dbg(&spi->dev, "set: illegal input param");
-		return -EINVAL;
-	}
+	return rf69_read_mod_write(spi, REG_DATAMODUL, MASK_DATAMODUL_MODE, data_mode);
 }
 
 int rf69_set_modulation(struct spi_device *spi, enum modulation modulation)

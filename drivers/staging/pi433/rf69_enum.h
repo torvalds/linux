@@ -31,12 +31,6 @@ enum mode {
 	receive
 };
 
-enum dataMode {
-	packet,
-	continuous,
-	continuousNoSync
-};
-
 enum modulation {
 	OOK,
 	FSK
