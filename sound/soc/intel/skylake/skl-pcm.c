@@ -1350,6 +1350,12 @@ static int skl_platform_soc_probe(struct snd_soc_platform *platform)
 		skl_populate_modules(skl);
 		skl->skl_sst->update_d0i3c = skl_update_d0i3c;
 		skl_dsp_enable_notification(skl->skl_sst, false);
+
+		if (skl->cfg.astate_cfg != NULL) {
+			skl_dsp_set_astate_cfg(skl->skl_sst,
+					skl->cfg.astate_cfg->count,
+					skl->cfg.astate_cfg);
+		}
 	}
 	pm_runtime_mark_last_busy(platform->dev);
 	pm_runtime_put_autosuspend(platform->dev);
