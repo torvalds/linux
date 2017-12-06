@@ -2796,10 +2796,11 @@ static int gem_add_flow_filter(struct net_device *netdev,
 	struct macb *bp = netdev_priv(netdev);
 	struct ethtool_rx_flow_spec *fs = &cmd->fs;
 	struct ethtool_rx_fs_item *item, *newfs;
+	unsigned long flags;
 	int ret = -EINVAL;
 	bool added = false;
 
-	newfs = kmalloc(sizeof(*newfs), GFP_ATOMIC);
+	newfs = kmalloc(sizeof(*newfs), GFP_KERNEL);
 	if (newfs == NULL)
 		return -ENOMEM;
 	memcpy(&newfs->fs, fs, sizeof(newfs->fs));
@@ -2811,25 +2812,23 @@ static int gem_add_flow_filter(struct net_device *netdev,
 			htonl(fs->h_u.tcp_ip4_spec.ip4dst),
 			htons(fs->h_u.tcp_ip4_spec.psrc), htons(fs->h_u.tcp_ip4_spec.pdst));
 
+	spin_lock_irqsave(&bp->rx_fs_lock, flags);
+
 	/* find correct place to add in list */
-	if (list_empty(&bp->rx_fs_list.list))
-		list_add(&newfs->list, &bp->rx_fs_list.list);
-	else {
-		list_for_each_entry(item, &bp->rx_fs_list.list, list) {
-			if (item->fs.location > newfs->fs.location) {
-				list_add_tail(&newfs->list, &item->list);
-				added = true;
-				break;
-			} else if (item->fs.location == fs->location) {
-				netdev_err(netdev, "Rule not added: location %d not free!\n",
-						fs->location);
-				ret = -EBUSY;
-				goto err;
-			}
+	list_for_each_entry(item, &bp->rx_fs_list.list, list) {
+		if (item->fs.location > newfs->fs.location) {
+			list_add_tail(&newfs->list, &item->list);
+			added = true;
+			break;
+		} else if (item->fs.location == fs->location) {
+			netdev_err(netdev, "Rule not added: location %d not free!\n",
+					fs->location);
+			ret = -EBUSY;
+			goto err;
 		}
-		if (!added)
-			list_add_tail(&newfs->list, &bp->rx_fs_list.list);
 	}
+	if (!added)
+		list_add_tail(&newfs->list, &bp->rx_fs_list.list);
 
 	gem_prog_cmp_regs(bp, fs);
 	bp->rx_fs_list.count++;
@@ -2837,9 +2836,11 @@ static int gem_add_flow_filter(struct net_device *netdev,
 	if (netdev->features & NETIF_F_NTUPLE)
 		gem_enable_flow_filters(bp, 1);
 
+	spin_unlock_irqrestore(&bp->rx_fs_lock, flags);
 	return 0;
 
 err:
+	spin_unlock_irqrestore(&bp->rx_fs_lock, flags);
 	kfree(newfs);
 	return ret;
 }
@@ -2850,9 +2851,9 @@ static int gem_del_flow_filter(struct net_device *netdev,
 	struct macb *bp = netdev_priv(netdev);
 	struct ethtool_rx_fs_item *item;
 	struct ethtool_rx_flow_spec *fs;
+	unsigned long flags;
 
-	if (list_empty(&bp->rx_fs_list.list))
-		return -EINVAL;
+	spin_lock_irqsave(&bp->rx_fs_lock, flags);
 
 	list_for_each_entry(item, &bp->rx_fs_list.list, list) {
 		if (item->fs.location == cmd->fs.location) {
@@ -2869,12 +2870,14 @@ static int gem_del_flow_filter(struct net_device *netdev,
 			gem_writel_n(bp, SCRT2, fs->location, 0);
 
 			list_del(&item->list);
-			kfree(item);
 			bp->rx_fs_list.count--;
+			spin_unlock_irqrestore(&bp->rx_fs_lock, flags);
+			kfree(item);
 			return 0;
 		}
 	}
 
+	spin_unlock_irqrestore(&bp->rx_fs_lock, flags);
 	return -EINVAL;
 }
 
@@ -2943,10 +2946,7 @@ static int gem_get_rxnfc(struct net_device *netdev, struct ethtool_rxnfc *cmd,
 static int gem_set_rxnfc(struct net_device *netdev, struct ethtool_rxnfc *cmd)
 {
 	struct macb *bp = netdev_priv(netdev);
-	unsigned long flags;
 	int ret;
-
-	spin_lock_irqsave(&bp->rx_fs_lock, flags);
 
 	switch (cmd->cmd) {
 	case ETHTOOL_SRXCLSRLINS:
@@ -2966,7 +2966,6 @@ static int gem_set_rxnfc(struct net_device *netdev, struct ethtool_rxnfc *cmd)
 		ret = -EOPNOTSUPP;
 	}
 
-	spin_unlock_irqrestore(&bp->rx_fs_lock, flags);
 	return ret;
 }
 
