@@ -87,7 +87,7 @@ set -e
 
 function _modprobe()
 {
-        modprobe "$@"
+	modprobe "$@"
 
 	if [[ "$REMOTE_HOST" != "" ]]; then
 		ssh "$REMOTE_HOST" modprobe "$@"
@@ -274,13 +274,13 @@ function pingpong_test()
 
 	echo "Running ping pong tests on: $(basename $LOC) / $(basename $REM)"
 
-	LOC_START=$(read_file $LOC/count)
-	REM_START=$(read_file $REM/count)
+	LOC_START=$(read_file "$LOC/count")
+	REM_START=$(read_file "$REM/count")
 
 	sleep 7
 
-	LOC_END=$(read_file $LOC/count)
-	REM_END=$(read_file $REM/count)
+	LOC_END=$(read_file "$LOC/count")
+	REM_END=$(read_file "$REM/count")
 
 	if [[ $LOC_START == $LOC_END ]] || [[ $REM_START == $REM_END ]]; then
 		echo "Ping pong counter not incrementing!" >&2
@@ -304,15 +304,15 @@ function perf_test()
 		max_mw_size=$MAX_MW_SIZE use_dma=$USE_DMA
 
 	echo "Running local perf test $WITH DMA"
-	write_file "" $LOCAL_PERF/run
+	write_file "" "$LOCAL_PERF/run"
 	echo -n "  "
-	read_file $LOCAL_PERF/run
+	read_file "$LOCAL_PERF/run"
 	echo "  Passed"
 
 	echo "Running remote perf test $WITH DMA"
-	write_file "" $REMOTE_PERF/run
+	write_file "" "$REMOTE_PERF/run"
 	echo -n "  "
-	read_file $REMOTE_PERF/run
+	read_file "$REMOTE_PERF/run"
 	echo "  Passed"
 
 	_modprobe -r ntb_perf
@@ -320,39 +320,39 @@ function perf_test()
 
 function ntb_tool_tests()
 {
-	LOCAL_TOOL=$DEBUGFS/ntb_tool/$LOCAL_DEV
-	REMOTE_TOOL=$REMOTE_HOST:$DEBUGFS/ntb_tool/$REMOTE_DEV
+	LOCAL_TOOL="$DEBUGFS/ntb_tool/$LOCAL_DEV"
+	REMOTE_TOOL="$REMOTE_HOST:$DEBUGFS/ntb_tool/$REMOTE_DEV"
 
 	echo "Starting ntb_tool tests..."
 
 	_modprobe ntb_tool
 
-	write_file Y $LOCAL_TOOL/link_event
-	write_file Y $REMOTE_TOOL/link_event
+	write_file "Y" "$LOCAL_TOOL/link_event"
+	write_file "Y" "$REMOTE_TOOL/link_event"
 
-	link_test $LOCAL_TOOL $REMOTE_TOOL
-	link_test $REMOTE_TOOL $LOCAL_TOOL
+	link_test "$LOCAL_TOOL" "$REMOTE_TOOL"
+	link_test "$REMOTE_TOOL" "$LOCAL_TOOL"
 
 	#Ensure the link is up on both sides before continuing
-	write_file Y $LOCAL_TOOL/link_event
-	write_file Y $REMOTE_TOOL/link_event
+	write_file "Y" "$LOCAL_TOOL/link_event"
+	write_file "Y" "$REMOTE_TOOL/link_event"
 
-	for PEER_TRANS in $(ls $LOCAL_TOOL/peer_trans*); do
+	for PEER_TRANS in $(ls "$LOCAL_TOOL"/peer_trans*); do
 		PT=$(basename $PEER_TRANS)
-		write_file $MW_SIZE $LOCAL_TOOL/$PT
-		write_file $MW_SIZE $REMOTE_TOOL/$PT
+		write_file $MW_SIZE "$LOCAL_TOOL/$PT"
+		write_file $MW_SIZE "$REMOTE_TOOL/$PT"
 	done
 
-	doorbell_test $LOCAL_TOOL $REMOTE_TOOL
-	doorbell_test $REMOTE_TOOL $LOCAL_TOOL
-	scratchpad_test $LOCAL_TOOL $REMOTE_TOOL
-	scratchpad_test $REMOTE_TOOL $LOCAL_TOOL
+	doorbell_test "$LOCAL_TOOL" "$REMOTE_TOOL"
+	doorbell_test "$REMOTE_TOOL" "$LOCAL_TOOL"
+	scratchpad_test "$LOCAL_TOOL" "$REMOTE_TOOL"
+	scratchpad_test "$REMOTE_TOOL" "$LOCAL_TOOL"
 
-	for MW in $(ls $LOCAL_TOOL/mw*); do
+	for MW in $(ls "$LOCAL_TOOL"/mw*); do
 		MW=$(basename $MW)
 
-		mw_test $MW $LOCAL_TOOL $REMOTE_TOOL
-		mw_test $MW $REMOTE_TOOL $LOCAL_TOOL
+		mw_test $MW "$LOCAL_TOOL" "$REMOTE_TOOL"
+		mw_test $MW "$REMOTE_TOOL" "$LOCAL_TOOL"
 	done
 
 	_modprobe -r ntb_tool
@@ -360,8 +360,8 @@ function ntb_tool_tests()
 
 function ntb_pingpong_tests()
 {
-	LOCAL_PP=$DEBUGFS/ntb_pingpong/$LOCAL_DEV
-	REMOTE_PP=$REMOTE_HOST:$DEBUGFS/ntb_pingpong/$REMOTE_DEV
+	LOCAL_PP="$DEBUGFS/ntb_pingpong/$LOCAL_DEV"
+	REMOTE_PP="$REMOTE_HOST:$DEBUGFS/ntb_pingpong/$REMOTE_DEV"
 
 	echo "Starting ntb_pingpong tests..."
 
@@ -374,8 +374,8 @@ function ntb_pingpong_tests()
 
 function ntb_perf_tests()
 {
-	LOCAL_PERF=$DEBUGFS/ntb_perf/$LOCAL_DEV
-	REMOTE_PERF=$REMOTE_HOST:$DEBUGFS/ntb_perf/$REMOTE_DEV
+	LOCAL_PERF="$DEBUGFS/ntb_perf/$LOCAL_DEV"
+	REMOTE_PERF="$REMOTE_HOST:$DEBUGFS/ntb_perf/$REMOTE_DEV"
 
 	echo "Starting ntb_perf tests..."
 
