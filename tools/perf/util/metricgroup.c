@@ -20,12 +20,10 @@
 #include "pmu.h"
 #include "expr.h"
 #include "rblist.h"
-#include "pmu.h"
 #include <string.h>
 #include <stdbool.h>
 #include <errno.h>
 #include "pmu-events/pmu-events.h"
-#include "strbuf.h"
 #include "strlist.h"
 #include <assert.h>
 #include <ctype.h>

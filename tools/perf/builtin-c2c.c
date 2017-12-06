@@ -27,13 +27,10 @@
 #include "sort.h"
 #include "tool.h"
 #include "data.h"
-#include "sort.h"
 #include "event.h"
 #include "evlist.h"
 #include "evsel.h"
-#include <asm/bug.h>
 #include "ui/browsers/hists.h"
-#include "evlist.h"
 #include "thread.h"
 
 struct c2c_hists {
