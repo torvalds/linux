@@ -339,8 +339,11 @@ int module_frob_arch_sections(Elf64_Ehdr *hdr,
 		char *p;
 		if (strcmp(secstrings + sechdrs[i].sh_name, ".stubs") == 0)
 			me->arch.stubs_section = i;
-		else if (strcmp(secstrings + sechdrs[i].sh_name, ".toc") == 0)
+		else if (strcmp(secstrings + sechdrs[i].sh_name, ".toc") == 0) {
 			me->arch.toc_section = i;
+			if (sechdrs[i].sh_addralign < 8)
+				sechdrs[i].sh_addralign = 8;
+		}
 		else if (strcmp(secstrings+sechdrs[i].sh_name,"__versions")==0)
 			dedotify_versions((void *)hdr + sechdrs[i].sh_offset,
 					  sechdrs[i].sh_size);
@@ -373,12 +376,15 @@ int module_frob_arch_sections(Elf64_Ehdr *hdr,
 	return 0;
 }
 
-/* r2 is the TOC pointer: it actually points 0x8000 into the TOC (this
-   gives the value maximum span in an instruction which uses a signed
-   offset) */
+/*
+ * r2 is the TOC pointer: it actually points 0x8000 into the TOC (this gives the
+ * value maximum span in an instruction which uses a signed offset). Round down
+ * to a 256 byte boundary for the odd case where we are setting up r2 without a
+ * .toc section.
+ */
 static inline unsigned long my_r2(const Elf64_Shdr *sechdrs, struct module *me)
 {
-	return sechdrs[me->arch.toc_section].sh_addr + 0x8000;
+	return (sechdrs[me->arch.toc_section].sh_addr & ~0xfful) + 0x8000;
 }
 
 /* Both low and high 16 bits are added as SIGNED additions, so if low
