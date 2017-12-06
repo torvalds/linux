@@ -127,6 +127,56 @@ function write_file()
 	fi
 }
 
+function check_file()
+{
+	split_remote $1
+
+	if [[ "$REMOTE" != "" ]]; then
+		ssh "$REMOTE" "[[ -e ${VPATH} ]]"
+	else
+		[[ -e ${VPATH} ]]
+	fi
+}
+
+function find_pidx()
+{
+	PORT=$1
+	PPATH=$2
+
+	for ((i = 0; i < 64; i++)); do
+		PEER_DIR="$PPATH/peer$i"
+
+		check_file ${PEER_DIR} || break
+
+		PEER_PORT=$(read_file "${PEER_DIR}/port")
+		if [[ ${PORT} -eq $PEER_PORT ]]; then
+			echo $i
+			return 0
+		fi
+	done
+
+	return 1
+}
+
+function port_test()
+{
+	LOC=$1
+	REM=$2
+
+	echo "Running port tests on: $(basename $LOC) / $(basename $REM)"
+
+	LOCAL_PORT=$(read_file "$LOC/port")
+	REMOTE_PORT=$(read_file "$REM/port")
+
+	LOCAL_PIDX=$(find_pidx ${REMOTE_PORT} "$LOC")
+	REMOTE_PIDX=$(find_pidx ${LOCAL_PORT} "$REM")
+
+	echo "Local port ${LOCAL_PORT} with index ${REMOTE_PIDX} on remote host"
+	echo "Peer port ${REMOTE_PORT} with index ${LOCAL_PIDX} on local host"
+
+	echo "  Passed"
+}
+
 function link_test()
 {
 	LOC=$1
@@ -326,6 +376,8 @@ function ntb_tool_tests()
 	echo "Starting ntb_tool tests..."
 
 	_modprobe ntb_tool
+
+	port_test "$LOCAL_TOOL" "$REMOTE_TOOL"
 
 	write_file "Y" "$LOCAL_TOOL/link_event"
 	write_file "Y" "$REMOTE_TOOL/link_event"
