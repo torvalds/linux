@@ -14,7 +14,6 @@
 #include <linux/netdevice.h>
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
-#include <linux/of.h>
 #include <linux/phy.h>
 #include <linux/phy_fixed.h>
 #include <linux/mii.h>
