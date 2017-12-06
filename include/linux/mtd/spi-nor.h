@@ -403,4 +403,10 @@ struct spi_nor_hwcaps {
 int spi_nor_scan(struct spi_nor *nor, const char *name,
 		 const struct spi_nor_hwcaps *hwcaps);
 
+/**
+ * spi_nor_restore_addr_mode() - restore the status of SPI NOR
+ * @nor:	the spi_nor structure
+ */
+void spi_nor_restore(struct spi_nor *nor);
+
 #endif
