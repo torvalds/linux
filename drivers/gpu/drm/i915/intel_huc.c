@@ -77,40 +77,54 @@ MODULE_FIRMWARE(I915_KBL_HUC_UCODE);
 #define I915_GLK_HUC_UCODE HUC_FW_PATH(glk, GLK_HUC_FW_MAJOR, \
 	GLK_HUC_FW_MINOR, GLK_BLD_NUM)
 
-/**
- * intel_huc_select_fw() - selects HuC firmware for loading
- * @huc:	intel_huc struct
- */
-void intel_huc_select_fw(struct intel_huc *huc)
+static void huc_fw_select(struct intel_uc_fw *huc_fw)
 {
+	struct intel_huc *huc = container_of(huc_fw, struct intel_huc, fw);
 	struct drm_i915_private *dev_priv = huc_to_i915(huc);
 
-	intel_uc_fw_init(&huc->fw, INTEL_UC_FW_TYPE_HUC);
+	GEM_BUG_ON(huc_fw->type != INTEL_UC_FW_TYPE_HUC);
+
+	if (!HAS_HUC(dev_priv))
+		return;
 
 	if (i915_modparams.huc_firmware_path) {
-		huc->fw.path = i915_modparams.huc_firmware_path;
-		huc->fw.major_ver_wanted = 0;
-		huc->fw.minor_ver_wanted = 0;
+		huc_fw->path = i915_modparams.huc_firmware_path;
+		huc_fw->major_ver_wanted = 0;
+		huc_fw->minor_ver_wanted = 0;
 	} else if (IS_SKYLAKE(dev_priv)) {
-		huc->fw.path = I915_SKL_HUC_UCODE;
-		huc->fw.major_ver_wanted = SKL_HUC_FW_MAJOR;
-		huc->fw.minor_ver_wanted = SKL_HUC_FW_MINOR;
+		huc_fw->path = I915_SKL_HUC_UCODE;
+		huc_fw->major_ver_wanted = SKL_HUC_FW_MAJOR;
+		huc_fw->minor_ver_wanted = SKL_HUC_FW_MINOR;
 	} else if (IS_BROXTON(dev_priv)) {
-		huc->fw.path = I915_BXT_HUC_UCODE;
-		huc->fw.major_ver_wanted = BXT_HUC_FW_MAJOR;
-		huc->fw.minor_ver_wanted = BXT_HUC_FW_MINOR;
+		huc_fw->path = I915_BXT_HUC_UCODE;
+		huc_fw->major_ver_wanted = BXT_HUC_FW_MAJOR;
+		huc_fw->minor_ver_wanted = BXT_HUC_FW_MINOR;
 	} else if (IS_KABYLAKE(dev_priv) || IS_COFFEELAKE(dev_priv)) {
-		huc->fw.path = I915_KBL_HUC_UCODE;
-		huc->fw.major_ver_wanted = KBL_HUC_FW_MAJOR;
-		huc->fw.minor_ver_wanted = KBL_HUC_FW_MINOR;
+		huc_fw->path = I915_KBL_HUC_UCODE;
+		huc_fw->major_ver_wanted = KBL_HUC_FW_MAJOR;
+		huc_fw->minor_ver_wanted = KBL_HUC_FW_MINOR;
 	} else if (IS_GEMINILAKE(dev_priv)) {
-		huc->fw.path = I915_GLK_HUC_UCODE;
-		huc->fw.major_ver_wanted = GLK_HUC_FW_MAJOR;
-		huc->fw.minor_ver_wanted = GLK_HUC_FW_MINOR;
+		huc_fw->path = I915_GLK_HUC_UCODE;
+		huc_fw->major_ver_wanted = GLK_HUC_FW_MAJOR;
+		huc_fw->minor_ver_wanted = GLK_HUC_FW_MINOR;
 	} else {
-		DRM_ERROR("No HuC firmware known for platform with HuC!\n");
-		return;
+		DRM_WARN("%s: No firmware known for this platform!\n",
+			 intel_uc_fw_type_repr(huc_fw->type));
 	}
+}
+
+/**
+ * intel_huc_init_early() - initializes HuC struct
+ * @huc: intel_huc struct
+ *
+ * On platforms with HuC selects firmware for uploading
+ */
+void intel_huc_init_early(struct intel_huc *huc)
+{
+	struct intel_uc_fw *huc_fw = &huc->fw;
+
+	intel_uc_fw_init(huc_fw, INTEL_UC_FW_TYPE_HUC);
+	huc_fw_select(huc_fw);
 }
 
 /**

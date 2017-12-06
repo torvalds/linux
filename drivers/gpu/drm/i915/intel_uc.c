@@ -65,9 +65,6 @@ void intel_uc_sanitize_options(struct drm_i915_private *dev_priv)
 
 	/* Verify firmware version */
 	if (i915_modparams.enable_guc_loading) {
-		if (HAS_HUC_UCODE(dev_priv))
-			intel_huc_select_fw(&dev_priv->huc);
-
 		if (intel_guc_fw_select(&dev_priv->guc))
 			i915_modparams.enable_guc_loading = 0;
 	}
@@ -84,6 +81,7 @@ void intel_uc_sanitize_options(struct drm_i915_private *dev_priv)
 void intel_uc_init_early(struct drm_i915_private *dev_priv)
 {
 	intel_guc_init_early(&dev_priv->guc);
+	intel_huc_init_early(&dev_priv->huc);
 }
 
 void intel_uc_init_fw(struct drm_i915_private *dev_priv)
