@@ -362,7 +362,7 @@ int intel_guc_live_selftest(struct drm_i915_private *dev_priv)
 		SUBTEST(igt_guc_doorbells),
 	};
 
-	if (!i915_modparams.enable_guc_submission)
+	if (!USES_GUC_SUBMISSION(dev_priv))
 		return 0;
 
 	return i915_subtests(tests, dev_priv);

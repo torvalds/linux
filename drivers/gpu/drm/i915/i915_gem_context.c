@@ -316,7 +316,7 @@ __create_hw_context(struct drm_i915_private *dev_priv,
 	 * present or not in use we still need a small bias as ring wraparound
 	 * at offset 0 sometimes hangs. No idea why.
 	 */
-	if (HAS_GUC(dev_priv) && i915_modparams.enable_guc_loading)
+	if (USES_GUC(dev_priv))
 		ctx->ggtt_offset_bias = GUC_WOPCM_TOP;
 	else
 		ctx->ggtt_offset_bias = I915_GTT_PAGE_SIZE;
@@ -409,7 +409,7 @@ i915_gem_context_create_gvt(struct drm_device *dev)
 	i915_gem_context_set_closed(ctx); /* not user accessible */
 	i915_gem_context_clear_bannable(ctx);
 	i915_gem_context_set_force_single_submission(ctx);
-	if (!i915_modparams.enable_guc_submission)
+	if (!USES_GUC_SUBMISSION(to_i915(dev)))
 		ctx->ring_size = 512 * PAGE_SIZE; /* Max ring buffer size */
 
 	GEM_BUG_ON(i915_gem_context_is_kernel(ctx));

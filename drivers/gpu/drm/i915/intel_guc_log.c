@@ -505,7 +505,7 @@ static void guc_flush_logs(struct intel_guc *guc)
 {
 	struct drm_i915_private *dev_priv = guc_to_i915(guc);
 
-	if (!i915_modparams.enable_guc_submission ||
+	if (!USES_GUC_SUBMISSION(dev_priv) ||
 	    (i915_modparams.guc_log_level < 0))
 		return;
 
@@ -646,7 +646,7 @@ int i915_guc_log_control(struct drm_i915_private *dev_priv, u64 control_val)
 
 void i915_guc_log_register(struct drm_i915_private *dev_priv)
 {
-	if (!i915_modparams.enable_guc_submission ||
+	if (!USES_GUC_SUBMISSION(dev_priv) ||
 	    (i915_modparams.guc_log_level < 0))
 		return;
 
@@ -657,7 +657,7 @@ void i915_guc_log_register(struct drm_i915_private *dev_priv)
 
 void i915_guc_log_unregister(struct drm_i915_private *dev_priv)
 {
-	if (!i915_modparams.enable_guc_submission)
+	if (!USES_GUC_SUBMISSION(dev_priv))
 		return;
 
 	mutex_lock(&dev_priv->drm.struct_mutex);

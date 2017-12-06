@@ -152,7 +152,7 @@ int intel_uc_init_hw(struct drm_i915_private *dev_priv)
 	struct intel_guc *guc = &dev_priv->guc;
 	int ret, attempts;
 
-	if (!i915_modparams.enable_guc_loading)
+	if (!USES_GUC(dev_priv))
 		return 0;
 
 	guc_disable_communication(guc);
@@ -161,7 +161,7 @@ int intel_uc_init_hw(struct drm_i915_private *dev_priv)
 	/* We need to notify the guc whenever we change the GGTT */
 	i915_ggtt_enable_guc(dev_priv);
 
-	if (i915_modparams.enable_guc_submission) {
+	if (USES_GUC_SUBMISSION(dev_priv)) {
 		/*
 		 * This is stuff we need to have available at fw load time
 		 * if we are planning to enable submission later
@@ -211,7 +211,7 @@ int intel_uc_init_hw(struct drm_i915_private *dev_priv)
 		goto err_log_capture;
 
 	intel_huc_auth(&dev_priv->huc);
-	if (i915_modparams.enable_guc_submission) {
+	if (USES_GUC_SUBMISSION(dev_priv)) {
 		if (i915_modparams.guc_log_level >= 0)
 			gen9_enable_guc_interrupts(dev_priv);
 
@@ -220,11 +220,10 @@ int intel_uc_init_hw(struct drm_i915_private *dev_priv)
 			goto err_interrupts;
 	}
 
-	dev_info(dev_priv->drm.dev, "GuC %s (firmware %s [version %u.%u])\n",
-		 i915_modparams.enable_guc_submission ? "submission enabled" :
-							"loaded",
-		 guc->fw.path,
+	dev_info(dev_priv->drm.dev, "GuC firmware version %u.%u\n",
 		 guc->fw.major_ver_found, guc->fw.minor_ver_found);
+	dev_info(dev_priv->drm.dev, "GuC submission %s\n",
+		 enableddisabled(USES_GUC_SUBMISSION(dev_priv)));
 
 	return 0;
 
@@ -243,7 +242,7 @@ err_interrupts:
 err_log_capture:
 	guc_capture_load_err_log(guc);
 err_submission:
-	if (i915_modparams.enable_guc_submission)
+	if (USES_GUC_SUBMISSION(dev_priv))
 		intel_guc_submission_fini(guc);
 err_guc:
 	i915_ggtt_disable_guc(dev_priv);
@@ -257,7 +256,7 @@ err_guc:
 		ret = 0;
 	}
 
-	if (i915_modparams.enable_guc_submission) {
+	if (USES_GUC_SUBMISSION(dev_priv)) {
 		i915_modparams.enable_guc_submission = 0;
 		DRM_NOTE("Falling back from GuC submission to execlist mode\n");
 	}
@@ -273,15 +272,15 @@ void intel_uc_fini_hw(struct drm_i915_private *dev_priv)
 
 	guc_free_load_err_log(guc);
 
-	if (!i915_modparams.enable_guc_loading)
+	if (!USES_GUC(dev_priv))
 		return;
 
-	if (i915_modparams.enable_guc_submission)
+	if (USES_GUC_SUBMISSION(dev_priv))
 		intel_guc_submission_disable(guc);
 
 	guc_disable_communication(guc);
 
-	if (i915_modparams.enable_guc_submission) {
+	if (USES_GUC_SUBMISSION(dev_priv)) {
 		gen9_disable_guc_interrupts(dev_priv);
 		intel_guc_submission_fini(guc);
 	}

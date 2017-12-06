@@ -129,7 +129,7 @@ void intel_guc_init_params(struct intel_guc *guc)
 	}
 
 	/* If GuC submission is enabled, set up additional parameters here */
-	if (i915_modparams.enable_guc_submission) {
+	if (USES_GUC_SUBMISSION(dev_priv)) {
 		u32 ads = guc_ggtt_offset(guc->ads_vma) >> PAGE_SHIFT;
 		u32 pgs = guc_ggtt_offset(dev_priv->guc.stage_desc_pool);
 		u32 ctx_in_16 = GUC_MAX_STAGE_DESCRIPTORS / 16;
