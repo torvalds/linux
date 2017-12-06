@@ -29,7 +29,6 @@
 #include <net/tc_act/tc_mirred.h>
 
 static LIST_HEAD(mirred_list);
-static DEFINE_SPINLOCK(mirred_list_lock);
 
 static bool tcf_mirred_is_act_redirect(int action)
 {
@@ -55,13 +54,10 @@ static void tcf_mirred_release(struct tc_action *a)
 	struct tcf_mirred *m = to_mirred(a);
 	struct net_device *dev;
 
-	/* We could be called either in a RCU callback or with RTNL lock held. */
-	spin_lock_bh(&mirred_list_lock);
 	list_del(&m->tcfm_list);
-	dev = rcu_dereference_protected(m->tcfm_dev, 1);
+	dev = rtnl_dereference(m->tcfm_dev);
 	if (dev)
 		dev_put(dev);
-	spin_unlock_bh(&mirred_list_lock);
 }
 
 static const struct nla_policy mirred_policy[TCA_MIRRED_MAX + 1] = {
@@ -147,9 +143,7 @@ static int tcf_mirred_init(struct net *net, struct nlattr *nla,
 	}
 
 	if (ret == ACT_P_CREATED) {
-		spin_lock_bh(&mirred_list_lock);
 		list_add(&m->tcfm_list, &mirred_list);
-		spin_unlock_bh(&mirred_list_lock);
 		tcf_idr_insert(tn, *a);
 	}
 
@@ -293,7 +287,6 @@ static int mirred_device_event(struct notifier_block *unused,
 
 	ASSERT_RTNL();
 	if (event == NETDEV_UNREGISTER) {
-		spin_lock_bh(&mirred_list_lock);
 		list_for_each_entry(m, &mirred_list, tcfm_list) {
 			if (rcu_access_pointer(m->tcfm_dev) == dev) {
 				dev_put(dev);
@@ -303,7 +296,6 @@ static int mirred_device_event(struct notifier_block *unused,
 				RCU_INIT_POINTER(m->tcfm_dev, NULL);
 			}
 		}
-		spin_unlock_bh(&mirred_list_lock);
 	}
 
 	return NOTIFY_DONE;
