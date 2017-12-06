@@ -428,7 +428,7 @@ err_remove_group:
 err_remove_esrt:
 	kobject_put(esrt_kobj);
 err:
-	kfree(esrt);
+	memunmap(esrt);
 	esrt = NULL;
 	return error;
 }
