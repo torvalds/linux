@@ -23,7 +23,6 @@
 #include <crypto/scatterwalk.h>
 #include <linux/dmapool.h>
 #include <linux/dma-mapping.h>
-#include <linux/crypto.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 

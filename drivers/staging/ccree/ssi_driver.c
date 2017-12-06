@@ -55,7 +55,6 @@
 #include <linux/uaccess.h>
 #include <linux/pagemap.h>
 #include <linux/sched.h>
-#include <linux/random.h>
 #include <linux/of.h>
 #include <linux/clk.h>
 #include <linux/of_address.h>
