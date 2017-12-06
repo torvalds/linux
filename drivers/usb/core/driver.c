@@ -342,8 +342,8 @@ static int usb_probe_interface(struct device *dev)
 	if (driver->disable_hub_initiated_lpm) {
 		lpm_disable_error = usb_unlocked_disable_lpm(udev);
 		if (lpm_disable_error) {
-			dev_err(&intf->dev, "%s Failed to disable LPM for driver %s\n.",
-					__func__, driver->name);
+			dev_err(&intf->dev, "%s Failed to disable LPM for driver %s\n",
+				__func__, driver->name);
 			error = lpm_disable_error;
 			goto err;
 		}
@@ -537,8 +537,8 @@ int usb_driver_claim_interface(struct usb_driver *driver,
 	if (driver->disable_hub_initiated_lpm) {
 		lpm_disable_error = usb_unlocked_disable_lpm(udev);
 		if (lpm_disable_error) {
-			dev_err(&iface->dev, "%s Failed to disable LPM for driver %s\n.",
-					__func__, driver->name);
+			dev_err(&iface->dev, "%s Failed to disable LPM for driver %s\n",
+				__func__, driver->name);
 			return -ENOMEM;
 		}
 	}
