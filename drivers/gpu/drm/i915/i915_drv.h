@@ -3240,8 +3240,9 @@ intel_info(const struct drm_i915_private *dev_priv)
 #define HAS_HUC_UCODE(dev_priv)	(HAS_GUC(dev_priv))
 
 /* Having a GuC is not the same as using a GuC */
-#define USES_GUC(dev_priv)		(i915_modparams.enable_guc_loading)
-#define USES_GUC_SUBMISSION(dev_priv)	(i915_modparams.enable_guc_submission)
+#define USES_GUC(dev_priv)		intel_uc_is_using_guc()
+#define USES_GUC_SUBMISSION(dev_priv)	intel_uc_is_using_guc_submission()
+#define USES_HUC(dev_priv)		intel_uc_is_using_huc()
 
 #define HAS_RESOURCE_STREAMER(dev_priv) ((dev_priv)->info.has_resource_streamer)
 

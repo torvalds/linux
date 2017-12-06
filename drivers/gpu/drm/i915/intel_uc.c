@@ -47,35 +47,65 @@ static int __intel_uc_reset_hw(struct drm_i915_private *dev_priv)
 	return ret;
 }
 
+static int __get_platform_enable_guc(struct drm_i915_private *dev_priv)
+{
+	struct intel_uc_fw *guc_fw = &dev_priv->guc.fw;
+	struct intel_uc_fw *huc_fw = &dev_priv->huc.fw;
+	int enable_guc = 0;
+
+	/* Default is to enable GuC/HuC if we know their firmwares */
+	if (intel_uc_fw_is_selected(guc_fw))
+		enable_guc |= ENABLE_GUC_SUBMISSION;
+	if (intel_uc_fw_is_selected(huc_fw))
+		enable_guc |= ENABLE_GUC_LOAD_HUC;
+
+	/* Any platform specific fine-tuning can be done here */
+
+	return enable_guc;
+}
+
+/**
+ * intel_uc_sanitize_options - sanitize uC related modparam options
+ * @dev_priv: device private
+ *
+ * In case of "enable_guc" option this function will attempt to modify
+ * it only if it was initially set to "auto(-1)". Default value for this
+ * modparam varies between platforms and it is hardcoded in driver code.
+ * Any other modparam value is only monitored against availability of the
+ * related hardware or firmware definitions.
+ */
 void intel_uc_sanitize_options(struct drm_i915_private *dev_priv)
 {
-	if (!HAS_GUC(dev_priv)) {
-		if (i915_modparams.enable_guc_loading > 0 ||
-		    i915_modparams.enable_guc_submission > 0)
-			DRM_INFO("Ignoring GuC options, no hardware\n");
-
-		i915_modparams.enable_guc_loading = 0;
-		i915_modparams.enable_guc_submission = 0;
-		return;
-	}
+	struct intel_uc_fw *guc_fw = &dev_priv->guc.fw;
+	struct intel_uc_fw *huc_fw = &dev_priv->huc.fw;
 
 	/* A negative value means "use platform default" */
-	if (i915_modparams.enable_guc_loading < 0)
-		i915_modparams.enable_guc_loading = HAS_GUC_UCODE(dev_priv);
+	if (i915_modparams.enable_guc < 0)
+		i915_modparams.enable_guc = __get_platform_enable_guc(dev_priv);
 
-	/* Verify firmware version */
-	if (i915_modparams.enable_guc_loading) {
-		if (!intel_uc_fw_is_selected(&dev_priv->guc.fw))
-			i915_modparams.enable_guc_loading = 0;
+	DRM_DEBUG_DRIVER("enable_guc=%d (submission:%s huc:%s)\n",
+			 i915_modparams.enable_guc,
+			 yesno(intel_uc_is_using_guc_submission()),
+			 yesno(intel_uc_is_using_huc()));
+
+	/* Verify GuC firmware availability */
+	if (intel_uc_is_using_guc() && !intel_uc_fw_is_selected(guc_fw)) {
+		DRM_WARN("Incompatible option detected: enable_guc=%d, %s!\n",
+			 i915_modparams.enable_guc,
+			 !HAS_GUC(dev_priv) ? "no GuC hardware" :
+					      "no GuC firmware");
 	}
 
-	/* Can't enable guc submission without guc loaded */
-	if (!i915_modparams.enable_guc_loading)
-		i915_modparams.enable_guc_submission = 0;
+	/* Verify HuC firmware availability */
+	if (intel_uc_is_using_huc() && !intel_uc_fw_is_selected(huc_fw)) {
+		DRM_WARN("Incompatible option detected: enable_guc=%d, %s!\n",
+			 i915_modparams.enable_guc,
+			 !HAS_HUC(dev_priv) ? "no HuC hardware" :
+					      "no HuC firmware");
+	}
 
-	/* A negative value means "use platform default" */
-	if (i915_modparams.enable_guc_submission < 0)
-		i915_modparams.enable_guc_submission = HAS_GUC_SCHED(dev_priv);
+	/* Make sure that sanitization was done */
+	GEM_BUG_ON(i915_modparams.enable_guc < 0);
 }
 
 void intel_uc_init_early(struct drm_i915_private *dev_priv)
@@ -161,6 +191,11 @@ int intel_uc_init_hw(struct drm_i915_private *dev_priv)
 	if (!USES_GUC(dev_priv))
 		return 0;
 
+	if (!HAS_GUC(dev_priv)) {
+		ret = -ENODEV;
+		goto err_out;
+	}
+
 	guc_disable_communication(guc);
 	gen9_reset_guc_interrupts(dev_priv);
 
@@ -235,12 +270,6 @@ int intel_uc_init_hw(struct drm_i915_private *dev_priv)
 
 	/*
 	 * We've failed to load the firmware :(
-	 *
-	 * Decide whether to disable GuC submission and fall back to
-	 * execlist mode, and whether to hide the error by returning
-	 * zero or to return -EIO, which the caller will treat as a
-	 * nonfatal error (i.e. it doesn't prevent driver load, but
-	 * marks the GPU as wedged until reset).
 	 */
 err_interrupts:
 	guc_disable_communication(guc);
@@ -252,23 +281,15 @@ err_submission:
 		intel_guc_submission_fini(guc);
 err_guc:
 	i915_ggtt_disable_guc(dev_priv);
+err_out:
+	/*
+	 * Note that there is no fallback as either user explicitly asked for
+	 * the GuC or driver default option was to run with the GuC enabled.
+	 */
+	if (GEM_WARN_ON(ret == -EIO))
+		ret = -EINVAL;
 
-	if (i915_modparams.enable_guc_loading > 1 ||
-	    i915_modparams.enable_guc_submission > 1) {
-		DRM_ERROR("GuC init failed. Firmware loading disabled.\n");
-		ret = -EIO;
-	} else {
-		DRM_NOTE("GuC init failed. Firmware loading disabled.\n");
-		ret = 0;
-	}
-
-	if (USES_GUC_SUBMISSION(dev_priv)) {
-		i915_modparams.enable_guc_submission = 0;
-		DRM_NOTE("Falling back from GuC submission to execlist mode\n");
-	}
-
-	i915_modparams.enable_guc_loading = 0;
-
+	dev_err(dev_priv->drm.dev, "GuC initialization failed %d\n", ret);
 	return ret;
 }
 
