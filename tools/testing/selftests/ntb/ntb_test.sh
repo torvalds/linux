@@ -18,7 +18,6 @@ LIST_DEVS=FALSE
 
 DEBUGFS=${DEBUGFS-/sys/kernel/debug}
 
-DB_BITMASK=0x7FFF
 PERF_RUN_ORDER=32
 MAX_MW_SIZE=0
 RUN_DMA_TESTS=
@@ -39,7 +38,6 @@ function show_help()
 	echo "be highly recommended."
 	echo
 	echo "Options:"
-	echo "  -b BITMASK      doorbell clear bitmask for ntb_tool"
 	echo "  -C              don't cleanup ntb modules on exit"
 	echo "  -d              run dma tests"
 	echo "  -h              show this help message"
@@ -56,7 +54,6 @@ function parse_args()
 	OPTIND=0
 	while getopts "b:Cdhlm:r:p:w:" opt; do
 		case "$opt" in
-		b)  DB_BITMASK=${OPTARG} ;;
 		C)  DONT_CLEANUP=1 ;;
 		d)  RUN_DMA_TESTS=1 ;;
 		h)  show_help; exit 0 ;;
@@ -215,20 +212,29 @@ function doorbell_test()
 
 	echo "Running db tests on: $(basename $LOC) / $(basename $REM)"
 
-	write_file "c $DB_BITMASK" "$REM/db"
+	DB_VALID_MASK=$(read_file "$LOC/db_valid_mask")
 
-	for ((i=1; i <= 8; i++)); do
-		let DB=$(read_file "$REM/db") || true
-		if [[ "$DB" != "$EXP" ]]; then
+	write_file "c $DB_VALID_MASK" "$REM/db"
+
+	for ((i = 0; i < 64; i++)); do
+		DB=$(read_file "$REM/db")
+		if [[ "$DB" -ne "$EXP" ]]; then
 			echo "Doorbell doesn't match expected value $EXP " \
 			     "in $REM/db" >&2
 			exit -1
 		fi
 
-		let "MASK=1 << ($i-1)" || true
-		let "EXP=$EXP | $MASK" || true
+		let "MASK = (1 << $i) & $DB_VALID_MASK" || true
+		let "EXP = $EXP | $MASK" || true
+
 		write_file "s $MASK" "$LOC/peer_db"
 	done
+
+	write_file "c $DB_VALID_MASK" "$REM/db_mask"
+	write_file $DB_VALID_MASK "$REM/db_event"
+	write_file "s $DB_VALID_MASK" "$REM/db_mask"
+
+	write_file "c $DB_VALID_MASK" "$REM/db"
 
 	echo "  Passed"
 }
@@ -393,14 +399,15 @@ function ntb_tool_tests()
 	write_file "Y" "$LOCAL_PEER_TOOL/link_event"
 	write_file "Y" "$REMOTE_PEER_TOOL/link_event"
 
+	doorbell_test "$LOCAL_TOOL" "$REMOTE_TOOL"
+	doorbell_test "$REMOTE_TOOL" "$LOCAL_TOOL"
+
 	for PEER_TRANS in $(ls "$LOCAL_TOOL"/peer_trans*); do
 		PT=$(basename $PEER_TRANS)
 		write_file $MW_SIZE "$LOCAL_TOOL/$PT"
 		write_file $MW_SIZE "$REMOTE_TOOL/$PT"
 	done
 
-	doorbell_test "$LOCAL_TOOL" "$REMOTE_TOOL"
-	doorbell_test "$REMOTE_TOOL" "$LOCAL_TOOL"
 	scratchpad_test "$LOCAL_TOOL" "$REMOTE_TOOL"
 	scratchpad_test "$REMOTE_TOOL" "$LOCAL_TOOL"
 
