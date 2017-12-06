@@ -990,14 +990,12 @@ static netdev_tx_t tun_net_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct tun_struct *tun = netdev_priv(dev);
 	int txq = skb->queue_mapping;
 	struct tun_file *tfile;
-	u32 numqueues = 0;
 
 	rcu_read_lock();
 	tfile = rcu_dereference(tun->tfiles[txq]);
-	numqueues = READ_ONCE(tun->numqueues);
 
 	/* Drop packet if interface is not attached */
-	if (txq >= numqueues)
+	if (txq >= tun->numqueues)
 		goto drop;
 
 	if (!rcu_dereference(tun->steering_prog))
