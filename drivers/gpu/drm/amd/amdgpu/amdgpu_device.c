@@ -3969,9 +3969,20 @@ static int amdgpu_debugfs_get_vbios_dump(struct seq_file *m, void *data)
 	return 0;
 }
 
+static int amdgpu_debugfs_evict_vram(struct seq_file *m, void *data)
+{
+	struct drm_info_node *node = (struct drm_info_node *)m->private;
+	struct drm_device *dev = node->minor->dev;
+	struct amdgpu_device *adev = dev->dev_private;
+
+	seq_printf(m, "(%d)\n", amdgpu_bo_evict_vram(adev));
+	return 0;
+}
+
 static const struct drm_info_list amdgpu_debugfs_list[] = {
 	{"amdgpu_vbios", amdgpu_debugfs_get_vbios_dump},
-	{"amdgpu_test_ib", &amdgpu_debugfs_test_ib}
+	{"amdgpu_test_ib", &amdgpu_debugfs_test_ib},
+	{"amdgpu_evict_vram", &amdgpu_debugfs_evict_vram}
 };
 
 static int amdgpu_debugfs_init(struct amdgpu_device *adev)
