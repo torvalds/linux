@@ -474,12 +474,12 @@ static int hpwdt_time_left(void)
 	return TICKS_TO_SECS(ioread16(hpwdt_timer_reg));
 }
 
+#ifdef CONFIG_HPWDT_NMI_DECODING
 static int hpwdt_my_nmi(void)
 {
 	return ioread8(hpwdt_nmistat) & 0x6;
 }
 
-#ifdef CONFIG_HPWDT_NMI_DECODING
 /*
  *	NMI Handler
  */
