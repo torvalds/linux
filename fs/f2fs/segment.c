@@ -2823,7 +2823,7 @@ void f2fs_wait_on_block_writeback(struct f2fs_sb_info *sbi, block_t blkaddr)
 	}
 }
 
-static int read_compacted_summaries(struct f2fs_sb_info *sbi)
+static void read_compacted_summaries(struct f2fs_sb_info *sbi)
 {
 	struct f2fs_checkpoint *ckpt = F2FS_CKPT(sbi);
 	struct curseg_info *seg_i;
@@ -2880,7 +2880,6 @@ static int read_compacted_summaries(struct f2fs_sb_info *sbi)
 		}
 	}
 	f2fs_put_page(page, 1);
-	return 0;
 }
 
 static int read_normal_summaries(struct f2fs_sb_info *sbi, int type)
@@ -2926,13 +2925,7 @@ static int read_normal_summaries(struct f2fs_sb_info *sbi, int type)
 				ns->ofs_in_node = 0;
 			}
 		} else {
-			int err;
-
-			err = restore_node_summary(sbi, segno, sum);
-			if (err) {
-				f2fs_put_page(new, 1);
-				return err;
-			}
+			restore_node_summary(sbi, segno, sum);
 		}
 	}
 
@@ -2971,8 +2964,7 @@ static int restore_curseg_summaries(struct f2fs_sb_info *sbi)
 							META_CP, true);
 
 		/* restore for compacted data summary */
-		if (read_compacted_summaries(sbi))
-			return -EINVAL;
+		read_compacted_summaries(sbi);
 		type = CURSEG_HOT_NODE;
 	}
 

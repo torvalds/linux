@@ -2325,7 +2325,7 @@ retry:
 	return 0;
 }
 
-int restore_node_summary(struct f2fs_sb_info *sbi,
+void restore_node_summary(struct f2fs_sb_info *sbi,
 			unsigned int segno, struct f2fs_summary_block *sum)
 {
 	struct f2fs_node *rn;
@@ -2358,7 +2358,6 @@ int restore_node_summary(struct f2fs_sb_info *sbi,
 		invalidate_mapping_pages(META_MAPPING(sbi), addr,
 							addr + nrpages);
 	}
-	return 0;
 }
 
 static void remove_nats_in_journal(struct f2fs_sb_info *sbi)
