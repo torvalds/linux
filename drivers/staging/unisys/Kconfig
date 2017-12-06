@@ -3,8 +3,6 @@
 #
 menuconfig UNISYSSPAR
 	bool "Unisys SPAR driver support"
-	depends on X86_64
-	depends on ACPI
 	---help---
 	Support for the Unisys SPAR drivers
 
