@@ -912,10 +912,6 @@ static int __init amdgpu_init(void)
 	if (r)
 		goto error_fence;
 
-	r = drm_sched_fence_slab_init();
-	if (r)
-		goto error_sched;
-
 	if (vgacon_text_force()) {
 		DRM_ERROR("VGACON disables amdgpu kernel modesetting.\n");
 		return -EINVAL;
@@ -927,9 +923,6 @@ static int __init amdgpu_init(void)
 	amdgpu_register_atpx_handler();
 	/* let modprobe override vga console setting */
 	return pci_register_driver(pdriver);
-
-error_sched:
-	amdgpu_fence_slab_fini();
 
 error_fence:
 	amdgpu_sync_fini();
@@ -944,7 +937,6 @@ static void __exit amdgpu_exit(void)
 	pci_unregister_driver(pdriver);
 	amdgpu_unregister_atpx_handler();
 	amdgpu_sync_fini();
-	drm_sched_fence_slab_fini();
 	amdgpu_fence_slab_fini();
 }
 

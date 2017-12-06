@@ -155,9 +155,6 @@ void drm_sched_entity_push_job(struct drm_sched_job *sched_job,
 void drm_sched_entity_set_rq(struct drm_sched_entity *entity,
 			     struct drm_sched_rq *rq);
 
-int drm_sched_fence_slab_init(void);
-void drm_sched_fence_slab_fini(void);
-
 struct drm_sched_fence *drm_sched_fence_create(
 	struct drm_sched_entity *s_entity, void *owner);
 void drm_sched_fence_scheduled(struct drm_sched_fence *fence);

@@ -29,7 +29,7 @@
 
 static struct kmem_cache *sched_fence_slab;
 
-int drm_sched_fence_slab_init(void)
+static int __init drm_sched_fence_slab_init(void)
 {
 	sched_fence_slab = kmem_cache_create(
 		"drm_sched_fence", sizeof(struct drm_sched_fence), 0,
@@ -39,14 +39,12 @@ int drm_sched_fence_slab_init(void)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(drm_sched_fence_slab_init);
 
-void drm_sched_fence_slab_fini(void)
+static void __exit drm_sched_fence_slab_fini(void)
 {
 	rcu_barrier();
 	kmem_cache_destroy(sched_fence_slab);
 }
-EXPORT_SYMBOL_GPL(drm_sched_fence_slab_fini);
 
 void drm_sched_fence_scheduled(struct drm_sched_fence *fence)
 {
@@ -185,3 +183,9 @@ struct drm_sched_fence *drm_sched_fence_create(struct drm_sched_entity *entity,
 
 	return fence;
 }
+
+module_init(drm_sched_fence_slab_init);
+module_exit(drm_sched_fence_slab_fini);
+
+MODULE_DESCRIPTION("DRM GPU scheduler");
+MODULE_LICENSE("GPL and additional rights");
