@@ -139,19 +139,6 @@
 		};
 	};
 
-	ion {
-		compatible = "rockchip,ion";
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		memory-region = <&cma_region>;
-
-		cma-heap {
-		};
-		system-heap {
-		};
-	};
-
 	ramoops {
 		compatible = "ramoops";
 		record-size = <0x0 0x20000>;
