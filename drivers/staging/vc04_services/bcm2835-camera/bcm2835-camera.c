@@ -347,8 +347,7 @@ static void buffer_cb(struct vchiq_mmal_instance *instance,
 				timestamp = ktime_add_us(dev->capture.kernel_start_ts,
 							 runtime_us);
 				v4l2_dbg(1, bcm2835_v4l2_debug, &dev->v4l2_dev,
-					 "Convert start time %llu and %llu "
-					 "with offset %llu to %llu\n",
+					 "Convert start time %llu and %llu with offset %llu to %llu\n",
 					 ktime_to_ns(dev->capture.kernel_start_ts),
 					 dev->capture.vc_start_timestamp, pts,
 					 ktime_to_ns(timestamp));
@@ -532,8 +531,8 @@ static int start_streaming(struct vb2_queue *vq, unsigned int count)
 	    vchiq_mmal_port_enable(dev->instance, dev->capture.port, buffer_cb);
 	if (ret) {
 		v4l2_err(&dev->v4l2_dev,
-			"Failed to enable capture port - error %d. "
-			"Disabling camera port again\n", ret);
+			"Failed to enable capture port - error %d. Disabling camera port again\n",
+			ret);
 
 		vchiq_mmal_port_disable(dev->instance,
 					dev->capture.camera_port);
