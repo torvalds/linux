@@ -39,15 +39,16 @@ function show_help()
 	echo
 	echo "Options:"
 	echo "  -C              don't cleanup ntb modules on exit"
-	echo "  -d              run dma tests"
 	echo "  -h              show this help message"
 	echo "  -l              list available local and remote PCI ids"
 	echo "  -r REMOTE_HOST  specify the remote's hostname to connect"
 	echo "                  to for the test (using ssh)"
 	echo "  -m MW_SIZE      memory window size for ntb_tool"
 	echo "                  (default: $MW_SIZE)"
-	echo "  -p NUM          ntb_perf run order (default: $PERF_RUN_ORDER)"
-	echo "  -w max_mw_size  maxmium memory window size"
+	echo "  -d              run dma tests for ntb_perf"
+	echo "  -p ORDER        total data order for ntb_perf"
+	echo "                  (default: $PERF_RUN_ORDER)"
+	echo "  -w MAX_MW_SIZE  maxmium memory window size for ntb_perf"
 	echo
 }
 
@@ -460,17 +461,17 @@ function perf_test()
 		WITH="without"
 	fi
 
-	_modprobe ntb_perf run_order=$PERF_RUN_ORDER \
+	_modprobe ntb_perf total_order=$PERF_RUN_ORDER \
 		max_mw_size=$MAX_MW_SIZE use_dma=$USE_DMA
 
 	echo "Running local perf test $WITH DMA"
-	write_file "" "$LOCAL_PERF/run"
+	write_file "$LOCAL_PIDX" "$LOCAL_PERF/run"
 	echo -n "  "
 	read_file "$LOCAL_PERF/run"
 	echo "  Passed"
 
 	echo "Running remote perf test $WITH DMA"
-	write_file "" "$REMOTE_PERF/run"
+	write_file "$REMOTE_PIDX" "$REMOTE_PERF/run"
 	echo -n "  "
 	read_file "$REMOTE_PERF/run"
 	echo "  Passed"
