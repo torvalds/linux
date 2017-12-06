@@ -106,7 +106,7 @@ static const struct sysfs_ops esre_attr_ops = {
 };
 
 /* Generic ESRT Entry ("ESRE") support. */
-static ssize_t esre_fw_class_show(struct esre_entry *entry, char *buf)
+static ssize_t fw_class_show(struct esre_entry *entry, char *buf)
 {
 	char *str = buf;
 
@@ -117,18 +117,16 @@ static ssize_t esre_fw_class_show(struct esre_entry *entry, char *buf)
 	return str - buf;
 }
 
-static struct esre_attribute esre_fw_class = __ATTR(fw_class, 0400,
-	esre_fw_class_show, NULL);
+static struct esre_attribute esre_fw_class = __ATTR_RO_MODE(fw_class, 0400);
 
 #define esre_attr_decl(name, size, fmt) \
-static ssize_t esre_##name##_show(struct esre_entry *entry, char *buf) \
+static ssize_t name##_show(struct esre_entry *entry, char *buf) \
 { \
 	return sprintf(buf, fmt "\n", \
 		       le##size##_to_cpu(entry->esre.esre1->name)); \
 } \
 \
-static struct esre_attribute esre_##name = __ATTR(name, 0400, \
-	esre_##name##_show, NULL)
+static struct esre_attribute esre_##name = __ATTR_RO_MODE(name, 0400)
 
 esre_attr_decl(fw_type, 32, "%u");
 esre_attr_decl(fw_version, 32, "%u");
@@ -193,14 +191,13 @@ static int esre_create_sysfs_entry(void *esre, int entry_num)
 
 /* support for displaying ESRT fields at the top level */
 #define esrt_attr_decl(name, size, fmt) \
-static ssize_t esrt_##name##_show(struct kobject *kobj, \
+static ssize_t name##_show(struct kobject *kobj, \
 				  struct kobj_attribute *attr, char *buf)\
 { \
 	return sprintf(buf, fmt "\n", le##size##_to_cpu(esrt->name)); \
 } \
 \
-static struct kobj_attribute esrt_##name = __ATTR(name, 0400, \
-	esrt_##name##_show, NULL)
+static struct kobj_attribute esrt_##name = __ATTR_RO_MODE(name, 0400)
 
 esrt_attr_decl(fw_resource_count, 32, "%u");
 esrt_attr_decl(fw_resource_count_max, 32, "%u");
