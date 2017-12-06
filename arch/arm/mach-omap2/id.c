@@ -663,6 +663,15 @@ void __init dra7xxx_check_revision(void)
 	hawkeye = (idcode >> 12) & 0xffff;
 	rev = (idcode >> 28) & 0xff;
 	switch (hawkeye) {
+	case 0xbb50:
+		switch (rev) {
+		case 0:
+		default:
+			omap_revision = DRA762_REV_ES1_0;
+			break;
+		}
+		break;
+
 	case 0xb990:
 		switch (rev) {
 		case 0:

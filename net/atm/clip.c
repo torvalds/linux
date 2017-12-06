@@ -617,7 +617,7 @@ static void atmarpd_close(struct atm_vcc *vcc)
 	module_put(THIS_MODULE);
 }
 
-static struct atmdev_ops atmarpd_dev_ops = {
+static const struct atmdev_ops atmarpd_dev_ops = {
 	.close = atmarpd_close
 };
 

@@ -38,9 +38,9 @@
 
 #include <asm/unaligned.h>
 
-#include "../include/obd_support.h"
-#include "../include/lustre_debug.h"
-#include "../include/lustre_net.h"
+#include <obd_support.h>
+#include <lustre_debug.h>
+#include <lustre_net.h>
 
 #define LPDS sizeof(__u64)
 int block_debug_setup(void *addr, int len, __u64 off, __u64 id)

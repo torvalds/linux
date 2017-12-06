@@ -793,6 +793,11 @@ void perf_event_print_debug(void)
 	u32 pmcs[MAX_HWEVENTS];
 	int i;
 
+	if (!ppmu) {
+		pr_info("Performance monitor hardware not registered.\n");
+		return;
+	}
+
 	if (!ppmu->n_counter)
 		return;
 
@@ -2039,7 +2044,8 @@ static void record_and_restart(struct perf_event *event, unsigned long val,
 
 		perf_sample_data_init(&data, ~0ULL, event->hw.last_period);
 
-		if (event->attr.sample_type & PERF_SAMPLE_ADDR)
+		if (event->attr.sample_type &
+		    (PERF_SAMPLE_ADDR | PERF_SAMPLE_PHYS_ADDR))
 			perf_get_data_addr(regs, &data.addr);
 
 		if (event->attr.sample_type & PERF_SAMPLE_BRANCH_STACK) {

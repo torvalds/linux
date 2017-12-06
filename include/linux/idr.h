@@ -80,17 +80,73 @@ static inline void idr_set_cursor(struct idr *idr, unsigned int val)
  */
 
 void idr_preload(gfp_t gfp_mask);
-int idr_alloc(struct idr *, void *entry, int start, int end, gfp_t);
+
+int idr_alloc_cmn(struct idr *idr, void *ptr, unsigned long *index,
+		  unsigned long start, unsigned long end, gfp_t gfp,
+		  bool ext);
+
+/**
+ * idr_alloc - allocate an id
+ * @idr: idr handle
+ * @ptr: pointer to be associated with the new id
+ * @start: the minimum id (inclusive)
+ * @end: the maximum id (exclusive)
+ * @gfp: memory allocation flags
+ *
+ * Allocates an unused ID in the range [start, end).  Returns -ENOSPC
+ * if there are no unused IDs in that range.
+ *
+ * Note that @end is treated as max when <= 0.  This is to always allow
+ * using @start + N as @end as long as N is inside integer range.
+ *
+ * Simultaneous modifications to the @idr are not allowed and should be
+ * prevented by the user, usually with a lock.  idr_alloc() may be called
+ * concurrently with read-only accesses to the @idr, such as idr_find() and
+ * idr_for_each_entry().
+ */
+static inline int idr_alloc(struct idr *idr, void *ptr,
+			    int start, int end, gfp_t gfp)
+{
+	unsigned long id;
+	int ret;
+
+	if (WARN_ON_ONCE(start < 0))
+		return -EINVAL;
+
+	ret = idr_alloc_cmn(idr, ptr, &id, start, end, gfp, false);
+
+	if (ret)
+		return ret;
+
+	return id;
+}
+
+static inline int idr_alloc_ext(struct idr *idr, void *ptr,
+				unsigned long *index,
+				unsigned long start,
+				unsigned long end,
+				gfp_t gfp)
+{
+	return idr_alloc_cmn(idr, ptr, index, start, end, gfp, true);
+}
+
 int idr_alloc_cyclic(struct idr *, void *entry, int start, int end, gfp_t);
 int idr_for_each(const struct idr *,
 		 int (*fn)(int id, void *p, void *data), void *data);
 void *idr_get_next(struct idr *, int *nextid);
+void *idr_get_next_ext(struct idr *idr, unsigned long *nextid);
 void *idr_replace(struct idr *, void *, int id);
+void *idr_replace_ext(struct idr *idr, void *ptr, unsigned long id);
 void idr_destroy(struct idr *);
+
+static inline void *idr_remove_ext(struct idr *idr, unsigned long id)
+{
+	return radix_tree_delete_item(&idr->idr_rt, id, NULL);
+}
 
 static inline void *idr_remove(struct idr *idr, int id)
 {
-	return radix_tree_delete_item(&idr->idr_rt, id, NULL);
+	return idr_remove_ext(idr, id);
 }
 
 static inline void idr_init(struct idr *idr)
@@ -128,9 +184,14 @@ static inline void idr_preload_end(void)
  * This function can be called under rcu_read_lock(), given that the leaf
  * pointers lifetimes are correctly managed.
  */
-static inline void *idr_find(const struct idr *idr, int id)
+static inline void *idr_find_ext(const struct idr *idr, unsigned long id)
 {
 	return radix_tree_lookup(&idr->idr_rt, id);
+}
+
+static inline void *idr_find(const struct idr *idr, int id)
+{
+	return idr_find_ext(idr, id);
 }
 
 /**
@@ -145,6 +206,8 @@ static inline void *idr_find(const struct idr *idr, int id)
  */
 #define idr_for_each_entry(idr, entry, id)			\
 	for (id = 0; ((entry) = idr_get_next(idr, &(id))) != NULL; ++id)
+#define idr_for_each_entry_ext(idr, entry, id)			\
+	for (id = 0; ((entry) = idr_get_next_ext(idr, &(id))) != NULL; ++id)
 
 /**
  * idr_for_each_entry_continue - continue iteration over an idr's elements of a given type

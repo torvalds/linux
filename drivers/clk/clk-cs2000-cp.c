@@ -343,6 +343,15 @@ static int cs2000_set_rate(struct clk_hw *hw,
 	return __cs2000_set_rate(priv, ch, rate, parent_rate);
 }
 
+static int cs2000_set_saved_rate(struct cs2000_priv *priv)
+{
+	int ch = 0; /* it uses ch0 only at this point */
+
+	return __cs2000_set_rate(priv, ch,
+				 priv->saved_rate,
+				 priv->saved_parent_rate);
+}
+
 static int cs2000_enable(struct clk_hw *hw)
 {
 	struct cs2000_priv *priv = hw_to_priv(hw);
@@ -535,11 +544,8 @@ probe_err:
 static int cs2000_resume(struct device *dev)
 {
 	struct cs2000_priv *priv = dev_get_drvdata(dev);
-	int ch = 0; /* it uses ch0 only at this point */
 
-	return __cs2000_set_rate(priv, ch,
-				 priv->saved_rate,
-				 priv->saved_parent_rate);
+	return cs2000_set_saved_rate(priv);
 }
 
 static const struct dev_pm_ops cs2000_pm_ops = {

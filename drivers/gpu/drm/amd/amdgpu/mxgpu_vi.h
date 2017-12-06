@@ -32,7 +32,9 @@ enum idh_request {
 	IDH_REL_GPU_INIT_ACCESS,
 	IDH_REQ_GPU_FINI_ACCESS,
 	IDH_REL_GPU_FINI_ACCESS,
-	IDH_REQ_GPU_RESET_ACCESS
+	IDH_REQ_GPU_RESET_ACCESS,
+
+	IDH_LOG_VF_ERROR       = 200,
 };
 
 /* VI mailbox messages data */

@@ -43,12 +43,11 @@
  * @{
  */
 
-#include "lustre_handles.h"
-#include "../../include/linux/libcfs/libcfs.h"
-#include "lustre/lustre_idl.h"
-#include "lustre_lib.h"
-#include "lustre_dlm.h"
-#include "lustre_export.h"
+#include <lustre_handles.h>
+#include <linux/libcfs/libcfs.h>
+#include <lustre_lib.h>
+#include <lustre_dlm.h>
+#include <lustre_export.h>
 
 struct mds_group_info {
 	struct obd_uuid *uuid;

@@ -190,6 +190,13 @@ struct drm_framebuffer {
 	 * @filp_head: Placed on &drm_file.fbs, protected by &drm_file.fbs_lock.
 	 */
 	struct list_head filp_head;
+	/**
+	 * @obj: GEM objects backing the framebuffer, one per plane (optional).
+	 *
+	 * This is used by the GEM framebuffer helpers, see e.g.
+	 * drm_gem_fb_create().
+	 */
+	struct drm_gem_object *obj[4];
 };
 
 #define obj_to_fb(x) container_of(x, struct drm_framebuffer, base)

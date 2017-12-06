@@ -1356,7 +1356,7 @@ static inline char *ks_wlan_translate_scan(struct net_device *dev,
 
 	/* Add mode */
 	iwe.cmd = SIOCGIWMODE;
-	capabilities = le16_to_cpu(ap->capability);
+	capabilities = ap->capability;
 	if (capabilities & (BSS_CAP_ESS | BSS_CAP_IBSS)) {
 		if (capabilities & BSS_CAP_ESS)
 			iwe.u.mode = IW_MODE_INFRA;

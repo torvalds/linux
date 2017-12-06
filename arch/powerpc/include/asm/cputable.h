@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __ASM_POWERPC_CPUTABLE_H
 #define __ASM_POWERPC_CPUTABLE_H
 
@@ -513,7 +514,7 @@ enum {
 #else
 	    CPU_FTRS_GENERIC_32 |
 #endif
-#ifdef CONFIG_8xx
+#ifdef CONFIG_PPC_8xx
 	    CPU_FTRS_8XX |
 #endif
 #ifdef CONFIG_40x
@@ -565,7 +566,7 @@ enum {
 #else
 	    CPU_FTRS_GENERIC_32 &
 #endif
-#ifdef CONFIG_8xx
+#ifdef CONFIG_PPC_8xx
 	    CPU_FTRS_8XX &
 #endif
 #ifdef CONFIG_40x

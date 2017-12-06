@@ -280,7 +280,7 @@ static int st_rc_probe(struct platform_device *pdev)
 	else
 		rc_dev->rx_base = rc_dev->base;
 
-	rc_dev->rstc = reset_control_get_optional(dev, NULL);
+	rc_dev->rstc = reset_control_get_optional_exclusive(dev, NULL);
 	if (IS_ERR(rc_dev->rstc)) {
 		ret = PTR_ERR(rc_dev->rstc);
 		goto err;
@@ -290,7 +290,7 @@ static int st_rc_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, rc_dev);
 	st_rc_hardware_init(rc_dev);
 
-	rdev->allowed_protocols = RC_BIT_ALL_IR_DECODER;
+	rdev->allowed_protocols = RC_PROTO_BIT_ALL_IR_DECODER;
 	/* rx sampling rate is 10Mhz */
 	rdev->rx_resolution = 100;
 	rdev->timeout = US_TO_NS(MAX_SYMB_TIME);
@@ -299,7 +299,7 @@ static int st_rc_probe(struct platform_device *pdev)
 	rdev->close = st_rc_close;
 	rdev->driver_name = IR_ST_NAME;
 	rdev->map_name = RC_MAP_EMPTY;
-	rdev->input_name = "ST Remote Control Receiver";
+	rdev->device_name = "ST Remote Control Receiver";
 
 	ret = rc_register_device(rdev);
 	if (ret < 0)

@@ -24,6 +24,7 @@
 #include "gf100.h"
 
 #include <core/gpuobj.h>
+#include <core/option.h>
 #include <subdev/fb.h>
 #include <subdev/mmu.h>
 
@@ -59,6 +60,8 @@ gf100_bar_ctor_vm(struct gf100_bar *bar, struct gf100_bar_vm *bar_vm,
 		return ret;
 
 	bar_len = device->func->resource_size(device, bar_nr);
+	if (bar_nr == 3 && bar->bar2_halve)
+		bar_len >>= 1;
 
 	ret = nvkm_vm_new(device, 0, bar_len, 0, key, &vm);
 	if (ret)
@@ -129,6 +132,8 @@ gf100_bar_init(struct nvkm_bar *base)
 
 	if (bar->bar[0].mem) {
 		addr = nvkm_memory_addr(bar->bar[0].mem) >> 12;
+		if (bar->bar2_halve)
+			addr |= 0x40000000;
 		nvkm_wr32(device, 0x001714, 0x80000000 | addr);
 	}
 
@@ -161,6 +166,7 @@ gf100_bar_new_(const struct nvkm_bar_func *func, struct nvkm_device *device,
 	if (!(bar = kzalloc(sizeof(*bar), GFP_KERNEL)))
 		return -ENOMEM;
 	nvkm_bar_ctor(func, device, index, &bar->base);
+	bar->bar2_halve = nvkm_boolopt(device->cfgopt, "NvBar2Halve", false);
 	*pbar = &bar->base;
 	return 0;
 }

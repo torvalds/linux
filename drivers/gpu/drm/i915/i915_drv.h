@@ -80,8 +80,8 @@
 
 #define DRIVER_NAME		"i915"
 #define DRIVER_DESC		"Intel Graphics"
-#define DRIVER_DATE		"20170619"
-#define DRIVER_TIMESTAMP	1497857498
+#define DRIVER_DATE		"20170818"
+#define DRIVER_TIMESTAMP	1503088845
 
 /* Use I915_STATE_WARN(x) and I915_STATE_WARN_ON() (rather than WARN() and
  * WARN_ON()) for hw state sanity checks to check for unexpected conditions
@@ -122,7 +122,7 @@ static inline bool is_fixed16_zero(uint_fixed_16_16_t val)
 	return false;
 }
 
-static inline uint_fixed_16_16_t u32_to_fixed_16_16(uint32_t val)
+static inline uint_fixed_16_16_t u32_to_fixed16(uint32_t val)
 {
 	uint_fixed_16_16_t fp;
 
@@ -132,17 +132,17 @@ static inline uint_fixed_16_16_t u32_to_fixed_16_16(uint32_t val)
 	return fp;
 }
 
-static inline uint32_t fixed_16_16_to_u32_round_up(uint_fixed_16_16_t fp)
+static inline uint32_t fixed16_to_u32_round_up(uint_fixed_16_16_t fp)
 {
 	return DIV_ROUND_UP(fp.val, 1 << 16);
 }
 
-static inline uint32_t fixed_16_16_to_u32(uint_fixed_16_16_t fp)
+static inline uint32_t fixed16_to_u32(uint_fixed_16_16_t fp)
 {
 	return fp.val >> 16;
 }
 
-static inline uint_fixed_16_16_t min_fixed_16_16(uint_fixed_16_16_t min1,
+static inline uint_fixed_16_16_t min_fixed16(uint_fixed_16_16_t min1,
 						 uint_fixed_16_16_t min2)
 {
 	uint_fixed_16_16_t min;
@@ -151,13 +151,21 @@ static inline uint_fixed_16_16_t min_fixed_16_16(uint_fixed_16_16_t min1,
 	return min;
 }
 
-static inline uint_fixed_16_16_t max_fixed_16_16(uint_fixed_16_16_t max1,
+static inline uint_fixed_16_16_t max_fixed16(uint_fixed_16_16_t max1,
 						 uint_fixed_16_16_t max2)
 {
 	uint_fixed_16_16_t max;
 
 	max.val = max(max1.val, max2.val);
 	return max;
+}
+
+static inline uint_fixed_16_16_t clamp_u64_to_fixed16(uint64_t val)
+{
+	uint_fixed_16_16_t fp;
+	WARN_ON(val >> 32);
+	fp.val = clamp_t(uint32_t, val, 0, ~0);
+	return fp;
 }
 
 static inline uint32_t div_round_up_fixed16(uint_fixed_16_16_t val,
@@ -170,48 +178,30 @@ static inline uint32_t mul_round_up_u32_fixed16(uint32_t val,
 						uint_fixed_16_16_t mul)
 {
 	uint64_t intermediate_val;
-	uint32_t result;
 
 	intermediate_val = (uint64_t) val * mul.val;
 	intermediate_val = DIV_ROUND_UP_ULL(intermediate_val, 1 << 16);
 	WARN_ON(intermediate_val >> 32);
-	result = clamp_t(uint32_t, intermediate_val, 0, ~0);
-	return result;
+	return clamp_t(uint32_t, intermediate_val, 0, ~0);
 }
 
 static inline uint_fixed_16_16_t mul_fixed16(uint_fixed_16_16_t val,
 					     uint_fixed_16_16_t mul)
 {
 	uint64_t intermediate_val;
-	uint_fixed_16_16_t fp;
 
 	intermediate_val = (uint64_t) val.val * mul.val;
 	intermediate_val = intermediate_val >> 16;
-	WARN_ON(intermediate_val >> 32);
-	fp.val = clamp_t(uint32_t, intermediate_val, 0, ~0);
-	return fp;
+	return clamp_u64_to_fixed16(intermediate_val);
 }
 
-static inline uint_fixed_16_16_t fixed_16_16_div(uint32_t val, uint32_t d)
+static inline uint_fixed_16_16_t div_fixed16(uint32_t val, uint32_t d)
 {
-	uint_fixed_16_16_t fp, res;
-
-	fp = u32_to_fixed_16_16(val);
-	res.val = DIV_ROUND_UP(fp.val, d);
-	return res;
-}
-
-static inline uint_fixed_16_16_t fixed_16_16_div_u64(uint32_t val, uint32_t d)
-{
-	uint_fixed_16_16_t res;
 	uint64_t interm_val;
 
 	interm_val = (uint64_t)val << 16;
 	interm_val = DIV_ROUND_UP_ULL(interm_val, d);
-	WARN_ON(interm_val >> 32);
-	res.val = (uint32_t) interm_val;
-
-	return res;
+	return clamp_u64_to_fixed16(interm_val);
 }
 
 static inline uint32_t div_round_up_u32_fixed16(uint32_t val,
@@ -225,16 +215,32 @@ static inline uint32_t div_round_up_u32_fixed16(uint32_t val,
 	return clamp_t(uint32_t, interm_val, 0, ~0);
 }
 
-static inline uint_fixed_16_16_t mul_u32_fixed_16_16(uint32_t val,
+static inline uint_fixed_16_16_t mul_u32_fixed16(uint32_t val,
 						     uint_fixed_16_16_t mul)
 {
 	uint64_t intermediate_val;
-	uint_fixed_16_16_t fp;
 
 	intermediate_val = (uint64_t) val * mul.val;
-	WARN_ON(intermediate_val >> 32);
-	fp.val = (uint32_t) intermediate_val;
-	return fp;
+	return clamp_u64_to_fixed16(intermediate_val);
+}
+
+static inline uint_fixed_16_16_t add_fixed16(uint_fixed_16_16_t add1,
+					     uint_fixed_16_16_t add2)
+{
+	uint64_t interm_sum;
+
+	interm_sum = (uint64_t) add1.val + add2.val;
+	return clamp_u64_to_fixed16(interm_sum);
+}
+
+static inline uint_fixed_16_16_t add_fixed16_u32(uint_fixed_16_16_t add1,
+						 uint32_t add2)
+{
+	uint64_t interm_sum;
+	uint_fixed_16_16_t interm_add2 = u32_to_fixed16(add2);
+
+	interm_sum = (uint64_t) add1.val + interm_add2.val;
+	return clamp_u64_to_fixed16(interm_sum);
 }
 
 static inline const char *yesno(bool v)
@@ -584,8 +590,7 @@ struct drm_i915_file_private {
 	struct idr context_idr;
 
 	struct intel_rps_client {
-		struct list_head link;
-		unsigned boosts;
+		atomic_t boosts;
 	} rps;
 
 	unsigned int bsd_engine;
@@ -597,7 +602,7 @@ struct drm_i915_file_private {
  * to limit the badly behaving clients access to gpu.
  */
 #define I915_MAX_CLIENT_CONTEXT_BANS 3
-	int context_bans;
+	atomic_t context_bans;
 };
 
 /* Used by dp and fdi links */
@@ -641,6 +646,7 @@ struct intel_opregion {
 	u32 swsci_sbcb_sub_functions;
 	struct opregion_asle *asle;
 	void *rvda;
+	void *vbt_firmware;
 	const void *vbt;
 	u32 vbt_size;
 	u32 *lid_state;
@@ -710,11 +716,6 @@ struct drm_i915_display_funcs {
 	void (*fdi_link_train)(struct intel_crtc *crtc,
 			       const struct intel_crtc_state *crtc_state);
 	void (*init_clock_gating)(struct drm_i915_private *dev_priv);
-	int (*queue_flip)(struct drm_device *dev, struct drm_crtc *crtc,
-			  struct drm_framebuffer *fb,
-			  struct drm_i915_gem_object *obj,
-			  struct drm_i915_gem_request *req,
-			  uint32_t flags);
 	void (*hpd_irq_setup)(struct drm_i915_private *dev_priv);
 	/* clock updates for mode set */
 	/* cursor updates */
@@ -753,6 +754,7 @@ struct intel_csr {
 	func(has_csr); \
 	func(has_ddi); \
 	func(has_dp_mst); \
+	func(has_reset_engine); \
 	func(has_fbc); \
 	func(has_fpga_dbg); \
 	func(has_full_ppgtt); \
@@ -917,6 +919,7 @@ struct i915_gpu_state {
 		enum intel_engine_hangcheck_action hangcheck_action;
 		struct i915_address_space *vm;
 		int num_requests;
+		u32 reset_count;
 
 		/* position of active request inside the ring */
 		u32 rq_head, rq_post, rq_tail;
@@ -1056,6 +1059,11 @@ struct intel_fbc {
 	bool underrun_detected;
 	struct work_struct underrun_work;
 
+	/*
+	 * Due to the atomic rules we can't access some structures without the
+	 * appropriate locking, so we cache information here in order to avoid
+	 * these problems.
+	 */
 	struct intel_fbc_state_cache {
 		struct i915_vma *vma;
 
@@ -1077,6 +1085,13 @@ struct intel_fbc {
 		} fb;
 	} state_cache;
 
+	/*
+	 * This structure contains everything that's relevant to program the
+	 * hardware registers. When we want to figure out if we need to disable
+	 * and re-enable FBC for a new configuration we just check if there's
+	 * something different in the struct. The genx_fbc_activate functions
+	 * are supposed to read from it in order to program the registers.
+	 */
 	struct intel_fbc_reg_params {
 		struct i915_vma *vma;
 
@@ -1149,11 +1164,11 @@ struct i915_psr {
 enum intel_pch {
 	PCH_NONE = 0,	/* No PCH present */
 	PCH_IBX,	/* Ibexpeak PCH */
-	PCH_CPT,	/* Cougarpoint PCH */
-	PCH_LPT,	/* Lynxpoint PCH */
+	PCH_CPT,	/* Cougarpoint/Pantherpoint PCH */
+	PCH_LPT,	/* Lynxpoint/Wildcatpoint PCH */
 	PCH_SPT,        /* Sunrisepoint PCH */
-	PCH_KBP,        /* Kabypoint PCH */
-	PCH_CNP,        /* Cannonpoint PCH */
+	PCH_KBP,        /* Kaby Lake PCH */
+	PCH_CNP,        /* Cannon Lake PCH */
 	PCH_NOP,
 };
 
@@ -1166,6 +1181,7 @@ enum intel_sbi_destination {
 #define QUIRK_INVERT_BRIGHTNESS (1<<2)
 #define QUIRK_BACKLIGHT_PRESENT (1<<3)
 #define QUIRK_PIN_SWIZZLED_PAGES (1<<5)
+#define QUIRK_INCREASE_T12_DELAY (1<<6)
 
 struct intel_fbdev;
 struct intel_fbc_work;
@@ -1301,13 +1317,10 @@ struct intel_gen6_power_mgmt {
 	int last_adj;
 	enum { LOW_POWER, BETWEEN, HIGH_POWER } power;
 
-	spinlock_t client_lock;
-	struct list_head clients;
-	bool client_boost;
-
 	bool enabled;
 	struct delayed_work autoenable_work;
-	unsigned boosts;
+	atomic_t num_waiters;
+	atomic_t boosts;
 
 	/* manual wa residency calculations */
 	struct intel_rps_ei ei;
@@ -1383,12 +1396,23 @@ struct i915_power_well {
 	bool hw_enabled;
 	u64 domains;
 	/* unique identifier for this power well */
-	unsigned long id;
+	enum i915_power_well_id id;
 	/*
 	 * Arbitraty data associated with this power well. Platform and power
 	 * well specific.
 	 */
-	unsigned long data;
+	union {
+		struct {
+			enum dpio_phy phy;
+		} bxt;
+		struct {
+			/* Mask of pipes whose IRQ logic is backed by the pw */
+			u8 irq_pipe_mask;
+			/* The pw is backing the VGA functionality */
+			bool has_vga:1;
+			bool has_fuses:1;
+		} hsw;
+	};
 	const struct i915_power_well_ops *ops;
 };
 
@@ -1505,6 +1529,8 @@ struct i915_gpu_error {
 	/* Protected by the above dev->gpu_error.lock. */
 	struct i915_gpu_state *first_error;
 
+	atomic_t pending_fb_pin;
+
 	unsigned long missed_irq_rings;
 
 	/**
@@ -1550,6 +1576,12 @@ struct i915_gpu_error {
 	 * inspect the bit and do the reset directly, otherwise the worker
 	 * waits for the struct_mutex.
 	 *
+	 * #I915_RESET_ENGINE[num_engines] - Since the driver doesn't need to
+	 * acquire the struct_mutex to reset an engine, we need an explicit
+	 * flag to prevent two concurrent reset attempts in the same engine.
+	 * As the number of engines continues to grow, allocate the flags from
+	 * the most significant bits.
+	 *
 	 * #I915_WEDGED - If reset fails and we can no longer use the GPU,
 	 * we set the #I915_WEDGED bit. Prior to command submission, e.g.
 	 * i915_gem_request_alloc(), this bit is checked and the sequence
@@ -1558,7 +1590,12 @@ struct i915_gpu_error {
 	unsigned long flags;
 #define I915_RESET_BACKOFF	0
 #define I915_RESET_HANDOFF	1
+#define I915_RESET_MODESET	2
 #define I915_WEDGED		(BITS_PER_LONG - 1)
+#define I915_RESET_ENGINE	(I915_WEDGED - I915_NUM_ENGINES)
+
+	/** Number of times an engine has been reset */
+	u32 reset_engine_count[I915_NUM_ENGINES];
 
 	/**
 	 * Waitqueue to signal when a hang is detected. Used to for waiters
@@ -1869,6 +1906,7 @@ struct i915_workarounds {
 
 struct i915_virtual_gpu {
 	bool active;
+	u32 caps;
 };
 
 /* used in computing the new watermarks state */
@@ -1886,6 +1924,24 @@ struct i915_oa_format {
 struct i915_oa_reg {
 	i915_reg_t addr;
 	u32 value;
+};
+
+struct i915_oa_config {
+	char uuid[UUID_STRING_LEN + 1];
+	int id;
+
+	const struct i915_oa_reg *mux_regs;
+	u32 mux_regs_len;
+	const struct i915_oa_reg *b_counter_regs;
+	u32 b_counter_regs_len;
+	const struct i915_oa_reg *flex_regs;
+	u32 flex_regs_len;
+
+	struct attribute_group sysfs_metric;
+	struct attribute *attrs[2];
+	struct device_attribute sysfs_metric_id;
+
+	atomic_t ref_count;
 };
 
 struct i915_perf_stream;
@@ -2000,12 +2056,36 @@ struct i915_perf_stream {
 	 * type of configured stream.
 	 */
 	const struct i915_perf_stream_ops *ops;
+
+	/**
+	 * @oa_config: The OA configuration used by the stream.
+	 */
+	struct i915_oa_config *oa_config;
 };
 
 /**
  * struct i915_oa_ops - Gen specific implementation of an OA unit stream
  */
 struct i915_oa_ops {
+	/**
+	 * @is_valid_b_counter_reg: Validates register's address for
+	 * programming boolean counters for a particular platform.
+	 */
+	bool (*is_valid_b_counter_reg)(struct drm_i915_private *dev_priv,
+				       u32 addr);
+
+	/**
+	 * @is_valid_mux_reg: Validates register's address for programming mux
+	 * for a particular platform.
+	 */
+	bool (*is_valid_mux_reg)(struct drm_i915_private *dev_priv, u32 addr);
+
+	/**
+	 * @is_valid_flex_reg: Validates register's address for programming
+	 * flex EU filtering for a particular platform.
+	 */
+	bool (*is_valid_flex_reg)(struct drm_i915_private *dev_priv, u32 addr);
+
 	/**
 	 * @init_oa_buffer: Resets the head and tail pointers of the
 	 * circular buffer for periodic OA reports.
@@ -2024,20 +2104,13 @@ struct i915_oa_ops {
 	void (*init_oa_buffer)(struct drm_i915_private *dev_priv);
 
 	/**
-	 * @select_metric_set: The auto generated code that checks whether a
-	 * requested OA config is applicable to the system and if so sets up
-	 * the mux, oa and flex eu register config pointers according to the
-	 * current dev_priv->perf.oa.metrics_set.
-	 */
-	int (*select_metric_set)(struct drm_i915_private *dev_priv);
-
-	/**
 	 * @enable_metric_set: Selects and applies any MUX configuration to set
 	 * up the Boolean and Custom (B/C) counters that are part of the
 	 * counter reports being sampled. May apply system constraints such as
 	 * disabling EU clock gating as required.
 	 */
-	int (*enable_metric_set)(struct drm_i915_private *dev_priv);
+	int (*enable_metric_set)(struct drm_i915_private *dev_priv,
+				 const struct i915_oa_config *oa_config);
 
 	/**
 	 * @disable_metric_set: Remove system constraints associated with using
@@ -2083,6 +2156,7 @@ struct drm_i915_private {
 
 	struct kmem_cache *objects;
 	struct kmem_cache *vmas;
+	struct kmem_cache *luts;
 	struct kmem_cache *requests;
 	struct kmem_cache *dependencies;
 	struct kmem_cache *priorities;
@@ -2132,9 +2206,6 @@ struct drm_i915_private {
 
 	/* protects the irq masks */
 	spinlock_t irq_lock;
-
-	/* protects the mmio flip data */
-	spinlock_t mmio_flip_lock;
 
 	bool display_irqs_enabled;
 
@@ -2236,18 +2307,10 @@ struct drm_i915_private {
 	DECLARE_HASHTABLE(mm_structs, 7);
 	struct mutex mm_lock;
 
-	/* The hw wants to have a stable context identifier for the lifetime
-	 * of the context (for OA, PASID, faults, etc). This is limited
-	 * in execlists to 21 bits.
-	 */
-	struct ida context_hw_ida;
-#define MAX_CONTEXT_HW_ID (1<<21) /* exclusive */
-
 	/* Kernel Modesetting */
 
 	struct intel_crtc *plane_to_crtc_mapping[I915_MAX_PIPES];
 	struct intel_crtc *pipe_to_crtc_mapping[I915_MAX_PIPES];
-	wait_queue_head_t pending_flip_queue;
 
 #ifdef CONFIG_DEBUG_FS
 	struct intel_pipe_crc pipe_crc[I915_MAX_PIPES];
@@ -2303,11 +2366,9 @@ struct drm_i915_private {
 
 	struct drm_i915_gem_object *vlv_pctx;
 
-#ifdef CONFIG_DRM_FBDEV_EMULATION
 	/* list of fbdev register on this device */
 	struct intel_fbdev *fbdev;
 	struct work_struct fbdev_suspend_work;
-#endif
 
 	struct drm_property *broadcast_rgb_property;
 	struct drm_property *force_audio_property;
@@ -2321,7 +2382,18 @@ struct drm_i915_private {
 	 */
 	struct mutex av_mutex;
 
-	struct list_head context_list;
+	struct {
+		struct list_head list;
+		struct llist_head free_list;
+		struct work_struct free_work;
+
+		/* The hw wants to have a stable context identifier for the
+		 * lifetime of the context (for OA, PASID, faults, etc).
+		 * This is limited in execlists to 21 bits.
+		 */
+		struct ida hw_ida;
+#define MAX_CONTEXT_HW_ID (1<<21) /* exclusive */
+	} contexts;
 
 	u32 fdi_rx_config;
 
@@ -2399,10 +2471,32 @@ struct drm_i915_private {
 		struct kobject *metrics_kobj;
 		struct ctl_table_header *sysctl_header;
 
+		/*
+		 * Lock associated with adding/modifying/removing OA configs
+		 * in dev_priv->perf.metrics_idr.
+		 */
+		struct mutex metrics_lock;
+
+		/*
+		 * List of dynamic configurations, you need to hold
+		 * dev_priv->perf.metrics_lock to access it.
+		 */
+		struct idr metrics_idr;
+
+		/*
+		 * Lock associated with anything below within this structure
+		 * except exclusive_stream.
+		 */
 		struct mutex lock;
 		struct list_head streams;
 
 		struct {
+			/*
+			 * The stream currently using the OA unit. If accessed
+			 * outside a syscall associated to its file
+			 * descriptor, you need to hold
+			 * dev_priv->drm.struct_mutex.
+			 */
 			struct i915_perf_stream *exclusive_stream;
 
 			u32 specific_ctx_id;
@@ -2421,16 +2515,7 @@ struct drm_i915_private {
 			int period_exponent;
 			int timestamp_frequency;
 
-			int metrics_set;
-
-			const struct i915_oa_reg *mux_regs[6];
-			int mux_regs_lens[6];
-			int n_mux_configs;
-
-			const struct i915_oa_reg *b_counter_regs;
-			int b_counter_regs_len;
-			const struct i915_oa_reg *flex_regs;
-			int flex_regs_len;
+			struct i915_oa_config test_config;
 
 			struct {
 				struct i915_vma *vma;
@@ -2517,7 +2602,6 @@ struct drm_i915_private {
 
 			struct i915_oa_ops ops;
 			const struct i915_oa_format *oa_formats;
-			int n_builtin_sets;
 		} oa;
 	} perf;
 
@@ -2996,16 +3080,17 @@ intel_info(const struct drm_i915_private *dev_priv)
 
 #define HAS_POOLED_EU(dev_priv)	((dev_priv)->info.has_pooled_eu)
 
-#define INTEL_PCH_DEVICE_ID_MASK		0xff00
-#define INTEL_PCH_DEVICE_ID_MASK_EXT		0xff80
+#define INTEL_PCH_DEVICE_ID_MASK		0xff80
 #define INTEL_PCH_IBX_DEVICE_ID_TYPE		0x3b00
 #define INTEL_PCH_CPT_DEVICE_ID_TYPE		0x1c00
 #define INTEL_PCH_PPT_DEVICE_ID_TYPE		0x1e00
 #define INTEL_PCH_LPT_DEVICE_ID_TYPE		0x8c00
 #define INTEL_PCH_LPT_LP_DEVICE_ID_TYPE		0x9c00
+#define INTEL_PCH_WPT_DEVICE_ID_TYPE		0x8c80
+#define INTEL_PCH_WPT_LP_DEVICE_ID_TYPE		0x9c80
 #define INTEL_PCH_SPT_DEVICE_ID_TYPE		0xA100
 #define INTEL_PCH_SPT_LP_DEVICE_ID_TYPE		0x9D00
-#define INTEL_PCH_KBP_DEVICE_ID_TYPE		0xA200
+#define INTEL_PCH_KBP_DEVICE_ID_TYPE		0xA280
 #define INTEL_PCH_CNP_DEVICE_ID_TYPE		0xA300
 #define INTEL_PCH_CNP_LP_DEVICE_ID_TYPE		0x9D80
 #define INTEL_PCH_P2X_DEVICE_ID_TYPE		0x7100
@@ -3020,9 +3105,11 @@ intel_info(const struct drm_i915_private *dev_priv)
 #define HAS_PCH_SPT(dev_priv) (INTEL_PCH_TYPE(dev_priv) == PCH_SPT)
 #define HAS_PCH_LPT(dev_priv) (INTEL_PCH_TYPE(dev_priv) == PCH_LPT)
 #define HAS_PCH_LPT_LP(dev_priv) \
-	((dev_priv)->pch_id == INTEL_PCH_LPT_LP_DEVICE_ID_TYPE)
+	((dev_priv)->pch_id == INTEL_PCH_LPT_LP_DEVICE_ID_TYPE || \
+	 (dev_priv)->pch_id == INTEL_PCH_WPT_LP_DEVICE_ID_TYPE)
 #define HAS_PCH_LPT_H(dev_priv) \
-	((dev_priv)->pch_id == INTEL_PCH_LPT_DEVICE_ID_TYPE)
+	((dev_priv)->pch_id == INTEL_PCH_LPT_DEVICE_ID_TYPE || \
+	 (dev_priv)->pch_id == INTEL_PCH_WPT_DEVICE_ID_TYPE)
 #define HAS_PCH_CPT(dev_priv) (INTEL_PCH_TYPE(dev_priv) == PCH_CPT)
 #define HAS_PCH_IBX(dev_priv) (INTEL_PCH_TYPE(dev_priv) == PCH_IBX)
 #define HAS_PCH_NOP(dev_priv) (INTEL_PCH_TYPE(dev_priv) == PCH_NOP)
@@ -3088,7 +3175,13 @@ extern int i915_driver_load(struct pci_dev *pdev,
 extern void i915_driver_unload(struct drm_device *dev);
 extern int intel_gpu_reset(struct drm_i915_private *dev_priv, u32 engine_mask);
 extern bool intel_has_gpu_reset(struct drm_i915_private *dev_priv);
-extern void i915_reset(struct drm_i915_private *dev_priv);
+
+#define I915_RESET_QUIET BIT(0)
+extern void i915_reset(struct drm_i915_private *i915, unsigned int flags);
+extern int i915_reset_engine(struct intel_engine_cs *engine,
+			     unsigned int flags);
+
+extern bool intel_has_reset_engine(struct drm_i915_private *dev_priv);
 extern int intel_guc_reset(struct drm_i915_private *dev_priv);
 extern void intel_engine_init_hangcheck(struct intel_engine_cs *engine);
 extern void intel_hangcheck_init(struct drm_i915_private *dev_priv);
@@ -3107,7 +3200,8 @@ void intel_hpd_irq_handler(struct drm_i915_private *dev_priv,
 void intel_hpd_init(struct drm_i915_private *dev_priv);
 void intel_hpd_init_work(struct drm_i915_private *dev_priv);
 void intel_hpd_cancel_work(struct drm_i915_private *dev_priv);
-bool intel_hpd_pin_to_port(enum hpd_pin pin, enum port *port);
+enum port intel_hpd_pin_to_port(enum hpd_pin pin);
+enum hpd_pin intel_hpd_pin(enum port port);
 bool intel_hpd_disable(struct drm_i915_private *dev_priv, enum hpd_pin pin);
 void intel_hpd_enable(struct drm_i915_private *dev_priv, enum hpd_pin pin);
 
@@ -3276,6 +3370,26 @@ static inline void i915_gem_drain_freed_objects(struct drm_i915_private *i915)
 	} while (flush_work(&i915->mm.free_work));
 }
 
+static inline void i915_gem_drain_workqueue(struct drm_i915_private *i915)
+{
+	/*
+	 * Similar to objects above (see i915_gem_drain_freed-objects), in
+	 * general we have workers that are armed by RCU and then rearm
+	 * themselves in their callbacks. To be paranoid, we need to
+	 * drain the workqueue a second time after waiting for the RCU
+	 * grace period so that we catch work queued via RCU from the first
+	 * pass. As neither drain_workqueue() nor flush_workqueue() report
+	 * a result, we make an assumption that we only don't require more
+	 * than 2 passes to catch all recursive RCU delayed work.
+	 *
+	 */
+	int pass = 2;
+	do {
+		rcu_barrier();
+		drain_workqueue(i915->wq);
+	} while (--pass);
+}
+
 struct i915_vma * __must_check
 i915_gem_object_ggtt_pin(struct drm_i915_gem_object *obj,
 			 const struct i915_ggtt_view *view,
@@ -3365,6 +3479,9 @@ void __i915_gem_object_invalidate(struct drm_i915_gem_object *obj);
 enum i915_map_type {
 	I915_MAP_WB = 0,
 	I915_MAP_WC,
+#define I915_MAP_OVERRIDE BIT(31)
+	I915_MAP_FORCE_WB = I915_MAP_WB | I915_MAP_OVERRIDE,
+	I915_MAP_FORCE_WC = I915_MAP_WC | I915_MAP_OVERRIDE,
 };
 
 /**
@@ -3461,11 +3578,22 @@ static inline u32 i915_reset_count(struct i915_gpu_error *error)
 	return READ_ONCE(error->reset_count);
 }
 
+static inline u32 i915_reset_engine_count(struct i915_gpu_error *error,
+					  struct intel_engine_cs *engine)
+{
+	return READ_ONCE(error->reset_engine_count[engine->id]);
+}
+
+struct drm_i915_gem_request *
+i915_gem_reset_prepare_engine(struct intel_engine_cs *engine);
 int i915_gem_reset_prepare(struct drm_i915_private *dev_priv);
 void i915_gem_reset(struct drm_i915_private *dev_priv);
+void i915_gem_reset_finish_engine(struct intel_engine_cs *engine);
 void i915_gem_reset_finish(struct drm_i915_private *dev_priv);
 void i915_gem_set_wedged(struct drm_i915_private *dev_priv);
 bool i915_gem_unset_wedged(struct drm_i915_private *dev_priv);
+void i915_gem_reset_engine(struct intel_engine_cs *engine,
+			   struct drm_i915_gem_request *request);
 
 void i915_gem_init_mmio(struct drm_i915_private *i915);
 int __must_check i915_gem_init(struct drm_i915_private *dev_priv);
@@ -3499,7 +3627,7 @@ i915_gem_object_pin_to_display_plane(struct drm_i915_gem_object *obj,
 void i915_gem_object_unpin_from_display_plane(struct i915_vma *vma);
 int i915_gem_object_attach_phys(struct drm_i915_gem_object *obj,
 				int align);
-int i915_gem_open(struct drm_device *dev, struct drm_file *file);
+int i915_gem_open(struct drm_i915_private *i915, struct drm_file *file);
 void i915_gem_release(struct drm_device *dev, struct drm_file *file);
 
 int i915_gem_object_set_cache_level(struct drm_i915_gem_object *obj,
@@ -3531,38 +3659,23 @@ void i915_gem_object_save_bit_17_swizzle(struct drm_i915_gem_object *obj,
 					 struct sg_table *pages);
 
 static inline struct i915_gem_context *
+__i915_gem_context_lookup_rcu(struct drm_i915_file_private *file_priv, u32 id)
+{
+	return idr_find(&file_priv->context_idr, id);
+}
+
+static inline struct i915_gem_context *
 i915_gem_context_lookup(struct drm_i915_file_private *file_priv, u32 id)
 {
 	struct i915_gem_context *ctx;
 
-	lockdep_assert_held(&file_priv->dev_priv->drm.struct_mutex);
-
-	ctx = idr_find(&file_priv->context_idr, id);
-	if (!ctx)
-		return ERR_PTR(-ENOENT);
+	rcu_read_lock();
+	ctx = __i915_gem_context_lookup_rcu(file_priv, id);
+	if (ctx && !kref_get_unless_zero(&ctx->ref))
+		ctx = NULL;
+	rcu_read_unlock();
 
 	return ctx;
-}
-
-static inline struct i915_gem_context *
-i915_gem_context_get(struct i915_gem_context *ctx)
-{
-	kref_get(&ctx->ref);
-	return ctx;
-}
-
-static inline void i915_gem_context_put(struct i915_gem_context *ctx)
-{
-	lockdep_assert_held(&ctx->i915->drm.struct_mutex);
-	kref_put(&ctx->ref, i915_gem_context_free);
-}
-
-static inline void i915_gem_context_put_unlocked(struct i915_gem_context *ctx)
-{
-	struct mutex *lock = &ctx->i915->drm.struct_mutex;
-
-	if (kref_put_mutex(&ctx->ref, i915_gem_context_free, lock))
-		mutex_unlock(lock);
 }
 
 static inline struct intel_timeline *
@@ -3577,6 +3690,10 @@ i915_gem_context_lookup_timeline(struct i915_gem_context *ctx,
 
 int i915_perf_open_ioctl(struct drm_device *dev, void *data,
 			 struct drm_file *file);
+int i915_perf_add_config_ioctl(struct drm_device *dev, void *data,
+			       struct drm_file *file);
+int i915_perf_remove_config_ioctl(struct drm_device *dev, void *data,
+				  struct drm_file *file);
 void i915_oa_init_reg_state(struct intel_engine_cs *engine,
 			    struct i915_gem_context *ctx,
 			    uint32_t *reg_state);
@@ -3628,6 +3745,7 @@ i915_gem_object_create_internal(struct drm_i915_private *dev_priv,
 /* i915_gem_shrinker.c */
 unsigned long i915_gem_shrink(struct drm_i915_private *dev_priv,
 			      unsigned long target,
+			      unsigned long *nr_scanned,
 			      unsigned flags);
 #define I915_SHRINK_PURGEABLE 0x1
 #define I915_SHRINK_UNBOUND 0x2
@@ -4064,6 +4182,11 @@ static inline unsigned long msecs_to_jiffies_timeout(const unsigned int m)
 
 static inline unsigned long nsecs_to_jiffies_timeout(const u64 n)
 {
+	/* nsecs_to_jiffies64() does not guard against overflow */
+	if (NSEC_PER_SEC % HZ &&
+	    div_u64(n, NSEC_PER_SEC) >= MAX_JIFFY_OFFSET / HZ)
+		return MAX_JIFFY_OFFSET;
+
         return min_t(u64, MAX_JIFFY_OFFSET, nsecs_to_jiffies64(n) + 1);
 }
 
@@ -4210,10 +4333,11 @@ int remap_io_mapping(struct vm_area_struct *vma,
 		     unsigned long addr, unsigned long pfn, unsigned long size,
 		     struct io_mapping *iomap);
 
-static inline bool i915_gem_object_is_coherent(struct drm_i915_gem_object *obj)
+static inline bool
+intel_engine_can_store_dword(struct intel_engine_cs *engine)
 {
-	return (obj->cache_level != I915_CACHE_NONE ||
-		HAS_LLC(to_i915(obj->base.dev)));
+	return __intel_engine_can_store_dword(INTEL_GEN(engine->i915),
+					      engine->class);
 }
 
 #endif

@@ -44,18 +44,10 @@
 	: "r" (uaddr), "I" (-EFAULT), "r" (oparg)	\
 	: "memory")
 
-static inline int futex_atomic_op_inuser(int encoded_op, u32 __user *uaddr)
+static inline int arch_futex_atomic_op_inuser(int op, int oparg, int *oval,
+		u32 __user *uaddr)
 {
-	int op = (encoded_op >> 28) & 7;
-	int cmp = (encoded_op >> 24) & 15;
-	int oparg = (encoded_op << 8) >> 20;
-	int cmparg = (encoded_op << 20) >> 20;
 	int oldval = 0, ret;
-	if (encoded_op & (FUTEX_OP_OPARG_SHIFT << 28))
-		oparg = 1 << oparg;
-
-	if (!access_ok(VERIFY_WRITE, uaddr, sizeof(u32)))
-		return -EFAULT;
 
 #if !XCHAL_HAVE_S32C1I
 	return -ENOSYS;
@@ -89,19 +81,10 @@ static inline int futex_atomic_op_inuser(int encoded_op, u32 __user *uaddr)
 
 	pagefault_enable();
 
-	if (ret)
-		return ret;
+	if (!ret)
+		*oval = oldval;
 
-	switch (cmp) {
-	case FUTEX_OP_CMP_EQ: return (oldval == cmparg);
-	case FUTEX_OP_CMP_NE: return (oldval != cmparg);
-	case FUTEX_OP_CMP_LT: return (oldval < cmparg);
-	case FUTEX_OP_CMP_GE: return (oldval >= cmparg);
-	case FUTEX_OP_CMP_LE: return (oldval <= cmparg);
-	case FUTEX_OP_CMP_GT: return (oldval > cmparg);
-	}
-
-	return -ENOSYS;
+	return ret;
 }
 
 static inline int

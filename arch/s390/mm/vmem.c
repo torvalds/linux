@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *    Copyright IBM Corp. 2006
  *    Author(s): Heiko Carstens <heiko.carstens@de.ibm.com>
@@ -38,37 +39,14 @@ static void __ref *vmem_alloc_pages(unsigned int order)
 	return (void *) memblock_alloc(size, size);
 }
 
-static inline p4d_t *vmem_p4d_alloc(void)
+void *vmem_crst_alloc(unsigned long val)
 {
-	p4d_t *p4d = NULL;
+	unsigned long *table;
 
-	p4d = vmem_alloc_pages(2);
-	if (!p4d)
-		return NULL;
-	clear_table((unsigned long *) p4d, _REGION2_ENTRY_EMPTY, PAGE_SIZE * 4);
-	return p4d;
-}
-
-static inline pud_t *vmem_pud_alloc(void)
-{
-	pud_t *pud = NULL;
-
-	pud = vmem_alloc_pages(2);
-	if (!pud)
-		return NULL;
-	clear_table((unsigned long *) pud, _REGION3_ENTRY_EMPTY, PAGE_SIZE * 4);
-	return pud;
-}
-
-pmd_t *vmem_pmd_alloc(void)
-{
-	pmd_t *pmd = NULL;
-
-	pmd = vmem_alloc_pages(2);
-	if (!pmd)
-		return NULL;
-	clear_table((unsigned long *) pmd, _SEGMENT_ENTRY_EMPTY, PAGE_SIZE * 4);
-	return pmd;
+	table = vmem_alloc_pages(CRST_ALLOC_ORDER);
+	if (table)
+		crst_table_init(table, val);
+	return table;
 }
 
 pte_t __ref *vmem_pte_alloc(void)
@@ -114,14 +92,14 @@ static int vmem_add_mem(unsigned long start, unsigned long size)
 	while (address < end) {
 		pg_dir = pgd_offset_k(address);
 		if (pgd_none(*pg_dir)) {
-			p4_dir = vmem_p4d_alloc();
+			p4_dir = vmem_crst_alloc(_REGION2_ENTRY_EMPTY);
 			if (!p4_dir)
 				goto out;
 			pgd_populate(&init_mm, pg_dir, p4_dir);
 		}
 		p4_dir = p4d_offset(pg_dir, address);
 		if (p4d_none(*p4_dir)) {
-			pu_dir = vmem_pud_alloc();
+			pu_dir = vmem_crst_alloc(_REGION3_ENTRY_EMPTY);
 			if (!pu_dir)
 				goto out;
 			p4d_populate(&init_mm, p4_dir, pu_dir);
@@ -136,7 +114,7 @@ static int vmem_add_mem(unsigned long start, unsigned long size)
 			continue;
 		}
 		if (pud_none(*pu_dir)) {
-			pm_dir = vmem_pmd_alloc();
+			pm_dir = vmem_crst_alloc(_SEGMENT_ENTRY_EMPTY);
 			if (!pm_dir)
 				goto out;
 			pud_populate(&init_mm, pu_dir, pm_dir);
@@ -253,7 +231,7 @@ int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node)
 	for (address = start; address < end;) {
 		pg_dir = pgd_offset_k(address);
 		if (pgd_none(*pg_dir)) {
-			p4_dir = vmem_p4d_alloc();
+			p4_dir = vmem_crst_alloc(_REGION2_ENTRY_EMPTY);
 			if (!p4_dir)
 				goto out;
 			pgd_populate(&init_mm, pg_dir, p4_dir);
@@ -261,7 +239,7 @@ int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node)
 
 		p4_dir = p4d_offset(pg_dir, address);
 		if (p4d_none(*p4_dir)) {
-			pu_dir = vmem_pud_alloc();
+			pu_dir = vmem_crst_alloc(_REGION3_ENTRY_EMPTY);
 			if (!pu_dir)
 				goto out;
 			p4d_populate(&init_mm, p4_dir, pu_dir);
@@ -269,7 +247,7 @@ int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node)
 
 		pu_dir = pud_offset(p4_dir, address);
 		if (pud_none(*pu_dir)) {
-			pm_dir = vmem_pmd_alloc();
+			pm_dir = vmem_crst_alloc(_SEGMENT_ENTRY_EMPTY);
 			if (!pm_dir)
 				goto out;
 			pud_populate(&init_mm, pu_dir, pm_dir);

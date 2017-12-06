@@ -220,21 +220,6 @@
 	samsung,pll-clock-frequency = <24000000>;
 	status = "okay";
 
-	ports {
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		port@1 {
-			reg = <1>;
-
-			dsi_out: endpoint {
-				remote-endpoint = <&dsi_in>;
-				samsung,burst-clock-frequency = <250000000>;
-				samsung,esc-clock-frequency = <20000000>;
-			};
-		};
-	};
-
 	panel@0 {
 		compatible = "samsung,s6e63j0x03";
 		reg = <0>;
@@ -262,12 +247,6 @@
 				vfront-porch = <150>;
 				vback-porch = <1>;
 				vsync-len = <2>;
-			};
-		};
-
-		port {
-			dsi_in: endpoint {
-				remote-endpoint = <&dsi_out>;
 			};
 		};
 	};
@@ -642,7 +621,6 @@
 &mshc_0 {
 	#address-cells = <1>;
 	#size-cells = <0>;
-	num-slots = <1>;
 	broken-cd;
 	non-removable;
 	cap-mmc-highspeed;

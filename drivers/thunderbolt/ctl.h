@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Thunderbolt Cactus Ridge driver - control channel and configuration commands
  *

@@ -1110,7 +1110,7 @@ out:
 	return ret;
 }
 
-static struct mips_cdmm_device_id mips_ejtag_fdc_tty_ids[] = {
+static const struct mips_cdmm_device_id mips_ejtag_fdc_tty_ids[] = {
 	{ .type = 0xfd },
 	{ }
 };

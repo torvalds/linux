@@ -32,8 +32,8 @@ netdev_tx_t ef4_hard_start_xmit(struct sk_buff *skb,
 				struct net_device *net_dev);
 netdev_tx_t ef4_enqueue_skb(struct ef4_tx_queue *tx_queue, struct sk_buff *skb);
 void ef4_xmit_done(struct ef4_tx_queue *tx_queue, unsigned int index);
-int ef4_setup_tc(struct net_device *net_dev, u32 handle, u32 chain_index,
-		 __be16 proto, struct tc_to_netdev *tc);
+int ef4_setup_tc(struct net_device *net_dev, enum tc_setup_type type,
+		 void *type_data);
 unsigned int ef4_tx_max_skb_descs(struct ef4_nic *efx);
 extern bool ef4_separate_tx_channels;
 

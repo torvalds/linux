@@ -197,10 +197,6 @@ static unsigned int pin_job(struct host1x *host, struct host1x_job *job)
 		}
 
 		phys_addr = host1x_bo_pin(reloc->target.bo, &sgt);
-		if (!phys_addr) {
-			err = -EINVAL;
-			goto unpin;
-		}
 
 		job->addr_phys[job->num_unpins] = phys_addr;
 		job->unpins[job->num_unpins].bo = reloc->target.bo;
@@ -225,10 +221,6 @@ static unsigned int pin_job(struct host1x *host, struct host1x_job *job)
 		}
 
 		phys_addr = host1x_bo_pin(g->bo, &sgt);
-		if (!phys_addr) {
-			err = -EINVAL;
-			goto unpin;
-		}
 
 		if (!IS_ENABLED(CONFIG_TEGRA_HOST1X_FIREWALL) && host->domain) {
 			for_each_sg(sgt->sgl, sg, sgt->nents, j)

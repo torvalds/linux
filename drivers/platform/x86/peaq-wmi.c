@@ -39,7 +39,7 @@ static void peaq_wmi_poll(struct input_polled_dev *dev)
 	struct acpi_buffer input = { sizeof(dummy), &dummy };
 	struct acpi_buffer output = { sizeof(obj), &obj };
 
-	status = wmi_evaluate_method(PEAQ_DOLBY_BUTTON_GUID, 1,
+	status = wmi_evaluate_method(PEAQ_DOLBY_BUTTON_GUID, 0,
 				     PEAQ_DOLBY_BUTTON_METHOD_ID,
 				     &input, &output);
 	if (ACPI_FAILURE(status))
@@ -51,7 +51,7 @@ static void peaq_wmi_poll(struct input_polled_dev *dev)
 		return;
 	}
 
-	if (peaq_ignore_events_counter && --peaq_ignore_events_counter >= 0)
+	if (peaq_ignore_events_counter && peaq_ignore_events_counter--)
 		return;
 
 	if (obj.integer.value) {

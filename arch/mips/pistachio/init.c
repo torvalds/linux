@@ -19,8 +19,7 @@
 #include <asm/dma-coherence.h>
 #include <asm/fw/fw.h>
 #include <asm/mips-boards/generic.h>
-#include <asm/mips-cm.h>
-#include <asm/mips-cpc.h>
+#include <asm/mips-cps.h>
 #include <asm/prom.h>
 #include <asm/smp-ops.h>
 #include <asm/traps.h>

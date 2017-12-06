@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  *  S390 version
  *
@@ -191,7 +192,7 @@ struct arch_elf_state {
 	} while (0)
 
 #define CORE_DUMP_USE_REGSET
-#define ELF_EXEC_PAGESIZE	4096
+#define ELF_EXEC_PAGESIZE	PAGE_SIZE
 
 /*
  * This is the base location for PIE (ET_DYN with INTERP) loads. On

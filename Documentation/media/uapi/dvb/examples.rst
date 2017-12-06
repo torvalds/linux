@@ -6,8 +6,8 @@
 Examples
 ********
 
-In this section we would like to present some examples for using the DVB
-API.
+In this section we would like to present some examples for using the Digital
+TV API.
 
 .. note::
 

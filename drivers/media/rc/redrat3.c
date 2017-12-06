@@ -951,12 +951,12 @@ static struct rc_dev *redrat3_init_rc_dev(struct redrat3_dev *rr3)
 
 	usb_make_path(rr3->udev, rr3->phys, sizeof(rr3->phys));
 
-	rc->input_name = rr3->name;
+	rc->device_name = rr3->name;
 	rc->input_phys = rr3->phys;
 	usb_to_input_id(rr3->udev, &rc->input_id);
 	rc->dev.parent = dev;
 	rc->priv = rr3;
-	rc->allowed_protocols = RC_BIT_ALL_IR_DECODER;
+	rc->allowed_protocols = RC_PROTO_BIT_ALL_IR_DECODER;
 	rc->min_timeout = MS_TO_NS(RR3_RX_MIN_TIMEOUT);
 	rc->max_timeout = MS_TO_NS(RR3_RX_MAX_TIMEOUT);
 	rc->timeout = US_TO_NS(redrat3_get_timeout(rr3));

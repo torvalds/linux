@@ -180,7 +180,7 @@ static int exynos_audss_clk_probe(struct platform_device *pdev)
 	}
 	clk_table[EXYNOS_MOUT_AUDSS] = clk_hw_register_mux(NULL, "mout_audss",
 				mout_audss_p, ARRAY_SIZE(mout_audss_p),
-				CLK_SET_RATE_NO_REPARENT,
+				CLK_SET_RATE_NO_REPARENT | CLK_SET_RATE_PARENT,
 				reg_base + ASS_CLK_SRC, 0, 1, 0, &lock);
 
 	cdclk = devm_clk_get(&pdev->dev, "cdclk");
@@ -195,11 +195,11 @@ static int exynos_audss_clk_probe(struct platform_device *pdev)
 				reg_base + ASS_CLK_SRC, 2, 2, 0, &lock);
 
 	clk_table[EXYNOS_DOUT_SRP] = clk_hw_register_divider(NULL, "dout_srp",
-				"mout_audss", 0, reg_base + ASS_CLK_DIV, 0, 4,
-				0, &lock);
+				"mout_audss", CLK_SET_RATE_PARENT,
+				reg_base + ASS_CLK_DIV, 0, 4, 0, &lock);
 
 	clk_table[EXYNOS_DOUT_AUD_BUS] = clk_hw_register_divider(NULL,
-				"dout_aud_bus", "dout_srp", 0,
+				"dout_aud_bus", "dout_srp", CLK_SET_RATE_PARENT,
 				reg_base + ASS_CLK_DIV, 4, 4, 0, &lock);
 
 	clk_table[EXYNOS_DOUT_I2S] = clk_hw_register_divider(NULL, "dout_i2s",

@@ -100,7 +100,7 @@ static int write_classid(struct cgroup_subsys_state *css, struct cftype *cft,
 
 	cs->classid = (u32)value;
 
-	css_task_iter_start(css, &it);
+	css_task_iter_start(css, 0, &it);
 	while ((p = css_task_iter_next(&it))) {
 		task_lock(p);
 		iterate_fd(p->files, 0, update_classid_sock,

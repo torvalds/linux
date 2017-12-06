@@ -237,7 +237,7 @@ static int agp_sis_resume(struct pci_dev *pdev)
 
 #endif /* CONFIG_PM */
 
-static struct pci_device_id agp_sis_pci_table[] = {
+static const struct pci_device_id agp_sis_pci_table[] = {
 	{
 		.class		= (PCI_CLASS_BRIDGE_HOST << 8),
 		.class_mask	= ~0,

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 out := $(obj)/../../include/generated/asm
 uapi := $(obj)/../../include/generated/uapi/asm
 

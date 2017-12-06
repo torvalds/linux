@@ -1498,7 +1498,7 @@ static int polaris10_populate_avfs_parameters(struct pp_hwmgr *hwmgr)
 			table_info->vdd_dep_on_sclk;
 
 
-	if (smu_data->avfs.avfs_btc_status == AVFS_BTC_NOTSUPPORTED)
+	if (((struct smu7_smumgr *)smu_data)->avfs.avfs_btc_status == AVFS_BTC_NOTSUPPORTED)
 		return result;
 
 	result = atomctrl_get_avfs_information(hwmgr, &avfs_params);
@@ -1889,7 +1889,7 @@ int polaris10_thermal_avfs_enable(struct pp_hwmgr *hwmgr)
 {
 	int ret;
 	struct pp_smumgr *smumgr = (struct pp_smumgr *)(hwmgr->smumgr);
-	struct polaris10_smumgr *smu_data = (struct polaris10_smumgr *)(smumgr->backend);
+	struct smu7_smumgr *smu_data = (struct smu7_smumgr *)(smumgr->backend);
 	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
 
 	if (smu_data->avfs.avfs_btc_status == AVFS_BTC_NOTSUPPORTED)

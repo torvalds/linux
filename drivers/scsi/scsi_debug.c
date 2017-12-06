@@ -2261,7 +2261,7 @@ static int resp_ie_l_pg(unsigned char * arr)
 static int resp_log_sense(struct scsi_cmnd * scp,
                           struct sdebug_dev_info * devip)
 {
-	int ppc, sp, pcontrol, pcode, subpcode, alloc_len, len, n;
+	int ppc, sp, pcode, subpcode, alloc_len, len, n;
 	unsigned char arr[SDEBUG_MAX_LSENSE_SZ];
 	unsigned char *cmd = scp->cmnd;
 
@@ -2272,7 +2272,6 @@ static int resp_log_sense(struct scsi_cmnd * scp,
 		mk_sense_invalid_fld(scp, SDEB_IN_CDB, 1, ppc ? 1 : 0);
 		return check_condition_result;
 	}
-	pcontrol = (cmd[2] & 0xc0) >> 6;
 	pcode = cmd[2] & 0x3f;
 	subpcode = cmd[3] & 0xff;
 	alloc_len = get_unaligned_be16(cmd + 7);
@@ -5466,7 +5465,7 @@ static int sdebug_driver_probe(struct device * dev)
 		return error;
 	}
 	if (submit_queues > nr_cpu_ids) {
-		pr_warn("%s: trim submit_queues (was %d) to nr_cpu_ids=%d\n",
+		pr_warn("%s: trim submit_queues (was %d) to nr_cpu_ids=%u\n",
 			my_name, submit_queues, nr_cpu_ids);
 		submit_queues = nr_cpu_ids;
 	}

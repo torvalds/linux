@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Mix this utility code with some glue code to get one of several types of
  * simple SPI master driver.  Two do polled word-at-a-time I/O:

@@ -1066,7 +1066,7 @@ static struct attribute *elants_attributes[] = {
 	NULL
 };
 
-static struct attribute_group elants_attribute_group = {
+static const struct attribute_group elants_attribute_group = {
 	.attrs = elants_attributes,
 };
 

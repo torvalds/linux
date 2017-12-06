@@ -30,7 +30,7 @@
 #include <linux/platform_device.h>
 #include <linux/of.h>
 #include <linux/of_platform.h>
-#include <linux/i2c/twl.h>
+#include <linux/mfd/twl.h>
 #include <linux/mfd/core.h>
 #include <linux/mfd/twl4030-audio.h>
 

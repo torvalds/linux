@@ -814,7 +814,7 @@ static int pl010_resume(struct device *dev)
 
 static SIMPLE_DEV_PM_OPS(pl010_dev_pm_ops, pl010_suspend, pl010_resume);
 
-static struct amba_id pl010_ids[] = {
+static const struct amba_id pl010_ids[] = {
 	{
 		.id	= 0x00041010,
 		.mask	= 0x000fffff,

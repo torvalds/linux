@@ -214,8 +214,14 @@ static int mv88e6060_setup(struct dsa_switch *ds)
 
 static int mv88e6060_set_addr(struct dsa_switch *ds, u8 *addr)
 {
-	/* Use the same MAC Address as FD Pause frames for all ports */
-	REG_WRITE(REG_GLOBAL, GLOBAL_MAC_01, (addr[0] << 9) | addr[1]);
+	u16 val = addr[0] << 8 | addr[1];
+
+	/* The multicast bit is always transmitted as a zero, so the switch uses
+	 * bit 8 for "DiffAddr", where 0 means all ports transmit the same SA.
+	 */
+	val &= 0xfeff;
+
+	REG_WRITE(REG_GLOBAL, GLOBAL_MAC_01, val);
 	REG_WRITE(REG_GLOBAL, GLOBAL_MAC_23, (addr[2] << 8) | addr[3]);
 	REG_WRITE(REG_GLOBAL, GLOBAL_MAC_45, (addr[4] << 8) | addr[5]);
 

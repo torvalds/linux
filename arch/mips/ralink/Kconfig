@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 if RALINK
 
 config CLKEVT_RT3352
@@ -79,6 +80,16 @@ choice
 
 	config DTB_MT7620A_EVAL
 		bool "MT7620A eval kit"
+		depends on SOC_MT7620
+		select BUILTIN_DTB
+
+	config DTB_OMEGA2P
+		bool "Onion Omega2+"
+		depends on SOC_MT7620
+		select BUILTIN_DTB
+
+	config DTB_VOCORE2
+		bool "VoCore2"
 		depends on SOC_MT7620
 		select BUILTIN_DTB
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Functions related to tagged command queuing
  */
@@ -290,7 +291,6 @@ void blk_queue_end_tag(struct request_queue *q, struct request *rq)
 	 */
 	clear_bit_unlock(tag, bqt->tag_map);
 }
-EXPORT_SYMBOL(blk_queue_end_tag);
 
 /**
  * blk_queue_start_tag - find a free tag and assign it

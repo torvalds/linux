@@ -55,7 +55,7 @@ struct usnic_uiom_dev {
 struct usnic_uiom_pd {
 	struct iommu_domain		*domain;
 	spinlock_t			lock;
-	struct rb_root			rb_root;
+	struct rb_root_cached		root;
 	struct list_head		devs;
 	int				dev_cnt;
 };

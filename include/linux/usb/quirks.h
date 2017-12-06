@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * This file holds the definitions of quirks found in USB devices.
  * Only quirks that affect the whole device, not an interface,

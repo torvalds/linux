@@ -759,9 +759,26 @@ void vc4_plane_async_set_fb(struct drm_plane *plane, struct drm_framebuffer *fb)
 	vc4_state->dlist[vc4_state->ptr0_offset] = addr;
 }
 
+static int vc4_prepare_fb(struct drm_plane *plane,
+			  struct drm_plane_state *state)
+{
+	struct vc4_bo *bo;
+	struct dma_fence *fence;
+
+	if ((plane->state->fb == state->fb) || !state->fb)
+		return 0;
+
+	bo = to_vc4_bo(&drm_fb_cma_get_gem_obj(state->fb, 0)->base);
+	fence = reservation_object_get_excl_rcu(bo->resv);
+	drm_atomic_set_fence_for_plane(state, fence);
+
+	return 0;
+}
+
 static const struct drm_plane_helper_funcs vc4_plane_helper_funcs = {
 	.atomic_check = vc4_plane_atomic_check,
 	.atomic_update = vc4_plane_atomic_update,
+	.prepare_fb = vc4_prepare_fb,
 };
 
 static void vc4_plane_destroy(struct drm_plane *plane)
@@ -885,7 +902,7 @@ struct drm_plane *vc4_plane_init(struct drm_device *dev,
 	ret = drm_universal_plane_init(dev, plane, 0,
 				       &vc4_plane_funcs,
 				       formats, num_formats,
-				       type, NULL);
+				       NULL, type, NULL);
 
 	drm_plane_helper_add(plane, &vc4_plane_helper_funcs);
 

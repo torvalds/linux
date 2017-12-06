@@ -76,7 +76,8 @@
 #include "iwl-config.h"
 #include "fw/img.h"
 #include "iwl-op-mode.h"
-#include "fw/api.h"
+#include "fw/api/cmdhdr.h"
+#include "fw/api/txq.h"
 
 /**
  * DOC: Transport layer - what is it ?

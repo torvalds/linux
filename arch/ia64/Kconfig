@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 config PGTABLE_LEVELS
 	int "Page Table Levels" if !IA64_PAGE_SIZE_64KB
 	range 3 4 if !IA64_PAGE_SIZE_64KB

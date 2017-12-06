@@ -356,6 +356,9 @@ int vega10_set_tools_address(struct pp_smumgr *smumgr)
 static int vega10_verify_smc_interface(struct pp_smumgr *smumgr)
 {
 	uint32_t smc_driver_if_version;
+	struct cgs_system_info sys_info = {0};
+	uint32_t dev_id;
+	uint32_t rev_id;
 
 	PP_ASSERT_WITH_CODE(!vega10_send_msg_to_smc(smumgr,
 			PPSMC_MSG_GetDriverIfVersion),
@@ -363,12 +366,27 @@ static int vega10_verify_smc_interface(struct pp_smumgr *smumgr)
 			return -EINVAL);
 	vega10_read_arg_from_smc(smumgr, &smc_driver_if_version);
 
-	if (smc_driver_if_version != SMU9_DRIVER_IF_VERSION) {
-		pr_err("Your firmware(0x%x) doesn't match \
-			SMU9_DRIVER_IF_VERSION(0x%x). \
-			Please update your firmware!\n",
-			smc_driver_if_version, SMU9_DRIVER_IF_VERSION);
-		return -EINVAL;
+	sys_info.size = sizeof(struct cgs_system_info);
+	sys_info.info_id = CGS_SYSTEM_INFO_PCIE_DEV;
+	cgs_query_system_info(smumgr->device, &sys_info);
+	dev_id = (uint32_t)sys_info.value;
+
+	sys_info.size = sizeof(struct cgs_system_info);
+	sys_info.info_id = CGS_SYSTEM_INFO_PCIE_REV;
+	cgs_query_system_info(smumgr->device, &sys_info);
+	rev_id = (uint32_t)sys_info.value;
+
+	if (!((dev_id == 0x687f) &&
+		((rev_id == 0xc0) ||
+		(rev_id == 0xc1) ||
+		(rev_id == 0xc3)))) {
+		if (smc_driver_if_version != SMU9_DRIVER_IF_VERSION) {
+			pr_err("Your firmware(0x%x) doesn't match \
+				SMU9_DRIVER_IF_VERSION(0x%x). \
+				Please update your firmware!\n",
+				smc_driver_if_version, SMU9_DRIVER_IF_VERSION);
+			return -EINVAL;
+		}
 	}
 
 	return 0;

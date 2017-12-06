@@ -347,7 +347,7 @@ static void do_region(int op, int op_flags, unsigned region,
 
 		bio = bio_alloc_bioset(GFP_NOIO, num_bvecs, io->client->bios);
 		bio->bi_iter.bi_sector = where->sector + (where->count - remaining);
-		bio->bi_bdev = where->bdev;
+		bio_set_dev(bio, where->bdev);
 		bio->bi_end_io = endio;
 		bio_set_op_attrs(bio, op, op_flags);
 		store_io_and_region_in_bio(bio, io, region);

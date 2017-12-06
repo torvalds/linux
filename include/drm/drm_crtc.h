@@ -358,14 +358,6 @@ struct drm_crtc_funcs {
 	 * drm_crtc_enable_color_mgmt(), which then supports the legacy gamma
 	 * interface through the drm_atomic_helper_legacy_gamma_set()
 	 * compatibility implementation.
-	 *
-	 * NOTE:
-	 *
-	 * Drivers that support gamma tables and also fbdev emulation through
-	 * the provided helper library need to take care to fill out the gamma
-	 * hooks for both. Currently there's a bit an unfortunate duplication
-	 * going on, which should eventually be unified to just one set of
-	 * hooks.
 	 */
 	int (*gamma_set)(struct drm_crtc *crtc, u16 *r, u16 *g, u16 *b,
 			 uint32_t size,
@@ -481,11 +473,9 @@ struct drm_crtc_funcs {
 	 * This is the legacy entry point to update a property attached to the
 	 * CRTC.
 	 *
-	 * Drivers implementing atomic modeset should use
-	 * drm_atomic_helper_crtc_set_property() to implement this hook.
-	 *
 	 * This callback is optional if the driver does not support any legacy
-	 * driver-private properties.
+	 * driver-private properties. For atomic drivers it is not used because
+	 * property handling is done entirely in the DRM core.
 	 *
 	 * RETURNS:
 	 *
@@ -684,6 +674,9 @@ struct drm_crtc_funcs {
 	 * with in the DRM core code, as long as drivers call
 	 * drm_crtc_vblank_off() and drm_crtc_vblank_on() when disabling or
 	 * enabling a CRTC.
+	 *
+	 * See also &drm_device.vblank_disable_immediate and
+	 * &drm_device.max_vblank_count.
 	 *
 	 * Returns:
 	 *

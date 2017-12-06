@@ -924,7 +924,7 @@ static int test_dev_config_update_uint_range(struct kmod_test_device *test_dev,
 	if (ret)
 		return ret;
 
-	if (new < min || new >  max || new > UINT_MAX)
+	if (new < min || new > max)
 		return -EINVAL;
 
 	mutex_lock(&test_dev->config_mutex);
@@ -946,7 +946,7 @@ static int test_dev_config_update_int(struct kmod_test_device *test_dev,
 	if (ret)
 		return ret;
 
-	if (new > INT_MAX || new < INT_MIN)
+	if (new < INT_MIN || new > INT_MAX)
 		return -EINVAL;
 
 	mutex_lock(&test_dev->config_mutex);

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __DRV201_H__
 #define __DRV201_H__
 

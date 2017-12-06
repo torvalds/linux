@@ -132,7 +132,6 @@ static int tegra_wm8753_driver_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	card->dev = &pdev->dev;
-	platform_set_drvdata(pdev, card);
 	snd_soc_card_set_drvdata(card, machine);
 
 	ret = snd_soc_of_parse_card_name(card, "nvidia,model");

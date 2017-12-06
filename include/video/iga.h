@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* $Id: iga.h,v 1.2 1999/09/11 22:56:31 zaitcev Exp $
  * iga1682.h: Sparc/PCI iga1682 driver constants etc.
  *

@@ -45,6 +45,7 @@
 
 /dts-v1/;
 
+#include <dt-bindings/gpio/gpio.h>
 #include "armada-372x.dtsi"
 
 / {
@@ -59,6 +60,20 @@
 		device_type = "memory";
 		reg = <0x00000000 0x00000000 0x00000000 0x20000000>;
 	};
+
+	vcc_sd_reg1: regulator {
+		compatible = "regulator-gpio";
+		regulator-name = "vcc_sd1";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-boot-on;
+
+		gpios = <&gpionb 4 GPIO_ACTIVE_HIGH>;
+		gpios-states = <0>;
+		states = <1800000 0x1
+			  3300000 0x0>;
+		enable-active-high;
+	};
 };
 
 /* J9 */
@@ -71,6 +86,16 @@
 	status = "okay";
 };
 
+/* J1 */
+&sdhci1 {
+	wp-inverted;
+	bus-width = <4>;
+	cd-gpios = <&gpionb 3 GPIO_ACTIVE_LOW>;
+	marvell,pad-type = "sd";
+	vqmmc-supply = <&vcc_sd_reg1>;
+	status = "okay";
+};
+
 /* Exported on the micro USB connector J5 through an FTDI */
 &uart0 {
 	status = "okay";
@@ -78,6 +103,11 @@
 
 /* J7 */
 &usb3 {
+	status = "okay";
+};
+
+/* J8 */
+&usb2 {
 	status = "okay";
 };
 

@@ -233,7 +233,7 @@ static int tipc_bcast_xmit(struct net *net, struct sk_buff_head *pkts,
 	struct sk_buff_head xmitq;
 	int rc = 0;
 
-	__skb_queue_head_init(&xmitq);
+	skb_queue_head_init(&xmitq);
 	tipc_bcast_lock(net);
 	if (tipc_link_bc_peers(l))
 		rc = tipc_link_xmit(l, pkts, &xmitq);
@@ -263,7 +263,7 @@ static int tipc_rcast_xmit(struct net *net, struct sk_buff_head *pkts,
 	u32 dst, selector;
 
 	selector = msg_link_selector(buf_msg(skb_peek(pkts)));
-	__skb_queue_head_init(&_pkts);
+	skb_queue_head_init(&_pkts);
 
 	list_for_each_entry_safe(n, tmp, &dests->list, list) {
 		dst = n->value;

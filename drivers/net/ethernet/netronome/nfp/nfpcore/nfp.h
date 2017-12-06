@@ -97,6 +97,8 @@ nfp_resource_acquire(struct nfp_cpp *cpp, const char *name);
 
 void nfp_resource_release(struct nfp_resource *res);
 
+int nfp_resource_wait(struct nfp_cpp *cpp, const char *name, unsigned int secs);
+
 u32 nfp_resource_cpp_id(struct nfp_resource *res);
 
 const char *nfp_resource_name(struct nfp_resource *res);

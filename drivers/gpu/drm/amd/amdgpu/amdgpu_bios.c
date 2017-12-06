@@ -86,19 +86,6 @@ static bool check_atom_bios(uint8_t *bios, size_t size)
 	return false;
 }
 
-static bool is_atom_fw(uint8_t *bios)
-{
-	uint16_t bios_header_start = bios[0x48] | (bios[0x49] << 8);
-	uint8_t frev = bios[bios_header_start + 2];
-	uint8_t crev = bios[bios_header_start + 3];
-
-	if ((frev < 3) ||
-	    ((frev == 3) && (crev < 3)))
-		return false;
-
-	return true;
-}
-
 /* If you boot an IGP board with a discrete card as the primary,
  * the IGP rom is not accessible via the rom bar as the IGP rom is
  * part of the system bios.  On boot, the system bios puts a
@@ -117,7 +104,7 @@ static bool igp_read_bios_from_vram(struct amdgpu_device *adev)
 
 	adev->bios = NULL;
 	vram_base = pci_resource_start(adev->pdev, 0);
-	bios = ioremap(vram_base, size);
+	bios = ioremap_wc(vram_base, size);
 	if (!bios) {
 		return false;
 	}
@@ -455,6 +442,6 @@ bool amdgpu_get_bios(struct amdgpu_device *adev)
 	return false;
 
 success:
-	adev->is_atom_fw = is_atom_fw(adev->bios);
+	adev->is_atom_fw = (adev->asic_type >= CHIP_VEGA10) ? true : false;
 	return true;
 }

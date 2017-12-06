@@ -274,7 +274,7 @@ static struct fb_var_screeninfo default_var = {
 	0, FB_VMODE_NONINTERLACED
 };
 
-static struct fb_videomode defmode = {
+static const struct fb_videomode defmode = {
 	/* 640x480 @ 60 Hz, 31.5 kHz hsync */
 	NULL, 60, 640, 480, 39721, 40, 24, 32, 11, 96, 2,
 	0, FB_VMODE_NONINTERLACED
@@ -1855,7 +1855,7 @@ static int atyfb_ioctl(struct fb_info *info, u_int cmd, u_long arg)
 #if defined(DEBUG) && defined(CONFIG_FB_ATY_CT)
 	case ATYIO_CLKR:
 		if (M64_HAS(INTEGRATED)) {
-			struct atyclk clk;
+			struct atyclk clk = { 0 };
 			union aty_pll *pll = &par->pll;
 			u32 dsp_config = pll->ct.dsp_config;
 			u32 dsp_on_off = pll->ct.dsp_on_off;
@@ -3756,7 +3756,7 @@ static void atyfb_pci_remove(struct pci_dev *pdev)
 	atyfb_remove(info);
 }
 
-static struct pci_device_id atyfb_pci_tbl[] = {
+static const struct pci_device_id atyfb_pci_tbl[] = {
 #ifdef CONFIG_FB_ATY_GX
 	{ PCI_DEVICE(PCI_VENDOR_ID_ATI, PCI_CHIP_MACH64GX) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_ATI, PCI_CHIP_MACH64CX) },

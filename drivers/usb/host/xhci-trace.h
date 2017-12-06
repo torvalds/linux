@@ -453,6 +453,29 @@ DEFINE_EVENT(xhci_log_ring, xhci_inc_deq,
 	TP_PROTO(struct xhci_ring *ring),
 	TP_ARGS(ring)
 );
+
+DECLARE_EVENT_CLASS(xhci_log_portsc,
+		    TP_PROTO(u32 portnum, u32 portsc),
+		    TP_ARGS(portnum, portsc),
+		    TP_STRUCT__entry(
+				     __field(u32, portnum)
+				     __field(u32, portsc)
+				     ),
+		    TP_fast_assign(
+				   __entry->portnum = portnum;
+				   __entry->portsc = portsc;
+				   ),
+		    TP_printk("port-%d: %s",
+			      __entry->portnum,
+			      xhci_decode_portsc(__entry->portsc)
+			      )
+);
+
+DEFINE_EVENT(xhci_log_portsc, xhci_handle_port_status,
+	     TP_PROTO(u32 portnum, u32 portsc),
+	     TP_ARGS(portnum, portsc)
+);
+
 #endif /* __XHCI_TRACE_H */
 
 /* this part must be outside header guard */

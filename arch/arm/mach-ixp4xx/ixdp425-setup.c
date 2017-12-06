@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * arch/arm/mach-ixp4xx/ixdp425-setup.c
  *
@@ -17,7 +18,7 @@
 #include <linux/i2c-gpio.h>
 #include <linux/io.h>
 #include <linux/mtd/mtd.h>
-#include <linux/mtd/nand.h>
+#include <linux/mtd/rawnand.h>
 #include <linux/mtd/partitions.h>
 #include <linux/delay.h>
 #include <linux/gpio.h>

@@ -23,6 +23,10 @@
 #define CCU_FEATURE_FIXED_POSTDIV	BIT(3)
 #define CCU_FEATURE_ALL_PREDIV		BIT(4)
 #define CCU_FEATURE_LOCK_REG		BIT(5)
+#define CCU_FEATURE_MMC_TIMING_SWITCH	BIT(6)
+
+/* MMC timing mode switch bit */
+#define CCU_MMC_NEW_TIMING_MODE		BIT(30)
 
 struct device_node;
 

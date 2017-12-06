@@ -205,7 +205,7 @@ const struct regmap_config pcm179x_regmap_config = {
 };
 EXPORT_SYMBOL_GPL(pcm179x_regmap_config);
 
-static struct snd_soc_codec_driver soc_codec_dev_pcm179x = {
+static const struct snd_soc_codec_driver soc_codec_dev_pcm179x = {
 	.component_driver = {
 		.controls		= pcm179x_controls,
 		.num_controls		= ARRAY_SIZE(pcm179x_controls),

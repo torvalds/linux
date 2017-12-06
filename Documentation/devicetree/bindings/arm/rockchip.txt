@@ -134,6 +134,10 @@ Rockchip platforms device tree bindings
     Required root node properties:
      - compatible = "phytec,rk3288-pcm-947", "phytec,rk3288-phycore-som", "rockchip,rk3288";
 
+- Pine64 Rock64 board:
+    Required root node properties:
+    - compatible = "pine64,rock64", "rockchip,rk3328";
+
 - Rockchip PX3 Evaluation board:
     Required root node properties:
       - compatible = "rockchip,px3-evb", "rockchip,px3", "rockchip,rk3188";
@@ -172,6 +176,14 @@ Rockchip platforms device tree bindings
 - Rockchip RK3399 evb:
     Required root node properties:
       - compatible = "rockchip,rk3399-evb", "rockchip,rk3399";
+
+- Rockchip RK3399 Sapphire Excavator board:
+    Required root node properties:
+      - compatible = "rockchip,rk3399-sapphire-excavator", "rockchip,rk3399";
+
+- Theobroma Systems RK3399-Q7 Haikou Baseboard:
+    Required root node properties:
+      - compatible = "tsd,rk3399-q7-haikou", "rockchip,rk3399";
 
 - Tronsmart Orion R68 Meta
     Required root node properties:

@@ -55,7 +55,7 @@ void rtw_btcoex_ConnectNotify(struct adapter *padapter, u8 action)
 
 void rtw_btcoex_MediaStatusNotify(struct adapter *padapter, u8 mediaStatus)
 {
-	if ((RT_MEDIA_CONNECT == mediaStatus)
+	if ((mediaStatus == RT_MEDIA_CONNECT)
 		&& (check_fwstate(&padapter->mlmepriv, WIFI_AP_STATE) == true)) {
 		rtw_hal_set_hwreg(padapter, HW_VAR_DL_RSVD_PAGE, NULL);
 	}

@@ -1382,13 +1382,13 @@ static inline int cmd_address_audit(struct parser_exec_state *s,
 			ret = -EINVAL;
 			goto err;
 		}
-	} else if ((!vgpu_gmadr_is_valid(s->vgpu, guest_gma)) ||
-			(!vgpu_gmadr_is_valid(s->vgpu,
-					      guest_gma + op_size - 1))) {
+	} else if (!intel_gvt_ggtt_validate_range(vgpu, guest_gma, op_size)) {
 		ret = -EINVAL;
 		goto err;
 	}
+
 	return 0;
+
 err:
 	gvt_vgpu_err("cmd_parser: Malicious %s detected, addr=0x%lx, len=%d!\n",
 			s->info->name, guest_gma, op_size);
@@ -2647,7 +2647,7 @@ static int shadow_workload_ring_buffer(struct intel_vgpu_workload *workload)
 	return 0;
 }
 
-int intel_gvt_scan_and_shadow_workload(struct intel_vgpu_workload *workload)
+int intel_gvt_scan_and_shadow_ringbuffer(struct intel_vgpu_workload *workload)
 {
 	int ret;
 	struct intel_vgpu *vgpu = workload->vgpu;
@@ -2722,6 +2722,9 @@ static int combine_wa_ctx(struct intel_shadow_wa_ctx *wa_ctx)
 {
 	uint32_t per_ctx_start[CACHELINE_DWORDS] = {0};
 	unsigned char *bb_start_sva;
+
+	if (!wa_ctx->per_ctx.valid)
+		return 0;
 
 	per_ctx_start[0] = 0x18800001;
 	per_ctx_start[1] = wa_ctx->per_ctx.guest_gma;

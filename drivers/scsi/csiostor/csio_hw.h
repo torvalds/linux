@@ -465,7 +465,7 @@ struct csio_hw {
 	struct csio_pport	pport[CSIO_MAX_PPORTS];	/* Ports (XGMACs) */
 	struct csio_hw_params	params;			/* Hw parameters */
 
-	struct pci_pool		*scsi_pci_pool;		/* PCI pool for SCSI */
+	struct dma_pool		*scsi_dma_pool;		/* DMA pool for SCSI */
 	mempool_t		*mb_mempool;		/* Mailbox memory pool*/
 	mempool_t		*rnode_mempool;		/* rnode memory pool */
 

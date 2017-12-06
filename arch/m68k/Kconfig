@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 config M68K
 	bool
 	default y
@@ -23,6 +24,9 @@ config M68K
 	select MODULES_USE_ELF_RELA
 	select OLD_SIGSUSPEND3
 	select OLD_SIGACTION
+
+config CPU_BIG_ENDIAN
+	def_bool y
 
 config RWSEM_GENERIC_SPINLOCK
 	bool

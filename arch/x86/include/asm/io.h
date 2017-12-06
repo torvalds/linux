@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_X86_IO_H
 #define _ASM_X86_IO_H
 
@@ -69,6 +70,9 @@ build_mmio_write(__writeb, "b", unsigned char, "q", )
 build_mmio_write(__writew, "w", unsigned short, "r", )
 build_mmio_write(__writel, "l", unsigned int, "r", )
 
+#define readb readb
+#define readw readw
+#define readl readl
 #define readb_relaxed(a) __readb(a)
 #define readw_relaxed(a) __readw(a)
 #define readl_relaxed(a) __readl(a)
@@ -76,6 +80,9 @@ build_mmio_write(__writel, "l", unsigned int, "r", )
 #define __raw_readw __readw
 #define __raw_readl __readl
 
+#define writeb writeb
+#define writew writew
+#define writel writel
 #define writeb_relaxed(v, a) __writeb(v, a)
 #define writew_relaxed(v, a) __writew(v, a)
 #define writel_relaxed(v, a) __writel(v, a)
@@ -88,13 +95,15 @@ build_mmio_write(__writel, "l", unsigned int, "r", )
 #ifdef CONFIG_X86_64
 
 build_mmio_read(readq, "q", unsigned long, "=r", :"memory")
+build_mmio_read(__readq, "q", unsigned long, "=r", )
 build_mmio_write(writeq, "q", unsigned long, "r", :"memory")
+build_mmio_write(__writeq, "q", unsigned long, "r", )
 
-#define readq_relaxed(a)	readq(a)
-#define writeq_relaxed(v, a)	writeq(v, a)
+#define readq_relaxed(a)	__readq(a)
+#define writeq_relaxed(v, a)	__writeq(v, a)
 
-#define __raw_readq(a)		readq(a)
-#define __raw_writeq(val, addr)	writeq(val, addr)
+#define __raw_readq		__readq
+#define __raw_writeq		__writeq
 
 /* Let people know that we have them */
 #define readq			readq
@@ -119,6 +128,7 @@ static inline phys_addr_t virt_to_phys(volatile void *address)
 {
 	return __pa(address);
 }
+#define virt_to_phys virt_to_phys
 
 /**
  *	phys_to_virt	-	map physical address to virtual
@@ -137,6 +147,7 @@ static inline void *phys_to_virt(phys_addr_t address)
 {
 	return __va(address);
 }
+#define phys_to_virt phys_to_virt
 
 /*
  * Change "struct page" to physical address.
@@ -169,11 +180,14 @@ static inline unsigned int isa_virt_to_bus(volatile void *address)
  * else, you probably want one of the following.
  */
 extern void __iomem *ioremap_nocache(resource_size_t offset, unsigned long size);
+#define ioremap_nocache ioremap_nocache
 extern void __iomem *ioremap_uc(resource_size_t offset, unsigned long size);
 #define ioremap_uc ioremap_uc
 
 extern void __iomem *ioremap_cache(resource_size_t offset, unsigned long size);
+#define ioremap_cache ioremap_cache
 extern void __iomem *ioremap_prot(resource_size_t offset, unsigned long size, unsigned long prot_val);
+#define ioremap_prot ioremap_prot
 
 /**
  * ioremap     -   map bus memory into CPU space
@@ -193,61 +207,16 @@ static inline void __iomem *ioremap(resource_size_t offset, unsigned long size)
 {
 	return ioremap_nocache(offset, size);
 }
+#define ioremap ioremap
 
 extern void iounmap(volatile void __iomem *addr);
+#define iounmap iounmap
 
 extern void set_iounmap_nonlazy(void);
 
 #ifdef __KERNEL__
 
 #include <asm-generic/iomap.h>
-
-/*
- * Convert a virtual cached pointer to an uncached pointer
- */
-#define xlate_dev_kmem_ptr(p)	p
-
-/**
- * memset_io	Set a range of I/O memory to a constant value
- * @addr:	The beginning of the I/O-memory range to set
- * @val:	The value to set the memory to
- * @count:	The number of bytes to set
- *
- * Set a range of I/O memory to a given value.
- */
-static inline void
-memset_io(volatile void __iomem *addr, unsigned char val, size_t count)
-{
-	memset((void __force *)addr, val, count);
-}
-
-/**
- * memcpy_fromio	Copy a block of data from I/O memory
- * @dst:		The (RAM) destination for the copy
- * @src:		The (I/O memory) source for the data
- * @count:		The number of bytes to copy
- *
- * Copy a block of data from I/O memory.
- */
-static inline void
-memcpy_fromio(void *dst, const volatile void __iomem *src, size_t count)
-{
-	memcpy(dst, (const void __force *)src, count);
-}
-
-/**
- * memcpy_toio		Copy a block of data into I/O memory
- * @dst:		The (I/O memory) destination for the copy
- * @src:		The (RAM) source for the data
- * @count:		The number of bytes to copy
- *
- * Copy a block of data to I/O memory.
- */
-static inline void
-memcpy_toio(volatile void __iomem *dst, const void *src, size_t count)
-{
-	memcpy((void __force *)dst, src, count);
-}
 
 /*
  * ISA space is 'always mapped' on a typical x86 system, no need to
@@ -341,13 +310,38 @@ BUILDIO(b, b, char)
 BUILDIO(w, w, short)
 BUILDIO(l, , int)
 
+#define inb inb
+#define inw inw
+#define inl inl
+#define inb_p inb_p
+#define inw_p inw_p
+#define inl_p inl_p
+#define insb insb
+#define insw insw
+#define insl insl
+
+#define outb outb
+#define outw outw
+#define outl outl
+#define outb_p outb_p
+#define outw_p outw_p
+#define outl_p outl_p
+#define outsb outsb
+#define outsw outsw
+#define outsl outsl
+
 extern void *xlate_dev_mem_ptr(phys_addr_t phys);
 extern void unxlate_dev_mem_ptr(phys_addr_t phys, void *addr);
+
+#define xlate_dev_mem_ptr xlate_dev_mem_ptr
+#define unxlate_dev_mem_ptr unxlate_dev_mem_ptr
 
 extern int ioremap_change_attr(unsigned long vaddr, unsigned long size,
 				enum page_cache_mode pcm);
 extern void __iomem *ioremap_wc(resource_size_t offset, unsigned long size);
+#define ioremap_wc ioremap_wc
 extern void __iomem *ioremap_wt(resource_size_t offset, unsigned long size);
+#define ioremap_wt ioremap_wt
 
 extern bool is_early_ioremap_ptep(pte_t *ptep);
 
@@ -365,6 +359,9 @@ extern bool xen_biovec_phys_mergeable(const struct bio_vec *vec1,
 
 #define IO_SPACE_LIMIT 0xffff
 
+#include <asm-generic/io.h>
+#undef PCI_IOBASE
+
 #ifdef CONFIG_MTRR
 extern int __must_check arch_phys_wc_index(int handle);
 #define arch_phys_wc_index arch_phys_wc_index
@@ -380,5 +377,13 @@ extern int arch_io_reserve_memtype_wc(resource_size_t start, resource_size_t siz
 extern void arch_io_free_memtype_wc(resource_size_t start, resource_size_t size);
 #define arch_io_reserve_memtype_wc arch_io_reserve_memtype_wc
 #endif
+
+extern bool arch_memremap_can_ram_remap(resource_size_t offset,
+					unsigned long size,
+					unsigned long flags);
+#define arch_memremap_can_ram_remap arch_memremap_can_ram_remap
+
+extern bool phys_mem_access_encrypted(unsigned long phys_addr,
+				      unsigned long size);
 
 #endif /* _ASM_X86_IO_H */

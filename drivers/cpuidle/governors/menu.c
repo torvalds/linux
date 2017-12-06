@@ -324,8 +324,9 @@ static int menu_select(struct cpuidle_driver *drv, struct cpuidle_device *dev)
 	expected_interval = get_typical_interval(data);
 	expected_interval = min(expected_interval, data->next_timer_us);
 
-	if (CPUIDLE_DRIVER_STATE_START > 0) {
-		struct cpuidle_state *s = &drv->states[CPUIDLE_DRIVER_STATE_START];
+	first_idx = 0;
+	if (drv->states[0].flags & CPUIDLE_FLAG_POLLING) {
+		struct cpuidle_state *s = &drv->states[1];
 		unsigned int polling_threshold;
 
 		/*
@@ -336,12 +337,8 @@ static int menu_select(struct cpuidle_driver *drv, struct cpuidle_device *dev)
 		polling_threshold = max_t(unsigned int, 20, s->target_residency);
 		if (data->next_timer_us > polling_threshold &&
 		    latency_req > s->exit_latency && !s->disabled &&
-		    !dev->states_usage[CPUIDLE_DRIVER_STATE_START].disable)
-			first_idx = CPUIDLE_DRIVER_STATE_START;
-		else
-			first_idx = CPUIDLE_DRIVER_STATE_START - 1;
-	} else {
-		first_idx = 0;
+		    !dev->states_usage[1].disable)
+			first_idx = 1;
 	}
 
 	/*

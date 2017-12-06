@@ -8,8 +8,8 @@ perf-record - Run a command and record its profile into perf.data
 SYNOPSIS
 --------
 [verse]
-'perf record' [-e <EVENT> | --event=EVENT] [-l] [-a] <command>
-'perf record' [-e <EVENT> | --event=EVENT] [-l] [-a] -- <command> [<options>]
+'perf record' [-e <EVENT> | --event=EVENT] [-a] <command>
+'perf record' [-e <EVENT> | --event=EVENT] [-a] -- <command> [<options>]
 
 DESCRIPTION
 -----------
@@ -249,7 +249,10 @@ OPTIONS
 
 -d::
 --data::
-	Record the sample addresses.
+	Record the sample virtual addresses.
+
+--phys-data::
+	Record the sample physical addresses.
 
 -T::
 --timestamp::
@@ -332,6 +335,7 @@ following filters are defined:
 	- no_tx: only when the target is not in a hardware transaction
 	- abort_tx: only when the target is a hardware transaction abort
 	- cond: conditional branches
+	- save_type: save branch type during sampling in case binary is not available later
 
 +
 The option requires at least one branch type among any, any_call, any_ret, ind_call, cond.

@@ -39,22 +39,32 @@
 #define ETM_MODE_EXCL_USER	BIT(31)
 
 typedef u32 (*coresight_read_fn)(const struct device *, u32 offset);
-#define coresight_simple_func(type, func, name, offset)			\
+#define __coresight_simple_func(type, func, name, lo_off, hi_off)	\
 static ssize_t name##_show(struct device *_dev,				\
 			   struct device_attribute *attr, char *buf)	\
 {									\
 	type *drvdata = dev_get_drvdata(_dev->parent);			\
 	coresight_read_fn fn = func;					\
-	u32 val;							\
+	u64 val;							\
 	pm_runtime_get_sync(_dev->parent);				\
 	if (fn)								\
-		val = fn(_dev->parent, offset);				\
+		val = (u64)fn(_dev->parent, lo_off);			\
 	else								\
-		val = readl_relaxed(drvdata->base + offset);		\
+		val = coresight_read_reg_pair(drvdata->base,		\
+						 lo_off, hi_off);	\
 	pm_runtime_put_sync(_dev->parent);				\
-	return scnprintf(buf, PAGE_SIZE, "0x%x\n", val);		\
+	return scnprintf(buf, PAGE_SIZE, "0x%llx\n", val);		\
 }									\
 static DEVICE_ATTR_RO(name)
+
+#define coresight_simple_func(type, func, name, offset)			\
+	__coresight_simple_func(type, func, name, offset, -1)
+#define coresight_simple_reg32(type, name, offset)			\
+	__coresight_simple_func(type, NULL, name, offset, -1)
+#define coresight_simple_reg64(type, name, lo_off, hi_off)		\
+	__coresight_simple_func(type, NULL, name, lo_off, hi_off)
+
+extern const u32 barrier_pkt[5];
 
 enum etm_addr_type {
 	ETM_ADDR_TYPE_NONE,
@@ -104,6 +114,25 @@ static inline void CS_UNLOCK(void __iomem *addr)
 		/* Make sure everyone has seen this */
 		mb();
 	} while (0);
+}
+
+static inline u64
+coresight_read_reg_pair(void __iomem *addr, s32 lo_offset, s32 hi_offset)
+{
+	u64 val;
+
+	val = readl_relaxed(addr + lo_offset);
+	val |= (hi_offset < 0) ? 0 :
+	       (u64)readl_relaxed(addr + hi_offset) << 32;
+	return val;
+}
+
+static inline void coresight_write_reg_pair(void __iomem *addr, u64 val,
+						 s32 lo_offset, s32 hi_offset)
+{
+	writel_relaxed((u32)val, addr + lo_offset);
+	if (hi_offset >= 0)
+		writel_relaxed((u32)(val >> 32), addr + hi_offset);
 }
 
 void coresight_disable_path(struct list_head *path);

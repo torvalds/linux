@@ -145,8 +145,6 @@ static struct drm_driver exynos_drm_driver = {
 	.gem_free_object_unlocked = exynos_drm_gem_free_object,
 	.gem_vm_ops		= &exynos_drm_gem_vm_ops,
 	.dumb_create		= exynos_drm_gem_dumb_create,
-	.dumb_map_offset	= exynos_drm_gem_dumb_map_offset,
-	.dumb_destroy		= drm_gem_dumb_destroy,
 	.prime_handle_to_fd	= drm_gem_prime_handle_to_fd,
 	.prime_fd_to_handle	= drm_gem_prime_fd_to_handle,
 	.gem_prime_export	= drm_gem_prime_export,
@@ -170,23 +168,21 @@ static struct drm_driver exynos_drm_driver = {
 static int exynos_drm_suspend(struct device *dev)
 {
 	struct drm_device *drm_dev = dev_get_drvdata(dev);
-	struct drm_connector *connector;
-	struct drm_connector_list_iter conn_iter;
+	struct exynos_drm_private *private;
 
 	if (pm_runtime_suspended(dev) || !drm_dev)
 		return 0;
 
-	drm_connector_list_iter_begin(drm_dev, &conn_iter);
-	drm_for_each_connector_iter(connector, &conn_iter) {
-		int old_dpms = connector->dpms;
+	private = drm_dev->dev_private;
 
-		if (connector->funcs->dpms)
-			connector->funcs->dpms(connector, DRM_MODE_DPMS_OFF);
-
-		/* Set the old mode back to the connector for resume */
-		connector->dpms = old_dpms;
+	drm_kms_helper_poll_disable(drm_dev);
+	exynos_drm_fbdev_suspend(drm_dev);
+	private->suspend_state = drm_atomic_helper_suspend(drm_dev);
+	if (IS_ERR(private->suspend_state)) {
+		exynos_drm_fbdev_resume(drm_dev);
+		drm_kms_helper_poll_enable(drm_dev);
+		return PTR_ERR(private->suspend_state);
 	}
-	drm_connector_list_iter_end(&conn_iter);
 
 	return 0;
 }
@@ -194,22 +190,15 @@ static int exynos_drm_suspend(struct device *dev)
 static int exynos_drm_resume(struct device *dev)
 {
 	struct drm_device *drm_dev = dev_get_drvdata(dev);
-	struct drm_connector *connector;
-	struct drm_connector_list_iter conn_iter;
+	struct exynos_drm_private *private;
 
 	if (pm_runtime_suspended(dev) || !drm_dev)
 		return 0;
 
-	drm_connector_list_iter_begin(drm_dev, &conn_iter);
-	drm_for_each_connector_iter(connector, &conn_iter) {
-		if (connector->funcs->dpms) {
-			int dpms = connector->dpms;
-
-			connector->dpms = DRM_MODE_DPMS_OFF;
-			connector->funcs->dpms(connector, dpms);
-		}
-	}
-	drm_connector_list_iter_end(&conn_iter);
+	private = drm_dev->dev_private;
+	drm_atomic_helper_resume(drm_dev, private->suspend_state);
+	exynos_drm_fbdev_resume(drm_dev);
+	drm_kms_helper_poll_enable(drm_dev);
 
 	return 0;
 }
@@ -395,8 +384,9 @@ static int exynos_drm_bind(struct device *dev)
 	/* init kms poll for handling hpd */
 	drm_kms_helper_poll_init(drm);
 
-	/* force connectors detection */
-	drm_helper_hpd_irq_event(drm);
+	ret = exynos_drm_fbdev_init(drm);
+	if (ret)
+		goto err_cleanup_poll;
 
 	/* register the DRM device */
 	ret = drm_dev_register(drm, 0);
@@ -407,6 +397,7 @@ static int exynos_drm_bind(struct device *dev)
 
 err_cleanup_fbdev:
 	exynos_drm_fbdev_fini(drm);
+err_cleanup_poll:
 	drm_kms_helper_poll_fini(drm);
 	exynos_drm_device_subdrv_remove(drm);
 err_unbind_all:
@@ -439,6 +430,7 @@ static void exynos_drm_unbind(struct device *dev)
 
 	kfree(drm->dev_private);
 	drm->dev_private = NULL;
+	dev_set_drvdata(dev, NULL);
 
 	drm_dev_unref(drm);
 }

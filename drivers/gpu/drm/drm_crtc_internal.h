@@ -178,6 +178,13 @@ struct drm_minor;
 int drm_atomic_debugfs_init(struct drm_minor *minor);
 #endif
 
+int drm_atomic_connector_commit_dpms(struct drm_atomic_state *state,
+				     struct drm_connector *connector,
+				     int mode);
+int drm_atomic_set_property(struct drm_atomic_state *state,
+			    struct drm_mode_object *obj,
+			    struct drm_property *prop,
+			    uint64_t prop_value);
 int drm_atomic_get_property(struct drm_mode_object *obj,
 			    struct drm_property *property, uint64_t *val);
 int drm_mode_atomic_ioctl(struct drm_device *dev,

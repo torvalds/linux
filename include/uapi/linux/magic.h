@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 #ifndef __LINUX_MAGIC_H__
 #define __LINUX_MAGIC_H__
 

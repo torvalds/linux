@@ -43,7 +43,6 @@
 /dts-v1/;
 
 #include "imx6ul-isiot.dtsi"
-#include "imx6ul-isiot-common.dtsi"
 
 / {
 	model = "Engicam Is.IoT MX6UL NAND Starter kit";

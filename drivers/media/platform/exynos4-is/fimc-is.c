@@ -174,8 +174,8 @@ static int fimc_is_parse_sensor_config(struct fimc_is *is, unsigned int index,
 
 	sensor->drvdata = fimc_is_sensor_get_drvdata(node);
 	if (!sensor->drvdata) {
-		dev_err(&is->pdev->dev, "no driver data found for: %s\n",
-							 node->full_name);
+		dev_err(&is->pdev->dev, "no driver data found for: %pOF\n",
+							 node);
 		return -EINVAL;
 	}
 
@@ -191,8 +191,8 @@ static int fimc_is_parse_sensor_config(struct fimc_is *is, unsigned int index,
 	/* Use MIPI-CSIS channel id to determine the ISP I2C bus index. */
 	ret = of_property_read_u32(port, "reg", &tmp);
 	if (ret < 0) {
-		dev_err(&is->pdev->dev, "reg property not found at: %s\n",
-							 port->full_name);
+		dev_err(&is->pdev->dev, "reg property not found at: %pOF\n",
+							 port);
 		of_node_put(port);
 		return ret;
 	}

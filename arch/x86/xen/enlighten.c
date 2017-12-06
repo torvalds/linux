@@ -93,11 +93,11 @@ int xen_cpuhp_setup(int (*cpu_up_prepare_cb)(unsigned int),
 	int rc;
 
 	rc = cpuhp_setup_state_nocalls(CPUHP_XEN_PREPARE,
-				       "x86/xen/hvm_guest:prepare",
+				       "x86/xen/guest:prepare",
 				       cpu_up_prepare_cb, cpu_dead_cb);
 	if (rc >= 0) {
 		rc = cpuhp_setup_state_nocalls(CPUHP_AP_ONLINE_DYN,
-					       "x86/xen/hvm_guest:online",
+					       "x86/xen/guest:online",
 					       xen_cpu_up_online, NULL);
 		if (rc < 0)
 			cpuhp_remove_state_nocalls(CPUHP_XEN_PREPARE);

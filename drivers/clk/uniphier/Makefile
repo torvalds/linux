@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 obj-y	+= clk-uniphier-core.o
 
 obj-y	+= clk-uniphier-cpugear.o

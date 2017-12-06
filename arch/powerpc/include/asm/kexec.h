@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_POWERPC_KEXEC_H
 #define _ASM_POWERPC_KEXEC_H
 #ifdef __KERNEL__

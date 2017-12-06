@@ -369,7 +369,14 @@ static void osc_req_attr_set(const struct lu_env *env, struct cl_object *obj,
 		oa->o_valid |= OBD_MD_FLGROUP;
 	}
 	if (flags & OBD_MD_FLID) {
-		ostid_set_id(&oa->o_oi, ostid_id(&oinfo->loi_oi));
+		int rc;
+
+		rc = ostid_set_id(&oa->o_oi, ostid_id(&oinfo->loi_oi));
+		if (rc) {
+			CERROR("Bad %llu to set " DOSTID " : rc %d\n",
+			       (unsigned long long)ostid_id(&oinfo->loi_oi),
+			       POSTID(&oa->o_oi), rc);
+		}
 		oa->o_valid |= OBD_MD_FLID;
 	}
 	if (flags & OBD_MD_FLHANDLE) {

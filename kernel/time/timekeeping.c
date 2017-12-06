@@ -2064,7 +2064,7 @@ void update_wall_time(void)
 		goto out;
 
 	/* Do some additional sanity checking */
-	timekeeping_check_update(real_tk, offset);
+	timekeeping_check_update(tk, offset);
 
 	/*
 	 * With NO_HZ we may have to accumulate many cycle_intervals
@@ -2316,7 +2316,7 @@ void hardpps(const struct timespec64 *phase_ts, const struct timespec64 *raw_ts)
 	raw_spin_unlock_irqrestore(&timekeeper_lock, flags);
 }
 EXPORT_SYMBOL(hardpps);
-#endif
+#endif /* CONFIG_NTP_PPS */
 
 /**
  * xtime_update() - advances the timekeeping infrastructure

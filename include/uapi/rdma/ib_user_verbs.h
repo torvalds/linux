@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR BSD-2-Clause) */
 /*
  * Copyright (c) 2005 Topspin Communications.  All rights reserved.
  * Copyright (c) 2005, 2006 Cisco Systems.  All rights reserved.
@@ -236,6 +237,20 @@ struct ib_uverbs_rss_caps {
 	__u32 reserved;
 };
 
+struct ib_uverbs_tm_caps {
+	/* Max size of rendezvous request message */
+	__u32 max_rndv_hdr_size;
+	/* Max number of entries in tag matching list */
+	__u32 max_num_tags;
+	/* TM flags */
+	__u32 flags;
+	/* Max number of outstanding list operations */
+	__u32 max_ops;
+	/* Max number of SGE in tag matching entry */
+	__u32 max_sge;
+	__u32 reserved;
+};
+
 struct ib_uverbs_ex_query_device_resp {
 	struct ib_uverbs_query_device_resp base;
 	__u32 comp_mask;
@@ -247,6 +262,7 @@ struct ib_uverbs_ex_query_device_resp {
 	struct ib_uverbs_rss_caps rss_caps;
 	__u32  max_wq_type_rq;
 	__u32 raw_packet_caps;
+	struct ib_uverbs_tm_caps tm_caps;
 };
 
 struct ib_uverbs_query_port {
@@ -578,7 +594,7 @@ struct ib_uverbs_ex_create_qp {
 	__u32 comp_mask;
 	__u32 create_flags;
 	__u32 rwq_ind_tbl_handle;
-	__u32  reserved1;
+	__u32  source_qpn;
 };
 
 struct ib_uverbs_open_qp {
@@ -1024,7 +1040,7 @@ struct ib_uverbs_create_xsrq {
 	__u32 max_wr;
 	__u32 max_sge;
 	__u32 srq_limit;
-	__u32 reserved;
+	__u32 max_num_tags;
 	__u32 xrcd_handle;
 	__u32 cq_handle;
 	__u64 driver_data[0];

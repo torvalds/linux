@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __NET_TC_MIR_H
 #define __NET_TC_MIR_H
 

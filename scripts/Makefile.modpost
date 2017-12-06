@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 # ===========================================================================
 # Module versions
 # ===========================================================================
@@ -97,7 +98,6 @@ vmlinux.o: FORCE
 	$(call cmd,kernel-mod)
 
 # Declare generated files as targets for modpost
-$(symverfile):         __modpost ;
 $(modules:.ko=.mod.c): __modpost ;
 
 

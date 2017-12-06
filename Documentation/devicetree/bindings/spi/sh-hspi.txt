@@ -24,6 +24,5 @@ Example:
 		interrupts = <0 63 IRQ_TYPE_LEVEL_HIGH>;
 		#address-cells = <1>;
 		#size-cells = <0>;
-		status = "disabled";
 	};
 

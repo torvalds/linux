@@ -52,7 +52,7 @@ static const struct lbs_fw_table fw_table[] = {
 	{ MODEL_8682, "libertas/usb8682.bin", NULL }
 };
 
-static struct usb_device_id if_usb_table[] = {
+static const struct usb_device_id if_usb_table[] = {
 	/* Enter the device signature inside */
 	{ USB_DEVICE(0x1286, 0x2001), .driver_info = MODEL_8388 },
 	{ USB_DEVICE(0x05a3, 0x8388), .driver_info = MODEL_8388 },

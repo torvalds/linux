@@ -119,6 +119,7 @@
 &cbus {
 	clkc: clock-controller@4000 {
 		#clock-cells = <1>;
+		#reset-cells = <1>;
 		compatible = "amlogic,meson8b-clkc";
 		reg = <0x8000 0x4>, <0x4000 0x460>;
 	};
@@ -129,31 +130,11 @@
 		#reset-cells = <1>;
 	};
 
-	pwm_ab: pwm@8550 {
-		compatible = "amlogic,meson8b-pwm";
-		reg = <0x8550 0x10>;
-		#pwm-cells = <3>;
-		status = "disabled";
-	};
-
-	pwm_cd: pwm@8650 {
-		compatible = "amlogic,meson8b-pwm";
-		reg = <0x8650 0x10>;
-		#pwm-cells = <3>;
-		status = "disabled";
-	};
-
 	pwm_ef: pwm@86c0 {
 		compatible = "amlogic,meson8b-pwm";
 		reg = <0x86c0 0x10>;
 		#pwm-cells = <3>;
 		status = "disabled";
-	};
-
-	wdt: watchdog@9900 {
-		compatible = "amlogic,meson8b-wdt";
-		reg = <0x9900 0x8>;
-		interrupts = <0 0 1>;
 	};
 
 	pinctrl_cbus: pinctrl@9880 {
@@ -191,6 +172,14 @@
 	arm,data-latency = <3 3 3>;
 	arm,tag-latency = <2 2 2>;
 	arm,filter-ranges = <0x100000 0xc0000000>;
+};
+
+&pwm_ab {
+	compatible = "amlogic,meson8b-pwm";
+};
+
+&pwm_cd {
+	compatible = "amlogic,meson8b-pwm";
 };
 
 &saradc {
@@ -241,4 +230,8 @@
 	clocks = <&clkc CLKID_USB>, <&clkc CLKID_USB1>;
 	clock-names = "usb_general", "usb";
 	resets = <&reset RESET_USB_OTG>;
+};
+
+&wdt {
+	compatible = "amlogic,meson8b-wdt";
 };

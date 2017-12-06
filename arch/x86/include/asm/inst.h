@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Generate .byte code for some instructions not supported by old
  * binutils.

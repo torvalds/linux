@@ -36,9 +36,9 @@
 
 #define DEBUG_SUBSYSTEM S_CLASS
 
-#include "../include/obd_support.h"
-#include "../include/lustre_handles.h"
-#include "../include/lustre_lib.h"
+#include <obd_support.h>
+#include <lustre_handles.h>
+#include <lustre_lib.h>
 
 static __u64 handle_base;
 #define HANDLE_INCR 7

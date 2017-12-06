@@ -221,7 +221,7 @@ out:
 /*
  * Set the access or default ACL of an inode.
  */
-int ocfs2_set_acl(handle_t *handle,
+static int ocfs2_set_acl(handle_t *handle,
 			 struct inode *inode,
 			 struct buffer_head *di_bh,
 			 int type,

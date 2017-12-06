@@ -15,8 +15,6 @@
 
 static int fmc_must_dump_eeprom;
 module_param_named(dump_eeprom, fmc_must_dump_eeprom, int, 0644);
-static int fmc_must_dump_sdb;
-module_param_named(dump_sdb, fmc_must_dump_sdb, int, 0644);
 
 #define LINELEN 16
 
@@ -58,43 +56,4 @@ void fmc_dump_eeprom(const struct fmc_device *fmc)
 	prev = NULL;
 	for (i = 0; i < fmc->eeprom_len; i += LINELEN, line += LINELEN)
 		prev = dump_line(i, line, prev);
-}
-
-void fmc_dump_sdb(const struct fmc_device *fmc)
-{
-	const uint8_t *line, *prev;
-	int i, len;
-
-	if (!fmc->sdb)
-		return;
-	if (!fmc_must_dump_sdb)
-		return;
-
-	/* If the argument is not-zero, do simple dump (== show) */
-	if (fmc_must_dump_sdb > 0)
-		fmc_show_sdb_tree(fmc);
-
-	if (fmc_must_dump_sdb == 1)
-		return;
-
-	/* If bigger than 1, dump it seriously, to help debugging */
-
-	/*
-	 * Here we should really use libsdbfs (which is designed to
-	 * work in kernel space as well) , but it doesn't support
-	 * directories yet, and it requires better intergration (it
-	 * should be used instead of fmc-specific code).
-	 *
-	 * So, lazily, just dump the top-level array
-	 */
-	pr_info("FMC: %s (%s), slot %i, device %s\n", dev_name(fmc->hwdev),
-		fmc->carrier_name, fmc->slot_id, dev_name(&fmc->dev));
-	pr_info("FMC: poor dump of sdb first level:\n");
-
-	len = fmc->sdb->len * sizeof(union sdb_record);
-	line = (void *)fmc->sdb->record;
-	prev = NULL;
-	for (i = 0; i < len; i += LINELEN, line += LINELEN)
-		prev = dump_line(i, line, prev);
-	return;
 }

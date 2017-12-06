@@ -8491,8 +8491,6 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		rtl8168_driver_start(tp);
 	}
 
-	device_set_wakeup_enable(&pdev->dev, tp->features & RTL_FEATURE_WOL);
-
 	if (pci_dev_run_wake(pdev))
 		pm_runtime_put_noidle(&pdev->dev);
 

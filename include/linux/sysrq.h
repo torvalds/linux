@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* -*- linux-c -*-
  *
  *	$Id: sysrq.h,v 1.3 1997/07/17 11:54:33 mj Exp $

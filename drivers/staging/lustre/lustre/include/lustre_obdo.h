@@ -35,7 +35,7 @@
 #ifndef _LUSTRE_OBDO_H_
 #define _LUSTRE_OBDO_H_
 
-#include "lustre/lustre_idl.h"
+#include <uapi/linux/lustre/lustre_idl.h>
 
 /**
  * Create an obdo to send over the wire

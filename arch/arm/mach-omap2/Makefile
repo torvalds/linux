@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 #
 # Makefile for the linux kernel.
 #
@@ -8,7 +9,7 @@ ccflags-y := -I$(srctree)/$(src)/include \
 # Common support
 obj-y := id.o io.o control.o devices.o fb.o timer.o pm.o \
 	 common.o dma.o wd_timer.o display.o i2c.o hdq1w.o omap_hwmod.o \
-	 omap_device.o omap-headsmp.o sram.o drm.o
+	 omap_device.o omap-headsmp.o sram.o
 
 hwmod-common				= omap_hwmod.o omap_hwmod_reset.o \
 					  omap_hwmod_common_data.o

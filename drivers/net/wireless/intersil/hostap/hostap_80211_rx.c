@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/etherdevice.h>
 #include <linux/slab.h>
 #include <linux/export.h>

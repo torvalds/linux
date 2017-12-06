@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 host1x-y = \
 	bus.o \
 	syncpt.o \

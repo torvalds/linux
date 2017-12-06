@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * BPF Jit compiler for s390.
  *
@@ -1093,14 +1094,26 @@ static noinline int bpf_jit_insn(struct bpf_jit *jit, struct bpf_prog *fp, int i
 	case BPF_JMP | BPF_JSGT | BPF_K: /* ((s64) dst > (s64) imm) */
 		mask = 0x2000; /* jh */
 		goto branch_ks;
+	case BPF_JMP | BPF_JSLT | BPF_K: /* ((s64) dst < (s64) imm) */
+		mask = 0x4000; /* jl */
+		goto branch_ks;
 	case BPF_JMP | BPF_JSGE | BPF_K: /* ((s64) dst >= (s64) imm) */
 		mask = 0xa000; /* jhe */
+		goto branch_ks;
+	case BPF_JMP | BPF_JSLE | BPF_K: /* ((s64) dst <= (s64) imm) */
+		mask = 0xc000; /* jle */
 		goto branch_ks;
 	case BPF_JMP | BPF_JGT | BPF_K: /* (dst_reg > imm) */
 		mask = 0x2000; /* jh */
 		goto branch_ku;
+	case BPF_JMP | BPF_JLT | BPF_K: /* (dst_reg < imm) */
+		mask = 0x4000; /* jl */
+		goto branch_ku;
 	case BPF_JMP | BPF_JGE | BPF_K: /* (dst_reg >= imm) */
 		mask = 0xa000; /* jhe */
+		goto branch_ku;
+	case BPF_JMP | BPF_JLE | BPF_K: /* (dst_reg <= imm) */
+		mask = 0xc000; /* jle */
 		goto branch_ku;
 	case BPF_JMP | BPF_JNE | BPF_K: /* (dst_reg != imm) */
 		mask = 0x7000; /* jne */
@@ -1119,14 +1132,26 @@ static noinline int bpf_jit_insn(struct bpf_jit *jit, struct bpf_prog *fp, int i
 	case BPF_JMP | BPF_JSGT | BPF_X: /* ((s64) dst > (s64) src) */
 		mask = 0x2000; /* jh */
 		goto branch_xs;
+	case BPF_JMP | BPF_JSLT | BPF_X: /* ((s64) dst < (s64) src) */
+		mask = 0x4000; /* jl */
+		goto branch_xs;
 	case BPF_JMP | BPF_JSGE | BPF_X: /* ((s64) dst >= (s64) src) */
 		mask = 0xa000; /* jhe */
+		goto branch_xs;
+	case BPF_JMP | BPF_JSLE | BPF_X: /* ((s64) dst <= (s64) src) */
+		mask = 0xc000; /* jle */
 		goto branch_xs;
 	case BPF_JMP | BPF_JGT | BPF_X: /* (dst > src) */
 		mask = 0x2000; /* jh */
 		goto branch_xu;
+	case BPF_JMP | BPF_JLT | BPF_X: /* (dst < src) */
+		mask = 0x4000; /* jl */
+		goto branch_xu;
 	case BPF_JMP | BPF_JGE | BPF_X: /* (dst >= src) */
 		mask = 0xa000; /* jhe */
+		goto branch_xu;
+	case BPF_JMP | BPF_JLE | BPF_X: /* (dst <= src) */
+		mask = 0xc000; /* jle */
 		goto branch_xu;
 	case BPF_JMP | BPF_JNE | BPF_X: /* (dst != src) */
 		mask = 0x7000; /* jne */

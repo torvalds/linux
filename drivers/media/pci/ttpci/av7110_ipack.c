@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include "dvb_filter.h"
 #include "av7110_ipack.h"
 #include <linux/string.h>	/* for memcpy() */

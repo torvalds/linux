@@ -3,7 +3,7 @@
  *
  *  This file contains the SELinux security data structures for kernel objects.
  *
- *  Author(s):  Stephen Smalley, <sds@epoch.ncsc.mil>
+ *  Author(s):  Stephen Smalley, <sds@tycho.nsa.gov>
  *		Chris Vance, <cvance@nai.com>
  *		Wayne Salamon, <wsalamon@nai.com>
  *		James Morris <jmorris@redhat.com>

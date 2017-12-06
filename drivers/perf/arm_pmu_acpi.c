@@ -235,6 +235,7 @@ int arm_pmu_acpi_probe(armpmu_init_fn init_fn)
 		ret = armpmu_register(pmu);
 		if (ret) {
 			pr_warn("Failed to register PMU for CPU%d\n", cpu);
+			kfree(pmu->name);
 			return ret;
 		}
 	}

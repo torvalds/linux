@@ -20,6 +20,7 @@
  */
 
 
+#include <errno.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <time.h>
@@ -27,18 +28,7 @@
 #include <signal.h>
 #include <stdlib.h>
 #include <pthread.h>
-#ifdef KTEST
 #include "../kselftest.h"
-#else
-static inline int ksft_exit_pass(void)
-{
-	exit(0);
-}
-static inline int ksft_exit_fail(void)
-{
-	exit(1);
-}
-#endif
 
 #define CLOCK_REALTIME			0
 #define CLOCK_MONOTONIC			1
@@ -63,6 +53,7 @@ int alarmcount;
 int clock_id;
 struct timespec start_time;
 long long max_latency_ns;
+int timer_fired_early;
 
 char *clockstring(int clockid)
 {
@@ -115,16 +106,23 @@ void sigalarm(int signo)
 	delta_ns -= NSEC_PER_SEC * TIMER_SECS * alarmcount;
 
 	if (delta_ns < 0)
-		printf("%s timer fired early: FAIL\n", clockstring(clock_id));
+		timer_fired_early = 1;
 
 	if (delta_ns > max_latency_ns)
 		max_latency_ns = delta_ns;
 }
 
-int do_timer(int clock_id, int flags)
+void describe_timer(int flags, int interval)
+{
+	printf("%-22s %s %s ",
+			clockstring(clock_id),
+			flags ? "ABSTIME":"RELTIME",
+			interval ? "PERIODIC":"ONE-SHOT");
+}
+
+int setup_timer(int clock_id, int flags, int interval, timer_t *tm1)
 {
 	struct sigevent se;
-	timer_t tm1;
 	struct itimerspec its1, its2;
 	int err;
 
@@ -136,15 +134,17 @@ int do_timer(int clock_id, int flags)
 
 	max_latency_ns = 0;
 	alarmcount = 0;
+	timer_fired_early = 0;
 
-	err = timer_create(clock_id, &se, &tm1);
+	err = timer_create(clock_id, &se, tm1);
 	if (err) {
 		if ((clock_id == CLOCK_REALTIME_ALARM) ||
 		    (clock_id == CLOCK_BOOTTIME_ALARM)) {
 			printf("%-22s %s missing CAP_WAKE_ALARM?    : [UNSUPPORTED]\n",
 					clockstring(clock_id),
 					flags ? "ABSTIME":"RELTIME");
-			return 0;
+			/* Indicate timer isn't set, so caller doesn't wait */
+			return 1;
 		}
 		printf("%s - timer_create() failed\n", clockstring(clock_id));
 		return -1;
@@ -158,30 +158,95 @@ int do_timer(int clock_id, int flags)
 		its1.it_value.tv_sec = TIMER_SECS;
 		its1.it_value.tv_nsec = 0;
 	}
-	its1.it_interval.tv_sec = TIMER_SECS;
+	its1.it_interval.tv_sec = interval;
 	its1.it_interval.tv_nsec = 0;
 
-	err = timer_settime(tm1, flags, &its1, &its2);
+	err = timer_settime(*tm1, flags, &its1, &its2);
 	if (err) {
 		printf("%s - timer_settime() failed\n", clockstring(clock_id));
 		return -1;
 	}
 
-	while (alarmcount < 5)
-		sleep(1);
+	return 0;
+}
 
-	printf("%-22s %s max latency: %10lld ns : ",
-			clockstring(clock_id),
-			flags ? "ABSTIME":"RELTIME",
-			max_latency_ns);
+int check_timer_latency(int flags, int interval)
+{
+	int err = 0;
 
-	timer_delete(tm1);
+	describe_timer(flags, interval);
+	printf("timer fired early: %7d : ", timer_fired_early);
+	if (!timer_fired_early) {
+		printf("[OK]\n");
+	} else {
+		printf("[FAILED]\n");
+		err = -1;
+	}
+
+	describe_timer(flags, interval);
+	printf("max latency: %10lld ns : ", max_latency_ns);
+
 	if (max_latency_ns < UNRESONABLE_LATENCY) {
+		printf("[OK]\n");
+	} else {
+		printf("[FAILED]\n");
+		err = -1;
+	}
+	return err;
+}
+
+int check_alarmcount(int flags, int interval)
+{
+	describe_timer(flags, interval);
+	printf("count: %19d : ", alarmcount);
+	if (alarmcount == 1) {
 		printf("[OK]\n");
 		return 0;
 	}
 	printf("[FAILED]\n");
 	return -1;
+}
+
+int do_timer(int clock_id, int flags)
+{
+	timer_t tm1;
+	const int interval = TIMER_SECS;
+	int err;
+
+	err = setup_timer(clock_id, flags, interval, &tm1);
+	/* Unsupported case - return 0 to not fail the test */
+	if (err)
+		return err == 1 ? 0 : err;
+
+	while (alarmcount < 5)
+		sleep(1);
+
+	timer_delete(tm1);
+	return check_timer_latency(flags, interval);
+}
+
+int do_timer_oneshot(int clock_id, int flags)
+{
+	timer_t tm1;
+	const int interval = 0;
+	struct timeval timeout;
+	int err;
+
+	err = setup_timer(clock_id, flags, interval, &tm1);
+	/* Unsupported case - return 0 to not fail the test */
+	if (err)
+		return err == 1 ? 0 : err;
+
+	memset(&timeout, 0, sizeof(timeout));
+	timeout.tv_sec = 5;
+	do {
+		err = select(0, NULL, NULL, NULL, &timeout);
+	} while (err == -1 && errno == EINTR);
+
+	timer_delete(tm1);
+	err = check_timer_latency(flags, interval);
+	err |= check_alarmcount(flags, interval);
+	return err;
 }
 
 int main(void)
@@ -209,6 +274,8 @@ int main(void)
 
 		ret |= do_timer(clock_id, TIMER_ABSTIME);
 		ret |= do_timer(clock_id, 0);
+		ret |= do_timer_oneshot(clock_id, TIMER_ABSTIME);
+		ret |= do_timer_oneshot(clock_id, 0);
 	}
 	if (ret)
 		return ksft_exit_fail();

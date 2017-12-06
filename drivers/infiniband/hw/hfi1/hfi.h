@@ -66,9 +66,11 @@
 #include <linux/i2c.h>
 #include <linux/i2c-algo-bit.h>
 #include <rdma/ib_hdrs.h>
+#include <rdma/opa_addr.h>
 #include <linux/rhashtable.h>
 #include <linux/netdevice.h>
 #include <rdma/rdma_vt.h>
+#include <rdma/opa_addr.h>
 
 #include "chip_registers.h"
 #include "common.h"
@@ -213,13 +215,11 @@ struct hfi1_ctxtdata {
 
 	/* dynamic receive available interrupt timeout */
 	u32 rcvavail_timeout;
-	/*
-	 * number of opens (including slave sub-contexts) on this instance
-	 * (ignoring forks, dup, etc. for now)
-	 */
-	int cnt;
+	/* Reference count the base context usage */
+	struct kref kref;
+
 	/* Device context index */
-	unsigned ctxt;
+	u16 ctxt;
 	/*
 	 * non-zero if ctxt can be shared, and defines the maximum number of
 	 * sub-contexts for this device context.
@@ -245,24 +245,10 @@ struct hfi1_ctxtdata {
 
 	/* lock protecting all Expected TID data */
 	struct mutex exp_lock;
-	/* number of pio bufs for this ctxt (all procs, if shared) */
-	u32 piocnt;
-	/* first pio buffer for this ctxt */
-	u32 pio_base;
-	/* chip offset of PIO buffers for this ctxt */
-	u32 piobufs;
 	/* per-context configuration flags */
 	unsigned long flags;
 	/* per-context event flags for fileops/intr communication */
 	unsigned long event_flags;
-	/* WAIT_RCV that timed out, no interrupt */
-	u32 rcvwait_to;
-	/* WAIT_PIO that timed out, no interrupt */
-	u32 piowait_to;
-	/* WAIT_RCV already happened, no wait */
-	u32 rcvnowait;
-	/* WAIT_PIO already happened, no wait */
-	u32 pionowait;
 	/* total number of polled urgent packets */
 	u32 urgent;
 	/* saved total number of polled urgent packets for poll edge trigger */
@@ -289,10 +275,8 @@ struct hfi1_ctxtdata {
 	u16 poll_type;
 	/* receive packet sequence counter */
 	u8 seq_cnt;
-	u8 redirect_seq_cnt;
 	/* ctxt rcvhdrq head offset */
 	u32 head;
-	u32 pkt_count;
 	/* QPs waiting for context processing */
 	struct list_head qp_wait_list;
 	/* interrupt handling */
@@ -301,15 +285,6 @@ struct hfi1_ctxtdata {
 	unsigned numa_id; /* numa node of this context */
 	/* verbs stats per CTX */
 	struct hfi1_opcode_stats_perctx *opstats;
-	/*
-	 * This is the kernel thread that will keep making
-	 * progress on the user sdma requests behind the scenes.
-	 * There is one per context (shared contexts use the master's).
-	 */
-	struct task_struct *progress;
-	struct list_head sdma_queues;
-	/* protect sdma queues */
-	spinlock_t sdma_qlock;
 
 	/* Is ASPM interrupt supported for this context */
 	bool aspm_intr_supported;
@@ -352,22 +327,149 @@ struct hfi1_ctxtdata {
 struct hfi1_packet {
 	void *ebuf;
 	void *hdr;
+	void *payload;
 	struct hfi1_ctxtdata *rcd;
 	__le32 *rhf_addr;
 	struct rvt_qp *qp;
 	struct ib_other_headers *ohdr;
+	struct ib_grh *grh;
 	u64 rhf;
 	u32 maxcnt;
 	u32 rhqoff;
+	u32 dlid;
+	u32 slid;
 	u16 tlen;
 	s16 etail;
 	u8 hlen;
 	u8 numpkt;
 	u8 rsize;
 	u8 updegr;
-	u8 rcv_flags;
 	u8 etype;
+	u8 extra_byte;
+	u8 pad;
+	u8 sc;
+	u8 sl;
+	u8 opcode;
+	bool becn;
+	bool fecn;
 };
+
+/* Packet types */
+#define HFI1_PKT_TYPE_9B  0
+#define HFI1_PKT_TYPE_16B 1
+
+/*
+ * OPA 16B Header
+ */
+#define OPA_16B_L4_MASK		0xFFull
+#define OPA_16B_SC_MASK		0x1F00000ull
+#define OPA_16B_SC_SHIFT	20
+#define OPA_16B_LID_MASK	0xFFFFFull
+#define OPA_16B_DLID_MASK	0xF000ull
+#define OPA_16B_DLID_SHIFT	20
+#define OPA_16B_DLID_HIGH_SHIFT	12
+#define OPA_16B_SLID_MASK	0xF00ull
+#define OPA_16B_SLID_SHIFT	20
+#define OPA_16B_SLID_HIGH_SHIFT	8
+#define OPA_16B_BECN_MASK       0x80000000ull
+#define OPA_16B_BECN_SHIFT      31
+#define OPA_16B_FECN_MASK       0x10000000ull
+#define OPA_16B_FECN_SHIFT      28
+#define OPA_16B_L2_MASK		0x60000000ull
+#define OPA_16B_L2_SHIFT	29
+#define OPA_16B_PKEY_MASK	0xFFFF0000ull
+#define OPA_16B_PKEY_SHIFT	16
+#define OPA_16B_LEN_MASK	0x7FF00000ull
+#define OPA_16B_LEN_SHIFT	20
+#define OPA_16B_RC_MASK		0xE000000ull
+#define OPA_16B_RC_SHIFT	25
+#define OPA_16B_AGE_MASK	0xFF0000ull
+#define OPA_16B_AGE_SHIFT	16
+#define OPA_16B_ENTROPY_MASK	0xFFFFull
+
+/*
+ * OPA 16B L2/L4 Encodings
+ */
+#define OPA_16B_L2_TYPE		0x02
+#define OPA_16B_L4_IB_LOCAL	0x09
+#define OPA_16B_L4_IB_GLOBAL	0x0A
+#define OPA_16B_L4_ETHR		OPA_VNIC_L4_ETHR
+
+static inline u8 hfi1_16B_get_l4(struct hfi1_16b_header *hdr)
+{
+	return (u8)(hdr->lrh[2] & OPA_16B_L4_MASK);
+}
+
+static inline u8 hfi1_16B_get_sc(struct hfi1_16b_header *hdr)
+{
+	return (u8)((hdr->lrh[1] & OPA_16B_SC_MASK) >> OPA_16B_SC_SHIFT);
+}
+
+static inline u32 hfi1_16B_get_dlid(struct hfi1_16b_header *hdr)
+{
+	return (u32)((hdr->lrh[1] & OPA_16B_LID_MASK) |
+		     (((hdr->lrh[2] & OPA_16B_DLID_MASK) >>
+		     OPA_16B_DLID_HIGH_SHIFT) << OPA_16B_DLID_SHIFT));
+}
+
+static inline u32 hfi1_16B_get_slid(struct hfi1_16b_header *hdr)
+{
+	return (u32)((hdr->lrh[0] & OPA_16B_LID_MASK) |
+		     (((hdr->lrh[2] & OPA_16B_SLID_MASK) >>
+		     OPA_16B_SLID_HIGH_SHIFT) << OPA_16B_SLID_SHIFT));
+}
+
+static inline u8 hfi1_16B_get_becn(struct hfi1_16b_header *hdr)
+{
+	return (u8)((hdr->lrh[0] & OPA_16B_BECN_MASK) >> OPA_16B_BECN_SHIFT);
+}
+
+static inline u8 hfi1_16B_get_fecn(struct hfi1_16b_header *hdr)
+{
+	return (u8)((hdr->lrh[1] & OPA_16B_FECN_MASK) >> OPA_16B_FECN_SHIFT);
+}
+
+static inline u8 hfi1_16B_get_l2(struct hfi1_16b_header *hdr)
+{
+	return (u8)((hdr->lrh[1] & OPA_16B_L2_MASK) >> OPA_16B_L2_SHIFT);
+}
+
+static inline u16 hfi1_16B_get_pkey(struct hfi1_16b_header *hdr)
+{
+	return (u16)((hdr->lrh[2] & OPA_16B_PKEY_MASK) >> OPA_16B_PKEY_SHIFT);
+}
+
+static inline u8 hfi1_16B_get_rc(struct hfi1_16b_header *hdr)
+{
+	return (u8)((hdr->lrh[1] & OPA_16B_RC_MASK) >> OPA_16B_RC_SHIFT);
+}
+
+static inline u8 hfi1_16B_get_age(struct hfi1_16b_header *hdr)
+{
+	return (u8)((hdr->lrh[3] & OPA_16B_AGE_MASK) >> OPA_16B_AGE_SHIFT);
+}
+
+static inline u16 hfi1_16B_get_len(struct hfi1_16b_header *hdr)
+{
+	return (u16)((hdr->lrh[0] & OPA_16B_LEN_MASK) >> OPA_16B_LEN_SHIFT);
+}
+
+static inline u16 hfi1_16B_get_entropy(struct hfi1_16b_header *hdr)
+{
+	return (u16)(hdr->lrh[3] & OPA_16B_ENTROPY_MASK);
+}
+
+#define OPA_16B_MAKE_QW(low_dw, high_dw) (((u64)(high_dw) << 32) | (low_dw))
+
+/*
+ * BTH
+ */
+#define OPA_16B_BTH_PAD_MASK	7
+static inline u8 hfi1_16B_bth_get_pad(struct ib_other_headers *ohdr)
+{
+	return (u8)((be32_to_cpu(ohdr->bth[0]) >> IB_BTH_PAD_SHIFT) &
+		   OPA_16B_BTH_PAD_MASK);
+}
 
 struct rvt_sge_state;
 
@@ -512,7 +614,7 @@ static inline void incr_cntr32(u32 *cntr)
 #define MAX_NAME_SIZE 64
 struct hfi1_msix_entry {
 	enum irq_type type;
-	struct msix_entry msix;
+	int irq;
 	void *arg;
 	char name[MAX_NAME_SIZE];
 	cpumask_t mask;
@@ -575,6 +677,9 @@ struct hfi1_pportdata {
 	u8  default_atten;
 	u8  max_power_class;
 
+	/* did we read platform config from scratch registers? */
+	bool config_from_scratch;
+
 	/* GUIDs for this interface, in host order, guids[0] is a port guid */
 	u64 guids[HFI1_GUIDS_PER_PORT];
 
@@ -593,6 +698,7 @@ struct hfi1_pportdata {
 	/* SendDMA related entries */
 
 	struct workqueue_struct *hfi1_wq;
+	struct workqueue_struct *link_wq;
 
 	/* move out of interrupt context */
 	struct work_struct link_vc_work;
@@ -607,8 +713,6 @@ struct hfi1_pportdata {
 	struct mutex hls_lock;
 	u32 host_link_state;
 
-	u32 lstate;	/* logical link state */
-
 	/* these are the "32 bit" regs */
 
 	u32 ibmtu; /* The MTU programmed for this unit */
@@ -619,7 +723,7 @@ struct hfi1_pportdata {
 	u32 ibmaxlen;
 	u32 current_egress_rate; /* units [10^6 bits/sec] */
 	/* LID programmed for this instance */
-	u16 lid;
+	u32 lid;
 	/* list of pkeys programmed; 0 if not set */
 	u16 pkeys[MAX_PKEY_VALUES];
 	u16 link_width_supported;
@@ -654,12 +758,12 @@ struct hfi1_pportdata {
 	u8 link_enabled;	/* link enabled? */
 	u8 linkinit_reason;
 	u8 local_tx_rate;	/* rate given to 8051 firmware */
-	u8 last_pstate;		/* info only */
 	u8 qsfp_retry_count;
 
 	/* placeholders for IB MAD packet settings */
 	u8 overrun_threshold;
 	u8 phy_error_threshold;
+	unsigned int is_link_down_queued;
 
 	/* Used to override LED behavior for things like maintenance beaconing*/
 	/*
@@ -756,6 +860,10 @@ struct hfi1_pportdata {
 typedef int (*rhf_rcv_function_ptr)(struct hfi1_packet *packet);
 
 typedef void (*opcode_handler)(struct hfi1_packet *packet);
+typedef void (*hfi1_make_req)(struct rvt_qp *qp,
+			      struct hfi1_pkt_state *ps,
+			      struct rvt_swqe *wqe);
+
 
 /* return values for the RHF receive functions */
 #define RHF_RCV_CONTINUE  0	/* keep going */
@@ -860,12 +968,15 @@ struct hfi1_devdata {
 	struct device *diag_device;
 	struct device *ui_device;
 
-	/* mem-mapped pointer to base of chip regs */
-	u8 __iomem *kregbase;
-	/* end of mem-mapped chip space excluding sendbuf and user regs */
-	u8 __iomem *kregend;
-	/* physical address of chip for io_remap, etc. */
+	/* first mapping up to RcvArray */
+	u8 __iomem *kregbase1;
 	resource_size_t physaddr;
+
+	/* second uncached mapping from RcvArray to pio send buffers */
+	u8 __iomem *kregbase2;
+	/* for detecting offset above kregbase2 address */
+	u32 base2_start;
+
 	/* Per VL data. Enough for all VLs but not all elements are set/used. */
 	struct per_vl_data vld[PER_VL_SEND_CONTEXTS];
 	/* send context data */
@@ -953,8 +1064,7 @@ struct hfi1_devdata {
 	u64 __iomem *egrtidbase;
 	spinlock_t sendctrl_lock; /* protect changes to SendCtrl */
 	spinlock_t rcvctrl_lock; /* protect changes to RcvCtrl */
-	/* around rcd and (user ctxts) ctxt_cnt use (intr vs free) */
-	spinlock_t uctxt_lock; /* rcd and user context changes */
+	spinlock_t uctxt_lock; /* protect rcd changes */
 	struct mutex dc8051_lock; /* exclusive access to 8051 */
 	struct workqueue_struct *update_cntr_wq;
 	struct work_struct update_cntr_work;
@@ -1229,9 +1339,10 @@ static inline bool hfi1_vnic_is_rsm_full(struct hfi1_devdata *dd, int spare)
 #define dc8051_ver_patch(a) ((a) & 0x0000ff)
 
 /* f_put_tid types */
-#define PT_EXPECTED 0
-#define PT_EAGER    1
-#define PT_INVALID  2
+#define PT_EXPECTED       0
+#define PT_EAGER          1
+#define PT_INVALID_FLUSH  2
+#define PT_INVALID        3
 
 struct tid_rb_node;
 struct mmu_rb_node;
@@ -1276,13 +1387,16 @@ void handle_user_interrupt(struct hfi1_ctxtdata *rcd);
 
 int hfi1_create_rcvhdrq(struct hfi1_devdata *dd, struct hfi1_ctxtdata *rcd);
 int hfi1_setup_eagerbufs(struct hfi1_ctxtdata *rcd);
-int hfi1_create_ctxts(struct hfi1_devdata *dd);
-struct hfi1_ctxtdata *hfi1_create_ctxtdata(struct hfi1_pportdata *ppd, u32 ctxt,
-					   int numa);
+int hfi1_create_kctxts(struct hfi1_devdata *dd);
+int hfi1_create_ctxtdata(struct hfi1_pportdata *ppd, int numa,
+			 struct hfi1_ctxtdata **rcd);
+void hfi1_free_ctxt(struct hfi1_ctxtdata *rcd);
 void hfi1_init_pportdata(struct pci_dev *pdev, struct hfi1_pportdata *ppd,
 			 struct hfi1_devdata *dd, u8 hw_pidx, u8 port);
 void hfi1_free_ctxtdata(struct hfi1_devdata *dd, struct hfi1_ctxtdata *rcd);
-
+int hfi1_rcd_put(struct hfi1_ctxtdata *rcd);
+void hfi1_rcd_get(struct hfi1_ctxtdata *rcd);
+struct hfi1_ctxtdata *hfi1_rcd_get_by_index(struct hfi1_devdata *dd, u16 ctxt);
 int handle_receive_interrupt(struct hfi1_ctxtdata *rcd, int thread);
 int handle_receive_interrupt_nodma_rtail(struct hfi1_ctxtdata *rcd, int thread);
 int handle_receive_interrupt_dma_rtail(struct hfi1_ctxtdata *rcd, int thread);
@@ -1292,6 +1406,13 @@ void hfi1_set_vnic_msix_info(struct hfi1_ctxtdata *rcd);
 void hfi1_reset_vnic_msix_info(struct hfi1_ctxtdata *rcd);
 
 extern const struct pci_device_id hfi1_pci_tbl[];
+void hfi1_make_ud_req_9B(struct rvt_qp *qp,
+			 struct hfi1_pkt_state *ps,
+			 struct rvt_swqe *wqe);
+
+void hfi1_make_ud_req_16B(struct rvt_qp *qp,
+			  struct hfi1_pkt_state *ps,
+			  struct rvt_swqe *wqe);
 
 /* receive packet handler dispositions */
 #define RCV_PKT_OK      0x0 /* keep going */
@@ -1305,21 +1426,6 @@ static inline __le32 *get_rhf_addr(struct hfi1_ctxtdata *rcd)
 }
 
 int hfi1_reset_device(int);
-
-/* return the driver's idea of the logical OPA port state */
-static inline u32 driver_lstate(struct hfi1_pportdata *ppd)
-{
-	/*
-	 * The driver does some processing from the time the logical
-	 * link state is at INIT to the time the SM can be notified
-	 * as such. Return IB_PORT_DOWN until the software state
-	 * is ready.
-	 */
-	if (ppd->lstate == IB_PORT_INIT && !(ppd->host_link_state & HLS_UP))
-		return IB_PORT_DOWN;
-	else
-		return ppd->lstate;
-}
 
 void receive_interrupt_work(struct work_struct *work);
 
@@ -1413,13 +1519,25 @@ static inline u32 egress_cycles(u32 len, u32 rate)
 }
 
 void set_link_ipg(struct hfi1_pportdata *ppd);
-void process_becn(struct hfi1_pportdata *ppd, u8 sl,  u16 rlid, u32 lqpn,
+void process_becn(struct hfi1_pportdata *ppd, u8 sl, u32 rlid, u32 lqpn,
 		  u32 rqpn, u8 svc_type);
 void return_cnp(struct hfi1_ibport *ibp, struct rvt_qp *qp, u32 remote_qpn,
 		u32 pkey, u32 slid, u32 dlid, u8 sc5,
 		const struct ib_grh *old_grh);
+void return_cnp_16B(struct hfi1_ibport *ibp, struct rvt_qp *qp,
+		    u32 remote_qpn, u32 pkey, u32 slid, u32 dlid,
+		    u8 sc5, const struct ib_grh *old_grh);
+typedef void (*hfi1_handle_cnp)(struct hfi1_ibport *ibp, struct rvt_qp *qp,
+				u32 remote_qpn, u32 pkey, u32 slid, u32 dlid,
+				u8 sc5, const struct ib_grh *old_grh);
+
+/* We support only two types - 9B and 16B for now */
+static const hfi1_handle_cnp hfi1_handle_cnp_tbl[2] = {
+	[HFI1_PKT_TYPE_9B] = &return_cnp,
+	[HFI1_PKT_TYPE_16B] = &return_cnp_16B
+};
 #define PKEY_CHECK_INVALID -1
-int egress_pkey_check(struct hfi1_pportdata *ppd, __be16 *lrh, __be32 *bth,
+int egress_pkey_check(struct hfi1_pportdata *ppd, u32 slid, u16 pkey,
 		      u8 sc5, int8_t s_pkey_index);
 
 #define PACKET_EGRESS_TIMEOUT 350
@@ -1522,9 +1640,9 @@ static void ingress_pkey_table_fail(struct hfi1_pportdata *ppd, u16 pkey,
  * by HW and rcv_pkey_check function should be called instead.
  */
 static inline int ingress_pkey_check(struct hfi1_pportdata *ppd, u16 pkey,
-				     u8 sc5, u8 idx, u16 slid)
+				     u8 sc5, u8 idx, u32 slid, bool force)
 {
-	if (!(ppd->part_enforce & HFI1_PART_ENFORCE_IN))
+	if (!(force) && !(ppd->part_enforce & HFI1_PART_ENFORCE_IN))
 		return 0;
 
 	/* If SC15, pkey[0:14] must be 0x7fff */
@@ -1658,12 +1776,22 @@ static inline bool process_ecn(struct rvt_qp *qp, struct hfi1_packet *pkt,
 			       bool do_cnp)
 {
 	struct ib_other_headers *ohdr = pkt->ohdr;
-	u32 bth1;
 
-	bth1 = be32_to_cpu(ohdr->bth[1]);
-	if (unlikely(bth1 & (IB_BECN_SMASK | IB_FECN_SMASK))) {
+	u32 bth1;
+	bool becn = false;
+	bool fecn = false;
+
+	if (pkt->etype == RHF_RCV_TYPE_BYPASS) {
+		fecn = hfi1_16B_get_fecn(pkt->hdr);
+		becn = hfi1_16B_get_becn(pkt->hdr);
+	} else {
+		bth1 = be32_to_cpu(ohdr->bth[1]);
+		fecn = bth1 & IB_FECN_SMASK;
+		becn = bth1 & IB_BECN_SMASK;
+	}
+	if (unlikely(fecn || becn)) {
 		hfi1_process_ecn_slowpath(qp, pkt, do_cnp);
-		return !!(bth1 & IB_FECN_SMASK);
+		return fecn;
 	}
 	return false;
 }
@@ -1829,10 +1957,9 @@ void hfi1_pcie_cleanup(struct pci_dev *pdev);
 int hfi1_pcie_ddinit(struct hfi1_devdata *dd, struct pci_dev *pdev);
 void hfi1_pcie_ddcleanup(struct hfi1_devdata *);
 int pcie_speeds(struct hfi1_devdata *dd);
-void request_msix(struct hfi1_devdata *dd, u32 *nent,
-		  struct hfi1_msix_entry *entry);
-void hfi1_enable_intx(struct pci_dev *pdev);
-void restore_pci_variables(struct hfi1_devdata *dd);
+int request_msix(struct hfi1_devdata *dd, u32 msireq);
+int restore_pci_variables(struct hfi1_devdata *dd);
+int save_pci_variables(struct hfi1_devdata *dd);
 int do_pcie_gen3_transition(struct hfi1_devdata *dd);
 int parse_platform_config(struct hfi1_devdata *dd);
 int get_platform_config_field(struct hfi1_devdata *dd,
@@ -1860,6 +1987,7 @@ int process_receive_error(struct hfi1_packet *packet);
 int kdeth_process_expected(struct hfi1_packet *packet);
 int kdeth_process_eager(struct hfi1_packet *packet);
 int process_receive_invalid(struct hfi1_packet *packet);
+void seqfile_dump_rcd(struct seq_file *s, struct hfi1_ctxtdata *rcd);
 
 /* global module parameter variables */
 extern unsigned int hfi1_max_mtu;
@@ -1991,9 +2119,15 @@ static inline u64 hfi1_pkt_base_sdma_integrity(struct hfi1_devdata *dd)
 #define dd_dev_emerg(dd, fmt, ...) \
 	dev_emerg(&(dd)->pcidev->dev, "%s: " fmt, \
 		  get_unit_name((dd)->unit), ##__VA_ARGS__)
+
 #define dd_dev_err(dd, fmt, ...) \
 	dev_err(&(dd)->pcidev->dev, "%s: " fmt, \
 			get_unit_name((dd)->unit), ##__VA_ARGS__)
+
+#define dd_dev_err_ratelimited(dd, fmt, ...) \
+	dev_err_ratelimited(&(dd)->pcidev->dev, "%s: " fmt, \
+			get_unit_name((dd)->unit), ##__VA_ARGS__)
+
 #define dd_dev_warn(dd, fmt, ...) \
 	dev_warn(&(dd)->pcidev->dev, "%s: " fmt, \
 			get_unit_name((dd)->unit), ##__VA_ARGS__)
@@ -2087,52 +2221,220 @@ int hfi1_tempsense_rd(struct hfi1_devdata *dd, struct hfi1_temp *temp);
 #define DD_DEV_ENTRY(dd)       __string(dev, dev_name(&(dd)->pcidev->dev))
 #define DD_DEV_ASSIGN(dd)      __assign_str(dev, dev_name(&(dd)->pcidev->dev))
 
-#define packettype_name(etype) { RHF_RCV_TYPE_##etype, #etype }
-#define show_packettype(etype)                  \
-__print_symbolic(etype,                         \
-	packettype_name(EXPECTED),              \
-	packettype_name(EAGER),                 \
-	packettype_name(IB),                    \
-	packettype_name(ERROR),                 \
-	packettype_name(BYPASS))
+static inline void hfi1_update_ah_attr(struct ib_device *ibdev,
+				       struct rdma_ah_attr *attr)
+{
+	struct hfi1_pportdata *ppd;
+	struct hfi1_ibport *ibp;
+	u32 dlid = rdma_ah_get_dlid(attr);
 
-#define ib_opcode_name(opcode) { IB_OPCODE_##opcode, #opcode  }
-#define show_ib_opcode(opcode)                             \
-__print_symbolic(opcode,                                   \
-	ib_opcode_name(RC_SEND_FIRST),                     \
-	ib_opcode_name(RC_SEND_MIDDLE),                    \
-	ib_opcode_name(RC_SEND_LAST),                      \
-	ib_opcode_name(RC_SEND_LAST_WITH_IMMEDIATE),       \
-	ib_opcode_name(RC_SEND_ONLY),                      \
-	ib_opcode_name(RC_SEND_ONLY_WITH_IMMEDIATE),       \
-	ib_opcode_name(RC_RDMA_WRITE_FIRST),               \
-	ib_opcode_name(RC_RDMA_WRITE_MIDDLE),              \
-	ib_opcode_name(RC_RDMA_WRITE_LAST),                \
-	ib_opcode_name(RC_RDMA_WRITE_LAST_WITH_IMMEDIATE), \
-	ib_opcode_name(RC_RDMA_WRITE_ONLY),                \
-	ib_opcode_name(RC_RDMA_WRITE_ONLY_WITH_IMMEDIATE), \
-	ib_opcode_name(RC_RDMA_READ_REQUEST),              \
-	ib_opcode_name(RC_RDMA_READ_RESPONSE_FIRST),       \
-	ib_opcode_name(RC_RDMA_READ_RESPONSE_MIDDLE),      \
-	ib_opcode_name(RC_RDMA_READ_RESPONSE_LAST),        \
-	ib_opcode_name(RC_RDMA_READ_RESPONSE_ONLY),        \
-	ib_opcode_name(RC_ACKNOWLEDGE),                    \
-	ib_opcode_name(RC_ATOMIC_ACKNOWLEDGE),             \
-	ib_opcode_name(RC_COMPARE_SWAP),                   \
-	ib_opcode_name(RC_FETCH_ADD),                      \
-	ib_opcode_name(UC_SEND_FIRST),                     \
-	ib_opcode_name(UC_SEND_MIDDLE),                    \
-	ib_opcode_name(UC_SEND_LAST),                      \
-	ib_opcode_name(UC_SEND_LAST_WITH_IMMEDIATE),       \
-	ib_opcode_name(UC_SEND_ONLY),                      \
-	ib_opcode_name(UC_SEND_ONLY_WITH_IMMEDIATE),       \
-	ib_opcode_name(UC_RDMA_WRITE_FIRST),               \
-	ib_opcode_name(UC_RDMA_WRITE_MIDDLE),              \
-	ib_opcode_name(UC_RDMA_WRITE_LAST),                \
-	ib_opcode_name(UC_RDMA_WRITE_LAST_WITH_IMMEDIATE), \
-	ib_opcode_name(UC_RDMA_WRITE_ONLY),                \
-	ib_opcode_name(UC_RDMA_WRITE_ONLY_WITH_IMMEDIATE), \
-	ib_opcode_name(UD_SEND_ONLY),                      \
-	ib_opcode_name(UD_SEND_ONLY_WITH_IMMEDIATE),       \
-	ib_opcode_name(CNP))
+	/*
+	 * Kernel clients may not have setup GRH information
+	 * Set that here.
+	 */
+	ibp = to_iport(ibdev, rdma_ah_get_port_num(attr));
+	ppd = ppd_from_ibp(ibp);
+	if ((((dlid >= be16_to_cpu(IB_MULTICAST_LID_BASE)) ||
+	      (ppd->lid >= be16_to_cpu(IB_MULTICAST_LID_BASE))) &&
+	    (dlid != be32_to_cpu(OPA_LID_PERMISSIVE)) &&
+	    (dlid != be16_to_cpu(IB_LID_PERMISSIVE)) &&
+	    (!(rdma_ah_get_ah_flags(attr) & IB_AH_GRH))) ||
+	    (rdma_ah_get_make_grd(attr))) {
+		rdma_ah_set_ah_flags(attr, IB_AH_GRH);
+		rdma_ah_set_interface_id(attr, OPA_MAKE_ID(dlid));
+		rdma_ah_set_subnet_prefix(attr, ibp->rvp.gid_prefix);
+	}
+}
+
+/*
+ * hfi1_check_mcast- Check if the given lid is
+ * in the OPA multicast range.
+ *
+ * The LID might either reside in ah.dlid or might be
+ * in the GRH of the address handle as DGID if extended
+ * addresses are in use.
+ */
+static inline bool hfi1_check_mcast(u32 lid)
+{
+	return ((lid >= opa_get_mcast_base(OPA_MCAST_NR)) &&
+		(lid != be32_to_cpu(OPA_LID_PERMISSIVE)));
+}
+
+#define opa_get_lid(lid, format)	\
+	__opa_get_lid(lid, OPA_PORT_PACKET_FORMAT_##format)
+
+/* Convert a lid to a specific lid space */
+static inline u32 __opa_get_lid(u32 lid, u8 format)
+{
+	bool is_mcast = hfi1_check_mcast(lid);
+
+	switch (format) {
+	case OPA_PORT_PACKET_FORMAT_8B:
+	case OPA_PORT_PACKET_FORMAT_10B:
+		if (is_mcast)
+			return (lid - opa_get_mcast_base(OPA_MCAST_NR) +
+				0xF0000);
+		return lid & 0xFFFFF;
+	case OPA_PORT_PACKET_FORMAT_16B:
+		if (is_mcast)
+			return (lid - opa_get_mcast_base(OPA_MCAST_NR) +
+				0xF00000);
+		return lid & 0xFFFFFF;
+	case OPA_PORT_PACKET_FORMAT_9B:
+		if (is_mcast)
+			return (lid -
+				opa_get_mcast_base(OPA_MCAST_NR) +
+				be16_to_cpu(IB_MULTICAST_LID_BASE));
+		else
+			return lid & 0xFFFF;
+	default:
+		return lid;
+	}
+}
+
+/* Return true if the given lid is the OPA 16B multicast range */
+static inline bool hfi1_is_16B_mcast(u32 lid)
+{
+	return ((lid >=
+		opa_get_lid(opa_get_mcast_base(OPA_MCAST_NR), 16B)) &&
+		(lid != opa_get_lid(be32_to_cpu(OPA_LID_PERMISSIVE), 16B)));
+}
+
+static inline void hfi1_make_opa_lid(struct rdma_ah_attr *attr)
+{
+	const struct ib_global_route *grh = rdma_ah_read_grh(attr);
+	u32 dlid = rdma_ah_get_dlid(attr);
+
+	/* Modify ah_attr.dlid to be in the 32 bit LID space.
+	 * This is how the address will be laid out:
+	 * Assuming MCAST_NR to be 4,
+	 * 32 bit permissive LID = 0xFFFFFFFF
+	 * Multicast LID range = 0xFFFFFFFE to 0xF0000000
+	 * Unicast LID range = 0xEFFFFFFF to 1
+	 * Invalid LID = 0
+	 */
+	if (ib_is_opa_gid(&grh->dgid))
+		dlid = opa_get_lid_from_gid(&grh->dgid);
+	else if ((dlid >= be16_to_cpu(IB_MULTICAST_LID_BASE)) &&
+		 (dlid != be16_to_cpu(IB_LID_PERMISSIVE)) &&
+		 (dlid != be32_to_cpu(OPA_LID_PERMISSIVE)))
+		dlid = dlid - be16_to_cpu(IB_MULTICAST_LID_BASE) +
+			opa_get_mcast_base(OPA_MCAST_NR);
+	else if (dlid == be16_to_cpu(IB_LID_PERMISSIVE))
+		dlid = be32_to_cpu(OPA_LID_PERMISSIVE);
+
+	rdma_ah_set_dlid(attr, dlid);
+}
+
+static inline u8 hfi1_get_packet_type(u32 lid)
+{
+	/* 9B if lid > 0xF0000000 */
+	if (lid >= opa_get_mcast_base(OPA_MCAST_NR))
+		return HFI1_PKT_TYPE_9B;
+
+	/* 16B if lid > 0xC000 */
+	if (lid >= opa_get_lid(opa_get_mcast_base(OPA_MCAST_NR), 9B))
+		return HFI1_PKT_TYPE_16B;
+
+	return HFI1_PKT_TYPE_9B;
+}
+
+static inline bool hfi1_get_hdr_type(u32 lid, struct rdma_ah_attr *attr)
+{
+	/*
+	 * If there was an incoming 16B packet with permissive
+	 * LIDs, OPA GIDs would have been programmed when those
+	 * packets were received. A 16B packet will have to
+	 * be sent in response to that packet. Return a 16B
+	 * header type if that's the case.
+	 */
+	if (rdma_ah_get_dlid(attr) == be32_to_cpu(OPA_LID_PERMISSIVE))
+		return (ib_is_opa_gid(&rdma_ah_read_grh(attr)->dgid)) ?
+			HFI1_PKT_TYPE_16B : HFI1_PKT_TYPE_9B;
+
+	/*
+	 * Return a 16B header type if either the the destination
+	 * or source lid is extended.
+	 */
+	if (hfi1_get_packet_type(rdma_ah_get_dlid(attr)) == HFI1_PKT_TYPE_16B)
+		return HFI1_PKT_TYPE_16B;
+
+	return hfi1_get_packet_type(lid);
+}
+
+static inline void hfi1_make_ext_grh(struct hfi1_packet *packet,
+				     struct ib_grh *grh, u32 slid,
+				     u32 dlid)
+{
+	struct hfi1_ibport *ibp = &packet->rcd->ppd->ibport_data;
+	struct hfi1_pportdata *ppd = ppd_from_ibp(ibp);
+
+	if (!ibp)
+		return;
+
+	grh->hop_limit = 1;
+	grh->sgid.global.subnet_prefix = ibp->rvp.gid_prefix;
+	if (slid == opa_get_lid(be32_to_cpu(OPA_LID_PERMISSIVE), 16B))
+		grh->sgid.global.interface_id =
+			OPA_MAKE_ID(be32_to_cpu(OPA_LID_PERMISSIVE));
+	else
+		grh->sgid.global.interface_id = OPA_MAKE_ID(slid);
+
+	/*
+	 * Upper layers (like mad) may compare the dgid in the
+	 * wc that is obtained here with the sgid_index in
+	 * the wr. Since sgid_index in wr is always 0 for
+	 * extended lids, set the dgid here to the default
+	 * IB gid.
+	 */
+	grh->dgid.global.subnet_prefix = ibp->rvp.gid_prefix;
+	grh->dgid.global.interface_id =
+		cpu_to_be64(ppd->guids[HFI1_PORT_GUID_INDEX]);
+}
+
+static inline int hfi1_get_16b_padding(u32 hdr_size, u32 payload)
+{
+	return -(hdr_size + payload + (SIZE_OF_CRC << 2) +
+		     SIZE_OF_LT) & 0x7;
+}
+
+static inline void hfi1_make_ib_hdr(struct ib_header *hdr,
+				    u16 lrh0, u16 len,
+				    u16 dlid, u16 slid)
+{
+	hdr->lrh[0] = cpu_to_be16(lrh0);
+	hdr->lrh[1] = cpu_to_be16(dlid);
+	hdr->lrh[2] = cpu_to_be16(len);
+	hdr->lrh[3] = cpu_to_be16(slid);
+}
+
+static inline void hfi1_make_16b_hdr(struct hfi1_16b_header *hdr,
+				     u32 slid, u32 dlid,
+				     u16 len, u16 pkey,
+				     u8 becn, u8 fecn, u8 l4,
+				     u8 sc)
+{
+	u32 lrh0 = 0;
+	u32 lrh1 = 0x40000000;
+	u32 lrh2 = 0;
+	u32 lrh3 = 0;
+
+	lrh0 = (lrh0 & ~OPA_16B_BECN_MASK) | (becn << OPA_16B_BECN_SHIFT);
+	lrh0 = (lrh0 & ~OPA_16B_LEN_MASK) | (len << OPA_16B_LEN_SHIFT);
+	lrh0 = (lrh0 & ~OPA_16B_LID_MASK)  | (slid & OPA_16B_LID_MASK);
+	lrh1 = (lrh1 & ~OPA_16B_FECN_MASK) | (fecn << OPA_16B_FECN_SHIFT);
+	lrh1 = (lrh1 & ~OPA_16B_SC_MASK) | (sc << OPA_16B_SC_SHIFT);
+	lrh1 = (lrh1 & ~OPA_16B_LID_MASK) | (dlid & OPA_16B_LID_MASK);
+	lrh2 = (lrh2 & ~OPA_16B_SLID_MASK) |
+		((slid >> OPA_16B_SLID_SHIFT) << OPA_16B_SLID_HIGH_SHIFT);
+	lrh2 = (lrh2 & ~OPA_16B_DLID_MASK) |
+		((dlid >> OPA_16B_DLID_SHIFT) << OPA_16B_DLID_HIGH_SHIFT);
+	lrh2 = (lrh2 & ~OPA_16B_PKEY_MASK) | (pkey << OPA_16B_PKEY_SHIFT);
+	lrh2 = (lrh2 & ~OPA_16B_L4_MASK) | l4;
+
+	hdr->lrh[0] = lrh0;
+	hdr->lrh[1] = lrh1;
+	hdr->lrh[2] = lrh2;
+	hdr->lrh[3] = lrh3;
+}
 #endif                          /* _HFI1_KERNEL_H */

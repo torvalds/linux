@@ -1740,7 +1740,7 @@ void au0828_v4l2_resume(struct au0828_dev *dev)
 	}
 }
 
-static struct v4l2_file_operations au0828_v4l_fops = {
+static const struct v4l2_file_operations au0828_v4l_fops = {
 	.owner      = THIS_MODULE,
 	.open       = au0828_v4l2_open,
 	.release    = au0828_v4l2_close,

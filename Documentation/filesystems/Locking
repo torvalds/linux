@@ -22,7 +22,7 @@ prototypes:
 	struct vfsmount *(*d_automount)(struct path *path);
 	int (*d_manage)(const struct path *, bool);
 	struct dentry *(*d_real)(struct dentry *, const struct inode *,
-				 unsigned int);
+				 unsigned int, unsigned int);
 
 locking rules:
 		rename_lock	->d_lock	may block	rcu-walk

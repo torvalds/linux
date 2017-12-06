@@ -86,6 +86,17 @@ static u32 esdhc_readl_fixup(struct sdhci_host *host,
 		return ret;
 	}
 
+	/*
+	 * DTS properties of mmc host are used to enable each speed mode
+	 * according to soc and board capability. So clean up
+	 * SDR50/SDR104/DDR50 support bits here.
+	 */
+	if (spec_reg == SDHCI_CAPABILITIES_1) {
+		ret = value & ~(SDHCI_SUPPORT_SDR50 | SDHCI_SUPPORT_SDR104 |
+				SDHCI_SUPPORT_DDR50);
+		return ret;
+	}
+
 	ret = value;
 	return ret;
 }
@@ -249,7 +260,11 @@ static u32 esdhc_be_readl(struct sdhci_host *host, int reg)
 	u32 ret;
 	u32 value;
 
-	value = ioread32be(host->ioaddr + reg);
+	if (reg == SDHCI_CAPABILITIES_1)
+		value = ioread32be(host->ioaddr + ESDHC_CAPABILITIES_1);
+	else
+		value = ioread32be(host->ioaddr + reg);
+
 	ret = esdhc_readl_fixup(host, reg, value);
 
 	return ret;
@@ -260,7 +275,11 @@ static u32 esdhc_le_readl(struct sdhci_host *host, int reg)
 	u32 ret;
 	u32 value;
 
-	value = ioread32(host->ioaddr + reg);
+	if (reg == SDHCI_CAPABILITIES_1)
+		value = ioread32(host->ioaddr + ESDHC_CAPABILITIES_1);
+	else
+		value = ioread32(host->ioaddr + reg);
+
 	ret = esdhc_readl_fixup(host, reg, value);
 
 	return ret;

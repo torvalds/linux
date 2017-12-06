@@ -38,8 +38,8 @@
  */
 
 #include <linux/module.h>
-#include "../include/lprocfs_status.h"
-#include "../include/obd_support.h"
+#include <lprocfs_status.h>
+#include <obd_support.h>
 
 void lprocfs_counter_add(struct lprocfs_stats *stats, int idx, long amount)
 {

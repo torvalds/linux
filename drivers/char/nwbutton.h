@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __NWBUTTON_H
 #define __NWBUTTON_H
 

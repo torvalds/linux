@@ -44,6 +44,16 @@
 #include "../nfp_net.h"
 #include "../nfp_port.h"
 
+#define NFP_FLOWER_WHITELIST_DISSECTOR \
+	(BIT(FLOW_DISSECTOR_KEY_CONTROL) | \
+	 BIT(FLOW_DISSECTOR_KEY_BASIC) | \
+	 BIT(FLOW_DISSECTOR_KEY_IPV4_ADDRS) | \
+	 BIT(FLOW_DISSECTOR_KEY_IPV6_ADDRS) | \
+	 BIT(FLOW_DISSECTOR_KEY_PORTS) | \
+	 BIT(FLOW_DISSECTOR_KEY_ETH_ADDRS) | \
+	 BIT(FLOW_DISSECTOR_KEY_VLAN) | \
+	 BIT(FLOW_DISSECTOR_KEY_IP))
+
 static int
 nfp_flower_xmit_flow(struct net_device *netdev,
 		     struct nfp_fl_payload *nfp_flow, u8 mtype)
@@ -111,6 +121,9 @@ nfp_flower_calculate_key_layers(struct nfp_fl_key_ls *ret_key_ls,
 	u32 key_layer_two;
 	u8 key_layer;
 	int key_size;
+
+	if (flow->dissector->used_keys & ~NFP_FLOWER_WHITELIST_DISSECTOR)
+		return -EOPNOTSUPP;
 
 	if (dissector_uses_key(flow->dissector,
 			       FLOW_DISSECTOR_KEY_ENC_CONTROL)) {
@@ -409,16 +422,15 @@ nfp_flower_repr_offload(struct nfp_app *app, struct net_device *netdev,
 }
 
 int nfp_flower_setup_tc(struct nfp_app *app, struct net_device *netdev,
-			u32 handle, __be16 proto, struct tc_to_netdev *tc)
+			enum tc_setup_type type, void *type_data)
 {
-	if (TC_H_MAJ(handle) != TC_H_MAJ(TC_H_INGRESS))
+	struct tc_cls_flower_offload *cls_flower = type_data;
+
+	if (type != TC_SETUP_CLSFLOWER ||
+	    !is_classid_clsact_ingress(cls_flower->common.classid) ||
+	    !eth_proto_is_802_3(cls_flower->common.protocol) ||
+	    cls_flower->common.chain_index)
 		return -EOPNOTSUPP;
 
-	if (!eth_proto_is_802_3(proto))
-		return -EOPNOTSUPP;
-
-	if (tc->type != TC_SETUP_CLSFLOWER)
-		return -EINVAL;
-
-	return nfp_flower_repr_offload(app, netdev, tc->cls_flower);
+	return nfp_flower_repr_offload(app, netdev, cls_flower);
 }

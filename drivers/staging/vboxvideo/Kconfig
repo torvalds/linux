@@ -2,11 +2,14 @@ config DRM_VBOXVIDEO
 	tristate "Virtual Box Graphics Card"
 	depends on DRM && X86 && PCI
 	select DRM_KMS_HELPER
+	select DRM_TTM
+	select GENERIC_ALLOCATOR
 	help
 	  This is a KMS driver for the virtual Graphics Card used in
 	  Virtual Box virtual machines.
 
-	  Although it is possible to builtin this module, it is advised
-	  to build this driver as a module, so that it can be updated
-	  independently of the kernel. Select M to built this driver as a
-	  module and add support for these devices via drm/kms interfaces.
+	  Although it is possible to build this driver built-in to the
+	  kernel, it is advised to build it as a module, so that it can
+	  be updated independently of the kernel. Select M to build this
+	  driver as a module and add support for these devices via drm/kms
+	  interfaces.

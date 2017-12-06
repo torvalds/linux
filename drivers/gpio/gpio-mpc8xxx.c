@@ -348,8 +348,8 @@ static int mpc8xxx_probe(struct platform_device *pdev)
 
 	ret = gpiochip_add_data(gc, mpc8xxx_gc);
 	if (ret) {
-		pr_err("%s: GPIO chip registration failed with status %d\n",
-		       np->full_name, ret);
+		pr_err("%pOF: GPIO chip registration failed with status %d\n",
+		       np, ret);
 		goto err;
 	}
 

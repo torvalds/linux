@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __NVIF_CL826F_H__
 #define __NVIF_CL826F_H__
 

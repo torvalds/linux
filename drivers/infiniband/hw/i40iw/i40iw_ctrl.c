@@ -48,10 +48,21 @@
  * @wqe: cqp wqe for header
  * @header: header for the cqp wqe
  */
-static inline void i40iw_insert_wqe_hdr(u64 *wqe, u64 header)
+void i40iw_insert_wqe_hdr(u64 *wqe, u64 header)
 {
 	wmb();            /* make sure WQE is populated before polarity is set */
 	set_64bit_val(wqe, 24, header);
+}
+
+void i40iw_check_cqp_progress(struct i40iw_cqp_timeout *cqp_timeout, struct i40iw_sc_dev *dev)
+{
+	if (cqp_timeout->compl_cqp_cmds != dev->cqp_cmd_stats[OP_COMPLETED_COMMANDS]) {
+		cqp_timeout->compl_cqp_cmds = dev->cqp_cmd_stats[OP_COMPLETED_COMMANDS];
+		cqp_timeout->count = 0;
+	} else {
+		if (dev->cqp_cmd_stats[OP_REQUESTED_COMMANDS] != cqp_timeout->compl_cqp_cmds)
+			cqp_timeout->count++;
+	}
 }
 
 /**

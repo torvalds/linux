@@ -212,7 +212,8 @@ static int st_rproc_parse_dt(struct platform_device *pdev)
 	int err;
 
 	if (ddata->config->sw_reset) {
-		ddata->sw_reset = devm_reset_control_get(dev, "sw_reset");
+		ddata->sw_reset = devm_reset_control_get_exclusive(dev,
+								   "sw_reset");
 		if (IS_ERR(ddata->sw_reset)) {
 			dev_err(dev, "Failed to get S/W Reset\n");
 			return PTR_ERR(ddata->sw_reset);
@@ -220,7 +221,8 @@ static int st_rproc_parse_dt(struct platform_device *pdev)
 	}
 
 	if (ddata->config->pwr_reset) {
-		ddata->pwr_reset = devm_reset_control_get(dev, "pwr_reset");
+		ddata->pwr_reset = devm_reset_control_get_exclusive(dev,
+								    "pwr_reset");
 		if (IS_ERR(ddata->pwr_reset)) {
 			dev_err(dev, "Failed to get Power Reset\n");
 			return PTR_ERR(ddata->pwr_reset);

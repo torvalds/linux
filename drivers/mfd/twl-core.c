@@ -44,7 +44,7 @@
 #include <linux/regulator/machine.h>
 
 #include <linux/i2c.h>
-#include <linux/i2c/twl.h>
+#include <linux/mfd/twl.h>
 
 /* Register descriptions for audio */
 #include <linux/mfd/twl4030-audio.h>
@@ -173,7 +173,7 @@ static struct twl_private *twl_priv;
 static struct twl_mapping twl4030_map[] = {
 	/*
 	 * NOTE:  don't change this table without updating the
-	 * <linux/i2c/twl.h> defines for TWL4030_MODULE_*
+	 * <linux/mfd/twl.h> defines for TWL4030_MODULE_*
 	 * so they continue to match the order in this table.
 	 */
 
@@ -344,7 +344,7 @@ static const struct regmap_config twl4030_regmap_config[4] = {
 static struct twl_mapping twl6030_map[] = {
 	/*
 	 * NOTE:  don't change this table without updating the
-	 * <linux/i2c/twl.h> defines for TWL4030_MODULE_*
+	 * <linux/mfd/twl.h> defines for TWL4030_MODULE_*
 	 * so they continue to match the order in this table.
 	 */
 
@@ -448,7 +448,7 @@ static struct regmap *twl_get_regmap(u8 mod_no)
  * @reg: register address (just offset will do)
  * @num_bytes: number of bytes to transfer
  *
- * Returns the result of operation - 0 is success
+ * Returns 0 on success or else a negative error code.
  */
 int twl_i2c_write(u8 mod_no, u8 *value, u8 reg, unsigned num_bytes)
 {
@@ -476,7 +476,7 @@ EXPORT_SYMBOL(twl_i2c_write);
  * @reg: register address (just offset will do)
  * @num_bytes: number of bytes to transfer
  *
- * Returns result of operation - num_bytes is success else failure.
+ * Returns 0 on success or else a negative error code.
  */
 int twl_i2c_read(u8 mod_no, u8 *value, u8 reg, unsigned num_bytes)
 {

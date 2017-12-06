@@ -24,7 +24,7 @@
 
 static struct mwifiex_if_ops usb_ops;
 
-static struct usb_device_id mwifiex_usb_table[] = {
+static const struct usb_device_id mwifiex_usb_table[] = {
 	/* 8766 */
 	{USB_DEVICE(USB8XXX_VID, USB8766_PID_1)},
 	{USB_DEVICE_AND_INTERFACE_INFO(USB8XXX_VID, USB8766_PID_2,
@@ -1112,7 +1112,7 @@ static void mwifiex_usb_tx_aggr_tmo(unsigned long context)
 	if (err) {
 		mwifiex_dbg(adapter, ERROR,
 			    "prepare tx aggr skb failed, err=%d\n", err);
-		return;
+		goto unlock;
 	}
 
 	if (atomic_read(&port->tx_data_urb_pending) >=
@@ -1133,6 +1133,7 @@ static void mwifiex_usb_tx_aggr_tmo(unsigned long context)
 done:
 	if (err == -1)
 		mwifiex_write_data_complete(adapter, skb_send, 0, -1);
+unlock:
 	spin_unlock_irqrestore(&port->tx_aggr_lock, flags);
 }
 

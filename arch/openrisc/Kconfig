@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 #
 # For a description of the syntax of this configuration file,
 # see Documentation/kbuild/kconfig-language.txt.
@@ -28,6 +29,9 @@ config OPENRISC
 	select OR1K_PIC
 	select CPU_NO_EFFICIENT_FFS if !OPENRISC_HAVE_INST_FF1
 	select NO_BOOTMEM
+
+config CPU_BIG_ENDIAN
+	def_bool y
 
 config MMU
 	def_bool y

@@ -1108,6 +1108,7 @@ void
 lpfc_mbx_cmpl_local_config_link(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 {
 	struct lpfc_vport *vport = pmb->vport;
+	uint8_t bbscn = 0;
 
 	if (pmb->u.mb.mbxStatus)
 		goto out;
@@ -1134,10 +1135,17 @@ lpfc_mbx_cmpl_local_config_link(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	/* Start discovery by sending a FLOGI. port_state is identically
 	 * LPFC_FLOGI while waiting for FLOGI cmpl
 	 */
-	if (vport->port_state != LPFC_FLOGI)
+	if (vport->port_state != LPFC_FLOGI) {
+		if (phba->bbcredit_support && phba->cfg_enable_bbcr) {
+			bbscn = bf_get(lpfc_bbscn_def,
+				       &phba->sli4_hba.bbscn_params);
+			vport->fc_sparam.cmn.bbRcvSizeMsb &= 0xf;
+			vport->fc_sparam.cmn.bbRcvSizeMsb |= (bbscn << 4);
+		}
 		lpfc_initial_flogi(vport);
-	else if (vport->fc_flag & FC_PT2PT)
+	} else if (vport->fc_flag & FC_PT2PT) {
 		lpfc_disc_start(vport);
+	}
 	return;
 
 out:

@@ -72,8 +72,7 @@ void ovs_flow_stats_update(struct sw_flow *flow, __be16 tcp_flags,
 			   const struct sk_buff *skb)
 {
 	struct flow_stats *stats;
-	int node = numa_node_id();
-	int cpu = smp_processor_id();
+	unsigned int cpu = smp_processor_id();
 	int len = skb->len + (skb_vlan_tag_present(skb) ? VLAN_HLEN : 0);
 
 	stats = rcu_dereference(flow->stats[cpu]);
@@ -108,7 +107,7 @@ void ovs_flow_stats_update(struct sw_flow *flow, __be16 tcp_flags,
 							      __GFP_THISNODE |
 							      __GFP_NOWARN |
 							      __GFP_NOMEMALLOC,
-							      node);
+							      numa_node_id());
 				if (likely(new_stats)) {
 					new_stats->used = jiffies;
 					new_stats->packet_count = 1;
@@ -118,6 +117,7 @@ void ovs_flow_stats_update(struct sw_flow *flow, __be16 tcp_flags,
 
 					rcu_assign_pointer(flow->stats[cpu],
 							   new_stats);
+					cpumask_set_cpu(cpu, &flow->cpu_used_mask);
 					goto unlock;
 				}
 			}
@@ -145,7 +145,7 @@ void ovs_flow_stats_get(const struct sw_flow *flow,
 	memset(ovs_stats, 0, sizeof(*ovs_stats));
 
 	/* We open code this to make sure cpu 0 is always considered */
-	for (cpu = 0; cpu < nr_cpu_ids; cpu = cpumask_next(cpu, cpu_possible_mask)) {
+	for (cpu = 0; cpu < nr_cpu_ids; cpu = cpumask_next(cpu, &flow->cpu_used_mask)) {
 		struct flow_stats *stats = rcu_dereference_ovsl(flow->stats[cpu]);
 
 		if (stats) {
@@ -169,7 +169,7 @@ void ovs_flow_stats_clear(struct sw_flow *flow)
 	int cpu;
 
 	/* We open code this to make sure cpu 0 is always considered */
-	for (cpu = 0; cpu < nr_cpu_ids; cpu = cpumask_next(cpu, cpu_possible_mask)) {
+	for (cpu = 0; cpu < nr_cpu_ids; cpu = cpumask_next(cpu, &flow->cpu_used_mask)) {
 		struct flow_stats *stats = ovsl_dereference(flow->stats[cpu]);
 
 		if (stats) {
@@ -584,8 +584,7 @@ static int key_extract(struct sk_buff *skb, struct sw_flow_key *key)
 			key->ip.frag = OVS_FRAG_TYPE_LATER;
 			return 0;
 		}
-		if (nh->frag_off & htons(IP_MF) ||
-			skb_shinfo(skb)->gso_type & SKB_GSO_UDP)
+		if (nh->frag_off & htons(IP_MF))
 			key->ip.frag = OVS_FRAG_TYPE_FIRST;
 		else
 			key->ip.frag = OVS_FRAG_TYPE_NONE;
@@ -701,9 +700,6 @@ static int key_extract(struct sk_buff *skb, struct sw_flow_key *key)
 
 		if (key->ip.frag == OVS_FRAG_TYPE_LATER)
 			return 0;
-		if (skb_shinfo(skb)->gso_type & SKB_GSO_UDP)
-			key->ip.frag = OVS_FRAG_TYPE_FIRST;
-
 		/* Transport layer. */
 		if (key->ip.proto == NEXTHDR_TCP) {
 			if (tcphdr_ok(skb)) {

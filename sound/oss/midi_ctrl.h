@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 static unsigned char ctrl_def_values[128] =
 {
 	0x40,0x00,0x40,0x40,  0x40,0x40,0x40,0x7f,	/*   0 to   7 */

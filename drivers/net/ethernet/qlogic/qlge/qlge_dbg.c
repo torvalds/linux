@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/slab.h>
@@ -144,42 +145,23 @@ static int ql_get_serdes_regs(struct ql_adapter *qdev,
 	xaui_direct_valid = xaui_indirect_valid = 1;
 
 	/* The XAUI needs to be read out per port */
-	if (qdev->func & 1) {
-		/* We are NIC 2	*/
-		status = ql_read_other_func_serdes_reg(qdev,
-				XG_SERDES_XAUI_HSS_PCS_START, &temp);
-		if (status)
-			temp = XG_SERDES_ADDR_XAUI_PWR_DOWN;
-		if ((temp & XG_SERDES_ADDR_XAUI_PWR_DOWN) ==
-					XG_SERDES_ADDR_XAUI_PWR_DOWN)
-			xaui_indirect_valid = 0;
+	status = ql_read_other_func_serdes_reg(qdev,
+			XG_SERDES_XAUI_HSS_PCS_START, &temp);
+	if (status)
+		temp = XG_SERDES_ADDR_XAUI_PWR_DOWN;
 
-		status = ql_read_serdes_reg(qdev,
-				XG_SERDES_XAUI_HSS_PCS_START, &temp);
-		if (status)
-			temp = XG_SERDES_ADDR_XAUI_PWR_DOWN;
+	if ((temp & XG_SERDES_ADDR_XAUI_PWR_DOWN) ==
+				XG_SERDES_ADDR_XAUI_PWR_DOWN)
+		xaui_indirect_valid = 0;
 
-		if ((temp & XG_SERDES_ADDR_XAUI_PWR_DOWN) ==
-					XG_SERDES_ADDR_XAUI_PWR_DOWN)
-			xaui_direct_valid = 0;
-	} else {
-		/* We are NIC 1	*/
-		status = ql_read_other_func_serdes_reg(qdev,
-				XG_SERDES_XAUI_HSS_PCS_START, &temp);
-		if (status)
-			temp = XG_SERDES_ADDR_XAUI_PWR_DOWN;
-		if ((temp & XG_SERDES_ADDR_XAUI_PWR_DOWN) ==
-					XG_SERDES_ADDR_XAUI_PWR_DOWN)
-			xaui_indirect_valid = 0;
+	status = ql_read_serdes_reg(qdev, XG_SERDES_XAUI_HSS_PCS_START, &temp);
 
-		status = ql_read_serdes_reg(qdev,
-				XG_SERDES_XAUI_HSS_PCS_START, &temp);
-		if (status)
-			temp = XG_SERDES_ADDR_XAUI_PWR_DOWN;
-		if ((temp & XG_SERDES_ADDR_XAUI_PWR_DOWN) ==
-					XG_SERDES_ADDR_XAUI_PWR_DOWN)
-			xaui_direct_valid = 0;
-	}
+	if (status)
+		temp = XG_SERDES_ADDR_XAUI_PWR_DOWN;
+
+	if ((temp & XG_SERDES_ADDR_XAUI_PWR_DOWN) ==
+				XG_SERDES_ADDR_XAUI_PWR_DOWN)
+		xaui_direct_valid = 0;
 
 	/*
 	 * XFI register is shared so only need to read one

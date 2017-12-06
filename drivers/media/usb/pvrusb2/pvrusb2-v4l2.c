@@ -1226,7 +1226,7 @@ static const struct v4l2_file_operations vdev_fops = {
 };
 
 
-static struct video_device vdev_template = {
+static const struct video_device vdev_template = {
 	.fops       = &vdev_fops,
 };
 

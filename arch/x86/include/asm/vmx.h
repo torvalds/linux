@@ -72,6 +72,7 @@
 #define SECONDARY_EXEC_PAUSE_LOOP_EXITING	0x00000400
 #define SECONDARY_EXEC_RDRAND			0x00000800
 #define SECONDARY_EXEC_ENABLE_INVPCID		0x00001000
+#define SECONDARY_EXEC_ENABLE_VMFUNC            0x00002000
 #define SECONDARY_EXEC_SHADOW_VMCS              0x00004000
 #define SECONDARY_EXEC_RDSEED			0x00010000
 #define SECONDARY_EXEC_ENABLE_PML               0x00020000
@@ -113,6 +114,10 @@
 #define VMX_MISC_PREEMPTION_TIMER_RATE_MASK	0x0000001f
 #define VMX_MISC_SAVE_EFER_LMA			0x00000020
 #define VMX_MISC_ACTIVITY_HLT			0x00000040
+
+/* VMFUNC functions */
+#define VMX_VMFUNC_EPTP_SWITCHING               0x00000001
+#define VMFUNC_EPTP_ENTRIES  512
 
 static inline u32 vmx_basic_vmcs_revision_id(u64 vmx_basic)
 {
@@ -187,6 +192,8 @@ enum vmcs_field {
 	APIC_ACCESS_ADDR_HIGH		= 0x00002015,
 	POSTED_INTR_DESC_ADDR           = 0x00002016,
 	POSTED_INTR_DESC_ADDR_HIGH      = 0x00002017,
+	VM_FUNCTION_CONTROL             = 0x00002018,
+	VM_FUNCTION_CONTROL_HIGH        = 0x00002019,
 	EPT_POINTER                     = 0x0000201a,
 	EPT_POINTER_HIGH                = 0x0000201b,
 	EOI_EXIT_BITMAP0                = 0x0000201c,
@@ -197,6 +204,8 @@ enum vmcs_field {
 	EOI_EXIT_BITMAP2_HIGH           = 0x00002021,
 	EOI_EXIT_BITMAP3                = 0x00002022,
 	EOI_EXIT_BITMAP3_HIGH           = 0x00002023,
+	EPTP_LIST_ADDRESS               = 0x00002024,
+	EPTP_LIST_ADDRESS_HIGH          = 0x00002025,
 	VMREAD_BITMAP                   = 0x00002026,
 	VMWRITE_BITMAP                  = 0x00002028,
 	XSS_EXIT_BITMAP                 = 0x0000202C,
@@ -444,6 +453,7 @@ enum vmcs_field {
 
 #define VMX_EPT_EXECUTE_ONLY_BIT		(1ull)
 #define VMX_EPT_PAGE_WALK_4_BIT			(1ull << 6)
+#define VMX_EPT_PAGE_WALK_5_BIT			(1ull << 7)
 #define VMX_EPTP_UC_BIT				(1ull << 8)
 #define VMX_EPTP_WB_BIT				(1ull << 14)
 #define VMX_EPT_2MB_PAGE_BIT			(1ull << 16)
@@ -459,12 +469,14 @@ enum vmcs_field {
 #define VMX_VPID_EXTENT_GLOBAL_CONTEXT_BIT      (1ull << 10) /* (42 - 32) */
 #define VMX_VPID_EXTENT_SINGLE_NON_GLOBAL_BIT   (1ull << 11) /* (43 - 32) */
 
-#define VMX_EPT_DEFAULT_GAW			3
-#define VMX_EPT_MAX_GAW				0x4
 #define VMX_EPT_MT_EPTE_SHIFT			3
-#define VMX_EPT_GAW_EPTP_SHIFT			3
-#define VMX_EPT_AD_ENABLE_BIT			(1ull << 6)
-#define VMX_EPT_DEFAULT_MT			0x6ull
+#define VMX_EPTP_PWL_MASK			0x38ull
+#define VMX_EPTP_PWL_4				0x18ull
+#define VMX_EPTP_PWL_5				0x20ull
+#define VMX_EPTP_AD_ENABLE_BIT			(1ull << 6)
+#define VMX_EPTP_MT_MASK			0x7ull
+#define VMX_EPTP_MT_WB				0x6ull
+#define VMX_EPTP_MT_UC				0x0ull
 #define VMX_EPT_READABLE_MASK			0x1ull
 #define VMX_EPT_WRITABLE_MASK			0x2ull
 #define VMX_EPT_EXECUTABLE_MASK			0x4ull

@@ -13,7 +13,7 @@
  */
 
 #ifndef _CCU_SUN8I_R_H
-#define _CCU_SUN8I_R_H_
+#define _CCU_SUN8I_R_H
 
 #include <dt-bindings/clock/sun8i-r-ccu.h>
 #include <dt-bindings/reset/sun8i-r-ccu.h>

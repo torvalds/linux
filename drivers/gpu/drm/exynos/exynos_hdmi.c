@@ -784,7 +784,7 @@ static void hdmi_reg_infoframes(struct hdmi_context *hdata)
 	}
 
 	ret = drm_hdmi_avi_infoframe_from_display_mode(&frm.avi,
-			&hdata->current_mode);
+			&hdata->current_mode, false);
 	if (!ret)
 		ret = hdmi_avi_infoframe_pack(&frm.avi, buf, sizeof(buf));
 	if (ret > 0) {
@@ -835,7 +835,6 @@ static void hdmi_connector_destroy(struct drm_connector *connector)
 }
 
 static const struct drm_connector_funcs hdmi_connector_funcs = {
-	.dpms = drm_atomic_helper_connector_dpms,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.detect = hdmi_detect,
 	.destroy = hdmi_connector_destroy,
@@ -945,22 +944,27 @@ static bool hdmi_mode_fixup(struct drm_encoder *encoder,
 	struct drm_device *dev = encoder->dev;
 	struct drm_connector *connector;
 	struct drm_display_mode *m;
+	struct drm_connector_list_iter conn_iter;
 	int mode_ok;
 
 	drm_mode_set_crtcinfo(adjusted_mode, 0);
 
-	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
+	drm_connector_list_iter_begin(dev, &conn_iter);
+	drm_for_each_connector_iter(connector, &conn_iter) {
 		if (connector->encoder == encoder)
 			break;
 	}
+	if (connector)
+		drm_connector_get(connector);
+	drm_connector_list_iter_end(&conn_iter);
 
-	if (connector->encoder != encoder)
+	if (!connector)
 		return true;
 
 	mode_ok = hdmi_mode_valid(connector, adjusted_mode);
 
 	if (mode_ok == MODE_OK)
-		return true;
+		goto cleanup;
 
 	/*
 	 * Find the most suitable mode and copy it to adjusted_mode.
@@ -979,6 +983,9 @@ static bool hdmi_mode_fixup(struct drm_encoder *encoder,
 			break;
 		}
 	}
+
+cleanup:
+	drm_connector_put(connector);
 
 	return true;
 }
@@ -1698,31 +1705,24 @@ static int hdmi_bind(struct device *dev, struct device *master, void *data)
 	struct drm_device *drm_dev = data;
 	struct hdmi_context *hdata = dev_get_drvdata(dev);
 	struct drm_encoder *encoder = &hdata->encoder;
-	struct exynos_drm_crtc *exynos_crtc;
-	struct drm_crtc *crtc;
-	int ret, pipe;
+	struct exynos_drm_crtc *crtc;
+	int ret;
 
 	hdata->drm_dev = drm_dev;
 
-	pipe = exynos_drm_crtc_get_pipe_from_type(drm_dev,
-						  EXYNOS_DISPLAY_TYPE_HDMI);
-	if (pipe < 0)
-		return pipe;
-
 	hdata->phy_clk.enable = hdmiphy_clk_enable;
-
-	crtc = drm_crtc_from_index(drm_dev, pipe);
-	exynos_crtc = to_exynos_crtc(crtc);
-	exynos_crtc->pipe_clk = &hdata->phy_clk;
-
-	encoder->possible_crtcs = 1 << pipe;
-
-	DRM_DEBUG_KMS("possible_crtcs = 0x%x\n", encoder->possible_crtcs);
 
 	drm_encoder_init(drm_dev, encoder, &exynos_hdmi_encoder_funcs,
 			 DRM_MODE_ENCODER_TMDS, NULL);
 
 	drm_encoder_helper_add(encoder, &exynos_hdmi_encoder_helper_funcs);
+
+	ret = exynos_drm_set_possible_crtcs(encoder, EXYNOS_DISPLAY_TYPE_HDMI);
+	if (ret < 0)
+		return ret;
+
+	crtc = exynos_drm_crtc_get_by_type(drm_dev, EXYNOS_DISPLAY_TYPE_HDMI);
+	crtc->pipe_clk = &hdata->phy_clk;
 
 	ret = hdmi_create_connector(encoder);
 	if (ret) {

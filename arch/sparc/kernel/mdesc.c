@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /* mdesc.c: Sun4V machine description handling.
  *
  * Copyright (C) 2007, 2008 David S. Miller <davem@davemloft.net>

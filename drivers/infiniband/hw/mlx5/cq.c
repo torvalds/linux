@@ -499,7 +499,7 @@ static void mlx5_ib_poll_sw_comp(struct mlx5_ib_cq *cq, int num_entries,
 	struct mlx5_ib_qp *qp;
 
 	*npolled = 0;
-	/* Find uncompleted WQEs belonging to that cq and retrun mmics ones */
+	/* Find uncompleted WQEs belonging to that cq and return mmics ones */
 	list_for_each_entry(qp, &cq->list_send_qp, cq_send_list) {
 		sw_send_comp(qp, num_entries, wc + *npolled, npolled);
 		if (*npolled >= num_entries)
@@ -751,10 +751,8 @@ static int create_cq_user(struct mlx5_ib_dev *dev, struct ib_udata *udata,
 	void *cqc;
 	int err;
 
-	ucmdlen =
-		(udata->inlen - sizeof(struct ib_uverbs_cmd_hdr) <
-		 sizeof(ucmd)) ? (sizeof(ucmd) -
-				  sizeof(ucmd.reserved)) : sizeof(ucmd);
+	ucmdlen = udata->inlen < sizeof(ucmd) ?
+		  (sizeof(ucmd) - sizeof(ucmd.reserved)) : sizeof(ucmd);
 
 	if (ib_copy_from_udata(&ucmd, udata, ucmdlen))
 		return -EFAULT;

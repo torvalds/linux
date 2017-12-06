@@ -499,7 +499,7 @@ static int dt3155_init_board(struct dt3155_priv *pd)
 	return 0;
 }
 
-static struct video_device dt3155_vdev = {
+static const struct video_device dt3155_vdev = {
 	.name = DT3155_NAME,
 	.fops = &dt3155_fops,
 	.ioctl_ops = &dt3155_ioctl_ops,

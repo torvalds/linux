@@ -540,8 +540,8 @@ static struct class gpio_class = {
 
 /**
  * gpiod_export - export a GPIO through sysfs
- * @gpio: gpio to make available, already requested
- * @direction_may_change: true if userspace may change gpio direction
+ * @desc: GPIO to make available, already requested
+ * @direction_may_change: true if userspace may change GPIO direction
  * Context: arch_initcall or later
  *
  * When drivers want to make a GPIO accessible to userspace after they
@@ -649,7 +649,7 @@ static int match_export(struct device *dev, const void *desc)
  * gpiod_export_link - create a sysfs link to an exported GPIO node
  * @dev: device under which to create symlink
  * @name: name of the symlink
- * @gpio: gpio to create symlink to, already exported
+ * @desc: GPIO to create symlink to, already exported
  *
  * Set up a symlink from /sys/.../dev/name to /sys/class/gpio/gpioN
  * node. Caller is responsible for unlinking.
@@ -680,7 +680,7 @@ EXPORT_SYMBOL_GPL(gpiod_export_link);
 
 /**
  * gpiod_unexport - reverse effect of gpiod_export()
- * @gpio: gpio to make unavailable
+ * @desc: GPIO to make unavailable
  *
  * This is implicit on gpiod_free().
  */

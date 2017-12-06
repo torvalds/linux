@@ -408,7 +408,7 @@ static const signed short xpad_abs_triggers[] = {
 #define XPAD_XBOXONE_VENDOR(vend) \
 	{ XPAD_XBOXONE_VENDOR_PROTOCOL(vend, 208) }
 
-static struct usb_device_id xpad_table[] = {
+static const struct usb_device_id xpad_table[] = {
 	{ USB_INTERFACE_INFO('X', 'B', 0) },	/* X-Box USB-IF not approved class */
 	XPAD_XBOX360_VENDOR(0x044f),		/* Thrustmaster X-Box 360 controllers */
 	XPAD_XBOX360_VENDOR(0x045e),		/* Microsoft X-Box 360 controllers */
@@ -1764,10 +1764,12 @@ static int xpad_probe(struct usb_interface *intf, const struct usb_device_id *id
 		struct usb_endpoint_descriptor *ep =
 				&intf->cur_altsetting->endpoint[i].desc;
 
-		if (usb_endpoint_dir_in(ep))
-			ep_irq_in = ep;
-		else
-			ep_irq_out = ep;
+		if (usb_endpoint_xfer_int(ep)) {
+			if (usb_endpoint_dir_in(ep))
+				ep_irq_in = ep;
+			else
+				ep_irq_out = ep;
+		}
 	}
 
 	if (!ep_irq_in || !ep_irq_out) {

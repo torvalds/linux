@@ -69,7 +69,7 @@ amdgpu_gem_prime_import_sg_table(struct drm_device *dev,
 
 	ww_mutex_lock(&resv->lock, NULL);
 	ret = amdgpu_bo_create(adev, attach->dmabuf->size, PAGE_SIZE, false,
-			       AMDGPU_GEM_DOMAIN_GTT, 0, sg, resv, &bo);
+			       AMDGPU_GEM_DOMAIN_GTT, 0, sg, resv, 0, &bo);
 	ww_mutex_unlock(&resv->lock);
 	if (ret)
 		return ERR_PTR(ret);

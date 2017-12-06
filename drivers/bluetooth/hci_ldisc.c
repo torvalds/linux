@@ -457,7 +457,8 @@ static int hci_uart_tty_open(struct tty_struct *tty)
 	BT_DBG("tty %p", tty);
 
 	/* Error if the tty has no write op instead of leaving an exploitable
-	   hole */
+	 * hole
+	 */
 	if (tty->ops->write == NULL)
 		return -EOPNOTSUPP;
 

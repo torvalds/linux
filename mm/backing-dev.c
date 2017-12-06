@@ -569,8 +569,10 @@ static int cgwb_create(struct backing_dev_info *bdi,
 
 	/* need to create a new one */
 	wb = kmalloc(sizeof(*wb), gfp);
-	if (!wb)
-		return -ENOMEM;
+	if (!wb) {
+		ret = -ENOMEM;
+		goto out_put;
+	}
 
 	ret = wb_init(wb, bdi, blkcg_css->id, gfp);
 	if (ret)

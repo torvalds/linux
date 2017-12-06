@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 config PPC_POWERNV
 	depends on PPC64 && PPC_BOOK3S
 	bool "IBM PowerNV (Non-Virtualized) platform support"
@@ -30,3 +31,25 @@ config OPAL_PRD
 	help
 	  This enables the opal-prd driver, a facility to run processor
 	  recovery diagnostics on OpenPower machines
+
+config PPC_MEMTRACE
+	bool "Enable removal of RAM from kernel mappings for tracing"
+	depends on PPC_POWERNV && MEMORY_HOTREMOVE
+	default n
+	help
+	  Enabling this option allows for the removal of memory (RAM)
+	  from the kernel mappings to be used for hardware tracing.
+
+config PPC_VAS
+	bool "IBM Virtual Accelerator Switchboard (VAS)"
+	depends on PPC_POWERNV && PPC_64K_PAGES
+	default y
+	help
+	  This enables support for IBM Virtual Accelerator Switchboard (VAS).
+
+	  VAS allows accelerators in co-processors like NX-GZIP and NX-842
+	  to be accessible to kernel subsystems and user processes.
+
+	  VAS adapters are found in POWER9 based systems.
+
+	  If unsure, say N.

@@ -474,7 +474,7 @@ static void gxfb_remove(struct pci_dev *pdev)
 	framebuffer_release(info);
 }
 
-static struct pci_device_id gxfb_id_table[] = {
+static const struct pci_device_id gxfb_id_table[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_NS, PCI_DEVICE_ID_NS_GX_VIDEO) },
 	{ 0, }
 };

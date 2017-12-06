@@ -275,14 +275,10 @@ amdgpu_ucode_get_load_type(struct amdgpu_device *adev, int load_type)
 		else
 			return AMDGPU_FW_LOAD_PSP;
 	case CHIP_RAVEN:
-#if 0
-		if (!load_type)
+		if (load_type != 2)
 			return AMDGPU_FW_LOAD_DIRECT;
 		else
 			return AMDGPU_FW_LOAD_PSP;
-#else
-		return AMDGPU_FW_LOAD_DIRECT;
-#endif
 	default:
 		DRM_ERROR("Unknow firmware load type\n");
 	}
@@ -362,8 +358,6 @@ static int amdgpu_ucode_patch_jt(struct amdgpu_firmware_info *ucode,
 			   (le32_to_cpu(header->jt_offset) * 4);
 	memcpy(dst_addr, src_addr, le32_to_cpu(header->jt_size) * 4);
 
-	ucode->ucode_size += le32_to_cpu(header->jt_size) * 4;
-
 	return 0;
 }
 
@@ -377,10 +371,15 @@ int amdgpu_ucode_init_bo(struct amdgpu_device *adev)
 	struct amdgpu_firmware_info *ucode = NULL;
 	const struct common_firmware_header *header = NULL;
 
+	if (!adev->firmware.fw_size) {
+		dev_warn(adev->dev, "No ip firmware need to load\n");
+		return 0;
+	}
+
 	err = amdgpu_bo_create(adev, adev->firmware.fw_size, PAGE_SIZE, true,
 				amdgpu_sriov_vf(adev) ? AMDGPU_GEM_DOMAIN_VRAM : AMDGPU_GEM_DOMAIN_GTT,
 				AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS,
-				NULL, NULL, bo);
+				NULL, NULL, 0, bo);
 	if (err) {
 		dev_err(adev->dev, "(%d) Firmware buffer allocate failed\n", err);
 		goto failed;
@@ -458,6 +457,9 @@ int amdgpu_ucode_fini_bo(struct amdgpu_device *adev)
 {
 	int i;
 	struct amdgpu_firmware_info *ucode = NULL;
+
+	if (!adev->firmware.fw_size)
+		return 0;
 
 	for (i = 0; i < adev->firmware.max_ucodes; i++) {
 		ucode = &adev->firmware.ucode[i];

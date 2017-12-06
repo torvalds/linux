@@ -55,10 +55,10 @@ static struct rc_map_table cinergy[] = {
 
 static struct rc_map_list cinergy_map = {
 	.map = {
-		.scan    = cinergy,
-		.size    = ARRAY_SIZE(cinergy),
-		.rc_type = RC_TYPE_UNKNOWN,	/* Legacy IR type */
-		.name    = RC_MAP_CINERGY,
+		.scan     = cinergy,
+		.size     = ARRAY_SIZE(cinergy),
+		.rc_proto = RC_PROTO_UNKNOWN,	/* Legacy IR type */
+		.name     = RC_MAP_CINERGY,
 	}
 };
 

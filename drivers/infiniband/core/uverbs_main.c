@@ -49,6 +49,7 @@
 #include <linux/uaccess.h>
 
 #include <rdma/ib.h>
+#include <rdma/uverbs_std_types.h>
 
 #include "uverbs.h"
 #include "core_priv.h"
@@ -595,7 +596,6 @@ struct file *ib_uverbs_alloc_async_event_file(struct ib_uverbs_file *uverbs_file
 {
 	struct ib_uverbs_async_event_file *ev_file;
 	struct file *filp;
-	int ret;
 
 	ev_file = kzalloc(sizeof(*ev_file), GFP_KERNEL);
 	if (!ev_file)
@@ -621,20 +621,10 @@ struct file *ib_uverbs_alloc_async_event_file(struct ib_uverbs_file *uverbs_file
 	INIT_IB_EVENT_HANDLER(&uverbs_file->event_handler,
 			      ib_dev,
 			      ib_uverbs_event_handler);
-	ret = ib_register_event_handler(&uverbs_file->event_handler);
-	if (ret)
-		goto err_put_file;
-
+	ib_register_event_handler(&uverbs_file->event_handler);
 	/* At that point async file stuff was fully set */
 
 	return filp;
-
-err_put_file:
-	fput(filp);
-	kref_put(&uverbs_file->async_file->ref,
-		 ib_uverbs_release_async_event_file);
-	uverbs_file->async_file = NULL;
-	return ERR_PTR(ret);
 
 err_put_refs:
 	kref_put(&ev_file->uverbs_file->ref, ib_uverbs_release_file);
@@ -949,6 +939,9 @@ static const struct file_operations uverbs_fops = {
 	.open	 = ib_uverbs_open,
 	.release = ib_uverbs_close,
 	.llseek	 = no_llseek,
+#if IS_ENABLED(CONFIG_INFINIBAND_EXP_USER_ACCESS)
+	.unlocked_ioctl = ib_uverbs_ioctl,
+#endif
 };
 
 static const struct file_operations uverbs_mmap_fops = {
@@ -958,6 +951,9 @@ static const struct file_operations uverbs_mmap_fops = {
 	.open	 = ib_uverbs_open,
 	.release = ib_uverbs_close,
 	.llseek	 = no_llseek,
+#if IS_ENABLED(CONFIG_INFINIBAND_EXP_USER_ACCESS)
+	.unlocked_ioctl = ib_uverbs_ioctl,
+#endif
 };
 
 static struct ib_client uverbs_client = {
@@ -1108,6 +1104,18 @@ static void ib_uverbs_add_one(struct ib_device *device)
 	if (device_create_file(uverbs_dev->dev, &dev_attr_abi_version))
 		goto err_class;
 
+	if (!device->specs_root) {
+		const struct uverbs_object_tree_def *default_root[] = {
+			uverbs_default_get_objects()};
+
+		uverbs_dev->specs_root = uverbs_alloc_spec_tree(1,
+								default_root);
+		if (IS_ERR(uverbs_dev->specs_root))
+			goto err_class;
+
+		device->specs_root = uverbs_dev->specs_root;
+	}
+
 	ib_set_client_data(device, &uverbs_client, uverbs_dev);
 
 	return;
@@ -1239,6 +1247,11 @@ static void ib_uverbs_remove_one(struct ib_device *device, void *client_data)
 		ib_uverbs_comp_dev(uverbs_dev);
 	if (wait_clients)
 		wait_for_completion(&uverbs_dev->comp);
+	if (uverbs_dev->specs_root) {
+		uverbs_free_spec_tree(uverbs_dev->specs_root);
+		device->specs_root = NULL;
+	}
+
 	kobject_put(&uverbs_dev->kobj);
 }
 

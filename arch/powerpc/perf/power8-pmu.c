@@ -50,34 +50,11 @@ static const unsigned int event_alternatives[][MAX_ALT] = {
 
 static int power8_get_alternatives(u64 event, unsigned int flags, u64 alt[])
 {
-	int i, j, num_alt = 0;
+	int num_alt = 0;
 
-	num_alt = isa207_get_alternatives(event, alt, event_alternatives,
-					(int)ARRAY_SIZE(event_alternatives));
-	if (flags & PPMU_ONLY_COUNT_RUN) {
-		/*
-		 * We're only counting in RUN state, so PM_CYC is equivalent to
-		 * PM_RUN_CYC and PM_INST_CMPL === PM_RUN_INST_CMPL.
-		 */
-		j = num_alt;
-		for (i = 0; i < num_alt; ++i) {
-			switch (alt[i]) {
-			case PM_CYC:
-				alt[j++] = PM_RUN_CYC;
-				break;
-			case PM_RUN_CYC:
-				alt[j++] = PM_CYC;
-				break;
-			case PM_INST_CMPL:
-				alt[j++] = PM_RUN_INST_CMPL;
-				break;
-			case PM_RUN_INST_CMPL:
-				alt[j++] = PM_INST_CMPL;
-				break;
-			}
-		}
-		num_alt = j;
-	}
+	num_alt = isa207_get_alternatives(event, alt,
+					  ARRAY_SIZE(event_alternatives), flags,
+					  event_alternatives);
 
 	return num_alt;
 }

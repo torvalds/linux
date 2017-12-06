@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2013 Imagination Technologies
- * Author: Paul Burton <paul.burton@imgtec.com>
+ * Author: Paul Burton <paul.burton@mips.com>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -327,8 +327,8 @@ LEAF(mips_cps_get_bootcfg)
 	 * to handle contiguous VP numbering, but no such systems yet
 	 * exist.
 	 */
-	mfc0	t9, $3, 1
-	andi	t9, t9, 0xff
+	mfc0	t9, CP0_GLOBALNUMBER
+	andi	t9, t9, MIPS_GLOBALNUMBER_VP
 #elif defined(CONFIG_MIPS_MT_SMP)
 	has_mt	ta2, 1f
 

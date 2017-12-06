@@ -56,7 +56,7 @@
 #include <asm/debugreg.h>
 #include <asm/switch_to.h>
 #include <asm/vm86.h>
-#include <asm/intel_rdt.h>
+#include <asm/intel_rdt_sched.h>
 #include <asm/proto.h>
 
 void __show_regs(struct pt_regs *regs, int all)
@@ -68,7 +68,7 @@ void __show_regs(struct pt_regs *regs, int all)
 
 	if (user_mode(regs)) {
 		sp = regs->sp;
-		ss = regs->ss & 0xffff;
+		ss = regs->ss;
 		gs = get_user_gs(regs);
 	} else {
 		sp = kernel_stack_pointer(regs);

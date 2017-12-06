@@ -1105,11 +1105,7 @@ static int musb_gadget_enable(struct usb_ep *ep,
 
 	pr_debug("%s periph: enabled %s for %s %s, %smaxpacket %d\n",
 			musb_driver_name, musb_ep->end_point.name,
-			({ char *s; switch (musb_ep->type) {
-			case USB_ENDPOINT_XFER_BULK:	s = "bulk"; break;
-			case USB_ENDPOINT_XFER_INT:	s = "int"; break;
-			default:			s = "iso"; break;
-			} s; }),
+			musb_ep_xfertype_string(musb_ep->type),
 			musb_ep->is_in ? "IN" : "OUT",
 			musb_ep->dma ? "dma, " : "",
 			musb_ep->packet_sz);

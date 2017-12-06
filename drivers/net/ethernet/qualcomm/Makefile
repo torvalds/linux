@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 #
 # Makefile for the Qualcomm network device drivers.
 #
@@ -9,3 +10,5 @@ obj-$(CONFIG_QCA7000_UART) += qcauart.o
 qcauart-objs := qca_uart.o
 
 obj-y += emac/
+
+obj-$(CONFIG_RMNET) += rmnet/

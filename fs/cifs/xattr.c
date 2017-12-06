@@ -84,7 +84,7 @@ static int cifs_xattr_set(const struct xattr_handler *handler,
 		if (pTcon->ses->server->ops->set_EA)
 			rc = pTcon->ses->server->ops->set_EA(xid, pTcon,
 				full_path, name, value, (__u16)size,
-				cifs_sb->local_nls, cifs_remap(cifs_sb));
+				cifs_sb->local_nls, cifs_sb);
 		break;
 
 	case XATTR_CIFS_ACL: {

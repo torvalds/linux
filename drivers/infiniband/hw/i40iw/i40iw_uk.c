@@ -912,7 +912,7 @@ enum i40iw_status_code i40iw_get_wqe_shift(u32 wqdepth, u32 sge, u32 inline_data
 	return 0;
 }
 
-static struct i40iw_qp_uk_ops iw_qp_uk_ops = {
+static const struct i40iw_qp_uk_ops iw_qp_uk_ops = {
 	.iw_qp_post_wr = i40iw_qp_post_wr,
 	.iw_qp_ring_push_db = i40iw_qp_ring_push_db,
 	.iw_rdma_write = i40iw_rdma_write,
@@ -926,14 +926,14 @@ static struct i40iw_qp_uk_ops iw_qp_uk_ops = {
 	.iw_post_nop = i40iw_nop
 };
 
-static struct i40iw_cq_ops iw_cq_ops = {
+static const struct i40iw_cq_ops iw_cq_ops = {
 	.iw_cq_request_notification = i40iw_cq_request_notification,
 	.iw_cq_poll_completion = i40iw_cq_poll_completion,
 	.iw_cq_post_entries = i40iw_cq_post_entries,
 	.iw_cq_clean = i40iw_clean_cq
 };
 
-static struct i40iw_device_uk_ops iw_device_uk_ops = {
+static const struct i40iw_device_uk_ops iw_device_uk_ops = {
 	.iwarp_cq_uk_init = i40iw_cq_uk_init,
 	.iwarp_qp_uk_init = i40iw_qp_uk_init,
 };

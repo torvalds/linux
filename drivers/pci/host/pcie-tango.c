@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/pci-ecam.h>
 #include <linux/delay.h>
 #include <linux/of.h>

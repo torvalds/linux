@@ -129,6 +129,7 @@ struct ib_uobject *rdma_alloc_begin_uobject(const struct uverbs_obj_type *type,
 void rdma_alloc_abort_uobject(struct ib_uobject *uobj);
 int __must_check rdma_remove_commit_uobject(struct ib_uobject *uobj);
 int rdma_alloc_commit_uobject(struct ib_uobject *uobj);
+int rdma_explicit_destroy(struct ib_uobject *uobject);
 
 struct uverbs_obj_fd_type {
 	/*
@@ -151,22 +152,30 @@ extern const struct uverbs_obj_type_class uverbs_fd_class;
 
 #define UVERBS_BUILD_BUG_ON(cond) (sizeof(char[1 - 2 * !!(cond)]) -	\
 				   sizeof(char))
-#define UVERBS_TYPE_ALLOC_FD(_size, _order)				 \
-	{								 \
-		.destroy_order = _order,				 \
-		.type_class = &uverbs_fd_class,				 \
-		.obj_size = (_size) +					 \
-			  UVERBS_BUILD_BUG_ON((_size) <			 \
-					      sizeof(struct ib_uobject_file)),\
-	}
-#define UVERBS_TYPE_ALLOC_IDR_SZ(_size, _order)				\
-	{								\
+#define UVERBS_TYPE_ALLOC_FD(_order, _obj_size, _context_closed, _fops, _name, _flags)\
+	((&((const struct uverbs_obj_fd_type)				\
+	 {.type = {							\
+		.destroy_order = _order,				\
+		.type_class = &uverbs_fd_class,				\
+		.obj_size = (_obj_size) +				\
+			UVERBS_BUILD_BUG_ON((_obj_size) < sizeof(struct ib_uobject_file)), \
+	 },								\
+	 .context_closed = _context_closed,				\
+	 .fops = _fops,							\
+	 .name = _name,							\
+	 .flags = _flags}))->type)
+#define UVERBS_TYPE_ALLOC_IDR_SZ(_size, _order, _destroy_object)	\
+	((&((const struct uverbs_obj_idr_type)				\
+	 {.type = {							\
 		.destroy_order = _order,				\
 		.type_class = &uverbs_idr_class,			\
 		.obj_size = (_size) +					\
-			  UVERBS_BUILD_BUG_ON((_size) <			\
-					      sizeof(struct ib_uobject)), \
-	}
-#define UVERBS_TYPE_ALLOC_IDR(_order)					\
-	 UVERBS_TYPE_ALLOC_IDR_SZ(sizeof(struct ib_uobject), _order)
+			UVERBS_BUILD_BUG_ON((_size) <			\
+					    sizeof(struct ib_uobject))	\
+	 },								\
+	 .destroy_object = _destroy_object,}))->type)
+#define UVERBS_TYPE_ALLOC_IDR(_order, _destroy_object)			\
+	 UVERBS_TYPE_ALLOC_IDR_SZ(sizeof(struct ib_uobject), _order,	\
+				  _destroy_object)
+
 #endif

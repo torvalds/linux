@@ -1313,14 +1313,14 @@ static ssize_t sector_size_show(struct device *dev,
 	if (is_namespace_blk(dev)) {
 		struct nd_namespace_blk *nsblk = to_nd_namespace_blk(dev);
 
-		return nd_sector_size_show(nsblk->lbasize,
+		return nd_size_select_show(nsblk->lbasize,
 				blk_lbasize_supported, buf);
 	}
 
 	if (is_namespace_pmem(dev)) {
 		struct nd_namespace_pmem *nspm = to_nd_namespace_pmem(dev);
 
-		return nd_sector_size_show(nspm->lbasize,
+		return nd_size_select_show(nspm->lbasize,
 				pmem_lbasize_supported, buf);
 	}
 	return -ENXIO;
@@ -1352,7 +1352,7 @@ static ssize_t sector_size_store(struct device *dev,
 	if (to_ndns(dev)->claim)
 		rc = -EBUSY;
 	if (rc >= 0)
-		rc = nd_sector_size_store(dev, buf, lbasize, supported);
+		rc = nd_size_select_store(dev, buf, lbasize, supported);
 	if (rc >= 0)
 		rc = nd_namespace_label_update(nd_region, dev);
 	dev_dbg(dev, "%s: result: %zd %s: %s%s", __func__,
@@ -1416,6 +1416,15 @@ static int btt_claim_class(struct device *dev)
 		struct nd_mapping *nd_mapping = &nd_region->mapping[i];
 		struct nvdimm_drvdata *ndd = to_ndd(nd_mapping);
 		struct nd_namespace_index *nsindex;
+
+		/*
+		 * If any of the DIMMs do not support labels the only
+		 * possible BTT format is v1.
+		 */
+		if (!ndd) {
+			loop_bitmask = 0;
+			break;
+		}
 
 		nsindex = to_namespace_index(ndd, ndd->ns_current);
 		if (nsindex == NULL)

@@ -2816,13 +2816,19 @@ void qla24xx_handle_gidpn_event(scsi_qla_host_t *vha, struct event_arg *ea)
 				case MODE_INITIATOR:
 				case MODE_DUAL:
 				default:
+					ql_dbg(ql_dbg_disc, vha, 0x201f,
+					    "%s %d %8phC post %s\n", __func__,
+					    __LINE__, fcport->port_name,
+					    (atomic_read(&fcport->state) ==
+					    FCS_ONLINE) ? "gpdb" : "gnl");
+
 					if (atomic_read(&fcport->state) ==
 					    FCS_ONLINE)
-						break;
-					ql_dbg(ql_dbg_disc, vha, 0x201f,
-					    "%s %d %8phC post gnl\n",
-					    __func__, __LINE__, fcport->port_name);
-					qla24xx_post_gnl_work(vha, fcport);
+						qla24xx_post_gpdb_work(vha,
+						    fcport, PDO_FORCE_ADISC);
+					else
+						qla24xx_post_gnl_work(vha,
+						    fcport);
 					break;
 				}
 			} else { /* fcport->d_id.b24 != ea->id.b24 */
@@ -3080,7 +3086,7 @@ int qla24xx_async_gpsc(scsi_qla_host_t *vha, fc_port_t *fcport)
 		GPSC_RSP_SIZE);
 
 	/* GPSC req */
-	memcpy(ct_req->req.gpsc.port_name, fcport->port_name,
+	memcpy(ct_req->req.gpsc.port_name, fcport->fabric_port_name,
 		WWN_SIZE);
 
 	sp->u.iocb_cmd.u.ctarg.req = fcport->ct_desc.ct_sns;

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * DECnet       An implementation of the DECnet protocol suite for the LINUX
  *              operating system.  DECnet is implemented using the  BSD Socket
@@ -1419,9 +1420,9 @@ void __init dn_dev_init(void)
 
 	dn_dev_devices_on();
 
-	rtnl_register(PF_DECnet, RTM_NEWADDR, dn_nl_newaddr, NULL, NULL);
-	rtnl_register(PF_DECnet, RTM_DELADDR, dn_nl_deladdr, NULL, NULL);
-	rtnl_register(PF_DECnet, RTM_GETADDR, NULL, dn_nl_dump_ifaddr, NULL);
+	rtnl_register(PF_DECnet, RTM_NEWADDR, dn_nl_newaddr, NULL, 0);
+	rtnl_register(PF_DECnet, RTM_DELADDR, dn_nl_deladdr, NULL, 0);
+	rtnl_register(PF_DECnet, RTM_GETADDR, NULL, dn_nl_dump_ifaddr, 0);
 
 	proc_create("decnet_dev", S_IRUGO, init_net.proc_net, &dn_dev_seq_fops);
 

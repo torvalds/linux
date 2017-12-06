@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 # ROCKCHIP Platform Support
 snd-soc-rockchip-i2s-objs := rockchip_i2s.o
 snd-soc-rockchip-pdm-objs := rockchip_pdm.o

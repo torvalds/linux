@@ -346,10 +346,8 @@ intel_dp_mst_connector_destroy(struct drm_connector *connector)
 }
 
 static const struct drm_connector_funcs intel_dp_mst_connector_funcs = {
-	.dpms = drm_atomic_helper_connector_dpms,
 	.detect = intel_dp_mst_detect,
 	.fill_modes = drm_helper_probe_single_connector_modes,
-	.set_property = drm_atomic_helper_connector_set_property,
 	.late_register = intel_connector_register,
 	.early_unregister = intel_connector_unregister,
 	.destroy = intel_dp_mst_connector_destroy,
@@ -371,6 +369,9 @@ intel_dp_mst_mode_valid(struct drm_connector *connector,
 	int max_dotclk = to_i915(connector->dev)->max_dotclk_freq;
 	int bpp = 24; /* MST uses fixed bpp */
 	int max_rate, mode_rate, max_lanes, max_link_clock;
+
+	if (!intel_dp)
+		return MODE_ERROR;
 
 	max_link_clock = intel_dp_max_link_rate(intel_dp);
 	max_lanes = intel_dp_max_lane_count(intel_dp);
@@ -443,28 +444,6 @@ static bool intel_dp_mst_get_hw_state(struct intel_connector *connector)
 	return false;
 }
 
-static void intel_connector_add_to_fbdev(struct intel_connector *connector)
-{
-#ifdef CONFIG_DRM_FBDEV_EMULATION
-	struct drm_i915_private *dev_priv = to_i915(connector->base.dev);
-
-	if (dev_priv->fbdev)
-		drm_fb_helper_add_one_connector(&dev_priv->fbdev->helper,
-						&connector->base);
-#endif
-}
-
-static void intel_connector_remove_from_fbdev(struct intel_connector *connector)
-{
-#ifdef CONFIG_DRM_FBDEV_EMULATION
-	struct drm_i915_private *dev_priv = to_i915(connector->base.dev);
-
-	if (dev_priv->fbdev)
-		drm_fb_helper_remove_one_connector(&dev_priv->fbdev->helper,
-						   &connector->base);
-#endif
-}
-
 static struct drm_connector *intel_dp_add_mst_connector(struct drm_dp_mst_topology_mgr *mgr, struct drm_dp_mst_port *port, const char *pathprop)
 {
 	struct intel_dp *intel_dp = container_of(mgr, struct intel_dp, mst_mgr);
@@ -500,31 +479,32 @@ static struct drm_connector *intel_dp_add_mst_connector(struct drm_dp_mst_topolo
 
 static void intel_dp_register_mst_connector(struct drm_connector *connector)
 {
-	struct intel_connector *intel_connector = to_intel_connector(connector);
-	struct drm_device *dev = connector->dev;
+	struct drm_i915_private *dev_priv = to_i915(connector->dev);
 
-	drm_modeset_lock_all(dev);
-	intel_connector_add_to_fbdev(intel_connector);
-	drm_modeset_unlock_all(dev);
+	if (dev_priv->fbdev)
+		drm_fb_helper_add_one_connector(&dev_priv->fbdev->helper,
+						connector);
 
-	drm_connector_register(&intel_connector->base);
+	drm_connector_register(connector);
 }
 
 static void intel_dp_destroy_mst_connector(struct drm_dp_mst_topology_mgr *mgr,
 					   struct drm_connector *connector)
 {
 	struct intel_connector *intel_connector = to_intel_connector(connector);
-	struct drm_device *dev = connector->dev;
+	struct drm_i915_private *dev_priv = to_i915(connector->dev);
 
 	drm_connector_unregister(connector);
 
-	/* need to nuke the connector */
-	drm_modeset_lock_all(dev);
-	intel_connector_remove_from_fbdev(intel_connector);
+	if (dev_priv->fbdev)
+		drm_fb_helper_remove_one_connector(&dev_priv->fbdev->helper,
+						   connector);
+	/* prevent race with the check in ->detect */
+	drm_modeset_lock(&connector->dev->mode_config.connection_mutex, NULL);
 	intel_connector->mst_port = NULL;
-	drm_modeset_unlock_all(dev);
+	drm_modeset_unlock(&connector->dev->mode_config.connection_mutex);
 
-	drm_connector_unreference(&intel_connector->base);
+	drm_connector_unreference(connector);
 	DRM_DEBUG_KMS("\n");
 }
 

@@ -606,6 +606,7 @@ enum {
 	SDF_NOJOURNALID		= 6,
 	SDF_RORECOVERY		= 7, /* read only recovery */
 	SDF_SKIP_DLM_UNLOCK	= 8,
+	SDF_FORCE_AIL_FLUSH     = 9,
 };
 
 enum gfs2_freeze_state {
@@ -816,6 +817,7 @@ struct gfs2_sbd {
 	atomic_t sd_log_in_flight;
 	struct bio *sd_log_bio;
 	wait_queue_head_t sd_log_flush_wait;
+	int sd_log_error;
 
 	atomic_t sd_reserving_log;
 	wait_queue_head_t sd_reserving_log_wait;
@@ -831,7 +833,7 @@ struct gfs2_sbd {
 	atomic_t sd_freeze_state;
 	struct mutex sd_freeze_mutex;
 
-	char sd_fsname[GFS2_FSNAME_LEN];
+	char sd_fsname[GFS2_FSNAME_LEN + 3 * sizeof(int) + 2];
 	char sd_table_name[GFS2_FSNAME_LEN];
 	char sd_proto_name[GFS2_FSNAME_LEN];
 

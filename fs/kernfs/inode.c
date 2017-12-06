@@ -112,7 +112,7 @@ int kernfs_setattr(struct kernfs_node *kn, const struct iattr *iattr)
 int kernfs_iop_setattr(struct dentry *dentry, struct iattr *iattr)
 {
 	struct inode *inode = d_inode(dentry);
-	struct kernfs_node *kn = dentry->d_fsdata;
+	struct kernfs_node *kn = inode->i_private;
 	int error;
 
 	if (!kn)
@@ -154,7 +154,7 @@ static int kernfs_node_setsecdata(struct kernfs_iattrs *attrs, void **secdata,
 
 ssize_t kernfs_iop_listxattr(struct dentry *dentry, char *buf, size_t size)
 {
-	struct kernfs_node *kn = dentry->d_fsdata;
+	struct kernfs_node *kn = kernfs_dentry_node(dentry);
 	struct kernfs_iattrs *attrs;
 
 	attrs = kernfs_iattrs(kn);
@@ -203,8 +203,8 @@ static void kernfs_refresh_inode(struct kernfs_node *kn, struct inode *inode)
 int kernfs_iop_getattr(const struct path *path, struct kstat *stat,
 		       u32 request_mask, unsigned int query_flags)
 {
-	struct kernfs_node *kn = path->dentry->d_fsdata;
 	struct inode *inode = d_inode(path->dentry);
+	struct kernfs_node *kn = inode->i_private;
 
 	mutex_lock(&kernfs_mutex);
 	kernfs_refresh_inode(kn, inode);
@@ -220,6 +220,7 @@ static void kernfs_init_inode(struct kernfs_node *kn, struct inode *inode)
 	inode->i_private = kn;
 	inode->i_mapping->a_ops = &kernfs_aops;
 	inode->i_op = &kernfs_iops;
+	inode->i_generation = kn->id.generation;
 
 	set_default_inode_attr(inode, kn->mode);
 	kernfs_refresh_inode(kn, inode);
@@ -265,7 +266,7 @@ struct inode *kernfs_get_inode(struct super_block *sb, struct kernfs_node *kn)
 {
 	struct inode *inode;
 
-	inode = iget_locked(sb, kn->ino);
+	inode = iget_locked(sb, kn->id.ino);
 	if (inode && (inode->i_state & I_NEW))
 		kernfs_init_inode(kn, inode);
 

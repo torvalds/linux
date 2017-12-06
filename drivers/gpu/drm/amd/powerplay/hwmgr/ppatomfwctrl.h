@@ -109,6 +109,14 @@ struct pp_atomfwctrl_avfs_parameters {
 	uint32_t   ulPhyclk2GfxclkM1;
 	uint32_t   ulPhyclk2GfxclkM2;
 	uint32_t   ulPhyclk2GfxclkB;
+	uint32_t   ulAcgGbVdroopTableA0;
+	uint32_t   ulAcgGbVdroopTableA1;
+	uint32_t   ulAcgGbVdroopTableA2;
+	uint32_t   ulAcgGbFuseTableM1;
+	uint32_t   ulAcgGbFuseTableM2;
+	uint32_t   ulAcgGbFuseTableB;
+	uint32_t   ucAcgEnableGbVdroopTable;
+	uint32_t   ucAcgEnableGbFuseTable;
 };
 
 struct pp_atomfwctrl_gpio_parameters {

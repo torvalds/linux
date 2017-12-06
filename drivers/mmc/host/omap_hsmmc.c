@@ -2076,9 +2076,9 @@ static int omap_hsmmc_probe(struct platform_device *pdev)
 		host->dbclk = NULL;
 	}
 
-	/* Since we do only SG emulation, we can have as many segs
-	 * as we want. */
-	mmc->max_segs = 1024;
+	/* Set this to a value that allows allocating an entire descriptor
+	 * list within a page (zero order allocation). */
+	mmc->max_segs = 64;
 
 	mmc->max_blk_size = 512;       /* Block Length at max can be 1024 */
 	mmc->max_blk_count = 0xFFFF;    /* No. of Blocks is 16 bits */
@@ -2322,7 +2322,7 @@ static int omap_hsmmc_runtime_resume(struct device *dev)
 	return 0;
 }
 
-static struct dev_pm_ops omap_hsmmc_dev_pm_ops = {
+static const struct dev_pm_ops omap_hsmmc_dev_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(omap_hsmmc_suspend, omap_hsmmc_resume)
 	.runtime_suspend = omap_hsmmc_runtime_suspend,
 	.runtime_resume = omap_hsmmc_runtime_resume,

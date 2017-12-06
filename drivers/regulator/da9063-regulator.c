@@ -736,7 +736,7 @@ static int da9063_regulator_probe(struct platform_device *pdev)
 	if (IS_ERR(regl_pdata) || regl_pdata->n_regulators == 0) {
 		dev_err(&pdev->dev,
 			"No regulators defined for the platform\n");
-		return PTR_ERR(regl_pdata);
+		return -ENODEV;
 	}
 
 	/* Find regulators set for particular device model */

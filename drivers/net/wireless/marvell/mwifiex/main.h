@@ -165,6 +165,8 @@ enum {
 /* Address alignment */
 #define MWIFIEX_ALIGN_ADDR(p, a) (((long)(p) + (a) - 1) & ~((a) - 1))
 
+#define MWIFIEX_MAC_LOCAL_ADMIN_BIT		41
+
 /**
  *enum mwifiex_debug_level  -  marvell wifi debug level
  */
@@ -1077,9 +1079,9 @@ int mwifiex_get_debug_info(struct mwifiex_private *,
 			   struct mwifiex_debug_info *);
 
 int mwifiex_alloc_cmd_buffer(struct mwifiex_adapter *adapter);
-int mwifiex_free_cmd_buffer(struct mwifiex_adapter *adapter);
+void mwifiex_free_cmd_buffer(struct mwifiex_adapter *adapter);
+void mwifiex_free_cmd_buffers(struct mwifiex_adapter *adapter);
 void mwifiex_cancel_all_pending_cmd(struct mwifiex_adapter *adapter);
-void mwifiex_cancel_pending_ioctl(struct mwifiex_adapter *adapter);
 void mwifiex_cancel_pending_scan_cmd(struct mwifiex_adapter *adapter);
 void mwifiex_cancel_scan(struct mwifiex_adapter *adapter);
 
@@ -1087,8 +1089,7 @@ void mwifiex_recycle_cmd_node(struct mwifiex_adapter *adapter,
 			      struct cmd_ctrl_node *cmd_node);
 
 void mwifiex_insert_cmd_to_pending_q(struct mwifiex_adapter *adapter,
-				     struct cmd_ctrl_node *cmd_node,
-				     u32 addtail);
+				     struct cmd_ctrl_node *cmd_node);
 
 int mwifiex_exec_next_cmd(struct mwifiex_adapter *adapter);
 int mwifiex_process_cmdresp(struct mwifiex_adapter *adapter);
@@ -1563,6 +1564,9 @@ int mwifiex_config_start_uap(struct mwifiex_private *priv,
 void mwifiex_uap_del_sta_data(struct mwifiex_private *priv,
 			      struct mwifiex_sta_node *node);
 
+void mwifiex_config_uap_11d(struct mwifiex_private *priv,
+			    struct cfg80211_beacon_data *beacon_data);
+
 void mwifiex_init_11h_params(struct mwifiex_private *priv);
 int mwifiex_is_11h_active(struct mwifiex_private *priv);
 int mwifiex_11h_activate(struct mwifiex_private *priv, bool flag);
@@ -1672,6 +1676,8 @@ void mwifiex_process_tx_pause_event(struct mwifiex_private *priv,
 void mwifiex_process_multi_chan_event(struct mwifiex_private *priv,
 				      struct sk_buff *event_skb);
 void mwifiex_multi_chan_resync(struct mwifiex_adapter *adapter);
+int mwifiex_set_mac_address(struct mwifiex_private *priv,
+			    struct net_device *dev);
 
 #ifdef CONFIG_DEBUG_FS
 void mwifiex_debugfs_init(void);

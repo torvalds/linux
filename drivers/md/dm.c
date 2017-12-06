@@ -52,6 +52,12 @@ static struct workqueue_struct *deferred_remove_workqueue;
 atomic_t dm_global_event_nr = ATOMIC_INIT(0);
 DECLARE_WAIT_QUEUE_HEAD(dm_global_eventq);
 
+void dm_issue_global_event(void)
+{
+	atomic_inc(&dm_global_event_nr);
+	wake_up(&dm_global_eventq);
+}
+
 /*
  * One of these is allocated per bio.
  */
@@ -510,7 +516,7 @@ static void start_io_acct(struct dm_io *io)
 	io->start_time = jiffies;
 
 	cpu = part_stat_lock();
-	part_round_stats(cpu, &dm_disk(md)->part0);
+	part_round_stats(md->queue, cpu, &dm_disk(md)->part0);
 	part_stat_unlock();
 	atomic_set(&dm_disk(md)->part0.in_flight[rw],
 		atomic_inc_return(&md->pending[rw]));
@@ -529,7 +535,7 @@ static void end_io_acct(struct dm_io *io)
 	int pending;
 	int rw = bio_data_dir(bio);
 
-	generic_end_io_acct(rw, &dm_disk(md)->part0, io->start_time);
+	generic_end_io_acct(md->queue, rw, &dm_disk(md)->part0, io->start_time);
 
 	if (unlikely(dm_stats_used(&md->stats)))
 		dm_stats_account_io(&md->stats, bio_data_dir(bio),
@@ -841,10 +847,10 @@ static void clone_endio(struct bio *bio)
 
 	if (unlikely(error == BLK_STS_TARGET)) {
 		if (bio_op(bio) == REQ_OP_WRITE_SAME &&
-		    !bdev_get_queue(bio->bi_bdev)->limits.max_write_same_sectors)
+		    !bio->bi_disk->queue->limits.max_write_same_sectors)
 			disable_write_same(md);
 		if (bio_op(bio) == REQ_OP_WRITE_ZEROES &&
-		    !bdev_get_queue(bio->bi_bdev)->limits.max_write_zeroes_sectors)
+		    !bio->bi_disk->queue->limits.max_write_zeroes_sectors)
 			disable_write_zeroes(md);
 	}
 
@@ -985,24 +991,6 @@ static size_t dm_dax_copy_from_iter(struct dax_device *dax_dev, pgoff_t pgoff,
 	dm_put_live_table(md, srcu_idx);
 
 	return ret;
-}
-
-static void dm_dax_flush(struct dax_device *dax_dev, pgoff_t pgoff, void *addr,
-		size_t size)
-{
-	struct mapped_device *md = dax_get_private(dax_dev);
-	sector_t sector = pgoff * PAGE_SECTORS;
-	struct dm_target *ti;
-	int srcu_idx;
-
-	ti = dm_dax_get_live_target(md, sector, &srcu_idx);
-
-	if (!ti)
-		goto out;
-	if (ti->type->dax_flush)
-		ti->type->dax_flush(ti, pgoff, addr, size);
- out:
-	dm_put_live_table(md, srcu_idx);
 }
 
 /*
@@ -1205,8 +1193,8 @@ static void __map_bio(struct dm_target_io *tio)
 		break;
 	case DM_MAPIO_REMAPPED:
 		/* the bio has been remapped so dispatch it */
-		trace_block_bio_remap(bdev_get_queue(clone->bi_bdev), clone,
-				      tio->io->bio->bi_bdev->bd_dev, sector);
+		trace_block_bio_remap(clone->bi_disk->queue, clone,
+				      bio_dev(tio->io->bio), sector);
 		generic_make_request(clone);
 		break;
 	case DM_MAPIO_KILL:
@@ -1532,7 +1520,7 @@ static blk_qc_t dm_make_request(struct request_queue *q, struct bio *bio)
 
 	map = dm_get_live_table(md, &srcu_idx);
 
-	generic_start_io_acct(rw, bio_sectors(bio), &dm_disk(md)->part0);
+	generic_start_io_acct(q, rw, bio_sectors(bio), &dm_disk(md)->part0);
 
 	/* if we're suspended, we have to queue this io for later */
 	if (unlikely(test_bit(DMF_BLOCK_IO_FOR_SUSPEND, &md->flags))) {
@@ -1786,7 +1774,7 @@ static struct mapped_device *alloc_dev(int minor)
 		goto bad;
 
 	bio_init(&md->flush_bio, NULL, 0);
-	md->flush_bio.bi_bdev = md->bdev;
+	bio_set_dev(&md->flush_bio, md->bdev);
 	md->flush_bio.bi_opf = REQ_OP_WRITE | REQ_PREFLUSH | REQ_SYNC;
 
 	dm_stats_init(&md->stats);
@@ -1883,9 +1871,8 @@ static void event_callback(void *context)
 	dm_send_uevents(&uevents, &disk_to_dev(md->disk)->kobj);
 
 	atomic_inc(&md->event_nr);
-	atomic_inc(&dm_global_event_nr);
 	wake_up(&md->eventq);
-	wake_up(&dm_global_eventq);
+	dm_issue_global_event();
 }
 
 /*
@@ -2301,6 +2288,7 @@ struct dm_table *dm_swap_table(struct mapped_device *md, struct dm_table *table)
 	}
 
 	map = __bind(md, table, &limits);
+	dm_issue_global_event();
 
 out:
 	mutex_unlock(&md->suspend_lock);
@@ -2992,7 +2980,6 @@ static const struct block_device_operations dm_blk_dops = {
 static const struct dax_operations dm_dax_ops = {
 	.direct_access = dm_dax_direct_access,
 	.copy_from_iter = dm_dax_copy_from_iter,
-	.flush = dm_dax_flush,
 };
 
 /*

@@ -46,10 +46,9 @@
 #include <net/sock.h>
 #include <net/tcp.h>
 
-#include "../../../include/linux/libcfs/libcfs.h"
-#include "../../../include/linux/lnet/lnet.h"
-#include "../../../include/linux/lnet/lib-lnet.h"
-#include "../../../include/linux/lnet/socklnd.h"
+#include <linux/libcfs/libcfs.h>
+#include <linux/lnet/lib-lnet.h>
+#include <linux/lnet/socklnd.h>
 
 /* assume one thread for each connection type */
 #define SOCKNAL_NSCHEDS		3
@@ -518,17 +517,6 @@ extern struct ksock_proto ksocknal_protocol_v3x;
 #ifndef CPU_MASK_NONE
 #define CPU_MASK_NONE   0UL
 #endif
-
-static inline __u32 ksocknal_csum(__u32 crc, unsigned char const *p, size_t len)
-{
-#if 1
-	return crc32_le(crc, p, len);
-#else
-	while (len-- > 0)
-		crc = ((crc + 0x100) & ~0xff) | ((crc + *p++) & 0xff) ;
-	return crc;
-#endif
-}
 
 static inline int
 ksocknal_route_mask(void)

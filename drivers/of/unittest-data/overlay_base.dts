@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /dts-v1/;
 /plugin/;
 
@@ -44,6 +45,8 @@
 			orientation = < 127 >;
 
 			ride@100 {
+				#address-cells = <1>;
+				#size-cells = <1>;
 				compatible = "ot,roller-coaster";
 				reg = < 0x00000100 0x100 >;
 				hvac-provider = < &hvac_1 >;
@@ -53,6 +56,15 @@
 				spin-controller = < &spin_ctrl_2 5 &spin_ctrl_2 7 >;
 				spin-controller-names = "track_1", "track_2";
 				queues = < 2 >;
+
+				track@30 {
+					reg = < 0x00000030 0x10 >;
+				};
+
+				track@40 {
+					reg = < 0x00000040 0x10 >;
+				};
+
 			};
 		};
 

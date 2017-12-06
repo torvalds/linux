@@ -167,6 +167,7 @@ struct intel_vgpu {
 	atomic_t running_workload_num;
 	DECLARE_BITMAP(tlb_handle_pending, I915_NUM_ENGINES);
 	struct i915_gem_context *shadow_ctx;
+	DECLARE_BITMAP(shadow_ctx_desc_updated, I915_NUM_ENGINES);
 
 #if IS_ENABLED(CONFIG_DRM_I915_GVT_KVMGT)
 	struct {
@@ -481,6 +482,8 @@ int intel_vgpu_init_opregion(struct intel_vgpu *vgpu, u32 gpa);
 
 int intel_vgpu_emulate_opregion_request(struct intel_vgpu *vgpu, u32 swsci);
 void populate_pvinfo_page(struct intel_vgpu *vgpu);
+
+int intel_gvt_scan_and_shadow_workload(struct intel_vgpu_workload *workload);
 
 struct intel_gvt_ops {
 	int (*emulate_cfg_read)(struct intel_vgpu *, unsigned int, void *,

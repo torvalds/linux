@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _BTRFS_SYSFS_H_
 #define _BTRFS_SYSFS_H_
 

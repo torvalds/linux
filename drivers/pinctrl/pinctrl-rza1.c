@@ -723,7 +723,7 @@ static void rza1_gpio_set(struct gpio_chip *chip, unsigned int gpio,
 	rza1_pin_set(port, gpio, value);
 }
 
-static struct gpio_chip rza1_gpiochip_template = {
+static const struct gpio_chip rza1_gpiochip_template = {
 	.request		= rza1_gpio_request,
 	.free			= rza1_gpio_free,
 	.get_direction		= rza1_gpio_get_direction,
@@ -1026,7 +1026,7 @@ static int rza1_set_mux(struct pinctrl_dev *pctldev, unsigned int selector,
 	return 0;
 }
 
-static struct pinmux_ops rza1_pinmux_ops = {
+static const struct pinmux_ops rza1_pinmux_ops = {
 	.get_functions_count	= pinmux_generic_get_function_count,
 	.get_function_name	= pinmux_generic_get_function_name,
 	.get_function_groups	= pinmux_generic_get_function_groups,
@@ -1088,7 +1088,7 @@ static int rza1_parse_gpiochip(struct rza1_pinctrl *rza1_pctl,
 	 */
 	pinctrl_base = of_args.args[1];
 	gpioport = RZA1_PIN_ID_TO_PORT(pinctrl_base);
-	if (gpioport > RZA1_NPORTS) {
+	if (gpioport >= RZA1_NPORTS) {
 		dev_err(rza1_pctl->dev,
 			"Invalid values in property %s\n", list_name);
 		return -EINVAL;
@@ -1096,8 +1096,8 @@ static int rza1_parse_gpiochip(struct rza1_pinctrl *rza1_pctl,
 
 	*chip		= rza1_gpiochip_template;
 	chip->base	= -1;
-	chip->label	= devm_kasprintf(rza1_pctl->dev, GFP_KERNEL, "%s-%u",
-					 np->name, gpioport);
+	chip->label	= devm_kasprintf(rza1_pctl->dev, GFP_KERNEL, "%s",
+					 np->name);
 	chip->ngpio	= of_args.args[2];
 	chip->of_node	= np;
 	chip->parent	= rza1_pctl->dev;

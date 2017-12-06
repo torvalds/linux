@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #include <linux/fsnotify_backend.h>
 #include <linux/path.h>
 #include <linux/slab.h>

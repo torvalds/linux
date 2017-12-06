@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __TOOLS_ASM_GENERIC_ATOMIC_H
 #define __TOOLS_ASM_GENERIC_ATOMIC_H
 

@@ -640,7 +640,7 @@ int r8712_xmitframe_complete(struct _adapter *padapter,
 	/* 1st frame dequeued */
 	pxmitframe = dequeue_xframe_ex(pxmitpriv, phwxmits, hwentry);
 	/* need to remember the 1st frame */
-	if (pxmitframe != NULL) {
+	if (pxmitframe) {
 
 #ifdef CONFIG_R8712_TX_AGGR
 		/* 1. dequeue 2nd frame
@@ -653,13 +653,13 @@ int r8712_xmitframe_complete(struct _adapter *padapter,
 			r8712_free_xmitbuf(pxmitpriv, pxmitbuf);
 			return false;
 		}
-		if (p2ndxmitframe != NULL)
+		if (p2ndxmitframe)
 			if (p2ndxmitframe->frame_tag != DATA_FRAMETAG) {
 				r8712_free_xmitbuf(pxmitpriv, pxmitbuf);
 				return false;
 			}
 		r8712_xmitframe_aggr_1st(pxmitbuf, pxmitframe);
-		if (p2ndxmitframe != NULL) {
+		if (p2ndxmitframe) {
 			u16 total_length;
 
 			total_length = r8712_xmitframe_aggr_next(
@@ -667,7 +667,7 @@ int r8712_xmitframe_complete(struct _adapter *padapter,
 			do {
 				p2ndxmitframe = dequeue_xframe_ex(
 					pxmitpriv, phwxmits, hwentry);
-				if (p2ndxmitframe != NULL)
+				if (p2ndxmitframe)
 					total_length =
 						r8712_xmitframe_aggr_next(
 							pxmitbuf,

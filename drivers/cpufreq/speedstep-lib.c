@@ -35,7 +35,7 @@ static int relaxed_check;
 static unsigned int pentium3_get_frequency(enum speedstep_processor processor)
 {
 	/* See table 14 of p3_ds.pdf and table 22 of 29834003.pdf */
-	struct {
+	static const struct {
 		unsigned int ratio;	/* Frequency Multiplier (x10) */
 		u8 bitmap;		/* power on configuration bits
 					[27, 25:22] (in MSR 0x2a) */
@@ -58,7 +58,7 @@ static unsigned int pentium3_get_frequency(enum speedstep_processor processor)
 	};
 
 	/* PIII(-M) FSB settings: see table b1-b of 24547206.pdf */
-	struct {
+	static const struct {
 		unsigned int value;	/* Front Side Bus speed in MHz */
 		u8 bitmap;		/* power on configuration bits [18: 19]
 					(in MSR 0x2a) */

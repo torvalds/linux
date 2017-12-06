@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  *   Machine check handler definitions
  *
@@ -72,7 +73,7 @@ union mci {
 		u64 ar :  1; /* 33 access register validity */
 		u64 da :  1; /* 34 delayed access exception */
 		u64    :  1; /* 35 */
-		u64 gs :  1; /* 36 guarded storage registers */
+		u64 gs :  1; /* 36 guarded storage registers validity */
 		u64    :  5; /* 37-41 */
 		u64 pr :  1; /* 42 tod programmable register validity */
 		u64 fc :  1; /* 43 fp control register validity */

@@ -27,7 +27,7 @@
 
 #define LIQUIDIO_PACKAGE ""
 #define LIQUIDIO_BASE_MAJOR_VERSION 1
-#define LIQUIDIO_BASE_MINOR_VERSION 5
+#define LIQUIDIO_BASE_MINOR_VERSION 6
 #define LIQUIDIO_BASE_MICRO_VERSION 1
 #define LIQUIDIO_BASE_VERSION   __stringify(LIQUIDIO_BASE_MAJOR_VERSION) "." \
 				__stringify(LIQUIDIO_BASE_MINOR_VERSION)
@@ -106,6 +106,7 @@ enum octeon_tag_type {
 #define MAX_IOQ_INTERRUPTS_PER_PF   (64 * 2)
 #define MAX_IOQ_INTERRUPTS_PER_VF   (8 * 2)
 
+#define SCR2_BIT_FW_LOADED	    63
 
 static inline u32 incr_index(u32 index, u32 count, u32 max)
 {
@@ -189,7 +190,6 @@ static inline void add_sg_size(struct octeon_sg_entry *sg_entry,
 #define   OCTNET_CMD_Q                0
 
 /* NIC Command types */
-#define   OCTNET_CMD_RESET_PF         0x0
 #define   OCTNET_CMD_CHANGE_MTU       0x1
 #define   OCTNET_CMD_CHANGE_MACADDR   0x2
 #define   OCTNET_CMD_CHANGE_DEVFLAGS  0x3
@@ -226,6 +226,9 @@ static inline void add_sg_size(struct octeon_sg_entry *sg_entry,
 
 #define   OCTNET_CMD_SET_UC_LIST       0x1b
 #define   OCTNET_CMD_SET_VF_LINKSTATE  0x1c
+
+#define   OCTNET_CMD_QUEUE_COUNT_CTL	0x1f
+
 #define   OCTNET_CMD_VXLAN_PORT_ADD    0x0
 #define   OCTNET_CMD_VXLAN_PORT_DEL    0x1
 #define   OCTNET_CMD_RXCSUM_ENABLE     0x0
@@ -234,6 +237,8 @@ static inline void add_sg_size(struct octeon_sg_entry *sg_entry,
 #define   OCTNET_CMD_TXCSUM_DISABLE    0x1
 #define   OCTNET_CMD_VLAN_FILTER_ENABLE 0x1
 #define   OCTNET_CMD_VLAN_FILTER_DISABLE 0x0
+
+#define   LIO_CMD_WAIT_TM 100
 
 /* RX(packets coming from wire) Checksum verification flags */
 /* TCP/UDP csum */
@@ -768,6 +773,7 @@ struct nic_rx_stats {
 	/* firmware stats */
 	u64 fw_total_rcvd;
 	u64 fw_total_fwd;
+	u64 fw_total_fwd_bytes;
 	u64 fw_err_pko;
 	u64 fw_err_link;
 	u64 fw_err_drop;
@@ -814,6 +820,7 @@ struct nic_tx_stats {
 	u64 fw_tso;		/* number of tso requests */
 	u64 fw_tso_fwd;		/* number of packets segmented in tso */
 	u64 fw_tx_vxlan;
+	u64 fw_err_pki;
 };
 
 struct oct_link_stats {

@@ -102,6 +102,7 @@ enum thermal_notify_event {
 	THERMAL_DEVICE_DOWN, /* Thermal device is down */
 	THERMAL_DEVICE_UP, /* Thermal device is up after a down event */
 	THERMAL_DEVICE_POWER_CAPABILITY_CHANGED, /* power capability changed */
+	THERMAL_TABLE_CHANGED, /* Thermal table(s) changed */
 };
 
 struct thermal_zone_device_ops {

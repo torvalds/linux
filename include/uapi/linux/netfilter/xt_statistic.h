@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 #ifndef _XT_STATISTIC_H
 #define _XT_STATISTIC_H
 

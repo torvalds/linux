@@ -19,7 +19,6 @@
 #include <linux/edac.h>
 #include "edac_module.h"
 
-#define AMD76X_REVISION	" Ver: 2.0.2"
 #define EDAC_MOD_STR	"amd76x_edac"
 
 #define amd76x_printk(level, fmt, arg...) \
@@ -263,7 +262,6 @@ static int amd76x_probe1(struct pci_dev *pdev, int dev_idx)
 	mci->edac_cap = ems_mode ?
 		(EDAC_FLAG_EC | EDAC_FLAG_SECDED) : EDAC_FLAG_NONE;
 	mci->mod_name = EDAC_MOD_STR;
-	mci->mod_ver = AMD76X_REVISION;
 	mci->ctl_name = amd76x_devs[dev_idx].ctl_name;
 	mci->dev_name = pci_name(pdev);
 	mci->edac_check = amd76x_check;

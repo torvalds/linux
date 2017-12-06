@@ -644,9 +644,13 @@ static void __cleanup(struct ioatdma_chan *ioat_chan, dma_addr_t phys_complete)
 		mod_timer(&ioat_chan->timer, jiffies + IDLE_TIMEOUT);
 	}
 
-	/* 5 microsecond delay per pending descriptor */
-	writew(min((5 * (active - i)), IOAT_INTRDELAY_MASK),
-	       ioat_chan->ioat_dma->reg_base + IOAT_INTRDELAY_OFFSET);
+	/* microsecond delay by sysfs variable  per pending descriptor */
+	if (ioat_chan->intr_coalesce != ioat_chan->prev_intr_coalesce) {
+		writew(min((ioat_chan->intr_coalesce * (active - i)),
+		       IOAT_INTRDELAY_MASK),
+		       ioat_chan->ioat_dma->reg_base + IOAT_INTRDELAY_OFFSET);
+		ioat_chan->prev_intr_coalesce = ioat_chan->intr_coalesce;
+	}
 }
 
 static void ioat_cleanup(struct ioatdma_chan *ioat_chan)

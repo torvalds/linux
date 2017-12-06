@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  * include/asm-xtensa/socket.h
  *
@@ -112,5 +113,7 @@
 #define SCM_TIMESTAMPING_PKTINFO	58
 
 #define SO_PEERGROUPS		59
+
+#define SO_ZEROCOPY		60
 
 #endif	/* _XTENSA_SOCKET_H */

@@ -304,7 +304,7 @@ static int process_ob_ipinfo(void *in_msg, void *out_msg, int op)
 				strlen((char *)in->body.kvp_ip_val.adapter_id),
 				UTF16_HOST_ENDIAN,
 				(wchar_t *)out->kvp_ip_val.adapter_id,
-				MAX_IP_ADDR_SIZE);
+				MAX_ADAPTER_ID_SIZE);
 		if (len < 0)
 			return len;
 

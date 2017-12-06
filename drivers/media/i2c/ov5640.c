@@ -1524,8 +1524,7 @@ static int ov5640_restore_mode(struct ov5640_dev *sensor)
 
 static void ov5640_power(struct ov5640_dev *sensor, bool enable)
 {
-	if (sensor->pwdn_gpio)
-		gpiod_set_value(sensor->pwdn_gpio, enable ? 0 : 1);
+	gpiod_set_value(sensor->pwdn_gpio, enable ? 0 : 1);
 }
 
 static void ov5640_reset(struct ov5640_dev *sensor)

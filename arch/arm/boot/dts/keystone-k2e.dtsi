@@ -45,6 +45,10 @@
 		};
 	};
 
+	aliases {
+		rproc0 = &dsp0;
+	};
+
 	soc {
 		/include/ "keystone-k2e-clocks.dtsi"
 
@@ -112,6 +116,22 @@
 			gpio-controller;
 			#gpio-cells = <2>;
 			gpio,syscon-dev = <&devctrl 0x240>;
+		};
+
+		dsp0: dsp@10800000 {
+			compatible = "ti,k2e-dsp";
+			reg = <0x10800000 0x00080000>,
+			      <0x10e00000 0x00008000>,
+			      <0x10f00000 0x00008000>;
+			reg-names = "l2sram", "l1pram", "l1dram";
+			clocks = <&clkgem0>;
+			ti,syscon-dev = <&devctrl 0x844>;
+			resets = <&pscrst 0>;
+			interrupt-parent = <&kirq0>;
+			interrupts = <0 8>;
+			interrupt-names = "vring", "exception";
+			kick-gpios = <&dspgpio0 27 0>;
+			status = "disabled";
 		};
 
 		pcie1: pcie@21020000 {

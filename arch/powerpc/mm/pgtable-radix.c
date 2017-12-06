@@ -8,10 +8,15 @@
  * as published by the Free Software Foundation; either version
  * 2 of the License, or (at your option) any later version.
  */
+
+#define pr_fmt(fmt) "radix-mmu: " fmt
+
+#include <linux/kernel.h>
 #include <linux/sched/mm.h>
 #include <linux/memblock.h>
 #include <linux/of_fdt.h>
 #include <linux/mm.h>
+#include <linux/string_helpers.h>
 
 #include <asm/pgtable.h>
 #include <asm/pgalloc.h>
@@ -31,9 +36,13 @@ unsigned int mmu_base_pid;
 static int native_register_process_table(unsigned long base, unsigned long pg_sz,
 					 unsigned long table_size)
 {
-	unsigned long patb1 = base | table_size | PATB_GR;
+	unsigned long patb0, patb1;
 
-	partition_tb->patb1 = cpu_to_be64(patb1);
+	patb0 = be64_to_cpu(partition_tb[0].patb0);
+	patb1 = base | table_size | PATB_GR;
+
+	mmu_partition_table_set_entry(0, patb0, patb1);
+
 	return 0;
 }
 
@@ -179,10 +188,14 @@ static inline void __meminit print_mapping(unsigned long start,
 					   unsigned long end,
 					   unsigned long size)
 {
+	char buf[10];
+
 	if (end <= start)
 		return;
 
-	pr_info("Mapped range 0x%lx - 0x%lx with 0x%lx\n", start, end, size);
+	string_get_size(size, 1, STRING_UNITS_2, buf, sizeof(buf));
+
+	pr_info("Mapped 0x%016lx-0x%016lx with %s pages\n", start, end, buf);
 }
 
 static int __meminit create_physical_mapping(unsigned long start,
@@ -526,6 +539,7 @@ void __init radix__early_init_mmu(void)
 	__kernel_virt_size = RADIX_KERN_VIRT_SIZE;
 	__vmalloc_start = RADIX_VMALLOC_START;
 	__vmalloc_end = RADIX_VMALLOC_END;
+	__kernel_io_start = RADIX_KERN_IO_START;
 	vmemmap = (struct page *)RADIX_VMEMMAP_BASE;
 	ioremap_bot = IOREMAP_BASE;
 
@@ -836,9 +850,12 @@ pmd_t radix__pmdp_collapse_flush(struct vm_area_struct *vma, unsigned long addre
 	 */
 	pmd = *pmdp;
 	pmd_clear(pmdp);
+
 	/*FIXME!!  Verify whether we need this kick below */
-	kick_all_cpus_sync();
-	flush_tlb_range(vma, address, address + HPAGE_PMD_SIZE);
+	serialize_against_pte_lookup(vma->vm_mm);
+
+	radix__flush_tlb_collapsed_pmd(vma->vm_mm, address);
+
 	return pmd;
 }
 
@@ -897,16 +914,16 @@ pmd_t radix__pmdp_huge_get_and_clear(struct mm_struct *mm,
 	old = radix__pmd_hugepage_update(mm, addr, pmdp, ~0UL, 0);
 	old_pmd = __pmd(old);
 	/*
-	 * Serialize against find_linux_pte_or_hugepte which does lock-less
+	 * Serialize against find_current_mm_pte which does lock-less
 	 * lookup in page tables with local interrupts disabled. For huge pages
 	 * it casts pmd_t to pte_t. Since format of pte_t is different from
 	 * pmd_t we want to prevent transit from pmd pointing to page table
 	 * to pmd pointing to huge page (and back) while interrupts are disabled.
 	 * We clear pmd to possibly replace it with page table pointer in
 	 * different code paths. So make sure we wait for the parallel
-	 * find_linux_pte_or_hugepage to finish.
+	 * find_current_mm_pte to finish.
 	 */
-	kick_all_cpus_sync();
+	serialize_against_pte_lookup(mm);
 	return old_pmd;
 }
 

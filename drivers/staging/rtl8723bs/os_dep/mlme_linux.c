@@ -21,7 +21,7 @@
 
 static void _dynamic_check_timer_handlder (void *FunctionContext)
 {
-	struct adapter *adapter = (struct adapter *)FunctionContext;
+	struct adapter *adapter = FunctionContext;
 
 	rtw_dynamic_check_timer_handlder(adapter);
 
@@ -30,7 +30,7 @@ static void _dynamic_check_timer_handlder (void *FunctionContext)
 
 static void _rtw_set_scan_deny_timer_hdl(void *FunctionContext)
 {
-	struct adapter *adapter = (struct adapter *)FunctionContext;
+	struct adapter *adapter = FunctionContext;
 	rtw_set_scan_deny_timer_hdl(adapter);
 }
 
@@ -90,8 +90,6 @@ void rtw_reset_securitypriv(struct adapter *adapter)
 		/*  */
 		/*  Backup the btkip_countermeasure information. */
 		/*  When the countermeasure is trigger, the driver have to disconnect with AP for 60 seconds. */
-
-		memset(&backupPMKIDList[ 0 ], 0x00, sizeof(RT_PMKID_LIST) * NUM_PMKID_CACHE);
 
 		memcpy(&backupPMKIDList[ 0 ], &adapter->securitypriv.PMKIDList[ 0 ], sizeof(RT_PMKID_LIST) * NUM_PMKID_CACHE);
 		backupPMKIDIndex = adapter->securitypriv.PMKIDIndex;

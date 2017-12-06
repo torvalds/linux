@@ -133,7 +133,7 @@ static void sirfsoc_dt_free_map(struct pinctrl_dev *pctldev,
 	kfree(map);
 }
 
-static struct pinctrl_ops sirfsoc_pctrl_ops = {
+static const struct pinctrl_ops sirfsoc_pctrl_ops = {
 	.get_groups_count = sirfsoc_get_groups_count,
 	.get_group_name = sirfsoc_get_group_name,
 	.get_group_pins = sirfsoc_get_group_pins,
@@ -229,7 +229,7 @@ static int sirfsoc_pinmux_request_gpio(struct pinctrl_dev *pmxdev,
 	return 0;
 }
 
-static struct pinmux_ops sirfsoc_pinmux_ops = {
+static const struct pinmux_ops sirfsoc_pinmux_ops = {
 	.set_mux = sirfsoc_pinmux_set_mux,
 	.get_functions_count = sirfsoc_pinmux_get_funcs_count,
 	.get_function_name = sirfsoc_pinmux_get_func_name,
@@ -810,7 +810,7 @@ static int sirfsoc_gpio_probe(struct device_node *np)
 	sgpio->chip.gc.set = sirfsoc_gpio_set_value;
 	sgpio->chip.gc.base = 0;
 	sgpio->chip.gc.ngpio = SIRFSOC_GPIO_BANK_SIZE * SIRFSOC_GPIO_NO_OF_BANKS;
-	sgpio->chip.gc.label = kstrdup(np->full_name, GFP_KERNEL);
+	sgpio->chip.gc.label = kasprintf(GFP_KERNEL, "%pOF", np);
 	sgpio->chip.gc.of_node = np;
 	sgpio->chip.gc.of_xlate = sirfsoc_gpio_of_xlate;
 	sgpio->chip.gc.of_gpio_n_cells = 2;
@@ -819,8 +819,8 @@ static int sirfsoc_gpio_probe(struct device_node *np)
 
 	err = gpiochip_add_data(&sgpio->chip.gc, sgpio);
 	if (err) {
-		dev_err(&pdev->dev, "%s: error in probe function with status %d\n",
-			np->full_name, err);
+		dev_err(&pdev->dev, "%pOF: error in probe function with status %d\n",
+			np, err);
 		goto out;
 	}
 

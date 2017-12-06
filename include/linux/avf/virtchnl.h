@@ -133,6 +133,8 @@ enum virtchnl_ops {
 	VIRTCHNL_OP_CONFIG_RSS_LUT = 24,
 	VIRTCHNL_OP_GET_RSS_HENA_CAPS = 25,
 	VIRTCHNL_OP_SET_RSS_HENA = 26,
+	VIRTCHNL_OP_ENABLE_VLAN_STRIPPING = 27,
+	VIRTCHNL_OP_DISABLE_VLAN_STRIPPING = 28,
 };
 
 /* This macro is used to generate a compilation error if a structure
@@ -223,7 +225,7 @@ struct virtchnl_vsi_resource {
 
 VIRTCHNL_CHECK_STRUCT_LEN(16, virtchnl_vsi_resource);
 
-/* VF offload flags
+/* VF capability flags
  * VIRTCHNL_VF_OFFLOAD_L2 flag is inclusive of base mode L2 offloads including
  * TX/RX Checksum offloading and TSO for non-tunnelled packets.
  */
@@ -251,7 +253,7 @@ struct virtchnl_vf_resource {
 	u16 max_vectors;
 	u16 max_mtu;
 
-	u32 vf_offload_flags;
+	u32 vf_cap_flags;
 	u32 rss_key_size;
 	u32 rss_lut_size;
 
@@ -685,6 +687,9 @@ virtchnl_vc_validate_vf_msg(struct virtchnl_version_info *ver, u32 v_opcode,
 		break;
 	case VIRTCHNL_OP_SET_RSS_HENA:
 		valid_len = sizeof(struct virtchnl_rss_hena);
+		break;
+	case VIRTCHNL_OP_ENABLE_VLAN_STRIPPING:
+	case VIRTCHNL_OP_DISABLE_VLAN_STRIPPING:
 		break;
 	/* These are always errors coming from the VF. */
 	case VIRTCHNL_OP_EVENT:

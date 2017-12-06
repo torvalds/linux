@@ -333,9 +333,7 @@ static int usnic_port_immutable(struct ib_device *ibdev, u8 port_num,
 	return 0;
 }
 
-static void usnic_get_dev_fw_str(struct ib_device *device,
-				 char *str,
-				 size_t str_len)
+static void usnic_get_dev_fw_str(struct ib_device *device, char *str)
 {
 	struct usnic_ib_dev *us_ibdev =
 		container_of(device, struct usnic_ib_dev, ib_dev);
@@ -345,7 +343,7 @@ static void usnic_get_dev_fw_str(struct ib_device *device,
 	us_ibdev->netdev->ethtool_ops->get_drvinfo(us_ibdev->netdev, &info);
 	mutex_unlock(&us_ibdev->usdev_lock);
 
-	snprintf(str, str_len, "%s", info.fw_version);
+	snprintf(str, IB_FW_VERSION_NAME_MAX, "%s", info.fw_version);
 }
 
 /* Start of PF discovery section */
@@ -353,7 +351,7 @@ static void *usnic_ib_device_add(struct pci_dev *dev)
 {
 	struct usnic_ib_dev *us_ibdev;
 	union ib_gid gid;
-	struct in_ifaddr *in;
+	struct in_device *ind;
 	struct net_device *netdev;
 
 	usnic_dbg("\n");
@@ -409,6 +407,7 @@ static void *usnic_ib_device_add(struct pci_dev *dev)
 	us_ibdev->ib_dev.query_port = usnic_ib_query_port;
 	us_ibdev->ib_dev.query_pkey = usnic_ib_query_pkey;
 	us_ibdev->ib_dev.query_gid = usnic_ib_query_gid;
+	us_ibdev->ib_dev.get_netdev = usnic_get_netdev;
 	us_ibdev->ib_dev.get_link_layer = usnic_ib_port_link_layer;
 	us_ibdev->ib_dev.alloc_pd = usnic_ib_alloc_pd;
 	us_ibdev->ib_dev.dealloc_pd = usnic_ib_dealloc_pd;
@@ -442,9 +441,11 @@ static void *usnic_ib_device_add(struct pci_dev *dev)
 	if (netif_carrier_ok(us_ibdev->netdev))
 		usnic_fwd_carrier_up(us_ibdev->ufdev);
 
-	in = ((struct in_device *)(netdev->ip_ptr))->ifa_list;
-	if (in != NULL)
-		usnic_fwd_add_ipaddr(us_ibdev->ufdev, in->ifa_address);
+	ind = in_dev_get(netdev);
+	if (ind->ifa_list)
+		usnic_fwd_add_ipaddr(us_ibdev->ufdev,
+				     ind->ifa_list->ifa_address);
+	in_dev_put(ind);
 
 	usnic_mac_ip_to_gid(us_ibdev->netdev->perm_addr,
 				us_ibdev->ufdev->inaddr, &gid.raw[0]);
@@ -720,7 +721,6 @@ static void __exit usnic_ib_destroy(void)
 MODULE_DESCRIPTION("Cisco VIC (usNIC) Verbs Driver");
 MODULE_AUTHOR("Upinder Malhi <umalhi@cisco.com>");
 MODULE_LICENSE("Dual BSD/GPL");
-MODULE_VERSION(DRV_VERSION);
 module_param(usnic_log_lvl, uint, S_IRUGO | S_IWUSR);
 module_param(usnic_ib_share_vf, uint, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(usnic_log_lvl, " Off=0, Err=1, Info=2, Debug=3");

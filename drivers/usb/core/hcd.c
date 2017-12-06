@@ -972,7 +972,7 @@ static struct attribute *usb_bus_attrs[] = {
 		NULL,
 };
 
-static struct attribute_group usb_bus_attr_group = {
+static const struct attribute_group usb_bus_attr_group = {
 	.name = NULL,	/* we want them in the same directory */
 	.attrs = usb_bus_attrs,
 };

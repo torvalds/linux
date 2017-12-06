@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * This is a maximally equidistributed combined Tausworthe generator
  * based on code from GNU Scientific Library 1.5 (30 Jun 2004)

@@ -1951,7 +1951,7 @@ static const struct dev_pm_ops brcmf_pciedrvr_pm = {
 	BRCM_PCIE_VENDOR_ID_BROADCOM, dev_id,\
 	subvend, subdev, PCI_CLASS_NETWORK_OTHER << 8, 0xffff00, 0 }
 
-static struct pci_device_id brcmf_pcie_devid_table[] = {
+static const struct pci_device_id brcmf_pcie_devid_table[] = {
 	BRCMF_PCIE_DEVICE(BRCM_PCIE_4350_DEVICE_ID),
 	BRCMF_PCIE_DEVICE(BRCM_PCIE_4356_DEVICE_ID),
 	BRCMF_PCIE_DEVICE(BRCM_PCIE_43567_DEVICE_ID),

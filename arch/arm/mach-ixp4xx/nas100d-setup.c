@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * arch/arm/mach-ixp4xx/nas100d-setup.c
  *

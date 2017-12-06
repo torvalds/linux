@@ -64,8 +64,6 @@ static inline void arch_spin_unlock(arch_spinlock_t *lock)
 	lock->current_ticket = old_ticket + TICKET_QUANTUM;
 }
 
-void arch_spin_unlock_wait(arch_spinlock_t *lock);
-
 /*
  * Read-write spinlocks, allowing multiple readers
  * but only one writer.

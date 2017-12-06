@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * sysctl_net_ipv6.c: sysctl interface to net IPV6 subsystem.
  *
@@ -90,6 +91,13 @@ static struct ctl_table ipv6_table_template[] = {
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec
 	},
+	{
+		.procname	= "flowlabel_reflect",
+		.data		= &init_net.ipv6.sysctl.flowlabel_reflect,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec,
+	},
 	{ }
 };
 
@@ -149,6 +157,7 @@ static int __net_init ipv6_sysctl_net_init(struct net *net)
 	ipv6_table[6].data = &net->ipv6.sysctl.idgen_delay;
 	ipv6_table[7].data = &net->ipv6.sysctl.flowlabel_state_ranges;
 	ipv6_table[8].data = &net->ipv6.sysctl.ip_nonlocal_bind;
+	ipv6_table[9].data = &net->ipv6.sysctl.flowlabel_reflect;
 
 	ipv6_route_table = ipv6_route_sysctl_init(net);
 	if (!ipv6_route_table)

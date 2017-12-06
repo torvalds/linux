@@ -104,7 +104,6 @@ extern const struct fwnode_operations of_fwnode_ops;
 static inline void of_node_init(struct device_node *node)
 {
 	kobject_init(&node->kobj, &of_node_ktype);
-	node->fwnode.type = FWNODE_OF;
 	node->fwnode.ops = &of_fwnode_ops;
 }
 
@@ -152,7 +151,7 @@ void of_core_init(void);
 
 static inline bool is_of_node(const struct fwnode_handle *fwnode)
 {
-	return !IS_ERR_OR_NULL(fwnode) && fwnode->type == FWNODE_OF;
+	return !IS_ERR_OR_NULL(fwnode) && fwnode->ops == &of_fwnode_ops;
 }
 
 #define to_of_node(__fwnode)						\
@@ -733,6 +732,16 @@ static inline struct device_node *of_get_cpu_node(int cpu,
 					unsigned int *thread)
 {
 	return NULL;
+}
+
+static inline int of_n_addr_cells(struct device_node *np)
+{
+	return 0;
+
+}
+static inline int of_n_size_cells(struct device_node *np)
+{
+	return 0;
 }
 
 static inline int of_property_read_u64(const struct device_node *np,

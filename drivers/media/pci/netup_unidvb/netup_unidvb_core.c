@@ -1014,7 +1014,7 @@ static void netup_unidvb_finidev(struct pci_dev *pci_dev)
 }
 
 
-static struct pci_device_id netup_unidvb_pci_tbl[] = {
+static const struct pci_device_id netup_unidvb_pci_tbl[] = {
 	{ PCI_DEVICE(0x1b55, 0x18f6) }, /* hw rev. 1.3 */
 	{ PCI_DEVICE(0x1b55, 0x18f7) }, /* hw rev. 1.4 */
 	{ 0, }

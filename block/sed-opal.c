@@ -80,6 +80,7 @@ struct parsed_resp {
 
 struct opal_dev {
 	bool supported;
+	bool mbr_enabled;
 
 	void *data;
 	sec_send_recv *send_recv;
@@ -283,6 +284,14 @@ static bool check_tper(const void *data)
 	return true;
 }
 
+static bool check_mbrenabled(const void *data)
+{
+	const struct d0_locking_features *lfeat = data;
+	u8 sup_feat = lfeat->supported_features;
+
+	return !!(sup_feat & MBR_ENABLED_MASK);
+}
+
 static bool check_sum(const void *data)
 {
 	const struct d0_single_user_mode *sum = data;
@@ -417,6 +426,7 @@ static int opal_discovery0_end(struct opal_dev *dev)
 	u32 hlen = be32_to_cpu(hdr->length);
 
 	print_buffer(dev->resp, hlen);
+	dev->mbr_enabled = false;
 
 	if (hlen > IO_BUFFER_LENGTH - sizeof(*hdr)) {
 		pr_debug("Discovery length overflows buffer (%zu+%u)/%u\n",
@@ -442,6 +452,8 @@ static int opal_discovery0_end(struct opal_dev *dev)
 			check_geometry(dev, body);
 			break;
 		case FC_LOCKING:
+			dev->mbr_enabled = check_mbrenabled(body->features);
+			break;
 		case FC_ENTERPRISE:
 		case FC_DATASTORE:
 			/* some ignored properties */
@@ -2190,6 +2202,21 @@ static int __opal_lock_unlock(struct opal_dev *dev,
 	return next(dev);
 }
 
+static int __opal_set_mbr_done(struct opal_dev *dev, struct opal_key *key)
+{
+	u8 mbr_done_tf = 1;
+	const struct opal_step mbrdone_step [] = {
+		{ opal_discovery0, },
+		{ start_admin1LSP_opal_session, key },
+		{ set_mbr_done, &mbr_done_tf },
+		{ end_opal_session, },
+		{ NULL, }
+	};
+
+	dev->steps = mbrdone_step;
+	return next(dev);
+}
+
 static int opal_lock_unlock(struct opal_dev *dev,
 			    struct opal_lock_unlock *lk_unlk)
 {
@@ -2344,6 +2371,11 @@ bool opal_unlock_from_suspend(struct opal_dev *dev)
 				 suspend->unlk.session.opal_key.lr,
 				 suspend->unlk.session.sum);
 			was_failure = true;
+		}
+		if (dev->mbr_enabled) {
+			ret = __opal_set_mbr_done(dev, &suspend->unlk.session.opal_key);
+			if (ret)
+				pr_debug("Failed to set MBR Done in S3 resume\n");
 		}
 	}
 	mutex_unlock(&dev->dev_lock);

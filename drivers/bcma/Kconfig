@@ -1,13 +1,11 @@
+# SPDX-License-Identifier: GPL-2.0
 config BCMA_POSSIBLE
 	bool
 	depends on HAS_IOMEM && HAS_DMA
 	default y
 
-menu "Broadcom specific AMBA"
-	depends on BCMA_POSSIBLE
-
-config BCMA
-	tristate "BCMA support"
+menuconfig BCMA
+	tristate "Broadcom specific AMBA"
 	depends on BCMA_POSSIBLE
 	help
 	  Bus driver for Broadcom specific Advanced Microcontroller Bus
@@ -117,5 +115,3 @@ config BCMA_DEBUG
 	  This turns on additional debugging messages.
 
 	  If unsure, say N
-
-endmenu

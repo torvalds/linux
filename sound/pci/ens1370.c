@@ -1059,7 +1059,7 @@ static snd_pcm_uframes_t snd_ensoniq_capture_pointer(struct snd_pcm_substream *s
 	return ptr;
 }
 
-static struct snd_pcm_hardware snd_ensoniq_playback1 =
+static const struct snd_pcm_hardware snd_ensoniq_playback1 =
 {
 	.info =			(SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED |
 				 SNDRV_PCM_INFO_BLOCK_TRANSFER |
@@ -1086,7 +1086,7 @@ static struct snd_pcm_hardware snd_ensoniq_playback1 =
 	.fifo_size =		0,
 };
 
-static struct snd_pcm_hardware snd_ensoniq_playback2 =
+static const struct snd_pcm_hardware snd_ensoniq_playback2 =
 {
 	.info =			(SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED |
 				 SNDRV_PCM_INFO_BLOCK_TRANSFER |
@@ -1106,7 +1106,7 @@ static struct snd_pcm_hardware snd_ensoniq_playback2 =
 	.fifo_size =		0,
 };
 
-static struct snd_pcm_hardware snd_ensoniq_capture =
+static const struct snd_pcm_hardware snd_ensoniq_capture =
 {
 	.info =			(SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED |
 				 SNDRV_PCM_INFO_BLOCK_TRANSFER |

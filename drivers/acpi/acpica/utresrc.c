@@ -237,6 +237,13 @@ acpi_ut_walk_aml_resources(struct acpi_walk_state *walk_state,
 				return_ACPI_STATUS(AE_AML_NO_RESOURCE_END_TAG);
 			}
 
+			/*
+			 * Don't attempt to perform any validation on the 2nd byte.
+			 * Although all known ASL compilers insert a zero for the 2nd
+			 * byte, it can also be a checksum (as per the ACPI spec),
+			 * and this is occasionally seen in the field. July 2017.
+			 */
+
 			/* Return the pointer to the end_tag if requested */
 
 			if (!user_function) {

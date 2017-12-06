@@ -65,7 +65,7 @@ MODULE_PARM_DESC(watchdog, "transmit timeout in milliseconds");
  */
 static int debug;
 module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "dm9000 debug level (0-4)");
+MODULE_PARM_DESC(debug, "dm9000 debug level (0-6)");
 
 /* DM9000 register address locking.
  *

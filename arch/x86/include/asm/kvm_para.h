@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_X86_KVM_PARA_H
 #define _ASM_X86_KVM_PARA_H
 
@@ -88,7 +89,7 @@ static inline long kvm_hypercall4(unsigned int nr, unsigned long p1,
 bool kvm_para_available(void);
 unsigned int kvm_arch_para_features(void);
 void __init kvm_guest_init(void);
-void kvm_async_pf_task_wait(u32 token);
+void kvm_async_pf_task_wait(u32 token, int interrupt_kernel);
 void kvm_async_pf_task_wake(u32 token);
 u32 kvm_read_and_reset_pf_reason(void);
 extern void kvm_disable_steal_time(void);
@@ -103,7 +104,7 @@ static inline void kvm_spinlock_init(void)
 
 #else /* CONFIG_KVM_GUEST */
 #define kvm_guest_init() do {} while (0)
-#define kvm_async_pf_task_wait(T) do {} while(0)
+#define kvm_async_pf_task_wait(T, I) do {} while(0)
 #define kvm_async_pf_task_wake(T) do {} while(0)
 
 static inline bool kvm_para_available(void)

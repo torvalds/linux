@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * dts file for Hisilicon Hi3660 SoC
  *
@@ -58,6 +59,8 @@
 			device_type = "cpu";
 			reg = <0x0 0x0>;
 			enable-method = "psci";
+			next-level-cache = <&A53_L2>;
+			cpu-idle-states = <&CPU_SLEEP &CLUSTER_SLEEP_0>;
 		};
 
 		cpu1: cpu@1 {
@@ -65,6 +68,8 @@
 			device_type = "cpu";
 			reg = <0x0 0x1>;
 			enable-method = "psci";
+			next-level-cache = <&A53_L2>;
+			cpu-idle-states = <&CPU_SLEEP &CLUSTER_SLEEP_0>;
 		};
 
 		cpu2: cpu@2 {
@@ -72,6 +77,8 @@
 			device_type = "cpu";
 			reg = <0x0 0x2>;
 			enable-method = "psci";
+			next-level-cache = <&A53_L2>;
+			cpu-idle-states = <&CPU_SLEEP &CLUSTER_SLEEP_0>;
 		};
 
 		cpu3: cpu@3 {
@@ -79,6 +86,8 @@
 			device_type = "cpu";
 			reg = <0x0 0x3>;
 			enable-method = "psci";
+			next-level-cache = <&A53_L2>;
+			cpu-idle-states = <&CPU_SLEEP &CLUSTER_SLEEP_0>;
 		};
 
 		cpu4: cpu@100 {
@@ -86,6 +95,12 @@
 			device_type = "cpu";
 			reg = <0x0 0x100>;
 			enable-method = "psci";
+			next-level-cache = <&A73_L2>;
+			cpu-idle-states = <
+					&CPU_NAP
+					&CPU_SLEEP
+					&CLUSTER_SLEEP_1
+			>;
 		};
 
 		cpu5: cpu@101 {
@@ -93,6 +108,12 @@
 			device_type = "cpu";
 			reg = <0x0 0x101>;
 			enable-method = "psci";
+			next-level-cache = <&A73_L2>;
+			cpu-idle-states = <
+					&CPU_NAP
+					&CPU_SLEEP
+					&CLUSTER_SLEEP_1
+			>;
 		};
 
 		cpu6: cpu@102 {
@@ -100,6 +121,12 @@
 			device_type = "cpu";
 			reg = <0x0 0x102>;
 			enable-method = "psci";
+			next-level-cache = <&A73_L2>;
+			cpu-idle-states = <
+					&CPU_NAP
+					&CPU_SLEEP
+					&CLUSTER_SLEEP_1
+			>;
 		};
 
 		cpu7: cpu@103 {
@@ -107,6 +134,59 @@
 			device_type = "cpu";
 			reg = <0x0 0x103>;
 			enable-method = "psci";
+			next-level-cache = <&A73_L2>;
+			cpu-idle-states = <
+					&CPU_NAP
+					&CPU_SLEEP
+					&CLUSTER_SLEEP_1
+			>;
+		};
+
+		idle-states {
+			entry-method = "psci";
+
+			CPU_NAP: cpu-nap {
+				compatible = "arm,idle-state";
+				arm,psci-suspend-param = <0x0000001>;
+				entry-latency-us = <7>;
+				exit-latency-us = <2>;
+				min-residency-us = <15>;
+			};
+
+			CPU_SLEEP: cpu-sleep {
+				compatible = "arm,idle-state";
+				local-timer-stop;
+				arm,psci-suspend-param = <0x0010000>;
+				entry-latency-us = <40>;
+				exit-latency-us = <70>;
+				min-residency-us = <3000>;
+			};
+
+			CLUSTER_SLEEP_0: cluster-sleep-0 {
+				compatible = "arm,idle-state";
+				local-timer-stop;
+				arm,psci-suspend-param = <0x1010000>;
+				entry-latency-us = <500>;
+				exit-latency-us = <5000>;
+				min-residency-us = <20000>;
+			};
+
+			CLUSTER_SLEEP_1: cluster-sleep-1 {
+				compatible = "arm,idle-state";
+				local-timer-stop;
+				arm,psci-suspend-param = <0x1010000>;
+				entry-latency-us = <1000>;
+				exit-latency-us = <5000>;
+				min-residency-us = <20000>;
+			};
+		};
+
+		A53_L2: l2-cache0 {
+			compatible = "cache";
+		};
+
+		A73_L2: l2-cache1 {
+			compatible = "cache";
 		};
 	};
 
@@ -121,6 +201,26 @@
 		interrupt-controller;
 		interrupts = <GIC_PPI 9 (GIC_CPU_MASK_SIMPLE(8) |
 					 IRQ_TYPE_LEVEL_HIGH)>;
+	};
+
+	pmu {
+		compatible = "arm,armv8-pmuv3";
+		interrupts = <GIC_SPI 24 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 25 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 26 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 27 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 2 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 3 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 4 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 5 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-affinity = <&cpu0>,
+				     <&cpu1>,
+				     <&cpu2>,
+				     <&cpu3>,
+				     <&cpu4>,
+				     <&cpu5>,
+				     <&cpu6>,
+				     <&cpu7>;
 	};
 
 	timer {
@@ -335,6 +435,19 @@
 			pinctrl-names = "default";
 			pinctrl-0 = <&uart6_pmx_func &uart6_cfg_func>;
 			status = "disabled";
+		};
+
+		dma0: dma@fdf30000 {
+			compatible = "hisilicon,k3-dma-1.0";
+			reg = <0x0 0xfdf30000 0x0 0x1000>;
+			#dma-cells = <1>;
+			dma-channels = <16>;
+			dma-requests = <32>;
+			dma-min-chan = <1>;
+			interrupts = <GIC_SPI 143 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&crg_ctrl HI3660_CLK_GATE_DMAC>;
+			dma-no-cci;
+			dma-type = "hi3660_dma";
 		};
 
 		rtc0: rtc@fff04000 {
@@ -810,6 +923,7 @@
 			clock-names = "ciu", "biu";
 			clock-frequency = <3200000>;
 			resets = <&crg_rst 0x94 18>;
+			reset-names = "reset";
 			cd-gpios = <&gpio25 3 0>;
 			hisilicon,peripheral-syscon = <&sctrl>;
 			pinctrl-names = "default";
@@ -839,6 +953,7 @@
 				 <&crg_ctrl HI3660_HCLK_GATE_SDIO0>;
 			clock-names = "ciu", "biu";
 			resets = <&crg_rst 0x94 20>;
+			reset-names = "reset";
 			card-detect-delay = <200>;
 			supports-highspeed;
 			keep-power-in-suspend;
@@ -847,6 +962,22 @@
 				     &sdio_clk_cfg_func
 				     &sdio_cfg_func>;
 			status = "disabled";
+		};
+
+		watchdog0: watchdog@e8a06000 {
+			compatible = "arm,sp805-wdt", "arm,primecell";
+			reg = <0x0 0xe8a06000 0x0 0x1000>;
+			interrupts = <GIC_SPI 44 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&crg_ctrl HI3660_OSC32K>;
+			clock-names = "apb_pclk";
+		};
+
+		watchdog1: watchdog@e8a07000 {
+			compatible = "arm,sp805-wdt", "arm,primecell";
+			reg = <0x0 0xe8a07000 0x0 0x1000>;
+			interrupts = <GIC_SPI 45 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&crg_ctrl HI3660_OSC32K>;
+			clock-names = "apb_pclk";
 		};
 	};
 };

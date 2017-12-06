@@ -1,6 +1,18 @@
 Amlogic MesonX device tree bindings
 -------------------------------------------
 
+Work in progress statement:
+
+Device tree files and bindings applying to Amlogic SoCs and boards are
+considered "unstable". Any Amlogic device tree binding may change at
+any time. Be sure to use a device tree binary and a kernel image
+generated from the same source tree.
+
+Please refer to Documentation/devicetree/bindings/ABI.txt for a definition of a
+stable binding/ABI.
+
+---------------------------------------------------------------
+
 Boards with the Amlogic Meson6 SoC shall have the following properties:
   Required root node property:
     compatible: "amlogic,meson6"
@@ -61,3 +73,32 @@ Board compatible values (alphabetically, grouped by SoC):
   - "amlogic,q201" (Meson gxm s912)
   - "kingnovel,r-box-pro" (Meson gxm S912)
   - "nexbox,a1" (Meson gxm s912)
+
+Amlogic Meson Firmware registers Interface
+------------------------------------------
+
+The Meson SoCs have a register bank with status and data shared with the
+secure firmware.
+
+Required properties:
+ - compatible: For Meson GX SoCs, must be "amlogic,meson-gx-ao-secure", "syscon"
+
+Properties should indentify components of this register interface :
+
+Meson GX SoC Information
+------------------------
+A firmware register encodes the SoC type, package and revision information on
+the Meson GX SoCs.
+If present, the following property should be added :
+
+Optional properties:
+  - amlogic,has-chip-id: If present, the interface gives the current SoC version.
+
+Example
+-------
+
+ao-secure@140 {
+	compatible = "amlogic,meson-gx-ao-secure", "syscon";
+	reg = <0x0 0x140 0x0 0x140>;
+	amlogic,has-chip-id;
+};

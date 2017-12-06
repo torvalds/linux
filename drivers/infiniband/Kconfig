@@ -34,6 +34,15 @@ config INFINIBAND_USER_ACCESS
 	  libibverbs, libibcm and a hardware driver library from
 	  <http://www.openfabrics.org/git/>.
 
+config INFINIBAND_EXP_USER_ACCESS
+	bool "Allow experimental support for Infiniband ABI"
+	depends on INFINIBAND_USER_ACCESS
+	---help---
+	  IOCTL based ABI support for Infiniband. This allows userspace
+	  to invoke the experimental IOCTL based ABI.
+	  These commands are parsed via per-device parsing tree and
+	  enables per-device features.
+
 config INFINIBAND_USER_MEM
 	bool
 	depends on INFINIBAND_USER_ACCESS != n

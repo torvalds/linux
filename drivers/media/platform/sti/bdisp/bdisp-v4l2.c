@@ -360,7 +360,7 @@ out:
 		bdisp_job_finish(ctx, VB2_BUF_STATE_ERROR);
 }
 
-static struct v4l2_m2m_ops bdisp_m2m_ops = {
+static const struct v4l2_m2m_ops bdisp_m2m_ops = {
 	.device_run     = bdisp_device_run,
 	.job_abort      = bdisp_job_abort,
 };

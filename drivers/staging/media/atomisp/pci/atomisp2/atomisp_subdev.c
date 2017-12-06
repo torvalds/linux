@@ -1253,8 +1253,7 @@ int atomisp_create_pads_links(struct atomisp_device *isp)
 {
 	struct atomisp_sub_device *asd;
 	int i, j, ret = 0;
-	isp->num_of_streams = isp->media_dev.driver_version >=
-	    ATOMISP_CSS_VERSION_20 ? 2 : 1;
+	isp->num_of_streams = 2;
 	for (i = 0; i < ATOMISP_CAMERA_NR_PORTS; i++) {
 		for (j = 0; j < isp->num_of_streams; j++) {
 			ret =
@@ -1414,8 +1413,7 @@ int atomisp_subdev_init(struct atomisp_device *isp)
 	 * CSS2.0 running ISP2400 support
 	 * multiple streams
 	 */
-	isp->num_of_streams = isp->media_dev.driver_version >=
-	    ATOMISP_CSS_VERSION_20 ? 2 : 1;
+	isp->num_of_streams = 2;
 	isp->asd = devm_kzalloc(isp->dev, sizeof(struct atomisp_sub_device) *
 			       isp->num_of_streams, GFP_KERNEL);
 	if (!isp->asd)

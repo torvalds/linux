@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  *  S390 version
  *    Copyright IBM Corp. 1999, 2000
@@ -10,10 +11,14 @@
 #include <linux/const.h>
 #include <asm/types.h>
 
+#define _PAGE_SHIFT	12
+#define _PAGE_SIZE	(_AC(1, UL) << _PAGE_SHIFT)
+#define _PAGE_MASK	(~(_PAGE_SIZE - 1))
+
 /* PAGE_SHIFT determines the page size */
-#define PAGE_SHIFT      12
-#define PAGE_SIZE	(_AC(1,UL) << PAGE_SHIFT)
-#define PAGE_MASK       (~(PAGE_SIZE-1))
+#define PAGE_SHIFT	_PAGE_SHIFT
+#define PAGE_SIZE	_PAGE_SIZE
+#define PAGE_MASK	_PAGE_MASK
 #define PAGE_DEFAULT_ACC	0
 #define PAGE_DEFAULT_KEY	(PAGE_DEFAULT_ACC << 4)
 
@@ -133,6 +138,9 @@ static inline int page_reset_referenced(unsigned long addr)
 struct page;
 void arch_free_page(struct page *page, int order);
 void arch_alloc_page(struct page *page, int order);
+void arch_set_page_dat(struct page *page, int order);
+void arch_set_page_nodat(struct page *page, int order);
+int arch_test_page_nodat(struct page *page);
 void arch_set_page_states(int make_stable);
 
 static inline int devmem_is_allowed(unsigned long pfn)
@@ -145,15 +153,25 @@ static inline int devmem_is_allowed(unsigned long pfn)
 
 #endif /* !__ASSEMBLY__ */
 
-#define __PAGE_OFFSET           0x0UL
-#define PAGE_OFFSET             0x0UL
-#define __pa(x)                 (unsigned long)(x)
-#define __va(x)                 (void *)(unsigned long)(x)
-#define virt_to_page(kaddr)	pfn_to_page(__pa(kaddr) >> PAGE_SHIFT)
-#define page_to_phys(page)	(page_to_pfn(page) << PAGE_SHIFT)
-#define virt_addr_valid(kaddr)	pfn_valid(__pa(kaddr) >> PAGE_SHIFT)
+#define __PAGE_OFFSET		0x0UL
+#define PAGE_OFFSET		0x0UL
+
+#define __pa(x)			((unsigned long)(x))
+#define __va(x)			((void *)(unsigned long)(x))
+
+#define virt_to_pfn(kaddr)	(__pa(kaddr) >> PAGE_SHIFT)
 #define pfn_to_virt(pfn)	__va((pfn) << PAGE_SHIFT)
+
+#define virt_to_page(kaddr)	pfn_to_page(virt_to_pfn(kaddr))
 #define page_to_virt(page)	pfn_to_virt(page_to_pfn(page))
+
+#define phys_to_pfn(kaddr)	((kaddr) >> PAGE_SHIFT)
+#define pfn_to_phys(pfn)	((pfn) << PAGE_SHIFT)
+
+#define phys_to_page(kaddr)	pfn_to_page(phys_to_pfn(kaddr))
+#define page_to_phys(page)	(page_to_pfn(page) << PAGE_SHIFT)
+
+#define virt_addr_valid(kaddr)	pfn_valid(__pa(kaddr) >> PAGE_SHIFT)
 
 #define VM_DATA_DEFAULT_FLAGS	(VM_READ | VM_WRITE | \
 				 VM_MAYREAD | VM_MAYWRITE | VM_MAYEXEC)

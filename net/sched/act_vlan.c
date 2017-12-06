@@ -19,8 +19,6 @@
 #include <linux/tc_act/tc_vlan.h>
 #include <net/tc_act/tc_vlan.h>
 
-#define VLAN_TAB_MASK     15
-
 static unsigned int vlan_net_id;
 static struct tc_action_ops act_vlan_ops;
 
@@ -128,7 +126,7 @@ static int tcf_vlan_init(struct net *net, struct nlattr *nla,
 	if (!tb[TCA_VLAN_PARMS])
 		return -EINVAL;
 	parm = nla_data(tb[TCA_VLAN_PARMS]);
-	exists = tcf_hash_check(tn, parm->index, a, bind);
+	exists = tcf_idr_check(tn, parm->index, a, bind);
 	if (exists && bind)
 		return 0;
 
@@ -139,13 +137,13 @@ static int tcf_vlan_init(struct net *net, struct nlattr *nla,
 	case TCA_VLAN_ACT_MODIFY:
 		if (!tb[TCA_VLAN_PUSH_VLAN_ID]) {
 			if (exists)
-				tcf_hash_release(*a, bind);
+				tcf_idr_release(*a, bind);
 			return -EINVAL;
 		}
 		push_vid = nla_get_u16(tb[TCA_VLAN_PUSH_VLAN_ID]);
 		if (push_vid >= VLAN_VID_MASK) {
 			if (exists)
-				tcf_hash_release(*a, bind);
+				tcf_idr_release(*a, bind);
 			return -ERANGE;
 		}
 
@@ -167,20 +165,20 @@ static int tcf_vlan_init(struct net *net, struct nlattr *nla,
 		break;
 	default:
 		if (exists)
-			tcf_hash_release(*a, bind);
+			tcf_idr_release(*a, bind);
 		return -EINVAL;
 	}
 	action = parm->v_action;
 
 	if (!exists) {
-		ret = tcf_hash_create(tn, parm->index, est, a,
-				      &act_vlan_ops, bind, false);
+		ret = tcf_idr_create(tn, parm->index, est, a,
+				     &act_vlan_ops, bind, false);
 		if (ret)
 			return ret;
 
 		ret = ACT_P_CREATED;
 	} else {
-		tcf_hash_release(*a, bind);
+		tcf_idr_release(*a, bind);
 		if (!ovr)
 			return -EEXIST;
 	}
@@ -199,7 +197,7 @@ static int tcf_vlan_init(struct net *net, struct nlattr *nla,
 	spin_unlock_bh(&v->tcf_lock);
 
 	if (ret == ACT_P_CREATED)
-		tcf_hash_insert(tn, *a);
+		tcf_idr_insert(tn, *a);
 	return ret;
 }
 
@@ -252,7 +250,7 @@ static int tcf_vlan_search(struct net *net, struct tc_action **a, u32 index)
 {
 	struct tc_action_net *tn = net_generic(net, vlan_net_id);
 
-	return tcf_hash_search(tn, a, index);
+	return tcf_idr_search(tn, a, index);
 }
 
 static struct tc_action_ops act_vlan_ops = {
@@ -271,7 +269,7 @@ static __net_init int vlan_init_net(struct net *net)
 {
 	struct tc_action_net *tn = net_generic(net, vlan_net_id);
 
-	return tc_action_net_init(tn, &act_vlan_ops, VLAN_TAB_MASK);
+	return tc_action_net_init(tn, &act_vlan_ops);
 }
 
 static void __net_exit vlan_exit_net(struct net *net)

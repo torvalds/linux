@@ -2257,7 +2257,7 @@ int rtl_pci_probe(struct pci_dev *pdev,
 	/* find adapter */
 	if (!_rtl_pci_find_adapter(pdev, hw)) {
 		err = -ENODEV;
-		goto fail3;
+		goto fail2;
 	}
 
 	/* Init IO handler */
@@ -2318,10 +2318,10 @@ fail3:
 	pci_set_drvdata(pdev, NULL);
 	rtl_deinit_core(hw);
 
+fail2:
 	if (rtlpriv->io.pci_mem_start != 0)
 		pci_iounmap(pdev, (void __iomem *)rtlpriv->io.pci_mem_start);
 
-fail2:
 	pci_release_regions(pdev);
 	complete(&rtlpriv->firmware_loading_complete);
 

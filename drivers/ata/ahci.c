@@ -621,8 +621,11 @@ static void ahci_pci_save_initial_config(struct pci_dev *pdev,
 static int ahci_pci_reset_controller(struct ata_host *host)
 {
 	struct pci_dev *pdev = to_pci_dev(host->dev);
+	int rc;
 
-	ahci_reset_controller(host);
+	rc = ahci_reset_controller(host);
+	if (rc)
+		return rc;
 
 	if (pdev->vendor == PCI_VENDOR_ID_INTEL) {
 		struct ahci_host_priv *hpriv = host->private_data;
@@ -1469,7 +1472,14 @@ static void ahci_remap_check(struct pci_dev *pdev, int bar,
 		return;
 
 	dev_warn(&pdev->dev, "Found %d remapped NVMe devices.\n", count);
-	dev_warn(&pdev->dev, "Switch your BIOS from RAID to AHCI mode to use them.\n");
+	dev_warn(&pdev->dev,
+		 "Switch your BIOS from RAID to AHCI mode to use them.\n");
+
+	/*
+	 * Don't rely on the msi-x capability in the remap case,
+	 * share the legacy interrupt across ahci and remapped devices.
+	 */
+	hpriv->flags |= AHCI_HFLAG_NO_MSI;
 }
 
 static int ahci_get_irq_vector(struct ata_host *host, int port)

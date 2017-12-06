@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * apei.h - ACPI Platform Error Interface
  */
@@ -16,7 +17,13 @@
 
 #ifdef __KERNEL__
 
-extern bool hest_disable;
+enum hest_status {
+	HEST_ENABLED,
+	HEST_DISABLED,
+	HEST_NOT_FOUND,
+};
+
+extern int hest_disable;
 extern int erst_disable;
 #ifdef CONFIG_ACPI_APEI_GHES
 extern bool ghes_disable;

@@ -2,8 +2,9 @@
 
 Required Properties:
 
-  - compatible: should contain one of the following.
+  - compatible: should contain one or more of the following:
     - "renesas,gpio-r8a7743": for R8A7743 (RZ/G1M) compatible GPIO controller.
+    - "renesas,gpio-r8a7745": for R8A7745 (RZ/G1E) compatible GPIO controller.
     - "renesas,gpio-r8a7778": for R8A7778 (R-Mobile M1) compatible GPIO controller.
     - "renesas,gpio-r8a7779": for R8A7779 (R-Car H1) compatible GPIO controller.
     - "renesas,gpio-r8a7790": for R8A7790 (R-Car H2) compatible GPIO controller.
@@ -13,7 +14,14 @@ Required Properties:
     - "renesas,gpio-r8a7794": for R8A7794 (R-Car E2) compatible GPIO controller.
     - "renesas,gpio-r8a7795": for R8A7795 (R-Car H3) compatible GPIO controller.
     - "renesas,gpio-r8a7796": for R8A7796 (R-Car M3-W) compatible GPIO controller.
-    - "renesas,gpio-rcar": for generic R-Car GPIO controller.
+    - "renesas,rcar-gen1-gpio": for a generic R-Car Gen1 GPIO controller.
+    - "renesas,rcar-gen2-gpio": for a generic R-Car Gen2 or RZ/G1 GPIO controller.
+    - "renesas,rcar-gen3-gpio": for a generic R-Car Gen3 GPIO controller.
+    - "renesas,gpio-rcar": deprecated.
+
+    When compatible with the generic version nodes must list the
+    SoC-specific version corresponding to the platform first followed by
+    the generic version.
 
   - reg: Base address and length of each memory resource used by the GPIO
     controller hardware module.
@@ -43,7 +51,7 @@ interrupt-controller/interrupts.txt.
 Example: R8A7779 (R-Car H1) GPIO controller nodes
 
 	gpio0: gpio@ffc40000 {
-		compatible = "renesas,gpio-r8a7779", "renesas,gpio-rcar";
+		compatible = "renesas,gpio-r8a7779", "renesas,rcar-gen1-gpio";
 		reg = <0xffc40000 0x2c>;
 		interrupt-parent = <&gic>;
 		interrupts = <0 141 0x4>;
@@ -55,7 +63,7 @@ Example: R8A7779 (R-Car H1) GPIO controller nodes
 	};
 	...
 	gpio6: gpio@ffc46000 {
-		compatible = "renesas,gpio-r8a7779", "renesas,gpio-rcar";
+		compatible = "renesas,gpio-r8a7779", "renesas,rcar-gen1-gpio";
 		reg = <0xffc46000 0x2c>;
 		interrupt-parent = <&gic>;
 		interrupts = <0 147 0x4>;

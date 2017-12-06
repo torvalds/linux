@@ -308,20 +308,8 @@ static int tbs_sched_init_vgpu(struct intel_vgpu *vgpu)
 
 static void tbs_sched_clean_vgpu(struct intel_vgpu *vgpu)
 {
-	struct intel_gvt_workload_scheduler *scheduler = &vgpu->gvt->scheduler;
-	int ring_id;
-
 	kfree(vgpu->sched_data);
 	vgpu->sched_data = NULL;
-
-	spin_lock_bh(&scheduler->mmio_context_lock);
-	for (ring_id = 0; ring_id < I915_NUM_ENGINES; ring_id++) {
-		if (scheduler->engine_owner[ring_id] == vgpu) {
-			intel_gvt_switch_mmio(vgpu, NULL, ring_id);
-			scheduler->engine_owner[ring_id] = NULL;
-		}
-	}
-	spin_unlock_bh(&scheduler->mmio_context_lock);
 }
 
 static void tbs_sched_start_schedule(struct intel_vgpu *vgpu)
@@ -388,6 +376,7 @@ void intel_vgpu_stop_schedule(struct intel_vgpu *vgpu)
 {
 	struct intel_gvt_workload_scheduler *scheduler =
 		&vgpu->gvt->scheduler;
+	int ring_id;
 
 	gvt_dbg_core("vgpu%d: stop schedule\n", vgpu->id);
 
@@ -401,4 +390,13 @@ void intel_vgpu_stop_schedule(struct intel_vgpu *vgpu)
 		scheduler->need_reschedule = true;
 		scheduler->current_vgpu = NULL;
 	}
+
+	spin_lock_bh(&scheduler->mmio_context_lock);
+	for (ring_id = 0; ring_id < I915_NUM_ENGINES; ring_id++) {
+		if (scheduler->engine_owner[ring_id] == vgpu) {
+			intel_gvt_switch_mmio(vgpu, NULL, ring_id);
+			scheduler->engine_owner[ring_id] = NULL;
+		}
+	}
+	spin_unlock_bh(&scheduler->mmio_context_lock);
 }

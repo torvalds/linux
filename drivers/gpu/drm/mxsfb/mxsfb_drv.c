@@ -190,7 +190,7 @@ static int mxsfb_load(struct drm_device *drm, unsigned long flags)
 	}
 
 	ret = drm_simple_display_pipe_init(drm, &mxsfb->pipe, &mxsfb_funcs,
-			mxsfb_formats, ARRAY_SIZE(mxsfb_formats),
+			mxsfb_formats, ARRAY_SIZE(mxsfb_formats), NULL,
 			&mxsfb->connector);
 	if (ret < 0) {
 		dev_err(drm->dev, "Cannot setup simple display pipe\n");
@@ -256,7 +256,6 @@ static void mxsfb_unload(struct drm_device *drm)
 
 	drm_kms_helper_poll_fini(drm);
 	drm_mode_config_cleanup(drm);
-	drm_vblank_cleanup(drm);
 
 	pm_runtime_get_sync(drm->dev);
 	drm_irq_uninstall(drm);
@@ -335,11 +334,9 @@ static struct drm_driver mxsfb_driver = {
 	.irq_uninstall		= mxsfb_irq_preinstall,
 	.enable_vblank		= mxsfb_enable_vblank,
 	.disable_vblank		= mxsfb_disable_vblank,
-	.gem_free_object	= drm_gem_cma_free_object,
+	.gem_free_object_unlocked = drm_gem_cma_free_object,
 	.gem_vm_ops		= &drm_gem_cma_vm_ops,
 	.dumb_create		= drm_gem_cma_dumb_create,
-	.dumb_map_offset	= drm_gem_cma_dumb_map_offset,
-	.dumb_destroy		= drm_gem_dumb_destroy,
 	.prime_handle_to_fd	= drm_gem_prime_handle_to_fd,
 	.prime_fd_to_handle	= drm_gem_prime_fd_to_handle,
 	.gem_prime_export	= drm_gem_prime_export,

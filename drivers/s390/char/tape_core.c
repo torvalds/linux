@@ -175,7 +175,7 @@ static struct attribute *tape_attrs[] = {
 	NULL
 };
 
-static struct attribute_group tape_attr_group = {
+static const struct attribute_group tape_attr_group = {
 	.attrs = tape_attrs,
 };
 

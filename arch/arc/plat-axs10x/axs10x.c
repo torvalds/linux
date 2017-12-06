@@ -80,22 +80,6 @@ static void __init axs10x_enable_gpio_intc_wire(void)
 	iowrite32(1 << MB_TO_GPIO_IRQ, (void __iomem *) GPIO_INTEN);
 }
 
-static inline void __init
-write_cgu_reg(uint32_t value, void __iomem *reg, void __iomem *lock_reg)
-{
-	unsigned int loops = 128 * 1024, ctr;
-
-	iowrite32(value, reg);
-
-	ctr = loops;
-	while (((ioread32(lock_reg) & 1) == 1) && ctr--) /* wait for unlock */
-		cpu_relax();
-
-	ctr = loops;
-	while (((ioread32(lock_reg) & 1) == 0) && ctr--) /* wait for re-lock */
-		cpu_relax();
-}
-
 static void __init axs10x_print_board_ver(unsigned int creg, const char *str)
 {
 	union ver {
@@ -126,6 +110,13 @@ static void __init axs10x_early_init(void)
 		mb_rev = 2;	/* HT-2 (rev2.0) */
 
 	axs10x_enable_gpio_intc_wire();
+
+	/*
+	 * Reset ethernet IP core.
+	 * TODO: get rid of this quirk after axs10x reset driver (or simple
+	 * reset driver) will be available in upstream.
+	 */
+	iowrite32((1 << 5), (void __iomem *) CREG_MB_SW_RESET);
 
 	scnprintf(mb, 32, "MainBoard v%d", mb_rev);
 	axs10x_print_board_ver(CREG_MB_VER, mb);
@@ -314,7 +305,6 @@ static void __init axs101_early_init(void)
 
 #ifdef CONFIG_AXS103
 
-#define AXC003_CGU	0xF0000000
 #define AXC003_CREG	0xF0001000
 #define AXC003_MST_AXI_TUNNEL	0
 #define AXC003_MST_HS38		1
@@ -324,131 +314,38 @@ static void __init axs101_early_init(void)
 #define CREG_CPU_TUN_IO_CTRL	(AXC003_CREG + 0x494)
 
 
-union pll_reg {
-	struct {
-#ifdef CONFIG_CPU_BIG_ENDIAN
-		unsigned int pad:17, noupd:1, bypass:1, edge:1, high:6, low:6;
-#else
-		unsigned int low:6, high:6, edge:1, bypass:1, noupd:1, pad:17;
-#endif
-	};
-	unsigned int val;
-};
-
-static unsigned int __init axs103_get_freq(void)
-{
-	union pll_reg idiv, fbdiv, odiv;
-	unsigned int f = 33333333;
-
-	idiv.val = ioread32((void __iomem *)AXC003_CGU + 0x80 + 0);
-	fbdiv.val = ioread32((void __iomem *)AXC003_CGU + 0x80 + 4);
-	odiv.val = ioread32((void __iomem *)AXC003_CGU + 0x80 + 8);
-
-	if (idiv.bypass != 1)
-		f = f / (idiv.low + idiv.high);
-
-	if (fbdiv.bypass != 1)
-		f = f * (fbdiv.low + fbdiv.high);
-
-	if (odiv.bypass != 1)
-		f = f / (odiv.low + odiv.high);
-
-	f = (f + 500000) / 1000000; /* Rounding */
-	return f;
-}
-
-static inline unsigned int __init encode_div(unsigned int id, int upd)
-{
-	union pll_reg div;
-
-	div.val = 0;
-
-	div.noupd = !upd;
-	div.bypass = id == 1 ? 1 : 0;
-	div.edge = (id%2 == 0) ? 0 : 1;  /* 0 = rising */
-	div.low = (id%2 == 0) ? id >> 1 : (id >> 1)+1;
-	div.high = id >> 1;
-
-	return div.val;
-}
-
-noinline static void __init
-axs103_set_freq(unsigned int id, unsigned int fd, unsigned int od)
-{
-	write_cgu_reg(encode_div(id, 0),
-		      (void __iomem *)AXC003_CGU + 0x80 + 0,
-		      (void __iomem *)AXC003_CGU + 0x110);
-
-	write_cgu_reg(encode_div(fd, 0),
-		      (void __iomem *)AXC003_CGU + 0x80 + 4,
-		      (void __iomem *)AXC003_CGU + 0x110);
-
-	write_cgu_reg(encode_div(od, 1),
-		      (void __iomem *)AXC003_CGU + 0x80 + 8,
-		      (void __iomem *)AXC003_CGU + 0x110);
-}
-
 static void __init axs103_early_init(void)
 {
-	int offset = fdt_path_offset(initial_boot_params, "/cpu_card/core_clk");
-	const struct fdt_property *prop = fdt_get_property(initial_boot_params,
-							   offset,
-							   "clock-frequency",
-							   NULL);
-	u32 freq = be32_to_cpu(*(u32*)(prop->data)) / 1000000, orig = freq;
-
+#ifdef CONFIG_ARC_MCIP
 	/*
 	 * AXS103 configurations for SMP/QUAD configurations share device tree
-	 * which defaults to 90 MHz. However recent failures of Quad config
+	 * which defaults to 100 MHz. However recent failures of Quad config
 	 * revealed P&R timing violations so clamp it down to safe 50 MHz
 	 * Instead of duplicating defconfig/DT for SMP/QUAD, add a small hack
-	 *
-	 * This hack is really hacky as of now. Fix it properly by getting the
-	 * number of cores as return value of platform's early SMP callback
+	 * of fudging the freq in DT
 	 */
-#ifdef CONFIG_ARC_MCIP
 	unsigned int num_cores = (read_aux_reg(ARC_REG_MCIP_BCR) >> 16) & 0x3F;
-	if (num_cores > 2)
-		freq = 50;
-#endif
-
-	switch (freq) {
-	case 33:
-		axs103_set_freq(1, 1, 1);
-		break;
-	case 50:
-		axs103_set_freq(1, 30, 20);
-		break;
-	case 75:
-		axs103_set_freq(2, 45, 10);
-		break;
-	case 90:
-		axs103_set_freq(2, 54, 10);
-		break;
-	case 100:
-		axs103_set_freq(1, 30, 10);
-		break;
-	case 125:
-		axs103_set_freq(2, 45,  6);
-		break;
-	default:
+	if (num_cores > 2) {
+		u32 freq = 50, orig;
 		/*
-		 * In this case, core_frequency derived from
-		 * DT "clock-frequency" might not match with board value.
-		 * Hence update it to match the board value.
+		 * TODO: use cpu node "cpu-freq" param instead of platform-specific
+		 * "/cpu_card/core_clk" as it works only if we use fixed-clock for cpu.
 		 */
-		freq = axs103_get_freq();
-		break;
-	}
+		int off = fdt_path_offset(initial_boot_params, "/cpu_card/core_clk");
+		const struct fdt_property *prop;
 
-	pr_info("Freq is %dMHz\n", freq);
+		prop = fdt_get_property(initial_boot_params, off,
+					"clock-frequency", NULL);
+		orig = be32_to_cpu(*(u32*)(prop->data)) / 1000000;
 
-	/* Patching .dtb in-place with new core clock value */
-	if (freq != orig ) {
-		freq = cpu_to_be32(freq * 1000000);
-		fdt_setprop_inplace(initial_boot_params, offset,
-				    "clock-frequency", &freq, sizeof(freq));
+		/* Patching .dtb in-place with new core clock value */
+		if (freq != orig ) {
+			freq = cpu_to_be32(freq * 1000000);
+			fdt_setprop_inplace(initial_boot_params, off,
+					    "clock-frequency", &freq, sizeof(freq));
+		}
 	}
+#endif
 
 	/* Memory maps already config in pre-bootloader */
 

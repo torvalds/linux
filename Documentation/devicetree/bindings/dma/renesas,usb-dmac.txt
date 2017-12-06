@@ -8,6 +8,7 @@ Required Properties:
 	  - "renesas,r8a7793-usb-dmac" (R-Car M2-N)
 	  - "renesas,r8a7794-usb-dmac" (R-Car E2)
 	  - "renesas,r8a7795-usb-dmac" (R-Car H3)
+	  - "renesas,r8a7796-usb-dmac" (R-Car M3-W)
 - reg: base address and length of the registers block for the DMAC
 - interrupts: interrupt specifiers for the DMAC, one for each entry in
   interrupt-names.

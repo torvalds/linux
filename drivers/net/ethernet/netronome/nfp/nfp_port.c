@@ -88,19 +88,16 @@ const struct switchdev_ops nfp_port_switchdev_ops = {
 	.switchdev_port_attr_get	= nfp_port_attr_get,
 };
 
-int nfp_port_setup_tc(struct net_device *netdev, u32 handle, u32 chain_index,
-		      __be16 proto, struct tc_to_netdev *tc)
+int nfp_port_setup_tc(struct net_device *netdev, enum tc_setup_type type,
+		      void *type_data)
 {
 	struct nfp_port *port;
-
-	if (chain_index)
-		return -EOPNOTSUPP;
 
 	port = nfp_port_from_netdev(netdev);
 	if (!port)
 		return -EOPNOTSUPP;
 
-	return nfp_app_setup_tc(port->app, netdev, handle, proto, tc);
+	return nfp_app_setup_tc(port->app, netdev, type, type_data);
 }
 
 struct nfp_port *
@@ -181,6 +178,33 @@ nfp_port_get_phys_port_name(struct net_device *netdev, char *name, size_t len)
 	return 0;
 }
 
+/**
+ * nfp_port_configure() - helper to set the interface configured bit
+ * @netdev:	net_device instance
+ * @configed:	Desired state
+ *
+ * Helper to set the ifup/ifdown state on the PHY only if there is a physical
+ * interface associated with the netdev.
+ *
+ * Return:
+ * 0 - configuration successful (or no change);
+ * -ERRNO - configuration failed.
+ */
+int nfp_port_configure(struct net_device *netdev, bool configed)
+{
+	struct nfp_eth_table_port *eth_port;
+	struct nfp_port *port;
+	int err;
+
+	port = nfp_port_from_netdev(netdev);
+	eth_port = __nfp_port_get_eth_port(port);
+	if (!eth_port)
+		return 0;
+
+	err = nfp_eth_set_configured(port->app->cpp, eth_port->index, configed);
+	return err < 0 && err != -EOPNOTSUPP ? err : 0;
+}
+
 int nfp_port_init_phy_port(struct nfp_pf *pf, struct nfp_app *app,
 			   struct nfp_port *port, unsigned int id)
 {
@@ -201,6 +225,9 @@ int nfp_port_init_phy_port(struct nfp_pf *pf, struct nfp_app *app,
 
 	port->eth_port = &pf->eth_tbl->ports[id];
 	port->eth_id = pf->eth_tbl->ports[id].index;
+	if (pf->mac_stats_mem)
+		port->eth_stats =
+			pf->mac_stats_mem + port->eth_id * NFP_MAC_STATS_SIZE;
 
 	return 0;
 }

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 
 #define NV04_PFB_BOOT_0						0x00100000
 #	define NV04_PFB_BOOT_0_RAM_AMOUNT			0x00000003

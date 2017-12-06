@@ -146,7 +146,7 @@ static int ov5693_read_reg(struct i2c_client *client,
 		return -EINVAL;
 	}
 
-	memset(msg, 0 , sizeof(msg));
+	memset(msg, 0, sizeof(msg));
 
 	msg[0].addr = client->addr;
 	msg[0].flags = 0;
@@ -702,7 +702,7 @@ static long ov5693_s_exposure(struct v4l2_subdev *sd,
 }
 
 static int ov5693_read_otp_reg_array(struct i2c_client *client, u16 size,
-				     u16 addr, u8 * buf)
+				     u16 addr, u8 *buf)
 {
 	u16 index;
 	int ret;
@@ -720,7 +720,7 @@ static int ov5693_read_otp_reg_array(struct i2c_client *client, u16 size,
 	return 0;
 }
 
-static int __ov5693_otp_read(struct v4l2_subdev *sd, u8 * buf)
+static int __ov5693_otp_read(struct v4l2_subdev *sd, u8 *buf)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct ov5693_device *dev = to_ov5693_sensor(sd);
@@ -913,7 +913,7 @@ err:
 	return ret;
 }
 
-int ad5823_t_focus_vcm(struct v4l2_subdev *sd, u16 val)
+static int ad5823_t_focus_vcm(struct v4l2_subdev *sd, u16 val)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	int ret = -EINVAL;
@@ -2032,7 +2032,7 @@ out_free:
 
 MODULE_DEVICE_TABLE(i2c, ov5693_id);
 
-static struct acpi_device_id ov5693_acpi_match[] = {
+static const struct acpi_device_id ov5693_acpi_match[] = {
 	{"INT33BE"},
 	{},
 };

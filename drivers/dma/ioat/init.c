@@ -39,7 +39,7 @@ MODULE_VERSION(IOAT_DMA_VERSION);
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_AUTHOR("Intel Corporation");
 
-static struct pci_device_id ioat_pci_tbl[] = {
+static const struct pci_device_id ioat_pci_tbl[] = {
 	/* I/OAT v3 platforms */
 	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_IOAT_TBG0) },
 	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_IOAT_TBG1) },

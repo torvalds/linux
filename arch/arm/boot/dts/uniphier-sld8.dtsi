@@ -209,7 +209,8 @@
 			interrupts = <0 80 4>;
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinctrl_usb0>;
-			clocks = <&mio_clk 7>, <&mio_clk 8>, <&mio_clk 12>;
+			clocks = <&sys_clk 8>, <&mio_clk 7>, <&mio_clk 8>,
+				 <&mio_clk 12>;
 			resets = <&sys_rst 8>, <&mio_rst 7>, <&mio_rst 8>,
 				 <&mio_rst 12>;
 		};
@@ -221,7 +222,8 @@
 			interrupts = <0 81 4>;
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinctrl_usb1>;
-			clocks = <&mio_clk 7>, <&mio_clk 9>, <&mio_clk 13>;
+			clocks = <&sys_clk 8>, <&mio_clk 7>, <&mio_clk 9>,
+				 <&mio_clk 13>;
 			resets = <&sys_rst 8>, <&mio_rst 7>, <&mio_rst 9>,
 				 <&mio_rst 13>;
 		};
@@ -233,7 +235,8 @@
 			interrupts = <0 82 4>;
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinctrl_usb2>;
-			clocks = <&mio_clk 7>, <&mio_clk 10>, <&mio_clk 14>;
+			clocks = <&sys_clk 8>, <&mio_clk 7>, <&mio_clk 10>,
+				 <&mio_clk 14>;
 			resets = <&sys_rst 8>, <&mio_rst 7>, <&mio_rst 10>,
 				 <&mio_rst 14>;
 		};
@@ -270,6 +273,13 @@
 			interrupt-controller;
 		};
 
+		aidet: aidet@61830000 {
+			compatible = "socionext,uniphier-sld8-aidet";
+			reg = <0x61830000 0x200>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+		};
+
 		sysctrl@61840000 {
 			compatible = "socionext,uniphier-sld8-sysctrl",
 				     "simple-mfd", "syscon";
@@ -285,7 +295,18 @@
 				#reset-cells = <1>;
 			};
 		};
+
+		nand: nand@68000000 {
+			compatible = "socionext,uniphier-denali-nand-v5a";
+			status = "disabled";
+			reg-names = "nand_data", "denali_reg";
+			reg = <0x68000000 0x20>, <0x68100000 0x1000>;
+			interrupts = <0 65 4>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_nand2cs>;
+			clocks = <&sys_clk 2>;
+		};
 	};
 };
 
-/include/ "uniphier-pinctrl.dtsi"
+#include "uniphier-pinctrl.dtsi"

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*!
  *  @file	linux_mon.c
  *  @brief	File Operations OS wrapper functionality

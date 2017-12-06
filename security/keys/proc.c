@@ -179,15 +179,18 @@ static int proc_keys_show(struct seq_file *m, void *v)
 	struct rb_node *_p = v;
 	struct key *key = rb_entry(_p, struct key, serial_node);
 	struct timespec now;
+	time_t expiry;
 	unsigned long timo;
+	unsigned long flags;
 	key_ref_t key_ref, skey_ref;
 	char xbuf[16];
+	short state;
 	int rc;
 
 	struct keyring_search_context ctx = {
 		.index_key.type		= key->type,
 		.index_key.description	= key->description,
-		.cred			= current_cred(),
+		.cred			= m->file->f_cred,
 		.match_data.cmp		= lookup_user_key_possessed,
 		.match_data.raw_data	= key,
 		.match_data.lookup_type	= KEYRING_SEARCH_LOOKUP_DIRECT,
@@ -207,11 +210,7 @@ static int proc_keys_show(struct seq_file *m, void *v)
 		}
 	}
 
-	/* check whether the current task is allowed to view the key (assuming
-	 * non-possession)
-	 * - the caller holds a spinlock, and thus the RCU read lock, making our
-	 *   access to __current_cred() safe
-	 */
+	/* check whether the current task is allowed to view the key */
 	rc = key_task_permission(key_ref, ctx.cred, KEY_NEED_VIEW);
 	if (rc < 0)
 		return 0;
@@ -221,12 +220,13 @@ static int proc_keys_show(struct seq_file *m, void *v)
 	rcu_read_lock();
 
 	/* come up with a suitable timeout value */
-	if (key->expiry == 0) {
+	expiry = READ_ONCE(key->expiry);
+	if (expiry == 0) {
 		memcpy(xbuf, "perm", 5);
-	} else if (now.tv_sec >= key->expiry) {
+	} else if (now.tv_sec >= expiry) {
 		memcpy(xbuf, "expd", 5);
 	} else {
-		timo = key->expiry - now.tv_sec;
+		timo = expiry - now.tv_sec;
 
 		if (timo < 60)
 			sprintf(xbuf, "%lus", timo);
@@ -240,18 +240,21 @@ static int proc_keys_show(struct seq_file *m, void *v)
 			sprintf(xbuf, "%luw", timo / (60*60*24*7));
 	}
 
-#define showflag(KEY, LETTER, FLAG) \
-	(test_bit(FLAG,	&(KEY)->flags) ? LETTER : '-')
+	state = key_read_state(key);
 
+#define showflag(FLAGS, LETTER, FLAG) \
+	((FLAGS & (1 << FLAG)) ? LETTER : '-')
+
+	flags = READ_ONCE(key->flags);
 	seq_printf(m, "%08x %c%c%c%c%c%c%c %5d %4s %08x %5d %5d %-9.9s ",
 		   key->serial,
-		   showflag(key, 'I', KEY_FLAG_INSTANTIATED),
-		   showflag(key, 'R', KEY_FLAG_REVOKED),
-		   showflag(key, 'D', KEY_FLAG_DEAD),
-		   showflag(key, 'Q', KEY_FLAG_IN_QUOTA),
-		   showflag(key, 'U', KEY_FLAG_USER_CONSTRUCT),
-		   showflag(key, 'N', KEY_FLAG_NEGATIVE),
-		   showflag(key, 'i', KEY_FLAG_INVALIDATED),
+		   state != KEY_IS_UNINSTANTIATED ? 'I' : '-',
+		   showflag(flags, 'R', KEY_FLAG_REVOKED),
+		   showflag(flags, 'D', KEY_FLAG_DEAD),
+		   showflag(flags, 'Q', KEY_FLAG_IN_QUOTA),
+		   showflag(flags, 'U', KEY_FLAG_USER_CONSTRUCT),
+		   state < 0 ? 'N' : '-',
+		   showflag(flags, 'i', KEY_FLAG_INVALIDATED),
 		   refcount_read(&key->usage),
 		   xbuf,
 		   key->perm,

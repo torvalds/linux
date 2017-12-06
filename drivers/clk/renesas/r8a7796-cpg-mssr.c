@@ -138,6 +138,7 @@ static const struct mssr_mod_clk r8a7796_mod_clks[] __initconst = {
 	DEF_MOD("sdif0",		 314,	R8A7796_CLK_SD0),
 	DEF_MOD("pcie1",		 318,	R8A7796_CLK_S3D1),
 	DEF_MOD("pcie0",		 319,	R8A7796_CLK_S3D1),
+	DEF_MOD("usb3-if0",		 328,	R8A7796_CLK_S3D1),
 	DEF_MOD("usb-dmac0",		 330,	R8A7796_CLK_S3D1),
 	DEF_MOD("usb-dmac1",		 331,	R8A7796_CLK_S3D1),
 	DEF_MOD("rwdt",			 402,	R8A7796_CLK_R),
@@ -277,23 +278,23 @@ static const unsigned int r8a7796_crit_mod_clks[] __initconst = {
 					 (((md) & BIT(17)) >> 17))
 
 static const struct rcar_gen3_cpg_pll_config cpg_pll_configs[16] __initconst = {
-	/* EXTAL div	PLL1 mult	PLL3 mult */
-	{ 1,		192,		192,	},
-	{ 1,		192,		128,	},
-	{ 0, /* Prohibited setting */		},
-	{ 1,		192,		192,	},
-	{ 1,		160,		160,	},
-	{ 1,		160,		106,	},
-	{ 0, /* Prohibited setting */		},
-	{ 1,		160,		160,	},
-	{ 1,		128,		128,	},
-	{ 1,		128,		84,	},
-	{ 0, /* Prohibited setting */		},
-	{ 1,		128,		128,	},
-	{ 2,		192,		192,	},
-	{ 2,		192,		128,	},
-	{ 0, /* Prohibited setting */		},
-	{ 2,		192,		192,	},
+	/* EXTAL div	PLL1 mult/div	PLL3 mult/div */
+	{ 1,		192,	1,	192,	1,	},
+	{ 1,		192,	1,	128,	1,	},
+	{ 0, /* Prohibited setting */			},
+	{ 1,		192,	1,	192,	1,	},
+	{ 1,		160,	1,	160,	1,	},
+	{ 1,		160,	1,	106,	1,	},
+	{ 0, /* Prohibited setting */			},
+	{ 1,		160,	1,	160,	1,	},
+	{ 1,		128,	1,	128,	1,	},
+	{ 1,		128,	1,	84,	1,	},
+	{ 0, /* Prohibited setting */			},
+	{ 1,		128,	1,	128,	1,	},
+	{ 2,		192,	1,	192,	1,	},
+	{ 2,		192,	1,	128,	1,	},
+	{ 0, /* Prohibited setting */			},
+	{ 2,		192,	1,	192,	1,	},
 };
 
 static int __init r8a7796_cpg_mssr_init(struct device *dev)

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Goramo MultiLink router platform code
  * Copyright (C) 2006-2009 Krzysztof Halasa <khc@pm.waw.pl>

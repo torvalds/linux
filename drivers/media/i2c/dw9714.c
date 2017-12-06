@@ -11,7 +11,6 @@
  * GNU General Public License for more details.
  */
 
-#include <linux/acpi.h>
 #include <linux/delay.h>
 #include <linux/i2c.h>
 #include <linux/module.h>
@@ -147,8 +146,7 @@ static int dw9714_init_controls(struct dw9714_device *dev_vcm)
 	return hdl->error;
 }
 
-static int dw9714_probe(struct i2c_client *client,
-			const struct i2c_device_id *devid)
+static int dw9714_probe(struct i2c_client *client)
 {
 	struct dw9714_device *dw9714_dev;
 	int rval;
@@ -250,19 +248,17 @@ static int  __maybe_unused dw9714_vcm_resume(struct device *dev)
 	return 0;
 }
 
-#ifdef CONFIG_ACPI
-static const struct acpi_device_id dw9714_acpi_match[] = {
-	{},
-};
-MODULE_DEVICE_TABLE(acpi, dw9714_acpi_match);
-#endif
-
 static const struct i2c_device_id dw9714_id_table[] = {
-	{DW9714_NAME, 0},
-	{}
+	{ DW9714_NAME, 0 },
+	{ { 0 } }
 };
-
 MODULE_DEVICE_TABLE(i2c, dw9714_id_table);
+
+static const struct of_device_id dw9714_of_table[] = {
+	{ .compatible = "dongwoon,dw9714" },
+	{ { 0 } }
+};
+MODULE_DEVICE_TABLE(of, dw9714_of_table);
 
 static const struct dev_pm_ops dw9714_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(dw9714_vcm_suspend, dw9714_vcm_resume)
@@ -273,9 +269,9 @@ static struct i2c_driver dw9714_i2c_driver = {
 	.driver = {
 		.name = DW9714_NAME,
 		.pm = &dw9714_pm_ops,
-		.acpi_match_table = ACPI_PTR(dw9714_acpi_match),
+		.of_match_table = dw9714_of_table,
 	},
-	.probe = dw9714_probe,
+	.probe_new = dw9714_probe,
 	.remove = dw9714_remove,
 	.id_table = dw9714_id_table,
 };

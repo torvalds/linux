@@ -164,4 +164,35 @@ xfs_trans_ail_copy_lsn(
 	*dst = *src;
 }
 #endif
+
+static inline void
+xfs_clear_li_failed(
+	struct xfs_log_item	*lip)
+{
+	struct xfs_buf	*bp = lip->li_buf;
+
+	ASSERT(lip->li_flags & XFS_LI_IN_AIL);
+	lockdep_assert_held(&lip->li_ailp->xa_lock);
+
+	if (lip->li_flags & XFS_LI_FAILED) {
+		lip->li_flags &= ~XFS_LI_FAILED;
+		lip->li_buf = NULL;
+		xfs_buf_rele(bp);
+	}
+}
+
+static inline void
+xfs_set_li_failed(
+	struct xfs_log_item	*lip,
+	struct xfs_buf		*bp)
+{
+	lockdep_assert_held(&lip->li_ailp->xa_lock);
+
+	if (!(lip->li_flags & XFS_LI_FAILED)) {
+		xfs_buf_hold(bp);
+		lip->li_flags |= XFS_LI_FAILED;
+		lip->li_buf = bp;
+	}
+}
+
 #endif	/* __XFS_TRANS_PRIV_H__ */

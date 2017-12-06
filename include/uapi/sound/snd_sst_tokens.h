@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  * snd_sst_tokens.h - Intel SST tokens definition
  *
@@ -163,8 +164,71 @@
  *
  * %SKL_TKN_U32_DMA_BUF_SIZE:	DMA buffer size in millisec
  *
+ * %SKL_TKN_U32_PIPE_DIR:       Specifies pipe direction. Can be
+ *                              playback/capture.
+ *
+ * %SKL_TKN_U32_NUM_CONFIGS:    Number of pipe configs
+ *
+ * %SKL_TKN_U32_PATH_MEM_PGS:   Size of memory (in pages) required for pipeline
+ *                              and its data
+ *
+ * %SKL_TKN_U32_PIPE_CONFIG_ID: Config id for the modules in the pipe
+ *                              and PCM params supported by that pipe
+ *                              config. This is used as index to fill
+ *                              up the pipe config and module config
+ *                              structure.
+ *
+ * %SKL_TKN_U32_CFG_FREQ:
+ * %SKL_TKN_U8_CFG_CHAN:
+ * %SKL_TKN_U8_CFG_BPS:         PCM params (freq, channels, bits per sample)
+ *                              supported for each of the pipe configs.
+ *
+ * %SKL_TKN_CFG_MOD_RES_ID:     Module's resource index for each of the
+ *                              pipe config
+ *
+ * %SKL_TKN_CFG_MOD_FMT_ID:     Module's interface index for each of the
+ *                              pipe config
+ *
+ * %SKL_TKN_U8_NUM_MOD:         Number of modules in the manifest
+ *
+ * %SKL_TKN_MM_U8_MOD_IDX:      Current index of the module in the manifest
+ *
+ * %SKL_TKN_MM_U8_NUM_RES:      Number of resources for the module
+ *
+ * %SKL_TKN_MM_U8_NUM_INTF:     Number of interfaces for the module
+ *
+ * %SKL_TKN_MM_U32_RES_ID:      Resource index for the resource info to
+ *                              be filled into.
+ *                              A module can support multiple resource
+ *                              configuration and is represnted as a
+ *                              resource table. This index is used to
+ *                              fill information into appropriate index.
+ *
+ * %SKL_TKN_MM_U32_CPS:         DSP cycles per second
+ *
+ * %SKL_TKN_MM_U32_DMA_SIZE:    Allocated buffer size for gateway DMA
+ *
+ * %SKL_TKN_MM_U32_CPC:         DSP cycles allocated per frame
+ *
+ * %SKL_TKN_MM_U32_RES_PIN_ID:  Resource pin index in the module
+ *
+ * %SKL_TKN_MM_U32_INTF_PIN_ID: Interface index in the module
+ *
+ * %SKL_TKN_MM_U32_PIN_BUF:     Buffer size of the module pin
+ *
+ * %SKL_TKN_MM_U32_FMT_ID:      Format index for each of the interface/
+ *                              format information to be filled into.
+ *
+ * %SKL_TKN_MM_U32_NUM_IN_FMT:  Number of input formats
+ * %SKL_TKN_MM_U32_NUM_OUT_FMT: Number of output formats
+ *
  * module_id and loadable flags dont have tokens as these values will be
  * read from the DSP FW manifest
+ *
+ * Tokens defined can be used either in the manifest or widget private data.
+ *
+ * SKL_TKN_MM is used as a suffix for all tokens that represent
+ * module data in the manifest.
  */
 enum SKL_TKNS {
 	SKL_TKN_UUID = 1,
@@ -218,7 +282,34 @@ enum SKL_TKNS {
 	SKL_TKL_U32_D0I3_CAPS, /* Typo added at v4.10 */
 	SKL_TKN_U32_D0I3_CAPS = SKL_TKL_U32_D0I3_CAPS,
 	SKL_TKN_U32_DMA_BUF_SIZE,
-	SKL_TKN_MAX = SKL_TKN_U32_DMA_BUF_SIZE,
+
+	SKL_TKN_U32_PIPE_DIRECTION,
+	SKL_TKN_U32_PIPE_CONFIG_ID,
+	SKL_TKN_U32_NUM_CONFIGS,
+	SKL_TKN_U32_PATH_MEM_PGS,
+
+	SKL_TKN_U32_CFG_FREQ,
+	SKL_TKN_U8_CFG_CHAN,
+	SKL_TKN_U8_CFG_BPS,
+	SKL_TKN_CFG_MOD_RES_ID,
+	SKL_TKN_CFG_MOD_FMT_ID,
+	SKL_TKN_U8_NUM_MOD,
+
+	SKL_TKN_MM_U8_MOD_IDX,
+	SKL_TKN_MM_U8_NUM_RES,
+	SKL_TKN_MM_U8_NUM_INTF,
+	SKL_TKN_MM_U32_RES_ID,
+	SKL_TKN_MM_U32_CPS,
+	SKL_TKN_MM_U32_DMA_SIZE,
+	SKL_TKN_MM_U32_CPC,
+	SKL_TKN_MM_U32_RES_PIN_ID,
+	SKL_TKN_MM_U32_INTF_PIN_ID,
+	SKL_TKN_MM_U32_PIN_BUF,
+	SKL_TKN_MM_U32_FMT_ID,
+	SKL_TKN_MM_U32_NUM_IN_FMT,
+	SKL_TKN_MM_U32_NUM_OUT_FMT,
+
+	SKL_TKN_MAX = SKL_TKN_MM_U32_NUM_OUT_FMT,
 };
 
 #endif

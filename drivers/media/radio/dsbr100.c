@@ -408,7 +408,7 @@ err_reg_dev:
 	return retval;
 }
 
-static struct usb_device_id usb_dsbr100_device_table[] = {
+static const struct usb_device_id usb_dsbr100_device_table[] = {
 	{ USB_DEVICE(DSB100_VENDOR, DSB100_PRODUCT) },
 	{ }						/* Terminating entry */
 };

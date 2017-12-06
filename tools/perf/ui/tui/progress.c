@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include "../cache.h"
 #include "../progress.h"
 #include "../libslang.h"

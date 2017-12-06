@@ -235,7 +235,6 @@ static const struct drm_plane_funcs omap_plane_funcs = {
 	.disable_plane = drm_atomic_helper_disable_plane,
 	.reset = omap_plane_reset,
 	.destroy = omap_plane_destroy,
-	.set_property = drm_atomic_helper_plane_set_property,
 	.atomic_duplicate_state = drm_atomic_helper_plane_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_plane_destroy_state,
 	.atomic_set_property = omap_plane_atomic_set_property,
@@ -291,7 +290,7 @@ struct drm_plane *omap_plane_init(struct drm_device *dev,
 
 	ret = drm_universal_plane_init(dev, plane, possible_crtcs,
 				       &omap_plane_funcs, formats,
-				       nformats, type, NULL);
+				       nformats, NULL, type, NULL);
 	if (ret < 0)
 		goto error;
 

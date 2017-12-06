@@ -528,7 +528,7 @@ static const struct v4l2_ctrl_ops cadet_ctrl_ops = {
 
 #ifdef CONFIG_PNP
 
-static struct pnp_device_id cadet_pnp_devices[] = {
+static const struct pnp_device_id cadet_pnp_devices[] = {
 	/* ADS Cadet AM/FM Radio Card */
 	{.id = "MSM0c24", .driver_data = 0},
 	{.id = ""}

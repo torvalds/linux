@@ -432,8 +432,10 @@ int ib_create_qp_security(struct ib_qp *qp, struct ib_device *dev)
 	atomic_set(&qp->qp_sec->error_list_count, 0);
 	init_completion(&qp->qp_sec->error_complete);
 	ret = security_ib_alloc_security(&qp->qp_sec->security);
-	if (ret)
+	if (ret) {
 		kfree(qp->qp_sec);
+		qp->qp_sec = NULL;
+	}
 
 	return ret;
 }

@@ -530,15 +530,22 @@ static int fwevtq_handler(struct sge_rspq *q, const __be64 *rsp,
 			FW_PORT_CMD_ACTION_G(ntohl(pcmd->action_to_len16));
 
 		if (cmd == FW_PORT_CMD &&
-		    action == FW_PORT_ACTION_GET_PORT_INFO) {
+		    (action == FW_PORT_ACTION_GET_PORT_INFO ||
+		     action == FW_PORT_ACTION_GET_PORT_INFO32)) {
 			int port = FW_PORT_CMD_PORTID_G(
 					be32_to_cpu(pcmd->op_to_portid));
-			struct net_device *dev =
-				q->adap->port[q->adap->chan_map[port]];
-			int state_input = ((pcmd->u.info.dcbxdis_pkd &
-					    FW_PORT_CMD_DCBXDIS_F)
-					   ? CXGB4_DCB_INPUT_FW_DISABLED
-					   : CXGB4_DCB_INPUT_FW_ENABLED);
+			struct net_device *dev;
+			int dcbxdis, state_input;
+
+			dev = q->adap->port[q->adap->chan_map[port]];
+			dcbxdis = (action == FW_PORT_ACTION_GET_PORT_INFO
+				   ? !!(pcmd->u.info.dcbxdis_pkd &
+					FW_PORT_CMD_DCBXDIS_F)
+				   : !!(pcmd->u.info32.lstatus32_to_cbllen32 &
+					FW_PORT_CMD_DCBXDIS32_F));
+			state_input = (dcbxdis
+				       ? CXGB4_DCB_INPUT_FW_DISABLED
+				       : CXGB4_DCB_INPUT_FW_ENABLED);
 
 			cxgb4_dcb_state_fsm(dev, state_input);
 		}
@@ -2672,11 +2679,10 @@ static int cxgb_set_vf_rate(struct net_device *dev, int vf, int min_tx_rate,
 {
 	struct port_info *pi = netdev_priv(dev);
 	struct adapter *adap = pi->adapter;
-	struct fw_port_cmd port_cmd, port_rpl;
-	u32 link_status, speed = 0;
+	unsigned int link_ok, speed, mtu;
 	u32 fw_pfvf, fw_class;
 	int class_id = vf;
-	int link_ok, ret;
+	int ret;
 	u16 pktsize;
 
 	if (vf >= adap->num_vfs)
@@ -2688,41 +2694,18 @@ static int cxgb_set_vf_rate(struct net_device *dev, int vf, int min_tx_rate,
 			min_tx_rate, vf);
 		return -EINVAL;
 	}
-	/* Retrieve link details for VF port */
-	memset(&port_cmd, 0, sizeof(port_cmd));
-	port_cmd.op_to_portid = cpu_to_be32(FW_CMD_OP_V(FW_PORT_CMD) |
-					    FW_CMD_REQUEST_F |
-					    FW_CMD_READ_F |
-					    FW_PORT_CMD_PORTID_V(pi->port_id));
-	port_cmd.action_to_len16 =
-		cpu_to_be32(FW_PORT_CMD_ACTION_V(FW_PORT_ACTION_GET_PORT_INFO) |
-			    FW_LEN16(port_cmd));
-	ret = t4_wr_mbox(adap, adap->mbox, &port_cmd, sizeof(port_cmd),
-			 &port_rpl);
+
+	ret = t4_get_link_params(pi, &link_ok, &speed, &mtu);
 	if (ret != FW_SUCCESS) {
 		dev_err(adap->pdev_dev,
-			"Failed to get link status for VF %d\n", vf);
+			"Failed to get link information for VF %d\n", vf);
 		return -EINVAL;
 	}
-	link_status = be32_to_cpu(port_rpl.u.info.lstatus_to_modtype);
-	link_ok = (link_status & FW_PORT_CMD_LSTATUS_F) != 0;
+
 	if (!link_ok) {
 		dev_err(adap->pdev_dev, "Link down for VF %d\n", vf);
 		return -EINVAL;
 	}
-	/* Determine link speed */
-	if (link_status & FW_PORT_CMD_LSPEED_V(FW_PORT_CAP_SPEED_100M))
-		speed = 100;
-	else if (link_status & FW_PORT_CMD_LSPEED_V(FW_PORT_CAP_SPEED_1G))
-		speed = 1000;
-	else if (link_status & FW_PORT_CMD_LSPEED_V(FW_PORT_CAP_SPEED_10G))
-		speed = 10000;
-	else if (link_status & FW_PORT_CMD_LSPEED_V(FW_PORT_CAP_SPEED_25G))
-		speed = 25000;
-	else if (link_status & FW_PORT_CMD_LSPEED_V(FW_PORT_CAP_SPEED_40G))
-		speed = 40000;
-	else if (link_status & FW_PORT_CMD_LSPEED_V(FW_PORT_CAP_SPEED_100G))
-		speed = 100000;
 
 	if (max_tx_rate > speed) {
 		dev_err(adap->pdev_dev,
@@ -2730,7 +2713,8 @@ static int cxgb_set_vf_rate(struct net_device *dev, int vf, int min_tx_rate,
 			max_tx_rate, vf, speed);
 		return -EINVAL;
 	}
-	pktsize = be16_to_cpu(port_rpl.u.info.mtu);
+
+	pktsize = mtu;
 	/* subtract ethhdr size and 4 bytes crc since, f/w appends it */
 	pktsize = pktsize - sizeof(struct ethhdr) - 4;
 	/* subtract ipv4 hdr size, tcp hdr size to get typical IPv4 MSS size */
@@ -2741,7 +2725,7 @@ static int cxgb_set_vf_rate(struct net_device *dev, int vf, int min_tx_rate,
 			      SCHED_CLASS_MODE_CLASS,
 			      SCHED_CLASS_RATEUNIT_BITS,
 			      SCHED_CLASS_RATEMODE_ABS,
-			      pi->port_id, class_id, 0,
+			      pi->tx_chan, class_id, 0,
 			      max_tx_rate * 1000, 0, pktsize);
 	if (ret) {
 		dev_err(adap->pdev_dev, "Err %d for Traffic Class config\n",
@@ -2889,14 +2873,29 @@ static int cxgb_set_tx_maxrate(struct net_device *dev, int index, u32 rate)
 	return err;
 }
 
-static int cxgb_setup_tc(struct net_device *dev, u32 handle, u32 chain_index,
-			 __be16 proto, struct tc_to_netdev *tc)
+static int cxgb_setup_tc_cls_u32(struct net_device *dev,
+				 struct tc_cls_u32_offload *cls_u32)
+{
+	if (!is_classid_clsact_ingress(cls_u32->common.classid) ||
+	    cls_u32->common.chain_index)
+		return -EOPNOTSUPP;
+
+	switch (cls_u32->command) {
+	case TC_CLSU32_NEW_KNODE:
+	case TC_CLSU32_REPLACE_KNODE:
+		return cxgb4_config_knode(dev, cls_u32);
+	case TC_CLSU32_DELETE_KNODE:
+		return cxgb4_delete_knode(dev, cls_u32);
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
+static int cxgb_setup_tc(struct net_device *dev, enum tc_setup_type type,
+			 void *type_data)
 {
 	struct port_info *pi = netdev2pinfo(dev);
 	struct adapter *adap = netdev2adap(dev);
-
-	if (chain_index)
-		return -EOPNOTSUPP;
 
 	if (!(adap->flags & FULL_INIT_DONE)) {
 		dev_err(adap->pdev_dev,
@@ -2905,20 +2904,12 @@ static int cxgb_setup_tc(struct net_device *dev, u32 handle, u32 chain_index,
 		return -EINVAL;
 	}
 
-	if (TC_H_MAJ(handle) == TC_H_MAJ(TC_H_INGRESS) &&
-	    tc->type == TC_SETUP_CLSU32) {
-		switch (tc->cls_u32->command) {
-		case TC_CLSU32_NEW_KNODE:
-		case TC_CLSU32_REPLACE_KNODE:
-			return cxgb4_config_knode(dev, proto, tc->cls_u32);
-		case TC_CLSU32_DELETE_KNODE:
-			return cxgb4_delete_knode(dev, proto, tc->cls_u32);
-		default:
-			return -EOPNOTSUPP;
-		}
+	switch (type) {
+	case TC_SETUP_CLSU32:
+		return cxgb_setup_tc_cls_u32(dev, type_data);
+	default:
+		return -EOPNOTSUPP;
 	}
-
-	return -EOPNOTSUPP;
 }
 
 static netdev_features_t cxgb_fix_features(struct net_device *dev,
@@ -3610,11 +3601,8 @@ static int adap_init0(struct adapter *adap)
 	 * later reporting and B. to warn if the currently loaded firmware
 	 * is excessively mismatched relative to the driver.)
 	 */
-	t4_get_fw_version(adap, &adap->params.fw_vers);
-	t4_get_bs_version(adap, &adap->params.bs_vers);
-	t4_get_tp_version(adap, &adap->params.tp_vers);
-	t4_get_exprom_version(adap, &adap->params.er_vers);
 
+	t4_get_version_info(adap);
 	ret = t4_check_fw_version(adap);
 	/* If firmware is too old (not supported by driver) force an update. */
 	if (ret)
@@ -4204,8 +4192,9 @@ static inline bool is_x_10g_port(const struct link_config *lc)
 {
 	unsigned int speeds, high_speeds;
 
-	speeds = FW_PORT_CAP_SPEED_V(FW_PORT_CAP_SPEED_G(lc->supported));
-	high_speeds = speeds & ~(FW_PORT_CAP_SPEED_100M | FW_PORT_CAP_SPEED_1G);
+	speeds = FW_PORT_CAP32_SPEED_V(FW_PORT_CAP32_SPEED_G(lc->pcaps));
+	high_speeds = speeds &
+			~(FW_PORT_CAP32_SPEED_100M | FW_PORT_CAP32_SPEED_1G);
 
 	return high_speeds != 0;
 }
@@ -4560,56 +4549,8 @@ static void cxgb4_check_pcie_caps(struct adapter *adap)
 /* Dump basic information about the adapter */
 static void print_adapter_info(struct adapter *adapter)
 {
-	/* Device information */
-	dev_info(adapter->pdev_dev, "Chelsio %s rev %d\n",
-		 adapter->params.vpd.id,
-		 CHELSIO_CHIP_RELEASE(adapter->params.chip));
-	dev_info(adapter->pdev_dev, "S/N: %s, P/N: %s\n",
-		 adapter->params.vpd.sn, adapter->params.vpd.pn);
-
-	/* Firmware Version */
-	if (!adapter->params.fw_vers)
-		dev_warn(adapter->pdev_dev, "No firmware loaded\n");
-	else
-		dev_info(adapter->pdev_dev, "Firmware version: %u.%u.%u.%u\n",
-			 FW_HDR_FW_VER_MAJOR_G(adapter->params.fw_vers),
-			 FW_HDR_FW_VER_MINOR_G(adapter->params.fw_vers),
-			 FW_HDR_FW_VER_MICRO_G(adapter->params.fw_vers),
-			 FW_HDR_FW_VER_BUILD_G(adapter->params.fw_vers));
-
-	/* Bootstrap Firmware Version. (Some adapters don't have Bootstrap
-	 * Firmware, so dev_info() is more appropriate here.)
-	 */
-	if (!adapter->params.bs_vers)
-		dev_info(adapter->pdev_dev, "No bootstrap loaded\n");
-	else
-		dev_info(adapter->pdev_dev, "Bootstrap version: %u.%u.%u.%u\n",
-			 FW_HDR_FW_VER_MAJOR_G(adapter->params.bs_vers),
-			 FW_HDR_FW_VER_MINOR_G(adapter->params.bs_vers),
-			 FW_HDR_FW_VER_MICRO_G(adapter->params.bs_vers),
-			 FW_HDR_FW_VER_BUILD_G(adapter->params.bs_vers));
-
-	/* TP Microcode Version */
-	if (!adapter->params.tp_vers)
-		dev_warn(adapter->pdev_dev, "No TP Microcode loaded\n");
-	else
-		dev_info(adapter->pdev_dev,
-			 "TP Microcode version: %u.%u.%u.%u\n",
-			 FW_HDR_FW_VER_MAJOR_G(adapter->params.tp_vers),
-			 FW_HDR_FW_VER_MINOR_G(adapter->params.tp_vers),
-			 FW_HDR_FW_VER_MICRO_G(adapter->params.tp_vers),
-			 FW_HDR_FW_VER_BUILD_G(adapter->params.tp_vers));
-
-	/* Expansion ROM version */
-	if (!adapter->params.er_vers)
-		dev_info(adapter->pdev_dev, "No Expansion ROM loaded\n");
-	else
-		dev_info(adapter->pdev_dev,
-			 "Expansion ROM version: %u.%u.%u.%u\n",
-			 FW_HDR_FW_VER_MAJOR_G(adapter->params.er_vers),
-			 FW_HDR_FW_VER_MINOR_G(adapter->params.er_vers),
-			 FW_HDR_FW_VER_MICRO_G(adapter->params.er_vers),
-			 FW_HDR_FW_VER_BUILD_G(adapter->params.er_vers));
+	/* Hardware/Firmware/etc. Version/Revision IDs */
+	t4_dump_version_info(adapter);
 
 	/* Software/Hardware configuration */
 	dev_info(adapter->pdev_dev, "Configuration: %sNIC %s, %s capable\n",
@@ -4634,18 +4575,24 @@ static void print_port_info(const struct net_device *dev)
 	else if (adap->params.pci.speed == PCI_EXP_LNKSTA_CLS_8_0GB)
 		spd = " 8 GT/s";
 
-	if (pi->link_cfg.supported & FW_PORT_CAP_SPEED_100M)
+	if (pi->link_cfg.pcaps & FW_PORT_CAP32_SPEED_100M)
 		bufp += sprintf(bufp, "100M/");
-	if (pi->link_cfg.supported & FW_PORT_CAP_SPEED_1G)
+	if (pi->link_cfg.pcaps & FW_PORT_CAP32_SPEED_1G)
 		bufp += sprintf(bufp, "1G/");
-	if (pi->link_cfg.supported & FW_PORT_CAP_SPEED_10G)
+	if (pi->link_cfg.pcaps & FW_PORT_CAP32_SPEED_10G)
 		bufp += sprintf(bufp, "10G/");
-	if (pi->link_cfg.supported & FW_PORT_CAP_SPEED_25G)
+	if (pi->link_cfg.pcaps & FW_PORT_CAP32_SPEED_25G)
 		bufp += sprintf(bufp, "25G/");
-	if (pi->link_cfg.supported & FW_PORT_CAP_SPEED_40G)
+	if (pi->link_cfg.pcaps & FW_PORT_CAP32_SPEED_40G)
 		bufp += sprintf(bufp, "40G/");
-	if (pi->link_cfg.supported & FW_PORT_CAP_SPEED_100G)
+	if (pi->link_cfg.pcaps & FW_PORT_CAP32_SPEED_50G)
+		bufp += sprintf(bufp, "50G/");
+	if (pi->link_cfg.pcaps & FW_PORT_CAP32_SPEED_100G)
 		bufp += sprintf(bufp, "100G/");
+	if (pi->link_cfg.pcaps & FW_PORT_CAP32_SPEED_200G)
+		bufp += sprintf(bufp, "200G/");
+	if (pi->link_cfg.pcaps & FW_PORT_CAP32_SPEED_400G)
+		bufp += sprintf(bufp, "400G/");
 	if (bufp != buf)
 		--bufp;
 	sprintf(bufp, "BASE-%s", t4_get_port_type_description(pi->port_type));
@@ -4751,10 +4698,11 @@ static int config_mgmt_dev(struct pci_dev *pdev)
 
 	pi = netdev_priv(netdev);
 	pi->adapter = adap;
-	pi->port_id = adap->pf % adap->params.nports;
+	pi->tx_chan = adap->pf % adap->params.nports;
 	SET_NETDEV_DEV(netdev, &pdev->dev);
 
 	adap->port[0] = netdev;
+	pi->port_id = 0;
 
 	err = register_netdev(adap->port[0]);
 	if (err) {

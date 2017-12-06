@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/mm.h>
 #include <linux/gfp.h>
 #include <linux/kernel.h>
@@ -523,7 +524,7 @@ int __init parse_cec_param(char *str)
 	if (*str == '=')
 		str++;
 
-	if (!strncmp(str, "cec_disable", 7))
+	if (!strcmp(str, "cec_disable"))
 		ce_arr.disabled = 1;
 	else
 		return 0;

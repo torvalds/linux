@@ -443,7 +443,7 @@ fd_do_prot_fill(struct se_device *se_dev, sector_t lba, sector_t nolb,
 
 	for (prot = 0; prot < prot_length;) {
 		sector_t len = min_t(sector_t, bufsize, prot_length - prot);
-		ssize_t ret = kernel_write(prot_fd, buf, len, pos + prot);
+		ssize_t ret = kernel_write(prot_fd, buf, len, &pos);
 
 		if (ret != len) {
 			pr_err("vfs_write to prot file failed: %zd\n", ret);

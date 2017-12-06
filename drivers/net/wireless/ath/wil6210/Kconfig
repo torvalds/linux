@@ -40,3 +40,15 @@ config WIL6210_TRACING
 	  option if you are interested in debugging the driver.
 
 	  If unsure, say Y to make it easier to debug problems.
+
+config WIL6210_DEBUGFS
+	bool "wil6210 debugfs support"
+	depends on WIL6210
+	depends on DEBUG_FS
+	default y
+	---help---
+	  Say Y here to enable wil6210 debugfs support, using the
+	  kernel debugfs infrastructure. Select this
+	  option if you are interested in debugging the driver.
+
+	  If unsure, say Y to make it easier to debug problems.

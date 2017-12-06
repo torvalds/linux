@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /* windows.c: Routines to deal with register window management
  *            at the C-code level.
  *

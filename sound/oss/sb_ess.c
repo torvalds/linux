@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #undef FKS_LOGGING
 #undef FKS_TEST
 

@@ -57,5 +57,4 @@ spi: spi@1100a000 {
 	clock-names = "parent-clk", "sel-clk", "spi-clk";
 	cs-gpios = <&pio 105 GPIO_ACTIVE_LOW>, <&pio 72 GPIO_ACTIVE_LOW>;
 	mediatek,pad-select = <1>, <0>;
-	status = "disabled";
 };

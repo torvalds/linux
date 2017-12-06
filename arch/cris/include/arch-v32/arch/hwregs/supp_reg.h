@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __SUPP_REG_H__
 #define __SUPP_REG_H__
 

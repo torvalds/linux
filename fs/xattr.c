@@ -23,6 +23,7 @@
 #include <linux/posix_acl_xattr.h>
 
 #include <linux/uaccess.h>
+#include "internal.h"
 
 static const char *
 strcmp_prefix(const char *a, const char *a_prefix)
@@ -249,7 +250,7 @@ xattr_getsecurity(struct inode *inode, const char *name, void *value,
 	}
 	memcpy(value, buffer, len);
 out:
-	security_release_secctx(buffer, len);
+	kfree(buffer);
 out_noalloc:
 	return len;
 }
@@ -441,6 +442,12 @@ setxattr(struct dentry *d, const char __user *name, const void __user *value,
 		if ((strcmp(kname, XATTR_NAME_POSIX_ACL_ACCESS) == 0) ||
 		    (strcmp(kname, XATTR_NAME_POSIX_ACL_DEFAULT) == 0))
 			posix_acl_fix_xattr_from_user(kvalue, size);
+		else if (strcmp(kname, XATTR_NAME_CAPS) == 0) {
+			error = cap_convert_nscap(d, &kvalue, size);
+			if (error < 0)
+				goto out;
+			size = error;
+		}
 	}
 
 	error = vfs_setxattr(d, kname, kvalue, size, flags);
@@ -496,10 +503,10 @@ SYSCALL_DEFINE5(fsetxattr, int, fd, const char __user *, name,
 	if (!f.file)
 		return error;
 	audit_file(f.file);
-	error = mnt_want_write_file(f.file);
+	error = mnt_want_write_file_path(f.file);
 	if (!error) {
 		error = setxattr(f.file->f_path.dentry, name, value, size, flags);
-		mnt_drop_write_file(f.file);
+		mnt_drop_write_file_path(f.file);
 	}
 	fdput(f);
 	return error;
@@ -728,10 +735,10 @@ SYSCALL_DEFINE2(fremovexattr, int, fd, const char __user *, name)
 	if (!f.file)
 		return error;
 	audit_file(f.file);
-	error = mnt_want_write_file(f.file);
+	error = mnt_want_write_file_path(f.file);
 	if (!error) {
 		error = removexattr(f.file->f_path.dentry, name);
-		mnt_drop_write_file(f.file);
+		mnt_drop_write_file_path(f.file);
 	}
 	fdput(f);
 	return error;

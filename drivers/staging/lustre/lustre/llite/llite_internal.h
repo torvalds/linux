@@ -32,18 +32,18 @@
 
 #ifndef LLITE_INTERNAL_H
 #define LLITE_INTERNAL_H
-#include "../include/lustre_debug.h"
-#include "../include/lustre_ver.h"
-#include "../include/lustre_disk.h"	/* for s2sbi */
-#include "../include/lustre_linkea.h"
+#include <lustre_debug.h>
+#include <uapi/linux/lustre/lustre_ver.h>
+#include <lustre_disk.h>	/* for s2sbi */
+#include <lustre_linkea.h>
 
 /* for struct cl_lock_descr and struct cl_io */
-#include "../include/lustre_patchless_compat.h"
-#include "../include/lustre_compat.h"
-#include "../include/cl_object.h"
-#include "../include/lustre_lmv.h"
-#include "../include/lustre_mdc.h"
-#include "../include/lustre_intent.h"
+#include <lustre_patchless_compat.h>
+#include <lustre_compat.h>
+#include <cl_object.h>
+#include <lustre_lmv.h>
+#include <lustre_mdc.h>
+#include <lustre_intent.h>
 #include <linux/compat.h>
 #include <linux/namei.h>
 #include <linux/xattr.h>

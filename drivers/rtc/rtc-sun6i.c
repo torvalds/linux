@@ -73,6 +73,9 @@
 #define SUN6I_ALARM_CONFIG			0x0050
 #define SUN6I_ALARM_CONFIG_WAKEUP		BIT(0)
 
+#define SUN6I_LOSC_OUT_GATING			0x0060
+#define SUN6I_LOSC_OUT_GATING_EN		BIT(0)
+
 /*
  * Get date values
  */
@@ -125,6 +128,7 @@ struct sun6i_rtc_dev {
 	struct clk_hw hw;
 	struct clk_hw *int_osc;
 	struct clk *losc;
+	struct clk *ext_losc;
 
 	spinlock_t lock;
 };
@@ -188,23 +192,24 @@ static void __init sun6i_rtc_clk_init(struct device_node *node)
 	struct clk_init_data init = {
 		.ops		= &sun6i_rtc_osc_ops,
 	};
+	const char *clkout_name = "osc32k-out";
 	const char *parents[2];
 
 	rtc = kzalloc(sizeof(*rtc), GFP_KERNEL);
 	if (!rtc)
 		return;
-	spin_lock_init(&rtc->lock);
 
-	clk_data = kzalloc(sizeof(*clk_data) + sizeof(*clk_data->hws),
+	clk_data = kzalloc(sizeof(*clk_data) + (sizeof(*clk_data->hws) * 2),
 			   GFP_KERNEL);
 	if (!clk_data)
 		return;
+
 	spin_lock_init(&rtc->lock);
 
 	rtc->base = of_io_request_and_map(node, 0, of_node_full_name(node));
 	if (IS_ERR(rtc->base)) {
 		pr_crit("Can't map RTC registers");
-		return;
+		goto err;
 	}
 
 	/* Switch to the external, more precise, oscillator */
@@ -216,7 +221,7 @@ static void __init sun6i_rtc_clk_init(struct device_node *node)
 
 	/* Deal with old DTs */
 	if (!of_get_property(node, "clocks", NULL))
-		return;
+		goto err;
 
 	rtc->int_osc = clk_hw_register_fixed_rate_with_accuracy(NULL,
 								"rtc-int-osc",
@@ -235,7 +240,8 @@ static void __init sun6i_rtc_clk_init(struct device_node *node)
 
 	init.parent_names = parents;
 	init.num_parents = of_clk_get_parent_count(node) + 1;
-	of_property_read_string(node, "clock-output-names", &init.name);
+	of_property_read_string_index(node, "clock-output-names", 0,
+				      &init.name);
 
 	rtc->losc = clk_register(NULL, &rtc->hw);
 	if (IS_ERR(rtc->losc)) {
@@ -243,9 +249,25 @@ static void __init sun6i_rtc_clk_init(struct device_node *node)
 		return;
 	}
 
-	clk_data->num = 1;
+	of_property_read_string_index(node, "clock-output-names", 1,
+				      &clkout_name);
+	rtc->ext_losc = clk_register_gate(NULL, clkout_name, rtc->hw.init->name,
+					  0, rtc->base + SUN6I_LOSC_OUT_GATING,
+					  SUN6I_LOSC_OUT_GATING_EN, 0,
+					  &rtc->lock);
+	if (IS_ERR(rtc->ext_losc)) {
+		pr_crit("Couldn't register the LOSC external gate\n");
+		return;
+	}
+
+	clk_data->num = 2;
 	clk_data->hws[0] = &rtc->hw;
+	clk_data->hws[1] = __clk_get_hw(rtc->ext_losc);
 	of_clk_add_hw_provider(node, of_clk_hw_onecell_get, clk_data);
+	return;
+
+err:
+	kfree(clk_data);
 }
 CLK_OF_DECLARE_DRIVER(sun6i_rtc_clk, "allwinner,sun6i-a31-rtc",
 		      sun6i_rtc_clk_init);

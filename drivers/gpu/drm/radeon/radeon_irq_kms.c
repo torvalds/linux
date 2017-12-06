@@ -283,6 +283,10 @@ int radeon_irq_kms_init(struct radeon_device *rdev)
 	int r = 0;
 
 	spin_lock_init(&rdev->irq.lock);
+
+	/* Disable vblank irqs aggressively for power-saving */
+	rdev->ddev->vblank_disable_immediate = true;
+
 	r = drm_vblank_init(rdev->ddev, rdev->num_crtc);
 	if (r) {
 		return r;
@@ -324,7 +328,6 @@ int radeon_irq_kms_init(struct radeon_device *rdev)
  */
 void radeon_irq_kms_fini(struct radeon_device *rdev)
 {
-	drm_vblank_cleanup(rdev->ddev);
 	if (rdev->irq.installed) {
 		drm_irq_uninstall(rdev->ddev);
 		rdev->irq.installed = false;

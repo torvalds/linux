@@ -669,7 +669,7 @@ enum {
 	NRS_RES_MAX
 };
 
-#include "lustre_nrs_fifo.h"
+#include <lustre_nrs_fifo.h>
 
 /**
  * NRS request

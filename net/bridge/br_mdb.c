@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/err.h>
 #include <linux/igmp.h>
 #include <linux/kernel.h>
@@ -713,9 +714,9 @@ static int br_mdb_del(struct sk_buff *skb, struct nlmsghdr *nlh,
 
 void br_mdb_init(void)
 {
-	rtnl_register(PF_BRIDGE, RTM_GETMDB, NULL, br_mdb_dump, NULL);
-	rtnl_register(PF_BRIDGE, RTM_NEWMDB, br_mdb_add, NULL, NULL);
-	rtnl_register(PF_BRIDGE, RTM_DELMDB, br_mdb_del, NULL, NULL);
+	rtnl_register(PF_BRIDGE, RTM_GETMDB, NULL, br_mdb_dump, 0);
+	rtnl_register(PF_BRIDGE, RTM_NEWMDB, br_mdb_add, NULL, 0);
+	rtnl_register(PF_BRIDGE, RTM_DELMDB, br_mdb_del, NULL, 0);
 }
 
 void br_mdb_uninit(void)

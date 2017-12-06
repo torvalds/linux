@@ -17,6 +17,8 @@
  * MCP3204
  * MCP3208
  * ------------
+ * 13 bit converter
+ * MCP3301
  *
  * Datasheet can be found here:
  * http://ww1.microchip.com/downloads/en/DeviceDoc/21293C.pdf  mcp3001
@@ -96,7 +98,7 @@ static int mcp320x_channel_to_tx_data(int device_index,
 }
 
 static int mcp320x_adc_conversion(struct mcp320x *adc, u8 channel,
-				  bool differential, int device_index)
+				  bool differential, int device_index, int *val)
 {
 	int ret;
 
@@ -117,19 +119,25 @@ static int mcp320x_adc_conversion(struct mcp320x *adc, u8 channel,
 
 	switch (device_index) {
 	case mcp3001:
-		return (adc->rx_buf[0] << 5 | adc->rx_buf[1] >> 3);
+		*val = (adc->rx_buf[0] << 5 | adc->rx_buf[1] >> 3);
+		return 0;
 	case mcp3002:
 	case mcp3004:
 	case mcp3008:
-		return (adc->rx_buf[0] << 2 | adc->rx_buf[1] >> 6);
+		*val = (adc->rx_buf[0] << 2 | adc->rx_buf[1] >> 6);
+		return 0;
 	case mcp3201:
-		return (adc->rx_buf[0] << 7 | adc->rx_buf[1] >> 1);
+		*val = (adc->rx_buf[0] << 7 | adc->rx_buf[1] >> 1);
+		return 0;
 	case mcp3202:
 	case mcp3204:
 	case mcp3208:
-		return (adc->rx_buf[0] << 4 | adc->rx_buf[1] >> 4);
+		*val = (adc->rx_buf[0] << 4 | adc->rx_buf[1] >> 4);
+		return 0;
 	case mcp3301:
-		return sign_extend32((adc->rx_buf[0] & 0x1f) << 8 | adc->rx_buf[1], 12);
+		*val = sign_extend32((adc->rx_buf[0] & 0x1f) << 8
+				    | adc->rx_buf[1], 12);
+		return 0;
 	default:
 		return -EINVAL;
 	}
@@ -150,12 +158,10 @@ static int mcp320x_read_raw(struct iio_dev *indio_dev,
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
 		ret = mcp320x_adc_conversion(adc, channel->address,
-			channel->differential, device_index);
-
+			channel->differential, device_index, val);
 		if (ret < 0)
 			goto out;
 
-		*val = ret;
 		ret = IIO_VAL_INT;
 		break;
 
@@ -312,6 +318,7 @@ static int mcp320x_probe(struct spi_device *spi)
 	indio_dev->name = spi_get_device_id(spi)->name;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->info = &mcp320x_info;
+	spi_set_drvdata(spi, indio_dev);
 
 	chip_info = &mcp320x_chip_infos[spi_get_device_id(spi)->driver_data];
 	indio_dev->channels = chip_info->channels;

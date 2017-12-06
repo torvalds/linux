@@ -101,7 +101,7 @@ void pci_puv3_preinit(void)
 	writel(readl(PCIBRI_CMD) | PCIBRI_CMD_IO | PCIBRI_CMD_MEM, PCIBRI_CMD);
 }
 
-static int __init pci_puv3_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
+static int pci_puv3_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 {
 	if (dev->bus->number == 0) {
 #ifdef CONFIG_ARCH_FPGA /* 4 pci slots */
@@ -252,18 +252,45 @@ void pcibios_fixup_bus(struct pci_bus *bus)
 }
 EXPORT_SYMBOL(pcibios_fixup_bus);
 
+static struct resource busn_resource = {
+	.name	= "PCI busn",
+	.start	= 0,
+	.end	= 255,
+	.flags	= IORESOURCE_BUS,
+};
+
 static int __init pci_common_init(void)
 {
 	struct pci_bus *puv3_bus;
+	struct pci_host_bridge *bridge;
+	int ret;
+
+	bridge = pci_alloc_host_bridge(0);
+	if (!bridge)
+		return -ENOMEM;
 
 	pci_puv3_preinit();
 
-	puv3_bus = pci_scan_bus(0, &pci_puv3_ops, NULL);
+	pci_add_resource(&bridge->windows, &ioport_resource);
+	pci_add_resource(&bridge->windows, &iomem_resource);
+	pci_add_resource(&bridge->windows, &busn_resource);
+	bridge->sysdata = NULL;
+	bridge->busnr = 0;
+	bridge->ops = &pci_puv3_ops;
+	bridge->swizzle_irq = pci_common_swizzle;
+	bridge->map_irq = pci_puv3_map_irq;
+
+	/* Scan our single hose.  */
+	ret = pci_scan_root_bus_bridge(bridge);
+	if (ret) {
+		pci_free_host_bridge(bridge);
+		return;
+	}
+
+	puv3_bus = bridge->bus;
 
 	if (!puv3_bus)
 		panic("PCI: unable to scan bus!");
-
-	pci_fixup_irqs(pci_common_swizzle, pci_puv3_map_irq);
 
 	pci_bus_size_bridges(puv3_bus);
 	pci_bus_assign_resources(puv3_bus);

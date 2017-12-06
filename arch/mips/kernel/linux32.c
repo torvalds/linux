@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Conversion between 32-bit and 64-bit native system calls.
  *

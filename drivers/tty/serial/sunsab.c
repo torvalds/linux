@@ -819,7 +819,7 @@ static int sunsab_verify_port(struct uart_port *port, struct serial_struct *ser)
 	return -EINVAL;
 }
 
-static struct uart_ops sunsab_pops = {
+static const struct uart_ops sunsab_pops = {
 	.tx_empty	= sunsab_tx_empty,
 	.set_mctrl	= sunsab_set_mctrl,
 	.get_mctrl	= sunsab_get_mctrl,

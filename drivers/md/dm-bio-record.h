@@ -18,21 +18,24 @@
  */
 
 struct dm_bio_details {
-	struct block_device *bi_bdev;
+	struct gendisk *bi_disk;
+	u8 bi_partno;
 	unsigned long bi_flags;
 	struct bvec_iter bi_iter;
 };
 
 static inline void dm_bio_record(struct dm_bio_details *bd, struct bio *bio)
 {
-	bd->bi_bdev = bio->bi_bdev;
+	bd->bi_disk = bio->bi_disk;
+	bd->bi_partno = bio->bi_partno;
 	bd->bi_flags = bio->bi_flags;
 	bd->bi_iter = bio->bi_iter;
 }
 
 static inline void dm_bio_restore(struct dm_bio_details *bd, struct bio *bio)
 {
-	bio->bi_bdev = bd->bi_bdev;
+	bio->bi_disk = bd->bi_disk;
+	bio->bi_partno = bd->bi_partno;
 	bio->bi_flags = bd->bi_flags;
 	bio->bi_iter = bd->bi_iter;
 }

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-1.0+ WITH Linux-syscall-note */
 /*
  * include/linux/serial_reg.h
  *

@@ -1217,7 +1217,7 @@ send:
 	return err;
 }
 
-static struct genl_ops tipc_genl_compat_ops[] = {
+static const struct genl_ops tipc_genl_compat_ops[] = {
 	{
 		.cmd		= TIPC_GENL_CMD,
 		.doit		= tipc_nl_compat_recv,

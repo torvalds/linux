@@ -31,6 +31,12 @@ enum vega10_pt_config_reg_type {
 	VEGA10_CONFIGREG_MAX
 };
 
+enum vega10_didt_config_reg_type {
+	VEGA10_CONFIGREG_DIDT = 0,
+	VEGA10_CONFIGREG_GCCAC,
+	VEGA10_CONFIGREG_SECAC
+};
+
 /* PowerContainment Features */
 #define POWERCONTAINMENT_FEATURE_DTE             0x00000001
 #define POWERCONTAINMENT_FEATURE_TDCLimit        0x00000002
@@ -42,6 +48,13 @@ struct vega10_pt_config_reg {
 	uint32_t                           shift;
 	uint32_t                           value;
 	enum vega10_pt_config_reg_type       type;
+};
+
+struct vega10_didt_config_reg {
+	uint32_t		offset;
+	uint32_t		mask;
+	uint32_t		shift;
+	uint32_t		value;
 };
 
 struct vega10_pt_defaults {
@@ -61,6 +74,9 @@ int vega10_enable_power_containment(struct pp_hwmgr *hwmgr);
 int vega10_set_power_limit(struct pp_hwmgr *hwmgr, uint32_t n);
 int vega10_power_control_set_level(struct pp_hwmgr *hwmgr);
 int vega10_disable_power_containment(struct pp_hwmgr *hwmgr);
+
+int vega10_enable_didt_config(struct pp_hwmgr *hwmgr);
+int vega10_disable_didt_config(struct pp_hwmgr *hwmgr);
 
 #endif  /* _VEGA10_POWERTUNE_H_ */
 

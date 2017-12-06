@@ -78,7 +78,7 @@ void rds_connect_path_complete(struct rds_conn_path *cp, int curr)
 				"current state is %d\n",
 				__func__,
 				atomic_read(&cp->cp_state));
-		rds_conn_path_drop(cp);
+		rds_conn_path_drop(cp, false);
 		return;
 	}
 

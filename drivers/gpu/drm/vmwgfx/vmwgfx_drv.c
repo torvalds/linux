@@ -36,7 +36,6 @@
 #include <drm/ttm/ttm_module.h>
 #include <linux/dma_remapping.h>
 
-#define VMWGFX_DRIVER_NAME "vmwgfx"
 #define VMWGFX_DRIVER_DESC "Linux drm driver for VMware graphics devices"
 #define VMWGFX_CHIP_SVGAII 0
 #define VMW_FB_RESERVATION 0
@@ -722,7 +721,7 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 		 * allocation taken by fbdev
 		 */
 		if (!(dev_priv->capabilities & SVGA_CAP_3D))
-			mem_size *= 2;
+			mem_size *= 3;
 
 		dev_priv->max_mob_pages = mem_size * 1024 / PAGE_SIZE;
 		dev_priv->prim_bb_mem =
@@ -825,7 +824,7 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 	}
 
 	if (dev_priv->capabilities & SVGA_CAP_IRQMASK) {
-		ret = drm_irq_install(dev, dev->pdev->irq);
+		ret = vmw_irq_install(dev, dev->pdev->irq);
 		if (ret != 0) {
 			DRM_ERROR("Failed installing irq: %d\n", ret);
 			goto out_no_irq;
@@ -937,7 +936,7 @@ out_no_bdev:
 	vmw_fence_manager_takedown(dev_priv->fman);
 out_no_fman:
 	if (dev_priv->capabilities & SVGA_CAP_IRQMASK)
-		drm_irq_uninstall(dev_priv->dev);
+		vmw_irq_uninstall(dev_priv->dev);
 out_no_irq:
 	if (dev_priv->stealth)
 		pci_release_region(dev->pdev, 2);
@@ -990,7 +989,7 @@ static void vmw_driver_unload(struct drm_device *dev)
 	vmw_release_device_late(dev_priv);
 	vmw_fence_manager_takedown(dev_priv->fman);
 	if (dev_priv->capabilities & SVGA_CAP_IRQMASK)
-		drm_irq_uninstall(dev_priv->dev);
+		vmw_irq_uninstall(dev_priv->dev);
 	if (dev_priv->stealth)
 		pci_release_region(dev->pdev, 2);
 	else
@@ -1516,10 +1515,6 @@ static struct drm_driver driver = {
 	.load = vmw_driver_load,
 	.unload = vmw_driver_unload,
 	.lastclose = vmw_lastclose,
-	.irq_preinstall = vmw_irq_preinstall,
-	.irq_postinstall = vmw_irq_postinstall,
-	.irq_uninstall = vmw_irq_uninstall,
-	.irq_handler = vmw_irq_handler,
 	.get_vblank_counter = vmw_get_vblank_counter,
 	.enable_vblank = vmw_enable_vblank,
 	.disable_vblank = vmw_disable_vblank,
@@ -1531,7 +1526,6 @@ static struct drm_driver driver = {
 	.master_drop = vmw_master_drop,
 	.open = vmw_driver_open,
 	.postclose = vmw_postclose,
-	.set_busid = drm_pci_set_busid,
 
 	.dumb_create = vmw_dumb_create,
 	.dumb_map_offset = vmw_dumb_map_offset,
@@ -1571,7 +1565,7 @@ static int __init vmwgfx_init(void)
 	if (vgacon_text_force())
 		return -EINVAL;
 
-	ret = drm_pci_init(&driver, &vmw_pci_driver);
+	ret = pci_register_driver(&vmw_pci_driver);
 	if (ret)
 		DRM_ERROR("Failed initializing DRM.\n");
 	return ret;
@@ -1579,7 +1573,7 @@ static int __init vmwgfx_init(void)
 
 static void __exit vmwgfx_exit(void)
 {
-	drm_pci_exit(&driver, &vmw_pci_driver);
+	pci_unregister_driver(&vmw_pci_driver);
 }
 
 module_init(vmwgfx_init);

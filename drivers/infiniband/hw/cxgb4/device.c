@@ -44,7 +44,6 @@
 MODULE_AUTHOR("Steve Wise");
 MODULE_DESCRIPTION("Chelsio T4/T5 RDMA Driver");
 MODULE_LICENSE("Dual BSD/GPL");
-MODULE_VERSION(DRV_VERSION);
 
 static int allow_db_fc_on_t5;
 module_param(allow_db_fc_on_t5, int, 0644);

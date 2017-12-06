@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Simple program to generate defines out of facility lists that use the bit
  * numbering scheme from the Princples of Operations: most significant bit
@@ -41,7 +42,7 @@ static struct facility_def facility_defs[] = {
 			27, /* mvcos */
 			32, /* compare and swap and store */
 			33, /* compare and swap and store 2 */
-			34, /* general extension facility */
+			34, /* general instructions extension */
 			35, /* execute extensions */
 #endif
 #ifdef CONFIG_HAVE_MARCH_Z196_FEATURES
@@ -53,6 +54,9 @@ static struct facility_def facility_defs[] = {
 #endif
 #ifdef CONFIG_HAVE_MARCH_Z13_FEATURES
 			53, /* load-and-zero-rightmost-byte, etc. */
+#endif
+#ifdef CONFIG_HAVE_MARCH_Z14_FEATURES
+			58, /* miscellaneous-instruction-extension 2 */
 #endif
 			-1 /* END */
 		}
@@ -80,6 +84,7 @@ static struct facility_def facility_defs[] = {
 			78, /* enhanced-DAT 2 */
 			130, /* instruction-execution-protection */
 			131, /* enhanced-SOP 2 and side-effect */
+			139, /* multiple epoch facility */
 			146, /* msa extension 8 */
 			-1  /* END */
 		}

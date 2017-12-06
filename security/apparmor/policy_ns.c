@@ -112,6 +112,8 @@ static struct aa_ns *alloc_ns(const char *prefix, const char *name)
 	ns->unconfined->label.flags |= FLAG_IX_ON_NAME_ERROR |
 		FLAG_IMMUTIBLE | FLAG_NS_COUNT | FLAG_UNCONFINED;
 	ns->unconfined->mode = APPARMOR_UNCONFINED;
+	ns->unconfined->file.dfa = aa_get_dfa(nulldfa);
+	ns->unconfined->policy.dfa = aa_get_dfa(nulldfa);
 
 	/* ns and ns->unconfined share ns->unconfined refcount */
 	ns->unconfined->ns = ns;

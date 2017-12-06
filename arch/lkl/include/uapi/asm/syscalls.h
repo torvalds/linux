@@ -170,6 +170,8 @@ struct ustat {
 	char			f_fpack[6];
 };
 
+typedef __kernel_rwf_t		rwf_t;
+
 #define AF_UNSPEC       0
 #define AF_UNIX         1
 #define AF_LOCAL        1

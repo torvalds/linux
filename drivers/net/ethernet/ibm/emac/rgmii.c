@@ -104,8 +104,8 @@ int rgmii_attach(struct platform_device *ofdev, int input, int mode)
 
 	/* Check if we need to attach to a RGMII */
 	if (input < 0 || !rgmii_valid_mode(mode)) {
-		printk(KERN_ERR "%s: unsupported settings !\n",
-		       ofdev->dev.of_node->full_name);
+		printk(KERN_ERR "%pOF: unsupported settings !\n",
+		       ofdev->dev.of_node);
 		return -ENODEV;
 	}
 
@@ -114,8 +114,8 @@ int rgmii_attach(struct platform_device *ofdev, int input, int mode)
 	/* Enable this input */
 	out_be32(&p->fer, in_be32(&p->fer) | rgmii_mode_mask(mode, input));
 
-	printk(KERN_NOTICE "%s: input %d in %s mode\n",
-	       ofdev->dev.of_node->full_name, input, rgmii_mode_name(mode));
+	printk(KERN_NOTICE "%pOF: input %d in %s mode\n",
+	       ofdev->dev.of_node, input, rgmii_mode_name(mode));
 
 	++dev->users;
 
@@ -249,8 +249,7 @@ static int rgmii_probe(struct platform_device *ofdev)
 
 	rc = -ENXIO;
 	if (of_address_to_resource(np, 0, &regs)) {
-		printk(KERN_ERR "%s: Can't get registers address\n",
-		       np->full_name);
+		printk(KERN_ERR "%pOF: Can't get registers address\n", np);
 		goto err_free;
 	}
 
@@ -258,8 +257,7 @@ static int rgmii_probe(struct platform_device *ofdev)
 	dev->base = (struct rgmii_regs __iomem *)ioremap(regs.start,
 						 sizeof(struct rgmii_regs));
 	if (dev->base == NULL) {
-		printk(KERN_ERR "%s: Can't map device registers!\n",
-		       np->full_name);
+		printk(KERN_ERR "%pOF: Can't map device registers!\n", np);
 		goto err_free;
 	}
 
@@ -278,8 +276,8 @@ static int rgmii_probe(struct platform_device *ofdev)
 	out_be32(&dev->base->fer, 0);
 
 	printk(KERN_INFO
-	       "RGMII %s initialized with%s MDIO support\n",
-	       ofdev->dev.of_node->full_name,
+	       "RGMII %pOF initialized with%s MDIO support\n",
+	       ofdev->dev.of_node,
 	       (dev->flags & EMAC_RGMII_FLAG_HAS_MDIO) ? "" : "out");
 
 	wmb();

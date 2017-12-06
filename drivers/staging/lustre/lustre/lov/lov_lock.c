@@ -71,24 +71,16 @@ static struct lov_sublock_env *lov_sublock_env_get(const struct lu_env *env,
 	if (!io || !cl_object_same(io->ci_obj, parent->cll_descr.cld_obj)) {
 		subenv->lse_env = env;
 		subenv->lse_io  = io;
-		subenv->lse_sub = NULL;
 	} else {
 		sub = lov_sub_get(env, lio, lls->sub_stripe);
 		if (!IS_ERR(sub)) {
 			subenv->lse_env = sub->sub_env;
 			subenv->lse_io  = sub->sub_io;
-			subenv->lse_sub = sub;
 		} else {
 			subenv = (void *)sub;
 		}
 	}
 	return subenv;
-}
-
-static void lov_sublock_env_put(struct lov_sublock_env *subenv)
-{
-	if (subenv && subenv->lse_sub)
-		lov_sub_put(subenv->lse_sub);
 }
 
 static int lov_sublock_init(const struct lu_env *env,
@@ -102,7 +94,6 @@ static int lov_sublock_init(const struct lu_env *env,
 	if (!IS_ERR(subenv)) {
 		result = cl_lock_init(subenv->lse_env, &lls->sub_lock,
 				      subenv->lse_io);
-		lov_sublock_env_put(subenv);
 	} else {
 		/* error occurs. */
 		result = PTR_ERR(subenv);
@@ -244,7 +235,6 @@ static int lov_lock_enqueue(const struct lu_env *env,
 		}
 		rc = cl_lock_enqueue(subenv->lse_env, subenv->lse_io,
 				     &lls->sub_lock, anchor);
-		lov_sublock_env_put(subenv);
 		if (rc != 0)
 			break;
 
@@ -272,11 +262,10 @@ static void lov_lock_cancel(const struct lu_env *env,
 		subenv = lov_sublock_env_get(env, lock, lls);
 		if (!IS_ERR(subenv)) {
 			cl_lock_cancel(subenv->lse_env, sublock);
-			lov_sublock_env_put(subenv);
 		} else {
 			CL_LOCK_DEBUG(D_ERROR, env, slice->cls_lock,
-				      "lov_lock_cancel fails with %ld.\n",
-				      PTR_ERR(subenv));
+				      "%s fails with %ld.\n",
+				      __func__, PTR_ERR(subenv));
 		}
 	}
 }

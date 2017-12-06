@@ -1,6 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 / {
 	mbus@f1000000 {
-		pciec: pcie-controller@82000000 {
+		pciec: pcie@82000000 {
 			compatible = "marvell,kirkwood-pcie";
 			status = "disabled";
 			device_type = "pci";
@@ -28,6 +29,7 @@
 				#interrupt-cells = <1>;
 				ranges = <0x82000000 0 0 0x82000000 0x1 0 1 0
 					  0x81000000 0 0 0x81000000 0x1 0 1 0>;
+				bus-range = <0x00 0xff>;
 				interrupt-map-mask = <0 0 0 0>;
 				interrupt-map = <0 0 0 0 &intc 9>;
 				marvell,pcie-port = <0>;
@@ -45,6 +47,7 @@
 				#interrupt-cells = <1>;
 				ranges = <0x82000000 0 0 0x82000000 0x2 0 1 0
 					  0x81000000 0 0 0x81000000 0x2 0 1 0>;
+				bus-range = <0x00 0xff>;
 				interrupt-map-mask = <0 0 0 0>;
 				interrupt-map = <0 0 0 0 &intc 10>;
 				marvell,pcie-port = <1>;

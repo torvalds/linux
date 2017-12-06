@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/sched.h>
@@ -93,7 +94,7 @@ static void set_tls_desc(struct task_struct *p, int idx,
 
 	while (n-- > 0) {
 		if (LDT_empty(info) || LDT_zero(info)) {
-			desc->a = desc->b = 0;
+			memset(desc, 0, sizeof(*desc));
 		} else {
 			fill_ldt(desc, info);
 

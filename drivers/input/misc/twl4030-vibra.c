@@ -28,7 +28,7 @@
 #include <linux/platform_device.h>
 #include <linux/of.h>
 #include <linux/workqueue.h>
-#include <linux/i2c/twl.h>
+#include <linux/mfd/twl.h>
 #include <linux/mfd/twl4030-audio.h>
 #include <linux/input.h>
 #include <linux/slab.h>

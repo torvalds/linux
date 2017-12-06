@@ -30,7 +30,6 @@ struct gpio_rc_dev {
 	struct rc_dev *rcdev;
 	int gpio_nr;
 	bool active_low;
-	struct timer_list flush_timer;
 };
 
 #ifdef CONFIG_OF
@@ -77,7 +76,6 @@ static irqreturn_t gpio_ir_recv_irq(int irq, void *dev_id)
 	struct gpio_rc_dev *gpio_dev = dev_id;
 	int gval;
 	int rc = 0;
-	enum raw_event_type type = IR_SPACE;
 
 	gval = gpio_get_value(gpio_dev->gpio_nr);
 
@@ -87,31 +85,12 @@ static irqreturn_t gpio_ir_recv_irq(int irq, void *dev_id)
 	if (gpio_dev->active_low)
 		gval = !gval;
 
-	if (gval == 1)
-		type = IR_PULSE;
-
-	rc = ir_raw_event_store_edge(gpio_dev->rcdev, type);
+	rc = ir_raw_event_store_edge(gpio_dev->rcdev, gval == 1);
 	if (rc < 0)
 		goto err_get_value;
 
-	mod_timer(&gpio_dev->flush_timer,
-		  jiffies + nsecs_to_jiffies(gpio_dev->rcdev->timeout));
-
-	ir_raw_event_handle(gpio_dev->rcdev);
-
 err_get_value:
 	return IRQ_HANDLED;
-}
-
-static void flush_timer(unsigned long arg)
-{
-	struct gpio_rc_dev *gpio_dev = (struct gpio_rc_dev *)arg;
-	DEFINE_IR_RAW_EVENT(ev);
-
-	ev.timeout = true;
-	ev.duration = gpio_dev->rcdev->timeout;
-	ir_raw_event_store(gpio_dev->rcdev, &ev);
-	ir_raw_event_handle(gpio_dev->rcdev);
 }
 
 static int gpio_ir_recv_probe(struct platform_device *pdev)
@@ -150,7 +129,7 @@ static int gpio_ir_recv_probe(struct platform_device *pdev)
 	}
 
 	rcdev->priv = gpio_dev;
-	rcdev->input_name = GPIO_IR_DEVICE_NAME;
+	rcdev->device_name = GPIO_IR_DEVICE_NAME;
 	rcdev->input_phys = GPIO_IR_DEVICE_NAME "/input0";
 	rcdev->input_id.bustype = BUS_HOST;
 	rcdev->input_id.vendor = 0x0001;
@@ -164,15 +143,12 @@ static int gpio_ir_recv_probe(struct platform_device *pdev)
 	if (pdata->allowed_protos)
 		rcdev->allowed_protocols = pdata->allowed_protos;
 	else
-		rcdev->allowed_protocols = RC_BIT_ALL_IR_DECODER;
+		rcdev->allowed_protocols = RC_PROTO_BIT_ALL_IR_DECODER;
 	rcdev->map_name = pdata->map_name ?: RC_MAP_EMPTY;
 
 	gpio_dev->rcdev = rcdev;
 	gpio_dev->gpio_nr = pdata->gpio_nr;
 	gpio_dev->active_low = pdata->active_low;
-
-	setup_timer(&gpio_dev->flush_timer, flush_timer,
-		    (unsigned long)gpio_dev);
 
 	rc = gpio_request(pdata->gpio_nr, "gpio-ir-recv");
 	if (rc < 0)
@@ -216,7 +192,6 @@ static int gpio_ir_recv_remove(struct platform_device *pdev)
 	struct gpio_rc_dev *gpio_dev = platform_get_drvdata(pdev);
 
 	free_irq(gpio_to_irq(gpio_dev->gpio_nr), gpio_dev);
-	del_timer_sync(&gpio_dev->flush_timer);
 	rc_unregister_device(gpio_dev->rcdev);
 	gpio_free(gpio_dev->gpio_nr);
 	kfree(gpio_dev);

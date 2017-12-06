@@ -281,7 +281,7 @@ static void mantis_pci_remove(struct pci_dev *pdev)
 	return;
 }
 
-static struct pci_device_id mantis_pci_table[] = {
+static const struct pci_device_id mantis_pci_table[] = {
 	MAKE_ENTRY(TECHNISAT, CABLESTAR_HD2, &vp2040_config,
 		   RC_MAP_TECHNISAT_TS35),
 	MAKE_ENTRY(TECHNISAT, SKYSTAR_HD2_10, &vp1041_config,

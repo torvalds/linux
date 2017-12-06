@@ -227,7 +227,7 @@ static void __usnic_uiom_reg_release(struct usnic_uiom_pd *pd,
 	vpn_last = vpn_start + npages - 1;
 
 	spin_lock(&pd->lock);
-	usnic_uiom_remove_interval(&pd->rb_root, vpn_start,
+	usnic_uiom_remove_interval(&pd->root, vpn_start,
 					vpn_last, &rm_intervals);
 	usnic_uiom_unmap_sorted_intervals(&rm_intervals, pd);
 
@@ -379,7 +379,7 @@ struct usnic_uiom_reg *usnic_uiom_reg_get(struct usnic_uiom_pd *pd,
 	err = usnic_uiom_get_intervals_diff(vpn_start, vpn_last,
 						(writable) ? IOMMU_WRITE : 0,
 						IOMMU_WRITE,
-						&pd->rb_root,
+						&pd->root,
 						&sorted_diff_intervals);
 	if (err) {
 		usnic_err("Failed disjoint interval vpn [0x%lx,0x%lx] err %d\n",
@@ -395,7 +395,7 @@ struct usnic_uiom_reg *usnic_uiom_reg_get(struct usnic_uiom_pd *pd,
 
 	}
 
-	err = usnic_uiom_insert_interval(&pd->rb_root, vpn_start, vpn_last,
+	err = usnic_uiom_insert_interval(&pd->root, vpn_start, vpn_last,
 					(writable) ? IOMMU_WRITE : 0);
 	if (err) {
 		usnic_err("Failed insert interval vpn [0x%lx,0x%lx] err %d\n",

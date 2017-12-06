@@ -166,6 +166,10 @@
 				status = "okay";
 			};
 
+			ac97: sound@fffac000 {
+				status = "okay";
+			};
+
 			adc0: adc@fffb0000 {
 				pinctrl-names = "default";
 				pinctrl-0 = <

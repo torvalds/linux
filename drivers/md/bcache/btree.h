@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _BCACHE_BTREE_H
 #define _BCACHE_BTREE_H
 

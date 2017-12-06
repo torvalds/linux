@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * e100net.c: A network driver for the ETRAX 100LX network controller.
  *

@@ -1,4 +1,5 @@
 #!/bin/sh
+# SPDX-License-Identifier: GPL-2.0
 # description: ftrace - test for function event triggers
 # flags: instance
 #

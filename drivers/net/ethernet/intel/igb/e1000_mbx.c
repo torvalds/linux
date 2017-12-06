@@ -32,7 +32,8 @@
  *
  *  returns SUCCESS if it successfully read message from buffer
  **/
-s32 igb_read_mbx(struct e1000_hw *hw, u32 *msg, u16 size, u16 mbx_id)
+s32 igb_read_mbx(struct e1000_hw *hw, u32 *msg, u16 size, u16 mbx_id,
+		 bool unlock)
 {
 	struct e1000_mbx_info *mbx = &hw->mbx;
 	s32 ret_val = -E1000_ERR_MBX;
@@ -42,7 +43,7 @@ s32 igb_read_mbx(struct e1000_hw *hw, u32 *msg, u16 size, u16 mbx_id)
 		size = mbx->size;
 
 	if (mbx->ops.read)
-		ret_val = mbx->ops.read(hw, msg, size, mbx_id);
+		ret_val = mbx->ops.read(hw, msg, size, mbx_id, unlock);
 
 	return ret_val;
 }
@@ -120,6 +121,24 @@ s32 igb_check_for_rst(struct e1000_hw *hw, u16 mbx_id)
 
 	if (mbx->ops.check_for_rst)
 		ret_val = mbx->ops.check_for_rst(hw, mbx_id);
+
+	return ret_val;
+}
+
+/**
+ *  igb_unlock_mbx - unlock the mailbox
+ *  @hw: pointer to the HW structure
+ *  @mbx_id: id of mailbox to check
+ *
+ *  returns SUCCESS if the mailbox was unlocked or else ERR_MBX
+ **/
+s32 igb_unlock_mbx(struct e1000_hw *hw, u16 mbx_id)
+{
+	struct e1000_mbx_info *mbx = &hw->mbx;
+	s32 ret_val = -E1000_ERR_MBX;
+
+	if (mbx->ops.unlock)
+		ret_val = mbx->ops.unlock(hw, mbx_id);
 
 	return ret_val;
 }
@@ -204,7 +223,7 @@ static s32 igb_read_posted_mbx(struct e1000_hw *hw, u32 *msg, u16 size,
 	ret_val = igb_poll_for_msg(hw, mbx_id);
 
 	if (!ret_val)
-		ret_val = mbx->ops.read(hw, msg, size, mbx_id);
+		ret_val = mbx->ops.read(hw, msg, size, mbx_id, true);
 out:
 	return ret_val;
 }
@@ -341,6 +360,26 @@ static s32 igb_obtain_mbx_lock_pf(struct e1000_hw *hw, u16 vf_number)
 }
 
 /**
+ *  igb_release_mbx_lock_pf - release mailbox lock
+ *  @hw: pointer to the HW structure
+ *  @vf_number: the VF index
+ *
+ *  return SUCCESS if we released the mailbox lock
+ **/
+static s32 igb_release_mbx_lock_pf(struct e1000_hw *hw, u16 vf_number)
+{
+	u32 p2v_mailbox;
+
+	/* drop PF lock of mailbox, if set */
+	p2v_mailbox = rd32(E1000_P2VMAILBOX(vf_number));
+	if (p2v_mailbox & E1000_P2VMAILBOX_PFU)
+		wr32(E1000_P2VMAILBOX(vf_number),
+		     p2v_mailbox & ~E1000_P2VMAILBOX_PFU);
+
+	return 0;
+}
+
+/**
  *  igb_write_mbx_pf - Places a message in the mailbox
  *  @hw: pointer to the HW structure
  *  @msg: The message buffer
@@ -385,13 +424,14 @@ out_no_write:
  *  @msg: The message buffer
  *  @size: Length of buffer
  *  @vf_number: the VF index
+ *  @unlock: unlock the mailbox when done?
  *
  *  This function copies a message from the mailbox buffer to the caller's
  *  memory buffer.  The presumption is that the caller knows that there was
  *  a message due to a VF request so no polling for message is needed.
  **/
 static s32 igb_read_mbx_pf(struct e1000_hw *hw, u32 *msg, u16 size,
-			   u16 vf_number)
+			   u16 vf_number, bool unlock)
 {
 	s32 ret_val;
 	u16 i;
@@ -405,8 +445,12 @@ static s32 igb_read_mbx_pf(struct e1000_hw *hw, u32 *msg, u16 size,
 	for (i = 0; i < size; i++)
 		msg[i] = array_rd32(E1000_VMBMEM(vf_number), i);
 
-	/* Acknowledge the message and release buffer */
-	wr32(E1000_P2VMAILBOX(vf_number), E1000_P2VMAILBOX_ACK);
+	/* Acknowledge the message and release mailbox lock (or not) */
+	if (unlock)
+		wr32(E1000_P2VMAILBOX(vf_number), E1000_P2VMAILBOX_ACK);
+	else
+		wr32(E1000_P2VMAILBOX(vf_number),
+		     E1000_P2VMAILBOX_ACK | E1000_P2VMAILBOX_PFU);
 
 	/* update stats */
 	hw->mbx.stats.msgs_rx++;
@@ -437,6 +481,7 @@ s32 igb_init_mbx_params_pf(struct e1000_hw *hw)
 	mbx->ops.check_for_msg = igb_check_for_msg_pf;
 	mbx->ops.check_for_ack = igb_check_for_ack_pf;
 	mbx->ops.check_for_rst = igb_check_for_rst_pf;
+	mbx->ops.unlock = igb_release_mbx_lock_pf;
 
 	mbx->stats.msgs_tx = 0;
 	mbx->stats.msgs_rx = 0;

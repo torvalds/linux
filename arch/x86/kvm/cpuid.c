@@ -126,16 +126,20 @@ int kvm_update_cpuid(struct kvm_vcpu *vcpu)
 		best->ebx = xstate_required_size(vcpu->arch.xcr0, true);
 
 	/*
-	 * The existing code assumes virtual address is 48-bit in the canonical
-	 * address checks; exit if it is ever changed.
+	 * The existing code assumes virtual address is 48-bit or 57-bit in the
+	 * canonical address checks; exit if it is ever changed.
 	 */
 	best = kvm_find_cpuid_entry(vcpu, 0x80000008, 0);
-	if (best && ((best->eax & 0xff00) >> 8) != 48 &&
-		((best->eax & 0xff00) >> 8) != 0)
-		return -EINVAL;
+	if (best) {
+		int vaddr_bits = (best->eax & 0xff00) >> 8;
+
+		if (vaddr_bits != 48 && vaddr_bits != 57 && vaddr_bits != 0)
+			return -EINVAL;
+	}
 
 	/* Update physical-address width */
 	vcpu->arch.maxphyaddr = cpuid_query_maxphyaddr(vcpu);
+	kvm_mmu_reset_context(vcpu);
 
 	kvm_pmu_refresh(vcpu);
 	return 0;
@@ -383,7 +387,8 @@ static inline int __do_cpuid_ent(struct kvm_cpuid_entry2 *entry, u32 function,
 
 	/* cpuid 7.0.ecx*/
 	const u32 kvm_cpuid_7_0_ecx_x86_features =
-		F(AVX512VBMI) | F(PKU) | 0 /*OSPKE*/ | F(AVX512_VPOPCNTDQ);
+		F(AVX512VBMI) | F(LA57) | F(PKU) |
+		0 /*OSPKE*/ | F(AVX512_VPOPCNTDQ);
 
 	/* cpuid 7.0.edx*/
 	const u32 kvm_cpuid_7_0_edx_x86_features =
@@ -853,16 +858,24 @@ static struct kvm_cpuid_entry2* check_cpuid_limit(struct kvm_vcpu *vcpu,
 	return kvm_find_cpuid_entry(vcpu, maxlevel->eax, index);
 }
 
-void kvm_cpuid(struct kvm_vcpu *vcpu, u32 *eax, u32 *ebx, u32 *ecx, u32 *edx)
+bool kvm_cpuid(struct kvm_vcpu *vcpu, u32 *eax, u32 *ebx,
+	       u32 *ecx, u32 *edx, bool check_limit)
 {
 	u32 function = *eax, index = *ecx;
 	struct kvm_cpuid_entry2 *best;
+	bool entry_found = true;
 
 	best = kvm_find_cpuid_entry(vcpu, function, index);
 
-	if (!best)
-		best = check_cpuid_limit(vcpu, function, index);
+	if (!best) {
+		entry_found = false;
+		if (!check_limit)
+			goto out;
 
+		best = check_cpuid_limit(vcpu, function, index);
+	}
+
+out:
 	if (best) {
 		*eax = best->eax;
 		*ebx = best->ebx;
@@ -870,7 +883,8 @@ void kvm_cpuid(struct kvm_vcpu *vcpu, u32 *eax, u32 *ebx, u32 *ecx, u32 *edx)
 		*edx = best->edx;
 	} else
 		*eax = *ebx = *ecx = *edx = 0;
-	trace_kvm_cpuid(function, *eax, *ebx, *ecx, *edx);
+	trace_kvm_cpuid(function, *eax, *ebx, *ecx, *edx, entry_found);
+	return entry_found;
 }
 EXPORT_SYMBOL_GPL(kvm_cpuid);
 
@@ -883,7 +897,7 @@ int kvm_emulate_cpuid(struct kvm_vcpu *vcpu)
 
 	eax = kvm_register_read(vcpu, VCPU_REGS_RAX);
 	ecx = kvm_register_read(vcpu, VCPU_REGS_RCX);
-	kvm_cpuid(vcpu, &eax, &ebx, &ecx, &edx);
+	kvm_cpuid(vcpu, &eax, &ebx, &ecx, &edx, true);
 	kvm_register_write(vcpu, VCPU_REGS_RAX, eax);
 	kvm_register_write(vcpu, VCPU_REGS_RBX, ebx);
 	kvm_register_write(vcpu, VCPU_REGS_RCX, ecx);

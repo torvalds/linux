@@ -590,7 +590,7 @@ static bool axp20x_is_polyphase_slave(struct axp20x_dev *axp20x, int id)
 		case AXP803_DCDC3:
 			return !!(reg & BIT(6));
 		case AXP803_DCDC6:
-			return !!(reg & BIT(7));
+			return !!(reg & BIT(5));
 		}
 		break;
 
@@ -691,6 +691,9 @@ static int axp20x_regulator_probe(struct platform_device *pdev)
 		    (regulators == axp809_regulators && i == AXP809_DC1SW)) {
 			new_desc = devm_kzalloc(&pdev->dev, sizeof(*desc),
 						GFP_KERNEL);
+			if (!new_desc)
+				return -ENOMEM;
+
 			*new_desc = regulators[i];
 			new_desc->supply_name = dcdc1_name;
 			desc = new_desc;
@@ -700,6 +703,9 @@ static int axp20x_regulator_probe(struct platform_device *pdev)
 		    (regulators == axp809_regulators && i == AXP809_DC5LDO)) {
 			new_desc = devm_kzalloc(&pdev->dev, sizeof(*desc),
 						GFP_KERNEL);
+			if (!new_desc)
+				return -ENOMEM;
+
 			*new_desc = regulators[i];
 			new_desc->supply_name = dcdc5_name;
 			desc = new_desc;

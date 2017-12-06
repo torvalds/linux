@@ -1055,7 +1055,7 @@ xfs_dir_ialloc(
 			tp->t_flags &= ~(XFS_TRANS_DQ_DIRTY);
 		}
 
-		code = xfs_trans_roll(&tp, NULL);
+		code = xfs_trans_roll(&tp);
 		if (committed != NULL)
 			*committed = 1;
 
@@ -1285,7 +1285,7 @@ xfs_create(
 	 */
 	xfs_qm_vop_create_dqattach(tp, ip, udqp, gdqp, pdqp);
 
-	error = xfs_defer_finish(&tp, &dfops, NULL);
+	error = xfs_defer_finish(&tp, &dfops);
 	if (error)
 		goto out_bmap_cancel;
 
@@ -1513,7 +1513,7 @@ xfs_link(
 	if (mp->m_flags & (XFS_MOUNT_WSYNC|XFS_MOUNT_DIRSYNC))
 		xfs_trans_set_sync(tp);
 
-	error = xfs_defer_finish(&tp, &dfops, NULL);
+	error = xfs_defer_finish(&tp, &dfops);
 	if (error) {
 		xfs_defer_cancel(&dfops);
 		goto error_return;
@@ -1607,11 +1607,12 @@ xfs_itruncate_extents(
 		 * Duplicate the transaction that has the permanent
 		 * reservation and commit the old transaction.
 		 */
-		error = xfs_defer_finish(&tp, &dfops, ip);
+		xfs_defer_ijoin(&dfops, ip);
+		error = xfs_defer_finish(&tp, &dfops);
 		if (error)
 			goto out_bmap_cancel;
 
-		error = xfs_trans_roll(&tp, ip);
+		error = xfs_trans_roll_inode(&tp, ip);
 		if (error)
 			goto out;
 	}
@@ -1623,10 +1624,12 @@ xfs_itruncate_extents(
 		goto out;
 
 	/*
-	 * Clear the reflink flag if we truncated everything.
+	 * Clear the reflink flag if there are no data fork blocks and
+	 * there are no extents staged in the cow fork.
 	 */
-	if (ip->i_d.di_nblocks == 0 && xfs_is_reflink_inode(ip)) {
-		ip->i_d.di_flags2 &= ~XFS_DIFLAG2_REFLINK;
+	if (xfs_is_reflink_inode(ip) && ip->i_cnextents == 0) {
+		if (ip->i_d.di_nblocks == 0)
+			ip->i_d.di_flags2 &= ~XFS_DIFLAG2_REFLINK;
 		xfs_inode_clear_cowblocks_tag(ip);
 	}
 
@@ -1855,7 +1858,7 @@ xfs_inactive_ifree(
 	 * Just ignore errors at this point.  There is nothing we can do except
 	 * to try to keep going. Make sure it's not a silent error.
 	 */
-	error = xfs_defer_finish(&tp, &dfops, NULL);
+	error = xfs_defer_finish(&tp, &dfops);
 	if (error) {
 		xfs_notice(mp, "%s: xfs_defer_finish returned error %d",
 			__func__, error);
@@ -2359,11 +2362,24 @@ retry:
 			 * already marked stale. If we can't lock it, back off
 			 * and retry.
 			 */
-			if (ip != free_ip &&
-			    !xfs_ilock_nowait(ip, XFS_ILOCK_EXCL)) {
-				rcu_read_unlock();
-				delay(1);
-				goto retry;
+			if (ip != free_ip) {
+				if (!xfs_ilock_nowait(ip, XFS_ILOCK_EXCL)) {
+					rcu_read_unlock();
+					delay(1);
+					goto retry;
+				}
+
+				/*
+				 * Check the inode number again in case we're
+				 * racing with freeing in xfs_reclaim_inode().
+				 * See the comments in that function for more
+				 * information as to why the initial check is
+				 * not sufficient.
+				 */
+				if (ip->i_ino != inum + i) {
+					xfs_iunlock(ip, XFS_ILOCK_EXCL);
+					continue;
+				}
 			}
 			rcu_read_unlock();
 
@@ -2637,7 +2653,7 @@ xfs_remove(
 	if (mp->m_flags & (XFS_MOUNT_WSYNC|XFS_MOUNT_DIRSYNC))
 		xfs_trans_set_sync(tp);
 
-	error = xfs_defer_finish(&tp, &dfops, NULL);
+	error = xfs_defer_finish(&tp, &dfops);
 	if (error)
 		goto out_bmap_cancel;
 
@@ -2723,7 +2739,7 @@ xfs_finish_rename(
 	if (tp->t_mountp->m_flags & (XFS_MOUNT_WSYNC|XFS_MOUNT_DIRSYNC))
 		xfs_trans_set_sync(tp);
 
-	error = xfs_defer_finish(&tp, dfops, NULL);
+	error = xfs_defer_finish(&tp, dfops);
 	if (error) {
 		xfs_defer_cancel(dfops);
 		xfs_trans_cancel(tp);

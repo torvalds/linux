@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _LINUX_USER_NAMESPACE_H
 #define _LINUX_USER_NAMESPACE_H
 
@@ -112,8 +113,9 @@ extern ssize_t proc_projid_map_write(struct file *, const char __user *, size_t,
 extern ssize_t proc_setgroups_write(struct file *, const char __user *, size_t, loff_t *);
 extern int proc_setgroups_show(struct seq_file *m, void *v);
 extern bool userns_may_setgroups(const struct user_namespace *ns);
+extern bool in_userns(const struct user_namespace *ancestor,
+		       const struct user_namespace *child);
 extern bool current_in_userns(const struct user_namespace *target_ns);
-
 struct ns_common *ns_get_owner(struct ns_common *ns);
 #else
 
@@ -140,6 +142,12 @@ static inline void put_user_ns(struct user_namespace *ns)
 }
 
 static inline bool userns_may_setgroups(const struct user_namespace *ns)
+{
+	return true;
+}
+
+static inline bool in_userns(const struct user_namespace *ancestor,
+			     const struct user_namespace *child)
 {
 	return true;
 }

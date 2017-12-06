@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef ARCH__X86__MM__KMEMCHECK__PTE_H
 #define ARCH__X86__MM__KMEMCHECK__PTE_H
 

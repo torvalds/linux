@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 ///
 /// Use drm_*_get() and drm_*_put() helpers instead of drm_*_reference() and
 /// drm_*_unreference() helpers.

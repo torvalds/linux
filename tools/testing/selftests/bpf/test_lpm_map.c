@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Randomized tests for eBPF longest-prefix-match maps
  *

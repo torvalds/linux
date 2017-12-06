@@ -87,6 +87,7 @@ struct nd_mapping_desc {
 	struct nvdimm *nvdimm;
 	u64 start;
 	u64 size;
+	int position;
 };
 
 struct nd_region_desc {
@@ -173,4 +174,19 @@ u64 nd_fletcher64(void *addr, size_t len, bool le);
 void nvdimm_flush(struct nd_region *nd_region);
 int nvdimm_has_flush(struct nd_region *nd_region);
 int nvdimm_has_cache(struct nd_region *nd_region);
+
+#ifdef CONFIG_ARCH_HAS_PMEM_API
+#define ARCH_MEMREMAP_PMEM MEMREMAP_WB
+void arch_wb_cache_pmem(void *addr, size_t size);
+void arch_invalidate_pmem(void *addr, size_t size);
+#else
+#define ARCH_MEMREMAP_PMEM MEMREMAP_WT
+static inline void arch_wb_cache_pmem(void *addr, size_t size)
+{
+}
+static inline void arch_invalidate_pmem(void *addr, size_t size)
+{
+}
+#endif
+
 #endif /* __LIBNVDIMM_H__ */

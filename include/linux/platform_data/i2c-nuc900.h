@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __ASM_ARCH_NUC900_I2C_H
 #define __ASM_ARCH_NUC900_I2C_H
 

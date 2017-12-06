@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _BPF_CGROUP_H
 #define _BPF_CGROUP_H
 

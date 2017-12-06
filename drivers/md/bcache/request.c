@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Main bcache entry point - handle a read or a write request and decide what to
  * do with it; the make_request functions are called by the block layer.
@@ -196,11 +197,11 @@ static void bch_data_insert_start(struct closure *cl)
 	struct data_insert_op *op = container_of(cl, struct data_insert_op, cl);
 	struct bio *bio = op->bio, *n;
 
-	if (atomic_sub_return(bio_sectors(bio), &op->c->sectors_to_gc) < 0)
-		wake_up_gc(op->c);
-
 	if (op->bypass)
 		return bch_data_invalidate(cl);
+
+	if (atomic_sub_return(bio_sectors(bio), &op->c->sectors_to_gc) < 0)
+		wake_up_gc(op->c);
 
 	/*
 	 * Journal writes are marked REQ_PREFLUSH; if the original write was a
@@ -398,12 +399,6 @@ static bool check_should_bypass(struct cached_dev *dc, struct bio *bio)
 	}
 
 	if (!congested && !dc->sequential_cutoff)
-		goto rescale;
-
-	if (!congested &&
-	    mode == CACHE_MODE_WRITEBACK &&
-	    op_is_write(bio->bi_opf) &&
-	    op_is_sync(bio->bi_opf))
 		goto rescale;
 
 	spin_lock(&dc->io_lock);
@@ -607,7 +602,8 @@ static void request_endio(struct bio *bio)
 static void bio_complete(struct search *s)
 {
 	if (s->orig_bio) {
-		generic_end_io_acct(bio_data_dir(s->orig_bio),
+		struct request_queue *q = s->orig_bio->bi_disk->queue;
+		generic_end_io_acct(q, bio_data_dir(s->orig_bio),
 				    &s->d->disk->part0, s->start_time);
 
 		trace_bcache_request_end(s->d, s->orig_bio);
@@ -734,7 +730,7 @@ static void cached_dev_read_done(struct closure *cl)
 	if (s->iop.bio) {
 		bio_reset(s->iop.bio);
 		s->iop.bio->bi_iter.bi_sector = s->cache_miss->bi_iter.bi_sector;
-		s->iop.bio->bi_bdev = s->cache_miss->bi_bdev;
+		bio_copy_dev(s->iop.bio, s->cache_miss);
 		s->iop.bio->bi_iter.bi_size = s->insert_bio_sectors << 9;
 		bch_bio_map(s->iop.bio, NULL);
 
@@ -793,7 +789,7 @@ static int cached_dev_cache_miss(struct btree *b, struct search *s,
 	    !(bio->bi_opf & REQ_META) &&
 	    s->iop.c->gc_stats.in_use < CUTOFF_CACHE_READA)
 		reada = min_t(sector_t, dc->readahead >> 9,
-			      bdev_sectors(bio->bi_bdev) - bio_end_sector(bio));
+			      get_capacity(bio->bi_disk) - bio_end_sector(bio));
 
 	s->insert_bio_sectors = min(sectors, bio_sectors(bio) + reada);
 
@@ -819,7 +815,7 @@ static int cached_dev_cache_miss(struct btree *b, struct search *s,
 		goto out_submit;
 
 	cache_bio->bi_iter.bi_sector	= miss->bi_iter.bi_sector;
-	cache_bio->bi_bdev		= miss->bi_bdev;
+	bio_copy_dev(cache_bio, miss);
 	cache_bio->bi_iter.bi_size	= s->insert_bio_sectors << 9;
 
 	cache_bio->bi_end_io	= request_endio;
@@ -918,7 +914,7 @@ static void cached_dev_write(struct cached_dev *dc, struct search *s)
 			struct bio *flush = bio_alloc_bioset(GFP_NOIO, 0,
 							     dc->disk.bio_split);
 
-			flush->bi_bdev	= bio->bi_bdev;
+			bio_copy_dev(flush, bio);
 			flush->bi_end_io = request_endio;
 			flush->bi_private = cl;
 			flush->bi_opf = REQ_OP_WRITE | REQ_PREFLUSH;
@@ -955,13 +951,13 @@ static blk_qc_t cached_dev_make_request(struct request_queue *q,
 					struct bio *bio)
 {
 	struct search *s;
-	struct bcache_device *d = bio->bi_bdev->bd_disk->private_data;
+	struct bcache_device *d = bio->bi_disk->private_data;
 	struct cached_dev *dc = container_of(d, struct cached_dev, disk);
 	int rw = bio_data_dir(bio);
 
-	generic_start_io_acct(rw, bio_sectors(bio), &d->disk->part0);
+	generic_start_io_acct(q, rw, bio_sectors(bio), &d->disk->part0);
 
-	bio->bi_bdev = dc->bdev;
+	bio_set_dev(bio, dc->bdev);
 	bio->bi_iter.bi_sector += dc->sb.data_offset;
 
 	if (cached_dev_get(dc)) {
@@ -1071,10 +1067,10 @@ static blk_qc_t flash_dev_make_request(struct request_queue *q,
 {
 	struct search *s;
 	struct closure *cl;
-	struct bcache_device *d = bio->bi_bdev->bd_disk->private_data;
+	struct bcache_device *d = bio->bi_disk->private_data;
 	int rw = bio_data_dir(bio);
 
-	generic_start_io_acct(rw, bio_sectors(bio), &d->disk->part0);
+	generic_start_io_acct(q, rw, bio_sectors(bio), &d->disk->part0);
 
 	s = search_alloc(bio, d);
 	cl = &s->cl;

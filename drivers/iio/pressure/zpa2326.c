@@ -141,14 +141,14 @@ struct zpa2326_private {
 	struct regulator               *vdd;
 };
 
-#define zpa2326_err(_idev, _format, _arg...) \
-	dev_err(_idev->dev.parent, _format, ##_arg)
+#define zpa2326_err(idev, fmt, ...)					\
+	dev_err(idev->dev.parent, fmt "\n", ##__VA_ARGS__)
 
-#define zpa2326_warn(_idev, _format, _arg...) \
-	dev_warn(_idev->dev.parent, _format, ##_arg)
+#define zpa2326_warn(idev, fmt, ...)					\
+	dev_warn(idev->dev.parent, fmt "\n", ##__VA_ARGS__)
 
-#define zpa2326_dbg(_idev, _format, _arg...) \
-	dev_dbg(_idev->dev.parent, _format, ##_arg)
+#define zpa2326_dbg(idev, fmt, ...)					\
+	dev_dbg(idev->dev.parent, fmt "\n", ##__VA_ARGS__)
 
 bool zpa2326_isreg_writeable(struct device *dev, unsigned int reg)
 {
@@ -865,7 +865,6 @@ complete:
 static int zpa2326_wait_oneshot_completion(const struct iio_dev   *indio_dev,
 					   struct zpa2326_private *private)
 {
-	int          ret;
 	unsigned int val;
 	long     timeout;
 
@@ -887,14 +886,11 @@ static int zpa2326_wait_oneshot_completion(const struct iio_dev   *indio_dev,
 		/* Timed out. */
 		zpa2326_warn(indio_dev, "no one shot interrupt occurred (%ld)",
 			     timeout);
-		ret = -ETIME;
-	} else if (timeout < 0) {
-		zpa2326_warn(indio_dev,
-			     "wait for one shot interrupt cancelled");
-		ret = -ERESTARTSYS;
+		return -ETIME;
 	}
 
-	return ret;
+	zpa2326_warn(indio_dev, "wait for one shot interrupt cancelled");
+	return -ERESTARTSYS;
 }
 
 static int zpa2326_init_managed_irq(struct device          *parent,

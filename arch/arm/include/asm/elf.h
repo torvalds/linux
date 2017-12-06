@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __ASMARM_ELF_H
 #define __ASMARM_ELF_H
 

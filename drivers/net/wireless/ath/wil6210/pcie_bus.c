@@ -84,6 +84,9 @@ void wil_set_capabilities(struct wil6210_priv *wil)
 
 	/* extract FW capabilities from file without loading the FW */
 	wil_request_firmware(wil, wil->wil_fw_name, false);
+
+	if (test_bit(WMI_FW_CAPABILITY_RSSI_REPORTING, wil->fw_capabilities))
+		wil_to_wiphy(wil)->signal_type = CFG80211_SIGNAL_TYPE_MBM;
 }
 
 void wil_disable_irq(struct wil6210_priv *wil)

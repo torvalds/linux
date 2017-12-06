@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/errno.h>
 #include <linux/numa.h>
 #include <linux/slab.h>

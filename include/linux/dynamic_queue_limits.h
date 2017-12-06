@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Dynamic queue limits (dql) - Definitions
  *

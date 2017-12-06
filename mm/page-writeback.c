@@ -363,7 +363,7 @@ static unsigned long global_dirtyable_memory(void)
 {
 	unsigned long x;
 
-	x = global_page_state(NR_FREE_PAGES);
+	x = global_zone_page_state(NR_FREE_PAGES);
 	/*
 	 * Pages reserved for the kernel should not be considered
 	 * dirtyable, to prevent a situation where reclaim has to
@@ -1405,7 +1405,7 @@ void wb_update_bandwidth(struct bdi_writeback *wb, unsigned long start_time)
  * will look to see if it needs to start dirty throttling.
  *
  * If dirty_poll_interval is too low, big NUMA machines will call the expensive
- * global_page_state() too often. So scale it near-sqrt to the safety margin
+ * global_zone_page_state() too often. So scale it near-sqrt to the safety margin
  * (the number of pages we may dirty without exceeding the dirty limits).
  */
 static unsigned long dirty_poll_interval(unsigned long dirty,

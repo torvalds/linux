@@ -13,7 +13,6 @@
 
 #include <linux/mdio.h>
 #include <linux/module.h>
-#include <net/dsa.h>
 
 #include "chip.h"
 #include "phy.h"

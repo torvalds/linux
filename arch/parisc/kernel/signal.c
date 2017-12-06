@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *  linux/arch/parisc/kernel/signal.c: Architecture-specific signal
  *  handling support.

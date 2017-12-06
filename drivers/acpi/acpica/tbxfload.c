@@ -206,7 +206,7 @@ acpi_status acpi_tb_load_namespace(void)
 	for (i = 0; i < acpi_gbl_root_table_list.current_table_count; ++i) {
 		table = &acpi_gbl_root_table_list.tables[i];
 
-		if (!acpi_gbl_root_table_list.tables[i].address ||
+		if (!table->address ||
 		    (!ACPI_COMPARE_NAME(table->signature.ascii, ACPI_SIG_SSDT)
 		     && !ACPI_COMPARE_NAME(table->signature.ascii,
 					   ACPI_SIG_PSDT)

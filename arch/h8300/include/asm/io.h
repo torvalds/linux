@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _H8300_IO_H
 #define _H8300_IO_H
 

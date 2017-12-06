@@ -1,5 +1,5 @@
 /*
- * Copyright(c) 2015, 2016 Intel Corporation.
+ * Copyright(c) 2015 - 2017 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
@@ -195,6 +195,140 @@ TRACE_EVENT(hfi1_sdma_engine_select,
 		      __entry->idx,
 		      __entry->sel,
 		      __entry->vl
+		      )
+);
+
+TRACE_EVENT(hfi1_sdma_user_free_queues,
+	    TP_PROTO(struct hfi1_devdata *dd, u16 ctxt, u16 subctxt),
+	    TP_ARGS(dd, ctxt, subctxt),
+	    TP_STRUCT__entry(DD_DEV_ENTRY(dd)
+			     __field(u16, ctxt)
+			     __field(u16, subctxt)
+			     ),
+	    TP_fast_assign(DD_DEV_ASSIGN(dd);
+			   __entry->ctxt = ctxt;
+			   __entry->subctxt = subctxt;
+			   ),
+	    TP_printk("[%s] SDMA [%u:%u] Freeing user SDMA queues",
+		      __get_str(dev),
+		      __entry->ctxt,
+		      __entry->subctxt
+		      )
+);
+
+TRACE_EVENT(hfi1_sdma_user_process_request,
+	    TP_PROTO(struct hfi1_devdata *dd, u16 ctxt, u16 subctxt,
+		     u16 comp_idx),
+	    TP_ARGS(dd, ctxt, subctxt, comp_idx),
+	    TP_STRUCT__entry(DD_DEV_ENTRY(dd)
+			     __field(u16, ctxt)
+			     __field(u16, subctxt)
+			     __field(u16, comp_idx)
+			     ),
+	    TP_fast_assign(DD_DEV_ASSIGN(dd);
+			   __entry->ctxt = ctxt;
+			   __entry->subctxt = subctxt;
+			   __entry->comp_idx = comp_idx;
+			   ),
+	    TP_printk("[%s] SDMA [%u:%u] Using req/comp entry: %u",
+		      __get_str(dev),
+		      __entry->ctxt,
+		      __entry->subctxt,
+		      __entry->comp_idx
+		      )
+);
+
+DECLARE_EVENT_CLASS(
+	hfi1_sdma_value_template,
+	TP_PROTO(struct hfi1_devdata *dd, u16 ctxt, u16 subctxt, u16 comp_idx,
+		 u32 value),
+	TP_ARGS(dd, ctxt, subctxt, comp_idx, value),
+	TP_STRUCT__entry(DD_DEV_ENTRY(dd)
+			 __field(u16, ctxt)
+			 __field(u16, subctxt)
+			 __field(u16, comp_idx)
+			 __field(u32, value)
+		),
+	TP_fast_assign(DD_DEV_ASSIGN(dd);
+		       __entry->ctxt = ctxt;
+		       __entry->subctxt = subctxt;
+		       __entry->comp_idx = comp_idx;
+		       __entry->value = value;
+		),
+	TP_printk("[%s] SDMA [%u:%u:%u] value: %u",
+		  __get_str(dev),
+		  __entry->ctxt,
+		  __entry->subctxt,
+		  __entry->comp_idx,
+		  __entry->value
+		)
+);
+
+DEFINE_EVENT(hfi1_sdma_value_template, hfi1_sdma_user_initial_tidoffset,
+	     TP_PROTO(struct hfi1_devdata *dd, u16 ctxt, u16 subctxt,
+		      u16 comp_idx, u32 tidoffset),
+	     TP_ARGS(dd, ctxt, subctxt, comp_idx, tidoffset));
+
+DEFINE_EVENT(hfi1_sdma_value_template, hfi1_sdma_user_data_length,
+	     TP_PROTO(struct hfi1_devdata *dd, u16 ctxt, u16 subctxt,
+		      u16 comp_idx, u32 data_len),
+	     TP_ARGS(dd, ctxt, subctxt, comp_idx, data_len));
+
+DEFINE_EVENT(hfi1_sdma_value_template, hfi1_sdma_user_compute_length,
+	     TP_PROTO(struct hfi1_devdata *dd, u16 ctxt, u16 subctxt,
+		      u16 comp_idx, u32 data_len),
+	     TP_ARGS(dd, ctxt, subctxt, comp_idx, data_len));
+
+TRACE_EVENT(hfi1_sdma_user_tid_info,
+	    TP_PROTO(struct hfi1_devdata *dd, u16 ctxt, u16 subctxt,
+		     u16 comp_idx, u32 tidoffset, u32 units, u8 shift),
+	    TP_ARGS(dd, ctxt, subctxt, comp_idx, tidoffset, units, shift),
+	    TP_STRUCT__entry(DD_DEV_ENTRY(dd)
+			     __field(u16, ctxt)
+			     __field(u16, subctxt)
+			     __field(u16, comp_idx)
+			     __field(u32, tidoffset)
+			     __field(u32, units)
+			     __field(u8, shift)
+			     ),
+	    TP_fast_assign(DD_DEV_ASSIGN(dd);
+			   __entry->ctxt = ctxt;
+			   __entry->subctxt = subctxt;
+			   __entry->comp_idx = comp_idx;
+			   __entry->tidoffset = tidoffset;
+			   __entry->units = units;
+			   __entry->shift = shift;
+			   ),
+	    TP_printk("[%s] SDMA [%u:%u:%u] TID offset %ubytes %uunits om %u",
+		      __get_str(dev),
+		      __entry->ctxt,
+		      __entry->subctxt,
+		      __entry->comp_idx,
+		      __entry->tidoffset,
+		      __entry->units,
+		      __entry->shift
+		      )
+);
+
+TRACE_EVENT(hfi1_sdma_request,
+	    TP_PROTO(struct hfi1_devdata *dd, u16 ctxt, u16 subctxt,
+		     unsigned long dim),
+	    TP_ARGS(dd, ctxt, subctxt, dim),
+	    TP_STRUCT__entry(DD_DEV_ENTRY(dd)
+			     __field(u16, ctxt)
+			     __field(u16, subctxt)
+			     __field(unsigned long, dim)
+			     ),
+	    TP_fast_assign(DD_DEV_ASSIGN(dd);
+			   __entry->ctxt = ctxt;
+			   __entry->subctxt = subctxt;
+			   __entry->dim = dim;
+			   ),
+	    TP_printk("[%s] SDMA from %u:%u (%lu)",
+		      __get_str(dev),
+		      __entry->ctxt,
+		      __entry->subctxt,
+		      __entry->dim
 		      )
 );
 

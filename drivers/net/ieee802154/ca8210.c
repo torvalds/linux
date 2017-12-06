@@ -66,6 +66,7 @@
 #include <linux/spinlock.h>
 #include <linux/string.h>
 #include <linux/workqueue.h>
+#include <linux/interrupt.h>
 
 #include <net/ieee802154_netdev.h>
 #include <net/mac802154.h>
@@ -916,10 +917,7 @@ static int ca8210_spi_transfer(
 	struct cas_control *cas_ctl;
 
 	if (!spi) {
-		dev_crit(
-			&spi->dev,
-			"NULL spi device passed to ca8210_spi_transfer\n"
-		);
+		pr_crit("NULL spi device passed to %s\n", __func__);
 		return -ENODEV;
 	}
 

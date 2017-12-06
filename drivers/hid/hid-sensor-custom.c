@@ -276,7 +276,7 @@ static struct attribute *enable_sensor_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group enable_sensor_attr_group = {
+static const struct attribute_group enable_sensor_attr_group = {
 	.attrs = enable_sensor_attrs,
 };
 
@@ -823,7 +823,7 @@ static int hid_sensor_custom_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct platform_device_id hid_sensor_custom_ids[] = {
+static const struct platform_device_id hid_sensor_custom_ids[] = {
 	{
 		.name = "HID-SENSOR-2000e1",
 	},

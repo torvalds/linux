@@ -227,14 +227,14 @@ config RTC_DRV_AS3722
 	  will be called rtc-as3722.
 
 config RTC_DRV_DS1307
-	tristate "Dallas/Maxim DS1307/37/38/39/40, ST M41T00, EPSON RX-8025, ISL12057"
+	tristate "Dallas/Maxim DS1307/37/38/39/40/41, ST M41T00, EPSON RX-8025, ISL12057"
 	help
 	  If you say yes here you get support for various compatible RTC
 	  chips (often with battery backup) connected with I2C. This driver
-	  should handle DS1307, DS1337, DS1338, DS1339, DS1340, ST M41T00,
-	  EPSON RX-8025, Intersil ISL12057 and probably other chips. In some
-	  cases the RTC must already have been initialized (by manufacturing or
-	  a bootloader).
+	  should handle DS1307, DS1337, DS1338, DS1339, DS1340, DS1341,
+	  ST M41T00, EPSON RX-8025, Intersil ISL12057 and probably other chips.
+	  In some cases the RTC must already have been initialized (by
+	  manufacturing or a bootloader).
 
 	  The first seven registers on these chips hold an RTC, and other
 	  registers may add features such as NVRAM, a trickle charger for
@@ -371,11 +371,11 @@ config RTC_DRV_MAX77686
 	  will be called rtc-max77686.
 
 config RTC_DRV_RK808
-	tristate "Rockchip RK808/RK818 RTC"
+	tristate "Rockchip RK805/RK808/RK818 RTC"
 	depends on MFD_RK808
 	help
 	  If you say yes here you will get support for the
-	  RTC of RK808 and RK818 PMIC.
+	  RTC of RK805, RK808 and RK818 PMIC.
 
 	  This driver can also be built as a module. If so, the module
 	  will be called rk808-rtc.
@@ -1765,6 +1765,14 @@ config RTC_DRV_CPCAP
 	   Say y here for CPCAP rtc found on some Motorola phones
 	   and tablets such as Droid 4.
 
+config RTC_DRV_RTD119X
+	bool "Realtek RTD129x RTC"
+	depends on ARCH_REALTEK || COMPILE_TEST
+	default ARCH_REALTEK
+	help
+	  If you say yes here, you get support for the RTD1295 SoC
+	  Real Time Clock.
+
 comment "HID Sensor RTC drivers"
 
 config RTC_DRV_HID_SENSOR_TIME
@@ -1780,5 +1788,13 @@ config RTC_DRV_HID_SENSOR_TIME
 	  If this driver is compiled as a module, it will be named
 	  rtc-hid-sensor-time.
 
+config RTC_DRV_GOLDFISH
+	tristate "Goldfish Real Time Clock"
+	depends on MIPS && (GOLDFISH || COMPILE_TEST)
+	help
+	  Say yes to enable RTC driver for the Goldfish based virtual platform.
+
+	  Goldfish is a code name for the virtual platform developed by Google
+	  for Android emulation.
 
 endif # RTC_CLASS

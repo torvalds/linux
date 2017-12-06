@@ -90,3 +90,11 @@ Description:
 		device's debugging info useful for kernel developers. Its
 		format is not documented intentionally and may change
 		anytime without any notice.
+
+What:		/sys/block/zram<id>/backing_dev
+Date:		June 2017
+Contact:	Minchan Kim <minchan@kernel.org>
+Description:
+		The backing_dev file is read-write and set up backing
+		device for zram to write incompressible pages.
+		For using, user should enable CONFIG_ZRAM_WRITEBACK.

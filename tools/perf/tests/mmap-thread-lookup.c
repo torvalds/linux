@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <inttypes.h>
 #include <unistd.h>
 #include <sys/syscall.h>
@@ -221,7 +222,7 @@ static int mmap_events(synth_cb synth)
  *
  * by using all thread objects.
  */
-int test__mmap_thread_lookup(int subtest __maybe_unused)
+int test__mmap_thread_lookup(struct test *test __maybe_unused, int subtest __maybe_unused)
 {
 	/* perf_event__synthesize_threads synthesize */
 	TEST_ASSERT_VAL("failed with sythesizing all",

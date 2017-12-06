@@ -517,7 +517,6 @@ DEFINE_BUF_ITEM_EVENT(xfs_buf_item_size);
 DEFINE_BUF_ITEM_EVENT(xfs_buf_item_size_ordered);
 DEFINE_BUF_ITEM_EVENT(xfs_buf_item_size_stale);
 DEFINE_BUF_ITEM_EVENT(xfs_buf_item_format);
-DEFINE_BUF_ITEM_EVENT(xfs_buf_item_format_ordered);
 DEFINE_BUF_ITEM_EVENT(xfs_buf_item_format_stale);
 DEFINE_BUF_ITEM_EVENT(xfs_buf_item_ordered);
 DEFINE_BUF_ITEM_EVENT(xfs_buf_item_pin);
@@ -689,10 +688,33 @@ DEFINE_INODE_EVENT(xfs_inode_set_cowblocks_tag);
 DEFINE_INODE_EVENT(xfs_inode_clear_cowblocks_tag);
 DEFINE_INODE_EVENT(xfs_inode_free_cowblocks_invalid);
 
-DEFINE_INODE_EVENT(xfs_filemap_fault);
-DEFINE_INODE_EVENT(xfs_filemap_huge_fault);
-DEFINE_INODE_EVENT(xfs_filemap_page_mkwrite);
 DEFINE_INODE_EVENT(xfs_filemap_pfn_mkwrite);
+
+TRACE_EVENT(xfs_filemap_fault,
+	TP_PROTO(struct xfs_inode *ip, enum page_entry_size pe_size,
+		 bool write_fault),
+	TP_ARGS(ip, pe_size, write_fault),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(xfs_ino_t, ino)
+		__field(enum page_entry_size, pe_size)
+		__field(bool, write_fault)
+	),
+	TP_fast_assign(
+		__entry->dev = VFS_I(ip)->i_sb->s_dev;
+		__entry->ino = ip->i_ino;
+		__entry->pe_size = pe_size;
+		__entry->write_fault = write_fault;
+	),
+	TP_printk("dev %d:%d ino 0x%llx %s write_fault %d",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->ino,
+		  __print_symbolic(__entry->pe_size,
+			{ PE_SIZE_PTE,	"PTE" },
+			{ PE_SIZE_PMD,	"PMD" },
+			{ PE_SIZE_PUD,	"PUD" }),
+		  __entry->write_fault)
+)
 
 DECLARE_EVENT_CLASS(xfs_iref_class,
 	TP_PROTO(struct xfs_inode *ip, unsigned long caller_ip),
@@ -1962,6 +1984,24 @@ DEFINE_EVENT(xfs_swap_extent_class, name, \
 
 DEFINE_SWAPEXT_EVENT(xfs_swap_extent_before);
 DEFINE_SWAPEXT_EVENT(xfs_swap_extent_after);
+
+TRACE_EVENT(xfs_log_recover,
+	TP_PROTO(struct xlog *log, xfs_daddr_t headblk, xfs_daddr_t tailblk),
+	TP_ARGS(log, headblk, tailblk),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(xfs_daddr_t, headblk)
+		__field(xfs_daddr_t, tailblk)
+	),
+	TP_fast_assign(
+		__entry->dev = log->l_mp->m_super->s_dev;
+		__entry->headblk = headblk;
+		__entry->tailblk = tailblk;
+	),
+	TP_printk("dev %d:%d headblk 0x%llx tailblk 0x%llx",
+		  MAJOR(__entry->dev), MINOR(__entry->dev), __entry->headblk,
+		  __entry->tailblk)
+)
 
 TRACE_EVENT(xfs_log_recover_record,
 	TP_PROTO(struct xlog *log, struct xlog_rec_header *rhead, int pass),

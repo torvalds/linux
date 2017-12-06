@@ -469,7 +469,7 @@ static unsigned int *dccp_get_timeouts(struct net *net)
 
 static int dccp_packet(struct nf_conn *ct, const struct sk_buff *skb,
 		       unsigned int dataoff, enum ip_conntrack_info ctinfo,
-		       u_int8_t pf, unsigned int hooknum,
+		       u_int8_t pf,
 		       unsigned int *timeouts)
 {
 	struct net *net = nf_ct_net(ct);
@@ -623,18 +623,12 @@ static bool dccp_can_early_drop(const struct nf_conn *ct)
 	return false;
 }
 
-static void dccp_print_tuple(struct seq_file *s,
-			     const struct nf_conntrack_tuple *tuple)
-{
-	seq_printf(s, "sport=%hu dport=%hu ",
-		   ntohs(tuple->src.u.dccp.port),
-		   ntohs(tuple->dst.u.dccp.port));
-}
-
+#ifdef CONFIG_NF_CONNTRACK_PROCFS
 static void dccp_print_conntrack(struct seq_file *s, struct nf_conn *ct)
 {
 	seq_printf(s, "%s ", dccp_state_names[ct->proto.dccp.state]);
 }
+#endif
 
 #if IS_ENABLED(CONFIG_NF_CT_NETLINK)
 static int dccp_to_nlattr(struct sk_buff *skb, struct nlattr *nla,
@@ -880,7 +874,6 @@ static struct nf_proto_net *dccp_get_net_proto(struct net *net)
 struct nf_conntrack_l4proto nf_conntrack_l4proto_dccp4 __read_mostly = {
 	.l3proto		= AF_INET,
 	.l4proto		= IPPROTO_DCCP,
-	.name			= "dccp",
 	.pkt_to_tuple		= dccp_pkt_to_tuple,
 	.invert_tuple		= dccp_invert_tuple,
 	.new			= dccp_new,
@@ -888,8 +881,9 @@ struct nf_conntrack_l4proto nf_conntrack_l4proto_dccp4 __read_mostly = {
 	.get_timeouts		= dccp_get_timeouts,
 	.error			= dccp_error,
 	.can_early_drop		= dccp_can_early_drop,
-	.print_tuple		= dccp_print_tuple,
+#ifdef CONFIG_NF_CONNTRACK_PROCFS
 	.print_conntrack	= dccp_print_conntrack,
+#endif
 #if IS_ENABLED(CONFIG_NF_CT_NETLINK)
 	.to_nlattr		= dccp_to_nlattr,
 	.nlattr_size		= dccp_nlattr_size,
@@ -916,7 +910,6 @@ EXPORT_SYMBOL_GPL(nf_conntrack_l4proto_dccp4);
 struct nf_conntrack_l4proto nf_conntrack_l4proto_dccp6 __read_mostly = {
 	.l3proto		= AF_INET6,
 	.l4proto		= IPPROTO_DCCP,
-	.name			= "dccp",
 	.pkt_to_tuple		= dccp_pkt_to_tuple,
 	.invert_tuple		= dccp_invert_tuple,
 	.new			= dccp_new,
@@ -924,8 +917,9 @@ struct nf_conntrack_l4proto nf_conntrack_l4proto_dccp6 __read_mostly = {
 	.get_timeouts		= dccp_get_timeouts,
 	.error			= dccp_error,
 	.can_early_drop		= dccp_can_early_drop,
-	.print_tuple		= dccp_print_tuple,
+#ifdef CONFIG_NF_CONNTRACK_PROCFS
 	.print_conntrack	= dccp_print_conntrack,
+#endif
 #if IS_ENABLED(CONFIG_NF_CT_NETLINK)
 	.to_nlattr		= dccp_to_nlattr,
 	.nlattr_size		= dccp_nlattr_size,

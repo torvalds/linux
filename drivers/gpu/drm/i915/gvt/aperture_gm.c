@@ -285,8 +285,8 @@ static int alloc_resource(struct intel_vgpu *vgpu,
 	return 0;
 
 no_enough_resource:
-	gvt_vgpu_err("fail to allocate resource %s\n", item);
-	gvt_vgpu_err("request %luMB avail %luMB max %luMB taken %luMB\n",
+	gvt_err("fail to allocate resource %s\n", item);
+	gvt_err("request %luMB avail %luMB max %luMB taken %luMB\n",
 		BYTES_TO_MB(request), BYTES_TO_MB(avail),
 		BYTES_TO_MB(max), BYTES_TO_MB(taken));
 	return -ENOSPC;

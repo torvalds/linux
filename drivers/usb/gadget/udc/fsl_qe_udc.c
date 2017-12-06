@@ -62,7 +62,7 @@ static const char *const ep_name[] = {
 	"ep3",
 };
 
-static struct usb_endpoint_descriptor qe_ep0_desc = {
+static const struct usb_endpoint_descriptor qe_ep0_desc = {
 	.bLength =		USB_DT_ENDPOINT_SIZE,
 	.bDescriptorType =	USB_DT_ENDPOINT,
 

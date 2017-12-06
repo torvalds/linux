@@ -107,7 +107,6 @@ struct htb_class {
 	struct tcf_proto __rcu	*filter_list;	/* class attached filters */
 	struct tcf_block	*block;
 	int			filter_cnt;
-	int			refcnt;		/* usage count of this class */
 
 	int			level;		/* our level (see above) */
 	unsigned int		children;
@@ -193,6 +192,10 @@ static inline struct htb_class *htb_find(u32 handle, struct Qdisc *sch)
 	return container_of(clc, struct htb_class, common);
 }
 
+static unsigned long htb_search(struct Qdisc *sch, u32 handle)
+{
+	return (unsigned long)htb_find(handle, sch);
+}
 /**
  * htb_classify - classify a packet into class
  *
@@ -1187,16 +1190,7 @@ static void htb_qlen_notify(struct Qdisc *sch, unsigned long arg)
 {
 	struct htb_class *cl = (struct htb_class *)arg;
 
-	if (cl->un.leaf.q->q.qlen == 0)
-		htb_deactivate(qdisc_priv(sch), cl);
-}
-
-static unsigned long htb_get(struct Qdisc *sch, u32 classid)
-{
-	struct htb_class *cl = htb_find(classid, sch);
-	if (cl)
-		cl->refcnt++;
-	return (unsigned long)cl;
+	htb_deactivate(qdisc_priv(sch), cl);
 }
 
 static inline int htb_parent_last_child(struct htb_class *cl)
@@ -1318,22 +1312,10 @@ static int htb_delete(struct Qdisc *sch, unsigned long arg)
 	if (last_child)
 		htb_parent_to_leaf(q, cl, new_q);
 
-	BUG_ON(--cl->refcnt == 0);
-	/*
-	 * This shouldn't happen: we "hold" one cops->get() when called
-	 * from tc_ctl_tclass; the destroy method is done from cops->put().
-	 */
-
 	sch_tree_unlock(sch);
+
+	htb_destroy_class(sch, cl);
 	return 0;
-}
-
-static void htb_put(struct Qdisc *sch, unsigned long arg)
-{
-	struct htb_class *cl = (struct htb_class *)arg;
-
-	if (--cl->refcnt == 0)
-		htb_destroy_class(sch, cl);
 }
 
 static int htb_change_class(struct Qdisc *sch, u32 classid,
@@ -1424,7 +1406,6 @@ static int htb_change_class(struct Qdisc *sch, u32 classid,
 			}
 		}
 
-		cl->refcnt = 1;
 		cl->children = 0;
 		INIT_LIST_HEAD(&cl->un.leaf.drop_list);
 		RB_CLEAR_NODE(&cl->pq_node);
@@ -1600,8 +1581,7 @@ static const struct Qdisc_class_ops htb_class_ops = {
 	.graft		=	htb_graft,
 	.leaf		=	htb_leaf,
 	.qlen_notify	=	htb_qlen_notify,
-	.get		=	htb_get,
-	.put		=	htb_put,
+	.find		=	htb_search,
 	.change		=	htb_change_class,
 	.delete		=	htb_delete,
 	.walk		=	htb_walk,

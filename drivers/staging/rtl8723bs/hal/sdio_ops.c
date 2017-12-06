@@ -1121,7 +1121,7 @@ void sd_int_dpc(struct adapter *padapter)
 			}
 		} else {
 			/* Error handling for malloc fail */
-			if (rtw_cbuf_push(padapter->evtpriv.c2h_queue, (void *)NULL) != _SUCCESS)
+			if (rtw_cbuf_push(padapter->evtpriv.c2h_queue, NULL) != _SUCCESS)
 				DBG_871X("%s rtw_cbuf_push fail\n", __func__);
 			_set_workitem(&padapter->evtpriv.c2h_wk);
 		}

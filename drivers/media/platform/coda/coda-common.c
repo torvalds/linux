@@ -73,7 +73,7 @@ MODULE_PARM_DESC(disable_vdoa, "Disable Video Data Order Adapter tiled to raster
 
 static int enable_bwb = 0;
 module_param(enable_bwb, int, 0644);
-MODULE_PARM_DESC(enable_bwb, "Enable BWB unit, may crash on certain streams");
+MODULE_PARM_DESC(enable_bwb, "Enable BWB unit for decoding, may crash on certain streams");
 
 void coda_write(struct coda_dev *dev, u32 data, u32 reg)
 {
@@ -714,9 +714,10 @@ static int coda_s_fmt(struct coda_ctx *ctx, struct v4l2_format *f,
 		ctx->tiled_map_type = GDI_TILED_FRAME_MB_RASTER_MAP;
 		break;
 	case V4L2_PIX_FMT_NV12:
-		ctx->tiled_map_type = GDI_TILED_FRAME_MB_RASTER_MAP;
-		if (!disable_tiling)
+		if (!disable_tiling) {
+			ctx->tiled_map_type = GDI_TILED_FRAME_MB_RASTER_MAP;
 			break;
+		}
 		/* else fall through */
 	case V4L2_PIX_FMT_YUV420:
 	case V4L2_PIX_FMT_YVU420:
@@ -932,7 +933,7 @@ static int coda_encoder_cmd(struct file *file, void *fh,
 	ctx->bit_stream_param |= CODA_BIT_STREAM_END_FLAG;
 
 	/* If there is no buffer in flight, wake up */
-	if (ctx->qsequence == ctx->osequence) {
+	if (!ctx->streamon_out || ctx->qsequence == ctx->osequence) {
 		dst_vq = v4l2_m2m_get_vq(ctx->fh.m2m_ctx,
 					 V4L2_BUF_TYPE_VIDEO_CAPTURE);
 		dst_vq->last_buffer_dequeued = true;
@@ -1683,11 +1684,22 @@ static int coda_s_ctrl(struct v4l2_ctrl *ctrl)
 		ctx->params.h264_deblk_enabled = (ctrl->val ==
 				V4L2_MPEG_VIDEO_H264_LOOP_FILTER_MODE_ENABLED);
 		break;
+	case V4L2_CID_MPEG_VIDEO_H264_PROFILE:
+		/* TODO: switch between baseline and constrained baseline */
+		ctx->params.h264_profile_idc = 66;
+		break;
+	case V4L2_CID_MPEG_VIDEO_H264_LEVEL:
+		/* nothing to do, this is set by the encoder */
+		break;
 	case V4L2_CID_MPEG_VIDEO_MPEG4_I_FRAME_QP:
 		ctx->params.mpeg4_intra_qp = ctrl->val;
 		break;
 	case V4L2_CID_MPEG_VIDEO_MPEG4_P_FRAME_QP:
 		ctx->params.mpeg4_inter_qp = ctrl->val;
+		break;
+	case V4L2_CID_MPEG_VIDEO_MPEG4_PROFILE:
+	case V4L2_CID_MPEG_VIDEO_MPEG4_LEVEL:
+		/* nothing to do, these are fixed */
 		break;
 	case V4L2_CID_MPEG_VIDEO_MULTI_SLICE_MODE:
 		ctx->params.slice_mode = ctrl->val;
@@ -1734,10 +1746,12 @@ static const struct v4l2_ctrl_ops coda_ctrl_ops = {
 
 static void coda_encode_ctrls(struct coda_ctx *ctx)
 {
+	int max_gop_size = (ctx->dev->devtype->product == CODA_DX6) ? 60 : 99;
+
 	v4l2_ctrl_new_std(&ctx->ctrls, &coda_ctrl_ops,
 		V4L2_CID_MPEG_VIDEO_BITRATE, 0, 32767000, 1000, 0);
 	v4l2_ctrl_new_std(&ctx->ctrls, &coda_ctrl_ops,
-		V4L2_CID_MPEG_VIDEO_GOP_SIZE, 1, 60, 1, 16);
+		V4L2_CID_MPEG_VIDEO_GOP_SIZE, 0, max_gop_size, 1, 16);
 	v4l2_ctrl_new_std(&ctx->ctrls, &coda_ctrl_ops,
 		V4L2_CID_MPEG_VIDEO_H264_I_FRAME_QP, 0, 51, 1, 25);
 	v4l2_ctrl_new_std(&ctx->ctrls, &coda_ctrl_ops,
@@ -1756,10 +1770,46 @@ static void coda_encode_ctrls(struct coda_ctx *ctx)
 		V4L2_CID_MPEG_VIDEO_H264_LOOP_FILTER_MODE,
 		V4L2_MPEG_VIDEO_H264_LOOP_FILTER_MODE_DISABLED, 0x0,
 		V4L2_MPEG_VIDEO_H264_LOOP_FILTER_MODE_ENABLED);
+	v4l2_ctrl_new_std_menu(&ctx->ctrls, &coda_ctrl_ops,
+		V4L2_CID_MPEG_VIDEO_H264_PROFILE,
+		V4L2_MPEG_VIDEO_H264_PROFILE_BASELINE, 0x0,
+		V4L2_MPEG_VIDEO_H264_PROFILE_BASELINE);
+	if (ctx->dev->devtype->product == CODA_7541) {
+		v4l2_ctrl_new_std_menu(&ctx->ctrls, &coda_ctrl_ops,
+			V4L2_CID_MPEG_VIDEO_H264_LEVEL,
+			V4L2_MPEG_VIDEO_H264_LEVEL_3_1,
+			~((1 << V4L2_MPEG_VIDEO_H264_LEVEL_2_0) |
+			  (1 << V4L2_MPEG_VIDEO_H264_LEVEL_3_0) |
+			  (1 << V4L2_MPEG_VIDEO_H264_LEVEL_3_1)),
+			V4L2_MPEG_VIDEO_H264_LEVEL_3_1);
+	}
+	if (ctx->dev->devtype->product == CODA_960) {
+		v4l2_ctrl_new_std_menu(&ctx->ctrls, &coda_ctrl_ops,
+			V4L2_CID_MPEG_VIDEO_H264_LEVEL,
+			V4L2_MPEG_VIDEO_H264_LEVEL_4_0,
+			~((1 << V4L2_MPEG_VIDEO_H264_LEVEL_2_0) |
+			  (1 << V4L2_MPEG_VIDEO_H264_LEVEL_3_0) |
+			  (1 << V4L2_MPEG_VIDEO_H264_LEVEL_3_1) |
+			  (1 << V4L2_MPEG_VIDEO_H264_LEVEL_3_2) |
+			  (1 << V4L2_MPEG_VIDEO_H264_LEVEL_4_0)),
+			V4L2_MPEG_VIDEO_H264_LEVEL_4_0);
+	}
 	v4l2_ctrl_new_std(&ctx->ctrls, &coda_ctrl_ops,
 		V4L2_CID_MPEG_VIDEO_MPEG4_I_FRAME_QP, 1, 31, 1, 2);
 	v4l2_ctrl_new_std(&ctx->ctrls, &coda_ctrl_ops,
 		V4L2_CID_MPEG_VIDEO_MPEG4_P_FRAME_QP, 1, 31, 1, 2);
+	v4l2_ctrl_new_std_menu(&ctx->ctrls, &coda_ctrl_ops,
+		V4L2_CID_MPEG_VIDEO_MPEG4_PROFILE,
+		V4L2_MPEG_VIDEO_MPEG4_PROFILE_SIMPLE, 0x0,
+		V4L2_MPEG_VIDEO_MPEG4_PROFILE_SIMPLE);
+	if (ctx->dev->devtype->product == CODA_7541 ||
+	    ctx->dev->devtype->product == CODA_960) {
+		v4l2_ctrl_new_std_menu(&ctx->ctrls, &coda_ctrl_ops,
+			V4L2_CID_MPEG_VIDEO_MPEG4_LEVEL,
+			V4L2_MPEG_VIDEO_MPEG4_LEVEL_5,
+			~(1 << V4L2_MPEG_VIDEO_MPEG4_LEVEL_5),
+			V4L2_MPEG_VIDEO_MPEG4_LEVEL_5);
+	}
 	v4l2_ctrl_new_std_menu(&ctx->ctrls, &coda_ctrl_ops,
 		V4L2_CID_MPEG_VIDEO_MULTI_SLICE_MODE,
 		V4L2_MPEG_VIDEO_MULTI_SICE_MODE_MAX_BYTES, 0x0,
@@ -1938,7 +1988,13 @@ static int coda_open(struct file *file)
 	ctx->idx = idx;
 	switch (dev->devtype->product) {
 	case CODA_960:
-		if (enable_bwb)
+		/*
+		 * Enabling the BWB when decoding can hang the firmware with
+		 * certain streams. The issue was tracked as ENGR00293425 by
+		 * Freescale. As a workaround, disable BWB for all decoders.
+		 * The enable_bwb module parameter allows to override this.
+		 */
+		if (enable_bwb || ctx->inst_type == CODA_INST_ENCODER)
 			ctx->frame_mem_ctrl = CODA9_FRAME_ENABLE_BWB;
 		/* fallthrough */
 	case CODA_7541:
@@ -2142,7 +2198,8 @@ static int coda_hw_init(struct coda_dev *dev)
 			   CODA_REG_BIT_STREAM_CTRL);
 	}
 	if (dev->devtype->product == CODA_960)
-		coda_write(dev, 1 << 12, CODA_REG_BIT_FRAME_MEM_CTRL);
+		coda_write(dev, CODA9_FRAME_ENABLE_BWB,
+				CODA_REG_BIT_FRAME_MEM_CTRL);
 	else
 		coda_write(dev, 0, CODA_REG_BIT_FRAME_MEM_CTRL);
 
@@ -2386,11 +2443,11 @@ static const struct coda_devtype coda_devdata[] = {
 		.num_vdevs    = ARRAY_SIZE(coda9_video_devices),
 		.workbuf_size = 80 * 1024,
 		.tempbuf_size = 204 * 1024,
-		.iram_size    = 0x20000,
+		.iram_size    = 0x1f000, /* leave 4k for suspend code */
 	},
 };
 
-static struct platform_device_id coda_platform_ids[] = {
+static const struct platform_device_id coda_platform_ids[] = {
 	{ .name = "coda-imx27", .driver_data = CODA_IMX27 },
 	{ /* sentinel */ }
 };
@@ -2470,7 +2527,8 @@ static int coda_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	dev->rstc = devm_reset_control_get_optional(&pdev->dev, NULL);
+	dev->rstc = devm_reset_control_get_optional_exclusive(&pdev->dev,
+							      NULL);
 	if (IS_ERR(dev->rstc)) {
 		ret = PTR_ERR(dev->rstc);
 		dev_err(&pdev->dev, "failed get reset control: %d\n", ret);

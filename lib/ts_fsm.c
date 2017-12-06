@@ -11,7 +11,7 @@
  * ==========================================================================
  *
  *   A finite state machine consists of n states (struct ts_fsm_token)
- *   representing the pattern as a finite automation. The data is read
+ *   representing the pattern as a finite automaton. The data is read
  *   sequentially on an octet basis. Every state token specifies the number
  *   of recurrences and the type of value accepted which can be either a
  *   specific character or ctype based set of characters. The available

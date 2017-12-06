@@ -27,7 +27,6 @@ Example:
 I2C managed mode:
 
 	master: masterdevice@X {
-		status = "okay";
 
 		fixed-link { /* RMII fixed link to LAN9303 */
 			speed = <100>;
@@ -38,7 +37,6 @@ I2C managed mode:
 	switch: switch@a {
 		compatible = "smsc,lan9303-i2c";
 		reg = <0xa>;
-		status = "okay";
 		reset-gpios = <&gpio7 6 GPIO_ACTIVE_LOW>;
 		reset-duration = <200>;
 
@@ -67,7 +65,6 @@ I2C managed mode:
 MDIO managed mode:
 
 	master: masterdevice@X {
-		status = "okay";
 		phy-handle = <&switch>;
 
 		mdio {

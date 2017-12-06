@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _RDS_RDS_H
 #define _RDS_RDS_H
 
@@ -154,7 +155,7 @@ struct rds_connection {
 	struct list_head	c_map_item;
 	unsigned long		c_map_queued;
 
-	struct rds_conn_path	c_path[RDS_MPATH_WORKERS];
+	struct rds_conn_path	*c_path;
 	wait_queue_head_t	c_hs_waitq; /* handshake waitq */
 
 	u32			c_my_gen_num;
@@ -700,7 +701,7 @@ struct rds_connection *rds_conn_create_outgoing(struct net *net,
 void rds_conn_shutdown(struct rds_conn_path *cpath);
 void rds_conn_destroy(struct rds_connection *conn);
 void rds_conn_drop(struct rds_connection *conn);
-void rds_conn_path_drop(struct rds_conn_path *cpath);
+void rds_conn_path_drop(struct rds_conn_path *cpath, bool destroy);
 void rds_conn_connect_if_down(struct rds_connection *conn);
 void rds_conn_path_connect_if_down(struct rds_conn_path *cp);
 void rds_for_each_conn_info(struct socket *sock, unsigned int len,

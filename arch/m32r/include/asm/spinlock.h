@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_M32R_SPINLOCK_H
 #define _ASM_M32R_SPINLOCK_H
 
@@ -29,11 +30,6 @@
 
 #define arch_spin_is_locked(x)		(*(volatile int *)(&(x)->slock) <= 0)
 #define arch_spin_lock_flags(lock, flags) arch_spin_lock(lock)
-
-static inline void arch_spin_unlock_wait(arch_spinlock_t *lock)
-{
-	smp_cond_load_acquire(&lock->slock, VAL > 0);
-}
 
 /**
  * arch_spin_trylock - Try spin lock and return a result

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * machines.h:  Defines for taking apart the machine type value in the
  *              idprom and determining the kind of machine we are on.

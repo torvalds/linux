@@ -1,14 +1,31 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_X86_MMU_H
 #define _ASM_X86_MMU_H
 
 #include <linux/spinlock.h>
 #include <linux/mutex.h>
+#include <linux/atomic.h>
 
 /*
- * The x86 doesn't have a mmu context, but
- * we put the segment information here.
+ * x86 has arch-specific MMU state beyond what lives in mm_struct.
  */
 typedef struct {
+	/*
+	 * ctx_id uniquely identifies this mm_struct.  A ctx_id will never
+	 * be reused, and zero is not a valid ctx_id.
+	 */
+	u64 ctx_id;
+
+	/*
+	 * Any code that needs to do any sort of TLB flushing for this
+	 * mm will first make its changes to the page tables, then
+	 * increment tlb_gen, then flush.  This lets the low-level
+	 * flushing code keep track of what needs flushing.
+	 *
+	 * This is not used on Xen PV.
+	 */
+	atomic64_t tlb_gen;
+
 #ifdef CONFIG_MODIFY_LDT_SYSCALL
 	struct ldt_struct *ldt;
 #endif
@@ -36,6 +53,11 @@ typedef struct {
 	void __user *bd_addr;
 #endif
 } mm_context_t;
+
+#define INIT_MM_CONTEXT(mm)						\
+	.context = {							\
+		.ctx_id = 1,						\
+	}
 
 void leave_mm(int cpu);
 

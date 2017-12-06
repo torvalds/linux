@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /dts-v1/;
 
 #include <dt-bindings/interrupt-controller/arm-gic.h>
@@ -779,7 +780,7 @@
 		};
 
 		replicator@fc31c000 {
-			compatible = "qcom,coresight-replicator1x", "arm,primecell";
+			compatible = "arm,coresight-dynamic-replicator", "arm,primecell";
 			reg = <0xfc31c000 0x1000>;
 
 			clocks = <&rpmcc RPM_SMD_QDSS_CLK>, <&rpmcc RPM_SMD_QDSS_A_CLK>;

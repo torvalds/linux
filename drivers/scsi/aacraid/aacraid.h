@@ -1723,6 +1723,7 @@ struct aac_dev
 #define FIB_CONTEXT_FLAG_FASTRESP		(0x00000008)
 #define FIB_CONTEXT_FLAG_NATIVE_HBA		(0x00000010)
 #define FIB_CONTEXT_FLAG_NATIVE_HBA_TMF	(0x00000020)
+#define FIB_CONTEXT_FLAG_SCSI_CMD	(0x00000040)
 
 /*
  *	Define the command values
@@ -2698,6 +2699,11 @@ static inline int aac_is_src(struct aac_dev *dev)
 		device == PMC_DEVICE_S8)
 		return 1;
 	return 0;
+}
+
+static inline int aac_supports_2T(struct aac_dev *dev)
+{
+	return (dev->adapter_info.options & AAC_OPT_NEW_COMM_64);
 }
 
 char * get_container_type(unsigned type);

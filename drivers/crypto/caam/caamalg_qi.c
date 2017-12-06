@@ -12,7 +12,6 @@
 #include "intern.h"
 #include "desc_constr.h"
 #include "error.h"
-#include "sg_sw_sec4.h"
 #include "sg_sw_qm.h"
 #include "key_gen.h"
 #include "qi.h"
@@ -399,6 +398,7 @@ badkey:
  * @iv_dma: dma address of iv for checking continuity and link table
  * @qm_sg_bytes: length of dma mapped h/w link table
  * @qm_sg_dma: bus physical mapped address of h/w link table
+ * @assoclen: associated data length, in CAAM endianness
  * @assoclen_dma: bus physical mapped address of req->assoclen
  * @drv_req: driver-specific request structure
  * @sgt: the h/w link table
@@ -409,8 +409,12 @@ struct aead_edesc {
 	dma_addr_t iv_dma;
 	int qm_sg_bytes;
 	dma_addr_t qm_sg_dma;
+	unsigned int assoclen;
 	dma_addr_t assoclen_dma;
 	struct caam_drv_req drv_req;
+#define CAAM_QI_MAX_AEAD_SG						\
+	((CAAM_QI_MEMCACHE_SIZE - offsetof(struct aead_edesc, sgt)) /	\
+	 sizeof(struct qm_sg_entry))
 	struct qm_sg_entry sgt[0];
 };
 
@@ -431,6 +435,9 @@ struct ablkcipher_edesc {
 	int qm_sg_bytes;
 	dma_addr_t qm_sg_dma;
 	struct caam_drv_req drv_req;
+#define CAAM_QI_MAX_ABLKCIPHER_SG					    \
+	((CAAM_QI_MEMCACHE_SIZE - offsetof(struct ablkcipher_edesc, sgt)) / \
+	 sizeof(struct qm_sg_entry))
 	struct qm_sg_entry sgt[0];
 };
 
@@ -660,6 +667,14 @@ static struct aead_edesc *aead_edesc_alloc(struct aead_request *req,
 	 */
 	qm_sg_ents = 1 + !!ivsize + mapped_src_nents +
 		     (mapped_dst_nents > 1 ? mapped_dst_nents : 0);
+	if (unlikely(qm_sg_ents > CAAM_QI_MAX_AEAD_SG)) {
+		dev_err(qidev, "Insufficient S/G entries: %d > %lu\n",
+			qm_sg_ents, CAAM_QI_MAX_AEAD_SG);
+		caam_unmap(qidev, req->src, req->dst, src_nents, dst_nents,
+			   iv_dma, ivsize, op_type, 0, 0);
+		qi_cache_free(edesc);
+		return ERR_PTR(-ENOMEM);
+	}
 	sg_table = &edesc->sgt[0];
 	qm_sg_bytes = qm_sg_ents * sizeof(*sg_table);
 
@@ -670,7 +685,8 @@ static struct aead_edesc *aead_edesc_alloc(struct aead_request *req,
 	edesc->drv_req.cbk = aead_done;
 	edesc->drv_req.drv_ctx = drv_ctx;
 
-	edesc->assoclen_dma = dma_map_single(qidev, &req->assoclen, 4,
+	edesc->assoclen = cpu_to_caam32(req->assoclen);
+	edesc->assoclen_dma = dma_map_single(qidev, &edesc->assoclen, 4,
 					     DMA_TO_DEVICE);
 	if (dma_mapping_error(qidev, edesc->assoclen_dma)) {
 		dev_err(qidev, "unable to map assoclen\n");
@@ -776,9 +792,9 @@ static void ablkcipher_done(struct caam_drv_req *drv_req, u32 status)
 	struct crypto_ablkcipher *ablkcipher = crypto_ablkcipher_reqtfm(req);
 	struct caam_ctx *caam_ctx = crypto_ablkcipher_ctx(ablkcipher);
 	struct device *qidev = caam_ctx->qidev;
-#ifdef DEBUG
 	int ivsize = crypto_ablkcipher_ivsize(ablkcipher);
 
+#ifdef DEBUG
 	dev_err(qidev, "%s %d: status 0x%x\n", __func__, __LINE__, status);
 #endif
 
@@ -791,13 +807,20 @@ static void ablkcipher_done(struct caam_drv_req *drv_req, u32 status)
 	print_hex_dump(KERN_ERR, "dstiv  @" __stringify(__LINE__)": ",
 		       DUMP_PREFIX_ADDRESS, 16, 4, req->info,
 		       edesc->src_nents > 1 ? 100 : ivsize, 1);
-	dbg_dump_sg(KERN_ERR, "dst    @" __stringify(__LINE__)": ",
-		    DUMP_PREFIX_ADDRESS, 16, 4, req->dst,
-		    edesc->dst_nents > 1 ? 100 : req->nbytes, 1);
+	caam_dump_sg(KERN_ERR, "dst    @" __stringify(__LINE__)": ",
+		     DUMP_PREFIX_ADDRESS, 16, 4, req->dst,
+		     edesc->dst_nents > 1 ? 100 : req->nbytes, 1);
 #endif
 
 	ablkcipher_unmap(qidev, edesc, req);
 	qi_cache_free(edesc);
+
+	/*
+	 * The crypto API expects us to set the IV (req->info) to the last
+	 * ciphertext block. This is used e.g. by the CTS mode.
+	 */
+	scatterwalk_map_and_copy(req->info, req->dst, req->nbytes - ivsize,
+				 ivsize, 0);
 
 	ablkcipher_request_complete(req, status);
 }
@@ -880,6 +903,15 @@ static struct ablkcipher_edesc *ablkcipher_edesc_alloc(struct ablkcipher_request
 	}
 	dst_sg_idx = qm_sg_ents;
 
+	qm_sg_ents += mapped_dst_nents > 1 ? mapped_dst_nents : 0;
+	if (unlikely(qm_sg_ents > CAAM_QI_MAX_ABLKCIPHER_SG)) {
+		dev_err(qidev, "Insufficient S/G entries: %d > %lu\n",
+			qm_sg_ents, CAAM_QI_MAX_ABLKCIPHER_SG);
+		caam_unmap(qidev, req->src, req->dst, src_nents, dst_nents,
+			   iv_dma, ivsize, op_type, 0, 0);
+		return ERR_PTR(-ENOMEM);
+	}
+
 	/* allocate space for base edesc and link tables */
 	edesc = qi_cache_alloc(GFP_DMA | flags);
 	if (unlikely(!edesc)) {
@@ -892,7 +924,6 @@ static struct ablkcipher_edesc *ablkcipher_edesc_alloc(struct ablkcipher_request
 	edesc->src_nents = src_nents;
 	edesc->dst_nents = dst_nents;
 	edesc->iv_dma = iv_dma;
-	qm_sg_ents += mapped_dst_nents > 1 ? mapped_dst_nents : 0;
 	sg_table = &edesc->sgt[0];
 	edesc->qm_sg_bytes = qm_sg_ents * sizeof(*sg_table);
 	edesc->drv_req.app_ctx = req;
@@ -1024,6 +1055,14 @@ static struct ablkcipher_edesc *ablkcipher_giv_edesc_alloc(
 	} else {
 		out_contig = false;
 		qm_sg_ents += 1 + mapped_dst_nents;
+	}
+
+	if (unlikely(qm_sg_ents > CAAM_QI_MAX_ABLKCIPHER_SG)) {
+		dev_err(qidev, "Insufficient S/G entries: %d > %lu\n",
+			qm_sg_ents, CAAM_QI_MAX_ABLKCIPHER_SG);
+		caam_unmap(qidev, req->src, req->dst, src_nents, dst_nents,
+			   iv_dma, ivsize, GIVENCRYPT, 0, 0);
+		return ERR_PTR(-ENOMEM);
 	}
 
 	/* allocate space for base edesc and link tables */
@@ -1968,7 +2007,7 @@ static struct caam_aead_alg driver_aeads[] = {
 				.cra_name = "echainiv(authenc(hmac(sha256),"
 					    "cbc(des)))",
 				.cra_driver_name = "echainiv-authenc-"
-						   "hmac-sha256-cbc-desi-"
+						   "hmac-sha256-cbc-des-"
 						   "caam-qi",
 				.cra_blocksize = DES_BLOCK_SIZE,
 			},

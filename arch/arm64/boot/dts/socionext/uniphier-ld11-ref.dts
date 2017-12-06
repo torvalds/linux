@@ -8,9 +8,9 @@
  */
 
 /dts-v1/;
-/include/ "uniphier-ld11.dtsi"
-/include/ "uniphier-ref-daughter.dtsi"
-/include/ "uniphier-support-card.dtsi"
+#include "uniphier-ld11.dtsi"
+#include "uniphier-ref-daughter.dtsi"
+#include "uniphier-support-card.dtsi"
 
 / {
 	model = "UniPhier LD11 Reference Board";

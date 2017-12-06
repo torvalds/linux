@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include "bcm47xx_private.h"
 
 #include <linux/leds.h>

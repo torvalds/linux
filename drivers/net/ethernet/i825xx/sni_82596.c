@@ -23,8 +23,6 @@
 
 static const char sni_82596_string[] = "snirm_82596";
 
-#define DMA_ALLOC                      dma_alloc_coherent
-#define DMA_FREE                       dma_free_coherent
 #define DMA_WBACK(priv, addr, len)     do { } while (0)
 #define DMA_INV(priv, addr, len)       do { } while (0)
 #define DMA_WBACK_INV(priv, addr, len) do { } while (0)
@@ -152,8 +150,8 @@ static int sni_82596_driver_remove(struct platform_device *pdev)
 	struct i596_private *lp = netdev_priv(dev);
 
 	unregister_netdev(dev);
-	DMA_FREE(dev->dev.parent, sizeof(struct i596_private),
-		 lp->dma, lp->dma_addr);
+	dma_free_attrs(dev->dev.parent, sizeof(struct i596_private), lp->dma,
+		       lp->dma_addr, DMA_ATTR_NON_CONSISTENT);
 	iounmap(lp->ca);
 	iounmap(lp->mpu_port);
 	free_netdev (dev);

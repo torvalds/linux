@@ -97,7 +97,7 @@ static const struct sdhci_ops pic32_sdhci_ops = {
 	.get_ro = pic32_sdhci_get_ro,
 };
 
-static struct sdhci_pltfm_data sdhci_pic32_pdata = {
+static const struct sdhci_pltfm_data sdhci_pic32_pdata = {
 	.ops = &pic32_sdhci_ops,
 	.quirks = SDHCI_QUIRK_NO_HISPD_BIT,
 	.quirks2 = SDHCI_QUIRK2_NO_1_8_V,

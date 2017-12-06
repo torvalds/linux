@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  *    Copyright IBM Corp. 1999, 2012
  *    Author(s): Hartmut Penner <hp@de.ibm.com>,
@@ -95,46 +96,46 @@ struct lowcore {
 	__u64	int_clock;			/* 0x0310 */
 	__u64	mcck_clock;			/* 0x0318 */
 	__u64	clock_comparator;		/* 0x0320 */
+	__u64	boot_clock[2];			/* 0x0328 */
 
 	/* Current process. */
-	__u64	current_task;			/* 0x0328 */
-	__u8	pad_0x318[0x320-0x318];		/* 0x0330 */
-	__u64	kernel_stack;			/* 0x0338 */
+	__u64	current_task;			/* 0x0338 */
+	__u64	kernel_stack;			/* 0x0340 */
 
 	/* Interrupt, panic and restart stack. */
-	__u64	async_stack;			/* 0x0340 */
-	__u64	panic_stack;			/* 0x0348 */
-	__u64	restart_stack;			/* 0x0350 */
+	__u64	async_stack;			/* 0x0348 */
+	__u64	panic_stack;			/* 0x0350 */
+	__u64	restart_stack;			/* 0x0358 */
 
 	/* Restart function and parameter. */
-	__u64	restart_fn;			/* 0x0358 */
-	__u64	restart_data;			/* 0x0360 */
-	__u64	restart_source;			/* 0x0368 */
+	__u64	restart_fn;			/* 0x0360 */
+	__u64	restart_data;			/* 0x0368 */
+	__u64	restart_source;			/* 0x0370 */
 
 	/* Address space pointer. */
-	__u64	kernel_asce;			/* 0x0370 */
-	__u64	user_asce;			/* 0x0378 */
+	__u64	kernel_asce;			/* 0x0378 */
+	__u64	user_asce;			/* 0x0380 */
 
 	/*
 	 * The lpp and current_pid fields form a
 	 * 64-bit value that is set as program
 	 * parameter with the LPP instruction.
 	 */
-	__u32	lpp;				/* 0x0380 */
-	__u32	current_pid;			/* 0x0384 */
+	__u32	lpp;				/* 0x0388 */
+	__u32	current_pid;			/* 0x038c */
 
 	/* SMP info area */
-	__u32	cpu_nr;				/* 0x0388 */
-	__u32	softirq_pending;		/* 0x038c */
-	__u64	percpu_offset;			/* 0x0390 */
-	__u64	vdso_per_cpu_data;		/* 0x0398 */
-	__u64	machine_flags;			/* 0x03a0 */
-	__u32	preempt_count;			/* 0x03a8 */
-	__u8	pad_0x03ac[0x03b0-0x03ac];	/* 0x03ac */
-	__u64	gmap;				/* 0x03b0 */
-	__u32	spinlock_lockval;		/* 0x03b8 */
-	__u32	fpu_flags;			/* 0x03bc */
-	__u8	pad_0x03c0[0x0400-0x03c0];	/* 0x03c0 */
+	__u32	cpu_nr;				/* 0x0390 */
+	__u32	softirq_pending;		/* 0x0394 */
+	__u64	percpu_offset;			/* 0x0398 */
+	__u64	vdso_per_cpu_data;		/* 0x03a0 */
+	__u64	machine_flags;			/* 0x03a8 */
+	__u32	preempt_count;			/* 0x03b0 */
+	__u8	pad_0x03b4[0x03b8-0x03b4];	/* 0x03b4 */
+	__u64	gmap;				/* 0x03b8 */
+	__u32	spinlock_lockval;		/* 0x03c0 */
+	__u32	fpu_flags;			/* 0x03c4 */
+	__u8	pad_0x03c8[0x0400-0x03c8];	/* 0x03c8 */
 
 	/* Per cpu primary space access list */
 	__u32	paste[16];			/* 0x0400 */

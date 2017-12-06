@@ -59,82 +59,129 @@ enum nfp_dump_diag {
 	NFP_DUMP_NSP_DIAG = 0,
 };
 
-/* Support for stats. Returns netdev, driver, and device stats */
-enum { NETDEV_ET_STATS, NFP_NET_DRV_ET_STATS, NFP_NET_DEV_ET_STATS };
-struct _nfp_net_et_stats {
+struct nfp_et_stat {
 	char name[ETH_GSTRING_LEN];
-	int type;
-	int sz;
 	int off;
 };
 
-#define NN_ET_NETDEV_STAT(m) NETDEV_ET_STATS,			\
-		FIELD_SIZEOF(struct net_device_stats, m),	\
-		offsetof(struct net_device_stats, m)
-/* For stats in the control BAR (other than Q stats) */
-#define NN_ET_DEV_STAT(m) NFP_NET_DEV_ET_STATS,			\
-		sizeof(u64),					\
-		(m)
-static const struct _nfp_net_et_stats nfp_net_et_stats[] = {
-	/* netdev stats */
-	{"rx_packets", NN_ET_NETDEV_STAT(rx_packets)},
-	{"tx_packets", NN_ET_NETDEV_STAT(tx_packets)},
-	{"rx_bytes", NN_ET_NETDEV_STAT(rx_bytes)},
-	{"tx_bytes", NN_ET_NETDEV_STAT(tx_bytes)},
-	{"rx_errors", NN_ET_NETDEV_STAT(rx_errors)},
-	{"tx_errors", NN_ET_NETDEV_STAT(tx_errors)},
-	{"rx_dropped", NN_ET_NETDEV_STAT(rx_dropped)},
-	{"tx_dropped", NN_ET_NETDEV_STAT(tx_dropped)},
-	{"multicast", NN_ET_NETDEV_STAT(multicast)},
-	{"collisions", NN_ET_NETDEV_STAT(collisions)},
-	{"rx_over_errors", NN_ET_NETDEV_STAT(rx_over_errors)},
-	{"rx_crc_errors", NN_ET_NETDEV_STAT(rx_crc_errors)},
-	{"rx_frame_errors", NN_ET_NETDEV_STAT(rx_frame_errors)},
-	{"rx_fifo_errors", NN_ET_NETDEV_STAT(rx_fifo_errors)},
-	{"rx_missed_errors", NN_ET_NETDEV_STAT(rx_missed_errors)},
-	{"tx_aborted_errors", NN_ET_NETDEV_STAT(tx_aborted_errors)},
-	{"tx_carrier_errors", NN_ET_NETDEV_STAT(tx_carrier_errors)},
-	{"tx_fifo_errors", NN_ET_NETDEV_STAT(tx_fifo_errors)},
+static const struct nfp_et_stat nfp_net_et_stats[] = {
 	/* Stats from the device */
-	{"dev_rx_discards", NN_ET_DEV_STAT(NFP_NET_CFG_STATS_RX_DISCARDS)},
-	{"dev_rx_errors", NN_ET_DEV_STAT(NFP_NET_CFG_STATS_RX_ERRORS)},
-	{"dev_rx_bytes", NN_ET_DEV_STAT(NFP_NET_CFG_STATS_RX_OCTETS)},
-	{"dev_rx_uc_bytes", NN_ET_DEV_STAT(NFP_NET_CFG_STATS_RX_UC_OCTETS)},
-	{"dev_rx_mc_bytes", NN_ET_DEV_STAT(NFP_NET_CFG_STATS_RX_MC_OCTETS)},
-	{"dev_rx_bc_bytes", NN_ET_DEV_STAT(NFP_NET_CFG_STATS_RX_BC_OCTETS)},
-	{"dev_rx_pkts", NN_ET_DEV_STAT(NFP_NET_CFG_STATS_RX_FRAMES)},
-	{"dev_rx_mc_pkts", NN_ET_DEV_STAT(NFP_NET_CFG_STATS_RX_MC_FRAMES)},
-	{"dev_rx_bc_pkts", NN_ET_DEV_STAT(NFP_NET_CFG_STATS_RX_BC_FRAMES)},
+	{ "dev_rx_discards",	NFP_NET_CFG_STATS_RX_DISCARDS },
+	{ "dev_rx_errors",	NFP_NET_CFG_STATS_RX_ERRORS },
+	{ "dev_rx_bytes",	NFP_NET_CFG_STATS_RX_OCTETS },
+	{ "dev_rx_uc_bytes",	NFP_NET_CFG_STATS_RX_UC_OCTETS },
+	{ "dev_rx_mc_bytes",	NFP_NET_CFG_STATS_RX_MC_OCTETS },
+	{ "dev_rx_bc_bytes",	NFP_NET_CFG_STATS_RX_BC_OCTETS },
+	{ "dev_rx_pkts",	NFP_NET_CFG_STATS_RX_FRAMES },
+	{ "dev_rx_mc_pkts",	NFP_NET_CFG_STATS_RX_MC_FRAMES },
+	{ "dev_rx_bc_pkts",	NFP_NET_CFG_STATS_RX_BC_FRAMES },
 
-	{"dev_tx_discards", NN_ET_DEV_STAT(NFP_NET_CFG_STATS_TX_DISCARDS)},
-	{"dev_tx_errors", NN_ET_DEV_STAT(NFP_NET_CFG_STATS_TX_ERRORS)},
-	{"dev_tx_bytes", NN_ET_DEV_STAT(NFP_NET_CFG_STATS_TX_OCTETS)},
-	{"dev_tx_uc_bytes", NN_ET_DEV_STAT(NFP_NET_CFG_STATS_TX_UC_OCTETS)},
-	{"dev_tx_mc_bytes", NN_ET_DEV_STAT(NFP_NET_CFG_STATS_TX_MC_OCTETS)},
-	{"dev_tx_bc_bytes", NN_ET_DEV_STAT(NFP_NET_CFG_STATS_TX_BC_OCTETS)},
-	{"dev_tx_pkts", NN_ET_DEV_STAT(NFP_NET_CFG_STATS_TX_FRAMES)},
-	{"dev_tx_mc_pkts", NN_ET_DEV_STAT(NFP_NET_CFG_STATS_TX_MC_FRAMES)},
-	{"dev_tx_bc_pkts", NN_ET_DEV_STAT(NFP_NET_CFG_STATS_TX_BC_FRAMES)},
+	{ "dev_tx_discards",	NFP_NET_CFG_STATS_TX_DISCARDS },
+	{ "dev_tx_errors",	NFP_NET_CFG_STATS_TX_ERRORS },
+	{ "dev_tx_bytes",	NFP_NET_CFG_STATS_TX_OCTETS },
+	{ "dev_tx_uc_bytes",	NFP_NET_CFG_STATS_TX_UC_OCTETS },
+	{ "dev_tx_mc_bytes",	NFP_NET_CFG_STATS_TX_MC_OCTETS },
+	{ "dev_tx_bc_bytes",	NFP_NET_CFG_STATS_TX_BC_OCTETS },
+	{ "dev_tx_pkts",	NFP_NET_CFG_STATS_TX_FRAMES },
+	{ "dev_tx_mc_pkts",	NFP_NET_CFG_STATS_TX_MC_FRAMES },
+	{ "dev_tx_bc_pkts",	NFP_NET_CFG_STATS_TX_BC_FRAMES },
 
-	{"bpf_pass_pkts", NN_ET_DEV_STAT(NFP_NET_CFG_STATS_APP0_FRAMES)},
-	{"bpf_pass_bytes", NN_ET_DEV_STAT(NFP_NET_CFG_STATS_APP0_BYTES)},
+	{ "bpf_pass_pkts",	NFP_NET_CFG_STATS_APP0_FRAMES },
+	{ "bpf_pass_bytes",	NFP_NET_CFG_STATS_APP0_BYTES },
 	/* see comments in outro functions in nfp_bpf_jit.c to find out
 	 * how different BPF modes use app-specific counters
 	 */
-	{"bpf_app1_pkts", NN_ET_DEV_STAT(NFP_NET_CFG_STATS_APP1_FRAMES)},
-	{"bpf_app1_bytes", NN_ET_DEV_STAT(NFP_NET_CFG_STATS_APP1_BYTES)},
-	{"bpf_app2_pkts", NN_ET_DEV_STAT(NFP_NET_CFG_STATS_APP2_FRAMES)},
-	{"bpf_app2_bytes", NN_ET_DEV_STAT(NFP_NET_CFG_STATS_APP2_BYTES)},
-	{"bpf_app3_pkts", NN_ET_DEV_STAT(NFP_NET_CFG_STATS_APP3_FRAMES)},
-	{"bpf_app3_bytes", NN_ET_DEV_STAT(NFP_NET_CFG_STATS_APP3_BYTES)},
+	{ "bpf_app1_pkts",	NFP_NET_CFG_STATS_APP1_FRAMES },
+	{ "bpf_app1_bytes",	NFP_NET_CFG_STATS_APP1_BYTES },
+	{ "bpf_app2_pkts",	NFP_NET_CFG_STATS_APP2_FRAMES },
+	{ "bpf_app2_bytes",	NFP_NET_CFG_STATS_APP2_BYTES },
+	{ "bpf_app3_pkts",	NFP_NET_CFG_STATS_APP3_FRAMES },
+	{ "bpf_app3_bytes",	NFP_NET_CFG_STATS_APP3_BYTES },
+};
+
+static const struct nfp_et_stat nfp_mac_et_stats[] = {
+	{ "rx_octets",			NFP_MAC_STATS_RX_IN_OCTETS, },
+	{ "rx_frame_too_long_errors",
+			NFP_MAC_STATS_RX_FRAME_TOO_LONG_ERRORS, },
+	{ "rx_range_length_errors",	NFP_MAC_STATS_RX_RANGE_LENGTH_ERRORS, },
+	{ "rx_vlan_reveive_ok",		NFP_MAC_STATS_RX_VLAN_REVEIVE_OK, },
+	{ "rx_errors",			NFP_MAC_STATS_RX_IN_ERRORS, },
+	{ "rx_broadcast_pkts",		NFP_MAC_STATS_RX_IN_BROADCAST_PKTS, },
+	{ "rx_drop_events",		NFP_MAC_STATS_RX_DROP_EVENTS, },
+	{ "rx_alignment_errors",	NFP_MAC_STATS_RX_ALIGNMENT_ERRORS, },
+	{ "rx_pause_mac_ctrl_frames",
+			NFP_MAC_STATS_RX_PAUSE_MAC_CTRL_FRAMES, },
+	{ "rx_frames_received_ok",	NFP_MAC_STATS_RX_FRAMES_RECEIVED_OK, },
+	{ "rx_frame_check_sequence_errors",
+			NFP_MAC_STATS_RX_FRAME_CHECK_SEQUENCE_ERRORS, },
+	{ "rx_unicast_pkts",		NFP_MAC_STATS_RX_UNICAST_PKTS, },
+	{ "rx_multicast_pkts",		NFP_MAC_STATS_RX_MULTICAST_PKTS, },
+	{ "rx_pkts",			NFP_MAC_STATS_RX_PKTS, },
+	{ "rx_undersize_pkts",		NFP_MAC_STATS_RX_UNDERSIZE_PKTS, },
+	{ "rx_pkts_64_octets",		NFP_MAC_STATS_RX_PKTS_64_OCTETS, },
+	{ "rx_pkts_65_to_127_octets",
+			NFP_MAC_STATS_RX_PKTS_65_TO_127_OCTETS, },
+	{ "rx_pkts_128_to_255_octets",
+			NFP_MAC_STATS_RX_PKTS_128_TO_255_OCTETS, },
+	{ "rx_pkts_256_to_511_octets",
+			NFP_MAC_STATS_RX_PKTS_256_TO_511_OCTETS, },
+	{ "rx_pkts_512_to_1023_octets",
+			NFP_MAC_STATS_RX_PKTS_512_TO_1023_OCTETS, },
+	{ "rx_pkts_1024_to_1518_octets",
+			NFP_MAC_STATS_RX_PKTS_1024_TO_1518_OCTETS, },
+	{ "rx_pkts_1519_to_max_octets",
+			NFP_MAC_STATS_RX_PKTS_1519_TO_MAX_OCTETS, },
+	{ "rx_jabbers",			NFP_MAC_STATS_RX_JABBERS, },
+	{ "rx_fragments",		NFP_MAC_STATS_RX_FRAGMENTS, },
+	{ "rx_oversize_pkts",		NFP_MAC_STATS_RX_OVERSIZE_PKTS, },
+	{ "rx_pause_frames_class0",	NFP_MAC_STATS_RX_PAUSE_FRAMES_CLASS0, },
+	{ "rx_pause_frames_class1",	NFP_MAC_STATS_RX_PAUSE_FRAMES_CLASS1, },
+	{ "rx_pause_frames_class2",	NFP_MAC_STATS_RX_PAUSE_FRAMES_CLASS2, },
+	{ "rx_pause_frames_class3",	NFP_MAC_STATS_RX_PAUSE_FRAMES_CLASS3, },
+	{ "rx_pause_frames_class4",	NFP_MAC_STATS_RX_PAUSE_FRAMES_CLASS4, },
+	{ "rx_pause_frames_class5",	NFP_MAC_STATS_RX_PAUSE_FRAMES_CLASS5, },
+	{ "rx_pause_frames_class6",	NFP_MAC_STATS_RX_PAUSE_FRAMES_CLASS6, },
+	{ "rx_pause_frames_class7",	NFP_MAC_STATS_RX_PAUSE_FRAMES_CLASS7, },
+	{ "rx_mac_ctrl_frames_received",
+			NFP_MAC_STATS_RX_MAC_CTRL_FRAMES_RECEIVED, },
+	{ "rx_mac_head_drop",		NFP_MAC_STATS_RX_MAC_HEAD_DROP, },
+	{ "tx_queue_drop",		NFP_MAC_STATS_TX_QUEUE_DROP, },
+	{ "tx_octets",			NFP_MAC_STATS_TX_OUT_OCTETS, },
+	{ "tx_vlan_transmitted_ok",	NFP_MAC_STATS_TX_VLAN_TRANSMITTED_OK, },
+	{ "tx_errors",			NFP_MAC_STATS_TX_OUT_ERRORS, },
+	{ "tx_broadcast_pkts",		NFP_MAC_STATS_TX_BROADCAST_PKTS, },
+	{ "tx_pause_mac_ctrl_frames",
+			NFP_MAC_STATS_TX_PAUSE_MAC_CTRL_FRAMES, },
+	{ "tx_frames_transmitted_ok",
+			NFP_MAC_STATS_TX_FRAMES_TRANSMITTED_OK, },
+	{ "tx_unicast_pkts",		NFP_MAC_STATS_TX_UNICAST_PKTS, },
+	{ "tx_multicast_pkts",		NFP_MAC_STATS_TX_MULTICAST_PKTS, },
+	{ "tx_pkts_64_octets",		NFP_MAC_STATS_TX_PKTS_64_OCTETS, },
+	{ "tx_pkts_65_to_127_octets",
+			NFP_MAC_STATS_TX_PKTS_65_TO_127_OCTETS, },
+	{ "tx_pkts_128_to_255_octets",
+			NFP_MAC_STATS_TX_PKTS_128_TO_255_OCTETS, },
+	{ "tx_pkts_256_to_511_octets",
+			NFP_MAC_STATS_TX_PKTS_256_TO_511_OCTETS, },
+	{ "tx_pkts_512_to_1023_octets",
+			NFP_MAC_STATS_TX_PKTS_512_TO_1023_OCTETS, },
+	{ "tx_pkts_1024_to_1518_octets",
+			NFP_MAC_STATS_TX_PKTS_1024_TO_1518_OCTETS, },
+	{ "tx_pkts_1519_to_max_octets",
+			NFP_MAC_STATS_TX_PKTS_1519_TO_MAX_OCTETS, },
+	{ "tx_pause_frames_class0",	NFP_MAC_STATS_TX_PAUSE_FRAMES_CLASS0, },
+	{ "tx_pause_frames_class1",	NFP_MAC_STATS_TX_PAUSE_FRAMES_CLASS1, },
+	{ "tx_pause_frames_class2",	NFP_MAC_STATS_TX_PAUSE_FRAMES_CLASS2, },
+	{ "tx_pause_frames_class3",	NFP_MAC_STATS_TX_PAUSE_FRAMES_CLASS3, },
+	{ "tx_pause_frames_class4",	NFP_MAC_STATS_TX_PAUSE_FRAMES_CLASS4, },
+	{ "tx_pause_frames_class5",	NFP_MAC_STATS_TX_PAUSE_FRAMES_CLASS5, },
+	{ "tx_pause_frames_class6",	NFP_MAC_STATS_TX_PAUSE_FRAMES_CLASS6, },
+	{ "tx_pause_frames_class7",	NFP_MAC_STATS_TX_PAUSE_FRAMES_CLASS7, },
 };
 
 #define NN_ET_GLOBAL_STATS_LEN ARRAY_SIZE(nfp_net_et_stats)
-#define NN_ET_RVEC_STATS_LEN (nn->dp.num_r_vecs * 3)
+#define NN_ET_SWITCH_STATS_LEN 9
 #define NN_ET_RVEC_GATHER_STATS 7
-#define NN_ET_QUEUE_STATS_LEN ((nn->dp.num_tx_rings + nn->dp.num_rx_rings) * 2)
-#define NN_ET_STATS_LEN (NN_ET_GLOBAL_STATS_LEN + NN_ET_RVEC_GATHER_STATS + \
-			 NN_ET_RVEC_STATS_LEN + NN_ET_QUEUE_STATS_LEN)
 
 static void nfp_net_get_nspinfo(struct nfp_app *app, char *version)
 {
@@ -147,34 +194,53 @@ static void nfp_net_get_nspinfo(struct nfp_app *app, char *version)
 	if (IS_ERR(nsp))
 		return;
 
-	snprintf(version, ETHTOOL_FWVERS_LEN, "sp:%hu.%hu",
+	snprintf(version, ETHTOOL_FWVERS_LEN, "%hu.%hu",
 		 nfp_nsp_get_abi_ver_major(nsp),
 		 nfp_nsp_get_abi_ver_minor(nsp));
 
 	nfp_nsp_close(nsp);
 }
 
-static void nfp_net_get_drvinfo(struct net_device *netdev,
-				struct ethtool_drvinfo *drvinfo)
+static void
+nfp_get_drvinfo(struct nfp_app *app, struct pci_dev *pdev,
+		const char *vnic_version, struct ethtool_drvinfo *drvinfo)
 {
 	char nsp_version[ETHTOOL_FWVERS_LEN] = {};
-	struct nfp_net *nn = netdev_priv(netdev);
 
-	strlcpy(drvinfo->driver, nn->pdev->driver->name,
-		sizeof(drvinfo->driver));
+	strlcpy(drvinfo->driver, pdev->driver->name, sizeof(drvinfo->driver));
 	strlcpy(drvinfo->version, nfp_driver_version, sizeof(drvinfo->version));
 
-	nfp_net_get_nspinfo(nn->app, nsp_version);
+	nfp_net_get_nspinfo(app, nsp_version);
 	snprintf(drvinfo->fw_version, sizeof(drvinfo->fw_version),
-		 "%d.%d.%d.%d %s %s %s",
+		 "%s %s %s %s", vnic_version, nsp_version,
+		 nfp_app_mip_name(app), nfp_app_name(app));
+}
+
+static void
+nfp_net_get_drvinfo(struct net_device *netdev, struct ethtool_drvinfo *drvinfo)
+{
+	char vnic_version[ETHTOOL_FWVERS_LEN] = {};
+	struct nfp_net *nn = netdev_priv(netdev);
+
+	snprintf(vnic_version, sizeof(vnic_version), "%d.%d.%d.%d",
 		 nn->fw_ver.resv, nn->fw_ver.class,
-		 nn->fw_ver.major, nn->fw_ver.minor, nsp_version,
-		 nfp_app_mip_name(nn->app), nfp_app_name(nn->app));
+		 nn->fw_ver.major, nn->fw_ver.minor);
 	strlcpy(drvinfo->bus_info, pci_name(nn->pdev),
 		sizeof(drvinfo->bus_info));
 
-	drvinfo->n_stats = NN_ET_STATS_LEN;
-	drvinfo->regdump_len = NFP_NET_CFG_BAR_SZ;
+	nfp_get_drvinfo(nn->app, nn->pdev, vnic_version, drvinfo);
+}
+
+static void
+nfp_app_get_drvinfo(struct net_device *netdev, struct ethtool_drvinfo *drvinfo)
+{
+	struct nfp_app *app;
+
+	app = nfp_app_from_netdev(netdev);
+	if (!app)
+		return;
+
+	nfp_get_drvinfo(app, app->pdev, "*", drvinfo);
 }
 
 /**
@@ -346,123 +412,216 @@ static int nfp_net_set_ringparam(struct net_device *netdev,
 	return nfp_net_set_ring_size(nn, rxd_cnt, txd_cnt);
 }
 
+static __printf(2, 3) u8 *nfp_pr_et(u8 *data, const char *fmt, ...)
+{
+	va_list args;
+
+	va_start(args, fmt);
+	vsnprintf(data, ETH_GSTRING_LEN, fmt, args);
+	va_end(args);
+
+	return data + ETH_GSTRING_LEN;
+}
+
+static unsigned int nfp_vnic_get_sw_stats_count(struct net_device *netdev)
+{
+	struct nfp_net *nn = netdev_priv(netdev);
+
+	return NN_ET_RVEC_GATHER_STATS + nn->dp.num_r_vecs * 3;
+}
+
+static u8 *nfp_vnic_get_sw_stats_strings(struct net_device *netdev, u8 *data)
+{
+	struct nfp_net *nn = netdev_priv(netdev);
+	int i;
+
+	for (i = 0; i < nn->dp.num_r_vecs; i++) {
+		data = nfp_pr_et(data, "rvec_%u_rx_pkts", i);
+		data = nfp_pr_et(data, "rvec_%u_tx_pkts", i);
+		data = nfp_pr_et(data, "rvec_%u_tx_busy", i);
+	}
+
+	data = nfp_pr_et(data, "hw_rx_csum_ok");
+	data = nfp_pr_et(data, "hw_rx_csum_inner_ok");
+	data = nfp_pr_et(data, "hw_rx_csum_err");
+	data = nfp_pr_et(data, "hw_tx_csum");
+	data = nfp_pr_et(data, "hw_tx_inner_csum");
+	data = nfp_pr_et(data, "tx_gather");
+	data = nfp_pr_et(data, "tx_lso");
+
+	return data;
+}
+
+static u64 *nfp_vnic_get_sw_stats(struct net_device *netdev, u64 *data)
+{
+	u64 gathered_stats[NN_ET_RVEC_GATHER_STATS] = {};
+	struct nfp_net *nn = netdev_priv(netdev);
+	u64 tmp[NN_ET_RVEC_GATHER_STATS];
+	unsigned int i, j;
+
+	for (i = 0; i < nn->dp.num_r_vecs; i++) {
+		unsigned int start;
+
+		do {
+			start = u64_stats_fetch_begin(&nn->r_vecs[i].rx_sync);
+			data[0] = nn->r_vecs[i].rx_pkts;
+			tmp[0] = nn->r_vecs[i].hw_csum_rx_ok;
+			tmp[1] = nn->r_vecs[i].hw_csum_rx_inner_ok;
+			tmp[2] = nn->r_vecs[i].hw_csum_rx_error;
+		} while (u64_stats_fetch_retry(&nn->r_vecs[i].rx_sync, start));
+
+		do {
+			start = u64_stats_fetch_begin(&nn->r_vecs[i].tx_sync);
+			data[1] = nn->r_vecs[i].tx_pkts;
+			data[2] = nn->r_vecs[i].tx_busy;
+			tmp[3] = nn->r_vecs[i].hw_csum_tx;
+			tmp[4] = nn->r_vecs[i].hw_csum_tx_inner;
+			tmp[5] = nn->r_vecs[i].tx_gather;
+			tmp[6] = nn->r_vecs[i].tx_lso;
+		} while (u64_stats_fetch_retry(&nn->r_vecs[i].tx_sync, start));
+
+		data += 3;
+
+		for (j = 0; j < NN_ET_RVEC_GATHER_STATS; j++)
+			gathered_stats[j] += tmp[j];
+	}
+
+	for (j = 0; j < NN_ET_RVEC_GATHER_STATS; j++)
+		*data++ = gathered_stats[j];
+
+	return data;
+}
+
+static unsigned int
+nfp_vnic_get_hw_stats_count(unsigned int rx_rings, unsigned int tx_rings)
+{
+	return NN_ET_GLOBAL_STATS_LEN + (rx_rings + tx_rings) * 2;
+}
+
+static u8 *
+nfp_vnic_get_hw_stats_strings(u8 *data, unsigned int rx_rings,
+			      unsigned int tx_rings, bool repr)
+{
+	int swap_off, i;
+
+	BUILD_BUG_ON(NN_ET_GLOBAL_STATS_LEN < NN_ET_SWITCH_STATS_LEN * 2);
+	/* If repr is true first add SWITCH_STATS_LEN and then subtract it
+	 * effectively swapping the RX and TX statistics (giving us the RX
+	 * and TX from perspective of the switch).
+	 */
+	swap_off = repr * NN_ET_SWITCH_STATS_LEN;
+
+	for (i = 0; i < NN_ET_SWITCH_STATS_LEN; i++)
+		data = nfp_pr_et(data, nfp_net_et_stats[i + swap_off].name);
+
+	for (i = NN_ET_SWITCH_STATS_LEN; i < NN_ET_SWITCH_STATS_LEN * 2; i++)
+		data = nfp_pr_et(data, nfp_net_et_stats[i - swap_off].name);
+
+	for (i = NN_ET_SWITCH_STATS_LEN * 2; i < NN_ET_GLOBAL_STATS_LEN; i++)
+		data = nfp_pr_et(data, nfp_net_et_stats[i].name);
+
+	for (i = 0; i < tx_rings; i++) {
+		data = nfp_pr_et(data, "txq_%u_pkts", i);
+		data = nfp_pr_et(data, "txq_%u_bytes", i);
+	}
+
+	for (i = 0; i < rx_rings; i++) {
+		data = nfp_pr_et(data, "rxq_%u_pkts", i);
+		data = nfp_pr_et(data, "rxq_%u_bytes", i);
+	}
+
+	return data;
+}
+
+static u64 *
+nfp_vnic_get_hw_stats(u64 *data, u8 __iomem *mem,
+		      unsigned int rx_rings, unsigned int tx_rings)
+{
+	unsigned int i;
+
+	for (i = 0; i < NN_ET_GLOBAL_STATS_LEN; i++)
+		*data++ = readq(mem + nfp_net_et_stats[i].off);
+
+	for (i = 0; i < tx_rings; i++) {
+		*data++ = readq(mem + NFP_NET_CFG_TXR_STATS(i));
+		*data++ = readq(mem + NFP_NET_CFG_TXR_STATS(i) + 8);
+	}
+
+	for (i = 0; i < rx_rings; i++) {
+		*data++ = readq(mem + NFP_NET_CFG_RXR_STATS(i));
+		*data++ = readq(mem + NFP_NET_CFG_RXR_STATS(i) + 8);
+	}
+
+	return data;
+}
+
+static unsigned int nfp_mac_get_stats_count(struct net_device *netdev)
+{
+	struct nfp_port *port;
+
+	port = nfp_port_from_netdev(netdev);
+	if (!__nfp_port_get_eth_port(port) || !port->eth_stats)
+		return 0;
+
+	return ARRAY_SIZE(nfp_mac_et_stats);
+}
+
+static u8 *nfp_mac_get_stats_strings(struct net_device *netdev, u8 *data)
+{
+	struct nfp_port *port;
+	unsigned int i;
+
+	port = nfp_port_from_netdev(netdev);
+	if (!__nfp_port_get_eth_port(port) || !port->eth_stats)
+		return data;
+
+	for (i = 0; i < ARRAY_SIZE(nfp_mac_et_stats); i++)
+		data = nfp_pr_et(data, "mac.%s", nfp_mac_et_stats[i].name);
+
+	return data;
+}
+
+static u64 *nfp_mac_get_stats(struct net_device *netdev, u64 *data)
+{
+	struct nfp_port *port;
+	unsigned int i;
+
+	port = nfp_port_from_netdev(netdev);
+	if (!__nfp_port_get_eth_port(port) || !port->eth_stats)
+		return data;
+
+	for (i = 0; i < ARRAY_SIZE(nfp_mac_et_stats); i++)
+		*data++ = readq(port->eth_stats + nfp_mac_et_stats[i].off);
+
+	return data;
+}
+
 static void nfp_net_get_strings(struct net_device *netdev,
 				u32 stringset, u8 *data)
 {
 	struct nfp_net *nn = netdev_priv(netdev);
-	u8 *p = data;
-	int i;
 
 	switch (stringset) {
 	case ETH_SS_STATS:
-		for (i = 0; i < NN_ET_GLOBAL_STATS_LEN; i++) {
-			memcpy(p, nfp_net_et_stats[i].name, ETH_GSTRING_LEN);
-			p += ETH_GSTRING_LEN;
-		}
-		for (i = 0; i < nn->dp.num_r_vecs; i++) {
-			sprintf(p, "rvec_%u_rx_pkts", i);
-			p += ETH_GSTRING_LEN;
-			sprintf(p, "rvec_%u_tx_pkts", i);
-			p += ETH_GSTRING_LEN;
-			sprintf(p, "rvec_%u_tx_busy", i);
-			p += ETH_GSTRING_LEN;
-		}
-		strncpy(p, "hw_rx_csum_ok", ETH_GSTRING_LEN);
-		p += ETH_GSTRING_LEN;
-		strncpy(p, "hw_rx_csum_inner_ok", ETH_GSTRING_LEN);
-		p += ETH_GSTRING_LEN;
-		strncpy(p, "hw_rx_csum_err", ETH_GSTRING_LEN);
-		p += ETH_GSTRING_LEN;
-		strncpy(p, "hw_tx_csum", ETH_GSTRING_LEN);
-		p += ETH_GSTRING_LEN;
-		strncpy(p, "hw_tx_inner_csum", ETH_GSTRING_LEN);
-		p += ETH_GSTRING_LEN;
-		strncpy(p, "tx_gather", ETH_GSTRING_LEN);
-		p += ETH_GSTRING_LEN;
-		strncpy(p, "tx_lso", ETH_GSTRING_LEN);
-		p += ETH_GSTRING_LEN;
-		for (i = 0; i < nn->dp.num_tx_rings; i++) {
-			sprintf(p, "txq_%u_pkts", i);
-			p += ETH_GSTRING_LEN;
-			sprintf(p, "txq_%u_bytes", i);
-			p += ETH_GSTRING_LEN;
-		}
-		for (i = 0; i < nn->dp.num_rx_rings; i++) {
-			sprintf(p, "rxq_%u_pkts", i);
-			p += ETH_GSTRING_LEN;
-			sprintf(p, "rxq_%u_bytes", i);
-			p += ETH_GSTRING_LEN;
-		}
+		data = nfp_vnic_get_sw_stats_strings(netdev, data);
+		data = nfp_vnic_get_hw_stats_strings(data, nn->dp.num_rx_rings,
+						     nn->dp.num_tx_rings,
+						     false);
+		data = nfp_mac_get_stats_strings(netdev, data);
 		break;
 	}
 }
 
-static void nfp_net_get_stats(struct net_device *netdev,
-			      struct ethtool_stats *stats, u64 *data)
+static void
+nfp_net_get_stats(struct net_device *netdev, struct ethtool_stats *stats,
+		  u64 *data)
 {
-	u64 gathered_stats[NN_ET_RVEC_GATHER_STATS] = {};
 	struct nfp_net *nn = netdev_priv(netdev);
-	struct rtnl_link_stats64 *netdev_stats;
-	struct rtnl_link_stats64 temp = {};
-	u64 tmp[NN_ET_RVEC_GATHER_STATS];
-	u8 __iomem *io_p;
-	int i, j, k;
-	u8 *p;
 
-	netdev_stats = dev_get_stats(netdev, &temp);
-
-	for (i = 0; i < NN_ET_GLOBAL_STATS_LEN; i++) {
-		switch (nfp_net_et_stats[i].type) {
-		case NETDEV_ET_STATS:
-			p = (char *)netdev_stats + nfp_net_et_stats[i].off;
-			data[i] = nfp_net_et_stats[i].sz == sizeof(u64) ?
-				*(u64 *)p : *(u32 *)p;
-			break;
-
-		case NFP_NET_DEV_ET_STATS:
-			io_p = nn->dp.ctrl_bar + nfp_net_et_stats[i].off;
-			data[i] = readq(io_p);
-			break;
-		}
-	}
-	for (j = 0; j < nn->dp.num_r_vecs; j++) {
-		unsigned int start;
-
-		do {
-			start = u64_stats_fetch_begin(&nn->r_vecs[j].rx_sync);
-			data[i++] = nn->r_vecs[j].rx_pkts;
-			tmp[0] = nn->r_vecs[j].hw_csum_rx_ok;
-			tmp[1] = nn->r_vecs[j].hw_csum_rx_inner_ok;
-			tmp[2] = nn->r_vecs[j].hw_csum_rx_error;
-		} while (u64_stats_fetch_retry(&nn->r_vecs[j].rx_sync, start));
-
-		do {
-			start = u64_stats_fetch_begin(&nn->r_vecs[j].tx_sync);
-			data[i++] = nn->r_vecs[j].tx_pkts;
-			data[i++] = nn->r_vecs[j].tx_busy;
-			tmp[3] = nn->r_vecs[j].hw_csum_tx;
-			tmp[4] = nn->r_vecs[j].hw_csum_tx_inner;
-			tmp[5] = nn->r_vecs[j].tx_gather;
-			tmp[6] = nn->r_vecs[j].tx_lso;
-		} while (u64_stats_fetch_retry(&nn->r_vecs[j].tx_sync, start));
-
-		for (k = 0; k < NN_ET_RVEC_GATHER_STATS; k++)
-			gathered_stats[k] += tmp[k];
-	}
-	for (j = 0; j < NN_ET_RVEC_GATHER_STATS; j++)
-		data[i++] = gathered_stats[j];
-	for (j = 0; j < nn->dp.num_tx_rings; j++) {
-		io_p = nn->dp.ctrl_bar + NFP_NET_CFG_TXR_STATS(j);
-		data[i++] = readq(io_p);
-		io_p = nn->dp.ctrl_bar + NFP_NET_CFG_TXR_STATS(j) + 8;
-		data[i++] = readq(io_p);
-	}
-	for (j = 0; j < nn->dp.num_rx_rings; j++) {
-		io_p = nn->dp.ctrl_bar + NFP_NET_CFG_RXR_STATS(j);
-		data[i++] = readq(io_p);
-		io_p = nn->dp.ctrl_bar + NFP_NET_CFG_RXR_STATS(j) + 8;
-		data[i++] = readq(io_p);
-	}
+	data = nfp_vnic_get_sw_stats(netdev, data);
+	data = nfp_vnic_get_hw_stats(data, nn->dp.ctrl_bar,
+				     nn->dp.num_rx_rings, nn->dp.num_tx_rings);
+	data = nfp_mac_get_stats(netdev, data);
 }
 
 static int nfp_net_get_sset_count(struct net_device *netdev, int sset)
@@ -471,7 +630,54 @@ static int nfp_net_get_sset_count(struct net_device *netdev, int sset)
 
 	switch (sset) {
 	case ETH_SS_STATS:
-		return NN_ET_STATS_LEN;
+		return nfp_vnic_get_sw_stats_count(netdev) +
+		       nfp_vnic_get_hw_stats_count(nn->dp.num_rx_rings,
+						   nn->dp.num_tx_rings) +
+		       nfp_mac_get_stats_count(netdev);
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
+static void nfp_port_get_strings(struct net_device *netdev,
+				 u32 stringset, u8 *data)
+{
+	struct nfp_port *port = nfp_port_from_netdev(netdev);
+
+	switch (stringset) {
+	case ETH_SS_STATS:
+		if (nfp_port_is_vnic(port))
+			data = nfp_vnic_get_hw_stats_strings(data, 0, 0, true);
+		else
+			data = nfp_mac_get_stats_strings(netdev, data);
+		break;
+	}
+}
+
+static void
+nfp_port_get_stats(struct net_device *netdev, struct ethtool_stats *stats,
+		   u64 *data)
+{
+	struct nfp_port *port = nfp_port_from_netdev(netdev);
+
+	if (nfp_port_is_vnic(port))
+		data = nfp_vnic_get_hw_stats(data, port->vnic, 0, 0);
+	else
+		data = nfp_mac_get_stats(netdev, data);
+}
+
+static int nfp_port_get_sset_count(struct net_device *netdev, int sset)
+{
+	struct nfp_port *port = nfp_port_from_netdev(netdev);
+	unsigned int count;
+
+	switch (sset) {
+	case ETH_SS_STATS:
+		if (nfp_port_is_vnic(port))
+			count = nfp_vnic_get_hw_stats_count(0, 0);
+		else
+			count = nfp_mac_get_stats_count(netdev);
+		return count;
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -708,18 +914,18 @@ static int nfp_net_get_coalesce(struct net_device *netdev,
 /* Other debug dumps
  */
 static int
-nfp_dump_nsp_diag(struct nfp_net *nn, struct ethtool_dump *dump, void *buffer)
+nfp_dump_nsp_diag(struct nfp_app *app, struct ethtool_dump *dump, void *buffer)
 {
 	struct nfp_resource *res;
 	int ret;
 
-	if (!nn->app)
+	if (!app)
 		return -EOPNOTSUPP;
 
 	dump->version = 1;
 	dump->flag = NFP_DUMP_NSP_DIAG;
 
-	res = nfp_resource_acquire(nn->app->cpp, NFP_RESOURCE_NSP_DIAG);
+	res = nfp_resource_acquire(app->cpp, NFP_RESOURCE_NSP_DIAG);
 	if (IS_ERR(res))
 		return PTR_ERR(res);
 
@@ -729,7 +935,7 @@ nfp_dump_nsp_diag(struct nfp_net *nn, struct ethtool_dump *dump, void *buffer)
 			goto exit_release;
 		}
 
-		ret = nfp_cpp_read(nn->app->cpp, nfp_resource_cpp_id(res),
+		ret = nfp_cpp_read(app->cpp, nfp_resource_cpp_id(res),
 				   nfp_resource_address(res),
 				   buffer, dump->len);
 		if (ret != dump->len)
@@ -746,32 +952,30 @@ exit_release:
 	return ret;
 }
 
-static int nfp_net_set_dump(struct net_device *netdev, struct ethtool_dump *val)
+static int nfp_app_set_dump(struct net_device *netdev, struct ethtool_dump *val)
 {
-	struct nfp_net *nn = netdev_priv(netdev);
+	struct nfp_app *app = nfp_app_from_netdev(netdev);
 
-	if (!nn->app)
+	if (!app)
 		return -EOPNOTSUPP;
 
 	if (val->flag != NFP_DUMP_NSP_DIAG)
 		return -EINVAL;
 
-	nn->ethtool_dump_flag = val->flag;
-
 	return 0;
 }
 
 static int
-nfp_net_get_dump_flag(struct net_device *netdev, struct ethtool_dump *dump)
+nfp_app_get_dump_flag(struct net_device *netdev, struct ethtool_dump *dump)
 {
-	return nfp_dump_nsp_diag(netdev_priv(netdev), dump, NULL);
+	return nfp_dump_nsp_diag(nfp_app_from_netdev(netdev), dump, NULL);
 }
 
 static int
-nfp_net_get_dump_data(struct net_device *netdev, struct ethtool_dump *dump,
+nfp_app_get_dump_data(struct net_device *netdev, struct ethtool_dump *dump,
 		      void *buffer)
 {
-	return nfp_dump_nsp_diag(netdev_priv(netdev), dump, buffer);
+	return nfp_dump_nsp_diag(nfp_app_from_netdev(netdev), dump, buffer);
 }
 
 static int nfp_net_set_coalesce(struct net_device *netdev,
@@ -928,15 +1132,26 @@ static const struct ethtool_ops nfp_net_ethtool_ops = {
 	.set_rxfh		= nfp_net_set_rxfh,
 	.get_regs_len		= nfp_net_get_regs_len,
 	.get_regs		= nfp_net_get_regs,
-	.set_dump		= nfp_net_set_dump,
-	.get_dump_flag		= nfp_net_get_dump_flag,
-	.get_dump_data		= nfp_net_get_dump_data,
+	.set_dump		= nfp_app_set_dump,
+	.get_dump_flag		= nfp_app_get_dump_flag,
+	.get_dump_data		= nfp_app_get_dump_data,
 	.get_coalesce           = nfp_net_get_coalesce,
 	.set_coalesce           = nfp_net_set_coalesce,
 	.get_channels		= nfp_net_get_channels,
 	.set_channels		= nfp_net_set_channels,
 	.get_link_ksettings	= nfp_net_get_link_ksettings,
 	.set_link_ksettings	= nfp_net_set_link_ksettings,
+};
+
+const struct ethtool_ops nfp_port_ethtool_ops = {
+	.get_drvinfo		= nfp_app_get_drvinfo,
+	.get_link		= ethtool_op_get_link,
+	.get_strings		= nfp_port_get_strings,
+	.get_ethtool_stats	= nfp_port_get_stats,
+	.get_sset_count		= nfp_port_get_sset_count,
+	.set_dump		= nfp_app_set_dump,
+	.get_dump_flag		= nfp_app_get_dump_flag,
+	.get_dump_data		= nfp_app_get_dump_data,
 };
 
 void nfp_net_set_ethtool_ops(struct net_device *netdev)

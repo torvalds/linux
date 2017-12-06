@@ -58,7 +58,7 @@ extern void calculate_cpu_foreign_map(void);
  */
 static inline void smp_send_reschedule(int cpu)
 {
-	extern struct plat_smp_ops *mp_ops;	/* private */
+	extern const struct plat_smp_ops *mp_ops;	/* private */
 
 	mp_ops->send_ipi_single(cpu, SMP_RESCHEDULE_YOURSELF);
 }
@@ -66,14 +66,14 @@ static inline void smp_send_reschedule(int cpu)
 #ifdef CONFIG_HOTPLUG_CPU
 static inline int __cpu_disable(void)
 {
-	extern struct plat_smp_ops *mp_ops;	/* private */
+	extern const struct plat_smp_ops *mp_ops;	/* private */
 
 	return mp_ops->cpu_disable();
 }
 
 static inline void __cpu_die(unsigned int cpu)
 {
-	extern struct plat_smp_ops *mp_ops;	/* private */
+	extern const struct plat_smp_ops *mp_ops;	/* private */
 
 	mp_ops->cpu_die(cpu);
 }
@@ -97,14 +97,14 @@ int mips_smp_ipi_free(const struct cpumask *mask);
 
 static inline void arch_send_call_function_single_ipi(int cpu)
 {
-	extern struct plat_smp_ops *mp_ops;	/* private */
+	extern const struct plat_smp_ops *mp_ops;	/* private */
 
 	mp_ops->send_ipi_mask(cpumask_of(cpu), SMP_CALL_FUNCTION);
 }
 
 static inline void arch_send_call_function_ipi_mask(const struct cpumask *mask)
 {
-	extern struct plat_smp_ops *mp_ops;	/* private */
+	extern const struct plat_smp_ops *mp_ops;	/* private */
 
 	mp_ops->send_ipi_mask(mask, SMP_CALL_FUNCTION);
 }

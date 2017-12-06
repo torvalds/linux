@@ -600,7 +600,12 @@ NOKPROBE_SYMBOL(kprobe_fault_handler);
 
 unsigned long arch_deref_entry_point(void *entry)
 {
-	return ppc_global_function_entry(entry);
+#ifdef PPC64_ELF_ABI_v1
+	if (!kernel_text_address((unsigned long)entry))
+		return ppc_global_function_entry(entry);
+	else
+#endif
+		return (unsigned long)entry;
 }
 NOKPROBE_SYMBOL(arch_deref_entry_point);
 

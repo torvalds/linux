@@ -168,13 +168,16 @@ int rsnd_mix_probe(struct rsnd_priv *priv)
 		clk = devm_clk_get(dev, name);
 		if (IS_ERR(clk)) {
 			ret = PTR_ERR(clk);
+			of_node_put(np);
 			goto rsnd_mix_probe_done;
 		}
 
 		ret = rsnd_mod_init(priv, rsnd_mod_get(mix), &rsnd_mix_ops,
 				    clk, rsnd_mod_get_status, RSND_MOD_MIX, i);
-		if (ret)
+		if (ret) {
+			of_node_put(np);
 			goto rsnd_mix_probe_done;
+		}
 
 		i++;
 	}

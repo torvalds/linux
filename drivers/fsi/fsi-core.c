@@ -475,7 +475,7 @@ static ssize_t fsi_slave_sysfs_raw_write(struct file *file,
 	return count;
 }
 
-static struct bin_attribute fsi_slave_raw_attr = {
+static const struct bin_attribute fsi_slave_raw_attr = {
 	.attr = {
 		.name = "raw",
 		.mode = 0600,
@@ -499,7 +499,7 @@ static ssize_t fsi_slave_sysfs_term_write(struct file *file,
 	return count;
 }
 
-static struct bin_attribute fsi_slave_term_attr = {
+static const struct bin_attribute fsi_slave_term_attr = {
 	.attr = {
 		.name = "term",
 		.mode = 0200,

@@ -7340,7 +7340,6 @@ ahc_dump_card_state(struct ahc_softc *ahc)
 		printk("\n");
 	}
 
-	ahc_platform_dump_card_state(ahc);
 	printk("\n<<<<<<<<<<<<<<<<< Dump Card State Ends >>>>>>>>>>>>>>>>>>\n");
 	ahc_outb(ahc, SCBPTR, saved_scbptr);
 	if (paused == 0)

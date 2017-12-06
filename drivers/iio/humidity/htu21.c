@@ -238,11 +238,19 @@ static const struct i2c_device_id htu21_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, htu21_id);
 
+static const struct of_device_id htu21_of_match[] = {
+	{ .compatible = "meas,htu21", },
+	{ .compatible = "meas,ms8607-humidity", },
+	{ },
+};
+MODULE_DEVICE_TABLE(of, htu21_of_match);
+
 static struct i2c_driver htu21_driver = {
 	.probe = htu21_probe,
 	.id_table = htu21_id,
 	.driver = {
 		   .name = "htu21",
+		   .of_match_table = of_match_ptr(htu21_of_match),
 		   },
 };
 

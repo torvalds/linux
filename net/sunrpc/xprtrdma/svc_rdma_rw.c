@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2016 Oracle.  All rights reserved.
  *
@@ -660,19 +661,21 @@ out_initerr:
 	return -EIO;
 }
 
+/* Walk the segments in the Read chunk starting at @p and construct
+ * RDMA Read operations to pull the chunk to the server.
+ */
 static int svc_rdma_build_read_chunk(struct svc_rqst *rqstp,
 				     struct svc_rdma_read_info *info,
 				     __be32 *p)
 {
 	int ret;
 
+	ret = -EINVAL;
 	info->ri_chunklen = 0;
-	while (*p++ != xdr_zero) {
+	while (*p++ != xdr_zero && be32_to_cpup(p++) == info->ri_position) {
 		u32 rs_handle, rs_length;
 		u64 rs_offset;
 
-		if (be32_to_cpup(p++) != info->ri_position)
-			break;
 		rs_handle = be32_to_cpup(p++);
 		rs_length = be32_to_cpup(p++);
 		p = xdr_decode_hyper(p, &rs_offset);
@@ -687,78 +690,6 @@ static int svc_rdma_build_read_chunk(struct svc_rqst *rqstp,
 	}
 
 	return ret;
-}
-
-/* If there is inline content following the Read chunk, append it to
- * the page list immediately following the data payload. This has to
- * be done after the reader function has determined how many pages
- * were consumed for RDMA Read.
- *
- * On entry, ri_pageno and ri_pageoff point directly to the end of the
- * page list. On exit, both have been updated to the new "next byte".
- *
- * Assumptions:
- *	- Inline content fits entirely in rq_pages[0]
- *	- Trailing content is only a handful of bytes
- */
-static int svc_rdma_copy_tail(struct svc_rqst *rqstp,
-			      struct svc_rdma_read_info *info)
-{
-	struct svc_rdma_op_ctxt *head = info->ri_readctxt;
-	unsigned int tail_length, remaining;
-	u8 *srcp, *destp;
-
-	/* Assert that all inline content fits in page 0. This is an
-	 * implementation limit, not a protocol limit.
-	 */
-	if (head->arg.head[0].iov_len > PAGE_SIZE) {
-		pr_warn_once("svcrdma: too much trailing inline content\n");
-		return -EINVAL;
-	}
-
-	srcp = head->arg.head[0].iov_base;
-	srcp += info->ri_position;
-	tail_length = head->arg.head[0].iov_len - info->ri_position;
-	remaining = tail_length;
-
-	/* If there is room on the last page in the page list, try to
-	 * fit the trailing content there.
-	 */
-	if (info->ri_pageoff > 0) {
-		unsigned int len;
-
-		len = min_t(unsigned int, remaining,
-			    PAGE_SIZE - info->ri_pageoff);
-		destp = page_address(rqstp->rq_pages[info->ri_pageno]);
-		destp += info->ri_pageoff;
-
-		memcpy(destp, srcp, len);
-		srcp += len;
-		destp += len;
-		info->ri_pageoff += len;
-		remaining -= len;
-
-		if (info->ri_pageoff == PAGE_SIZE) {
-			info->ri_pageno++;
-			info->ri_pageoff = 0;
-		}
-	}
-
-	/* Otherwise, a fresh page is needed. */
-	if (remaining) {
-		head->arg.pages[info->ri_pageno] =
-				rqstp->rq_pages[info->ri_pageno];
-		head->count++;
-
-		destp = page_address(rqstp->rq_pages[info->ri_pageno]);
-		memcpy(destp, srcp, remaining);
-		info->ri_pageoff += remaining;
-	}
-
-	head->arg.page_len += tail_length;
-	head->arg.len += tail_length;
-	head->arg.buflen += tail_length;
-	return 0;
 }
 
 /* Construct RDMA Reads to pull over a normal Read chunk. The chunk
@@ -785,33 +716,27 @@ static int svc_rdma_build_normal_read_chunk(struct svc_rqst *rqstp,
 	if (ret < 0)
 		goto out;
 
-	/* Read chunk may need XDR round-up (see RFC 5666, s. 3.7).
+	/* Split the Receive buffer between the head and tail
+	 * buffers at Read chunk's position. XDR roundup of the
+	 * chunk is not included in either the pagelist or in
+	 * the tail.
 	 */
-	if (info->ri_chunklen & 3) {
-		u32 padlen = 4 - (info->ri_chunklen & 3);
+	head->arg.tail[0].iov_base =
+		head->arg.head[0].iov_base + info->ri_position;
+	head->arg.tail[0].iov_len =
+		head->arg.head[0].iov_len - info->ri_position;
+	head->arg.head[0].iov_len = info->ri_position;
 
-		info->ri_chunklen += padlen;
-
-		/* NB: data payload always starts on XDR alignment,
-		 * thus the pad can never contain a page boundary.
-		 */
-		info->ri_pageoff += padlen;
-		if (info->ri_pageoff == PAGE_SIZE) {
-			info->ri_pageno++;
-			info->ri_pageoff = 0;
-		}
-	}
+	/* Read chunk may need XDR roundup (see RFC 5666, s. 3.7).
+	 *
+	 * NFSv2/3 write decoders need the length of the tail to
+	 * contain the size of the roundup padding.
+	 */
+	head->arg.tail[0].iov_len += 4 - (info->ri_chunklen & 3);
 
 	head->arg.page_len = info->ri_chunklen;
 	head->arg.len += info->ri_chunklen;
 	head->arg.buflen += info->ri_chunklen;
-
-	if (info->ri_position < head->arg.head[0].iov_len) {
-		ret = svc_rdma_copy_tail(rqstp, info);
-		if (ret < 0)
-			goto out;
-	}
-	head->arg.head[0].iov_len = info->ri_position;
 
 out:
 	return ret;

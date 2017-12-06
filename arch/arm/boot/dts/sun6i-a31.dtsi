@@ -311,8 +311,8 @@
 					#size-cells = <0>;
 					reg = <0>;
 
-					tcon1_in_drc1: endpoint@0 {
-						reg = <0>;
+					tcon1_in_drc1: endpoint@1 {
+						reg = <1>;
 						remote-endpoint = <&drc1_out_tcon1>;
 					};
 				};
@@ -1012,8 +1012,8 @@
 					#size-cells = <0>;
 					reg = <1>;
 
-					be1_out_drc1: endpoint@0 {
-						reg = <0>;
+					be1_out_drc1: endpoint@1 {
+						reg = <1>;
 						remote-endpoint = <&drc1_in_be1>;
 					};
 				};
@@ -1042,8 +1042,8 @@
 					#size-cells = <0>;
 					reg = <0>;
 
-					drc1_in_be1: endpoint@0 {
-						reg = <0>;
+					drc1_in_be1: endpoint@1 {
+						reg = <1>;
 						remote-endpoint = <&be1_out_drc1>;
 					};
 				};
@@ -1053,8 +1053,8 @@
 					#size-cells = <0>;
 					reg = <1>;
 
-					drc1_out_tcon1: endpoint@0 {
-						reg = <0>;
+					drc1_out_tcon1: endpoint@1 {
+						reg = <1>;
 						remote-endpoint = <&tcon1_in_drc1>;
 					};
 				};
@@ -1155,11 +1155,11 @@
 				     <GIC_SPI 41 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
-		nmi_intc: interrupt-controller@01f00c0c {
-			compatible = "allwinner,sun6i-a31-sc-nmi";
+		nmi_intc: interrupt-controller@1f00c00 {
+			compatible = "allwinner,sun6i-a31-r-intc";
 			interrupt-controller;
 			#interrupt-cells = <2>;
-			reg = <0x01f00c0c 0x38>;
+			reg = <0x01f00c00 0x400>;
 			interrupts = <GIC_SPI 32 IRQ_TYPE_LEVEL_HIGH>;
 		};
 

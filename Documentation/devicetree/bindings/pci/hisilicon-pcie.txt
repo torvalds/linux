@@ -1,7 +1,7 @@
 HiSilicon Hip05 and Hip06 PCIe host bridge DT description
 
-HiSilicon PCIe host controller is based on Designware PCI core.
-It shares common functions with PCIe Designware core driver and inherits
+HiSilicon PCIe host controller is based on the Synopsys DesignWare PCI core.
+It shares common functions with the PCIe DesignWare core driver and inherits
 common properties defined in
 Documentation/devicetree/bindings/pci/designware-pci.txt.
 
@@ -40,7 +40,6 @@ Hip05 Example (note that Hip06 is the same except compatible):
 				 0x0 0 0 2 &mbigen_pcie 2 11
 				 0x0 0 0 3 &mbigen_pcie 3 12
 				 0x0 0 0 4 &mbigen_pcie 4 13>;
-		status = "ok";
 	};
 
 HiSilicon Hip06/Hip07 PCIe host bridge DT (almost-ECAM) description.
@@ -83,5 +82,4 @@ Example:
 				 0x0 0 0 2 &mbigen_pcie0 650 4
 				 0x0 0 0 3 &mbigen_pcie0 650 4
 				 0x0 0 0 4 &mbigen_pcie0 650 4>;
-		status = "ok";
 	};

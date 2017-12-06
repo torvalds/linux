@@ -226,7 +226,6 @@ struct imx_port {
 	dma_cookie_t		rx_cookie;
 	unsigned int		tx_bytes;
 	unsigned int		dma_tx_nents;
-	wait_queue_head_t	dma_wait;
 	unsigned int            saved_reg[10];
 	bool			context_saved;
 };
@@ -458,7 +457,10 @@ static inline void imx_transmit_buffer(struct imx_port *sport)
 		}
 	}
 
-	while (!uart_circ_empty(xmit) && !sport->dma_is_txing &&
+	if (sport->dma_is_txing)
+		return;
+
+	while (!uart_circ_empty(xmit) &&
 	       !(readl(sport->port.membase + uts_reg(sport)) & UTS_TXFULL)) {
 		/* send xmit->buf[xmit->tail]
 		 * out the port here */
@@ -498,20 +500,12 @@ static void dma_tx_callback(void *data)
 
 	sport->dma_is_txing = 0;
 
-	spin_unlock_irqrestore(&sport->port.lock, flags);
-
 	if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
 		uart_write_wakeup(&sport->port);
 
-	if (waitqueue_active(&sport->dma_wait)) {
-		wake_up(&sport->dma_wait);
-		dev_dbg(sport->port.dev, "exit in %s.\n", __func__);
-		return;
-	}
-
-	spin_lock_irqsave(&sport->port.lock, flags);
 	if (!uart_circ_empty(xmit) && !uart_tx_stopped(&sport->port))
 		imx_dma_tx(sport);
+
 	spin_unlock_irqrestore(&sport->port.lock, flags);
 }
 
@@ -1207,8 +1201,6 @@ err:
 static void imx_enable_dma(struct imx_port *sport)
 {
 	unsigned long temp;
-
-	init_waitqueue_head(&sport->dma_wait);
 
 	/* set UCR1 */
 	temp = readl(sport->port.membase + UCR1);
@@ -2332,6 +2324,7 @@ static int imx_serial_port_suspend(struct device *dev)
 	serial_imx_enable_wakeup(sport, true);
 
 	uart_suspend_port(&imx_reg, &sport->port);
+	disable_irq(sport->port.irq);
 
 	/* Needed to enable clock in suspend_noirq */
 	return clk_prepare(sport->clk_ipg);
@@ -2346,6 +2339,7 @@ static int imx_serial_port_resume(struct device *dev)
 	serial_imx_enable_wakeup(sport, false);
 
 	uart_resume_port(&imx_reg, &sport->port);
+	enable_irq(sport->port.irq);
 
 	clk_unprepare(sport->clk_ipg);
 

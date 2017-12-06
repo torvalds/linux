@@ -44,7 +44,7 @@ static int of_get_phy_id(struct device_node *device, u32 *phy_id)
 	return -EINVAL;
 }
 
-static void of_mdiobus_register_phy(struct mii_bus *mdio,
+static int of_mdiobus_register_phy(struct mii_bus *mdio,
 				    struct device_node *child, u32 addr)
 {
 	struct phy_device *phy;
@@ -60,9 +60,13 @@ static void of_mdiobus_register_phy(struct mii_bus *mdio,
 	else
 		phy = get_phy_device(mdio, addr, is_c45);
 	if (IS_ERR(phy))
-		return;
+		return PTR_ERR(phy);
 
-	rc = irq_of_parse_and_map(child, 0);
+	rc = of_irq_get(child, 0);
+	if (rc == -EPROBE_DEFER) {
+		phy_device_free(phy);
+		return rc;
+	}
 	if (rc > 0) {
 		phy->irq = rc;
 		mdio->irq[addr] = rc;
@@ -84,22 +88,23 @@ static void of_mdiobus_register_phy(struct mii_bus *mdio,
 	if (rc) {
 		phy_device_free(phy);
 		of_node_put(child);
-		return;
+		return rc;
 	}
 
 	dev_dbg(&mdio->dev, "registered phy %s at address %i\n",
 		child->name, addr);
+	return 0;
 }
 
-static void of_mdiobus_register_device(struct mii_bus *mdio,
-				       struct device_node *child, u32 addr)
+static int of_mdiobus_register_device(struct mii_bus *mdio,
+				      struct device_node *child, u32 addr)
 {
 	struct mdio_device *mdiodev;
 	int rc;
 
 	mdiodev = mdio_device_create(mdio, addr);
 	if (IS_ERR(mdiodev))
-		return;
+		return PTR_ERR(mdiodev);
 
 	/* Associate the OF node with the device structure so it
 	 * can be looked up later.
@@ -112,11 +117,12 @@ static void of_mdiobus_register_device(struct mii_bus *mdio,
 	if (rc) {
 		mdio_device_free(mdiodev);
 		of_node_put(child);
-		return;
+		return rc;
 	}
 
 	dev_dbg(&mdio->dev, "registered mdio device %s at address %i\n",
 		child->name, addr);
+	return 0;
 }
 
 /* The following is a list of PHY compatible strings which appear in
@@ -166,8 +172,8 @@ static bool of_mdiobus_child_is_phy(struct device_node *child)
 
 	if (of_match_node(whitelist_phys, child)) {
 		pr_warn(FW_WARN
-			"%s: Whitelisted compatible string. Please remove\n",
-			child->full_name);
+			"%pOF: Whitelisted compatible string. Please remove\n",
+			child);
 		return true;
 	}
 
@@ -219,9 +225,11 @@ int of_mdiobus_register(struct mii_bus *mdio, struct device_node *np)
 		}
 
 		if (of_mdiobus_child_is_phy(child))
-			of_mdiobus_register_phy(mdio, child, addr);
+			rc = of_mdiobus_register_phy(mdio, child, addr);
 		else
-			of_mdiobus_register_device(mdio, child, addr);
+			rc = of_mdiobus_register_device(mdio, child, addr);
+		if (rc)
+			goto unregister;
 	}
 
 	if (!scanphys)
@@ -242,12 +250,19 @@ int of_mdiobus_register(struct mii_bus *mdio, struct device_node *np)
 			dev_info(&mdio->dev, "scan phy %s at address %i\n",
 				 child->name, addr);
 
-			if (of_mdiobus_child_is_phy(child))
-				of_mdiobus_register_phy(mdio, child, addr);
+			if (of_mdiobus_child_is_phy(child)) {
+				rc = of_mdiobus_register_phy(mdio, child, addr);
+				if (rc)
+					goto unregister;
+			}
 		}
 	}
 
 	return 0;
+
+unregister:
+	mdiobus_unregister(mdio);
+	return rc;
 }
 EXPORT_SYMBOL(of_mdiobus_register);
 
@@ -421,19 +436,14 @@ int of_phy_register_fixed_link(struct device_node *np)
 {
 	struct fixed_phy_status status = {};
 	struct device_node *fixed_link_node;
-	const __be32 *fixed_link_prop;
-	int link_gpio;
-	int len, err;
-	struct phy_device *phy;
+	u32 fixed_link_prop[5];
 	const char *managed;
+	int link_gpio = -1;
 
-	err = of_property_read_string(np, "managed", &managed);
-	if (err == 0) {
-		if (strcmp(managed, "in-band-status") == 0) {
-			/* status is zeroed, namely its .link member */
-			phy = fixed_phy_register(PHY_POLL, &status, -1, np);
-			return PTR_ERR_OR_ZERO(phy);
-		}
+	if (of_property_read_string(np, "managed", &managed) == 0 &&
+	    strcmp(managed, "in-band-status") == 0) {
+		/* status is zeroed, namely its .link member */
+		goto register_phy;
 	}
 
 	/* New binding */
@@ -456,23 +466,25 @@ int of_phy_register_fixed_link(struct device_node *np)
 		if (link_gpio == -EPROBE_DEFER)
 			return -EPROBE_DEFER;
 
-		phy = fixed_phy_register(PHY_POLL, &status, link_gpio, np);
-		return PTR_ERR_OR_ZERO(phy);
+		goto register_phy;
 	}
 
 	/* Old binding */
-	fixed_link_prop = of_get_property(np, "fixed-link", &len);
-	if (fixed_link_prop && len == (5 * sizeof(__be32))) {
+	if (of_property_read_u32_array(np, "fixed-link", fixed_link_prop,
+				       ARRAY_SIZE(fixed_link_prop)) == 0) {
 		status.link = 1;
-		status.duplex = be32_to_cpu(fixed_link_prop[1]);
-		status.speed = be32_to_cpu(fixed_link_prop[2]);
-		status.pause = be32_to_cpu(fixed_link_prop[3]);
-		status.asym_pause = be32_to_cpu(fixed_link_prop[4]);
-		phy = fixed_phy_register(PHY_POLL, &status, -1, np);
-		return PTR_ERR_OR_ZERO(phy);
+		status.duplex = fixed_link_prop[1];
+		status.speed  = fixed_link_prop[2];
+		status.pause  = fixed_link_prop[3];
+		status.asym_pause = fixed_link_prop[4];
+		goto register_phy;
 	}
 
 	return -ENODEV;
+
+register_phy:
+	return PTR_ERR_OR_ZERO(fixed_phy_register(PHY_POLL, &status, link_gpio,
+						  np));
 }
 EXPORT_SYMBOL(of_phy_register_fixed_link);
 

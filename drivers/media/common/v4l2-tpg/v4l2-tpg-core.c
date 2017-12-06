@@ -615,7 +615,7 @@ static void color_to_ycbcr(struct tpg_data *tpg, int r, int g, int b,
 	static const int bt2020_full[3][3] = {
 		{ COEFF(0.2627, 255),  COEFF(0.6780, 255),  COEFF(0.0593, 255)  },
 		{ COEFF(-0.1396, 255), COEFF(-0.3604, 255), COEFF(0.5, 255)     },
-		{ COEFF(0.5, 255),     COEFF(-0.4698, 255), COEFF(-0.0402, 255) },
+		{ COEFF(0.5, 255),     COEFF(-0.4598, 255), COEFF(-0.0402, 255) },
 	};
 	static const int bt2020c[4] = {
 		COEFF(1.0 / 1.9404, 224), COEFF(1.0 / 1.5816, 224),

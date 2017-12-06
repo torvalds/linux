@@ -61,7 +61,6 @@ iomuxc-lpsr controller and SDA pad from iomuxc controller as:
 i2c1: i2c@30a20000 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_i2c1_1 &pinctrl_i2c1_2>;
-	status = "okay";
 };
 
 iomuxc-lpsr@302c0000 {

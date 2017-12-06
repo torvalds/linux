@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __NVIF_OBJECT_H__
 #define __NVIF_OBJECT_H__
 

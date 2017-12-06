@@ -1257,7 +1257,7 @@ int btrfs_clear_free_space_tree(struct btrfs_fs_info *fs_info)
 	if (ret)
 		goto abort;
 
-	ret = btrfs_del_root(trans, tree_root, &free_space_root->root_key);
+	ret = btrfs_del_root(trans, fs_info, &free_space_root->root_key);
 	if (ret)
 		goto abort;
 

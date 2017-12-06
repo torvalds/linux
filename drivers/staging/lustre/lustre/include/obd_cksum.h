@@ -30,9 +30,9 @@
 
 #ifndef __OBD_CKSUM
 #define __OBD_CKSUM
-#include "../../include/linux/libcfs/libcfs.h"
-#include "../../include/linux/libcfs/libcfs_crypto.h"
-#include "lustre/lustre_idl.h"
+#include <linux/libcfs/libcfs.h>
+#include <linux/libcfs/libcfs_crypto.h>
+#include <uapi/linux/lustre/lustre_idl.h>
 
 static inline unsigned char cksum_obd2cfs(enum cksum_type cksum_type)
 {

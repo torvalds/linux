@@ -344,6 +344,8 @@ static int gic_set_affinity(struct irq_data *d, const struct cpumask *mask_val,
 	writel_relaxed(val | bit, reg);
 	gic_unlock_irqrestore(flags);
 
+	irq_data_update_effective_affinity(d, cpumask_of(cpu));
+
 	return IRQ_SET_MASK_OK_DONE;
 }
 #endif
@@ -413,7 +415,7 @@ static void gic_handle_cascade_irq(struct irq_desc *desc)
 	chained_irq_exit(chip, desc);
 }
 
-static struct irq_chip gic_chip = {
+static const struct irq_chip gic_chip = {
 	.irq_mask		= gic_mask_irq,
 	.irq_unmask		= gic_unmask_irq,
 	.irq_eoi		= gic_eoi_irq,
@@ -969,6 +971,7 @@ static int gic_irq_domain_map(struct irq_domain *d, unsigned int irq,
 		irq_domain_set_info(d, irq, hw, &gic->chip, d->host_data,
 				    handle_fasteoi_irq, NULL, NULL);
 		irq_set_probe(irq);
+		irqd_set_single_target(irq_desc_get_irq_data(irq_to_desc(irq)));
 	}
 	return 0;
 }

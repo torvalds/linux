@@ -234,7 +234,7 @@ static int vgic_debug_show(struct seq_file *s, void *v)
 	return 0;
 }
 
-static struct seq_operations vgic_debug_seq_ops = {
+static const struct seq_operations vgic_debug_seq_ops = {
 	.start = vgic_debug_start,
 	.next  = vgic_debug_next,
 	.stop  = vgic_debug_stop,
@@ -255,7 +255,7 @@ static int debug_open(struct inode *inode, struct file *file)
 	return ret;
 };
 
-static struct file_operations vgic_debug_fops = {
+static const struct file_operations vgic_debug_fops = {
 	.owner   = THIS_MODULE,
 	.open    = debug_open,
 	.read    = seq_read,

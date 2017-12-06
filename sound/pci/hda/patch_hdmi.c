@@ -906,6 +906,7 @@ static int hdmi_setup_stream(struct hda_codec *codec, hda_nid_t cvt_nid,
 			      hda_nid_t pin_nid, u32 stream_tag, int format)
 {
 	struct hdmi_spec *spec = codec->spec;
+	unsigned int param;
 	int err;
 
 	err = spec->ops.pin_hbr_setup(codec, pin_nid, is_hbr_format(format));
@@ -913,6 +914,26 @@ static int hdmi_setup_stream(struct hda_codec *codec, hda_nid_t cvt_nid,
 	if (err) {
 		codec_dbg(codec, "hdmi_setup_stream: HBR is not supported\n");
 		return err;
+	}
+
+	if (is_haswell_plus(codec)) {
+
+		/*
+		 * on recent platforms IEC Coding Type is required for HBR
+		 * support, read current Digital Converter settings and set
+		 * ICT bitfield if needed.
+		 */
+		param = snd_hda_codec_read(codec, cvt_nid, 0,
+					   AC_VERB_GET_DIGI_CONVERT_1, 0);
+
+		param = (param >> 16) & ~(AC_DIG3_ICT);
+
+		/* on recent platforms ICT mode is required for HBR support */
+		if (is_hbr_format(format))
+			param |= 0x1;
+
+		snd_hda_codec_write(codec, cvt_nid, 0,
+				    AC_VERB_SET_DIGI_CONVERT_3, param);
 	}
 
 	snd_hda_codec_setup_stream(codec, cvt_nid, stream_tag, 0, format);
@@ -2126,7 +2147,7 @@ static int generic_hdmi_build_jack(struct hda_codec *codec, int pcm_idx)
 static int generic_hdmi_build_controls(struct hda_codec *codec)
 {
 	struct hdmi_spec *spec = codec->spec;
-	int err;
+	int dev, err;
 	int pin_idx, pcm_idx;
 
 
@@ -2154,11 +2175,13 @@ static int generic_hdmi_build_controls(struct hda_codec *codec)
 			return err;
 		snd_hda_spdif_ctls_unassign(codec, pcm_idx);
 
-		/* add control for ELD Bytes */
-		err = hdmi_create_eld_ctl(codec, pcm_idx,
-					get_pcm_rec(spec, pcm_idx)->device);
-		if (err < 0)
-			return err;
+		dev = get_pcm_rec(spec, pcm_idx)->device;
+		if (dev != SNDRV_PCM_INVALID_DEVICE) {
+			/* add control for ELD Bytes */
+			err = hdmi_create_eld_ctl(codec, pcm_idx, dev);
+			if (err < 0)
+				return err;
+		}
 	}
 
 	for (pin_idx = 0; pin_idx < spec->num_pins; pin_idx++) {

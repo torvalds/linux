@@ -109,7 +109,7 @@ static struct attribute *com20020_state_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group com20020_state_group = {
+static const struct attribute_group com20020_state_group = {
 	.name = NULL,
 	.attrs = com20020_state_attrs,
 };

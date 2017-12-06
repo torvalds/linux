@@ -758,9 +758,8 @@ static int crypt_iv_tcw_whitening(struct crypt_config *cc,
 	int i, r;
 
 	/* xor whitening with sector number */
-	memcpy(buf, tcw->whitening, TCW_WHITENING_SIZE);
-	crypto_xor(buf, (u8 *)&sector, 8);
-	crypto_xor(&buf[8], (u8 *)&sector, 8);
+	crypto_xor_cpy(buf, tcw->whitening, (u8 *)&sector, 8);
+	crypto_xor_cpy(&buf[8], tcw->whitening + 8, (u8 *)&sector, 8);
 
 	/* calculate crc32 for every 32bit part and xor it */
 	desc->tfm = tcw->crc32_tfm;
@@ -805,10 +804,10 @@ static int crypt_iv_tcw_gen(struct crypt_config *cc, u8 *iv,
 	}
 
 	/* Calculate IV */
-	memcpy(iv, tcw->iv_seed, cc->iv_size);
-	crypto_xor(iv, (u8 *)&sector, 8);
+	crypto_xor_cpy(iv, tcw->iv_seed, (u8 *)&sector, 8);
 	if (cc->iv_size > 8)
-		crypto_xor(&iv[8], (u8 *)&sector, cc->iv_size - 8);
+		crypto_xor_cpy(&iv[8], tcw->iv_seed + 8, (u8 *)&sector,
+			       cc->iv_size - 8);
 
 	return r;
 }
@@ -932,9 +931,6 @@ static int dm_crypt_integrity_io_alloc(struct dm_crypt_io *io, struct bio *bio)
 
 	bip->bip_iter.bi_size = tag_len;
 	bip->bip_iter.bi_sector = io->cc->start + io->sector;
-
-	/* We own the metadata, do not let bio_free to release it */
-	bip->bip_flags &= ~BIP_BLOCK_INTEGRITY;
 
 	ret = bio_integrity_add_page(bio, virt_to_page(io->integrity_metadata),
 				     tag_len, offset_in_page(io->integrity_metadata));
@@ -1547,7 +1543,7 @@ static void clone_init(struct dm_crypt_io *io, struct bio *clone)
 
 	clone->bi_private = io;
 	clone->bi_end_io  = crypt_endio;
-	clone->bi_bdev    = cc->dev->bdev;
+	bio_set_dev(clone, cc->dev->bdev);
 	clone->bi_opf	  = io->base_bio->bi_opf;
 }
 
@@ -2470,6 +2466,7 @@ static int crypt_ctr_cipher_old(struct dm_target *ti, char *cipher_in, char *key
 		kfree(cipher_api);
 		return ret;
 	}
+	kfree(cipher_api);
 
 	return 0;
 bad_mem:
@@ -2533,7 +2530,7 @@ static int crypt_ctr_optional(struct dm_target *ti, unsigned int argc, char **ar
 {
 	struct crypt_config *cc = ti->private;
 	struct dm_arg_set as;
-	static struct dm_arg _args[] = {
+	static const struct dm_arg _args[] = {
 		{0, 6, "Invalid number of feature args"},
 	};
 	unsigned int opt_params, val;
@@ -2586,6 +2583,10 @@ static int crypt_ctr_optional(struct dm_target *ti, unsigned int argc, char **ar
 			    cc->sector_size > 4096 ||
 			    (cc->sector_size & (cc->sector_size - 1))) {
 				ti->error = "Invalid feature value for sector_size";
+				return -EINVAL;
+			}
+			if (ti->len & ((cc->sector_size >> SECTOR_SHIFT) - 1)) {
+				ti->error = "Device size is not multiple of sector_size feature";
 				return -EINVAL;
 			}
 			cc->sector_shift = __ffs(cc->sector_size) - SECTOR_SHIFT;
@@ -2796,7 +2797,7 @@ static int crypt_map(struct dm_target *ti, struct bio *bio)
 	 */
 	if (unlikely(bio->bi_opf & REQ_PREFLUSH ||
 	    bio_op(bio) == REQ_OP_DISCARD)) {
-		bio->bi_bdev = cc->dev->bdev;
+		bio_set_dev(bio, cc->dev->bdev);
 		if (bio_sectors(bio))
 			bio->bi_iter.bi_sector = cc->start +
 				dm_target_offset(ti, bio->bi_iter.bi_sector);

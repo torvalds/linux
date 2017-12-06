@@ -3,9 +3,11 @@ Mediatek SoCs Watchdog timer
 Required properties:
 
 - compatible should contain:
-	* "mediatek,mt2701-wdt" for MT2701 compatible watchdog timers
-	* "mediatek,mt6589-wdt" for all compatible watchdog timers (MT2701,
-		MT6589)
+	"mediatek,mt2701-wdt", "mediatek,mt6589-wdt": for MT2701
+	"mediatek,mt6589-wdt": for MT6589
+	"mediatek,mt6797-wdt", "mediatek,mt6589-wdt": for MT6797
+	"mediatek,mt7622-wdt", "mediatek,mt6589-wdt": for MT7622
+	"mediatek,mt7623-wdt", "mediatek,mt6589-wdt": for MT7623
 
 - reg : Specifies base physical address and size of the registers.
 

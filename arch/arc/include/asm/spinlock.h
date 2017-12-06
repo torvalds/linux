@@ -16,11 +16,6 @@
 #define arch_spin_is_locked(x)	((x)->slock != __ARCH_SPIN_LOCK_UNLOCKED__)
 #define arch_spin_lock_flags(lock, flags)	arch_spin_lock(lock)
 
-static inline void arch_spin_unlock_wait(arch_spinlock_t *lock)
-{
-	smp_cond_load_acquire(&lock->slock, !VAL);
-}
-
 #ifdef CONFIG_ARC_HAS_LLSC
 
 static inline void arch_spin_lock(arch_spinlock_t *lock)
@@ -252,9 +247,15 @@ static inline void arch_spin_lock(arch_spinlock_t *lock)
 
 	__asm__ __volatile__(
 	"1:	ex  %0, [%1]		\n"
+#ifdef CONFIG_EZNPS_MTM_EXT
+	"	.word %3		\n"
+#endif
 	"	breq  %0, %2, 1b	\n"
 	: "+&r" (val)
 	: "r"(&(lock->slock)), "ir"(__ARCH_SPIN_LOCK_LOCKED__)
+#ifdef CONFIG_EZNPS_MTM_EXT
+	, "i"(CTOP_INST_SCHD_RW)
+#endif
 	: "memory");
 
 	/*
@@ -296,6 +297,12 @@ static inline void arch_spin_unlock(arch_spinlock_t *lock)
 	 */
 	smp_mb();
 
+	/*
+	 * EX is not really required here, a simple STore of 0 suffices.
+	 * However this causes tasklist livelocks in SystemC based SMP virtual
+	 * platforms where the systemc core scheduler uses EX as a cue for
+	 * moving to next core. Do a git log of this file for details
+	 */
 	__asm__ __volatile__(
 	"	ex  %0, [%1]		\n"
 	: "+r" (val)

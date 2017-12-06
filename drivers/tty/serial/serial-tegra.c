@@ -1310,7 +1310,7 @@ static int tegra_uart_probe(struct platform_device *pdev)
 		return PTR_ERR(tup->uart_clk);
 	}
 
-	tup->rst = devm_reset_control_get(&pdev->dev, "serial");
+	tup->rst = devm_reset_control_get_exclusive(&pdev->dev, "serial");
 	if (IS_ERR(tup->rst)) {
 		dev_err(&pdev->dev, "Couldn't get the reset\n");
 		return PTR_ERR(tup->rst);

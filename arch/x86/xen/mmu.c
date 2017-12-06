@@ -84,7 +84,7 @@ static int remap_area_mfn_pte_fn(pte_t *ptep, pgtable_t token,
 	else
 		rmd->mfn++;
 
-	rmd->mmu_update->ptr = virt_to_machine(ptep).maddr;
+	rmd->mmu_update->ptr = virt_to_machine(ptep).maddr | MMU_NORMAL_PT_UPDATE;
 	rmd->mmu_update->val = pte_val_ma(pte);
 	rmd->mmu_update++;
 

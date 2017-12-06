@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *	Intel IO-APIC support for multi-Pentium hosts.
  *
@@ -1243,7 +1244,7 @@ static void io_apic_print_entries(unsigned int apic, unsigned int nr_entries)
 			 entry.vector, entry.irr, entry.delivery_status);
 		if (ir_entry->format)
 			printk(KERN_DEBUG "%s, remapped, I(%04X),  Z(%X)\n",
-			       buf, (ir_entry->index << 15) | ir_entry->index,
+			       buf, (ir_entry->index2 << 15) | ir_entry->index,
 			       ir_entry->zero);
 		else
 			printk(KERN_DEBUG "%s, %s, D(%02X), M(%1d)\n",

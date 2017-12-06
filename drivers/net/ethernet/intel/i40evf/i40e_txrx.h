@@ -98,10 +98,6 @@ enum i40e_dyn_idx_t {
 	BIT_ULL(I40E_FILTER_PCTYPE_NONF_UNICAST_IPV6_UDP) | \
 	BIT_ULL(I40E_FILTER_PCTYPE_NONF_MULTICAST_IPV6_UDP))
 
-#define i40e_pf_get_default_rss_hena(pf) \
-	(((pf)->flags & I40E_FLAG_MULTIPLE_TCP_UDP_RSS_PCTYPE) ? \
-	  I40E_DEFAULT_RSS_HENA_EXPANDED : I40E_DEFAULT_RSS_HENA)
-
 /* Supported Rx Buffer Sizes (a multiple of 128) */
 #define I40E_RXBUFFER_256   256
 #define I40E_RXBUFFER_1536  1536  /* 128B aligned standard Ethernet frame */
@@ -117,6 +113,7 @@ enum i40e_dyn_idx_t {
  * i.e. RXBUFFER_512 --> 1216 byte skb (size-2048 slab)
  */
 #define I40E_RX_HDR_SIZE I40E_RXBUFFER_256
+#define I40E_PACKET_HDR_PAD (ETH_HLEN + ETH_FCS_LEN + (VLAN_HLEN * 2))
 #define i40e_rx_desc i40e_32byte_rx_desc
 
 #define I40E_RX_DMA_ATTR \
@@ -428,7 +425,6 @@ enum i40e_latency_range {
 	I40E_LOWEST_LATENCY = 0,
 	I40E_LOW_LATENCY = 1,
 	I40E_BULK_LATENCY = 2,
-	I40E_ULTRA_LATENCY = 3,
 };
 
 struct i40e_ring_container {
@@ -436,6 +432,7 @@ struct i40e_ring_container {
 	struct i40e_ring *ring;
 	unsigned int total_bytes;	/* total bytes processed this int */
 	unsigned int total_packets;	/* total packets processed this int */
+	unsigned long last_itr_update;	/* jiffies of last ITR update */
 	u16 count;
 	enum i40e_latency_range latency_range;
 	u16 itr;

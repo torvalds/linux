@@ -308,22 +308,12 @@ config IPV6_SEG6_LWTUNNEL
 	depends on IPV6
 	select LWTUNNEL
 	select DST_CACHE
+	select IPV6_MULTIPLE_TABLES
 	---help---
 	  Support for encapsulation of packets within an outer IPv6
 	  header and a Segment Routing Header using the lightweight
-	  tunnels mechanism.
-
-	  If unsure, say N.
-
-config IPV6_SEG6_INLINE
-	bool "IPv6: direct Segment Routing Header insertion "
-	depends on IPV6_SEG6_LWTUNNEL
-	---help---
-	  Support for direct insertion of the Segment Routing Header,
-	  also known as inline mode. Be aware that direct insertion of
-	  extension headers (as opposed to encapsulation) may break
-	  multiple mechanisms such as PMTUD or IPSec AH. Use this feature
-	  only if you know exactly what you are doing.
+	  tunnels mechanism. Also enable support for advanced local
+	  processing of SRv6 packets based on their active segment.
 
 	  If unsure, say N.
 

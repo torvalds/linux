@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 obj-y				+= irq.o time.o
 obj-y				+= nlm-dma.o
 obj-y				+= reset.o

@@ -184,6 +184,8 @@ struct drm_i915_gem_request {
 	/** Time at which this request was emitted, in jiffies. */
 	unsigned long emitted_jiffies;
 
+	bool waitboost;
+
 	/** engine->request_list entry for this request */
 	struct list_head link;
 

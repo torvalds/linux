@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #undef TRACE_SYSTEM
 #define TRACE_SYSTEM sched
 
@@ -114,7 +115,10 @@ static inline long __trace_sched_switch_state(bool preempt, struct task_struct *
 	 * Preemption ignores task state, therefore preempted tasks are always
 	 * RUNNING (we will not have dequeued if state != RUNNING).
 	 */
-	return preempt ? TASK_RUNNING | TASK_STATE_MAX : p->state;
+	if (preempt)
+		return TASK_STATE_MAX;
+
+	return __get_task_state(p);
 }
 #endif /* CREATE_TRACE_POINTS */
 
@@ -152,12 +156,14 @@ TRACE_EVENT(sched_switch,
 
 	TP_printk("prev_comm=%s prev_pid=%d prev_prio=%d prev_state=%s%s ==> next_comm=%s next_pid=%d next_prio=%d",
 		__entry->prev_comm, __entry->prev_pid, __entry->prev_prio,
-		__entry->prev_state & (TASK_STATE_MAX-1) ?
-		  __print_flags(__entry->prev_state & (TASK_STATE_MAX-1), "|",
-				{ 1, "S"} , { 2, "D" }, { 4, "T" }, { 8, "t" },
-				{ 16, "Z" }, { 32, "X" }, { 64, "x" },
-				{ 128, "K" }, { 256, "W" }, { 512, "P" },
-				{ 1024, "N" }) : "R",
+
+		(__entry->prev_state & (TASK_REPORT_MAX - 1)) ?
+		  __print_flags(__entry->prev_state & (TASK_REPORT_MAX - 1), "|",
+				{ 0x01, "S" }, { 0x02, "D" }, { 0x04, "T" },
+				{ 0x08, "t" }, { 0x10, "X" }, { 0x20, "Z" },
+				{ 0x40, "P" }, { 0x80, "I" }) :
+		  "R",
+
 		__entry->prev_state & TASK_STATE_MAX ? "+" : "",
 		__entry->next_comm, __entry->next_pid, __entry->next_prio)
 );

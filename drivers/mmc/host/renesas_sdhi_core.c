@@ -40,6 +40,7 @@
 #define EXT_ACC           0xe4
 
 #define SDHI_VER_GEN2_SDR50	0x490c
+#define SDHI_VER_RZ_A1		0x820b
 /* very old datasheets said 0x490c for SDR104, too. They are wrong! */
 #define SDHI_VER_GEN2_SDR104	0xcb0d
 #define SDHI_VER_GEN3_SD	0xcc10
@@ -398,12 +399,14 @@ static void renesas_sdhi_hw_reset(struct tmio_mmc_host *host)
 		       sd_scc_read32(host, priv, SH_MOBILE_SDHI_SCC_RVSCNTL));
 }
 
-static int renesas_sdhi_wait_idle(struct tmio_mmc_host *host)
+static int renesas_sdhi_wait_idle(struct tmio_mmc_host *host, u32 bit)
 {
 	int timeout = 1000;
+	/* CBSY is set when busy, SCLKDIVEN is cleared when busy */
+	u32 wait_state = (bit == TMIO_STAT_CMD_BUSY ? TMIO_STAT_CMD_BUSY : 0);
 
-	while (--timeout && !(sd_ctrl_read16_and_16_as_32(host, CTL_STATUS)
-			      & TMIO_STAT_SCLKDIVEN))
+	while (--timeout && (sd_ctrl_read16_and_16_as_32(host, CTL_STATUS)
+			      & bit) == wait_state)
 		udelay(1);
 
 	if (!timeout) {
@@ -416,17 +419,22 @@ static int renesas_sdhi_wait_idle(struct tmio_mmc_host *host)
 
 static int renesas_sdhi_write16_hook(struct tmio_mmc_host *host, int addr)
 {
+	u32 bit = TMIO_STAT_SCLKDIVEN;
+
 	switch (addr) {
 	case CTL_SD_CMD:
 	case CTL_STOP_INTERNAL_ACTION:
 	case CTL_XFER_BLK_COUNT:
-	case CTL_SD_CARD_CLK_CTL:
 	case CTL_SD_XFER_LEN:
 	case CTL_SD_MEM_CARD_OPT:
 	case CTL_TRANSACTION_CTL:
 	case CTL_DMA_ENABLE:
 	case EXT_ACC:
-		return renesas_sdhi_wait_idle(host);
+		if (host->pdata->flags & TMIO_MMC_HAVE_CBSY)
+			bit = TMIO_STAT_CMD_BUSY;
+		/* fallthrough */
+	case CTL_SD_CARD_CLK_CTL:
+		return renesas_sdhi_wait_idle(host, bit);
 	}
 
 	return 0;
@@ -452,10 +460,11 @@ static int renesas_sdhi_multi_io_quirk(struct mmc_card *card,
 
 static void renesas_sdhi_enable_dma(struct tmio_mmc_host *host, bool enable)
 {
-	sd_ctrl_write16(host, CTL_DMA_ENABLE, enable ? 2 : 0);
+	/* Iff regs are 8 byte apart, sdbuf is 64 bit. Otherwise always 32. */
+	int width = (host->bus_shift == 2) ? 64 : 32;
 
-	/* enable 32bit access if DMA mode if possibile */
-	renesas_sdhi_sdbuf_width(host, enable ? 32 : 16);
+	sd_ctrl_write16(host, CTL_DMA_ENABLE, enable ? DMA_ENABLE_DMASDRW : 0);
+	renesas_sdhi_sdbuf_width(host, enable ? width : 16);
 }
 
 int renesas_sdhi_probe(struct platform_device *pdev,
@@ -526,6 +535,8 @@ int renesas_sdhi_probe(struct platform_device *pdev,
 		mmc_data->capabilities |= of_data->capabilities;
 		mmc_data->capabilities2 |= of_data->capabilities2;
 		mmc_data->dma_rx_offset = of_data->dma_rx_offset;
+		mmc_data->max_blk_count = of_data->max_blk_count;
+		mmc_data->max_segs = of_data->max_segs;
 		dma_priv->dma_buswidth = of_data->dma_buswidth;
 		host->bus_shift = of_data->bus_shift;
 	}
@@ -578,6 +589,10 @@ int renesas_sdhi_probe(struct platform_device *pdev,
 	ret = tmio_mmc_host_probe(host, mmc_data, dma_ops);
 	if (ret < 0)
 		goto efree;
+
+	/* One Gen2 SDHI incarnation does NOT have a CBSY bit */
+	if (sd_ctrl_read16(host, CTL_VERSION) == SDHI_VER_GEN2_SDR50)
+		mmc_data->flags &= ~TMIO_MMC_HAVE_CBSY;
 
 	/* Enable tuning iff we have an SCC and a supported mode */
 	if (of_data && of_data->scc_offset &&
