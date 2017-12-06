@@ -54,12 +54,10 @@ static int bnxt_tc_parse_redir(struct bnxt *bp,
 			       struct bnxt_tc_actions *actions,
 			       const struct tc_action *tc_act)
 {
-	int ifindex = tcf_mirred_ifindex(tc_act);
-	struct net_device *dev;
+	struct net_device *dev = tcf_mirred_dev(tc_act);
 
-	dev = __dev_get_by_index(dev_net(bp->dev), ifindex);
 	if (!dev) {
-		netdev_info(bp->dev, "no dev for ifindex=%d", ifindex);
+		netdev_info(bp->dev, "no dev in mirred action");
 		return -EINVAL;
 	}
 

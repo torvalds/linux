@@ -93,13 +93,11 @@ nfp_fl_output(struct nfp_fl_output *output, const struct tc_action *action,
 	size_t act_size = sizeof(struct nfp_fl_output);
 	struct net_device *out_dev;
 	u16 tmp_flags;
-	int ifindex;
 
 	output->head.jump_id = NFP_FL_ACTION_OPCODE_OUTPUT;
 	output->head.len_lw = act_size >> NFP_FL_LW_SIZ;
 
-	ifindex = tcf_mirred_ifindex(action);
-	out_dev = __dev_get_by_index(dev_net(in_dev), ifindex);
+	out_dev = tcf_mirred_dev(action);
 	if (!out_dev)
 		return -EOPNOTSUPP;
 

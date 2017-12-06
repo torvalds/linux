@@ -709,14 +709,12 @@ static int dsa_slave_add_cls_matchall(struct net_device *dev,
 	struct dsa_slave_priv *p = netdev_priv(dev);
 	struct dsa_mall_tc_entry *mall_tc_entry;
 	__be16 protocol = cls->common.protocol;
-	struct net *net = dev_net(dev);
 	struct dsa_switch *ds = dp->ds;
 	struct net_device *to_dev;
 	const struct tc_action *a;
 	struct dsa_port *to_dp;
 	int err = -EOPNOTSUPP;
 	LIST_HEAD(actions);
-	int ifindex;
 
 	if (!ds->ops->port_mirror_add)
 		return err;
@@ -730,8 +728,7 @@ static int dsa_slave_add_cls_matchall(struct net_device *dev,
 	if (is_tcf_mirred_egress_mirror(a) && protocol == htons(ETH_P_ALL)) {
 		struct dsa_mall_mirror_tc_entry *mirror;
 
-		ifindex = tcf_mirred_ifindex(a);
-		to_dev = __dev_get_by_index(net, ifindex);
+		to_dev = tcf_mirred_dev(a);
 		if (!to_dev)
 			return -EINVAL;
 

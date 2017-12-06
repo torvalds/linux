@@ -9101,9 +9101,11 @@ static int parse_tc_actions(struct ixgbe_adapter *adapter,
 
 		/* Redirect to a VF or a offloaded macvlan */
 		if (is_tcf_mirred_egress_redirect(a)) {
-			int ifindex = tcf_mirred_ifindex(a);
+			struct net_device *dev = tcf_mirred_dev(a);
 
-			err = handle_redirect_action(adapter, ifindex, queue,
+			if (!dev)
+				return -EINVAL;
+			err = handle_redirect_action(adapter, dev->ifindex, queue,
 						     action);
 			if (err == 0)
 				return err;

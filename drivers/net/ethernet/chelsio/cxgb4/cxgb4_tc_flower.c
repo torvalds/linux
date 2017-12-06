@@ -405,9 +405,7 @@ static void cxgb4_process_flow_actions(struct net_device *in,
 		} else if (is_tcf_gact_shot(a)) {
 			fs->action = FILTER_DROP;
 		} else if (is_tcf_mirred_egress_redirect(a)) {
-			int ifindex = tcf_mirred_ifindex(a);
-			struct net_device *out = __dev_get_by_index(dev_net(in),
-								    ifindex);
+			struct net_device *out = tcf_mirred_dev(a);
 			struct port_info *pi = netdev_priv(out);
 
 			fs->action = FILTER_SWITCH;
@@ -582,14 +580,14 @@ static int cxgb4_validate_flow_actions(struct net_device *dev,
 			/* Do nothing */
 		} else if (is_tcf_mirred_egress_redirect(a)) {
 			struct adapter *adap = netdev2adap(dev);
-			struct net_device *n_dev;
-			unsigned int i, ifindex;
+			struct net_device *n_dev, *target_dev;
+			unsigned int i;
 			bool found = false;
 
-			ifindex = tcf_mirred_ifindex(a);
+			target_dev = tcf_mirred_dev(a);
 			for_each_port(adap, i) {
 				n_dev = adap->port[i];
-				if (ifindex == n_dev->ifindex) {
+				if (target_dev == n_dev) {
 					found = true;
 					break;
 				}
