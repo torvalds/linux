@@ -65,7 +65,7 @@ void intel_uc_sanitize_options(struct drm_i915_private *dev_priv)
 
 	/* Verify firmware version */
 	if (i915_modparams.enable_guc_loading) {
-		if (intel_guc_fw_select(&dev_priv->guc))
+		if (!intel_uc_fw_is_selected(&dev_priv->guc.fw))
 			i915_modparams.enable_guc_loading = 0;
 	}
 

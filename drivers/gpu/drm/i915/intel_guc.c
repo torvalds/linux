@@ -61,6 +61,7 @@ void intel_guc_init_send_regs(struct intel_guc *guc)
 
 void intel_guc_init_early(struct intel_guc *guc)
 {
+	intel_guc_fw_init_early(guc);
 	intel_guc_ct_init_early(&guc->ct);
 
 	mutex_init(&guc->send_mutex);

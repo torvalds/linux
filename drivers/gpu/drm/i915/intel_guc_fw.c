@@ -56,45 +56,54 @@ MODULE_FIRMWARE(I915_KBL_GUC_UCODE);
 
 #define I915_GLK_GUC_UCODE GUC_FW_PATH(glk, GLK_FW_MAJOR, GLK_FW_MINOR)
 
-/**
- * intel_guc_fw_select() - selects GuC firmware for uploading
- *
- * @guc:	intel_guc struct
- *
- * Return: zero when we know firmware, non-zero in other case
- */
-int intel_guc_fw_select(struct intel_guc *guc)
+static void guc_fw_select(struct intel_uc_fw *guc_fw)
 {
+	struct intel_guc *guc = container_of(guc_fw, struct intel_guc, fw);
 	struct drm_i915_private *dev_priv = guc_to_i915(guc);
 
-	intel_uc_fw_init(&guc->fw, INTEL_UC_FW_TYPE_GUC);
+	GEM_BUG_ON(guc_fw->type != INTEL_UC_FW_TYPE_GUC);
+
+	if (!HAS_GUC(dev_priv))
+		return;
 
 	if (i915_modparams.guc_firmware_path) {
-		guc->fw.path = i915_modparams.guc_firmware_path;
-		guc->fw.major_ver_wanted = 0;
-		guc->fw.minor_ver_wanted = 0;
+		guc_fw->path = i915_modparams.guc_firmware_path;
+		guc_fw->major_ver_wanted = 0;
+		guc_fw->minor_ver_wanted = 0;
 	} else if (IS_SKYLAKE(dev_priv)) {
-		guc->fw.path = I915_SKL_GUC_UCODE;
-		guc->fw.major_ver_wanted = SKL_FW_MAJOR;
-		guc->fw.minor_ver_wanted = SKL_FW_MINOR;
+		guc_fw->path = I915_SKL_GUC_UCODE;
+		guc_fw->major_ver_wanted = SKL_FW_MAJOR;
+		guc_fw->minor_ver_wanted = SKL_FW_MINOR;
 	} else if (IS_BROXTON(dev_priv)) {
-		guc->fw.path = I915_BXT_GUC_UCODE;
-		guc->fw.major_ver_wanted = BXT_FW_MAJOR;
-		guc->fw.minor_ver_wanted = BXT_FW_MINOR;
+		guc_fw->path = I915_BXT_GUC_UCODE;
+		guc_fw->major_ver_wanted = BXT_FW_MAJOR;
+		guc_fw->minor_ver_wanted = BXT_FW_MINOR;
 	} else if (IS_KABYLAKE(dev_priv) || IS_COFFEELAKE(dev_priv)) {
-		guc->fw.path = I915_KBL_GUC_UCODE;
-		guc->fw.major_ver_wanted = KBL_FW_MAJOR;
-		guc->fw.minor_ver_wanted = KBL_FW_MINOR;
+		guc_fw->path = I915_KBL_GUC_UCODE;
+		guc_fw->major_ver_wanted = KBL_FW_MAJOR;
+		guc_fw->minor_ver_wanted = KBL_FW_MINOR;
 	} else if (IS_GEMINILAKE(dev_priv)) {
-		guc->fw.path = I915_GLK_GUC_UCODE;
-		guc->fw.major_ver_wanted = GLK_FW_MAJOR;
-		guc->fw.minor_ver_wanted = GLK_FW_MINOR;
+		guc_fw->path = I915_GLK_GUC_UCODE;
+		guc_fw->major_ver_wanted = GLK_FW_MAJOR;
+		guc_fw->minor_ver_wanted = GLK_FW_MINOR;
 	} else {
-		DRM_ERROR("No GuC firmware known for platform with GuC!\n");
-		return -ENOENT;
+		DRM_WARN("%s: No firmware known for this platform!\n",
+			 intel_uc_fw_type_repr(guc_fw->type));
 	}
+}
 
-	return 0;
+/**
+ * intel_guc_fw_init_early() - initializes GuC firmware struct
+ * @guc: intel_guc struct
+ *
+ * On platforms with GuC selects firmware for uploading
+ */
+void intel_guc_fw_init_early(struct intel_guc *guc)
+{
+	struct intel_uc_fw *guc_fw = &guc->fw;
+
+	intel_uc_fw_init(guc_fw, INTEL_UC_FW_TYPE_GUC);
+	guc_fw_select(guc_fw);
 }
 
 static void guc_prepare_xfer(struct intel_guc *guc)

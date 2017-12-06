@@ -110,6 +110,11 @@ void intel_uc_fw_init(struct intel_uc_fw *uc_fw, enum intel_uc_fw_type type)
 	uc_fw->type = type;
 }
 
+static inline bool intel_uc_fw_is_selected(struct intel_uc_fw *uc_fw)
+{
+	return uc_fw->path != NULL;
+}
+
 void intel_uc_fw_fetch(struct drm_i915_private *dev_priv,
 		       struct intel_uc_fw *uc_fw);
 int intel_uc_fw_upload(struct intel_uc_fw *uc_fw,

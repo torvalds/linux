@@ -27,7 +27,7 @@
 
 struct intel_guc;
 
-int intel_guc_fw_select(struct intel_guc *guc);
+void intel_guc_fw_init_early(struct intel_guc *guc);
 int intel_guc_fw_upload(struct intel_guc *guc);
 
 #endif
