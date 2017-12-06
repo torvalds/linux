@@ -29,8 +29,6 @@
 #include <linux/workqueue.h>
 #include <linux/list.h>
 
-#include <linux/delay.h>
-#include <linux/rpmsg.h>
 #include <linux/rpmsg/qcom_glink.h>
 
 #include "qcom_glink_native.h"
