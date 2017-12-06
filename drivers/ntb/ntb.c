@@ -111,7 +111,6 @@ int ntb_register_device(struct ntb_dev *ntb)
 
 	init_completion(&ntb->released);
 
-	memset(&ntb->dev, 0, sizeof(ntb->dev));
 	ntb->dev.bus = &ntb_bus;
 	ntb->dev.parent = &ntb->pdev->dev;
 	ntb->dev.release = ntb_dev_release;
