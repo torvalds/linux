@@ -43,7 +43,9 @@ function show_help()
 	echo "  -h              show this help message"
 	echo "  -l              list available local and remote PCI ids"
 	echo "  -r REMOTE_HOST  specify the remote's hostname to connect"
-        echo "                  to for the test (using ssh)"
+	echo "                  to for the test (using ssh)"
+	echo "  -m MW_SIZE      memory window size for ntb_tool"
+	echo "                  (default: $MW_SIZE)"
 	echo "  -p NUM          ntb_perf run order (default: $PERF_RUN_ORDER)"
 	echo "  -w max_mw_size  maxmium memory window size"
 	echo
@@ -316,6 +318,32 @@ function message_test()
 	echo "  Passed"
 }
 
+function get_number()
+{
+	KEY=$1
+
+	sed -n "s/^\(${KEY}\)[ \t]*\(0x[0-9a-fA-F]*\)\(\[p\]\)\?$/\2/p"
+}
+
+function mw_alloc()
+{
+	IDX=$1
+	LOC=$2
+	REM=$3
+
+	write_file $MW_SIZE "$LOC/mw_trans$IDX"
+
+	INB_MW=$(read_file "$LOC/mw_trans$IDX")
+	MW_ALIGNED_SIZE=$(echo "$INB_MW" | get_number "Window Size")
+	MW_DMA_ADDR=$(echo "$INB_MW" | get_number "DMA Address")
+
+	write_file "$MW_DMA_ADDR:$(($MW_ALIGNED_SIZE))" "$REM/peer_mw_trans$IDX"
+
+	if [[ $MW_SIZE -ne $MW_ALIGNED_SIZE ]]; then
+		echo "MW $IDX size aligned to $MW_ALIGNED_SIZE"
+	fi
+}
+
 function write_mw()
 {
 	split_remote $2
@@ -328,17 +356,15 @@ function write_mw()
 	fi
 }
 
-function mw_test()
+function mw_check()
 {
 	IDX=$1
 	LOC=$2
 	REM=$3
 
-	echo "Running $IDX tests on: $(basename $LOC) / $(basename $REM)"
+	write_mw "$LOC/mw$IDX"
 
-	write_mw "$LOC/$IDX"
-
-	split_remote "$LOC/$IDX"
+	split_remote "$LOC/mw$IDX"
 	if [[ "$REMOTE" == "" ]]; then
 		A=$VPATH
 	else
@@ -346,7 +372,7 @@ function mw_test()
 		ssh "$REMOTE" cat "$VPATH" > "$A"
 	fi
 
-	split_remote "$REM/peer_$IDX"
+	split_remote "$REM/peer_mw$IDX"
 	if [[ "$REMOTE" == "" ]]; then
 		B=$VPATH
 	else
@@ -354,7 +380,7 @@ function mw_test()
 		ssh "$REMOTE" cat "$VPATH" > "$B"
 	fi
 
-	cmp -n $MW_SIZE "$A" "$B"
+	cmp -n $MW_ALIGNED_SIZE "$A" "$B"
 	if [[ $? != 0 ]]; then
 		echo "Memory window $MW did not match!" >&2
 	fi
@@ -366,8 +392,39 @@ function mw_test()
 	if [[ "$B" == "/tmp/*" ]]; then
 		rm "$B"
 	fi
+}
 
-	echo "  Passed"
+function mw_free()
+{
+	IDX=$1
+	LOC=$2
+	REM=$3
+
+	write_file "$MW_DMA_ADDR:0" "$REM/peer_mw_trans$IDX"
+
+	write_file 0 "$LOC/mw_trans$IDX"
+}
+
+function mw_test()
+{
+	LOC=$1
+	REM=$2
+
+	CNT=$(get_files_count "mw_trans" "$LOC")
+
+	for ((i = 0; i < $CNT; i++)); do
+		echo "Running mw$i tests on: $(subdirname $LOC) / " \
+		     "$(subdirname $REM)"
+
+		mw_alloc $i $LOC $REM
+
+		mw_check $i $LOC $REM
+
+		mw_free $i $LOC  $REM
+
+		echo "  Passed"
+	done
+
 }
 
 function pingpong_test()
@@ -451,18 +508,8 @@ function ntb_tool_tests()
 	message_test "$LOCAL_PEER_TOOL" "$REMOTE_PEER_TOOL"
 	message_test "$REMOTE_PEER_TOOL" "$LOCAL_PEER_TOOL"
 
-	for PEER_TRANS in $(ls "$LOCAL_TOOL"/peer_trans*); do
-		PT=$(basename $PEER_TRANS)
-		write_file $MW_SIZE "$LOCAL_TOOL/$PT"
-		write_file $MW_SIZE "$REMOTE_TOOL/$PT"
-	done
-
-	for MW in $(ls "$LOCAL_TOOL"/mw*); do
-		MW=$(basename $MW)
-
-		mw_test $MW "$LOCAL_TOOL" "$REMOTE_TOOL"
-		mw_test $MW "$REMOTE_TOOL" "$LOCAL_TOOL"
-	done
+	mw_test "$LOCAL_PEER_TOOL" "$REMOTE_PEER_TOOL"
+	mw_test "$REMOTE_PEER_TOOL" "$LOCAL_PEER_TOOL"
 
 	_modprobe -r ntb_tool
 }
