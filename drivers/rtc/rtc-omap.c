@@ -753,8 +753,10 @@ static int omap_rtc_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	rtc->base = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(rtc->base))
+	if (IS_ERR(rtc->base)) {
+		clk_disable_unprepare(rtc->clk);
 		return PTR_ERR(rtc->base);
+	}
 
 	platform_set_drvdata(pdev, rtc);
 
@@ -887,6 +889,7 @@ static int omap_rtc_probe(struct platform_device *pdev)
 	return 0;
 
 err:
+	clk_disable_unprepare(rtc->clk);
 	device_init_wakeup(&pdev->dev, false);
 	rtc->type->lock(rtc);
 	pm_runtime_put_sync(&pdev->dev);
