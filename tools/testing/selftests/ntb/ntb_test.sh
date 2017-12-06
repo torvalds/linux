@@ -282,6 +282,40 @@ function scratchpad_test()
 	echo "  Passed"
 }
 
+function message_test()
+{
+	LOC=$1
+	REM=$2
+
+	echo "Running msg tests on: $(subdirname $LOC) / $(subdirname $REM)"
+
+	CNT=$(get_files_count "msg" "$LOC")
+
+	if [[ $CNT -eq 0 ]]; then
+		echo "  Unsupported"
+		return
+	fi
+
+	MSG_OUTBITS_MASK=$(read_file "$LOC/../msg_inbits")
+	MSG_INBITS_MASK=$(read_file "$REM/../msg_inbits")
+
+	write_file "c $MSG_OUTBITS_MASK" "$LOC/../msg_sts"
+	write_file "c $MSG_INBITS_MASK" "$REM/../msg_sts"
+
+	for ((i = 0; i < $CNT; i++)); do
+		VAL=$RANDOM
+		write_file "$VAL" "$LOC/msg$i"
+		RVAL=$(read_file "$REM/../msg$i")
+
+		if [[ "$VAL" -ne "${RVAL%%<-*}" ]]; then
+			echo "Message $i value $RVAL doesn't match $VAL" >&2
+			exit -1
+		fi
+	done
+
+	echo "  Passed"
+}
+
 function write_mw()
 {
 	split_remote $2
@@ -413,6 +447,9 @@ function ntb_tool_tests()
 
 	scratchpad_test "$LOCAL_PEER_TOOL" "$REMOTE_PEER_TOOL"
 	scratchpad_test "$REMOTE_PEER_TOOL" "$LOCAL_PEER_TOOL"
+
+	message_test "$LOCAL_PEER_TOOL" "$REMOTE_PEER_TOOL"
+	message_test "$REMOTE_PEER_TOOL" "$LOCAL_PEER_TOOL"
 
 	for PEER_TRANS in $(ls "$LOCAL_TOOL"/peer_trans*); do
 		PT=$(basename $PEER_TRANS)
