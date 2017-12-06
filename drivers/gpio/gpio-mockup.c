@@ -387,11 +387,11 @@ static int __init gpio_mockup_init(void)
 							 GPIO_MOCKUP_NAME,
 							 i, NULL, 0, &pdata,
 							 sizeof(pdata));
-		if (!pdev) {
+		if (IS_ERR(pdev)) {
 			gpio_mockup_err("error registering device");
 			platform_driver_unregister(&gpio_mockup_driver);
 			gpio_mockup_unregister_pdevs();
-			return -ENOMEM;
+			return PTR_ERR(pdev);
 		}
 
 		gpio_mockup_pdevs[i] = pdev;
