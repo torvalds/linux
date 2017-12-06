@@ -700,7 +700,7 @@ static const struct i2c_algo_bit_data ivtv_i2c_algo_template = {
 	.timeout	= IVTV_ALGO_BIT_TIMEOUT * HZ,         /* jiffies */
 };
 
-static struct i2c_client ivtv_i2c_client_template = {
+static const struct i2c_client ivtv_i2c_client_template = {
 	.name = "ivtv internal",
 };
 

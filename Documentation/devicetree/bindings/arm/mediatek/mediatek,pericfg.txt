@@ -8,6 +8,8 @@ Required Properties:
 
 - compatible: Should be one of:
 	- "mediatek,mt2701-pericfg", "syscon"
+	- "mediatek,mt2712-pericfg", "syscon"
+	- "mediatek,mt7622-pericfg", "syscon"
 	- "mediatek,mt8135-pericfg", "syscon"
 	- "mediatek,mt8173-pericfg", "syscon"
 - #clock-cells: Must be 1

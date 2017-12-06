@@ -1189,9 +1189,9 @@ void rtw_macaddr_cfg(struct device *dev, u8 *mac_addr)
 	     (mac[3] == 0xff) && (mac[4] == 0xff) && (mac[5] == 0xff)) ||
 	    ((mac[0] == 0x00) && (mac[1] == 0x00) && (mac[2] == 0x00) &&
 	     (mac[3] == 0x00) && (mac[4] == 0x00) && (mac[5] == 0x00))) {
-	        if (np &&
-	            (addr = of_get_property(np, "local-mac-address", &len)) &&
-	            len == ETH_ALEN) {
+		if (np &&
+		    (addr = of_get_property(np, "local-mac-address", &len)) &&
+		    len == ETH_ALEN) {
 			memcpy(mac_addr, addr, ETH_ALEN);
 		} else {
 			mac[0] = 0x00;

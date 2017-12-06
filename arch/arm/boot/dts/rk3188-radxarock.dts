@@ -176,6 +176,10 @@
 	cpu0-supply = <&vdd_arm>;
 };
 
+&gpu {
+	status = "okay";
+};
+
 &i2c1 {
 	status = "okay";
 	clock-frequency = <400000>;

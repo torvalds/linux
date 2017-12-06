@@ -52,6 +52,6 @@ void dg_suspend(struct oxygen *chip);
 void dg_resume(struct oxygen *chip);
 void dg_cleanup(struct oxygen *chip);
 
-extern struct oxygen_model model_xonar_dg;
+extern const struct oxygen_model model_xonar_dg;
 
 #endif

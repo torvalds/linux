@@ -2318,9 +2318,9 @@ DEF_SCSI_QCMD(fas216_noqueue_command)
  * Error handler timeout function.  Indicate that we timed out,
  * and wake up any error handler process so it can continue.
  */
-static void fas216_eh_timer(unsigned long data)
+static void fas216_eh_timer(struct timer_list *t)
 {
-	FAS216_Info *info = (FAS216_Info *)data;
+	FAS216_Info *info = from_timer(info, t, eh_timer);
 
 	fas216_log(info, LOG_ERROR, "error handling timed out\n");
 
@@ -2849,9 +2849,7 @@ int fas216_init(struct Scsi_Host *host)
 	info->rst_dev_status = -1;
 	info->rst_bus_status = -1;
 	init_waitqueue_head(&info->eh_wait);
-	init_timer(&info->eh_timer);
-	info->eh_timer.data  = (unsigned long)info;
-	info->eh_timer.function = fas216_eh_timer;
+	timer_setup(&info->eh_timer, fas216_eh_timer, 0);
 	
 	spin_lock_init(&info->host_lock);
 

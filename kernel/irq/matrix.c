@@ -384,7 +384,7 @@ unsigned int irq_matrix_available(struct irq_matrix *m, bool cpudown)
 {
 	struct cpumap *cm = this_cpu_ptr(m->maps);
 
-	return m->global_available - cpudown ? cm->available : 0;
+	return (m->global_available - cpudown) ? cm->available : 0;
 }
 
 /**

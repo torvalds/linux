@@ -9,6 +9,6 @@ struct nv50_channel_gpfifo_v0 {
 	__u32 ilength;
 	__u64 ioffset;
 	__u64 pushbuf;
-	__u64 vm;
+	__u64 vmm;
 };
 #endif

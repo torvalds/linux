@@ -42,7 +42,7 @@ static int asd_enqueue_internal(struct asd_ascb *ascb,
 	ascb->tasklet_complete = tasklet_complete;
 	ascb->uldd_timer = 1;
 
-	ascb->timer.function = (TIMER_FUNC_TYPE)timed_out;
+	ascb->timer.function = timed_out;
 	ascb->timer.expires = jiffies + AIC94XX_SCB_TIMEOUT;
 
 	add_timer(&ascb->timer);

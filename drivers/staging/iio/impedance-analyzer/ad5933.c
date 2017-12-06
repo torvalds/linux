@@ -575,7 +575,6 @@ out:
 static const struct iio_info ad5933_info = {
 	.read_raw = ad5933_read_raw,
 	.attrs = &ad5933_attribute_group,
-	.driver_module = THIS_MODULE,
 };
 
 static int ad5933_ring_preenable(struct iio_dev *indio_dev)

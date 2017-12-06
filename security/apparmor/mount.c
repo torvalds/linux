@@ -216,13 +216,12 @@ static unsigned int match_mnt_flags(struct aa_dfa *dfa, unsigned int state,
 static struct aa_perms compute_mnt_perms(struct aa_dfa *dfa,
 					   unsigned int state)
 {
-	struct aa_perms perms;
-
-	perms.kill = 0;
-	perms.allow = dfa_user_allow(dfa, state);
-	perms.audit = dfa_user_audit(dfa, state);
-	perms.quiet = dfa_user_quiet(dfa, state);
-	perms.xindex = dfa_user_xindex(dfa, state);
+	struct aa_perms perms = {
+		.allow = dfa_user_allow(dfa, state),
+		.audit = dfa_user_audit(dfa, state),
+		.quiet = dfa_user_quiet(dfa, state),
+		.xindex = dfa_user_xindex(dfa, state),
+	};
 
 	return perms;
 }

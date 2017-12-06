@@ -115,33 +115,28 @@ struct lowcore {
 	/* Address space pointer. */
 	__u64	kernel_asce;			/* 0x0378 */
 	__u64	user_asce;			/* 0x0380 */
+	__u64	vdso_asce;			/* 0x0388 */
 
 	/*
 	 * The lpp and current_pid fields form a
 	 * 64-bit value that is set as program
 	 * parameter with the LPP instruction.
 	 */
-	__u32	lpp;				/* 0x0388 */
-	__u32	current_pid;			/* 0x038c */
+	__u32	lpp;				/* 0x0390 */
+	__u32	current_pid;			/* 0x0394 */
 
 	/* SMP info area */
-	__u32	cpu_nr;				/* 0x0390 */
-	__u32	softirq_pending;		/* 0x0394 */
-	__u64	percpu_offset;			/* 0x0398 */
-	__u64	vdso_per_cpu_data;		/* 0x03a0 */
-	__u64	machine_flags;			/* 0x03a8 */
-	__u32	preempt_count;			/* 0x03b0 */
-	__u8	pad_0x03b4[0x03b8-0x03b4];	/* 0x03b4 */
-	__u64	gmap;				/* 0x03b8 */
-	__u32	spinlock_lockval;		/* 0x03c0 */
-	__u32	spinlock_index;			/* 0x03c4 */
-	__u32	fpu_flags;			/* 0x03c8 */
-	__u8	pad_0x03cc[0x0400-0x03cc];	/* 0x03cc */
-
-	/* Per cpu primary space access list */
-	__u32	paste[16];			/* 0x0400 */
-
-	__u8	pad_0x04c0[0x0e00-0x0440];	/* 0x0440 */
+	__u32	cpu_nr;				/* 0x0398 */
+	__u32	softirq_pending;		/* 0x039c */
+	__u32	preempt_count;			/* 0x03a0 */
+	__u32	spinlock_lockval;		/* 0x03a4 */
+	__u32	spinlock_index;			/* 0x03a8 */
+	__u32	fpu_flags;			/* 0x03ac */
+	__u64	percpu_offset;			/* 0x03b0 */
+	__u64	vdso_per_cpu_data;		/* 0x03b8 */
+	__u64	machine_flags;			/* 0x03c0 */
+	__u64	gmap;				/* 0x03c8 */
+	__u8	pad_0x03d0[0x0e00-0x03d0];	/* 0x03d0 */
 
 	/*
 	 * 0xe00 contains the address of the IPL Parameter Information
@@ -193,14 +188,14 @@ extern struct lowcore *lowcore_ptr[];
 
 static inline void set_prefix(__u32 address)
 {
-	asm volatile("spx %0" : : "m" (address) : "memory");
+	asm volatile("spx %0" : : "Q" (address) : "memory");
 }
 
 static inline __u32 store_prefix(void)
 {
 	__u32 address;
 
-	asm volatile("stpx %0" : "=m" (address));
+	asm volatile("stpx %0" : "=Q" (address));
 	return address;
 }
 

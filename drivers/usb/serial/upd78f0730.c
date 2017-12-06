@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Renesas Electronics uPD78F0730 USB to serial converter driver
  *
  * Copyright (C) 2014,2016 Maksim Salau <maksim.salau@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2
- * as published by the Free Software Foundation.
  *
  * Protocol of the adaptor is described in the application note U19660EJ1V0AN00
  * μPD78F0730 8-bit Single-Chip Microcontroller

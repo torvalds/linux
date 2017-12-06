@@ -563,6 +563,9 @@ static int mlx4_ib_query_device(struct ib_device *ibdev,
 		props->max_wq_type_rq = props->max_qp;
 	}
 
+	props->cq_caps.max_cq_moderation_count = MLX4_MAX_CQ_COUNT;
+	props->cq_caps.max_cq_moderation_period = MLX4_MAX_CQ_PERIOD;
+
 	if (!mlx4_is_slave(dev->dev))
 		err = mlx4_get_internal_clock_params(dev->dev, &clock_params);
 
@@ -579,6 +582,23 @@ static int mlx4_ib_query_device(struct ib_device *ibdev,
 		resp.response_length += sizeof(resp.max_inl_recv_sz);
 		resp.max_inl_recv_sz  = dev->dev->caps.max_rq_sg *
 			sizeof(struct mlx4_wqe_data_seg);
+	}
+
+	if (uhw->outlen >= resp.response_length + sizeof(resp.rss_caps)) {
+		resp.response_length += sizeof(resp.rss_caps);
+		if (props->rss_caps.supported_qpts) {
+			resp.rss_caps.rx_hash_function =
+				MLX4_IB_RX_HASH_FUNC_TOEPLITZ;
+			resp.rss_caps.rx_hash_fields_mask =
+				MLX4_IB_RX_HASH_SRC_IPV4 |
+				MLX4_IB_RX_HASH_DST_IPV4 |
+				MLX4_IB_RX_HASH_SRC_IPV6 |
+				MLX4_IB_RX_HASH_DST_IPV6 |
+				MLX4_IB_RX_HASH_SRC_PORT_TCP |
+				MLX4_IB_RX_HASH_DST_PORT_TCP |
+				MLX4_IB_RX_HASH_SRC_PORT_UDP |
+				MLX4_IB_RX_HASH_DST_PORT_UDP;
+		}
 	}
 
 	if (uhw->outlen) {
@@ -2732,6 +2752,9 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 	ibdev->ib_dev.get_port_immutable = mlx4_port_immutable;
 	ibdev->ib_dev.get_dev_fw_str    = get_fw_ver_str;
 	ibdev->ib_dev.disassociate_ucontext = mlx4_ib_disassociate_ucontext;
+
+	ibdev->ib_dev.uverbs_ex_cmd_mask |=
+		(1ull << IB_USER_VERBS_EX_CMD_MODIFY_CQ);
 
 	if ((dev->caps.flags2 & MLX4_DEV_CAP_FLAG2_RSS) &&
 	    ((mlx4_ib_port_link_layer(&ibdev->ib_dev, 1) ==

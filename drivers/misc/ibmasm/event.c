@@ -155,7 +155,7 @@ int ibmasm_event_buffer_init(struct service_processor *sp)
 
 	buffer = kmalloc(sizeof(struct event_buffer), GFP_KERNEL);
 	if (!buffer)
-		return 1;
+		return -ENOMEM;
 
 	buffer->next_index = 0;
 	buffer->next_serial_number = 1;

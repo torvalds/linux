@@ -23,7 +23,6 @@
 
 struct ipmi_smi_powernv {
 	u64			interface_id;
-	struct ipmi_device_id	ipmi_id;
 	ipmi_smi_t		intf;
 	unsigned int		irq;
 
@@ -266,8 +265,7 @@ static int ipmi_powernv_probe(struct platform_device *pdev)
 	}
 
 	/* todo: query actual ipmi_device_id */
-	rc = ipmi_register_smi(&ipmi_powernv_smi_handlers, ipmi,
-			&ipmi->ipmi_id, dev, 0);
+	rc = ipmi_register_smi(&ipmi_powernv_smi_handlers, ipmi, dev, 0);
 	if (rc) {
 		dev_warn(dev, "IPMI SMI registration failed (%d)\n", rc);
 		goto err_free_msg;

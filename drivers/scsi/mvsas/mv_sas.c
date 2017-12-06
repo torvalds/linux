@@ -1310,7 +1310,7 @@ static int mvs_exec_internal_tmf_task(struct domain_device *dev,
 		memcpy(&task->ssp_task, parameter, para_len);
 		task->task_done = mvs_task_done;
 
-		task->slow_task->timer.function = (TIMER_FUNC_TYPE)mvs_tmf_timedout;
+		task->slow_task->timer.function = mvs_tmf_timedout;
 		task->slow_task->timer.expires = jiffies + MVS_TASK_TIMEOUT*HZ;
 		add_timer(&task->slow_task->timer);
 
@@ -2020,7 +2020,7 @@ void mvs_int_port(struct mvs_info *mvi, int phy_no, u32 events)
 		MVS_CHIP_DISP->write_port_irq_mask(mvi, phy_no,
 					tmp | PHYEV_SIG_FIS);
 		if (phy->timer.function == NULL) {
-			phy->timer.function = (TIMER_FUNC_TYPE)mvs_sig_time_out;
+			phy->timer.function = mvs_sig_time_out;
 			phy->timer.expires = jiffies + 5*HZ;
 			add_timer(&phy->timer);
 		}

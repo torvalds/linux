@@ -78,7 +78,60 @@
 
 #define	UMIP_INST_SGDT	0	/* 0F 01 /0 */
 #define	UMIP_INST_SIDT	1	/* 0F 01 /1 */
-#define	UMIP_INST_SMSW	3	/* 0F 01 /4 */
+#define	UMIP_INST_SMSW	2	/* 0F 01 /4 */
+#define	UMIP_INST_SLDT  3       /* 0F 00 /0 */
+#define	UMIP_INST_STR   4       /* 0F 00 /1 */
+
+const char * const umip_insns[5] = {
+	[UMIP_INST_SGDT] = "SGDT",
+	[UMIP_INST_SIDT] = "SIDT",
+	[UMIP_INST_SMSW] = "SMSW",
+	[UMIP_INST_SLDT] = "SLDT",
+	[UMIP_INST_STR] = "STR",
+};
+
+#define umip_pr_err(regs, fmt, ...) \
+	umip_printk(regs, KERN_ERR, fmt, ##__VA_ARGS__)
+#define umip_pr_warning(regs, fmt, ...) \
+	umip_printk(regs, KERN_WARNING, fmt,  ##__VA_ARGS__)
+
+/**
+ * umip_printk() - Print a rate-limited message
+ * @regs:	Register set with the context in which the warning is printed
+ * @log_level:	Kernel log level to print the message
+ * @fmt:	The text string to print
+ *
+ * Print the text contained in @fmt. The print rate is limited to bursts of 5
+ * messages every two minutes. The purpose of this customized version of
+ * printk() is to print messages when user space processes use any of the
+ * UMIP-protected instructions. Thus, the printed text is prepended with the
+ * task name and process ID number of the current task as well as the
+ * instruction and stack pointers in @regs as seen when entering kernel mode.
+ *
+ * Returns:
+ *
+ * None.
+ */
+static __printf(3, 4)
+void umip_printk(const struct pt_regs *regs, const char *log_level,
+		 const char *fmt, ...)
+{
+	/* Bursts of 5 messages every two minutes */
+	static DEFINE_RATELIMIT_STATE(ratelimit, 2 * 60 * HZ, 5);
+	struct task_struct *tsk = current;
+	struct va_format vaf;
+	va_list args;
+
+	if (!__ratelimit(&ratelimit))
+		return;
+
+	va_start(args, fmt);
+	vaf.fmt = fmt;
+	vaf.va = &args;
+	printk("%s" pr_fmt("%s[%d] ip:%lx sp:%lx: %pV"), log_level, tsk->comm,
+	       task_pid_nr(tsk), regs->ip, regs->sp, &vaf);
+	va_end(args);
+}
 
 /**
  * identify_insn() - Identify a UMIP-protected instruction
@@ -118,10 +171,16 @@ static int identify_insn(struct insn *insn)
 		default:
 			return -EINVAL;
 		}
+	} else if (insn->opcode.bytes[1] == 0x0) {
+		if (X86_MODRM_REG(insn->modrm.value) == 0)
+			return UMIP_INST_SLDT;
+		else if (X86_MODRM_REG(insn->modrm.value) == 1)
+			return UMIP_INST_STR;
+		else
+			return -EINVAL;
+	} else {
+		return -EINVAL;
 	}
-
-	/* SLDT AND STR are not emulated */
-	return -EINVAL;
 }
 
 /**
@@ -228,10 +287,8 @@ static void force_sig_info_umip_fault(void __user *addr, struct pt_regs *regs)
 	if (!(show_unhandled_signals && unhandled_signal(tsk, SIGSEGV)))
 		return;
 
-	pr_err_ratelimited("%s[%d] umip emulation segfault ip:%lx sp:%lx error:%x in %lx\n",
-			   tsk->comm, task_pid_nr(tsk), regs->ip,
-			   regs->sp, X86_PF_USER | X86_PF_WRITE,
-			   regs->ip);
+	umip_pr_err(regs, "segfault in emulation. error%x\n",
+		    X86_PF_USER | X86_PF_WRITE);
 }
 
 /**
@@ -262,13 +319,9 @@ bool fixup_umip_exception(struct pt_regs *regs)
 	unsigned char buf[MAX_INSN_SIZE];
 	void __user *uaddr;
 	struct insn insn;
-	char seg_defs;
+	int seg_defs;
 
 	if (!regs)
-		return false;
-
-	/* Do not emulate 64-bit processes. */
-	if (user_64bit_mode(regs))
 		return false;
 
 	/*
@@ -321,6 +374,15 @@ bool fixup_umip_exception(struct pt_regs *regs)
 	umip_inst = identify_insn(&insn);
 	if (umip_inst < 0)
 		return false;
+
+	umip_pr_warning(regs, "%s instruction cannot be used by applications.\n",
+			umip_insns[umip_inst]);
+
+	/* Do not emulate SLDT, STR or user long mode processes. */
+	if (umip_inst == UMIP_INST_STR || umip_inst == UMIP_INST_SLDT || user_64bit_mode(regs))
+		return false;
+
+	umip_pr_warning(regs, "For now, expensive software emulation returns the result.\n");
 
 	if (emulate_umip_insn(&insn, umip_inst, dummy_data, &dummy_data_size))
 		return false;

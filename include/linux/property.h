@@ -100,7 +100,7 @@ struct fwnode_handle *fwnode_get_named_child_node(
 struct fwnode_handle *device_get_named_child_node(struct device *dev,
 						  const char *childname);
 
-void fwnode_handle_get(struct fwnode_handle *fwnode);
+struct fwnode_handle *fwnode_handle_get(struct fwnode_handle *fwnode);
 void fwnode_handle_put(struct fwnode_handle *fwnode);
 
 unsigned int device_get_child_node_count(struct device *dev);
@@ -292,6 +292,10 @@ struct fwnode_handle *fwnode_graph_get_remote_endpoint(
 struct fwnode_handle *
 fwnode_graph_get_remote_node(const struct fwnode_handle *fwnode, u32 port,
 			     u32 endpoint);
+
+#define fwnode_graph_for_each_endpoint(fwnode, child)			\
+	for (child = NULL;						\
+	     (child = fwnode_graph_get_next_endpoint(fwnode, child)); )
 
 int fwnode_graph_parse_endpoint(const struct fwnode_handle *fwnode,
 				struct fwnode_endpoint *endpoint);
