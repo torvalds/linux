@@ -83,9 +83,8 @@ EXPORT_SYMBOL_GPL(of_irq_find_parent);
 
 /**
  * of_irq_parse_raw - Low level interrupt tree parsing
- * @parent:	the device interrupt parent
  * @addr:	address specifier (start of "reg" property of the device) in be32 format
- * @out_irq:	structure of_irq updated by this function
+ * @out_irq:	structure of_phandle_args updated by this function
  *
  * Returns 0 on success and a negative number on error
  *
