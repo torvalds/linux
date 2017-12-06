@@ -537,6 +537,10 @@ extern void perf_trace_del(struct perf_event *event, int flags);
 extern int  perf_kprobe_init(struct perf_event *event, bool is_retprobe);
 extern void perf_kprobe_destroy(struct perf_event *event);
 #endif
+#ifdef CONFIG_UPROBE_EVENTS
+extern int  perf_uprobe_init(struct perf_event *event, bool is_retprobe);
+extern void perf_uprobe_destroy(struct perf_event *event);
+#endif
 extern int  ftrace_profile_set_filter(struct perf_event *event, int event_id,
 				     char *filter_str);
 extern void ftrace_profile_free_filter(struct perf_event *event);

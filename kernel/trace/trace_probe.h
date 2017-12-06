@@ -410,4 +410,8 @@ extern struct trace_event_call *
 create_local_trace_kprobe(char *func, void *addr, unsigned long offs,
 			  bool is_return);
 extern void destroy_local_trace_kprobe(struct trace_event_call *event_call);
+
+extern struct trace_event_call *
+create_local_trace_uprobe(char *name, unsigned long offs, bool is_return);
+extern void destroy_local_trace_uprobe(struct trace_event_call *event_call);
 #endif

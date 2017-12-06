@@ -286,6 +286,59 @@ void perf_kprobe_destroy(struct perf_event *p_event)
 }
 #endif /* CONFIG_KPROBE_EVENTS */
 
+#ifdef CONFIG_UPROBE_EVENTS
+int perf_uprobe_init(struct perf_event *p_event, bool is_retprobe)
+{
+	int ret;
+	char *path = NULL;
+	struct trace_event_call *tp_event;
+
+	if (!p_event->attr.uprobe_path)
+		return -EINVAL;
+	path = kzalloc(PATH_MAX, GFP_KERNEL);
+	if (!path)
+		return -ENOMEM;
+	ret = strncpy_from_user(
+		path, u64_to_user_ptr(p_event->attr.uprobe_path), PATH_MAX);
+	if (ret < 0)
+		goto out;
+	if (path[0] == '\0') {
+		ret = -EINVAL;
+		goto out;
+	}
+
+	tp_event = create_local_trace_uprobe(
+		path, p_event->attr.probe_offset, is_retprobe);
+	if (IS_ERR(tp_event)) {
+		ret = PTR_ERR(tp_event);
+		goto out;
+	}
+
+	/*
+	 * local trace_uprobe need to hold event_mutex to call
+	 * uprobe_buffer_enable() and uprobe_buffer_disable().
+	 * event_mutex is not required for local trace_kprobes.
+	 */
+	mutex_lock(&event_mutex);
+	ret = perf_trace_event_init(tp_event, p_event);
+	if (ret)
+		destroy_local_trace_uprobe(tp_event);
+	mutex_unlock(&event_mutex);
+out:
+	kfree(path);
+	return ret;
+}
+
+void perf_uprobe_destroy(struct perf_event *p_event)
+{
+	mutex_lock(&event_mutex);
+	perf_trace_event_close(p_event);
+	perf_trace_event_unreg(p_event);
+	mutex_unlock(&event_mutex);
+	destroy_local_trace_uprobe(p_event->tp_event);
+}
+#endif /* CONFIG_UPROBE_EVENTS */
+
 int perf_trace_add(struct perf_event *p_event, int flags)
 {
 	struct trace_event_call *tp_event = p_event->tp_event;
