@@ -76,7 +76,7 @@ static int amdgpu_ttm_global_init(struct amdgpu_device *adev)
 {
 	struct drm_global_reference *global_ref;
 	struct amdgpu_ring *ring;
-	struct amd_sched_rq *rq;
+	struct drm_sched_rq *rq;
 	int r;
 
 	adev->mman.mem_global_referenced = false;
@@ -108,8 +108,8 @@ static int amdgpu_ttm_global_init(struct amdgpu_device *adev)
 	mutex_init(&adev->mman.gtt_window_lock);
 
 	ring = adev->mman.buffer_funcs_ring;
-	rq = &ring->sched.sched_rq[AMD_SCHED_PRIORITY_KERNEL];
-	r = amd_sched_entity_init(&ring->sched, &adev->mman.entity,
+	rq = &ring->sched.sched_rq[DRM_SCHED_PRIORITY_KERNEL];
+	r = drm_sched_entity_init(&ring->sched, &adev->mman.entity,
 				  rq, amdgpu_sched_jobs, NULL);
 	if (r) {
 		DRM_ERROR("Failed setting up TTM BO move run queue.\n");
@@ -131,7 +131,7 @@ error_mem:
 static void amdgpu_ttm_global_fini(struct amdgpu_device *adev)
 {
 	if (adev->mman.mem_global_referenced) {
-		amd_sched_entity_fini(adev->mman.entity.sched,
+		drm_sched_entity_fini(adev->mman.entity.sched,
 				      &adev->mman.entity);
 		mutex_destroy(&adev->mman.gtt_window_lock);
 		drm_global_item_unref(&adev->mman.bo_global_ref.ref);

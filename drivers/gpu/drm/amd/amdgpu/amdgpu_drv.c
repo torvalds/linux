@@ -912,7 +912,7 @@ static int __init amdgpu_init(void)
 	if (r)
 		goto error_fence;
 
-	r = amd_sched_fence_slab_init();
+	r = drm_sched_fence_slab_init();
 	if (r)
 		goto error_sched;
 
@@ -944,7 +944,7 @@ static void __exit amdgpu_exit(void)
 	pci_unregister_driver(pdriver);
 	amdgpu_unregister_atpx_handler();
 	amdgpu_sync_fini();
-	amd_sched_fence_slab_fini();
+	drm_sched_fence_slab_fini();
 	amdgpu_fence_slab_fini();
 }
 

@@ -85,7 +85,7 @@ static void amdgpu_vce_idle_work_handler(struct work_struct *work);
 int amdgpu_vce_sw_init(struct amdgpu_device *adev, unsigned long size)
 {
 	struct amdgpu_ring *ring;
-	struct amd_sched_rq *rq;
+	struct drm_sched_rq *rq;
 	const char *fw_name;
 	const struct common_firmware_header *hdr;
 	unsigned ucode_version, version_major, version_minor, binary_id;
@@ -174,8 +174,8 @@ int amdgpu_vce_sw_init(struct amdgpu_device *adev, unsigned long size)
 	}
 
 	ring = &adev->vce.ring[0];
-	rq = &ring->sched.sched_rq[AMD_SCHED_PRIORITY_NORMAL];
-	r = amd_sched_entity_init(&ring->sched, &adev->vce.entity,
+	rq = &ring->sched.sched_rq[DRM_SCHED_PRIORITY_NORMAL];
+	r = drm_sched_entity_init(&ring->sched, &adev->vce.entity,
 				  rq, amdgpu_sched_jobs, NULL);
 	if (r != 0) {
 		DRM_ERROR("Failed setting up VCE run queue.\n");
@@ -207,7 +207,7 @@ int amdgpu_vce_sw_fini(struct amdgpu_device *adev)
 	if (adev->vce.vcpu_bo == NULL)
 		return 0;
 
-	amd_sched_entity_fini(&adev->vce.ring[0].sched, &adev->vce.entity);
+	drm_sched_entity_fini(&adev->vce.ring[0].sched, &adev->vce.entity);
 
 	amdgpu_bo_free_kernel(&adev->vce.vcpu_bo, &adev->vce.gpu_addr,
 		(void **)&adev->vce.cpu_addr);

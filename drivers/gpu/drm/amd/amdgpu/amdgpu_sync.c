@@ -64,7 +64,7 @@ void amdgpu_sync_create(struct amdgpu_sync *sync)
 static bool amdgpu_sync_same_dev(struct amdgpu_device *adev,
 				 struct dma_fence *f)
 {
-	struct amd_sched_fence *s_fence = to_amd_sched_fence(f);
+	struct drm_sched_fence *s_fence = to_drm_sched_fence(f);
 
 	if (s_fence) {
 		struct amdgpu_ring *ring;
@@ -85,7 +85,7 @@ static bool amdgpu_sync_same_dev(struct amdgpu_device *adev,
  */
 static void *amdgpu_sync_get_owner(struct dma_fence *f)
 {
-	struct amd_sched_fence *s_fence = to_amd_sched_fence(f);
+	struct drm_sched_fence *s_fence = to_drm_sched_fence(f);
 
 	if (s_fence)
 		return s_fence->owner;
@@ -248,7 +248,7 @@ struct dma_fence *amdgpu_sync_peek_fence(struct amdgpu_sync *sync,
 
 	hash_for_each_safe(sync->fences, i, tmp, e, node) {
 		struct dma_fence *f = e->fence;
-		struct amd_sched_fence *s_fence = to_amd_sched_fence(f);
+		struct drm_sched_fence *s_fence = to_drm_sched_fence(f);
 
 		if (dma_fence_is_signaled(f)) {
 			hash_del(&e->node);

@@ -116,7 +116,7 @@ static void amdgpu_uvd_idle_work_handler(struct work_struct *work);
 int amdgpu_uvd_sw_init(struct amdgpu_device *adev)
 {
 	struct amdgpu_ring *ring;
-	struct amd_sched_rq *rq;
+	struct drm_sched_rq *rq;
 	unsigned long bo_size;
 	const char *fw_name;
 	const struct common_firmware_header *hdr;
@@ -230,8 +230,8 @@ int amdgpu_uvd_sw_init(struct amdgpu_device *adev)
 	}
 
 	ring = &adev->uvd.ring;
-	rq = &ring->sched.sched_rq[AMD_SCHED_PRIORITY_NORMAL];
-	r = amd_sched_entity_init(&ring->sched, &adev->uvd.entity,
+	rq = &ring->sched.sched_rq[DRM_SCHED_PRIORITY_NORMAL];
+	r = drm_sched_entity_init(&ring->sched, &adev->uvd.entity,
 				  rq, amdgpu_sched_jobs, NULL);
 	if (r != 0) {
 		DRM_ERROR("Failed setting up UVD run queue.\n");
@@ -272,7 +272,7 @@ int amdgpu_uvd_sw_fini(struct amdgpu_device *adev)
 	int i;
 	kfree(adev->uvd.saved_bo);
 
-	amd_sched_entity_fini(&adev->uvd.ring.sched, &adev->uvd.entity);
+	drm_sched_entity_fini(&adev->uvd.ring.sched, &adev->uvd.entity);
 
 	amdgpu_bo_free_kernel(&adev->uvd.vcpu_bo,
 			      &adev->uvd.gpu_addr,

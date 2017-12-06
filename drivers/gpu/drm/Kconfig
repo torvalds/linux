@@ -149,6 +149,10 @@ config DRM_VM
 	bool
 	depends on DRM && MMU
 
+config DRM_SCHED
+	tristate
+	depends on DRM
+
 source "drivers/gpu/drm/i2c/Kconfig"
 
 source "drivers/gpu/drm/arm/Kconfig"
@@ -178,6 +182,7 @@ config DRM_AMDGPU
 	depends on DRM && PCI && MMU
 	select FW_LOADER
         select DRM_KMS_HELPER
+	select DRM_SCHED
         select DRM_TTM
 	select POWER_SUPPLY
 	select HWMON

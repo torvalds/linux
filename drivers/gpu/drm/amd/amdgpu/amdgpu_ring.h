@@ -25,7 +25,7 @@
 #define __AMDGPU_RING_H__
 
 #include <drm/amdgpu_drm.h>
-#include "gpu_scheduler.h"
+#include <drm/gpu_scheduler.h>
 
 /* max number of rings */
 #define AMDGPU_MAX_RINGS		18
@@ -154,14 +154,14 @@ struct amdgpu_ring_funcs {
 	void (*emit_tmz)(struct amdgpu_ring *ring, bool start);
 	/* priority functions */
 	void (*set_priority) (struct amdgpu_ring *ring,
-			      enum amd_sched_priority priority);
+			      enum drm_sched_priority priority);
 };
 
 struct amdgpu_ring {
 	struct amdgpu_device		*adev;
 	const struct amdgpu_ring_funcs	*funcs;
 	struct amdgpu_fence_driver	fence_drv;
-	struct amd_gpu_scheduler	sched;
+	struct drm_gpu_scheduler	sched;
 	struct list_head		lru_list;
 
 	struct amdgpu_bo	*ring_obj;
@@ -196,7 +196,7 @@ struct amdgpu_ring {
 	unsigned		vm_inv_eng;
 	bool			has_compute_vm_bug;
 
-	atomic_t		num_jobs[AMD_SCHED_PRIORITY_MAX];
+	atomic_t		num_jobs[DRM_SCHED_PRIORITY_MAX];
 	struct mutex		priority_mutex;
 	/* protected by priority_mutex */
 	int			priority;
@@ -212,9 +212,9 @@ void amdgpu_ring_generic_pad_ib(struct amdgpu_ring *ring, struct amdgpu_ib *ib);
 void amdgpu_ring_commit(struct amdgpu_ring *ring);
 void amdgpu_ring_undo(struct amdgpu_ring *ring);
 void amdgpu_ring_priority_get(struct amdgpu_ring *ring,
-			      enum amd_sched_priority priority);
+			      enum drm_sched_priority priority);
 void amdgpu_ring_priority_put(struct amdgpu_ring *ring,
-			      enum amd_sched_priority priority);
+			      enum drm_sched_priority priority);
 int amdgpu_ring_init(struct amdgpu_device *adev, struct amdgpu_ring *ring,
 		     unsigned ring_size, struct amdgpu_irq_src *irq_src,
 		     unsigned irq_type);

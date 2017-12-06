@@ -6472,10 +6472,10 @@ static void gfx_v8_0_hqd_set_priority(struct amdgpu_device *adev,
 	mutex_unlock(&adev->srbm_mutex);
 }
 static void gfx_v8_0_ring_set_priority_compute(struct amdgpu_ring *ring,
-					       enum amd_sched_priority priority)
+					       enum drm_sched_priority priority)
 {
 	struct amdgpu_device *adev = ring->adev;
-	bool acquire = priority == AMD_SCHED_PRIORITY_HIGH_HW;
+	bool acquire = priority == DRM_SCHED_PRIORITY_HIGH_HW;
 
 	if (ring->funcs->type != AMDGPU_RING_TYPE_COMPUTE)
 		return;

@@ -1150,7 +1150,7 @@ static int amdgpu_cs_submit(struct amdgpu_cs_parser *p,
 			    union drm_amdgpu_cs *cs)
 {
 	struct amdgpu_ring *ring = p->job->ring;
-	struct amd_sched_entity *entity = &p->ctx->rings[ring->idx].entity;
+	struct drm_sched_entity *entity = &p->ctx->rings[ring->idx].entity;
 	struct amdgpu_job *job;
 	unsigned i;
 	uint64_t seq;
@@ -1173,7 +1173,7 @@ static int amdgpu_cs_submit(struct amdgpu_cs_parser *p,
 	job = p->job;
 	p->job = NULL;
 
-	r = amd_sched_job_init(&job->base, &ring->sched, entity, p->filp);
+	r = drm_sched_job_init(&job->base, &ring->sched, entity, p->filp);
 	if (r) {
 		amdgpu_job_free(job);
 		amdgpu_mn_unlock(p->mn);
@@ -1202,7 +1202,7 @@ static int amdgpu_cs_submit(struct amdgpu_cs_parser *p,
 	amdgpu_ring_priority_get(job->ring, job->base.s_priority);
 
 	trace_amdgpu_cs_ioctl(job);
-	amd_sched_entity_push_job(&job->base, entity);
+	drm_sched_entity_push_job(&job->base, entity);
 
 	ttm_eu_fence_buffer_objects(&p->ticket, &p->validated, p->fence);
 	amdgpu_mn_unlock(p->mn);

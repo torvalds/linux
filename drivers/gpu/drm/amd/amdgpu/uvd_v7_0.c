@@ -385,7 +385,7 @@ static int uvd_v7_0_early_init(void *handle)
 static int uvd_v7_0_sw_init(void *handle)
 {
 	struct amdgpu_ring *ring;
-	struct amd_sched_rq *rq;
+	struct drm_sched_rq *rq;
 	int i, r;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
@@ -416,8 +416,8 @@ static int uvd_v7_0_sw_init(void *handle)
 	}
 
 	ring = &adev->uvd.ring_enc[0];
-	rq = &ring->sched.sched_rq[AMD_SCHED_PRIORITY_NORMAL];
-	r = amd_sched_entity_init(&ring->sched, &adev->uvd.entity_enc,
+	rq = &ring->sched.sched_rq[DRM_SCHED_PRIORITY_NORMAL];
+	r = drm_sched_entity_init(&ring->sched, &adev->uvd.entity_enc,
 				  rq, amdgpu_sched_jobs, NULL);
 	if (r) {
 		DRM_ERROR("Failed setting up UVD ENC run queue.\n");
@@ -472,7 +472,7 @@ static int uvd_v7_0_sw_fini(void *handle)
 	if (r)
 		return r;
 
-	amd_sched_entity_fini(&adev->uvd.ring_enc[0].sched, &adev->uvd.entity_enc);
+	drm_sched_entity_fini(&adev->uvd.ring_enc[0].sched, &adev->uvd.entity_enc);
 
 	for (i = 0; i < adev->uvd.num_enc_rings; ++i)
 		amdgpu_ring_fini(&adev->uvd.ring_enc[i]);

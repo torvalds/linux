@@ -445,7 +445,7 @@ int amdgpu_fence_driver_init_ring(struct amdgpu_ring *ring,
 			 */
 			timeout = MAX_SCHEDULE_TIMEOUT;
 		}
-		r = amd_sched_init(&ring->sched, &amdgpu_sched_ops,
+		r = drm_sched_init(&ring->sched, &amdgpu_sched_ops,
 				   num_hw_submission, amdgpu_job_hang_limit,
 				   timeout, ring->name);
 		if (r) {
@@ -503,7 +503,7 @@ void amdgpu_fence_driver_fini(struct amdgpu_device *adev)
 		}
 		amdgpu_irq_put(adev, ring->fence_drv.irq_src,
 			       ring->fence_drv.irq_type);
-		amd_sched_fini(&ring->sched);
+		drm_sched_fini(&ring->sched);
 		del_timer_sync(&ring->fence_drv.fallback_timer);
 		for (j = 0; j <= ring->fence_drv.num_fences_mask; ++j)
 			dma_fence_put(ring->fence_drv.fences[j]);

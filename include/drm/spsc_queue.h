@@ -21,10 +21,11 @@
  *
  */
 
-#ifndef AMD_SCHEDULER_SPSC_QUEUE_H_
-#define AMD_SCHEDULER_SPSC_QUEUE_H_
+#ifndef DRM_SCHEDULER_SPSC_QUEUE_H_
+#define DRM_SCHEDULER_SPSC_QUEUE_H_
 
 #include <linux/atomic.h>
+#include <linux/preempt.h>
 
 /** SPSC lockless queue */
 
@@ -118,4 +119,4 @@ static inline struct spsc_node *spsc_queue_pop(struct spsc_queue *queue)
 
 
 
-#endif /* AMD_SCHEDULER_SPSC_QUEUE_H_ */
+#endif /* DRM_SCHEDULER_SPSC_QUEUE_H_ */

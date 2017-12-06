@@ -45,6 +45,7 @@
 #include <drm/drmP.h>
 #include <drm/drm_gem.h>
 #include <drm/amdgpu_drm.h>
+#include <drm/gpu_scheduler.h>
 
 #include <kgd_kfd_interface.h>
 #include "dm_pp_interface.h"
@@ -68,7 +69,6 @@
 #include "amdgpu_vcn.h"
 #include "amdgpu_mn.h"
 #include "amdgpu_dm.h"
-#include "gpu_scheduler.h"
 #include "amdgpu_virt.h"
 #include "amdgpu_gart.h"
 
@@ -689,7 +689,7 @@ struct amdgpu_ib {
 	uint32_t			flags;
 };
 
-extern const struct amd_sched_backend_ops amdgpu_sched_ops;
+extern const struct drm_sched_backend_ops amdgpu_sched_ops;
 
 int amdgpu_job_alloc(struct amdgpu_device *adev, unsigned num_ibs,
 		     struct amdgpu_job **job, struct amdgpu_vm *vm);
@@ -699,7 +699,7 @@ int amdgpu_job_alloc_with_ib(struct amdgpu_device *adev, unsigned size,
 void amdgpu_job_free_resources(struct amdgpu_job *job);
 void amdgpu_job_free(struct amdgpu_job *job);
 int amdgpu_job_submit(struct amdgpu_job *job, struct amdgpu_ring *ring,
-		      struct amd_sched_entity *entity, void *owner,
+		      struct drm_sched_entity *entity, void *owner,
 		      struct dma_fence **f);
 
 /*
@@ -732,7 +732,7 @@ int amdgpu_queue_mgr_map(struct amdgpu_device *adev,
 struct amdgpu_ctx_ring {
 	uint64_t		sequence;
 	struct dma_fence	**fences;
-	struct amd_sched_entity	entity;
+	struct drm_sched_entity	entity;
 };
 
 struct amdgpu_ctx {
@@ -746,8 +746,8 @@ struct amdgpu_ctx {
 	struct dma_fence	**fences;
 	struct amdgpu_ctx_ring	rings[AMDGPU_MAX_RINGS];
 	bool			preamble_presented;
-	enum amd_sched_priority init_priority;
-	enum amd_sched_priority override_priority;
+	enum drm_sched_priority init_priority;
+	enum drm_sched_priority override_priority;
 	struct mutex            lock;
 	atomic_t	guilty;
 };
@@ -767,7 +767,7 @@ int amdgpu_ctx_add_fence(struct amdgpu_ctx *ctx, struct amdgpu_ring *ring,
 struct dma_fence *amdgpu_ctx_get_fence(struct amdgpu_ctx *ctx,
 				   struct amdgpu_ring *ring, uint64_t seq);
 void amdgpu_ctx_priority_override(struct amdgpu_ctx *ctx,
-				  enum amd_sched_priority priority);
+				  enum drm_sched_priority priority);
 
 int amdgpu_ctx_ioctl(struct drm_device *dev, void *data,
 		     struct drm_file *filp);
@@ -1116,7 +1116,7 @@ struct amdgpu_cs_parser {
 #define AMDGPU_HAVE_CTX_SWITCH              (1 << 2) /* bit set means context switch occured */
 
 struct amdgpu_job {
-	struct amd_sched_job    base;
+	struct drm_sched_job    base;
 	struct amdgpu_device	*adev;
 	struct amdgpu_vm	*vm;
 	struct amdgpu_ring	*ring;
