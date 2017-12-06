@@ -1465,10 +1465,7 @@ static int hdac_hdmi_parse_and_map_nid(struct hdac_ext_device *edev,
 		return -EINVAL;
 	}
 
-	hdev->num_nodes = num_nodes;
-	hdev->start_nid = nid;
-
-	for (i = 0; i < hdev->num_nodes; i++, nid++) {
+	for (i = 0; i < num_nodes; i++, nid++) {
 		unsigned int caps;
 		unsigned int type;
 
@@ -1493,8 +1490,6 @@ static int hdac_hdmi_parse_and_map_nid(struct hdac_ext_device *edev,
 			break;
 		}
 	}
-
-	hdev->end_nid = nid;
 
 	if (!hdmi->num_pin || !hdmi->num_cvt) {
 		ret = -EIO;
