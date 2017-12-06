@@ -2491,7 +2491,7 @@ static int pxa_camera_probe(struct platform_device *pdev)
 	dev_set_drvdata(&pdev->dev, pcdev);
 	err = v4l2_device_register(&pdev->dev, &pcdev->v4l2_dev);
 	if (err)
-		goto exit_free_dma;
+		goto exit_deactivate;
 
 	pcdev->asds[0] = &pcdev->asd;
 	pcdev->notifier.subdevs = pcdev->asds;
@@ -2527,6 +2527,8 @@ exit_free_clk:
 	v4l2_clk_unregister(pcdev->mclk_clk);
 exit_free_v4l2dev:
 	v4l2_device_unregister(&pcdev->v4l2_dev);
+exit_deactivate:
+	pxa_camera_deactivate(pcdev);
 exit_free_dma:
 	dma_release_channel(pcdev->dma_chans[2]);
 exit_free_dma_u:
