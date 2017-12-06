@@ -236,7 +236,9 @@ static int client_common_fill_super(struct super_block *sb, char *md, char *dt,
 				   "An MDT (md %s) is performing recovery, of which this client is not a part. Please wait for recovery to complete, abort, or time out.\n",
 				   md);
 		goto out;
-	} else if (err) {
+	}
+
+	if (err) {
 		CERROR("cannot connect to %s: rc = %d\n", md, err);
 		goto out;
 	}
