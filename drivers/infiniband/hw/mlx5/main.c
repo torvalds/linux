@@ -50,16 +50,14 @@
 #include <rdma/ib_cache.h>
 #include <linux/mlx5/port.h>
 #include <linux/mlx5/vport.h>
+#include <linux/mlx5/fs.h>
 #include <linux/list.h>
 #include <rdma/ib_smi.h>
 #include <rdma/ib_umem.h>
 #include <linux/in.h>
 #include <linux/etherdevice.h>
-#include <linux/mlx5/fs.h>
-#include <linux/mlx5/vport.h>
 #include "mlx5_ib.h"
 #include "cmd.h"
-#include <linux/mlx5/vport.h>
 
 #define DRIVER_NAME "mlx5_ib"
 #define DRIVER_VERSION "5.0-0"

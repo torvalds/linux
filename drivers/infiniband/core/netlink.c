@@ -41,8 +41,6 @@
 #include <linux/module.h>
 #include "core_priv.h"
 
-#include "core_priv.h"
-
 static DEFINE_MUTEX(rdma_nl_mutex);
 static struct sock *nls;
 static struct {
