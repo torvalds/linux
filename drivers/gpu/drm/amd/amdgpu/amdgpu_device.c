@@ -66,8 +66,7 @@ MODULE_FIRMWARE("amdgpu/raven_gpu_info.bin");
 
 static int amdgpu_debugfs_regs_init(struct amdgpu_device *adev);
 static void amdgpu_debugfs_regs_cleanup(struct amdgpu_device *adev);
-static int amdgpu_debugfs_test_ib_ring_init(struct amdgpu_device *adev);
-static int amdgpu_debugfs_vbios_dump_init(struct amdgpu_device *adev);
+static int amdgpu_debugfs_init(struct amdgpu_device *adev);
 
 static const char *amdgpu_asic_name[] = {
 	"TAHITI",
@@ -2405,17 +2404,13 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 	if (r)
 		DRM_ERROR("registering register debugfs failed (%d).\n", r);
 
-	r = amdgpu_debugfs_test_ib_ring_init(adev);
-	if (r)
-		DRM_ERROR("registering register test ib ring debugfs failed (%d).\n", r);
-
 	r = amdgpu_debugfs_firmware_init(adev);
 	if (r)
 		DRM_ERROR("registering firmware debugfs failed (%d).\n", r);
 
-	r = amdgpu_debugfs_vbios_dump_init(adev);
+	r = amdgpu_debugfs_init(adev);
 	if (r)
-		DRM_ERROR("Creating vbios dump debugfs failed (%d).\n", r);
+		DRM_ERROR("Creating debugfs files failed (%d).\n", r);
 
 	if ((amdgpu_testing & 1)) {
 		if (adev->accel_working)
@@ -3964,21 +3959,6 @@ static int amdgpu_debugfs_test_ib(struct seq_file *m, void *data)
 	return 0;
 }
 
-static const struct drm_info_list amdgpu_debugfs_test_ib_ring_list[] = {
-	{"amdgpu_test_ib", &amdgpu_debugfs_test_ib}
-};
-
-static int amdgpu_debugfs_test_ib_ring_init(struct amdgpu_device *adev)
-{
-	return amdgpu_debugfs_add_files(adev,
-					amdgpu_debugfs_test_ib_ring_list, 1);
-}
-
-int amdgpu_debugfs_init(struct drm_minor *minor)
-{
-	return 0;
-}
-
 static int amdgpu_debugfs_get_vbios_dump(struct seq_file *m, void *data)
 {
 	struct drm_info_node *node = (struct drm_info_node *) m->private;
@@ -3989,27 +3969,23 @@ static int amdgpu_debugfs_get_vbios_dump(struct seq_file *m, void *data)
 	return 0;
 }
 
-static const struct drm_info_list amdgpu_vbios_dump_list[] = {
-		{"amdgpu_vbios",
-		 amdgpu_debugfs_get_vbios_dump,
-		 0, NULL},
+static const struct drm_info_list amdgpu_debugfs_list[] = {
+	{"amdgpu_vbios", amdgpu_debugfs_get_vbios_dump},
+	{"amdgpu_test_ib", &amdgpu_debugfs_test_ib}
 };
 
-static int amdgpu_debugfs_vbios_dump_init(struct amdgpu_device *adev)
+static int amdgpu_debugfs_init(struct amdgpu_device *adev)
 {
-	return amdgpu_debugfs_add_files(adev,
-					amdgpu_vbios_dump_list, 1);
+	return amdgpu_debugfs_add_files(adev, amdgpu_debugfs_list,
+					ARRAY_SIZE(amdgpu_debugfs_list));
 }
+
 #else
-static int amdgpu_debugfs_test_ib_ring_init(struct amdgpu_device *adev)
+static int amdgpu_debugfs_init(struct amdgpu_device *adev)
 {
 	return 0;
 }
 static int amdgpu_debugfs_regs_init(struct amdgpu_device *adev)
-{
-	return 0;
-}
-static int amdgpu_debugfs_vbios_dump_init(struct amdgpu_device *adev)
 {
 	return 0;
 }

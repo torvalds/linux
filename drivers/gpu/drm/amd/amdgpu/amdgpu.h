@@ -1250,11 +1250,6 @@ int amdgpu_debugfs_add_files(struct amdgpu_device *adev,
 			     const struct drm_info_list *files,
 			     unsigned nfiles);
 int amdgpu_debugfs_fence_init(struct amdgpu_device *adev);
-
-#if defined(CONFIG_DEBUG_FS)
-int amdgpu_debugfs_init(struct drm_minor *minor);
-#endif
-
 int amdgpu_debugfs_firmware_init(struct amdgpu_device *adev);
 
 /*
