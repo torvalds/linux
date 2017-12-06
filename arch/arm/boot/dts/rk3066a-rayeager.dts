@@ -201,6 +201,18 @@
 	cpu0-supply = <&vdd_arm>;
 };
 
+&cpu0_opp_table {
+	opp-816000000 {
+		status = "okay";
+	};
+};
+
+&gpu_opp_table {
+	opp-300000000 {
+		status = "okay";
+	};
+};
+
 &emac {
 	pinctrl-names = "default";
 	pinctrl-0 = <&emac_xfer>, <&emac_mdio>, <&rmii_rst>;
