@@ -3755,6 +3755,7 @@ static enum dsa_tag_protocol mv88e6xxx_get_tag_protocol(struct dsa_switch *ds,
 	return chip->info->tag_protocol;
 }
 
+#if IS_ENABLED(CONFIG_NET_DSA_LEGACY)
 static const char *mv88e6xxx_drv_probe(struct device *dsa_dev,
 				       struct device *host_dev, int sw_addr,
 				       void **priv)
@@ -3802,6 +3803,7 @@ free:
 
 	return NULL;
 }
+#endif
 
 static int mv88e6xxx_port_mdb_prepare(struct dsa_switch *ds, int port,
 				      const struct switchdev_obj_port_mdb *mdb)
@@ -3841,7 +3843,9 @@ static int mv88e6xxx_port_mdb_del(struct dsa_switch *ds, int port,
 }
 
 static const struct dsa_switch_ops mv88e6xxx_switch_ops = {
+#if IS_ENABLED(CONFIG_NET_DSA_LEGACY)
 	.probe			= mv88e6xxx_drv_probe,
+#endif
 	.get_tag_protocol	= mv88e6xxx_get_tag_protocol,
 	.setup			= mv88e6xxx_setup,
 	.adjust_link		= mv88e6xxx_adjust_link,

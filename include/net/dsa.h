@@ -321,12 +321,14 @@ static inline unsigned int dsa_upstream_port(struct dsa_switch *ds, int port)
 typedef int dsa_fdb_dump_cb_t(const unsigned char *addr, u16 vid,
 			      bool is_static, void *data);
 struct dsa_switch_ops {
+#if IS_ENABLED(CONFIG_NET_DSA_LEGACY)
 	/*
 	 * Legacy probing.
 	 */
 	const char	*(*probe)(struct device *dsa_dev,
 				  struct device *host_dev, int sw_addr,
 				  void **priv);
+#endif
 
 	enum dsa_tag_protocol (*get_tag_protocol)(struct dsa_switch *ds,
 						  int port);
@@ -474,11 +476,20 @@ struct dsa_switch_driver {
 	const struct dsa_switch_ops *ops;
 };
 
+#if IS_ENABLED(CONFIG_NET_DSA_LEGACY)
 /* Legacy driver registration */
 void register_switch_driver(struct dsa_switch_driver *type);
 void unregister_switch_driver(struct dsa_switch_driver *type);
 struct mii_bus *dsa_host_dev_to_mii_bus(struct device *dev);
 
+#else
+static inline void register_switch_driver(struct dsa_switch_driver *type) { }
+static inline void unregister_switch_driver(struct dsa_switch_driver *type) { }
+static inline struct mii_bus *dsa_host_dev_to_mii_bus(struct device *dev)
+{
+	return NULL;
+}
+#endif
 struct net_device *dsa_dev_to_net_device(struct device *dev);
 
 /* Keep inline for faster access in hot path */

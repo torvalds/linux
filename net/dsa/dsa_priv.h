@@ -97,8 +97,17 @@ const struct dsa_device_ops *dsa_resolve_tag_protocol(int tag_protocol);
 bool dsa_schedule_work(struct work_struct *work);
 
 /* legacy.c */
+#if IS_ENABLED(CONFIG_NET_DSA_LEGACY)
 int dsa_legacy_register(void);
 void dsa_legacy_unregister(void);
+#else
+static inline int dsa_legacy_register(void)
+{
+	return -ENODEV;
+}
+
+static inline void dsa_legacy_unregister(void) { }
+#endif
 int dsa_legacy_fdb_add(struct ndmsg *ndm, struct nlattr *tb[],
 		       struct net_device *dev,
 		       const unsigned char *addr, u16 vid,
