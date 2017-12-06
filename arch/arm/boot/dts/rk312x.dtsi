@@ -46,6 +46,7 @@
 #include <dt-bindings/soc/rockchip,boot-mode.h>
 #include <dt-bindings/clock/rk3128-cru.h>
 #include <dt-bindings/display/media-bus-format.h>
+#include <dt-bindings/thermal/thermal.h>
 
 / {
 	interrupt-parent = <&gic>;
@@ -72,6 +73,8 @@
 			reg = <0xf00>;
 			operating-points-v2 = <&cpu0_opp_table>;
 			clocks = <&cru ARMCLK>;
+			#cooling-cells = <2>; /* min followed by max */
+			dynamic-power-coefficient = <120>;
 		};
 		cpu1: cpu@f01 {
 			device_type = "cpu";
@@ -213,6 +216,56 @@
 		interrupts = <GIC_PPI 13 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_HIGH)>,
 			     <GIC_PPI 14 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_HIGH)>;
 		clock-frequency = <24000000>;
+	};
+
+	thermal-zones {
+		soc_thermal: soc-thermal {
+			polling-delay-passive = <1000>;
+			polling-delay = <2000>;
+			sustainable-power = <200>;
+
+			thermal-sensors = <&tsadc 0>;
+
+			trips {
+				threshold: trip-point0 {
+					temperature = <80000>;
+					hysteresis = <2000>;
+					type = "passive";
+				};
+				target: trip-point1 {
+					temperature = <90000>;
+					hysteresis = <2000>;
+					type = "passive";
+				};
+				soc_crit: soc-crit {
+					temperature = <100000>;
+					hysteresis = <2000>;
+					type = "critical";
+				};
+			};
+
+			cooling-maps {
+				map0 {
+					trip = <&target>;
+					cooling-device = <&cpu0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+					contribution = <1024>;
+				};
+				map1 {
+					trip = <&target>;
+					cooling-device = <&gpu THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+					contribution = <1024>;
+				};
+			};
+		};
+
+	};
+
+	tsadc: tsadc {
+		compatible = "rockchip,rk3126-tsadc-virtual";
+		nvmem-cells = <&cpu_leakage>;
+		nvmem-cell-names = "cpu_leakage";
+		#thermal-sensor-cells = <1>;
+		status = "disabled";
 	};
 
 	xin24m: oscillator {
