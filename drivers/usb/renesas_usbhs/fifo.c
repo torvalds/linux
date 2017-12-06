@@ -94,8 +94,6 @@ static struct usbhs_pkt *__usbhsf_pkt_get(struct usbhs_pipe *pipe)
 	return list_first_entry_or_null(&pipe->list, struct usbhs_pkt, node);
 }
 
-static void usbhsf_fifo_clear(struct usbhs_pipe *pipe,
-			      struct usbhs_fifo *fifo);
 static void usbhsf_fifo_unselect(struct usbhs_pipe *pipe,
 				 struct usbhs_fifo *fifo);
 static struct dma_chan *usbhsf_dma_chan_get(struct usbhs_fifo *fifo,
@@ -124,9 +122,10 @@ struct usbhs_pkt *usbhs_pkt_pop(struct usbhs_pipe *pipe, struct usbhs_pkt *pkt)
 			chan = usbhsf_dma_chan_get(fifo, pkt);
 		if (chan) {
 			dmaengine_terminate_all(chan);
-			usbhsf_fifo_clear(pipe, fifo);
 			usbhsf_dma_unmap(pkt);
 		}
+
+		usbhs_pipe_clear_without_sequence(pipe, 0, 0);
 
 		__usbhsf_pkt_del(pkt);
 	}
