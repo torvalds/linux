@@ -185,7 +185,7 @@ The details of these operations are:
       void dma_async_issue_pending(struct dma_chan *chan);
 
 Further APIs:
-------------
+-------------
 
 1. Terminate APIs
 

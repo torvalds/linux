@@ -6,3 +6,6 @@ obj-$(CONFIG_PHY_BCM_NS_USB3)		+= phy-bcm-ns-usb3.o
 obj-$(CONFIG_PHY_NS2_PCIE)		+= phy-bcm-ns2-pcie.o
 obj-$(CONFIG_PHY_NS2_USB_DRD)		+= phy-bcm-ns2-usbdrd.o
 obj-$(CONFIG_PHY_BRCM_SATA)		+= phy-brcm-sata.o
+obj-$(CONFIG_PHY_BRCM_USB)		+= phy-brcm-usb-dvr.o
+
+phy-brcm-usb-dvr-objs := phy-brcm-usb.o phy-brcm-usb-init.o

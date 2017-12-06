@@ -13,3 +13,12 @@ config VFIO_PLATFORM_AMDXGBE_RESET
 	  Enables the VFIO platform driver to handle reset for AMD XGBE
 
 	  If you don't know what to do here, say N.
+
+config VFIO_PLATFORM_BCMFLEXRM_RESET
+	tristate "VFIO support for Broadcom FlexRM reset"
+	depends on VFIO_PLATFORM && (ARCH_BCM_IPROC || COMPILE_TEST)
+	default ARCH_BCM_IPROC
+	help
+	  Enables the VFIO platform driver to handle reset for Broadcom FlexRM
+
+	  If you don't know what to do here, say N.

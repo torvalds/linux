@@ -91,7 +91,7 @@ static struct dentry *proc_mount(struct file_system_type *fs_type,
 {
 	struct pid_namespace *ns;
 
-	if (flags & MS_KERNMOUNT) {
+	if (flags & SB_KERNMOUNT) {
 		ns = data;
 		data = NULL;
 	} else {

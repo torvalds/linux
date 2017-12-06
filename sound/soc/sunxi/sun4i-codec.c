@@ -346,11 +346,6 @@ static int sun4i_codec_prepare_capture(struct snd_pcm_substream *substream,
 				   0x3 << 8,
 				   0x1 << 8);
 
-	/* Fill most significant bits with valid data MSB */
-	regmap_field_update_bits(scodec->reg_adc_fifoc,
-				 BIT(SUN4I_CODEC_ADC_FIFOC_RX_FIFO_MODE),
-				 BIT(SUN4I_CODEC_ADC_FIFOC_RX_FIFO_MODE));
-
 	return 0;
 }
 
@@ -489,6 +484,30 @@ static int sun4i_codec_hw_params_capture(struct sun4i_codec *scodec,
 		regmap_field_update_bits(scodec->reg_adc_fifoc,
 					 BIT(SUN4I_CODEC_ADC_FIFOC_MONO_EN),
 					 0);
+
+	/* Set the number of sample bits to either 16 or 24 bits */
+	if (hw_param_interval(params, SNDRV_PCM_HW_PARAM_SAMPLE_BITS)->min == 32) {
+		regmap_field_update_bits(scodec->reg_adc_fifoc,
+				   BIT(SUN4I_CODEC_ADC_FIFOC_RX_SAMPLE_BITS),
+				   BIT(SUN4I_CODEC_ADC_FIFOC_RX_SAMPLE_BITS));
+
+		regmap_field_update_bits(scodec->reg_adc_fifoc,
+				   BIT(SUN4I_CODEC_ADC_FIFOC_RX_FIFO_MODE),
+				   0);
+
+		scodec->capture_dma_data.addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
+	} else {
+		regmap_field_update_bits(scodec->reg_adc_fifoc,
+				   BIT(SUN4I_CODEC_ADC_FIFOC_RX_SAMPLE_BITS),
+				   0);
+
+		/* Fill most significant bits with valid data MSB */
+		regmap_field_update_bits(scodec->reg_adc_fifoc,
+				   BIT(SUN4I_CODEC_ADC_FIFOC_RX_FIFO_MODE),
+				   BIT(SUN4I_CODEC_ADC_FIFOC_RX_FIFO_MODE));
+
+		scodec->capture_dma_data.addr_width = DMA_SLAVE_BUSWIDTH_2_BYTES;
+	}
 
 	return 0;
 }

@@ -33,7 +33,6 @@ nv1a_fb = {
 	.tile.fini = nv10_fb_tile_fini,
 	.tile.prog = nv10_fb_tile_prog,
 	.ram_new = nv1a_ram_new,
-	.memtype_valid = nv04_fb_memtype_valid,
 };
 
 int

@@ -15,6 +15,7 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <media/rc-core.h>
+#include <linux/bsearch.h>
 #include <linux/spinlock.h>
 #include <linux/delay.h>
 #include <linux/input.h>
@@ -439,9 +440,6 @@ static int ir_setkeytable(struct rc_dev *dev,
 	if (rc)
 		return rc;
 
-	IR_dprintk(1, "Allocated space for %u keycode entries (%u bytes)\n",
-		   rc_map->size, rc_map->alloc);
-
 	for (i = 0; i < from->size; i++) {
 		index = ir_establish_scancode(dev, rc_map,
 					      from->scan[i].scancode, false);
@@ -460,6 +458,18 @@ static int ir_setkeytable(struct rc_dev *dev,
 	return rc;
 }
 
+static int rc_map_cmp(const void *key, const void *elt)
+{
+	const unsigned int *scancode = key;
+	const struct rc_map_table *e = elt;
+
+	if (*scancode < e->scancode)
+		return -1;
+	else if (*scancode > e->scancode)
+		return 1;
+	return 0;
+}
+
 /**
  * ir_lookup_by_scancode() - locate mapping by scancode
  * @rc_map:	the struct rc_map to search
@@ -472,21 +482,14 @@ static int ir_setkeytable(struct rc_dev *dev,
 static unsigned int ir_lookup_by_scancode(const struct rc_map *rc_map,
 					  unsigned int scancode)
 {
-	int start = 0;
-	int end = rc_map->len - 1;
-	int mid;
+	struct rc_map_table *res;
 
-	while (start <= end) {
-		mid = (start + end) / 2;
-		if (rc_map->scan[mid].scancode < scancode)
-			start = mid + 1;
-		else if (rc_map->scan[mid].scancode > scancode)
-			end = mid - 1;
-		else
-			return mid;
-	}
-
-	return -1U;
+	res = bsearch(&scancode, rc_map->scan, rc_map->len,
+		      sizeof(struct rc_map_table), rc_map_cmp);
+	if (!res)
+		return -1U;
+	else
+		return res - rc_map->scan;
 }
 
 /**
@@ -627,9 +630,9 @@ EXPORT_SYMBOL_GPL(rc_keyup);
  * This routine will generate a keyup event some time after a keydown event
  * is generated when no further activity has been detected.
  */
-static void ir_timer_keyup(unsigned long cookie)
+static void ir_timer_keyup(struct timer_list *t)
 {
-	struct rc_dev *dev = (struct rc_dev *)cookie;
+	struct rc_dev *dev = from_timer(dev, t, timer_keyup);
 	unsigned long flags;
 
 	/*
@@ -1480,6 +1483,8 @@ static int rc_dev_uevent(struct device *device, struct kobj_uevent_env *env)
 		ADD_HOTPLUG_VAR("NAME=%s", dev->rc_map.name);
 	if (dev->driver_name)
 		ADD_HOTPLUG_VAR("DRV_NAME=%s", dev->driver_name);
+	if (dev->device_name)
+		ADD_HOTPLUG_VAR("DEV_NAME=%s", dev->device_name);
 
 	return 0;
 }
@@ -1487,7 +1492,10 @@ static int rc_dev_uevent(struct device *device, struct kobj_uevent_env *env)
 /*
  * Static device attribute struct with the sysfs attributes for IR's
  */
-static DEVICE_ATTR(protocols, 0644, show_protocols, store_protocols);
+static struct device_attribute dev_attr_ro_protocols =
+__ATTR(protocols, 0444, show_protocols, NULL);
+static struct device_attribute dev_attr_rw_protocols =
+__ATTR(protocols, 0644, show_protocols, store_protocols);
 static DEVICE_ATTR(wakeup_protocols, 0644, show_wakeup_protocols,
 		   store_wakeup_protocols);
 static RC_FILTER_ATTR(filter, S_IRUGO|S_IWUSR,
@@ -1499,13 +1507,22 @@ static RC_FILTER_ATTR(wakeup_filter, S_IRUGO|S_IWUSR,
 static RC_FILTER_ATTR(wakeup_filter_mask, S_IRUGO|S_IWUSR,
 		      show_filter, store_filter, RC_FILTER_WAKEUP, true);
 
-static struct attribute *rc_dev_protocol_attrs[] = {
-	&dev_attr_protocols.attr,
+static struct attribute *rc_dev_rw_protocol_attrs[] = {
+	&dev_attr_rw_protocols.attr,
 	NULL,
 };
 
-static const struct attribute_group rc_dev_protocol_attr_grp = {
-	.attrs	= rc_dev_protocol_attrs,
+static const struct attribute_group rc_dev_rw_protocol_attr_grp = {
+	.attrs	= rc_dev_rw_protocol_attrs,
+};
+
+static struct attribute *rc_dev_ro_protocol_attrs[] = {
+	&dev_attr_ro_protocols.attr,
+	NULL,
+};
+
+static const struct attribute_group rc_dev_ro_protocol_attr_grp = {
+	.attrs	= rc_dev_ro_protocol_attrs,
 };
 
 static struct attribute *rc_dev_filter_attrs[] = {
@@ -1529,7 +1546,7 @@ static const struct attribute_group rc_dev_wakeup_filter_attr_grp = {
 	.attrs	= rc_dev_wakeup_filter_attrs,
 };
 
-static struct device_type rc_dev_type = {
+static const struct device_type rc_dev_type = {
 	.release	= rc_dev_release,
 	.uevent		= rc_dev_uevent,
 };
@@ -1553,8 +1570,7 @@ struct rc_dev *rc_allocate_device(enum rc_driver_type type)
 		dev->input_dev->setkeycode = ir_setkeycode;
 		input_set_drvdata(dev->input_dev, dev);
 
-		setup_timer(&dev->timer_keyup, ir_timer_keyup,
-			    (unsigned long)dev);
+		timer_setup(&dev->timer_keyup, ir_timer_keyup, 0);
 
 		spin_lock_init(&dev->rc_map.lock);
 		spin_lock_init(&dev->keylock);
@@ -1637,6 +1653,9 @@ static int rc_prepare_rx_device(struct rc_dev *dev)
 		return rc;
 
 	rc_proto = BIT_ULL(rc_map->rc_proto);
+
+	if (dev->driver_type == RC_DRIVER_SCANCODE && !dev->change_protocol)
+		dev->enabled_protocols = dev->allowed_protocols;
 
 	if (dev->change_protocol) {
 		rc = dev->change_protocol(dev, &rc_proto);
@@ -1729,8 +1748,10 @@ int rc_register_device(struct rc_dev *dev)
 	dev_set_drvdata(&dev->dev, dev);
 
 	dev->dev.groups = dev->sysfs_groups;
-	if (dev->driver_type != RC_DRIVER_IR_RAW_TX)
-		dev->sysfs_groups[attr++] = &rc_dev_protocol_attr_grp;
+	if (dev->driver_type == RC_DRIVER_SCANCODE && !dev->change_protocol)
+		dev->sysfs_groups[attr++] = &rc_dev_ro_protocol_attr_grp;
+	else if (dev->driver_type != RC_DRIVER_IR_RAW_TX)
+		dev->sysfs_groups[attr++] = &rc_dev_rw_protocol_attr_grp;
 	if (dev->s_filter)
 		dev->sysfs_groups[attr++] = &rc_dev_filter_attr_grp;
 	if (dev->s_wakeup_filter)

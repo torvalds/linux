@@ -116,7 +116,6 @@ static int lpc18xx_adc_read_raw(struct iio_dev *indio_dev,
 
 static const struct iio_info lpc18xx_adc_info = {
 	.read_raw = lpc18xx_adc_read_raw,
-	.driver_module = THIS_MODULE,
 };
 
 static int lpc18xx_adc_probe(struct platform_device *pdev)

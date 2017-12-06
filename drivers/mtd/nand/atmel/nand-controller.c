@@ -718,8 +718,7 @@ static void atmel_nfc_set_op_addr(struct nand_chip *chip, int page, int column)
 		nc->op.addrs[nc->op.naddrs++] = page;
 		nc->op.addrs[nc->op.naddrs++] = page >> 8;
 
-		if ((mtd->writesize > 512 && chip->chipsize > SZ_128M) ||
-		    (mtd->writesize <= 512 && chip->chipsize > SZ_32M))
+		if (chip->options & NAND_ROW_ADDR_3)
 			nc->op.addrs[nc->op.naddrs++] = page >> 16;
 	}
 }
@@ -2530,6 +2529,9 @@ static __maybe_unused int atmel_nand_controller_resume(struct device *dev)
 	struct atmel_nand_controller *nc = dev_get_drvdata(dev);
 	struct atmel_nand *nand;
 
+	if (nc->pmecc)
+		atmel_pmecc_reset(nc->pmecc);
+
 	list_for_each_entry(nand, &nc->chips, node) {
 		int i;
 
@@ -2547,6 +2549,7 @@ static struct platform_driver atmel_nand_controller_driver = {
 	.driver = {
 		.name = "atmel-nand-controller",
 		.of_match_table = of_match_ptr(atmel_nand_controller_of_ids),
+		.pm = &atmel_nand_controller_pm_ops,
 	},
 	.probe = atmel_nand_controller_probe,
 	.remove = atmel_nand_controller_remove,

@@ -77,7 +77,9 @@ static inline bool should_writeback(struct cached_dev *dc, struct bio *bio,
 	if (would_skip)
 		return false;
 
-	return op_is_sync(bio->bi_opf) || in_use <= CUTOFF_WRITEBACK;
+	return (op_is_sync(bio->bi_opf) ||
+		bio->bi_opf & (REQ_META|REQ_PRIO) ||
+		in_use <= CUTOFF_WRITEBACK);
 }
 
 static inline void bch_writeback_queue(struct cached_dev *dc)
@@ -90,7 +92,7 @@ static inline void bch_writeback_add(struct cached_dev *dc)
 {
 	if (!atomic_read(&dc->has_dirty) &&
 	    !atomic_xchg(&dc->has_dirty, 1)) {
-		atomic_inc(&dc->count);
+		refcount_inc(&dc->count);
 
 		if (BDEV_STATE(&dc->sb) != BDEV_STATE_DIRTY) {
 			SET_BDEV_STATE(&dc->sb, BDEV_STATE_DIRTY);

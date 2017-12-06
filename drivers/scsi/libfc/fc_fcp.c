@@ -1214,7 +1214,7 @@ static int fc_fcp_cmd_send(struct fc_lport *lport, struct fc_fcp_pkt *fsp,
 	fsp->seq_ptr = seq;
 	fc_fcp_pkt_hold(fsp);	/* hold for fc_fcp_pkt_destroy */
 
-	fsp->timer.function = (TIMER_FUNC_TYPE)fc_fcp_timeout;
+	fsp->timer.function = fc_fcp_timeout;
 	if (rpriv->flags & FC_RP_FLAGS_REC_SUPPORTED)
 		fc_fcp_timer_set(fsp, get_fsp_rec_tov(fsp));
 
@@ -1307,7 +1307,7 @@ static void fc_lun_reset_send(struct timer_list *t)
 			return;
 		if (fc_fcp_lock_pkt(fsp))
 			return;
-		fsp->timer.function = (TIMER_FUNC_TYPE)fc_lun_reset_send;
+		fsp->timer.function = fc_lun_reset_send;
 		fc_fcp_timer_set(fsp, get_fsp_rec_tov(fsp));
 		fc_fcp_unlock_pkt(fsp);
 	}
@@ -1445,7 +1445,7 @@ static void fc_fcp_timeout(struct timer_list *t)
 	if (fsp->lp->qfull) {
 		FC_FCP_DBG(fsp, "fcp timeout, resetting timer delay %d\n",
 			   fsp->timer_delay);
-		fsp->timer.function = (TIMER_FUNC_TYPE)fc_fcp_timeout;
+		fsp->timer.function = fc_fcp_timeout;
 		fc_fcp_timer_set(fsp, fsp->timer_delay);
 		goto unlock;
 	}

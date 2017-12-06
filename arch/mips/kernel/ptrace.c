@@ -144,6 +144,9 @@ int ptrace_setregs(struct task_struct *child, struct user_pt_regs __user *data)
 
 	/* badvaddr, status, and cause may not be written.  */
 
+	/* System call number may have been changed */
+	mips_syscall_update_nr(child, regs);
+
 	return 0;
 }
 
@@ -345,6 +348,9 @@ static int gpr32_set(struct task_struct *target,
 		}
 	}
 
+	/* System call number may have been changed */
+	mips_syscall_update_nr(target, regs);
+
 	return 0;
 }
 
@@ -404,6 +410,9 @@ static int gpr64_set(struct task_struct *target,
 			break;
 		}
 	}
+
+	/* System call number may have been changed */
+	mips_syscall_update_nr(target, regs);
 
 	return 0;
 }
@@ -618,6 +627,19 @@ static const struct user_regset_view user_mips64_view = {
 	.n		= ARRAY_SIZE(mips64_regsets),
 };
 
+#ifdef CONFIG_MIPS32_N32
+
+static const struct user_regset_view user_mipsn32_view = {
+	.name		= "mipsn32",
+	.e_flags	= EF_MIPS_ABI2,
+	.e_machine	= ELF_ARCH,
+	.ei_osabi	= ELF_OSABI,
+	.regsets	= mips64_regsets,
+	.n		= ARRAY_SIZE(mips64_regsets),
+};
+
+#endif /* CONFIG_MIPS32_N32 */
+
 #endif /* CONFIG_64BIT */
 
 const struct user_regset_view *task_user_regset_view(struct task_struct *task)
@@ -628,6 +650,10 @@ const struct user_regset_view *task_user_regset_view(struct task_struct *task)
 #ifdef CONFIG_MIPS32_O32
 	if (test_tsk_thread_flag(task, TIF_32BIT_REGS))
 		return &user_mips_view;
+#endif
+#ifdef CONFIG_MIPS32_N32
+	if (test_tsk_thread_flag(task, TIF_32BIT_ADDR))
+		return &user_mipsn32_view;
 #endif
 	return &user_mips64_view;
 #endif
@@ -753,6 +779,12 @@ long arch_ptrace(struct task_struct *child, long request,
 		switch (addr) {
 		case 0 ... 31:
 			regs->regs[addr] = data;
+			/* System call number may have been changed */
+			if (addr == 2)
+				mips_syscall_update_nr(child, regs);
+			else if (addr == 4 &&
+				 mips_syscall_is_indirect(child, regs))
+				mips_syscall_update_nr(child, regs);
 			break;
 		case FPR_BASE ... FPR_BASE + 31: {
 			union fpureg *fregs = get_fpu_regs(child);
@@ -864,9 +896,11 @@ asmlinkage long syscall_trace_enter(struct pt_regs *regs, long syscall)
 
 	current_thread_info()->syscall = syscall;
 
-	if (test_thread_flag(TIF_SYSCALL_TRACE) &&
-	    tracehook_report_syscall_entry(regs))
-		return -1;
+	if (test_thread_flag(TIF_SYSCALL_TRACE)) {
+		if (tracehook_report_syscall_entry(regs))
+			return -1;
+		syscall = current_thread_info()->syscall;
+	}
 
 #ifdef CONFIG_SECCOMP
 	if (unlikely(test_thread_flag(TIF_SECCOMP))) {
@@ -884,6 +918,7 @@ asmlinkage long syscall_trace_enter(struct pt_regs *regs, long syscall)
 		ret = __secure_computing(&sd);
 		if (ret == -1)
 			return ret;
+		syscall = current_thread_info()->syscall;
 	}
 #endif
 

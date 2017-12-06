@@ -57,7 +57,7 @@
 #include "vt.h"
 #include "trace.h"
 
-static void rvt_rc_timeout(unsigned long arg);
+static void rvt_rc_timeout(struct timer_list *t);
 
 /*
  * Convert the AETH RNR timeout code into the number of microseconds.
@@ -238,7 +238,7 @@ int rvt_driver_qp_init(struct rvt_dev_info *rdi)
 	rdi->qp_dev->qp_table_size = rdi->dparms.qp_table_size;
 	rdi->qp_dev->qp_table_bits = ilog2(rdi->dparms.qp_table_size);
 	rdi->qp_dev->qp_table =
-		kmalloc_node(rdi->qp_dev->qp_table_size *
+		kmalloc_array_node(rdi->qp_dev->qp_table_size,
 			     sizeof(*rdi->qp_dev->qp_table),
 			     GFP_KERNEL, rdi->dparms.node);
 	if (!rdi->qp_dev->qp_table)
@@ -717,7 +717,6 @@ static void rvt_reset_qp(struct rvt_dev_info *rdi, struct rvt_qp *qp,
 
 		/* take qp out the hash and wait for it to be unused */
 		rvt_remove_qp(rdi, qp);
-		wait_event(qp->wait, !atomic_read(&qp->refcount));
 
 		/* grab the lock b/c it was locked at call time */
 		spin_lock_irq(&qp->r_lock);
@@ -807,6 +806,7 @@ struct ib_qp *rvt_create_qp(struct ib_pd *ibpd,
 		if (init_attr->port_num == 0 ||
 		    init_attr->port_num > ibpd->device->phys_port_cnt)
 			return ERR_PTR(-EINVAL);
+		/* fall through */
 	case IB_QPT_UC:
 	case IB_QPT_RC:
 	case IB_QPT_UD:
@@ -845,7 +845,7 @@ struct ib_qp *rvt_create_qp(struct ib_pd *ibpd,
 				goto bail_qp;
 		}
 		/* initialize timers needed for rc qp */
-		setup_timer(&qp->s_timer, rvt_rc_timeout, (unsigned long)qp);
+		timer_setup(&qp->s_timer, rvt_rc_timeout, 0);
 		hrtimer_init(&qp->s_rnr_timer, CLOCK_MONOTONIC,
 			     HRTIMER_MODE_REL);
 		qp->s_rnr_timer.function = rvt_rc_rnr_retry;
@@ -894,8 +894,6 @@ struct ib_qp *rvt_create_qp(struct ib_pd *ibpd,
 		atomic_set(&qp->refcount, 0);
 		atomic_set(&qp->local_ops_pending, 0);
 		init_waitqueue_head(&qp->wait);
-		init_timer(&qp->s_timer);
-		qp->s_timer.data = (unsigned long)qp;
 		INIT_LIST_HEAD(&qp->rspwait);
 		qp->state = IB_QPS_RESET;
 		qp->s_wq = swq;
@@ -1443,6 +1441,7 @@ int rvt_destroy_qp(struct ib_qp *ibqp)
 	spin_unlock(&qp->s_hlock);
 	spin_unlock_irq(&qp->r_lock);
 
+	wait_event(qp->wait, !atomic_read(&qp->refcount));
 	/* qpn is now available for use again */
 	rvt_free_qpn(&rdi->qp_dev->qpn_table, qp->ibqp.qp_num);
 
@@ -2132,9 +2131,9 @@ EXPORT_SYMBOL(rvt_del_timers_sync);
 /**
  * This is called from s_timer for missing responses.
  */
-static void rvt_rc_timeout(unsigned long arg)
+static void rvt_rc_timeout(struct timer_list *t)
 {
-	struct rvt_qp *qp = (struct rvt_qp *)arg;
+	struct rvt_qp *qp = from_timer(qp, t, s_timer);
 	struct rvt_dev_info *rdi = ib_to_rvt(qp->ibqp.device);
 	unsigned long flags;
 

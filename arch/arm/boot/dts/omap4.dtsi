@@ -51,6 +51,17 @@
 		};
 	};
 
+	/*
+	 * Note that 4430 needs cross trigger interface (CTI) supported
+	 * before we can configure the interrupts. This means sampling
+	 * events are not supported for pmu. Note that 4460 does not use
+	 * CTI, see also 4460.dtsi.
+	 */
+	pmu {
+		compatible = "arm,cortex-a9-pmu";
+		ti,hwmods = "debugss";
+	};
+
 	gic: interrupt-controller@48241000 {
 		compatible = "arm,cortex-a9-gic";
 		interrupt-controller;
@@ -163,6 +174,7 @@
 				#address-cells = <1>;
 				#size-cells = <1>;
 				ranges = <0 0x2000 0x1000>;
+				ti,hwmods = "ctrl_module_core";
 
 				scm_conf: scm_conf@0 {
 					compatible = "syscon";
@@ -175,9 +187,11 @@
 			omap4_padconf_core: scm@100000 {
 				compatible = "ti,omap4-scm-padconf-core",
 					     "simple-bus";
+				reg = <0x100000 0x1000>;
 				#address-cells = <1>;
 				#size-cells = <1>;
 				ranges = <0 0x100000 0x1000>;
+				ti,hwmods = "ctrl_module_pad_core";
 
 				omap4_pmx_core: pinmux@40 {
 					compatible = "ti,omap4-padconf",
@@ -252,17 +266,33 @@
 					};
 				};
 
-				omap4_pmx_wkup: pinmux@1e040 {
-					compatible = "ti,omap4-padconf",
-						     "pinctrl-single";
-					reg = <0x1e040 0x0038>;
+				omap4_scm_wkup: scm@c000 {
+					compatible = "ti,omap4-scm-wkup";
+					reg = <0xc000 0x1000>;
+					ti,hwmods = "ctrl_module_wkup";
+				};
+
+				omap4_padconf_wkup: padconf@1e000 {
+					compatible = "ti,omap4-scm-padconf-wkup",
+						     "simple-bus";
+					reg = <0x1e000 0x1000>;
 					#address-cells = <1>;
-					#size-cells = <0>;
-					#pinctrl-cells = <1>;
-					#interrupt-cells = <1>;
-					interrupt-controller;
-					pinctrl-single,register-width = <16>;
-					pinctrl-single,function-mask = <0x7fff>;
+					#size-cells = <1>;
+					ranges = <0 0x1e000 0x1000>;
+					ti,hwmods = "ctrl_module_pad_wkup";
+
+					omap4_pmx_wkup: pinmux@40 {
+						compatible = "ti,omap4-padconf",
+							     "pinctrl-single";
+						reg = <0x40 0x0038>;
+						#address-cells = <1>;
+						#size-cells = <0>;
+						#pinctrl-cells = <1>;
+						#interrupt-cells = <1>;
+						interrupt-controller;
+						pinctrl-single,register-width = <16>;
+						pinctrl-single,function-mask = <0x7fff>;
+					};
 				};
 			};
 		};
@@ -282,6 +312,7 @@
 			#dma-cells = <1>;
 			dma-channels = <32>;
 			dma-requests = <127>;
+			ti,hwmods = "dma_system";
 		};
 
 		gpio1: gpio@4a310000 {
@@ -351,6 +382,19 @@
 			#interrupt-cells = <2>;
 		};
 
+		target-module@48076000 {
+			compatible = "ti,sysc-omap4";
+			ti,hwmods = "slimbus2";
+			reg = <0x48076000 0x4>,
+			      <0x48076010 0x4>;
+			reg-names = "rev", "sysc";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0 0x48076000 0x001000>;
+
+			/* No child device binding or driver in mainline */
+		};
+
 		elm: elm@48078000 {
 			compatible = "ti,am3352-elm";
 			reg = <0x48078000 0x2000>;
@@ -409,6 +453,57 @@
 			interrupts = <GIC_SPI 70 IRQ_TYPE_LEVEL_HIGH>;
 			ti,hwmods = "uart4";
 			clock-frequency = <48000000>;
+		};
+
+		target-module@4a0db000 {
+			compatible = "ti,sysc-sr";
+			ti,hwmods = "smartreflex_iva";
+			reg = <0x4a0db000 0x4>,
+			      <0x4a0db008 0x4>;
+			reg-names = "rev", "sysc";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0 0x4a0db000 0x001000>;
+
+			smartreflex_iva: smartreflex@0 {
+				compatible = "ti,omap4-smartreflex-iva";
+				reg = <0 0x80>;
+				interrupts = <GIC_SPI 102 IRQ_TYPE_LEVEL_HIGH>;
+			};
+		};
+
+		target-module@4a0dd000 {
+			compatible = "ti,sysc-sr";
+			ti,hwmods = "smartreflex_core";
+			reg = <0x4a0dd000 0x4>,
+			      <0x4a0dd008 0x4>;
+			reg-names = "rev", "sysc";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0 0x4a0dd000 0x001000>;
+
+			smartreflex_core: smartreflex@0 {
+				compatible = "ti,omap4-smartreflex-core";
+				reg = <0 0x80>;
+				interrupts = <GIC_SPI 19 IRQ_TYPE_LEVEL_HIGH>;
+			};
+		};
+
+		target-module@4a0d9000 {
+			compatible = "ti,sysc-sr";
+			ti,hwmods = "smartreflex_mpu";
+			reg = <0x4a0d9000 0x4>,
+			      <0x4a0d9008 0x4>;
+			reg-names = "rev", "sysc";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0 0x4a0d9000 0x001000>;
+
+			smartreflex_mpu: smartreflex@0 {
+				compatible = "ti,omap4-smartreflex-mpu";
+				reg = <0 0x80>;
+				interrupts = <GIC_SPI 18 IRQ_TYPE_LEVEL_HIGH>;
+			};
 		};
 
 		hwspinlock: spinlock@4a0f6000 {
@@ -489,6 +584,13 @@
 			dma-names = "tx0", "rx0", "tx1", "rx1";
 		};
 
+		hdqw1w: 1w@480b2000 {
+			compatible = "ti,omap3-1w";
+			reg = <0x480b2000 0x1000>;
+			interrupts = <GIC_SPI 58 IRQ_TYPE_LEVEL_HIGH>;
+			ti,hwmods = "hdq1w";
+		};
+
 		mcspi3: spi@480b8000 {
 			compatible = "ti,omap4-mcspi";
 			reg = <0x480b8000 0x200>;
@@ -565,12 +667,59 @@
 			dma-names = "tx", "rx";
 		};
 
+		hsi: hsi@4a058000 {
+			compatible = "ti,omap4-hsi";
+			reg = <0x4a058000 0x4000>,
+			      <0x4a05c000 0x1000>;
+			reg-names = "sys", "gdd";
+			ti,hwmods = "hsi";
+
+			clocks = <&hsi_fck>;
+			clock-names = "hsi_fck";
+
+			interrupts = <GIC_SPI 71 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "gdd_mpu";
+
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0 0x4a058000 0x4000>;
+
+			hsi_port1: hsi-port@2000 {
+				compatible = "ti,omap4-hsi-port";
+				reg = <0x2000 0x800>,
+				      <0x2800 0x800>;
+				reg-names = "tx", "rx";
+				interrupts = <GIC_SPI 67 IRQ_TYPE_LEVEL_HIGH>;
+			};
+
+			hsi_port2: hsi-port@3000 {
+				compatible = "ti,omap4-hsi-port";
+				reg = <0x3000 0x800>,
+				      <0x3800 0x800>;
+				reg-names = "tx", "rx";
+				interrupts = <GIC_SPI 68 IRQ_TYPE_LEVEL_HIGH>;
+			};
+		};
+
 		mmu_dsp: mmu@4a066000 {
 			compatible = "ti,omap4-iommu";
 			reg = <0x4a066000 0x100>;
 			interrupts = <GIC_SPI 28 IRQ_TYPE_LEVEL_HIGH>;
 			ti,hwmods = "mmu_dsp";
 			#iommu-cells = <0>;
+		};
+
+		target-module@52000000 {
+			compatible = "ti,sysc-omap4";
+			ti,hwmods = "iss";
+			reg = <0x52000000 0x4>,
+			      <0x52000010 0x4>;
+			reg-names = "rev", "sysc";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0 0x52000000 0x1000000>;
+
+			/* No child device binding, driver in staging */
 		};
 
 		mmu_ipu: mmu@55082000 {
@@ -587,6 +736,14 @@
 			reg = <0x4a314000 0x80>;
 			interrupts = <GIC_SPI 80 IRQ_TYPE_LEVEL_HIGH>;
 			ti,hwmods = "wd_timer2";
+		};
+
+		wdt3: wdt@40130000 {
+			compatible = "ti,omap4-wdt", "ti,omap3-wdt";
+			reg = <0x40130000 0x80>, /* MPU private access */
+			      <0x49030000 0x80>; /* L3 Interconnect */
+			interrupts = <GIC_SPI 36 IRQ_TYPE_LEVEL_HIGH>;
+			ti,hwmods = "wd_timer3";
 		};
 
 		mcpdm: mcpdm@40132000 {
@@ -657,6 +814,56 @@
 			       <&sdma 20>;
 			dma-names = "tx", "rx";
 			status = "disabled";
+		};
+
+		target-module@40128000 {
+			compatible = "ti,sysc-mcasp";
+			ti,hwmods = "mcasp";
+			reg = <0x40128004 0x4>;
+			reg-names = "sysc";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x00000000 0x40128000 0x1000>, /* MPU */
+				 <0x49028000 0x49028000 0x1000>; /* L3 */
+
+			/*
+			 * Child device unsupported by davinci-mcasp. At least
+			 * RX path is disabled for omap4, and only DIT mode
+			 * works with no I2S. See also old Android kernel
+			 * omap-mcasp driver for more information.
+			 */
+		};
+
+		target-module@4012c000 {
+			compatible = "ti,sysc-omap4";
+			ti,hwmods = "slimbus1";
+			reg = <0x4012c000 0x4>,
+			      <0x4012c010 0x4>;
+			reg-names = "rev", "sysc";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x00000000 0x4012c000 0x1000>, /* MPU */
+				 <0x4902c000 0x4902c000 0x1000>; /* L3 */
+
+			/* No child device binding or driver in mainline */
+		};
+
+		target-module@401f1000 {
+			compatible = "ti,sysc-omap4";
+			ti,hwmods = "aess";
+			reg = <0x401f1000 0x4>,
+			      <0x401f1010 0x4>;
+			reg-names = "rev", "sysc";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x00000000 0x401f1000 0x1000>, /* MPU */
+				 <0x490f1000 0x490f1000 0x1000>; /* L3 */
+
+			/*
+			 * No child device binding or driver in mainline.
+			 * See Android tree and related upstreaming efforts
+			 * for the old driver.
+			 */
 		};
 
 		mcbsp4: mcbsp@48096000 {
@@ -745,6 +952,19 @@
 				ti,mbox-tx = <3 0 0>;
 				ti,mbox-rx = <2 0 0>;
 			};
+		};
+
+		target-module@4a10a000 {
+			compatible = "ti,sysc-omap4";
+			ti,hwmods = "fdif";
+			reg = <0x4a10a000 0x4>,
+			      <0x4a10a010 0x4>;
+			reg-names = "rev", "sysc";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0 0x4a10a000 0x1000>;
+
+			/* No child device binding or driver in mainline */
 		};
 
 		timer1: timer@4a318000 {
@@ -960,6 +1180,22 @@
 			ti,clock-cycles = <16>;
 
 			status = "disabled";
+		};
+
+		target-module@56000000 {
+			compatible = "ti,sysc-omap4";
+			ti,hwmods = "gpu";
+			reg = <0x5601fc00 0x4>,
+			      <0x5601fc10 0x4>;
+			reg-names = "rev", "sysc";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0 0x56000000 0x2000000>;
+
+			/*
+			 * Closed source PowerVR driver, no child device
+			 * binding or driver in mainline
+			 */
 		};
 
 		dss: dss@58000000 {

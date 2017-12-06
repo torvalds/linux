@@ -35,10 +35,6 @@
 #define _UAPI_LINUX_TLS_H
 
 #include <linux/types.h>
-#include <asm/byteorder.h>
-#include <linux/socket.h>
-#include <linux/tcp.h>
-#include <net/tcp.h>
 
 /* TLS socket options */
 #define TLS_TX			1	/* Set transmit parameters */

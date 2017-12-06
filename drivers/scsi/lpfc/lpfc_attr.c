@@ -3134,7 +3134,8 @@ lpfc_txq_hw_show(struct device *dev, struct device_attribute *attr, char *buf)
 	struct lpfc_hba   *phba = ((struct lpfc_vport *) shost->hostdata)->phba;
 	struct lpfc_sli_ring *pring = lpfc_phba_elsring(phba);
 
-	return snprintf(buf, PAGE_SIZE, "%d\n", pring->txq_max);
+	return snprintf(buf, PAGE_SIZE, "%d\n",
+			pring ? pring->txq_max : 0);
 }
 
 static DEVICE_ATTR(txq_hw, S_IRUGO,
@@ -3147,7 +3148,8 @@ lpfc_txcmplq_hw_show(struct device *dev, struct device_attribute *attr,
 	struct lpfc_hba   *phba = ((struct lpfc_vport *) shost->hostdata)->phba;
 	struct lpfc_sli_ring *pring = lpfc_phba_elsring(phba);
 
-	return snprintf(buf, PAGE_SIZE, "%d\n", pring->txcmplq_max);
+	return snprintf(buf, PAGE_SIZE, "%d\n",
+			pring ? pring->txcmplq_max : 0);
 }
 
 static DEVICE_ATTR(txcmplq_hw, S_IRUGO,
@@ -3246,6 +3248,11 @@ lpfc_update_rport_devloss_tmo(struct lpfc_vport *vport)
 			continue;
 		if (ndlp->rport)
 			ndlp->rport->dev_loss_tmo = vport->cfg_devloss_tmo;
+#if (IS_ENABLED(CONFIG_NVME_FC))
+		if (ndlp->nrport)
+			nvme_fc_set_remoteport_devloss(ndlp->nrport->remoteport,
+						       vport->cfg_devloss_tmo);
+#endif
 	}
 	spin_unlock_irq(shost->host_lock);
 }
@@ -3375,7 +3382,7 @@ LPFC_ATTR_R(nvmet_mrq,
  */
 LPFC_ATTR_R(enable_fc4_type, LPFC_ENABLE_FCP,
 	    LPFC_ENABLE_FCP, LPFC_ENABLE_BOTH,
-	    "Define fc4 type to register with fabric.");
+	    "Enable FC4 Protocol support - FCP / NVME");
 
 /*
  * lpfc_xri_split: Defines the division of XRI resources between SCSI and NVME
@@ -3391,7 +3398,7 @@ LPFC_ATTR_R(enable_fc4_type, LPFC_ENABLE_FCP,
  * percentage will go to NVME.
  */
 LPFC_ATTR_R(xri_split, 50, 10, 90,
-	    "Division of XRI resources between SCSI and NVME");
+	    "Percentage of FCP XRI resources versus NVME");
 
 /*
 # lpfc_log_verbose: Only turn this flag on if you are willing to risk being

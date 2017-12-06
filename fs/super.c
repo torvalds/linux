@@ -155,21 +155,19 @@ static void destroy_super_rcu(struct rcu_head *head)
 	schedule_work(&s->destroy_work);
 }
 
-/**
- *	destroy_super	-	frees a superblock
- *	@s: superblock to free
- *
- *	Frees a superblock.
- */
-static void destroy_super(struct super_block *s)
+/* Free a superblock that has never been seen by anyone */
+static void destroy_unused_super(struct super_block *s)
 {
+	if (!s)
+		return;
+	up_write(&s->s_umount);
 	list_lru_destroy(&s->s_dentry_lru);
 	list_lru_destroy(&s->s_inode_lru);
 	security_sb_free(s);
-	WARN_ON(!list_empty(&s->s_mounts));
 	put_user_ns(s->s_user_ns);
 	kfree(s->s_subtype);
-	call_rcu(&s->rcu, destroy_super_rcu);
+	/* no delays needed */
+	destroy_super_work(&s->destroy_work);
 }
 
 /**
@@ -257,7 +255,7 @@ static struct super_block *alloc_super(struct file_system_type *type, int flags,
 	return s;
 
 fail:
-	destroy_super(s);
+	destroy_unused_super(s);
 	return NULL;
 }
 
@@ -266,11 +264,17 @@ fail:
 /*
  * Drop a superblock's refcount.  The caller must hold sb_lock.
  */
-static void __put_super(struct super_block *sb)
+static void __put_super(struct super_block *s)
 {
-	if (!--sb->s_count) {
-		list_del_init(&sb->s_list);
-		destroy_super(sb);
+	if (!--s->s_count) {
+		list_del_init(&s->s_list);
+		WARN_ON(s->s_dentry_lru.node);
+		WARN_ON(s->s_inode_lru.node);
+		WARN_ON(!list_empty(&s->s_mounts));
+		security_sb_free(s);
+		put_user_ns(s->s_user_ns);
+		kfree(s->s_subtype);
+		call_rcu(&s->rcu, destroy_super_rcu);
 	}
 }
 
@@ -485,19 +489,12 @@ retry:
 				continue;
 			if (user_ns != old->s_user_ns) {
 				spin_unlock(&sb_lock);
-				if (s) {
-					up_write(&s->s_umount);
-					destroy_super(s);
-				}
+				destroy_unused_super(s);
 				return ERR_PTR(-EBUSY);
 			}
 			if (!grab_super(old))
 				goto retry;
-			if (s) {
-				up_write(&s->s_umount);
-				destroy_super(s);
-				s = NULL;
-			}
+			destroy_unused_super(s);
 			return old;
 		}
 	}
@@ -512,8 +509,7 @@ retry:
 	err = set(s, data);
 	if (err) {
 		spin_unlock(&sb_lock);
-		up_write(&s->s_umount);
-		destroy_super(s);
+		destroy_unused_super(s);
 		return ERR_PTR(err);
 	}
 	s->s_type = type;

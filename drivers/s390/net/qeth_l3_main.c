@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *    Copyright IBM Corp. 2007, 2009
  *    Author(s): Utz Bacher <utz.bacher@de.ibm.com>,
@@ -1376,6 +1377,7 @@ qeth_l3_add_mc_to_hash(struct qeth_card *card, struct in_device *in4_dev)
 
 		tmp->u.a4.addr = be32_to_cpu(im4->multiaddr);
 		memcpy(tmp->mac, buf, sizeof(tmp->mac));
+		tmp->is_multicast = 1;
 
 		ipm = qeth_l3_ip_from_hash(card, tmp);
 		if (ipm) {
@@ -1553,7 +1555,7 @@ static void qeth_l3_free_vlan_addresses4(struct qeth_card *card,
 
 	addr = qeth_l3_get_addr_buffer(QETH_PROT_IPV4);
 	if (!addr)
-		return;
+		goto out;
 
 	spin_lock_bh(&card->ip_lock);
 
@@ -1567,6 +1569,7 @@ static void qeth_l3_free_vlan_addresses4(struct qeth_card *card,
 	spin_unlock_bh(&card->ip_lock);
 
 	kfree(addr);
+out:
 	in_dev_put(in_dev);
 }
 
@@ -1591,7 +1594,7 @@ static void qeth_l3_free_vlan_addresses6(struct qeth_card *card,
 
 	addr = qeth_l3_get_addr_buffer(QETH_PROT_IPV6);
 	if (!addr)
-		return;
+		goto out;
 
 	spin_lock_bh(&card->ip_lock);
 
@@ -1606,6 +1609,7 @@ static void qeth_l3_free_vlan_addresses6(struct qeth_card *card,
 	spin_unlock_bh(&card->ip_lock);
 
 	kfree(addr);
+out:
 	in6_dev_put(in6_dev);
 #endif /* CONFIG_QETH_IPV6 */
 }
@@ -1646,13 +1650,12 @@ static int qeth_l3_vlan_rx_kill_vid(struct net_device *dev,
 	return 0;
 }
 
-static int qeth_l3_rebuild_skb(struct qeth_card *card, struct sk_buff *skb,
-			       struct qeth_hdr *hdr, unsigned short *vlan_id)
+static void qeth_l3_rebuild_skb(struct qeth_card *card, struct sk_buff *skb,
+				struct qeth_hdr *hdr)
 {
 	__u16 prot;
 	struct iphdr *ip_hdr;
 	unsigned char tg_addr[MAX_ADDR_LEN];
-	int is_vlan = 0;
 
 	if (!(hdr->hdr.l3.flags & QETH_HDR_PASSTHRU)) {
 		prot = (hdr->hdr.l3.flags & QETH_HDR_IPV6) ? ETH_P_IPV6 :
@@ -1706,11 +1709,14 @@ static int qeth_l3_rebuild_skb(struct qeth_card *card, struct sk_buff *skb,
 
 	skb->protocol = eth_type_trans(skb, card->dev);
 
-	if (hdr->hdr.l3.ext_flags &
-	    (QETH_HDR_EXT_VLAN_FRAME | QETH_HDR_EXT_INCLUDE_VLAN_TAG)) {
-		*vlan_id = (hdr->hdr.l3.ext_flags & QETH_HDR_EXT_VLAN_FRAME) ?
-		 hdr->hdr.l3.vlan_id : *((u16 *)&hdr->hdr.l3.dest_addr[12]);
-		is_vlan = 1;
+	/* copy VLAN tag from hdr into skb */
+	if (!card->options.sniffer &&
+	    (hdr->hdr.l3.ext_flags & (QETH_HDR_EXT_VLAN_FRAME |
+				      QETH_HDR_EXT_INCLUDE_VLAN_TAG))) {
+		u16 tag = (hdr->hdr.l3.ext_flags & QETH_HDR_EXT_VLAN_FRAME) ?
+				hdr->hdr.l3.vlan_id :
+				*((u16 *)&hdr->hdr.l3.dest_addr[12]);
+		__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), tag);
 	}
 
 	if (card->dev->features & NETIF_F_RXCSUM) {
@@ -1724,7 +1730,6 @@ static int qeth_l3_rebuild_skb(struct qeth_card *card, struct sk_buff *skb,
 			skb->ip_summed = CHECKSUM_NONE;
 	} else
 		skb->ip_summed = CHECKSUM_NONE;
-	return is_vlan;
 }
 
 static int qeth_l3_process_inbound_buffer(struct qeth_card *card,
@@ -1733,8 +1738,6 @@ static int qeth_l3_process_inbound_buffer(struct qeth_card *card,
 	int work_done = 0;
 	struct sk_buff *skb;
 	struct qeth_hdr *hdr;
-	__u16 vlan_tag = 0;
-	int is_vlan;
 	unsigned int len;
 	__u16 magic;
 
@@ -1764,12 +1767,8 @@ static int qeth_l3_process_inbound_buffer(struct qeth_card *card,
 					card->dev->addr_len);
 				netif_receive_skb(skb);
 			} else {
-				is_vlan = qeth_l3_rebuild_skb(card, skb, hdr,
-						      &vlan_tag);
+				qeth_l3_rebuild_skb(card, skb, hdr);
 				len = skb->len;
-				if (is_vlan && !card->options.sniffer)
-					__vlan_hwaccel_put_tag(skb,
-						htons(ETH_P_8021Q), vlan_tag);
 				napi_gro_receive(&card->napi, skb);
 			}
 			break;
@@ -2771,8 +2770,8 @@ static netdev_tx_t qeth_l3_hard_start_xmit(struct sk_buff *skb,
 		rc = qeth_do_send_packet(card, queue, new_skb, hdr, hd_len,
 					 hd_len, elements);
 	} else
-		rc = qeth_do_send_packet_fast(card, queue, new_skb, hdr,
-					      data_offset, hd_len);
+		rc = qeth_do_send_packet_fast(queue, new_skb, hdr, data_offset,
+					      hd_len);
 
 	if (!rc) {
 		card->stats.tx_packets++;
@@ -2920,6 +2919,7 @@ static const struct net_device_ops qeth_l3_osa_netdev_ops = {
 	.ndo_stop		= qeth_l3_stop,
 	.ndo_get_stats		= qeth_get_stats,
 	.ndo_start_xmit		= qeth_l3_hard_start_xmit,
+	.ndo_features_check	= qeth_features_check,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_rx_mode	= qeth_l3_set_multicast_list,
 	.ndo_do_ioctl		= qeth_do_ioctl,
@@ -2960,6 +2960,7 @@ static int qeth_l3_setup_netdev(struct qeth_card *card)
 				card->dev->vlan_features = NETIF_F_SG |
 					NETIF_F_RXCSUM | NETIF_F_IP_CSUM |
 					NETIF_F_TSO;
+				card->dev->features |= NETIF_F_SG;
 			}
 		}
 	} else if (card->info.type == QETH_CARD_TYPE_IQD) {
@@ -2987,8 +2988,8 @@ static int qeth_l3_setup_netdev(struct qeth_card *card)
 				NETIF_F_HW_VLAN_CTAG_RX |
 				NETIF_F_HW_VLAN_CTAG_FILTER;
 	netif_keep_dst(card->dev);
-	card->dev->gso_max_size = (QETH_MAX_BUFFER_ELEMENTS(card) - 1) *
-				  PAGE_SIZE;
+	netif_set_gso_max_size(card->dev, (QETH_MAX_BUFFER_ELEMENTS(card) - 1) *
+					  PAGE_SIZE);
 
 	SET_NETDEV_DEV(card->dev, &card->gdev->dev);
 	netif_napi_add(card->dev, &card->napi, qeth_poll, QETH_NAPI_WEIGHT);

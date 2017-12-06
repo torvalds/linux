@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *  Copyright (C) 1991, 1992  Linus Torvalds
  */
@@ -102,6 +103,7 @@
 #include <linux/uaccess.h>
 #include <linux/kdb.h>
 #include <linux/ctype.h>
+#include <linux/bsearch.h>
 
 #define MAX_NR_CON_DRIVER 16
 
@@ -156,7 +158,7 @@ static void set_cursor(struct vc_data *vc);
 static void hide_cursor(struct vc_data *vc);
 static void console_callback(struct work_struct *ignored);
 static void con_driver_unregister_callback(struct work_struct *ignored);
-static void blank_screen_t(unsigned long dummy);
+static void blank_screen_t(struct timer_list *unused);
 static void set_palette(struct vc_data *vc);
 
 #define vt_get_kmsg_redirect() vt_kmsg_redirect(-1)
@@ -2142,22 +2144,15 @@ struct interval {
 	uint32_t last;
 };
 
-static int bisearch(uint32_t ucs, const struct interval *table, int max)
+static int ucs_cmp(const void *key, const void *elt)
 {
-	int min = 0;
-	int mid;
+	uint32_t ucs = *(uint32_t *)key;
+	struct interval e = *(struct interval *) elt;
 
-	if (ucs < table[0].first || ucs > table[max].last)
-		return 0;
-	while (max >= min) {
-		mid = (min + max) / 2;
-		if (ucs > table[mid].last)
-			min = mid + 1;
-		else if (ucs < table[mid].first)
-			max = mid - 1;
-		else
-			return 1;
-	}
+	if (ucs > e.last)
+		return 1;
+	else if (ucs < e.first)
+		return -1;
 	return 0;
 }
 
@@ -2169,7 +2164,12 @@ static int is_double_width(uint32_t ucs)
 		{ 0xFE10, 0xFE19 }, { 0xFE30, 0xFE6F }, { 0xFF00, 0xFF60 },
 		{ 0xFFE0, 0xFFE6 }, { 0x20000, 0x2FFFD }, { 0x30000, 0x3FFFD }
 	};
-	return bisearch(ucs, double_width, ARRAY_SIZE(double_width) - 1);
+	if (ucs < double_width[0].first ||
+	    ucs > double_width[ARRAY_SIZE(double_width) - 1].last)
+		return 0;
+
+	return bsearch(&ucs, double_width, ARRAY_SIZE(double_width),
+			sizeof(struct interval), ucs_cmp) != NULL;
 }
 
 static void con_flush(struct vc_data *vc, unsigned long draw_from,
@@ -2205,7 +2205,7 @@ static int do_con_write(struct tty_struct *tty, const unsigned char *buf, int co
 	console_lock();
 	vc = tty->driver_data;
 	if (vc == NULL) {
-		printk(KERN_ERR "vt: argh, driver_data is NULL !\n");
+		pr_err("vt: argh, driver_data is NULL !\n");
 		console_unlock();
 		return 0;
 	}
@@ -3190,20 +3190,21 @@ static int do_bind_con_driver(const struct consw *csw, int first, int last,
 
 	pr_info("Console: switching ");
 	if (!deflt)
-		printk(KERN_CONT "consoles %d-%d ", first+1, last+1);
+		pr_cont("consoles %d-%d ", first + 1, last + 1);
 	if (j >= 0) {
 		struct vc_data *vc = vc_cons[j].d;
 
-		printk(KERN_CONT "to %s %s %dx%d\n",
-		       vc->vc_can_do_color ? "colour" : "mono",
-		       desc, vc->vc_cols, vc->vc_rows);
+		pr_cont("to %s %s %dx%d\n",
+			vc->vc_can_do_color ? "colour" : "mono",
+			desc, vc->vc_cols, vc->vc_rows);
 
 		if (k >= 0) {
 			vc = vc_cons[k].d;
 			update_screen(vc);
 		}
-	} else
-		printk(KERN_CONT "to %s\n", desc);
+	} else {
+		pr_cont("to %s\n", desc);
+	}
 
 	retval = 0;
 err:
@@ -3622,9 +3623,8 @@ static int do_register_con_driver(const struct consw *csw, int first, int last)
 					  con_driver, con_dev_groups,
 					  "vtcon%i", con_driver->node);
 	if (IS_ERR(con_driver->dev)) {
-		printk(KERN_WARNING "Unable to create device for %s; "
-		       "errno = %ld\n", con_driver->desc,
-		       PTR_ERR(con_driver->dev));
+		pr_warn("Unable to create device for %s; errno = %ld\n",
+			con_driver->desc, PTR_ERR(con_driver->dev));
 		con_driver->dev = NULL;
 	} else {
 		vtconsole_init_device(con_driver);
@@ -3761,8 +3761,8 @@ static int __init vtconsole_class_init(void)
 
 	vtconsole_class = class_create(THIS_MODULE, "vtconsole");
 	if (IS_ERR(vtconsole_class)) {
-		printk(KERN_WARNING "Unable to create vt console class; "
-		       "errno = %ld\n", PTR_ERR(vtconsole_class));
+		pr_warn("Unable to create vt console class; errno = %ld\n",
+			PTR_ERR(vtconsole_class));
 		vtconsole_class = NULL;
 	}
 
@@ -3778,9 +3778,8 @@ static int __init vtconsole_class_init(void)
 							  "vtcon%i", con->node);
 
 			if (IS_ERR(con->dev)) {
-				printk(KERN_WARNING "Unable to create "
-				       "device for %s; errno = %ld\n",
-				       con->desc, PTR_ERR(con->dev));
+				pr_warn("Unable to create device for %s; errno = %ld\n",
+					con->desc, PTR_ERR(con->dev));
 				con->dev = NULL;
 			} else {
 				vtconsole_init_device(con);
@@ -3930,7 +3929,7 @@ void unblank_screen(void)
  * (console operations can still happen at irq time, but only from printk which
  * has the console mutex. Not perfect yet, but better than no locking
  */
-static void blank_screen_t(unsigned long dummy)
+static void blank_screen_t(struct timer_list *unused)
 {
 	blank_timer_expired = 1;
 	schedule_work(&console_work);
@@ -4121,37 +4120,45 @@ static int con_font_set(struct vc_data *vc, struct console_font_op *op)
 		return -EINVAL;
 	if (op->charcount > 512)
 		return -EINVAL;
-	if (!op->height) {		/* Need to guess font height [compat] */
-		int h, i;
-		u8 __user *charmap = op->data;
-		u8 tmp;
-		
-		/* If from KDFONTOP ioctl, don't allow things which can be done in userland,
-		   so that we can get rid of this soon */
-		if (!(op->flags & KD_FONT_FLAG_OLD))
-			return -EINVAL;
-		for (h = 32; h > 0; h--)
-			for (i = 0; i < op->charcount; i++) {
-				if (get_user(tmp, &charmap[32*i+h-1]))
-					return -EFAULT;
-				if (tmp)
-					goto nonzero;
-			}
-		return -EINVAL;
-	nonzero:
-		op->height = h;
-	}
 	if (op->width <= 0 || op->width > 32 || op->height > 32)
 		return -EINVAL;
 	size = (op->width+7)/8 * 32 * op->charcount;
 	if (size > max_font_size)
 		return -ENOSPC;
-	font.charcount = op->charcount;
-	font.height = op->height;
-	font.width = op->width;
+
 	font.data = memdup_user(op->data, size);
 	if (IS_ERR(font.data))
 		return PTR_ERR(font.data);
+
+	if (!op->height) {		/* Need to guess font height [compat] */
+		int h, i;
+		u8 *charmap = font.data;
+
+		/*
+		 * If from KDFONTOP ioctl, don't allow things which can be done
+		 * in userland,so that we can get rid of this soon
+		 */
+		if (!(op->flags & KD_FONT_FLAG_OLD)) {
+			kfree(font.data);
+			return -EINVAL;
+		}
+
+		for (h = 32; h > 0; h--)
+			for (i = 0; i < op->charcount; i++)
+				if (charmap[32*i+h-1])
+					goto nonzero;
+
+		kfree(font.data);
+		return -EINVAL;
+
+	nonzero:
+		op->height = h;
+	}
+
+	font.charcount = op->charcount;
+	font.width = op->width;
+	font.height = op->height;
+
 	console_lock();
 	if (vc->vc_mode != KD_TEXT)
 		rc = -EINVAL;

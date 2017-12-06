@@ -34,6 +34,12 @@ category:     A list of single-word descriptions covering what the command
 setup:        The list of commands required to ensure the command under test
               succeeds. For example: if testing a filter, the command to create
               the qdisc would appear here.
+	      This list can be empty.
+	      Each command can be a string to be executed, or a list consisting
+	      of a string which is a command to be executed, followed by 1 or
+	      more acceptable exit codes for this command.
+	      If only a string is given for the command, then an exit code of 0
+	      will be expected.
 cmdUnderTest: The tc command being tested itself.
 expExitCode:  The code returned by the command under test upon its termination.
               tdc will compare this value against the actual returned value.
@@ -49,6 +55,12 @@ matchCount:   How many times the regex in matchPattern should match. A value
 teardown:     The list of commands to clean up after the test is completed.
               The environment should be returned to the same state as when
               this test was started: qdiscs deleted, actions flushed, etc.
+	      This list can be empty.
+	      Each command can be a string to be executed, or a list consisting
+	      of a string which is a command to be executed, followed by 1 or
+	      more acceptable exit codes for this command.
+	      If only a string is given for the command, then an exit code of 0
+	      will be expected.
 
 
 SETUP/TEARDOWN ERRORS

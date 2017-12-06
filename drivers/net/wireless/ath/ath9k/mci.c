@@ -453,7 +453,7 @@ int ath_mci_setup(struct ath_softc *sc)
 	mci->sched_buf.bf_len = ATH_MCI_SCHED_BUF_SIZE;
 
 	mci->gpm_buf.bf_len = ATH_MCI_GPM_BUF_SIZE;
-	mci->gpm_buf.bf_addr = (u8 *)mci->sched_buf.bf_addr + mci->sched_buf.bf_len;
+	mci->gpm_buf.bf_addr = mci->sched_buf.bf_addr + mci->sched_buf.bf_len;
 	mci->gpm_buf.bf_paddr = mci->sched_buf.bf_paddr + mci->sched_buf.bf_len;
 
 	ret = ar9003_mci_setup(sc->sc_ah, mci->gpm_buf.bf_paddr,

@@ -7,6 +7,7 @@ afs-cache-$(CONFIG_AFS_FSCACHE) := cache.o
 
 kafs-objs := \
 	$(afs-cache-y) \
+	addr_list.o \
 	callback.o \
 	cell.o \
 	cmservice.o \
@@ -19,14 +20,14 @@ kafs-objs := \
 	misc.o \
 	mntpt.o \
 	proc.o \
+	rotate.o \
 	rxrpc.o \
 	security.o \
 	server.o \
+	server_list.o \
 	super.o \
 	netdevices.o \
 	vlclient.o \
-	vlocation.o \
-	vnode.o \
 	volume.o \
 	write.o \
 	xattr.o

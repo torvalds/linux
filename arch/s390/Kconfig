@@ -148,6 +148,7 @@ config S390
 	select HAVE_FUNCTION_GRAPH_TRACER
 	select HAVE_FUNCTION_TRACER
 	select HAVE_FUTEX_CMPXCHG if FUTEX
+	select HAVE_GCC_PLUGINS
 	select HAVE_KERNEL_BZIP2
 	select HAVE_KERNEL_GZIP
 	select HAVE_KERNEL_LZ4
@@ -158,6 +159,8 @@ config S390
 	select HAVE_KRETPROBES
 	select HAVE_KVM
 	select HAVE_LIVEPATCH
+	select HAVE_PERF_REGS
+	select HAVE_PERF_USER_STACK_DUMP
 	select HAVE_MEMBLOCK
 	select HAVE_MEMBLOCK_NODE_MAP
 	select HAVE_MEMBLOCK_PHYS_MAP
@@ -535,22 +538,6 @@ config ARCH_RANDOM
 	  are implemented. The implementation is based on the s390 CPACF
 	  instruction subfunction TRNG which provides a real true random
 	  number generator.
-
-	  If unsure, say Y.
-
-config ALTERNATIVES
-	def_bool y
-	prompt "Patch optimized instructions for running CPU type"
-	help
-	  When enabled the kernel code is compiled with additional
-	  alternative instructions blocks optimized for newer CPU types.
-	  These alternative instructions blocks are patched at kernel boot
-	  time when running CPU supports them. This mechanism is used to
-	  optimize some critical code paths (i.e. spinlocks) for newer CPUs
-	  even if kernel is build to support older machine generations.
-
-	  This mechanism could be disabled by appending "noaltinstr"
-	  option to the kernel command line.
 
 	  If unsure, say Y.
 

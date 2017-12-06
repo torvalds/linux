@@ -63,6 +63,8 @@
 
 #define ENA_REGS_ADMIN_INTR_MASK 1
 
+#define ENA_POLL_MS	5
+
 /*****************************************************************************/
 /*****************************************************************************/
 /*****************************************************************************/
@@ -315,7 +317,7 @@ static struct ena_comp_ctx *ena_com_submit_admin_cmd(struct ena_com_admin_queue 
 					      cmd_size_in_bytes,
 					      comp,
 					      comp_size_in_bytes);
-	if (unlikely(IS_ERR(comp_ctx)))
+	if (IS_ERR(comp_ctx))
 		admin_queue->running_state = false;
 	spin_unlock_irqrestore(&admin_queue->q_lock, flags);
 
@@ -533,7 +535,7 @@ static int ena_com_wait_and_process_admin_cq_polling(struct ena_comp_ctx *comp_c
 			goto err;
 		}
 
-		msleep(100);
+		msleep(ENA_POLL_MS);
 	}
 
 	if (unlikely(comp_ctx->status == ENA_CMD_ABORTED)) {
@@ -746,6 +748,9 @@ static int wait_for_reset_state(struct ena_com_dev *ena_dev, u32 timeout,
 {
 	u32 val, i;
 
+	/* Convert timeout from resolution of 100ms to ENA_POLL_MS */
+	timeout = (timeout * 100) / ENA_POLL_MS;
+
 	for (i = 0; i < timeout; i++) {
 		val = ena_com_reg_bar_read32(ena_dev, ENA_REGS_DEV_STS_OFF);
 
@@ -758,8 +763,7 @@ static int wait_for_reset_state(struct ena_com_dev *ena_dev, u32 timeout,
 			exp_state)
 			return 0;
 
-		/* The resolution of the timeout is 100ms */
-		msleep(100);
+		msleep(ENA_POLL_MS);
 	}
 
 	return -ETIME;
@@ -1130,7 +1134,7 @@ int ena_com_execute_admin_command(struct ena_com_admin_queue *admin_queue,
 
 	comp_ctx = ena_com_submit_admin_cmd(admin_queue, cmd, cmd_size,
 					    comp, comp_size);
-	if (unlikely(IS_ERR(comp_ctx))) {
+	if (IS_ERR(comp_ctx)) {
 		if (comp_ctx == ERR_PTR(-ENODEV))
 			pr_debug("Failed to submit command [%ld]\n",
 				 PTR_ERR(comp_ctx));
@@ -1253,7 +1257,7 @@ void ena_com_wait_for_abort_completion(struct ena_com_dev *ena_dev)
 	spin_lock_irqsave(&admin_queue->q_lock, flags);
 	while (atomic_read(&admin_queue->outstanding_cmds) != 0) {
 		spin_unlock_irqrestore(&admin_queue->q_lock, flags);
-		msleep(20);
+		msleep(ENA_POLL_MS);
 		spin_lock_irqsave(&admin_queue->q_lock, flags);
 	}
 	spin_unlock_irqrestore(&admin_queue->q_lock, flags);

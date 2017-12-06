@@ -163,7 +163,6 @@ static const struct iio_chan_spec adis16080_channels[] = {
 
 static const struct iio_info adis16080_info = {
 	.read_raw = &adis16080_read_raw,
-	.driver_module = THIS_MODULE,
 };
 
 enum {

@@ -46,7 +46,7 @@
 			clock-mult = <1>;
 		};
 
-		genpll0: genpll0@0001d104 {
+		genpll0: genpll0@1d104 {
 			#clock-cells = <1>;
 			compatible = "brcm,sr-genpll0";
 			reg = <0x0001d104 0x32>,
@@ -58,7 +58,7 @@
 					     "clk_paxc_axi";
 		};
 
-		genpll3: genpll3@0001d1e0 {
+		genpll3: genpll3@1d1e0 {
 			#clock-cells = <1>;
 			compatible = "brcm,sr-genpll3";
 			reg = <0x0001d1e0 0x32>,
@@ -68,7 +68,7 @@
 					     "clk_sdio";
 		};
 
-		genpll4: genpll4@0001d214 {
+		genpll4: genpll4@1d214 {
 			#clock-cells = <1>;
 			compatible = "brcm,sr-genpll4";
 			reg = <0x0001d214 0x32>,
@@ -80,7 +80,7 @@
 					     "clk_bridge_fscpu";
 		};
 
-		genpll5: genpll5@0001d248 {
+		genpll5: genpll5@1d248 {
 			#clock-cells = <1>;
 			compatible = "brcm,sr-genpll5";
 			reg = <0x0001d248 0x32>,
@@ -90,7 +90,7 @@
 					     "crypto_ae_clk", "raid_ae_clk";
 		};
 
-		lcpll0: lcpll0@0001d0c4 {
+		lcpll0: lcpll0@1d0c4 {
 			#clock-cells = <1>;
 			compatible = "brcm,sr-lcpll0";
 			reg = <0x0001d0c4 0x3c>,
@@ -101,7 +101,7 @@
 					     "clk_sata_500";
 		};
 
-		lcpll1: lcpll1@0001d138 {
+		lcpll1: lcpll1@1d138 {
 			#clock-cells = <1>;
 			compatible = "brcm,sr-lcpll1";
 			reg = <0x0001d138 0x3c>,

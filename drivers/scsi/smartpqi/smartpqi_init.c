@@ -40,11 +40,11 @@
 #define BUILD_TIMESTAMP
 #endif
 
-#define DRIVER_VERSION		"1.1.2-125"
+#define DRIVER_VERSION		"1.1.2-126"
 #define DRIVER_MAJOR		1
 #define DRIVER_MINOR		1
 #define DRIVER_RELEASE		2
-#define DRIVER_REVISION		125
+#define DRIVER_REVISION		126
 
 #define DRIVER_NAME		"Microsemi PQI Driver (v" \
 				DRIVER_VERSION BUILD_TIMESTAMP ")"
@@ -1078,9 +1078,9 @@ static int pqi_validate_raid_map(struct pqi_ctrl_info *ctrl_info,
 
 bad_raid_map:
 	dev_warn(&ctrl_info->pci_dev->dev,
-		"scsi %d:%d:%d:%d %s\n",
-		ctrl_info->scsi_host->host_no,
-		device->bus, device->target, device->lun, err_msg);
+		"logical device %08x%08x %s\n",
+		*((u32 *)&device->scsi3addr),
+		*((u32 *)&device->scsi3addr[4]), err_msg);
 
 	return -EINVAL;
 }
@@ -6922,6 +6922,14 @@ static const struct pci_device_id pqi_pci_id_table[] = {
 	{
 		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADAPTEC2, 0x028f,
 			       PCI_VENDOR_ID_ADAPTEC2, 0x1301)
+	},
+	{
+		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADAPTEC2, 0x028f,
+			       PCI_VENDOR_ID_ADAPTEC2, 0x1302)
+	},
+	{
+		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADAPTEC2, 0x028f,
+			       PCI_VENDOR_ID_ADAPTEC2, 0x1303)
 	},
 	{
 		PCI_DEVICE_SUB(PCI_VENDOR_ID_ADAPTEC2, 0x028f,

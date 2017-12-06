@@ -648,11 +648,9 @@ static void efx_ptp_send_times(struct efx_nic *efx,
 	struct pps_event_time now;
 	struct timespec64 limit;
 	struct efx_ptp_data *ptp = efx->ptp_data;
-	struct timespec64 start;
 	int *mc_running = ptp->start.addr;
 
 	pps_get_ts(&now);
-	start = now.ts_real;
 	limit = now.ts_real;
 	timespec64_add_ns(&limit, SYNCHRONISE_PERIOD_NS);
 

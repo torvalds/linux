@@ -341,7 +341,8 @@ nvkm_therm_init(struct nvkm_subdev *subdev)
 {
 	struct nvkm_therm *therm = nvkm_therm(subdev);
 
-	therm->func->init(therm);
+	if (therm->func->init)
+		therm->func->init(therm);
 
 	if (therm->suspend >= 0) {
 		/* restore the pwm value only when on manual or auto mode */

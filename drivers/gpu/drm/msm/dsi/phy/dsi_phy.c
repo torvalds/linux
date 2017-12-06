@@ -482,7 +482,7 @@ static int dsi_phy_driver_probe(struct platform_device *pdev)
 		goto fail;
 	}
 
-	phy->ahb_clk = devm_clk_get(dev, "iface_clk");
+	phy->ahb_clk = msm_clk_get(pdev, "iface");
 	if (IS_ERR(phy->ahb_clk)) {
 		dev_err(dev, "%s: Unable to get ahb clk\n", __func__);
 		ret = PTR_ERR(phy->ahb_clk);

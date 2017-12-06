@@ -26,7 +26,7 @@
  */
 static DEFINE_MUTEX(nest_init_lock);
 static DEFINE_PER_CPU(struct imc_pmu_ref *, local_nest_imc_refc);
-static struct imc_pmu *per_nest_pmu_arr[IMC_MAX_PMUS];
+static struct imc_pmu **per_nest_pmu_arr;
 static cpumask_t nest_imc_cpumask;
 struct imc_pmu_ref *nest_imc_refc;
 static int nest_pmus;
@@ -286,13 +286,14 @@ static struct imc_pmu_ref *get_nest_pmu_ref(int cpu)
 static void nest_change_cpu_context(int old_cpu, int new_cpu)
 {
 	struct imc_pmu **pn = per_nest_pmu_arr;
-	int i;
 
 	if (old_cpu < 0 || new_cpu < 0)
 		return;
 
-	for (i = 0; *pn && i < IMC_MAX_PMUS; i++, pn++)
+	while (*pn) {
 		perf_pmu_migrate_context(&(*pn)->pmu, old_cpu, new_cpu);
+		pn++;
+	}
 }
 
 static int ppc_nest_imc_cpu_offline(unsigned int cpu)
@@ -467,7 +468,7 @@ static int nest_imc_event_init(struct perf_event *event)
 	 * Nest HW counter memory resides in a per-chip reserve-memory (HOMER).
 	 * Get the base memory addresss for this cpu.
 	 */
-	chip_id = topology_physical_package_id(event->cpu);
+	chip_id = cpu_to_chip_id(event->cpu);
 	pcni = pmu->mem_info;
 	do {
 		if (pcni->id == chip_id) {
@@ -524,19 +525,19 @@ static int nest_imc_event_init(struct perf_event *event)
  */
 static int core_imc_mem_init(int cpu, int size)
 {
-	int phys_id, rc = 0, core_id = (cpu / threads_per_core);
+	int nid, rc = 0, core_id = (cpu / threads_per_core);
 	struct imc_mem_info *mem_info;
 
 	/*
 	 * alloc_pages_node() will allocate memory for core in the
 	 * local node only.
 	 */
-	phys_id = topology_physical_package_id(cpu);
+	nid = cpu_to_node(cpu);
 	mem_info = &core_imc_pmu->mem_info[core_id];
 	mem_info->id = core_id;
 
 	/* We need only vbase for core counters */
-	mem_info->vbase = page_address(alloc_pages_node(phys_id,
+	mem_info->vbase = page_address(alloc_pages_node(nid,
 					  GFP_KERNEL | __GFP_ZERO | __GFP_THISNODE |
 					  __GFP_NOWARN, get_order(size)));
 	if (!mem_info->vbase)
@@ -797,14 +798,14 @@ static int core_imc_event_init(struct perf_event *event)
 static int thread_imc_mem_alloc(int cpu_id, int size)
 {
 	u64 ldbar_value, *local_mem = per_cpu(thread_imc_mem, cpu_id);
-	int phys_id = topology_physical_package_id(cpu_id);
+	int nid = cpu_to_node(cpu_id);
 
 	if (!local_mem) {
 		/*
 		 * This case could happen only once at start, since we dont
 		 * free the memory in cpu offline path.
 		 */
-		local_mem = page_address(alloc_pages_node(phys_id,
+		local_mem = page_address(alloc_pages_node(nid,
 				  GFP_KERNEL | __GFP_ZERO | __GFP_THISNODE |
 				  __GFP_NOWARN, get_order(size)));
 		if (!local_mem)
@@ -1194,6 +1195,7 @@ static void imc_common_cpuhp_mem_free(struct imc_pmu *pmu_ptr)
 		kfree(pmu_ptr->attr_groups[IMC_EVENT_ATTR]->attrs);
 	kfree(pmu_ptr->attr_groups[IMC_EVENT_ATTR]);
 	kfree(pmu_ptr);
+	kfree(per_nest_pmu_arr);
 	return;
 }
 
@@ -1218,6 +1220,13 @@ static int imc_mem_init(struct imc_pmu *pmu_ptr, struct device_node *parent,
 			return -ENOMEM;
 
 		/* Needed for hotplug/migration */
+		if (!per_nest_pmu_arr) {
+			per_nest_pmu_arr = kcalloc(get_max_nest_dev() + 1,
+						sizeof(struct imc_pmu *),
+						GFP_KERNEL);
+			if (!per_nest_pmu_arr)
+				return -ENOMEM;
+		}
 		per_nest_pmu_arr[pmu_index] = pmu_ptr;
 		break;
 	case IMC_DOMAIN_CORE:

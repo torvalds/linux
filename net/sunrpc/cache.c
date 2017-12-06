@@ -1674,7 +1674,7 @@ void cache_unregister_net(struct cache_detail *cd, struct net *net)
 }
 EXPORT_SYMBOL_GPL(cache_unregister_net);
 
-struct cache_detail *cache_create_net(struct cache_detail *tmpl, struct net *net)
+struct cache_detail *cache_create_net(const struct cache_detail *tmpl, struct net *net)
 {
 	struct cache_detail *cd;
 	int i;

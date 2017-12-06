@@ -419,9 +419,7 @@
 	pinctrl-names = "default";
 	status = "okay";
 
-	clocks = <&mstp7_clks R8A7791_CLK_DU0>,
-		 <&mstp7_clks R8A7791_CLK_DU1>,
-		 <&mstp7_clks R8A7791_CLK_LVDS0>,
+	clocks = <&cpg CPG_MOD 724>, <&cpg CPG_MOD 723>, <&cpg CPG_MOD 726>,
 		 <&x3_clk>, <&x16_clk>;
 	clock-names = "du.0", "du.1", "lvds.0",
 		      "dclkin.0", "dclkin.1";

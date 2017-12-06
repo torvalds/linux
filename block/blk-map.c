@@ -67,13 +67,6 @@ static int __blk_rq_map_user_iov(struct request *rq,
 	bio->bi_opf &= ~REQ_OP_MASK;
 	bio->bi_opf |= req_op(rq);
 
-	if (map_data && map_data->null_mapped)
-		bio_set_flag(bio, BIO_NULL_MAPPED);
-
-	iov_iter_advance(iter, bio->bi_iter.bi_size);
-	if (map_data)
-		map_data->offset += bio->bi_iter.bi_size;
-
 	orig_bio = bio;
 
 	/*

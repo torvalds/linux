@@ -86,7 +86,8 @@ struct ndis_802_11_var_ie {
  *	+ NDIS_802_11_LENGTH_RATES_EX + IELength
  *
  * Except the IELength, all other fields are fixed length.
- * Therefore, we can define a macro to represent the partial sum. */
+ * Therefore, we can define a macro to represent the partial sum.
+ */
 
 enum ndis_802_11_auth_mode {
 	Ndis802_11AuthModeOpen,
@@ -130,7 +131,8 @@ enum ndis_802_11_reload_def {
 struct ndis_802_11_wep {
 	u32     Length;        /*  Length of this structure */
 	u32     KeyIndex;      /*  0 is the per-client key,
-				  * 1-N are the global keys */
+				* 1-N are the global keys
+				*/
 	u32     KeyLength;     /*  length of key in bytes */
 	u8     KeyMaterial[16];/*  variable len depending on above field */
 };
@@ -140,7 +142,8 @@ enum ndis_802_11_status_type {
 	Ndis802_11StatusType_MediaStreamMode,
 	Ndis802_11StatusType_PMKID_CandidateList,
 	Ndis802_11StatusTypeMax    /*  not a real type, defined as
-				    * an upper bound */
+				    * an upper bound
+				    */
 };
 
 /*  mask for authentication/integrity fields */
@@ -166,7 +169,8 @@ struct wlan_phy_info {
 
 struct wlan_bcn_info {
 	/* these infor get from rtw_get_encrypt_info when
-	 *	 * translate scan to UI */
+	 *	 * translate scan to UI
+	 */
 	u8 encryp_protocol;/* ENCRYP_PROTOCOL_E: OPEN/WEP/WPA/WPA2/WAPI */
 	int group_cipher; /* WPA/WPA2 group cipher */
 	int pairwise_cipher;/* WPA/WPA2/WEP pairwise cipher */
@@ -178,8 +182,8 @@ struct wlan_bcn_info {
 };
 
 /* temporally add #pragma pack for structure alignment issue of
-*   struct wlan_bssid_ex and get_struct wlan_bssid_ex_sz()
-*/
+ *   struct wlan_bssid_ex and get_struct wlan_bssid_ex_sz()
+ */
 struct wlan_bssid_ex {
 	u32  Length;
 	unsigned char MacAddress[ETH_ALEN];
@@ -194,7 +198,8 @@ struct wlan_bssid_ex {
 	struct wlan_phy_info	PhyInfo;
 	u32  IELength;
 	u8  IEs[MAX_IE_SZ];	/* timestamp, beacon interval, and
-				 * capability information) */
+				 * capability information)
+				 */
 } __packed;
 
 static inline uint get_wlan_bssid_ex_sz(struct wlan_bssid_ex *bss)
@@ -206,7 +211,8 @@ struct	wlan_network {
 	struct list_head list;
 	int	network_type;	/* refer to ieee80211.h for WIRELESS_11A/B/G */
 	int	fixed;		/*  set fixed when not to be removed
-				 *  in site-surveying */
+				 *  in site-surveying
+				 */
 	unsigned long	last_scanned; /* timestamp for the network */
 	int	aid;		/* will only be valid when a BSS is joinned. */
 	int	join_res;
