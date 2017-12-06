@@ -119,11 +119,16 @@ static bool skl_check_ep_match(struct device *dev, struct nhlt_endpoint *epnt,
 
 	if ((epnt->virtual_bus_id == instance_id) &&
 			(epnt->linktype == link_type) &&
-			(epnt->direction == dirn) &&
-			(epnt->device_type == dev_type))
-		return true;
-	else
-		return false;
+			(epnt->direction == dirn)) {
+		/* do not check dev_type for DMIC link type */
+		if (epnt->linktype == NHLT_LINK_DMIC)
+			return true;
+
+		if (epnt->device_type == dev_type)
+			return true;
+	}
+
+	return false;
 }
 
 struct nhlt_specific_cfg
