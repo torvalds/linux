@@ -992,6 +992,18 @@ void fpsimd_signal_preserve_current_state(void)
 }
 
 /*
+ * Associate current's FPSIMD context with this cpu
+ * Preemption must be disabled when calling this function.
+ */
+static void fpsimd_bind_to_cpu(void)
+{
+	struct fpsimd_state *st = &current->thread.fpsimd_state;
+
+	__this_cpu_write(fpsimd_last_state, st);
+	st->cpu = smp_processor_id();
+}
+
+/*
  * Load the userland FPSIMD state of 'current' from memory, but only if the
  * FPSIMD state already held in the registers is /not/ the most recent FPSIMD
  * state of 'current'
@@ -1004,11 +1016,8 @@ void fpsimd_restore_current_state(void)
 	local_bh_disable();
 
 	if (test_and_clear_thread_flag(TIF_FOREIGN_FPSTATE)) {
-		struct fpsimd_state *st = &current->thread.fpsimd_state;
-
 		task_fpsimd_load();
-		__this_cpu_write(fpsimd_last_state, st);
-		st->cpu = smp_processor_id();
+		fpsimd_bind_to_cpu();
 	}
 
 	local_bh_enable();
@@ -1032,12 +1041,8 @@ void fpsimd_update_current_state(struct fpsimd_state *state)
 
 	task_fpsimd_load();
 
-	if (test_and_clear_thread_flag(TIF_FOREIGN_FPSTATE)) {
-		struct fpsimd_state *st = &current->thread.fpsimd_state;
-
-		__this_cpu_write(fpsimd_last_state, st);
-		st->cpu = smp_processor_id();
-	}
+	if (test_and_clear_thread_flag(TIF_FOREIGN_FPSTATE))
+		fpsimd_bind_to_cpu();
 
 	local_bh_enable();
 }
