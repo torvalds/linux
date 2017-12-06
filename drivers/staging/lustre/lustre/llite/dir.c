@@ -1339,9 +1339,9 @@ finish_req:
 					       cmd == LL_IOC_MDC_GETINFO)) {
 				rc = 0;
 				goto skip_lmm;
-			} else {
-				goto out_req;
 			}
+
+			goto out_req;
 		}
 
 		if (cmd == IOC_MDC_GETFILESTRIPE ||
