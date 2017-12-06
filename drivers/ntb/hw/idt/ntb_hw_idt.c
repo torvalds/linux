@@ -2070,7 +2070,7 @@ static int idt_register_device(struct idt_ntb_dev *ndev)
 
 	/* Initialize the rest of NTB device structure and register it */
 	ndev->ntb.ops = &idt_ntb_ops;
-	ndev->ntb.topo = NTB_TOPO_PRI;
+	ndev->ntb.topo = NTB_TOPO_SWITCH;
 
 	ret = ntb_register_device(&ndev->ntb);
 	if (ret != 0) {
