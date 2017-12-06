@@ -61,7 +61,6 @@
 #include "tests/btrfs-tests.h"
 
 #include "qgroup.h"
-#include "backref.h"
 #define CREATE_TRACE_POINTS
 #include <trace/events/btrfs.h>
 
