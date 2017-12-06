@@ -555,13 +555,13 @@ S:	Orphan
 F:	Documentation/filesystems/affs.txt
 F:	fs/affs/
 
-AFS FILESYSTEM & AF_RXRPC SOCKET DOMAIN
+AFS FILESYSTEM
 M:	David Howells <dhowells@redhat.com>
 L:	linux-afs@lists.infradead.org
 S:	Supported
 F:	fs/afs/
-F:	include/net/af_rxrpc.h
-F:	net/rxrpc/af_rxrpc.c
+F:	include/trace/events/afs.h
+F:	Documentation/filesystems/afs.txt
 W:	https://www.infradead.org/~dhowells/kafs/
 
 AGPGART DRIVER
@@ -6178,7 +6178,6 @@ M:	Jean Delvare <jdelvare@suse.com>
 M:	Guenter Roeck <linux@roeck-us.net>
 L:	linux-hwmon@vger.kernel.org
 W:	http://hwmon.wiki.kernel.org/
-T:	quilt http://jdelvare.nerim.net/devel/linux/jdelvare-hwmon/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/groeck/linux-staging.git
 S:	Maintained
 F:	Documentation/hwmon/
@@ -9336,9 +9335,9 @@ F:	drivers/gpu/drm/mxsfb/
 F:	Documentation/devicetree/bindings/display/mxsfb-drm.txt
 
 MYRICOM MYRI-10G 10GbE DRIVER (MYRI10GE)
-M:	Hyong-Youb Kim <hykim@myri.com>
+M:	Chris Lee <christopher.lee@cspi.com>
 L:	netdev@vger.kernel.org
-W:	https://www.myricom.com/support/downloads/myri10ge.html
+W:	https://www.cspi.com/ethernet-products/support/downloads/
 S:	Supported
 F:	drivers/net/ethernet/myricom/myri10ge/
 
@@ -11782,6 +11781,18 @@ T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jes/linux.git rtl8xxxu-deve
 S:	Maintained
 F:	drivers/net/wireless/realtek/rtl8xxxu/
 
+RXRPC SOCKETS (AF_RXRPC)
+M:	David Howells <dhowells@redhat.com>
+L:	linux-afs@lists.infradead.org
+S:	Supported
+F:	net/rxrpc/
+F:	include/keys/rxrpc-type.h
+F:	include/net/af_rxrpc.h
+F:	include/trace/events/rxrpc.h
+F:	include/uapi/linux/rxrpc.h
+F:	Documentation/networking/rxrpc.txt
+W:	https://www.infradead.org/~dhowells/kafs/
+
 S3 SAVAGE FRAMEBUFFER DRIVER
 M:	Antonino Daplas <adaplas@gmail.com>
 L:	linux-fbdev@vger.kernel.org
@@ -13653,10 +13664,8 @@ F:	drivers/net/wireless/ti/
 F:	include/linux/wl12xx.h
 
 TILE ARCHITECTURE
-M:	Chris Metcalf <cmetcalf@mellanox.com>
 W:	http://www.mellanox.com/repository/solutions/tile-scm/
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/cmetcalf/linux-tile.git
-S:	Supported
+S:	Orphan
 F:	arch/tile/
 F:	drivers/char/tile-srom.c
 F:	drivers/edac/tile_edac.c

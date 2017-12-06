@@ -352,7 +352,7 @@ int hdmi4_cec_init(struct platform_device *pdev, struct hdmi_core_data *core,
 {
 	const u32 caps = CEC_CAP_TRANSMIT | CEC_CAP_LOG_ADDRS |
 			 CEC_CAP_PASSTHROUGH | CEC_CAP_RC;
-	unsigned int ret;
+	int ret;
 
 	core->adap = cec_allocate_adapter(&hdmi_cec_adap_ops, core,
 		"omap4", caps, CEC_MAX_LOG_ADDRS);

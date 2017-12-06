@@ -107,7 +107,7 @@ xfs_scrub_quota_item(
 	unsigned long long		rcount;
 	xfs_ino_t			fs_icount;
 
-	offset = id * qi->qi_dqperchunk;
+	offset = id / qi->qi_dqperchunk;
 
 	/*
 	 * We fed $id and DQNEXT into the xfs_qm_dqget call, which means
@@ -207,7 +207,7 @@ xfs_scrub_quota(
 	xfs_dqid_t			id = 0;
 	uint				dqtype;
 	int				nimaps;
-	int				error;
+	int				error = 0;
 
 	if (!XFS_IS_QUOTA_RUNNING(mp) || !XFS_IS_QUOTA_ON(mp))
 		return -ENOENT;

@@ -24,7 +24,7 @@
 
 /* FIXME: Replace this with a ticket lock, like MIPS. */
 
-#define arch_spin_is_locked(x)	((x)->lock != 0)
+#define arch_spin_is_locked(x)	(READ_ONCE((x)->lock) != 0)
 
 static inline void arch_spin_unlock(arch_spinlock_t *lock)
 {
@@ -56,15 +56,6 @@ static inline void arch_spin_lock(arch_spinlock_t *lock)
 		if (arch_spin_trylock(lock))
 			break;
 	}
-}
-
-static inline void arch_spin_unlock_wait(arch_spinlock_t *lock)
-{
-	smp_rmb();
-	do {
-		cpu_relax();
-	} while (arch_spin_is_locked(lock));
-	smp_acquire__after_ctrl_dep();
 }
 
 /***********************************************************/

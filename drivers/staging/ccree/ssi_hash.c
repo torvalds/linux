@@ -1827,9 +1827,12 @@ static int ssi_ahash_import(struct ahash_request *req, const void *in)
 	}
 	in += sizeof(u32);
 
-	rc = ssi_hash_init(state, ctx);
-	if (rc)
-		goto out;
+	/* call init() to allocate bufs if the user hasn't */
+	if (!state->digest_buff) {
+		rc = ssi_hash_init(state, ctx);
+		if (rc)
+			goto out;
+	}
 
 	dma_sync_single_for_cpu(dev, state->digest_buff_dma_addr,
 				ctx->inter_digestsize, DMA_BIDIRECTIONAL);

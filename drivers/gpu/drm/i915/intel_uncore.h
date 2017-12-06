@@ -134,6 +134,7 @@ bool intel_uncore_arm_unclaimed_mmio_detection(struct drm_i915_private *dev_priv
 void intel_uncore_fini(struct drm_i915_private *dev_priv);
 void intel_uncore_suspend(struct drm_i915_private *dev_priv);
 void intel_uncore_resume_early(struct drm_i915_private *dev_priv);
+void intel_uncore_runtime_resume(struct drm_i915_private *dev_priv);
 
 u64 intel_uncore_edram_size(struct drm_i915_private *dev_priv);
 void assert_forcewakes_inactive(struct drm_i915_private *dev_priv);
