@@ -1449,48 +1449,43 @@ static int dvb_input_attach(struct ddb_input *input)
 		if (demod_attach_stv0900(input, 0) < 0)
 			return -ENODEV;
 		if (tuner_attach_stv6110(input, 0) < 0)
-			return -ENODEV;
+			goto err_tuner;
 		break;
 	case DDB_TUNER_DVBS_ST_AA:
 		if (demod_attach_stv0900(input, 1) < 0)
 			return -ENODEV;
 		if (tuner_attach_stv6110(input, 1) < 0)
-			return -ENODEV;
+			goto err_tuner;
 		break;
 	case DDB_TUNER_DVBS_STV0910:
 		if (demod_attach_stv0910(input, 0) < 0)
 			return -ENODEV;
 		if (tuner_attach_stv6111(input, 0) < 0)
-			return -ENODEV;
+			goto err_tuner;
 		break;
 	case DDB_TUNER_DVBS_STV0910_PR:
 		if (demod_attach_stv0910(input, 1) < 0)
 			return -ENODEV;
 		if (tuner_attach_stv6111(input, 1) < 0)
-			return -ENODEV;
+			goto err_tuner;
 		break;
 	case DDB_TUNER_DVBS_STV0910_P:
 		if (demod_attach_stv0910(input, 0) < 0)
 			return -ENODEV;
 		if (tuner_attach_stv6111(input, 1) < 0)
-			return -ENODEV;
+			goto err_tuner;
 		break;
 	case DDB_TUNER_DVBCT_TR:
 		if (demod_attach_drxk(input) < 0)
 			return -ENODEV;
 		if (tuner_attach_tda18271(input) < 0)
-			return -ENODEV;
+			goto err_tuner;
 		break;
 	case DDB_TUNER_DVBCT_ST:
 		if (demod_attach_stv0367(input) < 0)
 			return -ENODEV;
-		if (tuner_attach_tda18212(input, port->type) < 0) {
-			if (dvb->fe2)
-				dvb_frontend_detach(dvb->fe2);
-			if (dvb->fe)
-				dvb_frontend_detach(dvb->fe);
-			return -ENODEV;
-		}
+		if (tuner_attach_tda18212(input, port->type) < 0)
+			goto err_tuner;
 		break;
 	case DDB_TUNER_DVBC2T2I_SONY_P:
 		if (input->port->dev->link[input->port->lnr].info->ts_quirks &
@@ -1509,13 +1504,8 @@ static int dvb_input_attach(struct ddb_input *input)
 			par = 1;
 		if (demod_attach_cxd28xx(input, par, osc24) < 0)
 			return -ENODEV;
-		if (tuner_attach_tda18212(input, port->type) < 0) {
-			if (dvb->fe2)
-				dvb_frontend_detach(dvb->fe2);
-			if (dvb->fe)
-				dvb_frontend_detach(dvb->fe);
-			return -ENODEV;
-		}
+		if (tuner_attach_tda18212(input, port->type) < 0)
+			goto err_tuner;
 		break;
 	case DDB_TUNER_DVBC2T2I_SONY:
 		osc24 = 1;
@@ -1525,13 +1515,8 @@ static int dvb_input_attach(struct ddb_input *input)
 	case DDB_TUNER_ISDBT_SONY:
 		if (demod_attach_cxd28xx(input, 0, osc24) < 0)
 			return -ENODEV;
-		if (tuner_attach_tda18212(input, port->type) < 0) {
-			if (dvb->fe2)
-				dvb_frontend_detach(dvb->fe2);
-			if (dvb->fe)
-				dvb_frontend_detach(dvb->fe);
-			return -ENODEV;
-		}
+		if (tuner_attach_tda18212(input, port->type) < 0)
+			goto err_tuner;
 		break;
 	default:
 		return 0;
@@ -1554,6 +1539,16 @@ static int dvb_input_attach(struct ddb_input *input)
 
 	dvb->attached = 0x31;
 	return 0;
+
+err_tuner:
+	dev_warn(port->dev->dev, "tuner attach failed!\n");
+
+	if (dvb->fe2)
+		dvb_frontend_detach(dvb->fe2);
+	if (dvb->fe)
+		dvb_frontend_detach(dvb->fe);
+
+	return -ENODEV;
 }
 
 static int port_has_encti(struct ddb_port *port)
