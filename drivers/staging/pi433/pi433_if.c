@@ -1126,9 +1126,9 @@ static int pi433_probe(struct spi_device *spi)
 	/* setup the radio module */
 	SET_CHECKED(rf69_set_mode		(spi, standby));
 	SET_CHECKED(rf69_set_data_mode		(spi, DATAMODUL_MODE_PACKET));
-	SET_CHECKED(rf69_set_amplifier_0	(spi, OPTION_ON));
-	SET_CHECKED(rf69_set_amplifier_1	(spi, OPTION_OFF));
-	SET_CHECKED(rf69_set_amplifier_2	(spi, OPTION_OFF));
+	SET_CHECKED(rf69_enable_amplifier(spi, MASK_PALEVEL_PA0));
+	SET_CHECKED(rf69_disable_amplifier(spi, MASK_PALEVEL_PA1));
+	SET_CHECKED(rf69_disable_amplifier(spi, MASK_PALEVEL_PA2));
 	SET_CHECKED(rf69_set_output_power_level	(spi, 13));
 	SET_CHECKED(rf69_set_antenna_impedance	(spi, fiftyOhm));
 

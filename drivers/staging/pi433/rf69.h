@@ -33,12 +33,8 @@ int rf69_set_modulation_shaping(struct spi_device *spi, enum mod_shaping mod_sha
 int rf69_set_bit_rate(struct spi_device *spi, u16 bitRate);
 int rf69_set_deviation(struct spi_device *spi, u32 deviation);
 int rf69_set_frequency(struct spi_device *spi, u32 frequency);
-int rf69_set_amplifier_0(struct spi_device *spi,
-			 enum option_on_off option_on_off);
-int rf69_set_amplifier_1(struct spi_device *spi,
-			 enum option_on_off option_on_off);
-int rf69_set_amplifier_2(struct spi_device *spi,
-			 enum option_on_off option_on_off);
+int rf69_enable_amplifier(struct spi_device *spi, u8 amplifier_mask);
+int rf69_disable_amplifier(struct spi_device *spi, u8 amplifier_mask);
 int rf69_set_output_power_level(struct spi_device *spi, u8 powerLevel);
 int rf69_set_pa_ramp(struct spi_device *spi, enum paRamp paRamp);
 int rf69_set_antenna_impedance(struct spi_device *spi, enum antennaImpedance antennaImpedance);

@@ -282,52 +282,14 @@ int rf69_set_frequency(struct spi_device *spi, u32 frequency)
 	return 0;
 }
 
-int rf69_set_amplifier_0(struct spi_device *spi,
-			 enum option_on_off option_on_off)
+int rf69_enable_amplifier(struct spi_device *spi, u8 amplifier_mask)
 {
-	#ifdef DEBUG
-		dev_dbg(&spi->dev, "set: amp #0");
-	#endif
-
-	switch (option_on_off) {
-	case OPTION_ON: return rf69_set_bit(spi, REG_PALEVEL, MASK_PALEVEL_PA0);
-	case OPTION_OFF: return rf69_clear_bit(spi, REG_PALEVEL, MASK_PALEVEL_PA0);
-	default:
-		dev_dbg(&spi->dev, "set: illegal input param");
-		return -EINVAL;
-	}
+	return rf69_set_bit(spi, REG_PALEVEL, amplifier_mask);
 }
 
-int rf69_set_amplifier_1(struct spi_device *spi,
-			 enum option_on_off option_on_off)
+int rf69_disable_amplifier(struct spi_device *spi, u8 amplifier_mask)
 {
-	#ifdef DEBUG
-		dev_dbg(&spi->dev, "set: amp #1");
-	#endif
-
-	switch (option_on_off) {
-	case OPTION_ON:	return rf69_set_bit(spi, REG_PALEVEL, MASK_PALEVEL_PA1);
-	case OPTION_OFF: return rf69_clear_bit(spi, REG_PALEVEL, MASK_PALEVEL_PA1);
-	default:
-		dev_dbg(&spi->dev, "set: illegal input param");
-		return -EINVAL;
-	}
-}
-
-int rf69_set_amplifier_2(struct spi_device *spi,
-			 enum option_on_off option_on_off)
-{
-	#ifdef DEBUG
-		dev_dbg(&spi->dev, "set: amp #2");
-	#endif
-
-	switch (option_on_off) {
-	case OPTION_ON: return rf69_set_bit(spi, REG_PALEVEL, MASK_PALEVEL_PA2);
-	case OPTION_OFF: return rf69_clear_bit(spi, REG_PALEVEL, MASK_PALEVEL_PA2);
-	default:
-		dev_dbg(&spi->dev, "set: illegal input param");
-		return -EINVAL;
-	}
+	return rf69_clear_bit(spi, REG_PALEVEL, amplifier_mask);
 }
 
 int rf69_set_output_power_level(struct spi_device *spi, u8 powerLevel)
