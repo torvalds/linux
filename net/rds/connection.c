@@ -230,8 +230,8 @@ static struct rds_connection *__rds_conn_create(struct net *net,
 
 	rdsdebug("allocated conn %p for %pI4 -> %pI4 over %s %s\n",
 	  conn, &laddr, &faddr,
-	  trans->t_name ? trans->t_name : "[unknown]",
-	  is_outgoing ? "(outgoing)" : "");
+	  strnlen(trans->t_name, sizeof(trans->t_name)) ? trans->t_name :
+	  "[unknown]", is_outgoing ? "(outgoing)" : "");
 
 	/*
 	 * Since we ran without holding the conn lock, someone could
