@@ -664,8 +664,6 @@ static rx_handler_result_t ipvlan_handle_mode_l2(struct sk_buff **pskb,
 	struct sk_buff *skb = *pskb;
 	struct ethhdr *eth = eth_hdr(skb);
 	rx_handler_result_t ret = RX_HANDLER_PASS;
-	void *lyr3h;
-	int addr_type;
 
 	if (is_multicast_ether_addr(eth->h_dest)) {
 		if (ipvlan_external_frame(skb, port)) {
@@ -683,15 +681,8 @@ static rx_handler_result_t ipvlan_handle_mode_l2(struct sk_buff **pskb,
 			}
 		}
 	} else {
-		struct ipvl_addr *addr;
-
-		lyr3h = ipvlan_get_L3_hdr(port, skb, &addr_type);
-		if (!lyr3h)
-			return ret;
-
-		addr = ipvlan_addr_lookup(port, lyr3h, addr_type, true);
-		if (addr)
-			ret = ipvlan_rcv_frame(addr, pskb, false);
+		/* Perform like l3 mode for non-multicast packet */
+		ret = ipvlan_handle_mode_l3(pskb, port);
 	}
 
 	return ret;
