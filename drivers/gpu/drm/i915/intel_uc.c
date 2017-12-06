@@ -86,12 +86,18 @@ void intel_uc_init_early(struct drm_i915_private *dev_priv)
 
 void intel_uc_init_fw(struct drm_i915_private *dev_priv)
 {
+	if (!USES_GUC(dev_priv))
+		return;
+
 	intel_uc_fw_fetch(dev_priv, &dev_priv->huc.fw);
 	intel_uc_fw_fetch(dev_priv, &dev_priv->guc.fw);
 }
 
 void intel_uc_fini_fw(struct drm_i915_private *dev_priv)
 {
+	if (!USES_GUC(dev_priv))
+		return;
+
 	intel_uc_fw_fini(&dev_priv->guc.fw);
 	intel_uc_fw_fini(&dev_priv->huc.fw);
 }
