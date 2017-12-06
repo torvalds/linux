@@ -65,6 +65,7 @@
 #include <linux/net_namespace.h>
 
 #include <net/net_namespace.h>
+#include <net/netns/generic.h>
 #include <net/sock.h>
 #include <net/scm.h>
 #include <net/netlink.h>
@@ -145,8 +146,6 @@ static atomic_t nl_table_users = ATOMIC_INIT(0);
 
 static BLOCKING_NOTIFIER_HEAD(netlink_chain);
 
-static DEFINE_SPINLOCK(netlink_tap_lock);
-static struct list_head netlink_tap_all __read_mostly;
 
 static const struct rhashtable_params netlink_rhashtable_params;
 
@@ -173,14 +172,24 @@ static struct sk_buff *netlink_to_full_skb(const struct sk_buff *skb,
 	return new;
 }
 
+static unsigned int netlink_tap_net_id;
+
+struct netlink_tap_net {
+	struct list_head netlink_tap_all;
+	spinlock_t netlink_tap_lock;
+};
+
 int netlink_add_tap(struct netlink_tap *nt)
 {
+	struct net *net = dev_net(nt->dev);
+	struct netlink_tap_net *nn = net_generic(net, netlink_tap_net_id);
+
 	if (unlikely(nt->dev->type != ARPHRD_NETLINK))
 		return -EINVAL;
 
-	spin_lock(&netlink_tap_lock);
-	list_add_rcu(&nt->list, &netlink_tap_all);
-	spin_unlock(&netlink_tap_lock);
+	spin_lock(&nn->netlink_tap_lock);
+	list_add_rcu(&nt->list, &nn->netlink_tap_all);
+	spin_unlock(&nn->netlink_tap_lock);
 
 	__module_get(nt->module);
 
@@ -190,12 +199,14 @@ EXPORT_SYMBOL_GPL(netlink_add_tap);
 
 static int __netlink_remove_tap(struct netlink_tap *nt)
 {
+	struct net *net = dev_net(nt->dev);
+	struct netlink_tap_net *nn = net_generic(net, netlink_tap_net_id);
 	bool found = false;
 	struct netlink_tap *tmp;
 
-	spin_lock(&netlink_tap_lock);
+	spin_lock(&nn->netlink_tap_lock);
 
-	list_for_each_entry(tmp, &netlink_tap_all, list) {
+	list_for_each_entry(tmp, &nn->netlink_tap_all, list) {
 		if (nt == tmp) {
 			list_del_rcu(&nt->list);
 			found = true;
@@ -205,7 +216,7 @@ static int __netlink_remove_tap(struct netlink_tap *nt)
 
 	pr_warn("__netlink_remove_tap: %p not found\n", nt);
 out:
-	spin_unlock(&netlink_tap_lock);
+	spin_unlock(&nn->netlink_tap_lock);
 
 	if (found)
 		module_put(nt->module);
@@ -223,6 +234,26 @@ int netlink_remove_tap(struct netlink_tap *nt)
 	return ret;
 }
 EXPORT_SYMBOL_GPL(netlink_remove_tap);
+
+static __net_init int netlink_tap_init_net(struct net *net)
+{
+	struct netlink_tap_net *nn = net_generic(net, netlink_tap_net_id);
+
+	INIT_LIST_HEAD(&nn->netlink_tap_all);
+	spin_lock_init(&nn->netlink_tap_lock);
+	return 0;
+}
+
+static void __net_exit netlink_tap_exit_net(struct net *net)
+{
+}
+
+static struct pernet_operations netlink_tap_net_ops = {
+	.init = netlink_tap_init_net,
+	.exit = netlink_tap_exit_net,
+	.id   = &netlink_tap_net_id,
+	.size = sizeof(struct netlink_tap_net),
+};
 
 static bool netlink_filter_tap(const struct sk_buff *skb)
 {
@@ -274,7 +305,7 @@ static int __netlink_deliver_tap_skb(struct sk_buff *skb,
 	return ret;
 }
 
-static void __netlink_deliver_tap(struct sk_buff *skb)
+static void __netlink_deliver_tap(struct sk_buff *skb, struct netlink_tap_net *nn)
 {
 	int ret;
 	struct netlink_tap *tmp;
@@ -282,19 +313,21 @@ static void __netlink_deliver_tap(struct sk_buff *skb)
 	if (!netlink_filter_tap(skb))
 		return;
 
-	list_for_each_entry_rcu(tmp, &netlink_tap_all, list) {
+	list_for_each_entry_rcu(tmp, &nn->netlink_tap_all, list) {
 		ret = __netlink_deliver_tap_skb(skb, tmp->dev);
 		if (unlikely(ret))
 			break;
 	}
 }
 
-static void netlink_deliver_tap(struct sk_buff *skb)
+static void netlink_deliver_tap(struct net *net, struct sk_buff *skb)
 {
+	struct netlink_tap_net *nn = net_generic(net, netlink_tap_net_id);
+
 	rcu_read_lock();
 
-	if (unlikely(!list_empty(&netlink_tap_all)))
-		__netlink_deliver_tap(skb);
+	if (unlikely(!list_empty(&nn->netlink_tap_all)))
+		__netlink_deliver_tap(skb, nn);
 
 	rcu_read_unlock();
 }
@@ -303,7 +336,7 @@ static void netlink_deliver_tap_kernel(struct sock *dst, struct sock *src,
 				       struct sk_buff *skb)
 {
 	if (!(netlink_is_kernel(dst) && netlink_is_kernel(src)))
-		netlink_deliver_tap(skb);
+		netlink_deliver_tap(sock_net(dst), skb);
 }
 
 static void netlink_overrun(struct sock *sk)
@@ -1213,7 +1246,7 @@ static int __netlink_sendskb(struct sock *sk, struct sk_buff *skb)
 {
 	int len = skb->len;
 
-	netlink_deliver_tap(skb);
+	netlink_deliver_tap(sock_net(sk), skb);
 
 	skb_queue_tail(&sk->sk_receive_queue, skb);
 	sk->sk_data_ready(sk);
@@ -2731,12 +2764,11 @@ static int __init netlink_proto_init(void)
 		}
 	}
 
-	INIT_LIST_HEAD(&netlink_tap_all);
-
 	netlink_add_usersock_entry();
 
 	sock_register(&netlink_family_ops);
 	register_pernet_subsys(&netlink_net_ops);
+	register_pernet_subsys(&netlink_tap_net_ops);
 	/* The netlink device handler may be needed early. */
 	rtnetlink_init();
 out:
