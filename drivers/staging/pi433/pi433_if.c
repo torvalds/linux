@@ -216,7 +216,16 @@ rf69_set_rx_cfg(struct pi433_device *dev, struct pi433_rx_cfg *rx_cfg)
 			return ret;
 	}
 	SET_CHECKED(rf69_set_adressFiltering(dev->spi, rx_cfg->enable_address_filtering));
-	SET_CHECKED(rf69_set_crc_enable	    (dev->spi, rx_cfg->enable_crc));
+
+	if (rx_cfg->enable_crc == OPTION_ON) {
+		ret = rf69_enable_crc(dev->spi);
+		if (ret < 0)
+			return ret;
+	} else {
+		ret = rf69_disable_crc(dev->spi);
+		if (ret < 0)
+			return ret;
+	}
 
 	/* lengths */
 	SET_CHECKED(rf69_set_sync_size(dev->spi, rx_cfg->sync_length));
@@ -282,7 +291,16 @@ rf69_set_tx_cfg(struct pi433_device *dev, struct pi433_tx_cfg *tx_cfg)
 		if (ret < 0)
 			return ret;
 	}
-	SET_CHECKED(rf69_set_crc_enable	  (dev->spi, tx_cfg->enable_crc));
+
+	if (tx_cfg->enable_crc == OPTION_ON) {
+		ret = rf69_enable_crc(dev->spi);
+		if (ret < 0)
+			return ret;
+	} else {
+		ret = rf69_disable_crc(dev->spi);
+		if (ret < 0)
+			return ret;
+	}
 
 	/* configure sync, if enabled */
 	if (tx_cfg->enable_sync == OPTION_ON) {

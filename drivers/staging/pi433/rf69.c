@@ -844,20 +844,14 @@ int rf69_set_packet_format(struct spi_device *spi, enum packetFormat packetForma
 	}
 }
 
-int rf69_set_crc_enable(struct spi_device *spi,
-			enum option_on_off option_on_off)
+int rf69_enable_crc(struct spi_device *spi)
 {
-	#ifdef DEBUG
-		dev_dbg(&spi->dev, "set: crc enable");
-	#endif
+	return rf69_set_bit(spi, REG_PACKETCONFIG1, MASK_PACKETCONFIG1_CRC_ON);
+}
 
-	switch (option_on_off) {
-	case OPTION_ON: return rf69_set_bit(spi, REG_PACKETCONFIG1, MASK_PACKETCONFIG1_CRC_ON);
-	case OPTION_OFF: return rf69_clear_bit(spi, REG_PACKETCONFIG1, MASK_PACKETCONFIG1_CRC_ON);
-	default:
-		dev_dbg(&spi->dev, "set: illegal input param");
-		return -EINVAL;
-	}
+int rf69_disable_crc(struct spi_device *spi)
+{
+	return rf69_clear_bit(spi, REG_PACKETCONFIG1, MASK_PACKETCONFIG1_CRC_ON);
 }
 
 int rf69_set_adressFiltering(struct spi_device *spi, enum addressFiltering addressFiltering)

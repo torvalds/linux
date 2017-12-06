@@ -66,8 +66,8 @@ int rf69_set_sync_size(struct spi_device *spi, u8 sync_size);
 int rf69_set_sync_tolerance(struct spi_device *spi, u8 syncTolerance);
 int rf69_set_sync_values(struct spi_device *spi, u8 syncValues[8]);
 int rf69_set_packet_format(struct spi_device *spi, enum packetFormat packetFormat);
-int rf69_set_crc_enable(struct spi_device *spi,
-			enum option_on_off option_on_off);
+int rf69_enable_crc(struct spi_device *spi);
+int rf69_disable_crc(struct spi_device *spi);
 int rf69_set_adressFiltering(struct spi_device *spi, enum addressFiltering addressFiltering);
 int rf69_set_payload_length(struct spi_device *spi, u8 payloadLength);
 u8  rf69_get_payload_length(struct spi_device *spi);
