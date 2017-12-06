@@ -610,7 +610,13 @@ free_vmdev:
 static int virtio_mmio_remove(struct platform_device *pdev)
 {
 	struct virtio_mmio_device *vm_dev = platform_get_drvdata(pdev);
+	struct resource *mem;
 
+	iounmap(vm_dev->base);
+	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (mem)
+		devm_release_mem_region(&pdev->dev, mem->start,
+			resource_size(mem));
 	unregister_virtio_device(&vm_dev->vdev);
 
 	return 0;
