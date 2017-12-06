@@ -204,6 +204,10 @@ static int snd_usb_copy_string_desc(struct mixer_build *state,
 				    int index, char *buf, int maxlen)
 {
 	int len = usb_string(state->chip->dev, index, buf, maxlen - 1);
+
+	if (len < 0)
+		return 0;
+
 	buf[len] = 0;
 	return len;
 }
@@ -2174,13 +2178,14 @@ static int parse_audio_selector_unit(struct mixer_build *state, int unitid,
 	if (len)
 		;
 	else if (nameid)
-		snd_usb_copy_string_desc(state, nameid, kctl->id.name,
+		len = snd_usb_copy_string_desc(state, nameid, kctl->id.name,
 					 sizeof(kctl->id.name));
-	else {
+	else
 		len = get_term_name(state, &state->oterm,
 				    kctl->id.name, sizeof(kctl->id.name), 0);
-		if (!len)
-			strlcpy(kctl->id.name, "USB", sizeof(kctl->id.name));
+
+	if (!len) {
+		strlcpy(kctl->id.name, "USB", sizeof(kctl->id.name));
 
 		if (desc->bDescriptorSubtype == UAC2_CLOCK_SELECTOR)
 			append_ctl_name(kctl, " Clock Source");
