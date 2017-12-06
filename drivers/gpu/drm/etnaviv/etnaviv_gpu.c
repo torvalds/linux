@@ -41,9 +41,6 @@ static const struct platform_device_id gpu_ids[] = {
 	{ },
 };
 
-static bool etnaviv_dump_core = true;
-module_param_named(dump_core, etnaviv_dump_core, bool, 0600);
-
 /*
  * Driver functions:
  */
@@ -919,38 +916,24 @@ int etnaviv_gpu_debugfs(struct etnaviv_gpu *gpu, struct seq_file *m)
 }
 #endif
 
-/*
- * Hangcheck detection for locked gpu:
- */
-static void recover_worker(struct work_struct *work)
+void etnaviv_gpu_recover_hang(struct etnaviv_gpu *gpu)
 {
-	struct etnaviv_gpu *gpu = container_of(work, struct etnaviv_gpu,
-					       recover_work);
 	unsigned long flags;
 	unsigned int i = 0;
 
-	dev_err(gpu->dev, "hangcheck recover!\n");
+	dev_err(gpu->dev, "recover hung GPU!\n");
 
 	if (pm_runtime_get_sync(gpu->dev) < 0)
 		return;
 
 	mutex_lock(&gpu->lock);
 
-	/* Only catch the first event, or when manually re-armed */
-	if (etnaviv_dump_core) {
-		etnaviv_core_dump(gpu);
-		etnaviv_dump_core = false;
-	}
-
 	etnaviv_hw_reset(gpu);
 
 	/* complete all events, the GPU won't do it after the reset */
 	spin_lock_irqsave(&gpu->event_spinlock, flags);
-	for_each_set_bit_from(i, gpu->event_bitmap, ETNA_NR_EVENTS) {
-		dma_fence_signal(gpu->event[i].fence);
-		gpu->event[i].fence = NULL;
+	for_each_set_bit_from(i, gpu->event_bitmap, ETNA_NR_EVENTS)
 		complete(&gpu->event_free);
-	}
 	bitmap_zero(gpu->event_bitmap, ETNA_NR_EVENTS);
 	spin_unlock_irqrestore(&gpu->event_spinlock, flags);
 	gpu->completed_fence = gpu->active_fence;
@@ -962,53 +945,6 @@ static void recover_worker(struct work_struct *work)
 	mutex_unlock(&gpu->lock);
 	pm_runtime_mark_last_busy(gpu->dev);
 	pm_runtime_put_autosuspend(gpu->dev);
-}
-
-static void hangcheck_timer_reset(struct etnaviv_gpu *gpu)
-{
-	DBG("%s", dev_name(gpu->dev));
-	mod_timer(&gpu->hangcheck_timer,
-		  round_jiffies_up(jiffies + DRM_ETNAVIV_HANGCHECK_JIFFIES));
-}
-
-static void hangcheck_handler(struct timer_list *t)
-{
-	struct etnaviv_gpu *gpu = from_timer(gpu, t, hangcheck_timer);
-	u32 fence = gpu->completed_fence;
-	bool progress = false;
-
-	if (fence != gpu->hangcheck_fence) {
-		gpu->hangcheck_fence = fence;
-		progress = true;
-	}
-
-	if (!progress) {
-		u32 dma_addr = gpu_read(gpu, VIVS_FE_DMA_ADDRESS);
-		int change = dma_addr - gpu->hangcheck_dma_addr;
-
-		if (change < 0 || change > 16) {
-			gpu->hangcheck_dma_addr = dma_addr;
-			progress = true;
-		}
-	}
-
-	if (!progress && fence_after(gpu->active_fence, fence)) {
-		dev_err(gpu->dev, "hangcheck detected gpu lockup!\n");
-		dev_err(gpu->dev, "     completed fence: %u\n", fence);
-		dev_err(gpu->dev, "     active fence: %u\n",
-			gpu->active_fence);
-		queue_work(gpu->wq, &gpu->recover_work);
-	}
-
-	/* if still more pending work, reset the hangcheck timer: */
-	if (fence_after(gpu->active_fence, gpu->hangcheck_fence))
-		hangcheck_timer_reset(gpu);
-}
-
-static void hangcheck_disable(struct etnaviv_gpu *gpu)
-{
-	del_timer_sync(&gpu->hangcheck_timer);
-	cancel_work_sync(&gpu->recover_work);
 }
 
 /* fence object management */
@@ -1286,10 +1222,12 @@ struct dma_fence *etnaviv_gpu_submit(struct etnaviv_gem_submit *submit)
 	unsigned int i, nr_events = 1, event[3];
 	int ret;
 
-	ret = pm_runtime_get_sync(gpu->dev);
-	if (ret < 0)
-		return NULL;
-	submit->runtime_resumed = true;
+	if (!submit->runtime_resumed) {
+		ret = pm_runtime_get_sync(gpu->dev);
+		if (ret < 0)
+			return NULL;
+		submit->runtime_resumed = true;
+	}
 
 	/*
 	 * if there are performance monitor requests we need to have
@@ -1327,6 +1265,7 @@ struct dma_fence *etnaviv_gpu_submit(struct etnaviv_gem_submit *submit)
 	}
 
 	gpu->event[event[0]].fence = gpu_fence;
+	submit->cmdbuf.user_size = submit->cmdbuf.size - 8;
 	etnaviv_buffer_queue(gpu, submit->exec_state, event[0],
 			     &submit->cmdbuf);
 
@@ -1336,8 +1275,6 @@ struct dma_fence *etnaviv_gpu_submit(struct etnaviv_gem_submit *submit)
 		gpu->event[event[2]].submit = submit;
 		etnaviv_sync_point_queue(gpu, event[2]);
 	}
-
-	hangcheck_timer_reset(gpu);
 
 out_unlock:
 	mutex_unlock(&gpu->lock);
@@ -1626,12 +1563,8 @@ static int etnaviv_gpu_bind(struct device *dev, struct device *master,
 	idr_init(&gpu->fence_idr);
 	spin_lock_init(&gpu->fence_spinlock);
 
-	INIT_LIST_HEAD(&gpu->active_submit_list);
 	INIT_WORK(&gpu->sync_point_work, sync_point_worker);
-	INIT_WORK(&gpu->recover_work, recover_worker);
 	init_waitqueue_head(&gpu->fence_event);
-
-	timer_setup(&gpu->hangcheck_timer, hangcheck_handler, TIMER_DEFERRABLE);
 
 	priv->gpu[priv->num_gpus++] = gpu;
 
@@ -1659,8 +1592,6 @@ static void etnaviv_gpu_unbind(struct device *dev, struct device *master,
 	struct etnaviv_gpu *gpu = dev_get_drvdata(dev);
 
 	DBG("%s", dev_name(gpu->dev));
-
-	hangcheck_disable(gpu);
 
 	flush_workqueue(gpu->wq);
 	destroy_workqueue(gpu->wq);

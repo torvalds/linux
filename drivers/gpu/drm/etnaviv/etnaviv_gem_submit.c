@@ -542,7 +542,6 @@ int etnaviv_ioctl_gem_submit(struct drm_device *dev, void *data,
 		goto err_submit_objects;
 
 	memcpy(submit->cmdbuf.vaddr, stream, args->stream_size);
-	submit->cmdbuf.user_size = ALIGN(args->stream_size, 8);
 
 	ret = submit_lock_objects(submit, &ticket);
 	if (ret)

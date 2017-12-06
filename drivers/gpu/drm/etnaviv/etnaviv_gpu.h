@@ -123,9 +123,6 @@ struct etnaviv_gpu {
 	struct completion event_free;
 	spinlock_t event_spinlock;
 
-	/* list of currently in-flight command buffers */
-	struct list_head active_submit_list;
-
 	u32 idle_mask;
 
 	/* Fencing support */
@@ -153,13 +150,6 @@ struct etnaviv_gpu {
 	struct clk *clk_core;
 	struct clk *clk_shader;
 
-	/* Hang Detction: */
-#define DRM_ETNAVIV_HANGCHECK_PERIOD 500 /* in ms */
-#define DRM_ETNAVIV_HANGCHECK_JIFFIES msecs_to_jiffies(DRM_ETNAVIV_HANGCHECK_PERIOD)
-	struct timer_list hangcheck_timer;
-	u32 hangcheck_fence;
-	u32 hangcheck_dma_addr;
-	struct work_struct recover_work;
 	unsigned int freq_scale;
 	unsigned long base_rate_core;
 	unsigned long base_rate_shader;
@@ -188,6 +178,7 @@ int etnaviv_gpu_init(struct etnaviv_gpu *gpu);
 int etnaviv_gpu_debugfs(struct etnaviv_gpu *gpu, struct seq_file *m);
 #endif
 
+void etnaviv_gpu_recover_hang(struct etnaviv_gpu *gpu);
 void etnaviv_gpu_retire(struct etnaviv_gpu *gpu);
 int etnaviv_gpu_wait_fence_interruptible(struct etnaviv_gpu *gpu,
 	u32 fence, struct timespec *timeout);

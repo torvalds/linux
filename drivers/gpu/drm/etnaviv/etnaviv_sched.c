@@ -14,23 +14,18 @@
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <drm/gpu_scheduler.h>
 #include <linux/kthread.h>
 
 #include "etnaviv_drv.h"
+#include "etnaviv_dump.h"
 #include "etnaviv_gem.h"
 #include "etnaviv_gpu.h"
+#include "etnaviv_sched.h"
 
 static int etnaviv_job_hang_limit = 0;
 module_param_named(job_hang_limit, etnaviv_job_hang_limit, int , 0444);
 static int etnaviv_hw_jobs_limit = 2;
 module_param_named(hw_job_limit, etnaviv_hw_jobs_limit, int , 0444);
-
-static inline
-struct etnaviv_gem_submit *to_etnaviv_submit(struct drm_sched_job *sched_job)
-{
-	return container_of(sched_job, struct etnaviv_gem_submit, sched_job);
-}
 
 struct dma_fence *etnaviv_sched_dependency(struct drm_sched_job *sched_job,
 					   struct drm_sched_entity *entity)
@@ -86,33 +81,37 @@ struct dma_fence *etnaviv_sched_dependency(struct drm_sched_job *sched_job,
 struct dma_fence *etnaviv_sched_run_job(struct drm_sched_job *sched_job)
 {
 	struct etnaviv_gem_submit *submit = to_etnaviv_submit(sched_job);
-	struct dma_fence *fence;
+	struct dma_fence *fence = NULL;
 
-	mutex_lock(&submit->gpu->lock);
-	list_add_tail(&submit->node, &submit->gpu->active_submit_list);
-	mutex_unlock(&submit->gpu->lock);
-
-	fence = etnaviv_gpu_submit(submit);
-	if (!fence) {
-		etnaviv_submit_put(submit);
-		return NULL;
-	}
+	if (likely(!sched_job->s_fence->finished.error))
+		fence = etnaviv_gpu_submit(submit);
+	else
+		dev_dbg(submit->gpu->dev, "skipping bad job\n");
 
 	return fence;
 }
 
 static void etnaviv_sched_timedout_job(struct drm_sched_job *sched_job)
 {
-	/* this replaces the hangcheck */
+	struct etnaviv_gem_submit *submit = to_etnaviv_submit(sched_job);
+	struct etnaviv_gpu *gpu = submit->gpu;
+
+	/* block scheduler */
+	kthread_park(gpu->sched.thread);
+	drm_sched_hw_job_reset(&gpu->sched, sched_job);
+
+	/* get the GPU back into the init state */
+	etnaviv_core_dump(gpu);
+	etnaviv_gpu_recover_hang(gpu);
+
+	/* restart scheduler after GPU is usable again */
+	drm_sched_job_recovery(&gpu->sched);
+	kthread_unpark(gpu->sched.thread);
 }
 
 static void etnaviv_sched_free_job(struct drm_sched_job *sched_job)
 {
 	struct etnaviv_gem_submit *submit = to_etnaviv_submit(sched_job);
-
-	mutex_lock(&submit->gpu->lock);
-	list_del(&submit->node);
-	mutex_unlock(&submit->gpu->lock);
 
 	etnaviv_submit_put(submit);
 }
