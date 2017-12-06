@@ -70,6 +70,28 @@ function add_erspan_tunnel {
 	ip addr add dev $DEV 10.1.1.200/24
 }
 
+function add_ip6erspan_tunnel {
+
+	# assign ipv6 address
+	ip netns exec at_ns0 ip addr add ::11/96 dev veth0
+	ip netns exec at_ns0 ip link set dev veth0 up
+	ip addr add dev veth1 ::22/96
+	ip link set dev veth1 up
+
+	# in namespace
+	ip netns exec at_ns0 \
+		ip link add dev $DEV_NS type $TYPE seq key 2 erspan 123 \
+		local ::11 remote ::22
+
+	ip netns exec at_ns0 ip addr add dev $DEV_NS 10.1.1.100/24
+	ip netns exec at_ns0 ip link set dev $DEV_NS up
+
+	# out of namespace
+	ip link add dev $DEV type $TYPE external
+	ip addr add dev $DEV 10.1.1.200/24
+	ip link set dev $DEV up
+}
+
 function add_vxlan_tunnel {
 	# Set static ARP entry here because iptables set-mark works
 	# on L3 packet, as a result not applying to ARP packets,
@@ -184,6 +206,18 @@ function test_erspan {
 	cleanup
 }
 
+function test_ip6erspan {
+	TYPE=ip6erspan
+	DEV_NS=ip6erspan00
+	DEV=ip6erspan11
+	config_device
+	add_ip6erspan_tunnel
+	attach_bpf $DEV ip4ip6erspan_set_tunnel ip4ip6erspan_get_tunnel
+	ping6 -c 3 ::11
+	ip netns exec at_ns0 ping -c 1 10.1.1.200
+	cleanup
+}
+
 function test_vxlan {
 	TYPE=vxlan
 	DEV_NS=vxlan00
@@ -239,6 +273,7 @@ function cleanup {
 	ip link del vxlan11
 	ip link del geneve11
 	ip link del erspan11
+	ip link del ip6erspan11
 	pkill tcpdump
 	pkill cat
 	set -ex
@@ -254,6 +289,8 @@ echo "Testing IP6GRETAP tunnel..."
 test_ip6gretap
 echo "Testing ERSPAN tunnel..."
 test_erspan
+echo "Testing IP6ERSPAN tunnel..."
+test_ip6erspan
 echo "Testing VXLAN tunnel..."
 test_vxlan
 echo "Testing GENEVE tunnel..."
