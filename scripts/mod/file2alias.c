@@ -1301,6 +1301,31 @@ static int do_fsl_mc_entry(const char *filename, void *symval,
 }
 ADD_TO_DEVTABLE("fslmc", fsl_mc_device_id, do_fsl_mc_entry);
 
+/* Looks like: tbsvc:kSpNvNrN */
+static int do_tbsvc_entry(const char *filename, void *symval, char *alias)
+{
+	DEF_FIELD(symval, tb_service_id, match_flags);
+	DEF_FIELD_ADDR(symval, tb_service_id, protocol_key);
+	DEF_FIELD(symval, tb_service_id, protocol_id);
+	DEF_FIELD(symval, tb_service_id, protocol_version);
+	DEF_FIELD(symval, tb_service_id, protocol_revision);
+
+	strcpy(alias, "tbsvc:");
+	if (match_flags & TBSVC_MATCH_PROTOCOL_KEY)
+		sprintf(alias + strlen(alias), "k%s", *protocol_key);
+	else
+		strcat(alias + strlen(alias), "k*");
+	ADD(alias, "p", match_flags & TBSVC_MATCH_PROTOCOL_ID, protocol_id);
+	ADD(alias, "v", match_flags & TBSVC_MATCH_PROTOCOL_VERSION,
+	    protocol_version);
+	ADD(alias, "r", match_flags & TBSVC_MATCH_PROTOCOL_REVISION,
+	    protocol_revision);
+
+	add_wildcard(alias);
+	return 1;
+}
+ADD_TO_DEVTABLE("tbsvc", tb_service_id, do_tbsvc_entry);
+
 /* Does namelen bytes of name exactly match the symbol? */
 static bool sym_is(const char *name, unsigned namelen, const char *symbol)
 {

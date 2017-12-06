@@ -1143,7 +1143,7 @@ static const struct acpi_device_id rt5514_acpi_match[] = {
 MODULE_DEVICE_TABLE(acpi, rt5514_acpi_match);
 #endif
 
-static int rt5514_parse_dt(struct rt5514_priv *rt5514, struct device *dev)
+static int rt5514_parse_dp(struct rt5514_priv *rt5514, struct device *dev)
 {
 	device_property_read_u32(dev, "realtek,dmic-init-delay-ms",
 		&rt5514->pdata.dmic_init_delay);
@@ -1183,8 +1183,8 @@ static int rt5514_i2c_probe(struct i2c_client *i2c,
 
 	if (pdata)
 		rt5514->pdata = *pdata;
-	else if (i2c->dev.of_node)
-		rt5514_parse_dt(rt5514, &i2c->dev);
+	else
+		rt5514_parse_dp(rt5514, &i2c->dev);
 
 	rt5514->i2c_regmap = devm_regmap_init_i2c(i2c, &rt5514_i2c_regmap);
 	if (IS_ERR(rt5514->i2c_regmap)) {

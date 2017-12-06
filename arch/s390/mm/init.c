@@ -95,6 +95,7 @@ void __init paging_init(void)
 	}
 	init_mm.context.asce = (__pa(init_mm.pgd) & PAGE_MASK) | asce_bits;
 	S390_lowcore.kernel_asce = init_mm.context.asce;
+	S390_lowcore.user_asce = S390_lowcore.kernel_asce;
 	crst_table_init((unsigned long *) init_mm.pgd, pgd_type);
 	vmem_map_init();
 

@@ -1103,18 +1103,18 @@ static void __init gic_populate_ppi_partitions(struct device_node *gic_node)
 	int nr_parts;
 	struct partition_affinity *parts;
 
-	parts_node = of_find_node_by_name(gic_node, "ppi-partitions");
+	parts_node = of_get_child_by_name(gic_node, "ppi-partitions");
 	if (!parts_node)
 		return;
 
 	nr_parts = of_get_child_count(parts_node);
 
 	if (!nr_parts)
-		return;
+		goto out_put_node;
 
 	parts = kzalloc(sizeof(*parts) * nr_parts, GFP_KERNEL);
 	if (WARN_ON(!parts))
-		return;
+		goto out_put_node;
 
 	for_each_child_of_node(parts_node, child_part) {
 		struct partition_affinity *part;
@@ -1181,6 +1181,9 @@ static void __init gic_populate_ppi_partitions(struct device_node *gic_node)
 
 		gic_data.ppi_descs[i] = desc;
 	}
+
+out_put_node:
+	of_node_put(parts_node);
 }
 
 static void __init gic_of_setup_kvm_info(struct device_node *node)
@@ -1260,7 +1263,9 @@ static int __init gic_of_init(struct device_node *node, struct device_node *pare
 		goto out_unmap_rdist;
 
 	gic_populate_ppi_partitions(node);
-	gic_of_setup_kvm_info(node);
+
+	if (static_key_true(&supports_deactivate))
+		gic_of_setup_kvm_info(node);
 	return 0;
 
 out_unmap_rdist:
@@ -1521,7 +1526,7 @@ gic_acpi_init(struct acpi_subtable_header *header, const unsigned long end)
 
 	err = gic_validate_dist_version(acpi_data.dist_base);
 	if (err) {
-		pr_err("No distributor detected at @%p, giving up",
+		pr_err("No distributor detected at @%p, giving up\n",
 		       acpi_data.dist_base);
 		goto out_dist_unmap;
 	}
@@ -1549,7 +1554,9 @@ gic_acpi_init(struct acpi_subtable_header *header, const unsigned long end)
 		goto out_fwhandle_free;
 
 	acpi_set_irq_model(ACPI_IRQ_MODEL_GIC, domain_handle);
-	gic_acpi_setup_kvm_info();
+
+	if (static_key_true(&supports_deactivate))
+		gic_acpi_setup_kvm_info();
 
 	return 0;
 

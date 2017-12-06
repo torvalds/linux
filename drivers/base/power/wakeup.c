@@ -481,7 +481,7 @@ static bool wakeup_source_not_registered(struct wakeup_source *ws)
 	 * Use timer struct to check if the given source is initialized
 	 * by wakeup_source_add.
 	 */
-	return ws->timer.function != (TIMER_FUNC_TYPE)pm_wakeup_timer_fn;
+	return ws->timer.function != pm_wakeup_timer_fn;
 }
 
 /*

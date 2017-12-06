@@ -158,11 +158,6 @@ ifdef CONFIG_X86_X32
 endif
 export CONFIG_X86_X32_ABI
 
-# Don't unroll struct assignments with kmemcheck enabled
-ifeq ($(CONFIG_KMEMCHECK),y)
-	KBUILD_CFLAGS += $(call cc-option,-fno-builtin-memcpy)
-endif
-
 #
 # If the function graph tracer is used with mcount instead of fentry,
 # '-maccumulate-outgoing-args' is needed to prevent a GCC bug

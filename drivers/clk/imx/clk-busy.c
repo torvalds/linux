@@ -72,7 +72,7 @@ static int clk_busy_divider_set_rate(struct clk_hw *hw, unsigned long rate,
 	return ret;
 }
 
-static struct clk_ops clk_busy_divider_ops = {
+static const struct clk_ops clk_busy_divider_ops = {
 	.recalc_rate = clk_busy_divider_recalc_rate,
 	.round_rate = clk_busy_divider_round_rate,
 	.set_rate = clk_busy_divider_set_rate,
@@ -147,7 +147,7 @@ static int clk_busy_mux_set_parent(struct clk_hw *hw, u8 index)
 	return ret;
 }
 
-static struct clk_ops clk_busy_mux_ops = {
+static const struct clk_ops clk_busy_mux_ops = {
 	.get_parent = clk_busy_mux_get_parent,
 	.set_parent = clk_busy_mux_set_parent,
 };

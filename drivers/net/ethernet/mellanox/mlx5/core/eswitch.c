@@ -157,7 +157,7 @@ __esw_fdb_set_vport_rule(struct mlx5_eswitch *esw, u32 vport, bool rx_rule,
 			    MLX5_MATCH_OUTER_HEADERS);
 	struct mlx5_flow_handle *flow_rule = NULL;
 	struct mlx5_flow_act flow_act = {0};
-	struct mlx5_flow_destination dest;
+	struct mlx5_flow_destination dest = {};
 	struct mlx5_flow_spec *spec;
 	void *mv_misc = NULL;
 	void *mc_misc = NULL;

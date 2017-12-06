@@ -1,0 +1,43 @@
+/*
+ * Device Tree Source for the iWave-RZ-G1M/N Daughter Board Camera Module
+ *
+ * Copyright (C) 2017 Renesas Electronics Corp.
+ *
+ * This file is licensed under the terms of the GNU General Public License
+ * version 2.  This program is licensed "as is" without any warranty of any
+ * kind, whether express or implied.
+ */
+
+/ {
+	aliases {
+		serial1 = &scif1;
+		serial4 = &hscif1;
+	};
+};
+
+&hscif1 {
+	pinctrl-0 = <&hscif1_pins>;
+	pinctrl-names = "default";
+
+	uart-has-rtscts;
+	status = "okay";
+};
+
+&pfc {
+	hscif1_pins: hscif1 {
+		groups = "hscif1_data_c", "hscif1_ctrl_c";
+		function = "hscif1";
+	};
+
+	scif1_pins: scif1 {
+		groups = "scif1_data_d";
+		function = "scif1";
+	};
+};
+
+&scif1 {
+	pinctrl-0 = <&scif1_pins>;
+	pinctrl-names = "default";
+
+	status = "okay";
+};

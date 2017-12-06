@@ -1092,9 +1092,11 @@ static void tx_reclaim_skb(struct bfin_mac_local *lp)
 	return;
 }
 
-static void tx_reclaim_skb_timeout(unsigned long lp)
+static void tx_reclaim_skb_timeout(struct timer_list *t)
 {
-	tx_reclaim_skb((struct bfin_mac_local *)lp);
+	struct bfin_mac_local *lp = from_timer(lp, t, tx_reclaim_timer);
+
+	tx_reclaim_skb(lp);
 }
 
 static int bfin_mac_hard_start_xmit(struct sk_buff *skb,
@@ -1650,9 +1652,7 @@ static int bfin_mac_probe(struct platform_device *pdev)
 	ndev->netdev_ops = &bfin_mac_netdev_ops;
 	ndev->ethtool_ops = &bfin_mac_ethtool_ops;
 
-	init_timer(&lp->tx_reclaim_timer);
-	lp->tx_reclaim_timer.data = (unsigned long)lp;
-	lp->tx_reclaim_timer.function = tx_reclaim_skb_timeout;
+	timer_setup(&lp->tx_reclaim_timer, tx_reclaim_skb_timeout, 0);
 
 	lp->flags = 0;
 	netif_napi_add(ndev, &lp->napi, bfin_mac_poll, CONFIG_BFIN_RX_DESC_NUM);

@@ -1257,7 +1257,7 @@ static struct configfs_attribute *printer_attrs[] = {
 	NULL,
 };
 
-static struct config_item_type printer_func_type = {
+static const struct config_item_type printer_func_type = {
 	.ct_item_ops	= &printer_item_ops,
 	.ct_attrs	= printer_attrs,
 	.ct_owner	= THIS_MODULE,

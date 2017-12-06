@@ -36,7 +36,7 @@ struct iio_loop_info {
 	struct task_struct *task;
 };
 
-static struct config_item_type iio_loop_type = {
+static const struct config_item_type iio_loop_type = {
 	.ct_owner = THIS_MODULE,
 };
 

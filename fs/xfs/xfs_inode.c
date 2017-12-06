@@ -39,6 +39,7 @@
 #include "xfs_ialloc.h"
 #include "xfs_bmap.h"
 #include "xfs_bmap_util.h"
+#include "xfs_errortag.h"
 #include "xfs_error.h"
 #include "xfs_quota.h"
 #include "xfs_filestream.h"
@@ -384,14 +385,6 @@ xfs_isilocked(
 }
 #endif
 
-#ifdef DEBUG
-int xfs_locked_n;
-int xfs_small_retries;
-int xfs_middle_retries;
-int xfs_lots_retries;
-int xfs_lock_delays;
-#endif
-
 /*
  * xfs_lockdep_subclass_ok() is only used in an ASSERT, so is only called when
  * DEBUG or XFS_WARN is set. And MAX_LOCKDEP_SUBCLASSES is then only defined
@@ -544,24 +537,11 @@ again:
 
 		if ((attempts % 5) == 0) {
 			delay(1); /* Don't just spin the CPU */
-#ifdef DEBUG
-			xfs_lock_delays++;
-#endif
 		}
 		i = 0;
 		try_lock = 0;
 		goto again;
 	}
-
-#ifdef DEBUG
-	if (attempts) {
-		if (attempts < 5) xfs_small_retries++;
-		else if (attempts < 100) xfs_middle_retries++;
-		else xfs_lots_retries++;
-	} else {
-		xfs_locked_n++;
-	}
-#endif
 }
 
 /*
@@ -767,7 +747,7 @@ xfs_ialloc(
 	xfs_inode_t	*pip,
 	umode_t		mode,
 	xfs_nlink_t	nlink,
-	xfs_dev_t	rdev,
+	dev_t		rdev,
 	prid_t		prid,
 	int		okalloc,
 	xfs_buf_t	**ialloc_context,
@@ -819,6 +799,7 @@ xfs_ialloc(
 	set_nlink(inode, nlink);
 	ip->i_d.di_uid = xfs_kuid_to_uid(current_fsuid());
 	ip->i_d.di_gid = xfs_kgid_to_gid(current_fsgid());
+	inode->i_rdev = rdev;
 	xfs_set_projid(ip, prid);
 
 	if (pip && XFS_INHERIT_GID(pip)) {
@@ -867,7 +848,6 @@ xfs_ialloc(
 	case S_IFBLK:
 	case S_IFSOCK:
 		ip->i_d.di_format = XFS_DINODE_FMT_DEV;
-		ip->i_df.if_u2.if_rdev = rdev;
 		ip->i_df.if_flags = 0;
 		flags |= XFS_ILOG_DEV;
 		break;
@@ -933,7 +913,7 @@ xfs_ialloc(
 		ip->i_d.di_format = XFS_DINODE_FMT_EXTENTS;
 		ip->i_df.if_flags = XFS_IFEXTENTS;
 		ip->i_df.if_bytes = ip->i_df.if_real_bytes = 0;
-		ip->i_df.if_u1.if_extents = NULL;
+		ip->i_df.if_u1.if_root = NULL;
 		break;
 	default:
 		ASSERT(0);
@@ -975,7 +955,7 @@ xfs_dir_ialloc(
 					   the inode. */
 	umode_t		mode,
 	xfs_nlink_t	nlink,
-	xfs_dev_t	rdev,
+	dev_t		rdev,
 	prid_t		prid,		/* project id */
 	int		okalloc,	/* ok to allocate new space */
 	xfs_inode_t	**ipp,		/* pointer to inode; it will be
@@ -1147,7 +1127,7 @@ xfs_create(
 	xfs_inode_t		*dp,
 	struct xfs_name		*name,
 	umode_t			mode,
-	xfs_dev_t		rdev,
+	dev_t			rdev,
 	xfs_inode_t		**ipp)
 {
 	int			is_dir = S_ISDIR(mode);
@@ -1183,7 +1163,6 @@ xfs_create(
 		return error;
 
 	if (is_dir) {
-		rdev = 0;
 		resblks = XFS_MKDIR_SPACE_RES(mp, name->len);
 		tres = &M_RES(mp)->tr_mkdir;
 	} else {
@@ -2378,6 +2357,7 @@ retry:
 				 */
 				if (ip->i_ino != inum + i) {
 					xfs_iunlock(ip, XFS_ILOCK_EXCL);
+					rcu_read_unlock();
 					continue;
 				}
 			}
@@ -2421,6 +2401,24 @@ retry:
 }
 
 /*
+ * Free any local-format buffers sitting around before we reset to
+ * extents format.
+ */
+static inline void
+xfs_ifree_local_data(
+	struct xfs_inode	*ip,
+	int			whichfork)
+{
+	struct xfs_ifork	*ifp;
+
+	if (XFS_IFORK_FORMAT(ip, whichfork) != XFS_DINODE_FMT_LOCAL)
+		return;
+
+	ifp = XFS_IFORK_PTR(ip, whichfork);
+	xfs_idata_realloc(ip, -ifp->if_bytes, whichfork);
+}
+
+/*
  * This is called to return an inode to the inode free list.
  * The inode should already be truncated to 0 length and have
  * no pages associated with it.  This routine also assumes that
@@ -2456,6 +2454,9 @@ xfs_ifree(
 	error = xfs_difree(tp, ip->i_ino, dfops, &xic);
 	if (error)
 		return error;
+
+	xfs_ifree_local_data(ip, XFS_DATA_FORK);
+	xfs_ifree_local_data(ip, XFS_ATTR_FORK);
 
 	VFS_I(ip)->i_mode = 0;		/* mark incore inode as free */
 	ip->i_d.di_flags = 0;

@@ -31,8 +31,8 @@ void foo(void)
 	DEFINE(SIGFRAME_SIZE, sizeof (struct sigframe));
 	DEFINE(UNW_FRAME_INFO_SIZE, sizeof (struct unw_frame_info));
 
-	BUILD_BUG_ON(sizeof(struct upid) != 32);
-	DEFINE(IA64_UPID_SHIFT, 5);
+	BUILD_BUG_ON(sizeof(struct upid) != 16);
+	DEFINE(IA64_UPID_SHIFT, 4);
 
 	BLANK();
 

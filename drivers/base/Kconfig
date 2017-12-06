@@ -91,22 +91,23 @@ config FIRMWARE_IN_KERNEL
 	depends on FW_LOADER
 	default y
 	help
-	  The kernel source tree includes a number of firmware 'blobs'
-	  that are used by various drivers. The recommended way to
-	  use these is to run "make firmware_install", which, after
-	  converting ihex files to binary, copies all of the needed
-	  binary files in firmware/ to /lib/firmware/ on your system so
-	  that they can be loaded by userspace helpers on request.
+	  Various drivers in the kernel source tree may require firmware,
+	  which is generally available in your distribution's linux-firmware
+	  package.
+
+	  The linux-firmware package should install firmware into
+	  /lib/firmware/ on your system, so they can be loaded by userspace
+	  helpers on request.
 
 	  Enabling this option will build each required firmware blob
-	  into the kernel directly, where request_firmware() will find
-	  them without having to call out to userspace. This may be
-	  useful if your root file system requires a device that uses
-	  such firmware and do not wish to use an initrd.
+	  specified by EXTRA_FIRMWARE into the kernel directly, where
+	  request_firmware() will find them without having to call out to
+	  userspace. This may be useful if your root file system requires a
+	  device that uses such firmware and you do not wish to use an
+	  initrd.
 
 	  This single option controls the inclusion of firmware for
-	  every driver that uses request_firmware() and ships its
-	  firmware in the kernel source tree, which avoids a
+	  every driver that uses request_firmware(), which avoids a
 	  proliferation of 'Include firmware for xxx device' options.
 
 	  Say 'N' and let firmware be loaded from userspace.

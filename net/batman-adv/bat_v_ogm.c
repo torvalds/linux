@@ -304,8 +304,8 @@ static u32 batadv_v_forward_penalty(struct batadv_priv *bat_priv,
 	 * due to the store & forward characteristics of WIFI.
 	 * Very low throughput values are the exception.
 	 */
-	if ((throughput > 10) &&
-	    (if_incoming == if_outgoing) &&
+	if (throughput > 10 &&
+	    if_incoming == if_outgoing &&
 	    !(if_incoming->bat_v.flags & BATADV_FULL_DUPLEX))
 		return throughput / 2;
 
@@ -455,7 +455,7 @@ static int batadv_v_ogm_metric_update(struct batadv_priv *bat_priv,
 	/* drop packets with old seqnos, however accept the first packet after
 	 * a host has been rebooted.
 	 */
-	if ((seq_diff < 0) && !protection_started)
+	if (seq_diff < 0 && !protection_started)
 		goto out;
 
 	neigh_node->last_seen = jiffies;
@@ -568,8 +568,8 @@ static bool batadv_v_ogm_route_update(struct batadv_priv *bat_priv,
 		router_throughput = router_ifinfo->bat_v.throughput;
 		neigh_throughput = neigh_ifinfo->bat_v.throughput;
 
-		if ((neigh_seq_diff < BATADV_OGM_MAX_ORIGDIFF) &&
-		    (router_throughput >= neigh_throughput))
+		if (neigh_seq_diff < BATADV_OGM_MAX_ORIGDIFF &&
+		    router_throughput >= neigh_throughput)
 			goto out;
 	}
 
@@ -621,7 +621,7 @@ batadv_v_ogm_process_per_outif(struct batadv_priv *bat_priv,
 		return;
 
 	/* only unknown & newer OGMs contain TVLVs we are interested in */
-	if ((seqno_age > 0) && (if_outgoing == BATADV_IF_DEFAULT))
+	if (seqno_age > 0 && if_outgoing == BATADV_IF_DEFAULT)
 		batadv_tvlv_containers_process(bat_priv, true, orig_node,
 					       NULL, NULL,
 					       (unsigned char *)(ogm2 + 1),

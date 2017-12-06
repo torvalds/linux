@@ -557,45 +557,6 @@ static void halt_fast_timekeeper(struct timekeeper *tk)
 	update_fast_timekeeper(&tkr_dummy, &tk_fast_raw);
 }
 
-#ifdef CONFIG_GENERIC_TIME_VSYSCALL_OLD
-#warning Please contact your maintainers, as GENERIC_TIME_VSYSCALL_OLD compatibity will disappear soon.
-
-static inline void update_vsyscall(struct timekeeper *tk)
-{
-	struct timespec xt, wm;
-
-	xt = timespec64_to_timespec(tk_xtime(tk));
-	wm = timespec64_to_timespec(tk->wall_to_monotonic);
-	update_vsyscall_old(&xt, &wm, tk->tkr_mono.clock, tk->tkr_mono.mult,
-			    tk->tkr_mono.cycle_last);
-}
-
-static inline void old_vsyscall_fixup(struct timekeeper *tk)
-{
-	s64 remainder;
-
-	/*
-	* Store only full nanoseconds into xtime_nsec after rounding
-	* it up and add the remainder to the error difference.
-	* XXX - This is necessary to avoid small 1ns inconsistnecies caused
-	* by truncating the remainder in vsyscalls. However, it causes
-	* additional work to be done in timekeeping_adjust(). Once
-	* the vsyscall implementations are converted to use xtime_nsec
-	* (shifted nanoseconds), and CONFIG_GENERIC_TIME_VSYSCALL_OLD
-	* users are removed, this can be killed.
-	*/
-	remainder = tk->tkr_mono.xtime_nsec & ((1ULL << tk->tkr_mono.shift) - 1);
-	if (remainder != 0) {
-		tk->tkr_mono.xtime_nsec -= remainder;
-		tk->tkr_mono.xtime_nsec += 1ULL << tk->tkr_mono.shift;
-		tk->ntp_error += remainder << tk->ntp_error_shift;
-		tk->ntp_error -= (1ULL << tk->tkr_mono.shift) << tk->ntp_error_shift;
-	}
-}
-#else
-#define old_vsyscall_fixup(tk)
-#endif
-
 static RAW_NOTIFIER_HEAD(pvclock_gtod_chain);
 
 static void update_pvclock_gtod(struct timekeeper *tk, bool was_set)
@@ -2162,12 +2123,6 @@ void update_wall_time(void)
 
 	/* correct the clock when NTP error is too big */
 	timekeeping_adjust(tk, offset);
-
-	/*
-	 * XXX This can be killed once everyone converts
-	 * to the new update_vsyscall.
-	 */
-	old_vsyscall_fixup(tk);
 
 	/*
 	 * Finally, make sure that after the rounding

@@ -506,13 +506,13 @@ static struct configfs_attribute *gadget_config_attrs[] = {
 	NULL,
 };
 
-static struct config_item_type gadget_config_type = {
+static const struct config_item_type gadget_config_type = {
 	.ct_item_ops	= &gadget_config_item_ops,
 	.ct_attrs	= gadget_config_attrs,
 	.ct_owner	= THIS_MODULE,
 };
 
-static struct config_item_type gadget_root_type = {
+static const struct config_item_type gadget_root_type = {
 	.ct_item_ops	= &gadget_root_item_ops,
 	.ct_attrs	= gadget_root_attrs,
 	.ct_owner	= THIS_MODULE,
@@ -594,7 +594,7 @@ static struct configfs_group_operations functions_ops = {
 	.drop_item      = &function_drop,
 };
 
-static struct config_item_type functions_type = {
+static const struct config_item_type functions_type = {
 	.ct_group_ops   = &functions_ops,
 	.ct_owner       = THIS_MODULE,
 };
@@ -695,7 +695,7 @@ static struct configfs_group_operations config_desc_ops = {
 	.drop_item      = &config_desc_drop,
 };
 
-static struct config_item_type config_desc_type = {
+static const struct config_item_type config_desc_type = {
 	.ct_group_ops   = &config_desc_ops,
 	.ct_owner       = THIS_MODULE,
 };
@@ -1477,7 +1477,7 @@ static struct configfs_group_operations gadgets_ops = {
 	.drop_item      = &gadgets_drop,
 };
 
-static struct config_item_type gadgets_type = {
+static const struct config_item_type gadgets_type = {
 	.ct_group_ops   = &gadgets_ops,
 	.ct_owner       = THIS_MODULE,
 };

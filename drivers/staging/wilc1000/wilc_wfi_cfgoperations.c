@@ -267,7 +267,7 @@ static void update_scan_time(void)
 		last_scanned_shadow[i].time_scan = jiffies;
 }
 
-static void remove_network_from_shadow(unsigned long unused)
+static void remove_network_from_shadow(struct timer_list *unused)
 {
 	unsigned long now = jiffies;
 	int i, j;
@@ -292,7 +292,7 @@ static void remove_network_from_shadow(unsigned long unused)
 	}
 }
 
-static void clear_duringIP(unsigned long arg)
+static void clear_duringIP(struct timer_list *unused)
 {
 	wilc_optaining_ip = false;
 }
@@ -2278,8 +2278,8 @@ int wilc_init_host_int(struct net_device *net)
 
 	priv = wdev_priv(net->ieee80211_ptr);
 	if (op_ifcs == 0) {
-		setup_timer(&hAgingTimer, remove_network_from_shadow, 0);
-		setup_timer(&wilc_during_ip_timer, clear_duringIP, 0);
+		timer_setup(&hAgingTimer, remove_network_from_shadow, 0);
+		timer_setup(&wilc_during_ip_timer, clear_duringIP, 0);
 	}
 	op_ifcs++;
 

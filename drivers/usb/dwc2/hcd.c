@@ -3314,9 +3314,9 @@ host:
 	}
 }
 
-static void dwc2_wakeup_detected(unsigned long data)
+static void dwc2_wakeup_detected(struct timer_list *t)
 {
-	struct dwc2_hsotg *hsotg = (struct dwc2_hsotg *)data;
+	struct dwc2_hsotg *hsotg = from_timer(hsotg, t, wkp_timer);
 	u32 hprt0;
 
 	dev_dbg(hsotg->dev, "%s()\n", __func__);
@@ -5155,8 +5155,7 @@ int dwc2_hcd_init(struct dwc2_hsotg *hsotg)
 	}
 	INIT_WORK(&hsotg->wf_otg, dwc2_conn_id_status_change);
 
-	setup_timer(&hsotg->wkp_timer, dwc2_wakeup_detected,
-		    (unsigned long)hsotg);
+	timer_setup(&hsotg->wkp_timer, dwc2_wakeup_detected, 0);
 
 	/* Initialize the non-periodic schedule */
 	INIT_LIST_HEAD(&hsotg->non_periodic_sched_inactive);

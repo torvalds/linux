@@ -54,13 +54,13 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		cpu@000 {
+		cpu@0 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a72", "arm,armv8";
 			reg = <0x000>;
 			enable-method = "psci";
 		};
-		cpu@001 {
+		cpu@1 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a72", "arm,armv8";
 			reg = <0x001>;

@@ -297,7 +297,7 @@ static struct omap_usb_config sx1_usb_config __initdata = {
 
 /*----------- LCD -------------------------*/
 
-static struct omap_lcd_config sx1_lcd_config __initdata = {
+static const struct omap_lcd_config sx1_lcd_config __initconst = {
 	.ctrl_name	= "internal",
 };
 

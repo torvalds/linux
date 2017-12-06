@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
-TARGETS =  bpf
+TARGETS = android
+TARGETS += bpf
 TARGETS += breakpoints
 TARGETS += capabilities
 TARGETS += cpufreq

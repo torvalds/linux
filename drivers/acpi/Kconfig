@@ -527,6 +527,12 @@ config CHT_WC_PMIC_OPREGION
 	help
 	  This config adds ACPI operation region support for CHT Whiskey Cove PMIC.
 
+config CHT_DC_TI_PMIC_OPREGION
+	bool "ACPI operation region support for Dollar Cove TI PMIC"
+	depends on INTEL_SOC_PMIC_CHTDC_TI
+	help
+	  This config adds ACPI operation region support for Dollar Cove TI PMIC.
+
 endif
 
 config ACPI_CONFIGFS

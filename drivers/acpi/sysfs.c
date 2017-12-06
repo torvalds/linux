@@ -231,7 +231,8 @@ module_param_cb(trace_method_name, &param_ops_trace_method, &trace_method_name, 
 module_param_cb(trace_debug_layer, &param_ops_trace_attrib, &acpi_gbl_trace_dbg_layer, 0644);
 module_param_cb(trace_debug_level, &param_ops_trace_attrib, &acpi_gbl_trace_dbg_level, 0644);
 
-static int param_set_trace_state(const char *val, struct kernel_param *kp)
+static int param_set_trace_state(const char *val,
+				 const struct kernel_param *kp)
 {
 	acpi_status status;
 	const char *method = trace_method_name;
@@ -267,7 +268,7 @@ static int param_set_trace_state(const char *val, struct kernel_param *kp)
 	return 0;
 }
 
-static int param_get_trace_state(char *buffer, struct kernel_param *kp)
+static int param_get_trace_state(char *buffer, const struct kernel_param *kp)
 {
 	if (!(acpi_gbl_trace_flags & ACPI_TRACE_ENABLED))
 		return sprintf(buffer, "disable");
@@ -296,7 +297,8 @@ MODULE_PARM_DESC(aml_debug_output,
 		 "To enable/disable the ACPI Debug Object output.");
 
 /* /sys/module/acpi/parameters/acpica_version */
-static int param_get_acpica_version(char *buffer, struct kernel_param *kp)
+static int param_get_acpica_version(char *buffer,
+				    const struct kernel_param *kp)
 {
 	int result;
 

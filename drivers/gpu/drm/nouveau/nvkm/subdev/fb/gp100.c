@@ -59,7 +59,6 @@ gp100_fb = {
 	.init_page = gm200_fb_init_page,
 	.init_unkn = gp100_fb_init_unkn,
 	.ram_new = gp100_ram_new,
-	.memtype_valid = gf100_fb_memtype_valid,
 };
 
 int

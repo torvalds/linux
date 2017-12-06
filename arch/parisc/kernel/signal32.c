@@ -46,19 +46,6 @@
 #define DBG(LEVEL, ...)
 #endif
 
-inline void
-sigset_32to64(sigset_t *s64, compat_sigset_t *s32)
-{
-	s64->sig[0] = s32->sig[0] | ((unsigned long)s32->sig[1] << 32);
-}
-
-inline void
-sigset_64to32(compat_sigset_t *s32, sigset_t *s64)
-{
-	s32->sig[0] = s64->sig[0] & 0xffffffffUL;
-	s32->sig[1] = (s64->sig[0] >> 32) & 0xffffffffUL;
-}
-
 long
 restore_sigcontext32(struct compat_sigcontext __user *sc, struct compat_regfile __user * rf,
 		struct pt_regs *regs)

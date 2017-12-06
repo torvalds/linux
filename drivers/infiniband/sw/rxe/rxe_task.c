@@ -71,7 +71,7 @@ void rxe_do_task(unsigned long data)
 
 	case TASK_STATE_BUSY:
 		task->state = TASK_STATE_ARMED;
-		/* fall through to */
+		/* fall through */
 	case TASK_STATE_ARMED:
 		spin_unlock_irqrestore(&task->state_lock, flags);
 		return;

@@ -598,7 +598,7 @@ static struct configfs_attribute *phonet_attrs[] = {
 	NULL,
 };
 
-static struct config_item_type phonet_func_type = {
+static const struct config_item_type phonet_func_type = {
 	.ct_item_ops	= &phonet_item_ops,
 	.ct_attrs	= phonet_attrs,
 	.ct_owner	= THIS_MODULE,

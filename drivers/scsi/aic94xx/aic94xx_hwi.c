@@ -721,11 +721,8 @@ Out:
  */
 static void asd_chip_reset(struct asd_ha_struct *asd_ha)
 {
-	struct sas_ha_struct *sas_ha = &asd_ha->sas_ha;
-
 	ASD_DPRINTK("chip reset for %s\n", pci_name(asd_ha->pcidev));
 	asd_chip_hardrst(asd_ha);
-	sas_ha->notify_ha_event(sas_ha, HAE_RESET);
 }
 
 /* ---------- Done List Routines ---------- */
@@ -1178,7 +1175,7 @@ static void asd_start_scb_timers(struct list_head *list)
 	struct asd_ascb *ascb;
 	list_for_each_entry(ascb, list, list) {
 		if (!ascb->uldd_timer) {
-			ascb->timer.function = (TIMER_FUNC_TYPE)asd_ascb_timedout;
+			ascb->timer.function = asd_ascb_timedout;
 			ascb->timer.expires = jiffies + AIC94XX_SCB_TIMEOUT;
 			add_timer(&ascb->timer);
 		}

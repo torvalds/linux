@@ -242,7 +242,8 @@ static void kgdboc_put_char(u8 chr)
 					kgdb_tty_line, chr);
 }
 
-static int param_set_kgdboc_var(const char *kmessage, struct kernel_param *kp)
+static int param_set_kgdboc_var(const char *kmessage,
+				const struct kernel_param *kp)
 {
 	int len = strlen(kmessage);
 

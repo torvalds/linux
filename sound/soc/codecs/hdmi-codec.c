@@ -303,11 +303,8 @@ enum {
 static int hdmi_eld_ctl_info(struct snd_kcontrol *kcontrol,
 			     struct snd_ctl_elem_info *uinfo)
 {
-	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
-	struct hdmi_codec_priv *hcp = snd_soc_component_get_drvdata(component);
-
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_BYTES;
-	uinfo->count = sizeof(hcp->eld);
+	uinfo->count = FIELD_SIZEOF(struct hdmi_codec_priv, eld);
 
 	return 0;
 }

@@ -68,7 +68,7 @@ static struct {
 	unsigned int gstate;
 } mtx1_wdt_device;
 
-static void mtx1_wdt_trigger(unsigned long unused)
+static void mtx1_wdt_trigger(struct timer_list *unused)
 {
 	spin_lock(&mtx1_wdt_device.lock);
 	if (mtx1_wdt_device.running)
@@ -219,7 +219,7 @@ static int mtx1_wdt_probe(struct platform_device *pdev)
 	init_completion(&mtx1_wdt_device.stop);
 	mtx1_wdt_device.queue = 0;
 	clear_bit(0, &mtx1_wdt_device.inuse);
-	setup_timer(&mtx1_wdt_device.timer, mtx1_wdt_trigger, 0L);
+	timer_setup(&mtx1_wdt_device.timer, mtx1_wdt_trigger, 0);
 	mtx1_wdt_device.default_ticks = ticks;
 
 	ret = misc_register(&mtx1_wdt_misc);

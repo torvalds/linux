@@ -90,8 +90,7 @@ static irqreturn_t
 vchiq_doorbell_irq(int irq, void *dev_id);
 
 static struct vchiq_pagelist_info *
-create_pagelist(char __user *buf, size_t count, unsigned short type,
-		struct task_struct *task);
+create_pagelist(char __user *buf, size_t count, unsigned short type);
 
 static void
 free_pagelist(struct vchiq_pagelist_info *pagelistinfo,
@@ -255,8 +254,7 @@ vchiq_prepare_bulk_data(VCHIQ_BULK_T *bulk, VCHI_MEM_HANDLE_T memhandle,
 	pagelistinfo = create_pagelist((char __user *)offset, size,
 				       (dir == VCHIQ_BULK_RECEIVE)
 				       ? PAGELIST_READ
-				       : PAGELIST_WRITE,
-				       current);
+				       : PAGELIST_WRITE);
 
 	if (!pagelistinfo)
 		return VCHIQ_ERROR;
@@ -395,8 +393,7 @@ cleanup_pagelistinfo(struct vchiq_pagelist_info *pagelistinfo)
  */
 
 static struct vchiq_pagelist_info *
-create_pagelist(char __user *buf, size_t count, unsigned short type,
-		struct task_struct *task)
+create_pagelist(char __user *buf, size_t count, unsigned short type)
 {
 	PAGELIST_T *pagelist;
 	struct vchiq_pagelist_info *pagelistinfo;
@@ -476,14 +473,11 @@ create_pagelist(char __user *buf, size_t count, unsigned short type,
 		}
 		/* do not try and release vmalloc pages */
 	} else {
-		down_read(&task->mm->mmap_sem);
-		actual_pages = get_user_pages(
-					  (unsigned long)buf & PAGE_MASK,
+		actual_pages = get_user_pages_fast(
+				          (unsigned long)buf & PAGE_MASK,
 					  num_pages,
-					  (type == PAGELIST_READ) ? FOLL_WRITE : 0,
-					  pages,
-					  NULL /*vmas */);
-		up_read(&task->mm->mmap_sem);
+					  type == PAGELIST_READ,
+					  pages);
 
 		if (actual_pages != num_pages) {
 			vchiq_log_info(vchiq_arm_log_level,

@@ -73,6 +73,11 @@ fail:
 	fib_free_table(main_table);
 	return -ENOMEM;
 }
+
+static bool fib4_has_custom_rules(struct net *net)
+{
+	return false;
+}
 #else
 
 struct fib_table *fib_new_table(struct net *net, u32 id)
@@ -127,6 +132,11 @@ struct fib_table *fib_get_table(struct net *net, u32 id)
 			return tb;
 	}
 	return NULL;
+}
+
+static bool fib4_has_custom_rules(struct net *net)
+{
+	return net->ipv4.fib_has_custom_rules;
 }
 #endif /* CONFIG_IP_MULTIPLE_TABLES */
 
@@ -345,9 +355,6 @@ static int __fib_validate_source(struct sk_buff *skb, __be32 src, __be32 dst,
 	if (res.type != RTN_UNICAST &&
 	    (res.type != RTN_LOCAL || !IN_DEV_ACCEPT_LOCAL(idev)))
 		goto e_inval;
-	if (!rpf && !fib_num_tclassid_users(net) &&
-	    (dev->ifindex != oif || !IN_DEV_TX_REDIRECTS(idev)))
-		goto last_resort;
 	fib_combine_itag(itag, &res);
 	dev_match = false;
 
@@ -402,13 +409,28 @@ int fib_validate_source(struct sk_buff *skb, __be32 src, __be32 dst,
 			struct in_device *idev, u32 *itag)
 {
 	int r = secpath_exists(skb) ? 0 : IN_DEV_RPFILTER(idev);
+	struct net *net = dev_net(dev);
 
-	if (!r && !fib_num_tclassid_users(dev_net(dev)) &&
-	    IN_DEV_ACCEPT_LOCAL(idev) &&
+	if (!r && !fib_num_tclassid_users(net) &&
 	    (dev->ifindex != oif || !IN_DEV_TX_REDIRECTS(idev))) {
+		if (IN_DEV_ACCEPT_LOCAL(idev))
+			goto ok;
+		/* with custom local routes in place, checking local addresses
+		 * only will be too optimistic, with custom rules, checking
+		 * local addresses only can be too strict, e.g. due to vrf
+		 */
+		if (net->ipv4.fib_has_custom_local_routes ||
+		    fib4_has_custom_rules(net))
+			goto full_check;
+		if (inet_lookup_ifaddr_rcu(net, src))
+			return -EINVAL;
+
+ok:
 		*itag = 0;
 		return 0;
 	}
+
+full_check:
 	return __fib_validate_source(skb, src, dst, tos, oif, dev, r, idev, itag);
 }
 
@@ -759,6 +781,8 @@ static int inet_rtm_newroute(struct sk_buff *skb, struct nlmsghdr *nlh,
 	}
 
 	err = fib_table_insert(net, tb, &cfg, extack);
+	if (!err && cfg.fc_type == RTN_LOCAL)
+		net->ipv4.fib_has_custom_local_routes = true;
 errout:
 	return err;
 }

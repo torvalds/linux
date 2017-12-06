@@ -1564,7 +1564,7 @@ static struct configfs_attribute *ncm_attrs[] = {
 	NULL,
 };
 
-static struct config_item_type ncm_func_type = {
+static const struct config_item_type ncm_func_type = {
 	.ct_item_ops	= &ncm_item_ops,
 	.ct_attrs	= ncm_attrs,
 	.ct_owner	= THIS_MODULE,

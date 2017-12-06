@@ -223,6 +223,9 @@
 	MEM_KEEP(init.data)						\
 	MEM_KEEP(exit.data)						\
 	*(.data.unlikely)						\
+	VMLINUX_SYMBOL(__start_once) = .;				\
+	*(.data.once)							\
+	VMLINUX_SYMBOL(__end_once) = .;					\
 	STRUCT_ALIGN();							\
 	*(__tracepoints)						\
 	/* implement dynamic printk debug */				\

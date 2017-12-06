@@ -180,18 +180,17 @@ _PIF_WORK	= (_PIF_PER_TRAP | _PIF_SYSCALL_RESTART)
  */
 ENTRY(__switch_to)
 	stmg	%r6,%r15,__SF_GPRS(%r15)	# store gprs of prev task
-	lgr	%r1,%r2
-	aghi	%r1,__TASK_thread		# thread_struct of prev task
-	lg	%r5,__TASK_stack(%r3)		# start of kernel stack of next
-	stg	%r15,__THREAD_ksp(%r1)		# store kernel stack of prev
-	lgr	%r1,%r3
-	aghi	%r1,__TASK_thread		# thread_struct of next task
+	lghi	%r4,__TASK_stack
+	lghi	%r1,__TASK_thread
+	lg	%r5,0(%r4,%r3)			# start of kernel stack of next
+	stg	%r15,__THREAD_ksp(%r1,%r2)	# store kernel stack of prev
 	lgr	%r15,%r5
 	aghi	%r15,STACK_INIT			# end of kernel stack of next
 	stg	%r3,__LC_CURRENT		# store task struct of next
 	stg	%r15,__LC_KERNEL_STACK		# store end of kernel stack
-	lg	%r15,__THREAD_ksp(%r1)		# load kernel stack of next
-	mvc	__LC_CURRENT_PID(4,%r0),__TASK_pid(%r3) # store pid of next
+	lg	%r15,__THREAD_ksp(%r1,%r3)	# load kernel stack of next
+	aghi	%r3,__TASK_pid
+	mvc	__LC_CURRENT_PID(4,%r0),0(%r3)	# store pid of next
 	lmg	%r6,%r15,__SF_GPRS(%r15)	# load gprs of next task
 	TSTMSK	__LC_MACHINE_FLAGS,MACHINE_FLAG_LPP
 	bzr	%r14
@@ -379,13 +378,21 @@ ENTRY(system_call)
 	jg	s390_handle_mcck	# TIF bit will be cleared by handler
 
 #
-# _CIF_ASCE_PRIMARY and/or CIF_ASCE_SECONDARY set, load user space asce
+# _CIF_ASCE_PRIMARY and/or _CIF_ASCE_SECONDARY set, load user space asce
 #
 .Lsysc_asce:
+	ni	__LC_CPU_FLAGS+7,255-_CIF_ASCE_SECONDARY
+	lctlg	%c7,%c7,__LC_VDSO_ASCE		# load secondary asce
+	TSTMSK	__LC_CPU_FLAGS,_CIF_ASCE_PRIMARY
+	jz	.Lsysc_return
+#ifndef CONFIG_HAVE_MARCH_Z10_FEATURES
+	tm	__LC_STFLE_FAC_LIST+3,0x10	# has MVCOS ?
+	jnz	.Lsysc_set_fs_fixup
 	ni	__LC_CPU_FLAGS+7,255-_CIF_ASCE_PRIMARY
 	lctlg	%c1,%c1,__LC_USER_ASCE		# load primary asce
-	TSTMSK	__LC_CPU_FLAGS,_CIF_ASCE_SECONDARY
-	jz	.Lsysc_return
+	j	.Lsysc_return
+.Lsysc_set_fs_fixup:
+#endif
 	larl	%r14,.Lsysc_return
 	jg	set_fs_fixup
 
@@ -518,6 +525,7 @@ ENTRY(pgm_check_handler)
 	stmg	%r8,%r15,__LC_SAVE_AREA_SYNC
 	lg	%r10,__LC_LAST_BREAK
 	lg	%r12,__LC_CURRENT
+	lghi	%r11,0
 	larl	%r13,cleanup_critical
 	lmg	%r8,%r9,__LC_PGM_OLD_PSW
 	tmhh	%r8,0x0001		# test problem state bit
@@ -532,6 +540,7 @@ ENTRY(pgm_check_handler)
 	ni	__SIE_PROG0C+3(%r14),0xfe	# no longer in SIE
 	lctlg	%c1,%c1,__LC_USER_ASCE		# load primary asce
 	larl	%r9,sie_exit			# skip forward to sie_exit
+	lghi	%r11,_PIF_GUEST_FAULT
 #endif
 0:	tmhh	%r8,0x4000		# PER bit set in old PSW ?
 	jnz	1f			# -> enabled, can't be a double fault
@@ -549,13 +558,14 @@ ENTRY(pgm_check_handler)
 	jz	3f
 	mvc	__THREAD_trap_tdb(256,%r14),0(%r13)
 3:	stg	%r10,__THREAD_last_break(%r14)
-4:	la	%r11,STACK_FRAME_OVERHEAD(%r15)
+4:	lgr	%r13,%r11
+	la	%r11,STACK_FRAME_OVERHEAD(%r15)
 	stmg	%r0,%r7,__PT_R0(%r11)
 	mvc	__PT_R8(64,%r11),__LC_SAVE_AREA_SYNC
 	stmg	%r8,%r9,__PT_PSW(%r11)
 	mvc	__PT_INT_CODE(4,%r11),__LC_PGM_ILC
 	mvc	__PT_INT_PARM_LONG(8,%r11),__LC_TRANS_EXC_CODE
-	xc	__PT_FLAGS(8,%r11),__PT_FLAGS(%r11)
+	stg	%r13,__PT_FLAGS(%r11)
 	stg	%r10,__PT_ARGS(%r11)
 	tm	__LC_PGM_ILC+3,0x80	# check for per exception
 	jz	5f
@@ -738,10 +748,18 @@ ENTRY(io_int_handler)
 # _CIF_ASCE_PRIMARY and/or CIF_ASCE_SECONDARY set, load user space asce
 #
 .Lio_asce:
+	ni	__LC_CPU_FLAGS+7,255-_CIF_ASCE_SECONDARY
+	lctlg	%c7,%c7,__LC_VDSO_ASCE		# load secondary asce
+	TSTMSK	__LC_CPU_FLAGS,_CIF_ASCE_PRIMARY
+	jz	.Lio_return
+#ifndef CONFIG_HAVE_MARCH_Z10_FEATURES
+	tm	__LC_STFLE_FAC_LIST+3,0x10	# has MVCOS ?
+	jnz	.Lio_set_fs_fixup
 	ni	__LC_CPU_FLAGS+7,255-_CIF_ASCE_PRIMARY
 	lctlg	%c1,%c1,__LC_USER_ASCE		# load primary asce
-	TSTMSK	__LC_CPU_FLAGS,_CIF_ASCE_SECONDARY
-	jz	.Lio_return
+	j	.Lio_return
+.Lio_set_fs_fixup:
+#endif
 	larl	%r14,.Lio_return
 	jg	set_fs_fixup
 

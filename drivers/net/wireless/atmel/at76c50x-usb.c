@@ -518,11 +518,11 @@ exit:
 
 /* LED trigger */
 static int tx_activity;
-static void at76_ledtrig_tx_timerfunc(unsigned long data);
+static void at76_ledtrig_tx_timerfunc(struct timer_list *unused);
 static DEFINE_TIMER(ledtrig_tx_timer, at76_ledtrig_tx_timerfunc);
 DEFINE_LED_TRIGGER(ledtrig_tx);
 
-static void at76_ledtrig_tx_timerfunc(unsigned long data)
+static void at76_ledtrig_tx_timerfunc(struct timer_list *unused)
 {
 	static int tx_lastactivity;
 

@@ -273,7 +273,7 @@ static const struct pctl_data pctl0_data[] = {
 	{0x135, 0x12a810},
 	{0x149, 0x7a82c}
 };
-#define PCTL0_DATA_LEN (sizeof(pctl0_data)/sizeof(pctl0_data[0]))
+#define PCTL0_DATA_LEN (ARRAY_SIZE(pctl0_data))
 
 #define PCTL0_RENG_EXEC_END_PTR 0x151
 #define PCTL0_STCTRL_REG_SAVE_RANGE0_BASE  0xa640
@@ -309,7 +309,7 @@ static const struct pctl_data pctl1_data[] = {
 	{0x1f0, 0x5000a7f6},
 	{0x1f1, 0x5000a7e4}
 };
-#define PCTL1_DATA_LEN (sizeof(pctl1_data)/sizeof(pctl1_data[0]))
+#define PCTL1_DATA_LEN (ARRAY_SIZE(pctl1_data))
 
 #define PCTL1_RENG_EXEC_END_PTR 0x1f1
 #define PCTL1_STCTRL_REG_SAVE_RANGE0_BASE  0xa000
@@ -561,6 +561,13 @@ void mmhub_v1_0_set_fault_enable_default(struct amdgpu_device *adev, bool value)
 			WRITE_PROTECTION_FAULT_ENABLE_DEFAULT, value);
 	tmp = REG_SET_FIELD(tmp, VM_L2_PROTECTION_FAULT_CNTL,
 			EXECUTE_PROTECTION_FAULT_ENABLE_DEFAULT, value);
+	if (!value) {
+		tmp = REG_SET_FIELD(tmp, VM_L2_PROTECTION_FAULT_CNTL,
+				CRASH_ON_NO_RETRY_FAULT, 1);
+		tmp = REG_SET_FIELD(tmp, VM_L2_PROTECTION_FAULT_CNTL,
+				CRASH_ON_RETRY_FAULT, 1);
+    }
+
 	WREG32_SOC15(MMHUB, 0, mmVM_L2_PROTECTION_FAULT_CNTL, tmp);
 }
 
