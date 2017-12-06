@@ -132,11 +132,9 @@ static inline void efi_set_pgd(struct mm_struct *mm)
 			 * Defer the switch to the current thread's TTBR0_EL1
 			 * until uaccess_enable(). Restore the current
 			 * thread's saved ttbr0 corresponding to its active_mm
-			 * (if different from init_mm).
 			 */
 			cpu_set_reserved_ttbr0();
-			if (current->active_mm != &init_mm)
-				update_saved_ttbr0(current, current->active_mm);
+			update_saved_ttbr0(current, current->active_mm);
 		}
 	}
 }
