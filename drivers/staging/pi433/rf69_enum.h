@@ -18,11 +18,6 @@
 #ifndef RF69_ENUM_H
 #define RF69_ENUM_H
 
-enum option_on_off {
-	OPTION_OFF,
-	OPTION_ON
-};
-
 enum mode {
 	mode_sleep,
 	standby,

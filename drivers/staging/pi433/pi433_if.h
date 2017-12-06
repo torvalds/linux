@@ -37,6 +37,11 @@
 
 /*---------------------------------------------------------------------------*/
 
+enum option_on_off {
+	OPTION_OFF,
+	OPTION_ON
+};
+
 /* IOCTL structs and commands */
 
 /**
