@@ -28,6 +28,8 @@
 
 	aliases {
 		serial0 = &uart0;
+		serial1 = &uart1;
+		serial2 = &uart2;
 		i2c0 = &i2c0;
 		i2c1 = &i2c1;
 		i2c2 = &i2c2;
@@ -114,7 +116,32 @@
 			reg-io-width = <4>;
 			reg = <0x02530c00 0x100>;
 			interrupts = <GIC_SPI 164 IRQ_TYPE_EDGE_RISING>;
-			clock-frequency = <200000000>;
+			clocks = <&k2g_clks 0x2c 0>;
+			power-domains = <&k2g_pds 0x2c>;
+			status = "disabled";
+		};
+
+		uart1: serial@02531000 {
+			compatible = "ti,da830-uart", "ns16550a";
+			current-speed = <115200>;
+			reg-shift = <2>;
+			reg-io-width = <4>;
+			reg = <0x02531000 0x100>;
+			interrupts = <GIC_SPI 165 IRQ_TYPE_EDGE_RISING>;
+			clocks = <&k2g_clks 0x2d 0>;
+			power-domains = <&k2g_pds 0x2d>;
+			status = "disabled";
+		};
+
+		uart2: serial@02531400 {
+			compatible = "ti,da830-uart", "ns16550a";
+			current-speed = <115200>;
+			reg-shift = <2>;
+			reg-io-width = <4>;
+			reg = <0x02531400 0x100>;
+			interrupts = <GIC_SPI 166 IRQ_TYPE_EDGE_RISING>;
+			clocks = <&k2g_clks 0x2e 0>;
+			power-domains = <&k2g_pds 0x2e>;
 			status = "disabled";
 		};
 
