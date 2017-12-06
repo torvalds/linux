@@ -176,7 +176,7 @@ static unsigned int netlink_tap_net_id;
 
 struct netlink_tap_net {
 	struct list_head netlink_tap_all;
-	spinlock_t netlink_tap_lock;
+	struct mutex netlink_tap_lock;
 };
 
 int netlink_add_tap(struct netlink_tap *nt)
@@ -187,9 +187,9 @@ int netlink_add_tap(struct netlink_tap *nt)
 	if (unlikely(nt->dev->type != ARPHRD_NETLINK))
 		return -EINVAL;
 
-	spin_lock(&nn->netlink_tap_lock);
+	mutex_lock(&nn->netlink_tap_lock);
 	list_add_rcu(&nt->list, &nn->netlink_tap_all);
-	spin_unlock(&nn->netlink_tap_lock);
+	mutex_unlock(&nn->netlink_tap_lock);
 
 	__module_get(nt->module);
 
@@ -204,7 +204,7 @@ static int __netlink_remove_tap(struct netlink_tap *nt)
 	bool found = false;
 	struct netlink_tap *tmp;
 
-	spin_lock(&nn->netlink_tap_lock);
+	mutex_lock(&nn->netlink_tap_lock);
 
 	list_for_each_entry(tmp, &nn->netlink_tap_all, list) {
 		if (nt == tmp) {
@@ -216,7 +216,7 @@ static int __netlink_remove_tap(struct netlink_tap *nt)
 
 	pr_warn("__netlink_remove_tap: %p not found\n", nt);
 out:
-	spin_unlock(&nn->netlink_tap_lock);
+	mutex_unlock(&nn->netlink_tap_lock);
 
 	if (found)
 		module_put(nt->module);
@@ -240,7 +240,7 @@ static __net_init int netlink_tap_init_net(struct net *net)
 	struct netlink_tap_net *nn = net_generic(net, netlink_tap_net_id);
 
 	INIT_LIST_HEAD(&nn->netlink_tap_all);
-	spin_lock_init(&nn->netlink_tap_lock);
+	mutex_init(&nn->netlink_tap_lock);
 	return 0;
 }
 
