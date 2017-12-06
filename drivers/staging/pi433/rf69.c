@@ -746,20 +746,14 @@ int rf69_set_preamble_length(struct spi_device *spi, u16 preambleLength)
 	return retval;
 }
 
-int rf69_set_sync_enable(struct spi_device *spi,
-			 enum option_on_off option_on_off)
+int rf69_enable_sync(struct spi_device *spi)
 {
-	#ifdef DEBUG
-		dev_dbg(&spi->dev, "set: sync enable");
-	#endif
+	return rf69_set_bit(spi, REG_SYNC_CONFIG, MASK_SYNC_CONFIG_SYNC_ON);
+}
 
-	switch (option_on_off) {
-	case OPTION_ON: return rf69_set_bit(spi, REG_SYNC_CONFIG, MASK_SYNC_CONFIG_SYNC_ON);
-	case OPTION_OFF: return rf69_clear_bit(spi, REG_SYNC_CONFIG, MASK_SYNC_CONFIG_SYNC_ON);
-	default:
-		dev_dbg(&spi->dev, "set: illegal input param");
-		return -EINVAL;
-	}
+int rf69_disable_sync(struct spi_device *spi)
+{
+	return rf69_clear_bit(spi, REG_SYNC_CONFIG, MASK_SYNC_CONFIG_SYNC_ON);
 }
 
 int rf69_set_fifo_fill_condition(struct spi_device *spi, enum fifoFillCondition fifoFillCondition)

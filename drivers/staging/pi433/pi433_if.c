@@ -197,13 +197,20 @@ rf69_set_rx_cfg(struct pi433_device *dev, struct pi433_rx_cfg *rx_cfg)
 
 	/* packet config */
 	/* enable */
-	SET_CHECKED(rf69_set_sync_enable(dev->spi, rx_cfg->enable_sync));
 	if (rx_cfg->enable_sync == OPTION_ON)
 	{
+		ret = rf69_enable_sync(dev->spi);
+		if (ret < 0)
+			return ret;
+
 		SET_CHECKED(rf69_set_fifo_fill_condition(dev->spi, afterSyncInterrupt));
 	}
 	else
 	{
+		ret = rf69_disable_sync(dev->spi);
+		if (ret < 0)
+			return ret;
+
 		SET_CHECKED(rf69_set_fifo_fill_condition(dev->spi, always));
 	}
 	if (rx_cfg->enable_length_byte == OPTION_ON) {
@@ -281,7 +288,17 @@ rf69_set_tx_cfg(struct pi433_device *dev, struct pi433_tx_cfg *tx_cfg)
 	{
 		SET_CHECKED(rf69_set_preamble_length(dev->spi, 0));
 	}
-	SET_CHECKED(rf69_set_sync_enable  (dev->spi, tx_cfg->enable_sync));
+
+	if (tx_cfg->enable_sync == OPTION_ON) {
+		ret = rf69_enable_sync(dev->spi);
+		if (ret < 0)
+			return ret;
+	} else {
+		ret = rf69_disable_sync(dev->spi);
+		if (ret < 0)
+			return ret;
+	}
+
 	if (tx_cfg->enable_length_byte == OPTION_ON) {
 		ret = rf69_set_packet_format(dev->spi, packetLengthVar);
 		if (ret < 0)
