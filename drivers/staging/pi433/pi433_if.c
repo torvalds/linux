@@ -1124,13 +1124,27 @@ static int pi433_probe(struct spi_device *spi)
 	}
 
 	/* setup the radio module */
-	SET_CHECKED(rf69_set_mode		(spi, standby));
-	SET_CHECKED(rf69_set_data_mode		(spi, DATAMODUL_MODE_PACKET));
-	SET_CHECKED(rf69_enable_amplifier(spi, MASK_PALEVEL_PA0));
-	SET_CHECKED(rf69_disable_amplifier(spi, MASK_PALEVEL_PA1));
-	SET_CHECKED(rf69_disable_amplifier(spi, MASK_PALEVEL_PA2));
-	SET_CHECKED(rf69_set_output_power_level	(spi, 13));
-	SET_CHECKED(rf69_set_antenna_impedance	(spi, fiftyOhm));
+	retval = rf69_set_mode(spi, standby);
+	if (retval < 0)
+		goto minor_failed;
+	retval = rf69_set_data_mode(spi, DATAMODUL_MODE_PACKET);
+	if (retval < 0)
+		goto minor_failed;
+	retval = rf69_enable_amplifier(spi, MASK_PALEVEL_PA0);
+	if (retval < 0)
+		goto minor_failed;
+	retval = rf69_disable_amplifier(spi, MASK_PALEVEL_PA1);
+	if (retval < 0)
+		goto minor_failed;
+	retval = rf69_disable_amplifier(spi, MASK_PALEVEL_PA2);
+	if (retval < 0)
+		goto minor_failed;
+	retval = rf69_set_output_power_level(spi, 13);
+	if (retval < 0)
+		goto minor_failed;
+	retval = rf69_set_antenna_impedance(spi, fiftyOhm);
+	if (retval < 0)
+		goto minor_failed;
 
 	/* determ minor number */
 	retval = pi433_get_minor(device);
