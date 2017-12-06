@@ -253,7 +253,7 @@ static inline int ntb_ctx_ops_is_valid(const struct ntb_ctx_ops *ops)
  * @msg_set_mask:	See ntb_msg_set_mask().
  * @msg_clear_mask:	See ntb_msg_clear_mask().
  * @msg_read:		See ntb_msg_read().
- * @msg_write:		See ntb_msg_write().
+ * @peer_msg_write:	See ntb_peer_msg_write().
  */
 struct ntb_dev_ops {
 	int (*port_number)(struct ntb_dev *ntb);
@@ -324,8 +324,8 @@ struct ntb_dev_ops {
 	int (*msg_clear_sts)(struct ntb_dev *ntb, u64 sts_bits);
 	int (*msg_set_mask)(struct ntb_dev *ntb, u64 mask_bits);
 	int (*msg_clear_mask)(struct ntb_dev *ntb, u64 mask_bits);
-	int (*msg_read)(struct ntb_dev *ntb, int midx, int *pidx, u32 *msg);
-	int (*msg_write)(struct ntb_dev *ntb, int midx, int pidx, u32 msg);
+	u32 (*msg_read)(struct ntb_dev *ntb, int *pidx, int midx);
+	int (*peer_msg_write)(struct ntb_dev *ntb, int pidx, int midx, u32 msg);
 };
 
 static inline int ntb_dev_ops_is_valid(const struct ntb_dev_ops *ops)
@@ -387,7 +387,7 @@ static inline int ntb_dev_ops_is_valid(const struct ntb_dev_ops *ops)
 		/* !ops->msg_set_mask == !ops->msg_count	&& */
 		/* !ops->msg_clear_mask == !ops->msg_count	&& */
 		!ops->msg_read == !ops->msg_count		&&
-		!ops->msg_write == !ops->msg_count		&&
+		!ops->peer_msg_write == !ops->msg_count		&&
 		1;
 }
 
@@ -1462,31 +1462,29 @@ static inline int ntb_msg_clear_mask(struct ntb_dev *ntb, u64 mask_bits)
 }
 
 /**
- * ntb_msg_read() - read message register with specified index
+ * ntb_msg_read() - read inbound message register with specified index
  * @ntb:	NTB device context.
- * @midx:	Message register index
  * @pidx:	OUT - Port index of peer device a message retrieved from
- * @msg:	OUT - Data
+ * @midx:	Message register index
  *
  * Read data from the specified message register. Source port index of a
  * message is retrieved as well.
  *
- * Return: Zero on success, otherwise a negative error number.
+ * Return: The value of the inbound message register.
  */
-static inline int ntb_msg_read(struct ntb_dev *ntb, int midx, int *pidx,
-			       u32 *msg)
+static inline u32 ntb_msg_read(struct ntb_dev *ntb, int *pidx, int midx)
 {
 	if (!ntb->ops->msg_read)
-		return -EINVAL;
+		return ~(u32)0;
 
-	return ntb->ops->msg_read(ntb, midx, pidx, msg);
+	return ntb->ops->msg_read(ntb, pidx, midx);
 }
 
 /**
- * ntb_msg_write() - write data to the specified message register
+ * ntb_peer_msg_write() - write data to the specified peer message register
  * @ntb:	NTB device context.
- * @midx:	Message register index
  * @pidx:	Port index of peer device a message being sent to
+ * @midx:	Message register index
  * @msg:	Data to send
  *
  * Send data to a specified peer device using the defined message register.
@@ -1495,13 +1493,13 @@ static inline int ntb_msg_read(struct ntb_dev *ntb, int midx, int *pidx,
  *
  * Return: Zero on success, otherwise a negative error number.
  */
-static inline int ntb_msg_write(struct ntb_dev *ntb, int midx, int pidx,
-				u32 msg)
+static inline int ntb_peer_msg_write(struct ntb_dev *ntb, int pidx, int midx,
+				     u32 msg)
 {
-	if (!ntb->ops->msg_write)
+	if (!ntb->ops->peer_msg_write)
 		return -EINVAL;
 
-	return ntb->ops->msg_write(ntb, midx, pidx, msg);
+	return ntb->ops->peer_msg_write(ntb, pidx, midx, msg);
 }
 
 #endif

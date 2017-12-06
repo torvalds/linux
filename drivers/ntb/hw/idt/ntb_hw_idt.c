@@ -1744,20 +1744,19 @@ static int idt_ntb_msg_clear_mask(struct ntb_dev *ntb, u64 mask_bits)
  * idt_ntb_msg_read() - read message register with specified index
  *			(NTB API callback)
  * @ntb:	NTB device context.
- * @midx:	Message register index
  * @pidx:	OUT - Port index of peer device a message retrieved from
- * @msg:	OUT - Data
+ * @midx:	Message register index
  *
  * Read data from the specified message register and source register.
  *
- * Return: zero on success, negative error if invalid argument passed.
+ * Return: inbound message register value.
  */
-static int idt_ntb_msg_read(struct ntb_dev *ntb, int midx, int *pidx, u32 *msg)
+static u32 idt_ntb_msg_read(struct ntb_dev *ntb, int *pidx, int midx)
 {
 	struct idt_ntb_dev *ndev = to_ndev_ntb(ntb);
 
 	if (midx < 0 || IDT_MSG_CNT <= midx)
-		return -EINVAL;
+		return ~(u32)0;
 
 	/* Retrieve source port index of the message */
 	if (pidx != NULL) {
@@ -1772,18 +1771,15 @@ static int idt_ntb_msg_read(struct ntb_dev *ntb, int midx, int *pidx, u32 *msg)
 	}
 
 	/* Retrieve data of the corresponding message register */
-	if (msg != NULL)
-		*msg = idt_nt_read(ndev, ntdata_tbl.msgs[midx].in);
-
-	return 0;
+	return idt_nt_read(ndev, ntdata_tbl.msgs[midx].in);
 }
 
 /*
- * idt_ntb_msg_write() - write data to the specified message register
- *			 (NTB API callback)
+ * idt_ntb_peer_msg_write() - write data to the specified message register
+ *			      (NTB API callback)
  * @ntb:	NTB device context.
- * @midx:	Message register index
  * @pidx:	Port index of peer device a message being sent to
+ * @midx:	Message register index
  * @msg:	Data to send
  *
  * Just try to send data to a peer. Message status register should be
@@ -1791,7 +1787,8 @@ static int idt_ntb_msg_read(struct ntb_dev *ntb, int midx, int *pidx, u32 *msg)
  *
  * Return: zero on success, negative error if invalid argument passed.
  */
-static int idt_ntb_msg_write(struct ntb_dev *ntb, int midx, int pidx, u32 msg)
+static int idt_ntb_peer_msg_write(struct ntb_dev *ntb, int pidx, int midx,
+				  u32 msg)
 {
 	struct idt_ntb_dev *ndev = to_ndev_ntb(ntb);
 	unsigned long irqflags;
@@ -2058,7 +2055,7 @@ static const struct ntb_dev_ops idt_ntb_ops = {
 	.msg_set_mask		= idt_ntb_msg_set_mask,
 	.msg_clear_mask		= idt_ntb_msg_clear_mask,
 	.msg_read		= idt_ntb_msg_read,
-	.msg_write		= idt_ntb_msg_write
+	.peer_msg_write		= idt_ntb_peer_msg_write
 };
 
 /*
@@ -2269,7 +2266,7 @@ static ssize_t idt_dbgfs_info_read(struct file *filp, char __user *ubuf,
 		 "Message data:\n");
 	for (idx = 0; idx < IDT_MSG_CNT; idx++) {
 		int src;
-		(void)idt_ntb_msg_read(&ndev->ntb, idx, &src, &data);
+		data = idt_ntb_msg_read(&ndev->ntb, &src, idx);
 		off += scnprintf(strbuf + off, size - off,
 			"\t%hhu. 0x%08x from peer %hhu (Port %hhu)\n",
 			idx, data, src, ndev->peers[src].port);
