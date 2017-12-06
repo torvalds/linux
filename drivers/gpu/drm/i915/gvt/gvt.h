@@ -46,6 +46,8 @@
 #include "sched_policy.h"
 #include "render.h"
 #include "cmd_parser.h"
+#include "fb_decoder.h"
+#include "dmabuf.h"
 
 #define GVT_MAX_VGPU 8
 
@@ -123,7 +125,9 @@ struct intel_vgpu_irq {
 };
 
 struct intel_vgpu_opregion {
+	bool mapped;
 	void *va;
+	void *va_gopregion;
 	u32 gfn[INTEL_GVT_OPREGION_PAGES];
 };
 
@@ -206,8 +210,16 @@ struct intel_vgpu {
 		struct kvm *kvm;
 		struct work_struct release_work;
 		atomic_t released;
+		struct vfio_device *vfio_device;
 	} vdev;
 #endif
+
+	struct list_head dmabuf_obj_list_head;
+	struct mutex dmabuf_lock;
+	struct idr object_idr;
+
+	struct completion vblank_done;
+
 };
 
 /* validating GM healthy status*/
@@ -505,7 +517,8 @@ static inline u64 intel_vgpu_get_bar_gpa(struct intel_vgpu *vgpu, int bar)
 }
 
 void intel_vgpu_clean_opregion(struct intel_vgpu *vgpu);
-int intel_vgpu_init_opregion(struct intel_vgpu *vgpu, u32 gpa);
+int intel_vgpu_init_opregion(struct intel_vgpu *vgpu);
+int intel_vgpu_opregion_base_write_handler(struct intel_vgpu *vgpu, u32 gpa);
 
 int intel_vgpu_emulate_opregion_request(struct intel_vgpu *vgpu, u32 swsci);
 void populate_pvinfo_page(struct intel_vgpu *vgpu);
@@ -532,6 +545,8 @@ struct intel_gvt_ops {
 			const char *name);
 	bool (*get_gvt_attrs)(struct attribute ***type_attrs,
 			struct attribute_group ***intel_vgpu_type_groups);
+	int (*vgpu_query_plane)(struct intel_vgpu *vgpu, void *);
+	int (*vgpu_get_dmabuf)(struct intel_vgpu *vgpu, unsigned int);
 };
 
 

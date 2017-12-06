@@ -502,6 +502,68 @@ struct vfio_pci_hot_reset {
 
 #define VFIO_DEVICE_PCI_HOT_RESET	_IO(VFIO_TYPE, VFIO_BASE + 13)
 
+/**
+ * VFIO_DEVICE_QUERY_GFX_PLANE - _IOW(VFIO_TYPE, VFIO_BASE + 14,
+ *                                    struct vfio_device_query_gfx_plane)
+ *
+ * Set the drm_plane_type and flags, then retrieve the gfx plane info.
+ *
+ * flags supported:
+ * - VFIO_GFX_PLANE_TYPE_PROBE and VFIO_GFX_PLANE_TYPE_DMABUF are set
+ *   to ask if the mdev supports dma-buf. 0 on support, -EINVAL on no
+ *   support for dma-buf.
+ * - VFIO_GFX_PLANE_TYPE_PROBE and VFIO_GFX_PLANE_TYPE_REGION are set
+ *   to ask if the mdev supports region. 0 on support, -EINVAL on no
+ *   support for region.
+ * - VFIO_GFX_PLANE_TYPE_DMABUF or VFIO_GFX_PLANE_TYPE_REGION is set
+ *   with each call to query the plane info.
+ * - Others are invalid and return -EINVAL.
+ *
+ * Note:
+ * 1. Plane could be disabled by guest. In that case, success will be
+ *    returned with zero-initialized drm_format, size, width and height
+ *    fields.
+ * 2. x_hot/y_hot is set to 0xFFFFFFFF if no hotspot information available
+ *
+ * Return: 0 on success, -errno on other failure.
+ */
+struct vfio_device_gfx_plane_info {
+	__u32 argsz;
+	__u32 flags;
+#define VFIO_GFX_PLANE_TYPE_PROBE (1 << 0)
+#define VFIO_GFX_PLANE_TYPE_DMABUF (1 << 1)
+#define VFIO_GFX_PLANE_TYPE_REGION (1 << 2)
+	/* in */
+	__u32 drm_plane_type;	/* type of plane: DRM_PLANE_TYPE_* */
+	/* out */
+	__u32 drm_format;	/* drm format of plane */
+	__u64 drm_format_mod;   /* tiled mode */
+	__u32 width;	/* width of plane */
+	__u32 height;	/* height of plane */
+	__u32 stride;	/* stride of plane */
+	__u32 size;	/* size of plane in bytes, align on page*/
+	__u32 x_pos;	/* horizontal position of cursor plane */
+	__u32 y_pos;	/* vertical position of cursor plane*/
+	__u32 x_hot;    /* horizontal position of cursor hotspot */
+	__u32 y_hot;    /* vertical position of cursor hotspot */
+	union {
+		__u32 region_index;	/* region index */
+		__u32 dmabuf_id;	/* dma-buf id */
+	};
+};
+
+#define VFIO_DEVICE_QUERY_GFX_PLANE _IO(VFIO_TYPE, VFIO_BASE + 14)
+
+/**
+ * VFIO_DEVICE_GET_GFX_DMABUF - _IOW(VFIO_TYPE, VFIO_BASE + 15, __u32)
+ *
+ * Return a new dma-buf file descriptor for an exposed guest framebuffer
+ * described by the provided dmabuf_id. The dmabuf_id is returned from VFIO_
+ * DEVICE_QUERY_GFX_PLANE as a token of the exposed guest framebuffer.
+ */
+
+#define VFIO_DEVICE_GET_GFX_DMABUF _IO(VFIO_TYPE, VFIO_BASE + 15)
+
 /* -------- API for Type1 VFIO IOMMU -------- */
 
 /**

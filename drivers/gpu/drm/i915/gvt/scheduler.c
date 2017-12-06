@@ -188,9 +188,11 @@ static int shadow_context_status_change(struct notifier_block *nb,
 		atomic_set(&workload->shadow_ctx_active, 1);
 		break;
 	case INTEL_CONTEXT_SCHEDULE_OUT:
-	case INTEL_CONTEXT_SCHEDULE_PREEMPTED:
 		save_ring_hw_state(workload->vgpu, ring_id);
 		atomic_set(&workload->shadow_ctx_active, 0);
+		break;
+	case INTEL_CONTEXT_SCHEDULE_PREEMPTED:
+		save_ring_hw_state(workload->vgpu, ring_id);
 		break;
 	default:
 		WARN_ON(1);
@@ -245,7 +247,7 @@ static int copy_workload_to_ring_buffer(struct intel_vgpu_workload *workload)
 	return 0;
 }
 
-void release_shadow_wa_ctx(struct intel_shadow_wa_ctx *wa_ctx)
+static void release_shadow_wa_ctx(struct intel_shadow_wa_ctx *wa_ctx)
 {
 	if (!wa_ctx->indirect_ctx.obj)
 		return;
@@ -1036,6 +1038,9 @@ int intel_vgpu_setup_submission(struct intel_vgpu *vgpu)
 	if (IS_ERR(s->shadow_ctx))
 		return PTR_ERR(s->shadow_ctx);
 
+	if (HAS_LOGICAL_RING_PREEMPTION(vgpu->gvt->dev_priv))
+		s->shadow_ctx->priority = INT_MAX;
+
 	bitmap_zero(s->shadow_ctx_desc_updated, I915_NUM_ENGINES);
 
 	s->workloads = kmem_cache_create("gvt-g_vgpu_workload",
@@ -1327,4 +1332,16 @@ intel_vgpu_create_workload(struct intel_vgpu *vgpu, int ring_id,
 	}
 
 	return workload;
+}
+
+/**
+ * intel_vgpu_queue_workload - Qeue a vGPU workload
+ * @workload: the workload to queue in
+ */
+void intel_vgpu_queue_workload(struct intel_vgpu_workload *workload)
+{
+	list_add_tail(&workload->list,
+		workload_q_head(workload->vgpu, workload->ring_id));
+	intel_gvt_kick_schedule(workload->vgpu->gvt);
+	wake_up(&workload->vgpu->gvt->scheduler.waitq[workload->ring_id]);
 }
