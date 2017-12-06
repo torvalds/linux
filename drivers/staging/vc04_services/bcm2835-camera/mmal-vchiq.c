@@ -618,8 +618,8 @@ static void buffer_to_host_cb(struct vchiq_mmal_instance *instance,
 	struct mmal_msg_context *msg_context;
 	u32 handle;
 
-	pr_debug("buffer_to_host_cb: instance:%p msg:%p msg_len:%d\n",
-		 instance, msg, msg_len);
+	pr_debug("%s: instance:%p msg:%p msg_len:%d\n",
+		 __func__, instance, msg, msg_len);
 
 	if (msg->u.buffer_from_host.drvbuf.magic == MMAL_MAGIC) {
 		handle = msg->u.buffer_from_host.drvbuf.client_context;
