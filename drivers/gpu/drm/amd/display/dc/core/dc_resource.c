@@ -669,12 +669,6 @@ static void calculate_inits_and_adj_vp(struct pipe_ctx *pipe_ctx, struct view *r
 	if (pipe_ctx->plane_state->horizontal_mirror)
 		flip_horz_scan_dir = !flip_horz_scan_dir;
 
-	/* Temp W/A for rotated displays, ignore recout_skip */
-	if (flip_vert_scan_dir)
-		recout_skip->height = 0;
-	if (flip_horz_scan_dir)
-		recout_skip->width = 0;
-
 	if (pipe_ctx->plane_state->rotation == ROTATION_ANGLE_90 ||
 			pipe_ctx->plane_state->rotation == ROTATION_ANGLE_270) {
 		rect_swap_helper(&src);
@@ -738,7 +732,7 @@ static void calculate_inits_and_adj_vp(struct pipe_ctx *pipe_ctx, struct view *r
 	}
 
 	/* Adjust for non-0 viewport offset */
-	if (data->viewport.x) {
+	if (data->viewport.x && !flip_horz_scan_dir) {
 		int int_part;
 
 		data->inits.h = dal_fixed31_32_add(data->inits.h, dal_fixed31_32_mul_int(
@@ -759,7 +753,7 @@ static void calculate_inits_and_adj_vp(struct pipe_ctx *pipe_ctx, struct view *r
 		data->inits.h = dal_fixed31_32_add_int(data->inits.h, int_part);
 	}
 
-	if (data->viewport_c.x) {
+	if (data->viewport_c.x && !flip_horz_scan_dir) {
 		int int_part;
 
 		data->inits.h_c = dal_fixed31_32_add(data->inits.h_c, dal_fixed31_32_mul_int(
@@ -780,7 +774,7 @@ static void calculate_inits_and_adj_vp(struct pipe_ctx *pipe_ctx, struct view *r
 		data->inits.h_c = dal_fixed31_32_add_int(data->inits.h_c, int_part);
 	}
 
-	if (data->viewport.y) {
+	if (data->viewport.y && !flip_vert_scan_dir) {
 		int int_part;
 
 		data->inits.v = dal_fixed31_32_add(data->inits.v, dal_fixed31_32_mul_int(
@@ -801,7 +795,7 @@ static void calculate_inits_and_adj_vp(struct pipe_ctx *pipe_ctx, struct view *r
 		data->inits.v = dal_fixed31_32_add_int(data->inits.v, int_part);
 	}
 
-	if (data->viewport_c.y) {
+	if (data->viewport_c.y && !flip_vert_scan_dir) {
 		int int_part;
 
 		data->inits.v_c = dal_fixed31_32_add(data->inits.v_c, dal_fixed31_32_mul_int(
