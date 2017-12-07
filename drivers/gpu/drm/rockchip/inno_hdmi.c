@@ -211,11 +211,16 @@ static void inno_hdmi_sys_power(struct inno_hdmi *hdmi, bool enable)
 
 static void inno_hdmi_set_pwr_mode(struct inno_hdmi *hdmi, int mode)
 {
+	u8 value;
+
 	switch (mode) {
 	case NORMAL:
 		inno_hdmi_sys_power(hdmi, false);
-
-		hdmi_writeb(hdmi, HDMI_PHY_PRE_EMPHASIS, 0x6f);
+		if (hdmi->tmds_rate > 140000000)
+			value = 0x6f;
+		else
+			value = 0x3f;
+		hdmi_writeb(hdmi, HDMI_PHY_PRE_EMPHASIS, value);
 		hdmi_writeb(hdmi, HDMI_PHY_DRIVER, 0xbb);
 
 		hdmi_writeb(hdmi, HDMI_PHY_SYS_CTL, 0x15);
