@@ -661,6 +661,14 @@
 			};
 		};
 		cdc_dmic_lines_sus: dmic_lines_off {
+			pinmux_dmic0_clk {
+				function = "dmic0_clk";
+				pins = "gpio0";
+			};
+			pinmux_dmic0_data {
+				function = "dmic0_data";
+				pins = "gpio1";
+			};
 			pinconf {
 				pins = "gpio0", "gpio1";
 				drive-strength = <2>;
