@@ -179,8 +179,11 @@
 			};
 
 			prcm: prcm@200000 {
-				compatible = "ti,am3-prcm";
+				compatible = "ti,am3-prcm", "simple-bus";
 				reg = <0x200000 0x4000>;
+				#address-cells = <1>;
+				#size-cells = <1>;
+				ranges = <0 0x200000 0x4000>;
 
 				prcm_clocks: clocks {
 					#address-cells = <1>;
