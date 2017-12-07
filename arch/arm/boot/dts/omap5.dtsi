@@ -201,8 +201,12 @@
 			};
 
 			cm_core_aon: cm_core_aon@4000 {
-				compatible = "ti,omap5-cm-core-aon";
+				compatible = "ti,omap5-cm-core-aon",
+					     "simple-bus";
 				reg = <0x4000 0x2000>;
+				#address-cells = <1>;
+				#size-cells = <1>;
+				ranges = <0 0x4000 0x2000>;
 
 				cm_core_aon_clocks: clocks {
 					#address-cells = <1>;
@@ -214,8 +218,11 @@
 			};
 
 			cm_core: cm_core@8000 {
-				compatible = "ti,omap5-cm-core";
+				compatible = "ti,omap5-cm-core", "simple-bus";
 				reg = <0x8000 0x3000>;
+				#address-cells = <1>;
+				#size-cells = <1>;
+				ranges = <0 0x8000 0x3000>;
 
 				cm_core_clocks: clocks {
 					#address-cells = <1>;
@@ -240,9 +247,12 @@
 			};
 
 			prm: prm@6000 {
-				compatible = "ti,omap5-prm";
+				compatible = "ti,omap5-prm", "simple-bus";
 				reg = <0x6000 0x3000>;
 				interrupts = <GIC_SPI 11 IRQ_TYPE_LEVEL_HIGH>;
+				#address-cells = <1>;
+				#size-cells = <1>;
+				ranges = <0 0x6000 0x3000>;
 
 				prm_clocks: clocks {
 					#address-cells = <1>;
