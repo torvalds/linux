@@ -431,8 +431,6 @@ static inline void elsp_write(u64 desc, u32 __iomem *elsp)
 static void execlists_submit_ports(struct intel_engine_cs *engine)
 {
 	struct execlist_port *port = engine->execlists.port;
-	u32 __iomem *elsp =
-		engine->i915->regs + i915_mmio_reg_offset(RING_ELSP(engine));
 	unsigned int n;
 
 	for (n = execlists_num_ports(&engine->execlists); n--; ) {
@@ -458,7 +456,7 @@ static void execlists_submit_ports(struct intel_engine_cs *engine)
 			desc = 0;
 		}
 
-		elsp_write(desc, elsp);
+		elsp_write(desc, engine->execlists.elsp);
 	}
 	execlists_clear_active(&engine->execlists, EXECLISTS_ACTIVE_HWACK);
 }
@@ -496,8 +494,6 @@ static void inject_preempt_context(struct intel_engine_cs *engine)
 {
 	struct intel_context *ce =
 		&engine->i915->preempt_context->engine[engine->id];
-	u32 __iomem *elsp =
-		engine->i915->regs + i915_mmio_reg_offset(RING_ELSP(engine));
 	unsigned int n;
 
 	GEM_BUG_ON(engine->i915->preempt_context->hw_id != PREEMPT_ID);
@@ -510,9 +506,9 @@ static void inject_preempt_context(struct intel_engine_cs *engine)
 
 	GEM_TRACE("\n");
 	for (n = execlists_num_ports(&engine->execlists); --n; )
-		elsp_write(0, elsp);
+		elsp_write(0, engine->execlists.elsp);
 
-	elsp_write(ce->lrc_desc, elsp);
+	elsp_write(ce->lrc_desc, engine->execlists.elsp);
 	execlists_clear_active(&engine->execlists, EXECLISTS_ACTIVE_HWACK);
 }
 
@@ -1508,6 +1504,9 @@ static int gen8_init_common_ring(struct intel_engine_cs *engine)
 	clear_bit(ENGINE_IRQ_EXECLIST, &engine->irq_posted);
 	execlists->csb_head = -1;
 	execlists->active = 0;
+
+	execlists->elsp =
+		dev_priv->regs + i915_mmio_reg_offset(RING_ELSP(engine));
 
 	/* After a GPU reset, we may have requests to replay */
 	if (execlists->first)

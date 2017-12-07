@@ -199,6 +199,11 @@ struct intel_engine_execlists {
 	bool no_priolist;
 
 	/**
+	 * @elsp: the ExecList Submission Port register
+	 */
+	u32 __iomem *elsp;
+
+	/**
 	 * @port: execlist port states
 	 *
 	 * For each hardware ELSP (ExecList Submission Port) we keep
