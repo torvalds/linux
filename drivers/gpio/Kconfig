@@ -122,12 +122,6 @@ config GPIO_ATH79
 	  Select this option to enable GPIO driver for
 	  Atheros AR71XX/AR724X/AR913X SoC devices.
 
-config GPIO_AXP209
-	tristate "X-Powers AXP209 PMIC GPIO Support"
-	depends on MFD_AXP20X
-	help
-	  Say yes to enable GPIO support for the AXP209 PMIC
-
 config GPIO_BCM_KONA
 	bool "Broadcom Kona GPIO"
 	depends on OF_GPIO && (ARCH_BCM_MOBILE || COMPILE_TEST)
