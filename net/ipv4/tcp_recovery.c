@@ -80,12 +80,12 @@ static void tcp_rack_detect_loss(struct sock *sk, u32 *reo_timeout)
 		 */
 		remaining = tp->rack.rtt_us + reo_wnd -
 			    tcp_stamp_us_delta(tp->tcp_mstamp, skb->skb_mstamp);
-		if (remaining < 0) {
+		if (remaining <= 0) {
 			tcp_rack_mark_skb_lost(sk, skb);
 			list_del_init(&skb->tcp_tsorted_anchor);
 		} else {
-			/* Record maximum wait time (+1 to avoid 0) */
-			*reo_timeout = max_t(u32, *reo_timeout, 1 + remaining);
+			/* Record maximum wait time */
+			*reo_timeout = max_t(u32, *reo_timeout, remaining);
 		}
 	}
 }
