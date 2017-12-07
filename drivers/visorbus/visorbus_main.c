@@ -8,9 +8,9 @@
 #include <linux/debugfs.h>
 #include <linux/module.h>
 #include <linux/slab.h>
+#include <linux/visorbus.h>
 #include <linux/uuid.h>
 
-#include "visorbus.h"
 #include "visorbus_private.h"
 
 static const guid_t visor_vbus_channel_guid = VISOR_VBUS_CHANNEL_GUID;

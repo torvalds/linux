@@ -17,7 +17,7 @@
  */
 
 #include <linux/uuid.h>
-#include "visorbus.h"
+#include <linux/visorbus.h>
 
 /* {193b331b-c58f-11da-95a9-00e08161165f} */
 #define VISOR_VBUS_CHANNEL_GUID						\

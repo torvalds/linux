@@ -9,10 +9,10 @@
 
 #include <linux/uuid.h>
 #include <linux/utsname.h>
+#include <linux/visorbus.h>
 
 #include "controlvmchannel.h"
 #include "vbuschannel.h"
-#include "visorbus.h"
 
 struct visor_device *visorbus_get_device_by_id(u32 bus_no, u32 dev_no,
 					       struct visor_device *from);

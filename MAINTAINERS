@@ -14006,6 +14006,8 @@ UNISYS S-PAR DRIVERS
 M:	David Kershner <david.kershner@unisys.com>
 L:	sparmaintainer@unisys.com (Unisys internal)
 S:	Supported
+F:	include/linux/visorbus.h
+F:	drivers/visorbus/
 F:	drivers/staging/unisys/
 
 UNIVERSAL FLASH STORAGE HOST CONTROLLER DRIVER

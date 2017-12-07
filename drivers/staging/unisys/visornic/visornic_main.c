@@ -16,8 +16,8 @@
 #include <linux/kthread.h>
 #include <linux/skbuff.h>
 #include <linux/rtnetlink.h>
+#include <linux/visorbus.h>
 
-#include "visorbus.h"
 #include "iochannel.h"
 
 #define VISORNIC_INFINITE_RSP_WAIT 0

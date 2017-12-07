@@ -8,7 +8,6 @@ menuconfig UNISYSSPAR
 
 if UNISYSSPAR
 
-source "drivers/staging/unisys/visorbus/Kconfig"
 source "drivers/staging/unisys/visornic/Kconfig"
 source "drivers/staging/unisys/visorinput/Kconfig"
 source "drivers/staging/unisys/visorhba/Kconfig"

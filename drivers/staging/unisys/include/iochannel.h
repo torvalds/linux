@@ -33,8 +33,7 @@
 
 #include <linux/uuid.h>
 #include <linux/skbuff.h>
-
-#include "visorbus.h"
+#include <linux/visorbus.h>
 
 /*
  * Must increment these whenever you insert or delete fields within this channel

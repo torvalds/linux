@@ -4,7 +4,6 @@
 
 config UNISYS_VISORBUS
 	tristate "Unisys visorbus driver"
-	depends on UNISYSSPAR
 	depends on X86_64 && ACPI
 	---help---
 	The visorbus driver is a virtualized bus for the Unisys s-Par firmware.
