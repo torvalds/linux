@@ -583,6 +583,7 @@ static void lan9303_alr_loop(struct lan9303 *chip, alr_loop_cb_t *cb, void *ctx)
 {
 	int i;
 
+	mutex_lock(&chip->alr_mutex);
 	lan9303_write_switch_reg(chip, LAN9303_SWE_ALR_CMD,
 				 LAN9303_ALR_CMD_GET_FIRST);
 	lan9303_write_switch_reg(chip, LAN9303_SWE_ALR_CMD, 0);
@@ -606,6 +607,7 @@ static void lan9303_alr_loop(struct lan9303 *chip, alr_loop_cb_t *cb, void *ctx)
 					 LAN9303_ALR_CMD_GET_NEXT);
 		lan9303_write_switch_reg(chip, LAN9303_SWE_ALR_CMD, 0);
 	}
+	mutex_unlock(&chip->alr_mutex);
 }
 
 static void alr_reg_to_mac(u32 dat0, u32 dat1, u8 mac[6])
@@ -694,16 +696,20 @@ static int lan9303_alr_add_port(struct lan9303 *chip, const u8 *mac, int port,
 {
 	struct lan9303_alr_cache_entry *entr;
 
+	mutex_lock(&chip->alr_mutex);
 	entr = lan9303_alr_cache_find_mac(chip, mac);
 	if (!entr) { /*New entry */
 		entr = lan9303_alr_cache_find_free(chip);
-		if (!entr)
+		if (!entr) {
+			mutex_unlock(&chip->alr_mutex);
 			return -ENOSPC;
+		}
 		ether_addr_copy(entr->mac_addr, mac);
 	}
 	entr->port_map |= BIT(port);
 	entr->stp_override = stp_override;
 	lan9303_alr_set_entry(chip, mac, entr->port_map, stp_override);
+	mutex_unlock(&chip->alr_mutex);
 
 	return 0;
 }
@@ -713,15 +719,18 @@ static int lan9303_alr_del_port(struct lan9303 *chip, const u8 *mac, int port)
 {
 	struct lan9303_alr_cache_entry *entr;
 
+	mutex_lock(&chip->alr_mutex);
 	entr = lan9303_alr_cache_find_mac(chip, mac);
 	if (!entr)
-		return 0;  /* no static entry found */
+		goto out;  /* no static entry found */
 
 	entr->port_map &= ~BIT(port);
 	if (entr->port_map == 0) /* zero means its free again */
 		eth_zero_addr(entr->mac_addr);
 	lan9303_alr_set_entry(chip, mac, entr->port_map, entr->stp_override);
 
+out:
+	mutex_unlock(&chip->alr_mutex);
 	return 0;
 }
 
@@ -1323,6 +1332,7 @@ int lan9303_probe(struct lan9303 *chip, struct device_node *np)
 	int ret;
 
 	mutex_init(&chip->indirect_mutex);
+	mutex_init(&chip->alr_mutex);
 
 	lan9303_probe_reset_gpio(chip, np);
 

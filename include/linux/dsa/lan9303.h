@@ -26,6 +26,7 @@ struct lan9303 {
 	bool phy_addr_sel_strap;
 	struct dsa_switch *ds;
 	struct mutex indirect_mutex; /* protect indexed register access */
+	struct mutex alr_mutex; /* protect ALR access */
 	const struct lan9303_phy_ops *ops;
 	bool is_bridged; /* true if port 1 and 2 are bridged */
 
