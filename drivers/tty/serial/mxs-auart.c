@@ -1721,7 +1721,7 @@ static int mxs_auart_probe(struct platform_device *pdev)
 
 	ret = uart_add_one_port(&auart_driver, &s->port);
 	if (ret)
-		goto out_free_gpio_irq;
+		goto out_disable_clks_free_qpio_irq;
 
 	/* ASM9260 don't have version reg */
 	if (is_asm9260_auart(s)) {
@@ -1735,7 +1735,11 @@ static int mxs_auart_probe(struct platform_device *pdev)
 
 	return 0;
 
-out_free_gpio_irq:
+out_disable_clks_free_qpio_irq:
+	if (s->clk)
+		clk_disable_unprepare(s->clk_ahb);
+	if (s->clk_ahb)
+		clk_disable_unprepare(s->clk_ahb);
 	mxs_auart_free_gpio_irq(s);
 	auart_port[pdev->id] = NULL;
 	return ret;
