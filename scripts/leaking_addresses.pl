@@ -20,6 +20,7 @@ use Term::ANSIColor qw(:constants);
 use Getopt::Long qw(:config no_auto_abbrev);
 use Config;
 use bigint qw/hex/;
+use feature 'state';
 
 my $P = $0;
 my $V = '0.01';
@@ -296,13 +297,7 @@ sub may_leak_address
 		return 0;
 	}
 
-	# One of these is guaranteed to be true.
-	if (is_x86_64()) {
-		$address_re = '\b(0x)?ffff[[:xdigit:]]{12}\b';
-	} elsif (is_ppc64()) {
-		$address_re = '\b(0x)?[89abcdef]00[[:xdigit:]]{13}\b';
-	}
-
+	$address_re = get_address_re();
 	while (/($address_re)/g) {
 		if (!is_false_positive($1)) {
 			return 1;
@@ -310,6 +305,29 @@ sub may_leak_address
 	}
 
 	return 0;
+}
+
+sub get_address_re
+{
+	if (is_x86_64()) {
+		return get_x86_64_re();
+	} elsif (is_ppc64()) {
+		return '\b(0x)?[89abcdef]00[[:xdigit:]]{13}\b';
+	}
+}
+
+sub get_x86_64_re
+{
+	# We handle page table levels but only if explicitly configured using
+	# CONFIG_PGTABLE_LEVELS.  If config file parsing fails or config option
+	# is not found we default to using address regular expression suitable
+	# for 4 page table levels.
+	state $ptl = get_kernel_config_option('CONFIG_PGTABLE_LEVELS');
+
+	if ($ptl == 5) {
+		return '\b(0x)?ff[[:xdigit:]]{14}\b';
+	}
+	return '\b(0x)?ffff[[:xdigit:]]{12}\b';
 }
 
 sub parse_dmesg
