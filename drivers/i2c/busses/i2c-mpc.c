@@ -382,17 +382,17 @@ static int mpc_i2c_get_fdr_8xxx(struct device_node *node, u32 clock,
 	u32 divider;
 	int i;
 
-	if (clock == MPC_I2C_CLOCK_LEGACY) {
-		/* see below - default fdr = 0x1031 -> div = 16 * 3072 */
-		*real_clk = fsl_get_sys_freq() / prescaler / (16 * 3072);
-		return -EINVAL;
-	}
-
 	/* Determine proper divider value */
 	if (of_device_is_compatible(node, "fsl,mpc8544-i2c"))
 		prescaler = mpc_i2c_get_sec_cfg_8xxx() ? 3 : 2;
 	if (!prescaler)
 		prescaler = mpc_i2c_get_prescaler_8xxx();
+
+	if (clock == MPC_I2C_CLOCK_LEGACY) {
+		/* see below - default fdr = 0x1031 -> div = 16 * 3072 */
+		*real_clk = fsl_get_sys_freq() / prescaler / (16 * 3072);
+		return -EINVAL;
+	}
 
 	divider = fsl_get_sys_freq() / clock / prescaler;
 
