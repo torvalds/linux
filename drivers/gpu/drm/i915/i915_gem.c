@@ -4712,17 +4712,19 @@ int i915_gem_suspend(struct drm_i915_private *dev_priv)
 	 * state. Fortunately, the kernel_context is disposable and we do
 	 * not rely on its state.
 	 */
-	ret = i915_gem_switch_to_kernel_context(dev_priv);
-	if (ret)
-		goto err_unlock;
+	if (!i915_terminally_wedged(&dev_priv->gpu_error)) {
+		ret = i915_gem_switch_to_kernel_context(dev_priv);
+		if (ret)
+			goto err_unlock;
 
-	ret = i915_gem_wait_for_idle(dev_priv,
-				     I915_WAIT_INTERRUPTIBLE |
-				     I915_WAIT_LOCKED);
-	if (ret && ret != -EIO)
-		goto err_unlock;
+		ret = i915_gem_wait_for_idle(dev_priv,
+					     I915_WAIT_INTERRUPTIBLE |
+					     I915_WAIT_LOCKED);
+		if (ret && ret != -EIO)
+			goto err_unlock;
 
-	assert_kernel_context_is_current(dev_priv);
+		assert_kernel_context_is_current(dev_priv);
+	}
 	i915_gem_contexts_lost(dev_priv);
 	mutex_unlock(&dev->struct_mutex);
 
@@ -4946,8 +4948,6 @@ int i915_gem_init(struct drm_i915_private *dev_priv)
 {
 	int ret;
 
-	mutex_lock(&dev_priv->drm.struct_mutex);
-
 	/*
 	 * We need to fallback to 4K pages since gvt gtt handling doesn't
 	 * support huge page entries - we will need to check either hypervisor
@@ -4967,17 +4967,18 @@ int i915_gem_init(struct drm_i915_private *dev_priv)
 		dev_priv->gt.cleanup_engine = intel_logical_ring_cleanup;
 	}
 
+	ret = i915_gem_init_userptr(dev_priv);
+	if (ret)
+		return ret;
+
 	/* This is just a security blanket to placate dragons.
 	 * On some systems, we very sporadically observe that the first TLBs
 	 * used by the CS may be stale, despite us poking the TLB reset. If
 	 * we hold the forcewake during initialisation these problems
 	 * just magically go away.
 	 */
+	mutex_lock(&dev_priv->drm.struct_mutex);
 	intel_uncore_forcewake_get(dev_priv, FORCEWAKE_ALL);
-
-	ret = i915_gem_init_userptr(dev_priv);
-	if (ret)
-		goto out_unlock;
 
 	ret = i915_gem_init_ggtt(dev_priv);
 	if (ret)
