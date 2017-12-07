@@ -1884,6 +1884,12 @@ static int coda_queue_init(struct coda_ctx *ctx, struct vb2_queue *vq)
 	 * that videobuf2 will keep the value of bytesused intact.
 	 */
 	vq->allow_zero_bytesused = 1;
+	/*
+	 * We might be fine with no buffers on some of the queues, but that
+	 * would need to be reflected in job_ready(). Currently we expect all
+	 * queues to have at least one buffer queued.
+	 */
+	vq->min_buffers_needed = 1;
 	vq->dev = &ctx->dev->plat_dev->dev;
 
 	return vb2_queue_init(vq);
