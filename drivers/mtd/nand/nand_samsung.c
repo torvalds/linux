@@ -91,6 +91,12 @@ static void samsung_nand_decode_id(struct nand_chip *chip)
 		}
 	} else {
 		nand_decode_ext_id(chip);
+
+		/* Datasheet values for SLC Samsung K9F4G08U0D-S[I|C]B0(T00) */
+		if (nand_is_slc(chip) && chip->id.data[1] == 0xDC) {
+			chip->ecc_step_ds = 512;
+			chip->ecc_strength_ds = 1;
+		}
 	}
 }
 
