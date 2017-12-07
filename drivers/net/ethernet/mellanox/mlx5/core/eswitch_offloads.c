@@ -302,7 +302,7 @@ out:
 	return err;
 }
 
-static struct mlx5_flow_handle *
+struct mlx5_flow_handle *
 mlx5_eswitch_add_send_to_vport_rule(struct mlx5_eswitch *esw, int vport, u32 sqn)
 {
 	struct mlx5_flow_act flow_act = {0};
@@ -337,59 +337,6 @@ mlx5_eswitch_add_send_to_vport_rule(struct mlx5_eswitch *esw, int vport, u32 sqn
 out:
 	kvfree(spec);
 	return flow_rule;
-}
-
-void mlx5_eswitch_sqs2vport_stop(struct mlx5_eswitch *esw,
-				 struct mlx5_eswitch_rep *rep)
-{
-	struct mlx5_esw_sq *esw_sq, *tmp;
-
-	if (esw->mode != SRIOV_OFFLOADS)
-		return;
-
-	list_for_each_entry_safe(esw_sq, tmp, &rep->vport_sqs_list, list) {
-		mlx5_del_flow_rules(esw_sq->send_to_vport_rule);
-		list_del(&esw_sq->list);
-		kfree(esw_sq);
-	}
-}
-
-int mlx5_eswitch_sqs2vport_start(struct mlx5_eswitch *esw,
-				 struct mlx5_eswitch_rep *rep,
-				 u16 *sqns_array, int sqns_num)
-{
-	struct mlx5_flow_handle *flow_rule;
-	struct mlx5_esw_sq *esw_sq;
-	int err;
-	int i;
-
-	if (esw->mode != SRIOV_OFFLOADS)
-		return 0;
-
-	for (i = 0; i < sqns_num; i++) {
-		esw_sq = kzalloc(sizeof(*esw_sq), GFP_KERNEL);
-		if (!esw_sq) {
-			err = -ENOMEM;
-			goto out_err;
-		}
-
-		/* Add re-inject rule to the PF/representor sqs */
-		flow_rule = mlx5_eswitch_add_send_to_vport_rule(esw,
-								rep->vport,
-								sqns_array[i]);
-		if (IS_ERR(flow_rule)) {
-			err = PTR_ERR(flow_rule);
-			kfree(esw_sq);
-			goto out_err;
-		}
-		esw_sq->send_to_vport_rule = flow_rule;
-		list_add(&esw_sq->list, &rep->vport_sqs_list);
-	}
-	return 0;
-
-out_err:
-	mlx5_eswitch_sqs2vport_stop(esw, rep);
-	return err;
 }
 
 static int esw_add_fdb_miss_rule(struct mlx5_eswitch *esw)

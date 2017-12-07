@@ -190,6 +190,59 @@ int mlx5e_attr_get(struct net_device *dev, struct switchdev_attr *attr)
 	return 0;
 }
 
+static void mlx5e_sqs2vport_stop(struct mlx5_eswitch *esw,
+				 struct mlx5_eswitch_rep *rep)
+{
+	struct mlx5_esw_sq *esw_sq, *tmp;
+
+	if (esw->mode != SRIOV_OFFLOADS)
+		return;
+
+	list_for_each_entry_safe(esw_sq, tmp, &rep->vport_sqs_list, list) {
+		mlx5_del_flow_rules(esw_sq->send_to_vport_rule);
+		list_del(&esw_sq->list);
+		kfree(esw_sq);
+	}
+}
+
+static int mlx5e_sqs2vport_start(struct mlx5_eswitch *esw,
+				 struct mlx5_eswitch_rep *rep,
+				 u16 *sqns_array, int sqns_num)
+{
+	struct mlx5_flow_handle *flow_rule;
+	struct mlx5_esw_sq *esw_sq;
+	int err;
+	int i;
+
+	if (esw->mode != SRIOV_OFFLOADS)
+		return 0;
+
+	for (i = 0; i < sqns_num; i++) {
+		esw_sq = kzalloc(sizeof(*esw_sq), GFP_KERNEL);
+		if (!esw_sq) {
+			err = -ENOMEM;
+			goto out_err;
+		}
+
+		/* Add re-inject rule to the PF/representor sqs */
+		flow_rule = mlx5_eswitch_add_send_to_vport_rule(esw,
+								rep->vport,
+								sqns_array[i]);
+		if (IS_ERR(flow_rule)) {
+			err = PTR_ERR(flow_rule);
+			kfree(esw_sq);
+			goto out_err;
+		}
+		esw_sq->send_to_vport_rule = flow_rule;
+		list_add(&esw_sq->list, &rep->vport_sqs_list);
+	}
+	return 0;
+
+out_err:
+	mlx5e_sqs2vport_stop(esw, rep);
+	return err;
+}
+
 int mlx5e_add_sqs_fwd_rules(struct mlx5e_priv *priv)
 {
 	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
@@ -210,7 +263,7 @@ int mlx5e_add_sqs_fwd_rules(struct mlx5e_priv *priv)
 			sqs[num_sqs++] = c->sq[tc].sqn;
 	}
 
-	err = mlx5_eswitch_sqs2vport_start(esw, rep, sqs, num_sqs);
+	err = mlx5e_sqs2vport_start(esw, rep, sqs, num_sqs);
 	kfree(sqs);
 
 out:
@@ -225,7 +278,7 @@ void mlx5e_remove_sqs_fwd_rules(struct mlx5e_priv *priv)
 	struct mlx5e_rep_priv *rpriv = priv->ppriv;
 	struct mlx5_eswitch_rep *rep = rpriv->rep;
 
-	mlx5_eswitch_sqs2vport_stop(esw, rep);
+	mlx5e_sqs2vport_stop(esw, rep);
 }
 
 static void mlx5e_rep_neigh_update_init_interval(struct mlx5e_rep_priv *rpriv)
