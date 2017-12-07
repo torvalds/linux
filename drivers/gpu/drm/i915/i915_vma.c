@@ -142,6 +142,12 @@ vma_create(struct drm_i915_gem_object *obj,
 								i915_gem_object_get_stride(obj));
 		GEM_BUG_ON(!is_power_of_2(vma->fence_alignment));
 
+		/*
+		 * We put the GGTT vma at the start of the vma-list, followed
+		 * by the ppGGTT vma. This allows us to break early when
+		 * iterating over only the GGTT vma for an object, see
+		 * for_each_ggtt_vma()
+		 */
 		vma->flags |= I915_VMA_GGTT;
 		list_add(&vma->obj_link, &obj->vma_list);
 	} else {

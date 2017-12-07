@@ -3620,10 +3620,7 @@ void i915_gem_restore_gtt_mappings(struct drm_i915_private *dev_priv)
 		bool ggtt_bound = false;
 		struct i915_vma *vma;
 
-		list_for_each_entry(vma, &obj->vma_list, obj_link) {
-			if (vma->vm != &ggtt->base)
-				continue;
-
+		for_each_ggtt_vma(vma, obj) {
 			if (!i915_vma_unbind(vma))
 				continue;
 
