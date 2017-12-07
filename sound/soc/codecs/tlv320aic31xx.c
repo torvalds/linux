@@ -1055,6 +1055,22 @@ static int aic31xx_regulator_event(struct notifier_block *nb,
 	return 0;
 }
 
+static int aic31xx_reset(struct aic31xx_priv *aic31xx)
+{
+	int ret = 0;
+
+	if (aic31xx->gpio_reset) {
+		gpiod_set_value(aic31xx->gpio_reset, 1);
+		ndelay(10); /* At least 10ns */
+		gpiod_set_value(aic31xx->gpio_reset, 0);
+	} else {
+		ret = regmap_write(aic31xx->regmap, AIC31XX_RESET, 1);
+	}
+	mdelay(1); /* At least 1ms */
+
+	return ret;
+}
+
 static void aic31xx_clk_on(struct snd_soc_codec *codec)
 {
 	struct aic31xx_priv *aic31xx = snd_soc_codec_get_drvdata(codec);
@@ -1098,11 +1114,13 @@ static int aic31xx_power_on(struct snd_soc_codec *codec)
 	if (ret)
 		return ret;
 
-	if (aic31xx->gpio_reset) {
-		gpiod_set_value(aic31xx->gpio_reset, 0);
-		udelay(100);
-	}
 	regcache_cache_only(aic31xx->regmap, false);
+
+	/* Reset device registers for a consistent power-on like state */
+	ret = aic31xx_reset(aic31xx);
+	if (ret < 0)
+		dev_err(aic31xx->dev, "Could not reset device: %d\n", ret);
+
 	ret = regcache_sync(aic31xx->regmap);
 	if (ret) {
 		dev_err(codec->dev,
