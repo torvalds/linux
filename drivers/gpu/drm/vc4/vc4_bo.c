@@ -637,7 +637,8 @@ int vc4_bo_inc_usecnt(struct vc4_bo *bo)
 	mutex_lock(&bo->madv_lock);
 	switch (bo->madv) {
 	case VC4_MADV_WILLNEED:
-		refcount_inc(&bo->usecnt);
+		if (!refcount_inc_not_zero(&bo->usecnt))
+			refcount_set(&bo->usecnt, 1);
 		ret = 0;
 		break;
 	case VC4_MADV_DONTNEED:
