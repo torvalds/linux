@@ -317,6 +317,11 @@ static int inno_hdmi_config_video_avi(struct inno_hdmi *hdmi,
 	else
 		frame.avi.colorspace = HDMI_COLORSPACE_RGB;
 
+	if (frame.avi.colorspace != HDMI_COLORSPACE_RGB)
+		frame.avi.colorimetry = hdmi->hdmi_data.colorimetry;
+
+	frame.avi.scan_mode = HDMI_SCAN_MODE_NONE;
+
 	return inno_hdmi_upload_frame(hdmi, rc, &frame, INFOFRAME_AVI, 0, 0, 0);
 }
 
