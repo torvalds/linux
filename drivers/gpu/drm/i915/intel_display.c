@@ -9944,10 +9944,9 @@ found:
 	}
 
 	ret = intel_modeset_setup_plane_state(state, crtc, mode, fb, 0, 0);
+	drm_framebuffer_put(fb);
 	if (ret)
 		goto fail;
-
-	drm_framebuffer_put(fb);
 
 	ret = drm_atomic_set_mode_for_crtc(&crtc_state->base, mode);
 	if (ret)
