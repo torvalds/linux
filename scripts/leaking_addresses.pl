@@ -19,6 +19,7 @@ use Cwd 'abs_path';
 use Term::ANSIColor qw(:constants);
 use Getopt::Long qw(:config no_auto_abbrev);
 use Config;
+use bigint qw/hex/;
 
 my $P = $0;
 my $V = '0.01';
@@ -195,15 +196,22 @@ sub is_false_positive
 		return 1;
 	}
 
-	if (is_x86_64()) {
-		# vsyscall memory region, we should probably check against a range here.
-		if ($match =~ '\bf{10}600000\b' or
-		    $match =~ '\bf{10}601000\b') {
-			return 1;
-		}
+	if (is_x86_64() and is_in_vsyscall_memory_region($match)) {
+		return 1;
 	}
 
 	return 0;
+}
+
+sub is_in_vsyscall_memory_region
+{
+	my ($match) = @_;
+
+	my $hex = hex($match);
+	my $region_min = hex("0xffffffffff600000");
+	my $region_max = hex("0xffffffffff601000");
+
+	return ($hex >= $region_min and $hex <= $region_max);
 }
 
 # True if argument potentially contains a kernel address.
