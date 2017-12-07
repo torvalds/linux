@@ -2563,15 +2563,16 @@ void dwc2_hsotg_core_init_disconnected(struct dwc2_hsotg *hsotg,
 
 	dwc2_writel(intmsk, hsotg->regs + GINTMSK);
 
-	if (using_dma(hsotg))
-		dwc2_writel(GAHBCFG_GLBL_INTR_EN | GAHBCFG_DMA_EN |
-			    (GAHBCFG_HBSTLEN_INCR4 << GAHBCFG_HBSTLEN_SHIFT),
+	if (using_dma(hsotg)) {
+		val = hsotg->core_params->ahbcfg & ~GAHBCFG_CTRL_MASK;
+		dwc2_writel(GAHBCFG_GLBL_INTR_EN | GAHBCFG_DMA_EN | val,
 			    hsotg->regs + GAHBCFG);
-	else
+	} else {
 		dwc2_writel(((hsotg->dedicated_fifos) ?
 						(GAHBCFG_NP_TXF_EMP_LVL |
 						 GAHBCFG_P_TXF_EMP_LVL) : 0) |
 			    GAHBCFG_GLBL_INTR_EN, hsotg->regs + GAHBCFG);
+	}
 
 	/*
 	 * If INTknTXFEmpMsk is enabled, it's important to disable ep interrupts
