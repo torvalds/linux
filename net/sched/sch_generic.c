@@ -45,16 +45,39 @@ EXPORT_SYMBOL(default_qdisc_ops);
  * - ingress filtering is also serialized via qdisc root lock
  * - updates to tree and tree walking are only done under the rtnl mutex.
  */
-
-static inline int dev_requeue_skb(struct sk_buff *skb, struct Qdisc *q)
+static inline int __dev_requeue_skb(struct sk_buff *skb, struct Qdisc *q)
 {
-	q->gso_skb = skb;
+	__skb_queue_head(&q->gso_skb, skb);
 	q->qstats.requeues++;
 	qdisc_qstats_backlog_inc(q, skb);
 	q->q.qlen++;	/* it's still part of the queue */
 	__netif_schedule(q);
 
 	return 0;
+}
+
+static inline int dev_requeue_skb_locked(struct sk_buff *skb, struct Qdisc *q)
+{
+	spinlock_t *lock = qdisc_lock(q);
+
+	spin_lock(lock);
+	__skb_queue_tail(&q->gso_skb, skb);
+	spin_unlock(lock);
+
+	qdisc_qstats_cpu_requeues_inc(q);
+	qdisc_qstats_cpu_backlog_inc(q, skb);
+	qdisc_qstats_cpu_qlen_inc(q);
+	__netif_schedule(q);
+
+	return 0;
+}
+
+static inline int dev_requeue_skb(struct sk_buff *skb, struct Qdisc *q)
+{
+	if (q->flags & TCQ_F_NOLOCK)
+		return dev_requeue_skb_locked(skb, q);
+	else
+		return __dev_requeue_skb(skb, q);
 }
 
 static void try_bulk_dequeue_skb(struct Qdisc *q,
@@ -112,23 +135,50 @@ static void try_bulk_dequeue_skb_slow(struct Qdisc *q,
 static struct sk_buff *dequeue_skb(struct Qdisc *q, bool *validate,
 				   int *packets)
 {
-	struct sk_buff *skb = q->gso_skb;
 	const struct netdev_queue *txq = q->dev_queue;
+	struct sk_buff *skb;
 
 	*packets = 1;
-	if (unlikely(skb)) {
+	if (unlikely(!skb_queue_empty(&q->gso_skb))) {
+		spinlock_t *lock = NULL;
+
+		if (q->flags & TCQ_F_NOLOCK) {
+			lock = qdisc_lock(q);
+			spin_lock(lock);
+		}
+
+		skb = skb_peek(&q->gso_skb);
+
+		/* skb may be null if another cpu pulls gso_skb off in between
+		 * empty check and lock.
+		 */
+		if (!skb) {
+			if (lock)
+				spin_unlock(lock);
+			goto validate;
+		}
+
 		/* skb in gso_skb were already validated */
 		*validate = false;
 		/* check the reason of requeuing without tx lock first */
 		txq = skb_get_tx_queue(txq->dev, skb);
 		if (!netif_xmit_frozen_or_stopped(txq)) {
-			q->gso_skb = NULL;
-			qdisc_qstats_backlog_dec(q, skb);
-			q->q.qlen--;
-		} else
+			skb = __skb_dequeue(&q->gso_skb);
+			if (qdisc_is_percpu_stats(q)) {
+				qdisc_qstats_cpu_backlog_dec(q, skb);
+				qdisc_qstats_cpu_qlen_dec(q);
+			} else {
+				qdisc_qstats_backlog_dec(q, skb);
+				q->q.qlen--;
+			}
+		} else {
 			skb = NULL;
+		}
+		if (lock)
+			spin_unlock(lock);
 		goto trace;
 	}
+validate:
 	*validate = true;
 	skb = q->skb_bad_txq;
 	if (unlikely(skb)) {
@@ -629,6 +679,7 @@ struct Qdisc *qdisc_alloc(struct netdev_queue *dev_queue,
 		sch = (struct Qdisc *) QDISC_ALIGN((unsigned long) p);
 		sch->padded = (char *) sch - (char *) p;
 	}
+	__skb_queue_head_init(&sch->gso_skb);
 	qdisc_skb_head_init(&sch->q);
 	spin_lock_init(&sch->q.lock);
 
@@ -697,6 +748,7 @@ EXPORT_SYMBOL(qdisc_create_dflt);
 void qdisc_reset(struct Qdisc *qdisc)
 {
 	const struct Qdisc_ops *ops = qdisc->ops;
+	struct sk_buff *skb, *tmp;
 
 	if (ops->reset)
 		ops->reset(qdisc);
@@ -704,10 +756,11 @@ void qdisc_reset(struct Qdisc *qdisc)
 	kfree_skb(qdisc->skb_bad_txq);
 	qdisc->skb_bad_txq = NULL;
 
-	if (qdisc->gso_skb) {
-		kfree_skb_list(qdisc->gso_skb);
-		qdisc->gso_skb = NULL;
+	skb_queue_walk_safe(&qdisc->gso_skb, skb, tmp) {
+		__skb_unlink(skb, &qdisc->gso_skb);
+		kfree_skb_list(skb);
 	}
+
 	qdisc->q.qlen = 0;
 	qdisc->qstats.backlog = 0;
 }
@@ -726,6 +779,7 @@ static void qdisc_free(struct Qdisc *qdisc)
 void qdisc_destroy(struct Qdisc *qdisc)
 {
 	const struct Qdisc_ops  *ops = qdisc->ops;
+	struct sk_buff *skb, *tmp;
 
 	if (qdisc->flags & TCQ_F_BUILTIN ||
 	    !refcount_dec_and_test(&qdisc->refcnt))
@@ -745,7 +799,11 @@ void qdisc_destroy(struct Qdisc *qdisc)
 	module_put(ops->owner);
 	dev_put(qdisc_dev(qdisc));
 
-	kfree_skb_list(qdisc->gso_skb);
+	skb_queue_walk_safe(&qdisc->gso_skb, skb, tmp) {
+		__skb_unlink(skb, &qdisc->gso_skb);
+		kfree_skb_list(skb);
+	}
+
 	kfree_skb(qdisc->skb_bad_txq);
 	qdisc_free(qdisc);
 }
@@ -973,6 +1031,7 @@ static void dev_init_scheduler_queue(struct net_device *dev,
 
 	rcu_assign_pointer(dev_queue->qdisc, qdisc);
 	dev_queue->qdisc_sleeping = qdisc;
+	__skb_queue_head_init(&qdisc->gso_skb);
 }
 
 void dev_init_scheduler(struct net_device *dev)

@@ -88,7 +88,7 @@ struct Qdisc {
 	/*
 	 * For performance sake on SMP, we put highly modified fields at the end
 	 */
-	struct sk_buff		*gso_skb ____cacheline_aligned_in_smp;
+	struct sk_buff_head	gso_skb ____cacheline_aligned_in_smp;
 	struct qdisc_skb_head	q;
 	struct gnet_stats_basic_packed bstats;
 	seqcount_t		running;
@@ -796,26 +796,30 @@ static inline struct sk_buff *qdisc_peek_head(struct Qdisc *sch)
 /* generic pseudo peek method for non-work-conserving qdisc */
 static inline struct sk_buff *qdisc_peek_dequeued(struct Qdisc *sch)
 {
+	struct sk_buff *skb = skb_peek(&sch->gso_skb);
+
 	/* we can reuse ->gso_skb because peek isn't called for root qdiscs */
-	if (!sch->gso_skb) {
-		sch->gso_skb = sch->dequeue(sch);
-		if (sch->gso_skb) {
+	if (!skb) {
+		skb = sch->dequeue(sch);
+
+		if (skb) {
+			__skb_queue_head(&sch->gso_skb, skb);
 			/* it's still part of the queue */
-			qdisc_qstats_backlog_inc(sch, sch->gso_skb);
+			qdisc_qstats_backlog_inc(sch, skb);
 			sch->q.qlen++;
 		}
 	}
 
-	return sch->gso_skb;
+	return skb;
 }
 
 /* use instead of qdisc->dequeue() for all qdiscs queried with ->peek() */
 static inline struct sk_buff *qdisc_dequeue_peeked(struct Qdisc *sch)
 {
-	struct sk_buff *skb = sch->gso_skb;
+	struct sk_buff *skb = skb_peek(&sch->gso_skb);
 
 	if (skb) {
-		sch->gso_skb = NULL;
+		skb = __skb_dequeue(&sch->gso_skb);
 		qdisc_qstats_backlog_dec(sch, skb);
 		sch->q.qlen--;
 	} else {
