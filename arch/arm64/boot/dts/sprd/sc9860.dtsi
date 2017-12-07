@@ -7,6 +7,7 @@
  */
 
 #include <dt-bindings/interrupt-controller/arm-gic.h>
+#include <dt-bindings/clock/sprd,sc9860-clk.h>
 #include "whale2.dtsi"
 
 / {
@@ -183,6 +184,120 @@
 	};
 
 	soc {
+		pmu_gate: pmu-gate {
+			compatible = "sprd,sc9860-pmu-gate";
+			sprd,syscon = <&pmu_regs>; /* 0x402b0000 */
+			clocks = <&ext_26m>;
+			#clock-cells = <1>;
+		};
+
+		pll: pll {
+			compatible = "sprd,sc9860-pll";
+			sprd,syscon = <&ana_regs>; /* 0x40400000 */
+			clocks = <&pmu_gate 0>;
+			#clock-cells = <1>;
+		};
+
+		ap_clk: clock-controller@20000000 {
+			compatible = "sprd,sc9860-ap-clk";
+			reg = <0 0x20000000 0 0x400>;
+			clocks = <&ext_26m>, <&pll 0>,
+				 <&pmu_gate 0>;
+			#clock-cells = <1>;
+		};
+
+		aon_prediv: aon-prediv {
+			compatible = "sprd,sc9860-aon-prediv";
+			reg = <0 0x402d0000 0 0x400>;
+			clocks = <&ext_26m>, <&pll 0>,
+				 <&pmu_gate 0>;
+			#clock-cells = <1>;
+		};
+
+		apahb_gate: apahb-gate {
+			compatible = "sprd,sc9860-apahb-gate";
+			sprd,syscon = <&ap_ahb_regs>; /* 0x20210000 */
+			clocks = <&aon_prediv 0>;
+			#clock-cells = <1>;
+		};
+
+		aon_gate: aon-gate {
+			compatible = "sprd,sc9860-aon-gate";
+			sprd,syscon = <&aon_regs>; /* 0x402e0000 */
+			clocks = <&aon_prediv 0>;
+			#clock-cells = <1>;
+		};
+
+		aonsecure_clk: clock-controller@40880000 {
+			compatible = "sprd,sc9860-aonsecure-clk";
+			reg = <0 0x40880000 0 0x400>;
+			clocks = <&ext_26m>, <&pll 0>;
+			#clock-cells = <1>;
+		};
+
+		agcp_gate: agcp-gate {
+			compatible = "sprd,sc9860-agcp-gate";
+			sprd,syscon = <&agcp_regs>; /* 0x415e0000 */
+			clocks = <&aon_prediv 0>;
+			#clock-cells = <1>;
+		};
+
+		gpu_clk: clock-controller@60200000 {
+			compatible = "sprd,sc9860-gpu-clk";
+			reg = <0 0x60200000 0 0x400>;
+			clocks = <&pll 0>;
+			#clock-cells = <1>;
+		};
+
+		vsp_clk: clock-controller@61000000 {
+			compatible = "sprd,sc9860-vsp-clk";
+			reg = <0 0x61000000 0 0x400>;
+			clocks = <&ext_26m>, <&pll 0>;
+			#clock-cells = <1>;
+		};
+
+		vsp_gate: vsp-gate {
+			compatible = "sprd,sc9860-vsp-gate";
+			sprd,syscon = <&vsp_regs>; /* 0x61100000 */
+			clocks = <&vsp_clk 0>;
+			#clock-cells = <1>;
+		};
+
+		cam_clk: clock-controller@62000000 {
+			compatible = "sprd,sc9860-cam-clk";
+			reg = <0 0x62000000 0 0x4000>;
+			clocks = <&ext_26m>, <&pll 0>;
+			#clock-cells = <1>;
+		};
+
+		cam_gate: cam-gate {
+			compatible = "sprd,sc9860-cam-gate";
+			sprd,syscon = <&cam_regs>; /* 0x62100000 */
+			clocks = <&cam_clk 0>;
+			#clock-cells = <1>;
+		};
+
+		disp_clk: clock-controller@63000000 {
+			compatible = "sprd,sc9860-disp-clk";
+			reg = <0 0x63000000 0 0x400>;
+			clocks = <&ext_26m>, <&pll 0>;
+			#clock-cells = <1>;
+		};
+
+		disp_gate: disp-gate {
+			compatible = "sprd,sc9860-disp-gate";
+			sprd,syscon = <&disp_regs>; /* 0x63100000 */
+			clocks = <&disp_clk 0>;
+			#clock-cells = <1>;
+		};
+
+		apapb_gate: apapb-gate {
+			compatible = "sprd,sc9860-apapb-gate";
+			sprd,syscon = <&ap_apb_regs>; /* 0x70b00000 */
+			clocks = <&ap_clk 0>;
+			#clock-cells = <1>;
+		};
+
 		funnel@10001000 { /* SoC Funnel */
 			compatible = "arm,coresight-funnel", "arm,primecell";
 			reg = <0 0x10001000 0 0x1000>;

@@ -106,10 +106,24 @@
 		};
 	};
 
-	ext_26m: ext-26m {
+	ext_32k: ext_32k {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <32768>;
+		clock-output-names = "ext-32k";
+	};
+
+	ext_26m: ext_26m {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
 		clock-frequency = <26000000>;
-		clock-output-names = "ext_26m";
+		clock-output-names = "ext-26m";
+	};
+
+	ext_rco_100m: ext_rco_100m {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <100000000>;
+		clock-output-names = "ext-rco-100m";
 	};
 };
