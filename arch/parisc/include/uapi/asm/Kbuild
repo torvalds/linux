@@ -2,6 +2,7 @@
 include include/uapi/asm-generic/Kbuild.asm
 
 generic-y += auxvec.h
+generic-y += bpf_perf_event.h
 generic-y += kvm_para.h
 generic-y += param.h
 generic-y += poll.h
