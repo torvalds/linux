@@ -9124,6 +9124,25 @@ F:	arch/mips/include/asm/mach-loongson32/
 F:	drivers/*/*loongson1*
 F:	drivers/*/*/*loongson1*
 
+MIPS/LOONGSON2 ARCHITECTURE
+M:	Jiaxun Yang <jiaxun.yang@flygoat.com>
+L:	linux-mips@linux-mips.org
+S:	Maintained
+F:	arch/mips/loongson64/*{2e/2f}*
+F:	arch/mips/include/asm/mach-loongson64/
+F:	drivers/*/*loongson2*
+F:	drivers/*/*/*loongson2*
+
+MIPS/LOONGSON3 ARCHITECTURE
+M:	Huacai Chen <chenhc@lemote.com>
+L:	linux-mips@linux-mips.org
+S:	Maintained
+F:	arch/mips/loongson64/
+F:	arch/mips/include/asm/mach-loongson64/
+F:	drivers/platform/mips/cpu_hwmon.c
+F:	drivers/*/*loongson3*
+F:	drivers/*/*/*loongson3*
+
 MIPS RINT INSTRUCTION EMULATION
 M:	Aleksandar Markovic <aleksandar.markovic@mips.com>
 L:	linux-mips@linux-mips.org
