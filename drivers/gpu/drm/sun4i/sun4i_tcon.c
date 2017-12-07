@@ -900,7 +900,8 @@ static const struct sun4i_tcon_quirks sun8i_v3s_quirks = {
 	/* nothing is supported */
 };
 
-static const struct of_device_id sun4i_tcon_of_table[] = {
+/* sun4i_drv uses this list to check if a device node is a TCON */
+const struct of_device_id sun4i_tcon_of_table[] = {
 	{ .compatible = "allwinner,sun4i-a10-tcon", .data = &sun4i_a10_quirks },
 	{ .compatible = "allwinner,sun5i-a13-tcon", .data = &sun5i_a13_quirks },
 	{ .compatible = "allwinner,sun6i-a31-tcon", .data = &sun6i_a31_quirks },
@@ -911,6 +912,7 @@ static const struct of_device_id sun4i_tcon_of_table[] = {
 	{ }
 };
 MODULE_DEVICE_TABLE(of, sun4i_tcon_of_table);
+EXPORT_SYMBOL(sun4i_tcon_of_table);
 
 static struct platform_driver sun4i_tcon_platform_driver = {
 	.probe		= sun4i_tcon_probe,

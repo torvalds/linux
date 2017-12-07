@@ -185,6 +185,15 @@ are better.
 
 Contact: Sean Paul, Maintainer of the driver you plan to convert
 
+Convert drivers to use simple modeset suspend/resume
+----------------------------------------------------
+
+Most drivers (except i915 and nouveau) that use
+drm_atomic_helper_suspend/resume() can probably be converted to use
+drm_mode_config_helper_suspend/resume().
+
+Contact: Maintainer of the driver you plan to convert
+
 Core refactorings
 =================
 
@@ -403,11 +412,6 @@ those drivers as simple as possible, so lots of room for refactoring:
 - Quick aside: The unregister devm stuff is kinda getting the lifetimes of
   a drm_device wrong. Doesn't matter, since everyone else gets it wrong
   too :-)
-
-- With the fbdev pointer in dev->mode_config we could also make
-  suspend/resume helpers entirely generic, at least if we add a
-  dev->mode_config.suspend_state. We could even provide a generic pm_ops
-  structure with those.
 
 - also rework the drm_framebuffer_funcs->dirty hook wire-up, see above.
 
