@@ -12,6 +12,12 @@ config NETFILTER_INGRESS
 config NETFILTER_NETLINK
 	tristate
 
+config NETFILTER_FAMILY_BRIDGE
+	bool
+
+config NETFILTER_FAMILY_ARP
+	bool
+
 config NETFILTER_NETLINK_ACCT
 tristate "Netfilter NFACCT over NFNETLINK interface"
 	depends on NETFILTER_ADVANCED

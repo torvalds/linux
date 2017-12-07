@@ -267,14 +267,18 @@ static struct nf_hook_entries __rcu **nf_hook_entry_head(struct net *net, const 
 	switch (reg->pf) {
 	case NFPROTO_NETDEV:
 		break;
+#ifdef CONFIG_NETFILTER_FAMILY_ARP
 	case NFPROTO_ARP:
 		if (WARN_ON_ONCE(ARRAY_SIZE(net->nf.hooks_arp) <= reg->hooknum))
 			return NULL;
 		return net->nf.hooks_arp + reg->hooknum;
+#endif
+#ifdef CONFIG_NETFILTER_FAMILY_BRIDGE
 	case NFPROTO_BRIDGE:
 		if (WARN_ON_ONCE(ARRAY_SIZE(net->nf.hooks_bridge) <= reg->hooknum))
 			return NULL;
 		return net->nf.hooks_bridge + reg->hooknum;
+#endif
 	case NFPROTO_IPV4:
 		if (WARN_ON_ONCE(ARRAY_SIZE(net->nf.hooks_ipv4) <= reg->hooknum))
 			return NULL;
@@ -573,8 +577,12 @@ static int __net_init netfilter_net_init(struct net *net)
 {
 	__netfilter_net_init(net->nf.hooks_ipv4, ARRAY_SIZE(net->nf.hooks_ipv4));
 	__netfilter_net_init(net->nf.hooks_ipv6, ARRAY_SIZE(net->nf.hooks_ipv6));
+#ifdef CONFIG_NETFILTER_FAMILY_ARP
 	__netfilter_net_init(net->nf.hooks_arp, ARRAY_SIZE(net->nf.hooks_arp));
+#endif
+#ifdef CONFIG_NETFILTER_FAMILY_BRIDGE
 	__netfilter_net_init(net->nf.hooks_bridge, ARRAY_SIZE(net->nf.hooks_bridge));
+#endif
 #if IS_ENABLED(CONFIG_DECNET)
 	__netfilter_net_init(net->nf.hooks_decnet, ARRAY_SIZE(net->nf.hooks_decnet));
 #endif
