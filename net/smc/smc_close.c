@@ -113,7 +113,7 @@ static int smc_close_abort(struct smc_connection *conn)
 /* terminate smc socket abnormally - active abort
  * RDMA communication no longer possible
  */
-void smc_close_active_abort(struct smc_sock *smc)
+static void smc_close_active_abort(struct smc_sock *smc)
 {
 	struct smc_cdc_conn_state_flags *txflags =
 		&smc->conn.local_tx_ctrl.conn_state_flags;
