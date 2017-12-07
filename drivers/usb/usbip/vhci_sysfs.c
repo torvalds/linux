@@ -31,15 +31,20 @@
 
 /*
  * output example:
- * hub port sta spd dev      socket           local_busid
- * hs  0000 004 000 00000000         c5a7bb80 1-2.3
+ * hub port sta spd dev       sockfd    local_busid
+ * hs  0000 004 000 00000000  3         1-2.3
  * ................................................
- * ss  0008 004 000 00000000         d8cee980 2-3.4
+ * ss  0008 004 000 00000000  4         2-3.4
  * ................................................
  *
- * IP address can be retrieved from a socket pointer address by looking
- * up /proc/net/{tcp,tcp6}. Also, a userland program may remember a
- * port number and its peer IP address.
+ * Output includes socket fd instead of socket pointer address to avoid
+ * leaking kernel memory address in:
+ *	/sys/devices/platform/vhci_hcd.0/status and in debug output.
+ * The socket pointer address is not used at the moment and it was made
+ * visible as a convenient way to find IP address from socket pointer
+ * address by looking up /proc/net/{tcp,tcp6}. As this opens a security
+ * hole, the change is made to use sockfd instead.
+ *
  */
 static void port_show_vhci(char **out, int hub, int port, struct vhci_device *vdev)
 {
@@ -53,8 +58,8 @@ static void port_show_vhci(char **out, int hub, int port, struct vhci_device *vd
 	if (vdev->ud.status == VDEV_ST_USED) {
 		*out += sprintf(*out, "%03u %08x ",
 				      vdev->speed, vdev->devid);
-		*out += sprintf(*out, "%16p %s",
-				      vdev->ud.tcp_socket,
+		*out += sprintf(*out, "%u %s",
+				      vdev->ud.sockfd,
 				      dev_name(&vdev->udev->dev));
 
 	} else {
@@ -174,7 +179,8 @@ static ssize_t nports_show(struct device *dev, struct device_attribute *attr,
 	char *s = out;
 
 	/*
-	 * Half the ports are for SPEED_HIGH and half for SPEED_SUPER, thus the * 2.
+	 * Half the ports are for SPEED_HIGH and half for SPEED_SUPER,
+	 * thus the * 2.
 	 */
 	out += sprintf(out, "%d\n", VHCI_PORTS * vhci_num_controllers);
 	return out - s;
@@ -380,6 +386,7 @@ static ssize_t store_attach(struct device *dev, struct device_attribute *attr,
 
 	vdev->devid         = devid;
 	vdev->speed         = speed;
+	vdev->ud.sockfd     = sockfd;
 	vdev->ud.tcp_socket = socket;
 	vdev->ud.status     = VDEV_ST_NOTASSIGNED;
 
