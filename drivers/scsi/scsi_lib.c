@@ -1145,7 +1145,7 @@ EXPORT_SYMBOL(scsi_init_io);
  * Called from inside blk_get_request() for pass-through requests and from
  * inside scsi_init_command() for filesystem requests.
  */
-void scsi_initialize_rq(struct request *rq)
+static void scsi_initialize_rq(struct request *rq)
 {
 	struct scsi_cmnd *cmd = blk_mq_rq_to_pdu(rq);
 
@@ -1153,7 +1153,6 @@ void scsi_initialize_rq(struct request *rq)
 	cmd->jiffies_at_alloc = jiffies;
 	cmd->retries = 0;
 }
-EXPORT_SYMBOL(scsi_initialize_rq);
 
 /* Add a command to the list used by the aacraid and dpt_i2o drivers */
 void scsi_add_cmd_to_list(struct scsi_cmnd *cmd)
