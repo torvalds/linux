@@ -955,6 +955,11 @@ skip:
 	} else {
 		const struct Qdisc_class_ops *cops = parent->ops->cl_ops;
 
+		/* Only support running class lockless if parent is lockless */
+		if (new && (new->flags & TCQ_F_NOLOCK) &&
+		    parent && !(parent->flags & TCQ_F_NOLOCK))
+			new->flags &= ~TCQ_F_NOLOCK;
+
 		err = -EOPNOTSUPP;
 		if (cops && cops->graft) {
 			unsigned long cl = cops->find(parent, classid);
