@@ -268,14 +268,24 @@ static struct nf_hook_entries __rcu **nf_hook_entry_head(struct net *net, const 
 	case NFPROTO_NETDEV:
 		break;
 	case NFPROTO_ARP:
+		if (WARN_ON_ONCE(ARRAY_SIZE(net->nf.hooks_arp) <= reg->hooknum))
+			return NULL;
 		return net->nf.hooks_arp + reg->hooknum;
 	case NFPROTO_BRIDGE:
+		if (WARN_ON_ONCE(ARRAY_SIZE(net->nf.hooks_bridge) <= reg->hooknum))
+			return NULL;
 		return net->nf.hooks_bridge + reg->hooknum;
 	case NFPROTO_IPV4:
+		if (WARN_ON_ONCE(ARRAY_SIZE(net->nf.hooks_ipv4) <= reg->hooknum))
+			return NULL;
 		return net->nf.hooks_ipv4 + reg->hooknum;
 	case NFPROTO_IPV6:
+		if (WARN_ON_ONCE(ARRAY_SIZE(net->nf.hooks_ipv6) <= reg->hooknum))
+			return NULL;
 		return net->nf.hooks_ipv6 + reg->hooknum;
 	case NFPROTO_DECNET:
+		if (WARN_ON_ONCE(ARRAY_SIZE(net->nf.hooks_decnet) <= reg->hooknum))
+			return NULL;
 		return net->nf.hooks_decnet + reg->hooknum;
 	default:
 		WARN_ON_ONCE(1);
@@ -549,21 +559,21 @@ void (*nf_nat_decode_session_hook)(struct sk_buff *, struct flowi *);
 EXPORT_SYMBOL(nf_nat_decode_session_hook);
 #endif
 
-static void __net_init __netfilter_net_init(struct nf_hook_entries *e[NF_MAX_HOOKS])
+static void __net_init __netfilter_net_init(struct nf_hook_entries **e, int max)
 {
 	int h;
 
-	for (h = 0; h < NF_MAX_HOOKS; h++)
+	for (h = 0; h < max; h++)
 		RCU_INIT_POINTER(e[h], NULL);
 }
 
 static int __net_init netfilter_net_init(struct net *net)
 {
-	__netfilter_net_init(net->nf.hooks_ipv4);
-	__netfilter_net_init(net->nf.hooks_ipv6);
-	__netfilter_net_init(net->nf.hooks_arp);
-	__netfilter_net_init(net->nf.hooks_bridge);
-	__netfilter_net_init(net->nf.hooks_decnet);
+	__netfilter_net_init(net->nf.hooks_ipv4, ARRAY_SIZE(net->nf.hooks_ipv4));
+	__netfilter_net_init(net->nf.hooks_ipv6, ARRAY_SIZE(net->nf.hooks_ipv6));
+	__netfilter_net_init(net->nf.hooks_arp, ARRAY_SIZE(net->nf.hooks_arp));
+	__netfilter_net_init(net->nf.hooks_bridge, ARRAY_SIZE(net->nf.hooks_bridge));
+	__netfilter_net_init(net->nf.hooks_decnet, ARRAY_SIZE(net->nf.hooks_decnet));
 
 #ifdef CONFIG_PROC_FS
 	net->nf.proc_netfilter = proc_net_mkdir(net, "netfilter",
