@@ -162,12 +162,14 @@ static const char *sdebug_version_date = "20171202";
 #define SDEBUG_OPT_N_WCE		0x1000
 #define SDEBUG_OPT_RESET_NOISE		0x2000
 #define SDEBUG_OPT_NO_CDB_NOISE		0x4000
+#define SDEBUG_OPT_HOST_BUSY		0x8000
 #define SDEBUG_OPT_ALL_NOISE (SDEBUG_OPT_NOISE | SDEBUG_OPT_Q_NOISE | \
 			      SDEBUG_OPT_RESET_NOISE)
 #define SDEBUG_OPT_ALL_INJECTING (SDEBUG_OPT_RECOVERED_ERR | \
 				  SDEBUG_OPT_TRANSPORT_ERR | \
 				  SDEBUG_OPT_DIF_ERR | SDEBUG_OPT_DIX_ERR | \
-				  SDEBUG_OPT_SHORT_TRANSFER)
+				  SDEBUG_OPT_SHORT_TRANSFER | \
+				  SDEBUG_OPT_HOST_BUSY)
 /* When "every_nth" > 0 then modulo "every_nth" commands:
  *   - a missing response is simulated if SDEBUG_OPT_TIMEOUT is set
  *   - a RECOVERED_ERROR is simulated on successful read and write
@@ -283,6 +285,7 @@ struct sdebug_queued_cmd {
 	unsigned int inj_dif:1;
 	unsigned int inj_dix:1;
 	unsigned int inj_short:1;
+	unsigned int inj_host_busy:1;
 };
 
 struct sdebug_queue {
@@ -4055,6 +4058,7 @@ static void setup_inject(struct sdebug_queue *sqp,
 	sqcp->inj_dif = !!(SDEBUG_OPT_DIF_ERR & sdebug_opts);
 	sqcp->inj_dix = !!(SDEBUG_OPT_DIX_ERR & sdebug_opts);
 	sqcp->inj_short = !!(SDEBUG_OPT_SHORT_TRANSFER & sdebug_opts);
+	sqcp->inj_host_busy = !!(SDEBUG_OPT_HOST_BUSY & sdebug_opts);
 }
 
 /* Complete the processing of the thread that queued a SCSI command to this
@@ -5360,6 +5364,12 @@ static bool fake_timeout(struct scsi_cmnd *scp)
 	return false;
 }
 
+static bool fake_host_busy(struct scsi_cmnd *scp)
+{
+	return (sdebug_opts & SDEBUG_OPT_HOST_BUSY) &&
+		(atomic_read(&sdebug_cmnd_count) % abs(sdebug_every_nth)) == 0;
+}
+
 static int scsi_debug_queuecommand(struct Scsi_Host *shost,
 				   struct scsi_cmnd *scp)
 {
@@ -5402,6 +5412,8 @@ static int scsi_debug_queuecommand(struct Scsi_Host *shost,
 			sdev_printk(KERN_INFO, sdp, "%s: cmd %s\n", my_name,
 				    b);
 	}
+	if (fake_host_busy(scp))
+		return SCSI_MLQUEUE_HOST_BUSY;
 	has_wlun_rl = (sdp->lun == SCSI_W_LUN_REPORT_LUNS);
 	if (unlikely((sdp->lun >= sdebug_max_luns) && !has_wlun_rl))
 		goto err_out;
