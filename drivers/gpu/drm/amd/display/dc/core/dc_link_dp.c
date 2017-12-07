@@ -1470,6 +1470,12 @@ void decide_link_settings(struct dc_stream_state *stream,
 		return;
 	}
 
+	/* EDP use the link cap setting */
+	if (stream->sink->sink_signal == SIGNAL_TYPE_EDP) {
+		*link_setting = link->verified_link_cap;
+		return;
+	}
+
 	/* search for the minimum link setting that:
 	 * 1. is supported according to the link training result
 	 * 2. could support the b/w requested by the timing
