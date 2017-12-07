@@ -734,6 +734,8 @@
 			interrupts = <GIC_SPI 37 IRQ_TYPE_LEVEL_HIGH>;
 			ti,hwmods = "timer1";
 			ti,timer-alwon;
+			clocks = <&timer1_gfclk_mux>;
+			clock-names = "fck";
 		};
 
 		timer2: timer@48032000 {
