@@ -350,7 +350,11 @@ static u32 mpc_i2c_get_sec_cfg_8xxx(void)
 
 static u32 mpc_i2c_get_prescaler_8xxx(void)
 {
-	/* mpc83xx and mpc82xx all have prescaler 1 */
+	/*
+	 * According to the AN2919 all MPC824x have prescaler 1, while MPC83xx
+	 * may have prescaler 1, 2, or 3, depending on the power-on
+	 * configuration.
+	 */
 	u32 prescaler = 1;
 
 	/* mpc85xx */
@@ -367,6 +371,10 @@ static u32 mpc_i2c_get_prescaler_8xxx(void)
 			|| (SVR_SOC_VER(svr) == SVR_8610))
 			/* the above 85xx SoCs have prescaler 1 */
 			prescaler = 1;
+		else if ((SVR_SOC_VER(svr) == SVR_8533)
+			|| (SVR_SOC_VER(svr) == SVR_8544))
+			/* the above 85xx SoCs have prescaler 3 or 2 */
+			prescaler = mpc_i2c_get_sec_cfg_8xxx() ? 3 : 2;
 		else
 			/* all the other 85xx have prescaler 2 */
 			prescaler = 2;
@@ -383,8 +391,6 @@ static int mpc_i2c_get_fdr_8xxx(struct device_node *node, u32 clock,
 	int i;
 
 	/* Determine proper divider value */
-	if (of_device_is_compatible(node, "fsl,mpc8544-i2c"))
-		prescaler = mpc_i2c_get_sec_cfg_8xxx() ? 3 : 2;
 	if (!prescaler)
 		prescaler = mpc_i2c_get_prescaler_8xxx();
 
