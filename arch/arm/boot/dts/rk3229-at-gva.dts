@@ -45,7 +45,7 @@
 #include "rk3229-at-som.dtsi"
 
 / {
-	model = "RK3229 ANDROID THINGS 3NOD Board";
+	model = "RK3229 ANDROID THINGS GVA Board";
 	compatible = "rockchip,rk3229-at-gva", "rockchip,rk3229";
 
 	sdio_pwrseq: sdio-pwrseq {
@@ -126,41 +126,13 @@
 };
 
 &pinctrl {
-	pinctrl-names = "default", "gpio_pwm0", "gpio_pwm1", "gpio_spdif", "gpio_irrx";
+	pinctrl-names = "default";
 	/*
-	 * sdmmc pins are defaultly set as gpio, if you want to enable
-	 * it, please remove below line.
+	 * sdmmc, pwm0, pwm2, ir, and spdif pins are defaultly set as gpio,
+	 * if you want to enable it, please remove below besides fixed_gpio.
 	 */
-	pinctrl-0 = <&gpio1b6_gpio &gpio1b7_gpio &gpio1c0_gpio
-			&gpio1c1_gpio &gpio1c2_gpio &gpio1c3_gpio
-			&gpio1c4_gpio &gpio1c5_gpio>;
-	/*
-	 * pwm0 pins are defaultly set as gpio, if you want to enable
-	 * it, please remove below line.
-	 */
-	pinctrl-1 = <&gpio3c5_gpio>;
-	/*
-	 * pwm1 pins are defaultly set as gpio, if you want to enable
-	 * it, please remove below line.
-	 */
-	pinctrl-2 = <&gpio1b4_gpio>;
-	/*
-	 * spdif pins are defaultly set as gpio, if you want to enable
-	 * it, please remove below line.
-	 */
-	pinctrl-3 = <&gpio3d7_gpio>;
-	/*
-	 * ir_rx pins are defaultly set as gpio, if you want to enable
-	 * it, please remove below line.
-	 */
-	pinctrl-4 = <&gpio1b3_gpio>;
-
-	ir-rx-gpio {
-		gpio1b3_gpio: gpio1b3-gpio {
-			rockchip,pins =
-					<1 11 RK_FUNC_GPIO &pcfg_pull_up>;
-		};
-	};
+	pinctrl-0 = <&sdmmc_gpio &pwm0_gpio &pwm2_gpio
+		     &ir_gpio &spdif_gpio &fixed_gpio>;
 
 	keys {
 		pwr_key: pwr-key {
@@ -168,65 +140,9 @@
 		};
 	};
 
-	pwm0-gpio {
-		gpio3c5_gpio: gpio3c5-gpio {
-			rockchip,pins =
-					<3 21 RK_FUNC_GPIO &pcfg_pull_down>;
-		};
-	};
-
-	pwm2-gpio {
-		gpio1b4_gpio: gpio1b4-gpio {
-			rockchip,pins =
-					<1 12 RK_FUNC_GPIO &pcfg_pull_up>;
-		};
-	};
-
 	sdio-pwrseq {
 		wifi_enable_h: wifi-enable-h {
 			rockchip,pins = <3 15 RK_FUNC_GPIO &pcfg_pull_none>;
-		};
-	};
-
-	sdmmc-gpio {
-		gpio1b6_gpio: gpio1b6-gpio {
-			rockchip,pins =
-					<1 14 RK_FUNC_GPIO &pcfg_pull_none>;
-		};
-		gpio1b7_gpio: gpio1b7-gpio {
-			rockchip,pins =
-					<1 15 RK_FUNC_GPIO &pcfg_pull_up>;
-		};
-		gpio1c0_gpio: gpio1c0-gpio {
-			rockchip,pins =
-					<1 16 RK_FUNC_GPIO &pcfg_pull_none>;
-		};
-		gpio1c1_gpio: gpio1c1-gpio {
-			rockchip,pins =
-					<1 17 RK_FUNC_GPIO &pcfg_pull_up>;
-		};
-		gpio1c2_gpio: gpio1c2-gpio {
-			rockchip,pins =
-					<1 18 RK_FUNC_GPIO &pcfg_pull_up>;
-		};
-		gpio1c3_gpio: gpio1c3-gpio {
-			rockchip,pins =
-					<1 19 RK_FUNC_GPIO &pcfg_pull_up>;
-		};
-		gpio1c4_gpio: gpio1c4-gpio {
-			rockchip,pins =
-					<1 20 RK_FUNC_GPIO &pcfg_pull_up>;
-		};
-		gpio1c5_gpio: gpio1c5-gpio {
-			rockchip,pins =
-					<1 21 RK_FUNC_GPIO &pcfg_pull_up>;
-		};
-	};
-
-	spdif-out-gpio {
-		gpio3d7_gpio: gpio3d7-gpio {
-			rockchip,pins =
-					<3 31 RK_FUNC_GPIO &pcfg_pull_down>;
 		};
 	};
 };
@@ -241,7 +157,7 @@
 
 /*
  * If sdmmc is enabled on hardware, set status to okay.
- * and remove the according pinctrl nodes above.
+ * and remove the sdmmc_gpio from pinctrl-0 above.
  */
 &sdmmc {
 	bus-width = <4>;
