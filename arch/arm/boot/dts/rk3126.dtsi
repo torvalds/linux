@@ -42,12 +42,8 @@
 
 / {
 	compatible = "rockchip,rk3126";
+};
 
-	cru: clock-controller@20000000 {
-		compatible = "rockchip,rk3126-cru";
-		reg = <0x20000000 0x1000>;
-		rockchip,grf = <&grf>;
-		#clock-cells = <1>;
-		#reset-cells = <1>;
-	};
+&cru {
+	compatible = "rockchip,rk3126-cru";
 };

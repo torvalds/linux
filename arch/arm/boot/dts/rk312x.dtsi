@@ -743,6 +743,22 @@
 		status = "disabled";
 	};
 
+	cru: clock-controller@20000000 {
+		compatible = "rockchip,rk3128-cru";
+		reg = <0x20000000 0x1000>;
+		rockchip,grf = <&grf>;
+		#clock-cells = <1>;
+		#reset-cells = <1>;
+		assigned-clocks = <&cru PLL_GPLL>, <&cru PLL_CPLL>,
+				  <&cru ACLK_CPU>, <&cru HCLK_CPU>,
+				  <&cru PCLK_CPU>, <&cru ACLK_PERI>,
+				  <&cru HCLK_PERI>, <&cru PCLK_PERI>;
+		assigned-clock-rates = <594000000>, <400000000>,
+				       <300000000>, <150000000>,
+				       <75000000>, <300000000>,
+				       <150000000>, <75000000>;
+	};
+
 	grf: syscon@20008000 {
 		compatible = "rockchip,rk3128-grf", "syscon", "simple-mfd";
 		reg = <0x20008000 0x1000>;

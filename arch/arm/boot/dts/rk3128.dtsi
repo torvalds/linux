@@ -47,14 +47,6 @@
 		compatible = "syscon";
 		reg = <0x1012f080 0x20>;
 	};
-
-	cru: clock-controller@20000000 {
-		compatible = "rockchip,rk3128-cru";
-		reg = <0x20000000 0x1000>;
-		rockchip,grf = <&grf>;
-		#clock-cells = <1>;
-		#reset-cells = <1>;
-	};
 };
 
 &pd_vio {
