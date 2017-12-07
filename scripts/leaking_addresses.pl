@@ -9,9 +9,6 @@
 #
 # Use --debug to output path before parsing, this is useful to find files that
 # cause the script to choke.
-#
-# You may like to set kptr_restrict=2 before running script
-# (see Documentation/sysctl/kernel.txt).
 
 use warnings;
 use strict;
