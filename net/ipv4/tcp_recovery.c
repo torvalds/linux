@@ -55,7 +55,8 @@ static void tcp_rack_detect_loss(struct sock *sk, u32 *reo_timeout)
 	 * to queuing or delayed ACKs.
 	 */
 	reo_wnd = 1000;
-	if ((tp->rack.reord || !tp->lost_out) && min_rtt != ~0U) {
+	if ((tp->rack.reord || inet_csk(sk)->icsk_ca_state < TCP_CA_Recovery) &&
+	    min_rtt != ~0U) {
 		reo_wnd = max((min_rtt >> 2) * tp->rack.reo_wnd_steps, reo_wnd);
 		reo_wnd = min(reo_wnd, tp->srtt_us >> 3);
 	}
