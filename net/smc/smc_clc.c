@@ -133,7 +133,7 @@ int smc_clc_send_decline(struct smc_sock *smc, u32 peer_diag_info)
 		smc->sk.sk_err = EPROTO;
 	if (len < 0)
 		smc->sk.sk_err = -len;
-	return len;
+	return sock_error(&smc->sk);
 }
 
 /* send CLC PROPOSAL message across internal TCP socket */

@@ -520,7 +520,7 @@ decline_rdma:
 	smc->use_fallback = true;
 	if (reason_code && (reason_code != SMC_CLC_DECL_REPLY)) {
 		rc = smc_clc_send_decline(smc, reason_code);
-		if (rc < sizeof(struct smc_clc_msg_decline))
+		if (rc < 0)
 			goto out_err;
 	}
 	goto out_connected;
@@ -879,11 +879,9 @@ static void smc_listen_work(struct work_struct *work)
 		}
 		/* QP confirmation over RoCE fabric */
 		reason_code = smc_serv_conf_first_link(new_smc);
-		if (reason_code < 0) {
+		if (reason_code < 0)
 			/* peer is not aware of a problem */
-			rc = reason_code;
 			goto out_err_unlock;
-		}
 		if (reason_code > 0)
 			goto decline_rdma_unlock;
 	}
@@ -916,8 +914,7 @@ decline_rdma:
 	smc_conn_free(&new_smc->conn);
 	new_smc->use_fallback = true;
 	if (reason_code && (reason_code != SMC_CLC_DECL_REPLY)) {
-		rc = smc_clc_send_decline(new_smc, reason_code);
-		if (rc < sizeof(struct smc_clc_msg_decline))
+		if (smc_clc_send_decline(new_smc, reason_code) < 0)
 			goto out_err;
 	}
 	goto out_connected;
