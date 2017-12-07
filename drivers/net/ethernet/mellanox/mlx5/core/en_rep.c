@@ -1086,7 +1086,7 @@ mlx5e_vport_rep_load(struct mlx5_core_dev *dev, struct mlx5_eswitch_rep *rep)
 
 	rpriv->netdev = netdev;
 	rpriv->rep = rep;
-	rep->priv = rpriv;
+	rep->rep_if[REP_ETH].priv = rpriv;
 	INIT_LIST_HEAD(&rpriv->vport_sqs_list);
 
 	err = mlx5e_attach_netdev(netdev_priv(netdev));
@@ -1103,7 +1103,7 @@ mlx5e_vport_rep_load(struct mlx5_core_dev *dev, struct mlx5_eswitch_rep *rep)
 		goto err_detach_netdev;
 	}
 
-	uplink_rpriv = mlx5_eswitch_get_uplink_priv(dev->priv.eswitch);
+	uplink_rpriv = mlx5_eswitch_get_uplink_priv(dev->priv.eswitch, REP_ETH);
 	upriv = netdev_priv(uplink_rpriv->netdev);
 	err = tc_setup_cb_egdev_register(netdev, mlx5e_setup_tc_block_cb,
 					 upriv);
@@ -1146,7 +1146,8 @@ mlx5e_vport_rep_unload(struct mlx5_eswitch_rep *rep)
 	struct mlx5e_priv *upriv;
 
 	unregister_netdev(netdev);
-	uplink_rpriv = mlx5_eswitch_get_uplink_priv(priv->mdev->priv.eswitch);
+	uplink_rpriv = mlx5_eswitch_get_uplink_priv(priv->mdev->priv.eswitch,
+						    REP_ETH);
 	upriv = netdev_priv(uplink_rpriv->netdev);
 	tc_setup_cb_egdev_unregister(netdev, mlx5e_setup_tc_block_cb,
 				     upriv);
@@ -1164,11 +1165,11 @@ static void mlx5e_rep_register_vf_vports(struct mlx5e_priv *priv)
 	int vport;
 
 	for (vport = 1; vport < total_vfs; vport++) {
-		struct mlx5_eswitch_rep rep = {};
+		struct mlx5_eswitch_rep_if rep_if = {};
 
-		rep.load = mlx5e_vport_rep_load;
-		rep.unload = mlx5e_vport_rep_unload;
-		mlx5_eswitch_register_vport_rep(esw, vport, &rep);
+		rep_if.load = mlx5e_vport_rep_load;
+		rep_if.unload = mlx5e_vport_rep_unload;
+		mlx5_eswitch_register_vport_rep(esw, vport, &rep_if, REP_ETH);
 	}
 }
 
@@ -1180,24 +1181,24 @@ static void mlx5e_rep_unregister_vf_vports(struct mlx5e_priv *priv)
 	int vport;
 
 	for (vport = 1; vport < total_vfs; vport++)
-		mlx5_eswitch_unregister_vport_rep(esw, vport);
+		mlx5_eswitch_unregister_vport_rep(esw, vport, REP_ETH);
 }
 
 void mlx5e_register_vport_reps(struct mlx5e_priv *priv)
 {
 	struct mlx5_core_dev *mdev = priv->mdev;
 	struct mlx5_eswitch *esw   = mdev->priv.eswitch;
+	struct mlx5_eswitch_rep_if rep_if;
 	struct mlx5e_rep_priv *rpriv;
-	struct mlx5_eswitch_rep rep;
 
 	rpriv = priv->ppriv;
 	rpriv->netdev = priv->netdev;
 
-	rep.load = mlx5e_nic_rep_load;
-	rep.unload = mlx5e_nic_rep_unload;
-	rep.priv = rpriv;
+	rep_if.load = mlx5e_nic_rep_load;
+	rep_if.unload = mlx5e_nic_rep_unload;
+	rep_if.priv = rpriv;
 	INIT_LIST_HEAD(&rpriv->vport_sqs_list);
-	mlx5_eswitch_register_vport_rep(esw, 0, &rep); /* UPLINK PF vport*/
+	mlx5_eswitch_register_vport_rep(esw, 0, &rep_if, REP_ETH); /* UPLINK PF vport*/
 
 	mlx5e_rep_register_vf_vports(priv); /* VFs vports */
 }
@@ -1208,7 +1209,7 @@ void mlx5e_unregister_vport_reps(struct mlx5e_priv *priv)
 	struct mlx5_eswitch *esw   = mdev->priv.eswitch;
 
 	mlx5e_rep_unregister_vf_vports(priv); /* VFs vports */
-	mlx5_eswitch_unregister_vport_rep(esw, 0); /* UPLINK PF*/
+	mlx5_eswitch_unregister_vport_rep(esw, 0, REP_ETH); /* UPLINK PF*/
 }
 
 void *mlx5e_alloc_nic_rep_priv(struct mlx5_core_dev *mdev)

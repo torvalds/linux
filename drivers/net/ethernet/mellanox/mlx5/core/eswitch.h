@@ -45,6 +45,11 @@ enum {
 	SRIOV_OFFLOADS
 };
 
+enum {
+	REP_ETH,
+	NUM_REP_TYPES,
+};
+
 #ifdef CONFIG_MLX5_ESWITCH
 
 #define MLX5_MAX_UC_PER_VPORT(dev) \
@@ -138,16 +143,21 @@ struct mlx5_esw_sq {
 	struct list_head	 list;
 };
 
-struct mlx5_eswitch_rep {
+struct mlx5_eswitch_rep;
+struct mlx5_eswitch_rep_if {
 	int		       (*load)(struct mlx5_core_dev *dev,
 				       struct mlx5_eswitch_rep *rep);
 	void		       (*unload)(struct mlx5_eswitch_rep *rep);
 	void			*priv;
+	bool		       valid;
+};
+
+struct mlx5_eswitch_rep {
+	struct mlx5_eswitch_rep_if rep_if[NUM_REP_TYPES];
 	u16		       vport;
 	u8		       hw_id[ETH_ALEN];
 	u16		       vlan;
 	u32		       vlan_refcount;
-	bool		       valid;
 };
 
 struct mlx5_esw_offload {
@@ -268,10 +278,12 @@ int mlx5_devlink_eswitch_encap_mode_set(struct devlink *devlink, u8 encap);
 int mlx5_devlink_eswitch_encap_mode_get(struct devlink *devlink, u8 *encap);
 void mlx5_eswitch_register_vport_rep(struct mlx5_eswitch *esw,
 				     int vport_index,
-				     struct mlx5_eswitch_rep *rep);
+				     struct mlx5_eswitch_rep_if *rep_if,
+				     u8 rep_type);
 void mlx5_eswitch_unregister_vport_rep(struct mlx5_eswitch *esw,
-				       int vport_index);
-void *mlx5_eswitch_get_uplink_priv(struct mlx5_eswitch *esw);
+				       int vport_index,
+				       u8 rep_type);
+void *mlx5_eswitch_get_uplink_priv(struct mlx5_eswitch *esw, u8 rep_type);
 
 int mlx5_eswitch_add_vlan_action(struct mlx5_eswitch *esw,
 				 struct mlx5_esw_flow_attr *attr);

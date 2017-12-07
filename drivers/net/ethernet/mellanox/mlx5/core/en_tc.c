@@ -617,7 +617,7 @@ static int parse_tunnel_attr(struct mlx5e_priv *priv,
 						  FLOW_DISSECTOR_KEY_ENC_PORTS,
 						  f->mask);
 		struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
-		struct mlx5e_rep_priv *uplink_rpriv = mlx5_eswitch_get_uplink_priv(esw);
+		struct mlx5e_rep_priv *uplink_rpriv = mlx5_eswitch_get_uplink_priv(esw, REP_ETH);
 		struct net_device *up_dev = uplink_rpriv->netdev;
 		struct mlx5e_priv *up_priv = netdev_priv(up_dev);
 
@@ -1522,7 +1522,7 @@ static int mlx5e_route_lookup_ipv4(struct mlx5e_priv *priv,
 #else
 	return -EOPNOTSUPP;
 #endif
-	uplink_rpriv = mlx5_eswitch_get_uplink_priv(esw);
+	uplink_rpriv = mlx5_eswitch_get_uplink_priv(esw, REP_ETH);
 	/* if the egress device isn't on the same HW e-switch, we use the uplink */
 	if (!switchdev_port_same_parent_id(priv->netdev, rt->dst.dev))
 		*out_dev = uplink_rpriv->netdev;
@@ -1561,7 +1561,7 @@ static int mlx5e_route_lookup_ipv6(struct mlx5e_priv *priv,
 
 	*out_ttl = ip6_dst_hoplimit(dst);
 
-	uplink_rpriv = mlx5_eswitch_get_uplink_priv(esw);
+	uplink_rpriv = mlx5_eswitch_get_uplink_priv(esw, REP_ETH);
 	/* if the egress device isn't on the same HW e-switch, we use the uplink */
 	if (!switchdev_port_same_parent_id(priv->netdev, dst->dev))
 		*out_dev = uplink_rpriv->netdev;
@@ -1864,7 +1864,8 @@ static int mlx5e_attach_encap(struct mlx5e_priv *priv,
 			      struct mlx5e_tc_flow *flow)
 {
 	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
-	struct mlx5e_rep_priv *uplink_rpriv = mlx5_eswitch_get_uplink_priv(esw);
+	struct mlx5e_rep_priv *uplink_rpriv = mlx5_eswitch_get_uplink_priv(esw,
+									   REP_ETH);
 	struct net_device *up_dev = uplink_rpriv->netdev;
 	unsigned short family = ip_tunnel_info_af(tun_info);
 	struct mlx5e_priv *up_priv = netdev_priv(up_dev);
