@@ -133,6 +133,11 @@ struct mlx5e_encap_entry {
 	int encap_size;
 };
 
+struct mlx5e_rep_sq {
+	struct mlx5_flow_handle	*send_to_vport_rule;
+	struct list_head	 list;
+};
+
 void *mlx5e_alloc_nic_rep_priv(struct mlx5_core_dev *mdev);
 void mlx5e_register_vport_reps(struct mlx5e_priv *priv);
 void mlx5e_unregister_vport_reps(struct mlx5e_priv *priv);

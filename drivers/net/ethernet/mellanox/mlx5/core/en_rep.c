@@ -193,17 +193,17 @@ int mlx5e_attr_get(struct net_device *dev, struct switchdev_attr *attr)
 static void mlx5e_sqs2vport_stop(struct mlx5_eswitch *esw,
 				 struct mlx5_eswitch_rep *rep)
 {
-	struct mlx5_esw_sq *esw_sq, *tmp;
+	struct mlx5e_rep_sq *rep_sq, *tmp;
 	struct mlx5e_rep_priv *rpriv;
 
 	if (esw->mode != SRIOV_OFFLOADS)
 		return;
 
 	rpriv = mlx5e_rep_to_rep_priv(rep);
-	list_for_each_entry_safe(esw_sq, tmp, &rpriv->vport_sqs_list, list) {
-		mlx5_eswitch_del_send_to_vport_rule(esw_sq->send_to_vport_rule);
-		list_del(&esw_sq->list);
-		kfree(esw_sq);
+	list_for_each_entry_safe(rep_sq, tmp, &rpriv->vport_sqs_list, list) {
+		mlx5_eswitch_del_send_to_vport_rule(rep_sq->send_to_vport_rule);
+		list_del(&rep_sq->list);
+		kfree(rep_sq);
 	}
 }
 
@@ -213,7 +213,7 @@ static int mlx5e_sqs2vport_start(struct mlx5_eswitch *esw,
 {
 	struct mlx5_flow_handle *flow_rule;
 	struct mlx5e_rep_priv *rpriv;
-	struct mlx5_esw_sq *esw_sq;
+	struct mlx5e_rep_sq *rep_sq;
 	int err;
 	int i;
 
@@ -222,8 +222,8 @@ static int mlx5e_sqs2vport_start(struct mlx5_eswitch *esw,
 
 	rpriv = mlx5e_rep_to_rep_priv(rep);
 	for (i = 0; i < sqns_num; i++) {
-		esw_sq = kzalloc(sizeof(*esw_sq), GFP_KERNEL);
-		if (!esw_sq) {
+		rep_sq = kzalloc(sizeof(*rep_sq), GFP_KERNEL);
+		if (!rep_sq) {
 			err = -ENOMEM;
 			goto out_err;
 		}
@@ -234,11 +234,11 @@ static int mlx5e_sqs2vport_start(struct mlx5_eswitch *esw,
 								sqns_array[i]);
 		if (IS_ERR(flow_rule)) {
 			err = PTR_ERR(flow_rule);
-			kfree(esw_sq);
+			kfree(rep_sq);
 			goto out_err;
 		}
-		esw_sq->send_to_vport_rule = flow_rule;
-		list_add(&esw_sq->list, &rpriv->vport_sqs_list);
+		rep_sq->send_to_vport_rule = flow_rule;
+		list_add(&rep_sq->list, &rpriv->vport_sqs_list);
 	}
 	return 0;
 

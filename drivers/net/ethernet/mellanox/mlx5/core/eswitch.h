@@ -138,11 +138,6 @@ struct mlx5_eswitch_fdb {
 	};
 };
 
-struct mlx5_esw_sq {
-	struct mlx5_flow_handle	*send_to_vport_rule;
-	struct list_head	 list;
-};
-
 struct mlx5_eswitch_rep;
 struct mlx5_eswitch_rep_if {
 	int		       (*load)(struct mlx5_core_dev *dev,
