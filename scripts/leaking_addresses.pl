@@ -92,14 +92,14 @@ Version: $V
 
 Options:
 
-	-o, --output-raw=<file>  Save results for future processing.
-	-i, --input-raw=<file>   Read results from file instead of scanning.
-	    --raw                Show raw results (default).
-	    --suppress-dmesg     Do not show dmesg results.
-	    --squash-by-path     Show one result per unique path.
-	    --squash-by-filename Show one result per unique filename.
-	-d, --debug              Display debugging output.
-	-h, --help, --version    Display this help and exit.
+	-o, --output-raw=<file>		Save results for future processing.
+	-i, --input-raw=<file>		Read results from file instead of scanning.
+	      --raw			Show raw results (default).
+	      --suppress-dmesg		Do not show dmesg results.
+	      --squash-by-path		Show one result per unique path.
+	      --squash-by-filename	Show one result per unique filename.
+	-d, --debug			Display debugging output.
+	-h, --help, --version		Display this help and exit.
 
 Scans the running (64 bit) kernel for potential leaking addresses.
 
