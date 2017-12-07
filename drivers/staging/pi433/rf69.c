@@ -190,7 +190,6 @@ int rf69_set_bit_rate(struct spi_device *spi, u16 bitRate)
 int rf69_set_deviation(struct spi_device *spi, u32 deviation)
 {
 	int retval;
-//	u32 f_max; TODO: Abhängigkeit von Bitrate beachten!!
 	u64 f_reg;
 	u64 f_step;
 	u8 msb;
@@ -201,7 +200,8 @@ int rf69_set_deviation(struct spi_device *spi, u32 deviation)
 		dev_dbg(&spi->dev, "set: deviation");
 	#endif
 
-	if (deviation < 600 || deviation > 500000) { //TODO: Abhängigkeit von Bitrate beachten!!
+	// TODO: Dependency to bitrate
+	if (deviation < 600 || deviation > 500000) {
 		dev_dbg(&spi->dev, "set_deviation: illegal input param");
 		return -EINVAL;
 	}
@@ -298,7 +298,8 @@ int rf69_set_output_power_level(struct spi_device *spi, u8 powerLevel)
 		dev_dbg(&spi->dev, "set: power level");
 	#endif
 
-	powerLevel += 18; // TODO Abhängigkeit von PA0,1,2 setting
+	// TODO: Dependency to PA0,1,2 setting
+	powerLevel += 18;
 
 	// check input value
 	if (powerLevel > 0x1f) {
@@ -939,7 +940,7 @@ int rf69_read_fifo (struct spi_device *spi, u8 *buffer, unsigned int size)
 			dev_dbg(&spi->dev, "%d - 0x%x\n", i, local_buffer[i+1]);
 	#endif
 
-	memcpy(buffer, &local_buffer[1], size);  // TODO: ohne memcopy wäre schöner
+	memcpy(buffer, &local_buffer[1], size);
 
 	return retval;
 }
@@ -960,7 +961,7 @@ int rf69_write_fifo(struct spi_device *spi, u8 *buffer, unsigned int size)
 	}
 
 	local_buffer[0] = spi_address;
-	memcpy(&local_buffer[1], buffer, size);  // TODO: ohne memcopy wäre schöner
+	memcpy(&local_buffer[1], buffer, size);
 
 	#ifdef DEBUG_FIFO_ACCESS
 		for (i = 0; i < size; i++)
