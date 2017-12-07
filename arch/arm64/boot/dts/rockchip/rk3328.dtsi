@@ -595,6 +595,7 @@
 		mode_ctrl = <0x40c>;
 		name = "h265e";
 		allocator = <1>;
+		power-domains = <&power RK3328_PD_HEVC>;
 		status = "disabled";
 	};
 
@@ -614,8 +615,10 @@
 		iommus = <&vepu_mmu>;
 		reg = <0x0 0xff340000 0x0 0x400>;
 		interrupts = <GIC_SPI 97 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&cru ACLK_VPU>, <&cru HCLK_VPU>;
-		clock-names = "aclk_vcodec", "hclk_vcodec";
+		clocks = <&cru ACLK_H264>, <&cru HCLK_H264>,
+			<&cru SCLK_VENC_CORE>;
+		clock-names = "aclk_vcodec", "hclk_vcodec",
+			"clk_core";
 		resets = <&cru SRST_RKVENC_H264_H>,
 			<&cru SRST_RKVENC_H264_A>;
 		reset-names = "video_h", "video_a";
@@ -624,6 +627,7 @@
 		mode_ctrl = <0x40c>;
 		name = "vepu";
 		allocator = <1>;
+		power-domains = <&power RK3328_PD_HEVC>;
 		status = "disabled";
 	};
 
@@ -632,7 +636,7 @@
 		reg = <0x0 0xff340800 0x0 0x40>;
 		interrupts = <GIC_SPI 98 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "vepu_mmu";
-		clocks = <&cru ACLK_VPU>, <&cru HCLK_VPU>;
+		clocks = <&cru ACLK_H264>, <&cru HCLK_H264>;
 		clock-names = "aclk", "hclk";
 		power-domains = <&power RK3328_PD_HEVC>;
 		#iommu-cells = <0>;
