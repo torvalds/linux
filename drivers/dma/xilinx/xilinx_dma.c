@@ -2484,7 +2484,8 @@ static int xilinx_dma_chan_probe(struct xilinx_dma_device *xdev,
  * Return: 0 always.
  */
 static int xilinx_dma_child_probe(struct xilinx_dma_device *xdev,
-				    struct device_node *node) {
+				    struct device_node *node)
+{
 	int ret, i, nr_channels = 1;
 
 	ret = of_property_read_u32(node, "dma-channels", &nr_channels);
