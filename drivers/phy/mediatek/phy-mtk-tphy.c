@@ -1023,9 +1023,10 @@ static int mtk_tphy_probe(struct platform_device *pdev)
 	tphy->dev = dev;
 	platform_set_drvdata(pdev, tphy);
 
-	if (tphy->pdata->version == MTK_PHY_V1) {
+	sif_res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	/* SATA phy of V1 needn't it if not shared with PCIe or USB */
+	if (sif_res && tphy->pdata->version == MTK_PHY_V1) {
 		/* get banks shared by multiple phys */
-		sif_res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 		tphy->sif_base = devm_ioremap_resource(dev, sif_res);
 		if (IS_ERR(tphy->sif_base)) {
 			dev_err(dev, "failed to remap sif regs\n");
