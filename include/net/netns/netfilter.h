@@ -21,7 +21,9 @@ struct netns_nf {
 	struct nf_hook_entries __rcu *hooks_ipv6[NF_INET_NUMHOOKS];
 	struct nf_hook_entries __rcu *hooks_arp[NF_ARP_NUMHOOKS];
 	struct nf_hook_entries __rcu *hooks_bridge[NF_INET_NUMHOOKS];
+#if IS_ENABLED(CONFIG_DECNET)
 	struct nf_hook_entries __rcu *hooks_decnet[NF_DN_NUMHOOKS];
+#endif
 #if IS_ENABLED(CONFIG_NF_DEFRAG_IPV4)
 	bool			defrag_ipv4;
 #endif

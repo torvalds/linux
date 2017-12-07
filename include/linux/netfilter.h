@@ -219,9 +219,11 @@ static inline int nf_hook(u_int8_t pf, unsigned int hook, struct net *net,
 	case NFPROTO_BRIDGE:
 		hook_head = rcu_dereference(net->nf.hooks_bridge[hook]);
 		break;
+#if IS_ENABLED(CONFIG_DECNET)
 	case NFPROTO_DECNET:
 		hook_head = rcu_dereference(net->nf.hooks_decnet[hook]);
 		break;
+#endif
 	default:
 		WARN_ON_ONCE(1);
 		break;
