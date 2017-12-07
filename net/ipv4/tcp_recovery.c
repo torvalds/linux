@@ -117,13 +117,8 @@ void tcp_rack_advance(struct tcp_sock *tp, u8 sacked, u32 end_seq,
 {
 	u32 rtt_us;
 
-	if (tp->rack.mstamp &&
-	    !tcp_rack_sent_after(xmit_time, tp->rack.mstamp,
-				 end_seq, tp->rack.end_seq))
-		return;
-
 	rtt_us = tcp_stamp_us_delta(tp->tcp_mstamp, xmit_time);
-	if (sacked & TCPCB_RETRANS) {
+	if (rtt_us < tcp_min_rtt(tp) && (sacked & TCPCB_RETRANS)) {
 		/* If the sacked packet was retransmitted, it's ambiguous
 		 * whether the retransmission or the original (or the prior
 		 * retransmission) was sacked.
@@ -134,13 +129,15 @@ void tcp_rack_advance(struct tcp_sock *tp, u8 sacked, u32 end_seq,
 		 * so it's at least one RTT (i.e., retransmission is at least
 		 * an RTT later).
 		 */
-		if (rtt_us < tcp_min_rtt(tp))
-			return;
+		return;
 	}
-	tp->rack.rtt_us = rtt_us;
-	tp->rack.mstamp = xmit_time;
-	tp->rack.end_seq = end_seq;
 	tp->rack.advanced = 1;
+	tp->rack.rtt_us = rtt_us;
+	if (tcp_rack_sent_after(xmit_time, tp->rack.mstamp,
+				end_seq, tp->rack.end_seq)) {
+		tp->rack.mstamp = xmit_time;
+		tp->rack.end_seq = end_seq;
+	}
 }
 
 /* We have waited long enough to accommodate reordering. Mark the expired
