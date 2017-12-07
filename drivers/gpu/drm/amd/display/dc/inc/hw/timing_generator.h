@@ -42,6 +42,19 @@ struct dcp_gsl_params {
 	int gsl_master;
 };
 
+struct gsl_params {
+	int gsl0_en;
+	int gsl1_en;
+	int gsl2_en;
+	int gsl_master_en;
+	int gsl_master_mode;
+	int master_update_lock_gsl_en;
+	int gsl_window_start_x;
+	int gsl_window_end_x;
+	int gsl_window_start_y;
+	int gsl_window_end_y;
+};
+
 /* define the structure of Dynamic Refresh Mode */
 struct drr_params {
 	uint32_t vertical_total_min;
@@ -63,6 +76,12 @@ struct _dlg_otg_param {
 	int vupdate_width;
 	int vready_offset;
 	enum signal_type signal;
+};
+
+struct vupdate_keepout_params {
+	int start_offset;
+	int end_offset;
+	int enable;
 };
 
 struct crtc_stereo_flags {
