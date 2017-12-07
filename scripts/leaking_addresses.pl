@@ -41,10 +41,10 @@ my $debug = 0;
 my $raw = 0;
 my $output_raw = "";	# Write raw results to file.
 my $input_raw = "";	# Read raw results from file instead of scanning.
-
 my $suppress_dmesg = 0;		# Don't show dmesg in output.
 my $squash_by_path = 0;		# Summary report grouped by absolute path.
 my $squash_by_filename = 0;	# Summary report grouped by filename.
+my $kernel_config_file = "";	# Kernel configuration file.
 
 # Do not parse these files (absolute path).
 my @skip_parse_files_abs = ('/proc/kmsg',
@@ -99,6 +99,7 @@ Options:
 	      --suppress-dmesg		Do not show dmesg results.
 	      --squash-by-path		Show one result per unique path.
 	      --squash-by-filename	Show one result per unique filename.
+	--kernel-config-file=<file>     Kernel configuration file (e.g /boot/config)
 	-d, --debug			Display debugging output.
 	-h, --help, --version		Display this help and exit.
 
@@ -118,6 +119,7 @@ GetOptions(
 	'squash-by-path'        => \$squash_by_path,
 	'squash-by-filename'    => \$squash_by_filename,
 	'raw'                   => \$raw,
+	'kernel-config-file=s'	=> \$kernel_config_file,
 ) or help(1);
 
 help(0) if ($help);
@@ -185,6 +187,68 @@ sub is_ppc64
 		return 1;
 	}
 	return 0;
+}
+
+# Gets config option value from kernel config file.
+# Returns "" on error or if config option not found.
+sub get_kernel_config_option
+{
+	my ($option) = @_;
+	my $value = "";
+	my $tmp_file = "";
+	my @config_files;
+
+	# Allow --kernel-config-file to override.
+	if ($kernel_config_file ne "") {
+		@config_files = ($kernel_config_file);
+	} elsif (-R "/proc/config.gz") {
+		my $tmp_file = "/tmp/tmpkconf";
+
+		if (system("gunzip < /proc/config.gz > $tmp_file")) {
+			dprint "$0: system(gunzip < /proc/config.gz) failed\n";
+			return "";
+		} else {
+			@config_files = ($tmp_file);
+		}
+	} else {
+		my $file = '/boot/config-' . `uname -r`;
+		chomp $file;
+		@config_files = ($file, '/boot/config');
+	}
+
+	foreach my $file (@config_files) {
+		dprint("parsing config file: %s\n", $file);
+		$value = option_from_file($option, $file);
+		if ($value ne "") {
+			last;
+		}
+	}
+
+	if ($tmp_file ne "") {
+		system("rm -f $tmp_file");
+	}
+
+	return $value;
+}
+
+# Parses $file and returns kernel configuration option value.
+sub option_from_file
+{
+	my ($option, $file) = @_;
+	my $str = "";
+	my $val = "";
+
+	open(my $fh, "<", $file) or return "";
+	while (my $line = <$fh> ) {
+		if ($line =~ /^$option/) {
+			($str, $val) = split /=/, $line;
+			chomp $val;
+			last;
+		}
+	}
+
+	close $fh;
+	return $val;
 }
 
 sub is_false_positive
