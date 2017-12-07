@@ -37,8 +37,6 @@
  * Resource Streamer, is 66944 bytes, which rounds to 17 pages.
  */
 #define HSW_CXT_TOTAL_SIZE		(17 * PAGE_SIZE)
-/* Same as Haswell, but 72064 bytes now. */
-#define GEN8_CXT_TOTAL_SIZE		(18 * PAGE_SIZE)
 
 #define GEN8_LR_CONTEXT_RENDER_SIZE	(20 * PAGE_SIZE)
 #define GEN9_LR_CONTEXT_RENDER_SIZE	(22 * PAGE_SIZE)
@@ -164,9 +162,7 @@ __intel_engine_context_size(struct drm_i915_private *dev_priv, u8 class)
 		case 9:
 			return GEN9_LR_CONTEXT_RENDER_SIZE;
 		case 8:
-			return i915_modparams.enable_execlists ?
-			       GEN8_LR_CONTEXT_RENDER_SIZE :
-			       GEN8_CXT_TOTAL_SIZE;
+			return GEN8_LR_CONTEXT_RENDER_SIZE;
 		case 7:
 			if (IS_HASWELL(dev_priv))
 				return HSW_CXT_TOTAL_SIZE;
@@ -209,6 +205,15 @@ intel_engine_setup(struct drm_i915_private *dev_priv,
 	GEM_BUG_ON(info->class >= ARRAY_SIZE(intel_engine_classes));
 	class_info = &intel_engine_classes[info->class];
 
+	if (GEM_WARN_ON(info->class > MAX_ENGINE_CLASS))
+		return -EINVAL;
+
+	if (GEM_WARN_ON(info->instance > MAX_ENGINE_INSTANCE))
+		return -EINVAL;
+
+	if (GEM_WARN_ON(dev_priv->engine_class[info->class][info->instance]))
+		return -EINVAL;
+
 	GEM_BUG_ON(dev_priv->engine[id]);
 	engine = kzalloc(sizeof(*engine), GFP_KERNEL);
 	if (!engine)
@@ -236,8 +241,11 @@ intel_engine_setup(struct drm_i915_private *dev_priv,
 	/* Nothing to do here, execute in order of dependencies */
 	engine->schedule = NULL;
 
+	spin_lock_init(&engine->stats.lock);
+
 	ATOMIC_INIT_NOTIFIER_HEAD(&engine->context_status_notifier);
 
+	dev_priv->engine_class[info->class][info->instance] = engine;
 	dev_priv->engine[id] = engine;
 	return 0;
 }
@@ -316,7 +324,7 @@ int intel_engines_init(struct drm_i915_private *dev_priv)
 			&intel_engine_classes[engine->class];
 		int (*init)(struct intel_engine_cs *engine);
 
-		if (i915_modparams.enable_execlists)
+		if (HAS_EXECLISTS(dev_priv))
 			init = class_info->init_execlists;
 		else
 			init = class_info->init_legacy;
@@ -365,18 +373,6 @@ void intel_engine_init_global_seqno(struct intel_engine_cs *engine, u32 seqno)
 		I915_WRITE(RING_SYNC_1(engine->mmio_base), 0);
 		if (HAS_VEBOX(dev_priv))
 			I915_WRITE(RING_SYNC_2(engine->mmio_base), 0);
-	}
-	if (dev_priv->semaphore) {
-		struct page *page = i915_vma_first_page(dev_priv->semaphore);
-		void *semaphores;
-
-		/* Semaphores are in noncoherent memory, flush to be safe */
-		semaphores = kmap_atomic(page);
-		memset(semaphores + GEN8_SEMAPHORE_OFFSET(engine->id, 0),
-		       0, I915_NUM_ENGINES * gen8_semaphore_seqno_size);
-		drm_clflush_virt_range(semaphores + GEN8_SEMAPHORE_OFFSET(engine->id, 0),
-				       I915_NUM_ENGINES * gen8_semaphore_seqno_size);
-		kunmap_atomic(semaphores);
 	}
 
 	intel_write_status_page(engine, I915_GEM_HWS_INDEX, seqno);
@@ -1071,6 +1067,15 @@ static int gen9_init_workarounds(struct intel_engine_cs *engine)
 	/* WaDisableSTUnitPowerOptimization:skl,bxt,kbl,glk,cfl */
 	WA_SET_BIT_MASKED(HALF_SLICE_CHICKEN2, GEN8_ST_PO_DISABLE);
 
+	/* WaProgramL3SqcReg1DefaultForPerf:bxt,glk */
+	if (IS_GEN9_LP(dev_priv)) {
+		u32 val = I915_READ(GEN8_L3SQCREG1);
+
+		val &= ~L3_PRIO_CREDITS_MASK;
+		val |= L3_GENERAL_PRIO_CREDITS(62) | L3_HIGH_PRIO_CREDITS(2);
+		I915_WRITE(GEN8_L3SQCREG1, val);
+	}
+
 	/* WaOCLCoherentLineFlush:skl,bxt,kbl,cfl */
 	I915_WRITE(GEN8_L3SQCREG4, (I915_READ(GEN8_L3SQCREG4) |
 				    GEN8_LQSC_FLUSH_COHERENT_LINES));
@@ -1188,7 +1193,6 @@ static int skl_init_workarounds(struct intel_engine_cs *engine)
 static int bxt_init_workarounds(struct intel_engine_cs *engine)
 {
 	struct drm_i915_private *dev_priv = engine->i915;
-	u32 val;
 	int ret;
 
 	ret = gen9_init_workarounds(engine);
@@ -1202,12 +1206,6 @@ static int bxt_init_workarounds(struct intel_engine_cs *engine)
 	/* WaDisablePooledEuLoadBalancingFix:bxt */
 	I915_WRITE(FF_SLICE_CS_CHICKEN2,
 		   _MASKED_BIT_ENABLE(GEN9_POOLED_EU_LOAD_BALANCING_FIX_DISABLE));
-
-	/* WaProgramL3SqcReg1DefaultForPerf:bxt */
-	val = I915_READ(GEN8_L3SQCREG1);
-	val &= ~L3_PRIO_CREDITS_MASK;
-	val |= L3_GENERAL_PRIO_CREDITS(62) | L3_HIGH_PRIO_CREDITS(2);
-	I915_WRITE(GEN8_L3SQCREG1, val);
 
 	/* WaToEnableHwFixForPushConstHWBug:bxt */
 	WA_SET_BIT_MASKED(COMMON_SLICE_CHICKEN2,
@@ -1729,6 +1727,15 @@ void intel_engine_dump(struct intel_engine_cs *engine, struct drm_printer *m)
 			   I915_READ(RING_MI_MODE(engine->mmio_base)),
 			   I915_READ(RING_MI_MODE(engine->mmio_base)) & (MODE_IDLE) ? " [idle]" : "");
 	}
+	if (HAS_LEGACY_SEMAPHORES(dev_priv)) {
+		drm_printf(m, "\tSYNC_0: 0x%08x\n",
+			   I915_READ(RING_SYNC_0(engine->mmio_base)));
+		drm_printf(m, "\tSYNC_1: 0x%08x\n",
+			   I915_READ(RING_SYNC_1(engine->mmio_base)));
+		if (HAS_VEBOX(dev_priv))
+			drm_printf(m, "\tSYNC_2: 0x%08x\n",
+				   I915_READ(RING_SYNC_2(engine->mmio_base)));
+	}
 
 	rcu_read_unlock();
 
@@ -1739,7 +1746,7 @@ void intel_engine_dump(struct intel_engine_cs *engine, struct drm_printer *m)
 	drm_printf(m, "\tBBADDR: 0x%08x_%08x\n",
 		   upper_32_bits(addr), lower_32_bits(addr));
 
-	if (i915_modparams.enable_execlists) {
+	if (HAS_EXECLISTS(dev_priv)) {
 		const u32 *hws = &engine->status_page.page_addr[I915_HWS_CSB_BUF0_INDEX];
 		u32 ptr, read, write;
 		unsigned int idx;
@@ -1821,6 +1828,114 @@ void intel_engine_dump(struct intel_engine_cs *engine, struct drm_printer *m)
 
 	drm_printf(m, "Idle? %s\n", yesno(intel_engine_is_idle(engine)));
 	drm_printf(m, "\n");
+}
+
+static u8 user_class_map[] = {
+	[I915_ENGINE_CLASS_RENDER] = RENDER_CLASS,
+	[I915_ENGINE_CLASS_COPY] = COPY_ENGINE_CLASS,
+	[I915_ENGINE_CLASS_VIDEO] = VIDEO_DECODE_CLASS,
+	[I915_ENGINE_CLASS_VIDEO_ENHANCE] = VIDEO_ENHANCEMENT_CLASS,
+};
+
+struct intel_engine_cs *
+intel_engine_lookup_user(struct drm_i915_private *i915, u8 class, u8 instance)
+{
+	if (class >= ARRAY_SIZE(user_class_map))
+		return NULL;
+
+	class = user_class_map[class];
+
+	GEM_BUG_ON(class > MAX_ENGINE_CLASS);
+
+	if (instance > MAX_ENGINE_INSTANCE)
+		return NULL;
+
+	return i915->engine_class[class][instance];
+}
+
+/**
+ * intel_enable_engine_stats() - Enable engine busy tracking on engine
+ * @engine: engine to enable stats collection
+ *
+ * Start collecting the engine busyness data for @engine.
+ *
+ * Returns 0 on success or a negative error code.
+ */
+int intel_enable_engine_stats(struct intel_engine_cs *engine)
+{
+	unsigned long flags;
+
+	if (!intel_engine_supports_stats(engine))
+		return -ENODEV;
+
+	spin_lock_irqsave(&engine->stats.lock, flags);
+	if (engine->stats.enabled == ~0)
+		goto busy;
+	if (engine->stats.enabled++ == 0)
+		engine->stats.enabled_at = ktime_get();
+	spin_unlock_irqrestore(&engine->stats.lock, flags);
+
+	return 0;
+
+busy:
+	spin_unlock_irqrestore(&engine->stats.lock, flags);
+
+	return -EBUSY;
+}
+
+static ktime_t __intel_engine_get_busy_time(struct intel_engine_cs *engine)
+{
+	ktime_t total = engine->stats.total;
+
+	/*
+	 * If the engine is executing something at the moment
+	 * add it to the total.
+	 */
+	if (engine->stats.active)
+		total = ktime_add(total,
+				  ktime_sub(ktime_get(), engine->stats.start));
+
+	return total;
+}
+
+/**
+ * intel_engine_get_busy_time() - Return current accumulated engine busyness
+ * @engine: engine to report on
+ *
+ * Returns accumulated time @engine was busy since engine stats were enabled.
+ */
+ktime_t intel_engine_get_busy_time(struct intel_engine_cs *engine)
+{
+	ktime_t total;
+	unsigned long flags;
+
+	spin_lock_irqsave(&engine->stats.lock, flags);
+	total = __intel_engine_get_busy_time(engine);
+	spin_unlock_irqrestore(&engine->stats.lock, flags);
+
+	return total;
+}
+
+/**
+ * intel_disable_engine_stats() - Disable engine busy tracking on engine
+ * @engine: engine to disable stats collection
+ *
+ * Stops collecting the engine busyness data for @engine.
+ */
+void intel_disable_engine_stats(struct intel_engine_cs *engine)
+{
+	unsigned long flags;
+
+	if (!intel_engine_supports_stats(engine))
+		return;
+
+	spin_lock_irqsave(&engine->stats.lock, flags);
+	WARN_ON_ONCE(engine->stats.enabled == 0);
+	if (--engine->stats.enabled == 0) {
+		engine->stats.total = __intel_engine_get_busy_time(engine);
+		engine->stats.active = 0;
+	}
+	spin_unlock_irqrestore(&engine->stats.lock, flags);
 }
 
 #if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)

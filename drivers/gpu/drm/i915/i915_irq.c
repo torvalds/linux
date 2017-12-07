@@ -3068,7 +3068,7 @@ static void vlv_display_irq_reset(struct drm_i915_private *dev_priv)
 	i9xx_pipestat_irq_reset(dev_priv);
 
 	GEN3_IRQ_RESET(VLV_);
-	dev_priv->irq_mask = ~0;
+	dev_priv->irq_mask = ~0u;
 }
 
 static void vlv_display_irq_postinstall(struct drm_i915_private *dev_priv)
@@ -3093,7 +3093,7 @@ static void vlv_display_irq_postinstall(struct drm_i915_private *dev_priv)
 		enable_mask |= I915_DISPLAY_PIPE_C_EVENT_INTERRUPT |
 			I915_LPE_PIPE_C_INTERRUPT;
 
-	WARN_ON(dev_priv->irq_mask != ~0);
+	WARN_ON(dev_priv->irq_mask != ~0u);
 
 	dev_priv->irq_mask = ~enable_mask;
 

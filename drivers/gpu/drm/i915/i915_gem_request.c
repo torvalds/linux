@@ -258,6 +258,7 @@ static void mark_busy(struct drm_i915_private *i915)
 	i915_update_gfx_val(i915);
 	if (INTEL_GEN(i915) >= 6)
 		gen6_rps_busy(i915);
+	i915_pmu_gt_unparked(i915);
 
 	intel_engines_unpark(i915);
 
@@ -624,6 +625,10 @@ i915_gem_request_alloc(struct intel_engine_cs *engine,
 	if (ret)
 		goto err_unpin;
 
+	ret = intel_ring_wait_for_space(ring, MIN_SPACE_FOR_ADD_REQUEST);
+	if (ret)
+		goto err_unreserve;
+
 	/* Move the oldest request to the slab-cache (if not in use!) */
 	req = list_first_entry_or_null(&engine->timeline->requests,
 				       typeof(*req), link);
@@ -703,22 +708,30 @@ i915_gem_request_alloc(struct intel_engine_cs *engine,
 	req->reserved_space = MIN_SPACE_FOR_ADD_REQUEST;
 	GEM_BUG_ON(req->reserved_space < engine->emit_breadcrumb_sz);
 
-	ret = engine->request_alloc(req);
-	if (ret)
-		goto err_ctx;
-
-	/* Record the position of the start of the request so that
+	/*
+	 * Record the position of the start of the request so that
 	 * should we detect the updated seqno part-way through the
 	 * GPU processing the request, we never over-estimate the
 	 * position of the head.
 	 */
 	req->head = req->ring->emit;
 
+	/* Unconditionally invalidate GPU caches and TLBs. */
+	ret = engine->emit_flush(req, EMIT_INVALIDATE);
+	if (ret)
+		goto err_unwind;
+
+	ret = engine->request_alloc(req);
+	if (ret)
+		goto err_unwind;
+
 	/* Check that we didn't interrupt ourselves with a new request */
 	GEM_BUG_ON(req->timeline->seqno != req->fence.seqno);
 	return req;
 
-err_ctx:
+err_unwind:
+	req->ring->emit = req->head;
+
 	/* Make sure we didn't add ourselves to external state before freeing */
 	GEM_BUG_ON(!list_empty(&req->active_list));
 	GEM_BUG_ON(!list_empty(&req->priotree.signalers_list));

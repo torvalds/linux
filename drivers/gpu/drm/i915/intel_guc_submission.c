@@ -718,12 +718,9 @@ static void guc_submit(struct intel_engine_cs *engine)
 static void port_assign(struct execlist_port *port,
 			struct drm_i915_gem_request *rq)
 {
-	GEM_BUG_ON(rq == port_request(port));
+	GEM_BUG_ON(port_isset(port));
 
-	if (port_isset(port))
-		i915_gem_request_put(port_request(port));
-
-	port_set(port, port_pack(i915_gem_request_get(rq), port_count(port)));
+	port_set(port, i915_gem_request_get(rq));
 }
 
 static void guc_dequeue(struct intel_engine_cs *engine)
@@ -743,23 +740,26 @@ static void guc_dequeue(struct intel_engine_cs *engine)
 	if (!rb)
 		goto unlock;
 
-	if (HAS_LOGICAL_RING_PREEMPTION(engine->i915) && port_isset(port)) {
-		struct guc_preempt_work *preempt_work =
-			&engine->i915->guc.preempt_work[engine->id];
+	if (port_isset(port)) {
+		if (HAS_LOGICAL_RING_PREEMPTION(engine->i915)) {
+			struct guc_preempt_work *preempt_work =
+				&engine->i915->guc.preempt_work[engine->id];
 
-		if (rb_entry(rb, struct i915_priolist, node)->priority >
-		    max(port_request(port)->priotree.priority, 0)) {
-			execlists_set_active(execlists,
-					     EXECLISTS_ACTIVE_PREEMPT);
-			queue_work(engine->i915->guc.preempt_wq,
-				   &preempt_work->work);
-			goto unlock;
-		} else if (port_isset(last_port)) {
-			goto unlock;
+			if (rb_entry(rb, struct i915_priolist, node)->priority >
+			    max(port_request(port)->priotree.priority, 0)) {
+				execlists_set_active(execlists,
+						     EXECLISTS_ACTIVE_PREEMPT);
+				queue_work(engine->i915->guc.preempt_wq,
+					   &preempt_work->work);
+				goto unlock;
+			}
 		}
 
 		port++;
+		if (port_isset(port))
+			goto unlock;
 	}
+	GEM_BUG_ON(port_isset(port));
 
 	do {
 		struct i915_priolist *p = rb_entry(rb, typeof(*p), node);
@@ -1453,6 +1453,8 @@ int intel_guc_submission_enable(struct intel_guc *guc)
 		execlists->tasklet.func = guc_submission_tasklet;
 		engine->park = guc_submission_park;
 		engine->unpark = guc_submission_unpark;
+
+		engine->flags &= ~I915_ENGINE_SUPPORTS_STATS;
 	}
 
 	return 0;

@@ -27,7 +27,7 @@
 /* max doorbell number + negative test for each client type */
 #define ATTEMPTS (GUC_NUM_DOORBELLS + GUC_CLIENT_PRIORITY_NUM)
 
-struct intel_guc_client *clients[ATTEMPTS];
+static struct intel_guc_client *clients[ATTEMPTS];
 
 static bool available_dbs(struct intel_guc *guc, u32 priority)
 {
@@ -131,6 +131,8 @@ static int igt_guc_init_doorbell_hw(void *args)
 		pr_err("Failed to create clients\n");
 		goto unlock;
 	}
+	GEM_BUG_ON(!guc->execbuf_client);
+	GEM_BUG_ON(!guc->preempt_client);
 
 	err = validate_client(guc->execbuf_client,
 			      GUC_CLIENT_PRIORITY_KMD_NORMAL, false);

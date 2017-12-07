@@ -186,6 +186,9 @@ static inline bool i915_mmio_reg_valid(i915_reg_t reg)
 #define VIDEO_ENHANCEMENT_CLASS	2
 #define COPY_ENGINE_CLASS	3
 #define OTHER_CLASS		4
+#define MAX_ENGINE_CLASS	4
+
+#define MAX_ENGINE_INSTANCE    1
 
 /* PCI config space */
 

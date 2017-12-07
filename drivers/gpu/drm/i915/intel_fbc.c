@@ -151,7 +151,7 @@ static void i8xx_fbc_activate(struct drm_i915_private *dev_priv)
 
 		/* Set it up... */
 		fbc_ctl2 = FBC_CTL_FENCE_DBL | FBC_CTL_IDLE_IMM | FBC_CTL_CPU_FENCE;
-		fbc_ctl2 |= FBC_CTL_PLANE(params->crtc.plane);
+		fbc_ctl2 |= FBC_CTL_PLANE(params->crtc.i9xx_plane);
 		I915_WRITE(FBC_CONTROL2, fbc_ctl2);
 		I915_WRITE(FBC_FENCE_OFF, params->crtc.fence_y_offset);
 	}
@@ -177,7 +177,7 @@ static void g4x_fbc_activate(struct drm_i915_private *dev_priv)
 	struct intel_fbc_reg_params *params = &dev_priv->fbc.params;
 	u32 dpfc_ctl;
 
-	dpfc_ctl = DPFC_CTL_PLANE(params->crtc.plane) | DPFC_SR_EN;
+	dpfc_ctl = DPFC_CTL_PLANE(params->crtc.i9xx_plane) | DPFC_SR_EN;
 	if (params->fb.format->cpp[0] == 2)
 		dpfc_ctl |= DPFC_CTL_LIMIT_2X;
 	else
@@ -224,7 +224,7 @@ static void ilk_fbc_activate(struct drm_i915_private *dev_priv)
 	u32 dpfc_ctl;
 	int threshold = dev_priv->fbc.threshold;
 
-	dpfc_ctl = DPFC_CTL_PLANE(params->crtc.plane);
+	dpfc_ctl = DPFC_CTL_PLANE(params->crtc.i9xx_plane);
 	if (params->fb.format->cpp[0] == 2)
 		threshold++;
 
@@ -306,7 +306,7 @@ static void gen7_fbc_activate(struct drm_i915_private *dev_priv)
 
 	dpfc_ctl = 0;
 	if (IS_IVYBRIDGE(dev_priv))
-		dpfc_ctl |= IVB_DPFC_CTL_PLANE(params->crtc.plane);
+		dpfc_ctl |= IVB_DPFC_CTL_PLANE(params->crtc.i9xx_plane);
 
 	if (params->fb.format->cpp[0] == 2)
 		threshold++;
@@ -890,7 +890,7 @@ static void intel_fbc_get_reg_params(struct intel_crtc *crtc,
 	params->vma = cache->vma;
 
 	params->crtc.pipe = crtc->pipe;
-	params->crtc.plane = crtc->plane;
+	params->crtc.i9xx_plane = to_intel_plane(crtc->base.primary)->i9xx_plane;
 	params->crtc.fence_y_offset = get_crtc_fence_y_offset(fbc);
 
 	params->fb.format = cache->fb.format;
@@ -1054,11 +1054,11 @@ out:
  * enable FBC for the chosen CRTC. If it does, it will set dev_priv->fbc.crtc.
  */
 void intel_fbc_choose_crtc(struct drm_i915_private *dev_priv,
-			   struct drm_atomic_state *state)
+			   struct intel_atomic_state *state)
 {
 	struct intel_fbc *fbc = &dev_priv->fbc;
-	struct drm_plane *plane;
-	struct drm_plane_state *plane_state;
+	struct intel_plane *plane;
+	struct intel_plane_state *plane_state;
 	bool crtc_chosen = false;
 	int i;
 
@@ -1066,7 +1066,7 @@ void intel_fbc_choose_crtc(struct drm_i915_private *dev_priv,
 
 	/* Does this atomic commit involve the CRTC currently tied to FBC? */
 	if (fbc->crtc &&
-	    !drm_atomic_get_existing_crtc_state(state, &fbc->crtc->base))
+	    !intel_atomic_get_new_crtc_state(state, fbc->crtc))
 		goto out;
 
 	if (!intel_fbc_can_enable(dev_priv))
@@ -1076,25 +1076,22 @@ void intel_fbc_choose_crtc(struct drm_i915_private *dev_priv,
 	 * plane. We could go for fancier schemes such as checking the plane
 	 * size, but this would just affect the few platforms that don't tie FBC
 	 * to pipe or plane A. */
-	for_each_new_plane_in_state(state, plane, plane_state, i) {
-		struct intel_plane_state *intel_plane_state =
-			to_intel_plane_state(plane_state);
-		struct intel_crtc_state *intel_crtc_state;
-		struct intel_crtc *crtc = to_intel_crtc(plane_state->crtc);
+	for_each_new_intel_plane_in_state(state, plane, plane_state, i) {
+		struct intel_crtc_state *crtc_state;
+		struct intel_crtc *crtc = to_intel_crtc(plane_state->base.crtc);
 
-		if (!intel_plane_state->base.visible)
+		if (!plane_state->base.visible)
 			continue;
 
 		if (fbc_on_pipe_a_only(dev_priv) && crtc->pipe != PIPE_A)
 			continue;
 
-		if (fbc_on_plane_a_only(dev_priv) && crtc->plane != PLANE_A)
+		if (fbc_on_plane_a_only(dev_priv) && plane->i9xx_plane != PLANE_A)
 			continue;
 
-		intel_crtc_state = to_intel_crtc_state(
-			drm_atomic_get_existing_crtc_state(state, &crtc->base));
+		crtc_state = intel_atomic_get_new_crtc_state(state, crtc);
 
-		intel_crtc_state->enable_fbc = true;
+		crtc_state->enable_fbc = true;
 		crtc_chosen = true;
 		break;
 	}

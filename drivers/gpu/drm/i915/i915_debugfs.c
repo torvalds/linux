@@ -1151,13 +1151,8 @@ static int i915_frequency_info(struct seq_file *m, void *unused)
 		rpdownei = I915_READ(GEN6_RP_CUR_DOWN_EI) & GEN6_CURIAVG_MASK;
 		rpcurdown = I915_READ(GEN6_RP_CUR_DOWN) & GEN6_CURBSYTAVG_MASK;
 		rpprevdown = I915_READ(GEN6_RP_PREV_DOWN) & GEN6_CURBSYTAVG_MASK;
-		if (INTEL_GEN(dev_priv) >= 9)
-			cagf = (rpstat & GEN9_CAGF_MASK) >> GEN9_CAGF_SHIFT;
-		else if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv))
-			cagf = (rpstat & HSW_CAGF_MASK) >> HSW_CAGF_SHIFT;
-		else
-			cagf = (rpstat & GEN6_CAGF_MASK) >> GEN6_CAGF_SHIFT;
-		cagf = intel_gpu_freq(dev_priv, cagf);
+		cagf = intel_gpu_freq(dev_priv,
+				      intel_get_cagf(dev_priv, rpstat));
 
 		intel_uncore_forcewake_put(dev_priv, FORCEWAKE_ALL);
 
@@ -1983,75 +1978,6 @@ static int i915_context_status(struct seq_file *m, void *unused)
 
 		seq_putc(m, '\n');
 	}
-
-	mutex_unlock(&dev->struct_mutex);
-
-	return 0;
-}
-
-static void i915_dump_lrc_obj(struct seq_file *m,
-			      struct i915_gem_context *ctx,
-			      struct intel_engine_cs *engine)
-{
-	struct i915_vma *vma = ctx->engine[engine->id].state;
-	struct page *page;
-	int j;
-
-	seq_printf(m, "CONTEXT: %s %u\n", engine->name, ctx->hw_id);
-
-	if (!vma) {
-		seq_puts(m, "\tFake context\n");
-		return;
-	}
-
-	if (vma->flags & I915_VMA_GLOBAL_BIND)
-		seq_printf(m, "\tBound in GGTT at 0x%08x\n",
-			   i915_ggtt_offset(vma));
-
-	if (i915_gem_object_pin_pages(vma->obj)) {
-		seq_puts(m, "\tFailed to get pages for context object\n\n");
-		return;
-	}
-
-	page = i915_gem_object_get_page(vma->obj, LRC_STATE_PN);
-	if (page) {
-		u32 *reg_state = kmap_atomic(page);
-
-		for (j = 0; j < 0x600 / sizeof(u32) / 4; j += 4) {
-			seq_printf(m,
-				   "\t[0x%04x] 0x%08x 0x%08x 0x%08x 0x%08x\n",
-				   j * 4,
-				   reg_state[j], reg_state[j + 1],
-				   reg_state[j + 2], reg_state[j + 3]);
-		}
-		kunmap_atomic(reg_state);
-	}
-
-	i915_gem_object_unpin_pages(vma->obj);
-	seq_putc(m, '\n');
-}
-
-static int i915_dump_lrc(struct seq_file *m, void *unused)
-{
-	struct drm_i915_private *dev_priv = node_to_i915(m->private);
-	struct drm_device *dev = &dev_priv->drm;
-	struct intel_engine_cs *engine;
-	struct i915_gem_context *ctx;
-	enum intel_engine_id id;
-	int ret;
-
-	if (!i915_modparams.enable_execlists) {
-		seq_printf(m, "Logical Ring Contexts are disabled\n");
-		return 0;
-	}
-
-	ret = mutex_lock_interruptible(&dev->struct_mutex);
-	if (ret)
-		return ret;
-
-	list_for_each_entry(ctx, &dev_priv->contexts.list, link)
-		for_each_engine(engine, dev_priv, id)
-			i915_dump_lrc_obj(m, ctx, engine);
 
 	mutex_unlock(&dev->struct_mutex);
 
@@ -3301,69 +3227,6 @@ static int i915_shrinker_info(struct seq_file *m, void *unused)
 	seq_printf(m, "seeks = %d\n", i915->mm.shrinker.seeks);
 	seq_printf(m, "batch = %lu\n", i915->mm.shrinker.batch);
 
-	return 0;
-}
-
-static int i915_semaphore_status(struct seq_file *m, void *unused)
-{
-	struct drm_i915_private *dev_priv = node_to_i915(m->private);
-	struct drm_device *dev = &dev_priv->drm;
-	struct intel_engine_cs *engine;
-	int num_rings = INTEL_INFO(dev_priv)->num_rings;
-	enum intel_engine_id id;
-	int j, ret;
-
-	if (!i915_modparams.semaphores) {
-		seq_puts(m, "Semaphores are disabled\n");
-		return 0;
-	}
-
-	ret = mutex_lock_interruptible(&dev->struct_mutex);
-	if (ret)
-		return ret;
-	intel_runtime_pm_get(dev_priv);
-
-	if (IS_BROADWELL(dev_priv)) {
-		struct page *page;
-		uint64_t *seqno;
-
-		page = i915_gem_object_get_page(dev_priv->semaphore->obj, 0);
-
-		seqno = (uint64_t *)kmap_atomic(page);
-		for_each_engine(engine, dev_priv, id) {
-			uint64_t offset;
-
-			seq_printf(m, "%s\n", engine->name);
-
-			seq_puts(m, "  Last signal:");
-			for (j = 0; j < num_rings; j++) {
-				offset = id * I915_NUM_ENGINES + j;
-				seq_printf(m, "0x%08llx (0x%02llx) ",
-					   seqno[offset], offset * 8);
-			}
-			seq_putc(m, '\n');
-
-			seq_puts(m, "  Last wait:  ");
-			for (j = 0; j < num_rings; j++) {
-				offset = id + (j * I915_NUM_ENGINES);
-				seq_printf(m, "0x%08llx (0x%02llx) ",
-					   seqno[offset], offset * 8);
-			}
-			seq_putc(m, '\n');
-
-		}
-		kunmap_atomic(seqno);
-	} else {
-		seq_puts(m, "  Last signal:");
-		for_each_engine(engine, dev_priv, id)
-			for (j = 0; j < num_rings; j++)
-				seq_printf(m, "0x%08x\n",
-					   I915_READ(engine->semaphore.mbox.signal[j]));
-		seq_putc(m, '\n');
-	}
-
-	intel_runtime_pm_put(dev_priv);
-	mutex_unlock(&dev->struct_mutex);
 	return 0;
 }
 
@@ -4833,7 +4696,6 @@ static const struct drm_info_list i915_debugfs_list[] = {
 	{"i915_vbt", i915_vbt, 0},
 	{"i915_gem_framebuffer", i915_gem_framebuffer_info, 0},
 	{"i915_context_status", i915_context_status, 0},
-	{"i915_dump_lrc", i915_dump_lrc, 0},
 	{"i915_forcewake_domains", i915_forcewake_domains, 0},
 	{"i915_swizzle_info", i915_swizzle_info, 0},
 	{"i915_ppgtt_info", i915_ppgtt_info, 0},
@@ -4847,7 +4709,6 @@ static const struct drm_info_list i915_debugfs_list[] = {
 	{"i915_display_info", i915_display_info, 0},
 	{"i915_engine_info", i915_engine_info, 0},
 	{"i915_shrinker_info", i915_shrinker_info, 0},
-	{"i915_semaphore_status", i915_semaphore_status, 0},
 	{"i915_shared_dplls_info", i915_shared_dplls_info, 0},
 	{"i915_dp_mst_info", i915_dp_mst_info, 0},
 	{"i915_wa_registers", i915_wa_registers, 0},

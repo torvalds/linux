@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef _I915_GUC_SUBMISSION_H_
-#define _I915_GUC_SUBMISSION_H_
+#ifndef _INTEL_GUC_SUBMISSION_H_
+#define _INTEL_GUC_SUBMISSION_H_
 
 #include <linux/spinlock.h>
 

@@ -40,9 +40,9 @@
 #define I915_CSR_CNL "i915/cnl_dmc_ver1_06.bin"
 #define CNL_CSR_VERSION_REQUIRED	CSR_VERSION(1, 6)
 
-#define I915_CSR_KBL "i915/kbl_dmc_ver1_01.bin"
+#define I915_CSR_KBL "i915/kbl_dmc_ver1_04.bin"
 MODULE_FIRMWARE(I915_CSR_KBL);
-#define KBL_CSR_VERSION_REQUIRED	CSR_VERSION(1, 1)
+#define KBL_CSR_VERSION_REQUIRED	CSR_VERSION(1, 4)
 
 #define I915_CSR_SKL "i915/skl_dmc_ver1_26.bin"
 MODULE_FIRMWARE(I915_CSR_SKL);

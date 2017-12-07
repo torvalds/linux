@@ -30,14 +30,14 @@
 #include "intel_guc_fw.h"
 #include "i915_drv.h"
 
-#define SKL_FW_MAJOR 6
-#define SKL_FW_MINOR 1
+#define SKL_FW_MAJOR 9
+#define SKL_FW_MINOR 33
 
-#define BXT_FW_MAJOR 8
-#define BXT_FW_MINOR 7
+#define BXT_FW_MAJOR 9
+#define BXT_FW_MINOR 29
 
 #define KBL_FW_MAJOR 9
-#define KBL_FW_MINOR 14
+#define KBL_FW_MINOR 39
 
 #define GLK_FW_MAJOR 10
 #define GLK_FW_MINOR 56
@@ -130,14 +130,14 @@ static int guc_xfer_rsa(struct intel_guc *guc, struct i915_vma *vma)
 	struct drm_i915_private *dev_priv = guc_to_i915(guc);
 	struct intel_uc_fw *guc_fw = &guc->fw;
 	struct sg_table *sg = vma->pages;
-	u32 rsa[UOS_RSA_SCRATCH_MAX_COUNT];
+	u32 rsa[UOS_RSA_SCRATCH_COUNT];
 	int i;
 
 	if (sg_pcopy_to_buffer(sg->sgl, sg->nents, rsa, sizeof(rsa),
 			       guc_fw->rsa_offset) != sizeof(rsa))
 		return -EINVAL;
 
-	for (i = 0; i < UOS_RSA_SCRATCH_MAX_COUNT; i++)
+	for (i = 0; i < UOS_RSA_SCRATCH_COUNT; i++)
 		I915_WRITE(UOS_RSA_SCRATCH(i), rsa[i]);
 
 	return 0;

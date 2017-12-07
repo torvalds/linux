@@ -48,6 +48,7 @@
 
 #include "i915_drv.h"
 #include "i915_trace.h"
+#include "i915_pmu.h"
 #include "i915_vgpu.h"
 #include "intel_drv.h"
 #include "intel_uc.h"
@@ -321,7 +322,7 @@ static int i915_getparam(struct drm_device *dev, void *data,
 		value = USES_PPGTT(dev_priv);
 		break;
 	case I915_PARAM_HAS_SEMAPHORES:
-		value = i915_modparams.semaphores;
+		value = HAS_LEGACY_SEMAPHORES(dev_priv);
 		break;
 	case I915_PARAM_HAS_SECURE_BATCHES:
 		value = capable(CAP_SYS_ADMIN);
@@ -371,9 +372,7 @@ static int i915_getparam(struct drm_device *dev, void *data,
 		if (dev_priv->engine[RCS] && dev_priv->engine[RCS]->schedule) {
 			value |= I915_SCHEDULER_CAP_ENABLED;
 			value |= I915_SCHEDULER_CAP_PRIORITY;
-
-			if (HAS_LOGICAL_RING_PREEMPTION(dev_priv) &&
-			    i915_modparams.enable_execlists)
+			if (HAS_LOGICAL_RING_PREEMPTION(dev_priv))
 				value |= I915_SCHEDULER_CAP_PREEMPTION;
 		}
 		break;
@@ -694,8 +693,6 @@ static int i915_load_modeset_init(struct drm_device *dev)
 	/* Only enable hotplug handling once the fbdev is fully set up. */
 	intel_hpd_init(dev_priv);
 
-	drm_kms_helper_poll_init(dev);
-
 	return 0;
 
 cleanup_gem:
@@ -936,8 +933,6 @@ static int i915_driver_init_early(struct drm_i915_private *dev_priv,
 
 	intel_detect_preproduction_hw(dev_priv);
 
-	i915_perf_init(dev_priv);
-
 	return 0;
 
 err_irq:
@@ -954,7 +949,6 @@ err_engines:
  */
 static void i915_driver_cleanup_early(struct drm_i915_private *dev_priv)
 {
-	i915_perf_fini(dev_priv);
 	i915_gem_load_cleanup(dev_priv);
 	intel_irq_fini(dev_priv);
 	i915_workqueues_cleanup(dev_priv);
@@ -1057,10 +1051,6 @@ static void i915_driver_cleanup_mmio(struct drm_i915_private *dev_priv)
 
 static void intel_sanitize_options(struct drm_i915_private *dev_priv)
 {
-	i915_modparams.enable_execlists =
-		intel_sanitize_enable_execlists(dev_priv,
-						i915_modparams.enable_execlists);
-
 	/*
 	 * i915.enable_ppgtt is read-only, so do an early pass to validate the
 	 * user's requested state against the hardware/driver capabilities.  We
@@ -1071,11 +1061,6 @@ static void intel_sanitize_options(struct drm_i915_private *dev_priv)
 		intel_sanitize_enable_ppgtt(dev_priv,
 					    i915_modparams.enable_ppgtt);
 	DRM_DEBUG_DRIVER("ppgtt mode: %i\n", i915_modparams.enable_ppgtt);
-
-	i915_modparams.semaphores =
-		intel_sanitize_semaphores(dev_priv, i915_modparams.semaphores);
-	DRM_DEBUG_DRIVER("use GPU semaphores? %s\n",
-			 yesno(i915_modparams.semaphores));
 
 	intel_uc_sanitize_options(dev_priv);
 
@@ -1100,6 +1085,8 @@ static int i915_driver_init_hw(struct drm_i915_private *dev_priv)
 	intel_device_info_runtime_init(dev_priv);
 
 	intel_sanitize_options(dev_priv);
+
+	i915_perf_init(dev_priv);
 
 	ret = i915_ggtt_probe_hw(dev_priv);
 	if (ret)
@@ -1206,6 +1193,8 @@ static void i915_driver_cleanup_hw(struct drm_i915_private *dev_priv)
 {
 	struct pci_dev *pdev = dev_priv->drm.pdev;
 
+	i915_perf_fini(dev_priv);
+
 	if (pdev->msi_enabled)
 		pci_disable_msi(pdev);
 
@@ -1224,7 +1213,8 @@ static void i915_driver_register(struct drm_i915_private *dev_priv)
 {
 	struct drm_device *dev = &dev_priv->drm;
 
-	i915_gem_shrinker_init(dev_priv);
+	i915_gem_shrinker_register(dev_priv);
+	i915_pmu_register(dev_priv);
 
 	/*
 	 * Notify a valid surface after modesetting,
@@ -1263,6 +1253,13 @@ static void i915_driver_register(struct drm_i915_private *dev_priv)
 	 * cannot run before the connectors are registered.
 	 */
 	intel_fbdev_initial_config_async(dev);
+
+	/*
+	 * We need to coordinate the hotplugs with the asynchronous fbdev
+	 * configuration, for which we use the fbdev->async_cookie.
+	 */
+	if (INTEL_INFO(dev_priv)->num_pipes)
+		drm_kms_helper_poll_init(dev);
 }
 
 /**
@@ -1274,17 +1271,25 @@ static void i915_driver_unregister(struct drm_i915_private *dev_priv)
 	intel_fbdev_unregister(dev_priv);
 	intel_audio_deinit(dev_priv);
 
+	/*
+	 * After flushing the fbdev (incl. a late async config which will
+	 * have delayed queuing of a hotplug event), then flush the hotplug
+	 * events.
+	 */
+	drm_kms_helper_poll_fini(&dev_priv->drm);
+
 	intel_gpu_ips_teardown();
 	acpi_video_unregister();
 	intel_opregion_unregister(dev_priv);
 
 	i915_perf_unregister(dev_priv);
+	i915_pmu_unregister(dev_priv);
 
 	i915_teardown_sysfs(dev_priv);
 	i915_guc_log_unregister(dev_priv);
 	drm_dev_unregister(&dev_priv->drm);
 
-	i915_gem_shrinker_cleanup(dev_priv);
+	i915_gem_shrinker_unregister(dev_priv);
 }
 
 /**
@@ -1872,7 +1877,9 @@ void i915_reset(struct drm_i915_private *i915, unsigned int flags)
 {
 	struct i915_gpu_error *error = &i915->gpu_error;
 	int ret;
+	int i;
 
+	might_sleep();
 	lockdep_assert_held(&i915->drm.struct_mutex);
 	GEM_BUG_ON(!test_bit(I915_RESET_BACKOFF, &error->flags));
 
@@ -1895,12 +1902,20 @@ void i915_reset(struct drm_i915_private *i915, unsigned int flags)
 		goto error;
 	}
 
-	ret = intel_gpu_reset(i915, ALL_ENGINES);
+	if (!intel_has_gpu_reset(i915)) {
+		DRM_DEBUG_DRIVER("GPU reset disabled\n");
+		goto error;
+	}
+
+	for (i = 0; i < 3; i++) {
+		ret = intel_gpu_reset(i915, ALL_ENGINES);
+		if (ret == 0)
+			break;
+
+		msleep(100);
+	}
 	if (ret) {
-		if (ret != -ENODEV)
-			DRM_ERROR("Failed to reset chip: %i\n", ret);
-		else
-			DRM_DEBUG_DRIVER("GPU reset disabled\n");
+		dev_err(i915->drm.dev, "Failed to reset chip\n");
 		goto error;
 	}
 
@@ -2512,7 +2527,7 @@ static int intel_runtime_suspend(struct device *kdev)
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	int ret;
 
-	if (WARN_ON_ONCE(!(dev_priv->gt_pm.rc6.enabled && intel_rc6_enabled())))
+	if (WARN_ON_ONCE(!(dev_priv->gt_pm.rc6.enabled && HAS_RC6(dev_priv))))
 		return -ENODEV;
 
 	if (WARN_ON_ONCE(!HAS_RUNTIME_PM(dev_priv)))

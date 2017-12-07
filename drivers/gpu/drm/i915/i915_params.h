@@ -31,15 +31,12 @@
 	param(char *, vbt_firmware, NULL) \
 	param(int, modeset, -1) \
 	param(int, panel_ignore_lid, 1) \
-	param(int, semaphores, -1) \
 	param(int, lvds_channel_mode, 0) \
 	param(int, panel_use_ssc, -1) \
 	param(int, vbt_sdvo_panel_type, -1) \
-	param(int, enable_rc6, -1) \
 	param(int, enable_dc, -1) \
 	param(int, enable_fbc, -1) \
 	param(int, enable_ppgtt, -1) \
-	param(int, enable_execlists, -1) \
 	param(int, enable_psr, -1) \
 	param(int, disable_power_well, -1) \
 	param(int, enable_ips, 1) \

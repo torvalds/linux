@@ -21,8 +21,8 @@
  * IN THE SOFTWARE.
  *
  */
-#ifndef _I915_GUC_REG_H_
-#define _I915_GUC_REG_H_
+#ifndef _INTEL_GUC_REG_H_
+#define _INTEL_GUC_REG_H_
 
 /* Definitions of GuC H/W registers, bits, etc */
 
@@ -52,7 +52,8 @@
 #define SOFT_SCRATCH_COUNT		16
 
 #define UOS_RSA_SCRATCH(i)		_MMIO(0xc200 + (i) * 4)
-#define   UOS_RSA_SCRATCH_MAX_COUNT	  64
+#define UOS_RSA_SCRATCH_COUNT		64
+
 #define DMA_ADDR_0_LOW			_MMIO(0xc300)
 #define DMA_ADDR_0_HIGH			_MMIO(0xc304)
 #define DMA_ADDR_1_LOW			_MMIO(0xc308)

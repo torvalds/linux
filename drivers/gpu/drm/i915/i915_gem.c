@@ -3371,7 +3371,9 @@ i915_gem_idle_work_handler(struct work_struct *work)
 	synchronize_irq(dev_priv->drm.irq);
 
 	intel_engines_park(dev_priv);
-	i915_gem_timelines_mark_idle(dev_priv);
+	i915_gem_timelines_park(dev_priv);
+
+	i915_pmu_gt_parked(dev_priv);
 
 	GEM_BUG_ON(!dev_priv->gt.awake);
 	dev_priv->gt.awake = false;
@@ -4772,17 +4774,19 @@ int i915_gem_suspend(struct drm_i915_private *dev_priv)
 	 * state. Fortunately, the kernel_context is disposable and we do
 	 * not rely on its state.
 	 */
-	ret = i915_gem_switch_to_kernel_context(dev_priv);
-	if (ret)
-		goto err_unlock;
+	if (!i915_terminally_wedged(&dev_priv->gpu_error)) {
+		ret = i915_gem_switch_to_kernel_context(dev_priv);
+		if (ret)
+			goto err_unlock;
 
-	ret = i915_gem_wait_for_idle(dev_priv,
-				     I915_WAIT_INTERRUPTIBLE |
-				     I915_WAIT_LOCKED);
-	if (ret && ret != -EIO)
-		goto err_unlock;
+		ret = i915_gem_wait_for_idle(dev_priv,
+					     I915_WAIT_INTERRUPTIBLE |
+					     I915_WAIT_LOCKED);
+		if (ret && ret != -EIO)
+			goto err_unlock;
 
-	assert_kernel_context_is_current(dev_priv);
+		assert_kernel_context_is_current(dev_priv);
+	}
 	i915_gem_contexts_lost(dev_priv);
 	mutex_unlock(&dev->struct_mutex);
 
@@ -4997,25 +5001,6 @@ out:
 	return ret;
 }
 
-bool intel_sanitize_semaphores(struct drm_i915_private *dev_priv, int value)
-{
-	if (INTEL_INFO(dev_priv)->gen < 6)
-		return false;
-
-	/* TODO: make semaphores and Execlists play nicely together */
-	if (i915_modparams.enable_execlists)
-		return false;
-
-	if (value >= 0)
-		return value;
-
-	/* Enable semaphores on SNB when IO remapping is off */
-	if (IS_GEN6(dev_priv) && intel_vtd_active())
-		return false;
-
-	return true;
-}
-
 static int __intel_engines_record_defaults(struct drm_i915_private *i915)
 {
 	struct i915_gem_context *ctx;
@@ -5045,7 +5030,7 @@ static int __intel_engines_record_defaults(struct drm_i915_private *i915)
 			goto out_ctx;
 		}
 
-		err = i915_switch_context(rq);
+		err = 0;
 		if (engine->init_context)
 			err = engine->init_context(rq);
 
@@ -5134,8 +5119,6 @@ int i915_gem_init(struct drm_i915_private *dev_priv)
 {
 	int ret;
 
-	mutex_lock(&dev_priv->drm.struct_mutex);
-
 	/*
 	 * We need to fallback to 4K pages since gvt gtt handling doesn't
 	 * support huge page entries - we will need to check either hypervisor
@@ -5147,13 +5130,17 @@ int i915_gem_init(struct drm_i915_private *dev_priv)
 
 	dev_priv->mm.unordered_timeline = dma_fence_context_alloc(1);
 
-	if (!i915_modparams.enable_execlists) {
-		dev_priv->gt.resume = intel_legacy_submission_resume;
-		dev_priv->gt.cleanup_engine = intel_engine_cleanup;
-	} else {
+	if (HAS_LOGICAL_RING_CONTEXTS(dev_priv)) {
 		dev_priv->gt.resume = intel_lr_context_resume;
 		dev_priv->gt.cleanup_engine = intel_logical_ring_cleanup;
+	} else {
+		dev_priv->gt.resume = intel_legacy_submission_resume;
+		dev_priv->gt.cleanup_engine = intel_engine_cleanup;
 	}
+
+	ret = i915_gem_init_userptr(dev_priv);
+	if (ret)
+		return ret;
 
 	/* This is just a security blanket to placate dragons.
 	 * On some systems, we very sporadically observe that the first TLBs
@@ -5161,11 +5148,8 @@ int i915_gem_init(struct drm_i915_private *dev_priv)
 	 * we hold the forcewake during initialisation these problems
 	 * just magically go away.
 	 */
+	mutex_lock(&dev_priv->drm.struct_mutex);
 	intel_uncore_forcewake_get(dev_priv, FORCEWAKE_ALL);
-
-	ret = i915_gem_init_userptr(dev_priv);
-	if (ret)
-		goto out_unlock;
 
 	ret = i915_gem_init_ggtt(dev_priv);
 	if (ret)

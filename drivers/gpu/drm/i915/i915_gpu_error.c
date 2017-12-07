@@ -791,9 +791,10 @@ int i915_error_state_to_str(struct drm_i915_error_state_buf *m,
 
 		print_error_obj(m, dev_priv->engine[i],
 				"WA batchbuffer", ee->wa_batchbuffer);
-	}
 
-	print_error_obj(m, NULL, "Semaphores", error->semaphore);
+		print_error_obj(m, dev_priv->engine[i],
+				"NULL context", ee->default_state);
+	}
 
 	if (error->overlay)
 		intel_overlay_print_error_state(m, error->overlay);
@@ -902,8 +903,6 @@ void __i915_gpu_state_free(struct kref *error_ref)
 		if (!IS_ERR_OR_NULL(ee->waiters))
 			kfree(ee->waiters);
 	}
-
-	i915_error_object_free(error->semaphore);
 
 	for (i = 0; i < ARRAY_SIZE(error->active_bo); i++)
 		kfree(error->active_bo[i]);
@@ -1116,34 +1115,6 @@ gen8_engine_sync_index(struct intel_engine_cs *engine,
 	return idx;
 }
 
-static void gen8_record_semaphore_state(struct i915_gpu_state *error,
-					struct intel_engine_cs *engine,
-					struct drm_i915_error_engine *ee)
-{
-	struct drm_i915_private *dev_priv = engine->i915;
-	struct intel_engine_cs *to;
-	enum intel_engine_id id;
-
-	if (!error->semaphore)
-		return;
-
-	for_each_engine(to, dev_priv, id) {
-		int idx;
-		u16 signal_offset;
-		u32 *tmp;
-
-		if (engine == to)
-			continue;
-
-		signal_offset =
-			(GEN8_SIGNAL_OFFSET(engine, id) & (PAGE_SIZE - 1)) / 4;
-		tmp = error->semaphore->pages[0];
-		idx = gen8_engine_sync_index(engine, to);
-
-		ee->semaphore_mboxes[idx] = tmp[signal_offset];
-	}
-}
-
 static void gen6_record_semaphore_state(struct intel_engine_cs *engine,
 					struct drm_i915_error_engine *ee)
 {
@@ -1218,7 +1189,6 @@ static void error_record_engine_registers(struct i915_gpu_state *error,
 	if (INTEL_GEN(dev_priv) >= 6) {
 		ee->rc_psmi = I915_READ(RING_PSMI_CTL(engine->mmio_base));
 		if (INTEL_GEN(dev_priv) >= 8) {
-			gen8_record_semaphore_state(error, engine, ee);
 			ee->fault_reg = I915_READ(GEN8_RING_FAULT_REG);
 		} else {
 			gen6_record_semaphore_state(engine, ee);
@@ -1447,14 +1417,29 @@ static void request_record_user_bo(struct drm_i915_gem_request *request,
 	ee->user_bo_count = count;
 }
 
+static struct drm_i915_error_object *
+capture_object(struct drm_i915_private *dev_priv,
+	       struct drm_i915_gem_object *obj)
+{
+	if (obj && i915_gem_object_has_pages(obj)) {
+		struct i915_vma fake = {
+			.node = { .start = U64_MAX, .size = obj->base.size },
+			.size = obj->base.size,
+			.pages = obj->mm.pages,
+			.obj = obj,
+		};
+
+		return i915_error_object_create(dev_priv, &fake);
+	} else {
+		return NULL;
+	}
+}
+
 static void i915_gem_record_rings(struct drm_i915_private *dev_priv,
 				  struct i915_gpu_state *error)
 {
 	struct i915_ggtt *ggtt = &dev_priv->ggtt;
 	int i;
-
-	error->semaphore =
-		i915_error_object_create(dev_priv, dev_priv->semaphore);
 
 	for (i = 0; i < I915_NUM_ENGINES; i++) {
 		struct intel_engine_cs *engine = dev_priv->engine[i];
@@ -1521,6 +1506,9 @@ static void i915_gem_record_rings(struct drm_i915_private *dev_priv,
 
 		ee->wa_ctx =
 			i915_error_object_create(dev_priv, engine->wa_ctx.vma);
+
+		ee->default_state =
+			capture_object(dev_priv, engine->default_state);
 	}
 }
 

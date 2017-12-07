@@ -271,7 +271,7 @@ static inline u64 gen8_noncanonical_addr(u64 address)
 
 static inline bool eb_use_cmdparser(const struct i915_execbuffer *eb)
 {
-	return eb->engine->needs_cmd_parser && eb->batch_len;
+	return intel_engine_needs_cmd_parser(eb->engine) && eb->batch_len;
 }
 
 static int eb_create(struct i915_execbuffer *eb)
@@ -1111,14 +1111,6 @@ static int __reloc_gpu_alloc(struct i915_execbuffer *eb,
 	if (err)
 		goto err_request;
 
-	err = eb->engine->emit_flush(rq, EMIT_INVALIDATE);
-	if (err)
-		goto err_request;
-
-	err = i915_switch_context(rq);
-	if (err)
-		goto err_request;
-
 	err = eb->engine->emit_bb_start(rq,
 					batch->node.start, PAGE_SIZE,
 					cache->gen > 5 ? 0 : I915_DISPATCH_SECURE);
@@ -1818,8 +1810,7 @@ static int eb_move_to_gpu(struct i915_execbuffer *eb)
 	/* Unconditionally flush any chipset caches (for streaming writes). */
 	i915_gem_chipset_flush(eb->i915);
 
-	/* Unconditionally invalidate GPU caches and TLBs. */
-	return eb->engine->emit_flush(eb->request, EMIT_INVALIDATE);
+	return 0;
 }
 
 static bool i915_gem_check_execbuffer(struct drm_i915_gem_execbuffer2 *exec)
@@ -1962,10 +1953,6 @@ static int eb_submit(struct i915_execbuffer *eb)
 	int err;
 
 	err = eb_move_to_gpu(eb);
-	if (err)
-		return err;
-
-	err = i915_switch_context(eb->request);
 	if (err)
 		return err;
 

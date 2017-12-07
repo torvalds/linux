@@ -40,6 +40,7 @@
 #include <linux/hash.h>
 #include <linux/intel-iommu.h>
 #include <linux/kref.h>
+#include <linux/perf_event.h>
 #include <linux/pm_qos.h>
 #include <linux/reservation.h>
 #include <linux/shmem_fs.h>
@@ -79,8 +80,8 @@
 
 #define DRIVER_NAME		"i915"
 #define DRIVER_DESC		"Intel Graphics"
-#define DRIVER_DATE		"20171117"
-#define DRIVER_TIMESTAMP	1510958822
+#define DRIVER_DATE		"20171201"
+#define DRIVER_TIMESTAMP	1512176839
 
 /* Use I915_STATE_WARN(x) and I915_STATE_WARN_ON() (rather than WARN() and
  * WARN_ON()) for hw state sanity checks to check for unexpected conditions
@@ -304,9 +305,9 @@ static inline bool transcoder_is_dsi(enum transcoder transcoder)
 
 /*
  * Global legacy plane identifier. Valid only for primary/sprite
- * planes on pre-g4x, and only for primary planes on g4x+.
+ * planes on pre-g4x, and only for primary planes on g4x-bdw.
  */
-enum plane {
+enum i9xx_plane_id {
 	PLANE_A,
 	PLANE_B,
 	PLANE_C,
@@ -560,13 +561,13 @@ struct i915_hotplug {
 	for_each_power_well_rev(__dev_priv, __power_well)		        \
 		for_each_if ((__power_well)->domains & (__domain_mask))
 
-#define for_each_intel_plane_in_state(__state, plane, plane_state, __i) \
+#define for_each_new_intel_plane_in_state(__state, plane, new_plane_state, __i) \
 	for ((__i) = 0; \
 	     (__i) < (__state)->base.dev->mode_config.num_total_plane && \
 		     ((plane) = to_intel_plane((__state)->base.planes[__i].ptr), \
-		      (plane_state) = to_intel_plane_state((__state)->base.planes[__i].state), 1); \
+		      (new_plane_state) = to_intel_plane_state((__state)->base.planes[__i].new_state), 1); \
 	     (__i)++) \
-		for_each_if (plane_state)
+		for_each_if (plane)
 
 #define for_each_new_intel_crtc_in_state(__state, crtc, new_crtc_state, __i) \
 	for ((__i) = 0; \
@@ -575,7 +576,6 @@ struct i915_hotplug {
 		      (new_crtc_state) = to_intel_crtc_state((__state)->base.crtcs[__i].new_state), 1); \
 	     (__i)++) \
 		for_each_if (crtc)
-
 
 #define for_each_oldnew_intel_plane_in_state(__state, plane, old_plane_state, new_plane_state, __i) \
 	for ((__i) = 0; \
@@ -698,7 +698,8 @@ struct drm_i915_display_funcs {
 			  struct intel_cdclk_state *cdclk_state);
 	void (*set_cdclk)(struct drm_i915_private *dev_priv,
 			  const struct intel_cdclk_state *cdclk_state);
-	int (*get_fifo_size)(struct drm_i915_private *dev_priv, int plane);
+	int (*get_fifo_size)(struct drm_i915_private *dev_priv,
+			     enum i9xx_plane_id i9xx_plane);
 	int (*compute_pipe_wm)(struct intel_crtc_state *cstate);
 	int (*compute_intermediate_wm)(struct drm_device *dev,
 				       struct intel_crtc *intel_crtc,
@@ -942,7 +943,6 @@ struct i915_gpu_state {
 	u64 fence[I915_MAX_NUM_FENCES];
 	struct intel_overlay_error_state *overlay;
 	struct intel_display_error_state *display;
-	struct drm_i915_error_object *semaphore;
 
 	struct drm_i915_error_engine {
 		int engine_id;
@@ -1009,6 +1009,7 @@ struct i915_gpu_state {
 		long user_bo_count;
 
 		struct drm_i915_error_object *wa_ctx;
+		struct drm_i915_error_object *default_state;
 
 		struct drm_i915_error_request {
 			long jiffies;
@@ -1145,7 +1146,7 @@ struct intel_fbc {
 
 		struct {
 			enum pipe pipe;
-			enum plane plane;
+			enum i9xx_plane_id i9xx_plane;
 			unsigned int fence_y_offset;
 		} crtc;
 
@@ -2291,7 +2292,8 @@ struct drm_i915_private {
 	struct i915_gem_context *kernel_context;
 	/* Context only to be used for injecting preemption commands */
 	struct i915_gem_context *preempt_context;
-	struct i915_vma *semaphore;
+	struct intel_engine_cs *engine_class[MAX_ENGINE_CLASS + 1]
+					    [MAX_ENGINE_INSTANCE + 1];
 
 	struct drm_dma_handle *status_page_dmah;
 	struct resource mch_res;
@@ -2619,7 +2621,6 @@ struct drm_i915_private {
 
 			bool periodic;
 			int period_exponent;
-			int timestamp_frequency;
 
 			struct i915_oa_config test_config;
 
@@ -2763,6 +2764,8 @@ struct drm_i915_private {
 		struct platform_device *platdev;
 		int	irq;
 	} lpe_audio;
+
+	struct i915_pmu pmu;
 
 	/*
 	 * NOTE: This is the dri1/ums dungeon, don't add stuff here. Your patch
@@ -3142,6 +3145,8 @@ intel_info(const struct drm_i915_private *dev_priv)
 #define HAS_BLT(dev_priv)	HAS_ENGINE(dev_priv, BCS)
 #define HAS_VEBOX(dev_priv)	HAS_ENGINE(dev_priv, VECS)
 
+#define HAS_LEGACY_SEMAPHORES(dev_priv) IS_GEN7(dev_priv)
+
 #define HAS_LLC(dev_priv)	((dev_priv)->info.has_llc)
 #define HAS_SNOOP(dev_priv)	((dev_priv)->info.has_snoop)
 #define HAS_EDRAM(dev_priv)	(!!((dev_priv)->edram_cap & EDRAM_ENABLED))
@@ -3154,6 +3159,9 @@ intel_info(const struct drm_i915_private *dev_priv)
 		((dev_priv)->info.has_logical_ring_contexts)
 #define HAS_LOGICAL_RING_PREEMPTION(dev_priv) \
 		((dev_priv)->info.has_logical_ring_preemption)
+
+#define HAS_EXECLISTS(dev_priv) HAS_LOGICAL_RING_CONTEXTS(dev_priv)
+
 #define USES_PPGTT(dev_priv)		(i915_modparams.enable_ppgtt)
 #define USES_FULL_PPGTT(dev_priv)	(i915_modparams.enable_ppgtt >= 2)
 #define USES_FULL_48BIT_PPGTT(dev_priv)	(i915_modparams.enable_ppgtt == 3)
@@ -3205,8 +3213,10 @@ intel_info(const struct drm_i915_private *dev_priv)
 #define HAS_DDI(dev_priv)		 ((dev_priv)->info.has_ddi)
 #define HAS_FPGA_DBG_UNCLAIMED(dev_priv) ((dev_priv)->info.has_fpga_dbg)
 #define HAS_PSR(dev_priv)		 ((dev_priv)->info.has_psr)
+
 #define HAS_RC6(dev_priv)		 ((dev_priv)->info.has_rc6)
 #define HAS_RC6p(dev_priv)		 ((dev_priv)->info.has_rc6p)
+#define HAS_RC6pp(dev_priv)		 (false) /* HW was never validated */
 
 #define HAS_CSR(dev_priv)	((dev_priv)->info.has_csr)
 
@@ -3301,8 +3311,6 @@ intel_ggtt_update_needs_vtd_wa(struct drm_i915_private *dev_priv)
 
 int intel_sanitize_enable_ppgtt(struct drm_i915_private *dev_priv,
 				int enable_ppgtt);
-
-bool intel_sanitize_semaphores(struct drm_i915_private *dev_priv, int value);
 
 /* i915_drv.c */
 void __printf(3, 4)
@@ -3905,7 +3913,7 @@ i915_gem_object_create_internal(struct drm_i915_private *dev_priv,
 				phys_addr_t size);
 
 /* i915_gem_shrinker.c */
-unsigned long i915_gem_shrink(struct drm_i915_private *dev_priv,
+unsigned long i915_gem_shrink(struct drm_i915_private *i915,
 			      unsigned long target,
 			      unsigned long *nr_scanned,
 			      unsigned flags);
@@ -3914,9 +3922,9 @@ unsigned long i915_gem_shrink(struct drm_i915_private *dev_priv,
 #define I915_SHRINK_BOUND 0x4
 #define I915_SHRINK_ACTIVE 0x8
 #define I915_SHRINK_VMAPS 0x10
-unsigned long i915_gem_shrink_all(struct drm_i915_private *dev_priv);
-void i915_gem_shrinker_init(struct drm_i915_private *dev_priv);
-void i915_gem_shrinker_cleanup(struct drm_i915_private *dev_priv);
+unsigned long i915_gem_shrink_all(struct drm_i915_private *i915);
+void i915_gem_shrinker_register(struct drm_i915_private *i915);
+void i915_gem_shrinker_unregister(struct drm_i915_private *i915);
 
 
 /* i915_gem_tiling.c */
@@ -4223,8 +4231,16 @@ void vlv_phy_reset_lanes(struct intel_encoder *encoder,
 
 int intel_gpu_freq(struct drm_i915_private *dev_priv, int val);
 int intel_freq_opcode(struct drm_i915_private *dev_priv, int val);
-u64 intel_rc6_residency_us(struct drm_i915_private *dev_priv,
+u64 intel_rc6_residency_ns(struct drm_i915_private *dev_priv,
 			   const i915_reg_t reg);
+
+u32 intel_get_cagf(struct drm_i915_private *dev_priv, u32 rpstat1);
+
+static inline u64 intel_rc6_residency_us(struct drm_i915_private *dev_priv,
+					 const i915_reg_t reg)
+{
+	return DIV_ROUND_UP_ULL(intel_rc6_residency_ns(dev_priv, reg), 1000);
+}
 
 #define I915_READ8(reg)		dev_priv->uncore.funcs.mmio_readb(dev_priv, (reg), true)
 #define I915_WRITE8(reg, val)	dev_priv->uncore.funcs.mmio_writeb(dev_priv, (reg), (val), true)

@@ -1643,7 +1643,7 @@ intel_dp_compute_config(struct intel_encoder *encoder,
 		pipe_config->has_pch_encoder = true;
 
 	pipe_config->has_drrs = false;
-	if (port == PORT_A)
+	if (IS_G4X(dev_priv) || port == PORT_A)
 		pipe_config->has_audio = false;
 	else if (intel_conn_state->force_audio == HDMI_AUDIO_AUTO)
 		pipe_config->has_audio = intel_dp->has_audio;
@@ -1676,6 +1676,10 @@ intel_dp_compute_config(struct intel_encoder *encoder,
 			intel_pch_panel_fitting(intel_crtc, pipe_config,
 						conn_state->scaling_mode);
 	}
+
+	if ((IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) &&
+	    adjusted_mode->flags & DRM_MODE_FLAG_INTERLACE)
+		return false;
 
 	if (adjusted_mode->flags & DRM_MODE_FLAG_DBLCLK)
 		return false;
@@ -4277,6 +4281,8 @@ intel_dp_check_link_status(struct intel_dp *intel_dp)
 {
 	struct drm_i915_private *dev_priv = to_i915(intel_dp_to_dev(intel_dp));
 	struct intel_encoder *intel_encoder = &dp_to_dig_port(intel_dp)->base;
+	struct drm_connector_state *conn_state =
+		intel_dp->attached_connector->base.state;
 	u8 link_status[DP_LINK_STATUS_SIZE];
 
 	WARN_ON(!drm_modeset_is_locked(&dev_priv->drm.mode_config.connection_mutex));
@@ -4286,10 +4292,16 @@ intel_dp_check_link_status(struct intel_dp *intel_dp)
 		return;
 	}
 
-	if (!intel_encoder->base.crtc)
+	if (!conn_state->crtc)
 		return;
 
-	if (!to_intel_crtc(intel_encoder->base.crtc)->active)
+	WARN_ON(!drm_modeset_is_locked(&conn_state->crtc->mutex));
+
+	if (!conn_state->crtc->state->active)
+		return;
+
+	if (conn_state->commit &&
+	    !try_wait_for_completion(&conn_state->commit->hw_done))
 		return;
 
 	/*
@@ -4364,9 +4376,8 @@ intel_dp_short_pulse(struct intel_dp *intel_dp)
 			DRM_DEBUG_DRIVER("CP or sink specific irq unhandled\n");
 	}
 
-	drm_modeset_lock(&dev_priv->drm.mode_config.connection_mutex, NULL);
 	intel_dp_check_link_status(intel_dp);
-	drm_modeset_unlock(&dev_priv->drm.mode_config.connection_mutex);
+
 	if (intel_dp->compliance.test_type == DP_TEST_LINK_TRAINING) {
 		DRM_DEBUG_KMS("Link Training Compliance Test requested\n");
 		/* Send a Hotplug Uevent to userspace to start modeset */
@@ -4814,8 +4825,19 @@ intel_dp_detect(struct drm_connector *connector,
 		      connector->base.id, connector->name);
 
 	/* If full detect is not performed yet, do a full detect */
-	if (!intel_dp->detect_done)
+	if (!intel_dp->detect_done) {
+		struct drm_crtc *crtc;
+		int ret;
+
+		crtc = connector->state->crtc;
+		if (crtc) {
+			ret = drm_modeset_lock(&crtc->mutex, ctx);
+			if (ret)
+				return ret;
+		}
+
 		status = intel_dp_long_pulse(intel_dp->attached_connector);
+	}
 
 	intel_dp->detect_done = false;
 
@@ -5097,7 +5119,38 @@ intel_dp_hpd_pulse(struct intel_digital_port *intel_dig_port, bool long_hpd)
 	}
 
 	if (!intel_dp->is_mst) {
-		if (!intel_dp_short_pulse(intel_dp)) {
+		struct drm_modeset_acquire_ctx ctx;
+		struct drm_connector *connector = &intel_dp->attached_connector->base;
+		struct drm_crtc *crtc;
+		int iret;
+		bool handled = false;
+
+		drm_modeset_acquire_init(&ctx, 0);
+retry:
+		iret = drm_modeset_lock(&dev_priv->drm.mode_config.connection_mutex, &ctx);
+		if (iret)
+			goto err;
+
+		crtc = connector->state->crtc;
+		if (crtc) {
+			iret = drm_modeset_lock(&crtc->mutex, &ctx);
+			if (iret)
+				goto err;
+		}
+
+		handled = intel_dp_short_pulse(intel_dp);
+
+err:
+		if (iret == -EDEADLK) {
+			drm_modeset_backoff(&ctx);
+			goto retry;
+		}
+
+		drm_modeset_drop_locks(&ctx);
+		drm_modeset_acquire_fini(&ctx);
+		WARN(iret, "Acquiring modeset locks failed with %i\n", iret);
+
+		if (!handled) {
 			intel_dp->detect_done = false;
 			goto put_power;
 		}
@@ -5131,8 +5184,11 @@ static void
 intel_dp_add_properties(struct intel_dp *intel_dp, struct drm_connector *connector)
 {
 	struct drm_i915_private *dev_priv = to_i915(connector->dev);
+	enum port port = dp_to_dig_port(intel_dp)->base.port;
 
-	intel_attach_force_audio_property(connector);
+	if (!IS_G4X(dev_priv) && port != PORT_A)
+		intel_attach_force_audio_property(connector);
+
 	intel_attach_broadcast_rgb_property(connector);
 
 	if (intel_dp_is_edp(intel_dp)) {
@@ -5306,6 +5362,12 @@ intel_dp_init_panel_power_sequencer(struct intel_dp *intel_dp)
 	 */
 	final->t8 = 1;
 	final->t9 = 1;
+
+	/*
+	 * HW has only a 100msec granularity for t11_t12 so round it up
+	 * accordingly.
+	 */
+	final->t11_t12 = roundup(final->t11_t12, 100 * 10);
 }
 
 static void
@@ -6034,7 +6096,8 @@ intel_dp_init_connector(struct intel_digital_port *intel_dig_port,
 	drm_connector_init(dev, connector, &intel_dp_connector_funcs, type);
 	drm_connector_helper_add(connector, &intel_dp_connector_helper_funcs);
 
-	connector->interlace_allowed = true;
+	if (!IS_VALLEYVIEW(dev_priv) && !IS_CHERRYVIEW(dev_priv))
+		connector->interlace_allowed = true;
 	connector->doublescan_allowed = 0;
 
 	intel_dp_init_connector_port_info(intel_dig_port);
