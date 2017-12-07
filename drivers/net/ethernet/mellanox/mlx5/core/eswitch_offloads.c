@@ -339,6 +339,11 @@ out:
 	return flow_rule;
 }
 
+void mlx5_eswitch_del_send_to_vport_rule(struct mlx5_flow_handle *rule)
+{
+	mlx5_del_flow_rules(rule);
+}
+
 static int esw_add_fdb_miss_rule(struct mlx5_eswitch *esw)
 {
 	struct mlx5_flow_act flow_act = {0};

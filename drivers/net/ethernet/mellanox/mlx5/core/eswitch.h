@@ -225,6 +225,7 @@ int mlx5_eswitch_get_vport_stats(struct mlx5_eswitch *esw,
 struct mlx5_flow_handle *
 mlx5_eswitch_add_send_to_vport_rule(struct mlx5_eswitch *esw, int vport,
 				    u32 sqn);
+void mlx5_eswitch_del_send_to_vport_rule(struct mlx5_flow_handle *rule);
 
 struct mlx5_flow_spec;
 struct mlx5_esw_flow_attr;

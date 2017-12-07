@@ -199,7 +199,7 @@ static void mlx5e_sqs2vport_stop(struct mlx5_eswitch *esw,
 		return;
 
 	list_for_each_entry_safe(esw_sq, tmp, &rep->vport_sqs_list, list) {
-		mlx5_del_flow_rules(esw_sq->send_to_vport_rule);
+		mlx5_eswitch_del_send_to_vport_rule(esw_sq->send_to_vport_rule);
 		list_del(&esw_sq->list);
 		kfree(esw_sq);
 	}
