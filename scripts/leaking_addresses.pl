@@ -101,17 +101,6 @@ Options:
 	-d, --debug              Display debugging output.
 	-h, --help, --version    Display this help and exit.
 
-Examples:
-
-	# Scan kernel and dump raw results.
-	$0
-
-	# Scan kernel and save results to file.
-	$0 --output-raw scan.out
-
-	# View summary report.
-	$0 --input-raw scan.out --squash-by-filename
-
 Scans the running (64 bit) kernel for potential leaking addresses.
 
 EOM
