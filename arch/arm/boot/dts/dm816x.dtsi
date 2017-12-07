@@ -67,8 +67,11 @@
 		ranges;
 
 		prcm: prcm@48180000 {
-			compatible = "ti,dm816-prcm";
+			compatible = "ti,dm816-prcm", "simple-bus";
 			reg = <0x48180000 0x4000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0 0x48180000 0x4000>;
 
 			prcm_clocks: clocks {
 				#address-cells = <1>;
