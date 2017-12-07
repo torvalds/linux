@@ -194,11 +194,6 @@ struct drm_exynos_file_private {
 /*
  * Exynos drm private structure.
  *
- * @da_start: start address to device address space.
- *	with iommu, device address space starts from this address
- *	otherwise default one.
- * @da_space_size: size of device address space.
- *	if 0 then default value is used for it.
  * @pending: the crtcs that have pending updates to finish
  * @lock: protect access to @pending
  * @wait: wait an atomic commit to finish
