@@ -204,7 +204,7 @@ static struct sk_buff *dequeue_skb(struct Qdisc *q, bool *validate,
 				   int *packets)
 {
 	const struct netdev_queue *txq = q->dev_queue;
-	struct sk_buff *skb;
+	struct sk_buff *skb = NULL;
 
 	*packets = 1;
 	if (unlikely(!skb_queue_empty(&q->gso_skb))) {
@@ -248,12 +248,15 @@ static struct sk_buff *dequeue_skb(struct Qdisc *q, bool *validate,
 	}
 validate:
 	*validate = true;
+
+	if ((q->flags & TCQ_F_ONETXQUEUE) &&
+	    netif_xmit_frozen_or_stopped(txq))
+		return skb;
+
 	skb = qdisc_dequeue_skb_bad_txq(q);
 	if (unlikely(skb))
 		goto bulk;
-	if (!(q->flags & TCQ_F_ONETXQUEUE) ||
-	    !netif_xmit_frozen_or_stopped(txq))
-		skb = q->dequeue(q);
+	skb = q->dequeue(q);
 	if (skb) {
 bulk:
 		if (qdisc_may_bulk(q))
