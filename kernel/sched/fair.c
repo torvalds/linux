@@ -6449,8 +6449,7 @@ static void task_dead_fair(struct task_struct *p)
 }
 #endif /* CONFIG_SMP */
 
-static unsigned long
-wakeup_gran(struct sched_entity *curr, struct sched_entity *se)
+static unsigned long wakeup_gran(struct sched_entity *se)
 {
 	unsigned long gran = sysctl_sched_wakeup_granularity;
 
@@ -6492,7 +6491,7 @@ wakeup_preempt_entity(struct sched_entity *curr, struct sched_entity *se)
 	if (vdiff <= 0)
 		return -1;
 
-	gran = wakeup_gran(curr, se);
+	gran = wakeup_gran(se);
 	if (vdiff > gran)
 		return 1;
 
