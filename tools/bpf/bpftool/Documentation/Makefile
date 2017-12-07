@@ -3,6 +3,7 @@ include ../../../scripts/utilities.mak
 
 INSTALL ?= install
 RM ?= rm -f
+RMDIR ?= rmdir --ignore-fail-on-non-empty
 
 ifeq ($(V),1)
   Q =
@@ -34,5 +35,10 @@ install: man
 	$(Q)$(INSTALL) -d -m 755 $(DESTDIR)$(man8dir)
 	$(Q)$(INSTALL) -m 644 $(DOC_MAN8) $(DESTDIR)$(man8dir)
 
-.PHONY: man man8 clean install
+uninstall:
+	$(call QUIET_UNINST, Documentation-man)
+	$(Q)$(RM) $(addprefix $(DESTDIR)$(man8dir)/,$(_DOC_MAN8))
+	$(Q)$(RMDIR) $(DESTDIR)$(man8dir)
+
+.PHONY: man man8 clean install uninstall
 .DEFAULT_GOAL := man

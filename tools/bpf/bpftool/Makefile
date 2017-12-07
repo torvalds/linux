@@ -70,6 +70,11 @@ install: $(OUTPUT)bpftool
 	$(Q)$(INSTALL) -m 0755 -d $(DESTDIR)$(bash_compdir)
 	$(Q)$(INSTALL) -m 0644 bash-completion/bpftool $(DESTDIR)$(bash_compdir)
 
+uninstall:
+	$(call QUIET_UNINST, bpftool)
+	$(Q)$(RM) $(DESTDIR)$(prefix)/sbin/bpftool
+	$(Q)$(RM) $(DESTDIR)$(bash_compdir)/bpftool
+
 doc:
 	$(call descend,Documentation)
 
@@ -79,8 +84,11 @@ doc-clean:
 doc-install:
 	$(call descend,Documentation,install)
 
+doc-uninstall:
+	$(call descend,Documentation,uninstall)
+
 FORCE:
 
-.PHONY: all FORCE clean install
-.PHONY: doc doc-clean doc-install
+.PHONY: all FORCE clean install uninstall
+.PHONY: doc doc-clean doc-install doc-uninstall
 .DEFAULT_GOAL := all
