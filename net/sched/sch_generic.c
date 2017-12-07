@@ -164,12 +164,12 @@ trace:
  * only one CPU can execute this function.
  *
  * Returns to the caller:
- *				0  - queue is empty or throttled.
- *				>0 - queue is not empty.
+ *				false  - hardware queue frozen backoff
+ *				true   - feel free to send more pkts
  */
-int sch_direct_xmit(struct sk_buff *skb, struct Qdisc *q,
-		    struct net_device *dev, struct netdev_queue *txq,
-		    spinlock_t *root_lock, bool validate)
+bool sch_direct_xmit(struct sk_buff *skb, struct Qdisc *q,
+		     struct net_device *dev, struct netdev_queue *txq,
+		     spinlock_t *root_lock, bool validate)
 {
 	int ret = NETDEV_TX_BUSY;
 
@@ -190,28 +190,26 @@ int sch_direct_xmit(struct sk_buff *skb, struct Qdisc *q,
 	} else {
 		if (root_lock)
 			spin_lock(root_lock);
-		return qdisc_qlen(q);
+		return true;
 	}
 
 	if (root_lock)
 		spin_lock(root_lock);
 
-	if (dev_xmit_complete(ret)) {
-		/* Driver sent out skb successfully or skb was consumed */
-		ret = qdisc_qlen(q);
-	} else {
+	if (!dev_xmit_complete(ret)) {
 		/* Driver returned NETDEV_TX_BUSY - requeue skb */
 		if (unlikely(ret != NETDEV_TX_BUSY))
 			net_warn_ratelimited("BUG %s code %d qlen %d\n",
 					     dev->name, ret, q->q.qlen);
 
-		ret = dev_requeue_skb(skb, q);
+		dev_requeue_skb(skb, q);
+		return false;
 	}
 
 	if (ret && netif_xmit_frozen_or_stopped(txq))
-		ret = 0;
+		return false;
 
-	return ret;
+	return true;
 }
 
 /*
@@ -233,7 +231,7 @@ int sch_direct_xmit(struct sk_buff *skb, struct Qdisc *q,
  *				>0 - queue is not empty.
  *
  */
-static inline int qdisc_restart(struct Qdisc *q, int *packets)
+static inline bool qdisc_restart(struct Qdisc *q, int *packets)
 {
 	spinlock_t *root_lock = NULL;
 	struct netdev_queue *txq;
@@ -244,7 +242,7 @@ static inline int qdisc_restart(struct Qdisc *q, int *packets)
 	/* Dequeue packet */
 	skb = dequeue_skb(q, &validate, packets);
 	if (unlikely(!skb))
-		return 0;
+		return false;
 
 	if (!(q->flags & TCQ_F_NOLOCK))
 		root_lock = qdisc_lock(q);
