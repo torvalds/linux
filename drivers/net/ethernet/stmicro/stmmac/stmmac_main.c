@@ -1997,22 +1997,60 @@ static void stmmac_set_dma_operation_mode(struct stmmac_priv *priv, u32 txmode,
 static void stmmac_dma_interrupt(struct stmmac_priv *priv)
 {
 	u32 tx_channel_count = priv->plat->tx_queues_to_use;
-	int status;
+	u32 rx_channel_count = priv->plat->rx_queues_to_use;
+	u32 channels_to_check = tx_channel_count > rx_channel_count ?
+				tx_channel_count : rx_channel_count;
 	u32 chan;
+	bool poll_scheduled = false;
+	int status[channels_to_check];
 
-	for (chan = 0; chan < tx_channel_count; chan++) {
-		struct stmmac_rx_queue *rx_q = &priv->rx_queue[chan];
+	/* Each DMA channel can be used for rx and tx simultaneously, yet
+	 * napi_struct is embedded in struct stmmac_rx_queue rather than in a
+	 * stmmac_channel struct.
+	 * Because of this, stmmac_poll currently checks (and possibly wakes)
+	 * all tx queues rather than just a single tx queue.
+	 */
+	for (chan = 0; chan < channels_to_check; chan++)
+		status[chan] = priv->hw->dma->dma_interrupt(priv->ioaddr,
+							    &priv->xstats,
+							    chan);
 
-		status = priv->hw->dma->dma_interrupt(priv->ioaddr,
-						      &priv->xstats, chan);
-		if (likely((status & handle_rx)) || (status & handle_tx)) {
+	for (chan = 0; chan < rx_channel_count; chan++) {
+		if (likely(status[chan] & handle_rx)) {
+			struct stmmac_rx_queue *rx_q = &priv->rx_queue[chan];
+
 			if (likely(napi_schedule_prep(&rx_q->napi))) {
 				stmmac_disable_dma_irq(priv, chan);
 				__napi_schedule(&rx_q->napi);
+				poll_scheduled = true;
 			}
 		}
+	}
 
-		if (unlikely(status & tx_hard_error_bump_tc)) {
+	/* If we scheduled poll, we already know that tx queues will be checked.
+	 * If we didn't schedule poll, see if any DMA channel (used by tx) has a
+	 * completed transmission, if so, call stmmac_poll (once).
+	 */
+	if (!poll_scheduled) {
+		for (chan = 0; chan < tx_channel_count; chan++) {
+			if (status[chan] & handle_tx) {
+				/* It doesn't matter what rx queue we choose
+				 * here. We use 0 since it always exists.
+				 */
+				struct stmmac_rx_queue *rx_q =
+					&priv->rx_queue[0];
+
+				if (likely(napi_schedule_prep(&rx_q->napi))) {
+					stmmac_disable_dma_irq(priv, chan);
+					__napi_schedule(&rx_q->napi);
+				}
+				break;
+			}
+		}
+	}
+
+	for (chan = 0; chan < tx_channel_count; chan++) {
+		if (unlikely(status[chan] & tx_hard_error_bump_tc)) {
 			/* Try to bump up the dma threshold on this failure */
 			if (unlikely(priv->xstats.threshold != SF_DMA_MODE) &&
 			    (tc <= 256)) {
@@ -2029,7 +2067,7 @@ static void stmmac_dma_interrupt(struct stmmac_priv *priv)
 								    chan);
 				priv->xstats.threshold = tc;
 			}
-		} else if (unlikely(status == tx_hard_error)) {
+		} else if (unlikely(status[chan] == tx_hard_error)) {
 			stmmac_tx_err(priv, chan);
 		}
 	}
