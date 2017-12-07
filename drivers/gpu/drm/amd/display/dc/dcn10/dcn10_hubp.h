@@ -230,12 +230,7 @@
 	uint32_t CURSOR_CONTROL; \
 	uint32_t CURSOR_POSITION; \
 	uint32_t CURSOR_HOT_SPOT; \
-	uint32_t CURSOR_DST_OFFSET;
-
-
-struct dcn_mi_registers {
-	HUBP_COMMON_REG_VARIABLE_LIST
-};
+	uint32_t CURSOR_DST_OFFSET
 
 #define HUBP_SF(reg_name, field_name, post_fix)\
 	.field_name = reg_name ## __ ## field_name ## post_fix
@@ -398,9 +393,6 @@ struct dcn_mi_registers {
 	HUBP_SF(CURSOR0_CURSOR_HOT_SPOT, CURSOR_HOT_SPOT_X, mask_sh), \
 	HUBP_SF(CURSOR0_CURSOR_HOT_SPOT, CURSOR_HOT_SPOT_Y, mask_sh), \
 	HUBP_SF(CURSOR0_CURSOR_DST_OFFSET, CURSOR_DST_X_OFFSET, mask_sh)
-
-
-
 
 #define DCN_HUBP_REG_FIELD_LIST(type) \
 	type HUBP_BLANK_EN;\
@@ -580,6 +572,10 @@ struct dcn_mi_registers {
 	type CURSOR_HOT_SPOT_Y; \
 	type CURSOR_DST_X_OFFSET; \
 	type OUTPUT_FP
+
+struct dcn_mi_registers {
+	HUBP_COMMON_REG_VARIABLE_LIST;
+};
 
 struct dcn_mi_shift {
 	DCN_HUBP_REG_FIELD_LIST(uint8_t);

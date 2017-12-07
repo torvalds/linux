@@ -42,7 +42,6 @@ enum cursor_lines_per_chunk {
 	CURSOR_LINE_PER_CHUNK_16
 };
 
-
 struct hubp {
 	struct hubp_funcs *funcs;
 	struct dc_context *ctx;
