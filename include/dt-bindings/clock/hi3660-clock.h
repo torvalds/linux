@@ -208,4 +208,11 @@
 #define HI3660_CLK_I2C6_IOMCU		3
 #define HI3660_CLK_IOMCU_PERI0		4
 
+/* clk in stub clock */
+#define HI3660_CLK_STUB_CLUSTER0	0
+#define HI3660_CLK_STUB_CLUSTER1	1
+#define HI3660_CLK_STUB_GPU		2
+#define HI3660_CLK_STUB_DDR		3
+#define HI3660_CLK_STUB_NUM		4
+
 #endif	/* __DTS_HI3660_CLOCK_H */
