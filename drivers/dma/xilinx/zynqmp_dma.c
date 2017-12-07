@@ -552,6 +552,8 @@ static void zynqmp_dma_config(struct zynqmp_dma_chan *chan)
  * zynqmp_dma_device_config - Zynqmp dma device configuration
  * @dchan: DMA channel
  * @config: DMA device config
+ *
+ * Return: 0 always
  */
 static int zynqmp_dma_device_config(struct dma_chan *dchan,
 				    struct dma_slave_config *config)
@@ -647,7 +649,7 @@ static void zynqmp_dma_issue_pending(struct dma_chan *dchan)
 
 /**
  * zynqmp_dma_free_descriptors - Free channel descriptors
- * @dchan: DMA channel pointer
+ * @chan: ZynqMP DMA channel pointer
  */
 static void zynqmp_dma_free_descriptors(struct zynqmp_dma_chan *chan)
 {
