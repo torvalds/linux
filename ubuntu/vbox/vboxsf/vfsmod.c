@@ -10,7 +10,7 @@
  */
 
 /*
- * Copyright (C) 2006-2016 Oracle Corporation
+ * Copyright (C) 2006-2017 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -74,32 +74,14 @@ static int sf_glob_alloc(struct vbsf_mount_info_new *info, struct sf_glob_info *
         || info->signature[1] != VBSF_MOUNT_SIGNATURE_BYTE_1
         || info->signature[2] != VBSF_MOUNT_SIGNATURE_BYTE_2)
     {
-        /* An old version of mount.vboxsf made the syscall. Translate the
-         * old parameters to the new structure. */
-        struct vbsf_mount_info_old *info_old = (struct vbsf_mount_info_old *)info;
-        static struct vbsf_mount_info_new info_compat;
-
-        info = &info_compat;
-        memset(info, 0, sizeof(*info));
-        memcpy(&info->name, &info_old->name, MAX_HOST_NAME);
-        memcpy(&info->nls_name, &info_old->nls_name, MAX_NLS_NAME);
-        info->length = offsetof(struct vbsf_mount_info_new, dmode);
-        info->uid    = info_old->uid;
-        info->gid    = info_old->gid;
-        info->ttl    = info_old->ttl;
+        err = -EINVAL;
+        goto fail1;
     }
 
     info->name[sizeof(info->name) - 1] = 0;
     info->nls_name[sizeof(info->nls_name) - 1] = 0;
 
     name_len = strlen(info->name);
-    if (name_len > 0xfffe)
-    {
-        err = -ENAMETOOLONG;
-        LogFunc(("map name too big\n"));
-        goto fail1;
-    }
-
     str_len = offsetof(SHFLSTRING, String.utf8) + name_len + 1;
     str_name = kmalloc(str_len, GFP_KERNEL);
     if (!str_name)

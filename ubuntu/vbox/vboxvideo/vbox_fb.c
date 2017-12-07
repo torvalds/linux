@@ -309,6 +309,8 @@ static int vboxfb_create(struct drm_fb_helper *helper,
 		return -ENOMEM;
 	info->apertures->ranges[0].base = pci_resource_start(dev->pdev, 0);
 	info->apertures->ranges[0].size = pci_resource_len(dev->pdev, 0);
+	info->fix.smem_start = 0;
+	info->fix.smem_len = size;
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 11, 0)
 	drm_fb_helper_fill_fix(info, fb->pitches[0], fb->format->depth);
@@ -445,12 +447,4 @@ void vbox_fbdev_set_suspend(struct drm_device *dev, int state)
 		return;
 
 	fb_set_suspend(vbox->fbdev->helper.fbdev, state);
-}
-
-void vbox_fbdev_set_base(struct vbox_private *vbox, unsigned long gpu_addr)
-{
-	vbox->fbdev->helper.fbdev->fix.smem_start =
-	    vbox->fbdev->helper.fbdev->apertures->ranges[0].base + gpu_addr;
-	vbox->fbdev->helper.fbdev->fix.smem_len =
-	    vbox->available_vram_size - gpu_addr;
 }

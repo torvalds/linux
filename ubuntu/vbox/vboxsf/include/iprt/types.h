@@ -2107,6 +2107,13 @@ typedef RTCRX509CERTPATHS                   RT_FAR *PRTCRX509CERTPATHS;
 /** Nil certificate paths builder & validator handle. */
 #define NIL_RTCRX509CERTPATHS                       0
 
+/** Directory handle. */
+typedef struct RTDIRINTERNAL                       *RTDIR;
+/** Pointer to directory handle. */
+typedef RTDIR                                      *PRTDIR;
+/** NIL directory handle. */
+#define NIL_RTDIR                                   ((RTDIR)0)
+
 /** File handle. */
 typedef R3R0PTRTYPE(struct RTFILEINT RT_FAR *)      RTFILE;
 /** Pointer to file handle. */

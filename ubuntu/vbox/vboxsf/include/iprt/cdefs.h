@@ -2393,6 +2393,22 @@
 # define RT_FLEXIBLE_ARRAY_IN_NESTED_UNION      1
 #endif
 
+/** @def RT_UNION_NM
+ * For compilers (like DTrace) that does not grok nameless unions, we have a
+ * little hack to make them palatable.
+ */
+/** @def RT_STRUCT_NM
+ * For compilers (like DTrace) that does not grok nameless structs (it is
+ * non-standard C++), we have a little hack to make them palatable.
+ */
+#ifdef IPRT_WITHOUT_NAMED_UNIONS_AND_STRUCTS
+# define RT_UNION_NM(a_Nm)  a_Nm
+# define RT_STRUCT_NM(a_Nm) a_Nm
+#else
+# define RT_UNION_NM(a_Nm)
+# define RT_STRUCT_NM(a_Nm)
+#endif
+
 /**
  * Checks if the value is a power of two.
  *

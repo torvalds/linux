@@ -4,7 +4,7 @@
  */
 
 /*
- * Copyright (C) 2006-2016 Oracle Corporation
+ * Copyright (C) 2006-2017 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -23,6 +23,7 @@
  * You may elect to license modified versions of this file under the
  * terms and conditions of either the GPL or the CDDL or both.
  */
+
 
 /*********************************************************************************************************************************
 *   Header Files                                                                                                                 *
@@ -174,30 +175,6 @@ DECLVBGL(int) VbglR0SfMapFolder(PVBGLSFCLIENT pClient, PSHFLSTRING szFolderName,
     {
         pMap->root = data.root.u.value32;
         rc         = data.callInfo.Hdr.rc;
-    }
-    else if (rc == VERR_NOT_IMPLEMENTED)
-    {
-        /* try the legacy interface too; temporary to assure backwards compatibility */
-        VBoxSFMapFolder_Old OldData;
-
-        VBOX_INIT_CALL(&OldData.callInfo, MAP_FOLDER_OLD, pClient);
-
-        OldData.path.type                    = VMMDevHGCMParmType_LinAddr;
-        OldData.path.u.Pointer.size          = ShflStringSizeOfBuffer (szFolderName);
-        OldData.path.u.Pointer.u.linearAddr  = (uintptr_t)szFolderName;
-
-        OldData.root.type                    = VMMDevHGCMParmType_32bit;
-        OldData.root.u.value32               = 0;
-
-        OldData.delimiter.type               = VMMDevHGCMParmType_32bit;
-        OldData.delimiter.u.value32          = RTPATH_DELIMITER;
-
-        rc = VbglR0HGCMCallRaw(pClient->handle, &OldData.callInfo, sizeof(OldData));
-        if (RT_SUCCESS(rc))
-        {
-            pMap->root = OldData.root.u.value32;
-            rc         = OldData.callInfo.Hdr.rc;
-        }
     }
     return rc;
 }

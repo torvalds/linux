@@ -281,6 +281,8 @@ static int rtThreadAdopt(RTTHREADTYPE enmType, unsigned fFlags, uint32_t fIntFla
             rtThreadSetState(pThread, RTTHREADSTATE_RUNNING);
             rtThreadRelease(pThread);
         }
+        else
+            rtThreadDestroy(pThread);
     }
     return rc;
 }

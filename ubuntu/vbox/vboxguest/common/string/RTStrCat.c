@@ -1,10 +1,10 @@
-/* $Id: VBoxGuestR0LibVMMDev.cpp $ */
+/* $Id: RTStrCat.cpp $ */
 /** @file
- * VBoxGuestLibR0 - VMMDev device related functions.
+ * IPRT - RTStrCat.
  */
 
 /*
- * Copyright (C) 2006-2017 Oracle Corporation
+ * Copyright (C) 2010-2017 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -28,20 +28,29 @@
 /*********************************************************************************************************************************
 *   Header Files                                                                                                                 *
 *********************************************************************************************************************************/
-#include "VBoxGuestR0LibInternal.h"
+#include <iprt/string.h>
+#include "internal/iprt.h"
 
 
-DECLVBGL(int) VbglR0QueryVMMDevMemory(VMMDevMemory **ppVMMDevMemory)
+RTDECL(int) RTStrCat(char *pszDst, size_t cbDst, const char *pszSrc)
 {
-    int rc = vbglR0Enter();
-    if (RT_FAILURE(rc))
-        return rc;
+    char *pszDst2 = RTStrEnd(pszDst, cbDst);
+    AssertReturn(pszDst2, VERR_INVALID_PARAMETER);
+    cbDst -= pszDst2 - pszDst;
 
-    /* If the memory was not found, return an error. */
-    if (!g_vbgldata.pVMMDevMemory)
-        return VERR_NOT_SUPPORTED;
+    size_t cchSrc = strlen(pszSrc);
+    if (RT_LIKELY(cchSrc < cbDst))
+    {
+        memcpy(pszDst2, pszSrc, cchSrc + 1);
+        return VINF_SUCCESS;
+    }
 
-    *ppVMMDevMemory = g_vbgldata.pVMMDevMemory;
-    return rc;
+    if (cbDst != 0)
+    {
+        memcpy(pszDst2, pszSrc, cbDst - 1);
+        pszDst2[cbDst - 1] = '\0';
+    }
+    return VERR_BUFFER_OVERFLOW;
 }
+RT_EXPORT_SYMBOL(RTStrCat);
 

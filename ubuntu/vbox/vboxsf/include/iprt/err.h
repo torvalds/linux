@@ -2078,6 +2078,9 @@ RT_C_DECLS_END
 #define VERR_VFS_CHAIN_TYPE_MISMATCH_PATH_ONLY      (-22156)
 /** VFS chain doesn't end with a path only element. */
 #define VERR_VFS_CHAIN_NOT_PATH_ONLY                (-22157)
+/** The path only element at the end of the VFS chain is too short to make out
+ *  the parent directory. */
+#define VERR_VFS_CHAIN_TOO_SHORT_FOR_PARENT         (-22158)
 /** @} */
 
 /** @name RTDvm status codes

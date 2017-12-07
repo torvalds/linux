@@ -1,9 +1,12 @@
-#
+# $Id: Makefile.include.header $
+## @file
 # VirtualBox Guest Additions kernel module Makefile, common parts.
 #
 # (For 2.6.x, the main file must be called 'Makefile'!)
 #
-# Copyright (C) 2006-2015 Oracle Corporation
+
+#
+# Copyright (C) 2006-2017 Oracle Corporation
 #
 # This file is part of VirtualBox Open Source Edition (OSE), as
 # available from http://www.virtualbox.org. This file is free software;
@@ -90,7 +93,23 @@ ifeq ($(KERNELRELEASE),)
  #
 
  # kernel base directory
+ ifdef KERN_DIR
+  ifndef KERN_VER
+   ifeq ($(filter %/build,$(KERN_DIR)),)
+    $(error The variable KERN_DIR must be a kernel build folder and end with /build without a trailing slash, or KERN_VER must be set)
+   endif
+  endif
+ endif
+
+ ifndef KERN_VER
+  ifdef KERN_DIR
+   KERN_VER = $(notdir $(patsubst %/build,%,$(KERN_DIR)))
+   ifeq ($(shell expr $(KERN_VER) : '[0-9]*\.[0-9]*.[0-9]*'),0)
+    $(error The kernel build folder path must end in <version>/build, or the variable KERN_VER must be set)
+   endif
+  endif
  KERN_VER ?= $(shell uname -r)
+ endif
 
  # guess kernel major version (24 or later)
  ifeq ($(shell if grep '"2\.4\.' /lib/modules/$(KERN_VER)/build/include/linux/version.h > /dev/null 2>&1; then echo yes; fi),yes)
@@ -120,7 +139,7 @@ endif # neq($(KERNELRELEASE),)
 KERN_DIR := $(srctree)
 ifneq ($(shell if test -d $(KERN_DIR); then echo yes; fi),yes)
  $(error Error: unable to find the headers of the Linux kernel to build against. \
-          Specify KERN_VER=<version> and run Make again)
+          Specify KERN_VER=<version> (currently $(KERN_VER)) and run Make again)
 endif
 # Kernel include folder
 KERN_INCL := $(KERN_DIR)/include

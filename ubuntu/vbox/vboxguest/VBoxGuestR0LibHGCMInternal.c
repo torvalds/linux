@@ -4,7 +4,7 @@
  */
 
 /*
- * Copyright (C) 2006-2016 Oracle Corporation
+ * Copyright (C) 2006-2017 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -890,8 +890,8 @@ DECLR0VBGL(int) VbglR0HGCMInternalCall(PVBGLIOCHGCMCALL pCallInfo, uint32_t cbCa
          */
         VMMDevHGCMCall *pHGCMCall;
         rc = VbglR0GRAlloc((VMMDevRequestHeader **)&pHGCMCall,
-                         sizeof(VMMDevHGCMCall) + pCallInfo->cParms * sizeof(HGCMFunctionParameter) + cbExtra,
-                         VMMDevReq_HGCMCall);
+                           sizeof(VMMDevHGCMCall) + pCallInfo->cParms * sizeof(HGCMFunctionParameter) + cbExtra,
+                           VMMDevReq_HGCMCall);
         if (RT_SUCCESS(rc))
         {
             bool fLeakIt;

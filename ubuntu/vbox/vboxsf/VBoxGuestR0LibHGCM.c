@@ -7,7 +7,7 @@
  */
 
 /*
- * Copyright (C) 2006-2016 Oracle Corporation
+ * Copyright (C) 2006-2017 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -27,6 +27,7 @@
  * terms and conditions of either the GPL or the CDDL or both.
  */
 
+
 /*********************************************************************************************************************************
 *   Header Files                                                                                                                 *
 *********************************************************************************************************************************/
@@ -45,6 +46,7 @@
 *   Defined Constants And Macros                                                                                                 *
 *********************************************************************************************************************************/
 #define VBGL_HGCM_ASSERT_MSG AssertReleaseMsg
+
 
 /*********************************************************************************************************************************
 *   Global Variables                                                                                                             *

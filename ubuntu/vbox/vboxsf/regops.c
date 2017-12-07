@@ -4,7 +4,7 @@
  */
 
 /*
- * Copyright (C) 2006-2016 Oracle Corporation
+ * Copyright (C) 2006-2017 Oracle Corporation
  *
  * This file is part of VirtualBox Open Source Edition (OSE), as
  * available from http://www.virtualbox.org. This file is free software;
@@ -234,6 +234,7 @@ static ssize_t sf_reg_write(struct file *file, const char *buf, size_t size, lof
 
         err = VbglR0SfWritePhysCont(&client_handle, &sf_g->map, sf_r->handle,
                                     pos, &nwritten, tmp_phys);
+        err = RT_FAILURE(err) ? -EPROTO : 0;
         if (err)
             goto fail;
 
@@ -561,15 +562,14 @@ struct file_operations sf_reg_fops =
     .release     = sf_reg_release,
     .mmap        = sf_reg_mmap,
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 0)
-# if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 23)
+# if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 31)
+/** @todo This code is known to cause caching of data which should not be
+ * cached.  Investigate. */
+#  if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 23)
     .splice_read = generic_file_splice_read,
-# else
+#  else
     .sendfile    = generic_file_sendfile,
-# endif
-# if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 16, 0)
-    .read_iter   = generic_file_read_iter,
-    .write_iter  = generic_file_write_iter,
-# else
+#  endif
     .aio_read    = generic_file_aio_read,
     .aio_write   = generic_file_aio_write,
 # endif

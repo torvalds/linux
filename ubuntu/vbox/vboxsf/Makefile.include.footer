@@ -1,9 +1,12 @@
-#
+# $Id: Makefile.include.footer $
+## @file
 # VirtualBox Guest Additions kernel module Makefile, common parts.
 #
 # See Makefile.include.header for details of how to use this.
 #
-# Copyright (C) 2006-2015 Oracle Corporation
+
+#
+# Copyright (C) 2006-2017 Oracle Corporation
 #
 # This file is part of VirtualBox Open Source Edition (OSE), as
 # available from http://www.virtualbox.org. This file is free software;
@@ -19,6 +22,7 @@ override MODULE = $(MOD_NAME)
 OBJS   = $(MOD_OBJS)
 
 KBUILD_VERBOSE ?= 1
+LINUX_VERBOSE = $(if $(KBUILD_VERBOSE),1,)
 
 #
 # Compiler options
@@ -94,15 +98,15 @@ endif
 
 # OL/UEK: disable module signing for external modules -- we don't have any private key
 $(MODULE):
-	$(MAKE) KBUILD_VERBOSE=$(KBUILD_VERBOSE) CONFIG_MODULE_SIG= -C $(KERN_DIR) SUBDIRS=$(CURDIR) SRCROOT=$(CURDIR) -j$(JOBS) modules
+	$(MAKE) V=$(LINUX_VERBOSE) CONFIG_MODULE_SIG= -C $(KERN_DIR) SUBDIRS=$(CURDIR) SRCROOT=$(CURDIR) $(if $(JOBS),-j$(JOBS),) modules
 
 install: $(MODULE)
-	$(MAKE) KBUILD_VERBOSE=$(KBUILD_VERBOSE) CONFIG_MODULE_SIG= -C $(KERN_DIR) SUBDIRS=$(CURDIR) SRCROOT=$(CURDIR) INSTALL_MOD_PATH=$(INSTALL_MOD_PATH) INSTALL_MOD_DIR=$(INSTALL_MOD_DIR) modules_install
+	$(MAKE) V=$(LINUX_VERBOSE) CONFIG_MODULE_SIG= -C $(KERN_DIR) SUBDIRS=$(CURDIR) SRCROOT=$(CURDIR) INSTALL_MOD_PATH=$(INSTALL_MOD_PATH) INSTALL_MOD_DIR=$(INSTALL_MOD_DIR) modules_install
 
 modules_install: install
 
 clean:
-	$(MAKE) KBUILD_VERBOSE=$(KBUILD_VERBOSE) CONFIG_MODULE_SIG= -C $(KERN_DIR) SUBDIRS=$(CURDIR) SRCROOT=$(CURDIR) clean
+	$(MAKE) V=$(LINUX_VERBOSE) CONFIG_MODULE_SIG= -C $(KERN_DIR) SUBDIRS=$(CURDIR) SRCROOT=$(CURDIR) clean
 
 .PHONY: $(MODULE) install modules_install clean
 endif

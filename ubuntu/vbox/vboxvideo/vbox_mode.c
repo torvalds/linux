@@ -146,10 +146,6 @@ static int vbox_set_view(struct drm_crtc *crtc)
 	return 0;
 }
 
-static void vbox_crtc_load_lut(struct drm_crtc *crtc)
-{
-}
-
 static void vbox_crtc_dpms(struct drm_crtc *crtc, int mode)
 {
 	struct vbox_crtc *vbox_crtc = to_vbox_crtc(crtc);
@@ -273,16 +269,10 @@ static int vbox_crtc_do_set_base(struct drm_crtc *crtc,
 		return ret;
 
 	ret = vbox_bo_pin(bo, TTM_PL_FLAG_VRAM, &gpu_addr);
-	if (ret) {
-		vbox_bo_unreserve(bo);
-		return ret;
-	}
-
-	if (&vbox->fbdev->afb == vbox_fb)
-		vbox_fbdev_set_base(vbox, gpu_addr);
 	vbox_bo_unreserve(bo);
+	if (ret)
+		return ret;
 
-	/* vbox_set_start_address_crt1(crtc, (u32)gpu_addr); */
 	vbox_crtc->fb_offset = gpu_addr;
 	if (vbox_set_up_input_mapping(vbox)) {
 		struct drm_crtc *crtci;
@@ -343,7 +333,6 @@ static const struct drm_crtc_helper_funcs vbox_crtc_helper_funcs = {
 	.mode_set = vbox_crtc_mode_set,
 	/* .mode_set_base = vbox_crtc_mode_set_base, */
 	.disable = vbox_crtc_disable,
-	.load_lut = vbox_crtc_load_lut,
 	.prepare = vbox_crtc_prepare,
 	.commit = vbox_crtc_commit,
 };

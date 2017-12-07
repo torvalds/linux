@@ -304,7 +304,7 @@ static struct drm_driver driver = {
 
 static int __init vbox_init(void)
 {
-#ifdef CONFIG_VGA_CONSOLE || LINUX_VERSION_CODE >= KERNEL_VERSION(4, 7, 0)
+#if defined(CONFIG_VGA_CONSOLE) || LINUX_VERSION_CODE >= KERNEL_VERSION(4, 7, 0)
 	if (vgacon_text_force() && vbox_modeset == -1)
 		return -EINVAL;
 #endif

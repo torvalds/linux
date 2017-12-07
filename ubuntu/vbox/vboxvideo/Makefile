@@ -7,7 +7,7 @@ KBUILD_EXTMOD=${srctree}/ubuntu/vbox
 #
 
 #
-# Copyright (C) 2006-2010 Oracle Corporation
+# Copyright (C) 2006-2017 Oracle Corporation
 #
 # This file is part of VirtualBox Open Source Edition (OSE), as
 # available from http://www.virtualbox.org. This file is free software;
@@ -22,20 +22,15 @@ KBUILD_EXTMOD=${srctree}/ubuntu/vbox
 obj ?= $(CURDIR)
 include $(obj)/Makefile.include.header
 
-BUILD = 1
+BUILD =
 
-# We want to build on Linux 3.11 and later, plus the 3.10 EL 7.3 and later
-# kernels.  This file was added in 3.11 and back-ported to the EL 7.3 kernel.
-ifeq ($(wildcard $(KERN_INCL)/drm/drm_rect.h),)
- #BUILD =
+# We want to build on Linux 3.11 and later and on all EL 7 kernels.
+ifneq ($(filter-out 1.% 2.% 3.0.% 3.1.% 3.2.% 3.3.% 3.4.% 3.5.% 3.6.% 3.7.% \
+                    3.8.% 3.9.% 3.10.%,$(KERN_VER)),)
+ BUILD = 1
 endif
-
-# And we do not want to build on EL6, regardless of what may have been
-# backported.
-ifneq ($(wildcard /etc/redhat-release),)
- ifneq ($(shell grep "Enterprise.*release 6" /etc/redhat-release),)
-  BUILD =
- endif
+ifeq ($(filter-out %.el7.x86_64,$(KERN_VER)),)
+ BUILD = 1
 endif
 
 ifneq ($(BUILD),)

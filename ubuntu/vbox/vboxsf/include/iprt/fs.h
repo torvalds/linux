@@ -303,11 +303,11 @@ typedef enum RTFSOBJATTRADD
 typedef struct RTFSOBJATTRUNIX
 {
     /** The user owning the filesystem object (st_uid).
-     * This field is NIL_UID if not supported. */
+     * This field is NIL_RTUID if not supported. */
     RTUID           uid;
 
     /** The group the filesystem object is assigned (st_gid).
-     * This field is NIL_GID if not supported. */
+     * This field is NIL_RTGID if not supported. */
     RTGID           gid;
 
     /** Number of hard links to this filesystem object (st_nlink).
