@@ -339,7 +339,7 @@ static void mv88e6xxx_g1_irq_free(struct mv88e6xxx_chip *chip)
 	u16 mask;
 
 	mv88e6xxx_g1_read(chip, MV88E6XXX_G1_CTL1, &mask);
-	mask |= GENMASK(chip->g1_irq.nirqs, 0);
+	mask &= ~GENMASK(chip->g1_irq.nirqs, 0);
 	mv88e6xxx_g1_write(chip, MV88E6XXX_G1_CTL1, mask);
 
 	free_irq(chip->irq, chip);
@@ -395,7 +395,7 @@ static int mv88e6xxx_g1_irq_setup(struct mv88e6xxx_chip *chip)
 	return 0;
 
 out_disable:
-	mask |= GENMASK(chip->g1_irq.nirqs, 0);
+	mask &= ~GENMASK(chip->g1_irq.nirqs, 0);
 	mv88e6xxx_g1_write(chip, MV88E6XXX_G1_CTL1, mask);
 
 out_mapping:
@@ -2177,6 +2177,19 @@ static const struct of_device_id mv88e6xxx_mdio_external_match[] = {
 	{ },
 };
 
+static void mv88e6xxx_mdios_unregister(struct mv88e6xxx_chip *chip)
+
+{
+	struct mv88e6xxx_mdio_bus *mdio_bus;
+	struct mii_bus *bus;
+
+	list_for_each_entry(mdio_bus, &chip->mdios, list) {
+		bus = mdio_bus->bus;
+
+		mdiobus_unregister(bus);
+	}
+}
+
 static int mv88e6xxx_mdios_register(struct mv88e6xxx_chip *chip,
 				    struct device_node *np)
 {
@@ -2201,25 +2214,14 @@ static int mv88e6xxx_mdios_register(struct mv88e6xxx_chip *chip,
 		match = of_match_node(mv88e6xxx_mdio_external_match, child);
 		if (match) {
 			err = mv88e6xxx_mdio_register(chip, child, true);
-			if (err)
+			if (err) {
+				mv88e6xxx_mdios_unregister(chip);
 				return err;
+			}
 		}
 	}
 
 	return 0;
-}
-
-static void mv88e6xxx_mdios_unregister(struct mv88e6xxx_chip *chip)
-
-{
-	struct mv88e6xxx_mdio_bus *mdio_bus;
-	struct mii_bus *bus;
-
-	list_for_each_entry(mdio_bus, &chip->mdios, list) {
-		bus = mdio_bus->bus;
-
-		mdiobus_unregister(bus);
-	}
 }
 
 static int mv88e6xxx_get_eeprom_len(struct dsa_switch *ds)
