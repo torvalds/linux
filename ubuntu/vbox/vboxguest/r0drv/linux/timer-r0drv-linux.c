@@ -715,6 +715,14 @@ static enum hrtimer_restart rtTimerLinuxHrCallback(struct hrtimer *pHrTimer)
 #endif /* RTTIMER_LINUX_WITH_HRTIMER */
 
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 15, 0)
+/**
+ * Timer callback for kernels 4.15 and later
+ */
+static void rtTimerLinuxStdCallback(struct timer_list *t)
+{
+    PRTTIMERLNXSUBTIMER pSubTimer = from_timer(pSubTimer, t, u.Std.LnxTimer);
+#else
 /**
  * Timer callback function for standard timers.
  *
@@ -723,6 +731,7 @@ static enum hrtimer_restart rtTimerLinuxHrCallback(struct hrtimer *pHrTimer)
 static void rtTimerLinuxStdCallback(unsigned long ulUser)
 {
     PRTTIMERLNXSUBTIMER pSubTimer = (PRTTIMERLNXSUBTIMER)ulUser;
+#endif
     PRTTIMER            pTimer    = pSubTimer->pParent;
 
     RTTIMERLNX_LOG(("stdcallback %p\n", pTimer));
@@ -1584,13 +1593,17 @@ RTDECL(int) RTTimerCreateEx(PRTTIMER *ppTimer, uint64_t u64NanoInterval, uint32_
         else
 #endif
         {
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 8, 0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 15, 0)
+            timer_setup(&pTimer->aSubTimers[iCpu].u.Std.LnxTimer,rtTimerLinuxStdCallback, TIMER_PINNED);
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(4, 8, 0)
             init_timer_pinned(&pTimer->aSubTimers[iCpu].u.Std.LnxTimer);
 #else
             init_timer(&pTimer->aSubTimers[iCpu].u.Std.LnxTimer);
 #endif
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 15, 0)
             pTimer->aSubTimers[iCpu].u.Std.LnxTimer.data        = (unsigned long)&pTimer->aSubTimers[iCpu];
             pTimer->aSubTimers[iCpu].u.Std.LnxTimer.function    = rtTimerLinuxStdCallback;
+#endif
             pTimer->aSubTimers[iCpu].u.Std.LnxTimer.expires     = jiffies;
             pTimer->aSubTimers[iCpu].u.Std.u64NextTS            = 0;
         }
