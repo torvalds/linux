@@ -163,9 +163,12 @@
 			};
 
 			prcm: prcm@1f0000 {
-				compatible = "ti,am4-prcm";
+				compatible = "ti,am4-prcm", "simple-bus";
 				reg = <0x1f0000 0x11000>;
 				interrupts = <GIC_SPI 11 IRQ_TYPE_LEVEL_HIGH>;
+				#address-cells = <1>;
+				#size-cells = <1>;
+				ranges = <0 0x1f0000 0x11000>;
 
 				prcm_clocks: clocks {
 					#address-cells = <1>;
