@@ -1695,7 +1695,7 @@ struct ath10k_htt {
 	/* This is used to group tx/rx completions separately and process them
 	 * in batches to reduce cache stalls
 	 */
-	struct sk_buff_head rx_compl_q;
+	struct sk_buff_head rx_msdus_q;
 	struct sk_buff_head rx_in_ord_compl_q;
 	struct sk_buff_head tx_fetch_ind_q;
 

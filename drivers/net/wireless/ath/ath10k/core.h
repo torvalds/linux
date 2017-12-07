@@ -67,7 +67,6 @@
 
 /* NAPI poll budget */
 #define ATH10K_NAPI_BUDGET      64
-#define ATH10K_NAPI_QUOTA_LIMIT 60
 
 /* SMBIOS type containing Board Data File Name Extension */
 #define ATH10K_SMBIOS_BDF_EXT_TYPE 0xF8
