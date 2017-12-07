@@ -342,31 +342,6 @@
 		};
 	};
 
-	sdhc2_cd_pin {
-		sdc2_cd_on: cd_on {
-			pinmux {
-				function = "gpio";
-				pins = "gpio38";
-			};
-			pinconf {
-				pins = "gpio38";
-				drive-strength = <2>;
-				bias-pull-up;
-			};
-		};
-		sdc2_cd_off: cd_off {
-			pinmux {
-				function = "gpio";
-				pins = "gpio38";
-			};
-			pinconf {
-				pins = "gpio38";
-				drive-strength = <2>;
-				bias-disable;
-			};
-		};
-	};
-
 	pmx_sdc1_clk {
 		sdc1_clk_on: clk_on {
 			pinmux {
@@ -501,6 +476,31 @@
 				pins = "sdc2_data";
 				bias-pull-up;
 				drive-strength = <2>;
+			};
+		};
+	};
+
+	pmx_sdc2_cd_pin {
+		sdc2_cd_on: cd_on {
+			pinmux {
+				function = "gpio";
+				pins = "gpio38";
+			};
+			pinconf {
+				pins = "gpio38";
+				drive-strength = <2>;
+				bias-pull-up;
+			};
+		};
+		sdc2_cd_off: cd_off {
+			pinmux {
+				function = "gpio";
+				pins = "gpio38";
+			};
+			pinconf {
+				pins = "gpio38";
+				drive-strength = <2>;
+				bias-disable;
 			};
 		};
 	};
