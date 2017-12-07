@@ -56,7 +56,16 @@ struct mlx5e_neigh_update_table {
 struct mlx5e_rep_priv {
 	struct mlx5_eswitch_rep *rep;
 	struct mlx5e_neigh_update_table neigh_update;
+	struct net_device      *netdev;
+	struct mlx5_flow_handle *vport_rx_rule;
+	struct list_head       vport_sqs_list;
 };
+
+static inline
+struct mlx5e_rep_priv *mlx5e_rep_to_rep_priv(struct mlx5_eswitch_rep *rep)
+{
+	return (struct mlx5e_rep_priv *)rep->priv;
+}
 
 struct mlx5e_neigh {
 	struct net_device *dev;

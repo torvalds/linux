@@ -142,12 +142,9 @@ struct mlx5_eswitch_rep {
 	int		       (*load)(struct mlx5_core_dev *dev,
 				       struct mlx5_eswitch_rep *rep);
 	void		       (*unload)(struct mlx5_eswitch_rep *rep);
+	void			*priv;
 	u16		       vport;
 	u8		       hw_id[ETH_ALEN];
-	struct net_device      *netdev;
-
-	struct mlx5_flow_handle *vport_rx_rule;
-	struct list_head       vport_sqs_list;
 	u16		       vlan;
 	u32		       vlan_refcount;
 	bool		       valid;
@@ -274,7 +271,7 @@ void mlx5_eswitch_register_vport_rep(struct mlx5_eswitch *esw,
 				     struct mlx5_eswitch_rep *rep);
 void mlx5_eswitch_unregister_vport_rep(struct mlx5_eswitch *esw,
 				       int vport_index);
-struct net_device *mlx5_eswitch_get_uplink_netdev(struct mlx5_eswitch *esw);
+void *mlx5_eswitch_get_uplink_priv(struct mlx5_eswitch *esw);
 
 int mlx5_eswitch_add_vlan_action(struct mlx5_eswitch *esw,
 				 struct mlx5_esw_flow_attr *attr);
