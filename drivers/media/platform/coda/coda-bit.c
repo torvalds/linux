@@ -455,17 +455,15 @@ static int coda_alloc_framebuffers(struct coda_ctx *ctx,
 		coda_parabuf_write(ctx, i * 3 + 1, cb);
 		coda_parabuf_write(ctx, i * 3 + 2, cr);
 
-		/* mvcol buffer for h.264 */
-		if (ctx->codec->src_fourcc == V4L2_PIX_FMT_H264 &&
-		    dev->devtype->product != CODA_DX6)
-			coda_parabuf_write(ctx, 96 + i, mvcol);
-	}
+		if (dev->devtype->product == CODA_DX6)
+			continue;
 
-	/* mvcol buffer for mpeg4 */
-	if ((dev->devtype->product != CODA_DX6) &&
-	    (ctx->codec->src_fourcc == V4L2_PIX_FMT_MPEG4))
-		coda_parabuf_write(ctx, 97, ctx->internal_frames[0].paddr +
-					    ysize + ysize/4 + ysize/4);
+		/* mvcol buffer for h.264 and mpeg4 */
+		if (ctx->codec->src_fourcc == V4L2_PIX_FMT_H264)
+			coda_parabuf_write(ctx, 96 + i, mvcol);
+		if (ctx->codec->src_fourcc == V4L2_PIX_FMT_MPEG4 && i == 0)
+			coda_parabuf_write(ctx, 97, mvcol);
+	}
 
 	return 0;
 }
