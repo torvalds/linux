@@ -266,8 +266,6 @@ void __qdisc_run(struct Qdisc *q)
 			break;
 		}
 	}
-
-	qdisc_run_end(q);
 }
 
 unsigned long dev_trans_start(struct net_device *dev)

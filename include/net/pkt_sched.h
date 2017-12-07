@@ -113,8 +113,10 @@ void __qdisc_run(struct Qdisc *q);
 
 static inline void qdisc_run(struct Qdisc *q)
 {
-	if (qdisc_run_begin(q))
+	if (qdisc_run_begin(q)) {
 		__qdisc_run(q);
+		qdisc_run_end(q);
+	}
 }
 
 static inline __be16 tc_skb_protocol(const struct sk_buff *skb)
