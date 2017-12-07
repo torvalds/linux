@@ -4,11 +4,14 @@ include ../../../scripts/utilities.mak
 INSTALL ?= install
 RM ?= rm -f
 
-# Make the path relative to DESTDIR, not prefix
-ifndef DESTDIR
-prefix ?= /usr/local
+ifeq ($(V),1)
+  Q =
+else
+  Q = @
 endif
-mandir ?= $(prefix)/share/man
+
+prefix ?= /usr/local
+mandir ?= $(prefix)/man
 man8dir = $(mandir)/man8
 
 MAN8_RST = $(wildcard *.rst)
@@ -20,15 +23,16 @@ man: man8
 man8: $(DOC_MAN8)
 
 $(OUTPUT)%.8: %.rst
-	rst2man $< > $@
+	$(QUIET_GEN)rst2man $< > $@
 
 clean:
-	$(call QUIET_CLEAN, Documentation) $(RM) $(DOC_MAN8)
+	$(call QUIET_CLEAN, Documentation)
+	$(Q)$(RM) $(DOC_MAN8)
 
 install: man
-	$(call QUIET_INSTALL, Documentation-man) \
-		$(INSTALL) -d -m 755 $(DESTDIR)$(man8dir); \
-		$(INSTALL) -m 644 $(DOC_MAN8) $(DESTDIR)$(man8dir);
+	$(call QUIET_INSTALL, Documentation-man)
+	$(Q)$(INSTALL) -d -m 755 $(DESTDIR)$(man8dir)
+	$(Q)$(INSTALL) -m 644 $(DOC_MAN8) $(DESTDIR)$(man8dir)
 
 .PHONY: man man8 clean install
 .DEFAULT_GOAL := man
