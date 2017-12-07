@@ -813,8 +813,8 @@ static int clusterip_net_init(struct net *net)
 
 static void clusterip_net_exit(struct net *net)
 {
-#ifdef CONFIG_PROC_FS
 	struct clusterip_net *cn = net_generic(net, clusterip_net_id);
+#ifdef CONFIG_PROC_FS
 	proc_remove(cn->procdir);
 	cn->procdir = NULL;
 #endif
