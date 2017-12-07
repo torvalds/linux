@@ -22,6 +22,7 @@
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/of_device.h>
+#include <linux/regmap.h>
 
 #include <drm/drm_of.h>
 #include <drm/drmP.h>
@@ -71,6 +72,7 @@ struct inno_hdmi {
 	struct clk *aclk;
 	struct clk *pclk;
 	void __iomem *regs;
+	struct regmap *regmap;
 
 	struct drm_connector	connector;
 	struct drm_encoder	encoder;
@@ -451,6 +453,11 @@ static int inno_hdmi_config_video_timing(struct inno_hdmi *hdmi,
 {
 	int value;
 
+	value = BIT(20) | BIT(21);
+	value |= mode->flags & DRM_MODE_FLAG_PHSYNC ? BIT(4) : 0;
+	value |= mode->flags & DRM_MODE_FLAG_PVSYNC ? BIT(5) : 0;
+	regmap_write(hdmi->regmap, 0x148, value);
+
 	/* Set detail external video timing polarity and interlace mode */
 	value = v_EXTERANL_VIDEO(1);
 	value |= mode->flags & DRM_MODE_FLAG_PHSYNC ?
@@ -470,7 +477,7 @@ static int inno_hdmi_config_video_timing(struct inno_hdmi *hdmi,
 	hdmi_writeb(hdmi, HDMI_VIDEO_EXT_HBLANK_L, value & 0xFF);
 	hdmi_writeb(hdmi, HDMI_VIDEO_EXT_HBLANK_H, (value >> 8) & 0xFF);
 
-	value = mode->hsync_start - mode->hdisplay;
+	value = mode->htotal - mode->hsync_start;
 	hdmi_writeb(hdmi, HDMI_VIDEO_EXT_HDELAY_L, value & 0xFF);
 	hdmi_writeb(hdmi, HDMI_VIDEO_EXT_HDELAY_H, (value >> 8) & 0xFF);
 
@@ -485,7 +492,7 @@ static int inno_hdmi_config_video_timing(struct inno_hdmi *hdmi,
 	value = mode->vtotal - mode->vdisplay;
 	hdmi_writeb(hdmi, HDMI_VIDEO_EXT_VBLANK, value & 0xFF);
 
-	value = mode->vsync_start - mode->vdisplay;
+	value = mode->vtotal - mode->vsync_start;
 	hdmi_writeb(hdmi, HDMI_VIDEO_EXT_VDELAY, value & 0xFF);
 
 	value = mode->vsync_end - mode->vsync_start;
@@ -1108,6 +1115,15 @@ static int inno_hdmi_bind(struct device *dev, struct device *master,
 	ret = clk_prepare_enable(hdmi->pclk);
 	if (ret) {
 		dev_err(hdmi->dev, "Cannot enable HDMI pclk clock: %d\n", ret);
+		goto err_disable_aclk;
+	}
+
+	hdmi->regmap =
+		syscon_regmap_lookup_by_phandle(hdmi->dev->of_node,
+						"rockchip,grf");
+	if (IS_ERR(hdmi->regmap)) {
+		dev_err(hdmi->dev, "Unable to get rockchip,grf\n");
+		ret = PTR_ERR(hdmi->regmap);
 		goto err_disable_aclk;
 	}
 
