@@ -469,7 +469,7 @@ static void *aead_bind(const char *name, u32 type, u32 mask)
 		return ERR_CAST(aead);
 	}
 
-	null_tfm = crypto_get_default_null_skcipher2();
+	null_tfm = crypto_get_default_null_skcipher();
 	if (IS_ERR(null_tfm)) {
 		crypto_free_aead(aead);
 		kfree(tfm);
@@ -487,7 +487,7 @@ static void aead_release(void *private)
 	struct aead_tfm *tfm = private;
 
 	crypto_free_aead(tfm->aead);
-	crypto_put_default_null_skcipher2();
+	crypto_put_default_null_skcipher();
 	kfree(tfm);
 }
 

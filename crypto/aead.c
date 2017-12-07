@@ -295,7 +295,7 @@ int aead_init_geniv(struct crypto_aead *aead)
 	if (err)
 		goto out;
 
-	ctx->sknull = crypto_get_default_null_skcipher2();
+	ctx->sknull = crypto_get_default_null_skcipher();
 	err = PTR_ERR(ctx->sknull);
 	if (IS_ERR(ctx->sknull))
 		goto out;
@@ -315,7 +315,7 @@ out:
 	return err;
 
 drop_null:
-	crypto_put_default_null_skcipher2();
+	crypto_put_default_null_skcipher();
 	goto out;
 }
 EXPORT_SYMBOL_GPL(aead_init_geniv);
@@ -325,7 +325,7 @@ void aead_exit_geniv(struct crypto_aead *tfm)
 	struct aead_geniv_ctx *ctx = crypto_aead_ctx(tfm);
 
 	crypto_free_aead(ctx->child);
-	crypto_put_default_null_skcipher2();
+	crypto_put_default_null_skcipher();
 }
 EXPORT_SYMBOL_GPL(aead_exit_geniv);
 
