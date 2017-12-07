@@ -10966,31 +10966,6 @@ fail:
 	return ret;
 }
 
-static void
-intel_modeset_update_crtc_state(struct drm_atomic_state *state)
-{
-	struct drm_crtc *crtc;
-	struct drm_crtc_state *new_crtc_state;
-	int i;
-
-	/* Double check state. */
-	for_each_new_crtc_in_state(state, crtc, new_crtc_state, i) {
-		to_intel_crtc(crtc)->config = to_intel_crtc_state(new_crtc_state);
-
-		/*
-		 * Update legacy state to satisfy fbc code. This can
-		 * be removed when fbc uses the atomic state.
-		 */
-		if (drm_atomic_get_existing_plane_state(state, crtc->primary)) {
-			struct drm_plane_state *plane_state = crtc->primary->state;
-
-			crtc->primary->fb = plane_state->fb;
-			crtc->x = plane_state->src_x >> 16;
-			crtc->y = plane_state->src_y >> 16;
-		}
-	}
-}
-
 static bool intel_fuzzy_clock_check(int clock1, int clock2)
 {
 	int diff;
@@ -12363,9 +12338,9 @@ static void intel_atomic_commit_tail(struct drm_atomic_state *state)
 		}
 	}
 
-	/* Only after disabling all output pipelines that will be changed can we
-	 * update the the output configuration. */
-	intel_modeset_update_crtc_state(state);
+	/* FIXME: Eventually get rid of our intel_crtc->config pointer */
+	for_each_new_crtc_in_state(state, crtc, new_crtc_state, i)
+		to_intel_crtc(crtc)->config = to_intel_crtc_state(new_crtc_state);
 
 	if (intel_state->modeset) {
 		drm_atomic_helper_update_legacy_modeset_state(state->dev, state);
