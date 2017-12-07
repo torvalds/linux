@@ -720,7 +720,7 @@ static int kvm_timer_dying_cpu(unsigned int cpu)
 	return 0;
 }
 
-int kvm_timer_hyp_init(void)
+int kvm_timer_hyp_init(bool has_gic)
 {
 	struct arch_timer_kvm_info *info;
 	int err;
@@ -756,10 +756,13 @@ int kvm_timer_hyp_init(void)
 		return err;
 	}
 
-	err = irq_set_vcpu_affinity(host_vtimer_irq, kvm_get_running_vcpus());
-	if (err) {
-		kvm_err("kvm_arch_timer: error setting vcpu affinity\n");
-		goto out_free_irq;
+	if (has_gic) {
+		err = irq_set_vcpu_affinity(host_vtimer_irq,
+					    kvm_get_running_vcpus());
+		if (err) {
+			kvm_err("kvm_arch_timer: error setting vcpu affinity\n");
+			goto out_free_irq;
+		}
 	}
 
 	kvm_info("virtual timer IRQ%d\n", host_vtimer_irq);
