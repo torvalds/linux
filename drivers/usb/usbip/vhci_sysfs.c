@@ -39,16 +39,20 @@ static ssize_t status_show(struct device *dev, struct device_attribute *attr,
 
 	/*
 	 * output example:
-	 * prt sta spd dev socket           local_busid
-	 * 000 004 000 000         c5a7bb80 1-2.3
-	 * 001 004 000 000         d8cee980 2-3.4
+	 * port sta spd dev      sockfd local_busid
+	 * 0000 004 000 00000000 000003 1-2.3
+	 * 0001 004 000 00000000 000004 2-3.4
 	 *
-	 * IP address can be retrieved from a socket pointer address by looking
-	 * up /proc/net/{tcp,tcp6}. Also, a userland program may remember a
-	 * port number and its peer IP address.
+	 * Output includes socket fd instead of socket pointer address to
+	 * avoid leaking kernel memory address in:
+	 *	/sys/devices/platform/vhci_hcd.0/status and in debug output.
+	 * The socket pointer address is not used at the moment and it was
+	 * made visible as a convenient way to find IP address from socket
+	 * pointer address by looking up /proc/net/{tcp,tcp6}. As this opens
+	 * a security hole, the change is made to use sockfd instead.
 	 */
 	out += sprintf(out,
-		       "prt sta spd bus dev socket           local_busid\n");
+		       "prt sta spd bus dev sockfd local_busid\n");
 
 	for (i = 0; i < VHCI_NPORTS; i++) {
 		struct vhci_device *vdev = port_to_vdev(i);
@@ -60,11 +64,11 @@ static ssize_t status_show(struct device *dev, struct device_attribute *attr,
 			out += sprintf(out, "%03u %08x ",
 				       vdev->speed, vdev->devid);
 			out += sprintf(out, "%16p ", vdev->ud.tcp_socket);
+			out += sprintf(out, "%06u", vdev->ud.sockfd);
 			out += sprintf(out, "%s", dev_name(&vdev->udev->dev));
 
-		} else {
-			out += sprintf(out, "000 000 000 0000000000000000 0-0");
-		}
+		} else
+			out += sprintf(out, "000 000 000 000000 0-0");
 
 		out += sprintf(out, "\n");
 		spin_unlock(&vdev->ud.lock);
@@ -223,6 +227,7 @@ static ssize_t store_attach(struct device *dev, struct device_attribute *attr,
 
 	vdev->devid         = devid;
 	vdev->speed         = speed;
+	vdev->ud.sockfd     = sockfd;
 	vdev->ud.tcp_socket = socket;
 	vdev->ud.status     = VDEV_ST_NOTASSIGNED;
 
