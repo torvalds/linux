@@ -2801,6 +2801,7 @@ int amdgpu_dm_connector_mode_valid(struct drm_connector *connector,
 	/* TODO: Unhardcode stream count */
 	struct dc_stream_state *stream;
 	struct amdgpu_dm_connector *aconnector = to_amdgpu_dm_connector(connector);
+	enum dc_status dc_result = DC_OK;
 
 	if ((mode->flags & DRM_MODE_FLAG_INTERLACE) ||
 			(mode->flags & DRM_MODE_FLAG_DBLSCAN))
@@ -2833,8 +2834,15 @@ int amdgpu_dm_connector_mode_valid(struct drm_connector *connector,
 	stream->src.height = mode->vdisplay;
 	stream->dst = stream->src;
 
-	if (dc_validate_stream(adev->dm.dc, stream) == DC_OK)
+	dc_result = dc_validate_stream(adev->dm.dc, stream);
+
+	if (dc_result == DC_OK)
 		result = MODE_OK;
+	else
+		DRM_DEBUG_KMS("Mode %dx%d (clk %d) failed DC validation\n",
+			      mode->vdisplay,
+			      mode->hdisplay,
+			      mode->clock);
 
 	dc_stream_release(stream);
 
