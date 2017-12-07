@@ -332,42 +332,6 @@ static int inno_hdmi_config_audio_aai(struct inno_hdmi *hdmi,
 
 	faudio->channels = audio->channels;
 
-	switch (audio->sample_width) {
-	case 16:
-		faudio->sample_size = HDMI_AUDIO_SAMPLE_SIZE_16;
-		break;
-	case 20:
-		faudio->sample_size = HDMI_AUDIO_SAMPLE_SIZE_20;
-		break;
-	case 24:
-		faudio->sample_size = HDMI_AUDIO_SAMPLE_SIZE_24;
-		break;
-	}
-
-	switch (audio->sample_rate) {
-	case 32000:
-		faudio->sample_frequency = HDMI_AUDIO_SAMPLE_FREQUENCY_32000;
-		break;
-	case 44100:
-		faudio->sample_frequency = HDMI_AUDIO_SAMPLE_FREQUENCY_44100;
-		break;
-	case 48000:
-		faudio->sample_frequency = HDMI_AUDIO_SAMPLE_FREQUENCY_48000;
-		break;
-	case 88200:
-		faudio->sample_frequency = HDMI_AUDIO_SAMPLE_FREQUENCY_88200;
-		break;
-	case 96000:
-		faudio->sample_frequency = HDMI_AUDIO_SAMPLE_FREQUENCY_96000;
-		break;
-	case 176400:
-		faudio->sample_frequency = HDMI_AUDIO_SAMPLE_FREQUENCY_176400;
-		break;
-	case 192000:
-		faudio->sample_frequency = HDMI_AUDIO_SAMPLE_FREQUENCY_192000;
-		break;
-	}
-
 	return inno_hdmi_upload_frame(hdmi, rc, &frame, INFOFRAME_AAI, 0, 0, 0);
 }
 
