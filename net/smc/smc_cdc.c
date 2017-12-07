@@ -213,6 +213,9 @@ static void smc_cdc_msg_recv_action(struct smc_sock *smc,
 		/* guarantee 0 <= bytes_to_rcv <= rmbe_size */
 		smp_mb__after_atomic();
 		smc->sk.sk_data_ready(&smc->sk);
+	} else if ((conn->local_rx_ctrl.prod_flags.write_blocked) ||
+		   (conn->local_rx_ctrl.prod_flags.cons_curs_upd_req)) {
+		smc->sk.sk_data_ready(&smc->sk);
 	}
 
 	if (conn->local_rx_ctrl.conn_state_flags.peer_conn_abort) {
@@ -234,15 +237,6 @@ static void smc_cdc_msg_recv_action(struct smc_sock *smc,
 		/* trigger socket release if connection closed */
 		smc_close_wake_tx_prepared(smc);
 	}
-
-	/* socket connected but not accepted */
-	if (!smc->sk.sk_socket)
-		return;
-
-	/* data available */
-	if ((conn->local_rx_ctrl.prod_flags.write_blocked) ||
-	    (conn->local_rx_ctrl.prod_flags.cons_curs_upd_req))
-		smc_tx_consumer_update(conn);
 }
 
 /* called under tasklet context */
