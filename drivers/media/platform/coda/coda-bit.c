@@ -414,8 +414,10 @@ static int coda_alloc_framebuffers(struct coda_ctx *ctx,
 			size = round_up(ysize, 4096) + ysize / 2;
 		else
 			size = ysize + ysize / 2;
-		if (ctx->codec->src_fourcc == V4L2_PIX_FMT_H264 &&
-		    dev->devtype->product != CODA_DX6)
+		/* Add space for mvcol buffers */
+		if (dev->devtype->product != CODA_DX6 &&
+		    (ctx->codec->src_fourcc == V4L2_PIX_FMT_H264 ||
+		     (ctx->codec->src_fourcc == V4L2_PIX_FMT_MPEG4 && i == 0)))
 			size += ysize / 4;
 		name = kasprintf(GFP_KERNEL, "fb%d", i);
 		if (!name) {
