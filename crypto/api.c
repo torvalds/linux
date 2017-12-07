@@ -205,7 +205,8 @@ struct crypto_alg *crypto_alg_lookup(const char *name, u32 type, u32 mask)
 }
 EXPORT_SYMBOL_GPL(crypto_alg_lookup);
 
-struct crypto_alg *crypto_larval_lookup(const char *name, u32 type, u32 mask)
+static struct crypto_alg *crypto_larval_lookup(const char *name, u32 type,
+					       u32 mask)
 {
 	struct crypto_alg *alg;
 
@@ -231,7 +232,6 @@ struct crypto_alg *crypto_larval_lookup(const char *name, u32 type, u32 mask)
 
 	return crypto_larval_add(name, type, mask);
 }
-EXPORT_SYMBOL_GPL(crypto_larval_lookup);
 
 int crypto_probing_notify(unsigned long val, void *v)
 {
