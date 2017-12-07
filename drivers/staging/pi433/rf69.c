@@ -82,7 +82,6 @@ int rf69_set_mode(struct spi_device *spi, enum mode mode)
 	// we are using packet mode, so this check is not really needed
 	// but waiting for mode ready is necessary when going from sleep because the FIFO may not be immediately available from previous mode
 	//while (_mode == RF69_MODE_SLEEP && (READ_REG(REG_IRQFLAGS1) & RF_IRQFLAGS1_MODEREADY) == 0x00); // Wait for ModeReady
-
 }
 
 int rf69_set_data_mode(struct spi_device *spi, u8 data_mode)
@@ -173,8 +172,8 @@ int rf69_set_bit_rate(struct spi_device *spi, u16 bitRate)
 	// calculate reg settings
 	bitRate_reg = (F_OSC / bitRate);
 
-	msb = (bitRate_reg&0xff00)   >>  8;
-	lsb = (bitRate_reg&0xff);
+	msb = (bitRate_reg & 0xff00) >> 8;
+	lsb = (bitRate_reg & 0xff);
 
 	// transmit to RF 69
 	retval = rf69_write_reg(spi, REG_BITRATE_MSB, msb);
@@ -214,8 +213,8 @@ int rf69_set_deviation(struct spi_device *spi, u32 deviation)
 	f_reg = deviation * factor;
 	do_div(f_reg, f_step);
 
-	msb = (f_reg&0xff00)   >>  8;
-	lsb = (f_reg&0xff);
+	msb = (f_reg & 0xff00) >> 8;
+	lsb = (f_reg & 0xff);
 
 	// check msb
 	if (msb & ~FDEVMASB_MASK) {
@@ -264,9 +263,9 @@ int rf69_set_frequency(struct spi_device *spi, u32 frequency)
 	f_reg = frequency * factor;
 	do_div(f_reg, f_step);
 
-	msb = (f_reg&0xff0000) >> 16;
-	mid = (f_reg&0xff00)   >>  8;
-	lsb = (f_reg&0xff);
+	msb = (f_reg & 0xff0000) >> 16;
+	mid = (f_reg & 0xff00)   >>  8;
+	lsb = (f_reg & 0xff);
 
 	// write to chip
 	retval = rf69_write_reg(spi, REG_FRF_MSB, msb);
@@ -686,8 +685,8 @@ int rf69_set_preamble_length(struct spi_device *spi, u16 preambleLength)
 	/* no value check needed - u16 exactly matches register size */
 
 	/* calculate reg settings */
-	msb = (preambleLength&0xff00)   >>  8;
-	lsb = (preambleLength&0xff);
+	msb = (preambleLength & 0xff00) >> 8;
+	lsb = (preambleLength & 0xff);
 
 	/* transmit to chip */
 	retval = rf69_write_reg(spi, REG_PREAMBLE_MSB, msb);
@@ -931,14 +930,14 @@ int rf69_read_fifo (struct spi_device *spi, u8 *buffer, unsigned int size)
 	memset(&transfer, 0, sizeof(transfer));
 	transfer.tx_buf = local_buffer;
 	transfer.rx_buf = local_buffer;
-	transfer.len	= size+1;
+	transfer.len	= size + 1;
 
 	retval = spi_sync_transfer(spi, &transfer, 1);
 
-	#ifdef DEBUG_FIFO_ACCESS
-		for (i = 0; i < size; i++)
-			dev_dbg(&spi->dev, "%d - 0x%x\n", i, local_buffer[i+1]);
-	#endif
+#ifdef DEBUG_FIFO_ACCESS
+	for (i = 0; i < size; i++)
+		dev_dbg(&spi->dev, "%d - 0x%x\n", i, local_buffer[i + 1]);
+#endif
 
 	memcpy(buffer, &local_buffer[1], size);
 
