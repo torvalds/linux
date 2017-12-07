@@ -104,14 +104,12 @@ static int smc_tx_wait_memory(struct smc_sock *smc, int flags)
 		if (atomic_read(&conn->sndbuf_space))
 			break; /* at least 1 byte of free space available */
 		set_bit(SOCK_NOSPACE, &sk->sk_socket->flags);
-		sk->sk_write_pending++;
 		sk_wait_event(sk, &timeo,
 			      sk->sk_err ||
 			      (sk->sk_shutdown & SEND_SHUTDOWN) ||
 			      smc_cdc_rxed_any_close_or_senddone(conn) ||
 			      atomic_read(&conn->sndbuf_space),
 			      &wait);
-		sk->sk_write_pending--;
 	}
 	remove_wait_queue(sk_sleep(sk), &wait);
 	return rc;
