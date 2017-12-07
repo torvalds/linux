@@ -751,14 +751,16 @@ static void smc_listen_work(struct work_struct *work)
 {
 	struct smc_sock *new_smc = container_of(work, struct smc_sock,
 						smc_listen_work);
+	struct smc_clc_msg_proposal_prefix *pclc_prfx;
 	struct socket *newclcsock = new_smc->clcsock;
 	struct smc_sock *lsmc = new_smc->listen_smc;
 	struct smc_clc_msg_accept_confirm cclc;
 	int local_contact = SMC_REUSE_CONTACT;
 	struct sock *newsmcsk = &new_smc->sk;
-	struct smc_clc_msg_proposal pclc;
+	struct smc_clc_msg_proposal *pclc;
 	struct smc_ib_device *smcibdev;
 	struct sockaddr_in peeraddr;
+	u8 buf[SMC_CLC_MAX_LEN];
 	struct smc_link *link;
 	int reason_code = 0;
 	int rc = 0, len;
@@ -775,7 +777,7 @@ static void smc_listen_work(struct work_struct *work)
 	/* do inband token exchange -
 	 *wait for and receive SMC Proposal CLC message
 	 */
-	reason_code = smc_clc_wait_msg(new_smc, &pclc, sizeof(pclc),
+	reason_code = smc_clc_wait_msg(new_smc, &buf, sizeof(buf),
 				       SMC_CLC_PROPOSAL);
 	if (reason_code < 0)
 		goto out_err;
@@ -804,8 +806,11 @@ static void smc_listen_work(struct work_struct *work)
 		reason_code = SMC_CLC_DECL_CNFERR; /* configuration error */
 		goto decline_rdma;
 	}
-	if ((pclc.outgoing_subnet != subnet) ||
-	    (pclc.prefix_len != prefix_len)) {
+
+	pclc = (struct smc_clc_msg_proposal *)&buf;
+	pclc_prfx = smc_clc_proposal_get_prefix(pclc);
+	if (pclc_prfx->outgoing_subnet != subnet ||
+	    pclc_prfx->prefix_len != prefix_len) {
 		reason_code = SMC_CLC_DECL_CNFERR; /* configuration error */
 		goto decline_rdma;
 	}
@@ -816,7 +821,7 @@ static void smc_listen_work(struct work_struct *work)
 	/* allocate connection / link group */
 	mutex_lock(&smc_create_lgr_pending);
 	local_contact = smc_conn_create(new_smc, peeraddr.sin_addr.s_addr,
-					smcibdev, ibport, &pclc.lcl, 0);
+					smcibdev, ibport, &pclc->lcl, 0);
 	if (local_contact < 0) {
 		rc = local_contact;
 		if (rc == -ENOMEM)
