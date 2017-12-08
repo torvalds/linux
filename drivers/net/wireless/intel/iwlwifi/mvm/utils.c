@@ -278,8 +278,8 @@ u8 iwl_mvm_next_antenna(struct iwl_mvm *mvm, u8 valid, u8 last_idx)
 	u8 ind = last_idx;
 	int i;
 
-	for (i = 0; i < RATE_MCS_ANT_NUM; i++) {
-		ind = (ind + 1) % RATE_MCS_ANT_NUM;
+	for (i = 0; i < MAX_RS_ANT_NUM; i++) {
+		ind = (ind + 1) % MAX_RS_ANT_NUM;
 		if (valid & BIT(ind))
 			return ind;
 	}
@@ -595,6 +595,12 @@ static void iwl_mvm_dump_lmac_error_log(struct iwl_mvm *mvm, u32 base)
 
 void iwl_mvm_dump_nic_error_log(struct iwl_mvm *mvm)
 {
+	if (!test_bit(STATUS_DEVICE_ENABLED, &mvm->trans->status)) {
+		IWL_ERR(mvm,
+			"DEVICE_ENABLED bit is not set. Aborting dump.\n");
+		return;
+	}
+
 	iwl_mvm_dump_lmac_error_log(mvm, mvm->error_event_table[0]);
 
 	if (mvm->error_event_table[1])
@@ -906,7 +912,9 @@ int iwl_mvm_send_lq_cmd(struct iwl_mvm *mvm, struct iwl_lq_cmd *lq, bool init)
 		.data = { lq, },
 	};
 
-	if (WARN_ON(lq->sta_id == IWL_MVM_INVALID_STA))
+	if (WARN_ON(lq->sta_id == IWL_MVM_INVALID_STA ||
+		    fw_has_capa(&mvm->fw->ucode_capa,
+				IWL_UCODE_TLV_CAPA_TLC_OFFLOAD)))
 		return -EINVAL;
 
 	return iwl_mvm_send_cmd(mvm, &cmd);
