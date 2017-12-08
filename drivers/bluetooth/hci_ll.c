@@ -707,10 +707,12 @@ static int ll_setup(struct hci_uart *hu)
 		speed = 0;
 
 	if (speed) {
+		__le32 speed_le = cpu_to_le32(speed);
 		struct sk_buff *skb;
 
 		skb = __hci_cmd_sync(hu->hdev, HCI_VS_UPDATE_UART_HCI_BAUDRATE,
-				     sizeof(speed), &speed, HCI_INIT_TIMEOUT);
+				     sizeof(speed_le), &speed_le,
+				     HCI_INIT_TIMEOUT);
 		if (!IS_ERR(skb)) {
 			kfree_skb(skb);
 			serdev_device_set_baudrate(serdev, speed);
