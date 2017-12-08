@@ -434,6 +434,8 @@ static int __fill_vb2_buffer(struct vb2_buffer *vb,
 	} else {
 		/* Zero any output buffer flags as this is a capture buffer */
 		vbuf->flags &= ~V4L2_BUFFER_OUT_FLAGS;
+		/* Zero last flag, this is a signal from driver to userspace */
+		vbuf->flags &= ~V4L2_BUF_FLAG_LAST;
 	}
 
 	return 0;
