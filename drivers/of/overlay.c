@@ -572,9 +572,10 @@ static int init_overlay_changeset(struct overlay_changeset *ovcs,
 
 	cnt = 0;
 	for_each_child_of_node(tree, node) {
-		fragment = &fragments[cnt];
-		fragment->overlay = of_get_child_by_name(node, "__overlay__");
-		if (fragment->overlay) {
+		overlay_node = of_get_child_by_name(node, "__overlay__");
+		if (overlay_node) {
+			fragment = &fragments[cnt];
+			fragment->overlay = overlay_node;
 			fragment->target = find_target_node(node);
 			if (!fragment->target) {
 				of_node_put(fragment->overlay);
