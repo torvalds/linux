@@ -243,6 +243,23 @@ struct sctp_data_chunk {
 	struct sctp_datahdr data_hdr;
 };
 
+struct sctp_idatahdr {
+	__be32 tsn;
+	__be16 stream;
+	__be16 reserved;
+	__be32 mid;
+	union {
+		__u32 ppid;
+		__be32 fsn;
+	};
+	__u8 payload[0];
+};
+
+struct sctp_idata_chunk {
+	struct sctp_chunkhdr chunk_hdr;
+	struct sctp_idatahdr data_hdr;
+};
+
 /* DATA Chuck Specific Flags */
 enum {
 	SCTP_DATA_MIDDLE_FRAG	= 0x00,
