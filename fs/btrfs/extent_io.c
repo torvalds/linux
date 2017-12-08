@@ -4073,11 +4073,12 @@ int extent_write_full_page(struct extent_io_tree *tree, struct page *page,
 	return ret;
 }
 
-int extent_write_locked_range(struct extent_io_tree *tree, struct inode *inode,
-			      u64 start, u64 end, int mode)
+int extent_write_locked_range(struct inode *inode, u64 start, u64 end,
+			      int mode)
 {
 	int ret = 0;
 	struct address_space *mapping = inode->i_mapping;
+	struct extent_io_tree *tree = &BTRFS_I(inode)->io_tree;
 	struct page *page;
 	unsigned long nr_pages = (end - start + PAGE_SIZE) >>
 		PAGE_SHIFT;

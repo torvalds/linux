@@ -405,8 +405,8 @@ int extent_invalidatepage(struct extent_io_tree *tree,
 			  struct page *page, unsigned long offset);
 int extent_write_full_page(struct extent_io_tree *tree, struct page *page,
 			  struct writeback_control *wbc);
-int extent_write_locked_range(struct extent_io_tree *tree, struct inode *inode,
-			      u64 start, u64 end, int mode);
+int extent_write_locked_range(struct inode *inode, u64 start, u64 end,
+			      int mode);
 int extent_writepages(struct extent_io_tree *tree,
 		      struct address_space *mapping,
 		      struct writeback_control *wbc);
