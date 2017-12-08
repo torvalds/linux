@@ -153,9 +153,9 @@ int brcmf_sdiod_intr_register(struct brcmf_sdio_dev *sdiodev)
 		brcmf_sdiod_func0_wb(sdiodev, SDIO_CCCR_IENx, data, &ret);
 
 		/* redirect, configure and enable io for interrupt signal */
-		data = SDIO_SEPINT_MASK | SDIO_SEPINT_OE;
+		data = SDIO_CCCR_BRCM_SEPINT_MASK | SDIO_CCCR_BRCM_SEPINT_OE;
 		if (pdata->oob_irq_flags & IRQF_TRIGGER_HIGH)
-			data |= SDIO_SEPINT_ACT_HI;
+			data |= SDIO_CCCR_BRCM_SEPINT_ACT_HI;
 		brcmf_sdiod_func0_wb(sdiodev, SDIO_CCCR_BRCM_SEPINT,
 				     data, &ret);
 		sdio_release_host(sdiodev->func[1]);
