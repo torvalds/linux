@@ -45,100 +45,114 @@ struct render_mmio {
 	u32 value;
 };
 
-static struct render_mmio gen8_render_mmio_list[] __cacheline_aligned = {
-	{RCS, _MMIO(0x229c), 0xffff, false},
-	{RCS, _MMIO(0x2248), 0x0, false},
-	{RCS, _MMIO(0x2098), 0x0, false},
-	{RCS, _MMIO(0x20c0), 0xffff, true},
-	{RCS, _MMIO(0x24d0), 0, false},
-	{RCS, _MMIO(0x24d4), 0, false},
-	{RCS, _MMIO(0x24d8), 0, false},
-	{RCS, _MMIO(0x24dc), 0, false},
-	{RCS, _MMIO(0x24e0), 0, false},
-	{RCS, _MMIO(0x24e4), 0, false},
-	{RCS, _MMIO(0x24e8), 0, false},
-	{RCS, _MMIO(0x24ec), 0, false},
-	{RCS, _MMIO(0x24f0), 0, false},
-	{RCS, _MMIO(0x24f4), 0, false},
-	{RCS, _MMIO(0x24f8), 0, false},
-	{RCS, _MMIO(0x24fc), 0, false},
-	{RCS, _MMIO(0x7004), 0xffff, true},
-	{RCS, _MMIO(0x7008), 0xffff, true},
-	{RCS, _MMIO(0x7000), 0xffff, true},
-	{RCS, _MMIO(0x7010), 0xffff, true},
-	{RCS, _MMIO(0x7300), 0xffff, true},
-	{RCS, _MMIO(0x83a4), 0xffff, true},
+/**
+ * Defined in Intel Open Source PRM.
+ * Ref: https://01.org/linuxgraphics/documentation/hardware-specification-prms
+ */
+#define TRVATTL3PTRDW(i)	_MMIO(0x4de0 + (i)*4)
+#define TRNULLDETCT		_MMIO(0x4de8)
+#define TRINVTILEDETCT		_MMIO(0x4dec)
+#define TRVADR			_MMIO(0x4df0)
+#define TRTTE			_MMIO(0x4df4)
+#define RING_EXCC(base)		_MMIO((base) + 0x28)
+#define RING_GFX_MODE(base)	_MMIO((base) + 0x29c)
+#define VF_GUARDBAND		_MMIO(0x83a4)
 
-	{BCS, _MMIO(0x2229c), 0xffff, false},
-	{BCS, _MMIO(0x2209c), 0xffff, false},
-	{BCS, _MMIO(0x220c0), 0xffff, false},
-	{BCS, _MMIO(0x22098), 0x0, false},
-	{BCS, _MMIO(0x22028), 0x0, false},
+/* Raw offset is appened to each line for convenience. */
+static struct render_mmio gen8_render_mmio_list[] __cacheline_aligned = {
+	{RCS, GFX_MODE_GEN7, 0xffff, false}, /* 0x229c */
+	{RCS, GEN9_CTX_PREEMPT_REG, 0x0, false}, /* 0x2248 */
+	{RCS, HWSTAM, 0x0, false}, /* 0x2098 */
+	{RCS, INSTPM, 0xffff, true}, /* 0x20c0 */
+	{RCS, RING_FORCE_TO_NONPRIV(RENDER_RING_BASE, 0), 0, false}, /* 0x24d0 */
+	{RCS, RING_FORCE_TO_NONPRIV(RENDER_RING_BASE, 1), 0, false}, /* 0x24d4 */
+	{RCS, RING_FORCE_TO_NONPRIV(RENDER_RING_BASE, 2), 0, false}, /* 0x24d8 */
+	{RCS, RING_FORCE_TO_NONPRIV(RENDER_RING_BASE, 3), 0, false}, /* 0x24dc */
+	{RCS, RING_FORCE_TO_NONPRIV(RENDER_RING_BASE, 4), 0, false}, /* 0x24e0 */
+	{RCS, RING_FORCE_TO_NONPRIV(RENDER_RING_BASE, 5), 0, false}, /* 0x24e4 */
+	{RCS, RING_FORCE_TO_NONPRIV(RENDER_RING_BASE, 6), 0, false}, /* 0x24e8 */
+	{RCS, RING_FORCE_TO_NONPRIV(RENDER_RING_BASE, 7), 0, false}, /* 0x24ec */
+	{RCS, RING_FORCE_TO_NONPRIV(RENDER_RING_BASE, 8), 0, false}, /* 0x24f0 */
+	{RCS, RING_FORCE_TO_NONPRIV(RENDER_RING_BASE, 9), 0, false}, /* 0x24f4 */
+	{RCS, RING_FORCE_TO_NONPRIV(RENDER_RING_BASE, 10), 0, false}, /* 0x24f8 */
+	{RCS, RING_FORCE_TO_NONPRIV(RENDER_RING_BASE, 11), 0, false}, /* 0x24fc */
+	{RCS, CACHE_MODE_1, 0xffff, true}, /* 0x7004 */
+	{RCS, GEN7_GT_MODE, 0xffff, true}, /* 0x7008 */
+	{RCS, CACHE_MODE_0_GEN7, 0xffff, true}, /* 0x7000 */
+	{RCS, GEN7_COMMON_SLICE_CHICKEN1, 0xffff, true}, /* 0x7010 */
+	{RCS, HDC_CHICKEN0, 0xffff, true}, /* 0x7300 */
+	{RCS, VF_GUARDBAND, 0xffff, true}, /* 0x83a4 */
+
+	{BCS, RING_GFX_MODE(BLT_RING_BASE), 0xffff, false}, /* 0x2229c */
+	{BCS, RING_MI_MODE(BLT_RING_BASE), 0xffff, false}, /* 0x2209c */
+	{BCS, RING_INSTPM(BLT_RING_BASE), 0xffff, false}, /* 0x220c0 */
+	{BCS, RING_HWSTAM(BLT_RING_BASE), 0x0, false}, /* 0x22098 */
+	{BCS, RING_EXCC(BLT_RING_BASE), 0x0, false}, /* 0x22028 */
 };
 
 static struct render_mmio gen9_render_mmio_list[] __cacheline_aligned = {
-	{RCS, _MMIO(0x229c), 0xffff, false},
-	{RCS, _MMIO(0x2248), 0x0, false},
-	{RCS, _MMIO(0x2098), 0x0, false},
-	{RCS, _MMIO(0x20c0), 0xffff, true},
-	{RCS, _MMIO(0x24d0), 0, false},
-	{RCS, _MMIO(0x24d4), 0, false},
-	{RCS, _MMIO(0x24d8), 0, false},
-	{RCS, _MMIO(0x24dc), 0, false},
-	{RCS, _MMIO(0x24e0), 0, false},
-	{RCS, _MMIO(0x24e4), 0, false},
-	{RCS, _MMIO(0x24e8), 0, false},
-	{RCS, _MMIO(0x24ec), 0, false},
-	{RCS, _MMIO(0x24f0), 0, false},
-	{RCS, _MMIO(0x24f4), 0, false},
-	{RCS, _MMIO(0x24f8), 0, false},
-	{RCS, _MMIO(0x24fc), 0, false},
-	{RCS, _MMIO(0x7004), 0xffff, true},
-	{RCS, _MMIO(0x7008), 0xffff, true},
-	{RCS, _MMIO(0x7000), 0xffff, true},
-	{RCS, _MMIO(0x7010), 0xffff, true},
-	{RCS, _MMIO(0x7300), 0xffff, true},
-	{RCS, _MMIO(0x83a4), 0xffff, true},
+	{RCS, GFX_MODE_GEN7, 0xffff, false}, /* 0x229c */
+	{RCS, GEN9_CTX_PREEMPT_REG, 0x0, false}, /* 0x2248 */
+	{RCS, HWSTAM, 0x0, false}, /* 0x2098 */
+	{RCS, INSTPM, 0xffff, true}, /* 0x20c0 */
+	{RCS, RING_FORCE_TO_NONPRIV(RENDER_RING_BASE, 0), 0, false}, /* 0x24d0 */
+	{RCS, RING_FORCE_TO_NONPRIV(RENDER_RING_BASE, 1), 0, false}, /* 0x24d4 */
+	{RCS, RING_FORCE_TO_NONPRIV(RENDER_RING_BASE, 2), 0, false}, /* 0x24d8 */
+	{RCS, RING_FORCE_TO_NONPRIV(RENDER_RING_BASE, 3), 0, false}, /* 0x24dc */
+	{RCS, RING_FORCE_TO_NONPRIV(RENDER_RING_BASE, 4), 0, false}, /* 0x24e0 */
+	{RCS, RING_FORCE_TO_NONPRIV(RENDER_RING_BASE, 5), 0, false}, /* 0x24e4 */
+	{RCS, RING_FORCE_TO_NONPRIV(RENDER_RING_BASE, 6), 0, false}, /* 0x24e8 */
+	{RCS, RING_FORCE_TO_NONPRIV(RENDER_RING_BASE, 7), 0, false}, /* 0x24ec */
+	{RCS, RING_FORCE_TO_NONPRIV(RENDER_RING_BASE, 8), 0, false}, /* 0x24f0 */
+	{RCS, RING_FORCE_TO_NONPRIV(RENDER_RING_BASE, 9), 0, false}, /* 0x24f4 */
+	{RCS, RING_FORCE_TO_NONPRIV(RENDER_RING_BASE, 10), 0, false}, /* 0x24f8 */
+	{RCS, RING_FORCE_TO_NONPRIV(RENDER_RING_BASE, 11), 0, false}, /* 0x24fc */
+	{RCS, CACHE_MODE_1, 0xffff, true}, /* 0x7004 */
+	{RCS, GEN7_GT_MODE, 0xffff, true}, /* 0x7008 */
+	{RCS, CACHE_MODE_0_GEN7, 0xffff, true}, /* 0x7000 */
+	{RCS, GEN7_COMMON_SLICE_CHICKEN1, 0xffff, true}, /* 0x7010 */
+	{RCS, HDC_CHICKEN0, 0xffff, true}, /* 0x7300 */
+	{RCS, VF_GUARDBAND, 0xffff, true}, /* 0x83a4 */
 
-	{RCS, _MMIO(0x40e0), 0, false},
-	{RCS, _MMIO(0x40e4), 0, false},
-	{RCS, _MMIO(0x2580), 0xffff, true},
-	{RCS, _MMIO(0x7014), 0xffff, true},
-	{RCS, _MMIO(0x20ec), 0xffff, false},
-	{RCS, _MMIO(0xb118), 0, false},
-	{RCS, _MMIO(0xe100), 0xffff, true},
-	{RCS, _MMIO(0xe180), 0xffff, true},
-	{RCS, _MMIO(0xe184), 0xffff, true},
-	{RCS, _MMIO(0xe188), 0xffff, true},
-	{RCS, _MMIO(0xe194), 0xffff, true},
-	{RCS, _MMIO(0x4de0), 0, false},
-	{RCS, _MMIO(0x4de4), 0, false},
-	{RCS, _MMIO(0x4de8), 0, false},
-	{RCS, _MMIO(0x4dec), 0, false},
-	{RCS, _MMIO(0x4df0), 0, false},
-	{RCS, _MMIO(0x4df4), 0, false},
+	{RCS, GEN8_PRIVATE_PAT_LO, 0, false}, /* 0x40e0 */
+	{RCS, GEN8_PRIVATE_PAT_HI, 0, false}, /* 0x40e4 */
+	{RCS, GEN8_CS_CHICKEN1, 0xffff, true}, /* 0x2580 */
+	{RCS, COMMON_SLICE_CHICKEN2, 0xffff, true}, /* 0x7014 */
+	{RCS, GEN9_CS_DEBUG_MODE1, 0xffff, false}, /* 0x20ec */
+	{RCS, GEN8_L3SQCREG4, 0, false}, /* 0xb118 */
+	{RCS, GEN7_HALF_SLICE_CHICKEN1, 0xffff, true}, /* 0xe100 */
+	{RCS, HALF_SLICE_CHICKEN2, 0xffff, true}, /* 0xe180 */
+	{RCS, HALF_SLICE_CHICKEN3, 0xffff, true}, /* 0xe184 */
+	{RCS, GEN9_HALF_SLICE_CHICKEN5, 0xffff, true}, /* 0xe188 */
+	{RCS, GEN9_HALF_SLICE_CHICKEN7, 0xffff, true}, /* 0xe194 */
+	{RCS, TRVATTL3PTRDW(0), 0, false}, /* 0x4de0 */
+	{RCS, TRVATTL3PTRDW(1), 0, false}, /* 0x4de4 */
+	{RCS, TRNULLDETCT, 0, false}, /* 0x4de8 */
+	{RCS, TRINVTILEDETCT, 0, false}, /* 0x4dec */
+	{RCS, TRVADR, 0, false}, /* 0x4df0 */
+	{RCS, TRTTE, 0, false}, /* 0x4df4 */
 
-	{BCS, _MMIO(0x2229c), 0xffff, false},
-	{BCS, _MMIO(0x2209c), 0xffff, false},
-	{BCS, _MMIO(0x220c0), 0xffff, false},
-	{BCS, _MMIO(0x22098), 0x0, false},
-	{BCS, _MMIO(0x22028), 0x0, false},
+	{BCS, RING_GFX_MODE(BLT_RING_BASE), 0xffff, false}, /* 0x2229c */
+	{BCS, RING_MI_MODE(BLT_RING_BASE), 0xffff, false}, /* 0x2209c */
+	{BCS, RING_INSTPM(BLT_RING_BASE), 0xffff, false}, /* 0x220c0 */
+	{BCS, RING_HWSTAM(BLT_RING_BASE), 0x0, false}, /* 0x22098 */
+	{BCS, RING_EXCC(BLT_RING_BASE), 0x0, false}, /* 0x22028 */
 
-	{VCS2, _MMIO(0x1c028), 0xffff, false},
+	{VCS2, RING_EXCC(GEN8_BSD2_RING_BASE), 0xffff, false}, /* 0x1c028 */
 
-	{VECS, _MMIO(0x1a028), 0xffff, false},
+	{VECS, RING_EXCC(VEBOX_RING_BASE), 0xffff, false}, /* 0x1a028 */
 
-	{RCS, _MMIO(0x7304), 0xffff, true},
-	{RCS, _MMIO(0x2248), 0x0, false},
-	{RCS, _MMIO(0x940c), 0x0, false},
-	{RCS, _MMIO(0x4ab8), 0x0, false},
+	{RCS, GEN8_HDC_CHICKEN1, 0xffff, true}, /* 0x7304 */
+	{RCS, GEN9_CTX_PREEMPT_REG, 0x0, false}, /* 0x2248 */
+	{RCS, GEN7_UCGCTL4, 0x0, false}, /* 0x940c */
+	{RCS, GAMT_CHKN_BIT_REG, 0x0, false}, /* 0x4ab8 */
 
-	{RCS, _MMIO(0x4ab0), 0x0, false},
-	{RCS, _MMIO(0x20d4), 0x0, false},
+	{RCS, GEN9_GAMT_ECO_REG_RW_IA, 0x0, false}, /* 0x4ab0 */
+	{RCS, GEN9_CSFE_CHICKEN1_RCS, 0x0, false}, /* 0x20d4 */
 
-	{RCS, _MMIO(0xb004), 0x0, false},
-	{RCS, _MMIO(0x20a0), 0x0, false},
-	{RCS, _MMIO(0x20e4), 0xffff, false},
+	{RCS, GEN8_GARBCNTL, 0x0, false}, /* 0xb004 */
+	{RCS, GEN7_FF_THREAD_MODE, 0x0, false}, /* 0x20a0 */
+	{RCS, FF_SLICE_CS_CHICKEN2, 0xffff, false}, /* 0x20e4 */
 };
 
 static u32 gen9_render_mocs[I915_NUM_ENGINES][64];
