@@ -225,6 +225,7 @@ static ssize_t show_cpu_clock_sel(struct device *dev,
 	else {
 		/* Freq is neatly wrapped up for us */
 		int fid = data->regs[ICS932S401_REG_CFG7] & ICS932S401_FS_MASK;
+
 		freq = fs_speeds[fid];
 		if (data->regs[ICS932S401_REG_CTRL] & ICS932S401_CPU_ALT) {
 			switch (freq) {
