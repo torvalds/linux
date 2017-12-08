@@ -50,6 +50,7 @@
 #define SBSDIO_NUM_FUNCTION		3
 
 /* function 0 vendor specific CCCR registers */
+
 #define SDIO_CCCR_BRCM_CARDCAP			0xf0
 #define SDIO_CCCR_BRCM_CARDCAP_CMD14_SUPPORT	0x02
 #define SDIO_CCCR_BRCM_CARDCAP_CMD14_EXT	0x04
@@ -130,8 +131,6 @@
 #define SBSDIO_SB_OFT_ADDR_LIMIT	0x08000
 /* with b15, maps to 32-bit SB access */
 #define SBSDIO_SB_ACCESS_2_4B_FLAG	0x08000
-
-/* valid bits in SBSDIO_FUNC1_SBADDRxxx regs */
 
 /* Address bits from SBADDR regs */
 #define SBSDIO_SBWINDOW_MASK		0xffff8000
@@ -293,13 +292,24 @@ struct sdpcmd_regs {
 int brcmf_sdiod_intr_register(struct brcmf_sdio_dev *sdiodev);
 void brcmf_sdiod_intr_unregister(struct brcmf_sdio_dev *sdiodev);
 
-/* sdio device register access interface */
-u8 brcmf_sdiod_regrb(struct brcmf_sdio_dev *sdiodev, u32 addr, int *ret);
-u32 brcmf_sdiod_regrl(struct brcmf_sdio_dev *sdiodev, u32 addr, int *ret);
-void brcmf_sdiod_regwb(struct brcmf_sdio_dev *sdiodev, u32 addr, u8 data,
-		       int *ret);
-void brcmf_sdiod_regwl(struct brcmf_sdio_dev *sdiodev, u32 addr, u32 data,
-		       int *ret);
+/* SDIO device register access interface */
+/* Accessors for SDIO Function 0 */
+#define brcmf_sdiod_func0_rb(sdiodev, addr, r) \
+	sdio_readb((sdiodev)->func[0], (addr), (r))
+
+#define brcmf_sdiod_func0_wb(sdiodev, addr, v, ret) \
+	sdio_writeb((sdiodev)->func[0], (v), (addr), (ret))
+
+/* Accessors for SDIO Function 1 */
+#define brcmf_sdiod_readb(sdiodev, addr, r) \
+	sdio_readb((sdiodev)->func[1], (addr), (r))
+
+#define brcmf_sdiod_writeb(sdiodev, addr, v, ret) \
+	sdio_writeb((sdiodev)->func[1], (v), (addr), (ret))
+
+u32 brcmf_sdiod_readl(struct brcmf_sdio_dev *sdiodev, u32 addr, int *ret);
+void brcmf_sdiod_writel(struct brcmf_sdio_dev *sdiodev, u32 addr, u32 data,
+			int *ret);
 
 /* Buffer transfer to/from device (client) core via cmd53.
  *   fn:       function number
