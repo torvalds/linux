@@ -530,6 +530,15 @@
 			otg_switch: OTG_SWITCH {
 				regulator-name = "otg_switch";
 			};
+
+			hdmi_switch: HDMI_SWITCH {
+				regulator-always-on;
+				regulator-boot-on;
+				regulator-name = "hdmi_switch";
+				regulator-state-mem {
+					regulator-off-in-suspend;
+				};
+			};
 		};
 
 		battery {
