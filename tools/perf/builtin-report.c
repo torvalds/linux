@@ -52,6 +52,8 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
+#define PTIME_RANGE_MAX	10
+
 struct report {
 	struct perf_tool	tool;
 	struct perf_session	*session;
@@ -69,7 +71,8 @@ struct report {
 	const char		*cpu_list;
 	const char		*symbol_filter_str;
 	const char		*time_str;
-	struct perf_time_interval ptime;
+	struct perf_time_interval ptime_range[PTIME_RANGE_MAX];
+	int			range_num;
 	float			min_percent;
 	u64			nr_entries;
 	u64			queue_size;
@@ -202,8 +205,10 @@ static int process_sample_event(struct perf_tool *tool,
 	};
 	int ret = 0;
 
-	if (perf_time__skip_sample(&rep->ptime, sample->time))
+	if (perf_time__ranges_skip_sample(rep->ptime_range, rep->range_num,
+					  sample->time)) {
 		return 0;
+	}
 
 	if (machine__resolve(machine, &al, sample) < 0) {
 		pr_debug("problem processing %d event, skipping it.\n",
@@ -1093,9 +1098,25 @@ repeat:
 	if (symbol__init(&session->header.env) < 0)
 		goto error;
 
-	if (perf_time__parse_str(&report.ptime, report.time_str) != 0) {
-		pr_err("Invalid time string\n");
-		return -EINVAL;
+	if (perf_time__parse_str(report.ptime_range, report.time_str) != 0) {
+		if (session->evlist->first_sample_time == 0 &&
+		    session->evlist->last_sample_time == 0) {
+			pr_err("No first/last sample time in perf data\n");
+			return -EINVAL;
+		}
+
+		report.range_num = perf_time__percent_parse_str(
+					report.ptime_range, PTIME_RANGE_MAX,
+					report.time_str,
+					session->evlist->first_sample_time,
+					session->evlist->last_sample_time);
+
+		if (report.range_num < 0) {
+			pr_err("Invalid time string\n");
+			return -EINVAL;
+		}
+	} else {
+		report.range_num = 1;
 	}
 
 	sort__setup_elide(stdout);
