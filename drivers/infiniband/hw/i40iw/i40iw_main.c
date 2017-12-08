@@ -483,6 +483,7 @@ static enum i40iw_status_code i40iw_create_hmc_objs(struct i40iw_device *iwdev,
 	for (i = 0; i < IW_HMC_OBJ_TYPE_NUM; i++) {
 		info.rsrc_type = iw_hmc_obj_types[i];
 		info.count = dev->hmc_info->hmc_obj[info.rsrc_type].cnt;
+		info.add_sd_cnt = 0;
 		status = i40iw_create_hmc_obj_type(dev, &info);
 		if (status) {
 			i40iw_pr_err("create obj type %d status = %d\n",
