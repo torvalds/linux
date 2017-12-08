@@ -3363,7 +3363,6 @@ static int xhci_discover_or_reset_device(struct usb_hcd *hcd,
 	unsigned int slot_id;
 	struct xhci_virt_device *virt_dev;
 	struct xhci_command *reset_device_cmd;
-	int last_freed_endpoint;
 	struct xhci_slot_ctx *slot_ctx;
 	int old_active_eps = 0;
 
@@ -3478,7 +3477,6 @@ static int xhci_discover_or_reset_device(struct usb_hcd *hcd,
 	}
 
 	/* Everything but endpoint 0 is disabled, so free the rings. */
-	last_freed_endpoint = 1;
 	for (i = 1; i < 31; i++) {
 		struct xhci_virt_ep *ep = &virt_dev->eps[i];
 
@@ -3493,7 +3491,6 @@ static int xhci_discover_or_reset_device(struct usb_hcd *hcd,
 		if (ep->ring) {
 			xhci_debugfs_remove_endpoint(xhci, virt_dev, i);
 			xhci_free_endpoint_ring(xhci, virt_dev, i);
-			last_freed_endpoint = i;
 		}
 		if (!list_empty(&virt_dev->eps[i].bw_endpoint_list))
 			xhci_drop_ep_from_interval_table(xhci,
