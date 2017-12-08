@@ -1443,6 +1443,8 @@ int xhci_hub_status_data(struct usb_hcd *hcd, char *buf)
 			retval = -ENODEV;
 			break;
 		}
+		trace_xhci_hub_status_data(i, temp);
+
 		if ((temp & mask) != 0 ||
 			(bus_state->port_c_suspend & 1 << i) ||
 			(bus_state->resume_done[i] && time_after_eq(
