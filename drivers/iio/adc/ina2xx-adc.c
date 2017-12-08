@@ -764,7 +764,7 @@ static int ina2xx_capture_thread(void *data)
 	struct iio_dev *indio_dev = data;
 	struct ina2xx_chip_info *chip = iio_priv(indio_dev);
 	int sampling_us = SAMPLING_PERIOD(chip);
-	int buffer_us;
+	int buffer_us, delay_us;
 
 	/*
 	 * Poll a bit faster than the chip internal Fs, in case
@@ -778,8 +778,10 @@ static int ina2xx_capture_thread(void *data)
 		if (buffer_us < 0)
 			return buffer_us;
 
-		if (sampling_us > buffer_us)
-			udelay(sampling_us - buffer_us);
+		if (sampling_us > buffer_us) {
+			delay_us = sampling_us - buffer_us;
+			usleep_range(delay_us, (delay_us * 3) >> 1);
+		}
 
 	} while (!kthread_should_stop());
 
