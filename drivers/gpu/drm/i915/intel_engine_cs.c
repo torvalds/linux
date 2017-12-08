@@ -1674,6 +1674,7 @@ void intel_engine_dump(struct intel_engine_cs *engine, struct drm_printer *m)
 	struct drm_i915_private *dev_priv = engine->i915;
 	struct drm_i915_gem_request *rq;
 	struct rb_node *rb;
+	char hdr[80];
 	u64 addr;
 
 	drm_printf(m, "%s\n", engine->name);
@@ -1786,12 +1787,12 @@ void intel_engine_dump(struct intel_engine_cs *engine, struct drm_printer *m)
 
 			rq = port_unpack(&execlists->port[idx], &count);
 			if (rq) {
-				drm_printf(m, "\t\tELSP[%d] count=%d, ",
-					   idx, count);
-				print_request(m, rq, "rq: ");
+				snprintf(hdr, sizeof(hdr),
+					 "\t\tELSP[%d] count=%d, rq: ",
+					 idx, count);
+				print_request(m, rq, hdr);
 			} else {
-				drm_printf(m, "\t\tELSP[%d] idle\n",
-					   idx);
+				drm_printf(m, "\t\tELSP[%d] idle\n", idx);
 			}
 		}
 		drm_printf(m, "\t\tHW active? 0x%x\n", execlists->active);
