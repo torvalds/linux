@@ -3213,7 +3213,7 @@ static int i915_engine_info(struct seq_file *m, void *unused)
 
 	p = drm_seq_file_printer(m);
 	for_each_engine(engine, dev_priv, id)
-		intel_engine_dump(engine, &p);
+		intel_engine_dump(engine, &p, "%s\n", engine->name);
 
 	intel_runtime_pm_put(dev_priv);
 

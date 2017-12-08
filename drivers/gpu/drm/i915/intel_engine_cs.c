@@ -1596,7 +1596,7 @@ void intel_engines_park(struct drm_i915_private *i915)
 			dev_err(i915->drm.dev,
 				"%s is not idle before parking\n",
 				engine->name);
-			intel_engine_dump(engine, &p);
+			intel_engine_dump(engine, &p, NULL);
 		}
 
 		if (engine->park)
@@ -1666,7 +1666,9 @@ static void print_request(struct drm_printer *m,
 		   rq->timeline->common->name);
 }
 
-void intel_engine_dump(struct intel_engine_cs *engine, struct drm_printer *m)
+void intel_engine_dump(struct intel_engine_cs *engine,
+		       struct drm_printer *m,
+		       const char *header, ...)
 {
 	struct intel_breadcrumbs * const b = &engine->breadcrumbs;
 	const struct intel_engine_execlists * const execlists = &engine->execlists;
@@ -1677,7 +1679,14 @@ void intel_engine_dump(struct intel_engine_cs *engine, struct drm_printer *m)
 	char hdr[80];
 	u64 addr;
 
-	drm_printf(m, "%s\n", engine->name);
+	if (header) {
+		va_list ap;
+
+		va_start(ap, header);
+		drm_vprintf(m, header, &ap);
+		va_end(ap);
+	}
+
 	drm_printf(m, "\tcurrent seqno %x, last %x, hangcheck %x [%d ms], inflight %d\n",
 		   intel_engine_get_seqno(engine),
 		   intel_engine_last_submit(engine),
