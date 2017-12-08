@@ -28,7 +28,8 @@ enum mode {
 
 enum modulation {
 	OOK,
-	FSK
+	FSK,
+	UNDEF
 };
 
 enum mod_shaping {

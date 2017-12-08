@@ -117,7 +117,7 @@ enum modulation rf69_get_modulation(struct spi_device *spi)
 	switch (currentValue & MASK_DATAMODUL_MODULATION_TYPE >> 3) { // TODO improvement: change 3 to define
 	case DATAMODUL_MODULATION_TYPE_OOK: return OOK;
 	case DATAMODUL_MODULATION_TYPE_FSK: return FSK;
-	default:			    return undefined;
+	default:			    return UNDEF;
 	}
 }
 
