@@ -1348,56 +1348,50 @@ static bool is_split_required_for_discard(struct dm_target *ti)
 	return ti->split_discard_bios;
 }
 
-static int __send_changing_extent_only(struct clone_info *ci,
+static int __send_changing_extent_only(struct clone_info *ci, struct dm_target *ti,
 				       get_num_bios_fn get_num_bios,
 				       is_split_required_fn is_split_required)
 {
-	struct dm_target *ti;
 	unsigned len;
 	unsigned num_bios;
 
-	do {
-		ti = dm_table_find_target(ci->map, ci->sector);
-		if (!dm_target_is_valid(ti))
-			return -EIO;
+	/*
+	 * Even though the device advertised support for this type of
+	 * request, that does not mean every target supports it, and
+	 * reconfiguration might also have changed that since the
+	 * check was performed.
+	 */
+	num_bios = get_num_bios ? get_num_bios(ti) : 0;
+	if (!num_bios)
+		return -EOPNOTSUPP;
 
-		/*
-		 * Even though the device advertised support for this type of
-		 * request, that does not mean every target supports it, and
-		 * reconfiguration might also have changed that since the
-		 * check was performed.
-		 */
-		num_bios = get_num_bios ? get_num_bios(ti) : 0;
-		if (!num_bios)
-			return -EOPNOTSUPP;
+	if (is_split_required && !is_split_required(ti))
+		len = min((sector_t)ci->sector_count, max_io_len_target_boundary(ci->sector, ti));
+	else
+		len = min((sector_t)ci->sector_count, max_io_len(ci->sector, ti));
 
-		if (is_split_required && !is_split_required(ti))
-			len = min((sector_t)ci->sector_count, max_io_len_target_boundary(ci->sector, ti));
-		else
-			len = min((sector_t)ci->sector_count, max_io_len(ci->sector, ti));
+	__send_duplicate_bios(ci, ti, num_bios, &len);
 
-		__send_duplicate_bios(ci, ti, num_bios, &len);
-
-		ci->sector += len;
-	} while (ci->sector_count -= len);
+	ci->sector += len;
+	ci->sector_count -= len;
 
 	return 0;
 }
 
-static int __send_discard(struct clone_info *ci)
+static int __send_discard(struct clone_info *ci, struct dm_target *ti)
 {
-	return __send_changing_extent_only(ci, get_num_discard_bios,
+	return __send_changing_extent_only(ci, ti, get_num_discard_bios,
 					   is_split_required_for_discard);
 }
 
-static int __send_write_same(struct clone_info *ci)
+static int __send_write_same(struct clone_info *ci, struct dm_target *ti)
 {
-	return __send_changing_extent_only(ci, get_num_write_same_bios, NULL);
+	return __send_changing_extent_only(ci, ti, get_num_write_same_bios, NULL);
 }
 
-static int __send_write_zeroes(struct clone_info *ci)
+static int __send_write_zeroes(struct clone_info *ci, struct dm_target *ti)
 {
-	return __send_changing_extent_only(ci, get_num_write_zeroes_bios, NULL);
+	return __send_changing_extent_only(ci, ti, get_num_write_zeroes_bios, NULL);
 }
 
 /*
@@ -1410,16 +1404,16 @@ static int __split_and_process_non_flush(struct clone_info *ci)
 	unsigned len;
 	int r;
 
-	if (unlikely(bio_op(bio) == REQ_OP_DISCARD))
-		return __send_discard(ci);
-	else if (unlikely(bio_op(bio) == REQ_OP_WRITE_SAME))
-		return __send_write_same(ci);
-	else if (unlikely(bio_op(bio) == REQ_OP_WRITE_ZEROES))
-		return __send_write_zeroes(ci);
-
 	ti = dm_table_find_target(ci->map, ci->sector);
 	if (!dm_target_is_valid(ti))
 		return -EIO;
+
+	if (unlikely(bio_op(bio) == REQ_OP_DISCARD))
+		return __send_discard(ci, ti);
+	else if (unlikely(bio_op(bio) == REQ_OP_WRITE_SAME))
+		return __send_write_same(ci, ti);
+	else if (unlikely(bio_op(bio) == REQ_OP_WRITE_ZEROES))
+		return __send_write_zeroes(ci, ti);
 
 	if (bio_op(bio) == REQ_OP_ZONE_REPORT)
 		len = ci->sector_count;
