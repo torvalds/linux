@@ -73,7 +73,7 @@ int public_key_verify_signature(const struct public_key *pkey,
 	char alg_name_buf[CRYPTO_MAX_ALG_NAME];
 	void *output;
 	unsigned int outlen;
-	int ret = -ENOMEM;
+	int ret;
 
 	pr_devel("==>%s()\n", __func__);
 
@@ -99,6 +99,7 @@ int public_key_verify_signature(const struct public_key *pkey,
 	if (IS_ERR(tfm))
 		return PTR_ERR(tfm);
 
+	ret = -ENOMEM;
 	req = akcipher_request_alloc(tfm, GFP_KERNEL);
 	if (!req)
 		goto error_free_tfm;
@@ -127,7 +128,7 @@ int public_key_verify_signature(const struct public_key *pkey,
 	 * signature and returns that to us.
 	 */
 	ret = crypto_wait_req(crypto_akcipher_verify(req), &cwait);
-	if (ret < 0)
+	if (ret)
 		goto out_free_output;
 
 	/* Do the actual verification step. */
@@ -142,6 +143,8 @@ error_free_req:
 error_free_tfm:
 	crypto_free_akcipher(tfm);
 	pr_devel("<==%s() = %d\n", __func__, ret);
+	if (WARN_ON_ONCE(ret > 0))
+		ret = -EINVAL;
 	return ret;
 }
 EXPORT_SYMBOL_GPL(public_key_verify_signature);
