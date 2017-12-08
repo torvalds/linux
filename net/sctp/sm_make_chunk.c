@@ -721,38 +721,31 @@ nodata:
 /* Make a DATA chunk for the given association from the provided
  * parameters.  However, do not populate the data payload.
  */
-struct sctp_chunk *sctp_make_datafrag_empty(struct sctp_association *asoc,
+struct sctp_chunk *sctp_make_datafrag_empty(const struct sctp_association *asoc,
 					    const struct sctp_sndrcvinfo *sinfo,
-					    int data_len, __u8 flags, __u16 ssn,
-					    gfp_t gfp)
+					    int len, __u8 flags, gfp_t gfp)
 {
 	struct sctp_chunk *retval;
 	struct sctp_datahdr dp;
-	int chunk_len;
 
 	/* We assign the TSN as LATE as possible, not here when
 	 * creating the chunk.
 	 */
-	dp.tsn = 0;
+	memset(&dp, 0, sizeof(dp));
+	dp.ppid = sinfo->sinfo_ppid;
 	dp.stream = htons(sinfo->sinfo_stream);
-	dp.ppid   = sinfo->sinfo_ppid;
 
 	/* Set the flags for an unordered send.  */
-	if (sinfo->sinfo_flags & SCTP_UNORDERED) {
+	if (sinfo->sinfo_flags & SCTP_UNORDERED)
 		flags |= SCTP_DATA_UNORDERED;
-		dp.ssn = 0;
-	} else
-		dp.ssn = htons(ssn);
 
-	chunk_len = sizeof(dp) + data_len;
-	retval = sctp_make_data(asoc, flags, chunk_len, gfp);
+	retval = sctp_make_data(asoc, flags, sizeof(dp) + len, gfp);
 	if (!retval)
-		goto nodata;
+		return NULL;
 
 	retval->subh.data_hdr = sctp_addto_chunk(retval, sizeof(dp), &dp);
 	memcpy(&retval->sinfo, sinfo, sizeof(struct sctp_sndrcvinfo));
 
-nodata:
 	return retval;
 }
 

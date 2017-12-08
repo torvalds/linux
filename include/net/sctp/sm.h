@@ -199,10 +199,9 @@ struct sctp_chunk *sctp_make_cwr(const struct sctp_association *asoc,
 				 const struct sctp_chunk *chunk);
 struct sctp_chunk *sctp_make_idata(const struct sctp_association *asoc,
 				   __u8 flags, int paylen, gfp_t gfp);
-struct sctp_chunk *sctp_make_datafrag_empty(struct sctp_association *asoc,
+struct sctp_chunk *sctp_make_datafrag_empty(const struct sctp_association *asoc,
 					    const struct sctp_sndrcvinfo *sinfo,
-					    int len, const __u8 flags,
-					    __u16 ssn, gfp_t gfp);
+					    int len, __u8 flags, gfp_t gfp);
 struct sctp_chunk *sctp_make_ecne(const struct sctp_association *asoc,
 				  const __u32 lowest_tsn);
 struct sctp_chunk *sctp_make_sack(const struct sctp_association *asoc);

@@ -167,6 +167,7 @@ int sctp_stream_init(struct sctp_stream *stream, __u16 outcnt, __u16 incnt,
 	sched->init(stream);
 
 in:
+	sctp_stream_interleave_init(stream);
 	if (!incnt)
 		goto out;
 

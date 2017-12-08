@@ -89,6 +89,7 @@ struct sctp_stream;
 #include <net/sctp/tsnmap.h>
 #include <net/sctp/ulpevent.h>
 #include <net/sctp/ulpqueue.h>
+#include <net/sctp/stream_interleave.h>
 
 /* Structures useful for managing bind/connect. */
 
@@ -1389,10 +1390,21 @@ struct sctp_stream {
 			struct sctp_stream_out_ext *rr_next;
 		};
 	};
+	struct sctp_stream_interleave *si;
 };
 
 #define SCTP_STREAM_CLOSED		0x00
 #define SCTP_STREAM_OPEN		0x01
+
+static inline __u16 sctp_datachk_len(const struct sctp_stream *stream)
+{
+	return stream->si->data_chunk_len;
+}
+
+static inline __u16 sctp_datahdr_len(const struct sctp_stream *stream)
+{
+	return stream->si->data_chunk_len - sizeof(struct sctp_chunkhdr);
+}
 
 /* SCTP_GET_ASSOC_STATS counters */
 struct sctp_priv_assoc_stats {
