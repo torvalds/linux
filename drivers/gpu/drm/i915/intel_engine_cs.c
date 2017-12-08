@@ -1836,6 +1836,12 @@ void intel_engine_dump(struct intel_engine_cs *engine,
 	}
 	spin_unlock_irq(&b->rb_lock);
 
+	drm_printf(m, "IRQ? 0x%lx (breadcrumbs? %s) (execlists? %s)\n",
+		   engine->irq_posted,
+		   yesno(test_bit(ENGINE_IRQ_BREADCRUMB,
+				  &engine->irq_posted)),
+		   yesno(test_bit(ENGINE_IRQ_EXECLIST,
+				  &engine->irq_posted)));
 	drm_printf(m, "Idle? %s\n", yesno(intel_engine_is_idle(engine)));
 	drm_printf(m, "\n");
 }

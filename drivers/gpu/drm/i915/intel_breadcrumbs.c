@@ -64,12 +64,13 @@ static unsigned long wait_timeout(void)
 
 static noinline void missed_breadcrumb(struct intel_engine_cs *engine)
 {
-	DRM_DEBUG_DRIVER("%s missed breadcrumb at %pS, irq posted? %s, current seqno=%x, last=%x\n",
-			 engine->name, __builtin_return_address(0),
-			 yesno(test_bit(ENGINE_IRQ_BREADCRUMB,
-					&engine->irq_posted)),
-			 intel_engine_get_seqno(engine),
-			 intel_engine_last_submit(engine));
+	if (drm_debug & DRM_UT_DRIVER) {
+		struct drm_printer p = drm_debug_printer(__func__);
+
+		intel_engine_dump(engine, &p,
+				  "%s missed breadcrumb at %pS\n",
+				  engine->name, __builtin_return_address(0));
+	}
 
 	set_bit(engine->id, &engine->i915->gpu_error.missed_irq_rings);
 }
@@ -213,28 +214,30 @@ void intel_engine_unpin_breadcrumbs_irq(struct intel_engine_cs *engine)
 void intel_engine_disarm_breadcrumbs(struct intel_engine_cs *engine)
 {
 	struct intel_breadcrumbs *b = &engine->breadcrumbs;
-	struct intel_wait *wait, *n, *first;
+	struct intel_wait *wait, *n;
 
 	if (!b->irq_armed)
 		return;
 
-	/* We only disarm the irq when we are idle (all requests completed),
+	/*
+	 * We only disarm the irq when we are idle (all requests completed),
 	 * so if the bottom-half remains asleep, it missed the request
 	 * completion.
 	 */
+	if (intel_engine_wakeup(engine) & ENGINE_WAKEUP_ASLEEP)
+		missed_breadcrumb(engine);
 
 	spin_lock_irq(&b->rb_lock);
 
 	spin_lock(&b->irq_lock);
-	first = fetch_and_zero(&b->irq_wait);
+	b->irq_wait = NULL;
 	if (b->irq_armed)
 		__intel_engine_disarm_breadcrumbs(engine);
 	spin_unlock(&b->irq_lock);
 
 	rbtree_postorder_for_each_entry_safe(wait, n, &b->waiters, node) {
 		RB_CLEAR_NODE(&wait->node);
-		if (wake_up_process(wait->tsk) && wait == first)
-			missed_breadcrumb(engine);
+		wake_up_process(wait->tsk);
 	}
 	b->waiters = RB_ROOT;
 
