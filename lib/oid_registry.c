@@ -120,10 +120,10 @@ int sprint_oid(const void *data, size_t datasize, char *buffer, size_t bufsize)
 
 	n = *v++;
 	ret = count = snprintf(buffer, bufsize, "%u.%u", n / 40, n % 40);
+	if (count >= bufsize)
+		return -ENOBUFS;
 	buffer += count;
 	bufsize -= count;
-	if (bufsize == 0)
-		return -ENOBUFS;
 
 	while (v < end) {
 		num = 0;
@@ -141,9 +141,9 @@ int sprint_oid(const void *data, size_t datasize, char *buffer, size_t bufsize)
 			} while (n & 0x80);
 		}
 		ret += count = snprintf(buffer, bufsize, ".%lu", num);
-		buffer += count;
-		if (bufsize <= count)
+		if (count >= bufsize)
 			return -ENOBUFS;
+		buffer += count;
 		bufsize -= count;
 	}
 
