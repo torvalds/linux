@@ -1169,23 +1169,6 @@ static int max310x_probe(struct device *dev, struct max310x_devtype *devtype,
 	uartclk = max310x_set_ref_clk(s, freq, xtal);
 	dev_dbg(dev, "Reference clock set to %i Hz\n", uartclk);
 
-#ifdef CONFIG_GPIOLIB
-	/* Setup GPIO cotroller */
-	s->gpio.owner		= THIS_MODULE;
-	s->gpio.parent		= dev;
-	s->gpio.label		= dev_name(dev);
-	s->gpio.direction_input	= max310x_gpio_direction_input;
-	s->gpio.get		= max310x_gpio_get;
-	s->gpio.direction_output= max310x_gpio_direction_output;
-	s->gpio.set		= max310x_gpio_set;
-	s->gpio.base		= -1;
-	s->gpio.ngpio		= devtype->nr * 4;
-	s->gpio.can_sleep	= 1;
-	ret = devm_gpiochip_add_data(dev, &s->gpio, s);
-	if (ret)
-		goto out_clk;
-#endif
-
 	mutex_init(&s->mutex);
 
 	for (i = 0; i < devtype->nr; i++) {
@@ -1236,6 +1219,23 @@ static int max310x_probe(struct device *dev, struct max310x_devtype *devtype,
 		/* Go to suspend mode */
 		devtype->power(&s->p[i].port, 0);
 	}
+
+#ifdef CONFIG_GPIOLIB
+	/* Setup GPIO cotroller */
+	s->gpio.owner		= THIS_MODULE;
+	s->gpio.parent		= dev;
+	s->gpio.label		= dev_name(dev);
+	s->gpio.direction_input	= max310x_gpio_direction_input;
+	s->gpio.get		= max310x_gpio_get;
+	s->gpio.direction_output= max310x_gpio_direction_output;
+	s->gpio.set		= max310x_gpio_set;
+	s->gpio.base		= -1;
+	s->gpio.ngpio		= devtype->nr * 4;
+	s->gpio.can_sleep	= 1;
+	ret = devm_gpiochip_add_data(dev, &s->gpio, s);
+	if (ret)
+		goto out_uart;
+#endif
 
 	/* Setup interrupt */
 	ret = devm_request_threaded_irq(dev, irq, NULL, max310x_ist,
