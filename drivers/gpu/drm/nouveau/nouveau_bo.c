@@ -1226,7 +1226,7 @@ nouveau_bo_move_flipd(struct ttm_buffer_object *bo, bool evict, bool intr,
 	if (ret)
 		goto out;
 
-	ret = ttm_bo_move_ttm(bo, intr, no_wait_gpu, new_reg);
+	ret = ttm_bo_move_ttm(bo, &ctx, new_reg);
 out:
 	ttm_bo_mem_put(bo, &tmp_reg);
 	return ret;
@@ -1255,7 +1255,7 @@ nouveau_bo_move_flips(struct ttm_buffer_object *bo, bool evict, bool intr,
 	if (ret)
 		return ret;
 
-	ret = ttm_bo_move_ttm(bo, intr, no_wait_gpu, &tmp_reg);
+	ret = ttm_bo_move_ttm(bo, &ctx, &tmp_reg);
 	if (ret)
 		goto out;
 
@@ -1380,8 +1380,7 @@ nouveau_bo_move(struct ttm_buffer_object *bo, bool evict,
 	/* Fallback to software copy. */
 	ret = ttm_bo_wait(bo, ctx->interruptible, ctx->no_wait_gpu);
 	if (ret == 0)
-		ret = ttm_bo_move_memcpy(bo, ctx->interruptible,
-					 ctx->no_wait_gpu, new_reg);
+		ret = ttm_bo_move_memcpy(bo, ctx, new_reg);
 
 out:
 	if (drm->client.device.info.family < NV_DEVICE_INFO_V0_TESLA) {
