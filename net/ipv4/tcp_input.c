@@ -2329,6 +2329,7 @@ static void tcp_undo_cwnd_reduction(struct sock *sk, bool unmark_loss)
 	}
 	tp->snd_cwnd_stamp = tcp_jiffies32;
 	tp->undo_marker = 0;
+	tp->rack.advanced = 1; /* Force RACK to re-exam losses */
 }
 
 static inline bool tcp_may_undo(const struct tcp_sock *tp)
