@@ -705,7 +705,6 @@ static int ina2xx_work_buffer(struct iio_dev *indio_dev)
 	int bit, ret, i = 0;
 	s64 time_a, time_b;
 	unsigned int alert;
-	int cnvr_need_clear = 0;
 
 	time_a = iio_get_time_ns(indio_dev);
 
@@ -730,7 +729,6 @@ static int ina2xx_work_buffer(struct iio_dev *indio_dev)
 				ret = regmap_read(chip->regmap,
 						  INA2XX_BUS_VOLTAGE, &alert);
 				alert &= INA219_CNVR;
-				cnvr_need_clear = alert;
 			}
 
 			if (ret < 0)
@@ -752,18 +750,6 @@ static int ina2xx_work_buffer(struct iio_dev *indio_dev)
 			return ret;
 
 		data[i++] = val;
-
-		if (INA2XX_SHUNT_VOLTAGE + bit == INA2XX_POWER)
-			cnvr_need_clear = 0;
-	}
-
-	/* Dummy read on INA219 power register to clear CNVR flag */
-	if (cnvr_need_clear && chip->config->chip_id == ina219) {
-		unsigned int val;
-
-		ret = regmap_read(chip->regmap, INA2XX_POWER, &val);
-		if (ret < 0)
-			return ret;
 	}
 
 	time_b = iio_get_time_ns(indio_dev);
