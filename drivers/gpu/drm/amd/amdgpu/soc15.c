@@ -231,35 +231,6 @@ static u32 soc15_get_config_memsize(struct amdgpu_device *adev)
 	return adev->nbio_funcs->get_memsize(adev);
 }
 
-static const u32 vega10_golden_init[] =
-{
-};
-
-static const u32 raven_golden_init[] =
-{
-};
-
-static void soc15_init_golden_registers(struct amdgpu_device *adev)
-{
-	/* Some of the registers might be dependent on GRBM_GFX_INDEX */
-	mutex_lock(&adev->grbm_idx_mutex);
-
-	switch (adev->asic_type) {
-	case CHIP_VEGA10:
-		amdgpu_program_register_sequence(adev,
-						 vega10_golden_init,
-						 ARRAY_SIZE(vega10_golden_init));
-		break;
-	case CHIP_RAVEN:
-		amdgpu_program_register_sequence(adev,
-						 raven_golden_init,
-						 ARRAY_SIZE(raven_golden_init));
-		break;
-	default:
-		break;
-	}
-	mutex_unlock(&adev->grbm_idx_mutex);
-}
 static u32 soc15_get_xclk(struct amdgpu_device *adev)
 {
 	return adev->clock.spll.reference_freq;
@@ -745,8 +716,6 @@ static int soc15_common_hw_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	/* move the golden regs per IP block */
-	soc15_init_golden_registers(adev);
 	/* enable pcie gen2/3 link */
 	soc15_pcie_gen3_enable(adev);
 	/* enable aspm */
