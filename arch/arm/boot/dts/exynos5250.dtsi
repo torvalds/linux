@@ -125,6 +125,13 @@
 			label = "MFC";
 		};
 
+		pd_g3d: power-domain@10044060 {
+			compatible = "samsung,exynos4210-pd";
+			reg = <0x10044060 0x20>;
+			#power-domain-cells = <0>;
+			label = "G3D";
+		};
+
 		pd_disp1: power-domain@100440A0 {
 			compatible = "samsung,exynos4210-pd";
 			reg = <0x100440A0 0x20>;
