@@ -35,6 +35,7 @@ static void sas_phye_loss_of_signal(struct work_struct *work)
 	struct asd_sas_event *ev = to_asd_sas_event(work);
 	struct asd_sas_phy *phy = ev->phy;
 
+	phy->in_shutdown = 0;
 	phy->error = 0;
 	sas_deform_port(phy, 1);
 }
@@ -44,6 +45,7 @@ static void sas_phye_oob_done(struct work_struct *work)
 	struct asd_sas_event *ev = to_asd_sas_event(work);
 	struct asd_sas_phy *phy = ev->phy;
 
+	phy->in_shutdown = 0;
 	phy->error = 0;
 }
 
@@ -105,6 +107,28 @@ static void sas_phye_resume_timeout(struct work_struct *work)
 }
 
 
+static void sas_phye_shutdown(struct work_struct *work)
+{
+	struct asd_sas_event *ev = to_asd_sas_event(work);
+	struct asd_sas_phy *phy = ev->phy;
+	struct sas_ha_struct *sas_ha = phy->ha;
+	struct sas_internal *i =
+		to_sas_internal(sas_ha->core.shost->transportt);
+
+	if (phy->enabled) {
+		int ret;
+
+		phy->error = 0;
+		phy->enabled = 0;
+		ret = i->dft->lldd_control_phy(phy, PHY_FUNC_DISABLE, NULL);
+		if (ret)
+			sas_printk("lldd disable phy%02d returned %d\n",
+				phy->id, ret);
+	} else
+		sas_printk("phy%02d is not enabled, cannot shutdown\n",
+			phy->id);
+}
+
 /* ---------- Phy class registration ---------- */
 
 int sas_register_phys(struct sas_ha_struct *sas_ha)
@@ -116,6 +140,7 @@ int sas_register_phys(struct sas_ha_struct *sas_ha)
 		struct asd_sas_phy *phy = sas_ha->sas_phy[i];
 
 		phy->error = 0;
+		atomic_set(&phy->event_nr, 0);
 		INIT_LIST_HEAD(&phy->port_phy_el);
 
 		phy->port = NULL;
@@ -151,5 +176,5 @@ const work_func_t sas_phy_event_fns[PHY_NUM_EVENTS] = {
 	[PHYE_OOB_ERROR] = sas_phye_oob_error,
 	[PHYE_SPINUP_HOLD] = sas_phye_spinup_hold,
 	[PHYE_RESUME_TIMEOUT] = sas_phye_resume_timeout,
-
+	[PHYE_SHUTDOWN] = sas_phye_shutdown,
 };

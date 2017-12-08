@@ -75,6 +75,7 @@ enum phy_event {
 	PHYE_OOB_ERROR,
 	PHYE_SPINUP_HOLD,             /* hot plug SATA, no COMWAKE sent */
 	PHYE_RESUME_TIMEOUT,
+	PHYE_SHUTDOWN,
 	PHY_NUM_EVENTS,
 };
 
@@ -311,12 +312,15 @@ static inline void INIT_SAS_EVENT(struct asd_sas_event *ev,
 	ev->event = event;
 }
 
+#define SAS_PHY_SHUTDOWN_THRES   1024
 
 /* The phy pretty much is controlled by the LLDD.
  * The class only reads those fields.
  */
 struct asd_sas_phy {
 /* private: */
+	atomic_t event_nr;
+	int in_shutdown;
 	int error;
 	int suspended;
 
@@ -404,6 +408,8 @@ struct sas_ha_struct {
 
 	struct list_head eh_done_q;  /* complete via scsi_eh_flush_done_q */
 	struct list_head eh_ata_q; /* scmds to promote from sas to ata eh */
+
+	int event_thres;
 };
 
 #define SHOST_TO_SAS_HA(_shost) (*(struct sas_ha_struct **)(_shost)->hostdata)

@@ -123,6 +123,8 @@ int sas_register_ha(struct sas_ha_struct *sas_ha)
 	INIT_LIST_HEAD(&sas_ha->defer_q);
 	INIT_LIST_HEAD(&sas_ha->eh_dev_q);
 
+	sas_ha->event_thres = SAS_PHY_SHUTDOWN_THRES;
+
 	error = sas_register_phys(sas_ha);
 	if (error) {
 		printk(KERN_NOTICE "couldn't register sas phys:%d\n", error);
@@ -557,14 +559,43 @@ EXPORT_SYMBOL_GPL(sas_domain_attach_transport);
 
 struct asd_sas_event *sas_alloc_event(struct asd_sas_phy *phy)
 {
+	struct asd_sas_event *event;
 	gfp_t flags = in_interrupt() ? GFP_ATOMIC : GFP_KERNEL;
+	struct sas_ha_struct *sas_ha = phy->ha;
+	struct sas_internal *i =
+		to_sas_internal(sas_ha->core.shost->transportt);
 
-	return kmem_cache_zalloc(sas_event_cache, flags);
+	event = kmem_cache_zalloc(sas_event_cache, flags);
+	if (!event)
+		return NULL;
+
+	atomic_inc(&phy->event_nr);
+
+	if (atomic_read(&phy->event_nr) > phy->ha->event_thres) {
+		if (i->dft->lldd_control_phy) {
+			if (cmpxchg(&phy->in_shutdown, 0, 1) == 0) {
+				sas_printk("The phy%02d bursting events, shut it down.\n",
+					phy->id);
+				sas_notify_phy_event(phy, PHYE_SHUTDOWN);
+			}
+		} else {
+			/* Do not support PHY control, stop allocating events */
+			WARN_ONCE(1, "PHY control not supported.\n");
+			kmem_cache_free(sas_event_cache, event);
+			atomic_dec(&phy->event_nr);
+			event = NULL;
+		}
+	}
+
+	return event;
 }
 
 void sas_free_event(struct asd_sas_event *event)
 {
+	struct asd_sas_phy *phy = event->phy;
+
 	kmem_cache_free(sas_event_cache, event);
+	atomic_dec(&phy->event_nr);
 }
 
 /* ---------- SAS Class register/unregister ---------- */
