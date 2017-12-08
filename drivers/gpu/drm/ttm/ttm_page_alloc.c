@@ -1061,6 +1061,10 @@ void ttm_page_alloc_fini(void)
 int ttm_pool_populate(struct ttm_tt *ttm)
 {
 	struct ttm_mem_global *mem_glob = ttm->glob->mem_glob;
+	struct ttm_operation_ctx ctx = {
+		.interruptible = false,
+		.no_wait_gpu = false
+	};
 	unsigned i;
 	int ret;
 
@@ -1076,7 +1080,7 @@ int ttm_pool_populate(struct ttm_tt *ttm)
 
 	for (i = 0; i < ttm->num_pages; ++i) {
 		ret = ttm_mem_global_alloc_page(mem_glob, ttm->pages[i],
-						PAGE_SIZE);
+						PAGE_SIZE, &ctx);
 		if (unlikely(ret != 0)) {
 			ttm_pool_unpopulate(ttm);
 			return -ENOMEM;

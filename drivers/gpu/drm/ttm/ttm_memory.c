@@ -539,14 +539,10 @@ int ttm_mem_global_alloc(struct ttm_mem_global *glob, uint64_t memory,
 EXPORT_SYMBOL(ttm_mem_global_alloc);
 
 int ttm_mem_global_alloc_page(struct ttm_mem_global *glob,
-			      struct page *page, uint64_t size)
+			      struct page *page, uint64_t size,
+			      struct ttm_operation_ctx *ctx)
 {
-
 	struct ttm_mem_zone *zone = NULL;
-	struct ttm_operation_ctx ctx = {
-		.interruptible = false,
-		.no_wait_gpu = false
-	};
 
 	/**
 	 * Page allocations may be registed in a single zone
@@ -560,7 +556,7 @@ int ttm_mem_global_alloc_page(struct ttm_mem_global *glob,
 	if (glob->zone_dma32 && page_to_pfn(page) > 0x00100000UL)
 		zone = glob->zone_kernel;
 #endif
-	return ttm_mem_global_alloc_zone(glob, zone, size, &ctx);
+	return ttm_mem_global_alloc_zone(glob, zone, size, ctx);
 }
 
 void ttm_mem_global_free_page(struct ttm_mem_global *glob, struct page *page,
