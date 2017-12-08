@@ -46,6 +46,7 @@ Optional properties:
  - pinctrl-names : a pinctrl state named "default" must be defined
  - pinctrl-0 : pin control group
 	See: Documentation/devicetree/bindings/pinctrl/pinctrl-bindings.txt
+ - imod-interval-ns: default interrupt moderation interval is 5000ns
 
 Example:
 usb30: usb@11270000 {
@@ -66,6 +67,7 @@ usb30: usb@11270000 {
 	usb3-lpm-capable;
 	mediatek,syscon-wakeup = <&pericfg>;
 	mediatek,wakeup-src = <1>;
+	imod-interval-ns = <10000>;
 };
 
 2nd: dual-role mode with xHCI driver

@@ -1717,6 +1717,8 @@ struct xhci_hcd {
 	u8		max_interrupters;
 	u8		max_ports;
 	u8		isoc_threshold;
+	/* imod_interval in ns (I * 250ns) */
+	u32		imod_interval;
 	int		event_ring_max;
 	/* 4KB min, 128MB max */
 	int		page_size;

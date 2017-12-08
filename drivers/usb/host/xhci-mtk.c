@@ -674,6 +674,15 @@ static int xhci_mtk_probe(struct platform_device *pdev)
 
 	xhci = hcd_to_xhci(hcd);
 	xhci->main_hcd = hcd;
+
+	/*
+	 * imod_interval is the interrupt moderation value in nanoseconds.
+	 * The increment interval is 8 times as much as that defined in
+	 * the xHCI spec on MTK's controller.
+	 */
+	xhci->imod_interval = 5000;
+	device_property_read_u32(dev, "imod-interval-ns", &xhci->imod_interval);
+
 	xhci->shared_hcd = usb_create_shared_hcd(driver, dev,
 			dev_name(dev), hcd);
 	if (!xhci->shared_hcd) {
