@@ -767,8 +767,7 @@ static int ina2xx_work_buffer(struct iio_dev *indio_dev)
 
 	time_b = iio_get_time_ns(indio_dev);
 
-	iio_push_to_buffers_with_timestamp(indio_dev,
-					   (unsigned int *)data, time_a);
+	iio_push_to_buffers_with_timestamp(indio_dev, data, time_a);
 
 	return (unsigned long)(time_b - time_a) / 1000;
 };
