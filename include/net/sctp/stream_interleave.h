@@ -39,6 +39,8 @@ struct sctp_stream_interleave {
 					    int len, __u8 flags, gfp_t gfp);
 	void	(*assign_number)(struct sctp_chunk *chunk);
 	bool	(*validate_data)(struct sctp_chunk *chunk);
+	int	(*ulpevent_data)(struct sctp_ulpq *ulpq,
+				 struct sctp_chunk *chunk, gfp_t gfp);
 };
 
 void sctp_stream_interleave_init(struct sctp_stream *stream);

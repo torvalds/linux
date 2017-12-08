@@ -104,6 +104,9 @@ int sctp_ulpq_tail_data(struct sctp_ulpq *ulpq, struct sctp_chunk *chunk,
 	if (!event)
 		return -ENOMEM;
 
+	event->ssn = ntohs(chunk->subh.data_hdr->ssn);
+	event->ppid = chunk->subh.data_hdr->ppid;
+
 	/* Do reassembly if needed.  */
 	event = sctp_ulpq_reasm(ulpq, event);
 
@@ -328,9 +331,10 @@ static void sctp_ulpq_store_reasm(struct sctp_ulpq *ulpq,
  * payload was fragmented on the way and ip had to reassemble them.
  * We add the rest of skb's to the first skb's fraglist.
  */
-static struct sctp_ulpevent *sctp_make_reassembled_event(struct net *net,
-	struct sk_buff_head *queue, struct sk_buff *f_frag,
-	struct sk_buff *l_frag)
+struct sctp_ulpevent *sctp_make_reassembled_event(struct net *net,
+						  struct sk_buff_head *queue,
+						  struct sk_buff *f_frag,
+						  struct sk_buff *l_frag)
 {
 	struct sk_buff *pos;
 	struct sk_buff *new = NULL;
@@ -853,7 +857,7 @@ static struct sctp_ulpevent *sctp_ulpq_order(struct sctp_ulpq *ulpq,
 	struct sctp_stream *stream;
 
 	/* Check if this message needs ordering.  */
-	if (SCTP_DATA_UNORDERED & event->msg_flags)
+	if (event->msg_flags & SCTP_DATA_UNORDERED)
 		return event;
 
 	/* Note: The stream ID must be verified before this routine.  */

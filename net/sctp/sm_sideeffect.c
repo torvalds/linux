@@ -1483,8 +1483,9 @@ static int sctp_cmd_interpreter(enum sctp_event event_type,
 			pr_debug("%s: sm_sideff: chunk_up:%p, ulpq:%p\n",
 				 __func__, cmd->obj.chunk, &asoc->ulpq);
 
-			sctp_ulpq_tail_data(&asoc->ulpq, cmd->obj.chunk,
-					    GFP_ATOMIC);
+			asoc->stream.si->ulpevent_data(&asoc->ulpq,
+						       cmd->obj.chunk,
+						       GFP_ATOMIC);
 			break;
 
 		case SCTP_CMD_EVENT_ULP:

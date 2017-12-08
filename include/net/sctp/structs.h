@@ -411,6 +411,8 @@ void sctp_stream_update(struct sctp_stream *stream, struct sctp_stream *new);
 #define sctp_mid_skip(stream, type, sid, mid) \
 	((stream)->type[sid].mid = mid + 1)
 
+#define sctp_stream_in(asoc, sid) (&(asoc)->stream.in[sid])
+
 /*
  * Pointers to address related SCTP functions.
  * (i.e. things that depend on the address family.)
@@ -1387,6 +1389,7 @@ struct sctp_stream_in {
 		__u16 ssn;
 	};
 	__u32 fsn;
+	char pd_mode;
 };
 
 struct sctp_stream {
