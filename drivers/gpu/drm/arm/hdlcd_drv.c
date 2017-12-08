@@ -27,6 +27,7 @@
 #include <drm/drm_fb_cma_helper.h>
 #include <drm/drm_gem_cma_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
+#include <drm/drm_modeset_helper.h>
 #include <drm/drm_of.h>
 
 #include "hdlcd_drv.h"
@@ -427,35 +428,15 @@ MODULE_DEVICE_TABLE(of, hdlcd_of_match);
 static int __maybe_unused hdlcd_pm_suspend(struct device *dev)
 {
 	struct drm_device *drm = dev_get_drvdata(dev);
-	struct hdlcd_drm_private *hdlcd = drm ? drm->dev_private : NULL;
 
-	if (!hdlcd)
-		return 0;
-
-	drm_kms_helper_poll_disable(drm);
-	drm_fbdev_cma_set_suspend_unlocked(hdlcd->fbdev, 1);
-
-	hdlcd->state = drm_atomic_helper_suspend(drm);
-	if (IS_ERR(hdlcd->state)) {
-		drm_fbdev_cma_set_suspend_unlocked(hdlcd->fbdev, 0);
-		drm_kms_helper_poll_enable(drm);
-		return PTR_ERR(hdlcd->state);
-	}
-
-	return 0;
+	return drm_mode_config_helper_suspend(drm);
 }
 
 static int __maybe_unused hdlcd_pm_resume(struct device *dev)
 {
 	struct drm_device *drm = dev_get_drvdata(dev);
-	struct hdlcd_drm_private *hdlcd = drm ? drm->dev_private : NULL;
 
-	if (!hdlcd)
-		return 0;
-
-	drm_atomic_helper_resume(drm, hdlcd->state);
-	drm_fbdev_cma_set_suspend_unlocked(hdlcd->fbdev, 0);
-	drm_kms_helper_poll_enable(drm);
+	drm_mode_config_helper_resume(drm);
 
 	return 0;
 }

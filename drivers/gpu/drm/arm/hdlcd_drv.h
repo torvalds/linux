@@ -12,7 +12,6 @@ struct hdlcd_drm_private {
 	struct drm_fbdev_cma		*fbdev;
 	struct drm_crtc			crtc;
 	struct drm_plane		*plane;
-	struct drm_atomic_state		*state;
 #ifdef CONFIG_DEBUG_FS
 	atomic_t buffer_underrun_count;
 	atomic_t bus_error_count;
