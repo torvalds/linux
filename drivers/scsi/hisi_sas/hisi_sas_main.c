@@ -1299,8 +1299,14 @@ out:
 static int hisi_sas_clear_nexus_ha(struct sas_ha_struct *sas_ha)
 {
 	struct hisi_hba *hisi_hba = sas_ha->lldd_ha;
+	HISI_SAS_DECLARE_RST_WORK_ON_STACK(r);
 
-	return hisi_sas_controller_reset(hisi_hba);
+	queue_work(hisi_hba->wq, &r.work);
+	wait_for_completion(r.completion);
+	if (r.done)
+		return TMF_RESP_FUNC_COMPLETE;
+
+	return TMF_RESP_FUNC_FAILED;
 }
 
 static int hisi_sas_query_task(struct sas_task *task)
@@ -1819,6 +1825,17 @@ void hisi_sas_rst_work_handler(struct work_struct *work)
 	hisi_sas_controller_reset(hisi_hba);
 }
 EXPORT_SYMBOL_GPL(hisi_sas_rst_work_handler);
+
+void hisi_sas_sync_rst_work_handler(struct work_struct *work)
+{
+	struct hisi_sas_rst *rst =
+		container_of(work, struct hisi_sas_rst, work);
+
+	if (!hisi_sas_controller_reset(rst->hisi_hba))
+		rst->done = true;
+	complete(rst->completion);
+}
+EXPORT_SYMBOL_GPL(hisi_sas_sync_rst_work_handler);
 
 int hisi_sas_get_fw_info(struct hisi_hba *hisi_hba)
 {

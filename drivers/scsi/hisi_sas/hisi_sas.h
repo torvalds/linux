@@ -99,6 +99,31 @@ struct hisi_sas_hw_error {
 	const struct hisi_sas_hw_error *sub;
 };
 
+struct hisi_sas_rst {
+	struct hisi_hba *hisi_hba;
+	struct completion *completion;
+	struct work_struct work;
+	bool done;
+};
+
+#define HISI_SAS_RST_WORK_INIT(r, c) \
+	{	.hisi_hba = hisi_hba, \
+		.completion = &c, \
+		.work = __WORK_INITIALIZER(r.work, \
+				hisi_sas_sync_rst_work_handler), \
+		.done = false, \
+		}
+
+#define HISI_SAS_DECLARE_RST_WORK_ON_STACK(r) \
+	DECLARE_COMPLETION_ONSTACK(c); \
+	DECLARE_WORK(w, hisi_sas_sync_rst_work_handler); \
+	struct hisi_sas_rst r = HISI_SAS_RST_WORK_INIT(r, c)
+
+enum hisi_sas_bit_err_type {
+	HISI_SAS_ERR_SINGLE_BIT_ECC = 0x0,
+	HISI_SAS_ERR_MULTI_BIT_ECC = 0x1,
+};
+
 struct hisi_sas_phy {
 	struct hisi_hba	*hisi_hba;
 	struct hisi_sas_port	*port;
@@ -426,5 +451,6 @@ extern void hisi_sas_slot_task_free(struct hisi_hba *hisi_hba,
 				    struct hisi_sas_slot *slot);
 extern void hisi_sas_init_mem(struct hisi_hba *hisi_hba);
 extern void hisi_sas_rst_work_handler(struct work_struct *work);
+extern void hisi_sas_sync_rst_work_handler(struct work_struct *work);
 extern void hisi_sas_kill_tasklets(struct hisi_hba *hisi_hba);
 #endif
