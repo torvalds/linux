@@ -990,27 +990,42 @@ static int hisi_sas_debug_issue_ssp_tmf(struct domain_device *device,
 				sizeof(ssp_task), tmf);
 }
 
-static void hisi_sas_refresh_port_id(struct hisi_hba *hisi_hba,
-		struct asd_sas_port *sas_port, enum sas_linkrate linkrate)
+static void hisi_sas_refresh_port_id(struct hisi_hba *hisi_hba)
 {
-	struct hisi_sas_device	*sas_dev;
-	struct domain_device *device;
+	u32 state = hisi_hba->hw->get_phys_state(hisi_hba);
 	int i;
 
 	for (i = 0; i < HISI_SAS_MAX_DEVICES; i++) {
-		sas_dev = &hisi_hba->devices[i];
-		device = sas_dev->sas_device;
+		struct hisi_sas_device *sas_dev = &hisi_hba->devices[i];
+		struct domain_device *device = sas_dev->sas_device;
+		struct asd_sas_port *sas_port;
+		struct hisi_sas_port *port;
+		struct hisi_sas_phy *phy = NULL;
+		struct asd_sas_phy *sas_phy;
+
 		if ((sas_dev->dev_type == SAS_PHY_UNUSED)
-				|| !device || (device->port != sas_port))
+				|| !device || !device->port)
 			continue;
 
-		hisi_hba->hw->clear_itct(hisi_hba, sas_dev);
+		sas_port = device->port;
+		port = to_hisi_sas_port(sas_port);
 
-		/* Update linkrate of directly attached device. */
-		if (!device->parent)
-			device->linkrate = linkrate;
+		list_for_each_entry(sas_phy, &sas_port->phy_list, port_phy_el)
+			if (state & BIT(sas_phy->id)) {
+				phy = sas_phy->lldd_phy;
+				break;
+			}
 
-		hisi_hba->hw->setup_itct(hisi_hba, sas_dev);
+		if (phy) {
+			port->id = phy->port_id;
+
+			/* Update linkrate of directly attached device. */
+			if (!device->parent)
+				device->linkrate = phy->sas_phy.linkrate;
+
+			hisi_hba->hw->setup_itct(hisi_hba, sas_dev);
+		} else
+			port->id = 0xff;
 	}
 }
 
@@ -1025,21 +1040,17 @@ static void hisi_sas_rescan_topology(struct hisi_hba *hisi_hba, u32 old_state,
 		struct hisi_sas_phy *phy = &hisi_hba->phy[phy_no];
 		struct asd_sas_phy *sas_phy = &phy->sas_phy;
 		struct asd_sas_port *sas_port = sas_phy->port;
-		struct hisi_sas_port *port = to_hisi_sas_port(sas_port);
 		bool do_port_check = !!(_sas_port != sas_port);
 
 		if (!sas_phy->phy->enabled)
 			continue;
 
 		/* Report PHY state change to libsas */
-		if (state & (1 << phy_no)) {
-			if (do_port_check && sas_port) {
+		if (state & BIT(phy_no)) {
+			if (do_port_check && sas_port && sas_port->port_dev) {
 				struct domain_device *dev = sas_port->port_dev;
 
 				_sas_port = sas_port;
-				port->id = phy->port_id;
-				hisi_sas_refresh_port_id(hisi_hba,
-						sas_port, sas_phy->linkrate);
 
 				if (DEV_IS_EXPANDER(dev->dev_type))
 					sas_ha->notify_port_event(sas_phy,
@@ -1088,6 +1099,7 @@ static int hisi_sas_controller_reset(struct hisi_hba *hisi_hba)
 	/* Init and wait for PHYs to come up and all libsas event finished. */
 	hisi_hba->hw->phys_init(hisi_hba);
 	msleep(1000);
+	hisi_sas_refresh_port_id(hisi_hba);
 	drain_workqueue(hisi_hba->wq);
 	drain_workqueue(shost->work_q);
 
