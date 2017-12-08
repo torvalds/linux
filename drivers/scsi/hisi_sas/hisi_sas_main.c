@@ -580,6 +580,9 @@ static int hisi_sas_dev_found(struct domain_device *device)
 		}
 	}
 
+	dev_info(dev, "dev[%d:%x] found\n",
+		sas_dev->device_id, sas_dev->dev_type);
+
 	return 0;
 }
 
@@ -735,7 +738,7 @@ static void hisi_sas_dev_gone(struct domain_device *device)
 	struct hisi_hba *hisi_hba = dev_to_hisi_hba(device);
 	struct device *dev = hisi_hba->dev;
 
-	dev_info(dev, "found dev[%d:%x] is gone\n",
+	dev_info(dev, "dev[%d:%x] is gone\n",
 		 sas_dev->device_id, sas_dev->dev_type);
 
 	if (!test_bit(HISI_SAS_RESET_BIT, &hisi_hba->flags)) {
@@ -866,12 +869,13 @@ static int hisi_sas_exec_internal_tmf_task(struct domain_device *device,
 			if (!(task->task_state_flags & SAS_TASK_STATE_DONE)) {
 				struct hisi_sas_slot *slot = task->lldd_task;
 
-				dev_err(dev, "abort tmf: TMF task timeout\n");
+				dev_err(dev, "abort tmf: TMF task timeout and not done\n");
 				if (slot)
 					slot->task = NULL;
 
 				goto ex_err;
-			}
+			} else
+				dev_err(dev, "abort tmf: TMF task timeout\n");
 		}
 
 		if (task->task_status.resp == SAS_TASK_COMPLETE &&
@@ -1495,9 +1499,10 @@ hisi_sas_internal_task_abort(struct hisi_hba *hisi_hba,
 
 			if (slot)
 				slot->task = NULL;
-			dev_err(dev, "internal task abort: timeout.\n");
+			dev_err(dev, "internal task abort: timeout and not done.\n");
 			goto exit;
-		}
+		} else
+			dev_err(dev, "internal task abort: timeout.\n");
 	}
 
 	if (task->task_status.resp == SAS_TASK_COMPLETE &&

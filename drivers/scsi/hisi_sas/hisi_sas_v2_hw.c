@@ -2361,6 +2361,7 @@ slot_complete_v2_hw(struct hisi_hba *hisi_hba, struct hisi_sas_slot *slot)
 	ts->resp = SAS_TASK_COMPLETE;
 
 	if (unlikely(aborted)) {
+		dev_dbg(dev, "slot_complete: task(%p) aborted\n", task);
 		ts->stat = SAS_ABORTED_TASK;
 		spin_lock_irqsave(&hisi_hba->lock, flags);
 		hisi_sas_slot_task_free(hisi_hba, task, slot);
@@ -2405,12 +2406,23 @@ slot_complete_v2_hw(struct hisi_hba *hisi_hba, struct hisi_sas_slot *slot)
 		(!(complete_hdr->dw0 & CMPLT_HDR_RSPNS_XFRD_MSK))) {
 		u32 err_phase = (complete_hdr->dw0 & CMPLT_HDR_ERR_PHASE_MSK)
 				>> CMPLT_HDR_ERR_PHASE_OFF;
+		u32 *error_info = hisi_sas_status_buf_addr_mem(slot);
 
 		/* Analyse error happens on which phase TX or RX */
 		if (ERR_ON_TX_PHASE(err_phase))
 			slot_err_v2_hw(hisi_hba, task, slot, 1);
 		else if (ERR_ON_RX_PHASE(err_phase))
 			slot_err_v2_hw(hisi_hba, task, slot, 2);
+
+		if (ts->stat != SAS_DATA_UNDERRUN)
+			dev_info(dev, "erroneous completion iptt=%d task=%p "
+				"CQ hdr: 0x%x 0x%x 0x%x 0x%x "
+				"Error info: 0x%x 0x%x 0x%x 0x%x\n",
+				slot->idx, task,
+				complete_hdr->dw0, complete_hdr->dw1,
+				complete_hdr->act, complete_hdr->dw3,
+				error_info[0], error_info[1],
+				error_info[2], error_info[3]);
 
 		if (unlikely(slot->abort))
 			return ts->stat;
@@ -2461,7 +2473,7 @@ slot_complete_v2_hw(struct hisi_hba *hisi_hba, struct hisi_sas_slot *slot)
 	}
 
 	if (!slot->port->port_attached) {
-		dev_err(dev, "slot complete: port %d has removed\n",
+		dev_warn(dev, "slot complete: port %d has removed\n",
 			slot->port->sas_port.id);
 		ts->stat = SAS_PHY_DOWN;
 	}
@@ -2718,10 +2730,12 @@ static int phy_down_v2_hw(int phy_no, struct hisi_hba *hisi_hba)
 	u32 phy_state, sl_ctrl, txid_auto;
 	struct hisi_sas_phy *phy = &hisi_hba->phy[phy_no];
 	struct hisi_sas_port *port = phy->port;
+	struct device *dev = hisi_hba->dev;
 
 	hisi_sas_phy_write32(hisi_hba, phy_no, PHYCTRL_NOT_RDY_MSK, 1);
 
 	phy_state = hisi_sas_read32(hisi_hba, PHY_STATE);
+	dev_info(dev, "phydown: phy%d phy_state=0x%x\n", phy_no, phy_state);
 	hisi_sas_phy_down(hisi_hba, phy_no, (phy_state & 1 << phy_no) ? 1 : 0);
 
 	sl_ctrl = hisi_sas_phy_read32(hisi_hba, phy_no, SL_CONTROL);
@@ -2911,7 +2925,7 @@ static void multi_bit_ecc_error_process_v2_hw(struct hisi_hba *hisi_hba,
 			val = hisi_sas_read32(hisi_hba, ecc_error->reg);
 			val &= ecc_error->msk;
 			val >>= ecc_error->shift;
-			dev_warn(dev, ecc_error->msg, irq_value, val);
+			dev_err(dev, ecc_error->msg, irq_value, val);
 			queue_work(hisi_hba->wq, &hisi_hba->rst_work);
 		}
 	}
@@ -3020,12 +3034,12 @@ static irqreturn_t fatal_axi_int_v2_hw(int irq_no, void *p)
 			for (; sub->msk || sub->msg; sub++) {
 				if (!(err_value & sub->msk))
 					continue;
-				dev_warn(dev, "%s (0x%x) found!\n",
+				dev_err(dev, "%s (0x%x) found!\n",
 					 sub->msg, irq_value);
 				queue_work(hisi_hba->wq, &hisi_hba->rst_work);
 			}
 		} else {
-			dev_warn(dev, "%s (0x%x) found!\n",
+			dev_err(dev, "%s (0x%x) found!\n",
 				 axi_error->msg, irq_value);
 			queue_work(hisi_hba->wq, &hisi_hba->rst_work);
 		}
@@ -3397,7 +3411,7 @@ static int soft_reset_v2_hw(struct hisi_hba *hisi_hba)
 
 		udelay(10);
 		if (cnt++ > 10) {
-			dev_info(dev, "wait axi bus state to idle timeout!\n");
+			dev_err(dev, "wait axi bus state to idle timeout!\n");
 			return -1;
 		}
 	}

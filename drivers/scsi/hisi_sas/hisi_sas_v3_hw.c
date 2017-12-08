@@ -1149,7 +1149,7 @@ static int phy_up_v3_hw(int phy_no, struct hisi_hba *hisi_hba)
 		struct dev_to_host_fis *fis;
 		u8 attached_sas_addr[SAS_ADDR_SIZE] = {0};
 
-		dev_info(dev, "phyup: phy%d link_rate=%d\n", phy_no, link_rate);
+		dev_info(dev, "phyup: phy%d link_rate=%d(sata)\n", phy_no, link_rate);
 		initial_fis = &hisi_hba->initial_fis[phy_no];
 		fis = &initial_fis->fis;
 		sas_phy->oob_mode = SATA_OOB_MODE;
@@ -1333,7 +1333,7 @@ static irqreturn_t int_chnl_int_v3_hw(int irq_no, void *p)
 				if (!(irq_value1 & error->irq_msk))
 					continue;
 
-				dev_warn(dev, "%s error (phy%d 0x%x) found!\n",
+				dev_err(dev, "%s error (phy%d 0x%x) found!\n",
 					error->msg, phy_no, irq_value1);
 				queue_work(hisi_hba->wq, &hisi_hba->rst_work);
 			}
@@ -1443,12 +1443,12 @@ static irqreturn_t fatal_axi_int_v3_hw(int irq_no, void *p)
 				if (!(err_value & sub->msk))
 					continue;
 
-				dev_warn(dev, "%s error (0x%x) found!\n",
+				dev_err(dev, "%s error (0x%x) found!\n",
 					sub->msg, irq_value);
 				queue_work(hisi_hba->wq, &hisi_hba->rst_work);
 			}
 		} else {
-			dev_warn(dev, "%s error (0x%x) found!\n",
+			dev_err(dev, "%s error (0x%x) found!\n",
 				error->msg, irq_value);
 			queue_work(hisi_hba->wq, &hisi_hba->rst_work);
 		}
@@ -1553,6 +1553,7 @@ slot_complete_v3_hw(struct hisi_hba *hisi_hba, struct hisi_sas_slot *slot)
 	memset(ts, 0, sizeof(*ts));
 	ts->resp = SAS_TASK_COMPLETE;
 	if (unlikely(aborted)) {
+		dev_dbg(dev, "slot complete: task(%p) aborted\n", task);
 		ts->stat = SAS_ABORTED_TASK;
 		spin_lock_irqsave(&hisi_hba->lock, flags);
 		hisi_sas_slot_task_free(hisi_hba, task, slot);
@@ -1594,7 +1595,18 @@ slot_complete_v3_hw(struct hisi_hba *hisi_hba, struct hisi_sas_slot *slot)
 
 	/* check for erroneous completion */
 	if ((complete_hdr->dw0 & CMPLT_HDR_CMPLT_MSK) == 0x3) {
+		u32 *error_info = hisi_sas_status_buf_addr_mem(slot);
+
 		slot_err_v3_hw(hisi_hba, task, slot);
+		if (ts->stat != SAS_DATA_UNDERRUN)
+			dev_info(dev, "erroneous completion iptt=%d task=%p "
+				"CQ hdr: 0x%x 0x%x 0x%x 0x%x "
+				"Error info: 0x%x 0x%x 0x%x 0x%x\n",
+				slot->idx, task,
+				complete_hdr->dw0, complete_hdr->dw1,
+				complete_hdr->act, complete_hdr->dw3,
+				error_info[0], error_info[1],
+				error_info[2], error_info[3]);
 		if (unlikely(slot->abort))
 			return ts->stat;
 		goto out;
@@ -1639,7 +1651,7 @@ slot_complete_v3_hw(struct hisi_hba *hisi_hba, struct hisi_sas_slot *slot)
 	}
 
 	if (!slot->port->port_attached) {
-		dev_err(dev, "slot complete: port %d has removed\n",
+		dev_warn(dev, "slot complete: port %d has removed\n",
 			slot->port->sas_port.id);
 		ts->stat = SAS_PHY_DOWN;
 	}
