@@ -21,6 +21,7 @@
 #include "xhci-trace.h"
 #include "xhci-mtk.h"
 #include "xhci-debugfs.h"
+#include "xhci-dbgcap.h"
 
 #define DRIVER_AUTHOR "Sarah Sharp"
 #define DRIVER_DESC "'eXtensible' Host Controller (xHC) Driver"
@@ -622,6 +623,8 @@ int xhci_run(struct usb_hcd *hcd)
 	xhci_dbg_trace(xhci, trace_xhci_dbg_init,
 			"Finished xhci_run for USB2 roothub");
 
+	xhci_dbc_init(xhci);
+
 	xhci_debugfs_init(xhci);
 
 	return 0;
@@ -653,6 +656,8 @@ static void xhci_stop(struct usb_hcd *hcd)
 	}
 
 	xhci_debugfs_exit(xhci);
+
+	xhci_dbc_exit(xhci);
 
 	spin_lock_irq(&xhci->lock);
 	xhci->xhc_state |= XHCI_STATE_HALTED;
@@ -870,6 +875,8 @@ int xhci_suspend(struct xhci_hcd *xhci, bool do_wakeup)
 			xhci->shared_hcd->state != HC_STATE_SUSPENDED)
 		return -EINVAL;
 
+	xhci_dbc_suspend(xhci);
+
 	/* Clear root port wake on bits if wakeup not allowed. */
 	if (!do_wakeup)
 		xhci_disable_port_wake_on_bits(xhci);
@@ -1064,6 +1071,8 @@ int xhci_resume(struct xhci_hcd *xhci, bool hibernated)
 	 */
 
 	spin_unlock_irq(&xhci->lock);
+
+	xhci_dbc_resume(xhci);
 
  done:
 	if (retval == 0) {

@@ -27,6 +27,14 @@ config USB_XHCI_HCD
 	  module will be called xhci-hcd.
 
 if USB_XHCI_HCD
+config USB_XHCI_DBGCAP
+	bool "xHCI support for debug capability"
+	depends on TTY
+	---help---
+	  Say 'Y' to enable the support for the xHCI debug capability. Make
+	  sure that your xHCI host supports the extended debug capability and
+	  you want a TTY serial device based on the xHCI debug capability
+	  before enabling this option. If unsure, say 'N'.
 
 config USB_XHCI_PCI
        tristate
