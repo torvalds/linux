@@ -2848,40 +2848,38 @@ static irqreturn_t int_chnl_int_v2_hw(int irq_no, void *p)
 			HGC_INVLD_DQE_INFO_FB_CH3_OFF) & 0x1ff;
 
 	while (irq_msk) {
-		if (irq_msk & (1 << phy_no)) {
-			u32 irq_value0 = hisi_sas_phy_read32(hisi_hba, phy_no,
-							     CHL_INT0);
-			u32 irq_value1 = hisi_sas_phy_read32(hisi_hba, phy_no,
-							     CHL_INT1);
-			u32 irq_value2 = hisi_sas_phy_read32(hisi_hba, phy_no,
-							     CHL_INT2);
+		u32 irq_value0 = hisi_sas_phy_read32(hisi_hba, phy_no,
+						     CHL_INT0);
+		u32 irq_value1 = hisi_sas_phy_read32(hisi_hba, phy_no,
+						     CHL_INT1);
+		u32 irq_value2 = hisi_sas_phy_read32(hisi_hba, phy_no,
+						     CHL_INT2);
 
-			if (irq_value1) {
-				if (irq_value1 & (CHL_INT1_DMAC_RX_ECC_ERR_MSK |
-						  CHL_INT1_DMAC_TX_ECC_ERR_MSK))
-					panic("%s: DMAC RX/TX ecc bad error!\
-					       (0x%x)",
-					      dev_name(dev), irq_value1);
+		if ((irq_msk & (1 << phy_no)) && irq_value1) {
+			if (irq_value1 & (CHL_INT1_DMAC_RX_ECC_ERR_MSK |
+					  CHL_INT1_DMAC_TX_ECC_ERR_MSK))
+				panic("%s: DMAC RX/TX ecc bad error!\
+				       (0x%x)",
+				      dev_name(dev), irq_value1);
 
-				hisi_sas_phy_write32(hisi_hba, phy_no,
-						     CHL_INT1, irq_value1);
-			}
+			hisi_sas_phy_write32(hisi_hba, phy_no,
+					     CHL_INT1, irq_value1);
+		}
 
-			if (irq_value2)
-				hisi_sas_phy_write32(hisi_hba, phy_no,
-						     CHL_INT2, irq_value2);
+		if ((irq_msk & (1 << phy_no)) && irq_value2)
+			hisi_sas_phy_write32(hisi_hba, phy_no,
+					     CHL_INT2, irq_value2);
 
 
-			if (irq_value0) {
-				if (irq_value0 & CHL_INT0_SL_RX_BCST_ACK_MSK)
-					phy_bcast_v2_hw(phy_no, hisi_hba);
+		if ((irq_msk & (1 << phy_no)) && irq_value0) {
+			if (irq_value0 & CHL_INT0_SL_RX_BCST_ACK_MSK)
+				phy_bcast_v2_hw(phy_no, hisi_hba);
 
-				hisi_sas_phy_write32(hisi_hba, phy_no,
-						CHL_INT0, irq_value0
-						& (~CHL_INT0_HOTPLUG_TOUT_MSK)
-						& (~CHL_INT0_SL_PHY_ENABLE_MSK)
-						& (~CHL_INT0_NOT_RDY_MSK));
-			}
+			hisi_sas_phy_write32(hisi_hba, phy_no,
+					CHL_INT0, irq_value0
+					& (~CHL_INT0_HOTPLUG_TOUT_MSK)
+					& (~CHL_INT0_SL_PHY_ENABLE_MSK)
+					& (~CHL_INT0_NOT_RDY_MSK));
 		}
 		irq_msk &= ~(1 << phy_no);
 		phy_no++;
