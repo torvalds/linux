@@ -294,11 +294,12 @@ u32 rsnd_get_dalign(struct rsnd_mod *mod, struct rsnd_dai_stream *io)
 	struct rsnd_mod *ssiu = rsnd_io_to_mod_ssiu(io);
 	struct rsnd_mod *target;
 	struct snd_pcm_runtime *runtime = rsnd_io_to_runtime(io);
-	u32 val = 0x76543210;
-	u32 mask = ~0;
 
 	/*
-	 * *Hardware* L/R and *Software* L/R are inverted.
+	 * *Hardware* L/R and *Software* L/R are inverted for 16bit data.
+	 *	    31..16 15...0
+	 *	HW: [L ch] [R ch]
+	 *	SW: [R ch] [L ch]
 	 * We need to care about inversion timing to control
 	 * Playback/Capture correctly.
 	 * The point is [DVC] needs *Hardware* L/R, [MEM] needs *Software* L/R
@@ -325,27 +326,13 @@ u32 rsnd_get_dalign(struct rsnd_mod *mod, struct rsnd_dai_stream *io)
 		target = cmd ? cmd : ssiu;
 	}
 
-	mask <<= runtime->channels * 4;
-	val = val & mask;
-
-	switch (runtime->sample_bits) {
-	case 16:
-		val |= 0x67452301 & ~mask;
-		break;
-	case 32:
-		val |= 0x76543210 & ~mask;
-		break;
-	}
-
-	/*
-	 * exchange channeles on SRC if possible,
-	 * otherwise, R/L volume settings on DVC
-	 * changes inverted channels
-	 */
-	if (mod == target)
-		return val;
-	else
+	/* Non target mod or 24bit data needs normal DALIGN */
+	if ((runtime->sample_bits != 16) ||
+	    (mod != target))
 		return 0x76543210;
+	/* Target mod needs inverted DALIGN when 16bit */
+	else
+		return 0x67452301;
 }
 
 u32 rsnd_get_busif_shift(struct rsnd_dai_stream *io, struct rsnd_mod *mod)
