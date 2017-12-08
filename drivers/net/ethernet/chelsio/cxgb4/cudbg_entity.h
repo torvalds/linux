@@ -18,16 +18,14 @@
 #ifndef __CUDBG_ENTITY_H__
 #define __CUDBG_ENTITY_H__
 
-#define EDC0_FLAG 3
-#define EDC1_FLAG 4
+#define EDC0_FLAG 0
+#define EDC1_FLAG 1
+#define MC_FLAG 2
+#define MC0_FLAG 3
+#define MC1_FLAG 4
+#define HMA_FLAG 5
 
 #define CUDBG_ENTITY_SIGNATURE 0xCCEDB001
-
-struct card_mem {
-	u16 size_edc0;
-	u16 size_edc1;
-	u16 mem_flag;
-};
 
 struct cudbg_mbox_log {
 	struct mbox_cmd entry;
@@ -85,6 +83,48 @@ struct cudbg_tp_la {
 	u32 size;
 	u32 mode;
 	u8 data[0];
+};
+
+static const char * const cudbg_region[] = {
+	"DBQ contexts:", "IMSG contexts:", "FLM cache:", "TCBs:",
+	"Pstructs:", "Timers:", "Rx FL:", "Tx FL:", "Pstruct FL:",
+	"Tx payload:", "Rx payload:", "LE hash:", "iSCSI region:",
+	"TDDP region:", "TPT region:", "STAG region:", "RQ region:",
+	"RQUDP region:", "PBL region:", "TXPBL region:",
+	"DBVFIFO region:", "ULPRX state:", "ULPTX state:",
+	"On-chip queues:"
+};
+
+/* Memory region info relative to current memory (i.e. wrt 0). */
+struct cudbg_region_info {
+	bool exist; /* Does region exists in current memory? */
+	u32 start;  /* Start wrt 0 */
+	u32 end;    /* End wrt 0 */
+};
+
+struct cudbg_mem_desc {
+	u32 base;
+	u32 limit;
+	u32 idx;
+};
+
+struct cudbg_meminfo {
+	struct cudbg_mem_desc avail[4];
+	struct cudbg_mem_desc mem[ARRAY_SIZE(cudbg_region) + 3];
+	u32 avail_c;
+	u32 mem_c;
+	u32 up_ram_lo;
+	u32 up_ram_hi;
+	u32 up_extmem2_lo;
+	u32 up_extmem2_hi;
+	u32 rx_pages_data[3];
+	u32 tx_pages_data[4];
+	u32 p_structs;
+	u32 reserved[12];
+	u32 port_used[4];
+	u32 port_alloc[4];
+	u32 loopback_used[NCHAN];
+	u32 loopback_alloc[NCHAN];
 };
 
 struct cudbg_cim_pif_la {
@@ -145,6 +185,7 @@ struct cudbg_tid_info_region_rev1 {
 	u32 reserved[16];
 };
 
+#define CUDBG_LOWMEM_MAX_CTXT_QIDS 256
 #define CUDBG_MAX_FL_QIDS 1024
 
 struct cudbg_ch_cntxt {
@@ -332,6 +373,25 @@ static const u32 t5_pm_rx_array[][IREG_NUM_ELEM] = {
 static const u32 t5_pm_tx_array[][IREG_NUM_ELEM] = {
 	{0x8FF0, 0x8FF4, 0x10000, 0x20}, /* t5_pm_tx_regs_10000_to_10020 */
 	{0x8FF0, 0x8FF4, 0x10021, 0x1D}, /* t5_pm_tx_regs_10021_to_1003c */
+};
+
+#define CUDBG_NUM_PCIE_CONFIG_REGS 0x61
+
+static const u32 t5_pcie_config_array[][2] = {
+	{0x0, 0x34},
+	{0x3c, 0x40},
+	{0x50, 0x64},
+	{0x70, 0x80},
+	{0x94, 0xa0},
+	{0xb0, 0xb8},
+	{0xd0, 0xd4},
+	{0x100, 0x128},
+	{0x140, 0x148},
+	{0x150, 0x164},
+	{0x170, 0x178},
+	{0x180, 0x194},
+	{0x1a0, 0x1b8},
+	{0x1c0, 0x208},
 };
 
 static const u32 t6_ma_ireg_array[][IREG_NUM_ELEM] = {

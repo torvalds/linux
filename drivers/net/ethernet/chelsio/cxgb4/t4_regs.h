@@ -961,6 +961,10 @@
 
 #define MA_EXT_MEMORY1_BAR_A 0x7808
 
+#define HMA_MUX_S    5
+#define HMA_MUX_V(x) ((x) << HMA_MUX_S)
+#define HMA_MUX_F    HMA_MUX_V(1U)
+
 #define EXT_MEM1_BASE_S    16
 #define EXT_MEM1_BASE_M    0xfffU
 #define EXT_MEM1_BASE_G(x) (((x) >> EXT_MEM1_BASE_S) & EXT_MEM1_BASE_M)

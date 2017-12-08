@@ -20,6 +20,7 @@
 
 #include "cudbg_if.h"
 #include "cudbg_lib_common.h"
+#include "cudbg_entity.h"
 #include "cudbg_lib.h"
 
 typedef int (*cudbg_collect_callback_t)(struct cudbg_init *pdbg_init,

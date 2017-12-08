@@ -1673,7 +1673,7 @@ int cxgb4_flush_eq_cache(struct net_device *dev)
 {
 	struct adapter *adap = netdev2adap(dev);
 
-	return t4_sge_ctxt_flush(adap, adap->mbox);
+	return t4_sge_ctxt_flush(adap, adap->mbox, CTXT_EGRESS);
 }
 EXPORT_SYMBOL(cxgb4_flush_eq_cache);
 

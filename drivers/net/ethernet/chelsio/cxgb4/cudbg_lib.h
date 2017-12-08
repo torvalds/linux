@@ -75,6 +75,12 @@ int cudbg_collect_edc0_meminfo(struct cudbg_init *pdbg_init,
 int cudbg_collect_edc1_meminfo(struct cudbg_init *pdbg_init,
 			       struct cudbg_buffer *dbg_buff,
 			       struct cudbg_error *cudbg_err);
+int cudbg_collect_mc0_meminfo(struct cudbg_init *pdbg_init,
+			      struct cudbg_buffer *dbg_buff,
+			      struct cudbg_error *cudbg_err);
+int cudbg_collect_mc1_meminfo(struct cudbg_init *pdbg_init,
+			      struct cudbg_buffer *dbg_buff,
+			      struct cudbg_error *cudbg_err);
 int cudbg_collect_rss(struct cudbg_init *pdbg_init,
 		      struct cudbg_buffer *dbg_buff,
 		      struct cudbg_error *cudbg_err);
@@ -102,6 +108,9 @@ int cudbg_collect_ulprx_la(struct cudbg_init *pdbg_init,
 int cudbg_collect_tp_la(struct cudbg_init *pdbg_init,
 			struct cudbg_buffer *dbg_buff,
 			struct cudbg_error *cudbg_err);
+int cudbg_collect_meminfo(struct cudbg_init *pdbg_init,
+			  struct cudbg_buffer *dbg_buff,
+			  struct cudbg_error *cudbg_err);
 int cudbg_collect_cim_pif_la(struct cudbg_init *pdbg_init,
 			     struct cudbg_buffer *dbg_buff,
 			     struct cudbg_error *cudbg_err);
@@ -123,6 +132,9 @@ int cudbg_collect_pm_indirect(struct cudbg_init *pdbg_init,
 int cudbg_collect_tid(struct cudbg_init *pdbg_init,
 		      struct cudbg_buffer *dbg_buff,
 		      struct cudbg_error *cudbg_err);
+int cudbg_collect_pcie_config(struct cudbg_init *pdbg_init,
+			      struct cudbg_buffer *dbg_buff,
+			      struct cudbg_error *cudbg_err);
 int cudbg_collect_dump_context(struct cudbg_init *pdbg_init,
 			       struct cudbg_buffer *dbg_buff,
 			       struct cudbg_error *cudbg_err);
@@ -156,6 +168,9 @@ int cudbg_collect_mbox_log(struct cudbg_init *pdbg_init,
 int cudbg_collect_hma_indirect(struct cudbg_init *pdbg_init,
 			       struct cudbg_buffer *dbg_buff,
 			       struct cudbg_error *cudbg_err);
+int cudbg_collect_hma_meminfo(struct cudbg_init *pdbg_init,
+			      struct cudbg_buffer *dbg_buff,
+			      struct cudbg_error *cudbg_err);
 
 struct cudbg_entity_hdr *cudbg_get_entity_hdr(void *outbuf, int i);
 void cudbg_align_debug_buffer(struct cudbg_buffer *dbg_buff,
@@ -163,7 +178,8 @@ void cudbg_align_debug_buffer(struct cudbg_buffer *dbg_buff,
 u32 cudbg_cim_obq_size(struct adapter *padap, int qid);
 int cudbg_dump_context_size(struct adapter *padap);
 
-struct cudbg_tcam;
+int cudbg_fill_meminfo(struct adapter *padap,
+		       struct cudbg_meminfo *meminfo_buff);
 void cudbg_fill_le_tcam_info(struct adapter *padap,
 			     struct cudbg_tcam *tcam_region);
 #endif /* __CUDBG_LIB_H__ */

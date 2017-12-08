@@ -70,7 +70,9 @@ enum {
 
 /* SGE context types */
 enum ctxt_type {
-	CTXT_FLM = 2,
+	CTXT_EGRESS,
+	CTXT_INGRESS,
+	CTXT_FLM,
 	CTXT_CNM,
 };
 

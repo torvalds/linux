@@ -18,11 +18,13 @@
 #include "t4_regs.h"
 #include "cxgb4.h"
 #include "cxgb4_cudbg.h"
-#include "cudbg_entity.h"
 
 static const struct cxgb4_collect_entity cxgb4_collect_mem_dump[] = {
 	{ CUDBG_EDC0, cudbg_collect_edc0_meminfo },
 	{ CUDBG_EDC1, cudbg_collect_edc1_meminfo },
+	{ CUDBG_MC0, cudbg_collect_mc0_meminfo },
+	{ CUDBG_MC1, cudbg_collect_mc1_meminfo },
+	{ CUDBG_HMA, cudbg_collect_hma_meminfo },
 };
 
 static const struct cxgb4_collect_entity cxgb4_collect_hw_dump[] = {
@@ -53,6 +55,7 @@ static const struct cxgb4_collect_entity cxgb4_collect_hw_dump[] = {
 	{ CUDBG_SGE_INDIRECT, cudbg_collect_sge_indirect },
 	{ CUDBG_ULPRX_LA, cudbg_collect_ulprx_la },
 	{ CUDBG_TP_LA, cudbg_collect_tp_la },
+	{ CUDBG_MEMINFO, cudbg_collect_meminfo },
 	{ CUDBG_CIM_PIF_LA, cudbg_collect_cim_pif_la },
 	{ CUDBG_CLK, cudbg_collect_clk_info },
 	{ CUDBG_CIM_OBQ_RXQ0, cudbg_collect_obq_sge_rx_q0 },
@@ -60,6 +63,7 @@ static const struct cxgb4_collect_entity cxgb4_collect_hw_dump[] = {
 	{ CUDBG_PCIE_INDIRECT, cudbg_collect_pcie_indirect },
 	{ CUDBG_PM_INDIRECT, cudbg_collect_pm_indirect },
 	{ CUDBG_TID_INFO, cudbg_collect_tid },
+	{ CUDBG_PCIE_CONFIG, cudbg_collect_pcie_config },
 	{ CUDBG_DUMP_CONTEXT, cudbg_collect_dump_context },
 	{ CUDBG_MPS_TCAM, cudbg_collect_mps_tcam },
 	{ CUDBG_VPD_DATA, cudbg_collect_vpd_data },
@@ -158,6 +162,22 @@ static u32 cxgb4_get_entity_length(struct adapter *adap, u32 entity)
 		}
 		len = cudbg_mbytes_to_bytes(len);
 		break;
+	case CUDBG_MC0:
+		value = t4_read_reg(adap, MA_TARGET_MEM_ENABLE_A);
+		if (value & EXT_MEM0_ENABLE_F) {
+			value = t4_read_reg(adap, MA_EXT_MEMORY0_BAR_A);
+			len = EXT_MEM0_SIZE_G(value);
+		}
+		len = cudbg_mbytes_to_bytes(len);
+		break;
+	case CUDBG_MC1:
+		value = t4_read_reg(adap, MA_TARGET_MEM_ENABLE_A);
+		if (value & EXT_MEM1_ENABLE_F) {
+			value = t4_read_reg(adap, MA_EXT_MEMORY1_BAR_A);
+			len = EXT_MEM1_SIZE_G(value);
+		}
+		len = cudbg_mbytes_to_bytes(len);
+		break;
 	case CUDBG_RSS:
 		len = RSS_NENTRIES * sizeof(u16);
 		break;
@@ -201,6 +221,9 @@ static u32 cxgb4_get_entity_length(struct adapter *adap, u32 entity)
 	case CUDBG_TP_LA:
 		len = sizeof(struct cudbg_tp_la) + TPLA_SIZE * sizeof(u64);
 		break;
+	case CUDBG_MEMINFO:
+		len = sizeof(struct cudbg_meminfo);
+		break;
 	case CUDBG_CIM_PIF_LA:
 		len = sizeof(struct cudbg_cim_pif_la);
 		len += 2 * CIM_PIFLA_SIZE * 6 * sizeof(u32);
@@ -218,6 +241,9 @@ static u32 cxgb4_get_entity_length(struct adapter *adap, u32 entity)
 		break;
 	case CUDBG_TID_INFO:
 		len = sizeof(struct cudbg_tid_info_region_rev1);
+		break;
+	case CUDBG_PCIE_CONFIG:
+		len = sizeof(u32) * CUDBG_NUM_PCIE_CONFIG_REGS;
 		break;
 	case CUDBG_DUMP_CONTEXT:
 		len = cudbg_dump_context_size(adap);
@@ -263,6 +289,17 @@ static u32 cxgb4_get_entity_length(struct adapter *adap, u32 entity)
 			    (IREG_NUM_ELEM * sizeof(u32));
 			len = sizeof(struct ireg_buf) * n;
 		}
+		break;
+	case CUDBG_HMA:
+		value = t4_read_reg(adap, MA_TARGET_MEM_ENABLE_A);
+		if (value & HMA_MUX_F) {
+			/* In T6, there's no MC1.  So, HMA shares MC1
+			 * address space.
+			 */
+			value = t4_read_reg(adap, MA_EXT_MEMORY1_BAR_A);
+			len = EXT_MEM1_SIZE_G(value);
+		}
+		len = cudbg_mbytes_to_bytes(len);
 		break;
 	default:
 		break;
