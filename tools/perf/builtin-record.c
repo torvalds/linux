@@ -78,6 +78,7 @@ struct record {
 	bool			no_buildid_cache_set;
 	bool			buildid_all;
 	bool			timestamp_filename;
+	bool			timestamp_boundary;
 	struct switch_output	switch_output;
 	unsigned long long	samples;
 };
@@ -409,8 +410,15 @@ static int process_sample_event(struct perf_tool *tool,
 {
 	struct record *rec = container_of(tool, struct record, tool);
 
-	rec->samples++;
+	if (rec->evlist->first_sample_time == 0)
+		rec->evlist->first_sample_time = sample->time;
 
+	rec->evlist->last_sample_time = sample->time;
+
+	if (rec->buildid_all)
+		return 0;
+
+	rec->samples++;
 	return build_id__mark_dso_hit(tool, event, sample, evsel, machine);
 }
 
@@ -435,9 +443,11 @@ static int process_buildids(struct record *rec)
 
 	/*
 	 * If --buildid-all is given, it marks all DSO regardless of hits,
-	 * so no need to process samples.
+	 * so no need to process samples. But if timestamp_boundary is enabled,
+	 * it still needs to walk on all samples to get the timestamps of
+	 * first/last samples.
 	 */
-	if (rec->buildid_all)
+	if (rec->buildid_all && !rec->timestamp_boundary)
 		rec->tool.sample = NULL;
 
 	return perf_session__process_events(session);
@@ -1621,6 +1631,8 @@ static struct option __record_options[] = {
 		    "Record build-id of all DSOs regardless of hits"),
 	OPT_BOOLEAN(0, "timestamp-filename", &record.timestamp_filename,
 		    "append timestamp to output filename"),
+	OPT_BOOLEAN(0, "timestamp-boundary", &record.timestamp_boundary,
+		    "Record timestamp boundary (time of first/last samples)"),
 	OPT_STRING_OPTARG_SET(0, "switch-output", &record.switch_output.str,
 			  &record.switch_output.set, "signal,size,time",
 			  "Switch output when receive SIGUSR2 or cross size,time threshold",
