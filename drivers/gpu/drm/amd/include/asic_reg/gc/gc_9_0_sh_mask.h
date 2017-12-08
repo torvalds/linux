@@ -4576,15 +4576,6 @@
 //TA_RESERVED_010C
 #define TA_RESERVED_010C__Unused__SHIFT                                                                       0x0
 #define TA_RESERVED_010C__Unused_MASK                                                                         0xFFFFFFFFL
-//TA_GRAD_ADJ
-#define TA_GRAD_ADJ__GRAD_ADJ_0__SHIFT                                                                        0x0
-#define TA_GRAD_ADJ__GRAD_ADJ_1__SHIFT                                                                        0x8
-#define TA_GRAD_ADJ__GRAD_ADJ_2__SHIFT                                                                        0x10
-#define TA_GRAD_ADJ__GRAD_ADJ_3__SHIFT                                                                        0x18
-#define TA_GRAD_ADJ__GRAD_ADJ_0_MASK                                                                          0x000000FFL
-#define TA_GRAD_ADJ__GRAD_ADJ_1_MASK                                                                          0x0000FF00L
-#define TA_GRAD_ADJ__GRAD_ADJ_2_MASK                                                                          0x00FF0000L
-#define TA_GRAD_ADJ__GRAD_ADJ_3_MASK                                                                          0xFF000000L
 //TA_STATUS
 #define TA_STATUS__FG_PFIFO_EMPTYB__SHIFT                                                                     0xc
 #define TA_STATUS__FG_LFIFO_EMPTYB__SHIFT                                                                     0xd
@@ -14459,9 +14450,6 @@
 #define DB_DFSM_CONTROL__PUNCHOUT_MODE_MASK                                                                   0x00000003L
 #define DB_DFSM_CONTROL__POPS_DRAIN_PS_ON_OVERLAP_MASK                                                        0x00000004L
 #define DB_DFSM_CONTROL__DISALLOW_OVERFLOW_MASK                                                               0x00000008L
-//DB_RENDER_FILTER
-#define DB_RENDER_FILTER__PS_INVOKE_MASK__SHIFT                                                               0x0
-#define DB_RENDER_FILTER__PS_INVOKE_MASK_MASK                                                                 0x0000FFFFL
 //DB_Z_INFO2
 #define DB_Z_INFO2__EPITCH__SHIFT                                                                             0x0
 #define DB_Z_INFO2__EPITCH_MASK                                                                               0x0000FFFFL
@@ -14959,11 +14947,9 @@
 #define PA_SC_TILE_STEERING_OVERRIDE__ENABLE__SHIFT                                                           0x0
 #define PA_SC_TILE_STEERING_OVERRIDE__NUM_SE__SHIFT                                                           0x1
 #define PA_SC_TILE_STEERING_OVERRIDE__NUM_RB_PER_SE__SHIFT                                                    0x5
-#define PA_SC_TILE_STEERING_OVERRIDE__DISABLE_SRBSL_DB_OPTIMIZED_PACKING__SHIFT                               0x8
 #define PA_SC_TILE_STEERING_OVERRIDE__ENABLE_MASK                                                             0x00000001L
 #define PA_SC_TILE_STEERING_OVERRIDE__NUM_SE_MASK                                                             0x00000006L
 #define PA_SC_TILE_STEERING_OVERRIDE__NUM_RB_PER_SE_MASK                                                      0x00000060L
-#define PA_SC_TILE_STEERING_OVERRIDE__DISABLE_SRBSL_DB_OPTIMIZED_PACKING_MASK                                 0x00000100L
 //CP_PERFMON_CNTX_CNTL
 #define CP_PERFMON_CNTX_CNTL__PERFMON_ENABLE__SHIFT                                                           0x1f
 #define CP_PERFMON_CNTX_CNTL__PERFMON_ENABLE_MASK                                                             0x80000000L
@@ -15003,20 +14989,6 @@
 #define PA_SC_HORIZ_GRID__TOP_HALF_MASK                                                                       0x0000FF00L
 #define PA_SC_HORIZ_GRID__BOT_HALF_MASK                                                                       0x00FF0000L
 #define PA_SC_HORIZ_GRID__BOT_QTR_MASK                                                                        0xFF000000L
-//PA_SC_FOV_WINDOW_LR
-#define PA_SC_FOV_WINDOW_LR__LEFT_EYE_FOV_LEFT__SHIFT                                                         0x0
-#define PA_SC_FOV_WINDOW_LR__LEFT_EYE_FOV_RIGHT__SHIFT                                                        0x8
-#define PA_SC_FOV_WINDOW_LR__RIGHT_EYE_FOV_LEFT__SHIFT                                                        0x10
-#define PA_SC_FOV_WINDOW_LR__RIGHT_EYE_FOV_RIGHT__SHIFT                                                       0x18
-#define PA_SC_FOV_WINDOW_LR__LEFT_EYE_FOV_LEFT_MASK                                                           0x000000FFL
-#define PA_SC_FOV_WINDOW_LR__LEFT_EYE_FOV_RIGHT_MASK                                                          0x0000FF00L
-#define PA_SC_FOV_WINDOW_LR__RIGHT_EYE_FOV_LEFT_MASK                                                          0x00FF0000L
-#define PA_SC_FOV_WINDOW_LR__RIGHT_EYE_FOV_RIGHT_MASK                                                         0xFF000000L
-//PA_SC_FOV_WINDOW_TB
-#define PA_SC_FOV_WINDOW_TB__FOV_TOP__SHIFT                                                                   0x0
-#define PA_SC_FOV_WINDOW_TB__FOV_BOT__SHIFT                                                                   0x8
-#define PA_SC_FOV_WINDOW_TB__FOV_TOP_MASK                                                                     0x000000FFL
-#define PA_SC_FOV_WINDOW_TB__FOV_BOT_MASK                                                                     0x0000FF00L
 //VGT_MULTI_PRIM_IB_RESET_INDX
 #define VGT_MULTI_PRIM_IB_RESET_INDX__RESET_INDX__SHIFT                                                       0x0
 #define VGT_MULTI_PRIM_IB_RESET_INDX__RESET_INDX_MASK                                                         0xFFFFFFFFL
@@ -17010,13 +16982,11 @@
 #define PA_SU_SMALL_PRIM_FILTER_CNTL__LINE_FILTER_DISABLE__SHIFT                                              0x2
 #define PA_SU_SMALL_PRIM_FILTER_CNTL__POINT_FILTER_DISABLE__SHIFT                                             0x3
 #define PA_SU_SMALL_PRIM_FILTER_CNTL__RECTANGLE_FILTER_DISABLE__SHIFT                                         0x4
-#define PA_SU_SMALL_PRIM_FILTER_CNTL__SRBSL_ENABLE__SHIFT                                                     0x5
 #define PA_SU_SMALL_PRIM_FILTER_CNTL__SMALL_PRIM_FILTER_ENABLE_MASK                                           0x00000001L
 #define PA_SU_SMALL_PRIM_FILTER_CNTL__TRIANGLE_FILTER_DISABLE_MASK                                            0x00000002L
 #define PA_SU_SMALL_PRIM_FILTER_CNTL__LINE_FILTER_DISABLE_MASK                                                0x00000004L
 #define PA_SU_SMALL_PRIM_FILTER_CNTL__POINT_FILTER_DISABLE_MASK                                               0x00000008L
 #define PA_SU_SMALL_PRIM_FILTER_CNTL__RECTANGLE_FILTER_DISABLE_MASK                                           0x00000010L
-#define PA_SU_SMALL_PRIM_FILTER_CNTL__SRBSL_ENABLE_MASK                                                       0x00000020L
 //PA_CL_OBJPRIM_ID_CNTL
 #define PA_CL_OBJPRIM_ID_CNTL__OBJ_ID_SEL__SHIFT                                                              0x0
 #define PA_CL_OBJPRIM_ID_CNTL__ADD_PIPED_PRIM_ID__SHIFT                                                       0x1
@@ -17345,9 +17315,6 @@
 #define VGT_DRAW_PAYLOAD_CNTL__EN_REG_RT_INDEX_MASK                                                           0x00000002L
 #define VGT_DRAW_PAYLOAD_CNTL__EN_PIPELINE_PRIMID_MASK                                                        0x00000004L
 #define VGT_DRAW_PAYLOAD_CNTL__OBJECT_ID_INST_EN_MASK                                                         0x00000008L
-//VGT_INDEX_PAYLOAD_CNTL
-#define VGT_INDEX_PAYLOAD_CNTL__COMPOUND_INDEX_EN__SHIFT                                                      0x0
-#define VGT_INDEX_PAYLOAD_CNTL__COMPOUND_INDEX_EN_MASK                                                        0x00000001L
 //VGT_INSTANCE_STEP_RATE_0
 #define VGT_INSTANCE_STEP_RATE_0__STEP_RATE__SHIFT                                                            0x0
 #define VGT_INSTANCE_STEP_RATE_0__STEP_RATE_MASK                                                              0xFFFFFFFFL
@@ -19849,9 +19816,6 @@
 #define IA_MULTI_VGT_PARAM__EN_INST_OPT_BASIC_MASK                                                            0x00200000L
 #define IA_MULTI_VGT_PARAM__EN_INST_OPT_ADV_MASK                                                              0x00400000L
 #define IA_MULTI_VGT_PARAM__HW_USE_ONLY_MASK                                                                  0x00800000L
-//VGT_OBJECT_ID
-#define VGT_OBJECT_ID__REG_OBJ_ID__SHIFT                                                                      0x0
-#define VGT_OBJECT_ID__REG_OBJ_ID_MASK                                                                        0xFFFFFFFFL
 //VGT_INSTANCE_BASE_ID
 #define VGT_INSTANCE_BASE_ID__INSTANCE_BASE_ID__SHIFT                                                         0x0
 #define VGT_INSTANCE_BASE_ID__INSTANCE_BASE_ID_MASK                                                           0xFFFFFFFFL
@@ -20067,15 +20031,6 @@
 //TA_CS_BC_BASE_ADDR_HI
 #define TA_CS_BC_BASE_ADDR_HI__ADDRESS__SHIFT                                                                 0x0
 #define TA_CS_BC_BASE_ADDR_HI__ADDRESS_MASK                                                                   0x000000FFL
-//TA_GRAD_ADJ_UCONFIG
-#define TA_GRAD_ADJ_UCONFIG__GRAD_ADJ_0__SHIFT                                                                0x0
-#define TA_GRAD_ADJ_UCONFIG__GRAD_ADJ_1__SHIFT                                                                0x8
-#define TA_GRAD_ADJ_UCONFIG__GRAD_ADJ_2__SHIFT                                                                0x10
-#define TA_GRAD_ADJ_UCONFIG__GRAD_ADJ_3__SHIFT                                                                0x18
-#define TA_GRAD_ADJ_UCONFIG__GRAD_ADJ_0_MASK                                                                  0x000000FFL
-#define TA_GRAD_ADJ_UCONFIG__GRAD_ADJ_1_MASK                                                                  0x0000FF00L
-#define TA_GRAD_ADJ_UCONFIG__GRAD_ADJ_2_MASK                                                                  0x00FF0000L
-#define TA_GRAD_ADJ_UCONFIG__GRAD_ADJ_3_MASK                                                                  0xFF000000L
 //DB_OCCLUSION_COUNT0_LOW
 #define DB_OCCLUSION_COUNT0_LOW__COUNT_LOW__SHIFT                                                             0x0
 #define DB_OCCLUSION_COUNT0_LOW__COUNT_LOW_MASK                                                               0xFFFFFFFFL
