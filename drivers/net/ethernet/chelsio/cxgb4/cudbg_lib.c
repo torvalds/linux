@@ -1594,22 +1594,108 @@ int cudbg_collect_tid(struct cudbg_init *pdbg_init,
 	return rc;
 }
 
-int cudbg_dump_context_size(struct adapter *padap)
+static int cudbg_sge_ctxt_check_valid(u32 *buf, int type)
 {
-	u32 value, size;
-	u8 flq;
+	int index, bit, bit_pos = 0;
 
+	switch (type) {
+	case CTXT_EGRESS:
+		bit_pos = 176;
+		break;
+	case CTXT_INGRESS:
+		bit_pos = 141;
+		break;
+	case CTXT_FLM:
+		bit_pos = 89;
+		break;
+	}
+	index = bit_pos / 32;
+	bit =  bit_pos % 32;
+	return buf[index] & (1U << bit);
+}
+
+static int cudbg_get_ctxt_region_info(struct adapter *padap,
+				      struct cudbg_region_info *ctx_info,
+				      u8 *mem_type)
+{
+	struct cudbg_mem_desc mem_desc;
+	struct cudbg_meminfo meminfo;
+	u32 i, j, value, found;
+	u8 flq;
+	int rc;
+
+	rc = cudbg_fill_meminfo(padap, &meminfo);
+	if (rc)
+		return rc;
+
+	/* Get EGRESS and INGRESS context region size */
+	for (i = CTXT_EGRESS; i <= CTXT_INGRESS; i++) {
+		found = 0;
+		memset(&mem_desc, 0, sizeof(struct cudbg_mem_desc));
+		for (j = 0; j < ARRAY_SIZE(meminfo.avail); j++) {
+			rc = cudbg_get_mem_region(padap, &meminfo, j,
+						  cudbg_region[i],
+						  &mem_desc);
+			if (!rc) {
+				found = 1;
+				rc = cudbg_get_mem_relative(padap, &meminfo, j,
+							    &mem_desc.base,
+							    &mem_desc.limit);
+				if (rc) {
+					ctx_info[i].exist = false;
+					break;
+				}
+				ctx_info[i].exist = true;
+				ctx_info[i].start = mem_desc.base;
+				ctx_info[i].end = mem_desc.limit;
+				mem_type[i] = j;
+				break;
+			}
+		}
+		if (!found)
+			ctx_info[i].exist = false;
+	}
+
+	/* Get FLM and CNM max qid. */
 	value = t4_read_reg(padap, SGE_FLM_CFG_A);
 
 	/* Get number of data freelist queues */
 	flq = HDRSTARTFLQ_G(value);
-	size = CUDBG_MAX_FL_QIDS >> flq;
+	ctx_info[CTXT_FLM].exist = true;
+	ctx_info[CTXT_FLM].end = (CUDBG_MAX_FL_QIDS >> flq) * SGE_CTXT_SIZE;
 
-	/* Add extra space for congestion manager contexts.
-	 * The number of CONM contexts are same as number of freelist
+	/* The number of CONM contexts are same as number of freelist
 	 * queues.
 	 */
-	size += size;
+	ctx_info[CTXT_CNM].exist = true;
+	ctx_info[CTXT_CNM].end = ctx_info[CTXT_FLM].end;
+
+	return 0;
+}
+
+int cudbg_dump_context_size(struct adapter *padap)
+{
+	struct cudbg_region_info region_info[CTXT_CNM + 1] = { {0} };
+	u8 mem_type[CTXT_INGRESS + 1] = { 0 };
+	u32 i, size = 0;
+	int rc;
+
+	/* Get max valid qid for each type of queue */
+	rc = cudbg_get_ctxt_region_info(padap, region_info, mem_type);
+	if (rc)
+		return rc;
+
+	for (i = 0; i < CTXT_CNM; i++) {
+		if (!region_info[i].exist) {
+			if (i == CTXT_EGRESS || i == CTXT_INGRESS)
+				size += CUDBG_LOWMEM_MAX_CTXT_QIDS *
+					SGE_CTXT_SIZE;
+			continue;
+		}
+
+		size += (region_info[i].end - region_info[i].start + 1) /
+			SGE_CTXT_SIZE;
+	}
 	return size * sizeof(struct cudbg_ch_cntxt);
 }
 
@@ -1632,15 +1718,53 @@ static void cudbg_read_sge_ctxt(struct cudbg_init *pdbg_init, u32 cid,
 		t4_sge_ctxt_rd_bd(padap, cid, ctype, data);
 }
 
+static void cudbg_get_sge_ctxt_fw(struct cudbg_init *pdbg_init, u32 max_qid,
+				  u8 ctxt_type,
+				  struct cudbg_ch_cntxt **out_buff)
+{
+	struct cudbg_ch_cntxt *buff = *out_buff;
+	int rc;
+	u32 j;
+
+	for (j = 0; j < max_qid; j++) {
+		cudbg_read_sge_ctxt(pdbg_init, j, ctxt_type, buff->data);
+		rc = cudbg_sge_ctxt_check_valid(buff->data, ctxt_type);
+		if (!rc)
+			continue;
+
+		buff->cntxt_type = ctxt_type;
+		buff->cntxt_id = j;
+		buff++;
+		if (ctxt_type == CTXT_FLM) {
+			cudbg_read_sge_ctxt(pdbg_init, j, CTXT_CNM, buff->data);
+			buff->cntxt_type = CTXT_CNM;
+			buff->cntxt_id = j;
+			buff++;
+		}
+	}
+
+	*out_buff = buff;
+}
+
 int cudbg_collect_dump_context(struct cudbg_init *pdbg_init,
 			       struct cudbg_buffer *dbg_buff,
 			       struct cudbg_error *cudbg_err)
 {
+	struct cudbg_region_info region_info[CTXT_CNM + 1] = { {0} };
 	struct adapter *padap = pdbg_init->adap;
+	u32 j, size, max_ctx_size, max_ctx_qid;
+	u8 mem_type[CTXT_INGRESS + 1] = { 0 };
 	struct cudbg_buffer temp_buff = { 0 };
 	struct cudbg_ch_cntxt *buff;
-	u32 size, i = 0;
+	u64 *dst_off, *src_off;
+	u8 *ctx_buf;
+	u8 i, k;
 	int rc;
+
+	/* Get max valid qid for each type of queue */
+	rc = cudbg_get_ctxt_region_info(padap, region_info, mem_type);
+	if (rc)
+		return rc;
 
 	rc = cudbg_dump_context_size(padap);
 	if (rc <= 0)
@@ -1651,22 +1775,78 @@ int cudbg_collect_dump_context(struct cudbg_init *pdbg_init,
 	if (rc)
 		return rc;
 
-	buff = (struct cudbg_ch_cntxt *)temp_buff.data;
-	while (size > 0) {
-		buff->cntxt_type = CTXT_FLM;
-		buff->cntxt_id = i;
-		cudbg_read_sge_ctxt(pdbg_init, i, CTXT_FLM, buff->data);
-		buff++;
-		size -= sizeof(struct cudbg_ch_cntxt);
+	/* Get buffer with enough space to read the biggest context
+	 * region in memory.
+	 */
+	max_ctx_size = max(region_info[CTXT_EGRESS].end -
+			   region_info[CTXT_EGRESS].start + 1,
+			   region_info[CTXT_INGRESS].end -
+			   region_info[CTXT_INGRESS].start + 1);
 
-		buff->cntxt_type = CTXT_CNM;
-		buff->cntxt_id = i;
-		cudbg_read_sge_ctxt(pdbg_init, i, CTXT_CNM, buff->data);
-		buff++;
-		size -= sizeof(struct cudbg_ch_cntxt);
-
-		i++;
+	ctx_buf = kvzalloc(max_ctx_size, GFP_KERNEL);
+	if (!ctx_buf) {
+		cudbg_put_buff(&temp_buff, dbg_buff);
+		return -ENOMEM;
 	}
+
+	buff = (struct cudbg_ch_cntxt *)temp_buff.data;
+
+	/* Collect EGRESS and INGRESS context data.
+	 * In case of failures, fallback to collecting via FW or
+	 * backdoor access.
+	 */
+	for (i = CTXT_EGRESS; i <= CTXT_INGRESS; i++) {
+		if (!region_info[i].exist) {
+			max_ctx_qid = CUDBG_LOWMEM_MAX_CTXT_QIDS;
+			cudbg_get_sge_ctxt_fw(pdbg_init, max_ctx_qid, i,
+					      &buff);
+			continue;
+		}
+
+		max_ctx_size = region_info[i].end - region_info[i].start + 1;
+		max_ctx_qid = max_ctx_size / SGE_CTXT_SIZE;
+
+		t4_sge_ctxt_flush(padap, padap->mbox, i);
+		rc = t4_memory_rw(padap, MEMWIN_NIC, mem_type[i],
+				  region_info[i].start, max_ctx_size,
+				  (__be32 *)ctx_buf, 1);
+		if (rc) {
+			max_ctx_qid = CUDBG_LOWMEM_MAX_CTXT_QIDS;
+			cudbg_get_sge_ctxt_fw(pdbg_init, max_ctx_qid, i,
+					      &buff);
+			continue;
+		}
+
+		for (j = 0; j < max_ctx_qid; j++) {
+			src_off = (u64 *)(ctx_buf + j * SGE_CTXT_SIZE);
+			dst_off = (u64 *)buff->data;
+
+			/* The data is stored in 64-bit cpu order.  Convert it
+			 * to big endian before parsing.
+			 */
+			for (k = 0; k < SGE_CTXT_SIZE / sizeof(u64); k++)
+				dst_off[k] = cpu_to_be64(src_off[k]);
+
+			rc = cudbg_sge_ctxt_check_valid(buff->data, i);
+			if (!rc)
+				continue;
+
+			buff->cntxt_type = i;
+			buff->cntxt_id = j;
+			buff++;
+		}
+	}
+
+	kvfree(ctx_buf);
+
+	/* Collect FREELIST and CONGESTION MANAGER contexts */
+	max_ctx_size = region_info[CTXT_FLM].end -
+		       region_info[CTXT_FLM].start + 1;
+	max_ctx_qid = max_ctx_size / SGE_CTXT_SIZE;
+	/* Since FLM and CONM are 1-to-1 mapped, the below function
+	 * will fetch both FLM and CONM contexts.
+	 */
+	cudbg_get_sge_ctxt_fw(pdbg_init, max_ctx_qid, CTXT_FLM, &buff);
 
 	cudbg_write_and_release_buff(&temp_buff, dbg_buff);
 	return rc;

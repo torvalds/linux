@@ -185,6 +185,7 @@ struct cudbg_tid_info_region_rev1 {
 	u32 reserved[16];
 };
 
+#define CUDBG_LOWMEM_MAX_CTXT_QIDS 256
 #define CUDBG_MAX_FL_QIDS 1024
 
 struct cudbg_ch_cntxt {

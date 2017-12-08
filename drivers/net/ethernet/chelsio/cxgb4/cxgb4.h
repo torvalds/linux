@@ -1654,7 +1654,7 @@ int t4_ctrl_eq_free(struct adapter *adap, unsigned int mbox, unsigned int pf,
 		    unsigned int vf, unsigned int eqid);
 int t4_ofld_eq_free(struct adapter *adap, unsigned int mbox, unsigned int pf,
 		    unsigned int vf, unsigned int eqid);
-int t4_sge_ctxt_flush(struct adapter *adap, unsigned int mbox);
+int t4_sge_ctxt_flush(struct adapter *adap, unsigned int mbox, int ctxt_type);
 void t4_handle_get_port_info(struct port_info *pi, const __be64 *rpl);
 int t4_update_port_info(struct port_info *pi);
 int t4_get_link_params(struct port_info *pi, unsigned int *link_okp,
