@@ -1672,6 +1672,11 @@ EXPORT_SYMBOL_GPL(hisi_sas_kill_tasklets);
 struct scsi_transport_template *hisi_sas_stt;
 EXPORT_SYMBOL_GPL(hisi_sas_stt);
 
+struct device_attribute *host_attrs[] = {
+	&dev_attr_phy_event_threshold,
+	NULL,
+};
+
 static struct scsi_host_template _hisi_sas_sht = {
 	.module			= THIS_MODULE,
 	.name			= DRV_NAME,
@@ -1691,6 +1696,7 @@ static struct scsi_host_template _hisi_sas_sht = {
 	.eh_target_reset_handler = sas_eh_target_reset_handler,
 	.target_destroy		= sas_target_destroy,
 	.ioctl			= sas_ioctl,
+	.shost_attrs		= host_attrs,
 };
 struct scsi_host_template *hisi_sas_sht = &_hisi_sas_sht;
 EXPORT_SYMBOL_GPL(hisi_sas_sht);

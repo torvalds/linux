@@ -538,6 +538,37 @@ static struct sas_function_template sft = {
 	.smp_handler = sas_smp_handler,
 };
 
+static inline ssize_t phy_event_threshold_show(struct device *dev,
+			struct device_attribute *attr, char *buf)
+{
+	struct Scsi_Host *shost = class_to_shost(dev);
+	struct sas_ha_struct *sha = SHOST_TO_SAS_HA(shost);
+
+	return scnprintf(buf, PAGE_SIZE, "%u\n", sha->event_thres);
+}
+
+static inline ssize_t phy_event_threshold_store(struct device *dev,
+			struct device_attribute *attr,
+			const char *buf, size_t count)
+{
+	struct Scsi_Host *shost = class_to_shost(dev);
+	struct sas_ha_struct *sha = SHOST_TO_SAS_HA(shost);
+
+	sha->event_thres = simple_strtol(buf, NULL, 10);
+
+	/* threshold cannot be set too small */
+	if (sha->event_thres < 32)
+		sha->event_thres = 32;
+
+	return count;
+}
+
+DEVICE_ATTR(phy_event_threshold,
+	S_IRUGO|S_IWUSR,
+	phy_event_threshold_show,
+	phy_event_threshold_store);
+EXPORT_SYMBOL_GPL(dev_attr_phy_event_threshold);
+
 struct scsi_transport_template *
 sas_domain_attach_transport(struct sas_domain_function_template *dft)
 {
