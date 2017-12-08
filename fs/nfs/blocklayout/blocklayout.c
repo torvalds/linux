@@ -887,6 +887,7 @@ static struct pnfs_layoutdriver_type blocklayout_type = {
 	.name				= "LAYOUT_BLOCK_VOLUME",
 	.owner				= THIS_MODULE,
 	.flags				= PNFS_LAYOUTRET_ON_SETATTR |
+					  PNFS_LAYOUTRET_ON_ERROR |
 					  PNFS_READ_WHOLE_PAGE,
 	.read_pagelist			= bl_read_pagelist,
 	.write_pagelist			= bl_write_pagelist,
@@ -910,6 +911,7 @@ static struct pnfs_layoutdriver_type scsilayout_type = {
 	.name				= "LAYOUT_SCSI",
 	.owner				= THIS_MODULE,
 	.flags				= PNFS_LAYOUTRET_ON_SETATTR |
+					  PNFS_LAYOUTRET_ON_ERROR |
 					  PNFS_READ_WHOLE_PAGE,
 	.read_pagelist			= bl_read_pagelist,
 	.write_pagelist			= bl_write_pagelist,

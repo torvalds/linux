@@ -524,8 +524,10 @@ static inline int pnfs_return_layout(struct inode *ino)
 	struct nfs_inode *nfsi = NFS_I(ino);
 	struct nfs_server *nfss = NFS_SERVER(ino);
 
-	if (pnfs_enabled_sb(nfss) && nfsi->layout)
+	if (pnfs_enabled_sb(nfss) && nfsi->layout) {
+		set_bit(NFS_LAYOUT_RETURN_REQUESTED, &nfsi->layout->plh_flags);
 		return _pnfs_return_layout(ino);
+	}
 
 	return 0;
 }
