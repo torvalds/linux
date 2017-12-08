@@ -3,7 +3,7 @@
  * Copyright (c) 2009-2010 Analog Devices, Inc.
  * Author: Michael Hennerich <hennerich@blackfin.uclinux.org>
  *
- * DEVID		#Wipers		#Positions 	Resistor Options (kOhm)
+ * DEVID		#Wipers		#Positions	Resistor Options (kOhm)
  * AD5258		1		64		1, 10, 50, 100
  * AD5259		1		256		5, 10, 50, 100
  * AD5251		2		64		1, 10, 50, 100
