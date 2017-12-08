@@ -1400,6 +1400,8 @@ static int nf_tables_addchain(struct nft_ctx *ctx, u8 family, u8 genmask,
 				ops->hook = hookfn;
 			if (afi->hook_ops_init)
 				afi->hook_ops_init(ops, i);
+			if (basechain->type->type == NFT_CHAIN_T_NAT)
+				ops->nat_hook = true;
 		}
 
 		chain->flags |= NFT_BASE_CHAIN;
