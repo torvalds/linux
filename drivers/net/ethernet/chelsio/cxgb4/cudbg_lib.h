@@ -102,6 +102,9 @@ int cudbg_collect_ulprx_la(struct cudbg_init *pdbg_init,
 int cudbg_collect_tp_la(struct cudbg_init *pdbg_init,
 			struct cudbg_buffer *dbg_buff,
 			struct cudbg_error *cudbg_err);
+int cudbg_collect_meminfo(struct cudbg_init *pdbg_init,
+			  struct cudbg_buffer *dbg_buff,
+			  struct cudbg_error *cudbg_err);
 int cudbg_collect_cim_pif_la(struct cudbg_init *pdbg_init,
 			     struct cudbg_buffer *dbg_buff,
 			     struct cudbg_error *cudbg_err);
@@ -163,7 +166,8 @@ void cudbg_align_debug_buffer(struct cudbg_buffer *dbg_buff,
 u32 cudbg_cim_obq_size(struct adapter *padap, int qid);
 int cudbg_dump_context_size(struct adapter *padap);
 
-struct cudbg_tcam;
+int cudbg_fill_meminfo(struct adapter *padap,
+		       struct cudbg_meminfo *meminfo_buff);
 void cudbg_fill_le_tcam_info(struct adapter *padap,
 			     struct cudbg_tcam *tcam_region);
 #endif /* __CUDBG_LIB_H__ */

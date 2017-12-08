@@ -15,12 +15,14 @@
  *
  */
 
+#include <linux/sort.h>
+
 #include "t4_regs.h"
 #include "cxgb4.h"
 #include "cudbg_if.h"
 #include "cudbg_lib_common.h"
-#include "cudbg_lib.h"
 #include "cudbg_entity.h"
+#include "cudbg_lib.h"
 
 static void cudbg_write_and_release_buff(struct cudbg_buffer *pin_buff,
 					 struct cudbg_buffer *dbg_buff)
@@ -80,6 +82,266 @@ static int cudbg_read_vpd_reg(struct adapter *padap, u32 addr, u32 len,
 	rc = pci_read_vpd(padap->pdev, vaddr, len, dest);
 	if (rc < 0)
 		return rc;
+
+	return 0;
+}
+
+static int cudbg_mem_desc_cmp(const void *a, const void *b)
+{
+	return ((const struct cudbg_mem_desc *)a)->base -
+	       ((const struct cudbg_mem_desc *)b)->base;
+}
+
+int cudbg_fill_meminfo(struct adapter *padap,
+		       struct cudbg_meminfo *meminfo_buff)
+{
+	struct cudbg_mem_desc *md;
+	u32 lo, hi, used, alloc;
+	int n, i;
+
+	memset(meminfo_buff->avail, 0,
+	       ARRAY_SIZE(meminfo_buff->avail) *
+	       sizeof(struct cudbg_mem_desc));
+	memset(meminfo_buff->mem, 0,
+	       (ARRAY_SIZE(cudbg_region) + 3) * sizeof(struct cudbg_mem_desc));
+	md  = meminfo_buff->mem;
+
+	for (i = 0; i < ARRAY_SIZE(meminfo_buff->mem); i++) {
+		meminfo_buff->mem[i].limit = 0;
+		meminfo_buff->mem[i].idx = i;
+	}
+
+	/* Find and sort the populated memory ranges */
+	i = 0;
+	lo = t4_read_reg(padap, MA_TARGET_MEM_ENABLE_A);
+	if (lo & EDRAM0_ENABLE_F) {
+		hi = t4_read_reg(padap, MA_EDRAM0_BAR_A);
+		meminfo_buff->avail[i].base =
+			cudbg_mbytes_to_bytes(EDRAM0_BASE_G(hi));
+		meminfo_buff->avail[i].limit =
+			meminfo_buff->avail[i].base +
+			cudbg_mbytes_to_bytes(EDRAM0_SIZE_G(hi));
+		meminfo_buff->avail[i].idx = 0;
+		i++;
+	}
+
+	if (lo & EDRAM1_ENABLE_F) {
+		hi =  t4_read_reg(padap, MA_EDRAM1_BAR_A);
+		meminfo_buff->avail[i].base =
+			cudbg_mbytes_to_bytes(EDRAM1_BASE_G(hi));
+		meminfo_buff->avail[i].limit =
+			meminfo_buff->avail[i].base +
+			cudbg_mbytes_to_bytes(EDRAM1_SIZE_G(hi));
+		meminfo_buff->avail[i].idx = 1;
+		i++;
+	}
+
+	if (is_t5(padap->params.chip)) {
+		if (lo & EXT_MEM0_ENABLE_F) {
+			hi = t4_read_reg(padap, MA_EXT_MEMORY0_BAR_A);
+			meminfo_buff->avail[i].base =
+				cudbg_mbytes_to_bytes(EXT_MEM_BASE_G(hi));
+			meminfo_buff->avail[i].limit =
+				meminfo_buff->avail[i].base +
+				cudbg_mbytes_to_bytes(EXT_MEM_SIZE_G(hi));
+			meminfo_buff->avail[i].idx = 3;
+			i++;
+		}
+
+		if (lo & EXT_MEM1_ENABLE_F) {
+			hi = t4_read_reg(padap, MA_EXT_MEMORY1_BAR_A);
+			meminfo_buff->avail[i].base =
+				cudbg_mbytes_to_bytes(EXT_MEM1_BASE_G(hi));
+			meminfo_buff->avail[i].limit =
+				meminfo_buff->avail[i].base +
+				cudbg_mbytes_to_bytes(EXT_MEM1_SIZE_G(hi));
+			meminfo_buff->avail[i].idx = 4;
+			i++;
+		}
+	} else {
+		if (lo & EXT_MEM_ENABLE_F) {
+			hi = t4_read_reg(padap, MA_EXT_MEMORY_BAR_A);
+			meminfo_buff->avail[i].base =
+				cudbg_mbytes_to_bytes(EXT_MEM_BASE_G(hi));
+			meminfo_buff->avail[i].limit =
+				meminfo_buff->avail[i].base +
+				cudbg_mbytes_to_bytes(EXT_MEM_SIZE_G(hi));
+			meminfo_buff->avail[i].idx = 2;
+			i++;
+		}
+	}
+
+	if (!i) /* no memory available */
+		return CUDBG_STATUS_ENTITY_NOT_FOUND;
+
+	meminfo_buff->avail_c = i;
+	sort(meminfo_buff->avail, i, sizeof(struct cudbg_mem_desc),
+	     cudbg_mem_desc_cmp, NULL);
+	(md++)->base = t4_read_reg(padap, SGE_DBQ_CTXT_BADDR_A);
+	(md++)->base = t4_read_reg(padap, SGE_IMSG_CTXT_BADDR_A);
+	(md++)->base = t4_read_reg(padap, SGE_FLM_CACHE_BADDR_A);
+	(md++)->base = t4_read_reg(padap, TP_CMM_TCB_BASE_A);
+	(md++)->base = t4_read_reg(padap, TP_CMM_MM_BASE_A);
+	(md++)->base = t4_read_reg(padap, TP_CMM_TIMER_BASE_A);
+	(md++)->base = t4_read_reg(padap, TP_CMM_MM_RX_FLST_BASE_A);
+	(md++)->base = t4_read_reg(padap, TP_CMM_MM_TX_FLST_BASE_A);
+	(md++)->base = t4_read_reg(padap, TP_CMM_MM_PS_FLST_BASE_A);
+
+	/* the next few have explicit upper bounds */
+	md->base = t4_read_reg(padap, TP_PMM_TX_BASE_A);
+	md->limit = md->base - 1 +
+		    t4_read_reg(padap, TP_PMM_TX_PAGE_SIZE_A) *
+		    PMTXMAXPAGE_G(t4_read_reg(padap, TP_PMM_TX_MAX_PAGE_A));
+	md++;
+
+	md->base = t4_read_reg(padap, TP_PMM_RX_BASE_A);
+	md->limit = md->base - 1 +
+		    t4_read_reg(padap, TP_PMM_RX_PAGE_SIZE_A) *
+		    PMRXMAXPAGE_G(t4_read_reg(padap, TP_PMM_RX_MAX_PAGE_A));
+	md++;
+
+	if (t4_read_reg(padap, LE_DB_CONFIG_A) & HASHEN_F) {
+		if (CHELSIO_CHIP_VERSION(padap->params.chip) <= CHELSIO_T5) {
+			hi = t4_read_reg(padap, LE_DB_TID_HASHBASE_A) / 4;
+			md->base = t4_read_reg(padap, LE_DB_HASH_TID_BASE_A);
+		} else {
+			hi = t4_read_reg(padap, LE_DB_HASH_TID_BASE_A);
+			md->base = t4_read_reg(padap,
+					       LE_DB_HASH_TBL_BASE_ADDR_A);
+		}
+		md->limit = 0;
+	} else {
+		md->base = 0;
+		md->idx = ARRAY_SIZE(cudbg_region);  /* hide it */
+	}
+	md++;
+
+#define ulp_region(reg) do { \
+	md->base = t4_read_reg(padap, ULP_ ## reg ## _LLIMIT_A);\
+	(md++)->limit = t4_read_reg(padap, ULP_ ## reg ## _ULIMIT_A);\
+} while (0)
+
+	ulp_region(RX_ISCSI);
+	ulp_region(RX_TDDP);
+	ulp_region(TX_TPT);
+	ulp_region(RX_STAG);
+	ulp_region(RX_RQ);
+	ulp_region(RX_RQUDP);
+	ulp_region(RX_PBL);
+	ulp_region(TX_PBL);
+#undef ulp_region
+	md->base = 0;
+	md->idx = ARRAY_SIZE(cudbg_region);
+	if (!is_t4(padap->params.chip)) {
+		u32 fifo_size = t4_read_reg(padap, SGE_DBVFIFO_SIZE_A);
+		u32 sge_ctrl = t4_read_reg(padap, SGE_CONTROL2_A);
+		u32 size = 0;
+
+		if (is_t5(padap->params.chip)) {
+			if (sge_ctrl & VFIFO_ENABLE_F)
+				size = DBVFIFO_SIZE_G(fifo_size);
+		} else {
+			size = T6_DBVFIFO_SIZE_G(fifo_size);
+		}
+
+		if (size) {
+			md->base = BASEADDR_G(t4_read_reg(padap,
+							  SGE_DBVFIFO_BADDR_A));
+			md->limit = md->base + (size << 2) - 1;
+		}
+	}
+
+	md++;
+
+	md->base = t4_read_reg(padap, ULP_RX_CTX_BASE_A);
+	md->limit = 0;
+	md++;
+	md->base = t4_read_reg(padap, ULP_TX_ERR_TABLE_BASE_A);
+	md->limit = 0;
+	md++;
+
+	md->base = padap->vres.ocq.start;
+	if (padap->vres.ocq.size)
+		md->limit = md->base + padap->vres.ocq.size - 1;
+	else
+		md->idx = ARRAY_SIZE(cudbg_region);  /* hide it */
+	md++;
+
+	/* add any address-space holes, there can be up to 3 */
+	for (n = 0; n < i - 1; n++)
+		if (meminfo_buff->avail[n].limit <
+		    meminfo_buff->avail[n + 1].base)
+			(md++)->base = meminfo_buff->avail[n].limit;
+
+	if (meminfo_buff->avail[n].limit)
+		(md++)->base = meminfo_buff->avail[n].limit;
+
+	n = md - meminfo_buff->mem;
+	meminfo_buff->mem_c = n;
+
+	sort(meminfo_buff->mem, n, sizeof(struct cudbg_mem_desc),
+	     cudbg_mem_desc_cmp, NULL);
+
+	lo = t4_read_reg(padap, CIM_SDRAM_BASE_ADDR_A);
+	hi = t4_read_reg(padap, CIM_SDRAM_ADDR_SIZE_A) + lo - 1;
+	meminfo_buff->up_ram_lo = lo;
+	meminfo_buff->up_ram_hi = hi;
+
+	lo = t4_read_reg(padap, CIM_EXTMEM2_BASE_ADDR_A);
+	hi = t4_read_reg(padap, CIM_EXTMEM2_ADDR_SIZE_A) + lo - 1;
+	meminfo_buff->up_extmem2_lo = lo;
+	meminfo_buff->up_extmem2_hi = hi;
+
+	lo = t4_read_reg(padap, TP_PMM_RX_MAX_PAGE_A);
+	meminfo_buff->rx_pages_data[0] =  PMRXMAXPAGE_G(lo);
+	meminfo_buff->rx_pages_data[1] =
+		t4_read_reg(padap, TP_PMM_RX_PAGE_SIZE_A) >> 10;
+	meminfo_buff->rx_pages_data[2] = (lo & PMRXNUMCHN_F) ? 2 : 1;
+
+	lo = t4_read_reg(padap, TP_PMM_TX_MAX_PAGE_A);
+	hi = t4_read_reg(padap, TP_PMM_TX_PAGE_SIZE_A);
+	meminfo_buff->tx_pages_data[0] = PMTXMAXPAGE_G(lo);
+	meminfo_buff->tx_pages_data[1] =
+		hi >= (1 << 20) ? (hi >> 20) : (hi >> 10);
+	meminfo_buff->tx_pages_data[2] =
+		hi >= (1 << 20) ? 'M' : 'K';
+	meminfo_buff->tx_pages_data[3] = 1 << PMTXNUMCHN_G(lo);
+
+	meminfo_buff->p_structs = t4_read_reg(padap, TP_CMM_MM_MAX_PSTRUCT_A);
+
+	for (i = 0; i < 4; i++) {
+		if (CHELSIO_CHIP_VERSION(padap->params.chip) > CHELSIO_T5)
+			lo = t4_read_reg(padap,
+					 MPS_RX_MAC_BG_PG_CNT0_A + i * 4);
+		else
+			lo = t4_read_reg(padap, MPS_RX_PG_RSV0_A + i * 4);
+		if (is_t5(padap->params.chip)) {
+			used = T5_USED_G(lo);
+			alloc = T5_ALLOC_G(lo);
+		} else {
+			used = USED_G(lo);
+			alloc = ALLOC_G(lo);
+		}
+		meminfo_buff->port_used[i] = used;
+		meminfo_buff->port_alloc[i] = alloc;
+	}
+
+	for (i = 0; i < padap->params.arch.nchan; i++) {
+		if (CHELSIO_CHIP_VERSION(padap->params.chip) > CHELSIO_T5)
+			lo = t4_read_reg(padap,
+					 MPS_RX_LPBK_BG_PG_CNT0_A + i * 4);
+		else
+			lo = t4_read_reg(padap, MPS_RX_PG_RSV4_A + i * 4);
+		if (is_t5(padap->params.chip)) {
+			used = T5_USED_G(lo);
+			alloc = T5_ALLOC_G(lo);
+		} else {
+			used = USED_G(lo);
+			alloc = ALLOC_G(lo);
+		}
+		meminfo_buff->loopback_used[i] = used;
+		meminfo_buff->loopback_alloc[i] = alloc;
+	}
 
 	return 0;
 }
@@ -839,6 +1101,31 @@ int cudbg_collect_tp_la(struct cudbg_init *pdbg_init,
 	tp_la_buff = (struct cudbg_tp_la *)temp_buff.data;
 	tp_la_buff->mode = DBGLAMODE_G(t4_read_reg(padap, TP_DBG_LA_CONFIG_A));
 	t4_tp_read_la(padap, (u64 *)tp_la_buff->data, NULL);
+	cudbg_write_and_release_buff(&temp_buff, dbg_buff);
+	return rc;
+}
+
+int cudbg_collect_meminfo(struct cudbg_init *pdbg_init,
+			  struct cudbg_buffer *dbg_buff,
+			  struct cudbg_error *cudbg_err)
+{
+	struct adapter *padap = pdbg_init->adap;
+	struct cudbg_buffer temp_buff = { 0 };
+	struct cudbg_meminfo *meminfo_buff;
+	int rc;
+
+	rc = cudbg_get_buff(dbg_buff, sizeof(struct cudbg_meminfo), &temp_buff);
+	if (rc)
+		return rc;
+
+	meminfo_buff = (struct cudbg_meminfo *)temp_buff.data;
+	rc = cudbg_fill_meminfo(padap, meminfo_buff);
+	if (rc) {
+		cudbg_err->sys_err = rc;
+		cudbg_put_buff(&temp_buff, dbg_buff);
+		return rc;
+	}
+
 	cudbg_write_and_release_buff(&temp_buff, dbg_buff);
 	return rc;
 }

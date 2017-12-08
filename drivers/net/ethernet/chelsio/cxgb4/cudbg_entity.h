@@ -87,6 +87,41 @@ struct cudbg_tp_la {
 	u8 data[0];
 };
 
+static const char * const cudbg_region[] = {
+	"DBQ contexts:", "IMSG contexts:", "FLM cache:", "TCBs:",
+	"Pstructs:", "Timers:", "Rx FL:", "Tx FL:", "Pstruct FL:",
+	"Tx payload:", "Rx payload:", "LE hash:", "iSCSI region:",
+	"TDDP region:", "TPT region:", "STAG region:", "RQ region:",
+	"RQUDP region:", "PBL region:", "TXPBL region:",
+	"DBVFIFO region:", "ULPRX state:", "ULPTX state:",
+	"On-chip queues:"
+};
+
+struct cudbg_mem_desc {
+	u32 base;
+	u32 limit;
+	u32 idx;
+};
+
+struct cudbg_meminfo {
+	struct cudbg_mem_desc avail[4];
+	struct cudbg_mem_desc mem[ARRAY_SIZE(cudbg_region) + 3];
+	u32 avail_c;
+	u32 mem_c;
+	u32 up_ram_lo;
+	u32 up_ram_hi;
+	u32 up_extmem2_lo;
+	u32 up_extmem2_hi;
+	u32 rx_pages_data[3];
+	u32 tx_pages_data[4];
+	u32 p_structs;
+	u32 reserved[12];
+	u32 port_used[4];
+	u32 port_alloc[4];
+	u32 loopback_used[NCHAN];
+	u32 loopback_alloc[NCHAN];
+};
+
 struct cudbg_cim_pif_la {
 	int size;
 	u8 data[0];

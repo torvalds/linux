@@ -18,7 +18,6 @@
 #include "t4_regs.h"
 #include "cxgb4.h"
 #include "cxgb4_cudbg.h"
-#include "cudbg_entity.h"
 
 static const struct cxgb4_collect_entity cxgb4_collect_mem_dump[] = {
 	{ CUDBG_EDC0, cudbg_collect_edc0_meminfo },
@@ -53,6 +52,7 @@ static const struct cxgb4_collect_entity cxgb4_collect_hw_dump[] = {
 	{ CUDBG_SGE_INDIRECT, cudbg_collect_sge_indirect },
 	{ CUDBG_ULPRX_LA, cudbg_collect_ulprx_la },
 	{ CUDBG_TP_LA, cudbg_collect_tp_la },
+	{ CUDBG_MEMINFO, cudbg_collect_meminfo },
 	{ CUDBG_CIM_PIF_LA, cudbg_collect_cim_pif_la },
 	{ CUDBG_CLK, cudbg_collect_clk_info },
 	{ CUDBG_CIM_OBQ_RXQ0, cudbg_collect_obq_sge_rx_q0 },
@@ -200,6 +200,9 @@ static u32 cxgb4_get_entity_length(struct adapter *adap, u32 entity)
 		break;
 	case CUDBG_TP_LA:
 		len = sizeof(struct cudbg_tp_la) + TPLA_SIZE * sizeof(u64);
+		break;
+	case CUDBG_MEMINFO:
+		len = sizeof(struct cudbg_meminfo);
 		break;
 	case CUDBG_CIM_PIF_LA:
 		len = sizeof(struct cudbg_cim_pif_la);
