@@ -1150,6 +1150,16 @@ void kdb_set_current_task(struct task_struct *p)
 	kdb_current_regs = NULL;
 }
 
+static void drop_newline(char *buf)
+{
+	size_t len = strlen(buf);
+
+	if (len == 0)
+		return;
+	if (*(buf + len - 1) == '\n')
+		*(buf + len - 1) = '\0';
+}
+
 /*
  * kdb_local - The main code for kdb.  This routine is invoked on a
  *	specific processor, it is not global.  The main kdb() routine
@@ -1327,6 +1337,7 @@ do_full_getstr:
 		cmdptr = cmd_head;
 		diag = kdb_parse(cmdbuf);
 		if (diag == KDB_NOTFOUND) {
+			drop_newline(cmdbuf);
 			kdb_printf("Unknown kdb command: '%s'\n", cmdbuf);
 			diag = 0;
 		}
