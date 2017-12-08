@@ -632,7 +632,7 @@ static void sctp_cmd_assoc_failed(struct sctp_cmd_seq *commands,
 	struct sctp_chunk *abort;
 
 	/* Cancel any partial delivery in progress. */
-	sctp_ulpq_abort_pd(&asoc->ulpq, GFP_ATOMIC);
+	asoc->stream.si->abort_pd(&asoc->ulpq, GFP_ATOMIC);
 
 	if (event_type == SCTP_EVENT_T_CHUNK && subtype.chunk == SCTP_CID_ABORT)
 		event = sctp_ulpevent_make_assoc_change(asoc, 0, SCTP_COMM_LOST,

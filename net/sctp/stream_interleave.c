@@ -652,6 +652,103 @@ static void sctp_renege_events(struct sctp_ulpq *ulpq, struct sctp_chunk *chunk,
 	sk_mem_reclaim(asoc->base.sk);
 }
 
+static void sctp_intl_stream_abort_pd(struct sctp_ulpq *ulpq, __u16 sid,
+				      __u32 mid, __u16 flags, gfp_t gfp)
+{
+	struct sock *sk = ulpq->asoc->base.sk;
+	struct sctp_ulpevent *ev = NULL;
+
+	if (!sctp_ulpevent_type_enabled(SCTP_PARTIAL_DELIVERY_EVENT,
+					&sctp_sk(sk)->subscribe))
+		return;
+
+	ev = sctp_ulpevent_make_pdapi(ulpq->asoc, SCTP_PARTIAL_DELIVERY_ABORTED,
+				      sid, mid, flags, gfp);
+	if (ev) {
+		__skb_queue_tail(&sk->sk_receive_queue, sctp_event2skb(ev));
+
+		if (!sctp_sk(sk)->data_ready_signalled) {
+			sctp_sk(sk)->data_ready_signalled = 1;
+			sk->sk_data_ready(sk);
+		}
+	}
+}
+
+static void sctp_intl_reap_ordered(struct sctp_ulpq *ulpq, __u16 sid)
+{
+	struct sctp_stream *stream = &ulpq->asoc->stream;
+	struct sctp_ulpevent *cevent, *event = NULL;
+	struct sk_buff_head *lobby = &ulpq->lobby;
+	struct sk_buff *pos, *tmp;
+	struct sk_buff_head temp;
+	__u16 csid;
+	__u32 cmid;
+
+	skb_queue_head_init(&temp);
+	sctp_skb_for_each(pos, lobby, tmp) {
+		cevent = (struct sctp_ulpevent *)pos->cb;
+		csid = cevent->stream;
+		cmid = cevent->mid;
+
+		if (csid > sid)
+			break;
+
+		if (csid < sid)
+			continue;
+
+		if (!MID_lt(cmid, sctp_mid_peek(stream, in, csid)))
+			break;
+
+		__skb_unlink(pos, lobby);
+		if (!event)
+			event = sctp_skb2event(pos);
+
+		__skb_queue_tail(&temp, pos);
+	}
+
+	if (!event && pos != (struct sk_buff *)lobby) {
+		cevent = (struct sctp_ulpevent *)pos->cb;
+		csid = cevent->stream;
+		cmid = cevent->mid;
+
+		if (csid == sid && cmid == sctp_mid_peek(stream, in, csid)) {
+			sctp_mid_next(stream, in, csid);
+			__skb_unlink(pos, lobby);
+			__skb_queue_tail(&temp, pos);
+			event = sctp_skb2event(pos);
+		}
+	}
+
+	if (event) {
+		sctp_intl_retrieve_ordered(ulpq, event);
+		sctp_enqueue_event(ulpq, event);
+	}
+}
+
+static void sctp_intl_abort_pd(struct sctp_ulpq *ulpq, gfp_t gfp)
+{
+	struct sctp_stream *stream = &ulpq->asoc->stream;
+	__u16 sid;
+
+	for (sid = 0; sid < stream->incnt; sid++) {
+		struct sctp_stream_in *sin = &stream->in[sid];
+		__u32 mid;
+
+		if (sin->pd_mode) {
+			sin->pd_mode = 0;
+
+			mid = sin->mid;
+			sctp_intl_stream_abort_pd(ulpq, sid, mid, 0, gfp);
+			sctp_mid_skip(stream, in, sid, mid);
+
+			sctp_intl_reap_ordered(ulpq, sid);
+		}
+	}
+
+	/* intl abort pd happens only when all data needs to be cleaned */
+	sctp_ulpq_flush(ulpq);
+}
+
 static struct sctp_stream_interleave sctp_stream_interleave_0 = {
 	.data_chunk_len		= sizeof(struct sctp_data_chunk),
 	/* DATA process functions */
@@ -662,6 +759,7 @@ static struct sctp_stream_interleave sctp_stream_interleave_0 = {
 	.enqueue_event		= sctp_ulpq_tail_event,
 	.renege_events		= sctp_ulpq_renege,
 	.start_pd		= sctp_ulpq_partial_delivery,
+	.abort_pd		= sctp_ulpq_abort_pd,
 };
 
 static struct sctp_stream_interleave sctp_stream_interleave_1 = {
@@ -674,6 +772,7 @@ static struct sctp_stream_interleave sctp_stream_interleave_1 = {
 	.enqueue_event		= sctp_enqueue_event,
 	.renege_events		= sctp_renege_events,
 	.start_pd		= sctp_intl_start_pd,
+	.abort_pd		= sctp_intl_abort_pd,
 };
 
 void sctp_stream_interleave_init(struct sctp_stream *stream)

@@ -460,6 +460,8 @@ struct sctp_pdapi_event {
 	__u32 pdapi_length;
 	__u32 pdapi_indication;
 	sctp_assoc_t pdapi_assoc_id;
+	__u32 pdapi_stream;
+	__u32 pdapi_seq;
 };
 
 enum { SCTP_PARTIAL_DELIVERY_ABORTED=0, };

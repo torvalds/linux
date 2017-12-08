@@ -122,7 +122,8 @@ struct sctp_ulpevent *sctp_ulpevent_make_shutdown_event(
 
 struct sctp_ulpevent *sctp_ulpevent_make_pdapi(
 	const struct sctp_association *asoc,
-	__u32 indication, gfp_t gfp);
+	__u32 indication, __u32 sid, __u32 seq,
+	__u32 flags, gfp_t gfp);
 
 struct sctp_ulpevent *sctp_ulpevent_make_adaptation_indication(
 	const struct sctp_association *asoc, gfp_t gfp);

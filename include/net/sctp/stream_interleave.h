@@ -46,6 +46,7 @@ struct sctp_stream_interleave {
 	void	(*renege_events)(struct sctp_ulpq *ulpq,
 				 struct sctp_chunk *chunk, gfp_t gfp);
 	void	(*start_pd)(struct sctp_ulpq *ulpq, gfp_t gfp);
+	void	(*abort_pd)(struct sctp_ulpq *ulpq, gfp_t gfp);
 };
 
 void sctp_stream_interleave_init(struct sctp_stream *stream);

@@ -730,8 +730,9 @@ fail:
  *   various events.
  */
 struct sctp_ulpevent *sctp_ulpevent_make_pdapi(
-	const struct sctp_association *asoc, __u32 indication,
-	gfp_t gfp)
+					const struct sctp_association *asoc,
+					__u32 indication, __u32 sid, __u32 seq,
+					__u32 flags, gfp_t gfp)
 {
 	struct sctp_ulpevent *event;
 	struct sctp_pdapi_event *pd;
@@ -752,7 +753,9 @@ struct sctp_ulpevent *sctp_ulpevent_make_pdapi(
 	 *   Currently unused.
 	 */
 	pd->pdapi_type = SCTP_PARTIAL_DELIVERY_EVENT;
-	pd->pdapi_flags = 0;
+	pd->pdapi_flags = flags;
+	pd->pdapi_stream = sid;
+	pd->pdapi_seq = seq;
 
 	/* pdapi_length: 32 bits (unsigned integer)
 	 *
