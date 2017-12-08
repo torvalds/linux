@@ -11085,8 +11085,8 @@ CONFIG_X86_INTEL_MPX                            policy<{'amd64': 'y'}>
 CONFIG_X86_INTEL_MEMORY_PROTECTION_KEYS         policy<{'amd64': 'y'}>
 CONFIG_EFI_STUB                                 policy<{'amd64': 'y', 'arm64': 'y', 'i386': 'y'}>
 CONFIG_EFI_MIXED                                policy<{'amd64': 'y'}>
-CONFIG_LOCK_DOWN_IN_EFI_SECURE_BOOT             policy<{'amd64': 'y', 'arm64': 'y', 'i386': 'y'}>
-CONFIG_ALLOW_LOCKDOWN_LIFT_BY_SYSRQ             policy<{'amd64': 'y', 'arm64': 'y', 'armhf': 'y', 'i386': 'y', 'ppc64el': 'y', 's390x': 'y'}>
+CONFIG_LOCK_DOWN_IN_EFI_SECURE_BOOT             policy<{'amd64': 'y', 'arm64': 'n', 'i386': 'y'}>
+CONFIG_ALLOW_LOCKDOWN_LIFT_BY_SYSRQ             policy<{'amd64': 'y', 'i386': 'y'}>
 CONFIG_KEXEC_VERIFY_SIG                         policy<{'amd64': 'y'}>
 CONFIG_KEXEC_BZIMAGE_VERIFY_SIG                 policy<{'amd64': 'y'}>
 CONFIG_KEXEC_JUMP                               policy<{'amd64': 'y', 'i386': 'y'}>
@@ -11333,7 +11333,7 @@ CONFIG_HARDENED_USERCOPY                        policy<{'amd64': 'y', 'arm64': '
 CONFIG_HARDENED_USERCOPY_PAGESPAN               policy<{'amd64': 'n', 'arm64': 'n', 'armhf': 'n', 'i386': 'n', 'ppc64el': 'n', 's390x': 'n'}>
 CONFIG_FORTIFY_SOURCE                           policy<{'amd64': 'y', 'arm64': 'y', 'i386': 'y', 'ppc64el': 'y'}>
 CONFIG_STATIC_USERMODEHELPER                    policy<{'amd64': 'n', 'arm64': 'n', 'armhf': 'n', 'i386': 'n', 'ppc64el': 'n', 's390x': 'n'}>
-CONFIG_LOCK_DOWN_KERNEL                         policy<{'amd64': 'y', 'arm64': 'y', 'armhf': 'y', 'i386': 'y', 'ppc64el': 'y', 's390x': 'y'}>
+CONFIG_LOCK_DOWN_KERNEL                         policy<{'amd64': 'y', 'arm64': 'n', 'armhf': 'n', 'i386': 'y', 'ppc64el': 'n', 's390x': 'n'}>
 #
 CONFIG_LOCK_DOWN_KERNEL                         mark<ENFORCED> flag<REVIEW>
 

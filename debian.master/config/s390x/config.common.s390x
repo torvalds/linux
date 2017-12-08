@@ -160,6 +160,7 @@ CONFIG_KVM=y
 # CONFIG_LDM_PARTITION is not set
 # CONFIG_LIBNVDIMM is not set
 # CONFIG_LLC2 is not set
+# CONFIG_LOCK_DOWN_KERNEL is not set
 CONFIG_LOG_BUF_SHIFT=17
 # CONFIG_LPC_ICH is not set
 # CONFIG_LPC_SCH is not set
