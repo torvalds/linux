@@ -10,6 +10,7 @@
 
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
+#include <dt-bindings/clock/am4.h>
 
 / {
 	compatible = "ti,am4372", "ti,am43";
@@ -998,7 +999,7 @@
 				reg = <0x483a8000 0x8000>;
 				syscon-phy-power = <&scm_conf 0x620>;
 				clocks = <&usb_phy0_always_on_clk32k>,
-					 <&usb_otg_ss0_refclk960m>;
+					 <&l4_per_clkctrl AM4_USB_OTG_SS0_CLKCTRL 8>;
 				clock-names = "wkupclk", "refclk";
 				#phy-cells = <0>;
 				status = "disabled";
@@ -1017,7 +1018,7 @@
 				reg = <0x483e8000 0x8000>;
 				syscon-phy-power = <&scm_conf 0x628>;
 				clocks = <&usb_phy1_always_on_clk32k>,
-					 <&usb_otg_ss1_refclk960m>;
+					 <&l4_per_clkctrl AM4_USB_OTG_SS1_CLKCTRL 8>;
 				clock-names = "wkupclk", "refclk";
 				#phy-cells = <0>;
 				status = "disabled";
@@ -1180,4 +1181,4 @@
 	};
 };
 
-/include/ "am43xx-clocks.dtsi"
+#include "am43xx-clocks.dtsi"
