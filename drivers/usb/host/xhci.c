@@ -2838,12 +2838,10 @@ void xhci_cleanup_stalled_ring(struct xhci_hcd *xhci, unsigned int ep_index,
 			       unsigned int stream_id, struct xhci_td *td)
 {
 	struct xhci_dequeue_state deq_state;
-	struct xhci_virt_ep *ep;
 	struct usb_device *udev = td->urb->dev;
 
 	xhci_dbg_trace(xhci, trace_xhci_dbg_reset_ep,
 			"Cleaning up stalled endpoint ring");
-	ep = &xhci->devs[udev->slot_id]->eps[ep_index];
 	/* We need to move the HW's dequeue pointer past this TD,
 	 * or it will attempt to resend it on the next doorbell ring.
 	 */
