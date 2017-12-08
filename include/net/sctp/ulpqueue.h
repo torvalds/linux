@@ -45,6 +45,7 @@ struct sctp_ulpq {
 	char pd_mode;
 	struct sctp_association *asoc;
 	struct sk_buff_head reasm;
+	struct sk_buff_head reasm_uo;
 	struct sk_buff_head lobby;
 };
 

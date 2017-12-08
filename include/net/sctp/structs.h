@@ -413,6 +413,14 @@ void sctp_stream_update(struct sctp_stream *stream, struct sctp_stream *new);
 
 #define sctp_stream_in(asoc, sid) (&(asoc)->stream.in[sid])
 
+/* What is the current MID_uo number for this stream? */
+#define sctp_mid_uo_peek(stream, type, sid) \
+	((stream)->type[sid].mid_uo)
+
+/* Return the next MID_uo number for this stream.  */
+#define sctp_mid_uo_next(stream, type, sid) \
+	((stream)->type[sid].mid_uo++)
+
 /*
  * Pointers to address related SCTP functions.
  * (i.e. things that depend on the address family.)
@@ -1379,8 +1387,9 @@ struct sctp_stream_out {
 		__u32 mid;
 		__u16 ssn;
 	};
-	__u8	state;
+	__u32 mid_uo;
 	struct sctp_stream_out_ext *ext;
+	__u8 state;
 };
 
 struct sctp_stream_in {
@@ -1388,8 +1397,11 @@ struct sctp_stream_in {
 		__u32 mid;
 		__u16 ssn;
 	};
+	__u32 mid_uo;
 	__u32 fsn;
+	__u32 fsn_uo;
 	char pd_mode;
+	char pd_mode_uo;
 };
 
 struct sctp_stream {

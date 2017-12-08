@@ -74,11 +74,9 @@ static void sctp_chunk_assign_mid(struct sctp_chunk *chunk)
 
 	list_for_each_entry(lchunk, &chunk->msg->chunks, frag_list) {
 		struct sctp_idatahdr *hdr;
+		__u32 mid;
 
 		lchunk->has_mid = 1;
-
-		if (lchunk->chunk_hdr->flags & SCTP_DATA_UNORDERED)
-			continue;
 
 		hdr = lchunk->subh.idata_hdr;
 
@@ -87,10 +85,16 @@ static void sctp_chunk_assign_mid(struct sctp_chunk *chunk)
 		else
 			hdr->fsn = htonl(cfsn++);
 
-		if (lchunk->chunk_hdr->flags & SCTP_DATA_LAST_FRAG)
-			hdr->mid = htonl(sctp_mid_next(stream, out, sid));
-		else
-			hdr->mid = htonl(sctp_mid_peek(stream, out, sid));
+		if (lchunk->chunk_hdr->flags & SCTP_DATA_UNORDERED) {
+			mid = lchunk->chunk_hdr->flags & SCTP_DATA_LAST_FRAG ?
+				sctp_mid_uo_next(stream, out, sid) :
+				sctp_mid_uo_peek(stream, out, sid);
+		} else {
+			mid = lchunk->chunk_hdr->flags & SCTP_DATA_LAST_FRAG ?
+				sctp_mid_next(stream, out, sid) :
+				sctp_mid_peek(stream, out, sid);
+		}
+		hdr->mid = htonl(mid);
 	}
 }
 
@@ -449,9 +453,6 @@ static struct sctp_ulpevent *sctp_intl_order(struct sctp_ulpq *ulpq,
 	struct sctp_stream *stream;
 	__u16 sid;
 
-	if (event->msg_flags & SCTP_DATA_UNORDERED)
-		return event;
-
 	stream  = &ulpq->asoc->stream;
 	sid = event->stream;
 
@@ -512,6 +513,317 @@ out_free:
 	return 0;
 }
 
+static void sctp_intl_store_reasm_uo(struct sctp_ulpq *ulpq,
+				     struct sctp_ulpevent *event)
+{
+	struct sctp_ulpevent *cevent;
+	struct sk_buff *pos;
+
+	pos = skb_peek_tail(&ulpq->reasm_uo);
+	if (!pos) {
+		__skb_queue_tail(&ulpq->reasm_uo, sctp_event2skb(event));
+		return;
+	}
+
+	cevent = sctp_skb2event(pos);
+
+	if (event->stream == cevent->stream &&
+	    event->mid == cevent->mid &&
+	    (cevent->msg_flags & SCTP_DATA_FIRST_FRAG ||
+	     (!(event->msg_flags & SCTP_DATA_FIRST_FRAG) &&
+	      event->fsn > cevent->fsn))) {
+		__skb_queue_tail(&ulpq->reasm_uo, sctp_event2skb(event));
+		return;
+	}
+
+	if ((event->stream == cevent->stream &&
+	     MID_lt(cevent->mid, event->mid)) ||
+	    event->stream > cevent->stream) {
+		__skb_queue_tail(&ulpq->reasm_uo, sctp_event2skb(event));
+		return;
+	}
+
+	skb_queue_walk(&ulpq->reasm_uo, pos) {
+		cevent = sctp_skb2event(pos);
+
+		if (event->stream < cevent->stream ||
+		    (event->stream == cevent->stream &&
+		     MID_lt(event->mid, cevent->mid)))
+			break;
+
+		if (event->stream == cevent->stream &&
+		    event->mid == cevent->mid &&
+		    !(cevent->msg_flags & SCTP_DATA_FIRST_FRAG) &&
+		    (event->msg_flags & SCTP_DATA_FIRST_FRAG ||
+		     event->fsn < cevent->fsn))
+			break;
+	}
+
+	__skb_queue_before(&ulpq->reasm_uo, pos, sctp_event2skb(event));
+}
+
+static struct sctp_ulpevent *sctp_intl_retrieve_partial_uo(
+						struct sctp_ulpq *ulpq,
+						struct sctp_ulpevent *event)
+{
+	struct sk_buff *first_frag = NULL;
+	struct sk_buff *last_frag = NULL;
+	struct sctp_ulpevent *retval;
+	struct sctp_stream_in *sin;
+	struct sk_buff *pos;
+	__u32 next_fsn = 0;
+	int is_last = 0;
+
+	sin = sctp_stream_in(ulpq->asoc, event->stream);
+
+	skb_queue_walk(&ulpq->reasm_uo, pos) {
+		struct sctp_ulpevent *cevent = sctp_skb2event(pos);
+
+		if (cevent->stream < event->stream)
+			continue;
+		if (cevent->stream > event->stream)
+			break;
+
+		if (MID_lt(cevent->mid, sin->mid_uo))
+			continue;
+		if (MID_lt(sin->mid_uo, cevent->mid))
+			break;
+
+		switch (cevent->msg_flags & SCTP_DATA_FRAG_MASK) {
+		case SCTP_DATA_FIRST_FRAG:
+			goto out;
+		case SCTP_DATA_MIDDLE_FRAG:
+			if (!first_frag) {
+				if (cevent->fsn == sin->fsn_uo) {
+					first_frag = pos;
+					last_frag = pos;
+					next_fsn = cevent->fsn + 1;
+				}
+			} else if (cevent->fsn == next_fsn) {
+				last_frag = pos;
+				next_fsn++;
+			} else {
+				goto out;
+			}
+			break;
+		case SCTP_DATA_LAST_FRAG:
+			if (!first_frag) {
+				if (cevent->fsn == sin->fsn_uo) {
+					first_frag = pos;
+					last_frag = pos;
+					next_fsn = 0;
+					is_last = 1;
+				}
+			} else if (cevent->fsn == next_fsn) {
+				last_frag = pos;
+				next_fsn = 0;
+				is_last = 1;
+			}
+			goto out;
+		default:
+			goto out;
+		}
+	}
+
+out:
+	if (!first_frag)
+		return NULL;
+
+	retval = sctp_make_reassembled_event(sock_net(ulpq->asoc->base.sk),
+					     &ulpq->reasm_uo, first_frag,
+					     last_frag);
+	if (retval) {
+		sin->fsn_uo = next_fsn;
+		if (is_last) {
+			retval->msg_flags |= MSG_EOR;
+			sin->pd_mode_uo = 0;
+		}
+	}
+
+	return retval;
+}
+
+static struct sctp_ulpevent *sctp_intl_retrieve_reassembled_uo(
+						struct sctp_ulpq *ulpq,
+						struct sctp_ulpevent *event)
+{
+	struct sctp_association *asoc = ulpq->asoc;
+	struct sk_buff *pos, *first_frag = NULL;
+	struct sctp_ulpevent *retval = NULL;
+	struct sk_buff *pd_first = NULL;
+	struct sk_buff *pd_last = NULL;
+	struct sctp_stream_in *sin;
+	__u32 next_fsn = 0;
+	__u32 pd_point = 0;
+	__u32 pd_len = 0;
+	__u32 mid = 0;
+
+	sin = sctp_stream_in(ulpq->asoc, event->stream);
+
+	skb_queue_walk(&ulpq->reasm_uo, pos) {
+		struct sctp_ulpevent *cevent = sctp_skb2event(pos);
+
+		if (cevent->stream < event->stream)
+			continue;
+		if (cevent->stream > event->stream)
+			break;
+
+		if (MID_lt(cevent->mid, event->mid))
+			continue;
+		if (MID_lt(event->mid, cevent->mid))
+			break;
+
+		switch (cevent->msg_flags & SCTP_DATA_FRAG_MASK) {
+		case SCTP_DATA_FIRST_FRAG:
+			if (!sin->pd_mode_uo) {
+				sin->mid_uo = cevent->mid;
+				pd_first = pos;
+				pd_last = pos;
+				pd_len = pos->len;
+			}
+
+			first_frag = pos;
+			next_fsn = 0;
+			mid = cevent->mid;
+			break;
+
+		case SCTP_DATA_MIDDLE_FRAG:
+			if (first_frag && cevent->mid == mid &&
+			    cevent->fsn == next_fsn) {
+				next_fsn++;
+				if (pd_first) {
+					pd_last = pos;
+					pd_len += pos->len;
+				}
+			} else {
+				first_frag = NULL;
+			}
+			break;
+
+		case SCTP_DATA_LAST_FRAG:
+			if (first_frag && cevent->mid == mid &&
+			    cevent->fsn == next_fsn)
+				goto found;
+			else
+				first_frag = NULL;
+			break;
+		}
+	}
+
+	if (!pd_first)
+		goto out;
+
+	pd_point = sctp_sk(asoc->base.sk)->pd_point;
+	if (pd_point && pd_point <= pd_len) {
+		retval = sctp_make_reassembled_event(sock_net(asoc->base.sk),
+						     &ulpq->reasm_uo,
+						     pd_first, pd_last);
+		if (retval) {
+			sin->fsn_uo = next_fsn;
+			sin->pd_mode_uo = 1;
+		}
+	}
+	goto out;
+
+found:
+	retval = sctp_make_reassembled_event(sock_net(asoc->base.sk),
+					     &ulpq->reasm_uo,
+					     first_frag, pos);
+	if (retval)
+		retval->msg_flags |= MSG_EOR;
+
+out:
+	return retval;
+}
+
+static struct sctp_ulpevent *sctp_intl_reasm_uo(struct sctp_ulpq *ulpq,
+						struct sctp_ulpevent *event)
+{
+	struct sctp_ulpevent *retval = NULL;
+	struct sctp_stream_in *sin;
+
+	if (SCTP_DATA_NOT_FRAG == (event->msg_flags & SCTP_DATA_FRAG_MASK)) {
+		event->msg_flags |= MSG_EOR;
+		return event;
+	}
+
+	sctp_intl_store_reasm_uo(ulpq, event);
+
+	sin = sctp_stream_in(ulpq->asoc, event->stream);
+	if (sin->pd_mode_uo && event->mid == sin->mid_uo &&
+	    event->fsn == sin->fsn_uo)
+		retval = sctp_intl_retrieve_partial_uo(ulpq, event);
+
+	if (!retval)
+		retval = sctp_intl_retrieve_reassembled_uo(ulpq, event);
+
+	return retval;
+}
+
+static struct sctp_ulpevent *sctp_intl_retrieve_first_uo(struct sctp_ulpq *ulpq)
+{
+	struct sctp_stream_in *csin, *sin = NULL;
+	struct sk_buff *first_frag = NULL;
+	struct sk_buff *last_frag = NULL;
+	struct sctp_ulpevent *retval;
+	struct sk_buff *pos;
+	__u32 next_fsn = 0;
+	__u16 sid = 0;
+
+	skb_queue_walk(&ulpq->reasm_uo, pos) {
+		struct sctp_ulpevent *cevent = sctp_skb2event(pos);
+
+		csin = sctp_stream_in(ulpq->asoc, cevent->stream);
+		if (csin->pd_mode_uo)
+			continue;
+
+		switch (cevent->msg_flags & SCTP_DATA_FRAG_MASK) {
+		case SCTP_DATA_FIRST_FRAG:
+			if (first_frag)
+				goto out;
+			first_frag = pos;
+			last_frag = pos;
+			next_fsn = 0;
+			sin = csin;
+			sid = cevent->stream;
+			sin->mid_uo = cevent->mid;
+			break;
+		case SCTP_DATA_MIDDLE_FRAG:
+			if (!first_frag)
+				break;
+			if (cevent->stream == sid &&
+			    cevent->mid == sin->mid_uo &&
+			    cevent->fsn == next_fsn) {
+				next_fsn++;
+				last_frag = pos;
+			} else {
+				goto out;
+			}
+			break;
+		case SCTP_DATA_LAST_FRAG:
+			if (first_frag)
+				goto out;
+			break;
+		default:
+			break;
+		}
+	}
+
+	if (!first_frag)
+		return NULL;
+
+out:
+	retval = sctp_make_reassembled_event(sock_net(ulpq->asoc->base.sk),
+					     &ulpq->reasm_uo, first_frag,
+					     last_frag);
+	if (retval) {
+		sin->fsn_uo = next_fsn;
+		sin->pd_mode_uo = 1;
+	}
+
+	return retval;
+}
+
 static int sctp_ulpevent_idata(struct sctp_ulpq *ulpq,
 			       struct sctp_chunk *chunk, gfp_t gfp)
 {
@@ -529,12 +841,16 @@ static int sctp_ulpevent_idata(struct sctp_ulpq *ulpq,
 	else
 		event->fsn = ntohl(chunk->subh.idata_hdr->fsn);
 
-	event = sctp_intl_reasm(ulpq, event);
-	if (event && event->msg_flags & MSG_EOR) {
-		skb_queue_head_init(&temp);
-		__skb_queue_tail(&temp, sctp_event2skb(event));
+	if (!(event->msg_flags & SCTP_DATA_UNORDERED)) {
+		event = sctp_intl_reasm(ulpq, event);
+		if (event && event->msg_flags & MSG_EOR) {
+			skb_queue_head_init(&temp);
+			__skb_queue_tail(&temp, sctp_event2skb(event));
 
-		event = sctp_intl_order(ulpq, event);
+			event = sctp_intl_order(ulpq, event);
+		}
+	} else {
+		event = sctp_intl_reasm_uo(ulpq, event);
 	}
 
 	if (event) {
@@ -614,14 +930,21 @@ static void sctp_intl_start_pd(struct sctp_ulpq *ulpq, gfp_t gfp)
 {
 	struct sctp_ulpevent *event;
 
-	if (skb_queue_empty(&ulpq->reasm))
-		return;
+	if (!skb_queue_empty(&ulpq->reasm)) {
+		do {
+			event = sctp_intl_retrieve_first(ulpq);
+			if (event)
+				sctp_enqueue_event(ulpq, event);
+		} while (event);
+	}
 
-	do {
-		event = sctp_intl_retrieve_first(ulpq);
-		if (event)
-			sctp_enqueue_event(ulpq, event);
-	} while (event);
+	if (!skb_queue_empty(&ulpq->reasm_uo)) {
+		do {
+			event = sctp_intl_retrieve_first_uo(ulpq);
+			if (event)
+				sctp_enqueue_event(ulpq, event);
+		} while (event);
+	}
 }
 
 static void sctp_renege_events(struct sctp_ulpq *ulpq, struct sctp_chunk *chunk,
@@ -642,6 +965,9 @@ static void sctp_renege_events(struct sctp_ulpq *ulpq, struct sctp_chunk *chunk,
 		freed = sctp_ulpq_renege_list(ulpq, &ulpq->lobby, needed);
 		if (freed < needed)
 			freed += sctp_ulpq_renege_list(ulpq, &ulpq->reasm,
+						       needed);
+		if (freed < needed)
+			freed += sctp_ulpq_renege_list(ulpq, &ulpq->reasm_uo,
 						       needed);
 	}
 
@@ -733,6 +1059,13 @@ static void sctp_intl_abort_pd(struct sctp_ulpq *ulpq, gfp_t gfp)
 	for (sid = 0; sid < stream->incnt; sid++) {
 		struct sctp_stream_in *sin = &stream->in[sid];
 		__u32 mid;
+
+		if (sin->pd_mode_uo) {
+			sin->pd_mode_uo = 0;
+
+			mid = sin->mid_uo;
+			sctp_intl_stream_abort_pd(ulpq, sid, mid, 0x1, gfp);
+		}
 
 		if (sin->pd_mode) {
 			sin->pd_mode = 0;

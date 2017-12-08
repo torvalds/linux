@@ -60,6 +60,7 @@ struct sctp_ulpq *sctp_ulpq_init(struct sctp_ulpq *ulpq,
 
 	ulpq->asoc = asoc;
 	skb_queue_head_init(&ulpq->reasm);
+	skb_queue_head_init(&ulpq->reasm_uo);
 	skb_queue_head_init(&ulpq->lobby);
 	ulpq->pd_mode  = 0;
 
@@ -83,6 +84,10 @@ void sctp_ulpq_flush(struct sctp_ulpq *ulpq)
 		sctp_ulpevent_free(event);
 	}
 
+	while ((skb = __skb_dequeue(&ulpq->reasm_uo)) != NULL) {
+		event = sctp_skb2event(skb);
+		sctp_ulpevent_free(event);
+	}
 }
 
 /* Dispose of a ulpqueue.  */

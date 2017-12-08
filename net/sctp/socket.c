@@ -201,6 +201,22 @@ static void sctp_for_each_tx_datachunk(struct sctp_association *asoc,
 		cb(chunk);
 }
 
+static void sctp_for_each_rx_skb(struct sctp_association *asoc, struct sock *sk,
+				 void (*cb)(struct sk_buff *, struct sock *))
+
+{
+	struct sk_buff *skb, *tmp;
+
+	sctp_skb_for_each(skb, &asoc->ulpq.lobby, tmp)
+		cb(skb, sk);
+
+	sctp_skb_for_each(skb, &asoc->ulpq.reasm, tmp)
+		cb(skb, sk);
+
+	sctp_skb_for_each(skb, &asoc->ulpq.reasm_uo, tmp)
+		cb(skb, sk);
+}
+
 /* Verify that this is a valid address. */
 static inline int sctp_verify_addr(struct sock *sk, union sctp_addr *addr,
 				   int len)
@@ -1554,6 +1570,7 @@ static void sctp_close(struct sock *sk, long timeout)
 
 		if (data_was_unread || !skb_queue_empty(&asoc->ulpq.lobby) ||
 		    !skb_queue_empty(&asoc->ulpq.reasm) ||
+		    !skb_queue_empty(&asoc->ulpq.reasm_uo) ||
 		    (sock_flag(sk, SOCK_LINGER) && !sk->sk_lingertime)) {
 			struct sctp_chunk *chunk;
 
@@ -8495,11 +8512,7 @@ static void sctp_sock_migrate(struct sock *oldsk, struct sock *newsk,
 
 	}
 
-	sctp_skb_for_each(skb, &assoc->ulpq.reasm, tmp)
-		sctp_skb_set_owner_r_frag(skb, newsk);
-
-	sctp_skb_for_each(skb, &assoc->ulpq.lobby, tmp)
-		sctp_skb_set_owner_r_frag(skb, newsk);
+	sctp_for_each_rx_skb(assoc, newsk, sctp_skb_set_owner_r_frag);
 
 	/* Set the type of socket to indicate that it is peeled off from the
 	 * original UDP-style socket or created with the accept() call on a
