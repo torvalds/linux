@@ -394,6 +394,10 @@ static int vmw_ttm_map_dma(struct vmw_ttm_tt *vmw_tt)
 	struct vmw_private *dev_priv = vmw_tt->dev_priv;
 	struct ttm_mem_global *glob = vmw_mem_glob(dev_priv);
 	struct vmw_sg_table *vsgt = &vmw_tt->vsgt;
+	struct ttm_operation_ctx ctx = {
+		.interruptible = true,
+		.no_wait_gpu = false
+	};
 	struct vmw_piter iter;
 	dma_addr_t old;
 	int ret = 0;
@@ -417,8 +421,7 @@ static int vmw_ttm_map_dma(struct vmw_ttm_tt *vmw_tt)
 			sgt_size = ttm_round_pot(sizeof(struct sg_table));
 		}
 		vmw_tt->sg_alloc_size = sgt_size + sgl_size * vsgt->num_pages;
-		ret = ttm_mem_global_alloc(glob, vmw_tt->sg_alloc_size, false,
-					   true);
+		ret = ttm_mem_global_alloc(glob, vmw_tt->sg_alloc_size, &ctx);
 		if (unlikely(ret != 0))
 			return ret;
 
@@ -638,6 +641,10 @@ static int vmw_ttm_populate(struct ttm_tt *ttm)
 		container_of(ttm, struct vmw_ttm_tt, dma_ttm.ttm);
 	struct vmw_private *dev_priv = vmw_tt->dev_priv;
 	struct ttm_mem_global *glob = vmw_mem_glob(dev_priv);
+	struct ttm_operation_ctx ctx = {
+		.interruptible = true,
+		.no_wait_gpu = false
+	};
 	int ret;
 
 	if (ttm->state != tt_unpopulated)
@@ -646,7 +653,7 @@ static int vmw_ttm_populate(struct ttm_tt *ttm)
 	if (dev_priv->map_mode == vmw_dma_alloc_coherent) {
 		size_t size =
 			ttm_round_pot(ttm->num_pages * sizeof(dma_addr_t));
-		ret = ttm_mem_global_alloc(glob, size, false, true);
+		ret = ttm_mem_global_alloc(glob, size, &ctx);
 		if (unlikely(ret != 0))
 			return ret;
 

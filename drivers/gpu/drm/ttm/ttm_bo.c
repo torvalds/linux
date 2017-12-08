@@ -1135,7 +1135,7 @@ int ttm_bo_init_reserved(struct ttm_bo_device *bdev,
 	struct ttm_mem_global *mem_glob = bdev->glob->mem_glob;
 	bool locked;
 
-	ret = ttm_mem_global_alloc(mem_glob, acc_size, false, false);
+	ret = ttm_mem_global_alloc(mem_glob, acc_size, ctx);
 	if (ret) {
 		pr_err("Out of kernel memory\n");
 		if (destroy)

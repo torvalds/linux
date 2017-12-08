@@ -35,6 +35,7 @@
 #include <linux/errno.h>
 #include <linux/kobject.h>
 #include <linux/mm.h>
+#include "ttm_bo_api.h"
 
 /**
  * struct ttm_mem_global - Global memory accounting structure.
@@ -79,7 +80,7 @@ struct ttm_mem_global {
 extern int ttm_mem_global_init(struct ttm_mem_global *glob);
 extern void ttm_mem_global_release(struct ttm_mem_global *glob);
 extern int ttm_mem_global_alloc(struct ttm_mem_global *glob, uint64_t memory,
-				bool no_wait, bool interruptible);
+				struct ttm_operation_ctx *ctx);
 extern void ttm_mem_global_free(struct ttm_mem_global *glob,
 				uint64_t amount);
 extern int ttm_mem_global_alloc_page(struct ttm_mem_global *glob,

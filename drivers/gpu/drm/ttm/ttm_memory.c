@@ -508,7 +508,7 @@ out_unlock:
 static int ttm_mem_global_alloc_zone(struct ttm_mem_global *glob,
 				     struct ttm_mem_zone *single_zone,
 				     uint64_t memory,
-				     bool no_wait, bool interruptible)
+				     struct ttm_operation_ctx *ctx)
 {
 	int count = TTM_MEMORY_ALLOC_RETRIES;
 
@@ -516,7 +516,7 @@ static int ttm_mem_global_alloc_zone(struct ttm_mem_global *glob,
 					       single_zone,
 					       memory, true)
 			!= 0)) {
-		if (no_wait)
+		if (ctx->no_wait_gpu)
 			return -ENOMEM;
 		if (unlikely(count-- == 0))
 			return -ENOMEM;
@@ -527,15 +527,14 @@ static int ttm_mem_global_alloc_zone(struct ttm_mem_global *glob,
 }
 
 int ttm_mem_global_alloc(struct ttm_mem_global *glob, uint64_t memory,
-			 bool no_wait, bool interruptible)
+			 struct ttm_operation_ctx *ctx)
 {
 	/**
 	 * Normal allocations of kernel memory are registered in
 	 * all zones.
 	 */
 
-	return ttm_mem_global_alloc_zone(glob, NULL, memory, no_wait,
-					 interruptible);
+	return ttm_mem_global_alloc_zone(glob, NULL, memory, ctx);
 }
 EXPORT_SYMBOL(ttm_mem_global_alloc);
 
@@ -544,6 +543,10 @@ int ttm_mem_global_alloc_page(struct ttm_mem_global *glob,
 {
 
 	struct ttm_mem_zone *zone = NULL;
+	struct ttm_operation_ctx ctx = {
+		.interruptible = false,
+		.no_wait_gpu = false
+	};
 
 	/**
 	 * Page allocations may be registed in a single zone
@@ -557,7 +560,7 @@ int ttm_mem_global_alloc_page(struct ttm_mem_global *glob,
 	if (glob->zone_dma32 && page_to_pfn(page) > 0x00100000UL)
 		zone = glob->zone_kernel;
 #endif
-	return ttm_mem_global_alloc_zone(glob, zone, size, false, false);
+	return ttm_mem_global_alloc_zone(glob, zone, size, &ctx);
 }
 
 void ttm_mem_global_free_page(struct ttm_mem_global *glob, struct page *page,
