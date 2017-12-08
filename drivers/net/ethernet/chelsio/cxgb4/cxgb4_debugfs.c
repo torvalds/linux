@@ -2811,7 +2811,7 @@ static void mem_region_show(struct seq_file *seq, const char *name,
 static int meminfo_show(struct seq_file *seq, void *v)
 {
 	static const char * const memory[] = { "EDC0:", "EDC1:", "MC:",
-					       "MC0:", "MC1:"};
+					       "MC0:", "MC1:", "HMA:"};
 	struct adapter *adap = seq->private;
 	struct cudbg_meminfo meminfo;
 	int i, rc;

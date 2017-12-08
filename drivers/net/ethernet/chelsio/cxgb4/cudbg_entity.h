@@ -23,6 +23,7 @@
 #define MC_FLAG 2
 #define MC0_FLAG 3
 #define MC1_FLAG 4
+#define HMA_FLAG 5
 
 #define CUDBG_ENTITY_SIGNATURE 0xCCEDB001
 

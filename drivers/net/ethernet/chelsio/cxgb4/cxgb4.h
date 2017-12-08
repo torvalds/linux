@@ -77,7 +77,8 @@ enum {
 	MEM_EDC1,
 	MEM_MC,
 	MEM_MC0 = MEM_MC,
-	MEM_MC1
+	MEM_MC1,
+	MEM_HMA,
 };
 
 enum {

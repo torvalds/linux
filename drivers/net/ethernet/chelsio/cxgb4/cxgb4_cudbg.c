@@ -24,6 +24,7 @@ static const struct cxgb4_collect_entity cxgb4_collect_mem_dump[] = {
 	{ CUDBG_EDC1, cudbg_collect_edc1_meminfo },
 	{ CUDBG_MC0, cudbg_collect_mc0_meminfo },
 	{ CUDBG_MC1, cudbg_collect_mc1_meminfo },
+	{ CUDBG_HMA, cudbg_collect_hma_meminfo },
 };
 
 static const struct cxgb4_collect_entity cxgb4_collect_hw_dump[] = {
@@ -284,6 +285,17 @@ static u32 cxgb4_get_entity_length(struct adapter *adap, u32 entity)
 			    (IREG_NUM_ELEM * sizeof(u32));
 			len = sizeof(struct ireg_buf) * n;
 		}
+		break;
+	case CUDBG_HMA:
+		value = t4_read_reg(adap, MA_TARGET_MEM_ENABLE_A);
+		if (value & HMA_MUX_F) {
+			/* In T6, there's no MC1.  So, HMA shares MC1
+			 * address space.
+			 */
+			value = t4_read_reg(adap, MA_EXT_MEMORY1_BAR_A);
+			len = EXT_MEM1_SIZE_G(value);
+		}
+		len = cudbg_mbytes_to_bytes(len);
 		break;
 	default:
 		break;

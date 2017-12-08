@@ -77,6 +77,7 @@ enum cudbg_dbg_entity_type {
 	CUDBG_PBT_TABLE = 65,
 	CUDBG_MBOX_LOG = 66,
 	CUDBG_HMA_INDIRECT = 67,
+	CUDBG_HMA = 68,
 	CUDBG_MAX_ENTITY = 70,
 };
 

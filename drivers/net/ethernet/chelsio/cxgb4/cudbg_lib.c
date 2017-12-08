@@ -169,6 +169,17 @@ int cudbg_fill_meminfo(struct adapter *padap,
 			meminfo_buff->avail[i].idx = 2;
 			i++;
 		}
+
+		if (lo & HMA_MUX_F) {
+			hi = t4_read_reg(padap, MA_EXT_MEMORY1_BAR_A);
+			meminfo_buff->avail[i].base =
+				cudbg_mbytes_to_bytes(EXT_MEM1_BASE_G(hi));
+			meminfo_buff->avail[i].limit =
+				meminfo_buff->avail[i].base +
+				cudbg_mbytes_to_bytes(EXT_MEM1_SIZE_G(hi));
+			meminfo_buff->avail[i].idx = 5;
+			i++;
+		}
 	}
 
 	if (!i) /* no memory available */
@@ -702,6 +713,9 @@ static int cudbg_meminfo_get_mem_index(struct adapter *padap,
 	case MEM_MC1:
 		flag = MC1_FLAG;
 		break;
+	case MEM_HMA:
+		flag = HMA_FLAG;
+		break;
 	default:
 		return CUDBG_STATUS_ENTITY_NOT_FOUND;
 	}
@@ -833,6 +847,14 @@ int cudbg_collect_mc1_meminfo(struct cudbg_init *pdbg_init,
 {
 	return cudbg_collect_mem_region(pdbg_init, dbg_buff, cudbg_err,
 					MEM_MC1);
+}
+
+int cudbg_collect_hma_meminfo(struct cudbg_init *pdbg_init,
+			      struct cudbg_buffer *dbg_buff,
+			      struct cudbg_error *cudbg_err)
+{
+	return cudbg_collect_mem_region(pdbg_init, dbg_buff, cudbg_err,
+					MEM_HMA);
 }
 
 int cudbg_collect_rss(struct cudbg_init *pdbg_init,
