@@ -1089,7 +1089,7 @@ static int max310x_gpio_direction_output(struct gpio_chip *chip,
 #endif
 
 static int max310x_probe(struct device *dev, struct max310x_devtype *devtype,
-			 struct regmap *regmap, int irq, unsigned long flags)
+			 struct regmap *regmap, int irq)
 {
 	int i, ret, fmin, fmax, freq, uartclk;
 	struct clk *clk_osc, *clk_xtal;
@@ -1239,7 +1239,7 @@ static int max310x_probe(struct device *dev, struct max310x_devtype *devtype,
 
 	/* Setup interrupt */
 	ret = devm_request_threaded_irq(dev, irq, NULL, max310x_ist,
-					IRQF_ONESHOT | flags, dev_name(dev), s);
+					IRQF_ONESHOT, dev_name(dev), s);
 	if (!ret)
 		return 0;
 
@@ -1304,7 +1304,6 @@ static struct regmap_config regcfg = {
 static int max310x_spi_probe(struct spi_device *spi)
 {
 	struct max310x_devtype *devtype;
-	unsigned long flags = 0;
 	struct regmap *regmap;
 	int ret;
 
@@ -1327,11 +1326,10 @@ static int max310x_spi_probe(struct spi_device *spi)
 		devtype = (struct max310x_devtype *)id_entry->driver_data;
 	}
 
-	flags = IRQF_TRIGGER_FALLING;
 	regcfg.max_register = devtype->nr * 0x20 - 1;
 	regmap = devm_regmap_init_spi(spi, &regcfg);
 
-	return max310x_probe(&spi->dev, devtype, regmap, spi->irq, flags);
+	return max310x_probe(&spi->dev, devtype, regmap, spi->irq);
 }
 
 static int max310x_spi_remove(struct spi_device *spi)
