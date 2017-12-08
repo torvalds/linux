@@ -21,11 +21,11 @@ vulnerable to DMA attacks.
 Security levels and how to use them
 -----------------------------------
 Starting with Intel Falcon Ridge Thunderbolt controller there are 4
-security levels available. The reason for these is the fact that the
-connected devices can be DMA masters and thus read contents of the host
-memory without CPU and OS knowing about it. There are ways to prevent
-this by setting up an IOMMU but it is not always available for various
-reasons.
+security levels available. Intel Titan Ridge added one more security level
+(usbonly). The reason for these is the fact that the connected devices can
+be DMA masters and thus read contents of the host memory without CPU and OS
+knowing about it. There are ways to prevent this by setting up an IOMMU but
+it is not always available for various reasons.
 
 The security levels are as follows:
 
@@ -51,6 +51,11 @@ The security levels are as follows:
     The firmware automatically creates tunnels for Display Port and
     USB. No PCIe tunneling is done. In BIOS settings this is
     typically called *Display Port Only*.
+
+  usbonly
+    The firmware automatically creates tunnels for the USB controller and
+    Display Port in a dock. All PCIe links downstream of the dock are
+    removed.
 
 The current security level can be read from
 ``/sys/bus/thunderbolt/devices/domainX/security`` where ``domainX`` is

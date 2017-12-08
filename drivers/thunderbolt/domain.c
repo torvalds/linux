@@ -117,6 +117,7 @@ static const char * const tb_security_names[] = {
 	[TB_SECURITY_USER] = "user",
 	[TB_SECURITY_SECURE] = "secure",
 	[TB_SECURITY_DPONLY] = "dponly",
+	[TB_SECURITY_USBONLY] = "usbonly",
 };
 
 static ssize_t boot_acl_show(struct device *dev, struct device_attribute *attr,
@@ -227,8 +228,12 @@ static ssize_t security_show(struct device *dev, struct device_attribute *attr,
 			     char *buf)
 {
 	struct tb *tb = container_of(dev, struct tb, dev);
+	const char *name = "unknown";
 
-	return sprintf(buf, "%s\n", tb_security_names[tb->security_level]);
+	if (tb->security_level < ARRAY_SIZE(tb_security_names))
+		name = tb_security_names[tb->security_level];
+
+	return sprintf(buf, "%s\n", name);
 }
 static DEVICE_ATTR_RO(security);
 

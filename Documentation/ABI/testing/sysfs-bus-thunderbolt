@@ -35,6 +35,9 @@ Description:	This attribute holds current Thunderbolt security level
 			minimum. User needs to authorize each device.
 		dponly: Automatically tunnel Display port (and USB). No
 			PCIe tunnels are created.
+		usbonly: Automatically tunnel USB controller of the
+			 connected Thunderbolt dock (and Display Port). All
+			 PCIe links downstream of the dock are removed.
 
 What: /sys/bus/thunderbolt/devices/.../authorized
 Date:		Sep 2017

@@ -45,12 +45,16 @@ enum tb_cfg_pkg_type {
  * @TB_SECURITY_USER: User approval required at minimum
  * @TB_SECURITY_SECURE: One time saved key required at minimum
  * @TB_SECURITY_DPONLY: Only tunnel Display port (and USB)
+ * @TB_SECURITY_USBONLY: Only tunnel USB controller of the connected
+ *			 Thunderbolt dock (and Display Port). All PCIe
+ *			 links downstream of the dock are removed.
  */
 enum tb_security_level {
 	TB_SECURITY_NONE,
 	TB_SECURITY_USER,
 	TB_SECURITY_SECURE,
 	TB_SECURITY_DPONLY,
+	TB_SECURITY_USBONLY,
 };
 
 /**
