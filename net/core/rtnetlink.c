@@ -1637,6 +1637,8 @@ static const struct nla_policy ifla_policy[IFLA_MAX+1] = {
 	[IFLA_PROMISCUITY]	= { .type = NLA_U32 },
 	[IFLA_NUM_TX_QUEUES]	= { .type = NLA_U32 },
 	[IFLA_NUM_RX_QUEUES]	= { .type = NLA_U32 },
+	[IFLA_GSO_MAX_SEGS]	= { .type = NLA_U32 },
+	[IFLA_GSO_MAX_SIZE]	= { .type = NLA_U32 },
 	[IFLA_PHYS_PORT_ID]	= { .type = NLA_BINARY, .len = MAX_PHYS_ITEM_ID_LEN },
 	[IFLA_CARRIER_CHANGES]	= { .type = NLA_U32 },  /* ignored */
 	[IFLA_PHYS_SWITCH_ID]	= { .type = NLA_BINARY, .len = MAX_PHYS_ITEM_ID_LEN },
@@ -2287,6 +2289,34 @@ static int do_setlink(const struct sk_buff *skb,
 		}
 	}
 
+	if (tb[IFLA_GSO_MAX_SIZE]) {
+		u32 max_size = nla_get_u32(tb[IFLA_GSO_MAX_SIZE]);
+
+		if (max_size > GSO_MAX_SIZE) {
+			err = -EINVAL;
+			goto errout;
+		}
+
+		if (dev->gso_max_size ^ max_size) {
+			netif_set_gso_max_size(dev, max_size);
+			status |= DO_SETLINK_MODIFIED;
+		}
+	}
+
+	if (tb[IFLA_GSO_MAX_SEGS]) {
+		u32 max_segs = nla_get_u32(tb[IFLA_GSO_MAX_SEGS]);
+
+		if (max_segs > GSO_MAX_SEGS) {
+			err = -EINVAL;
+			goto errout;
+		}
+
+		if (dev->gso_max_segs ^ max_segs) {
+			dev->gso_max_segs = max_segs;
+			status |= DO_SETLINK_MODIFIED;
+		}
+	}
+
 	if (tb[IFLA_OPERSTATE])
 		set_operstate(dev, nla_get_u8(tb[IFLA_OPERSTATE]));
 
@@ -2651,6 +2681,10 @@ struct net_device *rtnl_create_link(struct net *net,
 		dev->link_mode = nla_get_u8(tb[IFLA_LINKMODE]);
 	if (tb[IFLA_GROUP])
 		dev_set_group(dev, nla_get_u32(tb[IFLA_GROUP]));
+	if (tb[IFLA_GSO_MAX_SIZE])
+		netif_set_gso_max_size(dev, nla_get_u32(tb[IFLA_GSO_MAX_SIZE]));
+	if (tb[IFLA_GSO_MAX_SEGS])
+		dev->gso_max_size = nla_get_u32(tb[IFLA_GSO_MAX_SEGS]);
 
 	return dev;
 }
