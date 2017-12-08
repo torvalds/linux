@@ -228,7 +228,7 @@ struct sctp_chunk *sctp_make_init(const struct sctp_association *asoc,
 	struct sctp_inithdr init;
 	union sctp_params addrs;
 	struct sctp_sock *sp;
-	__u8 extensions[4];
+	__u8 extensions[5];
 	size_t chunksize;
 	__be16 types[2];
 	int num_ext = 0;
@@ -277,6 +277,11 @@ struct sctp_chunk *sctp_make_init(const struct sctp_association *asoc,
 
 	if (sp->adaptation_ind)
 		chunksize += sizeof(aiparam);
+
+	if (sp->strm_interleave) {
+		extensions[num_ext] = SCTP_CID_I_DATA;
+		num_ext += 1;
+	}
 
 	chunksize += vparam_len;
 
@@ -392,7 +397,7 @@ struct sctp_chunk *sctp_make_init_ack(const struct sctp_association *asoc,
 	struct sctp_inithdr initack;
 	union sctp_params addrs;
 	struct sctp_sock *sp;
-	__u8 extensions[4];
+	__u8 extensions[5];
 	size_t chunksize;
 	int num_ext = 0;
 	int cookie_len;
@@ -441,6 +446,11 @@ struct sctp_chunk *sctp_make_init_ack(const struct sctp_association *asoc,
 
 	if (sp->adaptation_ind)
 		chunksize += sizeof(aiparam);
+
+	if (asoc->intl_enable) {
+		extensions[num_ext] = SCTP_CID_I_DATA;
+		num_ext += 1;
+	}
 
 	if (asoc->peer.auth_capable) {
 		auth_random = (struct sctp_paramhdr *)asoc->c.auth_random;
@@ -2031,6 +2041,10 @@ static void sctp_process_ext_param(struct sctp_association *asoc,
 		case SCTP_CID_ASCONF_ACK:
 			if (net->sctp.addip_enable)
 				asoc->peer.asconf_capable = 1;
+			break;
+		case SCTP_CID_I_DATA:
+			if (sctp_sk(asoc->base.sk)->strm_interleave)
+				asoc->intl_enable = 1;
 			break;
 		default:
 			break;

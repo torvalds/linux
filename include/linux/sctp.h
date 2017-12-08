@@ -102,6 +102,9 @@ enum sctp_cid {
 	/* AUTH Extension Section 4.1 */
 	SCTP_CID_AUTH			= 0x0F,
 
+	/* sctp ndata 5.1. I-DATA */
+	SCTP_CID_I_DATA			= 0x40,
+
 	/* PR-SCTP Sec 3.2 */
 	SCTP_CID_FWD_TSN		= 0xC0,
 
