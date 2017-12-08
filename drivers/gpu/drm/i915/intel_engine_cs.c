@@ -1693,8 +1693,9 @@ void intel_engine_dump(struct intel_engine_cs *engine,
 		   engine->hangcheck.seqno,
 		   jiffies_to_msecs(jiffies - engine->hangcheck.action_timestamp),
 		   engine->timeline->inflight_seqnos);
-	drm_printf(m, "\tReset count: %d\n",
-		   i915_reset_engine_count(error, engine));
+	drm_printf(m, "\tReset count: %d (global %d)\n",
+		   i915_reset_engine_count(error, engine),
+		   i915_reset_count(error));
 
 	rcu_read_lock();
 
