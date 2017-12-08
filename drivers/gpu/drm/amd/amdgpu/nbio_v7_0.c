@@ -182,22 +182,22 @@ void nbio_v7_0_ih_control(struct amdgpu_device *adev)
 	WREG32_SOC15(NBIO, 0, mmINTERRUPT_CNTL, interrupt_cntl);
 }
 
-static u32 get_hdp_flush_req_offset(struct amdgpu_device *adev)
+static u32 nbio_v7_0_get_hdp_flush_req_offset(struct amdgpu_device *adev)
 {
 	return SOC15_REG_OFFSET(NBIO, 0, mmGPU_HDP_FLUSH_REQ);
 }
 
-static u32 get_hdp_flush_done_offset(struct amdgpu_device *adev)
+static u32 nbio_v7_0_get_hdp_flush_done_offset(struct amdgpu_device *adev)
 {
 	return SOC15_REG_OFFSET(NBIO, 0, mmGPU_HDP_FLUSH_DONE);
 }
 
-static u32 get_pcie_index_offset(struct amdgpu_device *adev)
+static u32 nbio_v7_0_get_pcie_index_offset(struct amdgpu_device *adev)
 {
 	return SOC15_REG_OFFSET(NBIO, 0, mmPCIE_INDEX2);
 }
 
-static u32 get_pcie_data_offset(struct amdgpu_device *adev)
+static u32 nbio_v7_0_get_pcie_data_offset(struct amdgpu_device *adev)
 {
 	return SOC15_REG_OFFSET(NBIO, 0, mmPCIE_DATA2);
 }
@@ -218,9 +218,9 @@ const struct nbio_hdp_flush_reg nbio_v7_0_hdp_flush_reg = {
 };
 
 const struct amdgpu_nbio_funcs nbio_v7_0_funcs = {
-	.get_hdp_flush_req_offset = get_hdp_flush_req_offset,
-	.get_hdp_flush_done_offset = get_hdp_flush_done_offset,
-	.get_pcie_index_offset = get_pcie_index_offset,
-	.get_pcie_data_offset = get_pcie_data_offset,
+	.get_hdp_flush_req_offset = nbio_v7_0_get_hdp_flush_req_offset,
+	.get_hdp_flush_done_offset = nbio_v7_0_get_hdp_flush_done_offset,
+	.get_pcie_index_offset = nbio_v7_0_get_pcie_index_offset,
+	.get_pcie_data_offset = nbio_v7_0_get_pcie_data_offset,
 };
 
