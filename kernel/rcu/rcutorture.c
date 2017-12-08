@@ -909,14 +909,10 @@ rcu_torture_writer(void *arg)
 	int nsynctypes = 0;
 
 	VERBOSE_TOROUT_STRING("rcu_torture_writer task started");
-	if (!can_expedite) {
+	if (!can_expedite)
 		pr_alert("%s" TORTURE_FLAG
-			 " GP expediting controlled from boot/sysfs for %s,\n",
+			 " GP expediting controlled from boot/sysfs for %s.\n",
 			 torture_type, cur_ops->name);
-		pr_alert("%s" TORTURE_FLAG
-			 " Disabled dynamic grace-period expediting.\n",
-			 torture_type);
-	}
 
 	/* Initialize synctype[] array.  If none set, take default. */
 	if (!gp_cond1 && !gp_exp1 && !gp_normal1 && !gp_sync1)
@@ -1011,6 +1007,9 @@ rcu_torture_writer(void *arg)
 				rcu_unexpedite_gp();
 			if (++expediting > 3)
 				expediting = -expediting;
+		} else if (!can_expedite) { /* Disabled during boot, recheck. */
+			can_expedite = !rcu_gp_is_expedited() &&
+				       !rcu_gp_is_normal();
 		}
 		rcu_torture_writer_state = RTWS_STUTTER;
 		stutter_wait("rcu_torture_writer");
@@ -1021,6 +1020,10 @@ rcu_torture_writer(void *arg)
 	while (can_expedite && expediting++ < 0)
 		rcu_unexpedite_gp();
 	WARN_ON_ONCE(can_expedite && rcu_gp_is_expedited());
+	if (!can_expedite)
+		pr_alert("%s" TORTURE_FLAG
+			 " Dynamic grace-period expediting was disabled.\n",
+			 torture_type);
 	rcu_torture_writer_state = RTWS_STOPPING;
 	torture_kthread_stopping("rcu_torture_writer");
 	return 0;
