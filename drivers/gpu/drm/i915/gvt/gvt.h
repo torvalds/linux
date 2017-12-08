@@ -44,7 +44,7 @@
 #include "execlist.h"
 #include "scheduler.h"
 #include "sched_policy.h"
-#include "render.h"
+#include "mmio_context.h"
 #include "cmd_parser.h"
 #include "fb_decoder.h"
 #include "dmabuf.h"
