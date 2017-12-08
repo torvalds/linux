@@ -72,6 +72,11 @@ static inline bool __skb_array_empty(struct skb_array *a)
 	return !__ptr_ring_peek(&a->ring);
 }
 
+static inline struct sk_buff *__skb_array_peek(struct skb_array *a)
+{
+	return __ptr_ring_peek(&a->ring);
+}
+
 static inline bool skb_array_empty(struct skb_array *a)
 {
 	return ptr_ring_empty(&a->ring);

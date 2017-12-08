@@ -105,16 +105,18 @@ struct qdisc_rate_table *qdisc_get_rtab(struct tc_ratespec *r,
 void qdisc_put_rtab(struct qdisc_rate_table *tab);
 void qdisc_put_stab(struct qdisc_size_table *tab);
 void qdisc_warn_nonwc(const char *txt, struct Qdisc *qdisc);
-int sch_direct_xmit(struct sk_buff *skb, struct Qdisc *q,
-		    struct net_device *dev, struct netdev_queue *txq,
-		    spinlock_t *root_lock, bool validate);
+bool sch_direct_xmit(struct sk_buff *skb, struct Qdisc *q,
+		     struct net_device *dev, struct netdev_queue *txq,
+		     spinlock_t *root_lock, bool validate);
 
 void __qdisc_run(struct Qdisc *q);
 
 static inline void qdisc_run(struct Qdisc *q)
 {
-	if (qdisc_run_begin(q))
+	if (qdisc_run_begin(q)) {
 		__qdisc_run(q);
+		qdisc_run_end(q);
+	}
 }
 
 static inline __be16 tc_skb_protocol(const struct sk_buff *skb)
