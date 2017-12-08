@@ -520,18 +520,17 @@ void intel_vgpu_dmabuf_cleanup(struct intel_vgpu *vgpu)
 	list_for_each_safe(pos, n, &vgpu->dmabuf_obj_list_head) {
 		dmabuf_obj = container_of(pos, struct intel_vgpu_dmabuf_obj,
 						list);
+		dmabuf_obj->vgpu = NULL;
+
+		idr_remove(&vgpu->object_idr, dmabuf_obj->dmabuf_id);
+		intel_gvt_hypervisor_put_vfio_device(vgpu);
+		list_del(pos);
+
+		/* dmabuf_obj might be freed in dmabuf_obj_put */
 		if (dmabuf_obj->initref) {
 			dmabuf_obj->initref = false;
 			dmabuf_obj_put(dmabuf_obj);
 		}
-
-		idr_remove(&vgpu->object_idr, dmabuf_obj->dmabuf_id);
-
-		if (dmabuf_obj->vgpu)
-			intel_gvt_hypervisor_put_vfio_device(vgpu);
-
-		list_del(pos);
-		dmabuf_obj->vgpu = NULL;
 
 	}
 	mutex_unlock(&vgpu->dmabuf_lock);
