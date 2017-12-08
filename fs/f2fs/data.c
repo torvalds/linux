@@ -1479,6 +1479,8 @@ static inline bool need_inplace_update(struct f2fs_io_info *fio)
 {
 	struct inode *inode = fio->page->mapping->host;
 
+	if (f2fs_is_pinned_file(inode))
+		return true;
 	if (S_ISDIR(inode->i_mode) || f2fs_is_atomic_file(inode))
 		return false;
 	if (is_cold_data(fio->page))

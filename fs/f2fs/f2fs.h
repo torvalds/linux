@@ -356,6 +356,8 @@ static inline bool __has_cursum_space(struct f2fs_journal *journal,
 #define F2FS_IOC_GARBAGE_COLLECT_RANGE	_IOW(F2FS_IOCTL_MAGIC, 11,	\
 						struct f2fs_gc_range)
 #define F2FS_IOC_GET_FEATURES		_IOR(F2FS_IOCTL_MAGIC, 12, __u32)
+#define F2FS_IOC_SET_PIN_FILE		_IOW(F2FS_IOCTL_MAGIC, 13, __u32)
+#define F2FS_IOC_GET_PIN_FILE		_IOR(F2FS_IOCTL_MAGIC, 14, __u32)
 
 #define F2FS_IOC_SET_ENCRYPTION_POLICY	FS_IOC_SET_ENCRYPTION_POLICY
 #define F2FS_IOC_GET_ENCRYPTION_POLICY	FS_IOC_GET_ENCRYPTION_POLICY
@@ -593,7 +595,10 @@ struct f2fs_inode_info {
 	unsigned long i_flags;		/* keep an inode flags for ioctl */
 	unsigned char i_advise;		/* use to give file attribute hints */
 	unsigned char i_dir_level;	/* use for dentry level for large dir */
-	unsigned int i_current_depth;	/* use only in directory structure */
+	union {
+		unsigned int i_current_depth;	/* only for directory depth */
+		unsigned short i_gc_failures;	/* only for regular file */
+	};
 	unsigned int i_pino;		/* parent inode number */
 	umode_t i_acl_mode;		/* keep file acl mode temporarily */
 
@@ -1141,6 +1146,9 @@ struct f2fs_sb_info {
 
 	/* threshold for converting bg victims for fg */
 	u64 fggc_threshold;
+
+	/* threshold for gc trials on pinned files */
+	u64 gc_pin_file_threshold;
 
 	/* maximum # of trials to find a victim segment for SSR and GC */
 	unsigned int max_victim_search;
@@ -2141,6 +2149,7 @@ enum {
 	FI_HOT_DATA,		/* indicate file is hot */
 	FI_EXTRA_ATTR,		/* indicate file has extra attribute */
 	FI_PROJ_INHERIT,	/* indicate file inherits projectid */
+	FI_PIN_FILE,		/* indicate file should not be gced */
 };
 
 static inline void __mark_inode_dirty_flag(struct inode *inode,
@@ -2155,6 +2164,7 @@ static inline void __mark_inode_dirty_flag(struct inode *inode,
 			return;
 	case FI_DATA_EXIST:
 	case FI_INLINE_DOTS:
+	case FI_PIN_FILE:
 		f2fs_mark_inode_dirty_sync(inode, true);
 	}
 }
@@ -2235,6 +2245,13 @@ static inline void f2fs_i_depth_write(struct inode *inode, unsigned int depth)
 	f2fs_mark_inode_dirty_sync(inode, true);
 }
 
+static inline void f2fs_i_gc_failures_write(struct inode *inode,
+					unsigned int count)
+{
+	F2FS_I(inode)->i_gc_failures = count;
+	f2fs_mark_inode_dirty_sync(inode, true);
+}
+
 static inline void f2fs_i_xnid_write(struct inode *inode, nid_t xnid)
 {
 	F2FS_I(inode)->i_xattr_nid = xnid;
@@ -2263,6 +2280,8 @@ static inline void get_inline_info(struct inode *inode, struct f2fs_inode *ri)
 		set_bit(FI_INLINE_DOTS, &fi->flags);
 	if (ri->i_inline & F2FS_EXTRA_ATTR)
 		set_bit(FI_EXTRA_ATTR, &fi->flags);
+	if (ri->i_inline & F2FS_PIN_FILE)
+		set_bit(FI_PIN_FILE, &fi->flags);
 }
 
 static inline void set_raw_inline(struct inode *inode, struct f2fs_inode *ri)
@@ -2281,6 +2300,8 @@ static inline void set_raw_inline(struct inode *inode, struct f2fs_inode *ri)
 		ri->i_inline |= F2FS_INLINE_DOTS;
 	if (is_inode_flag_set(inode, FI_EXTRA_ATTR))
 		ri->i_inline |= F2FS_EXTRA_ATTR;
+	if (is_inode_flag_set(inode, FI_PIN_FILE))
+		ri->i_inline |= F2FS_PIN_FILE;
 }
 
 static inline int f2fs_has_extra_attr(struct inode *inode)
@@ -2324,6 +2345,11 @@ static inline int f2fs_exist_data(struct inode *inode)
 static inline int f2fs_has_inline_dots(struct inode *inode)
 {
 	return is_inode_flag_set(inode, FI_INLINE_DOTS);
+}
+
+static inline bool f2fs_is_pinned_file(struct inode *inode)
+{
+	return is_inode_flag_set(inode, FI_PIN_FILE);
 }
 
 static inline bool f2fs_is_atomic_file(struct inode *inode)
@@ -2540,6 +2566,7 @@ int truncate_hole(struct inode *inode, pgoff_t pg_start, pgoff_t pg_end);
 void truncate_data_blocks_range(struct dnode_of_data *dn, int count);
 long f2fs_ioctl(struct file *filp, unsigned int cmd, unsigned long arg);
 long f2fs_compat_ioctl(struct file *file, unsigned int cmd, unsigned long arg);
+int f2fs_pin_file_control(struct inode *inode, bool inc);
 
 /*
  * inode.c
