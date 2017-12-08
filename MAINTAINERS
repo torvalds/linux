@@ -2486,6 +2486,19 @@ F:	include/linux/audit.h
 F:	include/uapi/linux/audit.h
 F:	kernel/audit*
 
+AUFS (advanced multi layered unification filesystem) FILESYSTEM
+M:	"J. R. Okajima" <hooanon05g@gmail.com>
+L:	linux-unionfs@vger.kernel.org
+L:	aufs-users@lists.sourceforge.net (members only)
+W:	http://aufs.sourceforge.net
+T:	git://github.com/sfjro/aufs4-linux.git
+S:	Supported
+F:	Documentation/filesystems/aufs/
+F:	Documentation/ABI/testing/debugfs-aufs
+F:	Documentation/ABI/testing/sysfs-aufs
+F:	fs/aufs/
+F:	include/uapi/linux/aufs_type.h
+
 AUXILIARY DISPLAY DRIVERS
 M:	Miguel Ojeda Sandonis <miguel.ojeda.sandonis@gmail.com>
 W:	http://miguelojeda.es/auxdisplay.htm

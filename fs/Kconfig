@@ -248,6 +248,7 @@ source "fs/pstore/Kconfig"
 source "fs/sysv/Kconfig"
 source "fs/ufs/Kconfig"
 source "fs/exofs/Kconfig"
+source "fs/aufs/Kconfig"
 
 endif # MISC_FILESYSTEMS
 

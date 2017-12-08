@@ -1,0 +1,258 @@
+
+# Copyright (C) 2005-2017 Junjiro R. Okajima
+# 
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+Basic Aufs Internal Structure
+
+Superblock/Inode/Dentry/File Objects
+----------------------------------------------------------------------
+As like an ordinary filesystem, aufs has its own
+superblock/inode/dentry/file objects. All these objects have a
+dynamically allocated array and store the same kind of pointers to the
+lower filesystem, branch.
+For example, when you build a union with one readwrite branch and one
+readonly, mounted /au, /rw and /ro respectively.
+- /au = /rw + /ro
+- /ro/fileA exists but /rw/fileA
+
+Aufs lookup operation finds /ro/fileA and gets dentry for that. These
+pointers are stored in a aufs dentry. The array in aufs dentry will be,
+- [0] = NULL (because /rw/fileA doesn't exist)
+- [1] = /ro/fileA
+
+This style of an array is essentially same to the aufs
+superblock/inode/dentry/file objects.
+
+Because aufs supports manipulating branches, ie. add/delete/change
+branches dynamically, these objects has its own generation. When
+branches are changed, the generation in aufs superblock is
+incremented. And a generation in other object are compared when it is
+accessed. When a generation in other objects are obsoleted, aufs
+refreshes the internal array.
+
+
+Superblock
+----------------------------------------------------------------------
+Additionally aufs superblock has some data for policies to select one
+among multiple writable branches, XIB files, pseudo-links and kobject.
+See below in detail.
+About the policies which supports copy-down a directory, see
+wbr_policy.txt too.
+
+
+Branch and XINO(External Inode Number Translation Table)
+----------------------------------------------------------------------
+Every branch has its own xino (external inode number translation table)
+file. The xino file is created and unlinked by aufs internally. When two
+members of a union exist on the same filesystem, they share the single
+xino file.
+The struct of a xino file is simple, just a sequence of aufs inode
+numbers which is indexed by the lower inode number.
+In the above sample, assume the inode number of /ro/fileA is i111 and
+aufs assigns the inode number i999 for fileA. Then aufs writes 999 as
+4(8) bytes at 111 * 4(8) bytes offset in the xino file.
+
+When the inode numbers are not contiguous, the xino file will be sparse
+which has a hole in it and doesn't consume as much disk space as it
+might appear. If your branch filesystem consumes disk space for such
+holes, then you should specify 'xino=' option at mounting aufs.
+
+Aufs has a mount option to free the disk blocks for such holes in XINO
+files on tmpfs or ramdisk. But it is not so effective actually. If you
+meet a problem of disk shortage due to XINO files, then you should try
+"tmpfs-ino.patch" (and "vfs-ino.patch" too) in aufs4-standalone.git.
+The patch localizes the assignment inumbers per tmpfs-mount and avoid
+the holes in XINO files.
+
+Also a writable branch has three kinds of "whiteout bases". All these
+are existed when the branch is joined to aufs, and their names are
+whiteout-ed doubly, so that users will never see their names in aufs
+hierarchy.
+1. a regular file which will be hardlinked to all whiteouts.
+2. a directory to store a pseudo-link.
+3. a directory to store an "orphan"-ed file temporary.
+
+1. Whiteout Base
+   When you remove a file on a readonly branch, aufs handles it as a
+   logical deletion and creates a whiteout on the upper writable branch
+   as a hardlink of this file in order not to consume inode on the
+   writable branch.
+2. Pseudo-link Dir
+   See below, Pseudo-link.
+3. Step-Parent Dir
+   When "fileC" exists on the lower readonly branch only and it is
+   opened and removed with its parent dir, and then user writes
+   something into it, then aufs copies-up fileC to this
+   directory. Because there is no other dir to store fileC. After
+   creating a file under this dir, the file is unlinked.
+
+Because aufs supports manipulating branches, ie. add/delete/change
+dynamically, a branch has its own id. When the branch order changes,
+aufs finds the new index by searching the branch id.
+
+
+Pseudo-link
+----------------------------------------------------------------------
+Assume "fileA" exists on the lower readonly branch only and it is
+hardlinked to "fileB" on the branch. When you write something to fileA,
+aufs copies-up it to the upper writable branch. Additionally aufs
+creates a hardlink under the Pseudo-link Directory of the writable
+branch. The inode of a pseudo-link is kept in aufs super_block as a
+simple list. If fileB is read after unlinking fileA, aufs returns
+filedata from the pseudo-link instead of the lower readonly
+branch. Because the pseudo-link is based upon the inode, to keep the
+inode number by xino (see above) is essentially necessary.
+
+All the hardlinks under the Pseudo-link Directory of the writable branch
+should be restored in a proper location later. Aufs provides a utility
+to do this. The userspace helpers executed at remounting and unmounting
+aufs by default.
+During this utility is running, it puts aufs into the pseudo-link
+maintenance mode. In this mode, only the process which began the
+maintenance mode (and its child processes) is allowed to operate in
+aufs. Some other processes which are not related to the pseudo-link will
+be allowed to run too, but the rest have to return an error or wait
+until the maintenance mode ends. If a process already acquires an inode
+mutex (in VFS), it has to return an error.
+
+
+XIB(external inode number bitmap)
+----------------------------------------------------------------------
+Addition to the xino file per a branch, aufs has an external inode number
+bitmap in a superblock object. It is also an internal file such like a
+xino file.
+It is a simple bitmap to mark whether the aufs inode number is in-use or
+not.
+To reduce the file I/O, aufs prepares a single memory page to cache xib.
+
+As well as XINO files, aufs has a feature to truncate/refresh XIB to
+reduce the number of consumed disk blocks for these files.
+
+
+Virtual or Vertical Dir, and Readdir in Userspace
+----------------------------------------------------------------------
+In order to support multiple layers (branches), aufs readdir operation
+constructs a virtual dir block on memory. For readdir, aufs calls
+vfs_readdir() internally for each dir on branches, merges their entries
+with eliminating the whiteout-ed ones, and sets it to file (dir)
+object. So the file object has its entry list until it is closed. The
+entry list will be updated when the file position is zero and becomes
+obsoleted. This decision is made in aufs automatically.
+
+The dynamically allocated memory block for the name of entries has a
+unit of 512 bytes (by default) and stores the names contiguously (no
+padding). Another block for each entry is handled by kmem_cache too.
+During building dir blocks, aufs creates hash list and judging whether
+the entry is whiteouted by its upper branch or already listed.
+The merged result is cached in the corresponding inode object and
+maintained by a customizable life-time option.
+
+Some people may call it can be a security hole or invite DoS attack
+since the opened and once readdir-ed dir (file object) holds its entry
+list and becomes a pressure for system memory. But I'd say it is similar
+to files under /proc or /sys. The virtual files in them also holds a
+memory page (generally) while they are opened. When an idea to reduce
+memory for them is introduced, it will be applied to aufs too.
+For those who really hate this situation, I've developed readdir(3)
+library which operates this merging in userspace. You just need to set
+LD_PRELOAD environment variable, and aufs will not consume no memory in
+kernel space for readdir(3).
+
+
+Workqueue
+----------------------------------------------------------------------
+Aufs sometimes requires privilege access to a branch. For instance,
+in copy-up/down operation. When a user process is going to make changes
+to a file which exists in the lower readonly branch only, and the mode
+of one of ancestor directories may not be writable by a user
+process. Here aufs copy-up the file with its ancestors and they may
+require privilege to set its owner/group/mode/etc.
+This is a typical case of a application character of aufs (see
+Introduction).
+
+Aufs uses workqueue synchronously for this case. It creates its own
+workqueue. The workqueue is a kernel thread and has privilege. Aufs
+passes the request to call mkdir or write (for example), and wait for
+its completion. This approach solves a problem of a signal handler
+simply.
+If aufs didn't adopt the workqueue and changed the privilege of the
+process, then the process may receive the unexpected SIGXFSZ or other
+signals.
+
+Also aufs uses the system global workqueue ("events" kernel thread) too
+for asynchronous tasks, such like handling inotify/fsnotify, re-creating a
+whiteout base and etc. This is unrelated to a privilege.
+Most of aufs operation tries acquiring a rw_semaphore for aufs
+superblock at the beginning, at the same time waits for the completion
+of all queued asynchronous tasks.
+
+
+Whiteout
+----------------------------------------------------------------------
+The whiteout in aufs is very similar to Unionfs's. That is represented
+by its filename. UnionMount takes an approach of a file mode, but I am
+afraid several utilities (find(1) or something) will have to support it.
+
+Basically the whiteout represents "logical deletion" which stops aufs to
+lookup further, but also it represents "dir is opaque" which also stop
+further lookup.
+
+In aufs, rmdir(2) and rename(2) for dir uses whiteout alternatively.
+In order to make several functions in a single systemcall to be
+revertible, aufs adopts an approach to rename a directory to a temporary
+unique whiteouted name.
+For example, in rename(2) dir where the target dir already existed, aufs
+renames the target dir to a temporary unique whiteouted name before the
+actual rename on a branch, and then handles other actions (make it opaque,
+update the attributes, etc). If an error happens in these actions, aufs
+simply renames the whiteouted name back and returns an error. If all are
+succeeded, aufs registers a function to remove the whiteouted unique
+temporary name completely and asynchronously to the system global
+workqueue.
+
+
+Copy-up
+----------------------------------------------------------------------
+It is a well-known feature or concept.
+When user modifies a file on a readonly branch, aufs operate "copy-up"
+internally and makes change to the new file on the upper writable branch.
+When the trigger systemcall does not update the timestamps of the parent
+dir, aufs reverts it after copy-up.
+
+
+Move-down (aufs3.9 and later)
+----------------------------------------------------------------------
+"Copy-up" is one of the essential feature in aufs. It copies a file from
+the lower readonly branch to the upper writable branch when a user
+changes something about the file.
+"Move-down" is an opposite action of copy-up. Basically this action is
+ran manually instead of automatically and internally.
+For desgin and implementation, aufs has to consider these issues.
+- whiteout for the file may exist on the lower branch.
+- ancestor directories may not exist on the lower branch.
+- diropq for the ancestor directories may exist on the upper branch.
+- free space on the lower branch will reduce.
+- another access to the file may happen during moving-down, including
+  UDBA (see "Revalidate Dentry and UDBA").
+- the file should not be hard-linked nor pseudo-linked. they should be
+  handled by auplink utility later.
+
+Sometimes users want to move-down a file from the upper writable branch
+to the lower readonly or writable branch. For instance,
+- the free space of the upper writable branch is going to run out.
+- create a new intermediate branch between the upper and lower branch.
+- etc.
+
+For this purpose, use "aumvdown" command in aufs-util.git.
