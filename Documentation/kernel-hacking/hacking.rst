@@ -523,7 +523,7 @@ this expression is true, or ``-ERESTARTSYS`` if a signal is received. The
 Waking Up Queued Tasks
 ----------------------
 
-Call :c:func:`wake_up()` (``include/linux/wait.h``);, which will wake
+Call :c:func:`wake_up()` (``include/linux/wait.h``), which will wake
 up every process in the queue. The exception is if one has
 ``TASK_EXCLUSIVE`` set, in which case the remainder of the queue will
 not be woken. There are other variants of this basic function available
