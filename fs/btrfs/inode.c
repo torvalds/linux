@@ -8855,7 +8855,6 @@ int btrfs_readpage(struct file *file, struct page *page)
 
 static int btrfs_writepage(struct page *page, struct writeback_control *wbc)
 {
-	struct extent_io_tree *tree;
 	struct inode *inode = page->mapping->host;
 	int ret;
 
@@ -8874,8 +8873,7 @@ static int btrfs_writepage(struct page *page, struct writeback_control *wbc)
 		redirty_page_for_writepage(wbc, page);
 		return AOP_WRITEPAGE_ACTIVATE;
 	}
-	tree = &BTRFS_I(page->mapping->host)->io_tree;
-	ret = extent_write_full_page(tree, page, wbc);
+	ret = extent_write_full_page(page, wbc);
 	btrfs_add_delayed_iput(inode);
 	return ret;
 }
