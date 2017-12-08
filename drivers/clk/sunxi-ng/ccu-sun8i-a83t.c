@@ -76,17 +76,26 @@ static struct ccu_mult pll_c1cpux_clk = {
  */
 #define SUN8I_A83T_PLL_AUDIO_REG	0x008
 
+/* clock rates doubled for post divider */
+static struct ccu_sdm_setting pll_audio_sdm_table[] = {
+	{ .rate = 45158400, .pattern = 0xc00121ff, .m = 29, .n = 54 },
+	{ .rate = 49152000, .pattern = 0xc000e147, .m = 30, .n = 61 },
+};
+
 static struct ccu_nm pll_audio_clk = {
 	.enable		= BIT(31),
 	.lock		= BIT(2),
 	.n		= _SUNXI_CCU_MULT_OFFSET_MIN_MAX(8, 8, 0, 12, 0),
 	.m		= _SUNXI_CCU_DIV(0, 6),
 	.fixed_post_div	= 2,
+	.sdm		= _SUNXI_CCU_SDM(pll_audio_sdm_table, BIT(24),
+					 0x284, BIT(31)),
 	.common		= {
 		.reg		= SUN8I_A83T_PLL_AUDIO_REG,
 		.lock_reg	= CCU_SUN8I_A83T_LOCK_REG,
 		.features	= CCU_FEATURE_LOCK_REG |
-				  CCU_FEATURE_FIXED_POSTDIV,
+				  CCU_FEATURE_FIXED_POSTDIV |
+				  CCU_FEATURE_SIGMA_DELTA_MOD,
 		.hw.init	= CLK_HW_INIT("pll-audio", "osc24M",
 					      &ccu_nm_ops, CLK_SET_RATE_UNGATE),
 	},
