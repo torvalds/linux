@@ -168,8 +168,9 @@ static void armada_drm_crtc_update(struct armada_crtc *dcrtc)
 void armada_drm_plane_calc_addrs(u32 *addrs, struct drm_framebuffer *fb,
 	int x, int y)
 {
+	const struct drm_format_info *format = fb->format;
+	unsigned int num_planes = format->num_planes;
 	u32 addr = drm_fb_obj(fb)->dev_addr;
-	int num_planes = fb->format->num_planes;
 	int i;
 
 	if (num_planes > 3)
@@ -177,7 +178,7 @@ void armada_drm_plane_calc_addrs(u32 *addrs, struct drm_framebuffer *fb,
 
 	for (i = 0; i < num_planes; i++)
 		addrs[i] = addr + fb->offsets[i] + y * fb->pitches[i] +
-			     x * fb->format->cpp[i];
+			     x * format->cpp[i];
 	for (; i < 3; i++)
 		addrs[i] = 0;
 }
