@@ -170,7 +170,7 @@ Probe points are defined by following syntax.
      or,
      sdt_PROVIDER:SDTEVENT
 
-'EVENT' specifies the name of new event, if omitted, it will be set the name of the probed function. You can also specify a group name by 'GROUP', if omitted, set 'probe' is used for kprobe and 'probe_<bin>' is used for uprobe.
+'EVENT' specifies the name of new event, if omitted, it will be set the name of the probed function, and for return probes, a "\_\_return" suffix is automatically added to the function name. You can also specify a group name by 'GROUP', if omitted, set 'probe' is used for kprobe and 'probe_<bin>' is used for uprobe.
 Note that using existing group name can conflict with other events. Especially, using the group name reserved for kernel modules can hide embedded events in the
 modules.
 'FUNC' specifies a probed function name, and it may have one of the following options; '+OFFS' is the offset from function entry address in bytes, ':RLN' is the relative-line number from function entry line, and '%return' means that it probes function return. And ';PTN' means lazy matching pattern (see LAZY MATCHING). Note that ';PTN' must be the end of the probe point definition.  In addition, '@SRC' specifies a source file which has that function.
