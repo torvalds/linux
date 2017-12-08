@@ -159,8 +159,6 @@ struct rte_console {
 /* manfid tuple length, include tuple, link bytes */
 #define SBSDIO_CIS_MANFID_TUPLE_LEN	6
 
-#define CORE_BUS_REG(base, field) \
-		(base + offsetof(struct sdpcmd_regs, field))
 #define SD_REG(field) \
 		(offsetof(struct sdpcmd_regs, field))
 
