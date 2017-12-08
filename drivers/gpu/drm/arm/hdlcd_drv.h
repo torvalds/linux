@@ -9,7 +9,6 @@
 struct hdlcd_drm_private {
 	void __iomem			*mmio;
 	struct clk			*clk;
-	struct drm_fbdev_cma		*fbdev;
 	struct drm_crtc			crtc;
 	struct drm_plane		*plane;
 #ifdef CONFIG_DEBUG_FS

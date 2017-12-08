@@ -101,16 +101,9 @@ setup_fail:
 	return ret;
 }
 
-static void hdlcd_fb_output_poll_changed(struct drm_device *drm)
-{
-	struct hdlcd_drm_private *hdlcd = drm->dev_private;
-
-	drm_fbdev_cma_hotplug_event(hdlcd->fbdev);
-}
-
 static const struct drm_mode_config_funcs hdlcd_mode_config_funcs = {
 	.fb_create = drm_gem_fb_create,
-	.output_poll_changed = hdlcd_fb_output_poll_changed,
+	.output_poll_changed = drm_fb_helper_output_poll_changed,
 	.atomic_check = drm_atomic_helper_check,
 	.atomic_commit = drm_atomic_helper_commit,
 };
@@ -123,13 +116,6 @@ static void hdlcd_setup_mode_config(struct drm_device *drm)
 	drm->mode_config.max_width = HDLCD_MAX_XRES;
 	drm->mode_config.max_height = HDLCD_MAX_YRES;
 	drm->mode_config.funcs = &hdlcd_mode_config_funcs;
-}
-
-static void hdlcd_lastclose(struct drm_device *drm)
-{
-	struct hdlcd_drm_private *hdlcd = drm->dev_private;
-
-	drm_fbdev_cma_restore_mode(hdlcd->fbdev);
 }
 
 static irqreturn_t hdlcd_irq(int irq, void *arg)
@@ -247,7 +233,7 @@ static struct drm_driver hdlcd_driver = {
 	.driver_features = DRIVER_HAVE_IRQ | DRIVER_GEM |
 			   DRIVER_MODESET | DRIVER_PRIME |
 			   DRIVER_ATOMIC,
-	.lastclose = hdlcd_lastclose,
+	.lastclose = drm_fb_helper_lastclose,
 	.irq_handler = hdlcd_irq,
 	.irq_preinstall = hdlcd_irq_preinstall,
 	.irq_postinstall = hdlcd_irq_postinstall,
@@ -322,14 +308,9 @@ static int hdlcd_drm_bind(struct device *dev)
 	drm_mode_config_reset(drm);
 	drm_kms_helper_poll_init(drm);
 
-	hdlcd->fbdev = drm_fbdev_cma_init(drm, 32,
-					  drm->mode_config.num_connector);
-
-	if (IS_ERR(hdlcd->fbdev)) {
-		ret = PTR_ERR(hdlcd->fbdev);
-		hdlcd->fbdev = NULL;
+	ret = drm_fb_cma_fbdev_init(drm, 32, 0);
+	if (ret)
 		goto err_fbdev;
-	}
 
 	ret = drm_dev_register(drm, 0);
 	if (ret)
@@ -338,10 +319,7 @@ static int hdlcd_drm_bind(struct device *dev)
 	return 0;
 
 err_register:
-	if (hdlcd->fbdev) {
-		drm_fbdev_cma_fini(hdlcd->fbdev);
-		hdlcd->fbdev = NULL;
-	}
+	drm_fb_cma_fbdev_fini(drm);
 err_fbdev:
 	drm_kms_helper_poll_fini(drm);
 err_vblank:
@@ -367,10 +345,7 @@ static void hdlcd_drm_unbind(struct device *dev)
 	struct hdlcd_drm_private *hdlcd = drm->dev_private;
 
 	drm_dev_unregister(drm);
-	if (hdlcd->fbdev) {
-		drm_fbdev_cma_fini(hdlcd->fbdev);
-		hdlcd->fbdev = NULL;
-	}
+	drm_fb_cma_fbdev_fini(drm);
 	drm_kms_helper_poll_fini(drm);
 	component_unbind_all(dev, drm);
 	of_node_put(hdlcd->crtc.port);
