@@ -737,7 +737,7 @@ static void hisi_sas_release_task(struct hisi_hba *hisi_hba,
 		hisi_sas_do_release_task(hisi_hba, slot->task, slot);
 }
 
-static void hisi_sas_release_tasks(struct hisi_hba *hisi_hba)
+void hisi_sas_release_tasks(struct hisi_hba *hisi_hba)
 {
 	struct hisi_sas_device *sas_dev;
 	struct domain_device *device;
@@ -754,6 +754,7 @@ static void hisi_sas_release_tasks(struct hisi_hba *hisi_hba)
 		hisi_sas_release_task(hisi_hba, device);
 	}
 }
+EXPORT_SYMBOL_GPL(hisi_sas_release_tasks);
 
 static void hisi_sas_dereg_device(struct hisi_hba *hisi_hba,
 				struct domain_device *device)

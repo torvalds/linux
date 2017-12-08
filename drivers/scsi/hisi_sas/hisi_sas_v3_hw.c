@@ -2303,6 +2303,98 @@ enum {
 	hip08,
 };
 
+static int hisi_sas_v3_suspend(struct pci_dev *pdev, pm_message_t state)
+{
+	struct sas_ha_struct *sha = pci_get_drvdata(pdev);
+	struct hisi_hba *hisi_hba = sha->lldd_ha;
+	struct device *dev = hisi_hba->dev;
+	struct Scsi_Host *shost = hisi_hba->shost;
+	u32 device_state, status;
+	int rc;
+	u32 reg_val;
+	unsigned long flags;
+
+	if (!pdev->pm_cap) {
+		dev_err(dev, "PCI PM not supported\n");
+		return -ENODEV;
+	}
+
+	set_bit(HISI_SAS_RESET_BIT, &hisi_hba->flags);
+	scsi_block_requests(shost);
+	set_bit(HISI_SAS_REJECT_CMD_BIT, &hisi_hba->flags);
+	flush_workqueue(hisi_hba->wq);
+	/* disable DQ/PHY/bus */
+	interrupt_disable_v3_hw(hisi_hba);
+	hisi_sas_write32(hisi_hba, DLVRY_QUEUE_ENABLE, 0x0);
+	hisi_sas_kill_tasklets(hisi_hba);
+
+	hisi_sas_stop_phys(hisi_hba);
+
+	reg_val = hisi_sas_read32(hisi_hba, AXI_MASTER_CFG_BASE +
+		AM_CTRL_GLOBAL);
+	reg_val |= 0x1;
+	hisi_sas_write32(hisi_hba, AXI_MASTER_CFG_BASE +
+		AM_CTRL_GLOBAL, reg_val);
+
+	/* wait until bus idle */
+	rc = readl_poll_timeout(hisi_hba->regs + AXI_MASTER_CFG_BASE +
+		AM_CURR_TRANS_RETURN, status, status == 0x3, 10, 100);
+	if (rc) {
+		dev_err(dev, "axi bus is not idle, rc = %d\n", rc);
+		clear_bit(HISI_SAS_REJECT_CMD_BIT, &hisi_hba->flags);
+		clear_bit(HISI_SAS_RESET_BIT, &hisi_hba->flags);
+		scsi_unblock_requests(shost);
+		return rc;
+	}
+
+	hisi_sas_init_mem(hisi_hba);
+
+	device_state = pci_choose_state(pdev, state);
+	dev_warn(dev, "entering operating state [D%d]\n",
+			device_state);
+	pci_save_state(pdev);
+	pci_disable_device(pdev);
+	pci_set_power_state(pdev, device_state);
+
+	spin_lock_irqsave(&hisi_hba->lock, flags);
+	hisi_sas_release_tasks(hisi_hba);
+	spin_unlock_irqrestore(&hisi_hba->lock, flags);
+
+	sas_suspend_ha(sha);
+	return 0;
+}
+
+static int hisi_sas_v3_resume(struct pci_dev *pdev)
+{
+	struct sas_ha_struct *sha = pci_get_drvdata(pdev);
+	struct hisi_hba *hisi_hba = sha->lldd_ha;
+	struct Scsi_Host *shost = hisi_hba->shost;
+	struct device *dev = hisi_hba->dev;
+	unsigned int rc;
+	u32 device_state = pdev->current_state;
+
+	dev_warn(dev, "resuming from operating state [D%d]\n",
+			device_state);
+	pci_set_power_state(pdev, PCI_D0);
+	pci_enable_wake(pdev, PCI_D0, 0);
+	pci_restore_state(pdev);
+	rc = pci_enable_device(pdev);
+	if (rc)
+		dev_err(dev, "enable device failed during resume (%d)\n", rc);
+
+	pci_set_master(pdev);
+	scsi_unblock_requests(shost);
+	clear_bit(HISI_SAS_REJECT_CMD_BIT, &hisi_hba->flags);
+
+	sas_prep_resume_ha(sha);
+	init_reg_v3_hw(hisi_hba);
+	hisi_hba->hw->phys_init(hisi_hba);
+	sas_resume_ha(sha);
+	clear_bit(HISI_SAS_RESET_BIT, &hisi_hba->flags);
+
+	return 0;
+}
+
 static const struct pci_device_id sas_v3_pci_table[] = {
 	{ PCI_VDEVICE(HUAWEI, 0xa230), hip08 },
 	{}
@@ -2319,6 +2411,8 @@ static struct pci_driver sas_v3_pci_driver = {
 	.id_table	= sas_v3_pci_table,
 	.probe		= hisi_sas_v3_probe,
 	.remove		= hisi_sas_v3_remove,
+	.suspend	= hisi_sas_v3_suspend,
+	.resume		= hisi_sas_v3_resume,
 	.err_handler	= &hisi_sas_err_handler,
 };
 
