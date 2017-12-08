@@ -192,6 +192,7 @@ static void sas_form_port(struct asd_sas_phy *phy)
 		si->dft->lldd_port_formed(phy);
 
 	sas_discover_event(phy->port, DISCE_DISCOVER_DOMAIN);
+	flush_workqueue(sas_ha->disco_q);
 }
 
 /**
@@ -277,6 +278,9 @@ void sas_porte_broadcast_rcvd(struct work_struct *work)
 
 	SAS_DPRINTK("broadcast received: %d\n", prim);
 	sas_discover_event(phy->port, DISCE_REVALIDATE_DOMAIN);
+
+	if (phy->port)
+		flush_workqueue(phy->port->ha->disco_q);
 }
 
 void sas_porte_link_reset_err(struct work_struct *work)
