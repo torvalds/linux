@@ -98,6 +98,7 @@ static long serial2002_tty_ioctl(struct file *f, unsigned int op,
 static int serial2002_tty_write(struct file *f, unsigned char *buf, int count)
 {
 	loff_t pos = 0;
+
 	return kernel_write(f, buf, count, &pos);
 }
 
