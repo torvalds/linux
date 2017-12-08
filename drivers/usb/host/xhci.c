@@ -3090,7 +3090,7 @@ static int xhci_alloc_streams(struct usb_hcd *hcd, struct usb_device *udev,
 		return -ENOSYS;
 	}
 
-	config_cmd = xhci_alloc_command(xhci, true, true, mem_flags);
+	config_cmd = xhci_alloc_command_with_ctx(xhci, true, mem_flags);
 	if (!config_cmd)
 		return -ENOMEM;
 
@@ -4675,7 +4675,7 @@ static int xhci_update_hub_device(struct usb_hcd *hcd, struct usb_device *hdev,
 		return -EINVAL;
 	}
 
-	config_cmd = xhci_alloc_command(xhci, true, true, mem_flags);
+	config_cmd = xhci_alloc_command_with_ctx(xhci, true, mem_flags);
 	if (!config_cmd)
 		return -ENOMEM;
 
