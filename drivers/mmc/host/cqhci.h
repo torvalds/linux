@@ -61,9 +61,9 @@
 #define CQHCI_IC_ENABLE			BIT(31)
 #define CQHCI_IC_RESET			BIT(16)
 #define CQHCI_IC_ICCTHWEN		BIT(15)
-#define CQHCI_IC_ICCTH(x)		((x & 0x1F) << 8)
+#define CQHCI_IC_ICCTH(x)		(((x) & 0x1F) << 8)
 #define CQHCI_IC_ICTOVALWEN		BIT(7)
-#define CQHCI_IC_ICTOVAL(x)		(x & 0x7F)
+#define CQHCI_IC_ICTOVAL(x)		((x) & 0x7F)
 
 /* task list base address */
 #define CQHCI_TDLBA			0x20
@@ -119,31 +119,31 @@
 #define CQHCI_IC_DEFAULT_ICTOVAL	1
 
 /* attribute fields */
-#define CQHCI_VALID(x)			((x & 1) << 0)
-#define CQHCI_END(x)			((x & 1) << 1)
-#define CQHCI_INT(x)			((x & 1) << 2)
-#define CQHCI_ACT(x)			((x & 0x7) << 3)
+#define CQHCI_VALID(x)			(((x) & 1) << 0)
+#define CQHCI_END(x)			(((x) & 1) << 1)
+#define CQHCI_INT(x)			(((x) & 1) << 2)
+#define CQHCI_ACT(x)			(((x) & 0x7) << 3)
 
 /* data command task descriptor fields */
-#define CQHCI_FORCED_PROG(x)		((x & 1) << 6)
-#define CQHCI_CONTEXT(x)		((x & 0xF) << 7)
-#define CQHCI_DATA_TAG(x)		((x & 1) << 11)
-#define CQHCI_DATA_DIR(x)		((x & 1) << 12)
-#define CQHCI_PRIORITY(x)		((x & 1) << 13)
-#define CQHCI_QBAR(x)			((x & 1) << 14)
-#define CQHCI_REL_WRITE(x)		((x & 1) << 15)
-#define CQHCI_BLK_COUNT(x)		((x & 0xFFFF) << 16)
-#define CQHCI_BLK_ADDR(x)		((x & 0xFFFFFFFF) << 32)
+#define CQHCI_FORCED_PROG(x)		(((x) & 1) << 6)
+#define CQHCI_CONTEXT(x)		(((x) & 0xF) << 7)
+#define CQHCI_DATA_TAG(x)		(((x) & 1) << 11)
+#define CQHCI_DATA_DIR(x)		(((x) & 1) << 12)
+#define CQHCI_PRIORITY(x)		(((x) & 1) << 13)
+#define CQHCI_QBAR(x)			(((x) & 1) << 14)
+#define CQHCI_REL_WRITE(x)		(((x) & 1) << 15)
+#define CQHCI_BLK_COUNT(x)		(((x) & 0xFFFF) << 16)
+#define CQHCI_BLK_ADDR(x)		(((x) & 0xFFFFFFFF) << 32)
 
 /* direct command task descriptor fields */
-#define CQHCI_CMD_INDEX(x)		((x & 0x3F) << 16)
-#define CQHCI_CMD_TIMING(x)		((x & 1) << 22)
-#define CQHCI_RESP_TYPE(x)		((x & 0x3) << 23)
+#define CQHCI_CMD_INDEX(x)		(((x) & 0x3F) << 16)
+#define CQHCI_CMD_TIMING(x)		(((x) & 1) << 22)
+#define CQHCI_RESP_TYPE(x)		(((x) & 0x3) << 23)
 
 /* transfer descriptor fields */
-#define CQHCI_DAT_LENGTH(x)		((x & 0xFFFF) << 16)
-#define CQHCI_DAT_ADDR_LO(x)		((x & 0xFFFFFFFF) << 32)
-#define CQHCI_DAT_ADDR_HI(x)		((x & 0xFFFFFFFF) << 0)
+#define CQHCI_DAT_LENGTH(x)		(((x) & 0xFFFF) << 16)
+#define CQHCI_DAT_ADDR_LO(x)		(((x) & 0xFFFFFFFF) << 32)
+#define CQHCI_DAT_ADDR_HI(x)		(((x) & 0xFFFFFFFF) << 0)
 
 struct cqhci_host_ops;
 struct mmc_host;
