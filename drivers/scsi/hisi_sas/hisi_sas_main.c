@@ -192,7 +192,8 @@ void hisi_sas_slot_task_free(struct hisi_hba *hisi_hba, struct sas_task *task,
 
 		if (!sas_protocol_ata(task->task_proto))
 			if (slot->n_elem)
-				dma_unmap_sg(dev, task->scatter, slot->n_elem,
+				dma_unmap_sg(dev, task->scatter,
+					     task->num_scatter,
 					     task->data_dir);
 
 		if (sas_dev)
@@ -431,7 +432,8 @@ err_out:
 	dev_err(dev, "task prep: failed[%d]!\n", rc);
 	if (!sas_protocol_ata(task->task_proto))
 		if (n_elem)
-			dma_unmap_sg(dev, task->scatter, n_elem,
+			dma_unmap_sg(dev, task->scatter,
+				     task->num_scatter,
 				     task->data_dir);
 prep_out:
 	return rc;
