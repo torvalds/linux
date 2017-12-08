@@ -107,10 +107,12 @@ static void hubp1_vready_workaround(struct hubp *hubp,
 }
 
 void hubp1_program_tiling(
-	struct dcn10_hubp *hubp1,
+	struct hubp *hubp,
 	const union dc_tiling_info *info,
 	const enum surface_pixel_format pixel_format)
 {
+	struct dcn10_hubp *hubp1 = TO_DCN10_HUBP(hubp);
+
 	REG_UPDATE_6(DCSURF_ADDR_CONFIG,
 			NUM_PIPES, log_2(info->gfx9.num_pipes),
 			NUM_BANKS, log_2(info->gfx9.num_banks),
@@ -127,13 +129,14 @@ void hubp1_program_tiling(
 }
 
 void hubp1_program_size_and_rotation(
-	struct dcn10_hubp *hubp1,
+	struct hubp *hubp,
 	enum dc_rotation_angle rotation,
 	enum surface_pixel_format format,
 	const union plane_size *plane_size,
 	struct dc_plane_dcc_param *dcc,
 	bool horizontal_mirror)
 {
+	struct dcn10_hubp *hubp1 = TO_DCN10_HUBP(hubp);
 	uint32_t pitch, meta_pitch, pitch_c, meta_pitch_c, mirror;
 
 	/* Program data and meta surface pitch (calculation from addrlib)
@@ -189,9 +192,10 @@ void hubp1_program_size_and_rotation(
 }
 
 void hubp1_program_pixel_format(
-	struct dcn10_hubp *hubp1,
+	struct hubp *hubp,
 	enum surface_pixel_format format)
 {
+	struct dcn10_hubp *hubp1 = TO_DCN10_HUBP(hubp);
 	uint32_t red_bar = 3;
 	uint32_t blue_bar = 2;
 
@@ -435,13 +439,11 @@ void hubp1_program_surface_config(
 	struct dc_plane_dcc_param *dcc,
 	bool horizontal_mirror)
 {
-	struct dcn10_hubp *hubp1 = TO_DCN10_HUBP(hubp);
-
 	hubp1_dcc_control(hubp, dcc->enable, dcc->grph.independent_64b_blks);
-	hubp1_program_tiling(hubp1, tiling_info, format);
+	hubp1_program_tiling(hubp, tiling_info, format);
 	hubp1_program_size_and_rotation(
-			hubp1, rotation, format, plane_size, dcc, horizontal_mirror);
-	hubp1_program_pixel_format(hubp1, format);
+			hubp, rotation, format, plane_size, dcc, horizontal_mirror);
+	hubp1_program_pixel_format(hubp, format);
 }
 
 void hubp1_program_requestor(
