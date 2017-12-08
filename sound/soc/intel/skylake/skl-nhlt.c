@@ -322,8 +322,8 @@ static void skl_get_ssp_clks(struct skl *skl, struct skl_ssp_clk *ssp_clks,
 		rate = channels * bps * fs;
 
 		/* check if the rate is added already to the given SSP's sclk */
-		for (j = 0; (sclk[id].rate_cfg[j].rate != 0) &&
-				(j < SKL_MAX_CLK_RATES); j++) {
+		for (j = 0; (j < SKL_MAX_CLK_RATES) &&
+			    (sclk[id].rate_cfg[j].rate != 0); j++) {
 			if (sclk[id].rate_cfg[j].rate == rate) {
 				present = true;
 				break;
