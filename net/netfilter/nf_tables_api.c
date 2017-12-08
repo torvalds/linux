@@ -1264,7 +1264,7 @@ static void nf_tables_chain_destroy(struct nft_chain *chain)
 
 struct nft_chain_hook {
 	u32				num;
-	u32				priority;
+	s32				priority;
 	const struct nf_chain_type	*type;
 	struct net_device		*dev;
 };
@@ -1303,6 +1303,11 @@ static int nft_chain_parse_hook(struct net *net,
 	}
 	if (!(type->hook_mask & (1 << hook->num)))
 		return -EOPNOTSUPP;
+
+	if (type->type == NFT_CHAIN_T_NAT &&
+	    hook->priority <= NF_IP_PRI_CONNTRACK)
+		return -EOPNOTSUPP;
+
 	if (!try_module_get(type->owner))
 		return -ENOENT;
 
