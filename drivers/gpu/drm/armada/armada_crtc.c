@@ -744,15 +744,14 @@ void armada_drm_crtc_plane_disable(struct armada_crtc *dcrtc,
 	if (plane->fb)
 		drm_framebuffer_put(plane->fb);
 
-	/* Power down the Y/U/V FIFOs */
-	sram_para1 = CFG_PDWN16x66 | CFG_PDWN32x66;
-
 	/* Power down most RAMs and FIFOs if this is the primary plane */
 	if (plane->type == DRM_PLANE_TYPE_PRIMARY) {
-		sram_para1 |= CFG_PDWN256x32 | CFG_PDWN256x24 | CFG_PDWN256x8 |
-			      CFG_PDWN32x32 | CFG_PDWN64x66;
+		sram_para1 = CFG_PDWN256x32 | CFG_PDWN256x24 | CFG_PDWN256x8 |
+			     CFG_PDWN32x32 | CFG_PDWN64x66;
 		dma_ctrl0_mask = CFG_GRA_ENA;
 	} else {
+		/* Power down the Y/U/V FIFOs */
+		sram_para1 = CFG_PDWN16x66 | CFG_PDWN32x66;
 		dma_ctrl0_mask = CFG_DMA_ENA;
 	}
 
