@@ -22,6 +22,8 @@ hisi_sas_internal_task_abort(struct hisi_hba *hisi_hba,
 			     struct domain_device *device,
 			     int abort_flag, int tag);
 static int hisi_sas_softreset_ata_disk(struct domain_device *device);
+static int hisi_sas_control_phy(struct asd_sas_phy *sas_phy, enum phy_func func,
+				void *funcdata);
 
 u8 hisi_sas_get_ata_protocol(u8 cmd, int direction)
 {
@@ -631,8 +633,18 @@ static void hisi_sas_phyup_work(struct work_struct *work)
 	hisi_sas_bytes_dmaed(hisi_hba, phy_no);
 }
 
+static void hisi_sas_linkreset_work(struct work_struct *work)
+{
+	struct hisi_sas_phy *phy =
+		container_of(work, typeof(*phy), works[HISI_PHYE_LINK_RESET]);
+	struct asd_sas_phy *sas_phy = &phy->sas_phy;
+
+	hisi_sas_control_phy(sas_phy, PHY_FUNC_LINK_RESET, NULL);
+}
+
 static const work_func_t hisi_sas_phye_fns[HISI_PHYES_NUM] = {
 	[HISI_PHYE_PHY_UP] = hisi_sas_phyup_work,
+	[HISI_PHYE_LINK_RESET] = hisi_sas_linkreset_work,
 };
 
 bool hisi_sas_notify_phy_event(struct hisi_sas_phy *phy,

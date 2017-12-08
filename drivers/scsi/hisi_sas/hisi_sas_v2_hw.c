@@ -245,6 +245,7 @@
 #define CHL_INT1_DMAC_RX_AXI_WR_ERR_OFF	21
 #define CHL_INT1_DMAC_RX_AXI_RD_ERR_OFF	22
 #define CHL_INT2			(PORT_BASE + 0x1bc)
+#define CHL_INT2_SL_IDAF_TOUT_CONF_OFF	0
 #define CHL_INT0_MSK			(PORT_BASE + 0x1c0)
 #define CHL_INT1_MSK			(PORT_BASE + 0x1c4)
 #define CHL_INT2_MSK			(PORT_BASE + 0x1c8)
@@ -1187,7 +1188,7 @@ static void init_reg_v2_hw(struct hisi_hba *hisi_hba)
 		hisi_sas_phy_write32(hisi_hba, i, CHL_INT2, 0xfff87fff);
 		hisi_sas_phy_write32(hisi_hba, i, RXOP_CHECK_CFG_H, 0x1000);
 		hisi_sas_phy_write32(hisi_hba, i, CHL_INT1_MSK, 0xff857fff);
-		hisi_sas_phy_write32(hisi_hba, i, CHL_INT2_MSK, 0x8ffffbff);
+		hisi_sas_phy_write32(hisi_hba, i, CHL_INT2_MSK, 0x8ffffbfe);
 		hisi_sas_phy_write32(hisi_hba, i, SL_CFG, 0x13f801fc);
 		hisi_sas_phy_write32(hisi_hba, i, PHY_CTRL_RDY_MSK, 0x0);
 		hisi_sas_phy_write32(hisi_hba, i, PHYCTRL_NOT_RDY_MSK, 0x0);
@@ -2905,10 +2906,19 @@ static irqreturn_t int_chnl_int_v2_hw(int irq_no, void *p)
 					     CHL_INT1, irq_value1);
 		}
 
-		if ((irq_msk & (1 << phy_no)) && irq_value2)
-			hisi_sas_phy_write32(hisi_hba, phy_no,
-					     CHL_INT2, irq_value2);
+		if ((irq_msk & (1 << phy_no)) && irq_value2) {
+			struct hisi_sas_phy *phy = &hisi_hba->phy[phy_no];
 
+			if (irq_value2 & BIT(CHL_INT2_SL_IDAF_TOUT_CONF_OFF)) {
+				dev_warn(dev, "phy%d identify timeout\n",
+						phy_no);
+				hisi_sas_notify_phy_event(phy,
+						HISI_PHYE_LINK_RESET);
+			}
+
+			hisi_sas_phy_write32(hisi_hba, phy_no,
+						 CHL_INT2, irq_value2);
+		}
 
 		if ((irq_msk & (1 << phy_no)) && irq_value0) {
 			if (irq_value0 & CHL_INT0_SL_RX_BCST_ACK_MSK)

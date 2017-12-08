@@ -140,6 +140,7 @@
 #define RX_IDAF_DWORD0			(PORT_BASE + 0xc4)
 #define RXOP_CHECK_CFG_H		(PORT_BASE + 0xfc)
 #define STP_LINK_TIMER			(PORT_BASE + 0x120)
+#define STP_LINK_TIMEOUT_STATE		(PORT_BASE + 0x124)
 #define CON_CFG_DRIVER			(PORT_BASE + 0x130)
 #define SAS_SSP_CON_TIMER_CFG		(PORT_BASE + 0x134)
 #define SAS_SMP_CON_TIMER_CFG		(PORT_BASE + 0x138)
@@ -165,6 +166,8 @@
 #define CHL_INT1_DMAC_RX_AXI_WR_ERR_OFF	21
 #define CHL_INT1_DMAC_RX_AXI_RD_ERR_OFF	22
 #define CHL_INT2			(PORT_BASE + 0x1bc)
+#define CHL_INT2_SL_IDAF_TOUT_CONF_OFF	0
+#define CHL_INT2_STP_LINK_TIMEOUT_OFF	31
 #define CHL_INT0_MSK			(PORT_BASE + 0x1c0)
 #define CHL_INT1_MSK			(PORT_BASE + 0x1c4)
 #define CHL_INT2_MSK			(PORT_BASE + 0x1c8)
@@ -429,7 +432,7 @@ static void init_reg_v3_hw(struct hisi_hba *hisi_hba)
 		hisi_sas_phy_write32(hisi_hba, i, CHL_INT2, 0xffffffff);
 		hisi_sas_phy_write32(hisi_hba, i, RXOP_CHECK_CFG_H, 0x1000);
 		hisi_sas_phy_write32(hisi_hba, i, CHL_INT1_MSK, 0xff87ffff);
-		hisi_sas_phy_write32(hisi_hba, i, CHL_INT2_MSK, 0x8ffffbff);
+		hisi_sas_phy_write32(hisi_hba, i, CHL_INT2_MSK, 0xffffbfe);
 		hisi_sas_phy_write32(hisi_hba, i, PHY_CTRL_RDY_MSK, 0x0);
 		hisi_sas_phy_write32(hisi_hba, i, PHYCTRL_NOT_RDY_MSK, 0x0);
 		hisi_sas_phy_write32(hisi_hba, i, PHYCTRL_DWS_RESET_MSK, 0x0);
@@ -1342,9 +1345,31 @@ static irqreturn_t int_chnl_int_v3_hw(int irq_no, void *p)
 					     CHL_INT1, irq_value1);
 		}
 
-		if (irq_msk & (8 << (phy_no * 4)) && irq_value2)
+		if (irq_msk & (8 << (phy_no * 4)) && irq_value2) {
+			struct hisi_sas_phy *phy = &hisi_hba->phy[phy_no];
+
+			if (irq_value2 & BIT(CHL_INT2_SL_IDAF_TOUT_CONF_OFF)) {
+				dev_warn(dev, "phy%d identify timeout\n",
+							phy_no);
+				hisi_sas_notify_phy_event(phy,
+					HISI_PHYE_LINK_RESET);
+
+			}
+
+			if (irq_value2 & BIT(CHL_INT2_STP_LINK_TIMEOUT_OFF)) {
+				u32 reg_value = hisi_sas_phy_read32(hisi_hba,
+						phy_no, STP_LINK_TIMEOUT_STATE);
+
+				dev_warn(dev, "phy%d stp link timeout (0x%x)\n",
+							phy_no, reg_value);
+				if (reg_value & BIT(4))
+					hisi_sas_notify_phy_event(phy,
+						HISI_PHYE_LINK_RESET);
+			}
+
 			hisi_sas_phy_write32(hisi_hba, phy_no,
 					     CHL_INT2, irq_value2);
+		}
 
 
 		if (irq_msk & (2 << (phy_no * 4)) && irq_value0) {
