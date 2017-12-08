@@ -552,6 +552,7 @@ static struct sctp_stream_interleave sctp_stream_interleave_0 = {
 	.assign_number		= sctp_chunk_assign_ssn,
 	.validate_data		= sctp_validate_data,
 	.ulpevent_data		= sctp_ulpq_tail_data,
+	.enqueue_event		= sctp_ulpq_tail_event,
 };
 
 static struct sctp_stream_interleave sctp_stream_interleave_1 = {
@@ -561,6 +562,7 @@ static struct sctp_stream_interleave sctp_stream_interleave_1 = {
 	.assign_number		= sctp_chunk_assign_mid,
 	.validate_data		= sctp_validate_idata,
 	.ulpevent_data		= sctp_ulpevent_idata,
+	.enqueue_event		= sctp_enqueue_event,
 };
 
 void sctp_stream_interleave_init(struct sctp_stream *stream)

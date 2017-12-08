@@ -2294,7 +2294,7 @@ static int sctp_setsockopt_events(struct sock *sk, char __user *optval,
 			if (!event)
 				return -ENOMEM;
 
-			sctp_ulpq_tail_event(&asoc->ulpq, event);
+			asoc->stream.si->enqueue_event(&asoc->ulpq, event);
 		}
 	}
 

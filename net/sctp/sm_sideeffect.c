@@ -972,7 +972,7 @@ static void sctp_cmd_process_operr(struct sctp_cmd_seq *cmds,
 		if (!ev)
 			return;
 
-		sctp_ulpq_tail_event(&asoc->ulpq, ev);
+		asoc->stream.si->enqueue_event(&asoc->ulpq, ev);
 
 		switch (err_hdr->cause) {
 		case SCTP_ERROR_UNKNOWN_CHUNK:
@@ -1058,7 +1058,7 @@ static void sctp_cmd_assoc_change(struct sctp_cmd_seq *commands,
 					    asoc->c.sinit_max_instreams,
 					    NULL, GFP_ATOMIC);
 	if (ev)
-		sctp_ulpq_tail_event(&asoc->ulpq, ev);
+		asoc->stream.si->enqueue_event(&asoc->ulpq, ev);
 }
 
 /* Helper function to generate an adaptation indication event */
@@ -1070,7 +1070,7 @@ static void sctp_cmd_adaptation_ind(struct sctp_cmd_seq *commands,
 	ev = sctp_ulpevent_make_adaptation_indication(asoc, GFP_ATOMIC);
 
 	if (ev)
-		sctp_ulpq_tail_event(&asoc->ulpq, ev);
+		asoc->stream.si->enqueue_event(&asoc->ulpq, ev);
 }
 
 
@@ -1493,7 +1493,8 @@ static int sctp_cmd_interpreter(enum sctp_event event_type,
 			pr_debug("%s: sm_sideff: event_up:%p, ulpq:%p\n",
 				 __func__, cmd->obj.ulpevent, &asoc->ulpq);
 
-			sctp_ulpq_tail_event(&asoc->ulpq, cmd->obj.ulpevent);
+			asoc->stream.si->enqueue_event(&asoc->ulpq,
+						       cmd->obj.ulpevent);
 			break;
 
 		case SCTP_CMD_REPLY:

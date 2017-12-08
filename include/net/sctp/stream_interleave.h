@@ -41,6 +41,8 @@ struct sctp_stream_interleave {
 	bool	(*validate_data)(struct sctp_chunk *chunk);
 	int	(*ulpevent_data)(struct sctp_ulpq *ulpq,
 				 struct sctp_chunk *chunk, gfp_t gfp);
+	int	(*enqueue_event)(struct sctp_ulpq *ulpq,
+				 struct sctp_ulpevent *event);
 };
 
 void sctp_stream_interleave_init(struct sctp_stream *stream);

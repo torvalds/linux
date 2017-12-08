@@ -124,7 +124,7 @@ static void sctp_datamsg_destroy(struct sctp_datamsg *msg)
 			ev = sctp_ulpevent_make_send_failed(asoc, chunk, sent,
 							    error, GFP_ATOMIC);
 			if (ev)
-				sctp_ulpq_tail_event(&asoc->ulpq, ev);
+				asoc->stream.si->enqueue_event(&asoc->ulpq, ev);
 		}
 
 		sctp_chunk_put(chunk);
