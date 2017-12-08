@@ -730,6 +730,116 @@ static int cudbg_meminfo_get_mem_index(struct adapter *padap,
 	return CUDBG_STATUS_ENTITY_NOT_FOUND;
 }
 
+/* Fetch the @region_name's start and end from @meminfo. */
+static int cudbg_get_mem_region(struct adapter *padap,
+				struct cudbg_meminfo *meminfo,
+				u8 mem_type, const char *region_name,
+				struct cudbg_mem_desc *mem_desc)
+{
+	u8 mc, found = 0;
+	u32 i, idx = 0;
+	int rc;
+
+	rc = cudbg_meminfo_get_mem_index(padap, meminfo, mem_type, &mc);
+	if (rc)
+		return rc;
+
+	for (i = 0; i < ARRAY_SIZE(cudbg_region); i++) {
+		if (!strcmp(cudbg_region[i], region_name)) {
+			found = 1;
+			idx = i;
+			break;
+		}
+	}
+	if (!found)
+		return -EINVAL;
+
+	found = 0;
+	for (i = 0; i < meminfo->mem_c; i++) {
+		if (meminfo->mem[i].idx >= ARRAY_SIZE(cudbg_region))
+			continue; /* Skip holes */
+
+		if (!(meminfo->mem[i].limit))
+			meminfo->mem[i].limit =
+				i < meminfo->mem_c - 1 ?
+				meminfo->mem[i + 1].base - 1 : ~0;
+
+		if (meminfo->mem[i].idx == idx) {
+			/* Check if the region exists in @mem_type memory */
+			if (meminfo->mem[i].base < meminfo->avail[mc].base &&
+			    meminfo->mem[i].limit < meminfo->avail[mc].base)
+				return -EINVAL;
+
+			if (meminfo->mem[i].base > meminfo->avail[mc].limit)
+				return -EINVAL;
+
+			memcpy(mem_desc, &meminfo->mem[i],
+			       sizeof(struct cudbg_mem_desc));
+			found = 1;
+			break;
+		}
+	}
+	if (!found)
+		return -EINVAL;
+
+	return 0;
+}
+
+/* Fetch and update the start and end of the requested memory region w.r.t 0
+ * in the corresponding EDC/MC/HMA.
+ */
+static int cudbg_get_mem_relative(struct adapter *padap,
+				  struct cudbg_meminfo *meminfo,
+				  u8 mem_type, u32 *out_base, u32 *out_end)
+{
+	u8 mc_idx;
+	int rc;
+
+	rc = cudbg_meminfo_get_mem_index(padap, meminfo, mem_type, &mc_idx);
+	if (rc)
+		return rc;
+
+	if (*out_base < meminfo->avail[mc_idx].base)
+		*out_base = 0;
+	else
+		*out_base -= meminfo->avail[mc_idx].base;
+
+	if (*out_end > meminfo->avail[mc_idx].limit)
+		*out_end = meminfo->avail[mc_idx].limit;
+	else
+		*out_end -= meminfo->avail[mc_idx].base;
+
+	return 0;
+}
+
+/* Get TX and RX Payload region */
+static int cudbg_get_payload_range(struct adapter *padap, u8 mem_type,
+				   const char *region_name,
+				   struct cudbg_region_info *payload)
+{
+	struct cudbg_mem_desc mem_desc = { 0 };
+	struct cudbg_meminfo meminfo;
+	int rc;
+
+	rc = cudbg_fill_meminfo(padap, &meminfo);
+	if (rc)
+		return rc;
+
+	rc = cudbg_get_mem_region(padap, &meminfo, mem_type, region_name,
+				  &mem_desc);
+	if (rc) {
+		payload->exist = false;
+		return 0;
+	}
+
+	payload->exist = true;
+	payload->start = mem_desc.base;
+	payload->end = mem_desc.limit;
+
+	return cudbg_get_mem_relative(padap, &meminfo, mem_type,
+				      &payload->start, &payload->end);
+}
+
 #define CUDBG_YIELD_ITERATION 256
 
 static int cudbg_read_fw_mem(struct cudbg_init *pdbg_init,
@@ -737,11 +847,32 @@ static int cudbg_read_fw_mem(struct cudbg_init *pdbg_init,
 			     unsigned long tot_len,
 			     struct cudbg_error *cudbg_err)
 {
+	static const char * const region_name[] = { "Tx payload:",
+						    "Rx payload:" };
 	unsigned long bytes, bytes_left, bytes_read = 0;
 	struct adapter *padap = pdbg_init->adap;
 	struct cudbg_buffer temp_buff = { 0 };
+	struct cudbg_region_info payload[2];
 	u32 yield_count = 0;
 	int rc = 0;
+	u8 i;
+
+	/* Get TX/RX Payload region range if they exist */
+	memset(payload, 0, sizeof(payload));
+	for (i = 0; i < ARRAY_SIZE(region_name); i++) {
+		rc = cudbg_get_payload_range(padap, mem_type, region_name[i],
+					     &payload[i]);
+		if (rc)
+			return rc;
+
+		if (payload[i].exist) {
+			/* Align start and end to avoid wrap around */
+			payload[i].start = roundup(payload[i].start,
+						   CUDBG_CHUNK_SIZE);
+			payload[i].end = rounddown(payload[i].end,
+						   CUDBG_CHUNK_SIZE);
+		}
+	}
 
 	bytes_left = tot_len;
 	while (bytes_left > 0) {
@@ -759,6 +890,14 @@ static int cudbg_read_fw_mem(struct cudbg_init *pdbg_init,
 		rc = cudbg_get_buff(dbg_buff, bytes, &temp_buff);
 		if (rc)
 			return rc;
+
+		for (i = 0; i < ARRAY_SIZE(payload); i++)
+			if (payload[i].exist &&
+			    bytes_read >= payload[i].start &&
+			    bytes_read + bytes <= payload[i].end)
+				/* TX and RX Payload regions can't overlap */
+				goto skip_read;
+
 		spin_lock(&padap->win0_lock);
 		rc = t4_memory_rw(padap, MEMWIN_NIC, mem_type,
 				  bytes_read, bytes,
@@ -770,6 +909,8 @@ static int cudbg_read_fw_mem(struct cudbg_init *pdbg_init,
 			cudbg_put_buff(&temp_buff, dbg_buff);
 			return rc;
 		}
+
+skip_read:
 		bytes_left -= bytes;
 		bytes_read += bytes;
 		cudbg_write_and_release_buff(&temp_buff, dbg_buff);

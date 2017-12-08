@@ -95,6 +95,13 @@ static const char * const cudbg_region[] = {
 	"On-chip queues:"
 };
 
+/* Memory region info relative to current memory (i.e. wrt 0). */
+struct cudbg_region_info {
+	bool exist; /* Does region exists in current memory? */
+	u32 start;  /* Start wrt 0 */
+	u32 end;    /* End wrt 0 */
+};
+
 struct cudbg_mem_desc {
 	u32 base;
 	u32 limit;
