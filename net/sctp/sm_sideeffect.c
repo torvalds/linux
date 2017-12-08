@@ -1731,7 +1731,7 @@ static int sctp_cmd_interpreter(enum sctp_event event_type,
 			break;
 
 		case SCTP_CMD_PART_DELIVER:
-			sctp_ulpq_partial_delivery(&asoc->ulpq, GFP_ATOMIC);
+			asoc->stream.si->start_pd(&asoc->ulpq, GFP_ATOMIC);
 			break;
 
 		case SCTP_CMD_RENEGE:

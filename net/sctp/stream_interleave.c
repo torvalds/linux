@@ -661,6 +661,7 @@ static struct sctp_stream_interleave sctp_stream_interleave_0 = {
 	.ulpevent_data		= sctp_ulpq_tail_data,
 	.enqueue_event		= sctp_ulpq_tail_event,
 	.renege_events		= sctp_ulpq_renege,
+	.start_pd		= sctp_ulpq_partial_delivery,
 };
 
 static struct sctp_stream_interleave sctp_stream_interleave_1 = {
@@ -672,6 +673,7 @@ static struct sctp_stream_interleave sctp_stream_interleave_1 = {
 	.ulpevent_data		= sctp_ulpevent_idata,
 	.enqueue_event		= sctp_enqueue_event,
 	.renege_events		= sctp_renege_events,
+	.start_pd		= sctp_intl_start_pd,
 };
 
 void sctp_stream_interleave_init(struct sctp_stream *stream)
