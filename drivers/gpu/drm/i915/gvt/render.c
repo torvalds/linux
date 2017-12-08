@@ -275,7 +275,6 @@ static void switch_mmio_to_vgpu(struct intel_vgpu *vgpu, int ring_id)
 	u32 ctx_ctrl = reg_state[CTX_CONTEXT_CONTROL_VAL];
 	u32 inhibit_mask =
 		_MASKED_BIT_ENABLE(CTX_CTRL_ENGINE_CTX_RESTORE_INHIBIT);
-	i915_reg_t last_reg = _MMIO(0);
 	struct engine_mmio *mmio;
 	u32 v;
 
@@ -305,16 +304,11 @@ static void switch_mmio_to_vgpu(struct intel_vgpu *vgpu, int ring_id)
 			v = vgpu_vreg(vgpu, mmio->reg);
 
 		I915_WRITE_FW(mmio->reg, v);
-		last_reg = mmio->reg;
 
 		trace_render_mmio(vgpu->id, "load",
 				  i915_mmio_reg_offset(mmio->reg),
 				  mmio->value, v);
 	}
-
-	/* Make sure the swiched MMIOs has taken effect. */
-	if (likely(i915_mmio_reg_offset(last_reg)))
-		I915_READ_FW(last_reg);
 
 	handle_tlb_pending_event(vgpu, ring_id);
 }
@@ -323,7 +317,6 @@ static void switch_mmio_to_vgpu(struct intel_vgpu *vgpu, int ring_id)
 static void switch_mmio_to_host(struct intel_vgpu *vgpu, int ring_id)
 {
 	struct drm_i915_private *dev_priv = vgpu->gvt->dev_priv;
-	i915_reg_t last_reg = _MMIO(0);
 	struct engine_mmio *mmio;
 	u32 v;
 
@@ -347,16 +340,11 @@ static void switch_mmio_to_host(struct intel_vgpu *vgpu, int ring_id)
 			continue;
 
 		I915_WRITE_FW(mmio->reg, v);
-		last_reg = mmio->reg;
 
 		trace_render_mmio(vgpu->id, "restore",
 				  i915_mmio_reg_offset(mmio->reg),
 				  mmio->value, v);
 	}
-
-	/* Make sure the swiched MMIOs has taken effect. */
-	if (likely(i915_mmio_reg_offset(last_reg)))
-		I915_READ_FW(last_reg);
 }
 
 /**
