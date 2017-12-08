@@ -738,17 +738,19 @@ static void hisi_sas_dev_gone(struct domain_device *device)
 	dev_info(dev, "found dev[%d:%x] is gone\n",
 		 sas_dev->device_id, sas_dev->dev_type);
 
-	hisi_sas_internal_task_abort(hisi_hba, device,
+	if (!test_bit(HISI_SAS_RESET_BIT, &hisi_hba->flags)) {
+		hisi_sas_internal_task_abort(hisi_hba, device,
 				     HISI_SAS_INT_ABT_DEV, 0);
 
-	hisi_sas_dereg_device(hisi_hba, device);
+		hisi_sas_dereg_device(hisi_hba, device);
 
-	hisi_hba->hw->clear_itct(hisi_hba, sas_dev);
+		hisi_hba->hw->clear_itct(hisi_hba, sas_dev);
+		device->lldd_dev = NULL;
+		memset(sas_dev, 0, sizeof(*sas_dev));
+	}
+
 	if (hisi_hba->hw->free_device)
 		hisi_hba->hw->free_device(sas_dev);
-
-	device->lldd_dev = NULL;
-	memset(sas_dev, 0, sizeof(*sas_dev));
 	sas_dev->dev_type = SAS_PHY_UNUSED;
 }
 
