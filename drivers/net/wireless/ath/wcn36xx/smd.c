@@ -615,6 +615,85 @@ out:
 	return ret;
 }
 
+int wcn36xx_smd_start_hw_scan(struct wcn36xx *wcn, struct ieee80211_vif *vif,
+			      struct cfg80211_scan_request *req)
+{
+	struct wcn36xx_hal_start_scan_offload_req_msg msg_body;
+	int ret, i;
+
+	mutex_lock(&wcn->hal_mutex);
+	INIT_HAL_MSG(msg_body, WCN36XX_HAL_START_SCAN_OFFLOAD_REQ);
+
+	msg_body.scan_type = WCN36XX_HAL_SCAN_TYPE_ACTIVE;
+	msg_body.min_ch_time = 30;
+	msg_body.min_ch_time = 100;
+	msg_body.scan_hidden = 1;
+	memcpy(msg_body.mac, vif->addr, ETH_ALEN);
+	msg_body.p2p_search = vif->p2p;
+
+	msg_body.num_ssid = min_t(u8, req->n_ssids, ARRAY_SIZE(msg_body.ssids));
+	for (i = 0; i < msg_body.num_ssid; i++) {
+		msg_body.ssids[i].length = min_t(u8, req->ssids[i].ssid_len,
+						sizeof(msg_body.ssids[i].ssid));
+		memcpy(msg_body.ssids[i].ssid, req->ssids[i].ssid,
+		       msg_body.ssids[i].length);
+	}
+
+	msg_body.num_channel = min_t(u8, req->n_channels,
+				     sizeof(msg_body.channels));
+	for (i = 0; i < msg_body.num_channel; i++)
+		msg_body.channels[i] = req->channels[i]->hw_value;
+
+	PREPARE_HAL_BUF(wcn->hal_buf, msg_body);
+
+	wcn36xx_dbg(WCN36XX_DBG_HAL,
+		    "hal start hw-scan (channels: %u; ssids: %u; p2p: %s)\n",
+		    msg_body.num_channel, msg_body.num_ssid,
+		    msg_body.p2p_search ? "yes" : "no");
+
+	ret = wcn36xx_smd_send_and_wait(wcn, msg_body.header.len);
+	if (ret) {
+		wcn36xx_err("Sending hal_start_scan_offload failed\n");
+		goto out;
+	}
+	ret = wcn36xx_smd_rsp_status_check(wcn->hal_buf, wcn->hal_rsp_len);
+	if (ret) {
+		wcn36xx_err("hal_start_scan_offload response failed err=%d\n",
+			    ret);
+		goto out;
+	}
+out:
+	mutex_unlock(&wcn->hal_mutex);
+	return ret;
+}
+
+int wcn36xx_smd_stop_hw_scan(struct wcn36xx *wcn)
+{
+	struct wcn36xx_hal_stop_scan_offload_req_msg msg_body;
+	int ret;
+
+	mutex_lock(&wcn->hal_mutex);
+	INIT_HAL_MSG(msg_body, WCN36XX_HAL_STOP_SCAN_OFFLOAD_REQ);
+	PREPARE_HAL_BUF(wcn->hal_buf, msg_body);
+
+	wcn36xx_dbg(WCN36XX_DBG_HAL, "hal stop hw-scan\n");
+
+	ret = wcn36xx_smd_send_and_wait(wcn, msg_body.header.len);
+	if (ret) {
+		wcn36xx_err("Sending hal_stop_scan_offload failed\n");
+		goto out;
+	}
+	ret = wcn36xx_smd_rsp_status_check(wcn->hal_buf, wcn->hal_rsp_len);
+	if (ret) {
+		wcn36xx_err("hal_stop_scan_offload response failed err=%d\n",
+			    ret);
+		goto out;
+	}
+out:
+	mutex_unlock(&wcn->hal_mutex);
+	return ret;
+}
+
 static int wcn36xx_smd_switch_channel_rsp(void *buf, size_t len)
 {
 	struct wcn36xx_hal_switch_channel_rsp_msg *rsp;
@@ -2041,6 +2120,40 @@ static int wcn36xx_smd_tx_compl_ind(struct wcn36xx *wcn, void *buf, size_t len)
 	return 0;
 }
 
+static int wcn36xx_smd_hw_scan_ind(struct wcn36xx *wcn, void *buf, size_t len)
+{
+	struct wcn36xx_hal_scan_offload_ind *rsp = buf;
+	struct cfg80211_scan_info scan_info = {};
+
+	if (len != sizeof(*rsp)) {
+		wcn36xx_warn("Corrupted delete scan indication\n");
+		return -EIO;
+	}
+
+	wcn36xx_dbg(WCN36XX_DBG_HAL, "scan indication (type %x)", rsp->type);
+
+	switch (rsp->type) {
+	case WCN36XX_HAL_SCAN_IND_FAILED:
+		scan_info.aborted = true;
+	case WCN36XX_HAL_SCAN_IND_COMPLETED:
+		mutex_lock(&wcn->scan_lock);
+		wcn->scan_req = NULL;
+		mutex_unlock(&wcn->scan_lock);
+		ieee80211_scan_completed(wcn->hw, &scan_info);
+		break;
+	case WCN36XX_HAL_SCAN_IND_STARTED:
+	case WCN36XX_HAL_SCAN_IND_FOREIGN_CHANNEL:
+	case WCN36XX_HAL_SCAN_IND_DEQUEUED:
+	case WCN36XX_HAL_SCAN_IND_PREEMPTED:
+	case WCN36XX_HAL_SCAN_IND_RESTARTED:
+		break;
+	default:
+		wcn36xx_warn("Unknown scan indication type %x\n", rsp->type);
+	}
+
+	return 0;
+}
+
 static int wcn36xx_smd_missed_beacon_ind(struct wcn36xx *wcn,
 					 void *buf,
 					 size_t len)
@@ -2252,6 +2365,8 @@ int wcn36xx_smd_rsp_process(struct rpmsg_device *rpdev,
 	case WCN36XX_HAL_CH_SWITCH_RSP:
 	case WCN36XX_HAL_FEATURE_CAPS_EXCHANGE_RSP:
 	case WCN36XX_HAL_8023_MULTICAST_LIST_RSP:
+	case WCN36XX_HAL_START_SCAN_OFFLOAD_RSP:
+	case WCN36XX_HAL_STOP_SCAN_OFFLOAD_RSP:
 		memcpy(wcn->hal_buf, buf, len);
 		wcn->hal_rsp_len = len;
 		complete(&wcn->hal_rsp_compl);
@@ -2264,6 +2379,7 @@ int wcn36xx_smd_rsp_process(struct rpmsg_device *rpdev,
 	case WCN36XX_HAL_MISSED_BEACON_IND:
 	case WCN36XX_HAL_DELETE_STA_CONTEXT_IND:
 	case WCN36XX_HAL_PRINT_REG_INFO_IND:
+	case WCN36XX_HAL_SCAN_OFFLOAD_IND:
 		msg_ind = kmalloc(sizeof(*msg_ind) + len, GFP_ATOMIC);
 		if (!msg_ind) {
 			wcn36xx_err("Run out of memory while handling SMD_EVENT (%d)\n",
@@ -2327,6 +2443,10 @@ static void wcn36xx_ind_smd_work(struct work_struct *work)
 		wcn36xx_smd_print_reg_info_ind(wcn,
 					       hal_ind_msg->msg,
 					       hal_ind_msg->msg_len);
+		break;
+	case WCN36XX_HAL_SCAN_OFFLOAD_IND:
+		wcn36xx_smd_hw_scan_ind(wcn, hal_ind_msg->msg,
+					hal_ind_msg->msg_len);
 		break;
 	default:
 		wcn36xx_err("SMD_EVENT (%d) not supported\n",
