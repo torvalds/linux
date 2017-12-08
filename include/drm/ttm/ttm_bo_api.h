@@ -263,6 +263,8 @@ struct ttm_bo_kmap_obj {
  *
  * @interruptible: Sleep interruptible if sleeping.
  * @no_wait_gpu: Return immediately if the GPU is busy.
+ * @allow_reserved_eviction: Allow eviction of reserved BOs.
+ * @resv: Reservation object to allow reserved evictions with.
  *
  * Context for TTM operations like changing buffer placement or general memory
  * allocation.
@@ -270,6 +272,8 @@ struct ttm_bo_kmap_obj {
 struct ttm_operation_ctx {
 	bool interruptible;
 	bool no_wait_gpu;
+	bool allow_reserved_eviction;
+	struct reservation_object *resv;
 	uint64_t bytes_moved;
 };
 
