@@ -110,6 +110,7 @@ void sas_hash_addr(u8 *hashed, const u8 *sas_addr)
 
 int sas_register_ha(struct sas_ha_struct *sas_ha)
 {
+	char name[64];
 	int error = 0;
 
 	mutex_init(&sas_ha->disco_mutex);
@@ -143,10 +144,24 @@ int sas_register_ha(struct sas_ha_struct *sas_ha)
 		goto Undo_ports;
 	}
 
+	error = -ENOMEM;
+	snprintf(name, sizeof(name), "%s_event_q", dev_name(sas_ha->dev));
+	sas_ha->event_q = create_singlethread_workqueue(name);
+	if (!sas_ha->event_q)
+		goto Undo_ports;
+
+	snprintf(name, sizeof(name), "%s_disco_q", dev_name(sas_ha->dev));
+	sas_ha->disco_q = create_singlethread_workqueue(name);
+	if (!sas_ha->disco_q)
+		goto Undo_event_q;
+
 	INIT_LIST_HEAD(&sas_ha->eh_done_q);
 	INIT_LIST_HEAD(&sas_ha->eh_ata_q);
 
 	return 0;
+
+Undo_event_q:
+	destroy_workqueue(sas_ha->event_q);
 Undo_ports:
 	sas_unregister_ports(sas_ha);
 Undo_phys:
@@ -176,6 +191,9 @@ int sas_unregister_ha(struct sas_ha_struct *sas_ha)
 	mutex_lock(&sas_ha->drain_mutex);
 	__sas_drain_work(sas_ha);
 	mutex_unlock(&sas_ha->drain_mutex);
+
+	destroy_workqueue(sas_ha->disco_q);
+	destroy_workqueue(sas_ha->event_q);
 
 	return 0;
 }

@@ -534,7 +534,7 @@ static void sas_chain_work(struct sas_ha_struct *ha, struct sas_work *sw)
 	 * workqueue, or known to be submitted from a context that is
 	 * not racing against draining
 	 */
-	scsi_queue_work(ha->core.shost, &sw->work);
+	queue_work(ha->disco_q, &sw->work);
 }
 
 static void sas_chain_event(int event, unsigned long *pending,
