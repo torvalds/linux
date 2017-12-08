@@ -343,23 +343,24 @@ void tcf_block_put_ext(struct tcf_block *block, struct Qdisc *q,
 
 	if (!block)
 		return;
-	/* Hold a refcnt for all chains, except 0, so that they don't disappear
+	/* Hold a refcnt for all chains, so that they don't disappear
 	 * while we are iterating.
 	 */
 	list_for_each_entry(chain, &block->chain_list, list)
-		if (chain->index)
-			tcf_chain_hold(chain);
+		tcf_chain_hold(chain);
 
 	list_for_each_entry(chain, &block->chain_list, list)
 		tcf_chain_flush(chain);
 
 	tcf_block_offload_unbind(block, q, ei);
 
-	/* At this point, all the chains should have refcnt >= 1. Block will be
-	 * freed after all chains are gone.
-	 */
+	/* At this point, all the chains should have refcnt >= 1. */
 	list_for_each_entry_safe(chain, tmp, &block->chain_list, list)
 		tcf_chain_put(chain);
+
+	/* Finally, put chain 0 and allow block to be freed. */
+	chain = list_first_entry(&block->chain_list, struct tcf_chain, list);
+	tcf_chain_put(chain);
 }
 EXPORT_SYMBOL(tcf_block_put_ext);
 
