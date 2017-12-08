@@ -15,6 +15,48 @@
 	#address-cells = <2>;
 	#size-cells = <2>;
 
+	cluster0_opp: opp_table0 {
+		compatible = "operating-points-v2";
+		opp-shared;
+		opp00 {
+			opp-hz = /bits/ 64 <598000000>;
+			opp-microvolt = <1000000>;
+		};
+		opp01 {
+			opp-hz = /bits/ 64 <702000000>;
+			opp-microvolt = <1000000>;
+		};
+		opp02 {
+			opp-hz = /bits/ 64 <793000000>;
+			opp-microvolt = <1000000>;
+		};
+	};
+
+	cluster1_opp: opp_table1 {
+		compatible = "operating-points-v2";
+		opp-shared;
+		opp00 {
+			opp-hz = /bits/ 64 <598000000>;
+			opp-microvolt = <1000000>;
+		};
+		opp01 {
+			opp-hz = /bits/ 64 <702000000>;
+			opp-microvolt = <1000000>;
+		};
+		opp02 {
+			opp-hz = /bits/ 64 <793000000>;
+			opp-microvolt = <1000000>;
+		};
+		opp03 {
+			opp-hz = /bits/ 64 <897000000>;
+			opp-microvolt = <1000000>;
+		};
+		opp04 {
+			opp-hz = /bits/ 64 <1001000000>;
+			opp-microvolt = <1000000>;
+		};
+	};
+
 	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -40,6 +82,11 @@
 			device_type = "cpu";
 			compatible = "arm,cortex-a35";
 			reg = <0x000>;
+			clocks = <&mcucfg CLK_MCU_MP0_SEL>,
+				<&topckgen CLK_TOP_F_MP0_PLL1>;
+			clock-names = "cpu", "intermediate";
+			proc-supply = <&cpus_fixed_vproc0>;
+			operating-points-v2 = <&cluster0_opp>;
 			cpu-idle-states = <&CPU_SLEEP_0 &CLUSTER_SLEEP_0>;
 		};
 
@@ -48,6 +95,11 @@
 			compatible = "arm,cortex-a35";
 			reg = <0x001>;
 			enable-method = "psci";
+			clocks = <&mcucfg CLK_MCU_MP0_SEL>,
+				<&topckgen CLK_TOP_F_MP0_PLL1>;
+			clock-names = "cpu", "intermediate";
+			proc-supply = <&cpus_fixed_vproc0>;
+			operating-points-v2 = <&cluster0_opp>;
 			cpu-idle-states = <&CPU_SLEEP_0 &CLUSTER_SLEEP_0>;
 		};
 
@@ -56,6 +108,11 @@
 			compatible = "arm,cortex-a72";
 			reg = <0x200>;
 			enable-method = "psci";
+			clocks = <&mcucfg CLK_MCU_MP2_SEL>,
+				<&topckgen CLK_TOP_F_BIG_PLL1>;
+			clock-names = "cpu", "intermediate";
+			proc-supply = <&cpus_fixed_vproc1>;
+			operating-points-v2 = <&cluster1_opp>;
 			cpu-idle-states = <&CPU_SLEEP_0 &CLUSTER_SLEEP_0>;
 		};
 
