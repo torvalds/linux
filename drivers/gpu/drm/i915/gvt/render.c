@@ -37,14 +37,6 @@
 #include "gvt.h"
 #include "trace.h"
 
-struct render_mmio {
-	int ring_id;
-	i915_reg_t reg;
-	u32 mask;
-	bool in_context;
-	u32 value;
-};
-
 /**
  * Defined in Intel Open Source PRM.
  * Ref: https://01.org/linuxgraphics/documentation/hardware-specification-prms
@@ -59,7 +51,7 @@ struct render_mmio {
 #define VF_GUARDBAND		_MMIO(0x83a4)
 
 /* Raw offset is appened to each line for convenience. */
-static struct render_mmio gen8_render_mmio_list[] __cacheline_aligned = {
+static struct engine_mmio gen8_engine_mmio_list[] __cacheline_aligned = {
 	{RCS, GFX_MODE_GEN7, 0xffff, false}, /* 0x229c */
 	{RCS, GEN9_CTX_PREEMPT_REG, 0x0, false}, /* 0x2248 */
 	{RCS, HWSTAM, 0x0, false}, /* 0x2098 */
@@ -88,9 +80,10 @@ static struct render_mmio gen8_render_mmio_list[] __cacheline_aligned = {
 	{BCS, RING_INSTPM(BLT_RING_BASE), 0xffff, false}, /* 0x220c0 */
 	{BCS, RING_HWSTAM(BLT_RING_BASE), 0x0, false}, /* 0x22098 */
 	{BCS, RING_EXCC(BLT_RING_BASE), 0x0, false}, /* 0x22028 */
+	{ /* Terminated */ }
 };
 
-static struct render_mmio gen9_render_mmio_list[] __cacheline_aligned = {
+static struct engine_mmio gen9_engine_mmio_list[] __cacheline_aligned = {
 	{RCS, GFX_MODE_GEN7, 0xffff, false}, /* 0x229c */
 	{RCS, GEN9_CTX_PREEMPT_REG, 0x0, false}, /* 0x2248 */
 	{RCS, HWSTAM, 0x0, false}, /* 0x2098 */
@@ -153,6 +146,7 @@ static struct render_mmio gen9_render_mmio_list[] __cacheline_aligned = {
 	{RCS, GEN8_GARBCNTL, 0x0, false}, /* 0xb004 */
 	{RCS, GEN7_FF_THREAD_MODE, 0x0, false}, /* 0x20a0 */
 	{RCS, FF_SLICE_CS_CHICKEN2, 0xffff, false}, /* 0x20e4 */
+	{ /* Terminated */ }
 };
 
 static u32 gen9_render_mocs[I915_NUM_ENGINES][64];
@@ -282,21 +276,14 @@ static void switch_mmio_to_vgpu(struct intel_vgpu *vgpu, int ring_id)
 	u32 inhibit_mask =
 		_MASKED_BIT_ENABLE(CTX_CTRL_ENGINE_CTX_RESTORE_INHIBIT);
 	i915_reg_t last_reg = _MMIO(0);
-	struct render_mmio *mmio;
+	struct engine_mmio *mmio;
 	u32 v;
-	int i, array_size;
 
-	if (IS_SKYLAKE(vgpu->gvt->dev_priv)
-		|| IS_KABYLAKE(vgpu->gvt->dev_priv)) {
-		mmio = gen9_render_mmio_list;
-		array_size = ARRAY_SIZE(gen9_render_mmio_list);
+	if (IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv))
 		load_mocs(vgpu, ring_id);
-	} else {
-		mmio = gen8_render_mmio_list;
-		array_size = ARRAY_SIZE(gen8_render_mmio_list);
-	}
 
-	for (i = 0; i < array_size; i++, mmio++) {
+	mmio = vgpu->gvt->engine_mmio_list;
+	while (i915_mmio_reg_offset((mmio++)->reg)) {
 		if (mmio->ring_id != ring_id)
 			continue;
 
@@ -326,7 +313,7 @@ static void switch_mmio_to_vgpu(struct intel_vgpu *vgpu, int ring_id)
 	}
 
 	/* Make sure the swiched MMIOs has taken effect. */
-	if (likely(INTEL_GVT_MMIO_OFFSET(last_reg)))
+	if (likely(i915_mmio_reg_offset(last_reg)))
 		I915_READ_FW(last_reg);
 
 	handle_tlb_pending_event(vgpu, ring_id);
@@ -336,21 +323,15 @@ static void switch_mmio_to_vgpu(struct intel_vgpu *vgpu, int ring_id)
 static void switch_mmio_to_host(struct intel_vgpu *vgpu, int ring_id)
 {
 	struct drm_i915_private *dev_priv = vgpu->gvt->dev_priv;
-	struct render_mmio *mmio;
 	i915_reg_t last_reg = _MMIO(0);
+	struct engine_mmio *mmio;
 	u32 v;
-	int i, array_size;
 
-	if (IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv)) {
-		mmio = gen9_render_mmio_list;
-		array_size = ARRAY_SIZE(gen9_render_mmio_list);
+	if (IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv))
 		restore_mocs(vgpu, ring_id);
-	} else {
-		mmio = gen8_render_mmio_list;
-		array_size = ARRAY_SIZE(gen8_render_mmio_list);
-	}
 
-	for (i = 0; i < array_size; i++, mmio++) {
+	mmio = vgpu->gvt->engine_mmio_list;
+	while (i915_mmio_reg_offset((mmio++)->reg)) {
 		if (mmio->ring_id != ring_id)
 			continue;
 
@@ -374,7 +355,7 @@ static void switch_mmio_to_host(struct intel_vgpu *vgpu, int ring_id)
 	}
 
 	/* Make sure the swiched MMIOs has taken effect. */
-	if (likely(INTEL_GVT_MMIO_OFFSET(last_reg)))
+	if (likely(i915_mmio_reg_offset(last_reg)))
 		I915_READ_FW(last_reg);
 }
 
@@ -418,4 +399,17 @@ void intel_gvt_switch_mmio(struct intel_vgpu *pre,
 		switch_mmio_to_vgpu(next, ring_id);
 
 	intel_uncore_forcewake_put(dev_priv, FORCEWAKE_ALL);
+}
+
+/**
+ * intel_gvt_init_engine_mmio_context - Initiate the engine mmio list
+ * @gvt: GVT device
+ *
+ */
+void intel_gvt_init_engine_mmio_context(struct intel_gvt *gvt)
+{
+	if (IS_SKYLAKE(gvt->dev_priv) || IS_KABYLAKE(gvt->dev_priv))
+		gvt->engine_mmio_list = gen9_engine_mmio_list;
+	else
+		gvt->engine_mmio_list = gen8_engine_mmio_list;
 }

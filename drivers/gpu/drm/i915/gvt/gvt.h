@@ -310,6 +310,8 @@ struct intel_gvt {
 	wait_queue_head_t service_thread_wq;
 	unsigned long service_request;
 
+	struct engine_mmio *engine_mmio_list;
+
 	struct dentry *debugfs_root;
 };
 
