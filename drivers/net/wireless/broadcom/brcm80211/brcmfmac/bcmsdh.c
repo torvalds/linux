@@ -746,16 +746,17 @@ int brcmf_sdiod_send_pkt(struct brcmf_sdio_dev *sdiodev,
 	if (err)
 		return err;
 
-	if (pktq->qlen == 1 || !sdiodev->sg_support)
+	if (pktq->qlen == 1 || !sdiodev->sg_support) {
 		skb_queue_walk(pktq, skb) {
 			err = brcmf_sdiod_buff_write(sdiodev, SDIO_FUNC_2,
 						     addr, skb);
 			if (err)
 				break;
 		}
-	else
+	} else {
 		err = brcmf_sdiod_sglist_rw(sdiodev, SDIO_FUNC_2, true, addr,
 					    pktq);
+	}
 
 	return err;
 }
