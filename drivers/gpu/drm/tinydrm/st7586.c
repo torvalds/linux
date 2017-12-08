@@ -17,6 +17,7 @@
 #include <linux/spi/spi.h>
 #include <video/mipi_display.h>
 
+#include <drm/drm_fb_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/tinydrm/mipi-dbi.h>
 #include <drm/tinydrm/tinydrm-helpers.h>
@@ -320,7 +321,7 @@ static struct drm_driver st7586_driver = {
 				  DRIVER_ATOMIC,
 	.fops			= &st7586_fops,
 	TINYDRM_GEM_DRIVER_OPS,
-	.lastclose		= tinydrm_lastclose,
+	.lastclose		= drm_fb_helper_lastclose,
 	.debugfs_init		= mipi_dbi_debugfs_init,
 	.name			= "st7586",
 	.desc			= "Sitronix ST7586",
