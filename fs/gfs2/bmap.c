@@ -279,14 +279,17 @@ static inline __be64 *metapointer(unsigned int height, const struct metapath *mp
 	return p + mp->mp_list[height];
 }
 
-static void gfs2_metapath_ra(struct gfs2_glock *gl,
-			     const struct buffer_head *bh, const __be64 *pos)
+static void gfs2_metapath_ra(struct gfs2_glock *gl, struct metapath *mp,
+			     unsigned int height)
 {
-	struct buffer_head *rabh;
+	struct buffer_head *bh = mp->mp_bh[height];
+	const __be64 *pos = metapointer(height, mp);
 	const __be64 *endp = (const __be64 *)(bh->b_data + bh->b_size);
 	const __be64 *t;
 
 	for (t = pos; t < endp; t++) {
+		struct buffer_head *rabh;
+
 		if (!*t)
 			continue;
 
@@ -353,12 +356,13 @@ static int lookup_metapath(struct gfs2_inode *ip, struct metapath *mp)
  *
  * Similar to lookup_metapath, but does lookups for a range of heights
  *
- * Returns: error
+ * Returns: error or the number of buffers filled
  */
 
 static int fillup_metapath(struct gfs2_inode *ip, struct metapath *mp, int h)
 {
 	unsigned int x = 0;
+	int ret;
 
 	if (h) {
 		/* find the first buffer we need to look up. */
@@ -367,7 +371,10 @@ static int fillup_metapath(struct gfs2_inode *ip, struct metapath *mp, int h)
 				break;
 		}
 	}
-	return __fillup_metapath(ip, mp, x, h);
+	ret = __fillup_metapath(ip, mp, x, h);
+	if (ret)
+		return ret;
+	return mp->mp_aheight - x - 1;
 }
 
 static inline void release_metapath(struct metapath *mp)
@@ -1309,7 +1316,6 @@ static int trunc_dealloc(struct gfs2_inode *ip, u64 newsize)
 	u32 btotal = 0;
 	int ret, state;
 	int mp_h; /* metapath buffers are read in to this height */
-	sector_t last_ra = 0;
 	u64 prev_bnr = 0;
 	bool preserve1; /* need to preserve the first meta pointer? */
 
@@ -1331,6 +1337,11 @@ static int trunc_dealloc(struct gfs2_inode *ip, u64 newsize)
 	ret = lookup_metapath(ip, &mp);
 	if (ret)
 		goto out_metapath;
+
+	/* issue read-ahead on metadata */
+	for (mp_h = 0; mp_h < mp.mp_aheight - 1; mp_h++)
+		gfs2_metapath_ra(ip->i_gl, &mp, mp_h);
+
 	if (mp.mp_aheight == ip->i_height)
 		state = DEALLOC_MP_FULL; /* We have a complete metapath */
 	else
@@ -1352,16 +1363,6 @@ static int trunc_dealloc(struct gfs2_inode *ip, u64 newsize)
 		/* Truncate a full metapath at the given strip height.
 		 * Note that strip_h == mp_h in order to be in this state. */
 		case DEALLOC_MP_FULL:
-			if (mp_h > 0) { /* issue read-ahead on metadata */
-				__be64 *top;
-
-				bh = mp.mp_bh[mp_h - 1];
-				if (bh->b_blocknr != last_ra) {
-					last_ra = bh->b_blocknr;
-					top = metaptr1(mp_h - 1, &mp);
-					gfs2_metapath_ra(ip->i_gl, bh, top);
-				}
-			}
 			/* If we're truncating to a non-zero size and the mp is
 			   at the beginning of file for the strip height, we
 			   need to preserve the first metadata pointer. */
@@ -1427,8 +1428,15 @@ static int trunc_dealloc(struct gfs2_inode *ip, u64 newsize)
 		case DEALLOC_FILL_MP:
 			/* Fill the buffers out to the current height. */
 			ret = fillup_metapath(ip, &mp, mp_h);
-			if (ret)
+			if (ret < 0)
 				goto out;
+
+			/* issue read-ahead on metadata */
+			if (mp.mp_aheight > 1) {
+				for (; ret > 1; ret--)
+					gfs2_metapath_ra(ip->i_gl, &mp,
+						mp.mp_aheight - ret);
+			}
 
 			/* If buffers found for the entire strip height */
 			if (mp.mp_aheight - 1 == strip_h) {
