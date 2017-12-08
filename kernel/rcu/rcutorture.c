@@ -1045,13 +1045,13 @@ rcu_torture_fakewriter(void *arg)
 		    torture_random(&rand) % (nfakewriters * 8) == 0) {
 			cur_ops->cb_barrier();
 		} else if (gp_normal == gp_exp) {
-			if (torture_random(&rand) & 0x80)
+			if (cur_ops->sync && torture_random(&rand) & 0x80)
 				cur_ops->sync();
-			else
+			else if (cur_ops->exp_sync)
 				cur_ops->exp_sync();
-		} else if (gp_normal) {
+		} else if (gp_normal && cur_ops->sync) {
 			cur_ops->sync();
-		} else {
+		} else if (cur_ops->exp_sync) {
 			cur_ops->exp_sync();
 		}
 		stutter_wait("rcu_torture_fakewriter");
