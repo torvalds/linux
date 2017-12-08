@@ -364,9 +364,13 @@ static inline unsigned int dpaa2_eth_buf_raw_size(struct dpaa2_eth_priv *priv)
 }
 
 static inline
-unsigned int dpaa2_eth_needed_headroom(struct dpaa2_eth_priv *priv)
+unsigned int dpaa2_eth_needed_headroom(struct dpaa2_eth_priv *priv,
+				       struct sk_buff *skb)
 {
-	return priv->tx_data_offset + DPAA2_ETH_TX_BUF_ALIGN;
+	if (skb_is_nonlinear(skb))
+		return 0;
+
+	return DPAA2_ETH_SWA_SIZE + DPAA2_ETH_TX_BUF_ALIGN;
 }
 
 /* Extra headroom space requested to hardware, in order to make sure there's
@@ -374,7 +378,8 @@ unsigned int dpaa2_eth_needed_headroom(struct dpaa2_eth_priv *priv)
  */
 static inline unsigned int dpaa2_eth_rx_head_room(struct dpaa2_eth_priv *priv)
 {
-	return dpaa2_eth_needed_headroom(priv) - DPAA2_ETH_RX_HWA_SIZE;
+	return priv->tx_data_offset + DPAA2_ETH_TX_BUF_ALIGN -
+	       DPAA2_ETH_RX_HWA_SIZE;
 }
 
 static int dpaa2_eth_queue_count(struct dpaa2_eth_priv *priv)
