@@ -1184,6 +1184,11 @@ static int hisi_sas_abort_task(struct sas_task *task)
 
 		rc2 = hisi_sas_internal_task_abort(hisi_hba, device,
 						   HISI_SAS_INT_ABT_CMD, tag);
+		if (rc2 < 0) {
+			dev_err(dev, "abort task: internal abort (%d)\n", rc2);
+			return TMF_RESP_FUNC_FAILED;
+		}
+
 		/*
 		 * If the TMF finds that the IO is not in the device and also
 		 * the internal abort does not succeed, then it is safe to
@@ -1201,8 +1206,12 @@ static int hisi_sas_abort_task(struct sas_task *task)
 	} else if (task->task_proto & SAS_PROTOCOL_SATA ||
 		task->task_proto & SAS_PROTOCOL_STP) {
 		if (task->dev->dev_type == SAS_SATA_DEV) {
-			hisi_sas_internal_task_abort(hisi_hba, device,
-						     HISI_SAS_INT_ABT_DEV, 0);
+			rc = hisi_sas_internal_task_abort(hisi_hba, device,
+						HISI_SAS_INT_ABT_DEV, 0);
+			if (rc < 0) {
+				dev_err(dev, "abort task: internal abort failed\n");
+				goto out;
+			}
 			hisi_sas_dereg_device(hisi_hba, device);
 			rc = hisi_sas_softreset_ata_disk(device);
 		}
@@ -1213,7 +1222,8 @@ static int hisi_sas_abort_task(struct sas_task *task)
 
 		rc = hisi_sas_internal_task_abort(hisi_hba, device,
 			     HISI_SAS_INT_ABT_CMD, tag);
-		if (rc == TMF_RESP_FUNC_FAILED && task->lldd_task) {
+		if (((rc < 0) || (rc == TMF_RESP_FUNC_FAILED)) &&
+					task->lldd_task) {
 			spin_lock_irqsave(&hisi_hba->lock, flags);
 			hisi_sas_do_release_task(hisi_hba, task, slot);
 			spin_unlock_irqrestore(&hisi_hba->lock, flags);
@@ -1263,15 +1273,20 @@ static int hisi_sas_I_T_nexus_reset(struct domain_device *device)
 {
 	struct hisi_sas_device *sas_dev = device->lldd_dev;
 	struct hisi_hba *hisi_hba = dev_to_hisi_hba(device);
-	unsigned long flags;
+	struct device *dev = hisi_hba->dev;
 	int rc = TMF_RESP_FUNC_FAILED;
+	unsigned long flags;
 
 	if (sas_dev->dev_status != HISI_SAS_DEV_EH)
 		return TMF_RESP_FUNC_FAILED;
 	sas_dev->dev_status = HISI_SAS_DEV_NORMAL;
 
-	hisi_sas_internal_task_abort(hisi_hba, device,
+	rc = hisi_sas_internal_task_abort(hisi_hba, device,
 					HISI_SAS_INT_ABT_DEV, 0);
+	if (rc < 0) {
+		dev_err(dev, "I_T nexus reset: internal abort (%d)\n", rc);
+		return TMF_RESP_FUNC_FAILED;
+	}
 	hisi_sas_dereg_device(hisi_hba, device);
 
 	rc = hisi_sas_debug_I_T_nexus_reset(device);
@@ -1299,8 +1314,10 @@ static int hisi_sas_lu_reset(struct domain_device *device, u8 *lun)
 		/* Clear internal IO and then hardreset */
 		rc = hisi_sas_internal_task_abort(hisi_hba, device,
 						  HISI_SAS_INT_ABT_DEV, 0);
-		if (rc == TMF_RESP_FUNC_FAILED)
+		if (rc < 0) {
+			dev_err(dev, "lu_reset: internal abort failed\n");
 			goto out;
+		}
 		hisi_sas_dereg_device(hisi_hba, device);
 
 		phy = sas_get_local_phy(device);
@@ -1497,8 +1514,14 @@ hisi_sas_internal_task_abort(struct hisi_hba *hisi_hba,
 	struct device *dev = hisi_hba->dev;
 	int res;
 
+	/*
+	 * The interface is not realized means this HW don't support internal
+	 * abort, or don't need to do internal abort. Then here, we return
+	 * TMF_RESP_FUNC_FAILED and let other steps go on, which depends that
+	 * the internal abort has been executed and returned CQ.
+	 */
 	if (!hisi_hba->hw->prep_abort)
-		return -EOPNOTSUPP;
+		return TMF_RESP_FUNC_FAILED;
 
 	task = sas_alloc_slow_task(GFP_KERNEL);
 	if (!task)
@@ -1530,6 +1553,7 @@ hisi_sas_internal_task_abort(struct hisi_hba *hisi_hba,
 			if (slot)
 				slot->task = NULL;
 			dev_err(dev, "internal task abort: timeout and not done.\n");
+			res = -EIO;
 			goto exit;
 		} else
 			dev_err(dev, "internal task abort: timeout.\n");
