@@ -84,12 +84,12 @@
 struct dpot_data {
 	struct ad_dpot_bus_data	bdata;
 	struct mutex update_lock;
-	unsigned rdac_mask;
-	unsigned max_pos;
+	unsigned int rdac_mask;
+	unsigned int max_pos;
 	unsigned long devid;
-	unsigned uid;
-	unsigned feat;
-	unsigned wipers;
+	unsigned int uid;
+	unsigned int feat;
+	unsigned int wipers;
 	u16 rdac_cache[MAX_RDACS];
 	DECLARE_BITMAP(otp_en_mask, MAX_RDACS);
 };
@@ -126,7 +126,7 @@ static inline int dpot_write_r8d16(struct dpot_data *dpot, u8 reg, u16 val)
 
 static s32 dpot_read_spi(struct dpot_data *dpot, u8 reg)
 {
-	unsigned ctrl = 0;
+	unsigned int ctrl = 0;
 	int value;
 
 	if (!(reg & (DPOT_ADDR_EEPROM | DPOT_ADDR_CMD))) {
@@ -175,7 +175,7 @@ static s32 dpot_read_spi(struct dpot_data *dpot, u8 reg)
 static s32 dpot_read_i2c(struct dpot_data *dpot, u8 reg)
 {
 	int value;
-	unsigned ctrl = 0;
+	unsigned int ctrl = 0;
 
 	switch (dpot->uid) {
 	case DPOT_UID(AD5246_ID):
@@ -238,7 +238,7 @@ static s32 dpot_read(struct dpot_data *dpot, u8 reg)
 
 static s32 dpot_write_spi(struct dpot_data *dpot, u8 reg, u16 value)
 {
-	unsigned val = 0;
+	unsigned int val = 0;
 
 	if (!(reg & (DPOT_ADDR_EEPROM | DPOT_ADDR_CMD | DPOT_ADDR_OTP))) {
 		if (dpot->feat & F_RDACS_WONLY)
@@ -328,7 +328,7 @@ static s32 dpot_write_spi(struct dpot_data *dpot, u8 reg, u16 value)
 static s32 dpot_write_i2c(struct dpot_data *dpot, u8 reg, u16 value)
 {
 	/* Only write the instruction byte for certain commands */
-	unsigned tmp = 0, ctrl = 0;
+	unsigned int tmp = 0, ctrl = 0;
 
 	switch (dpot->uid) {
 	case DPOT_UID(AD5246_ID):
@@ -636,7 +636,7 @@ static const struct attribute_group ad525x_group_commands = {
 };
 
 static int ad_dpot_add_files(struct device *dev,
-		unsigned features, unsigned rdac)
+		unsigned int features, unsigned int rdac)
 {
 	int err = sysfs_create_file(&dev->kobj,
 		dpot_attrib_wipers[rdac]);
@@ -661,7 +661,7 @@ static int ad_dpot_add_files(struct device *dev,
 }
 
 static inline void ad_dpot_remove_files(struct device *dev,
-		unsigned features, unsigned rdac)
+		unsigned int features, unsigned int rdac)
 {
 	sysfs_remove_file(&dev->kobj,
 		dpot_attrib_wipers[rdac]);
