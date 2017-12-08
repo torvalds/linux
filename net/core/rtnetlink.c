@@ -2684,7 +2684,7 @@ struct net_device *rtnl_create_link(struct net *net,
 	if (tb[IFLA_GSO_MAX_SIZE])
 		netif_set_gso_max_size(dev, nla_get_u32(tb[IFLA_GSO_MAX_SIZE]));
 	if (tb[IFLA_GSO_MAX_SEGS])
-		dev->gso_max_size = nla_get_u32(tb[IFLA_GSO_MAX_SEGS]);
+		dev->gso_max_segs = nla_get_u32(tb[IFLA_GSO_MAX_SEGS]);
 
 	return dev;
 }
