@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_X86_HW_IRQ_H
 #define _ASM_X86_HW_IRQ_H
 
@@ -14,6 +15,8 @@
  */
 
 #include <asm/irq_vectors.h>
+
+#define IRQ_MATRIX_BITS		NR_VECTORS
 
 #ifndef __ASSEMBLY__
 
@@ -96,14 +99,6 @@ struct irq_alloc_info {
 			void		*dmar_data;
 		};
 #endif
-#ifdef	CONFIG_HT_IRQ
-		struct {
-			int		ht_pos;
-			int		ht_idx;
-			struct pci_dev	*ht_dev;
-			void		*ht_update;
-		};
-#endif
 #ifdef	CONFIG_X86_UV
 		struct {
 			int		uv_limit;
@@ -122,15 +117,13 @@ struct irq_alloc_info {
 
 struct irq_cfg {
 	unsigned int		dest_apicid;
-	u8			vector;
-	u8			old_vector;
+	unsigned int		vector;
 };
 
 extern struct irq_cfg *irq_cfg(unsigned int irq);
 extern struct irq_cfg *irqd_cfg(struct irq_data *irq_data);
 extern void lock_vector_lock(void);
 extern void unlock_vector_lock(void);
-extern void setup_vector_irq(int cpu);
 #ifdef CONFIG_SMP
 extern void send_cleanup_vector(struct irq_cfg *);
 extern void irq_complete_move(struct irq_cfg *cfg);

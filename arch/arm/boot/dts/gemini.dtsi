@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Device Tree file for Cortina systems Gemini SoC
  */
@@ -139,6 +140,12 @@
 					mux1 {
 						function = "ide";
 						groups = "idegrp";
+					};
+				};
+				tvc_default_pins: pinctrl-tvc {
+					mux {
+						function = "tvc";
+						groups = "tvcgrp";
 					};
 				};
 			};
@@ -346,6 +353,21 @@
 			memcpy-burst-size = <256>;
 			memcpy-bus-width = <32>;
 			#dma-cells = <2>;
+		};
+
+		display-controller@6a000000 {
+			compatible = "cortina,gemini-tvc", "faraday,tve200";
+			reg = <0x6a000000 0x1000>;
+			interrupts = <13 IRQ_TYPE_EDGE_RISING>;
+			resets = <&syscon GEMINI_RESET_TVC>;
+			clocks = <&syscon GEMINI_CLK_GATE_TVC>,
+				 <&syscon GEMINI_CLK_TVC>;
+			clock-names = "PCLK", "TVE";
+			pinctrl-names = "default";
+			pinctrl-0 = <&tvc_default_pins>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
 		};
 	};
 };

@@ -1244,15 +1244,12 @@ int ttm_dma_page_alloc_debugfs(struct seq_file *m, void *data)
 {
 	struct device_pools *p;
 	struct dma_pool *pool = NULL;
-	char *h[] = {"pool", "refills", "pages freed", "inuse", "available",
-		     "name", "virt", "busaddr"};
 
 	if (!_manager) {
 		seq_printf(m, "No pool allocator running.\n");
 		return 0;
 	}
-	seq_printf(m, "%13s %12s %13s %8s %8s %8s\n",
-		   h[0], h[1], h[2], h[3], h[4], h[5]);
+	seq_printf(m, "         pool      refills   pages freed    inuse available     name\n");
 	mutex_lock(&_manager->lock);
 	list_for_each_entry(p, &_manager->pools, pools) {
 		struct device *dev = p->dev;

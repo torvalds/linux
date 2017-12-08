@@ -30,7 +30,7 @@
 		bootargs = "console=ttySAC3,115200";
 	};
 
-	firmware@02073000 {
+	firmware@2073000 {
 		compatible = "samsung,secure-firmware";
 		reg = <0x02073000 0x1000>;
 	};
@@ -357,6 +357,10 @@
 };
 
 &i2c_2 {
+	status = "okay";
+};
+
+&mixer {
 	status = "okay";
 };
 

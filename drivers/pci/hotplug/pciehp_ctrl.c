@@ -113,10 +113,11 @@ static int board_added(struct slot *p_slot)
 
 	retval = pciehp_configure_device(p_slot);
 	if (retval) {
-		ctrl_err(ctrl, "Cannot add device at %04x:%02x:00\n",
-			 pci_domain_nr(parent), parent->number);
-		if (retval != -EEXIST)
+		if (retval != -EEXIST) {
+			ctrl_err(ctrl, "Cannot add device at %04x:%02x:00\n",
+				 pci_domain_nr(parent), parent->number);
 			goto err_exit;
+		}
 	}
 
 	pciehp_green_led_on(p_slot);

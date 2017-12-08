@@ -105,6 +105,7 @@ enum acpi_bus_device_type {
 	ACPI_BUS_TYPE_THERMAL,
 	ACPI_BUS_TYPE_POWER_BUTTON,
 	ACPI_BUS_TYPE_SLEEP_BUTTON,
+	ACPI_BUS_TYPE_ECDT_EC,
 	ACPI_BUS_DEVICE_TYPE_COUNT
 };
 
@@ -211,7 +212,7 @@ struct acpi_device_flags {
 	u32 of_compatible_ok:1;
 	u32 coherent_dma:1;
 	u32 cca_seen:1;
-	u32 spi_i2c_slave:1;
+	u32 serial_bus_slave:1;
 	u32 reserved:19;
 };
 

@@ -262,7 +262,8 @@ static void pwc_isoc_handler(struct urb *urb)
 
 	if (urb->status == -ENOENT || urb->status == -ECONNRESET ||
 	    urb->status == -ESHUTDOWN) {
-		PWC_DEBUG_OPEN("URB (%p) unlinked %ssynchronuously.\n", urb, urb->status == -ENOENT ? "" : "a");
+		PWC_DEBUG_OPEN("URB (%p) unlinked %ssynchronously.\n",
+			       urb, urb->status == -ENOENT ? "" : "a");
 		return;
 	}
 

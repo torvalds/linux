@@ -179,29 +179,6 @@ void ODM_sleep_ms(u32 ms) { msleep(ms); }
 
 void ODM_sleep_us(u32 us) { usleep_range(us, us + 1); }
 
-void odm_set_timer(struct phy_dm_struct *dm, struct timer_list *timer,
-		   u32 ms_delay)
-{
-	mod_timer(timer, jiffies + msecs_to_jiffies(ms_delay));
-}
-
-void odm_initialize_timer(struct phy_dm_struct *dm, struct timer_list *timer,
-			  void *call_back_func, void *context,
-			  const char *sz_id)
-{
-	init_timer(timer);
-	timer->function = call_back_func;
-	timer->data = (unsigned long)dm;
-	/*mod_timer(timer, jiffies+RTL_MILISECONDS_TO_JIFFIES(10));	*/
-}
-
-void odm_cancel_timer(struct phy_dm_struct *dm, struct timer_list *timer)
-{
-	del_timer(timer);
-}
-
-void odm_release_timer(struct phy_dm_struct *dm, struct timer_list *timer) {}
-
 static u8 phydm_trans_h2c_id(struct phy_dm_struct *dm, u8 phydm_h2c_id)
 {
 	u8 platform_h2c_id = phydm_h2c_id;

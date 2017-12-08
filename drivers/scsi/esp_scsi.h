@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* esp_scsi.h: Defines and structures for the ESP driver.
  *
  * Copyright (C) 2007 David S. Miller (davem@davemloft.net)

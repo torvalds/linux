@@ -136,6 +136,9 @@ enum {
 	MLX4_CQE_BAD_FCS                 = 1 << 4,
 };
 
+#define MLX4_MAX_CQ_PERIOD (BIT(16) - 1)
+#define MLX4_MAX_CQ_COUNT (BIT(16) - 1)
+
 static inline void mlx4_cq_arm(struct mlx4_cq *cq, u32 cmd,
 			       void __iomem *uar_page,
 			       spinlock_t *doorbell_lock)

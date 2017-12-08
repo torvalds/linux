@@ -57,6 +57,7 @@ Required root node properties:
 	- "hardkernel,odroid-xu3-lite" - for Exynos5422-based Hardkernel
 					 Odroid XU3 Lite board.
 	- "hardkernel,odroid-xu4" - for Exynos5422-based Hardkernel Odroid XU4.
+	- "hardkernel,odroid-hc1" - for Exynos5422-based Hardkernel Odroid HC1.
 
   * Insignal
 	- "insignal,arndale"      - for Exynos5250-based Insignal Arndale board.
@@ -71,7 +72,7 @@ Optional nodes:
         - compatible: only "samsung,secure-firmware" is currently supported
         - reg: address of non-secure SYSRAM used for communication with firmware
 
-	firmware@0203F000 {
+	firmware@203F000 {
 		compatible = "samsung,secure-firmware";
 		reg = <0x0203F000 0x1000>;
 	};

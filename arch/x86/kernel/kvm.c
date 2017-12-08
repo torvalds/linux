@@ -75,8 +75,8 @@ static int parse_no_kvmclock_vsyscall(char *arg)
 
 early_param("no-kvmclock-vsyscall", parse_no_kvmclock_vsyscall);
 
-static DEFINE_PER_CPU(struct kvm_vcpu_pv_apf_data, apf_reason) __aligned(64);
-static DEFINE_PER_CPU(struct kvm_steal_time, steal_time) __aligned(64);
+static DEFINE_PER_CPU_DECRYPTED(struct kvm_vcpu_pv_apf_data, apf_reason) __aligned(64);
+static DEFINE_PER_CPU_DECRYPTED(struct kvm_steal_time, steal_time) __aligned(64);
 static int has_steal_clock = 0;
 
 /*
@@ -312,7 +312,7 @@ static void kvm_register_steal_time(void)
 		cpu, (unsigned long long) slow_virt_to_phys(st));
 }
 
-static DEFINE_PER_CPU(unsigned long, kvm_apic_eoi) = KVM_PV_EOI_DISABLED;
+static DEFINE_PER_CPU_DECRYPTED(unsigned long, kvm_apic_eoi) = KVM_PV_EOI_DISABLED;
 
 static notrace void kvm_guest_apic_eoi_write(u32 reg, u32 val)
 {
@@ -426,9 +426,42 @@ void kvm_disable_steal_time(void)
 	wrmsr(MSR_KVM_STEAL_TIME, 0, 0);
 }
 
+static inline void __set_percpu_decrypted(void *ptr, unsigned long size)
+{
+	early_set_memory_decrypted((unsigned long) ptr, size);
+}
+
+/*
+ * Iterate through all possible CPUs and map the memory region pointed
+ * by apf_reason, steal_time and kvm_apic_eoi as decrypted at once.
+ *
+ * Note: we iterate through all possible CPUs to ensure that CPUs
+ * hotplugged will have their per-cpu variable already mapped as
+ * decrypted.
+ */
+static void __init sev_map_percpu_data(void)
+{
+	int cpu;
+
+	if (!sev_active())
+		return;
+
+	for_each_possible_cpu(cpu) {
+		__set_percpu_decrypted(&per_cpu(apf_reason, cpu), sizeof(apf_reason));
+		__set_percpu_decrypted(&per_cpu(steal_time, cpu), sizeof(steal_time));
+		__set_percpu_decrypted(&per_cpu(kvm_apic_eoi, cpu), sizeof(kvm_apic_eoi));
+	}
+}
+
 #ifdef CONFIG_SMP
 static void __init kvm_smp_prepare_boot_cpu(void)
 {
+	/*
+	 * Map the per-cpu variables as decrypted before kvm_guest_cpu_init()
+	 * shares the guest physical address with the hypervisor.
+	 */
+	sev_map_percpu_data();
+
 	kvm_guest_cpu_init();
 	native_smp_prepare_boot_cpu();
 	kvm_spinlock_init();
@@ -465,7 +498,7 @@ static void __init kvm_apf_trap_init(void)
 	update_intr_gate(X86_TRAP_PF, async_page_fault);
 }
 
-void __init kvm_guest_init(void)
+static void __init kvm_guest_init(void)
 {
 	int i;
 
@@ -496,6 +529,7 @@ void __init kvm_guest_init(void)
 				      kvm_cpu_online, kvm_cpu_down_prepare) < 0)
 		pr_err("kvm_guest: Failed to install cpu hotplug callbacks\n");
 #else
+	sev_map_percpu_data();
 	kvm_guest_cpu_init();
 #endif
 
@@ -544,12 +578,13 @@ static uint32_t __init kvm_detect(void)
 	return kvm_cpuid_base();
 }
 
-const struct hypervisor_x86 x86_hyper_kvm __refconst = {
+const __initconst struct hypervisor_x86 x86_hyper_kvm = {
 	.name			= "KVM",
 	.detect			= kvm_detect,
-	.x2apic_available	= kvm_para_available,
+	.type			= X86_HYPER_KVM,
+	.init.guest_late_init	= kvm_guest_init,
+	.init.x2apic_available	= kvm_para_available,
 };
-EXPORT_SYMBOL_GPL(x86_hyper_kvm);
 
 static __init int activate_jump_labels(void)
 {

@@ -106,6 +106,8 @@ int amdgpu_vm_debug = 0;
 int amdgpu_vram_page_split = 512;
 int amdgpu_vm_update_mode = -1;
 int amdgpu_exp_hw_support = 0;
+int amdgpu_dc = -1;
+int amdgpu_dc_log = 0;
 int amdgpu_sched_jobs = 32;
 int amdgpu_sched_hw_submission = 2;
 int amdgpu_no_evict = 0;
@@ -211,6 +213,12 @@ module_param_named(vram_page_split, amdgpu_vram_page_split, int, 0444);
 MODULE_PARM_DESC(exp_hw_support, "experimental hw support (1 = enable, 0 = disable (default))");
 module_param_named(exp_hw_support, amdgpu_exp_hw_support, int, 0444);
 
+MODULE_PARM_DESC(dc, "Display Core driver (1 = enable, 0 = disable, -1 = auto (default))");
+module_param_named(dc, amdgpu_dc, int, 0444);
+
+MODULE_PARM_DESC(dc_log, "Display Core Log Level (0 = minimal (default), 1 = chatty");
+module_param_named(dc_log, amdgpu_dc_log, int, 0444);
+
 MODULE_PARM_DESC(sched_jobs, "the max number of jobs supported in the sw queue (default 32)");
 module_param_named(sched_jobs, amdgpu_sched_jobs, int, 0444);
 
@@ -297,7 +305,6 @@ MODULE_PARM_DESC(cik_support, "CIK support (1 = enabled (default), 0 = disabled)
 
 module_param_named(cik_support, amdgpu_cik_support, int, 0444);
 #endif
-
 
 static const struct pci_device_id pciidlist[] = {
 #ifdef  CONFIG_DRM_AMDGPU_SI
@@ -518,17 +525,17 @@ static const struct pci_device_id pciidlist[] = {
 	{0x1002, 0x6997, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_POLARIS12},
 	{0x1002, 0x699F, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_POLARIS12},
 	/* Vega 10 */
-	{0x1002, 0x6860, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_VEGA10|AMD_EXP_HW_SUPPORT},
-	{0x1002, 0x6861, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_VEGA10|AMD_EXP_HW_SUPPORT},
-	{0x1002, 0x6862, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_VEGA10|AMD_EXP_HW_SUPPORT},
-	{0x1002, 0x6863, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_VEGA10|AMD_EXP_HW_SUPPORT},
-	{0x1002, 0x6864, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_VEGA10|AMD_EXP_HW_SUPPORT},
-	{0x1002, 0x6867, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_VEGA10|AMD_EXP_HW_SUPPORT},
-	{0x1002, 0x6868, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_VEGA10|AMD_EXP_HW_SUPPORT},
-	{0x1002, 0x686c, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_VEGA10|AMD_EXP_HW_SUPPORT},
-	{0x1002, 0x687f, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_VEGA10|AMD_EXP_HW_SUPPORT},
+	{0x1002, 0x6860, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_VEGA10},
+	{0x1002, 0x6861, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_VEGA10},
+	{0x1002, 0x6862, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_VEGA10},
+	{0x1002, 0x6863, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_VEGA10},
+	{0x1002, 0x6864, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_VEGA10},
+	{0x1002, 0x6867, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_VEGA10},
+	{0x1002, 0x6868, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_VEGA10},
+	{0x1002, 0x686c, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_VEGA10},
+	{0x1002, 0x687f, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_VEGA10},
 	/* Raven */
-	{0x1002, 0x15dd, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_RAVEN|AMD_IS_APU|AMD_EXP_HW_SUPPORT},
+	{0x1002, 0x15dd, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_RAVEN|AMD_IS_APU},
 
 	{0, 0, 0}
 };
@@ -558,12 +565,13 @@ static int amdgpu_kick_out_firmware_fb(struct pci_dev *pdev)
 	return 0;
 }
 
+
 static int amdgpu_pci_probe(struct pci_dev *pdev,
 			    const struct pci_device_id *ent)
 {
 	struct drm_device *dev;
 	unsigned long flags = ent->driver_data;
-	int ret;
+	int ret, retry = 0;
 
 	if ((flags & AMD_EXP_HW_SUPPORT) && !amdgpu_exp_hw_support) {
 		DRM_INFO("This hardware requires experimental hardware support.\n"
@@ -596,8 +604,14 @@ static int amdgpu_pci_probe(struct pci_dev *pdev,
 
 	pci_set_drvdata(pdev, dev);
 
+retry_init:
 	ret = drm_dev_register(dev, ent->driver_data);
-	if (ret)
+	if (ret == -EAGAIN && ++retry <= 3) {
+		DRM_INFO("retry init %d\n", retry);
+		/* Don't request EX mode too frequently which is attacking */
+		msleep(5000);
+		goto retry_init;
+	} else if (ret)
 		goto err_pci;
 
 	return 0;

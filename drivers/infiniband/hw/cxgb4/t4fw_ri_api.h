@@ -675,8 +675,8 @@ struct fw_ri_fr_nsmr_tpte_wr {
 	__u16  wrid;
 	__u8   r1[3];
 	__u8   len16;
-	__u32  r2;
-	__u32  stag;
+	__be32  r2;
+	__be32  stag;
 	struct fw_ri_tpte tpte;
 	__u64  pbl[2];
 };

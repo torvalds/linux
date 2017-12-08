@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* asm/arch/bitops.h for Linux/CRISv10 */
 
 #ifndef _CRIS_ARCH_BITOPS_H

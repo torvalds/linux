@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __ddr2_defs_asm_h
 #define __ddr2_defs_asm_h
 

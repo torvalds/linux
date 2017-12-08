@@ -55,17 +55,6 @@ struct ila_identifier {
 	};
 };
 
-enum {
-	ILA_ATYPE_IID = 0,
-	ILA_ATYPE_LUID,
-	ILA_ATYPE_VIRT_V4,
-	ILA_ATYPE_VIRT_UNI_V6,
-	ILA_ATYPE_VIRT_MULTI_V6,
-	ILA_ATYPE_RSVD_1,
-	ILA_ATYPE_RSVD_2,
-	ILA_ATYPE_RSVD_3,
-};
-
 #define CSUM_NEUTRAL_FLAG	htonl(0x10000000)
 
 struct ila_addr {
@@ -93,6 +82,7 @@ struct ila_params {
 	struct ila_locator locator_match;
 	__wsum csum_diff;
 	u8 csum_mode;
+	u8 ident_type;
 };
 
 static inline __wsum compute_csum_diff8(const __be32 *from, const __be32 *to)

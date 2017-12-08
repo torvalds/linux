@@ -1710,9 +1710,9 @@ static void e100_adjust_adaptive_ifs(struct nic *nic, int speed, int duplex)
 	}
 }
 
-static void e100_watchdog(unsigned long data)
+static void e100_watchdog(struct timer_list *t)
 {
-	struct nic *nic = (struct nic *)data;
+	struct nic *nic = from_timer(nic, t, watchdog);
 	struct ethtool_cmd cmd = { .cmd = ETHTOOL_GSET };
 	u32 speed;
 
@@ -1910,11 +1910,10 @@ static int e100_alloc_cbs(struct nic *nic)
 	nic->cb_to_use = nic->cb_to_send = nic->cb_to_clean = NULL;
 	nic->cbs_avail = 0;
 
-	nic->cbs = pci_pool_alloc(nic->cbs_pool, GFP_KERNEL,
-				  &nic->cbs_dma_addr);
+	nic->cbs = pci_pool_zalloc(nic->cbs_pool, GFP_KERNEL,
+				   &nic->cbs_dma_addr);
 	if (!nic->cbs)
 		return -ENOMEM;
-	memset(nic->cbs, 0, count * sizeof(struct cb));
 
 	for (cb = nic->cbs, i = 0; i < count; cb++, i++) {
 		cb->next = (i + 1 < count) ? cb + 1 : nic->cbs;
@@ -2921,7 +2920,7 @@ static int e100_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	pci_set_master(pdev);
 
-	setup_timer(&nic->watchdog, e100_watchdog, (unsigned long)nic);
+	timer_setup(&nic->watchdog, e100_watchdog, 0);
 
 	INIT_WORK(&nic->tx_timeout_task, e100_tx_timeout_task);
 

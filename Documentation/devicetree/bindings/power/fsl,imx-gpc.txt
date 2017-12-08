@@ -40,7 +40,7 @@ Optional properties:
 
 Example:
 
-	gpc: gpc@020dc000 {
+	gpc: gpc@20dc000 {
 		compatible = "fsl,imx6q-gpc";
 		reg = <0x020dc000 0x4000>;
 		interrupts = <0 89 IRQ_TYPE_LEVEL_HIGH>,
@@ -80,7 +80,7 @@ that is a phandle pointing to the power domain the device belongs to.
 
 Example of a device that is part of the PU power domain:
 
-	vpu: vpu@02040000 {
+	vpu: vpu@2040000 {
 		reg = <0x02040000 0x3c000>;
 		/* ... */
 		power-domains = <&pd_pu>;

@@ -504,8 +504,8 @@ static void batadv_check_known_mac_addr(const struct net_device *net_dev)
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(hard_iface, &batadv_hardif_list, list) {
-		if ((hard_iface->if_status != BATADV_IF_ACTIVE) &&
-		    (hard_iface->if_status != BATADV_IF_TO_BE_ACTIVATED))
+		if (hard_iface->if_status != BATADV_IF_ACTIVE &&
+		    hard_iface->if_status != BATADV_IF_TO_BE_ACTIVATED)
 			continue;
 
 		if (hard_iface->net_dev == net_dev)
@@ -568,8 +568,8 @@ int batadv_hardif_min_mtu(struct net_device *soft_iface)
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(hard_iface, &batadv_hardif_list, list) {
-		if ((hard_iface->if_status != BATADV_IF_ACTIVE) &&
-		    (hard_iface->if_status != BATADV_IF_TO_BE_ACTIVATED))
+		if (hard_iface->if_status != BATADV_IF_ACTIVE &&
+		    hard_iface->if_status != BATADV_IF_TO_BE_ACTIVATED)
 			continue;
 
 		if (hard_iface->soft_iface != soft_iface)
@@ -654,8 +654,8 @@ out:
 static void
 batadv_hardif_deactivate_interface(struct batadv_hard_iface *hard_iface)
 {
-	if ((hard_iface->if_status != BATADV_IF_ACTIVE) &&
-	    (hard_iface->if_status != BATADV_IF_TO_BE_ACTIVATED))
+	if (hard_iface->if_status != BATADV_IF_ACTIVE &&
+	    hard_iface->if_status != BATADV_IF_TO_BE_ACTIVATED)
 		return;
 
 	hard_iface->if_status = BATADV_IF_INACTIVE;
@@ -738,7 +738,7 @@ int batadv_hardif_enable_interface(struct batadv_hard_iface *hard_iface,
 	bat_priv = netdev_priv(hard_iface->soft_iface);
 
 	ret = netdev_master_upper_dev_link(hard_iface->net_dev,
-					   soft_iface, NULL, NULL);
+					   soft_iface, NULL, NULL, NULL);
 	if (ret)
 		goto err_dev;
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * builtin-annotate.c
  *
@@ -356,7 +357,7 @@ static int __cmd_annotate(struct perf_annotate *ann)
 	}
 
 	if (total_nr_samples == 0) {
-		ui__error("The %s file has no samples!\n", session->file->path);
+		ui__error("The %s file has no samples!\n", session->data->file.path);
 		goto out;
 	}
 
@@ -400,7 +401,7 @@ int cmd_annotate(int argc, const char **argv)
 			.ordering_requires_timestamps = true,
 		},
 	};
-	struct perf_data_file file = {
+	struct perf_data data = {
 		.mode  = PERF_DATA_MODE_READ,
 	};
 	struct option options[] = {
@@ -410,7 +411,7 @@ int cmd_annotate(int argc, const char **argv)
 		   "only consider symbols in these dsos"),
 	OPT_STRING('s', "symbol", &annotate.sym_hist_filter, "symbol",
 		    "symbol to annotate"),
-	OPT_BOOLEAN('f', "force", &file.force, "don't complain, do it"),
+	OPT_BOOLEAN('f', "force", &data.force, "don't complain, do it"),
 	OPT_INCR('v', "verbose", &verbose,
 		    "be more verbose (show symbol address, etc)"),
 	OPT_BOOLEAN('q', "quiet", &quiet, "do now show any message"),
@@ -482,9 +483,9 @@ int cmd_annotate(int argc, const char **argv)
 	if (quiet)
 		perf_quiet_option();
 
-	file.path  = input_name;
+	data.file.path = input_name;
 
-	annotate.session = perf_session__new(&file, false, &annotate.tool);
+	annotate.session = perf_session__new(&data, false, &annotate.tool);
 	if (annotate.session == NULL)
 		return -1;
 

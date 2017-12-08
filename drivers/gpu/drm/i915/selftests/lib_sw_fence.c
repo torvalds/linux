@@ -49,9 +49,9 @@ void onstack_fence_fini(struct i915_sw_fence *fence)
 	i915_sw_fence_fini(fence);
 }
 
-static void timed_fence_wake(unsigned long data)
+static void timed_fence_wake(struct timer_list *t)
 {
-	struct timed_fence *tf = (struct timed_fence *)data;
+	struct timed_fence *tf = from_timer(tf, t, timer);
 
 	i915_sw_fence_commit(&tf->fence);
 }
@@ -60,7 +60,7 @@ void timed_fence_init(struct timed_fence *tf, unsigned long expires)
 {
 	onstack_fence_init(&tf->fence);
 
-	setup_timer_on_stack(&tf->timer, timed_fence_wake, (unsigned long)tf);
+	timer_setup_on_stack(&tf->timer, timed_fence_wake, 0);
 
 	if (time_after(expires, jiffies))
 		mod_timer(&tf->timer, expires);

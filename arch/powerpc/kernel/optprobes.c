@@ -115,32 +115,23 @@ static unsigned long can_optimize(struct kprobe *p)
 static void optimized_callback(struct optimized_kprobe *op,
 			       struct pt_regs *regs)
 {
-	struct kprobe_ctlblk *kcb = get_kprobe_ctlblk();
-	unsigned long flags;
-
 	/* This is possible if op is under delayed unoptimizing */
 	if (kprobe_disabled(&op->kp))
 		return;
 
-	local_irq_save(flags);
-	hard_irq_disable();
+	preempt_disable();
 
 	if (kprobe_running()) {
 		kprobes_inc_nmissed_count(&op->kp);
 	} else {
 		__this_cpu_write(current_kprobe, &op->kp);
 		regs->nip = (unsigned long)op->kp.addr;
-		kcb->kprobe_status = KPROBE_HIT_ACTIVE;
+		get_kprobe_ctlblk()->kprobe_status = KPROBE_HIT_ACTIVE;
 		opt_pre_handler(&op->kp, regs);
 		__this_cpu_write(current_kprobe, NULL);
 	}
 
-	/*
-	 * No need for an explicit __hard_irq_enable() here.
-	 * local_irq_restore() will re-enable interrupts,
-	 * if they were hard disabled.
-	 */
-	local_irq_restore(flags);
+	preempt_enable_no_resched();
 }
 NOKPROBE_SYMBOL(optimized_callback);
 

@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Greybus operations
  *
  * Copyright 2014-2015 Google Inc.
  * Copyright 2014-2015 Linaro Ltd.
- *
- * Released under the GPLv2 only.
  */
 
 #include <linux/kernel.h>
@@ -294,9 +293,9 @@ static void gb_operation_work(struct work_struct *work)
 	gb_operation_put(operation);
 }
 
-static void gb_operation_timeout(unsigned long arg)
+static void gb_operation_timeout(struct timer_list *t)
 {
-	struct gb_operation *operation = (void *)arg;
+	struct gb_operation *operation = from_timer(operation, t, timer);
 
 	if (gb_operation_result_set(operation, -ETIMEDOUT)) {
 		/*
@@ -541,8 +540,7 @@ gb_operation_create_common(struct gb_connection *connection, u8 type,
 			goto err_request;
 		}
 
-		setup_timer(&operation->timer, gb_operation_timeout,
-			    (unsigned long)operation);
+		timer_setup(&operation->timer, gb_operation_timeout, 0);
 	}
 
 	operation->flags = op_flags;

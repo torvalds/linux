@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 # Makefile for the Eicon DIVA ISDN drivers.
 
 # Each configuration option enables a list of files.

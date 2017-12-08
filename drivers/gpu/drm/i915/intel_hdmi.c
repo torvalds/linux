@@ -487,7 +487,8 @@ static void intel_hdmi_set_avi_infoframe(struct drm_encoder *encoder,
 					   crtc_state->limited_color_range ?
 					   HDMI_QUANTIZATION_RANGE_LIMITED :
 					   HDMI_QUANTIZATION_RANGE_FULL,
-					   intel_hdmi->rgb_quant_range_selectable);
+					   intel_hdmi->rgb_quant_range_selectable,
+					   is_hdmi2_sink);
 
 	/* TODO: handle pixel repetition for YCBCR420 outputs */
 	intel_write_infoframe(encoder, crtc_state, &frame);
@@ -512,12 +513,14 @@ static void intel_hdmi_set_spd_infoframe(struct drm_encoder *encoder,
 
 static void
 intel_hdmi_set_hdmi_infoframe(struct drm_encoder *encoder,
-			      const struct intel_crtc_state *crtc_state)
+			      const struct intel_crtc_state *crtc_state,
+			      const struct drm_connector_state *conn_state)
 {
 	union hdmi_infoframe frame;
 	int ret;
 
 	ret = drm_hdmi_vendor_infoframe_from_display_mode(&frame.vendor.hdmi,
+							  conn_state->connector,
 							  &crtc_state->base.adjusted_mode);
 	if (ret < 0)
 		return;
@@ -584,7 +587,7 @@ static void g4x_set_infoframes(struct drm_encoder *encoder,
 
 	intel_hdmi_set_avi_infoframe(encoder, crtc_state);
 	intel_hdmi_set_spd_infoframe(encoder, crtc_state);
-	intel_hdmi_set_hdmi_infoframe(encoder, crtc_state);
+	intel_hdmi_set_hdmi_infoframe(encoder, crtc_state, conn_state);
 }
 
 static bool hdmi_sink_is_deep_color(const struct drm_connector_state *conn_state)
@@ -725,7 +728,7 @@ static void ibx_set_infoframes(struct drm_encoder *encoder,
 
 	intel_hdmi_set_avi_infoframe(encoder, crtc_state);
 	intel_hdmi_set_spd_infoframe(encoder, crtc_state);
-	intel_hdmi_set_hdmi_infoframe(encoder, crtc_state);
+	intel_hdmi_set_hdmi_infoframe(encoder, crtc_state, conn_state);
 }
 
 static void cpt_set_infoframes(struct drm_encoder *encoder,
@@ -768,7 +771,7 @@ static void cpt_set_infoframes(struct drm_encoder *encoder,
 
 	intel_hdmi_set_avi_infoframe(encoder, crtc_state);
 	intel_hdmi_set_spd_infoframe(encoder, crtc_state);
-	intel_hdmi_set_hdmi_infoframe(encoder, crtc_state);
+	intel_hdmi_set_hdmi_infoframe(encoder, crtc_state, conn_state);
 }
 
 static void vlv_set_infoframes(struct drm_encoder *encoder,
@@ -821,7 +824,7 @@ static void vlv_set_infoframes(struct drm_encoder *encoder,
 
 	intel_hdmi_set_avi_infoframe(encoder, crtc_state);
 	intel_hdmi_set_spd_infoframe(encoder, crtc_state);
-	intel_hdmi_set_hdmi_infoframe(encoder, crtc_state);
+	intel_hdmi_set_hdmi_infoframe(encoder, crtc_state, conn_state);
 }
 
 static void hsw_set_infoframes(struct drm_encoder *encoder,
@@ -854,7 +857,7 @@ static void hsw_set_infoframes(struct drm_encoder *encoder,
 
 	intel_hdmi_set_avi_infoframe(encoder, crtc_state);
 	intel_hdmi_set_spd_infoframe(encoder, crtc_state);
-	intel_hdmi_set_hdmi_infoframe(encoder, crtc_state);
+	intel_hdmi_set_hdmi_infoframe(encoder, crtc_state, conn_state);
 }
 
 void intel_dp_dual_mode_set_tmds_output(struct intel_hdmi *hdmi, bool enable)

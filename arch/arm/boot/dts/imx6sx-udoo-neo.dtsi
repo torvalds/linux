@@ -135,7 +135,7 @@
 	clock-frequency = <100000>;
 	status = "okay";
 
-	pmic: pmic@08 {
+	pmic: pmic@8 {
 		compatible = "fsl,pfuze3000";
 		reg = <0x08>;
 

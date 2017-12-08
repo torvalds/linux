@@ -140,6 +140,7 @@ enum mem_type {
 	DIRTY_DENTS,	/* indicates dirty dentry pages */
 	INO_ENTRIES,	/* indicates inode entries */
 	EXTENT_CACHE,	/* indicates extent cache */
+	INMEM_PAGES,	/* indicates inmemory pages */
 	BASE_CHECK,	/* check kernel status */
 };
 
@@ -150,18 +151,10 @@ struct nat_entry_set {
 	unsigned int entry_cnt;		/* the # of nat entries in set */
 };
 
-/*
- * For free nid mangement
- */
-enum nid_state {
-	NID_NEW,	/* newly added to free nid list */
-	NID_ALLOC	/* it is allocated */
-};
-
 struct free_nid {
 	struct list_head list;	/* for free node id list */
 	nid_t nid;		/* node id */
-	int state;		/* in use or not: NID_NEW or NID_ALLOC */
+	int state;		/* in use or not: FREE_NID or PREALLOC_NID */
 };
 
 static inline void next_free_nid(struct f2fs_sb_info *sbi, nid_t *nid)
@@ -170,12 +163,11 @@ static inline void next_free_nid(struct f2fs_sb_info *sbi, nid_t *nid)
 	struct free_nid *fnid;
 
 	spin_lock(&nm_i->nid_list_lock);
-	if (nm_i->nid_cnt[FREE_NID_LIST] <= 0) {
+	if (nm_i->nid_cnt[FREE_NID] <= 0) {
 		spin_unlock(&nm_i->nid_list_lock);
 		return;
 	}
-	fnid = list_first_entry(&nm_i->nid_list[FREE_NID_LIST],
-						struct free_nid, list);
+	fnid = list_first_entry(&nm_i->free_nid_list, struct free_nid, list);
 	*nid = fnid->nid;
 	spin_unlock(&nm_i->nid_list_lock);
 }

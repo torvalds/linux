@@ -753,7 +753,7 @@ static int split_large_page(struct cpa_data *cpa, pte_t *kpte,
 
 	if (!debug_pagealloc_enabled())
 		spin_unlock(&cpa_lock);
-	base = alloc_pages(GFP_KERNEL | __GFP_NOTRACK, 0);
+	base = alloc_pages(GFP_KERNEL, 0);
 	if (!debug_pagealloc_enabled())
 		spin_lock(&cpa_lock);
 	if (!base)
@@ -904,7 +904,7 @@ static void unmap_pud_range(p4d_t *p4d, unsigned long start, unsigned long end)
 
 static int alloc_pte_page(pmd_t *pmd)
 {
-	pte_t *pte = (pte_t *)get_zeroed_page(GFP_KERNEL | __GFP_NOTRACK);
+	pte_t *pte = (pte_t *)get_zeroed_page(GFP_KERNEL);
 	if (!pte)
 		return -1;
 
@@ -914,7 +914,7 @@ static int alloc_pte_page(pmd_t *pmd)
 
 static int alloc_pmd_page(pud_t *pud)
 {
-	pmd_t *pmd = (pmd_t *)get_zeroed_page(GFP_KERNEL | __GFP_NOTRACK);
+	pmd_t *pmd = (pmd_t *)get_zeroed_page(GFP_KERNEL);
 	if (!pmd)
 		return -1;
 
@@ -1120,7 +1120,7 @@ static int populate_pgd(struct cpa_data *cpa, unsigned long addr)
 	pgd_entry = cpa->pgd + pgd_index(addr);
 
 	if (pgd_none(*pgd_entry)) {
-		p4d = (p4d_t *)get_zeroed_page(GFP_KERNEL | __GFP_NOTRACK);
+		p4d = (p4d_t *)get_zeroed_page(GFP_KERNEL);
 		if (!p4d)
 			return -1;
 
@@ -1132,7 +1132,7 @@ static int populate_pgd(struct cpa_data *cpa, unsigned long addr)
 	 */
 	p4d = p4d_offset(pgd_entry, addr);
 	if (p4d_none(*p4d)) {
-		pud = (pud_t *)get_zeroed_page(GFP_KERNEL | __GFP_NOTRACK);
+		pud = (pud_t *)get_zeroed_page(GFP_KERNEL);
 		if (!pud)
 			return -1;
 
@@ -1781,8 +1781,8 @@ static int __set_memory_enc_dec(unsigned long addr, int numpages, bool enc)
 	unsigned long start;
 	int ret;
 
-	/* Nothing to do if the SME is not active */
-	if (!sme_active())
+	/* Nothing to do if memory encryption is not active */
+	if (!mem_encrypt_active())
 		return 0;
 
 	/* Should not be working on unaligned addresses */

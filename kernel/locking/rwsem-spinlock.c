@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /* rwsem-spinlock.c: R/W semaphores: contention handling functions for
  * generic spinlock implementation
  *

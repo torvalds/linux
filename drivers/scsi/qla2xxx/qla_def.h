@@ -323,6 +323,12 @@ struct els_logo_payload {
 	uint8_t wwpn[WWN_SIZE];
 };
 
+struct els_plogi_payload {
+	uint8_t opcode;
+	uint8_t rsvd[3];
+	uint8_t data[112];
+};
+
 struct ct_arg {
 	void		*iocb;
 	u16		nport_handle;
@@ -357,6 +363,19 @@ struct srb_iocb {
 			struct els_logo_payload *els_logo_pyld;
 			dma_addr_t els_logo_pyld_dma;
 		} els_logo;
+		struct {
+#define ELS_DCMD_PLOGI 0x3
+			uint32_t flags;
+			uint32_t els_cmd;
+			struct completion comp;
+			struct els_plogi_payload *els_plogi_pyld;
+			struct els_plogi_payload *els_resp_pyld;
+			dma_addr_t els_plogi_pyld_dma;
+			dma_addr_t els_resp_pyld_dma;
+			uint32_t	fw_status[3];
+			__le16	comp_status;
+			__le16	len;
+		} els_plogi;
 		struct {
 			/*
 			 * Values for flags field below are as
@@ -922,6 +941,7 @@ struct mbx_cmd_32 {
 #define INTR_RSP_QUE_UPDATE_83XX	0x14
 #define INTR_ATIO_QUE_UPDATE		0x1C
 #define INTR_ATIO_RSP_QUE_UPDATE	0x1D
+#define INTR_ATIO_QUE_UPDATE_27XX	0x1E
 
 /* ISP mailbox loopback echo diagnostic error code */
 #define MBS_LB_RESET	0x17
@@ -2302,6 +2322,7 @@ typedef struct fc_port {
 	unsigned int send_els_logo:1;
 	unsigned int login_pause:1;
 	unsigned int login_succ:1;
+	unsigned int query:1;
 
 	struct work_struct nvme_del_work;
 	struct completion nvme_del_done;
@@ -2347,6 +2368,7 @@ typedef struct fc_port {
 	uint8_t fc4_type;
 	uint8_t	fc4f_nvme;
 	uint8_t scan_state;
+	uint8_t n2n_flag;
 
 	unsigned long last_queue_full;
 	unsigned long last_ramp_up;
@@ -2368,6 +2390,9 @@ typedef struct fc_port {
 	struct list_head gnl_entry;
 	struct work_struct del_work;
 	u8 iocb[IOCB_SIZE];
+	u8 current_login_state;
+	u8 last_login_state;
+	struct completion n2n_done;
 } fc_port_t;
 
 #define QLA_FCPORT_SCAN		1
@@ -4113,6 +4138,7 @@ typedef struct scsi_qla_host {
 #define QPAIR_ONLINE_CHECK_NEEDED	27
 #define SET_ZIO_THRESHOLD_NEEDED	28
 #define DETECT_SFP_CHANGE	29
+#define N2N_LOGIN_NEEDED	30
 
 	unsigned long	pci_flags;
 #define PFLG_DISCONNECTED	0	/* PCI device removed */
@@ -4223,6 +4249,9 @@ typedef struct scsi_qla_host {
 	wait_queue_head_t fcport_waitQ;
 	wait_queue_head_t vref_waitq;
 	uint8_t min_link_speed_feat;
+	uint8_t n2n_node_name[WWN_SIZE];
+	uint8_t n2n_port_name[WWN_SIZE];
+	uint16_t	n2n_id;
 } scsi_qla_host_t;
 
 struct qla27xx_image_status {

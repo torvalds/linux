@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __KVM_COALESCED_MMIO_H__
 #define __KVM_COALESCED_MMIO_H__
 

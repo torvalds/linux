@@ -20,6 +20,9 @@
  * OF THIS SOFTWARE.
  */
 
+#include <drm/drm_atomic_helper.h>
+#include <drm/drm_crtc_helper.h>
+#include <drm/drm_fb_helper.h>
 #include <drm/drm_modeset_helper.h>
 #include <drm/drm_plane_helper.h>
 
@@ -156,3 +159,76 @@ int drm_crtc_init(struct drm_device *dev, struct drm_crtc *crtc,
 					 NULL);
 }
 EXPORT_SYMBOL(drm_crtc_init);
+
+/**
+ * drm_mode_config_helper_suspend - Modeset suspend helper
+ * @dev: DRM device
+ *
+ * This helper function takes care of suspending the modeset side. It disables
+ * output polling if initialized, suspends fbdev if used and finally calls
+ * drm_atomic_helper_suspend().
+ * If suspending fails, fbdev and polling is re-enabled.
+ *
+ * Returns:
+ * Zero on success, negative error code on error.
+ *
+ * See also:
+ * drm_kms_helper_poll_disable() and drm_fb_helper_set_suspend_unlocked().
+ */
+int drm_mode_config_helper_suspend(struct drm_device *dev)
+{
+	struct drm_atomic_state *state;
+
+	if (!dev)
+		return 0;
+
+	drm_kms_helper_poll_disable(dev);
+	drm_fb_helper_set_suspend_unlocked(dev->fb_helper, 1);
+	state = drm_atomic_helper_suspend(dev);
+	if (IS_ERR(state)) {
+		drm_fb_helper_set_suspend_unlocked(dev->fb_helper, 0);
+		drm_kms_helper_poll_enable(dev);
+		return PTR_ERR(state);
+	}
+
+	dev->mode_config.suspend_state = state;
+
+	return 0;
+}
+EXPORT_SYMBOL(drm_mode_config_helper_suspend);
+
+/**
+ * drm_mode_config_helper_resume - Modeset resume helper
+ * @dev: DRM device
+ *
+ * This helper function takes care of resuming the modeset side. It calls
+ * drm_atomic_helper_resume(), resumes fbdev if used and enables output polling
+ * if initiaized.
+ *
+ * Returns:
+ * Zero on success, negative error code on error.
+ *
+ * See also:
+ * drm_fb_helper_set_suspend_unlocked() and drm_kms_helper_poll_enable().
+ */
+int drm_mode_config_helper_resume(struct drm_device *dev)
+{
+	int ret;
+
+	if (!dev)
+		return 0;
+
+	if (WARN_ON(!dev->mode_config.suspend_state))
+		return -EINVAL;
+
+	ret = drm_atomic_helper_resume(dev, dev->mode_config.suspend_state);
+	if (ret)
+		DRM_ERROR("Failed to resume (%d)\n", ret);
+	dev->mode_config.suspend_state = NULL;
+
+	drm_fb_helper_set_suspend_unlocked(dev->fb_helper, 0);
+	drm_kms_helper_poll_enable(dev);
+
+	return ret;
+}
+EXPORT_SYMBOL(drm_mode_config_helper_resume);

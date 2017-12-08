@@ -72,7 +72,6 @@ xfs_inode_item_data_fork_size(
 		break;
 
 	case XFS_DINODE_FMT_DEV:
-	case XFS_DINODE_FMT_UUID:
 		break;
 	default:
 		ASSERT(0);
@@ -156,15 +155,13 @@ xfs_inode_item_format_data_fork(
 	switch (ip->i_d.di_format) {
 	case XFS_DINODE_FMT_EXTENTS:
 		iip->ili_fields &=
-			~(XFS_ILOG_DDATA | XFS_ILOG_DBROOT |
-			  XFS_ILOG_DEV | XFS_ILOG_UUID);
+			~(XFS_ILOG_DDATA | XFS_ILOG_DBROOT | XFS_ILOG_DEV);
 
 		if ((iip->ili_fields & XFS_ILOG_DEXT) &&
 		    ip->i_d.di_nextents > 0 &&
 		    ip->i_df.if_bytes > 0) {
 			struct xfs_bmbt_rec *p;
 
-			ASSERT(ip->i_df.if_u1.if_extents != NULL);
 			ASSERT(xfs_iext_count(&ip->i_df) > 0);
 
 			p = xlog_prepare_iovec(lv, vecp, XLOG_REG_TYPE_IEXT);
@@ -181,8 +178,7 @@ xfs_inode_item_format_data_fork(
 		break;
 	case XFS_DINODE_FMT_BTREE:
 		iip->ili_fields &=
-			~(XFS_ILOG_DDATA | XFS_ILOG_DEXT |
-			  XFS_ILOG_DEV | XFS_ILOG_UUID);
+			~(XFS_ILOG_DDATA | XFS_ILOG_DEXT | XFS_ILOG_DEV);
 
 		if ((iip->ili_fields & XFS_ILOG_DBROOT) &&
 		    ip->i_df.if_broot_bytes > 0) {
@@ -200,8 +196,7 @@ xfs_inode_item_format_data_fork(
 		break;
 	case XFS_DINODE_FMT_LOCAL:
 		iip->ili_fields &=
-			~(XFS_ILOG_DEXT | XFS_ILOG_DBROOT |
-			  XFS_ILOG_DEV | XFS_ILOG_UUID);
+			~(XFS_ILOG_DEXT | XFS_ILOG_DBROOT | XFS_ILOG_DEV);
 		if ((iip->ili_fields & XFS_ILOG_DDATA) &&
 		    ip->i_df.if_bytes > 0) {
 			/*
@@ -224,17 +219,9 @@ xfs_inode_item_format_data_fork(
 		break;
 	case XFS_DINODE_FMT_DEV:
 		iip->ili_fields &=
-			~(XFS_ILOG_DDATA | XFS_ILOG_DBROOT |
-			  XFS_ILOG_DEXT | XFS_ILOG_UUID);
+			~(XFS_ILOG_DDATA | XFS_ILOG_DBROOT | XFS_ILOG_DEXT);
 		if (iip->ili_fields & XFS_ILOG_DEV)
-			ilf->ilf_u.ilfu_rdev = ip->i_df.if_u2.if_rdev;
-		break;
-	case XFS_DINODE_FMT_UUID:
-		iip->ili_fields &=
-			~(XFS_ILOG_DDATA | XFS_ILOG_DBROOT |
-			  XFS_ILOG_DEXT | XFS_ILOG_DEV);
-		if (iip->ili_fields & XFS_ILOG_UUID)
-			ilf->ilf_u.ilfu_uuid = ip->i_df.if_u2.if_uuid;
+			ilf->ilf_u.ilfu_rdev = sysv_encode_dev(VFS_I(ip)->i_rdev);
 		break;
 	default:
 		ASSERT(0);
@@ -264,7 +251,6 @@ xfs_inode_item_format_attr_fork(
 
 			ASSERT(xfs_iext_count(ip->i_afp) ==
 				ip->i_d.di_anextents);
-			ASSERT(ip->i_afp->if_u1.if_extents != NULL);
 
 			p = xlog_prepare_iovec(lv, vecp, XLOG_REG_TYPE_IATTR_EXT);
 			data_bytes = xfs_iextents_copy(ip, p, XFS_ATTR_FORK);
@@ -441,7 +427,7 @@ xfs_inode_item_format(
 	ilf->ilf_dsize = 0;
 	ilf->ilf_asize = 0;
 	ilf->ilf_pad = 0;
-	uuid_copy(&ilf->ilf_u.ilfu_uuid, &uuid_null);
+	memset(&ilf->ilf_u, 0, sizeof(ilf->ilf_u));
 
 	xlog_finish_iovec(lv, vecp, sizeof(*ilf));
 
@@ -892,8 +878,7 @@ xfs_inode_item_format_convert(
 	in_f->ilf_asize = in_f32->ilf_asize;
 	in_f->ilf_dsize = in_f32->ilf_dsize;
 	in_f->ilf_ino = in_f32->ilf_ino;
-	/* copy biggest field of ilf_u */
-	uuid_copy(&in_f->ilf_u.ilfu_uuid, &in_f32->ilf_u.ilfu_uuid);
+	memcpy(&in_f->ilf_u, &in_f32->ilf_u, sizeof(in_f->ilf_u));
 	in_f->ilf_blkno = in_f32->ilf_blkno;
 	in_f->ilf_len = in_f32->ilf_len;
 	in_f->ilf_boffset = in_f32->ilf_boffset;

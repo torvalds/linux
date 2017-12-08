@@ -82,7 +82,7 @@ SYSCALL_DEFINE1(time, time_t __user *, tloc)
 
 SYSCALL_DEFINE1(stime, time_t __user *, tptr)
 {
-	struct timespec tv;
+	struct timespec64 tv;
 	int err;
 
 	if (get_user(tv.tv_sec, tptr))
@@ -90,11 +90,11 @@ SYSCALL_DEFINE1(stime, time_t __user *, tptr)
 
 	tv.tv_nsec = 0;
 
-	err = security_settime(&tv, NULL);
+	err = security_settime64(&tv, NULL);
 	if (err)
 		return err;
 
-	do_settimeofday(&tv);
+	do_settimeofday64(&tv);
 	return 0;
 }
 
@@ -122,7 +122,7 @@ COMPAT_SYSCALL_DEFINE1(time, compat_time_t __user *, tloc)
 
 COMPAT_SYSCALL_DEFINE1(stime, compat_time_t __user *, tptr)
 {
-	struct timespec tv;
+	struct timespec64 tv;
 	int err;
 
 	if (get_user(tv.tv_sec, tptr))
@@ -130,11 +130,11 @@ COMPAT_SYSCALL_DEFINE1(stime, compat_time_t __user *, tptr)
 
 	tv.tv_nsec = 0;
 
-	err = security_settime(&tv, NULL);
+	err = security_settime64(&tv, NULL);
 	if (err)
 		return err;
 
-	do_settimeofday(&tv);
+	do_settimeofday64(&tv);
 	return 0;
 }
 
@@ -155,40 +155,6 @@ SYSCALL_DEFINE2(gettimeofday, struct timeval __user *, tv,
 			return -EFAULT;
 	}
 	return 0;
-}
-
-/*
- * Indicates if there is an offset between the system clock and the hardware
- * clock/persistent clock/rtc.
- */
-int persistent_clock_is_local;
-
-/*
- * Adjust the time obtained from the CMOS to be UTC time instead of
- * local time.
- *
- * This is ugly, but preferable to the alternatives.  Otherwise we
- * would either need to write a program to do it in /etc/rc (and risk
- * confusion if the program gets run more than once; it would also be
- * hard to make the program warp the clock precisely n hours)  or
- * compile in the timezone information into the kernel.  Bad, bad....
- *
- *						- TYT, 1992-01-01
- *
- * The best thing to do is to keep the CMOS clock in universal time (UTC)
- * as real UNIX machines always do it. This avoids all headaches about
- * daylight saving times and warping kernel clocks.
- */
-static inline void warp_clock(void)
-{
-	if (sys_tz.tz_minuteswest != 0) {
-		struct timespec adjust;
-
-		persistent_clock_is_local = 1;
-		adjust.tv_sec = sys_tz.tz_minuteswest * 60;
-		adjust.tv_nsec = 0;
-		timekeeping_inject_offset(&adjust);
-	}
 }
 
 /*
@@ -224,7 +190,7 @@ int do_sys_settimeofday64(const struct timespec64 *tv, const struct timezone *tz
 		if (firsttime) {
 			firsttime = 0;
 			if (!tv)
-				warp_clock();
+				timekeeping_warp_clock();
 		}
 	}
 	if (tv)
@@ -441,6 +407,7 @@ time64_t mktime64(const unsigned int year0, const unsigned int mon0,
 }
 EXPORT_SYMBOL(mktime64);
 
+#if __BITS_PER_LONG == 32
 /**
  * set_normalized_timespec - set timespec sec and nsec parts and normalize
  *
@@ -501,6 +468,7 @@ struct timespec ns_to_timespec(const s64 nsec)
 	return ts;
 }
 EXPORT_SYMBOL(ns_to_timespec);
+#endif
 
 /**
  * ns_to_timeval - Convert nanoseconds to timeval
@@ -520,7 +488,6 @@ struct timeval ns_to_timeval(const s64 nsec)
 }
 EXPORT_SYMBOL(ns_to_timeval);
 
-#if BITS_PER_LONG == 32
 /**
  * set_normalized_timespec - set timespec sec and nsec parts and normalize
  *
@@ -581,7 +548,7 @@ struct timespec64 ns_to_timespec64(const s64 nsec)
 	return ts;
 }
 EXPORT_SYMBOL(ns_to_timespec64);
-#endif
+
 /**
  * msecs_to_jiffies: - convert milliseconds to jiffies
  * @m:	time in milliseconds
@@ -851,24 +818,6 @@ unsigned long nsecs_to_jiffies(u64 n)
 	return (unsigned long)nsecs_to_jiffies64(n);
 }
 EXPORT_SYMBOL_GPL(nsecs_to_jiffies);
-
-/*
- * Add two timespec values and do a safety check for overflow.
- * It's assumed that both values are valid (>= 0)
- */
-struct timespec timespec_add_safe(const struct timespec lhs,
-				  const struct timespec rhs)
-{
-	struct timespec res;
-
-	set_normalized_timespec(&res, lhs.tv_sec + rhs.tv_sec,
-				lhs.tv_nsec + rhs.tv_nsec);
-
-	if (res.tv_sec < lhs.tv_sec || res.tv_sec < rhs.tv_sec)
-		res.tv_sec = TIME_T_MAX;
-
-	return res;
-}
 
 /*
  * Add two timespec64 values and do a safety check for overflow.

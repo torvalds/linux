@@ -518,9 +518,8 @@ void ufs_qcom_phy_disable_iface_clk(struct ufs_qcom_phy *phy)
 	}
 }
 
-int ufs_qcom_phy_start_serdes(struct phy *generic_phy)
+static int ufs_qcom_phy_start_serdes(struct ufs_qcom_phy *ufs_qcom_phy)
 {
-	struct ufs_qcom_phy *ufs_qcom_phy = get_ufs_qcom_phy(generic_phy);
 	int ret = 0;
 
 	if (!ufs_qcom_phy->phy_spec_ops->start_serdes) {
@@ -533,7 +532,6 @@ int ufs_qcom_phy_start_serdes(struct phy *generic_phy)
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(ufs_qcom_phy_start_serdes);
 
 int ufs_qcom_phy_set_tx_lane_enable(struct phy *generic_phy, u32 tx_lanes)
 {
@@ -564,31 +562,8 @@ void ufs_qcom_phy_save_controller_version(struct phy *generic_phy,
 }
 EXPORT_SYMBOL_GPL(ufs_qcom_phy_save_controller_version);
 
-int ufs_qcom_phy_calibrate_phy(struct phy *generic_phy, bool is_rate_B)
+static int ufs_qcom_phy_is_pcs_ready(struct ufs_qcom_phy *ufs_qcom_phy)
 {
-	struct ufs_qcom_phy *ufs_qcom_phy = get_ufs_qcom_phy(generic_phy);
-	int ret = 0;
-
-	if (!ufs_qcom_phy->phy_spec_ops->calibrate_phy) {
-		dev_err(ufs_qcom_phy->dev, "%s: calibrate_phy() callback is not supported\n",
-			__func__);
-		ret = -ENOTSUPP;
-	} else {
-		ret = ufs_qcom_phy->phy_spec_ops->
-				calibrate_phy(ufs_qcom_phy, is_rate_B);
-		if (ret)
-			dev_err(ufs_qcom_phy->dev, "%s: calibrate_phy() failed %d\n",
-				__func__, ret);
-	}
-
-	return ret;
-}
-EXPORT_SYMBOL_GPL(ufs_qcom_phy_calibrate_phy);
-
-int ufs_qcom_phy_is_pcs_ready(struct phy *generic_phy)
-{
-	struct ufs_qcom_phy *ufs_qcom_phy = get_ufs_qcom_phy(generic_phy);
-
 	if (!ufs_qcom_phy->phy_spec_ops->is_physical_coding_sublayer_ready) {
 		dev_err(ufs_qcom_phy->dev, "%s: is_physical_coding_sublayer_ready() callback is not supported\n",
 			__func__);
@@ -598,7 +573,6 @@ int ufs_qcom_phy_is_pcs_ready(struct phy *generic_phy)
 	return ufs_qcom_phy->phy_spec_ops->
 			is_physical_coding_sublayer_ready(ufs_qcom_phy);
 }
-EXPORT_SYMBOL_GPL(ufs_qcom_phy_is_pcs_ready);
 
 int ufs_qcom_phy_power_on(struct phy *generic_phy)
 {
@@ -608,6 +582,18 @@ int ufs_qcom_phy_power_on(struct phy *generic_phy)
 
 	if (phy_common->is_powered_on)
 		return 0;
+
+	if (!phy_common->is_started) {
+		err = ufs_qcom_phy_start_serdes(phy_common);
+		if (err)
+			return err;
+
+		err = ufs_qcom_phy_is_pcs_ready(phy_common);
+		if (err)
+			return err;
+
+		phy_common->is_started = true;
+	}
 
 	err = ufs_qcom_phy_enable_vreg(dev, &phy_common->vdda_phy);
 	if (err) {

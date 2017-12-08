@@ -30,18 +30,13 @@
  * - local:   system and cell specific constants and identifiers
  */
 
-#include "storage_class.h"
 
 #include "system_local.h"
 #include "csi_rx_local.h"
 
 #ifndef __INLINE_CSI_RX__
-#define STORAGE_CLASS_CSI_RX_H STORAGE_CLASS_EXTERN
-#define STORAGE_CLASS_CSI_RX_C
 #include "csi_rx_public.h"
 #else  /* __INLINE_CSI_RX__ */
-#define STORAGE_CLASS_CSI_RX_H STORAGE_CLASS_INLINE
-#define STORAGE_CLASS_CSI_RX_C STORAGE_CLASS_INLINE
 #include "csi_rx_private.h"
 #endif /* __INLINE_CSI_RX__ */
 

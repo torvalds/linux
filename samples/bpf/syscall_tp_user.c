@@ -23,6 +23,13 @@
  * This requires kernel CONFIG_FTRACE_SYSCALLS to be set.
  */
 
+static void usage(const char *cmd)
+{
+	printf("USAGE: %s [-i num_progs] [-h]\n", cmd);
+	printf("       -i num_progs      # number of progs of the test\n");
+	printf("       -h                # help\n");
+}
+
 static void verify_map(int map_id)
 {
 	__u32 key = 0;
@@ -32,22 +39,29 @@ static void verify_map(int map_id)
 		fprintf(stderr, "map_lookup failed: %s\n", strerror(errno));
 		return;
 	}
-	if (val == 0)
+	if (val == 0) {
 		fprintf(stderr, "failed: map #%d returns value 0\n", map_id);
+		return;
+	}
+	val = 0;
+	if (bpf_map_update_elem(map_id, &key, &val, BPF_ANY) != 0) {
+		fprintf(stderr, "map_update failed: %s\n", strerror(errno));
+		return;
+	}
 }
 
-int main(int argc, char **argv)
+static int test(char *filename, int num_progs)
 {
-	struct rlimit r = {RLIM_INFINITY, RLIM_INFINITY};
-	char filename[256];
-	int fd;
+	int i, fd, map0_fds[num_progs], map1_fds[num_progs];
 
-	setrlimit(RLIMIT_MEMLOCK, &r);
-	snprintf(filename, sizeof(filename), "%s_kern.o", argv[0]);
-
-	if (load_bpf_file(filename)) {
-		fprintf(stderr, "%s", bpf_log_buf);
-		return 1;
+	for (i = 0; i < num_progs; i++) {
+		if (load_bpf_file(filename)) {
+			fprintf(stderr, "%s", bpf_log_buf);
+			return 1;
+		}
+		printf("prog #%d: map ids %d %d\n", i, map_fd[0], map_fd[1]);
+		map0_fds[i] = map_fd[0];
+		map1_fds[i] = map_fd[1];
 	}
 
 	/* current load_bpf_file has perf_event_open default pid = -1
@@ -64,8 +78,34 @@ int main(int argc, char **argv)
 	close(fd);
 
 	/* verify the map */
-	verify_map(map_fd[0]);
-	verify_map(map_fd[1]);
+	for (i = 0; i < num_progs; i++) {
+		verify_map(map0_fds[i]);
+		verify_map(map1_fds[i]);
+	}
 
 	return 0;
+}
+
+int main(int argc, char **argv)
+{
+	struct rlimit r = {RLIM_INFINITY, RLIM_INFINITY};
+	int opt, num_progs = 1;
+	char filename[256];
+
+	while ((opt = getopt(argc, argv, "i:h")) != -1) {
+		switch (opt) {
+		case 'i':
+			num_progs = atoi(optarg);
+			break;
+		case 'h':
+		default:
+			usage(argv[0]);
+			return 0;
+		}
+	}
+
+	setrlimit(RLIMIT_MEMLOCK, &r);
+	snprintf(filename, sizeof(filename), "%s_kern.o", argv[0]);
+
+	return test(filename, num_progs);
 }

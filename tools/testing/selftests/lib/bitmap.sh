@@ -1,4 +1,5 @@
 #!/bin/sh
+# SPDX-License-Identifier: GPL-2.0
 # Runs bitmap infrastructure tests using test_bitmap kernel module
 if ! /sbin/modprobe -q -n test_bitmap; then
 	echo "bitmap: [SKIP]"

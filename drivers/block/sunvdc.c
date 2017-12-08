@@ -81,7 +81,7 @@ struct vdc_port {
 
 static void vdc_ldc_reset(struct vdc_port *port);
 static void vdc_ldc_reset_work(struct work_struct *work);
-static void vdc_ldc_reset_timer(unsigned long _arg);
+static void vdc_ldc_reset_timer(struct timer_list *t);
 
 static inline struct vdc_port *to_vdc_port(struct vio_driver_state *vio)
 {
@@ -974,8 +974,7 @@ static int vdc_port_probe(struct vio_dev *vdev, const struct vio_device_id *id)
 	 */
 	ldc_timeout = mdesc_get_property(hp, vdev->mp, "vdc-timeout", NULL);
 	port->ldc_timeout = ldc_timeout ? *ldc_timeout : 0;
-	setup_timer(&port->ldc_reset_timer, vdc_ldc_reset_timer,
-		    (unsigned long)port);
+	timer_setup(&port->ldc_reset_timer, vdc_ldc_reset_timer, 0);
 	INIT_WORK(&port->ldc_reset_work, vdc_ldc_reset_work);
 
 	err = vio_driver_init(&port->vio, vdev, VDEV_DISK,
@@ -1087,9 +1086,9 @@ static void vdc_queue_drain(struct vdc_port *port)
 		__blk_end_request_all(req, BLK_STS_IOERR);
 }
 
-static void vdc_ldc_reset_timer(unsigned long _arg)
+static void vdc_ldc_reset_timer(struct timer_list *t)
 {
-	struct vdc_port *port = (struct vdc_port *) _arg;
+	struct vdc_port *port = from_timer(port, t, ldc_reset_timer);
 	struct vio_driver_state *vio = &port->vio;
 	unsigned long flags;
 

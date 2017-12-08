@@ -176,6 +176,35 @@ enum drm_link_status {
 };
 
 /**
+ * enum drm_panel_orientation - panel_orientation info for &drm_display_info
+ *
+ * This enum is used to track the (LCD) panel orientation. There are no
+ * separate #defines for the uapi!
+ *
+ * @DRM_MODE_PANEL_ORIENTATION_UNKNOWN: The drm driver has not provided any
+ *					panel orientation information (normal
+ *					for non panels) in this case the "panel
+ *					orientation" connector prop will not be
+ *					attached.
+ * @DRM_MODE_PANEL_ORIENTATION_NORMAL:	The top side of the panel matches the
+ *					top side of the device's casing.
+ * @DRM_MODE_PANEL_ORIENTATION_BOTTOM_UP: The top side of the panel matches the
+ *					bottom side of the device's casing, iow
+ *					the panel is mounted upside-down.
+ * @DRM_MODE_PANEL_ORIENTATION_LEFT_UP:	The left side of the panel matches the
+ *					top side of the device's casing.
+ * @DRM_MODE_PANEL_ORIENTATION_RIGHT_UP: The right side of the panel matches the
+ *					top side of the device's casing.
+ */
+enum drm_panel_orientation {
+	DRM_MODE_PANEL_ORIENTATION_UNKNOWN = -1,
+	DRM_MODE_PANEL_ORIENTATION_NORMAL = 0,
+	DRM_MODE_PANEL_ORIENTATION_BOTTOM_UP,
+	DRM_MODE_PANEL_ORIENTATION_LEFT_UP,
+	DRM_MODE_PANEL_ORIENTATION_RIGHT_UP,
+};
+
+/**
  * struct drm_display_info - runtime data about the connected sink
  *
  * Describes a given display (e.g. CRT or flat panel) and its limitations. For
@@ -221,6 +250,15 @@ struct drm_display_info {
 #define DRM_COLOR_FORMAT_YCRCB444	(1<<1)
 #define DRM_COLOR_FORMAT_YCRCB422	(1<<2)
 #define DRM_COLOR_FORMAT_YCRCB420	(1<<3)
+
+	/**
+	 * @panel_orientation: Read only connector property for built-in panels,
+	 * indicating the orientation of the panel vs the device's casing.
+	 * drm_connector_init() sets this to DRM_MODE_PANEL_ORIENTATION_UNKNOWN.
+	 * When not UNKNOWN this gets used by the drm_fb_helpers to rotate the
+	 * fb to compensate and gets exported as prop to userspace.
+	 */
+	int panel_orientation;
 
 	/**
 	 * @color_formats: HDMI Color formats, selects between RGB and YCrCb
@@ -270,6 +308,11 @@ struct drm_display_info {
 	bool dvi_dual;
 
 	/**
+	 * @has_hdmi_infoframe: Does the sink support the HDMI infoframe?
+	 */
+	bool has_hdmi_infoframe;
+
+	/**
 	 * @edid_hdmi_dc_modes: Mask of supported hdmi deep color modes. Even
 	 * more stuff redundant with @bus_formats.
 	 */
@@ -284,6 +327,11 @@ struct drm_display_info {
 	 * @hdmi: advance features of a HDMI sink.
 	 */
 	struct drm_hdmi_info hdmi;
+
+	/**
+	 * @non_desktop: Non desktop display (HMD).
+	 */
+	bool non_desktop;
 };
 
 int drm_display_info_set_bus_formats(struct drm_display_info *info,
@@ -699,7 +747,6 @@ struct drm_cmdline_mode {
  * @force: a DRM_FORCE_<foo> state for forced mode sets
  * @override_edid: has the EDID been overwritten through debugfs for testing?
  * @encoder_ids: valid encoders for this connector
- * @encoder: encoder driving this connector, if any
  * @eld: EDID-like data, if present
  * @latency_present: AV delay info from ELD, if found
  * @video_latency: video latency info from ELD, if found
@@ -869,7 +916,13 @@ struct drm_connector {
 
 #define DRM_CONNECTOR_MAX_ENCODER 3
 	uint32_t encoder_ids[DRM_CONNECTOR_MAX_ENCODER];
-	struct drm_encoder *encoder; /* currently active encoder */
+	/**
+	 * @encoder: Currently bound encoder driving this connector, if any.
+	 * Only really meaningful for non-atomic drivers. Atomic drivers should
+	 * instead look at &drm_connector_state.best_encoder, and in case they
+	 * need the CRTC driving this output, &drm_connector_state.crtc.
+	 */
+	struct drm_encoder *encoder;
 
 #define MAX_ELD_BYTES	128
 	/* EDID bits */
@@ -1020,6 +1073,8 @@ int drm_mode_connector_update_edid_property(struct drm_connector *connector,
 					    const struct edid *edid);
 void drm_mode_connector_set_link_status_property(struct drm_connector *connector,
 						 uint64_t link_status);
+int drm_connector_init_panel_orientation_property(
+	struct drm_connector *connector, int width, int height);
 
 /**
  * struct drm_tile_group - Tile group metadata

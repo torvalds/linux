@@ -750,7 +750,7 @@ static const struct mtk_fixed_factor infra_fixed_divs[] = {
 
 static struct clk_onecell_data *infra_clk_data;
 
-static void mtk_infrasys_init_early(struct device_node *node)
+static void __init mtk_infrasys_init_early(struct device_node *node)
 {
 	int r, i;
 

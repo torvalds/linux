@@ -1146,7 +1146,7 @@ void iser_err_comp(struct ib_wc *wc, const char *type)
 	if (wc->status != IB_WC_WR_FLUSH_ERR) {
 		struct iser_conn *iser_conn = to_iser_conn(wc->qp->qp_context);
 
-		iser_err("%s failure: %s (%d) vend_err %x\n", type,
+		iser_err("%s failure: %s (%d) vend_err %#x\n", type,
 			 ib_wc_status_msg(wc->status), wc->status,
 			 wc->vendor_err);
 

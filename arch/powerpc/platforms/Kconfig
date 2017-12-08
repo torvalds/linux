@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 menu "Platform support"
 
 source "arch/powerpc/platforms/powernv/Kconfig"
@@ -78,7 +79,7 @@ config UDBG_RTAS_CONSOLE
 config PPC_SMP_MUXED_IPI
 	bool
 	help
-	  Select this opton if your platform supports SMP and your
+	  Select this option if your platform supports SMP and your
 	  interrupt controller provides less than 4 interrupts to each
 	  cpu.	This will enable the generic code to multiplex the 4
 	  messages on to one ipi.

@@ -42,7 +42,7 @@ Optional properties:
 
 example:
 
-gpu_3d: gpu@00130000 {
+gpu_3d: gpu@130000 {
 	compatible = "vivante,gc";
 	reg = <0x00130000 0x4000>;
 	interrupts = <0 9 IRQ_TYPE_LEVEL_HIGH>;

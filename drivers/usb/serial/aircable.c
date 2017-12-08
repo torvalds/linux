@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * AIRcable USB Bluetooth Dongle Driver.
  *
  * Copyright (C) 2010 Johan Hovold <jhovold@gmail.com>
  * Copyright (C) 2006 Manuel Francisco Naranjo (naranjo.manuel@gmail.com)
- *
- * This program is free software; you can redistribute it and/or modify it under
- * the terms of the GNU General Public License version 2 as published by the
- * Free Software Foundation.
  *
  * The device works as an standard CDC device, it has 2 interfaces, the first
  * one is for firmware access and the second is the serial one.
@@ -161,4 +158,4 @@ module_usb_serial_driver(serial_drivers, id_table);
 
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");

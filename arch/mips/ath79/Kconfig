@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 if ATH79
 
 menu "Atheros AR71XX/AR724X/AR913X machine selection"

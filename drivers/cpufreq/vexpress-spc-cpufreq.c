@@ -42,7 +42,7 @@ static int ve_spc_get_transition_latency(struct device *cpu_dev)
 	return 1000000; /* 1 ms */
 }
 
-static struct cpufreq_arm_bL_ops ve_spc_cpufreq_ops = {
+static const struct cpufreq_arm_bL_ops ve_spc_cpufreq_ops = {
 	.name	= "vexpress-spc",
 	.get_transition_latency = ve_spc_get_transition_latency,
 	.init_opp_table = ve_spc_init_opp_table,

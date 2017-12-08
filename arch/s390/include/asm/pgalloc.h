@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  *  S390 version
  *    Copyright IBM Corp. 1999, 2000
@@ -12,6 +13,7 @@
 #define _S390_PGALLOC_H
 
 #include <linux/threads.h>
+#include <linux/string.h>
 #include <linux/gfp.h>
 #include <linux/mm.h>
 
@@ -27,24 +29,9 @@ void page_table_free_rcu(struct mmu_gather *, unsigned long *, unsigned long);
 void page_table_free_pgste(struct page *page);
 extern int page_table_allocate_pgste;
 
-static inline void clear_table(unsigned long *s, unsigned long val, size_t n)
-{
-	struct addrtype { char _[256]; };
-	int i;
-
-	for (i = 0; i < n; i += 256) {
-		*s = val;
-		asm volatile(
-			"mvc	8(248,%[s]),0(%[s])\n"
-			: "+m" (*(struct addrtype *) s)
-			: [s] "a" (s));
-		s += 256 / sizeof(long);
-	}
-}
-
 static inline void crst_table_init(unsigned long *crst, unsigned long entry)
 {
-	clear_table(crst, entry, _CRST_TABLE_SIZE);
+	memset64((u64 *)crst, entry, _CRST_ENTRIES);
 }
 
 static inline unsigned long pgd_entry_type(struct mm_struct *mm)

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Hardware-accelerated CRC-32 variants for Linux on z Systems
  *

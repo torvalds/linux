@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef PLAT_CLCD_H
 #define PLAT_CLCD_H
 

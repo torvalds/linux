@@ -447,7 +447,7 @@ static void speak_char(u16 ch)
 
 	cp = spk_characters[ch];
 	if (!cp) {
-		pr_info("speak_char: cp == NULL!\n");
+		pr_info("%s: cp == NULL!\n", __func__);
 		return;
 	}
 	if (IS_CHAR(ch, B_CAP)) {
@@ -1164,8 +1164,8 @@ static void spkup_write(const u16 *in_buf, int count)
 static const int NUM_CTL_LABELS = (MSG_CTL_END - MSG_CTL_START + 1);
 
 static void read_all_doc(struct vc_data *vc);
-static void cursor_done(u_long data);
-static DEFINE_TIMER(cursor_timer, cursor_done, 0, 0);
+static void cursor_done(struct timer_list *unused);
+static DEFINE_TIMER(cursor_timer, cursor_done);
 
 static void do_handle_shift(struct vc_data *vc, u_char value, char up_flag)
 {
@@ -1682,7 +1682,7 @@ static int speak_highlight(struct vc_data *vc)
 	return 0;
 }
 
-static void cursor_done(u_long data)
+static void cursor_done(struct timer_list *unused)
 {
 	struct vc_data *vc = vc_cons[cursor_con].d;
 	unsigned long flags;
@@ -2101,7 +2101,7 @@ speakup_key(struct vc_data *vc, int shift_state, int keycode, u_short keysym,
 	u_char shift_info, offset;
 	int ret = 0;
 
-	if (synth == NULL)
+	if (!synth)
 		return 0;
 
 	spin_lock_irqsave(&speakup_info.spinlock, flags);

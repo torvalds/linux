@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * ADB through the IOP
  * Written by Joshua M. Thompson

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 config PPC_PS3
 	bool "Sony PS3"
 	depends on PPC64 && PPC_BOOK3S && CPU_BIG_ENDIAN

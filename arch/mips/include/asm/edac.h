@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef ASM_EDAC_H
 #define ASM_EDAC_H
 

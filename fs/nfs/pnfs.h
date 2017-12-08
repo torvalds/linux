@@ -30,6 +30,7 @@
 #ifndef FS_NFS_PNFS_H
 #define FS_NFS_PNFS_H
 
+#include <linux/refcount.h>
 #include <linux/nfs_fs.h>
 #include <linux/nfs_page.h>
 #include <linux/workqueue.h>
@@ -54,7 +55,7 @@ struct nfs4_pnfs_ds {
 	char			*ds_remotestr;	/* comma sep list of addrs */
 	struct list_head	ds_addrs;
 	struct nfs_client	*ds_clp;
-	atomic_t		ds_count;
+	refcount_t		ds_count;
 	unsigned long		ds_state;
 #define NFS4DS_CONNECTING	0	/* ds is establishing connection */
 };
@@ -63,7 +64,7 @@ struct pnfs_layout_segment {
 	struct list_head pls_list;
 	struct list_head pls_lc_list;
 	struct pnfs_layout_range pls_range;
-	atomic_t pls_refcount;
+	refcount_t pls_refcount;
 	u32 pls_seq;
 	unsigned long pls_flags;
 	struct pnfs_layout_hdr *pls_layout;
@@ -179,7 +180,7 @@ struct pnfs_layoutdriver_type {
 };
 
 struct pnfs_layout_hdr {
-	atomic_t		plh_refcount;
+	refcount_t		plh_refcount;
 	atomic_t		plh_outstanding; /* number of RPCs out */
 	struct list_head	plh_layouts;   /* other client layouts */
 	struct list_head	plh_bulk_destroy;
@@ -251,6 +252,7 @@ int pnfs_destroy_layouts_byfsid(struct nfs_client *clp,
 		bool is_recall);
 int pnfs_destroy_layouts_byclid(struct nfs_client *clp,
 		bool is_recall);
+bool nfs4_refresh_layout_stateid(nfs4_stateid *dst, struct inode *inode);
 void pnfs_put_layout_hdr(struct pnfs_layout_hdr *lo);
 void pnfs_set_layout_stateid(struct pnfs_layout_hdr *lo,
 			     const nfs4_stateid *new,
@@ -393,7 +395,7 @@ static inline struct pnfs_layout_segment *
 pnfs_get_lseg(struct pnfs_layout_segment *lseg)
 {
 	if (lseg) {
-		atomic_inc(&lseg->pls_refcount);
+		refcount_inc(&lseg->pls_refcount);
 		smp_mb__after_atomic();
 	}
 	return lseg;
@@ -764,6 +766,11 @@ static inline void nfs4_pnfs_v3_ds_connect_unload(void)
 {
 }
 
+static inline bool nfs4_refresh_layout_stateid(nfs4_stateid *dst,
+		struct inode *inode)
+{
+	return false;
+}
 #endif /* CONFIG_NFS_V4_1 */
 
 #if IS_ENABLED(CONFIG_NFS_V4_2)

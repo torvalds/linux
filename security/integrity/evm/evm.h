@@ -23,6 +23,9 @@
 
 #define EVM_INIT_HMAC	0x0001
 #define EVM_INIT_X509	0x0002
+#define EVM_SETUP       0x80000000 /* userland has signaled key load */
+
+#define EVM_INIT_MASK (EVM_INIT_HMAC | EVM_INIT_X509 | EVM_SETUP)
 
 extern int evm_initialized;
 extern char *evm_hmac;

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 ifneq ($(CONFIG_DVB_B2C2_FLEXCOP_PCI),)
 b2c2-flexcop-pci-objs += flexcop-dma.o
 endif

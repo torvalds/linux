@@ -226,6 +226,13 @@
 	};
 };
 
+&hdmi {
+	ddc-i2c-bus = <&i2c5>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&hdmi_cec_c0>;
+	status = "okay";
+};
+
 &i2c0 {
 	hym8563: hym8563@51 {
 		compatible = "haoyu,hym8563";
@@ -253,6 +260,10 @@
 		clock-names = "i2s_hclk", "i2s_clk";
 		reg = <0x10>;
 	};
+};
+
+&i2c5 {
+	status = "okay";
 };
 
 &i2s {

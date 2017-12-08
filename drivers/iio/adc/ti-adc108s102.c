@@ -220,7 +220,6 @@ static int adc108s102_read_raw(struct iio_dev *indio_dev,
 static const struct iio_info adc108s102_info = {
 	.read_raw		= &adc108s102_read_raw,
 	.update_scan_mode	= &adc108s102_update_scan_mode,
-	.driver_module		= THIS_MODULE,
 };
 
 static int adc108s102_probe(struct spi_device *spi)

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __PERF_RECORD_H
 #define __PERF_RECORD_H
 
@@ -680,7 +681,8 @@ int perf_event__synthesize_cpu_map(struct perf_tool *tool,
 int perf_event__synthesize_threads(struct perf_tool *tool,
 				   perf_event__handler_t process,
 				   struct machine *machine, bool mmap_data,
-				   unsigned int proc_map_timeout);
+				   unsigned int proc_map_timeout,
+				   unsigned int nr_threads_synthesize);
 int perf_event__synthesize_kernel_mmap(struct perf_tool *tool,
 				       perf_event__handler_t process,
 				       struct machine *machine);

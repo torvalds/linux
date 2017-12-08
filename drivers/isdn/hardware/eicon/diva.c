@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /* $Id: diva.c,v 1.21.4.1 2004/05/08 14:33:43 armin Exp $ */
 
 #define CARDTYPE_H_WANT_DATA            1

@@ -19,6 +19,7 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <asm/div64.h>
+#include <linux/kernel.h>
 #include <linux/dvb/frontend.h>
 #include "dvb_math.h"
 #include "lgdt3306a.h"
@@ -2072,7 +2073,7 @@ static const short regtab[] = {
 	0x30aa, /* MPEGLOCK */
 };
 
-#define numDumpRegs (sizeof(regtab)/sizeof(regtab[0]))
+#define numDumpRegs (ARRAY_SIZE(regtab))
 static u8 regval1[numDumpRegs] = {0, };
 static u8 regval2[numDumpRegs] = {0, };
 

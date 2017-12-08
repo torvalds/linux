@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Asm versions of Xen pv-ops, suitable for direct use.
  *
@@ -29,7 +30,7 @@ xen_pv_trap debug
 xen_pv_trap xendebug
 xen_pv_trap int3
 xen_pv_trap xenint3
-xen_pv_trap nmi
+xen_pv_trap xennmi
 xen_pv_trap overflow
 xen_pv_trap bounds
 xen_pv_trap invalid_op

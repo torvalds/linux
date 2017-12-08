@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 vfio_virqfd-y := virqfd.o
 
 obj-$(CONFIG_VFIO) += vfio.o

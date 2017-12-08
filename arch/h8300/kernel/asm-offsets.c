@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * This program is used to generate definitions needed by
  * assembly language modules.

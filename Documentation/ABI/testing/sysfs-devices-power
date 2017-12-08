@@ -260,19 +260,3 @@ Description:
 
 		This attribute has no effect on system-wide suspend/resume and
 		hibernation.
-
-What:		/sys/devices/.../power/pm_qos_remote_wakeup
-Date:		September 2012
-Contact:	Rafael J. Wysocki <rjw@rjwysocki.net>
-Description:
-		The /sys/devices/.../power/pm_qos_remote_wakeup attribute
-		is used for manipulating the PM QoS "remote wakeup required"
-		flag.  If set, this flag indicates to the kernel that the
-		device is a source of user events that have to be signaled from
-		its low-power states.
-
-		Not all drivers support this attribute.  If it isn't supported,
-		it is not present.
-
-		This attribute has no effect on system-wide suspend/resume and
-		hibernation.

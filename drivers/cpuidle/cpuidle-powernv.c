@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *  cpuidle-powernv - idle state cpuidle driver.
  *  Adapted from drivers/cpuidle/cpuidle-pseries
@@ -383,9 +384,9 @@ static int powernv_add_idle_states(void)
 		 * Firmware passes residency and latency values in ns.
 		 * cpuidle expects it in us.
 		 */
-		exit_latency = latency_ns[i] / 1000;
+		exit_latency = DIV_ROUND_UP(latency_ns[i], 1000);
 		if (!rc)
-			target_residency = residency_ns[i] / 1000;
+			target_residency = DIV_ROUND_UP(residency_ns[i], 1000);
 		else
 			target_residency = 0;
 

@@ -137,9 +137,9 @@ static void igorplugusb_cmd(struct igorplugusb *ir, int cmd)
 		dev_err(ir->dev, "submit urb failed: %d", ret);
 }
 
-static void igorplugusb_timer(unsigned long data)
+static void igorplugusb_timer(struct timer_list *t)
 {
-	struct igorplugusb *ir = (struct igorplugusb *)data;
+	struct igorplugusb *ir = from_timer(ir, t, timer);
 
 	igorplugusb_cmd(ir, GET_INFRACODE);
 }
@@ -174,7 +174,7 @@ static int igorplugusb_probe(struct usb_interface *intf,
 
 	ir->dev = &intf->dev;
 
-	setup_timer(&ir->timer, igorplugusb_timer, (unsigned long)ir);
+	timer_setup(&ir->timer, igorplugusb_timer, 0);
 
 	ir->request.bRequest = GET_INFRACODE;
 	ir->request.bRequestType = USB_TYPE_VENDOR | USB_DIR_IN;
@@ -245,7 +245,7 @@ static void igorplugusb_disconnect(struct usb_interface *intf)
 	usb_free_urb(ir->urb);
 }
 
-static struct usb_device_id igorplugusb_table[] = {
+static const struct usb_device_id igorplugusb_table[] = {
 	/* Igor Plug USB (Atmel's Manufact. ID) */
 	{ USB_DEVICE(0x03eb, 0x0002) },
 	/* Fit PC2 Infrared Adapter */

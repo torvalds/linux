@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <asm/bug.h>
 #include <linux/kernel.h>
 #include <sys/time.h>
@@ -6,9 +7,11 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <errno.h>
+#include <fcntl.h>
 #include "compress.h"
 #include "path.h"
 #include "symbol.h"
+#include "srcline.h"
 #include "dso.h"
 #include "machine.h"
 #include "auxtrace.h"
@@ -1200,6 +1203,8 @@ struct dso *dso__new(const char *name)
 		for (i = 0; i < MAP__NR_TYPES; ++i)
 			dso->symbols[i] = dso->symbol_names[i] = RB_ROOT;
 		dso->data.cache = RB_ROOT;
+		dso->inlined_nodes = RB_ROOT;
+		dso->srclines = RB_ROOT;
 		dso->data.fd = -1;
 		dso->data.status = DSO_DATA_STATUS_UNKNOWN;
 		dso->symtab_type = DSO_BINARY_TYPE__NOT_FOUND;
@@ -1231,6 +1236,10 @@ void dso__delete(struct dso *dso)
 	if (!RB_EMPTY_NODE(&dso->rb_node))
 		pr_err("DSO %s is still in rbtree when being deleted!\n",
 		       dso->long_name);
+
+	/* free inlines first, as they reference symbols */
+	inlines__tree_delete(&dso->inlined_nodes);
+	srcline__tree_delete(&dso->srclines);
 	for (i = 0; i < MAP__NR_TYPES; ++i)
 		symbols__delete(&dso->symbols[i]);
 
@@ -1365,9 +1374,9 @@ void __dsos__add(struct dsos *dsos, struct dso *dso)
 
 void dsos__add(struct dsos *dsos, struct dso *dso)
 {
-	pthread_rwlock_wrlock(&dsos->lock);
+	down_write(&dsos->lock);
 	__dsos__add(dsos, dso);
-	pthread_rwlock_unlock(&dsos->lock);
+	up_write(&dsos->lock);
 }
 
 struct dso *__dsos__find(struct dsos *dsos, const char *name, bool cmp_short)
@@ -1386,9 +1395,9 @@ struct dso *__dsos__find(struct dsos *dsos, const char *name, bool cmp_short)
 struct dso *dsos__find(struct dsos *dsos, const char *name, bool cmp_short)
 {
 	struct dso *dso;
-	pthread_rwlock_rdlock(&dsos->lock);
+	down_read(&dsos->lock);
 	dso = __dsos__find(dsos, name, cmp_short);
-	pthread_rwlock_unlock(&dsos->lock);
+	up_read(&dsos->lock);
 	return dso;
 }
 
@@ -1415,9 +1424,9 @@ struct dso *__dsos__findnew(struct dsos *dsos, const char *name)
 struct dso *dsos__findnew(struct dsos *dsos, const char *name)
 {
 	struct dso *dso;
-	pthread_rwlock_wrlock(&dsos->lock);
+	down_write(&dsos->lock);
 	dso = dso__get(__dsos__findnew(dsos, name));
-	pthread_rwlock_unlock(&dsos->lock);
+	up_write(&dsos->lock);
 	return dso;
 }
 

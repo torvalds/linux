@@ -578,7 +578,6 @@ static struct syscall_fmt {
 } syscall_fmts[] = {
 	{ .name	    = "access",
 	  .arg = { [1] = { .scnprintf = SCA_ACCMODE,  /* mode */ }, }, },
-	{ .name	    = "arch_prctl", .alias = "prctl", },
 	{ .name	    = "bpf",
 	  .arg = { [0] = STRARRAY(cmd, bpf_cmd), }, },
 	{ .name	    = "brk",	    .hexret = true,
@@ -634,6 +633,12 @@ static struct syscall_fmt {
 #else
 		   [2] = { .scnprintf = SCA_HEX, /* arg */ }, }, },
 #endif
+	{ .name	    = "kcmp",	    .nr_args = 5,
+	  .arg = { [0] = { .name = "pid1",	.scnprintf = SCA_PID, },
+		   [1] = { .name = "pid2",	.scnprintf = SCA_PID, },
+		   [2] = { .name = "type",	.scnprintf = SCA_KCMP_TYPE, },
+		   [3] = { .name = "idx1",	.scnprintf = SCA_KCMP_IDX, },
+		   [4] = { .name = "idx2",	.scnprintf = SCA_KCMP_IDX, }, }, },
 	{ .name	    = "keyctl",
 	  .arg = { [0] = STRARRAY(option, keyctl_options), }, },
 	{ .name	    = "kill",
@@ -703,6 +708,10 @@ static struct syscall_fmt {
 		   [3] = { .scnprintf = SCA_INT,	/* pkey */ }, }, },
 	{ .name	    = "poll", .timeout = true, },
 	{ .name	    = "ppoll", .timeout = true, },
+	{ .name	    = "prctl", .alias = "arch_prctl",
+	  .arg = { [0] = { .scnprintf = SCA_PRCTL_OPTION, /* option */ },
+		   [1] = { .scnprintf = SCA_PRCTL_ARG2, /* arg2 */ },
+		   [2] = { .scnprintf = SCA_PRCTL_ARG3, /* arg3 */ }, }, },
 	{ .name	    = "pread", .alias = "pread64", },
 	{ .name	    = "preadv", .alias = "pread", },
 	{ .name	    = "prlimit64",
@@ -985,6 +994,23 @@ size_t syscall_arg__scnprintf_fd(char *bf, size_t size, struct syscall_arg *arg)
 	return printed;
 }
 
+size_t pid__scnprintf_fd(struct trace *trace, pid_t pid, int fd, char *bf, size_t size)
+{
+        size_t printed = scnprintf(bf, size, "%d", fd);
+	struct thread *thread = machine__find_thread(trace->host, pid, pid);
+
+	if (thread) {
+		const char *path = thread__fd_path(thread, fd, trace);
+
+		if (path)
+			printed += scnprintf(bf + printed, size - printed, "<%s>", path);
+
+		thread__put(thread);
+	}
+
+        return printed;
+}
+
 static size_t syscall_arg__scnprintf_close_fd(char *bf, size_t size,
 					      struct syscall_arg *arg)
 {
@@ -1131,11 +1157,19 @@ static int trace__symbols_init(struct trace *trace, struct perf_evlist *evlist)
 
 	err = __machine__synthesize_threads(trace->host, &trace->tool, &trace->opts.target,
 					    evlist->threads, trace__tool_process, false,
-					    trace->opts.proc_map_timeout);
+					    trace->opts.proc_map_timeout, 1);
 	if (err)
 		symbol__exit();
 
 	return err;
+}
+
+static void trace__symbols__exit(struct trace *trace)
+{
+	machine__exit(trace->host);
+	trace->host = NULL;
+
+	symbol__exit();
 }
 
 static int syscall__alloc_arg_fmts(struct syscall *sc, int nr_args)
@@ -1828,16 +1862,14 @@ out_dump:
 	goto out_put;
 }
 
-static void bpf_output__printer(enum binary_printer_ops op,
-				unsigned int val, void *extra)
+static int bpf_output__printer(enum binary_printer_ops op,
+			       unsigned int val, void *extra __maybe_unused, FILE *fp)
 {
-	FILE *output = extra;
 	unsigned char ch = (unsigned char)val;
 
 	switch (op) {
 	case BINARY_PRINT_CHAR_DATA:
-		fprintf(output, "%c", isprint(ch) ? ch : '.');
-		break;
+		return fprintf(fp, "%c", isprint(ch) ? ch : '.');
 	case BINARY_PRINT_DATA_BEGIN:
 	case BINARY_PRINT_LINE_BEGIN:
 	case BINARY_PRINT_ADDR:
@@ -1850,13 +1882,15 @@ static void bpf_output__printer(enum binary_printer_ops op,
 	default:
 		break;
 	}
+
+	return 0;
 }
 
 static void bpf_output__fprintf(struct trace *trace,
 				struct perf_sample *sample)
 {
-	print_binary(sample->raw_data, sample->raw_size, 8,
-		     bpf_output__printer, trace->output);
+	binary__fprintf(sample->raw_data, sample->raw_size, 8,
+			bpf_output__printer, NULL, trace->output);
 }
 
 static int trace__event_handler(struct trace *trace, struct perf_evsel *evsel,
@@ -2078,6 +2112,7 @@ static int trace__record(struct trace *trace, int argc, const char **argv)
 			rec_argv[j++] = "syscalls:sys_enter,syscalls:sys_exit";
 		else {
 			pr_err("Neither raw_syscalls nor syscalls events exist.\n");
+			free(rec_argv);
 			return -1;
 		}
 	}
@@ -2481,6 +2516,8 @@ out_disable:
 	}
 
 out_delete_evlist:
+	trace__symbols__exit(trace);
+
 	perf_evlist__delete(evlist);
 	trace->evlist = NULL;
 	trace->live = false;
@@ -2528,10 +2565,12 @@ static int trace__replay(struct trace *trace)
 	const struct perf_evsel_str_handler handlers[] = {
 		{ "probe:vfs_getname",	     trace__vfs_getname, },
 	};
-	struct perf_data_file file = {
-		.path  = input_name,
-		.mode  = PERF_DATA_MODE_READ,
-		.force = trace->force,
+	struct perf_data data = {
+		.file      = {
+			.path = input_name,
+		},
+		.mode      = PERF_DATA_MODE_READ,
+		.force     = trace->force,
 	};
 	struct perf_session *session;
 	struct perf_evsel *evsel;
@@ -2554,7 +2593,7 @@ static int trace__replay(struct trace *trace)
 	/* add tid to output */
 	trace->multiple_threads = true;
 
-	session = perf_session__new(&file, false, &trace->tool);
+	session = perf_session__new(&data, false, &trace->tool);
 	if (session == NULL)
 		return -1;
 
@@ -2730,20 +2769,23 @@ DEFINE_RESORT_RB(threads, (thread__nr_events(a->thread->priv) < thread__nr_event
 
 static size_t trace__fprintf_thread_summary(struct trace *trace, FILE *fp)
 {
-	DECLARE_RESORT_RB_MACHINE_THREADS(threads, trace->host);
 	size_t printed = trace__fprintf_threads_header(fp);
 	struct rb_node *nd;
+	int i;
 
-	if (threads == NULL) {
-		fprintf(fp, "%s", "Error sorting output by nr_events!\n");
-		return 0;
+	for (i = 0; i < THREADS__TABLE_SIZE; i++) {
+		DECLARE_RESORT_RB_MACHINE_THREADS(threads, trace->host, i);
+
+		if (threads == NULL) {
+			fprintf(fp, "%s", "Error sorting output by nr_events!\n");
+			return 0;
+		}
+
+		resort_rb__for_each_entry(nd, threads)
+			printed += trace__fprintf_thread(fp, threads_entry->thread, trace);
+
+		resort_rb__delete(threads);
 	}
-
-	resort_rb__for_each_entry(nd, threads)
-		printed += trace__fprintf_thread(fp, threads_entry->thread, trace);
-
-	resort_rb__delete(threads);
-
 	return printed;
 }
 

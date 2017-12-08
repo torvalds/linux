@@ -53,7 +53,7 @@ struct dh {
  *
  * Return: size of the key in bytes
  */
-int crypto_dh_key_len(const struct dh *params);
+unsigned int crypto_dh_key_len(const struct dh *params);
 
 /**
  * crypto_dh_encode_key() - encode the private key

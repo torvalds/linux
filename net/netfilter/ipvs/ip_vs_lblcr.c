@@ -278,6 +278,7 @@ struct ip_vs_lblcr_table {
 	atomic_t                entries;        /* number of entries */
 	int                     max_size;       /* maximum size of entries */
 	struct timer_list       periodic_timer; /* collect stale entries */
+	struct ip_vs_service	*svc;		/* pointer back to service */
 	int                     rover;          /* rover for expire check */
 	int                     counter;        /* counter for no expire */
 	bool			dead;
@@ -458,10 +459,10 @@ static inline void ip_vs_lblcr_full_check(struct ip_vs_service *svc)
  *             of the table.
  *      The full expiration check is for this purpose now.
  */
-static void ip_vs_lblcr_check_expire(unsigned long data)
+static void ip_vs_lblcr_check_expire(struct timer_list *t)
 {
-	struct ip_vs_service *svc = (struct ip_vs_service *) data;
-	struct ip_vs_lblcr_table *tbl = svc->sched_data;
+	struct ip_vs_lblcr_table *tbl = from_timer(tbl, t, periodic_timer);
+	struct ip_vs_service *svc = tbl->svc;
 	unsigned long now = jiffies;
 	int goal;
 	int i, j;
@@ -532,12 +533,12 @@ static int ip_vs_lblcr_init_svc(struct ip_vs_service *svc)
 	tbl->rover = 0;
 	tbl->counter = 1;
 	tbl->dead = 0;
+	tbl->svc = svc;
 
 	/*
 	 *    Hook periodic timer for garbage collection
 	 */
-	setup_timer(&tbl->periodic_timer, ip_vs_lblcr_check_expire,
-			(unsigned long)svc);
+	timer_setup(&tbl->periodic_timer, ip_vs_lblcr_check_expire, 0);
 	mod_timer(&tbl->periodic_timer, jiffies + CHECK_EXPIRE_INTERVAL);
 
 	return 0;

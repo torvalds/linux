@@ -25,7 +25,6 @@
 #define fd_get_dma_residue()    fd_ops->_get_dma_residue(FLOPPY_DMA)
 #define fd_enable_irq()         enable_irq(FLOPPY_IRQ)
 #define fd_disable_irq()        disable_irq(FLOPPY_IRQ)
-#define fd_cacheflush(addr,size) /* nothing */
 #define fd_free_irq()           free_irq(FLOPPY_IRQ, NULL);
 
 #include <linux/pci.h>
@@ -152,7 +151,6 @@ static int hard_dma_setup(char *addr, unsigned long size, int mode, int io)
 	prev_dir = dir;
 
 	fd_clear_dma_ff();
-	fd_cacheflush(addr, size);
 	fd_set_dma_mode(mode);
 	set_dma_addr(FLOPPY_DMA, bus_addr);
 	fd_set_dma_count(size);

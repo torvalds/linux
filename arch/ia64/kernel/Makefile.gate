@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 # The gate DSO image is built using a special linker script.
 
 targets += gate.so gate.lds gate.o gate-dummy.o

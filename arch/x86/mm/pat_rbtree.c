@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Handle caching attributes in page tables (PAT)
  *

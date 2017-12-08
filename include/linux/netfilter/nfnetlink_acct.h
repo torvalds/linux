@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _NFNL_ACCT_H_
 #define _NFNL_ACCT_H_
 

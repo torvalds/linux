@@ -78,6 +78,7 @@ static struct list_head bnxt_re_dev_list = LIST_HEAD_INIT(bnxt_re_dev_list);
 /* Mutex to protect the list of bnxt_re devices added */
 static DEFINE_MUTEX(bnxt_re_dev_lock);
 static struct workqueue_struct *bnxt_re_wq;
+static void bnxt_re_ib_unreg(struct bnxt_re_dev *rdev, bool lock_wait);
 
 /* for handling bnxt_en callbacks later */
 static void bnxt_re_stop(void *p)
@@ -92,11 +93,22 @@ static void bnxt_re_sriov_config(void *p, int num_vfs)
 {
 }
 
+static void bnxt_re_shutdown(void *p)
+{
+	struct bnxt_re_dev *rdev = p;
+
+	if (!rdev)
+		return;
+
+	bnxt_re_ib_unreg(rdev, false);
+}
+
 static struct bnxt_ulp_ops bnxt_re_ulp_ops = {
 	.ulp_async_notifier = NULL,
 	.ulp_stop = bnxt_re_stop,
 	.ulp_start = bnxt_re_start,
-	.ulp_sriov_config = bnxt_re_sriov_config
+	.ulp_sriov_config = bnxt_re_sriov_config,
+	.ulp_shutdown = bnxt_re_shutdown
 };
 
 /* RoCE -> Net driver */
@@ -1071,9 +1083,10 @@ static int bnxt_re_ib_reg(struct bnxt_re_dev *rdev)
 	 */
 	rc = bnxt_qplib_alloc_rcfw_channel(rdev->en_dev->pdev, &rdev->rcfw,
 					   BNXT_RE_MAX_QPC_COUNT);
-	if (rc)
+	if (rc) {
+		pr_err("Failed to allocate RCFW Channel: %#x\n", rc);
 		goto fail;
-
+	}
 	rc = bnxt_re_net_ring_alloc
 			(rdev, rdev->rcfw.creq.pbl[PBL_LVL_0].pg_map_arr,
 			 rdev->rcfw.creq.pbl[rdev->rcfw.creq.level].pg_count,

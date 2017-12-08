@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _IIO_DUMMY_EVGEN_H_
 #define _IIO_DUMMY_EVGEN_H_
 

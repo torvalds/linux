@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Define generic no-op hooks for arch_dup_mmap, arch_exit_mmap
  * and arch_unmap to be included in asm-FOO/mmu_context.h for any

@@ -829,7 +829,8 @@ static void hdmi_reg_infoframes(struct hdmi_context *hdata)
 		DRM_INFO("%s: invalid AVI infoframe (%d)\n", __func__, ret);
 	}
 
-	ret = drm_hdmi_vendor_infoframe_from_display_mode(&frm.vendor.hdmi, m);
+	ret = drm_hdmi_vendor_infoframe_from_display_mode(&frm.vendor.hdmi,
+							  &hdata->connector, m);
 	if (!ret)
 		ret = hdmi_vendor_infoframe_pack(&frm.vendor.hdmi, buf,
 				sizeof(buf));

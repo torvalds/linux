@@ -963,13 +963,12 @@ static void venc_buf_done(struct venus_inst *inst, unsigned int buf_type,
 	if (!vbuf)
 		return;
 
-	vb = &vbuf->vb2_buf;
-	vb->planes[0].bytesused = bytesused;
-	vb->planes[0].data_offset = data_offset;
-
 	vbuf->flags = flags;
 
 	if (type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE) {
+		vb = &vbuf->vb2_buf;
+		vb2_set_plane_payload(vb, 0, bytesused + data_offset);
+		vb->planes[0].data_offset = data_offset;
 		vb->timestamp = timestamp_us * NSEC_PER_USEC;
 		vbuf->sequence = inst->sequence_cap++;
 	} else {

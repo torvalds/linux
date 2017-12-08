@@ -307,7 +307,7 @@ static int vsw_port_probe(struct vio_dev *vdev, const struct vio_device_id *id)
 
 	/* Get (or create) the vnet associated with this port */
 	vp = vsw_get_vnet(hp, vdev->mp, &handle);
-	if (unlikely(IS_ERR(vp))) {
+	if (IS_ERR(vp)) {
 		err = PTR_ERR(vp);
 		pr_err("Failed to get vnet for vsw-port\n");
 		mdesc_release(hp);
@@ -363,8 +363,7 @@ static int vsw_port_probe(struct vio_dev *vdev, const struct vio_device_id *id)
 	list_add_rcu(&port->list, &vp->port_list);
 	spin_unlock_irqrestore(&vp->lock, flags);
 
-	setup_timer(&port->clean_timer, sunvnet_clean_timer_expire_common,
-		    (unsigned long)port);
+	timer_setup(&port->clean_timer, sunvnet_clean_timer_expire_common, 0);
 
 	err = register_netdev(dev);
 	if (err) {

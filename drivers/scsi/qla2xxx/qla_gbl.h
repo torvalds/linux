@@ -45,6 +45,8 @@ extern int qla2x00_fabric_login(scsi_qla_host_t *, fc_port_t *, uint16_t *);
 extern int qla2x00_local_device_login(scsi_qla_host_t *, fc_port_t *);
 
 extern int qla24xx_els_dcmd_iocb(scsi_qla_host_t *, int, port_id_t);
+extern int qla24xx_els_dcmd2_iocb(scsi_qla_host_t *, int, fc_port_t *,
+				  port_id_t);
 
 extern void qla2x00_update_fcports(scsi_qla_host_t *);
 
@@ -145,6 +147,7 @@ extern int ql2xmvasynctoatio;
 extern int ql2xuctrlirq;
 extern int ql2xnvmeenable;
 extern int ql2xautodetectsfp;
+extern int ql2xenablemsix;
 
 extern int qla2x00_loop_reset(scsi_qla_host_t *);
 extern void qla2x00_abort_all_cmds(scsi_qla_host_t *, int);
@@ -206,8 +209,8 @@ int qla24xx_async_abort_cmd(srb_t *);
  */
 extern struct scsi_host_template qla2xxx_driver_template;
 extern struct scsi_transport_template *qla2xxx_transport_vport_template;
-extern void qla2x00_timer(scsi_qla_host_t *);
-extern void qla2x00_start_timer(scsi_qla_host_t *, void *, unsigned long);
+extern void qla2x00_timer(struct timer_list *);
+extern void qla2x00_start_timer(scsi_qla_host_t *, unsigned long);
 extern void qla24xx_deallocate_vp_id(scsi_qla_host_t *);
 extern int qla24xx_disable_vp (scsi_qla_host_t *);
 extern int qla24xx_enable_vp (scsi_qla_host_t *);
@@ -486,6 +489,8 @@ int qla24xx_gidlist_wait(struct scsi_qla_host *, void *, dma_addr_t,
     uint16_t *);
 int __qla24xx_parse_gpdb(struct scsi_qla_host *, fc_port_t *,
 	struct port_database_24xx *);
+int qla24xx_get_port_login_templ(scsi_qla_host_t *, dma_addr_t,
+				 void *, uint16_t);
 
 extern int qla27xx_get_zio_threshold(scsi_qla_host_t *, uint16_t *);
 extern int qla27xx_set_zio_threshold(scsi_qla_host_t *, uint16_t);
@@ -753,7 +758,7 @@ extern int qla82xx_restart_isp(scsi_qla_host_t *);
 /* IOCB related functions */
 extern int qla82xx_start_scsi(srb_t *);
 extern void qla2x00_sp_free(void *);
-extern void qla2x00_sp_timeout(unsigned long);
+extern void qla2x00_sp_timeout(struct timer_list *);
 extern void qla2x00_bsg_job_done(void *, int);
 extern void qla2x00_bsg_sp_free(void *);
 extern void qla2x00_start_iocbs(struct scsi_qla_host *, struct req_que *);

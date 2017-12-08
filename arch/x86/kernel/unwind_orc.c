@@ -279,7 +279,7 @@ static bool deref_stack_reg(struct unwind_state *state, unsigned long addr,
 	if (!stack_access_ok(state, addr, sizeof(long)))
 		return false;
 
-	*val = READ_ONCE_TASK_STACK(state->task, *(unsigned long *)addr);
+	*val = READ_ONCE_NOCHECK(*(unsigned long *)addr);
 	return true;
 }
 

@@ -1,19 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * mtu3_dr.c - dual role switch and host glue layer
  *
  * Copyright (C) 2016 MediaTek Inc.
  *
  * Author: Chunfeng Yun <chunfeng.yun@mediatek.com>
- *
- * This software is licensed under the terms of the GNU General Public
- * License version 2, as published by the Free Software Foundation, and
- * may be copied, distributed, and modified under those terms.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  */
 
 #include <linux/clk.h>
@@ -79,20 +70,6 @@ int ssusb_wakeup_of_property_parse(struct ssusb_mtk *ssusb,
 	if (!ssusb->wakeup_en)
 		return 0;
 
-	ssusb->wk_deb_p0 = devm_clk_get(dev, "wakeup_deb_p0");
-	if (IS_ERR(ssusb->wk_deb_p0)) {
-		dev_err(dev, "fail to get wakeup_deb_p0\n");
-		return PTR_ERR(ssusb->wk_deb_p0);
-	}
-
-	if (of_property_read_bool(dn, "wakeup_deb_p1")) {
-		ssusb->wk_deb_p1 = devm_clk_get(dev, "wakeup_deb_p1");
-		if (IS_ERR(ssusb->wk_deb_p1)) {
-			dev_err(dev, "fail to get wakeup_deb_p1\n");
-			return PTR_ERR(ssusb->wk_deb_p1);
-		}
-	}
-
 	ssusb->pericfg = syscon_regmap_lookup_by_phandle(dn,
 						"mediatek,syscon-wakeup");
 	if (IS_ERR(ssusb->pericfg)) {
@@ -101,36 +78,6 @@ int ssusb_wakeup_of_property_parse(struct ssusb_mtk *ssusb,
 	}
 
 	return 0;
-}
-
-static int ssusb_wakeup_clks_enable(struct ssusb_mtk *ssusb)
-{
-	int ret;
-
-	ret = clk_prepare_enable(ssusb->wk_deb_p0);
-	if (ret) {
-		dev_err(ssusb->dev, "failed to enable wk_deb_p0\n");
-		goto usb_p0_err;
-	}
-
-	ret = clk_prepare_enable(ssusb->wk_deb_p1);
-	if (ret) {
-		dev_err(ssusb->dev, "failed to enable wk_deb_p1\n");
-		goto usb_p1_err;
-	}
-
-	return 0;
-
-usb_p1_err:
-	clk_disable_unprepare(ssusb->wk_deb_p0);
-usb_p0_err:
-	return -EINVAL;
-}
-
-static void ssusb_wakeup_clks_disable(struct ssusb_mtk *ssusb)
-{
-	clk_disable_unprepare(ssusb->wk_deb_p1);
-	clk_disable_unprepare(ssusb->wk_deb_p0);
 }
 
 static void host_ports_num_get(struct ssusb_mtk *ssusb)
@@ -151,6 +98,7 @@ int ssusb_host_enable(struct ssusb_mtk *ssusb)
 	void __iomem *ibase = ssusb->ippc_base;
 	int num_u3p = ssusb->u3_ports;
 	int num_u2p = ssusb->u2_ports;
+	int u3_ports_disabed;
 	u32 check_clk;
 	u32 value;
 	int i;
@@ -158,8 +106,14 @@ int ssusb_host_enable(struct ssusb_mtk *ssusb)
 	/* power on host ip */
 	mtu3_clrbits(ibase, U3D_SSUSB_IP_PW_CTRL1, SSUSB_IP_HOST_PDN);
 
-	/* power on and enable all u3 ports */
+	/* power on and enable u3 ports except skipped ones */
+	u3_ports_disabed = 0;
 	for (i = 0; i < num_u3p; i++) {
+		if ((0x1 << i) & ssusb->u3p_dis_msk) {
+			u3_ports_disabed++;
+			continue;
+		}
+
 		value = mtu3_readl(ibase, SSUSB_U3_CTRL(i));
 		value &= ~(SSUSB_U3_PORT_PDN | SSUSB_U3_PORT_DIS);
 		value |= SSUSB_U3_PORT_HOST_SEL;
@@ -175,7 +129,7 @@ int ssusb_host_enable(struct ssusb_mtk *ssusb)
 	}
 
 	check_clk = SSUSB_XHCI_RST_B_STS;
-	if (num_u3p)
+	if (num_u3p > u3_ports_disabed)
 		check_clk = SSUSB_U3_MAC_RST_B_STS;
 
 	return ssusb_check_clocks(ssusb, check_clk);
@@ -190,8 +144,11 @@ int ssusb_host_disable(struct ssusb_mtk *ssusb, bool suspend)
 	int ret;
 	int i;
 
-	/* power down and disable all u3 ports */
+	/* power down and disable u3 ports except skipped ones */
 	for (i = 0; i < num_u3p; i++) {
+		if ((0x1 << i) & ssusb->u3p_dis_msk)
+			continue;
+
 		value = mtu3_readl(ibase, SSUSB_U3_CTRL(i));
 		value |= SSUSB_U3_PORT_PDN;
 		value |= suspend ? 0 : SSUSB_U3_PORT_DIS;
@@ -223,6 +180,8 @@ int ssusb_host_disable(struct ssusb_mtk *ssusb, bool suspend)
 
 static void ssusb_host_setup(struct ssusb_mtk *ssusb)
 {
+	struct otg_switch_mtk *otg_sx = &ssusb->otg_switch;
+
 	host_ports_num_get(ssusb);
 
 	/*
@@ -230,6 +189,9 @@ static void ssusb_host_setup(struct ssusb_mtk *ssusb)
 	 * if support OTG, gadget driver will switch port0 to device mode
 	 */
 	ssusb_host_enable(ssusb);
+
+	if (otg_sx->manual_drd_enabled)
+		ssusb_set_force_mode(ssusb, MTU3_DR_FORCE_HOST);
 
 	/* if port0 supports dual-role, works as host mode by default */
 	ssusb_set_vbus(&ssusb->otg_switch, 1);
@@ -276,19 +238,14 @@ void ssusb_host_exit(struct ssusb_mtk *ssusb)
 
 int ssusb_wakeup_enable(struct ssusb_mtk *ssusb)
 {
-	int ret = 0;
-
-	if (ssusb->wakeup_en) {
-		ret = ssusb_wakeup_clks_enable(ssusb);
+	if (ssusb->wakeup_en)
 		ssusb_wakeup_ip_sleep_en(ssusb);
-	}
-	return ret;
+
+	return 0;
 }
 
 void ssusb_wakeup_disable(struct ssusb_mtk *ssusb)
 {
-	if (ssusb->wakeup_en) {
+	if (ssusb->wakeup_en)
 		ssusb_wakeup_ip_sleep_dis(ssusb);
-		ssusb_wakeup_clks_disable(ssusb);
-	}
 }

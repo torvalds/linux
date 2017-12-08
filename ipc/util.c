@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * linux/ipc/util.c
  * Copyright (C) 1992 Krishna Balasubramanian
@@ -115,13 +116,16 @@ int ipc_init_ids(struct ipc_ids *ids)
 	int err;
 	ids->in_use = 0;
 	ids->seq = 0;
-	ids->next_id = -1;
 	init_rwsem(&ids->rwsem);
 	err = rhashtable_init(&ids->key_ht, &ipc_kht_params);
 	if (err)
 		return err;
 	idr_init(&ids->ipcs_idr);
 	ids->tables_initialized = true;
+	ids->max_id = -1;
+#ifdef CONFIG_CHECKPOINT_RESTORE
+	ids->next_id = -1;
+#endif
 	return 0;
 }
 
@@ -185,41 +189,51 @@ static struct kern_ipc_perm *ipc_findkey(struct ipc_ids *ids, key_t key)
 	return NULL;
 }
 
-/**
- * ipc_get_maxid - get the last assigned id
- * @ids: ipc identifier set
- *
- * Called with ipc_ids.rwsem held.
+#ifdef CONFIG_CHECKPOINT_RESTORE
+/*
+ * Specify desired id for next allocated IPC object.
  */
-int ipc_get_maxid(struct ipc_ids *ids)
+#define ipc_idr_alloc(ids, new)						\
+	idr_alloc(&(ids)->ipcs_idr, (new),				\
+		  (ids)->next_id < 0 ? 0 : ipcid_to_idx((ids)->next_id),\
+		  0, GFP_NOWAIT)
+
+static inline int ipc_buildid(int id, struct ipc_ids *ids,
+			      struct kern_ipc_perm *new)
 {
-	struct kern_ipc_perm *ipc;
-	int max_id = -1;
-	int total, id;
-
-	if (ids->in_use == 0)
-		return -1;
-
-	if (ids->in_use == IPCMNI)
-		return IPCMNI - 1;
-
-	/* Look for the last assigned id */
-	total = 0;
-	for (id = 0; id < IPCMNI && total < ids->in_use; id++) {
-		ipc = idr_find(&ids->ipcs_idr, id);
-		if (ipc != NULL) {
-			max_id = id;
-			total++;
-		}
+	if (ids->next_id < 0) { /* default, behave as !CHECKPOINT_RESTORE */
+		new->seq = ids->seq++;
+		if (ids->seq > IPCID_SEQ_MAX)
+			ids->seq = 0;
+	} else {
+		new->seq = ipcid_to_seqx(ids->next_id);
+		ids->next_id = -1;
 	}
-	return max_id;
+
+	return SEQ_MULTIPLIER * new->seq + id;
 }
+
+#else
+#define ipc_idr_alloc(ids, new)					\
+	idr_alloc(&(ids)->ipcs_idr, (new), 0, 0, GFP_NOWAIT)
+
+static inline int ipc_buildid(int id, struct ipc_ids *ids,
+			      struct kern_ipc_perm *new)
+{
+	new->seq = ids->seq++;
+	if (ids->seq > IPCID_SEQ_MAX)
+		ids->seq = 0;
+
+	return SEQ_MULTIPLIER * new->seq + id;
+}
+
+#endif /* CONFIG_CHECKPOINT_RESTORE */
 
 /**
  * ipc_addid - add an ipc identifier
  * @ids: ipc identifier set
  * @new: new ipc permission set
- * @size: limit for the number of used ids
+ * @limit: limit for the number of used ids
  *
  * Add an entry 'new' to the ipc ids idr. The permissions object is
  * initialised and the first free entry is set up and the id assigned
@@ -228,17 +242,16 @@ int ipc_get_maxid(struct ipc_ids *ids)
  *
  * Called with writer ipc_ids.rwsem held.
  */
-int ipc_addid(struct ipc_ids *ids, struct kern_ipc_perm *new, int size)
+int ipc_addid(struct ipc_ids *ids, struct kern_ipc_perm *new, int limit)
 {
 	kuid_t euid;
 	kgid_t egid;
 	int id, err;
-	int next_id = ids->next_id;
 
-	if (size > IPCMNI)
-		size = IPCMNI;
+	if (limit > IPCMNI)
+		limit = IPCMNI;
 
-	if (!ids->tables_initialized || ids->in_use >= size)
+	if (!ids->tables_initialized || ids->in_use >= limit)
 		return -ENOSPC;
 
 	idr_preload(GFP_KERNEL);
@@ -253,9 +266,7 @@ int ipc_addid(struct ipc_ids *ids, struct kern_ipc_perm *new, int size)
 	new->cuid = new->uid = euid;
 	new->gid = new->cgid = egid;
 
-	id = idr_alloc(&ids->ipcs_idr, new,
-		       (next_id < 0) ? 0 : ipcid_to_idx(next_id), 0,
-		       GFP_NOWAIT);
+	id = ipc_idr_alloc(ids, new);
 	idr_preload_end();
 
 	if (id >= 0 && new->key != IPC_PRIVATE) {
@@ -273,17 +284,11 @@ int ipc_addid(struct ipc_ids *ids, struct kern_ipc_perm *new, int size)
 	}
 
 	ids->in_use++;
+	if (id > ids->max_id)
+		ids->max_id = id;
 
-	if (next_id < 0) {
-		new->seq = ids->seq++;
-		if (ids->seq > IPCID_SEQ_MAX)
-			ids->seq = 0;
-	} else {
-		new->seq = ipcid_to_seqx(next_id);
-		ids->next_id = -1;
-	}
+	new->id = ipc_buildid(id, ids, new);
 
-	new->id = ipc_buildid(id, new->seq);
 	return id;
 }
 
@@ -428,6 +433,15 @@ void ipc_rmid(struct ipc_ids *ids, struct kern_ipc_perm *ipcp)
 	ipc_kht_remove(ids, ipcp);
 	ids->in_use--;
 	ipcp->deleted = true;
+
+	if (unlikely(lid == ids->max_id)) {
+		do {
+			lid--;
+			if (lid == -1)
+				break;
+		} while (!idr_find(&ids->ipcs_idr, lid));
+		ids->max_id = lid;
+	}
 }
 
 /**

@@ -2297,7 +2297,7 @@ static u8 b43_gphy_aci_detect(struct b43_wldev *dev, u8 channel)
 static u8 b43_gphy_aci_scan(struct b43_wldev *dev)
 {
 	struct b43_phy *phy = &dev->phy;
-	u8 ret[13];
+	u8 ret[13] = { 0 };
 	unsigned int channel = phy->channel;
 	unsigned int i, j, start, end;
 

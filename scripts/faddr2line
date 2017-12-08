@@ -1,4 +1,5 @@
 #!/bin/bash
+# SPDX-License-Identifier: GPL-2.0
 #
 # Translate stack dump function offsets.
 #
@@ -43,9 +44,16 @@
 set -o errexit
 set -o nounset
 
+READELF="${CROSS_COMPILE}readelf"
+ADDR2LINE="${CROSS_COMPILE}addr2line"
+SIZE="${CROSS_COMPILE}size"
+NM="${CROSS_COMPILE}nm"
+
 command -v awk >/dev/null 2>&1 || die "awk isn't installed"
-command -v readelf >/dev/null 2>&1 || die "readelf isn't installed"
-command -v addr2line >/dev/null 2>&1 || die "addr2line isn't installed"
+command -v ${READELF} >/dev/null 2>&1 || die "readelf isn't installed"
+command -v ${ADDR2LINE} >/dev/null 2>&1 || die "addr2line isn't installed"
+command -v ${SIZE} >/dev/null 2>&1 || die "size isn't installed"
+command -v ${NM} >/dev/null 2>&1 || die "nm isn't installed"
 
 usage() {
 	echo "usage: faddr2line <object file> <func+offset> <func+offset>..." >&2
@@ -68,10 +76,10 @@ die() {
 find_dir_prefix() {
 	local objfile=$1
 
-	local start_kernel_addr=$(readelf -sW $objfile | awk '$8 == "start_kernel" {printf "0x%s", $2}')
+	local start_kernel_addr=$(${READELF} -sW $objfile | awk '$8 == "start_kernel" {printf "0x%s", $2}')
 	[[ -z $start_kernel_addr ]] && return
 
-	local file_line=$(addr2line -e $objfile $start_kernel_addr)
+	local file_line=$(${ADDR2LINE} -e $objfile $start_kernel_addr)
 	[[ -z $file_line ]] && return
 
 	local prefix=${file_line%init/main.c:*}
@@ -103,7 +111,7 @@ __faddr2line() {
 
 	# Go through each of the object's symbols which match the func name.
 	# In rare cases there might be duplicates.
-	file_end=$(size -Ax $objfile | awk '$1 == ".text" {print $2}')
+	file_end=$(${SIZE} -Ax $objfile | awk '$1 == ".text" {print $2}')
 	while read symbol; do
 		local fields=($symbol)
 		local sym_base=0x${fields[0]}
@@ -155,10 +163,10 @@ __faddr2line() {
 
 		# pass real address to addr2line
 		echo "$func+$offset/$sym_size:"
-		addr2line -fpie $objfile $addr | sed "s; $dir_prefix\(\./\)*; ;"
+		${ADDR2LINE} -fpie $objfile $addr | sed "s; $dir_prefix\(\./\)*; ;"
 		DONE=1
 
-	done < <(nm -n $objfile | awk -v fn=$func -v end=$file_end '$3 == fn { found=1; line=$0; start=$1; next } found == 1 { found=0; print line, "0x"$1 } END {if (found == 1) print line, end; }')
+	done < <(${NM} -n $objfile | awk -v fn=$func -v end=$file_end '$3 == fn { found=1; line=$0; start=$1; next } found == 1 { found=0; print line, "0x"$1 } END {if (found == 1) print line, end; }')
 }
 
 [[ $# -lt 2 ]] && usage

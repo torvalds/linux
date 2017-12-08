@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
 /* setup.h: setup stuff
  *
  * Copyright (C) 2004 Red Hat, Inc. All Rights Reserved.

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _LINUX_MAX6639_H
 #define _LINUX_MAX6639_H
 

@@ -142,7 +142,7 @@ mcasp0: mcasp@48038000 {
 };
 
 2.
-edma1: edma@02728000 {
+edma1: edma@2728000 {
 	compatible = "ti,k2g-edma3-tpcc", "ti,edma3-tpcc";
 	reg =	<0x02728000 0x8000>;
 	reg-names = "edma3_cc";
@@ -165,13 +165,13 @@ edma1: edma@02728000 {
 	power-domains = <&k2g_pds 0x4f>;
 };
 
-edma1_tptc0: tptc@027b0000 {
+edma1_tptc0: tptc@27b0000 {
 	compatible = "ti,k2g-edma3-tptc", "ti,edma3-tptc";
 	reg =	<0x027b0000 0x400>;
 	power-domains = <&k2g_pds 0x4f>;
 };
 
-edma1_tptc1: tptc@027b8000 {
+edma1_tptc1: tptc@27b8000 {
 	compatible = "ti, k2g-edma3-tptc", "ti,edma3-tptc";
 	reg =	<0x027b8000 0x400>;
 	power-domains = <&k2g_pds 0x4f>;

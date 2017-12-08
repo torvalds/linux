@@ -26,7 +26,7 @@
 #include <linux/workqueue.h>
 #include <linux/iio/consumer.h>
 #include <linux/extcon/extcon-adc-jack.h>
-#include <linux/extcon.h>
+#include <linux/extcon-provider.h>
 
 /**
  * struct adc_jack_data - internal data for adc_jack device driver

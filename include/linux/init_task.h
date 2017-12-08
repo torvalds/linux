@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _LINUX__INIT_TASK_H
 #define _LINUX__INIT_TASK_H
 
@@ -104,7 +105,6 @@ extern struct group_info init_groups;
 	.numbers	= { {						\
 		.nr		= 0,					\
 		.ns		= &init_pid_ns,				\
-		.pid_chain	= { .next = NULL, .pprev = NULL },	\
 	}, }								\
 }
 

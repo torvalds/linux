@@ -179,7 +179,20 @@ don't do this, drivers used dev_info/warn/err to make this differentiation. We
 now have DRM_DEV_* variants of the drm print macros, so we can start to convert
 those drivers back to using drm-formwatted specific log messages.
 
+Before you start this conversion please contact the relevant maintainers to make
+sure your work will be merged - not everyone agrees that the DRM dmesg macros
+are better.
+
 Contact: Sean Paul, Maintainer of the driver you plan to convert
+
+Convert drivers to use simple modeset suspend/resume
+----------------------------------------------------
+
+Most drivers (except i915 and nouveau) that use
+drm_atomic_helper_suspend/resume() can probably be converted to use
+drm_mode_config_helper_suspend/resume().
+
+Contact: Maintainer of the driver you plan to convert
 
 Core refactorings
 =================
@@ -400,14 +413,19 @@ those drivers as simple as possible, so lots of room for refactoring:
   a drm_device wrong. Doesn't matter, since everyone else gets it wrong
   too :-)
 
-- With the fbdev pointer in dev->mode_config we could also make
-  suspend/resume helpers entirely generic, at least if we add a
-  dev->mode_config.suspend_state. We could even provide a generic pm_ops
-  structure with those.
-
 - also rework the drm_framebuffer_funcs->dirty hook wire-up, see above.
 
 Contact: Noralf Trønnes, Daniel Vetter
+
+AMD DC Display Driver
+---------------------
+
+AMD DC is the display driver for AMD devices starting with Vega. There has been
+a bunch of progress cleaning it up but there's still plenty of work to be done.
+
+See drivers/gpu/drm/amd/display/TODO for tasks.
+
+Contact: Harry Wentland, Alex Deucher
 
 Outside DRM
 ===========

@@ -116,8 +116,8 @@ OPTIONS
 --fields::
         Comma separated list of fields to print. Options are:
         comm, tid, pid, time, cpu, event, trace, ip, sym, dso, addr, symoff,
-        srcline, period, iregs, brstack, brstacksym, flags, bpf-output, brstackinsn, brstackoff,
-        callindent, insn, insnlen, synth, phys_addr.
+        srcline, period, iregs, uregs, brstack, brstacksym, flags, bpf-output, brstackinsn,
+        brstackoff, callindent, insn, insnlen, synth, phys_addr.
         Field list can be prepended with the type, trace, sw or hw,
         to indicate to which event type the field list applies.
         e.g., -F sw:comm,tid,time,ip,sym  and -F trace:time,cpu,trace
@@ -325,9 +325,14 @@ include::itrace.txt[]
 	Set the maximum number of program blocks to print with brstackasm for
 	each sample.
 
+--per-event-dump::
+	Create per event files with a "perf.data.EVENT.dump" name instead of
+        printing to stdout, useful, for instance, for generating flamegraphs.
+
 --inline::
 	If a callgraph address belongs to an inlined function, the inline stack
-	will be printed. Each entry has function name and file/line.
+	will be printed. Each entry has function name and file/line. Enabled by
+	default, disable with --no-inline.
 
 SEE ALSO
 --------

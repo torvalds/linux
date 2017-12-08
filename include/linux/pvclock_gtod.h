@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _PVCLOCK_GTOD_H
 #define _PVCLOCK_GTOD_H
 

@@ -123,11 +123,8 @@ int qxl_mmap(struct file *filp, struct vm_area_struct *vma)
 	struct qxl_device *qdev;
 	int r;
 
-	if (unlikely(vma->vm_pgoff < DRM_FILE_PAGE_OFFSET)) {
-		pr_info("%s: vma->vm_pgoff (%ld) < DRM_FILE_PAGE_OFFSET\n",
-			__func__, vma->vm_pgoff);
+	if (unlikely(vma->vm_pgoff < DRM_FILE_PAGE_OFFSET))
 		return -EINVAL;
-	}
 
 	file_priv = filp->private_data;
 	qdev = file_priv->minor->dev->dev_private;
@@ -344,15 +341,14 @@ static void qxl_move_null(struct ttm_buffer_object *bo,
 	new_mem->mm_node = NULL;
 }
 
-static int qxl_bo_move(struct ttm_buffer_object *bo,
-		       bool evict, bool interruptible,
-		       bool no_wait_gpu,
+static int qxl_bo_move(struct ttm_buffer_object *bo, bool evict,
+		       struct ttm_operation_ctx *ctx,
 		       struct ttm_mem_reg *new_mem)
 {
 	struct ttm_mem_reg *old_mem = &bo->mem;
 	int ret;
 
-	ret = ttm_bo_wait(bo, interruptible, no_wait_gpu);
+	ret = ttm_bo_wait(bo, ctx->interruptible, ctx->no_wait_gpu);
 	if (ret)
 		return ret;
 
@@ -361,7 +357,7 @@ static int qxl_bo_move(struct ttm_buffer_object *bo,
 		qxl_move_null(bo, new_mem);
 		return 0;
 	}
-	return ttm_bo_move_memcpy(bo, interruptible, no_wait_gpu,
+	return ttm_bo_move_memcpy(bo, ctx->interruptible, ctx->no_wait_gpu,
 				  new_mem);
 }
 

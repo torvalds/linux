@@ -91,6 +91,11 @@
 #define to_xgene_hwmon_dev(cl)		\
 	container_of(cl, struct xgene_hwmon_dev, mbox_client)
 
+enum xgene_hwmon_version {
+	XGENE_HWMON_V1 = 0,
+	XGENE_HWMON_V2 = 1,
+};
+
 struct slimpro_resp_msg {
 	u32 msg;
 	u32 param1;
@@ -609,6 +614,15 @@ static void xgene_hwmon_tx_done(struct mbox_client *cl, void *msg, int ret)
 	}
 }
 
+#ifdef CONFIG_ACPI
+static const struct acpi_device_id xgene_hwmon_acpi_match[] = {
+	{"APMC0D29", XGENE_HWMON_V1},
+	{"APMC0D8A", XGENE_HWMON_V2},
+	{},
+};
+MODULE_DEVICE_TABLE(acpi, xgene_hwmon_acpi_match);
+#endif
+
 static int xgene_hwmon_probe(struct platform_device *pdev)
 {
 	struct xgene_hwmon_dev *ctx;
@@ -651,6 +665,15 @@ static int xgene_hwmon_probe(struct platform_device *pdev)
 		}
 	} else {
 		struct acpi_pcct_hw_reduced *cppc_ss;
+		const struct acpi_device_id *acpi_id;
+		int version;
+
+		acpi_id = acpi_match_device(pdev->dev.driver->acpi_match_table,
+					    &pdev->dev);
+		if (!acpi_id)
+			return -EINVAL;
+
+		version = (int)acpi_id->driver_data;
 
 		if (device_property_read_u32(&pdev->dev, "pcc-channel",
 					     &ctx->mbox_idx)) {
@@ -693,7 +716,13 @@ static int xgene_hwmon_probe(struct platform_device *pdev)
 		 */
 		ctx->comm_base_addr = cppc_ss->base_address;
 		if (ctx->comm_base_addr) {
-			ctx->pcc_comm_addr = memremap(ctx->comm_base_addr,
+			if (version == XGENE_HWMON_V2)
+				ctx->pcc_comm_addr = (void __force *)ioremap(
+							ctx->comm_base_addr,
+							cppc_ss->length);
+			else
+				ctx->pcc_comm_addr = memremap(
+							ctx->comm_base_addr,
 							cppc_ss->length,
 							MEMREMAP_WB);
 		} else {
@@ -760,14 +789,6 @@ static int xgene_hwmon_remove(struct platform_device *pdev)
 
 	return 0;
 }
-
-#ifdef CONFIG_ACPI
-static const struct acpi_device_id xgene_hwmon_acpi_match[] = {
-	{"APMC0D29", 0},
-	{},
-};
-MODULE_DEVICE_TABLE(acpi, xgene_hwmon_acpi_match);
-#endif
 
 static const struct of_device_id xgene_hwmon_of_match[] = {
 	{.compatible = "apm,xgene-slimpro-hwmon"},

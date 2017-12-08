@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  *	Declarations of X.25 Packet Layer type objects.
  *

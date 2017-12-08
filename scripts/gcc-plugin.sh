@@ -1,4 +1,5 @@
 #!/bin/sh
+# SPDX-License-Identifier: GPL-2.0
 srctree=$(dirname "$0")
 
 SHOW_ERROR=

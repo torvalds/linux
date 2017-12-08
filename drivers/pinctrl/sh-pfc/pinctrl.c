@@ -513,7 +513,7 @@ static int sh_pfc_pinconf_get_drive_strength(struct sh_pfc *pfc,
 		return -EINVAL;
 
 	spin_lock_irqsave(&pfc->lock, flags);
-	val = sh_pfc_read_reg(pfc, reg, 32);
+	val = sh_pfc_read(pfc, reg);
 	spin_unlock_irqrestore(&pfc->lock, flags);
 
 	val = (val >> offset) & GENMASK(size - 1, 0);
@@ -550,11 +550,11 @@ static int sh_pfc_pinconf_set_drive_strength(struct sh_pfc *pfc,
 
 	spin_lock_irqsave(&pfc->lock, flags);
 
-	val = sh_pfc_read_reg(pfc, reg, 32);
+	val = sh_pfc_read(pfc, reg);
 	val &= ~GENMASK(offset + size - 1, offset);
 	val |= strength << offset;
 
-	sh_pfc_write_reg(pfc, reg, 32, val);
+	sh_pfc_write(pfc, reg, val);
 
 	spin_unlock_irqrestore(&pfc->lock, flags);
 
@@ -645,7 +645,7 @@ static int sh_pfc_pinconf_get(struct pinctrl_dev *pctldev, unsigned _pin,
 			return bit;
 
 		spin_lock_irqsave(&pfc->lock, flags);
-		val = sh_pfc_read_reg(pfc, pocctrl, 32);
+		val = sh_pfc_read(pfc, pocctrl);
 		spin_unlock_irqrestore(&pfc->lock, flags);
 
 		arg = (val & BIT(bit)) ? 3300 : 1800;
@@ -716,12 +716,12 @@ static int sh_pfc_pinconf_set(struct pinctrl_dev *pctldev, unsigned _pin,
 				return -EINVAL;
 
 			spin_lock_irqsave(&pfc->lock, flags);
-			val = sh_pfc_read_reg(pfc, pocctrl, 32);
+			val = sh_pfc_read(pfc, pocctrl);
 			if (mV == 3300)
 				val |= BIT(bit);
 			else
 				val &= ~BIT(bit);
-			sh_pfc_write_reg(pfc, pocctrl, 32, val);
+			sh_pfc_write(pfc, pocctrl, val);
 			spin_unlock_irqrestore(&pfc->lock, flags);
 
 			break;

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 int cache_control(unsigned int command)
 {
 	volatile unsigned int *p = (volatile unsigned int *) 0x80000000;

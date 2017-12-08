@@ -191,8 +191,6 @@ struct ntb_transport_qp {
 struct ntb_transport_mw {
 	phys_addr_t phys_addr;
 	resource_size_t phys_size;
-	resource_size_t xlat_align;
-	resource_size_t xlat_align_size;
 	void __iomem *vbase;
 	size_t xlat_size;
 	size_t buff_size;
@@ -687,13 +685,20 @@ static int ntb_set_mw(struct ntb_transport_ctx *nt, int num_mw,
 	struct ntb_transport_mw *mw = &nt->mw_vec[num_mw];
 	struct pci_dev *pdev = nt->ndev->pdev;
 	size_t xlat_size, buff_size;
+	resource_size_t xlat_align;
+	resource_size_t xlat_align_size;
 	int rc;
 
 	if (!size)
 		return -EINVAL;
 
-	xlat_size = round_up(size, mw->xlat_align_size);
-	buff_size = round_up(size, mw->xlat_align);
+	rc = ntb_mw_get_align(nt->ndev, PIDX, num_mw, &xlat_align,
+			      &xlat_align_size, NULL);
+	if (rc)
+		return rc;
+
+	xlat_size = round_up(size, xlat_align_size);
+	buff_size = round_up(size, xlat_align);
 
 	/* No need to re-setup */
 	if (mw->xlat_size == xlat_size)
@@ -722,7 +727,7 @@ static int ntb_set_mw(struct ntb_transport_ctx *nt, int num_mw,
 	 * is a requirement of the hardware. It is recommended to setup CMA
 	 * for BAR sizes equal or greater than 4MB.
 	 */
-	if (!IS_ALIGNED(mw->dma_addr, mw->xlat_align)) {
+	if (!IS_ALIGNED(mw->dma_addr, xlat_align)) {
 		dev_err(&pdev->dev, "DMA memory %pad is not aligned\n",
 			&mw->dma_addr);
 		ntb_free_mw(nt, num_mw);
@@ -1103,11 +1108,6 @@ static int ntb_transport_probe(struct ntb_client *self, struct ntb_dev *ndev)
 
 	for (i = 0; i < mw_count; i++) {
 		mw = &nt->mw_vec[i];
-
-		rc = ntb_mw_get_align(ndev, PIDX, i, &mw->xlat_align,
-				      &mw->xlat_align_size, NULL);
-		if (rc)
-			goto err1;
 
 		rc = ntb_peer_mw_get_addr(ndev, i, &mw->phys_addr,
 					  &mw->phys_size);

@@ -74,8 +74,20 @@ struct tlvtype_proc {
 
 /* An unknown option is detected, decide what to do */
 
-static bool ip6_tlvopt_unknown(struct sk_buff *skb, int optoff)
+static bool ip6_tlvopt_unknown(struct sk_buff *skb, int optoff,
+			       bool disallow_unknowns)
 {
+	if (disallow_unknowns) {
+		/* If unknown TLVs are disallowed by configuration
+		 * then always silently drop packet. Note this also
+		 * means no ICMP parameter problem is sent which
+		 * could be a good property to mitigate a reflection DOS
+		 * attack.
+		 */
+
+		goto drop;
+	}
+
 	switch ((skb_network_header(skb)[optoff] & 0xC0) >> 6) {
 	case 0: /* ignore */
 		return true;
@@ -89,24 +101,35 @@ static bool ip6_tlvopt_unknown(struct sk_buff *skb, int optoff)
 		 */
 		if (ipv6_addr_is_multicast(&ipv6_hdr(skb)->daddr))
 			break;
+		/* fall through */
 	case 2: /* send ICMP PARM PROB regardless and drop packet */
 		icmpv6_param_prob(skb, ICMPV6_UNK_OPTION, optoff);
 		return false;
 	}
 
+drop:
 	kfree_skb(skb);
 	return false;
 }
 
 /* Parse tlv encoded option header (hop-by-hop or destination) */
 
-static bool ip6_parse_tlv(const struct tlvtype_proc *procs, struct sk_buff *skb)
+static bool ip6_parse_tlv(const struct tlvtype_proc *procs,
+			  struct sk_buff *skb,
+			  int max_count)
 {
-	const struct tlvtype_proc *curr;
+	int len = (skb_transport_header(skb)[1] + 1) << 3;
 	const unsigned char *nh = skb_network_header(skb);
 	int off = skb_network_header_len(skb);
-	int len = (skb_transport_header(skb)[1] + 1) << 3;
+	const struct tlvtype_proc *curr;
+	bool disallow_unknowns = false;
+	int tlv_count = 0;
 	int padlen = 0;
+
+	if (unlikely(max_count < 0)) {
+		disallow_unknowns = true;
+		max_count = -max_count;
+	}
 
 	if (skb_transport_offset(skb) + len > skb_headlen(skb))
 		goto bad;
@@ -148,6 +171,11 @@ static bool ip6_parse_tlv(const struct tlvtype_proc *procs, struct sk_buff *skb)
 		default: /* Other TLV code so scan list */
 			if (optlen > len)
 				goto bad;
+
+			tlv_count++;
+			if (tlv_count > max_count)
+				goto bad;
+
 			for (curr = procs; curr->type >= 0; curr++) {
 				if (curr->type == nh[off]) {
 					/* type specific length/alignment
@@ -158,10 +186,10 @@ static bool ip6_parse_tlv(const struct tlvtype_proc *procs, struct sk_buff *skb)
 					break;
 				}
 			}
-			if (curr->type < 0) {
-				if (ip6_tlvopt_unknown(skb, off) == 0)
-					return false;
-			}
+			if (curr->type < 0 &&
+			    !ip6_tlvopt_unknown(skb, off, disallow_unknowns))
+				return false;
+
 			padlen = 0;
 			break;
 		}
@@ -186,7 +214,6 @@ static bool ipv6_dest_hao(struct sk_buff *skb, int optoff)
 	struct ipv6_destopt_hao *hao;
 	struct inet6_skb_parm *opt = IP6CB(skb);
 	struct ipv6hdr *ipv6h = ipv6_hdr(skb);
-	struct in6_addr tmp_addr;
 	int ret;
 
 	if (opt->dsthao) {
@@ -228,9 +255,7 @@ static bool ipv6_dest_hao(struct sk_buff *skb, int optoff)
 	if (skb->ip_summed == CHECKSUM_COMPLETE)
 		skb->ip_summed = CHECKSUM_NONE;
 
-	tmp_addr = ipv6h->saddr;
-	ipv6h->saddr = hao->addr;
-	hao->addr = tmp_addr;
+	swap(ipv6h->saddr, hao->addr);
 
 	if (skb->tstamp == 0)
 		__net_timestamp(skb);
@@ -260,23 +285,31 @@ static int ipv6_destopt_rcv(struct sk_buff *skb)
 	__u16 dstbuf;
 #endif
 	struct dst_entry *dst = skb_dst(skb);
+	struct net *net = dev_net(skb->dev);
+	int extlen;
 
 	if (!pskb_may_pull(skb, skb_transport_offset(skb) + 8) ||
 	    !pskb_may_pull(skb, (skb_transport_offset(skb) +
 				 ((skb_transport_header(skb)[1] + 1) << 3)))) {
 		__IP6_INC_STATS(dev_net(dst->dev), ip6_dst_idev(dst),
 				IPSTATS_MIB_INHDRERRORS);
+fail_and_free:
 		kfree_skb(skb);
 		return -1;
 	}
+
+	extlen = (skb_transport_header(skb)[1] + 1) << 3;
+	if (extlen > net->ipv6.sysctl.max_dst_opts_len)
+		goto fail_and_free;
 
 	opt->lastopt = opt->dst1 = skb_network_header_len(skb);
 #if IS_ENABLED(CONFIG_IPV6_MIP6)
 	dstbuf = opt->dst1;
 #endif
 
-	if (ip6_parse_tlv(tlvprocdestopt_lst, skb)) {
-		skb->transport_header += (skb_transport_header(skb)[1] + 1) << 3;
+	if (ip6_parse_tlv(tlvprocdestopt_lst, skb,
+			  init_net.ipv6.sysctl.max_dst_opts_cnt)) {
+		skb->transport_header += extlen;
 		opt = IP6CB(skb);
 #if IS_ENABLED(CONFIG_IPV6_MIP6)
 		opt->nhoff = dstbuf;
@@ -805,6 +838,8 @@ static const struct tlvtype_proc tlvprochopopt_lst[] = {
 int ipv6_parse_hopopts(struct sk_buff *skb)
 {
 	struct inet6_skb_parm *opt = IP6CB(skb);
+	struct net *net = dev_net(skb->dev);
+	int extlen;
 
 	/*
 	 * skb_network_header(skb) is equal to skb->data, and
@@ -815,13 +850,19 @@ int ipv6_parse_hopopts(struct sk_buff *skb)
 	if (!pskb_may_pull(skb, sizeof(struct ipv6hdr) + 8) ||
 	    !pskb_may_pull(skb, (sizeof(struct ipv6hdr) +
 				 ((skb_transport_header(skb)[1] + 1) << 3)))) {
+fail_and_free:
 		kfree_skb(skb);
 		return -1;
 	}
 
+	extlen = (skb_transport_header(skb)[1] + 1) << 3;
+	if (extlen > net->ipv6.sysctl.max_hbh_opts_len)
+		goto fail_and_free;
+
 	opt->flags |= IP6SKB_HOPBYHOP;
-	if (ip6_parse_tlv(tlvprochopopt_lst, skb)) {
-		skb->transport_header += (skb_transport_header(skb)[1] + 1) << 3;
+	if (ip6_parse_tlv(tlvprochopopt_lst, skb,
+			  init_net.ipv6.sysctl.max_hbh_opts_cnt)) {
+		skb->transport_header += extlen;
 		opt = IP6CB(skb);
 		opt->nhoff = sizeof(struct ipv6hdr);
 		return 1;

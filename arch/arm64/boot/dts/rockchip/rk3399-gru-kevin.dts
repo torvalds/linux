@@ -249,6 +249,10 @@ ap_i2c_dig: &i2c2 {
 		pinctrl-0 = <&trackpad_int_l>;
 		interrupt-parent = <&gpio1>;
 		interrupts = <4 IRQ_TYPE_LEVEL_LOW>;
+		linux,gpio-keymap = <KEY_RESERVED
+				     KEY_RESERVED
+				     KEY_RESERVED
+				     BTN_LEFT>;
 		wakeup-source;
 	};
 };

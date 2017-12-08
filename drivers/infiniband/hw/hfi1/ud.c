@@ -265,8 +265,8 @@ static void ud_loopback(struct rvt_qp *sqp, struct rvt_swqe *swqe)
 	} else {
 		wc.pkey_index = 0;
 	}
-	wc.slid = ppd->lid | (rdma_ah_get_path_bits(ah_attr) &
-				   ((1 << ppd->lmc) - 1));
+	wc.slid = (ppd->lid | (rdma_ah_get_path_bits(ah_attr) &
+				   ((1 << ppd->lmc) - 1))) & U16_MAX;
 	/* Check for loopback when the port lid is not set */
 	if (wc.slid == 0 && sqp->ibqp.qp_type == IB_QPT_GSI)
 		wc.slid = be16_to_cpu(IB_LID_PERMISSIVE);
@@ -487,7 +487,7 @@ int hfi1_make_ud_req(struct rvt_qp *qp, struct hfi1_pkt_state *ps)
 			goto bail;
 		/* We are in the error state, flush the work request. */
 		smp_read_barrier_depends(); /* see post_one_send */
-		if (qp->s_last == ACCESS_ONCE(qp->s_head))
+		if (qp->s_last == READ_ONCE(qp->s_head))
 			goto bail;
 		/* If DMAs are in progress, we can't flush immediately. */
 		if (iowait_sdma_pending(&priv->s_iowait)) {
@@ -501,7 +501,7 @@ int hfi1_make_ud_req(struct rvt_qp *qp, struct hfi1_pkt_state *ps)
 
 	/* see post_one_send() */
 	smp_read_barrier_depends();
-	if (qp->s_cur == ACCESS_ONCE(qp->s_head))
+	if (qp->s_cur == READ_ONCE(qp->s_head))
 		goto bail;
 
 	wqe = rvt_get_swqe_ptr(qp, qp->s_cur);
@@ -854,7 +854,6 @@ void hfi1_ud_rcv(struct hfi1_packet *packet)
 	int mgmt_pkey_idx = -1;
 	struct hfi1_ibport *ibp = rcd_to_iport(packet->rcd);
 	struct hfi1_pportdata *ppd = ppd_from_ibp(ibp);
-	struct ib_header *hdr = packet->hdr;
 	void *data = packet->payload;
 	u32 tlen = packet->tlen;
 	struct rvt_qp *qp = packet->qp;
@@ -880,7 +879,6 @@ void hfi1_ud_rcv(struct hfi1_packet *packet)
 		dlid_is_permissive = (dlid == permissive_lid);
 		slid_is_permissive = (slid == permissive_lid);
 	} else {
-		hdr = packet->hdr;
 		pkey = ib_bth_get_pkey(ohdr);
 		dlid_is_permissive = (dlid == be16_to_cpu(IB_LID_PERMISSIVE));
 		slid_is_permissive = (slid == be16_to_cpu(IB_LID_PERMISSIVE));
@@ -1039,7 +1037,7 @@ void hfi1_ud_rcv(struct hfi1_packet *packet)
 	}
 	if (slid_is_permissive)
 		slid = be32_to_cpu(OPA_LID_PERMISSIVE);
-	wc.slid = slid;
+	wc.slid = slid & U16_MAX;
 	wc.sl = sl_from_sc;
 
 	/*

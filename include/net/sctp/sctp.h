@@ -195,6 +195,11 @@ void sctp_remaddr_proc_exit(struct net *net);
 int sctp_offload_init(void);
 
 /*
+ * sctp/stream_sched.c
+ */
+void sctp_sched_ops_init(void);
+
+/*
  * sctp/stream.c
  */
 int sctp_send_reset_streams(struct sctp_association *asoc,
@@ -444,7 +449,8 @@ static inline int sctp_frag_point(const struct sctp_association *asoc, int pmtu)
 	if (asoc->user_frag)
 		frag = min_t(int, frag, asoc->user_frag);
 
-	frag = SCTP_TRUNC4(min_t(int, frag, SCTP_MAX_CHUNK_LEN));
+	frag = SCTP_TRUNC4(min_t(int, frag, SCTP_MAX_CHUNK_LEN -
+					    sizeof(struct sctp_data_chunk)));
 
 	return frag;
 }

@@ -73,8 +73,8 @@
  * list traversals just rcu-locked
  */
 struct list_head batadv_hardif_list;
-static int (*batadv_rx_handler[256])(struct sk_buff *,
-				     struct batadv_hard_iface *);
+static int (*batadv_rx_handler[256])(struct sk_buff *skb,
+				     struct batadv_hard_iface *recv_if);
 
 unsigned char batadv_broadcast_addr[] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 
@@ -540,12 +540,12 @@ batadv_recv_handler_register(u8 packet_type,
 			     int (*recv_handler)(struct sk_buff *,
 						 struct batadv_hard_iface *))
 {
-	int (*curr)(struct sk_buff *,
-		    struct batadv_hard_iface *);
+	int (*curr)(struct sk_buff *skb,
+		    struct batadv_hard_iface *recv_if);
 	curr = batadv_rx_handler[packet_type];
 
-	if ((curr != batadv_recv_unhandled_packet) &&
-	    (curr != batadv_recv_unhandled_unicast_packet))
+	if (curr != batadv_recv_unhandled_packet &&
+	    curr != batadv_recv_unhandled_unicast_packet)
 		return -EBUSY;
 
 	batadv_rx_handler[packet_type] = recv_handler;

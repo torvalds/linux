@@ -41,3 +41,73 @@ KernelVersion:	4.5
 Contact:	K. Y. Srinivasan <kys@microsoft.com>
 Description:	The 16 bit vendor ID of the device
 Users:		tools/hv/lsvmbus and user level RDMA libraries
+
+What:		/sys/bus/vmbus/devices/vmbus_*/channels/relid/cpu
+Date:		September. 2017
+KernelVersion:	4.14
+Contact:	Stephen Hemminger <sthemmin@microsoft.com>
+Description:	VCPU (sub)channel is affinitized to
+Users:		tools/hv/lsvmbus and other debuggig tools
+
+What:		/sys/bus/vmbus/devices/vmbus_*/channels/relid/cpu
+Date:		September. 2017
+KernelVersion:	4.14
+Contact:	Stephen Hemminger <sthemmin@microsoft.com>
+Description:	VCPU (sub)channel is affinitized to
+Users:		tools/hv/lsvmbus and other debuggig tools
+
+What:		/sys/bus/vmbus/devices/vmbus_*/channels/relid/in_mask
+Date:		September. 2017
+KernelVersion:	4.14
+Contact:	Stephen Hemminger <sthemmin@microsoft.com>
+Description:	Inbound channel signaling state
+Users:		Debugging tools
+
+What:		/sys/bus/vmbus/devices/vmbus_*/channels/relid/latency
+Date:		September. 2017
+KernelVersion:	4.14
+Contact:	Stephen Hemminger <sthemmin@microsoft.com>
+Description:	Channel signaling latency
+Users:		Debugging tools
+
+What:		/sys/bus/vmbus/devices/vmbus_*/channels/relid/out_mask
+Date:		September. 2017
+KernelVersion:	4.14
+Contact:	Stephen Hemminger <sthemmin@microsoft.com>
+Description:	Outbound channel signaling state
+Users:		Debugging tools
+
+What:		/sys/bus/vmbus/devices/vmbus_*/channels/relid/pending
+Date:		September. 2017
+KernelVersion:	4.14
+Contact:	Stephen Hemminger <sthemmin@microsoft.com>
+Description:	Channel interrupt pending state
+Users:		Debugging tools
+
+What:		/sys/bus/vmbus/devices/vmbus_*/channels/relid/read_avail
+Date:		September. 2017
+KernelVersion:	4.14
+Contact:	Stephen Hemminger <sthemmin@microsoft.com>
+Description:	Bytes availabble to read
+Users:		Debugging tools
+
+What:		/sys/bus/vmbus/devices/vmbus_*/channels/relid/write_avail
+Date:		September. 2017
+KernelVersion:	4.14
+Contact:	Stephen Hemminger <sthemmin@microsoft.com>
+Description:	Bytes availabble to write
+Users:		Debugging tools
+
+What:		/sys/bus/vmbus/devices/vmbus_*/channels/relid/events
+Date:		September. 2017
+KernelVersion:	4.14
+Contact:	Stephen Hemminger <sthemmin@microsoft.com>
+Description:	Number of times we have signaled the host
+Users:		Debugging tools
+
+What:		/sys/bus/vmbus/devices/vmbus_*/channels/relid/interrupts
+Date:		September. 2017
+KernelVersion:	4.14
+Contact:	Stephen Hemminger <sthemmin@microsoft.com>
+Description:	Number of times we have taken an interrupt (incoming)
+Users:		Debugging tools

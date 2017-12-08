@@ -32,6 +32,7 @@ config=2
 fd=5
 type=0
 config=0
+optional=1
 
 # PERF_TYPE_HARDWARE / PERF_COUNT_HW_STALLED_CYCLES_FRONTEND
 [event6:base-stat]
@@ -52,15 +53,18 @@ optional=1
 fd=8
 type=0
 config=1
+optional=1
 
 # PERF_TYPE_HARDWARE / PERF_COUNT_HW_BRANCH_INSTRUCTIONS
 [event9:base-stat]
 fd=9
 type=0
 config=4
+optional=1
 
 # PERF_TYPE_HARDWARE / PERF_COUNT_HW_BRANCH_MISSES
 [event10:base-stat]
 fd=10
 type=0
 config=5
+optional=1

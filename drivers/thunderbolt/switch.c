@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Thunderbolt Cactus Ridge driver - switch/port utility functions
  *
@@ -171,11 +172,11 @@ static int nvm_authenticate_host(struct tb_switch *sw)
 
 	/*
 	 * Root switch NVM upgrade requires that we disconnect the
-	 * existing PCIe paths first (in case it is not in safe mode
+	 * existing paths first (in case it is not in safe mode
 	 * already).
 	 */
 	if (!sw->safe_mode) {
-		ret = tb_domain_disconnect_pcie_paths(sw->tb);
+		ret = tb_domain_disconnect_all_paths(sw->tb);
 		if (ret)
 			return ret;
 		/*
@@ -1363,6 +1364,9 @@ void tb_switch_remove(struct tb_switch *sw)
 		if (sw->ports[i].remote)
 			tb_switch_remove(sw->ports[i].remote->sw);
 		sw->ports[i].remote = NULL;
+		if (sw->ports[i].xdomain)
+			tb_xdomain_remove(sw->ports[i].xdomain);
+		sw->ports[i].xdomain = NULL;
 	}
 
 	if (!sw->is_unplugged)

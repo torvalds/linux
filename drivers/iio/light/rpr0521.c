@@ -538,7 +538,6 @@ static int rpr0521_pxs_drdy_set_state(struct iio_trigger *trigger,
 
 static const struct iio_trigger_ops rpr0521_trigger_ops = {
 	.set_trigger_state = rpr0521_pxs_drdy_set_state,
-	.owner = THIS_MODULE,
 	};
 
 
@@ -830,7 +829,6 @@ static int rpr0521_write_raw(struct iio_dev *indio_dev,
 }
 
 static const struct iio_info rpr0521_info = {
-	.driver_module	= THIS_MODULE,
 	.read_raw	= rpr0521_read_raw,
 	.write_raw	= rpr0521_write_raw,
 	.attrs		= &rpr0521_attribute_group,

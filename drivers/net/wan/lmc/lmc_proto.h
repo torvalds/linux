@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _LMC_PROTO_H_
 #define _LMC_PROTO_H_
 

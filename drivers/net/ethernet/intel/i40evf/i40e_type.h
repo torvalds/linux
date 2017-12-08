@@ -46,6 +46,9 @@
 /* Max default timeout in ms, */
 #define I40E_MAX_NVM_TIMEOUT		18000
 
+/* Max timeout in ms for the phy to respond */
+#define I40E_MAX_PHY_TIMEOUT		500
+
 /* Switch from ms to the 1usec global time (this is the GTIME resolution) */
 #define I40E_MS_TO_GTIME(time)		((time) * 1000)
 
@@ -401,6 +404,18 @@ struct i40e_nvm_access {
 	u8 data[1];
 };
 
+/* (Q)SFP module access definitions */
+#define I40E_I2C_EEPROM_DEV_ADDR	0xA0
+#define I40E_I2C_EEPROM_DEV_ADDR2	0xA2
+#define I40E_MODULE_TYPE_ADDR		0x00
+#define I40E_MODULE_REVISION_ADDR	0x01
+#define I40E_MODULE_SFF_8472_COMP	0x5E
+#define I40E_MODULE_SFF_8472_SWAP	0x5C
+#define I40E_MODULE_SFF_ADDR_MODE	0x04
+#define I40E_MODULE_TYPE_QSFP_PLUS	0x0D
+#define I40E_MODULE_TYPE_QSFP28		0x11
+#define I40E_MODULE_QSFP_MAX_LEN	640
+
 /* PCI bus types */
 enum i40e_bus_type {
 	i40e_bus_type_unknown = 0,
@@ -556,10 +571,18 @@ struct i40e_hw {
 	/* LLDP/DCBX Status */
 	u16 dcbx_status;
 
+#define I40E_HW_FLAG_802_1AD_CAPABLE        BIT_ULL(1)
+#define I40E_HW_FLAG_AQ_PHY_ACCESS_CAPABLE  BIT_ULL(2)
+
 	/* DCBX info */
 	struct i40e_dcbx_config local_dcbx_config; /* Oper/Local Cfg */
 	struct i40e_dcbx_config remote_dcbx_config; /* Peer Cfg */
 	struct i40e_dcbx_config desired_dcbx_config; /* CEE Desired Cfg */
+
+	/* Used in set switch config AQ command */
+	u16 switch_tag;
+	u16 first_tag;
+	u16 second_tag;
 
 	/* debug mask */
 	u32 debug_mask;

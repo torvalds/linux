@@ -18,8 +18,6 @@
 #ifndef __INCLUDE_LINUX_IRQCHIP_IRQ_OMAP_INTC_H
 #define __INCLUDE_LINUX_IRQCHIP_IRQ_OMAP_INTC_H
 
-void omap3_init_irq(void);
-
 int omap_irq_pending(void);
 void omap_intc_save_context(void);
 void omap_intc_restore_context(void);

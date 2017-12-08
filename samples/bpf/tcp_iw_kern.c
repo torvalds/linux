@@ -42,8 +42,10 @@ int bpf_iw(struct bpf_sock_ops *skops)
 	 * if neither port numberis 55601
 	 */
 	if (bpf_ntohl(skops->remote_port) != 55601 &&
-	    skops->local_port != 55601)
-		return -1;
+	    skops->local_port != 55601) {
+		skops->reply = -1;
+		return 1;
+	}
 
 	op = (int) skops->op;
 
@@ -62,8 +64,8 @@ int bpf_iw(struct bpf_sock_ops *skops)
 		/* Set sndbuf and rcvbuf of active connections */
 		rv = bpf_setsockopt(skops, SOL_SOCKET, SO_SNDBUF, &bufsize,
 				    sizeof(bufsize));
-		rv = rv*100 + bpf_setsockopt(skops, SOL_SOCKET, SO_RCVBUF,
-					     &bufsize, sizeof(bufsize));
+		rv += bpf_setsockopt(skops, SOL_SOCKET, SO_RCVBUF,
+				     &bufsize, sizeof(bufsize));
 		break;
 	case BPF_SOCK_OPS_ACTIVE_ESTABLISHED_CB:
 		rv = bpf_setsockopt(skops, SOL_TCP, TCP_BPF_IW, &iw,
@@ -73,8 +75,8 @@ int bpf_iw(struct bpf_sock_ops *skops)
 		/* Set sndbuf and rcvbuf of passive connections */
 		rv = bpf_setsockopt(skops, SOL_SOCKET, SO_SNDBUF, &bufsize,
 				    sizeof(bufsize));
-		rv = rv*100 + bpf_setsockopt(skops, SOL_SOCKET, SO_RCVBUF,
-					     &bufsize, sizeof(bufsize));
+		rv +=  bpf_setsockopt(skops, SOL_SOCKET, SO_RCVBUF,
+				      &bufsize, sizeof(bufsize));
 		break;
 	default:
 		rv = -1;

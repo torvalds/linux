@@ -335,7 +335,7 @@ static int xlgmac_alloc_pages(struct xlgmac_pdata *pdata,
 	dma_addr_t pages_dma;
 
 	/* Try to obtain pages, decreasing order if necessary */
-	gfp |= __GFP_COLD | __GFP_COMP | __GFP_NOWARN;
+	gfp |= __GFP_COMP | __GFP_NOWARN;
 	while (order >= 0) {
 		pages = alloc_pages(gfp, order);
 		if (pages)

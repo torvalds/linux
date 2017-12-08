@@ -154,7 +154,7 @@ static void nuc900_nand_command_lp(struct mtd_info *mtd, unsigned int command,
 		if (page_addr != -1) {
 			write_addr_reg(nand, page_addr);
 
-			if (chip->chipsize > (128 << 20)) {
+			if (chip->options & NAND_ROW_ADDR_3) {
 				write_addr_reg(nand, page_addr >> 8);
 				write_addr_reg(nand, page_addr >> 16 | ENDADDR);
 			} else {

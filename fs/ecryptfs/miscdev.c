@@ -163,12 +163,8 @@ int ecryptfs_send_miscdev(char *data, size_t data_size,
 	struct ecryptfs_message *msg;
 
 	msg = kmalloc((sizeof(*msg) + data_size), GFP_KERNEL);
-	if (!msg) {
-		printk(KERN_ERR "%s: Out of memory whilst attempting "
-		       "to kmalloc(%zd, GFP_KERNEL)\n", __func__,
-		       (sizeof(*msg) + data_size));
+	if (!msg)
 		return -ENOMEM;
-	}
 
 	mutex_lock(&msg_ctx->mux);
 	msg_ctx->msg = msg;
@@ -383,7 +379,7 @@ ecryptfs_miscdev_write(struct file *file, const char __user *buf,
 		goto memdup;
 	} else if (count < MIN_MSG_PKT_SIZE || count > MAX_MSG_PKT_SIZE) {
 		printk(KERN_WARNING "%s: Acceptable packet size range is "
-		       "[%d-%zu], but amount of data written is [%zu].",
+		       "[%d-%zu], but amount of data written is [%zu].\n",
 		       __func__, MIN_MSG_PKT_SIZE, MAX_MSG_PKT_SIZE, count);
 		return -EINVAL;
 	}

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __ASM_SN_HUB_H
 #define __ASM_SN_HUB_H
 

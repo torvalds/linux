@@ -807,10 +807,10 @@ static irqreturn_t grcan_interrupt(int irq, void *dev_id)
  * is not ONGOING (TX might be stuck in ONGOING due to a harwrware bug
  * for single shot)
  */
-static void grcan_running_reset(unsigned long data)
+static void grcan_running_reset(struct timer_list *t)
 {
-	struct net_device *dev = (struct net_device *)data;
-	struct grcan_priv *priv = netdev_priv(dev);
+	struct grcan_priv *priv = from_timer(priv, t, rr_timer);
+	struct net_device *dev = priv->dev;
 	struct grcan_registers __iomem *regs = priv->regs;
 	unsigned long flags;
 
@@ -898,10 +898,10 @@ static inline void grcan_reset_timer(struct timer_list *timer, __u32 bitrate)
 }
 
 /* Disable channels and schedule a running reset */
-static void grcan_initiate_running_reset(unsigned long data)
+static void grcan_initiate_running_reset(struct timer_list *t)
 {
-	struct net_device *dev = (struct net_device *)data;
-	struct grcan_priv *priv = netdev_priv(dev);
+	struct grcan_priv *priv = from_timer(priv, t, hang_timer);
+	struct net_device *dev = priv->dev;
 	struct grcan_registers __iomem *regs = priv->regs;
 	unsigned long flags;
 
@@ -1626,13 +1626,8 @@ static int grcan_setup_netdev(struct platform_device *ofdev,
 	spin_lock_init(&priv->lock);
 
 	if (priv->need_txbug_workaround) {
-		init_timer(&priv->rr_timer);
-		priv->rr_timer.function = grcan_running_reset;
-		priv->rr_timer.data = (unsigned long)dev;
-
-		init_timer(&priv->hang_timer);
-		priv->hang_timer.function = grcan_initiate_running_reset;
-		priv->hang_timer.data = (unsigned long)dev;
+		timer_setup(&priv->rr_timer, grcan_running_reset, 0);
+		timer_setup(&priv->hang_timer, grcan_initiate_running_reset, 0);
 	}
 
 	netif_napi_add(dev, &priv->napi, grcan_poll, GRCAN_NAPI_WEIGHT);

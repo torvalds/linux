@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include "levenshtein.h"
 #include <errno.h>
 #include <stdlib.h>

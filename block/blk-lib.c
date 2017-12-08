@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Functions related to generic helpers functions
  */
@@ -274,51 +275,18 @@ static unsigned int __blkdev_sectors_to_bio_pages(sector_t nr_sects)
 	return min(pages, (sector_t)BIO_MAX_PAGES);
 }
 
-/**
- * __blkdev_issue_zeroout - generate number of zero filed write bios
- * @bdev:	blockdev to issue
- * @sector:	start sector
- * @nr_sects:	number of sectors to write
- * @gfp_mask:	memory allocation flags (for bio_alloc)
- * @biop:	pointer to anchor bio
- * @flags:	controls detailed behavior
- *
- * Description:
- *  Zero-fill a block range, either using hardware offload or by explicitly
- *  writing zeroes to the device.
- *
- *  Note that this function may fail with -EOPNOTSUPP if the driver signals
- *  zeroing offload support, but the device fails to process the command (for
- *  some devices there is no non-destructive way to verify whether this
- *  operation is actually supported).  In this case the caller should call
- *  retry the call to blkdev_issue_zeroout() and the fallback path will be used.
- *
- *  If a device is using logical block provisioning, the underlying space will
- *  not be released if %flags contains BLKDEV_ZERO_NOUNMAP.
- *
- *  If %flags contains BLKDEV_ZERO_NOFALLBACK, the function will return
- *  -EOPNOTSUPP if no explicit hardware offload for zeroing is provided.
- */
-int __blkdev_issue_zeroout(struct block_device *bdev, sector_t sector,
-		sector_t nr_sects, gfp_t gfp_mask, struct bio **biop,
-		unsigned flags)
+static int __blkdev_issue_zero_pages(struct block_device *bdev,
+		sector_t sector, sector_t nr_sects, gfp_t gfp_mask,
+		struct bio **biop)
 {
-	int ret;
-	int bi_size = 0;
+	struct request_queue *q = bdev_get_queue(bdev);
 	struct bio *bio = *biop;
+	int bi_size = 0;
 	unsigned int sz;
-	sector_t bs_mask;
 
-	bs_mask = (bdev_logical_block_size(bdev) >> 9) - 1;
-	if ((sector | nr_sects) & bs_mask)
-		return -EINVAL;
+	if (!q)
+		return -ENXIO;
 
-	ret = __blkdev_issue_write_zeroes(bdev, sector, nr_sects, gfp_mask,
-			biop, flags);
-	if (ret != -EOPNOTSUPP || (flags & BLKDEV_ZERO_NOFALLBACK))
-		goto out;
-
-	ret = 0;
 	while (nr_sects != 0) {
 		bio = next_bio(bio, __blkdev_sectors_to_bio_pages(nr_sects),
 			       gfp_mask);
@@ -338,8 +306,46 @@ int __blkdev_issue_zeroout(struct block_device *bdev, sector_t sector,
 	}
 
 	*biop = bio;
-out:
-	return ret;
+	return 0;
+}
+
+/**
+ * __blkdev_issue_zeroout - generate number of zero filed write bios
+ * @bdev:	blockdev to issue
+ * @sector:	start sector
+ * @nr_sects:	number of sectors to write
+ * @gfp_mask:	memory allocation flags (for bio_alloc)
+ * @biop:	pointer to anchor bio
+ * @flags:	controls detailed behavior
+ *
+ * Description:
+ *  Zero-fill a block range, either using hardware offload or by explicitly
+ *  writing zeroes to the device.
+ *
+ *  If a device is using logical block provisioning, the underlying space will
+ *  not be released if %flags contains BLKDEV_ZERO_NOUNMAP.
+ *
+ *  If %flags contains BLKDEV_ZERO_NOFALLBACK, the function will return
+ *  -EOPNOTSUPP if no explicit hardware offload for zeroing is provided.
+ */
+int __blkdev_issue_zeroout(struct block_device *bdev, sector_t sector,
+		sector_t nr_sects, gfp_t gfp_mask, struct bio **biop,
+		unsigned flags)
+{
+	int ret;
+	sector_t bs_mask;
+
+	bs_mask = (bdev_logical_block_size(bdev) >> 9) - 1;
+	if ((sector | nr_sects) & bs_mask)
+		return -EINVAL;
+
+	ret = __blkdev_issue_write_zeroes(bdev, sector, nr_sects, gfp_mask,
+			biop, flags);
+	if (ret != -EOPNOTSUPP || (flags & BLKDEV_ZERO_NOFALLBACK))
+		return ret;
+
+	return __blkdev_issue_zero_pages(bdev, sector, nr_sects, gfp_mask,
+					 biop);
 }
 EXPORT_SYMBOL(__blkdev_issue_zeroout);
 
@@ -359,18 +365,49 @@ EXPORT_SYMBOL(__blkdev_issue_zeroout);
 int blkdev_issue_zeroout(struct block_device *bdev, sector_t sector,
 		sector_t nr_sects, gfp_t gfp_mask, unsigned flags)
 {
-	int ret;
-	struct bio *bio = NULL;
+	int ret = 0;
+	sector_t bs_mask;
+	struct bio *bio;
 	struct blk_plug plug;
+	bool try_write_zeroes = !!bdev_write_zeroes_sectors(bdev);
 
+	bs_mask = (bdev_logical_block_size(bdev) >> 9) - 1;
+	if ((sector | nr_sects) & bs_mask)
+		return -EINVAL;
+
+retry:
+	bio = NULL;
 	blk_start_plug(&plug);
-	ret = __blkdev_issue_zeroout(bdev, sector, nr_sects, gfp_mask,
-			&bio, flags);
+	if (try_write_zeroes) {
+		ret = __blkdev_issue_write_zeroes(bdev, sector, nr_sects,
+						  gfp_mask, &bio, flags);
+	} else if (!(flags & BLKDEV_ZERO_NOFALLBACK)) {
+		ret = __blkdev_issue_zero_pages(bdev, sector, nr_sects,
+						gfp_mask, &bio);
+	} else {
+		/* No zeroing offload support */
+		ret = -EOPNOTSUPP;
+	}
 	if (ret == 0 && bio) {
 		ret = submit_bio_wait(bio);
 		bio_put(bio);
 	}
 	blk_finish_plug(&plug);
+	if (ret && try_write_zeroes) {
+		if (!(flags & BLKDEV_ZERO_NOFALLBACK)) {
+			try_write_zeroes = false;
+			goto retry;
+		}
+		if (!bdev_write_zeroes_sectors(bdev)) {
+			/*
+			 * Zeroing offload support was indicated, but the
+			 * device reported ILLEGAL REQUEST (for some devices
+			 * there is no non-destructive way to verify whether
+			 * WRITE ZEROES is actually supported).
+			 */
+			ret = -EOPNOTSUPP;
+		}
+	}
 
 	return ret;
 }

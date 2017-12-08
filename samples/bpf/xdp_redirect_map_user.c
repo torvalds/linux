@@ -20,6 +20,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <libgen.h>
+#include <sys/resource.h>
 
 #include "bpf_load.h"
 #include "bpf_util.h"
@@ -74,6 +75,7 @@ static void usage(const char *prog)
 
 int main(int argc, char **argv)
 {
+	struct rlimit r = {RLIM_INFINITY, RLIM_INFINITY};
 	const char *optstr = "SN";
 	char filename[256];
 	int ret, opt, key = 0;
@@ -94,6 +96,11 @@ int main(int argc, char **argv)
 
 	if (optind == argc) {
 		printf("usage: %s IFINDEX_IN IFINDEX_OUT\n", argv[0]);
+		return 1;
+	}
+
+	if (setrlimit(RLIMIT_MEMLOCK, &r)) {
+		perror("setrlimit(RLIMIT_MEMLOCK)");
 		return 1;
 	}
 

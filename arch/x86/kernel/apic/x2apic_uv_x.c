@@ -154,6 +154,48 @@ static int __init early_get_pnodeid(void)
 	return pnode;
 }
 
+static void __init uv_tsc_check_sync(void)
+{
+	u64 mmr;
+	int sync_state;
+	int mmr_shift;
+	char *state;
+	bool valid;
+
+	/* Accommodate different UV arch BIOSes */
+	mmr = uv_early_read_mmr(UVH_TSC_SYNC_MMR);
+	mmr_shift =
+		is_uv1_hub() ? 0 :
+		is_uv2_hub() ? UVH_TSC_SYNC_SHIFT_UV2K : UVH_TSC_SYNC_SHIFT;
+	if (mmr_shift)
+		sync_state = (mmr >> mmr_shift) & UVH_TSC_SYNC_MASK;
+	else
+		sync_state = 0;
+
+	switch (sync_state) {
+	case UVH_TSC_SYNC_VALID:
+		state = "in sync";
+		valid = true;
+		break;
+
+	case UVH_TSC_SYNC_INVALID:
+		state = "unstable";
+		valid = false;
+		break;
+	default:
+		state = "unknown: assuming valid";
+		valid = true;
+		break;
+	}
+	pr_info("UV: TSC sync state from BIOS:0%d(%s)\n", sync_state, state);
+
+	/* Mark flag that says TSC != 0 is valid for socket 0 */
+	if (valid)
+		mark_tsc_async_resets("UV BIOS");
+	else
+		mark_tsc_unstable("UV BIOS");
+}
+
 /* [Copied from arch/x86/kernel/cpu/topology.c:detect_extended_topology()] */
 
 #define SMT_LEVEL			0	/* Leaf 0xb SMT level */
@@ -288,6 +330,7 @@ static int __init uv_acpi_madt_oem_check(char *oem_id, char *oem_table_id)
 	}
 
 	pr_info("UV: OEM IDs %s/%s, System/HUB Types %d/%d, uv_apic %d\n", oem_id, oem_table_id, uv_system_type, uv_min_hub_revision_id, uv_apic);
+	uv_tsc_check_sync();
 
 	return uv_apic;
 
@@ -525,16 +568,9 @@ static void uv_init_apic_ldr(void)
 {
 }
 
-static int
-uv_cpu_mask_to_apicid(const struct cpumask *mask, struct irq_data *irqdata,
-		      unsigned int *apicid)
+static u32 apic_uv_calc_apicid(unsigned int cpu)
 {
-	int ret = default_cpu_mask_to_apicid(mask, irqdata, apicid);
-
-	if (!ret)
-		*apicid |= uv_apicid_hibits;
-
-	return ret;
+	return apic_default_calc_apicid(cpu) | uv_apicid_hibits;
 }
 
 static unsigned int x2apic_get_apic_id(unsigned long x)
@@ -547,7 +583,7 @@ static unsigned int x2apic_get_apic_id(unsigned long x)
 	return id;
 }
 
-static unsigned long set_apic_id(unsigned int id)
+static u32 set_apic_id(unsigned int id)
 {
 	/* CHECKME: Do we need to mask out the xapic extra bits? */
 	return id;
@@ -584,12 +620,10 @@ static struct apic apic_x2apic_uv_x __ro_after_init = {
 	.irq_delivery_mode		= dest_Fixed,
 	.irq_dest_mode			= 0, /* Physical */
 
-	.target_cpus			= online_target_cpus,
 	.disable_esr			= 0,
 	.dest_logical			= APIC_DEST_LOGICAL,
 	.check_apicid_used		= NULL,
 
-	.vector_allocation_domain	= default_vector_allocation_domain,
 	.init_apic_ldr			= uv_init_apic_ldr,
 
 	.ioapic_phys_id_map		= NULL,
@@ -602,7 +636,7 @@ static struct apic apic_x2apic_uv_x __ro_after_init = {
 	.get_apic_id			= x2apic_get_apic_id,
 	.set_apic_id			= set_apic_id,
 
-	.cpu_mask_to_apicid		= uv_cpu_mask_to_apicid,
+	.calc_dest_apicid		= apic_uv_calc_apicid,
 
 	.send_IPI			= uv_send_IPI_one,
 	.send_IPI_mask			= uv_send_IPI_mask,
@@ -920,9 +954,8 @@ static __init void uv_rtc_init(void)
 /*
  * percpu heartbeat timer
  */
-static void uv_heartbeat(unsigned long ignored)
+static void uv_heartbeat(struct timer_list *timer)
 {
-	struct timer_list *timer = &uv_scir_info->timer;
 	unsigned char bits = uv_scir_info->state;
 
 	/* Flip heartbeat bit: */
@@ -947,7 +980,7 @@ static int uv_heartbeat_enable(unsigned int cpu)
 		struct timer_list *timer = &uv_cpu_scir_info(cpu)->timer;
 
 		uv_set_cpu_scir_bits(cpu, SCIR_CPU_HEARTBEAT|SCIR_CPU_ACTIVITY);
-		setup_pinned_timer(timer, uv_heartbeat, cpu);
+		timer_setup(timer, uv_heartbeat, TIMER_PINNED);
 		timer->expires = jiffies + SCIR_CPU_HB_INTERVAL;
 		add_timer_on(timer, cpu);
 		uv_cpu_scir_info(cpu)->enabled = 1;

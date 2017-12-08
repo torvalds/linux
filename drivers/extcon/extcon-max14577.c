@@ -23,7 +23,7 @@
 #include <linux/platform_device.h>
 #include <linux/mfd/max14577.h>
 #include <linux/mfd/max14577-private.h>
-#include <linux/extcon.h>
+#include <linux/extcon-provider.h>
 
 #define	DELAY_MS_DEFAULT		17000		/* unit: millisecond */
 
@@ -204,8 +204,8 @@ static int max14577_muic_set_debounce_time(struct max14577_muic_info *info,
 static int max14577_muic_set_path(struct max14577_muic_info *info,
 		u8 val, bool attached)
 {
-	int ret = 0;
 	u8 ctrl1, ctrl2 = 0;
+	int ret;
 
 	/* Set open state to path before changing hw path */
 	ret = max14577_update_reg(info->max14577->regmap,

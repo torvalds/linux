@@ -69,7 +69,7 @@
 		};
 	};
 
-	sram0: sram@002ff000 {
+	sram0: sram@2ff000 {
 		compatible = "mmio-sram";
 		reg = <0x002ff000 0x2000>;
 	};

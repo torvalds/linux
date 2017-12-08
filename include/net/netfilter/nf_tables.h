@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _NET_NF_TABLES_H
 #define _NET_NF_TABLES_H
 
@@ -311,6 +312,7 @@ struct nft_expr;
  *	@flush: deactivate element in the next generation
  *	@remove: remove element from set
  *	@walk: iterate over all set elemeennts
+ *	@get: get set elements
  *	@privsize: function to return size of set private data
  *	@init: initialize private data of new set instance
  *	@destroy: destroy private data of set instance
@@ -350,6 +352,10 @@ struct nft_set_ops {
 	void				(*walk)(const struct nft_ctx *ctx,
 						struct nft_set *set,
 						struct nft_set_iter *iter);
+	void *				(*get)(const struct net *net,
+					       const struct nft_set *set,
+					       const struct nft_set_elem *elem,
+					       unsigned int flags);
 
 	unsigned int			(*privsize)(const struct nlattr * const nla[],
 						    const struct nft_set_desc *desc);
@@ -1164,8 +1170,8 @@ static inline u8 nft_genmask_next(const struct net *net)
 
 static inline u8 nft_genmask_cur(const struct net *net)
 {
-	/* Use ACCESS_ONCE() to prevent refetching the value for atomicity */
-	return 1 << ACCESS_ONCE(net->nft.gencursor);
+	/* Use READ_ONCE() to prevent refetching the value for atomicity */
+	return 1 << READ_ONCE(net->nft.gencursor);
 }
 
 #define NFT_GENMASK_ANY		((1 << 0) | (1 << 1))

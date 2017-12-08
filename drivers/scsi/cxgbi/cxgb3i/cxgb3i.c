@@ -545,10 +545,10 @@ static int act_open_rpl_status_to_errno(int status)
 	}
 }
 
-static void act_open_retry_timer(unsigned long data)
+static void act_open_retry_timer(struct timer_list *t)
 {
+	struct cxgbi_sock *csk = from_timer(csk, t, retry_timer);
 	struct sk_buff *skb;
-	struct cxgbi_sock *csk = (struct cxgbi_sock *)data;
 
 	log_debug(1 << CXGBI_DBG_TOE | 1 << CXGBI_DBG_SOCK,
 		"csk 0x%p,%u,0x%lx,%u.\n",

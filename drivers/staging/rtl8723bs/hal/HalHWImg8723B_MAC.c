@@ -13,7 +13,7 @@
 *
 ******************************************************************************/
 
-
+#include <linux/kernel.h>
 #include "odm_precomp.h"
 
 static bool CheckPositive(
@@ -239,7 +239,7 @@ static u32 Array_MP_8723B_MAC_REG[] = {
 void ODM_ReadAndConfig_MP_8723B_MAC_REG(PDM_ODM_T pDM_Odm)
 {
 	u32 i = 0;
-	u32 ArrayLen = sizeof(Array_MP_8723B_MAC_REG)/sizeof(u32);
+	u32 ArrayLen = ARRAY_SIZE(Array_MP_8723B_MAC_REG);
 	u32 *Array = Array_MP_8723B_MAC_REG;
 
 	ODM_RT_TRACE(

@@ -977,8 +977,6 @@ static int anx78xx_get_modes(struct drm_connector *connector)
 	}
 
 	num_modes = drm_add_edid_modes(connector, anx78xx->edid);
-	/* Store the ELD */
-	drm_edid_to_eld(connector, anx78xx->edid);
 
 unlock:
 	mutex_unlock(&anx78xx->lock);

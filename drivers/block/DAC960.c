@@ -3079,11 +3079,10 @@ DAC960_InitializeController(DAC960_Controller_T *Controller)
       /*
 	Initialize the Monitoring Timer.
       */
-      init_timer(&Controller->MonitoringTimer);
+      timer_setup(&Controller->MonitoringTimer,
+                  DAC960_MonitoringTimerFunction, 0);
       Controller->MonitoringTimer.expires =
 	jiffies + DAC960_MonitoringTimerInterval;
-      Controller->MonitoringTimer.data = (unsigned long) Controller;
-      Controller->MonitoringTimer.function = DAC960_MonitoringTimerFunction;
       add_timer(&Controller->MonitoringTimer);
       Controller->ControllerInitialized = true;
       return true;
@@ -5620,9 +5619,9 @@ static void DAC960_V2_QueueMonitoringCommand(DAC960_Command_T *Command)
   the status of DAC960 Controllers.
 */
 
-static void DAC960_MonitoringTimerFunction(unsigned long TimerData)
+static void DAC960_MonitoringTimerFunction(struct timer_list *t)
 {
-  DAC960_Controller_T *Controller = (DAC960_Controller_T *) TimerData;
+  DAC960_Controller_T *Controller = from_timer(Controller, t, MonitoringTimer);
   DAC960_Command_T *Command;
   unsigned long flags;
 

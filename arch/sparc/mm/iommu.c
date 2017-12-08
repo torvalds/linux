@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * iommu.c:  IOMMU specific routines for memory management.
  *

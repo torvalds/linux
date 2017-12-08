@@ -919,7 +919,7 @@ void sas_task_abort(struct sas_task *task)
 			return;
 		if (!del_timer(&slow->timer))
 			return;
-		slow->timer.function(slow->timer.data);
+		slow->timer.function(&slow->timer);
 		return;
 	}
 

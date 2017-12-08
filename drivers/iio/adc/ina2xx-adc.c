@@ -123,7 +123,7 @@ struct ina2xx_chip_info {
 	struct task_struct *task;
 	const struct ina2xx_config *config;
 	struct mutex state_lock;
-	unsigned int shunt_resistor;
+	unsigned int shunt_resistor_uohm;
 	int avg;
 	int int_time_vbus; /* Bus voltage integration time uS */
 	int int_time_vshunt; /* Shunt voltage integration time uS */
@@ -436,7 +436,7 @@ static ssize_t ina2xx_allow_async_readout_store(struct device *dev,
 /*
  * Set current LSB to 1mA, shunt is in uOhms
  * (equation 13 in datasheet). We hardcode a Current_LSB
- * of 1.0 x10-6. The only remaining parameter is RShunt.
+ * of 1.0 x10-3. The only remaining parameter is RShunt.
  * There is no need to expose the CALIBRATION register
  * to the user for now. But we need to reset this register
  * if the user updates RShunt after driver init, e.g upon
@@ -445,7 +445,7 @@ static ssize_t ina2xx_allow_async_readout_store(struct device *dev,
 static int ina2xx_set_calibration(struct ina2xx_chip_info *chip)
 {
 	u16 regval = DIV_ROUND_CLOSEST(chip->config->calibration_factor,
-				   chip->shunt_resistor);
+				   chip->shunt_resistor_uohm);
 
 	return regmap_write(chip->regmap, INA2XX_CALIBRATION, regval);
 }
@@ -455,7 +455,7 @@ static int set_shunt_resistor(struct ina2xx_chip_info *chip, unsigned int val)
 	if (val <= 0 || val > chip->config->calibration_factor)
 		return -EINVAL;
 
-	chip->shunt_resistor = val;
+	chip->shunt_resistor_uohm = val;
 
 	return 0;
 }
@@ -465,8 +465,9 @@ static ssize_t ina2xx_shunt_resistor_show(struct device *dev,
 					  char *buf)
 {
 	struct ina2xx_chip_info *chip = iio_priv(dev_to_iio_dev(dev));
+	int vals[2] = { chip->shunt_resistor_uohm, 1000000 };
 
-	return sprintf(buf, "%d\n", chip->shunt_resistor);
+	return iio_format_value(buf, IIO_VAL_FRACTIONAL, 1, vals);
 }
 
 static ssize_t ina2xx_shunt_resistor_store(struct device *dev,
@@ -474,14 +475,13 @@ static ssize_t ina2xx_shunt_resistor_store(struct device *dev,
 					   const char *buf, size_t len)
 {
 	struct ina2xx_chip_info *chip = iio_priv(dev_to_iio_dev(dev));
-	unsigned long val;
-	int ret;
+	int val, val_fract, ret;
 
-	ret = kstrtoul((const char *) buf, 10, &val);
+	ret = iio_str_to_fixpoint(buf, 100000, &val, &val_fract);
 	if (ret)
 		return ret;
 
-	ret = set_shunt_resistor(chip, val);
+	ret = set_shunt_resistor(chip, val * 1000000 + val_fract);
 	if (ret)
 		return ret;
 
@@ -778,7 +778,6 @@ static const struct attribute_group ina226_attribute_group = {
 };
 
 static const struct iio_info ina219_info = {
-	.driver_module = THIS_MODULE,
 	.attrs = &ina219_attribute_group,
 	.read_raw = ina2xx_read_raw,
 	.write_raw = ina2xx_write_raw,
@@ -786,7 +785,6 @@ static const struct iio_info ina219_info = {
 };
 
 static const struct iio_info ina226_info = {
-	.driver_module = THIS_MODULE,
 	.attrs = &ina226_attribute_group,
 	.read_raw = ina2xx_read_raw,
 	.write_raw = ina2xx_write_raw,

@@ -99,7 +99,7 @@ module_param(mpt_channel_mapping, int, 0);
 MODULE_PARM_DESC(mpt_channel_mapping, " Mapping id's to channels (default=0)");
 
 static int mpt_debug_level;
-static int mpt_set_debug_level(const char *val, struct kernel_param *kp);
+static int mpt_set_debug_level(const char *val, const struct kernel_param *kp);
 module_param_call(mpt_debug_level, mpt_set_debug_level, param_get_int,
 		  &mpt_debug_level, 0600);
 MODULE_PARM_DESC(mpt_debug_level,
@@ -242,7 +242,7 @@ pci_enable_io_access(struct pci_dev *pdev)
 	pci_write_config_word(pdev, PCI_COMMAND, command_reg);
 }
 
-static int mpt_set_debug_level(const char *val, struct kernel_param *kp)
+static int mpt_set_debug_level(const char *val, const struct kernel_param *kp)
 {
 	int ret = param_set_int(val, kp);
 	MPT_ADAPTER *ioc;

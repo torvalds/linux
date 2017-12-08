@@ -350,7 +350,9 @@ void efi_get_virtmap(efi_memory_desc_t *memory_map, unsigned long map_size,
 	 * The easiest way to find adjacent regions is to sort the memory map
 	 * before traversing it.
 	 */
-	sort(memory_map, map_size / desc_size, desc_size, cmp_mem_desc, NULL);
+	if (IS_ENABLED(CONFIG_ARM64))
+		sort(memory_map, map_size / desc_size, desc_size, cmp_mem_desc,
+		     NULL);
 
 	for (l = 0; l < map_size; l += desc_size, prev = in) {
 		u64 paddr, size;
@@ -367,7 +369,8 @@ void efi_get_virtmap(efi_memory_desc_t *memory_map, unsigned long map_size,
 		 * a 4k page size kernel to kexec a 64k page size kernel and
 		 * vice versa.
 		 */
-		if (!regions_are_adjacent(prev, in) ||
+		if ((IS_ENABLED(CONFIG_ARM64) &&
+		     !regions_are_adjacent(prev, in)) ||
 		    !regions_have_compatible_memory_type_attrs(prev, in)) {
 
 			paddr = round_down(in->phys_addr, SZ_64K);

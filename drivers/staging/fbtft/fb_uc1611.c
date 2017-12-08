@@ -225,7 +225,7 @@ static int write_vmem(struct fbtft_par *par, size_t offset, size_t len)
 	u8 *buf8 = par->txbuf.buf;
 	u16 *buf16 = par->txbuf.buf;
 	int line_length = par->info->fix.line_length;
-	int y_start = (offset / line_length);
+	int y_start = offset / line_length;
 	int y_end = (offset + len - 1) / line_length;
 	int x, y, i;
 	int ret = 0;

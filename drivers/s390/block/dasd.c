@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Author(s)......: Holger Smolinski <Holger.Smolinski@de.ibm.com>
  *		    Horst Hummel <Horst.Hummel@de.ibm.com>
@@ -70,8 +71,8 @@ static void do_restore_device(struct work_struct *);
 static void do_reload_device(struct work_struct *);
 static void do_requeue_requests(struct work_struct *);
 static void dasd_return_cqr_cb(struct dasd_ccw_req *, void *);
-static void dasd_device_timeout(unsigned long);
-static void dasd_block_timeout(unsigned long);
+static void dasd_device_timeout(struct timer_list *);
+static void dasd_block_timeout(struct timer_list *);
 static void __dasd_process_erp(struct dasd_device *, struct dasd_ccw_req *);
 static void dasd_profile_init(struct dasd_profile *, struct dentry *);
 static void dasd_profile_exit(struct dasd_profile *);
@@ -119,9 +120,7 @@ struct dasd_device *dasd_alloc_device(void)
 		     (void (*)(unsigned long)) dasd_device_tasklet,
 		     (unsigned long) device);
 	INIT_LIST_HEAD(&device->ccw_queue);
-	init_timer(&device->timer);
-	device->timer.function = dasd_device_timeout;
-	device->timer.data = (unsigned long) device;
+	timer_setup(&device->timer, dasd_device_timeout, 0);
 	INIT_WORK(&device->kick_work, do_kick_device);
 	INIT_WORK(&device->restore_device, do_restore_device);
 	INIT_WORK(&device->reload_device, do_reload_device);
@@ -163,9 +162,7 @@ struct dasd_block *dasd_alloc_block(void)
 		     (unsigned long) block);
 	INIT_LIST_HEAD(&block->ccw_queue);
 	spin_lock_init(&block->queue_lock);
-	init_timer(&block->timer);
-	block->timer.function = dasd_block_timeout;
-	block->timer.data = (unsigned long) block;
+	timer_setup(&block->timer, dasd_block_timeout, 0);
 	spin_lock_init(&block->profile.lock);
 
 	return block;
@@ -1560,12 +1557,12 @@ EXPORT_SYMBOL(dasd_start_IO);
  * The head of the ccw queue will have status DASD_CQR_IN_IO for 1),
  * DASD_CQR_QUEUED for 2) and 3).
  */
-static void dasd_device_timeout(unsigned long ptr)
+static void dasd_device_timeout(struct timer_list *t)
 {
 	unsigned long flags;
 	struct dasd_device *device;
 
-	device = (struct dasd_device *) ptr;
+	device = from_timer(device, t, timer);
 	spin_lock_irqsave(get_ccwdev_lock(device->cdev), flags);
 	/* re-activate request queue */
 	dasd_device_remove_stop_bits(device, DASD_STOPPED_PENDING);
@@ -2628,12 +2625,12 @@ EXPORT_SYMBOL(dasd_cancel_req);
  * is waiting for something that may not come reliably, (e.g. a state
  * change interrupt)
  */
-static void dasd_block_timeout(unsigned long ptr)
+static void dasd_block_timeout(struct timer_list *t)
 {
 	unsigned long flags;
 	struct dasd_block *block;
 
-	block = (struct dasd_block *) ptr;
+	block = from_timer(block, t, timer);
 	spin_lock_irqsave(get_ccwdev_lock(block->base->cdev), flags);
 	/* re-activate request queue */
 	dasd_device_remove_stop_bits(block->base, DASD_STOPPED_PENDING);

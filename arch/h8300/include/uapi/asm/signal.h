@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 #ifndef _UAPI_H8300_SIGNAL_H
 #define _UAPI_H8300_SIGNAL_H
 

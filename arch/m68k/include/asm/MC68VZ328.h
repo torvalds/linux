@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 
 /* include/asm-m68knommu/MC68VZ328.h: 'VZ328 control registers
  *

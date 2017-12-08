@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __DRM_FB_CMA_HELPER_H__
 #define __DRM_FB_CMA_HELPER_H__
 
@@ -34,12 +35,6 @@ struct drm_gem_cma_object *drm_fb_cma_get_gem_obj(struct drm_framebuffer *fb,
 dma_addr_t drm_fb_cma_get_gem_addr(struct drm_framebuffer *fb,
 				   struct drm_plane_state *state,
 				   unsigned int plane);
-
-#ifdef CONFIG_DEBUG_FS
-struct seq_file;
-
-int drm_fb_cma_debugfs_show(struct seq_file *m, void *arg);
-#endif
 
 #endif
 

@@ -357,7 +357,6 @@ static const struct iio_info hdc100x_info = {
 	.read_raw = hdc100x_read_raw,
 	.write_raw = hdc100x_write_raw,
 	.attrs = &hdc100x_attribute_group,
-	.driver_module = THIS_MODULE,
 };
 
 static int hdc100x_probe(struct i2c_client *client,

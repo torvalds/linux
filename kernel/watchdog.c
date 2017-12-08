@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Detect hard and soft lockups on a system
  *
@@ -24,6 +25,7 @@
 #include <linux/workqueue.h>
 #include <linux/sched/clock.h>
 #include <linux/sched/debug.h>
+#include <linux/sched/isolation.h>
 
 #include <asm/irq_regs.h>
 #include <linux/kvm_para.h>
@@ -773,15 +775,11 @@ int proc_watchdog_cpumask(struct ctl_table *table, int write,
 
 void __init lockup_detector_init(void)
 {
-#ifdef CONFIG_NO_HZ_FULL
-	if (tick_nohz_full_enabled()) {
+	if (tick_nohz_full_enabled())
 		pr_info("Disabling watchdog on nohz_full cores by default\n");
-		cpumask_copy(&watchdog_cpumask, housekeeping_mask);
-	} else
-		cpumask_copy(&watchdog_cpumask, cpu_possible_mask);
-#else
-	cpumask_copy(&watchdog_cpumask, cpu_possible_mask);
-#endif
+
+	cpumask_copy(&watchdog_cpumask,
+		     housekeeping_cpumask(HK_FLAG_TIMER));
 
 	if (!watchdog_nmi_probe())
 		nmi_watchdog_available = true;

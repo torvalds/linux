@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  * The device /dev/cryptocop is accessible using this driver using
  * CRYPTOCOP_MAJOR (254) and minor number 0.

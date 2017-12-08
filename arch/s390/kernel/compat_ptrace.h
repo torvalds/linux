@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _PTRACE32_H
 #define _PTRACE32_H
 

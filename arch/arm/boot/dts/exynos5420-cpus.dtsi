@@ -36,6 +36,7 @@
 			cooling-min-level = <0>;
 			cooling-max-level = <11>;
 			#cooling-cells = <2>; /* min followed by max */
+			capacity-dmips-mhz = <1024>;
 		};
 
 		cpu1: cpu@1 {
@@ -48,6 +49,7 @@
 			cooling-min-level = <0>;
 			cooling-max-level = <11>;
 			#cooling-cells = <2>; /* min followed by max */
+			capacity-dmips-mhz = <1024>;
 		};
 
 		cpu2: cpu@2 {
@@ -60,6 +62,7 @@
 			cooling-min-level = <0>;
 			cooling-max-level = <11>;
 			#cooling-cells = <2>; /* min followed by max */
+			capacity-dmips-mhz = <1024>;
 		};
 
 		cpu3: cpu@3 {
@@ -72,6 +75,7 @@
 			cooling-min-level = <0>;
 			cooling-max-level = <11>;
 			#cooling-cells = <2>; /* min followed by max */
+			capacity-dmips-mhz = <1024>;
 		};
 
 		cpu4: cpu@100 {
@@ -85,6 +89,7 @@
 			cooling-min-level = <0>;
 			cooling-max-level = <7>;
 			#cooling-cells = <2>; /* min followed by max */
+			capacity-dmips-mhz = <539>;
 		};
 
 		cpu5: cpu@101 {
@@ -97,6 +102,7 @@
 			cooling-min-level = <0>;
 			cooling-max-level = <7>;
 			#cooling-cells = <2>; /* min followed by max */
+			capacity-dmips-mhz = <539>;
 		};
 
 		cpu6: cpu@102 {
@@ -109,6 +115,7 @@
 			cooling-min-level = <0>;
 			cooling-max-level = <7>;
 			#cooling-cells = <2>; /* min followed by max */
+			capacity-dmips-mhz = <539>;
 		};
 
 		cpu7: cpu@103 {
@@ -121,6 +128,7 @@
 			cooling-min-level = <0>;
 			cooling-max-level = <7>;
 			#cooling-cells = <2>; /* min followed by max */
+			capacity-dmips-mhz = <539>;
 		};
 	};
 };

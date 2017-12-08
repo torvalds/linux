@@ -879,7 +879,7 @@ static void hv_irq_unmask(struct irq_data *data)
 	int cpu;
 	u64 res;
 
-	dest = irq_data_get_affinity_mask(data);
+	dest = irq_data_get_effective_affinity_mask(data);
 	pdev = msi_desc_to_pci_dev(msi_desc);
 	pbus = pdev->bus;
 	hbus = container_of(pbus->sysdata, struct hv_pcibus_device, sysdata);
@@ -1042,6 +1042,7 @@ static void hv_compose_msi_msg(struct irq_data *data, struct msi_msg *msg)
 	struct hv_pci_dev *hpdev;
 	struct pci_bus *pbus;
 	struct pci_dev *pdev;
+	struct cpumask *dest;
 	struct compose_comp_ctxt comp;
 	struct tran_int_desc *int_desc;
 	struct {
@@ -1056,6 +1057,7 @@ static void hv_compose_msi_msg(struct irq_data *data, struct msi_msg *msg)
 	int ret;
 
 	pdev = msi_desc_to_pci_dev(irq_data_get_msi_desc(data));
+	dest = irq_data_get_effective_affinity_mask(data);
 	pbus = pdev->bus;
 	hbus = container_of(pbus->sysdata, struct hv_pcibus_device, sysdata);
 	hpdev = get_pcichild_wslot(hbus, devfn_to_wslot(pdev->devfn));
@@ -1081,14 +1083,14 @@ static void hv_compose_msi_msg(struct irq_data *data, struct msi_msg *msg)
 	switch (pci_protocol_version) {
 	case PCI_PROTOCOL_VERSION_1_1:
 		size = hv_compose_msi_req_v1(&ctxt.int_pkts.v1,
-					irq_data_get_affinity_mask(data),
+					dest,
 					hpdev->desc.win_slot.slot,
 					cfg->vector);
 		break;
 
 	case PCI_PROTOCOL_VERSION_1_2:
 		size = hv_compose_msi_req_v2(&ctxt.int_pkts.v2,
-					irq_data_get_affinity_mask(data),
+					dest,
 					hpdev->desc.win_slot.slot,
 					cfg->vector);
 		break;

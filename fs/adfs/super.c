@@ -213,7 +213,7 @@ static int parse_options(struct super_block *sb, char *options)
 static int adfs_remount(struct super_block *sb, int *flags, char *data)
 {
 	sync_filesystem(sb);
-	*flags |= MS_NODIRATIME;
+	*flags |= SB_NODIRATIME;
 	return parse_options(sb, data);
 }
 
@@ -372,7 +372,7 @@ static int adfs_fill_super(struct super_block *sb, void *data, int silent)
 	struct inode *root;
 	int ret = -EINVAL;
 
-	sb->s_flags |= MS_NODIRATIME;
+	sb->s_flags |= SB_NODIRATIME;
 
 	asb = kzalloc(sizeof(*asb), GFP_KERNEL);
 	if (!asb)

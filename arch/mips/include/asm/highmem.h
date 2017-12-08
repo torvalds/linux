@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * highmem.h: virtual kernel memory mappings for high memory
  *

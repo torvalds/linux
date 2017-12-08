@@ -1,4 +1,5 @@
 """
+# SPDX-License-Identifier: GPL-2.0
 tdc_config.py - tdc user-specified values
 
 Copyright (C) 2017 Lucas Bates <lucasb@mojatatu.com>
@@ -17,3 +18,17 @@ NAMES = {
           # Name of the namespace to use
           'NS': 'tcut'
         }
+
+
+ENVIR = { }
+
+# put customizations in tdc_config_local.py
+try:
+    from tdc_config_local import *
+except ImportError as ie:
+    pass
+
+try:
+    NAMES.update(EXTRA_NAMES)
+except NameError as ne:
+    pass

@@ -654,6 +654,7 @@ static void gc_psx_report_one(struct gc_pad *pad, unsigned char psx_type,
 
 		input_report_key(dev, BTN_THUMBL, ~data[0] & 0x04);
 		input_report_key(dev, BTN_THUMBR, ~data[0] & 0x02);
+		/* fall through */
 
 	case GC_PSX_NEGCON:
 	case GC_PSX_ANALOG:
@@ -742,9 +743,9 @@ static void gc_psx_process_packet(struct gc *gc)
  * gc_timer() initiates reads of console pads data.
  */
 
-static void gc_timer(unsigned long private)
+static void gc_timer(struct timer_list *t)
 {
-	struct gc *gc = (void *) private;
+	struct gc *gc = from_timer(gc, t, timer);
 
 /*
  * N64 pads - must be read first, any read confuses them for 200 us
@@ -887,6 +888,7 @@ static int gc_setup_pad(struct gc *gc, int idx, int pad_type)
 	case GC_SNES:
 		for (i = 4; i < 8; i++)
 			__set_bit(gc_snes_btn[i], input_dev->keybit);
+		/* fall through */
 	case GC_NES:
 		for (i = 0; i < 4; i++)
 			__set_bit(gc_snes_btn[i], input_dev->keybit);
@@ -894,6 +896,7 @@ static int gc_setup_pad(struct gc *gc, int idx, int pad_type)
 
 	case GC_MULTI2:
 		__set_bit(BTN_THUMB, input_dev->keybit);
+		/* fall through */
 	case GC_MULTI:
 		__set_bit(BTN_TRIGGER, input_dev->keybit);
 		break;
@@ -971,7 +974,7 @@ static void gc_attach(struct parport *pp)
 	mutex_init(&gc->mutex);
 	gc->pd = pd;
 	gc->parportno = pp->number;
-	setup_timer(&gc->timer, gc_timer, (long) gc);
+	timer_setup(&gc->timer, gc_timer, 0);
 
 	for (i = 0; i < n_pads && i < GC_MAX_DEVICES; i++) {
 		if (!pads[i])

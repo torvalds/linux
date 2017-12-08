@@ -363,7 +363,7 @@ static int sony_laptop_input_keycode_map[] = {
 };
 
 /* release buttons after a short delay if pressed */
-static void do_sony_laptop_release_key(unsigned long unused)
+static void do_sony_laptop_release_key(struct timer_list *unused)
 {
 	struct sony_laptop_keypress kp;
 	unsigned long flags;
@@ -470,7 +470,7 @@ static int sony_laptop_setup_input(struct acpi_device *acpi_device)
 		goto err_dec_users;
 	}
 
-	setup_timer(&sony_laptop_input.release_key_timer,
+	timer_setup(&sony_laptop_input.release_key_timer,
 		    do_sony_laptop_release_key, 0);
 
 	/* input keys */
@@ -1627,7 +1627,7 @@ static const struct rfkill_ops sony_rfkill_ops = {
 static int sony_nc_setup_rfkill(struct acpi_device *device,
 				enum sony_nc_rfkill nc_type)
 {
-	int err = 0;
+	int err;
 	struct rfkill *rfk;
 	enum rfkill_type type;
 	const char *name;
@@ -1660,17 +1660,19 @@ static int sony_nc_setup_rfkill(struct acpi_device *device,
 	if (!rfk)
 		return -ENOMEM;
 
-	if (sony_call_snc_handle(sony_rfkill_handle, 0x200, &result) < 0) {
+	err = sony_call_snc_handle(sony_rfkill_handle, 0x200, &result);
+	if (err < 0) {
 		rfkill_destroy(rfk);
-		return -1;
+		return err;
 	}
 	hwblock = !(result & 0x1);
 
-	if (sony_call_snc_handle(sony_rfkill_handle,
-				sony_rfkill_address[nc_type],
-				&result) < 0) {
+	err = sony_call_snc_handle(sony_rfkill_handle,
+				   sony_rfkill_address[nc_type],
+				   &result);
+	if (err < 0) {
 		rfkill_destroy(rfk);
-		return -1;
+		return err;
 	}
 	swblock = !(result & 0x2);
 

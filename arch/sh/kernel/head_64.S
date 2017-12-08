@@ -101,14 +101,6 @@ empty_zero_page:
 mmu_pdtp_cache:
 	.space PAGE_SIZE, 0
 
-	.global empty_bad_page
-empty_bad_page:
-	.space PAGE_SIZE, 0
-
-	.global empty_bad_pte_table
-empty_bad_pte_table:
-	.space PAGE_SIZE, 0
-
 	.global	fpu_in_use
 fpu_in_use:	.quad	0
 

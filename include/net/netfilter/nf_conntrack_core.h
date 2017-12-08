@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * This header is used to share core functionality between the
  * standalone connection tracking module, and the compatibility layer's use

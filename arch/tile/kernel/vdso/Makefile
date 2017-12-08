@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 # Symbols present in the vdso
 vdso-syms = rt_sigreturn gettimeofday
 

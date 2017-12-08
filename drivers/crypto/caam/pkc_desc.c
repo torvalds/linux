@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * caam - Freescale FSL CAAM support for Public Key Cryptography descriptors
  *

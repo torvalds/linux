@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (C) 1999 Cort Dougan <cort@cs.nmt.edu>
  */
@@ -90,5 +91,10 @@ static inline void clear_task_ebb(struct task_struct *t)
     t->thread.used_ebb = 0;
 #endif
 }
+
+extern int set_thread_uses_vas(void);
+
+extern int set_thread_tidr(struct task_struct *t);
+extern void clear_thread_tidr(struct task_struct *t);
 
 #endif /* _ASM_POWERPC_SWITCH_TO_H */

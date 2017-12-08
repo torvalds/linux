@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * scsicam.c - SCSI CAM support functions, use for HDIO_GETGEO, etc.
  *

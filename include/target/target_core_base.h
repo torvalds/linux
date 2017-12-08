@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef TARGET_CORE_BASE_H
 #define TARGET_CORE_BASE_H
 
@@ -181,6 +182,7 @@ enum tcm_sense_reason_table {
 	TCM_UNSUPPORTED_TARGET_DESC_TYPE_CODE	= R(0x1a),
 	TCM_TOO_MANY_SEGMENT_DESCS		= R(0x1b),
 	TCM_UNSUPPORTED_SEGMENT_DESC_TYPE_CODE	= R(0x1c),
+	TCM_INSUFFICIENT_REGISTRATION_RESOURCES	= R(0x1d),
 #undef R
 };
 
@@ -489,6 +491,7 @@ struct se_cmd {
 #define CMD_T_STOP		(1 << 5)
 #define CMD_T_TAS		(1 << 10)
 #define CMD_T_FABRIC_STOP	(1 << 11)
+#define CMD_T_PRE_EXECUTE	(1 << 12)
 	spinlock_t		t_state_lock;
 	struct kref		cmd_kref;
 	struct completion	t_transport_stop_comp;

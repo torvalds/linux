@@ -71,7 +71,7 @@ static irqreturn_t bcm2835_time_interrupt(int irq, void *dev_id)
 	if (readl_relaxed(timer->control) & timer->match_mask) {
 		writel_relaxed(timer->match_mask, timer->control);
 
-		event_handler = ACCESS_ONCE(timer->evt.event_handler);
+		event_handler = READ_ONCE(timer->evt.event_handler);
 		if (event_handler)
 			event_handler(&timer->evt);
 		return IRQ_HANDLED;

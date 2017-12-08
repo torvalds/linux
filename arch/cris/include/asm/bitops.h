@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* asm/bitops.h for Linux/CRIS
  *
  * TODO: asm versions if speed is needed

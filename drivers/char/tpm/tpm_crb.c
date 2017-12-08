@@ -92,14 +92,9 @@ enum crb_status {
 	CRB_DRV_STS_COMPLETE	= BIT(0),
 };
 
-enum crb_flags {
-	CRB_FL_ACPI_START	= BIT(0),
-	CRB_FL_CRB_START	= BIT(1),
-	CRB_FL_CRB_SMC_START	= BIT(2),
-};
-
 struct crb_priv {
-	unsigned int flags;
+	u32 sm;
+	const char *hid;
 	void __iomem *iobase;
 	struct crb_regs_head __iomem *regs_h;
 	struct crb_regs_tail __iomem *regs_t;
@@ -128,14 +123,16 @@ struct tpm2_crb_smc {
  * Anyhow, we do not wait here as a consequent CMD_READY request
  * will be handled correctly even if idle was not completed.
  *
- * The function does nothing for devices with ACPI-start method.
+ * The function does nothing for devices with ACPI-start method
+ * or SMC-start method.
  *
  * Return: 0 always
  */
 static int __maybe_unused crb_go_idle(struct device *dev, struct crb_priv *priv)
 {
-	if ((priv->flags & CRB_FL_ACPI_START) ||
-	    (priv->flags & CRB_FL_CRB_SMC_START))
+	if ((priv->sm == ACPI_TPM2_START_METHOD) ||
+	    (priv->sm == ACPI_TPM2_COMMAND_BUFFER_WITH_START_METHOD) ||
+	    (priv->sm == ACPI_TPM2_COMMAND_BUFFER_WITH_ARM_SMC))
 		return 0;
 
 	iowrite32(CRB_CTRL_REQ_GO_IDLE, &priv->regs_t->ctrl_req);
@@ -174,14 +171,16 @@ static bool crb_wait_for_reg_32(u32 __iomem *reg, u32 mask, u32 value,
  * The device should respond within TIMEOUT_C.
  *
  * The function does nothing for devices with ACPI-start method
+ * or SMC-start method.
  *
  * Return: 0 on success -ETIME on timeout;
  */
 static int __maybe_unused crb_cmd_ready(struct device *dev,
 					struct crb_priv *priv)
 {
-	if ((priv->flags & CRB_FL_ACPI_START) ||
-	    (priv->flags & CRB_FL_CRB_SMC_START))
+	if ((priv->sm == ACPI_TPM2_START_METHOD) ||
+	    (priv->sm == ACPI_TPM2_COMMAND_BUFFER_WITH_START_METHOD) ||
+	    (priv->sm == ACPI_TPM2_COMMAND_BUFFER_WITH_ARM_SMC))
 		return 0;
 
 	iowrite32(CRB_CTRL_REQ_CMD_READY, &priv->regs_t->ctrl_req);
@@ -325,13 +324,20 @@ static int crb_send(struct tpm_chip *chip, u8 *buf, size_t len)
 	/* Make sure that cmd is populated before issuing start. */
 	wmb();
 
-	if (priv->flags & CRB_FL_CRB_START)
+	/* The reason for the extra quirk is that the PTT in 4th Gen Core CPUs
+	 * report only ACPI start but in practice seems to require both
+	 * CRB start, hence invoking CRB start method if hid == MSFT0101.
+	 */
+	if ((priv->sm == ACPI_TPM2_COMMAND_BUFFER) ||
+	    (priv->sm == ACPI_TPM2_MEMORY_MAPPED) ||
+	    (!strcmp(priv->hid, "MSFT0101")))
 		iowrite32(CRB_START_INVOKE, &priv->regs_t->ctrl_start);
 
-	if (priv->flags & CRB_FL_ACPI_START)
+	if ((priv->sm == ACPI_TPM2_START_METHOD) ||
+	    (priv->sm == ACPI_TPM2_COMMAND_BUFFER_WITH_START_METHOD))
 		rc = crb_do_acpi_start(chip);
 
-	if (priv->flags & CRB_FL_CRB_SMC_START) {
+	if (priv->sm == ACPI_TPM2_COMMAND_BUFFER_WITH_ARM_SMC) {
 		iowrite32(CRB_START_INVOKE, &priv->regs_t->ctrl_start);
 		rc = tpm_crb_smc_start(&chip->dev, priv->smc_func_id);
 	}
@@ -345,7 +351,9 @@ static void crb_cancel(struct tpm_chip *chip)
 
 	iowrite32(CRB_CANCEL_INVOKE, &priv->regs_t->ctrl_cancel);
 
-	if ((priv->flags & CRB_FL_ACPI_START) && crb_do_acpi_start(chip))
+	if (((priv->sm == ACPI_TPM2_START_METHOD) ||
+	    (priv->sm == ACPI_TPM2_COMMAND_BUFFER_WITH_START_METHOD)) &&
+	     crb_do_acpi_start(chip))
 		dev_err(&chip->dev, "ACPI Start failed\n");
 }
 
@@ -458,7 +466,8 @@ static int crb_map_io(struct acpi_device *device, struct crb_priv *priv,
 	 * the control area, as one nice sane region except for some older
 	 * stuff that puts the control area outside the ACPI IO region.
 	 */
-	if (!(priv->flags & CRB_FL_ACPI_START)) {
+	if ((priv->sm == ACPI_TPM2_COMMAND_BUFFER) ||
+	    (priv->sm == ACPI_TPM2_MEMORY_MAPPED)) {
 		if (buf->control_address == io_res.start +
 		    sizeof(*priv->regs_h))
 			priv->regs_h = priv->iobase;
@@ -552,18 +561,6 @@ static int crb_acpi_add(struct acpi_device *device)
 	if (!priv)
 		return -ENOMEM;
 
-	/* The reason for the extra quirk is that the PTT in 4th Gen Core CPUs
-	 * report only ACPI start but in practice seems to require both
-	 * ACPI start and CRB start.
-	 */
-	if (sm == ACPI_TPM2_COMMAND_BUFFER || sm == ACPI_TPM2_MEMORY_MAPPED ||
-	    !strcmp(acpi_device_hid(device), "MSFT0101"))
-		priv->flags |= CRB_FL_CRB_START;
-
-	if (sm == ACPI_TPM2_START_METHOD ||
-	    sm == ACPI_TPM2_COMMAND_BUFFER_WITH_START_METHOD)
-		priv->flags |= CRB_FL_ACPI_START;
-
 	if (sm == ACPI_TPM2_COMMAND_BUFFER_WITH_ARM_SMC) {
 		if (buf->header.length < (sizeof(*buf) + sizeof(*crb_smc))) {
 			dev_err(dev,
@@ -574,8 +571,10 @@ static int crb_acpi_add(struct acpi_device *device)
 		}
 		crb_smc = ACPI_ADD_PTR(struct tpm2_crb_smc, buf, sizeof(*buf));
 		priv->smc_func_id = crb_smc->smc_func_id;
-		priv->flags |= CRB_FL_CRB_SMC_START;
 	}
+
+	priv->sm = sm;
+	priv->hid = acpi_device_hid(device);
 
 	rc = crb_map_io(device, priv, buf);
 	if (rc)

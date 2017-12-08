@@ -517,7 +517,7 @@ static void u300_gpio_irq_handler(struct irq_desc *desc)
 
 		for_each_set_bit(irqoffset, &val, U300_GPIO_PINS_PER_PORT) {
 			int offset = pinoffset + irqoffset;
-			int pin_irq = irq_find_mapping(chip->irqdomain, offset);
+			int pin_irq = irq_find_mapping(chip->irq.domain, offset);
 
 			dev_dbg(gpio->dev, "GPIO IRQ %d on pin %d\n",
 				pin_irq, offset);

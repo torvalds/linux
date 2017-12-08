@@ -48,6 +48,7 @@ struct drm_fb_helper_crtc {
 	struct drm_mode_set mode_set;
 	struct drm_display_mode *desired_mode;
 	int x, y;
+	int rotation;
 };
 
 /**
@@ -158,6 +159,13 @@ struct drm_fb_helper {
 	struct drm_fb_helper_crtc *crtc_info;
 	int connector_count;
 	int connector_info_alloc_count;
+	/**
+	 * @sw_rotations:
+	 * Bitmask of all rotations requested for panel-orientation which
+	 * could not be handled in hardware. If only one bit is set
+	 * fbdev->fbcon_rotate_hint gets set to the requested rotation.
+	 */
+	int sw_rotations;
 	/**
 	 * @connector_info:
 	 *
@@ -310,6 +318,9 @@ drm_pick_cmdline_mode(struct drm_fb_helper_connector *fb_helper_conn);
 int drm_fb_helper_add_one_connector(struct drm_fb_helper *fb_helper, struct drm_connector *connector);
 int drm_fb_helper_remove_one_connector(struct drm_fb_helper *fb_helper,
 				       struct drm_connector *connector);
+
+void drm_fb_helper_lastclose(struct drm_device *dev);
+void drm_fb_helper_output_poll_changed(struct drm_device *dev);
 #else
 static inline void drm_fb_helper_prepare(struct drm_device *dev,
 					struct drm_fb_helper *helper,
@@ -505,6 +516,14 @@ drm_fb_helper_remove_one_connector(struct drm_fb_helper *fb_helper,
 				   struct drm_connector *connector)
 {
 	return 0;
+}
+
+static inline void drm_fb_helper_lastclose(struct drm_device *dev)
+{
+}
+
+static inline void drm_fb_helper_output_poll_changed(struct drm_device *dev)
+{
 }
 
 #endif

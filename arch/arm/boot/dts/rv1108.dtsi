@@ -43,6 +43,7 @@
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/clock/rv1108-cru.h>
 #include <dt-bindings/pinctrl/rockchip.h>
+#include <dt-bindings/thermal/thermal.h>
 / {
 	#address-cells = <1>;
 	#size-cells = <1>;
@@ -70,6 +71,8 @@
 			compatible = "arm,cortex-a7";
 			reg = <0xf00>;
 			clocks = <&cru ARMCLK>;
+			#cooling-cells = <2>; /* min followed by max */
+			dynamic-power-coefficient = <75>;
 			operating-points-v2 = <&cpu_opp_table>;
 		};
 	};
@@ -326,6 +329,60 @@
 		interrupts = <GIC_SPI 34 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru PCLK_WDT>;
 		clock-names = "pclk_wdt";
+		status = "disabled";
+	};
+
+	thermal-zones {
+		soc_thermal: soc-thermal {
+			polling-delay-passive = <20>;
+			polling-delay = <1000>;
+			sustainable-power = <50>;
+			thermal-sensors = <&tsadc 0>;
+
+			trips {
+				threshold: trip-point0 {
+					temperature = <70000>;
+					hysteresis = <2000>;
+					type = "passive";
+				};
+				target: trip-point1 {
+					temperature = <85000>;
+					hysteresis = <2000>;
+					type = "passive";
+				};
+				soc_crit: soc-crit {
+					temperature = <95000>;
+					hysteresis = <2000>;
+					type = "critical";
+				};
+			};
+
+			cooling-maps {
+				map0 {
+					trip = <&target>;
+					cooling-device = <&cpu0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+					contribution = <4096>;
+				};
+			};
+		};
+	};
+
+	tsadc: tsadc@10370000 {
+		compatible = "rockchip,rv1108-tsadc";
+		reg = <0x10370000 0x100>;
+		interrupts = <GIC_SPI 47 IRQ_TYPE_LEVEL_HIGH>;
+		assigned-clocks = <&cru SCLK_TSADC>;
+		assigned-clock-rates = <750000>;
+		clocks = <&cru SCLK_TSADC>, <&cru PCLK_TSADC>;
+		clock-names = "tsadc", "apb_pclk";
+		pinctrl-names = "init", "default", "sleep";
+		pinctrl-0 = <&otp_gpio>;
+		pinctrl-1 = <&otp_out>;
+		pinctrl-2 = <&otp_gpio>;
+		resets = <&cru SRST_TSADC>;
+		reset-names = "tsadc-apb";
+		rockchip,hw-tshut-temp = <120000>;
+		#thermal-sensor-cells = <1>;
 		status = "disabled";
 	};
 
@@ -737,6 +794,16 @@
 						<3 RK_PC2 RK_FUNC_1 &pcfg_pull_up_drv_4ma>,
 						<3 RK_PC1 RK_FUNC_1 &pcfg_pull_up_drv_4ma>,
 						<3 RK_PC0 RK_FUNC_1 &pcfg_pull_up_drv_4ma>;
+			};
+		};
+
+		tsadc {
+			otp_out: otp-out {
+				rockchip,pins = <0 RK_PB7 RK_FUNC_1 &pcfg_pull_none>;
+			};
+
+			otp_gpio: otp-gpio {
+				rockchip,pins = <0 RK_PB7 RK_FUNC_GPIO &pcfg_pull_none>;
 			};
 		};
 

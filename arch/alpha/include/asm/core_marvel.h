@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Marvel systems use the IO7 I/O chip provides PCI/PCIX/AGP access
  *

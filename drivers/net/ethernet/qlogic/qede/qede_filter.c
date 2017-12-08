@@ -1065,7 +1065,7 @@ static int qede_xdp_set(struct qede_dev *edev, struct bpf_prog *prog)
 	return 0;
 }
 
-int qede_xdp(struct net_device *dev, struct netdev_xdp *xdp)
+int qede_xdp(struct net_device *dev, struct netdev_bpf *xdp)
 {
 	struct qede_dev *edev = netdev_priv(dev);
 

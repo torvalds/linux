@@ -5891,7 +5891,6 @@ static bool intel_edp_init_connector(struct intel_dp *intel_dp,
 		if (drm_add_edid_modes(connector, edid)) {
 			drm_mode_connector_update_edid_property(connector,
 								edid);
-			drm_edid_to_eld(connector, edid);
 		} else {
 			kfree(edid);
 			edid = ERR_PTR(-EINVAL);

@@ -405,7 +405,7 @@ const struct attribute_group *amd_iommu_attr_groups[] = {
 	NULL,
 };
 
-static struct pmu iommu_pmu = {
+static const struct pmu iommu_pmu __initconst = {
 	.event_init	= perf_iommu_event_init,
 	.add		= perf_iommu_add,
 	.del		= perf_iommu_del,

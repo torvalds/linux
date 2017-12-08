@@ -66,7 +66,7 @@ static void (*specific_poweroff_func)(ipmi_user_t user);
 /* Holds the old poweroff function so we can restore it on removal. */
 static void (*old_poweroff_func)(void);
 
-static int set_param_ifnum(const char *val, struct kernel_param *kp)
+static int set_param_ifnum(const char *val, const struct kernel_param *kp)
 {
 	int rv = param_set_int(val, kp);
 	if (rv)
@@ -133,7 +133,7 @@ static void receive_handler(struct ipmi_recv_msg *recv_msg, void *handler_data)
 		complete(comp);
 }
 
-static struct ipmi_user_hndl ipmi_poweroff_handler = {
+static const struct ipmi_user_hndl ipmi_poweroff_handler = {
 	.ipmi_recv_hndl = receive_handler
 };
 

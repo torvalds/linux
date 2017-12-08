@@ -352,6 +352,19 @@ config MMC_MESON_GX
 
 	  If you have a controller with this interface, say Y here.
 
+config MMC_MESON_MX_SDIO
+	tristate "Amlogic Meson6/Meson8/Meson8b SD/MMC Host Controller support"
+	depends on ARCH_MESON || COMPILE_TEST
+	depends on COMMON_CLK
+	depends on HAS_DMA
+	depends on OF
+	help
+	  This selects support for the SD/MMC Host Controller on
+	  Amlogic Meson6, Meson8 and Meson8b SoCs.
+
+	  If you have a controller with this interface, say Y or M here.
+	  If unsure, say N.
+
 config MMC_MOXART
 	tristate "MOXART SD/MMC Host Controller support"
 	depends on ARCH_MOXART && MMC
@@ -429,6 +442,7 @@ config MMC_SDHCI_MSM
 	tristate "Qualcomm SDHCI Controller Support"
 	depends on ARCH_QCOM || (ARM && COMPILE_TEST)
 	depends on MMC_SDHCI_PLTFM
+	select MMC_SDHCI_IO_ACCESSORS
 	help
 	  This selects the Secure Digital Host Controller Interface (SDHCI)
 	  support present in Qualcomm SOCs. The controller supports
@@ -663,7 +677,7 @@ config MMC_CAVIUM_OCTEON
 config MMC_CAVIUM_THUNDERX
 	tristate "Cavium ThunderX SD/MMC Card Interface support"
 	depends on PCI && 64BIT && (ARM64 || COMPILE_TEST)
-	depends on GPIOLIB
+	depends on GPIO_THUNDERX
 	depends on OF_ADDRESS
 	help
 	  This selects Cavium ThunderX SD/MMC Card Interface.
@@ -898,4 +912,16 @@ config MMC_SDHCI_XENON
 	help
 	  This selects Marvell Xenon eMMC/SD/SDIO SDHCI.
 	  If you have a controller with this interface, say Y or M here.
+	  If unsure, say N.
+
+config MMC_SDHCI_OMAP
+	tristate "TI SDHCI Controller Support"
+	depends on MMC_SDHCI_PLTFM && OF
+	help
+	  This selects the Secure Digital Host Controller Interface (SDHCI)
+	  support present in TI's DRA7 SOCs. The controller supports
+	  SD/MMC/SDIO devices.
+
+	  If you have a controller with this interface, say Y or M here.
+
 	  If unsure, say N.
