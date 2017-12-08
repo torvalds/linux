@@ -353,8 +353,7 @@ static DEVICE_ATTR(ref_clock, S_IRUGO, show_value, NULL);
 static DEVICE_ATTR(cpu_spread, S_IRUGO, show_spread, NULL);
 static DEVICE_ATTR(src_spread, S_IRUGO, show_spread, NULL);
 
-static struct attribute *ics932s401_attr[] =
-{
+static struct attribute *ics932s401_attr[] = {
 	&dev_attr_spread_enabled.attr,
 	&dev_attr_cpu_clock_selection.attr,
 	&dev_attr_cpu_clock.attr,
