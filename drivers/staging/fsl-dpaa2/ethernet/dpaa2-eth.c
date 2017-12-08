@@ -249,7 +249,7 @@ static void dpaa2_eth_rx(struct dpaa2_eth_priv *priv,
 	vaddr = dpaa2_iova_to_virt(priv->iommu_domain, addr);
 	dma_unmap_single(dev, addr, DPAA2_ETH_RX_BUF_SIZE, DMA_FROM_DEVICE);
 
-	fas = dpaa2_get_fas(vaddr);
+	fas = dpaa2_get_fas(vaddr, false);
 	prefetch(fas);
 	buf_data = vaddr + dpaa2_fd_get_offset(fd);
 	prefetch(buf_data);
@@ -385,7 +385,7 @@ static int build_sg_fd(struct dpaa2_eth_priv *priv,
 	 * on TX confirmation. We are clearing FAS (Frame Annotation Status)
 	 * field from the hardware annotation area
 	 */
-	fas = dpaa2_get_fas(sgt_buf);
+	fas = dpaa2_get_fas(sgt_buf, true);
 	memset(fas, 0, DPAA2_FAS_SIZE);
 
 	sgt = (struct dpaa2_sg_entry *)(sgt_buf + priv->tx_data_offset);
@@ -458,7 +458,7 @@ static int build_single_fd(struct dpaa2_eth_priv *priv,
 	 * on TX confirmation. We are clearing FAS (Frame Annotation Status)
 	 * field from the hardware annotation area
 	 */
-	fas = dpaa2_get_fas(buffer_start);
+	fas = dpaa2_get_fas(buffer_start, true);
 	memset(fas, 0, DPAA2_FAS_SIZE);
 
 	/* Store a backpointer to the skb at the beginning of the buffer
@@ -510,7 +510,7 @@ static void free_tx_fd(const struct dpaa2_eth_priv *priv,
 
 	fd_addr = dpaa2_fd_get_addr(fd);
 	skbh = dpaa2_iova_to_virt(priv->iommu_domain, fd_addr);
-	fas = dpaa2_get_fas(skbh);
+	fas = dpaa2_get_fas(skbh, true);
 
 	if (fd_format == dpaa2_fd_single) {
 		skb = *skbh;
