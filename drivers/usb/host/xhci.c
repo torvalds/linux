@@ -574,8 +574,6 @@ int xhci_run(struct usb_hcd *hcd)
 	if (ret)
 		return ret;
 
-	xhci_dbg(xhci, "ERST memory map follows:\n");
-	xhci_dbg_erst(xhci, &xhci->erst);
 	temp_64 = xhci_read_64(xhci, &xhci->ir_set->erst_dequeue);
 	temp_64 &= ~ERST_PTR_MASK;
 	xhci_dbg_trace(xhci, trace_xhci_dbg_init,

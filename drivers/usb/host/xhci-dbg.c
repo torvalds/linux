@@ -10,24 +10,6 @@
 
 #include "xhci.h"
 
-void xhci_dbg_erst(struct xhci_hcd *xhci, struct xhci_erst *erst)
-{
-	u64 addr = erst->erst_dma_addr;
-	int i;
-	struct xhci_erst_entry *entry;
-
-	for (i = 0; i < erst->num_entries; i++) {
-		entry = &erst->entries[i];
-		xhci_dbg(xhci, "@%016llx %08x %08x %08x %08x\n",
-			 addr,
-			 lower_32_bits(le64_to_cpu(entry->seg_addr)),
-			 upper_32_bits(le64_to_cpu(entry->seg_addr)),
-			 le32_to_cpu(entry->seg_size),
-			 le32_to_cpu(entry->rsvd));
-		addr += sizeof(*entry);
-	}
-}
-
 char *xhci_get_slot_state(struct xhci_hcd *xhci,
 		struct xhci_container_ctx *ctx)
 {
