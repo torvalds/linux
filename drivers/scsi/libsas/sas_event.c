@@ -116,11 +116,17 @@ void sas_enable_revalidation(struct sas_ha_struct *ha)
 		struct asd_sas_port *port = ha->sas_port[i];
 		const int ev = DISCE_REVALIDATE_DOMAIN;
 		struct sas_discovery *d = &port->disc;
+		struct asd_sas_phy *sas_phy;
 
 		if (!test_and_clear_bit(ev, &d->pending))
 			continue;
 
-		sas_queue_event(ev, &d->disc_work[ev].work, ha);
+		if (list_empty(&port->phy_list))
+			continue;
+
+		sas_phy = container_of(port->phy_list.next, struct asd_sas_phy,
+				port_phy_el);
+		ha->notify_port_event(sas_phy, PORTE_BROADCAST_RCVD);
 	}
 	mutex_unlock(&ha->disco_mutex);
 }
