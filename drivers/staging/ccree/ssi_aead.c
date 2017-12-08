@@ -747,8 +747,8 @@ static void cc_set_assoc_desc(struct aead_request *areq, unsigned int flow_mode,
 		dev_dbg(dev, "ASSOC buffer type DLLI\n");
 		hw_desc_init(&desc[idx]);
 		set_din_type(&desc[idx], DMA_DLLI, sg_dma_address(areq->src),
-			     areq->assoclen, NS_BIT); set_flow_mode(&desc[idx],
-			     flow_mode);
+			     areq->assoclen, NS_BIT);
+		set_flow_mode(&desc[idx], flow_mode);
 		if (ctx->auth_mode == DRV_HASH_XCBC_MAC &&
 		    areq_ctx->cryptlen > 0)
 			set_din_not_last_indication(&desc[idx]);
