@@ -92,11 +92,49 @@ static void sctp_chunk_assign_mid(struct sctp_chunk *chunk)
 	}
 }
 
+static bool sctp_validate_data(struct sctp_chunk *chunk)
+{
+	const struct sctp_stream *stream;
+	__u16 sid, ssn;
+
+	if (chunk->chunk_hdr->type != SCTP_CID_DATA)
+		return false;
+
+	if (chunk->chunk_hdr->flags & SCTP_DATA_UNORDERED)
+		return true;
+
+	stream = &chunk->asoc->stream;
+	sid = sctp_chunk_stream_no(chunk);
+	ssn = ntohs(chunk->subh.data_hdr->ssn);
+
+	return !SSN_lt(ssn, sctp_ssn_peek(stream, in, sid));
+}
+
+static bool sctp_validate_idata(struct sctp_chunk *chunk)
+{
+	struct sctp_stream *stream;
+	__u32 mid;
+	__u16 sid;
+
+	if (chunk->chunk_hdr->type != SCTP_CID_I_DATA)
+		return false;
+
+	if (chunk->chunk_hdr->flags & SCTP_DATA_UNORDERED)
+		return true;
+
+	stream = &chunk->asoc->stream;
+	sid = sctp_chunk_stream_no(chunk);
+	mid = ntohl(chunk->subh.idata_hdr->mid);
+
+	return !MID_lt(mid, sctp_mid_peek(stream, in, sid));
+}
+
 static struct sctp_stream_interleave sctp_stream_interleave_0 = {
 	.data_chunk_len		= sizeof(struct sctp_data_chunk),
 	/* DATA process functions */
 	.make_datafrag		= sctp_make_datafrag_empty,
 	.assign_number		= sctp_chunk_assign_ssn,
+	.validate_data		= sctp_validate_data,
 };
 
 static struct sctp_stream_interleave sctp_stream_interleave_1 = {
@@ -104,6 +142,7 @@ static struct sctp_stream_interleave sctp_stream_interleave_1 = {
 	/* I-DATA process functions */
 	.make_datafrag		= sctp_make_idatafrag_empty,
 	.assign_number		= sctp_chunk_assign_mid,
+	.validate_data		= sctp_validate_idata,
 };
 
 void sctp_stream_interleave_init(struct sctp_stream *stream)

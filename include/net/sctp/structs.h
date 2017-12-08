@@ -1382,7 +1382,11 @@ struct sctp_stream_out {
 };
 
 struct sctp_stream_in {
-	__u16	ssn;
+	union {
+		__u32 mid;
+		__u16 ssn;
+	};
+	__u32 fsn;
 };
 
 struct sctp_stream {

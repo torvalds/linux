@@ -359,6 +359,12 @@ static inline __u16 sctp_data_size(struct sctp_chunk *chunk)
 	 typecheck(__u32, b) && \
 	 ((__s32)((a) - (b)) <= 0))
 
+/* Compare two MIDs */
+#define MID_lt(a, b)	\
+	(typecheck(__u32, a) && \
+	 typecheck(__u32, b) && \
+	 ((__s32)((a) - (b)) < 0))
+
 /* Compare two SSNs */
 #define SSN_lt(a,b)		\
 	(typecheck(__u16, a) && \

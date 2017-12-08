@@ -3013,7 +3013,7 @@ enum sctp_disposition sctp_sf_eat_data_6_2(struct net *net,
 		return sctp_sf_pdiscard(net, ep, asoc, type, arg, commands);
 	}
 
-	if (!sctp_chunk_length_valid(chunk, sizeof(struct sctp_data_chunk)))
+	if (!sctp_chunk_length_valid(chunk, sctp_datachk_len(&asoc->stream)))
 		return sctp_sf_violation_chunklen(net, ep, asoc, type, arg,
 						  commands);
 
@@ -3034,7 +3034,7 @@ enum sctp_disposition sctp_sf_eat_data_6_2(struct net *net,
 	case SCTP_IERROR_PROTO_VIOLATION:
 		return sctp_sf_abort_violation(net, ep, asoc, chunk, commands,
 					       (u8 *)chunk->subh.data_hdr,
-					       sizeof(struct sctp_datahdr));
+					       sctp_datahdr_len(&asoc->stream));
 	default:
 		BUG();
 	}
@@ -3133,7 +3133,7 @@ enum sctp_disposition sctp_sf_eat_data_fast_4_4(
 		return sctp_sf_pdiscard(net, ep, asoc, type, arg, commands);
 	}
 
-	if (!sctp_chunk_length_valid(chunk, sizeof(struct sctp_data_chunk)))
+	if (!sctp_chunk_length_valid(chunk, sctp_datachk_len(&asoc->stream)))
 		return sctp_sf_violation_chunklen(net, ep, asoc, type, arg,
 						  commands);
 
@@ -3150,7 +3150,7 @@ enum sctp_disposition sctp_sf_eat_data_fast_4_4(
 	case SCTP_IERROR_PROTO_VIOLATION:
 		return sctp_sf_abort_violation(net, ep, asoc, chunk, commands,
 					       (u8 *)chunk->subh.data_hdr,
-					       sizeof(struct sctp_datahdr));
+					       sctp_datahdr_len(&asoc->stream));
 	default:
 		BUG();
 	}
@@ -6244,14 +6244,12 @@ static int sctp_eat_data(const struct sctp_association *asoc,
 	struct sctp_chunk *err;
 	enum sctp_verb deliver;
 	size_t datalen;
-	u8 ordered = 0;
-	u16 ssn, sid;
 	__u32 tsn;
 	int tmp;
 
 	data_hdr = (struct sctp_datahdr *)chunk->skb->data;
 	chunk->subh.data_hdr = data_hdr;
-	skb_pull(chunk->skb, sizeof(*data_hdr));
+	skb_pull(chunk->skb, sctp_datahdr_len(&asoc->stream));
 
 	tsn = ntohl(data_hdr->tsn);
 	pr_debug("%s: TSN 0x%x\n", __func__, tsn);
@@ -6299,7 +6297,7 @@ static int sctp_eat_data(const struct sctp_association *asoc,
 	 * Actually, allow a little bit of overflow (up to a MTU).
 	 */
 	datalen = ntohs(chunk->chunk_hdr->length);
-	datalen -= sizeof(struct sctp_data_chunk);
+	datalen -= sctp_datachk_len(&asoc->stream);
 
 	deliver = SCTP_CMD_CHUNK_ULP;
 
@@ -6394,7 +6392,6 @@ static int sctp_eat_data(const struct sctp_association *asoc,
 		SCTP_INC_STATS(net, SCTP_MIB_INORDERCHUNKS);
 		if (chunk->asoc)
 			chunk->asoc->stats.iodchunks++;
-		ordered = 1;
 	}
 
 	/* RFC 2960 6.5 Stream Identifier and Stream Sequence Number
@@ -6405,8 +6402,7 @@ static int sctp_eat_data(const struct sctp_association *asoc,
 	 * with cause set to "Invalid Stream Identifier" (See Section 3.3.10)
 	 * and discard the DATA chunk.
 	 */
-	sid = ntohs(data_hdr->stream);
-	if (sid >= asoc->stream.incnt) {
+	if (ntohs(data_hdr->stream) >= asoc->stream.incnt) {
 		/* Mark tsn as received even though we drop it */
 		sctp_add_cmd_sf(commands, SCTP_CMD_REPORT_TSN, SCTP_U32(tsn));
 
@@ -6427,8 +6423,7 @@ static int sctp_eat_data(const struct sctp_association *asoc,
 	 * SSN is smaller then the next expected one.  If it is, it wrapped
 	 * and is invalid.
 	 */
-	ssn = ntohs(data_hdr->ssn);
-	if (ordered && SSN_lt(ssn, sctp_ssn_peek(&asoc->stream, in, sid)))
+	if (!asoc->stream.si->validate_data(chunk))
 		return SCTP_IERROR_PROTO_VIOLATION;
 
 	/* Send the data up to the user.  Note:  Schedule  the

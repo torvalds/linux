@@ -985,6 +985,9 @@ static const struct sctp_sm_table_entry *sctp_chunk_event_lookup(
 	if (state > SCTP_STATE_MAX)
 		return &bug;
 
+	if (net->sctp.intl_enable && cid == SCTP_CID_I_DATA)
+		cid = SCTP_CID_DATA;
+
 	if (cid <= SCTP_CID_BASE_MAX)
 		return &chunk_event_table[cid][state];
 
