@@ -10,6 +10,7 @@
 
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/pinctrl/am33xx.h>
+#include <dt-bindings/clock/am3.h>
 
 / {
 	compatible = "ti,am33xx";
@@ -578,7 +579,7 @@
 			interrupts = <75
 				      76>;
 			ti,hwmods = "rtc";
-			clocks = <&clkdiv32k_ick>;
+			clocks = <&l4_per_clkctrl AM3_CLKDIV32K_CLKCTRL 0>;
 			clock-names = "int-clk";
 		};
 
@@ -1019,4 +1020,4 @@
 	};
 };
 
-/include/ "am33xx-clocks.dtsi"
+#include "am33xx-clocks.dtsi"
