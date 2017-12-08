@@ -868,10 +868,10 @@ static const struct dma_slave_map dm365_edma_map[] = {
 	{ "spi_davinci.0", "rx", EDMA_FILTER_PARAM(0, 17) },
 	{ "spi_davinci.3", "tx", EDMA_FILTER_PARAM(0, 18) },
 	{ "spi_davinci.3", "rx", EDMA_FILTER_PARAM(0, 19) },
-	{ "dm6441-mmc.0", "rx", EDMA_FILTER_PARAM(0, 26) },
-	{ "dm6441-mmc.0", "tx", EDMA_FILTER_PARAM(0, 27) },
-	{ "dm6441-mmc.1", "rx", EDMA_FILTER_PARAM(0, 30) },
-	{ "dm6441-mmc.1", "tx", EDMA_FILTER_PARAM(0, 31) },
+	{ "da830-mmc.0", "rx", EDMA_FILTER_PARAM(0, 26) },
+	{ "da830-mmc.0", "tx", EDMA_FILTER_PARAM(0, 27) },
+	{ "da830-mmc.1", "rx", EDMA_FILTER_PARAM(0, 30) },
+	{ "da830-mmc.1", "tx", EDMA_FILTER_PARAM(0, 31) },
 };
 
 static struct edma_soc_info dm365_edma_pdata = {
