@@ -228,10 +228,7 @@ static void soc15_se_cac_wreg(struct amdgpu_device *adev, u32 reg, u32 v)
 
 static u32 soc15_get_config_memsize(struct amdgpu_device *adev)
 {
-	if (adev->flags & AMD_IS_APU)
-		return nbio_v7_0_get_memsize(adev);
-	else
-		return nbio_v6_1_get_memsize(adev);
+	return adev->nbio_funcs->get_memsize(adev);
 }
 
 static const u32 vega10_golden_init[] =
@@ -460,9 +457,8 @@ static int soc15_asic_reset(struct amdgpu_device *adev)
 
 	/* wait for asic to come out of reset */
 	for (i = 0; i < adev->usec_timeout; i++) {
-		u32 memsize = (adev->flags & AMD_IS_APU) ?
-			nbio_v7_0_get_memsize(adev) :
-			nbio_v6_1_get_memsize(adev);
+		u32 memsize = adev->nbio_funcs->get_memsize(adev);
+
 		if (memsize != 0xffffffff)
 			break;
 		udelay(1);
@@ -527,14 +523,10 @@ static void soc15_program_aspm(struct amdgpu_device *adev)
 }
 
 static void soc15_enable_doorbell_aperture(struct amdgpu_device *adev,
-					bool enable)
+					   bool enable)
 {
-	if (adev->flags & AMD_IS_APU) {
-		nbio_v7_0_enable_doorbell_aperture(adev, enable);
-	} else {
-		nbio_v6_1_enable_doorbell_aperture(adev, enable);
-		nbio_v6_1_enable_doorbell_selfring_aperture(adev, enable);
-	}
+	adev->nbio_funcs->enable_doorbell_aperture(adev, enable);
+	adev->nbio_funcs->enable_doorbell_selfring_aperture(adev, enable);
 }
 
 static const struct amdgpu_ip_block_version vega10_common_ip_block =
@@ -558,7 +550,12 @@ int soc15_set_ip_blocks(struct amdgpu_device *adev)
 		return -EINVAL;
 	}
 
-	nbio_v6_1_detect_hw_virt(adev);
+	if (adev->flags & AMD_IS_APU)
+		adev->nbio_funcs = &nbio_v7_0_funcs;
+	else
+		adev->nbio_funcs = &nbio_v6_1_funcs;
+
+	adev->nbio_funcs->detect_hw_virt(adev);
 
 	if (amdgpu_sriov_vf(adev))
 		adev->virt.ops = &xgpu_ai_virt_ops;
@@ -612,10 +609,7 @@ int soc15_set_ip_blocks(struct amdgpu_device *adev)
 
 static uint32_t soc15_get_rev_id(struct amdgpu_device *adev)
 {
-	if (adev->flags & AMD_IS_APU)
-		return nbio_v7_0_get_rev_id(adev);
-	else
-		return nbio_v6_1_get_rev_id(adev);
+	return adev->nbio_funcs->get_rev_id(adev);
 }
 
 static const struct amdgpu_asic_funcs soc15_asic_funcs =
@@ -650,11 +644,6 @@ static int soc15_common_early_init(void *handle)
 	adev->se_cac_wreg = &soc15_se_cac_wreg;
 
 	adev->asic_funcs = &soc15_asic_funcs;
-
-	if (adev->flags & AMD_IS_APU)
-		adev->nbio_funcs = &nbio_v7_0_funcs;
-	else
-		adev->nbio_funcs = &nbio_v6_1_funcs;
 
 	if (amdgpu_get_ip_block(adev, AMD_IP_BLOCK_TYPE_PSP) &&
 		(amdgpu_ip_block_mask & (1 << AMD_IP_BLOCK_TYPE_PSP)))
@@ -763,8 +752,7 @@ static int soc15_common_hw_init(void *handle)
 	/* enable aspm */
 	soc15_program_aspm(adev);
 	/* setup nbio registers */
-	if (!(adev->flags & AMD_IS_APU))
-		nbio_v6_1_init_registers(adev);
+	adev->nbio_funcs->init_registers(adev);
 	/* enable the doorbell aperture */
 	soc15_enable_doorbell_aperture(adev, true);
 
@@ -925,9 +913,9 @@ static int soc15_common_set_clockgating_state(void *handle,
 
 	switch (adev->asic_type) {
 	case CHIP_VEGA10:
-		nbio_v6_1_update_medium_grain_clock_gating(adev,
+		adev->nbio_funcs->update_medium_grain_clock_gating(adev,
 				state == AMD_CG_STATE_GATE ? true : false);
-		nbio_v6_1_update_medium_grain_light_sleep(adev,
+		adev->nbio_funcs->update_medium_grain_light_sleep(adev,
 				state == AMD_CG_STATE_GATE ? true : false);
 		soc15_update_hdp_light_sleep(adev,
 				state == AMD_CG_STATE_GATE ? true : false);
@@ -941,9 +929,9 @@ static int soc15_common_set_clockgating_state(void *handle,
 				state == AMD_CG_STATE_GATE ? true : false);
 		break;
 	case CHIP_RAVEN:
-		nbio_v7_0_update_medium_grain_clock_gating(adev,
+		adev->nbio_funcs->update_medium_grain_clock_gating(adev,
 				state == AMD_CG_STATE_GATE ? true : false);
-		nbio_v6_1_update_medium_grain_light_sleep(adev,
+		adev->nbio_funcs->update_medium_grain_light_sleep(adev,
 				state == AMD_CG_STATE_GATE ? true : false);
 		soc15_update_hdp_light_sleep(adev,
 				state == AMD_CG_STATE_GATE ? true : false);
@@ -968,7 +956,7 @@ static void soc15_common_get_clockgating_state(void *handle, u32 *flags)
 	if (amdgpu_sriov_vf(adev))
 		*flags = 0;
 
-	nbio_v6_1_get_clockgating_state(adev, flags);
+	adev->nbio_funcs->get_clockgating_state(adev, flags);
 
 	/* AMD_CG_SUPPORT_HDP_LS */
 	data = RREG32(SOC15_REG_OFFSET(HDP, 0, mmHDP_MEM_POWER_LS));

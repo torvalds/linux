@@ -1428,16 +1428,52 @@ typedef void (*amdgpu_block_wreg_t)(struct amdgpu_device*, uint32_t, uint32_t, u
 /*
  * amdgpu nbio functions
  *
- * Fix me :
- * 	Put more NBIO specifc func wraper here , for now just try to minimize the
- *	change to avoid use SOC15_REG_OFFSET in the constant array
  */
+struct nbio_hdp_flush_reg {
+	u32 ref_and_mask_cp0;
+	u32 ref_and_mask_cp1;
+	u32 ref_and_mask_cp2;
+	u32 ref_and_mask_cp3;
+	u32 ref_and_mask_cp4;
+	u32 ref_and_mask_cp5;
+	u32 ref_and_mask_cp6;
+	u32 ref_and_mask_cp7;
+	u32 ref_and_mask_cp8;
+	u32 ref_and_mask_cp9;
+	u32 ref_and_mask_sdma0;
+	u32 ref_and_mask_sdma1;
+};
 
 struct amdgpu_nbio_funcs {
-	u32 (*get_hdp_flush_req_offset)(struct amdgpu_device*);
-	u32 (*get_hdp_flush_done_offset)(struct amdgpu_device*);
-	u32 (*get_pcie_index_offset)(struct amdgpu_device*);
-	u32 (*get_pcie_data_offset)(struct amdgpu_device*);
+	const struct nbio_hdp_flush_reg *hdp_flush_reg;
+	u32 (*get_hdp_flush_req_offset)(struct amdgpu_device *adev);
+	u32 (*get_hdp_flush_done_offset)(struct amdgpu_device *adev);
+	u32 (*get_pcie_index_offset)(struct amdgpu_device *adev);
+	u32 (*get_pcie_data_offset)(struct amdgpu_device *adev);
+	u32 (*get_rev_id)(struct amdgpu_device *adev);
+	u32 (*get_atombios_scratch_regs)(struct amdgpu_device *adev, uint32_t idx);
+	void (*set_atombios_scratch_regs)(struct amdgpu_device *adev,
+					  uint32_t idx, uint32_t val);
+	void (*mc_access_enable)(struct amdgpu_device *adev, bool enable);
+	void (*hdp_flush)(struct amdgpu_device *adev);
+	u32 (*get_memsize)(struct amdgpu_device *adev);
+	void (*sdma_doorbell_range)(struct amdgpu_device *adev, int instance,
+				    bool use_doorbell, int doorbell_index);
+	void (*enable_doorbell_aperture)(struct amdgpu_device *adev,
+					 bool enable);
+	void (*enable_doorbell_selfring_aperture)(struct amdgpu_device *adev,
+						  bool enable);
+	void (*ih_doorbell_range)(struct amdgpu_device *adev,
+				  bool use_doorbell, int doorbell_index);
+	void (*update_medium_grain_clock_gating)(struct amdgpu_device *adev,
+						 bool enable);
+	void (*update_medium_grain_light_sleep)(struct amdgpu_device *adev,
+						bool enable);
+	void (*get_clockgating_state)(struct amdgpu_device *adev,
+				      u32 *flags);
+	void (*ih_control)(struct amdgpu_device *adev);
+	void (*init_registers)(struct amdgpu_device *adev);
+	void (*detect_hw_virt)(struct amdgpu_device *adev);
 };
 
 

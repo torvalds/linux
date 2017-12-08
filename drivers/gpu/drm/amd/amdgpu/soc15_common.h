@@ -24,22 +24,6 @@
 #ifndef __SOC15_COMMON_H__
 #define __SOC15_COMMON_H__
 
-struct nbio_hdp_flush_reg {
-	u32 ref_and_mask_cp0;
-	u32 ref_and_mask_cp1;
-	u32 ref_and_mask_cp2;
-	u32 ref_and_mask_cp3;
-	u32 ref_and_mask_cp4;
-	u32 ref_and_mask_cp5;
-	u32 ref_and_mask_cp6;
-	u32 ref_and_mask_cp7;
-	u32 ref_and_mask_cp8;
-	u32 ref_and_mask_cp9;
-	u32 ref_and_mask_sdma0;
-	u32 ref_and_mask_sdma1;
-};
-
-
 /* Register Access Macros */
 #define SOC15_REG_OFFSET(ip, inst, reg)	(adev->reg_offset[ip##_HWIP][inst][reg##_BASE_IDX] + reg)
 

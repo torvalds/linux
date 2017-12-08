@@ -3552,12 +3552,7 @@ static void gfx_v9_0_ring_emit_hdp_flush(struct amdgpu_ring *ring)
 {
 	struct amdgpu_device *adev = ring->adev;
 	u32 ref_and_mask, reg_mem_engine;
-	const struct nbio_hdp_flush_reg *nbio_hf_reg;
-
-	if (ring->adev->flags & AMD_IS_APU)
-		nbio_hf_reg = &nbio_v7_0_hdp_flush_reg;
-	else
-		nbio_hf_reg = &nbio_v6_1_hdp_flush_reg;
+	const struct nbio_hdp_flush_reg *nbio_hf_reg = adev->nbio_funcs->hdp_flush_reg;
 
 	if (ring->funcs->type == AMDGPU_RING_TYPE_COMPUTE) {
 		switch (ring->me) {

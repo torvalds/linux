@@ -38,8 +38,6 @@
 #include "soc15_common.h"
 #include "umc/umc_6_0_sh_mask.h"
 
-#include "nbio_v6_1.h"
-#include "nbio_v7_0.h"
 #include "gfxhub_v1_0.h"
 #include "mmhub_v1_0.h"
 
@@ -332,10 +330,7 @@ static void gmc_v9_0_gart_flush_gpu_tlb(struct amdgpu_device *adev,
 	unsigned i, j;
 
 	/* flush hdp cache */
-	if (adev->flags & AMD_IS_APU)
-		nbio_v7_0_hdp_flush(adev);
-	else
-		nbio_v6_1_hdp_flush(adev);
+	adev->nbio_funcs->hdp_flush(adev);
 
 	spin_lock(&adev->mc.invalidate_lock);
 
@@ -702,8 +697,7 @@ static int gmc_v9_0_mc_init(struct amdgpu_device *adev)
 
 	/* size in MB on si */
 	adev->mc.mc_vram_size =
-		((adev->flags & AMD_IS_APU) ? nbio_v7_0_get_memsize(adev) :
-		 nbio_v6_1_get_memsize(adev)) * 1024ULL * 1024ULL;
+		adev->nbio_funcs->get_memsize(adev) * 1024ULL * 1024ULL;
 	adev->mc.real_vram_size = adev->mc.mc_vram_size;
 
 	if (!(adev->flags & AMD_IS_APU)) {
@@ -951,10 +945,7 @@ static int gmc_v9_0_gart_enable(struct amdgpu_device *adev)
 	WREG32_SOC15(HDP, 0, mmHDP_HOST_PATH_CNTL, tmp);
 
 	/* After HDP is initialized, flush HDP.*/
-	if (adev->flags & AMD_IS_APU)
-		nbio_v7_0_hdp_flush(adev);
-	else
-		nbio_v6_1_hdp_flush(adev);
+	adev->nbio_funcs->hdp_flush(adev);
 
 	if (amdgpu_vm_fault_stop == AMDGPU_VM_FAULT_STOP_ALWAYS)
 		value = false;
