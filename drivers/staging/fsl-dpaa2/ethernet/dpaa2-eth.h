@@ -371,7 +371,7 @@ static inline unsigned int dpaa2_eth_buf_raw_size(struct dpaa2_eth_priv *priv)
 static inline
 unsigned int dpaa2_eth_needed_headroom(struct dpaa2_eth_priv *priv)
 {
-	return priv->tx_data_offset + DPAA2_ETH_TX_BUF_ALIGN - HH_DATA_MOD;
+	return priv->tx_data_offset + DPAA2_ETH_TX_BUF_ALIGN;
 }
 
 /* Extra headroom space requested to hardware, in order to make sure there's
