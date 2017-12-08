@@ -14863,7 +14863,7 @@ X86 PLATFORM DRIVERS
 M:	Darren Hart <dvhart@infradead.org>
 M:	Andy Shevchenko <andy@infradead.org>
 L:	platform-driver-x86@vger.kernel.org
-T:	git git://git.infradead.org/users/dvhart/linux-platform-drivers-x86.git
+T:	git git://git.infradead.org/linux-platform-drivers-x86.git
 S:	Maintained
 F:	drivers/platform/x86/
 F:	drivers/platform/olpc/
