@@ -743,7 +743,10 @@ static void hisi_sas_dev_gone(struct domain_device *device)
 
 	hisi_sas_dereg_device(hisi_hba, device);
 
-	hisi_hba->hw->free_device(hisi_hba, sas_dev);
+	hisi_hba->hw->clear_itct(hisi_hba, sas_dev);
+	if (hisi_hba->hw->free_device)
+		hisi_hba->hw->free_device(sas_dev);
+
 	device->lldd_dev = NULL;
 	memset(sas_dev, 0, sizeof(*sas_dev));
 	sas_dev->dev_type = SAS_PHY_UNUSED;
@@ -1001,7 +1004,7 @@ static void hisi_sas_refresh_port_id(struct hisi_hba *hisi_hba,
 				|| !device || (device->port != sas_port))
 			continue;
 
-		hisi_hba->hw->free_device(hisi_hba, sas_dev);
+		hisi_hba->hw->clear_itct(hisi_hba, sas_dev);
 
 		/* Update linkrate of directly attached device. */
 		if (!device->parent)

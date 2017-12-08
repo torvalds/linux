@@ -205,8 +205,9 @@ struct hisi_sas_hw {
 	void (*phy_set_linkrate)(struct hisi_hba *hisi_hba, int phy_no,
 			struct sas_phy_linkrates *linkrates);
 	enum sas_linkrate (*phy_get_max_linkrate)(void);
-	void (*free_device)(struct hisi_hba *hisi_hba,
+	void (*clear_itct)(struct hisi_hba *hisi_hba,
 			    struct hisi_sas_device *dev);
+	void (*free_device)(struct hisi_sas_device *sas_dev);
 	int (*get_wideport_bitmap)(struct hisi_hba *hisi_hba, int port_id);
 	void (*dereg_device)(struct hisi_hba *hisi_hba,
 				struct domain_device *device);

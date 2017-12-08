@@ -588,7 +588,7 @@ static void setup_itct_v3_hw(struct hisi_hba *hisi_hba,
 					(0x1ULL << ITCT_HDR_RTOLT_OFF));
 }
 
-static void free_device_v3_hw(struct hisi_hba *hisi_hba,
+static void clear_itct_v3_hw(struct hisi_hba *hisi_hba,
 			      struct hisi_sas_device *sas_dev)
 {
 	DECLARE_COMPLETION_ONSTACK(completion);
@@ -1951,7 +1951,7 @@ static const struct hisi_sas_hw hisi_sas_v3_hw = {
 	.max_command_entries = HISI_SAS_COMMAND_ENTRIES_V3_HW,
 	.get_wideport_bitmap = get_wideport_bitmap_v3_hw,
 	.complete_hdr_size = sizeof(struct hisi_sas_complete_v3_hdr),
-	.free_device = free_device_v3_hw,
+	.clear_itct = clear_itct_v3_hw,
 	.sl_notify = sl_notify_v3_hw,
 	.prep_ssp = prep_ssp_v3_hw,
 	.prep_smp = prep_smp_v3_hw,

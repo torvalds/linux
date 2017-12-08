@@ -952,7 +952,7 @@ static void setup_itct_v2_hw(struct hisi_hba *hisi_hba,
 					(0x1ULL << ITCT_HDR_RTOLT_OFF));
 }
 
-static void free_device_v2_hw(struct hisi_hba *hisi_hba,
+static void clear_itct_v2_hw(struct hisi_hba *hisi_hba,
 			      struct hisi_sas_device *sas_dev)
 {
 	DECLARE_COMPLETION_ONSTACK(completion);
@@ -962,10 +962,6 @@ static void free_device_v2_hw(struct hisi_hba *hisi_hba,
 	int i;
 
 	sas_dev->completion = &completion;
-
-	/* SoC bug workaround */
-	if (dev_is_sata(sas_dev->sas_device))
-		clear_bit(sas_dev->sata_idx, hisi_hba->sata_dev_bitmap);
 
 	/* clear the itct interrupt state */
 	if (ENT_INT_SRC3_ITC_INT_MSK & reg_val)
@@ -979,6 +975,15 @@ static void free_device_v2_hw(struct hisi_hba *hisi_hba,
 
 		memset(itct, 0, sizeof(struct hisi_sas_itct));
 	}
+}
+
+static void free_device_v2_hw(struct hisi_sas_device *sas_dev)
+{
+	struct hisi_hba *hisi_hba = sas_dev->hisi_hba;
+
+	/* SoC bug workaround */
+	if (dev_is_sata(sas_dev->sas_device))
+		clear_bit(sas_dev->sata_idx, hisi_hba->sata_dev_bitmap);
 }
 
 static int reset_hw_v2_hw(struct hisi_hba *hisi_hba)
@@ -3415,6 +3420,7 @@ static const struct hisi_sas_hw hisi_sas_v2_hw = {
 	.alloc_dev = alloc_dev_quirk_v2_hw,
 	.sl_notify = sl_notify_v2_hw,
 	.get_wideport_bitmap = get_wideport_bitmap_v2_hw,
+	.clear_itct = clear_itct_v2_hw,
 	.free_device = free_device_v2_hw,
 	.prep_smp = prep_smp_v2_hw,
 	.prep_ssp = prep_ssp_v2_hw,
