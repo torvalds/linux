@@ -2328,6 +2328,7 @@ static struct mmc_blk_data *mmc_blk_alloc_req(struct mmc_card *card,
 	 */
 	if (!blk_get_queue(md->queue.queue)) {
 		mmc_cleanup_queue(&md->queue);
+		ret = -ENODEV;
 		goto err_putdisk;
 	}
 
