@@ -1529,11 +1529,18 @@ static void gfx_v9_0_gpu_init(struct amdgpu_device *adev)
 	for (i = 0; i < 16; i++) {
 		soc15_grbm_select(adev, 0, 0, 0, i);
 		/* CP and shaders */
-		tmp = 0;
-		tmp = REG_SET_FIELD(tmp, SH_MEM_CONFIG, ALIGNMENT_MODE,
-				    SH_MEM_ALIGNMENT_MODE_UNALIGNED);
-		WREG32_SOC15(GC, 0, mmSH_MEM_CONFIG, tmp);
-		WREG32_SOC15(GC, 0, mmSH_MEM_BASES, 0);
+		if (i == 0) {
+			tmp = REG_SET_FIELD(0, SH_MEM_CONFIG, ALIGNMENT_MODE,
+					    SH_MEM_ALIGNMENT_MODE_UNALIGNED);
+			WREG32_SOC15(GC, 0, mmSH_MEM_CONFIG, tmp);
+			WREG32_SOC15(GC, 0, mmSH_MEM_BASES, 0);
+		} else {
+			tmp = REG_SET_FIELD(0, SH_MEM_CONFIG, ALIGNMENT_MODE,
+					    SH_MEM_ALIGNMENT_MODE_UNALIGNED);
+			WREG32_SOC15(GC, 0, mmSH_MEM_CONFIG, tmp);
+			tmp = adev->mc.shared_aperture_start >> 48;
+			WREG32_SOC15(GC, 0, mmSH_MEM_BASES, tmp);
+		}
 	}
 	soc15_grbm_select(adev, 0, 0, 0, 0);
 
