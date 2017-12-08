@@ -39,6 +39,7 @@
 #include "../scsi_sas_internal.h"
 
 static struct kmem_cache *sas_task_cache;
+static struct kmem_cache *sas_event_cache;
 
 struct sas_task *sas_alloc_task(gfp_t flags)
 {
@@ -364,8 +365,6 @@ void sas_prep_resume_ha(struct sas_ha_struct *ha)
 		struct asd_sas_phy *phy = ha->sas_phy[i];
 
 		memset(phy->attached_sas_addr, 0, SAS_ADDR_SIZE);
-		phy->port_events_pending = 0;
-		phy->phy_events_pending = 0;
 		phy->frame_rcvd_size = 0;
 	}
 }
@@ -555,20 +554,42 @@ sas_domain_attach_transport(struct sas_domain_function_template *dft)
 }
 EXPORT_SYMBOL_GPL(sas_domain_attach_transport);
 
+
+struct asd_sas_event *sas_alloc_event(struct asd_sas_phy *phy)
+{
+	gfp_t flags = in_interrupt() ? GFP_ATOMIC : GFP_KERNEL;
+
+	return kmem_cache_zalloc(sas_event_cache, flags);
+}
+
+void sas_free_event(struct asd_sas_event *event)
+{
+	kmem_cache_free(sas_event_cache, event);
+}
+
 /* ---------- SAS Class register/unregister ---------- */
 
 static int __init sas_class_init(void)
 {
 	sas_task_cache = KMEM_CACHE(sas_task, SLAB_HWCACHE_ALIGN);
 	if (!sas_task_cache)
-		return -ENOMEM;
+		goto out;
+
+	sas_event_cache = KMEM_CACHE(asd_sas_event, SLAB_HWCACHE_ALIGN);
+	if (!sas_event_cache)
+		goto free_task_kmem;
 
 	return 0;
+free_task_kmem:
+	kmem_cache_destroy(sas_task_cache);
+out:
+	return -ENOMEM;
 }
 
 static void __exit sas_class_exit(void)
 {
 	kmem_cache_destroy(sas_task_cache);
+	kmem_cache_destroy(sas_event_cache);
 }
 
 MODULE_AUTHOR("Luben Tuikov <luben_tuikov@adaptec.com>");

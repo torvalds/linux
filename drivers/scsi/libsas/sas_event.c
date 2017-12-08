@@ -29,7 +29,8 @@
 
 int sas_queue_work(struct sas_ha_struct *ha, struct sas_work *sw)
 {
-	int rc = 0;
+	/* it's added to the defer_q when draining so return succeed */
+	int rc = 1;
 
 	if (!test_bit(SAS_HA_REGISTERED, &ha->state))
 		return 0;
@@ -44,19 +45,15 @@ int sas_queue_work(struct sas_ha_struct *ha, struct sas_work *sw)
 	return rc;
 }
 
-static int sas_queue_event(int event, unsigned long *pending,
-			    struct sas_work *work,
+static int sas_queue_event(int event, struct sas_work *work,
 			    struct sas_ha_struct *ha)
 {
-	int rc = 0;
+	unsigned long flags;
+	int rc;
 
-	if (!test_and_set_bit(event, pending)) {
-		unsigned long flags;
-
-		spin_lock_irqsave(&ha->lock, flags);
-		rc = sas_queue_work(ha, work);
-		spin_unlock_irqrestore(&ha->lock, flags);
-	}
+	spin_lock_irqsave(&ha->lock, flags);
+	rc = sas_queue_work(ha, work);
+	spin_unlock_irqrestore(&ha->lock, flags);
 
 	return rc;
 }
@@ -66,6 +63,7 @@ void __sas_drain_work(struct sas_ha_struct *ha)
 {
 	struct workqueue_struct *wq = ha->core.shost->work_q;
 	struct sas_work *sw, *_sw;
+	int ret;
 
 	set_bit(SAS_HA_DRAINING, &ha->state);
 	/* flush submitters */
@@ -78,7 +76,10 @@ void __sas_drain_work(struct sas_ha_struct *ha)
 	clear_bit(SAS_HA_DRAINING, &ha->state);
 	list_for_each_entry_safe(sw, _sw, &ha->defer_q, drain_node) {
 		list_del_init(&sw->drain_node);
-		sas_queue_work(ha, sw);
+		ret = sas_queue_work(ha, sw);
+		if (ret != 1)
+			sas_free_event(to_asd_sas_event(&sw->work));
+
 	}
 	spin_unlock_irq(&ha->lock);
 }
@@ -119,29 +120,68 @@ void sas_enable_revalidation(struct sas_ha_struct *ha)
 		if (!test_and_clear_bit(ev, &d->pending))
 			continue;
 
-		sas_queue_event(ev, &d->pending, &d->disc_work[ev].work, ha);
+		sas_queue_event(ev, &d->disc_work[ev].work, ha);
 	}
 	mutex_unlock(&ha->disco_mutex);
 }
 
+
+static void sas_port_event_worker(struct work_struct *work)
+{
+	struct asd_sas_event *ev = to_asd_sas_event(work);
+
+	sas_port_event_fns[ev->event](work);
+	sas_free_event(ev);
+}
+
+static void sas_phy_event_worker(struct work_struct *work)
+{
+	struct asd_sas_event *ev = to_asd_sas_event(work);
+
+	sas_phy_event_fns[ev->event](work);
+	sas_free_event(ev);
+}
+
 static int sas_notify_port_event(struct asd_sas_phy *phy, enum port_event event)
 {
+	struct asd_sas_event *ev;
 	struct sas_ha_struct *ha = phy->ha;
+	int ret;
 
 	BUG_ON(event >= PORT_NUM_EVENTS);
 
-	return sas_queue_event(event, &phy->port_events_pending,
-			       &phy->port_events[event].work, ha);
+	ev = sas_alloc_event(phy);
+	if (!ev)
+		return -ENOMEM;
+
+	INIT_SAS_EVENT(ev, sas_port_event_worker, phy, event);
+
+	ret = sas_queue_event(event, &ev->work, ha);
+	if (ret != 1)
+		sas_free_event(ev);
+
+	return ret;
 }
 
 int sas_notify_phy_event(struct asd_sas_phy *phy, enum phy_event event)
 {
+	struct asd_sas_event *ev;
 	struct sas_ha_struct *ha = phy->ha;
+	int ret;
 
 	BUG_ON(event >= PHY_NUM_EVENTS);
 
-	return sas_queue_event(event, &phy->phy_events_pending,
-			       &phy->phy_events[event].work, ha);
+	ev = sas_alloc_event(phy);
+	if (!ev)
+		return -ENOMEM;
+
+	INIT_SAS_EVENT(ev, sas_phy_event_worker, phy, event);
+
+	ret = sas_queue_event(event, &ev->work, ha);
+	if (ret != 1)
+		sas_free_event(ev);
+
+	return ret;
 }
 
 int sas_init_events(struct sas_ha_struct *sas_ha)
