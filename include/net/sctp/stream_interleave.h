@@ -37,6 +37,7 @@ struct sctp_stream_interleave {
 	struct sctp_chunk *(*make_datafrag)(const struct sctp_association *asoc,
 					    const struct sctp_sndrcvinfo *sinfo,
 					    int len, __u8 flags, gfp_t gfp);
+	void	(*assign_number)(struct sctp_chunk *chunk);
 };
 
 void sctp_stream_interleave_init(struct sctp_stream *stream);

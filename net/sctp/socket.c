@@ -2002,7 +2002,20 @@ static int sctp_sendmsg(struct sock *sk, struct msghdr *msg, size_t msg_len)
 		if (err < 0)
 			goto out_free;
 
-		wait_connect = true;
+		/* If stream interleave is enabled, wait_connect has to be
+		 * done earlier than data enqueue, as it needs to make data
+		 * or idata according to asoc->intl_enable which is set
+		 * after connection is done.
+		 */
+		if (sctp_sk(asoc->base.sk)->strm_interleave) {
+			timeo = sock_sndtimeo(sk, 0);
+			err = sctp_wait_for_connect(asoc, &timeo);
+			if (err)
+				goto out_unlock;
+		} else {
+			wait_connect = true;
+		}
+
 		pr_debug("%s: we associated primitively\n", __func__);
 	}
 
@@ -3180,7 +3193,7 @@ static int sctp_setsockopt_maxseg(struct sock *sk, char __user *optval, unsigned
 		if (val == 0) {
 			val = asoc->pathmtu - sp->pf->af->net_header_len;
 			val -= sizeof(struct sctphdr) +
-			       sizeof(struct sctp_data_chunk);
+			       sctp_datachk_len(&asoc->stream);
 		}
 		asoc->user_frag = val;
 		asoc->frag_point = sctp_frag_point(asoc, asoc->pathmtu);

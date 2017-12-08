@@ -399,6 +399,18 @@ void sctp_stream_update(struct sctp_stream *stream, struct sctp_stream *new);
 #define sctp_ssn_skip(stream, type, sid, ssn) \
 	((stream)->type[sid].ssn = ssn + 1)
 
+/* What is the current MID number for this stream? */
+#define sctp_mid_peek(stream, type, sid) \
+	((stream)->type[sid].mid)
+
+/* Return the next MID number for this stream.  */
+#define sctp_mid_next(stream, type, sid) \
+	((stream)->type[sid].mid++)
+
+/* Skip over this mid and all below. */
+#define sctp_mid_skip(stream, type, sid, mid) \
+	((stream)->type[sid].mid = mid + 1)
+
 /*
  * Pointers to address related SCTP functions.
  * (i.e. things that depend on the address family.)
@@ -623,6 +635,7 @@ struct sctp_chunk {
 	__u16	rtt_in_progress:1,	/* This chunk used for RTT calc? */
 		has_tsn:1,		/* Does this chunk have a TSN yet? */
 		has_ssn:1,		/* Does this chunk have a SSN yet? */
+#define has_mid has_ssn
 		singleton:1,		/* Only chunk in the packet? */
 		end_of_packet:1,	/* Last chunk in the packet? */
 		ecn_ce_done:1,		/* Have we processed the ECN CE bit? */
@@ -1360,7 +1373,10 @@ struct sctp_stream_out_ext {
 };
 
 struct sctp_stream_out {
-	__u16	ssn;
+	union {
+		__u32 mid;
+		__u16 ssn;
+	};
 	__u8	state;
 	struct sctp_stream_out_ext *ext;
 };

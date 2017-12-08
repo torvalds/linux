@@ -57,16 +57,53 @@ static struct sctp_chunk *sctp_make_idatafrag_empty(
 	return retval;
 }
 
+static void sctp_chunk_assign_mid(struct sctp_chunk *chunk)
+{
+	struct sctp_stream *stream;
+	struct sctp_chunk *lchunk;
+	__u32 cfsn = 0;
+	__u16 sid;
+
+	if (chunk->has_mid)
+		return;
+
+	sid = sctp_chunk_stream_no(chunk);
+	stream = &chunk->asoc->stream;
+
+	list_for_each_entry(lchunk, &chunk->msg->chunks, frag_list) {
+		struct sctp_idatahdr *hdr;
+
+		lchunk->has_mid = 1;
+
+		if (lchunk->chunk_hdr->flags & SCTP_DATA_UNORDERED)
+			continue;
+
+		hdr = lchunk->subh.idata_hdr;
+
+		if (lchunk->chunk_hdr->flags & SCTP_DATA_FIRST_FRAG)
+			hdr->ppid = lchunk->sinfo.sinfo_ppid;
+		else
+			hdr->fsn = htonl(cfsn++);
+
+		if (lchunk->chunk_hdr->flags & SCTP_DATA_LAST_FRAG)
+			hdr->mid = htonl(sctp_mid_next(stream, out, sid));
+		else
+			hdr->mid = htonl(sctp_mid_peek(stream, out, sid));
+	}
+}
+
 static struct sctp_stream_interleave sctp_stream_interleave_0 = {
 	.data_chunk_len		= sizeof(struct sctp_data_chunk),
 	/* DATA process functions */
 	.make_datafrag		= sctp_make_datafrag_empty,
+	.assign_number		= sctp_chunk_assign_ssn,
 };
 
 static struct sctp_stream_interleave sctp_stream_interleave_1 = {
 	.data_chunk_len		= sizeof(struct sctp_idata_chunk),
 	/* I-DATA process functions */
 	.make_datafrag		= sctp_make_idatafrag_empty,
+	.assign_number		= sctp_chunk_assign_mid,
 };
 
 void sctp_stream_interleave_init(struct sctp_stream *stream)

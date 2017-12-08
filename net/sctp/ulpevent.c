@@ -443,8 +443,8 @@ struct sctp_ulpevent *sctp_ulpevent_make_send_failed(
 		goto fail;
 
 	/* Pull off the common chunk header and DATA header.  */
-	skb_pull(skb, sizeof(struct sctp_data_chunk));
-	len -= sizeof(struct sctp_data_chunk);
+	skb_pull(skb, sctp_datachk_len(&asoc->stream));
+	len -= sctp_datachk_len(&asoc->stream);
 
 	/* Embed the event fields inside the cloned skb.  */
 	event = sctp_skb2event(skb);
