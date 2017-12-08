@@ -21,24 +21,19 @@
 #include <asm/insn.h>
 #include <asm/kvm_mmu.h>
 
-#define HYP_PAGE_OFFSET_HIGH_MASK	((UL(1) << VA_BITS) - 1)
-#define HYP_PAGE_OFFSET_LOW_MASK	((UL(1) << (VA_BITS - 1)) - 1)
-
 static u64 va_mask;
 
 static void compute_layout(void)
 {
 	phys_addr_t idmap_addr = __pa_symbol(__hyp_idmap_text_start);
-	unsigned long mask = HYP_PAGE_OFFSET_HIGH_MASK;
+	u64 hyp_va_msb;
 
-	/*
-	 * Activate the lower HYP offset only if the idmap doesn't
-	 * clash with it,
-	 */
-	if (idmap_addr > HYP_PAGE_OFFSET_LOW_MASK)
-		mask = HYP_PAGE_OFFSET_LOW_MASK;
+	/* Where is my RAM region? */
+	hyp_va_msb  = idmap_addr & BIT(VA_BITS - 1);
+	hyp_va_msb ^= BIT(VA_BITS - 1);
 
-	va_mask = mask;
+	va_mask  = GENMASK_ULL(VA_BITS - 2, 0);
+	va_mask |= hyp_va_msb;
 }
 
 static u32 compute_instruction(int n, u32 rd, u32 rn)
