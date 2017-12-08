@@ -1965,9 +1965,17 @@ void xhci_slot_copy(struct xhci_hcd *xhci,
 int xhci_endpoint_init(struct xhci_hcd *xhci, struct xhci_virt_device *virt_dev,
 		struct usb_device *udev, struct usb_host_endpoint *ep,
 		gfp_t mem_flags);
+struct xhci_ring *xhci_ring_alloc(struct xhci_hcd *xhci,
+		unsigned int num_segs, unsigned int cycle_state,
+		enum xhci_ring_type type, unsigned int max_packet, gfp_t flags);
 void xhci_ring_free(struct xhci_hcd *xhci, struct xhci_ring *ring);
 int xhci_ring_expansion(struct xhci_hcd *xhci, struct xhci_ring *ring,
-				unsigned int num_trbs, gfp_t flags);
+		unsigned int num_trbs, gfp_t flags);
+int xhci_alloc_erst(struct xhci_hcd *xhci,
+		struct xhci_ring *evt_ring,
+		struct xhci_erst *erst,
+		gfp_t flags);
+void xhci_free_erst(struct xhci_hcd *xhci, struct xhci_erst *erst);
 void xhci_free_endpoint_ring(struct xhci_hcd *xhci,
 		struct xhci_virt_device *virt_dev,
 		unsigned int ep_index);
@@ -1998,6 +2006,10 @@ struct xhci_command *xhci_alloc_command_with_ctx(struct xhci_hcd *xhci,
 void xhci_urb_free_priv(struct urb_priv *urb_priv);
 void xhci_free_command(struct xhci_hcd *xhci,
 		struct xhci_command *command);
+struct xhci_container_ctx *xhci_alloc_container_ctx(struct xhci_hcd *xhci,
+		int type, gfp_t flags);
+void xhci_free_container_ctx(struct xhci_hcd *xhci,
+		struct xhci_container_ctx *ctx);
 
 /* xHCI host controller glue */
 typedef void (*xhci_get_quirks_t)(struct device *, struct xhci_hcd *);
@@ -2071,6 +2083,8 @@ void xhci_handle_command_timeout(struct work_struct *work);
 void xhci_ring_ep_doorbell(struct xhci_hcd *xhci, unsigned int slot_id,
 		unsigned int ep_index, unsigned int stream_id);
 void xhci_cleanup_command_queue(struct xhci_hcd *xhci);
+void inc_deq(struct xhci_hcd *xhci, struct xhci_ring *ring);
+unsigned int count_trbs(u64 addr, u64 len);
 
 /* xHCI roothub code */
 void xhci_set_link_state(struct xhci_hcd *xhci, __le32 __iomem **port_array,

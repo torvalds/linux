@@ -153,7 +153,7 @@ static void next_trb(struct xhci_hcd *xhci,
  * See Cycle bit rules. SW is the consumer for the event ring only.
  * Don't make a ring full of link TRBs.  That would be dumb and this would loop.
  */
-static void inc_deq(struct xhci_hcd *xhci, struct xhci_ring *ring)
+void inc_deq(struct xhci_hcd *xhci, struct xhci_ring *ring)
 {
 	/* event ring doesn't have link trbs, check for last trb */
 	if (ring->type == TYPE_EVENT) {
@@ -2957,7 +2957,7 @@ static int prepare_transfer(struct xhci_hcd *xhci,
 	return 0;
 }
 
-static unsigned int count_trbs(u64 addr, u64 len)
+unsigned int count_trbs(u64 addr, u64 len)
 {
 	unsigned int num_trbs;
 
