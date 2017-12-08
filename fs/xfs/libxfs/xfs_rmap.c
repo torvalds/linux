@@ -444,6 +444,30 @@ xfs_rmap_unmap(
 		goto out_done;
 	}
 
+	/*
+	 * If we're doing an unknown-owner removal for EFI recovery, we expect
+	 * to find the full range in the rmapbt or nothing at all.  If we
+	 * don't find any rmaps overlapping either end of the range, we're
+	 * done.  Hopefully this means that the EFI creator already queued
+	 * (and finished) a RUI to remove the rmap.
+	 */
+	if (owner == XFS_RMAP_OWN_UNKNOWN &&
+	    ltrec.rm_startblock + ltrec.rm_blockcount <= bno) {
+		struct xfs_rmap_irec    rtrec;
+
+		error = xfs_btree_increment(cur, 0, &i);
+		if (error)
+			goto out_error;
+		if (i == 0)
+			goto out_done;
+		error = xfs_rmap_get_rec(cur, &rtrec, &i);
+		if (error)
+			goto out_error;
+		XFS_WANT_CORRUPTED_GOTO(mp, i == 1, out_error);
+		if (rtrec.rm_startblock >= bno + len)
+			goto out_done;
+	}
+
 	/* Make sure the unwritten flag matches. */
 	XFS_WANT_CORRUPTED_GOTO(mp, (flags & XFS_RMAP_UNWRITTEN) ==
 			(ltrec.rm_flags & XFS_RMAP_UNWRITTEN), out_error);
@@ -664,6 +688,7 @@ xfs_rmap_map(
 		flags |= XFS_RMAP_UNWRITTEN;
 	trace_xfs_rmap_map(mp, cur->bc_private.a.agno, bno, len,
 			unwritten, oinfo);
+	ASSERT(!xfs_rmap_should_skip_owner_update(oinfo));
 
 	/*
 	 * For the initial lookup, look for an exact match or the left-adjacent
