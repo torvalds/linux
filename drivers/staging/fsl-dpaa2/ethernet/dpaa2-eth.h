@@ -370,7 +370,7 @@ unsigned int dpaa2_eth_needed_headroom(struct dpaa2_eth_priv *priv,
 	if (skb_is_nonlinear(skb))
 		return 0;
 
-	return DPAA2_ETH_SWA_SIZE + DPAA2_ETH_TX_BUF_ALIGN;
+	return DPAA2_ETH_SWA_SIZE;
 }
 
 /* Extra headroom space requested to hardware, in order to make sure there's
