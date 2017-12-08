@@ -128,7 +128,8 @@ int rf69_set_modulation_shaping(struct spi_device *spi,
 		dev_dbg(&spi->dev, "set: mod shaping");
 	#endif
 
-	if (rf69_get_modulation(spi) == FSK) {
+	switch (rf69_get_modulation(spi)) {
+	case FSK:
 		switch (mod_shaping) {
 		case SHAPING_OFF: return rf69_read_mod_write(spi, REG_DATAMODUL, MASK_DATAMODUL_MODULATION_SHAPE, DATAMODUL_MODULATION_SHAPE_NONE);
 		case SHAPING_1_0: return rf69_read_mod_write(spi, REG_DATAMODUL, MASK_DATAMODUL_MODULATION_SHAPE, DATAMODUL_MODULATION_SHAPE_1_0);
@@ -138,7 +139,7 @@ int rf69_set_modulation_shaping(struct spi_device *spi,
 			dev_dbg(&spi->dev, "set: illegal input param");
 			return -EINVAL;
 		}
-	} else {
+	case OOK:
 		switch (mod_shaping) {
 		case SHAPING_OFF: return rf69_read_mod_write(spi, REG_DATAMODUL, MASK_DATAMODUL_MODULATION_SHAPE, DATAMODUL_MODULATION_SHAPE_NONE);
 		case SHAPING_BR:  return rf69_read_mod_write(spi, REG_DATAMODUL, MASK_DATAMODUL_MODULATION_SHAPE, DATAMODUL_MODULATION_SHAPE_BR);
@@ -147,6 +148,9 @@ int rf69_set_modulation_shaping(struct spi_device *spi,
 			dev_dbg(&spi->dev, "set: illegal input param");
 			return -EINVAL;
 		}
+	default:
+		dev_dbg(&spi->dev, "set: modulation undefined");
+		return -EINVAL;
 	}
 }
 
