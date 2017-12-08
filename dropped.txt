@@ -1,6 +1,9 @@
 This is the list of patches/features which have been temporarily
 reverted or disabled for BB:
 
+AUFS
+LSM stacking patches
+
 UBUNTU: SAUCE: (no-up) nbd: Change default partitions per device to 15
 UBUNTU: SAUCE: (no-up) firmware: Update bnx2x to current firmware version 7.2.51
 UBUNTU: SAUCE: (no-up) Remove redundant cis firmware
@@ -46,3 +49,6 @@ UBUNTU: SAUCE: PCI: Apply the new generic I/O management on PCI IO hosts
 UBUNTU: SAUCE: PCI: Restore codepath for !CONFIG_LIBIO
 UBUNTU: SAUCE: PCI: Support hibmc VGA cards behind a misbehaving HiSilicon bridge
 UBUNTU: SAUCE: Clear Linux: smpboot: reuse timer calibration
+UBUNTU: SAUCE: (no-up) disable -pie when gcc has it enabled by default
+UBUNTU: SAUCE: bcache: Fix bcache device names
+UBUNTU: [Packaging] Include arch/arm64/kernel/ftrace-mod.o in headers package

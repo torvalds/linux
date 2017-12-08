@@ -1649,7 +1649,7 @@ CONFIG_BACKLIGHT_LP855X                         policy<{'amd64': 'm', 'arm64': '
 CONFIG_BACKLIGHT_LP8788                         policy<{'amd64': 'm', 'arm64': 'm', 'armhf': 'm', 'i386': 'm', 'ppc64el': 'm'}>
 CONFIG_BACKLIGHT_PANDORA                        policy<{'amd64': 'm', 'arm64': 'm', 'armhf': 'm', 'i386': 'm', 'ppc64el': 'm'}>
 CONFIG_BACKLIGHT_SKY81452                       policy<{'amd64': 'm', 'arm64': 'm', 'armhf': 'm', 'i386': 'm', 'ppc64el': 'm'}>
-CONFIG_BACKLIGHT_TPS65217                       policy<{'amd64': 'm', 'arm64': 'm', 'armhf': 'm', 'i386': 'm'}>
+CONFIG_BACKLIGHT_TPS65217                       policy<{'arm64': 'm', 'armhf': 'm'}>
 CONFIG_BACKLIGHT_AS3711                         policy<{'amd64': 'm', 'arm64': 'm', 'armhf': 'm', 'i386': 'm', 'ppc64el': 'm'}>
 CONFIG_BACKLIGHT_GPIO                           policy<{'amd64': 'm', 'arm64': 'm', 'armhf': 'm', 'i386': 'm', 'ppc64el': 'm'}>
 CONFIG_BACKLIGHT_LV5207LP                       policy<{'amd64': 'm', 'arm64': 'm', 'armhf': 'm', 'i386': 'm', 'ppc64el': 'm'}>
@@ -8225,7 +8225,7 @@ CONFIG_REGULATOR_TPS6507X                       policy<{'amd64': 'm', 'arm64': '
 CONFIG_REGULATOR_TPS65086                       policy<{'amd64': 'm', 'arm64': 'm', 'armhf': 'm', 'i386': 'm', 'ppc64el': 'm'}>
 CONFIG_REGULATOR_TPS65090                       policy<{'amd64': 'm', 'arm64': 'm', 'armhf': 'm', 'i386': 'm', 'ppc64el': 'm'}>
 CONFIG_REGULATOR_TPS65132                       policy<{'amd64': 'm', 'arm64': 'm', 'armhf': 'm', 'i386': 'm', 'ppc64el': 'm'}>
-CONFIG_REGULATOR_TPS65217                       policy<{'amd64': 'm', 'arm64': 'm', 'armhf': 'y', 'i386': 'm'}>
+CONFIG_REGULATOR_TPS65217                       policy<{'arm64': 'm', 'armhf': 'y'}>
 CONFIG_REGULATOR_TPS65218                       policy<{'arm64': 'm', 'armhf': 'm', 'ppc64el': 'm'}>
 CONFIG_REGULATOR_TPS6524X                       policy<{'amd64': 'm', 'arm64': 'm', 'armhf': 'm', 'i386': 'm', 'ppc64el': 'm'}>
 CONFIG_REGULATOR_TPS6586X                       policy<{'amd64': 'm', 'arm64': 'm', 'armhf': 'm', 'i386': 'm', 'ppc64el': 'm'}>
@@ -11085,8 +11085,8 @@ CONFIG_X86_INTEL_MPX                            policy<{'amd64': 'y'}>
 CONFIG_X86_INTEL_MEMORY_PROTECTION_KEYS         policy<{'amd64': 'y'}>
 CONFIG_EFI_STUB                                 policy<{'amd64': 'y', 'arm64': 'y', 'i386': 'y'}>
 CONFIG_EFI_MIXED                                policy<{'amd64': 'y'}>
-CONFIG_EFI_SECURE_BOOT_LOCK_DOWN                policy<{'amd64': 'y', 'i386': 'y'}>
-CONFIG_EFI_ALLOW_SECURE_BOOT_EXIT               policy<{'amd64': 'y', 'i386': 'y'}>
+CONFIG_LOCK_DOWN_IN_EFI_SECURE_BOOT             policy<{'amd64': 'y', 'arm64': 'y', 'i386': 'y'}>
+CONFIG_ALLOW_LOCKDOWN_LIFT_BY_SYSRQ             policy<{'amd64': 'y', 'arm64': 'y', 'armhf': 'y', 'i386': 'y', 'ppc64el': 'y', 's390x': 'y'}>
 CONFIG_KEXEC_VERIFY_SIG                         policy<{'amd64': 'y'}>
 CONFIG_KEXEC_BZIMAGE_VERIFY_SIG                 policy<{'amd64': 'y'}>
 CONFIG_KEXEC_JUMP                               policy<{'amd64': 'y', 'i386': 'y'}>
@@ -11097,8 +11097,8 @@ CONFIG_MODIFY_LDT_SYSCALL                       policy<{'amd64': 'y', 'i386': 'y
 CONFIG_ZONE_DMA                                 note<LP:1628523>
 CONFIG_COMPAT_VDSO                              mark<ENFORCED>
 CONFIG_X86_LEGACY_VM86                          note<LP:1499089>
-CONFIG_EFI_SECURE_BOOT_LOCK_DOWN                mark<ENFORCED>
-CONFIG_EFI_ALLOW_SECURE_BOOT_EXIT               mark<ENFORCED>
+CONFIG_LOCK_DOWN_IN_EFI_SECURE_BOOT             mark<ENFORCED>
+CONFIG_ALLOW_LOCKDOWN_LIFT_BY_SYSRQ             mark<ENFORCED>
 CONFIG_KEXEC_BZIMAGE_VERIFY_SIG                 flag<REVIEW> note<Q: check this is in sync with the kexec/kdump userspace>
 CONFIG_MODIFY_LDT_SYSCALL                       flag<REVIEW> note<Q: check this with security>
 
