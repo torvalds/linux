@@ -204,6 +204,13 @@
 #define AM_ROB_ECC_MULBIT_ERR_ADDR_OFF	8
 #define AM_ROB_ECC_MULBIT_ERR_ADDR_MSK	(0xff << AM_ROB_ECC_MULBIT_ERR_ADDR_OFF)
 
+/* RAS registers need init */
+#define RAS_BASE		(0x6000)
+#define SAS_RAS_INTR0			(RAS_BASE)
+#define SAS_RAS_INTR1			(RAS_BASE + 0x04)
+#define SAS_RAS_INTR0_MASK		(RAS_BASE + 0x08)
+#define SAS_RAS_INTR1_MASK		(RAS_BASE + 0x0c)
+
 /* HW dma structures */
 /* Delivery queue header */
 /* dw0 */
@@ -496,6 +503,10 @@ static void init_reg_v3_hw(struct hisi_hba *hisi_hba)
 
 	hisi_sas_write32(hisi_hba, SATA_INITI_D2H_STORE_ADDR_HI,
 			 upper_32_bits(hisi_hba->initial_fis_dma));
+
+	/* RAS registers init */
+	hisi_sas_write32(hisi_hba, SAS_RAS_INTR0_MASK, 0x0);
+	hisi_sas_write32(hisi_hba, SAS_RAS_INTR1_MASK, 0x0);
 }
 
 static void config_phy_opt_mode_v3_hw(struct hisi_hba *hisi_hba, int phy_no)
@@ -2129,6 +2140,127 @@ static void hisi_sas_v3_remove(struct pci_dev *pdev)
 	scsi_host_put(shost);
 }
 
+static const struct hisi_sas_hw_error sas_ras_intr0_nfe[] = {
+	{ .irq_msk = BIT(19), .msg = "HILINK_INT" },
+	{ .irq_msk = BIT(20), .msg = "HILINK_PLL0_OUT_OF_LOCK" },
+	{ .irq_msk = BIT(21), .msg = "HILINK_PLL1_OUT_OF_LOCK" },
+	{ .irq_msk = BIT(22), .msg = "HILINK_LOSS_OF_REFCLK0" },
+	{ .irq_msk = BIT(23), .msg = "HILINK_LOSS_OF_REFCLK1" },
+	{ .irq_msk = BIT(24), .msg = "DMAC0_TX_POISON" },
+	{ .irq_msk = BIT(25), .msg = "DMAC1_TX_POISON" },
+	{ .irq_msk = BIT(26), .msg = "DMAC2_TX_POISON" },
+	{ .irq_msk = BIT(27), .msg = "DMAC3_TX_POISON" },
+	{ .irq_msk = BIT(28), .msg = "DMAC4_TX_POISON" },
+	{ .irq_msk = BIT(29), .msg = "DMAC5_TX_POISON" },
+	{ .irq_msk = BIT(30), .msg = "DMAC6_TX_POISON" },
+	{ .irq_msk = BIT(31), .msg = "DMAC7_TX_POISON" },
+};
+
+static const struct hisi_sas_hw_error sas_ras_intr1_nfe[] = {
+	{ .irq_msk = BIT(0), .msg = "RXM_CFG_MEM3_ECC2B_INTR" },
+	{ .irq_msk = BIT(1), .msg = "RXM_CFG_MEM2_ECC2B_INTR" },
+	{ .irq_msk = BIT(2), .msg = "RXM_CFG_MEM1_ECC2B_INTR" },
+	{ .irq_msk = BIT(3), .msg = "RXM_CFG_MEM0_ECC2B_INTR" },
+	{ .irq_msk = BIT(4), .msg = "HGC_CQE_ECC2B_INTR" },
+	{ .irq_msk = BIT(5), .msg = "LM_CFG_IOSTL_ECC2B_INTR" },
+	{ .irq_msk = BIT(6), .msg = "LM_CFG_ITCTL_ECC2B_INTR" },
+	{ .irq_msk = BIT(7), .msg = "HGC_ITCT_ECC2B_INTR" },
+	{ .irq_msk = BIT(8), .msg = "HGC_IOST_ECC2B_INTR" },
+	{ .irq_msk = BIT(9), .msg = "HGC_DQE_ECC2B_INTR" },
+	{ .irq_msk = BIT(10), .msg = "DMAC0_RAM_ECC2B_INTR" },
+	{ .irq_msk = BIT(11), .msg = "DMAC1_RAM_ECC2B_INTR" },
+	{ .irq_msk = BIT(12), .msg = "DMAC2_RAM_ECC2B_INTR" },
+	{ .irq_msk = BIT(13), .msg = "DMAC3_RAM_ECC2B_INTR" },
+	{ .irq_msk = BIT(14), .msg = "DMAC4_RAM_ECC2B_INTR" },
+	{ .irq_msk = BIT(15), .msg = "DMAC5_RAM_ECC2B_INTR" },
+	{ .irq_msk = BIT(16), .msg = "DMAC6_RAM_ECC2B_INTR" },
+	{ .irq_msk = BIT(17), .msg = "DMAC7_RAM_ECC2B_INTR" },
+	{ .irq_msk = BIT(18), .msg = "OOO_RAM_ECC2B_INTR" },
+	{ .irq_msk = BIT(20), .msg = "HGC_DQE_POISON_INTR" },
+	{ .irq_msk = BIT(21), .msg = "HGC_IOST_POISON_INTR" },
+	{ .irq_msk = BIT(22), .msg = "HGC_ITCT_POISON_INTR" },
+	{ .irq_msk = BIT(23), .msg = "HGC_ITCT_NCQ_POISON_INTR" },
+	{ .irq_msk = BIT(24), .msg = "DMAC0_RX_POISON" },
+	{ .irq_msk = BIT(25), .msg = "DMAC1_RX_POISON" },
+	{ .irq_msk = BIT(26), .msg = "DMAC2_RX_POISON" },
+	{ .irq_msk = BIT(27), .msg = "DMAC3_RX_POISON" },
+	{ .irq_msk = BIT(28), .msg = "DMAC4_RX_POISON" },
+	{ .irq_msk = BIT(29), .msg = "DMAC5_RX_POISON" },
+	{ .irq_msk = BIT(30), .msg = "DMAC6_RX_POISON" },
+	{ .irq_msk = BIT(31), .msg = "DMAC7_RX_POISON" },
+};
+
+static bool process_non_fatal_error_v3_hw(struct hisi_hba *hisi_hba)
+{
+	struct device *dev = hisi_hba->dev;
+	const struct hisi_sas_hw_error *ras_error;
+	bool need_reset = false;
+	u32 irq_value;
+	int i;
+
+	irq_value = hisi_sas_read32(hisi_hba, SAS_RAS_INTR0);
+	for (i = 0; i < ARRAY_SIZE(sas_ras_intr0_nfe); i++) {
+		ras_error = &sas_ras_intr0_nfe[i];
+		if (ras_error->irq_msk & irq_value) {
+			dev_warn(dev, "SAS_RAS_INTR0: %s(irq_value=0x%x) found.\n",
+					ras_error->msg, irq_value);
+			need_reset = true;
+		}
+	}
+	hisi_sas_write32(hisi_hba, SAS_RAS_INTR0, irq_value);
+
+	irq_value = hisi_sas_read32(hisi_hba, SAS_RAS_INTR1);
+	for (i = 0; i < ARRAY_SIZE(sas_ras_intr1_nfe); i++) {
+		ras_error = &sas_ras_intr1_nfe[i];
+		if (ras_error->irq_msk & irq_value) {
+			dev_warn(dev, "SAS_RAS_INTR1: %s(irq_value=0x%x) found.\n",
+					ras_error->msg, irq_value);
+			need_reset = true;
+		}
+	}
+	hisi_sas_write32(hisi_hba, SAS_RAS_INTR1, irq_value);
+
+	return need_reset;
+}
+
+static pci_ers_result_t hisi_sas_error_detected_v3_hw(struct pci_dev *pdev,
+		pci_channel_state_t state)
+{
+	struct sas_ha_struct *sha = pci_get_drvdata(pdev);
+	struct hisi_hba *hisi_hba = sha->lldd_ha;
+	struct device *dev = hisi_hba->dev;
+
+	dev_info(dev, "PCI error: detected callback, state(%d)!!\n", state);
+	if (state == pci_channel_io_perm_failure)
+		return PCI_ERS_RESULT_DISCONNECT;
+
+	if (process_non_fatal_error_v3_hw(hisi_hba))
+		return PCI_ERS_RESULT_NEED_RESET;
+
+	return PCI_ERS_RESULT_CAN_RECOVER;
+}
+
+static pci_ers_result_t hisi_sas_mmio_enabled_v3_hw(struct pci_dev *pdev)
+{
+	return PCI_ERS_RESULT_RECOVERED;
+}
+
+static pci_ers_result_t hisi_sas_slot_reset_v3_hw(struct pci_dev *pdev)
+{
+	struct sas_ha_struct *sha = pci_get_drvdata(pdev);
+	struct hisi_hba *hisi_hba = sha->lldd_ha;
+	struct device *dev = hisi_hba->dev;
+	HISI_SAS_DECLARE_RST_WORK_ON_STACK(r);
+
+	dev_info(dev, "PCI error: slot reset callback!!\n");
+	queue_work(hisi_hba->wq, &r.work);
+	wait_for_completion(r.completion);
+	if (r.done)
+		return PCI_ERS_RESULT_RECOVERED;
+
+	return PCI_ERS_RESULT_DISCONNECT;
+}
+
 enum {
 	/* instances of the controller */
 	hip08,
@@ -2139,11 +2271,18 @@ static const struct pci_device_id sas_v3_pci_table[] = {
 	{}
 };
 
+static const struct pci_error_handlers hisi_sas_err_handler = {
+	.error_detected	= hisi_sas_error_detected_v3_hw,
+	.mmio_enabled	= hisi_sas_mmio_enabled_v3_hw,
+	.slot_reset	= hisi_sas_slot_reset_v3_hw,
+};
+
 static struct pci_driver sas_v3_pci_driver = {
 	.name		= DRV_NAME,
 	.id_table	= sas_v3_pci_table,
 	.probe		= hisi_sas_v3_probe,
 	.remove		= hisi_sas_v3_remove,
+	.err_handler	= &hisi_sas_err_handler,
 };
 
 module_pci_driver(sas_v3_pci_driver);
