@@ -546,9 +546,7 @@ struct key *request_key_and_link(struct key_type *type,
 	if (!IS_ERR(key_ref)) {
 		key = key_ref_to_ptr(key_ref);
 		if (dest_keyring) {
-			construct_get_dest_keyring(&dest_keyring);
 			ret = key_link(dest_keyring, key);
-			key_put(dest_keyring);
 			if (ret < 0) {
 				key_put(key);
 				key = ERR_PTR(ret);
