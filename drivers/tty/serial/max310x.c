@@ -753,6 +753,14 @@ static void max310x_handle_tx(struct uart_port *port)
 		uart_write_wakeup(port);
 }
 
+static void max310x_start_tx(struct uart_port *port)
+{
+	struct max310x_one *one = container_of(port, struct max310x_one, port);
+
+	if (!work_pending(&one->tx_work))
+		schedule_work(&one->tx_work);
+}
+
 static irqreturn_t max310x_port_irq(struct max310x_port *s, int portno)
 {
 	struct uart_port *port = &s->p[portno].port;
@@ -776,11 +784,8 @@ static irqreturn_t max310x_port_irq(struct max310x_port *s, int portno)
 		}
 		if (rxlen)
 			max310x_handle_rx(port, rxlen);
-		if (ists & MAX310X_IRQ_TXEMPTY_BIT) {
-			mutex_lock(&s->mutex);
-			max310x_handle_tx(port);
-			mutex_unlock(&s->mutex);
-		}
+		if (ists & MAX310X_IRQ_TXEMPTY_BIT)
+			max310x_start_tx(port);
 	} while (1);
 	return res;
 }
@@ -818,14 +823,6 @@ static void max310x_wq_proc(struct work_struct *ws)
 	mutex_lock(&s->mutex);
 	max310x_handle_tx(&one->port);
 	mutex_unlock(&s->mutex);
-}
-
-static void max310x_start_tx(struct uart_port *port)
-{
-	struct max310x_one *one = container_of(port, struct max310x_one, port);
-
-	if (!work_pending(&one->tx_work))
-		schedule_work(&one->tx_work);
 }
 
 static unsigned int max310x_tx_empty(struct uart_port *port)
