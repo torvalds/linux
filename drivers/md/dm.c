@@ -1810,17 +1810,26 @@ static void __bind_mempools(struct mapped_device *md, struct dm_table *t)
 {
 	struct dm_md_mempools *p = dm_table_get_md_mempools(t);
 
-	if (md->bs) {
-		/* The md already has necessary mempools. */
-		if (dm_table_bio_based(t)) {
+	if (dm_table_bio_based(t)) {
+		/* The md may already have mempools that need changing. */
+		if (md->bs) {
 			/*
 			 * Reload bioset because front_pad may have changed
 			 * because a different table was loaded.
 			 */
 			bioset_free(md->bs);
-			md->bs = p->bs;
-			p->bs = NULL;
+			md->bs = NULL;
 		}
+		if (md->io_pool) {
+			/*
+			 * Reload io_pool because pool_size may have changed
+			 * because a different table was loaded.
+			 */
+			mempool_destroy(md->io_pool);
+			md->io_pool = NULL;
+		}
+
+	} else if (md->bs) {
 		/*
 		 * There's no need to reload with request-based dm
 		 * because the size of front_pad doesn't change.
@@ -1838,7 +1847,6 @@ static void __bind_mempools(struct mapped_device *md, struct dm_table *t)
 	p->io_pool = NULL;
 	md->bs = p->bs;
 	p->bs = NULL;
-
 out:
 	/* mempool bind completed, no longer need any mempools in the table */
 	dm_table_free_md_mempools(t);
@@ -2727,7 +2735,8 @@ int dm_noflush_suspending(struct dm_target *ti)
 EXPORT_SYMBOL_GPL(dm_noflush_suspending);
 
 struct dm_md_mempools *dm_alloc_md_mempools(struct mapped_device *md, enum dm_queue_mode type,
-					    unsigned integrity, unsigned per_io_data_size)
+					    unsigned integrity, unsigned per_io_data_size,
+					    unsigned min_pool_size)
 {
 	struct dm_md_mempools *pools = kzalloc_node(sizeof(*pools), GFP_KERNEL, md->numa_node_id);
 	unsigned int pool_size = 0;
@@ -2739,16 +2748,15 @@ struct dm_md_mempools *dm_alloc_md_mempools(struct mapped_device *md, enum dm_qu
 	switch (type) {
 	case DM_TYPE_BIO_BASED:
 	case DM_TYPE_DAX_BIO_BASED:
-		pool_size = dm_get_reserved_bio_based_ios();
+		pool_size = max(dm_get_reserved_bio_based_ios(), min_pool_size);
 		front_pad = roundup(per_io_data_size, __alignof__(struct dm_target_io)) + offsetof(struct dm_target_io, clone);
-	
 		pools->io_pool = mempool_create_slab_pool(pool_size, _io_cache);
 		if (!pools->io_pool)
 			goto out;
 		break;
 	case DM_TYPE_REQUEST_BASED:
 	case DM_TYPE_MQ_REQUEST_BASED:
-		pool_size = dm_get_reserved_rq_based_ios();
+		pool_size = max(dm_get_reserved_rq_based_ios(), min_pool_size);
 		front_pad = offsetof(struct dm_rq_clone_bio_info, clone);
 		/* per_io_data_size is used for blk-mq pdu at queue allocation */
 		break;

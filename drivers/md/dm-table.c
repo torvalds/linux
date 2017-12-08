@@ -1079,7 +1079,8 @@ static int dm_table_alloc_md_mempools(struct dm_table *t, struct mapped_device *
 {
 	enum dm_queue_mode type = dm_table_get_type(t);
 	unsigned per_io_data_size = 0;
-	struct dm_target *tgt;
+	unsigned min_pool_size = 0;
+	struct dm_target *ti;
 	unsigned i;
 
 	if (unlikely(type == DM_TYPE_NONE)) {
@@ -1089,11 +1090,13 @@ static int dm_table_alloc_md_mempools(struct dm_table *t, struct mapped_device *
 
 	if (__table_type_bio_based(type))
 		for (i = 0; i < t->num_targets; i++) {
-			tgt = t->targets + i;
-			per_io_data_size = max(per_io_data_size, tgt->per_io_data_size);
+			ti = t->targets + i;
+			per_io_data_size = max(per_io_data_size, ti->per_io_data_size);
+			min_pool_size = max(min_pool_size, ti->num_flush_bios);
 		}
 
-	t->mempools = dm_alloc_md_mempools(md, type, t->integrity_supported, per_io_data_size);
+	t->mempools = dm_alloc_md_mempools(md, type, t->integrity_supported,
+					   per_io_data_size, min_pool_size);
 	if (!t->mempools)
 		return -ENOMEM;
 
