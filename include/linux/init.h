@@ -192,9 +192,31 @@ extern bool initcall_debug;
 	    ".long	" #fn " - .			\n"	\
 	    ".previous					\n");
 #else
-#define ___define_initcall(fn, id, __sec) \
+#ifdef CONFIG_LTO_CLANG
+  /*
+   * With LTO, the compiler doesn't necessarily obey link order for
+   * initcalls, and the initcall variable needs to be globally unique
+   * to avoid naming collisions.  In order to preserve the correct
+   * order, we add each variable into its own section and generate a
+   * linker script (in scripts/link-vmlinux.sh) to ensure the order
+   * remains correct.  We also add a __COUNTER__ prefix to the name,
+   * so we can retain the order of initcalls within each compilation
+   * unit, and __LINE__ to make the names more unique.
+   */
+  #define ___lto_initcall(c, l, fn, id, __sec) \
+	static initcall_t __initcall_##c##_##l##_##fn##id __used \
+		__attribute__((__section__( #__sec \
+			__stringify(.init..##c##_##l##_##fn)))) = fn;
+  #define __lto_initcall(c, l, fn, id, __sec) \
+	___lto_initcall(c, l, fn, id, __sec)
+
+  #define ___define_initcall(fn, id, __sec) \
+	__lto_initcall(__COUNTER__, __LINE__, fn, id, __sec)
+#else
+  #define ___define_initcall(fn, id, __sec) \
 	static initcall_t __initcall_##fn##id __used \
 		__attribute__((__section__(#__sec ".init"))) = fn;
+#endif
 #endif
 
 #define __define_initcall(fn, id) ___define_initcall(fn, id, .initcall##id)
@@ -236,7 +258,7 @@ extern bool initcall_debug;
 #define __exitcall(fn)						\
 	static exitcall_t __exitcall_##fn __exit_call = fn
 
-#define console_initcall(fn)	___define_initcall(fn,, .con_initcall)
+#define console_initcall(fn)	___define_initcall(fn, con, .con_initcall)
 
 struct obs_kernel_param {
 	const char *str;
