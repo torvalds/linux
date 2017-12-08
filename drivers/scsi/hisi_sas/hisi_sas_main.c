@@ -1613,6 +1613,10 @@ static void hisi_sas_port_formed(struct asd_sas_phy *sas_phy)
 	hisi_sas_port_notify_formed(sas_phy);
 }
 
+static void hisi_sas_port_deformed(struct asd_sas_phy *sas_phy)
+{
+}
+
 static void hisi_sas_phy_disconnected(struct hisi_sas_phy *phy)
 {
 	phy->phy_attached = 0;
@@ -1703,6 +1707,7 @@ static struct sas_domain_function_template hisi_sas_transport_ops = {
 	.lldd_query_task	= hisi_sas_query_task,
 	.lldd_clear_nexus_ha = hisi_sas_clear_nexus_ha,
 	.lldd_port_formed	= hisi_sas_port_formed,
+	.lldd_port_deformed = hisi_sas_port_deformed,
 };
 
 void hisi_sas_init_mem(struct hisi_hba *hisi_hba)
