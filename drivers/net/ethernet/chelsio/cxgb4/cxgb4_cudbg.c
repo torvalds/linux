@@ -22,6 +22,8 @@
 static const struct cxgb4_collect_entity cxgb4_collect_mem_dump[] = {
 	{ CUDBG_EDC0, cudbg_collect_edc0_meminfo },
 	{ CUDBG_EDC1, cudbg_collect_edc1_meminfo },
+	{ CUDBG_MC0, cudbg_collect_mc0_meminfo },
+	{ CUDBG_MC1, cudbg_collect_mc1_meminfo },
 };
 
 static const struct cxgb4_collect_entity cxgb4_collect_hw_dump[] = {
@@ -155,6 +157,22 @@ static u32 cxgb4_get_entity_length(struct adapter *adap, u32 entity)
 		if (value & EDRAM1_ENABLE_F) {
 			value = t4_read_reg(adap, MA_EDRAM1_BAR_A);
 			len = EDRAM1_SIZE_G(value);
+		}
+		len = cudbg_mbytes_to_bytes(len);
+		break;
+	case CUDBG_MC0:
+		value = t4_read_reg(adap, MA_TARGET_MEM_ENABLE_A);
+		if (value & EXT_MEM0_ENABLE_F) {
+			value = t4_read_reg(adap, MA_EXT_MEMORY0_BAR_A);
+			len = EXT_MEM0_SIZE_G(value);
+		}
+		len = cudbg_mbytes_to_bytes(len);
+		break;
+	case CUDBG_MC1:
+		value = t4_read_reg(adap, MA_TARGET_MEM_ENABLE_A);
+		if (value & EXT_MEM1_ENABLE_F) {
+			value = t4_read_reg(adap, MA_EXT_MEMORY1_BAR_A);
+			len = EXT_MEM1_SIZE_G(value);
 		}
 		len = cudbg_mbytes_to_bytes(len);
 		break;

@@ -47,6 +47,8 @@ enum cudbg_dbg_entity_type {
 	CUDBG_CIM_OBQ_NCSI = 17,
 	CUDBG_EDC0 = 18,
 	CUDBG_EDC1 = 19,
+	CUDBG_MC0 = 20,
+	CUDBG_MC1 = 21,
 	CUDBG_RSS = 22,
 	CUDBG_RSS_VF_CONF = 25,
 	CUDBG_PATH_MTU = 27,

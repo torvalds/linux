@@ -18,16 +18,13 @@
 #ifndef __CUDBG_ENTITY_H__
 #define __CUDBG_ENTITY_H__
 
-#define EDC0_FLAG 3
-#define EDC1_FLAG 4
+#define EDC0_FLAG 0
+#define EDC1_FLAG 1
+#define MC_FLAG 2
+#define MC0_FLAG 3
+#define MC1_FLAG 4
 
 #define CUDBG_ENTITY_SIGNATURE 0xCCEDB001
-
-struct card_mem {
-	u16 size_edc0;
-	u16 size_edc1;
-	u16 mem_flag;
-};
 
 struct cudbg_mbox_log {
 	struct mbox_cmd entry;

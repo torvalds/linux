@@ -75,6 +75,12 @@ int cudbg_collect_edc0_meminfo(struct cudbg_init *pdbg_init,
 int cudbg_collect_edc1_meminfo(struct cudbg_init *pdbg_init,
 			       struct cudbg_buffer *dbg_buff,
 			       struct cudbg_error *cudbg_err);
+int cudbg_collect_mc0_meminfo(struct cudbg_init *pdbg_init,
+			      struct cudbg_buffer *dbg_buff,
+			      struct cudbg_error *cudbg_err);
+int cudbg_collect_mc1_meminfo(struct cudbg_init *pdbg_init,
+			      struct cudbg_buffer *dbg_buff,
+			      struct cudbg_error *cudbg_err);
 int cudbg_collect_rss(struct cudbg_init *pdbg_init,
 		      struct cudbg_buffer *dbg_buff,
 		      struct cudbg_error *cudbg_err);

@@ -682,6 +682,42 @@ int cudbg_collect_obq_sge_rx_q1(struct cudbg_init *pdbg_init,
 	return cudbg_read_cim_obq(pdbg_init, dbg_buff, cudbg_err, 7);
 }
 
+static int cudbg_meminfo_get_mem_index(struct adapter *padap,
+				       struct cudbg_meminfo *mem_info,
+				       u8 mem_type, u8 *idx)
+{
+	u8 i, flag;
+
+	switch (mem_type) {
+	case MEM_EDC0:
+		flag = EDC0_FLAG;
+		break;
+	case MEM_EDC1:
+		flag = EDC1_FLAG;
+		break;
+	case MEM_MC0:
+		/* Some T5 cards have both MC0 and MC1. */
+		flag = is_t5(padap->params.chip) ? MC0_FLAG : MC_FLAG;
+		break;
+	case MEM_MC1:
+		flag = MC1_FLAG;
+		break;
+	default:
+		return CUDBG_STATUS_ENTITY_NOT_FOUND;
+	}
+
+	for (i = 0; i < mem_info->avail_c; i++) {
+		if (mem_info->avail[i].idx == flag) {
+			*idx = i;
+			return 0;
+		}
+	}
+
+	return CUDBG_STATUS_ENTITY_NOT_FOUND;
+}
+
+#define CUDBG_YIELD_ITERATION 256
+
 static int cudbg_read_fw_mem(struct cudbg_init *pdbg_init,
 			     struct cudbg_buffer *dbg_buff, u8 mem_type,
 			     unsigned long tot_len,
@@ -690,10 +726,20 @@ static int cudbg_read_fw_mem(struct cudbg_init *pdbg_init,
 	unsigned long bytes, bytes_left, bytes_read = 0;
 	struct adapter *padap = pdbg_init->adap;
 	struct cudbg_buffer temp_buff = { 0 };
+	u32 yield_count = 0;
 	int rc = 0;
 
 	bytes_left = tot_len;
 	while (bytes_left > 0) {
+		/* As MC size is huge and read through PIO access, this
+		 * loop will hold cpu for a longer time. OS may think that
+		 * the process is hanged and will generate CPU stall traces.
+		 * So yield the cpu regularly.
+		 */
+		yield_count++;
+		if (!(yield_count % CUDBG_YIELD_ITERATION))
+			schedule();
+
 		bytes = min_t(unsigned long, bytes_left,
 			      (unsigned long)CUDBG_CHUNK_SIZE);
 		rc = cudbg_get_buff(dbg_buff, bytes, &temp_buff);
@@ -717,27 +763,6 @@ static int cudbg_read_fw_mem(struct cudbg_init *pdbg_init,
 	return rc;
 }
 
-static void cudbg_collect_mem_info(struct cudbg_init *pdbg_init,
-				   struct card_mem *mem_info)
-{
-	struct adapter *padap = pdbg_init->adap;
-	u32 value;
-
-	value = t4_read_reg(padap, MA_EDRAM0_BAR_A);
-	value = EDRAM0_SIZE_G(value);
-	mem_info->size_edc0 = (u16)value;
-
-	value = t4_read_reg(padap, MA_EDRAM1_BAR_A);
-	value = EDRAM1_SIZE_G(value);
-	mem_info->size_edc1 = (u16)value;
-
-	value = t4_read_reg(padap, MA_TARGET_MEM_ENABLE_A);
-	if (value & EDRAM0_ENABLE_F)
-		mem_info->mem_flag |= (1 << EDC0_FLAG);
-	if (value & EDRAM1_ENABLE_F)
-		mem_info->mem_flag |= (1 << EDC1_FLAG);
-}
-
 static void cudbg_t4_fwcache(struct cudbg_init *pdbg_init,
 			     struct cudbg_error *cudbg_err)
 {
@@ -757,37 +782,25 @@ static int cudbg_collect_mem_region(struct cudbg_init *pdbg_init,
 				    struct cudbg_error *cudbg_err,
 				    u8 mem_type)
 {
-	struct card_mem mem_info = {0};
-	unsigned long flag, size;
+	struct adapter *padap = pdbg_init->adap;
+	struct cudbg_meminfo mem_info;
+	unsigned long size;
+	u8 mc_idx;
 	int rc;
 
-	cudbg_t4_fwcache(pdbg_init, cudbg_err);
-	cudbg_collect_mem_info(pdbg_init, &mem_info);
-	switch (mem_type) {
-	case MEM_EDC0:
-		flag = (1 << EDC0_FLAG);
-		size = cudbg_mbytes_to_bytes(mem_info.size_edc0);
-		break;
-	case MEM_EDC1:
-		flag = (1 << EDC1_FLAG);
-		size = cudbg_mbytes_to_bytes(mem_info.size_edc1);
-		break;
-	default:
-		rc = CUDBG_STATUS_ENTITY_NOT_FOUND;
-		goto err;
-	}
+	memset(&mem_info, 0, sizeof(struct cudbg_meminfo));
+	rc = cudbg_fill_meminfo(padap, &mem_info);
+	if (rc)
+		return rc;
 
-	if (mem_info.mem_flag & flag) {
-		rc = cudbg_read_fw_mem(pdbg_init, dbg_buff, mem_type,
-				       size, cudbg_err);
-		if (rc)
-			goto err;
-	} else {
-		rc = CUDBG_STATUS_ENTITY_NOT_FOUND;
-		goto err;
-	}
-err:
-	return rc;
+	cudbg_t4_fwcache(pdbg_init, cudbg_err);
+	rc = cudbg_meminfo_get_mem_index(padap, &mem_info, mem_type, &mc_idx);
+	if (rc)
+		return rc;
+
+	size = mem_info.avail[mc_idx].limit - mem_info.avail[mc_idx].base;
+	return cudbg_read_fw_mem(pdbg_init, dbg_buff, mem_type, size,
+				 cudbg_err);
 }
 
 int cudbg_collect_edc0_meminfo(struct cudbg_init *pdbg_init,
@@ -804,6 +817,22 @@ int cudbg_collect_edc1_meminfo(struct cudbg_init *pdbg_init,
 {
 	return cudbg_collect_mem_region(pdbg_init, dbg_buff, cudbg_err,
 					MEM_EDC1);
+}
+
+int cudbg_collect_mc0_meminfo(struct cudbg_init *pdbg_init,
+			      struct cudbg_buffer *dbg_buff,
+			      struct cudbg_error *cudbg_err)
+{
+	return cudbg_collect_mem_region(pdbg_init, dbg_buff, cudbg_err,
+					MEM_MC0);
+}
+
+int cudbg_collect_mc1_meminfo(struct cudbg_init *pdbg_init,
+			      struct cudbg_buffer *dbg_buff,
+			      struct cudbg_error *cudbg_err)
+{
+	return cudbg_collect_mem_region(pdbg_init, dbg_buff, cudbg_err,
+					MEM_MC1);
 }
 
 int cudbg_collect_rss(struct cudbg_init *pdbg_init,
