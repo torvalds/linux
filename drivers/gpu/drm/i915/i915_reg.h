@@ -3278,6 +3278,7 @@ enum i915_power_well_id {
 # define AUDUNIT_CLOCK_GATE_DISABLE		(1 << 26) /* 965 */
 # define DPUNIT_A_CLOCK_GATE_DISABLE		(1 << 25) /* 965 */
 # define DPCUNIT_CLOCK_GATE_DISABLE		(1 << 24) /* 965 */
+# define PNV_GMBUSUNIT_CLOCK_GATE_DISABLE	(1 << 24) /* pnv */
 # define TVRUNIT_CLOCK_GATE_DISABLE		(1 << 23) /* 915-945 */
 # define TVCUNIT_CLOCK_GATE_DISABLE		(1 << 22) /* 915-945 */
 # define TVFUNIT_CLOCK_GATE_DISABLE		(1 << 21) /* 915-945 */

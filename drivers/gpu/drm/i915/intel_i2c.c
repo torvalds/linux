@@ -128,19 +128,17 @@ intel_i2c_reset(struct drm_i915_private *dev_priv)
 	I915_WRITE(GMBUS4, 0);
 }
 
-static void intel_i2c_quirk_set(struct drm_i915_private *dev_priv, bool enable)
+static void pnv_gmbus_clock_gating(struct drm_i915_private *dev_priv,
+				   bool enable)
 {
 	u32 val;
 
 	/* When using bit bashing for I2C, this bit needs to be set to 1 */
-	if (!IS_PINEVIEW(dev_priv))
-		return;
-
 	val = I915_READ(DSPCLK_GATE_D);
-	if (enable)
-		val |= DPCUNIT_CLOCK_GATE_DISABLE;
+	if (!enable)
+		val |= PNV_GMBUSUNIT_CLOCK_GATE_DISABLE;
 	else
-		val &= ~DPCUNIT_CLOCK_GATE_DISABLE;
+		val &= ~PNV_GMBUSUNIT_CLOCK_GATE_DISABLE;
 	I915_WRITE(DSPCLK_GATE_D, val);
 }
 
@@ -221,7 +219,10 @@ intel_gpio_pre_xfer(struct i2c_adapter *adapter)
 	struct drm_i915_private *dev_priv = bus->dev_priv;
 
 	intel_i2c_reset(dev_priv);
-	intel_i2c_quirk_set(dev_priv, true);
+
+	if (IS_PINEVIEW(dev_priv))
+		pnv_gmbus_clock_gating(dev_priv, false);
+
 	set_data(bus, 1);
 	set_clock(bus, 1);
 	udelay(I2C_RISEFALL_TIME);
@@ -238,7 +239,9 @@ intel_gpio_post_xfer(struct i2c_adapter *adapter)
 
 	set_data(bus, 1);
 	set_clock(bus, 1);
-	intel_i2c_quirk_set(dev_priv, false);
+
+	if (IS_PINEVIEW(dev_priv))
+		pnv_gmbus_clock_gating(dev_priv, true);
 }
 
 static void
