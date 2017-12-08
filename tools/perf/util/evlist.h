@@ -50,6 +50,8 @@ struct perf_evlist {
 	struct perf_evsel *selected;
 	struct events_stats stats;
 	struct perf_env	*env;
+	u64		first_sample_time;
+	u64		last_sample_time;
 };
 
 struct perf_evsel_str_handler {

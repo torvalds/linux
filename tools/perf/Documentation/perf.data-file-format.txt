@@ -261,6 +261,10 @@ struct {
 	struct perf_header_string map;
 }[number_of_cache_levels];
 
+	HEADER_SAMPLE_TIME = 21,
+
+Two uint64_t for the time of first sample and the time of last sample.
+
 	other bits are reserved and should ignored for now
 	HEADER_FEAT_BITS	= 256,
 
