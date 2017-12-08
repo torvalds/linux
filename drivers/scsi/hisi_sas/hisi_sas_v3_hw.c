@@ -1653,9 +1653,8 @@ static void cq_tasklet_v3_hw(unsigned long val)
 	struct hisi_sas_cq *cq = (struct hisi_sas_cq *)val;
 	struct hisi_hba *hisi_hba = cq->hisi_hba;
 	struct hisi_sas_slot *slot;
-	struct hisi_sas_itct *itct;
 	struct hisi_sas_complete_v3_hdr *complete_queue;
-	u32 rd_point = cq->rd_point, wr_point, dev_id;
+	u32 rd_point = cq->rd_point, wr_point;
 	int queue = cq->id;
 	struct hisi_sas_dq *dq = &hisi_hba->dq[queue];
 
@@ -1671,38 +1670,11 @@ static void cq_tasklet_v3_hw(unsigned long val)
 
 		complete_hdr = &complete_queue[rd_point];
 
-		/* Check for NCQ completion */
-		if (complete_hdr->act) {
-			u32 act_tmp = complete_hdr->act;
-			int ncq_tag_count = ffs(act_tmp);
-
-			dev_id = (complete_hdr->dw1 & CMPLT_HDR_DEV_ID_MSK) >>
-				 CMPLT_HDR_DEV_ID_OFF;
-			itct = &hisi_hba->itct[dev_id];
-
-			/* The NCQ tags are held in the itct header */
-			while (ncq_tag_count) {
-				__le64 *ncq_tag = &itct->qw4_15[0];
-
-				ncq_tag_count -= 1;
-				iptt = (ncq_tag[ncq_tag_count / 5]
-					>> (ncq_tag_count % 5) * 12) & 0xfff;
-
-				slot = &hisi_hba->slot_info[iptt];
-				slot->cmplt_queue_slot = rd_point;
-				slot->cmplt_queue = queue;
-				slot_complete_v3_hw(hisi_hba, slot);
-
-				act_tmp &= ~(1 << ncq_tag_count);
-				ncq_tag_count = ffs(act_tmp);
-			}
-		} else {
-			iptt = (complete_hdr->dw1) & CMPLT_HDR_IPTT_MSK;
-			slot = &hisi_hba->slot_info[iptt];
-			slot->cmplt_queue_slot = rd_point;
-			slot->cmplt_queue = queue;
-			slot_complete_v3_hw(hisi_hba, slot);
-		}
+		iptt = (complete_hdr->dw1) & CMPLT_HDR_IPTT_MSK;
+		slot = &hisi_hba->slot_info[iptt];
+		slot->cmplt_queue_slot = rd_point;
+		slot->cmplt_queue = queue;
+		slot_complete_v3_hw(hisi_hba, slot);
 
 		if (++rd_point >= HISI_SAS_QUEUE_SLOTS)
 			rd_point = 0;
