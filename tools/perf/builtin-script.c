@@ -1436,6 +1436,8 @@ static int perf_sample__fprintf_synth(struct perf_sample *sample,
 	return 0;
 }
 
+#define PTIME_RANGE_MAX	10
+
 struct perf_script {
 	struct perf_tool	tool;
 	struct perf_session	*session;
@@ -1449,7 +1451,8 @@ struct perf_script {
 	struct thread_map	*threads;
 	int			name_width;
 	const char              *time_str;
-	struct perf_time_interval ptime;
+	struct perf_time_interval ptime_range[PTIME_RANGE_MAX];
+	int			range_num;
 };
 
 static int perf_evlist__max_name_len(struct perf_evlist *evlist)
@@ -1734,8 +1737,10 @@ static int process_sample_event(struct perf_tool *tool,
 	struct perf_script *scr = container_of(tool, struct perf_script, tool);
 	struct addr_location al;
 
-	if (perf_time__skip_sample(&scr->ptime, sample->time))
+	if (perf_time__ranges_skip_sample(scr->ptime_range, scr->range_num,
+					  sample->time)) {
 		return 0;
+	}
 
 	if (debug_mode) {
 		if (sample->time < last_timestamp) {
@@ -3360,10 +3365,27 @@ int cmd_script(int argc, const char **argv)
 		goto out_delete;
 
 	/* needs to be parsed after looking up reference time */
-	if (perf_time__parse_str(&script.ptime, script.time_str) != 0) {
-		pr_err("Invalid time string\n");
-		err = -EINVAL;
-		goto out_delete;
+	if (perf_time__parse_str(script.ptime_range, script.time_str) != 0) {
+		if (session->evlist->first_sample_time == 0 &&
+		    session->evlist->last_sample_time == 0) {
+			pr_err("No first/last sample time in perf data\n");
+			err = -EINVAL;
+			goto out_delete;
+		}
+
+		script.range_num = perf_time__percent_parse_str(
+					script.ptime_range, PTIME_RANGE_MAX,
+					script.time_str,
+					session->evlist->first_sample_time,
+					session->evlist->last_sample_time);
+
+		if (script.range_num < 0) {
+			pr_err("Invalid time string\n");
+			err = -EINVAL;
+			goto out_delete;
+		}
+	} else {
+		script.range_num = 1;
 	}
 
 	err = __cmd_script(&script);
