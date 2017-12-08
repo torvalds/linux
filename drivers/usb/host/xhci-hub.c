@@ -388,7 +388,7 @@ static int xhci_stop_device(struct xhci_hcd *xhci, int slot_id, int suspend)
 
 	trace_xhci_stop_device(virt_dev);
 
-	cmd = xhci_alloc_command(xhci, false, true, GFP_NOIO);
+	cmd = xhci_alloc_command(xhci, true, GFP_NOIO);
 	if (!cmd)
 		return -ENOMEM;
 
@@ -404,8 +404,7 @@ static int xhci_stop_device(struct xhci_hcd *xhci, int slot_id, int suspend)
 			if (GET_EP_CTX_STATE(ep_ctx) != EP_STATE_RUNNING)
 				continue;
 
-			command = xhci_alloc_command(xhci, false, false,
-						     GFP_NOWAIT);
+			command = xhci_alloc_command(xhci, false, GFP_NOWAIT);
 			if (!command) {
 				spin_unlock_irqrestore(&xhci->lock, flags);
 				ret = -ENOMEM;

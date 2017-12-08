@@ -610,7 +610,7 @@ int xhci_run(struct usb_hcd *hcd)
 	if (xhci->quirks & XHCI_NEC_HOST) {
 		struct xhci_command *command;
 
-		command = xhci_alloc_command(xhci, false, false, GFP_KERNEL);
+		command = xhci_alloc_command(xhci, false, GFP_KERNEL);
 		if (!command)
 			return -ENOMEM;
 
@@ -1243,7 +1243,7 @@ static int xhci_check_maxpacket(struct xhci_hcd *xhci, unsigned int slot_id,
 		 * changes max packet sizes.
 		 */
 
-		command = xhci_alloc_command(xhci, false, true, GFP_KERNEL);
+		command = xhci_alloc_command(xhci, true, GFP_KERNEL);
 		if (!command)
 			return -ENOMEM;
 
@@ -1498,7 +1498,7 @@ static int xhci_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 	 * the first cancellation to be handled.
 	 */
 	if (!(ep->ep_state & EP_STOP_CMD_PENDING)) {
-		command = xhci_alloc_command(xhci, false, false, GFP_ATOMIC);
+		command = xhci_alloc_command(xhci, false, GFP_ATOMIC);
 		if (!command) {
 			ret = -ENOMEM;
 			goto done;
@@ -2683,7 +2683,7 @@ static int xhci_check_bandwidth(struct usb_hcd *hcd, struct usb_device *udev)
 	xhci_dbg(xhci, "%s called for udev %p\n", __func__, udev);
 	virt_dev = xhci->devs[udev->slot_id];
 
-	command = xhci_alloc_command(xhci, false, true, GFP_KERNEL);
+	command = xhci_alloc_command(xhci, true, GFP_KERNEL);
 	if (!command)
 		return -ENOMEM;
 
@@ -3413,7 +3413,7 @@ static int xhci_discover_or_reset_device(struct usb_hcd *hcd,
 	 * reset as part of error handling, so use GFP_NOIO instead of
 	 * GFP_KERNEL.
 	 */
-	reset_device_cmd = xhci_alloc_command(xhci, false, true, GFP_NOIO);
+	reset_device_cmd = xhci_alloc_command(xhci, true, GFP_NOIO);
 	if (!reset_device_cmd) {
 		xhci_dbg(xhci, "Couldn't allocate command structure.\n");
 		return -ENOMEM;
@@ -3561,7 +3561,7 @@ int xhci_disable_slot(struct xhci_hcd *xhci, u32 slot_id)
 	u32 state;
 	int ret = 0;
 
-	command = xhci_alloc_command(xhci, false, false, GFP_KERNEL);
+	command = xhci_alloc_command(xhci, false, GFP_KERNEL);
 	if (!command)
 		return -ENOMEM;
 
@@ -3623,7 +3623,7 @@ int xhci_alloc_dev(struct usb_hcd *hcd, struct usb_device *udev)
 	int ret, slot_id;
 	struct xhci_command *command;
 
-	command = xhci_alloc_command(xhci, false, true, GFP_KERNEL);
+	command = xhci_alloc_command(xhci, true, GFP_KERNEL);
 	if (!command)
 		return 0;
 
@@ -3756,7 +3756,7 @@ static int xhci_setup_device(struct usb_hcd *hcd, struct usb_device *udev,
 		}
 	}
 
-	command = xhci_alloc_command(xhci, false, true, GFP_KERNEL);
+	command = xhci_alloc_command(xhci, true, GFP_KERNEL);
 	if (!command) {
 		ret = -ENOMEM;
 		goto out;
