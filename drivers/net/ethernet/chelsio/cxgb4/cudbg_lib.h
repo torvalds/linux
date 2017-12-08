@@ -132,6 +132,9 @@ int cudbg_collect_pm_indirect(struct cudbg_init *pdbg_init,
 int cudbg_collect_tid(struct cudbg_init *pdbg_init,
 		      struct cudbg_buffer *dbg_buff,
 		      struct cudbg_error *cudbg_err);
+int cudbg_collect_pcie_config(struct cudbg_init *pdbg_init,
+			      struct cudbg_buffer *dbg_buff,
+			      struct cudbg_error *cudbg_err);
 int cudbg_collect_dump_context(struct cudbg_init *pdbg_init,
 			       struct cudbg_buffer *dbg_buff,
 			       struct cudbg_error *cudbg_err);

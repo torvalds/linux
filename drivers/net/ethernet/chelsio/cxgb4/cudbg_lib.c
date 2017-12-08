@@ -1594,6 +1594,33 @@ int cudbg_collect_tid(struct cudbg_init *pdbg_init,
 	return rc;
 }
 
+int cudbg_collect_pcie_config(struct cudbg_init *pdbg_init,
+			      struct cudbg_buffer *dbg_buff,
+			      struct cudbg_error *cudbg_err)
+{
+	struct adapter *padap = pdbg_init->adap;
+	struct cudbg_buffer temp_buff = { 0 };
+	u32 size, *value, j;
+	int i, rc, n;
+
+	size = sizeof(u32) * CUDBG_NUM_PCIE_CONFIG_REGS;
+	n = sizeof(t5_pcie_config_array) / (2 * sizeof(u32));
+	rc = cudbg_get_buff(dbg_buff, size, &temp_buff);
+	if (rc)
+		return rc;
+
+	value = (u32 *)temp_buff.data;
+	for (i = 0; i < n; i++) {
+		for (j = t5_pcie_config_array[i][0];
+		     j <= t5_pcie_config_array[i][1]; j += 4) {
+			t4_hw_pci_read_cfg4(padap, j, value);
+			value++;
+		}
+	}
+	cudbg_write_and_release_buff(&temp_buff, dbg_buff);
+	return rc;
+}
+
 static int cudbg_sge_ctxt_check_valid(u32 *buf, int type)
 {
 	int index, bit, bit_pos = 0;
