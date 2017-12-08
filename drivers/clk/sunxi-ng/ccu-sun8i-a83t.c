@@ -81,10 +81,12 @@ static struct ccu_nm pll_audio_clk = {
 	.lock		= BIT(2),
 	.n		= _SUNXI_CCU_MULT_OFFSET_MIN_MAX(8, 8, 0, 12, 0),
 	.m		= _SUNXI_CCU_DIV(0, 6),
+	.fixed_post_div	= 2,
 	.common		= {
 		.reg		= SUN8I_A83T_PLL_AUDIO_REG,
 		.lock_reg	= CCU_SUN8I_A83T_LOCK_REG,
-		.features	= CCU_FEATURE_LOCK_REG,
+		.features	= CCU_FEATURE_LOCK_REG |
+				  CCU_FEATURE_FIXED_POSTDIV,
 		.hw.init	= CLK_HW_INIT("pll-audio", "osc24M",
 					      &ccu_nm_ops, CLK_SET_RATE_UNGATE),
 	},
@@ -889,9 +891,10 @@ static int sun8i_a83t_ccu_probe(struct platform_device *pdev)
 	if (IS_ERR(reg))
 		return PTR_ERR(reg);
 
-	/* Enforce d1 = 0, d2 = 0 for Audio PLL */
+	/* Enforce d1 = 0, d2 = 1 for Audio PLL */
 	val = readl(reg + SUN8I_A83T_PLL_AUDIO_REG);
-	val &= ~(BIT(16) | BIT(18));
+	val &= ~BIT(16);
+	val |= BIT(18);
 	writel(val, reg + SUN8I_A83T_PLL_AUDIO_REG);
 
 	/* Enforce P = 1 for both CPU cluster PLLs */
