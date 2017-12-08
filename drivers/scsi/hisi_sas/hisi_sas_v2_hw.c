@@ -2708,7 +2708,7 @@ static int phy_up_v2_hw(int phy_no, struct hisi_hba *hisi_hba)
 		if (!timer_pending(&hisi_hba->timer))
 			set_link_timer_quirk(hisi_hba);
 	}
-	queue_work(hisi_hba->wq, &phy->phyup_ws);
+	hisi_sas_notify_phy_event(phy, HISI_PHYE_PHY_UP);
 
 end:
 	hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT0,
@@ -3262,7 +3262,7 @@ static irqreturn_t sata_int_v2_hw(int irq_no, void *p)
 	phy->identify.device_type = SAS_SATA_DEV;
 	phy->frame_rcvd_size = sizeof(struct dev_to_host_fis);
 	phy->identify.target_port_protocols = SAS_PROTOCOL_SATA;
-	queue_work(hisi_hba->wq, &phy->phyup_ws);
+	hisi_sas_notify_phy_event(phy, HISI_PHYE_PHY_UP);
 
 end:
 	hisi_sas_write32(hisi_hba, ENT_INT_SRC1 + offset, ent_tmp);

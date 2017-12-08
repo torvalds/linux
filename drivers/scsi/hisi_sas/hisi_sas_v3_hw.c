@@ -1192,7 +1192,7 @@ static int phy_up_v3_hw(int phy_no, struct hisi_hba *hisi_hba)
 
 	phy->port_id = port_id;
 	phy->phy_attached = 1;
-	queue_work(hisi_hba->wq, &phy->phyup_ws);
+	hisi_sas_notify_phy_event(phy, HISI_PHYE_PHY_UP);
 
 end:
 	hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT0,

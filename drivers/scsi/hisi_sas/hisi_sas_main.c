@@ -622,7 +622,7 @@ static int hisi_sas_scan_finished(struct Scsi_Host *shost, unsigned long time)
 static void hisi_sas_phyup_work(struct work_struct *work)
 {
 	struct hisi_sas_phy *phy =
-		container_of(work, struct hisi_sas_phy, phyup_ws);
+		container_of(work, typeof(*phy), works[HISI_PHYE_PHY_UP]);
 	struct hisi_hba *hisi_hba = phy->hisi_hba;
 	struct asd_sas_phy *sas_phy = &phy->sas_phy;
 	int phy_no = sas_phy->id;
@@ -631,10 +631,27 @@ static void hisi_sas_phyup_work(struct work_struct *work)
 	hisi_sas_bytes_dmaed(hisi_hba, phy_no);
 }
 
+static const work_func_t hisi_sas_phye_fns[HISI_PHYES_NUM] = {
+	[HISI_PHYE_PHY_UP] = hisi_sas_phyup_work,
+};
+
+bool hisi_sas_notify_phy_event(struct hisi_sas_phy *phy,
+				enum hisi_sas_phy_event event)
+{
+	struct hisi_hba *hisi_hba = phy->hisi_hba;
+
+	if (WARN_ON(event >= HISI_PHYES_NUM))
+		return false;
+
+	return queue_work(hisi_hba->wq, &phy->works[event]);
+}
+EXPORT_SYMBOL_GPL(hisi_sas_notify_phy_event);
+
 static void hisi_sas_phy_init(struct hisi_hba *hisi_hba, int phy_no)
 {
 	struct hisi_sas_phy *phy = &hisi_hba->phy[phy_no];
 	struct asd_sas_phy *sas_phy = &phy->sas_phy;
+	int i;
 
 	phy->hisi_hba = hisi_hba;
 	phy->port = NULL;
@@ -652,7 +669,8 @@ static void hisi_sas_phy_init(struct hisi_hba *hisi_hba, int phy_no)
 	sas_phy->ha = (struct sas_ha_struct *)hisi_hba->shost->hostdata;
 	sas_phy->lldd_phy = phy;
 
-	INIT_WORK(&phy->phyup_ws, hisi_sas_phyup_work);
+	for (i = 0; i < HISI_PHYES_NUM; i++)
+		INIT_WORK(&phy->works[i], hisi_sas_phye_fns[i]);
 }
 
 static void hisi_sas_port_notify_formed(struct asd_sas_phy *sas_phy)

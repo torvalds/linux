@@ -124,12 +124,17 @@ enum hisi_sas_bit_err_type {
 	HISI_SAS_ERR_MULTI_BIT_ECC = 0x1,
 };
 
+enum hisi_sas_phy_event {
+	HISI_PHYE_PHY_UP   = 0U,
+	HISI_PHYES_NUM,
+};
+
 struct hisi_sas_phy {
+	struct work_struct	works[HISI_PHYES_NUM];
 	struct hisi_hba	*hisi_hba;
 	struct hisi_sas_port	*port;
 	struct asd_sas_phy	sas_phy;
 	struct sas_identify	identify;
-	struct work_struct	phyup_ws;
 	u64		port_id; /* from hw */
 	u64		dev_sas_addr;
 	u64		frame_rcvd_size;
@@ -453,4 +458,6 @@ extern void hisi_sas_init_mem(struct hisi_hba *hisi_hba);
 extern void hisi_sas_rst_work_handler(struct work_struct *work);
 extern void hisi_sas_sync_rst_work_handler(struct work_struct *work);
 extern void hisi_sas_kill_tasklets(struct hisi_hba *hisi_hba);
+extern bool hisi_sas_notify_phy_event(struct hisi_sas_phy *phy,
+				enum hisi_sas_phy_event event);
 #endif
