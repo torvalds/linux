@@ -134,7 +134,6 @@ struct dpaa2_eth_swa {
 					 DPAA2_FD_CTRL_FAERR)
 
 /* Annotation bits in FD CTRL */
-#define DPAA2_FD_CTRL_ASAL		0x00010000	/* ASAL = 64 */
 #define DPAA2_FD_CTRL_PTA		0x00800000
 #define DPAA2_FD_CTRL_PTV1		0x00400000
 
@@ -208,11 +207,6 @@ static inline struct dpaa2_fas *dpaa2_get_fas(void *buf_addr, bool swa)
 					 DPAA2_FAS_BLE		| \
 					 DPAA2_FAS_L3CE		| \
 					 DPAA2_FAS_L4CE)
-/* Tx errors */
-#define DPAA2_FAS_TX_ERR_MASK		(DPAA2_FAS_KSE		| \
-					 DPAA2_FAS_EOFHE	| \
-					 DPAA2_FAS_MNLE		| \
-					 DPAA2_FAS_TIDE)
 
 /* Time in milliseconds between link state updates */
 #define DPAA2_ETH_LINK_STATE_REFRESH	1000
