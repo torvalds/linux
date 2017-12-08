@@ -49,7 +49,7 @@
 
 /* Arithmetic */
 
-/** @brief bitwise AND
+/* @brief bitwise AND
  *
  * @param[in] _a	first argument
  * @param[in] _b	second argument
@@ -63,7 +63,7 @@ STORAGE_CLASS_ISP_OP1W_FUNC_H tvector1w OP_1w_and(
     const tvector1w     _a,
     const tvector1w     _b);
 
-/** @brief bitwise OR
+/* @brief bitwise OR
  *
  * @param[in] _a	first argument
  * @param[in] _b	second argument
@@ -77,7 +77,7 @@ STORAGE_CLASS_ISP_OP1W_FUNC_H tvector1w OP_1w_or(
     const tvector1w     _a,
     const tvector1w     _b);
 
-/** @brief bitwise XOR
+/* @brief bitwise XOR
  *
  * @param[in] _a	first argument
  * @param[in] _b	second argument
@@ -91,7 +91,7 @@ STORAGE_CLASS_ISP_OP1W_FUNC_H tvector1w OP_1w_xor(
     const tvector1w     _a,
     const tvector1w     _b);
 
-/** @brief bitwise inverse
+/* @brief bitwise inverse
  *
  * @param[in] _a	first argument
  *
@@ -105,7 +105,7 @@ STORAGE_CLASS_ISP_OP1W_FUNC_H tvector1w OP_1w_inv(
 
 /* Additive */
 
-/** @brief addition
+/* @brief addition
  *
  * @param[in] _a	first argument
  * @param[in] _b	second argument
@@ -120,7 +120,7 @@ STORAGE_CLASS_ISP_OP1W_FUNC_H tvector1w OP_1w_add(
     const tvector1w     _a,
     const tvector1w     _b);
 
-/** @brief subtraction
+/* @brief subtraction
  *
  * @param[in] _a	first argument
  * @param[in] _b	second argument
@@ -135,7 +135,7 @@ STORAGE_CLASS_ISP_OP1W_FUNC_H tvector1w OP_1w_sub(
     const tvector1w     _a,
     const tvector1w     _b);
 
-/** @brief saturated addition
+/* @brief saturated addition
  *
  * @param[in] _a	first argument
  * @param[in] _b	second argument
@@ -150,7 +150,7 @@ STORAGE_CLASS_ISP_OP1W_FUNC_H tvector1w OP_1w_addsat(
     const tvector1w     _a,
     const tvector1w     _b);
 
-/** @brief saturated subtraction
+/* @brief saturated subtraction
  *
  * @param[in] _a	first argument
  * @param[in] _b	second argument
@@ -166,7 +166,7 @@ STORAGE_CLASS_ISP_OP1W_FUNC_H tvector1w OP_1w_subsat(
     const tvector1w     _b);
 
 #ifdef ISP2401
-/** @brief Unsigned saturated subtraction
+/* @brief Unsigned saturated subtraction
  *
  * @param[in] _a	first argument
  * @param[in] _b	second argument
@@ -182,7 +182,7 @@ STORAGE_CLASS_ISP_OP1W_FUNC_H tvector1w_unsigned OP_1w_subsat_u(
     const tvector1w_unsigned _b);
 
 #endif
-/** @brief subtraction with shift right and rounding
+/* @brief subtraction with shift right and rounding
  *
  * @param[in] _a	first argument
  * @param[in] _b	second argument
@@ -202,7 +202,7 @@ STORAGE_CLASS_ISP_OP1W_FUNC_H tvector1w OP_1w_subasr1(
     const tvector1w     _a,
     const tvector1w     _b);
 
-/** @brief Subtraction with shift right and rounding
+/* @brief Subtraction with shift right and rounding
  *
  * @param[in] _a	first operand
  * @param[in] _b	second operand
@@ -217,7 +217,7 @@ STORAGE_CLASS_ISP_OP1W_FUNC_H tvector1w OP_1w_subhalfrnd(
     const tvector1w	_a,
     const tvector1w	_b);
 
-/** @brief Subtraction with shift right and no rounding
+/* @brief Subtraction with shift right and no rounding
  *
  * @param[in] _a	first operand
  * @param[in] _b	second operand
@@ -233,7 +233,7 @@ STORAGE_CLASS_ISP_OP1W_FUNC_H tvector1w OP_1w_subhalf(
     const tvector1w	_b);
 
 
-/** @brief saturated absolute value
+/* @brief saturated absolute value
  *
  * @param[in] _a	input
  *
@@ -247,7 +247,7 @@ STORAGE_CLASS_ISP_OP1W_FUNC_H tvector1w OP_1w_subhalf(
 STORAGE_CLASS_ISP_OP1W_FUNC_H tvector1w OP_1w_abs(
     const tvector1w     _a);
 
-/** @brief saturated absolute difference
+/* @brief saturated absolute difference
  *
  * @param[in] _a	first argument
  * @param[in] _b	second argument
@@ -264,7 +264,7 @@ STORAGE_CLASS_ISP_OP1W_FUNC_H tvector1w OP_1w_subabssat(
 
 /* Multiplicative */
 
-/** @brief doubling multiply
+/* @brief doubling multiply
  *
  * @param[in] _a	first argument
  * @param[in] _b	second argument
@@ -281,7 +281,7 @@ STORAGE_CLASS_ISP_OP1W_FUNC_H tvector2w OP_1w_muld(
     const tvector1w     _a,
     const tvector1w     _b);
 
-/** @brief integer multiply
+/* @brief integer multiply
  *
  * @param[in] _a	first argument
  * @param[in] _b	second argument
@@ -298,7 +298,7 @@ STORAGE_CLASS_ISP_OP1W_FUNC_H tvector1w OP_1w_mul(
     const tvector1w     _a,
     const tvector1w     _b);
 
-/** @brief fractional saturating multiply
+/* @brief fractional saturating multiply
  *
  * @param[in] _a	first argument
  * @param[in] _b	second argument
@@ -316,7 +316,7 @@ STORAGE_CLASS_ISP_OP1W_FUNC_H tvector1w OP_1w_qmul(
     const tvector1w     _a,
     const tvector1w     _b);
 
-/** @brief fractional saturating multiply with rounding
+/* @brief fractional saturating multiply with rounding
  *
  * @param[in] _a	first argument
  * @param[in] _b	second argument
@@ -337,7 +337,7 @@ STORAGE_CLASS_ISP_OP1W_FUNC_H tvector1w OP_1w_qrmul(
 
 /* Comparative */
 
-/** @brief equal
+/* @brief equal
  *
  * @param[in] _a	first argument
  * @param[in] _b	second argument
@@ -351,7 +351,7 @@ STORAGE_CLASS_ISP_OP1W_FUNC_H tflags OP_1w_eq(
     const tvector1w     _a,
     const tvector1w     _b);
 
-/** @brief not equal
+/* @brief not equal
  *
  * @param[in] _a	first argument
  * @param[in] _b	second argument
@@ -365,7 +365,7 @@ STORAGE_CLASS_ISP_OP1W_FUNC_H tflags OP_1w_ne(
     const tvector1w     _a,
     const tvector1w     _b);
 
-/** @brief less or equal
+/* @brief less or equal
  *
  * @param[in] _a	first argument
  * @param[in] _b	second argument
@@ -379,7 +379,7 @@ STORAGE_CLASS_ISP_OP1W_FUNC_H tflags OP_1w_le(
     const tvector1w     _a,
     const tvector1w     _b);
 
-/** @brief less then
+/* @brief less then
  *
  * @param[in] _a	first argument
  * @param[in] _b	second argument
@@ -393,7 +393,7 @@ STORAGE_CLASS_ISP_OP1W_FUNC_H tflags OP_1w_lt(
     const tvector1w     _a,
     const tvector1w     _b);
 
-/** @brief greater or equal
+/* @brief greater or equal
  *
  * @param[in] _a	first argument
  * @param[in] _b	second argument
@@ -407,7 +407,7 @@ STORAGE_CLASS_ISP_OP1W_FUNC_H tflags OP_1w_ge(
     const tvector1w     _a,
     const tvector1w     _b);
 
-/** @brief greater than
+/* @brief greater than
  *
  * @param[in] _a	first argument
  * @param[in] _b	second argument
@@ -423,7 +423,7 @@ STORAGE_CLASS_ISP_OP1W_FUNC_H tflags OP_1w_gt(
 
 /* Shift */
 
-/** @brief aritmetic shift right
+/* @brief aritmetic shift right
  *
  * @param[in] _a	input
  * @param[in] _b	shift amount
@@ -441,7 +441,7 @@ STORAGE_CLASS_ISP_OP1W_FUNC_H tvector1w OP_1w_asr(
     const tvector1w     _a,
     const tvector1w     _b);
 
-/** @brief aritmetic shift right with rounding
+/* @brief aritmetic shift right with rounding
  *
  * @param[in] _a	input
  * @param[in] _b	shift amount
@@ -460,7 +460,7 @@ STORAGE_CLASS_ISP_OP1W_FUNC_H tvector1w OP_1w_asrrnd(
     const tvector1w     _a,
     const tvector1w     _b);
 
-/** @brief saturating arithmetic shift left
+/* @brief saturating arithmetic shift left
  *
  * @param[in] _a	input
  * @param[in] _b	shift amount
@@ -480,7 +480,7 @@ STORAGE_CLASS_ISP_OP1W_FUNC_H tvector1w OP_1w_asl(
     const tvector1w     _a,
     const tvector1w     _b);
 
-/** @brief saturating aritmetic shift left
+/* @brief saturating aritmetic shift left
  *
  * @param[in] _a	input
  * @param[in] _b	shift amount
@@ -493,7 +493,7 @@ STORAGE_CLASS_ISP_OP1W_FUNC_H tvector1w OP_1w_aslsat(
     const tvector1w     _a,
     const tvector1w     _b);
 
-/** @brief logical shift left
+/* @brief logical shift left
  *
  * @param[in] _a	input
  * @param[in] _b	shift amount
@@ -510,7 +510,7 @@ STORAGE_CLASS_ISP_OP1W_FUNC_H tvector1w OP_1w_lsl(
     const tvector1w     _a,
     const tvector1w     _b);
 
-/** @brief logical shift right
+/* @brief logical shift right
  *
  * @param[in] _a	input
  * @param[in] _b	shift amount
@@ -528,7 +528,7 @@ STORAGE_CLASS_ISP_OP1W_FUNC_H tvector1w OP_1w_lsr(
     const tvector1w     _b);
 
 #ifdef ISP2401
-/** @brief bidirectional saturating arithmetic shift
+/* @brief bidirectional saturating arithmetic shift
  *
  * @param[in] _a	input
  * @param[in] _b	shift amount
@@ -546,7 +546,7 @@ STORAGE_CLASS_ISP_OP1W_FUNC_H tvector1w OP_1w_ashift_sat(
     const tvector1w     _a,
     const tvector1w     _b);
 
-/** @brief bidirectional non-saturating arithmetic shift
+/* @brief bidirectional non-saturating arithmetic shift
  *
  * @param[in] _a	input
  * @param[in] _b	shift amount
@@ -565,7 +565,7 @@ STORAGE_CLASS_ISP_OP1W_FUNC_H tvector1w OP_1w_ashift(
     const tvector1w     _b);
 
 
-/** @brief bidirectional logical shift
+/* @brief bidirectional logical shift
  *
  * @param[in] _a	input
  * @param[in] _b	shift amount
@@ -588,7 +588,7 @@ STORAGE_CLASS_ISP_OP1W_FUNC_H tvector1w OP_1w_lshift(
 #endif
 /* Cast */
 
-/** @brief Cast from int to 1w
+/* @brief Cast from int to 1w
  *
  * @param[in] _a	input
  *
@@ -601,7 +601,7 @@ STORAGE_CLASS_ISP_OP1W_FUNC_H tvector1w OP_1w_lshift(
 STORAGE_CLASS_ISP_OP1W_FUNC_H tvector1w OP_int_cast_to_1w(
     const int           _a);
 
-/** @brief Cast from 1w to int
+/* @brief Cast from 1w to int
  *
  * @param[in] _a	input
  *
@@ -614,7 +614,7 @@ STORAGE_CLASS_ISP_OP1W_FUNC_H tvector1w OP_int_cast_to_1w(
 STORAGE_CLASS_ISP_OP1W_FUNC_H int OP_1w_cast_to_int(
     const tvector1w      _a);
 
-/** @brief Cast from 1w to 2w
+/* @brief Cast from 1w to 2w
  *
  * @param[in] _a	input
  *
@@ -627,7 +627,7 @@ STORAGE_CLASS_ISP_OP1W_FUNC_H int OP_1w_cast_to_int(
 STORAGE_CLASS_ISP_OP1W_FUNC_H tvector2w OP_1w_cast_to_2w(
     const tvector1w     _a);
 
-/** @brief Cast from 2w to 1w
+/* @brief Cast from 2w to 1w
  *
  * @param[in] _a	input
  *
@@ -641,7 +641,7 @@ STORAGE_CLASS_ISP_OP1W_FUNC_H tvector1w OP_2w_cast_to_1w(
     const tvector2w    _a);
 
 
-/** @brief Cast from 2w to 1w with saturation
+/* @brief Cast from 2w to 1w with saturation
  *
  * @param[in] _a	input
  *
@@ -657,7 +657,7 @@ STORAGE_CLASS_ISP_OP1W_FUNC_H tvector1w OP_2w_sat_cast_to_1w(
 
 /* clipping */
 
-/** @brief Clip asymmetrical
+/* @brief Clip asymmetrical
  *
  * @param[in] _a	first argument
  * @param[in] _b	second argument
@@ -673,7 +673,7 @@ STORAGE_CLASS_ISP_OP1W_FUNC_H tvector1w OP_1w_clip_asym(
     const tvector1w     _a,
     const tvector1w     _b);
 
-/** @brief Clip zero
+/* @brief Clip zero
  *
  * @param[in] _a	first argument
  * @param[in] _b	second argument
@@ -691,7 +691,7 @@ STORAGE_CLASS_ISP_OP1W_FUNC_H tvector1w OP_1w_clipz(
 
 /* division */
 
-/** @brief Truncated division
+/* @brief Truncated division
  *
  * @param[in] _a	first argument
  * @param[in] _b	second argument
@@ -708,7 +708,7 @@ STORAGE_CLASS_ISP_OP1W_FUNC_H tvector1w OP_1w_div(
     const tvector1w     _a,
     const tvector1w     _b);
 
-/** @brief Fractional saturating divide
+/* @brief Fractional saturating divide
  *
  * @param[in] _a	first argument
  * @param[in] _b	second argument
@@ -726,7 +726,7 @@ STORAGE_CLASS_ISP_OP1W_FUNC_H tvector1w OP_1w_qdiv(
     const tvector1w     _a,
     const tvector1w     _b);
 
-/** @brief Modulo
+/* @brief Modulo
  *
  * @param[in] _a	first argument
  * @param[in] _b	second argument
@@ -741,7 +741,7 @@ STORAGE_CLASS_ISP_OP1W_FUNC_H tvector1w OP_1w_mod(
     const tvector1w     _a,
     const tvector1w     _b);
 
-/** @brief Unsigned integer Square root
+/* @brief Unsigned integer Square root
  *
  * @param[in] _a	input
  *
@@ -754,7 +754,7 @@ STORAGE_CLASS_ISP_OP1W_FUNC_H tvector1w_unsigned OP_1w_sqrt_u(
 
 /* Miscellaneous */
 
-/** @brief Multiplexer
+/* @brief Multiplexer
  *
  * @param[in] _a	first argument
  * @param[in] _b	second argument
@@ -770,7 +770,7 @@ STORAGE_CLASS_ISP_OP1W_FUNC_H tvector1w OP_1w_mux(
     const tvector1w     _b,
     const tflags           _c);
 
-/** @brief Average without rounding
+/* @brief Average without rounding
  *
  * @param[in] _a	first operand
  * @param[in] _b	second operand
@@ -786,7 +786,7 @@ STORAGE_CLASS_ISP_OP1W_FUNC_H tvector1w  OP_1w_avg(
     const tvector1w     _a,
     const tvector1w     _b);
 
-/** @brief Average with rounding
+/* @brief Average with rounding
  *
  * @param[in] _a	first argument
  * @param[in] _b	second argument
@@ -802,7 +802,7 @@ STORAGE_CLASS_ISP_OP1W_FUNC_H tvector1w OP_1w_avgrnd(
     const tvector1w     _a,
     const tvector1w     _b);
 
-/** @brief Minimum
+/* @brief Minimum
  *
  * @param[in] _a	first argument
  * @param[in] _b	second argument
@@ -816,7 +816,7 @@ STORAGE_CLASS_ISP_OP1W_FUNC_H tvector1w OP_1w_min(
     const tvector1w     _a,
     const tvector1w     _b);
 
-/** @brief Maximum
+/* @brief Maximum
  *
  * @param[in] _a	first argument
  * @param[in] _b	second argument

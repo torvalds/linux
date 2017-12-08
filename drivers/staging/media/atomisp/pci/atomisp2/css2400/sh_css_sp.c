@@ -261,7 +261,7 @@ sh_css_sp_start_raw_copy(struct ia_css_frame *out_frame,
 	assert(out_frame != NULL);
 
 	{
-		/**
+		/*
 		 * Clear sh_css_sp_stage for easy debugging.
 		 * program_input_circuit must be saved as it is set outside
 		 * this function.
@@ -335,7 +335,7 @@ sh_css_sp_start_isys_copy(struct ia_css_frame *out_frame,
 	assert(out_frame != NULL);
 
 	{
-		/**
+		/*
 		 * Clear sh_css_sp_stage for easy debugging.
 		 * program_input_circuit must be saved as it is set outside
 		 * this function.
@@ -909,7 +909,7 @@ sh_css_sp_init_stage(struct ia_css_binary *binary,
 	xinfo = binary->info;
 	info  = &xinfo->sp;
 	{
-		/**
+		/*
 		 * Clear sh_css_sp_stage for easy debugging.
 		 * program_input_circuit must be saved as it is set outside
 		 * this function.
@@ -980,7 +980,7 @@ sh_css_sp_init_stage(struct ia_css_binary *binary,
 	sh_css_isp_stage.binary_name[SH_CSS_MAX_BINARY_NAME - 1] = 0;
 	sh_css_isp_stage.mem_initializers = *isp_mem_if;
 
-	/**
+	/*
 	 * Even when a stage does not need uds and does not params,
 	 * ia_css_uds_sp_scale_params() seems to be called (needs
 	 * further investigation). This function can not deal with
@@ -1429,7 +1429,7 @@ sh_css_init_host2sp_frame_data(void)
 }
 
 
-/**
+/*
  * @brief Update the offline frame information in host_sp_communication.
  * Refer to "sh_css_sp.h" for more details.
  */
@@ -1461,7 +1461,7 @@ sh_css_update_host2sp_offline_frame(
 }
 
 #if defined(USE_INPUT_SYSTEM_VERSION_2) || defined(USE_INPUT_SYSTEM_VERSION_2401)
-/**
+/*
  * @brief Update the mipi frame information in host_sp_communication.
  * Refer to "sh_css_sp.h" for more details.
  */
@@ -1488,7 +1488,7 @@ sh_css_update_host2sp_mipi_frame(
 				frame ? frame->data : 0);
 }
 
-/**
+/*
  * @brief Update the mipi metadata information in host_sp_communication.
  * Refer to "sh_css_sp.h" for more details.
  */
@@ -1735,7 +1735,7 @@ ia_css_isp_has_started(void)
 }
 
 
-/**
+/*
  * @brief Initialize the DMA software-mask in the debug mode.
  * Refer to "sh_css_sp.h" for more details.
  */
@@ -1761,7 +1761,7 @@ sh_css_sp_init_dma_sw_reg(int dma_id)
 	return true;
 }
 
-/**
+/*
  * @brief Set the DMA software-mask in the debug mode.
  * Refer to "sh_css_sp.h" for more details.
  */
