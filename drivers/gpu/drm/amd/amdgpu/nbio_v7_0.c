@@ -44,18 +44,6 @@ static u32 nbio_v7_0_get_rev_id(struct amdgpu_device *adev)
 	return tmp;
 }
 
-static u32 nbio_v7_0_get_atombios_scratch_regs(struct amdgpu_device *adev,
-					uint32_t idx)
-{
-	return RREG32_SOC15_OFFSET(NBIO, 0, mmBIOS_SCRATCH_0, idx);
-}
-
-static void nbio_v7_0_set_atombios_scratch_regs(struct amdgpu_device *adev,
-						uint32_t idx, uint32_t val)
-{
-	WREG32_SOC15_OFFSET(NBIO, 0, mmBIOS_SCRATCH_0, idx, val);
-}
-
 static void nbio_v7_0_mc_access_enable(struct amdgpu_device *adev, bool enable)
 {
 	if (enable)
@@ -279,8 +267,6 @@ const struct amdgpu_nbio_funcs nbio_v7_0_funcs = {
 	.get_pcie_index_offset = nbio_v7_0_get_pcie_index_offset,
 	.get_pcie_data_offset = nbio_v7_0_get_pcie_data_offset,
 	.get_rev_id = nbio_v7_0_get_rev_id,
-	.get_atombios_scratch_regs = nbio_v7_0_get_atombios_scratch_regs,
-	.set_atombios_scratch_regs = nbio_v7_0_set_atombios_scratch_regs,
 	.mc_access_enable = nbio_v7_0_mc_access_enable,
 	.hdp_flush = nbio_v7_0_hdp_flush,
 	.get_memsize = nbio_v7_0_get_memsize,

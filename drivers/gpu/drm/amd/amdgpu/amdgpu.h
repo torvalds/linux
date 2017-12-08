@@ -1451,9 +1451,6 @@ struct amdgpu_nbio_funcs {
 	u32 (*get_pcie_index_offset)(struct amdgpu_device *adev);
 	u32 (*get_pcie_data_offset)(struct amdgpu_device *adev);
 	u32 (*get_rev_id)(struct amdgpu_device *adev);
-	u32 (*get_atombios_scratch_regs)(struct amdgpu_device *adev, uint32_t idx);
-	void (*set_atombios_scratch_regs)(struct amdgpu_device *adev,
-					  uint32_t idx, uint32_t val);
 	void (*mc_access_enable)(struct amdgpu_device *adev, bool enable);
 	void (*hdp_flush)(struct amdgpu_device *adev);
 	u32 (*get_memsize)(struct amdgpu_device *adev);
