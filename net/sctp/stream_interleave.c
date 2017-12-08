@@ -545,6 +545,113 @@ static int sctp_ulpevent_idata(struct sctp_ulpq *ulpq,
 	return event_eor;
 }
 
+static struct sctp_ulpevent *sctp_intl_retrieve_first(struct sctp_ulpq *ulpq)
+{
+	struct sctp_stream_in *csin, *sin = NULL;
+	struct sk_buff *first_frag = NULL;
+	struct sk_buff *last_frag = NULL;
+	struct sctp_ulpevent *retval;
+	struct sk_buff *pos;
+	__u32 next_fsn = 0;
+	__u16 sid = 0;
+
+	skb_queue_walk(&ulpq->reasm, pos) {
+		struct sctp_ulpevent *cevent = sctp_skb2event(pos);
+
+		csin = sctp_stream_in(ulpq->asoc, cevent->stream);
+		if (csin->pd_mode)
+			continue;
+
+		switch (cevent->msg_flags & SCTP_DATA_FRAG_MASK) {
+		case SCTP_DATA_FIRST_FRAG:
+			if (first_frag)
+				goto out;
+			if (cevent->mid == csin->mid) {
+				first_frag = pos;
+				last_frag = pos;
+				next_fsn = 0;
+				sin = csin;
+				sid = cevent->stream;
+			}
+			break;
+		case SCTP_DATA_MIDDLE_FRAG:
+			if (!first_frag)
+				break;
+			if (cevent->stream == sid &&
+			    cevent->mid == sin->mid &&
+			    cevent->fsn == next_fsn) {
+				next_fsn++;
+				last_frag = pos;
+			} else {
+				goto out;
+			}
+			break;
+		case SCTP_DATA_LAST_FRAG:
+			if (first_frag)
+				goto out;
+			break;
+		default:
+			break;
+		}
+	}
+
+	if (!first_frag)
+		return NULL;
+
+out:
+	retval = sctp_make_reassembled_event(sock_net(ulpq->asoc->base.sk),
+					     &ulpq->reasm, first_frag,
+					     last_frag);
+	if (retval) {
+		sin->fsn = next_fsn;
+		sin->pd_mode = 1;
+	}
+
+	return retval;
+}
+
+static void sctp_intl_start_pd(struct sctp_ulpq *ulpq, gfp_t gfp)
+{
+	struct sctp_ulpevent *event;
+
+	if (skb_queue_empty(&ulpq->reasm))
+		return;
+
+	do {
+		event = sctp_intl_retrieve_first(ulpq);
+		if (event)
+			sctp_enqueue_event(ulpq, event);
+	} while (event);
+}
+
+static void sctp_renege_events(struct sctp_ulpq *ulpq, struct sctp_chunk *chunk,
+			       gfp_t gfp)
+{
+	struct sctp_association *asoc = ulpq->asoc;
+	__u32 freed = 0;
+	__u16 needed;
+
+	if (chunk) {
+		needed = ntohs(chunk->chunk_hdr->length);
+		needed -= sizeof(struct sctp_idata_chunk);
+	} else {
+		needed = SCTP_DEFAULT_MAXWINDOW;
+	}
+
+	if (skb_queue_empty(&asoc->base.sk->sk_receive_queue)) {
+		freed = sctp_ulpq_renege_list(ulpq, &ulpq->lobby, needed);
+		if (freed < needed)
+			freed += sctp_ulpq_renege_list(ulpq, &ulpq->reasm,
+						       needed);
+	}
+
+	if (chunk && freed >= needed)
+		if (sctp_ulpevent_idata(ulpq, chunk, gfp) <= 0)
+			sctp_intl_start_pd(ulpq, gfp);
+
+	sk_mem_reclaim(asoc->base.sk);
+}
+
 static struct sctp_stream_interleave sctp_stream_interleave_0 = {
 	.data_chunk_len		= sizeof(struct sctp_data_chunk),
 	/* DATA process functions */
@@ -553,6 +660,7 @@ static struct sctp_stream_interleave sctp_stream_interleave_0 = {
 	.validate_data		= sctp_validate_data,
 	.ulpevent_data		= sctp_ulpq_tail_data,
 	.enqueue_event		= sctp_ulpq_tail_event,
+	.renege_events		= sctp_ulpq_renege,
 };
 
 static struct sctp_stream_interleave sctp_stream_interleave_1 = {
@@ -563,6 +671,7 @@ static struct sctp_stream_interleave sctp_stream_interleave_1 = {
 	.validate_data		= sctp_validate_idata,
 	.ulpevent_data		= sctp_ulpevent_idata,
 	.enqueue_event		= sctp_enqueue_event,
+	.renege_events		= sctp_renege_events,
 };
 
 void sctp_stream_interleave_init(struct sctp_stream *stream)

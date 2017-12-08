@@ -76,11 +76,8 @@ int sctp_clear_pd(struct sock *sk, struct sctp_association *asoc);
 void sctp_ulpq_skip(struct sctp_ulpq *ulpq, __u16 sid, __u16 ssn);
 
 void sctp_ulpq_reasm_flushtsn(struct sctp_ulpq *, __u32);
+
+__u16 sctp_ulpq_renege_list(struct sctp_ulpq *ulpq,
+			    struct sk_buff_head *list, __u16 needed);
+
 #endif /* __sctp_ulpqueue_h__ */
-
-
-
-
-
-
-
