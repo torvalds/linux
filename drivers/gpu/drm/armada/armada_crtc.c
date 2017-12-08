@@ -176,7 +176,13 @@ void armada_drm_plane_calc_addrs(u32 *addrs, struct drm_framebuffer *fb,
 	if (num_planes > 3)
 		num_planes = 3;
 
-	for (i = 0; i < num_planes; i++)
+	addrs[0] = addr + fb->offsets[0] + y * fb->pitches[0] +
+		   x * format->cpp[0];
+
+	y /= format->vsub;
+	x /= format->hsub;
+
+	for (i = 1; i < num_planes; i++)
 		addrs[i] = addr + fb->offsets[i] + y * fb->pitches[i] +
 			     x * format->cpp[i];
 	for (; i < 3; i++)
