@@ -42,7 +42,6 @@ ifneq ($(DEB_HOST_ARCH),$(DEB_BUILD_ARCH))
 	do_tools=false
 	disable_d_i=true
 	do_zfs=false
-	do_zfs_disable:=$(shell cat $(DROOT)/zfs-modules.ignore >>$(prev_abidir)/../modules.ignore)
 endif
 
 # Stages -- support both DEB_STAGE=stage1 and DEB_BUILD_PROFILE=bootstrap
@@ -76,6 +75,10 @@ ifneq ($(do_tools),true)
 endif
 
 do_zfs=false
+
+ifeq ($(do_zfs),false)
+	do_zfs_disable:=$(shell cat $(DROOT)/zfs-modules.ignore >>$(prev_abidir)/../modules.ignore)
+endif
 
 # Either tools package needs the common source preparation
 do_any_tools=$(sort $(filter-out false,$(do_linux_tools) $(do_cloud_tools)))
