@@ -515,11 +515,11 @@ set_##_name(struct device *dev, \
 #define DPOT_DEVICE_SHOW_SET(name, reg) \
 DPOT_DEVICE_SHOW(name, reg) \
 DPOT_DEVICE_SET(name, reg) \
-static DEVICE_ATTR(name, S_IWUSR | S_IRUGO, show_##name, set_##name);
+static DEVICE_ATTR(name, S_IWUSR | S_IRUGO, show_##name, set_##name)
 
 #define DPOT_DEVICE_SHOW_ONLY(name, reg) \
 DPOT_DEVICE_SHOW(name, reg) \
-static DEVICE_ATTR(name, S_IWUSR | S_IRUGO, show_##name, NULL);
+static DEVICE_ATTR(name, S_IWUSR | S_IRUGO, show_##name, NULL)
 
 DPOT_DEVICE_SHOW_SET(rdac0, DPOT_ADDR_RDAC | DPOT_RDAC0);
 DPOT_DEVICE_SHOW_SET(eeprom0, DPOT_ADDR_EEPROM | DPOT_RDAC0);
@@ -616,7 +616,7 @@ set_##_name(struct device *dev, \
 { \
 	return sysfs_do_cmd(dev, attr, buf, count, _cmd); \
 } \
-static DEVICE_ATTR(_name, S_IWUSR | S_IRUGO, NULL, set_##_name);
+static DEVICE_ATTR(_name, S_IWUSR | S_IRUGO, NULL, set_##_name)
 
 DPOT_DEVICE_DO_CMD(inc_all, DPOT_INC_ALL);
 DPOT_DEVICE_DO_CMD(dec_all, DPOT_DEC_ALL);
