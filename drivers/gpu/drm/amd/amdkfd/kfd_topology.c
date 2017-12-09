@@ -43,6 +43,25 @@ static struct kfd_system_properties sys_props;
 static DECLARE_RWSEM(topology_lock);
 static atomic_t topology_crat_proximity_domain;
 
+struct kfd_topology_device *kfd_topology_device_by_proximity_domain(
+						uint32_t proximity_domain)
+{
+	struct kfd_topology_device *top_dev;
+	struct kfd_topology_device *device = NULL;
+
+	down_read(&topology_lock);
+
+	list_for_each_entry(top_dev, &topology_device_list, list)
+		if (top_dev->proximity_domain == proximity_domain) {
+			device = top_dev;
+			break;
+		}
+
+	up_read(&topology_lock);
+
+	return device;
+}
+
 struct kfd_dev *kfd_device_by_id(uint32_t gpu_id)
 {
 	struct kfd_topology_device *top_dev;
@@ -79,6 +98,7 @@ struct kfd_dev *kfd_device_by_pci_dev(const struct pci_dev *pdev)
 	return device;
 }
 
+/* Called with write topology_lock acquired */
 static void kfd_release_topology_device(struct kfd_topology_device *dev)
 {
 	struct kfd_mem_properties *mem;
@@ -394,8 +414,7 @@ static ssize_t node_show(struct kobject *kobj, struct attribute *attr,
 		}
 
 		sysfs_show_32bit_prop(buffer, "max_engine_clk_fcompute",
-			dev->gpu->kfd2kgd->get_max_engine_clock_in_mhz(
-					dev->gpu->kgd));
+			dev->node_props.max_engine_clk_fcompute);
 
 		sysfs_show_64bit_prop(buffer, "local_mem_size",
 				(unsigned long long int) 0);
@@ -597,6 +616,7 @@ static int kfd_build_sysfs_node_entry(struct kfd_topology_device *dev,
 	return 0;
 }
 
+/* Called with write topology lock acquired */
 static int kfd_build_sysfs_node_tree(void)
 {
 	struct kfd_topology_device *dev;
@@ -613,6 +633,7 @@ static int kfd_build_sysfs_node_tree(void)
 	return 0;
 }
 
+/* Called with write topology lock acquired */
 static void kfd_remove_sysfs_node_tree(void)
 {
 	struct kfd_topology_device *dev;
@@ -908,19 +929,26 @@ static uint32_t kfd_generate_gpu_id(struct kfd_dev *gpu)
 
 	return hashout;
 }
-
+/* kfd_assign_gpu - Attach @gpu to the correct kfd topology device. If
+ *		the GPU device is not already present in the topology device
+ *		list then return NULL. This means a new topology device has to
+ *		be created for this GPU.
+ * TODO: Rather than assiging @gpu to first topology device withtout
+ *		gpu attached, it will better to have more stringent check.
+ */
 static struct kfd_topology_device *kfd_assign_gpu(struct kfd_dev *gpu)
 {
 	struct kfd_topology_device *dev;
 	struct kfd_topology_device *out_dev = NULL;
 
+	down_write(&topology_lock);
 	list_for_each_entry(dev, &topology_device_list, list)
 		if (!dev->gpu && (dev->node_props.simd_count > 0)) {
 			dev->gpu = gpu;
 			out_dev = dev;
 			break;
 		}
-
+	up_write(&topology_lock);
 	return out_dev;
 }
 
@@ -932,6 +960,45 @@ static void kfd_notify_gpu_change(uint32_t gpu_id, int arrival)
 	 */
 }
 
+/* kfd_fill_mem_clk_max_info - Since CRAT doesn't have memory clock info,
+ *		patch this after CRAT parsing.
+ */
+static void kfd_fill_mem_clk_max_info(struct kfd_topology_device *dev)
+{
+	struct kfd_mem_properties *mem;
+	struct kfd_local_mem_info local_mem_info;
+
+	if (!dev)
+		return;
+
+	/* Currently, amdgpu driver (amdgpu_mc) deals only with GPUs with
+	 * single bank of VRAM local memory.
+	 * for dGPUs - VCRAT reports only one bank of Local Memory
+	 * for APUs - If CRAT from ACPI reports more than one bank, then
+	 *	all the banks will report the same mem_clk_max information
+	 */
+	dev->gpu->kfd2kgd->get_local_mem_info(dev->gpu->kgd,
+		&local_mem_info);
+
+	list_for_each_entry(mem, &dev->mem_props, list)
+		mem->mem_clk_max = local_mem_info.mem_clk_max;
+}
+
+static void kfd_fill_iolink_non_crat_info(struct kfd_topology_device *dev)
+{
+	struct kfd_iolink_properties *link;
+
+	if (!dev || !dev->gpu)
+		return;
+
+	/* GPU only creates direck links so apply flags setting to all */
+	if (dev->gpu->device_info->asic_family == CHIP_HAWAII)
+		list_for_each_entry(link, &dev->io_link_props, list)
+			link->flags = CRAT_IOLINK_FLAGS_ENABLED |
+				CRAT_IOLINK_FLAGS_NO_ATOMICS_32_BIT |
+				CRAT_IOLINK_FLAGS_NO_ATOMICS_64_BIT;
+}
+
 int kfd_topology_add_device(struct kfd_dev *gpu)
 {
 	uint32_t gpu_id;
@@ -939,6 +1006,9 @@ int kfd_topology_add_device(struct kfd_dev *gpu)
 	struct kfd_cu_info cu_info;
 	int res = 0;
 	struct list_head temp_topology_device_list;
+	void *crat_image = NULL;
+	size_t image_size = 0;
+	int proximity_domain;
 
 	INIT_LIST_HEAD(&temp_topology_device_list);
 
@@ -946,26 +1016,32 @@ int kfd_topology_add_device(struct kfd_dev *gpu)
 
 	pr_debug("Adding new GPU (ID: 0x%x) to topology\n", gpu_id);
 
-	/*
-	 * Try to assign the GPU to existing topology device (generated from
-	 * CRAT table
+	proximity_domain = atomic_inc_return(&topology_crat_proximity_domain);
+
+	/* Check to see if this gpu device exists in the topology_device_list.
+	 * If so, assign the gpu to that device,
+	 * else create a Virtual CRAT for this gpu device and then parse that
+	 * CRAT to create a new topology device. Once created assign the gpu to
+	 * that topology device
 	 */
 	dev = kfd_assign_gpu(gpu);
 	if (!dev) {
-		pr_info("GPU was not found in the current topology. Extending.\n");
-		kfd_debug_print_topology();
-		dev = kfd_create_topology_device(&temp_topology_device_list);
-		if (!dev) {
-			res = -ENOMEM;
+		res = kfd_create_crat_image_virtual(&crat_image, &image_size,
+						    COMPUTE_UNIT_GPU, gpu,
+						    proximity_domain);
+		if (res) {
+			pr_err("Error creating VCRAT for GPU (ID: 0x%x)\n",
+			       gpu_id);
+			return res;
+		}
+		res = kfd_parse_crat_table(crat_image,
+					   &temp_topology_device_list,
+					   proximity_domain);
+		if (res) {
+			pr_err("Error parsing VCRAT for GPU (ID: 0x%x)\n",
+			       gpu_id);
 			goto err;
 		}
-
-		dev->gpu = gpu;
-
-		/*
-		 * TODO: Make a call to retrieve topology information from the
-		 * GPU vBIOS
-		 */
 
 		down_write(&topology_lock);
 		kfd_topology_update_device_list(&temp_topology_device_list,
@@ -974,34 +1050,86 @@ int kfd_topology_add_device(struct kfd_dev *gpu)
 		/* Update the SYSFS tree, since we added another topology
 		 * device
 		 */
-		if (kfd_topology_update_sysfs() < 0)
-			kfd_topology_release_sysfs();
-
+		res = kfd_topology_update_sysfs();
 		up_write(&topology_lock);
 
+		if (!res)
+			sys_props.generation_count++;
+		else
+			pr_err("Failed to update GPU (ID: 0x%x) to sysfs topology. res=%d\n",
+						gpu_id, res);
+		dev = kfd_assign_gpu(gpu);
+		if (WARN_ON(!dev)) {
+			res = -ENODEV;
+			goto err;
+		}
 	}
 
 	dev->gpu_id = gpu_id;
 	gpu->id = gpu_id;
+
+	/* TODO: Move the following lines to function
+	 *	kfd_add_non_crat_information
+	 */
+
+	/* Fill-in additional information that is not available in CRAT but
+	 * needed for the topology
+	 */
+
 	dev->gpu->kfd2kgd->get_cu_info(dev->gpu->kgd, &cu_info);
-	dev->node_props.simd_count = dev->node_props.simd_per_cu *
-			cu_info.cu_active_number;
+	dev->node_props.simd_arrays_per_engine =
+		cu_info.num_shader_arrays_per_engine;
+
 	dev->node_props.vendor_id = gpu->pdev->vendor;
 	dev->node_props.device_id = gpu->pdev->device;
 	dev->node_props.location_id = PCI_DEVID(gpu->pdev->bus->number,
 		gpu->pdev->devfn);
-	/*
-	 * TODO: Retrieve max engine clock values from KGD
-	 */
+	dev->node_props.max_engine_clk_fcompute =
+		dev->gpu->kfd2kgd->get_max_engine_clock_in_mhz(dev->gpu->kgd);
+	dev->node_props.max_engine_clk_ccompute =
+		cpufreq_quick_get_max(0) / 1000;
 
-	if (dev->gpu->device_info->asic_family == CHIP_CARRIZO) {
-		dev->node_props.capability |= HSA_CAP_DOORBELL_PACKET_TYPE;
+	kfd_fill_mem_clk_max_info(dev);
+	kfd_fill_iolink_non_crat_info(dev);
+
+	switch (dev->gpu->device_info->asic_family) {
+	case CHIP_KAVERI:
+	case CHIP_HAWAII:
+	case CHIP_TONGA:
+		dev->node_props.capability |= ((HSA_CAP_DOORBELL_TYPE_PRE_1_0 <<
+			HSA_CAP_DOORBELL_TYPE_TOTALBITS_SHIFT) &
+			HSA_CAP_DOORBELL_TYPE_TOTALBITS_MASK);
+		break;
+	case CHIP_CARRIZO:
+	case CHIP_FIJI:
+	case CHIP_POLARIS10:
+	case CHIP_POLARIS11:
 		pr_debug("Adding doorbell packet type capability\n");
+		dev->node_props.capability |= ((HSA_CAP_DOORBELL_TYPE_1_0 <<
+			HSA_CAP_DOORBELL_TYPE_TOTALBITS_SHIFT) &
+			HSA_CAP_DOORBELL_TYPE_TOTALBITS_MASK);
+		break;
+	default:
+		WARN(1, "Unexpected ASIC family %u",
+		     dev->gpu->device_info->asic_family);
 	}
+
+	/* Fix errors in CZ CRAT.
+	 * simd_count: Carrizo CRAT reports wrong simd_count, probably
+	 *		because it doesn't consider masked out CUs
+	 * capability flag: Carrizo CRAT doesn't report IOMMU
+	 *		flags. TODO: Fix this.
+	 */
+	if (dev->gpu->device_info->asic_family == CHIP_CARRIZO)
+		dev->node_props.simd_count =
+			cu_info.simd_per_cu * cu_info.cu_active_number;
+
+	kfd_debug_print_topology();
 
 	if (!res)
 		kfd_notify_gpu_change(gpu_id, 1);
 err:
+	kfd_destroy_crat_image(crat_image);
 	return res;
 }
 

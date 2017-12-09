@@ -19,10 +19,119 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  */
+
+#include <linux/pci.h>
 #include <linux/acpi.h>
+#include <linux/amd-iommu.h>
 #include "kfd_crat.h"
 #include "kfd_priv.h"
 #include "kfd_topology.h"
+
+/* GPU Processor ID base for dGPUs for which VCRAT needs to be created.
+ * GPU processor ID are expressed with Bit[31]=1.
+ * The base is set to 0x8000_0000 + 0x1000 to avoid collision with GPU IDs
+ * used in the CRAT.
+ */
+static uint32_t gpu_processor_id_low = 0x80001000;
+
+/* Return the next available gpu_processor_id and increment it for next GPU
+ *	@total_cu_count - Total CUs present in the GPU including ones
+ *			  masked off
+ */
+static inline unsigned int get_and_inc_gpu_processor_id(
+				unsigned int total_cu_count)
+{
+	int current_id = gpu_processor_id_low;
+
+	gpu_processor_id_low += total_cu_count;
+	return current_id;
+}
+
+/* Static table to describe GPU Cache information */
+struct kfd_gpu_cache_info {
+	uint32_t	cache_size;
+	uint32_t	cache_level;
+	uint32_t	flags;
+	/* Indicates how many Compute Units share this cache
+	 * Value = 1 indicates the cache is not shared
+	 */
+	uint32_t	num_cu_shared;
+};
+
+static struct kfd_gpu_cache_info kaveri_cache_info[] = {
+	{
+		/* TCP L1 Cache per CU */
+		.cache_size = 16,
+		.cache_level = 1,
+		.flags = (CRAT_CACHE_FLAGS_ENABLED |
+				CRAT_CACHE_FLAGS_DATA_CACHE |
+				CRAT_CACHE_FLAGS_SIMD_CACHE),
+		.num_cu_shared = 1,
+
+	},
+	{
+		/* Scalar L1 Instruction Cache (in SQC module) per bank */
+		.cache_size = 16,
+		.cache_level = 1,
+		.flags = (CRAT_CACHE_FLAGS_ENABLED |
+				CRAT_CACHE_FLAGS_INST_CACHE |
+				CRAT_CACHE_FLAGS_SIMD_CACHE),
+		.num_cu_shared = 2,
+	},
+	{
+		/* Scalar L1 Data Cache (in SQC module) per bank */
+		.cache_size = 8,
+		.cache_level = 1,
+		.flags = (CRAT_CACHE_FLAGS_ENABLED |
+				CRAT_CACHE_FLAGS_DATA_CACHE |
+				CRAT_CACHE_FLAGS_SIMD_CACHE),
+		.num_cu_shared = 2,
+	},
+
+	/* TODO: Add L2 Cache information */
+};
+
+
+static struct kfd_gpu_cache_info carrizo_cache_info[] = {
+	{
+		/* TCP L1 Cache per CU */
+		.cache_size = 16,
+		.cache_level = 1,
+		.flags = (CRAT_CACHE_FLAGS_ENABLED |
+				CRAT_CACHE_FLAGS_DATA_CACHE |
+				CRAT_CACHE_FLAGS_SIMD_CACHE),
+		.num_cu_shared = 1,
+	},
+	{
+		/* Scalar L1 Instruction Cache (in SQC module) per bank */
+		.cache_size = 8,
+		.cache_level = 1,
+		.flags = (CRAT_CACHE_FLAGS_ENABLED |
+				CRAT_CACHE_FLAGS_INST_CACHE |
+				CRAT_CACHE_FLAGS_SIMD_CACHE),
+		.num_cu_shared = 4,
+	},
+	{
+		/* Scalar L1 Data Cache (in SQC module) per bank. */
+		.cache_size = 4,
+		.cache_level = 1,
+		.flags = (CRAT_CACHE_FLAGS_ENABLED |
+				CRAT_CACHE_FLAGS_DATA_CACHE |
+				CRAT_CACHE_FLAGS_SIMD_CACHE),
+		.num_cu_shared = 4,
+	},
+
+	/* TODO: Add L2 Cache information */
+};
+
+/* NOTE: In future if more information is added to struct kfd_gpu_cache_info
+ * the following ASICs may need a separate table.
+ */
+#define hawaii_cache_info kaveri_cache_info
+#define tonga_cache_info carrizo_cache_info
+#define fiji_cache_info  carrizo_cache_info
+#define polaris10_cache_info carrizo_cache_info
+#define polaris11_cache_info carrizo_cache_info
 
 static void kfd_populated_cu_info_cpu(struct kfd_topology_device *dev,
 		struct crat_subtype_computeunit *cu)
@@ -44,7 +153,7 @@ static void kfd_populated_cu_info_gpu(struct kfd_topology_device *dev,
 	dev->node_props.lds_size_in_kb = cu->lds_size_in_kb;
 	dev->node_props.max_waves_per_simd = cu->max_waves_simd;
 	dev->node_props.wave_front_size = cu->wave_front_size;
-	dev->node_props.array_count = cu->num_arrays;
+	dev->node_props.array_count = cu->array_count;
 	dev->node_props.cu_per_simd_array = cu->num_cu_per_array;
 	dev->node_props.simd_per_cu = cu->num_simd_per_cu;
 	dev->node_props.max_slots_scratch_cu = cu->max_slots_scatch_cu;
@@ -94,9 +203,16 @@ static int kfd_parse_subtype_mem(struct crat_subtype_memory *mem,
 			if (!props)
 				return -ENOMEM;
 
-			if (dev->node_props.cpu_cores_count == 0)
-				props->heap_type = HSA_MEM_HEAP_TYPE_FB_PRIVATE;
-			else
+			/* We're on GPU node */
+			if (dev->node_props.cpu_cores_count == 0) {
+				/* APU */
+				if (mem->visibility_type == 0)
+					props->heap_type =
+						HSA_MEM_HEAP_TYPE_FB_PRIVATE;
+				/* dGPU */
+				else
+					props->heap_type = mem->visibility_type;
+			} else
 				props->heap_type = HSA_MEM_HEAP_TYPE_SYSTEM;
 
 			if (mem->flags & CRAT_MEM_FLAGS_HOT_PLUGGABLE)
@@ -128,13 +244,29 @@ static int kfd_parse_subtype_cache(struct crat_subtype_cache *cache,
 	struct kfd_cache_properties *props;
 	struct kfd_topology_device *dev;
 	uint32_t id;
+	uint32_t total_num_of_cu;
 
 	id = cache->processor_id_low;
 
 	pr_debug("Found cache entry in CRAT table with processor_id=%d\n", id);
-	list_for_each_entry(dev, device_list, list)
-		if (id == dev->node_props.cpu_core_id_base ||
-		    id == dev->node_props.simd_id_base) {
+	list_for_each_entry(dev, device_list, list) {
+		total_num_of_cu = (dev->node_props.array_count *
+					dev->node_props.cu_per_simd_array);
+
+		/* Cache infomration in CRAT doesn't have proximity_domain
+		 * information as it is associated with a CPU core or GPU
+		 * Compute Unit. So map the cache using CPU core Id or SIMD
+		 * (GPU) ID.
+		 * TODO: This works because currently we can safely assume that
+		 *  Compute Units are parsed before caches are parsed. In
+		 *  future, remove this dependency
+		 */
+		if ((id >= dev->node_props.cpu_core_id_base &&
+			id <= dev->node_props.cpu_core_id_base +
+				dev->node_props.cpu_cores_count) ||
+			(id >= dev->node_props.simd_id_base &&
+			id < dev->node_props.simd_id_base +
+				total_num_of_cu)) {
 			props = kfd_alloc_struct(props);
 			if (!props)
 				return -ENOMEM;
@@ -146,6 +278,8 @@ static int kfd_parse_subtype_cache(struct crat_subtype_cache *cache,
 			props->cachelines_per_tag = cache->lines_per_tag;
 			props->cache_assoc = cache->associativity;
 			props->cache_latency = cache->cache_latency;
+			memcpy(props->sibling_map, cache->sibling_map,
+					sizeof(props->sibling_map));
 
 			if (cache->flags & CRAT_CACHE_FLAGS_DATA_CACHE)
 				props->cache_type |= HSA_CACHE_TYPE_DATA;
@@ -162,6 +296,7 @@ static int kfd_parse_subtype_cache(struct crat_subtype_cache *cache,
 
 			break;
 		}
+	}
 
 	return 0;
 }
@@ -172,8 +307,8 @@ static int kfd_parse_subtype_cache(struct crat_subtype_cache *cache,
 static int kfd_parse_subtype_iolink(struct crat_subtype_iolink *iolink,
 					struct list_head *device_list)
 {
-	struct kfd_iolink_properties *props;
-	struct kfd_topology_device *dev;
+	struct kfd_iolink_properties *props = NULL, *props2;
+	struct kfd_topology_device *dev, *cpu_dev;
 	uint32_t id_from;
 	uint32_t id_to;
 
@@ -192,11 +327,12 @@ static int kfd_parse_subtype_iolink(struct crat_subtype_iolink *iolink,
 			props->node_to = id_to;
 			props->ver_maj = iolink->version_major;
 			props->ver_min = iolink->version_minor;
+			props->iolink_type = iolink->io_interface_type;
 
-			/*
-			 * weight factor (derived from CDIR), currently always 1
-			 */
-			props->weight = 1;
+			if (props->iolink_type == CRAT_IOLINK_TYPE_PCIEXPRESS)
+				props->weight = 20;
+			else
+				props->weight = node_distance(id_from, id_to);
 
 			props->min_latency = iolink->minimum_latency;
 			props->max_latency = iolink->maximum_latency;
@@ -208,9 +344,27 @@ static int kfd_parse_subtype_iolink(struct crat_subtype_iolink *iolink,
 			dev->io_link_count++;
 			dev->node_props.io_links_count++;
 			list_add_tail(&props->list, &dev->io_link_props);
-
 			break;
 		}
+	}
+
+	/* CPU topology is created before GPUs are detected, so CPU->GPU
+	 * links are not built at that time. If a PCIe type is discovered, it
+	 * means a GPU is detected and we are adding GPU->CPU to the topology.
+	 * At this time, also add the corresponded CPU->GPU link.
+	 */
+	if (props && props->iolink_type == CRAT_IOLINK_TYPE_PCIEXPRESS) {
+		cpu_dev = kfd_topology_device_by_proximity_domain(id_to);
+		if (!cpu_dev)
+			return -ENODEV;
+		/* same everything but the other direction */
+		props2 = kmemdup(props, sizeof(*props2), GFP_KERNEL);
+		props2->node_from = id_to;
+		props2->node_to = id_from;
+		props2->kobj = NULL;
+		cpu_dev->io_link_count++;
+		cpu_dev->node_props.io_links_count++;
+		list_add_tail(&props2->list, &cpu_dev->io_link_props);
 	}
 
 	return 0;
@@ -336,6 +490,176 @@ err:
 		kfd_release_topology_device_list(device_list);
 
 	return ret;
+}
+
+/* Helper function. See kfd_fill_gpu_cache_info for parameter description */
+static int fill_in_pcache(struct crat_subtype_cache *pcache,
+				struct kfd_gpu_cache_info *pcache_info,
+				struct kfd_cu_info *cu_info,
+				int mem_available,
+				int cu_bitmask,
+				int cache_type, unsigned int cu_processor_id,
+				int cu_block)
+{
+	unsigned int cu_sibling_map_mask;
+	int first_active_cu;
+
+	/* First check if enough memory is available */
+	if (sizeof(struct crat_subtype_cache) > mem_available)
+		return -ENOMEM;
+
+	cu_sibling_map_mask = cu_bitmask;
+	cu_sibling_map_mask >>= cu_block;
+	cu_sibling_map_mask &=
+		((1 << pcache_info[cache_type].num_cu_shared) - 1);
+	first_active_cu = ffs(cu_sibling_map_mask);
+
+	/* CU could be inactive. In case of shared cache find the first active
+	 * CU. and incase of non-shared cache check if the CU is inactive. If
+	 * inactive active skip it
+	 */
+	if (first_active_cu) {
+		memset(pcache, 0, sizeof(struct crat_subtype_cache));
+		pcache->type = CRAT_SUBTYPE_CACHE_AFFINITY;
+		pcache->length = sizeof(struct crat_subtype_cache);
+		pcache->flags = pcache_info[cache_type].flags;
+		pcache->processor_id_low = cu_processor_id
+					 + (first_active_cu - 1);
+		pcache->cache_level = pcache_info[cache_type].cache_level;
+		pcache->cache_size = pcache_info[cache_type].cache_size;
+
+		/* Sibling map is w.r.t processor_id_low, so shift out
+		 * inactive CU
+		 */
+		cu_sibling_map_mask =
+			cu_sibling_map_mask >> (first_active_cu - 1);
+
+		pcache->sibling_map[0] = (uint8_t)(cu_sibling_map_mask & 0xFF);
+		pcache->sibling_map[1] =
+				(uint8_t)((cu_sibling_map_mask >> 8) & 0xFF);
+		pcache->sibling_map[2] =
+				(uint8_t)((cu_sibling_map_mask >> 16) & 0xFF);
+		pcache->sibling_map[3] =
+				(uint8_t)((cu_sibling_map_mask >> 24) & 0xFF);
+		return 0;
+	}
+	return 1;
+}
+
+/* kfd_fill_gpu_cache_info - Fill GPU cache info using kfd_gpu_cache_info
+ * tables
+ *
+ *	@kdev - [IN] GPU device
+ *	@gpu_processor_id - [IN] GPU processor ID to which these caches
+ *			    associate
+ *	@available_size - [IN] Amount of memory available in pcache
+ *	@cu_info - [IN] Compute Unit info obtained from KGD
+ *	@pcache - [OUT] memory into which cache data is to be filled in.
+ *	@size_filled - [OUT] amount of data used up in pcache.
+ *	@num_of_entries - [OUT] number of caches added
+ */
+static int kfd_fill_gpu_cache_info(struct kfd_dev *kdev,
+			int gpu_processor_id,
+			int available_size,
+			struct kfd_cu_info *cu_info,
+			struct crat_subtype_cache *pcache,
+			int *size_filled,
+			int *num_of_entries)
+{
+	struct kfd_gpu_cache_info *pcache_info;
+	int num_of_cache_types = 0;
+	int i, j, k;
+	int ct = 0;
+	int mem_available = available_size;
+	unsigned int cu_processor_id;
+	int ret;
+
+	switch (kdev->device_info->asic_family) {
+	case CHIP_KAVERI:
+		pcache_info = kaveri_cache_info;
+		num_of_cache_types = ARRAY_SIZE(kaveri_cache_info);
+		break;
+	case CHIP_HAWAII:
+		pcache_info = hawaii_cache_info;
+		num_of_cache_types = ARRAY_SIZE(hawaii_cache_info);
+		break;
+	case CHIP_CARRIZO:
+		pcache_info = carrizo_cache_info;
+		num_of_cache_types = ARRAY_SIZE(carrizo_cache_info);
+		break;
+	case CHIP_TONGA:
+		pcache_info = tonga_cache_info;
+		num_of_cache_types = ARRAY_SIZE(tonga_cache_info);
+		break;
+	case CHIP_FIJI:
+		pcache_info = fiji_cache_info;
+		num_of_cache_types = ARRAY_SIZE(fiji_cache_info);
+		break;
+	case CHIP_POLARIS10:
+		pcache_info = polaris10_cache_info;
+		num_of_cache_types = ARRAY_SIZE(polaris10_cache_info);
+		break;
+	case CHIP_POLARIS11:
+		pcache_info = polaris11_cache_info;
+		num_of_cache_types = ARRAY_SIZE(polaris11_cache_info);
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	*size_filled = 0;
+	*num_of_entries = 0;
+
+	/* For each type of cache listed in the kfd_gpu_cache_info table,
+	 * go through all available Compute Units.
+	 * The [i,j,k] loop will
+	 *		if kfd_gpu_cache_info.num_cu_shared = 1
+	 *			will parse through all available CU
+	 *		If (kfd_gpu_cache_info.num_cu_shared != 1)
+	 *			then it will consider only one CU from
+	 *			the shared unit
+	 */
+
+	for (ct = 0; ct < num_of_cache_types; ct++) {
+		cu_processor_id = gpu_processor_id;
+		for (i = 0; i < cu_info->num_shader_engines; i++) {
+			for (j = 0; j < cu_info->num_shader_arrays_per_engine;
+				j++) {
+				for (k = 0; k < cu_info->num_cu_per_sh;
+					k += pcache_info[ct].num_cu_shared) {
+
+					ret = fill_in_pcache(pcache,
+						pcache_info,
+						cu_info,
+						mem_available,
+						cu_info->cu_bitmap[i][j],
+						ct,
+						cu_processor_id,
+						k);
+
+					if (ret < 0)
+						break;
+
+					if (!ret) {
+						pcache++;
+						(*num_of_entries)++;
+						mem_available -=
+							sizeof(*pcache);
+						(*size_filled) +=
+							sizeof(*pcache);
+					}
+
+					/* Move to next CU block */
+					cu_processor_id +=
+						pcache_info[ct].num_cu_shared;
+				}
+			}
+		}
+	}
+
+	pr_debug("Added [%d] GPU cache entries\n", *num_of_entries);
+
+	return 0;
 }
 
 /*
@@ -624,6 +948,239 @@ static int kfd_create_vcrat_image_cpu(void *pcrat_image, size_t *size)
 	return 0;
 }
 
+static int kfd_fill_gpu_memory_affinity(int *avail_size,
+		struct kfd_dev *kdev, uint8_t type, uint64_t size,
+		struct crat_subtype_memory *sub_type_hdr,
+		uint32_t proximity_domain,
+		const struct kfd_local_mem_info *local_mem_info)
+{
+	*avail_size -= sizeof(struct crat_subtype_memory);
+	if (*avail_size < 0)
+		return -ENOMEM;
+
+	memset((void *)sub_type_hdr, 0, sizeof(struct crat_subtype_memory));
+	sub_type_hdr->type = CRAT_SUBTYPE_MEMORY_AFFINITY;
+	sub_type_hdr->length = sizeof(struct crat_subtype_memory);
+	sub_type_hdr->flags |= CRAT_SUBTYPE_FLAGS_ENABLED;
+
+	sub_type_hdr->proximity_domain = proximity_domain;
+
+	pr_debug("Fill gpu memory affinity - type 0x%x size 0x%llx\n",
+			type, size);
+
+	sub_type_hdr->length_low = lower_32_bits(size);
+	sub_type_hdr->length_high = upper_32_bits(size);
+
+	sub_type_hdr->width = local_mem_info->vram_width;
+	sub_type_hdr->visibility_type = type;
+
+	return 0;
+}
+
+/* kfd_fill_gpu_direct_io_link - Fill in direct io link from GPU
+ * to its NUMA node
+ *	@avail_size: Available size in the memory
+ *	@kdev - [IN] GPU device
+ *	@sub_type_hdr: Memory into which io link info will be filled in
+ *	@proximity_domain - proximity domain of the GPU node
+ *
+ *	Return 0 if successful else return -ve value
+ */
+static int kfd_fill_gpu_direct_io_link(int *avail_size,
+			struct kfd_dev *kdev,
+			struct crat_subtype_iolink *sub_type_hdr,
+			uint32_t proximity_domain)
+{
+	*avail_size -= sizeof(struct crat_subtype_iolink);
+	if (*avail_size < 0)
+		return -ENOMEM;
+
+	memset((void *)sub_type_hdr, 0, sizeof(struct crat_subtype_iolink));
+
+	/* Fill in subtype header data */
+	sub_type_hdr->type = CRAT_SUBTYPE_IOLINK_AFFINITY;
+	sub_type_hdr->length = sizeof(struct crat_subtype_iolink);
+	sub_type_hdr->flags |= CRAT_SUBTYPE_FLAGS_ENABLED;
+
+	/* Fill in IOLINK subtype.
+	 * TODO: Fill-in other fields of iolink subtype
+	 */
+	sub_type_hdr->io_interface_type = CRAT_IOLINK_TYPE_PCIEXPRESS;
+	sub_type_hdr->proximity_domain_from = proximity_domain;
+#ifdef CONFIG_NUMA
+	if (kdev->pdev->dev.numa_node == NUMA_NO_NODE)
+		sub_type_hdr->proximity_domain_to = 0;
+	else
+		sub_type_hdr->proximity_domain_to = kdev->pdev->dev.numa_node;
+#else
+	sub_type_hdr->proximity_domain_to = 0;
+#endif
+	return 0;
+}
+
+/* kfd_create_vcrat_image_gpu - Create Virtual CRAT for CPU
+ *
+ *	@pcrat_image: Fill in VCRAT for GPU
+ *	@size:	[IN] allocated size of crat_image.
+ *		[OUT] actual size of data filled in crat_image
+ */
+static int kfd_create_vcrat_image_gpu(void *pcrat_image,
+				      size_t *size, struct kfd_dev *kdev,
+				      uint32_t proximity_domain)
+{
+	struct crat_header *crat_table = (struct crat_header *)pcrat_image;
+	struct crat_subtype_generic *sub_type_hdr;
+	struct crat_subtype_computeunit *cu;
+	struct kfd_cu_info cu_info;
+	struct amd_iommu_device_info iommu_info;
+	int avail_size = *size;
+	uint32_t total_num_of_cu;
+	int num_of_cache_entries = 0;
+	int cache_mem_filled = 0;
+	int ret = 0;
+	const u32 required_iommu_flags = AMD_IOMMU_DEVICE_FLAG_ATS_SUP |
+					 AMD_IOMMU_DEVICE_FLAG_PRI_SUP |
+					 AMD_IOMMU_DEVICE_FLAG_PASID_SUP;
+	struct kfd_local_mem_info local_mem_info;
+
+	if (!pcrat_image || avail_size < VCRAT_SIZE_FOR_GPU)
+		return -EINVAL;
+
+	/* Fill the CRAT Header.
+	 * Modify length and total_entries as subunits are added.
+	 */
+	avail_size -= sizeof(struct crat_header);
+	if (avail_size < 0)
+		return -ENOMEM;
+
+	memset(crat_table, 0, sizeof(struct crat_header));
+
+	memcpy(&crat_table->signature, CRAT_SIGNATURE,
+			sizeof(crat_table->signature));
+	/* Change length as we add more subtypes*/
+	crat_table->length = sizeof(struct crat_header);
+	crat_table->num_domains = 1;
+	crat_table->total_entries = 0;
+
+	/* Fill in Subtype: Compute Unit
+	 * First fill in the sub type header and then sub type data
+	 */
+	avail_size -= sizeof(struct crat_subtype_computeunit);
+	if (avail_size < 0)
+		return -ENOMEM;
+
+	sub_type_hdr = (struct crat_subtype_generic *)(crat_table + 1);
+	memset(sub_type_hdr, 0, sizeof(struct crat_subtype_computeunit));
+
+	sub_type_hdr->type = CRAT_SUBTYPE_COMPUTEUNIT_AFFINITY;
+	sub_type_hdr->length = sizeof(struct crat_subtype_computeunit);
+	sub_type_hdr->flags = CRAT_SUBTYPE_FLAGS_ENABLED;
+
+	/* Fill CU subtype data */
+	cu = (struct crat_subtype_computeunit *)sub_type_hdr;
+	cu->flags |= CRAT_CU_FLAGS_GPU_PRESENT;
+	cu->proximity_domain = proximity_domain;
+
+	kdev->kfd2kgd->get_cu_info(kdev->kgd, &cu_info);
+	cu->num_simd_per_cu = cu_info.simd_per_cu;
+	cu->num_simd_cores = cu_info.simd_per_cu * cu_info.cu_active_number;
+	cu->max_waves_simd = cu_info.max_waves_per_simd;
+
+	cu->wave_front_size = cu_info.wave_front_size;
+	cu->array_count = cu_info.num_shader_arrays_per_engine *
+		cu_info.num_shader_engines;
+	total_num_of_cu = (cu->array_count * cu_info.num_cu_per_sh);
+	cu->processor_id_low = get_and_inc_gpu_processor_id(total_num_of_cu);
+	cu->num_cu_per_array = cu_info.num_cu_per_sh;
+	cu->max_slots_scatch_cu = cu_info.max_scratch_slots_per_cu;
+	cu->num_banks = cu_info.num_shader_engines;
+	cu->lds_size_in_kb = cu_info.lds_size;
+
+	cu->hsa_capability = 0;
+
+	/* Check if this node supports IOMMU. During parsing this flag will
+	 * translate to HSA_CAP_ATS_PRESENT
+	 */
+	iommu_info.flags = 0;
+	if (amd_iommu_device_info(kdev->pdev, &iommu_info) == 0) {
+		if ((iommu_info.flags & required_iommu_flags) ==
+				required_iommu_flags)
+			cu->hsa_capability |= CRAT_CU_FLAGS_IOMMU_PRESENT;
+	}
+
+	crat_table->length += sub_type_hdr->length;
+	crat_table->total_entries++;
+
+	/* Fill in Subtype: Memory. Only on systems with large BAR (no
+	 * private FB), report memory as public. On other systems
+	 * report the total FB size (public+private) as a single
+	 * private heap.
+	 */
+	kdev->kfd2kgd->get_local_mem_info(kdev->kgd, &local_mem_info);
+	sub_type_hdr = (typeof(sub_type_hdr))((char *)sub_type_hdr +
+			sub_type_hdr->length);
+
+	if (local_mem_info.local_mem_size_private == 0)
+		ret = kfd_fill_gpu_memory_affinity(&avail_size,
+				kdev, HSA_MEM_HEAP_TYPE_FB_PUBLIC,
+				local_mem_info.local_mem_size_public,
+				(struct crat_subtype_memory *)sub_type_hdr,
+				proximity_domain,
+				&local_mem_info);
+	else
+		ret = kfd_fill_gpu_memory_affinity(&avail_size,
+				kdev, HSA_MEM_HEAP_TYPE_FB_PRIVATE,
+				local_mem_info.local_mem_size_public +
+				local_mem_info.local_mem_size_private,
+				(struct crat_subtype_memory *)sub_type_hdr,
+				proximity_domain,
+				&local_mem_info);
+	if (ret < 0)
+		return ret;
+
+	crat_table->length += sizeof(struct crat_subtype_memory);
+	crat_table->total_entries++;
+
+	/* TODO: Fill in cache information. This information is NOT readily
+	 * available in KGD
+	 */
+	sub_type_hdr = (typeof(sub_type_hdr))((char *)sub_type_hdr +
+		sub_type_hdr->length);
+	ret = kfd_fill_gpu_cache_info(kdev, cu->processor_id_low,
+				avail_size,
+				&cu_info,
+				(struct crat_subtype_cache *)sub_type_hdr,
+				&cache_mem_filled,
+				&num_of_cache_entries);
+
+	if (ret < 0)
+		return ret;
+
+	crat_table->length += cache_mem_filled;
+	crat_table->total_entries += num_of_cache_entries;
+	avail_size -= cache_mem_filled;
+
+	/* Fill in Subtype: IO_LINKS
+	 *  Only direct links are added here which is Link from GPU to
+	 *  to its NUMA node. Indirect links are added by userspace.
+	 */
+	sub_type_hdr = (typeof(sub_type_hdr))((char *)sub_type_hdr +
+		cache_mem_filled);
+	ret = kfd_fill_gpu_direct_io_link(&avail_size, kdev,
+		(struct crat_subtype_iolink *)sub_type_hdr, proximity_domain);
+
+	if (ret < 0)
+		return ret;
+
+	crat_table->length += sub_type_hdr->length;
+	crat_table->total_entries++;
+
+	*size = crat_table->length;
+	pr_info("Virtual CRAT table created for GPU\n");
+
+	return ret;
+}
+
 /* kfd_create_crat_image_virtual - Allocates memory for CRAT image and
  *		creates a Virtual CRAT (VCRAT) image
  *
@@ -667,9 +1224,14 @@ int kfd_create_crat_image_virtual(void **crat_image, size_t *size,
 		ret = kfd_create_vcrat_image_cpu(pcrat_image, size);
 		break;
 	case COMPUTE_UNIT_GPU:
-		/* TODO: */
-		ret = -EINVAL;
-		pr_err("VCRAT not implemented for dGPU\n");
+		if (!kdev)
+			return -EINVAL;
+		pcrat_image = kmalloc(VCRAT_SIZE_FOR_GPU, GFP_KERNEL);
+		if (!pcrat_image)
+			return -ENOMEM;
+		*size = VCRAT_SIZE_FOR_GPU;
+		ret = kfd_create_vcrat_image_gpu(pcrat_image, size, kdev,
+						 proximity_domain);
 		break;
 	case (COMPUTE_UNIT_CPU | COMPUTE_UNIT_GPU):
 		/* TODO: */

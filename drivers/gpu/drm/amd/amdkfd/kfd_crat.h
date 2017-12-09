@@ -109,7 +109,7 @@ struct crat_subtype_computeunit {
 	uint8_t		wave_front_size;
 	uint8_t		num_banks;
 	uint16_t	micro_engine_id;
-	uint8_t		num_arrays;
+	uint8_t		array_count;
 	uint8_t		num_cu_per_array;
 	uint8_t		num_simd_per_cu;
 	uint8_t		max_slots_scatch_cu;
@@ -137,7 +137,8 @@ struct crat_subtype_memory {
 	uint32_t	length_low;
 	uint32_t	length_high;
 	uint32_t	width;
-	uint8_t		reserved2[CRAT_MEMORY_RESERVED_LENGTH];
+	uint8_t		visibility_type; /* for virtual (dGPU) CRAT */
+	uint8_t		reserved2[CRAT_MEMORY_RESERVED_LENGTH - 1];
 };
 
 /*
