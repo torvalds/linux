@@ -927,22 +927,26 @@ int kfd_topology_remove_device(struct kfd_dev *gpu)
 	return res;
 }
 
-/*
- * When idx is out of bounds, the function will return NULL
+/* kfd_topology_enum_kfd_devices - Enumerate through all devices in KFD
+ *	topology. If GPU device is found @idx, then valid kfd_dev pointer is
+ *	returned through @kdev
+ * Return -	0: On success (@kdev will be NULL for non GPU nodes)
+ *		-1: If end of list
  */
-struct kfd_dev *kfd_topology_enum_kfd_devices(uint8_t idx)
+int kfd_topology_enum_kfd_devices(uint8_t idx, struct kfd_dev **kdev)
 {
 
 	struct kfd_topology_device *top_dev;
-	struct kfd_dev *device = NULL;
 	uint8_t device_idx = 0;
 
+	*kdev = NULL;
 	down_read(&topology_lock);
 
 	list_for_each_entry(top_dev, &topology_device_list, list) {
 		if (device_idx == idx) {
-			device = top_dev->gpu;
-			break;
+			*kdev = top_dev->gpu;
+			up_read(&topology_lock);
+			return 0;
 		}
 
 		device_idx++;
@@ -950,7 +954,7 @@ struct kfd_dev *kfd_topology_enum_kfd_devices(uint8_t idx)
 
 	up_read(&topology_lock);
 
-	return device;
+	return -1;
 
 }
 

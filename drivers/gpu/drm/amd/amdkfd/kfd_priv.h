@@ -670,7 +670,7 @@ int kfd_topology_add_device(struct kfd_dev *gpu);
 int kfd_topology_remove_device(struct kfd_dev *gpu);
 struct kfd_dev *kfd_device_by_id(uint32_t gpu_id);
 struct kfd_dev *kfd_device_by_pci_dev(const struct pci_dev *pdev);
-struct kfd_dev *kfd_topology_enum_kfd_devices(uint8_t idx);
+int kfd_topology_enum_kfd_devices(uint8_t idx, struct kfd_dev **kdev);
 
 /* Interrupts */
 int kfd_interrupt_init(struct kfd_dev *dev);
