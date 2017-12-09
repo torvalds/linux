@@ -59,6 +59,7 @@ static u8 _rtl_mac_to_hwqueue(struct ieee80211_hw *hw, struct sk_buff *skb)
 	struct rtl_hal *rtlhal = rtl_hal(rtl_priv(hw));
 	__le16 fc = rtl_get_fc(skb);
 	u8 queue_index = skb_get_queue_mapping(skb);
+	struct ieee80211_hdr *hdr;
 
 	if (unlikely(ieee80211_is_beacon(fc)))
 		return BEACON_QUEUE;
@@ -67,6 +68,13 @@ static u8 _rtl_mac_to_hwqueue(struct ieee80211_hw *hw, struct sk_buff *skb)
 	if (rtlhal->hw_type == HARDWARE_TYPE_RTL8192SE)
 		if (ieee80211_is_nullfunc(fc))
 			return HIGH_QUEUE;
+	if (rtlhal->hw_type == HARDWARE_TYPE_RTL8822BE) {
+		hdr = rtl_get_hdr(skb);
+
+		if (is_multicast_ether_addr(hdr->addr1) ||
+		    is_broadcast_ether_addr(hdr->addr1))
+			return HIGH_QUEUE;
+	}
 
 	return ac_to_hwq[queue_index];
 }
