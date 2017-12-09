@@ -8063,13 +8063,6 @@ lpfc_els_unsol_buffer(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 			rjt_exp = LSEXP_NOTHING_MORE;
 			break;
 		}
-
-		/* NVMET accepts NVME PRLI only.  Reject FCP PRLI */
-		if (cmd == ELS_CMD_PRLI && phba->nvmet_support) {
-			rjt_err = LSRJT_CMD_UNSUPPORTED;
-			rjt_exp = LSEXP_REQ_UNSUPPORTED;
-			break;
-		}
 		lpfc_disc_state_machine(vport, ndlp, elsiocb, NLP_EVT_RCV_PRLI);
 		break;
 	case ELS_CMD_LIRR:

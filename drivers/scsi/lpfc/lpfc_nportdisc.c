@@ -727,6 +727,41 @@ out:
 	return 0;
 }
 
+static uint32_t
+lpfc_rcv_prli_support_check(struct lpfc_vport *vport,
+			    struct lpfc_nodelist *ndlp,
+			    struct lpfc_iocbq *cmdiocb)
+{
+	struct ls_rjt stat;
+	uint32_t *payload;
+	uint32_t cmd;
+
+	payload = ((struct lpfc_dmabuf *)cmdiocb->context2)->virt;
+	cmd = *payload;
+	if (vport->phba->nvmet_support) {
+		/* Must be a NVME PRLI */
+		if (cmd ==  ELS_CMD_PRLI)
+			goto out;
+	} else {
+		/* Initiator mode. */
+		if (!vport->nvmei_support && (cmd == ELS_CMD_NVMEPRLI))
+			goto out;
+	}
+	return 1;
+out:
+	lpfc_printf_vlog(vport, KERN_WARNING, LOG_NVME_DISC,
+			 "6115 Rcv PRLI (%x) check failed: ndlp rpi %d "
+			 "state x%x flags x%x\n",
+			 cmd, ndlp->nlp_rpi, ndlp->nlp_state,
+			 ndlp->nlp_flag);
+	memset(&stat, 0, sizeof(struct ls_rjt));
+	stat.un.b.lsRjtRsnCode = LSRJT_CMD_UNSUPPORTED;
+	stat.un.b.lsRjtRsnCodeExp = LSEXP_REQ_UNSUPPORTED;
+	lpfc_els_rsp_reject(vport, stat.un.lsRjtError, cmdiocb,
+			    ndlp, NULL);
+	return 0;
+}
+
 static void
 lpfc_rcv_prli(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	      struct lpfc_iocbq *cmdiocb)
@@ -1373,7 +1408,8 @@ lpfc_rcv_prli_adisc_issue(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 {
 	struct lpfc_iocbq *cmdiocb = (struct lpfc_iocbq *) arg;
 
-	lpfc_els_rsp_prli_acc(vport, cmdiocb, ndlp);
+	if (lpfc_rcv_prli_support_check(vport, ndlp, cmdiocb))
+		lpfc_els_rsp_prli_acc(vport, cmdiocb, ndlp);
 	return ndlp->nlp_state;
 }
 
@@ -1544,6 +1580,9 @@ lpfc_rcv_prli_reglogin_issue(struct lpfc_vport *vport,
 	struct lpfc_iocbq *cmdiocb = (struct lpfc_iocbq *) arg;
 	struct ls_rjt     stat;
 
+	if (!lpfc_rcv_prli_support_check(vport, ndlp, cmdiocb)) {
+		return ndlp->nlp_state;
+	}
 	if (vport->phba->nvmet_support) {
 		/* NVME Target mode.  Handle and respond to the PRLI and
 		 * transition to UNMAPPED provided the RPI has completed
@@ -1558,11 +1597,6 @@ lpfc_rcv_prli_reglogin_issue(struct lpfc_vport *vport,
 			 * to prevent an illegal state transition when the
 			 * rpi registration does complete.
 			 */
-			lpfc_printf_vlog(vport, KERN_WARNING, LOG_NVME_DISC,
-					 "6115 NVMET ndlp rpi %d state "
-					 "unknown, state x%x flags x%08x\n",
-					 ndlp->nlp_rpi, ndlp->nlp_state,
-					 ndlp->nlp_flag);
 			memset(&stat, 0, sizeof(struct ls_rjt));
 			stat.un.b.lsRjtRsnCode = LSRJT_UNABLE_TPC;
 			stat.un.b.lsRjtRsnCodeExp = LSEXP_CMD_IN_PROGRESS;
@@ -1573,7 +1607,6 @@ lpfc_rcv_prli_reglogin_issue(struct lpfc_vport *vport,
 		/* Initiator mode. */
 		lpfc_els_rsp_prli_acc(vport, cmdiocb, ndlp);
 	}
-
 	return ndlp->nlp_state;
 }
 
@@ -1819,6 +1852,8 @@ lpfc_rcv_prli_prli_issue(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 {
 	struct lpfc_iocbq *cmdiocb = (struct lpfc_iocbq *) arg;
 
+	if (!lpfc_rcv_prli_support_check(vport, ndlp, cmdiocb))
+		return ndlp->nlp_state;
 	lpfc_els_rsp_prli_acc(vport, cmdiocb, ndlp);
 	return ndlp->nlp_state;
 }
@@ -2241,6 +2276,9 @@ lpfc_rcv_prli_unmap_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 {
 	struct lpfc_iocbq *cmdiocb = (struct lpfc_iocbq *) arg;
 
+	if (!lpfc_rcv_prli_support_check(vport, ndlp, cmdiocb))
+		return ndlp->nlp_state;
+
 	lpfc_rcv_prli(vport, ndlp, cmdiocb);
 	lpfc_els_rsp_prli_acc(vport, cmdiocb, ndlp);
 	return ndlp->nlp_state;
@@ -2310,6 +2348,8 @@ lpfc_rcv_prli_mapped_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 {
 	struct lpfc_iocbq *cmdiocb = (struct lpfc_iocbq *) arg;
 
+	if (!lpfc_rcv_prli_support_check(vport, ndlp, cmdiocb))
+		return ndlp->nlp_state;
 	lpfc_els_rsp_prli_acc(vport, cmdiocb, ndlp);
 	return ndlp->nlp_state;
 }
