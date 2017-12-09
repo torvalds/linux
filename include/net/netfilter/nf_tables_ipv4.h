@@ -53,6 +53,4 @@ static inline void nft_set_pktinfo_ipv4_validate(struct nft_pktinfo *pkt,
 		nft_set_pktinfo_unspec(pkt, skb);
 }
 
-extern struct nft_af_info nft_af_ipv4;
-
 #endif

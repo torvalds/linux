@@ -45,7 +45,7 @@ static unsigned int nft_ipv4_output(void *priv,
 	return nft_do_chain_ipv4(priv, skb, state);
 }
 
-struct nft_af_info nft_af_ipv4 __read_mostly = {
+static struct nft_af_info nft_af_ipv4 __read_mostly = {
 	.family		= NFPROTO_IPV4,
 	.nhooks		= NF_INET_NUMHOOKS,
 	.owner		= THIS_MODULE,
@@ -58,7 +58,6 @@ struct nft_af_info nft_af_ipv4 __read_mostly = {
 		[NF_INET_POST_ROUTING]	= nft_do_chain_ipv4,
 	},
 };
-EXPORT_SYMBOL_GPL(nft_af_ipv4);
 
 static int nf_tables_ipv4_init_net(struct net *net)
 {
