@@ -133,8 +133,7 @@ static void kfd_populated_cu_info_gpu(struct kfd_topology_device *dev,
 	dev->node_props.max_slots_scratch_cu = cu->max_slots_scatch_cu;
 	if (cu->hsa_capability & CRAT_CU_FLAGS_HOT_PLUGGABLE)
 		dev->node_props.capability |= HSA_CAP_HOT_PLUGGABLE;
-	pr_info("CU GPU: simds=%d id_base=%d\n", cu->num_simd_cores,
-				cu->processor_id_low);
+	pr_info("CU GPU: id_base=%d\n", cu->processor_id_low);
 }
 
 /* kfd_parse_subtype_cu is called when the topology mutex is already acquired */
@@ -1124,6 +1123,7 @@ int kfd_topology_add_device(struct kfd_dev *gpu)
 {
 	uint32_t gpu_id;
 	struct kfd_topology_device *dev;
+	struct kfd_cu_info cu_info;
 	int res;
 
 	gpu_id = kfd_generate_gpu_id(gpu);
@@ -1161,6 +1161,9 @@ int kfd_topology_add_device(struct kfd_dev *gpu)
 
 	dev->gpu_id = gpu_id;
 	gpu->id = gpu_id;
+	dev->gpu->kfd2kgd->get_cu_info(dev->gpu->kgd, &cu_info);
+	dev->node_props.simd_count = dev->node_props.simd_per_cu *
+			cu_info.cu_active_number;
 	dev->node_props.vendor_id = gpu->pdev->vendor;
 	dev->node_props.device_id = gpu->pdev->device;
 	dev->node_props.location_id = (gpu->pdev->bus->number << 24) +
