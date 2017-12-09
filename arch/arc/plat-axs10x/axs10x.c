@@ -320,22 +320,18 @@ static void __init axs103_early_init(void)
 	unsigned int num_cores = (read_aux_reg(ARC_REG_MCIP_BCR) >> 16) & 0x3F;
 	if (num_cores > 2) {
 		u32 freq = 50, orig;
-		/*
-		 * TODO: use cpu node "cpu-freq" param instead of platform-specific
-		 * "/cpu_card/core_clk" as it works only if we use fixed-clock for cpu.
-		 */
 		int off = fdt_path_offset(initial_boot_params, "/cpu_card/core_clk");
 		const struct fdt_property *prop;
 
 		prop = fdt_get_property(initial_boot_params, off,
-					"clock-frequency", NULL);
+					"assigned-clock-rates", NULL);
 		orig = be32_to_cpu(*(u32*)(prop->data)) / 1000000;
 
 		/* Patching .dtb in-place with new core clock value */
 		if (freq != orig ) {
 			freq = cpu_to_be32(freq * 1000000);
 			fdt_setprop_inplace(initial_boot_params, off,
-					    "clock-frequency", &freq, sizeof(freq));
+					    "assigned-clock-rates", &freq, sizeof(freq));
 		}
 	}
 #endif
