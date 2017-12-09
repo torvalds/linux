@@ -74,13 +74,6 @@ static struct nft_af_info nft_af_inet __read_mostly = {
 	.family		= NFPROTO_INET,
 	.nhooks		= NF_INET_NUMHOOKS,
 	.owner		= THIS_MODULE,
-	.hooks		= {
-		[NF_INET_LOCAL_IN]	= nft_do_chain_inet,
-		[NF_INET_LOCAL_OUT]	= nft_inet_output,
-		[NF_INET_FORWARD]	= nft_do_chain_inet,
-		[NF_INET_PRE_ROUTING]	= nft_do_chain_inet,
-		[NF_INET_POST_ROUTING]	= nft_do_chain_inet,
-        },
 };
 
 static int __net_init nf_tables_inet_init_net(struct net *net)
@@ -121,6 +114,13 @@ static const struct nf_chain_type filter_inet = {
 			  (1 << NF_INET_FORWARD) |
 			  (1 << NF_INET_PRE_ROUTING) |
 			  (1 << NF_INET_POST_ROUTING),
+	.hooks		= {
+		[NF_INET_LOCAL_IN]	= nft_do_chain_inet,
+		[NF_INET_LOCAL_OUT]	= nft_inet_output,
+		[NF_INET_FORWARD]	= nft_do_chain_inet,
+		[NF_INET_PRE_ROUTING]	= nft_do_chain_inet,
+		[NF_INET_POST_ROUTING]	= nft_do_chain_inet,
+        },
 };
 
 static int __init nf_tables_inet_init(void)

@@ -880,7 +880,7 @@ enum nft_chain_type {
  * 	@family: address family
  * 	@owner: module owner
  * 	@hook_mask: mask of valid hooks
- * 	@hooks: hookfn overrides
+ * 	@hooks: array of hook functions
  */
 struct nf_chain_type {
 	const char			*name;
@@ -974,7 +974,6 @@ enum nft_af_flags {
  *	@owner: module owner
  *	@tables: used internally
  *	@flags: family flags
- *	@hooks: hookfn overrides for packet validation
  */
 struct nft_af_info {
 	struct list_head		list;
@@ -983,7 +982,6 @@ struct nft_af_info {
 	struct module			*owner;
 	struct list_head		tables;
 	u32				flags;
-	nf_hookfn			*hooks[NF_MAX_HOOKS];
 };
 
 int nft_register_afinfo(struct net *, struct nft_af_info *);

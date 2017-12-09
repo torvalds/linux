@@ -46,13 +46,6 @@ static struct nft_af_info nft_af_bridge __read_mostly = {
 	.family		= NFPROTO_BRIDGE,
 	.nhooks		= NF_BR_NUMHOOKS,
 	.owner		= THIS_MODULE,
-	.hooks		= {
-		[NF_BR_PRE_ROUTING]	= nft_do_chain_bridge,
-		[NF_BR_LOCAL_IN]	= nft_do_chain_bridge,
-		[NF_BR_FORWARD]		= nft_do_chain_bridge,
-		[NF_BR_LOCAL_OUT]	= nft_do_chain_bridge,
-		[NF_BR_POST_ROUTING]	= nft_do_chain_bridge,
-	},
 };
 
 static int nf_tables_bridge_init_net(struct net *net)
@@ -93,6 +86,13 @@ static const struct nf_chain_type filter_bridge = {
 			  (1 << NF_BR_FORWARD) |
 			  (1 << NF_BR_LOCAL_OUT) |
 			  (1 << NF_BR_POST_ROUTING),
+	.hooks		= {
+		[NF_BR_PRE_ROUTING]	= nft_do_chain_bridge,
+		[NF_BR_LOCAL_IN]	= nft_do_chain_bridge,
+		[NF_BR_FORWARD]		= nft_do_chain_bridge,
+		[NF_BR_LOCAL_OUT]	= nft_do_chain_bridge,
+		[NF_BR_POST_ROUTING]	= nft_do_chain_bridge,
+	},
 };
 
 static void nf_br_saveroute(const struct sk_buff *skb,

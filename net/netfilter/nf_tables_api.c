@@ -1357,7 +1357,6 @@ static int nf_tables_addchain(struct nft_ctx *ctx, u8 family, u8 genmask,
 	if (nla[NFTA_CHAIN_HOOK]) {
 		struct nft_chain_hook hook;
 		struct nf_hook_ops *ops;
-		nf_hookfn *hookfn;
 
 		err = nft_chain_parse_hook(net, nla, afi, &hook, create);
 		if (err < 0)
@@ -1383,7 +1382,6 @@ static int nf_tables_addchain(struct nft_ctx *ctx, u8 family, u8 genmask,
 			static_branch_inc(&nft_counters_enabled);
 		}
 
-		hookfn = hook.type->hooks[hook.num];
 		basechain->type = hook.type;
 		chain = &basechain->chain;
 
@@ -1392,10 +1390,8 @@ static int nf_tables_addchain(struct nft_ctx *ctx, u8 family, u8 genmask,
 		ops->hooknum	= hook.num;
 		ops->priority	= hook.priority;
 		ops->priv	= chain;
-		ops->hook	= afi->hooks[ops->hooknum];
+		ops->hook	= hook.type->hooks[ops->hooknum];
 		ops->dev	= hook.dev;
-		if (hookfn)
-			ops->hook = hookfn;
 
 		if (basechain->type->type == NFT_CHAIN_T_NAT)
 			ops->nat_hook = true;

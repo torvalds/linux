@@ -43,9 +43,6 @@ static struct nft_af_info nft_af_netdev __read_mostly = {
 	.nhooks		= NF_NETDEV_NUMHOOKS,
 	.owner		= THIS_MODULE,
 	.flags		= NFT_AF_NEEDS_DEV,
-	.hooks		= {
-		[NF_NETDEV_INGRESS]	= nft_do_chain_netdev,
-	},
 };
 
 static int nf_tables_netdev_init_net(struct net *net)
@@ -82,6 +79,9 @@ static const struct nf_chain_type nft_filter_chain_netdev = {
 	.family		= NFPROTO_NETDEV,
 	.owner		= THIS_MODULE,
 	.hook_mask	= (1 << NF_NETDEV_INGRESS),
+	.hooks		= {
+		[NF_NETDEV_INGRESS]	= nft_do_chain_netdev,
+	},
 };
 
 static void nft_netdev_event(unsigned long event, struct net_device *dev,
