@@ -127,10 +127,17 @@ lpfc_nvmet_xmt_ls_rsp_cmp(struct lpfc_hba *phba, struct lpfc_iocbq *cmdwqe,
 
 	tgtp = (struct lpfc_nvmet_tgtport *)phba->targetport->private;
 
-	if (status)
-		atomic_inc(&tgtp->xmt_ls_rsp_error);
-	else
-		atomic_inc(&tgtp->xmt_ls_rsp_cmpl);
+	if (tgtp) {
+		if (status) {
+			atomic_inc(&tgtp->xmt_ls_rsp_error);
+			if (status == IOERR_ABORT_REQUESTED)
+				atomic_inc(&tgtp->xmt_ls_rsp_aborted);
+			if (bf_get(lpfc_wcqe_c_xb, wcqe))
+				atomic_inc(&tgtp->xmt_ls_rsp_xb_set);
+		} else {
+			atomic_inc(&tgtp->xmt_ls_rsp_cmpl);
+		}
+	}
 
 out:
 	rsp = &ctxp->ctx.ls_req;
@@ -532,8 +539,11 @@ lpfc_nvmet_xmt_fcp_op_cmp(struct lpfc_hba *phba, struct lpfc_iocbq *cmdwqe,
 	if (status) {
 		rsp->fcp_error = NVME_SC_DATA_XFER_ERROR;
 		rsp->transferred_length = 0;
-		if (tgtp)
+		if (tgtp) {
 			atomic_inc(&tgtp->xmt_fcp_rsp_error);
+			if (status == IOERR_ABORT_REQUESTED)
+				atomic_inc(&tgtp->xmt_fcp_rsp_aborted);
+		}
 
 		logerr = LOG_NVME_IOERR;
 
@@ -541,6 +551,8 @@ lpfc_nvmet_xmt_fcp_op_cmp(struct lpfc_hba *phba, struct lpfc_iocbq *cmdwqe,
 		if (bf_get(lpfc_wcqe_c_xb, wcqe)) {
 			ctxp->flag |= LPFC_NVMET_XBUSY;
 			logerr |= LOG_NVME_ABTS;
+			if (tgtp)
+				atomic_inc(&tgtp->xmt_fcp_rsp_xb_set);
 
 		} else {
 			ctxp->flag &= ~LPFC_NVMET_XBUSY;
@@ -1244,6 +1256,8 @@ lpfc_nvmet_create_targetport(struct lpfc_hba *phba)
 		atomic_set(&tgtp->xmt_ls_rsp, 0);
 		atomic_set(&tgtp->xmt_ls_drop, 0);
 		atomic_set(&tgtp->xmt_ls_rsp_error, 0);
+		atomic_set(&tgtp->xmt_ls_rsp_xb_set, 0);
+		atomic_set(&tgtp->xmt_ls_rsp_aborted, 0);
 		atomic_set(&tgtp->xmt_ls_rsp_cmpl, 0);
 		atomic_set(&tgtp->rcv_fcp_cmd_in, 0);
 		atomic_set(&tgtp->rcv_fcp_cmd_out, 0);
@@ -1256,7 +1270,10 @@ lpfc_nvmet_create_targetport(struct lpfc_hba *phba)
 		atomic_set(&tgtp->xmt_fcp_release, 0);
 		atomic_set(&tgtp->xmt_fcp_rsp_cmpl, 0);
 		atomic_set(&tgtp->xmt_fcp_rsp_error, 0);
+		atomic_set(&tgtp->xmt_fcp_rsp_xb_set, 0);
+		atomic_set(&tgtp->xmt_fcp_rsp_aborted, 0);
 		atomic_set(&tgtp->xmt_fcp_rsp_drop, 0);
+		atomic_set(&tgtp->xmt_fcp_xri_abort_cqe, 0);
 		atomic_set(&tgtp->xmt_fcp_abort, 0);
 		atomic_set(&tgtp->xmt_fcp_abort_cmpl, 0);
 		atomic_set(&tgtp->xmt_abort_unsol, 0);
@@ -1298,6 +1315,7 @@ lpfc_sli4_nvmet_xri_aborted(struct lpfc_hba *phba,
 	uint16_t xri = bf_get(lpfc_wcqe_xa_xri, axri);
 	uint16_t rxid = bf_get(lpfc_wcqe_xa_remote_xid, axri);
 	struct lpfc_nvmet_rcv_ctx *ctxp, *next_ctxp;
+	struct lpfc_nvmet_tgtport *tgtp;
 	struct lpfc_nodelist *ndlp;
 	unsigned long iflag = 0;
 	int rrq_empty = 0;
@@ -1308,6 +1326,12 @@ lpfc_sli4_nvmet_xri_aborted(struct lpfc_hba *phba,
 
 	if (!(phba->cfg_enable_fc4_type & LPFC_ENABLE_NVME))
 		return;
+
+	if (phba->targetport) {
+		tgtp = (struct lpfc_nvmet_tgtport *)phba->targetport->private;
+		atomic_inc(&tgtp->xmt_fcp_xri_abort_cqe);
+	}
+
 	spin_lock_irqsave(&phba->hbalock, iflag);
 	spin_lock(&phba->sli4_hba.abts_nvme_buf_list_lock);
 	list_for_each_entry_safe(ctxp, next_ctxp,

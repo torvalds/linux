@@ -221,6 +221,7 @@ lpfc_nvme_cmpl_gen_req(struct lpfc_hba *phba, struct lpfc_iocbq *cmdwqe,
 		       struct lpfc_wcqe_complete *wcqe)
 {
 	struct lpfc_vport *vport = cmdwqe->vport;
+	struct lpfc_nvme_lport *lport;
 	uint32_t status;
 	struct nvmefc_ls_req *pnvme_lsreq;
 	struct lpfc_dmabuf *buf_ptr;
@@ -230,6 +231,13 @@ lpfc_nvme_cmpl_gen_req(struct lpfc_hba *phba, struct lpfc_iocbq *cmdwqe,
 
 	pnvme_lsreq = (struct nvmefc_ls_req *)cmdwqe->context2;
 	status = bf_get(lpfc_wcqe_c_status, wcqe) & LPFC_IOCB_STATUS_MASK;
+	if (status) {
+		lport = (struct lpfc_nvme_lport *)vport->localport->private;
+		if (bf_get(lpfc_wcqe_c_xb, wcqe))
+			atomic_inc(&lport->cmpl_ls_xb);
+		atomic_inc(&lport->cmpl_ls_err);
+	}
+
 	ndlp = (struct lpfc_nodelist *)cmdwqe->context1;
 	lpfc_printf_vlog(vport, KERN_INFO, LOG_NVME_DISC,
 			 "6047 nvme cmpl Enter "
@@ -508,6 +516,7 @@ lpfc_nvme_ls_req(struct nvme_fc_local_port *pnvme_lport,
 				pnvme_lsreq, lpfc_nvme_cmpl_gen_req,
 				ndlp, 2, 30, 0);
 	if (ret != WQE_SUCCESS) {
+		atomic_inc(&lport->xmt_ls_err);
 		lpfc_printf_vlog(vport, KERN_INFO, LOG_NVME_DISC,
 				 "6052 EXIT. issue ls wqe failed lport %p, "
 				 "rport %p lsreq%p Status %x DID %x\n",
@@ -592,6 +601,7 @@ lpfc_nvme_ls_abort(struct nvme_fc_local_port *pnvme_lport,
 
 	/* Abort the targeted IOs and remove them from the abort list. */
 	list_for_each_entry_safe(wqe, next_wqe, &abort_list, dlist) {
+		atomic_inc(&lport->xmt_ls_abort);
 		spin_lock_irq(&phba->hbalock);
 		list_del_init(&wqe->dlist);
 		lpfc_sli_issue_abort_iotag(phba, pring, wqe);
@@ -795,8 +805,9 @@ lpfc_nvme_io_cmd_wqe_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pwqeIn,
 	struct lpfc_nvme_rport *rport;
 	struct lpfc_nodelist *ndlp;
 	struct lpfc_nvme_fcpreq_priv *freqpriv;
+	struct lpfc_nvme_lport *lport;
 	unsigned long flags;
-	uint32_t code;
+	uint32_t code, status;
 	uint16_t cid, sqhd, data;
 	uint32_t *ptr;
 
@@ -811,10 +822,17 @@ lpfc_nvme_io_cmd_wqe_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pwqeIn,
 
 	nCmd = lpfc_ncmd->nvmeCmd;
 	rport = lpfc_ncmd->nrport;
+	status = bf_get(lpfc_wcqe_c_status, wcqe);
+	if (status) {
+		lport = (struct lpfc_nvme_lport *)vport->localport->private;
+		if (bf_get(lpfc_wcqe_c_xb, wcqe))
+			atomic_inc(&lport->cmpl_fcp_xb);
+		atomic_inc(&lport->cmpl_fcp_err);
+	}
 
 	lpfc_nvmeio_data(phba, "NVME FCP CMPL: xri x%x stat x%x parm x%x\n",
 			 lpfc_ncmd->cur_iocbq.sli4_xritag,
-			 bf_get(lpfc_wcqe_c_status, wcqe), wcqe->parameter);
+			 status, wcqe->parameter);
 	/*
 	 * Catch race where our node has transitioned, but the
 	 * transport is still transitioning.
@@ -872,8 +890,7 @@ lpfc_nvme_io_cmd_wqe_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pwqeIn,
 		nCmd->rcv_rsplen = LPFC_NVME_ERSP_LEN;
 		nCmd->transferred_length = nCmd->payload_length;
 	} else {
-		lpfc_ncmd->status = (bf_get(lpfc_wcqe_c_status, wcqe) &
-			    LPFC_IOCB_STATUS_MASK);
+		lpfc_ncmd->status = (status & LPFC_IOCB_STATUS_MASK);
 		lpfc_ncmd->result = (wcqe->parameter & IOERR_PARAM_MASK);
 
 		/* For NVME, the only failure path that results in an
@@ -1336,6 +1353,7 @@ lpfc_nvme_fcp_io_submit(struct nvme_fc_local_port *pnvme_lport,
 			lpfc_printf_vlog(vport, KERN_ERR, LOG_NVME_IOERR,
 					 "6066 Missing node for DID %x\n",
 					 pnvme_rport->port_id);
+			atomic_inc(&lport->xmt_fcp_bad_ndlp);
 			ret = -ENODEV;
 			goto out_fail;
 		}
@@ -1349,6 +1367,7 @@ lpfc_nvme_fcp_io_submit(struct nvme_fc_local_port *pnvme_lport,
 				 "IO. State x%x, Type x%x\n",
 				 rport, pnvme_rport->port_id,
 				 ndlp->nlp_state, ndlp->nlp_type);
+		atomic_inc(&lport->xmt_fcp_bad_ndlp);
 		ret = -ENODEV;
 		goto out_fail;
 
@@ -1370,12 +1389,14 @@ lpfc_nvme_fcp_io_submit(struct nvme_fc_local_port *pnvme_lport,
 	 */
 	if ((atomic_read(&ndlp->cmd_pending) >= ndlp->cmd_qdepth) &&
 	    !expedite) {
+		atomic_inc(&lport->xmt_fcp_qdepth);
 		ret = -EBUSY;
 		goto out_fail;
 	}
 
 	lpfc_ncmd = lpfc_get_nvme_buf(phba, ndlp, expedite);
 	if (lpfc_ncmd == NULL) {
+		atomic_inc(&lport->xmt_fcp_noxri);
 		lpfc_printf_vlog(vport, KERN_INFO, LOG_NVME_IOERR,
 				 "6065 driver's buffer pool is empty, "
 				 "IO failed\n");
@@ -1428,6 +1449,7 @@ lpfc_nvme_fcp_io_submit(struct nvme_fc_local_port *pnvme_lport,
 
 	ret = lpfc_sli4_issue_wqe(phba, LPFC_FCP_RING, &lpfc_ncmd->cur_iocbq);
 	if (ret) {
+		atomic_inc(&lport->xmt_fcp_wqerr);
 		atomic_dec(&ndlp->cmd_pending);
 		lpfc_printf_vlog(vport, KERN_INFO, LOG_NVME_IOERR,
 				 "6113 FCP could not issue WQE err %x "
@@ -1624,6 +1646,7 @@ lpfc_nvme_fcp_abort(struct nvme_fc_local_port *pnvme_lport,
 		return;
 	}
 
+	atomic_inc(&lport->xmt_fcp_abort);
 	lpfc_nvmeio_data(phba, "NVME FCP ABORT: xri x%x idx %d to %06x\n",
 			 nvmereq_wqe->sli4_xritag,
 			 nvmereq_wqe->hba_wqidx, pnvme_rport->port_id);
@@ -2301,6 +2324,18 @@ lpfc_nvme_create_localport(struct lpfc_vport *vport)
 		vport->localport = localport;
 		lport->vport = vport;
 		vport->nvmei_support = 1;
+
+		atomic_set(&lport->xmt_fcp_noxri, 0);
+		atomic_set(&lport->xmt_fcp_bad_ndlp, 0);
+		atomic_set(&lport->xmt_fcp_qdepth, 0);
+		atomic_set(&lport->xmt_fcp_wqerr, 0);
+		atomic_set(&lport->xmt_fcp_abort, 0);
+		atomic_set(&lport->xmt_ls_abort, 0);
+		atomic_set(&lport->xmt_ls_err, 0);
+		atomic_set(&lport->cmpl_fcp_xb, 0);
+		atomic_set(&lport->cmpl_fcp_err, 0);
+		atomic_set(&lport->cmpl_ls_xb, 0);
+		atomic_set(&lport->cmpl_ls_err, 0);
 
 		/* Don't post more new bufs if repost already recovered
 		 * the nvme sgls.

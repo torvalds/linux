@@ -47,6 +47,8 @@ struct lpfc_nvmet_tgtport {
 
 	/* Stats counters - lpfc_nvmet_xmt_ls_rsp_cmp */
 	atomic_t xmt_ls_rsp_error;
+	atomic_t xmt_ls_rsp_aborted;
+	atomic_t xmt_ls_rsp_xb_set;
 	atomic_t xmt_ls_rsp_cmpl;
 
 	/* Stats counters - lpfc_nvmet_unsol_fcp_buffer */
@@ -64,12 +66,15 @@ struct lpfc_nvmet_tgtport {
 	atomic_t xmt_fcp_rsp;
 
 	/* Stats counters - lpfc_nvmet_xmt_fcp_op_cmp */
+	atomic_t xmt_fcp_rsp_xb_set;
 	atomic_t xmt_fcp_rsp_cmpl;
 	atomic_t xmt_fcp_rsp_error;
+	atomic_t xmt_fcp_rsp_aborted;
 	atomic_t xmt_fcp_rsp_drop;
 
 
 	/* Stats counters - lpfc_nvmet_xmt_fcp_abort */
+	atomic_t xmt_fcp_xri_abort_cqe;
 	atomic_t xmt_fcp_abort;
 	atomic_t xmt_fcp_abort_cmpl;
 	atomic_t xmt_abort_sol;

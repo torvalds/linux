@@ -750,6 +750,8 @@ lpfc_debugfs_nvmestat_data(struct lpfc_vport *vport, char *buf, int size)
 	struct lpfc_hba   *phba = vport->phba;
 	struct lpfc_nvmet_tgtport *tgtp;
 	struct lpfc_nvmet_rcv_ctx *ctxp, *next_ctxp;
+	struct nvme_fc_local_port *localport;
+	struct lpfc_nvme_lport *lport;
 	uint64_t tot, data1, data2, data3;
 	int len = 0;
 	int cnt;
@@ -775,10 +777,15 @@ lpfc_debugfs_nvmestat_data(struct lpfc_vport *vport, char *buf, int size)
 		}
 
 		len += snprintf(buf + len, size - len,
-				"LS: Xmt %08x Drop %08x Cmpl %08x Err %08x\n",
+				"LS: Xmt %08x Drop %08x Cmpl %08x\n",
 				atomic_read(&tgtp->xmt_ls_rsp),
 				atomic_read(&tgtp->xmt_ls_drop),
-				atomic_read(&tgtp->xmt_ls_rsp_cmpl),
+				atomic_read(&tgtp->xmt_ls_rsp_cmpl));
+
+		len += snprintf(buf + len, size - len,
+				"LS: RSP Abort %08x xb %08x Err %08x\n",
+				atomic_read(&tgtp->xmt_ls_rsp_aborted),
+				atomic_read(&tgtp->xmt_ls_rsp_xb_set),
 				atomic_read(&tgtp->xmt_ls_rsp_error));
 
 		len += snprintf(buf + len, size - len,
@@ -810,6 +817,12 @@ lpfc_debugfs_nvmestat_data(struct lpfc_vport *vport, char *buf, int size)
 				atomic_read(&tgtp->xmt_fcp_rsp_cmpl),
 				atomic_read(&tgtp->xmt_fcp_rsp_error),
 				atomic_read(&tgtp->xmt_fcp_rsp_drop));
+
+		len += snprintf(buf + len, size - len,
+				"FCP Rsp Abort: %08x xb %08x xricqe  %08x\n",
+				atomic_read(&tgtp->xmt_fcp_rsp_aborted),
+				atomic_read(&tgtp->xmt_fcp_rsp_xb_set),
+				atomic_read(&tgtp->xmt_fcp_xri_abort_cqe));
 
 		len += snprintf(buf + len, size - len,
 				"ABORT: Xmt %08x Cmpl %08x\n",
@@ -885,8 +898,38 @@ lpfc_debugfs_nvmestat_data(struct lpfc_vport *vport, char *buf, int size)
 				data1, data2, data3);
 
 		len += snprintf(buf + len, size - len,
-				"    Cmpl %016llx Outstanding %016llx\n",
+				"   Cmpl %016llx Outstanding %016llx\n",
 				tot, (data1 + data2 + data3) - tot);
+
+		localport = vport->localport;
+		if (!localport)
+			return len;
+		lport = (struct lpfc_nvme_lport *)localport->private;
+		if (!lport)
+			return len;
+
+		len += snprintf(buf + len, size - len,
+				"LS Xmt Err: Abrt %08x Err %08x  "
+				"Cmpl Err: xb %08x Err %08x\n",
+				atomic_read(&lport->xmt_ls_abort),
+				atomic_read(&lport->xmt_ls_err),
+				atomic_read(&lport->cmpl_ls_xb),
+				atomic_read(&lport->cmpl_ls_err));
+
+		len += snprintf(buf + len, size - len,
+				"FCP Xmt Err: noxri %06x nondlp %06x "
+				"qdepth %06x wqerr %06x Abrt %06x\n",
+				atomic_read(&lport->xmt_fcp_noxri),
+				atomic_read(&lport->xmt_fcp_bad_ndlp),
+				atomic_read(&lport->xmt_fcp_qdepth),
+				atomic_read(&lport->xmt_fcp_wqerr),
+				atomic_read(&lport->xmt_fcp_abort));
+
+		len += snprintf(buf + len, size - len,
+				"FCP Cmpl Err: xb %08x Err %08x\n",
+				atomic_read(&lport->cmpl_fcp_xb),
+				atomic_read(&lport->cmpl_fcp_err));
+
 	}
 
 	return len;

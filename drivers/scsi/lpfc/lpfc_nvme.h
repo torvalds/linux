@@ -38,7 +38,18 @@ struct lpfc_nvme_qhandle {
 struct lpfc_nvme_lport {
 	struct lpfc_vport *vport;
 	struct completion lport_unreg_done;
-	/* Add sttats counters here */
+	/* Add stats counters here */
+	atomic_t xmt_fcp_noxri;
+	atomic_t xmt_fcp_bad_ndlp;
+	atomic_t xmt_fcp_qdepth;
+	atomic_t xmt_fcp_wqerr;
+	atomic_t xmt_fcp_abort;
+	atomic_t xmt_ls_abort;
+	atomic_t xmt_ls_err;
+	atomic_t cmpl_fcp_xb;
+	atomic_t cmpl_fcp_err;
+	atomic_t cmpl_ls_xb;
+	atomic_t cmpl_ls_err;
 };
 
 struct lpfc_nvme_rport {
