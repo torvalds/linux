@@ -38,6 +38,7 @@
 
 #include <../drivers/nvme/host/nvme.h>
 #include <linux/nvme-fc-driver.h>
+#include <linux/nvme-fc.h>
 
 #include "lpfc_version.h"
 #include "lpfc_hw4.h"
@@ -218,6 +219,7 @@ lpfc_nvmet_ctxbuf_post(struct lpfc_hba *phba, struct lpfc_nvmet_ctxbuf *ctx_buf)
 		ctxp->entry_cnt = 1;
 		ctxp->flag = 0;
 		ctxp->ctxbuf = ctx_buf;
+		ctxp->rqb_buffer = (void *)nvmebuf;
 		spin_lock_init(&ctxp->ctxlock);
 
 #ifdef CONFIG_SCSI_LPFC_DEBUG_FS
@@ -253,6 +255,17 @@ lpfc_nvmet_ctxbuf_post(struct lpfc_hba *phba, struct lpfc_nvmet_ctxbuf *ctx_buf)
 			return;
 		}
 
+		/* Processing of FCP command is deferred */
+		if (rc == -EOVERFLOW) {
+			lpfc_nvmeio_data(phba,
+					 "NVMET RCV BUSY: xri x%x sz %d "
+					 "from %06x\n",
+					 oxid, size, sid);
+			/* defer repost rcv buffer till .defer_rcv callback */
+			ctxp->flag &= ~LPFC_NVMET_DEFER_RCV_REPOST;
+			atomic_inc(&tgtp->rcv_fcp_cmd_out);
+			return;
+		}
 		atomic_inc(&tgtp->rcv_fcp_cmd_drop);
 		lpfc_printf_log(phba, KERN_ERR, LOG_NVME_IOERR,
 				"2582 FCP Drop IO x%x: err x%x: x%x x%x x%x\n",
@@ -921,7 +934,11 @@ lpfc_nvmet_defer_rcv(struct nvmet_fc_target_port *tgtport,
 
 	tgtp = phba->targetport->private;
 	atomic_inc(&tgtp->rcv_fcp_cmd_defer);
-	lpfc_rq_buf_free(phba, &nvmebuf->hbuf); /* repost */
+	if (ctxp->flag & LPFC_NVMET_DEFER_RCV_REPOST)
+		lpfc_rq_buf_free(phba, &nvmebuf->hbuf); /* repost */
+	else
+		nvmebuf->hrq->rqbp->rqb_free_buffer(phba, nvmebuf);
+	ctxp->flag &= ~LPFC_NVMET_DEFER_RCV_REPOST;
 }
 
 static struct nvmet_fc_target_template lpfc_tgttemplate = {
@@ -1693,6 +1710,7 @@ lpfc_nvmet_unsol_fcp_buffer(struct lpfc_hba *phba,
 	ctxp->entry_cnt = 1;
 	ctxp->flag = 0;
 	ctxp->ctxbuf = ctx_buf;
+	ctxp->rqb_buffer = (void *)nvmebuf;
 	spin_lock_init(&ctxp->ctxlock);
 
 #ifdef CONFIG_SCSI_LPFC_DEBUG_FS
@@ -1726,6 +1744,7 @@ lpfc_nvmet_unsol_fcp_buffer(struct lpfc_hba *phba,
 
 	/* Process FCP command */
 	if (rc == 0) {
+		ctxp->rqb_buffer = NULL;
 		atomic_inc(&tgtp->rcv_fcp_cmd_out);
 		lpfc_rq_buf_free(phba, &nvmebuf->hbuf); /* repost */
 		return;
@@ -1737,10 +1756,11 @@ lpfc_nvmet_unsol_fcp_buffer(struct lpfc_hba *phba,
 				 "NVMET RCV BUSY: xri x%x sz %d from %06x\n",
 				 oxid, size, sid);
 		/* defer reposting rcv buffer till .defer_rcv callback */
-		ctxp->rqb_buffer = nvmebuf;
+		ctxp->flag |= LPFC_NVMET_DEFER_RCV_REPOST;
 		atomic_inc(&tgtp->rcv_fcp_cmd_out);
 		return;
 	}
+	ctxp->rqb_buffer = nvmebuf;
 
 	atomic_inc(&tgtp->rcv_fcp_cmd_drop);
 	lpfc_printf_log(phba, KERN_ERR, LOG_NVME_IOERR,

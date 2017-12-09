@@ -126,6 +126,7 @@ struct lpfc_nvmet_rcv_ctx {
 #define LPFC_NVMET_XBUSY		0x4  /* XB bit set on IO cmpl */
 #define LPFC_NVMET_CTX_RLS		0x8  /* ctx free requested */
 #define LPFC_NVMET_ABTS_RCV		0x10  /* ABTS received on exchange */
+#define LPFC_NVMET_DEFER_RCV_REPOST	0x20  /* repost to RQ on defer rcv */
 	struct rqb_dmabuf *rqb_buffer;
 	struct lpfc_nvmet_ctxbuf *ctxbuf;
 
