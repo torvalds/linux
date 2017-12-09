@@ -151,7 +151,7 @@ nfp_flower_calculate_key_layers(struct nfp_fl_key_ls *ret_key_ls,
 
 	key_layer_two = 0;
 	key_layer = NFP_FLOWER_LAYER_PORT;
-	key_size = sizeof(struct nfp_flower_meta_one) +
+	key_size = sizeof(struct nfp_flower_meta_tci) +
 		   sizeof(struct nfp_flower_in_port);
 
 	if (dissector_uses_key(flow->dissector, FLOW_DISSECTOR_KEY_ETH_ADDRS) ||

@@ -38,7 +38,7 @@
 #include "main.h"
 
 static void
-nfp_flower_compile_meta_tci(struct nfp_flower_meta_two *frame,
+nfp_flower_compile_meta_tci(struct nfp_flower_meta_tci *frame,
 			    struct tc_cls_flower_offload *flow, u8 key_type,
 			    bool mask_version)
 {
@@ -46,7 +46,7 @@ nfp_flower_compile_meta_tci(struct nfp_flower_meta_two *frame,
 	struct flow_dissector_key_vlan *flow_vlan;
 	u16 tmp_tci;
 
-	memset(frame, 0, sizeof(struct nfp_flower_meta_two));
+	memset(frame, 0, sizeof(struct nfp_flower_meta_tci));
 	/* Populate the metadata frame. */
 	frame->nfp_flow_key_layer = key_type;
 	frame->mask_id = ~0;
@@ -65,14 +65,6 @@ nfp_flower_compile_meta_tci(struct nfp_flower_meta_two *frame,
 			frame->tci = cpu_to_be16(tmp_tci);
 		}
 	}
-}
-
-static void
-nfp_flower_compile_meta(struct nfp_flower_meta_one *frame, u8 key_type)
-{
-	frame->nfp_flow_key_layer = key_type;
-	frame->mask_id = 0;
-	frame->reserved = 0;
 }
 
 static int
@@ -278,49 +270,32 @@ int nfp_flower_compile_flow_match(struct tc_cls_flower_offload *flow,
 
 	ext = nfp_flow->unmasked_data;
 	msk = nfp_flow->mask_data;
-	if (NFP_FLOWER_LAYER_PORT & key_ls->key_layer) {
-		/* Populate Exact Metadata. */
-		nfp_flower_compile_meta_tci((struct nfp_flower_meta_two *)ext,
-					    flow, key_ls->key_layer, false);
-		/* Populate Mask Metadata. */
-		nfp_flower_compile_meta_tci((struct nfp_flower_meta_two *)msk,
-					    flow, key_ls->key_layer, true);
-		ext += sizeof(struct nfp_flower_meta_two);
-		msk += sizeof(struct nfp_flower_meta_two);
 
-		/* Populate Exact Port data. */
-		err = nfp_flower_compile_port((struct nfp_flower_in_port *)ext,
-					      nfp_repr_get_port_id(netdev),
-					      false, tun_type);
-		if (err)
-			return err;
+	/* Populate Exact Metadata. */
+	nfp_flower_compile_meta_tci((struct nfp_flower_meta_tci *)ext,
+				    flow, key_ls->key_layer, false);
+	/* Populate Mask Metadata. */
+	nfp_flower_compile_meta_tci((struct nfp_flower_meta_tci *)msk,
+				    flow, key_ls->key_layer, true);
+	ext += sizeof(struct nfp_flower_meta_tci);
+	msk += sizeof(struct nfp_flower_meta_tci);
 
-		/* Populate Mask Port Data. */
-		err = nfp_flower_compile_port((struct nfp_flower_in_port *)msk,
-					      nfp_repr_get_port_id(netdev),
-					      true, tun_type);
-		if (err)
-			return err;
+	/* Populate Exact Port data. */
+	err = nfp_flower_compile_port((struct nfp_flower_in_port *)ext,
+				      nfp_repr_get_port_id(netdev),
+				      false, tun_type);
+	if (err)
+		return err;
 
-		ext += sizeof(struct nfp_flower_in_port);
-		msk += sizeof(struct nfp_flower_in_port);
-	} else {
-		/* Populate Exact Metadata. */
-		nfp_flower_compile_meta((struct nfp_flower_meta_one *)ext,
-					key_ls->key_layer);
-		/* Populate Mask Metadata. */
-		nfp_flower_compile_meta((struct nfp_flower_meta_one *)msk,
-					key_ls->key_layer);
-		ext += sizeof(struct nfp_flower_meta_one);
-		msk += sizeof(struct nfp_flower_meta_one);
-	}
+	/* Populate Mask Port Data. */
+	err = nfp_flower_compile_port((struct nfp_flower_in_port *)msk,
+				      nfp_repr_get_port_id(netdev),
+				      true, tun_type);
+	if (err)
+		return err;
 
-	if (NFP_FLOWER_LAYER_META & key_ls->key_layer) {
-		/* Additional Metadata Fields.
-		 * Currently unsupported.
-		 */
-		return -EOPNOTSUPP;
-	}
+	ext += sizeof(struct nfp_flower_in_port);
+	msk += sizeof(struct nfp_flower_in_port);
 
 	if (NFP_FLOWER_LAYER_MAC & key_ls->key_layer) {
 		/* Populate Exact MAC Data. */
