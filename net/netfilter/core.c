@@ -360,7 +360,7 @@ int nf_register_net_hook(struct net *net, const struct nf_hook_ops *reg)
 EXPORT_SYMBOL(nf_register_net_hook);
 
 /*
- * __nf_unregister_net_hook - remove a hook from blob
+ * nf_remove_net_hook - remove a hook from blob
  *
  * @oldp: current address of hook blob
  * @unreg: hook to unregister
@@ -368,8 +368,8 @@ EXPORT_SYMBOL(nf_register_net_hook);
  * This cannot fail, hook unregistration must always succeed.
  * Therefore replace the to-be-removed hook with a dummy hook.
  */
-static void __nf_unregister_net_hook(struct nf_hook_entries *old,
-				     const struct nf_hook_ops *unreg)
+static void nf_remove_net_hook(struct nf_hook_entries *old,
+			       const struct nf_hook_ops *unreg)
 {
 	struct nf_hook_ops **orig_ops;
 	bool found = false;
@@ -415,7 +415,7 @@ void nf_unregister_net_hook(struct net *net, const struct nf_hook_ops *reg)
 		return;
 	}
 
-	__nf_unregister_net_hook(p, reg);
+	nf_remove_net_hook(p, reg);
 
 	p = __nf_hook_entries_try_shrink(pp);
 	mutex_unlock(&nf_hook_mutex);
