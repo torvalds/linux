@@ -7116,6 +7116,11 @@ static void gfx_v8_0_get_cu_info(struct amdgpu_device *adev)
 
 	cu_info->number = active_cu_number;
 	cu_info->ao_cu_mask = ao_cu_mask;
+	cu_info->simd_per_cu = NUM_SIMD_PER_CU;
+	cu_info->max_waves_per_simd = 10;
+	cu_info->max_scratch_slots_per_cu = 32;
+	cu_info->wave_front_size = 64;
+	cu_info->lds_size = 64;
 }
 
 const struct amdgpu_ip_block_version gfx_v8_0_ip_block =

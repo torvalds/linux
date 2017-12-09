@@ -60,6 +60,7 @@ uint64_t get_vmem_size(struct kgd_dev *kgd);
 uint64_t get_gpu_clock_counter(struct kgd_dev *kgd);
 
 uint32_t get_max_engine_clock_in_mhz(struct kgd_dev *kgd);
+void get_cu_info(struct kgd_dev *kgd, struct kfd_cu_info *cu_info);
 
 #define read_user_wptr(mmptr, wptr, dst)				\
 	({								\
