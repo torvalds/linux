@@ -285,6 +285,36 @@ uint64_t get_vmem_size(struct kgd_dev *kgd)
 	return adev->mc.real_vram_size;
 }
 
+void get_local_mem_info(struct kgd_dev *kgd,
+			struct kfd_local_mem_info *mem_info)
+{
+	struct amdgpu_device *adev = (struct amdgpu_device *)kgd;
+	uint64_t address_mask = adev->dev->dma_mask ? ~*adev->dev->dma_mask :
+					     ~((1ULL << 32) - 1);
+	resource_size_t aper_limit = adev->mc.aper_base + adev->mc.aper_size;
+
+	memset(mem_info, 0, sizeof(*mem_info));
+	if (!(adev->mc.aper_base & address_mask || aper_limit & address_mask)) {
+		mem_info->local_mem_size_public = adev->mc.visible_vram_size;
+		mem_info->local_mem_size_private = adev->mc.real_vram_size -
+				adev->mc.visible_vram_size;
+	} else {
+		mem_info->local_mem_size_public = 0;
+		mem_info->local_mem_size_private = adev->mc.real_vram_size;
+	}
+	mem_info->vram_width = adev->mc.vram_width;
+
+	pr_debug("Address base: 0x%llx limit 0x%llx public 0x%llx private 0x%llx\n",
+			adev->mc.aper_base, aper_limit,
+			mem_info->local_mem_size_public,
+			mem_info->local_mem_size_private);
+
+	if (amdgpu_sriov_vf(adev))
+		mem_info->mem_clk_max = adev->clock.default_mclk / 100;
+	else
+		mem_info->mem_clk_max = amdgpu_dpm_get_mclk(adev, false) / 100;
+}
+
 uint64_t get_gpu_clock_counter(struct kgd_dev *kgd)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)kgd;
