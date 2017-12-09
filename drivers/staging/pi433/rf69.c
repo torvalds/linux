@@ -64,9 +64,9 @@ static inline int rf69_read_mod_write(struct spi_device *spi, u8 reg, u8 mask, u
 
 int rf69_set_mode(struct spi_device *spi, enum mode mode)
 {
-	#ifdef DEBUG
-		dev_dbg(&spi->dev, "set: mode");
-	#endif
+#ifdef DEBUG
+	dev_dbg(&spi->dev, "set: mode");
+#endif
 
 	switch (mode) {
 	case transmit:	  return rf69_read_mod_write(spi, REG_OPMODE, MASK_OPMODE_MODE, OPMODE_MODE_TRANSMIT);
@@ -91,9 +91,9 @@ int rf69_set_data_mode(struct spi_device *spi, u8 data_mode)
 
 int rf69_set_modulation(struct spi_device *spi, enum modulation modulation)
 {
-	#ifdef DEBUG
-		dev_dbg(&spi->dev, "set: modulation");
-	#endif
+#ifdef DEBUG
+	dev_dbg(&spi->dev, "set: modulation");
+#endif
 
 	switch (modulation) {
 	case OOK: return rf69_read_mod_write(spi, REG_DATAMODUL, MASK_DATAMODUL_MODULATION_TYPE, DATAMODUL_MODULATION_TYPE_OOK);
@@ -108,9 +108,9 @@ enum modulation rf69_get_modulation(struct spi_device *spi)
 {
 	u8 currentValue;
 
-	#ifdef DEBUG
-		dev_dbg(&spi->dev, "get: mode");
-	#endif
+#ifdef DEBUG
+	dev_dbg(&spi->dev, "get: mode");
+#endif
 
 	currentValue = rf69_read_reg(spi, REG_DATAMODUL);
 
@@ -124,9 +124,9 @@ enum modulation rf69_get_modulation(struct spi_device *spi)
 int rf69_set_modulation_shaping(struct spi_device *spi,
 				enum mod_shaping mod_shaping)
 {
-	#ifdef DEBUG
-		dev_dbg(&spi->dev, "set: mod shaping");
-	#endif
+#ifdef DEBUG
+	dev_dbg(&spi->dev, "set: mod shaping");
+#endif
 
 	switch (rf69_get_modulation(spi)) {
 	case FSK:
@@ -162,9 +162,9 @@ int rf69_set_bit_rate(struct spi_device *spi, u16 bitRate)
 	u8 msb;
 	u8 lsb;
 
-	#ifdef DEBUG
-		dev_dbg(&spi->dev, "set: bit rate");
-	#endif
+#ifdef DEBUG
+	dev_dbg(&spi->dev, "set: bit rate");
+#endif
 
 	// check input value
 	bitRate_min = F_OSC / 8388608; // 8388608 = 2^23;
@@ -199,9 +199,9 @@ int rf69_set_deviation(struct spi_device *spi, u32 deviation)
 	u8 lsb;
 	u64 factor = 1000000; // to improve precision of calculation
 
-	#ifdef DEBUG
-		dev_dbg(&spi->dev, "set: deviation");
-	#endif
+#ifdef DEBUG
+	dev_dbg(&spi->dev, "set: deviation");
+#endif
 
 	// TODO: Dependency to bitrate
 	if (deviation < 600 || deviation > 500000) {
@@ -248,9 +248,9 @@ int rf69_set_frequency(struct spi_device *spi, u32 frequency)
 	u8 lsb;
 	u64 factor = 1000000; // to improve precision of calculation
 
-	#ifdef DEBUG
-		dev_dbg(&spi->dev, "set: frequency");
-	#endif
+#ifdef DEBUG
+	dev_dbg(&spi->dev, "set: frequency");
+#endif
 
 	// calculat f step
 	f_step = F_OSC * factor;
@@ -297,9 +297,9 @@ int rf69_disable_amplifier(struct spi_device *spi, u8 amplifier_mask)
 
 int rf69_set_output_power_level(struct spi_device *spi, u8 powerLevel)
 {
-	#ifdef DEBUG
-		dev_dbg(&spi->dev, "set: power level");
-	#endif
+#ifdef DEBUG
+	dev_dbg(&spi->dev, "set: power level");
+#endif
 
 	// TODO: Dependency to PA0,1,2 setting
 	powerLevel += 18;
@@ -316,9 +316,9 @@ int rf69_set_output_power_level(struct spi_device *spi, u8 powerLevel)
 
 int rf69_set_pa_ramp(struct spi_device *spi, enum paRamp paRamp)
 {
-	#ifdef DEBUG
-		dev_dbg(&spi->dev, "set: pa ramp");
-	#endif
+#ifdef DEBUG
+	dev_dbg(&spi->dev, "set: pa ramp");
+#endif
 
 	switch (paRamp) {
 	case ramp3400:	return rf69_write_reg(spi, REG_PARAMP, PARAMP_3400);
@@ -345,9 +345,9 @@ int rf69_set_pa_ramp(struct spi_device *spi, enum paRamp paRamp)
 
 int rf69_set_antenna_impedance(struct spi_device *spi, enum antennaImpedance antennaImpedance)
 {
-	#ifdef DEBUG
-		dev_dbg(&spi->dev, "set: antenna impedance");
-	#endif
+#ifdef DEBUG
+	dev_dbg(&spi->dev, "set: antenna impedance");
+#endif
 
 	switch (antennaImpedance) {
 	case fiftyOhm:	    return rf69_clear_bit(spi, REG_LNA, MASK_LNA_ZIN);
@@ -360,9 +360,9 @@ int rf69_set_antenna_impedance(struct spi_device *spi, enum antennaImpedance ant
 
 int rf69_set_lna_gain(struct spi_device *spi, enum lnaGain lnaGain)
 {
-	#ifdef DEBUG
-		dev_dbg(&spi->dev, "set: lna gain");
-	#endif
+#ifdef DEBUG
+	dev_dbg(&spi->dev, "set: lna gain");
+#endif
 
 	switch (lnaGain) {
 	case automatic:	 return rf69_read_mod_write(spi, REG_LNA, MASK_LNA_GAIN, LNA_GAIN_AUTO);
@@ -382,9 +382,9 @@ enum lnaGain rf69_get_lna_gain(struct spi_device *spi)
 {
 	u8 currentValue;
 
-	#ifdef DEBUG
-		dev_dbg(&spi->dev, "get: lna gain");
-	#endif
+#ifdef DEBUG
+	dev_dbg(&spi->dev, "get: lna gain");
+#endif
 
 	currentValue = rf69_read_reg(spi, REG_LNA);
 
@@ -419,18 +419,18 @@ int rf69_set_dc_cut_off_frequency_intern(struct spi_device *spi, u8 reg, enum dc
 
 int rf69_set_dc_cut_off_frequency(struct spi_device *spi, enum dccPercent dccPercent)
 {
-	#ifdef DEBUG
-		dev_dbg(&spi->dev, "set: cut off freq");
-	#endif
+#ifdef DEBUG
+	dev_dbg(&spi->dev, "set: cut off freq");
+#endif
 
 	return rf69_set_dc_cut_off_frequency_intern(spi, REG_RXBW, dccPercent);
 }
 
 int rf69_set_dc_cut_off_frequency_during_afc(struct spi_device *spi, enum dccPercent dccPercent)
 {
-	#ifdef DEBUG
-		dev_dbg(&spi->dev, "set: cut off freq during afc");
-	#endif
+#ifdef DEBUG
+	dev_dbg(&spi->dev, "set: cut off freq during afc");
+#endif
 
 	return rf69_set_dc_cut_off_frequency_intern(spi, REG_AFCBW, dccPercent);
 }
@@ -481,27 +481,27 @@ static int rf69_set_bandwidth_intern(struct spi_device *spi, u8 reg,
 
 int rf69_set_bandwidth(struct spi_device *spi, enum mantisse mantisse, u8 exponent)
 {
-	#ifdef DEBUG
-		dev_dbg(&spi->dev, "set: band width");
-	#endif
+#ifdef DEBUG
+	dev_dbg(&spi->dev, "set: band width");
+#endif
 
 	return rf69_set_bandwidth_intern(spi, REG_RXBW, mantisse, exponent);
 }
 
 int rf69_set_bandwidth_during_afc(struct spi_device *spi, enum mantisse mantisse, u8 exponent)
 {
-	#ifdef DEBUG
-		dev_dbg(&spi->dev, "set: band width during afc");
-	#endif
+#ifdef DEBUG
+	dev_dbg(&spi->dev, "set: band width during afc");
+#endif
 
 	return rf69_set_bandwidth_intern(spi, REG_AFCBW, mantisse, exponent);
 }
 
 int rf69_set_ook_threshold_type(struct spi_device *spi, enum thresholdType thresholdType)
 {
-	#ifdef DEBUG
-		dev_dbg(&spi->dev, "set: threshold type");
-	#endif
+#ifdef DEBUG
+	dev_dbg(&spi->dev, "set: threshold type");
+#endif
 
 	switch (thresholdType) {
 	case fixed:	return rf69_read_mod_write(spi, REG_OOKPEAK, MASK_OOKPEAK_THRESTYPE, OOKPEAK_THRESHTYPE_FIXED);
@@ -515,9 +515,9 @@ int rf69_set_ook_threshold_type(struct spi_device *spi, enum thresholdType thres
 
 int rf69_set_ook_threshold_step(struct spi_device *spi, enum thresholdStep thresholdStep)
 {
-	#ifdef DEBUG
-		dev_dbg(&spi->dev, "set: threshold step");
-	#endif
+#ifdef DEBUG
+	dev_dbg(&spi->dev, "set: threshold step");
+#endif
 
 	switch (thresholdStep) {
 	case step_0_5db: return rf69_read_mod_write(spi, REG_OOKPEAK, MASK_OOKPEAK_THRESSTEP, OOKPEAK_THRESHSTEP_0_5_DB);
@@ -536,9 +536,9 @@ int rf69_set_ook_threshold_step(struct spi_device *spi, enum thresholdStep thres
 
 int rf69_set_ook_threshold_dec(struct spi_device *spi, enum thresholdDecrement thresholdDecrement)
 {
-	#ifdef DEBUG
-		dev_dbg(&spi->dev, "set: threshold decrement");
-	#endif
+#ifdef DEBUG
+	dev_dbg(&spi->dev, "set: threshold decrement");
+#endif
 
 	switch (thresholdDecrement) {
 	case dec_every8th: return rf69_read_mod_write(spi, REG_OOKPEAK, MASK_OOKPEAK_THRESDEC, OOKPEAK_THRESHDEC_EVERY_8TH);
@@ -562,9 +562,9 @@ int rf69_set_dio_mapping(struct spi_device *spi, u8 DIONumber, u8 value)
 	u8 regaddr;
 	u8 regValue;
 
-	#ifdef DEBUG
-		dev_dbg(&spi->dev, "set: DIO mapping");
-	#endif
+#ifdef DEBUG
+	dev_dbg(&spi->dev, "set: DIO mapping");
+#endif
 
 	switch (DIONumber) {
 	case 0:
@@ -602,9 +602,9 @@ int rf69_set_dio_mapping(struct spi_device *spi, u8 DIONumber, u8 value)
 
 bool rf69_get_flag(struct spi_device *spi, enum flag flag)
 {
-	#ifdef DEBUG
-		dev_dbg(&spi->dev, "get: flag");
-	#endif
+#ifdef DEBUG
+	dev_dbg(&spi->dev, "get: flag");
+#endif
 
 	switch (flag) {
 	case modeSwitchCompleted:     return (rf69_read_reg(spi, REG_IRQFLAGS1) & MASK_IRQFLAGS1_MODE_READY);
@@ -630,9 +630,9 @@ bool rf69_get_flag(struct spi_device *spi, enum flag flag)
 
 int rf69_reset_flag(struct spi_device *spi, enum flag flag)
 {
-	#ifdef DEBUG
-		dev_dbg(&spi->dev, "reset: flag");
-	#endif
+#ifdef DEBUG
+	dev_dbg(&spi->dev, "reset: flag");
+#endif
 
 	switch (flag) {
 	case rssiExceededThreshold: return rf69_write_reg(spi, REG_IRQFLAGS1, MASK_IRQFLAGS1_RSSI);
@@ -646,9 +646,9 @@ int rf69_reset_flag(struct spi_device *spi, enum flag flag)
 
 int rf69_set_rssi_threshold(struct spi_device *spi, u8 threshold)
 {
-	#ifdef DEBUG
-		dev_dbg(&spi->dev, "set: rssi threshold");
-	#endif
+#ifdef DEBUG
+	dev_dbg(&spi->dev, "set: rssi threshold");
+#endif
 
 	/* no value check needed - u8 exactly matches register size */
 
@@ -657,9 +657,9 @@ int rf69_set_rssi_threshold(struct spi_device *spi, u8 threshold)
 
 int rf69_set_rx_start_timeout(struct spi_device *spi, u8 timeout)
 {
-	#ifdef DEBUG
-		dev_dbg(&spi->dev, "set: start timeout");
-	#endif
+#ifdef DEBUG
+	dev_dbg(&spi->dev, "set: start timeout");
+#endif
 
 	/* no value check needed - u8 exactly matches register size */
 
@@ -668,9 +668,9 @@ int rf69_set_rx_start_timeout(struct spi_device *spi, u8 timeout)
 
 int rf69_set_rssi_timeout(struct spi_device *spi, u8 timeout)
 {
-	#ifdef DEBUG
-		dev_dbg(&spi->dev, "set: rssi timeout");
-	#endif
+#ifdef DEBUG
+	dev_dbg(&spi->dev, "set: rssi timeout");
+#endif
 
 	/* no value check needed - u8 exactly matches register size */
 
@@ -682,9 +682,9 @@ int rf69_set_preamble_length(struct spi_device *spi, u16 preambleLength)
 	int retval;
 	u8 msb, lsb;
 
-	#ifdef DEBUG
-		dev_dbg(&spi->dev, "set: preamble length");
-	#endif
+#ifdef DEBUG
+	dev_dbg(&spi->dev, "set: preamble length");
+#endif
 
 	/* no value check needed - u16 exactly matches register size */
 
@@ -713,9 +713,9 @@ int rf69_disable_sync(struct spi_device *spi)
 
 int rf69_set_fifo_fill_condition(struct spi_device *spi, enum fifoFillCondition fifoFillCondition)
 {
-	#ifdef DEBUG
-		dev_dbg(&spi->dev, "set: fifo fill condition");
-	#endif
+#ifdef DEBUG
+	dev_dbg(&spi->dev, "set: fifo fill condition");
+#endif
 
 	switch (fifoFillCondition) {
 	case always:		 return rf69_set_bit(spi, REG_SYNC_CONFIG, MASK_SYNC_CONFIG_FIFO_FILL_CONDITION);
@@ -728,9 +728,9 @@ int rf69_set_fifo_fill_condition(struct spi_device *spi, enum fifoFillCondition 
 
 int rf69_set_sync_size(struct spi_device *spi, u8 syncSize)
 {
-	#ifdef DEBUG
-		dev_dbg(&spi->dev, "set: sync size");
-	#endif
+#ifdef DEBUG
+	dev_dbg(&spi->dev, "set: sync size");
+#endif
 
 	// check input value
 	if (syncSize > 0x07) {
@@ -744,9 +744,9 @@ int rf69_set_sync_size(struct spi_device *spi, u8 syncSize)
 
 int rf69_set_sync_tolerance(struct spi_device *spi, u8 syncTolerance)
 {
-	#ifdef DEBUG
-		dev_dbg(&spi->dev, "set: sync tolerance");
-	#endif
+#ifdef DEBUG
+	dev_dbg(&spi->dev, "set: sync tolerance");
+#endif
 
 	// check input value
 	if (syncTolerance > 0x07) {
@@ -762,9 +762,9 @@ int rf69_set_sync_values(struct spi_device *spi, u8 syncValues[8])
 {
 	int retval = 0;
 
-	#ifdef DEBUG
-		dev_dbg(&spi->dev, "set: sync values");
-	#endif
+#ifdef DEBUG
+	dev_dbg(&spi->dev, "set: sync values");
+#endif
 
 	retval += rf69_write_reg(spi, REG_SYNCVALUE1, syncValues[0]);
 	retval += rf69_write_reg(spi, REG_SYNCVALUE2, syncValues[1]);
@@ -780,9 +780,9 @@ int rf69_set_sync_values(struct spi_device *spi, u8 syncValues[8])
 
 int rf69_set_packet_format(struct spi_device *spi, enum packetFormat packetFormat)
 {
-	#ifdef DEBUG
-		dev_dbg(&spi->dev, "set: packet format");
-	#endif
+#ifdef DEBUG
+	dev_dbg(&spi->dev, "set: packet format");
+#endif
 
 	switch (packetFormat) {
 	case packetLengthVar: return rf69_set_bit(spi, REG_PACKETCONFIG1, MASK_PACKETCONFIG1_PAKET_FORMAT_VARIABLE);
@@ -805,9 +805,9 @@ int rf69_disable_crc(struct spi_device *spi)
 
 int rf69_set_adressFiltering(struct spi_device *spi, enum addressFiltering addressFiltering)
 {
-	#ifdef DEBUG
-		dev_dbg(&spi->dev, "set: address filtering");
-	#endif
+#ifdef DEBUG
+	dev_dbg(&spi->dev, "set: address filtering");
+#endif
 
 	switch (addressFiltering) {
 	case filteringOff:	     return rf69_read_mod_write(spi, REG_PACKETCONFIG1, MASK_PACKETCONFIG1_ADDRESSFILTERING, PACKETCONFIG1_ADDRESSFILTERING_OFF);
@@ -821,45 +821,45 @@ int rf69_set_adressFiltering(struct spi_device *spi, enum addressFiltering addre
 
 int rf69_set_payload_length(struct spi_device *spi, u8 payloadLength)
 {
-	#ifdef DEBUG
-		dev_dbg(&spi->dev, "set: payload length");
-	#endif
+#ifdef DEBUG
+	dev_dbg(&spi->dev, "set: payload length");
+#endif
 
 	return rf69_write_reg(spi, REG_PAYLOAD_LENGTH, payloadLength);
 }
 
 u8  rf69_get_payload_length(struct spi_device *spi)
 {
-	#ifdef DEBUG
-		dev_dbg(&spi->dev, "get: payload length");
-	#endif
+#ifdef DEBUG
+	dev_dbg(&spi->dev, "get: payload length");
+#endif
 
 	return (u8)rf69_read_reg(spi, REG_PAYLOAD_LENGTH);
 }
 
 int rf69_set_node_address(struct spi_device *spi, u8 nodeAddress)
 {
-	#ifdef DEBUG
-		dev_dbg(&spi->dev, "set: node address");
-	#endif
+#ifdef DEBUG
+	dev_dbg(&spi->dev, "set: node address");
+#endif
 
 	return rf69_write_reg(spi, REG_NODEADRS, nodeAddress);
 }
 
 int rf69_set_broadcast_address(struct spi_device *spi, u8 broadcastAddress)
 {
-	#ifdef DEBUG
-		dev_dbg(&spi->dev, "set: broadcast address");
-	#endif
+#ifdef DEBUG
+	dev_dbg(&spi->dev, "set: broadcast address");
+#endif
 
 	return rf69_write_reg(spi, REG_BROADCASTADRS, broadcastAddress);
 }
 
 int rf69_set_tx_start_condition(struct spi_device *spi, enum txStartCondition txStartCondition)
 {
-	#ifdef DEBUG
-		dev_dbg(&spi->dev, "set: start condition");
-	#endif
+#ifdef DEBUG
+	dev_dbg(&spi->dev, "set: start condition");
+#endif
 
 	switch (txStartCondition) {
 	case fifoLevel:	   return rf69_clear_bit(spi, REG_FIFO_THRESH, MASK_FIFO_THRESH_TXSTART);
@@ -874,9 +874,9 @@ int rf69_set_fifo_threshold(struct spi_device *spi, u8 threshold)
 {
 	int retval;
 
-	#ifdef DEBUG
-		dev_dbg(&spi->dev, "set: fifo threshold");
-	#endif
+#ifdef DEBUG
+	dev_dbg(&spi->dev, "set: fifo threshold");
+#endif
 
 	/* check input value */
 	if (threshold & 0x80) {
@@ -897,9 +897,9 @@ int rf69_set_fifo_threshold(struct spi_device *spi, u8 threshold)
 
 int rf69_set_dagc(struct spi_device *spi, enum dagc dagc)
 {
-	#ifdef DEBUG
-		dev_dbg(&spi->dev, "set: dagc");
-	#endif
+#ifdef DEBUG
+	dev_dbg(&spi->dev, "set: dagc");
+#endif
 
 	switch (dagc) {
 	case normalMode:		 return rf69_write_reg(spi, REG_TESTDAGC, DAGC_NORMAL);
@@ -915,17 +915,17 @@ int rf69_set_dagc(struct spi_device *spi, enum dagc dagc)
 
 int rf69_read_fifo (struct spi_device *spi, u8 *buffer, unsigned int size)
 {
-	#ifdef DEBUG_FIFO_ACCESS
-		int i;
-	#endif
+#ifdef DEBUG_FIFO_ACCESS
+	int i;
+#endif
 	struct spi_transfer transfer;
 	u8 local_buffer[FIFO_SIZE + 1];
 	int retval;
 
 	if (size > FIFO_SIZE) {
-		#ifdef DEBUG
-			dev_dbg(&spi->dev, "read fifo: passed in buffer bigger then internal buffer \n");
-		#endif
+#ifdef DEBUG
+		dev_dbg(&spi->dev, "read fifo: passed in buffer bigger then internal buffer\n");
+#endif
 		return -EMSGSIZE;
 	}
 
@@ -950,26 +950,26 @@ int rf69_read_fifo (struct spi_device *spi, u8 *buffer, unsigned int size)
 
 int rf69_write_fifo(struct spi_device *spi, u8 *buffer, unsigned int size)
 {
-	#ifdef DEBUG_FIFO_ACCESS
-		int i;
-	#endif
+#ifdef DEBUG_FIFO_ACCESS
+	int i;
+#endif
 	char spi_address = REG_FIFO | WRITE_BIT;
 	u8 local_buffer[FIFO_SIZE + 1];
 
 	if (size > FIFO_SIZE) {
-		#ifdef DEBUG
-			dev_dbg(&spi->dev, "read fifo: passed in buffer bigger then internal buffer \n");
-		#endif
+#ifdef DEBUG
+		dev_dbg(&spi->dev, "read fifo: passed in buffer bigger then internal buffer\n");
+#endif
 		return -EMSGSIZE;
 	}
 
 	local_buffer[0] = spi_address;
 	memcpy(&local_buffer[1], buffer, size);
 
-	#ifdef DEBUG_FIFO_ACCESS
-		for (i = 0; i < size; i++)
-			dev_dbg(&spi->dev, "0x%x\n", buffer[i]);
-	#endif
+#ifdef DEBUG_FIFO_ACCESS
+	for (i = 0; i < size; i++)
+		dev_dbg(&spi->dev, "0x%x\n", buffer[i]);
+#endif
 
 	return spi_write (spi, local_buffer, size + 1);
 }
@@ -982,19 +982,16 @@ u8 rf69_read_reg(struct spi_device *spi, u8 addr)
 
 	retval = spi_w8r8(spi, addr);
 
-	#ifdef DEBUG_VALUES
-		if (retval < 0)
-			/* should never happen, since we already checked,
-			 * that module is connected. Therefore no error
-			 * handling, just an optional error message...
-			 */
-			dev_dbg(&spi->dev, "read 0x%x FAILED\n",
-				addr);
-		else
-			dev_dbg(&spi->dev, "read 0x%x from reg 0x%x\n",
-				retval,
-				addr);
-	#endif
+#ifdef DEBUG_VALUES
+	if (retval < 0)
+		/* should never happen, since we already checked,
+		 * that module is connected. Therefore no error
+		 * handling, just an optional error message...
+		 */
+		dev_dbg(&spi->dev, "read 0x%x FAILED\n", addr);
+	else
+		dev_dbg(&spi->dev, "read 0x%x from reg 0x%x\n", retval, addr);
+#endif
 
 	return retval;
 }
@@ -1009,22 +1006,17 @@ int rf69_write_reg(struct spi_device *spi, u8 addr, u8 value)
 
 	retval = spi_write(spi, &buffer, 2);
 
-	#ifdef DEBUG_VALUES
-		if (retval < 0)
-			/* should never happen, since we already checked,
-			 * that module is connected. Therefore no error
-			 * handling, just an optional error message...
-			 */
-			dev_dbg(&spi->dev, "write 0x%x to 0x%x FAILED\n",
-				value,
-				addr);
-		else
-			dev_dbg(&spi->dev, "wrote 0x%x to reg 0x%x\n",
-				value,
-				addr);
-	#endif
+#ifdef DEBUG_VALUES
+	if (retval < 0)
+		/* should never happen, since we already checked,
+		 * that module is connected. Therefore no error
+		 * handling, just an optional error message...
+		 */
+		dev_dbg(&spi->dev, "write 0x%x to 0x%x FAILED\n", value, addr);
+	else
+		dev_dbg(&spi->dev, "wrote 0x%x to reg 0x%x\n", value, addr);
+#endif
 
 	return retval;
 }
-
 
