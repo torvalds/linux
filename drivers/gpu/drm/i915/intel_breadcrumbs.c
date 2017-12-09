@@ -27,6 +27,12 @@
 
 #include "i915_drv.h"
 
+#ifdef CONFIG_SMP
+#define task_asleep(tsk) ((tsk)->state & TASK_NORMAL && !(tsk)->on_cpu)
+#else
+#define task_asleep(tsk) ((tsk)->state & TASK_NORMAL)
+#endif
+
 static unsigned int __intel_breadcrumbs_wakeup(struct intel_breadcrumbs *b)
 {
 	struct intel_wait *wait;
@@ -36,8 +42,20 @@ static unsigned int __intel_breadcrumbs_wakeup(struct intel_breadcrumbs *b)
 
 	wait = b->irq_wait;
 	if (wait) {
+		/*
+		 * N.B. Since task_asleep() and ttwu are not atomic, the
+		 * waiter may actually go to sleep after the check, causing
+		 * us to suppress a valid wakeup. We prefer to reduce the
+		 * number of false positive missed_breadcrumb() warnings
+		 * at the expense of a few false negatives, as it it easy
+		 * to trigger a false positive under heavy load. Enough
+		 * signal should remain from genuine missed_breadcrumb()
+		 * for us to detect in CI.
+		 */
+		bool was_asleep = task_asleep(wait->tsk);
+
 		result = ENGINE_WAKEUP_WAITER;
-		if (wake_up_process(wait->tsk))
+		if (wake_up_process(wait->tsk) && was_asleep)
 			result |= ENGINE_WAKEUP_ASLEEP;
 	}
 
@@ -77,8 +95,8 @@ static noinline void missed_breadcrumb(struct intel_engine_cs *engine)
 
 static void intel_breadcrumbs_hangcheck(struct timer_list *t)
 {
-	struct intel_engine_cs *engine = from_timer(engine, t,
-						    breadcrumbs.hangcheck);
+	struct intel_engine_cs *engine =
+		from_timer(engine, t, breadcrumbs.hangcheck);
 	struct intel_breadcrumbs *b = &engine->breadcrumbs;
 
 	if (!b->irq_armed)
@@ -104,7 +122,7 @@ static void intel_breadcrumbs_hangcheck(struct timer_list *t)
 	 */
 	if (intel_engine_wakeup(engine) & ENGINE_WAKEUP_ASLEEP) {
 		missed_breadcrumb(engine);
-		mod_timer(&engine->breadcrumbs.fake_irq, jiffies + 1);
+		mod_timer(&b->fake_irq, jiffies + 1);
 	} else {
 		mod_timer(&b->hangcheck, wait_timeout());
 	}
