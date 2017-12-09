@@ -904,6 +904,25 @@ static void kfd_add_non_crat_information(struct kfd_topology_device *kdev)
 	/* TODO: For GPU node, rearrange code from kfd_topology_add_device */
 }
 
+/* kfd_is_acpi_crat_invalid - CRAT from ACPI is valid only for AMD APU devices.
+ *	Ignore CRAT for all other devices. AMD APU is identified if both CPU
+ *	and GPU cores are present.
+ * @device_list - topology device list created by parsing ACPI CRAT table.
+ * @return - TRUE if invalid, FALSE is valid.
+ */
+static bool kfd_is_acpi_crat_invalid(struct list_head *device_list)
+{
+	struct kfd_topology_device *dev;
+
+	list_for_each_entry(dev, device_list, list) {
+		if (dev->node_props.cpu_cores_count &&
+			dev->node_props.simd_count)
+			return false;
+	}
+	pr_info("Ignoring ACPI CRAT on non-APU system\n");
+	return true;
+}
+
 int kfd_topology_init(void)
 {
 	void *crat_image = NULL;
@@ -936,7 +955,7 @@ int kfd_topology_init(void)
 
 	/*
 	 * Get the CRAT image from the ACPI. If ACPI doesn't have one
-	 * create a virtual CRAT.
+	 * or if ACPI CRAT is invalid create a virtual CRAT.
 	 * NOTE: The current implementation expects all AMD APUs to have
 	 *	CRAT. If no CRAT is available, it is assumed to be a CPU
 	 */
@@ -945,7 +964,8 @@ int kfd_topology_init(void)
 		ret = kfd_parse_crat_table(crat_image,
 					   &temp_topology_device_list,
 					   proximity_domain);
-		if (ret) {
+		if (ret ||
+		    kfd_is_acpi_crat_invalid(&temp_topology_device_list)) {
 			kfd_release_topology_device_list(
 				&temp_topology_device_list);
 			kfd_destroy_crat_image(crat_image);
