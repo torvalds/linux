@@ -20,7 +20,9 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
+#if defined(CONFIG_AMD_IOMMU_V2_MODULE) || defined(CONFIG_AMD_IOMMU_V2)
 #include <linux/amd-iommu.h>
+#endif
 #include <linux/bsearch.h>
 #include <linux/pci.h>
 #include <linux/slab.h>
@@ -28,9 +30,11 @@
 #include "kfd_device_queue_manager.h"
 #include "kfd_pm4_headers_vi.h"
 #include "cwsr_trap_handler_gfx8.asm"
+#include "kfd_iommu.h"
 
 #define MQD_SIZE_ALIGNED 768
 
+#ifdef KFD_SUPPORT_IOMMU_V2
 static const struct kfd_device_info kaveri_device_info = {
 	.asic_family = CHIP_KAVERI,
 	.max_pasid_bits = 16,
@@ -41,6 +45,7 @@ static const struct kfd_device_info kaveri_device_info = {
 	.num_of_watch_points = 4,
 	.mqd_size_aligned = MQD_SIZE_ALIGNED,
 	.supports_cwsr = false,
+	.needs_iommu_device = true,
 	.needs_pci_atomics = false,
 };
 
@@ -54,8 +59,10 @@ static const struct kfd_device_info carrizo_device_info = {
 	.num_of_watch_points = 4,
 	.mqd_size_aligned = MQD_SIZE_ALIGNED,
 	.supports_cwsr = true,
+	.needs_iommu_device = true,
 	.needs_pci_atomics = false,
 };
+#endif
 
 static const struct kfd_device_info hawaii_device_info = {
 	.asic_family = CHIP_HAWAII,
@@ -67,6 +74,7 @@ static const struct kfd_device_info hawaii_device_info = {
 	.num_of_watch_points = 4,
 	.mqd_size_aligned = MQD_SIZE_ALIGNED,
 	.supports_cwsr = false,
+	.needs_iommu_device = false,
 	.needs_pci_atomics = false,
 };
 
@@ -79,6 +87,7 @@ static const struct kfd_device_info tonga_device_info = {
 	.num_of_watch_points = 4,
 	.mqd_size_aligned = MQD_SIZE_ALIGNED,
 	.supports_cwsr = false,
+	.needs_iommu_device = false,
 	.needs_pci_atomics = true,
 };
 
@@ -91,6 +100,7 @@ static const struct kfd_device_info tonga_vf_device_info = {
 	.num_of_watch_points = 4,
 	.mqd_size_aligned = MQD_SIZE_ALIGNED,
 	.supports_cwsr = false,
+	.needs_iommu_device = false,
 	.needs_pci_atomics = false,
 };
 
@@ -103,6 +113,7 @@ static const struct kfd_device_info fiji_device_info = {
 	.num_of_watch_points = 4,
 	.mqd_size_aligned = MQD_SIZE_ALIGNED,
 	.supports_cwsr = true,
+	.needs_iommu_device = false,
 	.needs_pci_atomics = true,
 };
 
@@ -115,6 +126,7 @@ static const struct kfd_device_info fiji_vf_device_info = {
 	.num_of_watch_points = 4,
 	.mqd_size_aligned = MQD_SIZE_ALIGNED,
 	.supports_cwsr = true,
+	.needs_iommu_device = false,
 	.needs_pci_atomics = false,
 };
 
@@ -128,6 +140,7 @@ static const struct kfd_device_info polaris10_device_info = {
 	.num_of_watch_points = 4,
 	.mqd_size_aligned = MQD_SIZE_ALIGNED,
 	.supports_cwsr = true,
+	.needs_iommu_device = false,
 	.needs_pci_atomics = true,
 };
 
@@ -140,6 +153,7 @@ static const struct kfd_device_info polaris10_vf_device_info = {
 	.num_of_watch_points = 4,
 	.mqd_size_aligned = MQD_SIZE_ALIGNED,
 	.supports_cwsr = true,
+	.needs_iommu_device = false,
 	.needs_pci_atomics = false,
 };
 
@@ -152,6 +166,7 @@ static const struct kfd_device_info polaris11_device_info = {
 	.num_of_watch_points = 4,
 	.mqd_size_aligned = MQD_SIZE_ALIGNED,
 	.supports_cwsr = true,
+	.needs_iommu_device = false,
 	.needs_pci_atomics = true,
 };
 
@@ -162,6 +177,7 @@ struct kfd_deviceid {
 };
 
 static const struct kfd_deviceid supported_devices[] = {
+#ifdef KFD_SUPPORT_IOMMU_V2
 	{ 0x1304, &kaveri_device_info },	/* Kaveri */
 	{ 0x1305, &kaveri_device_info },	/* Kaveri */
 	{ 0x1306, &kaveri_device_info },	/* Kaveri */
@@ -189,6 +205,7 @@ static const struct kfd_deviceid supported_devices[] = {
 	{ 0x9875, &carrizo_device_info },	/* Carrizo */
 	{ 0x9876, &carrizo_device_info },	/* Carrizo */
 	{ 0x9877, &carrizo_device_info },	/* Carrizo */
+#endif
 	{ 0x67A0, &hawaii_device_info },	/* Hawaii */
 	{ 0x67A1, &hawaii_device_info },	/* Hawaii */
 	{ 0x67A2, &hawaii_device_info },	/* Hawaii */
@@ -302,77 +319,6 @@ struct kfd_dev *kgd2kfd_probe(struct kgd_dev *kgd,
 	return kfd;
 }
 
-static bool device_iommu_pasid_init(struct kfd_dev *kfd)
-{
-	const u32 required_iommu_flags = AMD_IOMMU_DEVICE_FLAG_ATS_SUP |
-					AMD_IOMMU_DEVICE_FLAG_PRI_SUP |
-					AMD_IOMMU_DEVICE_FLAG_PASID_SUP;
-
-	struct amd_iommu_device_info iommu_info;
-	unsigned int pasid_limit;
-	int err;
-
-	err = amd_iommu_device_info(kfd->pdev, &iommu_info);
-	if (err < 0) {
-		dev_err(kfd_device,
-			"error getting iommu info. is the iommu enabled?\n");
-		return false;
-	}
-
-	if ((iommu_info.flags & required_iommu_flags) != required_iommu_flags) {
-		dev_err(kfd_device, "error required iommu flags ats %i, pri %i, pasid %i\n",
-		       (iommu_info.flags & AMD_IOMMU_DEVICE_FLAG_ATS_SUP) != 0,
-		       (iommu_info.flags & AMD_IOMMU_DEVICE_FLAG_PRI_SUP) != 0,
-		       (iommu_info.flags & AMD_IOMMU_DEVICE_FLAG_PASID_SUP)
-									!= 0);
-		return false;
-	}
-
-	pasid_limit = min_t(unsigned int,
-			(unsigned int)(1 << kfd->device_info->max_pasid_bits),
-			iommu_info.max_pasids);
-
-	if (!kfd_set_pasid_limit(pasid_limit)) {
-		dev_err(kfd_device, "error setting pasid limit\n");
-		return false;
-	}
-
-	return true;
-}
-
-static void iommu_pasid_shutdown_callback(struct pci_dev *pdev, int pasid)
-{
-	struct kfd_dev *dev = kfd_device_by_pci_dev(pdev);
-
-	if (dev)
-		kfd_process_iommu_unbind_callback(dev, pasid);
-}
-
-/*
- * This function called by IOMMU driver on PPR failure
- */
-static int iommu_invalid_ppr_cb(struct pci_dev *pdev, int pasid,
-		unsigned long address, u16 flags)
-{
-	struct kfd_dev *dev;
-
-	dev_warn(kfd_device,
-			"Invalid PPR device %x:%x.%x pasid %d address 0x%lX flags 0x%X",
-			PCI_BUS_NUM(pdev->devfn),
-			PCI_SLOT(pdev->devfn),
-			PCI_FUNC(pdev->devfn),
-			pasid,
-			address,
-			flags);
-
-	dev = kfd_device_by_pci_dev(pdev);
-	if (!WARN_ON(!dev))
-		kfd_signal_iommu_event(dev, pasid, address,
-			flags & PPR_FAULT_WRITE, flags & PPR_FAULT_EXEC);
-
-	return AMD_IOMMU_INV_PRI_RSP_INVALID;
-}
-
 static void kfd_cwsr_init(struct kfd_dev *kfd)
 {
 	if (cwsr_enable && kfd->device_info->supports_cwsr) {
@@ -462,11 +408,9 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 		goto device_queue_manager_error;
 	}
 
-	if (!device_iommu_pasid_init(kfd)) {
-		dev_err(kfd_device,
-			"Error initializing iommuv2 for device %x:%x\n",
-			kfd->pdev->vendor, kfd->pdev->device);
-		goto device_iommu_pasid_error;
+	if (kfd_iommu_device_init(kfd)) {
+		dev_err(kfd_device, "Error initializing iommuv2\n");
+		goto device_iommu_error;
 	}
 
 	kfd_cwsr_init(kfd);
@@ -486,7 +430,7 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 	goto out;
 
 kfd_resume_error:
-device_iommu_pasid_error:
+device_iommu_error:
 	device_queue_manager_uninit(kfd->dqm);
 device_queue_manager_error:
 	kfd_interrupt_exit(kfd);
@@ -527,11 +471,7 @@ void kgd2kfd_suspend(struct kfd_dev *kfd)
 
 	kfd->dqm->ops.stop(kfd->dqm);
 
-	kfd_unbind_processes_from_device(kfd);
-
-	amd_iommu_set_invalidate_ctx_cb(kfd->pdev, NULL);
-	amd_iommu_set_invalid_ppr_cb(kfd->pdev, NULL);
-	amd_iommu_free_device(kfd->pdev);
+	kfd_iommu_suspend(kfd);
 }
 
 int kgd2kfd_resume(struct kfd_dev *kfd)
@@ -546,19 +486,14 @@ int kgd2kfd_resume(struct kfd_dev *kfd)
 static int kfd_resume(struct kfd_dev *kfd)
 {
 	int err = 0;
-	unsigned int pasid_limit = kfd_get_pasid_limit();
 
-	err = amd_iommu_init_device(kfd->pdev, pasid_limit);
-	if (err)
-		return -ENXIO;
-	amd_iommu_set_invalidate_ctx_cb(kfd->pdev,
-					iommu_pasid_shutdown_callback);
-	amd_iommu_set_invalid_ppr_cb(kfd->pdev,
-				     iommu_invalid_ppr_cb);
-
-	err = kfd_bind_processes_to_device(kfd);
-	if (err)
-		goto processes_bind_error;
+	err = kfd_iommu_resume(kfd);
+	if (err) {
+		dev_err(kfd_device,
+			"Failed to resume IOMMU for device %x:%x\n",
+			kfd->pdev->vendor, kfd->pdev->device);
+		return err;
+	}
 
 	err = kfd->dqm->ops.start(kfd->dqm);
 	if (err) {
@@ -571,9 +506,7 @@ static int kfd_resume(struct kfd_dev *kfd)
 	return err;
 
 dqm_start_error:
-processes_bind_error:
-	amd_iommu_free_device(kfd->pdev);
-
+	kfd_iommu_suspend(kfd);
 	return err;
 }
 

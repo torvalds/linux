@@ -158,6 +158,7 @@ struct kfd_device_info {
 	uint8_t num_of_watch_points;
 	uint16_t mqd_size_aligned;
 	bool supports_cwsr;
+	bool needs_iommu_device;
 	bool needs_pci_atomics;
 };
 
@@ -517,15 +518,15 @@ struct kfd_process_device {
 	uint64_t scratch_base;
 	uint64_t scratch_limit;
 
-	/* Is this process/pasid bound to this device? (amd_iommu_bind_pasid) */
-	enum kfd_pdd_bound bound;
-
 	/* Flag used to tell the pdd has dequeued from the dqm.
 	 * This is used to prevent dev->dqm->ops.process_termination() from
 	 * being called twice when it is already called in IOMMU callback
 	 * function.
 	 */
 	bool already_dequeued;
+
+	/* Is this process/pasid bound to this device? (amd_iommu_bind_pasid) */
+	enum kfd_pdd_bound bound;
 };
 
 #define qpd_to_pdd(x) container_of(x, struct kfd_process_device, qpd)
@@ -590,6 +591,10 @@ struct kfd_process {
 	bool signal_event_limit_reached;
 };
 
+#define KFD_PROCESS_TABLE_SIZE 5 /* bits: 32 entries */
+extern DECLARE_HASHTABLE(kfd_processes_table, KFD_PROCESS_TABLE_SIZE);
+extern struct srcu_struct kfd_processes_srcu;
+
 /**
  * Ioctl function type.
  *
@@ -617,9 +622,6 @@ void kfd_unref_process(struct kfd_process *p);
 
 struct kfd_process_device *kfd_bind_process_to_device(struct kfd_dev *dev,
 						struct kfd_process *p);
-int kfd_bind_processes_to_device(struct kfd_dev *dev);
-void kfd_unbind_processes_from_device(struct kfd_dev *dev);
-void kfd_process_iommu_unbind_callback(struct kfd_dev *dev, unsigned int pasid);
 struct kfd_process_device *kfd_get_process_device_data(struct kfd_dev *dev,
 							struct kfd_process *p);
 struct kfd_process_device *kfd_create_process_device_data(struct kfd_dev *dev,
