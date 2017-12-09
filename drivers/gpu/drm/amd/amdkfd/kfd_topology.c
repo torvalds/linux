@@ -455,6 +455,10 @@ static ssize_t node_show(struct kobject *kobj, struct attribute *attr,
 				HSA_CAP_WATCH_POINTS_TOTALBITS_MASK);
 		}
 
+		if (dev->gpu->device_info->asic_family == CHIP_TONGA)
+			dev->node_props.capability |=
+					HSA_CAP_AQL_QUEUE_DOUBLE_MAP;
+
 		sysfs_show_32bit_prop(buffer, "max_engine_clk_fcompute",
 			dev->node_props.max_engine_clk_fcompute);
 
