@@ -1073,11 +1073,15 @@ static uint32_t kfd_generate_gpu_id(struct kfd_dev *gpu)
 	uint32_t buf[7];
 	uint64_t local_mem_size;
 	int i;
+	struct kfd_local_mem_info local_mem_info;
 
 	if (!gpu)
 		return 0;
 
-	local_mem_size = gpu->kfd2kgd->get_vmem_size(gpu->kgd);
+	gpu->kfd2kgd->get_local_mem_info(gpu->kgd, &local_mem_info);
+
+	local_mem_size = local_mem_info.local_mem_size_private +
+			local_mem_info.local_mem_size_public;
 
 	buf[0] = gpu->pdev->devfn;
 	buf[1] = gpu->pdev->subsystem_vendor;
