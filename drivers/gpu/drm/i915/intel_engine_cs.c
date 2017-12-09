@@ -1840,6 +1840,10 @@ void intel_engine_dump(struct intel_engine_cs *engine,
 	}
 	spin_unlock_irq(&b->rb_lock);
 
+	if (INTEL_GEN(dev_priv) >= 6) {
+		drm_printf(m, "\tRING_IMR: %08x\n", I915_READ_IMR(engine));
+	}
+
 	drm_printf(m, "IRQ? 0x%lx (breadcrumbs? %s) (execlists? %s)\n",
 		   engine->irq_posted,
 		   yesno(test_bit(ENGINE_IRQ_BREADCRUMB,
