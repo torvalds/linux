@@ -193,7 +193,7 @@ ifdef REGENERATE_PARSERS
 LEX_PREFIX = $(if $(LEX_PREFIX_${baseprereq}),$(LEX_PREFIX_${baseprereq}),yy)
 
 quiet_cmd_flex = LEX     $@
-      cmd_flex = flex -o$@ -L -P $(LEX_PREFIX) $<
+      cmd_flex = $(LEX) -o$@ -L -P $(LEX_PREFIX) $<
 
 .PRECIOUS: $(src)/%.lex.c_shipped
 $(src)/%.lex.c_shipped: $(src)/%.l
@@ -204,7 +204,7 @@ $(src)/%.lex.c_shipped: $(src)/%.l
 YACC_PREFIX = $(if $(YACC_PREFIX_${baseprereq}),$(YACC_PREFIX_${baseprereq}),yy)
 
 quiet_cmd_bison = YACC    $@
-      cmd_bison = bison -o$@ -t -l -p $(YACC_PREFIX) $<
+      cmd_bison = $(YACC) -o$@ -t -l -p $(YACC_PREFIX) $<
 
 .PRECIOUS: $(src)/%.tab.c_shipped
 $(src)/%.tab.c_shipped: $(src)/%.y
