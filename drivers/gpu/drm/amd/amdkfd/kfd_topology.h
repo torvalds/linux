@@ -91,8 +91,6 @@ struct kfd_mem_properties {
 	struct attribute	attr;
 };
 
-#define KFD_TOPOLOGY_CPU_SIBLINGS 256
-
 #define HSA_CACHE_TYPE_DATA		0x00000001
 #define HSA_CACHE_TYPE_INSTRUCTION	0x00000002
 #define HSA_CACHE_TYPE_CPU		0x00000004
@@ -109,7 +107,7 @@ struct kfd_cache_properties {
 	uint32_t		cache_assoc;
 	uint32_t		cache_latency;
 	uint32_t		cache_type;
-	uint8_t			sibling_map[KFD_TOPOLOGY_CPU_SIBLINGS];
+	uint8_t			sibling_map[CRAT_SIBLINGMAP_SIZE];
 	struct kobject		*kobj;
 	struct attribute	attr;
 };

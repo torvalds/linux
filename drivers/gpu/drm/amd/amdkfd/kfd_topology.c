@@ -263,7 +263,7 @@ static ssize_t kfd_cache_show(struct kobject *kobj, struct attribute *attr,
 		char *buffer)
 {
 	ssize_t ret;
-	uint32_t i;
+	uint32_t i, j;
 	struct kfd_cache_properties *cache;
 
 	/* Making sure that the buffer is an empty string */
@@ -281,12 +281,18 @@ static ssize_t kfd_cache_show(struct kobject *kobj, struct attribute *attr,
 	sysfs_show_32bit_prop(buffer, "latency", cache->cache_latency);
 	sysfs_show_32bit_prop(buffer, "type", cache->cache_type);
 	snprintf(buffer, PAGE_SIZE, "%ssibling_map ", buffer);
-	for (i = 0; i < KFD_TOPOLOGY_CPU_SIBLINGS; i++)
-		ret = snprintf(buffer, PAGE_SIZE, "%s%d%s",
-				buffer, cache->sibling_map[i],
-				(i == KFD_TOPOLOGY_CPU_SIBLINGS-1) ?
-						"\n" : ",");
-
+	for (i = 0; i < CRAT_SIBLINGMAP_SIZE; i++)
+		for (j = 0; j < sizeof(cache->sibling_map[0])*8; j++) {
+			/* Check each bit */
+			if (cache->sibling_map[i] & (1 << j))
+				ret = snprintf(buffer, PAGE_SIZE,
+					 "%s%d%s", buffer, 1, ",");
+			else
+				ret = snprintf(buffer, PAGE_SIZE,
+					 "%s%d%s", buffer, 0, ",");
+		}
+	/* Replace the last "," with end of line */
+	*(buffer + strlen(buffer) - 1) = 0xA;
 	return ret;
 }
 
