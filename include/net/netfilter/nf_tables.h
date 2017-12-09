@@ -902,8 +902,6 @@ struct nft_stats {
 	struct u64_stats_sync	syncp;
 };
 
-#define NFT_HOOK_OPS_MAX		2
-
 /**
  *	struct nft_base_chain - nf_tables base chain
  *
@@ -915,7 +913,7 @@ struct nft_stats {
  *	@dev_name: device name that this base chain is attached to (if any)
  */
 struct nft_base_chain {
-	struct nf_hook_ops		ops[NFT_HOOK_OPS_MAX];
+	struct nf_hook_ops		ops;
 	const struct nf_chain_type	*type;
 	u8				policy;
 	u8				flags;
@@ -976,8 +974,6 @@ enum nft_af_flags {
  *	@owner: module owner
  *	@tables: used internally
  *	@flags: family flags
- *	@nops: number of hook ops in this family
- *	@hook_ops_init: initialization function for chain hook ops
  *	@hooks: hookfn overrides for packet validation
  */
 struct nft_af_info {
@@ -987,9 +983,6 @@ struct nft_af_info {
 	struct module			*owner;
 	struct list_head		tables;
 	u32				flags;
-	unsigned int			nops;
-	void				(*hook_ops_init)(struct nf_hook_ops *,
-							 unsigned int);
 	nf_hookfn			*hooks[NF_MAX_HOOKS];
 };
 

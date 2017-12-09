@@ -74,7 +74,6 @@ static struct nft_af_info nft_af_inet __read_mostly = {
 	.family		= NFPROTO_INET,
 	.nhooks		= NF_INET_NUMHOOKS,
 	.owner		= THIS_MODULE,
-	.nops		= 1,
 	.hooks		= {
 		[NF_INET_LOCAL_IN]	= nft_do_chain_inet,
 		[NF_INET_LOCAL_OUT]	= nft_inet_output,

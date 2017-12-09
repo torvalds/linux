@@ -43,7 +43,6 @@ static struct nft_af_info nft_af_netdev __read_mostly = {
 	.nhooks		= NF_NETDEV_NUMHOOKS,
 	.owner		= THIS_MODULE,
 	.flags		= NFT_AF_NEEDS_DEV,
-	.nops		= 1,
 	.hooks		= {
 		[NF_NETDEV_INGRESS]	= nft_do_chain_netdev,
 	},
@@ -98,7 +97,7 @@ static void nft_netdev_event(unsigned long event, struct net_device *dev,
 		__nft_release_basechain(ctx);
 		break;
 	case NETDEV_CHANGENAME:
-		if (dev->ifindex != basechain->ops[0].dev->ifindex)
+		if (dev->ifindex != basechain->ops.dev->ifindex)
 			return;
 
 		strncpy(basechain->dev_name, dev->name, IFNAMSIZ);

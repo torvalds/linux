@@ -46,7 +46,6 @@ static struct nft_af_info nft_af_bridge __read_mostly = {
 	.family		= NFPROTO_BRIDGE,
 	.nhooks		= NF_BR_NUMHOOKS,
 	.owner		= THIS_MODULE,
-	.nops		= 1,
 	.hooks		= {
 		[NF_BR_PRE_ROUTING]	= nft_do_chain_bridge,
 		[NF_BR_LOCAL_IN]	= nft_do_chain_bridge,

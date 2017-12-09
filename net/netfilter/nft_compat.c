@@ -169,7 +169,7 @@ nft_target_set_tgchk_param(struct xt_tgchk_param *par,
 	if (nft_is_base_chain(ctx->chain)) {
 		const struct nft_base_chain *basechain =
 						nft_base_chain(ctx->chain);
-		const struct nf_hook_ops *ops = &basechain->ops[0];
+		const struct nf_hook_ops *ops = &basechain->ops;
 
 		par->hook_mask = 1 << ops->hooknum;
 	} else {
@@ -302,7 +302,7 @@ static int nft_target_validate(const struct nft_ctx *ctx,
 	if (nft_is_base_chain(ctx->chain)) {
 		const struct nft_base_chain *basechain =
 						nft_base_chain(ctx->chain);
-		const struct nf_hook_ops *ops = &basechain->ops[0];
+		const struct nf_hook_ops *ops = &basechain->ops;
 
 		hook_mask = 1 << ops->hooknum;
 		if (target->hooks && !(hook_mask & target->hooks))
@@ -383,7 +383,7 @@ nft_match_set_mtchk_param(struct xt_mtchk_param *par, const struct nft_ctx *ctx,
 	if (nft_is_base_chain(ctx->chain)) {
 		const struct nft_base_chain *basechain =
 						nft_base_chain(ctx->chain);
-		const struct nf_hook_ops *ops = &basechain->ops[0];
+		const struct nf_hook_ops *ops = &basechain->ops;
 
 		par->hook_mask = 1 << ops->hooknum;
 	} else {
@@ -481,7 +481,7 @@ static int nft_match_validate(const struct nft_ctx *ctx,
 	if (nft_is_base_chain(ctx->chain)) {
 		const struct nft_base_chain *basechain =
 						nft_base_chain(ctx->chain);
-		const struct nf_hook_ops *ops = &basechain->ops[0];
+		const struct nf_hook_ops *ops = &basechain->ops;
 
 		hook_mask = 1 << ops->hooknum;
 		if (match->hooks && !(hook_mask & match->hooks))
