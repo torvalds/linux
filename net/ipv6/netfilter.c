@@ -174,14 +174,10 @@ static const struct nf_ipv6_ops ipv6ops = {
 	.reroute		= nf_ip6_reroute,
 };
 
-static const struct nf_afinfo nf_ip6_afinfo = {
-	.family			= AF_INET6,
-};
-
 int __init ipv6_netfilter_init(void)
 {
 	RCU_INIT_POINTER(nf_ipv6_ops, &ipv6ops);
-	return nf_register_afinfo(&nf_ip6_afinfo);
+	return 0;
 }
 
 /* This can be called from inet6_init() on errors, so it cannot
@@ -190,5 +186,4 @@ int __init ipv6_netfilter_init(void)
 void ipv6_netfilter_fini(void)
 {
 	RCU_INIT_POINTER(nf_ipv6_ops, NULL);
-	nf_unregister_afinfo(&nf_ip6_afinfo);
 }

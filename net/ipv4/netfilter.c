@@ -161,13 +161,3 @@ int nf_ip_route(struct net *net, struct dst_entry **dst, struct flowi *fl,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(nf_ip_route);
-
-static const struct nf_afinfo nf_ip_afinfo = {
-	.family			= AF_INET,
-};
-
-static int __init ipv4_netfilter_init(void)
-{
-	return nf_register_afinfo(&nf_ip_afinfo);
-}
-subsys_initcall(ipv4_netfilter_init);

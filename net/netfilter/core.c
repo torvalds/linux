@@ -4,8 +4,7 @@
  * Thanks to Rob `CmdrTaco' Malda for not influencing this code in any
  * way.
  *
- * Rusty Russell (C)2000 -- This code is GPL.
- * Patrick McHardy (c) 2006-2012
+ * This code is GPL.
  */
 #include <linux/kernel.h>
 #include <linux/netfilter.h>
@@ -28,33 +27,11 @@
 
 #include "nf_internals.h"
 
-static DEFINE_MUTEX(afinfo_mutex);
-
-const struct nf_afinfo __rcu *nf_afinfo[NFPROTO_NUMPROTO] __read_mostly;
-EXPORT_SYMBOL(nf_afinfo);
 const struct nf_ipv6_ops __rcu *nf_ipv6_ops __read_mostly;
 EXPORT_SYMBOL_GPL(nf_ipv6_ops);
 
 DEFINE_PER_CPU(bool, nf_skb_duplicated);
 EXPORT_SYMBOL_GPL(nf_skb_duplicated);
-
-int nf_register_afinfo(const struct nf_afinfo *afinfo)
-{
-	mutex_lock(&afinfo_mutex);
-	RCU_INIT_POINTER(nf_afinfo[afinfo->family], afinfo);
-	mutex_unlock(&afinfo_mutex);
-	return 0;
-}
-EXPORT_SYMBOL_GPL(nf_register_afinfo);
-
-void nf_unregister_afinfo(const struct nf_afinfo *afinfo)
-{
-	mutex_lock(&afinfo_mutex);
-	RCU_INIT_POINTER(nf_afinfo[afinfo->family], NULL);
-	mutex_unlock(&afinfo_mutex);
-	synchronize_rcu();
-}
-EXPORT_SYMBOL_GPL(nf_unregister_afinfo);
 
 #ifdef HAVE_JUMP_LABEL
 struct static_key nf_hooks_needed[NFPROTO_NUMPROTO][NF_MAX_HOOKS];

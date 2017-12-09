@@ -95,30 +95,23 @@ static const struct nf_chain_type filter_bridge = {
 	},
 };
 
-static const struct nf_afinfo nf_br_afinfo = {
-	.family                 = AF_BRIDGE,
-	.route_key_size         = 0,
-};
-
 static int __init nf_tables_bridge_init(void)
 {
 	int ret;
 
-	nf_register_afinfo(&nf_br_afinfo);
 	ret = nft_register_chain_type(&filter_bridge);
 	if (ret < 0)
-		goto err1;
+		return ret;
 
 	ret = register_pernet_subsys(&nf_tables_bridge_net_ops);
 	if (ret < 0)
-		goto err2;
+		goto err_register_subsys;
 
 	return ret;
 
-err2:
+err_register_subsys:
 	nft_unregister_chain_type(&filter_bridge);
-err1:
-	nf_unregister_afinfo(&nf_br_afinfo);
+
 	return ret;
 }
 
@@ -126,7 +119,6 @@ static void __exit nf_tables_bridge_exit(void)
 {
 	unregister_pernet_subsys(&nf_tables_bridge_net_ops);
 	nft_unregister_chain_type(&filter_bridge);
-	nf_unregister_afinfo(&nf_br_afinfo);
 }
 
 module_init(nf_tables_bridge_init);

@@ -309,16 +309,6 @@ int skb_make_writable(struct sk_buff *skb, unsigned int writable_len);
 struct flowi;
 struct nf_queue_entry;
 
-struct nf_afinfo {
-	unsigned short	family;
-};
-
-extern const struct nf_afinfo __rcu *nf_afinfo[NFPROTO_NUMPROTO];
-static inline const struct nf_afinfo *nf_get_afinfo(unsigned short family)
-{
-	return rcu_dereference(nf_afinfo[family]);
-}
-
 __sum16 nf_checksum(struct sk_buff *skb, unsigned int hook,
 		    unsigned int dataoff, u_int8_t protocol,
 		    unsigned short family);
@@ -329,9 +319,6 @@ __sum16 nf_checksum_partial(struct sk_buff *skb, unsigned int hook,
 int nf_route(struct net *net, struct dst_entry **dst, struct flowi *fl,
 	     bool strict, unsigned short family);
 int nf_reroute(struct sk_buff *skb, struct nf_queue_entry *entry);
-
-int nf_register_afinfo(const struct nf_afinfo *afinfo);
-void nf_unregister_afinfo(const struct nf_afinfo *afinfo);
 
 #include <net/flow.h>
 extern void (*nf_nat_decode_session_hook)(struct sk_buff *, struct flowi *);
