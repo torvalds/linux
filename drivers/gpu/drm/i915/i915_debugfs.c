@@ -683,19 +683,6 @@ static void i915_ring_seqno_info(struct seq_file *m,
 	spin_unlock_irq(&b->rb_lock);
 }
 
-static int i915_gem_seqno_info(struct seq_file *m, void *data)
-{
-	struct drm_i915_private *dev_priv = node_to_i915(m->private);
-	struct intel_engine_cs *engine;
-	enum intel_engine_id id;
-
-	for_each_engine(engine, dev_priv, id)
-		i915_ring_seqno_info(m, engine);
-
-	return 0;
-}
-
-
 static int i915_interrupt_info(struct seq_file *m, void *data)
 {
 	struct drm_i915_private *dev_priv = node_to_i915(m->private);
@@ -4672,7 +4659,6 @@ static const struct drm_info_list i915_debugfs_list[] = {
 	{"i915_gem_objects", i915_gem_object_info, 0},
 	{"i915_gem_gtt", i915_gem_gtt_info, 0},
 	{"i915_gem_stolen", i915_gem_stolen_list_info },
-	{"i915_gem_seqno", i915_gem_seqno_info, 0},
 	{"i915_gem_fence_regs", i915_gem_fence_regs_info, 0},
 	{"i915_gem_interrupt", i915_interrupt_info, 0},
 	{"i915_gem_batch_pool", i915_gem_batch_pool_info, 0},
