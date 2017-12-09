@@ -170,7 +170,7 @@ struct lpfc_queue {
 	uint32_t q_mode;
 	uint16_t page_count;	/* Number of pages allocated for this queue */
 	uint16_t page_size;	/* size of page allocated for this queue */
-#define LPFC_NVME_PAGE_SIZE	16384
+#define LPFC_EXPANDED_PAGE_SIZE	16384
 #define LPFC_DEFAULT_PAGE_SIZE	4096
 	uint16_t chann;		/* IO channel this queue is associated with */
 	uint16_t db_format;
@@ -370,9 +370,9 @@ struct lpfc_bmbx {
 
 #define LPFC_EQE_DEF_COUNT	1024
 #define LPFC_CQE_DEF_COUNT      1024
+#define LPFC_CQE_EXP_COUNT      4096
 #define LPFC_WQE_DEF_COUNT      256
-#define LPFC_WQE128_DEF_COUNT   128
-#define LPFC_WQE128_MAX_COUNT   256
+#define LPFC_WQE_EXP_COUNT      1024
 #define LPFC_MQE_DEF_COUNT      16
 #define LPFC_RQE_DEF_COUNT	512
 

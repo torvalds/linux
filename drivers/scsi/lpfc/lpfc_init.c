@@ -7983,9 +7983,9 @@ lpfc_alloc_nvme_wq_cq(struct lpfc_hba *phba, int wqidx)
 {
 	struct lpfc_queue *qdesc;
 
-	qdesc = lpfc_sli4_queue_alloc(phba, LPFC_NVME_PAGE_SIZE,
+	qdesc = lpfc_sli4_queue_alloc(phba, LPFC_EXPANDED_PAGE_SIZE,
 				      phba->sli4_hba.cq_esize,
-				      LPFC_NVME_CQSIZE);
+				      LPFC_CQE_EXP_COUNT);
 	if (!qdesc) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 				"0508 Failed allocate fast-path NVME CQ (%d)\n",
@@ -7994,8 +7994,8 @@ lpfc_alloc_nvme_wq_cq(struct lpfc_hba *phba, int wqidx)
 	}
 	phba->sli4_hba.nvme_cq[wqidx] = qdesc;
 
-	qdesc = lpfc_sli4_queue_alloc(phba, LPFC_NVME_PAGE_SIZE,
-				      LPFC_WQE128_SIZE, LPFC_NVME_WQSIZE);
+	qdesc = lpfc_sli4_queue_alloc(phba, LPFC_EXPANDED_PAGE_SIZE,
+				      LPFC_WQE128_SIZE, LPFC_WQE_EXP_COUNT);
 	if (!qdesc) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 				"0509 Failed allocate fast-path NVME WQ (%d)\n",
@@ -8011,12 +8011,18 @@ static int
 lpfc_alloc_fcp_wq_cq(struct lpfc_hba *phba, int wqidx)
 {
 	struct lpfc_queue *qdesc;
-	uint32_t wqesize;
 
 	/* Create Fast Path FCP CQs */
-	qdesc = lpfc_sli4_queue_alloc(phba, LPFC_DEFAULT_PAGE_SIZE,
-				      phba->sli4_hba.cq_esize,
-				      phba->sli4_hba.cq_ecount);
+	if (phba->fcp_embed_io)
+		/* Increase the CQ size when WQEs contain an embedded cdb */
+		qdesc = lpfc_sli4_queue_alloc(phba, LPFC_EXPANDED_PAGE_SIZE,
+					      phba->sli4_hba.cq_esize,
+					      LPFC_CQE_EXP_COUNT);
+
+	else
+		qdesc = lpfc_sli4_queue_alloc(phba, LPFC_DEFAULT_PAGE_SIZE,
+					      phba->sli4_hba.cq_esize,
+					      phba->sli4_hba.cq_ecount);
 	if (!qdesc) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 			"0499 Failed allocate fast-path FCP CQ (%d)\n", wqidx);
@@ -8025,10 +8031,15 @@ lpfc_alloc_fcp_wq_cq(struct lpfc_hba *phba, int wqidx)
 	phba->sli4_hba.fcp_cq[wqidx] = qdesc;
 
 	/* Create Fast Path FCP WQs */
-	wqesize = (phba->fcp_embed_io) ?
-		LPFC_WQE128_SIZE : phba->sli4_hba.wq_esize;
-	qdesc = lpfc_sli4_queue_alloc(phba, LPFC_DEFAULT_PAGE_SIZE,
-				      wqesize, phba->sli4_hba.wq_ecount);
+	if (phba->fcp_embed_io)
+		/* Increase the WQ size when WQEs contain an embedded cdb */
+		qdesc = lpfc_sli4_queue_alloc(phba, LPFC_EXPANDED_PAGE_SIZE,
+					      LPFC_WQE128_SIZE,
+					      LPFC_WQE_EXP_COUNT);
+	else
+		qdesc = lpfc_sli4_queue_alloc(phba, LPFC_DEFAULT_PAGE_SIZE,
+					      phba->sli4_hba.wq_esize,
+					      phba->sli4_hba.wq_ecount);
 	if (!qdesc) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 				"0503 Failed allocate fast-path FCP WQ (%d)\n",
@@ -12216,7 +12227,6 @@ int
 lpfc_fof_queue_create(struct lpfc_hba *phba)
 {
 	struct lpfc_queue *qdesc;
-	uint32_t wqesize;
 
 	/* Create FOF EQ */
 	qdesc = lpfc_sli4_queue_alloc(phba, LPFC_DEFAULT_PAGE_SIZE,
@@ -12230,21 +12240,32 @@ lpfc_fof_queue_create(struct lpfc_hba *phba)
 	if (phba->cfg_fof) {
 
 		/* Create OAS CQ */
-		qdesc = lpfc_sli4_queue_alloc(phba, LPFC_DEFAULT_PAGE_SIZE,
-					      phba->sli4_hba.cq_esize,
-					      phba->sli4_hba.cq_ecount);
+		if (phba->fcp_embed_io)
+			qdesc = lpfc_sli4_queue_alloc(phba,
+						      LPFC_EXPANDED_PAGE_SIZE,
+						      phba->sli4_hba.cq_esize,
+						      LPFC_CQE_EXP_COUNT);
+		else
+			qdesc = lpfc_sli4_queue_alloc(phba,
+						      LPFC_DEFAULT_PAGE_SIZE,
+						      phba->sli4_hba.cq_esize,
+						      phba->sli4_hba.cq_ecount);
 		if (!qdesc)
 			goto out_error;
 
 		phba->sli4_hba.oas_cq = qdesc;
 
 		/* Create OAS WQ */
-		wqesize = (phba->fcp_embed_io) ?
-				LPFC_WQE128_SIZE : phba->sli4_hba.wq_esize;
-		qdesc = lpfc_sli4_queue_alloc(phba, LPFC_DEFAULT_PAGE_SIZE,
-					      wqesize,
-					      phba->sli4_hba.wq_ecount);
-
+		if (phba->fcp_embed_io)
+			qdesc = lpfc_sli4_queue_alloc(phba,
+						      LPFC_EXPANDED_PAGE_SIZE,
+						      LPFC_WQE128_SIZE,
+						      LPFC_WQE_EXP_COUNT);
+		else
+			qdesc = lpfc_sli4_queue_alloc(phba,
+						      LPFC_DEFAULT_PAGE_SIZE,
+						      phba->sli4_hba.wq_esize,
+						      phba->sli4_hba.wq_ecount);
 		if (!qdesc)
 			goto out_error;
 
