@@ -128,8 +128,6 @@ struct tile_config {
  *
  * @free_gtt_mem: Frees a buffer that was allocated on the gart aperture
  *
- * @get_vmem_size: Retrieves (physical) size of VRAM
- *
  * @get_local_mem_info: Retrieves information about GPU local memory
  *
  * @get_gpu_clock_counter: Retrieves GPU clock counter
@@ -190,7 +188,6 @@ struct kfd2kgd_calls {
 
 	void (*free_gtt_mem)(struct kgd_dev *kgd, void *mem_obj);
 
-	uint64_t (*get_vmem_size)(struct kgd_dev *kgd);
 	void (*get_local_mem_info)(struct kgd_dev *kgd,
 			struct kfd_local_mem_info *mem_info);
 	uint64_t (*get_gpu_clock_counter)(struct kgd_dev *kgd);
