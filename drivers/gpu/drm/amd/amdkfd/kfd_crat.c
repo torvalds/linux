@@ -33,7 +33,7 @@ static void kfd_populated_cu_info_cpu(struct kfd_topology_device *dev,
 	if (cu->hsa_capability & CRAT_CU_FLAGS_IOMMU_PRESENT)
 		dev->node_props.capability |= HSA_CAP_ATS_PRESENT;
 
-	pr_info("CU CPU: cores=%d id_base=%d\n", cu->num_cpu_cores,
+	pr_debug("CU CPU: cores=%d id_base=%d\n", cu->num_cpu_cores,
 			cu->processor_id_low);
 }
 
@@ -52,7 +52,7 @@ static void kfd_populated_cu_info_gpu(struct kfd_topology_device *dev,
 	dev->node_props.max_slots_scratch_cu = cu->max_slots_scatch_cu;
 	if (cu->hsa_capability & CRAT_CU_FLAGS_HOT_PLUGGABLE)
 		dev->node_props.capability |= HSA_CAP_HOT_PLUGGABLE;
-	pr_info("CU GPU: id_base=%d\n", cu->processor_id_low);
+	pr_debug("CU GPU: id_base=%d\n", cu->processor_id_low);
 }
 
 /* kfd_parse_subtype_cu - parse compute unit subtypes and attach it to correct
@@ -63,7 +63,7 @@ static int kfd_parse_subtype_cu(struct crat_subtype_computeunit *cu,
 {
 	struct kfd_topology_device *dev;
 
-	pr_info("Found CU entry in CRAT table with proximity_domain=%d caps=%x\n",
+	pr_debug("Found CU entry in CRAT table with proximity_domain=%d caps=%x\n",
 			cu->proximity_domain, cu->hsa_capability);
 	list_for_each_entry(dev, device_list, list) {
 		if (cu->proximity_domain == dev->proximity_domain) {
@@ -88,7 +88,7 @@ static int kfd_parse_subtype_mem(struct crat_subtype_memory *mem,
 	struct kfd_mem_properties *props;
 	struct kfd_topology_device *dev;
 
-	pr_info("Found memory entry in CRAT table with proximity_domain=%d\n",
+	pr_debug("Found memory entry in CRAT table with proximity_domain=%d\n",
 			mem->proximity_domain);
 	list_for_each_entry(dev, device_list, list) {
 		if (mem->proximity_domain == dev->proximity_domain) {
@@ -133,7 +133,7 @@ static int kfd_parse_subtype_cache(struct crat_subtype_cache *cache,
 
 	id = cache->processor_id_low;
 
-	pr_info("Found cache entry in CRAT table with processor_id=%d\n", id);
+	pr_debug("Found cache entry in CRAT table with processor_id=%d\n", id);
 	list_for_each_entry(dev, device_list, list)
 		if (id == dev->node_props.cpu_core_id_base ||
 		    id == dev->node_props.simd_id_base) {
@@ -182,7 +182,8 @@ static int kfd_parse_subtype_iolink(struct crat_subtype_iolink *iolink,
 	id_from = iolink->proximity_domain_from;
 	id_to = iolink->proximity_domain_to;
 
-	pr_info("Found IO link entry in CRAT table with id_from=%d\n", id_from);
+	pr_debug("Found IO link entry in CRAT table with id_from=%d\n",
+			id_from);
 	list_for_each_entry(dev, device_list, list) {
 		if (id_from == dev->proximity_domain) {
 			props = kfd_alloc_struct(props);
@@ -248,13 +249,13 @@ static int kfd_parse_subtype(struct crat_subtype_generic *sub_type_hdr,
 		/*
 		 * For now, nothing to do here
 		 */
-		pr_info("Found TLB entry in CRAT table (not processing)\n");
+		pr_debug("Found TLB entry in CRAT table (not processing)\n");
 		break;
 	case CRAT_SUBTYPE_CCOMPUTE_AFFINITY:
 		/*
 		 * For now, nothing to do here
 		 */
-		pr_info("Found CCOMPUTE entry in CRAT table (not processing)\n");
+		pr_debug("Found CCOMPUTE entry in CRAT table (not processing)\n");
 		break;
 	case CRAT_SUBTYPE_IOLINK_AFFINITY:
 		iolink = (struct crat_subtype_iolink *)sub_type_hdr;

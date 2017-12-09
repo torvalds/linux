@@ -890,7 +890,7 @@ int kfd_topology_add_device(struct kfd_dev *gpu)
 
 	if (dev->gpu->device_info->asic_family == CHIP_CARRIZO) {
 		dev->node_props.capability |= HSA_CAP_DOORBELL_PACKET_TYPE;
-		pr_info("Adding doorbell packet type capability\n");
+		pr_debug("Adding doorbell packet type capability\n");
 	}
 
 	if (!res)
