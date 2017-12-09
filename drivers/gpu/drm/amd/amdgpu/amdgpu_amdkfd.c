@@ -275,16 +275,6 @@ void free_gtt_mem(struct kgd_dev *kgd, void *mem_obj)
 	kfree(mem);
 }
 
-uint64_t get_vmem_size(struct kgd_dev *kgd)
-{
-	struct amdgpu_device *adev =
-		(struct amdgpu_device *)kgd;
-
-	BUG_ON(kgd == NULL);
-
-	return adev->mc.real_vram_size;
-}
-
 void get_local_mem_info(struct kgd_dev *kgd,
 			struct kfd_local_mem_info *mem_info)
 {

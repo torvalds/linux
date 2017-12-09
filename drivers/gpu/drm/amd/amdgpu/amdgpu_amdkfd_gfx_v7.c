@@ -173,7 +173,6 @@ static int get_tile_config(struct kgd_dev *kgd,
 static const struct kfd2kgd_calls kfd2kgd = {
 	.init_gtt_mem_allocation = alloc_gtt_mem,
 	.free_gtt_mem = free_gtt_mem,
-	.get_vmem_size = get_vmem_size,
 	.get_local_mem_info = get_local_mem_info,
 	.get_gpu_clock_counter = get_gpu_clock_counter,
 	.get_max_engine_clock_in_mhz = get_max_engine_clock_in_mhz,
