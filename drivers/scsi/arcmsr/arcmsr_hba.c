@@ -3679,10 +3679,6 @@ static void arcmsr_set_iop_datetime(struct timer_list *t)
 	secs = (u32)(tv.tv_sec - (sys_tz.tz_minuteswest * 60));
 	days = secs / 86400;
 	secs = secs - 86400 * days;
-	if (secs < 0) {
-		days = days - 1;
-		secs = secs + 86400;
-	}
 	j = days / 146097;
 	i = days - 146097 * j;
 	a = i + 719468;
