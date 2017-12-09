@@ -67,6 +67,8 @@ obj-$(CONFIG_NF_NAT_TFTP) += nf_nat_tftp.o
 # SYNPROXY
 obj-$(CONFIG_NETFILTER_SYNPROXY) += nf_synproxy_core.o
 
+obj-$(CONFIG_NETFILTER_CONNCOUNT) += nf_conncount.o
+
 # generic packet duplication from netdev family
 obj-$(CONFIG_NF_DUP_NETDEV)	+= nf_dup_netdev.o
 

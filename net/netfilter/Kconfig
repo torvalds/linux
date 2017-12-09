@@ -68,6 +68,8 @@ config NF_LOG_NETDEV
 	select NF_LOG_COMMON
 
 if NF_CONNTRACK
+config NETFILTER_CONNCOUNT
+	tristate
 
 config NF_CONNTRACK_MARK
 	bool  'Connection mark tracking support'
@@ -1126,6 +1128,7 @@ config NETFILTER_XT_MATCH_CONNLIMIT
 	tristate '"connlimit" match support'
 	depends on NF_CONNTRACK
 	depends on NETFILTER_ADVANCED
+	select NETFILTER_CONNCOUNT
 	---help---
 	  This match allows you to match against the number of parallel
 	  connections to a server per client IP address (or address block).
