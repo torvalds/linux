@@ -44,6 +44,10 @@
 
 #define CRAT_OEMID_64BIT_MASK ((1ULL << (CRAT_OEMID_LENGTH * 8)) - 1)
 
+/* Compute Unit flags */
+#define COMPUTE_UNIT_CPU	(1 << 0)  /* Create Virtual CRAT for CPU */
+#define COMPUTE_UNIT_GPU	(1 << 1)  /* Create Virtual CRAT for GPU */
+
 struct crat_header {
 	uint32_t	signature;
 	uint32_t	length;
@@ -302,9 +306,14 @@ struct cdit_header {
 
 #pragma pack()
 
+struct kfd_dev;
+
 int kfd_create_crat_image_acpi(void **crat_image, size_t *size);
 void kfd_destroy_crat_image(void *crat_image);
 int kfd_parse_crat_table(void *crat_image, struct list_head *device_list,
 			 uint32_t proximity_domain);
+int kfd_create_crat_image_virtual(void **crat_image, size_t *size,
+				  int flags, struct kfd_dev *kdev,
+				  uint32_t proximity_domain);
 
 #endif /* KFD_CRAT_H_INCLUDED */
