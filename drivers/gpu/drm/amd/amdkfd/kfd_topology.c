@@ -104,6 +104,7 @@ static void kfd_release_topology_device(struct kfd_topology_device *dev)
 	struct kfd_mem_properties *mem;
 	struct kfd_cache_properties *cache;
 	struct kfd_iolink_properties *iolink;
+	struct kfd_perf_properties *perf;
 
 	list_del(&dev->list);
 
@@ -126,6 +127,13 @@ static void kfd_release_topology_device(struct kfd_topology_device *dev)
 				struct kfd_iolink_properties, list);
 		list_del(&iolink->list);
 		kfree(iolink);
+	}
+
+	while (dev->perf_props.next != &dev->perf_props) {
+		perf = container_of(dev->perf_props.next,
+				struct kfd_perf_properties, list);
+		list_del(&perf->list);
+		kfree(perf);
 	}
 
 	kfree(dev);
@@ -162,6 +170,7 @@ struct kfd_topology_device *kfd_create_topology_device(
 	INIT_LIST_HEAD(&dev->mem_props);
 	INIT_LIST_HEAD(&dev->cache_props);
 	INIT_LIST_HEAD(&dev->io_link_props);
+	INIT_LIST_HEAD(&dev->perf_props);
 
 	list_add_tail(&dev->list, device_list);
 
@@ -328,6 +337,39 @@ static struct kobj_type cache_type = {
 	.sysfs_ops = &cache_ops,
 };
 
+/****** Sysfs of Performance Counters ******/
+
+struct kfd_perf_attr {
+	struct kobj_attribute attr;
+	uint32_t data;
+};
+
+static ssize_t perf_show(struct kobject *kobj, struct kobj_attribute *attrs,
+			char *buf)
+{
+	struct kfd_perf_attr *attr;
+
+	buf[0] = 0;
+	attr = container_of(attrs, struct kfd_perf_attr, attr);
+	if (!attr->data) /* invalid data for PMC */
+		return 0;
+	else
+		return sysfs_show_32bit_val(buf, attr->data);
+}
+
+#define KFD_PERF_DESC(_name, _data)			\
+{							\
+	.attr  = __ATTR(_name, 0444, perf_show, NULL),	\
+	.data = _data,					\
+}
+
+static struct kfd_perf_attr perf_attr_iommu[] = {
+	KFD_PERF_DESC(max_concurrent, 0),
+	KFD_PERF_DESC(num_counters, 0),
+	KFD_PERF_DESC(counter_ids, 0),
+};
+/****************************************/
+
 static ssize_t node_show(struct kobject *kobj, struct attribute *attr,
 		char *buffer)
 {
@@ -452,6 +494,7 @@ static void kfd_remove_sysfs_node_entry(struct kfd_topology_device *dev)
 	struct kfd_iolink_properties *iolink;
 	struct kfd_cache_properties *cache;
 	struct kfd_mem_properties *mem;
+	struct kfd_perf_properties *perf;
 
 	if (dev->kobj_iolink) {
 		list_for_each_entry(iolink, &dev->io_link_props, list)
@@ -488,6 +531,16 @@ static void kfd_remove_sysfs_node_entry(struct kfd_topology_device *dev)
 		dev->kobj_mem = NULL;
 	}
 
+	if (dev->kobj_perf) {
+		list_for_each_entry(perf, &dev->perf_props, list) {
+			kfree(perf->attr_group);
+			perf->attr_group = NULL;
+		}
+		kobject_del(dev->kobj_perf);
+		kobject_put(dev->kobj_perf);
+		dev->kobj_perf = NULL;
+	}
+
 	if (dev->kobj_node) {
 		sysfs_remove_file(dev->kobj_node, &dev->attr_gpuid);
 		sysfs_remove_file(dev->kobj_node, &dev->attr_name);
@@ -504,8 +557,10 @@ static int kfd_build_sysfs_node_entry(struct kfd_topology_device *dev,
 	struct kfd_iolink_properties *iolink;
 	struct kfd_cache_properties *cache;
 	struct kfd_mem_properties *mem;
+	struct kfd_perf_properties *perf;
 	int ret;
-	uint32_t i;
+	uint32_t i, num_attrs;
+	struct attribute **attrs;
 
 	if (WARN_ON(dev->kobj_node))
 		return -EEXIST;
@@ -532,6 +587,10 @@ static int kfd_build_sysfs_node_entry(struct kfd_topology_device *dev,
 
 	dev->kobj_iolink = kobject_create_and_add("io_links", dev->kobj_node);
 	if (!dev->kobj_iolink)
+		return -ENOMEM;
+
+	dev->kobj_perf = kobject_create_and_add("perf", dev->kobj_node);
+	if (!dev->kobj_perf)
 		return -ENOMEM;
 
 	/*
@@ -611,7 +670,33 @@ static int kfd_build_sysfs_node_entry(struct kfd_topology_device *dev,
 		if (ret < 0)
 			return ret;
 		i++;
-}
+	}
+
+	/* All hardware blocks have the same number of attributes. */
+	num_attrs = sizeof(perf_attr_iommu)/sizeof(struct kfd_perf_attr);
+	list_for_each_entry(perf, &dev->perf_props, list) {
+		perf->attr_group = kzalloc(sizeof(struct kfd_perf_attr)
+			* num_attrs + sizeof(struct attribute_group),
+			GFP_KERNEL);
+		if (!perf->attr_group)
+			return -ENOMEM;
+
+		attrs = (struct attribute **)(perf->attr_group + 1);
+		if (!strcmp(perf->block_name, "iommu")) {
+		/* Information of IOMMU's num_counters and counter_ids is shown
+		 * under /sys/bus/event_source/devices/amd_iommu. We don't
+		 * duplicate here.
+		 */
+			perf_attr_iommu[0].data = perf->max_concurrent;
+			for (i = 0; i < num_attrs; i++)
+				attrs[i] = &perf_attr_iommu[i].attr.attr;
+		}
+		perf->attr_group->name = perf->block_name;
+		perf->attr_group->attrs = attrs;
+		ret = sysfs_create_group(dev->kobj_perf, perf->attr_group);
+		if (ret < 0)
+			return ret;
+	}
 
 	return 0;
 }
@@ -778,6 +863,29 @@ static void find_system_memory(const struct dmi_header *dm,
 		}
 	}
 }
+
+/*
+ * Performance counters information is not part of CRAT but we would like to
+ * put them in the sysfs under topology directory for Thunk to get the data.
+ * This function is called before updating the sysfs.
+ */
+static int kfd_add_perf_to_topology(struct kfd_topology_device *kdev)
+{
+	struct kfd_perf_properties *props;
+
+	if (amd_iommu_pc_supported()) {
+		props = kfd_alloc_struct(props);
+		if (!props)
+			return -ENOMEM;
+		strcpy(props->block_name, "iommu");
+		props->max_concurrent = amd_iommu_pc_get_max_banks(0) *
+			amd_iommu_pc_get_max_counters(0); /* assume one iommu */
+		list_add_tail(&props->list, &kdev->perf_props);
+	}
+
+	return 0;
+}
+
 /* kfd_add_non_crat_information - Add information that is not currently
  *	defined in CRAT but is necessary for KFD topology
  * @dev - topology device to which addition info is added
@@ -859,6 +967,10 @@ int kfd_topology_init(void)
 			goto err;
 		}
 	}
+
+	kdev = list_first_entry(&temp_topology_device_list,
+				struct kfd_topology_device, list);
+	kfd_add_perf_to_topology(kdev);
 
 	down_write(&topology_lock);
 	kfd_topology_update_device_list(&temp_topology_device_list,
