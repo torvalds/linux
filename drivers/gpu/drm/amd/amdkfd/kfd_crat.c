@@ -45,7 +45,6 @@ static void kfd_populated_cu_info_gpu(struct kfd_topology_device *dev,
 	dev->node_props.lds_size_in_kb = cu->lds_size_in_kb;
 	dev->node_props.max_waves_per_simd = cu->max_waves_simd;
 	dev->node_props.wave_front_size = cu->wave_front_size;
-	dev->node_props.mem_banks_count = cu->num_banks;
 	dev->node_props.array_count = cu->num_arrays;
 	dev->node_props.cu_per_simd_array = cu->num_cu_per_array;
 	dev->node_props.simd_per_cu = cu->num_simd_per_cu;
@@ -111,7 +110,7 @@ static int kfd_parse_subtype_mem(struct crat_subtype_memory *mem,
 							mem->length_low;
 			props->width = mem->width;
 
-			dev->mem_bank_count++;
+			dev->node_props.mem_banks_count++;
 			list_add_tail(&props->list, &dev->mem_props);
 
 			break;

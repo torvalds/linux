@@ -335,18 +335,8 @@ static ssize_t node_show(struct kobject *kobj, struct attribute *attr,
 			dev->node_props.cpu_cores_count);
 	sysfs_show_32bit_prop(buffer, "simd_count",
 			dev->node_props.simd_count);
-
-	if (dev->mem_bank_count < dev->node_props.mem_banks_count) {
-		pr_info_once("mem_banks_count truncated from %d to %d\n",
-				dev->node_props.mem_banks_count,
-				dev->mem_bank_count);
-		sysfs_show_32bit_prop(buffer, "mem_banks_count",
-				dev->mem_bank_count);
-	} else {
-		sysfs_show_32bit_prop(buffer, "mem_banks_count",
-				dev->node_props.mem_banks_count);
-	}
-
+	sysfs_show_32bit_prop(buffer, "mem_banks_count",
+			dev->node_props.mem_banks_count);
 	sysfs_show_32bit_prop(buffer, "caches_count",
 			dev->node_props.caches_count);
 	sysfs_show_32bit_prop(buffer, "io_links_count",

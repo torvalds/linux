@@ -137,7 +137,6 @@ struct kfd_topology_device {
 	uint32_t			gpu_id;
 	uint32_t			proximity_domain;
 	struct kfd_node_properties	node_props;
-	uint32_t			mem_bank_count;
 	struct list_head		mem_props;
 	uint32_t			cache_count;
 	struct list_head		cache_props;
