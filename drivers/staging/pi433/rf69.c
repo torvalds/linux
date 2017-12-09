@@ -767,9 +767,7 @@ int rf69_read_fifo (struct spi_device *spi, u8 *buffer, unsigned int size)
 	int retval;
 
 	if (size > FIFO_SIZE) {
-#ifdef DEBUG
 		dev_dbg(&spi->dev, "read fifo: passed in buffer bigger then internal buffer\n");
-#endif
 		return -EMSGSIZE;
 	}
 
@@ -801,9 +799,7 @@ int rf69_write_fifo(struct spi_device *spi, u8 *buffer, unsigned int size)
 	u8 local_buffer[FIFO_SIZE + 1];
 
 	if (size > FIFO_SIZE) {
-#ifdef DEBUG
 		dev_dbg(&spi->dev, "read fifo: passed in buffer bigger then internal buffer\n");
-#endif
 		return -EMSGSIZE;
 	}
 
