@@ -200,7 +200,8 @@ static const struct kfd2kgd_calls kfd2kgd = {
 	.get_fw_version = get_fw_version,
 	.set_scratch_backing_va = set_scratch_backing_va,
 	.get_tile_config = get_tile_config,
-	.get_cu_info = get_cu_info
+	.get_cu_info = get_cu_info,
+	.get_vram_usage = amdgpu_amdkfd_get_vram_usage
 };
 
 struct kfd2kgd_calls *amdgpu_amdkfd_gfx_7_get_functions(void)

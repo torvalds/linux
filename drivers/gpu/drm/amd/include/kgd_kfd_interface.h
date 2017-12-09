@@ -177,6 +177,8 @@ struct tile_config {
  *
  * @get_cu_info: Retrieves activated cu info
  *
+ * @get_vram_usage: Returns current VRAM usage
+ *
  * This structure contains function pointers to services that the kgd driver
  * provides to amdkfd driver.
  *
@@ -267,6 +269,7 @@ struct kfd2kgd_calls {
 
 	void (*get_cu_info)(struct kgd_dev *kgd,
 			struct kfd_cu_info *cu_info);
+	uint64_t (*get_vram_usage)(struct kgd_dev *kgd);
 };
 
 /**

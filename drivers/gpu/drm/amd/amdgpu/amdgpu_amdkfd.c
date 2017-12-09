@@ -347,3 +347,10 @@ void get_cu_info(struct kgd_dev *kgd, struct kfd_cu_info *cu_info)
 	cu_info->max_scratch_slots_per_cu = acu_info.max_scratch_slots_per_cu;
 	cu_info->lds_size = acu_info.lds_size;
 }
+
+uint64_t amdgpu_amdkfd_get_vram_usage(struct kgd_dev *kgd)
+{
+	struct amdgpu_device *adev = (struct amdgpu_device *)kgd;
+
+	return amdgpu_vram_mgr_usage(&adev->mman.bdev.man[TTM_PL_VRAM]);
+}
