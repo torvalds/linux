@@ -104,6 +104,12 @@ extern int cwsr_enable;
  */
 extern int send_sigterm;
 
+/*
+ * Ignore CRAT table during KFD initialization, can be used to work around
+ * broken CRAT tables on some AMD systems
+ */
+extern int ignore_crat;
+
 /**
  * enum kfd_sched_policy
  *

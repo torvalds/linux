@@ -696,6 +696,11 @@ int kfd_create_crat_image_acpi(void **crat_image, size_t *size)
 		return -EINVAL;
 	}
 
+	if (ignore_crat) {
+		pr_info("CRAT table disabled by module option\n");
+		return -ENODATA;
+	}
+
 	pcrat_image = kmalloc(crat_table->length, GFP_KERNEL);
 	if (!pcrat_image)
 		return -ENOMEM;
