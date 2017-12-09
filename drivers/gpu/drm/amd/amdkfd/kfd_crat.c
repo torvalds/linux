@@ -319,17 +319,29 @@ int kfd_parse_crat_table(void *crat_image)
 	return 0;
 }
 
-int kfd_topology_get_crat_acpi(void *crat_image, size_t *size)
+/*
+ * kfd_create_crat_image_acpi - Allocates memory for CRAT image and
+ * copies CRAT from ACPI (if available).
+ * NOTE: Call kfd_destroy_crat_image to free CRAT image memory
+ *
+ *	@crat_image: CRAT read from ACPI. If no CRAT in ACPI then
+ *		     crat_image will be NULL
+ *	@size: [OUT] size of crat_image
+ *
+ *	Return 0 if successful else return error code
+ */
+int kfd_create_crat_image_acpi(void **crat_image, size_t *size)
 {
 	struct acpi_table_header *crat_table;
 	acpi_status status;
+	void *pcrat_image;
 
-	if (!size)
+	if (!crat_image)
 		return -EINVAL;
 
-	/*
-	 * Fetch the CRAT table from ACPI
-	 */
+	*crat_image = NULL;
+
+	/* Fetch the CRAT table from ACPI */
 	status = acpi_get_table(CRAT_SIGNATURE, 0, &crat_table);
 	if (status == AE_NOT_FOUND) {
 		pr_warn("CRAT table not found\n");
@@ -341,10 +353,25 @@ int kfd_topology_get_crat_acpi(void *crat_image, size_t *size)
 		return -EINVAL;
 	}
 
-	if (*size >= crat_table->length && crat_image != NULL)
-		memcpy(crat_image, crat_table, crat_table->length);
+	pcrat_image = kmalloc(crat_table->length, GFP_KERNEL);
+	if (!pcrat_image)
+		return -ENOMEM;
 
+	memcpy(pcrat_image, crat_table, crat_table->length);
+
+	*crat_image = pcrat_image;
 	*size = crat_table->length;
 
 	return 0;
+}
+
+/*
+ * kfd_destroy_crat_image
+ *
+ *	@crat_image: [IN] - crat_image from kfd_create_crat_image_xxx(..)
+ *
+ */
+void kfd_destroy_crat_image(void *crat_image)
+{
+	kfree(crat_image);
 }

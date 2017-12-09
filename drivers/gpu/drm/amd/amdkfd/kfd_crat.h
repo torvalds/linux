@@ -291,7 +291,8 @@ struct cdit_header {
 
 #pragma pack()
 
-int kfd_topology_get_crat_acpi(void *crat_image, size_t *size);
+int kfd_create_crat_image_acpi(void **crat_image, size_t *size);
+void kfd_destroy_crat_image(void *crat_image);
 int kfd_parse_crat_table(void *crat_image);
 
 #endif /* KFD_CRAT_H_INCLUDED */
