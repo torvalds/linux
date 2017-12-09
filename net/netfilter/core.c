@@ -268,36 +268,38 @@ out_assign:
 	return old;
 }
 
-static struct nf_hook_entries __rcu **nf_hook_entry_head(struct net *net, const struct nf_hook_ops *reg)
+static struct nf_hook_entries __rcu **
+nf_hook_entry_head(struct net *net, int pf, unsigned int hooknum,
+		   struct net_device *dev)
 {
-	switch (reg->pf) {
+	switch (pf) {
 	case NFPROTO_NETDEV:
 		break;
 #ifdef CONFIG_NETFILTER_FAMILY_ARP
 	case NFPROTO_ARP:
-		if (WARN_ON_ONCE(ARRAY_SIZE(net->nf.hooks_arp) <= reg->hooknum))
+		if (WARN_ON_ONCE(ARRAY_SIZE(net->nf.hooks_arp) <= hooknum))
 			return NULL;
-		return net->nf.hooks_arp + reg->hooknum;
+		return net->nf.hooks_arp + hooknum;
 #endif
 #ifdef CONFIG_NETFILTER_FAMILY_BRIDGE
 	case NFPROTO_BRIDGE:
-		if (WARN_ON_ONCE(ARRAY_SIZE(net->nf.hooks_bridge) <= reg->hooknum))
+		if (WARN_ON_ONCE(ARRAY_SIZE(net->nf.hooks_bridge) <= hooknum))
 			return NULL;
-		return net->nf.hooks_bridge + reg->hooknum;
+		return net->nf.hooks_bridge + hooknum;
 #endif
 	case NFPROTO_IPV4:
-		if (WARN_ON_ONCE(ARRAY_SIZE(net->nf.hooks_ipv4) <= reg->hooknum))
+		if (WARN_ON_ONCE(ARRAY_SIZE(net->nf.hooks_ipv4) <= hooknum))
 			return NULL;
-		return net->nf.hooks_ipv4 + reg->hooknum;
+		return net->nf.hooks_ipv4 + hooknum;
 	case NFPROTO_IPV6:
-		if (WARN_ON_ONCE(ARRAY_SIZE(net->nf.hooks_ipv6) <= reg->hooknum))
+		if (WARN_ON_ONCE(ARRAY_SIZE(net->nf.hooks_ipv6) <= hooknum))
 			return NULL;
-		return net->nf.hooks_ipv6 + reg->hooknum;
+		return net->nf.hooks_ipv6 + hooknum;
 #if IS_ENABLED(CONFIG_DECNET)
 	case NFPROTO_DECNET:
-		if (WARN_ON_ONCE(ARRAY_SIZE(net->nf.hooks_decnet) <= reg->hooknum))
+		if (WARN_ON_ONCE(ARRAY_SIZE(net->nf.hooks_decnet) <= hooknum))
 			return NULL;
-		return net->nf.hooks_decnet + reg->hooknum;
+		return net->nf.hooks_decnet + hooknum;
 #endif
 	default:
 		WARN_ON_ONCE(1);
@@ -305,9 +307,9 @@ static struct nf_hook_entries __rcu **nf_hook_entry_head(struct net *net, const 
 	}
 
 #ifdef CONFIG_NETFILTER_INGRESS
-	if (reg->hooknum == NF_NETDEV_INGRESS) {
-		if (reg->dev && dev_net(reg->dev) == net)
-			return &reg->dev->nf_hooks_ingress;
+	if (hooknum == NF_NETDEV_INGRESS) {
+		if (dev && dev_net(dev) == net)
+			return &dev->nf_hooks_ingress;
 	}
 #endif
 	WARN_ON_ONCE(1);
@@ -329,7 +331,7 @@ int nf_register_net_hook(struct net *net, const struct nf_hook_ops *reg)
 			return -EINVAL;
 	}
 
-	pp = nf_hook_entry_head(net, reg);
+	pp = nf_hook_entry_head(net, reg->pf, reg->hooknum, reg->dev);
 	if (!pp)
 		return -EINVAL;
 
@@ -403,7 +405,7 @@ void nf_unregister_net_hook(struct net *net, const struct nf_hook_ops *reg)
 	struct nf_hook_entries __rcu **pp;
 	struct nf_hook_entries *p;
 
-	pp = nf_hook_entry_head(net, reg);
+	pp = nf_hook_entry_head(net, reg->pf, reg->hooknum, reg->dev);
 	if (!pp)
 		return;
 
