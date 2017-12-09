@@ -46,6 +46,20 @@ enum kfd_preempt_type {
 	KFD_PREEMPT_TYPE_WAVEFRONT_RESET,
 };
 
+struct kfd_cu_info {
+	uint32_t num_shader_engines;
+	uint32_t num_shader_arrays_per_engine;
+	uint32_t num_cu_per_sh;
+	uint32_t cu_active_number;
+	uint32_t cu_ao_mask;
+	uint32_t simd_per_cu;
+	uint32_t max_waves_per_simd;
+	uint32_t wave_front_size;
+	uint32_t max_scratch_slots_per_cu;
+	uint32_t lds_size;
+	uint32_t cu_bitmap[4][4];
+};
+
 enum kgd_memory_pool {
 	KGD_POOL_SYSTEM_CACHEABLE = 1,
 	KGD_POOL_SYSTEM_WRITECOMBINE = 2,
@@ -153,6 +167,8 @@ struct tile_config {
  *
  * @get_tile_config: Returns GPU-specific tiling mode information
  *
+ * @get_cu_info: Retrieves activated cu info
+ *
  * This structure contains function pointers to services that the kgd driver
  * provides to amdkfd driver.
  *
@@ -239,6 +255,9 @@ struct kfd2kgd_calls {
 	void (*set_scratch_backing_va)(struct kgd_dev *kgd,
 				uint64_t va, uint32_t vmid);
 	int (*get_tile_config)(struct kgd_dev *kgd, struct tile_config *config);
+
+	void (*get_cu_info)(struct kgd_dev *kgd,
+			struct kfd_cu_info *cu_info);
 };
 
 /**
