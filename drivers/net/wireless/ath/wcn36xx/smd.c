@@ -2416,6 +2416,8 @@ static void wcn36xx_ind_smd_work(struct work_struct *work)
 	hal_ind_msg = list_first_entry(&wcn->hal_ind_queue,
 				       struct wcn36xx_hal_ind_msg,
 				       list);
+	list_del(wcn->hal_ind_queue.next);
+	spin_unlock_irqrestore(&wcn->hal_ind_lock, flags);
 
 	msg_header = (struct wcn36xx_hal_msg_header *)hal_ind_msg->msg;
 
@@ -2452,8 +2454,6 @@ static void wcn36xx_ind_smd_work(struct work_struct *work)
 		wcn36xx_err("SMD_EVENT (%d) not supported\n",
 			      msg_header->msg_type);
 	}
-	list_del(wcn->hal_ind_queue.next);
-	spin_unlock_irqrestore(&wcn->hal_ind_lock, flags);
 	kfree(hal_ind_msg);
 }
 int wcn36xx_smd_open(struct wcn36xx *wcn)
