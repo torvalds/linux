@@ -164,6 +164,7 @@ struct kfd_system_properties {
 	struct attribute	attr_props;
 };
 
-
+struct kfd_topology_device *kfd_create_topology_device(void);
+void kfd_release_live_view(void);
 
 #endif /* __KFD_TOPOLOGY_H__ */

@@ -127,7 +127,7 @@ struct crat_subtype_memory {
 	uint8_t		length;
 	uint16_t	reserved;
 	uint32_t	flags;
-	uint32_t	promixity_domain;
+	uint32_t	proximity_domain;
 	uint32_t	base_addr_low;
 	uint32_t	base_addr_high;
 	uint32_t	length_low;
@@ -290,5 +290,8 @@ struct cdit_header {
 };
 
 #pragma pack()
+
+int kfd_topology_get_crat_acpi(void *crat_image, size_t *size);
+int kfd_parse_crat_table(void *crat_image);
 
 #endif /* KFD_CRAT_H_INCLUDED */
