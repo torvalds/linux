@@ -60,6 +60,14 @@ struct kfd_cu_info {
 	uint32_t cu_bitmap[4][4];
 };
 
+/* For getting GPU local memory information from KGD */
+struct kfd_local_mem_info {
+	uint64_t local_mem_size_private;
+	uint64_t local_mem_size_public;
+	uint32_t vram_width;
+	uint32_t mem_clk_max;
+};
+
 enum kgd_memory_pool {
 	KGD_POOL_SYSTEM_CACHEABLE = 1,
 	KGD_POOL_SYSTEM_WRITECOMBINE = 2,
@@ -122,6 +130,8 @@ struct tile_config {
  *
  * @get_vmem_size: Retrieves (physical) size of VRAM
  *
+ * @get_local_mem_info: Retrieves information about GPU local memory
+ *
  * @get_gpu_clock_counter: Retrieves GPU clock counter
  *
  * @get_max_engine_clock_in_mhz: Retrieves maximum GPU clock in MHz
@@ -181,6 +191,8 @@ struct kfd2kgd_calls {
 	void (*free_gtt_mem)(struct kgd_dev *kgd, void *mem_obj);
 
 	uint64_t (*get_vmem_size)(struct kgd_dev *kgd);
+	void (*get_local_mem_info)(struct kgd_dev *kgd,
+			struct kfd_local_mem_info *mem_info);
 	uint64_t (*get_gpu_clock_counter)(struct kgd_dev *kgd);
 
 	uint32_t (*get_max_engine_clock_in_mhz)(struct kgd_dev *kgd);
