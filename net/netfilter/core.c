@@ -371,7 +371,7 @@ EXPORT_SYMBOL(nf_register_net_hook);
  * Therefore replace the to-be-removed hook with a dummy hook.
  */
 static void nf_remove_net_hook(struct nf_hook_entries *old,
-			       const struct nf_hook_ops *unreg)
+			       const struct nf_hook_ops *unreg, int pf)
 {
 	struct nf_hook_ops **orig_ops;
 	bool found = false;
@@ -389,14 +389,14 @@ static void nf_remove_net_hook(struct nf_hook_entries *old,
 
 	if (found) {
 #ifdef CONFIG_NETFILTER_INGRESS
-		if (unreg->pf == NFPROTO_NETDEV && unreg->hooknum == NF_NETDEV_INGRESS)
+		if (pf == NFPROTO_NETDEV && unreg->hooknum == NF_NETDEV_INGRESS)
 			net_dec_ingress_queue();
 #endif
 #ifdef HAVE_JUMP_LABEL
-		static_key_slow_dec(&nf_hooks_needed[unreg->pf][unreg->hooknum]);
+		static_key_slow_dec(&nf_hooks_needed[pf][unreg->hooknum]);
 #endif
 	} else {
-		WARN_ONCE(1, "hook not found, pf %d num %d", unreg->pf, unreg->hooknum);
+		WARN_ONCE(1, "hook not found, pf %d num %d", pf, unreg->hooknum);
 	}
 }
 
@@ -417,7 +417,7 @@ void nf_unregister_net_hook(struct net *net, const struct nf_hook_ops *reg)
 		return;
 	}
 
-	nf_remove_net_hook(p, reg);
+	nf_remove_net_hook(p, reg, reg->pf);
 
 	p = __nf_hook_entries_try_shrink(pp);
 	mutex_unlock(&nf_hook_mutex);
