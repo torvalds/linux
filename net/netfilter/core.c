@@ -316,12 +316,13 @@ nf_hook_entry_head(struct net *net, int pf, unsigned int hooknum,
 	return NULL;
 }
 
-int nf_register_net_hook(struct net *net, const struct nf_hook_ops *reg)
+static int __nf_register_net_hook(struct net *net, int pf,
+				  const struct nf_hook_ops *reg)
 {
 	struct nf_hook_entries *p, *new_hooks;
 	struct nf_hook_entries __rcu **pp;
 
-	if (reg->pf == NFPROTO_NETDEV) {
+	if (pf == NFPROTO_NETDEV) {
 #ifndef CONFIG_NETFILTER_INGRESS
 		if (reg->hooknum == NF_NETDEV_INGRESS)
 			return -EOPNOTSUPP;
@@ -331,7 +332,7 @@ int nf_register_net_hook(struct net *net, const struct nf_hook_ops *reg)
 			return -EINVAL;
 	}
 
-	pp = nf_hook_entry_head(net, reg->pf, reg->hooknum, reg->dev);
+	pp = nf_hook_entry_head(net, pf, reg->hooknum, reg->dev);
 	if (!pp)
 		return -EINVAL;
 
@@ -349,17 +350,16 @@ int nf_register_net_hook(struct net *net, const struct nf_hook_ops *reg)
 
 	hooks_validate(new_hooks);
 #ifdef CONFIG_NETFILTER_INGRESS
-	if (reg->pf == NFPROTO_NETDEV && reg->hooknum == NF_NETDEV_INGRESS)
+	if (pf == NFPROTO_NETDEV && reg->hooknum == NF_NETDEV_INGRESS)
 		net_inc_ingress_queue();
 #endif
 #ifdef HAVE_JUMP_LABEL
-	static_key_slow_inc(&nf_hooks_needed[reg->pf][reg->hooknum]);
+	static_key_slow_inc(&nf_hooks_needed[pf][reg->hooknum]);
 #endif
 	BUG_ON(p == new_hooks);
 	nf_hook_entries_free(p);
 	return 0;
 }
-EXPORT_SYMBOL(nf_register_net_hook);
 
 /*
  * nf_remove_net_hook - remove a hook from blob
@@ -400,12 +400,13 @@ static void nf_remove_net_hook(struct nf_hook_entries *old,
 	}
 }
 
-void nf_unregister_net_hook(struct net *net, const struct nf_hook_ops *reg)
+void __nf_unregister_net_hook(struct net *net, int pf,
+			      const struct nf_hook_ops *reg)
 {
 	struct nf_hook_entries __rcu **pp;
 	struct nf_hook_entries *p;
 
-	pp = nf_hook_entry_head(net, reg->pf, reg->hooknum, reg->dev);
+	pp = nf_hook_entry_head(net, pf, reg->hooknum, reg->dev);
 	if (!pp)
 		return;
 
@@ -417,7 +418,7 @@ void nf_unregister_net_hook(struct net *net, const struct nf_hook_ops *reg)
 		return;
 	}
 
-	nf_remove_net_hook(p, reg, reg->pf);
+	nf_remove_net_hook(p, reg, pf);
 
 	p = __nf_hook_entries_try_shrink(pp);
 	mutex_unlock(&nf_hook_mutex);
@@ -427,7 +428,41 @@ void nf_unregister_net_hook(struct net *net, const struct nf_hook_ops *reg)
 	nf_queue_nf_hook_drop(net);
 	nf_hook_entries_free(p);
 }
+
+void nf_unregister_net_hook(struct net *net, const struct nf_hook_ops *reg)
+{
+	if (reg->pf == NFPROTO_INET) {
+		__nf_unregister_net_hook(net, NFPROTO_IPV4, reg);
+		__nf_unregister_net_hook(net, NFPROTO_IPV6, reg);
+	} else {
+		__nf_unregister_net_hook(net, reg->pf, reg);
+	}
+}
 EXPORT_SYMBOL(nf_unregister_net_hook);
+
+int nf_register_net_hook(struct net *net, const struct nf_hook_ops *reg)
+{
+	int err;
+
+	if (reg->pf == NFPROTO_INET) {
+		err = __nf_register_net_hook(net, NFPROTO_IPV4, reg);
+		if (err < 0)
+			return err;
+
+		err = __nf_register_net_hook(net, NFPROTO_IPV6, reg);
+		if (err < 0) {
+			__nf_unregister_net_hook(net, NFPROTO_IPV4, reg);
+			return err;
+		}
+	} else {
+		err = __nf_register_net_hook(net, reg->pf, reg);
+		if (err < 0)
+			return err;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(nf_register_net_hook);
 
 int nf_register_net_hooks(struct net *net, const struct nf_hook_ops *reg,
 			  unsigned int n)
