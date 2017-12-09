@@ -34,7 +34,8 @@
 #include "kfd_topology.h"
 #include "kfd_device_queue_manager.h"
 
-struct list_head topology_device_list;
+/* topology_device_list - Master list of all topology devices */
+static struct list_head topology_device_list;
 struct kfd_system_properties sys_props;
 
 static DECLARE_RWSEM(topology_lock);
@@ -105,24 +106,27 @@ static void kfd_release_topology_device(struct kfd_topology_device *dev)
 	}
 
 	kfree(dev);
-
-	sys_props.num_devices--;
 }
 
-void kfd_release_live_view(void)
+void kfd_release_topology_device_list(struct list_head *device_list)
 {
 	struct kfd_topology_device *dev;
 
-	while (topology_device_list.next != &topology_device_list) {
-		dev = container_of(topology_device_list.next,
-				 struct kfd_topology_device, list);
+	while (!list_empty(device_list)) {
+		dev = list_first_entry(device_list,
+				       struct kfd_topology_device, list);
 		kfd_release_topology_device(dev);
+	}
 }
 
+static void kfd_release_live_view(void)
+{
+	kfd_release_topology_device_list(&topology_device_list);
 	memset(&sys_props, 0, sizeof(sys_props));
 }
 
-struct kfd_topology_device *kfd_create_topology_device(void)
+struct kfd_topology_device *kfd_create_topology_device(
+				struct list_head *device_list)
 {
 	struct kfd_topology_device *dev;
 
@@ -136,8 +140,7 @@ struct kfd_topology_device *kfd_create_topology_device(void)
 	INIT_LIST_HEAD(&dev->cache_props);
 	INIT_LIST_HEAD(&dev->io_link_props);
 
-	list_add_tail(&dev->list, &topology_device_list);
-	sys_props.num_devices++;
+	list_add_tail(&dev->list, device_list);
 
 	return dev;
 }
@@ -682,16 +685,32 @@ static void kfd_topology_release_sysfs(void)
 	}
 }
 
+/* Called with write topology_lock acquired */
+static void kfd_topology_update_device_list(struct list_head *temp_list,
+					struct list_head *master_list)
+{
+	while (!list_empty(temp_list)) {
+		list_move_tail(temp_list->next, master_list);
+		sys_props.num_devices++;
+	}
+}
+
 int kfd_topology_init(void)
 {
 	void *crat_image = NULL;
 	size_t image_size = 0;
 	int ret;
+	struct list_head temp_topology_device_list;
 
-	/*
-	 * Initialize the head for the topology device list
+	/* topology_device_list - Master list of all topology devices
+	 * temp_topology_device_list - temporary list created while parsing CRAT
+	 * or VCRAT. Once parsing is complete the contents of list is moved to
+	 * topology_device_list
 	 */
+
+	/* Initialize the head for the both the lists */
 	INIT_LIST_HEAD(&topology_device_list);
+	INIT_LIST_HEAD(&temp_topology_device_list);
 	init_rwsem(&topology_lock);
 
 	memset(&sys_props, 0, sizeof(sys_props));
@@ -701,7 +720,8 @@ int kfd_topology_init(void)
 	 */
 	ret = kfd_create_crat_image_acpi(&crat_image, &image_size);
 	if (!ret) {
-		ret = kfd_parse_crat_table(crat_image);
+		ret = kfd_parse_crat_table(crat_image,
+					   &temp_topology_device_list, 0);
 		if (ret)
 			goto err;
 	} else if (ret == -ENODATA) {
@@ -714,12 +734,15 @@ int kfd_topology_init(void)
 	}
 
 	down_write(&topology_lock);
+	kfd_topology_update_device_list(&temp_topology_device_list,
+					&topology_device_list);
 	ret = kfd_topology_update_sysfs();
 	up_write(&topology_lock);
 
-	if (!ret)
+	if (!ret) {
+		sys_props.generation_count++;
 		pr_info("Finished initializing topology\n");
-	else
+	} else
 		pr_err("Failed to update topology in sysfs ret=%d\n", ret);
 
 err:
@@ -729,8 +752,10 @@ err:
 
 void kfd_topology_shutdown(void)
 {
+	down_write(&topology_lock);
 	kfd_topology_release_sysfs();
 	kfd_release_live_view();
+	up_write(&topology_lock);
 }
 
 static void kfd_debug_print_topology(void)
@@ -806,13 +831,15 @@ int kfd_topology_add_device(struct kfd_dev *gpu)
 	uint32_t gpu_id;
 	struct kfd_topology_device *dev;
 	struct kfd_cu_info cu_info;
-	int res;
+	int res = 0;
+	struct list_head temp_topology_device_list;
+
+	INIT_LIST_HEAD(&temp_topology_device_list);
 
 	gpu_id = kfd_generate_gpu_id(gpu);
 
 	pr_debug("Adding new GPU (ID: 0x%x) to topology\n", gpu_id);
 
-	down_write(&topology_lock);
 	/*
 	 * Try to assign the GPU to existing topology device (generated from
 	 * CRAT table
@@ -821,11 +848,12 @@ int kfd_topology_add_device(struct kfd_dev *gpu)
 	if (!dev) {
 		pr_info("GPU was not found in the current topology. Extending.\n");
 		kfd_debug_print_topology();
-		dev = kfd_create_topology_device();
+		dev = kfd_create_topology_device(&temp_topology_device_list);
 		if (!dev) {
 			res = -ENOMEM;
 			goto err;
 		}
+
 		dev->gpu = gpu;
 
 		/*
@@ -833,11 +861,17 @@ int kfd_topology_add_device(struct kfd_dev *gpu)
 		 * GPU vBIOS
 		 */
 
+		down_write(&topology_lock);
+		kfd_topology_update_device_list(&temp_topology_device_list,
+			&topology_device_list);
+
 		/* Update the SYSFS tree, since we added another topology
 		 * device
 		 */
 		if (kfd_topology_update_sysfs() < 0)
 			kfd_topology_release_sysfs();
+
+		up_write(&topology_lock);
 
 	}
 
@@ -859,30 +893,26 @@ int kfd_topology_add_device(struct kfd_dev *gpu)
 		pr_info("Adding doorbell packet type capability\n");
 	}
 
-	res = 0;
-
-err:
-	up_write(&topology_lock);
-
-	if (res == 0)
+	if (!res)
 		kfd_notify_gpu_change(gpu_id, 1);
-
+err:
 	return res;
 }
 
 int kfd_topology_remove_device(struct kfd_dev *gpu)
 {
-	struct kfd_topology_device *dev;
+	struct kfd_topology_device *dev, *tmp;
 	uint32_t gpu_id;
 	int res = -ENODEV;
 
 	down_write(&topology_lock);
 
-	list_for_each_entry(dev, &topology_device_list, list)
+	list_for_each_entry_safe(dev, tmp, &topology_device_list, list)
 		if (dev->gpu == gpu) {
 			gpu_id = dev->gpu_id;
 			kfd_remove_sysfs_node_entry(dev);
 			kfd_release_topology_device(dev);
+			sys_props.num_devices--;
 			res = 0;
 			if (kfd_topology_update_sysfs() < 0)
 				kfd_topology_release_sysfs();
