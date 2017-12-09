@@ -945,6 +945,8 @@ struct lpfc_hba {
 	struct list_head lpfc_nvme_buf_list_get;
 	struct list_head lpfc_nvme_buf_list_put;
 	uint32_t total_nvme_bufs;
+	uint32_t get_nvme_bufs;
+	uint32_t put_nvme_bufs;
 	struct list_head lpfc_iocb_list;
 	uint32_t total_iocbq_bufs;
 	struct list_head active_rrq_list;

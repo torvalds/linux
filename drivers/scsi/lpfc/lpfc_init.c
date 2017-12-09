@@ -1034,6 +1034,7 @@ lpfc_hba_down_post_s4(struct lpfc_hba *phba)
 	LIST_HEAD(nvmet_aborts);
 	unsigned long iflag = 0;
 	struct lpfc_sglq *sglq_entry = NULL;
+	int cnt;
 
 
 	lpfc_sli_hbqbuf_free_all(phba);
@@ -1090,11 +1091,14 @@ lpfc_hba_down_post_s4(struct lpfc_hba *phba)
 	spin_unlock_irqrestore(&phba->scsi_buf_list_put_lock, iflag);
 
 	if (phba->cfg_enable_fc4_type & LPFC_ENABLE_NVME) {
+		cnt = 0;
 		list_for_each_entry_safe(psb, psb_next, &nvme_aborts, list) {
 			psb->pCmd = NULL;
 			psb->status = IOSTAT_SUCCESS;
+			cnt++;
 		}
 		spin_lock_irqsave(&phba->nvme_buf_list_put_lock, iflag);
+		phba->put_nvme_bufs += cnt;
 		list_splice(&nvme_aborts, &phba->lpfc_nvme_buf_list_put);
 		spin_unlock_irqrestore(&phba->nvme_buf_list_put_lock, iflag);
 
@@ -3339,6 +3343,7 @@ lpfc_nvme_free(struct lpfc_hba *phba)
 	list_for_each_entry_safe(lpfc_ncmd, lpfc_ncmd_next,
 				 &phba->lpfc_nvme_buf_list_put, list) {
 		list_del(&lpfc_ncmd->list);
+		phba->put_nvme_bufs--;
 		dma_pool_free(phba->lpfc_sg_dma_buf_pool, lpfc_ncmd->data,
 			      lpfc_ncmd->dma_handle);
 		kfree(lpfc_ncmd);
@@ -3350,6 +3355,7 @@ lpfc_nvme_free(struct lpfc_hba *phba)
 	list_for_each_entry_safe(lpfc_ncmd, lpfc_ncmd_next,
 				 &phba->lpfc_nvme_buf_list_get, list) {
 		list_del(&lpfc_ncmd->list);
+		phba->get_nvme_bufs--;
 		dma_pool_free(phba->lpfc_sg_dma_buf_pool, lpfc_ncmd->data,
 			      lpfc_ncmd->dma_handle);
 		kfree(lpfc_ncmd);
@@ -3754,9 +3760,11 @@ lpfc_sli4_nvme_sgl_update(struct lpfc_hba *phba)
 	uint16_t i, lxri, els_xri_cnt;
 	uint16_t nvme_xri_cnt, nvme_xri_max;
 	LIST_HEAD(nvme_sgl_list);
-	int rc;
+	int rc, cnt;
 
 	phba->total_nvme_bufs = 0;
+	phba->get_nvme_bufs = 0;
+	phba->put_nvme_bufs = 0;
 
 	if (!(phba->cfg_enable_fc4_type & LPFC_ENABLE_NVME))
 		return 0;
@@ -3780,6 +3788,9 @@ lpfc_sli4_nvme_sgl_update(struct lpfc_hba *phba)
 	spin_lock(&phba->nvme_buf_list_put_lock);
 	list_splice_init(&phba->lpfc_nvme_buf_list_get, &nvme_sgl_list);
 	list_splice(&phba->lpfc_nvme_buf_list_put, &nvme_sgl_list);
+	cnt = phba->get_nvme_bufs + phba->put_nvme_bufs;
+	phba->get_nvme_bufs = 0;
+	phba->put_nvme_bufs = 0;
 	spin_unlock(&phba->nvme_buf_list_put_lock);
 	spin_unlock_irq(&phba->nvme_buf_list_get_lock);
 
@@ -3824,6 +3835,7 @@ lpfc_sli4_nvme_sgl_update(struct lpfc_hba *phba)
 	spin_lock_irq(&phba->nvme_buf_list_get_lock);
 	spin_lock(&phba->nvme_buf_list_put_lock);
 	list_splice_init(&nvme_sgl_list, &phba->lpfc_nvme_buf_list_get);
+	phba->get_nvme_bufs = cnt;
 	INIT_LIST_HEAD(&phba->lpfc_nvme_buf_list_put);
 	spin_unlock(&phba->nvme_buf_list_put_lock);
 	spin_unlock_irq(&phba->nvme_buf_list_get_lock);
@@ -5609,8 +5621,10 @@ lpfc_setup_driver_resource_phase1(struct lpfc_hba *phba)
 		/* Initialize the NVME buffer list used by driver for NVME IO */
 		spin_lock_init(&phba->nvme_buf_list_get_lock);
 		INIT_LIST_HEAD(&phba->lpfc_nvme_buf_list_get);
+		phba->get_nvme_bufs = 0;
 		spin_lock_init(&phba->nvme_buf_list_put_lock);
 		INIT_LIST_HEAD(&phba->lpfc_nvme_buf_list_put);
+		phba->put_nvme_bufs = 0;
 	}
 
 	/* Initialize the fabric iocb list */

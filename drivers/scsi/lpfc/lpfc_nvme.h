@@ -28,6 +28,7 @@
 #define LPFC_NVME_ERSP_LEN		0x20
 
 #define LPFC_NVME_WAIT_TMO              10
+#define LPFC_NVME_EXPEDITE_XRICNT	8
 
 struct lpfc_nvme_qhandle {
 	uint32_t index;		/* WQ index to use */

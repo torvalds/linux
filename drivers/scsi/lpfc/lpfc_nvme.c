@@ -57,7 +57,8 @@
 /* NVME initiator-based functions */
 
 static struct lpfc_nvme_buf *
-lpfc_get_nvme_buf(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp);
+lpfc_get_nvme_buf(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp,
+		  int expedite);
 
 static void
 lpfc_release_nvme_buf(struct lpfc_hba *, struct lpfc_nvme_buf *);
@@ -1265,6 +1266,7 @@ lpfc_nvme_fcp_io_submit(struct nvme_fc_local_port *pnvme_lport,
 			struct nvmefc_fcp_req *pnvme_fcreq)
 {
 	int ret = 0;
+	int expedite = 0;
 	struct lpfc_nvme_lport *lport;
 	struct lpfc_vport *vport;
 	struct lpfc_hba *phba;
@@ -1273,6 +1275,7 @@ lpfc_nvme_fcp_io_submit(struct nvme_fc_local_port *pnvme_lport,
 	struct lpfc_nvme_rport *rport;
 	struct lpfc_nvme_qhandle *lpfc_queue_info;
 	struct lpfc_nvme_fcpreq_priv *freqpriv;
+	struct nvme_common_command *sqe;
 #ifdef CONFIG_SCSI_LPFC_DEBUG_FS
 	uint64_t start = 0;
 #endif
@@ -1354,15 +1357,27 @@ lpfc_nvme_fcp_io_submit(struct nvme_fc_local_port *pnvme_lport,
 
 	}
 
+	/* Currently only NVME Keep alive commands should be expedited
+	 * if the driver runs out of a resource. These should only be
+	 * issued on the admin queue, qidx 0
+	 */
+	if (!lpfc_queue_info->qidx && !pnvme_fcreq->sg_cnt) {
+		sqe = &((struct nvme_fc_cmd_iu *)
+			pnvme_fcreq->cmdaddr)->sqe.common;
+		if (sqe->opcode == nvme_admin_keep_alive)
+			expedite = 1;
+	}
+
 	/* The node is shared with FCP IO, make sure the IO pending count does
 	 * not exceed the programmed depth.
 	 */
-	if (atomic_read(&ndlp->cmd_pending) >= ndlp->cmd_qdepth) {
+	if ((atomic_read(&ndlp->cmd_pending) >= ndlp->cmd_qdepth) &&
+	    !expedite) {
 		ret = -EBUSY;
 		goto out_fail;
 	}
 
-	lpfc_ncmd = lpfc_get_nvme_buf(phba, ndlp);
+	lpfc_ncmd = lpfc_get_nvme_buf(phba, ndlp, expedite);
 	if (lpfc_ncmd == NULL) {
 		lpfc_printf_vlog(vport, KERN_INFO, LOG_NVME_IOERR,
 				 "6065 driver's buffer pool is empty, "
@@ -1991,6 +2006,8 @@ lpfc_repost_nvme_sgl_list(struct lpfc_hba *phba)
 	spin_lock(&phba->nvme_buf_list_put_lock);
 	list_splice_init(&phba->lpfc_nvme_buf_list_get, &post_nblist);
 	list_splice(&phba->lpfc_nvme_buf_list_put, &post_nblist);
+	phba->get_nvme_bufs = 0;
+	phba->put_nvme_bufs = 0;
 	spin_unlock(&phba->nvme_buf_list_put_lock);
 	spin_unlock_irq(&phba->nvme_buf_list_get_lock);
 
@@ -2127,6 +2144,20 @@ lpfc_new_nvme_buf(struct lpfc_vport *vport, int num_to_alloc)
 	return num_posted;
 }
 
+static inline struct lpfc_nvme_buf *
+lpfc_nvme_buf(struct lpfc_hba *phba)
+{
+	struct lpfc_nvme_buf *lpfc_ncmd, *lpfc_ncmd_next;
+
+	list_for_each_entry_safe(lpfc_ncmd, lpfc_ncmd_next,
+				 &phba->lpfc_nvme_buf_list_get, list) {
+		list_del_init(&lpfc_ncmd->list);
+		phba->get_nvme_bufs--;
+		return lpfc_ncmd;
+	}
+	return NULL;
+}
+
 /**
  * lpfc_get_nvme_buf - Get a nvme buffer from lpfc_nvme_buf_list of the HBA
  * @phba: The HBA for which this call is being executed.
@@ -2139,35 +2170,27 @@ lpfc_new_nvme_buf(struct lpfc_vport *vport, int num_to_alloc)
  *   Pointer to lpfc_nvme_buf - Success
  **/
 static struct lpfc_nvme_buf *
-lpfc_get_nvme_buf(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp)
+lpfc_get_nvme_buf(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp,
+		  int expedite)
 {
-	struct lpfc_nvme_buf *lpfc_ncmd, *lpfc_ncmd_next;
+	struct lpfc_nvme_buf *lpfc_ncmd = NULL;
 	unsigned long iflag = 0;
-	int found = 0;
 
 	spin_lock_irqsave(&phba->nvme_buf_list_get_lock, iflag);
-	list_for_each_entry_safe(lpfc_ncmd, lpfc_ncmd_next,
-				 &phba->lpfc_nvme_buf_list_get, list) {
-		list_del_init(&lpfc_ncmd->list);
-		found = 1;
-		break;
-	}
-	if (!found) {
+	if (phba->get_nvme_bufs > LPFC_NVME_EXPEDITE_XRICNT || expedite)
+		lpfc_ncmd = lpfc_nvme_buf(phba);
+	if (!lpfc_ncmd) {
 		spin_lock(&phba->nvme_buf_list_put_lock);
 		list_splice(&phba->lpfc_nvme_buf_list_put,
 			    &phba->lpfc_nvme_buf_list_get);
+		phba->get_nvme_bufs += phba->put_nvme_bufs;
 		INIT_LIST_HEAD(&phba->lpfc_nvme_buf_list_put);
+		phba->put_nvme_bufs = 0;
 		spin_unlock(&phba->nvme_buf_list_put_lock);
-		list_for_each_entry_safe(lpfc_ncmd, lpfc_ncmd_next,
-					 &phba->lpfc_nvme_buf_list_get, list) {
-			list_del_init(&lpfc_ncmd->list);
-			found = 1;
-			break;
-		}
+		if (phba->get_nvme_bufs > LPFC_NVME_EXPEDITE_XRICNT || expedite)
+			lpfc_ncmd = lpfc_nvme_buf(phba);
 	}
 	spin_unlock_irqrestore(&phba->nvme_buf_list_get_lock, iflag);
-	if (!found)
-		return NULL;
 	return  lpfc_ncmd;
 }
 
@@ -2205,6 +2228,7 @@ lpfc_release_nvme_buf(struct lpfc_hba *phba, struct lpfc_nvme_buf *lpfc_ncmd)
 		lpfc_ncmd->cur_iocbq.iocb_flag = LPFC_IO_NVME;
 		spin_lock_irqsave(&phba->nvme_buf_list_put_lock, iflag);
 		list_add_tail(&lpfc_ncmd->list, &phba->lpfc_nvme_buf_list_put);
+		phba->put_nvme_bufs++;
 		spin_unlock_irqrestore(&phba->nvme_buf_list_put_lock, iflag);
 	}
 }
