@@ -127,19 +127,14 @@ static irqreturn_t DIO0_irq_handler(int irq, void *dev_id)
 {
 	struct pi433_device *device = dev_id;
 
-	if      (device->irq_state[DIO0] == DIO_PACKET_SENT)
-	{
+	if (device->irq_state[DIO0] == DIO_PACKET_SENT) {
 		device->free_in_fifo = FIFO_SIZE;
 		dev_dbg(device->dev, "DIO0 irq: Packet sent\n");
 		wake_up_interruptible(&device->fifo_wait_queue);
-	}
-	else if (device->irq_state[DIO0] == DIO_RSSI_DIO0)
-	{
+	} else if (device->irq_state[DIO0] == DIO_RSSI_DIO0) {
 		dev_dbg(device->dev, "DIO0 irq: RSSI level over threshold\n");
 		wake_up_interruptible(&device->rx_wait_queue);
-	}
-	else if (device->irq_state[DIO0] == DIO_PAYLOAD_READY)
-	{
+	} else if (device->irq_state[DIO0] == DIO_PAYLOAD_READY) {
 		dev_dbg(device->dev, "DIO0 irq: Payload ready\n");
 		device->free_in_fifo = 0;
 		wake_up_interruptible(&device->fifo_wait_queue);
@@ -152,12 +147,9 @@ static irqreturn_t DIO1_irq_handler(int irq, void *dev_id)
 {
 	struct pi433_device *device = dev_id;
 
-	if      (device->irq_state[DIO1] == DIO_FIFO_NOT_EMPTY_DIO1)
-	{
+	if (device->irq_state[DIO1] == DIO_FIFO_NOT_EMPTY_DIO1) {
 		device->free_in_fifo = FIFO_SIZE;
-	}
-	else if (device->irq_state[DIO1] == DIO_FIFO_LEVEL)
-	{
+	} else if (device->irq_state[DIO1] == DIO_FIFO_LEVEL) {
 		if (device->rx_active)	device->free_in_fifo = FIFO_THRESHOLD - 1;
 		else			device->free_in_fifo = FIFO_SIZE - FIFO_THRESHOLD - 1;
 	}
@@ -209,8 +201,7 @@ rf69_set_rx_cfg(struct pi433_device *dev, struct pi433_rx_cfg *rx_cfg)
 
 	/* packet config */
 	/* enable */
-	if (rx_cfg->enable_sync == OPTION_ON)
-	{
+	if (rx_cfg->enable_sync == OPTION_ON) {
 		ret = rf69_enable_sync(dev->spi);
 		if (ret < 0)
 			return ret;
@@ -218,9 +209,7 @@ rf69_set_rx_cfg(struct pi433_device *dev, struct pi433_rx_cfg *rx_cfg)
 		ret = rf69_set_fifo_fill_condition(dev->spi, afterSyncInterrupt);
 		if (ret < 0)
 			return ret;
-	}
-	else
-	{
+	} else {
 		ret = rf69_disable_sync(dev->spi);
 		if (ret < 0)
 			return ret;
@@ -256,37 +245,30 @@ rf69_set_rx_cfg(struct pi433_device *dev, struct pi433_rx_cfg *rx_cfg)
 	ret = rf69_set_sync_size(dev->spi, rx_cfg->sync_length);
 	if (ret < 0)
 		return ret;
-	if (rx_cfg->enable_length_byte == OPTION_ON)
-	{
+	if (rx_cfg->enable_length_byte == OPTION_ON) {
 		ret = rf69_set_payload_length(dev->spi, 0xff);
 		if (ret < 0)
 			return ret;
-	}
-	else if (rx_cfg->fixed_message_length != 0)
-	{
+	} else if (rx_cfg->fixed_message_length != 0) {
 		payload_length = rx_cfg->fixed_message_length;
 		if (rx_cfg->enable_length_byte  == OPTION_ON) payload_length++;
 		if (rx_cfg->enable_address_filtering != filteringOff) payload_length++;
 		ret = rf69_set_payload_length(dev->spi, payload_length);
 		if (ret < 0)
 			return ret;
-	}
-	else
-	{
+	} else {
 		ret = rf69_set_payload_length(dev->spi, 0);
 		if (ret < 0)
 			return ret;
 	}
 
 	/* values */
-	if (rx_cfg->enable_sync == OPTION_ON)
-	{
+	if (rx_cfg->enable_sync == OPTION_ON) {
 		ret = rf69_set_sync_values(dev->spi, rx_cfg->sync_pattern);
 		if (ret < 0)
 			return ret;
 	}
-	if (rx_cfg->enable_address_filtering != filteringOff)
-	{
+	if (rx_cfg->enable_address_filtering != filteringOff) {
 		ret = rf69_set_node_address(dev->spi, rx_cfg->node_address);
 		if (ret < 0)
 			return ret;
@@ -326,14 +308,11 @@ rf69_set_tx_cfg(struct pi433_device *dev, struct pi433_tx_cfg *tx_cfg)
 		return ret;
 
 	/* packet format enable */
-	if (tx_cfg->enable_preamble == OPTION_ON)
-	{
+	if (tx_cfg->enable_preamble == OPTION_ON) {
 		ret = rf69_set_preamble_length(dev->spi, tx_cfg->preamble_length);
 		if (ret < 0)
 			return ret;
-	}
-	else
-	{
+	} else {
 		ret = rf69_set_preamble_length(dev->spi, 0);
 		if (ret < 0)
 			return ret;
@@ -438,8 +417,8 @@ pi433_receive(void *data)
 	/* wait for any tx to finish */
 	dev_dbg(dev->dev, "rx: going to wait for any tx to finish");
 	retval = wait_event_interruptible(dev->rx_wait_queue, !dev->tx_active);
-	if (retval) /* wait was interrupted */
-	{
+	if (retval) {
+		/* wait was interrupted */
 		dev->interrupt_rx_allowed = true;
 		wake_up_interruptible(&dev->tx_wait_queue);
 		return retval;
@@ -456,8 +435,7 @@ pi433_receive(void *data)
 		return retval;
 
 	/* now check RSSI, if low wait for getting high (RSSI interrupt) */
-	while (!rf69_get_flag(dev->spi, rssiExceededThreshold))
-	{
+	while (!rf69_get_flag(dev->spi, rssiExceededThreshold)) {
 		/* allow tx to interrupt us while waiting for high RSSI */
 		dev->interrupt_rx_allowed = true;
 		wake_up_interruptible(&dev->tx_wait_queue);
@@ -482,25 +460,20 @@ pi433_receive(void *data)
 	irq_set_irq_type(dev->irq_num[DIO0], IRQ_TYPE_EDGE_RISING);
 
 	/* fixed or unlimited length? */
-	if (dev->rx_cfg.fixed_message_length != 0)
-	{
-		if (dev->rx_cfg.fixed_message_length > dev->rx_buffer_size)
-		{
+	if (dev->rx_cfg.fixed_message_length != 0) {
+		if (dev->rx_cfg.fixed_message_length > dev->rx_buffer_size) {
 			retval = -1;
 			goto abort;
 		}
 		bytes_total = dev->rx_cfg.fixed_message_length;
 		dev_dbg(dev->dev, "rx: msg len set to %d by fixed length", bytes_total);
-	}
-	else
-	{
+	} else {
 		bytes_total = dev->rx_buffer_size;
 		dev_dbg(dev->dev, "rx: msg len set to %d as requested by read", bytes_total);
 	}
 
 	/* length byte enabled? */
-	if (dev->rx_cfg.enable_length_byte == OPTION_ON)
-	{
+	if (dev->rx_cfg.enable_length_byte == OPTION_ON) {
 		retval = wait_event_interruptible(dev->fifo_wait_queue,
 						  dev->free_in_fifo < FIFO_SIZE);
 		if (retval) goto abort; /* wait was interrupted */
@@ -515,8 +488,7 @@ pi433_receive(void *data)
 	}
 
 	/* address byte enabled? */
-	if (dev->rx_cfg.enable_address_filtering != filteringOff)
-	{
+	if (dev->rx_cfg.enable_address_filtering != filteringOff) {
 		u8 dummy;
 
 		bytes_total--;
@@ -531,10 +503,8 @@ pi433_receive(void *data)
 	}
 
 	/* get payload */
-	while (dev->rx_position < bytes_total)
-	{
-		if (!rf69_get_flag(dev->spi, payloadReady))
-		{
+	while (dev->rx_position < bytes_total) {
+		if (!rf69_get_flag(dev->spi, payloadReady)) {
 			retval = wait_event_interruptible(dev->fifo_wait_queue,
 							  dev->free_in_fifo < FIFO_SIZE);
 			if (retval) goto abort; /* wait was interrupted */
@@ -589,8 +559,7 @@ pi433_tx_thread(void *data)
 	int    position, repetitions;
 	int    retval;
 
-	while (1)
-	{
+	while (1) {
 		/* wait for fifo to be populated or for request to terminate*/
 		dev_dbg(device->dev, "thread: going to wait for new messages");
 		wait_event_interruptible(device->tx_wait_queue,
@@ -665,8 +634,7 @@ pi433_tx_thread(void *data)
 		disable_irq(device->irq_num[DIO0]);
 		device->tx_active = true;
 
-		if (device->rx_active && rx_interrupted == false)
-		{
+		if (device->rx_active && rx_interrupted == false) {
 			/* rx is currently waiting for a telegram;
 			 * we need to set the radio module to standby
 			 */
@@ -683,14 +651,11 @@ pi433_tx_thread(void *data)
 		retval = rf69_set_fifo_threshold(spi, FIFO_THRESHOLD);
 		if (retval < 0)
 			return retval;
-		if (tx_cfg.enable_length_byte == OPTION_ON)
-		{
+		if (tx_cfg.enable_length_byte == OPTION_ON) {
 			retval = rf69_set_payload_length(spi, size * tx_cfg.repetitions);
 			if (retval < 0)
 				return retval;
-		}
-		else
-		{
+		} else {
 			retval = rf69_set_payload_length(spi, 0);
 			if (retval < 0)
 				return retval;
@@ -725,19 +690,17 @@ pi433_tx_thread(void *data)
 		device->free_in_fifo = FIFO_SIZE;
 		position = 0;
 		repetitions = tx_cfg.repetitions;
-		while ((repetitions > 0) && (size > position))
-		{
-			if ((size - position) > device->free_in_fifo)
-			{	/* msg to big for fifo - take a part */
+		while ((repetitions > 0) && (size > position)) {
+			if ((size - position) > device->free_in_fifo) {
+				/* msg to big for fifo - take a part */
 				int temp = device->free_in_fifo;
 				device->free_in_fifo = 0;
 				rf69_write_fifo(spi,
 				                &buffer[position],
 				                temp);
 				position += temp;
-			}
-			else
-			{	/* msg fits into fifo - take all */
+			} else {
+				/* msg fits into fifo - take all */
 				device->free_in_fifo -= size;
 				repetitions--;
 				rf69_write_fifo(spi,
@@ -768,8 +731,7 @@ pi433_tx_thread(void *data)
 		/* everything sent? */
 		if (kfifo_is_empty(&device->tx_fifo)) {
 abort:
-			if (rx_interrupted)
-			{
+			if (rx_interrupted) {
 				rx_interrupted = false;
 				pi433_start_rx(device);
 			}
@@ -798,13 +760,10 @@ pi433_read(struct file *filp, char __user *buf, size_t size, loff_t *f_pos)
 
 	/* just one read request at a time */
 	mutex_lock(&device->rx_lock);
-	if (device->rx_active)
-	{
+	if (device->rx_active) {
 		mutex_unlock(&device->rx_lock);
 		return -EAGAIN;
-	}
-	else
-	{
+	} else {
 		device->rx_active = true;
 		mutex_unlock(&device->rx_lock);
 	}
@@ -1043,8 +1002,7 @@ static int setup_GPIOs(struct pi433_device *device)
 		if (device->gpiod[i] == ERR_PTR(-EBUSY))
 			dev_dbg(&device->spi->dev, "%s is busy.", name);
 
-		if (IS_ERR(device->gpiod[i]))
-		{
+		if (IS_ERR(device->gpiod[i])) {
 			retval = PTR_ERR(device->gpiod[i]);
 			/* release already allocated gpios */
 			for (i--; i >= 0; i--) {
@@ -1086,8 +1044,7 @@ static void free_GPIOs(struct pi433_device *device)
 {
 	int i;
 
-	for (i = 0; i < NUM_DIO; i++)
-	{
+	for (i = 0; i < NUM_DIO; i++) {
 		/* check if gpiod is valid */
 		if (IS_ERR(device->gpiod[i]))
 			continue;
@@ -1151,13 +1108,10 @@ static int pi433_probe(struct spi_device *spi)
 	/* spi->max_speed_hz = 10000000;  1MHz already set by device tree overlay */
 
 	retval = spi_setup(spi);
-	if (retval)
-	{
+	if (retval) {
 		dev_dbg(&spi->dev, "configuration of SPI interface failed!\n");
 		return retval;
-	}
-	else
-	{
+	} else {
 		dev_dbg(&spi->dev,
 			"spi interface setup: mode 0x%2x, %d bits per word, %dhz max speed",
 			spi->mode, spi->bits_per_word, spi->max_speed_hz);
@@ -1249,8 +1203,7 @@ static int pi433_probe(struct spi_device *spi)
 		pr_err("pi433: device register failed\n");
 		retval = PTR_ERR(device->dev);
 		goto device_create_failed;
-	}
-	else {
+	} else {
 		dev_dbg(device->dev,
 			"created device for major %d, minor %d\n",
 			MAJOR(pi433_dev),
