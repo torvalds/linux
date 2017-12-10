@@ -34,7 +34,6 @@ static struct nft_af_info nft_af_arp __read_mostly = {
 	.hooks		= {
 		[NF_ARP_IN]		= nft_do_chain_arp,
 		[NF_ARP_OUT]		= nft_do_chain_arp,
-		[NF_ARP_FORWARD]	= nft_do_chain_arp,
 	},
 };
 
