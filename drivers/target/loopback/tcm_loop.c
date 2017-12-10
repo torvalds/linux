@@ -184,7 +184,6 @@ static int tcm_loop_queuecommand(struct Scsi_Host *sh, struct scsi_cmnd *sc)
 
 	tl_cmd = kmem_cache_zalloc(tcm_loop_cmd_cache, GFP_ATOMIC);
 	if (!tl_cmd) {
-		pr_err("Unable to allocate struct tcm_loop_cmd\n");
 		set_host_byte(sc, DID_ERROR);
 		sc->scsi_done(sc);
 		return 0;
@@ -221,10 +220,8 @@ static int tcm_loop_issue_tmr(struct tcm_loop_tpg *tl_tpg,
 	}
 
 	tl_cmd = kmem_cache_zalloc(tcm_loop_cmd_cache, GFP_KERNEL);
-	if (!tl_cmd) {
-		pr_err("Unable to allocate memory for tl_cmd\n");
+	if (!tl_cmd)
 		return ret;
-	}
 
 	init_completion(&tl_cmd->tmr_done);
 
@@ -773,10 +770,8 @@ static int tcm_loop_make_nexus(
 	}
 
 	tl_nexus = kzalloc(sizeof(struct tcm_loop_nexus), GFP_KERNEL);
-	if (!tl_nexus) {
-		pr_err("Unable to allocate struct tcm_loop_nexus\n");
+	if (!tl_nexus)
 		return -ENOMEM;
-	}
 
 	tl_nexus->se_sess = target_alloc_session(&tl_tpg->tl_se_tpg, 0, 0,
 					TARGET_PROT_DIN_PASS | TARGET_PROT_DOUT_PASS,
@@ -1082,10 +1077,9 @@ static struct se_wwn *tcm_loop_make_scsi_hba(
 	int ret, off = 0;
 
 	tl_hba = kzalloc(sizeof(struct tcm_loop_hba), GFP_KERNEL);
-	if (!tl_hba) {
-		pr_err("Unable to allocate struct tcm_loop_hba\n");
+	if (!tl_hba)
 		return ERR_PTR(-ENOMEM);
-	}
+
 	/*
 	 * Determine the emulated Protocol Identifier and Target Port Name
 	 * based on the incoming configfs directory name.
