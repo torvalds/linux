@@ -619,6 +619,7 @@ static int device_resume_noirq(struct device *dev, pm_message_t state, bool asyn
 {
 	pm_callback_t callback;
 	const char *info;
+	bool skip_resume;
 	int error = 0;
 
 	TRACE_DEVICE(dev);
@@ -632,9 +633,14 @@ static int device_resume_noirq(struct device *dev, pm_message_t state, bool asyn
 
 	dpm_wait_for_superior(dev, async);
 
+	skip_resume = dev_pm_may_skip_resume(dev);
+
 	callback = dpm_subsys_resume_noirq_cb(dev, state, &info);
 	if (callback)
 		goto Run;
+
+	if (skip_resume)
+		goto Skip;
 
 	if (dev_pm_smart_suspend_and_suspended(dev)) {
 		pm_message_t suspend_msg = suspend_event(state);
@@ -650,7 +656,7 @@ static int device_resume_noirq(struct device *dev, pm_message_t state, bool asyn
 		if (!dpm_subsys_suspend_late_cb(dev, suspend_msg, NULL) &&
 		    !dpm_subsys_suspend_noirq_cb(dev, suspend_msg, NULL)) {
 			if (state.event == PM_EVENT_THAW) {
-				dev_pm_skip_next_resume_phases(dev);
+				skip_resume = true;
 				goto Skip;
 			} else {
 				pm_runtime_set_active(dev);
@@ -669,7 +675,7 @@ Run:
 Skip:
 	dev->power.is_noirq_suspended = false;
 
-	if (dev_pm_may_skip_resume(dev)) {
+	if (skip_resume) {
 		/*
 		 * The device is going to be left in suspend, but it might not
 		 * have been in runtime suspend before the system suspended, so
@@ -1244,6 +1250,32 @@ static pm_callback_t dpm_subsys_suspend_noirq_cb(struct device *dev,
 	return callback;
 }
 
+static bool device_must_resume(struct device *dev, pm_message_t state,
+			       bool no_subsys_suspend_noirq)
+{
+	pm_message_t resume_msg = resume_event(state);
+
+	/*
+	 * If all of the device driver's "noirq", "late" and "early" callbacks
+	 * are invoked directly by the core, the decision to allow the device to
+	 * stay in suspend can be based on its current runtime PM status and its
+	 * wakeup settings.
+	 */
+	if (no_subsys_suspend_noirq &&
+	    !dpm_subsys_suspend_late_cb(dev, state, NULL) &&
+	    !dpm_subsys_resume_early_cb(dev, resume_msg, NULL) &&
+	    !dpm_subsys_resume_noirq_cb(dev, resume_msg, NULL))
+		return !pm_runtime_status_suspended(dev) &&
+			(resume_msg.event != PM_EVENT_RESUME ||
+			 (device_can_wakeup(dev) && !device_may_wakeup(dev)));
+
+	/*
+	 * The only safe strategy here is to require that if the device may not
+	 * be left in suspend, resume callbacks must be invoked for it.
+	 */
+	return !dev->power.may_skip_resume;
+}
+
 /**
  * __device_suspend_noirq - Execute a "noirq suspend" callback for given device.
  * @dev: Device to handle.
@@ -1257,6 +1289,7 @@ static int __device_suspend_noirq(struct device *dev, pm_message_t state, bool a
 {
 	pm_callback_t callback;
 	const char *info;
+	bool no_subsys_cb = false;
 	int error = 0;
 
 	TRACE_DEVICE(dev);
@@ -1279,8 +1312,9 @@ static int __device_suspend_noirq(struct device *dev, pm_message_t state, bool a
 	if (callback)
 		goto Run;
 
-	if (dev_pm_smart_suspend_and_suspended(dev) &&
-	    !dpm_subsys_suspend_late_cb(dev, state, NULL))
+	no_subsys_cb = !dpm_subsys_suspend_late_cb(dev, state, NULL);
+
+	if (dev_pm_smart_suspend_and_suspended(dev) && no_subsys_cb)
 		goto Skip;
 
 	if (dev->driver && dev->driver->pm) {
@@ -1299,14 +1333,9 @@ Skip:
 	dev->power.is_noirq_suspended = true;
 
 	if (dev_pm_test_driver_flags(dev, DPM_FLAG_LEAVE_SUSPENDED)) {
-		/*
-		 * The only safe strategy here is to require that if the device
-		 * may not be left in suspend, resume callbacks must be invoked
-		 * for it.
-		 */
 		dev->power.must_resume = dev->power.must_resume ||
-					!dev->power.may_skip_resume ||
-					atomic_read(&dev->power.usage_count) > 1;
+				atomic_read(&dev->power.usage_count) > 1 ||
+				device_must_resume(dev, state, no_subsys_cb);
 	} else {
 		dev->power.must_resume = true;
 	}

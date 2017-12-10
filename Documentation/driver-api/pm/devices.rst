@@ -816,3 +816,12 @@ appropriate in its "noirq" resume callback, which is executed regardless of
 whether or not the device is left suspended, but the other resume callbacks
 (except for ``->complete``) will be skipped automatically by the PM core if the
 device really can be left in suspend.
+
+For devices whose "noirq", "late" and "early" driver callbacks are invoked
+directly by the PM core, all of the system-wide resume callbacks are skipped if
+``DPM_FLAG_LEAVE_SUSPENDED`` is set and the device is in runtime suspend during
+the ``suspend_noirq`` (or analogous) phase or the transition under way is a
+proper system suspend (rather than anything related to hibernation) and the
+device's wakeup settings are suitable for runtime PM (that is, it cannot
+generate wakeup signals at all or it is allowed to wake up the system from
+sleep).
