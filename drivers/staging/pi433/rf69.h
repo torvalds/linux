@@ -73,10 +73,10 @@ int rf69_set_tx_start_condition(struct spi_device *spi, enum txStartCondition tx
 int rf69_set_fifo_threshold(struct spi_device *spi, u8 threshold);
 int rf69_set_dagc(struct spi_device *spi, enum dagc dagc);
 
-int rf69_read_fifo (struct spi_device *spi, u8 *buffer, unsigned int size);
+int rf69_read_fifo(struct spi_device *spi, u8 *buffer, unsigned int size);
 int rf69_write_fifo(struct spi_device *spi, u8 *buffer, unsigned int size);
 
-u8  rf69_read_reg (struct spi_device *spi, u8 addr);
+u8  rf69_read_reg(struct spi_device *spi, u8 addr);
 int rf69_write_reg(struct spi_device *spi, u8 addr, u8 value);
 
 

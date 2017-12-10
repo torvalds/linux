@@ -456,7 +456,7 @@ pi433_receive(void *data)
 		return retval;
 
 	/* now check RSSI, if low wait for getting high (RSSI interrupt) */
-	while ( !rf69_get_flag(dev->spi, rssiExceededThreshold) )
+	while (!rf69_get_flag(dev->spi, rssiExceededThreshold))
 	{
 		/* allow tx to interrupt us while waiting for high RSSI */
 		dev->interrupt_rx_allowed = true;
@@ -533,7 +533,7 @@ pi433_receive(void *data)
 	/* get payload */
 	while (dev->rx_position < bytes_total)
 	{
-		if ( !rf69_get_flag(dev->spi, payloadReady) )
+		if (!rf69_get_flag(dev->spi, payloadReady))
 		{
 			retval = wait_event_interruptible(dev->fifo_wait_queue,
 							  dev->free_in_fifo < FIFO_SIZE);
@@ -594,9 +594,9 @@ pi433_tx_thread(void *data)
 		/* wait for fifo to be populated or for request to terminate*/
 		dev_dbg(device->dev, "thread: going to wait for new messages");
 		wait_event_interruptible(device->tx_wait_queue,
-					 ( !kfifo_is_empty(&device->tx_fifo) ||
-					    kthread_should_stop() ));
-		if ( kthread_should_stop() )
+					 (!kfifo_is_empty(&device->tx_fifo) ||
+					  kthread_should_stop()));
+		if (kthread_should_stop())
 			return 0;
 
 		/* get data from fifo in the following order:
@@ -608,14 +608,14 @@ pi433_tx_thread(void *data)
 
 		retval = kfifo_out(&device->tx_fifo, &tx_cfg, sizeof(tx_cfg));
 		if (retval != sizeof(tx_cfg)) {
-			dev_dbg(device->dev, "reading tx_cfg from fifo failed: got %d byte(s), expected %d", retval, (unsigned int)sizeof(tx_cfg) );
+			dev_dbg(device->dev, "reading tx_cfg from fifo failed: got %d byte(s), expected %d", retval, (unsigned int)sizeof(tx_cfg));
 			mutex_unlock(&device->tx_fifo_lock);
 			continue;
 		}
 
 		retval = kfifo_out(&device->tx_fifo, &size, sizeof(size_t));
 		if (retval != sizeof(size_t)) {
-			dev_dbg(device->dev, "reading msg size from fifo failed: got %d, expected %d", retval, (unsigned int)sizeof(size_t) );
+			dev_dbg(device->dev, "reading msg size from fifo failed: got %d, expected %d", retval, (unsigned int)sizeof(size_t));
 			mutex_unlock(&device->tx_fifo_lock);
 			continue;
 		}
@@ -725,9 +725,9 @@ pi433_tx_thread(void *data)
 		device->free_in_fifo = FIFO_SIZE;
 		position = 0;
 		repetitions = tx_cfg.repetitions;
-		while ( (repetitions > 0) && (size > position) )
+		while ((repetitions > 0) && (size > position))
 		{
-			if ( (size - position) > device->free_in_fifo)
+			if ((size - position) > device->free_in_fifo)
 			{	/* msg to big for fifo - take a part */
 				int temp = device->free_in_fifo;
 				device->free_in_fifo = 0;
@@ -742,7 +742,7 @@ pi433_tx_thread(void *data)
 				repetitions--;
 				rf69_write_fifo(spi,
 						&buffer[position],
-						(size - position) );
+						(size - position));
 				position = 0; /* reset for next repetition */
 			}
 
@@ -755,8 +755,8 @@ pi433_tx_thread(void *data)
 		dev_dbg(device->dev, "thread: wait for packet to get sent/fifo to be empty");
 		wait_event_interruptible(device->fifo_wait_queue,
 					 device->free_in_fifo == FIFO_SIZE ||
-					 kthread_should_stop() );
-		if ( kthread_should_stop() )	printk("ABORT\n");
+					 kthread_should_stop());
+		if (kthread_should_stop())	printk("ABORT\n");
 
 
 		/* STOP_TRANSMISSION */
@@ -853,11 +853,11 @@ pi433_write(struct file *filp, const char __user *buf,
 	 */
 	mutex_lock(&device->tx_fifo_lock);
 	retval = kfifo_in(&device->tx_fifo, &instance->tx_cfg, sizeof(instance->tx_cfg));
-	if ( retval != sizeof(instance->tx_cfg) )
+	if (retval != sizeof(instance->tx_cfg))
 		goto abort;
 
-	retval = kfifo_in (&device->tx_fifo, &count, sizeof(size_t));
-	if ( retval != sizeof(size_t) )
+	retval = kfifo_in(&device->tx_fifo, &count, sizeof(size_t));
+	if (retval != sizeof(size_t))
 		goto abort;
 
 	retval = kfifo_from_user(&device->tx_fifo, buf, count, &copied);
@@ -1043,7 +1043,7 @@ static int setup_GPIOs(struct pi433_device *device)
 		if (device->gpiod[i] == ERR_PTR(-EBUSY))
 			dev_dbg(&device->spi->dev, "%s is busy.", name);
 
-		if ( IS_ERR(device->gpiod[i]) )
+		if (IS_ERR(device->gpiod[i]))
 		{
 			retval = PTR_ERR(device->gpiod[i]);
 			/* release already allocated gpios */
@@ -1089,7 +1089,7 @@ static void free_GPIOs(struct pi433_device *device)
 	for (i = 0; i < NUM_DIO; i++)
 	{
 		/* check if gpiod is valid */
-		if ( IS_ERR(device->gpiod[i]) )
+		if (IS_ERR(device->gpiod[i]))
 			continue;
 
 		free_irq(device->irq_num[i], device);

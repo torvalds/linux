@@ -757,7 +757,7 @@ int rf69_set_dagc(struct spi_device *spi, enum dagc dagc)
 
 /*-------------------------------------------------------------------------*/
 
-int rf69_read_fifo (struct spi_device *spi, u8 *buffer, unsigned int size)
+int rf69_read_fifo(struct spi_device *spi, u8 *buffer, unsigned int size)
 {
 #ifdef DEBUG_FIFO_ACCESS
 	int i;
@@ -811,7 +811,7 @@ int rf69_write_fifo(struct spi_device *spi, u8 *buffer, unsigned int size)
 		dev_dbg(&spi->dev, "0x%x\n", buffer[i]);
 #endif
 
-	return spi_write (spi, local_buffer, size + 1);
+	return spi_write(spi, local_buffer, size + 1);
 }
 
 /*-------------------------------------------------------------------------*/
