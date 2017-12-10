@@ -540,6 +540,24 @@ void dev_pm_skip_next_resume_phases(struct device *dev)
 }
 
 /**
+ * suspend_event - Return a "suspend" message for given "resume" one.
+ * @resume_msg: PM message representing a system-wide resume transition.
+ */
+static pm_message_t suspend_event(pm_message_t resume_msg)
+{
+	switch (resume_msg.event) {
+	case PM_EVENT_RESUME:
+		return PMSG_SUSPEND;
+	case PM_EVENT_THAW:
+	case PM_EVENT_RESTORE:
+		return PMSG_FREEZE;
+	case PM_EVENT_RECOVER:
+		return PMSG_HIBERNATE;
+	}
+	return PMSG_ON;
+}
+
+/**
  * dev_pm_may_skip_resume - System-wide device resume optimization check.
  * @dev: Target device.
  *
@@ -580,6 +598,14 @@ static pm_callback_t dpm_subsys_resume_noirq_cb(struct device *dev,
 	return callback;
 }
 
+static pm_callback_t dpm_subsys_suspend_noirq_cb(struct device *dev,
+						 pm_message_t state,
+						 const char **info_p);
+
+static pm_callback_t dpm_subsys_suspend_late_cb(struct device *dev,
+						pm_message_t state,
+						const char **info_p);
+
 /**
  * device_resume_noirq - Execute a "noirq resume" callback for given device.
  * @dev: Device to handle.
@@ -607,13 +633,40 @@ static int device_resume_noirq(struct device *dev, pm_message_t state, bool asyn
 	dpm_wait_for_superior(dev, async);
 
 	callback = dpm_subsys_resume_noirq_cb(dev, state, &info);
+	if (callback)
+		goto Run;
 
-	if (!callback && dev->driver && dev->driver->pm) {
+	if (dev_pm_smart_suspend_and_suspended(dev)) {
+		pm_message_t suspend_msg = suspend_event(state);
+
+		/*
+		 * If "freeze" callbacks have been skipped during a transition
+		 * related to hibernation, the subsequent "thaw" callbacks must
+		 * be skipped too or bad things may happen.  Otherwise, resume
+		 * callbacks are going to be run for the device, so its runtime
+		 * PM status must be changed to reflect the new state after the
+		 * transition under way.
+		 */
+		if (!dpm_subsys_suspend_late_cb(dev, suspend_msg, NULL) &&
+		    !dpm_subsys_suspend_noirq_cb(dev, suspend_msg, NULL)) {
+			if (state.event == PM_EVENT_THAW) {
+				dev_pm_skip_next_resume_phases(dev);
+				goto Skip;
+			} else {
+				pm_runtime_set_active(dev);
+			}
+		}
+	}
+
+	if (dev->driver && dev->driver->pm) {
 		info = "noirq driver ";
 		callback = pm_noirq_op(dev->driver->pm, state);
 	}
 
+Run:
 	error = dpm_run_callback(callback, dev, state, info);
+
+Skip:
 	dev->power.is_noirq_suspended = false;
 
 	if (dev_pm_may_skip_resume(dev)) {
@@ -628,7 +681,7 @@ static int device_resume_noirq(struct device *dev, pm_message_t state, bool asyn
 		dev_pm_skip_next_resume_phases(dev);
 	}
 
- Out:
+Out:
 	complete_all(&dev->power.completion);
 	TRACE_RESUME(error);
 	return error;
@@ -1223,18 +1276,26 @@ static int __device_suspend_noirq(struct device *dev, pm_message_t state, bool a
 		goto Complete;
 
 	callback = dpm_subsys_suspend_noirq_cb(dev, state, &info);
+	if (callback)
+		goto Run;
 
-	if (!callback && dev->driver && dev->driver->pm) {
+	if (dev_pm_smart_suspend_and_suspended(dev) &&
+	    !dpm_subsys_suspend_late_cb(dev, state, NULL))
+		goto Skip;
+
+	if (dev->driver && dev->driver->pm) {
 		info = "noirq driver ";
 		callback = pm_noirq_op(dev->driver->pm, state);
 	}
 
+Run:
 	error = dpm_run_callback(callback, dev, state, info);
 	if (error) {
 		async_error = error;
 		goto Complete;
 	}
 
+Skip:
 	dev->power.is_noirq_suspended = true;
 
 	if (dev_pm_test_driver_flags(dev, DPM_FLAG_LEAVE_SUSPENDED)) {
@@ -1419,17 +1480,27 @@ static int __device_suspend_late(struct device *dev, pm_message_t state, bool as
 		goto Complete;
 
 	callback = dpm_subsys_suspend_late_cb(dev, state, &info);
+	if (callback)
+		goto Run;
 
-	if (!callback && dev->driver && dev->driver->pm) {
+	if (dev_pm_smart_suspend_and_suspended(dev) &&
+	    !dpm_subsys_suspend_noirq_cb(dev, state, NULL))
+		goto Skip;
+
+	if (dev->driver && dev->driver->pm) {
 		info = "late driver ";
 		callback = pm_late_early_op(dev->driver->pm, state);
 	}
 
+Run:
 	error = dpm_run_callback(callback, dev, state, info);
-	if (!error)
-		dev->power.is_late_suspended = true;
-	else
+	if (error) {
 		async_error = error;
+		goto Complete;
+	}
+
+Skip:
+	dev->power.is_late_suspended = true;
 
 Complete:
 	TRACE_SUSPEND(error);
