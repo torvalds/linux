@@ -224,6 +224,14 @@ mid to lowlevel SCSI driver interface
 .. kernel-doc:: drivers/scsi/hosts.c
    :export:
 
+drivers/scsi/scsi_common.c
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+general support functions
+
+.. kernel-doc:: drivers/scsi/scsi_common.c
+   :export:
+
 Transport classes
 -----------------
 
