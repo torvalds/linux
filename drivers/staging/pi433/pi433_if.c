@@ -873,7 +873,7 @@ pi433_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	instance = filp->private_data;
 	device = instance->device;
 
-	if (device == NULL)
+	if (!device)
 		return -ESHUTDOWN;
 
 	switch (cmd) {
@@ -985,7 +985,7 @@ static int pi433_release(struct inode *inode, struct file *filp)
 	if (!device->users) {
 		kfree(device->rx_buffer);
 		device->rx_buffer = NULL;
-		if (device->spi == NULL)
+		if (!device->spi)
 			kfree(device);
 	}
 
