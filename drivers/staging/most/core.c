@@ -534,7 +534,7 @@ struct show_links_data {
 	char *buf;
 };
 
-int print_links(struct device *dev, void *data)
+static int print_links(struct device *dev, void *data)
 {
 	struct show_links_data *d = data;
 	int offs = d->offs;
@@ -803,7 +803,7 @@ static const struct attribute_group *mc_attr_groups[] = {
 	NULL,
 };
 
-int most_match(struct device *dev, struct device_driver *drv)
+static int most_match(struct device *dev, struct device_driver *drv)
 {
 	if (!strcmp(dev_name(dev), "most"))
 		return 0;
