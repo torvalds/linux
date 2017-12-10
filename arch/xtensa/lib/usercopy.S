@@ -56,14 +56,6 @@
 #include <variant/core.h>
 #include <asm/asmmacro.h>
 
-#ifdef __XTENSA_EB__
-#define ALIGN(R, W0, W1) src	R, W0, W1
-#define SSA8(R)	ssa8b R
-#else
-#define ALIGN(R, W0, W1) src	R, W1, W0
-#define SSA8(R)	ssa8l R
-#endif
-
 	.text
 	.align	4
 	.global	__xtensa_copy_user
@@ -81,7 +73,7 @@ __xtensa_copy_user:
 				# per iteration
 	movi	a8, 3		  # if source is also aligned,
 	bnone	a3, a8, .Laligned # then use word copy
-	SSA8(	a3)		# set shift amount from byte offset
+	__ssa8	a3		# set shift amount from byte offset
 	bnez	a4, .Lsrcunaligned
 	movi	a2, 0		# return success for len==0
 	retw
@@ -220,16 +212,16 @@ EX(10f)	l32i	a6, a3, 0	# load first word
 .Loop2:
 EX(10f)	l32i	a7, a3,  4
 EX(10f)	l32i	a8, a3,  8
-	ALIGN(	a6, a6, a7)
+	__src_b	a6, a6, a7
 EX(10f)	s32i	a6, a5,  0
 EX(10f)	l32i	a9, a3, 12
-	ALIGN(	a7, a7, a8)
+	__src_b	a7, a7, a8
 EX(10f)	s32i	a7, a5,  4
 EX(10f)	l32i	a6, a3, 16
-	ALIGN(	a8, a8, a9)
+	__src_b	a8, a8, a9
 EX(10f)	s32i	a8, a5,  8
 	addi	a3, a3, 16
-	ALIGN(	a9, a9, a6)
+	__src_b	a9, a9, a6
 EX(10f)	s32i	a9, a5, 12
 	addi	a5, a5, 16
 #if !XCHAL_HAVE_LOOPS
@@ -240,10 +232,10 @@ EX(10f)	s32i	a9, a5, 12
 	# copy 8 bytes
 EX(10f)	l32i	a7, a3,  4
 EX(10f)	l32i	a8, a3,  8
-	ALIGN(	a6, a6, a7)
+	__src_b	a6, a6, a7
 EX(10f)	s32i	a6, a5,  0
 	addi	a3, a3,  8
-	ALIGN(	a7, a7, a8)
+	__src_b	a7, a7, a8
 EX(10f)	s32i	a7, a5,  4
 	addi	a5, a5,  8
 	mov	a6, a8
@@ -252,7 +244,7 @@ EX(10f)	s32i	a7, a5,  4
 	# copy 4 bytes
 EX(10f)	l32i	a7, a3,  4
 	addi	a3, a3,  4
-	ALIGN(	a6, a6, a7)
+	__src_b	a6, a6, a7
 EX(10f)	s32i	a6, a5,  0
 	addi	a5, a5,  4
 	mov	a6, a7
