@@ -53,14 +53,13 @@
  *	a11/ original length
  */
 
+#include <linux/linkage.h>
 #include <variant/core.h>
 #include <asm/asmmacro.h>
 
 	.text
-	.align	4
-	.global	__xtensa_copy_user
-	.type	__xtensa_copy_user,@function
-__xtensa_copy_user:
+ENTRY(__xtensa_copy_user)
+
 	entry	sp, 16		# minimal stack frame
 	# a2/ dst, a3/ src, a4/ len
 	mov	a5, a2		# copy dst so that a2 is return value
@@ -267,6 +266,7 @@ EX(10f)	s8i	a6, a5,  0
 	movi	a2, 0		# return success for len bytes copied
 	retw
 
+ENDPROC(__xtensa_copy_user)
 
 	.section .fixup, "ax"
 	.align	4

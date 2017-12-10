@@ -12,6 +12,7 @@
  */
 
 #include <linux/errno.h>
+#include <linux/linkage.h>
 #include <variant/core.h>
 #include <asm/asmmacro.h>
 
@@ -47,10 +48,8 @@
 #   a12/ tmp
 
 .text
-.align	4
-.global	__strncpy_user
-.type	__strncpy_user,@function
-__strncpy_user:
+ENTRY(__strncpy_user)
+
 	entry	sp, 16		# minimal stack frame
 	# a2/ dst, a3/ src, a4/ len
 	mov	a11, a2		# leave dst in return value register
@@ -202,6 +201,7 @@ EX(10f)	s8i	a9, a11, 0
 	sub	a2, a11, a2		# compute strlen
 	retw
 
+ENDPROC(__strncpy_user)
 
 	.section .fixup, "ax"
 	.align	4

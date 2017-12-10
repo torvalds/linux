@@ -9,6 +9,7 @@
  * Copyright (C) 2002 - 2012 Tensilica Inc.
  */
 
+#include <linux/linkage.h>
 #include <variant/core.h>
 #include <asm/asmmacro.h>
 
@@ -108,10 +109,7 @@
 	addi	a5, a5,  2
 	j	.Ldstaligned	# dst is now aligned, return to main algorithm
 
-	.align	4
-	.global	memcpy
-	.type   memcpy,@function
-memcpy:
+ENTRY(memcpy)
 
 	entry	sp, 16		# minimal stack frame
 	# a2/ dst, a3/ src, a4/ len
@@ -273,20 +271,22 @@ memcpy:
 	s8i	a6, a5,  0
 	retw
 
+ENDPROC(memcpy)
 
 /*
  * void bcopy(const void *src, void *dest, size_t n);
  */
-	.align	4
-	.global	bcopy
-	.type   bcopy,@function
-bcopy:
+
+ENTRY(bcopy)
+
 	entry	sp, 16		# minimal stack frame
 	# a2=src, a3=dst, a4=len
 	mov	a5, a3
 	mov	a3, a2
 	mov	a2, a5
 	j	.Lmovecommon	# go to common code for memmove+bcopy
+
+ENDPROC(bcopy)
 
 /*
  * void *memmove(void *dst, const void *src, size_t len);
@@ -376,10 +376,7 @@ bcopy:
 	j	.Lbackdstaligned	# dst is now aligned,
 					# return to main algorithm
 
-	.align	4
-	.global	memmove
-	.type   memmove,@function
-memmove:
+ENTRY(memmove)
 
 	entry	sp, 16		# minimal stack frame
 	# a2/ dst, a3/ src, a4/ len
@@ -551,11 +548,4 @@ memmove:
 	s8i	a6, a5,  0
 	retw
 
-
-/*
- * Local Variables:
- * mode:fundamental
- * comment-start: "# "
- * comment-start-skip: "# *"
- * End:
- */
+ENDPROC(memmove)

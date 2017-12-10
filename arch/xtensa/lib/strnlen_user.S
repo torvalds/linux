@@ -11,6 +11,7 @@
  *  Copyright (C) 2002 Tensilica Inc.
  */
 
+#include <linux/linkage.h>
 #include <variant/core.h>
 #include <asm/asmmacro.h>
 
@@ -42,10 +43,8 @@
 #   a10/ tmp
 
 .text
-.align	4
-.global	__strnlen_user
-.type	__strnlen_user,@function
-__strnlen_user:
+ENTRY(__strnlen_user)
+
 	entry	sp, 16		# minimal stack frame
 	# a2/ s, a3/ len
 	addi	a4, a2, -4	# because we overincrement at the end;
@@ -132,6 +131,8 @@ EX(10f)	l32i	a9, a4, 0	# get word with first two bytes of string
 	addi	a4, a4, 3+1	# point just beyond zero byte
 	sub	a2, a4, a2	# subtract to get length
 	retw
+
+ENDPROC(__strnlen_user)
 
 	.section .fixup, "ax"
 	.align	4

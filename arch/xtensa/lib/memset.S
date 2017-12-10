@@ -11,6 +11,7 @@
  *  Copyright (C) 2002 Tensilica Inc.
  */
 
+#include <linux/linkage.h>
 #include <variant/core.h>
 #include <asm/asmmacro.h>
 
@@ -30,10 +31,8 @@
  */
 
 .text
-.align	4
-.global	memset
-.type	memset,@function
-memset:
+ENTRY(memset)
+
 	entry	sp, 16		# minimal stack frame
 	# a2/ dst, a3/ c, a4/ length
 	extui	a3, a3, 0, 8	# mask to just 8 bits
@@ -141,6 +140,7 @@ EX(10f) s8i	a3, a5, 0
 .Lbytesetdone:
 	retw
 
+ENDPROC(memset)
 
 	.section .fixup, "ax"
 	.align	4
