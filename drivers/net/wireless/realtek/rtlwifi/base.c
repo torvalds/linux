@@ -1726,7 +1726,7 @@ int rtl_tx_agg_oper(struct ieee80211_hw *hw,
 void rtl_rx_ampdu_apply(struct rtl_priv *rtlpriv)
 {
 	struct rtl_btc_ops *btc_ops = rtlpriv->btcoexist.btc_ops;
-	u8 reject_agg, ctrl_agg_size = 0, agg_size;
+	u8 reject_agg = 0, ctrl_agg_size = 0, agg_size = 0;
 
 	if (rtlpriv->cfg->ops->get_btc_status())
 		btc_ops->btc_get_ampdu_cfg(rtlpriv, &reject_agg,
