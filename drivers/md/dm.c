@@ -752,15 +752,6 @@ int dm_set_geometry(struct mapped_device *md, struct hd_geometry *geo)
 	return 0;
 }
 
-/*-----------------------------------------------------------------
- * CRUD START:
- *   A more elegant soln is in the works that uses the queue
- *   merge fn, unfortunately there are a couple of changes to
- *   the block layer that I want to make for this.  So in the
- *   interests of getting something for people to use I give
- *   you this clearly demarcated crap.
- *---------------------------------------------------------------*/
-
 static int __noflush_suspending(struct mapped_device *md)
 {
 	return test_bit(DMF_NOFLUSH_SUSPENDING, &md->flags);
@@ -1497,9 +1488,6 @@ static void __split_and_process_bio(struct mapped_device *md,
 	/* drop the extra reference count */
 	dec_pending(ci.io, errno_to_blk_status(error));
 }
-/*-----------------------------------------------------------------
- * CRUD END
- *---------------------------------------------------------------*/
 
 /*
  * The request function that remaps the bio to one target and
