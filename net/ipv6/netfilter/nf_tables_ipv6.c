@@ -22,7 +22,8 @@ static unsigned int nft_do_chain_ipv6(void *priv,
 {
 	struct nft_pktinfo pkt;
 
-	nft_set_pktinfo_ipv6(&pkt, skb, state);
+	nft_set_pktinfo(&pkt, skb, state);
+	nft_set_pktinfo_ipv6(&pkt, skb);
 
 	return nft_do_chain(&pkt, priv);
 }

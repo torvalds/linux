@@ -54,21 +54,13 @@ static inline void nft_set_pktinfo(struct nft_pktinfo *pkt,
 	pkt->xt.state = state;
 }
 
-static inline void nft_set_pktinfo_proto_unspec(struct nft_pktinfo *pkt,
-						struct sk_buff *skb)
+static inline void nft_set_pktinfo_unspec(struct nft_pktinfo *pkt,
+					  struct sk_buff *skb)
 {
 	pkt->tprot_set = false;
 	pkt->tprot = 0;
 	pkt->xt.thoff = 0;
 	pkt->xt.fragoff = 0;
-}
-
-static inline void nft_set_pktinfo_unspec(struct nft_pktinfo *pkt,
-					  struct sk_buff *skb,
-					  const struct nf_hook_state *state)
-{
-	nft_set_pktinfo(pkt, skb, state);
-	nft_set_pktinfo_proto_unspec(pkt, skb);
 }
 
 /**
