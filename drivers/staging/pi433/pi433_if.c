@@ -438,7 +438,7 @@ pi433_receive(void *data)
 	/* wait for any tx to finish */
 	dev_dbg(dev->dev,"rx: going to wait for any tx to finish");
 	retval = wait_event_interruptible(dev->rx_wait_queue, !dev->tx_active);
-	if(retval) /* wait was interrupted */
+	if (retval) /* wait was interrupted */
 	{
 		dev->interrupt_rx_allowed = true;
 		wake_up_interruptible(&dev->tx_wait_queue);
@@ -725,7 +725,7 @@ pi433_tx_thread(void *data)
 		device->free_in_fifo = FIFO_SIZE;
 		position = 0;
 		repetitions = tx_cfg.repetitions;
-		while( (repetitions > 0) && (size > position) )
+		while ( (repetitions > 0) && (size > position) )
 		{
 			if ( (size - position) > device->free_in_fifo)
 			{	/* msg to big for fifo - take a part */
