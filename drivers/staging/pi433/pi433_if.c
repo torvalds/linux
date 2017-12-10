@@ -646,7 +646,7 @@ pi433_tx_thread(void *data)
 		disable_irq(device->irq_num[DIO0]);
 		device->tx_active = true;
 
-		if (device->rx_active && rx_interrupted == false) {
+		if (device->rx_active && !rx_interrupted) {
 			/* rx is currently waiting for a telegram;
 			 * we need to set the radio module to standby
 			 */
