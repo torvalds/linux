@@ -386,6 +386,7 @@
 					reg = <0x1b00 0x100>;
 					reg-names = "phy";
 					ti,ctrl_mod = <&usb_ctrl_mod>;
+					#phy-cells = <0>;
 				};
 			};
 
