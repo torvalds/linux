@@ -3874,12 +3874,16 @@ static int sctp_setsockopt_reset_streams(struct sock *sk,
 	struct sctp_association *asoc;
 	int retval = -EINVAL;
 
-	if (optlen < sizeof(struct sctp_reset_streams))
+	if (optlen < sizeof(*params))
 		return -EINVAL;
 
 	params = memdup_user(optval, optlen);
 	if (IS_ERR(params))
 		return PTR_ERR(params);
+
+	if (params->srs_number_streams * sizeof(__u16) >
+	    optlen - sizeof(*params))
+		goto out;
 
 	asoc = sctp_id2assoc(sk, params->srs_assoc_id);
 	if (!asoc)
