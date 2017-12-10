@@ -34,6 +34,7 @@ show up in /proc/sys/kernel:
 - hostname
 - hotplug
 - hardlockup_all_cpu_backtrace
+- hardlockup_panic
 - hung_task_panic
 - hung_task_check_count
 - hung_task_timeout_secs
@@ -311,6 +312,19 @@ will be initiated.
 0: do nothing. This is the default behavior.
 
 1: on detection capture more debug information.
+==============================================================
+
+hardlockup_panic:
+
+This parameter can be used to control whether the kernel panics
+when a hard lockup is detected.
+
+   0 - don't panic on hard lockup
+   1 - panic on hard lockup
+
+See Documentation/lockup-watchdogs.txt for more information.  This can
+also be set using the nmi_watchdog kernel parameter.
+
 ==============================================================
 
 hotplug:
