@@ -150,5 +150,12 @@
 		__endl	\ar \as
 	.endm
 
+/* Load or store instructions that may cause exceptions use the EX macro. */
+
+#define EX(handler)				\
+	.section __ex_table, "a";		\
+	.word	97f, handler;			\
+	.previous				\
+97:
 
 #endif /* _XTENSA_ASMMACRO_H */

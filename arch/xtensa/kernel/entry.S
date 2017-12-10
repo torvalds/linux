@@ -14,6 +14,7 @@
 
 #include <linux/linkage.h>
 #include <asm/asm-offsets.h>
+#include <asm/asmmacro.h>
 #include <asm/processor.h>
 #include <asm/coprocessor.h>
 #include <asm/thread_info.h>
@@ -1094,34 +1095,11 @@ ENDPROC(fast_syscall_unrecoverable)
  *	     <  VALID_DOUBLE_EXCEPTION_ADDRESS: regular exception
  *
  * Note: we don't have to save a2; a2 holds the return value
- *
- * We use the two macros TRY and CATCH:
- *
- * TRY	 adds an entry to the __ex_table fixup table for the immediately
- *	 following instruction.
- *
- * CATCH catches any exception that occurred at one of the preceding TRY
- *       statements and continues from there
- *
- * Usage TRY	l32i	a0, a1, 0
- *		<other code>
- *	 done:	rfe
- *	 CATCH	<set return code>
- *		j done
  */
 
 	.literal_position
 
 #ifdef CONFIG_FAST_SYSCALL_XTENSA
-
-#define TRY								\
-	.section __ex_table, "a";					\
-	.word	66f, 67f;						\
-	.text;								\
-66:
-
-#define CATCH								\
-67:
 
 ENTRY(fast_syscall_xtensa)
 
@@ -1136,9 +1114,9 @@ ENTRY(fast_syscall_xtensa)
 
 .Lswp:	/* Atomic compare and swap */
 
-TRY	l32i	a0, a3, 0		# read old value
+EX(.Leac) l32i	a0, a3, 0		# read old value
 	bne	a0, a4, 1f		# same as old value? jump
-TRY	s32i	a5, a3, 0		# different, modify value
+EX(.Leac) s32i	a5, a3, 0		# different, modify value
 	l32i	a7, a2, PT_AREG7	# restore a7
 	l32i	a0, a2, PT_AREG0	# restore a0
 	movi	a2, 1			# and return 1
@@ -1151,12 +1129,12 @@ TRY	s32i	a5, a3, 0		# different, modify value
 
 .Lnswp:	/* Atomic set, add, and exg_add. */
 
-TRY	l32i	a7, a3, 0		# orig
+EX(.Leac) l32i	a7, a3, 0		# orig
 	addi	a6, a6, -SYS_XTENSA_ATOMIC_SET
 	add	a0, a4, a7		# + arg
 	moveqz	a0, a4, a6		# set
 	addi	a6, a6, SYS_XTENSA_ATOMIC_SET
-TRY	s32i	a0, a3, 0		# write new value
+EX(.Leac) s32i	a0, a3, 0		# write new value
 
 	mov	a0, a2
 	mov	a2, a7
@@ -1164,7 +1142,6 @@ TRY	s32i	a0, a3, 0		# write new value
 	l32i	a0, a0, PT_AREG0	# restore a0
 	rfe
 
-CATCH
 .Leac:	l32i	a7, a2, PT_AREG7	# restore a7
 	l32i	a0, a2, PT_AREG0	# restore a0
 	movi	a2, -EFAULT
