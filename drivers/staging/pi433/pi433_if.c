@@ -638,7 +638,7 @@ pi433_tx_thread(void *data)
 		 */
 		wait_event_interruptible(device->tx_wait_queue,
 					 !device->rx_active ||
-					  device->interrupt_rx_allowed == true);
+					  device->interrupt_rx_allowed);
 
 		/* prevent race conditions
 		 * irq will be reenabled after tx config is set
