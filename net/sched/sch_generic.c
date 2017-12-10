@@ -27,6 +27,7 @@
 #include <linux/slab.h>
 #include <linux/if_vlan.h>
 #include <linux/skb_array.h>
+#include <linux/if_macvlan.h>
 #include <net/sch_generic.h>
 #include <net/pkt_sched.h>
 #include <net/dst.h>
@@ -391,6 +392,8 @@ unsigned long dev_trans_start(struct net_device *dev)
 
 	if (is_vlan_dev(dev))
 		dev = vlan_dev_real_dev(dev);
+	else if (netif_is_macvlan(dev))
+		dev = macvlan_dev_real_dev(dev);
 	res = netdev_get_tx_queue(dev, 0)->trans_start;
 	for (i = 1; i < dev->num_tx_queues; i++) {
 		val = netdev_get_tx_queue(dev, i)->trans_start;
