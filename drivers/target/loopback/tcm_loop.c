@@ -769,7 +769,7 @@ static int tcm_loop_make_nexus(
 		return -EEXIST;
 	}
 
-	tl_nexus = kzalloc(sizeof(struct tcm_loop_nexus), GFP_KERNEL);
+	tl_nexus = kzalloc(sizeof(*tl_nexus), GFP_KERNEL);
 	if (!tl_nexus)
 		return -ENOMEM;
 
@@ -1076,7 +1076,7 @@ static struct se_wwn *tcm_loop_make_scsi_hba(
 	char *ptr;
 	int ret, off = 0;
 
-	tl_hba = kzalloc(sizeof(struct tcm_loop_hba), GFP_KERNEL);
+	tl_hba = kzalloc(sizeof(*tl_hba), GFP_KERNEL);
 	if (!tl_hba)
 		return ERR_PTR(-ENOMEM);
 
