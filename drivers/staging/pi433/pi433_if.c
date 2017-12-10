@@ -150,8 +150,10 @@ static irqreturn_t DIO1_irq_handler(int irq, void *dev_id)
 	if (device->irq_state[DIO1] == DIO_FIFO_NOT_EMPTY_DIO1) {
 		device->free_in_fifo = FIFO_SIZE;
 	} else if (device->irq_state[DIO1] == DIO_FIFO_LEVEL) {
-		if (device->rx_active)	device->free_in_fifo = FIFO_THRESHOLD - 1;
-		else			device->free_in_fifo = FIFO_SIZE - FIFO_THRESHOLD - 1;
+		if (device->rx_active)
+			device->free_in_fifo = FIFO_THRESHOLD - 1;
+		else
+			device->free_in_fifo = FIFO_SIZE - FIFO_THRESHOLD - 1;
 	}
 	dev_dbg(device->dev,
 		"DIO1 irq: %d bytes free in fifo\n", device->free_in_fifo);
@@ -251,8 +253,10 @@ rf69_set_rx_cfg(struct pi433_device *dev, struct pi433_rx_cfg *rx_cfg)
 			return ret;
 	} else if (rx_cfg->fixed_message_length != 0) {
 		payload_length = rx_cfg->fixed_message_length;
-		if (rx_cfg->enable_length_byte  == OPTION_ON) payload_length++;
-		if (rx_cfg->enable_address_filtering != filteringOff) payload_length++;
+		if (rx_cfg->enable_length_byte  == OPTION_ON)
+			payload_length++;
+		if (rx_cfg->enable_address_filtering != filteringOff)
+			payload_length++;
 		ret = rf69_set_payload_length(dev->spi, payload_length);
 		if (ret < 0)
 			return ret;
@@ -374,7 +378,8 @@ pi433_start_rx(struct pi433_device *dev)
 
 	/* setup for receiving */
 	retval = rf69_set_rx_cfg(dev, &dev->rx_cfg);
-	if (retval) return retval;
+	if (retval)
+		return retval;
 
 	/* setup rssi irq */
 	retval = rf69_set_dio_mapping(dev->spi, DIO0, DIO_RSSI_DIO0);
@@ -445,11 +450,13 @@ pi433_receive(void *data)
 		retval = wait_event_interruptible(dev->rx_wait_queue,
 						  rf69_get_flag(dev->spi,
 								rssiExceededThreshold));
-		if (retval) goto abort; /* wait was interrupted */
+		if (retval) /* wait was interrupted */
+			goto abort;
 		dev->interrupt_rx_allowed = false;
 
 		/* cross check for ongoing tx */
-		if (!dev->tx_active) break;
+		if (!dev->tx_active)
+			break;
 	}
 
 	/* configure payload ready irq */
@@ -476,7 +483,8 @@ pi433_receive(void *data)
 	if (dev->rx_cfg.enable_length_byte == OPTION_ON) {
 		retval = wait_event_interruptible(dev->fifo_wait_queue,
 						  dev->free_in_fifo < FIFO_SIZE);
-		if (retval) goto abort; /* wait was interrupted */
+		if (retval) /* wait was interrupted */
+			goto abort;
 
 		rf69_read_fifo(spi, (u8 *)&bytes_total, 1);
 		if (bytes_total > dev->rx_buffer_size) {
@@ -495,7 +503,8 @@ pi433_receive(void *data)
 
 		retval = wait_event_interruptible(dev->fifo_wait_queue,
 						  dev->free_in_fifo < FIFO_SIZE);
-		if (retval) goto abort; /* wait was interrupted */
+		if (retval) /* wait was interrupted */
+			goto abort;
 
 		rf69_read_fifo(spi, &dummy, 1);
 		dev->free_in_fifo++;
@@ -507,7 +516,8 @@ pi433_receive(void *data)
 		if (!rf69_get_flag(dev->spi, payloadReady)) {
 			retval = wait_event_interruptible(dev->fifo_wait_queue,
 							  dev->free_in_fifo < FIFO_SIZE);
-			if (retval) goto abort; /* wait was interrupted */
+			if (retval) /* wait was interrupted */
+				goto abort;
 		}
 
 		/* need to drop bytes or acquire? */
@@ -523,7 +533,9 @@ pi433_receive(void *data)
 		retval = rf69_read_fifo(spi,
 					&dev->rx_buffer[dev->rx_position],
 					bytes_to_read);
-		if (retval) goto abort; /* read failed */
+		if (retval) /* read failed */
+			goto abort;
+
 		dev->free_in_fifo += bytes_to_read;
 
 		/* adjust status vars */
@@ -711,7 +723,10 @@ pi433_tx_thread(void *data)
 
 			retval = wait_event_interruptible(device->fifo_wait_queue,
 							  device->free_in_fifo > 0);
-			if (retval) { printk("ABORT\n"); goto abort; }
+			if (retval) {
+				printk("ABORT\n");
+				goto abort;
+			}
 		}
 
 		/* we are done. Wait for packet to get sent */
@@ -719,7 +734,8 @@ pi433_tx_thread(void *data)
 		wait_event_interruptible(device->fifo_wait_queue,
 					 device->free_in_fifo == FIFO_SIZE ||
 					 kthread_should_stop());
-		if (kthread_should_stop())	printk("ABORT\n");
+		if (kthread_should_stop())
+			printk("ABORT\n");
 
 
 		/* STOP_TRANSMISSION */
@@ -1016,7 +1032,8 @@ static int setup_GPIOs(struct pi433_device *device)
 		/* configure the pin */
 		gpiod_unexport(device->gpiod[i]);
 		retval = gpiod_direction_input(device->gpiod[i]);
-		if (retval) return retval;
+		if (retval)
+			return retval;
 
 
 		/* configure irq */
