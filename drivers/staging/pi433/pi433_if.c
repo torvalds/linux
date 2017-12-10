@@ -997,7 +997,7 @@ static int pi433_release(struct inode *inode, struct file *filp)
 
 static int setup_GPIOs(struct pi433_device *device)
 {
-	char 	name[5];
+	char	name[5];
 	int	retval;
 	int	i;
 	const irq_handler_t DIO_irq_handler[NUM_DIO] = {

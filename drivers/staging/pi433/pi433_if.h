@@ -62,7 +62,7 @@ enum option_on_off {
  *
  * NOTE: struct layout is the same in 64bit and 32bit userspace.
  */
-#define PI433_TX_CFG_IOCTL_NR 	0
+#define PI433_TX_CFG_IOCTL_NR	0
 struct pi433_tx_cfg {
 	__u32			frequency;
 	__u16			bit_rate;
@@ -111,7 +111,7 @@ struct pi433_tx_cfg {
  *
  * NOTE: struct layout is the same in 64bit and 32bit userspace.
  */
-#define PI433_RX_CFG_IOCTL_NR 	1
+#define PI433_RX_CFG_IOCTL_NR	1
 struct pi433_rx_cfg {
 	__u32			frequency;
 	__u16			bit_rate;
