@@ -1069,7 +1069,6 @@ static void free_GPIOs(struct pi433_device *device)
 		free_irq(device->irq_num[i], device);
 		gpiod_put(device->gpiod[i]);
 	}
-	return;
 }
 
 static int pi433_get_minor(struct pi433_device *device)
