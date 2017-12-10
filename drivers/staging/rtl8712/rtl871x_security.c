@@ -997,8 +997,9 @@ static void construct_mic_header2(u8 *mic_header2, u8 *mpdu, sint a4_exists,
 /* Builds the last MIC header block from        */
 /* header fields.                               */
 /************************************************/
-static void construct_ctr_preload(u8 *ctr_preload, sint a4_exists, sint qc_exists,
-			   u8 *mpdu, u8 *pn_vector, sint c)
+static void construct_ctr_preload(u8 *ctr_preload,
+				  sint a4_exists, sint qc_exists,
+				  u8 *mpdu, u8 *pn_vector, sint c)
 {
 	sint i;
 
