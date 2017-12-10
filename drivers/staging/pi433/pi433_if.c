@@ -638,14 +638,14 @@ pi433_tx_thread(void *data)
 
 		/* add length byte, if requested */
 		if (tx_cfg.enable_length_byte  == OPTION_ON)
-			buffer[position++] = size-1; /* according to spec length byte itself must be excluded from the length calculation */
+			buffer[position++] = size - 1; /* according to spec length byte itself must be excluded from the length calculation */
 
 		/* add adr byte, if requested */
 		if (tx_cfg.enable_address_byte == OPTION_ON)
 			buffer[position++] = tx_cfg.address_byte;
 
 		/* finally get message data from fifo */
-		retval = kfifo_out(&device->tx_fifo, &buffer[position], sizeof(buffer)-position );
+		retval = kfifo_out(&device->tx_fifo, &buffer[position], sizeof(buffer) - position);
 		dev_dbg(device->dev, "read %d message byte(s) from fifo queue.", retval);
 		mutex_unlock(&device->tx_fifo_lock);
 
@@ -734,7 +734,7 @@ pi433_tx_thread(void *data)
 				rf69_write_fifo(spi,
 				                &buffer[position],
 				                temp);
-				position +=temp;
+				position += temp;
 			}
 			else
 			{	/* msg fits into fifo - take all */
@@ -1030,8 +1030,7 @@ static int setup_GPIOs(struct pi433_device *device)
 		DIO1_irq_handler
 	};
 
-	for (i=0; i<NUM_DIO; i++)
-	{
+	for (i = 0; i < NUM_DIO; i++) {
 		/* "construct" name and get the gpio descriptor */
 		snprintf(name, sizeof(name), "DIO%d", i);
 		device->gpiod[i] = gpiod_get(&device->spi->dev, name, 0 /*GPIOD_IN*/);
