@@ -476,8 +476,7 @@ common_exception_return:
 1:
 	irq_save a2, a3
 #ifdef CONFIG_TRACE_IRQFLAGS
-	movi	a4, trace_hardirqs_off
-	callx4	a4
+	call4	trace_hardirqs_off
 #endif
 
 	/* Jump if we are returning from kernel exceptions. */
@@ -504,24 +503,20 @@ common_exception_return:
 	/* Call do_signal() */
 
 #ifdef CONFIG_TRACE_IRQFLAGS
-	movi	a4, trace_hardirqs_on
-	callx4	a4
+	call4	trace_hardirqs_on
 #endif
 	rsil	a2, 0
-	movi	a4, do_notify_resume	# int do_notify_resume(struct pt_regs*)
 	mov	a6, a1
-	callx4	a4
+	call4	do_notify_resume	# int do_notify_resume(struct pt_regs*)
 	j	1b
 
 3:	/* Reschedule */
 
 #ifdef CONFIG_TRACE_IRQFLAGS
-	movi	a4, trace_hardirqs_on
-	callx4	a4
+	call4	trace_hardirqs_on
 #endif
 	rsil	a2, 0
-	movi	a4, schedule	# void schedule (void)
-	callx4	a4
+	call4	schedule	# void schedule (void)
 	j	1b
 
 #ifdef CONFIG_PREEMPT
@@ -532,8 +527,7 @@ common_exception_return:
 
 	l32i	a4, a2, TI_PRE_COUNT
 	bnez	a4, 4f
-	movi	a4, preempt_schedule_irq
-	callx4	a4
+	call4	preempt_schedule_irq
 	j	1b
 #endif
 
@@ -546,23 +540,20 @@ common_exception_return:
 5:
 #ifdef CONFIG_HAVE_HW_BREAKPOINT
 	_bbci.l	a4, TIF_DB_DISABLED, 7f
-	movi	a4, restore_dbreak
-	callx4	a4
+	call4	restore_dbreak
 7:
 #endif
 #ifdef CONFIG_DEBUG_TLB_SANITY
 	l32i	a4, a1, PT_DEPC
 	bgeui	a4, VALID_DOUBLE_EXCEPTION_ADDRESS, 4f
-	movi	a4, check_tlb_sanity
-	callx4	a4
+	call4	check_tlb_sanity
 #endif
 6:
 4:
 #ifdef CONFIG_TRACE_IRQFLAGS
 	extui	a4, a3, PS_INTLEVEL_SHIFT, PS_INTLEVEL_WIDTH
 	bgei	a4, LOCKLEVEL, 1f
-	movi	a4, trace_hardirqs_on
-	callx4	a4
+	call4	trace_hardirqs_on
 1:
 #endif
 	/* Restore optional registers. */
@@ -938,10 +929,8 @@ ENTRY(unrecoverable_exception)
 	movi	a0, 0
 	addi	a1, a1, PT_REGS_OFFSET
 
-	movi	a4, panic
 	movi	a6, unrecoverable_text
-
-	callx4	a4
+	call4	panic
 
 1:	j	1b
 
@@ -1078,8 +1067,7 @@ ENTRY(fast_syscall_unrecoverable)
 	xsr     a2, depc                # restore a2, depc
 
 	wsr     a0, excsave1
-	movi    a0, unrecoverable_exception
-	callx0  a0
+	call0	unrecoverable_exception
 
 ENDPROC(fast_syscall_unrecoverable)
 
@@ -1418,14 +1406,12 @@ ENTRY(fast_syscall_spill_registers)
 	rsync
 
 	movi	a6, SIGSEGV
-	movi	a4, do_exit
-	callx4	a4
+	call4	do_exit
 
 	/* shouldn't return, so panic */
 
 	wsr	a0, excsave1
-	movi	a0, unrecoverable_exception
-	callx0	a0		# should not return
+	call0	unrecoverable_exception		# should not return
 1:	j	1b
 
 
@@ -1571,8 +1557,8 @@ ENDPROC(fast_syscall_spill_registers)
 
 ENTRY(fast_second_level_miss_double_kernel)
 
-1:	movi	a0, unrecoverable_exception
-	callx0	a0		# should not return
+1:
+	call0	unrecoverable_exception		# should not return
 1:	j	1b
 
 ENDPROC(fast_second_level_miss_double_kernel)
@@ -1904,9 +1890,8 @@ ENTRY(system_call)
 
 	l32i	a3, a2, PT_AREG2
 	mov	a6, a2
-	movi	a4, do_syscall_trace_enter
 	s32i	a3, a2, PT_SYSCALL
-	callx4	a4
+	call4	do_syscall_trace_enter
 	mov	a3, a6
 
 	/* syscall = sys_call_table[syscall_nr] */
@@ -1938,9 +1923,8 @@ ENTRY(system_call)
 1:	/* regs->areg[2] = return_value */
 
 	s32i	a6, a2, PT_AREG2
-	movi	a4, do_syscall_trace_leave
 	mov	a6, a2
-	callx4	a4
+	call4	do_syscall_trace_leave
 	retw
 
 ENDPROC(system_call)
@@ -2056,12 +2040,10 @@ ENTRY(ret_from_fork)
 	/* void schedule_tail (struct task_struct *prev)
 	 * Note: prev is still in a6 (return value from fake call4 frame)
 	 */
-	movi	a4, schedule_tail
-	callx4	a4
+	call4	schedule_tail
 
-	movi	a4, do_syscall_trace_leave
 	mov	a6, a1
-	callx4	a4
+	call4	do_syscall_trace_leave
 
 	j	common_exception_return
 

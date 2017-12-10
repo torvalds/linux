@@ -305,8 +305,7 @@ _DoubleExceptionVector_WindowUnderflow:
 .Lunrecoverable:
 	rsr	a3, excsave1
 	wsr	a0, excsave1
-	movi	a0, unrecoverable_exception
-	callx0	a0
+	call0	unrecoverable_exception
 
 .Lfixup:/* Check for a fixup handler or if we were in a critical section. */
 
