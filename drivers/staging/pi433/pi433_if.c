@@ -1094,6 +1094,7 @@ static void pi433_free_minor(struct pi433_device *dev)
 	idr_remove(&pi433_idr, dev->minor);
 	mutex_unlock(&minor_lock);
 }
+
 /*-------------------------------------------------------------------------*/
 
 static const struct file_operations pi433_fops = {
