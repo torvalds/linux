@@ -727,7 +727,7 @@ static struct rockchip_clk_branch rk3328_clk_branches[] __initdata = {
 	GATE(0, "pclk_vio_h2p", "hclk_vio_pre", CLK_IGNORE_UNUSED, RK3328_CLKGATE_CON(21), 13, GFLAGS),
 	GATE(0, "hclk_vio_h2p", "hclk_vio_pre", CLK_IGNORE_UNUSED, RK3328_CLKGATE_CON(21), 14, GFLAGS),
 	GATE(HCLK_HDCP, "hclk_hdcp", "hclk_vio_pre", 0, RK3328_CLKGATE_CON(22), 0, GFLAGS),
-	GATE(HCLK_VIO, "hclk_vio", "hclk_vio_pre", 0, RK3328_CLKGATE_CON(22), 1, GFLAGS),
+	GATE(0, "hclk_vio_niu", "hclk_vio_pre", 0, RK3328_CLKGATE_CON(22), 1, GFLAGS),
 	GATE(PCLK_HDMI, "pclk_hdmi", "hclk_vio_pre", 0, RK3328_CLKGATE_CON(22), 4, GFLAGS),
 	GATE(PCLK_HDCP, "pclk_hdcp", "hclk_vio_pre", 0, RK3328_CLKGATE_CON(22), 5, GFLAGS),
 
@@ -861,6 +861,7 @@ static const char *const rk3328_critical_clocks[] __initconst = {
 	"aclk_rga_niu",
 	"pclk_vio_h2p",
 	"hclk_vio_h2p",
+	"hclk_vio_niu",
 };
 
 static void __init rk3328_clk_init(struct device_node *np)
