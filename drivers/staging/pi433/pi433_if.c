@@ -443,8 +443,8 @@ pi433_receive(void *data)
 		/* wait for RSSI level to become high */
 		dev_dbg(dev->dev, "rx: going to wait for high RSSI level");
 		retval = wait_event_interruptible(dev->rx_wait_queue,
-			                          rf69_get_flag(dev->spi,
-		                                                rssiExceededThreshold));
+						  rf69_get_flag(dev->spi,
+								rssiExceededThreshold));
 		if (retval) goto abort; /* wait was interrupted */
 		dev->interrupt_rx_allowed = false;
 
@@ -696,8 +696,8 @@ pi433_tx_thread(void *data)
 				int temp = device->free_in_fifo;
 				device->free_in_fifo = 0;
 				rf69_write_fifo(spi,
-				                &buffer[position],
-				                temp);
+						&buffer[position],
+						temp);
 				position += temp;
 			} else {
 				/* msg fits into fifo - take all */
