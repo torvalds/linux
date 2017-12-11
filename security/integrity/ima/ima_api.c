@@ -18,6 +18,7 @@
 #include <linux/fs.h>
 #include <linux/xattr.h>
 #include <linux/evm.h>
+#include <linux/iversion.h>
 
 #include "ima.h"
 
@@ -215,7 +216,7 @@ int ima_collect_measurement(struct integrity_iint_cache *iint,
 	 * which do not support i_version, support is limited to an initial
 	 * measurement/appraisal/audit.
 	 */
-	i_version = file_inode(file)->i_version;
+	i_version = inode_query_iversion(inode);
 	hash.hdr.algo = algo;
 
 	/* Initialize hash digest to 0's in case of failure */
