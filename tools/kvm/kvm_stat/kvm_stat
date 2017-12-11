@@ -1453,16 +1453,13 @@ Press any other key to refresh statistics immediately.
         try:
             pids = Tui.get_pid_from_gname(val)
         except:
-            raise optparse.OptionValueError('Error while searching for guest '
-                                            '"{}", use "-p" to specify a pid '
-                                            'instead'.format(val))
+            sys.exit('Error while searching for guest "{}". Use "-p" to '
+                     'specify a pid instead?'.format(val))
         if len(pids) == 0:
-            raise optparse.OptionValueError('No guest by the name "{}" '
-                                            'found'.format(val))
+            sys.exit('Error: No guest by the name "{}" found'.format(val))
         if len(pids) > 1:
-            raise optparse.OptionValueError('Multiple processes found (pids: '
-                                            '{}) - use "-p" to specify a pid '
-                                            'instead'.format(" ".join(pids)))
+            sys.exit('Error: Multiple processes found (pids: {}). Use "-p" '
+                     'to specify the desired pid'.format(" ".join(pids)))
         parser.values.pid = pids[0]
 
     optparser = optparse.OptionParser(description=description_text,
