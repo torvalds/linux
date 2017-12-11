@@ -82,6 +82,13 @@ static inline __u32 iov_crc32( __u32 c, struct kvec *iov, unsigned int cnt )
 
 #ifdef ULE_DEBUG
 
+/*
+ * The code inside ULE_DEBUG keeps a history of the
+ * last 100 TS cells processed.
+ */
+static unsigned char ule_hist[100*TS_SZ] = { 0 };
+static unsigned char *ule_where = ule_hist, ule_dump;
+
 static void hexdump(const unsigned char *buf, unsigned short len)
 {
 	print_hex_dump_debug("", DUMP_PREFIX_OFFSET, 16, 1, buf, len, true);
@@ -320,14 +327,6 @@ struct dvb_net_ule_handle {
 	const u8 *ts, *ts_end, *from_where;
 	u8 ts_remain, how_much, new_ts;
 	bool error;
-#ifdef ULE_DEBUG
-	/*
-	 * The code inside ULE_DEBUG keeps a history of the
-	 * last 100 TS cells processed.
-	 */
-	static unsigned char ule_hist[100*TS_SZ];
-	static unsigned char *ule_where = ule_hist, ule_dump;
-#endif
 };
 
 static int dvb_net_ule_new_ts_cell(struct dvb_net_ule_handle *h)
@@ -335,14 +334,14 @@ static int dvb_net_ule_new_ts_cell(struct dvb_net_ule_handle *h)
 	/* We are about to process a new TS cell. */
 
 #ifdef ULE_DEBUG
-	if (h->ule_where >= &h->ule_hist[100*TS_SZ])
-		h->ule_where = h->ule_hist;
-	memcpy(h->ule_where, h->ts, TS_SZ);
-	if (h->ule_dump) {
-		hexdump(h->ule_where, TS_SZ);
-		h->ule_dump = 0;
+	if (ule_where >= &ule_hist[100*TS_SZ])
+		ule_where = ule_hist;
+	memcpy(ule_where, h->ts, TS_SZ);
+	if (ule_dump) {
+		hexdump(ule_where, TS_SZ);
+		ule_dump = 0;
 	}
-	h->ule_where += TS_SZ;
+	ule_where += TS_SZ;
 #endif
 
 	/*
@@ -660,6 +659,7 @@ static int dvb_net_ule_should_drop(struct dvb_net_ule_handle *h)
 
 
 static void dvb_net_ule_check_crc(struct dvb_net_ule_handle *h,
+				  struct kvec iov[3],
 				  u32 ule_crc, u32 expected_crc)
 {
 	u8 dest_addr[ETH_ALEN];
@@ -677,17 +677,17 @@ static void dvb_net_ule_check_crc(struct dvb_net_ule_handle *h,
 		hexdump(iov[1].iov_base, iov[1].iov_len);
 		hexdump(iov[2].iov_base, iov[2].iov_len);
 
-		if (h->ule_where == h->ule_hist) {
-			hexdump(&h->ule_hist[98*TS_SZ], TS_SZ);
-			hexdump(&h->ule_hist[99*TS_SZ], TS_SZ);
-		} else if (h->ule_where == &h->ule_hist[TS_SZ]) {
-			hexdump(&h->ule_hist[99*TS_SZ], TS_SZ);
-			hexdump(h->ule_hist, TS_SZ);
+		if (ule_where == ule_hist) {
+			hexdump(&ule_hist[98*TS_SZ], TS_SZ);
+			hexdump(&ule_hist[99*TS_SZ], TS_SZ);
+		} else if (ule_where == &ule_hist[TS_SZ]) {
+			hexdump(&ule_hist[99*TS_SZ], TS_SZ);
+			hexdump(ule_hist, TS_SZ);
 		} else {
-			hexdump(h->ule_where - TS_SZ - TS_SZ, TS_SZ);
-			hexdump(h->ule_where - TS_SZ, TS_SZ);
+			hexdump(ule_where - TS_SZ - TS_SZ, TS_SZ);
+			hexdump(ule_where - TS_SZ, TS_SZ);
 		}
-		h->ule_dump = 1;
+		ule_dump = 1;
 	#endif
 
 		h->dev->stats.rx_errors++;
@@ -779,6 +779,8 @@ static void dvb_net_ule(struct net_device *dev, const u8 *buf, size_t buf_len)
 	int ret;
 	struct dvb_net_ule_handle h = {
 		.dev = dev,
+		.priv = netdev_priv(dev),
+		.ethh = NULL,
 		.buf = buf,
 		.buf_len = buf_len,
 		.skipped = 0L,
@@ -788,11 +790,7 @@ static void dvb_net_ule(struct net_device *dev, const u8 *buf, size_t buf_len)
 		.ts_remain = 0,
 		.how_much = 0,
 		.new_ts = 1,
-		.ethh = NULL,
 		.error = false,
-#ifdef ULE_DEBUG
-		.ule_where = ule_hist,
-#endif
 	};
 
 	/*
@@ -860,7 +858,7 @@ static void dvb_net_ule(struct net_device *dev, const u8 *buf, size_t buf_len)
 				       *(tail - 2) << 8 |
 				       *(tail - 1);
 
-			dvb_net_ule_check_crc(&h, ule_crc, expected_crc);
+			dvb_net_ule_check_crc(&h, iov, ule_crc, expected_crc);
 
 			/* Prepare for next SNDU. */
 			reset_ule(h.priv);
