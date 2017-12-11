@@ -139,6 +139,10 @@ bool emulate_vsyscall(struct pt_regs *regs, unsigned long address)
 
 	WARN_ON_ONCE(address != regs->ip);
 
+	/* This should be unreachable in NATIVE mode. */
+	if (WARN_ON(vsyscall_mode == NATIVE))
+		return false;
+
 	if (vsyscall_mode == NONE) {
 		warn_bad_vsyscall(KERN_INFO, regs,
 				  "vsyscall attempted with vsyscall=none");
