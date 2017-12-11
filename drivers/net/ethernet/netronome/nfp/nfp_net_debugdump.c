@@ -126,13 +126,13 @@ struct nfp_dump_error {
 
 /* to track state through debug size calculation TLV traversal */
 struct nfp_level_size {
-	u32 requested_level;	/* input */
+	__be32 requested_level;	/* input */
 	u32 total_size;		/* output */
 };
 
 /* to track state during debug dump creation TLV traversal */
 struct nfp_dump_state {
-	u32 requested_level;	/* input param */
+	__be32 requested_level;	/* input param */
 	u32 dumped_size;	/* adds up to size of dumped data */
 	u32 buf_size;		/* size of buffer pointer to by p */
 	void *p;		/* current point in dump buffer */
@@ -334,7 +334,7 @@ nfp_calc_specific_level_size(struct nfp_pf *pf, struct nfp_dump_tl *dump_level,
 {
 	struct nfp_level_size *lev_sz = param;
 
-	if (be32_to_cpu(dump_level->type) != lev_sz->requested_level)
+	if (dump_level->type != lev_sz->requested_level)
 		return 0;
 
 	return nfp_traverse_tlvs(pf, dump_level->data,
@@ -348,7 +348,7 @@ s64 nfp_net_dump_calculate_size(struct nfp_pf *pf, struct nfp_dumpspec *spec,
 	struct nfp_level_size lev_sz;
 	int err;
 
-	lev_sz.requested_level = flag;
+	lev_sz.requested_level = cpu_to_be32(flag);
 	lev_sz.total_size = ALIGN8(sizeof(struct nfp_dump_prolog));
 
 	err = nfp_traverse_tlvs(pf, spec->data, spec->size, &lev_sz,
@@ -733,7 +733,7 @@ nfp_dump_specific_level(struct nfp_pf *pf, struct nfp_dump_tl *dump_level,
 {
 	struct nfp_dump_state *dump = param;
 
-	if (be32_to_cpu(dump_level->type) != dump->requested_level)
+	if (dump_level->type != dump->requested_level)
 		return 0;
 
 	return nfp_traverse_tlvs(pf, dump_level->data,
@@ -753,7 +753,7 @@ static int nfp_dump_populate_prolog(struct nfp_dump_state *dump)
 	if (err)
 		return err;
 
-	prolog->dump_level = cpu_to_be32(dump->requested_level);
+	prolog->dump_level = dump->requested_level;
 
 	return 0;
 }
@@ -764,7 +764,7 @@ int nfp_net_dump_populate_buffer(struct nfp_pf *pf, struct nfp_dumpspec *spec,
 	struct nfp_dump_state dump;
 	int err;
 
-	dump.requested_level = dump_param->flag;
+	dump.requested_level = cpu_to_be32(dump_param->flag);
 	dump.dumped_size = 0;
 	dump.p = dest;
 	dump.buf_size = dump_param->len;

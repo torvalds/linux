@@ -50,9 +50,6 @@
 #define NFP_FLOWER_LAYER_CT		BIT(6)
 #define NFP_FLOWER_LAYER_VXLAN		BIT(7)
 
-#define NFP_FLOWER_LAYER_ETHER		BIT(3)
-#define NFP_FLOWER_LAYER_ARP		BIT(4)
-
 #define NFP_FLOWER_MASK_VLAN_PRIO	GENMASK(15, 13)
 #define NFP_FLOWER_MASK_VLAN_CFI	BIT(12)
 #define NFP_FLOWER_MASK_VLAN_VID	GENMASK(11, 0)
@@ -165,20 +162,6 @@ struct nfp_fl_pop_vlan {
 	__be16 reserved;
 };
 
-/* Metadata without L2 (1W/4B)
- * ----------------------------------------------------------------
- *    3                   2                   1
- *  1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0
- * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
- * |  key_layers   |    mask_id    |           reserved            |
- * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
- */
-struct nfp_flower_meta_one {
-	u8 nfp_flow_key_layer;
-	u8 mask_id;
-	u16 reserved;
-};
-
 struct nfp_fl_pre_tunnel {
 	struct nfp_fl_act_head head;
 	__be16 reserved;
@@ -209,7 +192,7 @@ struct nfp_fl_set_vxlan {
  *                           NOTE: |             TCI               |
  *                                 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
  */
-struct nfp_flower_meta_two {
+struct nfp_flower_meta_tci {
 	u8 nfp_flow_key_layer;
 	u8 mask_id;
 	__be16 tci;
