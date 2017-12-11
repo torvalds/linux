@@ -38,7 +38,7 @@
  *                       Competence Center for Advanced Satellite Communications.
  *                     Bugfixes and robustness improvements.
  *                     Filtering on dest MAC addresses, if present (D-Bit = 0)
- *                     ULE_DEBUG compile-time option.
+ *                     DVB_ULE_DEBUG compile-time option.
  * Apr 2006: cp v3:    Bugfixes and compliency with RFC 4326 (ULE) by
  *                       Christian Praehauser <cpraehaus@cosy.sbg.ac.at>,
  *                       Paris Lodron University of Salzburg.
@@ -78,12 +78,9 @@ static inline __u32 iov_crc32( __u32 c, struct kvec *iov, unsigned int cnt )
 
 #define DVB_NET_MULTICAST_MAX 10
 
-#undef ULE_DEBUG
-
-#ifdef ULE_DEBUG
-
+#ifdef DVB_ULE_DEBUG
 /*
- * The code inside ULE_DEBUG keeps a history of the
+ * The code inside DVB_ULE_DEBUG keeps a history of the
  * last 100 TS cells processed.
  */
 static unsigned char ule_hist[100*TS_SZ] = { 0 };
@@ -93,7 +90,6 @@ static void hexdump(const unsigned char *buf, unsigned short len)
 {
 	print_hex_dump_debug("", DUMP_PREFIX_OFFSET, 16, 1, buf, len, true);
 }
-
 #endif
 
 struct dvb_net_priv {
@@ -333,7 +329,7 @@ static int dvb_net_ule_new_ts_cell(struct dvb_net_ule_handle *h)
 {
 	/* We are about to process a new TS cell. */
 
-#ifdef ULE_DEBUG
+#ifdef DVB_ULE_DEBUG
 	if (ule_where >= &ule_hist[100*TS_SZ])
 		ule_where = ule_hist;
 	memcpy(ule_where, h->ts, TS_SZ);
@@ -672,7 +668,7 @@ static void dvb_net_ule_check_crc(struct dvb_net_ule_handle *h,
 			h->ts_remain > 2 ?
 				*(unsigned short *)h->from_where : 0);
 
-	#ifdef ULE_DEBUG
+	#ifdef DVB_ULE_DEBUG
 		hexdump(iov[0].iov_base, iov[0].iov_len);
 		hexdump(iov[1].iov_base, iov[1].iov_len);
 		hexdump(iov[2].iov_base, iov[2].iov_len);
