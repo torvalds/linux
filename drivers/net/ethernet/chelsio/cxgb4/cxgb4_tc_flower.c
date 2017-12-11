@@ -763,9 +763,7 @@ static void ch_flower_stats_handler(struct work_struct *work)
 
 	rhashtable_walk_enter(&adap->flower_tbl, &iter);
 	do {
-		flower_entry = ERR_PTR(rhashtable_walk_start(&iter));
-		if (IS_ERR(flower_entry))
-			goto walk_stop;
+		rhashtable_walk_start(&iter);
 
 		while ((flower_entry = rhashtable_walk_next(&iter)) &&
 		       !IS_ERR(flower_entry)) {
@@ -784,8 +782,9 @@ static void ch_flower_stats_handler(struct work_struct *work)
 				spin_unlock(&flower_entry->lock);
 			}
 		}
-walk_stop:
+
 		rhashtable_walk_stop(&iter);
+
 	} while (flower_entry == ERR_PTR(-EAGAIN));
 	rhashtable_walk_exit(&iter);
 	mod_timer(&adap->flower_stats_timer, jiffies + STATS_CHECK_PERIOD);
