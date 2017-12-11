@@ -64,7 +64,7 @@ static void tcm_loop_release_cmd(struct se_cmd *se_cmd)
 
 static int tcm_loop_show_info(struct seq_file *m, struct Scsi_Host *host)
 {
-	seq_printf(m, "tcm_loop_proc_info()\n");
+	seq_puts(m, "tcm_loop_proc_info()\n");
 	return 0;
 }
 
