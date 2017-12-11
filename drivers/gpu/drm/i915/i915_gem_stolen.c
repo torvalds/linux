@@ -76,27 +76,26 @@ void i915_gem_stolen_remove_node(struct drm_i915_private *dev_priv,
 	mutex_unlock(&dev_priv->mm.stolen_lock);
 }
 
-static dma_addr_t i915_stolen_to_dma(struct drm_i915_private *dev_priv)
+static int i915_adjust_stolen(struct drm_i915_private *dev_priv,
+			      struct resource *dsm)
 {
 	struct i915_ggtt *ggtt = &dev_priv->ggtt;
-	dma_addr_t base = intel_graphics_stolen_res.start;
 	struct resource *r;
 
-	GEM_BUG_ON(overflows_type(intel_graphics_stolen_res.start, base));
+	if (dsm->start == 0 || dsm->end <= dsm->start)
+		return -EINVAL;
 
-	if (base == 0 || add_overflows(base, ggtt->stolen_size))
-		return 0;
+	/*
+	 * TODO: We have yet too encounter the case where the GTT wasn't at the
+	 * end of stolen. With that assumption we could simplify this.
+	 */
 
-	/* make sure we don't clobber the GTT if it's within stolen memory */
+	/* Make sure we don't clobber the GTT if it's within stolen memory */
 	if (INTEL_GEN(dev_priv) <= 4 &&
 	    !IS_G33(dev_priv) && !IS_PINEVIEW(dev_priv) && !IS_G4X(dev_priv)) {
-		struct {
-			dma_addr_t start, end;
-		} stolen[2] = {
-			{ .start = base, .end = base + ggtt->stolen_size, },
-			{ .start = base, .end = base + ggtt->stolen_size, },
-		};
-		u64 ggtt_start, ggtt_end;
+		struct resource stolen[2] = {*dsm, *dsm};
+		struct resource ggtt_res;
+		u64 ggtt_start;
 
 		ggtt_start = I915_READ(PGTBL_CTL);
 		if (IS_GEN4(dev_priv))
@@ -104,70 +103,64 @@ static dma_addr_t i915_stolen_to_dma(struct drm_i915_private *dev_priv)
 				     (ggtt_start & PGTBL_ADDRESS_HI_MASK) << 28;
 		else
 			ggtt_start &= PGTBL_ADDRESS_LO_MASK;
-		ggtt_end = ggtt_start + ggtt_total_entries(ggtt) * 4;
 
-		if (ggtt_start >= stolen[0].start && ggtt_start < stolen[0].end)
-			stolen[0].end = ggtt_start;
-		if (ggtt_end > stolen[1].start && ggtt_end <= stolen[1].end)
-			stolen[1].start = ggtt_end;
+		ggtt_res =
+			(struct resource) DEFINE_RES_MEM(ggtt_start,
+							 ggtt_total_entries(ggtt) * 4);
 
-		/* pick the larger of the two chunks */
-		if (stolen[0].end - stolen[0].start >
-		    stolen[1].end - stolen[1].start) {
-			base = stolen[0].start;
-			ggtt->stolen_size = stolen[0].end - stolen[0].start;
-		} else {
-			base = stolen[1].start;
-			ggtt->stolen_size = stolen[1].end - stolen[1].start;
-		}
+		if (ggtt_res.start >= stolen[0].start && ggtt_res.start < stolen[0].end)
+			stolen[0].end = ggtt_res.start;
+		if (ggtt_res.end > stolen[1].start && ggtt_res.end <= stolen[1].end)
+			stolen[1].start = ggtt_res.end;
+
+		/* Pick the larger of the two chunks */
+		if (resource_size(&stolen[0]) > resource_size(&stolen[1]))
+			*dsm = stolen[0];
+		else
+			*dsm = stolen[1];
 
 		if (stolen[0].start != stolen[1].start ||
 		    stolen[0].end != stolen[1].end) {
-			dma_addr_t end = base + ggtt->stolen_size - 1;
-
-			DRM_DEBUG_KMS("GTT within stolen memory at 0x%llx-0x%llx\n",
-				      (unsigned long long)ggtt_start,
-				      (unsigned long long)ggtt_end - 1);
-			DRM_DEBUG_KMS("Stolen memory adjusted to %pad - %pad\n",
-				      &base, &end);
+			DRM_DEBUG_KMS("GTT within stolen memory at %pR\n", &ggtt_res);
+			DRM_DEBUG_KMS("Stolen memory adjusted to %pR\n", dsm);
 		}
 	}
 
-
-	/* Verify that nothing else uses this physical address. Stolen
+	/*
+	 * Verify that nothing else uses this physical address. Stolen
 	 * memory should be reserved by the BIOS and hidden from the
 	 * kernel. So if the region is already marked as busy, something
 	 * is seriously wrong.
 	 */
-	r = devm_request_mem_region(dev_priv->drm.dev, base, ggtt->stolen_size,
+	r = devm_request_mem_region(dev_priv->drm.dev, dsm->start,
+				    resource_size(dsm),
 				    "Graphics Stolen Memory");
 	if (r == NULL) {
 		/*
 		 * One more attempt but this time requesting region from
-		 * base + 1, as we have seen that this resolves the region
+		 * start + 1, as we have seen that this resolves the region
 		 * conflict with the PCI Bus.
 		 * This is a BIOS w/a: Some BIOS wrap stolen in the root
 		 * PCI bus, but have an off-by-one error. Hence retry the
 		 * reservation starting from 1 instead of 0.
 		 * There's also BIOS with off-by-one on the other end.
 		 */
-		r = devm_request_mem_region(dev_priv->drm.dev, base + 1,
-					    ggtt->stolen_size - 2,
+		r = devm_request_mem_region(dev_priv->drm.dev, dsm->start + 1,
+					    resource_size(dsm) - 2,
 					    "Graphics Stolen Memory");
 		/*
 		 * GEN3 firmware likes to smash pci bridges into the stolen
 		 * range. Apparently this works.
 		 */
 		if (r == NULL && !IS_GEN3(dev_priv)) {
-			dma_addr_t end = base + ggtt->stolen_size;
+			DRM_ERROR("conflict detected with stolen region: %pR\n",
+				  dsm);
 
-			DRM_ERROR("conflict detected with stolen region: [%pad - %pad]\n",
-				  &base, &end);
-			base = 0;
+			return -EBUSY;
 		}
 	}
 
-	return base;
+	return 0;
 }
 
 void i915_gem_cleanup_stolen(struct drm_device *dev)
@@ -183,11 +176,10 @@ void i915_gem_cleanup_stolen(struct drm_device *dev)
 static void g4x_get_stolen_reserved(struct drm_i915_private *dev_priv,
 				    dma_addr_t *base, u32 *size)
 {
-	struct i915_ggtt *ggtt = &dev_priv->ggtt;
 	uint32_t reg_val = I915_READ(IS_GM45(dev_priv) ?
 				     CTG_STOLEN_RESERVED :
 				     ELK_STOLEN_RESERVED);
-	dma_addr_t stolen_top = dev_priv->mm.stolen_base + ggtt->stolen_size;
+	dma_addr_t stolen_top = dev_priv->dsm.end + 1;
 
 	if ((reg_val & G4X_STOLEN_RESERVED_ENABLE) == 0) {
 		*base = 0;
@@ -308,7 +300,6 @@ static void chv_get_stolen_reserved(struct drm_i915_private *dev_priv,
 static void bdw_get_stolen_reserved(struct drm_i915_private *dev_priv,
 				    dma_addr_t *base, u32 *size)
 {
-	struct i915_ggtt *ggtt = &dev_priv->ggtt;
 	uint32_t reg_val = I915_READ(GEN6_STOLEN_RESERVED);
 	dma_addr_t stolen_top;
 
@@ -318,7 +309,7 @@ static void bdw_get_stolen_reserved(struct drm_i915_private *dev_priv,
 		return;
 	}
 
-	stolen_top = dev_priv->mm.stolen_base + ggtt->stolen_size;
+	stolen_top = dev_priv->dsm.end + 1;
 
 	*base = reg_val & GEN6_STOLEN_RESERVED_ADDR_MASK;
 
@@ -351,14 +342,18 @@ int i915_gem_init_stolen(struct drm_i915_private *dev_priv)
 		return 0;
 	}
 
-	if (ggtt->stolen_size == 0)
+	if (resource_size(&intel_graphics_stolen_res) == 0)
 		return 0;
 
-	dev_priv->mm.stolen_base = i915_stolen_to_dma(dev_priv);
-	if (dev_priv->mm.stolen_base == 0)
+	dev_priv->dsm = intel_graphics_stolen_res;
+
+	if (i915_adjust_stolen(dev_priv, &dev_priv->dsm))
 		return 0;
 
-	stolen_top = dev_priv->mm.stolen_base + ggtt->stolen_size;
+	GEM_BUG_ON(dev_priv->dsm.start == 0);
+	GEM_BUG_ON(dev_priv->dsm.end <= dev_priv->dsm.start);
+
+	stolen_top = dev_priv->dsm.end + 1;
 	reserved_base = 0;
 	reserved_size = 0;
 
@@ -399,12 +394,11 @@ int i915_gem_init_stolen(struct drm_i915_private *dev_priv)
 		reserved_base = stolen_top;
 	}
 
-	if (reserved_base < dev_priv->mm.stolen_base ||
+	if (reserved_base < dev_priv->dsm.start ||
 	    reserved_base + reserved_size > stolen_top) {
 		dma_addr_t reserved_top = reserved_base + reserved_size;
-		DRM_ERROR("Stolen reserved area [%pad - %pad] outside stolen memory [%pad - %pad]\n",
-			  &reserved_base, &reserved_top,
-			  &dev_priv->mm.stolen_base, &stolen_top);
+		DRM_ERROR("Stolen reserved area [%pad - %pad] outside stolen memory %pR\n",
+			  &reserved_base, &reserved_top, &dev_priv->dsm);
 		return 0;
 	}
 
@@ -415,9 +409,9 @@ int i915_gem_init_stolen(struct drm_i915_private *dev_priv)
 	 * memory, so just consider the start. */
 	reserved_total = stolen_top - reserved_base;
 
-	DRM_DEBUG_KMS("Memory reserved for graphics device: %uK, usable: %uK\n",
-		      ggtt->stolen_size >> 10,
-		      (ggtt->stolen_size - reserved_total) >> 10);
+	DRM_DEBUG_KMS("Memory reserved for graphics device: %lluK, usable: %lluK\n",
+		      (u64)resource_size(&dev_priv->dsm) >> 10,
+		      ((u64)resource_size(&dev_priv->dsm) - reserved_total) >> 10);
 
 	stolen_usable_start = 0;
 	/* WaSkipStolenMemoryFirstPage:bdw+ */
@@ -425,7 +419,7 @@ int i915_gem_init_stolen(struct drm_i915_private *dev_priv)
 		stolen_usable_start = 4096;
 
 	ggtt->stolen_usable_size =
-		ggtt->stolen_size - reserved_total - stolen_usable_start;
+		resource_size(&dev_priv->dsm) - reserved_total - stolen_usable_start;
 
 	/* Basic memrange allocator for stolen space. */
 	drm_mm_init(&dev_priv->mm.stolen, stolen_usable_start,
@@ -442,7 +436,8 @@ i915_pages_create_for_stolen(struct drm_device *dev,
 	struct sg_table *st;
 	struct scatterlist *sg;
 
-	GEM_BUG_ON(range_overflows(offset, size, dev_priv->ggtt.stolen_size));
+	GEM_BUG_ON(range_overflows_t(resource_size_t, offset, size,
+				     resource_size(&dev_priv->dsm)));
 
 	/* We hide that we have no struct page backing our stolen object
 	 * by wrapping the contiguous physical allocation with a fake
@@ -462,7 +457,7 @@ i915_pages_create_for_stolen(struct drm_device *dev,
 	sg->offset = 0;
 	sg->length = size;
 
-	sg_dma_address(sg) = (dma_addr_t)dev_priv->mm.stolen_base + offset;
+	sg_dma_address(sg) = (dma_addr_t)dev_priv->dsm.start + offset;
 	sg_dma_len(sg) = size;
 
 	return st;

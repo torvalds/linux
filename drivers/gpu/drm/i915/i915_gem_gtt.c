@@ -3299,8 +3299,6 @@ static int gen8_gmch_probe(struct i915_ggtt *ggtt)
 
 	pci_read_config_word(pdev, SNB_GMCH_CTRL, &snb_gmch_ctl);
 
-	ggtt->stolen_size = resource_size(&intel_graphics_stolen_res);
-
 	if (INTEL_GEN(dev_priv) >= 9) {
 		size = gen8_get_total_gtt_size(snb_gmch_ctl);
 	} else if (IS_CHERRYVIEW(dev_priv)) {
@@ -3363,8 +3361,6 @@ static int gen6_gmch_probe(struct i915_ggtt *ggtt)
 		DRM_ERROR("Can't set DMA mask/consistent mask (%d)\n", err);
 	pci_read_config_word(pdev, SNB_GMCH_CTRL, &snb_gmch_ctl);
 
-	ggtt->stolen_size = resource_size(&intel_graphics_stolen_res);
-
 	size = gen6_get_total_gtt_size(snb_gmch_ctl);
 	ggtt->base.total = (size / sizeof(gen6_pte_t)) << PAGE_SHIFT;
 
@@ -3410,7 +3406,6 @@ static int i915_gmch_probe(struct i915_ggtt *ggtt)
 	}
 
 	intel_gtt_get(&ggtt->base.total,
-		      &ggtt->stolen_size,
 		      &ggtt->mappable_base,
 		      &ggtt->mappable_end);
 
@@ -3482,7 +3477,8 @@ int i915_ggtt_probe_hw(struct drm_i915_private *dev_priv)
 	DRM_INFO("Memory usable by graphics device = %lluM\n",
 		 ggtt->base.total >> 20);
 	DRM_DEBUG_DRIVER("GMADR size = %lldM\n", ggtt->mappable_end >> 20);
-	DRM_DEBUG_DRIVER("GTT stolen size = %uM\n", ggtt->stolen_size >> 20);
+	DRM_DEBUG_DRIVER("GTT stolen size = %lluM\n",
+			 (u64)resource_size(&intel_graphics_stolen_res) >> 20);
 	if (intel_vtd_active())
 		DRM_INFO("VT-d active for gfx access\n");
 

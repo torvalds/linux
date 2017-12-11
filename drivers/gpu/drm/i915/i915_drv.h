@@ -1538,9 +1538,6 @@ struct i915_gem_mm {
 	 */
 	struct pagevec wc_stash;
 
-	/** Usable portion of the GTT for GEM */
-	dma_addr_t stolen_base; /* limited to low memory (32-bit) */
-
 	/**
 	 * tmpfs instance used for shmem backed objects
 	 */
@@ -2253,6 +2250,15 @@ struct drm_i915_private {
 	struct kmem_cache *priorities;
 
 	const struct intel_device_info info;
+
+	/**
+	 * Data Stolen Memory - aka "i915 stolen memory" gives us the start and
+	 * end of stolen which we can optionally use to create GEM objects
+	 * backed by stolen memory. Note that ggtt->stolen_usable_size tells us
+	 * exactly how much of this we are actually allowed to use, given that
+	 * some portion of it is in fact reserved for use by hardware functions.
+	 */
+	struct resource dsm;
 
 	void __iomem *regs;
 
