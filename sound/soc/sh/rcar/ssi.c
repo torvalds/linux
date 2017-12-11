@@ -79,6 +79,7 @@ struct rsnd_ssi {
 	int irq;
 	unsigned int usrcnt;
 
+	/* for PIO */
 	int byte_pos;
 	int byte_per_period;
 	int next_period_byte;
@@ -413,61 +414,6 @@ static void rsnd_ssi_register_setup(struct rsnd_mod *mod)
 					ssi->cr_en);
 }
 
-static void rsnd_ssi_pointer_init(struct rsnd_mod *mod,
-				  struct rsnd_dai_stream *io)
-{
-	struct rsnd_ssi *ssi = rsnd_mod_to_ssi(mod);
-	struct snd_pcm_runtime *runtime = rsnd_io_to_runtime(io);
-
-	ssi->byte_pos		= 0;
-	ssi->byte_per_period	= runtime->period_size *
-				  runtime->channels *
-				  samples_to_bytes(runtime, 1);
-	ssi->next_period_byte	= ssi->byte_per_period;
-}
-
-static int rsnd_ssi_pointer_offset(struct rsnd_mod *mod,
-				   struct rsnd_dai_stream *io,
-				   int additional)
-{
-	struct rsnd_ssi *ssi = rsnd_mod_to_ssi(mod);
-	struct snd_pcm_runtime *runtime = rsnd_io_to_runtime(io);
-	int pos = ssi->byte_pos + additional;
-
-	pos %= (runtime->periods * ssi->byte_per_period);
-
-	return pos;
-}
-
-static bool rsnd_ssi_pointer_update(struct rsnd_mod *mod,
-				    struct rsnd_dai_stream *io,
-				    int byte)
-{
-	struct rsnd_ssi *ssi = rsnd_mod_to_ssi(mod);
-	bool ret = false;
-	int byte_pos;
-
-	byte_pos = ssi->byte_pos + byte;
-
-	if (byte_pos >= ssi->next_period_byte) {
-		struct snd_pcm_runtime *runtime = rsnd_io_to_runtime(io);
-		int period_pos = byte_pos / ssi->byte_per_period;
-
-		ssi->next_period_byte = (period_pos + 1) * ssi->byte_per_period;
-
-		if (period_pos >= runtime->periods) {
-			byte_pos = 0;
-			ssi->next_period_byte = ssi->byte_per_period;
-		}
-
-		ret = true;
-	}
-
-	WRITE_ONCE(ssi->byte_pos, byte_pos);
-
-	return ret;
-}
-
 /*
  *	SSI mod common functions
  */
@@ -480,8 +426,6 @@ static int rsnd_ssi_init(struct rsnd_mod *mod,
 
 	if (!rsnd_ssi_is_run_mods(mod, io))
 		return 0;
-
-	rsnd_ssi_pointer_init(mod, io);
 
 	ssi->usrcnt++;
 
@@ -653,6 +597,8 @@ static int rsnd_ssi_irq(struct rsnd_mod *mod,
 	return 0;
 }
 
+static bool rsnd_ssi_pio_interrupt(struct rsnd_mod *mod,
+				   struct rsnd_dai_stream *io);
 static void __rsnd_ssi_interrupt(struct rsnd_mod *mod,
 				 struct rsnd_dai_stream *io)
 {
@@ -671,27 +617,8 @@ static void __rsnd_ssi_interrupt(struct rsnd_mod *mod,
 	status = rsnd_ssi_status_get(mod);
 
 	/* PIO only */
-	if (!is_dma && (status & DIRQ)) {
-		struct snd_pcm_runtime *runtime = rsnd_io_to_runtime(io);
-		u32 *buf = (u32 *)(runtime->dma_area +
-				   rsnd_ssi_pointer_offset(mod, io, 0));
-		int shift = 0;
-
-		if (snd_pcm_format_width(runtime->format) == 24)
-			shift = 8;
-
-		/*
-		 * 8/16/32 data can be assesse to TDR/RDR register
-		 * directly as 32bit data
-		 * see rsnd_ssi_init()
-		 */
-		if (rsnd_io_is_play(io))
-			rsnd_mod_write(mod, SSITDR, (*buf) << shift);
-		else
-			*buf = (rsnd_mod_read(mod, SSIRDR) >> shift);
-
-		elapsed = rsnd_ssi_pointer_update(mod, io, sizeof(*buf));
-	}
+	if (!is_dma && (status & DIRQ))
+		elapsed = rsnd_ssi_pio_interrupt(mod, io);
 
 	/* DMA only */
 	if (is_dma && (status & (UIRQ | OIRQ)))
@@ -829,7 +756,71 @@ static int rsnd_ssi_common_remove(struct rsnd_mod *mod,
 	return 0;
 }
 
-static int rsnd_ssi_pointer(struct rsnd_mod *mod,
+/*
+ *	SSI PIO functions
+ */
+static bool rsnd_ssi_pio_interrupt(struct rsnd_mod *mod,
+				   struct rsnd_dai_stream *io)
+{
+	struct snd_pcm_runtime *runtime = rsnd_io_to_runtime(io);
+	struct rsnd_ssi *ssi = rsnd_mod_to_ssi(mod);
+	u32 *buf = (u32 *)(runtime->dma_area + ssi->byte_pos);
+	int shift = 0;
+	int byte_pos;
+	bool elapsed = false;
+
+	if (snd_pcm_format_width(runtime->format) == 24)
+		shift = 8;
+
+	/*
+	 * 8/16/32 data can be assesse to TDR/RDR register
+	 * directly as 32bit data
+	 * see rsnd_ssi_init()
+	 */
+	if (rsnd_io_is_play(io))
+		rsnd_mod_write(mod, SSITDR, (*buf) << shift);
+	else
+		*buf = (rsnd_mod_read(mod, SSIRDR) >> shift);
+
+	byte_pos = ssi->byte_pos + sizeof(*buf);
+
+	if (byte_pos >= ssi->next_period_byte) {
+		int period_pos = byte_pos / ssi->byte_per_period;
+
+		if (period_pos >= runtime->periods) {
+			byte_pos = 0;
+			period_pos = 0;
+		}
+
+		ssi->next_period_byte = (period_pos + 1) * ssi->byte_per_period;
+
+		elapsed = true;
+	}
+
+	WRITE_ONCE(ssi->byte_pos, byte_pos);
+
+	return elapsed;
+}
+
+static int rsnd_ssi_pio_init(struct rsnd_mod *mod,
+			     struct rsnd_dai_stream *io,
+			     struct rsnd_priv *priv)
+{
+	struct snd_pcm_runtime *runtime = rsnd_io_to_runtime(io);
+	struct rsnd_ssi *ssi = rsnd_mod_to_ssi(mod);
+
+	if (!rsnd_ssi_is_parent(mod, io)) {
+		ssi->byte_pos		= 0;
+		ssi->byte_per_period	= runtime->period_size *
+					  runtime->channels *
+					  samples_to_bytes(runtime, 1);
+		ssi->next_period_byte	= ssi->byte_per_period;
+	}
+
+	return rsnd_ssi_init(mod, io, priv);
+}
+
+static int rsnd_ssi_pio_pointer(struct rsnd_mod *mod,
 			    struct rsnd_dai_stream *io,
 			    snd_pcm_uframes_t *pointer)
 {
@@ -845,12 +836,12 @@ static struct rsnd_mod_ops rsnd_ssi_pio_ops = {
 	.name	= SSI_NAME,
 	.probe	= rsnd_ssi_common_probe,
 	.remove	= rsnd_ssi_common_remove,
-	.init	= rsnd_ssi_init,
+	.init	= rsnd_ssi_pio_init,
 	.quit	= rsnd_ssi_quit,
 	.start	= rsnd_ssi_start,
 	.stop	= rsnd_ssi_stop,
 	.irq	= rsnd_ssi_irq,
-	.pointer= rsnd_ssi_pointer,
+	.pointer = rsnd_ssi_pio_pointer,
 	.pcm_new = rsnd_ssi_pcm_new,
 	.hw_params = rsnd_ssi_hw_params,
 };
