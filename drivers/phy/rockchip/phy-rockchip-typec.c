@@ -384,6 +384,8 @@
 
 #define DP_DEFAULT_RATE			162000
 
+#define POWER_ON_TRIES			5
+
 struct usb3phy_reg {
 	u32 offset;
 	u32 enable_bit;
@@ -1386,9 +1388,8 @@ static int tcphy_cfg_usb3_to_usb2_only(struct rockchip_typec_phy *tcphy,
 	return 0;
 }
 
-static int rockchip_usb3_phy_power_on(struct phy *phy)
+static int _rockchip_usb3_phy_power_on(struct rockchip_typec_phy *tcphy)
 {
-	struct rockchip_typec_phy *tcphy = phy_get_drvdata(phy);
 	const struct rockchip_usb3phy_port_cfg *cfg = tcphy->port_cfgs;
 	const struct usb3phy_reg *reg = &cfg->pipe_status;
 	int timeout, new_mode, ret = 0;
@@ -1437,6 +1438,24 @@ static int rockchip_usb3_phy_power_on(struct phy *phy)
 
 unlock_ret:
 	mutex_unlock(&tcphy->lock);
+	return ret;
+}
+
+static int rockchip_usb3_phy_power_on(struct phy *phy)
+{
+	struct rockchip_typec_phy *tcphy = phy_get_drvdata(phy);
+	int ret;
+	int tries;
+
+	for (tries = 0; tries < POWER_ON_TRIES; tries++) {
+		ret = _rockchip_usb3_phy_power_on(tcphy);
+		if (!ret)
+			break;
+	}
+
+	if (tries && !ret)
+		dev_info(tcphy->dev, "Needed %d loops to turn on\n", tries);
+
 	return ret;
 }
 
