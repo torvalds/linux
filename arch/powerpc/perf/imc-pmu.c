@@ -116,16 +116,12 @@ static struct attribute *device_str_attr_create(const char *name, const char *st
 	return &attr->attr.attr;
 }
 
-struct imc_events *imc_parse_event(struct device_node *np, const char *scale,
-				  const char *unit, const char *prefix, u32 base)
+static int imc_parse_event(struct device_node *np, const char *scale,
+				  const char *unit, const char *prefix,
+				  u32 base, struct imc_events *event)
 {
-	struct imc_events *event;
 	const char *s;
 	u32 reg;
-
-	event = kzalloc(sizeof(struct imc_events), GFP_KERNEL);
-	if (!event)
-		return NULL;
 
 	if (of_property_read_u32(np, "reg", &reg))
 		goto error;
@@ -157,14 +153,32 @@ struct imc_events *imc_parse_event(struct device_node *np, const char *scale,
 			goto error;
 	}
 
-	return event;
+	return 0;
 error:
 	kfree(event->unit);
 	kfree(event->scale);
 	kfree(event->name);
-	kfree(event);
+	return -EINVAL;
+}
 
-	return NULL;
+/*
+ * imc_free_events: Function to cleanup the events list, having
+ * 		    "nr_entries".
+ */
+static void imc_free_events(struct imc_events *events, int nr_entries)
+{
+	int i;
+
+	/* Nothing to clean, return */
+	if (!events)
+		return;
+	for (i = 0; i < nr_entries; i++) {
+		kfree(events[i].unit);
+		kfree(events[i].scale);
+		kfree(events[i].name);
+	}
+
+	kfree(events);
 }
 
 /*
@@ -176,9 +190,8 @@ static int update_events_in_group(struct device_node *node, struct imc_pmu *pmu)
 	struct attribute_group *attr_group;
 	struct attribute **attrs, *dev_str;
 	struct device_node *np, *pmu_events;
-	struct imc_events *ev;
 	u32 handle, base_reg;
-	int i=0, j=0, ct;
+	int i = 0, j = 0, ct, ret;
 	const char *prefix, *g_scale, *g_unit;
 	const char *ev_val_str, *ev_scale_str, *ev_unit_str;
 
@@ -216,15 +229,17 @@ static int update_events_in_group(struct device_node *node, struct imc_pmu *pmu)
 	ct = 0;
 	/* Parse the events and update the struct */
 	for_each_child_of_node(pmu_events, np) {
-		ev = imc_parse_event(np, g_scale, g_unit, prefix, base_reg);
-		if (ev)
-			pmu->events[ct++] = ev;
+		ret = imc_parse_event(np, g_scale, g_unit, prefix, base_reg, &pmu->events[ct]);
+		if (!ret)
+			ct++;
 	}
 
 	/* Allocate memory for attribute group */
 	attr_group = kzalloc(sizeof(*attr_group), GFP_KERNEL);
-	if (!attr_group)
+	if (!attr_group) {
+		imc_free_events(pmu->events, ct);
 		return -ENOMEM;
+	}
 
 	/*
 	 * Allocate memory for attributes.
@@ -237,31 +252,31 @@ static int update_events_in_group(struct device_node *node, struct imc_pmu *pmu)
 	attrs = kcalloc(((ct * 3) + 1), sizeof(struct attribute *), GFP_KERNEL);
 	if (!attrs) {
 		kfree(attr_group);
-		kfree(pmu->events);
+		imc_free_events(pmu->events, ct);
 		return -ENOMEM;
 	}
 
 	attr_group->name = "events";
 	attr_group->attrs = attrs;
 	do {
-		ev_val_str = kasprintf(GFP_KERNEL, "event=0x%x", pmu->events[i]->value);
-		dev_str = device_str_attr_create(pmu->events[i]->name, ev_val_str);
+		ev_val_str = kasprintf(GFP_KERNEL, "event=0x%x", pmu->events[i].value);
+		dev_str = device_str_attr_create(pmu->events[i].name, ev_val_str);
 		if (!dev_str)
 			continue;
 
 		attrs[j++] = dev_str;
-		if (pmu->events[i]->scale) {
-			ev_scale_str = kasprintf(GFP_KERNEL, "%s.scale",pmu->events[i]->name);
-			dev_str = device_str_attr_create(ev_scale_str, pmu->events[i]->scale);
+		if (pmu->events[i].scale) {
+			ev_scale_str = kasprintf(GFP_KERNEL, "%s.scale", pmu->events[i].name);
+			dev_str = device_str_attr_create(ev_scale_str, pmu->events[i].scale);
 			if (!dev_str)
 				continue;
 
 			attrs[j++] = dev_str;
 		}
 
-		if (pmu->events[i]->unit) {
-			ev_unit_str = kasprintf(GFP_KERNEL, "%s.unit",pmu->events[i]->name);
-			dev_str = device_str_attr_create(ev_unit_str, pmu->events[i]->unit);
+		if (pmu->events[i].unit) {
+			ev_unit_str = kasprintf(GFP_KERNEL, "%s.unit", pmu->events[i].name);
+			dev_str = device_str_attr_create(ev_unit_str, pmu->events[i].unit);
 			if (!dev_str)
 				continue;
 
@@ -272,7 +287,6 @@ static int update_events_in_group(struct device_node *node, struct imc_pmu *pmu)
 	/* Save the event attribute */
 	pmu->attr_groups[IMC_EVENT_ATTR] = attr_group;
 
-	kfree(pmu->events);
 	return 0;
 }
 

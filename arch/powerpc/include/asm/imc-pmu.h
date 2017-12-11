@@ -71,7 +71,7 @@ struct imc_events {
 struct imc_pmu {
 	struct pmu pmu;
 	struct imc_mem_info *mem_info;
-	struct imc_events **events;
+	struct imc_events *events;
 	/*
 	 * Attribute groups for the PMU. Slot 0 used for
 	 * format attribute, slot 1 used for cpusmask attribute,
