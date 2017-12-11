@@ -148,6 +148,20 @@
 			#address-cells = <0>;
 		};
 
+		hiubus: bus@ff63c000 {
+			compatible = "simple-bus";
+			reg = <0x0 0xff63c000 0x0 0x1c00>;
+			#address-cells = <2>;
+			#size-cells = <2>;
+			ranges = <0x0 0x0 0x0 0xff63c000 0x0 0x1c00>;
+
+			clkc: clock-controller@0 {
+				compatible = "amlogic,axg-clkc";
+				#clock-cells = <1>;
+				reg = <0x0 0x0 0x0 0x320>;
+			};
+		};
+
 		mailbox: mailbox@ff63dc00 {
 			compatible = "amlogic,meson-gx-mhu", "amlogic,meson-gxbb-mhu";
 			reg = <0 0xff63dc00 0 0x400>;
