@@ -1839,6 +1839,7 @@ xfrm_resolve_and_create_bundle(struct xfrm_policy **pols, int num_pols,
 		   sizeof(struct xfrm_policy *) * num_pols) == 0 &&
 	    xfrm_xdst_can_reuse(xdst, xfrm, err)) {
 		dst_hold(&xdst->u.dst);
+		xfrm_pols_put(pols, num_pols);
 		while (err > 0)
 			xfrm_state_put(xfrm[--err]);
 		return xdst;
