@@ -20,6 +20,7 @@
 
 #include "ddbridge.h"
 #include "ddbridge-regs.h"
+#include "ddbridge-ci.h"
 #include "ddbridge-io.h"
 #include "ddbridge-i2c.h"
 
