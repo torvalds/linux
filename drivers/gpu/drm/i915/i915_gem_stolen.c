@@ -95,7 +95,7 @@ static int i915_adjust_stolen(struct drm_i915_private *dev_priv,
 	    !IS_G33(dev_priv) && !IS_PINEVIEW(dev_priv) && !IS_G4X(dev_priv)) {
 		struct resource stolen[2] = {*dsm, *dsm};
 		struct resource ggtt_res;
-		u64 ggtt_start;
+		resource_size_t ggtt_start;
 
 		ggtt_start = I915_READ(PGTBL_CTL);
 		if (IS_GEN4(dev_priv))
@@ -174,12 +174,12 @@ void i915_gem_cleanup_stolen(struct drm_device *dev)
 }
 
 static void g4x_get_stolen_reserved(struct drm_i915_private *dev_priv,
-				    dma_addr_t *base, u32 *size)
+				    resource_size_t *base, resource_size_t *size)
 {
 	uint32_t reg_val = I915_READ(IS_GM45(dev_priv) ?
 				     CTG_STOLEN_RESERVED :
 				     ELK_STOLEN_RESERVED);
-	dma_addr_t stolen_top = dev_priv->dsm.end + 1;
+	resource_size_t stolen_top = dev_priv->dsm.end + 1;
 
 	if ((reg_val & G4X_STOLEN_RESERVED_ENABLE) == 0) {
 		*base = 0;
@@ -208,7 +208,7 @@ static void g4x_get_stolen_reserved(struct drm_i915_private *dev_priv,
 }
 
 static void gen6_get_stolen_reserved(struct drm_i915_private *dev_priv,
-				     dma_addr_t *base, u32 *size)
+				     resource_size_t *base, resource_size_t *size)
 {
 	uint32_t reg_val = I915_READ(GEN6_STOLEN_RESERVED);
 
@@ -240,7 +240,7 @@ static void gen6_get_stolen_reserved(struct drm_i915_private *dev_priv,
 }
 
 static void gen7_get_stolen_reserved(struct drm_i915_private *dev_priv,
-				     dma_addr_t *base, u32 *size)
+				     resource_size_t *base, resource_size_t *size)
 {
 	uint32_t reg_val = I915_READ(GEN6_STOLEN_RESERVED);
 
@@ -266,7 +266,7 @@ static void gen7_get_stolen_reserved(struct drm_i915_private *dev_priv,
 }
 
 static void chv_get_stolen_reserved(struct drm_i915_private *dev_priv,
-				    dma_addr_t *base, u32 *size)
+				    resource_size_t *base, resource_size_t *size)
 {
 	uint32_t reg_val = I915_READ(GEN6_STOLEN_RESERVED);
 
@@ -298,10 +298,10 @@ static void chv_get_stolen_reserved(struct drm_i915_private *dev_priv,
 }
 
 static void bdw_get_stolen_reserved(struct drm_i915_private *dev_priv,
-				    dma_addr_t *base, u32 *size)
+				    resource_size_t *base, resource_size_t *size)
 {
 	uint32_t reg_val = I915_READ(GEN6_STOLEN_RESERVED);
-	dma_addr_t stolen_top;
+	resource_size_t stolen_top;
 
 	if ((reg_val & GEN6_STOLEN_RESERVED_ENABLE) == 0) {
 		*base = 0;
@@ -325,9 +325,9 @@ static void bdw_get_stolen_reserved(struct drm_i915_private *dev_priv,
 
 int i915_gem_init_stolen(struct drm_i915_private *dev_priv)
 {
-	dma_addr_t reserved_base, stolen_top;
-	u32 reserved_total, reserved_size;
-	u32 stolen_usable_start;
+	resource_size_t reserved_base, stolen_top;
+	resource_size_t reserved_total, reserved_size;
+	resource_size_t stolen_usable_start;
 
 	mutex_init(&dev_priv->mm.stolen_lock);
 
@@ -427,14 +427,13 @@ int i915_gem_init_stolen(struct drm_i915_private *dev_priv)
 
 static struct sg_table *
 i915_pages_create_for_stolen(struct drm_device *dev,
-			     u32 offset, u32 size)
+			     resource_size_t offset, resource_size_t size)
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct sg_table *st;
 	struct scatterlist *sg;
 
-	GEM_BUG_ON(range_overflows_t(resource_size_t, offset, size,
-				     resource_size(&dev_priv->dsm)));
+	GEM_BUG_ON(range_overflows(offset, size, resource_size(&dev_priv->dsm)));
 
 	/* We hide that we have no struct page backing our stolen object
 	 * by wrapping the contiguous physical allocation with a fake
@@ -532,7 +531,8 @@ cleanup:
 }
 
 struct drm_i915_gem_object *
-i915_gem_object_create_stolen(struct drm_i915_private *dev_priv, u32 size)
+i915_gem_object_create_stolen(struct drm_i915_private *dev_priv,
+			      resource_size_t size)
 {
 	struct drm_i915_gem_object *obj;
 	struct drm_mm_node *stolen;
@@ -565,9 +565,9 @@ i915_gem_object_create_stolen(struct drm_i915_private *dev_priv, u32 size)
 
 struct drm_i915_gem_object *
 i915_gem_object_create_stolen_for_preallocated(struct drm_i915_private *dev_priv,
-					       u32 stolen_offset,
-					       u32 gtt_offset,
-					       u32 size)
+					       resource_size_t stolen_offset,
+					       resource_size_t gtt_offset,
+					       resource_size_t size)
 {
 	struct i915_ggtt *ggtt = &dev_priv->ggtt;
 	struct drm_i915_gem_object *obj;
@@ -580,8 +580,8 @@ i915_gem_object_create_stolen_for_preallocated(struct drm_i915_private *dev_priv
 
 	lockdep_assert_held(&dev_priv->drm.struct_mutex);
 
-	DRM_DEBUG_KMS("creating preallocated stolen object: stolen_offset=%x, gtt_offset=%x, size=%x\n",
-			stolen_offset, gtt_offset, size);
+	DRM_DEBUG_KMS("creating preallocated stolen object: stolen_offset=%pa, gtt_offset=%pa, size=%pa\n",
+			&stolen_offset, &gtt_offset, &size);
 
 	/* KISS and expect everything to be page-aligned */
 	if (WARN_ON(size == 0) ||

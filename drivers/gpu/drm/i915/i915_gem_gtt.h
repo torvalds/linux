@@ -371,7 +371,7 @@ struct i915_ggtt {
 
 	struct io_mapping iomap;	/* Mapping to our CPU mappable region */
 	struct resource gmadr;          /* GMADR resource */
-	u64 mappable_end;		/* End offset that we can CPU map */
+	resource_size_t mappable_end;	/* End offset that we can CPU map */
 
 	/** "Graphics Stolen Memory" holds the global PTEs */
 	void __iomem *gsm;

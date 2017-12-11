@@ -7033,9 +7033,9 @@ static void cherryview_check_pctx(struct drm_i915_private *dev_priv)
 
 static void cherryview_setup_pctx(struct drm_i915_private *dev_priv)
 {
-	unsigned long pctx_paddr, paddr;
+	resource_size_t pctx_paddr, paddr;
+	resource_size_t pctx_size = 32*1024;
 	u32 pcbr;
-	int pctx_size = 32*1024;
 
 	pcbr = I915_READ(VLV_PCBR);
 	if ((pcbr >> VLV_PCBR_ADDR_SHIFT) == 0) {
@@ -7053,14 +7053,14 @@ static void cherryview_setup_pctx(struct drm_i915_private *dev_priv)
 static void valleyview_setup_pctx(struct drm_i915_private *dev_priv)
 {
 	struct drm_i915_gem_object *pctx;
-	unsigned long pctx_paddr;
+	resource_size_t pctx_paddr;
+	resource_size_t pctx_size = 24*1024;
 	u32 pcbr;
-	int pctx_size = 24*1024;
 
 	pcbr = I915_READ(VLV_PCBR);
 	if (pcbr) {
 		/* BIOS set it up already, grab the pre-alloc'd space */
-		int pcbr_offset;
+		resource_size_t pcbr_offset;
 
 		pcbr_offset = (pcbr & (~4095)) - dev_priv->dsm.start;
 		pctx = i915_gem_object_create_stolen_for_preallocated(dev_priv,

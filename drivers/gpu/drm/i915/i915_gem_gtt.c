@@ -3354,7 +3354,7 @@ static int gen6_gmch_probe(struct i915_ggtt *ggtt)
 	 * a coarse sanity check.
 	 */
 	if (ggtt->mappable_end < (64<<20) || ggtt->mappable_end > (512<<20)) {
-		DRM_ERROR("Unknown GMADR size (%llx)\n", ggtt->mappable_end);
+		DRM_ERROR("Unknown GMADR size (%pa)\n", &ggtt->mappable_end);
 		return -ENXIO;
 	}
 
@@ -3464,7 +3464,7 @@ int i915_ggtt_probe_hw(struct drm_i915_private *dev_priv)
 	 */
 	if (USES_GUC(dev_priv)) {
 		ggtt->base.total = min_t(u64, ggtt->base.total, GUC_GGTT_TOP);
-		ggtt->mappable_end = min(ggtt->mappable_end, ggtt->base.total);
+		ggtt->mappable_end = min_t(u64, ggtt->mappable_end, ggtt->base.total);
 	}
 
 	if ((ggtt->base.total - 1) >> 32) {
@@ -3472,13 +3472,13 @@ int i915_ggtt_probe_hw(struct drm_i915_private *dev_priv)
 			  " of address space! Found %lldM!\n",
 			  ggtt->base.total >> 20);
 		ggtt->base.total = 1ULL << 32;
-		ggtt->mappable_end = min(ggtt->mappable_end, ggtt->base.total);
+		ggtt->mappable_end = min_t(u64, ggtt->mappable_end, ggtt->base.total);
 	}
 
 	if (ggtt->mappable_end > ggtt->base.total) {
 		DRM_ERROR("mappable aperture extends past end of GGTT,"
-			  " aperture=%llx, total=%llx\n",
-			  ggtt->mappable_end, ggtt->base.total);
+			  " aperture=%pa, total=%llx\n",
+			  &ggtt->mappable_end, ggtt->base.total);
 		ggtt->mappable_end = ggtt->base.total;
 	}
 
