@@ -167,7 +167,6 @@
 	pcf8523: rtc@68 {
 		compatible = "nxp,pcf8523";
 		reg = <0x68>;
-		nxp,12p5_pf;
 	};
 
 	sgtl5000: codec@0a {
