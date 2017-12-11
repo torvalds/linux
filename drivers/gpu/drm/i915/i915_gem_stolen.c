@@ -394,16 +394,14 @@ int i915_gem_init_stolen(struct drm_i915_private *dev_priv)
 		reserved_base = stolen_top;
 	}
 
-	if (reserved_base < dev_priv->dsm.start ||
-	    reserved_base + reserved_size > stolen_top) {
-		dma_addr_t reserved_top = reserved_base + reserved_size;
-		DRM_ERROR("Stolen reserved area [%pad - %pad] outside stolen memory %pR\n",
-			  &reserved_base, &reserved_top, &dev_priv->dsm);
+	dev_priv->dsm_reserved =
+		(struct resource) DEFINE_RES_MEM(reserved_base, reserved_size);
+
+	if (!resource_contains(&dev_priv->dsm, &dev_priv->dsm_reserved)) {
+		DRM_ERROR("Stolen reserved area %pR outside stolen memory %pR\n",
+			  &dev_priv->dsm_reserved, &dev_priv->dsm);
 		return 0;
 	}
-
-	ggtt->stolen_reserved_base = reserved_base;
-	ggtt->stolen_reserved_size = reserved_size;
 
 	/* It is possible for the reserved area to end before the end of stolen
 	 * memory, so just consider the start. */

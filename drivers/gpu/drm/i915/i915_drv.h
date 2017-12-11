@@ -2259,6 +2259,10 @@ struct drm_i915_private {
 	 * some portion of it is in fact reserved for use by hardware functions.
 	 */
 	struct resource dsm;
+	/**
+	 * Reseved portion of Data Stolen Memory
+	 */
+	struct resource dsm_reserved;
 
 	void __iomem *regs;
 

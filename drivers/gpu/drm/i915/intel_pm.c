@@ -6416,7 +6416,6 @@ static void valleyview_disable_rps(struct drm_i915_private *dev_priv)
 
 static bool bxt_check_bios_rc6_setup(struct drm_i915_private *dev_priv)
 {
-	struct i915_ggtt *ggtt = &dev_priv->ggtt;
 	bool enable_rc6 = true;
 	unsigned long rc6_ctx_base;
 	u32 rc_ctl;
@@ -6441,9 +6440,8 @@ static bool bxt_check_bios_rc6_setup(struct drm_i915_private *dev_priv)
 	 * for this check.
 	 */
 	rc6_ctx_base = I915_READ(RC6_CTX_BASE) & RC6_CTX_BASE_MASK;
-	if (!((rc6_ctx_base >= ggtt->stolen_reserved_base) &&
-	      (rc6_ctx_base + PAGE_SIZE <= ggtt->stolen_reserved_base +
-					ggtt->stolen_reserved_size))) {
+	if (!((rc6_ctx_base >= dev_priv->dsm_reserved.start) &&
+	      (rc6_ctx_base + PAGE_SIZE < dev_priv->dsm_reserved.end))) {
 		DRM_DEBUG_DRIVER("RC6 Base address not as expected.\n");
 		enable_rc6 = false;
 	}
