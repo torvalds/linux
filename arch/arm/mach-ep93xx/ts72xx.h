@@ -12,6 +12,9 @@
  * febfd000	22800000	4K	options register #2
  */
 
+#ifndef __TS72XX_H_
+#define __TS72XX_H_
+
 #define TS72XX_MODEL_PHYS_BASE		0x22000000
 #define TS72XX_MODEL_VIRT_BASE		IOMEM(0xfebff000)
 #define TS72XX_MODEL_SIZE		0x00001000
@@ -83,3 +86,4 @@ static inline int is_ts9420_installed(void)
 					TS72XX_OPTIONS2_TS9420);
 }
 #endif
+#endif /* __TS72XX_H_ */
