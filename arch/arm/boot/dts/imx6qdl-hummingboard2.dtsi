@@ -52,20 +52,29 @@
 		linux,rc-map-name = "rc-rc6-mce";
 	};
 
-	reg_3p3v: regulator-3p3v {
+	v_3v2: regulator-v-3v2 {
 		compatible = "regulator-fixed";
-		regulator-name = "VCC_3V2";
-		regulator-min-microvolt = <3300000>;
-		regulator-max-microvolt = <3300000>;
 		regulator-always-on;
+		regulator-max-microvolt = <3300000>;
+		regulator-min-microvolt = <3300000>;
+		regulator-name = "v_3v2";
 	};
 
-	reg_1p8v: regulator-1p8v {
+	v_5v0: regulator-v-5v0 {
 		compatible = "regulator-fixed";
-		regulator-name = "VCC_1V8";
-		regulator-min-microvolt = <1800000>;
-		regulator-max-microvolt = <1800000>;
 		regulator-always-on;
+		regulator-max-microvolt = <5000000>;
+		regulator-min-microvolt = <5000000>;
+		regulator-name = "v_5v0";
+	};
+
+	vcc_1p8: regulator-vcc-1p8 {
+		compatible = "regulator-fixed";
+		regulator-always-on;
+		regulator-max-microvolt = <1800000>;
+		regulator-min-microvolt = <1800000>;
+		regulator-name = "vcc_1p8";
+		vin-supply = <&v_3v2>;
 	};
 
 	v_sd: regulator-v-sd {
@@ -78,53 +87,62 @@
 		regulator-min-microvolt = <3300000>;
 		regulator-name = "v_sd";
 		startup-delay-us = <1000>;
+		vin-supply = <&v_3v2>;
 	};
 
-	reg_usbh2_vbus: regulator-usb-h1-vbus {
-		compatible = "regulator-fixed";
-		enable-active-high;
-		gpio = <&gpio1 0 GPIO_ACTIVE_HIGH>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&pinctrl_hummingboard2_usbh1_vbus>;
-		regulator-name = "V_USB2";
-		regulator-min-microvolt = <5000000>;
-		regulator-max-microvolt = <5000000>;
-		regulator-always-on;
-	};
-
-	reg_usbotg_vbus: regulator-usb-otg-vbus {
+	v_usb1: regulator-v-usb1 {
 		compatible = "regulator-fixed";
 		enable-active-high;
 		gpio = <&gpio3 22 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_hummingboard2_usbotg_vbus>;
-		regulator-name = "V_USB1";
-		regulator-min-microvolt = <5000000>;
+		regulator-always-on;
 		regulator-max-microvolt = <5000000>;
+		regulator-min-microvolt = <5000000>;
+		regulator-name = "v_usb1";
+		vin-supply = <&v_5v0>;
 	};
 
-	reg_usbh3_vbus: regulator-usb-h2-vbus {
+	v_usb2: regulator-v-usb2 {
+		/* USB hub port 1 */
 		compatible = "regulator-fixed";
 		enable-active-high;
-		enable-gpio = <&gpio2 13 GPIO_ACTIVE_HIGH>;
+		gpio = <&gpio1 0 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_hummingboard2_usbh1_vbus>;
+		regulator-always-on;
+		regulator-max-microvolt = <5000000>;
+		regulator-min-microvolt = <5000000>;
+		regulator-name = "v_usb2";
+		vin-supply = <&v_5v0>;
+	};
+
+	v_usb3: regulator-v-usb3 {
+		/* USB hub port 3 */
+		compatible = "regulator-fixed";
+		enable-active-high;
+		gpio = <&gpio2 13 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_hummingboard2_usbh2_vbus>;
-		regulator-name = "V_USB3";
-		regulator-min-microvolt = <5000000>;
-		regulator-max-microvolt = <5000000>;
 		regulator-always-on;
+		regulator-max-microvolt = <5000000>;
+		regulator-min-microvolt = <5000000>;
+		regulator-name = "v_usb3";
+		vin-supply = <&v_5v0>;
 	};
 
-	reg_usbh4_vbus: regulator-usb-h3-vbus {
+	v_usb4: regulator-v-usb4 {
+		/* USB hub port 4 */
 		compatible = "regulator-fixed";
 		enable-active-high;
-		enable-gpio = <&gpio7 10 GPIO_ACTIVE_HIGH>;
+		gpio = <&gpio7 10 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_hummingboard2_usbh3_vbus>;
-		regulator-name = "V_USB4";
-		regulator-min-microvolt = <5000000>;
-		regulator-max-microvolt = <5000000>;
 		regulator-always-on;
+		regulator-max-microvolt = <5000000>;
+		regulator-min-microvolt = <5000000>;
+		regulator-name = "v_usb4";
+		vin-supply = <&v_5v0>;
 	};
 
 	sound-sgtl5000 {
@@ -176,9 +194,9 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_hummingboard2_sgtl5000>;
 		reg = <0x0a>;
-		VDDA-supply = <&reg_3p3v>;
-		VDDIO-supply = <&reg_3p3v>;
-		VDDD-supply = <&reg_1p8v>;
+		VDDA-supply = <&v_3v2>;
+		VDDD-supply = <&vcc_1p8>;
+		VDDIO-supply = <&v_3v2>;
 	};
 };
 
@@ -488,7 +506,7 @@
 	disable-over-current;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_hummingboard2_usbotg_id>;
-	vbus-supply = <&reg_usbotg_vbus>;
+	vbus-supply = <&v_usb1>;
 	status = "okay";
 };
 
@@ -515,4 +533,8 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_hummingboard2_uart3>;
 	status = "okay";
+};
+
+&vcc_3v3 {
+	vin-supply = <&v_3v2>;
 };

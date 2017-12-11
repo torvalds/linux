@@ -64,8 +64,8 @@
 &usdhc3 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_hummingboard2_usdhc3>;
-	vmmc-supply = <&reg_3p3v>;
-	vqmmc-supply = <&reg_3p3v>;
+	vmmc-supply = <&v_3v2>;
+	vqmmc-supply = <&v_3v2>;
 	bus-width = <8>;
 	non-removable;
 	status = "okay";
