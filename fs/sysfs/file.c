@@ -12,7 +12,6 @@
 
 #include <linux/module.h>
 #include <linux/kobject.h>
-#include <linux/kallsyms.h>
 #include <linux/slab.h>
 #include <linux/list.h>
 #include <linux/mutex.h>
@@ -70,8 +69,8 @@ static int sysfs_kf_seq_show(struct seq_file *sf, void *v)
 	 * indicate truncated result or overflow in normal use cases.
 	 */
 	if (count >= (ssize_t)PAGE_SIZE) {
-		print_symbol("fill_read_buffer: %s returned bad count\n",
-			(unsigned long)ops->show);
+		printk("fill_read_buffer: %pS returned bad count\n",
+				ops->show);
 		/* Try to struggle along */
 		count = PAGE_SIZE - 1;
 	}
