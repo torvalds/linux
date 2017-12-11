@@ -3333,7 +3333,7 @@ i915_gem_idle_work_handler(struct work_struct *work)
 	 * Wait for last execlists context complete, but bail out in case a
 	 * new request is submitted.
 	 */
-	end = ktime_add_ms(ktime_get(), 200);
+	end = ktime_add_ms(ktime_get(), I915_IDLE_ENGINES_TIMEOUT);
 	do {
 		if (new_requests_since_last_retire(dev_priv))
 			return;
@@ -3533,7 +3533,7 @@ static int wait_for_timeline(struct i915_gem_timeline *tl, unsigned int flags)
 
 static int wait_for_engines(struct drm_i915_private *i915)
 {
-	if (wait_for(intel_engines_are_idle(i915), 50)) {
+	if (wait_for(intel_engines_are_idle(i915), I915_IDLE_ENGINES_TIMEOUT)) {
 		DRM_ERROR("Failed to idle engines, declaring wedged!\n");
 		i915_gem_set_wedged(i915);
 		return -EIO;

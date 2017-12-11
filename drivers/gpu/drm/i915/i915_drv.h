@@ -1586,6 +1586,8 @@ struct drm_i915_error_state_buf {
 	loff_t pos;
 };
 
+#define I915_IDLE_ENGINES_TIMEOUT (200) /* in ms */
+
 #define I915_RESET_TIMEOUT (10 * HZ) /* 10s */
 #define I915_FENCE_TIMEOUT (10 * HZ) /* 10s */
 
