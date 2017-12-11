@@ -228,7 +228,8 @@ static int fsl_mc_driver_probe(struct device *dev)
 
 	error = mc_drv->probe(mc_dev);
 	if (error < 0) {
-		dev_err(dev, "%s failed: %d\n", __func__, error);
+		if (error != -EPROBE_DEFER)
+			dev_err(dev, "%s failed: %d\n", __func__, error);
 		return error;
 	}
 
