@@ -1092,14 +1092,14 @@ class Tui(object):
             # sort by totals
             return (0, -stats[x][0])
         total = 0.
-        for val in stats.values():
-            total += val[0]
+        for key in stats.keys():
+            if key.find('(') is -1:
+                total += stats[key][0]
         if self._sorting == SORT_DEFAULT:
             sortkey = sortCurAvg
         else:
             sortkey = sortTotal
         for key in sorted(stats.keys(), key=sortkey):
-
             if row >= self.screen.getmaxyx()[0]:
                 break
             values = stats[key]
