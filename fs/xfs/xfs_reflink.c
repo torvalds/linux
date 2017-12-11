@@ -1291,6 +1291,17 @@ xfs_reflink_remap_range(
 
 	trace_xfs_reflink_remap_range(src, pos_in, len, dest, pos_out);
 
+	/*
+	 * Clear out post-eof preallocations because we don't have page cache
+	 * backing the delayed allocations and they'll never get freed on
+	 * their own.
+	 */
+	if (xfs_can_free_eofblocks(dest, true)) {
+		ret = xfs_free_eofblocks(dest);
+		if (ret)
+			goto out_unlock;
+	}
+
 	/* Set flags and remap blocks. */
 	ret = xfs_reflink_set_inode_flag(src, dest);
 	if (ret)
