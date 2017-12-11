@@ -469,7 +469,7 @@
 &pcie {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_hummingboard2_pcie_reset>;
-	reset-gpio = <&gpio2 11 0>;
+	reset-gpio = <&gpio2 11 GPIO_ACTIVE_LOW>;
 	status = "okay";
 };
 
