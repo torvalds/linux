@@ -466,6 +466,15 @@ static const struct regmap_config tas5720_regmap_config = {
 	.volatile_reg = tas5720_is_volatile_reg,
 };
 
+static const struct regmap_config tas5722_regmap_config = {
+	.reg_bits = 8,
+	.val_bits = 8,
+
+	.max_register = TAS5722_MAX_REG,
+	.cache_type = REGCACHE_RBTREE,
+	.volatile_reg = tas5720_is_volatile_reg,
+};
+
 /*
  * DAC analog gain. There are four discrete values to select from, ranging
  * from 19.2 dB to 26.3dB.
@@ -564,6 +573,7 @@ static int tas5720_probe(struct i2c_client *client,
 {
 	struct device *dev = &client->dev;
 	struct tas5720_data *data;
+	const struct regmap_config *regmap_config;
 	int ret;
 	int i;
 
@@ -574,7 +584,18 @@ static int tas5720_probe(struct i2c_client *client,
 	data->tas5720_client = client;
 	data->devtype = id->driver_data;
 
-	data->regmap = devm_regmap_init_i2c(client, &tas5720_regmap_config);
+	switch (id->driver_data) {
+	case TAS5720:
+		regmap_config = &tas5720_regmap_config;
+		break;
+	case TAS5722:
+		regmap_config = &tas5722_regmap_config;
+		break;
+	default:
+		dev_err(dev, "unexpected private driver data\n");
+		return -EINVAL;
+	}
+	data->regmap = devm_regmap_init_i2c(client, regmap_config);
 	if (IS_ERR(data->regmap)) {
 		ret = PTR_ERR(data->regmap);
 		dev_err(dev, "failed to allocate register map: %d\n", ret);
