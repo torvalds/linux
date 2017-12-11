@@ -343,7 +343,7 @@ static int amdgpu_vm_alloc_levels(struct amdgpu_device *adev,
 
 	if (vm->pte_support_ats) {
 		init_value = AMDGPU_PTE_DEFAULT_ATC;
-		if (level != adev->vm_manager.num_level - 1)
+		if (level != adev->vm_manager.num_level)
 			init_value |= AMDGPU_PDE_PTE;
 
 	}
