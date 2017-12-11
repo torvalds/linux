@@ -1,6 +1,6 @@
 /*
+ * Device Tree file for SolidRun HummingBoard2
  * Copyright (C) 2015 Rabeeh Khoury <rabeeh@solid-run.com>
- * Based on dt work by Russell King
  *
  * This file is dual-licensed: you can use it either under the terms
  * of the GPL or the X11 license, at your option. Note that this dual
@@ -8,8 +8,9 @@
  * whole.
  *
  *  a) This file is free software; you can redistribute it and/or
- *     modify it under the terms of the GNU General Public License
- *     version 2 as published by the Free Software Foundation.
+ *     modify it under the terms of the GNU General Public License as
+ *     published by the Free Software Foundation; either version 2 of the
+ *     License.
  *
  *     This file is distributed in the hope that it will be useful,
  *     but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -21,7 +22,7 @@
  *  b) Permission is hereby granted, free of charge, to any person
  *     obtaining a copy of this software and associated documentation
  *     files (the "Software"), to deal in the Software without
- *     restriction, including without limitation the rights to use,
+ *     restriction, including without limitation the rights to use
  *     copy, modify, merge, publish, distribute, sublicense, and/or
  *     sell copies of the Software, and to permit persons to whom the
  *     Software is furnished to do so, subject to the following
@@ -39,23 +40,33 @@
  *     FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  *     OTHER DEALINGS IN THE SOFTWARE.
  */
-/dts-v1/;
 
-#include "imx6q.dtsi"
-#include "imx6qdl-sr-som.dtsi"
-#include "imx6qdl-sr-som-brcm.dtsi"
-#include "imx6qdl-hummingboard2.dtsi"
-#include "imx6qdl-hummingboard2-emmc.dtsi"
-
-/ {
-	model = "SolidRun HummingBoard2 Dual/Quad";
-	compatible = "solidrun,hummingboard2/q", "fsl,imx6q";
+&iomuxc {
+	hummingboard2 {
+		pinctrl_hummingboard2_usdhc3: hummingboard2-usdhc3 {
+			fsl,pins = <
+				MX6QDL_PAD_SD3_CMD__SD3_CMD    0x17059
+				MX6QDL_PAD_SD3_CLK__SD3_CLK    0x10059
+				MX6QDL_PAD_SD3_DAT0__SD3_DATA0 0x17059
+				MX6QDL_PAD_SD3_DAT1__SD3_DATA1 0x17059
+				MX6QDL_PAD_SD3_DAT2__SD3_DATA2 0x17059
+				MX6QDL_PAD_SD3_DAT3__SD3_DATA3 0x17059
+				MX6QDL_PAD_SD3_DAT4__SD3_DATA4 0x17059
+				MX6QDL_PAD_SD3_DAT5__SD3_DATA5 0x17059
+				MX6QDL_PAD_SD3_DAT6__SD3_DATA6 0x17059
+				MX6QDL_PAD_SD3_DAT7__SD3_DATA7 0x17059
+				MX6QDL_PAD_SD3_RST__SD3_RESET  0x17059
+			>;
+		};
+	};
 };
 
-&sata {
+&usdhc3 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_hummingboard2_usdhc3>;
+	vmmc-supply = <&reg_3p3v>;
+	vqmmc-supply = <&reg_3p3v>;
+	bus-width = <8>;
+	non-removable;
 	status = "okay";
-	fsl,transmit-level-mV = <1104>;
-	fsl,transmit-boost-mdB = <0>;
-	fsl,transmit-atten-16ths = <9>;
-	fsl,no-spread-spectrum;
 };

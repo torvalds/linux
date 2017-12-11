@@ -441,22 +441,6 @@
 			>;
 		};
 
-		pinctrl_hummingboard2_usdhc3: hummingboard2-usdhc3 {
-			fsl,pins = <
-				MX6QDL_PAD_SD3_CMD__SD3_CMD    0x17059
-				MX6QDL_PAD_SD3_CLK__SD3_CLK    0x10059
-				MX6QDL_PAD_SD3_DAT0__SD3_DATA0 0x17059
-				MX6QDL_PAD_SD3_DAT1__SD3_DATA1 0x17059
-				MX6QDL_PAD_SD3_DAT2__SD3_DATA2 0x17059
-				MX6QDL_PAD_SD3_DAT3__SD3_DATA3 0x17059
-				MX6QDL_PAD_SD3_DAT4__SD3_DATA4 0x17059
-				MX6QDL_PAD_SD3_DAT5__SD3_DATA5 0x17059
-				MX6QDL_PAD_SD3_DAT6__SD3_DATA6 0x17059
-				MX6QDL_PAD_SD3_DAT7__SD3_DATA7 0x17059
-				MX6QDL_PAD_SD3_RST__SD3_RESET  0x17059
-			>;
-		};
-
 		pinctrl_hummingboard2_uart3: hummingboard2-uart3 {
 			fsl,pins = <
 				MX6QDL_PAD_EIM_D25__UART3_TX_DATA	0x1b0b1
@@ -512,16 +496,6 @@
 	>;
 	vmmc-supply = <&v_sd>;
 	cd-gpios = <&gpio1 4 GPIO_ACTIVE_LOW>;
-	status = "okay";
-};
-
-&usdhc3 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_hummingboard2_usdhc3>;
-	vmmc-supply = <&reg_3p3v>;
-	vqmmc-supply = <&reg_3p3v>;
-	bus-width = <8>;
-	non-removable;
 	status = "okay";
 };
 

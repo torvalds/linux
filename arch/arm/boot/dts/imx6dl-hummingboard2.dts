@@ -45,6 +45,7 @@
 #include "imx6qdl-sr-som.dtsi"
 #include "imx6qdl-sr-som-brcm.dtsi"
 #include "imx6qdl-hummingboard2.dtsi"
+#include "imx6qdl-hummingboard2-emmc.dtsi"
 
 / {
 	model = "SolidRun HummingBoard2 Solo/DualLite";
