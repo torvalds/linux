@@ -24,6 +24,7 @@ struct module;
 struct device;
 struct i2c_client;
 struct irq_domain;
+struct slim_device;
 struct spi_device;
 struct spmi_device;
 struct regmap;
@@ -499,6 +500,10 @@ struct regmap *__regmap_init_i2c(struct i2c_client *i2c,
 				 const struct regmap_config *config,
 				 struct lock_class_key *lock_key,
 				 const char *lock_name);
+struct regmap *__regmap_init_slimbus(struct slim_device *slimbus,
+				 const struct regmap_config *config,
+				 struct lock_class_key *lock_key,
+				 const char *lock_name);
 struct regmap *__regmap_init_spi(struct spi_device *dev,
 				 const struct regmap_config *config,
 				 struct lock_class_key *lock_key,
@@ -614,6 +619,19 @@ int regmap_attach_dev(struct device *dev, struct regmap *map,
 #define regmap_init_i2c(i2c, config)					\
 	__regmap_lockdep_wrapper(__regmap_init_i2c, #config,		\
 				i2c, config)
+
+/**
+ * regmap_init_slimbus() - Initialise register map
+ *
+ * @slimbus: Device that will be interacted with
+ * @config: Configuration for register map
+ *
+ * The return value will be an ERR_PTR() on error or a valid pointer to
+ * a struct regmap.
+ */
+#define regmap_init_slimbus(slimbus, config)				\
+	__regmap_lockdep_wrapper(__regmap_init_slimbus, #config,	\
+				slimbus, config)
 
 /**
  * regmap_init_spi() - Initialise register map
