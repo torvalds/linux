@@ -3110,7 +3110,6 @@ static int srp_parse_options(const char *buf, struct srp_target_port *target)
 {
 	char *options, *sep_opt;
 	char *p;
-	char dgid[3];
 	substring_t args[MAX_OPT_ARGS];
 	int opt_mask = 0;
 	int token;
@@ -3162,16 +3161,10 @@ static int srp_parse_options(const char *buf, struct srp_target_port *target)
 				goto out;
 			}
 
-			for (i = 0; i < 16; ++i) {
-				strlcpy(dgid, p + i * 2, sizeof(dgid));
-				if (sscanf(dgid, "%hhx",
-					   &target->orig_dgid.raw[i]) < 1) {
-					ret = -EINVAL;
-					kfree(p);
-					goto out;
-				}
-			}
+			ret = hex2bin(target->orig_dgid.raw, p, 16);
 			kfree(p);
+			if (ret < 0)
+				goto out;
 			break;
 
 		case SRP_OPT_PKEY:
