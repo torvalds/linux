@@ -1360,7 +1360,7 @@ class Tui(object):
                 if char == 'x':
                     self.update_drilldown()
                     # prevents display of current values on next refresh
-                    self.stats.get()
+                    self.stats.get(self._display_guests)
             except KeyboardInterrupt:
                 break
             except curses.error:
