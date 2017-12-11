@@ -2641,12 +2641,6 @@ mft_rec_already_initialized:
 			goto undo_mftbmp_alloc;
 		}
 		vi->i_ino = bit;
-		/*
-		 * This is for checking whether an inode has changed w.r.t. a
-		 * file so that the file can be updated if necessary (compare
-		 * with f_version).
-		 */
-		vi->i_version = 1;
 
 		/* The owner and group come from the ntfs volume. */
 		vi->i_uid = vol->uid;
