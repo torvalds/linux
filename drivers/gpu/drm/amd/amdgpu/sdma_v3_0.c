@@ -355,7 +355,7 @@ static uint64_t sdma_v3_0_ring_get_wptr(struct amdgpu_ring *ring)
 	struct amdgpu_device *adev = ring->adev;
 	u32 wptr;
 
-	if (ring->use_doorbell) {
+	if (ring->use_doorbell || ring->use_pollmem) {
 		/* XXX check if swapping is necessary on BE */
 		wptr = ring->adev->wb.wb[ring->wptr_offs] >> 2;
 	} else {
@@ -380,10 +380,13 @@ static void sdma_v3_0_ring_set_wptr(struct amdgpu_ring *ring)
 
 	if (ring->use_doorbell) {
 		u32 *wb = (u32 *)&adev->wb.wb[ring->wptr_offs];
-
 		/* XXX check if swapping is necessary on BE */
 		WRITE_ONCE(*wb, (lower_32_bits(ring->wptr) << 2));
 		WDOORBELL32(ring->doorbell_index, lower_32_bits(ring->wptr) << 2);
+	} else if (ring->use_pollmem) {
+		u32 *wb = (u32 *)&adev->wb.wb[ring->wptr_offs];
+
+		WRITE_ONCE(*wb, (lower_32_bits(ring->wptr) << 2));
 	} else {
 		int me = (ring == &ring->adev->sdma.instance[0].ring) ? 0 : 1;
 
@@ -718,10 +721,14 @@ static int sdma_v3_0_gfx_resume(struct amdgpu_device *adev)
 		WREG32(mmSDMA0_GFX_RB_WPTR_POLL_ADDR_HI + sdma_offsets[i],
 		       upper_32_bits(wptr_gpu_addr));
 		wptr_poll_cntl = RREG32(mmSDMA0_GFX_RB_WPTR_POLL_CNTL + sdma_offsets[i]);
-		if (amdgpu_sriov_vf(adev))
-			wptr_poll_cntl = REG_SET_FIELD(wptr_poll_cntl, SDMA0_GFX_RB_WPTR_POLL_CNTL, F32_POLL_ENABLE, 1);
+		if (ring->use_pollmem)
+			wptr_poll_cntl = REG_SET_FIELD(wptr_poll_cntl,
+						       SDMA0_GFX_RB_WPTR_POLL_CNTL,
+						       ENABLE, 1);
 		else
-			wptr_poll_cntl = REG_SET_FIELD(wptr_poll_cntl, SDMA0_GFX_RB_WPTR_POLL_CNTL, F32_POLL_ENABLE, 0);
+			wptr_poll_cntl = REG_SET_FIELD(wptr_poll_cntl,
+						       SDMA0_GFX_RB_WPTR_POLL_CNTL,
+						       ENABLE, 0);
 		WREG32(mmSDMA0_GFX_RB_WPTR_POLL_CNTL + sdma_offsets[i], wptr_poll_cntl);
 
 		/* enable DMA RB */
@@ -1203,9 +1210,13 @@ static int sdma_v3_0_sw_init(void *handle)
 	for (i = 0; i < adev->sdma.num_instances; i++) {
 		ring = &adev->sdma.instance[i].ring;
 		ring->ring_obj = NULL;
-		ring->use_doorbell = true;
-		ring->doorbell_index = (i == 0) ?
-			AMDGPU_DOORBELL_sDMA_ENGINE0 : AMDGPU_DOORBELL_sDMA_ENGINE1;
+		if (!amdgpu_sriov_vf(adev)) {
+			ring->use_doorbell = true;
+			ring->doorbell_index = (i == 0) ?
+				AMDGPU_DOORBELL_sDMA_ENGINE0 : AMDGPU_DOORBELL_sDMA_ENGINE1;
+		} else {
+			ring->use_pollmem = true;
+		}
 
 		sprintf(ring->name, "sdma%d", i);
 		r = amdgpu_ring_init(adev, ring, 1024,

@@ -186,6 +186,7 @@ struct amdgpu_ring {
 	uint64_t                eop_gpu_addr;
 	u32			doorbell_index;
 	bool			use_doorbell;
+	bool			use_pollmem;
 	unsigned		wptr_offs;
 	unsigned		fence_offs;
 	uint64_t		current_ctx;
