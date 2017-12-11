@@ -368,9 +368,9 @@ i915_vm_has_scratch_64K(struct i915_address_space *vm)
  */
 struct i915_ggtt {
 	struct i915_address_space base;
-	struct io_mapping mappable;	/* Mapping to our CPU mappable region */
 
-	phys_addr_t mappable_base;	/* PA of our GMADR */
+	struct io_mapping iomap;	/* Mapping to our CPU mappable region */
+	struct resource gmadr;          /* GMADR resource */
 	u64 mappable_end;		/* End offset that we can CPU map */
 
 	/* Stolen memory is segmented in hardware with different portions

@@ -956,7 +956,7 @@ i915_error_object_create(struct drm_i915_private *i915,
 		ggtt->base.insert_page(&ggtt->base, dma, slot,
 				       I915_CACHE_NONE, 0);
 
-		s = io_mapping_map_atomic_wc(&ggtt->mappable, slot);
+		s = io_mapping_map_atomic_wc(&ggtt->iomap, slot);
 		ret = compress_page(&compress, (void  __force *)s, dst);
 		io_mapping_unmap_atomic(s);
 
