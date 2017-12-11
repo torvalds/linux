@@ -1819,7 +1819,7 @@ EXPORT_SYMBOL(bio_endio);
 struct bio *bio_split(struct bio *bio, int sectors,
 		      gfp_t gfp, struct bio_set *bs)
 {
-	struct bio *split = NULL;
+	struct bio *split;
 
 	BUG_ON(sectors <= 0);
 	BUG_ON(sectors >= bio_sectors(bio));

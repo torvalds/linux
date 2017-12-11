@@ -688,7 +688,7 @@
 
 &uart_A {
 	clocks = <&xtal>, <&clkc CLKID_UART0>, <&xtal>;
-	clock-names = "xtal", "core", "baud";
+	clock-names = "xtal", "pclk", "baud";
 };
 
 &uart_AO {
@@ -703,12 +703,12 @@
 
 &uart_B {
 	clocks = <&xtal>, <&clkc CLKID_UART1>, <&xtal>;
-	clock-names = "xtal", "core", "baud";
+	clock-names = "xtal", "pclk", "baud";
 };
 
 &uart_C {
 	clocks = <&xtal>, <&clkc CLKID_UART2>, <&xtal>;
-	clock-names = "xtal", "core", "baud";
+	clock-names = "xtal", "pclk", "baud";
 };
 
 &vpu {

@@ -1112,10 +1112,7 @@ bool dce110_timing_generator_validate_timing(
 	enum signal_type signal)
 {
 	uint32_t h_blank;
-	uint32_t h_back_porch;
-	uint32_t hsync_offset = timing->h_border_right +
-			timing->h_front_porch;
-	uint32_t h_sync_start = timing->h_addressable + hsync_offset;
+	uint32_t h_back_porch, hsync_offset, h_sync_start;
 
 	struct dce110_timing_generator *tg110 = DCE110TG_FROM_TG(tg);
 
@@ -1123,6 +1120,9 @@ bool dce110_timing_generator_validate_timing(
 
 	if (!timing)
 		return false;
+
+	hsync_offset = timing->h_border_right + timing->h_front_porch;
+	h_sync_start = timing->h_addressable + hsync_offset;
 
 	/* Currently we don't support 3D, so block all 3D timings */
 	if (timing->timing_3d_format != TIMING_3D_FORMAT_NONE)

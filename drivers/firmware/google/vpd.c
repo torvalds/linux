@@ -295,38 +295,60 @@ static int vpd_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	return vpd_sections_init(entry.cbmem_addr);
+	vpd_kobj = kobject_create_and_add("vpd", firmware_kobj);
+	if (!vpd_kobj)
+		return -ENOMEM;
+
+	ret = vpd_sections_init(entry.cbmem_addr);
+	if (ret) {
+		kobject_put(vpd_kobj);
+		return ret;
+	}
+
+	return 0;
+}
+
+static int vpd_remove(struct platform_device *pdev)
+{
+	vpd_section_destroy(&ro_vpd);
+	vpd_section_destroy(&rw_vpd);
+
+	kobject_put(vpd_kobj);
+
+	return 0;
 }
 
 static struct platform_driver vpd_driver = {
 	.probe = vpd_probe,
+	.remove = vpd_remove,
 	.driver = {
 		.name = "vpd",
 	},
 };
 
+static struct platform_device *vpd_pdev;
+
 static int __init vpd_platform_init(void)
 {
-	struct platform_device *pdev;
+	int ret;
 
-	pdev = platform_device_register_simple("vpd", -1, NULL, 0);
-	if (IS_ERR(pdev))
-		return PTR_ERR(pdev);
+	ret = platform_driver_register(&vpd_driver);
+	if (ret)
+		return ret;
 
-	vpd_kobj = kobject_create_and_add("vpd", firmware_kobj);
-	if (!vpd_kobj)
-		return -ENOMEM;
-
-	platform_driver_register(&vpd_driver);
+	vpd_pdev = platform_device_register_simple("vpd", -1, NULL, 0);
+	if (IS_ERR(vpd_pdev)) {
+		platform_driver_unregister(&vpd_driver);
+		return PTR_ERR(vpd_pdev);
+	}
 
 	return 0;
 }
 
 static void __exit vpd_platform_exit(void)
 {
-	vpd_section_destroy(&ro_vpd);
-	vpd_section_destroy(&rw_vpd);
-	kobject_put(vpd_kobj);
+	platform_device_unregister(vpd_pdev);
+	platform_driver_unregister(&vpd_driver);
 }
 
 module_init(vpd_platform_init);

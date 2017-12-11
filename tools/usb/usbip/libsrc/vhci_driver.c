@@ -329,9 +329,17 @@ err:
 int usbip_vhci_get_free_port(uint32_t speed)
 {
 	for (int i = 0; i < vhci_driver->nports; i++) {
-		if (speed == USB_SPEED_SUPER &&
-		    vhci_driver->idev[i].hub != HUB_SPEED_SUPER)
-			continue;
+
+		switch (speed) {
+		case	USB_SPEED_SUPER:
+			if (vhci_driver->idev[i].hub != HUB_SPEED_SUPER)
+				continue;
+		break;
+		default:
+			if (vhci_driver->idev[i].hub != HUB_SPEED_HIGH)
+				continue;
+		break;
+		}
 
 		if (vhci_driver->idev[i].status == VDEV_ST_NULL)
 			return vhci_driver->idev[i].port;

@@ -13,7 +13,7 @@
  * more details.
  */
 #else
-/**
+/*
  * Support for Intel Camera Imaging ISP subsystem.
  * Copyright (c) 2010 - 2015, Intel Corporation.
  *

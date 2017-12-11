@@ -1819,6 +1819,22 @@ static void gfx_v7_0_setup_rb(struct amdgpu_device *adev)
 							adev->gfx.config.backend_enable_mask,
 							num_rb_pipes);
 	}
+
+	/* cache the values for userspace */
+	for (i = 0; i < adev->gfx.config.max_shader_engines; i++) {
+		for (j = 0; j < adev->gfx.config.max_sh_per_se; j++) {
+			gfx_v7_0_select_se_sh(adev, i, j, 0xffffffff);
+			adev->gfx.config.rb_config[i][j].rb_backend_disable =
+				RREG32(mmCC_RB_BACKEND_DISABLE);
+			adev->gfx.config.rb_config[i][j].user_rb_backend_disable =
+				RREG32(mmGC_USER_RB_BACKEND_DISABLE);
+			adev->gfx.config.rb_config[i][j].raster_config =
+				RREG32(mmPA_SC_RASTER_CONFIG);
+			adev->gfx.config.rb_config[i][j].raster_config_1 =
+				RREG32(mmPA_SC_RASTER_CONFIG_1);
+		}
+	}
+	gfx_v7_0_select_se_sh(adev, 0xffffffff, 0xffffffff, 0xffffffff);
 	mutex_unlock(&adev->grbm_idx_mutex);
 }
 

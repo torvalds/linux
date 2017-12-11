@@ -235,6 +235,7 @@ enum pxa_mbus_layout {
  *			stored in memory in the following way:
  * @packing:		Type of sample-packing, that has to be used
  * @order:		Sample order when storing in memory
+ * @layout:		Planes layout in memory
  * @bits_per_sample:	How many bits the bridge has to sample
  */
 struct pxa_mbus_pixelfmt {
@@ -852,10 +853,10 @@ static void pxa_camera_dma_irq_v(void *data)
 /**
  * pxa_init_dma_channel - init dma descriptors
  * @pcdev: pxa camera device
- * @vb: videobuffer2 buffer
- * @dma: dma video buffer
+ * @buf: pxa camera buffer
  * @channel: dma channel (0 => 'Y', 1 => 'U', 2 => 'V')
- * @cibr: camera Receive Buffer Register
+ * @sg: dma scatter list
+ * @sglen: dma scatter list length
  *
  * Prepares the pxa dma descriptors to transfer one camera channel.
  *
@@ -1010,6 +1011,8 @@ static void pxa_camera_wakeup(struct pxa_camera_dev *pcdev,
 /**
  * pxa_camera_check_link_miss - check missed DMA linking
  * @pcdev: camera device
+ * @last_submitted: an opaque DMA cookie for last submitted
+ * @last_issued: an opaque DMA cookie for last issued
  *
  * The DMA chaining is done with DMA running. This means a tiny temporal window
  * remains, where a buffer is queued on the chain, while the chain is already

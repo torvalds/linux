@@ -58,11 +58,19 @@ bool show_pinned;
 struct pinned_obj_table prog_table;
 struct pinned_obj_table map_table;
 
+static void __noreturn clean_and_exit(int i)
+{
+	if (json_output)
+		jsonw_destroy(&json_wtr);
+
+	exit(i);
+}
+
 void usage(void)
 {
 	last_do_help(last_argc - 1, last_argv + 1);
 
-	exit(-1);
+	clean_and_exit(-1);
 }
 
 static int do_help(int argc, char **argv)
@@ -280,6 +288,7 @@ int main(int argc, char **argv)
 	hash_init(prog_table.table);
 	hash_init(map_table.table);
 
+	opterr = 0;
 	while ((opt = getopt_long(argc, argv, "Vhpjf",
 				  options, NULL)) >= 0) {
 		switch (opt) {
@@ -291,13 +300,25 @@ int main(int argc, char **argv)
 			pretty_output = true;
 			/* fall through */
 		case 'j':
-			json_output = true;
+			if (!json_output) {
+				json_wtr = jsonw_new(stdout);
+				if (!json_wtr) {
+					p_err("failed to create JSON writer");
+					return -1;
+				}
+				json_output = true;
+			}
+			jsonw_pretty(json_wtr, pretty_output);
 			break;
 		case 'f':
 			show_pinned = true;
 			break;
 		default:
-			usage();
+			p_err("unrecognized option '%s'", argv[optind - 1]);
+			if (json_output)
+				clean_and_exit(-1);
+			else
+				usage();
 		}
 	}
 
@@ -305,15 +326,6 @@ int main(int argc, char **argv)
 	argv += optind;
 	if (argc < 0)
 		usage();
-
-	if (json_output) {
-		json_wtr = jsonw_new(stdout);
-		if (!json_wtr) {
-			p_err("failed to create JSON writer");
-			return -1;
-		}
-		jsonw_pretty(json_wtr, pretty_output);
-	}
 
 	bfd_init();
 

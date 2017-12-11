@@ -82,11 +82,11 @@ DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
  * @start_addr_lo:	DMA ring buffer start address, lower part
  * @start_addr_hi:	DMA ring buffer start address, higher part
  * @size:		DMA ring buffer size register
-			Bits [0-7]:	DMA packet size, 188 bytes
-			Bits [16-23]:	packets count in block, 128 packets
-			Bits [24-31]:	blocks count, 8 blocks
+ *			* Bits [0-7]:	DMA packet size, 188 bytes
+ *			* Bits [16-23]:	packets count in block, 128 packets
+ *			* Bits [24-31]:	blocks count, 8 blocks
  * @timeout:		DMA timeout in units of 8ns
-			For example, value of 375000000 equals to 3 sec
+ *			For example, value of 375000000 equals to 3 sec
  * @curr_addr_lo:	Current ring buffer head address, lower part
  * @curr_addr_hi:	Current ring buffer head address, higher part
  * @stat_pkt_received:	Statistic register, not tested
