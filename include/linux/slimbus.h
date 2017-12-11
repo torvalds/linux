@@ -37,11 +37,14 @@ enum slim_device_status {
 	SLIM_DEVICE_STATUS_RESERVED,
 };
 
+struct slim_controller;
+
 /**
  * struct slim_device - Slim device handle.
  * @dev: Driver model representation of the device.
  * @e_addr: Enumeration address of this device.
  * @status: slim device status
+ * @ctrl: slim controller instance.
  * @laddr: 1-byte Logical address of this device.
  * @is_laddr_valid: indicates if the laddr is valid or not
  *
@@ -52,6 +55,7 @@ enum slim_device_status {
 struct slim_device {
 	struct device		dev;
 	struct slim_eaddr	e_addr;
+	struct slim_controller	*ctrl;
 	enum slim_device_status	status;
 	u8			laddr;
 	bool			is_laddr_valid;
@@ -113,4 +117,8 @@ static inline void slim_set_devicedata(struct slim_device *dev, void *data)
 {
 	dev_set_drvdata(&dev->dev, data);
 }
+
+struct slim_device *slim_get_device(struct slim_controller *ctrl,
+				    struct slim_eaddr *e_addr);
+int slim_get_logical_addr(struct slim_device *sbdev);
 #endif /* _LINUX_SLIMBUS_H */
