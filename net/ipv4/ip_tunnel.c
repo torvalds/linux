@@ -349,8 +349,8 @@ static int ip_tunnel_bind_dev(struct net_device *dev)
 	dev->needed_headroom = t_hlen + hlen;
 	mtu -= (dev->hard_header_len + t_hlen);
 
-	if (mtu < 68)
-		mtu = 68;
+	if (mtu < IPV4_MIN_MTU)
+		mtu = IPV4_MIN_MTU;
 
 	return mtu;
 }

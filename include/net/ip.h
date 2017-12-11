@@ -34,6 +34,7 @@
 #include <net/flow_dissector.h>
 
 #define IPV4_MAX_PMTU		65535U		/* RFC 2675, Section 5.1 */
+#define IPV4_MIN_MTU		68			/* RFC 791 */
 
 struct sock;
 
