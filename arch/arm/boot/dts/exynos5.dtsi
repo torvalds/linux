@@ -211,6 +211,11 @@
 			interrupts = <GIC_SPI 112 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
+		prng: rng@10830400 {
+		      compatible = "samsung,exynos5250-prng";
+		      reg = <0x10830400 0x200>;
+		};
+
 		g2d: g2d@10850000 {
 			compatible = "samsung,exynos5250-g2d";
 			reg = <0x10850000 0x1000>;

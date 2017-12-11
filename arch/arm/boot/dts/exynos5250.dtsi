@@ -1061,6 +1061,11 @@
 	pinctrl-0 = <&i2c3_bus>;
 };
 
+&prng {
+	clocks = <&clock CLK_SSS>;
+	clock-names = "secss";
+};
+
 &pwm {
 	clocks = <&clock CLK_PWM>;
 	clock-names = "timers";
