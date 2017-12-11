@@ -15,12 +15,16 @@
  */
 
 #include <linux/extcon.h>
+#include <linux/interrupt.h>
+#include <linux/irq.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/of_gpio.h>
 #include <linux/platform_device.h>
 #include <linux/power_supply.h>
 #include <linux/power/rk_usbbc.h>
 #include <linux/property.h>
+#include <linux/rk_keys.h>
 #include <linux/workqueue.h>
 
 enum charger_t {
@@ -29,6 +33,8 @@ enum charger_t {
 	USB_TYPE_USB_CHARGER,
 	USB_TYPE_AC_CHARGER,
 	USB_TYPE_CDP_CHARGER,
+	DC_TYPE_DC_CHARGER,
+	DC_TYPE_NONE_CHARGER,
 };
 
 struct sy6982c_charger {
@@ -36,13 +42,18 @@ struct sy6982c_charger {
 	struct power_supply *usb_psy;
 	struct workqueue_struct *usb_charger_wq;
 	struct delayed_work usb_work;
+	struct workqueue_struct *dc_charger_wq;
+	struct delayed_work dc_work;
 	struct delayed_work discnt_work;
 	struct notifier_block cable_cg_nb;
 	struct notifier_block cable_discnt_nb;
 	unsigned int bc_event;
 	enum charger_t usb_charger;
+	enum charger_t dc_charger;
 	bool extcon;
 	struct extcon_dev *cable_edev;
+	struct gpio_desc *dc_det_pin;
+	bool support_dc_det;
 };
 
 static void sy6982c_cg_bc_evt_worker(struct work_struct *work)
@@ -190,6 +201,8 @@ static int sy6982c_cg_usb_get_property(struct power_supply *psy,
 	if (cg->usb_charger != USB_TYPE_UNKNOWN_CHARGER &&
 	    cg->usb_charger != USB_TYPE_NONE_CHARGER)
 		online = 1;
+	if (cg->dc_charger != DC_TYPE_NONE_CHARGER)
+		online = 1;
 	switch (psp) {
 	case POWER_SUPPLY_PROP_ONLINE:
 		val->intval = online;
@@ -234,6 +247,97 @@ static int sy6982c_cg_init_power_supply(struct sy6982c_charger *cg)
 	return 0;
 }
 
+#ifdef CONFIG_OF
+static int sy6982c_charger_parse_dt(struct sy6982c_charger *cg)
+{
+	struct device *dev = cg->dev;
+
+	cg->dc_det_pin = devm_gpiod_get_optional(dev, "dc-det",
+						    GPIOD_IN);
+	if (!IS_ERR_OR_NULL(cg->dc_det_pin)) {
+		cg->support_dc_det = true;
+	} else {
+		dev_err(dev, "invalid dc det gpio!\n");
+		cg->support_dc_det = false;
+	}
+
+	return 0;
+}
+#else
+static int sy6982c_charger_parse_dt(struct sy6982c_charger *cg)
+{
+	return -ENODEV;
+}
+#endif
+
+static enum charger_t sy6982c_charger_get_dc_state(struct sy6982c_charger *cg)
+{
+	return (gpiod_get_value(cg->dc_det_pin)) ?
+		DC_TYPE_DC_CHARGER : DC_TYPE_NONE_CHARGER;
+}
+
+static void sy6982c_charger_dc_det_worker(struct work_struct *work)
+{
+	enum charger_t charger;
+	struct sy6982c_charger *cg = container_of(work,
+			struct sy6982c_charger, dc_work.work);
+
+	charger = sy6982c_charger_get_dc_state(cg);
+	if (charger == DC_TYPE_DC_CHARGER)
+		cg->dc_charger = charger;
+	else
+		cg->dc_charger = DC_TYPE_NONE_CHARGER;
+
+	rk_send_wakeup_key();
+}
+
+static irqreturn_t sy6982c_charger_dc_det_isr(int irq, void *charger)
+{
+	struct sy6982c_charger *cg = (struct sy6982c_charger *)charger;
+
+	queue_delayed_work(cg->dc_charger_wq, &cg->dc_work,
+			   msecs_to_jiffies(10));
+
+	return IRQ_HANDLED;
+}
+
+static int sy6982c_charger_init_dc(struct sy6982c_charger *cg)
+{
+	int ret;
+	unsigned long irq_flags;
+	unsigned int dc_det_irq;
+
+	if (!cg->support_dc_det)
+		return 0;
+
+	cg->dc_charger_wq = alloc_ordered_workqueue("%s",
+				WQ_MEM_RECLAIM | WQ_FREEZABLE,
+				"sy6982c-dc-wq");
+	if (!cg->dc_charger_wq)
+		return -EINVAL;
+
+	INIT_DELAYED_WORK(&cg->dc_work, sy6982c_charger_dc_det_worker);
+	cg->dc_charger = DC_TYPE_NONE_CHARGER;
+
+	if (gpiod_get_value(cg->dc_det_pin))
+		cg->dc_charger = DC_TYPE_DC_CHARGER;
+	else
+		cg->dc_charger = DC_TYPE_NONE_CHARGER;
+
+	irq_flags = IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
+	dc_det_irq = gpiod_to_irq(cg->dc_det_pin);
+	ret = devm_request_irq(cg->dev, dc_det_irq, sy6982c_charger_dc_det_isr,
+			       irq_flags, "sy6982c_dc_det", cg);
+	if (ret != 0) {
+		dev_err(cg->dev, "sy6982c_dc_det_irq request failed!\n");
+		return ret;
+	}
+
+	enable_irq_wake(dc_det_irq);
+
+	return 0;
+}
+
 static int sy6982c_charger_probe(struct platform_device *pdev)
 {
 	struct sy6982c_charger *cg;
@@ -244,6 +348,8 @@ static int sy6982c_charger_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	cg->dev = &pdev->dev;
+	sy6982c_charger_parse_dt(cg);
+	sy6982c_charger_init_dc(cg);
 	cg->extcon = device_property_read_bool(cg->dev, "extcon");
 	ret = sy6982c_cg_init_usb(cg);
 	if (ret) {
@@ -262,12 +368,14 @@ static int sy6982c_charger_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static void sy6982c_charger_remove(struct platform_device *pdev)
+static int sy6982c_charger_remove(struct platform_device *pdev)
 {
 	struct sy6982c_charger *cg = platform_get_drvdata(pdev);
 
 	if (cg->usb_charger_wq)
 		destroy_workqueue(cg->usb_charger_wq);
+
+	return 0;
 }
 
 static const struct of_device_id sy6982c_charger_match[] = {
