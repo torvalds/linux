@@ -504,10 +504,12 @@
 #define MVPP2_DEFAULT_RXQ		4
 
 /* Max number of Rx descriptors */
-#define MVPP2_MAX_RXD			128
+#define MVPP2_MAX_RXD_MAX		1024
+#define MVPP2_MAX_RXD_DFLT		128
 
 /* Max number of Tx descriptors */
-#define MVPP2_MAX_TXD			1024
+#define MVPP2_MAX_TXD_MAX		2048
+#define MVPP2_MAX_TXD_DFLT		1024
 
 /* Amount of Tx descriptors that can be reserved at once by CPU */
 #define MVPP2_CPU_DESC_CHUNK		64
@@ -6836,13 +6838,13 @@ static int mvpp2_check_ringparam_valid(struct net_device *dev,
 	if (ring->rx_pending == 0 || ring->tx_pending == 0)
 		return -EINVAL;
 
-	if (ring->rx_pending > MVPP2_MAX_RXD)
-		new_rx_pending = MVPP2_MAX_RXD;
+	if (ring->rx_pending > MVPP2_MAX_RXD_MAX)
+		new_rx_pending = MVPP2_MAX_RXD_MAX;
 	else if (!IS_ALIGNED(ring->rx_pending, 16))
 		new_rx_pending = ALIGN(ring->rx_pending, 16);
 
-	if (ring->tx_pending > MVPP2_MAX_TXD)
-		new_tx_pending = MVPP2_MAX_TXD;
+	if (ring->tx_pending > MVPP2_MAX_TXD_MAX)
+		new_tx_pending = MVPP2_MAX_TXD_MAX;
 	else if (!IS_ALIGNED(ring->tx_pending, 32))
 		new_tx_pending = ALIGN(ring->tx_pending, 32);
 
@@ -7344,8 +7346,8 @@ static void mvpp2_ethtool_get_ringparam(struct net_device *dev,
 {
 	struct mvpp2_port *port = netdev_priv(dev);
 
-	ring->rx_max_pending = MVPP2_MAX_RXD;
-	ring->tx_max_pending = MVPP2_MAX_TXD;
+	ring->rx_max_pending = MVPP2_MAX_RXD_MAX;
+	ring->tx_max_pending = MVPP2_MAX_TXD_MAX;
 	ring->rx_pending = port->rx_ring_size;
 	ring->tx_pending = port->tx_ring_size;
 }
@@ -7792,7 +7794,7 @@ static int mvpp2_port_probe(struct platform_device *pdev,
 		goto err_free_netdev;
 	}
 
-	dev->tx_queue_len = MVPP2_MAX_TXD;
+	dev->tx_queue_len = MVPP2_MAX_TXD_MAX;
 	dev->watchdog_timeo = 5 * HZ;
 	dev->netdev_ops = &mvpp2_netdev_ops;
 	dev->ethtool_ops = &mvpp2_eth_tool_ops;
@@ -7875,8 +7877,8 @@ static int mvpp2_port_probe(struct platform_device *pdev,
 
 	mvpp2_port_copy_mac_addr(dev, priv, port_node, &mac_from);
 
-	port->tx_ring_size = MVPP2_MAX_TXD;
-	port->rx_ring_size = MVPP2_MAX_RXD;
+	port->tx_ring_size = MVPP2_MAX_TXD_DFLT;
+	port->rx_ring_size = MVPP2_MAX_RXD_DFLT;
 	SET_NETDEV_DEV(dev, &pdev->dev);
 
 	err = mvpp2_port_init(port);
