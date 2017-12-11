@@ -3394,6 +3394,9 @@ static int rt5645_probe(struct snd_soc_codec *codec)
 		snd_soc_dapm_sync(dapm);
 	}
 
+	if (rt5645->pdata.long_name)
+		codec->component.card->long_name = rt5645->pdata.long_name;
+
 	rt5645->eq_param = devm_kzalloc(codec->dev,
 		RT5645_HWEQ_NUM * sizeof(struct rt5645_eq_param_s), GFP_KERNEL);
 
@@ -3624,6 +3627,7 @@ static const struct dmi_system_id dmi_platform_intel_broadwell[] = {
 static const struct rt5645_platform_data gpd_win_platform_data = {
 	.jd_mode = 3,
 	.inv_jd1_1 = true,
+	.long_name = "gpd-win-pocket-rt5645",
 };
 
 static const struct dmi_system_id dmi_platform_gpd_win[] = {
