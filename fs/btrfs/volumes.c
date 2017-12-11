@@ -6132,9 +6132,7 @@ static noinline void btrfs_schedule_bio(struct btrfs_device *device,
 
 	/* don't bother with additional async steps for reads, right now */
 	if (bio_op(bio) == REQ_OP_READ) {
-		bio_get(bio);
 		btrfsic_submit_bio(bio);
-		bio_put(bio);
 		return;
 	}
 
