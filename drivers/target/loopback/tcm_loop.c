@@ -203,10 +203,10 @@ static int tcm_loop_queuecommand(struct Scsi_Host *sh, struct scsi_cmnd *sc)
 static int tcm_loop_issue_tmr(struct tcm_loop_tpg *tl_tpg,
 			      u64 lun, int task, enum tcm_tmreq_table tmr)
 {
-	struct se_cmd *se_cmd = NULL;
+	struct se_cmd *se_cmd;
 	struct se_session *se_sess;
 	struct tcm_loop_nexus *tl_nexus;
-	struct tcm_loop_cmd *tl_cmd = NULL;
+	struct tcm_loop_cmd *tl_cmd;
 	int ret = TMR_FUNCTION_FAILED, rc;
 
 	/*
