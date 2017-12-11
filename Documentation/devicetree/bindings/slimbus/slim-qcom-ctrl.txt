@@ -1,0 +1,39 @@
+Qualcomm SLIMbus controller
+This controller is used if applications processor driver controls SLIMbus
+master component.
+
+Required properties:
+
+ - #address-cells - refer to Documentation/devicetree/bindings/slimbus/bus.txt
+ - #size-cells	- refer to Documentation/devicetree/bindings/slimbus/bus.txt
+
+ - reg : Offset and length of the register region(s) for the device
+ - reg-names : Register region name(s) referenced in reg above
+	 Required register resource entries are:
+	 "ctrl": Physical address of controller register blocks
+ 	 "slew": required for "qcom,apq8064-slim" SOC.
+ - compatible : should be "qcom,<SOC-NAME>-slim" for SOC specific compatible
+ 		followed by "qcom,slim" for fallback.
+ - interrupts : Interrupt number used by this controller
+ - clocks : Interface and core clocks used by this SLIMbus controller
+ - clock-names : Required clock-name entries are:
+	"iface" : Interface clock for this controller
+	"core" : Interrupt for controller core's BAM
+
+Example:
+
+	slim@28080000 {
+		compatible = "qcom,apq8064-slim", "qcom,slim";
+		reg = <0x28080000 0x2000>, <0x80207C 4>;
+		reg-names = "ctrl", "slew";
+		interrupts = <0 33 0>;
+		clocks = <&lcc SLIMBUS_SRC>, <&lcc AUDIO_SLIMBUS_CLK>;
+		clock-names = "iface", "core";
+		#address-cells = <2>;
+		#size-cell = <0>;
+
+		wcd9310: audio-codec@1,0{
+			compatible = "slim217,60";
+			reg = <1 0>;
+		};
+	};
