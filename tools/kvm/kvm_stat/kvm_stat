@@ -478,7 +478,7 @@ class Provider(object):
     @staticmethod
     def is_field_wanted(fields_filter, field):
         """Indicate whether field is valid according to fields_filter."""
-        if not fields_filter or fields_filter == "help":
+        if not fields_filter:
             return True
         return re.match(fields_filter, field) is not None
 
@@ -1567,6 +1567,7 @@ def main():
     stats = Stats(options)
 
     if options.fields == "help":
+        stats.fields_filter = None
         event_list = "\n"
         s = stats.get()
         for key in s.keys():
