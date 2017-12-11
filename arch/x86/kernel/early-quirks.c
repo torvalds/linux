@@ -532,6 +532,9 @@ static const struct pci_device_id intel_early_ids[] __initconst = {
 	INTEL_CNL_IDS(&gen9_early_ops),
 };
 
+struct resource intel_graphics_stolen_res __ro_after_init = DEFINE_RES_MEM(0, 0);
+EXPORT_SYMBOL(intel_graphics_stolen_res);
+
 static void __init
 intel_graphics_stolen(int num, int slot, int func,
 		      const struct intel_early_ops *early_ops)
@@ -546,8 +549,12 @@ intel_graphics_stolen(int num, int slot, int func,
 		return;
 
 	end = base + size - 1;
-	printk(KERN_INFO "Reserving Intel graphics memory at %pa-%pa\n",
-	       &base, &end);
+
+	intel_graphics_stolen_res.start = base;
+	intel_graphics_stolen_res.end = end;
+
+	printk(KERN_INFO "Reserving Intel graphics memory at %pR\n",
+	       &intel_graphics_stolen_res);
 
 	/* Mark this space as reserved */
 	e820__range_add(base, size, E820_TYPE_RESERVED);
