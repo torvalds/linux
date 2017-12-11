@@ -454,11 +454,11 @@
 /* Various constants */
 
 /* Coalescing */
-#define MVPP2_TXDONE_COAL_PKTS_THRESH	15
+#define MVPP2_TXDONE_COAL_PKTS_THRESH	64
 #define MVPP2_TXDONE_HRTIMER_PERIOD_NS	1000000UL
 #define MVPP2_TXDONE_COAL_USEC		1000
 #define MVPP2_RX_COAL_PKTS		32
-#define MVPP2_RX_COAL_USEC		100
+#define MVPP2_RX_COAL_USEC		64
 
 /* The two bytes Marvell header. Either contains a special value used
  * by Marvell switches when a specific hardware mode is enabled (not
