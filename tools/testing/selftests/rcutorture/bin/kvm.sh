@@ -1,10 +1,8 @@
 #!/bin/bash
 #
-# Run a series of 14 tests under KVM.  These are not particularly
-# well-selected or well-tuned, but are the current set.
-#
-# Edit the definitions below to set the locations of the various directories,
-# as well as the test duration.
+# Run a series of tests under KVM.  By default, this series is specified
+# by the relevant CFLIST file, but can be overridden by the --configs
+# command-line argument.
 #
 # Usage: kvm.sh [ options ]
 #
