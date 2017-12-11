@@ -798,6 +798,7 @@ struct wmi_cmd_map {
 	u32 bcn_filter_rx_cmdid;
 	u32 prb_req_filter_rx_cmdid;
 	u32 mgmt_tx_cmdid;
+	u32 mgmt_tx_send_cmdid;
 	u32 prb_tmpl_cmdid;
 	u32 addba_clear_resp_cmdid;
 	u32 addba_send_cmdid;

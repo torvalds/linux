@@ -613,6 +613,9 @@ enum ath10k_fw_features {
 	/* Firmware does not support power save in station mode. */
 	ATH10K_FW_FEATURE_NO_PS = 17,
 
+	/* Firmware allows management tx by reference instead of by value. */
+	ATH10K_FW_FEATURE_MGMT_TX_BY_REF = 18,
+
 	/* keep last */
 	ATH10K_FW_FEATURE_COUNT,
 };

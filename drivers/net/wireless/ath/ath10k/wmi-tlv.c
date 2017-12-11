@@ -2483,6 +2483,82 @@ ath10k_wmi_tlv_op_gen_request_stats(struct ath10k *ar, u32 stats_mask)
 }
 
 static struct sk_buff *
+ath10k_wmi_tlv_op_gen_mgmt_tx(struct ath10k *ar, struct sk_buff *msdu)
+{
+	struct ath10k_skb_cb *cb = ATH10K_SKB_CB(msdu);
+	struct wmi_tlv_mgmt_tx_cmd *cmd;
+	struct wmi_tlv *tlv;
+	struct ieee80211_hdr *hdr;
+	struct sk_buff *skb;
+	void *ptr;
+	int len;
+	u32 buf_len = msdu->len;
+	u16 fc;
+	struct ath10k_vif *arvif;
+	dma_addr_t mgmt_frame_dma;
+	u32 vdev_id;
+
+	if (!cb->vif)
+		return ERR_PTR(-EINVAL);
+
+	hdr = (struct ieee80211_hdr *)msdu->data;
+	fc = le16_to_cpu(hdr->frame_control);
+	arvif = (void *)cb->vif->drv_priv;
+	vdev_id = arvif->vdev_id;
+
+	if (WARN_ON_ONCE(!ieee80211_is_mgmt(hdr->frame_control)))
+		return ERR_PTR(-EINVAL);
+
+	len = sizeof(*cmd) + 2 * sizeof(*tlv);
+
+	if ((ieee80211_is_action(hdr->frame_control) ||
+	     ieee80211_is_deauth(hdr->frame_control) ||
+	     ieee80211_is_disassoc(hdr->frame_control)) &&
+	     ieee80211_has_protected(hdr->frame_control)) {
+		len += IEEE80211_CCMP_MIC_LEN;
+		buf_len += IEEE80211_CCMP_MIC_LEN;
+	}
+
+	buf_len = min_t(u32, buf_len, WMI_TLV_MGMT_TX_FRAME_MAX_LEN);
+	buf_len = round_up(buf_len, 4);
+
+	len += buf_len;
+	len = round_up(len, 4);
+	skb = ath10k_wmi_alloc_skb(ar, len);
+	if (!skb)
+		return ERR_PTR(-ENOMEM);
+
+	ptr = (void *)skb->data;
+	tlv = ptr;
+	tlv->tag = __cpu_to_le16(WMI_TLV_TAG_STRUCT_MGMT_TX_CMD);
+	tlv->len = __cpu_to_le16(sizeof(*cmd));
+	cmd = (void *)tlv->value;
+	cmd->vdev_id = __cpu_to_le32(vdev_id);
+	cmd->desc_id = 0;
+	cmd->chanfreq = 0;
+	cmd->buf_len = __cpu_to_le32(buf_len);
+	cmd->frame_len = __cpu_to_le32(msdu->len);
+	mgmt_frame_dma = dma_map_single(arvif->ar->dev, msdu->data,
+					msdu->len, DMA_TO_DEVICE);
+	if (!mgmt_frame_dma)
+		return ERR_PTR(-ENOMEM);
+
+	cmd->paddr = __cpu_to_le64(mgmt_frame_dma);
+
+	ptr += sizeof(*tlv);
+	ptr += sizeof(*cmd);
+
+	tlv = ptr;
+	tlv->tag = __cpu_to_le16(WMI_TLV_TAG_ARRAY_BYTE);
+	tlv->len = __cpu_to_le16(buf_len);
+
+	ptr += sizeof(*tlv);
+	memcpy(ptr, msdu->data, buf_len);
+
+	return skb;
+}
+
+static struct sk_buff *
 ath10k_wmi_tlv_op_gen_force_fw_hang(struct ath10k *ar,
 				    enum wmi_force_fw_hang_type type,
 				    u32 delay_ms)
@@ -3291,6 +3367,7 @@ static struct wmi_cmd_map wmi_tlv_cmd_map = {
 	.bcn_filter_rx_cmdid = WMI_TLV_BCN_FILTER_RX_CMDID,
 	.prb_req_filter_rx_cmdid = WMI_TLV_PRB_REQ_FILTER_RX_CMDID,
 	.mgmt_tx_cmdid = WMI_TLV_MGMT_TX_CMDID,
+	.mgmt_tx_send_cmdid = WMI_TLV_MGMT_TX_SEND_CMD,
 	.prb_tmpl_cmdid = WMI_TLV_PRB_TMPL_CMDID,
 	.addba_clear_resp_cmdid = WMI_TLV_ADDBA_CLEAR_RESP_CMDID,
 	.addba_send_cmdid = WMI_TLV_ADDBA_SEND_CMDID,
@@ -3625,6 +3702,7 @@ static const struct wmi_ops wmi_tlv_ops = {
 	.gen_request_stats = ath10k_wmi_tlv_op_gen_request_stats,
 	.gen_force_fw_hang = ath10k_wmi_tlv_op_gen_force_fw_hang,
 	/* .gen_mgmt_tx = not implemented; HTT is used */
+	.gen_mgmt_tx =  ath10k_wmi_tlv_op_gen_mgmt_tx,
 	.gen_dbglog_cfg = ath10k_wmi_tlv_op_gen_dbglog_cfg,
 	.gen_pktlog_enable = ath10k_wmi_tlv_op_gen_pktlog_enable,
 	.gen_pktlog_disable = ath10k_wmi_tlv_op_gen_pktlog_disable,

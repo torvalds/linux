@@ -377,6 +377,7 @@ ath10k_wmi_mgmt_tx(struct ath10k *ar, struct sk_buff *msdu)
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(msdu);
 	struct sk_buff *skb;
 	int ret;
+	u32 mgmt_tx_cmdid;
 
 	if (!ar->wmi.ops->gen_mgmt_tx)
 		return -EOPNOTSUPP;
@@ -385,7 +386,13 @@ ath10k_wmi_mgmt_tx(struct ath10k *ar, struct sk_buff *msdu)
 	if (IS_ERR(skb))
 		return PTR_ERR(skb);
 
-	ret = ath10k_wmi_cmd_send(ar, skb, ar->wmi.cmd->mgmt_tx_cmdid);
+	if (test_bit(ATH10K_FW_FEATURE_MGMT_TX_BY_REF,
+		     ar->running_fw->fw_file.fw_features))
+		mgmt_tx_cmdid = ar->wmi.cmd->mgmt_tx_send_cmdid;
+	else
+		mgmt_tx_cmdid = ar->wmi.cmd->mgmt_tx_cmdid;
+
+	ret = ath10k_wmi_cmd_send(ar, skb, mgmt_tx_cmdid);
 	if (ret)
 		return ret;
 
