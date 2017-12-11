@@ -30,6 +30,7 @@
 #include <linux/ratelimit.h>
 #include <linux/uuid.h>
 #include <linux/semaphore.h>
+#include <linux/bpf.h>
 #include <asm/unaligned.h>
 #include "ctree.h"
 #include "disk-io.h"
@@ -3123,6 +3124,7 @@ recovery_tree_root:
 		goto fail_block_groups;
 	goto retry_root_backup;
 }
+BPF_ALLOW_ERROR_INJECTION(open_ctree);
 
 static void btrfs_end_buffer_write_sync(struct buffer_head *bh, int uptodate)
 {
