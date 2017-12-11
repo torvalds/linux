@@ -14,6 +14,16 @@
 /* SLIMbus message types. Related to interpretation of message code. */
 #define SLIM_MSG_MT_CORE			0x0
 
+/* Clock pause Reconfiguration messages */
+#define SLIM_MSG_MC_BEGIN_RECONFIGURATION        0x40
+#define SLIM_MSG_MC_NEXT_PAUSE_CLOCK             0x4A
+#define SLIM_MSG_MC_RECONFIGURE_NOW              0x5F
+
+/* Clock pause values per SLIMbus spec */
+#define SLIM_CLK_FAST				0
+#define SLIM_CLK_CONST_PHASE			1
+#define SLIM_CLK_UNSPECIFIED			2
+
 /* Destination type Values */
 #define SLIM_MSG_DEST_LOGICALADDR	0
 #define SLIM_MSG_DEST_ENUMADDR		1
@@ -80,6 +90,42 @@ struct slim_msg_txn {
 #define DEFINE_SLIM_LDEST_TXN(name, mc, rl, la, msg) \
 	struct slim_msg_txn name = { rl, 0, mc, SLIM_MSG_DEST_LOGICALADDR, 0,\
 					0, la, msg, }
+
+#define DEFINE_SLIM_BCAST_TXN(name, mc, rl, la, msg) \
+	struct slim_msg_txn name = { rl, 0, mc, SLIM_MSG_DEST_BROADCAST, 0,\
+					0, la, msg, }
+/**
+ * enum slim_clk_state: SLIMbus controller's clock state used internally for
+ *	maintaining current clock state.
+ * @SLIM_CLK_ACTIVE: SLIMbus clock is active
+ * @SLIM_CLK_ENTERING_PAUSE: SLIMbus clock pause sequence is being sent on the
+ *	bus. If this succeeds, state changes to SLIM_CLK_PAUSED. If the
+ *	transition fails, state changes back to SLIM_CLK_ACTIVE
+ * @SLIM_CLK_PAUSED: SLIMbus controller clock has paused.
+ */
+enum slim_clk_state {
+	SLIM_CLK_ACTIVE,
+	SLIM_CLK_ENTERING_PAUSE,
+	SLIM_CLK_PAUSED,
+};
+
+/**
+ * struct slim_sched: Framework uses this structure internally for scheduling.
+ * @clk_state: Controller's clock state from enum slim_clk_state
+ * @pause_comp: Signals completion of clock pause sequence. This is useful when
+ *	client tries to call SLIMbus transaction when controller is entering
+ *	clock pause.
+ * @m_reconf: This mutex is held until current reconfiguration (data channel
+ *	scheduling, message bandwidth reservation) is done. Message APIs can
+ *	use the bus concurrently when this mutex is held since elemental access
+ *	messages can be sent on the bus when reconfiguration is in progress.
+ */
+struct slim_sched {
+	enum slim_clk_state	clk_state;
+	struct completion	pause_comp;
+	struct mutex		m_reconf;
+};
+
 /**
  * struct slim_controller  - Controls every instance of SLIMbus
  *				(similar to 'master' on SPI)
@@ -95,6 +141,7 @@ struct slim_msg_txn {
  * @devices: Slim device list
  * @tid_idr: tid id allocator
  * @txn_lock: Lock to protect table of transactions
+ * @sched: scheduler structure used by the controller
  * @xfer_msg: Transfer a message on this controller (this can be a broadcast
  *	control/status message like data channel setup, or a unicast message
  *	like value element read/write.
@@ -105,6 +152,9 @@ struct slim_msg_txn {
  *	address table and get_laddr can be used in that case so that controller
  *	can do this assignment. Use case is when the master is on the remote
  *	processor side, who is resposible for allocating laddr.
+ * @wakeup: This function pointer implements controller-specific procedure
+ *	to wake it up from clock-pause. Framework will call this to bring
+ *	the controller out of clock pause.
  *
  *	'Manager device' is responsible for  device management, bandwidth
  *	allocation, channel setup, and port associations per channel.
@@ -139,12 +189,14 @@ struct slim_controller {
 	struct list_head	devices;
 	struct idr		tid_idr;
 	spinlock_t		txn_lock;
+	struct slim_sched	sched;
 	int			(*xfer_msg)(struct slim_controller *ctrl,
 					    struct slim_msg_txn *tx);
 	int			(*set_laddr)(struct slim_controller *ctrl,
 					     struct slim_eaddr *ea, u8 laddr);
 	int			(*get_laddr)(struct slim_controller *ctrl,
 					     struct slim_eaddr *ea, u8 *laddr);
+	int			(*wakeup)(struct slim_controller *ctrl);
 };
 
 int slim_device_report_present(struct slim_controller *ctrl,
@@ -154,6 +206,7 @@ int slim_register_controller(struct slim_controller *ctrl);
 int slim_unregister_controller(struct slim_controller *ctrl);
 void slim_msg_response(struct slim_controller *ctrl, u8 *reply, u8 tid, u8 l);
 int slim_do_transfer(struct slim_controller *ctrl, struct slim_msg_txn *txn);
+int slim_ctrl_clk_pause(struct slim_controller *ctrl, bool wakeup, u8 restart);
 
 static inline bool slim_tid_txn(u8 mt, u8 mc)
 {

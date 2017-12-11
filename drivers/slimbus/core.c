@@ -9,6 +9,7 @@
 #include <linux/init.h>
 #include <linux/idr.h>
 #include <linux/of.h>
+#include <linux/pm_runtime.h>
 #include <linux/slimbus.h>
 #include "slimbus.h"
 
@@ -218,6 +219,8 @@ int slim_register_controller(struct slim_controller *ctrl)
 	ida_init(&ctrl->laddr_ida);
 	idr_init(&ctrl->tid_idr);
 	mutex_init(&ctrl->lock);
+	mutex_init(&ctrl->sched.m_reconf);
+	init_completion(&ctrl->sched.pause_comp);
 
 	dev_dbg(ctrl->dev, "Bus [%s] registered:dev:%p\n",
 		ctrl->name, ctrl->dev);
@@ -249,6 +252,8 @@ int slim_unregister_controller(struct slim_controller *ctrl)
 {
 	/* Remove all clients */
 	device_for_each_child(ctrl->dev, NULL, slim_ctrl_remove_device);
+	/* Enter Clock Pause */
+	slim_ctrl_clk_pause(ctrl, false, 0);
 	ida_simple_remove(&ctrl_ida, ctrl->id);
 
 	return 0;
@@ -416,6 +421,14 @@ int slim_device_report_present(struct slim_controller *ctrl,
 	struct slim_device *sbdev;
 	int ret;
 
+	ret = pm_runtime_get_sync(ctrl->dev);
+
+	if (ctrl->sched.clk_state != SLIM_CLK_ACTIVE) {
+		dev_err(ctrl->dev, "slim ctrl not active,state:%d, ret:%d\n",
+				    ctrl->sched.clk_state, ret);
+		goto slimbus_not_active;
+	}
+
 	sbdev = slim_get_device(ctrl, e_addr);
 	if (IS_ERR(sbdev))
 		return -ENODEV;
@@ -427,6 +440,9 @@ int slim_device_report_present(struct slim_controller *ctrl,
 
 	ret = slim_device_alloc_laddr(sbdev, true);
 
+slimbus_not_active:
+	pm_runtime_mark_last_busy(ctrl->dev);
+	pm_runtime_put_autosuspend(ctrl->dev);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(slim_device_report_present);

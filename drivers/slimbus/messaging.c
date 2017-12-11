@@ -4,6 +4,7 @@
  */
 
 #include <linux/slab.h>
+#include <linux/pm_runtime.h>
 #include "slimbus.h"
 
 /**
@@ -46,6 +47,10 @@ void slim_msg_response(struct slim_controller *ctrl, u8 *reply, u8 tid, u8 len)
 	memcpy(msg->rbuf, reply, len);
 	if (txn->comp)
 		complete(txn->comp);
+
+	/* Remove runtime-pm vote now that response was received for TID txn */
+	pm_runtime_mark_last_busy(ctrl->dev);
+	pm_runtime_put_autosuspend(ctrl->dev);
 }
 EXPORT_SYMBOL_GPL(slim_msg_response);
 
@@ -65,9 +70,28 @@ EXPORT_SYMBOL_GPL(slim_msg_response);
 int slim_do_transfer(struct slim_controller *ctrl, struct slim_msg_txn *txn)
 {
 	DECLARE_COMPLETION_ONSTACK(done);
-	bool need_tid;
+	bool need_tid = false, clk_pause_msg = false;
 	unsigned long flags;
 	int ret, tid, timeout;
+
+	/*
+	 * do not vote for runtime-PM if the transactions are part of clock
+	 * pause sequence
+	 */
+	if (ctrl->sched.clk_state == SLIM_CLK_ENTERING_PAUSE &&
+		(txn->mt == SLIM_MSG_MT_CORE &&
+		 txn->mc >= SLIM_MSG_MC_BEGIN_RECONFIGURATION &&
+		 txn->mc <= SLIM_MSG_MC_RECONFIGURE_NOW))
+		clk_pause_msg = true;
+
+	if (!clk_pause_msg) {
+		ret = pm_runtime_get_sync(ctrl->dev);
+		if (ctrl->sched.clk_state != SLIM_CLK_ACTIVE) {
+			dev_err(ctrl->dev, "ctrl wrong state:%d, ret:%d\n",
+				ctrl->sched.clk_state, ret);
+			goto slim_xfer_err;
+		}
+	}
 
 	need_tid = slim_tid_txn(txn->mt, txn->mc);
 
@@ -107,6 +131,15 @@ int slim_do_transfer(struct slim_controller *ctrl, struct slim_msg_txn *txn)
 		dev_err(ctrl->dev, "Tx:MT:0x%x, MC:0x%x, LA:0x%x failed:%d\n",
 			txn->mt, txn->mc, txn->la, ret);
 
+slim_xfer_err:
+	if (!clk_pause_msg && (!need_tid  || ret == -ETIMEDOUT)) {
+		/*
+		 * remove runtime-pm vote if this was TX only, or
+		 * if there was error during this transaction
+		 */
+		pm_runtime_mark_last_busy(ctrl->dev);
+		pm_runtime_mark_last_busy(ctrl->dev);
+	}
 	return ret;
 }
 EXPORT_SYMBOL_GPL(slim_do_transfer);
