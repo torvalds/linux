@@ -470,25 +470,25 @@ static int safexcel_ahash_exit_inv(struct crypto_tfm *tfm)
 {
 	struct safexcel_ahash_ctx *ctx = crypto_tfm_ctx(tfm);
 	struct safexcel_crypto_priv *priv = ctx->priv;
-	struct ahash_request req;
-	struct safexcel_ahash_req *rctx = ahash_request_ctx(&req);
+	AHASH_REQUEST_ON_STACK(req, __crypto_ahash_cast(tfm));
+	struct safexcel_ahash_req *rctx = ahash_request_ctx(req);
 	struct safexcel_inv_result result = {};
 	int ring = ctx->base.ring;
 
-	memset(&req, 0, sizeof(struct ahash_request));
+	memset(req, 0, sizeof(struct ahash_request));
 
 	/* create invalidation request */
 	init_completion(&result.completion);
-	ahash_request_set_callback(&req, CRYPTO_TFM_REQ_MAY_BACKLOG,
+	ahash_request_set_callback(req, CRYPTO_TFM_REQ_MAY_BACKLOG,
 				   safexcel_inv_complete, &result);
 
-	ahash_request_set_tfm(&req, __crypto_ahash_cast(tfm));
-	ctx = crypto_tfm_ctx(req.base.tfm);
+	ahash_request_set_tfm(req, __crypto_ahash_cast(tfm));
+	ctx = crypto_tfm_ctx(req->base.tfm);
 	ctx->base.exit_inv = true;
 	rctx->needs_inv = true;
 
 	spin_lock_bh(&priv->ring[ring].queue_lock);
-	crypto_enqueue_request(&priv->ring[ring].queue, &req.base);
+	crypto_enqueue_request(&priv->ring[ring].queue, &req->base);
 	spin_unlock_bh(&priv->ring[ring].queue_lock);
 
 	if (!priv->ring[ring].need_dequeue)

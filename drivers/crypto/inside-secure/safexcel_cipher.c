@@ -422,25 +422,25 @@ static int safexcel_cipher_exit_inv(struct crypto_tfm *tfm)
 {
 	struct safexcel_cipher_ctx *ctx = crypto_tfm_ctx(tfm);
 	struct safexcel_crypto_priv *priv = ctx->priv;
-	struct skcipher_request req;
-	struct safexcel_cipher_req *sreq = skcipher_request_ctx(&req);
+	SKCIPHER_REQUEST_ON_STACK(req, __crypto_skcipher_cast(tfm));
+	struct safexcel_cipher_req *sreq = skcipher_request_ctx(req);
 	struct safexcel_inv_result result = {};
 	int ring = ctx->base.ring;
 
-	memset(&req, 0, sizeof(struct skcipher_request));
+	memset(req, 0, sizeof(struct skcipher_request));
 
 	/* create invalidation request */
 	init_completion(&result.completion);
-	skcipher_request_set_callback(&req, CRYPTO_TFM_REQ_MAY_BACKLOG,
-					safexcel_inv_complete, &result);
+	skcipher_request_set_callback(req, CRYPTO_TFM_REQ_MAY_BACKLOG,
+				      safexcel_inv_complete, &result);
 
-	skcipher_request_set_tfm(&req, __crypto_skcipher_cast(tfm));
-	ctx = crypto_tfm_ctx(req.base.tfm);
+	skcipher_request_set_tfm(req, __crypto_skcipher_cast(tfm));
+	ctx = crypto_tfm_ctx(req->base.tfm);
 	ctx->base.exit_inv = true;
 	sreq->needs_inv = true;
 
 	spin_lock_bh(&priv->ring[ring].queue_lock);
-	crypto_enqueue_request(&priv->ring[ring].queue, &req.base);
+	crypto_enqueue_request(&priv->ring[ring].queue, &req->base);
 	spin_unlock_bh(&priv->ring[ring].queue_lock);
 
 	if (!priv->ring[ring].need_dequeue)
