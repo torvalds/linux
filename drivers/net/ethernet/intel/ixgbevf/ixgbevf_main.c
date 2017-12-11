@@ -1773,6 +1773,10 @@ static void ixgbevf_configure_rx_ring(struct ixgbevf_adapter *adapter,
 	IXGBE_WRITE_REG(hw, IXGBE_VFRDT(reg_idx), 0);
 	ring->tail = adapter->io_addr + IXGBE_VFRDT(reg_idx);
 
+	/* initialize rx_buffer_info */
+	memset(ring->rx_buffer_info, 0,
+	       sizeof(struct ixgbevf_rx_buffer) * ring->count);
+
 	/* initialize Rx descriptor 0 */
 	rx_desc = IXGBEVF_RX_DESC(ring, 0);
 	rx_desc->wb.upper.length = 0;
@@ -2131,8 +2135,7 @@ void ixgbevf_up(struct ixgbevf_adapter *adapter)
  **/
 static void ixgbevf_clean_rx_ring(struct ixgbevf_ring *rx_ring)
 {
-	unsigned long size;
-	unsigned int i;
+	u16 i = rx_ring->next_to_clean;
 
 	/* Free Rx ring sk_buff */
 	if (rx_ring->skb) {
@@ -2140,17 +2143,11 @@ static void ixgbevf_clean_rx_ring(struct ixgbevf_ring *rx_ring)
 		rx_ring->skb = NULL;
 	}
 
-	/* ring already cleared, nothing to do */
-	if (!rx_ring->rx_buffer_info)
-		return;
-
 	/* Free all the Rx ring pages */
-	for (i = 0; i < rx_ring->count; i++) {
+	while (i != rx_ring->next_to_alloc) {
 		struct ixgbevf_rx_buffer *rx_buffer;
 
 		rx_buffer = &rx_ring->rx_buffer_info[i];
-		if (!rx_buffer->page)
-			continue;
 
 		/* Invalidate cache lines that may have been written to by
 		 * device so that we avoid corrupting memory.
@@ -2171,11 +2168,14 @@ static void ixgbevf_clean_rx_ring(struct ixgbevf_ring *rx_ring)
 		__page_frag_cache_drain(rx_buffer->page,
 					rx_buffer->pagecnt_bias);
 
-		rx_buffer->page = NULL;
+		i++;
+		if (i == rx_ring->count)
+			i = 0;
 	}
 
-	size = sizeof(struct ixgbevf_rx_buffer) * rx_ring->count;
-	memset(rx_ring->rx_buffer_info, 0, size);
+	rx_ring->next_to_alloc = 0;
+	rx_ring->next_to_clean = 0;
+	rx_ring->next_to_use = 0;
 }
 
 /**
@@ -3090,7 +3090,7 @@ int ixgbevf_setup_rx_resources(struct ixgbevf_ring *rx_ring)
 	int size;
 
 	size = sizeof(struct ixgbevf_rx_buffer) * rx_ring->count;
-	rx_ring->rx_buffer_info = vzalloc(size);
+	rx_ring->rx_buffer_info = vmalloc(size);
 	if (!rx_ring->rx_buffer_info)
 		goto err;
 
