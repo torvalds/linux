@@ -858,16 +858,14 @@ static __net_init int ife_init_net(struct net *net)
 	return tc_action_net_init(tn, &act_ife_ops);
 }
 
-static void __net_exit ife_exit_net(struct net *net)
+static void __net_exit ife_exit_net(struct list_head *net_list)
 {
-	struct tc_action_net *tn = net_generic(net, ife_net_id);
-
-	tc_action_net_exit(tn);
+	tc_action_net_exit(net_list, ife_net_id);
 }
 
 static struct pernet_operations ife_net_ops = {
 	.init = ife_init_net,
-	.exit = ife_exit_net,
+	.exit_batch = ife_exit_net,
 	.id   = &ife_net_id,
 	.size = sizeof(struct tc_action_net),
 };

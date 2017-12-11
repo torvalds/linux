@@ -334,16 +334,14 @@ static __net_init int police_init_net(struct net *net)
 	return tc_action_net_init(tn, &act_police_ops);
 }
 
-static void __net_exit police_exit_net(struct net *net)
+static void __net_exit police_exit_net(struct list_head *net_list)
 {
-	struct tc_action_net *tn = net_generic(net, police_net_id);
-
-	tc_action_net_exit(tn);
+	tc_action_net_exit(net_list, police_net_id);
 }
 
 static struct pernet_operations police_net_ops = {
 	.init = police_init_net,
-	.exit = police_exit_net,
+	.exit_batch = police_exit_net,
 	.id   = &police_net_id,
 	.size = sizeof(struct tc_action_net),
 };
