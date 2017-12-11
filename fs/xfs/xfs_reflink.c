@@ -490,8 +490,9 @@ xfs_reflink_find_cow_mapping(
 	struct xfs_iext_cursor		icur;
 
 	ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL | XFS_ILOCK_SHARED));
-	ASSERT(xfs_is_reflink_inode(ip));
 
+	if (!xfs_is_reflink_inode(ip))
+		return false;
 	offset_fsb = XFS_B_TO_FSBT(ip->i_mount, offset);
 	if (!xfs_iext_lookup_extent(ip, ifp, offset_fsb, &icur, &got))
 		return false;
