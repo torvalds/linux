@@ -202,7 +202,8 @@ static void dprc_add_new_devices(struct fsl_mc_device *mc_bus_dev,
  * dprc_scan_objects - Discover objects in a DPRC
  *
  * @mc_bus_dev: pointer to the fsl-mc device that represents a DPRC object
- * @total_irq_count: total number of IRQs needed by objects in the DPRC.
+ * @total_irq_count: If argument is provided the function populates the
+ * total number of IRQs created by objects in the DPRC.
  *
  * Detects objects added and removed from a DPRC and synchronizes the
  * state of the Linux bus driver, MC by adding and removing
@@ -224,6 +225,7 @@ static int dprc_scan_objects(struct fsl_mc_device *mc_bus_dev,
 	int error;
 	unsigned int irq_count = mc_bus_dev->obj_desc.irq_count;
 	struct fsl_mc_obj_desc *child_obj_desc_array = NULL;
+	struct fsl_mc_bus *mc_bus = to_fsl_mc_bus(mc_bus_dev);
 
 	error = dprc_get_obj_count(mc_bus_dev->mc_io,
 				   0,
@@ -293,7 +295,26 @@ static int dprc_scan_objects(struct fsl_mc_device *mc_bus_dev,
 		}
 	}
 
-	*total_irq_count = irq_count;
+	/*
+	 * Allocate IRQ's before binding the scanned devices with their
+	 * respective drivers.
+	 */
+	if (dev_get_msi_domain(&mc_bus_dev->dev) && !mc_bus->irq_resources) {
+		if (irq_count > FSL_MC_IRQ_POOL_MAX_TOTAL_IRQS) {
+			dev_warn(&mc_bus_dev->dev,
+				 "IRQs needed (%u) exceed IRQs preallocated (%u)\n",
+				 irq_count, FSL_MC_IRQ_POOL_MAX_TOTAL_IRQS);
+		}
+
+		error = fsl_mc_populate_irq_pool(mc_bus,
+				FSL_MC_IRQ_POOL_MAX_TOTAL_IRQS);
+		if (error < 0)
+			return error;
+	}
+
+	if (total_irq_count)
+		*total_irq_count = irq_count;
+
 	dprc_remove_devices(mc_bus_dev, child_obj_desc_array,
 			    num_child_objects);
 
@@ -318,7 +339,6 @@ static int dprc_scan_objects(struct fsl_mc_device *mc_bus_dev,
 static int dprc_scan_container(struct fsl_mc_device *mc_bus_dev)
 {
 	int error;
-	unsigned int irq_count;
 	struct fsl_mc_bus *mc_bus = to_fsl_mc_bus(mc_bus_dev);
 
 	fsl_mc_init_all_resource_pools(mc_bus_dev);
@@ -327,29 +347,14 @@ static int dprc_scan_container(struct fsl_mc_device *mc_bus_dev)
 	 * Discover objects in the DPRC:
 	 */
 	mutex_lock(&mc_bus->scan_mutex);
-	error = dprc_scan_objects(mc_bus_dev, &irq_count);
+	error = dprc_scan_objects(mc_bus_dev, NULL);
 	mutex_unlock(&mc_bus->scan_mutex);
-	if (error < 0)
-		goto error;
-
-	if (dev_get_msi_domain(&mc_bus_dev->dev) && !mc_bus->irq_resources) {
-		if (irq_count > FSL_MC_IRQ_POOL_MAX_TOTAL_IRQS) {
-			dev_warn(&mc_bus_dev->dev,
-				 "IRQs needed (%u) exceed IRQs preallocated (%u)\n",
-				 irq_count, FSL_MC_IRQ_POOL_MAX_TOTAL_IRQS);
-		}
-
-		error = fsl_mc_populate_irq_pool(
-				mc_bus,
-				FSL_MC_IRQ_POOL_MAX_TOTAL_IRQS);
-		if (error < 0)
-			goto error;
+	if (error < 0) {
+		fsl_mc_cleanup_all_resource_pools(mc_bus_dev);
+		return error;
 	}
 
 	return 0;
-error:
-	fsl_mc_cleanup_all_resource_pools(mc_bus_dev);
-	return error;
 }
 
 /**
