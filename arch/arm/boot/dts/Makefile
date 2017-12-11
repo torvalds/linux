@@ -388,6 +388,7 @@ dtb-$(CONFIG_SOC_IMX6Q) += \
 	imx6dl-hummingboard.dtb \
 	imx6dl-hummingboard-emmc-som-v15.dtb \
 	imx6dl-hummingboard-som-v15.dtb \
+	imx6dl-hummingboard2.dtb \
 	imx6dl-icore.dtb \
 	imx6dl-icore-rqs.dtb \
 	imx6dl-nit6xlite.dtb \
@@ -448,6 +449,7 @@ dtb-$(CONFIG_SOC_IMX6Q) += \
 	imx6q-hummingboard.dtb \
 	imx6q-hummingboard-emmc-som-v15.dtb \
 	imx6q-hummingboard-som-v15.dtb \
+	imx6q-hummingboard2.dtb \
 	imx6q-icore.dtb \
 	imx6q-icore-ofcap10.dtb \
 	imx6q-icore-ofcap12.dtb \
