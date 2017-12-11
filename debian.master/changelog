@@ -4,6 +4,10 @@ linux (4.15.0-1.2) UNRELEASED; urgency=low
   CHANGELOG: Use the printchanges target to see the curent changes.
   CHANGELOG: Use the insertchanges target to create the final log.
 
+  [ Upstream Kernel Changes ]
+
+  * Rebase to v4.15-rc3
+
  -- Seth Forshee <seth.forshee@canonical.com>  Fri, 08 Dec 2017 15:49:09 -0600
 
 linux (4.15.0-0.1) bionic; urgency=low
