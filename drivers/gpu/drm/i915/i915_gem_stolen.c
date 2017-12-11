@@ -325,7 +325,6 @@ static void bdw_get_stolen_reserved(struct drm_i915_private *dev_priv,
 
 int i915_gem_init_stolen(struct drm_i915_private *dev_priv)
 {
-	struct i915_ggtt *ggtt = &dev_priv->ggtt;
 	dma_addr_t reserved_base, stolen_top;
 	u32 reserved_total, reserved_size;
 	u32 stolen_usable_start;
@@ -416,12 +415,12 @@ int i915_gem_init_stolen(struct drm_i915_private *dev_priv)
 	if (INTEL_GEN(dev_priv) >= 8)
 		stolen_usable_start = 4096;
 
-	ggtt->stolen_usable_size =
+	dev_priv->stolen_usable_size =
 		resource_size(&dev_priv->dsm) - reserved_total - stolen_usable_start;
 
 	/* Basic memrange allocator for stolen space. */
 	drm_mm_init(&dev_priv->mm.stolen, stolen_usable_start,
-		    ggtt->stolen_usable_size);
+		    dev_priv->stolen_usable_size);
 
 	return 0;
 }

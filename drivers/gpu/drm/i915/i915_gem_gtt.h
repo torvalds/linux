@@ -373,16 +373,6 @@ struct i915_ggtt {
 	struct resource gmadr;          /* GMADR resource */
 	u64 mappable_end;		/* End offset that we can CPU map */
 
-	/* Stolen memory is segmented in hardware with different portions
-	 * offlimits to certain functions.
-	 *
-	 * The drm_mm is initialised to the total accessible range, as found
-	 * from the PCI config. On Broadwell+, this is further restricted to
-	 * avoid the first page! The upper end of stolen memory is reserved for
-	 * hardware functions and similarly removed from the accessible range.
-	 */
-	u32 stolen_usable_size;	/* Total size minus reserved ranges */
-
 	/** "Graphics Stolen Memory" holds the global PTEs */
 	void __iomem *gsm;
 	void (*invalidate)(struct drm_i915_private *dev_priv);

@@ -2254,7 +2254,7 @@ struct drm_i915_private {
 	/**
 	 * Data Stolen Memory - aka "i915 stolen memory" gives us the start and
 	 * end of stolen which we can optionally use to create GEM objects
-	 * backed by stolen memory. Note that ggtt->stolen_usable_size tells us
+	 * backed by stolen memory. Note that stolen_usable_size tells us
 	 * exactly how much of this we are actually allowed to use, given that
 	 * some portion of it is in fact reserved for use by hardware functions.
 	 */
@@ -2263,6 +2263,17 @@ struct drm_i915_private {
 	 * Reseved portion of Data Stolen Memory
 	 */
 	struct resource dsm_reserved;
+
+	/*
+	 * Stolen memory is segmented in hardware with different portions
+	 * offlimits to certain functions.
+	 *
+	 * The drm_mm is initialised to the total accessible range, as found
+	 * from the PCI config. On Broadwell+, this is further restricted to
+	 * avoid the first page! The upper end of stolen memory is reserved for
+	 * hardware functions and similarly removed from the accessible range.
+	 */
+	u32 stolen_usable_size;	/* Total size minus reserved ranges */
 
 	void __iomem *regs;
 
