@@ -354,18 +354,18 @@ static ssize_t ir_lirc_transmit_ir(struct file *file, const char __user *buf,
 			duration += txbuf[i];
 
 		ret *= sizeof(unsigned int);
+	}
 
-		/*
-		 * The lircd gap calculation expects the write function to
-		 * wait for the actual IR signal to be transmitted before
-		 * returning.
-		 */
-		towait = ktime_us_delta(ktime_add_us(start, duration),
-					ktime_get());
-		if (towait > 0) {
-			set_current_state(TASK_INTERRUPTIBLE);
-			schedule_timeout(usecs_to_jiffies(towait));
-		}
+	/*
+	 * The lircd gap calculation expects the write function to
+	 * wait for the actual IR signal to be transmitted before
+	 * returning.
+	 */
+	towait = ktime_us_delta(ktime_add_us(start, duration),
+				ktime_get());
+	if (towait > 0) {
+		set_current_state(TASK_INTERRUPTIBLE);
+		schedule_timeout(usecs_to_jiffies(towait));
 	}
 
 out:

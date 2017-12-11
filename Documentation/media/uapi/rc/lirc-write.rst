@@ -60,8 +60,8 @@ When in :ref:`LIRC_MODE_SCANCODE <lirc-mode-scancode>` mode, one
 and the protocol in the :c:type:`rc_proto`: member. All other members must be
 set to 0, else ``EINVAL`` is returned. If there is no protocol encoder
 for the protocol or the scancode is not valid for the specified protocol,
-``EINVAL`` is returned. The write function may not wait until the scancode
-is transmitted.
+``EINVAL`` is returned. The write function blocks until the scancode
+is transmitted by the hardware.
 
 
 Return Value
