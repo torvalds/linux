@@ -1439,7 +1439,10 @@ static struct sk_buff *ath10k_wmi_tlv_op_gen_init(struct ath10k *ar)
 	cmd->num_host_mem_chunks = __cpu_to_le32(ar->wmi.num_mem_chunks);
 
 	cfg->num_vdevs = __cpu_to_le32(TARGET_TLV_NUM_VDEVS);
-	cfg->num_peers = __cpu_to_le32(TARGET_TLV_NUM_PEERS);
+
+	cfg->num_peers = __cpu_to_le32(ar->hw_params.num_peers);
+	cfg->ast_skid_limit = __cpu_to_le32(ar->hw_params.ast_skid_limit);
+	cfg->num_wds_entries = __cpu_to_le32(ar->hw_params.num_wds_entries);
 
 	if (test_bit(WMI_SERVICE_RX_FULL_REORDER, ar->wmi.svc_map)) {
 		cfg->num_offload_peers = __cpu_to_le32(TARGET_TLV_NUM_VDEVS);
@@ -1451,7 +1454,6 @@ static struct sk_buff *ath10k_wmi_tlv_op_gen_init(struct ath10k *ar)
 
 	cfg->num_peer_keys = __cpu_to_le32(2);
 	cfg->num_tids = __cpu_to_le32(TARGET_TLV_NUM_TIDS);
-	cfg->ast_skid_limit = __cpu_to_le32(0x10);
 	cfg->tx_chain_mask = __cpu_to_le32(0x7);
 	cfg->rx_chain_mask = __cpu_to_le32(0x7);
 	cfg->rx_timeout_pri[0] = __cpu_to_le32(0x64);
@@ -1467,7 +1469,6 @@ static struct sk_buff *ath10k_wmi_tlv_op_gen_init(struct ath10k *ar)
 	cfg->num_mcast_table_elems = __cpu_to_le32(0);
 	cfg->mcast2ucast_mode = __cpu_to_le32(0);
 	cfg->tx_dbg_log_size = __cpu_to_le32(0x400);
-	cfg->num_wds_entries = __cpu_to_le32(0x20);
 	cfg->dma_burst_size = __cpu_to_le32(0);
 	cfg->mac_aggr_delim = __cpu_to_le32(0);
 	cfg->rx_skip_defrag_timeout_dup_detection_check = __cpu_to_le32(0);

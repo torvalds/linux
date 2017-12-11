@@ -75,6 +75,9 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.vht160_mcs_rx_highest = 0,
 		.vht160_mcs_tx_highest = 0,
 		.n_cipher_suites = 8,
+		.num_peers = TARGET_TLV_NUM_PEERS,
+		.ast_skid_limit = 0x10,
+		.num_wds_entries = 0x20,
 	},
 	{
 		.id = QCA9887_HW_1_0_VERSION,
@@ -99,6 +102,9 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.vht160_mcs_rx_highest = 0,
 		.vht160_mcs_tx_highest = 0,
 		.n_cipher_suites = 8,
+		.num_peers = TARGET_TLV_NUM_PEERS,
+		.ast_skid_limit = 0x10,
+		.num_wds_entries = 0x20,
 	},
 	{
 		.id = QCA6174_HW_2_1_VERSION,
@@ -122,6 +128,9 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.vht160_mcs_rx_highest = 0,
 		.vht160_mcs_tx_highest = 0,
 		.n_cipher_suites = 8,
+		.num_peers = TARGET_TLV_NUM_PEERS,
+		.ast_skid_limit = 0x10,
+		.num_wds_entries = 0x20,
 	},
 	{
 		.id = QCA6174_HW_2_1_VERSION,
@@ -145,6 +154,9 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.vht160_mcs_rx_highest = 0,
 		.vht160_mcs_tx_highest = 0,
 		.n_cipher_suites = 8,
+		.num_peers = TARGET_TLV_NUM_PEERS,
+		.ast_skid_limit = 0x10,
+		.num_wds_entries = 0x20,
 	},
 	{
 		.id = QCA6174_HW_3_0_VERSION,
@@ -168,6 +180,9 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.vht160_mcs_rx_highest = 0,
 		.vht160_mcs_tx_highest = 0,
 		.n_cipher_suites = 8,
+		.num_peers = TARGET_TLV_NUM_PEERS,
+		.ast_skid_limit = 0x10,
+		.num_wds_entries = 0x20,
 	},
 	{
 		.id = QCA6174_HW_3_2_VERSION,
@@ -194,6 +209,9 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.vht160_mcs_rx_highest = 0,
 		.vht160_mcs_tx_highest = 0,
 		.n_cipher_suites = 8,
+		.num_peers = TARGET_TLV_NUM_PEERS,
+		.ast_skid_limit = 0x10,
+		.num_wds_entries = 0x20,
 	},
 	{
 		.id = QCA99X0_HW_2_0_DEV_VERSION,
@@ -223,6 +241,9 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.vht160_mcs_rx_highest = 0,
 		.vht160_mcs_tx_highest = 0,
 		.n_cipher_suites = 11,
+		.num_peers = TARGET_TLV_NUM_PEERS,
+		.ast_skid_limit = 0x10,
+		.num_wds_entries = 0x20,
 	},
 	{
 		.id = QCA9984_HW_1_0_DEV_VERSION,
@@ -257,6 +278,9 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.vht160_mcs_rx_highest = 1560,
 		.vht160_mcs_tx_highest = 1560,
 		.n_cipher_suites = 11,
+		.num_peers = TARGET_TLV_NUM_PEERS,
+		.ast_skid_limit = 0x10,
+		.num_wds_entries = 0x20,
 	},
 	{
 		.id = QCA9888_HW_2_0_DEV_VERSION,
@@ -290,6 +314,9 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.vht160_mcs_rx_highest = 780,
 		.vht160_mcs_tx_highest = 780,
 		.n_cipher_suites = 11,
+		.num_peers = TARGET_TLV_NUM_PEERS,
+		.ast_skid_limit = 0x10,
+		.num_wds_entries = 0x20,
 	},
 	{
 		.id = QCA9377_HW_1_0_DEV_VERSION,
@@ -313,6 +340,9 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.vht160_mcs_rx_highest = 0,
 		.vht160_mcs_tx_highest = 0,
 		.n_cipher_suites = 8,
+		.num_peers = TARGET_TLV_NUM_PEERS,
+		.ast_skid_limit = 0x10,
+		.num_wds_entries = 0x20,
 	},
 	{
 		.id = QCA9377_HW_1_1_DEV_VERSION,
@@ -338,6 +368,9 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.vht160_mcs_rx_highest = 0,
 		.vht160_mcs_tx_highest = 0,
 		.n_cipher_suites = 8,
+		.num_peers = TARGET_TLV_NUM_PEERS,
+		.ast_skid_limit = 0x10,
+		.num_wds_entries = 0x20,
 	},
 	{
 		.id = QCA4019_HW_1_0_DEV_VERSION,
@@ -368,6 +401,9 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.vht160_mcs_rx_highest = 0,
 		.vht160_mcs_tx_highest = 0,
 		.n_cipher_suites = 11,
+		.num_peers = TARGET_TLV_NUM_PEERS,
+		.ast_skid_limit = 0x10,
+		.num_wds_entries = 0x20,
 	},
 };
 

@@ -553,6 +553,10 @@ struct ath10k_hw_params {
 
 	/* Number of ciphers supported (i.e First N) in cipher_suites array */
 	int n_cipher_suites;
+
+	u32 num_peers;
+	u32 ast_skid_limit;
+	u32 num_wds_entries;
 };
 
 struct htt_rx_desc;
