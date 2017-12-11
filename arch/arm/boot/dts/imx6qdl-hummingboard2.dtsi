@@ -482,9 +482,9 @@
 };
 
 &pwm1 {
-        pinctrl-names = "default";
-        pinctrl-0 = <&pinctrl_hummingboard2_pwm1>;
-        status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_hummingboard2_pwm1>;
+	status = "okay";
 };
 
 &pwm3 {
@@ -534,9 +534,7 @@
 
 &usdhc3 {
 	pinctrl-names = "default";
-	pinctrl-0 = <
-		&pinctrl_hummingboard2_usdhc3
-	>;
+	pinctrl-0 = <&pinctrl_hummingboard2_usdhc3>;
 	vmmc-supply = <&reg_3p3v>;
 	vqmmc-supply = <&reg_3p3v>;
 	bus-width = <8>;
