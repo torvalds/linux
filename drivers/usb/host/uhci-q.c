@@ -73,8 +73,7 @@ static void uhci_add_fsbr(struct uhci_hcd *uhci, struct urb *urb)
 {
 	struct urb_priv *urbp = urb->hcpriv;
 
-	if (!(urb->transfer_flags & URB_NO_FSBR))
-		urbp->fsbr = 1;
+	urbp->fsbr = 1;
 }
 
 static void uhci_urbp_wants_fsbr(struct uhci_hcd *uhci, struct urb_priv *urbp)
