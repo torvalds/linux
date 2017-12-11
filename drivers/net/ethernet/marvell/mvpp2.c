@@ -7324,9 +7324,9 @@ static int mvpp2_ethtool_get_coalesce(struct net_device *dev,
 {
 	struct mvpp2_port *port = netdev_priv(dev);
 
-	c->rx_coalesce_usecs        = port->rxqs[0]->time_coal;
-	c->rx_max_coalesced_frames  = port->rxqs[0]->pkts_coal;
-	c->tx_max_coalesced_frames =  port->txqs[0]->done_pkts_coal;
+	c->rx_coalesce_usecs       = port->rxqs[0]->time_coal;
+	c->rx_max_coalesced_frames = port->rxqs[0]->pkts_coal;
+	c->tx_max_coalesced_frames = port->txqs[0]->done_pkts_coal;
 	return 0;
 }
 
