@@ -1218,6 +1218,30 @@ out:
 }
 EXPORT_SYMBOL(phy_loopback);
 
+/**
+ * phy_reset_after_clk_enable - perform a PHY reset if needed
+ * @phydev: target phy_device struct
+ *
+ * Description: Some PHYs are known to need a reset after their refclk was
+ *   enabled. This function evaluates the flags and perform the reset if it's
+ *   needed. Returns < 0 on error, 0 if the phy wasn't reset and 1 if the phy
+ *   was reset.
+ */
+int phy_reset_after_clk_enable(struct phy_device *phydev)
+{
+	if (!phydev || !phydev->drv)
+		return -ENODEV;
+
+	if (phydev->drv->flags & PHY_RST_AFTER_CLK_EN) {
+		phy_device_reset(phydev, 1);
+		phy_device_reset(phydev, 0);
+		return 1;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(phy_reset_after_clk_enable);
+
 /* Generic PHY support and helper functions */
 
 /**
