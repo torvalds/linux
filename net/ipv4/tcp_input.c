@@ -601,26 +601,17 @@ void tcp_rcv_space_adjust(struct sock *sk)
 	if (sock_net(sk)->ipv4.sysctl_tcp_moderate_rcvbuf &&
 	    !(sk->sk_userlocks & SOCK_RCVBUF_LOCK)) {
 		int rcvmem, rcvbuf;
-		u64 rcvwin;
+		u64 rcvwin, grow;
 
 		/* minimal window to cope with packet losses, assuming
 		 * steady state. Add some cushion because of small variations.
 		 */
 		rcvwin = ((u64)copied << 1) + 16 * tp->advmss;
 
-		/* If rate increased by 25%,
-		 *	assume slow start, rcvwin = 3 * copied
-		 * If rate increased by 50%,
-		 *	assume sender can use 2x growth, rcvwin = 4 * copied
-		 */
-		if (copied >=
-		    tp->rcvq_space.space + (tp->rcvq_space.space >> 2)) {
-			if (copied >=
-			    tp->rcvq_space.space + (tp->rcvq_space.space >> 1))
-				rcvwin <<= 1;
-			else
-				rcvwin += (rcvwin >> 1);
-		}
+		/* Accommodate for sender rate increase (eg. slow start) */
+		grow = rcvwin * (copied - tp->rcvq_space.space);
+		do_div(grow, tp->rcvq_space.space);
+		rcvwin += (grow << 1);
 
 		rcvmem = SKB_TRUESIZE(tp->advmss + MAX_TCP_HEADER);
 		while (tcp_win_from_space(sk, rcvmem) < tp->advmss)
