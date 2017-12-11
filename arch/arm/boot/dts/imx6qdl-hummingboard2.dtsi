@@ -52,11 +52,6 @@
 		linux,rc-map-name = "rc-rc6-mce";
 	};
 
-	usdhc2_pwrseq: usdhc2-pwrseq {
-		compatible = "mmc-pwrseq-simple";
-		reset-gpios = <&gpio4 30 GPIO_ACTIVE_HIGH>;
-	};
-
 	reg_3p3v: regulator-3p3v {
 		compatible = "regulator-fixed";
 		regulator-name = "3P3V";
@@ -71,6 +66,18 @@
 		regulator-min-microvolt = <1800000>;
 		regulator-max-microvolt = <1800000>;
 		regulator-always-on;
+	};
+
+	v_sd: regulator-v-sd {
+		compatible = "regulator-fixed";
+		gpio = <&gpio4 30 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_hummingboard2_vmmc>;
+		regulator-boot-on;
+		regulator-max-microvolt = <3300000>;
+		regulator-min-microvolt = <3300000>;
+		regulator-name = "v_sd";
+		startup-delay-us = <1000>;
 	};
 
 	reg_usbh1_vbus: regulator-usb-h1-vbus {
@@ -391,7 +398,6 @@
 			fsl,pins = <
 				MX6QDL_PAD_GPIO_4__GPIO1_IO04    0x1f071
 				MX6QDL_PAD_KEY_ROW1__SD2_VSELECT 0x1b071
-				MX6QDL_PAD_DISP0_DAT9__GPIO4_IO30 0x1b0b0
 			>;
 		};
 
@@ -425,6 +431,12 @@
 				MX6QDL_PAD_SD2_DAT1__SD2_DATA1 0x170f9
 				MX6QDL_PAD_SD2_DAT2__SD2_DATA2 0x170f9
 				MX6QDL_PAD_SD2_DAT3__SD2_DATA3 0x130f9
+			>;
+		};
+
+		pinctrl_hummingboard2_vmmc: hummingboard2-vmmc {
+			fsl,pins = <
+				MX6QDL_PAD_DISP0_DAT9__GPIO4_IO30 0x1b0b0
 			>;
 		};
 
@@ -515,7 +527,7 @@
 		&pinctrl_hummingboard2_usdhc2_aux
 		&pinctrl_hummingboard2_usdhc2_200mhz
 	>;
-	mmc-pwrseq = <&usdhc2_pwrseq>;
+	vmmc-supply = <&v_sd>;
 	cd-gpios = <&gpio1 4 GPIO_ACTIVE_LOW>;
 	status = "okay";
 };
