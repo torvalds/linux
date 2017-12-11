@@ -12,7 +12,7 @@
 #ifndef __QCOM_SMD_REGULATOR_H_
 #define __QCOM_SMD_REGULATOR_H_
 
-#ifdef CONFIG_REGULATOR_QCOM_SMD_RPM
+#if IS_ENABLED(CONFIG_REGULATOR_QCOM_SMD_RPM)
 int qcom_rpm_set_floor(struct regulator *regulator, int floor);
 int qcom_rpm_set_corner(struct regulator *regulator, int corner);
 #else
