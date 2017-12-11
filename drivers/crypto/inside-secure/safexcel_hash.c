@@ -35,7 +35,7 @@ struct safexcel_ahash_req {
 	bool needs_inv;
 
 	u8 state_sz;    /* expected sate size, only set once */
-	u32 state[SHA256_DIGEST_SIZE / sizeof(u32)];
+	u32 state[SHA256_DIGEST_SIZE / sizeof(u32)] __aligned(sizeof(u32));
 
 	u64 len;
 	u64 processed;
@@ -128,7 +128,7 @@ static int safexcel_handle_req_result(struct safexcel_crypto_priv *priv, int rin
 	struct ahash_request *areq = ahash_request_cast(async);
 	struct crypto_ahash *ahash = crypto_ahash_reqtfm(areq);
 	struct safexcel_ahash_req *sreq = ahash_request_ctx(areq);
-	int cache_len, result_sz = sreq->state_sz;
+	int cache_len;
 
 	*ret = 0;
 
@@ -149,8 +149,8 @@ static int safexcel_handle_req_result(struct safexcel_crypto_priv *priv, int rin
 	spin_unlock_bh(&priv->ring[ring].egress_lock);
 
 	if (sreq->finish)
-		result_sz = crypto_ahash_digestsize(ahash);
-	memcpy(sreq->state, areq->result, result_sz);
+		memcpy(areq->result, sreq->state,
+		       crypto_ahash_digestsize(ahash));
 
 	dma_unmap_sg(priv->dev, areq->src,
 		     sg_nents_for_len(areq->src, areq->nbytes), DMA_TO_DEVICE);
@@ -274,7 +274,7 @@ send_command:
 	/* Add the token */
 	safexcel_hash_token(first_cdesc, len, req->state_sz);
 
-	ctx->base.result_dma = dma_map_single(priv->dev, areq->result,
+	ctx->base.result_dma = dma_map_single(priv->dev, req->state,
 					      req->state_sz, DMA_FROM_DEVICE);
 	if (dma_mapping_error(priv->dev, ctx->base.result_dma)) {
 		ret = -EINVAL;
