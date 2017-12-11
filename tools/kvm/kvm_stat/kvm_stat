@@ -1521,6 +1521,13 @@ Press any other key to refresh statistics immediately.
                          callback=cb_guest_to_pid,
                          )
     (options, _) = optparser.parse_args(sys.argv)
+    try:
+        # verify that we were passed a valid regex up front
+        re.compile(options.fields)
+    except re.error:
+        sys.exit('Error: "' + options.fields + '" is not a valid regular '
+                 'expression')
+
     return options
 
 
