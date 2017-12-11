@@ -950,7 +950,8 @@ class Tui(object):
             curses.nocbreak()
             curses.endwin()
 
-    def get_all_gnames(self):
+    @staticmethod
+    def get_all_gnames():
         """Returns a list of (pid, gname) tuples of all running guests"""
         res = []
         try:
@@ -963,7 +964,7 @@ class Tui(object):
             # perform a sanity check before calling the more expensive
             # function to possibly extract the guest name
             if ' -name ' in line[1]:
-                res.append((line[0], self.get_gname_from_pid(line[0])))
+                res.append((line[0], Tui.get_gname_from_pid(line[0])))
         child.stdout.close()
 
         return res
@@ -984,7 +985,8 @@ class Tui(object):
         except Exception:
             self.screen.addstr(row + 1, 2, 'Not available')
 
-    def get_pid_from_gname(self, gname):
+    @staticmethod
+    def get_pid_from_gname(gname):
         """Fuzzy function to convert guest name to QEMU process pid.
 
         Returns a list of potential pids, can be empty if no match found.
@@ -992,7 +994,7 @@ class Tui(object):
 
         """
         pids = []
-        for line in self.get_all_gnames():
+        for line in Tui.get_all_gnames():
             if gname == line[1]:
                 pids.append(int(line[0]))
 
