@@ -278,12 +278,11 @@ static void multipath_init_per_bio_data(struct bio *bio, struct dm_mpath_io **mp
 	struct dm_mpath_io *mpio = get_mpio_from_bio(bio);
 	struct dm_bio_details *bio_details = get_bio_details_from_bio(bio);
 
-	memset(mpio, 0, sizeof(*mpio));
-	memset(bio_details, 0, sizeof(*bio_details));
-	dm_bio_record(bio_details, bio);
+	mpio->nr_bytes = bio->bi_iter.bi_size;
+	mpio->pgpath = NULL;
+	*mpio_p = mpio;
 
-	if (mpio_p)
-		*mpio_p = mpio;
+	dm_bio_record(bio_details, bio);
 }
 
 /*-----------------------------------------------
@@ -518,7 +517,6 @@ static int multipath_clone_and_map(struct dm_target *ti, struct request *rq,
 		return DM_MAPIO_REQUEUE;
 	}
 
-	memset(mpio, 0, sizeof(*mpio));
 	mpio->pgpath = pgpath;
 	mpio->nr_bytes = nr_bytes;
 
@@ -556,7 +554,6 @@ static void multipath_release_clone(struct request *clone)
  */
 static int __multipath_map_bio(struct multipath *m, struct bio *bio, struct dm_mpath_io *mpio)
 {
-	size_t nr_bytes = bio->bi_iter.bi_size;
 	struct pgpath *pgpath;
 	unsigned long flags;
 	bool queue_io;
@@ -565,7 +562,7 @@ static int __multipath_map_bio(struct multipath *m, struct bio *bio, struct dm_m
 	pgpath = READ_ONCE(m->current_pgpath);
 	queue_io = test_bit(MPATHF_QUEUE_IO, &m->flags);
 	if (!pgpath || !queue_io)
-		pgpath = choose_pgpath(m, nr_bytes);
+		pgpath = choose_pgpath(m, mpio->nr_bytes);
 
 	if ((pgpath && queue_io) ||
 	    (!pgpath && test_bit(MPATHF_QUEUE_IF_NO_PATH, &m->flags))) {
@@ -589,7 +586,6 @@ static int __multipath_map_bio(struct multipath *m, struct bio *bio, struct dm_m
 	}
 
 	mpio->pgpath = pgpath;
-	mpio->nr_bytes = nr_bytes;
 
 	bio->bi_status = 0;
 	bio_set_dev(bio, pgpath->path.dev->bdev);
@@ -598,7 +594,7 @@ static int __multipath_map_bio(struct multipath *m, struct bio *bio, struct dm_m
 	if (pgpath->pg->ps.type->start_io)
 		pgpath->pg->ps.type->start_io(&pgpath->pg->ps,
 					      &pgpath->path,
-					      nr_bytes);
+					      mpio->nr_bytes);
 	return DM_MAPIO_REMAPPED;
 }
 
