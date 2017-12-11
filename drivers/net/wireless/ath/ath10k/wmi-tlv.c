@@ -917,33 +917,69 @@ ath10k_wmi_tlv_parse_mem_reqs(struct ath10k *ar, u16 tag, u16 len,
 	return -ENOMEM;
 }
 
-static int ath10k_wmi_tlv_op_pull_svc_rdy_ev(struct ath10k *ar,
-					     struct sk_buff *skb,
-					     struct wmi_svc_rdy_ev_arg *arg)
-{
-	const void **tb;
+struct wmi_tlv_svc_rdy_parse {
 	const struct hal_reg_capabilities *reg;
 	const struct wmi_tlv_svc_rdy_ev *ev;
 	const __le32 *svc_bmap;
 	const struct wlan_host_mem_req *mem_reqs;
+	bool svc_bmap_done;
+	bool dbs_hw_mode_done;
+};
+
+static int ath10k_wmi_tlv_svc_rdy_parse(struct ath10k *ar, u16 tag, u16 len,
+					const void *ptr, void *data)
+{
+	struct wmi_tlv_svc_rdy_parse *svc_rdy = data;
+
+	switch (tag) {
+	case WMI_TLV_TAG_STRUCT_SERVICE_READY_EVENT:
+		svc_rdy->ev = ptr;
+		break;
+	case WMI_TLV_TAG_STRUCT_HAL_REG_CAPABILITIES:
+		svc_rdy->reg = ptr;
+		break;
+	case WMI_TLV_TAG_ARRAY_STRUCT:
+		svc_rdy->mem_reqs = ptr;
+		break;
+	case WMI_TLV_TAG_ARRAY_UINT32:
+		if (!svc_rdy->svc_bmap_done) {
+			svc_rdy->svc_bmap_done = true;
+			svc_rdy->svc_bmap = ptr;
+		} else if (!svc_rdy->dbs_hw_mode_done) {
+			svc_rdy->dbs_hw_mode_done = true;
+		}
+		break;
+	default:
+		break;
+	}
+	return 0;
+}
+
+static int ath10k_wmi_tlv_op_pull_svc_rdy_ev(struct ath10k *ar,
+					     struct sk_buff *skb,
+					     struct wmi_svc_rdy_ev_arg *arg)
+{
+	const struct hal_reg_capabilities *reg;
+	const struct wmi_tlv_svc_rdy_ev *ev;
+	const __le32 *svc_bmap;
+	const struct wlan_host_mem_req *mem_reqs;
+	struct wmi_tlv_svc_rdy_parse svc_rdy = { };
 	int ret;
 
-	tb = ath10k_wmi_tlv_parse_alloc(ar, skb->data, skb->len, GFP_ATOMIC);
-	if (IS_ERR(tb)) {
-		ret = PTR_ERR(tb);
+	ret = ath10k_wmi_tlv_iter(ar, skb->data, skb->len,
+				  ath10k_wmi_tlv_svc_rdy_parse, &svc_rdy);
+	if (ret) {
 		ath10k_warn(ar, "failed to parse tlv: %d\n", ret);
 		return ret;
 	}
 
-	ev = tb[WMI_TLV_TAG_STRUCT_SERVICE_READY_EVENT];
-	reg = tb[WMI_TLV_TAG_STRUCT_HAL_REG_CAPABILITIES];
-	svc_bmap = tb[WMI_TLV_TAG_ARRAY_UINT32];
-	mem_reqs = tb[WMI_TLV_TAG_ARRAY_STRUCT];
+	ev = svc_rdy.ev;
+	reg = svc_rdy.reg;
+	svc_bmap = svc_rdy.svc_bmap;
+	mem_reqs = svc_rdy.mem_reqs;
 
-	if (!ev || !reg || !svc_bmap || !mem_reqs) {
-		kfree(tb);
+	if (!ev || !reg || !svc_bmap || !mem_reqs)
 		return -EPROTO;
-	}
 
 	/* This is an internal ABI compatibility check for WMI TLV so check it
 	 * here instead of the generic WMI code.
@@ -961,7 +997,6 @@ static int ath10k_wmi_tlv_op_pull_svc_rdy_ev(struct ath10k *ar,
 	    __le32_to_cpu(ev->abi.abi_ver_ns1) != WMI_TLV_ABI_VER_NS1 ||
 	    __le32_to_cpu(ev->abi.abi_ver_ns2) != WMI_TLV_ABI_VER_NS2 ||
 	    __le32_to_cpu(ev->abi.abi_ver_ns3) != WMI_TLV_ABI_VER_NS3) {
-		kfree(tb);
 		return -ENOTSUPP;
 	}
 
@@ -982,12 +1017,10 @@ static int ath10k_wmi_tlv_op_pull_svc_rdy_ev(struct ath10k *ar,
 	ret = ath10k_wmi_tlv_iter(ar, mem_reqs, ath10k_wmi_tlv_len(mem_reqs),
 				  ath10k_wmi_tlv_parse_mem_reqs, arg);
 	if (ret) {
-		kfree(tb);
 		ath10k_warn(ar, "failed to parse mem_reqs tlv: %d\n", ret);
 		return ret;
 	}
 
-	kfree(tb);
 	return 0;
 }
 
