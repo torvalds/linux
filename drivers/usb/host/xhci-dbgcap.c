@@ -366,7 +366,7 @@ static void xhci_dbc_eps_exit(struct xhci_hcd *xhci)
 {
 	struct xhci_dbc		*dbc = xhci->dbc;
 
-	memset(dbc->eps, 0, ARRAY_SIZE(dbc->eps));
+	memset(dbc->eps, 0, sizeof(struct dbc_ep) * ARRAY_SIZE(dbc->eps));
 }
 
 static int xhci_dbc_mem_init(struct xhci_hcd *xhci, gfp_t flags)
