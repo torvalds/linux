@@ -1985,13 +1985,6 @@ unlock:
 	hci_dev_unlock(hdev);
 }
 
-static void disable_advertising(struct hci_request *req)
-{
-	u8 enable = 0x00;
-
-	hci_req_add(req, HCI_OP_LE_SET_ADV_ENABLE, sizeof(enable), &enable);
-}
-
 static int active_scan(struct hci_request *req, unsigned long opt)
 {
 	uint16_t interval = opt;
@@ -2017,7 +2010,7 @@ static int active_scan(struct hci_request *req, unsigned long opt)
 		cancel_adv_timeout(hdev);
 		hci_dev_unlock(hdev);
 
-		disable_advertising(req);
+		__hci_req_disable_advertising(req);
 	}
 
 	/* If controller is scanning, it means the background scanning is
