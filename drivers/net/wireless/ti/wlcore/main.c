@@ -1343,7 +1343,6 @@ static struct sk_buff *wl12xx_alloc_dummy_packet(struct wl1271 *wl)
 }
 
 
-#ifdef CONFIG_PM
 static int
 wl1271_validate_wowlan_pattern(struct cfg80211_pkt_pattern *p)
 {
@@ -1715,8 +1714,8 @@ static void wl1271_configure_resume(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 	}
 }
 
-static int wl1271_op_suspend(struct ieee80211_hw *hw,
-			    struct cfg80211_wowlan *wow)
+static int __maybe_unused wl1271_op_suspend(struct ieee80211_hw *hw,
+					    struct cfg80211_wowlan *wow)
 {
 	struct wl1271 *wl = hw->priv;
 	struct wl12xx_vif *wlvif;
@@ -1810,7 +1809,7 @@ out_sleep:
 	return 0;
 }
 
-static int wl1271_op_resume(struct ieee80211_hw *hw)
+static int __maybe_unused wl1271_op_resume(struct ieee80211_hw *hw)
 {
 	struct wl1271 *wl = hw->priv;
 	struct wl12xx_vif *wlvif;
@@ -1894,7 +1893,6 @@ out:
 
 	return 0;
 }
-#endif
 
 static int wl1271_op_start(struct ieee80211_hw *hw)
 {
