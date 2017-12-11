@@ -3,4 +3,4 @@
 # Makefile for kernel SLIMbus framework.
 #
 obj-$(CONFIG_SLIMBUS)			+= slimbus.o
-slimbus-y				:= core.o
+slimbus-y				:= core.o messaging.o

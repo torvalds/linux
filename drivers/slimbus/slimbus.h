@@ -8,7 +8,16 @@
 #include <linux/module.h>
 #include <linux/device.h>
 #include <linux/mutex.h>
+#include <linux/completion.h>
 #include <linux/slimbus.h>
+
+/* SLIMbus message types. Related to interpretation of message code. */
+#define SLIM_MSG_MT_CORE			0x0
+
+/* Destination type Values */
+#define SLIM_MSG_DEST_LOGICALADDR	0
+#define SLIM_MSG_DEST_ENUMADDR		1
+#define	SLIM_MSG_DEST_BROADCAST		3
 
 /* Standard values per SLIMbus spec needed by controllers and devices */
 #define SLIM_MAX_CLK_GEAR		10
@@ -17,6 +26,7 @@
 /* Manager's logical address is set to 0xFF per spec */
 #define SLIM_LA_MANAGER 0xFF
 
+#define SLIM_MAX_TIDS			256
 /**
  * struct slim_framer - Represents SLIMbus framer.
  * Every controller may have multiple framers. There is 1 active framer device
@@ -38,6 +48,39 @@ struct slim_framer {
 #define to_slim_framer(d) container_of(d, struct slim_framer, dev)
 
 /**
+ * struct slim_msg_txn - Message to be sent by the controller.
+ *			This structure has packet header,
+ *			payload and buffer to be filled (if any)
+ * @rl: Header field. remaining length.
+ * @mt: Header field. Message type.
+ * @mc: Header field. LSB is message code for type mt.
+ * @dt: Header field. Destination type.
+ * @ec: Element code. Used for elemental access APIs.
+ * @tid: Transaction ID. Used for messages expecting response.
+ *	(relevant for message-codes involving read operation)
+ * @la: Logical address of the device this message is going to.
+ *	(Not used when destination type is broadcast.)
+ * @msg: Elemental access message to be read/written
+ * @comp: completion if read/write is synchronous, used internally
+ *	for tid based transactions.
+ */
+struct slim_msg_txn {
+	u8			rl;
+	u8			mt;
+	u8			mc;
+	u8			dt;
+	u16			ec;
+	u8			tid;
+	u8			la;
+	struct slim_val_inf	*msg;
+	struct	completion	*comp;
+};
+
+/* Frequently used message transaction structures */
+#define DEFINE_SLIM_LDEST_TXN(name, mc, rl, la, msg) \
+	struct slim_msg_txn name = { rl, 0, mc, SLIM_MSG_DEST_LOGICALADDR, 0,\
+					0, la, msg, }
+/**
  * struct slim_controller  - Controls every instance of SLIMbus
  *				(similar to 'master' on SPI)
  * @dev: Device interface to this driver
@@ -52,6 +95,9 @@ struct slim_framer {
  * @devices: Slim device list
  * @tid_idr: tid id allocator
  * @txn_lock: Lock to protect table of transactions
+ * @xfer_msg: Transfer a message on this controller (this can be a broadcast
+ *	control/status message like data channel setup, or a unicast message
+ *	like value element read/write.
  * @set_laddr: Setup logical address at laddr for the slave with elemental
  *	address e_addr. Drivers implementing controller will be expected to
  *	send unicast message to this device with its logical address.
@@ -93,6 +139,8 @@ struct slim_controller {
 	struct list_head	devices;
 	struct idr		tid_idr;
 	spinlock_t		txn_lock;
+	int			(*xfer_msg)(struct slim_controller *ctrl,
+					    struct slim_msg_txn *tx);
 	int			(*set_laddr)(struct slim_controller *ctrl,
 					     struct slim_eaddr *ea, u8 laddr);
 	int			(*get_laddr)(struct slim_controller *ctrl,
@@ -104,5 +152,24 @@ int slim_device_report_present(struct slim_controller *ctrl,
 void slim_report_absent(struct slim_device *sbdev);
 int slim_register_controller(struct slim_controller *ctrl);
 int slim_unregister_controller(struct slim_controller *ctrl);
+void slim_msg_response(struct slim_controller *ctrl, u8 *reply, u8 tid, u8 l);
+int slim_do_transfer(struct slim_controller *ctrl, struct slim_msg_txn *txn);
 
+static inline bool slim_tid_txn(u8 mt, u8 mc)
+{
+	return (mt == SLIM_MSG_MT_CORE &&
+		(mc == SLIM_MSG_MC_REQUEST_INFORMATION ||
+		 mc == SLIM_MSG_MC_REQUEST_CLEAR_INFORMATION ||
+		 mc == SLIM_MSG_MC_REQUEST_VALUE ||
+		 mc == SLIM_MSG_MC_REQUEST_CLEAR_INFORMATION));
+}
+
+static inline bool slim_ec_txn(u8 mt, u8 mc)
+{
+	return (mt == SLIM_MSG_MT_CORE &&
+		((mc >= SLIM_MSG_MC_REQUEST_INFORMATION &&
+		  mc <= SLIM_MSG_MC_REPORT_INFORMATION) ||
+		 (mc >= SLIM_MSG_MC_REQUEST_VALUE &&
+		  mc <= SLIM_MSG_MC_CHANGE_VALUE)));
+}
 #endif /* _LINUX_SLIMBUS_H */
