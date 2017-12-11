@@ -1114,6 +1114,7 @@ static int demod_attach_stv0900(struct ddb_input *input, int type)
 			0, (input->nr & 1) ?
 			(0x09 - type) : (0x0b - type))) {
 		dev_err(dev, "No LNBH24 found!\n");
+		dvb_frontend_detach(dvb->fe);
 		return -ENODEV;
 	}
 	return 0;
@@ -1196,6 +1197,7 @@ static int demod_attach_stv0910(struct ddb_input *input, int type)
 		lnbcfg.i2c_address = (((input->nr & 1) ? 0x09 : 0x08) << 1);
 		if (!dvb_attach(lnbh25_attach, dvb->fe, &lnbcfg, i2c)) {
 			dev_err(dev, "No LNBH25 found!\n");
+			dvb_frontend_detach(dvb->fe);
 			return -ENODEV;
 		}
 	}
