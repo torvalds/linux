@@ -1420,16 +1420,19 @@ fallback:
 	return 0;
 }
 
-static const char *annotate__norm_arch(const char *arch_name)
+static const char *perf_env__arch(struct perf_env *env)
 {
 	struct utsname uts;
+	char *arch_name;
 
-	if (!arch_name) { /* Assume we are annotating locally. */
+	if (!env) { /* Assume local operation */
 		if (uname(&uts) < 0)
 			return NULL;
 		arch_name = uts.machine;
-	}
-	return normalize_arch((char *)arch_name);
+	} else
+		arch_name = env->arch;
+
+	return normalize_arch(arch_name);
 }
 
 static int symbol__disassemble(struct symbol *sym, struct annotate_args *args)
@@ -1630,14 +1633,10 @@ int symbol__annotate(struct symbol *sym, struct map *map,
 		.evsel		= evsel,
 	};
 	struct perf_env *env = perf_evsel__env(evsel);
-	const char *arch_name = NULL;
+	const char *arch_name = perf_env__arch(env);
 	struct arch *arch;
 	int err;
 
-	if (evsel)
-		arch_name = perf_evsel__env_arch(evsel);
-
-	arch_name = annotate__norm_arch(arch_name);
 	if (!arch_name)
 		return -1;
 
