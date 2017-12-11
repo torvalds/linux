@@ -28,6 +28,8 @@
 #include "xfs_inode_item.h"
 #include "xfs_trace.h"
 
+#include <linux/iversion.h>
+
 /*
  * Add a locked inode to the transaction.
  *
@@ -117,7 +119,7 @@ xfs_trans_log_inode(
 	 */
 	if (!(ip->i_itemp->ili_item.li_desc->lid_flags & XFS_LID_DIRTY) &&
 	    IS_I_VERSION(VFS_I(ip))) {
-		VFS_I(ip)->i_version++;
+		inode_inc_iversion(VFS_I(ip));
 		flags |= XFS_ILOG_CORE;
 	}
 

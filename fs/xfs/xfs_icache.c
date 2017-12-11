@@ -37,6 +37,7 @@
 
 #include <linux/kthread.h>
 #include <linux/freezer.h>
+#include <linux/iversion.h>
 
 /*
  * Allocate and initialise an xfs_inode.
@@ -293,14 +294,14 @@ xfs_reinit_inode(
 	int		error;
 	uint32_t	nlink = inode->i_nlink;
 	uint32_t	generation = inode->i_generation;
-	uint64_t	version = inode->i_version;
+	uint64_t	version = inode_peek_iversion(inode);
 	umode_t		mode = inode->i_mode;
 
 	error = inode_init_always(mp->m_super, inode);
 
 	set_nlink(inode, nlink);
 	inode->i_generation = generation;
-	inode->i_version = version;
+	inode_set_iversion_queried(inode, version);
 	inode->i_mode = mode;
 	return error;
 }
