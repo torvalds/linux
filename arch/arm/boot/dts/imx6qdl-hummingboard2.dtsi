@@ -478,14 +478,6 @@
 	status = "okay";
 };
 
-&pwm3 {
-	status = "disabled";
-};
-
-&pwm4 {
-	status = "disabled";
-};
-
 &ssi1 {
 	status = "okay";
 };
