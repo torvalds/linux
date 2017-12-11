@@ -111,6 +111,7 @@ drivers-y	+= drivers/s390/
 drivers-$(CONFIG_OPROFILE)	+= arch/s390/oprofile/
 
 boot		:= arch/s390/boot
+syscalls	:= arch/s390/kernel/syscalls
 tools		:= arch/s390/tools
 
 all: image bzImage
@@ -132,7 +133,11 @@ archclean:
 	$(Q)$(MAKE) $(clean)=$(boot)
 	$(Q)$(MAKE) $(clean)=$(tools)
 
+archheaders:
+	$(Q)$(MAKE) $(build)=$(syscalls) uapi
+
 archprepare:
+	$(Q)$(MAKE) $(build)=$(syscalls) kapi
 	$(Q)$(MAKE) $(build)=$(tools) include/generated/facilities.h
 	$(Q)$(MAKE) $(build)=$(tools) include/generated/dis.h
 
