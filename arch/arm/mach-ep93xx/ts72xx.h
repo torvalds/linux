@@ -10,6 +10,7 @@
  * febff000	22000000	4K	model number register (bits 0-2)
  * febfe000	22400000	4K	options register
  * febfd000	22800000	4K	options register #2
+ * febfc000     23400000        4K      CPLD version register
  */
 
 #ifndef __TS72XX_H_
@@ -41,6 +42,10 @@
 
 #define TS72XX_OPTIONS2_TS9420		0x04
 #define TS72XX_OPTIONS2_TS9420_BOOT	0x02
+
+#define TS72XX_CPLDVER_PHYS_BASE	0x23400000
+#define TS72XX_CPLDVER_VIRT_BASE	IOMEM(0xfebfc000)
+#define TS72XX_CPLDVER_SIZE		0x00001000
 
 #ifndef __ASSEMBLY__
 
