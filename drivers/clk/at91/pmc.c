@@ -86,7 +86,7 @@ static int pmc_suspend(void)
 {
 	int i;
 
-	regmap_read(pmcreg, AT91_PMC_IMR, &pmc_cache.scsr);
+	regmap_read(pmcreg, AT91_PMC_SCSR, &pmc_cache.scsr);
 	regmap_read(pmcreg, AT91_PMC_PCSR, &pmc_cache.pcsr0);
 	regmap_read(pmcreg, AT91_CKGR_UCKR, &pmc_cache.uckr);
 	regmap_read(pmcreg, AT91_CKGR_MOR, &pmc_cache.mor);
@@ -129,7 +129,7 @@ static void pmc_resume(void)
 	if (pmc_cache.pllar != tmp)
 		pr_warn("PLLAR was not configured properly by the firmware\n");
 
-	regmap_write(pmcreg, AT91_PMC_IMR, pmc_cache.scsr);
+	regmap_write(pmcreg, AT91_PMC_SCER, pmc_cache.scsr);
 	regmap_write(pmcreg, AT91_PMC_PCER, pmc_cache.pcsr0);
 	regmap_write(pmcreg, AT91_CKGR_UCKR, pmc_cache.uckr);
 	regmap_write(pmcreg, AT91_CKGR_MOR, pmc_cache.mor);
