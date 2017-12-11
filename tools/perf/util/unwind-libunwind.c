@@ -3,7 +3,7 @@
 #include "thread.h"
 #include "session.h"
 #include "debug.h"
-#include "arch/common.h"
+#include "env.h"
 
 struct unwind_libunwind_ops __weak *local_unwind_libunwind_ops;
 struct unwind_libunwind_ops __weak *x86_32_unwind_libunwind_ops;
@@ -39,7 +39,7 @@ int unwind__prepare_access(struct thread *thread, struct map *map,
 	if (dso_type == DSO__TYPE_UNKNOWN)
 		return 0;
 
-	arch = normalize_arch(thread->mg->machine->env->arch);
+	arch = perf_env__arch(thread->mg->machine->env);
 
 	if (!strcmp(arch, "x86")) {
 		if (dso_type != DSO__TYPE_64BIT)

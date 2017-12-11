@@ -26,7 +26,6 @@
 #include <pthread.h>
 #include <linux/bitops.h>
 #include <linux/kernel.h>
-#include <sys/utsname.h>
 
 #include "sane_ctype.h"
 
@@ -1418,21 +1417,6 @@ fallback:
 
 	free(build_id_path);
 	return 0;
-}
-
-static const char *perf_env__arch(struct perf_env *env)
-{
-	struct utsname uts;
-	char *arch_name;
-
-	if (!env) { /* Assume local operation */
-		if (uname(&uts) < 0)
-			return NULL;
-		arch_name = uts.machine;
-	} else
-		arch_name = env->arch;
-
-	return normalize_arch(arch_name);
 }
 
 static int symbol__disassemble(struct symbol *sym, struct annotate_args *args)
