@@ -653,8 +653,8 @@ static void ixgbevf_alloc_rx_buffers(struct ixgbevf_ring *rx_ring,
 			i -= rx_ring->count;
 		}
 
-		/* clear the hdr_addr for the next_to_use descriptor */
-		rx_desc->read.hdr_addr = 0;
+		/* clear the length for the next_to_use descriptor */
+		rx_desc->wb.upper.length = 0;
 
 		cleaned_count--;
 	} while (cleaned_count);
@@ -938,7 +938,7 @@ static int ixgbevf_clean_rx_irq(struct ixgbevf_q_vector *q_vector,
 
 		rx_desc = IXGBEVF_RX_DESC(rx_ring, rx_ring->next_to_clean);
 
-		if (!ixgbevf_test_staterr(rx_desc, IXGBE_RXD_STAT_DD))
+		if (!rx_desc->wb.upper.length)
 			break;
 
 		/* This memory barrier is needed to keep us from reading
@@ -1729,6 +1729,7 @@ static void ixgbevf_configure_rx_ring(struct ixgbevf_adapter *adapter,
 				      struct ixgbevf_ring *ring)
 {
 	struct ixgbe_hw *hw = &adapter->hw;
+	union ixgbe_adv_rx_desc *rx_desc;
 	u64 rdba = ring->dma;
 	u32 rxdctl;
 	u8 reg_idx = ring->reg_idx;
@@ -1756,6 +1757,10 @@ static void ixgbevf_configure_rx_ring(struct ixgbevf_adapter *adapter,
 	IXGBE_WRITE_REG(hw, IXGBE_VFRDH(reg_idx), 0);
 	IXGBE_WRITE_REG(hw, IXGBE_VFRDT(reg_idx), 0);
 	ring->tail = adapter->io_addr + IXGBE_VFRDT(reg_idx);
+
+	/* initialize Rx descriptor 0 */
+	rx_desc = IXGBEVF_RX_DESC(ring, 0);
+	rx_desc->wb.upper.length = 0;
 
 	/* reset ntu and ntc to place SW in sync with hardwdare */
 	ring->next_to_clean = 0;
@@ -2141,9 +2146,6 @@ static void ixgbevf_clean_rx_ring(struct ixgbevf_ring *rx_ring)
 
 	size = sizeof(struct ixgbevf_rx_buffer) * rx_ring->count;
 	memset(rx_ring->rx_buffer_info, 0, size);
-
-	/* Zero out the descriptor ring */
-	memset(rx_ring->desc, 0, rx_ring->size);
 }
 
 /**
