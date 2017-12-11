@@ -1113,7 +1113,7 @@ static void vop_line_flag_irq_disable(struct vop *vop)
 static void vop_crtc_load_lut(struct drm_crtc *crtc)
 {
 	struct vop *vop = to_vop(crtc);
-	int i, dle, lut_idx;
+	int i, dle, lut_idx = 0;
 
 	if (!vop->is_enabled || !vop->lut || !vop->lut_regs)
 		return;
@@ -3731,7 +3731,7 @@ static int vop_win_init(struct vop *vop)
 			vop_area->nformats = vop_win->nformats;
 			vop_area->vop = vop;
 			vop_area->win_id = i;
-			vop_area->area_id = j;
+			vop_area->area_id = j + 1;
 			num_wins++;
 		}
 	}
