@@ -89,6 +89,7 @@
 #include <linux/rtnetlink.h>
 #include <linux/times.h>
 #include <linux/pkt_sched.h>
+#include <linux/byteorder/generic.h>
 
 #include <net/net_namespace.h>
 #include <net/arp.h>
@@ -327,6 +328,23 @@ igmp_scount(struct ip_mc_list *pmc, int type, int gdeleted, int sdeleted)
 	return scount;
 }
 
+/* source address selection per RFC 3376 section 4.2.13 */
+static __be32 igmpv3_get_srcaddr(struct net_device *dev,
+				 const struct flowi4 *fl4)
+{
+	struct in_device *in_dev = __in_dev_get_rcu(dev);
+
+	if (!in_dev)
+		return htonl(INADDR_ANY);
+
+	for_ifa(in_dev) {
+		if (inet_ifa_match(fl4->saddr, ifa))
+			return fl4->saddr;
+	} endfor_ifa(in_dev);
+
+	return htonl(INADDR_ANY);
+}
+
 static struct sk_buff *igmpv3_newpack(struct net_device *dev, unsigned int mtu)
 {
 	struct sk_buff *skb;
@@ -374,7 +392,7 @@ static struct sk_buff *igmpv3_newpack(struct net_device *dev, unsigned int mtu)
 	pip->frag_off = htons(IP_DF);
 	pip->ttl      = 1;
 	pip->daddr    = fl4.daddr;
-	pip->saddr    = fl4.saddr;
+	pip->saddr    = igmpv3_get_srcaddr(dev, &fl4);
 	pip->protocol = IPPROTO_IGMP;
 	pip->tot_len  = 0;	/* filled in later */
 	ip_select_ident(net, skb, NULL);
