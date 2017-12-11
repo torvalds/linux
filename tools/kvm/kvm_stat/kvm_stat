@@ -1099,8 +1099,9 @@ class Tui(object):
             sortkey = sortCurAvg
         else:
             sortkey = sortTotal
+        tavg = 0
         for key in sorted(stats.keys(), key=sortkey):
-            if row >= self.screen.getmaxyx()[0]:
+            if row >= self.screen.getmaxyx()[0] - 1:
                 break
             values = stats[key]
             if not values[0] and not values[1]:
@@ -1112,9 +1113,15 @@ class Tui(object):
                 self.screen.addstr(row, 1, '%-40s %10d%7.1f %8s' %
                                    (key, values[0], values[0] * 100 / total,
                                     cur))
+                if cur is not '' and key.find('(') is -1:
+                    tavg += cur
             row += 1
         if row == 3:
             self.screen.addstr(4, 1, 'No matching events reported yet')
+        else:
+            self.screen.addstr(row, 1, '%-40s %10d        %8s' %
+                               ('Total', total, tavg if tavg else ''),
+                               curses.A_BOLD)
         self.screen.refresh()
 
     def show_msg(self, text):
