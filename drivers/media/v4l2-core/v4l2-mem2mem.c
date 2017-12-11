@@ -183,6 +183,7 @@ EXPORT_SYMBOL(v4l2_m2m_get_curr_priv);
 
 /**
  * v4l2_m2m_try_run() - select next job to perform and run it if possible
+ * @m2m_dev: per-device context
  *
  * Get next transaction (if present) from the waiting jobs list and run it.
  */
@@ -281,6 +282,7 @@ EXPORT_SYMBOL_GPL(v4l2_m2m_try_schedule);
 
 /**
  * v4l2_m2m_cancel_job() - cancel pending jobs for the context
+ * @m2m_ctx: m2m context with jobs to be canceled
  *
  * In case of streamoff or release called on any context,
  * 1] If the context is currently running, then abort job will be called

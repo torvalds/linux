@@ -331,7 +331,7 @@ static struct dentry *mqueue_mount(struct file_system_type *fs_type,
 			 void *data)
 {
 	struct ipc_namespace *ns;
-	if (flags & MS_KERNMOUNT) {
+	if (flags & SB_KERNMOUNT) {
 		ns = data;
 		data = NULL;
 	} else {

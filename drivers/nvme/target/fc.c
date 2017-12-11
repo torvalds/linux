@@ -533,15 +533,15 @@ nvmet_fc_free_fcp_iod(struct nvmet_fc_tgt_queue *queue,
 
 	tgtport->ops->fcp_req_release(&tgtport->fc_target_port, fcpreq);
 
+	/* release the queue lookup reference on the completed IO */
+	nvmet_fc_tgt_q_put(queue);
+
 	spin_lock_irqsave(&queue->qlock, flags);
 	deferfcp = list_first_entry_or_null(&queue->pending_cmd_list,
 				struct nvmet_fc_defer_fcp_req, req_list);
 	if (!deferfcp) {
 		list_add_tail(&fod->fcp_list, &fod->queue->fod_list);
 		spin_unlock_irqrestore(&queue->qlock, flags);
-
-		/* Release reference taken at queue lookup and fod allocation */
-		nvmet_fc_tgt_q_put(queue);
 		return;
 	}
 
@@ -759,6 +759,9 @@ nvmet_fc_delete_target_queue(struct nvmet_fc_tgt_queue *queue)
 
 		tgtport->ops->fcp_req_release(&tgtport->fc_target_port,
 				deferfcp->fcp_req);
+
+		/* release the queue lookup reference */
+		nvmet_fc_tgt_q_put(queue);
 
 		kfree(deferfcp);
 

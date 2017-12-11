@@ -326,7 +326,7 @@ static int ovl_remount(struct super_block *sb, int *flags, char *data)
 {
 	struct ovl_fs *ofs = sb->s_fs_info;
 
-	if (!(*flags & MS_RDONLY) && ovl_force_readonly(ofs))
+	if (!(*flags & SB_RDONLY) && ovl_force_readonly(ofs))
 		return -EROFS;
 
 	return 0;
@@ -1190,7 +1190,7 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 			goto out_err;
 
 		if (!ofs->workdir)
-			sb->s_flags |= MS_RDONLY;
+			sb->s_flags |= SB_RDONLY;
 
 		sb->s_stack_depth = ofs->upper_mnt->mnt_sb->s_stack_depth;
 		sb->s_time_gran = ofs->upper_mnt->mnt_sb->s_time_gran;
@@ -1203,7 +1203,7 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 
 	/* If the upper fs is nonexistent, we mark overlayfs r/o too */
 	if (!ofs->upper_mnt)
-		sb->s_flags |= MS_RDONLY;
+		sb->s_flags |= SB_RDONLY;
 	else if (ofs->upper_mnt->mnt_sb != ofs->same_sb)
 		ofs->same_sb = NULL;
 
@@ -1213,7 +1213,7 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 			goto out_free_oe;
 
 		if (!ofs->indexdir)
-			sb->s_flags |= MS_RDONLY;
+			sb->s_flags |= SB_RDONLY;
 	}
 
 	/* Show index=off/on in /proc/mounts for any of the reasons above */
@@ -1227,7 +1227,7 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 	sb->s_op = &ovl_super_operations;
 	sb->s_xattr = ovl_xattr_handlers;
 	sb->s_fs_info = ofs;
-	sb->s_flags |= MS_POSIXACL | MS_NOREMOTELOCK;
+	sb->s_flags |= SB_POSIXACL | SB_NOREMOTELOCK;
 
 	err = -ENOMEM;
 	root_dentry = d_make_root(ovl_new_inode(sb, S_IFDIR, 0));

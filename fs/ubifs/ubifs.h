@@ -1201,7 +1201,7 @@ struct ubifs_debug_info;
  * @need_recovery: %1 if the file-system needs recovery
  * @replaying: %1 during journal replay
  * @mounting: %1 while mounting
- * @probing: %1 while attempting to mount if MS_SILENT mount flag is set
+ * @probing: %1 while attempting to mount if SB_SILENT mount flag is set
  * @remounting_rw: %1 while re-mounting from R/O mode to R/W mode
  * @replay_list: temporary list used during journal replay
  * @replay_buds: list of buds to replay
@@ -1850,7 +1850,7 @@ __printf(2, 3)
 void ubifs_warn(const struct ubifs_info *c, const char *fmt, ...);
 /*
  * A conditional variant of 'ubifs_err()' which doesn't output anything
- * if probing (ie. MS_SILENT set).
+ * if probing (ie. SB_SILENT set).
  */
 #define ubifs_errc(c, fmt, ...)						\
 do {									\

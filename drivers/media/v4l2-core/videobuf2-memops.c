@@ -120,7 +120,7 @@ static void vb2_common_vm_close(struct vm_area_struct *vma)
 	h->put(h->arg);
 }
 
-/**
+/*
  * vb2_common_vm_ops - common vm_ops used for tracking refcount of mmaped
  * video buffers
  */

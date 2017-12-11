@@ -37,7 +37,7 @@ int ia_css_eventq_recv(
 	return error;
 }
 
-/**
+/*
  * @brief The Host sends the event to the SP.
  * Refer to "sh_css_sp.h" for details.
  */
