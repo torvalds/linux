@@ -31,6 +31,9 @@
 #include "soc.h"
 #include "ts72xx.h"
 
+/*************************************************************************
+ * IO map
+ *************************************************************************/
 static struct map_desc ts72xx_io_desc[] __initdata = {
 	{
 		.virtual	= (unsigned long)TS72XX_MODEL_VIRT_BASE,
@@ -201,10 +204,16 @@ static struct platform_device ts72xx_wdt_device = {
 	.num_resources	= ARRAY_SIZE(ts72xx_wdt_resources),
 };
 
+/*************************************************************************
+ * ETH
+ *************************************************************************/
 static struct ep93xx_eth_data __initdata ts72xx_eth_data = {
 	.phy_id		= 1,
 };
 
+/*************************************************************************
+ * TS72XX support code
+ *************************************************************************/
 #if IS_ENABLED(CONFIG_FPGA_MGR_TS73XX)
 
 /* Relative to EP93XX_CS1_PHYS_BASE */
