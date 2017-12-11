@@ -1511,9 +1511,19 @@ static struct cftype throtl_legacy_files[] = {
 		.seq_show = blkg_print_stat_bytes,
 	},
 	{
+		.name = "throttle.io_service_bytes_recursive",
+		.private = (unsigned long)&blkcg_policy_throtl,
+		.seq_show = blkg_print_stat_bytes_recursive,
+	},
+	{
 		.name = "throttle.io_serviced",
 		.private = (unsigned long)&blkcg_policy_throtl,
 		.seq_show = blkg_print_stat_ios,
+	},
+	{
+		.name = "throttle.io_serviced_recursive",
+		.private = (unsigned long)&blkcg_policy_throtl,
+		.seq_show = blkg_print_stat_ios_recursive,
 	},
 	{ }	/* terminate */
 };
