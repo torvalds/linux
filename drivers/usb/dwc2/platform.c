@@ -599,6 +599,11 @@ static int dwc2_driver_probe(struct platform_device *dev)
 	/* Validate parameter values */
 	dwc2_set_parameters(hsotg, params);
 
+	if (of_device_is_compatible(hsotg->dev->of_node,
+				    "rockchip,rk3066-usb"))
+		hsotg->core_params->host_nperio_tx_fifo_size =
+					params->host_nperio_tx_fifo_size;
+
 	dwc2_force_dr_mode(hsotg);
 
 	if (hsotg->dr_mode != USB_DR_MODE_HOST) {
