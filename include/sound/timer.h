@@ -90,6 +90,8 @@ struct snd_timer {
 	struct list_head ack_list_head;
 	struct list_head sack_list_head; /* slow ack list head */
 	struct tasklet_struct task_queue;
+	int max_instances;	/* upper limit of timer instances */
+	int num_instances;	/* current number of timer instances */
 };
 
 struct snd_timer_instance {

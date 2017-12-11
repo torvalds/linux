@@ -50,7 +50,7 @@
 / {
 	compatible = "hardkernel,odroid-c2", "amlogic,meson-gxbb";
 	model = "Hardkernel ODROID-C2";
-	
+
 	aliases {
 		serial0 = &uart_AO;
 	};
@@ -157,6 +157,8 @@
 
 		eth_phy0: ethernet-phy@0 {
 			reg = <0>;
+			interrupt-parent = <&gpio_intc>;
+			interrupts = <29 IRQ_TYPE_LEVEL_LOW>;
 			eee-broken-1000t;
 		};
 	};
@@ -194,7 +196,9 @@
 			  "USB HUB nRESET", "USB OTG Power En",
 			  "J7 Header Pin2", "IR In", "J7 Header Pin4",
 			  "J7 Header Pin6", "J7 Header Pin5", "J7 Header Pin7",
-			  "HDMI CEC", "SYS LED";
+			  "HDMI CEC", "SYS LED",
+			  /* GPIO_TEST_N */
+			  "";
 };
 
 &pinctrl_periphs {
@@ -233,11 +237,9 @@
 			  "J2 Header Pin12", "J2 Header Pin13",
 			  "J2 Header Pin8", "J2 Header Pin10",
 			  "", "", "", "", "",
-			  "J2 Header Pin11", "", "J2 Header Pin7",
+			  "J2 Header Pin11", "", "J2 Header Pin7", "",
 			  /* Bank GPIOCLK */
-			  "", "", "", "",
-			  /* GPIO_TEST_N */
-			  "";
+			  "", "", "", "";
 };
 
 &saradc {
@@ -253,7 +255,8 @@
 &sd_emmc_b {
 	status = "okay";
 	pinctrl-0 = <&sdcard_pins>;
-	pinctrl-names = "default";
+	pinctrl-1 = <&sdcard_clk_gate_pins>;
+	pinctrl-names = "default", "clk-gate";
 
 	bus-width = <4>;
 	cap-sd-highspeed;
@@ -270,11 +273,11 @@
 /* eMMC */
 &sd_emmc_c {
 	status = "okay";
-	pinctrl-0 = <&emmc_pins>;
-	pinctrl-names = "default";
+	pinctrl-0 = <&emmc_pins>, <&emmc_ds_pins>;
+	pinctrl-1 = <&emmc_clk_gate_pins>;
+	pinctrl-names = "default", "clk-gate";
 
 	bus-width = <8>;
-	cap-sd-highspeed;
 	max-frequency = <200000000>;
 	non-removable;
 	disable-wp;
@@ -300,6 +303,7 @@
 
 &usb1_phy {
 	status = "okay";
+	phy-supply = <&usb_otg_pwr>;
 };
 
 &usb0 {

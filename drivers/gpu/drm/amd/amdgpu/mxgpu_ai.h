@@ -24,7 +24,7 @@
 #ifndef __MXGPU_AI_H__
 #define __MXGPU_AI_H__
 
-#define AI_MAILBOX_TIMEDOUT	5000
+#define AI_MAILBOX_TIMEDOUT	12000
 
 enum idh_request {
 	IDH_REQ_GPU_INIT_ACCESS = 1,

@@ -483,7 +483,7 @@ static int throttrip_program(struct device *dev,
 	unsigned int throt;
 	u32 r, reg_off;
 
-	if (!dev || !sg || !stc || !stc->init)
+	if (!sg || !stc || !stc->init)
 		return -EINVAL;
 
 	temp = enforce_temp_range(dev, trip_temp) / ts->soc->thresh_grain;

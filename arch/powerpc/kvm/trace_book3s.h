@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #if !defined(_TRACE_KVM_BOOK3S_H)
 #define _TRACE_KVM_BOOK3S_H
 

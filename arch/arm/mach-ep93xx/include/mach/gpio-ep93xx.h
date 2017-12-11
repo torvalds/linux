@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* Include file for the EP93XX GPIO controller machine specifics */
 
 #ifndef __GPIO_EP93XX_H

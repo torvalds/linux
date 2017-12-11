@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 #ifndef _UAPI__ASM_SH_PTRACE_64_H
 #define _UAPI__ASM_SH_PTRACE_64_H
 

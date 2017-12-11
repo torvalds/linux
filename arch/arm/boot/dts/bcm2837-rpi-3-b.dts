@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /dts-v1/;
 #include "bcm2837.dtsi"
 #include "bcm2835-rpi.dtsi"
@@ -7,6 +8,11 @@
 / {
 	compatible = "raspberrypi,3-model-b", "brcm,bcm2837";
 	model = "Raspberry Pi 3 Model B";
+
+	chosen {
+		/* 8250 auxiliary UART instead of pl011 */
+		stdout-path = "serial1:115200n8";
+	};
 
 	memory {
 		reg = <0 0x40000000>;
@@ -24,6 +30,11 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&uart0_gpio32 &gpclk2_gpio43>;
 	status = "okay";
+
+	bluetooth {
+		compatible = "brcm,bcm43438-bt";
+		max-speed = <2000000>;
+	};
 };
 
 /* uart1 is mapped to the pin header */

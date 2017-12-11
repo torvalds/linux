@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _BLK_CGROUP_H
 #define _BLK_CGROUP_H
 /*
@@ -19,6 +20,7 @@
 #include <linux/radix-tree.h>
 #include <linux/blkdev.h>
 #include <linux/atomic.h>
+#include <linux/kthread.h>
 
 /* percpu_counter batch for blkg_[rw]stats, per-cpu drift doesn't matter */
 #define BLKG_STAT_CPU_BATCH	(INT_MAX / 2)
@@ -223,22 +225,16 @@ static inline struct blkcg *css_to_blkcg(struct cgroup_subsys_state *css)
 	return css ? container_of(css, struct blkcg, css) : NULL;
 }
 
-static inline struct blkcg *task_blkcg(struct task_struct *tsk)
-{
-	return css_to_blkcg(task_css(tsk, io_cgrp_id));
-}
-
 static inline struct blkcg *bio_blkcg(struct bio *bio)
 {
+	struct cgroup_subsys_state *css;
+
 	if (bio && bio->bi_css)
 		return css_to_blkcg(bio->bi_css);
-	return task_blkcg(current);
-}
-
-static inline struct cgroup_subsys_state *
-task_get_blkcg_css(struct task_struct *task)
-{
-	return task_get_css(task, io_cgrp_id);
+	css = kthread_blkcg();
+	if (css)
+		return css_to_blkcg(css);
+	return css_to_blkcg(task_css(current, io_cgrp_id));
 }
 
 /**
@@ -734,12 +730,6 @@ struct blkcg_policy {
 };
 
 #define blkcg_root_css	((struct cgroup_subsys_state *)ERR_PTR(-EINVAL))
-
-static inline struct cgroup_subsys_state *
-task_get_blkcg_css(struct task_struct *task)
-{
-	return NULL;
-}
 
 #ifdef CONFIG_BLOCK
 

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _SUN3_PGTABLE_H
 #define _SUN3_PGTABLE_H
 

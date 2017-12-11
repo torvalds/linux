@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __ATMEL_PDMIC_H_
 #define __ATMEL_PDMIC_H_
 

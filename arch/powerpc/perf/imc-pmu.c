@@ -26,7 +26,7 @@
  */
 static DEFINE_MUTEX(nest_init_lock);
 static DEFINE_PER_CPU(struct imc_pmu_ref *, local_nest_imc_refc);
-static struct imc_pmu *per_nest_pmu_arr[IMC_MAX_PMUS];
+static struct imc_pmu **per_nest_pmu_arr;
 static cpumask_t nest_imc_cpumask;
 struct imc_pmu_ref *nest_imc_refc;
 static int nest_pmus;
@@ -286,13 +286,14 @@ static struct imc_pmu_ref *get_nest_pmu_ref(int cpu)
 static void nest_change_cpu_context(int old_cpu, int new_cpu)
 {
 	struct imc_pmu **pn = per_nest_pmu_arr;
-	int i;
 
 	if (old_cpu < 0 || new_cpu < 0)
 		return;
 
-	for (i = 0; *pn && i < IMC_MAX_PMUS; i++, pn++)
+	while (*pn) {
 		perf_pmu_migrate_context(&(*pn)->pmu, old_cpu, new_cpu);
+		pn++;
+	}
 }
 
 static int ppc_nest_imc_cpu_offline(unsigned int cpu)
@@ -399,6 +400,20 @@ static void nest_imc_counters_release(struct perf_event *event)
 
 	/* Take the mutex lock for this node and then decrement the reference count */
 	mutex_lock(&ref->lock);
+	if (ref->refc == 0) {
+		/*
+		 * The scenario where this is true is, when perf session is
+		 * started, followed by offlining of all cpus in a given node.
+		 *
+		 * In the cpuhotplug offline path, ppc_nest_imc_cpu_offline()
+		 * function set the ref->count to zero, if the cpu which is
+		 * about to offline is the last cpu in a given node and make
+		 * an OPAL call to disable the engine in that node.
+		 *
+		 */
+		mutex_unlock(&ref->lock);
+		return;
+	}
 	ref->refc--;
 	if (ref->refc == 0) {
 		rc = opal_imc_counters_stop(OPAL_IMC_COUNTERS_NEST,
@@ -453,7 +468,7 @@ static int nest_imc_event_init(struct perf_event *event)
 	 * Nest HW counter memory resides in a per-chip reserve-memory (HOMER).
 	 * Get the base memory addresss for this cpu.
 	 */
-	chip_id = topology_physical_package_id(event->cpu);
+	chip_id = cpu_to_chip_id(event->cpu);
 	pcni = pmu->mem_info;
 	do {
 		if (pcni->id == chip_id) {
@@ -510,21 +525,21 @@ static int nest_imc_event_init(struct perf_event *event)
  */
 static int core_imc_mem_init(int cpu, int size)
 {
-	int phys_id, rc = 0, core_id = (cpu / threads_per_core);
+	int nid, rc = 0, core_id = (cpu / threads_per_core);
 	struct imc_mem_info *mem_info;
 
 	/*
 	 * alloc_pages_node() will allocate memory for core in the
 	 * local node only.
 	 */
-	phys_id = topology_physical_package_id(cpu);
+	nid = cpu_to_node(cpu);
 	mem_info = &core_imc_pmu->mem_info[core_id];
 	mem_info->id = core_id;
 
 	/* We need only vbase for core counters */
-	mem_info->vbase = page_address(alloc_pages_node(phys_id,
-					  GFP_KERNEL | __GFP_ZERO | __GFP_THISNODE,
-					  get_order(size)));
+	mem_info->vbase = page_address(alloc_pages_node(nid,
+					  GFP_KERNEL | __GFP_ZERO | __GFP_THISNODE |
+					  __GFP_NOWARN, get_order(size)));
 	if (!mem_info->vbase)
 		return -ENOMEM;
 
@@ -593,6 +608,20 @@ static int ppc_core_imc_cpu_offline(unsigned int cpu)
 	if (!cpumask_test_and_clear_cpu(cpu, &core_imc_cpumask))
 		return 0;
 
+	/*
+	 * Check whether core_imc is registered. We could end up here
+	 * if the cpuhotplug callback registration fails. i.e, callback
+	 * invokes the offline path for all sucessfully registered cpus.
+	 * At this stage, core_imc pmu will not be registered and we
+	 * should return here.
+	 *
+	 * We return with a zero since this is not an offline failure.
+	 * And cpuhp_setup_state() returns the actual failure reason
+	 * to the caller, which inturn will call the cleanup routine.
+	 */
+	if (!core_imc_pmu->pmu.event_init)
+		return 0;
+
 	/* Find any online cpu in that core except the current "cpu" */
 	ncpu = cpumask_any_but(cpu_sibling_mask(cpu), cpu);
 
@@ -646,6 +675,20 @@ static void core_imc_counters_release(struct perf_event *event)
 		return;
 
 	mutex_lock(&ref->lock);
+	if (ref->refc == 0) {
+		/*
+		 * The scenario where this is true is, when perf session is
+		 * started, followed by offlining of all cpus in a given core.
+		 *
+		 * In the cpuhotplug offline path, ppc_core_imc_cpu_offline()
+		 * function set the ref->count to zero, if the cpu which is
+		 * about to offline is the last cpu in a given core and make
+		 * an OPAL call to disable the engine in that core.
+		 *
+		 */
+		mutex_unlock(&ref->lock);
+		return;
+	}
 	ref->refc--;
 	if (ref->refc == 0) {
 		rc = opal_imc_counters_stop(OPAL_IMC_COUNTERS_CORE,
@@ -755,16 +798,16 @@ static int core_imc_event_init(struct perf_event *event)
 static int thread_imc_mem_alloc(int cpu_id, int size)
 {
 	u64 ldbar_value, *local_mem = per_cpu(thread_imc_mem, cpu_id);
-	int phys_id = topology_physical_package_id(cpu_id);
+	int nid = cpu_to_node(cpu_id);
 
 	if (!local_mem) {
 		/*
 		 * This case could happen only once at start, since we dont
 		 * free the memory in cpu offline path.
 		 */
-		local_mem = page_address(alloc_pages_node(phys_id,
-				  GFP_KERNEL | __GFP_ZERO | __GFP_THISNODE,
-				  get_order(size)));
+		local_mem = page_address(alloc_pages_node(nid,
+				  GFP_KERNEL | __GFP_ZERO | __GFP_THISNODE |
+				  __GFP_NOWARN, get_order(size)));
 		if (!local_mem)
 			return -ENOMEM;
 
@@ -1076,7 +1119,7 @@ static int init_nest_pmu_ref(void)
 
 static void cleanup_all_core_imc_memory(void)
 {
-	int i, nr_cores = num_present_cpus() / threads_per_core;
+	int i, nr_cores = DIV_ROUND_UP(num_present_cpus(), threads_per_core);
 	struct imc_mem_info *ptr = core_imc_pmu->mem_info;
 	int size = core_imc_pmu->counter_mem_size;
 
@@ -1148,9 +1191,11 @@ static void imc_common_cpuhp_mem_free(struct imc_pmu *pmu_ptr)
 	}
 
 	/* Only free the attr_groups which are dynamically allocated  */
-	kfree(pmu_ptr->attr_groups[IMC_EVENT_ATTR]->attrs);
+	if (pmu_ptr->attr_groups[IMC_EVENT_ATTR])
+		kfree(pmu_ptr->attr_groups[IMC_EVENT_ATTR]->attrs);
 	kfree(pmu_ptr->attr_groups[IMC_EVENT_ATTR]);
 	kfree(pmu_ptr);
+	kfree(per_nest_pmu_arr);
 	return;
 }
 
@@ -1175,6 +1220,13 @@ static int imc_mem_init(struct imc_pmu *pmu_ptr, struct device_node *parent,
 			return -ENOMEM;
 
 		/* Needed for hotplug/migration */
+		if (!per_nest_pmu_arr) {
+			per_nest_pmu_arr = kcalloc(get_max_nest_dev() + 1,
+						sizeof(struct imc_pmu *),
+						GFP_KERNEL);
+			if (!per_nest_pmu_arr)
+				return -ENOMEM;
+		}
 		per_nest_pmu_arr[pmu_index] = pmu_ptr;
 		break;
 	case IMC_DOMAIN_CORE:
@@ -1183,7 +1235,7 @@ static int imc_mem_init(struct imc_pmu *pmu_ptr, struct device_node *parent,
 		if (!pmu_ptr->pmu.name)
 			return -ENOMEM;
 
-		nr_cores = num_present_cpus() / threads_per_core;
+		nr_cores = DIV_ROUND_UP(num_present_cpus(), threads_per_core);
 		pmu_ptr->mem_info = kcalloc(nr_cores, sizeof(struct imc_mem_info),
 								GFP_KERNEL);
 

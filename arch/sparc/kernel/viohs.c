@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /* viohs.c: LDOM Virtual I/O handshake helper layer.
  *
  * Copyright (C) 2007 David S. Miller <davem@davemloft.net>
@@ -797,9 +798,9 @@ void vio_port_up(struct vio_driver_state *vio)
 }
 EXPORT_SYMBOL(vio_port_up);
 
-static void vio_port_timer(unsigned long _arg)
+static void vio_port_timer(struct timer_list *t)
 {
-	struct vio_driver_state *vio = (struct vio_driver_state *) _arg;
+	struct vio_driver_state *vio = from_timer(vio, t, timer);
 
 	vio_port_up(vio);
 }
@@ -848,7 +849,7 @@ int vio_driver_init(struct vio_driver_state *vio, struct vio_dev *vdev,
 
 	vio->ops = ops;
 
-	setup_timer(&vio->timer, vio_port_timer, (unsigned long) vio);
+	timer_setup(&vio->timer, vio_port_timer, 0);
 
 	return 0;
 }

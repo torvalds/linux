@@ -667,7 +667,7 @@ static int build_one_insn(const struct bpf_insn *insn, struct jit_ctx *ctx,
 {
 	int src, dst, r, td, ts, mem_off, b_off;
 	bool need_swap, did_move, cmp_eq;
-	unsigned int target;
+	unsigned int target = 0;
 	u64 t64;
 	s64 t64s;
 	int bpf_op = BPF_OP(insn->code);
@@ -1513,7 +1513,7 @@ ld_skb_common:
 		}
 		src = ebpf_to_mips_reg(ctx, insn, src_reg_no_fp);
 		if (src < 0)
-			return dst;
+			return src;
 		if (BPF_MODE(insn->code) == BPF_XADD) {
 			switch (BPF_SIZE(insn->code)) {
 			case BPF_W:

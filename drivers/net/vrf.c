@@ -132,7 +132,6 @@ static int vrf_local_xmit(struct sk_buff *skb, struct net_device *dev,
 	skb_orphan(skb);
 
 	skb_dst_set(skb, dst);
-	skb_dst_force(skb);
 
 	/* set pkt_type to avoid skb hitting packet taps twice -
 	 * once on Tx and again in Rx processing
@@ -765,18 +764,22 @@ static void cycle_netdev(struct net_device *dev)
 	}
 }
 
-static int do_vrf_add_slave(struct net_device *dev, struct net_device *port_dev)
+static int do_vrf_add_slave(struct net_device *dev, struct net_device *port_dev,
+			    struct netlink_ext_ack *extack)
 {
 	int ret;
 
 	/* do not allow loopback device to be enslaved to a VRF.
 	 * The vrf device acts as the loopback for the vrf.
 	 */
-	if (port_dev == dev_net(dev)->loopback_dev)
+	if (port_dev == dev_net(dev)->loopback_dev) {
+		NL_SET_ERR_MSG(extack,
+			       "Can not enslave loopback device to a VRF");
 		return -EOPNOTSUPP;
+	}
 
 	port_dev->priv_flags |= IFF_L3MDEV_SLAVE;
-	ret = netdev_master_upper_dev_link(port_dev, dev, NULL, NULL);
+	ret = netdev_master_upper_dev_link(port_dev, dev, NULL, NULL, extack);
 	if (ret < 0)
 		goto err;
 
@@ -789,12 +792,19 @@ err:
 	return ret;
 }
 
-static int vrf_add_slave(struct net_device *dev, struct net_device *port_dev)
+static int vrf_add_slave(struct net_device *dev, struct net_device *port_dev,
+			 struct netlink_ext_ack *extack)
 {
-	if (netif_is_l3_master(port_dev) || netif_is_l3_slave(port_dev))
+	if (netif_is_l3_master(port_dev)) {
+		NL_SET_ERR_MSG(extack,
+			       "Can not enslave an L3 master device to a VRF");
+		return -EINVAL;
+	}
+
+	if (netif_is_l3_slave(port_dev))
 		return -EINVAL;
 
-	return do_vrf_add_slave(dev, port_dev);
+	return do_vrf_add_slave(dev, port_dev, extack);
 }
 
 /* inverse of do_vrf_add_slave */
@@ -1165,7 +1175,7 @@ static int vrf_fib_rule(const struct net_device *dev, __u8 family, bool add_it)
 	frh->family = family;
 	frh->action = FR_ACT_TO_TBL;
 
-	if (nla_put_u32(skb, FRA_L3MDEV, 1))
+	if (nla_put_u8(skb, FRA_L3MDEV, 1))
 		goto nla_put_failure;
 
 	if (nla_put_u32(skb, FRA_PRIORITY, FIB_RULE_PREF))

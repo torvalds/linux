@@ -135,7 +135,7 @@ static ssize_t bin_attr_nvmem_write(struct file *filp, struct kobject *kobj,
 
 	/* Stop the user from writing */
 	if (pos >= nvmem->size)
-		return 0;
+		return -EFBIG;
 
 	if (count < nvmem->word_size)
 		return -EINVAL;
@@ -462,6 +462,8 @@ struct nvmem_device *nvmem_register(const struct nvmem_config *config)
 
 	nvmem->id = rval;
 	nvmem->owner = config->owner;
+	if (!nvmem->owner && config->dev->driver)
+		nvmem->owner = config->dev->driver->owner;
 	nvmem->stride = config->stride;
 	nvmem->word_size = config->word_size;
 	nvmem->size = config->size;
@@ -615,7 +617,7 @@ static struct nvmem_device *nvmem_find(const char *name)
 	return to_nvmem_device(d);
 }
 
-#if IS_ENABLED(CONFIG_NVMEM) && IS_ENABLED(CONFIG_OF)
+#if IS_ENABLED(CONFIG_OF)
 /**
  * of_nvmem_device_get() - Get nvmem device from a given id
  *
@@ -753,7 +755,7 @@ static struct nvmem_cell *nvmem_cell_get_from_list(const char *cell_id)
 	return cell;
 }
 
-#if IS_ENABLED(CONFIG_NVMEM) && IS_ENABLED(CONFIG_OF)
+#if IS_ENABLED(CONFIG_OF)
 /**
  * of_nvmem_cell_get() - Get a nvmem cell from given device node and cell id
  *
@@ -789,6 +791,7 @@ struct nvmem_cell *of_nvmem_cell_get(struct device_node *np,
 		return ERR_PTR(-EINVAL);
 
 	nvmem = __nvmem_device_get(nvmem_np, NULL, NULL);
+	of_node_put(nvmem_np);
 	if (IS_ERR(nvmem))
 		return ERR_CAST(nvmem);
 
@@ -945,8 +948,7 @@ void nvmem_cell_put(struct nvmem_cell *cell)
 }
 EXPORT_SYMBOL_GPL(nvmem_cell_put);
 
-static inline void nvmem_shift_read_buffer_in_place(struct nvmem_cell *cell,
-						    void *buf)
+static void nvmem_shift_read_buffer_in_place(struct nvmem_cell *cell, void *buf)
 {
 	u8 *p, *b;
 	int i, bit_offset = cell->bit_offset;
@@ -1027,8 +1029,8 @@ void *nvmem_cell_read(struct nvmem_cell *cell, size_t *len)
 }
 EXPORT_SYMBOL_GPL(nvmem_cell_read);
 
-static inline void *nvmem_cell_prepare_write_buffer(struct nvmem_cell *cell,
-						    u8 *_buf, int len)
+static void *nvmem_cell_prepare_write_buffer(struct nvmem_cell *cell,
+					     u8 *_buf, int len)
 {
 	struct nvmem_device *nvmem = cell->nvmem;
 	int i, rc, nbits, bit_offset = cell->bit_offset;

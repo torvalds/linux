@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/ceph/ceph_debug.h>
 
 #include <linux/fs.h>
@@ -734,12 +735,13 @@ static int __choose_mds(struct ceph_mds_client *mdsc,
 			inode = req->r_inode;
 			ihold(inode);
 		} else {
-			/* req->r_dentry is non-null for LSSNAP request.
-			 * fall-thru */
-			WARN_ON_ONCE(!req->r_dentry);
+			/* req->r_dentry is non-null for LSSNAP request */
+			rcu_read_lock();
+			inode = get_nonsnap_parent(req->r_dentry);
+			rcu_read_unlock();
+			dout("__choose_mds using snapdir's parent %p\n", inode);
 		}
-	}
-	if (!inode && req->r_dentry) {
+	} else if (req->r_dentry) {
 		/* ignore race with rename; old or new d_parent is okay */
 		struct dentry *parent;
 		struct inode *dir;
@@ -1037,22 +1039,23 @@ void ceph_mdsc_open_export_target_sessions(struct ceph_mds_client *mdsc,
  * session caps
  */
 
-/* caller holds s_cap_lock, we drop it */
-static void cleanup_cap_releases(struct ceph_mds_client *mdsc,
-				 struct ceph_mds_session *session)
-	__releases(session->s_cap_lock)
+static void detach_cap_releases(struct ceph_mds_session *session,
+				struct list_head *target)
 {
-	LIST_HEAD(tmp_list);
-	list_splice_init(&session->s_cap_releases, &tmp_list);
-	session->s_num_cap_releases = 0;
-	spin_unlock(&session->s_cap_lock);
+	lockdep_assert_held(&session->s_cap_lock);
 
-	dout("cleanup_cap_releases mds%d\n", session->s_mds);
-	while (!list_empty(&tmp_list)) {
+	list_splice_init(&session->s_cap_releases, target);
+	session->s_num_cap_releases = 0;
+	dout("dispose_cap_releases mds%d\n", session->s_mds);
+}
+
+static void dispose_cap_releases(struct ceph_mds_client *mdsc,
+				 struct list_head *dispose)
+{
+	while (!list_empty(dispose)) {
 		struct ceph_cap *cap;
 		/* zero out the in-progress message */
-		cap = list_first_entry(&tmp_list,
-					struct ceph_cap, session_caps);
+		cap = list_first_entry(dispose, struct ceph_cap, session_caps);
 		list_del(&cap->session_caps);
 		ceph_put_cap(mdsc, cap);
 	}
@@ -1213,6 +1216,13 @@ static int remove_session_caps_cb(struct inode *inode, struct ceph_cap *cap,
 		}
 		spin_unlock(&mdsc->cap_dirty_lock);
 
+		if (atomic_read(&ci->i_filelock_ref) > 0) {
+			/* make further file lock syscall return -EIO */
+			ci->i_ceph_flags |= CEPH_I_ERROR_FILELOCK;
+			pr_warn_ratelimited(" dropping file locks for %p %lld\n",
+					    inode, ceph_ino(inode));
+		}
+
 		if (!ci->i_dirty_caps && ci->i_prealloc_cap_flush) {
 			list_add(&ci->i_prealloc_cap_flush->i_list, &to_remove);
 			ci->i_prealloc_cap_flush = NULL;
@@ -1242,6 +1252,8 @@ static void remove_session_caps(struct ceph_mds_session *session)
 {
 	struct ceph_fs_client *fsc = session->s_mdsc->fsc;
 	struct super_block *sb = fsc->sb;
+	LIST_HEAD(dispose);
+
 	dout("remove_session_caps on %p\n", session);
 	iterate_session_caps(session, remove_session_caps_cb, fsc);
 
@@ -1276,10 +1288,12 @@ static void remove_session_caps(struct ceph_mds_session *session)
 	}
 
 	// drop cap expires and unlock s_cap_lock
-	cleanup_cap_releases(session->s_mdsc, session);
+	detach_cap_releases(session, &dispose);
 
 	BUG_ON(session->s_nr_caps > 0);
 	BUG_ON(!list_empty(&session->s_cap_flushing));
+	spin_unlock(&session->s_cap_lock);
+	dispose_cap_releases(session->s_mdsc, &dispose);
 }
 
 /*
@@ -1459,6 +1473,11 @@ static int trim_caps_cb(struct inode *inode, struct ceph_cap *cap, void *arg)
 		    !list_empty(&ci->i_cap_snaps))
 			goto out;
 		if ((used | wanted) & CEPH_CAP_ANY_WR)
+			goto out;
+		/* Note: it's possible that i_filelock_ref becomes non-zero
+		 * after dropping auth caps. It doesn't hurt because reply
+		 * of lock mds request will re-add auth caps. */
+		if (atomic_read(&ci->i_filelock_ref) > 0)
 			goto out;
 	}
 	/* The inode has cached pages, but it's no longer used.
@@ -2825,7 +2844,7 @@ static int encode_caps_cb(struct inode *inode, struct ceph_cap *cap,
 		struct ceph_mds_cap_reconnect v2;
 		struct ceph_mds_cap_reconnect_v1 v1;
 	} rec;
-	struct ceph_inode_info *ci;
+	struct ceph_inode_info *ci = cap->ci;
 	struct ceph_reconnect_state *recon_state = arg;
 	struct ceph_pagelist *pagelist = recon_state->pagelist;
 	char *path;
@@ -2833,8 +2852,6 @@ static int encode_caps_cb(struct inode *inode, struct ceph_cap *cap,
 	u64 pathbase;
 	u64 snap_follows;
 	struct dentry *dentry;
-
-	ci = cap->ci;
 
 	dout(" adding %p ino %llx.%llx cap %p %lld %s\n",
 	     inode, ceph_vinop(inode), cap, cap->cap_id,
@@ -2868,7 +2885,8 @@ static int encode_caps_cb(struct inode *inode, struct ceph_cap *cap,
 		rec.v2.issued = cpu_to_le32(cap->issued);
 		rec.v2.snaprealm = cpu_to_le64(ci->i_snap_realm->ino);
 		rec.v2.pathbase = cpu_to_le64(pathbase);
-		rec.v2.flock_len = 0;
+		rec.v2.flock_len = (__force __le32)
+			((ci->i_ceph_flags & CEPH_I_ERROR_FILELOCK) ? 0 : 1);
 	} else {
 		rec.v1.cap_id = cpu_to_le64(cap->cap_id);
 		rec.v1.wanted = cpu_to_le32(__ceph_caps_wanted(ci));
@@ -2892,26 +2910,37 @@ static int encode_caps_cb(struct inode *inode, struct ceph_cap *cap,
 
 	if (recon_state->msg_version >= 2) {
 		int num_fcntl_locks, num_flock_locks;
-		struct ceph_filelock *flocks;
+		struct ceph_filelock *flocks = NULL;
 		size_t struct_len, total_len = 0;
 		u8 struct_v = 0;
 
 encode_again:
-		ceph_count_locks(inode, &num_fcntl_locks, &num_flock_locks);
-		flocks = kmalloc((num_fcntl_locks+num_flock_locks) *
-				 sizeof(struct ceph_filelock), GFP_NOFS);
-		if (!flocks) {
-			err = -ENOMEM;
-			goto out_free;
+		if (rec.v2.flock_len) {
+			ceph_count_locks(inode, &num_fcntl_locks, &num_flock_locks);
+		} else {
+			num_fcntl_locks = 0;
+			num_flock_locks = 0;
 		}
-		err = ceph_encode_locks_to_buffer(inode, flocks,
-						  num_fcntl_locks,
-						  num_flock_locks);
-		if (err) {
+		if (num_fcntl_locks + num_flock_locks > 0) {
+			flocks = kmalloc((num_fcntl_locks + num_flock_locks) *
+					 sizeof(struct ceph_filelock), GFP_NOFS);
+			if (!flocks) {
+				err = -ENOMEM;
+				goto out_free;
+			}
+			err = ceph_encode_locks_to_buffer(inode, flocks,
+							  num_fcntl_locks,
+							  num_flock_locks);
+			if (err) {
+				kfree(flocks);
+				flocks = NULL;
+				if (err == -ENOSPC)
+					goto encode_again;
+				goto out_free;
+			}
+		} else {
 			kfree(flocks);
-			if (err == -ENOSPC)
-				goto encode_again;
-			goto out_free;
+			flocks = NULL;
 		}
 
 		if (recon_state->msg_version >= 3) {
@@ -2991,6 +3020,7 @@ static void send_mds_reconnect(struct ceph_mds_client *mdsc,
 	int s_nr_caps;
 	struct ceph_pagelist *pagelist;
 	struct ceph_reconnect_state recon_state;
+	LIST_HEAD(dispose);
 
 	pr_info("mds%d reconnect start\n", mds);
 
@@ -3024,7 +3054,9 @@ static void send_mds_reconnect(struct ceph_mds_client *mdsc,
 	 */
 	session->s_cap_reconnect = 1;
 	/* drop old cap expires; we're about to reestablish that state */
-	cleanup_cap_releases(mdsc, session);
+	detach_cap_releases(session, &dispose);
+	spin_unlock(&session->s_cap_lock);
+	dispose_cap_releases(mdsc, &dispose);
 
 	/* trim unused caps to reduce MDS's cache rejoin time */
 	if (mdsc->fsc->sb->s_root)
@@ -3855,14 +3887,14 @@ void ceph_mdsc_handle_fsmap(struct ceph_mds_client *mdsc, struct ceph_msg *msg)
 		goto err_out;
 	}
 	return;
+
 bad:
 	pr_err("error decoding fsmap\n");
 err_out:
 	mutex_lock(&mdsc->mutex);
-	mdsc->mdsmap_err = -ENOENT;
+	mdsc->mdsmap_err = err;
 	__wake_requests(mdsc, &mdsc->waiting_for_map);
 	mutex_unlock(&mdsc->mutex);
-	return;
 }
 
 /*

@@ -547,6 +547,7 @@ struct snd_pcm_mmap_status_x32 {
 	u32 pad2; /* alignment */
 	struct timespec tstamp;
 	s32 suspended_state;
+	s32 pad3;
 	struct timespec audio_tstamp;
 } __packed;
 

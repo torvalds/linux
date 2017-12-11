@@ -395,6 +395,7 @@ struct omapdss_hdmi_ops {
 			    struct videomode *vm);
 
 	int (*read_edid)(struct omap_dss_device *dssdev, u8 *buf, int len);
+	void (*lost_hotplug)(struct omap_dss_device *dssdev);
 	bool (*detect)(struct omap_dss_device *dssdev);
 
 	int (*register_hpd_cb)(struct omap_dss_device *dssdev,

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * To speed up listener socket lookup, create an array to store all sockets
  * listening on the same port.  This allows a decision to be made after finding
@@ -36,9 +37,14 @@ int reuseport_alloc(struct sock *sk)
 	 * soft irq of receive path or setsockopt from process context
 	 */
 	spin_lock_bh(&reuseport_lock);
-	WARN_ONCE(rcu_dereference_protected(sk->sk_reuseport_cb,
-					    lockdep_is_held(&reuseport_lock)),
-		  "multiple allocations for the same socket");
+
+	/* Allocation attempts can occur concurrently via the setsockopt path
+	 * and the bind/hash path.  Nothing to do when we lose the race.
+	 */
+	if (rcu_dereference_protected(sk->sk_reuseport_cb,
+				      lockdep_is_held(&reuseport_lock)))
+		goto out;
+
 	reuse = __reuseport_alloc(INIT_SOCKS);
 	if (!reuse) {
 		spin_unlock_bh(&reuseport_lock);
@@ -49,6 +55,7 @@ int reuseport_alloc(struct sock *sk)
 	reuse->num_socks = 1;
 	rcu_assign_pointer(sk->sk_reuseport_cb, reuse);
 
+out:
 	spin_unlock_bh(&reuseport_lock);
 
 	return 0;

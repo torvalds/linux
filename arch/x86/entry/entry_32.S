@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  *  Copyright (C) 1991,1992  Linus Torvalds
  *
@@ -176,7 +177,7 @@
 /*
  * This is a sneaky trick to help the unwinder find pt_regs on the stack.  The
  * frame pointer is replaced with an encoded pointer to pt_regs.  The encoding
- * is just setting the LSB, which makes it an invalid stack address and is also
+ * is just clearing the MSB, which makes it an invalid stack address and is also
  * a signal to the unwinder that it's a pt_regs pointer in disguise.
  *
  * NOTE: This macro must be used *after* SAVE_ALL because it corrupts the
@@ -185,7 +186,7 @@
 .macro ENCODE_FRAME_POINTER
 #ifdef CONFIG_FRAME_POINTER
 	mov %esp, %ebp
-	orl $0x1, %ebp
+	andl $0x7fffffff, %ebp
 #endif
 .endm
 

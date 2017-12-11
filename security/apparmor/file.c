@@ -21,7 +21,6 @@
 #include "include/context.h"
 #include "include/file.h"
 #include "include/match.h"
-#include "include/net.h"
 #include "include/path.h"
 #include "include/policy.h"
 #include "include/label.h"
@@ -227,18 +226,12 @@ static u32 map_old_perms(u32 old)
 struct aa_perms aa_compute_fperms(struct aa_dfa *dfa, unsigned int state,
 				  struct path_cond *cond)
 {
-	struct aa_perms perms;
-
 	/* FIXME: change over to new dfa format
 	 * currently file perms are encoded in the dfa, new format
 	 * splits the permissions from the dfa.  This mapping can be
 	 * done at profile load
 	 */
-	perms.deny = 0;
-	perms.kill = perms.stop = 0;
-	perms.complain = perms.cond = 0;
-	perms.hide = 0;
-	perms.prompt = 0;
+	struct aa_perms perms = { };
 
 	if (uid_eq(current_fsuid(), cond->uid)) {
 		perms.allow = map_old_perms(dfa_user_allow(dfa, state));
@@ -567,32 +560,6 @@ static int __file_path_perm(const char *op, struct aa_label *label,
 	return error;
 }
 
-static int __file_sock_perm(const char *op, struct aa_label *label,
-			    struct aa_label *flabel, struct file *file,
-			    u32 request, u32 denied)
-{
-	struct socket *sock = (struct socket *) file->private_data;
-	int error;
-
-	AA_BUG(!sock);
-
-	/* revalidation due to label out of date. No revocation at this time */
-	if (!denied && aa_label_is_subset(flabel, label))
-		return 0;
-
-	/* TODO: improve to skip profiles cached in flabel */
-	error = aa_sock_file_perm(label, op, request, sock);
-	if (denied) {
-		/* TODO: improve to skip profiles checked above */
-		/* check every profile in file label to is cached */
-		last_error(error, aa_sock_file_perm(flabel, op, request, sock));
-	}
-	if (!error)
-		update_file_ctx(file_ctx(file), label, request);
-
-	return error;
-}
-
 /**
  * aa_file_perm - do permission revalidation check & audit for @file
  * @op: operation being checked
@@ -637,9 +604,6 @@ int aa_file_perm(const char *op, struct aa_label *label, struct file *file,
 		error = __file_path_perm(op, label, flabel, file, request,
 					 denied);
 
-	else if (S_ISSOCK(file_inode(file)->i_mode))
-		error = __file_sock_perm(op, label, flabel, file, request,
-					 denied);
 done:
 	rcu_read_unlock();
 

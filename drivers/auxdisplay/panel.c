@@ -1105,14 +1105,21 @@ static ssize_t keypad_read(struct file *file,
 
 static int keypad_open(struct inode *inode, struct file *file)
 {
-	if (!atomic_dec_and_test(&keypad_available))
-		return -EBUSY;	/* open only once at a time */
+	int ret;
 
+	ret = -EBUSY;
+	if (!atomic_dec_and_test(&keypad_available))
+		goto fail;	/* open only once at a time */
+
+	ret = -EPERM;
 	if (file->f_mode & FMODE_WRITE)	/* device is read-only */
-		return -EPERM;
+		goto fail;
 
 	keypad_buflen = 0;	/* flush the buffer on opening */
 	return 0;
+ fail:
+	atomic_inc(&keypad_available);
+	return ret;
 }
 
 static int keypad_release(struct inode *inode, struct file *file)
@@ -1389,7 +1396,7 @@ static void panel_process_inputs(void)
 	}
 }
 
-static void panel_scan_timer(void)
+static void panel_scan_timer(struct timer_list *unused)
 {
 	if (keypad.enabled && keypad_initialized) {
 		if (spin_trylock_irq(&pprt_lock)) {
@@ -1414,7 +1421,7 @@ static void init_scan_timer(void)
 	if (scan_timer.function)
 		return;		/* already started */
 
-	setup_timer(&scan_timer, (void *)&panel_scan_timer, 0);
+	timer_setup(&scan_timer, panel_scan_timer, 0);
 	scan_timer.expires = jiffies + INPUT_POLL_TIME;
 	add_timer(&scan_timer);
 }

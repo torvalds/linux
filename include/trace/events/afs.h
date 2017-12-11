@@ -30,6 +30,38 @@ enum afs_call_trace {
 	afs_call_trace_work,
 };
 
+enum afs_fs_operation {
+	afs_FS_FetchData		= 130,	/* AFS Fetch file data */
+	afs_FS_FetchStatus		= 132,	/* AFS Fetch file status */
+	afs_FS_StoreData		= 133,	/* AFS Store file data */
+	afs_FS_StoreStatus		= 135,	/* AFS Store file status */
+	afs_FS_RemoveFile		= 136,	/* AFS Remove a file */
+	afs_FS_CreateFile		= 137,	/* AFS Create a file */
+	afs_FS_Rename			= 138,	/* AFS Rename or move a file or directory */
+	afs_FS_Symlink			= 139,	/* AFS Create a symbolic link */
+	afs_FS_Link			= 140,	/* AFS Create a hard link */
+	afs_FS_MakeDir			= 141,	/* AFS Create a directory */
+	afs_FS_RemoveDir		= 142,	/* AFS Remove a directory */
+	afs_FS_GetVolumeInfo		= 148,	/* AFS Get information about a volume */
+	afs_FS_GetVolumeStatus		= 149,	/* AFS Get volume status information */
+	afs_FS_GetRootVolume		= 151,	/* AFS Get root volume name */
+	afs_FS_SetLock			= 156,	/* AFS Request a file lock */
+	afs_FS_ExtendLock		= 157,	/* AFS Extend a file lock */
+	afs_FS_ReleaseLock		= 158,	/* AFS Release a file lock */
+	afs_FS_Lookup			= 161,	/* AFS lookup file in directory */
+	afs_FS_FetchData64		= 65537, /* AFS Fetch file data */
+	afs_FS_StoreData64		= 65538, /* AFS Store file data */
+	afs_FS_GiveUpAllCallBacks	= 65539, /* AFS Give up all our callbacks on a server */
+	afs_FS_GetCapabilities		= 65540, /* AFS Get FS server capabilities */
+};
+
+enum afs_vl_operation {
+	afs_VL_GetEntryByNameU	= 527,		/* AFS Get Vol Entry By Name operation ID */
+	afs_VL_GetAddrsU	= 533,		/* AFS Get FS server addresses */
+	afs_YFSVL_GetEndpoints	= 64002,	/* YFS Get FS & Vol server addresses */
+	afs_VL_GetCapabilities	= 65537,	/* AFS Get VL server capabilities */
+};
+
 #endif /* end __AFS_DECLARE_TRACE_ENUMS_ONCE_ONLY */
 
 /*
@@ -42,6 +74,37 @@ enum afs_call_trace {
 	EM(afs_call_trace_wake,			"WAKE ") \
 	E_(afs_call_trace_work,			"WORK ")
 
+#define afs_fs_operations \
+	EM(afs_FS_FetchData,			"FS.FetchData") \
+	EM(afs_FS_FetchStatus,			"FS.FetchStatus") \
+	EM(afs_FS_StoreData,			"FS.StoreData") \
+	EM(afs_FS_StoreStatus,			"FS.StoreStatus") \
+	EM(afs_FS_RemoveFile,			"FS.RemoveFile") \
+	EM(afs_FS_CreateFile,			"FS.CreateFile") \
+	EM(afs_FS_Rename,			"FS.Rename") \
+	EM(afs_FS_Symlink,			"FS.Symlink") \
+	EM(afs_FS_Link,				"FS.Link") \
+	EM(afs_FS_MakeDir,			"FS.MakeDir") \
+	EM(afs_FS_RemoveDir,			"FS.RemoveDir") \
+	EM(afs_FS_GetVolumeInfo,		"FS.GetVolumeInfo") \
+	EM(afs_FS_GetVolumeStatus,		"FS.GetVolumeStatus") \
+	EM(afs_FS_GetRootVolume,		"FS.GetRootVolume") \
+	EM(afs_FS_SetLock,			"FS.SetLock") \
+	EM(afs_FS_ExtendLock,			"FS.ExtendLock") \
+	EM(afs_FS_ReleaseLock,			"FS.ReleaseLock") \
+	EM(afs_FS_Lookup,			"FS.Lookup") \
+	EM(afs_FS_FetchData64,			"FS.FetchData64") \
+	EM(afs_FS_StoreData64,			"FS.StoreData64") \
+	EM(afs_FS_GiveUpAllCallBacks,		"FS.GiveUpAllCallBacks") \
+	E_(afs_FS_GetCapabilities,		"FS.GetCapabilities")
+
+#define afs_vl_operations \
+	EM(afs_VL_GetEntryByNameU,		"VL.GetEntryByNameU") \
+	EM(afs_VL_GetAddrsU,			"VL.GetAddrsU") \
+	EM(afs_YFSVL_GetEndpoints,		"YFSVL.GetEndpoints") \
+	E_(afs_VL_GetCapabilities,		"VL.GetCapabilities")
+
+
 /*
  * Export enum symbols via userspace.
  */
@@ -51,6 +114,8 @@ enum afs_call_trace {
 #define E_(a, b) TRACE_DEFINE_ENUM(a);
 
 afs_call_traces;
+afs_fs_operations;
+afs_vl_operations;
 
 /*
  * Now redefine the EM() and E_() macros to map the enums to the strings that
@@ -176,6 +241,234 @@ TRACE_EVENT(afs_call,
 		      __entry->usage,
 		      __entry->outstanding,
 		      __entry->where)
+	    );
+
+TRACE_EVENT(afs_make_fs_call,
+	    TP_PROTO(struct afs_call *call, const struct afs_fid *fid),
+
+	    TP_ARGS(call, fid),
+
+	    TP_STRUCT__entry(
+		    __field(struct afs_call *,		call		)
+		    __field(enum afs_fs_operation,	op		)
+		    __field_struct(struct afs_fid,	fid		)
+			     ),
+
+	    TP_fast_assign(
+		    __entry->call = call;
+		    __entry->op = call->operation_ID;
+		    if (fid) {
+			    __entry->fid = *fid;
+		    } else {
+			    __entry->fid.vid = 0;
+			    __entry->fid.vnode = 0;
+			    __entry->fid.unique = 0;
+		    }
+			   ),
+
+	    TP_printk("c=%p %06x:%06x:%06x %s",
+		      __entry->call,
+		      __entry->fid.vid,
+		      __entry->fid.vnode,
+		      __entry->fid.unique,
+		      __print_symbolic(__entry->op, afs_fs_operations))
+	    );
+
+TRACE_EVENT(afs_make_vl_call,
+	    TP_PROTO(struct afs_call *call),
+
+	    TP_ARGS(call),
+
+	    TP_STRUCT__entry(
+		    __field(struct afs_call *,		call		)
+		    __field(enum afs_vl_operation,	op		)
+			     ),
+
+	    TP_fast_assign(
+		    __entry->call = call;
+		    __entry->op = call->operation_ID;
+			   ),
+
+	    TP_printk("c=%p %s",
+		      __entry->call,
+		      __print_symbolic(__entry->op, afs_vl_operations))
+	    );
+
+TRACE_EVENT(afs_call_done,
+	    TP_PROTO(struct afs_call *call),
+
+	    TP_ARGS(call),
+
+	    TP_STRUCT__entry(
+		    __field(struct afs_call *,		call		)
+		    __field(struct rxrpc_call *,	rx_call		)
+		    __field(int,			ret		)
+		    __field(u32,			abort_code	)
+			     ),
+
+	    TP_fast_assign(
+		    __entry->call = call;
+		    __entry->rx_call = call->rxcall;
+		    __entry->ret = call->error;
+		    __entry->abort_code = call->abort_code;
+			   ),
+
+	    TP_printk("   c=%p ret=%d ab=%d [%p]",
+		      __entry->call,
+		      __entry->ret,
+		      __entry->abort_code,
+		      __entry->rx_call)
+	    );
+
+TRACE_EVENT(afs_send_pages,
+	    TP_PROTO(struct afs_call *call, struct msghdr *msg,
+		     pgoff_t first, pgoff_t last, unsigned int offset),
+
+	    TP_ARGS(call, msg, first, last, offset),
+
+	    TP_STRUCT__entry(
+		    __field(struct afs_call *,		call		)
+		    __field(pgoff_t,			first		)
+		    __field(pgoff_t,			last		)
+		    __field(unsigned int,		nr		)
+		    __field(unsigned int,		bytes		)
+		    __field(unsigned int,		offset		)
+		    __field(unsigned int,		flags		)
+			     ),
+
+	    TP_fast_assign(
+		    __entry->call = call;
+		    __entry->first = first;
+		    __entry->last = last;
+		    __entry->nr = msg->msg_iter.nr_segs;
+		    __entry->bytes = msg->msg_iter.count;
+		    __entry->offset = offset;
+		    __entry->flags = msg->msg_flags;
+			   ),
+
+	    TP_printk(" c=%p %lx-%lx-%lx b=%x o=%x f=%x",
+		      __entry->call,
+		      __entry->first, __entry->first + __entry->nr - 1, __entry->last,
+		      __entry->bytes, __entry->offset,
+		      __entry->flags)
+	    );
+
+TRACE_EVENT(afs_sent_pages,
+	    TP_PROTO(struct afs_call *call, pgoff_t first, pgoff_t last,
+		     pgoff_t cursor, int ret),
+
+	    TP_ARGS(call, first, last, cursor, ret),
+
+	    TP_STRUCT__entry(
+		    __field(struct afs_call *,		call		)
+		    __field(pgoff_t,			first		)
+		    __field(pgoff_t,			last		)
+		    __field(pgoff_t,			cursor		)
+		    __field(int,			ret		)
+			     ),
+
+	    TP_fast_assign(
+		    __entry->call = call;
+		    __entry->first = first;
+		    __entry->last = last;
+		    __entry->cursor = cursor;
+		    __entry->ret = ret;
+			   ),
+
+	    TP_printk(" c=%p %lx-%lx c=%lx r=%d",
+		      __entry->call,
+		      __entry->first, __entry->last,
+		      __entry->cursor, __entry->ret)
+	    );
+
+TRACE_EVENT(afs_dir_check_failed,
+	    TP_PROTO(struct afs_vnode *vnode, loff_t off, loff_t i_size),
+
+	    TP_ARGS(vnode, off, i_size),
+
+	    TP_STRUCT__entry(
+		    __field(struct afs_vnode *,		vnode		)
+		    __field(loff_t,			off		)
+		    __field(loff_t,			i_size		)
+			     ),
+
+	    TP_fast_assign(
+		    __entry->vnode = vnode;
+		    __entry->off = off;
+		    __entry->i_size = i_size;
+			   ),
+
+	    TP_printk("vn=%p %llx/%llx",
+		      __entry->vnode, __entry->off, __entry->i_size)
+	    );
+
+/*
+ * We use page->private to hold the amount of the page that we've written to,
+ * splitting the field into two parts.  However, we need to represent a range
+ * 0...PAGE_SIZE inclusive, so we can't support 64K pages on a 32-bit system.
+ */
+#if PAGE_SIZE > 32768
+#define AFS_PRIV_MAX	0xffffffff
+#define AFS_PRIV_SHIFT	32
+#else
+#define AFS_PRIV_MAX	0xffff
+#define AFS_PRIV_SHIFT	16
+#endif
+
+TRACE_EVENT(afs_page_dirty,
+	    TP_PROTO(struct afs_vnode *vnode, const char *where,
+		     pgoff_t page, unsigned long priv),
+
+	    TP_ARGS(vnode, where, page, priv),
+
+	    TP_STRUCT__entry(
+		    __field(struct afs_vnode *,		vnode		)
+		    __field(const char *,		where		)
+		    __field(pgoff_t,			page		)
+		    __field(unsigned long,		priv		)
+			     ),
+
+	    TP_fast_assign(
+		    __entry->vnode = vnode;
+		    __entry->where = where;
+		    __entry->page = page;
+		    __entry->priv = priv;
+			   ),
+
+	    TP_printk("vn=%p %lx %s %lu-%lu",
+		      __entry->vnode, __entry->page, __entry->where,
+		      __entry->priv & AFS_PRIV_MAX,
+		      __entry->priv >> AFS_PRIV_SHIFT)
+	    );
+
+TRACE_EVENT(afs_call_state,
+	    TP_PROTO(struct afs_call *call,
+		     enum afs_call_state from,
+		     enum afs_call_state to,
+		     int ret, u32 remote_abort),
+
+	    TP_ARGS(call, from, to, ret, remote_abort),
+
+	    TP_STRUCT__entry(
+		    __field(struct afs_call *,		call		)
+		    __field(enum afs_call_state,	from		)
+		    __field(enum afs_call_state,	to		)
+		    __field(int,			ret		)
+		    __field(u32,			abort		)
+			     ),
+
+	    TP_fast_assign(
+		    __entry->call = call;
+		    __entry->from = from;
+		    __entry->to = to;
+		    __entry->ret = ret;
+		    __entry->abort = remote_abort;
+			   ),
+
+	    TP_printk("c=%p %u->%u r=%d ab=%d",
+		      __entry->call,
+		      __entry->from, __entry->to,
+		      __entry->ret, __entry->abort)
 	    );
 
 #endif /* _TRACE_AFS_H */

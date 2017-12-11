@@ -407,7 +407,7 @@ static void remove_inode_hugepages(struct inode *inode, loff_t lstart,
 
 	memset(&pseudo_vma, 0, sizeof(struct vm_area_struct));
 	pseudo_vma.vm_flags = (VM_HUGETLB | VM_MAYSHARE | VM_SHARED);
-	pagevec_init(&pvec, 0);
+	pagevec_init(&pvec);
 	next = start;
 	while (next < end) {
 		/*
@@ -639,11 +639,11 @@ static long hugetlbfs_fallocate(struct file *file, int mode, loff_t offset,
 		mutex_unlock(&hugetlb_fault_mutex_table[hash]);
 
 		/*
-		 * page_put due to reference from alloc_huge_page()
 		 * unlock_page because locked by add_to_page_cache()
+		 * page_put due to reference from alloc_huge_page()
 		 */
-		put_page(page);
 		unlock_page(page);
+		put_page(page);
 	}
 
 	if (!(mode & FALLOC_FL_KEEP_SIZE) && offset + len > inode->i_size)
@@ -668,7 +668,6 @@ static int hugetlbfs_setattr(struct dentry *dentry, struct iattr *attr)
 		return error;
 
 	if (ia_valid & ATTR_SIZE) {
-		error = -EINVAL;
 		if (attr->ia_size & ~huge_page_mask(h))
 			return -EINVAL;
 		error = hugetlb_vmtruncate(inode, attr->ia_size);
@@ -842,9 +841,12 @@ static int hugetlbfs_error_remove_page(struct address_space *mapping,
 				struct page *page)
 {
 	struct inode *inode = mapping->host;
+	pgoff_t index = page->index;
 
 	remove_huge_page(page);
-	hugetlb_fix_reserve_counts(inode);
+	if (unlikely(hugetlb_unreserve_pages(inode, index, index + 1, 1)))
+		hugetlb_fix_reserve_counts(inode);
+
 	return 0;
 }
 

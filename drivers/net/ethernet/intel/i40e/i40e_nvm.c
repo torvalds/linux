@@ -298,7 +298,7 @@ static i40e_status i40e_read_nvm_word_aq(struct i40e_hw *hw, u16 offset,
 }
 
 /**
- * __i40e_read_nvm_word - Reads nvm word, assumes called does the locking
+ * __i40e_read_nvm_word - Reads nvm word, assumes caller does the locking
  * @hw: pointer to the HW structure
  * @offset: offset of the Shadow RAM word to read (0x000000 - 0x001FFF)
  * @data: word read from the Shadow RAM
@@ -311,13 +311,10 @@ static i40e_status i40e_read_nvm_word_aq(struct i40e_hw *hw, u16 offset,
 static i40e_status __i40e_read_nvm_word(struct i40e_hw *hw,
 					u16 offset, u16 *data)
 {
-	i40e_status ret_code = 0;
-
 	if (hw->flags & I40E_HW_FLAG_AQ_SRCTL_ACCESS_ENABLE)
-		ret_code = i40e_read_nvm_word_aq(hw, offset, data);
-	else
-		ret_code = i40e_read_nvm_word_srctl(hw, offset, data);
-	return ret_code;
+		return i40e_read_nvm_word_aq(hw, offset, data);
+
+	return i40e_read_nvm_word_srctl(hw, offset, data);
 }
 
 /**
@@ -333,13 +330,15 @@ i40e_status i40e_read_nvm_word(struct i40e_hw *hw, u16 offset,
 {
 	i40e_status ret_code = 0;
 
-	ret_code = i40e_acquire_nvm(hw, I40E_RESOURCE_READ);
+	if (hw->flags & I40E_HW_FLAG_NVM_READ_REQUIRES_LOCK)
+		ret_code = i40e_acquire_nvm(hw, I40E_RESOURCE_READ);
 	if (ret_code)
 		return ret_code;
 
 	ret_code = __i40e_read_nvm_word(hw, offset, data);
 
-	i40e_release_nvm(hw);
+	if (hw->flags & I40E_HW_FLAG_NVM_READ_REQUIRES_LOCK)
+		i40e_release_nvm(hw);
 
 	return ret_code;
 }
@@ -446,13 +445,10 @@ static i40e_status __i40e_read_nvm_buffer(struct i40e_hw *hw,
 					  u16 offset, u16 *words,
 					  u16 *data)
 {
-	i40e_status ret_code = 0;
-
 	if (hw->flags & I40E_HW_FLAG_AQ_SRCTL_ACCESS_ENABLE)
-		ret_code = i40e_read_nvm_buffer_aq(hw, offset, words, data);
-	else
-		ret_code = i40e_read_nvm_buffer_srctl(hw, offset, words, data);
-	return ret_code;
+		return i40e_read_nvm_buffer_aq(hw, offset, words, data);
+
+	return i40e_read_nvm_buffer_srctl(hw, offset, words, data);
 }
 
 /**

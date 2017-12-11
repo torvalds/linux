@@ -154,7 +154,7 @@ qxl_release_alloc(struct qxl_device *qdev, int type,
 		return handle;
 	}
 	*ret = release;
-	QXL_INFO(qdev, "allocated release %d\n", handle);
+	DRM_DEBUG_DRIVER("allocated release %d\n", handle);
 	release->id = handle;
 	return handle;
 }
@@ -179,8 +179,7 @@ void
 qxl_release_free(struct qxl_device *qdev,
 		 struct qxl_release *release)
 {
-	QXL_INFO(qdev, "release %d, type %d\n", release->id,
-		 release->type);
+	DRM_DEBUG_DRIVER("release %d, type %d\n", release->id, release->type);
 
 	if (release->surface_release_id)
 		qxl_surface_id_dealloc(qdev, release->surface_release_id);

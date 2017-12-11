@@ -29,6 +29,7 @@
 #include <linux/errno.h>
 #include <linux/gpio.h>
 #include <linux/i2c.h>
+#include <linux/i2c-smbus.h>
 #include <linux/idr.h>
 #include <linux/init.h>
 #include <linux/irqflags.h>
@@ -205,9 +206,6 @@ static int i2c_generic_recovery(struct i2c_adapter *adap)
 	 */
 	while (i++ < RECOVERY_CLK_CNT * 2) {
 		if (val) {
-			/* Break if SDA is high */
-			if (bri->get_sda && bri->get_sda(adap))
-					break;
 			/* SCL shouldn't be low here */
 			if (!bri->get_scl(adap)) {
 				dev_err(&adap->dev,
@@ -215,12 +213,19 @@ static int i2c_generic_recovery(struct i2c_adapter *adap)
 				ret = -EBUSY;
 				break;
 			}
+			/* Break if SDA is high */
+			if (bri->get_sda && bri->get_sda(adap))
+				break;
 		}
 
 		val = !val;
 		bri->set_scl(adap, val);
 		ndelay(RECOVERY_NDELAY);
 	}
+
+	/* check if recovery actually succeeded */
+	if (bri->get_sda && !bri->get_sda(adap))
+		ret = -EBUSY;
 
 	if (bri->unprepare_recovery)
 		bri->unprepare_recovery(adap);
@@ -666,9 +671,15 @@ static void i2c_adapter_unlock_bus(struct i2c_adapter *adapter,
 }
 
 static void i2c_dev_set_name(struct i2c_adapter *adap,
-			     struct i2c_client *client)
+			     struct i2c_client *client,
+			     struct i2c_board_info const *info)
 {
 	struct acpi_device *adev = ACPI_COMPANION(&client->dev);
+
+	if (info && info->dev_name) {
+		dev_set_name(&client->dev, "i2c-%s", info->dev_name);
+		return;
+	}
 
 	if (adev) {
 		dev_set_name(&client->dev, "i2c-%s", acpi_dev_name(adev));
@@ -766,7 +777,7 @@ i2c_new_device(struct i2c_adapter *adap, struct i2c_board_info const *info)
 	client->dev.of_node = info->of_node;
 	client->dev.fwnode = info->fwnode;
 
-	i2c_dev_set_name(adap, client);
+	i2c_dev_set_name(adap, client, info);
 
 	if (info->properties) {
 		status = device_add_properties(&client->dev, info->properties);
@@ -808,6 +819,8 @@ EXPORT_SYMBOL_GPL(i2c_new_device);
  */
 void i2c_unregister_device(struct i2c_client *client)
 {
+	if (!client)
+		return;
 	if (client->dev.of_node)
 		of_node_clear_flag(client->dev.of_node, OF_POPULATED);
 	if (ACPI_COMPANION(&client->dev))
@@ -1259,6 +1272,10 @@ static int i2c_register_adapter(struct i2c_adapter *adap)
 		goto out_list;
 	}
 
+	res = of_i2c_setup_smbus_alert(adap);
+	if (res)
+		goto out_reg;
+
 	dev_dbg(&adap->dev, "adapter [%s] registered\n", adap->name);
 
 	pm_runtime_no_callbacks(&adap->dev);
@@ -1290,6 +1307,10 @@ static int i2c_register_adapter(struct i2c_adapter *adap)
 
 	return 0;
 
+out_reg:
+	init_completion(&adap->dev_released);
+	device_unregister(&adap->dev);
+	wait_for_completion(&adap->dev_released);
 out_list:
 	mutex_lock(&core_lock);
 	idr_remove(&i2c_adapter_idr, adap->nr);
@@ -1417,8 +1438,7 @@ static int __unregister_client(struct device *dev, void *dummy)
 static int __unregister_dummy(struct device *dev, void *dummy)
 {
 	struct i2c_client *client = i2c_verify_client(dev);
-	if (client)
-		i2c_unregister_device(client);
+	i2c_unregister_device(client);
 	return 0;
 }
 

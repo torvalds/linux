@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __NET_FRAG_H__
 #define __NET_FRAG_H__
 
@@ -95,7 +96,7 @@ struct inet_frags {
 	void			(*constructor)(struct inet_frag_queue *q,
 					       const void *arg);
 	void			(*destructor)(struct inet_frag_queue *);
-	void			(*frag_expire)(unsigned long data);
+	void			(*frag_expire)(struct timer_list *t);
 	struct kmem_cache	*frags_cachep;
 	const char		*frags_cache_name;
 };

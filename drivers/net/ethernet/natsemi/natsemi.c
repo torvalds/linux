@@ -610,7 +610,7 @@ static int netdev_open(struct net_device *dev);
 static void do_cable_magic(struct net_device *dev);
 static void undo_cable_magic(struct net_device *dev);
 static void check_link(struct net_device *dev);
-static void netdev_timer(unsigned long data);
+static void netdev_timer(struct timer_list *t);
 static void dump_ring(struct net_device *dev);
 static void ns_tx_timeout(struct net_device *dev);
 static int alloc_ring(struct net_device *dev);
@@ -1571,10 +1571,8 @@ static int netdev_open(struct net_device *dev)
 			dev->name, (int)readl(ioaddr + ChipCmd));
 
 	/* Set the timer to check for link beat. */
-	init_timer(&np->timer);
+	timer_setup(&np->timer, netdev_timer, 0);
 	np->timer.expires = round_jiffies(jiffies + NATSEMI_TIMER_FREQ);
-	np->timer.data = (unsigned long)dev;
-	np->timer.function = netdev_timer; /* timer handler */
 	add_timer(&np->timer);
 
 	return 0;
@@ -1789,10 +1787,10 @@ static void init_registers(struct net_device *dev)
  *    this check via dspcfg_workaround sysfs option.
  * 3) check of death of the RX path due to OOM
  */
-static void netdev_timer(unsigned long data)
+static void netdev_timer(struct timer_list *t)
 {
-	struct net_device *dev = (struct net_device *)data;
-	struct netdev_private *np = netdev_priv(dev);
+	struct netdev_private *np = from_timer(np, t, timer);
+	struct net_device *dev = np->dev;
 	void __iomem * ioaddr = ns_ioaddr(dev);
 	int next_tick = NATSEMI_TIMER_FREQ;
 	const int irq = np->pci_dev->irq;

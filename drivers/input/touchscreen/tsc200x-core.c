@@ -202,9 +202,9 @@ out:
 	return IRQ_HANDLED;
 }
 
-static void tsc200x_penup_timer(unsigned long data)
+static void tsc200x_penup_timer(struct timer_list *t)
 {
-	struct tsc200x *ts = (struct tsc200x *)data;
+	struct tsc200x *ts = from_timer(ts, t, penup_timer);
 	unsigned long flags;
 
 	spin_lock_irqsave(&ts->lock, flags);
@@ -506,7 +506,7 @@ int tsc200x_probe(struct device *dev, int irq, const struct input_id *tsc_id,
 	mutex_init(&ts->mutex);
 
 	spin_lock_init(&ts->lock);
-	setup_timer(&ts->penup_timer, tsc200x_penup_timer, (unsigned long)ts);
+	timer_setup(&ts->penup_timer, tsc200x_penup_timer, 0);
 
 	INIT_DELAYED_WORK(&ts->esd_work, tsc200x_esd_work);
 
@@ -531,6 +531,7 @@ int tsc200x_probe(struct device *dev, int irq, const struct input_id *tsc_id,
 
 	input_set_drvdata(input_dev, ts);
 
+	__set_bit(INPUT_PROP_DIRECT, input_dev->propbit);
 	input_set_capability(input_dev, EV_KEY, BTN_TOUCH);
 
 	input_set_abs_params(input_dev, ABS_X,

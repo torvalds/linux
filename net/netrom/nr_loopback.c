@@ -15,10 +15,10 @@
 #include <net/netrom.h>
 #include <linux/init.h>
 
-static void nr_loopback_timer(unsigned long);
+static void nr_loopback_timer(struct timer_list *);
 
 static struct sk_buff_head loopback_queue;
-static DEFINE_TIMER(loopback_timer, nr_loopback_timer, 0, 0);
+static DEFINE_TIMER(loopback_timer, nr_loopback_timer);
 
 void __init nr_loopback_init(void)
 {
@@ -48,7 +48,7 @@ int nr_loopback_queue(struct sk_buff *skb)
 	return 1;
 }
 
-static void nr_loopback_timer(unsigned long param)
+static void nr_loopback_timer(struct timer_list *unused)
 {
 	struct sk_buff *skb;
 	ax25_address *nr_dest;

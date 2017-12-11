@@ -99,11 +99,6 @@
 /* A3700_SPI_IF_TIME_REG */
 #define A3700_SPI_CLK_CAPT_EDGE		BIT(7)
 
-/* Flags and macros for struct a3700_spi */
-#define A3700_INSTR_CNT			1
-#define A3700_ADDR_CNT			3
-#define A3700_DUMMY_CNT			1
-
 struct a3700_spi {
 	struct spi_master *master;
 	void __iomem *base;
@@ -117,9 +112,6 @@ struct a3700_spi {
 	u8 byte_len;
 	u32 wait_mask;
 	struct completion done;
-	u32 addr_cnt;
-	u32 instr_cnt;
-	size_t hdr_cnt;
 };
 
 static u32 spireg_read(struct a3700_spi *a3700_spi, u32 offset)
@@ -161,7 +153,7 @@ static void a3700_spi_deactivate_cs(struct a3700_spi *a3700_spi,
 }
 
 static int a3700_spi_pin_mode_set(struct a3700_spi *a3700_spi,
-				  unsigned int pin_mode)
+				  unsigned int pin_mode, bool receiving)
 {
 	u32 val;
 
@@ -177,6 +169,9 @@ static int a3700_spi_pin_mode_set(struct a3700_spi *a3700_spi,
 		break;
 	case SPI_NBITS_QUAD:
 		val |= A3700_SPI_DATA_PIN1;
+		/* RX during address reception uses 4-pin */
+		if (receiving)
+			val |= A3700_SPI_ADDR_PIN;
 		break;
 	default:
 		dev_err(&a3700_spi->master->dev, "wrong pin mode %u", pin_mode);
@@ -218,7 +213,7 @@ static void a3700_spi_mode_set(struct a3700_spi *a3700_spi,
 }
 
 static void a3700_spi_clock_set(struct a3700_spi *a3700_spi,
-				unsigned int speed_hz, u16 mode)
+				unsigned int speed_hz)
 {
 	u32 val;
 	u32 prescale;
@@ -236,17 +231,6 @@ static void a3700_spi_clock_set(struct a3700_spi *a3700_spi,
 		val |= A3700_SPI_CLK_CAPT_EDGE;
 		spireg_write(a3700_spi, A3700_SPI_IF_TIME_REG, val);
 	}
-
-	val = spireg_read(a3700_spi, A3700_SPI_IF_CFG_REG);
-	val &= ~(A3700_SPI_CLK_POL | A3700_SPI_CLK_PHA);
-
-	if (mode & SPI_CPOL)
-		val |= A3700_SPI_CLK_POL;
-
-	if (mode & SPI_CPHA)
-		val |= A3700_SPI_CLK_PHA;
-
-	spireg_write(a3700_spi, A3700_SPI_IF_CFG_REG, val);
 }
 
 static void a3700_spi_bytelen_set(struct a3700_spi *a3700_spi, unsigned int len)
@@ -392,7 +376,8 @@ static bool a3700_spi_wait_completion(struct spi_device *spi)
 
 	spireg_write(a3700_spi, A3700_SPI_INT_MASK_REG, 0);
 
-	return true;
+	/* Timeout was reached */
+	return false;
 }
 
 static bool a3700_spi_transfer_wait(struct spi_device *spi,
@@ -427,7 +412,7 @@ static void a3700_spi_transfer_setup(struct spi_device *spi,
 
 	a3700_spi = spi_master_get_devdata(spi->master);
 
-	a3700_spi_clock_set(a3700_spi, xfer->speed_hz, spi->mode);
+	a3700_spi_clock_set(a3700_spi, xfer->speed_hz);
 
 	byte_len = xfer->bits_per_word >> 3;
 
@@ -446,59 +431,43 @@ static void a3700_spi_set_cs(struct spi_device *spi, bool enable)
 
 static void a3700_spi_header_set(struct a3700_spi *a3700_spi)
 {
-	u32 instr_cnt = 0, addr_cnt = 0, dummy_cnt = 0;
+	unsigned int addr_cnt;
 	u32 val = 0;
 
 	/* Clear the header registers */
 	spireg_write(a3700_spi, A3700_SPI_IF_INST_REG, 0);
 	spireg_write(a3700_spi, A3700_SPI_IF_ADDR_REG, 0);
 	spireg_write(a3700_spi, A3700_SPI_IF_RMODE_REG, 0);
+	spireg_write(a3700_spi, A3700_SPI_IF_HDR_CNT_REG, 0);
 
 	/* Set header counters */
 	if (a3700_spi->tx_buf) {
-		if (a3700_spi->buf_len <= a3700_spi->instr_cnt) {
-			instr_cnt = a3700_spi->buf_len;
-		} else if (a3700_spi->buf_len <= (a3700_spi->instr_cnt +
-						  a3700_spi->addr_cnt)) {
-			instr_cnt = a3700_spi->instr_cnt;
-			addr_cnt = a3700_spi->buf_len - instr_cnt;
-		} else if (a3700_spi->buf_len <= a3700_spi->hdr_cnt) {
-			instr_cnt = a3700_spi->instr_cnt;
-			addr_cnt = a3700_spi->addr_cnt;
-			/* Need to handle the normal write case with 1 byte
-			 * data
-			 */
-			if (!a3700_spi->tx_buf[instr_cnt + addr_cnt])
-				dummy_cnt = a3700_spi->buf_len - instr_cnt -
-					    addr_cnt;
+		/*
+		 * when tx data is not 4 bytes aligned, there will be unexpected
+		 * bytes out of SPI output register, since it always shifts out
+		 * as whole 4 bytes. This might cause incorrect transaction with
+		 * some devices. To avoid that, use SPI header count feature to
+		 * transfer up to 3 bytes of data first, and then make the rest
+		 * of data 4-byte aligned.
+		 */
+		addr_cnt = a3700_spi->buf_len % 4;
+		if (addr_cnt) {
+			val = (addr_cnt & A3700_SPI_ADDR_CNT_MASK)
+				<< A3700_SPI_ADDR_CNT_BIT;
+			spireg_write(a3700_spi, A3700_SPI_IF_HDR_CNT_REG, val);
+
+			/* Update the buffer length to be transferred */
+			a3700_spi->buf_len -= addr_cnt;
+
+			/* transfer 1~3 bytes through address count */
+			val = 0;
+			while (addr_cnt--) {
+				val = (val << 8) | a3700_spi->tx_buf[0];
+				a3700_spi->tx_buf++;
+			}
+			spireg_write(a3700_spi, A3700_SPI_IF_ADDR_REG, val);
 		}
-		val |= ((instr_cnt & A3700_SPI_INSTR_CNT_MASK)
-			<< A3700_SPI_INSTR_CNT_BIT);
-		val |= ((addr_cnt & A3700_SPI_ADDR_CNT_MASK)
-			<< A3700_SPI_ADDR_CNT_BIT);
-		val |= ((dummy_cnt & A3700_SPI_DUMMY_CNT_MASK)
-			<< A3700_SPI_DUMMY_CNT_BIT);
 	}
-	spireg_write(a3700_spi, A3700_SPI_IF_HDR_CNT_REG, val);
-
-	/* Update the buffer length to be transferred */
-	a3700_spi->buf_len -= (instr_cnt + addr_cnt + dummy_cnt);
-
-	/* Set Instruction */
-	val = 0;
-	while (instr_cnt--) {
-		val = (val << 8) | a3700_spi->tx_buf[0];
-		a3700_spi->tx_buf++;
-	}
-	spireg_write(a3700_spi, A3700_SPI_IF_INST_REG, val);
-
-	/* Set Address */
-	val = 0;
-	while (addr_cnt--) {
-		val = (val << 8) | a3700_spi->tx_buf[0];
-		a3700_spi->tx_buf++;
-	}
-	spireg_write(a3700_spi, A3700_SPI_IF_ADDR_REG, val);
 }
 
 static int a3700_is_wfifo_full(struct a3700_spi *a3700_spi)
@@ -512,35 +481,12 @@ static int a3700_is_wfifo_full(struct a3700_spi *a3700_spi)
 static int a3700_spi_fifo_write(struct a3700_spi *a3700_spi)
 {
 	u32 val;
-	int i = 0;
 
 	while (!a3700_is_wfifo_full(a3700_spi) && a3700_spi->buf_len) {
-		val = 0;
-		if (a3700_spi->buf_len >= 4) {
-			val = cpu_to_le32(*(u32 *)a3700_spi->tx_buf);
-			spireg_write(a3700_spi, A3700_SPI_DATA_OUT_REG, val);
-
-			a3700_spi->buf_len -= 4;
-			a3700_spi->tx_buf += 4;
-		} else {
-			/*
-			 * If the remained buffer length is less than 4-bytes,
-			 * we should pad the write buffer with all ones. So that
-			 * it avoids overwrite the unexpected bytes following
-			 * the last one.
-			 */
-			val = GENMASK(31, 0);
-			while (a3700_spi->buf_len) {
-				val &= ~(0xff << (8 * i));
-				val |= *a3700_spi->tx_buf++ << (8 * i);
-				i++;
-				a3700_spi->buf_len--;
-
-				spireg_write(a3700_spi, A3700_SPI_DATA_OUT_REG,
-					     val);
-			}
-			break;
-		}
+		val = cpu_to_le32(*(u32 *)a3700_spi->tx_buf);
+		spireg_write(a3700_spi, A3700_SPI_DATA_OUT_REG, val);
+		a3700_spi->buf_len -= 4;
+		a3700_spi->tx_buf += 4;
 	}
 
 	return 0;
@@ -627,6 +573,8 @@ static int a3700_spi_prepare_message(struct spi_master *master,
 
 	a3700_spi_bytelen_set(a3700_spi, 4);
 
+	a3700_spi_mode_set(a3700_spi, spi->mode);
+
 	return 0;
 }
 
@@ -645,15 +593,18 @@ static int a3700_spi_transfer_one(struct spi_master *master,
 	a3700_spi->rx_buf  = xfer->rx_buf;
 	a3700_spi->buf_len = xfer->len;
 
-	/* SPI transfer headers */
-	a3700_spi_header_set(a3700_spi);
-
 	if (xfer->tx_buf)
 		nbits = xfer->tx_nbits;
 	else if (xfer->rx_buf)
 		nbits = xfer->rx_nbits;
 
-	a3700_spi_pin_mode_set(a3700_spi, nbits);
+	a3700_spi_pin_mode_set(a3700_spi, nbits, xfer->rx_buf ? true : false);
+
+	/* Flush the FIFOs */
+	a3700_spi_fifo_flush(a3700_spi);
+
+	/* Transfer first bytes of data when buffer is not 4-byte aligned */
+	a3700_spi_header_set(a3700_spi);
 
 	if (xfer->rx_buf) {
 		/* Set read data length */
@@ -733,16 +684,11 @@ static int a3700_spi_transfer_one(struct spi_master *master,
 				dev_err(&spi->dev, "wait wfifo empty timed out\n");
 				return -ETIMEDOUT;
 			}
-		} else {
-			/*
-			 * If the instruction in SPI_INSTR does not require data
-			 * to be written to the SPI device, wait until SPI_RDY
-			 * is 1 for the SPI interface to be in idle.
-			 */
-			if (!a3700_spi_transfer_wait(spi, A3700_SPI_XFER_RDY)) {
-				dev_err(&spi->dev, "wait xfer ready timed out\n");
-				return -ETIMEDOUT;
-			}
+		}
+
+		if (!a3700_spi_transfer_wait(spi, A3700_SPI_XFER_RDY)) {
+			dev_err(&spi->dev, "wait xfer ready timed out\n");
+			return -ETIMEDOUT;
 		}
 
 		val = spireg_read(a3700_spi, A3700_SPI_IF_CFG_REG);
@@ -834,10 +780,6 @@ static int a3700_spi_probe(struct platform_device *pdev)
 	memset(spi, 0, sizeof(struct a3700_spi));
 
 	spi->master = master;
-	spi->instr_cnt = A3700_INSTR_CNT;
-	spi->addr_cnt = A3700_ADDR_CNT;
-	spi->hdr_cnt = A3700_INSTR_CNT + A3700_ADDR_CNT +
-		       A3700_DUMMY_CNT;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	spi->base = devm_ioremap_resource(dev, res);

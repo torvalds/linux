@@ -13,7 +13,7 @@
 *
 ******************************************************************************/
 
-
+#include <linux/kernel.h>
 #include "odm_precomp.h"
 
 static bool CheckPositive(
@@ -270,7 +270,7 @@ static u32 Array_MP_8723B_RadioA[] = {
 void ODM_ReadAndConfig_MP_8723B_RadioA(PDM_ODM_T pDM_Odm)
 {
 	u32 i = 0;
-	u32 ArrayLen = sizeof(Array_MP_8723B_RadioA)/sizeof(u32);
+	u32 ArrayLen = ARRAY_SIZE(Array_MP_8723B_RadioA);
 	u32 *Array = Array_MP_8723B_RadioA;
 
 	ODM_RT_TRACE(
@@ -766,7 +766,6 @@ static u8 *Array_MP_8723B_TXPWR_LMT[] = {
 void ODM_ReadAndConfig_MP_8723B_TXPWR_LMT(PDM_ODM_T pDM_Odm)
 {
 	u32 i = 0;
-	u32 ArrayLen = sizeof(Array_MP_8723B_TXPWR_LMT)/sizeof(u8 *);
 	u8 **Array = Array_MP_8723B_TXPWR_LMT;
 
 	ODM_RT_TRACE(
@@ -776,7 +775,7 @@ void ODM_ReadAndConfig_MP_8723B_TXPWR_LMT(PDM_ODM_T pDM_Odm)
 		("===> ODM_ReadAndConfig_MP_8723B_TXPWR_LMT\n")
 	);
 
-	for (i = 0; i < ArrayLen; i += 7) {
+	for (i = 0; i < ARRAY_SIZE(Array_MP_8723B_TXPWR_LMT); i += 7) {
 		u8 *regulation = Array[i];
 		u8 *band = Array[i+1];
 		u8 *bandwidth = Array[i+2];

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * A security context is a set of security attributes
  * associated with each subject and object controlled

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* List each unit test as selftest(name, function)
  *
  * The name is used as both an enum and expanded as subtest__name to create
@@ -21,3 +22,4 @@ selftest(dmabuf, i915_gem_dmabuf_mock_selftests)
 selftest(vma, i915_vma_mock_selftests)
 selftest(evict, i915_gem_evict_mock_selftests)
 selftest(gtt, i915_gem_gtt_mock_selftests)
+selftest(hugepages, i915_gem_huge_page_mock_selftests)

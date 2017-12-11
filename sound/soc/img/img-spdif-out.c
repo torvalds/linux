@@ -47,25 +47,36 @@ struct img_spdif_out {
 	struct snd_dmaengine_dai_dma_data dma_data;
 	struct device *dev;
 	struct reset_control *rst;
+	u32 suspend_ctl;
+	u32 suspend_csl;
+	u32 suspend_csh;
 };
 
-static int img_spdif_out_suspend(struct device *dev)
+static int img_spdif_out_runtime_suspend(struct device *dev)
 {
 	struct img_spdif_out *spdif = dev_get_drvdata(dev);
 
 	clk_disable_unprepare(spdif->clk_ref);
+	clk_disable_unprepare(spdif->clk_sys);
 
 	return 0;
 }
 
-static int img_spdif_out_resume(struct device *dev)
+static int img_spdif_out_runtime_resume(struct device *dev)
 {
 	struct img_spdif_out *spdif = dev_get_drvdata(dev);
 	int ret;
 
+	ret = clk_prepare_enable(spdif->clk_sys);
+	if (ret) {
+		dev_err(dev, "clk_enable failed: %d\n", ret);
+		return ret;
+	}
+
 	ret = clk_prepare_enable(spdif->clk_ref);
 	if (ret) {
 		dev_err(dev, "clk_enable failed: %d\n", ret);
+		clk_disable_unprepare(spdif->clk_sys);
 		return ret;
 	}
 
@@ -355,21 +366,21 @@ static int img_spdif_out_probe(struct platform_device *pdev)
 		return PTR_ERR(spdif->clk_ref);
 	}
 
-	ret = clk_prepare_enable(spdif->clk_sys);
-	if (ret)
-		return ret;
-
-	img_spdif_out_writel(spdif, IMG_SPDIF_OUT_CTL_FS_MASK,
-				IMG_SPDIF_OUT_CTL);
-
-	img_spdif_out_reset(spdif);
-
 	pm_runtime_enable(&pdev->dev);
 	if (!pm_runtime_enabled(&pdev->dev)) {
-		ret = img_spdif_out_resume(&pdev->dev);
+		ret = img_spdif_out_runtime_resume(&pdev->dev);
 		if (ret)
 			goto err_pm_disable;
 	}
+	ret = pm_runtime_get_sync(&pdev->dev);
+	if (ret < 0)
+		goto err_suspend;
+
+	img_spdif_out_writel(spdif, IMG_SPDIF_OUT_CTL_FS_MASK,
+			     IMG_SPDIF_OUT_CTL);
+
+	img_spdif_out_reset(spdif);
+	pm_runtime_put(&pdev->dev);
 
 	spin_lock_init(&spdif->lock);
 
@@ -393,27 +404,62 @@ static int img_spdif_out_probe(struct platform_device *pdev)
 
 err_suspend:
 	if (!pm_runtime_status_suspended(&pdev->dev))
-		img_spdif_out_suspend(&pdev->dev);
+		img_spdif_out_runtime_suspend(&pdev->dev);
 err_pm_disable:
 	pm_runtime_disable(&pdev->dev);
-	clk_disable_unprepare(spdif->clk_sys);
 
 	return ret;
 }
 
 static int img_spdif_out_dev_remove(struct platform_device *pdev)
 {
-	struct img_spdif_out *spdif = platform_get_drvdata(pdev);
-
 	pm_runtime_disable(&pdev->dev);
 	if (!pm_runtime_status_suspended(&pdev->dev))
-		img_spdif_out_suspend(&pdev->dev);
-
-	clk_disable_unprepare(spdif->clk_sys);
+		img_spdif_out_runtime_suspend(&pdev->dev);
 
 	return 0;
 }
 
+#ifdef CONFIG_PM_SLEEP
+static int img_spdif_out_suspend(struct device *dev)
+{
+	struct img_spdif_out *spdif = dev_get_drvdata(dev);
+	int ret;
+
+	if (pm_runtime_status_suspended(dev)) {
+		ret = img_spdif_out_runtime_resume(dev);
+		if (ret)
+			return ret;
+	}
+
+	spdif->suspend_ctl = img_spdif_out_readl(spdif, IMG_SPDIF_OUT_CTL);
+	spdif->suspend_csl = img_spdif_out_readl(spdif, IMG_SPDIF_OUT_CSL);
+	spdif->suspend_csh = img_spdif_out_readl(spdif, IMG_SPDIF_OUT_CSH_UV);
+
+	img_spdif_out_runtime_suspend(dev);
+
+	return 0;
+}
+
+static int img_spdif_out_resume(struct device *dev)
+{
+	struct img_spdif_out *spdif = dev_get_drvdata(dev);
+	int ret;
+
+	ret = img_spdif_out_runtime_resume(dev);
+	if (ret)
+		return ret;
+
+	img_spdif_out_writel(spdif, spdif->suspend_ctl, IMG_SPDIF_OUT_CTL);
+	img_spdif_out_writel(spdif, spdif->suspend_csl, IMG_SPDIF_OUT_CSL);
+	img_spdif_out_writel(spdif, spdif->suspend_csh, IMG_SPDIF_OUT_CSH_UV);
+
+	if (pm_runtime_status_suspended(dev))
+		img_spdif_out_runtime_suspend(dev);
+
+	return 0;
+}
+#endif
 static const struct of_device_id img_spdif_out_of_match[] = {
 	{ .compatible = "img,spdif-out" },
 	{}
@@ -421,8 +467,9 @@ static const struct of_device_id img_spdif_out_of_match[] = {
 MODULE_DEVICE_TABLE(of, img_spdif_out_of_match);
 
 static const struct dev_pm_ops img_spdif_out_pm_ops = {
-	SET_RUNTIME_PM_OPS(img_spdif_out_suspend,
-			   img_spdif_out_resume, NULL)
+	SET_RUNTIME_PM_OPS(img_spdif_out_runtime_suspend,
+			   img_spdif_out_runtime_resume, NULL)
+	SET_SYSTEM_SLEEP_PM_OPS(img_spdif_out_suspend, img_spdif_out_resume)
 };
 
 static struct platform_driver img_spdif_out_driver = {

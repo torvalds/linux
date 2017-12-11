@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __ASM_MACH_LOONGSON64_WORKAROUNDS_H_
 #define __ASM_MACH_LOONGSON64_WORKAROUNDS_H_
 

@@ -24,6 +24,16 @@ Required properties:
 	based on a specific SoC configuration.
 - interrupts: interrupt number mapped to CPU.
 - clocks: spi clk phandle
+          For 66AK2G this property should be set per binding,
+          Documentation/devicetree/bindings/clock/ti,sci-clk.txt
+
+SoC-specific Required Properties:
+
+The following are mandatory properties for Keystone 2 66AK2G SoCs only:
+
+- power-domains:	Should contain a phandle to a PM domain provider node
+			and an args specifier containing the SPI device id
+			value. This property is as per the binding,
 
 Optional:
 - cs-gpios: gpio chip selects

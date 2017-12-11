@@ -55,6 +55,8 @@ MODULE_PARM_DESC(quirk, "RT5645 pdata quirk override");
 
 #define RT5645_HWEQ_NUM 57
 
+#define TIME_TO_POWER_MS 400
+
 static const struct regmap_range_cfg rt5645_ranges[] = {
 	{
 		.name = "PR",
@@ -432,6 +434,7 @@ struct rt5645_priv {
 	int jack_type;
 	bool en_button_func;
 	bool hp_on;
+	int v_id;
 };
 
 static int rt5645_reset(struct snd_soc_codec *codec)
@@ -2516,9 +2519,7 @@ static const struct snd_soc_dapm_route rt5645_dapm_routes[] = {
 	{ "SPKVOL L", "Switch", "SPK MIXL" },
 	{ "SPKVOL R", "Switch", "SPK MIXR" },
 
-	{ "SPOL MIX", "DAC R1 Switch", "DAC R1" },
 	{ "SPOL MIX", "DAC L1 Switch", "DAC L1" },
-	{ "SPOL MIX", "SPKVOL R Switch", "SPKVOL R" },
 	{ "SPOL MIX", "SPKVOL L Switch", "SPKVOL L" },
 	{ "SPOR MIX", "DAC R1 Switch", "DAC R1" },
 	{ "SPOR MIX", "SPKVOL R Switch", "SPKVOL R" },
@@ -2705,6 +2706,11 @@ static const struct snd_soc_dapm_route rt5645_specific_dapm_routes[] = {
 
 	{ "DAC L2 Mux", "IF1 DAC", "RT5645 IF1 DAC2 L Mux" },
 	{ "DAC R2 Mux", "IF1 DAC", "RT5645 IF1 DAC2 R Mux" },
+};
+
+static const struct snd_soc_dapm_route rt5645_old_dapm_routes[] = {
+	{ "SPOL MIX", "DAC R1 Switch", "DAC R1" },
+	{ "SPOL MIX", "SPKVOL R Switch", "SPKVOL R" },
 };
 
 static int rt5645_hw_params(struct snd_pcm_substream *substream,
@@ -3340,9 +3346,9 @@ static irqreturn_t rt5645_irq(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static void rt5645_btn_check_callback(unsigned long data)
+static void rt5645_btn_check_callback(struct timer_list *t)
 {
-	struct rt5645_priv *rt5645 = (struct rt5645_priv *)data;
+	struct rt5645_priv *rt5645 = from_timer(rt5645, t, btn_check_timer);
 
 	queue_delayed_work(system_power_efficient_wq,
 		   &rt5645->jack_detect_work, msecs_to_jiffies(5));
@@ -3363,6 +3369,11 @@ static int rt5645_probe(struct snd_soc_codec *codec)
 		snd_soc_dapm_add_routes(dapm,
 			rt5645_specific_dapm_routes,
 			ARRAY_SIZE(rt5645_specific_dapm_routes));
+		if (rt5645->v_id < 3) {
+			snd_soc_dapm_add_routes(dapm,
+				rt5645_old_dapm_routes,
+				ARRAY_SIZE(rt5645_old_dapm_routes));
+		}
 		break;
 	case CODEC_TYPE_RT5650:
 		snd_soc_dapm_new_controls(dapm,
@@ -3637,14 +3648,14 @@ static const struct dmi_system_id dmi_platform_gpd_win[] = {
 	{}
 };
 
-static struct rt5645_platform_data general_platform_data2 = {
+static const struct rt5645_platform_data general_platform_data2 = {
 	.dmic1_data_pin = RT5645_DMIC_DATA_IN2N,
 	.dmic2_data_pin = RT5645_DMIC2_DISABLE,
 	.jd_mode = 3,
 	.inv_jd1_1 = true,
 };
 
-static struct dmi_system_id dmi_platform_asus_t100ha[] = {
+static const struct dmi_system_id dmi_platform_asus_t100ha[] = {
 	{
 		.ident = "ASUS T100HAN",
 		.matches = {
@@ -3655,11 +3666,11 @@ static struct dmi_system_id dmi_platform_asus_t100ha[] = {
 	{ }
 };
 
-static struct rt5645_platform_data minix_z83_4_platform_data = {
+static const struct rt5645_platform_data minix_z83_4_platform_data = {
 	.jd_mode = 3,
 };
 
-static struct dmi_system_id dmi_platform_minix_z83_4[] = {
+static const struct dmi_system_id dmi_platform_minix_z83_4[] = {
 	{
 		.ident = "MINIX Z83-4",
 		.matches = {
@@ -3775,6 +3786,12 @@ static int rt5645_i2c_probe(struct i2c_client *i2c,
 			ret);
 		return ret;
 	}
+
+	/*
+	 * Read after 400msec, as it is the interval required between
+	 * read and power On.
+	 */
+	msleep(TIME_TO_POWER_MS);
 	regmap_read(regmap, RT5645_VENDOR_ID2, &val);
 
 	switch (val) {
@@ -3802,6 +3819,9 @@ static int rt5645_i2c_probe(struct i2c_client *i2c,
 	}
 
 	regmap_write(rt5645->regmap, RT5645_RESET, 0);
+
+	regmap_read(regmap, RT5645_VENDOR_ID, &val);
+	rt5645->v_id = val & 0xff;
 
 	ret = regmap_register_patch(rt5645->regmap, init_list,
 				    ARRAY_SIZE(init_list));
@@ -3934,8 +3954,7 @@ static int rt5645_i2c_probe(struct i2c_client *i2c,
 		regmap_update_bits(rt5645->regmap, RT5645_IRQ_CTRL2,
 			RT5645_JD_1_1_MASK, RT5645_JD_1_1_INV);
 	}
-	setup_timer(&rt5645->btn_check_timer,
-		rt5645_btn_check_callback, (unsigned long)rt5645);
+	timer_setup(&rt5645->btn_check_timer, rt5645_btn_check_callback, 0);
 
 	INIT_DELAYED_WORK(&rt5645->jack_detect_work, rt5645_jack_detect_work);
 	INIT_DELAYED_WORK(&rt5645->rcclock_work, rt5645_rcclock_work);

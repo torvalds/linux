@@ -635,7 +635,7 @@ static void mrf24j40_stop(struct ieee802154_hw *hw)
 
 	/* Set TXNIE and RXIE. Disable Interrupts */
 	regmap_update_bits(devrec->regmap_short, REG_INTCON,
-			   BIT_TXNIE | BIT_TXNIE, BIT_TXNIE | BIT_TXNIE);
+			   BIT_TXNIE | BIT_RXIE, BIT_TXNIE | BIT_RXIE);
 }
 
 static int mrf24j40_set_channel(struct ieee802154_hw *hw, u8 page, u8 channel)

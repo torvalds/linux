@@ -21,6 +21,7 @@
 #undef DEBUG
 #undef DEBUG_LOW
 
+#define pr_fmt(fmt) "hash-mmu: " fmt
 #include <linux/spinlock.h>
 #include <linux/errno.h>
 #include <linux/sched/mm.h>

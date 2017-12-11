@@ -6,4 +6,6 @@
 #
 
 menuconfig ARC_SOC_HSDK
-       bool "ARC HS Development Kit SOC"
+	bool "ARC HS Development Kit SOC"
+	select CLK_HSDK
+	select RESET_HSDK

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * DDR SDRAM initialization - alter with care
  * This file is intended to be included from other assembler files

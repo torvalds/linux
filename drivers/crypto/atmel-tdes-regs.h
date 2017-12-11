@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __ATMEL_TDES_REGS_H__
 #define __ATMEL_TDES_REGS_H__
 

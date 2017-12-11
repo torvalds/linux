@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __ASM_SH_MOBILE_CEU_H__
 #define __ASM_SH_MOBILE_CEU_H__
 

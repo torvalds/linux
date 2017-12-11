@@ -1,0 +1,21 @@
+Orise Tech OTM8009A 3.97" 480x800 TFT LCD panel (MIPI-DSI video mode)
+
+The Orise Tech OTM8009A is a 3.97" 480x800 TFT LCD panel connected using
+a MIPI-DSI video interface. Its backlight is managed through the DSI link.
+
+Required properties:
+  - compatible: "orisetech,otm8009a"
+  - reg: the virtual channel number of a DSI peripheral
+
+Optional properties:
+  - reset-gpios: a GPIO spec for the reset pin (active low).
+
+Example:
+&dsi {
+	...
+	panel@0 {
+		compatible = "orisetech,otm8009a";
+		reg = <0>;
+		reset-gpios = <&gpioh 7 GPIO_ACTIVE_LOW>;
+	};
+};

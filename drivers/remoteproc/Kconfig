@@ -28,7 +28,6 @@ config OMAP_REMOTEPROC
 	depends on OMAP_IOMMU
 	select MAILBOX
 	select OMAP2PLUS_MBOX
-	select RPMSG_VIRTIO
 	help
 	  Say y here to support OMAP's remote processors (dual M3
 	  and DSP on OMAP4) via the remote processor framework.
@@ -58,7 +57,6 @@ config DA8XX_REMOTEPROC
 	tristate "DA8xx/OMAP-L13x remoteproc support"
 	depends on ARCH_DAVINCI_DA8XX
 	depends on DMA_CMA
-	select RPMSG_VIRTIO
 	help
 	  Say y here to support DA8xx/OMAP-L13x remote processors via the
 	  remote processor framework.
@@ -79,7 +77,6 @@ config DA8XX_REMOTEPROC
 config KEYSTONE_REMOTEPROC
 	tristate "Keystone Remoteproc support"
 	depends on ARCH_KEYSTONE
-	select RPMSG_VIRTIO
 	help
 	  Say Y here here to support Keystone remote processors (DSP)
 	  via the remote processor framework.
@@ -109,6 +106,7 @@ config QCOM_Q6V5_PIL
 	depends on OF && ARCH_QCOM
 	depends on QCOM_SMEM
 	depends on RPMSG_QCOM_SMD || (COMPILE_TEST && RPMSG_QCOM_SMD=n)
+	depends on RPMSG_QCOM_GLINK_SMEM || RPMSG_QCOM_GLINK_SMEM=n
 	select MFD_SYSCON
 	select QCOM_RPROC_COMMON
 	select QCOM_SCM
@@ -120,6 +118,7 @@ config QCOM_WCNSS_PIL
 	tristate "Qualcomm WCNSS Peripheral Image Loader"
 	depends on OF && ARCH_QCOM
 	depends on RPMSG_QCOM_SMD || (COMPILE_TEST && RPMSG_QCOM_SMD=n)
+	depends on RPMSG_QCOM_GLINK_SMEM || RPMSG_QCOM_GLINK_SMEM=n
 	depends on QCOM_SMEM
 	select QCOM_MDT_LOADER
 	select QCOM_RPROC_COMMON
@@ -133,7 +132,6 @@ config ST_REMOTEPROC
 	depends on ARCH_STI
 	select MAILBOX
 	select STI_MBOX
-	select RPMSG_VIRTIO
 	help
 	  Say y here to support ST's adjunct processors via the remote
 	  processor framework.

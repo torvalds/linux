@@ -244,7 +244,9 @@ static u32 iwl_mvm_set_mac80211_rx_flag(struct iwl_mvm *mvm,
 		return 0;
 
 	default:
-		IWL_ERR(mvm, "Unhandled alg: 0x%x\n", rx_pkt_status);
+		/* Expected in monitor (not having the keys) */
+		if (!mvm->monitor_on)
+			IWL_ERR(mvm, "Unhandled alg: 0x%x\n", rx_pkt_status);
 	}
 
 	return 0;
@@ -661,11 +663,10 @@ void iwl_mvm_handle_rx_statistics(struct iwl_mvm *mvm,
 		expected_size = sizeof(struct iwl_notif_statistics_cdb);
 	}
 
-	if (iwl_rx_packet_payload_len(pkt) != expected_size) {
-		IWL_ERR(mvm, "received invalid statistics size (%d)!\n",
-			iwl_rx_packet_payload_len(pkt));
+	if (WARN_ONCE(iwl_rx_packet_payload_len(pkt) != expected_size,
+		      "received invalid statistics size (%d)!\n",
+		      iwl_rx_packet_payload_len(pkt)))
 		return;
-	}
 
 	if (!iwl_mvm_has_new_rx_stats_api(mvm)) {
 		struct iwl_notif_statistics_v11 *stats = (void *)&pkt->data;

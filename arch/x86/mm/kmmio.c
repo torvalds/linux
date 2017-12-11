@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /* Support for MMIO probes.
  * Benfit many code from kprobes
  * (C) 2002 Louis Zhuang <louis.zhuang@intel.com>.

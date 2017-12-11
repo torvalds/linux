@@ -254,9 +254,9 @@ static irqreturn_t csi_idmac_nfb4eof_interrupt(int irq, void *dev_id)
  * EOF timeout timer function. This is an unrecoverable condition
  * without a stream restart.
  */
-static void csi_idmac_eof_timeout(unsigned long data)
+static void csi_idmac_eof_timeout(struct timer_list *t)
 {
-	struct csi_priv *priv = (struct csi_priv *)data;
+	struct csi_priv *priv = from_timer(priv, t, eof_timeout_timer);
 	struct imx_media_video_dev *vdev = priv->vdev;
 
 	v4l2_err(&priv->sd, "EOF timeout\n");
@@ -1739,8 +1739,7 @@ static int imx_csi_probe(struct platform_device *pdev)
 	priv->csi_id = pdata->csi;
 	priv->smfc_id = (priv->csi_id == 0) ? 0 : 2;
 
-	setup_timer(&priv->eof_timeout_timer, csi_idmac_eof_timeout,
-		    (unsigned long)priv);
+	timer_setup(&priv->eof_timeout_timer, csi_idmac_eof_timeout, 0);
 	spin_lock_init(&priv->irqlock);
 
 	v4l2_subdev_init(&priv->sd, &csi_subdev_ops);

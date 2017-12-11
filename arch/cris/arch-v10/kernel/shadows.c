@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Various shadow registers. Defines for these are in include/asm-etrax100/io.h
  */

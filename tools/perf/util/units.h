@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef PERF_UNIT_H
 #define PERF_UNIT_H
 

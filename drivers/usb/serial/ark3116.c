@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2009 by Bart Hartgers (bart.hartgers+ark3116@gmail.com)
  * Original version:
@@ -15,11 +16,6 @@
  * into the old ark3116.c driver and suddenly realized the ark3116 is
  * a 16450 with a USB interface glued to it. See comments at the
  * bottom of this file.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2 of the License, or (at your
- * option) any later version.
  */
 
 #include <linux/kernel.h>

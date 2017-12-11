@@ -350,7 +350,7 @@ static irqreturn_t wcove_gpio_irq_handler(int irq, void *data)
 			offset = (gpio > GROUP0_NR_IRQS) ? 1 : 0;
 			mask = (offset == 1) ? BIT(gpio - GROUP0_NR_IRQS) :
 								BIT(gpio);
-			virq = irq_find_mapping(wg->chip.irqdomain, gpio);
+			virq = irq_find_mapping(wg->chip.irq.domain, gpio);
 			handle_nested_irq(virq);
 			regmap_update_bits(wg->regmap, IRQ_STATUS_BASE + offset,
 								mask, mask);

@@ -144,8 +144,6 @@ static void __init exynos4_clkout_init(struct device_node *node)
 }
 CLK_OF_DECLARE_DRIVER(exynos4210_clkout, "samsung,exynos4210-pmu",
 		exynos4_clkout_init);
-CLK_OF_DECLARE_DRIVER(exynos4212_clkout, "samsung,exynos4212-pmu",
-		exynos4_clkout_init);
 CLK_OF_DECLARE_DRIVER(exynos4412_clkout, "samsung,exynos4412-pmu",
 		exynos4_clkout_init);
 CLK_OF_DECLARE_DRIVER(exynos3250_clkout, "samsung,exynos3250-pmu",

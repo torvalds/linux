@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * board initialization should put one of these into dev->platform_data
  * and place the sl811hs onto platform_bus named "sl811-hcd".

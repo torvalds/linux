@@ -17,7 +17,7 @@
 #include "rmnet_vnd.h"
 
 static u8 rmnet_map_do_flow_control(struct sk_buff *skb,
-				    struct rmnet_port *rdinfo,
+				    struct rmnet_port *port,
 				    int enable)
 {
 	struct rmnet_map_control_command *cmd;
@@ -37,7 +37,7 @@ static u8 rmnet_map_do_flow_control(struct sk_buff *skb,
 		return RX_HANDLER_CONSUMED;
 	}
 
-	ep = &rdinfo->muxed_ep[mux_id];
+	ep = rmnet_get_endpoint(port, mux_id);
 	vnd = ep->egress_dev;
 
 	ip_family = cmd->flow_control.ip_family;
@@ -76,8 +76,7 @@ static void rmnet_map_send_ack(struct sk_buff *skb,
 /* Process MAP command frame and send N/ACK message as appropriate. Message cmd
  * name is decoded here and appropriate handler is called.
  */
-rx_handler_result_t rmnet_map_command(struct sk_buff *skb,
-				      struct rmnet_port *port)
+void rmnet_map_command(struct sk_buff *skb, struct rmnet_port *port)
 {
 	struct rmnet_map_control_command *cmd;
 	unsigned char command_name;
@@ -102,5 +101,4 @@ rx_handler_result_t rmnet_map_command(struct sk_buff *skb,
 	}
 	if (rc == RMNET_MAP_COMMAND_ACK)
 		rmnet_map_send_ack(skb, rc);
-	return RX_HANDLER_CONSUMED;
 }

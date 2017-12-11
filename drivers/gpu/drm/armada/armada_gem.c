@@ -8,7 +8,6 @@
 #include <linux/dma-buf.h>
 #include <linux/dma-mapping.h>
 #include <linux/shmem_fs.h>
-#include <drm/drmP.h>
 #include "armada_drm.h"
 #include "armada_gem.h"
 #include <drm/armada_drm.h>
@@ -266,44 +265,8 @@ int armada_gem_dumb_create(struct drm_file *file, struct drm_device *dev,
 	/* drop reference from allocate - handle holds it now */
 	DRM_DEBUG_DRIVER("obj %p size %zu handle %#x\n", dobj, size, handle);
  err:
-	drm_gem_object_unreference_unlocked(&dobj->obj);
+	drm_gem_object_put_unlocked(&dobj->obj);
 	return ret;
-}
-
-int armada_gem_dumb_map_offset(struct drm_file *file, struct drm_device *dev,
-	uint32_t handle, uint64_t *offset)
-{
-	struct armada_gem_object *obj;
-	int ret = 0;
-
-	obj = armada_gem_object_lookup(file, handle);
-	if (!obj) {
-		DRM_ERROR("failed to lookup gem object\n");
-		return -EINVAL;
-	}
-
-	/* Don't allow imported objects to be mapped */
-	if (obj->obj.import_attach) {
-		ret = -EINVAL;
-		goto err_unref;
-	}
-
-	ret = drm_gem_create_mmap_offset(&obj->obj);
-	if (ret == 0) {
-		*offset = drm_vma_node_offset_addr(&obj->obj.vma_node);
-		DRM_DEBUG_DRIVER("handle %#x offset %llx\n", handle, *offset);
-	}
-
- err_unref:
-	drm_gem_object_unreference_unlocked(&obj->obj);
-
-	return ret;
-}
-
-int armada_gem_dumb_destroy(struct drm_file *file, struct drm_device *dev,
-	uint32_t handle)
-{
-	return drm_gem_handle_delete(file, handle);
 }
 
 /* Private driver gem ioctls */
@@ -334,7 +297,7 @@ int armada_gem_create_ioctl(struct drm_device *dev, void *data,
 	/* drop reference from allocate - handle holds it now */
 	DRM_DEBUG_DRIVER("obj %p size %zu handle %#x\n", dobj, size, handle);
  err:
-	drm_gem_object_unreference_unlocked(&dobj->obj);
+	drm_gem_object_put_unlocked(&dobj->obj);
 	return ret;
 }
 
@@ -351,13 +314,13 @@ int armada_gem_mmap_ioctl(struct drm_device *dev, void *data,
 		return -ENOENT;
 
 	if (!dobj->obj.filp) {
-		drm_gem_object_unreference_unlocked(&dobj->obj);
+		drm_gem_object_put_unlocked(&dobj->obj);
 		return -EINVAL;
 	}
 
 	addr = vm_mmap(dobj->obj.filp, 0, args->size, PROT_READ | PROT_WRITE,
 		       MAP_SHARED, args->offset);
-	drm_gem_object_unreference_unlocked(&dobj->obj);
+	drm_gem_object_put_unlocked(&dobj->obj);
 	if (IS_ERR_VALUE(addr))
 		return addr;
 
@@ -412,7 +375,7 @@ int armada_gem_pwrite_ioctl(struct drm_device *dev, void *data,
 	}
 
  unref:
-	drm_gem_object_unreference_unlocked(&dobj->obj);
+	drm_gem_object_put_unlocked(&dobj->obj);
 	return ret;
 }
 
@@ -561,7 +524,7 @@ armada_gem_prime_import(struct drm_device *dev, struct dma_buf *buf)
 			 * Importing our own dmabuf(s) increases the
 			 * refcount on the gem object itself.
 			 */
-			drm_gem_object_reference(obj);
+			drm_gem_object_get(obj);
 			return obj;
 		}
 	}

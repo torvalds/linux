@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_X86_TLBFLUSH_H
 #define _ASM_X86_TLBFLUSH_H
 
@@ -82,6 +83,22 @@ static inline u64 inc_mm_tlb_gen(struct mm_struct *mm)
 #define __flush_tlb_single(addr) __native_flush_tlb_single(addr)
 #endif
 
+static inline bool tlb_defer_switch_to_init_mm(void)
+{
+	/*
+	 * If we have PCID, then switching to init_mm is reasonably
+	 * fast.  If we don't have PCID, then switching to init_mm is
+	 * quite slow, so we try to defer it in the hopes that we can
+	 * avoid it entirely.  The latter approach runs the risk of
+	 * receiving otherwise unnecessary IPIs.
+	 *
+	 * This choice is just a heuristic.  The tlb code can handle this
+	 * function returning true or false regardless of whether we have
+	 * PCID.
+	 */
+	return !static_cpu_has(X86_FEATURE_PCID);
+}
+
 /*
  * 6 because 6 should be plenty and struct tlb_state will fit in
  * two cache lines.
@@ -103,6 +120,23 @@ struct tlb_state {
 	struct mm_struct *loaded_mm;
 	u16 loaded_mm_asid;
 	u16 next_asid;
+
+	/*
+	 * We can be in one of several states:
+	 *
+	 *  - Actively using an mm.  Our CPU's bit will be set in
+	 *    mm_cpumask(loaded_mm) and is_lazy == false;
+	 *
+	 *  - Not using a real mm.  loaded_mm == &init_mm.  Our CPU's bit
+	 *    will not be set in mm_cpumask(&init_mm) and is_lazy == false.
+	 *
+	 *  - Lazily using a real mm.  loaded_mm != &init_mm, our bit
+	 *    is set in mm_cpumask(loaded_mm), but is_lazy == true.
+	 *    We're heuristically guessing that the CR3 load we
+	 *    skipped more than makes up for the overhead added by
+	 *    lazy mode.
+	 */
+	bool is_lazy;
 
 	/*
 	 * Access to this CR4 shadow and to H/W CR4 is protected by
@@ -139,40 +173,43 @@ static inline void cr4_init_shadow(void)
 	this_cpu_write(cpu_tlbstate.cr4, __read_cr4());
 }
 
+static inline void __cr4_set(unsigned long cr4)
+{
+	lockdep_assert_irqs_disabled();
+	this_cpu_write(cpu_tlbstate.cr4, cr4);
+	__write_cr4(cr4);
+}
+
 /* Set in this cpu's CR4. */
 static inline void cr4_set_bits(unsigned long mask)
 {
-	unsigned long cr4;
+	unsigned long cr4, flags;
 
+	local_irq_save(flags);
 	cr4 = this_cpu_read(cpu_tlbstate.cr4);
-	if ((cr4 | mask) != cr4) {
-		cr4 |= mask;
-		this_cpu_write(cpu_tlbstate.cr4, cr4);
-		__write_cr4(cr4);
-	}
+	if ((cr4 | mask) != cr4)
+		__cr4_set(cr4 | mask);
+	local_irq_restore(flags);
 }
 
 /* Clear in this cpu's CR4. */
 static inline void cr4_clear_bits(unsigned long mask)
 {
-	unsigned long cr4;
+	unsigned long cr4, flags;
 
+	local_irq_save(flags);
 	cr4 = this_cpu_read(cpu_tlbstate.cr4);
-	if ((cr4 & ~mask) != cr4) {
-		cr4 &= ~mask;
-		this_cpu_write(cpu_tlbstate.cr4, cr4);
-		__write_cr4(cr4);
-	}
+	if ((cr4 & ~mask) != cr4)
+		__cr4_set(cr4 & ~mask);
+	local_irq_restore(flags);
 }
 
-static inline void cr4_toggle_bits(unsigned long mask)
+static inline void cr4_toggle_bits_irqsoff(unsigned long mask)
 {
 	unsigned long cr4;
 
 	cr4 = this_cpu_read(cpu_tlbstate.cr4);
-	cr4 ^= mask;
-	this_cpu_write(cpu_tlbstate.cr4, cr4);
-	__write_cr4(cr4);
+	__cr4_set(cr4 ^ mask);
 }
 
 /* Read the CR4 shadow. */

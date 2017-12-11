@@ -42,11 +42,6 @@
    this contains a helper + a amdgpu fb
    the helper contains a pointer to amdgpu framebuffer baseclass.
 */
-struct amdgpu_fbdev {
-	struct drm_fb_helper helper;
-	struct amdgpu_framebuffer rfb;
-	struct amdgpu_device *adev;
-};
 
 static int
 amdgpufb_open(struct fb_info *info, int user)
@@ -149,7 +144,7 @@ static int amdgpufb_create_pinned_object(struct amdgpu_fbdev *rfbdev,
 				       AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED |
 				       AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS |
 				       AMDGPU_GEM_CREATE_VRAM_CLEARED,
-				       true, &gobj);
+				       true, NULL, &gobj);
 	if (ret) {
 		pr_err("failed to allocate framebuffer (%d)\n", aligned_size);
 		return -ENOMEM;
@@ -303,10 +298,10 @@ static int amdgpu_fbdev_destroy(struct drm_device *dev, struct amdgpu_fbdev *rfb
 	if (rfb->obj) {
 		amdgpufb_destroy_pinned_object(rfb->obj);
 		rfb->obj = NULL;
+		drm_framebuffer_unregister_private(&rfb->base);
+		drm_framebuffer_cleanup(&rfb->base);
 	}
 	drm_fb_helper_fini(&rfbdev->helper);
-	drm_framebuffer_unregister_private(&rfb->base);
-	drm_framebuffer_cleanup(&rfb->base);
 
 	return 0;
 }
@@ -353,7 +348,8 @@ int amdgpu_fbdev_init(struct amdgpu_device *adev)
 	drm_fb_helper_single_add_all_connectors(&rfbdev->helper);
 
 	/* disable all the possible outputs/crtcs before entering KMS mode */
-	drm_helper_disable_unused_functions(adev->ddev);
+	if (!amdgpu_device_has_dc_support(adev))
+		drm_helper_disable_unused_functions(adev->ddev);
 
 	drm_fb_helper_initial_config(&rfbdev->helper, bpp_sel);
 	return 0;

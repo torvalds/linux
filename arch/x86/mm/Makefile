@@ -1,5 +1,13 @@
-# Kernel does not boot with instrumentation of tlb.c.
-KCOV_INSTRUMENT_tlb.o	:= n
+# SPDX-License-Identifier: GPL-2.0
+# Kernel does not boot with instrumentation of tlb.c and mem_encrypt.c
+KCOV_INSTRUMENT_tlb.o		:= n
+KCOV_INSTRUMENT_mem_encrypt.o	:= n
+
+KASAN_SANITIZE_mem_encrypt.o	:= n
+
+ifdef CONFIG_FUNCTION_TRACER
+CFLAGS_REMOVE_mem_encrypt.o	= -pg
+endif
 
 obj-y	:=  init.o init_$(BITS).o fault.o ioremap.o extable.o pageattr.o mmap.o \
 	    pat.o pgtable.o physaddr.o setup_nx.o tlb.o
@@ -20,8 +28,6 @@ obj-$(CONFIG_X86_PTDUMP_CORE)	+= dump_pagetables.o
 obj-$(CONFIG_X86_PTDUMP)	+= debug_pagetables.o
 
 obj-$(CONFIG_HIGHMEM)		+= highmem_32.o
-
-obj-$(CONFIG_KMEMCHECK)		+= kmemcheck/
 
 KASAN_SANITIZE_kasan_init_$(BITS).o := n
 obj-$(CONFIG_KASAN)		+= kasan_init_$(BITS).o

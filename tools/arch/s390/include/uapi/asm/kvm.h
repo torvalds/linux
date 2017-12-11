@@ -1,13 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 #ifndef __LINUX_KVM_S390_H
 #define __LINUX_KVM_S390_H
 /*
  * KVM s390 specific structures and definitions
  *
  * Copyright IBM Corp. 2008
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License (version 2 only)
- * as published by the Free Software Foundation.
  *
  *    Author(s): Carsten Otte <cotte@de.ibm.com>
  *               Christian Borntraeger <borntraeger@de.ibm.com>
@@ -88,6 +85,12 @@ struct kvm_s390_io_adapter_req {
 /* kvm attributes for KVM_S390_VM_TOD */
 #define KVM_S390_VM_TOD_LOW		0
 #define KVM_S390_VM_TOD_HIGH		1
+#define KVM_S390_VM_TOD_EXT		2
+
+struct kvm_s390_vm_tod_clock {
+	__u8  epoch_idx;
+	__u64 tod;
+};
 
 /* kvm attributes for KVM_S390_VM_CPU_MODEL */
 /* processor related attributes are r/w */

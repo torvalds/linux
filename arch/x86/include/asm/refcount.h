@@ -15,7 +15,7 @@
  * back to the regular execution flow in .text.
  */
 #define _REFCOUNT_EXCEPTION				\
-	".pushsection .text.unlikely\n"			\
+	".pushsection .text..refcount\n"		\
 	"111:\tlea %[counter], %%" _ASM_CX "\n"		\
 	"112:\t" ASM_UD0 "\n"				\
 	ASM_UNREACHABLE					\

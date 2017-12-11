@@ -89,6 +89,7 @@
  * @NFC_CMD_ACTIVATE_TARGET: Request NFC controller to reactivate target.
  * @NFC_CMD_VENDOR: Vendor specific command, to be implemented directly
  *	from the driver in order to support hardware specific operations.
+ * @NFC_CMD_DEACTIVATE_TARGET: Request NFC controller to deactivate target.
  */
 enum nfc_commands {
 	NFC_CMD_UNSPEC,
@@ -121,6 +122,7 @@ enum nfc_commands {
 	NFC_CMD_SE_IO,
 	NFC_CMD_ACTIVATE_TARGET,
 	NFC_CMD_VENDOR,
+	NFC_CMD_DEACTIVATE_TARGET,
 /* private: internal use only */
 	__NFC_CMD_AFTER_LAST
 };

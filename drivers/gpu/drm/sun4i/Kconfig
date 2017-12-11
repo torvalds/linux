@@ -26,7 +26,7 @@ config DRM_SUN4I_HDMI_CEC
        bool "Allwinner A10 HDMI CEC Support"
        depends on DRM_SUN4I_HDMI
        select CEC_CORE
-       depends on CEC_PIN
+       select CEC_PIN
        help
 	  Choose this option if you have an Allwinner SoC with an HDMI
 	  controller and want to use CEC.

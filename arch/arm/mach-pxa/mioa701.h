@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _MIOA701_H_
 #define _MIOA701_H_
 

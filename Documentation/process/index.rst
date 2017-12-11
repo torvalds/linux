@@ -25,6 +25,8 @@ Below are the essential guides that every developer should read.
    submitting-patches
    coding-style
    email-clients
+   kernel-enforcement-statement
+   kernel-driver-statement
 
 Other guides to the community that are of interest to most developers are: 
 

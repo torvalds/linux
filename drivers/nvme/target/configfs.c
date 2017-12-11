@@ -20,8 +20,8 @@
 
 #include "nvmet.h"
 
-static struct config_item_type nvmet_host_type;
-static struct config_item_type nvmet_subsys_type;
+static const struct config_item_type nvmet_host_type;
+static const struct config_item_type nvmet_subsys_type;
 
 /*
  * nvmet_port Generic ConfigFS definitions.
@@ -425,7 +425,7 @@ static struct configfs_item_operations nvmet_ns_item_ops = {
 	.release		= nvmet_ns_release,
 };
 
-static struct config_item_type nvmet_ns_type = {
+static const struct config_item_type nvmet_ns_type = {
 	.ct_item_ops		= &nvmet_ns_item_ops,
 	.ct_attrs		= nvmet_ns_attrs,
 	.ct_owner		= THIS_MODULE,
@@ -464,7 +464,7 @@ static struct configfs_group_operations nvmet_namespaces_group_ops = {
 	.make_group		= nvmet_ns_make,
 };
 
-static struct config_item_type nvmet_namespaces_type = {
+static const struct config_item_type nvmet_namespaces_type = {
 	.ct_group_ops		= &nvmet_namespaces_group_ops,
 	.ct_owner		= THIS_MODULE,
 };
@@ -540,7 +540,7 @@ static struct configfs_item_operations nvmet_port_subsys_item_ops = {
 	.drop_link		= nvmet_port_subsys_drop_link,
 };
 
-static struct config_item_type nvmet_port_subsys_type = {
+static const struct config_item_type nvmet_port_subsys_type = {
 	.ct_item_ops		= &nvmet_port_subsys_item_ops,
 	.ct_owner		= THIS_MODULE,
 };
@@ -613,7 +613,7 @@ static struct configfs_item_operations nvmet_allowed_hosts_item_ops = {
 	.drop_link		= nvmet_allowed_hosts_drop_link,
 };
 
-static struct config_item_type nvmet_allowed_hosts_type = {
+static const struct config_item_type nvmet_allowed_hosts_type = {
 	.ct_item_ops		= &nvmet_allowed_hosts_item_ops,
 	.ct_owner		= THIS_MODULE,
 };
@@ -729,7 +729,7 @@ static struct configfs_item_operations nvmet_subsys_item_ops = {
 	.release		= nvmet_subsys_release,
 };
 
-static struct config_item_type nvmet_subsys_type = {
+static const struct config_item_type nvmet_subsys_type = {
 	.ct_item_ops		= &nvmet_subsys_item_ops,
 	.ct_attrs		= nvmet_subsys_attrs,
 	.ct_owner		= THIS_MODULE,
@@ -767,7 +767,7 @@ static struct configfs_group_operations nvmet_subsystems_group_ops = {
 	.make_group		= nvmet_subsys_make,
 };
 
-static struct config_item_type nvmet_subsystems_type = {
+static const struct config_item_type nvmet_subsystems_type = {
 	.ct_group_ops		= &nvmet_subsystems_group_ops,
 	.ct_owner		= THIS_MODULE,
 };
@@ -827,7 +827,7 @@ static struct configfs_item_operations nvmet_referral_item_ops = {
 	.release	= nvmet_referral_release,
 };
 
-static struct config_item_type nvmet_referral_type = {
+static const struct config_item_type nvmet_referral_type = {
 	.ct_owner	= THIS_MODULE,
 	.ct_attrs	= nvmet_referral_attrs,
 	.ct_item_ops	= &nvmet_referral_item_ops,
@@ -852,7 +852,7 @@ static struct configfs_group_operations nvmet_referral_group_ops = {
 	.make_group		= nvmet_referral_make,
 };
 
-static struct config_item_type nvmet_referrals_type = {
+static const struct config_item_type nvmet_referrals_type = {
 	.ct_owner	= THIS_MODULE,
 	.ct_group_ops	= &nvmet_referral_group_ops,
 };
@@ -880,7 +880,7 @@ static struct configfs_item_operations nvmet_port_item_ops = {
 	.release		= nvmet_port_release,
 };
 
-static struct config_item_type nvmet_port_type = {
+static const struct config_item_type nvmet_port_type = {
 	.ct_attrs		= nvmet_port_attrs,
 	.ct_item_ops		= &nvmet_port_item_ops,
 	.ct_owner		= THIS_MODULE,
@@ -921,7 +921,7 @@ static struct configfs_group_operations nvmet_ports_group_ops = {
 	.make_group		= nvmet_ports_make,
 };
 
-static struct config_item_type nvmet_ports_type = {
+static const struct config_item_type nvmet_ports_type = {
 	.ct_group_ops		= &nvmet_ports_group_ops,
 	.ct_owner		= THIS_MODULE,
 };
@@ -940,7 +940,7 @@ static struct configfs_item_operations nvmet_host_item_ops = {
 	.release		= nvmet_host_release,
 };
 
-static struct config_item_type nvmet_host_type = {
+static const struct config_item_type nvmet_host_type = {
 	.ct_item_ops		= &nvmet_host_item_ops,
 	.ct_owner		= THIS_MODULE,
 };
@@ -963,14 +963,14 @@ static struct configfs_group_operations nvmet_hosts_group_ops = {
 	.make_group		= nvmet_hosts_make_group,
 };
 
-static struct config_item_type nvmet_hosts_type = {
+static const struct config_item_type nvmet_hosts_type = {
 	.ct_group_ops		= &nvmet_hosts_group_ops,
 	.ct_owner		= THIS_MODULE,
 };
 
 static struct config_group nvmet_hosts_group;
 
-static struct config_item_type nvmet_root_type = {
+static const struct config_item_type nvmet_root_type = {
 	.ct_owner		= THIS_MODULE,
 };
 

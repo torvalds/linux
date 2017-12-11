@@ -322,8 +322,6 @@ struct clk *rockchip_clk_register_cpuclk(const char *name,
 					     sizeof(*rates) * nrates,
 					     GFP_KERNEL);
 		if (!cpuclk->rate_table) {
-			pr_err("%s: could not allocate memory for cpuclk rates\n",
-			       __func__);
 			ret = -ENOMEM;
 			goto unregister_notifier;
 		}

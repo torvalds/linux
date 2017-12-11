@@ -220,7 +220,7 @@ static int rockchip_drm_gem_object_mmap_iommu(struct drm_gem_object *obj,
 {
 	struct rockchip_gem_object *rk_obj = to_rockchip_obj(obj);
 	unsigned int i, count = obj->size >> PAGE_SHIFT;
-	unsigned long user_count = (vma->vm_end - vma->vm_start) >> PAGE_SHIFT;
+	unsigned long user_count = vma_pages(vma);
 	unsigned long uaddr = vma->vm_start;
 	unsigned long offset = vma->vm_pgoff;
 	unsigned long end = user_count + offset;

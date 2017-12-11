@@ -11,8 +11,6 @@
 #include "blk-mq.h"
 #include "blk.h"
 
-#define BLK_RQ_STAT_BATCH	64
-
 struct blk_queue_stats {
 	struct list_head callbacks;
 	spinlock_t lock;
@@ -23,45 +21,21 @@ static void blk_stat_init(struct blk_rq_stat *stat)
 {
 	stat->min = -1ULL;
 	stat->max = stat->nr_samples = stat->mean = 0;
-	stat->batch = stat->nr_batch = 0;
+	stat->batch = 0;
 }
 
-static void blk_stat_flush_batch(struct blk_rq_stat *stat)
-{
-	const s32 nr_batch = READ_ONCE(stat->nr_batch);
-	const s32 nr_samples = READ_ONCE(stat->nr_samples);
-
-	if (!nr_batch)
-		return;
-	if (!nr_samples)
-		stat->mean = div64_s64(stat->batch, nr_batch);
-	else {
-		stat->mean = div64_s64((stat->mean * nr_samples) +
-					stat->batch,
-					nr_batch + nr_samples);
-	}
-
-	stat->nr_samples += nr_batch;
-	stat->nr_batch = stat->batch = 0;
-}
-
+/* src is a per-cpu stat, mean isn't initialized */
 static void blk_stat_sum(struct blk_rq_stat *dst, struct blk_rq_stat *src)
 {
-	blk_stat_flush_batch(src);
-
 	if (!src->nr_samples)
 		return;
 
 	dst->min = min(dst->min, src->min);
 	dst->max = max(dst->max, src->max);
 
-	if (!dst->nr_samples)
-		dst->mean = src->mean;
-	else {
-		dst->mean = div64_s64((src->mean * src->nr_samples) +
-					(dst->mean * dst->nr_samples),
-					dst->nr_samples + src->nr_samples);
-	}
+	dst->mean = div_u64(src->batch + dst->mean * dst->nr_samples,
+				dst->nr_samples + src->nr_samples);
+
 	dst->nr_samples += src->nr_samples;
 }
 
@@ -69,13 +43,8 @@ static void __blk_stat_add(struct blk_rq_stat *stat, u64 value)
 {
 	stat->min = min(stat->min, value);
 	stat->max = max(stat->max, value);
-
-	if (stat->batch + value < stat->batch ||
-	    stat->nr_batch + 1 == BLK_RQ_STAT_BATCH)
-		blk_stat_flush_batch(stat);
-
 	stat->batch += value;
-	stat->nr_batch++;
+	stat->nr_samples++;
 }
 
 void blk_stat_add(struct request *rq)
@@ -84,7 +53,7 @@ void blk_stat_add(struct request *rq)
 	struct blk_stat_callback *cb;
 	struct blk_rq_stat *stat;
 	int bucket;
-	s64 now, value;
+	u64 now, value;
 
 	now = __blk_stat_time(ktime_to_ns(ktime_get()));
 	if (now < blk_stat_time(&rq->issue_stat))
@@ -110,9 +79,9 @@ void blk_stat_add(struct request *rq)
 	rcu_read_unlock();
 }
 
-static void blk_stat_timer_fn(unsigned long data)
+static void blk_stat_timer_fn(struct timer_list *t)
 {
-	struct blk_stat_callback *cb = (void *)data;
+	struct blk_stat_callback *cb = from_timer(cb, t, timer);
 	unsigned int bucket;
 	int cpu;
 
@@ -161,7 +130,7 @@ blk_stat_alloc_callback(void (*timer_fn)(struct blk_stat_callback *),
 	cb->bucket_fn = bucket_fn;
 	cb->data = data;
 	cb->buckets = buckets;
-	setup_timer(&cb->timer, blk_stat_timer_fn, (unsigned long)cb);
+	timer_setup(&cb->timer, blk_stat_timer_fn, 0);
 
 	return cb;
 }

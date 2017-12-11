@@ -210,7 +210,7 @@ static const struct hdmi_codec_ops adv7511_codec_ops = {
 	.get_dai_id	= adv7511_hdmi_i2s_get_dai_id,
 };
 
-static struct hdmi_codec_pdata codec_data = {
+static const struct hdmi_codec_pdata codec_data = {
 	.ops = &adv7511_codec_ops,
 	.max_i2s_channels = 2,
 	.i2s = 1,

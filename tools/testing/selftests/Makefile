@@ -1,4 +1,6 @@
-TARGETS =  bpf
+# SPDX-License-Identifier: GPL-2.0
+TARGETS = android
+TARGETS += bpf
 TARGETS += breakpoints
 TARGETS += capabilities
 TARGETS += cpufreq
@@ -52,6 +54,10 @@ override LDFLAGS =
 override MAKEFLAGS =
 endif
 
+ifneq ($(KBUILD_SRC),)
+override LDFLAGS =
+endif
+
 BUILD := $(O)
 ifndef BUILD
   BUILD := $(KBUILD_OUTPUT)
@@ -62,32 +68,32 @@ endif
 
 export BUILD
 all:
-	for TARGET in $(TARGETS); do		\
+	@for TARGET in $(TARGETS); do		\
 		BUILD_TARGET=$$BUILD/$$TARGET;	\
 		mkdir $$BUILD_TARGET  -p;	\
 		make OUTPUT=$$BUILD_TARGET -C $$TARGET;\
 	done;
 
 run_tests: all
-	for TARGET in $(TARGETS); do \
+	@for TARGET in $(TARGETS); do \
 		BUILD_TARGET=$$BUILD/$$TARGET;	\
 		make OUTPUT=$$BUILD_TARGET -C $$TARGET run_tests;\
 	done;
 
 hotplug:
-	for TARGET in $(TARGETS_HOTPLUG); do \
+	@for TARGET in $(TARGETS_HOTPLUG); do \
 		BUILD_TARGET=$$BUILD/$$TARGET;	\
 		make OUTPUT=$$BUILD_TARGET -C $$TARGET;\
 	done;
 
 run_hotplug: hotplug
-	for TARGET in $(TARGETS_HOTPLUG); do \
+	@for TARGET in $(TARGETS_HOTPLUG); do \
 		BUILD_TARGET=$$BUILD/$$TARGET;	\
 		make OUTPUT=$$BUILD_TARGET -C $$TARGET run_full_test;\
 	done;
 
 clean_hotplug:
-	for TARGET in $(TARGETS_HOTPLUG); do \
+	@for TARGET in $(TARGETS_HOTPLUG); do \
 		BUILD_TARGET=$$BUILD/$$TARGET;	\
 		make OUTPUT=$$BUILD_TARGET -C $$TARGET clean;\
 	done;
@@ -103,7 +109,7 @@ install:
 ifdef INSTALL_PATH
 	@# Ask all targets to install their files
 	mkdir -p $(INSTALL_PATH)
-	for TARGET in $(TARGETS); do \
+	@for TARGET in $(TARGETS); do \
 		BUILD_TARGET=$$BUILD/$$TARGET;	\
 		make OUTPUT=$$BUILD_TARGET -C $$TARGET INSTALL_PATH=$(INSTALL_PATH)/$$TARGET install; \
 	done;
@@ -128,7 +134,7 @@ else
 endif
 
 clean:
-	for TARGET in $(TARGETS); do \
+	@for TARGET in $(TARGETS); do \
 		BUILD_TARGET=$$BUILD/$$TARGET;	\
 		make OUTPUT=$$BUILD_TARGET -C $$TARGET clean;\
 	done;

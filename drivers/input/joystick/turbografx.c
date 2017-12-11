@@ -89,9 +89,9 @@ static struct tgfx {
  * tgfx_timer() reads and analyzes TurboGraFX joystick data.
  */
 
-static void tgfx_timer(unsigned long private)
+static void tgfx_timer(struct timer_list *t)
 {
-	struct tgfx *tgfx = (void *) private;
+	struct tgfx *tgfx = from_timer(tgfx, t, timer);
 	struct input_dev *dev;
 	int data1, data2, i;
 
@@ -200,7 +200,7 @@ static void tgfx_attach(struct parport *pp)
 	mutex_init(&tgfx->sem);
 	tgfx->pd = pd;
 	tgfx->parportno = pp->number;
-	setup_timer(&tgfx->timer, tgfx_timer, (long)tgfx);
+	timer_setup(&tgfx->timer, tgfx_timer, 0);
 
 	for (i = 0; i < n_devs; i++) {
 		if (n_buttons[i] < 1)

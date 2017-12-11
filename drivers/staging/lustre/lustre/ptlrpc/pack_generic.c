@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * GPL HEADER START
  *
@@ -786,7 +787,7 @@ __u32 lustre_msg_get_flags(struct lustre_msg *msg)
 
 		CERROR("invalid msg %p: no ptlrpc body!\n", msg);
 	}
-	/* no break */
+	/* fall through */
 	default:
 		/* flags might be printed in debug code while message
 		 * uninitialized
@@ -854,7 +855,7 @@ __u32 lustre_msg_get_op_flags(struct lustre_msg *msg)
 
 		CERROR("invalid msg %p: no ptlrpc body!\n", msg);
 	}
-	/* no break */
+	/* fall through */
 	default:
 		return 0;
 	}
@@ -1035,7 +1036,7 @@ int lustre_msg_get_status(struct lustre_msg *msg)
 
 		CERROR("invalid msg %p: no ptlrpc body!\n", msg);
 	}
-	/* no break */
+	/* fall through */
 	default:
 		/* status might be printed in debug code while message
 		 * uninitialized

@@ -65,7 +65,6 @@ void bcm2835_playback_fifo(struct bcm2835_alsa_stream *alsa_stream)
 	unsigned int consumed = 0;
 	int new_period = 0;
 
-
 	audio_info("alsa_stream=%p substream=%p\n", alsa_stream,
 		alsa_stream ? alsa_stream->substream : 0);
 
@@ -110,7 +109,6 @@ static int snd_bcm2835_playback_open_generic(
 	struct bcm2835_alsa_stream *alsa_stream;
 	int idx;
 	int err;
-
 
 	if (mutex_lock_interruptible(&chip->audio_mutex)) {
 		audio_error("Interrupted whilst waiting for lock\n");
@@ -184,7 +182,6 @@ static int snd_bcm2835_playback_open_generic(
 out:
 	mutex_unlock(&chip->audio_mutex);
 
-
 	return err;
 }
 
@@ -206,7 +203,6 @@ static int snd_bcm2835_playback_close(struct snd_pcm_substream *substream)
 	struct bcm2835_chip *chip;
 	struct snd_pcm_runtime *runtime;
 	struct bcm2835_alsa_stream *alsa_stream;
-
 
 	chip = snd_pcm_substream_chip(substream);
 	if (mutex_lock_interruptible(&chip->audio_mutex)) {
@@ -259,7 +255,6 @@ static int snd_bcm2835_pcm_hw_params(struct snd_pcm_substream *substream,
 	struct bcm2835_alsa_stream *alsa_stream = runtime->private_data;
 	int err;
 
-
 	err = snd_pcm_lib_malloc_pages(substream, params_buffer_bytes(params));
 	if (err < 0) {
 		audio_error
@@ -289,7 +284,6 @@ static int snd_bcm2835_pcm_prepare(struct snd_pcm_substream *substream)
 	int channels;
 	int err;
 
-
 	if (mutex_lock_interruptible(&chip->audio_mutex))
 		return -EINTR;
 
@@ -307,12 +301,10 @@ static int snd_bcm2835_pcm_prepare(struct snd_pcm_substream *substream)
 	if (err < 0)
 		audio_error(" error setting hw params\n");
 
-
 	bcm2835_audio_setup(alsa_stream);
 
 	/* in preparation of the stream, set the controls (volume level) of the stream */
 	bcm2835_audio_set_ctls(alsa_stream->chip);
-
 
 	memset(&alsa_stream->pcm_indirect, 0, sizeof(alsa_stream->pcm_indirect));
 
@@ -364,7 +356,6 @@ static int snd_bcm2835_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 	struct bcm2835_alsa_stream *alsa_stream = runtime->private_data;
 	int err = 0;
 
-
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
 		audio_debug("bcm2835_AUDIO_TRIGGER_START running=%d\n",
@@ -415,7 +406,6 @@ snd_bcm2835_pcm_pointer(struct snd_pcm_substream *substream)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct bcm2835_alsa_stream *alsa_stream = runtime->private_data;
-
 
 	audio_debug("pcm_pointer... (%d) hwptr=%d appl=%d pos=%d\n", 0,
 		frames_to_bytes(runtime, runtime->status->hw_ptr),
@@ -492,7 +482,6 @@ int snd_bcm2835_new_pcm(struct bcm2835_chip *chip, u32 numchannels)
 					      snd_dma_continuous_data(GFP_KERNEL),
 					      snd_bcm2835_playback_hw.buffer_bytes_max,
 					      snd_bcm2835_playback_hw.buffer_bytes_max);
-
 
 out:
 	mutex_unlock(&chip->audio_mutex);

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 snd-oxygen-lib-objs := oxygen_io.o oxygen_lib.o oxygen_mixer.o oxygen_pcm.o
 snd-oxygen-objs := oxygen.o xonar_dg_mixer.o xonar_dg.o
 snd-se6x-objs := se6x.o

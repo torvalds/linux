@@ -1062,9 +1062,9 @@ batadv_purge_neigh_ifinfo(struct batadv_priv *bat_priv,
 			continue;
 
 		/* don't purge if the interface is not (going) down */
-		if ((if_outgoing->if_status != BATADV_IF_INACTIVE) &&
-		    (if_outgoing->if_status != BATADV_IF_NOT_IN_USE) &&
-		    (if_outgoing->if_status != BATADV_IF_TO_BE_REMOVED))
+		if (if_outgoing->if_status != BATADV_IF_INACTIVE &&
+		    if_outgoing->if_status != BATADV_IF_NOT_IN_USE &&
+		    if_outgoing->if_status != BATADV_IF_TO_BE_REMOVED)
 			continue;
 
 		batadv_dbg(BATADV_DBG_BATMAN, bat_priv,
@@ -1106,9 +1106,9 @@ batadv_purge_orig_ifinfo(struct batadv_priv *bat_priv,
 			continue;
 
 		/* don't purge if the interface is not (going) down */
-		if ((if_outgoing->if_status != BATADV_IF_INACTIVE) &&
-		    (if_outgoing->if_status != BATADV_IF_NOT_IN_USE) &&
-		    (if_outgoing->if_status != BATADV_IF_TO_BE_REMOVED))
+		if (if_outgoing->if_status != BATADV_IF_INACTIVE &&
+		    if_outgoing->if_status != BATADV_IF_NOT_IN_USE &&
+		    if_outgoing->if_status != BATADV_IF_TO_BE_REMOVED)
 			continue;
 
 		batadv_dbg(BATADV_DBG_BATMAN, bat_priv,
@@ -1155,13 +1155,13 @@ batadv_purge_orig_neighbors(struct batadv_priv *bat_priv,
 		last_seen = neigh_node->last_seen;
 		if_incoming = neigh_node->if_incoming;
 
-		if ((batadv_has_timed_out(last_seen, BATADV_PURGE_TIMEOUT)) ||
-		    (if_incoming->if_status == BATADV_IF_INACTIVE) ||
-		    (if_incoming->if_status == BATADV_IF_NOT_IN_USE) ||
-		    (if_incoming->if_status == BATADV_IF_TO_BE_REMOVED)) {
-			if ((if_incoming->if_status == BATADV_IF_INACTIVE) ||
-			    (if_incoming->if_status == BATADV_IF_NOT_IN_USE) ||
-			    (if_incoming->if_status == BATADV_IF_TO_BE_REMOVED))
+		if (batadv_has_timed_out(last_seen, BATADV_PURGE_TIMEOUT) ||
+		    if_incoming->if_status == BATADV_IF_INACTIVE ||
+		    if_incoming->if_status == BATADV_IF_NOT_IN_USE ||
+		    if_incoming->if_status == BATADV_IF_TO_BE_REMOVED) {
+			if (if_incoming->if_status == BATADV_IF_INACTIVE ||
+			    if_incoming->if_status == BATADV_IF_NOT_IN_USE ||
+			    if_incoming->if_status == BATADV_IF_TO_BE_REMOVED)
 				batadv_dbg(BATADV_DBG_BATMAN, bat_priv,
 					   "neighbor purge: originator %pM, neighbor: %pM, iface: %s\n",
 					   orig_node->orig, neigh_node->addr,

@@ -162,9 +162,9 @@ struct bnxt_qplib_rcfw {
 	unsigned long		*cmdq_bitmap;
 	u32			bmap_size;
 	unsigned long		flags;
-#define FIRMWARE_INITIALIZED_FLAG	BIT(0)
-#define FIRMWARE_FIRST_FLAG		BIT(31)
-#define FIRMWARE_TIMED_OUT		BIT(3)
+#define FIRMWARE_INITIALIZED_FLAG	0
+#define FIRMWARE_FIRST_FLAG		31
+#define FIRMWARE_TIMED_OUT		3
 	wait_queue_head_t	waitq;
 	int			(*aeq_handler)(struct bnxt_qplib_rcfw *,
 					       struct creq_func_event *);

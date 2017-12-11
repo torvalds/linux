@@ -403,6 +403,12 @@ static void scsi_report_sense(struct scsi_device *sdev,
 				    "threshold.\n");
 		}
 
+		if (sshdr->asc == 0x29) {
+			evt_type = SDEV_EVT_POWER_ON_RESET_OCCURRED;
+			sdev_printk(KERN_WARNING, sdev,
+				    "Power-on or device reset occurred\n");
+		}
+
 		if (sshdr->asc == 0x2a && sshdr->ascq == 0x01) {
 			evt_type = SDEV_EVT_MODE_PARAMETER_CHANGE_REPORTED;
 			sdev_printk(KERN_WARNING, sdev,
@@ -579,8 +585,10 @@ int scsi_check_sense(struct scsi_cmnd *scmd)
 	case ILLEGAL_REQUEST:
 		if (sshdr.asc == 0x20 || /* Invalid command operation code */
 		    sshdr.asc == 0x21 || /* Logical block address out of range */
+		    sshdr.asc == 0x22 || /* Invalid function */
 		    sshdr.asc == 0x24 || /* Invalid field in cdb */
-		    sshdr.asc == 0x26) { /* Parameter value invalid */
+		    sshdr.asc == 0x26 || /* Parameter value invalid */
+		    sshdr.asc == 0x27) { /* Write protected */
 			set_host_byte(scmd, DID_TARGET_FAILURE);
 		}
 		return SUCCESS;
@@ -1746,16 +1754,12 @@ int scsi_decide_disposition(struct scsi_cmnd *scmd)
 		 * that it indicates SUCCESS.
 		 */
 		return SUCCESS;
+	case DID_SOFT_ERROR:
 		/*
 		 * when the low level driver returns did_soft_error,
 		 * it is responsible for keeping an internal retry counter
 		 * in order to avoid endless loops (db)
-		 *
-		 * actually this is a bug in this function here.  we should
-		 * be mindful of the maximum number of retries specified
-		 * and not get stuck in a loop.
 		 */
-	case DID_SOFT_ERROR:
 		goto maybe_retry;
 	case DID_IMM_RETRY:
 		return NEEDS_RETRY;

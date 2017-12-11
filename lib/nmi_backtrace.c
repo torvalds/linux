@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *  NMI backtrace support
  *
@@ -92,8 +93,8 @@ bool nmi_cpu_backtrace(struct pt_regs *regs)
 	if (cpumask_test_cpu(cpu, to_cpumask(backtrace_mask))) {
 		arch_spin_lock(&lock);
 		if (regs && cpu_in_idle(instruction_pointer(regs))) {
-			pr_warn("NMI backtrace for cpu %d skipped: idling at pc %#lx\n",
-				cpu, instruction_pointer(regs));
+			pr_warn("NMI backtrace for cpu %d skipped: idling at %pS\n",
+				cpu, (void *)instruction_pointer(regs));
 		} else {
 			pr_warn("NMI backtrace for cpu %d\n", cpu);
 			if (regs)

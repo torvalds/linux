@@ -51,6 +51,11 @@
 #define SPR_ICCFGR	(SPRGROUP_SYS + 6)
 #define SPR_DCFGR	(SPRGROUP_SYS + 7)
 #define SPR_PCCFGR	(SPRGROUP_SYS + 8)
+#define SPR_VR2		(SPRGROUP_SYS + 9)
+#define SPR_AVR		(SPRGROUP_SYS + 10)
+#define SPR_EVBAR	(SPRGROUP_SYS + 11)
+#define SPR_AECR	(SPRGROUP_SYS + 12)
+#define SPR_AESR	(SPRGROUP_SYS + 13)
 #define SPR_NPC         (SPRGROUP_SYS + 16)  /* CZ 21/06/01 */
 #define SPR_SR		(SPRGROUP_SYS + 17)  /* CZ 21/06/01 */
 #define SPR_PPC         (SPRGROUP_SYS + 18)  /* CZ 21/06/01 */
@@ -61,6 +66,8 @@
 #define SPR_EEAR_LAST	(SPRGROUP_SYS + 63)
 #define SPR_ESR_BASE	(SPRGROUP_SYS + 64)
 #define SPR_ESR_LAST	(SPRGROUP_SYS + 79)
+#define SPR_COREID	(SPRGROUP_SYS + 128)
+#define SPR_NUMCORES	(SPRGROUP_SYS + 129)
 #define SPR_GPR_BASE	(SPRGROUP_SYS + 1024)
 
 /* Data MMU group */
@@ -135,10 +142,17 @@
 #define SPR_VR_CFG	0x00ff0000  /* Processor configuration */
 #define SPR_VR_RES	0x0000ffc0  /* Reserved */
 #define SPR_VR_REV	0x0000003f  /* Processor revision */
+#define SPR_VR_UVRP	0x00000040  /* Updated Version Registers Present */
 
 #define SPR_VR_VER_OFF	24
 #define SPR_VR_CFG_OFF	16
 #define SPR_VR_REV_OFF	0
+
+/*
+ * Bit definitions for the Version Register 2
+ */
+#define SPR_VR2_CPUID	0xff000000  /* Processor ID */
+#define SPR_VR2_VER	0x00ffffff  /* Processor version */
 
 /*
  * Bit definitions for the Unit Present Register

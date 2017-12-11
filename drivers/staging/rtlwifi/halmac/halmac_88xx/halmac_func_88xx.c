@@ -276,17 +276,13 @@ halmac_dump_efuse_drv_88xx(struct halmac_adapter *halmac_adapter)
 
 	if (!halmac_adapter->hal_efuse_map) {
 		halmac_adapter->hal_efuse_map = kzalloc(efuse_size, GFP_KERNEL);
-		if (!halmac_adapter->hal_efuse_map) {
-			pr_err("[ERR]halmac allocate efuse map Fail!!\n");
+		if (!halmac_adapter->hal_efuse_map)
 			return HALMAC_RET_MALLOC_FAIL;
-		}
 	}
 
 	efuse_map = kzalloc(efuse_size, GFP_KERNEL);
-	if (!efuse_map) {
-		/* out of memory */
+	if (!efuse_map)
 		return HALMAC_RET_MALLOC_FAIL;
-	}
 
 	if (halmac_read_hw_efuse_88xx(halmac_adapter, 0, efuse_size,
 				      efuse_map) != HALMAC_RET_SUCCESS) {
@@ -325,10 +321,8 @@ halmac_dump_efuse_fw_88xx(struct halmac_adapter *halmac_adapter)
 	if (!halmac_adapter->hal_efuse_map) {
 		halmac_adapter->hal_efuse_map = kzalloc(
 			halmac_adapter->hw_config_info.efuse_size, GFP_KERNEL);
-		if (!halmac_adapter->hal_efuse_map) {
-			/* out of memory */
+		if (!halmac_adapter->hal_efuse_map)
 			return HALMAC_RET_MALLOC_FAIL;
-		}
 	}
 
 	if (!halmac_adapter->hal_efuse_map_valid) {
@@ -537,10 +531,8 @@ halmac_read_logical_efuse_map_88xx(struct halmac_adapter *halmac_adapter,
 
 	if (!halmac_adapter->hal_efuse_map_valid) {
 		efuse_map = kzalloc(efuse_size, GFP_KERNEL);
-		if (!efuse_map) {
-			pr_err("[ERR]halmac allocate local efuse map Fail!!\n");
+		if (!efuse_map)
 			return HALMAC_RET_MALLOC_FAIL;
-		}
 
 		status = halmac_func_read_efuse_88xx(halmac_adapter, 0,
 						     efuse_size, efuse_map);
@@ -554,7 +546,6 @@ halmac_read_logical_efuse_map_88xx(struct halmac_adapter *halmac_adapter,
 			halmac_adapter->hal_efuse_map =
 				kzalloc(efuse_size, GFP_KERNEL);
 			if (!halmac_adapter->hal_efuse_map) {
-				pr_err("[ERR]halmac allocate efuse map Fail!!\n");
 				kfree(efuse_map);
 				return HALMAC_RET_MALLOC_FAIL;
 			}
@@ -592,10 +583,8 @@ halmac_func_write_logical_efuse_88xx(struct halmac_adapter *halmac_adapter,
 	driver_adapter = halmac_adapter->driver_adapter;
 
 	eeprom_map = kzalloc(eeprom_size, GFP_KERNEL);
-	if (!eeprom_map) {
-		/* out of memory */
+	if (!eeprom_map)
 		return HALMAC_RET_MALLOC_FAIL;
-	}
 	memset(eeprom_map, 0xFF, eeprom_size);
 
 	status = halmac_read_logical_efuse_map_88xx(halmac_adapter, eeprom_map);
@@ -687,10 +676,8 @@ halmac_func_pg_efuse_by_map_88xx(struct halmac_adapter *halmac_adapter,
 	enum halmac_ret_status status = HALMAC_RET_SUCCESS;
 
 	eeprom_mask_updated = kzalloc(eeprom_mask_size, GFP_KERNEL);
-	if (!eeprom_mask_updated) {
-		/* out of memory */
+	if (!eeprom_mask_updated)
 		return HALMAC_RET_MALLOC_FAIL;
-	}
 
 	status = halmac_update_eeprom_mask_88xx(halmac_adapter, pg_efuse_info,
 						eeprom_mask_updated);
@@ -743,12 +730,10 @@ halmac_update_eeprom_mask_88xx(struct halmac_adapter *halmac_adapter,
 	driver_adapter = halmac_adapter->driver_adapter;
 
 	eeprom_map = kzalloc(eeprom_size, GFP_KERNEL);
-	if (!eeprom_map) {
-		/* out of memory */
+	if (!eeprom_map)
 		return HALMAC_RET_MALLOC_FAIL;
-	}
-	memset(eeprom_map, 0xFF, eeprom_size);
 
+	memset(eeprom_map, 0xFF, eeprom_size);
 	memset(eeprom_mask_updated, 0x00, pg_efuse_info->efuse_mask_size);
 
 	status = halmac_read_logical_efuse_map_88xx(halmac_adapter, eeprom_map);
@@ -1036,7 +1021,7 @@ halmac_dlfw_to_mem_88xx(struct halmac_adapter *halmac_adapter, u8 *ram_code,
 		if (halmac_send_fwpkt_88xx(
 			    halmac_adapter, code_ptr + mem_offset,
 			    send_pkt_size) != HALMAC_RET_SUCCESS) {
-			pr_err("halmac_send_fwpkt_88xx fail!!");
+			pr_err("halmac_send_fwpkt_88xx fail!!\n");
 			return HALMAC_RET_DLFW_FAIL;
 		}
 
@@ -1046,7 +1031,7 @@ halmac_dlfw_to_mem_88xx(struct halmac_adapter *halmac_adapter, u8 *ram_code,
 				    halmac_adapter->hw_config_info.txdesc_size,
 			    dest + mem_offset, send_pkt_size,
 			    first_part) != HALMAC_RET_SUCCESS) {
-			pr_err("halmac_iddma_dlfw_88xx fail!!");
+			pr_err("halmac_iddma_dlfw_88xx fail!!\n");
 			return HALMAC_RET_DLFW_FAIL;
 		}
 
@@ -1057,7 +1042,7 @@ halmac_dlfw_to_mem_88xx(struct halmac_adapter *halmac_adapter, u8 *ram_code,
 
 	if (halmac_check_fw_chksum_88xx(halmac_adapter, dest) !=
 	    HALMAC_RET_SUCCESS) {
-		pr_err("halmac_check_fw_chksum_88xx fail!!");
+		pr_err("halmac_check_fw_chksum_88xx fail!!\n");
 		return HALMAC_RET_DLFW_FAIL;
 	}
 
@@ -1618,10 +1603,11 @@ halmac_send_h2c_set_pwr_mode_88xx(struct halmac_adapter *halmac_adapter,
 	void *driver_adapter = NULL;
 	enum halmac_ret_status status = HALMAC_RET_SUCCESS;
 
+	driver_adapter = halmac_adapter->driver_adapter;
+
 	HALMAC_RT_TRACE(driver_adapter, HALMAC_MSG_H2C, DBG_DMESG,
 			"%s!!\n", __func__);
 
-	driver_adapter = halmac_adapter->driver_adapter;
 	h2c_header = h2c_buff;
 	h2c_cmd = h2c_header + HALMAC_H2C_CMD_HDR_SIZE_88XX;
 
@@ -1713,10 +1699,11 @@ halmac_media_status_rpt_88xx(struct halmac_adapter *halmac_adapter, u8 op_mode,
 	void *driver_adapter = NULL;
 	enum halmac_ret_status status = HALMAC_RET_SUCCESS;
 
+	driver_adapter = halmac_adapter->driver_adapter;
+
 	HALMAC_RT_TRACE(driver_adapter, HALMAC_MSG_H2C, DBG_DMESG,
 			"halmac_send_h2c_set_pwr_mode_88xx!!\n");
 
-	driver_adapter = halmac_adapter->driver_adapter;
 	h2c_header = H2c_buff;
 	h2c_cmd = h2c_header + HALMAC_H2C_CMD_HDR_SIZE_88XX;
 
@@ -2143,10 +2130,11 @@ halmac_func_ctrl_ch_switch_88xx(struct halmac_adapter *halmac_adapter,
 	enum halmac_cmd_process_status *process_status =
 		&halmac_adapter->halmac_state.scan_state_set.process_status;
 
+	driver_adapter = halmac_adapter->driver_adapter;
+
 	HALMAC_RT_TRACE(driver_adapter, HALMAC_MSG_H2C, DBG_DMESG,
 			"halmac_ctrl_ch_switch!!\n");
 
-	driver_adapter = halmac_adapter->driver_adapter;
 	halmac_api = (struct halmac_api *)halmac_adapter->halmac_api;
 
 	if (halmac_transition_scan_state_88xx(
@@ -2276,14 +2264,12 @@ enum halmac_ret_status halmac_send_h2c_update_bcn_parse_info_88xx(
 {
 	u8 h2c_buff[HALMAC_H2C_CMD_SIZE_88XX] = {0};
 	u16 h2c_seq_mum = 0;
-	void *driver_adapter = NULL;
+	void *driver_adapter = halmac_adapter->driver_adapter;
 	struct halmac_h2c_header_info h2c_header_info;
 	enum halmac_ret_status status = HALMAC_RET_SUCCESS;
 
 	HALMAC_RT_TRACE(driver_adapter, HALMAC_MSG_H2C, DBG_DMESG,
 			"%s!!\n", __func__);
-
-	driver_adapter = halmac_adapter->driver_adapter;
 
 	UPDATE_BEACON_PARSING_INFO_SET_FUNC_EN(h2c_buff, bcn_ie_info->func_en);
 	UPDATE_BEACON_PARSING_INFO_SET_SIZE_TH(h2c_buff, bcn_ie_info->size_th);
@@ -2548,10 +2534,8 @@ halmac_parse_efuse_data_88xx(struct halmac_adapter *halmac_adapter, u8 *c2h_buf,
 		halmac_adapter->efuse_segment_size = segment_size;
 
 	eeprom_map = kzalloc(eeprom_size, GFP_KERNEL);
-	if (!eeprom_map) {
-		/* out of memory */
+	if (!eeprom_map)
 		return HALMAC_RET_MALLOC_FAIL;
-	}
 	memset(eeprom_map, 0xFF, eeprom_size);
 
 	spin_lock(&halmac_adapter->efuse_lock);
@@ -3354,10 +3338,8 @@ enum halmac_ret_status halmac_query_dump_logical_efuse_status_88xx(
 		*size = eeprom_size;
 
 		eeprom_map = kzalloc(eeprom_size, GFP_KERNEL);
-		if (!eeprom_map) {
-			/* out of memory */
+		if (!eeprom_map)
 			return HALMAC_RET_MALLOC_FAIL;
-		}
 		memset(eeprom_map, 0xFF, eeprom_size);
 
 		if (halmac_eeprom_parser_88xx(
@@ -3578,10 +3560,8 @@ halmac_verify_send_rsvd_page_88xx(struct halmac_adapter *halmac_adapter)
 
 	rsvd_buf = kzalloc(h2c_pkt_verify_size, GFP_KERNEL);
 
-	if (!rsvd_buf) {
-		/*pr_err("[ERR]rsvd buffer malloc fail!!\n");*/
+	if (!rsvd_buf)
 		return HALMAC_RET_MALLOC_FAIL;
-	}
 
 	memset(rsvd_buf, (u8)h2c_pkt_verify_payload, h2c_pkt_verify_size);
 
@@ -3598,7 +3578,6 @@ halmac_verify_send_rsvd_page_88xx(struct halmac_adapter *halmac_adapter)
 			    GFP_KERNEL);
 
 	if (!rsvd_page) {
-		pr_err("[ERR]rsvd page malloc fail!!\n");
 		kfree(rsvd_buf);
 		return HALMAC_RET_MALLOC_FAIL;
 	}

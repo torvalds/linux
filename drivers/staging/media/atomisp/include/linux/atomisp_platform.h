@@ -12,10 +12,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- * 02110-1301, USA.
  *
  */
 #ifndef ATOMISP_PLATFORM_H_
@@ -205,20 +201,13 @@ struct camera_vcm_control {
 };
 
 struct camera_sensor_platform_data {
-	int (*gpio_ctrl)(struct v4l2_subdev *subdev, int flag);
 	int (*flisclk_ctrl)(struct v4l2_subdev *subdev, int flag);
-	int (*power_ctrl)(struct v4l2_subdev *subdev, int flag);
 	int (*csi_cfg)(struct v4l2_subdev *subdev, int flag);
-	bool (*low_fps)(void);
-	int (*platform_init)(struct i2c_client *);
-	int (*platform_deinit)(void);
-	char *(*msr_file_name)(void);
-	struct atomisp_camera_caps *(*get_camera_caps)(void);
-	int (*gpio_intr_ctrl)(struct v4l2_subdev *subdev);
 
-	/* New G-Min power and GPIO interface, replaces
-	 * power/gpio_ctrl with methods to control individual
-	 * lines as implemented on all known camera modules. */
+	/*
+	 * New G-Min power and GPIO interface to control individual
+	 * lines as implemented on all known camera modules.
+	 */
 	int (*gpio0_ctrl)(struct v4l2_subdev *subdev, int on);
 	int (*gpio1_ctrl)(struct v4l2_subdev *subdev, int on);
 	int (*v1p8_ctrl)(struct v4l2_subdev *subdev, int on);
@@ -227,12 +216,6 @@ struct camera_sensor_platform_data {
 	struct camera_vcm_control * (*get_vcm_ctrl)(struct v4l2_subdev *subdev,
 						    char *module_id);
 };
-
-struct camera_af_platform_data {
-	int (*power_ctrl)(struct v4l2_subdev *subdev, int flag);
-};
-
-const struct camera_af_platform_data *camera_get_af_platform_data(void);
 
 struct camera_mipi_info {
 	enum atomisp_camera_port        port;

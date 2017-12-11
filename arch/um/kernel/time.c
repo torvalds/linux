@@ -98,7 +98,7 @@ static struct clocksource timer_clocksource = {
 	.flags		= CLOCK_SOURCE_IS_CONTINUOUS,
 };
 
-static void __init timer_setup(void)
+static void __init um_timer_setup(void)
 {
 	int err;
 
@@ -132,5 +132,5 @@ void read_persistent_clock(struct timespec *ts)
 void __init time_init(void)
 {
 	timer_set_signal_handler();
-	late_time_init = timer_setup;
+	late_time_init = um_timer_setup;
 }

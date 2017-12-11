@@ -15,7 +15,6 @@
 #ifndef __MATH_SUPPORT_H
 #define __MATH_SUPPORT_H
 
-#include "storage_class.h" /* for STORAGE_CLASS_INLINE */
 #if defined(__KERNEL__)
 #include <linux/kernel.h> /* Override the definition of max/min from linux kernel*/
 #endif /*__KERNEL__*/
@@ -110,66 +109,66 @@ Leaving out the other math utility functions as they are newly added
 
 #else /* !defined(INLINE_MATH_SUPPORT_UTILS) */
 
-STORAGE_CLASS_INLINE int max(int a, int b)
+static inline int max(int a, int b)
 {
 	return MAX(a, b);
 }
 
-STORAGE_CLASS_INLINE int min(int a, int b)
+static inline int min(int a, int b)
 {
 	return MIN(a, b);
 }
 
-STORAGE_CLASS_INLINE unsigned int ceil_div(unsigned int a, unsigned int b)
+static inline unsigned int ceil_div(unsigned int a, unsigned int b)
 {
 	return CEIL_DIV(a, b);
 }
 #endif /* !defined(INLINE_MATH_SUPPORT_UTILS) */
 
-STORAGE_CLASS_INLINE unsigned int umax(unsigned int a, unsigned int b)
+static inline unsigned int umax(unsigned int a, unsigned int b)
 {
 	return MAX(a, b);
 }
 
-STORAGE_CLASS_INLINE unsigned int umin(unsigned int a, unsigned int b)
+static inline unsigned int umin(unsigned int a, unsigned int b)
 {
 	return MIN(a, b);
 }
 
 
-STORAGE_CLASS_INLINE unsigned int ceil_mul(unsigned int a, unsigned int b)
+static inline unsigned int ceil_mul(unsigned int a, unsigned int b)
 {
 	return CEIL_MUL(a, b);
 }
 
-STORAGE_CLASS_INLINE unsigned int ceil_mul2(unsigned int a, unsigned int b)
+static inline unsigned int ceil_mul2(unsigned int a, unsigned int b)
 {
 	return CEIL_MUL2(a, b);
 }
 
-STORAGE_CLASS_INLINE unsigned int ceil_shift(unsigned int a, unsigned int b)
+static inline unsigned int ceil_shift(unsigned int a, unsigned int b)
 {
 	return CEIL_SHIFT(a, b);
 }
 
-STORAGE_CLASS_INLINE unsigned int ceil_shift_mul(unsigned int a, unsigned int b)
+static inline unsigned int ceil_shift_mul(unsigned int a, unsigned int b)
 {
 	return CEIL_SHIFT_MUL(a, b);
 }
 
 #ifdef ISP2401
-STORAGE_CLASS_INLINE unsigned int round_half_down_div(unsigned int a, unsigned int b)
+static inline unsigned int round_half_down_div(unsigned int a, unsigned int b)
 {
 	return ROUND_HALF_DOWN_DIV(a, b);
 }
 
-STORAGE_CLASS_INLINE unsigned int round_half_down_mul(unsigned int a, unsigned int b)
+static inline unsigned int round_half_down_mul(unsigned int a, unsigned int b)
 {
 	return ROUND_HALF_DOWN_MUL(a, b);
 }
 #endif
 
-/** @brief Next Power of Two
+/* @brief Next Power of Two
  *
  *  @param[in] unsigned number
  *
@@ -187,7 +186,7 @@ STORAGE_CLASS_INLINE unsigned int round_half_down_mul(unsigned int a, unsigned i
  *
  */
 
-STORAGE_CLASS_INLINE unsigned int ceil_pow2(unsigned int a)
+static inline unsigned int ceil_pow2(unsigned int a)
 {
 	if (a == 0) {
 		return 1;

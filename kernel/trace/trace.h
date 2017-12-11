@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 
 #ifndef _LINUX_KERNEL_TRACE_H
 #define _LINUX_KERNEL_TRACE_H
@@ -738,8 +739,6 @@ extern int trace_selftest_startup_wakeup(struct tracer *trace,
 					 struct trace_array *tr);
 extern int trace_selftest_startup_nop(struct tracer *trace,
 					 struct trace_array *tr);
-extern int trace_selftest_startup_sched_switch(struct tracer *trace,
-					       struct trace_array *tr);
 extern int trace_selftest_startup_branch(struct tracer *trace,
 					 struct trace_array *tr);
 /*
@@ -1459,7 +1458,7 @@ extern struct trace_event_file *find_event_file(struct trace_array *tr,
 
 static inline void *event_file_data(struct file *filp)
 {
-	return ACCESS_ONCE(file_inode(filp)->i_private);
+	return READ_ONCE(file_inode(filp)->i_private);
 }
 
 extern struct mutex event_mutex;
@@ -1753,6 +1752,13 @@ void trace_printk_init_buffers(void);
 void trace_printk_start_comm(void);
 int trace_keep_overwrite(struct tracer *tracer, u32 mask, int set);
 int set_tracer_flag(struct trace_array *tr, unsigned int mask, int enabled);
+
+#define MAX_EVENT_NAME_LEN	64
+
+extern int trace_run_command(const char *buf, int (*createfn)(int, char**));
+extern ssize_t trace_parse_run_command(struct file *file,
+		const char __user *buffer, size_t count, loff_t *ppos,
+		int (*createfn)(int, char**));
 
 /*
  * Normal trace_printk() and friends allocates special buffers

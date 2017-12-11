@@ -24,6 +24,7 @@
 #include <linux/delay.h>
 #include <linux/wait.h>
 #include <linux/pr.h>
+#include <linux/refcount.h>
 
 #define DM_MSG_PREFIX "core"
 
@@ -51,6 +52,12 @@ static struct workqueue_struct *deferred_remove_workqueue;
 
 atomic_t dm_global_event_nr = ATOMIC_INIT(0);
 DECLARE_WAIT_QUEUE_HEAD(dm_global_eventq);
+
+void dm_issue_global_event(void)
+{
+	atomic_inc(&dm_global_event_nr);
+	wake_up(&dm_global_eventq);
+}
 
 /*
  * One of these is allocated per bio.
@@ -92,7 +99,7 @@ struct dm_md_mempools {
 
 struct table_device {
 	struct list_head list;
-	atomic_t count;
+	refcount_t count;
 	struct dm_dev dm_dev;
 };
 
@@ -108,7 +115,7 @@ static unsigned reserved_bio_based_ios = RESERVED_BIO_BASED_IOS;
 
 static int __dm_get_module_param_int(int *module_param, int min, int max)
 {
-	int param = ACCESS_ONCE(*module_param);
+	int param = READ_ONCE(*module_param);
 	int modified_param = 0;
 	bool modified = true;
 
@@ -130,7 +137,7 @@ static int __dm_get_module_param_int(int *module_param, int min, int max)
 unsigned __dm_get_module_param(unsigned *module_param,
 			       unsigned def, unsigned max)
 {
-	unsigned param = ACCESS_ONCE(*module_param);
+	unsigned param = READ_ONCE(*module_param);
 	unsigned modified_param = 0;
 
 	if (!param)
@@ -679,10 +686,11 @@ int dm_get_table_device(struct mapped_device *md, dev_t dev, fmode_t mode,
 
 		format_dev_t(td->dm_dev.name, dev);
 
-		atomic_set(&td->count, 0);
+		refcount_set(&td->count, 1);
 		list_add(&td->list, &md->table_devices);
+	} else {
+		refcount_inc(&td->count);
 	}
-	atomic_inc(&td->count);
 	mutex_unlock(&md->table_devices_lock);
 
 	*result = &td->dm_dev;
@@ -695,7 +703,7 @@ void dm_put_table_device(struct mapped_device *md, struct dm_dev *d)
 	struct table_device *td = container_of(d, struct table_device, dm_dev);
 
 	mutex_lock(&md->table_devices_lock);
-	if (atomic_dec_and_test(&td->count)) {
+	if (refcount_dec_and_test(&td->count)) {
 		close_table_device(td, md);
 		list_del(&td->list);
 		kfree(td);
@@ -712,7 +720,7 @@ static void free_table_devices(struct list_head *devices)
 		struct table_device *td = list_entry(tmp, struct table_device, list);
 
 		DMWARN("dm_destroy: %s still exists with %d references",
-		       td->dm_dev.name, atomic_read(&td->count));
+		       td->dm_dev.name, refcount_read(&td->count));
 		kfree(td);
 	}
 }
@@ -1613,17 +1621,6 @@ static void dm_wq_work(struct work_struct *work);
 void dm_init_md_queue(struct mapped_device *md)
 {
 	/*
-	 * Request-based dm devices cannot be stacked on top of bio-based dm
-	 * devices.  The type of this dm device may not have been decided yet.
-	 * The type is decided at the first table loading time.
-	 * To prevent problematic device stacking, clear the queue flag
-	 * for request stacking support until then.
-	 *
-	 * This queue is new, so no concurrency on the queue_flags.
-	 */
-	queue_flag_clear_unlocked(QUEUE_FLAG_STACKABLE, md->queue);
-
-	/*
 	 * Initialize data that will only be used by a non-blk-mq DM queue
 	 * - must do so here (in alloc_dev callchain) before queue is used
 	 */
@@ -1689,7 +1686,7 @@ static struct mapped_device *alloc_dev(int minor)
 	struct mapped_device *md;
 	void *old_md;
 
-	md = kzalloc_node(sizeof(*md), GFP_KERNEL, numa_node_id);
+	md = kvzalloc_node(sizeof(*md), GFP_KERNEL, numa_node_id);
 	if (!md) {
 		DMWARN("unable to allocate device, out of memory.");
 		return NULL;
@@ -1789,7 +1786,7 @@ bad_io_barrier:
 bad_minor:
 	module_put(THIS_MODULE);
 bad_module_get:
-	kfree(md);
+	kvfree(md);
 	return NULL;
 }
 
@@ -1808,7 +1805,7 @@ static void free_dev(struct mapped_device *md)
 	free_minor(minor);
 
 	module_put(THIS_MODULE);
-	kfree(md);
+	kvfree(md);
 }
 
 static void __bind_mempools(struct mapped_device *md, struct dm_table *t)
@@ -1865,9 +1862,8 @@ static void event_callback(void *context)
 	dm_send_uevents(&uevents, &disk_to_dev(md->disk)->kobj);
 
 	atomic_inc(&md->event_nr);
-	atomic_inc(&dm_global_event_nr);
 	wake_up(&md->eventq);
-	wake_up(&dm_global_eventq);
+	dm_issue_global_event();
 }
 
 /*
@@ -2067,17 +2063,12 @@ struct mapped_device *dm_get_md(dev_t dev)
 	spin_lock(&_minor_lock);
 
 	md = idr_find(&_minor_idr, minor);
-	if (md) {
-		if ((md == MINOR_ALLOCED ||
-		     (MINOR(disk_devt(dm_disk(md))) != minor) ||
-		     dm_deleting_md(md) ||
-		     test_bit(DMF_FREEING, &md->flags))) {
-			md = NULL;
-			goto out;
-		}
-		dm_get(md);
+	if (!md || md == MINOR_ALLOCED || (MINOR(disk_devt(dm_disk(md))) != minor) ||
+	    test_bit(DMF_FREEING, &md->flags) || dm_deleting_md(md)) {
+		md = NULL;
+		goto out;
 	}
-
+	dm_get(md);
 out:
 	spin_unlock(&_minor_lock);
 
@@ -2283,6 +2274,7 @@ struct dm_table *dm_swap_table(struct mapped_device *md, struct dm_table *table)
 	}
 
 	map = __bind(md, table, &limits);
+	dm_issue_global_event();
 
 out:
 	mutex_unlock(&md->suspend_lock);
@@ -2703,11 +2695,15 @@ struct mapped_device *dm_get_from_kobject(struct kobject *kobj)
 
 	md = container_of(kobj, struct mapped_device, kobj_holder.kobj);
 
-	if (test_bit(DMF_FREEING, &md->flags) ||
-	    dm_deleting_md(md))
-		return NULL;
-
+	spin_lock(&_minor_lock);
+	if (test_bit(DMF_FREEING, &md->flags) || dm_deleting_md(md)) {
+		md = NULL;
+		goto out;
+	}
 	dm_get(md);
+out:
+	spin_unlock(&_minor_lock);
+
 	return md;
 }
 

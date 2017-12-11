@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 fsl-dcu-drm-y := fsl_dcu_drm_drv.o \
 		 fsl_dcu_drm_kms.o \
 		 fsl_dcu_drm_rgb.o \

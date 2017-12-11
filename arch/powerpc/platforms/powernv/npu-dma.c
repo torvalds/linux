@@ -395,6 +395,7 @@ struct npu_context {
 	struct pci_dev *npdev[NV_MAX_NPUS][NV_MAX_LINKS];
 	struct mmu_notifier mn;
 	struct kref kref;
+	bool nmmu_flush;
 
 	/* Callback to stop translation requests on a given GPU */
 	struct npu_context *(*release_cb)(struct npu_context *, void *);
@@ -545,11 +546,13 @@ static void mmio_invalidate(struct npu_context *npu_context, int va,
 	struct mmio_atsd_reg mmio_atsd_reg[NV_MAX_NPUS];
 	unsigned long pid = npu_context->mm->context.id;
 
-	/*
-	 * Unfortunately the nest mmu does not support flushing specific
-	 * addresses so we have to flush the whole mm.
-	 */
-	flush_tlb_mm(npu_context->mm);
+	if (npu_context->nmmu_flush)
+		/*
+		 * Unfortunately the nest mmu does not support flushing specific
+		 * addresses so we have to flush the whole mm once before
+		 * shooting down the GPU translation.
+		 */
+		flush_all_mm(npu_context->mm);
 
 	/*
 	 * Loop over all the NPUs this process is active on and launch
@@ -722,6 +725,16 @@ struct npu_context *pnv_npu2_init_context(struct pci_dev *gpdev,
 		return ERR_PTR(-ENODEV);
 	npu_context->npdev[npu->index][nvlink_index] = npdev;
 
+	if (!nphb->npu.nmmu_flush) {
+		/*
+		 * If we're not explicitly flushing ourselves we need to mark
+		 * the thread for global flushes
+		 */
+		npu_context->nmmu_flush = false;
+		mm_context_add_copro(mm);
+	} else
+		npu_context->nmmu_flush = true;
+
 	return npu_context;
 }
 EXPORT_SYMBOL(pnv_npu2_init_context);
@@ -730,6 +743,9 @@ static void pnv_npu2_release_context(struct kref *kref)
 {
 	struct npu_context *npu_context =
 		container_of(kref, struct npu_context, kref);
+
+	if (!npu_context->nmmu_flush)
+		mm_context_remove_copro(npu_context->mm);
 
 	npu_context->mm->context.npu_context = NULL;
 	mmu_notifier_unregister(&npu_context->mn,
@@ -819,6 +835,8 @@ int pnv_npu2_init(struct pnv_phb *phb)
 	static int npu_index;
 	uint64_t rc = 0;
 
+	phb->npu.nmmu_flush =
+		of_property_read_bool(phb->hose->dn, "ibm,nmmu-flush");
 	for_each_child_of_node(phb->hose->dn, dn) {
 		gpdev = pnv_pci_get_gpu_dev(get_pci_dev(dn));
 		if (gpdev) {

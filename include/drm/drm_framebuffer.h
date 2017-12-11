@@ -205,6 +205,7 @@ int drm_framebuffer_init(struct drm_device *dev,
 			 struct drm_framebuffer *fb,
 			 const struct drm_framebuffer_funcs *funcs);
 struct drm_framebuffer *drm_framebuffer_lookup(struct drm_device *dev,
+					       struct drm_file *file_priv,
 					       uint32_t id);
 void drm_framebuffer_remove(struct drm_framebuffer *fb);
 void drm_framebuffer_cleanup(struct drm_framebuffer *fb);

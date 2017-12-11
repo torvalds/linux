@@ -271,12 +271,17 @@ struct perf_evsel *perf_evsel__new_idx(struct perf_event_attr *attr, int idx)
 	return evsel;
 }
 
+static bool perf_event_can_profile_kernel(void)
+{
+	return geteuid() == 0 || perf_event_paranoid() == -1;
+}
+
 struct perf_evsel *perf_evsel__new_cycles(bool precise)
 {
 	struct perf_event_attr attr = {
 		.type	= PERF_TYPE_HARDWARE,
 		.config	= PERF_COUNT_HW_CPU_CYCLES,
-		.exclude_kernel	= geteuid() != 0,
+		.exclude_kernel	= !perf_event_can_profile_kernel(),
 	};
 	struct perf_evsel *evsel;
 
@@ -678,7 +683,7 @@ void perf_evsel__config_callchain(struct perf_evsel *evsel,
 		if (!function) {
 			perf_evsel__set_sample_bit(evsel, REGS_USER);
 			perf_evsel__set_sample_bit(evsel, STACK_USER);
-			attr->sample_regs_user = PERF_REGS_MASK;
+			attr->sample_regs_user |= PERF_REGS_MASK;
 			attr->sample_stack_user = param->dump_size;
 			attr->exclude_callchain_user = 1;
 		} else {
@@ -728,12 +733,16 @@ static void apply_config_terms(struct perf_evsel *evsel,
 	list_for_each_entry(term, config_terms, list) {
 		switch (term->type) {
 		case PERF_EVSEL__CONFIG_TERM_PERIOD:
-			attr->sample_period = term->val.period;
-			attr->freq = 0;
+			if (!(term->weak && opts->user_interval != ULLONG_MAX)) {
+				attr->sample_period = term->val.period;
+				attr->freq = 0;
+			}
 			break;
 		case PERF_EVSEL__CONFIG_TERM_FREQ:
-			attr->sample_freq = term->val.freq;
-			attr->freq = 1;
+			if (!(term->weak && opts->user_freq != UINT_MAX)) {
+				attr->sample_freq = term->val.freq;
+				attr->freq = 1;
+			}
 			break;
 		case PERF_EVSEL__CONFIG_TERM_TIME:
 			if (term->val.time)
@@ -929,6 +938,11 @@ void perf_evsel__config(struct perf_evsel *evsel, struct record_opts *opts,
 	if (opts->sample_intr_regs) {
 		attr->sample_regs_intr = opts->sample_intr_regs;
 		perf_evsel__set_sample_bit(evsel, REGS_INTR);
+	}
+
+	if (opts->sample_user_regs) {
+		attr->sample_regs_user |= opts->sample_user_regs;
+		perf_evsel__set_sample_bit(evsel, REGS_USER);
 	}
 
 	if (target__has_cpu(&opts->target) || opts->sample_cpu)
@@ -1361,7 +1375,7 @@ perf_evsel__process_group_data(struct perf_evsel *leader,
 static int
 perf_evsel__read_group(struct perf_evsel *leader, int cpu, int thread)
 {
-	struct perf_stat_evsel *ps = leader->priv;
+	struct perf_stat_evsel *ps = leader->stats;
 	u64 read_format = leader->attr.read_format;
 	int size = perf_evsel__read_size(leader);
 	u64 *data = ps->group_data;

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/types.h>
 #include <linux/tick.h>
 
@@ -16,6 +17,8 @@
 
 void xen_arch_pre_suspend(void)
 {
+	xen_save_time_memory_area();
+
 	if (xen_pv_domain())
 		xen_pv_pre_suspend();
 }
@@ -26,6 +29,8 @@ void xen_arch_post_suspend(int cancelled)
 		xen_pv_post_suspend(cancelled);
 	else
 		xen_hvm_post_suspend(cancelled);
+
+	xen_restore_time_memory_area();
 }
 
 static void xen_vcpu_notify_restore(void *data)

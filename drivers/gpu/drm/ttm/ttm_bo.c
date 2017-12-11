@@ -150,8 +150,7 @@ static void ttm_bo_release_list(struct kref *list_kref)
 	ttm_tt_destroy(bo->ttm);
 	atomic_dec(&bo->glob->bo_count);
 	dma_fence_put(bo->moving);
-	if (bo->resv == &bo->ttm_resv)
-		reservation_object_fini(&bo->ttm_resv);
+	reservation_object_fini(&bo->ttm_resv);
 	mutex_destroy(&bo->wu_mutex);
 	if (bo->destroy)
 		bo->destroy(bo);
@@ -402,14 +401,11 @@ static int ttm_bo_individualize_resv(struct ttm_buffer_object *bo)
 	if (bo->resv == &bo->ttm_resv)
 		return 0;
 
-	reservation_object_init(&bo->ttm_resv);
 	BUG_ON(!reservation_object_trylock(&bo->ttm_resv));
 
 	r = reservation_object_copy_fences(&bo->ttm_resv, bo->resv);
-	if (r) {
+	if (r)
 		reservation_object_unlock(&bo->ttm_resv);
-		reservation_object_fini(&bo->ttm_resv);
-	}
 
 	return r;
 }
@@ -440,28 +436,30 @@ static void ttm_bo_cleanup_refs_or_queue(struct ttm_buffer_object *bo)
 	struct ttm_bo_global *glob = bo->glob;
 	int ret;
 
+	ret = ttm_bo_individualize_resv(bo);
+	if (ret) {
+		/* Last resort, if we fail to allocate memory for the
+		 * fences block for the BO to become idle
+		 */
+		reservation_object_wait_timeout_rcu(bo->resv, true, false,
+						    30 * HZ);
+		spin_lock(&glob->lru_lock);
+		goto error;
+	}
+
 	spin_lock(&glob->lru_lock);
 	ret = __ttm_bo_reserve(bo, false, true, NULL);
-
 	if (!ret) {
-		if (!ttm_bo_wait(bo, false, true)) {
+		if (reservation_object_test_signaled_rcu(&bo->ttm_resv, true)) {
 			ttm_bo_del_from_lru(bo);
 			spin_unlock(&glob->lru_lock);
-			ttm_bo_cleanup_memtype_use(bo);
+			if (bo->resv != &bo->ttm_resv)
+				reservation_object_unlock(&bo->ttm_resv);
 
-			return;
-		}
-
-		ret = ttm_bo_individualize_resv(bo);
-		if (ret) {
-			/* Last resort, if we fail to allocate memory for the
-			 * fences block for the BO to become idle and free it.
-			 */
-			spin_unlock(&glob->lru_lock);
-			ttm_bo_wait(bo, true, true);
 			ttm_bo_cleanup_memtype_use(bo);
 			return;
 		}
+
 		ttm_bo_flush_all_fences(bo);
 
 		/*
@@ -474,11 +472,12 @@ static void ttm_bo_cleanup_refs_or_queue(struct ttm_buffer_object *bo)
 			ttm_bo_add_to_lru(bo);
 		}
 
-		if (bo->resv != &bo->ttm_resv)
-			reservation_object_unlock(&bo->ttm_resv);
 		__ttm_bo_unreserve(bo);
 	}
+	if (bo->resv != &bo->ttm_resv)
+		reservation_object_unlock(&bo->ttm_resv);
 
+error:
 	kref_get(&bo->list_kref);
 	list_add_tail(&bo->ddestroy, &bdev->ddestroy);
 	spin_unlock(&glob->lru_lock);
@@ -1203,8 +1202,8 @@ int ttm_bo_init_reserved(struct ttm_bo_device *bdev,
 		lockdep_assert_held(&bo->resv->lock.base);
 	} else {
 		bo->resv = &bo->ttm_resv;
-		reservation_object_init(&bo->ttm_resv);
 	}
+	reservation_object_init(&bo->ttm_resv);
 	atomic_inc(&bo->glob->bo_count);
 	drm_vma_node_reset(&bo->vma_node);
 	bo->priority = 0;

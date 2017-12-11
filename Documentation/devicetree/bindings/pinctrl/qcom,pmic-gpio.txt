@@ -15,6 +15,7 @@ PMIC's from Qualcomm.
 		    "qcom,pm8921-gpio"
 		    "qcom,pm8941-gpio"
 		    "qcom,pm8994-gpio"
+		    "qcom,pmi8994-gpio"
 		    "qcom,pma8084-gpio"
 		    "qcom,pmi8994-gpio"
 
@@ -85,6 +86,7 @@ to specify in a pin configuration subnode:
 		    gpio1-gpio44 for pm8921
 		    gpio1-gpio36 for pm8941
 		    gpio1-gpio22 for pm8994
+		    gpio1-gpio10 for pmi8994
 		    gpio1-gpio22 for pma8084
 		    gpio1-gpio10 for pmi8994
 

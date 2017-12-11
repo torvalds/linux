@@ -67,12 +67,8 @@ static u8 rs_ht_to_legacy[] = {
 static const u8 ant_toggle_lookup[] = {
 	[ANT_NONE] = ANT_NONE,
 	[ANT_A] = ANT_B,
-	[ANT_B] = ANT_C,
-	[ANT_AB] = ANT_BC,
-	[ANT_C] = ANT_A,
-	[ANT_AC] = ANT_AB,
-	[ANT_BC] = ANT_AC,
-	[ANT_ABC] = ANT_ABC,
+	[ANT_B] = ANT_A,
+	[ANT_AB] = ANT_AB,
 };
 
 #define IWL_DECLARE_RATE_INFO(r, s, rp, rn)			      \
@@ -661,7 +657,8 @@ static void rs_tl_turn_on_agg(struct iwl_mvm *mvm, struct iwl_mvm_sta *mvmsta,
 	    (lq_sta->tx_agg_tid_en & BIT(tid)) &&
 	    (tid_data->tx_count_last >= IWL_MVM_RS_AGG_START_THRESHOLD)) {
 		IWL_DEBUG_RATE(mvm, "try to aggregate tid %d\n", tid);
-		rs_tl_turn_on_agg_for_tid(mvm, lq_sta, tid, sta);
+		if (rs_tl_turn_on_agg_for_tid(mvm, lq_sta, tid, sta) == 0)
+			tid_data->state = IWL_AGG_QUEUED;
 	}
 }
 
@@ -974,7 +971,7 @@ static int rs_toggle_antenna(u32 valid_ant, struct rs_rate *rate)
 {
 	u8 new_ant_type;
 
-	if (!rate->ant || rate->ant > ANT_ABC)
+	if (!rate->ant || WARN_ON_ONCE(rate->ant & ANT_C))
 		return 0;
 
 	if (!rs_is_valid_ant(valid_ant, rate->ant))

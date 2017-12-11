@@ -11,6 +11,7 @@
 #include <linux/module.h>
 #include <linux/gpio/driver.h>
 #include <linux/platform_device.h>
+#include <linux/bitops.h>
 
 /* Loongson 1 GPIO Register Definitions */
 #define GPIO_CFG		0x0
@@ -22,11 +23,10 @@ static void __iomem *gpio_reg_base;
 
 static int ls1x_gpio_request(struct gpio_chip *gc, unsigned int offset)
 {
-	unsigned long pinmask = gc->pin2mask(gc, offset);
 	unsigned long flags;
 
 	spin_lock_irqsave(&gc->bgpio_lock, flags);
-	__raw_writel(__raw_readl(gpio_reg_base + GPIO_CFG) | pinmask,
+	__raw_writel(__raw_readl(gpio_reg_base + GPIO_CFG) | BIT(offset),
 		     gpio_reg_base + GPIO_CFG);
 	spin_unlock_irqrestore(&gc->bgpio_lock, flags);
 
@@ -35,11 +35,10 @@ static int ls1x_gpio_request(struct gpio_chip *gc, unsigned int offset)
 
 static void ls1x_gpio_free(struct gpio_chip *gc, unsigned int offset)
 {
-	unsigned long pinmask = gc->pin2mask(gc, offset);
 	unsigned long flags;
 
 	spin_lock_irqsave(&gc->bgpio_lock, flags);
-	__raw_writel(__raw_readl(gpio_reg_base + GPIO_CFG) & ~pinmask,
+	__raw_writel(__raw_readl(gpio_reg_base + GPIO_CFG) & ~BIT(offset),
 		     gpio_reg_base + GPIO_CFG);
 	spin_unlock_irqrestore(&gc->bgpio_lock, flags);
 }

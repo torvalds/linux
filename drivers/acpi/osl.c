@@ -663,26 +663,8 @@ acpi_status acpi_os_write_port(acpi_io_address port, u32 value, u32 width)
 
 EXPORT_SYMBOL(acpi_os_write_port);
 
-acpi_status
-acpi_os_read_memory(acpi_physical_address phys_addr, u64 *value, u32 width)
+int acpi_os_read_iomem(void __iomem *virt_addr, u64 *value, u32 width)
 {
-	void __iomem *virt_addr;
-	unsigned int size = width / 8;
-	bool unmap = false;
-	u64 dummy;
-
-	rcu_read_lock();
-	virt_addr = acpi_map_vaddr_lookup(phys_addr, size);
-	if (!virt_addr) {
-		rcu_read_unlock();
-		virt_addr = acpi_os_ioremap(phys_addr, size);
-		if (!virt_addr)
-			return AE_BAD_ADDRESS;
-		unmap = true;
-	}
-
-	if (!value)
-		value = &dummy;
 
 	switch (width) {
 	case 8:
@@ -698,8 +680,36 @@ acpi_os_read_memory(acpi_physical_address phys_addr, u64 *value, u32 width)
 		*(u64 *) value = readq(virt_addr);
 		break;
 	default:
-		BUG();
+		return -EINVAL;
 	}
+
+	return 0;
+}
+
+acpi_status
+acpi_os_read_memory(acpi_physical_address phys_addr, u64 *value, u32 width)
+{
+	void __iomem *virt_addr;
+	unsigned int size = width / 8;
+	bool unmap = false;
+	u64 dummy;
+	int error;
+
+	rcu_read_lock();
+	virt_addr = acpi_map_vaddr_lookup(phys_addr, size);
+	if (!virt_addr) {
+		rcu_read_unlock();
+		virt_addr = acpi_os_ioremap(phys_addr, size);
+		if (!virt_addr)
+			return AE_BAD_ADDRESS;
+		unmap = true;
+	}
+
+	if (!value)
+		value = &dummy;
+
+	error = acpi_os_read_iomem(virt_addr, value, width);
+	BUG_ON(error);
 
 	if (unmap)
 		iounmap(virt_addr);

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * ip22-hpc.c: Routines for generic manipulation of the HPC controllers.
  *

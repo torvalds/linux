@@ -94,6 +94,7 @@ ACPI_EXPORT_SYMBOL(acpi_get_timer_resolution)
 acpi_status acpi_get_timer(u32 * ticks)
 {
 	acpi_status status;
+	u64 timer_value;
 
 	ACPI_FUNCTION_TRACE(acpi_get_timer);
 
@@ -107,7 +108,14 @@ acpi_status acpi_get_timer(u32 * ticks)
 		return_ACPI_STATUS(AE_SUPPORT);
 	}
 
-	status = acpi_hw_read(ticks, &acpi_gbl_FADT.xpm_timer_block);
+	status = acpi_hw_read(&timer_value, &acpi_gbl_FADT.xpm_timer_block);
+	if (ACPI_SUCCESS(status)) {
+
+		/* ACPI PM Timer is defined to be 32 bits (PM_TMR_LEN) */
+
+		*ticks = (u32)timer_value;
+	}
+
 	return_ACPI_STATUS(status);
 }
 

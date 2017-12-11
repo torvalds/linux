@@ -1869,9 +1869,32 @@ void __audit_inode_child(struct inode *parent,
 	struct inode *inode = d_backing_inode(dentry);
 	const char *dname = dentry->d_name.name;
 	struct audit_names *n, *found_parent = NULL, *found_child = NULL;
+	struct audit_entry *e;
+	struct list_head *list = &audit_filter_list[AUDIT_FILTER_FS];
+	int i;
 
 	if (!context->in_syscall)
 		return;
+
+	rcu_read_lock();
+	if (!list_empty(list)) {
+		list_for_each_entry_rcu(e, list, list) {
+			for (i = 0; i < e->rule.field_count; i++) {
+				struct audit_field *f = &e->rule.fields[i];
+
+				if (f->type == AUDIT_FSTYPE) {
+					if (audit_comparator(parent->i_sb->s_magic,
+					    f->op, f->val)) {
+						if (e->rule.action == AUDIT_NEVER) {
+							rcu_read_unlock();
+							return;
+						}
+					}
+				}
+			}
+		}
+	}
+	rcu_read_unlock();
 
 	if (inode)
 		handle_one(inode);
@@ -2388,6 +2411,12 @@ void __audit_log_kern_module(char *name)
 	context->module.name = kmalloc(strlen(name) + 1, GFP_KERNEL);
 	strcpy(context->module.name, name);
 	context->type = AUDIT_KERN_MODULE;
+}
+
+void __audit_fanotify(unsigned int response)
+{
+	audit_log(current->audit_context, GFP_KERNEL,
+		AUDIT_FANOTIFY,	"resp=%u", response);
 }
 
 static void audit_log_task(struct audit_buffer *ab)

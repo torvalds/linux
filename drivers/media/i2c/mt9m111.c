@@ -945,7 +945,7 @@ static int mt9m111_probe(struct i2c_client *client,
 
 	mt9m111->clk = v4l2_clk_get(&client->dev, "mclk");
 	if (IS_ERR(mt9m111->clk))
-		return -EPROBE_DEFER;
+		return PTR_ERR(mt9m111->clk);
 
 	/* Default HIGHPOWER context */
 	mt9m111->ctx = &context_b;

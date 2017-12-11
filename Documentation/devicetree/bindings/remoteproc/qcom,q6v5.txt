@@ -10,6 +10,7 @@ on the Qualcomm Hexagon core.
 		    "qcom,q6v5-pil",
 		    "qcom,msm8916-mss-pil",
 		    "qcom,msm8974-mss-pil"
+		    "qcom,msm8996-mss-pil"
 
 - reg:
 	Usage: required

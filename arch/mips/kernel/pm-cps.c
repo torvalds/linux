@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2014 Imagination Technologies
- * Author: Paul Burton <paul.burton@imgtec.com>
+ * Author: Paul Burton <paul.burton@mips.com>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -166,7 +166,7 @@ int cps_pm_enter_state(enum cps_pm_state state)
 	nc_core_ready_count = nc_addr;
 
 	/* Ensure ready_count is zero-initialised before the assembly runs */
-	ACCESS_ONCE(*nc_core_ready_count) = 0;
+	WRITE_ONCE(*nc_core_ready_count, 0);
 	coupled_barrier(&per_cpu(pm_barrier, core), online);
 
 	/* Run the generated entry code */

@@ -1003,7 +1003,6 @@ static int kmx61_mag_validate_trigger(struct iio_dev *indio_dev,
 }
 
 static const struct iio_info kmx61_acc_info = {
-	.driver_module		= THIS_MODULE,
 	.read_raw		= kmx61_read_raw,
 	.write_raw		= kmx61_write_raw,
 	.attrs			= &kmx61_acc_attribute_group,
@@ -1015,7 +1014,6 @@ static const struct iio_info kmx61_acc_info = {
 };
 
 static const struct iio_info kmx61_mag_info = {
-	.driver_module		= THIS_MODULE,
 	.read_raw		= kmx61_read_raw,
 	.write_raw		= kmx61_write_raw,
 	.attrs			= &kmx61_mag_attribute_group,
@@ -1087,7 +1085,6 @@ static int kmx61_trig_try_reenable(struct iio_trigger *trig)
 static const struct iio_trigger_ops kmx61_trigger_ops = {
 	.set_trigger_state = kmx61_data_rdy_trigger_set_state,
 	.try_reenable = kmx61_trig_try_reenable,
-	.owner = THIS_MODULE,
 };
 
 static irqreturn_t kmx61_event_handler(int irq, void *private)

@@ -1,6 +1,5 @@
 #
 # Generated include files
 #
-net_names.h
 capability_names.h
 rlim_names.h

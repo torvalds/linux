@@ -47,6 +47,11 @@ enum flash_op {
 	FLASH_OP_ERASE,
 };
 
+/*
+ * Don't return -ERESTARTSYS if we can't get a token, the MTD core
+ * might have split up the call from userspace and called into the
+ * driver more than once, we'll already have done some amount of work.
+ */
 static int powernv_flash_async_op(struct mtd_info *mtd, enum flash_op op,
 		loff_t offset, size_t len, size_t *retlen, u_char *buf)
 {
@@ -63,7 +68,8 @@ static int powernv_flash_async_op(struct mtd_info *mtd, enum flash_op op,
 	if (token < 0) {
 		if (token != -ERESTARTSYS)
 			dev_err(dev, "Failed to get an async token\n");
-
+		else
+			token = -EINTR;
 		return token;
 	}
 
@@ -78,32 +84,53 @@ static int powernv_flash_async_op(struct mtd_info *mtd, enum flash_op op,
 		rc = opal_flash_erase(info->id, offset, len, token);
 		break;
 	default:
-		BUG_ON(1);
-	}
-
-	if (rc != OPAL_ASYNC_COMPLETION) {
-		dev_err(dev, "opal_flash_async_op(op=%d) failed (rc %d)\n",
-				op, rc);
+		WARN_ON_ONCE(1);
 		opal_async_release_token(token);
 		return -EIO;
 	}
 
-	rc = opal_async_wait_response(token, &msg);
+	if (rc == OPAL_ASYNC_COMPLETION) {
+		rc = opal_async_wait_response_interruptible(token, &msg);
+		if (rc) {
+			/*
+			 * If we return the mtd core will free the
+			 * buffer we've just passed to OPAL but OPAL
+			 * will continue to read or write from that
+			 * memory.
+			 * It may be tempting to ultimately return 0
+			 * if we're doing a read or a write since we
+			 * are going to end up waiting until OPAL is
+			 * done. However, because the MTD core sends
+			 * us the userspace request in chunks, we need
+			 * it to know we've been interrupted.
+			 */
+			rc = -EINTR;
+			if (opal_async_wait_response(token, &msg))
+				dev_err(dev, "opal_async_wait_response() failed\n");
+			goto out;
+		}
+		rc = opal_get_async_rc(msg);
+	}
+
+	/*
+	 * OPAL does mutual exclusion on the flash, it will return
+	 * OPAL_BUSY.
+	 * During firmware updates by the service processor OPAL may
+	 * be (temporarily) prevented from accessing the flash, in
+	 * this case OPAL will also return OPAL_BUSY.
+	 * Both cases aren't errors exactly but the flash could have
+	 * changed, userspace should be informed.
+	 */
+	if (rc != OPAL_SUCCESS && rc != OPAL_BUSY)
+		dev_err(dev, "opal_flash_async_op(op=%d) failed (rc %d)\n",
+				op, rc);
+
+	if (rc == OPAL_SUCCESS && retlen)
+		*retlen = len;
+
+	rc = opal_error_code(rc);
+out:
 	opal_async_release_token(token);
-	if (rc) {
-		dev_err(dev, "opal async wait failed (rc %d)\n", rc);
-		return -EIO;
-	}
-
-	rc = opal_get_async_rc(msg);
-	if (rc == OPAL_SUCCESS) {
-		rc = 0;
-		if (retlen)
-			*retlen = len;
-	} else {
-		rc = -EIO;
-	}
-
 	return rc;
 }
 
@@ -220,21 +247,20 @@ static int powernv_flash_probe(struct platform_device *pdev)
 	int ret;
 
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
-	if (!data) {
-		ret = -ENOMEM;
-		goto out;
-	}
+	if (!data)
+		return -ENOMEM;
+
 	data->mtd.priv = data;
 
 	ret = of_property_read_u32(dev->of_node, "ibm,opal-id", &(data->id));
 	if (ret) {
 		dev_err(dev, "no device property 'ibm,opal-id'\n");
-		goto out;
+		return ret;
 	}
 
 	ret = powernv_flash_set_driver_info(dev, &data->mtd);
 	if (ret)
-		goto out;
+		return ret;
 
 	dev_set_drvdata(dev, data);
 
@@ -243,10 +269,7 @@ static int powernv_flash_probe(struct platform_device *pdev)
 	 * with an ffs partition at the start, it should prove easier for users
 	 * to deal with partitions or not as they see fit
 	 */
-	ret = mtd_device_register(&data->mtd, NULL, 0);
-
-out:
-	return ret;
+	return mtd_device_register(&data->mtd, NULL, 0);
 }
 
 /**

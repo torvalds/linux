@@ -364,39 +364,39 @@ static void xlr_stats(struct net_device *ndev, struct rtnl_link_stats64 *stats)
 	stats->tx_bytes = xlr_nae_rdreg(priv->base_addr, TX_BYTE_COUNTER);
 	stats->tx_errors = xlr_nae_rdreg(priv->base_addr, TX_FCS_ERROR_COUNTER);
 	stats->rx_dropped = xlr_nae_rdreg(priv->base_addr,
-			RX_DROP_PACKET_COUNTER);
+					  RX_DROP_PACKET_COUNTER);
 	stats->tx_dropped = xlr_nae_rdreg(priv->base_addr,
-			TX_DROP_FRAME_COUNTER);
+					  TX_DROP_FRAME_COUNTER);
 
 	stats->multicast = xlr_nae_rdreg(priv->base_addr,
-			RX_MULTICAST_PACKET_COUNTER);
+					 RX_MULTICAST_PACKET_COUNTER);
 	stats->collisions = xlr_nae_rdreg(priv->base_addr,
-			TX_TOTAL_COLLISION_COUNTER);
+					  TX_TOTAL_COLLISION_COUNTER);
 
 	stats->rx_length_errors = xlr_nae_rdreg(priv->base_addr,
-			RX_FRAME_LENGTH_ERROR_COUNTER);
+						RX_FRAME_LENGTH_ERROR_COUNTER);
 	stats->rx_over_errors = xlr_nae_rdreg(priv->base_addr,
-			RX_DROP_PACKET_COUNTER);
+					      RX_DROP_PACKET_COUNTER);
 	stats->rx_crc_errors = xlr_nae_rdreg(priv->base_addr,
-			RX_FCS_ERROR_COUNTER);
+					     RX_FCS_ERROR_COUNTER);
 	stats->rx_frame_errors = xlr_nae_rdreg(priv->base_addr,
-			RX_ALIGNMENT_ERROR_COUNTER);
+					       RX_ALIGNMENT_ERROR_COUNTER);
 
 	stats->rx_fifo_errors = xlr_nae_rdreg(priv->base_addr,
-			RX_DROP_PACKET_COUNTER);
+					      RX_DROP_PACKET_COUNTER);
 	stats->rx_missed_errors = xlr_nae_rdreg(priv->base_addr,
-			RX_CARRIER_SENSE_ERROR_COUNTER);
+						RX_CARRIER_SENSE_ERROR_COUNTER);
 
 	stats->rx_errors = (stats->rx_over_errors + stats->rx_crc_errors +
-			stats->rx_frame_errors + stats->rx_fifo_errors +
-			stats->rx_missed_errors);
+			    stats->rx_frame_errors + stats->rx_fifo_errors +
+			    stats->rx_missed_errors);
 
 	stats->tx_aborted_errors = xlr_nae_rdreg(priv->base_addr,
 			TX_EXCESSIVE_COLLISION_PACKET_COUNTER);
 	stats->tx_carrier_errors = xlr_nae_rdreg(priv->base_addr,
-			TX_DROP_FRAME_COUNTER);
+						 TX_DROP_FRAME_COUNTER);
 	stats->tx_fifo_errors = xlr_nae_rdreg(priv->base_addr,
-			TX_DROP_FRAME_COUNTER);
+					      TX_DROP_FRAME_COUNTER);
 }
 
 static const struct net_device_ops xlr_netdev_ops = {
@@ -448,41 +448,35 @@ static void *xlr_config_spill(struct xlr_net_priv *priv, int reg_start_0,
 static void xlr_config_fifo_spill_area(struct xlr_net_priv *priv)
 {
 	priv->frin_spill = xlr_config_spill(priv,
-			R_REG_FRIN_SPILL_MEM_START_0,
-			R_REG_FRIN_SPILL_MEM_START_1,
-			R_REG_FRIN_SPILL_MEM_SIZE,
-			MAX_FRIN_SPILL *
-			sizeof(u64));
+					    R_REG_FRIN_SPILL_MEM_START_0,
+					    R_REG_FRIN_SPILL_MEM_START_1,
+					    R_REG_FRIN_SPILL_MEM_SIZE,
+					    MAX_FRIN_SPILL * sizeof(u64));
 	priv->frout_spill = xlr_config_spill(priv,
-			R_FROUT_SPILL_MEM_START_0,
-			R_FROUT_SPILL_MEM_START_1,
-			R_FROUT_SPILL_MEM_SIZE,
-			MAX_FROUT_SPILL *
-			sizeof(u64));
+					     R_FROUT_SPILL_MEM_START_0,
+					     R_FROUT_SPILL_MEM_START_1,
+					     R_FROUT_SPILL_MEM_SIZE,
+					     MAX_FROUT_SPILL * sizeof(u64));
 	priv->class_0_spill = xlr_config_spill(priv,
-			R_CLASS0_SPILL_MEM_START_0,
-			R_CLASS0_SPILL_MEM_START_1,
-			R_CLASS0_SPILL_MEM_SIZE,
-			MAX_CLASS_0_SPILL *
-			sizeof(u64));
+					       R_CLASS0_SPILL_MEM_START_0,
+					       R_CLASS0_SPILL_MEM_START_1,
+					       R_CLASS0_SPILL_MEM_SIZE,
+					       MAX_CLASS_0_SPILL * sizeof(u64));
 	priv->class_1_spill = xlr_config_spill(priv,
-			R_CLASS1_SPILL_MEM_START_0,
-			R_CLASS1_SPILL_MEM_START_1,
-			R_CLASS1_SPILL_MEM_SIZE,
-			MAX_CLASS_1_SPILL *
-			sizeof(u64));
+					       R_CLASS1_SPILL_MEM_START_0,
+					       R_CLASS1_SPILL_MEM_START_1,
+					       R_CLASS1_SPILL_MEM_SIZE,
+					       MAX_CLASS_1_SPILL * sizeof(u64));
 	priv->class_2_spill = xlr_config_spill(priv,
-			R_CLASS2_SPILL_MEM_START_0,
-			R_CLASS2_SPILL_MEM_START_1,
-			R_CLASS2_SPILL_MEM_SIZE,
-			MAX_CLASS_2_SPILL *
-			sizeof(u64));
+					       R_CLASS2_SPILL_MEM_START_0,
+					       R_CLASS2_SPILL_MEM_START_1,
+					       R_CLASS2_SPILL_MEM_SIZE,
+					       MAX_CLASS_2_SPILL * sizeof(u64));
 	priv->class_3_spill = xlr_config_spill(priv,
-			R_CLASS3_SPILL_MEM_START_0,
-			R_CLASS3_SPILL_MEM_START_1,
-			R_CLASS3_SPILL_MEM_SIZE,
-			MAX_CLASS_3_SPILL *
-			sizeof(u64));
+					       R_CLASS3_SPILL_MEM_START_0,
+					       R_CLASS3_SPILL_MEM_START_1,
+					       R_CLASS3_SPILL_MEM_SIZE,
+					       MAX_CLASS_3_SPILL * sizeof(u64));
 }
 
 /*

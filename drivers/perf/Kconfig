@@ -17,6 +17,13 @@ config ARM_PMU_ACPI
 	depends on ARM_PMU && ACPI
 	def_bool y
 
+config HISI_PMU
+       bool "HiSilicon SoC PMU"
+       depends on ARM64 && ACPI
+       help
+         Support for HiSilicon SoC uncore performance monitoring
+         unit (PMU), such as: L3C, HHA and DDRC.
+
 config QCOM_L2_PMU
 	bool "Qualcomm Technologies L2-cache PMU"
 	depends on ARCH_QCOM && ARM64 && ACPI
@@ -42,5 +49,13 @@ config XGENE_PMU
         default n
         help
           Say y if you want to use APM X-Gene SoC performance monitors.
+
+config ARM_SPE_PMU
+	tristate "Enable support for the ARMv8.2 Statistical Profiling Extension"
+	depends on PERF_EVENTS && ARM64
+	help
+	  Enable perf support for the ARMv8.2 Statistical Profiling
+	  Extension, which provides periodic sampling of operations in
+	  the CPU pipeline and reports this via the perf AUX interface.
 
 endmenu

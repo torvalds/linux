@@ -2854,7 +2854,7 @@ struct sctp_chunk *sctp_make_asconf_update_ip(struct sctp_association *asoc,
 		addr_param_len = af->to_addr_param(addr, &addr_param);
 		param.param_hdr.type = flags;
 		param.param_hdr.length = htons(paramlen + addr_param_len);
-		param.crr_id = i;
+		param.crr_id = htonl(i);
 
 		sctp_addto_chunk(retval, paramlen, &param);
 		sctp_addto_chunk(retval, addr_param_len, &addr_param);
@@ -2867,7 +2867,7 @@ struct sctp_chunk *sctp_make_asconf_update_ip(struct sctp_association *asoc,
 		addr_param_len = af->to_addr_param(addr, &addr_param);
 		param.param_hdr.type = SCTP_PARAM_DEL_IP;
 		param.param_hdr.length = htons(paramlen + addr_param_len);
-		param.crr_id = i;
+		param.crr_id = htonl(i);
 
 		sctp_addto_chunk(retval, paramlen, &param);
 		sctp_addto_chunk(retval, addr_param_len, &addr_param);
@@ -3591,11 +3591,11 @@ static struct sctp_chunk *sctp_make_reconf(const struct sctp_association *asoc,
  */
 struct sctp_chunk *sctp_make_strreset_req(
 					const struct sctp_association *asoc,
-					__u16 stream_num, __u16 *stream_list,
+					__u16 stream_num, __be16 *stream_list,
 					bool out, bool in)
 {
+	__u16 stream_len = stream_num * sizeof(__u16);
 	struct sctp_strreset_outreq outreq;
-	__u16 stream_len = stream_num * 2;
 	struct sctp_strreset_inreq inreq;
 	struct sctp_chunk *retval;
 	__u16 outlen, inlen;
@@ -3788,7 +3788,8 @@ bool sctp_verify_reconf(const struct sctp_association *asoc,
 {
 	struct sctp_reconf_chunk *hdr;
 	union sctp_params param;
-	__u16 last = 0, cnt = 0;
+	__be16 last = 0;
+	__u16 cnt = 0;
 
 	hdr = (struct sctp_reconf_chunk *)chunk->chunk_hdr;
 	sctp_walk_params(param, hdr, params) {

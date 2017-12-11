@@ -213,6 +213,11 @@ The tags in common use are:
    which can be found in Documentation/process/submitting-patches.rst.  Code without a
    proper signoff cannot be merged into the mainline.
 
+ - Co-Developed-by: states that the patch was also created by another developer
+   along with the original author.  This is useful at times when multiple
+   people work on a single patch.  Note, this person also needs to have a
+   Signed-off-by: line in the patch as well.
+
  - Acked-by: indicates an agreement by another developer (often a
    maintainer of the relevant code) that the patch is appropriate for
    inclusion into the kernel.

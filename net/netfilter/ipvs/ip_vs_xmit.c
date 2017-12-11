@@ -921,6 +921,7 @@ ip_vs_prepare_tunneled_skb(struct sk_buff *skb, int skb_af,
 {
 	struct sk_buff *new_skb = NULL;
 	struct iphdr *old_iph = NULL;
+	__u8 old_dsfield;
 #ifdef CONFIG_IP_VS_IPV6
 	struct ipv6hdr *old_ipv6h = NULL;
 #endif
@@ -945,7 +946,7 @@ ip_vs_prepare_tunneled_skb(struct sk_buff *skb, int skb_af,
 			*payload_len =
 				ntohs(old_ipv6h->payload_len) +
 				sizeof(*old_ipv6h);
-		*dsfield = ipv6_get_dsfield(old_ipv6h);
+		old_dsfield = ipv6_get_dsfield(old_ipv6h);
 		*ttl = old_ipv6h->hop_limit;
 		if (df)
 			*df = 0;
@@ -960,11 +961,14 @@ ip_vs_prepare_tunneled_skb(struct sk_buff *skb, int skb_af,
 
 		/* fix old IP header checksum */
 		ip_send_check(old_iph);
-		*dsfield = ipv4_get_dsfield(old_iph);
+		old_dsfield = ipv4_get_dsfield(old_iph);
 		*ttl = old_iph->ttl;
 		if (payload_len)
 			*payload_len = ntohs(old_iph->tot_len);
 	}
+
+	/* Implement full-functionality option for ECN encapsulation */
+	*dsfield = INET_ECN_encapsulate(old_dsfield, old_dsfield);
 
 	return skb;
 error:

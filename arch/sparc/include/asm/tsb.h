@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _SPARC64_TSB_H
 #define _SPARC64_TSB_H
 
@@ -216,7 +217,7 @@ extern struct tsb_phys_patch_entry __tsb_phys_patch, __tsb_phys_patch_end;
 	sllx		REG2, 32, REG2;			\
 	andcc		REG1, REG2, %g0;		\
 	be,pt		%xcc, 700f;			\
-	 sethi		%hi(0x1ffc0000), REG2;		\
+	 sethi		%hi(0xffe00000), REG2;		\
 	sllx		REG2, 1, REG2;			\
 	brgez,pn	REG1, FAIL_LABEL;		\
 	 andn		REG1, REG2, REG1;		\

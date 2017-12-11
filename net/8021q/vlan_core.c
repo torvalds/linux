@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/skbuff.h>
 #include <linux/netdevice.h>
 #include <linux/if_vlan.h>
@@ -20,6 +21,12 @@ bool vlan_do_receive(struct sk_buff **skbp)
 	skb = *skbp = skb_share_check(skb, GFP_ATOMIC);
 	if (unlikely(!skb))
 		return false;
+
+	if (unlikely(!(vlan_dev->flags & IFF_UP))) {
+		kfree_skb(skb);
+		*skbp = NULL;
+		return false;
+	}
 
 	skb->dev = vlan_dev;
 	if (unlikely(skb->pkt_type == PACKET_OTHERHOST)) {

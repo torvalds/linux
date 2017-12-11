@@ -9,7 +9,6 @@
 #include <linux/component.h>
 #include <linux/module.h>
 #include <linux/of_graph.h>
-#include <drm/drmP.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_of.h>
 #include "armada_crtc.h"
@@ -26,7 +25,7 @@ static void armada_drm_unref_work(struct work_struct *work)
 	struct drm_framebuffer *fb;
 
 	while (kfifo_get(&priv->fb_unref, &fb))
-		drm_framebuffer_unreference(fb);
+		drm_framebuffer_put(fb);
 }
 
 /* Must be called with dev->event_lock held */
@@ -70,8 +69,6 @@ static struct drm_driver armada_drm_driver = {
 	.gem_prime_export	= armada_gem_prime_export,
 	.gem_prime_import	= armada_gem_prime_import,
 	.dumb_create		= armada_gem_dumb_create,
-	.dumb_map_offset	= armada_gem_dumb_map_offset,
-	.dumb_destroy		= armada_gem_dumb_destroy,
 	.gem_vm_ops		= &armada_gem_vm_ops,
 	.major			= 1,
 	.minor			= 0,

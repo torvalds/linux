@@ -255,7 +255,7 @@
  * @NFP_NET_CFG_BPF_ADDR:	DMA address of the buffer with JITed BPF code
  */
 #define NFP_NET_CFG_BPF_ABI		0x0080
-#define   NFP_NET_BPF_ABI		1
+#define   NFP_NET_BPF_ABI		2
 #define NFP_NET_CFG_BPF_CAP		0x0081
 #define   NFP_NET_BPF_CAP_RELO		(1 << 0) /* seamless reload */
 #define NFP_NET_CFG_BPF_MAX_LEN		0x0082

@@ -199,6 +199,13 @@ Aggregate counts per processor socket for system-wide mode measurements.
 --per-core::
 Aggregate counts per physical processor for system-wide mode measurements.
 
+-M::
+--metrics::
+Print metrics or metricgroups specified in a comma separated list.
+For a group all metrics from the group are added.
+The events from the metrics are automatically measured.
+See perf list output for the possble metrics and metricgroups.
+
 -A::
 --no-aggr::
 Do not aggregate counts across all monitored CPUs.

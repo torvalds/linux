@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _BTRFS_SYSFS_H_
 #define _BTRFS_SYSFS_H_
 
@@ -20,21 +21,16 @@ enum btrfs_feature_set {
 	.store	= _store,						\
 }
 
-#define BTRFS_ATTR_RW(_name, _show, _store)			\
-	static struct kobj_attribute btrfs_attr_##_name =		\
+#define BTRFS_ATTR_RW(_prefix, _name, _show, _store)			\
+	static struct kobj_attribute btrfs_attr_##_prefix##_##_name =	\
 			__INIT_KOBJ_ATTR(_name, 0644, _show, _store)
 
-#define BTRFS_ATTR(_name, _show)					\
-	static struct kobj_attribute btrfs_attr_##_name =		\
+#define BTRFS_ATTR(_prefix, _name, _show)				\
+	static struct kobj_attribute btrfs_attr_##_prefix##_##_name =	\
 			__INIT_KOBJ_ATTR(_name, 0444, _show, NULL)
 
-#define BTRFS_ATTR_PTR(_name)    (&btrfs_attr_##_name.attr)
-
-#define BTRFS_RAID_ATTR(_name, _show)					\
-	static struct kobj_attribute btrfs_raid_attr_##_name =		\
-			__INIT_KOBJ_ATTR(_name, 0444, _show, NULL)
-
-#define BTRFS_RAID_ATTR_PTR(_name)    (&btrfs_raid_attr_##_name.attr)
+#define BTRFS_ATTR_PTR(_prefix, _name)					\
+	(&btrfs_attr_##_prefix##_##_name.attr)
 
 
 struct btrfs_feature_attr {
@@ -43,15 +39,16 @@ struct btrfs_feature_attr {
 	u64 feature_bit;
 };
 
-#define BTRFS_FEAT_ATTR(_name, _feature_set, _prefix, _feature_bit)	     \
-static struct btrfs_feature_attr btrfs_attr_##_name = {			     \
+#define BTRFS_FEAT_ATTR(_name, _feature_set, _feature_prefix, _feature_bit)  \
+static struct btrfs_feature_attr btrfs_attr_features_##_name = {	     \
 	.kobj_attr = __INIT_KOBJ_ATTR(_name, S_IRUGO,			     \
 				      btrfs_feature_attr_show,		     \
 				      btrfs_feature_attr_store),	     \
 	.feature_set	= _feature_set,					     \
-	.feature_bit	= _prefix ##_## _feature_bit,			     \
+	.feature_bit	= _feature_prefix ##_## _feature_bit,		     \
 }
-#define BTRFS_FEAT_ATTR_PTR(_name)    (&btrfs_attr_##_name.kobj_attr.attr)
+#define BTRFS_FEAT_ATTR_PTR(_name)					     \
+	(&btrfs_attr_features_##_name.kobj_attr.attr)
 
 #define BTRFS_FEAT_ATTR_COMPAT(name, feature) \
 	BTRFS_FEAT_ATTR(name, FEAT_COMPAT, BTRFS_FEATURE_COMPAT, feature)

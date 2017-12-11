@@ -1446,3 +1446,25 @@ int import_single_range(int rw, void __user *buf, size_t len,
 	return 0;
 }
 EXPORT_SYMBOL(import_single_range);
+
+int iov_iter_for_each_range(struct iov_iter *i, size_t bytes,
+			    int (*f)(struct kvec *vec, void *context),
+			    void *context)
+{
+	struct kvec w;
+	int err = -EINVAL;
+	if (!bytes)
+		return 0;
+
+	iterate_all_kinds(i, bytes, v, -EINVAL, ({
+		w.iov_base = kmap(v.bv_page) + v.bv_offset;
+		w.iov_len = v.bv_len;
+		err = f(&w, context);
+		kunmap(v.bv_page);
+		err;}), ({
+		w = v;
+		err = f(&w, context);})
+	)
+	return err;
+}
+EXPORT_SYMBOL(iov_iter_for_each_range);

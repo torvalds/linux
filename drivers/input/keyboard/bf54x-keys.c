@@ -127,10 +127,9 @@ static inline void bfin_kpad_clear_irq(void)
 	bfin_write_KPAD_ROWCOL(0xFFFF);
 }
 
-static void bfin_kpad_timer(unsigned long data)
+static void bfin_kpad_timer(struct timer_list *t)
 {
-	struct platform_device *pdev =  (struct platform_device *) data;
-	struct bf54x_kpad *bf54x_kpad = platform_get_drvdata(pdev);
+	struct bf54x_kpad *bf54x_kpad = from_timer(bf54x_kpad, t, timer);
 
 	if (bfin_kpad_get_keypressed(bf54x_kpad)) {
 		/* Try again later */
@@ -298,7 +297,7 @@ static int bfin_kpad_probe(struct platform_device *pdev)
 
 	/* Init Keypad Key Up/Release test timer */
 
-	setup_timer(&bf54x_kpad->timer, bfin_kpad_timer, (unsigned long) pdev);
+	timer_setup(&bf54x_kpad->timer, bfin_kpad_timer, 0);
 
 	bfin_write_KPAD_PRESCALE(bfin_kpad_get_prescale(TIME_SCALE));
 

@@ -78,10 +78,10 @@ static u8 do_join(struct _adapter *padapter)
 		int ret;
 
 		ret = r8712_select_and_join_from_scan(pmlmepriv);
-		if (ret == _SUCCESS)
+		if (ret == _SUCCESS) {
 			mod_timer(&pmlmepriv->assoc_timer,
 				  jiffies + msecs_to_jiffies(MAX_JOIN_TIMEOUT));
-		else {
+		} else {
 			if (check_fwstate(pmlmepriv, WIFI_ADHOC_STATE)) {
 				/* submit r8712_createbss_cmd to change to an
 				 * ADHOC_MASTER pmlmepriv->lock has been

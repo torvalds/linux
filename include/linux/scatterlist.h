@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _LINUX_SCATTERLIST_H
 #define _LINUX_SCATTERLIST_H
 
@@ -19,6 +20,12 @@ struct scatterlist {
 	unsigned int	dma_length;
 #endif
 };
+
+/*
+ * Since the above length field is an unsigned int, below we define the maximum
+ * length in bytes that can be stored in one scatterlist entry.
+ */
+#define SCATTERLIST_MAX_SEGMENT (UINT_MAX & PAGE_MASK)
 
 /*
  * These macros should be used after a dma_map_sg call has been done
@@ -261,10 +268,13 @@ void sg_free_table(struct sg_table *);
 int __sg_alloc_table(struct sg_table *, unsigned int, unsigned int,
 		     struct scatterlist *, gfp_t, sg_alloc_fn *);
 int sg_alloc_table(struct sg_table *, unsigned int, gfp_t);
-int sg_alloc_table_from_pages(struct sg_table *sgt,
-	struct page **pages, unsigned int n_pages,
-	unsigned long offset, unsigned long size,
-	gfp_t gfp_mask);
+int __sg_alloc_table_from_pages(struct sg_table *sgt, struct page **pages,
+				unsigned int n_pages, unsigned int offset,
+				unsigned long size, unsigned int max_segment,
+				gfp_t gfp_mask);
+int sg_alloc_table_from_pages(struct sg_table *sgt, struct page **pages,
+			      unsigned int n_pages, unsigned int offset,
+			      unsigned long size, gfp_t gfp_mask);
 
 size_t sg_copy_buffer(struct scatterlist *sgl, unsigned int nents, void *buf,
 		      size_t buflen, off_t skip, bool to_buffer);

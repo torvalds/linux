@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *  linux/fs/namei.c
  *
@@ -1128,18 +1129,9 @@ static int follow_automount(struct path *path, struct nameidata *nd,
 	 * of the daemon to instantiate them before they can be used.
 	 */
 	if (!(nd->flags & (LOOKUP_PARENT | LOOKUP_DIRECTORY |
-			   LOOKUP_OPEN | LOOKUP_CREATE |
-			   LOOKUP_AUTOMOUNT))) {
-		/* Positive dentry that isn't meant to trigger an
-		 * automount, EISDIR will allow it to be used,
-		 * otherwise there's no mount here "now" so return
-		 * ENOENT.
-		 */
-		if (path->dentry->d_inode)
-			return -EISDIR;
-		else
-			return -ENOENT;
-	}
+			   LOOKUP_OPEN | LOOKUP_CREATE | LOOKUP_AUTOMOUNT)) &&
+	    path->dentry->d_inode)
+		return -EISDIR;
 
 	if (path->dentry->d_sb->s_user_ns != &init_user_ns)
 		return -EACCES;
@@ -1209,7 +1201,7 @@ static int follow_managed(struct path *path, struct nameidata *nd)
 	/* Given that we're not holding a lock here, we retain the value in a
 	 * local variable for each dentry as we look at it so that we don't see
 	 * the components of that value change under us */
-	while (managed = ACCESS_ONCE(path->dentry->d_flags),
+	while (managed = READ_ONCE(path->dentry->d_flags),
 	       managed &= DCACHE_MANAGED_DENTRY,
 	       unlikely(managed != 0)) {
 		/* Allow the filesystem to manage the transit without i_mutex
@@ -1394,7 +1386,7 @@ int follow_down(struct path *path)
 	unsigned managed;
 	int ret;
 
-	while (managed = ACCESS_ONCE(path->dentry->d_flags),
+	while (managed = READ_ONCE(path->dentry->d_flags),
 	       unlikely(managed & DCACHE_MANAGED_DENTRY)) {
 		/* Allow the filesystem to manage the transit without i_mutex
 		 * being held.
@@ -3458,7 +3450,7 @@ static int do_tmpfile(struct nameidata *nd, unsigned flags,
 		goto out;
 	child = vfs_tmpfile(path.dentry, op->mode, op->open_flag);
 	error = PTR_ERR(child);
-	if (unlikely(IS_ERR(child)))
+	if (IS_ERR(child))
 		goto out2;
 	dput(path.dentry);
 	path.dentry = child;
@@ -4009,10 +4001,9 @@ EXPORT_SYMBOL(vfs_unlink);
  * writeout happening, and we don't want to prevent access to the directory
  * while waiting on the I/O.
  */
-static long do_unlinkat(int dfd, const char __user *pathname)
+long do_unlinkat(int dfd, struct filename *name)
 {
 	int error;
-	struct filename *name;
 	struct dentry *dentry;
 	struct path path;
 	struct qstr last;
@@ -4021,8 +4012,7 @@ static long do_unlinkat(int dfd, const char __user *pathname)
 	struct inode *delegated_inode = NULL;
 	unsigned int lookup_flags = 0;
 retry:
-	name = filename_parentat(dfd, getname(pathname), lookup_flags,
-				&path, &last, &type);
+	name = filename_parentat(dfd, name, lookup_flags, &path, &last, &type);
 	if (IS_ERR(name))
 		return PTR_ERR(name);
 
@@ -4064,12 +4054,12 @@ exit2:
 	mnt_drop_write(path.mnt);
 exit1:
 	path_put(&path);
-	putname(name);
 	if (retry_estale(error, lookup_flags)) {
 		lookup_flags |= LOOKUP_REVAL;
 		inode = NULL;
 		goto retry;
 	}
+	putname(name);
 	return error;
 
 slashes:
@@ -4090,12 +4080,12 @@ SYSCALL_DEFINE3(unlinkat, int, dfd, const char __user *, pathname, int, flag)
 	if (flag & AT_REMOVEDIR)
 		return do_rmdir(dfd, pathname);
 
-	return do_unlinkat(dfd, pathname);
+	return do_unlinkat(dfd, getname(pathname));
 }
 
 SYSCALL_DEFINE1(unlink, const char __user *, pathname)
 {
-	return do_unlinkat(AT_FDCWD, pathname);
+	return do_unlinkat(AT_FDCWD, getname(pathname));
 }
 
 int vfs_symlink(struct inode *dir, struct dentry *dentry, const char *oldname)

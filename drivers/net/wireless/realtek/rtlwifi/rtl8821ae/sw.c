@@ -43,6 +43,7 @@
 
 static void rtl8821ae_init_aspm_vars(struct ieee80211_hw *hw)
 {
+	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_pci *rtlpci = rtl_pcidev(rtl_pcipriv(hw));
 
 	/*close ASPM for AMD defaultly */
@@ -82,7 +83,7 @@ static void rtl8821ae_init_aspm_vars(struct ieee80211_hw *hw)
 	 * 1 - Support ASPM,
 	 * 2 - According to chipset.
 	 */
-	rtlpci->const_support_pciaspm = 1;
+	rtlpci->const_support_pciaspm = rtlpriv->cfg->mod_params->aspm_support;
 }
 
 /*InitializeVariables8812E*/
@@ -313,6 +314,7 @@ static struct rtl_mod_params rtl8821ae_mod_params = {
 	.swctrl_lps = false,
 	.fwctrl_lps = true,
 	.msi_support = true,
+	.aspm_support = 1,
 	.int_clear = true,
 	.debug_level = 0,
 	.debug_mask = 0,
@@ -444,6 +446,7 @@ module_param_named(ips, rtl8821ae_mod_params.inactiveps, bool, 0444);
 module_param_named(swlps, rtl8821ae_mod_params.swctrl_lps, bool, 0444);
 module_param_named(fwlps, rtl8821ae_mod_params.fwctrl_lps, bool, 0444);
 module_param_named(msi, rtl8821ae_mod_params.msi_support, bool, 0444);
+module_param_named(aspm, rtl8821ae_mod_params.aspm_support, int, 0444);
 module_param_named(disable_watchdog, rtl8821ae_mod_params.disable_watchdog,
 		   bool, 0444);
 module_param_named(int_clear, rtl8821ae_mod_params.int_clear, bool, 0444);
@@ -452,6 +455,7 @@ MODULE_PARM_DESC(ips, "Set to 0 to not use link power save (default 1)\n");
 MODULE_PARM_DESC(swlps, "Set to 1 to use SW control power save (default 0)\n");
 MODULE_PARM_DESC(fwlps, "Set to 1 to use FW control power save (default 1)\n");
 MODULE_PARM_DESC(msi, "Set to 1 to use MSI interrupts mode (default 1)\n");
+MODULE_PARM_DESC(aspm, "Set to 1 to enable ASPM (default 1)\n");
 MODULE_PARM_DESC(debug_level, "Set debug level (0-5) (default 0)");
 MODULE_PARM_DESC(debug_mask, "Set debug mask (default 0)");
 MODULE_PARM_DESC(disable_watchdog, "Set to 1 to disable the watchdog (default 0)\n");

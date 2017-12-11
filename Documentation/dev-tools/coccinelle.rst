@@ -33,9 +33,6 @@ of many distributions, e.g. :
 You can get the latest version released from the Coccinelle homepage at
 http://coccinelle.lip6.fr/
 
-Information and tips about Coccinelle are also provided on the wiki
-pages at http://cocci.ekstranet.diku.dk/wiki/doku.php
-
 Once you have it, run the following command::
 
      	./configure
@@ -209,7 +206,7 @@ err.log will now have the profiling information, while stdout will
 provide some progress information as Coccinelle moves forward with
 work.
 
-DEBUG_FILE support is only supported when using coccinelle >= 1.2.
+DEBUG_FILE support is only supported when using coccinelle >= 1.0.2.
 
 .cocciconfig support
 --------------------

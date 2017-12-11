@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * SuperH EHCI host controller driver
  *
  * Copyright (C) 2010  Paul Mundt
  *
  * Based on ohci-sh.c and ehci-atmel.c.
- *
- * This file is subject to the terms and conditions of the GNU General Public
- * License.  See the file "COPYING" in the main directory of this archive
- * for more details.
  */
 #include <linux/platform_device.h>
 #include <linux/clk.h>

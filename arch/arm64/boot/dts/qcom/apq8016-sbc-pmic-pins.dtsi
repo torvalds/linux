@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <dt-bindings/pinctrl/qcom,pmic-gpio.h>
 #include <dt-bindings/pinctrl/qcom,pmic-mpp.h>
 

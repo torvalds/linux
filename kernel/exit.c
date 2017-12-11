@@ -1339,7 +1339,7 @@ static int wait_consider_task(struct wait_opts *wo, int ptrace,
 	 * Ensure that EXIT_ZOMBIE -> EXIT_DEAD/EXIT_TRACE transition
 	 * can't confuse the checks below.
 	 */
-	int exit_state = ACCESS_ONCE(p->exit_state);
+	int exit_state = READ_ONCE(p->exit_state);
 	int ret;
 
 	if (unlikely(exit_state == EXIT_DEAD))
@@ -1600,17 +1600,18 @@ SYSCALL_DEFINE5(waitid, int, which, pid_t, upid, struct siginfo __user *,
 	struct waitid_info info = {.status = 0};
 	long err = kernel_waitid(which, upid, &info, options, ru ? &r : NULL);
 	int signo = 0;
+
 	if (err > 0) {
 		signo = SIGCHLD;
 		err = 0;
-	}
-
-	if (!err) {
 		if (ru && copy_to_user(ru, &r, sizeof(struct rusage)))
 			return -EFAULT;
 	}
 	if (!infop)
 		return err;
+
+	if (!access_ok(VERIFY_WRITE, infop, sizeof(*infop)))
+		return -EFAULT;
 
 	user_access_begin();
 	unsafe_put_user(signo, &infop->si_signo, Efault);
@@ -1723,20 +1724,22 @@ COMPAT_SYSCALL_DEFINE5(waitid,
 	if (err > 0) {
 		signo = SIGCHLD;
 		err = 0;
-	}
-
-	if (!err && uru) {
-		/* kernel_waitid() overwrites everything in ru */
-		if (COMPAT_USE_64BIT_TIME)
-			err = copy_to_user(uru, &ru, sizeof(ru));
-		else
-			err = put_compat_rusage(&ru, uru);
-		if (err)
-			return -EFAULT;
+		if (uru) {
+			/* kernel_waitid() overwrites everything in ru */
+			if (COMPAT_USE_64BIT_TIME)
+				err = copy_to_user(uru, &ru, sizeof(ru));
+			else
+				err = put_compat_rusage(&ru, uru);
+			if (err)
+				return -EFAULT;
+		}
 	}
 
 	if (!infop)
 		return err;
+
+	if (!access_ok(VERIFY_WRITE, infop, sizeof(*infop)))
+		return -EFAULT;
 
 	user_access_begin();
 	unsafe_put_user(signo, &infop->si_signo, Efault);

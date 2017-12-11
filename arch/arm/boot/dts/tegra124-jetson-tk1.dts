@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /dts-v1/;
 
 #include <dt-bindings/input/input.h>
@@ -65,6 +66,10 @@
 			nvidia,hpd-gpio =
 				<&gpio TEGRA_GPIO(N, 7) GPIO_ACTIVE_HIGH>;
 		};
+	};
+
+	cec@70015000 {
+		status = "okay";
 	};
 
 	gpu@0,57000000 {

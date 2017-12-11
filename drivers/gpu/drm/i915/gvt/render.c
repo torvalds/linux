@@ -293,7 +293,7 @@ static void switch_mmio_to_vgpu(struct intel_vgpu *vgpu, int ring_id)
 		 */
 		if (mmio->in_context &&
 				((ctx_ctrl & inhibit_mask) != inhibit_mask) &&
-				i915.enable_execlists)
+				i915_modparams.enable_execlists)
 			continue;
 
 		if (mmio->mask)

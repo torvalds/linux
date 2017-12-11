@@ -341,6 +341,8 @@ int drm_av_sync_delay(struct drm_connector *connector,
 
 #ifdef CONFIG_DRM_LOAD_EDID_FIRMWARE
 struct edid *drm_load_edid_firmware(struct drm_connector *connector);
+int __drm_set_edid_firmware_path(const char *path);
+int __drm_get_edid_firmware_path(char *buf, size_t bufsize);
 #else
 static inline struct edid *
 drm_load_edid_firmware(struct drm_connector *connector)
@@ -360,7 +362,8 @@ void
 drm_hdmi_avi_infoframe_quant_range(struct hdmi_avi_infoframe *frame,
 				   const struct drm_display_mode *mode,
 				   enum hdmi_quantization_range rgb_quant_range,
-				   bool rgb_quant_range_selectable);
+				   bool rgb_quant_range_selectable,
+				   bool is_hdmi2_sink);
 
 /**
  * drm_eld_mnl - Get ELD monitor name length in bytes.

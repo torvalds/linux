@@ -139,6 +139,11 @@ static int stm32f4_adc_clk_sel(struct platform_device *pdev,
 	}
 
 	rate = clk_get_rate(priv->aclk);
+	if (!rate) {
+		dev_err(&pdev->dev, "Invalid clock rate: 0\n");
+		return -EINVAL;
+	}
+
 	for (i = 0; i < ARRAY_SIZE(stm32f4_pclk_div); i++) {
 		if ((rate / stm32f4_pclk_div[i]) <= STM32F4_ADC_MAX_CLK_RATE)
 			break;
@@ -216,6 +221,10 @@ static int stm32h7_adc_clk_sel(struct platform_device *pdev,
 		 * From spec: PLL output musn't exceed max rate
 		 */
 		rate = clk_get_rate(priv->aclk);
+		if (!rate) {
+			dev_err(&pdev->dev, "Invalid adc clock rate: 0\n");
+			return -EINVAL;
+		}
 
 		for (i = 0; i < ARRAY_SIZE(stm32h7_adc_ckmodes_spec); i++) {
 			ckmode = stm32h7_adc_ckmodes_spec[i].ckmode;
@@ -232,6 +241,10 @@ static int stm32h7_adc_clk_sel(struct platform_device *pdev,
 
 	/* Synchronous clock modes (e.g. ckmode is 1, 2 or 3) */
 	rate = clk_get_rate(priv->bclk);
+	if (!rate) {
+		dev_err(&pdev->dev, "Invalid bus clock rate: 0\n");
+		return -EINVAL;
+	}
 
 	for (i = 0; i < ARRAY_SIZE(stm32h7_adc_ckmodes_spec); i++) {
 		ckmode = stm32h7_adc_ckmodes_spec[i].ckmode;

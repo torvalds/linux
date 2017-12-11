@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * mtu3_core.c - hardware access layer and gadget init/exit of
  *                     MediaTek usb3 Dual-Role Controller Driver
@@ -5,18 +6,9 @@
  * Copyright (C) 2016 MediaTek Inc.
  *
  * Author: Chunfeng Yun <chunfeng.yun@mediatek.com>
- *
- * This software is licensed under the terms of the GNU General Public
- * License version 2, as published by the Free Software Foundation, and
- * may be copied, distributed, and modified under those terms.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  */
 
+#include <linux/dma-mapping.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/of_address.h>
@@ -114,7 +106,9 @@ static int mtu3_device_enable(struct mtu3 *mtu)
 	mtu3_clrbits(ibase, SSUSB_U2_CTRL(0),
 		(SSUSB_U2_PORT_DIS | SSUSB_U2_PORT_PDN |
 		SSUSB_U2_PORT_HOST_SEL));
-	mtu3_setbits(ibase, SSUSB_U2_CTRL(0), SSUSB_U2_PORT_OTG_SEL);
+
+	if (mtu->ssusb->dr_mode == USB_DR_MODE_OTG)
+		mtu3_setbits(ibase, SSUSB_U2_CTRL(0), SSUSB_U2_PORT_OTG_SEL);
 
 	return ssusb_check_clocks(mtu->ssusb, check_clk);
 }
@@ -129,7 +123,10 @@ static void mtu3_device_disable(struct mtu3 *mtu)
 
 	mtu3_setbits(ibase, SSUSB_U2_CTRL(0),
 		SSUSB_U2_PORT_DIS | SSUSB_U2_PORT_PDN);
-	mtu3_clrbits(ibase, SSUSB_U2_CTRL(0), SSUSB_U2_PORT_OTG_SEL);
+
+	if (mtu->ssusb->dr_mode == USB_DR_MODE_OTG)
+		mtu3_clrbits(ibase, SSUSB_U2_CTRL(0), SSUSB_U2_PORT_OTG_SEL);
+
 	mtu3_setbits(ibase, U3D_SSUSB_IP_PW_CTRL2, SSUSB_IP_DEV_PDN);
 }
 
@@ -236,7 +233,7 @@ void mtu3_ep_stall_set(struct mtu3_ep *mep, bool set)
 
 void mtu3_dev_on_off(struct mtu3 *mtu, int is_on)
 {
-	if (mtu->is_u3_ip && (mtu->max_speed == USB_SPEED_SUPER))
+	if (mtu->is_u3_ip && mtu->max_speed >= USB_SPEED_SUPER)
 		mtu3_ss_func_set(mtu, is_on);
 	else
 		mtu3_hs_softconn_set(mtu, is_on);
@@ -546,6 +543,9 @@ static void mtu3_set_speed(struct mtu3 *mtu)
 		mtu3_clrbits(mbase, U3D_USB3_CONFIG, USB3_EN);
 		/* HS/FS detected by HW */
 		mtu3_setbits(mbase, U3D_POWER_MANAGEMENT, HS_ENABLE);
+	} else if (mtu->max_speed == USB_SPEED_SUPER) {
+		mtu3_clrbits(mtu->ippc_base, SSUSB_U3_CTRL(0),
+			     SSUSB_U3_PORT_SSP_SPEED);
 	}
 
 	dev_info(mtu->dev, "max_speed: %s\n",
@@ -621,6 +621,10 @@ static irqreturn_t mtu3_link_isr(struct mtu3 *mtu)
 		break;
 	case MTU3_SPEED_SUPER:
 		udev_speed = USB_SPEED_SUPER;
+		maxpkt = 512;
+		break;
+	case MTU3_SPEED_SUPER_PLUS:
+		udev_speed = USB_SPEED_SUPER_PLUS;
 		maxpkt = 512;
 		break;
 	default:
@@ -759,7 +763,31 @@ static void mtu3_hw_exit(struct mtu3 *mtu)
 	mtu3_mem_free(mtu);
 }
 
-/*-------------------------------------------------------------------------*/
+/**
+ * we set 32-bit DMA mask by default, here check whether the controller
+ * supports 36-bit DMA or not, if it does, set 36-bit DMA mask.
+ */
+static int mtu3_set_dma_mask(struct mtu3 *mtu)
+{
+	struct device *dev = mtu->dev;
+	bool is_36bit = false;
+	int ret = 0;
+	u32 value;
+
+	value = mtu3_readl(mtu->mac_base, U3D_MISC_CTRL);
+	if (value & DMA_ADDR_36BIT) {
+		is_36bit = true;
+		ret = dma_set_mask_and_coherent(dev, DMA_BIT_MASK(36));
+		/* If set 36-bit DMA mask fails, fall back to 32-bit DMA mask */
+		if (ret) {
+			is_36bit = false;
+			ret = dma_set_mask_and_coherent(dev, DMA_BIT_MASK(32));
+		}
+	}
+	dev_info(dev, "dma mask: %s bits\n", is_36bit ? "36" : "32");
+
+	return ret;
+}
 
 int ssusb_gadget_init(struct ssusb_mtk *ssusb)
 {
@@ -774,9 +802,9 @@ int ssusb_gadget_init(struct ssusb_mtk *ssusb)
 		return -ENOMEM;
 
 	mtu->irq = platform_get_irq(pdev, 0);
-	if (mtu->irq <= 0) {
+	if (mtu->irq < 0) {
 		dev_err(dev, "fail to get irq number\n");
-		return -ENODEV;
+		return mtu->irq;
 	}
 	dev_info(dev, "irq %d\n", mtu->irq);
 
@@ -800,14 +828,15 @@ int ssusb_gadget_init(struct ssusb_mtk *ssusb)
 	case USB_SPEED_FULL:
 	case USB_SPEED_HIGH:
 	case USB_SPEED_SUPER:
+	case USB_SPEED_SUPER_PLUS:
 		break;
 	default:
 		dev_err(dev, "invalid max_speed: %s\n",
 			usb_speed_string(mtu->max_speed));
 		/* fall through */
 	case USB_SPEED_UNKNOWN:
-		/* default as SS */
-		mtu->max_speed = USB_SPEED_SUPER;
+		/* default as SSP */
+		mtu->max_speed = USB_SPEED_SUPER_PLUS;
 		break;
 	}
 
@@ -818,6 +847,12 @@ int ssusb_gadget_init(struct ssusb_mtk *ssusb)
 	if (ret) {
 		dev_err(dev, "mtu3 hw init failed:%d\n", ret);
 		return ret;
+	}
+
+	ret = mtu3_set_dma_mask(mtu);
+	if (ret) {
+		dev_err(dev, "mtu3 set dma_mask failed:%d\n", ret);
+		goto dma_mask_err;
 	}
 
 	ret = devm_request_irq(dev, mtu->irq, mtu3_irq, 0, dev_name(dev), mtu);
@@ -845,6 +880,7 @@ int ssusb_gadget_init(struct ssusb_mtk *ssusb)
 gadget_err:
 	device_init_wakeup(dev, false);
 
+dma_mask_err:
 irq_err:
 	mtu3_hw_exit(mtu);
 	ssusb->u3d = NULL;

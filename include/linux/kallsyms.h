@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* Rewritten and vastly simplified by Rusty Russell for in-kernel
  * module loader:
  *   Copyright 2002 Rusty Russell <rusty@rustcorp.com.au> IBM Corporation
@@ -44,6 +45,9 @@ extern void __print_symbol(const char *fmt, unsigned long address);
 
 int lookup_symbol_name(unsigned long addr, char *symname);
 int lookup_symbol_attrs(unsigned long addr, unsigned long *size, unsigned long *offset, char *modname, char *name);
+
+/* How and when do we show kallsyms values? */
+extern int kallsyms_show_value(void);
 
 #else /* !CONFIG_KALLSYMS */
 
@@ -101,6 +105,11 @@ static inline int lookup_symbol_name(unsigned long addr, char *symname)
 static inline int lookup_symbol_attrs(unsigned long addr, unsigned long *size, unsigned long *offset, char *modname, char *name)
 {
 	return -ERANGE;
+}
+
+static inline int kallsyms_show_value(void)
+{
+	return false;
 }
 
 /* Stupid that this does nothing, but I didn't create this mess. */

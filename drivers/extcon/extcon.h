@@ -1,7 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __LINUX_EXTCON_INTERNAL_H__
 #define __LINUX_EXTCON_INTERNAL_H__
 
-#include <linux/extcon.h>
+#include <linux/extcon-provider.h>
 
 /**
  * struct extcon_dev - An extcon device represents one external connector.

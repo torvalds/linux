@@ -2285,7 +2285,7 @@ static unsigned char snd_ice1712_read_i2c(struct snd_ice1712 *ice,
 static int snd_ice1712_read_eeprom(struct snd_ice1712 *ice,
 				   const char *modelname)
 {
-	int dev = 0xa0;		/* EEPROM device address */
+	int dev = ICE_I2C_EEPROM_ADDR;	/* I2C EEPROM device address */
 	unsigned int i, size;
 	struct snd_ice1712_card_info * const *tbl, *c;
 

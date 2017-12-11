@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/kernel.h>
 
 #include <linux/string.h>
@@ -185,21 +186,6 @@ static void early_init_intel(struct cpuinfo_x86 *c)
 	 */
 	if (c->x86 == 6 && c->x86_model < 15)
 		clear_cpu_cap(c, X86_FEATURE_PAT);
-
-#ifdef CONFIG_KMEMCHECK
-	/*
-	 * P4s have a "fast strings" feature which causes single-
-	 * stepping REP instructions to only generate a #DB on
-	 * cache-line boundaries.
-	 *
-	 * Ingo Molnar reported a Pentium D (model 6) and a Xeon
-	 * (model 2) with the same problem.
-	 */
-	if (c->x86 == 15)
-		if (msr_clear_bit(MSR_IA32_MISC_ENABLE,
-				  MSR_IA32_MISC_ENABLE_FAST_STRING_BIT) > 0)
-			pr_info("kmemcheck: Disabling fast string operations\n");
-#endif
 
 	/*
 	 * If fast string is not enabled in IA32_MISC_ENABLE for any reason,

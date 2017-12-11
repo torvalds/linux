@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_GENERIC_PGTABLE_H
 #define _ASM_GENERIC_PGTABLE_H
 
@@ -804,14 +805,22 @@ static inline int pmd_trans_huge(pmd_t pmd)
 {
 	return 0;
 }
-#ifndef __HAVE_ARCH_PMD_WRITE
+#ifndef pmd_write
 static inline int pmd_write(pmd_t pmd)
 {
 	BUG();
 	return 0;
 }
-#endif /* __HAVE_ARCH_PMD_WRITE */
+#endif /* pmd_write */
 #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
+
+#ifndef pud_write
+static inline int pud_write(pud_t pud)
+{
+	BUG();
+	return 0;
+}
+#endif /* pud_write */
 
 #if !defined(CONFIG_TRANSPARENT_HUGEPAGE) || \
 	(defined(CONFIG_TRANSPARENT_HUGEPAGE) && \

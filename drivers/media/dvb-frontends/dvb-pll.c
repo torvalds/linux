@@ -753,12 +753,18 @@ struct dvb_frontend *dvb_pll_attach(struct dvb_frontend *fe, int pll_addr,
 				    struct i2c_adapter *i2c,
 				    unsigned int pll_desc_id)
 {
-	u8 b1 [] = { 0 };
-	struct i2c_msg msg = { .addr = pll_addr, .flags = I2C_M_RD,
-			       .buf = b1, .len = 1 };
+	u8 *b1;
+	struct i2c_msg msg = { .addr = pll_addr, .flags = I2C_M_RD, .len = 1 };
 	struct dvb_pll_priv *priv = NULL;
 	int ret;
 	const struct dvb_pll_desc *desc;
+
+	b1 = kmalloc(1, GFP_KERNEL);
+	if (!b1)
+		return NULL;
+
+	b1[0] = 0;
+	msg.buf = b1;
 
 	if ((id[dvb_pll_devcount] > DVB_PLL_UNDEFINED) &&
 	    (id[dvb_pll_devcount] < ARRAY_SIZE(pll_list)))
@@ -773,15 +779,19 @@ struct dvb_frontend *dvb_pll_attach(struct dvb_frontend *fe, int pll_addr,
 			fe->ops.i2c_gate_ctrl(fe, 1);
 
 		ret = i2c_transfer (i2c, &msg, 1);
-		if (ret != 1)
+		if (ret != 1) {
+			kfree(b1);
 			return NULL;
+		}
 		if (fe->ops.i2c_gate_ctrl)
 			     fe->ops.i2c_gate_ctrl(fe, 0);
 	}
 
 	priv = kzalloc(sizeof(struct dvb_pll_priv), GFP_KERNEL);
-	if (priv == NULL)
+	if (!priv) {
+		kfree(b1);
 		return NULL;
+	}
 
 	priv->pll_i2c_address = pll_addr;
 	priv->i2c = i2c;
@@ -810,6 +820,8 @@ struct dvb_frontend *dvb_pll_attach(struct dvb_frontend *fe, int pll_addr,
 		       id[priv->nr] == pll_desc_id ?
 				"insmod option" : "autodetected");
 	}
+
+	kfree(b1);
 
 	return fe;
 }

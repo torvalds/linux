@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 dtb-y	+= skeleton.dtb
 dtb-y	+= tz1090_generic.dtb
 
@@ -12,10 +13,4 @@ endif
 dtb-$(CONFIG_METAG_BUILTIN_DTB)	+= $(builtindtb-y).dtb
 obj-$(CONFIG_METAG_BUILTIN_DTB)	+= $(builtindtb-y).dtb.o
 
-dtstree		:= $(srctree)/$(src)
-dtb-$(CONFIG_OF_ALL_DTBS) := $(patsubst $(dtstree)/%.dts,%.dtb, $(wildcard $(dtstree)/*.dts))
-
 .SECONDARY: $(obj)/$(builtindtb-y).dtb.S
-
-always += $(dtb-y)
-clean-files += *.dtb *.dtb.S

@@ -101,9 +101,11 @@ extern unsigned char WMM_PARA_OUI[];
 /*  Channel Plan Type. */
 /*  Note: */
 /*	We just add new channel plan when the new channel plan is different
- *      from any of the following channel plan. */
+ *      from any of the following channel plan.
+ */
 /*	If you just want to customize the actions(scan period or join actions)
- *      about one of the channel plan, */
+ *      about one of the channel plan,
+ */
 /*	customize them in struct rt_channel_info in the RT_CHANNEL_LIST. */
 enum RT_CHANNEL_DOMAIN {
 	/*  old channel plan mapping =====  */
@@ -319,7 +321,8 @@ struct mlme_ext_info {
 	u32	authModeToggle;
 	u32	enc_algo;/* encrypt algorithm; */
 	u32	key_index;	/*  this is only valid for legacy wep,
-				 *  0~3 for key id. */
+				 *  0~3 for key id.
+				 */
 	u32	iv;
 	u8	chg_txt[128];
 	u16	aid;
@@ -353,16 +356,19 @@ struct mlme_ext_info {
 	struct HT_info_element	HT_info;
 	struct wlan_bssid_ex	network;/* join network or bss_network,
 					 * if in ap mode, it is the same
-					 * as cur_network.network */
+					 * as cur_network.network
+					 */
 	struct FW_Sta_Info	FW_sta_info[NUM_STA];
 };
 
 /*  The channel information about this channel including joining,
- *  scanning, and power constraints. */
+ *  scanning, and power constraints.
+ */
 struct rt_channel_info {
 	u8	ChannelNum;	/*  The channel number. */
 	enum rt_scan_type ScanType;	/*  Scan type such as passive
-					 *  or active scan. */
+					 *  or active scan.
+					 */
 	u32	rx_count;
 };
 
@@ -413,7 +419,8 @@ struct mlme_ext_priv {
 	unsigned char	cur_wireless_mode;	/*  NETWORK_TYPE */
 
 	unsigned char	oper_channel; /* saved chan info when call
-				       * set_channel_bw */
+				       * set_channel_bw
+				       */
 	unsigned char	oper_bwmode;
 	unsigned char	oper_ch_offset;/* PRIME_CHNL_OFFSET */
 
@@ -427,7 +434,8 @@ struct mlme_ext_priv {
 	struct mlme_ext_info	mlmext_info;/* for sta/adhoc mode, including
 					     * current scan/connecting/connected
 					     * related info. For ap mode,
-					     * network includes ap's cap_info*/
+					     * network includes ap's cap_info
+					     */
 	struct timer_list survey_timer;
 	struct timer_list link_timer;
 	u16	chan_scan_time;
@@ -572,9 +580,9 @@ void mlmeext_sta_add_event_callback(struct adapter *padapter,
 
 void linked_status_chk(struct adapter *padapter);
 
-void survey_timer_hdl(unsigned long data);
-void link_timer_hdl(unsigned long data);
-void addba_timer_hdl(unsigned long data);
+void survey_timer_hdl(struct timer_list *t);
+void link_timer_hdl(struct timer_list *t);
+void addba_timer_hdl(struct timer_list *t);
 
 #define set_survey_timer(mlmeext, ms) \
 	mod_timer(&mlmeext->survey_timer, jiffies +	\
@@ -690,7 +698,8 @@ enum rtw_c2h_event {
 	_C2HBCN_EVT_,
 	_ReportPwrState_EVT_,	/* filen: only for PCIE, USB */
 	_CloseRF_EVT_,		/* filen: only for PCIE,
-					 * work around ASPM */
+				 * work around ASPM
+				 */
 	MAX_C2HEVT
 };
 

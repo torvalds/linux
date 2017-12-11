@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Tty buffer allocation management
  */
@@ -446,7 +447,7 @@ EXPORT_SYMBOL_GPL(tty_prepare_flip_string);
  *	Callers other than flush_to_ldisc() need to exclude the kworker
  *	from concurrent use of the line discipline, see paste_selection().
  *
- *	Returns the number of bytes not processed
+ *	Returns the number of bytes processed
  */
 int tty_ldisc_receive_buf(struct tty_ldisc *ld, const unsigned char *p,
 			  char *f, int count)

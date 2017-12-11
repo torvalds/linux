@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 CFLAGS += -I../../../../../usr/include
 
 TEST_PROGS := hwtstamp_config rxtimestamp timestamping txtimestamp

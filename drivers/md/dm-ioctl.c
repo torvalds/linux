@@ -477,9 +477,13 @@ static int remove_all(struct file *filp, struct dm_ioctl *param, size_t param_si
  * Round up the ptr to an 8-byte boundary.
  */
 #define ALIGN_MASK 7
+static inline size_t align_val(size_t val)
+{
+	return (val + ALIGN_MASK) & ~ALIGN_MASK;
+}
 static inline void *align_ptr(void *ptr)
 {
-	return (void *) (((size_t) (ptr + ALIGN_MASK)) & ~ALIGN_MASK);
+	return (void *)align_val((size_t)ptr);
 }
 
 /*
@@ -505,7 +509,7 @@ static int list_devices(struct file *filp, struct dm_ioctl *param, size_t param_
 	struct hash_cell *hc;
 	size_t len, needed = 0;
 	struct gendisk *disk;
-	struct dm_name_list *nl, *old_nl = NULL;
+	struct dm_name_list *orig_nl, *nl, *old_nl = NULL;
 	uint32_t *event_nr;
 
 	down_write(&_hash_lock);
@@ -516,17 +520,15 @@ static int list_devices(struct file *filp, struct dm_ioctl *param, size_t param_
 	 */
 	for (i = 0; i < NUM_BUCKETS; i++) {
 		list_for_each_entry (hc, _name_buckets + i, name_list) {
-			needed += sizeof(struct dm_name_list);
-			needed += strlen(hc->name) + 1;
-			needed += ALIGN_MASK;
-			needed += (sizeof(uint32_t) + ALIGN_MASK) & ~ALIGN_MASK;
+			needed += align_val(offsetof(struct dm_name_list, name) + strlen(hc->name) + 1);
+			needed += align_val(sizeof(uint32_t));
 		}
 	}
 
 	/*
 	 * Grab our output buffer.
 	 */
-	nl = get_result_buffer(param, param_size, &len);
+	nl = orig_nl = get_result_buffer(param, param_size, &len);
 	if (len < needed) {
 		param->flags |= DM_BUFFER_FULL_FLAG;
 		goto out;
@@ -549,11 +551,16 @@ static int list_devices(struct file *filp, struct dm_ioctl *param, size_t param_
 			strcpy(nl->name, hc->name);
 
 			old_nl = nl;
-			event_nr = align_ptr(((void *) (nl + 1)) + strlen(hc->name) + 1);
+			event_nr = align_ptr(nl->name + strlen(hc->name) + 1);
 			*event_nr = dm_get_event_nr(hc->md);
 			nl = align_ptr(event_nr + 1);
 		}
 	}
+	/*
+	 * If mismatch happens, security may be compromised due to buffer
+	 * overflow, so it's better to crash.
+	 */
+	BUG_ON((char *)nl - (char *)orig_nl != needed);
 
  out:
 	up_write(&_hash_lock);
@@ -1621,7 +1628,8 @@ static int target_message(struct file *filp, struct dm_ioctl *param, size_t para
  * which has a variable size, is not used by the function processing
  * the ioctl.
  */
-#define IOCTL_FLAGS_NO_PARAMS	1
+#define IOCTL_FLAGS_NO_PARAMS		1
+#define IOCTL_FLAGS_ISSUE_GLOBAL_EVENT	2
 
 /*-----------------------------------------------------------------
  * Implementation of open/close/ioctl on the special char
@@ -1635,12 +1643,12 @@ static ioctl_fn lookup_ioctl(unsigned int cmd, int *ioctl_flags)
 		ioctl_fn fn;
 	} _ioctls[] = {
 		{DM_VERSION_CMD, 0, NULL}, /* version is dealt with elsewhere */
-		{DM_REMOVE_ALL_CMD, IOCTL_FLAGS_NO_PARAMS, remove_all},
+		{DM_REMOVE_ALL_CMD, IOCTL_FLAGS_NO_PARAMS | IOCTL_FLAGS_ISSUE_GLOBAL_EVENT, remove_all},
 		{DM_LIST_DEVICES_CMD, 0, list_devices},
 
-		{DM_DEV_CREATE_CMD, IOCTL_FLAGS_NO_PARAMS, dev_create},
-		{DM_DEV_REMOVE_CMD, IOCTL_FLAGS_NO_PARAMS, dev_remove},
-		{DM_DEV_RENAME_CMD, 0, dev_rename},
+		{DM_DEV_CREATE_CMD, IOCTL_FLAGS_NO_PARAMS | IOCTL_FLAGS_ISSUE_GLOBAL_EVENT, dev_create},
+		{DM_DEV_REMOVE_CMD, IOCTL_FLAGS_NO_PARAMS | IOCTL_FLAGS_ISSUE_GLOBAL_EVENT, dev_remove},
+		{DM_DEV_RENAME_CMD, IOCTL_FLAGS_ISSUE_GLOBAL_EVENT, dev_rename},
 		{DM_DEV_SUSPEND_CMD, IOCTL_FLAGS_NO_PARAMS, dev_suspend},
 		{DM_DEV_STATUS_CMD, IOCTL_FLAGS_NO_PARAMS, dev_status},
 		{DM_DEV_WAIT_CMD, 0, dev_wait},
@@ -1868,6 +1876,9 @@ static int ctl_ioctl(struct file *file, uint command, struct dm_ioctl __user *us
 	if (unlikely(param->flags & DM_BUFFER_FULL_FLAG) &&
 	    unlikely(ioctl_flags & IOCTL_FLAGS_NO_PARAMS))
 		DMERR("ioctl %d tried to output some data but has IOCTL_FLAGS_NO_PARAMS set", cmd);
+
+	if (!r && ioctl_flags & IOCTL_FLAGS_ISSUE_GLOBAL_EVENT)
+		dm_issue_global_event();
 
 	/*
 	 * Copy the results back to userland.

@@ -423,7 +423,6 @@ static void __init rcar_gen2_cpg_clocks_init(struct device_node *np)
 		/* We're leaking memory on purpose, there's no point in cleaning
 		 * up as the system won't boot anyway.
 		 */
-		pr_err("%s: failed to allocate cpg\n", __func__);
 		return;
 	}
 

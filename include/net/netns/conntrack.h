@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __NETNS_CONNTRACK_H
 #define __NETNS_CONNTRACK_H
 

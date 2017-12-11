@@ -17,7 +17,7 @@
 #include <linux/iio/iio.h>
 #include <linux/iio/configfs.h>
 
-static struct config_item_type iio_root_group_type = {
+static const struct config_item_type iio_root_group_type = {
 	.ct_owner       = THIS_MODULE,
 };
 

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __PERF_TESTS__HISTS_COMMON_H__
 #define __PERF_TESTS__HISTS_COMMON_H__
 

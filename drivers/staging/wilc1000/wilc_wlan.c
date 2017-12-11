@@ -714,7 +714,7 @@ int wilc_wlan_handle_txq(struct net_device *dev, u32 *txq_count)
 					char *bssid = ((struct tx_complete_data *)(tqe->priv))->bssid;
 
 					buffer_offset = ETH_ETHERNET_HDR_OFFSET;
-					memcpy(&txb[offset + 4], bssid, 6);
+					memcpy(&txb[offset + 8], bssid, 6);
 				} else {
 					buffer_offset = HOST_HDR_OFFSET;
 				}

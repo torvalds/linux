@@ -130,6 +130,19 @@ struct iwl_mvm_scan_params {
 	u32 measurement_dwell;
 };
 
+static inline void *iwl_mvm_get_scan_req_umac_data(struct iwl_mvm *mvm)
+{
+	struct iwl_scan_req_umac *cmd = mvm->scan_cmd;
+
+	if (iwl_mvm_is_adaptive_dwell_supported(mvm))
+		return (void *)&cmd->v7.data;
+
+	if (iwl_mvm_has_new_tx_api(mvm))
+		return (void *)&cmd->v6.data;
+
+	return (void *)&cmd->v1.data;
+}
+
 static u8 iwl_mvm_scan_rx_ant(struct iwl_mvm *mvm)
 {
 	if (mvm->scan_rx_ant != ANT_NONE)
@@ -555,7 +568,7 @@ static int iwl_mvm_lmac_scan_abort(struct iwl_mvm *mvm)
 	struct iwl_host_cmd cmd = {
 		.id = SCAN_OFFLOAD_ABORT_CMD,
 	};
-	u32 status;
+	u32 status = CAN_ABORT_STATUS;
 
 	ret = iwl_mvm_send_cmd_status(mvm, &cmd, &status);
 	if (ret)
@@ -1075,25 +1088,57 @@ static void iwl_mvm_scan_umac_dwell(struct iwl_mvm *mvm,
 {
 	struct iwl_mvm_scan_timing_params *timing = &scan_timing[params->type];
 
-	if (params->measurement_dwell) {
-		cmd->active_dwell = params->measurement_dwell;
-		cmd->passive_dwell = params->measurement_dwell;
-		cmd->extended_dwell = params->measurement_dwell;
-	} else {
-		cmd->active_dwell = IWL_SCAN_DWELL_ACTIVE;
-		cmd->passive_dwell = IWL_SCAN_DWELL_PASSIVE;
-		cmd->extended_dwell = IWL_SCAN_DWELL_EXTENDED;
+	if (iwl_mvm_is_regular_scan(params))
+		cmd->ooc_priority = cpu_to_le32(IWL_SCAN_PRIORITY_EXT_6);
+	else
+		cmd->ooc_priority = cpu_to_le32(IWL_SCAN_PRIORITY_EXT_2);
+
+	if (iwl_mvm_is_adaptive_dwell_supported(mvm)) {
+		if (params->measurement_dwell) {
+			cmd->v7.active_dwell = params->measurement_dwell;
+			cmd->v7.passive_dwell = params->measurement_dwell;
+		} else {
+			cmd->v7.active_dwell = IWL_SCAN_DWELL_ACTIVE;
+			cmd->v7.passive_dwell = IWL_SCAN_DWELL_PASSIVE;
+		}
+		cmd->v7.fragmented_dwell = IWL_SCAN_DWELL_FRAGMENTED;
+
+		cmd->v7.scan_priority = cpu_to_le32(IWL_SCAN_PRIORITY_EXT_6);
+		cmd->v7.max_out_time[SCAN_LB_LMAC_IDX] =
+			cpu_to_le32(timing->max_out_time);
+		cmd->v7.suspend_time[SCAN_LB_LMAC_IDX] =
+			cpu_to_le32(timing->suspend_time);
+		if (iwl_mvm_is_cdb_supported(mvm)) {
+			cmd->v7.max_out_time[SCAN_HB_LMAC_IDX] =
+				cpu_to_le32(timing->max_out_time);
+			cmd->v7.suspend_time[SCAN_HB_LMAC_IDX] =
+				cpu_to_le32(timing->suspend_time);
+		}
+
+		return;
 	}
-	cmd->fragmented_dwell = IWL_SCAN_DWELL_FRAGMENTED;
+
+	if (params->measurement_dwell) {
+		cmd->v1.active_dwell = params->measurement_dwell;
+		cmd->v1.passive_dwell = params->measurement_dwell;
+		cmd->v1.extended_dwell = params->measurement_dwell;
+	} else {
+		cmd->v1.active_dwell = IWL_SCAN_DWELL_ACTIVE;
+		cmd->v1.passive_dwell = IWL_SCAN_DWELL_PASSIVE;
+		cmd->v1.extended_dwell = IWL_SCAN_DWELL_EXTENDED;
+	}
+	cmd->v1.fragmented_dwell = IWL_SCAN_DWELL_FRAGMENTED;
 
 	if (iwl_mvm_has_new_tx_api(mvm)) {
 		cmd->v6.scan_priority = cpu_to_le32(IWL_SCAN_PRIORITY_EXT_6);
-		cmd->v6.max_out_time[0] = cpu_to_le32(timing->max_out_time);
-		cmd->v6.suspend_time[0] = cpu_to_le32(timing->suspend_time);
+		cmd->v6.max_out_time[SCAN_LB_LMAC_IDX] =
+			cpu_to_le32(timing->max_out_time);
+		cmd->v6.suspend_time[SCAN_LB_LMAC_IDX] =
+			cpu_to_le32(timing->suspend_time);
 		if (iwl_mvm_is_cdb_supported(mvm)) {
-			cmd->v6.max_out_time[1] =
+			cmd->v6.max_out_time[SCAN_HB_LMAC_IDX] =
 				cpu_to_le32(timing->max_out_time);
-			cmd->v6.suspend_time[1] =
+			cmd->v6.suspend_time[SCAN_HB_LMAC_IDX] =
 				cpu_to_le32(timing->suspend_time);
 		}
 	} else {
@@ -1102,11 +1147,6 @@ static void iwl_mvm_scan_umac_dwell(struct iwl_mvm *mvm,
 		cmd->v1.scan_priority =
 			cpu_to_le32(IWL_SCAN_PRIORITY_EXT_6);
 	}
-
-	if (iwl_mvm_is_regular_scan(params))
-		cmd->ooc_priority = cpu_to_le32(IWL_SCAN_PRIORITY_EXT_6);
-	else
-		cmd->ooc_priority = cpu_to_le32(IWL_SCAN_PRIORITY_EXT_2);
 }
 
 static void
@@ -1178,8 +1218,7 @@ static int iwl_mvm_scan_umac(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 			     int type)
 {
 	struct iwl_scan_req_umac *cmd = mvm->scan_cmd;
-	void *cmd_data = iwl_mvm_has_new_tx_api(mvm) ?
-			 (void *)&cmd->v6.data : (void *)&cmd->v1.data;
+	void *cmd_data = iwl_mvm_get_scan_req_umac_data(mvm);
 	struct iwl_scan_req_umac_tail *sec_part = cmd_data +
 		sizeof(struct iwl_scan_channel_cfg_umac) *
 			mvm->fw->ucode_capa.n_scan_channels;
@@ -1216,7 +1255,10 @@ static int iwl_mvm_scan_umac(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 				IWL_SCAN_CHANNEL_FLAG_EBS_ACCURATE |
 				IWL_SCAN_CHANNEL_FLAG_CACHE_ADD;
 
-	if (iwl_mvm_has_new_tx_api(mvm)) {
+	if (iwl_mvm_is_adaptive_dwell_supported(mvm)) {
+		cmd->v7.channel_flags = channel_flags;
+		cmd->v7.n_channels = params->n_channels;
+	} else if (iwl_mvm_has_new_tx_api(mvm)) {
 		cmd->v6.channel_flags = channel_flags;
 		cmd->v6.n_channels = params->n_channels;
 	} else {
@@ -1661,8 +1703,10 @@ int iwl_mvm_scan_size(struct iwl_mvm *mvm)
 {
 	int base_size = IWL_SCAN_REQ_UMAC_SIZE_V1;
 
-	if (iwl_mvm_has_new_tx_api(mvm))
-		base_size = IWL_SCAN_REQ_UMAC_SIZE;
+	if (iwl_mvm_is_adaptive_dwell_supported(mvm))
+		base_size = IWL_SCAN_REQ_UMAC_SIZE_V7;
+	else if (iwl_mvm_has_new_tx_api(mvm))
+		base_size = IWL_SCAN_REQ_UMAC_SIZE_V6;
 
 	if (fw_has_capa(&mvm->fw->ucode_capa, IWL_UCODE_TLV_CAPA_UMAC_SCAN))
 		return base_size +

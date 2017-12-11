@@ -69,6 +69,8 @@
 #include <asm/opal.h>
 #include <asm/cputhreads.h>
 
+#include "setup.h"
+
 #ifdef DEBUG
 #define DBG(fmt...) udbg_printf(fmt)
 #else
@@ -317,6 +319,13 @@ void __init early_setup(unsigned long dt_ptr)
 	early_init_mmu();
 
 	/*
+	 * After firmware and early platform setup code has set things up,
+	 * we note the SPR values for configurable control/performance
+	 * registers, and use those as initial defaults.
+	 */
+	record_spr_defaults();
+
+	/*
 	 * At this point, we can let interrupts switch to virtual mode
 	 * (the MMU has been setup), so adjust the MSR in the PACA to
 	 * have IR and DR set and enable AIL if it exists
@@ -360,8 +369,16 @@ void early_setup_secondary(void)
 #if defined(CONFIG_SMP) || defined(CONFIG_KEXEC_CORE)
 static bool use_spinloop(void)
 {
-	if (!IS_ENABLED(CONFIG_PPC_BOOK3E))
+	if (IS_ENABLED(CONFIG_PPC_BOOK3S)) {
+		/*
+		 * See comments in head_64.S -- not all platforms insert
+		 * secondaries at __secondary_hold and wait at the spin
+		 * loop.
+		 */
+		if (firmware_has_feature(FW_FEATURE_OPAL))
+			return false;
 		return true;
+	}
 
 	/*
 	 * When book3e boots from kexec, the ePAPR spin table does

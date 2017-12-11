@@ -208,7 +208,7 @@ struct audit_context {
 	struct audit_proctitle proctitle;
 };
 
-extern u32 audit_ever_enabled;
+extern bool audit_ever_enabled;
 
 extern void audit_copy_inode(struct audit_names *name,
 			     const struct dentry *dentry,

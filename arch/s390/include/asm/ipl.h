@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * s390 (re)ipl support
  *
@@ -11,6 +12,8 @@
 #include <asm/types.h>
 #include <asm/cio.h>
 #include <asm/setup.h>
+
+#define NSS_NAME_SIZE	8
 
 #define IPL_PARMBLOCK_ORIGIN	0x2000
 
@@ -105,7 +108,6 @@ extern size_t append_ipl_scpdata(char *, size_t);
 enum {
 	IPL_DEVNO_VALID		= 1,
 	IPL_PARMBLOCK_VALID	= 2,
-	IPL_NSS_VALID		= 4,
 };
 
 enum ipl_type {

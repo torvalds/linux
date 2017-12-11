@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __NOUVEAU_DRV_H__
 #define __NOUVEAU_DRV_H__
 
@@ -5,7 +6,7 @@
 #define DRIVER_EMAIL		"nouveau@lists.freedesktop.org"
 
 #define DRIVER_NAME		"nouveau"
-#define DRIVER_DESC		"nVidia Riva/TNT/GeForce/Quadro/Tesla"
+#define DRIVER_DESC		"nVidia Riva/TNT/GeForce/Quadro/Tesla/Tegra K1+"
 #define DRIVER_DATE		"20120801"
 
 #define DRIVER_MAJOR		1
@@ -42,6 +43,8 @@
 #include <nvif/client.h>
 #include <nvif/device.h>
 #include <nvif/ioctl.h>
+#include <nvif/mmu.h>
+#include <nvif/vmm.h>
 
 #include <drm/drmP.h>
 
@@ -61,6 +64,7 @@ struct platform_device;
 
 #include "nouveau_fence.h"
 #include "nouveau_bios.h"
+#include "nouveau_vmm.h"
 
 struct nouveau_drm_tile {
 	struct nouveau_fence *fence;
@@ -86,18 +90,36 @@ enum nouveau_drm_handle {
 
 struct nouveau_cli {
 	struct nvif_client base;
-	struct drm_device *dev;
+	struct nouveau_drm *drm;
 	struct mutex mutex;
 
 	struct nvif_device device;
+	struct nvif_mmu mmu;
+	struct nouveau_vmm vmm;
+	const struct nvif_mclass *mem;
 
-	struct nvkm_vm *vm; /*XXX*/
 	struct list_head head;
 	void *abi16;
 	struct list_head objects;
 	struct list_head notifys;
 	char name[32];
+
+	struct work_struct work;
+	struct list_head worker;
+	struct mutex lock;
 };
+
+struct nouveau_cli_work {
+	void (*func)(struct nouveau_cli_work *);
+	struct nouveau_cli *cli;
+	struct list_head head;
+
+	struct dma_fence *fence;
+	struct dma_fence_cb cb;
+};
+
+void nouveau_cli_work_queue(struct nouveau_cli *, struct dma_fence *,
+			    struct nouveau_cli_work *);
 
 static inline struct nouveau_cli *
 nouveau_cli(struct drm_file *fpriv)
@@ -109,6 +131,7 @@ nouveau_cli(struct drm_file *fpriv)
 #include <nvif/device.h>
 
 struct nouveau_drm {
+	struct nouveau_cli master;
 	struct nouveau_cli client;
 	struct drm_device *dev;
 
@@ -133,6 +156,9 @@ struct nouveau_drm {
 		struct nouveau_channel *chan;
 		struct nvif_object copy;
 		int mtrr;
+		int type_vram;
+		int type_host;
+		int type_ncoh;
 	} ttm;
 
 	/* GEM interface support */
@@ -204,7 +230,7 @@ void nouveau_drm_device_remove(struct drm_device *dev);
 
 #define NV_PRINTK(l,c,f,a...) do {                                             \
 	struct nouveau_cli *_cli = (c);                                        \
-	dev_##l(_cli->dev->dev, "%s: "f, _cli->name, ##a);                     \
+	dev_##l(_cli->drm->dev->dev, "%s: "f, _cli->name, ##a);                \
 } while(0)
 #define NV_FATAL(drm,f,a...) NV_PRINTK(crit, &(drm)->client, f, ##a)
 #define NV_ERROR(drm,f,a...) NV_PRINTK(err, &(drm)->client, f, ##a)

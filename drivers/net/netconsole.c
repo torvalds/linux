@@ -616,7 +616,7 @@ static struct configfs_item_operations netconsole_target_item_ops = {
 	.release		= netconsole_target_release,
 };
 
-static struct config_item_type netconsole_target_type = {
+static const struct config_item_type netconsole_target_type = {
 	.ct_attrs		= netconsole_target_attrs,
 	.ct_item_ops		= &netconsole_target_item_ops,
 	.ct_owner		= THIS_MODULE,
@@ -682,7 +682,7 @@ static struct configfs_group_operations netconsole_subsys_group_ops = {
 	.drop_item	= drop_netconsole_target,
 };
 
-static struct config_item_type netconsole_subsys_type = {
+static const struct config_item_type netconsole_subsys_type = {
 	.ct_group_ops	= &netconsole_subsys_group_ops,
 	.ct_owner	= THIS_MODULE,
 };

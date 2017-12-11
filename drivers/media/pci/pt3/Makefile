@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 
 earth-pt3-objs += pt3.o pt3_i2c.o pt3_dma.o
 

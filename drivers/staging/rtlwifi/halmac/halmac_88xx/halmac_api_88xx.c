@@ -2901,10 +2901,10 @@ halmac_update_datapack_88xx(struct halmac_adapter *halmac_adapter,
 	if (halmac_adapter->fw_version.h2c_version < 4)
 		return HALMAC_RET_FW_NO_SUPPORT;
 
+	driver_adapter = halmac_adapter->driver_adapter;
+
 	HALMAC_RT_TRACE(driver_adapter, HALMAC_MSG_H2C, DBG_DMESG,
 			"[TRACE]%s ==========>\n", __func__);
-
-	driver_adapter = halmac_adapter->driver_adapter;
 
 	HALMAC_RT_TRACE(driver_adapter, HALMAC_MSG_H2C, DBG_DMESG,
 			"[TRACE]%s <==========\n", __func__);
@@ -3391,8 +3391,10 @@ halmac_cfg_txbf_88xx(struct halmac_adapter *halmac_adapter, u8 userid,
 		switch (bw) {
 		case HALMAC_BW_80:
 			temp42C |= BIT_R_TXBF0_80M;
+			/* fall through */
 		case HALMAC_BW_40:
 			temp42C |= BIT_R_TXBF0_40M;
+			/* fall through */
 		case HALMAC_BW_20:
 			temp42C |= BIT_R_TXBF0_20M;
 			break;

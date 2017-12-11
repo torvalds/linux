@@ -107,7 +107,7 @@
 		};
 	};
 
-	usb_power_supply: usb_power_supply {
+	usb_power_supply: usb-power-supply {
 		compatible = "x-powers,axp202-usb-power-supply";
 		status = "disabled";
 	};

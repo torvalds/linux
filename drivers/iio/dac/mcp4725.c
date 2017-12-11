@@ -363,7 +363,6 @@ static const struct iio_info mcp4725_info = {
 	.read_raw = mcp4725_read_raw,
 	.write_raw = mcp4725_write_raw,
 	.attrs = &mcp4725_attribute_group,
-	.driver_module = THIS_MODULE,
 };
 
 #ifdef CONFIG_OF

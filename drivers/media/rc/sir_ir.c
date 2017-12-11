@@ -57,7 +57,7 @@ static void add_read_queue(int flag, unsigned long val);
 static irqreturn_t sir_interrupt(int irq, void *dev_id);
 static void send_space(unsigned long len);
 static void send_pulse(unsigned long len);
-static void init_hardware(void);
+static int init_hardware(void);
 static void drop_hardware(void);
 /* Initialisation */
 
@@ -120,7 +120,7 @@ static void add_read_queue(int flag, unsigned long val)
 }
 
 /* SECTION: Hardware */
-static void sir_timeout(unsigned long data)
+static void sir_timeout(struct timer_list *unused)
 {
 	/*
 	 * if last received signal was a pulse, but receiving stopped
@@ -263,11 +263,36 @@ static void send_pulse(unsigned long len)
 	}
 }
 
-static void init_hardware(void)
+static int init_hardware(void)
 {
+	u8 scratch, scratch2, scratch3;
 	unsigned long flags;
 
 	spin_lock_irqsave(&hardware_lock, flags);
+
+	/*
+	 * This is a simple port existence test, borrowed from the autoconfig
+	 * function in drivers/tty/serial/8250/8250_port.c
+	 */
+	scratch = sinp(UART_IER);
+	soutp(UART_IER, 0);
+#ifdef __i386__
+	outb(0xff, 0x080);
+#endif
+	scratch2 = sinp(UART_IER) & 0x0f;
+	soutp(UART_IER, 0x0f);
+#ifdef __i386__
+	outb(0x00, 0x080);
+#endif
+	scratch3 = sinp(UART_IER) & 0x0f;
+	soutp(UART_IER, scratch);
+	if (scratch2 != 0 || scratch3 != 0x0f) {
+		/* we fail, there's nothing here */
+		spin_unlock_irqrestore(&hardware_lock, flags);
+		pr_err("port existence test failed, cannot continue\n");
+		return -ENODEV;
+	}
+
 	/* reset UART */
 	outb(0, io + UART_MCR);
 	outb(0, io + UART_IER);
@@ -285,6 +310,8 @@ static void init_hardware(void)
 	/* turn on UART */
 	outb(UART_MCR_DTR | UART_MCR_RTS | UART_MCR_OUT2, io + UART_MCR);
 	spin_unlock_irqrestore(&hardware_lock, flags);
+
+	return 0;
 }
 
 static void drop_hardware(void)
@@ -321,7 +348,7 @@ static int sir_ir_probe(struct platform_device *dev)
 	rcdev->timeout = IR_DEFAULT_TIMEOUT;
 	rcdev->dev.parent = &sir_ir_dev->dev;
 
-	setup_timer(&timerlist, sir_timeout, 0);
+	timer_setup(&timerlist, sir_timeout, 0);
 
 	/* get I/O port access and IRQ line */
 	if (!devm_request_region(&sir_ir_dev->dev, io, 8, KBUILD_MODNAME)) {
@@ -334,13 +361,18 @@ static int sir_ir_probe(struct platform_device *dev)
 		pr_err("IRQ %d already in use.\n", irq);
 		return retval;
 	}
+
+	retval = init_hardware();
+	if (retval) {
+		del_timer_sync(&timerlist);
+		return retval;
+	}
+
 	pr_info("I/O port 0x%.4x, IRQ %d.\n", io, irq);
 
 	retval = devm_rc_register_device(&sir_ir_dev->dev, rcdev);
 	if (retval < 0)
 		return retval;
-
-	init_hardware();
 
 	return 0;
 }

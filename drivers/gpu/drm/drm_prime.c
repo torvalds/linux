@@ -318,7 +318,7 @@ struct dma_buf *drm_gem_dmabuf_export(struct drm_device *dev,
 	if (IS_ERR(dma_buf))
 		return dma_buf;
 
-	drm_dev_ref(dev);
+	drm_dev_get(dev);
 	drm_gem_object_get(exp_info->priv);
 
 	return dma_buf;
@@ -342,7 +342,7 @@ void drm_gem_dmabuf_release(struct dma_buf *dma_buf)
 	/* drop the reference on the export fd holds */
 	drm_gem_object_put_unlocked(obj);
 
-	drm_dev_unref(dev);
+	drm_dev_put(dev);
 }
 EXPORT_SYMBOL(drm_gem_dmabuf_release);
 

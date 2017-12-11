@@ -24,22 +24,28 @@
 struct host1x;
 
 struct output {
-	void (*fn)(void *ctx, const char *str, size_t len);
+	void (*fn)(void *ctx, const char *str, size_t len, bool cont);
 	void *ctx;
 	char buf[256];
 };
 
-static inline void write_to_seqfile(void *ctx, const char *str, size_t len)
+static inline void write_to_seqfile(void *ctx, const char *str, size_t len,
+				    bool cont)
 {
 	seq_write((struct seq_file *)ctx, str, len);
 }
 
-static inline void write_to_printk(void *ctx, const char *str, size_t len)
+static inline void write_to_printk(void *ctx, const char *str, size_t len,
+				   bool cont)
 {
-	pr_info("%s", str);
+	if (cont)
+		pr_cont("%s", str);
+	else
+		pr_info("%s", str);
 }
 
 void __printf(2, 3) host1x_debug_output(struct output *o, const char *fmt, ...);
+void __printf(2, 3) host1x_debug_cont(struct output *o, const char *fmt, ...);
 
 extern unsigned int host1x_debug_trace_cmdbuf;
 

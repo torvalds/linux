@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 
 #ifndef I7300_IDLE_H
 #define I7300_IDLE_H

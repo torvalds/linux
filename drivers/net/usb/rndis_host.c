@@ -632,6 +632,10 @@ static const struct usb_device_id	products [] = {
 	/* RNDIS for tethering */
 	USB_INTERFACE_INFO(USB_CLASS_WIRELESS_CONTROLLER, 1, 3),
 	.driver_info = (unsigned long) &rndis_info,
+}, {
+	/* Novatel Verizon USB730L */
+	USB_INTERFACE_INFO(USB_CLASS_MISC, 4, 1),
+	.driver_info = (unsigned long) &rndis_info,
 },
 	{ },		// END
 };

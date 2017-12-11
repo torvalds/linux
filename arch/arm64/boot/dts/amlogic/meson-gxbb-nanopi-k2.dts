@@ -107,6 +107,9 @@
 
 		states = <3300000 0>,
 		         <1800000 1>;
+
+		regulator-settling-time-up-us = <100>;
+		regulator-settling-time-down-us = <5000>;
 	};
 
 	wifi_32k: wifi-32k {
@@ -165,6 +168,8 @@
 		eth_phy0: ethernet-phy@0 {
 			/* Realtek RTL8211F (0x001cc916) */
 			reg = <0>;
+			interrupt-parent = <&gpio_intc>;
+			interrupts = <29 IRQ_TYPE_LEVEL_LOW>;
 		};
 	};
 };
@@ -180,7 +185,9 @@
 			  "VCCK En", "CON1 Header Pin31",
 			  "I2S Header Pin6", "IR In", "I2S Header Pin7",
 			  "I2S Header Pin3", "I2S Header Pin4",
-			  "I2S Header Pin5", "HDMI CEC", "SYS LED";
+			  "I2S Header Pin5", "HDMI CEC", "SYS LED",
+			  /* GPIO_TEST_N */
+			  "";
 };
 
 &pinctrl_periphs {
@@ -226,11 +233,9 @@
 			  "Bluetooth UART TX", "Bluetooth UART RX",
 			  "Bluetooth UART CTS", "Bluetooth UART RTS",
 			  "", "", "", "WIFI 32K", "Bluetooth Enable",
-			  "Bluetooth WAKE HOST",
+			  "Bluetooth WAKE HOST", "",
 			  /* Bank GPIOCLK */
-			  "", "CON1 Header Pin35", "", "",
-			  /* GPIO_TEST_N */
-			  "";
+			  "", "CON1 Header Pin35", "", "";
 };
 
 &pwm_ef {
@@ -250,7 +255,8 @@
 &sd_emmc_a {
 	status = "okay";
 	pinctrl-0 = <&sdio_pins>, <&sdio_irq_pins>;
-	pinctrl-names = "default";
+	pinctrl-1 = <&sdio_clk_gate_pins>;
+	pinctrl-names = "default", "clk-gate";
 	#address-cells = <1>;
 	#size-cells = <0>;
 
@@ -276,11 +282,16 @@
 &sd_emmc_b {
 	status = "okay";
 	pinctrl-0 = <&sdcard_pins>;
-	pinctrl-names = "default";
+	pinctrl-1 = <&sdcard_clk_gate_pins>;
+	pinctrl-names = "default", "clk-gate";
 
 	bus-width = <4>;
 	cap-sd-highspeed;
-	max-frequency = <100000000>;
+	sd-uhs-sdr12;
+	sd-uhs-sdr25;
+	sd-uhs-sdr50;
+	sd-uhs-sdr104;
+	max-frequency = <200000000>;
 	disable-wp;
 
 	cd-gpios = <&gpio CARD_6 GPIO_ACTIVE_HIGH>;
@@ -293,11 +304,11 @@
 /* eMMC */
 &sd_emmc_c {
 	status = "disabled";
-	pinctrl-0 = <&emmc_pins>;
-	pinctrl-names = "default";
+	pinctrl-0 = <&emmc_pins>, <&emmc_ds_pins>;
+	pinctrl-1 = <&emmc_clk_gate_pins>;
+	pinctrl-names = "default", "clk-gate";
 
 	bus-width = <8>;
-	cap-sd-highspeed;
 	max-frequency = <200000000>;
 	non-removable;
 	disable-wp;

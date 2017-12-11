@@ -3857,8 +3857,9 @@ static int ucc_geth_probe(struct platform_device* ofdev)
 	}
 
 	if (netif_msg_probe(&debug))
-		pr_info("UCC%1d at 0x%8x (irq = %d)\n",
-			ug_info->uf_info.ucc_num + 1, ug_info->uf_info.regs,
+		pr_info("UCC%1d at 0x%8llx (irq = %d)\n",
+			ug_info->uf_info.ucc_num + 1,
+			(u64)ug_info->uf_info.regs,
 			ug_info->uf_info.irq);
 
 	/* Create an ethernet device instance */

@@ -808,7 +808,7 @@ void __qib_sdma_process_event(struct qib_pportdata *ppd,
 			 * bringing the link up with traffic active on
 			 * 7220, e.g. */
 			ss->go_s99_running = 1;
-			/* fall through and start dma engine */
+			/* fall through -- and start dma engine */
 		case qib_sdma_event_e10_go_hw_start:
 			/* This reference means the state machine is started */
 			sdma_get(&ppd->sdma_state);

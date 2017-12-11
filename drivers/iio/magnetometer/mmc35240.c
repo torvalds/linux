@@ -418,7 +418,6 @@ static int mmc35240_write_raw(struct iio_dev *indio_dev,
 }
 
 static const struct iio_info mmc35240_info = {
-	.driver_module	= THIS_MODULE,
 	.read_raw	= mmc35240_read_raw,
 	.write_raw	= mmc35240_write_raw,
 	.attrs		= &mmc35240_attribute_group,

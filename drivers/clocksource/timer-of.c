@@ -176,3 +176,22 @@ out_fail:
 		timer_base_exit(&to->of_base);
 	return ret;
 }
+
+/**
+ * timer_of_cleanup - release timer_of ressources
+ * @to: timer_of structure
+ *
+ * Release the ressources that has been used in timer_of_init().
+ * This function should be called in init error cases
+ */
+void __init timer_of_cleanup(struct timer_of *to)
+{
+	if (to->flags & TIMER_OF_IRQ)
+		timer_irq_exit(&to->of_irq);
+
+	if (to->flags & TIMER_OF_CLOCK)
+		timer_clk_exit(&to->of_clk);
+
+	if (to->flags & TIMER_OF_BASE)
+		timer_base_exit(&to->of_base);
+}

@@ -1,10 +1,13 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __NET_PKT_SCHED_H
 #define __NET_PKT_SCHED_H
 
 #include <linux/jiffies.h>
 #include <linux/ktime.h>
 #include <linux/if_vlan.h>
+#include <linux/netdevice.h>
 #include <net/sch_generic.h>
+#include <net/net_namespace.h>
 #include <uapi/linux/pkt_sched.h>
 
 #define DEFAULT_TX_QUEUE_LEN	1000
@@ -133,17 +136,18 @@ static inline unsigned int psched_mtu(const struct net_device *dev)
 	return dev->mtu + dev->hard_header_len;
 }
 
-static inline bool is_classid_clsact_ingress(u32 classid)
+static inline struct net *qdisc_net(struct Qdisc *q)
 {
-	/* This also returns true for ingress qdisc */
-	return TC_H_MAJ(classid) == TC_H_MAJ(TC_H_CLSACT) &&
-	       TC_H_MIN(classid) != TC_H_MIN(TC_H_MIN_EGRESS);
+	return dev_net(q->dev_queue->dev);
 }
 
-static inline bool is_classid_clsact_egress(u32 classid)
-{
-	return TC_H_MAJ(classid) == TC_H_MAJ(TC_H_CLSACT) &&
-	       TC_H_MIN(classid) == TC_H_MIN(TC_H_MIN_EGRESS);
-}
+struct tc_cbs_qopt_offload {
+	u8 enable;
+	s32 queue;
+	s32 hicredit;
+	s32 locredit;
+	s32 idleslope;
+	s32 sendslope;
+};
 
 #endif

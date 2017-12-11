@@ -188,7 +188,7 @@ module_param(debug, int, 0644);
 static void __vb2_queue_cancel(struct vb2_queue *q);
 static void __enqueue_in_driver(struct vb2_buffer *vb);
 
-/**
+/*
  * __vb2_buf_mem_alloc() - allocate video memory for the given buffer
  */
 static int __vb2_buf_mem_alloc(struct vb2_buffer *vb)
@@ -229,7 +229,7 @@ free:
 	return ret;
 }
 
-/**
+/*
  * __vb2_buf_mem_free() - free memory of the given buffer
  */
 static void __vb2_buf_mem_free(struct vb2_buffer *vb)
@@ -243,7 +243,7 @@ static void __vb2_buf_mem_free(struct vb2_buffer *vb)
 	}
 }
 
-/**
+/*
  * __vb2_buf_userptr_put() - release userspace memory associated with
  * a USERPTR buffer
  */
@@ -258,7 +258,7 @@ static void __vb2_buf_userptr_put(struct vb2_buffer *vb)
 	}
 }
 
-/**
+/*
  * __vb2_plane_dmabuf_put() - release memory associated with
  * a DMABUF shared plane
  */
@@ -277,7 +277,7 @@ static void __vb2_plane_dmabuf_put(struct vb2_buffer *vb, struct vb2_plane *p)
 	p->dbuf_mapped = 0;
 }
 
-/**
+/*
  * __vb2_buf_dmabuf_put() - release memory associated with
  * a DMABUF shared buffer
  */
@@ -289,7 +289,7 @@ static void __vb2_buf_dmabuf_put(struct vb2_buffer *vb)
 		__vb2_plane_dmabuf_put(vb, &vb->planes[plane]);
 }
 
-/**
+/*
  * __setup_offsets() - setup unique offsets ("cookies") for every plane in
  * the buffer.
  */
@@ -317,7 +317,7 @@ static void __setup_offsets(struct vb2_buffer *vb)
 	}
 }
 
-/**
+/*
  * __vb2_queue_alloc() - allocate videobuf buffer structures and (for MMAP type)
  * video buffer memory for all buffers/planes on the queue and initializes the
  * queue
@@ -386,7 +386,7 @@ static int __vb2_queue_alloc(struct vb2_queue *q, enum vb2_memory memory,
 	return buffer;
 }
 
-/**
+/*
  * __vb2_free_mem() - release all video buffer memory for a given queue
  */
 static void __vb2_free_mem(struct vb2_queue *q, unsigned int buffers)
@@ -410,7 +410,7 @@ static void __vb2_free_mem(struct vb2_queue *q, unsigned int buffers)
 	}
 }
 
-/**
+/*
  * __vb2_queue_free() - free buffers at the end of the queue - video memory and
  * related information, if no buffers are left return the queue to an
  * uninitialized state. Might be called even if the queue has already been freed.
@@ -544,7 +544,7 @@ bool vb2_buffer_in_use(struct vb2_queue *q, struct vb2_buffer *vb)
 }
 EXPORT_SYMBOL(vb2_buffer_in_use);
 
-/**
+/*
  * __buffers_in_use() - return true if any buffers on the queue are in use and
  * the queue cannot be freed (by the means of REQBUFS(0)) call
  */
@@ -564,7 +564,7 @@ void vb2_core_querybuf(struct vb2_queue *q, unsigned int index, void *pb)
 }
 EXPORT_SYMBOL_GPL(vb2_core_querybuf);
 
-/**
+/*
  * __verify_userptr_ops() - verify that all memory operations required for
  * USERPTR queue type have been provided
  */
@@ -577,7 +577,7 @@ static int __verify_userptr_ops(struct vb2_queue *q)
 	return 0;
 }
 
-/**
+/*
  * __verify_mmap_ops() - verify that all memory operations required for
  * MMAP queue type have been provided
  */
@@ -590,7 +590,7 @@ static int __verify_mmap_ops(struct vb2_queue *q)
 	return 0;
 }
 
-/**
+/*
  * __verify_dmabuf_ops() - verify that all memory operations required for
  * DMABUF queue type have been provided
  */
@@ -953,7 +953,7 @@ void vb2_discard_done(struct vb2_queue *q)
 }
 EXPORT_SYMBOL_GPL(vb2_discard_done);
 
-/**
+/*
  * __prepare_mmap() - prepare an MMAP buffer
  */
 static int __prepare_mmap(struct vb2_buffer *vb, const void *pb)
@@ -966,7 +966,7 @@ static int __prepare_mmap(struct vb2_buffer *vb, const void *pb)
 	return ret ? ret : call_vb_qop(vb, buf_prepare, vb);
 }
 
-/**
+/*
  * __prepare_userptr() - prepare a USERPTR buffer
  */
 static int __prepare_userptr(struct vb2_buffer *vb, const void *pb)
@@ -1082,7 +1082,7 @@ err:
 	return ret;
 }
 
-/**
+/*
  * __prepare_dmabuf() - prepare a DMABUF buffer
  */
 static int __prepare_dmabuf(struct vb2_buffer *vb, const void *pb)
@@ -1215,7 +1215,7 @@ err:
 	return ret;
 }
 
-/**
+/*
  * __enqueue_in_driver() - enqueue a vb2_buffer in driver for processing
  */
 static void __enqueue_in_driver(struct vb2_buffer *vb)
@@ -1298,7 +1298,7 @@ int vb2_core_prepare_buf(struct vb2_queue *q, unsigned int index, void *pb)
 }
 EXPORT_SYMBOL_GPL(vb2_core_prepare_buf);
 
-/**
+/*
  * vb2_start_streaming() - Attempt to start streaming.
  * @q:		videobuf2 queue
  *
@@ -1427,7 +1427,7 @@ int vb2_core_qbuf(struct vb2_queue *q, unsigned int index, void *pb)
 }
 EXPORT_SYMBOL_GPL(vb2_core_qbuf);
 
-/**
+/*
  * __vb2_wait_for_done_vb() - wait for a buffer to become available
  * for dequeuing
  *
@@ -1502,7 +1502,7 @@ static int __vb2_wait_for_done_vb(struct vb2_queue *q, int nonblocking)
 	return 0;
 }
 
-/**
+/*
  * __vb2_get_done_vb() - get a buffer ready for dequeuing
  *
  * Will sleep if required for nonblocking == false.
@@ -1553,7 +1553,7 @@ int vb2_wait_for_all_buffers(struct vb2_queue *q)
 }
 EXPORT_SYMBOL_GPL(vb2_wait_for_all_buffers);
 
-/**
+/*
  * __vb2_dqbuf() - bring back the buffer to the DEQUEUED state
  */
 static void __vb2_dqbuf(struct vb2_buffer *vb)
@@ -1625,7 +1625,7 @@ int vb2_core_dqbuf(struct vb2_queue *q, unsigned int *pindex, void *pb,
 }
 EXPORT_SYMBOL_GPL(vb2_core_dqbuf);
 
-/**
+/*
  * __vb2_queue_cancel() - cancel and stop (pause) streaming
  *
  * Removes all queued buffers from driver's queue and all buffers queued by
@@ -1773,7 +1773,7 @@ int vb2_core_streamoff(struct vb2_queue *q, unsigned int type)
 }
 EXPORT_SYMBOL_GPL(vb2_core_streamoff);
 
-/**
+/*
  * __find_plane_by_offset() - find plane associated with the given offset off
  */
 static int __find_plane_by_offset(struct vb2_queue *q, unsigned long off,
@@ -2104,7 +2104,7 @@ unsigned int vb2_core_poll(struct vb2_queue *q, struct file *file,
 }
 EXPORT_SYMBOL_GPL(vb2_core_poll);
 
-/**
+/*
  * struct vb2_fileio_buf - buffer context used by file io emulator
  *
  * vb2 provides a compatibility layer and emulator of file io (read and
@@ -2118,7 +2118,7 @@ struct vb2_fileio_buf {
 	unsigned int queued:1;
 };
 
-/**
+/*
  * struct vb2_fileio_data - queue context used by file io emulator
  *
  * @cur_index:	the index of the buffer currently being read from or
@@ -2155,7 +2155,7 @@ struct vb2_fileio_data {
 	unsigned write_immediately:1;
 };
 
-/**
+/*
  * __vb2_init_fileio() - initialize file io emulator
  * @q:		videobuf2 queue
  * @read:	mode selector (1 means read, 0 means write)
@@ -2274,7 +2274,7 @@ err_kfree:
 	return ret;
 }
 
-/**
+/*
  * __vb2_cleanup_fileio() - free resourced used by file io emulator
  * @q:		videobuf2 queue
  */
@@ -2293,7 +2293,7 @@ static int __vb2_cleanup_fileio(struct vb2_queue *q)
 	return 0;
 }
 
-/**
+/*
  * __vb2_perform_fileio() - perform a single file io (read or write) operation
  * @q:		videobuf2 queue
  * @data:	pointed to target userspace buffer

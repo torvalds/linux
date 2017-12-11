@@ -48,7 +48,7 @@ are similar to A33 using simple-card:
 			sound-dai = <&codec>;
 		};
 
-	soc@01c00000 {
+	soc@1c00000 {
 		[...]
 
 		audio-codec@1c22e00 {

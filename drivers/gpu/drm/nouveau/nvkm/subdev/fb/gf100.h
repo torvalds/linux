@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __NVKM_RAM_NVC0_H__
 #define __NVKM_RAM_NVC0_H__
 #define gf100_fb(p) container_of((p), struct gf100_fb, base)
@@ -17,7 +18,5 @@ void gf100_fb_intr(struct nvkm_fb *);
 
 void gp100_fb_init(struct nvkm_fb *);
 
-void gm200_fb_init_page(struct nvkm_fb *fb);
 void gm200_fb_init(struct nvkm_fb *base);
-
 #endif

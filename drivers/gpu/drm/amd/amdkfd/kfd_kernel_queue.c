@@ -184,8 +184,8 @@ static void uninitialize(struct kernel_queue *kq)
 	if (kq->queue->properties.type == KFD_QUEUE_TYPE_HIQ)
 		kq->mqd->destroy_mqd(kq->mqd,
 					kq->queue->mqd,
-					false,
-					QUEUE_PREEMPT_DEFAULT_TIMEOUT_MS,
+					KFD_PREEMPT_TYPE_WAVEFRONT_RESET,
+					KFD_UNMAP_LATENCY_MS,
 					kq->queue->pipe,
 					kq->queue->queue);
 	else if (kq->queue->properties.type == KFD_QUEUE_TYPE_DIQ)
@@ -210,6 +210,11 @@ static int acquire_packet_buffer(struct kernel_queue *kq,
 	uint32_t wptr, rptr;
 	unsigned int *queue_address;
 
+	/* When rptr == wptr, the buffer is empty.
+	 * When rptr == wptr + 1, the buffer is full.
+	 * It is always rptr that advances to the position of wptr, rather than
+	 * the opposite. So we can only use up to queue_size_dwords - 1 dwords.
+	 */
 	rptr = *kq->rptr_kernel;
 	wptr = *kq->wptr_kernel;
 	queue_address = (unsigned int *)kq->pq_kernel_addr;
@@ -219,11 +224,10 @@ static int acquire_packet_buffer(struct kernel_queue *kq,
 	pr_debug("wptr: %d\n", wptr);
 	pr_debug("queue_address 0x%p\n", queue_address);
 
-	available_size = (rptr - 1 - wptr + queue_size_dwords) %
+	available_size = (rptr + queue_size_dwords - 1 - wptr) %
 							queue_size_dwords;
 
-	if (packet_size_in_dwords >= queue_size_dwords ||
-			packet_size_in_dwords >= available_size) {
+	if (packet_size_in_dwords > available_size) {
 		/*
 		 * make sure calling functions know
 		 * acquire_packet_buffer() failed
@@ -233,6 +237,14 @@ static int acquire_packet_buffer(struct kernel_queue *kq,
 	}
 
 	if (wptr + packet_size_in_dwords >= queue_size_dwords) {
+		/* make sure after rolling back to position 0, there is
+		 * still enough space.
+		 */
+		if (packet_size_in_dwords >= rptr) {
+			*buffer_ptr = NULL;
+			return -ENOMEM;
+		}
+		/* fill nops, roll back and start at position 0 */
 		while (wptr > 0) {
 			queue_address[wptr] = kq->nop_packet;
 			wptr = (wptr + 1) % queue_size_dwords;
@@ -291,14 +303,20 @@ struct kernel_queue *kernel_queue_init(struct kfd_dev *dev,
 	case CHIP_KAVERI:
 		kernel_queue_init_cik(&kq->ops_asic_specific);
 		break;
+	default:
+		WARN(1, "Unexpected ASIC family %u",
+		     dev->device_info->asic_family);
+		goto out_free;
 	}
 
-	if (!kq->ops.initialize(kq, dev, type, KFD_KERNEL_QUEUE_SIZE)) {
-		pr_err("Failed to init kernel queue\n");
-		kfree(kq);
-		return NULL;
-	}
-	return kq;
+	if (kq->ops.initialize(kq, dev, type, KFD_KERNEL_QUEUE_SIZE))
+		return kq;
+
+	pr_err("Failed to init kernel queue\n");
+
+out_free:
+	kfree(kq);
+	return NULL;
 }
 
 void kernel_queue_uninit(struct kernel_queue *kq)

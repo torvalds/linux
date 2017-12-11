@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /dts-v1/;
 
 /include/ "bcm6358.dtsi"
@@ -18,7 +19,7 @@
 };
 
 &leds0 {
-	status = "ok";
+	status = "okay";
 
 	led@0 {
 		reg = <0>;

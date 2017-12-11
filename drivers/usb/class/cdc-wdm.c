@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * cdc-wdm.c
  *
@@ -190,8 +191,10 @@ static void wdm_in_callback(struct urb *urb)
 	/*
 	 * only set a new error if there is no previous error.
 	 * Errors are only cleared during read/open
+	 * Avoid propagating -EPIPE (stall) to userspace since it is
+	 * better handled as an empty read
 	 */
-	if (desc->rerr  == 0)
+	if (desc->rerr == 0 && status != -EPIPE)
 		desc->rerr = status;
 
 	if (length + desc->length > desc->wMaxCommand) {
@@ -481,7 +484,7 @@ static ssize_t wdm_read
 	if (rv < 0)
 		return -ERESTARTSYS;
 
-	cntr = ACCESS_ONCE(desc->length);
+	cntr = READ_ONCE(desc->length);
 	if (cntr == 0) {
 		desc->read = 0;
 retry:

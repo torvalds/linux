@@ -718,6 +718,9 @@ int snd_usb_caiaq_input_init(struct snd_usb_caiaqdev *cdev)
 				  usb_rcvbulkpipe(usb_dev, 0x4),
 				  cdev->ep4_in_buf, EP4_BUFSIZE,
 				  snd_usb_caiaq_ep4_reply_dispatch, cdev);
+		ret = usb_urb_ep_type_check(cdev->ep4_in_urb);
+		if (ret < 0)
+			goto exit_free_idev;
 
 		snd_usb_caiaq_set_auto_msg(cdev, 1, 10, 5);
 
@@ -757,6 +760,9 @@ int snd_usb_caiaq_input_init(struct snd_usb_caiaqdev *cdev)
 				  usb_rcvbulkpipe(usb_dev, 0x4),
 				  cdev->ep4_in_buf, EP4_BUFSIZE,
 				  snd_usb_caiaq_ep4_reply_dispatch, cdev);
+		ret = usb_urb_ep_type_check(cdev->ep4_in_urb);
+		if (ret < 0)
+			goto exit_free_idev;
 
 		snd_usb_caiaq_set_auto_msg(cdev, 1, 10, 5);
 
@@ -802,6 +808,9 @@ int snd_usb_caiaq_input_init(struct snd_usb_caiaqdev *cdev)
 				  usb_rcvbulkpipe(usb_dev, 0x4),
 				  cdev->ep4_in_buf, EP4_BUFSIZE,
 				  snd_usb_caiaq_ep4_reply_dispatch, cdev);
+		ret = usb_urb_ep_type_check(cdev->ep4_in_urb);
+		if (ret < 0)
+			goto exit_free_idev;
 
 		snd_usb_caiaq_set_auto_msg(cdev, 1, 10, 5);
 		break;

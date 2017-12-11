@@ -242,6 +242,15 @@ static int __btrfs_add_ordered_extent(struct inode *inode, u64 file_offset,
 	}
 	spin_unlock(&root->ordered_extent_lock);
 
+	/*
+	 * We don't need the count_max_extents here, we can assume that all of
+	 * that work has been done at higher layers, so this is truly the
+	 * smallest the extent is going to get.
+	 */
+	spin_lock(&BTRFS_I(inode)->lock);
+	btrfs_mod_outstanding_extents(BTRFS_I(inode), 1);
+	spin_unlock(&BTRFS_I(inode)->lock);
+
 	return 0;
 }
 
@@ -591,11 +600,19 @@ void btrfs_remove_ordered_extent(struct inode *inode,
 {
 	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
 	struct btrfs_ordered_inode_tree *tree;
-	struct btrfs_root *root = BTRFS_I(inode)->root;
+	struct btrfs_inode *btrfs_inode = BTRFS_I(inode);
+	struct btrfs_root *root = btrfs_inode->root;
 	struct rb_node *node;
 	bool dec_pending_ordered = false;
 
-	tree = &BTRFS_I(inode)->ordered_tree;
+	/* This is paired with btrfs_add_ordered_extent. */
+	spin_lock(&btrfs_inode->lock);
+	btrfs_mod_outstanding_extents(btrfs_inode, -1);
+	spin_unlock(&btrfs_inode->lock);
+	if (root != fs_info->tree_root)
+		btrfs_delalloc_release_metadata(btrfs_inode, entry->len);
+
+	tree = &btrfs_inode->ordered_tree;
 	spin_lock_irq(&tree->lock);
 	node = &entry->rb_node;
 	rb_erase(node, &tree->tree);

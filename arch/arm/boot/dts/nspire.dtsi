@@ -20,7 +20,7 @@
 		};
 	};
 
-	bootrom: bootrom@00000000 {
+	bootrom: bootrom@0 {
 		reg = <0x00000000 0x80000>;
 	};
 
@@ -56,6 +56,7 @@
 
 	usb_phy: usb_phy {
 		compatible = "usb-nop-xceiv";
+		#phy-cells = <0>;
 	};
 
 	vbus_reg: vbus_reg {

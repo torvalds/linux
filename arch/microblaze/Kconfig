@@ -39,7 +39,7 @@ config MICROBLAZE
 # Endianness selection
 choice
 	prompt "Endianness selection"
-	default CPU_BIG_ENDIAN
+	default CPU_LITTLE_ENDIAN
 	help
 	  microblaze architectures can be configured for either little or
 	  big endian formats. Be sure to select the appropriate mode.

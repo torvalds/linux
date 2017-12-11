@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * starfire.c: Starfire/E10000 support.
  *

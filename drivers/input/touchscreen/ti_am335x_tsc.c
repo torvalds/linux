@@ -161,7 +161,7 @@ static void titsc_step_config(struct titsc *ts_dev)
 		break;
 	case 5:
 		config |= ts_dev->bit_xp | STEPCONFIG_INP_AN4 |
-				ts_dev->bit_xn | ts_dev->bit_yp;
+				STEPCONFIG_XNP | STEPCONFIG_YPN;
 		break;
 	case 8:
 		config |= ts_dev->bit_yp | STEPCONFIG_INP(ts_dev->inp_xp);

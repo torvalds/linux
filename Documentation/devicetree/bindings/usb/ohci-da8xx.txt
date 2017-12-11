@@ -13,7 +13,7 @@ Optional properties:
 
 Example:
 
-ohci: usb@0225000 {
+ohci: usb@225000 {
         compatible = "ti,da830-ohci";
         reg = <0x225000 0x1000>;
         interrupts = <59>;

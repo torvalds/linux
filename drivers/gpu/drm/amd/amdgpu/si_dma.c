@@ -887,8 +887,13 @@ static void si_dma_set_buffer_funcs(struct amdgpu_device *adev)
 }
 
 static const struct amdgpu_vm_pte_funcs si_dma_vm_pte_funcs = {
+	.copy_pte_num_dw = 5,
 	.copy_pte = si_dma_vm_copy_pte,
+
 	.write_pte = si_dma_vm_write_pte,
+
+	.set_max_nums_pte_pde = 0xffff8 >> 3,
+	.set_pte_pde_num_dw = 9,
 	.set_pte_pde = si_dma_vm_set_pte_pde,
 };
 

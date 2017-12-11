@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *  linux/fs/read_write.c
  *
@@ -112,7 +113,7 @@ generic_file_llseek_size(struct file *file, loff_t offset, int whence,
 		 * In the generic case the entire file is data, so as long as
 		 * offset isn't at the end of the file then the offset is data.
 		 */
-		if (offset >= eof)
+		if ((unsigned long long)offset >= eof)
 			return -ENXIO;
 		break;
 	case SEEK_HOLE:
@@ -120,7 +121,7 @@ generic_file_llseek_size(struct file *file, loff_t offset, int whence,
 		 * There is a virtual hole at the end of the file, so as long as
 		 * offset isn't i_size or larger, return i_size.
 		 */
-		if (offset >= eof)
+		if ((unsigned long long)offset >= eof)
 			return -ENXIO;
 		offset = eof;
 		break;
@@ -633,27 +634,6 @@ SYSCALL_DEFINE4(pwrite64, unsigned int, fd, const char __user *, buf,
 
 	return ret;
 }
-
-/*
- * Reduce an iovec's length in-place.  Return the resulting number of segments
- */
-unsigned long iov_shorten(struct iovec *iov, unsigned long nr_segs, size_t to)
-{
-	unsigned long seg = 0;
-	size_t len = 0;
-
-	while (seg < nr_segs) {
-		seg++;
-		if (len + iov->iov_len >= to) {
-			iov->iov_len = to - len;
-			break;
-		}
-		len += iov->iov_len;
-		iov++;
-	}
-	return seg;
-}
-EXPORT_SYMBOL(iov_shorten);
 
 static ssize_t do_iter_readv_writev(struct file *filp, struct iov_iter *iter,
 		loff_t *ppos, int type, rwf_t flags)

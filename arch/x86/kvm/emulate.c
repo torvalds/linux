@@ -425,8 +425,10 @@ static int fastop(struct x86_emulate_ctxt *ctxt, void (*fop)(struct fastop *));
 	#op " %al \n\t" \
 	FOP_RET
 
-asm(".global kvm_fastop_exception \n"
-    "kvm_fastop_exception: xor %esi, %esi; ret");
+asm(".pushsection .fixup, \"ax\"\n"
+    ".global kvm_fastop_exception \n"
+    "kvm_fastop_exception: xor %esi, %esi; ret\n"
+    ".popsection");
 
 FOP_START(setcc)
 FOP_SETCC(seto)
@@ -1044,7 +1046,6 @@ static void fetch_register_operand(struct operand *op)
 
 static void read_sse_reg(struct x86_emulate_ctxt *ctxt, sse128_t *data, int reg)
 {
-	ctxt->ops->get_fpu(ctxt);
 	switch (reg) {
 	case 0: asm("movdqa %%xmm0, %0" : "=m"(*data)); break;
 	case 1: asm("movdqa %%xmm1, %0" : "=m"(*data)); break;
@@ -1066,13 +1067,11 @@ static void read_sse_reg(struct x86_emulate_ctxt *ctxt, sse128_t *data, int reg)
 #endif
 	default: BUG();
 	}
-	ctxt->ops->put_fpu(ctxt);
 }
 
 static void write_sse_reg(struct x86_emulate_ctxt *ctxt, sse128_t *data,
 			  int reg)
 {
-	ctxt->ops->get_fpu(ctxt);
 	switch (reg) {
 	case 0: asm("movdqa %0, %%xmm0" : : "m"(*data)); break;
 	case 1: asm("movdqa %0, %%xmm1" : : "m"(*data)); break;
@@ -1094,12 +1093,10 @@ static void write_sse_reg(struct x86_emulate_ctxt *ctxt, sse128_t *data,
 #endif
 	default: BUG();
 	}
-	ctxt->ops->put_fpu(ctxt);
 }
 
 static void read_mmx_reg(struct x86_emulate_ctxt *ctxt, u64 *data, int reg)
 {
-	ctxt->ops->get_fpu(ctxt);
 	switch (reg) {
 	case 0: asm("movq %%mm0, %0" : "=m"(*data)); break;
 	case 1: asm("movq %%mm1, %0" : "=m"(*data)); break;
@@ -1111,12 +1108,10 @@ static void read_mmx_reg(struct x86_emulate_ctxt *ctxt, u64 *data, int reg)
 	case 7: asm("movq %%mm7, %0" : "=m"(*data)); break;
 	default: BUG();
 	}
-	ctxt->ops->put_fpu(ctxt);
 }
 
 static void write_mmx_reg(struct x86_emulate_ctxt *ctxt, u64 *data, int reg)
 {
-	ctxt->ops->get_fpu(ctxt);
 	switch (reg) {
 	case 0: asm("movq %0, %%mm0" : : "m"(*data)); break;
 	case 1: asm("movq %0, %%mm1" : : "m"(*data)); break;
@@ -1128,7 +1123,6 @@ static void write_mmx_reg(struct x86_emulate_ctxt *ctxt, u64 *data, int reg)
 	case 7: asm("movq %0, %%mm7" : : "m"(*data)); break;
 	default: BUG();
 	}
-	ctxt->ops->put_fpu(ctxt);
 }
 
 static int em_fninit(struct x86_emulate_ctxt *ctxt)
@@ -1136,9 +1130,7 @@ static int em_fninit(struct x86_emulate_ctxt *ctxt)
 	if (ctxt->ops->get_cr(ctxt, 0) & (X86_CR0_TS | X86_CR0_EM))
 		return emulate_nm(ctxt);
 
-	ctxt->ops->get_fpu(ctxt);
 	asm volatile("fninit");
-	ctxt->ops->put_fpu(ctxt);
 	return X86EMUL_CONTINUE;
 }
 
@@ -1149,9 +1141,7 @@ static int em_fnstcw(struct x86_emulate_ctxt *ctxt)
 	if (ctxt->ops->get_cr(ctxt, 0) & (X86_CR0_TS | X86_CR0_EM))
 		return emulate_nm(ctxt);
 
-	ctxt->ops->get_fpu(ctxt);
 	asm volatile("fnstcw %0": "+m"(fcw));
-	ctxt->ops->put_fpu(ctxt);
 
 	ctxt->dst.val = fcw;
 
@@ -1165,9 +1155,7 @@ static int em_fnstsw(struct x86_emulate_ctxt *ctxt)
 	if (ctxt->ops->get_cr(ctxt, 0) & (X86_CR0_TS | X86_CR0_EM))
 		return emulate_nm(ctxt);
 
-	ctxt->ops->get_fpu(ctxt);
 	asm volatile("fnstsw %0": "+m"(fsw));
-	ctxt->ops->put_fpu(ctxt);
 
 	ctxt->dst.val = fsw;
 
@@ -2589,6 +2577,15 @@ static int em_rsm(struct x86_emulate_ctxt *ctxt)
 	ctxt->ops->set_msr(ctxt, MSR_EFER, efer);
 
 	smbase = ctxt->ops->get_smbase(ctxt);
+
+	/*
+	 * Give pre_leave_smm() a chance to make ISA-specific changes to the
+	 * vCPU state (e.g. enter guest mode) before loading state from the SMM
+	 * state-save area.
+	 */
+	if (ctxt->ops->pre_leave_smm(ctxt, smbase))
+		return X86EMUL_UNHANDLEABLE;
+
 	if (emulator_has_longmode(ctxt))
 		ret = rsm_load_state_64(ctxt, smbase + 0x8000);
 	else
@@ -3990,17 +3987,33 @@ static int em_fxsave(struct x86_emulate_ctxt *ctxt)
 	if (rc != X86EMUL_CONTINUE)
 		return rc;
 
-	ctxt->ops->get_fpu(ctxt);
-
 	rc = asm_safe("fxsave %[fx]", , [fx] "+m"(fx_state));
-
-	ctxt->ops->put_fpu(ctxt);
 
 	if (rc != X86EMUL_CONTINUE)
 		return rc;
 
 	return segmented_write_std(ctxt, ctxt->memop.addr.mem, &fx_state,
 		                   fxstate_size(ctxt));
+}
+
+/*
+ * FXRSTOR might restore XMM registers not provided by the guest. Fill
+ * in the host registers (via FXSAVE) instead, so they won't be modified.
+ * (preemption has to stay disabled until FXRSTOR).
+ *
+ * Use noinline to keep the stack for other functions called by callers small.
+ */
+static noinline int fxregs_fixup(struct fxregs_state *fx_state,
+				 const size_t used_size)
+{
+	struct fxregs_state fx_tmp;
+	int rc;
+
+	rc = asm_safe("fxsave %[fx]", , [fx] "+m"(fx_tmp));
+	memcpy((void *)fx_state + used_size, (void *)&fx_tmp + used_size,
+	       __fxstate_size(16) - used_size);
+
+	return rc;
 }
 
 static int em_fxrstor(struct x86_emulate_ctxt *ctxt)
@@ -4013,18 +4026,16 @@ static int em_fxrstor(struct x86_emulate_ctxt *ctxt)
 	if (rc != X86EMUL_CONTINUE)
 		return rc;
 
-	ctxt->ops->get_fpu(ctxt);
-
 	size = fxstate_size(ctxt);
+	rc = segmented_read_std(ctxt, ctxt->memop.addr.mem, &fx_state, size);
+	if (rc != X86EMUL_CONTINUE)
+		return rc;
+
 	if (size < __fxstate_size(16)) {
-		rc = asm_safe("fxsave %[fx]", , [fx] "+m"(fx_state));
+		rc = fxregs_fixup(&fx_state, size);
 		if (rc != X86EMUL_CONTINUE)
 			goto out;
 	}
-
-	rc = segmented_read_std(ctxt, ctxt->memop.addr.mem, &fx_state, size);
-	if (rc != X86EMUL_CONTINUE)
-		goto out;
 
 	if (fx_state.mxcsr >> 16) {
 		rc = emulate_gp(ctxt, 0);
@@ -4035,8 +4046,6 @@ static int em_fxrstor(struct x86_emulate_ctxt *ctxt)
 		rc = asm_safe("fxrstor %[fx]", : [fx] "m"(fx_state));
 
 out:
-	ctxt->ops->put_fpu(ctxt);
-
 	return rc;
 }
 
@@ -4989,6 +4998,8 @@ int x86_decode_insn(struct x86_emulate_ctxt *ctxt, void *insn, int insn_len)
 	bool op_prefix = false;
 	bool has_seg_override = false;
 	struct opcode opcode;
+	u16 dummy;
+	struct desc_struct desc;
 
 	ctxt->memop.type = OP_NONE;
 	ctxt->memopp = NULL;
@@ -5007,6 +5018,11 @@ int x86_decode_insn(struct x86_emulate_ctxt *ctxt, void *insn, int insn_len)
 	switch (mode) {
 	case X86EMUL_MODE_REAL:
 	case X86EMUL_MODE_VM86:
+		def_op_bytes = def_ad_bytes = 2;
+		ctxt->ops->get_segment(ctxt, &dummy, &desc, NULL, VCPU_SREG_CS);
+		if (desc.d)
+			def_op_bytes = def_ad_bytes = 4;
+		break;
 	case X86EMUL_MODE_PROT16:
 		def_op_bytes = def_ad_bytes = 2;
 		break;
@@ -5279,9 +5295,7 @@ static int flush_pending_x87_faults(struct x86_emulate_ctxt *ctxt)
 {
 	int rc;
 
-	ctxt->ops->get_fpu(ctxt);
 	rc = asm_safe("fwait");
-	ctxt->ops->put_fpu(ctxt);
 
 	if (unlikely(rc != X86EMUL_CONTINUE))
 		return emulate_exception(ctxt, MF_VECTOR, 0, false);

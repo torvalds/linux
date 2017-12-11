@@ -232,7 +232,7 @@ d. Handling microcode update during suspend/hibernate:
    hibernate/restore cycle.]
 
    In the current design of the kernel however, during a CPU offline operation
-   as part of the suspend/hibernate cycle (the CPU_DEAD_FROZEN notification),
+   as part of the suspend/hibernate cycle (cpuhp_tasks_frozen is set),
    the existing copy of microcode image in the kernel is not freed up.
    And during the CPU online operations (during resume/restore), since the
    kernel finds that it already has copies of the microcode images for all the
@@ -252,10 +252,9 @@ Yes, they are listed below:
    the _cpu_down() and _cpu_up() functions is *always* 0.
    This might not reflect the true current state of the system, since the
    tasks could have been frozen by an out-of-band event such as a suspend
-   operation in progress. Hence, it will lead to wrong notifications being
-   sent during the cpu online/offline events (eg, CPU_ONLINE notification
-   instead of CPU_ONLINE_FROZEN) which in turn will lead to execution of
-   inappropriate code by the callbacks registered for such CPU hotplug events.
+   operation in progress. Hence, the cpuhp_tasks_frozen variable will not
+   reflect the frozen state and the CPU hotplug callbacks which evaluate
+   that variable might execute the wrong code path.
 
 2. If a regular CPU hotplug stress test happens to race with the freezer due
    to a suspend operation in progress at the same time, then we could hit the

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_POWERPC_BOOK3S_64_TLBFLUSH_HASH_H
 #define _ASM_POWERPC_BOOK3S_64_TLBFLUSH_HASH_H
 
@@ -63,6 +64,28 @@ static inline void hash__local_flush_tlb_mm(struct mm_struct *mm)
 
 static inline void hash__flush_tlb_mm(struct mm_struct *mm)
 {
+}
+
+static inline void hash__local_flush_all_mm(struct mm_struct *mm)
+{
+	/*
+	 * There's no Page Walk Cache for hash, so what is needed is
+	 * the same as flush_tlb_mm(), which doesn't really make sense
+	 * with hash. So the only thing we could do is flush the
+	 * entire LPID! Punt for now, as it's not being used.
+	 */
+	WARN_ON_ONCE(1);
+}
+
+static inline void hash__flush_all_mm(struct mm_struct *mm)
+{
+	/*
+	 * There's no Page Walk Cache for hash, so what is needed is
+	 * the same as flush_tlb_mm(), which doesn't really make sense
+	 * with hash. So the only thing we could do is flush the
+	 * entire LPID! Punt for now, as it's not being used.
+	 */
+	WARN_ON_ONCE(1);
 }
 
 static inline void hash__local_flush_tlb_page(struct vm_area_struct *vma,

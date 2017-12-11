@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * wuf.S: Window underflow trap handler for the Sparc.
  *

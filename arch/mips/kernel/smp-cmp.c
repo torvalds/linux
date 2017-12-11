@@ -19,7 +19,7 @@
 #undef DEBUG
 
 #include <linux/kernel.h>
-#include <linux/sched.h>
+#include <linux/sched/task_stack.h>
 #include <linux/smp.h>
 #include <linux/cpumask.h>
 #include <linux/interrupt.h>
@@ -50,8 +50,8 @@ static void cmp_init_secondary(void)
 
 #ifdef CONFIG_MIPS_MT_SMP
 	if (cpu_has_mipsmt)
-		c->vpe_id = (read_c0_tcbind() >> TCBIND_CURVPE_SHIFT) &
-			TCBIND_CURVPE;
+		cpu_set_vpe_id(c, (read_c0_tcbind() >> TCBIND_CURVPE_SHIFT) &
+				  TCBIND_CURVPE);
 #endif
 }
 

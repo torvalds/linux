@@ -204,6 +204,7 @@
 #define PLS_OFFLINE_READY_TO_QUIET_LT	   0x92
 #define PLS_OFFLINE_REPORT_FAILURE		   0x93
 #define PLS_OFFLINE_READY_TO_QUIET_BCC	   0x94
+#define PLS_OFFLINE_QUIET_DURATION	   0x95
 #define PLS_POLLING				   0x20
 #define PLS_POLLING_QUIET			   0x20
 #define PLS_POLLING_ACTIVE			   0x21
@@ -559,7 +560,7 @@ enum {
 /* timeouts */
 #define LINK_RESTART_DELAY 1000		/* link restart delay, in ms */
 #define TIMEOUT_8051_START 5000         /* 8051 start timeout, in ms */
-#define DC8051_COMMAND_TIMEOUT 20000	/* DC8051 command timeout, in ms */
+#define DC8051_COMMAND_TIMEOUT 1000	/* DC8051 command timeout, in ms */
 #define FREEZE_STATUS_TIMEOUT 20	/* wait for freeze indicators, in ms */
 #define VL_STATUS_CLEAR_TIMEOUT 5000	/* per-VL status clear, in ms */
 #define CCE_STATUS_TIMEOUT 10		/* time to clear CCE Status, in ms */
@@ -581,6 +582,9 @@ enum {
 #define LOOPBACK_SERDES 1
 #define LOOPBACK_LCB	2
 #define LOOPBACK_CABLE	3	/* external cable */
+
+/* set up serdes bit in MISC_CONFIG_BITS */
+#define LOOPBACK_SERDES_CONFIG_BIT_MASK_SHIFT 0
 
 /* read and write hardware registers */
 u64 read_csr(const struct hfi1_devdata *dd, u32 offset);
@@ -709,6 +713,7 @@ void read_misc_status(struct hfi1_devdata *dd, u8 *ver_major, u8 *ver_minor,
 		      u8 *ver_patch);
 int write_host_interface_version(struct hfi1_devdata *dd, u8 version);
 void read_guid(struct hfi1_devdata *dd);
+int release_and_wait_ready_8051_firmware(struct hfi1_devdata *dd);
 int wait_fm_ready(struct hfi1_devdata *dd, u32 mstimeout);
 void set_link_down_reason(struct hfi1_pportdata *ppd, u8 lcl_reason,
 			  u8 neigh_reason, u8 rem_reason);
@@ -722,7 +727,7 @@ void handle_link_downgrade(struct work_struct *work);
 void handle_link_bounce(struct work_struct *work);
 void handle_start_link(struct work_struct *work);
 void handle_sma_message(struct work_struct *work);
-void reset_qsfp(struct hfi1_pportdata *ppd);
+int reset_qsfp(struct hfi1_pportdata *ppd);
 void qsfp_event(struct work_struct *work);
 void start_freeze_handling(struct hfi1_pportdata *ppd, int flags);
 int send_idle_sma(struct hfi1_devdata *dd, u64 message);

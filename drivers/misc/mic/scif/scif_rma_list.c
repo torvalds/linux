@@ -277,7 +277,7 @@ retry:
 		 * Need to restart list traversal if there has been
 		 * an asynchronous list entry deletion.
 		 */
-		if (ACCESS_ONCE(ep->rma_info.async_list_del))
+		if (READ_ONCE(ep->rma_info.async_list_del))
 			goto retry;
 	}
 	mutex_unlock(&ep->rma_info.rma_lock);

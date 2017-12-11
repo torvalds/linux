@@ -1693,9 +1693,10 @@ static int vt6655_suspend(struct pci_dev *pcid, pm_message_t state)
 	MACbShutdown(priv);
 
 	pci_disable_device(pcid);
-	pci_set_power_state(pcid, pci_choose_state(pcid, state));
 
 	spin_unlock_irqrestore(&priv->lock, flags);
+
+	pci_set_power_state(pcid, pci_choose_state(pcid, state));
 
 	return 0;
 }

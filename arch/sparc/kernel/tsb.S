@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* tsb.S: Sparc64 TSB table handling.
  *
  * Copyright (C) 2006 David S. Miller <davem@davemloft.net>

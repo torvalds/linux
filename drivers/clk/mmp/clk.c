@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/io.h>
 #include <linux/clk-provider.h>
 #include <linux/slab.h>

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _OFFLINE_STATES_H_
 #define _OFFLINE_STATES_H_
 

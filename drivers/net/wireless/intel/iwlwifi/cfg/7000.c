@@ -309,6 +309,7 @@ const struct iwl_cfg iwl3168_2ac_cfg = {
 	.nvm_calib_ver = IWL3168_TX_POWER_VERSION,
 	.pwr_tx_backoffs = iwl7265_pwr_tx_backoffs,
 	.dccm_len = IWL7265_DCCM_LEN,
+	.nvm_type = IWL_NVM_SDP,
 };
 
 const struct iwl_cfg iwl7265_2ac_cfg = {

@@ -13,16 +13,16 @@ Required properties:
 - power-domains: Should be <&mmcc MDSS_GDSC>.
 - clocks: Phandles to device clocks.
 - clock-names: the following clocks are required:
-  * "mdp_core_clk"
-  * "iface_clk"
-  * "bus_clk"
-  * "core_mmss_clk"
-  * "byte_clk"
-  * "pixel_clk"
-  * "core_clk"
+  * "mdp_core"
+  * "iface"
+  * "bus"
+  * "core_mmss"
+  * "byte"
+  * "pixel"
+  * "core"
   For DSIv2, we need an additional clock:
-   * "src_clk"
-- assigned-clocks: Parents of "byte_clk" and "pixel_clk" for the given platform.
+   * "src"
+- assigned-clocks: Parents of "byte" and "pixel" for the given platform.
 - assigned-clock-parents: The Byte clock and Pixel clock PLL outputs provided
   by a DSI PHY block. See [1] for details on clock bindings.
 - vdd-supply: phandle to vdd regulator device node
@@ -101,7 +101,7 @@ Required properties:
 - power-domains: Should be <&mmcc MDSS_GDSC>.
 - clocks: Phandles to device clocks. See [1] for details on clock bindings.
 - clock-names: the following clocks are required:
-  * "iface_clk"
+  * "iface"
 - vddio-supply: phandle to vdd-io regulator device node
 
 Optional properties:
@@ -123,13 +123,13 @@ Example:
 		reg = <0xfd922800 0x200>;
 		power-domains = <&mmcc MDSS_GDSC>;
 		clock-names =
-			"bus_clk",
-			"byte_clk",
-			"core_clk",
-			"core_mmss_clk",
-			"iface_clk",
-			"mdp_core_clk",
-			"pixel_clk";
+			"bus",
+			"byte",
+			"core",
+			"core_mmss",
+			"iface",
+			"mdp_core",
+			"pixel";
 		clocks =
 			<&mmcc MDSS_AXI_CLK>,
 			<&mmcc MDSS_BYTE0_CLK>,
@@ -207,7 +207,7 @@ Example:
 		reg =   <0xfd922a00 0xd4>,
 			<0xfd922b00 0x2b0>,
 			<0xfd922d80 0x7b>;
-		clock-names = "iface_clk";
+		clock-names = "iface";
 		clocks = <&mmcc MDSS_AHB_CLK>;
 		#clock-cells = <1>;
 		vddio-supply = <&pma8084_l12>;

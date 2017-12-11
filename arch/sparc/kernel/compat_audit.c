@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #define __32bit_syscall_numbers__
 #include <asm/unistd.h>
 #include "kernel.h"

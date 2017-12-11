@@ -368,6 +368,11 @@ static int rmi_check_sanity(struct hid_device *hdev, u8 *data, int size)
 static int rmi_raw_event(struct hid_device *hdev,
 		struct hid_report *report, u8 *data, int size)
 {
+	struct rmi_data *hdata = hid_get_drvdata(hdev);
+
+	if (!(hdata->device_flags & RMI_DEVICE))
+		return 0;
+
 	size = rmi_check_sanity(hdev, data, size);
 	if (size < 2)
 		return 0;
@@ -436,17 +441,24 @@ static int rmi_post_resume(struct hid_device *hdev)
 	if (!(data->device_flags & RMI_DEVICE))
 		return 0;
 
-	ret = rmi_reset_attn_mode(hdev);
+	/* Make sure the HID device is ready to receive events */
+	ret = hid_hw_open(hdev);
 	if (ret)
 		return ret;
+
+	ret = rmi_reset_attn_mode(hdev);
+	if (ret)
+		goto out;
 
 	ret = rmi_driver_resume(rmi_dev, false);
 	if (ret) {
 		hid_warn(hdev, "Failed to resume device: %d\n", ret);
-		return ret;
+		goto out;
 	}
 
-	return 0;
+out:
+	hid_hw_close(hdev);
+	return ret;
 }
 #endif /* CONFIG_PM */
 
@@ -706,9 +718,11 @@ static void rmi_remove(struct hid_device *hdev)
 {
 	struct rmi_data *hdata = hid_get_drvdata(hdev);
 
-	clear_bit(RMI_STARTED, &hdata->flags);
-	cancel_work_sync(&hdata->reset_work);
-	rmi_unregister_transport_device(&hdata->xport);
+	if (hdata->device_flags & RMI_DEVICE) {
+		clear_bit(RMI_STARTED, &hdata->flags);
+		cancel_work_sync(&hdata->reset_work);
+		rmi_unregister_transport_device(&hdata->xport);
+	}
 
 	hid_hw_stop(hdev);
 }

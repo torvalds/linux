@@ -1304,8 +1304,7 @@ static struct ib_qp *nes_create_qp(struct ib_pd *ibpd,
 	init_completion(&nesqp->rq_drained);
 
 	nesqp->sig_all = (init_attr->sq_sig_type == IB_SIGNAL_ALL_WR);
-	setup_timer(&nesqp->terminate_timer, nes_terminate_timeout,
-		    (unsigned long)nesqp);
+	timer_setup(&nesqp->terminate_timer, nes_terminate_timeout, 0);
 
 	/* update the QP table */
 	nesdev->nesadapter->qp_table[nesqp->hwqp.qp_id-NES_FIRST_QPN] = nesqp;
@@ -2865,11 +2864,11 @@ int nes_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 
 				next_iwarp_state = NES_CQP_QP_IWARP_STATE_ERROR;
 				/* next_iwarp_state = (NES_CQP_QP_IWARP_STATE_TERMINATE | 0x02000000); */
-					if (nesqp->hte_added) {
-						nes_debug(NES_DBG_MOD_QP, "set CQP_QP_DEL_HTE\n");
-						next_iwarp_state |= NES_CQP_QP_DEL_HTE;
-						nesqp->hte_added = 0;
-					}
+				if (nesqp->hte_added) {
+					nes_debug(NES_DBG_MOD_QP, "set CQP_QP_DEL_HTE\n");
+					next_iwarp_state |= NES_CQP_QP_DEL_HTE;
+					nesqp->hte_added = 0;
+				}
 				if ((nesqp->hw_tcp_state > NES_AEQE_TCP_STATE_CLOSED) &&
 						(nesdev->iw_status) &&
 						(nesqp->hw_tcp_state != NES_AEQE_TCP_STATE_TIME_WAIT)) {
@@ -3232,7 +3231,7 @@ static int nes_post_send(struct ib_qp *ibqp, struct ib_send_wr *ib_wr,
 					    mr->ibmr.iova);
 			set_wqe_32bit_value(wqe->wqe_words,
 					    NES_IWARP_SQ_FMR_WQE_LENGTH_LOW_IDX,
-					    mr->ibmr.length);
+					    lower_32_bits(mr->ibmr.length));
 			set_wqe_32bit_value(wqe->wqe_words,
 					    NES_IWARP_SQ_FMR_WQE_LENGTH_HIGH_IDX, 0);
 			set_wqe_32bit_value(wqe->wqe_words,
@@ -3274,7 +3273,7 @@ static int nes_post_send(struct ib_qp *ibqp, struct ib_send_wr *ib_wr,
 					    mr->npages * 8);
 
 			nes_debug(NES_DBG_IW_TX, "SQ_REG_MR: iova_start: %llx, "
-				  "length: %d, rkey: %0x, pgl_paddr: %llx, "
+				  "length: %lld, rkey: %0x, pgl_paddr: %llx, "
 				  "page_list_len: %u, wqe_misc: %x\n",
 				  (unsigned long long) mr->ibmr.iova,
 				  mr->ibmr.length,
@@ -3560,7 +3559,7 @@ static int nes_poll_cq(struct ib_cq *ibcq, int num_entries, struct ib_wc *entry)
 				entry->byte_len = le32_to_cpu(cqe.cqe_words[NES_CQE_PAYLOAD_LENGTH_IDX]);
 				wrid = ((u64)(le32_to_cpu(nesqp->hwqp.rq_vbase[wqe_index].wqe_words[NES_IWARP_RQ_WQE_COMP_SCRATCH_LOW_IDX]))) |
 					((u64)(le32_to_cpu(nesqp->hwqp.rq_vbase[wqe_index].wqe_words[NES_IWARP_RQ_WQE_COMP_SCRATCH_HIGH_IDX]))<<32);
-					entry->opcode = IB_WC_RECV;
+				entry->opcode = IB_WC_RECV;
 
 				nesqp->hwqp.rq_tail = (wqe_index+1)&(nesqp->hwqp.rq_size - 1);
 				if ((entry->status != IB_WC_SUCCESS) && (nesqp->hwqp.rq_tail != nesqp->hwqp.rq_head)) {
@@ -3788,9 +3787,9 @@ struct nes_ib_device *nes_init_ofa_device(struct net_device *netdev)
 /**
  * nes_handle_delayed_event
  */
-static void nes_handle_delayed_event(unsigned long data)
+static void nes_handle_delayed_event(struct timer_list *t)
 {
-	struct nes_vnic *nesvnic = (void *) data;
+	struct nes_vnic *nesvnic = from_timer(nesvnic, t, event_timer);
 
 	if (nesvnic->delayed_event != nesvnic->last_dispatched_event) {
 		struct ib_event event;
@@ -3821,7 +3820,6 @@ void  nes_port_ibevent(struct nes_vnic *nesvnic)
 		ib_dispatch_event(&event);
 		nesvnic->last_dispatched_event = event.event;
 		nesvnic->event_timer.function = nes_handle_delayed_event;
-		nesvnic->event_timer.data = (unsigned long) nesvnic;
 		nesvnic->event_timer.expires = jiffies + NES_EVENT_DELAY;
 		add_timer(&nesvnic->event_timer);
 	} else {

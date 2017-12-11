@@ -87,7 +87,7 @@ static ssize_t proc_set_log_level(struct file *file, const char __user *buffer, 
 * rtw_drv_proc:
 * init/deinit when register/unregister driver
 */
-static const struct rtw_proc_hdl drv_proc_hdls [] = {
+static const struct rtw_proc_hdl drv_proc_hdls[] = {
 	{"ver_info", proc_get_drv_version, NULL},
 	{"log_level", proc_get_log_level, proc_set_log_level},
 };
@@ -311,6 +311,8 @@ static ssize_t proc_set_cam(struct file *file, const char __user *buffer, size_t
 
 		if (num < 2)
 			return count;
+		if (id >= TOTAL_CAM_ENTRY)
+			return -EINVAL;
 
 		if (strcmp("c", cmd) == 0) {
 			_clear_cam_entry(adapter, id);
@@ -363,7 +365,7 @@ static int proc_get_cam_cache(struct seq_file *m, void *v)
 * rtw_adapter_proc:
 * init/deinit when register/unregister net_device
 */
-static const struct rtw_proc_hdl adapter_proc_hdls [] = {
+static const struct rtw_proc_hdl adapter_proc_hdls[] = {
 	{"write_reg", proc_get_dummy, proc_set_write_reg},
 	{"read_reg", proc_get_read_reg, proc_set_read_reg},
 	{"fwstate", proc_get_fwstate, NULL},
@@ -598,7 +600,7 @@ ssize_t proc_set_odm_adaptivity(struct file *file, const char __user *buffer, si
 * rtw_odm_proc:
 * init/deinit when register/unregister net_device, along with rtw_adapter_proc
 */
-static const struct rtw_proc_hdl odm_proc_hdls [] = {
+static const struct rtw_proc_hdl odm_proc_hdls[] = {
 	{"dbg_comp", proc_get_odm_dbg_comp, proc_set_odm_dbg_comp},
 	{"dbg_level", proc_get_odm_dbg_level, proc_set_odm_dbg_level},
 	{"ability", proc_get_odm_ability, proc_set_odm_ability},

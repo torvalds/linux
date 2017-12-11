@@ -49,6 +49,8 @@
 #include <linux/mlx5/device.h>
 #include <linux/mlx5/doorbell.h>
 #include <linux/mlx5/srq.h>
+#include <linux/timecounter.h>
+#include <linux/ptp_clock_kernel.h>
 
 enum {
 	MLX5_BOARD_ID_LEN = 64,
@@ -105,8 +107,11 @@ enum {
 };
 
 enum {
+	MLX5_REG_QPTS            = 0x4002,
 	MLX5_REG_QETCR		 = 0x4005,
 	MLX5_REG_QTCT		 = 0x400a,
+	MLX5_REG_QPDPM           = 0x4013,
+	MLX5_REG_QCAM            = 0x4019,
 	MLX5_REG_DCBX_PARAM      = 0x4020,
 	MLX5_REG_DCBX_APP        = 0x4021,
 	MLX5_REG_FPGA_CAP	 = 0x4022,
@@ -137,6 +142,11 @@ enum {
 	MLX5_REG_MCC		 = 0x9062,
 	MLX5_REG_MCDA		 = 0x9063,
 	MLX5_REG_MCAM		 = 0x907f,
+};
+
+enum mlx5_qpts_trust_state {
+	MLX5_QPTS_TRUST_PCP  = 1,
+	MLX5_QPTS_TRUST_DSCP = 2,
 };
 
 enum mlx5_dcbx_oper_mode {
@@ -760,6 +770,27 @@ struct mlx5_rsvd_gids {
 	struct ida ida;
 };
 
+#define MAX_PIN_NUM	8
+struct mlx5_pps {
+	u8                         pin_caps[MAX_PIN_NUM];
+	struct work_struct         out_work;
+	u64                        start[MAX_PIN_NUM];
+	u8                         enabled;
+};
+
+struct mlx5_clock {
+	rwlock_t                   lock;
+	struct cyclecounter        cycles;
+	struct timecounter         tc;
+	struct hwtstamp_config     hwtstamp_config;
+	u32                        nominal_c_mult;
+	unsigned long              overflow_period;
+	struct delayed_work        overflow_work;
+	struct ptp_clock          *ptp;
+	struct ptp_clock_info      ptp_info;
+	struct mlx5_pps            pps_info;
+};
+
 struct mlx5_core_dev {
 	struct pci_dev	       *pdev;
 	/* sync pci state */
@@ -774,6 +805,8 @@ struct mlx5_core_dev {
 		u32 hca_max[MLX5_CAP_NUM][MLX5_UN_SZ_DW(hca_cap_union)];
 		u32 pcam[MLX5_ST_SZ_DW(pcam_reg)];
 		u32 mcam[MLX5_ST_SZ_DW(mcam_reg)];
+		u32 fpga[MLX5_ST_SZ_DW(fpga_cap)];
+		u32 qcam[MLX5_ST_SZ_DW(qcam_reg)];
 	} caps;
 	phys_addr_t		iseg_base;
 	struct mlx5_init_seg __iomem *iseg;
@@ -799,6 +832,7 @@ struct mlx5_core_dev {
 #ifdef CONFIG_RFS_ACCEL
 	struct cpu_rmap         *rmap;
 #endif
+	struct mlx5_clock        clock;
 };
 
 struct mlx5_db {

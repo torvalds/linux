@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <asm/paravirt.h>
 #include <asm/asm-offsets.h>
 #include <linux/stringify.h>

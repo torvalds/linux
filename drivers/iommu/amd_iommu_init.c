@@ -874,7 +874,7 @@ static bool copy_device_table(void)
 		hi = readl(iommu->mmio_base + MMIO_DEV_TABLE_OFFSET + 4);
 		entry = (((u64) hi) << 32) + lo;
 		if (last_entry && last_entry != entry) {
-			pr_err("IOMMU:%d should use the same dev table as others!/n",
+			pr_err("IOMMU:%d should use the same dev table as others!\n",
 				iommu->index);
 			return false;
 		}
@@ -882,7 +882,7 @@ static bool copy_device_table(void)
 
 		old_devtb_size = ((entry & ~PAGE_MASK) + 1) << 12;
 		if (old_devtb_size != dev_table_size) {
-			pr_err("The device table size of IOMMU:%d is not expected!/n",
+			pr_err("The device table size of IOMMU:%d is not expected!\n",
 				iommu->index);
 			return false;
 		}
@@ -890,7 +890,7 @@ static bool copy_device_table(void)
 
 	old_devtb_phys = entry & PAGE_MASK;
 	if (old_devtb_phys >= 0x100000000ULL) {
-		pr_err("The address of old device table is above 4G, not trustworthy!/n");
+		pr_err("The address of old device table is above 4G, not trustworthy!\n");
 		return false;
 	}
 	old_devtb = memremap(old_devtb_phys, dev_table_size, MEMREMAP_WB);
@@ -901,7 +901,7 @@ static bool copy_device_table(void)
 	old_dev_tbl_cpy = (void *)__get_free_pages(gfp_flag,
 				get_order(dev_table_size));
 	if (old_dev_tbl_cpy == NULL) {
-		pr_err("Failed to allocate memory for copying old device table!/n");
+		pr_err("Failed to allocate memory for copying old device table!\n");
 		return false;
 	}
 

@@ -64,5 +64,19 @@
 &cpm_syscon0 {
 	cpm_pinctrl: pinctrl {
 		compatible = "marvell,armada-7k-pinctrl";
+
+		nand_pins: nand-pins {
+			marvell,pins =
+			"mpp15", "mpp16", "mpp17", "mpp18",
+			"mpp19", "mpp20", "mpp21", "mpp22",
+			"mpp23", "mpp24", "mpp25", "mpp26",
+			"mpp27";
+			marvell,function = "dev";
+		};
+
+		nand_rb: nand-rb {
+			marvell,pins = "mpp13";
+			marvell,function = "nf";
+		};
 	};
 };

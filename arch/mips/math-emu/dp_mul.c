@@ -26,10 +26,10 @@ union ieee754dp ieee754dp_mul(union ieee754dp x, union ieee754dp y)
 	int re;
 	int rs;
 	u64 rm;
-	unsigned lxm;
-	unsigned hxm;
-	unsigned lym;
-	unsigned hym;
+	unsigned int lxm;
+	unsigned int hxm;
+	unsigned int lym;
+	unsigned int hym;
 	u64 lrm;
 	u64 hrm;
 	u64 t;

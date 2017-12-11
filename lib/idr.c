@@ -146,8 +146,8 @@ EXPORT_SYMBOL(idr_get_next_ext);
  * idr_alloc() and idr_remove() (as long as the ID being removed is not
  * the one being replaced!).
  *
- * Returns: 0 on success.  %-ENOENT indicates that @id was not found.
- * %-EINVAL indicates that @id or @ptr were not valid.
+ * Returns: the old value on success.  %-ENOENT indicates that @id was not
+ * found.  %-EINVAL indicates that @id or @ptr were not valid.
  */
 void *idr_replace(struct idr *idr, void *ptr, int id)
 {
@@ -171,7 +171,7 @@ void *idr_replace_ext(struct idr *idr, void *ptr, unsigned long id)
 	if (!slot || radix_tree_tag_get(&idr->idr_rt, id, IDR_FREE))
 		return ERR_PTR(-ENOENT);
 
-	__radix_tree_replace(&idr->idr_rt, node, slot, ptr, NULL, NULL);
+	__radix_tree_replace(&idr->idr_rt, node, slot, ptr, NULL);
 
 	return entry;
 }

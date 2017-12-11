@@ -522,6 +522,7 @@ smb2_query_eas(const unsigned int xid, struct cifs_tcon *tcon,
 	struct cifs_open_parms oparms;
 	struct cifs_fid fid;
 	struct smb2_file_full_ea_info *smb2_data;
+	int ea_buf_size = SMB2_MIN_EA_BUF;
 
 	utf16_path = cifs_convert_path_to_utf16(path, cifs_sb);
 	if (!utf16_path)
@@ -541,14 +542,32 @@ smb2_query_eas(const unsigned int xid, struct cifs_tcon *tcon,
 		return rc;
 	}
 
-	smb2_data = kzalloc(SMB2_MAX_EA_BUF, GFP_KERNEL);
-	if (smb2_data == NULL) {
-		SMB2_close(xid, tcon, fid.persistent_fid, fid.volatile_fid);
-		return -ENOMEM;
+	while (1) {
+		smb2_data = kzalloc(ea_buf_size, GFP_KERNEL);
+		if (smb2_data == NULL) {
+			SMB2_close(xid, tcon, fid.persistent_fid,
+				   fid.volatile_fid);
+			return -ENOMEM;
+		}
+
+		rc = SMB2_query_eas(xid, tcon, fid.persistent_fid,
+				    fid.volatile_fid,
+				    ea_buf_size, smb2_data);
+
+		if (rc != -E2BIG)
+			break;
+
+		kfree(smb2_data);
+		ea_buf_size <<= 1;
+
+		if (ea_buf_size > SMB2_MAX_EA_BUF) {
+			cifs_dbg(VFS, "EA size is too large\n");
+			SMB2_close(xid, tcon, fid.persistent_fid,
+				   fid.volatile_fid);
+			return -ENOMEM;
+		}
 	}
 
-	rc = SMB2_query_eas(xid, tcon, fid.persistent_fid, fid.volatile_fid,
-			    smb2_data);
 	SMB2_close(xid, tcon, fid.persistent_fid, fid.volatile_fid);
 
 	if (!rc)
@@ -2068,22 +2087,6 @@ init_sg(struct smb_rqst *rqst, u8 *sign)
 	return sg;
 }
 
-struct cifs_crypt_result {
-	int err;
-	struct completion completion;
-};
-
-static void cifs_crypt_complete(struct crypto_async_request *req, int err)
-{
-	struct cifs_crypt_result *res = req->data;
-
-	if (err == -EINPROGRESS)
-		return;
-
-	res->err = err;
-	complete(&res->completion);
-}
-
 static int
 smb2_get_enc_key(struct TCP_Server_Info *server, __u64 ses_id, int enc, u8 *key)
 {
@@ -2124,11 +2127,9 @@ crypt_message(struct TCP_Server_Info *server, struct smb_rqst *rqst, int enc)
 	struct aead_request *req;
 	char *iv;
 	unsigned int iv_len;
-	struct cifs_crypt_result result = {0, };
+	DECLARE_CRYPTO_WAIT(wait);
 	struct crypto_aead *tfm;
 	unsigned int crypt_len = le32_to_cpu(tr_hdr->OriginalMessageSize);
-
-	init_completion(&result.completion);
 
 	rc = smb2_get_enc_key(server, tr_hdr->SessionId, enc, key);
 	if (rc) {
@@ -2189,14 +2190,10 @@ crypt_message(struct TCP_Server_Info *server, struct smb_rqst *rqst, int enc)
 	aead_request_set_ad(req, assoc_data_len);
 
 	aead_request_set_callback(req, CRYPTO_TFM_REQ_MAY_BACKLOG,
-				  cifs_crypt_complete, &result);
+				  crypto_req_done, &wait);
 
-	rc = enc ? crypto_aead_encrypt(req) : crypto_aead_decrypt(req);
-
-	if (rc == -EINPROGRESS || rc == -EBUSY) {
-		wait_for_completion(&result.completion);
-		rc = result.err;
-	}
+	rc = crypto_wait_req(enc ? crypto_aead_encrypt(req)
+				: crypto_aead_decrypt(req), &wait);
 
 	if (!rc && enc)
 		memcpy(&tr_hdr->Signature, sign, SMB2_SIGNATURE_SIZE);

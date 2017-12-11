@@ -251,14 +251,6 @@ static int check_partial_mapping(struct drm_i915_gem_object *obj,
 			return PTR_ERR(io);
 		}
 
-		err = i915_vma_get_fence(vma);
-		if (err) {
-			pr_err("Failed to get fence for partial view: offset=%lu\n",
-			       page);
-			i915_vma_unpin_iomap(vma);
-			return err;
-		}
-
 		iowrite32(page, io + n * PAGE_SIZE/sizeof(*io));
 		i915_vma_unpin_iomap(vma);
 

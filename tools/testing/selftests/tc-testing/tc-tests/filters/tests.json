@@ -17,5 +17,26 @@
         "teardown": [
             "$TC qdisc del dev $DEV1 ingress"
         ]
+    },
+    {
+        "id": "d052",
+        "name": "Add 1M filters with the same action",
+        "category": [
+            "filter",
+            "flower"
+        ],
+        "setup": [
+            "$TC qdisc add dev $DEV2 ingress",
+            "./tdc_batch.py $DEV2 $BATCH_FILE --share_action -n 1000000"
+        ],
+        "cmdUnderTest": "$TC -b $BATCH_FILE",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions list action gact",
+        "matchPattern": "action order 0: gact action drop.*index 1 ref 1000000 bind 1000000",
+        "matchCount": "1",
+        "teardown": [
+            "$TC qdisc del dev $DEV2 ingress",
+            "/bin/rm $BATCH_FILE"
+        ]
     }
 ]

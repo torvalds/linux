@@ -49,12 +49,12 @@ struct ti_am335x_xbar_data {
 
 struct ti_am335x_xbar_map {
 	u16 dma_line;
-	u16 mux_val;
+	u8 mux_val;
 };
 
-static inline void ti_am335x_xbar_write(void __iomem *iomem, int event, u16 val)
+static inline void ti_am335x_xbar_write(void __iomem *iomem, int event, u8 val)
 {
-	writeb_relaxed(val & 0x1f, iomem + event);
+	writeb_relaxed(val, iomem + event);
 }
 
 static void ti_am335x_xbar_free(struct device *dev, void *route_data)
@@ -105,7 +105,7 @@ static void *ti_am335x_xbar_route_allocate(struct of_phandle_args *dma_spec,
 	}
 
 	map->dma_line = (u16)dma_spec->args[0];
-	map->mux_val = (u16)dma_spec->args[2];
+	map->mux_val = (u8)dma_spec->args[2];
 
 	dma_spec->args[2] = 0;
 	dma_spec->args_count = 2;
@@ -262,13 +262,14 @@ static void *ti_dra7_xbar_route_allocate(struct of_phandle_args *dma_spec,
 	mutex_lock(&xbar->mutex);
 	map->xbar_out = find_first_zero_bit(xbar->dma_inuse,
 					    xbar->dma_requests);
-	mutex_unlock(&xbar->mutex);
 	if (map->xbar_out == xbar->dma_requests) {
+		mutex_unlock(&xbar->mutex);
 		dev_err(&pdev->dev, "Run out of free DMA requests\n");
 		kfree(map);
 		return ERR_PTR(-ENOMEM);
 	}
 	set_bit(map->xbar_out, xbar->dma_inuse);
+	mutex_unlock(&xbar->mutex);
 
 	map->xbar_in = (u16)dma_spec->args[0];
 

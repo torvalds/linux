@@ -32,6 +32,18 @@
 #define RTS524A_PME_FORCE_CTL		0xFF78
 #define RTS524A_PM_CTRL3		0xFF7E
 
+#define LTR_ACTIVE_LATENCY_DEF		0x883C
+#define LTR_IDLE_LATENCY_DEF		0x892C
+#define LTR_L1OFF_LATENCY_DEF		0x9003
+#define L1_SNOOZE_DELAY_DEF		1
+#define LTR_L1OFF_SSPWRGATE_5249_DEF		0xAF
+#define LTR_L1OFF_SSPWRGATE_5250_DEF		0xFF
+#define LTR_L1OFF_SNOOZE_SSPWRGATE_5249_DEF	0xAC
+#define LTR_L1OFF_SNOOZE_SSPWRGATE_5250_DEF	0xF8
+#define CMD_TIMEOUT_DEF		100
+#define ASPM_MASK_NEG		0xFC
+#define MASK_8_BIT_DEF		0xFF
+
 int __rtsx_pci_write_phy_register(struct rtsx_pcr *pcr, u8 addr, u16 val);
 int __rtsx_pci_read_phy_register(struct rtsx_pcr *pcr, u8 addr, u16 *val);
 
@@ -85,5 +97,7 @@ do {									\
 
 /* generic operations */
 int rtsx_gops_pm_reset(struct rtsx_pcr *pcr);
+int rtsx_set_ltr_latency(struct rtsx_pcr *pcr, u32 latency);
+int rtsx_set_l1off_sub(struct rtsx_pcr *pcr, u8 val);
 
 #endif

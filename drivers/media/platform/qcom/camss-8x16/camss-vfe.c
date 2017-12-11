@@ -622,6 +622,9 @@ static void vfe_set_xbar_cfg(struct vfe_device *vfe, struct vfe_output *output,
 			reg = VFE_0_BUS_XBAR_CFG_x_M_PAIR_STREAM_EN;
 			if (p == V4L2_PIX_FMT_NV12 || p == V4L2_PIX_FMT_NV16)
 				reg |= VFE_0_BUS_XBAR_CFG_x_M_PAIR_STREAM_SWAP_INTER_INTRA;
+		} else {
+			/* On current devices output->wm_num is always <= 2 */
+			break;
 		}
 
 		if (output->wm_idx[i] % 2 == 1)
@@ -2660,7 +2663,7 @@ static int vfe_get_selection(struct v4l2_subdev *sd,
  *
  * Return -EINVAL or zero on success
  */
-int vfe_set_selection(struct v4l2_subdev *sd,
+static int vfe_set_selection(struct v4l2_subdev *sd,
 			     struct v4l2_subdev_pad_config *cfg,
 			     struct v4l2_subdev_selection *sel)
 {

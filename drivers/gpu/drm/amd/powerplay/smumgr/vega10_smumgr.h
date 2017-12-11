@@ -52,19 +52,19 @@ struct vega10_smumgr {
 	struct smu_table_array            smu_tables;
 };
 
-int vega10_read_arg_from_smc(struct pp_smumgr *smumgr, uint32_t *arg);
-int vega10_copy_table_from_smc(struct pp_smumgr *smumgr,
+int vega10_read_arg_from_smc(struct pp_hwmgr *hwmgr, uint32_t *arg);
+int vega10_copy_table_from_smc(struct pp_hwmgr *hwmgr,
 		uint8_t *table, int16_t table_id);
-int vega10_copy_table_to_smc(struct pp_smumgr *smumgr,
+int vega10_copy_table_to_smc(struct pp_hwmgr *hwmgr,
 		uint8_t *table, int16_t table_id);
-int vega10_enable_smc_features(struct pp_smumgr *smumgr,
+int vega10_enable_smc_features(struct pp_hwmgr *hwmgr,
 		bool enable, uint32_t feature_mask);
-int vega10_get_smc_features(struct pp_smumgr *smumgr,
+int vega10_get_smc_features(struct pp_hwmgr *hwmgr,
 		uint32_t *features_enabled);
-int vega10_save_vft_table(struct pp_smumgr *smumgr, uint8_t *avfs_table);
-int vega10_restore_vft_table(struct pp_smumgr *smumgr, uint8_t *avfs_table);
+int vega10_save_vft_table(struct pp_hwmgr *hwmgr, uint8_t *avfs_table);
+int vega10_restore_vft_table(struct pp_hwmgr *hwmgr, uint8_t *avfs_table);
 
-int vega10_set_tools_address(struct pp_smumgr *smumgr);
+int vega10_set_tools_address(struct pp_hwmgr *hwmgr);
 
 #endif
 

@@ -139,7 +139,7 @@ TRACE_EVENT(mlx5_fs_del_fg,
 	{MLX5_FLOW_CONTEXT_ACTION_FWD_NEXT_PRIO, "NEXT_PRIO"}
 
 TRACE_EVENT(mlx5_fs_set_fte,
-	    TP_PROTO(const struct fs_fte *fte, bool new_fte),
+	    TP_PROTO(const struct fs_fte *fte, int new_fte),
 	    TP_ARGS(fte, new_fte),
 	    TP_STRUCT__entry(
 		__field(const struct fs_fte *, fte)
@@ -149,7 +149,7 @@ TRACE_EVENT(mlx5_fs_set_fte,
 		__field(u32, action)
 		__field(u32, flow_tag)
 		__field(u8,  mask_enable)
-		__field(bool, new_fte)
+		__field(int, new_fte)
 		__array(u32, mask_outer, MLX5_ST_SZ_DW(fte_match_set_lyr_2_4))
 		__array(u32, mask_inner, MLX5_ST_SZ_DW(fte_match_set_lyr_2_4))
 		__array(u32, mask_misc, MLX5_ST_SZ_DW(fte_match_set_misc))

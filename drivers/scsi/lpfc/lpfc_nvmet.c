@@ -76,7 +76,7 @@ lpfc_nvmet_defer_release(struct lpfc_hba *phba, struct lpfc_nvmet_rcv_ctx *ctxp)
 {
 	unsigned long iflag;
 
-	lpfc_printf_log(phba, KERN_ERR, LOG_NVME_ABTS,
+	lpfc_printf_log(phba, KERN_INFO, LOG_NVME_ABTS,
 			"6313 NVMET Defer ctx release xri x%x flg x%x\n",
 			ctxp->oxid, ctxp->flag);
 
@@ -221,9 +221,8 @@ lpfc_nvmet_ctxbuf_post(struct lpfc_hba *phba, struct lpfc_nvmet_ctxbuf *ctx_buf)
 		spin_lock_init(&ctxp->ctxlock);
 
 #ifdef CONFIG_SCSI_LPFC_DEBUG_FS
-		if (phba->ktime_on) {
+		if (ctxp->ts_cmd_nvme) {
 			ctxp->ts_cmd_nvme = ktime_get_ns();
-			ctxp->ts_isr_cmd = ctxp->ts_cmd_nvme;
 			ctxp->ts_nvme_data = 0;
 			ctxp->ts_data_wqput = 0;
 			ctxp->ts_isr_data = 0;
@@ -289,9 +288,7 @@ lpfc_nvmet_ktime(struct lpfc_hba *phba,
 {
 	uint64_t seg1, seg2, seg3, seg4, seg5;
 	uint64_t seg6, seg7, seg8, seg9, seg10;
-
-	if (!phba->ktime_on)
-		return;
+	uint64_t segsum;
 
 	if (!ctxp->ts_isr_cmd || !ctxp->ts_cmd_nvme ||
 	    !ctxp->ts_nvme_data || !ctxp->ts_data_wqput ||
@@ -300,6 +297,8 @@ lpfc_nvmet_ktime(struct lpfc_hba *phba,
 	    !ctxp->ts_isr_status || !ctxp->ts_status_nvme)
 		return;
 
+	if (ctxp->ts_status_nvme < ctxp->ts_isr_cmd)
+		return;
 	if (ctxp->ts_isr_cmd  > ctxp->ts_cmd_nvme)
 		return;
 	if (ctxp->ts_cmd_nvme > ctxp->ts_nvme_data)
@@ -344,34 +343,66 @@ lpfc_nvmet_ktime(struct lpfc_hba *phba,
 	 * (Segments 1 thru 4) for READDATA_RSP
 	 */
 	seg1 = ctxp->ts_cmd_nvme - ctxp->ts_isr_cmd;
-	seg2 = (ctxp->ts_nvme_data - ctxp->ts_isr_cmd) - seg1;
-	seg3 = (ctxp->ts_data_wqput - ctxp->ts_isr_cmd) -
-		seg1 - seg2;
-	seg4 = (ctxp->ts_isr_data - ctxp->ts_isr_cmd) -
-		seg1 - seg2 - seg3;
-	seg5 = (ctxp->ts_data_nvme - ctxp->ts_isr_cmd) -
-		seg1 - seg2 - seg3 - seg4;
+	segsum = seg1;
+
+	seg2 = ctxp->ts_nvme_data - ctxp->ts_isr_cmd;
+	if (segsum > seg2)
+		return;
+	seg2 -= segsum;
+	segsum += seg2;
+
+	seg3 = ctxp->ts_data_wqput - ctxp->ts_isr_cmd;
+	if (segsum > seg3)
+		return;
+	seg3 -= segsum;
+	segsum += seg3;
+
+	seg4 = ctxp->ts_isr_data - ctxp->ts_isr_cmd;
+	if (segsum > seg4)
+		return;
+	seg4 -= segsum;
+	segsum += seg4;
+
+	seg5 = ctxp->ts_data_nvme - ctxp->ts_isr_cmd;
+	if (segsum > seg5)
+		return;
+	seg5 -= segsum;
+	segsum += seg5;
+
 
 	/* For auto rsp commands seg6 thru seg10 will be 0 */
 	if (ctxp->ts_nvme_status > ctxp->ts_data_nvme) {
-		seg6 = (ctxp->ts_nvme_status -
-			ctxp->ts_isr_cmd) -
-			seg1 - seg2 - seg3 - seg4 - seg5;
-		seg7 = (ctxp->ts_status_wqput -
-			ctxp->ts_isr_cmd) -
-			seg1 - seg2 - seg3 -
-			seg4 - seg5 - seg6;
-		seg8 = (ctxp->ts_isr_status -
-			ctxp->ts_isr_cmd) -
-			seg1 - seg2 - seg3 - seg4 -
-			seg5 - seg6 - seg7;
-		seg9 = (ctxp->ts_status_nvme -
-			ctxp->ts_isr_cmd) -
-			seg1 - seg2 - seg3 - seg4 -
-			seg5 - seg6 - seg7 - seg8;
+		seg6 = ctxp->ts_nvme_status - ctxp->ts_isr_cmd;
+		if (segsum > seg6)
+			return;
+		seg6 -= segsum;
+		segsum += seg6;
+
+		seg7 = ctxp->ts_status_wqput - ctxp->ts_isr_cmd;
+		if (segsum > seg7)
+			return;
+		seg7 -= segsum;
+		segsum += seg7;
+
+		seg8 = ctxp->ts_isr_status - ctxp->ts_isr_cmd;
+		if (segsum > seg8)
+			return;
+		seg8 -= segsum;
+		segsum += seg8;
+
+		seg9 = ctxp->ts_status_nvme - ctxp->ts_isr_cmd;
+		if (segsum > seg9)
+			return;
+		seg9 -= segsum;
+		segsum += seg9;
+
+		if (ctxp->ts_isr_status < ctxp->ts_isr_cmd)
+			return;
 		seg10 = (ctxp->ts_isr_status -
 			ctxp->ts_isr_cmd);
 	} else {
+		if (ctxp->ts_isr_data < ctxp->ts_isr_cmd)
+			return;
 		seg6 =  0;
 		seg7 =  0;
 		seg8 =  0;
@@ -463,7 +494,7 @@ lpfc_nvmet_xmt_fcp_op_cmp(struct lpfc_hba *phba, struct lpfc_iocbq *cmdwqe,
 	struct lpfc_nvmet_tgtport *tgtp;
 	struct nvmefc_tgt_fcp_req *rsp;
 	struct lpfc_nvmet_rcv_ctx *ctxp;
-	uint32_t status, result, op, start_clean;
+	uint32_t status, result, op, start_clean, logerr;
 #ifdef CONFIG_SCSI_LPFC_DEBUG_FS
 	uint32_t id;
 #endif
@@ -491,16 +522,20 @@ lpfc_nvmet_xmt_fcp_op_cmp(struct lpfc_hba *phba, struct lpfc_iocbq *cmdwqe,
 		if (tgtp)
 			atomic_inc(&tgtp->xmt_fcp_rsp_error);
 
+		logerr = LOG_NVME_IOERR;
+
 		/* pick up SLI4 exhange busy condition */
 		if (bf_get(lpfc_wcqe_c_xb, wcqe)) {
 			ctxp->flag |= LPFC_NVMET_XBUSY;
+			logerr |= LOG_NVME_ABTS;
 
-			lpfc_printf_log(phba, KERN_INFO, LOG_NVME_ABTS,
-					"6315 IO Cmpl XBUSY: xri x%x: %x/%x\n",
-					ctxp->oxid, status, result);
 		} else {
 			ctxp->flag &= ~LPFC_NVMET_XBUSY;
 		}
+
+		lpfc_printf_log(phba, KERN_INFO, logerr,
+				"6315 IO Error Cmpl xri x%x: %x/%x XBUSY:x%x\n",
+				ctxp->oxid, status, result, ctxp->flag);
 
 	} else {
 		rsp->fcp_error = NVME_SC_SUCCESS;
@@ -519,7 +554,7 @@ lpfc_nvmet_xmt_fcp_op_cmp(struct lpfc_hba *phba, struct lpfc_iocbq *cmdwqe,
 		ctxp->entry_cnt++;
 
 #ifdef CONFIG_SCSI_LPFC_DEBUG_FS
-		if (phba->ktime_on) {
+		if (ctxp->ts_cmd_nvme) {
 			if (rsp->op == NVMET_FCOP_READDATA_RSP) {
 				ctxp->ts_isr_data =
 					cmdwqe->isr_timestamp;
@@ -553,7 +588,7 @@ lpfc_nvmet_xmt_fcp_op_cmp(struct lpfc_hba *phba, struct lpfc_iocbq *cmdwqe,
 #endif
 		rsp->done(rsp);
 #ifdef CONFIG_SCSI_LPFC_DEBUG_FS
-		if (phba->ktime_on)
+		if (ctxp->ts_cmd_nvme)
 			lpfc_nvmet_ktime(phba, ctxp);
 #endif
 		/* lpfc_nvmet_xmt_fcp_release() will recycle the context */
@@ -563,7 +598,7 @@ lpfc_nvmet_xmt_fcp_op_cmp(struct lpfc_hba *phba, struct lpfc_iocbq *cmdwqe,
 		memset(((char *)cmdwqe) + start_clean, 0,
 		       (sizeof(struct lpfc_iocbq) - start_clean));
 #ifdef CONFIG_SCSI_LPFC_DEBUG_FS
-		if (phba->ktime_on) {
+		if (ctxp->ts_cmd_nvme) {
 			ctxp->ts_isr_data = cmdwqe->isr_timestamp;
 			ctxp->ts_data_nvme = ktime_get_ns();
 		}
@@ -596,6 +631,9 @@ lpfc_nvmet_xmt_ls_rsp(struct nvmet_fc_target_port *tgtport,
 	struct lpfc_dmabuf dmabuf;
 	struct ulp_bde64 bpl;
 	int rc;
+
+	if (phba->pport->load_flag & FC_UNLOADING)
+		return -ENODEV;
 
 	lpfc_printf_log(phba, KERN_INFO, LOG_NVME_DISC,
 			"6023 NVMET LS rsp oxid x%x\n", ctxp->oxid);
@@ -678,8 +716,13 @@ lpfc_nvmet_xmt_fcp_op(struct nvmet_fc_target_port *tgtport,
 	struct lpfc_iocbq *nvmewqeq;
 	int rc;
 
+	if (phba->pport->load_flag & FC_UNLOADING) {
+		rc = -ENODEV;
+		goto aerr;
+	}
+
 #ifdef CONFIG_SCSI_LPFC_DEBUG_FS
-	if (phba->ktime_on) {
+	if (ctxp->ts_cmd_nvme) {
 		if (rsp->op == NVMET_FCOP_RSP)
 			ctxp->ts_nvme_status = ktime_get_ns();
 		else
@@ -734,7 +777,7 @@ lpfc_nvmet_xmt_fcp_op(struct nvmet_fc_target_port *tgtport,
 	rc = lpfc_sli4_issue_wqe(phba, LPFC_FCP_RING, nvmewqeq);
 	if (rc == WQE_SUCCESS) {
 #ifdef CONFIG_SCSI_LPFC_DEBUG_FS
-		if (!phba->ktime_on)
+		if (!ctxp->ts_cmd_nvme)
 			return 0;
 		if (rsp->op == NVMET_FCOP_RSP)
 			ctxp->ts_status_wqput = ktime_get_ns();
@@ -777,6 +820,9 @@ lpfc_nvmet_xmt_fcp_abort(struct nvmet_fc_target_port *tgtport,
 	struct lpfc_hba *phba = ctxp->phba;
 	unsigned long flags;
 
+	if (phba->pport->load_flag & FC_UNLOADING)
+		return;
+
 	lpfc_printf_log(phba, KERN_INFO, LOG_NVME_ABTS,
 			"6103 NVMET Abort op: oxri x%x flg x%x ste %d\n",
 			ctxp->oxid, ctxp->flag, ctxp->state);
@@ -787,6 +833,7 @@ lpfc_nvmet_xmt_fcp_abort(struct nvmet_fc_target_port *tgtport,
 	atomic_inc(&lpfc_nvmep->xmt_fcp_abort);
 
 	spin_lock_irqsave(&ctxp->ctxlock, flags);
+	ctxp->state = LPFC_NVMET_STE_ABORT;
 
 	/* Since iaab/iaar are NOT set, we need to check
 	 * if the firmware is in process of aborting IO
@@ -1125,9 +1172,7 @@ lpfc_nvmet_create_targetport(struct lpfc_hba *phba)
 	}
 	lpfc_tgttemplate.max_sgl_segments = phba->cfg_nvme_seg_cnt + 1;
 	lpfc_tgttemplate.max_hw_queues = phba->cfg_nvme_io_channel;
-	lpfc_tgttemplate.target_features = NVMET_FCTGTFEAT_READDATA_RSP |
-					   NVMET_FCTGTFEAT_CMD_IN_ISR |
-					   NVMET_FCTGTFEAT_OPDONE_IN_ISR;
+	lpfc_tgttemplate.target_features = NVMET_FCTGTFEAT_READDATA_RSP;
 
 #if (IS_ENABLED(CONFIG_NVME_TARGET_FC))
 	error = nvmet_fc_register_targetport(&pinfo, &lpfc_tgttemplate,
@@ -1138,9 +1183,14 @@ lpfc_nvmet_create_targetport(struct lpfc_hba *phba)
 #endif
 	if (error) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_NVME_DISC,
-				"6025 Cannot register NVME targetport "
-				"x%x\n", error);
+				"6025 Cannot register NVME targetport x%x: "
+				"portnm %llx nodenm %llx segs %d qs %d\n",
+				error,
+				pinfo.port_name, pinfo.node_name,
+				lpfc_tgttemplate.max_sgl_segments,
+				lpfc_tgttemplate.max_hw_queues);
 		phba->targetport = NULL;
+		phba->nvmet_support = 0;
 
 		lpfc_nvmet_cleanup_io_context(phba);
 
@@ -1152,9 +1202,11 @@ lpfc_nvmet_create_targetport(struct lpfc_hba *phba)
 		lpfc_printf_log(phba, KERN_INFO, LOG_NVME_DISC,
 				"6026 Registered NVME "
 				"targetport: %p, private %p "
-				"portnm %llx nodenm %llx\n",
+				"portnm %llx nodenm %llx segs %d qs %d\n",
 				phba->targetport, tgtp,
-				pinfo.port_name, pinfo.node_name);
+				pinfo.port_name, pinfo.node_name,
+				lpfc_tgttemplate.max_sgl_segments,
+				lpfc_tgttemplate.max_hw_queues);
 
 		atomic_set(&tgtp->rcv_ls_req_in, 0);
 		atomic_set(&tgtp->rcv_ls_req_out, 0);
@@ -1457,6 +1509,7 @@ static struct lpfc_nvmet_ctxbuf *
 lpfc_nvmet_replenish_context(struct lpfc_hba *phba,
 			     struct lpfc_nvmet_ctx_info *current_infop)
 {
+#if (IS_ENABLED(CONFIG_NVME_TARGET_FC))
 	struct lpfc_nvmet_ctxbuf *ctx_buf = NULL;
 	struct lpfc_nvmet_ctx_info *get_infop;
 	int i;
@@ -1504,6 +1557,7 @@ lpfc_nvmet_replenish_context(struct lpfc_hba *phba,
 		get_infop = get_infop->nvmet_ctx_next_cpu;
 	}
 
+#endif
 	/* Nothing found, all contexts for the MRQ are in-flight */
 	return NULL;
 }
@@ -1631,7 +1685,7 @@ lpfc_nvmet_unsol_fcp_buffer(struct lpfc_hba *phba,
 	spin_lock_init(&ctxp->ctxlock);
 
 #ifdef CONFIG_SCSI_LPFC_DEBUG_FS
-	if (phba->ktime_on) {
+	if (isr_timestamp) {
 		ctxp->ts_isr_cmd = isr_timestamp;
 		ctxp->ts_cmd_nvme = ktime_get_ns();
 		ctxp->ts_nvme_data = 0;
@@ -1642,6 +1696,8 @@ lpfc_nvmet_unsol_fcp_buffer(struct lpfc_hba *phba,
 		ctxp->ts_status_wqput = 0;
 		ctxp->ts_isr_status = 0;
 		ctxp->ts_status_nvme = 0;
+	} else {
+		ctxp->ts_cmd_nvme = 0;
 	}
 #endif
 
@@ -2320,7 +2376,7 @@ lpfc_nvmet_sol_fcp_abort_cmp(struct lpfc_hba *phba, struct lpfc_iocbq *cmdwqe,
 	spin_unlock_irqrestore(&ctxp->ctxlock, flags);
 	atomic_inc(&tgtp->xmt_abort_rsp);
 
-	lpfc_printf_log(phba, KERN_ERR, LOG_NVME_ABTS,
+	lpfc_printf_log(phba, KERN_INFO, LOG_NVME_ABTS,
 			"6165 ABORT cmpl: xri x%x flg x%x (%d) "
 			"WCQE: %08x %08x %08x %08x\n",
 			ctxp->oxid, ctxp->flag, released,

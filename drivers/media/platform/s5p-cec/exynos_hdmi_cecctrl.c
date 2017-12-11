@@ -172,7 +172,8 @@ u32 s5p_cec_get_status(struct s5p_cec_dev *cec)
 {
 	u32 status = 0;
 
-	status = readb(cec->reg + S5P_CEC_STATUS_0);
+	status = readb(cec->reg + S5P_CEC_STATUS_0) & 0xf;
+	status |= (readb(cec->reg + S5P_CEC_TX_STAT1) & 0xf) << 4;
 	status |= readb(cec->reg + S5P_CEC_STATUS_1) << 8;
 	status |= readb(cec->reg + S5P_CEC_STATUS_2) << 16;
 	status |= readb(cec->reg + S5P_CEC_STATUS_3) << 24;

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef DM_STATS_H
 #define DM_STATS_H
 

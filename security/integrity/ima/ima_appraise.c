@@ -40,7 +40,7 @@ __setup("ima_appraise=", default_appraise_setup);
  */
 bool is_ima_appraise_enabled(void)
 {
-	return (ima_appraise & IMA_APPRAISE_ENFORCE) ? 1 : 0;
+	return ima_appraise & IMA_APPRAISE_ENFORCE;
 }
 
 /*
@@ -320,6 +320,9 @@ void ima_update_xattr(struct integrity_iint_cache *iint, struct file *file)
 	if (iint->flags & IMA_DIGSIG)
 		return;
 
+	if (iint->ima_file_status != INTEGRITY_PASS)
+		return;
+
 	rc = ima_collect_measurement(iint, file, NULL, 0, ima_hash_algo);
 	if (rc < 0)
 		return;
@@ -405,7 +408,7 @@ int ima_inode_setxattr(struct dentry *dentry, const char *xattr_name,
 		if (!xattr_value_len || (xvalue->type >= IMA_XATTR_LAST))
 			return -EINVAL;
 		ima_reset_appraise_flags(d_backing_inode(dentry),
-			 (xvalue->type == EVM_IMA_XATTR_DIGSIG) ? 1 : 0);
+			xvalue->type == EVM_IMA_XATTR_DIGSIG);
 		result = 0;
 	}
 	return result;

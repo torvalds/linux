@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * dts file for Hisilicon Hi6220 SoC
  *
@@ -986,3 +987,5 @@
 		};
 	};
 };
+
+#include "hi6220-coresight.dtsi"

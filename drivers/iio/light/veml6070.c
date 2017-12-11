@@ -136,7 +136,6 @@ static int veml6070_read_raw(struct iio_dev *indio_dev,
 
 static const struct iio_info veml6070_info = {
 	.read_raw = veml6070_read_raw,
-	.driver_module = THIS_MODULE,
 };
 
 static int veml6070_probe(struct i2c_client *client,
