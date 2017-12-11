@@ -2949,50 +2949,6 @@ static unsigned int chv_get_total_gtt_size(u16 gmch_ctrl)
 	return 0;
 }
 
-static size_t gen6_get_stolen_size(u16 snb_gmch_ctl)
-{
-	snb_gmch_ctl >>= SNB_GMCH_GMS_SHIFT;
-	snb_gmch_ctl &= SNB_GMCH_GMS_MASK;
-	return (size_t)snb_gmch_ctl << 25; /* 32 MB units */
-}
-
-static size_t gen8_get_stolen_size(u16 bdw_gmch_ctl)
-{
-	bdw_gmch_ctl >>= BDW_GMCH_GMS_SHIFT;
-	bdw_gmch_ctl &= BDW_GMCH_GMS_MASK;
-	return (size_t)bdw_gmch_ctl << 25; /* 32 MB units */
-}
-
-static size_t chv_get_stolen_size(u16 gmch_ctrl)
-{
-	gmch_ctrl >>= SNB_GMCH_GMS_SHIFT;
-	gmch_ctrl &= SNB_GMCH_GMS_MASK;
-
-	/*
-	 * 0x0  to 0x10: 32MB increments starting at 0MB
-	 * 0x11 to 0x16: 4MB increments starting at 8MB
-	 * 0x17 to 0x1d: 4MB increments start at 36MB
-	 */
-	if (gmch_ctrl < 0x11)
-		return (size_t)gmch_ctrl << 25;
-	else if (gmch_ctrl < 0x17)
-		return (size_t)(gmch_ctrl - 0x11 + 2) << 22;
-	else
-		return (size_t)(gmch_ctrl - 0x17 + 9) << 22;
-}
-
-static size_t gen9_get_stolen_size(u16 gen9_gmch_ctl)
-{
-	gen9_gmch_ctl >>= BDW_GMCH_GMS_SHIFT;
-	gen9_gmch_ctl &= BDW_GMCH_GMS_MASK;
-
-	if (gen9_gmch_ctl < 0xf0)
-		return (size_t)gen9_gmch_ctl << 25; /* 32 MB units */
-	else
-		/* 4MB increments starting at 0xf0 for 4MB */
-		return (size_t)(gen9_gmch_ctl - 0xf0 + 1) << 22;
-}
-
 static int ggtt_probe_common(struct i915_ggtt *ggtt, u64 size)
 {
 	struct drm_i915_private *dev_priv = ggtt->base.i915;
@@ -3343,14 +3299,13 @@ static int gen8_gmch_probe(struct i915_ggtt *ggtt)
 
 	pci_read_config_word(pdev, SNB_GMCH_CTRL, &snb_gmch_ctl);
 
+	ggtt->stolen_size = resource_size(&intel_graphics_stolen_res);
+
 	if (INTEL_GEN(dev_priv) >= 9) {
-		ggtt->stolen_size = gen9_get_stolen_size(snb_gmch_ctl);
 		size = gen8_get_total_gtt_size(snb_gmch_ctl);
 	} else if (IS_CHERRYVIEW(dev_priv)) {
-		ggtt->stolen_size = chv_get_stolen_size(snb_gmch_ctl);
 		size = chv_get_total_gtt_size(snb_gmch_ctl);
 	} else {
-		ggtt->stolen_size = gen8_get_stolen_size(snb_gmch_ctl);
 		size = gen8_get_total_gtt_size(snb_gmch_ctl);
 	}
 
@@ -3408,7 +3363,7 @@ static int gen6_gmch_probe(struct i915_ggtt *ggtt)
 		DRM_ERROR("Can't set DMA mask/consistent mask (%d)\n", err);
 	pci_read_config_word(pdev, SNB_GMCH_CTRL, &snb_gmch_ctl);
 
-	ggtt->stolen_size = gen6_get_stolen_size(snb_gmch_ctl);
+	ggtt->stolen_size = resource_size(&intel_graphics_stolen_res);
 
 	size = gen6_get_total_gtt_size(snb_gmch_ctl);
 	ggtt->base.total = (size / sizeof(gen6_pte_t)) << PAGE_SHIFT;
