@@ -2584,8 +2584,8 @@ static int get_new_event_name(char *buf, size_t len, const char *base,
 	if (!nbase)
 		return -ENOMEM;
 
-	/* Cut off the dot suffixes (e.g. .const, .isra)*/
-	p = strchr(nbase, '.');
+	/* Cut off the dot suffixes (e.g. .const, .isra) and version suffixes */
+	p = strpbrk(nbase, ".@");
 	if (p && p != nbase)
 		*p = '\0';
 
