@@ -226,9 +226,10 @@
 };
 
 &reg_ldo4 {
-	regulator-min-microvolt = <2800000>;
-	regulator-max-microvolt = <2800000>;
-	regulator-name = "vddio-csi1";
+	regulator-always-on;
+	regulator-min-microvolt = <1250000>;
+	regulator-max-microvolt = <3300000>;
+	regulator-name = "vdd-io-pg";
 };
 
 &reg_usb0_vbus {
