@@ -226,17 +226,18 @@ static void imx6q_opp_check_speed_grading(struct device *dev)
 	val >>= OCOTP_CFG3_SPEED_SHIFT;
 	val &= 0x3;
 
-	if ((val != OCOTP_CFG3_SPEED_1P2GHZ) &&
-	     of_machine_is_compatible("fsl,imx6q"))
-		if (dev_pm_opp_disable(dev, 1200000000))
-			dev_warn(dev, "failed to disable 1.2GHz OPP\n");
 	if (val < OCOTP_CFG3_SPEED_996MHZ)
 		if (dev_pm_opp_disable(dev, 996000000))
 			dev_warn(dev, "failed to disable 996MHz OPP\n");
-	if (of_machine_is_compatible("fsl,imx6q")) {
+
+	if (of_machine_is_compatible("fsl,imx6q") ||
+	    of_machine_is_compatible("fsl,imx6qp")) {
 		if (val != OCOTP_CFG3_SPEED_852MHZ)
 			if (dev_pm_opp_disable(dev, 852000000))
 				dev_warn(dev, "failed to disable 852MHz OPP\n");
+		if (val != OCOTP_CFG3_SPEED_1P2GHZ)
+			if (dev_pm_opp_disable(dev, 1200000000))
+				dev_warn(dev, "failed to disable 1.2GHz OPP\n");
 	}
 	iounmap(base);
 put_node:
