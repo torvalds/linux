@@ -803,12 +803,12 @@ static bool ixgbevf_can_reuse_rx_page(struct ixgbevf_rx_buffer *rx_buffer,
  **/
 static bool ixgbevf_add_rx_frag(struct ixgbevf_ring *rx_ring,
 				struct ixgbevf_rx_buffer *rx_buffer,
+				u16 size,
 				union ixgbe_adv_rx_desc *rx_desc,
 				struct sk_buff *skb)
 {
 	struct page *page = rx_buffer->page;
 	unsigned char *va = page_address(page) + rx_buffer->page_offset;
-	unsigned int size = le16_to_cpu(rx_desc->wb.upper.length);
 #if (PAGE_SIZE < 8192)
 	unsigned int truesize = IXGBEVF_RX_BUFSZ;
 #else
@@ -856,6 +856,7 @@ static struct sk_buff *ixgbevf_fetch_rx_buffer(struct ixgbevf_ring *rx_ring,
 {
 	struct ixgbevf_rx_buffer *rx_buffer;
 	struct page *page;
+	u16 size = le16_to_cpu(rx_desc->wb.upper.length);
 
 	rx_buffer = &rx_ring->rx_buffer_info[rx_ring->next_to_clean];
 	page = rx_buffer->page;
@@ -890,11 +891,11 @@ static struct sk_buff *ixgbevf_fetch_rx_buffer(struct ixgbevf_ring *rx_ring,
 	dma_sync_single_range_for_cpu(rx_ring->dev,
 				      rx_buffer->dma,
 				      rx_buffer->page_offset,
-				      IXGBEVF_RX_BUFSZ,
+				      size,
 				      DMA_FROM_DEVICE);
 
 	/* pull page into skb */
-	if (ixgbevf_add_rx_frag(rx_ring, rx_buffer, rx_desc, skb)) {
+	if (ixgbevf_add_rx_frag(rx_ring, rx_buffer, size, rx_desc, skb)) {
 		/* hand second half of page back to the ring */
 		ixgbevf_reuse_rx_page(rx_ring, rx_buffer);
 	} else {
