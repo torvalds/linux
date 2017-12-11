@@ -1903,7 +1903,10 @@ void i915_reset(struct drm_i915_private *i915, unsigned int flags)
 	}
 
 	if (!intel_has_gpu_reset(i915)) {
-		DRM_DEBUG_DRIVER("GPU reset disabled\n");
+		if (i915_modparams.reset)
+			dev_err(i915->drm.dev, "GPU reset not supported\n");
+		else
+			DRM_DEBUG_DRIVER("GPU reset disabled\n");
 		goto error;
 	}
 
