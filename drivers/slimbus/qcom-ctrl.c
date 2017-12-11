@@ -14,6 +14,7 @@
 #include <linux/clk.h>
 #include <linux/of.h>
 #include <linux/dma-mapping.h>
+#include <linux/pm_runtime.h>
 #include "slimbus.h"
 
 /* Manager registers */
@@ -65,6 +66,7 @@
 		((l) | ((mt) << 5) | ((mc) << 8) | ((dt) << 15) | ((ad) << 16))
 
 #define SLIM_ROOT_FREQ 24576000
+#define QCOM_SLIM_AUTOSUSPEND 1000
 
 /* MAX message size over control channel */
 #define SLIM_MSGQ_BUF_LEN	40
@@ -273,6 +275,30 @@ static irqreturn_t qcom_slim_interrupt(int irq, void *d)
 		ret = qcom_slim_handle_rx_irq(ctrl, stat);
 
 	return ret;
+}
+
+static int qcom_clk_pause_wakeup(struct slim_controller *sctrl)
+{
+	struct qcom_slim_ctrl *ctrl = dev_get_drvdata(sctrl->dev);
+
+	clk_prepare_enable(ctrl->hclk);
+	clk_prepare_enable(ctrl->rclk);
+	enable_irq(ctrl->irq);
+
+	writel_relaxed(1, ctrl->base + FRM_WAKEUP);
+	/* Make sure framer wakeup write goes through before ISR fires */
+	mb();
+	/*
+	 * HW Workaround: Currently, slave is reporting lost-sync messages
+	 * after SLIMbus comes out of clock pause.
+	 * Transaction with slave fail before slave reports that message
+	 * Give some time for that report to come
+	 * SLIMbus wakes up in clock gear 10 at 24.576MHz. With each superframe
+	 * being 250 usecs, we wait for 5-10 superframes here to ensure
+	 * we get the message
+	 */
+	usleep_range(1250, 2500);
+	return 0;
 }
 
 void *slim_alloc_txbuf(struct qcom_slim_ctrl *ctrl, struct slim_msg_txn *txn,
@@ -511,6 +537,7 @@ static int qcom_slim_probe(struct platform_device *pdev)
 
 	sctrl->set_laddr = qcom_set_laddr;
 	sctrl->xfer_msg = qcom_xfer_msg;
+	sctrl->wakeup =  qcom_clk_pause_wakeup;
 	ctrl->tx.n = QCOM_TX_MSGS;
 	ctrl->tx.sl_sz = SLIM_MSGQ_BUF_LEN;
 	ctrl->rx.n = QCOM_RX_MSGS;
@@ -618,13 +645,80 @@ static int qcom_slim_remove(struct platform_device *pdev)
 {
 	struct qcom_slim_ctrl *ctrl = platform_get_drvdata(pdev);
 
-	disable_irq(ctrl->irq);
-	clk_disable_unprepare(ctrl->hclk);
-	clk_disable_unprepare(ctrl->rclk);
+	pm_runtime_disable(&pdev->dev);
 	slim_unregister_controller(&ctrl->ctrl);
 	destroy_workqueue(ctrl->rxwq);
 	return 0;
 }
+
+/*
+ * If PM_RUNTIME is not defined, these 2 functions become helper
+ * functions to be called from system suspend/resume.
+ */
+#ifdef CONFIG_PM
+static int qcom_slim_runtime_suspend(struct device *device)
+{
+	struct platform_device *pdev = to_platform_device(device);
+	struct qcom_slim_ctrl *ctrl = platform_get_drvdata(pdev);
+	int ret;
+
+	dev_dbg(device, "pm_runtime: suspending...\n");
+	ret = slim_ctrl_clk_pause(&ctrl->ctrl, false, SLIM_CLK_UNSPECIFIED);
+	if (ret) {
+		dev_err(device, "clk pause not entered:%d", ret);
+	} else {
+		disable_irq(ctrl->irq);
+		clk_disable_unprepare(ctrl->hclk);
+		clk_disable_unprepare(ctrl->rclk);
+	}
+	return ret;
+}
+
+static int qcom_slim_runtime_resume(struct device *device)
+{
+	struct platform_device *pdev = to_platform_device(device);
+	struct qcom_slim_ctrl *ctrl = platform_get_drvdata(pdev);
+	int ret = 0;
+
+	dev_dbg(device, "pm_runtime: resuming...\n");
+	ret = slim_ctrl_clk_pause(&ctrl->ctrl, true, 0);
+	if (ret)
+		dev_err(device, "clk pause not exited:%d", ret);
+	return ret;
+}
+#endif
+
+#ifdef CONFIG_PM_SLEEP
+static int qcom_slim_suspend(struct device *dev)
+{
+	int ret = 0;
+
+	if (!pm_runtime_enabled(dev) ||
+		(!pm_runtime_suspended(dev))) {
+		dev_dbg(dev, "system suspend");
+		ret = qcom_slim_runtime_suspend(dev);
+	}
+
+	return ret;
+}
+
+static int qcom_slim_resume(struct device *dev)
+{
+	if (!pm_runtime_enabled(dev) || !pm_runtime_suspended(dev)) {
+		int ret;
+
+		dev_dbg(dev, "system resume");
+		ret = qcom_slim_runtime_resume(dev);
+		if (!ret) {
+			pm_runtime_mark_last_busy(dev);
+			pm_request_autosuspend(dev);
+		}
+		return ret;
+
+	}
+	return 0;
+}
+#endif /* CONFIG_PM_SLEEP */
 
 static const struct dev_pm_ops qcom_slim_dev_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(qcom_slim_suspend, qcom_slim_resume)
@@ -647,6 +741,7 @@ static struct platform_driver qcom_slim_driver = {
 	.driver	= {
 		.name = "qcom_slim_ctrl",
 		.of_match_table = qcom_slim_dt_match,
+		.pm = &qcom_slim_dev_pm_ops,
 	},
 };
 module_platform_driver(qcom_slim_driver);
