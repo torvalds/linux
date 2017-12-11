@@ -288,6 +288,12 @@
 						status = "disabled";
 					};
 
+					lpc_snoop: lpc-snoop@0 {
+						compatible = "aspeed,ast2500-lpc-snoop";
+						reg = <0x0 0x80>;
+						interrupts = <8>;
+						status = "disabled";
+					};
 
 					lhc: lhc@20 {
 						compatible = "aspeed,ast2500-lhc";
