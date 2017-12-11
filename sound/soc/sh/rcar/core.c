@@ -274,10 +274,10 @@ u32 rsnd_get_adinr_bit(struct rsnd_mod *mod, struct rsnd_dai_stream *io)
 	struct snd_pcm_runtime *runtime = rsnd_io_to_runtime(io);
 	struct device *dev = rsnd_priv_to_dev(priv);
 
-	switch (runtime->sample_bits) {
+	switch (snd_pcm_format_width(runtime->format)) {
 	case 16:
 		return 8 << 16;
-	case 32:
+	case 24:
 		return 0 << 16;
 	}
 
@@ -327,7 +327,7 @@ u32 rsnd_get_dalign(struct rsnd_mod *mod, struct rsnd_dai_stream *io)
 	}
 
 	/* Non target mod or 24bit data needs normal DALIGN */
-	if ((runtime->sample_bits != 16) ||
+	if ((snd_pcm_format_width(runtime->format) != 16) ||
 	    (mod != target))
 		return 0x76543210;
 	/* Target mod needs inverted DALIGN when 16bit */
@@ -362,12 +362,8 @@ u32 rsnd_get_busif_shift(struct rsnd_dai_stream *io, struct rsnd_mod *mod)
 	 * HW    24bit data is located as 0x******00
 	 *
 	 */
-	switch (runtime->sample_bits) {
-	case 16:
+	if (snd_pcm_format_width(runtime->format) == 16)
 		return 0;
-	case 32:
-		break;
-	}
 
 	for (i = 0; i < ARRAY_SIZE(playback_mods); i++) {
 		tmod = rsnd_io_to_mod(io, mods[i]);

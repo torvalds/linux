@@ -370,11 +370,11 @@ static void rsnd_ssi_config_init(struct rsnd_mod *mod,
 	if (rsnd_io_is_play(io))
 		cr_own |= TRMD;
 
-	switch (runtime->sample_bits) {
+	switch (snd_pcm_format_width(runtime->format)) {
 	case 16:
 		cr_own |= DWL_16;
 		break;
-	case 32:
+	case 24:
 		cr_own |= DWL_24;
 		break;
 	}
@@ -677,11 +677,8 @@ static void __rsnd_ssi_interrupt(struct rsnd_mod *mod,
 				   rsnd_ssi_pointer_offset(mod, io, 0));
 		int shift = 0;
 
-		switch (runtime->sample_bits) {
-		case 32:
+		if (snd_pcm_format_width(runtime->format) == 24)
 			shift = 8;
-			break;
-		}
 
 		/*
 		 * 8/16/32 data can be assesse to TDR/RDR register
