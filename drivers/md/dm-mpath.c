@@ -264,19 +264,17 @@ static struct dm_mpath_io *get_mpio_from_bio(struct bio *bio)
 	return dm_per_bio_data(bio, multipath_per_bio_data_size());
 }
 
-static struct dm_bio_details *get_bio_details_from_bio(struct bio *bio)
+static struct dm_bio_details *get_bio_details_from_mpio(struct dm_mpath_io *mpio)
 {
 	/* dm_bio_details is immediately after the dm_mpath_io in bio's per-bio-data */
-	struct dm_mpath_io *mpio = get_mpio_from_bio(bio);
 	void *bio_details = mpio + 1;
-
 	return bio_details;
 }
 
 static void multipath_init_per_bio_data(struct bio *bio, struct dm_mpath_io **mpio_p)
 {
 	struct dm_mpath_io *mpio = get_mpio_from_bio(bio);
-	struct dm_bio_details *bio_details = get_bio_details_from_bio(bio);
+	struct dm_bio_details *bio_details = get_bio_details_from_mpio(mpio);
 
 	mpio->nr_bytes = bio->bi_iter.bi_size;
 	mpio->pgpath = NULL;
@@ -1554,7 +1552,7 @@ static int multipath_end_io_bio(struct dm_target *ti, struct bio *clone,
 	}
 
 	/* Queue for the daemon to resubmit */
-	dm_bio_restore(get_bio_details_from_bio(clone), clone);
+	dm_bio_restore(get_bio_details_from_mpio(mpio), clone);
 
 	spin_lock_irqsave(&m->lock, flags);
 	bio_list_add(&m->queued_bios, clone);
