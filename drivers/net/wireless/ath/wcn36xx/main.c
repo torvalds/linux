@@ -384,6 +384,18 @@ static int wcn36xx_config(struct ieee80211_hw *hw, u32 changed)
 		}
 	}
 
+	if (changed & IEEE80211_CONF_CHANGE_PS) {
+		list_for_each_entry(tmp, &wcn->vif_list, list) {
+			vif = wcn36xx_priv_to_vif(tmp);
+			if (hw->conf.flags & IEEE80211_CONF_PS) {
+				if (vif->bss_conf.ps) /* ps allowed ? */
+					wcn36xx_pmc_enter_bmps_state(wcn, vif);
+			} else {
+				wcn36xx_pmc_exit_bmps_state(wcn, vif);
+			}
+		}
+	}
+
 	mutex_unlock(&wcn->conf_mutex);
 
 	return 0;
@@ -745,17 +757,6 @@ static void wcn36xx_bss_info_changed(struct ieee80211_hw *hw,
 			    bss_conf->dtim_period);
 
 		vif_priv->dtim_period = bss_conf->dtim_period;
-	}
-
-	if (changed & BSS_CHANGED_PS) {
-		wcn36xx_dbg(WCN36XX_DBG_MAC,
-			    "mac bss PS set %d\n",
-			    bss_conf->ps);
-		if (bss_conf->ps) {
-			wcn36xx_pmc_enter_bmps_state(wcn, vif);
-		} else {
-			wcn36xx_pmc_exit_bmps_state(wcn, vif);
-		}
 	}
 
 	if (changed & BSS_CHANGED_BSSID) {
