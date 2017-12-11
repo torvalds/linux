@@ -260,6 +260,9 @@ static inline void ixgbevf_write_tail(struct ixgbevf_ring *ring, u32 value)
 #define MIN_MSIX_Q_VECTORS	1
 #define MIN_MSIX_COUNT		(MIN_MSIX_Q_VECTORS + NON_Q_VECTORS)
 
+#define IXGBEVF_RX_DMA_ATTR \
+	(DMA_ATTR_SKIP_CPU_SYNC | DMA_ATTR_WEAK_ORDERING)
+
 /* board specific private data structure */
 struct ixgbevf_adapter {
 	/* this field must be first, see ixgbevf_process_skb_fields */

@@ -595,8 +595,8 @@ static bool ixgbevf_alloc_mapped_page(struct ixgbevf_ring *rx_ring,
 	}
 
 	/* map page for use */
-	dma = dma_map_page(rx_ring->dev, page, 0,
-			   PAGE_SIZE, DMA_FROM_DEVICE);
+	dma = dma_map_page_attrs(rx_ring->dev, page, 0, PAGE_SIZE,
+				 DMA_FROM_DEVICE, IXGBEVF_RX_DMA_ATTR);
 
 	/* if mapping failed free memory back to system since
 	 * there isn't much point in holding memory we can't use
@@ -638,6 +638,12 @@ static void ixgbevf_alloc_rx_buffers(struct ixgbevf_ring *rx_ring,
 	do {
 		if (!ixgbevf_alloc_mapped_page(rx_ring, bi))
 			break;
+
+		/* sync the buffer for use by the device */
+		dma_sync_single_range_for_device(rx_ring->dev, bi->dma,
+						 bi->page_offset,
+						 IXGBEVF_RX_BUFSZ,
+						 DMA_FROM_DEVICE);
 
 		/* Refresh the desc even if pkt_addr didn't change
 		 * because each write-back erases this info.
@@ -741,12 +747,6 @@ static void ixgbevf_reuse_rx_page(struct ixgbevf_ring *rx_ring,
 	new_buff->page = old_buff->page;
 	new_buff->dma = old_buff->dma;
 	new_buff->page_offset = old_buff->page_offset;
-
-	/* sync the buffer for use by the device */
-	dma_sync_single_range_for_device(rx_ring->dev, new_buff->dma,
-					 new_buff->page_offset,
-					 IXGBEVF_RX_BUFSZ,
-					 DMA_FROM_DEVICE);
 }
 
 static inline bool ixgbevf_page_is_reserved(struct page *page)
@@ -862,6 +862,13 @@ static struct sk_buff *ixgbevf_fetch_rx_buffer(struct ixgbevf_ring *rx_ring,
 	page = rx_buffer->page;
 	prefetchw(page);
 
+	/* we are reusing so sync this buffer for CPU use */
+	dma_sync_single_range_for_cpu(rx_ring->dev,
+				      rx_buffer->dma,
+				      rx_buffer->page_offset,
+				      size,
+				      DMA_FROM_DEVICE);
+
 	if (likely(!skb)) {
 		void *page_addr = page_address(page) +
 				  rx_buffer->page_offset;
@@ -887,21 +894,15 @@ static struct sk_buff *ixgbevf_fetch_rx_buffer(struct ixgbevf_ring *rx_ring,
 		prefetchw(skb->data);
 	}
 
-	/* we are reusing so sync this buffer for CPU use */
-	dma_sync_single_range_for_cpu(rx_ring->dev,
-				      rx_buffer->dma,
-				      rx_buffer->page_offset,
-				      size,
-				      DMA_FROM_DEVICE);
-
 	/* pull page into skb */
 	if (ixgbevf_add_rx_frag(rx_ring, rx_buffer, size, rx_desc, skb)) {
 		/* hand second half of page back to the ring */
 		ixgbevf_reuse_rx_page(rx_ring, rx_buffer);
 	} else {
 		/* we are not reusing the buffer so unmap it */
-		dma_unmap_page(rx_ring->dev, rx_buffer->dma,
-			       PAGE_SIZE, DMA_FROM_DEVICE);
+		dma_unmap_page_attrs(rx_ring->dev, rx_buffer->dma,
+				     PAGE_SIZE, DMA_FROM_DEVICE,
+				     IXGBEVF_RX_DMA_ATTR);
 	}
 
 	/* clear contents of buffer_info */
@@ -2116,7 +2117,6 @@ void ixgbevf_up(struct ixgbevf_adapter *adapter)
  **/
 static void ixgbevf_clean_rx_ring(struct ixgbevf_ring *rx_ring)
 {
-	struct device *dev = rx_ring->dev;
 	unsigned long size;
 	unsigned int i;
 
@@ -2135,10 +2135,23 @@ static void ixgbevf_clean_rx_ring(struct ixgbevf_ring *rx_ring)
 		struct ixgbevf_rx_buffer *rx_buffer;
 
 		rx_buffer = &rx_ring->rx_buffer_info[i];
-		if (rx_buffer->dma)
-			dma_unmap_page(dev, rx_buffer->dma,
-				       PAGE_SIZE, DMA_FROM_DEVICE);
-		rx_buffer->dma = 0;
+
+		/* Invalidate cache lines that may have been written to by
+		 * device so that we avoid corrupting memory.
+		 */
+		dma_sync_single_range_for_cpu(rx_ring->dev,
+					      rx_buffer->dma,
+					      rx_buffer->page_offset,
+					      IXGBEVF_RX_BUFSZ,
+					      DMA_FROM_DEVICE);
+
+		/* free resources associated with mapping */
+		dma_unmap_page_attrs(rx_ring->dev,
+				     rx_buffer->dma,
+				     PAGE_SIZE,
+				     DMA_FROM_DEVICE,
+				     IXGBEVF_RX_DMA_ATTR);
+
 		if (rx_buffer->page)
 			__free_page(rx_buffer->page);
 		rx_buffer->page = NULL;
