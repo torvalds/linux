@@ -1,4 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0
+generated-y += syscall_table.h
+generated-y += unistd_nr.h
+
 generic-y += asm-offsets.h
 generic-y += cacheflush.h
 generic-y += clkdev.h
