@@ -122,7 +122,7 @@ static void dbc_write_complete(struct xhci_hcd *xhci, struct dbc_request *req)
 	spin_unlock(&port->port_lock);
 }
 
-void xhci_dbc_free_req(struct dbc_ep *dep, struct dbc_request *req)
+static void xhci_dbc_free_req(struct dbc_ep *dep, struct dbc_request *req)
 {
 	kfree(req->buf);
 	dbc_free_request(dep, req);
