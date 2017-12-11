@@ -83,6 +83,16 @@ static raw_spinlock_t *kretprobe_table_lock_ptr(unsigned long hash)
 	return &(kretprobe_table_locks[hash].lock);
 }
 
+/* List of symbols that can be overriden for error injection. */
+static LIST_HEAD(kprobe_error_injection_list);
+static DEFINE_MUTEX(kprobe_ei_mutex);
+struct kprobe_ei_entry {
+	struct list_head list;
+	unsigned long start_addr;
+	unsigned long end_addr;
+	void *priv;
+};
+
 /* Blacklist -- list of struct kprobe_blacklist_entry */
 static LIST_HEAD(kprobe_blacklist);
 
@@ -1394,6 +1404,17 @@ bool within_kprobe_blacklist(unsigned long addr)
 	return false;
 }
 
+bool within_kprobe_error_injection_list(unsigned long addr)
+{
+	struct kprobe_ei_entry *ent;
+
+	list_for_each_entry(ent, &kprobe_error_injection_list, list) {
+		if (addr >= ent->start_addr && addr < ent->end_addr)
+			return true;
+	}
+	return false;
+}
+
 /*
  * If we have a symbol_name argument, look it up and add the offset field
  * to it. This way, we can specify a relative address to a symbol.
@@ -2168,6 +2189,86 @@ static int __init populate_kprobe_blacklist(unsigned long *start,
 	return 0;
 }
 
+#ifdef CONFIG_BPF_KPROBE_OVERRIDE
+/* Markers of the _kprobe_error_inject_list section */
+extern unsigned long __start_kprobe_error_inject_list[];
+extern unsigned long __stop_kprobe_error_inject_list[];
+
+/*
+ * Lookup and populate the kprobe_error_injection_list.
+ *
+ * For safety reasons we only allow certain functions to be overriden with
+ * bpf_error_injection, so we need to populate the list of the symbols that have
+ * been marked as safe for overriding.
+ */
+static void populate_kprobe_error_injection_list(unsigned long *start,
+						 unsigned long *end,
+						 void *priv)
+{
+	unsigned long *iter;
+	struct kprobe_ei_entry *ent;
+	unsigned long entry, offset = 0, size = 0;
+
+	mutex_lock(&kprobe_ei_mutex);
+	for (iter = start; iter < end; iter++) {
+		entry = arch_deref_entry_point((void *)*iter);
+
+		if (!kernel_text_address(entry) ||
+		    !kallsyms_lookup_size_offset(entry, &size, &offset)) {
+			pr_err("Failed to find error inject entry at %p\n",
+				(void *)entry);
+			continue;
+		}
+
+		ent = kmalloc(sizeof(*ent), GFP_KERNEL);
+		if (!ent)
+			break;
+		ent->start_addr = entry;
+		ent->end_addr = entry + size;
+		ent->priv = priv;
+		INIT_LIST_HEAD(&ent->list);
+		list_add_tail(&ent->list, &kprobe_error_injection_list);
+	}
+	mutex_unlock(&kprobe_ei_mutex);
+}
+
+static void __init populate_kernel_kprobe_ei_list(void)
+{
+	populate_kprobe_error_injection_list(__start_kprobe_error_inject_list,
+					     __stop_kprobe_error_inject_list,
+					     NULL);
+}
+
+static void module_load_kprobe_ei_list(struct module *mod)
+{
+	if (!mod->num_kprobe_ei_funcs)
+		return;
+	populate_kprobe_error_injection_list(mod->kprobe_ei_funcs,
+					     mod->kprobe_ei_funcs +
+					     mod->num_kprobe_ei_funcs, mod);
+}
+
+static void module_unload_kprobe_ei_list(struct module *mod)
+{
+	struct kprobe_ei_entry *ent, *n;
+	if (!mod->num_kprobe_ei_funcs)
+		return;
+
+	mutex_lock(&kprobe_ei_mutex);
+	list_for_each_entry_safe(ent, n, &kprobe_error_injection_list, list) {
+		if (ent->priv == mod) {
+			list_del_init(&ent->list);
+			kfree(ent);
+		}
+	}
+	mutex_unlock(&kprobe_ei_mutex);
+}
+#else
+static inline void __init populate_kernel_kprobe_ei_list(void) {}
+static inline void module_load_kprobe_ei_list(struct module *m) {}
+static inline void module_unload_kprobe_ei_list(struct module *m) {}
+#endif
+
 /* Module notifier call back, checking kprobes on the module */
 static int kprobes_module_callback(struct notifier_block *nb,
 				   unsigned long val, void *data)
@@ -2177,6 +2278,11 @@ static int kprobes_module_callback(struct notifier_block *nb,
 	struct kprobe *p;
 	unsigned int i;
 	int checkcore = (val == MODULE_STATE_GOING);
+
+	if (val == MODULE_STATE_COMING)
+		module_load_kprobe_ei_list(mod);
+	else if (val == MODULE_STATE_GOING)
+		module_unload_kprobe_ei_list(mod);
 
 	if (val != MODULE_STATE_GOING && val != MODULE_STATE_LIVE)
 		return NOTIFY_DONE;
@@ -2239,6 +2345,8 @@ static int __init init_kprobes(void)
 		pr_err("kprobes: failed to populate blacklist: %d\n", err);
 		pr_err("Please take care of using kprobes.\n");
 	}
+
+	populate_kernel_kprobe_ei_list();
 
 	if (kretprobe_blacklist_size) {
 		/* lookup the function address from its name */
@@ -2407,6 +2515,56 @@ static const struct file_operations debugfs_kprobe_blacklist_ops = {
 	.release        = seq_release,
 };
 
+/*
+ * kprobes/error_injection_list -- shows which functions can be overriden for
+ * error injection.
+ * */
+static void *kprobe_ei_seq_start(struct seq_file *m, loff_t *pos)
+{
+	mutex_lock(&kprobe_ei_mutex);
+	return seq_list_start(&kprobe_error_injection_list, *pos);
+}
+
+static void kprobe_ei_seq_stop(struct seq_file *m, void *v)
+{
+	mutex_unlock(&kprobe_ei_mutex);
+}
+
+static void *kprobe_ei_seq_next(struct seq_file *m, void *v, loff_t *pos)
+{
+	return seq_list_next(v, &kprobe_error_injection_list, pos);
+}
+
+static int kprobe_ei_seq_show(struct seq_file *m, void *v)
+{
+	char buffer[KSYM_SYMBOL_LEN];
+	struct kprobe_ei_entry *ent =
+		list_entry(v, struct kprobe_ei_entry, list);
+
+	sprint_symbol(buffer, ent->start_addr);
+	seq_printf(m, "%s\n", buffer);
+	return 0;
+}
+
+static const struct seq_operations kprobe_ei_seq_ops = {
+	.start = kprobe_ei_seq_start,
+	.next  = kprobe_ei_seq_next,
+	.stop  = kprobe_ei_seq_stop,
+	.show  = kprobe_ei_seq_show,
+};
+
+static int kprobe_ei_open(struct inode *inode, struct file *filp)
+{
+	return seq_open(filp, &kprobe_ei_seq_ops);
+}
+
+static const struct file_operations debugfs_kprobe_ei_ops = {
+	.open           = kprobe_ei_open,
+	.read           = seq_read,
+	.llseek         = seq_lseek,
+	.release        = seq_release,
+};
+
 static void arm_all_kprobes(void)
 {
 	struct hlist_head *head;
@@ -2545,6 +2703,11 @@ static int __init debugfs_kprobe_init(void)
 
 	file = debugfs_create_file("blacklist", 0444, dir, NULL,
 				&debugfs_kprobe_blacklist_ops);
+	if (!file)
+		goto error;
+
+	file = debugfs_create_file("error_injection_list", 0444, dir, NULL,
+				  &debugfs_kprobe_ei_ops);
 	if (!file)
 		goto error;
 
