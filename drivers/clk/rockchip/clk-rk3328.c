@@ -588,7 +588,7 @@ static struct rockchip_clk_branch rk3328_clk_branches[] __initdata = {
 	COMPOSITE(ACLK_VOP_PRE, "aclk_vop_pre", mux_4plls_p, 0,
 			RK3328_CLKSEL_CON(39), 6, 2, MFLAGS, 0, 5, DFLAGS,
 			RK3328_CLKGATE_CON(5), 5, GFLAGS),
-	GATE(0, "clk_hdmi_sfc", "xin24m", 0,
+	GATE(SCLK_HDMI_SFC, "sclk_hdmi_sfc", "xin24m", 0,
 			RK3328_CLKGATE_CON(5), 4, GFLAGS),
 
 	COMPOSITE_NODIV(0, "clk_cif_src", mux_2plls_p, 0,
