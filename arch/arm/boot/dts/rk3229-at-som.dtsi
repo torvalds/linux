@@ -114,8 +114,9 @@
 		0xB5 0xC1 0x46 0xAE>;
 		monitor_sec = <5>;
 		virtual_power = <0>;
-		divider_res1 = <200>;
-		divider_res2 = <200>;
+		hw_id_check = <1>;
+		hw-id0-gpio = <&gpio2 22 GPIO_ACTIVE_HIGH>;
+		hw-id1-gpio = <&gpio2 23 GPIO_ACTIVE_HIGH>;
 	};
 };
 
