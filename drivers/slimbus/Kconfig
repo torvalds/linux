@@ -13,5 +13,11 @@ menuconfig SLIMBUS
 if SLIMBUS
 
 # SLIMbus controllers
+config SLIM_QCOM_CTRL
+	tristate "Qualcomm SLIMbus Manager Component"
+	depends on SLIMBUS
+	help
+	  Select driver if Qualcomm's SLIMbus Manager Component is
+	  programmed using Linux kernel.
 
 endif
