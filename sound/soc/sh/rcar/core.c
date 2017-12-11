@@ -1017,7 +1017,7 @@ of_node_compatible:
 
 static void __rsnd_dai_probe(struct rsnd_priv *priv,
 			     struct device_node *dai_np,
-			     int dai_i, int is_graph)
+			     int dai_i)
 {
 	struct device_node *playback, *capture;
 	struct rsnd_dai_stream *io_playback;
@@ -1116,13 +1116,13 @@ static int rsnd_dai_probe(struct rsnd_priv *priv)
 	dai_i = 0;
 	if (is_graph) {
 		for_each_endpoint_of_node(dai_node, dai_np) {
-			__rsnd_dai_probe(priv, dai_np, dai_i, is_graph);
+			__rsnd_dai_probe(priv, dai_np, dai_i);
 			rsnd_ssi_parse_hdmi_connection(priv, dai_np, dai_i);
 			dai_i++;
 		}
 	} else {
 		for_each_child_of_node(dai_node, dai_np)
-			__rsnd_dai_probe(priv, dai_np, dai_i++, is_graph);
+			__rsnd_dai_probe(priv, dai_np, dai_i++);
 	}
 
 	return 0;
