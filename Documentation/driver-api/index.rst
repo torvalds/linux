@@ -47,6 +47,7 @@ available subsections can be seen below.
    gpio
    misc_devices
    dmaengine/index
+   slimbus
 
 .. only::  subproject and html
 
