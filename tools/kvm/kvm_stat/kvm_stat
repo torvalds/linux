@@ -1517,7 +1517,9 @@ Press any other key to refresh statistics immediately.
                          help='restrict statistics to guest by name',
                          callback=cb_guest_to_pid,
                          )
-    (options, _) = optparser.parse_args(sys.argv)
+    options, unkn = optparser.parse_args(sys.argv)
+    if len(unkn) != 1:
+        sys.exit('Error: Extra argument(s): ' + ' '.join(unkn[1:]))
     try:
         # verify that we were passed a valid regex up front
         re.compile(options.fields)
