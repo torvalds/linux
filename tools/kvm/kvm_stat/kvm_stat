@@ -549,8 +549,8 @@ class TracepointProvider(Provider):
 
     def update_fields(self, fields_filter):
         """Refresh fields, applying fields_filter"""
-        self._fields = [field for field in self.get_available_fields()
-                        if self.is_field_wanted(fields_filter, field)]
+        self.fields = [field for field in self.get_available_fields()
+                       if self.is_field_wanted(fields_filter, field)]
 
     @staticmethod
     def get_online_cpus():
