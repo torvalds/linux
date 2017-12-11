@@ -444,13 +444,13 @@ static inline int sctp_frag_point(const struct sctp_association *asoc, int pmtu)
 	int frag = pmtu;
 
 	frag -= sp->pf->af->net_header_len;
-	frag -= sizeof(struct sctphdr) + sizeof(struct sctp_data_chunk);
+	frag -= sizeof(struct sctphdr) + sctp_datachk_len(&asoc->stream);
 
 	if (asoc->user_frag)
 		frag = min_t(int, frag, asoc->user_frag);
 
 	frag = SCTP_TRUNC4(min_t(int, frag, SCTP_MAX_CHUNK_LEN -
-					    sizeof(struct sctp_data_chunk)));
+					    sctp_datachk_len(&asoc->stream)));
 
 	return frag;
 }

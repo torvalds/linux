@@ -102,6 +102,9 @@ enum sctp_cid {
 	/* AUTH Extension Section 4.1 */
 	SCTP_CID_AUTH			= 0x0F,
 
+	/* sctp ndata 5.1. I-DATA */
+	SCTP_CID_I_DATA			= 0x40,
+
 	/* PR-SCTP Sec 3.2 */
 	SCTP_CID_FWD_TSN		= 0xC0,
 
@@ -238,6 +241,23 @@ struct sctp_datahdr {
 struct sctp_data_chunk {
 	struct sctp_chunkhdr chunk_hdr;
 	struct sctp_datahdr data_hdr;
+};
+
+struct sctp_idatahdr {
+	__be32 tsn;
+	__be16 stream;
+	__be16 reserved;
+	__be32 mid;
+	union {
+		__u32 ppid;
+		__be32 fsn;
+	};
+	__u8 payload[0];
+};
+
+struct sctp_idata_chunk {
+	struct sctp_chunkhdr chunk_hdr;
+	struct sctp_idatahdr data_hdr;
 };
 
 /* DATA Chuck Specific Flags */
