@@ -1167,8 +1167,8 @@ static int xol_add_vma(struct mm_struct *mm, struct xol_area *area)
 	}
 
 	ret = 0;
-	smp_wmb();	/* pairs with get_xol_area() */
-	mm->uprobes_state.xol_area = area;
+	/* pairs with get_xol_area() */
+	smp_store_release(&mm->uprobes_state.xol_area, area); /* ^^^ */
  fail:
 	up_write(&mm->mmap_sem);
 
@@ -1230,8 +1230,8 @@ static struct xol_area *get_xol_area(void)
 	if (!mm->uprobes_state.xol_area)
 		__create_xol_area(0);
 
-	area = mm->uprobes_state.xol_area;
-	smp_read_barrier_depends();	/* pairs with wmb in xol_add_vma() */
+	/* Pairs with xol_add_vma() smp_store_release() */
+	area = READ_ONCE(mm->uprobes_state.xol_area); /* ^^^ */
 	return area;
 }
 
@@ -1528,8 +1528,8 @@ static unsigned long get_trampoline_vaddr(void)
 	struct xol_area *area;
 	unsigned long trampoline_vaddr = -1;
 
-	area = current->mm->uprobes_state.xol_area;
-	smp_read_barrier_depends();
+	/* Pairs with xol_add_vma() smp_store_release() */
+	area = READ_ONCE(current->mm->uprobes_state.xol_area); /* ^^^ */
 	if (area)
 		trampoline_vaddr = area->vaddr;
 

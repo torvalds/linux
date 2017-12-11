@@ -70,8 +70,7 @@ static inline bool lockdep_rtnl_is_held(void)
  * @p: The pointer to read, prior to dereferencing
  *
  * Return the value of the specified RCU-protected pointer, but omit
- * both the smp_read_barrier_depends() and the READ_ONCE(), because
- * caller holds RTNL.
+ * the READ_ONCE(), because caller holds RTNL.
  */
 #define rtnl_dereference(p)					\
 	rcu_dereference_protected(p, lockdep_rtnl_is_held())
