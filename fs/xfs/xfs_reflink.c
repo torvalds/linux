@@ -611,6 +611,9 @@ xfs_reflink_cancel_cow_blocks(
 
 			/* Remove the mapping from the CoW fork. */
 			xfs_bmap_del_extent_cow(ip, &icur, &got, &del);
+		} else {
+			/* Didn't do anything, push cursor back. */
+			xfs_iext_prev(ifp, &icur);
 		}
 next_extent:
 		if (!xfs_iext_get_extent(ifp, &icur, &got))
