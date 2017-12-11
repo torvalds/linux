@@ -24,6 +24,7 @@
 #include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/unistd.h>
+#include <linux/delay.h>
 
 void mdio_device_free(struct mdio_device *mdiodev)
 {
@@ -118,8 +119,16 @@ EXPORT_SYMBOL(mdio_device_remove);
 
 void mdio_device_reset(struct mdio_device *mdiodev, int value)
 {
-	if (mdiodev->reset)
-		gpiod_set_value(mdiodev->reset, value);
+	unsigned int d;
+
+	if (!mdiodev->reset)
+		return;
+
+	gpiod_set_value(mdiodev->reset, value);
+
+	d = value ? mdiodev->reset_delay : mdiodev->reset_post_delay;
+	if (d)
+		usleep_range(d, d + max_t(unsigned int, d / 10, 100));
 }
 EXPORT_SYMBOL(mdio_device_reset);
 
