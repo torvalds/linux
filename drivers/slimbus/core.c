@@ -8,6 +8,7 @@
 #include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/idr.h>
+#include <linux/of.h>
 #include <linux/slimbus.h>
 #include "slimbus.h"
 
@@ -113,6 +114,9 @@ static int slim_add_device(struct slim_controller *ctrl,
 	sbdev->dev.driver = NULL;
 	sbdev->ctrl = ctrl;
 
+	if (node)
+		sbdev->dev.of_node = of_node_get(node);
+
 	dev_set_name(&sbdev->dev, "%x:%x:%x:%x",
 				  sbdev->e_addr.manf_id,
 				  sbdev->e_addr.prod_code,
@@ -141,6 +145,50 @@ static struct slim_device *slim_alloc_device(struct slim_controller *ctrl,
 	}
 
 	return sbdev;
+}
+
+static void of_register_slim_devices(struct slim_controller *ctrl)
+{
+	struct device *dev = ctrl->dev;
+	struct device_node *node;
+
+	if (!ctrl->dev->of_node)
+		return;
+
+	for_each_child_of_node(ctrl->dev->of_node, node) {
+		struct slim_device *sbdev;
+		struct slim_eaddr e_addr;
+		const char *compat = NULL;
+		int reg[2], ret;
+		int manf_id, prod_code;
+
+		compat = of_get_property(node, "compatible", NULL);
+		if (!compat)
+			continue;
+
+		ret = sscanf(compat, "slim%x,%x", &manf_id, &prod_code);
+		if (ret != 2) {
+			dev_err(dev, "Manf ID & Product code not found %s\n",
+				compat);
+			continue;
+		}
+
+		ret = of_property_read_u32_array(node, "reg", reg, 2);
+		if (ret) {
+			dev_err(dev, "Device and Instance id not found:%d\n",
+				ret);
+			continue;
+		}
+
+		e_addr.dev_index = reg[0];
+		e_addr.instance = reg[1];
+		e_addr.manf_id = manf_id;
+		e_addr.prod_code = prod_code;
+
+		sbdev = slim_alloc_device(ctrl, &e_addr, node);
+		if (!sbdev)
+			continue;
+	}
 }
 
 /*
@@ -173,6 +221,8 @@ int slim_register_controller(struct slim_controller *ctrl)
 
 	dev_dbg(ctrl->dev, "Bus [%s] registered:dev:%p\n",
 		ctrl->name, ctrl->dev);
+
+	of_register_slim_devices(ctrl);
 
 	return 0;
 }
