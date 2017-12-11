@@ -729,7 +729,7 @@ xfs_reflink_end_cow(
 			(unsigned int)(end_fsb - offset_fsb),
 			XFS_DATA_FORK);
 	error = xfs_trans_alloc(ip->i_mount, &M_RES(ip->i_mount)->tr_write,
-			resblks, 0, 0, &tp);
+			resblks, 0, XFS_TRANS_RESERVE, &tp);
 	if (error)
 		goto out;
 
