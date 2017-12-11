@@ -213,4 +213,6 @@ source "drivers/opp/Kconfig"
 
 source "drivers/siox/Kconfig"
 
+source "drivers/slimbus/Kconfig"
+
 endmenu
