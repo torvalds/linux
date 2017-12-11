@@ -1622,13 +1622,14 @@ void symbol__calc_percent(struct symbol *sym, struct perf_evsel *evsel)
 
 int symbol__annotate(struct symbol *sym, struct map *map,
 		     struct perf_evsel *evsel, size_t privsize,
-		     struct arch **parch, char *cpuid)
+		     struct arch **parch)
 {
 	struct annotate_args args = {
 		.privsize	= privsize,
 		.map		= map,
 		.evsel		= evsel,
 	};
+	struct perf_env *env = perf_evsel__env(evsel);
 	const char *arch_name = NULL;
 	struct arch *arch;
 	int err;
@@ -1648,7 +1649,7 @@ int symbol__annotate(struct symbol *sym, struct map *map,
 		*parch = arch;
 
 	if (arch->init) {
-		err = arch->init(arch, cpuid);
+		err = arch->init(arch, env ? env->cpuid : NULL);
 		if (err) {
 			pr_err("%s: failed to initialize %s arch priv area\n", __func__, arch->name);
 			return err;
@@ -1999,7 +2000,7 @@ int symbol__tty_annotate(struct symbol *sym, struct map *map,
 	struct dso *dso = map->dso;
 	struct rb_root source_line = RB_ROOT;
 
-	if (symbol__annotate(sym, map, evsel, 0, NULL, NULL) < 0)
+	if (symbol__annotate(sym, map, evsel, 0, NULL) < 0)
 		return -1;
 
 	symbol__calc_percent(sym, evsel);

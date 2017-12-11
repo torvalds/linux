@@ -1116,9 +1116,7 @@ int symbol__tui_annotate(struct symbol *sym, struct map *map,
 	if (perf_evsel__is_group_event(evsel))
 		nr_pcnt = evsel->nr_members;
 
-	err = symbol__annotate(sym, map, evsel,
-			       sizeof(struct browser_line), &browser.arch,
-			       perf_evsel__env_cpuid(evsel));
+	err = symbol__annotate(sym, map, evsel, sizeof(struct browser_line), &browser.arch);
 	if (err) {
 		char msg[BUFSIZ];
 		symbol__strerror_disassemble(sym, map, err, msg, sizeof(msg));
