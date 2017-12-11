@@ -283,11 +283,9 @@ static int handle_ule_extensions( struct dvb_net_priv *p )
 		if (l < 0)
 			return l;	/* Stop extension header processing and discard SNDU. */
 		total_ext_len += l;
-#ifdef ULE_DEBUG
 		pr_debug("ule_next_hdr=%p, ule_sndu_type=%i, l=%i, total_ext_len=%i\n",
 			 p->ule_next_hdr, (int)p->ule_sndu_type,
 			 l, total_ext_len);
-#endif
 
 	} while (p->ule_sndu_type < ETH_P_802_3_MIN);
 
@@ -701,11 +699,9 @@ static void dvb_net_ule_check_crc(struct dvb_net_ule_handle *h,
 
 	if (!h->priv->ule_dbit) {
 		if (dvb_net_ule_should_drop(h)) {
-#ifdef ULE_DEBUG
 			netdev_dbg(h->dev,
 				   "Dropping SNDU: MAC destination address does not match: dest addr: %pM, h->dev addr: %pM\n",
 				   h->priv->ule_skb->data, h->dev->dev_addr);
-#endif
 			dev_kfree_skb(h->priv->ule_skb);
 			return;
 		}
