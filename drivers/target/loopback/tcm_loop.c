@@ -166,7 +166,6 @@ static void tcm_loop_submission_work(struct work_struct *work)
 out_done:
 	kmem_cache_free(tcm_loop_cmd_cache, tl_cmd);
 	sc->scsi_done(sc);
-	return;
 }
 
 /*
