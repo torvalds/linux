@@ -21,7 +21,7 @@
 #include "ia_css_xnr.host.h"
 
 const struct ia_css_xnr_config default_xnr_config = {
-	/** default threshold 6400 translates to 25 on ISP. */
+	/* default threshold 6400 translates to 25 on ISP. */
 	6400
 };
 

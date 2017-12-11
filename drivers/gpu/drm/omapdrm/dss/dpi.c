@@ -566,8 +566,8 @@ static int dpi_verify_pll(struct dss_pll *pll)
 }
 
 static const struct soc_device_attribute dpi_soc_devices[] = {
-	{ .family = "OMAP3[456]*" },
-	{ .family = "[AD]M37*" },
+	{ .machine = "OMAP3[456]*" },
+	{ .machine = "[AD]M37*" },
 	{ /* sentinel */ }
 };
 

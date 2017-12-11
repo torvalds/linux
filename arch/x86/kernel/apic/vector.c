@@ -542,8 +542,8 @@ error:
 }
 
 #ifdef CONFIG_GENERIC_IRQ_DEBUGFS
-void x86_vector_debug_show(struct seq_file *m, struct irq_domain *d,
-			   struct irq_data *irqd, int ind)
+static void x86_vector_debug_show(struct seq_file *m, struct irq_domain *d,
+				  struct irq_data *irqd, int ind)
 {
 	unsigned int cpu, vector, prev_cpu, prev_vector;
 	struct apic_chip_data *apicd;

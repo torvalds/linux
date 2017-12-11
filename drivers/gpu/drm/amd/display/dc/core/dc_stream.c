@@ -263,7 +263,6 @@ bool dc_stream_set_cursor_position(
 		struct input_pixel_processor *ipp = pipe_ctx->plane_res.ipp;
 		struct mem_input *mi = pipe_ctx->plane_res.mi;
 		struct hubp *hubp = pipe_ctx->plane_res.hubp;
-		struct transform *xfm = pipe_ctx->plane_res.xfm;
 		struct dpp *dpp = pipe_ctx->plane_res.dpp;
 		struct dc_cursor_position pos_cpy = *position;
 		struct dc_cursor_mi_param param = {
@@ -294,11 +293,11 @@ bool dc_stream_set_cursor_position(
 		if (mi != NULL && mi->funcs->set_cursor_position != NULL)
 			mi->funcs->set_cursor_position(mi, &pos_cpy, &param);
 
-		if (hubp != NULL && hubp->funcs->set_cursor_position != NULL)
-			hubp->funcs->set_cursor_position(hubp, &pos_cpy, &param);
+		if (!hubp)
+			continue;
 
-		if (xfm != NULL && xfm->funcs->set_cursor_position != NULL)
-			xfm->funcs->set_cursor_position(xfm, &pos_cpy, &param, hubp->curs_attr.width);
+		if (hubp->funcs->set_cursor_position != NULL)
+			hubp->funcs->set_cursor_position(hubp, &pos_cpy, &param);
 
 		if (dpp != NULL && dpp->funcs->set_cursor_position != NULL)
 			dpp->funcs->set_cursor_position(dpp, &pos_cpy, &param, hubp->curs_attr.width);

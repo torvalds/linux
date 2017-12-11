@@ -15,7 +15,7 @@
 #ifndef __IA_CSS_DVS_TYPES_H
 #define __IA_CSS_DVS_TYPES_H
 
-/** DVS frame
+/* DVS frame
  *
  *  ISP block: dvs frame
  */
