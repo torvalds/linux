@@ -529,6 +529,9 @@ void regmap_debugfs_init(struct regmap *map, const char *name)
 	struct regmap_range_node *range_node;
 	const char *devname = "dummy";
 
+	if (map->debugfs_disable)
+		return;
+
 	/* If we don't have the debugfs root yet, postpone init */
 	if (!regmap_debugfs_root) {
 		struct regmap_debugfs_node *node;

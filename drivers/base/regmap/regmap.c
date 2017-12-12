@@ -676,6 +676,7 @@ struct regmap *__regmap_init(struct device *dev,
 
 	if (config->disable_locking) {
 		map->lock = map->unlock = regmap_lock_unlock_none;
+		regmap_debugfs_disable(map);
 	} else if (config->lock && config->unlock) {
 		map->lock = config->lock;
 		map->unlock = config->unlock;
