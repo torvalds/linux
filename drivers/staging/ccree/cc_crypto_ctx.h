@@ -82,15 +82,6 @@
 
 #define CC_HMAC_BLOCK_SIZE_MAX CC_HASH_BLOCK_SIZE_MAX
 
-#define CC_MULTI2_SYSTEM_KEY_SIZE		32
-#define CC_MULTI2_DATA_KEY_SIZE		8
-#define CC_MULTI2_SYSTEM_N_DATA_KEY_SIZE \
-		(CC_MULTI2_SYSTEM_KEY_SIZE + CC_MULTI2_DATA_KEY_SIZE)
-#define	CC_MULTI2_BLOCK_SIZE					8
-#define	CC_MULTI2_IV_SIZE					8
-#define	CC_MULTI2_MIN_NUM_ROUNDS				8
-#define	CC_MULTI2_MAX_NUM_ROUNDS				128
-
 #define CC_DRV_ALG_MAX_BLOCK_SIZE CC_HASH_BLOCK_SIZE_MAX
 
 enum drv_engine_type {
@@ -166,14 +157,6 @@ enum drv_hash_hw_mode {
 	DRV_HASH_HW_SHA384 = 12,
 	DRV_HASH_HW_GHASH = 6,
 	DRV_HASH_HW_RESERVE32B = S32_MAX
-};
-
-enum drv_multi2_mode {
-	DRV_MULTI2_NULL = -1,
-	DRV_MULTI2_ECB = 0,
-	DRV_MULTI2_CBC = 1,
-	DRV_MULTI2_OFB = 2,
-	DRV_MULTI2_RESERVE32B = S32_MAX
 };
 
 /* drv_crypto_key_type[1:0] is mapped to cipher_do[1:0] */
