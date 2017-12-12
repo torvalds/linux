@@ -12,4 +12,5 @@ nvkm-y += nvkm/subdev/secboot/acr_r375.o
 nvkm-y += nvkm/subdev/secboot/gm200.o
 nvkm-y += nvkm/subdev/secboot/gm20b.o
 nvkm-y += nvkm/subdev/secboot/gp102.o
+nvkm-y += nvkm/subdev/secboot/gp108.o
 nvkm-y += nvkm/subdev/secboot/gp10b.o
