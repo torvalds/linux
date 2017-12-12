@@ -7264,12 +7264,11 @@ static int complete_emulated_mmio(struct kvm_vcpu *vcpu)
 
 int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 {
-	struct fpu *fpu = &current->thread.fpu;
 	int r;
 
-	fpu__initialize(fpu);
-
 	kvm_sigset_activate(vcpu);
+
+	kvm_load_guest_fpu(vcpu);
 
 	if (unlikely(vcpu->arch.mp_state == KVM_MP_STATE_UNINITIALIZED)) {
 		if (kvm_run->immediate_exit) {
@@ -7296,14 +7295,12 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 		}
 	}
 
-	kvm_load_guest_fpu(vcpu);
-
 	if (unlikely(vcpu->arch.complete_userspace_io)) {
 		int (*cui)(struct kvm_vcpu *) = vcpu->arch.complete_userspace_io;
 		vcpu->arch.complete_userspace_io = NULL;
 		r = cui(vcpu);
 		if (r <= 0)
-			goto out_fpu;
+			goto out;
 	} else
 		WARN_ON(vcpu->arch.pio.count || vcpu->mmio_needed);
 
@@ -7312,9 +7309,8 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	else
 		r = vcpu_run(vcpu);
 
-out_fpu:
-	kvm_put_guest_fpu(vcpu);
 out:
+	kvm_put_guest_fpu(vcpu);
 	post_kvm_run_save(vcpu);
 	kvm_sigset_deactivate(vcpu);
 
