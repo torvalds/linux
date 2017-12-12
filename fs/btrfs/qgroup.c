@@ -2391,17 +2391,18 @@ out:
 static bool qgroup_check_limits(const struct btrfs_qgroup *qg, u64 num_bytes)
 {
 	if ((qg->lim_flags & BTRFS_QGROUP_LIMIT_MAX_RFER) &&
-	    qg->reserved + (s64)qg->rfer + num_bytes > qg->max_rfer)
+	    qgroup_rsv_total(qg) + (s64)qg->rfer + num_bytes > qg->max_rfer)
 		return false;
 
 	if ((qg->lim_flags & BTRFS_QGROUP_LIMIT_MAX_EXCL) &&
-	    qg->reserved + (s64)qg->excl + num_bytes > qg->max_excl)
+	    qgroup_rsv_total(qg) + (s64)qg->excl + num_bytes > qg->max_excl)
 		return false;
 
 	return true;
 }
 
-static int qgroup_reserve(struct btrfs_root *root, u64 num_bytes, bool enforce)
+static int qgroup_reserve(struct btrfs_root *root, u64 num_bytes, bool enforce,
+			  enum btrfs_qgroup_rsv_type type)
 {
 	struct btrfs_root *quota_root;
 	struct btrfs_qgroup *qgroup;
@@ -2453,7 +2454,7 @@ retry:
 			 * Commit the tree and retry, since we may have
 			 * deletions which would free up space.
 			 */
-			if (!retried && qg->reserved > 0) {
+			if (!retried && qgroup_rsv_total(qg) > 0) {
 				struct btrfs_trans_handle *trans;
 
 				spin_unlock(&fs_info->qgroup_lock);
@@ -2493,7 +2494,7 @@ retry:
 		qg = unode_aux_to_qgroup(unode);
 
 		trace_qgroup_update_reserve(fs_info, qg, num_bytes);
-		qg->reserved += num_bytes;
+		qgroup_rsv_add(qg, num_bytes, type);
 	}
 
 out:
@@ -2540,10 +2541,7 @@ void btrfs_qgroup_free_refroot(struct btrfs_fs_info *fs_info,
 		qg = unode_aux_to_qgroup(unode);
 
 		trace_qgroup_update_reserve(fs_info, qg, -(s64)num_bytes);
-		if (qg->reserved < num_bytes)
-			report_reserved_underflow(fs_info, qg, num_bytes);
-		else
-			qg->reserved -= num_bytes;
+		qgroup_rsv_release(qg, num_bytes, type);
 
 		list_for_each_entry(glist, &qg->groups, next_group) {
 			ret = ulist_add(fs_info->qgroup_ulist,
@@ -2931,7 +2929,7 @@ int btrfs_qgroup_reserve_data(struct inode *inode,
 					to_reserve, QGROUP_RESERVE);
 	if (ret < 0)
 		goto cleanup;
-	ret = qgroup_reserve(root, to_reserve, true);
+	ret = qgroup_reserve(root, to_reserve, true, BTRFS_QGROUP_RSV_DATA);
 	if (ret < 0)
 		goto cleanup;
 
@@ -3084,7 +3082,7 @@ int btrfs_qgroup_reserve_meta(struct btrfs_root *root, int num_bytes,
 
 	BUG_ON(num_bytes != round_down(num_bytes, fs_info->nodesize));
 	trace_qgroup_meta_reserve(root, (s64)num_bytes);
-	ret = qgroup_reserve(root, num_bytes, enforce);
+	ret = qgroup_reserve(root, num_bytes, enforce, BTRFS_QGROUP_RSV_META);
 	if (ret < 0)
 		return ret;
 	atomic64_add(num_bytes, &root->qgroup_meta_rsv);
