@@ -2434,7 +2434,8 @@ out:
 }
 
 void btrfs_qgroup_free_refroot(struct btrfs_fs_info *fs_info,
-			       u64 ref_root, u64 num_bytes)
+			       u64 ref_root, u64 num_bytes,
+			       enum btrfs_qgroup_rsv_type type)
 {
 	struct btrfs_root *quota_root;
 	struct btrfs_qgroup *qgroup;
@@ -2925,7 +2926,8 @@ static int qgroup_free_reserved_data(struct inode *inode,
 			goto out;
 		freed += changeset.bytes_changed;
 	}
-	btrfs_qgroup_free_refroot(root->fs_info, root->objectid, freed);
+	btrfs_qgroup_free_refroot(root->fs_info, root->objectid, freed,
+				  BTRFS_QGROUP_RSV_DATA);
 	ret = freed;
 out:
 	extent_changeset_release(&changeset);
@@ -2957,7 +2959,7 @@ static int __btrfs_qgroup_release_data(struct inode *inode,
 	if (free)
 		btrfs_qgroup_free_refroot(BTRFS_I(inode)->root->fs_info,
 				BTRFS_I(inode)->root->objectid,
-				changeset.bytes_changed);
+				changeset.bytes_changed, BTRFS_QGROUP_RSV_DATA);
 	ret = changeset.bytes_changed;
 out:
 	extent_changeset_release(&changeset);
@@ -3034,7 +3036,8 @@ void btrfs_qgroup_free_meta_all(struct btrfs_root *root)
 	if (reserved == 0)
 		return;
 	trace_qgroup_meta_reserve(root, -(s64)reserved);
-	btrfs_qgroup_free_refroot(fs_info, root->objectid, reserved);
+	btrfs_qgroup_free_refroot(fs_info, root->objectid, reserved,
+				  BTRFS_QGROUP_RSV_META);
 }
 
 void btrfs_qgroup_free_meta(struct btrfs_root *root, int num_bytes)
@@ -3049,7 +3052,8 @@ void btrfs_qgroup_free_meta(struct btrfs_root *root, int num_bytes)
 	WARN_ON(atomic64_read(&root->qgroup_meta_rsv) < num_bytes);
 	atomic64_sub(num_bytes, &root->qgroup_meta_rsv);
 	trace_qgroup_meta_reserve(root, -(s64)num_bytes);
-	btrfs_qgroup_free_refroot(fs_info, root->objectid, num_bytes);
+	btrfs_qgroup_free_refroot(fs_info, root->objectid, num_bytes,
+				  BTRFS_QGROUP_RSV_META);
 }
 
 /*
@@ -3077,7 +3081,7 @@ void btrfs_qgroup_check_reserved_leak(struct inode *inode)
 		}
 		btrfs_qgroup_free_refroot(BTRFS_I(inode)->root->fs_info,
 				BTRFS_I(inode)->root->objectid,
-				changeset.bytes_changed);
+				changeset.bytes_changed, BTRFS_QGROUP_RSV_DATA);
 
 	}
 	extent_changeset_release(&changeset);
