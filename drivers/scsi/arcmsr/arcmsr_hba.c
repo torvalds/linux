@@ -2966,6 +2966,7 @@ static bool arcmsr_hbaA_get_config(struct AdapterControlBlock *acb)
 	char __iomem *iop_firm_version = (char __iomem *)(&reg->message_rwbuffer[17]);
 	char __iomem *iop_device_map = (char __iomem *)(&reg->message_rwbuffer[21]);
 	int count;
+	arcmsr_wait_firmware_ready(acb);
 	writel(ARCMSR_INBOUND_MESG0_GET_CONFIG, &reg->inbound_msgaddr0);
 	if (!arcmsr_hbaA_wait_msgint_ready(acb)) {
 		printk(KERN_NOTICE "arcmsr%d: wait 'get adapter firmware \
@@ -3149,6 +3150,7 @@ static bool arcmsr_hbaD_get_config(struct AdapterControlBlock *acb)
 		writel(ARCMSR_ARC1214_IOP2DRV_MESSAGE_CMD_DONE,
 			acb->pmuD->outbound_doorbell);/*clear interrupt*/
 	}
+	arcmsr_wait_firmware_ready(acb);
 	/* post "get config" instruction */
 	writel(ARCMSR_INBOUND_MESG0_GET_CONFIG, reg->inbound_msgaddr0);
 	/* wait message ready */
