@@ -1017,13 +1017,14 @@ static int gfs2_journaled_truncate(struct inode *inode, u64 oldsize, u64 newsize
 	return 0;
 }
 
-static int trunc_start(struct inode *inode, u64 oldsize, u64 newsize)
+static int trunc_start(struct inode *inode, u64 newsize)
 {
 	struct gfs2_inode *ip = GFS2_I(inode);
 	struct gfs2_sbd *sdp = GFS2_SB(inode);
 	struct address_space *mapping = inode->i_mapping;
 	struct buffer_head *dibh = NULL;
 	int journaled = gfs2_is_jdata(ip);
+	u64 oldsize = inode->i_size;
 	int error;
 
 	if (journaled)
@@ -1519,7 +1520,6 @@ out:
 /**
  * do_shrink - make a file smaller
  * @inode: the inode
- * @oldsize: the current inode size
  * @newsize: the size to make the file
  *
  * Called with an exclusive lock on @inode. The @size must
@@ -1528,12 +1528,12 @@ out:
  * Returns: errno
  */
 
-static int do_shrink(struct inode *inode, u64 oldsize, u64 newsize)
+static int do_shrink(struct inode *inode, u64 newsize)
 {
 	struct gfs2_inode *ip = GFS2_I(inode);
 	int error;
 
-	error = trunc_start(inode, oldsize, newsize);
+	error = trunc_start(inode, newsize);
 	if (error < 0)
 		return error;
 	if (gfs2_is_stuffed(ip))
@@ -1548,10 +1548,9 @@ static int do_shrink(struct inode *inode, u64 oldsize, u64 newsize)
 
 void gfs2_trim_blocks(struct inode *inode)
 {
-	u64 size = inode->i_size;
 	int ret;
 
-	ret = do_shrink(inode, size, size);
+	ret = do_shrink(inode, inode->i_size);
 	WARN_ON(ret != 0);
 }
 
@@ -1645,7 +1644,6 @@ int gfs2_setattr_size(struct inode *inode, u64 newsize)
 {
 	struct gfs2_inode *ip = GFS2_I(inode);
 	int ret;
-	u64 oldsize;
 
 	BUG_ON(!S_ISREG(inode->i_mode));
 
@@ -1659,13 +1657,12 @@ int gfs2_setattr_size(struct inode *inode, u64 newsize)
 	if (ret)
 		goto out;
 
-	oldsize = inode->i_size;
-	if (newsize >= oldsize) {
+	if (newsize >= inode->i_size) {
 		ret = do_grow(inode, newsize);
 		goto out;
 	}
 
-	ret = do_shrink(inode, oldsize, newsize);
+	ret = do_shrink(inode, newsize);
 out:
 	gfs2_rsqa_delete(ip, NULL);
 	return ret;
