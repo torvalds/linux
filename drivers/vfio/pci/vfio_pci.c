@@ -585,6 +585,8 @@ static int msix_sparse_mmap_cap(struct vfio_pci_device *vdev,
 	if (!sparse)
 		return -ENOMEM;
 
+	sparse->header.id = VFIO_REGION_INFO_CAP_SPARSE_MMAP;
+	sparse->header.version = 1;
 	sparse->nr_areas = nr_areas;
 
 	if (vdev->msix_offset & PAGE_MASK) {
@@ -600,8 +602,7 @@ static int msix_sparse_mmap_cap(struct vfio_pci_device *vdev,
 		i++;
 	}
 
-	ret = vfio_info_add_capability(caps, VFIO_REGION_INFO_CAP_SPARSE_MMAP,
-				       sparse);
+	ret = vfio_info_add_capability(caps, &sparse->header, size);
 	kfree(sparse);
 
 	return ret;
@@ -744,7 +745,9 @@ static long vfio_pci_ioctl(void *device_data,
 			break;
 		default:
 		{
-			struct vfio_region_info_cap_type cap_type;
+			struct vfio_region_info_cap_type cap_type = {
+					.header.id = VFIO_REGION_INFO_CAP_TYPE,
+					.header.version = 1 };
 
 			if (info.index >=
 			    VFIO_PCI_NUM_REGIONS + vdev->num_regions)
@@ -759,9 +762,8 @@ static long vfio_pci_ioctl(void *device_data,
 			cap_type.type = vdev->region[i].type;
 			cap_type.subtype = vdev->region[i].subtype;
 
-			ret = vfio_info_add_capability(&caps,
-						      VFIO_REGION_INFO_CAP_TYPE,
-						      &cap_type);
+			ret = vfio_info_add_capability(&caps, &cap_type.header,
+						       sizeof(cap_type));
 			if (ret)
 				return ret;
 
