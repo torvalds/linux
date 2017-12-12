@@ -22,6 +22,7 @@
 #include <linux/err.h>
 #include <linux/io.h>
 #include <linux/module.h>
+#include <linux/mutex.h>
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
 
@@ -79,6 +80,7 @@ struct exynos_rng_dev {
 	enum exynos_prng_type		type;
 	void __iomem			*mem;
 	struct clk			*clk;
+	struct mutex 			lock;
 	/* Generated numbers stored for seeding during resume */
 	u8				seed_save[EXYNOS_RNG_SEED_SIZE];
 	unsigned int			seed_save_len;
@@ -191,6 +193,10 @@ static void exynos_rng_reseed(struct exynos_rng_dev *rng)
 		return;
 
 	exynos_rng_set_seed(rng, seed, read);
+
+	/* Let others do some of their job. */
+	mutex_unlock(&rng->lock);
+	mutex_lock(&rng->lock);
 }
 
 static int exynos_rng_generate(struct crypto_rng *tfm,
@@ -206,6 +212,7 @@ static int exynos_rng_generate(struct crypto_rng *tfm,
 	if (ret)
 		return ret;
 
+	mutex_lock(&rng->lock);
 	do {
 		ret = exynos_rng_get_random(rng, dst, dlen, &read);
 		if (ret)
@@ -216,6 +223,7 @@ static int exynos_rng_generate(struct crypto_rng *tfm,
 
 		exynos_rng_reseed(rng);
 	} while (dlen > 0);
+	mutex_unlock(&rng->lock);
 
 	clk_disable_unprepare(rng->clk);
 
@@ -233,7 +241,9 @@ static int exynos_rng_seed(struct crypto_rng *tfm, const u8 *seed,
 	if (ret)
 		return ret;
 
+	mutex_lock(&rng->lock);
 	ret = exynos_rng_set_seed(ctx->rng, seed, slen);
+	mutex_unlock(&rng->lock);
 
 	clk_disable_unprepare(rng->clk);
 
@@ -277,6 +287,8 @@ static int exynos_rng_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	rng->type = (enum exynos_prng_type)of_device_get_match_data(&pdev->dev);
+
+	mutex_init(&rng->lock);
 
 	rng->dev = &pdev->dev;
 	rng->clk = devm_clk_get(&pdev->dev, "secss");
@@ -328,9 +340,14 @@ static int __maybe_unused exynos_rng_suspend(struct device *dev)
 	if (ret)
 		return ret;
 
+	mutex_lock(&rng->lock);
+
 	/* Get new random numbers and store them for seeding on resume. */
 	exynos_rng_get_random(rng, rng->seed_save, sizeof(rng->seed_save),
 			      &(rng->seed_save_len));
+
+	mutex_unlock(&rng->lock);
+
 	dev_dbg(rng->dev, "Stored %u bytes for seeding on system resume\n",
 		rng->seed_save_len);
 
@@ -353,7 +370,11 @@ static int __maybe_unused exynos_rng_resume(struct device *dev)
 	if (ret)
 		return ret;
 
+	mutex_lock(&rng->lock);
+
 	ret = exynos_rng_set_seed(rng, rng->seed_save, rng->seed_save_len);
+
+	mutex_unlock(&rng->lock);
 
 	clk_disable_unprepare(rng->clk);
 
