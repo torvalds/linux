@@ -40,14 +40,14 @@ typedef u64 cc_sram_addr_t;
  *
  * \return int Zero for success, negative value otherwise.
  */
-int ssi_sram_mgr_init(struct cc_drvdata *drvdata);
+int cc_sram_mgr_init(struct cc_drvdata *drvdata);
 
 /*!
  * Uninits SRAM pool.
  *
  * \param drvdata
  */
-void ssi_sram_mgr_fini(struct cc_drvdata *drvdata);
+void cc_sram_mgr_fini(struct cc_drvdata *drvdata);
 
 /*!
  * Allocated buffer from SRAM pool.
