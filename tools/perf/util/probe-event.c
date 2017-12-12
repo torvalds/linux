@@ -1325,27 +1325,30 @@ static int parse_perf_probe_event_name(char **arg, struct perf_probe_event *pev)
 {
 	char *ptr;
 
-	ptr = strchr(*arg, ':');
+	ptr = strpbrk_esc(*arg, ":");
 	if (ptr) {
 		*ptr = '\0';
 		if (!pev->sdt && !is_c_func_name(*arg))
 			goto ng_name;
-		pev->group = strdup(*arg);
+		pev->group = strdup_esc(*arg);
 		if (!pev->group)
 			return -ENOMEM;
 		*arg = ptr + 1;
 	} else
 		pev->group = NULL;
-	if (!pev->sdt && !is_c_func_name(*arg)) {
+
+	pev->event = strdup_esc(*arg);
+	if (pev->event == NULL)
+		return -ENOMEM;
+
+	if (!pev->sdt && !is_c_func_name(pev->event)) {
+		zfree(&pev->event);
 ng_name:
+		zfree(&pev->group);
 		semantic_error("%s is bad for event name -it must "
 			       "follow C symbol-naming rule.\n", *arg);
 		return -EINVAL;
 	}
-	pev->event = strdup(*arg);
-	if (pev->event == NULL)
-		return -ENOMEM;
-
 	return 0;
 }
 
@@ -1373,7 +1376,7 @@ static int parse_perf_probe_point(char *arg, struct perf_probe_event *pev)
 			arg++;
 	}
 
-	ptr = strpbrk(arg, ";=@+%");
+	ptr = strpbrk_esc(arg, ";=@+%");
 	if (pev->sdt) {
 		if (ptr) {
 			if (*ptr != '@') {
@@ -1387,7 +1390,7 @@ static int parse_perf_probe_point(char *arg, struct perf_probe_event *pev)
 				pev->target = build_id_cache__origname(tmp);
 				free(tmp);
 			} else
-				pev->target = strdup(ptr + 1);
+				pev->target = strdup_esc(ptr + 1);
 			if (!pev->target)
 				return -ENOMEM;
 			*ptr = '\0';
@@ -1421,13 +1424,14 @@ static int parse_perf_probe_point(char *arg, struct perf_probe_event *pev)
 	 *
 	 * Otherwise, we consider arg to be a function specification.
 	 */
-	if (!strpbrk(arg, "+@%") && (ptr = strpbrk(arg, ";:")) != NULL) {
+	if (!strpbrk_esc(arg, "+@%")) {
+		ptr = strpbrk_esc(arg, ";:");
 		/* This is a file spec if it includes a '.' before ; or : */
-		if (memchr(arg, '.', ptr - arg))
+		if (ptr && memchr(arg, '.', ptr - arg))
 			file_spec = true;
 	}
 
-	ptr = strpbrk(arg, ";:+@%");
+	ptr = strpbrk_esc(arg, ";:+@%");
 	if (ptr) {
 		nc = *ptr;
 		*ptr++ = '\0';
@@ -1436,7 +1440,7 @@ static int parse_perf_probe_point(char *arg, struct perf_probe_event *pev)
 	if (arg[0] == '\0')
 		tmp = NULL;
 	else {
-		tmp = strdup(arg);
+		tmp = strdup_esc(arg);
 		if (tmp == NULL)
 			return -ENOMEM;
 	}
@@ -1469,12 +1473,12 @@ static int parse_perf_probe_point(char *arg, struct perf_probe_event *pev)
 		arg = ptr;
 		c = nc;
 		if (c == ';') {	/* Lazy pattern must be the last part */
-			pp->lazy_line = strdup(arg);
+			pp->lazy_line = strdup(arg); /* let leave escapes */
 			if (pp->lazy_line == NULL)
 				return -ENOMEM;
 			break;
 		}
-		ptr = strpbrk(arg, ";:+@%");
+		ptr = strpbrk_esc(arg, ";:+@%");
 		if (ptr) {
 			nc = *ptr;
 			*ptr++ = '\0';
@@ -1501,7 +1505,7 @@ static int parse_perf_probe_point(char *arg, struct perf_probe_event *pev)
 				semantic_error("SRC@SRC is not allowed.\n");
 				return -EINVAL;
 			}
-			pp->file = strdup(arg);
+			pp->file = strdup_esc(arg);
 			if (pp->file == NULL)
 				return -ENOMEM;
 			break;
@@ -2803,23 +2807,31 @@ static int find_probe_functions(struct map *map, char *name,
 	struct rb_node *tmp;
 	const char *norm, *ver;
 	char *buf = NULL;
+	bool cut_version = true;
 
 	if (map__load(map) < 0)
 		return 0;
+
+	/* If user gives a version, don't cut off the version from symbols */
+	if (strchr(name, '@'))
+		cut_version = false;
 
 	map__for_each_symbol(map, sym, tmp) {
 		norm = arch__normalize_symbol_name(sym->name);
 		if (!norm)
 			continue;
 
-		/* We don't care about default symbol or not */
-		ver = strchr(norm, '@');
-		if (ver) {
-			buf = strndup(norm, ver - norm);
-			if (!buf)
-				return -ENOMEM;
-			norm = buf;
+		if (cut_version) {
+			/* We don't care about default symbol or not */
+			ver = strchr(norm, '@');
+			if (ver) {
+				buf = strndup(norm, ver - norm);
+				if (!buf)
+					return -ENOMEM;
+				norm = buf;
+			}
 		}
+
 		if (strglobmatch(norm, name)) {
 			found++;
 			if (syms && found < probe_conf.max_probes)
