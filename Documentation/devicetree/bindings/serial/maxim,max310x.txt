@@ -30,7 +30,7 @@ Example:
 		clocks = <&clk20m>;
 		clock-names = "osc";
 		interrupt-parent = <&gpio3>;
-		interrupts = <7 IRQ_TYPE_EDGE_FALLING>;
+		interrupts = <7 IRQ_TYPE_LEVEL_LOW>;
 		gpio-controller;
 		#gpio-cells = <2>;
 	};
