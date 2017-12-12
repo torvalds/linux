@@ -36,7 +36,7 @@
 
 int cc_pm_suspend(struct device *dev)
 {
-	struct ssi_drvdata *drvdata = dev_get_drvdata(dev);
+	struct cc_drvdata *drvdata = dev_get_drvdata(dev);
 	int rc;
 
 	dev_dbg(dev, "set HOST_POWER_DOWN_EN\n");
@@ -55,7 +55,7 @@ int cc_pm_suspend(struct device *dev)
 int cc_pm_resume(struct device *dev)
 {
 	int rc;
-	struct ssi_drvdata *drvdata = dev_get_drvdata(dev);
+	struct cc_drvdata *drvdata = dev_get_drvdata(dev);
 
 	dev_dbg(dev, "unset HOST_POWER_DOWN_EN\n");
 	cc_iowrite(drvdata, CC_REG(HOST_POWER_DOWN_EN), POWER_DOWN_DISABLE);
@@ -88,7 +88,7 @@ int cc_pm_resume(struct device *dev)
 int cc_pm_get(struct device *dev)
 {
 	int rc = 0;
-	struct ssi_drvdata *drvdata = dev_get_drvdata(dev);
+	struct cc_drvdata *drvdata = dev_get_drvdata(dev);
 
 	if (cc_req_queue_suspended(drvdata))
 		rc = pm_runtime_get_sync(dev);
@@ -101,7 +101,7 @@ int cc_pm_get(struct device *dev)
 int cc_pm_put_suspend(struct device *dev)
 {
 	int rc = 0;
-	struct ssi_drvdata *drvdata = dev_get_drvdata(dev);
+	struct cc_drvdata *drvdata = dev_get_drvdata(dev);
 
 	if (!cc_req_queue_suspended(drvdata)) {
 		pm_runtime_mark_last_busy(dev);
@@ -116,7 +116,7 @@ int cc_pm_put_suspend(struct device *dev)
 
 #endif
 
-int cc_pm_init(struct ssi_drvdata *drvdata)
+int cc_pm_init(struct cc_drvdata *drvdata)
 {
 	int rc = 0;
 #if defined(CONFIG_PM)
@@ -135,7 +135,7 @@ int cc_pm_init(struct ssi_drvdata *drvdata)
 	return rc;
 }
 
-void cc_pm_fini(struct ssi_drvdata *drvdata)
+void cc_pm_fini(struct cc_drvdata *drvdata)
 {
 #if defined(CONFIG_PM)
 	pm_runtime_disable(drvdata_to_dev(drvdata));

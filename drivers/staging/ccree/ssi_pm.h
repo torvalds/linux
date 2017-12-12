@@ -25,9 +25,9 @@
 
 #define CC_SUSPEND_TIMEOUT 3000
 
-int cc_pm_init(struct ssi_drvdata *drvdata);
+int cc_pm_init(struct cc_drvdata *drvdata);
 
-void cc_pm_fini(struct ssi_drvdata *drvdata);
+void cc_pm_fini(struct cc_drvdata *drvdata);
 
 #if defined(CONFIG_PM)
 int cc_pm_suspend(struct device *dev);

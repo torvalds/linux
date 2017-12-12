@@ -23,14 +23,14 @@
 
 static void fips_dsr(unsigned long devarg);
 
-struct ssi_fips_handle {
+struct cc_fips_handle {
 	struct tasklet_struct tasklet;
 };
 
 /* The function called once at driver entry point to check
  * whether TEE FIPS error occurred.
  */
-static bool cc_get_tee_fips_status(struct ssi_drvdata *drvdata)
+static bool cc_get_tee_fips_status(struct cc_drvdata *drvdata)
 {
 	u32 reg;
 
@@ -42,7 +42,7 @@ static bool cc_get_tee_fips_status(struct ssi_drvdata *drvdata)
  * This function should push the FIPS REE library status towards the TEE library
  * by writing the error state to HOST_GPR0 register.
  */
-void cc_set_ree_fips_status(struct ssi_drvdata *drvdata, bool status)
+void cc_set_ree_fips_status(struct cc_drvdata *drvdata, bool status)
 {
 	int val = CC_FIPS_SYNC_REE_STATUS;
 
@@ -51,9 +51,9 @@ void cc_set_ree_fips_status(struct ssi_drvdata *drvdata, bool status)
 	cc_iowrite(drvdata, CC_REG(HOST_GPR0), val);
 }
 
-void ssi_fips_fini(struct ssi_drvdata *drvdata)
+void ssi_fips_fini(struct cc_drvdata *drvdata)
 {
-	struct ssi_fips_handle *fips_h = drvdata->fips_handle;
+	struct cc_fips_handle *fips_h = drvdata->fips_handle;
 
 	if (!fips_h)
 		return; /* Not allocated */
@@ -65,9 +65,9 @@ void ssi_fips_fini(struct ssi_drvdata *drvdata)
 	drvdata->fips_handle = NULL;
 }
 
-void fips_handler(struct ssi_drvdata *drvdata)
+void fips_handler(struct cc_drvdata *drvdata)
 {
-	struct ssi_fips_handle *fips_handle_ptr =
+	struct cc_fips_handle *fips_handle_ptr =
 		drvdata->fips_handle;
 
 	tasklet_schedule(&fips_handle_ptr->tasklet);
@@ -84,7 +84,7 @@ static inline void tee_fips_error(struct device *dev)
 /* Deferred service handler, run as interrupt-fired tasklet */
 static void fips_dsr(unsigned long devarg)
 {
-	struct ssi_drvdata *drvdata = (struct ssi_drvdata *)devarg;
+	struct cc_drvdata *drvdata = (struct cc_drvdata *)devarg;
 	struct device *dev = drvdata_to_dev(drvdata);
 	u32 irq, state, val;
 
@@ -105,9 +105,9 @@ static void fips_dsr(unsigned long devarg)
 }
 
 /* The function called once at driver entry point .*/
-int ssi_fips_init(struct ssi_drvdata *p_drvdata)
+int ssi_fips_init(struct cc_drvdata *p_drvdata)
 {
-	struct ssi_fips_handle *fips_h;
+	struct cc_fips_handle *fips_h;
 	struct device *dev = drvdata_to_dev(p_drvdata);
 
 	fips_h = kzalloc(sizeof(*fips_h), GFP_KERNEL);

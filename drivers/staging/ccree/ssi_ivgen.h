@@ -29,14 +29,14 @@
  *
  * \return int Zero for success, negative value otherwise.
  */
-int cc_ivgen_init(struct ssi_drvdata *drvdata);
+int cc_ivgen_init(struct cc_drvdata *drvdata);
 
 /*!
  * Free iv-pool and ivgen context.
  *
  * \param drvdata
  */
-void cc_ivgen_fini(struct ssi_drvdata *drvdata);
+void cc_ivgen_fini(struct cc_drvdata *drvdata);
 
 /*!
  * Generates the initial pool in SRAM.
@@ -46,7 +46,7 @@ void cc_ivgen_fini(struct ssi_drvdata *drvdata);
  *
  * \return int Zero for success, negative value otherwise.
  */
-int cc_init_iv_sram(struct ssi_drvdata *drvdata);
+int cc_init_iv_sram(struct cc_drvdata *drvdata);
 
 /*!
  * Acquires 16 Bytes IV from the iv-pool
@@ -61,7 +61,7 @@ int cc_init_iv_sram(struct ssi_drvdata *drvdata);
  *
  * \return int Zero for success, negative value otherwise.
  */
-int cc_get_iv(struct ssi_drvdata *drvdata, dma_addr_t iv_out_dma[],
+int cc_get_iv(struct cc_drvdata *drvdata, dma_addr_t iv_out_dma[],
 	      unsigned int iv_out_dma_len, unsigned int iv_out_size,
 	      struct cc_hw_desc iv_seq[], unsigned int *iv_seq_len);
 

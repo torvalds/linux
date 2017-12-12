@@ -89,7 +89,7 @@ void dump_byte_array(const char *name, const u8 *buf, size_t len)
 
 static irqreturn_t cc_isr(int irq, void *dev_id)
 {
-	struct ssi_drvdata *drvdata = (struct ssi_drvdata *)dev_id;
+	struct cc_drvdata *drvdata = (struct cc_drvdata *)dev_id;
 	struct device *dev = drvdata_to_dev(drvdata);
 	u32 irr;
 	u32 imr;
@@ -150,7 +150,7 @@ static irqreturn_t cc_isr(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-int init_cc_regs(struct ssi_drvdata *drvdata, bool is_probe)
+int init_cc_regs(struct cc_drvdata *drvdata, bool is_probe)
 {
 	unsigned int val, cache_params;
 	struct device *dev = drvdata_to_dev(drvdata);
@@ -202,7 +202,7 @@ int init_cc_regs(struct ssi_drvdata *drvdata, bool is_probe)
 static int init_cc_resources(struct platform_device *plat_dev)
 {
 	struct resource *req_mem_cc_regs = NULL;
-	struct ssi_drvdata *new_drvdata;
+	struct cc_drvdata *new_drvdata;
 	struct device *dev = &plat_dev->dev;
 	struct device_node *np = dev->of_node;
 	u32 signature_val;
@@ -405,7 +405,7 @@ post_clk_err:
 	return rc;
 }
 
-void fini_cc_regs(struct ssi_drvdata *drvdata)
+void fini_cc_regs(struct cc_drvdata *drvdata)
 {
 	/* Mask all interrupts */
 	cc_iowrite(drvdata, CC_REG(HOST_IMR), 0xFFFFFFFF);
@@ -413,8 +413,8 @@ void fini_cc_regs(struct ssi_drvdata *drvdata)
 
 static void cleanup_cc_resources(struct platform_device *plat_dev)
 {
-	struct ssi_drvdata *drvdata =
-		(struct ssi_drvdata *)platform_get_drvdata(plat_dev);
+	struct cc_drvdata *drvdata =
+		(struct cc_drvdata *)platform_get_drvdata(plat_dev);
 
 	cc_aead_free(drvdata);
 	cc_hash_free(drvdata);
@@ -432,7 +432,7 @@ static void cleanup_cc_resources(struct platform_device *plat_dev)
 	cc_clk_off(drvdata);
 }
 
-int cc_clk_on(struct ssi_drvdata *drvdata)
+int cc_clk_on(struct cc_drvdata *drvdata)
 {
 	struct clk *clk = drvdata->clk;
 	int rc;
@@ -448,7 +448,7 @@ int cc_clk_on(struct ssi_drvdata *drvdata)
 	return 0;
 }
 
-void cc_clk_off(struct ssi_drvdata *drvdata)
+void cc_clk_off(struct cc_drvdata *drvdata)
 {
 	struct clk *clk = drvdata->clk;
 

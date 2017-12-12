@@ -38,7 +38,7 @@ struct cc_req_mgr_handle {
 	unsigned int hw_queue_size; /* HW capability */
 	unsigned int min_free_hw_slots;
 	unsigned int max_used_sw_slots;
-	struct ssi_crypto_req req_queue[MAX_REQUEST_QUEUE_SIZE];
+	struct cc_crypto_req req_queue[MAX_REQUEST_QUEUE_SIZE];
 	u32 req_queue_head;
 	u32 req_queue_tail;
 	u32 axi_completed;
@@ -68,7 +68,7 @@ static void comp_handler(unsigned long devarg);
 static void comp_work_handler(struct work_struct *work);
 #endif
 
-void cc_req_mgr_fini(struct ssi_drvdata *drvdata)
+void cc_req_mgr_fini(struct cc_drvdata *drvdata)
 {
 	struct cc_req_mgr_handle *req_mgr_h = drvdata->request_mgr_handle;
 	struct device *dev = drvdata_to_dev(drvdata);
@@ -97,7 +97,7 @@ void cc_req_mgr_fini(struct ssi_drvdata *drvdata)
 	drvdata->request_mgr_handle = NULL;
 }
 
-int cc_req_mgr_init(struct ssi_drvdata *drvdata)
+int cc_req_mgr_init(struct cc_drvdata *drvdata)
 {
 	struct cc_req_mgr_handle *req_mgr_h;
 	struct device *dev = drvdata_to_dev(drvdata);
@@ -201,7 +201,7 @@ static void request_mgr_complete(struct device *dev, void *dx_compl_h)
 	complete(this_compl);
 }
 
-static int cc_queues_status(struct ssi_drvdata *drvdata,
+static int cc_queues_status(struct cc_drvdata *drvdata,
 			    struct cc_req_mgr_handle *req_mgr_h,
 			    unsigned int total_seq_len)
 {
@@ -248,7 +248,7 @@ static int cc_queues_status(struct ssi_drvdata *drvdata,
  * Enqueue caller request to crypto hardware.
  *
  * \param drvdata
- * \param ssi_req The request to enqueue
+ * \param cc_req The request to enqueue
  * \param desc The crypto sequence
  * \param len The crypto sequence length
  * \param is_dout If "true": completion is handled by the caller
@@ -257,7 +257,7 @@ static int cc_queues_status(struct ssi_drvdata *drvdata,
  *
  * \return int Returns -EINPROGRESS if "is_dout=true"; "0" if "is_dout=false"
  */
-int send_request(struct ssi_drvdata *drvdata, struct ssi_crypto_req *ssi_req,
+int send_request(struct cc_drvdata *drvdata, struct cc_crypto_req *cc_req,
 		 struct cc_hw_desc *desc, unsigned int len, bool is_dout)
 {
 	void __iomem *cc_base = drvdata->cc_base;
@@ -270,7 +270,7 @@ int send_request(struct ssi_drvdata *drvdata, struct ssi_crypto_req *ssi_req,
 	int rc;
 	unsigned int max_required_seq_len =
 		(total_seq_len +
-		 ((ssi_req->ivgen_dma_addr_len == 0) ? 0 :
+		 ((cc_req->ivgen_dma_addr_len == 0) ? 0 :
 		  CC_IVPOOL_SEQ_LEN) + (!is_dout ? 1 : 0));
 
 #if defined(CONFIG_PM)
@@ -314,24 +314,24 @@ int send_request(struct ssi_drvdata *drvdata, struct ssi_crypto_req *ssi_req,
 	 * enabled any DLLI/MLLI DOUT bit in the given sequence
 	 */
 	if (!is_dout) {
-		init_completion(&ssi_req->seq_compl);
-		ssi_req->user_cb = request_mgr_complete;
-		ssi_req->user_arg = &ssi_req->seq_compl;
+		init_completion(&cc_req->seq_compl);
+		cc_req->user_cb = request_mgr_complete;
+		cc_req->user_arg = &cc_req->seq_compl;
 		total_seq_len++;
 	}
 
-	if (ssi_req->ivgen_dma_addr_len > 0) {
+	if (cc_req->ivgen_dma_addr_len > 0) {
 		dev_dbg(dev, "Acquire IV from pool into %d DMA addresses %pad, %pad, %pad, IV-size=%u\n",
-			ssi_req->ivgen_dma_addr_len,
-			&ssi_req->ivgen_dma_addr[0],
-			&ssi_req->ivgen_dma_addr[1],
-			&ssi_req->ivgen_dma_addr[2],
-			ssi_req->ivgen_size);
+			cc_req->ivgen_dma_addr_len,
+			&cc_req->ivgen_dma_addr[0],
+			&cc_req->ivgen_dma_addr[1],
+			&cc_req->ivgen_dma_addr[2],
+			cc_req->ivgen_size);
 
 		/* Acquire IV from pool */
-		rc = cc_get_iv(drvdata, ssi_req->ivgen_dma_addr,
-			       ssi_req->ivgen_dma_addr_len,
-			       ssi_req->ivgen_size,
+		rc = cc_get_iv(drvdata, cc_req->ivgen_dma_addr,
+			       cc_req->ivgen_dma_addr_len,
+			       cc_req->ivgen_size,
 			       iv_seq, &iv_seq_len);
 
 		if (rc) {
@@ -353,7 +353,7 @@ int send_request(struct ssi_drvdata *drvdata, struct ssi_crypto_req *ssi_req,
 		req_mgr_h->max_used_sw_slots = used_sw_slots;
 
 	/* Enqueue request - must be locked with HW lock*/
-	req_mgr_h->req_queue[req_mgr_h->req_queue_head] = *ssi_req;
+	req_mgr_h->req_queue[req_mgr_h->req_queue_head] = *cc_req;
 	req_mgr_h->req_queue_head = (req_mgr_h->req_queue_head + 1) &
 				    (MAX_REQUEST_QUEUE_SIZE - 1);
 	/* TODO: Use circ_buf.h ? */
@@ -393,7 +393,7 @@ int send_request(struct ssi_drvdata *drvdata, struct ssi_crypto_req *ssi_req,
 		/* Wait upon sequence completion.
 		 *  Return "0" -Operation done successfully.
 		 */
-		wait_for_completion(&ssi_req->seq_compl);
+		wait_for_completion(&cc_req->seq_compl);
 		return 0;
 	}
 	/* Operation still in process */
@@ -411,7 +411,7 @@ int send_request(struct ssi_drvdata *drvdata, struct ssi_crypto_req *ssi_req,
  *
  * \return int Returns "0" upon success
  */
-int send_request_init(struct ssi_drvdata *drvdata, struct cc_hw_desc *desc,
+int send_request_init(struct cc_drvdata *drvdata, struct cc_hw_desc *desc,
 		      unsigned int len)
 {
 	void __iomem *cc_base = drvdata->cc_base;
@@ -442,7 +442,7 @@ int send_request_init(struct ssi_drvdata *drvdata, struct cc_hw_desc *desc,
 	return 0;
 }
 
-void complete_request(struct ssi_drvdata *drvdata)
+void complete_request(struct cc_drvdata *drvdata)
 {
 	struct cc_req_mgr_handle *request_mgr_handle =
 						drvdata->request_mgr_handle;
@@ -459,16 +459,16 @@ void complete_request(struct ssi_drvdata *drvdata)
 #ifdef COMP_IN_WQ
 static void comp_work_handler(struct work_struct *work)
 {
-	struct ssi_drvdata *drvdata =
-		container_of(work, struct ssi_drvdata, compwork.work);
+	struct cc_drvdata *drvdata =
+		container_of(work, struct cc_drvdata, compwork.work);
 
 	comp_handler((unsigned long)drvdata);
 }
 #endif
 
-static void proc_completions(struct ssi_drvdata *drvdata)
+static void proc_completions(struct cc_drvdata *drvdata)
 {
-	struct ssi_crypto_req *ssi_req;
+	struct cc_crypto_req *cc_req;
 	struct device *dev = drvdata_to_dev(drvdata);
 	struct cc_req_mgr_handle *request_mgr_handle =
 						drvdata->request_mgr_handle;
@@ -492,7 +492,7 @@ static void proc_completions(struct ssi_drvdata *drvdata)
 			break;
 		}
 
-		ssi_req = &request_mgr_handle->req_queue[*tail];
+		cc_req = &request_mgr_handle->req_queue[*tail];
 
 #ifdef FLUSH_CACHE_ALL
 		flush_cache_all();
@@ -511,8 +511,8 @@ static void proc_completions(struct ssi_drvdata *drvdata)
 		}
 #endif /* COMPLETION_DELAY */
 
-		if (ssi_req->user_cb)
-			ssi_req->user_cb(dev, ssi_req->user_arg);
+		if (cc_req->user_cb)
+			cc_req->user_cb(dev, cc_req->user_arg);
 		*tail = (*tail + 1) & (MAX_REQUEST_QUEUE_SIZE - 1);
 		dev_dbg(dev, "Dequeue request tail=%u\n", *tail);
 		dev_dbg(dev, "Request completed. axi_completed=%d\n",
@@ -526,7 +526,7 @@ static void proc_completions(struct ssi_drvdata *drvdata)
 	}
 }
 
-static inline u32 cc_axi_comp_count(struct ssi_drvdata *drvdata)
+static inline u32 cc_axi_comp_count(struct cc_drvdata *drvdata)
 {
 	return FIELD_GET(AXIM_MON_COMP_VALUE,
 			 cc_ioread(drvdata, CC_REG(AXIM_MON_COMP)));
@@ -535,7 +535,7 @@ static inline u32 cc_axi_comp_count(struct ssi_drvdata *drvdata)
 /* Deferred service handler, run as interrupt-fired tasklet */
 static void comp_handler(unsigned long devarg)
 {
-	struct ssi_drvdata *drvdata = (struct ssi_drvdata *)devarg;
+	struct cc_drvdata *drvdata = (struct cc_drvdata *)devarg;
 	struct cc_req_mgr_handle *request_mgr_handle =
 						drvdata->request_mgr_handle;
 
@@ -584,7 +584,7 @@ static void comp_handler(unsigned long devarg)
  * inside the spin lock protection
  */
 #if defined(CONFIG_PM)
-int cc_resume_req_queue(struct ssi_drvdata *drvdata)
+int cc_resume_req_queue(struct cc_drvdata *drvdata)
 {
 	struct cc_req_mgr_handle *request_mgr_handle =
 		drvdata->request_mgr_handle;
@@ -600,7 +600,7 @@ int cc_resume_req_queue(struct ssi_drvdata *drvdata)
  * suspend the queue configuration. Since it is used for the runtime suspend
  * only verify that the queue can be suspended.
  */
-int cc_suspend_req_queue(struct ssi_drvdata *drvdata)
+int cc_suspend_req_queue(struct cc_drvdata *drvdata)
 {
 	struct cc_req_mgr_handle *request_mgr_handle =
 						drvdata->request_mgr_handle;
@@ -618,7 +618,7 @@ int cc_suspend_req_queue(struct ssi_drvdata *drvdata)
 	return 0;
 }
 
-bool cc_req_queue_suspended(struct ssi_drvdata *drvdata)
+bool cc_req_queue_suspended(struct cc_drvdata *drvdata)
 {
 	struct cc_req_mgr_handle *request_mgr_handle =
 						drvdata->request_mgr_handle;

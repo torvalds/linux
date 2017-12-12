@@ -22,7 +22,7 @@
  * @sram_free_offset:   the offset to the non-allocated area
  */
 struct ssi_sram_mgr_ctx {
-	ssi_sram_addr_t sram_free_offset;
+	cc_sram_addr_t sram_free_offset;
 };
 
 /**
@@ -30,7 +30,7 @@ struct ssi_sram_mgr_ctx {
  *
  * @drvdata: Associated device driver context
  */
-void ssi_sram_mgr_fini(struct ssi_drvdata *drvdata)
+void ssi_sram_mgr_fini(struct cc_drvdata *drvdata)
 {
 	struct ssi_sram_mgr_ctx *smgr_ctx = drvdata->sram_mgr_handle;
 
@@ -48,7 +48,7 @@ void ssi_sram_mgr_fini(struct ssi_drvdata *drvdata)
  *
  * @drvdata: Associated device driver context
  */
-int ssi_sram_mgr_init(struct ssi_drvdata *drvdata)
+int ssi_sram_mgr_init(struct cc_drvdata *drvdata)
 {
 	/* Allocate "this" context */
 	drvdata->sram_mgr_handle = kzalloc(sizeof(*drvdata->sram_mgr_handle),
@@ -69,11 +69,11 @@ int ssi_sram_mgr_init(struct ssi_drvdata *drvdata)
  * \param drvdata
  * \param size The requested bytes to allocate
  */
-ssi_sram_addr_t cc_sram_alloc(struct ssi_drvdata *drvdata, u32 size)
+cc_sram_addr_t cc_sram_alloc(struct cc_drvdata *drvdata, u32 size)
 {
 	struct ssi_sram_mgr_ctx *smgr_ctx = drvdata->sram_mgr_handle;
 	struct device *dev = drvdata_to_dev(drvdata);
-	ssi_sram_addr_t p;
+	cc_sram_addr_t p;
 
 	if ((size & 0x3)) {
 		dev_err(dev, "Requested buffer size (%u) is not multiple of 4",
@@ -103,7 +103,7 @@ ssi_sram_addr_t cc_sram_alloc(struct ssi_drvdata *drvdata, u32 size)
  * @seq:	  A pointer to the given IN/OUT descriptor sequence
  * @seq_len:	  A pointer to the given IN/OUT sequence length
  */
-void cc_set_sram_desc(const u32 *src, ssi_sram_addr_t dst,
+void cc_set_sram_desc(const u32 *src, cc_sram_addr_t dst,
 		      unsigned int nelement, struct cc_hw_desc *seq,
 		      unsigned int *seq_len)
 {

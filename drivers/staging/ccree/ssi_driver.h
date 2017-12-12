@@ -89,7 +89,7 @@
  */
 
 #define CC_MAX_IVGEN_DMA_ADDRESSES	3
-struct ssi_crypto_req {
+struct cc_crypto_req {
 	void (*user_cb)(struct device *dev, void *req);
 	void *user_arg;
 	dma_addr_t ivgen_dma_addr[CC_MAX_IVGEN_DMA_ADDRESSES];
@@ -105,20 +105,20 @@ struct ssi_crypto_req {
 };
 
 /**
- * struct ssi_drvdata - driver private data context
+ * struct cc_drvdata - driver private data context
  * @cc_base:	virt address of the CC registers
  * @irq:	device IRQ number
  * @irq_mask:	Interrupt mask shadow (1 for masked interrupts)
  * @fw_ver:	SeP loaded firmware version
  */
-struct ssi_drvdata {
+struct cc_drvdata {
 	void __iomem *cc_base;
 	int irq;
 	u32 irq_mask;
 	u32 fw_ver;
 	struct completion hw_queue_avail; /* wait for HW queue availability */
 	struct platform_device *plat_dev;
-	ssi_sram_addr_t mlli_sram_addr;
+	cc_sram_addr_t mlli_sram_addr;
 	void *buff_mgr_handle;
 	void *hash_handle;
 	void *aead_handle;
@@ -131,17 +131,17 @@ struct ssi_drvdata {
 	bool coherent;
 };
 
-struct ssi_crypto_alg {
+struct cc_crypto_alg {
 	struct list_head entry;
 	int cipher_mode;
 	int flow_mode; /* Note: currently, refers to the cipher mode only. */
 	int auth_mode;
-	struct ssi_drvdata *drvdata;
+	struct cc_drvdata *drvdata;
 	struct crypto_alg crypto_alg;
 	struct aead_alg aead_alg;
 };
 
-struct ssi_alg_template {
+struct cc_alg_template {
 	char name[CRYPTO_MAX_ALG_NAME];
 	char driver_name[CRYPTO_MAX_ALG_NAME];
 	unsigned int blocksize;
@@ -156,7 +156,7 @@ struct ssi_alg_template {
 	int cipher_mode;
 	int flow_mode; /* Note: currently, refers to the cipher mode only. */
 	int auth_mode;
-	struct ssi_drvdata *drvdata;
+	struct cc_drvdata *drvdata;
 };
 
 struct async_gen_req_ctx {
@@ -164,7 +164,7 @@ struct async_gen_req_ctx {
 	enum drv_crypto_direction op_type;
 };
 
-static inline struct device *drvdata_to_dev(struct ssi_drvdata *drvdata)
+static inline struct device *drvdata_to_dev(struct cc_drvdata *drvdata)
 {
 	return &drvdata->plat_dev->dev;
 }
@@ -177,17 +177,17 @@ static inline void dump_byte_array(const char *name, const u8 *the_array,
 				   unsigned long size) {};
 #endif
 
-int init_cc_regs(struct ssi_drvdata *drvdata, bool is_probe);
-void fini_cc_regs(struct ssi_drvdata *drvdata);
-int cc_clk_on(struct ssi_drvdata *drvdata);
-void cc_clk_off(struct ssi_drvdata *drvdata);
+int init_cc_regs(struct cc_drvdata *drvdata, bool is_probe);
+void fini_cc_regs(struct cc_drvdata *drvdata);
+int cc_clk_on(struct cc_drvdata *drvdata);
+void cc_clk_off(struct cc_drvdata *drvdata);
 
-static inline void cc_iowrite(struct ssi_drvdata *drvdata, u32 reg, u32 val)
+static inline void cc_iowrite(struct cc_drvdata *drvdata, u32 reg, u32 val)
 {
 	iowrite32(val, (drvdata->cc_base + reg));
 }
 
-static inline u32 cc_ioread(struct ssi_drvdata *drvdata, u32 reg)
+static inline u32 cc_ioread(struct cc_drvdata *drvdata, u32 reg)
 {
 	return ioread32(drvdata->cc_base + reg);
 }

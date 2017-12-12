@@ -55,7 +55,7 @@ struct cc_hw_key_info {
 };
 
 struct cc_cipher_ctx {
-	struct ssi_drvdata *drvdata;
+	struct cc_drvdata *drvdata;
 	int keylen;
 	int key_round_number;
 	int cipher_mode;
@@ -67,7 +67,7 @@ struct cc_cipher_ctx {
 	struct crypto_shash *shash_tfm;
 };
 
-static void cc_cipher_complete(struct device *dev, void *ssi_req);
+static void cc_cipher_complete(struct device *dev, void *cc_req);
 
 static int validate_keys_sizes(struct cc_cipher_ctx *ctx_p, u32 size)
 {
@@ -145,17 +145,17 @@ static int validate_data_size(struct cc_cipher_ctx *ctx_p,
 
 static unsigned int get_max_keysize(struct crypto_tfm *tfm)
 {
-	struct ssi_crypto_alg *ssi_alg =
-		container_of(tfm->__crt_alg, struct ssi_crypto_alg,
+	struct cc_crypto_alg *cc_alg =
+		container_of(tfm->__crt_alg, struct cc_crypto_alg,
 			     crypto_alg);
 
-	if ((ssi_alg->crypto_alg.cra_flags & CRYPTO_ALG_TYPE_MASK) ==
+	if ((cc_alg->crypto_alg.cra_flags & CRYPTO_ALG_TYPE_MASK) ==
 	    CRYPTO_ALG_TYPE_ABLKCIPHER)
-		return ssi_alg->crypto_alg.cra_ablkcipher.max_keysize;
+		return cc_alg->crypto_alg.cra_ablkcipher.max_keysize;
 
-	if ((ssi_alg->crypto_alg.cra_flags & CRYPTO_ALG_TYPE_MASK) ==
+	if ((cc_alg->crypto_alg.cra_flags & CRYPTO_ALG_TYPE_MASK) ==
 	    CRYPTO_ALG_TYPE_BLKCIPHER)
-		return ssi_alg->crypto_alg.cra_blkcipher.max_keysize;
+		return cc_alg->crypto_alg.cra_blkcipher.max_keysize;
 
 	return 0;
 }
@@ -164,9 +164,9 @@ static int cc_cipher_init(struct crypto_tfm *tfm)
 {
 	struct cc_cipher_ctx *ctx_p = crypto_tfm_ctx(tfm);
 	struct crypto_alg *alg = tfm->__crt_alg;
-	struct ssi_crypto_alg *ssi_alg =
-			container_of(alg, struct ssi_crypto_alg, crypto_alg);
-	struct device *dev = drvdata_to_dev(ssi_alg->drvdata);
+	struct cc_crypto_alg *cc_alg =
+			container_of(alg, struct cc_crypto_alg, crypto_alg);
+	struct device *dev = drvdata_to_dev(cc_alg->drvdata);
 	int rc = 0;
 	unsigned int max_key_buf_size = get_max_keysize(tfm);
 	struct ablkcipher_tfm *ablktfm = &tfm->crt_ablkcipher;
@@ -176,9 +176,9 @@ static int cc_cipher_init(struct crypto_tfm *tfm)
 
 	ablktfm->reqsize = sizeof(struct blkcipher_req_ctx);
 
-	ctx_p->cipher_mode = ssi_alg->cipher_mode;
-	ctx_p->flow_mode = ssi_alg->flow_mode;
-	ctx_p->drvdata = ssi_alg->drvdata;
+	ctx_p->cipher_mode = cc_alg->cipher_mode;
+	ctx_p->flow_mode = cc_alg->flow_mode;
+	ctx_p->drvdata = cc_alg->drvdata;
 
 	/* Allocate key buffer, cache line aligned */
 	ctx_p->user.key = kmalloc(max_key_buf_size, GFP_KERNEL | GFP_DMA);
@@ -408,14 +408,14 @@ static void cc_setup_cipher_desc(struct crypto_tfm *tfm,
 	dma_addr_t iv_dma_addr = req_ctx->gen_ctx.iv_dma_addr;
 	unsigned int du_size = nbytes;
 
-	struct ssi_crypto_alg *ssi_alg =
-		container_of(tfm->__crt_alg, struct ssi_crypto_alg,
+	struct cc_crypto_alg *cc_alg =
+		container_of(tfm->__crt_alg, struct cc_crypto_alg,
 			     crypto_alg);
 
-	if ((ssi_alg->crypto_alg.cra_flags & CRYPTO_ALG_BULK_MASK) ==
+	if ((cc_alg->crypto_alg.cra_flags & CRYPTO_ALG_BULK_MASK) ==
 	    CRYPTO_ALG_BULK_DU_512)
 		du_size = 512;
-	if ((ssi_alg->crypto_alg.cra_flags & CRYPTO_ALG_BULK_MASK) ==
+	if ((cc_alg->crypto_alg.cra_flags & CRYPTO_ALG_BULK_MASK) ==
 	    CRYPTO_ALG_BULK_DU_4096)
 		du_size = 4096;
 
@@ -604,9 +604,9 @@ static void cc_setup_cipher_data(struct crypto_tfm *tfm,
 	}
 }
 
-static void cc_cipher_complete(struct device *dev, void *ssi_req)
+static void cc_cipher_complete(struct device *dev, void *cc_req)
 {
-	struct ablkcipher_request *areq = (struct ablkcipher_request *)ssi_req;
+	struct ablkcipher_request *areq = (struct ablkcipher_request *)cc_req;
 	struct scatterlist *dst = areq->dst;
 	struct scatterlist *src = areq->src;
 	struct blkcipher_req_ctx *req_ctx = ablkcipher_request_ctx(areq);
@@ -651,7 +651,7 @@ static int cc_cipher_process(struct ablkcipher_request *req,
 	struct cc_cipher_ctx *ctx_p = crypto_tfm_ctx(tfm);
 	struct device *dev = drvdata_to_dev(ctx_p->drvdata);
 	struct cc_hw_desc desc[MAX_ABLKCIPHER_SEQ_LEN];
-	struct ssi_crypto_req ssi_req = {};
+	struct cc_crypto_req cc_req = {};
 	int rc, seq_len = 0, cts_restore_flag = 0;
 
 	dev_dbg(dev, "%s req=%p info=%p nbytes=%d\n",
@@ -691,11 +691,11 @@ static int cc_cipher_process(struct ablkcipher_request *req,
 	}
 
 	/* Setup DX request structure */
-	ssi_req.user_cb = (void *)cc_cipher_complete;
-	ssi_req.user_arg = (void *)req;
+	cc_req.user_cb = (void *)cc_cipher_complete;
+	cc_req.user_arg = (void *)req;
 
 #ifdef ENABLE_CYCLE_COUNT
-	ssi_req.op_type = (direction == DRV_CRYPTO_DIRECTION_DECRYPT) ?
+	cc_req.op_type = (direction == DRV_CRYPTO_DIRECTION_DECRYPT) ?
 		STAT_OP_TYPE_DECODE : STAT_OP_TYPE_ENCODE;
 
 #endif
@@ -722,15 +722,15 @@ static int cc_cipher_process(struct ablkcipher_request *req,
 
 	/* do we need to generate IV? */
 	if (req_ctx->is_giv) {
-		ssi_req.ivgen_dma_addr[0] = req_ctx->gen_ctx.iv_dma_addr;
-		ssi_req.ivgen_dma_addr_len = 1;
+		cc_req.ivgen_dma_addr[0] = req_ctx->gen_ctx.iv_dma_addr;
+		cc_req.ivgen_dma_addr_len = 1;
 		/* set the IV size (8/16 B long)*/
-		ssi_req.ivgen_size = ivsize;
+		cc_req.ivgen_size = ivsize;
 	}
 
 	/* STAT_PHASE_3: Lock HW and push sequence */
 
-	rc = send_request(ctx_p->drvdata, &ssi_req, desc, seq_len, 1);
+	rc = send_request(ctx_p->drvdata, &cc_req, desc, seq_len, 1);
 	if (rc != -EINPROGRESS) {
 		/* Failed to send the request or request completed
 		 * synchronously
@@ -782,7 +782,7 @@ static int cc_cipher_decrypt(struct ablkcipher_request *req)
 }
 
 /* DX Block cipher alg */
-static struct ssi_alg_template blkcipher_algs[] = {
+static struct cc_alg_template blkcipher_algs[] = {
 	{
 		.name = "xts(aes)",
 		.driver_name = "xts-aes-dx",
@@ -1075,10 +1075,10 @@ static struct ssi_alg_template blkcipher_algs[] = {
 };
 
 static
-struct ssi_crypto_alg *cc_cipher_create_alg(struct ssi_alg_template *template,
-					    struct device *dev)
+struct cc_crypto_alg *cc_cipher_create_alg(struct cc_alg_template *template,
+					   struct device *dev)
 {
-	struct ssi_crypto_alg *t_alg;
+	struct cc_crypto_alg *t_alg;
 	struct crypto_alg *alg;
 
 	t_alg = kzalloc(sizeof(*t_alg), GFP_KERNEL);
@@ -1109,9 +1109,9 @@ struct ssi_crypto_alg *cc_cipher_create_alg(struct ssi_alg_template *template,
 	return t_alg;
 }
 
-int cc_cipher_free(struct ssi_drvdata *drvdata)
+int cc_cipher_free(struct cc_drvdata *drvdata)
 {
-	struct ssi_crypto_alg *t_alg, *n;
+	struct cc_crypto_alg *t_alg, *n;
 	struct cc_cipher_handle *blkcipher_handle =
 						drvdata->blkcipher_handle;
 	if (blkcipher_handle) {
@@ -1129,10 +1129,10 @@ int cc_cipher_free(struct ssi_drvdata *drvdata)
 	return 0;
 }
 
-int cc_cipher_alloc(struct ssi_drvdata *drvdata)
+int cc_cipher_alloc(struct cc_drvdata *drvdata)
 {
 	struct cc_cipher_handle *ablkcipher_handle;
-	struct ssi_crypto_alg *t_alg;
+	struct cc_crypto_alg *t_alg;
 	struct device *dev = drvdata_to_dev(drvdata);
 	int rc = -ENOMEM;
 	int alg;

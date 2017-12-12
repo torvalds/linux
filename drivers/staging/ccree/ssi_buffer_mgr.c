@@ -58,7 +58,7 @@ struct buffer_array {
 	u32 *mlli_nents[MAX_NUM_OF_BUFFERS_IN_MLLI];
 };
 
-static inline char *cc_dma_buf_type(enum ssi_req_dma_buf_type type)
+static inline char *cc_dma_buf_type(enum cc_req_dma_buf_type type)
 {
 	switch (type) {
 	case CC_DMA_BUF_NULL:
@@ -80,7 +80,7 @@ static inline char *cc_dma_buf_type(enum ssi_req_dma_buf_type type)
  * @dir: [IN] copy from/to sgl
  */
 static void cc_copy_mac(struct device *dev, struct aead_request *req,
-			enum ssi_sg_cpy_direct dir)
+			enum cc_sg_cpy_direct dir)
 {
 	struct aead_req_ctx *areq_ctx = aead_request_ctx(req);
 	struct crypto_aead *tfm = crypto_aead_reqtfm(req);
@@ -157,7 +157,7 @@ void cc_zero_sgl(struct scatterlist *sgl, u32 data_len)
  * @direct:
  */
 void cc_copy_sg_portion(struct device *dev, u8 *dest, struct scatterlist *sg,
-			u32 to_skip, u32 end, enum ssi_sg_cpy_direct direct)
+			u32 to_skip, u32 end, enum cc_sg_cpy_direct direct)
 {
 	u32 nents, lbytes;
 
@@ -496,7 +496,7 @@ void cc_unmap_blkcipher_request(struct device *dev, void *ctx,
 	}
 }
 
-int cc_map_blkcipher_request(struct ssi_drvdata *drvdata, void *ctx,
+int cc_map_blkcipher_request(struct cc_drvdata *drvdata, void *ctx,
 			     unsigned int ivsize, unsigned int nbytes,
 			     void *info, struct scatterlist *src,
 			     struct scatterlist *dst)
@@ -594,7 +594,7 @@ void cc_unmap_aead_request(struct device *dev, struct aead_request *req)
 	struct aead_req_ctx *areq_ctx = aead_request_ctx(req);
 	unsigned int hw_iv_size = areq_ctx->hw_iv_size;
 	struct crypto_aead *tfm = crypto_aead_reqtfm(req);
-	struct ssi_drvdata *drvdata = dev_get_drvdata(dev);
+	struct cc_drvdata *drvdata = dev_get_drvdata(dev);
 	u32 dummy;
 	bool chained;
 	u32 size_to_unmap = 0;
@@ -734,7 +734,7 @@ static int cc_get_aead_icv_nents(struct device *dev, struct scatterlist *sgl,
 	return nents;
 }
 
-static int cc_aead_chain_iv(struct ssi_drvdata *drvdata,
+static int cc_aead_chain_iv(struct cc_drvdata *drvdata,
 			    struct aead_request *req,
 			    struct buffer_array *sg_data,
 			    bool is_last, bool do_chain)
@@ -778,7 +778,7 @@ chain_iv_exit:
 	return rc;
 }
 
-static int cc_aead_chain_assoc(struct ssi_drvdata *drvdata,
+static int cc_aead_chain_assoc(struct cc_drvdata *drvdata,
 			       struct aead_request *req,
 			       struct buffer_array *sg_data,
 			       bool is_last, bool do_chain)
@@ -898,7 +898,7 @@ static void cc_prepare_aead_data_dlli(struct aead_request *req,
 	}
 }
 
-static int cc_prepare_aead_data_mlli(struct ssi_drvdata *drvdata,
+static int cc_prepare_aead_data_mlli(struct cc_drvdata *drvdata,
 				     struct aead_request *req,
 				     struct buffer_array *sg_data,
 				     u32 *src_last_bytes, u32 *dst_last_bytes,
@@ -1030,7 +1030,7 @@ prepare_data_mlli_exit:
 	return rc;
 }
 
-static int cc_aead_chain_data(struct ssi_drvdata *drvdata,
+static int cc_aead_chain_data(struct cc_drvdata *drvdata,
 			      struct aead_request *req,
 			      struct buffer_array *sg_data,
 			      bool is_last_table, bool do_chain)
@@ -1150,7 +1150,7 @@ chain_data_exit:
 	return rc;
 }
 
-static void cc_update_aead_mlli_nents(struct ssi_drvdata *drvdata,
+static void cc_update_aead_mlli_nents(struct cc_drvdata *drvdata,
 				      struct aead_request *req)
 {
 	struct aead_req_ctx *areq_ctx = aead_request_ctx(req);
@@ -1201,7 +1201,7 @@ static void cc_update_aead_mlli_nents(struct ssi_drvdata *drvdata,
 	}
 }
 
-int cc_map_aead_request(struct ssi_drvdata *drvdata, struct aead_request *req)
+int cc_map_aead_request(struct cc_drvdata *drvdata, struct aead_request *req)
 {
 	struct aead_req_ctx *areq_ctx = aead_request_ctx(req);
 	struct mlli_params *mlli_params = &areq_ctx->mlli_params;
@@ -1400,7 +1400,7 @@ aead_map_failure:
 	return rc;
 }
 
-int cc_map_hash_request_final(struct ssi_drvdata *drvdata, void *ctx,
+int cc_map_hash_request_final(struct cc_drvdata *drvdata, void *ctx,
 			      struct scatterlist *src, unsigned int nbytes,
 			      bool do_update)
 {
@@ -1481,7 +1481,7 @@ unmap_curr_buff:
 	return -ENOMEM;
 }
 
-int cc_map_hash_request_update(struct ssi_drvdata *drvdata, void *ctx,
+int cc_map_hash_request_update(struct cc_drvdata *drvdata, void *ctx,
 			       struct scatterlist *src, unsigned int nbytes,
 			       unsigned int block_size)
 {
@@ -1639,7 +1639,7 @@ void cc_unmap_hash_request(struct device *dev, void *ctx,
 	}
 }
 
-int cc_buffer_mgr_init(struct ssi_drvdata *drvdata)
+int cc_buffer_mgr_init(struct cc_drvdata *drvdata)
 {
 	struct buff_mgr_handle *buff_mgr_handle;
 	struct device *dev = drvdata_to_dev(drvdata);
@@ -1666,7 +1666,7 @@ error:
 	return -ENOMEM;
 }
 
-int cc_buffer_mgr_fini(struct ssi_drvdata *drvdata)
+int cc_buffer_mgr_fini(struct cc_drvdata *drvdata)
 {
 	struct buff_mgr_handle *buff_mgr_handle = drvdata->buff_mgr_handle;
 

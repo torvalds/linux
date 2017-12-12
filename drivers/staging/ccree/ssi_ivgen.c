@@ -41,9 +41,9 @@
  * @pool_meta_dma: phys. address of the initial enc. key/IV
  */
 struct cc_ivgen_ctx {
-	ssi_sram_addr_t pool;
-	ssi_sram_addr_t ctr_key;
-	ssi_sram_addr_t ctr_iv;
+	cc_sram_addr_t pool;
+	cc_sram_addr_t ctr_key;
+	cc_sram_addr_t ctr_iv;
 	u32 next_iv_ofs;
 	u8 *pool_meta;
 	dma_addr_t pool_meta_dma;
@@ -116,7 +116,7 @@ static int cc_gen_iv_pool(struct cc_ivgen_ctx *ivgen_ctx,
  *
  * \return int Zero for success, negative value otherwise.
  */
-int cc_init_iv_sram(struct ssi_drvdata *drvdata)
+int cc_init_iv_sram(struct cc_drvdata *drvdata)
 {
 	struct cc_ivgen_ctx *ivgen_ctx = drvdata->ivgen_handle;
 	struct cc_hw_desc iv_seq[CC_IVPOOL_SEQ_LEN];
@@ -153,7 +153,7 @@ int cc_init_iv_sram(struct ssi_drvdata *drvdata)
  *
  * \param drvdata
  */
-void cc_ivgen_fini(struct ssi_drvdata *drvdata)
+void cc_ivgen_fini(struct cc_drvdata *drvdata)
 {
 	struct cc_ivgen_ctx *ivgen_ctx = drvdata->ivgen_handle;
 	struct device *device = &drvdata->plat_dev->dev;
@@ -182,7 +182,7 @@ void cc_ivgen_fini(struct ssi_drvdata *drvdata)
  *
  * \return int Zero for success, negative value otherwise.
  */
-int cc_ivgen_init(struct ssi_drvdata *drvdata)
+int cc_ivgen_init(struct cc_drvdata *drvdata)
 {
 	struct cc_ivgen_ctx *ivgen_ctx;
 	struct device *device = &drvdata->plat_dev->dev;
@@ -234,7 +234,7 @@ out:
  *
  * \return int Zero for success, negative value otherwise.
  */
-int cc_get_iv(struct ssi_drvdata *drvdata, dma_addr_t iv_out_dma[],
+int cc_get_iv(struct cc_drvdata *drvdata, dma_addr_t iv_out_dma[],
 	      unsigned int iv_out_dma_len, unsigned int iv_out_size,
 	      struct cc_hw_desc iv_seq[], unsigned int *iv_seq_len)
 {

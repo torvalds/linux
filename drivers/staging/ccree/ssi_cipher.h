@@ -40,7 +40,7 @@
 
 struct blkcipher_req_ctx {
 	struct async_gen_req_ctx gen_ctx;
-	enum ssi_req_dma_buf_type dma_buf_type;
+	enum cc_req_dma_buf_type dma_buf_type;
 	u32 in_nents;
 	u32 in_mlli_nents;
 	u32 out_nents;
@@ -51,9 +51,9 @@ struct blkcipher_req_ctx {
 	struct mlli_params mlli_params;
 };
 
-int cc_cipher_alloc(struct ssi_drvdata *drvdata);
+int cc_cipher_alloc(struct cc_drvdata *drvdata);
 
-int cc_cipher_free(struct ssi_drvdata *drvdata);
+int cc_cipher_free(struct cc_drvdata *drvdata);
 
 #ifndef CRYPTO_ALG_BULK_MASK
 

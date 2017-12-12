@@ -22,12 +22,12 @@
 
 #ifdef ENABLE_CC_SYSFS
 
-static struct ssi_drvdata *sys_get_drvdata(void);
+static struct cc_drvdata *sys_get_drvdata(void);
 
 static ssize_t ssi_sys_regdump_show(struct kobject *kobj,
 				    struct kobj_attribute *attr, char *buf)
 {
-	struct ssi_drvdata *drvdata = sys_get_drvdata();
+	struct cc_drvdata *drvdata = sys_get_drvdata();
 	u32 register_value;
 	int offset = 0;
 
@@ -86,7 +86,7 @@ struct sys_dir {
 	struct attribute_group sys_dir_attr_group;
 	struct attribute **sys_dir_attr_list;
 	u32 num_of_attrs;
-	struct ssi_drvdata *drvdata; /* Associated driver context */
+	struct cc_drvdata *drvdata; /* Associated driver context */
 };
 
 /* top level directory structures */
@@ -105,7 +105,7 @@ static struct kobj_attribute ssi_sys_top_level_attrs[] = {
 
 };
 
-static struct ssi_drvdata *sys_get_drvdata(void)
+static struct cc_drvdata *sys_get_drvdata(void)
 {
 	/* TODO: supporting multiple SeP devices would require avoiding
 	 * global "top_dir" and finding associated "top_dir" by traversing
@@ -114,7 +114,7 @@ static struct ssi_drvdata *sys_get_drvdata(void)
 	return sys_top_dir.drvdata;
 }
 
-static int sys_init_dir(struct sys_dir *sys_dir, struct ssi_drvdata *drvdata,
+static int sys_init_dir(struct sys_dir *sys_dir, struct cc_drvdata *drvdata,
 			struct kobject *parent_dir_kobj, const char *dir_name,
 			struct kobj_attribute *attrs, u32 num_of_attrs)
 {
@@ -169,7 +169,7 @@ static void sys_free_dir(struct sys_dir *sys_dir)
 	}
 }
 
-int ssi_sysfs_init(struct kobject *sys_dev_obj, struct ssi_drvdata *drvdata)
+int ssi_sysfs_init(struct kobject *sys_dev_obj, struct cc_drvdata *drvdata)
 {
 	int retval;
 	struct device *dev = drvdata_to_dev(drvdata);

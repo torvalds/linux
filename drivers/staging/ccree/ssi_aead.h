@@ -96,15 +96,15 @@ struct aead_req_ctx {
 
 	u8 *icv_virt_addr; /* Virt. address of ICV */
 	struct async_gen_req_ctx gen_ctx;
-	struct ssi_mlli assoc;
-	struct ssi_mlli src;
-	struct ssi_mlli dst;
+	struct cc_mlli assoc;
+	struct cc_mlli src;
+	struct cc_mlli dst;
 	struct scatterlist *src_sgl;
 	struct scatterlist *dst_sgl;
 	unsigned int src_offset;
 	unsigned int dst_offset;
-	enum ssi_req_dma_buf_type assoc_buff_type;
-	enum ssi_req_dma_buf_type data_buff_type;
+	enum cc_req_dma_buf_type assoc_buff_type;
+	enum cc_req_dma_buf_type data_buff_type;
 	struct mlli_params mlli_params;
 	unsigned int cryptlen;
 	struct scatterlist ccm_adata_sg;
@@ -116,7 +116,7 @@ struct aead_req_ctx {
 	bool plaintext_authenticate_only; //for gcm_rfc4543
 };
 
-int cc_aead_alloc(struct ssi_drvdata *drvdata);
-int cc_aead_free(struct ssi_drvdata *drvdata);
+int cc_aead_alloc(struct cc_drvdata *drvdata);
+int cc_aead_free(struct cc_drvdata *drvdata);
 
 #endif /*__CC_AEAD_H__*/

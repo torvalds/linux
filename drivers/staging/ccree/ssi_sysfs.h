@@ -24,9 +24,9 @@
 #include <asm/timex.h>
 
 /* forward declaration */
-struct ssi_drvdata;
+struct cc_drvdata;
 
-int ssi_sysfs_init(struct kobject *sys_dev_obj, struct ssi_drvdata *drvdata);
+int ssi_sysfs_init(struct kobject *sys_dev_obj, struct cc_drvdata *drvdata);
 void ssi_sysfs_fini(void);
 
 #endif /*__CC_SYSFS_H__*/
