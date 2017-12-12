@@ -57,6 +57,7 @@
 #include "hci_uart.h"
 
 /* Vendor-specific HCI commands */
+#define HCI_VS_WRITE_BD_ADDR			0xfc06
 #define HCI_VS_UPDATE_UART_HCI_BAUDRATE		0xff36
 
 /* HCILL commands */
@@ -662,6 +663,24 @@ out_rel_fw:
 	return err;
 }
 
+static int ll_set_bdaddr(struct hci_dev *hdev, const bdaddr_t *bdaddr)
+{
+	bdaddr_t bdaddr_swapped;
+	struct sk_buff *skb;
+
+	/* HCI_VS_WRITE_BD_ADDR (at least on a CC2560A chip) expects the BD
+	 * address to be MSB first, but bdaddr_t has the convention of being
+	 * LSB first.
+	 */
+	baswap(&bdaddr_swapped, bdaddr);
+	skb = __hci_cmd_sync(hdev, HCI_VS_WRITE_BD_ADDR, sizeof(bdaddr_t),
+			     &bdaddr_swapped, HCI_INIT_TIMEOUT);
+	if (!IS_ERR(skb))
+		kfree_skb(skb);
+
+	return PTR_ERR_OR_ZERO(skb);
+}
+
 static int ll_setup(struct hci_uart *hu)
 {
 	int err, retry = 3;
@@ -673,6 +692,8 @@ static int ll_setup(struct hci_uart *hu)
 		return 0;
 
 	lldev = serdev_device_get_drvdata(serdev);
+
+	hu->hdev->set_bdaddr = ll_set_bdaddr;
 
 	serdev_device_set_flow_control(serdev, true);
 
