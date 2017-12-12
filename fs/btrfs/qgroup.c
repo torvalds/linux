@@ -47,6 +47,74 @@
  *  - check all ioctl parameters
  */
 
+/*
+ * Helpers to access qgroup reservation
+ *
+ * Callers should ensure the lock context and type are valid
+ */
+
+static u64 qgroup_rsv_total(const struct btrfs_qgroup *qgroup)
+{
+	u64 ret = 0;
+	int i;
+
+	for (i = 0; i < BTRFS_QGROUP_RSV_LAST; i++)
+		ret += qgroup->rsv.values[i];
+
+	return ret;
+}
+
+#ifdef CONFIG_BTRFS_DEBUG
+static const char *qgroup_rsv_type_str(enum btrfs_qgroup_rsv_type type)
+{
+	if (type == BTRFS_QGROUP_RSV_DATA)
+		return "data";
+	if (type == BTRFS_QGROUP_RSV_META)
+		return "meta";
+	return NULL;
+}
+#endif
+
+static void qgroup_rsv_add(struct btrfs_qgroup *qgroup, u64 num_bytes,
+			   enum btrfs_qgroup_rsv_type type)
+{
+	qgroup->rsv.values[type] += num_bytes;
+}
+
+static void qgroup_rsv_release(struct btrfs_qgroup *qgroup, u64 num_bytes,
+			       enum btrfs_qgroup_rsv_type type)
+{
+	if (qgroup->rsv.values[type] >= num_bytes) {
+		qgroup->rsv.values[type] -= num_bytes;
+		return;
+	}
+#ifdef CONFIG_BTRFS_DEBUG
+	WARN_RATELIMIT(1,
+		"qgroup %llu %s reserved space underflow, have %llu to free %llu",
+		qgroup->qgroupid, qgroup_rsv_type_str(type),
+		qgroup->rsv.values[type], num_bytes);
+#endif
+	qgroup->rsv.values[type] = 0;
+}
+
+static void qgroup_rsv_add_by_qgroup(struct btrfs_qgroup *dest,
+					  struct btrfs_qgroup *src)
+{
+	int i;
+
+	for (i = 0; i < BTRFS_QGROUP_RSV_LAST; i++)
+		qgroup_rsv_add(dest, src->rsv.values[i], i);
+}
+
+static void qgroup_rsv_release_by_qgroup(struct btrfs_qgroup *dest,
+					  struct btrfs_qgroup *src)
+{
+	int i;
+
+	for (i = 0; i < BTRFS_QGROUP_RSV_LAST; i++)
+		qgroup_rsv_release(dest, src->rsv.values[i], i);
+}
+
 static void btrfs_qgroup_update_old_refcnt(struct btrfs_qgroup *qg, u64 seq,
 					   int mod)
 {
