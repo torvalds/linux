@@ -196,8 +196,6 @@ bool amdgpu_atombios_has_gpu_virtualization_table(struct amdgpu_device *adev);
 
 void amdgpu_atombios_scratch_regs_lock(struct amdgpu_device *adev, bool lock);
 void amdgpu_atombios_scratch_regs_init(struct amdgpu_device *adev);
-void amdgpu_atombios_scratch_regs_save(struct amdgpu_device *adev);
-void amdgpu_atombios_scratch_regs_restore(struct amdgpu_device *adev);
 void amdgpu_atombios_scratch_regs_engine_hung(struct amdgpu_device *adev,
 					      bool hung);
 bool amdgpu_atombios_scratch_need_asic_init(struct amdgpu_device *adev);

@@ -1721,28 +1721,6 @@ void amdgpu_atombios_scratch_regs_init(struct amdgpu_device *adev)
 	WREG32(adev->bios_scratch_reg_offset + 6, bios_6_scratch);
 }
 
-void amdgpu_atombios_scratch_regs_save(struct amdgpu_device *adev)
-{
-	int i;
-
-	for (i = 0; i < AMDGPU_BIOS_NUM_SCRATCH; i++)
-		adev->bios_scratch[i] = RREG32(adev->bios_scratch_reg_offset + i);
-}
-
-void amdgpu_atombios_scratch_regs_restore(struct amdgpu_device *adev)
-{
-	int i;
-
-	/*
-	 * VBIOS will check ASIC_INIT_COMPLETE bit to decide if
-	 * execute ASIC_Init posting via driver
-	 */
-	adev->bios_scratch[7] &= ~ATOM_S7_ASIC_INIT_COMPLETE_MASK;
-
-	for (i = 0; i < AMDGPU_BIOS_NUM_SCRATCH; i++)
-		WREG32(adev->bios_scratch_reg_offset + i, adev->bios_scratch[i]);
-}
-
 void amdgpu_atombios_scratch_regs_engine_hung(struct amdgpu_device *adev,
 					      bool hung)
 {
