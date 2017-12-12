@@ -71,9 +71,8 @@ ssi_sram_addr_t cc_sram_alloc(struct ssi_drvdata *drvdata, u32 size);
  * @seq:	  A pointer to the given IN/OUT descriptor sequence
  * @seq_len:	  A pointer to the given IN/OUT sequence length
  */
-void cc_set_sram_desc(
-	const u32 *src, ssi_sram_addr_t dst,
-	unsigned int nelement,
-	struct cc_hw_desc *seq, unsigned int *seq_len);
+void cc_set_sram_desc(const u32 *src, ssi_sram_addr_t dst,
+		      unsigned int nelement, struct cc_hw_desc *seq,
+		      unsigned int *seq_len);
 
 #endif /*__SSI_SRAM_MGR_H__*/

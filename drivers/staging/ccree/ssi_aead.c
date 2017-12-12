@@ -2686,9 +2686,8 @@ static struct ssi_alg_template aead_algs[] = {
 #endif /*SSI_CC_HAS_AES_GCM*/
 };
 
-static struct ssi_crypto_alg *cc_create_aead_alg(
-			struct ssi_alg_template *tmpl,
-			struct device *dev)
+static struct ssi_crypto_alg *cc_create_aead_alg(struct ssi_alg_template *tmpl,
+						 struct device *dev)
 {
 	struct ssi_crypto_alg *t_alg;
 	struct aead_alg *alg;
