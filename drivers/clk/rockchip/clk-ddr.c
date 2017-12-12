@@ -25,6 +25,9 @@
 #include <soc/rockchip/rockchip_sip.h>
 #include <soc/rockchip/scpi.h>
 #include <uapi/drm/drm_mode.h>
+#ifdef CONFIG_ARM
+#include <asm/psci.h>
+#endif
 
 #include "clk.h"
 
@@ -306,6 +309,11 @@ struct clk *rockchip_clk_register_ddrclk(const char *name, int flags,
 	struct rockchip_ddrclk *ddrclk;
 	struct clk_init_data init;
 	struct clk *clk;
+
+#ifdef CONFIG_ARM
+	if (!psci_smp_available())
+		return NULL;
+#endif
 
 	ddrclk = kzalloc(sizeof(*ddrclk), GFP_KERNEL);
 	if (!ddrclk)
