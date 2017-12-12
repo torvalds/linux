@@ -149,7 +149,6 @@ static int dm_numa_node = DM_NUMA_NODE;
  * For mempools pre-allocation at the table loading time.
  */
 struct dm_md_mempools {
-	mempool_t *io_pool;
 	struct bio_set *bs;
 	struct bio_set *io_bs;
 };
@@ -160,7 +159,6 @@ struct table_device {
 	struct dm_dev dm_dev;
 };
 
-static struct kmem_cache *_io_cache;
 static struct kmem_cache *_rq_tio_cache;
 static struct kmem_cache *_rq_cache;
 
@@ -227,14 +225,9 @@ static int __init local_init(void)
 {
 	int r = -ENOMEM;
 
-	/* allocate a slab for the dm_ios */
-	_io_cache = KMEM_CACHE(dm_io, 0);
-	if (!_io_cache)
-		return r;
-
 	_rq_tio_cache = KMEM_CACHE(dm_rq_target_io, 0);
 	if (!_rq_tio_cache)
-		goto out_free_io_cache;
+		return r;
 
 	_rq_cache = kmem_cache_create("dm_old_clone_request", sizeof(struct request),
 				      __alignof__(struct request), 0, NULL);
@@ -269,8 +262,6 @@ out_free_rq_cache:
 	kmem_cache_destroy(_rq_cache);
 out_free_rq_tio_cache:
 	kmem_cache_destroy(_rq_tio_cache);
-out_free_io_cache:
-	kmem_cache_destroy(_io_cache);
 
 	return r;
 }
@@ -282,7 +273,6 @@ static void local_exit(void)
 
 	kmem_cache_destroy(_rq_cache);
 	kmem_cache_destroy(_rq_tio_cache);
-	kmem_cache_destroy(_io_cache);
 	unregister_blkdev(_major, _name);
 	dm_uevent_exit();
 
@@ -1698,7 +1688,6 @@ static void cleanup_mapped_device(struct mapped_device *md)
 		destroy_workqueue(md->wq);
 	if (md->kworker_task)
 		kthread_stop(md->kworker_task);
-	mempool_destroy(md->io_pool);
 	if (md->bs)
 		bioset_free(md->bs);
 	if (md->io_bs)
@@ -1881,14 +1870,6 @@ static void __bind_mempools(struct mapped_device *md, struct dm_table *t)
 			bioset_free(md->io_bs);
 			md->io_bs = NULL;
 		}
-		if (md->io_pool) {
-			/*
-			 * Reload io_pool because pool_size may have changed
-			 * because a different table was loaded.
-			 */
-			mempool_destroy(md->io_pool);
-			md->io_pool = NULL;
-		}
 
 	} else if (md->bs) {
 		/*
@@ -1902,10 +1883,8 @@ static void __bind_mempools(struct mapped_device *md, struct dm_table *t)
 		goto out;
 	}
 
-	BUG_ON(!p || md->io_pool || md->bs || md->io_bs);
+	BUG_ON(!p || md->bs || md->io_bs);
 
-	md->io_pool = p->io_pool;
-	p->io_pool = NULL;
 	md->bs = p->bs;
 	p->bs = NULL;
 	md->io_bs = p->io_bs;
@@ -2816,9 +2795,6 @@ struct dm_md_mempools *dm_alloc_md_mempools(struct mapped_device *md, enum dm_qu
 			goto out;
 		if (integrity && bioset_integrity_create(pools->io_bs, pool_size))
 			goto out;
-		pools->io_pool = mempool_create_slab_pool(pool_size, _io_cache);
-		if (!pools->io_pool)
-			goto out;
 		break;
 	case DM_TYPE_REQUEST_BASED:
 	case DM_TYPE_MQ_REQUEST_BASED:
@@ -2849,8 +2825,6 @@ void dm_free_md_mempools(struct dm_md_mempools *pools)
 {
 	if (!pools)
 		return;
-
-	mempool_destroy(pools->io_pool);
 
 	if (pools->bs)
 		bioset_free(pools->bs);
