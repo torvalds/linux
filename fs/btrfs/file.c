@@ -1691,7 +1691,7 @@ again:
 				    force_page_uptodate);
 		if (ret) {
 			btrfs_delalloc_release_extents(BTRFS_I(inode),
-						       reserve_bytes);
+						       reserve_bytes, true);
 			break;
 		}
 
@@ -1703,7 +1703,7 @@ again:
 			if (extents_locked == -EAGAIN)
 				goto again;
 			btrfs_delalloc_release_extents(BTRFS_I(inode),
-						       reserve_bytes);
+						       reserve_bytes, true);
 			ret = extents_locked;
 			break;
 		}
@@ -1738,7 +1738,7 @@ again:
 						fs_info->sb->s_blocksize_bits;
 			if (only_release_metadata) {
 				btrfs_delalloc_release_metadata(BTRFS_I(inode),
-								release_bytes);
+							release_bytes, true);
 			} else {
 				u64 __pos;
 
@@ -1747,7 +1747,7 @@ again:
 					(dirty_pages << PAGE_SHIFT);
 				btrfs_delalloc_release_space(inode,
 						data_reserved, __pos,
-						release_bytes);
+						release_bytes, true);
 			}
 		}
 
@@ -1760,7 +1760,8 @@ again:
 		if (extents_locked)
 			unlock_extent_cached(&BTRFS_I(inode)->io_tree,
 					     lockstart, lockend, &cached_state);
-		btrfs_delalloc_release_extents(BTRFS_I(inode), reserve_bytes);
+		btrfs_delalloc_release_extents(BTRFS_I(inode), reserve_bytes,
+					       (ret != 0));
 		if (ret) {
 			btrfs_drop_pages(pages, num_pages);
 			break;
@@ -1800,11 +1801,11 @@ again:
 		if (only_release_metadata) {
 			btrfs_end_write_no_snapshotting(root);
 			btrfs_delalloc_release_metadata(BTRFS_I(inode),
-					release_bytes);
+					release_bytes, true);
 		} else {
 			btrfs_delalloc_release_space(inode, data_reserved,
 					round_down(pos, fs_info->sectorsize),
-					release_bytes);
+					release_bytes, true);
 		}
 	}
 
