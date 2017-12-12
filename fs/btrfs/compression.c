@@ -1319,11 +1319,9 @@ static u8 get4bits(u64 num, int shift) {
  * @array_buf - buffer array to store sorting results
  *              must be equal in size to @array
  * @num       - array size
- * @get4bits  - function to get 4 bits from number at specified offset
  */
 static void radix_sort(struct bucket_item *array, struct bucket_item *array_buf,
-		       int num,
-		       u8 (*get4bits)(u64 num, int shift))
+		       int num)
 {
 	u64 max_num;
 	u64 buf_num;
@@ -1427,7 +1425,7 @@ static int byte_core_set_size(struct heuristic_ws *ws)
 	struct bucket_item *bucket = ws->bucket;
 
 	/* Sort in reverse order */
-	radix_sort(ws->bucket, ws->bucket_b, BUCKET_SIZE, get4bits);
+	radix_sort(ws->bucket, ws->bucket_b, BUCKET_SIZE);
 
 	for (i = 0; i < BYTE_CORE_SET_LOW; i++)
 		coreset_sum += bucket[i].count;
