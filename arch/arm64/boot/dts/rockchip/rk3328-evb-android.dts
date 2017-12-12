@@ -576,6 +576,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&sdmmc1_bus4 &sdmmc1_cmd &sdmmc1_clk>;
 	supports-sdio;
+	sd-uhs-sdr104;
 	status = "okay";
 };
 
