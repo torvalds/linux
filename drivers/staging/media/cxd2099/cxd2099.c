@@ -3,23 +3,14 @@
  *
  * Copyright (C) 2010-2013 Digital Devices GmbH
  *
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * version 2 only, as published by the Free Software Foundation.
- *
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- * 02110-1301, USA
- * Or, point your browser to http://www.gnu.org/copyleft/gpl.html
  */
 
 #include <linux/slab.h>
@@ -59,7 +50,7 @@ struct cxd {
 	int    amem_read;
 
 	int    cammode;
-	struct mutex lock;
+	struct mutex lock; /* device access lock */
 
 	u8     rbuf[1028];
 	u8     wbuf[1028];
@@ -101,7 +92,7 @@ static int i2c_read_reg(struct i2c_adapter *adapter, u8 adr,
 				   .buf = val, .len = 1} };
 
 	if (i2c_transfer(adapter, msgs, 2) != 2) {
-		dev_err(&adapter->dev, "error in i2c_read_reg\n");
+		dev_err(&adapter->dev, "error in %s()\n", __func__);
 		return -1;
 	}
 	return 0;
@@ -116,7 +107,7 @@ static int i2c_read(struct i2c_adapter *adapter, u8 adr,
 				   .buf = data, .len = n} };
 
 	if (i2c_transfer(adapter, msgs, 2) != 2) {
-		dev_err(&adapter->dev, "error in i2c_read\n");
+		dev_err(&adapter->dev, "error in %s()\n", __func__);
 		return -1;
 	}
 	return 0;
@@ -134,7 +125,7 @@ static int read_block(struct cxd *ci, u8 adr, u8 *data, u16 n)
 		while (n) {
 			int len = n;
 
-			if (ci->cfg.max_i2c && (len > ci->cfg.max_i2c))
+			if (ci->cfg.max_i2c && len > ci->cfg.max_i2c)
 				len = ci->cfg.max_i2c;
 			status = i2c_read(ci->i2c, ci->cfg.adr, 1, data, len);
 			if (status)
@@ -591,7 +582,7 @@ static int campoll(struct cxd *ci)
 			}
 		}
 		if ((istat & 8) &&
-		    (ci->slot_stat == DVB_CA_EN50221_POLL_CAM_PRESENT)) {
+		    ci->slot_stat == DVB_CA_EN50221_POLL_CAM_PRESENT) {
 			ci->ready = 1;
 			ci->slot_stat |= DVB_CA_EN50221_POLL_CAM_READY;
 		}
