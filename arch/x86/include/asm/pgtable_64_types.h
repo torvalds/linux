@@ -79,8 +79,8 @@ typedef struct { pteval_t pte; } pte_t;
 #define MAXMEM			_AC(__AC(1, UL) << MAX_PHYSMEM_BITS, UL)
 
 #ifdef CONFIG_X86_5LEVEL
-# define VMALLOC_SIZE_TB	_AC(16384, UL)
-# define __VMALLOC_BASE		_AC(0xff92000000000000, UL)
+# define VMALLOC_SIZE_TB	_AC(12800, UL)
+# define __VMALLOC_BASE		_AC(0xffa0000000000000, UL)
 # define __VMEMMAP_BASE		_AC(0xffd4000000000000, UL)
 #else
 # define VMALLOC_SIZE_TB	_AC(32, UL)
