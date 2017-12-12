@@ -344,9 +344,9 @@ static int init_cc_resources(struct platform_device *plat_dev)
 		goto post_buf_mgr_err;
 	}
 
-	rc = ssi_ivgen_init(new_drvdata);
+	rc = cc_ivgen_init(new_drvdata);
 	if (rc) {
-		dev_err(dev, "ssi_ivgen_init failed\n");
+		dev_err(dev, "cc_ivgen_init failed\n");
 		goto post_power_mgr_err;
 	}
 
@@ -383,7 +383,7 @@ post_hash_err:
 post_cipher_err:
 	cc_cipher_free(new_drvdata);
 post_ivgen_err:
-	ssi_ivgen_fini(new_drvdata);
+	cc_ivgen_fini(new_drvdata);
 post_power_mgr_err:
 	cc_pm_fini(new_drvdata);
 post_buf_mgr_err:
@@ -419,7 +419,7 @@ static void cleanup_cc_resources(struct platform_device *plat_dev)
 	cc_aead_free(drvdata);
 	cc_hash_free(drvdata);
 	cc_cipher_free(drvdata);
-	ssi_ivgen_fini(drvdata);
+	cc_ivgen_fini(drvdata);
 	cc_pm_fini(drvdata);
 	cc_buffer_mgr_fini(drvdata);
 	cc_req_mgr_fini(drvdata);

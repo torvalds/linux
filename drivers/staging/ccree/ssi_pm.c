@@ -81,7 +81,7 @@ int cc_pm_resume(struct device *dev)
 	/* must be after the queue resuming as it uses the HW queue*/
 	cc_init_hash_sram(drvdata);
 
-	ssi_ivgen_init_sram_pool(drvdata);
+	cc_init_iv_sram(drvdata);
 	return 0;
 }
 

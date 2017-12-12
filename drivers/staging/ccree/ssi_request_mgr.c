@@ -329,9 +329,10 @@ int send_request(struct ssi_drvdata *drvdata, struct ssi_crypto_req *ssi_req,
 			ssi_req->ivgen_size);
 
 		/* Acquire IV from pool */
-		rc = ssi_ivgen_getiv(drvdata, ssi_req->ivgen_dma_addr,
-				     ssi_req->ivgen_dma_addr_len,
-				     ssi_req->ivgen_size, iv_seq, &iv_seq_len);
+		rc = cc_get_iv(drvdata, ssi_req->ivgen_dma_addr,
+			       ssi_req->ivgen_dma_addr_len,
+			       ssi_req->ivgen_size,
+			       iv_seq, &iv_seq_len);
 
 		if (rc) {
 			dev_err(dev, "Failed to generate IV (rc=%d)\n", rc);

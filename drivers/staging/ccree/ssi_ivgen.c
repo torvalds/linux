@@ -24,15 +24,15 @@
 #include "ssi_buffer_mgr.h"
 
 /* The max. size of pool *MUST* be <= SRAM total size */
-#define SSI_IVPOOL_SIZE 1024
+#define CC_IVPOOL_SIZE 1024
 /* The first 32B fraction of pool are dedicated to the
  * next encryption "key" & "IV" for pool regeneration
  */
-#define SSI_IVPOOL_META_SIZE (CC_AES_IV_SIZE + AES_KEYSIZE_128)
-#define SSI_IVPOOL_GEN_SEQ_LEN	4
+#define CC_IVPOOL_META_SIZE (CC_AES_IV_SIZE + AES_KEYSIZE_128)
+#define CC_IVPOOL_GEN_SEQ_LEN	4
 
 /**
- * struct ssi_ivgen_ctx -IV pool generation context
+ * struct cc_ivgen_ctx -IV pool generation context
  * @pool:          the start address of the iv-pool resides in internal RAM
  * @ctr_key_dma:   address of pool's encryption key material in internal RAM
  * @ctr_iv_dma:    address of pool's counter iv in internal RAM
@@ -40,7 +40,7 @@
  * @pool_meta:     virt. address of the initial enc. key/IV
  * @pool_meta_dma: phys. address of the initial enc. key/IV
  */
-struct ssi_ivgen_ctx {
+struct cc_ivgen_ctx {
 	ssi_sram_addr_t pool;
 	ssi_sram_addr_t ctr_key;
 	ssi_sram_addr_t ctr_iv;
@@ -50,21 +50,21 @@ struct ssi_ivgen_ctx {
 };
 
 /*!
- * Generates SSI_IVPOOL_SIZE of random bytes by
+ * Generates CC_IVPOOL_SIZE of random bytes by
  * encrypting 0's using AES128-CTR.
  *
  * \param ivgen iv-pool context
  * \param iv_seq IN/OUT array to the descriptors sequence
  * \param iv_seq_len IN/OUT pointer to the sequence length
  */
-static int ssi_ivgen_generate_pool(
-	struct ssi_ivgen_ctx *ivgen_ctx,
+static int cc_gen_iv_pool(
+	struct cc_ivgen_ctx *ivgen_ctx,
 	struct cc_hw_desc iv_seq[],
 	unsigned int *iv_seq_len)
 {
 	unsigned int idx = *iv_seq_len;
 
-	if ((*iv_seq_len + SSI_IVPOOL_GEN_SEQ_LEN) > SSI_IVPOOL_SEQ_LEN) {
+	if ((*iv_seq_len + CC_IVPOOL_GEN_SEQ_LEN) > SSI_IVPOOL_SEQ_LEN) {
 		/* The sequence will be longer than allowed */
 		return -EINVAL;
 	}
@@ -97,15 +97,15 @@ static int ssi_ivgen_generate_pool(
 
 	/* Generate IV pool */
 	hw_desc_init(&iv_seq[idx]);
-	set_din_const(&iv_seq[idx], 0, SSI_IVPOOL_SIZE);
-	set_dout_sram(&iv_seq[idx], ivgen_ctx->pool, SSI_IVPOOL_SIZE);
+	set_din_const(&iv_seq[idx], 0, CC_IVPOOL_SIZE);
+	set_dout_sram(&iv_seq[idx], ivgen_ctx->pool, CC_IVPOOL_SIZE);
 	set_flow_mode(&iv_seq[idx], DIN_AES_DOUT);
 	idx++;
 
 	*iv_seq_len = idx; /* Update sequence length */
 
 	/* queue ordering assures pool readiness */
-	ivgen_ctx->next_iv_ofs = SSI_IVPOOL_META_SIZE;
+	ivgen_ctx->next_iv_ofs = CC_IVPOOL_META_SIZE;
 
 	return 0;
 }
@@ -118,15 +118,15 @@ static int ssi_ivgen_generate_pool(
  *
  * \return int Zero for success, negative value otherwise.
  */
-int ssi_ivgen_init_sram_pool(struct ssi_drvdata *drvdata)
+int cc_init_iv_sram(struct ssi_drvdata *drvdata)
 {
-	struct ssi_ivgen_ctx *ivgen_ctx = drvdata->ivgen_handle;
+	struct cc_ivgen_ctx *ivgen_ctx = drvdata->ivgen_handle;
 	struct cc_hw_desc iv_seq[SSI_IVPOOL_SEQ_LEN];
 	unsigned int iv_seq_len = 0;
 	int rc;
 
 	/* Generate initial enc. key/iv */
-	get_random_bytes(ivgen_ctx->pool_meta, SSI_IVPOOL_META_SIZE);
+	get_random_bytes(ivgen_ctx->pool_meta, CC_IVPOOL_META_SIZE);
 
 	/* The first 32B reserved for the enc. Key/IV */
 	ivgen_ctx->ctr_key = ivgen_ctx->pool;
@@ -135,14 +135,14 @@ int ssi_ivgen_init_sram_pool(struct ssi_drvdata *drvdata)
 	/* Copy initial enc. key and IV to SRAM at a single descriptor */
 	hw_desc_init(&iv_seq[iv_seq_len]);
 	set_din_type(&iv_seq[iv_seq_len], DMA_DLLI, ivgen_ctx->pool_meta_dma,
-		     SSI_IVPOOL_META_SIZE, NS_BIT);
+		     CC_IVPOOL_META_SIZE, NS_BIT);
 	set_dout_sram(&iv_seq[iv_seq_len], ivgen_ctx->pool,
-		      SSI_IVPOOL_META_SIZE);
+		      CC_IVPOOL_META_SIZE);
 	set_flow_mode(&iv_seq[iv_seq_len], BYPASS);
 	iv_seq_len++;
 
 	/* Generate initial pool */
-	rc = ssi_ivgen_generate_pool(ivgen_ctx, iv_seq, &iv_seq_len);
+	rc = cc_gen_iv_pool(ivgen_ctx, iv_seq, &iv_seq_len);
 	if (rc)
 		return rc;
 
@@ -155,17 +155,17 @@ int ssi_ivgen_init_sram_pool(struct ssi_drvdata *drvdata)
  *
  * \param drvdata
  */
-void ssi_ivgen_fini(struct ssi_drvdata *drvdata)
+void cc_ivgen_fini(struct ssi_drvdata *drvdata)
 {
-	struct ssi_ivgen_ctx *ivgen_ctx = drvdata->ivgen_handle;
+	struct cc_ivgen_ctx *ivgen_ctx = drvdata->ivgen_handle;
 	struct device *device = &drvdata->plat_dev->dev;
 
 	if (!ivgen_ctx)
 		return;
 
 	if (ivgen_ctx->pool_meta) {
-		memset(ivgen_ctx->pool_meta, 0, SSI_IVPOOL_META_SIZE);
-		dma_free_coherent(device, SSI_IVPOOL_META_SIZE,
+		memset(ivgen_ctx->pool_meta, 0, CC_IVPOOL_META_SIZE);
+		dma_free_coherent(device, CC_IVPOOL_META_SIZE,
 				  ivgen_ctx->pool_meta,
 				  ivgen_ctx->pool_meta_dma);
 	}
@@ -184,9 +184,9 @@ void ssi_ivgen_fini(struct ssi_drvdata *drvdata)
  *
  * \return int Zero for success, negative value otherwise.
  */
-int ssi_ivgen_init(struct ssi_drvdata *drvdata)
+int cc_ivgen_init(struct ssi_drvdata *drvdata)
 {
-	struct ssi_ivgen_ctx *ivgen_ctx;
+	struct cc_ivgen_ctx *ivgen_ctx;
 	struct device *device = &drvdata->plat_dev->dev;
 	int rc;
 
@@ -199,27 +199,27 @@ int ssi_ivgen_init(struct ssi_drvdata *drvdata)
 	ivgen_ctx = drvdata->ivgen_handle;
 
 	/* Allocate pool's header for initial enc. key/IV */
-	ivgen_ctx->pool_meta = dma_alloc_coherent(device, SSI_IVPOOL_META_SIZE,
+	ivgen_ctx->pool_meta = dma_alloc_coherent(device, CC_IVPOOL_META_SIZE,
 						  &ivgen_ctx->pool_meta_dma,
 						  GFP_KERNEL);
 	if (!ivgen_ctx->pool_meta) {
 		dev_err(device, "Not enough memory to allocate DMA of pool_meta (%u B)\n",
-			SSI_IVPOOL_META_SIZE);
+			CC_IVPOOL_META_SIZE);
 		rc = -ENOMEM;
 		goto out;
 	}
 	/* Allocate IV pool in SRAM */
-	ivgen_ctx->pool = cc_sram_alloc(drvdata, SSI_IVPOOL_SIZE);
+	ivgen_ctx->pool = cc_sram_alloc(drvdata, CC_IVPOOL_SIZE);
 	if (ivgen_ctx->pool == NULL_SRAM_ADDR) {
 		dev_err(device, "SRAM pool exhausted\n");
 		rc = -ENOMEM;
 		goto out;
 	}
 
-	return ssi_ivgen_init_sram_pool(drvdata);
+	return cc_init_iv_sram(drvdata);
 
 out:
-	ssi_ivgen_fini(drvdata);
+	cc_ivgen_fini(drvdata);
 	return rc;
 }
 
@@ -236,7 +236,7 @@ out:
  *
  * \return int Zero for success, negative value otherwise.
  */
-int ssi_ivgen_getiv(
+int cc_get_iv(
 	struct ssi_drvdata *drvdata,
 	dma_addr_t iv_out_dma[],
 	unsigned int iv_out_dma_len,
@@ -244,7 +244,7 @@ int ssi_ivgen_getiv(
 	struct cc_hw_desc iv_seq[],
 	unsigned int *iv_seq_len)
 {
-	struct ssi_ivgen_ctx *ivgen_ctx = drvdata->ivgen_handle;
+	struct cc_ivgen_ctx *ivgen_ctx = drvdata->ivgen_handle;
 	unsigned int idx = *iv_seq_len;
 	struct device *dev = drvdata_to_dev(drvdata);
 	unsigned int t;
@@ -291,10 +291,10 @@ int ssi_ivgen_getiv(
 	/* Update iv index */
 	ivgen_ctx->next_iv_ofs += iv_out_size;
 
-	if ((SSI_IVPOOL_SIZE - ivgen_ctx->next_iv_ofs) < CC_AES_IV_SIZE) {
+	if ((CC_IVPOOL_SIZE - ivgen_ctx->next_iv_ofs) < CC_AES_IV_SIZE) {
 		dev_dbg(dev, "Pool exhausted, regenerating iv-pool\n");
 		/* pool is drained -regenerate it! */
-		return ssi_ivgen_generate_pool(ivgen_ctx, iv_seq, iv_seq_len);
+		return cc_gen_iv_pool(ivgen_ctx, iv_seq, iv_seq_len);
 	}
 
 	return 0;
