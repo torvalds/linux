@@ -13674,19 +13674,11 @@ dhd_os_sdunlock_txq(dhd_pub_t *pub)
 void
 dhd_os_sdlock_rxq(dhd_pub_t *pub)
 {
-	dhd_info_t *dhd;
-
-	dhd = (dhd_info_t *)(pub->info);
-	spin_lock_bh(&dhd->rxqlock);
 }
 
 void
 dhd_os_sdunlock_rxq(dhd_pub_t *pub)
 {
-	dhd_info_t *dhd;
-
-	dhd = (dhd_info_t *)(pub->info);
-	spin_unlock_bh(&dhd->rxqlock);
 }
 
 static void
