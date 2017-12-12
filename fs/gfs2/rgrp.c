@@ -1040,6 +1040,7 @@ static void gfs2_rgrp_in(struct gfs2_rgrpd *rgd, const void *buf)
 	rgd->rd_free = be32_to_cpu(str->rg_free);
 	rgd->rd_dinodes = be32_to_cpu(str->rg_dinodes);
 	rgd->rd_igeneration = be64_to_cpu(str->rg_igeneration);
+	/* rd_data0, rd_data and rd_bitbytes already set from rindex */
 }
 
 static void gfs2_rgrp_out(struct gfs2_rgrpd *rgd, void *buf)
@@ -1055,6 +1056,10 @@ static void gfs2_rgrp_out(struct gfs2_rgrpd *rgd, void *buf)
 	else if (next->rd_addr > rgd->rd_addr)
 		str->rg_skip = cpu_to_be32(next->rd_addr - rgd->rd_addr);
 	str->rg_igeneration = cpu_to_be64(rgd->rd_igeneration);
+	str->rg_data0 = cpu_to_be64(rgd->rd_data0);
+	str->rg_data = cpu_to_be32(rgd->rd_data);
+	str->rg_bitbytes = cpu_to_be32(rgd->rd_bitbytes);
+
 	memset(&str->rg_reserved, 0, sizeof(str->rg_reserved));
 }
 

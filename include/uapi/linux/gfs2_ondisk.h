@@ -192,8 +192,13 @@ struct gfs2_rgrp {
 		__be32 rg_skip; /* Distance to the next rgrp in fs blocks */
 	};
 	__be64 rg_igeneration;
+	/* The following 3 fields are duplicated from gfs2_rindex to reduce
+	   reliance on the rindex */
+	__be64 rg_data0;     /* First data location */
+	__be32 rg_data;      /* Number of data blocks in rgrp */
+	__be32 rg_bitbytes;  /* Number of bytes in data bitmaps */
 
-	__u8 rg_reserved[80]; /* Several fields from gfs1 now reserved */
+	__u8 rg_reserved[64]; /* Several fields from gfs1 now reserved */
 };
 
 /*
