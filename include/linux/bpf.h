@@ -254,6 +254,7 @@ typedef unsigned long (*bpf_ctx_copy_t)(void *dst, const void *src,
 
 u64 bpf_event_output(struct bpf_map *map, u64 flags, void *meta, u64 meta_size,
 		     void *ctx, u64 ctx_size, bpf_ctx_copy_t ctx_copy);
+int bpf_event_query_prog_array(struct perf_event *event, void __user *info);
 
 int bpf_prog_test_run_xdp(struct bpf_prog *prog, const union bpf_attr *kattr,
 			  union bpf_attr __user *uattr);
@@ -285,6 +286,9 @@ int bpf_prog_array_copy_to_user(struct bpf_prog_array __rcu *progs,
 
 void bpf_prog_array_delete_safe(struct bpf_prog_array __rcu *progs,
 				struct bpf_prog *old_prog);
+int bpf_prog_array_copy_info(struct bpf_prog_array __rcu *array,
+			     __u32 __user *prog_ids, u32 request_cnt,
+			     __u32 __user *prog_cnt);
 int bpf_prog_array_copy(struct bpf_prog_array __rcu *old_array,
 			struct bpf_prog *exclude_prog,
 			struct bpf_prog *include_prog,

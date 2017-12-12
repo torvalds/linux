@@ -4723,6 +4723,9 @@ static long _perf_ioctl(struct perf_event *event, unsigned int cmd, unsigned lon
 		rcu_read_unlock();
 		return 0;
 	}
+
+	case PERF_EVENT_IOC_QUERY_BPF:
+		return bpf_event_query_prog_array(event, (void __user *)arg);
 	default:
 		return -ENOTTY;
 	}
