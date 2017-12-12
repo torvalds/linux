@@ -240,7 +240,7 @@
 			status = "disabled";
 		};
 
-		reboot-mode {
+		reboot_mode: reboot-mode {
 			compatible = "syscon-reboot-mode";
 			offset = <0x5c8>;
 			mode-normal = <BOOT_NORMAL>;

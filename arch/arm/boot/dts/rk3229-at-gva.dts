@@ -147,6 +147,10 @@
 	};
 };
 
+&reboot_mode {
+	/delete-property/ mode-bootloader;
+};
+
 &sdio {
 	max-frequency = <150000000>;
 	mmc-pwrseq = <&sdio_pwrseq>;
