@@ -1030,13 +1030,13 @@ void ovl_workdir_cleanup(struct inode *dir, struct vfsmount *mnt,
 	}
 }
 
-int ovl_indexdir_cleanup(struct dentry *dentry, struct vfsmount *mnt,
-			 struct ovl_path *lower, unsigned int numlower)
+int ovl_indexdir_cleanup(struct ovl_fs *ofs)
 {
 	int err;
+	struct dentry *indexdir = ofs->indexdir;
 	struct dentry *index = NULL;
-	struct inode *dir = dentry->d_inode;
-	struct path path = { .mnt = mnt, .dentry = dentry };
+	struct inode *dir = indexdir->d_inode;
+	struct path path = { .mnt = ofs->upper_mnt, .dentry = indexdir };
 	LIST_HEAD(list);
 	struct rb_root root = RB_ROOT;
 	struct ovl_cache_entry *p;
@@ -1060,13 +1060,13 @@ int ovl_indexdir_cleanup(struct dentry *dentry, struct vfsmount *mnt,
 			if (p->len == 2 && p->name[1] == '.')
 				continue;
 		}
-		index = lookup_one_len(p->name, dentry, p->len);
+		index = lookup_one_len(p->name, indexdir, p->len);
 		if (IS_ERR(index)) {
 			err = PTR_ERR(index);
 			index = NULL;
 			break;
 		}
-		err = ovl_verify_index(index, lower, numlower);
+		err = ovl_verify_index(ofs, index);
 		/* Cleanup stale and orphan index entries */
 		if (err && (err == -ESTALE || err == -ENOENT))
 			err = ovl_cleanup(dir, index);

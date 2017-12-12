@@ -1057,10 +1057,7 @@ static int ovl_get_indexdir(struct ovl_fs *ofs, struct ovl_entry *oe,
 
 		/* Cleanup bad/stale/orphan index entries */
 		if (!err)
-			err = ovl_indexdir_cleanup(ofs->indexdir,
-						   ofs->upper_mnt,
-						   oe->lowerstack,
-						   oe->numlower);
+			err = ovl_indexdir_cleanup(ofs);
 	}
 	if (err || !ofs->indexdir)
 		pr_warn("overlayfs: try deleting index dir or mounting with '-o index=off' to disable inodes index.\n");
