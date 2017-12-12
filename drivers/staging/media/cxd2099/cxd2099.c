@@ -26,7 +26,7 @@
 
 static int buffermode;
 module_param(buffermode, int, 0444);
-MODULE_PARM_DESC(buffermode, "Enable use of the CXD2099AR buffer mode (default: disabled)");
+MODULE_PARM_DESC(buffermode, "Enable CXD2099AR buffer mode (default: disabled)");
 
 static int read_data(struct dvb_ca_en50221 *ca, int slot, u8 *ebuf, int ecount);
 
@@ -668,7 +668,8 @@ struct dvb_ca_en50221 *cxd2099_attach(struct cxd2099_cfg *cfg,
 	u8 val;
 
 	if (i2c_read_reg(i2c, cfg->adr, 0, &val) < 0) {
-		dev_info(&i2c->dev, "No CXD2099 detected at %02x\n", cfg->adr);
+		dev_info(&i2c->dev, "No CXD2099AR detected at 0x%02x\n",
+			 cfg->adr);
 		return NULL;
 	}
 
@@ -686,7 +687,7 @@ struct dvb_ca_en50221 *cxd2099_attach(struct cxd2099_cfg *cfg,
 	ci->en = en_templ;
 	ci->en.data = ci;
 	init(ci);
-	dev_info(&i2c->dev, "Attached CXD2099AR at %02x\n", ci->cfg.adr);
+	dev_info(&i2c->dev, "Attached CXD2099AR at 0x%02x\n", ci->cfg.adr);
 
 	if (!buffermode) {
 		ci->en.read_data = NULL;
@@ -699,6 +700,6 @@ struct dvb_ca_en50221 *cxd2099_attach(struct cxd2099_cfg *cfg,
 }
 EXPORT_SYMBOL(cxd2099_attach);
 
-MODULE_DESCRIPTION("cxd2099");
+MODULE_DESCRIPTION("CXD2099AR Common Interface controller driver");
 MODULE_AUTHOR("Ralph Metzler");
 MODULE_LICENSE("GPL");
