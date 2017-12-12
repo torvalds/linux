@@ -413,11 +413,9 @@ static int cc_map_sg(struct device *dev, struct scatterlist *sg,
 }
 
 static int
-ssi_aead_handle_config_buf(struct device *dev,
-			   struct aead_req_ctx *areq_ctx,
-			   u8 *config_data,
-			   struct buffer_array *sg_data,
-			   unsigned int assoclen)
+cc_set_aead_conf_buf(struct device *dev, struct aead_req_ctx *areq_ctx,
+		     u8 *config_data, struct buffer_array *sg_data,
+		     unsigned int assoclen)
 {
 	dev_dbg(dev, " handle additional data config set to DLLI\n");
 	/* create sg for the current buffer */
@@ -441,10 +439,9 @@ ssi_aead_handle_config_buf(struct device *dev,
 	return 0;
 }
 
-static int ssi_ahash_handle_curr_buf(struct device *dev,
-				     struct ahash_req_ctx *areq_ctx,
-				     u8 *curr_buff, u32 curr_buff_cnt,
-				     struct buffer_array *sg_data)
+static int cc_set_hash_buf(struct device *dev, struct ahash_req_ctx *areq_ctx,
+			   u8 *curr_buff, u32 curr_buff_cnt,
+			   struct buffer_array *sg_data)
 {
 	dev_dbg(dev, " handle curr buff %x set to   DLLI\n", curr_buff_cnt);
 	/* create sg for the current buffer */
@@ -1259,9 +1256,8 @@ int cc_map_aead_request(struct cc_drvdata *drvdata, struct aead_request *req)
 		}
 		areq_ctx->ccm_iv0_dma_addr = dma_addr;
 
-		if (ssi_aead_handle_config_buf(dev, areq_ctx,
-					       areq_ctx->ccm_config, &sg_data,
-					       req->assoclen)) {
+		if (cc_set_aead_conf_buf(dev, areq_ctx, areq_ctx->ccm_config,
+					 &sg_data, req->assoclen)) {
 			rc = -ENOMEM;
 			goto aead_map_failure;
 		}
@@ -1432,8 +1428,8 @@ int cc_map_hash_request_final(struct cc_drvdata *drvdata, void *ctx,
 	/*TODO: copy data in case that buffer is enough for operation */
 	/* map the previous buffer */
 	if (*curr_buff_cnt) {
-		if (ssi_ahash_handle_curr_buf(dev, areq_ctx, curr_buff,
-					      *curr_buff_cnt, &sg_data)) {
+		if (cc_set_hash_buf(dev, areq_ctx, curr_buff, *curr_buff_cnt,
+				    &sg_data)) {
 			return -ENOMEM;
 		}
 	}
@@ -1545,8 +1541,8 @@ int cc_map_hash_request_update(struct cc_drvdata *drvdata, void *ctx,
 	}
 
 	if (*curr_buff_cnt) {
-		if (ssi_ahash_handle_curr_buf(dev, areq_ctx, curr_buff,
-					      *curr_buff_cnt, &sg_data)) {
+		if (cc_set_hash_buf(dev, areq_ctx, curr_buff, *curr_buff_cnt,
+				    &sg_data)) {
 			return -ENOMEM;
 		}
 		/* change the buffer index for next operation */
