@@ -57,10 +57,8 @@ struct cc_ivgen_ctx {
  * \param iv_seq IN/OUT array to the descriptors sequence
  * \param iv_seq_len IN/OUT pointer to the sequence length
  */
-static int cc_gen_iv_pool(
-	struct cc_ivgen_ctx *ivgen_ctx,
-	struct cc_hw_desc iv_seq[],
-	unsigned int *iv_seq_len)
+static int cc_gen_iv_pool(struct cc_ivgen_ctx *ivgen_ctx,
+			  struct cc_hw_desc iv_seq[], unsigned int *iv_seq_len)
 {
 	unsigned int idx = *iv_seq_len;
 
@@ -236,13 +234,9 @@ out:
  *
  * \return int Zero for success, negative value otherwise.
  */
-int cc_get_iv(
-	struct ssi_drvdata *drvdata,
-	dma_addr_t iv_out_dma[],
-	unsigned int iv_out_dma_len,
-	unsigned int iv_out_size,
-	struct cc_hw_desc iv_seq[],
-	unsigned int *iv_seq_len)
+int cc_get_iv(struct ssi_drvdata *drvdata, dma_addr_t iv_out_dma[],
+	      unsigned int iv_out_dma_len, unsigned int iv_out_size,
+	      struct cc_hw_desc iv_seq[], unsigned int *iv_seq_len)
 {
 	struct cc_ivgen_ctx *ivgen_ctx = drvdata->ivgen_handle;
 	unsigned int idx = *iv_seq_len;

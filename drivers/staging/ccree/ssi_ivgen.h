@@ -61,12 +61,8 @@ int cc_init_iv_sram(struct ssi_drvdata *drvdata);
  *
  * \return int Zero for success, negative value otherwise.
  */
-int cc_get_iv(
-	struct ssi_drvdata *drvdata,
-	dma_addr_t iv_out_dma[],
-	unsigned int iv_out_dma_len,
-	unsigned int iv_out_size,
-	struct cc_hw_desc iv_seq[],
-	unsigned int *iv_seq_len);
+int cc_get_iv(struct ssi_drvdata *drvdata, dma_addr_t iv_out_dma[],
+	      unsigned int iv_out_dma_len, unsigned int iv_out_size,
+	      struct cc_hw_desc iv_seq[], unsigned int *iv_seq_len);
 
 #endif /*__SSI_IVGEN_H__*/
