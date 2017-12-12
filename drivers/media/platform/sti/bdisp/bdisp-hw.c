@@ -1064,7 +1064,7 @@ static void bdisp_hw_save_request(struct bdisp_ctx *ctx)
 		if (!copy_node[i]) {
 			copy_node[i] = devm_kzalloc(ctx->bdisp_dev->dev,
 						    sizeof(*copy_node[i]),
-						    GFP_KERNEL);
+						    GFP_ATOMIC);
 			if (!copy_node[i])
 				return;
 		}
