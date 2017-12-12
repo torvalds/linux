@@ -1226,8 +1226,9 @@ static void cc_hmac_authenc(struct aead_request *req, struct cc_hw_desc desc[],
 	struct cc_aead_ctx *ctx = crypto_aead_ctx(tfm);
 	struct aead_req_ctx *req_ctx = aead_request_ctx(req);
 	int direct = req_ctx->gen_ctx.op_type;
-	unsigned int data_flow_mode = cc_get_data_flow(
-		direct, ctx->flow_mode, req_ctx->is_single_pass);
+	unsigned int data_flow_mode =
+		cc_get_data_flow(direct, ctx->flow_mode,
+				 req_ctx->is_single_pass);
 
 	if (req_ctx->is_single_pass) {
 		/**
@@ -1278,8 +1279,9 @@ cc_xcbc_authenc(struct aead_request *req, struct cc_hw_desc desc[],
 	struct cc_aead_ctx *ctx = crypto_aead_ctx(tfm);
 	struct aead_req_ctx *req_ctx = aead_request_ctx(req);
 	int direct = req_ctx->gen_ctx.op_type;
-	unsigned int data_flow_mode = cc_get_data_flow(
-		direct, ctx->flow_mode, req_ctx->is_single_pass);
+	unsigned int data_flow_mode =
+		cc_get_data_flow(direct, ctx->flow_mode,
+				 req_ctx->is_single_pass);
 
 	if (req_ctx->is_single_pass) {
 		/**
