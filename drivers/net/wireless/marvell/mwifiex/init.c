@@ -314,6 +314,7 @@ static void mwifiex_init_adapter(struct mwifiex_adapter *adapter)
 	adapter->iface_limit.p2p_intf = MWIFIEX_MAX_P2P_NUM;
 	adapter->active_scan_triggered = false;
 	timer_setup(&adapter->wakeup_timer, wakeup_timer_fn, 0);
+	adapter->devdump_len = 0;
 }
 
 /*
