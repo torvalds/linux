@@ -523,12 +523,33 @@ static int rv_dpm_force_dpm_level(struct pp_hwmgr *hwmgr,
 
 static uint32_t rv_dpm_get_mclk(struct pp_hwmgr *hwmgr, bool low)
 {
-	return 0;
+	struct rv_hwmgr *data;
+
+	if (hwmgr == NULL)
+		return -EINVAL;
+
+	data = (struct rv_hwmgr *)(hwmgr->backend);
+
+	if (low)
+		return data->clock_vol_info.vdd_dep_on_fclk->entries[0].clk;
+	else
+		return data->clock_vol_info.vdd_dep_on_fclk->entries[
+			data->clock_vol_info.vdd_dep_on_fclk->count - 1].clk;
 }
 
 static uint32_t rv_dpm_get_sclk(struct pp_hwmgr *hwmgr, bool low)
 {
-	return 0;
+	struct rv_hwmgr *data;
+
+	if (hwmgr == NULL)
+		return -EINVAL;
+
+	data = (struct rv_hwmgr *)(hwmgr->backend);
+
+	if (low)
+		return data->gfx_min_freq_limit;
+	else
+		return data->gfx_max_freq_limit;
 }
 
 static int rv_dpm_patch_boot_state(struct pp_hwmgr *hwmgr,
