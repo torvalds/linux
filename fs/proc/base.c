@@ -2268,7 +2268,7 @@ static int show_timer(struct seq_file *m, void *v)
 	notify = timer->it_sigev_notify;
 
 	seq_printf(m, "ID: %d\n", timer->it_id);
-	seq_printf(m, "signal: %d/%p\n",
+	seq_printf(m, "signal: %d/%px\n",
 		   timer->sigq->info.si_signo,
 		   timer->sigq->info.si_value.sival_ptr);
 	seq_printf(m, "notify: %s/%s.%d\n",

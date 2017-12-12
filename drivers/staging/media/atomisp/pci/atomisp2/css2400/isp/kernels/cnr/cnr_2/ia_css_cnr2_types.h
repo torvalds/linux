@@ -15,11 +15,11 @@
 #ifndef __IA_CSS_CNR2_TYPES_H
 #define __IA_CSS_CNR2_TYPES_H
 
-/** @file
+/* @file
 * CSS-API header file for Chroma Noise Reduction (CNR) parameters
 */
 
-/** Chroma Noise Reduction configuration.
+/* Chroma Noise Reduction configuration.
  *
  *  Small sensitivity of edge means strong smoothness and NR performance.
  *  If you see blurred color on vertical edges,
@@ -33,21 +33,21 @@
  *  ISP2: CNR2 is used for Still.
  */
 struct ia_css_cnr_config {
-	uint16_t coring_u;	/**< Coring level of U.
+	uint16_t coring_u;	/** Coring level of U.
 				u0.13, [0,8191], default/ineffective 0 */
-	uint16_t coring_v;	/**< Coring level of V.
+	uint16_t coring_v;	/** Coring level of V.
 				u0.13, [0,8191], default/ineffective 0 */
-	uint16_t sense_gain_vy;	/**< Sensitivity of horizontal edge of Y.
+	uint16_t sense_gain_vy;	/** Sensitivity of horizontal edge of Y.
 				u13.0, [0,8191], default 100, ineffective 8191 */
-	uint16_t sense_gain_vu;	/**< Sensitivity of horizontal edge of U.
+	uint16_t sense_gain_vu;	/** Sensitivity of horizontal edge of U.
 				u13.0, [0,8191], default 100, ineffective 8191 */
-	uint16_t sense_gain_vv;	/**< Sensitivity of horizontal edge of V.
+	uint16_t sense_gain_vv;	/** Sensitivity of horizontal edge of V.
 				u13.0, [0,8191], default 100, ineffective 8191 */
-	uint16_t sense_gain_hy;	/**< Sensitivity of vertical edge of Y.
+	uint16_t sense_gain_hy;	/** Sensitivity of vertical edge of Y.
 				u13.0, [0,8191], default 50, ineffective 8191 */
-	uint16_t sense_gain_hu;	/**< Sensitivity of vertical edge of U.
+	uint16_t sense_gain_hu;	/** Sensitivity of vertical edge of U.
 				u13.0, [0,8191], default 50, ineffective 8191 */
-	uint16_t sense_gain_hv;	/**< Sensitivity of vertical edge of V.
+	uint16_t sense_gain_hv;	/** Sensitivity of vertical edge of V.
 				u13.0, [0,8191], default 50, ineffective 8191 */
 };
 

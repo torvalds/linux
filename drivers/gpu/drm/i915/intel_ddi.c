@@ -2131,6 +2131,7 @@ static void intel_ddi_clk_select(struct intel_encoder *encoder,
 	if (IS_CANNONLAKE(dev_priv)) {
 		/* Configure DPCLKA_CFGCR0 to map the DPLL to the DDI. */
 		val = I915_READ(DPCLKA_CFGCR0);
+		val &= ~DPCLKA_CFGCR0_DDI_CLK_SEL_MASK(port);
 		val |= DPCLKA_CFGCR0_DDI_CLK_SEL(pll->id, port);
 		I915_WRITE(DPCLKA_CFGCR0, val);
 

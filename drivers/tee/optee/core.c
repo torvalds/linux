@@ -590,7 +590,6 @@ static int __init optee_driver_init(void)
 		return -ENODEV;
 
 	np = of_find_matching_node(fw_np, optee_match);
-	of_node_put(fw_np);
 	if (!np)
 		return -ENODEV;
 

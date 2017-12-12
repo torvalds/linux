@@ -267,7 +267,7 @@ static void sh_veu_process(struct sh_veu_dev *veu,
 	sh_veu_reg_write(veu, VEU_EIER, 1); /* enable interrupt in VEU */
 }
 
-/**
+/*
  * sh_veu_device_run() - prepares and starts the device
  *
  * This will be called by the framework when it decides to schedule a particular

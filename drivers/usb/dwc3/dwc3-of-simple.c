@@ -51,8 +51,10 @@ static int dwc3_of_simple_clk_init(struct dwc3_of_simple *simple, int count)
 
 		clk = of_clk_get(np, i);
 		if (IS_ERR(clk)) {
-			while (--i >= 0)
+			while (--i >= 0) {
+				clk_disable_unprepare(simple->clks[i]);
 				clk_put(simple->clks[i]);
+			}
 			return PTR_ERR(clk);
 		}
 
@@ -203,6 +205,7 @@ static struct platform_driver dwc3_of_simple_driver = {
 	.driver		= {
 		.name	= "dwc3-of-simple",
 		.of_match_table = of_dwc3_simple_match,
+		.pm	= &dwc3_of_simple_dev_pm_ops,
 	},
 };
 
