@@ -216,6 +216,11 @@
 		      reg = <0x10830400 0x200>;
 		};
 
+		trng: rng@10830600 {
+		      compatible = "samsung,exynos5250-trng";
+		      reg = <0x10830600 0x100>;
+		};
+
 		g2d: g2d@10850000 {
 			compatible = "samsung,exynos5250-g2d";
 			reg = <0x10850000 0x1000>;

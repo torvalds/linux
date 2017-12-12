@@ -392,6 +392,11 @@
 		  3 0 0x07000000 0x20000>;
 };
 
+&trng {
+	clocks = <&clock CLK_SSS>;
+	clock-names = "secss";
+};
+
 &usbdrd3_0 {
 	clocks = <&clock CLK_USBD300>;
 	clock-names = "usbdrd30";

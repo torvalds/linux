@@ -1111,4 +1111,9 @@
 	clock-names = "secss";
 };
 
+&trng {
+	clocks = <&clock CLK_SSS>;
+	clock-names = "secss";
+};
+
 #include "exynos5250-pinctrl.dtsi"
