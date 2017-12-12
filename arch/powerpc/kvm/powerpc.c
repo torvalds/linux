@@ -1607,12 +1607,11 @@ int kvm_arch_vcpu_ioctl_set_mpstate(struct kvm_vcpu *vcpu,
 	return -EINVAL;
 }
 
-long kvm_arch_vcpu_ioctl(struct file *filp,
-                         unsigned int ioctl, unsigned long arg)
+long kvm_arch_vcpu_async_ioctl(struct file *filp,
+			       unsigned int ioctl, unsigned long arg)
 {
 	struct kvm_vcpu *vcpu = filp->private_data;
 	void __user *argp = (void __user *)arg;
-	long r;
 
 	if (ioctl == KVM_INTERRUPT) {
 		struct kvm_interrupt irq;
@@ -1620,6 +1619,15 @@ long kvm_arch_vcpu_ioctl(struct file *filp,
 			return -EFAULT;
 		return kvm_vcpu_ioctl_interrupt(vcpu, &irq);
 	}
+	return -ENOIOCTLCMD;
+}
+
+long kvm_arch_vcpu_ioctl(struct file *filp,
+                         unsigned int ioctl, unsigned long arg)
+{
+	struct kvm_vcpu *vcpu = filp->private_data;
+	void __user *argp = (void __user *)arg;
+	long r;
 
 	vcpu_load(vcpu);
 

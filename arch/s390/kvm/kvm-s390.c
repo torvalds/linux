@@ -3725,13 +3725,11 @@ static long kvm_s390_guest_mem_op(struct kvm_vcpu *vcpu,
 	return r;
 }
 
-long kvm_arch_vcpu_ioctl(struct file *filp,
-			 unsigned int ioctl, unsigned long arg)
+long kvm_arch_vcpu_async_ioctl(struct file *filp,
+			       unsigned int ioctl, unsigned long arg)
 {
 	struct kvm_vcpu *vcpu = filp->private_data;
 	void __user *argp = (void __user *)arg;
-	int idx;
-	long r;
 
 	switch (ioctl) {
 	case KVM_S390_IRQ: {
@@ -3752,6 +3750,16 @@ long kvm_arch_vcpu_ioctl(struct file *filp,
 		return kvm_s390_inject_vcpu(vcpu, &s390irq);
 	}
 	}
+	return -ENOIOCTLCMD;
+}
+
+long kvm_arch_vcpu_ioctl(struct file *filp,
+			 unsigned int ioctl, unsigned long arg)
+{
+	struct kvm_vcpu *vcpu = filp->private_data;
+	void __user *argp = (void __user *)arg;
+	int idx;
+	long r;
 
 	vcpu_load(vcpu);
 

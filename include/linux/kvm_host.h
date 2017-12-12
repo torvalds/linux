@@ -1260,4 +1260,16 @@ static inline bool vcpu_valid_wakeup(struct kvm_vcpu *vcpu)
 }
 #endif /* CONFIG_HAVE_KVM_INVALID_WAKEUPS */
 
+#ifdef CONFIG_HAVE_KVM_VCPU_ASYNC_IOCTL
+long kvm_arch_vcpu_async_ioctl(struct file *filp,
+			       unsigned int ioctl, unsigned long arg);
+#else
+static inline long kvm_arch_vcpu_async_ioctl(struct file *filp,
+					     unsigned int ioctl,
+					     unsigned long arg)
+{
+	return -ENOIOCTLCMD;
+}
+#endif /* CONFIG_HAVE_KVM_VCPU_ASYNC_IOCTL */
+
 #endif

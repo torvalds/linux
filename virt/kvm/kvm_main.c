@@ -2544,15 +2544,13 @@ static long kvm_vcpu_ioctl(struct file *filp,
 	if (unlikely(_IOC_TYPE(ioctl) != KVMIO))
 		return -EINVAL;
 
-#if defined(CONFIG_S390) || defined(CONFIG_PPC) || defined(CONFIG_MIPS)
 	/*
-	 * Special cases: vcpu ioctls that are asynchronous to vcpu execution,
-	 * so vcpu_load() would break it.
+	 * Some architectures have vcpu ioctls that are asynchronous to vcpu
+	 * execution; mutex_lock() would break them.
 	 */
-	if (ioctl == KVM_S390_INTERRUPT || ioctl == KVM_S390_IRQ || ioctl == KVM_INTERRUPT)
-		return kvm_arch_vcpu_ioctl(filp, ioctl, arg);
-#endif
-
+	r = kvm_arch_vcpu_async_ioctl(filp, ioctl, arg);
+	if (r != -ENOIOCTLCMD)
+		return r;
 
 	if (mutex_lock_killable(&vcpu->mutex))
 		return -EINTR;
