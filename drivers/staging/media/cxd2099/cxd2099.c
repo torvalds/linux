@@ -518,7 +518,7 @@ static int slot_shutdown(struct dvb_ca_en50221 *ca, int slot)
 {
 	struct cxd *ci = ca->data;
 
-	dev_info(&ci->i2c->dev, "%s\n", __func__);
+	dev_dbg(&ci->i2c->dev, "%s\n", __func__);
 	if (ci->cammode)
 		read_data(ca, slot, ci->rbuf, 0);
 	mutex_lock(&ci->lock);
