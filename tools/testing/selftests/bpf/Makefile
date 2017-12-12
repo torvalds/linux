@@ -1,19 +1,8 @@
 # SPDX-License-Identifier: GPL-2.0
 
-ifeq ($(srctree),)
-srctree := $(patsubst %/,%,$(dir $(CURDIR)))
-srctree := $(patsubst %/,%,$(dir $(srctree)))
-srctree := $(patsubst %/,%,$(dir $(srctree)))
-srctree := $(patsubst %/,%,$(dir $(srctree)))
-endif
-include $(srctree)/tools/scripts/Makefile.arch
-
-$(call detected_var,SRCARCH)
-
 LIBDIR := ../../../lib
 BPFDIR := $(LIBDIR)/bpf
 APIDIR := ../../../include/uapi
-ASMDIR:= ../../../arch/$(ARCH)/include/uapi
 GENDIR := ../../../../include/generated
 GENHDR := $(GENDIR)/autoconf.h
 
@@ -21,7 +10,7 @@ ifneq ($(wildcard $(GENHDR)),)
   GENFLAGS := -DHAVE_GENHDR
 endif
 
-CFLAGS += -Wall -O2 -I$(APIDIR) -I$(ASMDIR) -I$(LIBDIR) -I$(GENDIR) $(GENFLAGS) -I../../../include
+CFLAGS += -Wall -O2 -I$(APIDIR) -I$(LIBDIR) -I$(GENDIR) $(GENFLAGS) -I../../../include
 LDLIBS += -lcap -lelf
 
 TEST_GEN_PROGS = test_verifier test_tag test_maps test_lru_map test_lpm_map test_progs \
