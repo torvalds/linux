@@ -41,7 +41,10 @@
 	SRI(FMT_DITHER_RAND_B_SEED, FMT, id), \
 	SRI(FMT_CLAMP_CNTL, FMT, id), \
 	SRI(FMT_DYNAMIC_EXP_CNTL, FMT, id), \
-	SRI(FMT_MAP420_MEMORY_CONTROL, FMT, id)
+	SRI(FMT_MAP420_MEMORY_CONTROL, FMT, id), \
+	SRI(OPPBUF_CONTROL, OPPBUF, id),\
+	SRI(OPPBUF_3D_PARAMETERS_0, OPPBUF, id), \
+	SRI(OPPBUF_3D_PARAMETERS_1, OPPBUF, id)
 
 #define OPP_REG_LIST_DCN10(id) \
 	OPP_REG_LIST_DCN(id)
@@ -54,7 +57,11 @@
 	uint32_t FMT_DITHER_RAND_B_SEED; \
 	uint32_t FMT_CLAMP_CNTL; \
 	uint32_t FMT_DYNAMIC_EXP_CNTL; \
-	uint32_t FMT_MAP420_MEMORY_CONTROL;
+	uint32_t FMT_MAP420_MEMORY_CONTROL; \
+	uint32_t OPPBUF_CONTROL; \
+	uint32_t OPPBUF_CONTROL1; \
+	uint32_t OPPBUF_3D_PARAMETERS_0; \
+	uint32_t OPPBUF_3D_PARAMETERS_1
 
 #define OPP_MASK_SH_LIST_DCN(mask_sh) \
 	OPP_SF(FMT0_FMT_BIT_DEPTH_CONTROL, FMT_TRUNCATE_EN, mask_sh), \
@@ -78,10 +85,16 @@
 	OPP_SF(FMT0_FMT_CLAMP_CNTL, FMT_CLAMP_COLOR_FORMAT, mask_sh), \
 	OPP_SF(FMT0_FMT_DYNAMIC_EXP_CNTL, FMT_DYNAMIC_EXP_EN, mask_sh), \
 	OPP_SF(FMT0_FMT_DYNAMIC_EXP_CNTL, FMT_DYNAMIC_EXP_MODE, mask_sh), \
-	OPP_SF(FMT0_FMT_MAP420_MEMORY_CONTROL, FMT_MAP420MEM_PWR_FORCE, mask_sh)
+	OPP_SF(FMT0_FMT_MAP420_MEMORY_CONTROL, FMT_MAP420MEM_PWR_FORCE, mask_sh), \
+	OPP_SF(OPPBUF0_OPPBUF_CONTROL, OPPBUF_ACTIVE_WIDTH, mask_sh),\
+	OPP_SF(OPPBUF0_OPPBUF_CONTROL, OPPBUF_PIXEL_REPETITION, mask_sh),\
+	OPP_SF(OPPBUF0_OPPBUF_3D_PARAMETERS_0, OPPBUF_3D_VACT_SPACE1_SIZE, mask_sh), \
+	OPP_SF(OPPBUF0_OPPBUF_3D_PARAMETERS_0, OPPBUF_3D_VACT_SPACE2_SIZE, mask_sh)
 
 #define OPP_MASK_SH_LIST_DCN10(mask_sh) \
-	OPP_MASK_SH_LIST_DCN(mask_sh)
+	OPP_MASK_SH_LIST_DCN(mask_sh), \
+	OPP_SF(OPPBUF0_OPPBUF_CONTROL, OPPBUF_DISPLAY_SEGMENTATION, mask_sh),\
+	OPP_SF(OPPBUF0_OPPBUF_CONTROL, OPPBUF_OVERLAP_PIXEL_NUM, mask_sh)
 
 #define OPP_DCN10_REG_FIELD_LIST(type) \
 	type FMT_TRUNCATE_EN; \
@@ -105,18 +118,25 @@
 	type FMT_DYNAMIC_EXP_EN; \
 	type FMT_DYNAMIC_EXP_MODE; \
 	type FMT_MAP420MEM_PWR_FORCE; \
-	type FMT_STEREOSYNC_OVERRIDE;
+	type FMT_STEREOSYNC_OVERRIDE; \
+	type OPPBUF_ACTIVE_WIDTH;\
+	type OPPBUF_PIXEL_REPETITION;\
+	type OPPBUF_DISPLAY_SEGMENTATION;\
+	type OPPBUF_OVERLAP_PIXEL_NUM;\
+	type OPPBUF_NUM_SEGMENT_PADDED_PIXELS; \
+	type OPPBUF_3D_VACT_SPACE1_SIZE; \
+	type OPPBUF_3D_VACT_SPACE2_SIZE
 
 struct dcn10_opp_registers {
-	OPP_COMMON_REG_VARIABLE_LIST
+	OPP_COMMON_REG_VARIABLE_LIST;
 };
 
 struct dcn10_opp_shift {
-	OPP_DCN10_REG_FIELD_LIST(uint8_t)
+	OPP_DCN10_REG_FIELD_LIST(uint8_t);
 };
 
 struct dcn10_opp_mask {
-	OPP_DCN10_REG_FIELD_LIST(uint32_t)
+	OPP_DCN10_REG_FIELD_LIST(uint32_t);
 };
 
 struct dcn10_opp {
@@ -151,9 +171,10 @@ void opp1_program_bit_depth_reduction(
 	struct output_pixel_processor *opp,
 	const struct bit_depth_reduction_params *params);
 
-void opp1_set_stereo_polarity(
-		struct output_pixel_processor *opp,
-		bool enable, bool rightEyePolarity);
+void opp1_program_stereo(
+	struct output_pixel_processor *opp,
+	bool enable,
+	const struct dc_crtc_timing *timing);
 
 void opp1_destroy(struct output_pixel_processor **opp);
 

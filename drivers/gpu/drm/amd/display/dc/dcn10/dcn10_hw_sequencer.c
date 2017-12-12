@@ -462,9 +462,6 @@ static enum dc_status dcn10_prog_pixclk_crtc_otg(
 	struct dc_stream_state *stream = pipe_ctx->stream;
 	enum dc_color_space color_space;
 	struct tg_color black_color = {0};
-	bool enableStereo    = stream->timing.timing_3d_format == TIMING_3D_FORMAT_NONE ?
-			false:true;
-	bool rightEyePolarity = stream->timing.flags.RIGHT_EYE_3D_POLARITY;
 
 	/* by upper caller loop, pipe0 is parent pipe and be called first.
 	 * back end is set up by for pipe0. Other children pipe share back end
@@ -498,11 +495,6 @@ static enum dc_status dcn10_prog_pixclk_crtc_otg(
 			pipe_ctx->stream_res.tg,
 			&stream->timing,
 			true);
-
-	pipe_ctx->stream_res.opp->funcs->opp_set_stereo_polarity(
-				pipe_ctx->stream_res.opp,
-				enableStereo,
-				rightEyePolarity);
 
 #if 0 /* move to after enable_crtc */
 	/* TODO: OPP FMT, ABM. etc. should be done here. */
@@ -2251,10 +2243,10 @@ static void dcn10_setup_stereo(struct pipe_ctx *pipe_ctx, struct dc *dc)
 
 	dcn10_config_stereo_parameters(stream, &flags);
 
-	pipe_ctx->stream_res.opp->funcs->opp_set_stereo_polarity(
+	pipe_ctx->stream_res.opp->funcs->opp_program_stereo(
 		pipe_ctx->stream_res.opp,
 		flags.PROGRAM_STEREO == 1 ? true:false,
-		stream->timing.flags.RIGHT_EYE_3D_POLARITY == 1 ? true:false);
+		&stream->timing);
 
 	pipe_ctx->stream_res.tg->funcs->program_stereo(
 		pipe_ctx->stream_res.tg,

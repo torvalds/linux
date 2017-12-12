@@ -91,11 +91,6 @@ static void optc1_disable_stereo(struct timing_generator *optc)
 		OTG_3D_STRUCTURE_EN, 0,
 		OTG_3D_STRUCTURE_V_UPDATE_MODE, 0,
 		OTG_3D_STRUCTURE_STEREO_SEL_OVR, 0);
-
-	REG_UPDATE(OPPBUF_CONTROL,
-		OPPBUF_ACTIVE_WIDTH, 0);
-	REG_UPDATE(OPPBUF_3D_PARAMETERS_0,
-		OPPBUF_3D_VACT_SPACE1_SIZE, 0);
 }
 
 /**
@@ -1078,15 +1073,10 @@ void optc1_get_crtc_scanoutpos(
 	*v_position = position.vertical_count;
 }
 
-
-
 static void optc1_enable_stereo(struct timing_generator *optc,
 	const struct dc_crtc_timing *timing, struct crtc_stereo_flags *flags)
 {
 	struct optc *optc1 = DCN10TG_FROM_TG(optc);
-
-	uint32_t active_width = timing->h_addressable;
-	uint32_t space1_size = timing->v_total - timing->v_addressable;
 
 	if (flags) {
 		uint32_t stereo_en;
@@ -1114,12 +1104,6 @@ static void optc1_enable_stereo(struct timing_generator *optc,
 				OTG_3D_STRUCTURE_STEREO_SEL_OVR, flags->FRAME_PACKED);
 
 	}
-
-	REG_UPDATE(OPPBUF_CONTROL,
-		OPPBUF_ACTIVE_WIDTH, active_width);
-
-	REG_UPDATE(OPPBUF_3D_PARAMETERS_0,
-		OPPBUF_3D_VACT_SPACE1_SIZE, space1_size);
 }
 
 void optc1_program_stereo(struct timing_generator *optc,
