@@ -540,8 +540,7 @@ static bool unpack_xattrs(struct aa_ext *e, struct aa_profile *profile)
 
 		size = unpack_array(e, NULL);
 		profile->xattr_count = size;
-		profile->xattrs = kcalloc(size, sizeof(char *),
-						GFP_KERNEL);
+		profile->xattrs = kcalloc(size, sizeof(char *), GFP_KERNEL);
 		if (!profile->xattrs)
 			goto fail;
 		for (i = 0; i < size; i++) {
@@ -554,38 +553,6 @@ static bool unpack_xattrs(struct aa_ext *e, struct aa_profile *profile)
 			goto fail;
 	}
 
-	if (unpack_nameX(e, AA_STRUCT, "xattr_values")) {
-		int i, size;
-
-		size = unpack_array(e, NULL);
-
-		/* Must be the same number of xattr values as xattrs */
-		if (size != profile->xattr_count)
-			goto fail;
-
-		profile->xattr_lens = kcalloc(size, sizeof(size_t),
-						    GFP_KERNEL);
-		if (!profile->xattr_lens)
-			goto fail;
-
-		profile->xattr_values = kcalloc(size, sizeof(char *),
-						      GFP_KERNEL);
-		if (!profile->xattr_values)
-			goto fail;
-
-		for (i = 0; i < size; i++) {
-			profile->xattr_lens[i] = unpack_blob(e,
-					      &profile->xattr_values[i], NULL);
-			profile->xattr_values[i] =
-				kvmemdup(profile->xattr_values[i],
-					 profile->xattr_lens[i]);
-		}
-
-		if (!unpack_nameX(e, AA_ARRAYEND, NULL))
-			goto fail;
-		if (!unpack_nameX(e, AA_STRUCTEND, NULL))
-			goto fail;
-	}
 	return 1;
 
 fail:

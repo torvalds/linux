@@ -151,8 +151,6 @@ struct aa_profile {
 
 	int xattr_count;
 	char **xattrs;
-	size_t *xattr_lens;
-	char **xattr_values;
 
 	struct aa_rlimit rlimits;
 

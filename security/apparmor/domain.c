@@ -306,11 +306,12 @@ static int change_profile_perms(struct aa_profile *profile,
  * aa_xattrs_match - check whether a file matches the xattrs defined in profile
  * @bprm: binprm struct for the process to validate
  * @profile: profile to match against (NOT NULL)
+ * @state: state to start match in
  *
  * Returns: number of extended attributes that matched, or < 0 on error
  */
 static int aa_xattrs_match(const struct linux_binprm *bprm,
-			   struct aa_profile *profile)
+			   struct aa_profile *profile, unsigned int state)
 {
 	int i;
 	size_t size;
@@ -321,27 +322,40 @@ static int aa_xattrs_match(const struct linux_binprm *bprm,
 	if (!bprm || !profile->xattr_count)
 		return 0;
 
+	/* transition from exec match to xattr set */
+	state = aa_dfa_null_transition(profile->xmatch, state);
+
 	d = bprm->file->f_path.dentry;
 
 	for (i = 0; i < profile->xattr_count; i++) {
 		size = vfs_getxattr_alloc(d, profile->xattrs[i], &value,
 					  value_size, GFP_KERNEL);
-		if (size < 0) {
-			ret = -EINVAL;
-			goto out;
+		if (size >= 0) {
+			u32 perm;
+
+			/* Check the xattr value, not just presence */
+			state = aa_dfa_match_len(profile->xmatch, state, value,
+						 size);
+			perm = dfa_user_allow(profile->xmatch, state);
+			if (!(perm & MAY_EXEC)) {
+				ret = -EINVAL;
+				goto out;
+			}
 		}
-
-		/* Check the xattr value, not just presence */
-		if (profile->xattr_lens[i]) {
-			if (profile->xattr_lens[i] != size) {
+		/* transition to next element */
+		state = aa_dfa_null_transition(profile->xmatch, state);
+		if (size < 0) {
+			/*
+			 * No xattr match, so verify if transition to
+			 * next element was valid. IFF so the xattr
+			 * was optional.
+			 */
+			if (!state) {
 				ret = -EINVAL;
 				goto out;
 			}
-
-			if (memcmp(value, profile->xattr_values[i], size)) {
-				ret = -EINVAL;
-				goto out;
-			}
+			/* don't count missing optional xattr as matched */
+			ret--;
 		}
 	}
 
@@ -403,13 +417,16 @@ static struct aa_profile *__attach_match(const struct linux_binprm *bprm,
 			perm = dfa_user_allow(profile->xmatch, state);
 			/* any accepting state means a valid match. */
 			if (perm & MAY_EXEC) {
-				int ret = aa_xattrs_match(bprm, profile);
+				int ret = aa_xattrs_match(bprm, profile, state);
 
 				/* Fail matching if the xattrs don't match */
 				if (ret < 0)
 					continue;
 
-				/* The new match isn't more specific
+				/*
+				 * TODO: allow for more flexible best match
+				 *
+				 * The new match isn't more specific
 				 * than the current best match
 				 */
 				if (profile->xmatch_len == len &&
@@ -428,9 +445,11 @@ static struct aa_profile *__attach_match(const struct linux_binprm *bprm,
 				xattrs = ret;
 				conflict = false;
 			}
-		} else if (!strcmp(profile->base.name, name) &&
-			   aa_xattrs_match(bprm, profile) >= 0)
-			/* exact non-re match, no more searching required */
+		} else if (!strcmp(profile->base.name, name))
+			/*
+			 * old exact non-re match, without conditionals such
+			 * as xattrs. no more searching required
+			 */
 			return profile;
 	}
 
@@ -652,7 +671,8 @@ static struct aa_label *profile_transition(struct aa_profile *profile,
 			 * met, and fail execution otherwise
 			 */
 			label_for_each(i, new, component) {
-				if (aa_xattrs_match(bprm, component) < 0) {
+				if (aa_xattrs_match(bprm, component, state) <
+				    0) {
 					error = -EACCES;
 					info = "required xattrs not present";
 					perms.allow &= ~MAY_EXEC;
