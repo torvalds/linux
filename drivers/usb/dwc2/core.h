@@ -912,6 +912,7 @@ struct dwc2_hsotg {
 	} flags;
 
 	struct list_head non_periodic_sched_inactive;
+	struct list_head non_periodic_sched_waiting;
 	struct list_head non_periodic_sched_active;
 	struct list_head *non_periodic_qh_ptr;
 	struct list_head periodic_sched_inactive;
