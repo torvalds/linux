@@ -33,7 +33,7 @@
 
 #define SSI_MAX_POLL_ITER	10
 
-struct ssi_request_mgr_handle {
+struct cc_req_mgr_handle {
 	/* Request manager resources */
 	unsigned int hw_queue_size; /* HW capability */
 	unsigned int min_free_hw_slots;
@@ -68,9 +68,9 @@ static void comp_handler(unsigned long devarg);
 static void comp_work_handler(struct work_struct *work);
 #endif
 
-void request_mgr_fini(struct ssi_drvdata *drvdata)
+void cc_req_mgr_fini(struct ssi_drvdata *drvdata)
 {
-	struct ssi_request_mgr_handle *req_mgr_h = drvdata->request_mgr_handle;
+	struct cc_req_mgr_handle *req_mgr_h = drvdata->request_mgr_handle;
 	struct device *dev = drvdata_to_dev(drvdata);
 
 	if (!req_mgr_h)
@@ -92,14 +92,14 @@ void request_mgr_fini(struct ssi_drvdata *drvdata)
 	/* Kill tasklet */
 	tasklet_kill(&req_mgr_h->comptask);
 #endif
-	memset(req_mgr_h, 0, sizeof(struct ssi_request_mgr_handle));
+	memset(req_mgr_h, 0, sizeof(struct cc_req_mgr_handle));
 	kfree(req_mgr_h);
 	drvdata->request_mgr_handle = NULL;
 }
 
-int request_mgr_init(struct ssi_drvdata *drvdata)
+int cc_req_mgr_init(struct ssi_drvdata *drvdata)
 {
-	struct ssi_request_mgr_handle *req_mgr_h;
+	struct cc_req_mgr_handle *req_mgr_h;
 	struct device *dev = drvdata_to_dev(drvdata);
 	int rc = 0;
 
@@ -161,7 +161,7 @@ int request_mgr_init(struct ssi_drvdata *drvdata)
 	return 0;
 
 req_mgr_init_err:
-	request_mgr_fini(drvdata);
+	cc_req_mgr_fini(drvdata);
 	return rc;
 }
 
@@ -202,9 +202,9 @@ static void request_mgr_complete(struct device *dev, void *dx_compl_h)
 	complete(this_compl);
 }
 
-static int request_mgr_queues_status_check(
+static int cc_queues_status(
 		struct ssi_drvdata *drvdata,
-		struct ssi_request_mgr_handle *req_mgr_h,
+		struct cc_req_mgr_handle *req_mgr_h,
 		unsigned int total_seq_len)
 {
 	unsigned long poll_queue;
@@ -264,7 +264,7 @@ int send_request(
 	struct cc_hw_desc *desc, unsigned int len, bool is_dout)
 {
 	void __iomem *cc_base = drvdata->cc_base;
-	struct ssi_request_mgr_handle *req_mgr_h = drvdata->request_mgr_handle;
+	struct cc_req_mgr_handle *req_mgr_h = drvdata->request_mgr_handle;
 	unsigned int used_sw_slots;
 	unsigned int iv_seq_len = 0;
 	unsigned int total_seq_len = len; /*initial sequence length*/
@@ -291,8 +291,7 @@ int send_request(
 		 * in case iv gen add the max size and in case of no dout add 1
 		 * for the internal completion descriptor
 		 */
-		rc = request_mgr_queues_status_check(drvdata, req_mgr_h,
-						     max_required_seq_len);
+		rc = cc_queues_status(drvdata, req_mgr_h, max_required_seq_len);
 		if (rc == 0)
 			/* There is enough place in the queue */
 			break;
@@ -418,14 +417,13 @@ int send_request_init(
 	struct ssi_drvdata *drvdata, struct cc_hw_desc *desc, unsigned int len)
 {
 	void __iomem *cc_base = drvdata->cc_base;
-	struct ssi_request_mgr_handle *req_mgr_h = drvdata->request_mgr_handle;
+	struct cc_req_mgr_handle *req_mgr_h = drvdata->request_mgr_handle;
 	unsigned int total_seq_len = len; /*initial sequence length*/
 	int rc = 0;
 
 	/* Wait for space in HW and SW FIFO. Poll for as much as FIFO_TIMEOUT.
 	 */
-	rc = request_mgr_queues_status_check(drvdata, req_mgr_h,
-					     total_seq_len);
+	rc = cc_queues_status(drvdata, req_mgr_h, total_seq_len);
 	if (rc)
 		return rc;
 
@@ -448,7 +446,7 @@ int send_request_init(
 
 void complete_request(struct ssi_drvdata *drvdata)
 {
-	struct ssi_request_mgr_handle *request_mgr_handle =
+	struct cc_req_mgr_handle *request_mgr_handle =
 						drvdata->request_mgr_handle;
 
 	complete(&drvdata->hw_queue_avail);
@@ -474,7 +472,7 @@ static void proc_completions(struct ssi_drvdata *drvdata)
 {
 	struct ssi_crypto_req *ssi_req;
 	struct device *dev = drvdata_to_dev(drvdata);
-	struct ssi_request_mgr_handle *request_mgr_handle =
+	struct cc_req_mgr_handle *request_mgr_handle =
 						drvdata->request_mgr_handle;
 	unsigned int *tail = &request_mgr_handle->req_queue_tail;
 	unsigned int *head = &request_mgr_handle->req_queue_head;
@@ -540,7 +538,7 @@ static inline u32 cc_axi_comp_count(struct ssi_drvdata *drvdata)
 static void comp_handler(unsigned long devarg)
 {
 	struct ssi_drvdata *drvdata = (struct ssi_drvdata *)devarg;
-	struct ssi_request_mgr_handle *request_mgr_handle =
+	struct cc_req_mgr_handle *request_mgr_handle =
 						drvdata->request_mgr_handle;
 
 	u32 irq;
@@ -590,7 +588,7 @@ static void comp_handler(unsigned long devarg)
 #if defined(CONFIG_PM)
 int cc_resume_req_queue(struct ssi_drvdata *drvdata)
 {
-	struct ssi_request_mgr_handle *request_mgr_handle =
+	struct cc_req_mgr_handle *request_mgr_handle =
 		drvdata->request_mgr_handle;
 
 	spin_lock_bh(&request_mgr_handle->hw_lock);
@@ -606,7 +604,7 @@ int cc_resume_req_queue(struct ssi_drvdata *drvdata)
  */
 int cc_suspend_req_queue(struct ssi_drvdata *drvdata)
 {
-	struct ssi_request_mgr_handle *request_mgr_handle =
+	struct cc_req_mgr_handle *request_mgr_handle =
 						drvdata->request_mgr_handle;
 
 	/* lock the send_request */
@@ -624,7 +622,7 @@ int cc_suspend_req_queue(struct ssi_drvdata *drvdata)
 
 bool cc_req_queue_suspended(struct ssi_drvdata *drvdata)
 {
-	struct ssi_request_mgr_handle *request_mgr_handle =
+	struct cc_req_mgr_handle *request_mgr_handle =
 						drvdata->request_mgr_handle;
 
 	return	request_mgr_handle->is_runtime_suspended;

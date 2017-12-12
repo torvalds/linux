@@ -326,9 +326,9 @@ static int init_cc_resources(struct platform_device *plat_dev)
 		goto post_sram_mgr_err;
 	}
 
-	rc = request_mgr_init(new_drvdata);
+	rc = cc_req_mgr_init(new_drvdata);
 	if (rc) {
-		dev_err(dev, "request_mgr_init failed\n");
+		dev_err(dev, "cc_req_mgr_init failed\n");
 		goto post_sram_mgr_err;
 	}
 
@@ -389,7 +389,7 @@ post_power_mgr_err:
 post_buf_mgr_err:
 	 cc_buffer_mgr_fini(new_drvdata);
 post_req_mgr_err:
-	request_mgr_fini(new_drvdata);
+	cc_req_mgr_fini(new_drvdata);
 post_sram_mgr_err:
 	ssi_sram_mgr_fini(new_drvdata);
 post_fips_init_err:
@@ -422,7 +422,7 @@ static void cleanup_cc_resources(struct platform_device *plat_dev)
 	ssi_ivgen_fini(drvdata);
 	cc_pm_fini(drvdata);
 	cc_buffer_mgr_fini(drvdata);
-	request_mgr_fini(drvdata);
+	cc_req_mgr_fini(drvdata);
 	ssi_sram_mgr_fini(drvdata);
 	ssi_fips_fini(drvdata);
 #ifdef ENABLE_CC_SYSFS

@@ -23,7 +23,7 @@
 
 #include "cc_hw_queue_defs.h"
 
-int request_mgr_init(struct ssi_drvdata *drvdata);
+int cc_req_mgr_init(struct ssi_drvdata *drvdata);
 
 /*!
  * Enqueue caller request to crypto hardware.
@@ -47,7 +47,7 @@ int send_request_init(
 
 void complete_request(struct ssi_drvdata *drvdata);
 
-void request_mgr_fini(struct ssi_drvdata *drvdata);
+void cc_req_mgr_fini(struct ssi_drvdata *drvdata);
 
 #if defined(CONFIG_PM)
 int cc_resume_req_queue(struct ssi_drvdata *drvdata);
