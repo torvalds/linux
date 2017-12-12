@@ -30,15 +30,6 @@ struct rmnet_map_control_command {
 	};
 }  __aligned(1);
 
-enum rmnet_map_results {
-	RMNET_MAP_SUCCESS,
-	RMNET_MAP_CONSUMED,
-	RMNET_MAP_GENERAL_FAILURE,
-	RMNET_MAP_NOT_ENABLED,
-	RMNET_MAP_FAILED_AGGREGATION,
-	RMNET_MAP_FAILED_MUX
-};
-
 enum rmnet_map_commands {
 	RMNET_MAP_COMMAND_NONE,
 	RMNET_MAP_COMMAND_FLOW_DISABLE,

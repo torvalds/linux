@@ -142,11 +142,11 @@ static int rmnet_map_egress_handler(struct sk_buff *skb,
 
 	skb->protocol = htons(ETH_P_MAP);
 
-	return RMNET_MAP_SUCCESS;
+	return 0;
 
 fail:
 	kfree_skb(skb);
-	return RMNET_MAP_CONSUMED;
+	return -ENOMEM;
 }
 
 static void
@@ -213,17 +213,8 @@ void rmnet_egress_handler(struct sk_buff *skb)
 	}
 
 	if (port->egress_data_format & RMNET_EGRESS_FORMAT_MAP) {
-		switch (rmnet_map_egress_handler(skb, port, mux_id, orig_dev)) {
-		case RMNET_MAP_CONSUMED:
+		if (rmnet_map_egress_handler(skb, port, mux_id, orig_dev))
 			return;
-
-		case RMNET_MAP_SUCCESS:
-			break;
-
-		default:
-			kfree_skb(skb);
-			return;
-		}
 	}
 
 	rmnet_vnd_tx_fixup(skb, orig_dev);
