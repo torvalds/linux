@@ -22,12 +22,17 @@
 #include <linux/err.h>
 #include <linux/io.h>
 #include <linux/module.h>
+#include <linux/of_device.h>
 #include <linux/platform_device.h>
 
 #include <crypto/internal/rng.h>
 
 #define EXYNOS_RNG_CONTROL		0x0
 #define EXYNOS_RNG_STATUS		0x10
+
+#define EXYNOS_RNG_SEED_CONF		0x14
+#define EXYNOS_RNG_GEN_PRNG	        BIT(1)
+
 #define EXYNOS_RNG_SEED_BASE		0x140
 #define EXYNOS_RNG_SEED(n)		(EXYNOS_RNG_SEED_BASE + (n * 0x4))
 #define EXYNOS_RNG_OUT_BASE		0x160
@@ -42,6 +47,12 @@
 /* Five seed and output registers, each 4 bytes */
 #define EXYNOS_RNG_SEED_REGS		5
 #define EXYNOS_RNG_SEED_SIZE		(EXYNOS_RNG_SEED_REGS * 4)
+
+enum exynos_prng_type {
+	EXYNOS_PRNG_UNKNOWN = 0,
+	EXYNOS_PRNG_EXYNOS4,
+	EXYNOS_PRNG_EXYNOS5,
+};
 
 /*
  * Driver re-seeds itself with generated random numbers to increase
@@ -63,6 +74,7 @@ struct exynos_rng_ctx {
 /* Device associated memory */
 struct exynos_rng_dev {
 	struct device			*dev;
+	enum exynos_prng_type		type;
 	void __iomem			*mem;
 	struct clk			*clk;
 	/* Generated numbers stored for seeding during resume */
@@ -160,8 +172,13 @@ static int exynos_rng_get_random(struct exynos_rng_dev *rng,
 {
 	int retry = EXYNOS_RNG_WAIT_RETRIES;
 
-	exynos_rng_writel(rng, EXYNOS_RNG_CONTROL_START,
-			  EXYNOS_RNG_CONTROL);
+	if (rng->type == EXYNOS_PRNG_EXYNOS4) {
+		exynos_rng_writel(rng, EXYNOS_RNG_CONTROL_START,
+				  EXYNOS_RNG_CONTROL);
+	} else if (rng->type == EXYNOS_PRNG_EXYNOS5) {
+		exynos_rng_writel(rng, EXYNOS_RNG_GEN_PRNG,
+				  EXYNOS_RNG_SEED_CONF);
+	}
 
 	while (!(exynos_rng_readl(rng,
 			EXYNOS_RNG_STATUS) & EXYNOS_RNG_STATUS_RNG_DONE) && --retry)
@@ -279,6 +296,8 @@ static int exynos_rng_probe(struct platform_device *pdev)
 	if (!rng)
 		return -ENOMEM;
 
+	rng->type = (enum exynos_prng_type)of_device_get_match_data(&pdev->dev);
+
 	rng->dev = &pdev->dev;
 	rng->clk = devm_clk_get(&pdev->dev, "secss");
 	if (IS_ERR(rng->clk)) {
@@ -367,6 +386,10 @@ static SIMPLE_DEV_PM_OPS(exynos_rng_pm_ops, exynos_rng_suspend,
 static const struct of_device_id exynos_rng_dt_match[] = {
 	{
 		.compatible = "samsung,exynos4-rng",
+		.data = (const void *)EXYNOS_PRNG_EXYNOS4,
+	}, {
+		.compatible = "samsung,exynos5250-prng",
+		.data = (const void *)EXYNOS_PRNG_EXYNOS5,
 	},
 	{ },
 };
