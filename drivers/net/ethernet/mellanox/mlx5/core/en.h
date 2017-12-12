@@ -479,6 +479,10 @@ typedef struct sk_buff *
 typedef bool (*mlx5e_fp_post_rx_wqes)(struct mlx5e_rq *rq);
 typedef void (*mlx5e_fp_dealloc_wqe)(struct mlx5e_rq*, u16);
 
+enum mlx5e_rq_flag {
+	MLX5E_RQ_FLAG_XDP_XMIT = BIT(0),
+};
+
 struct mlx5e_rq {
 	/* data path */
 	struct mlx5_wq_ll      wq;
@@ -489,7 +493,6 @@ struct mlx5e_rq {
 			u32 frag_sz;	/* max possible skb frag_sz */
 			union {
 				bool page_reuse;
-				bool xdp_xmit;
 			};
 		} wqe;
 		struct {
@@ -528,6 +531,7 @@ struct mlx5e_rq {
 	struct bpf_prog       *xdp_prog;
 	unsigned int           hw_mtu;
 	struct mlx5e_xdpsq     xdpsq;
+	DECLARE_BITMAP(flags, 8);
 
 	/* control */
 	struct mlx5_wq_ctrl    wq_ctrl;

@@ -788,7 +788,7 @@ static inline bool mlx5e_xmit_xdp_frame(struct mlx5e_rq *rq,
 	/* move page to reference to sq responsibility,
 	 * and mark so it's not put back in page-cache.
 	 */
-	rq->wqe.xdp_xmit = true;
+	__set_bit(MLX5E_RQ_FLAG_XDP_XMIT, rq->flags); /* non-atomic */
 	sq->db.di[pi] = *di;
 	sq->pc++;
 
@@ -913,9 +913,8 @@ void mlx5e_handle_rx_cqe(struct mlx5e_rq *rq, struct mlx5_cqe64 *cqe)
 	skb = skb_from_cqe(rq, cqe, wi, cqe_bcnt);
 	if (!skb) {
 		/* probably for XDP */
-		if (rq->wqe.xdp_xmit) {
+		if (__test_and_clear_bit(MLX5E_RQ_FLAG_XDP_XMIT, rq->flags)) {
 			wi->di.page = NULL;
-			rq->wqe.xdp_xmit = false;
 			/* do not return page to cache, it will be returned on XDP_TX completion */
 			goto wq_ll_pop;
 		}
@@ -955,9 +954,8 @@ void mlx5e_handle_rx_cqe_rep(struct mlx5e_rq *rq, struct mlx5_cqe64 *cqe)
 
 	skb = skb_from_cqe(rq, cqe, wi, cqe_bcnt);
 	if (!skb) {
-		if (rq->wqe.xdp_xmit) {
+		if (__test_and_clear_bit(MLX5E_RQ_FLAG_XDP_XMIT, rq->flags)) {
 			wi->di.page = NULL;
-			rq->wqe.xdp_xmit = false;
 			/* do not return page to cache, it will be returned on XDP_TX completion */
 			goto wq_ll_pop;
 		}
