@@ -67,7 +67,7 @@ static int meson_gxl_config_init(struct phy_device *phydev)
  * When this failure happens, the first retry is usually successful but,
  * in some cases, it may take up to 6 retries to get a decent result
  */
-int meson_gxl_read_status(struct phy_device *phydev)
+static int meson_gxl_read_status(struct phy_device *phydev)
 {
 	int ret, wol, lpa, exp;
 
