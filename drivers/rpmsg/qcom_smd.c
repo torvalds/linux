@@ -743,14 +743,10 @@ static int __qcom_smd_send(struct qcom_smd_channel *channel, const void *data,
 	if (ret)
 		return ret;
 
-	while (qcom_smd_get_tx_avail(channel) < tlen) {
+	while (qcom_smd_get_tx_avail(channel) < tlen &&
+	       channel->state == SMD_CHANNEL_OPENED) {
 		if (!wait) {
 			ret = -EAGAIN;
-			goto out;
-		}
-
-		if (channel->state != SMD_CHANNEL_OPENED) {
-			ret = -EPIPE;
 			goto out;
 		}
 
@@ -763,6 +759,12 @@ static int __qcom_smd_send(struct qcom_smd_channel *channel, const void *data,
 			goto out;
 
 		SET_TX_CHANNEL_FLAG(channel, fBLOCKREADINTR, 1);
+	}
+
+	/* Fail if the channel was closed */
+	if (channel->state != SMD_CHANNEL_OPENED) {
+		ret = -EPIPE;
+		goto out;
 	}
 
 	SET_TX_CHANNEL_FLAG(channel, fTAIL, 0);
