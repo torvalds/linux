@@ -38,6 +38,7 @@
 
 #include <asm/cpufeature.h>
 #include <asm/hypervisor.h>
+#include <asm/vsyscall.h>
 #include <asm/cmdline.h>
 #include <asm/pti.h>
 #include <asm/pgtable.h>
@@ -223,6 +224,69 @@ static pmd_t *pti_user_pagetable_walk_pmd(unsigned long address)
 	return pmd_offset(pud, address);
 }
 
+#ifdef CONFIG_X86_VSYSCALL_EMULATION
+/*
+ * Walk the shadow copy of the page tables (optionally) trying to allocate
+ * page table pages on the way down.  Does not support large pages.
+ *
+ * Note: this is only used when mapping *new* kernel data into the
+ * user/shadow page tables.  It is never used for userspace data.
+ *
+ * Returns a pointer to a PTE on success, or NULL on failure.
+ */
+static __init pte_t *pti_user_pagetable_walk_pte(unsigned long address)
+{
+	gfp_t gfp = (GFP_KERNEL | __GFP_NOTRACK | __GFP_ZERO);
+	pmd_t *pmd = pti_user_pagetable_walk_pmd(address);
+	pte_t *pte;
+
+	/* We can't do anything sensible if we hit a large mapping. */
+	if (pmd_large(*pmd)) {
+		WARN_ON(1);
+		return NULL;
+	}
+
+	if (pmd_none(*pmd)) {
+		unsigned long new_pte_page = __get_free_page(gfp);
+		if (!new_pte_page)
+			return NULL;
+
+		if (pmd_none(*pmd)) {
+			set_pmd(pmd, __pmd(_KERNPG_TABLE | __pa(new_pte_page)));
+			new_pte_page = 0;
+		}
+		if (new_pte_page)
+			free_page(new_pte_page);
+	}
+
+	pte = pte_offset_kernel(pmd, address);
+	if (pte_flags(*pte) & _PAGE_USER) {
+		WARN_ONCE(1, "attempt to walk to user pte\n");
+		return NULL;
+	}
+	return pte;
+}
+
+static void __init pti_setup_vsyscall(void)
+{
+	pte_t *pte, *target_pte;
+	unsigned int level;
+
+	pte = lookup_address(VSYSCALL_ADDR, &level);
+	if (!pte || WARN_ON(level != PG_LEVEL_4K) || pte_none(*pte))
+		return;
+
+	target_pte = pti_user_pagetable_walk_pte(VSYSCALL_ADDR);
+	if (WARN_ON(!target_pte))
+		return;
+
+	*target_pte = *pte;
+	set_vsyscall_pgtable_user_bits(kernel_to_user_pgdp(swapper_pg_dir));
+}
+#else
+static void __init pti_setup_vsyscall(void) { }
+#endif
+
 static void __init
 pti_clone_pmds(unsigned long start, unsigned long end, pmdval_t clear)
 {
@@ -319,4 +383,5 @@ void __init pti_init(void)
 	pti_clone_user_shared();
 	pti_clone_entry_text();
 	pti_setup_espfix64();
+	pti_setup_vsyscall();
 }
