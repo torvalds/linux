@@ -998,7 +998,6 @@ _unlock_ret:
 			goto __unlock_ret;
 		}
 		ret = vop_virtio_config_change(vdev, buf);
-done:
 		kfree(buf);
 __unlock_ret:
 		mutex_unlock(&vdev->vdev_mutex);
