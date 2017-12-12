@@ -937,8 +937,6 @@ static DEFINE_PER_CPU(struct list_head, blocked_vcpu_on_cpu);
 static DEFINE_PER_CPU(spinlock_t, blocked_vcpu_on_cpu_lock);
 
 enum {
-	VMX_IO_BITMAP_A,
-	VMX_IO_BITMAP_B,
 	VMX_MSR_BITMAP_LEGACY,
 	VMX_MSR_BITMAP_LONGMODE,
 	VMX_MSR_BITMAP_LEGACY_X2APIC_APICV,
@@ -952,8 +950,6 @@ enum {
 
 static unsigned long *vmx_bitmap[VMX_BITMAP_NR];
 
-#define vmx_io_bitmap_a                      (vmx_bitmap[VMX_IO_BITMAP_A])
-#define vmx_io_bitmap_b                      (vmx_bitmap[VMX_IO_BITMAP_B])
 #define vmx_msr_bitmap_legacy                (vmx_bitmap[VMX_MSR_BITMAP_LEGACY])
 #define vmx_msr_bitmap_longmode              (vmx_bitmap[VMX_MSR_BITMAP_LONGMODE])
 #define vmx_msr_bitmap_legacy_x2apic_apicv   (vmx_bitmap[VMX_MSR_BITMAP_LEGACY_X2APIC_APICV])
@@ -3627,7 +3623,7 @@ static __init int setup_vmcs_config(struct vmcs_config *vmcs_conf)
 #endif
 	      CPU_BASED_CR3_LOAD_EXITING |
 	      CPU_BASED_CR3_STORE_EXITING |
-	      CPU_BASED_USE_IO_BITMAPS |
+	      CPU_BASED_UNCOND_IO_EXITING |
 	      CPU_BASED_MOV_DR_EXITING |
 	      CPU_BASED_USE_TSC_OFFSETING |
 	      CPU_BASED_INVLPG_EXITING |
@@ -5468,10 +5464,6 @@ static void vmx_vcpu_setup(struct vcpu_vmx *vmx)
 #endif
 	int i;
 
-	/* I/O */
-	vmcs_write64(IO_BITMAP_A, __pa(vmx_io_bitmap_a));
-	vmcs_write64(IO_BITMAP_B, __pa(vmx_io_bitmap_b));
-
 	if (enable_shadow_vmcs) {
 		vmcs_write64(VMREAD_BITMAP, __pa(vmx_vmread_bitmap));
 		vmcs_write64(VMWRITE_BITMAP, __pa(vmx_vmwrite_bitmap));
@@ -6782,10 +6774,6 @@ static __init int hardware_setup(void)
 
 	memset(vmx_vmread_bitmap, 0xff, PAGE_SIZE);
 	memset(vmx_vmwrite_bitmap, 0xff, PAGE_SIZE);
-
-	memset(vmx_io_bitmap_a, 0xff, PAGE_SIZE);
-
-	memset(vmx_io_bitmap_b, 0xff, PAGE_SIZE);
 
 	memset(vmx_msr_bitmap_legacy, 0xff, PAGE_SIZE);
 	memset(vmx_msr_bitmap_longmode, 0xff, PAGE_SIZE);
@@ -10563,8 +10551,8 @@ static int prepare_vmcs02(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12,
 	}
 
 	/*
-	 * Merging of IO bitmap not currently supported.
-	 * Rather, exit every time.
+	 * A vmexit (to either L1 hypervisor or L0 userspace) is always needed
+	 * for I/O port accesses.
 	 */
 	exec_control &= ~CPU_BASED_USE_IO_BITMAPS;
 	exec_control |= CPU_BASED_UNCOND_IO_EXITING;
