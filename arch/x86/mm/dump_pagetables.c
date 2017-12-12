@@ -52,11 +52,17 @@ enum address_markers_idx {
 	USER_SPACE_NR = 0,
 	KERNEL_SPACE_NR,
 	LOW_KERNEL_NR,
+#if defined(CONFIG_MODIFY_LDT_SYSCALL) && defined(CONFIG_X86_5LEVEL)
+	LDT_NR,
+#endif
 	VMALLOC_START_NR,
 	VMEMMAP_START_NR,
 #ifdef CONFIG_KASAN
 	KASAN_SHADOW_START_NR,
 	KASAN_SHADOW_END_NR,
+#endif
+#if defined(CONFIG_MODIFY_LDT_SYSCALL) && !defined(CONFIG_X86_5LEVEL)
+	LDT_NR,
 #endif
 	CPU_ENTRY_AREA_NR,
 #ifdef CONFIG_X86_ESPFIX64
@@ -81,6 +87,9 @@ static struct addr_marker address_markers[] = {
 #ifdef CONFIG_KASAN
 	[KASAN_SHADOW_START_NR]	= { KASAN_SHADOW_START,	"KASAN shadow" },
 	[KASAN_SHADOW_END_NR]	= { KASAN_SHADOW_END,	"KASAN shadow end" },
+#endif
+#ifdef CONFIG_MODIFY_LDT_SYSCALL
+	[LDT_NR]		= { LDT_BASE_ADDR,	"LDT remap" },
 #endif
 	[CPU_ENTRY_AREA_NR]	= { CPU_ENTRY_AREA_BASE,"CPU entry Area" },
 #ifdef CONFIG_X86_ESPFIX64
