@@ -57,7 +57,14 @@ then
       read -p "Press [enter] to copy data to SD-Card..."
       if  [[ -d /media/$USER/BPI-BOOT ]];
       then
+		kernelfile=/media/$USER/BPI-BOOT/bananapi/bpi-r2/linux/uImage
+        if [[ -e $kernelfile ]];then
+		  echo "backup of kernel: $kernelfile.bak"
+		  cp $kernelfile $kernelfile.bak
+		fi
+		echo "copy new kernel"
         cp ./uImage /media/$USER/BPI-BOOT/bananapi/bpi-r2/linux/uImage
+		echo "copy modules (root needed because of ext-fs permission)"
         sudo cp -r ../mod/lib/modules /media/$USER/BPI-ROOT/lib/
         sync
       else
