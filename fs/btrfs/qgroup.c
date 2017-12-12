@@ -1070,19 +1070,6 @@ static void qgroup_dirty(struct btrfs_fs_info *fs_info,
 		list_add(&qgroup->dirty, &fs_info->dirty_qgroups);
 }
 
-static void report_reserved_underflow(struct btrfs_fs_info *fs_info,
-				      struct btrfs_qgroup *qgroup,
-				      u64 num_bytes)
-{
-#ifdef CONFIG_BTRFS_DEBUG
-	WARN_ON(qgroup->reserved < num_bytes);
-	btrfs_debug(fs_info,
-		"qgroup %llu reserved space underflow, have: %llu, to free: %llu",
-		qgroup->qgroupid, qgroup->reserved, num_bytes);
-#endif
-	qgroup->reserved = 0;
-}
-
 /*
  * The easy accounting, we're updating qgroup relationship whose child qgroup
  * only has exclusive extents.
