@@ -21,11 +21,7 @@
 #include <asm/fixmap.h>
 #include <asm/memory.h>
 #include <asm/pgtable.h>
-
-struct addr_marker {
-	unsigned long start_address;
-	const char *name;
-};
+#include <asm/ptdump.h>
 
 static struct addr_marker address_markers[] = {
 	{ MODULES_VADDR,	"Modules" },
@@ -335,50 +331,36 @@ static void walk_pud(struct pg_state *st, pgd_t *pgd, unsigned long start)
 	}
 }
 
-static void walk_pgd(struct seq_file *m)
+static void walk_pgd(struct pg_state *st, struct mm_struct *mm,
+			unsigned long start)
 {
-	pgd_t *pgd = swapper_pg_dir;
-	struct pg_state st;
-	unsigned long addr;
+	pgd_t *pgd = pgd_offset(mm, 0UL);
 	unsigned i;
-
-	memset(&st, 0, sizeof(st));
-	st.seq = m;
-	st.marker = address_markers;
+	unsigned long addr;
 
 	for (i = 0; i < PTRS_PER_PGD; i++, pgd++) {
-		addr = i * PGDIR_SIZE;
+		addr = start + i * PGDIR_SIZE;
 		if (!pgd_none(*pgd)) {
-			walk_pud(&st, pgd, addr);
+			walk_pud(st, pgd, addr);
 		} else {
-			note_page(&st, addr, 1, pgd_val(*pgd), NULL);
+			note_page(st, addr, 1, pgd_val(*pgd), NULL);
 		}
 	}
+}
 
+void ptdump_walk_pgd(struct seq_file *m, struct ptdump_info *info)
+{
+	struct pg_state st = {
+		.seq = m,
+		.marker = info->markers,
+	};
+
+	walk_pgd(&st, info->mm, info->base_addr);
 	note_page(&st, 0, 0, 0, NULL);
 }
 
-static int ptdump_show(struct seq_file *m, void *v)
+static void ptdump_initialize(void)
 {
-	walk_pgd(m);
-	return 0;
-}
-
-static int ptdump_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, ptdump_show, NULL);
-}
-
-static const struct file_operations ptdump_fops = {
-	.open		= ptdump_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
-
-static int ptdump_init(void)
-{
-	struct dentry *pe;
 	unsigned i, j;
 
 	for (i = 0; i < ARRAY_SIZE(pg_level); i++)
@@ -387,9 +369,18 @@ static int ptdump_init(void)
 				pg_level[i].mask |= pg_level[i].bits[j].mask;
 
 	address_markers[2].start_address = VMALLOC_START;
+}
 
-	pe = debugfs_create_file("kernel_page_tables", 0400, NULL, NULL,
-				 &ptdump_fops);
-	return pe ? 0 : -ENOMEM;
+static struct ptdump_info kernel_ptdump_info = {
+	.mm = &init_mm,
+	.markers = address_markers,
+	.base_addr = 0,
+};
+
+static int ptdump_init(void)
+{
+	ptdump_initialize();
+	return ptdump_debugfs_register(&kernel_ptdump_info,
+					"kernel_page_tables");
 }
 __initcall(ptdump_init);

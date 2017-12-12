@@ -3,10 +3,14 @@ menu "Kernel hacking"
 
 source "lib/Kconfig.debug"
 
-config ARM_PTDUMP
+config ARM_PTDUMP_CORE
+	def_bool n
+
+config ARM_PTDUMP_DEBUGFS
 	bool "Export kernel pagetable layout to userspace via debugfs"
 	depends on DEBUG_KERNEL
 	depends on MMU
+	select ARM_PTDUMP_CORE
 	select DEBUG_FS
 	---help---
 	  Say Y here if you want to show the kernel pagetable layout in a
