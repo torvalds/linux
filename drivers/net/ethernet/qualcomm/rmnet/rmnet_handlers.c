@@ -15,6 +15,7 @@
 
 #include <linux/netdevice.h>
 #include <linux/netdev_features.h>
+#include <linux/if_arp.h>
 #include "rmnet_private.h"
 #include "rmnet_config.h"
 #include "rmnet_vnd.h"
@@ -103,6 +104,15 @@ rmnet_map_ingress_handler(struct sk_buff *skb,
 			  struct rmnet_port *port)
 {
 	struct sk_buff *skbn;
+
+	if (skb->dev->type == ARPHRD_ETHER) {
+		if (pskb_expand_head(skb, ETH_HLEN, 0, GFP_KERNEL)) {
+			kfree_skb(skb);
+			return;
+		}
+
+		skb_push(skb, ETH_HLEN);
+	}
 
 	if (port->ingress_data_format & RMNET_INGRESS_FORMAT_DEAGGREGATION) {
 		while ((skbn = rmnet_map_deaggregate(skb)) != NULL)
