@@ -580,7 +580,7 @@ static void program_timing_sync(
 		for (j = 0; j < group_size; j++) {
 			struct pipe_ctx *temp;
 
-			if (!pipe_set[j]->stream_res.tg->funcs->is_blanked(pipe_set[j]->stream_res.tg)) {
+			if (pipe_set[j]->stream_res.tg->funcs->is_blanked && !pipe_set[j]->stream_res.tg->funcs->is_blanked(pipe_set[j]->stream_res.tg)) {
 				if (j == 0)
 					break;
 
@@ -593,7 +593,7 @@ static void program_timing_sync(
 
 		/* remove any other unblanked pipes as they have already been synced */
 		for (j = j + 1; j < group_size; j++) {
-			if (!pipe_set[j]->stream_res.tg->funcs->is_blanked(pipe_set[j]->stream_res.tg)) {
+			if (pipe_set[j]->stream_res.tg->funcs->is_blanked && !pipe_set[j]->stream_res.tg->funcs->is_blanked(pipe_set[j]->stream_res.tg)) {
 				group_size--;
 				pipe_set[j] = pipe_set[group_size];
 				j--;
