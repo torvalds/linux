@@ -3138,7 +3138,7 @@ int __btrfs_qgroup_reserve_meta(struct btrfs_root *root, int num_bytes,
 		return 0;
 
 	BUG_ON(num_bytes != round_down(num_bytes, fs_info->nodesize));
-	trace_qgroup_meta_reserve(root, (s64)num_bytes);
+	trace_qgroup_meta_reserve(root, type, (s64)num_bytes);
 	ret = qgroup_reserve(root, num_bytes, enforce, type);
 	if (ret < 0)
 		return ret;
@@ -3163,7 +3163,7 @@ void btrfs_qgroup_free_meta_all_pertrans(struct btrfs_root *root)
 		return;
 
 	/* TODO: Update trace point to handle such free */
-	trace_qgroup_meta_reserve(root, 0);
+	trace_qgroup_meta_free_all_pertrans(root);
 	/* Special value -1 means to free all reserved space */
 	btrfs_qgroup_free_refroot(fs_info, root->objectid, (u64)-1,
 				  BTRFS_QGROUP_RSV_META_PERTRANS);
@@ -3185,7 +3185,7 @@ void __btrfs_qgroup_free_meta(struct btrfs_root *root, int num_bytes,
 	 */
 	num_bytes = sub_root_meta_rsv(root, num_bytes, type);
 	BUG_ON(num_bytes != round_down(num_bytes, fs_info->nodesize));
-	trace_qgroup_meta_reserve(root, -(s64)num_bytes);
+	trace_qgroup_meta_reserve(root, type, -(s64)num_bytes);
 	btrfs_qgroup_free_refroot(fs_info, root->objectid, num_bytes, type);
 }
 
@@ -3245,6 +3245,7 @@ void btrfs_qgroup_convert_reserved_meta(struct btrfs_root *root, int num_bytes)
 	/* Same as btrfs_qgroup_free_meta_prealloc() */
 	num_bytes = sub_root_meta_rsv(root, num_bytes,
 				      BTRFS_QGROUP_RSV_META_PREALLOC);
+	trace_qgroup_meta_convert(root, num_bytes);
 	qgroup_convert_meta(fs_info, root->objectid, num_bytes);
 }
 

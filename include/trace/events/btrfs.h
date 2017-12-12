@@ -1663,13 +1663,14 @@ TRACE_EVENT(qgroup_update_reserve,
 
 TRACE_EVENT(qgroup_meta_reserve,
 
-	TP_PROTO(struct btrfs_root *root, s64 diff),
+	TP_PROTO(struct btrfs_root *root, s64 diff, int type),
 
-	TP_ARGS(root, diff),
+	TP_ARGS(root, diff, type),
 
 	TP_STRUCT__entry_btrfs(
 		__field(	u64,	refroot			)
 		__field(	s64,	diff			)
+		__field(	int,	type			)
 	),
 
 	TP_fast_assign_btrfs(root->fs_info,
@@ -1677,8 +1678,58 @@ TRACE_EVENT(qgroup_meta_reserve,
 		__entry->diff		= diff;
 	),
 
-	TP_printk_btrfs("refroot=%llu(%s) diff=%lld",
-		show_root_type(__entry->refroot), __entry->diff)
+	TP_printk_btrfs("refroot=%llu(%s) type=%s diff=%lld",
+		show_root_type(__entry->refroot),
+		show_qgroup_rsv_type(__entry->type), __entry->diff)
+);
+
+TRACE_EVENT(qgroup_meta_convert,
+
+	TP_PROTO(struct btrfs_root *root, s64 diff),
+
+	TP_ARGS(root, diff),
+
+	TP_STRUCT__entry_btrfs(
+		__field(	u64,	refroot			)
+		__field(	s64,	diff			)
+		__field(	int,	type			)
+	),
+
+	TP_fast_assign_btrfs(root->fs_info,
+		__entry->refroot	= root->objectid;
+		__entry->diff		= diff;
+	),
+
+	TP_printk_btrfs("refroot=%llu(%s) type=%s->%s diff=%lld",
+		show_root_type(__entry->refroot),
+		show_qgroup_rsv_type(BTRFS_QGROUP_RSV_META_PREALLOC),
+		show_qgroup_rsv_type(BTRFS_QGROUP_RSV_META_PERTRANS),
+		__entry->diff)
+);
+
+TRACE_EVENT(qgroup_meta_free_all_pertrans,
+
+	TP_PROTO(struct btrfs_root *root),
+
+	TP_ARGS(root),
+
+	TP_STRUCT__entry_btrfs(
+		__field(	u64,	refroot			)
+		__field(	s64,	diff			)
+		__field(	int,	type			)
+	),
+
+	TP_fast_assign_btrfs(root->fs_info,
+		__entry->refroot	= root->objectid;
+		spin_lock(&root->qgroup_meta_rsv_lock);
+		__entry->diff		= -(s64)root->qgroup_meta_rsv_pertrans;
+		spin_unlock(&root->qgroup_meta_rsv_lock);
+		__entry->type		= BTRFS_QGROUP_RSV_META_PERTRANS;
+	),
+
+	TP_printk_btrfs("refroot=%llu(%s) type=%s diff=%lld",
+		show_root_type(__entry->refroot),
+		show_qgroup_rsv_type(__entry->type), __entry->diff)
 );
 
 DECLARE_EVENT_CLASS(btrfs__prelim_ref,
