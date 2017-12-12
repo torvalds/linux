@@ -332,5 +332,13 @@ static inline void btrfs_qgroup_free_meta_prealloc(struct btrfs_root *root,
  */
 void btrfs_qgroup_free_meta_all_pertrans(struct btrfs_root *root);
 
+/*
+ * Convert @num_bytes of META_PREALLOCATED reservation to META_PERTRANS.
+ *
+ * This is called when preallocated meta reservation needs to be used.
+ * Normally after btrfs_join_transaction() call.
+ */
+void btrfs_qgroup_convert_reserved_meta(struct btrfs_root *root, int num_bytes);
+
 void btrfs_qgroup_check_reserved_leak(struct inode *inode);
 #endif /* __BTRFS_QGROUP__ */

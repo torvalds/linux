@@ -3134,6 +3134,62 @@ void __btrfs_qgroup_free_meta(struct btrfs_root *root, int num_bytes,
 	btrfs_qgroup_free_refroot(fs_info, root->objectid, num_bytes, type);
 }
 
+static void qgroup_convert_meta(struct btrfs_fs_info *fs_info, u64 ref_root,
+				int num_bytes)
+{
+	struct btrfs_root *quota_root = fs_info->quota_root;
+	struct btrfs_qgroup *qgroup;
+	struct ulist_node *unode;
+	struct ulist_iterator uiter;
+	int ret = 0;
+
+	if (num_bytes == 0)
+		return;
+	if (!quota_root)
+		return;
+
+	spin_lock(&fs_info->qgroup_lock);
+	qgroup = find_qgroup_rb(fs_info, ref_root);
+	if (!qgroup)
+		goto out;
+	ulist_reinit(fs_info->qgroup_ulist);
+	ret = ulist_add(fs_info->qgroup_ulist, qgroup->qgroupid,
+		       (uintptr_t)qgroup, GFP_ATOMIC);
+	if (ret < 0)
+		goto out;
+	ULIST_ITER_INIT(&uiter);
+	while ((unode = ulist_next(fs_info->qgroup_ulist, &uiter))) {
+		struct btrfs_qgroup *qg;
+		struct btrfs_qgroup_list *glist;
+
+		qg = unode_aux_to_qgroup(unode);
+
+		qgroup_rsv_release(fs_info, qg, num_bytes,
+				BTRFS_QGROUP_RSV_META_PREALLOC);
+		qgroup_rsv_add(fs_info, qg, num_bytes,
+				BTRFS_QGROUP_RSV_META_PERTRANS);
+		list_for_each_entry(glist, &qg->groups, next_group) {
+			ret = ulist_add(fs_info->qgroup_ulist,
+					glist->group->qgroupid,
+					(uintptr_t)glist->group, GFP_ATOMIC);
+			if (ret < 0)
+				goto out;
+		}
+	}
+out:
+	spin_unlock(&fs_info->qgroup_lock);
+}
+
+void btrfs_qgroup_convert_reserved_meta(struct btrfs_root *root, int num_bytes)
+{
+	struct btrfs_fs_info *fs_info = root->fs_info;
+
+	if (!test_bit(BTRFS_FS_QUOTA_ENABLED, &fs_info->flags) ||
+	    !is_fstree(root->objectid))
+		return;
+	qgroup_convert_meta(fs_info, root->objectid, num_bytes);
+}
+
 /*
  * Check qgroup reserved space leaking, normally at destroy inode
  * time
