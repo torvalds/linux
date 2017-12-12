@@ -168,12 +168,17 @@ struct net_bridge_vlan_group {
 	u16				pvid;
 };
 
+struct net_bridge_fdb_key {
+	mac_addr addr;
+	u16 vlan_id;
+};
+
 struct net_bridge_fdb_entry {
-	struct hlist_node		hlist;
+	struct rhash_head		rhnode;
 	struct net_bridge_port		*dst;
 
-	mac_addr			addr;
-	__u16				vlan_id;
+	struct net_bridge_fdb_key	key;
+	struct hlist_node		fdb_node;
 	unsigned char			is_local:1,
 					is_static:1,
 					added_by_user:1,
@@ -315,7 +320,7 @@ struct net_bridge {
 	struct net_bridge_vlan_group	__rcu *vlgrp;
 #endif
 
-	struct hlist_head		hash[BR_HASH_SIZE];
+	struct rhashtable		fdb_hash_tbl;
 #if IS_ENABLED(CONFIG_BRIDGE_NETFILTER)
 	union {
 		struct rtable		fake_rtable;
@@ -405,6 +410,7 @@ struct net_bridge {
 	int offload_fwd_mark;
 #endif
 	bool				neigh_suppress_enabled;
+	struct hlist_head		fdb_list;
 };
 
 struct br_input_skb_cb {
@@ -515,6 +521,8 @@ static inline void br_netpoll_disable(struct net_bridge_port *p)
 /* br_fdb.c */
 int br_fdb_init(void);
 void br_fdb_fini(void);
+int br_fdb_hash_init(struct net_bridge *br);
+void br_fdb_hash_fini(struct net_bridge *br);
 void br_fdb_flush(struct net_bridge *br);
 void br_fdb_find_delete_local(struct net_bridge *br,
 			      const struct net_bridge_port *p,
