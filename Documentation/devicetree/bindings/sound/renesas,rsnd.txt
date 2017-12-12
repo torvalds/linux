@@ -4,7 +4,7 @@ Renesas R-Car sound
 * Modules
 =============================================
 
-Renesas R-Car sound is constructed from below modules
+Renesas R-Car and RZ/G sound is constructed from below modules
 (for Gen2 or later)
 
  SCU		: Sampling Rate Converter Unit
@@ -334,9 +334,11 @@ Required properties:
 
 - compatible			: "renesas,rcar_sound-<soctype>", fallbacks
 				  "renesas,rcar_sound-gen1" if generation1, and
-				  "renesas,rcar_sound-gen2" if generation2
+				  "renesas,rcar_sound-gen2" if generation2 (or RZ/G1)
 				  "renesas,rcar_sound-gen3" if generation3
 				  Examples with soctypes are:
+				    - "renesas,rcar_sound-r8a7743" (RZ/G1M)
+				    - "renesas,rcar_sound-r8a7745" (RZ/G1E)
 				    - "renesas,rcar_sound-r8a7778" (R-Car M1A)
 				    - "renesas,rcar_sound-r8a7779" (R-Car H1)
 				    - "renesas,rcar_sound-r8a7790" (R-Car H2)
