@@ -8672,14 +8672,12 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	tp->counters = dmam_alloc_coherent (&pdev->dev, sizeof(*tp->counters),
 					    &tp->counters_phys_addr,
 					    GFP_KERNEL);
-	if (!tp->counters) {
-		rc = -ENOMEM;
-		goto err_out_msi_5;
-	}
+	if (!tp->counters)
+		return -ENOMEM;
 
 	rc = register_netdev(dev);
 	if (rc < 0)
-		goto err_out_msi_5;
+		return rc;
 
 	pci_set_drvdata(pdev, dev);
 
@@ -8709,11 +8707,6 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	netif_carrier_off(dev);
 
 	return 0;
-
-err_out_msi_5:
-	netif_napi_del(&tp->napi);
-
-	return rc;
 }
 
 static struct pci_driver rtl8169_pci_driver = {
