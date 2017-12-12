@@ -60,9 +60,38 @@ void dm_issue_global_event(void)
 }
 
 /*
- * One of these is allocated per original bio.
+ * One of these is allocated (on-stack) per original bio.
  */
+struct clone_info {
+	struct mapped_device *md;
+	struct dm_table *map;
+	struct bio *bio;
+	struct dm_io *io;
+	sector_t sector;
+	unsigned sector_count;
+};
+
+/*
+ * One of these is allocated per clone bio.
+ */
+#define DM_TIO_MAGIC 7282014
+struct dm_target_io {
+	unsigned magic;
+	struct dm_io *io;
+	struct dm_target *ti;
+	unsigned target_bio_nr;
+	unsigned *len_ptr;
+	bool inside_dm_io;
+	struct bio clone;
+};
+
+/*
+ * One of these is allocated per original bio.
+ * It contains the first clone used for that original.
+ */
+#define DM_IO_MAGIC 5191977
 struct dm_io {
+	unsigned magic;
 	struct mapped_device *md;
 	blk_status_t status;
 	atomic_t io_count;
@@ -70,7 +99,34 @@ struct dm_io {
 	unsigned long start_time;
 	spinlock_t endio_lock;
 	struct dm_stats_aux stats_aux;
+	/* last member of dm_target_io is 'struct bio' */
+	struct dm_target_io tio;
 };
+
+void *dm_per_bio_data(struct bio *bio, size_t data_size)
+{
+	struct dm_target_io *tio = container_of(bio, struct dm_target_io, clone);
+	if (!tio->inside_dm_io)
+		return (char *)bio - offsetof(struct dm_target_io, clone) - data_size;
+	return (char *)bio - offsetof(struct dm_target_io, clone) - offsetof(struct dm_io, tio) - data_size;
+}
+EXPORT_SYMBOL_GPL(dm_per_bio_data);
+
+struct bio *dm_bio_from_per_bio_data(void *data, size_t data_size)
+{
+	struct dm_io *io = (struct dm_io *)((char *)data + data_size);
+	if (io->magic == DM_IO_MAGIC)
+		return (struct bio *)((char *)io + offsetof(struct dm_io, tio) + offsetof(struct dm_target_io, clone));
+	BUG_ON(io->magic != DM_TIO_MAGIC);
+	return (struct bio *)((char *)io + offsetof(struct dm_target_io, clone));
+}
+EXPORT_SYMBOL_GPL(dm_bio_from_per_bio_data);
+
+unsigned dm_bio_get_target_bio_nr(const struct bio *bio)
+{
+	return container_of(bio, struct dm_target_io, clone)->target_bio_nr;
+}
+EXPORT_SYMBOL_GPL(dm_bio_get_target_bio_nr);
 
 #define MINOR_ALLOCED ((void *)-1)
 
@@ -95,6 +151,7 @@ static int dm_numa_node = DM_NUMA_NODE;
 struct dm_md_mempools {
 	mempool_t *io_pool;
 	struct bio_set *bs;
+	struct bio_set *io_bs;
 };
 
 struct table_device {
@@ -488,16 +545,58 @@ out:
 
 static struct dm_io *alloc_io(struct mapped_device *md)
 {
-	return mempool_alloc(md->io_pool, GFP_NOIO);
+	struct dm_io *io;
+	struct dm_target_io *tio;
+	struct bio *clone;
+
+	clone = bio_alloc_bioset(GFP_NOIO, 0, md->io_bs);
+	if (!clone)
+		return NULL;
+
+	tio = container_of(clone, struct dm_target_io, clone);
+	tio->inside_dm_io = true;
+	tio->io = NULL;
+
+	io = container_of(tio, struct dm_io, tio);
+	io->magic = DM_IO_MAGIC;
+
+	return io;
 }
 
 static void free_io(struct mapped_device *md, struct dm_io *io)
 {
-	mempool_free(io, md->io_pool);
+	bio_put(&io->tio.clone);
+}
+
+static struct dm_target_io *alloc_tio(struct clone_info *ci, struct dm_target *ti,
+				      unsigned target_bio_nr, gfp_t gfp_mask)
+{
+	struct dm_target_io *tio;
+
+	if (!ci->io->tio.io) {
+		/* the dm_target_io embedded in ci->io is available */
+		tio = &ci->io->tio;
+	} else {
+		struct bio *clone = bio_alloc_bioset(gfp_mask, 0, ci->md->bs);
+		if (!clone)
+			return NULL;
+
+		tio = container_of(clone, struct dm_target_io, clone);
+		tio->inside_dm_io = false;
+	}
+
+	tio->magic = DM_TIO_MAGIC;
+	tio->io = ci->io;
+	tio->ti = ti;
+	tio->target_bio_nr = target_bio_nr;
+
+	return tio;
 }
 
 static void free_tio(struct dm_target_io *tio)
 {
+	if (tio->inside_dm_io)
+		return;
 	bio_put(&tio->clone);
 }
 
@@ -1110,6 +1209,7 @@ static void __map_bio(struct dm_target_io *tio)
 	int r;
 	sector_t sector;
 	struct bio *clone = &tio->clone;
+	struct dm_io *io = tio->io;
 	struct dm_target *ti = tio->ti;
 
 	clone->bi_end_io = clone_endio;
@@ -1119,7 +1219,7 @@ static void __map_bio(struct dm_target_io *tio)
 	 * anything, the target has assumed ownership of
 	 * this io.
 	 */
-	atomic_inc(&tio->io->io_count);
+	atomic_inc(&io->io_count);
 	sector = clone->bi_iter.bi_sector;
 
 	r = ti->type->map(ti, clone);
@@ -1129,31 +1229,22 @@ static void __map_bio(struct dm_target_io *tio)
 	case DM_MAPIO_REMAPPED:
 		/* the bio has been remapped so dispatch it */
 		trace_block_bio_remap(clone->bi_disk->queue, clone,
-				      bio_dev(tio->io->orig_bio), sector);
+				      bio_dev(io->orig_bio), sector);
 		generic_make_request(clone);
 		break;
 	case DM_MAPIO_KILL:
-		dec_pending(tio->io, BLK_STS_IOERR);
 		free_tio(tio);
+		dec_pending(io, BLK_STS_IOERR);
 		break;
 	case DM_MAPIO_REQUEUE:
-		dec_pending(tio->io, BLK_STS_DM_REQUEUE);
 		free_tio(tio);
+		dec_pending(io, BLK_STS_DM_REQUEUE);
 		break;
 	default:
 		DMWARN("unimplemented target map return value: %d", r);
 		BUG();
 	}
 }
-
-struct clone_info {
-	struct mapped_device *md;
-	struct dm_table *map;
-	struct bio *bio;
-	struct dm_io *io;
-	sector_t sector;
-	unsigned sector_count;
-};
 
 static void bio_setup_sector(struct bio *bio, sector_t sector, unsigned len)
 {
@@ -1195,24 +1286,6 @@ static int clone_bio(struct dm_target_io *tio, struct bio *bio,
 		bio_integrity_trim(clone);
 
 	return 0;
-}
-
-static struct dm_target_io *alloc_tio(struct clone_info *ci, struct dm_target *ti,
-				      unsigned target_bio_nr, gfp_t gfp_mask)
-{
-	struct dm_target_io *tio;
-	struct bio *clone;
-
-	clone = bio_alloc_bioset(gfp_mask, 0, ci->md->bs);
-	if (!clone)
-		return NULL;
-
-	tio = container_of(clone, struct dm_target_io, clone);
-	tio->io = ci->io;
-	tio->ti = ti;
-	tio->target_bio_nr = target_bio_nr;
-
-	return tio;
 }
 
 static void alloc_multiple_bios(struct bio_list *blist, struct clone_info *ci,
@@ -1628,6 +1701,8 @@ static void cleanup_mapped_device(struct mapped_device *md)
 	mempool_destroy(md->io_pool);
 	if (md->bs)
 		bioset_free(md->bs);
+	if (md->io_bs)
+		bioset_free(md->io_bs);
 
 	if (md->dax_dev) {
 		kill_dax(md->dax_dev);
@@ -1793,14 +1868,18 @@ static void __bind_mempools(struct mapped_device *md, struct dm_table *t)
 	struct dm_md_mempools *p = dm_table_get_md_mempools(t);
 
 	if (dm_table_bio_based(t)) {
-		/* The md may already have mempools that need changing. */
+		/*
+		 * The md may already have mempools that need changing.
+		 * If so, reload bioset because front_pad may have changed
+		 * because a different table was loaded.
+		 */
 		if (md->bs) {
-			/*
-			 * Reload bioset because front_pad may have changed
-			 * because a different table was loaded.
-			 */
 			bioset_free(md->bs);
 			md->bs = NULL;
+		}
+		if (md->io_bs) {
+			bioset_free(md->io_bs);
+			md->io_bs = NULL;
 		}
 		if (md->io_pool) {
 			/*
@@ -1823,12 +1902,14 @@ static void __bind_mempools(struct mapped_device *md, struct dm_table *t)
 		goto out;
 	}
 
-	BUG_ON(!p || md->io_pool || md->bs);
+	BUG_ON(!p || md->io_pool || md->bs || md->io_bs);
 
 	md->io_pool = p->io_pool;
 	p->io_pool = NULL;
 	md->bs = p->bs;
 	p->bs = NULL;
+	md->io_bs = p->io_bs;
+	p->io_bs = NULL;
 out:
 	/* mempool bind completed, no longer need any mempools in the table */
 	dm_table_free_md_mempools(t);
@@ -2719,7 +2800,7 @@ struct dm_md_mempools *dm_alloc_md_mempools(struct mapped_device *md, enum dm_qu
 {
 	struct dm_md_mempools *pools = kzalloc_node(sizeof(*pools), GFP_KERNEL, md->numa_node_id);
 	unsigned int pool_size = 0;
-	unsigned int front_pad;
+	unsigned int front_pad, io_front_pad;
 
 	if (!pools)
 		return NULL;
@@ -2729,6 +2810,12 @@ struct dm_md_mempools *dm_alloc_md_mempools(struct mapped_device *md, enum dm_qu
 	case DM_TYPE_DAX_BIO_BASED:
 		pool_size = max(dm_get_reserved_bio_based_ios(), min_pool_size);
 		front_pad = roundup(per_io_data_size, __alignof__(struct dm_target_io)) + offsetof(struct dm_target_io, clone);
+		io_front_pad = roundup(front_pad,  __alignof__(struct dm_io)) + offsetof(struct dm_io, tio);
+		pools->io_bs = bioset_create(pool_size, io_front_pad, 0);
+		if (!pools->io_bs)
+			goto out;
+		if (integrity && bioset_integrity_create(pools->io_bs, pool_size))
+			goto out;
 		pools->io_pool = mempool_create_slab_pool(pool_size, _io_cache);
 		if (!pools->io_pool)
 			goto out;
@@ -2767,6 +2854,8 @@ void dm_free_md_mempools(struct dm_md_mempools *pools)
 
 	if (pools->bs)
 		bioset_free(pools->bs);
+	if (pools->io_bs)
+		bioset_free(pools->io_bs);
 
 	kfree(pools);
 }

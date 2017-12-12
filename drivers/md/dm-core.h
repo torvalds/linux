@@ -91,6 +91,7 @@ struct mapped_device {
 	/*
 	 * io objects are allocated from here.
 	 */
+	struct bio_set *io_bs;
 	mempool_t *io_pool;
 
 	struct bio_set *bs;
