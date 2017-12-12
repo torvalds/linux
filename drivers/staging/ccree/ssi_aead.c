@@ -2687,7 +2687,7 @@ static struct ssi_alg_template aead_algs[] = {
 };
 
 static struct ssi_crypto_alg *cc_create_aead_alg(
-			struct ssi_alg_template *template,
+			struct ssi_alg_template *tmpl,
 			struct device *dev)
 {
 	struct ssi_crypto_alg *t_alg;
@@ -2697,26 +2697,26 @@ static struct ssi_crypto_alg *cc_create_aead_alg(
 	if (!t_alg)
 		return ERR_PTR(-ENOMEM);
 
-	alg = &template->template_aead;
+	alg = &tmpl->template_aead;
 
 	snprintf(alg->base.cra_name, CRYPTO_MAX_ALG_NAME, "%s",
-		 template->name);
+		 tmpl->name);
 	snprintf(alg->base.cra_driver_name, CRYPTO_MAX_ALG_NAME, "%s",
-		 template->driver_name);
+		 tmpl->driver_name);
 	alg->base.cra_module = THIS_MODULE;
 	alg->base.cra_priority = SSI_CRA_PRIO;
 
 	alg->base.cra_ctxsize = sizeof(struct cc_aead_ctx);
 	alg->base.cra_flags = CRYPTO_ALG_ASYNC | CRYPTO_ALG_KERN_DRIVER_ONLY |
-			 template->type;
+			 tmpl->type;
 	alg->init = cc_aead_init;
 	alg->exit = cc_aead_exit;
 
 	t_alg->aead_alg = *alg;
 
-	t_alg->cipher_mode = template->cipher_mode;
-	t_alg->flow_mode = template->flow_mode;
-	t_alg->auth_mode = template->auth_mode;
+	t_alg->cipher_mode = tmpl->cipher_mode;
+	t_alg->flow_mode = tmpl->flow_mode;
+	t_alg->auth_mode = tmpl->auth_mode;
 
 	return t_alg;
 }
