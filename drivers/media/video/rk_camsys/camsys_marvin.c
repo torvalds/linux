@@ -576,7 +576,7 @@ static int camsys_mrv_clkin_cb(void *ptr, unsigned int on)
 			}
 
 			clk->in_on = true;
-
+			pm_runtime_get_sync(&camsys_dev->pdev->dev);
 			camsys_trace(1, "%s clock(f: %ld Hz) in turn on",
 				     dev_name(camsys_dev->miscdev.this_device),
 				     isp_clk);
@@ -584,6 +584,7 @@ static int camsys_mrv_clkin_cb(void *ptr, unsigned int on)
 			udelay(100);
 			camsys_mrv_reset_cb(ptr, 0);
 		} else if (!on && clk->in_on) {
+			pm_runtime_put_sync(&camsys_dev->pdev->dev);
 			if (strstr(camsys_dev->miscdev.name,
 				"camsys_marvin1")) {
 				clk_disable_unprepare(clk->hclk_isp1_noc);
@@ -676,9 +677,6 @@ static int camsys_mrv_clkout_cb(void *ptr, unsigned int on, unsigned int inclk)
 
 	mutex_lock(&clk->lock);
 	if (on && (clk->out_on != on)) {
-
-		pm_runtime_get_sync(&camsys_dev->pdev->dev);
-
 		clk_set_rate(clk->cif_clk_out, inclk);
 		clk_prepare_enable(clk->cif_clk_out);
 		clk->out_on = on;
@@ -695,8 +693,6 @@ static int camsys_mrv_clkout_cb(void *ptr, unsigned int on, unsigned int inclk)
 		}
 
 		clk_disable_unprepare(clk->cif_clk_out);
-
-		pm_runtime_disable(&camsys_dev->pdev->dev);
 		clk->out_on = 0;
 
 		camsys_trace(1, "%s clock out turn off",

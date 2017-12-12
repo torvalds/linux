@@ -183,9 +183,11 @@
 *v0.0x22.7:
 	1) read MRV_MIPI_FRAME register in camsys_mrv_irq, and pass the value
 	fs_id and fe_id into isp library.
+*v0.0x22.8:
+	1) 3399 power management is wrong, correct it.
 */
 
-#define CAMSYS_DRIVER_VERSION                   KERNEL_VERSION(0, 0x22, 7)
+#define CAMSYS_DRIVER_VERSION                   KERNEL_VERSION(0, 0x22, 8)
 
 #define CAMSYS_PLATFORM_DRV_NAME                "RockChip-CamSys"
 #define CAMSYS_PLATFORM_MARVIN_NAME             "Platform_MarvinDev"
