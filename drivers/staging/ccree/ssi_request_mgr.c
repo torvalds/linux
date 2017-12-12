@@ -165,9 +165,8 @@ req_mgr_init_err:
 	return rc;
 }
 
-static void enqueue_seq(
-	void __iomem *cc_base,
-	struct cc_hw_desc seq[], unsigned int seq_len)
+static void enqueue_seq(void __iomem *cc_base, struct cc_hw_desc seq[],
+			unsigned int seq_len)
 {
 	int i, w;
 	void * __iomem reg = cc_base + CC_REG(DSCRPTR_QUEUE_WORD0);
@@ -202,10 +201,9 @@ static void request_mgr_complete(struct device *dev, void *dx_compl_h)
 	complete(this_compl);
 }
 
-static int cc_queues_status(
-		struct ssi_drvdata *drvdata,
-		struct cc_req_mgr_handle *req_mgr_h,
-		unsigned int total_seq_len)
+static int cc_queues_status(struct ssi_drvdata *drvdata,
+			    struct cc_req_mgr_handle *req_mgr_h,
+			    unsigned int total_seq_len)
 {
 	unsigned long poll_queue;
 	struct device *dev = drvdata_to_dev(drvdata);
@@ -259,9 +257,8 @@ static int cc_queues_status(
  *
  * \return int Returns -EINPROGRESS if "is_dout=true"; "0" if "is_dout=false"
  */
-int send_request(
-	struct ssi_drvdata *drvdata, struct ssi_crypto_req *ssi_req,
-	struct cc_hw_desc *desc, unsigned int len, bool is_dout)
+int send_request(struct ssi_drvdata *drvdata, struct ssi_crypto_req *ssi_req,
+		 struct cc_hw_desc *desc, unsigned int len, bool is_dout)
 {
 	void __iomem *cc_base = drvdata->cc_base;
 	struct cc_req_mgr_handle *req_mgr_h = drvdata->request_mgr_handle;
@@ -413,8 +410,8 @@ int send_request(
  *
  * \return int Returns "0" upon success
  */
-int send_request_init(
-	struct ssi_drvdata *drvdata, struct cc_hw_desc *desc, unsigned int len)
+int send_request_init(struct ssi_drvdata *drvdata, struct cc_hw_desc *desc,
+		      unsigned int len)
 {
 	void __iomem *cc_base = drvdata->cc_base;
 	struct cc_req_mgr_handle *req_mgr_h = drvdata->request_mgr_handle;
