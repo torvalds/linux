@@ -685,9 +685,10 @@ static void max310x_handle_tx(struct uart_port *port)
 		uart_write_wakeup(port);
 }
 
-static void max310x_port_irq(struct max310x_port *s, int portno)
+static irqreturn_t max310x_port_irq(struct max310x_port *s, int portno)
 {
 	struct uart_port *port = &s->p[portno].port;
+	irqreturn_t res = IRQ_NONE;
 
 	do {
 		unsigned int ists, lsr, rxlen;
@@ -697,6 +698,8 @@ static void max310x_port_irq(struct max310x_port *s, int portno)
 		rxlen = max310x_port_read(port, MAX310X_RXFIFOLVL_REG);
 		if (!ists && !rxlen)
 			break;
+
+		res = IRQ_HANDLED;
 
 		if (ists & MAX310X_IRQ_CTS_BIT) {
 			lsr = max310x_port_read(port, MAX310X_LSR_IRQSTS_REG);
@@ -711,11 +714,13 @@ static void max310x_port_irq(struct max310x_port *s, int portno)
 			mutex_unlock(&s->mutex);
 		}
 	} while (1);
+	return res;
 }
 
 static irqreturn_t max310x_ist(int irq, void *dev_id)
 {
 	struct max310x_port *s = (struct max310x_port *)dev_id;
+	bool handled = false;
 
 	if (s->devtype->nr > 1) {
 		do {
@@ -726,12 +731,15 @@ static irqreturn_t max310x_ist(int irq, void *dev_id)
 			val = ((1 << s->devtype->nr) - 1) & ~val;
 			if (!val)
 				break;
-			max310x_port_irq(s, fls(val) - 1);
+			if (max310x_port_irq(s, fls(val) - 1) == IRQ_HANDLED)
+				handled = true;
 		} while (1);
-	} else
-		max310x_port_irq(s, 0);
+	} else {
+		if (max310x_port_irq(s, 0) == IRQ_HANDLED)
+			handled = true;
+	}
 
-	return IRQ_HANDLED;
+	return IRQ_RETVAL(handled);
 }
 
 static void max310x_wq_proc(struct work_struct *ws)
@@ -1239,7 +1247,7 @@ static int max310x_probe(struct device *dev, struct max310x_devtype *devtype,
 
 	/* Setup interrupt */
 	ret = devm_request_threaded_irq(dev, irq, NULL, max310x_ist,
-					IRQF_ONESHOT, dev_name(dev), s);
+					IRQF_ONESHOT | IRQF_SHARED, dev_name(dev), s);
 	if (!ret)
 		return 0;
 
