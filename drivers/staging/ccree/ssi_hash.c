@@ -951,9 +951,8 @@ static int cc_hash_setkey(struct crypto_ahash *ahash, const u8 *key,
 	ctx->is_hmac = true;
 
 	if (keylen) {
-		ctx->key_params.key_dma_addr = dma_map_single(
-						dev, (void *)key,
-						keylen, DMA_TO_DEVICE);
+		ctx->key_params.key_dma_addr =
+			dma_map_single(dev, (void *)key, keylen, DMA_TO_DEVICE);
 		if (dma_mapping_error(dev, ctx->key_params.key_dma_addr)) {
 			dev_err(dev, "Mapping key va=0x%p len=%u for DMA failed\n",
 				key, keylen);
@@ -1132,9 +1131,8 @@ static int cc_xcbc_setkey(struct crypto_ahash *ahash,
 
 	ctx->key_params.keylen = keylen;
 
-	ctx->key_params.key_dma_addr = dma_map_single(
-					dev, (void *)key,
-					keylen, DMA_TO_DEVICE);
+	ctx->key_params.key_dma_addr =
+		dma_map_single(dev, (void *)key, keylen, DMA_TO_DEVICE);
 	if (dma_mapping_error(dev, ctx->key_params.key_dma_addr)) {
 		dev_err(dev, "Mapping key va=0x%p len=%u for DMA failed\n",
 			key, keylen);

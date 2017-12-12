@@ -239,9 +239,9 @@ static int cc_generate_mlli(struct device *dev, struct buffer_array *sg_data,
 	dev_dbg(dev, "NUM of SG's = %d\n", sg_data->num_of_buffers);
 
 	/* Allocate memory from the pointed pool */
-	mlli_params->mlli_virt_addr = dma_pool_alloc(
-			mlli_params->curr_pool, GFP_KERNEL,
-			&mlli_params->mlli_dma_addr);
+	mlli_params->mlli_virt_addr =
+		dma_pool_alloc(mlli_params->curr_pool, GFP_KERNEL,
+			       &mlli_params->mlli_dma_addr);
 	if (!mlli_params->mlli_virt_addr) {
 		dev_err(dev, "dma_pool_alloc() failed\n");
 		rc = -ENOMEM;
@@ -881,27 +881,21 @@ static void cc_prepare_aead_data_dlli(struct aead_request *req,
 	areq_ctx->is_icv_fragmented = false;
 	if (req->src == req->dst) {
 		/*INPLACE*/
-		areq_ctx->icv_dma_addr = sg_dma_address(
-			areq_ctx->src_sgl) +
+		areq_ctx->icv_dma_addr = sg_dma_address(areq_ctx->src_sgl) +
 			(*src_last_bytes - authsize);
-		areq_ctx->icv_virt_addr = sg_virt(
-			areq_ctx->src_sgl) +
+		areq_ctx->icv_virt_addr = sg_virt(areq_ctx->src_sgl) +
 			(*src_last_bytes - authsize);
 	} else if (direct == DRV_CRYPTO_DIRECTION_DECRYPT) {
 		/*NON-INPLACE and DECRYPT*/
-		areq_ctx->icv_dma_addr = sg_dma_address(
-			areq_ctx->src_sgl) +
+		areq_ctx->icv_dma_addr = sg_dma_address(areq_ctx->src_sgl) +
 			(*src_last_bytes - authsize);
-		areq_ctx->icv_virt_addr = sg_virt(
-			areq_ctx->src_sgl) +
+		areq_ctx->icv_virt_addr = sg_virt(areq_ctx->src_sgl) +
 			(*src_last_bytes - authsize);
 	} else {
 		/*NON-INPLACE and ENCRYPT*/
-		areq_ctx->icv_dma_addr = sg_dma_address(
-			areq_ctx->dst_sgl) +
+		areq_ctx->icv_dma_addr = sg_dma_address(areq_ctx->dst_sgl) +
 			(*dst_last_bytes - authsize);
-		areq_ctx->icv_virt_addr = sg_virt(
-			areq_ctx->dst_sgl) +
+		areq_ctx->icv_virt_addr = sg_virt(areq_ctx->dst_sgl) +
 			(*dst_last_bytes - authsize);
 	}
 }
@@ -1660,8 +1654,8 @@ int cc_buffer_mgr_init(struct ssi_drvdata *drvdata)
 
 	drvdata->buff_mgr_handle = buff_mgr_handle;
 
-	buff_mgr_handle->mlli_buffs_pool = dma_pool_create(
-				"dx_single_mlli_tables", dev,
+	buff_mgr_handle->mlli_buffs_pool =
+		dma_pool_create("dx_single_mlli_tables", dev,
 				MAX_NUM_OF_TOTAL_MLLI_ENTRIES *
 				LLI_ENTRY_BYTE_SIZE,
 				MLLI_TABLE_MIN_ALIGNMENT, 0);
