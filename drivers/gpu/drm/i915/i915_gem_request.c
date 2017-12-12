@@ -677,10 +677,21 @@ i915_gem_request_alloc(struct intel_engine_cs *engine,
 	 *
 	 * Do not use kmem_cache_zalloc() here!
 	 */
-	req = kmem_cache_alloc(dev_priv->requests, GFP_KERNEL);
-	if (!req) {
-		ret = -ENOMEM;
-		goto err_unreserve;
+	req = kmem_cache_alloc(dev_priv->requests,
+			       GFP_KERNEL | __GFP_RETRY_MAYFAIL | __GFP_NOWARN);
+	if (unlikely(!req)) {
+		/* Ratelimit ourselves to prevent oom from malicious clients */
+		ret = i915_gem_wait_for_idle(dev_priv,
+					     I915_WAIT_LOCKED |
+					     I915_WAIT_INTERRUPTIBLE);
+		if (ret)
+			goto err_unreserve;
+
+		req = kmem_cache_alloc(dev_priv->requests, GFP_KERNEL);
+		if (!req) {
+			ret = -ENOMEM;
+			goto err_unreserve;
+		}
 	}
 
 	req->timeline = i915_gem_context_lookup_timeline(ctx, engine);
