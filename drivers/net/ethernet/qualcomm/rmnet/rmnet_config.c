@@ -143,11 +143,7 @@ static int rmnet_newlink(struct net *src_net, struct net_device *dev,
 			 struct nlattr *tb[], struct nlattr *data[],
 			 struct netlink_ext_ack *extack)
 {
-	int ingress_format = RMNET_INGRESS_FORMAT_DEMUXING |
-			     RMNET_INGRESS_FORMAT_DEAGGREGATION |
-			     RMNET_INGRESS_FORMAT_MAP;
-	int egress_format = RMNET_EGRESS_FORMAT_MUXING |
-			    RMNET_EGRESS_FORMAT_MAP;
+	int ingress_format = RMNET_INGRESS_FORMAT_DEAGGREGATION;
 	struct net_device *real_dev;
 	int mode = RMNET_EPMODE_VND;
 	struct rmnet_endpoint *ep;
@@ -181,9 +177,7 @@ static int rmnet_newlink(struct net *src_net, struct net_device *dev,
 	if (err)
 		goto err2;
 
-	netdev_dbg(dev, "data format [ingress 0x%08X] [egress 0x%08X]\n",
-		   ingress_format, egress_format);
-	port->egress_data_format = egress_format;
+	netdev_dbg(dev, "data format [ingress 0x%08X]\n", ingress_format);
 	port->ingress_data_format = ingress_format;
 	port->rmnet_mode = mode;
 
