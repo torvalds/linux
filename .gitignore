@@ -39,6 +39,10 @@ Module.symvers
 *.dwo
 *.su
 *.c.[012]*.*
+arch/arm/boot/zImage-dtb
+uImage
+
+
 
 #
 # Top-level generic files
