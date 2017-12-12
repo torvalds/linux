@@ -1,0 +1,6 @@
+config MT76
+	tristate "MediaTek MT76x2 802.11ac chips support"
+	depends on MAC80211
+	depends on PCI
+	---help---
+	  This adds support for MediaTek MT76x2 802.11ac chips.
