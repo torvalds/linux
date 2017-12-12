@@ -358,9 +358,9 @@ static int init_cc_resources(struct platform_device *plat_dev)
 	}
 
 	/* hash must be allocated before aead since hash exports APIs */
-	rc = ssi_hash_alloc(new_drvdata);
+	rc = cc_hash_alloc(new_drvdata);
 	if (rc) {
-		dev_err(dev, "ssi_hash_alloc failed\n");
+		dev_err(dev, "cc_hash_alloc failed\n");
 		goto post_cipher_err;
 	}
 
@@ -379,7 +379,7 @@ static int init_cc_resources(struct platform_device *plat_dev)
 	return 0;
 
 post_hash_err:
-	ssi_hash_free(new_drvdata);
+	cc_hash_free(new_drvdata);
 post_cipher_err:
 	ssi_ablkcipher_free(new_drvdata);
 post_ivgen_err:
@@ -417,7 +417,7 @@ static void cleanup_cc_resources(struct platform_device *plat_dev)
 		(struct ssi_drvdata *)platform_get_drvdata(plat_dev);
 
 	cc_aead_free(drvdata);
-	ssi_hash_free(drvdata);
+	cc_hash_free(drvdata);
 	ssi_ablkcipher_free(drvdata);
 	ssi_ivgen_fini(drvdata);
 	cc_pm_fini(drvdata);

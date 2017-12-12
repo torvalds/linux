@@ -1023,10 +1023,8 @@ static void cc_set_hmac_desc(struct aead_request *req, struct cc_hw_desc desc[],
 	/* Load init. digest len (64 bytes) */
 	hw_desc_init(&desc[idx]);
 	set_cipher_mode(&desc[idx], hash_mode);
-	set_din_sram(&desc[idx],
-		     ssi_ahash_get_initial_digest_len_sram_addr(ctx->drvdata,
-								hash_mode),
-								HASH_LEN_SIZE);
+	set_din_sram(&desc[idx], cc_digest_len_addr(ctx->drvdata, hash_mode),
+		     HASH_LEN_SIZE);
 	set_flow_mode(&desc[idx], S_DIN_to_HASH);
 	set_setup_mode(&desc[idx], SETUP_LOAD_KEY0);
 	idx++;
@@ -1152,9 +1150,7 @@ static void cc_proc_scheme_desc(struct aead_request *req,
 	/* Load init. digest len (64 bytes) */
 	hw_desc_init(&desc[idx]);
 	set_cipher_mode(&desc[idx], hash_mode);
-	set_din_sram(&desc[idx],
-		     ssi_ahash_get_initial_digest_len_sram_addr(ctx->drvdata,
-								hash_mode),
+	set_din_sram(&desc[idx], cc_digest_len_addr(ctx->drvdata, hash_mode),
 		     HASH_LEN_SIZE);
 	set_cipher_config1(&desc[idx], HASH_PADDING_ENABLED);
 	set_flow_mode(&desc[idx], S_DIN_to_HASH);

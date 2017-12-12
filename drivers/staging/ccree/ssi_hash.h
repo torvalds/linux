@@ -27,12 +27,12 @@
 #define HMAC_OPAD_CONST	0x5C5C5C5C
 #if (DX_DEV_SHA_MAX > 256)
 #define HASH_LEN_SIZE 16
-#define SSI_MAX_HASH_DIGEST_SIZE	SHA512_DIGEST_SIZE
-#define SSI_MAX_HASH_BLCK_SIZE SHA512_BLOCK_SIZE
+#define CC_MAX_HASH_DIGEST_SIZE	SHA512_DIGEST_SIZE
+#define CC_MAX_HASH_BLCK_SIZE SHA512_BLOCK_SIZE
 #else
 #define HASH_LEN_SIZE 8
-#define SSI_MAX_HASH_DIGEST_SIZE	SHA256_DIGEST_SIZE
-#define SSI_MAX_HASH_BLCK_SIZE SHA256_BLOCK_SIZE
+#define CC_MAX_HASH_DIGEST_SIZE	SHA256_DIGEST_SIZE
+#define CC_MAX_HASH_BLCK_SIZE SHA256_BLOCK_SIZE
 #endif
 
 #define XCBC_MAC_K1_OFFSET 0
@@ -75,9 +75,9 @@ struct ahash_req_ctx {
 	struct mlli_params mlli_params;
 };
 
-int ssi_hash_alloc(struct ssi_drvdata *drvdata);
-int ssi_hash_init_sram_digest_consts(struct ssi_drvdata *drvdata);
-int ssi_hash_free(struct ssi_drvdata *drvdata);
+int cc_hash_alloc(struct ssi_drvdata *drvdata);
+int cc_init_hash_sram(struct ssi_drvdata *drvdata);
+int cc_hash_free(struct ssi_drvdata *drvdata);
 
 /*!
  * Gets the initial digest length
@@ -89,7 +89,7 @@ int ssi_hash_free(struct ssi_drvdata *drvdata);
  * \return u32 returns the address of the initial digest length in SRAM
  */
 ssi_sram_addr_t
-ssi_ahash_get_initial_digest_len_sram_addr(void *drvdata, u32 mode);
+cc_digest_len_addr(void *drvdata, u32 mode);
 
 /*!
  * Gets the address of the initial digest in SRAM
