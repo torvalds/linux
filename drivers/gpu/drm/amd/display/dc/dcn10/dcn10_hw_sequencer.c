@@ -465,8 +465,6 @@ static enum dc_status dcn10_prog_pixclk_crtc_otg(
 	bool enableStereo    = stream->timing.timing_3d_format == TIMING_3D_FORMAT_NONE ?
 			false:true;
 	bool rightEyePolarity = stream->timing.flags.RIGHT_EYE_3D_POLARITY;
-	int width = stream->timing.h_addressable + stream->timing.h_border_left + stream->timing.h_border_right;
-	int height = stream->timing.v_addressable + stream->timing.v_border_bottom + stream->timing.v_border_top;
 
 	/* by upper caller loop, pipe0 is parent pipe and be called first.
 	 * back end is set up by for pipe0. Other children pipe share back end
@@ -1813,9 +1811,6 @@ static void program_all_pipe_in_tree(
 		struct pipe_ctx *pipe_ctx,
 		struct dc_state *context)
 {
-	struct dc_stream_state *stream = pipe_ctx->stream;
-	int width = stream->timing.h_addressable + stream->timing.h_border_left + stream->timing.h_border_right;
-	int height = stream->timing.v_addressable + stream->timing.v_border_bottom + stream->timing.v_border_top;
 
 	if (pipe_ctx->top_pipe == NULL) {
 
@@ -1942,8 +1937,6 @@ static void dcn10_apply_ctx_for_surface(
 	bool removed_pipe[4] = { false };
 	unsigned int ref_clk_mhz = dc->res_pool->ref_clock_inKhz/1000;
 	bool program_water_mark = false;
-	int width = stream->timing.h_addressable + stream->timing.h_border_left + stream->timing.h_border_right;
-	int height = stream->timing.v_addressable + stream->timing.v_border_bottom + stream->timing.v_border_top;
 
 	struct pipe_ctx *top_pipe_to_program =
 			find_top_pipe_for_stream(dc, context, stream);
