@@ -641,21 +641,23 @@ static int aic32x4_set_dai_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 	case SND_SOC_DAIFMT_I2S:
 		break;
 	case SND_SOC_DAIFMT_DSP_A:
-		iface_reg_1 |= (AIC32X4_DSP_MODE << AIC32X4_PLLJ_SHIFT);
+		iface_reg_1 |= (AIC32X4_DSP_MODE <<
+				AIC32X4_IFACE1_DATATYPE_SHIFT);
 		iface_reg_3 |= (1 << 3); /* invert bit clock */
 		iface_reg_2 = 0x01; /* add offset 1 */
 		break;
 	case SND_SOC_DAIFMT_DSP_B:
-		iface_reg_1 |= (AIC32X4_DSP_MODE << AIC32X4_PLLJ_SHIFT);
+		iface_reg_1 |= (AIC32X4_DSP_MODE <<
+				AIC32X4_IFACE1_DATATYPE_SHIFT);
 		iface_reg_3 |= (1 << 3); /* invert bit clock */
 		break;
 	case SND_SOC_DAIFMT_RIGHT_J:
-		iface_reg_1 |=
-			(AIC32X4_RIGHT_JUSTIFIED_MODE << AIC32X4_PLLJ_SHIFT);
+		iface_reg_1 |= (AIC32X4_RIGHT_JUSTIFIED_MODE <<
+				AIC32X4_IFACE1_DATATYPE_SHIFT);
 		break;
 	case SND_SOC_DAIFMT_LEFT_J:
-		iface_reg_1 |=
-			(AIC32X4_LEFT_JUSTIFIED_MODE << AIC32X4_PLLJ_SHIFT);
+		iface_reg_1 |= (AIC32X4_LEFT_JUSTIFIED_MODE <<
+				AIC32X4_IFACE1_DATATYPE_SHIFT);
 		break;
 	default:
 		printk(KERN_ERR "aic32x4: invalid DAI interface format\n");
