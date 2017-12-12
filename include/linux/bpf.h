@@ -580,4 +580,15 @@ extern const struct bpf_func_proto bpf_sock_map_update_proto;
 void bpf_user_rnd_init_once(void);
 u64 bpf_user_rnd_u32(u64 r1, u64 r2, u64 r3, u64 r4, u64 r5);
 
+#if defined(__KERNEL__) && !defined(__ASSEMBLY__)
+#ifdef CONFIG_BPF_KPROBE_OVERRIDE
+#define BPF_ALLOW_ERROR_INJECTION(fname)				\
+static unsigned long __used						\
+	__attribute__((__section__("_kprobe_error_inject_list")))	\
+	_eil_addr_##fname = (unsigned long)fname;
+#else
+#define BPF_ALLOW_ERROR_INJECTION(fname)
+#endif
+#endif
+
 #endif /* _LINUX_BPF_H */
