@@ -3205,16 +3205,14 @@ static bool arcmsr_hbaE_get_config(struct AdapterControlBlock *pACB)
 	struct MessageUnit_E __iomem *reg = pACB->pmuE;
 	char __iomem *iop_firm_model = (char __iomem *)(&reg->msgcode_rwbuffer[15]);
 	char __iomem *iop_firm_version = (char __iomem *)(&reg->msgcode_rwbuffer[17]);
-	uint32_t intmask_org, Index, firmware_state = 0, read_doorbell;
+	uint32_t intmask_org;
 	int count;
 
 	/* disable all outbound interrupt */
 	intmask_org = readl(&reg->host_int_mask); /* disable outbound message0 int */
 	writel(intmask_org | ARCMSR_HBEMU_ALL_INTMASKENABLE, &reg->host_int_mask);
 	/* wait firmware ready */
-	do {
-		firmware_state = readl(&reg->outbound_msgaddr1);
-	} while ((firmware_state & ARCMSR_HBEMU_MESSAGE_FIRMWARE_OK) == 0);
+	arcmsr_wait_firmware_ready(pACB);
 	mdelay(20);
 	/* post "get config" instruction */
 	writel(ARCMSR_INBOUND_MESG0_GET_CONFIG, &reg->inbound_msgaddr0);
@@ -3222,17 +3220,7 @@ static bool arcmsr_hbaE_get_config(struct AdapterControlBlock *pACB)
 	pACB->out_doorbell ^= ARCMSR_HBEMU_DRV2IOP_MESSAGE_CMD_DONE;
 	writel(pACB->out_doorbell, &reg->iobound_doorbell);
 	/* wait message ready */
-	for (Index = 0; Index < 2000; Index++) {
-		read_doorbell = readl(&reg->iobound_doorbell);
-		if ((read_doorbell ^ pACB->in_doorbell) & ARCMSR_HBEMU_IOP2DRV_MESSAGE_CMD_DONE) {
-			writel(0, &reg->host_int_status);
-			pACB->in_doorbell = read_doorbell;
-			break;
-		}
-		mdelay(1);
-	} /*max 1 seconds*/
-
-	if (Index >= 2000) {
+	if (!arcmsr_hbaE_wait_msgint_ready(pACB)) {
 		pr_notice("arcmsr%d: wait get adapter firmware "
 			"miscellaneous data timeout\n", pACB->host->host_no);
 		return false;
