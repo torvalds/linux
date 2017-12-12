@@ -117,8 +117,8 @@ int rf69_set_modulation_shaping(struct spi_device *spi,
 		switch (mod_shaping) {
 		case SHAPING_OFF: return rf69_read_mod_write(spi, REG_DATAMODUL, MASK_DATAMODUL_MODULATION_SHAPE, DATAMODUL_MODULATION_SHAPE_NONE);
 		case SHAPING_1_0: return rf69_read_mod_write(spi, REG_DATAMODUL, MASK_DATAMODUL_MODULATION_SHAPE, DATAMODUL_MODULATION_SHAPE_1_0);
-		case SHAPING_0_5: return rf69_read_mod_write(spi, REG_DATAMODUL, MASK_DATAMODUL_MODULATION_SHAPE, DATAMODUL_MODULATION_SHAPE_0_3);
-		case SHAPING_0_3: return rf69_read_mod_write(spi, REG_DATAMODUL, MASK_DATAMODUL_MODULATION_SHAPE, DATAMODUL_MODULATION_SHAPE_0_5);
+		case SHAPING_0_5: return rf69_read_mod_write(spi, REG_DATAMODUL, MASK_DATAMODUL_MODULATION_SHAPE, DATAMODUL_MODULATION_SHAPE_0_5);
+		case SHAPING_0_3: return rf69_read_mod_write(spi, REG_DATAMODUL, MASK_DATAMODUL_MODULATION_SHAPE, DATAMODUL_MODULATION_SHAPE_0_3);
 		default:
 			dev_dbg(&spi->dev, "set: illegal input param");
 			return -EINVAL;
