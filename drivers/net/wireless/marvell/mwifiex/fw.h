@@ -409,6 +409,7 @@ enum MWIFIEX_802_11_PRIVACY_FILTER {
 #define HostCmd_CMD_TDLS_CONFIG                       0x0100
 #define HostCmd_CMD_MC_POLICY                         0x0121
 #define HostCmd_CMD_TDLS_OPER                         0x0122
+#define HostCmd_CMD_FW_DUMP_EVENT		      0x0125
 #define HostCmd_CMD_SDIO_SP_RX_AGGR_CFG               0x0223
 #define HostCmd_CMD_CHAN_REGION_CFG		      0x0242
 #define HostCmd_CMD_PACKET_AGGR_CTRL		      0x0251
