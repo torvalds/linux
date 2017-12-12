@@ -1264,9 +1264,6 @@ struct btrfs_root {
 	int send_in_progress;
 	struct btrfs_subvolume_writers *subv_writers;
 	atomic_t will_be_snapshotted;
-
-	/* For qgroup metadata space reserve */
-	atomic64_t qgroup_meta_rsv;
 };
 
 struct btrfs_file_private {

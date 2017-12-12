@@ -2499,6 +2499,15 @@ out:
 	return ret;
 }
 
+/*
+ * Free @num_bytes of reserved space with @type for qgroup.  (Normally level 0
+ * qgroup).
+ *
+ * Will handle all higher level qgroup too.
+ *
+ * NOTE: If @num_bytes is (u64)-1, this means to free all bytes of this qgroup.
+ * This special case is only used for META_PERTRANS type.
+ */
 void btrfs_qgroup_free_refroot(struct btrfs_fs_info *fs_info,
 			       u64 ref_root, u64 num_bytes,
 			       enum btrfs_qgroup_rsv_type type)
@@ -2515,6 +2524,10 @@ void btrfs_qgroup_free_refroot(struct btrfs_fs_info *fs_info,
 	if (num_bytes == 0)
 		return;
 
+	if (num_bytes == (u64)-1 && type != BTRFS_QGROUP_RSV_META_PERTRANS) {
+		WARN(1, "%s: Invalid type to free", __func__);
+		return;
+	}
 	spin_lock(&fs_info->qgroup_lock);
 
 	quota_root = fs_info->quota_root;
@@ -2524,6 +2537,13 @@ void btrfs_qgroup_free_refroot(struct btrfs_fs_info *fs_info,
 	qgroup = find_qgroup_rb(fs_info, ref_root);
 	if (!qgroup)
 		goto out;
+
+	/*
+	 * We're freeing all pertrans rsv, get current value from level 0
+	 * qgroup as real num_bytes to free.
+	 */
+	if (num_bytes == (u64)-1)
+		num_bytes = qgroup->rsv.values[type];
 
 	ulist_reinit(fs_info->qgroup_ulist);
 	ret = ulist_add(fs_info->qgroup_ulist, qgroup->qgroupid,
@@ -3082,24 +3102,21 @@ int __btrfs_qgroup_reserve_meta(struct btrfs_root *root, int num_bytes,
 	ret = qgroup_reserve(root, num_bytes, enforce, type);
 	if (ret < 0)
 		return ret;
-	atomic64_add(num_bytes, &root->qgroup_meta_rsv);
 	return ret;
 }
 
 void btrfs_qgroup_free_meta_all_pertrans(struct btrfs_root *root)
 {
 	struct btrfs_fs_info *fs_info = root->fs_info;
-	u64 reserved;
 
 	if (!test_bit(BTRFS_FS_QUOTA_ENABLED, &fs_info->flags) ||
 	    !is_fstree(root->objectid))
 		return;
 
-	reserved = atomic64_xchg(&root->qgroup_meta_rsv, 0);
-	if (reserved == 0)
-		return;
-	trace_qgroup_meta_reserve(root, -(s64)reserved);
-	btrfs_qgroup_free_refroot(fs_info, root->objectid, reserved,
+	/* TODO: Update trace point to handle such free */
+	trace_qgroup_meta_reserve(root, 0);
+	/* Special value -1 means to free all reserved space */
+	btrfs_qgroup_free_refroot(fs_info, root->objectid, (u64)-1,
 				  BTRFS_QGROUP_RSV_META_PERTRANS);
 }
 
@@ -3113,8 +3130,6 @@ void __btrfs_qgroup_free_meta(struct btrfs_root *root, int num_bytes,
 		return;
 
 	BUG_ON(num_bytes != round_down(num_bytes, fs_info->nodesize));
-	WARN_ON(atomic64_read(&root->qgroup_meta_rsv) < num_bytes);
-	atomic64_sub(num_bytes, &root->qgroup_meta_rsv);
 	trace_qgroup_meta_reserve(root, -(s64)num_bytes);
 	btrfs_qgroup_free_refroot(fs_info, root->objectid, num_bytes, type);
 }
