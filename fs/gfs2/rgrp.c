@@ -1044,12 +1044,16 @@ static void gfs2_rgrp_in(struct gfs2_rgrpd *rgd, const void *buf)
 
 static void gfs2_rgrp_out(struct gfs2_rgrpd *rgd, void *buf)
 {
+	struct gfs2_rgrpd *next = gfs2_rgrpd_get_next(rgd);
 	struct gfs2_rgrp *str = buf;
 
 	str->rg_flags = cpu_to_be32(rgd->rd_flags & ~GFS2_RDF_MASK);
 	str->rg_free = cpu_to_be32(rgd->rd_free);
 	str->rg_dinodes = cpu_to_be32(rgd->rd_dinodes);
-	str->__pad = cpu_to_be32(0);
+	if (next == NULL)
+		str->rg_skip = 0;
+	else if (next->rd_addr > rgd->rd_addr)
+		str->rg_skip = cpu_to_be32(next->rd_addr - rgd->rd_addr);
 	str->rg_igeneration = cpu_to_be64(rgd->rd_igeneration);
 	memset(&str->rg_reserved, 0, sizeof(str->rg_reserved));
 }

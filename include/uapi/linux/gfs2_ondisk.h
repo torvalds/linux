@@ -187,7 +187,10 @@ struct gfs2_rgrp {
 	__be32 rg_flags;
 	__be32 rg_free;
 	__be32 rg_dinodes;
-	__be32 __pad;
+	union {
+		__be32 __pad;
+		__be32 rg_skip; /* Distance to the next rgrp in fs blocks */
+	};
 	__be64 rg_igeneration;
 
 	__u8 rg_reserved[80]; /* Several fields from gfs1 now reserved */
