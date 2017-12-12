@@ -64,6 +64,7 @@ struct nvkm_acr *acr_r352_new(unsigned long);
 struct nvkm_acr *acr_r361_new(unsigned long);
 struct nvkm_acr *acr_r364_new(unsigned long);
 struct nvkm_acr *acr_r367_new(enum nvkm_secboot_falcon, unsigned long);
+struct nvkm_acr *acr_r370_new(enum nvkm_secboot_falcon, unsigned long);
 struct nvkm_acr *acr_r375_new(enum nvkm_secboot_falcon, unsigned long);
 
 #endif
