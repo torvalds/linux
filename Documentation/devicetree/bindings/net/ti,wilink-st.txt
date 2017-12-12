@@ -32,6 +32,9 @@ Optional properties:
    See ../clocks/clock-bindings.txt for details.
  - clock-names : Must include the following entry:
    "ext_clock" (External clock provided to the TI combo chip).
+ - nvmem-cells: phandle to nvmem data cell that contains a 6 byte BD address
+   with the most significant byte first (big-endian).
+ - nvmem-cell-names: "bd-address" (required when nvmem-cells is specified)
 
 Example:
 
@@ -43,5 +46,7 @@ Example:
 		enable-gpios = <&gpio1 7 GPIO_ACTIVE_HIGH>;
 		clocks = <&clk32k_wl18xx>;
 		clock-names = "ext_clock";
+		nvmem-cells = <&bd_address>;
+		nvmem-cell-names = "bd-address";
 	};
 };
