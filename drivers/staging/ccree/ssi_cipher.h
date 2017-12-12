@@ -18,8 +18,8 @@
  * ARM CryptoCell Cipher Crypto API
  */
 
-#ifndef __SSI_CIPHER_H__
-#define __SSI_CIPHER_H__
+#ifndef __CC_CIPHER_H__
+#define __CC_CIPHER_H__
 
 #include <linux/kernel.h>
 #include <crypto/algapi.h>
@@ -84,4 +84,4 @@ static inline bool cc_is_hw_key(struct crypto_tfm *tfm)
 
 #endif /* CRYPTO_TFM_REQ_HW_KEY */
 
-#endif /*__SSI_CIPHER_H__*/
+#endif /*__CC_CIPHER_H__*/

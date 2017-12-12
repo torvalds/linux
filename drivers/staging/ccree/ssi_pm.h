@@ -17,13 +17,13 @@
 /* \file ssi_pm.h
  */
 
-#ifndef __SSI_POWER_MGR_H__
-#define __SSI_POWER_MGR_H__
+#ifndef __CC_POWER_MGR_H__
+#define __CC_POWER_MGR_H__
 
 #include "ssi_config.h"
 #include "ssi_driver.h"
 
-#define SSI_SUSPEND_TIMEOUT 3000
+#define CC_SUSPEND_TIMEOUT 3000
 
 int cc_pm_init(struct ssi_drvdata *drvdata);
 

@@ -110,27 +110,27 @@ static irqreturn_t cc_isr(int irq, void *dev_id)
 
 	drvdata->irq = irr;
 	/* Completion interrupt - most probable */
-	if (irr & SSI_COMP_IRQ_MASK) {
+	if (irr & CC_COMP_IRQ_MASK) {
 		/* Mask AXI completion interrupt - will be unmasked in
 		 * Deferred service handler
 		 */
-		cc_iowrite(drvdata, CC_REG(HOST_IMR), imr | SSI_COMP_IRQ_MASK);
-		irr &= ~SSI_COMP_IRQ_MASK;
+		cc_iowrite(drvdata, CC_REG(HOST_IMR), imr | CC_COMP_IRQ_MASK);
+		irr &= ~CC_COMP_IRQ_MASK;
 		complete_request(drvdata);
 	}
 #ifdef CC_SUPPORT_FIPS
 	/* TEE FIPS interrupt */
-	if (irr & SSI_GPR0_IRQ_MASK) {
+	if (irr & CC_GPR0_IRQ_MASK) {
 		/* Mask interrupt - will be unmasked in Deferred service
 		 * handler
 		 */
-		cc_iowrite(drvdata, CC_REG(HOST_IMR), imr | SSI_GPR0_IRQ_MASK);
-		irr &= ~SSI_GPR0_IRQ_MASK;
+		cc_iowrite(drvdata, CC_REG(HOST_IMR), imr | CC_GPR0_IRQ_MASK);
+		irr &= ~CC_GPR0_IRQ_MASK;
 		fips_handler(drvdata);
 	}
 #endif
 	/* AXI error interrupt */
-	if (irr & SSI_AXI_ERR_IRQ_MASK) {
+	if (irr & CC_AXI_ERR_IRQ_MASK) {
 		u32 axi_err;
 
 		/* Read the AXI error ID */
@@ -138,7 +138,7 @@ static irqreturn_t cc_isr(int irq, void *dev_id)
 		dev_dbg(dev, "AXI completion error: axim_mon_err=0x%08X\n",
 			axi_err);
 
-		irr &= ~SSI_AXI_ERR_IRQ_MASK;
+		irr &= ~CC_AXI_ERR_IRQ_MASK;
 	}
 
 	if (irr) {
@@ -157,7 +157,7 @@ int init_cc_regs(struct ssi_drvdata *drvdata, bool is_probe)
 
 	/* Unmask all AXI interrupt sources AXI_CFG1 register */
 	val = cc_ioread(drvdata, CC_REG(AXIM_CFG));
-	cc_iowrite(drvdata, CC_REG(AXIM_CFG), val & ~SSI_AXI_IRQ_MASK);
+	cc_iowrite(drvdata, CC_REG(AXIM_CFG), val & ~CC_AXI_IRQ_MASK);
 	dev_dbg(dev, "AXIM_CFG=0x%08X\n",
 		cc_ioread(drvdata, CC_REG(AXIM_CFG)));
 
@@ -167,8 +167,8 @@ int init_cc_regs(struct ssi_drvdata *drvdata, bool is_probe)
 	cc_iowrite(drvdata, CC_REG(HOST_ICR), val);
 
 	/* Unmask relevant interrupt cause */
-	val = (unsigned int)(~(SSI_COMP_IRQ_MASK | SSI_AXI_ERR_IRQ_MASK |
-			       SSI_GPR0_IRQ_MASK));
+	val = (unsigned int)(~(CC_COMP_IRQ_MASK | CC_AXI_ERR_IRQ_MASK |
+			       CC_GPR0_IRQ_MASK));
 	cc_iowrite(drvdata, CC_REG(HOST_IMR), val);
 
 #ifdef DX_HOST_IRQ_TIMER_INIT_VAL_REG_OFFSET
@@ -289,7 +289,7 @@ static int init_cc_resources(struct platform_device *plat_dev)
 
 	/* Display HW versions */
 	dev_info(dev, "ARM CryptoCell %s Driver: HW version 0x%08X, Driver version %s\n",
-		 SSI_DEV_NAME_STR,
+		 CC_DEV_NAME_STR,
 		 cc_ioread(new_drvdata, CC_REG(HOST_VERSION)),
 		 DRV_MODULE_VERSION);
 
@@ -309,7 +309,7 @@ static int init_cc_resources(struct platform_device *plat_dev)
 
 	rc = ssi_fips_init(new_drvdata);
 	if (rc) {
-		dev_err(dev, "SSI_FIPS_INIT failed 0x%x\n", rc);
+		dev_err(dev, "CC_FIPS_INIT failed 0x%x\n", rc);
 		goto post_sysfs_err;
 	}
 	rc = ssi_sram_mgr_init(new_drvdata);

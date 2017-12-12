@@ -14,11 +14,11 @@
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef __SSI_SRAM_MGR_H__
-#define __SSI_SRAM_MGR_H__
+#ifndef __CC_SRAM_MGR_H__
+#define __CC_SRAM_MGR_H__
 
-#ifndef SSI_CC_SRAM_SIZE
-#define SSI_CC_SRAM_SIZE 4096
+#ifndef CC_CC_SRAM_SIZE
+#define CC_CC_SRAM_SIZE 4096
 #endif
 
 struct ssi_drvdata;
@@ -75,4 +75,4 @@ void cc_set_sram_desc(const u32 *src, ssi_sram_addr_t dst,
 		      unsigned int nelement, struct cc_hw_desc *seq,
 		      unsigned int *seq_len);
 
-#endif /*__SSI_SRAM_MGR_H__*/
+#endif /*__CC_SRAM_MGR_H__*/

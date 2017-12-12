@@ -88,7 +88,7 @@ static void fips_dsr(unsigned long devarg)
 	struct device *dev = drvdata_to_dev(drvdata);
 	u32 irq, state, val;
 
-	irq = (drvdata->irq & (SSI_GPR0_IRQ_MASK));
+	irq = (drvdata->irq & (CC_GPR0_IRQ_MASK));
 
 	if (irq) {
 		state = cc_ioread(drvdata, CC_REG(GPR_HOST));

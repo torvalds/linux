@@ -62,7 +62,7 @@ static int cc_gen_iv_pool(struct cc_ivgen_ctx *ivgen_ctx,
 {
 	unsigned int idx = *iv_seq_len;
 
-	if ((*iv_seq_len + CC_IVPOOL_GEN_SEQ_LEN) > SSI_IVPOOL_SEQ_LEN) {
+	if ((*iv_seq_len + CC_IVPOOL_GEN_SEQ_LEN) > CC_IVPOOL_SEQ_LEN) {
 		/* The sequence will be longer than allowed */
 		return -EINVAL;
 	}
@@ -119,7 +119,7 @@ static int cc_gen_iv_pool(struct cc_ivgen_ctx *ivgen_ctx,
 int cc_init_iv_sram(struct ssi_drvdata *drvdata)
 {
 	struct cc_ivgen_ctx *ivgen_ctx = drvdata->ivgen_handle;
-	struct cc_hw_desc iv_seq[SSI_IVPOOL_SEQ_LEN];
+	struct cc_hw_desc iv_seq[CC_IVPOOL_SEQ_LEN];
 	unsigned int iv_seq_len = 0;
 	int rc;
 
@@ -247,7 +247,7 @@ int cc_get_iv(struct ssi_drvdata *drvdata, dma_addr_t iv_out_dma[],
 	    iv_out_size != CTR_RFC3686_IV_SIZE) {
 		return -EINVAL;
 	}
-	if ((iv_out_dma_len + 1) > SSI_IVPOOL_SEQ_LEN) {
+	if ((iv_out_dma_len + 1) > CC_IVPOOL_SEQ_LEN) {
 		/* The sequence will be longer than allowed */
 		return -EINVAL;
 	}
@@ -255,7 +255,7 @@ int cc_get_iv(struct ssi_drvdata *drvdata, dma_addr_t iv_out_dma[],
 	/* check that number of generated IV is limited to max dma address
 	 * iv buffer size
 	 */
-	if (iv_out_dma_len > SSI_MAX_IVGEN_DMA_ADDRESSES) {
+	if (iv_out_dma_len > CC_MAX_IVGEN_DMA_ADDRESSES) {
 		/* The sequence will be longer than allowed */
 		return -EINVAL;
 	}

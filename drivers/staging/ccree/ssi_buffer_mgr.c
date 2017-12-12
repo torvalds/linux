@@ -61,11 +61,11 @@ struct buffer_array {
 static inline char *cc_dma_buf_type(enum ssi_req_dma_buf_type type)
 {
 	switch (type) {
-	case SSI_DMA_BUF_NULL:
+	case CC_DMA_BUF_NULL:
 		return "BUF_NULL";
-	case SSI_DMA_BUF_DLLI:
+	case CC_DMA_BUF_DLLI:
 		return "BUF_DLLI";
-	case SSI_DMA_BUF_MLLI:
+	case CC_DMA_BUF_MLLI:
 		return "BUF_MLLI";
 	default:
 		return "BUF_INVALID";
@@ -163,7 +163,7 @@ void cc_copy_sg_portion(struct device *dev, u8 *dest, struct scatterlist *sg,
 
 	nents = cc_get_sgl_nents(dev, sg, end, &lbytes, NULL);
 	sg_copy_buffer(sg, nents, (void *)dest, (end - to_skip + 1), to_skip,
-		       (direct == SSI_SG_TO_BUF));
+		       (direct == CC_SG_TO_BUF));
 }
 
 static int cc_render_buff_to_mlli(struct device *dev, dma_addr_t buff_dma,
@@ -457,7 +457,7 @@ static int ssi_ahash_handle_curr_buf(struct device *dev,
 		&sg_dma_address(areq_ctx->buff_sg), sg_page(areq_ctx->buff_sg),
 		sg_virt(areq_ctx->buff_sg), areq_ctx->buff_sg->offset,
 		areq_ctx->buff_sg->length);
-	areq_ctx->data_dma_buf_type = SSI_DMA_BUF_DLLI;
+	areq_ctx->data_dma_buf_type = CC_DMA_BUF_DLLI;
 	areq_ctx->curr_sg = areq_ctx->buff_sg;
 	areq_ctx->in_nents = 0;
 	/* prepare for case of MLLI */
@@ -481,7 +481,7 @@ void cc_unmap_blkcipher_request(struct device *dev, void *ctx,
 				 DMA_TO_DEVICE);
 	}
 	/* Release pool */
-	if (req_ctx->dma_buf_type == SSI_DMA_BUF_MLLI) {
+	if (req_ctx->dma_buf_type == CC_DMA_BUF_MLLI) {
 		dma_pool_free(req_ctx->mlli_params.curr_pool,
 			      req_ctx->mlli_params.mlli_virt_addr,
 			      req_ctx->mlli_params.mlli_dma_addr);
@@ -510,7 +510,7 @@ int cc_map_blkcipher_request(struct ssi_drvdata *drvdata, void *ctx,
 	int rc = 0;
 	u32 mapped_nents = 0;
 
-	req_ctx->dma_buf_type = SSI_DMA_BUF_DLLI;
+	req_ctx->dma_buf_type = CC_DMA_BUF_DLLI;
 	mlli_params->curr_pool = NULL;
 	sg_data.num_of_buffers = 0;
 
@@ -541,11 +541,11 @@ int cc_map_blkcipher_request(struct ssi_drvdata *drvdata, void *ctx,
 		goto ablkcipher_exit;
 	}
 	if (mapped_nents > 1)
-		req_ctx->dma_buf_type = SSI_DMA_BUF_MLLI;
+		req_ctx->dma_buf_type = CC_DMA_BUF_MLLI;
 
 	if (src == dst) {
 		/* Handle inplace operation */
-		if (req_ctx->dma_buf_type == SSI_DMA_BUF_MLLI) {
+		if (req_ctx->dma_buf_type == CC_DMA_BUF_MLLI) {
 			req_ctx->out_nents = 0;
 			cc_add_sg_entry(dev, &sg_data, req_ctx->in_nents, src,
 					nbytes, 0, true,
@@ -560,9 +560,9 @@ int cc_map_blkcipher_request(struct ssi_drvdata *drvdata, void *ctx,
 			goto ablkcipher_exit;
 		}
 		if (mapped_nents > 1)
-			req_ctx->dma_buf_type = SSI_DMA_BUF_MLLI;
+			req_ctx->dma_buf_type = CC_DMA_BUF_MLLI;
 
-		if (req_ctx->dma_buf_type == SSI_DMA_BUF_MLLI) {
+		if (req_ctx->dma_buf_type == CC_DMA_BUF_MLLI) {
 			cc_add_sg_entry(dev, &sg_data, req_ctx->in_nents, src,
 					nbytes, 0, true,
 					&req_ctx->in_mlli_nents);
@@ -572,7 +572,7 @@ int cc_map_blkcipher_request(struct ssi_drvdata *drvdata, void *ctx,
 		}
 	}
 
-	if (req_ctx->dma_buf_type == SSI_DMA_BUF_MLLI) {
+	if (req_ctx->dma_buf_type == CC_DMA_BUF_MLLI) {
 		mlli_params->curr_pool = buff_mgr->mlli_buffs_pool;
 		rc = cc_generate_mlli(dev, &sg_data, mlli_params);
 		if (rc)
@@ -679,7 +679,7 @@ void cc_unmap_aead_request(struct device *dev, struct aead_request *req)
 		 * data memory overriding that caused by cache coherence
 		 * problem.
 		 */
-		cc_copy_mac(dev, req, SSI_SG_FROM_BUF);
+		cc_copy_mac(dev, req, CC_SG_FROM_BUF);
 	}
 }
 
@@ -771,7 +771,7 @@ static int cc_aead_chain_iv(struct ssi_drvdata *drvdata,
 				    (areq_ctx->gen_ctx.iv_dma_addr + iv_ofs),
 				    iv_size_to_authenc, is_last,
 				    &areq_ctx->assoc.mlli_nents);
-		areq_ctx->assoc_buff_type = SSI_DMA_BUF_MLLI;
+		areq_ctx->assoc_buff_type = CC_DMA_BUF_MLLI;
 	}
 
 chain_iv_exit:
@@ -801,7 +801,7 @@ static int cc_aead_chain_assoc(struct ssi_drvdata *drvdata,
 	}
 
 	if (req->assoclen == 0) {
-		areq_ctx->assoc_buff_type = SSI_DMA_BUF_NULL;
+		areq_ctx->assoc_buff_type = CC_DMA_BUF_NULL;
 		areq_ctx->assoc.nents = 0;
 		areq_ctx->assoc.mlli_nents = 0;
 		dev_dbg(dev, "Chain assoc of length 0: buff_type=%s nents=%u\n",
@@ -851,18 +851,18 @@ static int cc_aead_chain_assoc(struct ssi_drvdata *drvdata,
 	}
 
 	if (mapped_nents == 1 && areq_ctx->ccm_hdr_size == ccm_header_size_null)
-		areq_ctx->assoc_buff_type = SSI_DMA_BUF_DLLI;
+		areq_ctx->assoc_buff_type = CC_DMA_BUF_DLLI;
 	else
-		areq_ctx->assoc_buff_type = SSI_DMA_BUF_MLLI;
+		areq_ctx->assoc_buff_type = CC_DMA_BUF_MLLI;
 
-	if (do_chain || areq_ctx->assoc_buff_type == SSI_DMA_BUF_MLLI) {
+	if (do_chain || areq_ctx->assoc_buff_type == CC_DMA_BUF_MLLI) {
 		dev_dbg(dev, "Chain assoc: buff_type=%s nents=%u\n",
 			cc_dma_buf_type(areq_ctx->assoc_buff_type),
 			areq_ctx->assoc.nents);
 		cc_add_sg_entry(dev, sg_data, areq_ctx->assoc.nents, req->src,
 				req->assoclen, 0, is_last,
 				&areq_ctx->assoc.mlli_nents);
-		areq_ctx->assoc_buff_type = SSI_DMA_BUF_MLLI;
+		areq_ctx->assoc_buff_type = CC_DMA_BUF_MLLI;
 	}
 
 chain_assoc_exit:
@@ -939,7 +939,7 @@ static int cc_prepare_aead_data_mlli(struct ssi_drvdata *drvdata,
 				 * we must neglect this code.
 				 */
 				if (!drvdata->coherent)
-					cc_copy_mac(dev, req, SSI_SG_TO_BUF);
+					cc_copy_mac(dev, req, CC_SG_TO_BUF);
 
 				areq_ctx->icv_virt_addr = areq_ctx->backup_mac;
 			} else {
@@ -981,7 +981,7 @@ static int cc_prepare_aead_data_mlli(struct ssi_drvdata *drvdata,
 		 * MAC verification upon request completion
 		 */
 		if (areq_ctx->is_icv_fragmented) {
-			cc_copy_mac(dev, req, SSI_SG_TO_BUF);
+			cc_copy_mac(dev, req, CC_SG_TO_BUF);
 			areq_ctx->icv_virt_addr = areq_ctx->backup_mac;
 
 		} else { /* Contig. ICV */
@@ -1136,12 +1136,12 @@ static int cc_aead_chain_data(struct ssi_drvdata *drvdata,
 	if (src_mapped_nents > 1 ||
 	    dst_mapped_nents  > 1 ||
 	    do_chain) {
-		areq_ctx->data_buff_type = SSI_DMA_BUF_MLLI;
+		areq_ctx->data_buff_type = CC_DMA_BUF_MLLI;
 		rc = cc_prepare_aead_data_mlli(drvdata, req, sg_data,
 					       &src_last_bytes,
 					       &dst_last_bytes, is_last_table);
 	} else {
-		areq_ctx->data_buff_type = SSI_DMA_BUF_DLLI;
+		areq_ctx->data_buff_type = CC_DMA_BUF_DLLI;
 		cc_prepare_aead_data_dlli(req, &src_last_bytes,
 					  &dst_last_bytes);
 	}
@@ -1156,13 +1156,13 @@ static void cc_update_aead_mlli_nents(struct ssi_drvdata *drvdata,
 	struct aead_req_ctx *areq_ctx = aead_request_ctx(req);
 	u32 curr_mlli_size = 0;
 
-	if (areq_ctx->assoc_buff_type == SSI_DMA_BUF_MLLI) {
+	if (areq_ctx->assoc_buff_type == CC_DMA_BUF_MLLI) {
 		areq_ctx->assoc.sram_addr = drvdata->mlli_sram_addr;
 		curr_mlli_size = areq_ctx->assoc.mlli_nents *
 						LLI_ENTRY_BYTE_SIZE;
 	}
 
-	if (areq_ctx->data_buff_type == SSI_DMA_BUF_MLLI) {
+	if (areq_ctx->data_buff_type == CC_DMA_BUF_MLLI) {
 		/*Inplace case dst nents equal to src nents*/
 		if (req->src == req->dst) {
 			areq_ctx->dst.mlli_nents = areq_ctx->src.mlli_nents;
@@ -1226,7 +1226,7 @@ int cc_map_aead_request(struct ssi_drvdata *drvdata, struct aead_request *req)
 	if (drvdata->coherent &&
 	    areq_ctx->gen_ctx.op_type == DRV_CRYPTO_DIRECTION_DECRYPT &&
 	    req->src == req->dst)
-		cc_copy_mac(dev, req, SSI_SG_TO_BUF);
+		cc_copy_mac(dev, req, CC_SG_TO_BUF);
 
 	/* cacluate the size for cipher remove ICV in decrypt*/
 	areq_ctx->cryptlen = (areq_ctx->gen_ctx.op_type ==
@@ -1380,8 +1380,8 @@ int cc_map_aead_request(struct ssi_drvdata *drvdata, struct aead_request *req)
 	/* Mlli support -start building the MLLI according to the above
 	 * results
 	 */
-	if (areq_ctx->assoc_buff_type == SSI_DMA_BUF_MLLI ||
-	    areq_ctx->data_buff_type == SSI_DMA_BUF_MLLI) {
+	if (areq_ctx->assoc_buff_type == CC_DMA_BUF_MLLI ||
+	    areq_ctx->data_buff_type == CC_DMA_BUF_MLLI) {
 		mlli_params->curr_pool = buff_mgr->mlli_buffs_pool;
 		rc = cc_generate_mlli(dev, &sg_data, mlli_params);
 		if (rc)
@@ -1419,7 +1419,7 @@ int cc_map_hash_request_final(struct ssi_drvdata *drvdata, void *ctx,
 	dev_dbg(dev, "final params : curr_buff=%pK curr_buff_cnt=0x%X nbytes = 0x%X src=%pK curr_index=%u\n",
 		curr_buff, *curr_buff_cnt, nbytes, src, areq_ctx->buff_index);
 	/* Init the type of the dma buffer */
-	areq_ctx->data_dma_buf_type = SSI_DMA_BUF_NULL;
+	areq_ctx->data_dma_buf_type = CC_DMA_BUF_NULL;
 	mlli_params->curr_pool = NULL;
 	sg_data.num_of_buffers = 0;
 	areq_ctx->in_nents = 0;
@@ -1445,19 +1445,19 @@ int cc_map_hash_request_final(struct ssi_drvdata *drvdata, void *ctx,
 			goto unmap_curr_buff;
 		}
 		if (src && mapped_nents == 1 &&
-		    areq_ctx->data_dma_buf_type == SSI_DMA_BUF_NULL) {
+		    areq_ctx->data_dma_buf_type == CC_DMA_BUF_NULL) {
 			memcpy(areq_ctx->buff_sg, src,
 			       sizeof(struct scatterlist));
 			areq_ctx->buff_sg->length = nbytes;
 			areq_ctx->curr_sg = areq_ctx->buff_sg;
-			areq_ctx->data_dma_buf_type = SSI_DMA_BUF_DLLI;
+			areq_ctx->data_dma_buf_type = CC_DMA_BUF_DLLI;
 		} else {
-			areq_ctx->data_dma_buf_type = SSI_DMA_BUF_MLLI;
+			areq_ctx->data_dma_buf_type = CC_DMA_BUF_MLLI;
 		}
 	}
 
 	/*build mlli */
-	if (areq_ctx->data_dma_buf_type == SSI_DMA_BUF_MLLI) {
+	if (areq_ctx->data_dma_buf_type == CC_DMA_BUF_MLLI) {
 		mlli_params->curr_pool = buff_mgr->mlli_buffs_pool;
 		/* add the src data to the sg_data */
 		cc_add_sg_entry(dev, &sg_data, areq_ctx->in_nents, src, nbytes,
@@ -1507,7 +1507,7 @@ int cc_map_hash_request_update(struct ssi_drvdata *drvdata, void *ctx,
 	dev_dbg(dev, " update params : curr_buff=%pK curr_buff_cnt=0x%X nbytes=0x%X src=%pK curr_index=%u\n",
 		curr_buff, *curr_buff_cnt, nbytes, src, areq_ctx->buff_index);
 	/* Init the type of the dma buffer */
-	areq_ctx->data_dma_buf_type = SSI_DMA_BUF_NULL;
+	areq_ctx->data_dma_buf_type = CC_DMA_BUF_NULL;
 	mlli_params->curr_pool = NULL;
 	areq_ctx->curr_sg = NULL;
 	sg_data.num_of_buffers = 0;
@@ -1539,7 +1539,7 @@ int cc_map_hash_request_update(struct ssi_drvdata *drvdata, void *ctx,
 			*next_buff_cnt);
 		cc_copy_sg_portion(dev, next_buff, src,
 				   (update_data_len - *curr_buff_cnt),
-				   nbytes, SSI_SG_TO_BUF);
+				   nbytes, CC_SG_TO_BUF);
 		/* change the buffer index for next operation */
 		swap_index = 1;
 	}
@@ -1561,19 +1561,19 @@ int cc_map_hash_request_update(struct ssi_drvdata *drvdata, void *ctx,
 			goto unmap_curr_buff;
 		}
 		if (mapped_nents == 1 &&
-		    areq_ctx->data_dma_buf_type == SSI_DMA_BUF_NULL) {
+		    areq_ctx->data_dma_buf_type == CC_DMA_BUF_NULL) {
 			/* only one entry in the SG and no previous data */
 			memcpy(areq_ctx->buff_sg, src,
 			       sizeof(struct scatterlist));
 			areq_ctx->buff_sg->length = update_data_len;
-			areq_ctx->data_dma_buf_type = SSI_DMA_BUF_DLLI;
+			areq_ctx->data_dma_buf_type = CC_DMA_BUF_DLLI;
 			areq_ctx->curr_sg = areq_ctx->buff_sg;
 		} else {
-			areq_ctx->data_dma_buf_type = SSI_DMA_BUF_MLLI;
+			areq_ctx->data_dma_buf_type = CC_DMA_BUF_MLLI;
 		}
 	}
 
-	if (areq_ctx->data_dma_buf_type == SSI_DMA_BUF_MLLI) {
+	if (areq_ctx->data_dma_buf_type == CC_DMA_BUF_MLLI) {
 		mlli_params->curr_pool = buff_mgr->mlli_buffs_pool;
 		/* add the src data to the sg_data */
 		cc_add_sg_entry(dev, &sg_data, areq_ctx->in_nents, src,

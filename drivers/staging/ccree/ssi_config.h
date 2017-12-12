@@ -18,8 +18,8 @@
  * Definitions for ARM CryptoCell Linux Crypto Driver
  */
 
-#ifndef __SSI_CONFIG_H__
-#define __SSI_CONFIG_H__
+#ifndef __CC_CONFIG_H__
+#define __CC_CONFIG_H__
 
 #include <linux/version.h>
 

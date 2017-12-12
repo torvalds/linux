@@ -31,7 +31,7 @@
 #include "ssi_ivgen.h"
 #include "ssi_pm.h"
 
-#define SSI_MAX_POLL_ITER	10
+#define CC_MAX_POLL_ITER	10
 
 struct cc_req_mgr_handle {
 	/* Request manager resources */
@@ -223,7 +223,7 @@ static int cc_queues_status(struct ssi_drvdata *drvdata,
 		return 0;
 
 	/* Wait for space in HW queue. Poll constant num of iterations. */
-	for (poll_queue = 0; poll_queue < SSI_MAX_POLL_ITER ; poll_queue++) {
+	for (poll_queue = 0; poll_queue < CC_MAX_POLL_ITER ; poll_queue++) {
 		req_mgr_h->q_free_slots =
 			cc_ioread(drvdata, CC_REG(DSCRPTR_QUEUE_CONTENT));
 		if (req_mgr_h->q_free_slots < req_mgr_h->min_free_hw_slots)
@@ -265,13 +265,13 @@ int send_request(struct ssi_drvdata *drvdata, struct ssi_crypto_req *ssi_req,
 	unsigned int used_sw_slots;
 	unsigned int iv_seq_len = 0;
 	unsigned int total_seq_len = len; /*initial sequence length*/
-	struct cc_hw_desc iv_seq[SSI_IVPOOL_SEQ_LEN];
+	struct cc_hw_desc iv_seq[CC_IVPOOL_SEQ_LEN];
 	struct device *dev = drvdata_to_dev(drvdata);
 	int rc;
 	unsigned int max_required_seq_len =
 		(total_seq_len +
 		 ((ssi_req->ivgen_dma_addr_len == 0) ? 0 :
-		  SSI_IVPOOL_SEQ_LEN) + (!is_dout ? 1 : 0));
+		  CC_IVPOOL_SEQ_LEN) + (!is_dout ? 1 : 0));
 
 #if defined(CONFIG_PM)
 	rc = cc_pm_get(dev);
@@ -541,13 +541,13 @@ static void comp_handler(unsigned long devarg)
 
 	u32 irq;
 
-	irq = (drvdata->irq & SSI_COMP_IRQ_MASK);
+	irq = (drvdata->irq & CC_COMP_IRQ_MASK);
 
-	if (irq & SSI_COMP_IRQ_MASK) {
+	if (irq & CC_COMP_IRQ_MASK) {
 		/* To avoid the interrupt from firing as we unmask it,
 		 * we clear it now
 		 */
-		cc_iowrite(drvdata, CC_REG(HOST_ICR), SSI_COMP_IRQ_MASK);
+		cc_iowrite(drvdata, CC_REG(HOST_ICR), CC_COMP_IRQ_MASK);
 
 		/* Avoid race with above clear: Test completion counter
 		 * once more
@@ -566,7 +566,7 @@ static void comp_handler(unsigned long devarg)
 			} while (request_mgr_handle->axi_completed > 0);
 
 			cc_iowrite(drvdata, CC_REG(HOST_ICR),
-				   SSI_COMP_IRQ_MASK);
+				   CC_COMP_IRQ_MASK);
 
 			request_mgr_handle->axi_completed +=
 					cc_axi_comp_count(drvdata);

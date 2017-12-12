@@ -18,8 +18,8 @@
  * ARM CryptoCell sysfs APIs
  */
 
-#ifndef __SSI_SYSFS_H__
-#define __SSI_SYSFS_H__
+#ifndef __CC_SYSFS_H__
+#define __CC_SYSFS_H__
 
 #include <asm/timex.h>
 
@@ -29,4 +29,4 @@ struct ssi_drvdata;
 int ssi_sysfs_init(struct kobject *sys_dev_obj, struct ssi_drvdata *drvdata);
 void ssi_sysfs_fini(void);
 
-#endif /*__SSI_SYSFS_H__*/
+#endif /*__CC_SYSFS_H__*/

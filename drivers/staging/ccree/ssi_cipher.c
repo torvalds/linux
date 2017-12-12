@@ -541,7 +541,7 @@ static void cc_setup_cipher_data(struct crypto_tfm *tfm,
 		return;
 	}
 	/* Process */
-	if (req_ctx->dma_buf_type == SSI_DMA_BUF_DLLI) {
+	if (req_ctx->dma_buf_type == CC_DMA_BUF_DLLI) {
 		dev_dbg(dev, " data params addr %pad length 0x%X\n",
 			&sg_dma_address(src), nbytes);
 		dev_dbg(dev, " data params addr %pad length 0x%X\n",
@@ -1091,7 +1091,7 @@ struct ssi_crypto_alg *cc_cipher_create_alg(struct ssi_alg_template *template,
 	snprintf(alg->cra_driver_name, CRYPTO_MAX_ALG_NAME, "%s",
 		 template->driver_name);
 	alg->cra_module = THIS_MODULE;
-	alg->cra_priority = SSI_CRA_PRIO;
+	alg->cra_priority = CC_CRA_PRIO;
 	alg->cra_blocksize = template->blocksize;
 	alg->cra_alignmask = 0;
 	alg->cra_ctxsize = sizeof(struct cc_cipher_ctx);

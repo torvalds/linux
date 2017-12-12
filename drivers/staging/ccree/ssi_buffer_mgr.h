@@ -18,8 +18,8 @@
  * Buffer Manager
  */
 
-#ifndef __SSI_BUFFER_MGR_H__
-#define __SSI_BUFFER_MGR_H__
+#ifndef __CC_BUFFER_MGR_H__
+#define __CC_BUFFER_MGR_H__
 
 #include <crypto/algapi.h>
 
@@ -27,14 +27,14 @@
 #include "ssi_driver.h"
 
 enum ssi_req_dma_buf_type {
-	SSI_DMA_BUF_NULL = 0,
-	SSI_DMA_BUF_DLLI,
-	SSI_DMA_BUF_MLLI
+	CC_DMA_BUF_NULL = 0,
+	CC_DMA_BUF_DLLI,
+	CC_DMA_BUF_MLLI
 };
 
 enum ssi_sg_cpy_direct {
-	SSI_SG_TO_BUF = 0,
-	SSI_SG_FROM_BUF = 1
+	CC_SG_TO_BUF = 0,
+	CC_SG_FROM_BUF = 1
 };
 
 struct ssi_mlli {

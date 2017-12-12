@@ -14,8 +14,8 @@
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef __SSI_FIPS_H__
-#define __SSI_FIPS_H__
+#ifndef __CC_FIPS_H__
+#define __CC_FIPS_H__
 
 #ifdef CONFIG_CRYPTO_FIPS
 
@@ -46,5 +46,5 @@ static inline void fips_handler(struct ssi_drvdata *drvdata) {}
 
 #endif /* CONFIG_CRYPTO_FIPS */
 
-#endif  /*__SSI_FIPS_H__*/
+#endif  /*__CC_FIPS_H__*/
 

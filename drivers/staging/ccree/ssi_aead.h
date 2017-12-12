@@ -18,8 +18,8 @@
  * ARM CryptoCell AEAD Crypto API
  */
 
-#ifndef __SSI_AEAD_H__
-#define __SSI_AEAD_H__
+#ifndef __CC_AEAD_H__
+#define __CC_AEAD_H__
 
 #include <linux/kernel.h>
 #include <crypto/algapi.h>
@@ -119,4 +119,4 @@ struct aead_req_ctx {
 int cc_aead_alloc(struct ssi_drvdata *drvdata);
 int cc_aead_free(struct ssi_drvdata *drvdata);
 
-#endif /*__SSI_AEAD_H__*/
+#endif /*__CC_AEAD_H__*/

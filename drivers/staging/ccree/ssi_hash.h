@@ -18,8 +18,8 @@
  * ARM CryptoCell Hash Crypto API
  */
 
-#ifndef __SSI_HASH_H__
-#define __SSI_HASH_H__
+#ifndef __CC_HASH_H__
+#define __CC_HASH_H__
 
 #include "ssi_buffer_mgr.h"
 
@@ -103,5 +103,5 @@ cc_digest_len_addr(void *drvdata, u32 mode);
  */
 ssi_sram_addr_t cc_larval_digest_addr(void *drvdata, u32 mode);
 
-#endif /*__SSI_HASH_H__*/
+#endif /*__CC_HASH_H__*/
 

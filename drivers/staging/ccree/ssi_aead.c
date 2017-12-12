@@ -257,7 +257,7 @@ static void cc_aead_complete(struct device *dev, void *ssi_req)
 			cc_copy_sg_portion(dev, areq_ctx->mac_buf,
 					   areq_ctx->dst_sgl, skip,
 					   (skip + ctx->authsize),
-					   SSI_SG_FROM_BUF);
+					   CC_SG_FROM_BUF);
 		}
 
 		/* If an IV was generated, copy it back to the user provided
@@ -739,7 +739,7 @@ static void cc_set_assoc_desc(struct aead_request *areq, unsigned int flow_mode,
 	struct device *dev = drvdata_to_dev(ctx->drvdata);
 
 	switch (assoc_dma_type) {
-	case SSI_DMA_BUF_DLLI:
+	case CC_DMA_BUF_DLLI:
 		dev_dbg(dev, "ASSOC buffer type DLLI\n");
 		hw_desc_init(&desc[idx]);
 		set_din_type(&desc[idx], DMA_DLLI, sg_dma_address(areq->src),
@@ -749,7 +749,7 @@ static void cc_set_assoc_desc(struct aead_request *areq, unsigned int flow_mode,
 		    areq_ctx->cryptlen > 0)
 			set_din_not_last_indication(&desc[idx]);
 		break;
-	case SSI_DMA_BUF_MLLI:
+	case CC_DMA_BUF_MLLI:
 		dev_dbg(dev, "ASSOC buffer type MLLI\n");
 		hw_desc_init(&desc[idx]);
 		set_din_type(&desc[idx], DMA_MLLI, areq_ctx->assoc.sram_addr,
@@ -759,7 +759,7 @@ static void cc_set_assoc_desc(struct aead_request *areq, unsigned int flow_mode,
 		    areq_ctx->cryptlen > 0)
 			set_din_not_last_indication(&desc[idx]);
 		break;
-	case SSI_DMA_BUF_NULL:
+	case CC_DMA_BUF_NULL:
 	default:
 		dev_err(dev, "Invalid ASSOC buffer type\n");
 	}
@@ -780,7 +780,7 @@ static void cc_proc_authen_desc(struct aead_request *areq,
 	struct device *dev = drvdata_to_dev(ctx->drvdata);
 
 	switch (data_dma_type) {
-	case SSI_DMA_BUF_DLLI:
+	case CC_DMA_BUF_DLLI:
 	{
 		struct scatterlist *cipher =
 			(direct == DRV_CRYPTO_DIRECTION_ENCRYPT) ?
@@ -797,7 +797,7 @@ static void cc_proc_authen_desc(struct aead_request *areq,
 		set_flow_mode(&desc[idx], flow_mode);
 		break;
 	}
-	case SSI_DMA_BUF_MLLI:
+	case CC_DMA_BUF_MLLI:
 	{
 		/* DOUBLE-PASS flow (as default)
 		 * assoc. + iv + data -compact in one table
@@ -823,7 +823,7 @@ static void cc_proc_authen_desc(struct aead_request *areq,
 		set_flow_mode(&desc[idx], flow_mode);
 		break;
 	}
-	case SSI_DMA_BUF_NULL:
+	case CC_DMA_BUF_NULL:
 	default:
 		dev_err(dev, "AUTHENC: Invalid SRC/DST buffer type\n");
 	}
@@ -847,7 +847,7 @@ static void cc_proc_cipher_desc(struct aead_request *areq,
 		return; /*null processing*/
 
 	switch (data_dma_type) {
-	case SSI_DMA_BUF_DLLI:
+	case CC_DMA_BUF_DLLI:
 		dev_dbg(dev, "CIPHER: SRC/DST buffer type DLLI\n");
 		hw_desc_init(&desc[idx]);
 		set_din_type(&desc[idx], DMA_DLLI,
@@ -860,7 +860,7 @@ static void cc_proc_cipher_desc(struct aead_request *areq,
 			      areq_ctx->cryptlen, NS_BIT, 0);
 		set_flow_mode(&desc[idx], flow_mode);
 		break;
-	case SSI_DMA_BUF_MLLI:
+	case CC_DMA_BUF_MLLI:
 		dev_dbg(dev, "CIPHER: SRC/DST buffer type MLLI\n");
 		hw_desc_init(&desc[idx]);
 		set_din_type(&desc[idx], DMA_MLLI, areq_ctx->src.sram_addr,
@@ -869,7 +869,7 @@ static void cc_proc_cipher_desc(struct aead_request *areq,
 			      areq_ctx->dst.mlli_nents, NS_BIT, 0);
 		set_flow_mode(&desc[idx], flow_mode);
 		break;
-	case SSI_DMA_BUF_NULL:
+	case CC_DMA_BUF_NULL:
 	default:
 		dev_err(dev, "CIPHER: Invalid SRC/DST buffer type\n");
 	}
@@ -1171,8 +1171,8 @@ static void cc_mlli_to_sram(struct aead_request *req,
 	struct cc_aead_ctx *ctx = crypto_aead_ctx(tfm);
 	struct device *dev = drvdata_to_dev(ctx->drvdata);
 
-	if (req_ctx->assoc_buff_type == SSI_DMA_BUF_MLLI ||
-	    req_ctx->data_buff_type == SSI_DMA_BUF_MLLI ||
+	if (req_ctx->assoc_buff_type == CC_DMA_BUF_MLLI ||
+	    req_ctx->data_buff_type == CC_DMA_BUF_MLLI ||
 	    !req_ctx->is_single_pass) {
 		dev_dbg(dev, "Copy-to-sram: mlli_dma=%08x, mlli_size=%u\n",
 			(unsigned int)ctx->drvdata->mlli_sram_addr,
@@ -2670,7 +2670,7 @@ static struct ssi_crypto_alg *cc_create_aead_alg(struct ssi_alg_template *tmpl,
 	snprintf(alg->base.cra_driver_name, CRYPTO_MAX_ALG_NAME, "%s",
 		 tmpl->driver_name);
 	alg->base.cra_module = THIS_MODULE;
-	alg->base.cra_priority = SSI_CRA_PRIO;
+	alg->base.cra_priority = CC_CRA_PRIO;
 
 	alg->base.cra_ctxsize = sizeof(struct cc_aead_ctx);
 	alg->base.cra_flags = CRYPTO_ALG_ASYNC | CRYPTO_ALG_KERN_DRIVER_ONLY |

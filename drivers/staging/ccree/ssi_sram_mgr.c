@@ -80,7 +80,7 @@ ssi_sram_addr_t cc_sram_alloc(struct ssi_drvdata *drvdata, u32 size)
 			size);
 		return NULL_SRAM_ADDR;
 	}
-	if (size > (SSI_CC_SRAM_SIZE - smgr_ctx->sram_free_offset)) {
+	if (size > (CC_CC_SRAM_SIZE - smgr_ctx->sram_free_offset)) {
 		dev_err(dev, "Not enough space to allocate %u B (at offset %llu)\n",
 			size, smgr_ctx->sram_free_offset);
 		return NULL_SRAM_ADDR;

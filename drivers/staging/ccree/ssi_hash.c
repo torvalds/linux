@@ -1988,7 +1988,7 @@ static struct cc_hash_alg *cc_alloc_hash_alg(struct cc_hash_template *template,
 	}
 	alg->cra_module = THIS_MODULE;
 	alg->cra_ctxsize = sizeof(struct cc_hash_ctx);
-	alg->cra_priority = SSI_CRA_PRIO;
+	alg->cra_priority = CC_CRA_PRIO;
 	alg->cra_blocksize = template->blocksize;
 	alg->cra_alignmask = 0;
 	alg->cra_exit = cc_cra_exit;
@@ -2345,7 +2345,7 @@ static void cc_set_desc(struct ahash_req_ctx *areq_ctx,
 	unsigned int idx = *seq_size;
 	struct device *dev = drvdata_to_dev(ctx->drvdata);
 
-	if (areq_ctx->data_dma_buf_type == SSI_DMA_BUF_DLLI) {
+	if (areq_ctx->data_dma_buf_type == CC_DMA_BUF_DLLI) {
 		hw_desc_init(&desc[idx]);
 		set_din_type(&desc[idx], DMA_DLLI,
 			     sg_dma_address(areq_ctx->curr_sg),
@@ -2353,7 +2353,7 @@ static void cc_set_desc(struct ahash_req_ctx *areq_ctx,
 		set_flow_mode(&desc[idx], flow_mode);
 		idx++;
 	} else {
-		if (areq_ctx->data_dma_buf_type == SSI_DMA_BUF_NULL) {
+		if (areq_ctx->data_dma_buf_type == CC_DMA_BUF_NULL) {
 			dev_dbg(dev, " NULL mode\n");
 			/* nothing to build */
 			return;

@@ -14,12 +14,12 @@
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef __SSI_IVGEN_H__
-#define __SSI_IVGEN_H__
+#ifndef __CC_IVGEN_H__
+#define __CC_IVGEN_H__
 
 #include "cc_hw_queue_defs.h"
 
-#define SSI_IVPOOL_SEQ_LEN 8
+#define CC_IVPOOL_SEQ_LEN 8
 
 /*!
  * Allocates iv-pool and maps resources.
@@ -65,4 +65,4 @@ int cc_get_iv(struct ssi_drvdata *drvdata, dma_addr_t iv_out_dma[],
 	      unsigned int iv_out_dma_len, unsigned int iv_out_size,
 	      struct cc_hw_desc iv_seq[], unsigned int *iv_seq_len);
 
-#endif /*__SSI_IVGEN_H__*/
+#endif /*__CC_IVGEN_H__*/

@@ -18,8 +18,8 @@
  * ARM CryptoCell Linux Crypto Driver
  */
 
-#ifndef __SSI_DRIVER_H__
-#define __SSI_DRIVER_H__
+#ifndef __CC_DRIVER_H__
+#define __CC_DRIVER_H__
 
 #include "ssi_config.h"
 #ifdef COMP_IN_WQ
@@ -51,17 +51,17 @@
 
 #define DRV_MODULE_VERSION "3.0"
 
-#define SSI_DEV_NAME_STR "cc715ree"
+#define CC_DEV_NAME_STR "cc715ree"
 #define CC_COHERENT_CACHE_PARAMS 0xEEE
 
-#define SSI_AXI_IRQ_MASK ((1 << DX_AXIM_CFG_BRESPMASK_BIT_SHIFT) | \
+#define CC_AXI_IRQ_MASK ((1 << DX_AXIM_CFG_BRESPMASK_BIT_SHIFT) | \
 			  (1 << DX_AXIM_CFG_RRESPMASK_BIT_SHIFT) | \
 			  (1 << DX_AXIM_CFG_INFLTMASK_BIT_SHIFT) | \
 			  (1 << DX_AXIM_CFG_COMPMASK_BIT_SHIFT))
 
-#define SSI_AXI_ERR_IRQ_MASK BIT(DX_HOST_IRR_AXI_ERR_INT_BIT_SHIFT)
+#define CC_AXI_ERR_IRQ_MASK BIT(DX_HOST_IRR_AXI_ERR_INT_BIT_SHIFT)
 
-#define SSI_COMP_IRQ_MASK BIT(DX_HOST_IRR_AXIM_COMP_INT_BIT_SHIFT)
+#define CC_COMP_IRQ_MASK BIT(DX_HOST_IRR_AXIM_COMP_INT_BIT_SHIFT)
 
 #define AXIM_MON_COMP_VALUE GENMASK(DX_AXIM_MON_COMP_VALUE_BIT_SIZE + \
 				    DX_AXIM_MON_COMP_VALUE_BIT_SHIFT, \
@@ -71,9 +71,9 @@
 #define CC_REG(reg_name) DX_ ## reg_name ## _REG_OFFSET
 
 /* TEE FIPS status interrupt */
-#define SSI_GPR0_IRQ_MASK BIT(DX_HOST_IRR_GPR0_BIT_SHIFT)
+#define CC_GPR0_IRQ_MASK BIT(DX_HOST_IRR_GPR0_BIT_SHIFT)
 
-#define SSI_CRA_PRIO 3000
+#define CC_CRA_PRIO 3000
 
 #define MIN_HW_QUEUE_SIZE 50 /* Minimum size required for proper function */
 
@@ -88,11 +88,11 @@
  * field in the HW descriptor. The DMA engine +8 that value.
  */
 
-#define SSI_MAX_IVGEN_DMA_ADDRESSES	3
+#define CC_MAX_IVGEN_DMA_ADDRESSES	3
 struct ssi_crypto_req {
 	void (*user_cb)(struct device *dev, void *req);
 	void *user_arg;
-	dma_addr_t ivgen_dma_addr[SSI_MAX_IVGEN_DMA_ADDRESSES];
+	dma_addr_t ivgen_dma_addr[CC_MAX_IVGEN_DMA_ADDRESSES];
 	/* For the first 'ivgen_dma_addr_len' addresses of this array,
 	 * generated IV would be placed in it by send_request().
 	 * Same generated IV for all addresses!
@@ -192,5 +192,5 @@ static inline u32 cc_ioread(struct ssi_drvdata *drvdata, u32 reg)
 	return ioread32(drvdata->cc_base + reg);
 }
 
-#endif /*__SSI_DRIVER_H__*/
+#endif /*__CC_DRIVER_H__*/
 

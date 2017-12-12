@@ -123,7 +123,7 @@ int cc_pm_init(struct ssi_drvdata *drvdata)
 	struct device *dev = drvdata_to_dev(drvdata);
 
 	/* must be before the enabling to avoid resdundent suspending */
-	pm_runtime_set_autosuspend_delay(dev, SSI_SUSPEND_TIMEOUT);
+	pm_runtime_set_autosuspend_delay(dev, CC_SUSPEND_TIMEOUT);
 	pm_runtime_use_autosuspend(dev);
 	/* activate the PM module */
 	rc = pm_runtime_set_active(dev);
