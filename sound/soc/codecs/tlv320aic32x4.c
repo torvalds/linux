@@ -686,7 +686,7 @@ static int aic32x4_hw_params(struct snd_pcm_substream *substream,
 	}
 
 	/* Use PLL as CODEC_CLKIN and DAC_MOD_CLK as BDIV_CLKIN */
-	snd_soc_write(codec, AIC32X4_CLKMUX, AIC32X4_PLLCLKIN);
+	snd_soc_write(codec, AIC32X4_CLKMUX, AIC32X4_CODEC_CLKIN_PLL);
 	snd_soc_write(codec, AIC32X4_IFACE3, AIC32X4_DACMOD2BCLK);
 
 	/* We will fix R value to 1 and will make P & J=K.D as varialble */
