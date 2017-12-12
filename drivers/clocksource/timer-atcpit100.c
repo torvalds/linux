@@ -18,6 +18,9 @@
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
 #include "timer-of.h"
+#ifdef CONFIG_NDS32
+#include <asm/vdso_timer_info.h>
+#endif
 
 /*
  * Definition of register offsets
@@ -204,6 +207,17 @@ static u64 notrace atcpit100_timer_sched_read(void)
 	return ~readl(timer_of_base(&to) + CH1_CNT);
 }
 
+#ifdef CONFIG_NDS32
+static void fill_vdso_need_info(struct device_node *node)
+{
+	struct resource timer_res;
+	of_address_to_resource(node, 0, &timer_res);
+	timer_info.mapping_base = (unsigned long)timer_res.start;
+	timer_info.cycle_count_down = true;
+	timer_info.cycle_count_reg_offset = CH1_CNT;
+}
+#endif
+
 static int __init atcpit100_timer_init(struct device_node *node)
 {
 	int ret;
@@ -241,6 +255,10 @@ static int __init atcpit100_timer_init(struct device_node *node)
 	/* Enable channel 0 timer0 interrupt */
 	val = readl(base + INT_EN);
 	writel(val | CH0INT0EN, base + INT_EN);
+
+#ifdef CONFIG_NDS32
+	fill_vdso_need_info(node);
+#endif
 
 	return ret;
 }
