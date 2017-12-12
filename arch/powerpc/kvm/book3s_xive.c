@@ -1558,7 +1558,7 @@ static int xive_set_source(struct kvmppc_xive *xive, long irq, u64 addr)
 
 	/*
 	 * Restore P and Q. If the interrupt was pending, we
-	 * force both P and Q, which will trigger a resend.
+	 * force Q and !P, which will trigger a resend.
 	 *
 	 * That means that a guest that had both an interrupt
 	 * pending (queued) and Q set will restore with only
@@ -1566,7 +1566,7 @@ static int xive_set_source(struct kvmppc_xive *xive, long irq, u64 addr)
 	 * is perfectly fine as coalescing interrupts that haven't
 	 * been presented yet is always allowed.
 	 */
-	if (val & KVM_XICS_PRESENTED || val & KVM_XICS_PENDING)
+	if (val & KVM_XICS_PRESENTED && !(val & KVM_XICS_PENDING))
 		state->old_p = true;
 	if (val & KVM_XICS_QUEUED || val & KVM_XICS_PENDING)
 		state->old_q = true;
