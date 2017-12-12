@@ -752,9 +752,16 @@ static int __qcom_smd_send(struct qcom_smd_channel *channel, const void *data,
 
 		SET_TX_CHANNEL_FLAG(channel, fBLOCKREADINTR, 0);
 
+		/* Wait without holding the tx_lock */
+		mutex_unlock(&channel->tx_lock);
+
 		ret = wait_event_interruptible(channel->fblockread_event,
 				       qcom_smd_get_tx_avail(channel) >= tlen ||
 				       channel->state != SMD_CHANNEL_OPENED);
+		if (ret)
+			goto out;
+
+		ret = mutex_lock_interruptible(&channel->tx_lock);
 		if (ret)
 			goto out;
 
