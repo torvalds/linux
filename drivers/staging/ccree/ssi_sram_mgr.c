@@ -32,13 +32,8 @@ struct cc_sram_ctx {
  */
 void cc_sram_mgr_fini(struct cc_drvdata *drvdata)
 {
-	struct cc_sram_ctx *smgr_ctx = drvdata->sram_mgr_handle;
-
 	/* Free "this" context */
-	if (smgr_ctx) {
-		memset(smgr_ctx, 0, sizeof(struct cc_sram_ctx));
-		kfree(smgr_ctx);
-	}
+	kfree(drvdata->sram_mgr_handle);
 }
 
 /**
