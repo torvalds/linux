@@ -92,7 +92,6 @@ void gfs2_trans_end(struct gfs2_sbd *sdp)
 	s64 nbuf;
 	int alloced = test_bit(TR_ALLOCED, &tr->tr_flags);
 
-	BUG_ON(!tr);
 	current->journal_info = NULL;
 
 	if (!test_bit(TR_TOUCHED, &tr->tr_flags)) {
