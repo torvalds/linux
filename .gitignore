@@ -41,7 +41,7 @@ Module.symvers
 *.c.[012]*.*
 arch/arm/boot/zImage-dtb
 uImage
-
+*.rej
 
 
 #
