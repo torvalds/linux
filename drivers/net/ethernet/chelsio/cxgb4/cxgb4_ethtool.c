@@ -1396,6 +1396,101 @@ static int get_dump_data(struct net_device *dev, struct ethtool_dump *eth_dump,
 	return 0;
 }
 
+static int cxgb4_get_module_info(struct net_device *dev,
+				 struct ethtool_modinfo *modinfo)
+{
+	struct port_info *pi = netdev_priv(dev);
+	u8 sff8472_comp, sff_diag_type, sff_rev;
+	struct adapter *adapter = pi->adapter;
+	int ret;
+
+	if (!t4_is_inserted_mod_type(pi->mod_type))
+		return -EINVAL;
+
+	switch (pi->port_type) {
+	case FW_PORT_TYPE_SFP:
+	case FW_PORT_TYPE_QSA:
+	case FW_PORT_TYPE_SFP28:
+		ret = t4_i2c_rd(adapter, adapter->mbox, pi->tx_chan,
+				I2C_DEV_ADDR_A0, SFF_8472_COMP_ADDR,
+				SFF_8472_COMP_LEN, &sff8472_comp);
+		if (ret)
+			return ret;
+		ret = t4_i2c_rd(adapter, adapter->mbox, pi->tx_chan,
+				I2C_DEV_ADDR_A0, SFP_DIAG_TYPE_ADDR,
+				SFP_DIAG_TYPE_LEN, &sff_diag_type);
+		if (ret)
+			return ret;
+
+		if (!sff8472_comp || (sff_diag_type & 4)) {
+			modinfo->type = ETH_MODULE_SFF_8079;
+			modinfo->eeprom_len = ETH_MODULE_SFF_8079_LEN;
+		} else {
+			modinfo->type = ETH_MODULE_SFF_8472;
+			modinfo->eeprom_len = ETH_MODULE_SFF_8472_LEN;
+		}
+		break;
+
+	case FW_PORT_TYPE_QSFP:
+	case FW_PORT_TYPE_QSFP_10G:
+	case FW_PORT_TYPE_CR_QSFP:
+	case FW_PORT_TYPE_CR2_QSFP:
+	case FW_PORT_TYPE_CR4_QSFP:
+		ret = t4_i2c_rd(adapter, adapter->mbox, pi->tx_chan,
+				I2C_DEV_ADDR_A0, SFF_REV_ADDR,
+				SFF_REV_LEN, &sff_rev);
+		/* For QSFP type ports, revision value >= 3
+		 * means the SFP is 8636 compliant.
+		 */
+		if (ret)
+			return ret;
+		if (sff_rev >= 0x3) {
+			modinfo->type = ETH_MODULE_SFF_8636;
+			modinfo->eeprom_len = ETH_MODULE_SFF_8636_LEN;
+		} else {
+			modinfo->type = ETH_MODULE_SFF_8436;
+			modinfo->eeprom_len = ETH_MODULE_SFF_8436_LEN;
+		}
+		break;
+
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int cxgb4_get_module_eeprom(struct net_device *dev,
+				   struct ethtool_eeprom *eprom, u8 *data)
+{
+	int ret = 0, offset = eprom->offset, len = eprom->len;
+	struct port_info *pi = netdev_priv(dev);
+	struct adapter *adapter = pi->adapter;
+
+	memset(data, 0, eprom->len);
+	if (offset + len <= I2C_PAGE_SIZE)
+		return t4_i2c_rd(adapter, adapter->mbox, pi->tx_chan,
+				 I2C_DEV_ADDR_A0, offset, len, data);
+
+	/* offset + len spans 0xa0 and 0xa1 pages */
+	if (offset <= I2C_PAGE_SIZE) {
+		/* read 0xa0 page */
+		len = I2C_PAGE_SIZE - offset;
+		ret =  t4_i2c_rd(adapter, adapter->mbox, pi->tx_chan,
+				 I2C_DEV_ADDR_A0, offset, len, data);
+		if (ret)
+			return ret;
+		offset = I2C_PAGE_SIZE;
+		/* Remaining bytes to be read from second page =
+		 * Total length - bytes read from first page
+		 */
+		len = eprom->len - len;
+	}
+	/* Read additional optical diagnostics from page 0xa2 if supported */
+	return t4_i2c_rd(adapter, adapter->mbox, pi->tx_chan, I2C_DEV_ADDR_A2,
+			 offset, len, &data[eprom->len - len]);
+}
+
 static const struct ethtool_ops cxgb_ethtool_ops = {
 	.get_link_ksettings = get_link_ksettings,
 	.set_link_ksettings = set_link_ksettings,
@@ -1430,6 +1525,8 @@ static const struct ethtool_ops cxgb_ethtool_ops = {
 	.set_dump          = set_dump,
 	.get_dump_flag     = get_dump_flag,
 	.get_dump_data     = get_dump_data,
+	.get_module_info   = cxgb4_get_module_info,
+	.get_module_eeprom = cxgb4_get_module_eeprom,
 };
 
 void cxgb4_set_ethtool_ops(struct net_device *netdev)
