@@ -783,7 +783,6 @@ static int cc_cipher_decrypt(struct ablkcipher_request *req)
 
 /* DX Block cipher alg */
 static struct ssi_alg_template blkcipher_algs[] = {
-#if SSI_CC_HAS_AES_XTS
 	{
 		.name = "xts(aes)",
 		.driver_name = "xts-aes-dx",
@@ -833,8 +832,6 @@ static struct ssi_alg_template blkcipher_algs[] = {
 		.cipher_mode = DRV_CIPHER_XTS,
 		.flow_mode = S_DIN_to_AES,
 	},
-#endif /*SSI_CC_HAS_AES_XTS*/
-#if SSI_CC_HAS_AES_ESSIV
 	{
 		.name = "essiv(aes)",
 		.driver_name = "essiv-aes-dx",
@@ -883,8 +880,6 @@ static struct ssi_alg_template blkcipher_algs[] = {
 		.cipher_mode = DRV_CIPHER_ESSIV,
 		.flow_mode = S_DIN_to_AES,
 	},
-#endif /*SSI_CC_HAS_AES_ESSIV*/
-#if SSI_CC_HAS_AES_BITLOCKER
 	{
 		.name = "bitlocker(aes)",
 		.driver_name = "bitlocker-aes-dx",
@@ -933,7 +928,6 @@ static struct ssi_alg_template blkcipher_algs[] = {
 		.cipher_mode = DRV_CIPHER_BITLOCKER,
 		.flow_mode = S_DIN_to_AES,
 	},
-#endif /*SSI_CC_HAS_AES_BITLOCKER*/
 	{
 		.name = "ecb(aes)",
 		.driver_name = "ecb-aes-dx",
@@ -982,7 +976,6 @@ static struct ssi_alg_template blkcipher_algs[] = {
 		.cipher_mode = DRV_CIPHER_OFB,
 		.flow_mode = S_DIN_to_AES,
 	},
-#if SSI_CC_HAS_AES_CTS
 	{
 		.name = "cts1(cbc(aes))",
 		.driver_name = "cts1-cbc-aes-dx",
@@ -999,7 +992,6 @@ static struct ssi_alg_template blkcipher_algs[] = {
 		.cipher_mode = DRV_CIPHER_CBC_CTS,
 		.flow_mode = S_DIN_to_AES,
 	},
-#endif
 	{
 		.name = "ctr(aes)",
 		.driver_name = "ctr-aes-dx",

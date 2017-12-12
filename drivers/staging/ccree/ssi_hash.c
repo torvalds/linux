@@ -1190,7 +1190,6 @@ static int cc_xcbc_setkey(struct crypto_ahash *ahash,
 	return rc;
 }
 
-#if SSI_CC_HAS_CMAC
 static int cc_cmac_setkey(struct crypto_ahash *ahash,
 			  const u8 *key, unsigned int keylen)
 {
@@ -1230,7 +1229,6 @@ static int cc_cmac_setkey(struct crypto_ahash *ahash,
 
 	return 0;
 }
-#endif
 
 static void cc_free_ctx(struct cc_hash_ctx *ctx)
 {
@@ -1937,7 +1935,6 @@ static struct cc_hash_template driver_hash[] = {
 		.hw_mode = DRV_CIPHER_XCBC_MAC,
 		.inter_digestsize = AES_BLOCK_SIZE,
 	},
-#if SSI_CC_HAS_CMAC
 	{
 		.mac_name = "cmac(aes)",
 		.mac_driver_name = "cmac-aes-dx",
@@ -1960,8 +1957,6 @@ static struct cc_hash_template driver_hash[] = {
 		.hw_mode = DRV_CIPHER_CMAC,
 		.inter_digestsize = AES_BLOCK_SIZE,
 	},
-#endif
-
 };
 
 static struct cc_hash_alg *cc_alloc_hash_alg(struct cc_hash_template *template,

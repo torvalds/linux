@@ -662,7 +662,6 @@ setkey_error:
 	return rc;
 }
 
-#if SSI_CC_HAS_AES_CCM
 static int cc_rfc4309_ccm_setkey(struct crypto_aead *tfm, const u8 *key,
 				 unsigned int keylen)
 {
@@ -676,7 +675,6 @@ static int cc_rfc4309_ccm_setkey(struct crypto_aead *tfm, const u8 *key,
 
 	return cc_aead_setkey(tfm, key, keylen);
 }
-#endif /*SSI_CC_HAS_AES_CCM*/
 
 static int cc_aead_setauthsize(struct crypto_aead *authenc,
 			       unsigned int authsize)
@@ -696,7 +694,6 @@ static int cc_aead_setauthsize(struct crypto_aead *authenc,
 	return 0;
 }
 
-#if SSI_CC_HAS_AES_CCM
 static int cc_rfc4309_ccm_setauthsize(struct crypto_aead *authenc,
 				      unsigned int authsize)
 {
@@ -730,7 +727,6 @@ static int cc_ccm_setauthsize(struct crypto_aead *authenc,
 
 	return cc_aead_setauthsize(authenc, authsize);
 }
-#endif /*SSI_CC_HAS_AES_CCM*/
 
 static void cc_set_assoc_desc(struct aead_request *areq, unsigned int flow_mode,
 			      struct cc_hw_desc desc[], unsigned int *seq_size)
@@ -1374,7 +1370,6 @@ data_size_err:
 	return -EINVAL;
 }
 
-#if SSI_CC_HAS_AES_CCM
 static unsigned int format_ccm_a0(u8 *pa0_buff, u32 header_size)
 {
 	unsigned int len = 0;
@@ -1623,9 +1618,6 @@ static void cc_proc_rfc4309_ccm(struct aead_request *req)
 	req->iv = areq_ctx->ctr_iv;
 	req->assoclen -= CCM_BLOCK_IV_SIZE;
 }
-#endif /*SSI_CC_HAS_AES_CCM*/
-
-#if SSI_CC_HAS_AES_GCM
 
 static void cc_set_ghash_desc(struct aead_request *req,
 			      struct cc_hw_desc desc[], unsigned int *seq_size)
@@ -1952,8 +1944,6 @@ static void cc_proc_rfc4_gcm(struct aead_request *req)
 	req->assoclen -= GCM_BLOCK_RFC4_IV_SIZE;
 }
 
-#endif /*SSI_CC_HAS_AES_GCM*/
-
 static int cc_proc_aead(struct aead_request *req,
 			enum drv_crypto_direction direct)
 {
@@ -2020,7 +2010,6 @@ static int cc_proc_aead(struct aead_request *req,
 		areq_ctx->hw_iv_size = crypto_aead_ivsize(tfm);
 	}
 
-#if SSI_CC_HAS_AES_CCM
 	if (ctx->cipher_mode == DRV_CIPHER_CCM) {
 		rc = config_ccm_adata(req);
 		if (rc) {
@@ -2031,11 +2020,7 @@ static int cc_proc_aead(struct aead_request *req,
 	} else {
 		areq_ctx->ccm_hdr_size = ccm_header_size_null;
 	}
-#else
-	areq_ctx->ccm_hdr_size = ccm_header_size_null;
-#endif /*SSI_CC_HAS_AES_CCM*/
 
-#if SSI_CC_HAS_AES_GCM
 	if (ctx->cipher_mode == DRV_CIPHER_GCTR) {
 		rc = config_gcm_context(req);
 		if (rc) {
@@ -2044,7 +2029,6 @@ static int cc_proc_aead(struct aead_request *req,
 			goto exit;
 		}
 	}
-#endif /*SSI_CC_HAS_AES_GCM*/
 
 	rc = cc_map_aead_request(ctx->drvdata, req);
 	if (rc) {
@@ -2100,18 +2084,12 @@ static int cc_proc_aead(struct aead_request *req,
 	case DRV_HASH_XCBC_MAC:
 		cc_xcbc_authenc(req, desc, &seq_len);
 		break;
-#if (SSI_CC_HAS_AES_CCM || SSI_CC_HAS_AES_GCM)
 	case DRV_HASH_NULL:
-#if SSI_CC_HAS_AES_CCM
 		if (ctx->cipher_mode == DRV_CIPHER_CCM)
 			cc_ccm(req, desc, &seq_len);
-#endif /*SSI_CC_HAS_AES_CCM*/
-#if SSI_CC_HAS_AES_GCM
 		if (ctx->cipher_mode == DRV_CIPHER_GCTR)
 			cc_gcm(req, desc, &seq_len);
-#endif /*SSI_CC_HAS_AES_GCM*/
 		break;
-#endif
 	default:
 		dev_err(dev, "Unsupported authenc (%d)\n", ctx->auth_mode);
 		cc_unmap_aead_request(dev, req);
@@ -2151,7 +2129,6 @@ static int cc_aead_encrypt(struct aead_request *req)
 	return rc;
 }
 
-#if SSI_CC_HAS_AES_CCM
 static int cc_rfc4309_ccm_encrypt(struct aead_request *req)
 {
 	/* Very similar to cc_aead_encrypt() above. */
@@ -2180,7 +2157,6 @@ static int cc_rfc4309_ccm_encrypt(struct aead_request *req)
 out:
 	return rc;
 }
-#endif /* SSI_CC_HAS_AES_CCM */
 
 static int cc_aead_decrypt(struct aead_request *req)
 {
@@ -2201,7 +2177,6 @@ static int cc_aead_decrypt(struct aead_request *req)
 	return rc;
 }
 
-#if SSI_CC_HAS_AES_CCM
 static int cc_rfc4309_ccm_decrypt(struct aead_request *req)
 {
 	struct crypto_aead *tfm = crypto_aead_reqtfm(req);
@@ -2229,9 +2204,6 @@ static int cc_rfc4309_ccm_decrypt(struct aead_request *req)
 out:
 	return rc;
 }
-#endif /* SSI_CC_HAS_AES_CCM */
-
-#if SSI_CC_HAS_AES_GCM
 
 static int cc_rfc4106_gcm_setkey(struct crypto_aead *tfm, const u8 *key,
 				 unsigned int keylen)
@@ -2429,7 +2401,6 @@ static int cc_rfc4543_gcm_decrypt(struct aead_request *req)
 
 	return rc;
 }
-#endif /* SSI_CC_HAS_AES_GCM */
 
 /* DX Block aead alg */
 static struct ssi_alg_template aead_algs[] = {
@@ -2585,7 +2556,6 @@ static struct ssi_alg_template aead_algs[] = {
 		.flow_mode = S_DIN_to_AES,
 		.auth_mode = DRV_HASH_XCBC_MAC,
 	},
-#if SSI_CC_HAS_AES_CCM
 	{
 		.name = "ccm(aes)",
 		.driver_name = "ccm-aes-dx",
@@ -2624,8 +2594,6 @@ static struct ssi_alg_template aead_algs[] = {
 		.flow_mode = S_DIN_to_AES,
 		.auth_mode = DRV_HASH_NULL,
 	},
-#endif /*SSI_CC_HAS_AES_CCM*/
-#if SSI_CC_HAS_AES_GCM
 	{
 		.name = "gcm(aes)",
 		.driver_name = "gcm-aes-dx",
@@ -2683,7 +2651,6 @@ static struct ssi_alg_template aead_algs[] = {
 		.flow_mode = S_DIN_to_AES,
 		.auth_mode = DRV_HASH_NULL,
 	},
-#endif /*SSI_CC_HAS_AES_GCM*/
 };
 
 static struct ssi_crypto_alg *cc_create_aead_alg(struct ssi_alg_template *tmpl,

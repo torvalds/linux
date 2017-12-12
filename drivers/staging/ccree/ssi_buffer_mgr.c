@@ -604,7 +604,6 @@ void cc_unmap_aead_request(struct device *dev, struct aead_request *req)
 				 MAX_MAC_SIZE, DMA_BIDIRECTIONAL);
 	}
 
-#if SSI_CC_HAS_AES_GCM
 	if (areq_ctx->cipher_mode == DRV_CIPHER_GCTR) {
 		if (areq_ctx->hkey_dma_addr) {
 			dma_unmap_single(dev, areq_ctx->hkey_dma_addr,
@@ -626,7 +625,6 @@ void cc_unmap_aead_request(struct device *dev, struct aead_request *req)
 					 AES_BLOCK_SIZE, DMA_TO_DEVICE);
 		}
 	}
-#endif
 
 	if (areq_ctx->ccm_hdr_size != ccm_header_size_null) {
 		if (areq_ctx->ccm_iv0_dma_addr) {
@@ -1269,7 +1267,6 @@ int cc_map_aead_request(struct ssi_drvdata *drvdata, struct aead_request *req)
 		}
 	}
 
-#if SSI_CC_HAS_AES_GCM
 	if (areq_ctx->cipher_mode == DRV_CIPHER_GCTR) {
 		dma_addr = dma_map_single(dev, areq_ctx->hkey, AES_BLOCK_SIZE,
 					  DMA_BIDIRECTIONAL);
@@ -1315,7 +1312,6 @@ int cc_map_aead_request(struct ssi_drvdata *drvdata, struct aead_request *req)
 		}
 		areq_ctx->gcm_iv_inc2_dma_addr = dma_addr;
 	}
-#endif /*SSI_CC_HAS_AES_GCM*/
 
 	size_to_map = req->cryptlen + req->assoclen;
 	if (areq_ctx->gen_ctx.op_type == DRV_CRYPTO_DIRECTION_ENCRYPT)
