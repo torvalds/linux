@@ -617,7 +617,7 @@ int i915_gem_switch_to_kernel_context(struct drm_i915_private *dev_priv)
 			if (prev)
 				i915_sw_fence_await_sw_fence_gfp(&req->submit,
 								 &prev->submit,
-								 GFP_KERNEL);
+								 I915_FENCE_GFP);
 		}
 
 		/*

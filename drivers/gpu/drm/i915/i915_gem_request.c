@@ -782,7 +782,7 @@ i915_gem_request_await_request(struct drm_i915_gem_request *to,
 	if (to->engine == from->engine) {
 		ret = i915_sw_fence_await_sw_fence_gfp(&to->submit,
 						       &from->submit,
-						       GFP_KERNEL);
+						       I915_FENCE_GFP);
 		return ret < 0 ? ret : 0;
 	}
 
@@ -810,7 +810,7 @@ i915_gem_request_await_request(struct drm_i915_gem_request *to,
 await_dma_fence:
 	ret = i915_sw_fence_await_dma_fence(&to->submit,
 					    &from->fence, 0,
-					    GFP_KERNEL);
+					    I915_FENCE_GFP);
 	return ret < 0 ? ret : 0;
 }
 
@@ -861,7 +861,7 @@ i915_gem_request_await_dma_fence(struct drm_i915_gem_request *req,
 		else
 			ret = i915_sw_fence_await_dma_fence(&req->submit, fence,
 							    I915_FENCE_TIMEOUT,
-							    GFP_KERNEL);
+							    I915_FENCE_GFP);
 		if (ret < 0)
 			return ret;
 
