@@ -687,14 +687,17 @@ static int mpp_dev_release(struct inode *inode, struct file *filp)
 	}
 	wake_up(&session->wait);
 
+	if (mpp->ops->release)
+		mpp->ops->release(session);
 	mpp_srv_lock(mpp->srv);
 	/* remove this filp from the asynchronusly notified filp's */
 	list_del_init(&session->list_session);
 	mpp_dev_session_clear(mpp, session);
+	vpu_iommu_clear(mpp->iommu_info, session);
 	filp->private_data = NULL;
 	mpp_srv_unlock(mpp->srv);
-	if (mpp->ops->release)
-		mpp->ops->release(session);
+	if (mpp->ops->free)
+		mpp->ops->free(session);
 	else
 		kfree(session);
 
@@ -1054,7 +1057,6 @@ static struct platform_driver mpp_dev_driver = {
 	.remove = mpp_dev_remove,
 	.driver = {
 		.name = "mpp_dev",
-		.owner = THIS_MODULE,
 #if defined(CONFIG_OF)
 		.of_match_table = of_match_ptr(mpp_dev_dt_ids),
 #endif

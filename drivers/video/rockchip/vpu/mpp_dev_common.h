@@ -244,6 +244,7 @@ struct mpp_dev_ops {
 		      unsigned int cmd, unsigned long arg);
 	struct mpp_session *(*open)(struct rockchip_mpp_dev *mpp);
 	void (*release)(struct mpp_session *session);
+	void (*free)(struct mpp_session *session);
 };
 
 void mpp_dump_reg(void __iomem *regs, int count);
