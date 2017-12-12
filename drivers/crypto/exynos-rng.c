@@ -55,12 +55,14 @@ enum exynos_prng_type {
 };
 
 /*
- * Driver re-seeds itself with generated random numbers to increase
- * the randomness.
+ * Driver re-seeds itself with generated random numbers to hinder
+ * backtracking of the original seed.
  *
  * Time for next re-seed in ms.
  */
-#define EXYNOS_RNG_RESEED_TIME		100
+#define EXYNOS_RNG_RESEED_TIME		1000
+#define EXYNOS_RNG_RESEED_BYTES		65536
+
 /*
  * In polling mode, do not wait infinitely for the engine to finish the work.
  */
@@ -82,6 +84,8 @@ struct exynos_rng_dev {
 	unsigned int			seed_save_len;
 	/* Time of last seeding in jiffies */
 	unsigned long			last_seeding;
+	/* Bytes generated since last seeding */
+	unsigned long			bytes_seeding;
 };
 
 static struct exynos_rng_dev *exynos_rng_dev;
@@ -126,6 +130,7 @@ static int exynos_rng_set_seed(struct exynos_rng_dev *rng,
 	}
 
 	rng->last_seeding = jiffies;
+	rng->bytes_seeding = 0;
 
 	return 0;
 }
@@ -164,6 +169,7 @@ static int exynos_rng_get_random(struct exynos_rng_dev *rng,
 			  EXYNOS_RNG_STATUS);
 	*read = min_t(size_t, dlen, EXYNOS_RNG_SEED_SIZE);
 	memcpy_fromio(dst, rng->mem + EXYNOS_RNG_OUT_BASE, *read);
+	rng->bytes_seeding += *read;
 
 	return 0;
 }
@@ -177,7 +183,8 @@ static void exynos_rng_reseed(struct exynos_rng_dev *rng)
 	unsigned int read = 0;
 	u8 seed[EXYNOS_RNG_SEED_SIZE];
 
-	if (time_before(now, next_seeding))
+	if (time_before(now, next_seeding) &&
+	    rng->bytes_seeding < EXYNOS_RNG_RESEED_BYTES)
 		return;
 
 	if (exynos_rng_get_random(rng, seed, sizeof(seed), &read))
