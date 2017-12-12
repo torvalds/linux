@@ -1340,15 +1340,10 @@ void setup_new_exec(struct linux_binprm * bprm)
 		 * avoid bad behavior from the prior rlimits. This has to
 		 * happen before arch_pick_mmap_layout(), which examines
 		 * RLIMIT_STACK, but after the point of no return to avoid
-		 * races from other threads changing the limits. This also
-		 * must be protected from races with prlimit() calls.
+		 * needing to clean up the change on failure.
 		 */
-		task_lock(current->group_leader);
 		if (current->signal->rlim[RLIMIT_STACK].rlim_cur > _STK_LIM)
 			current->signal->rlim[RLIMIT_STACK].rlim_cur = _STK_LIM;
-		if (current->signal->rlim[RLIMIT_STACK].rlim_max > _STK_LIM)
-			current->signal->rlim[RLIMIT_STACK].rlim_max = _STK_LIM;
-		task_unlock(current->group_leader);
 	}
 
 	arch_pick_mmap_layout(current->mm);
