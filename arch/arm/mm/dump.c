@@ -52,6 +52,8 @@ struct pg_state {
 	unsigned long start_address;
 	unsigned level;
 	u64 current_prot;
+	bool check_wx;
+	unsigned long wx_pages;
 	const char *current_domain;
 };
 
@@ -60,6 +62,8 @@ struct prot_bits {
 	u64		val;
 	const char	*set;
 	const char	*clear;
+	bool		ro_bit;
+	bool		nx_bit;
 };
 
 static const struct prot_bits pte_bits[] = {
@@ -73,11 +77,13 @@ static const struct prot_bits pte_bits[] = {
 		.val	= L_PTE_RDONLY,
 		.set	= "ro",
 		.clear	= "RW",
+		.ro_bit	= true,
 	}, {
 		.mask	= L_PTE_XN,
 		.val	= L_PTE_XN,
 		.set	= "NX",
 		.clear	= "x ",
+		.nx_bit	= true,
 	}, {
 		.mask	= L_PTE_SHARED,
 		.val	= L_PTE_SHARED,
@@ -141,11 +147,13 @@ static const struct prot_bits section_bits[] = {
 		.val	= L_PMD_SECT_RDONLY | PMD_SECT_AP2,
 		.set	= "ro",
 		.clear	= "RW",
+		.ro_bit	= true,
 #elif __LINUX_ARM_ARCH__ >= 6
 	{
 		.mask	= PMD_SECT_APX | PMD_SECT_AP_READ | PMD_SECT_AP_WRITE,
 		.val	= PMD_SECT_APX | PMD_SECT_AP_WRITE,
 		.set	= "    ro",
+		.ro_bit	= true,
 	}, {
 		.mask	= PMD_SECT_APX | PMD_SECT_AP_READ | PMD_SECT_AP_WRITE,
 		.val	= PMD_SECT_AP_WRITE,
@@ -164,6 +172,7 @@ static const struct prot_bits section_bits[] = {
 		.mask   = PMD_SECT_AP_READ | PMD_SECT_AP_WRITE,
 		.val    = 0,
 		.set    = "    ro",
+		.ro_bit	= true,
 	}, {
 		.mask   = PMD_SECT_AP_READ | PMD_SECT_AP_WRITE,
 		.val    = PMD_SECT_AP_WRITE,
@@ -182,6 +191,7 @@ static const struct prot_bits section_bits[] = {
 		.val	= PMD_SECT_XN,
 		.set	= "NX",
 		.clear	= "x ",
+		.nx_bit	= true,
 	}, {
 		.mask	= PMD_SECT_S,
 		.val	= PMD_SECT_S,
@@ -194,6 +204,8 @@ struct pg_level {
 	const struct prot_bits *bits;
 	size_t num;
 	u64 mask;
+	const struct prot_bits *ro_bit;
+	const struct prot_bits *nx_bit;
 };
 
 static struct pg_level pg_level[] = {
@@ -226,6 +238,23 @@ static void dump_prot(struct pg_state *st, const struct prot_bits *bits, size_t 
 	}
 }
 
+static void note_prot_wx(struct pg_state *st, unsigned long addr)
+{
+	if (!st->check_wx)
+		return;
+	if ((st->current_prot & pg_level[st->level].ro_bit->mask) ==
+				pg_level[st->level].ro_bit->val)
+		return;
+	if ((st->current_prot & pg_level[st->level].nx_bit->mask) ==
+				pg_level[st->level].nx_bit->val)
+		return;
+
+	WARN_ONCE(1, "arm/mm: Found insecure W+X mapping at address %pS\n",
+			(void *)st->start_address);
+
+	st->wx_pages += (addr - st->start_address) / PAGE_SIZE;
+}
+
 static void note_page(struct pg_state *st, unsigned long addr,
 		      unsigned int level, u64 val, const char *domain)
 {
@@ -244,6 +273,7 @@ static void note_page(struct pg_state *st, unsigned long addr,
 		unsigned long delta;
 
 		if (st->current_prot) {
+			note_prot_wx(st, addr);
 			pt_dump_seq_printf(st->seq, "0x%08lx-0x%08lx   ",
 				   st->start_address, addr);
 
@@ -367,6 +397,7 @@ void ptdump_walk_pgd(struct seq_file *m, struct ptdump_info *info)
 	struct pg_state st = {
 		.seq = m,
 		.marker = info->markers,
+		.check_wx = false,
 	};
 
 	walk_pgd(&st, info->mm, info->base_addr);
@@ -379,8 +410,13 @@ static void ptdump_initialize(void)
 
 	for (i = 0; i < ARRAY_SIZE(pg_level); i++)
 		if (pg_level[i].bits)
-			for (j = 0; j < pg_level[i].num; j++)
+			for (j = 0; j < pg_level[i].num; j++) {
 				pg_level[i].mask |= pg_level[i].bits[j].mask;
+				if (pg_level[i].bits[j].ro_bit)
+					pg_level[i].ro_bit = &pg_level[i].bits[j];
+				if (pg_level[i].bits[j].nx_bit)
+					pg_level[i].nx_bit = &pg_level[i].bits[j];
+			}
 
 	address_markers[2].start_address = VMALLOC_START;
 }
@@ -390,6 +426,26 @@ static struct ptdump_info kernel_ptdump_info = {
 	.markers = address_markers,
 	.base_addr = 0,
 };
+
+void ptdump_check_wx(void)
+{
+	struct pg_state st = {
+		.seq = NULL,
+		.marker = (struct addr_marker[]) {
+			{ 0, NULL},
+			{ -1, NULL},
+		},
+		.check_wx = true,
+	};
+
+	walk_pgd(&st, &init_mm, 0);
+	note_page(&st, 0, 0, 0, NULL);
+	if (st.wx_pages)
+		pr_warn("Checked W+X mappings: FAILED, %lu W+X pages found\n",
+			st.wx_pages);
+	else
+		pr_info("Checked W+X mappings: passed, no W+X pages found\n");
+}
 
 static int ptdump_init(void)
 {
