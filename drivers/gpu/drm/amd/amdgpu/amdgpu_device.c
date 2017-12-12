@@ -3009,11 +3009,12 @@ error:
  *
  * @adev: amdgpu device pointer
  * @job: which job trigger hang
+ * @force forces reset regardless of amdgpu_gpu_recovery
  *
  * Attempt to reset the GPU if it has hung (all asics).
  * Returns 0 for success or an error on failure.
  */
-int amdgpu_gpu_recover(struct amdgpu_device *adev, struct amdgpu_job *job)
+int amdgpu_gpu_recover(struct amdgpu_device *adev, struct amdgpu_job *job, bool force)
 {
 	struct drm_atomic_state *state = NULL;
 	uint64_t reset_flags = 0;
@@ -3021,6 +3022,12 @@ int amdgpu_gpu_recover(struct amdgpu_device *adev, struct amdgpu_job *job)
 
 	if (!amdgpu_check_soft_reset(adev)) {
 		DRM_INFO("No hardware hang detected. Did some blocks stall?\n");
+		return 0;
+	}
+
+	if (!force && (amdgpu_gpu_recovery == 0 ||
+			(amdgpu_gpu_recovery == -1  && !amdgpu_sriov_vf(adev)))) {
+		DRM_INFO("GPU recovery disabled.\n");
 		return 0;
 	}
 
