@@ -53,7 +53,7 @@ static const u32 sha224_init[] = {
 static const u32 sha256_init[] = {
 	SHA256_H7, SHA256_H6, SHA256_H5, SHA256_H4,
 	SHA256_H3, SHA256_H2, SHA256_H1, SHA256_H0 };
-#if (DX_DEV_SHA_MAX > 256)
+#if (CC_DEV_SHA_MAX > 256)
 static const u32 digest_len_sha512_init[] = {
 	0x00000080, 0x00000000, 0x00000000, 0x00000000 };
 static const u64 sha384_init[] = {
@@ -209,7 +209,7 @@ static int cc_map_req(struct device *dev, struct ahash_req_ctx *state,
 		} else { /*sha*/
 			memcpy(state->digest_buff, ctx->digest_buff,
 			       ctx->inter_digestsize);
-#if (DX_DEV_SHA_MAX > 256)
+#if (CC_DEV_SHA_MAX > 256)
 			if (ctx->hash_mode == DRV_HASH_SHA512 ||
 			    ctx->hash_mode == DRV_HASH_SHA384)
 				memcpy(state->digest_bytes_len,
@@ -1839,7 +1839,7 @@ static struct cc_hash_template driver_hash[] = {
 		.hw_mode = DRV_HASH_HW_SHA256,
 		.inter_digestsize = SHA256_DIGEST_SIZE,
 	},
-#if (DX_DEV_SHA_MAX > 256)
+#if (CC_DEV_SHA_MAX > 256)
 	{
 		.name = "sha384",
 		.driver_name = "sha384-dx",
@@ -2013,7 +2013,7 @@ int cc_init_hash_sram(struct ssi_drvdata *drvdata)
 	struct cc_hw_desc larval_seq[CC_DIGEST_SIZE_MAX / sizeof(u32)];
 	struct device *dev = drvdata_to_dev(drvdata);
 	int rc = 0;
-#if (DX_DEV_SHA_MAX > 256)
+#if (CC_DEV_SHA_MAX > 256)
 	int i;
 #endif
 
@@ -2028,7 +2028,7 @@ int cc_init_hash_sram(struct ssi_drvdata *drvdata)
 	sram_buff_ofs += sizeof(digest_len_init);
 	larval_seq_len = 0;
 
-#if (DX_DEV_SHA_MAX > 256)
+#if (CC_DEV_SHA_MAX > 256)
 	/* Copy-to-sram digest-len for sha384/512 */
 	cc_set_sram_desc(digest_len_sha512_init, sram_buff_ofs,
 			 ARRAY_SIZE(digest_len_sha512_init),
@@ -2081,7 +2081,7 @@ int cc_init_hash_sram(struct ssi_drvdata *drvdata)
 	sram_buff_ofs += sizeof(sha256_init);
 	larval_seq_len = 0;
 
-#if (DX_DEV_SHA_MAX > 256)
+#if (CC_DEV_SHA_MAX > 256)
 	/* We are forced to swap each double-word larval before copying to
 	 * sram
 	 */
@@ -2142,7 +2142,7 @@ int cc_hash_alloc(struct ssi_drvdata *drvdata)
 	drvdata->hash_handle = hash_handle;
 
 	sram_size_to_alloc = sizeof(digest_len_init) +
-#if (DX_DEV_SHA_MAX > 256)
+#if (CC_DEV_SHA_MAX > 256)
 			sizeof(digest_len_sha512_init) +
 			sizeof(sha384_init) +
 			sizeof(sha512_init) +
@@ -2413,7 +2413,7 @@ ssi_sram_addr_t cc_larval_digest_addr(void *drvdata, u32 mode)
 			sizeof(md5_init) +
 			sizeof(sha1_init) +
 			sizeof(sha224_init));
-#if (DX_DEV_SHA_MAX > 256)
+#if (CC_DEV_SHA_MAX > 256)
 	case DRV_HASH_SHA384:
 		return (hash_handle->larval_digest_sram_addr +
 			sizeof(md5_init) +
@@ -2449,7 +2449,7 @@ cc_digest_len_addr(void *drvdata, u32 mode)
 	case DRV_HASH_SHA256:
 	case DRV_HASH_MD5:
 		return digest_len_addr;
-#if (DX_DEV_SHA_MAX > 256)
+#if (CC_DEV_SHA_MAX > 256)
 	case DRV_HASH_SHA384:
 	case DRV_HASH_SHA512:
 		return  digest_len_addr + sizeof(digest_len_init);

@@ -14,13 +14,13 @@
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef __DX_REG_COMMON_H__
-#define __DX_REG_COMMON_H__
+#ifndef __CC_REG_COMMON_H__
+#define __CC_REG_COMMON_H__
 
-#define DX_DEV_SIGNATURE 0xDCC71200UL
+#define CC_DEV_SIGNATURE 0xDCC71200UL
 
 #define CC_HW_VERSION 0xef840015UL
 
-#define DX_DEV_SHA_MAX 512
+#define CC_DEV_SHA_MAX 512
 
-#endif /*__DX_REG_COMMON_H__*/
+#endif /*__CC_REG_COMMON_H__*/

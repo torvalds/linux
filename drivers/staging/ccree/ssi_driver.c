@@ -72,7 +72,7 @@
 #include "ssi_pm.h"
 #include "ssi_fips.h"
 
-#ifdef DX_DUMP_BYTES
+#ifdef CC_DUMP_BYTES
 void dump_byte_array(const char *name, const u8 *buf, size_t len)
 {
 	char prefix[NAME_LEN];
@@ -171,10 +171,10 @@ int init_cc_regs(struct ssi_drvdata *drvdata, bool is_probe)
 			       CC_GPR0_IRQ_MASK));
 	cc_iowrite(drvdata, CC_REG(HOST_IMR), val);
 
-#ifdef DX_HOST_IRQ_TIMER_INIT_VAL_REG_OFFSET
-#ifdef DX_IRQ_DELAY
+#ifdef CC_HOST_IRQ_TIMER_INIT_VAL_REG_OFFSET
+#ifdef CC_IRQ_DELAY
 	/* Set CC IRQ delay */
-	cc_iowrite(drvdata, CC_REG(HOST_IRQ_TIMER_INIT_VAL), DX_IRQ_DELAY);
+	cc_iowrite(drvdata, CC_REG(HOST_IRQ_TIMER_INIT_VAL), CC_IRQ_DELAY);
 #endif
 	if (cc_ioread(drvdata, CC_REG(HOST_IRQ_TIMER_INIT_VAL)) > 0) {
 		dev_dbg(dev, "irq_delay=%d CC cycles\n",
@@ -279,9 +279,9 @@ static int init_cc_resources(struct platform_device *plat_dev)
 
 	/* Verify correct mapping */
 	signature_val = cc_ioread(new_drvdata, CC_REG(HOST_SIGNATURE));
-	if (signature_val != DX_DEV_SIGNATURE) {
+	if (signature_val != CC_DEV_SIGNATURE) {
 		dev_err(dev, "Invalid CC signature: SIGNATURE=0x%08X != expected=0x%08X\n",
-			signature_val, (u32)DX_DEV_SIGNATURE);
+			signature_val, (u32)CC_DEV_SIGNATURE);
 		rc = -EINVAL;
 		goto post_clk_err;
 	}
@@ -507,9 +507,9 @@ static const struct dev_pm_ops arm_cc7x_driver_pm = {
 #endif
 
 #if defined(CONFIG_PM)
-#define	DX_DRIVER_RUNTIME_PM	(&arm_cc7x_driver_pm)
+#define	CC_DRIVER_RUNTIME_PM	(&arm_cc7x_driver_pm)
 #else
-#define	DX_DRIVER_RUNTIME_PM	NULL
+#define	CC_DRIVER_RUNTIME_PM	NULL
 #endif
 
 #ifdef CONFIG_OF
@@ -526,7 +526,7 @@ static struct platform_driver cc7x_driver = {
 #ifdef CONFIG_OF
 		   .of_match_table = arm_cc7x_dev_of_match,
 #endif
-		   .pm = DX_DRIVER_RUNTIME_PM,
+		   .pm = CC_DRIVER_RUNTIME_PM,
 	},
 	.probe = cc7x_probe,
 	.remove = cc7x_remove,

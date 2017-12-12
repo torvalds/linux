@@ -20,7 +20,7 @@
 #include <linux/types.h>
 
 /* Max DLLI size
- *  AKA DX_DSCRPTR_QUEUE_WORD1_DIN_SIZE_BIT_SIZE
+ *  AKA CC_DSCRPTR_QUEUE_WORD1_DIN_SIZE_BIT_SIZE
  */
 #define DLLI_SIZE_BIT_SIZE	0x18
 

@@ -179,7 +179,7 @@ static void enqueue_seq(void __iomem *cc_base, struct cc_hw_desc seq[],
 	for (i = 0; i < seq_len; i++) {
 		for (w = 0; w <= 5; w++)
 			writel_relaxed(seq[i].word[w], reg);
-#ifdef DX_DUMP_DESCS
+#ifdef CC_DUMP_DESCS
 		dev_dbg(dev, "desc[%02d]: 0x%08X 0x%08X 0x%08X 0x%08X 0x%08X 0x%08X\n",
 			i, seq[i].word[0], seq[i].word[1], seq[i].word[2],
 			seq[i].word[3], seq[i].word[4], seq[i].word[5]);

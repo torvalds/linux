@@ -31,11 +31,11 @@
 #define HW_QUEUE_SLOTS_MAX              15
 
 #define CC_REG_LOW(word, name)  \
-	(DX_DSCRPTR_QUEUE_WORD ## word ## _ ## name ## _BIT_SHIFT)
+	(CC_DSCRPTR_QUEUE_WORD ## word ## _ ## name ## _BIT_SHIFT)
 
 #define CC_REG_HIGH(word, name) \
 	(CC_REG_LOW(word, name) + \
-	 DX_DSCRPTR_QUEUE_WORD ## word ## _ ## name ## _BIT_SIZE - 1)
+	 CC_DSCRPTR_QUEUE_WORD ## word ## _ ## name ## _BIT_SIZE - 1)
 
 #define CC_GENMASK(word, name) \
 	GENMASK(CC_REG_HIGH(word, name), CC_REG_LOW(word, name))
