@@ -75,7 +75,6 @@ enum armpmu_attr_groups {
 
 struct arm_pmu {
 	struct pmu	pmu;
-	cpumask_t	active_irqs;
 	cpumask_t	supported_cpus;
 	char		*name;
 	irqreturn_t	(*handle_irq)(int irq_num, void *dev);
