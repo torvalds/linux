@@ -364,6 +364,7 @@ static int orangefs_set_inode(struct inode *inode, void *data)
 	struct orangefs_object_kref *ref = (struct orangefs_object_kref *) data;
 	ORANGEFS_I(inode)->refn.fs_id = ref->fs_id;
 	ORANGEFS_I(inode)->refn.khandle = ref->khandle;
+	hash_init(ORANGEFS_I(inode)->xattr_cache);
 	return 0;
 }
 
