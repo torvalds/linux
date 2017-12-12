@@ -1956,6 +1956,20 @@ static int rockchip_usb2phy_pm_resume(struct device *dev)
 					"failed to enable id irq\n");
 				return ret;
 			}
+
+			if (!property_enabled(rphy,
+					      &rport->port_cfg->utmi_iddig)) {
+				dev_dbg(&rport->phy->dev,
+					"port power on when resume\n");
+				extcon_set_state_sync(rphy->edev,
+						      EXTCON_USB_HOST,
+						      true);
+				extcon_set_state_sync(rphy->edev,
+						      EXTCON_USB_VBUS_EN,
+						      true);
+				gpiod_set_value_cansleep(rport->vbus_drv_gpio,
+							 1);
+			}
 		}
 	}
 
