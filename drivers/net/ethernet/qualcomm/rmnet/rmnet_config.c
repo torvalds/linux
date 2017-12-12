@@ -177,11 +177,20 @@ static int rmnet_newlink(struct net *src_net, struct net_device *dev,
 	if (err)
 		goto err2;
 
-	netdev_dbg(dev, "data format [ingress 0x%08X]\n", ingress_format);
-	port->ingress_data_format = ingress_format;
 	port->rmnet_mode = mode;
 
 	hlist_add_head_rcu(&ep->hlnode, &port->muxed_ep[mux_id]);
+
+	if (data[IFLA_VLAN_FLAGS]) {
+		struct ifla_vlan_flags *flags;
+
+		flags = nla_data(data[IFLA_VLAN_FLAGS]);
+		ingress_format = flags->flags & flags->mask;
+	}
+
+	netdev_dbg(dev, "data format [ingress 0x%08X]\n", ingress_format);
+	port->ingress_data_format = ingress_format;
+
 	return 0;
 
 err2:
@@ -313,7 +322,8 @@ static int rmnet_rtnl_validate(struct nlattr *tb[], struct nlattr *data[],
 
 static size_t rmnet_get_size(const struct net_device *dev)
 {
-	return nla_total_size(2); /* IFLA_VLAN_ID */
+	return nla_total_size(2) /* IFLA_VLAN_ID */ +
+	       nla_total_size(sizeof(struct ifla_vlan_flags)); /* IFLA_VLAN_FLAGS */
 }
 
 struct rtnl_link_ops rmnet_link_ops __read_mostly = {
