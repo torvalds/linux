@@ -1003,11 +1003,24 @@ static int gfs2_journaled_truncate(struct inode *inode, u64 oldsize, u64 newsize
 	int error;
 
 	while (oldsize != newsize) {
+		struct gfs2_trans *tr;
+		unsigned int offs;
+
 		chunk = oldsize - newsize;
 		if (chunk > max_chunk)
 			chunk = max_chunk;
+
+		offs = oldsize & ~PAGE_MASK;
+		if (offs && chunk > PAGE_SIZE)
+			chunk = offs + ((chunk - offs) & PAGE_MASK);
+
 		truncate_pagecache(inode, oldsize - chunk);
 		oldsize -= chunk;
+
+		tr = current->journal_info;
+		if (!test_bit(TR_TOUCHED, &tr->tr_flags))
+			continue;
+
 		gfs2_trans_end(sdp);
 		error = gfs2_trans_begin(sdp, RES_DINODE, GFS2_JTRUNC_REVOKES);
 		if (error)
