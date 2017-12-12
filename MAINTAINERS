@@ -10774,6 +10774,16 @@ M:	Heikki Krogerus <heikki.krogerus@linux.intel.com>
 S:	Maintained
 F:	drivers/pinctrl/intel/
 
+PIN CONTROLLER - MEDIATEK
+M:	Sean Wang <sean.wang@mediatek.com>
+L:	linux-mediatek@lists.infradead.org (moderated for non-subscribers)
+S:	Maintained
+F:	Documentation/devicetree/bindings/pinctrl/pinctrl-mt65xx.txt
+F:	Documentation/devicetree/bindings/pinctrl/pinctrl-mt7622.txt
+F:	drivers/pinctrl/mediatek/pinctrl-mtk-common.*
+F:	drivers/pinctrl/mediatek/pinctrl-mt2701.c
+F:	drivers/pinctrl/mediatek/pinctrl-mt7622.c
+
 PIN CONTROLLER - QUALCOMM
 M:	Bjorn Andersson <bjorn.andersson@linaro.org>
 S:	Maintained
