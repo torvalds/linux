@@ -1850,3 +1850,9 @@ MODULE_PARM_DESC(d0i3_timeout, "Timeout to D0i3 entry when idle (ms)");
 
 module_param_named(disable_11ac, iwlwifi_mod_params.disable_11ac, bool, 0444);
 MODULE_PARM_DESC(disable_11ac, "Disable VHT capabilities (default: false)");
+
+module_param_named(remove_when_gone,
+		   iwlwifi_mod_params.remove_when_gone, bool,
+		   0444);
+MODULE_PARM_DESC(remove_when_gone,
+		 "Remove dev from PCIe bus if it is deemed inaccessible (default: false)");
