@@ -51,9 +51,9 @@ struct blkcipher_req_ctx {
 	struct mlli_params mlli_params;
 };
 
-int ssi_ablkcipher_alloc(struct ssi_drvdata *drvdata);
+int cc_cipher_alloc(struct ssi_drvdata *drvdata);
 
-int ssi_ablkcipher_free(struct ssi_drvdata *drvdata);
+int cc_cipher_free(struct ssi_drvdata *drvdata);
 
 #ifndef CRYPTO_ALG_BULK_MASK
 
@@ -65,7 +65,7 @@ int ssi_ablkcipher_free(struct ssi_drvdata *drvdata);
 
 #ifdef CRYPTO_TFM_REQ_HW_KEY
 
-static inline bool ssi_is_hw_key(struct crypto_tfm *tfm)
+static inline bool cc_is_hw_key(struct crypto_tfm *tfm)
 {
 	return (crypto_tfm_get_flags(tfm) & CRYPTO_TFM_REQ_HW_KEY);
 }
@@ -77,7 +77,7 @@ struct arm_hw_key_info {
 	int hw_key2;
 };
 
-static inline bool ssi_is_hw_key(struct crypto_tfm *tfm)
+static inline bool cc_is_hw_key(struct crypto_tfm *tfm)
 {
 	return false;
 }

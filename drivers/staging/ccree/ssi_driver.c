@@ -351,9 +351,9 @@ static int init_cc_resources(struct platform_device *plat_dev)
 	}
 
 	/* Allocate crypto algs */
-	rc = ssi_ablkcipher_alloc(new_drvdata);
+	rc = cc_cipher_alloc(new_drvdata);
 	if (rc) {
-		dev_err(dev, "ssi_ablkcipher_alloc failed\n");
+		dev_err(dev, "cc_cipher_alloc failed\n");
 		goto post_ivgen_err;
 	}
 
@@ -381,7 +381,7 @@ static int init_cc_resources(struct platform_device *plat_dev)
 post_hash_err:
 	cc_hash_free(new_drvdata);
 post_cipher_err:
-	ssi_ablkcipher_free(new_drvdata);
+	cc_cipher_free(new_drvdata);
 post_ivgen_err:
 	ssi_ivgen_fini(new_drvdata);
 post_power_mgr_err:
@@ -418,7 +418,7 @@ static void cleanup_cc_resources(struct platform_device *plat_dev)
 
 	cc_aead_free(drvdata);
 	cc_hash_free(drvdata);
-	ssi_ablkcipher_free(drvdata);
+	cc_cipher_free(drvdata);
 	ssi_ivgen_fini(drvdata);
 	cc_pm_fini(drvdata);
 	cc_buffer_mgr_fini(drvdata);
