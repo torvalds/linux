@@ -50,9 +50,32 @@ struct ldt_struct {
 	 * call gates.  On native, we could merge the ldt_struct and LDT
 	 * allocations, but it's not worth trying to optimize.
 	 */
-	struct desc_struct *entries;
-	unsigned int nr_entries;
+	struct desc_struct	*entries;
+	unsigned int		nr_entries;
+
+	/*
+	 * If PTI is in use, then the entries array is not mapped while we're
+	 * in user mode.  The whole array will be aliased at the addressed
+	 * given by ldt_slot_va(slot).  We use two slots so that we can allocate
+	 * and map, and enable a new LDT without invalidating the mapping
+	 * of an older, still-in-use LDT.
+	 *
+	 * slot will be -1 if this LDT doesn't have an alias mapping.
+	 */
+	int			slot;
 };
+
+/* This is a multiple of PAGE_SIZE. */
+#define LDT_SLOT_STRIDE (LDT_ENTRIES * LDT_ENTRY_SIZE)
+
+static inline void *ldt_slot_va(int slot)
+{
+#ifdef CONFIG_X86_64
+	return (void *)(LDT_BASE_ADDR + LDT_SLOT_STRIDE * slot);
+#else
+	BUG();
+#endif
+}
 
 /*
  * Used for LDT copy/destruction.
@@ -64,6 +87,7 @@ static inline void init_new_context_ldt(struct mm_struct *mm)
 }
 int ldt_dup_context(struct mm_struct *oldmm, struct mm_struct *mm);
 void destroy_context_ldt(struct mm_struct *mm);
+void ldt_arch_exit_mmap(struct mm_struct *mm);
 #else	/* CONFIG_MODIFY_LDT_SYSCALL */
 static inline void init_new_context_ldt(struct mm_struct *mm) { }
 static inline int ldt_dup_context(struct mm_struct *oldmm,
@@ -71,7 +95,8 @@ static inline int ldt_dup_context(struct mm_struct *oldmm,
 {
 	return 0;
 }
-static inline void destroy_context_ldt(struct mm_struct *mm) {}
+static inline void destroy_context_ldt(struct mm_struct *mm) { }
+static inline void ldt_arch_exit_mmap(struct mm_struct *mm) { }
 #endif
 
 static inline void load_mm_ldt(struct mm_struct *mm)
@@ -96,10 +121,31 @@ static inline void load_mm_ldt(struct mm_struct *mm)
 	 * that we can see.
 	 */
 
-	if (unlikely(ldt))
-		set_ldt(ldt->entries, ldt->nr_entries);
-	else
+	if (unlikely(ldt)) {
+		if (static_cpu_has(X86_FEATURE_PTI)) {
+			if (WARN_ON_ONCE((unsigned long)ldt->slot > 1)) {
+				/*
+				 * Whoops -- either the new LDT isn't mapped
+				 * (if slot == -1) or is mapped into a bogus
+				 * slot (if slot > 1).
+				 */
+				clear_LDT();
+				return;
+			}
+
+			/*
+			 * If page table isolation is enabled, ldt->entries
+			 * will not be mapped in the userspace pagetables.
+			 * Tell the CPU to access the LDT through the alias
+			 * at ldt_slot_va(ldt->slot).
+			 */
+			set_ldt(ldt_slot_va(ldt->slot), ldt->nr_entries);
+		} else {
+			set_ldt(ldt->entries, ldt->nr_entries);
+		}
+	} else {
 		clear_LDT();
+	}
 #else
 	clear_LDT();
 #endif
@@ -194,6 +240,7 @@ static inline int arch_dup_mmap(struct mm_struct *oldmm, struct mm_struct *mm)
 static inline void arch_exit_mmap(struct mm_struct *mm)
 {
 	paravirt_arch_exit_mmap(mm);
+	ldt_arch_exit_mmap(mm);
 }
 
 #ifdef CONFIG_X86_64
