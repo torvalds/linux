@@ -435,14 +435,11 @@ static int cc_cipher_setkey(struct crypto_ablkcipher *atfm, const u8 *key,
 	return 0;
 }
 
-static void
-cc_setup_cipher_desc(
-	struct crypto_tfm *tfm,
-	struct blkcipher_req_ctx *req_ctx,
-	unsigned int ivsize,
-	unsigned int nbytes,
-	struct cc_hw_desc desc[],
-	unsigned int *seq_size)
+static void cc_setup_cipher_desc(struct crypto_tfm *tfm,
+				 struct blkcipher_req_ctx *req_ctx,
+				 unsigned int ivsize, unsigned int nbytes,
+				 struct cc_hw_desc desc[],
+				 unsigned int *seq_size)
 {
 	struct cc_cipher_ctx *ctx_p = crypto_tfm_ctx(tfm);
 	struct device *dev = drvdata_to_dev(ctx_p->drvdata);
@@ -565,12 +562,10 @@ cc_setup_cipher_desc(
 }
 
 #if SSI_CC_HAS_MULTI2
-static void cc_setup_multi2_desc(
-	struct crypto_tfm *tfm,
-	struct blkcipher_req_ctx *req_ctx,
-	unsigned int ivsize,
-	struct cc_hw_desc desc[],
-	unsigned int *seq_size)
+static void cc_setup_multi2_desc(struct crypto_tfm *tfm,
+				 struct blkcipher_req_ctx *req_ctx,
+				 unsigned int ivsize, struct cc_hw_desc desc[],
+				 unsigned int *seq_size)
 {
 	struct cc_cipher_ctx *ctx_p = crypto_tfm_ctx(tfm);
 
@@ -609,15 +604,12 @@ static void cc_setup_multi2_desc(
 }
 #endif /*SSI_CC_HAS_MULTI2*/
 
-static void
-cc_setup_cipher_data(
-	struct crypto_tfm *tfm,
-	struct blkcipher_req_ctx *req_ctx,
-	struct scatterlist *dst, struct scatterlist *src,
-	unsigned int nbytes,
-	void *areq,
-	struct cc_hw_desc desc[],
-	unsigned int *seq_size)
+static void cc_setup_cipher_data(struct crypto_tfm *tfm,
+				 struct blkcipher_req_ctx *req_ctx,
+				 struct scatterlist *dst,
+				 struct scatterlist *src, unsigned int nbytes,
+				 void *areq, struct cc_hw_desc desc[],
+				 unsigned int *seq_size)
 {
 	struct cc_cipher_ctx *ctx_p = crypto_tfm_ctx(tfm);
 	struct device *dev = drvdata_to_dev(ctx_p->drvdata);
