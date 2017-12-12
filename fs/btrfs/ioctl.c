@@ -977,7 +977,7 @@ static struct extent_map *defrag_lookup_extent(struct inode *inode, u64 start)
 		/* get the big lock and read metadata off disk */
 		lock_extent_bits(io_tree, start, end, &cached);
 		em = btrfs_get_extent(BTRFS_I(inode), NULL, 0, start, len, 0);
-		unlock_extent_cached(io_tree, start, end, &cached, GFP_NOFS);
+		unlock_extent_cached(io_tree, start, end, &cached);
 
 		if (IS_ERR(em))
 			return NULL;
@@ -1128,7 +1128,7 @@ again:
 			ordered = btrfs_lookup_ordered_extent(inode,
 							      page_start);
 			unlock_extent_cached(tree, page_start, page_end,
-					     &cached_state, GFP_NOFS);
+					     &cached_state);
 			if (!ordered)
 				break;
 
@@ -1204,8 +1204,7 @@ again:
 			  &cached_state);
 
 	unlock_extent_cached(&BTRFS_I(inode)->io_tree,
-			     page_start, page_end - 1, &cached_state,
-			     GFP_NOFS);
+			     page_start, page_end - 1, &cached_state);
 
 	for (i = 0; i < i_done; i++) {
 		clear_page_dirty_for_io(pages[i]);

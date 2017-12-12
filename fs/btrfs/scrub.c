@@ -4468,8 +4468,7 @@ static int check_extent_to_block(struct btrfs_inode *inode, u64 start, u64 len,
 	free_extent_map(em);
 
 out_unlock:
-	unlock_extent_cached(io_tree, lockstart, lockend, &cached_state,
-			     GFP_NOFS);
+	unlock_extent_cached(io_tree, lockstart, lockend, &cached_state);
 	return ret;
 }
 

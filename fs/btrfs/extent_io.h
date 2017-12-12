@@ -312,10 +312,10 @@ static inline int unlock_extent(struct extent_io_tree *tree, u64 start, u64 end)
 }
 
 static inline int unlock_extent_cached(struct extent_io_tree *tree, u64 start,
-		u64 end, struct extent_state **cached, gfp_t mask)
+		u64 end, struct extent_state **cached)
 {
 	return __clear_extent_bit(tree, start, end, EXTENT_LOCKED, 1, 0, cached,
-				mask, NULL);
+				GFP_NOFS, NULL);
 }
 
 static inline int unlock_extent_cached_atomic(struct extent_io_tree *tree,

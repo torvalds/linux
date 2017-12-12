@@ -2100,7 +2100,7 @@ again:
 					PAGE_SIZE);
 	if (ordered) {
 		unlock_extent_cached(&BTRFS_I(inode)->io_tree, page_start,
-				     page_end, &cached_state, GFP_NOFS);
+				     page_end, &cached_state);
 		unlock_page(page);
 		btrfs_start_ordered_extent(inode, ordered, 1);
 		btrfs_put_ordered_extent(ordered);
@@ -2130,7 +2130,7 @@ again:
 	btrfs_delalloc_release_extents(BTRFS_I(inode), PAGE_SIZE);
 out:
 	unlock_extent_cached(&BTRFS_I(inode)->io_tree, page_start, page_end,
-			     &cached_state, GFP_NOFS);
+			     &cached_state);
 out_page:
 	unlock_page(page);
 	put_page(page);
@@ -2722,7 +2722,7 @@ out_free_path:
 	btrfs_end_transaction(trans);
 out_unlock:
 	unlock_extent_cached(&BTRFS_I(inode)->io_tree, lock_start, lock_end,
-			     &cached, GFP_NOFS);
+			     &cached);
 	iput(inode);
 	return ret;
 }
@@ -4812,7 +4812,7 @@ again:
 	ordered = btrfs_lookup_ordered_extent(inode, block_start);
 	if (ordered) {
 		unlock_extent_cached(io_tree, block_start, block_end,
-				     &cached_state, GFP_NOFS);
+				     &cached_state);
 		unlock_page(page);
 		put_page(page);
 		btrfs_start_ordered_extent(inode, ordered, 1);
@@ -4829,7 +4829,7 @@ again:
 					&cached_state, 0);
 	if (ret) {
 		unlock_extent_cached(io_tree, block_start, block_end,
-				     &cached_state, GFP_NOFS);
+				     &cached_state);
 		goto out_unlock;
 	}
 
@@ -4848,8 +4848,7 @@ again:
 	}
 	ClearPageChecked(page);
 	set_page_dirty(page);
-	unlock_extent_cached(io_tree, block_start, block_end, &cached_state,
-			     GFP_NOFS);
+	unlock_extent_cached(io_tree, block_start, block_end, &cached_state);
 
 out_unlock:
 	if (ret)
@@ -4950,7 +4949,7 @@ int btrfs_cont_expand(struct inode *inode, loff_t oldsize, loff_t size)
 		if (!ordered)
 			break;
 		unlock_extent_cached(io_tree, hole_start, block_end - 1,
-				     &cached_state, GFP_NOFS);
+				     &cached_state);
 		btrfs_start_ordered_extent(inode, ordered, 1);
 		btrfs_put_ordered_extent(ordered);
 	}
@@ -5015,8 +5014,7 @@ next:
 			break;
 	}
 	free_extent_map(em);
-	unlock_extent_cached(io_tree, hole_start, block_end - 1, &cached_state,
-			     GFP_NOFS);
+	unlock_extent_cached(io_tree, hole_start, block_end - 1, &cached_state);
 	return err;
 }
 
@@ -7629,7 +7627,7 @@ static int lock_extent_direct(struct inode *inode, u64 lockstart, u64 lockend,
 			break;
 
 		unlock_extent_cached(&BTRFS_I(inode)->io_tree, lockstart, lockend,
-				     cached_state, GFP_NOFS);
+				     cached_state);
 
 		if (ordered) {
 			/*
@@ -9116,7 +9114,7 @@ again:
 			PAGE_SIZE);
 	if (ordered) {
 		unlock_extent_cached(io_tree, page_start, page_end,
-				     &cached_state, GFP_NOFS);
+				     &cached_state);
 		unlock_page(page);
 		btrfs_start_ordered_extent(inode, ordered, 1);
 		btrfs_put_ordered_extent(ordered);
@@ -9149,7 +9147,7 @@ again:
 					&cached_state, 0);
 	if (ret) {
 		unlock_extent_cached(io_tree, page_start, page_end,
-				     &cached_state, GFP_NOFS);
+				     &cached_state);
 		ret = VM_FAULT_SIGBUS;
 		goto out_unlock;
 	}
@@ -9175,7 +9173,7 @@ again:
 	BTRFS_I(inode)->last_sub_trans = BTRFS_I(inode)->root->log_transid;
 	BTRFS_I(inode)->last_log_commit = BTRFS_I(inode)->root->last_log_commit;
 
-	unlock_extent_cached(io_tree, page_start, page_end, &cached_state, GFP_NOFS);
+	unlock_extent_cached(io_tree, page_start, page_end, &cached_state);
 
 out_unlock:
 	if (!ret) {
