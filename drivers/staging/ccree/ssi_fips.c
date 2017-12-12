@@ -51,7 +51,7 @@ void cc_set_ree_fips_status(struct cc_drvdata *drvdata, bool status)
 	cc_iowrite(drvdata, CC_REG(HOST_GPR0), val);
 }
 
-void ssi_fips_fini(struct cc_drvdata *drvdata)
+void cc_fips_fini(struct cc_drvdata *drvdata)
 {
 	struct cc_fips_handle *fips_h = drvdata->fips_handle;
 
@@ -105,7 +105,7 @@ static void fips_dsr(unsigned long devarg)
 }
 
 /* The function called once at driver entry point .*/
-int ssi_fips_init(struct cc_drvdata *p_drvdata)
+int cc_fips_init(struct cc_drvdata *p_drvdata)
 {
 	struct cc_fips_handle *fips_h;
 	struct device *dev = drvdata_to_dev(p_drvdata);
