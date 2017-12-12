@@ -19,6 +19,7 @@
 #include <linux/clk.h>
 #include <linux/regmap.h>
 #include <linux/mfd/syscon.h>
+#include <dt-bindings/power/px30-power.h>
 #include <dt-bindings/power/rk3036-power.h>
 #include <dt-bindings/power/rk3128-power.h>
 #include <dt-bindings/power/rk3288-power.h>
@@ -118,6 +119,9 @@ static struct rockchip_pmu *dmc_pmu;
 	.idle_mask = (idle >= 0) ? BIT(idle) : 0,	\
 	.active_wakeup = wakeup,			\
 }
+
+#define DOMAIN_PX30(pwr, status, req, wakeup)		\
+	DOMAIN_M(pwr, status, req, (req) + 16, req, wakeup)
 
 #define DOMAIN_RK3288(pwr, status, req, wakeup)		\
 	DOMAIN(pwr, status, req, req, (req) + 16, wakeup)
@@ -764,6 +768,17 @@ err_out:
 	return error;
 }
 
+static const struct rockchip_domain_info px30_pm_domains[] = {
+	[PX30_PD_USB]		= DOMAIN_PX30(5, 5, 10, false),
+	[PX30_PD_SDCARD]	= DOMAIN_PX30(8, 8, 9, false),
+	[PX30_PD_GMAC]		= DOMAIN_PX30(10, 10, 6, false),
+	[PX30_PD_MMC_NAND]	= DOMAIN_PX30(11, 11, 5, false),
+	[PX30_PD_VPU]		= DOMAIN_PX30(12, 12, 14, false),
+	[PX30_PD_VO]		= DOMAIN_PX30(13, 13, 7, false),
+	[PX30_PD_VI]		= DOMAIN_PX30(14, 14, 8, false),
+	[PX30_PD_GPU]		= DOMAIN_PX30(15, 15, 2, false),
+};
+
 static const struct rockchip_domain_info rk3036_pm_domains[] = {
 	[RK3036_PD_MSCH]	= DOMAIN_RK3036(14, 23, 30, true),
 	[RK3036_PD_CORE]	= DOMAIN_RK3036(13, 17, 24, false),
@@ -847,6 +862,17 @@ static const struct rockchip_domain_info rk3399_pm_domains[] = {
 	[RK3399_PD_GIC]		= DOMAIN_RK3399(29, 29, 27, true),
 	[RK3399_PD_SD]		= DOMAIN_RK3399(30, 30, 28, true),
 	[RK3399_PD_SDIOAUDIO]	= DOMAIN_RK3399(31, 31, 29, true),
+};
+
+static const struct rockchip_pmu_info px30_pmu = {
+	.pwr_offset = 0x18,
+	.status_offset = 0x20,
+	.req_offset = 0x64,
+	.idle_offset = 0x6c,
+	.ack_offset = 0x6c,
+
+	.num_domains = ARRAY_SIZE(px30_pm_domains),
+	.domain_info = px30_pm_domains,
 };
 
 static const struct rockchip_pmu_info rk3036_pmu = {
@@ -947,6 +973,10 @@ static const struct rockchip_pmu_info rk3399_pmu = {
 };
 
 static const struct of_device_id rockchip_pm_domain_dt_match[] = {
+	{
+		.compatible = "rockchip,px30-power-controller",
+		.data = (void *)&px30_pmu,
+	},
 	{
 		.compatible = "rockchip,rk3036-power-controller",
 		.data = (void *)&rk3036_pmu,
