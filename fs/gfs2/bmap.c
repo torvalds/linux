@@ -1022,7 +1022,7 @@ static int trunc_start(struct inode *inode, u64 oldsize, u64 newsize)
 	struct gfs2_inode *ip = GFS2_I(inode);
 	struct gfs2_sbd *sdp = GFS2_SB(inode);
 	struct address_space *mapping = inode->i_mapping;
-	struct buffer_head *dibh;
+	struct buffer_head *dibh = NULL;
 	int journaled = gfs2_is_jdata(ip);
 	int error;
 
@@ -1045,7 +1045,7 @@ static int trunc_start(struct inode *inode, u64 oldsize, u64 newsize)
 		if (newsize & (u64)(sdp->sd_sb.sb_bsize - 1)) {
 			error = gfs2_block_truncate_page(mapping, newsize);
 			if (error)
-				goto out_brelse;
+				goto out;
 		}
 		ip->i_diskflags |= GFS2_DIF_TRUNC_IN_PROG;
 	}
@@ -1059,15 +1059,10 @@ static int trunc_start(struct inode *inode, u64 oldsize, u64 newsize)
 	else
 		truncate_pagecache(inode, newsize);
 
-	if (error) {
-		brelse(dibh);
-		return error;
-	}
-
-out_brelse:
-	brelse(dibh);
 out:
-	gfs2_trans_end(sdp);
+	brelse(dibh);
+	if (current->journal_info)
+		gfs2_trans_end(sdp);
 	return error;
 }
 
