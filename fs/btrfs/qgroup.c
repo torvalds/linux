@@ -2538,11 +2538,11 @@ void btrfs_qgroup_free_refroot(struct btrfs_fs_info *fs_info,
 	if (!qgroup)
 		goto out;
 
-	/*
-	 * We're freeing all pertrans rsv, get current value from level 0
-	 * qgroup as real num_bytes to free.
-	 */
 	if (num_bytes == (u64)-1)
+		/*
+		 * We're freeing all pertrans rsv, get reserved value from
+		 * level 0 qgroup as real num_bytes to free.
+		 */
 		num_bytes = qgroup->rsv.values[type];
 
 	ulist_reinit(fs_info->qgroup_ulist);
@@ -3087,6 +3087,46 @@ int btrfs_qgroup_release_data(struct inode *inode, u64 start, u64 len)
 	return __btrfs_qgroup_release_data(inode, NULL, start, len, 0);
 }
 
+static void add_root_meta_rsv(struct btrfs_root *root, int num_bytes,
+			      enum btrfs_qgroup_rsv_type type)
+{
+	if (type != BTRFS_QGROUP_RSV_META_PREALLOC &&
+	    type != BTRFS_QGROUP_RSV_META_PERTRANS)
+		return;
+	if (num_bytes == 0)
+		return;
+
+	spin_lock(&root->qgroup_meta_rsv_lock);
+	if (type == BTRFS_QGROUP_RSV_META_PREALLOC)
+		root->qgroup_meta_rsv_prealloc += num_bytes;
+	else
+		root->qgroup_meta_rsv_pertrans += num_bytes;
+	spin_unlock(&root->qgroup_meta_rsv_lock);
+}
+
+static int sub_root_meta_rsv(struct btrfs_root *root, int num_bytes,
+			     enum btrfs_qgroup_rsv_type type)
+{
+	if (type != BTRFS_QGROUP_RSV_META_PREALLOC &&
+	    type != BTRFS_QGROUP_RSV_META_PERTRANS)
+		return 0;
+	if (num_bytes == 0)
+		return 0;
+
+	spin_lock(&root->qgroup_meta_rsv_lock);
+	if (type == BTRFS_QGROUP_RSV_META_PREALLOC) {
+		num_bytes = min_t(u64, root->qgroup_meta_rsv_prealloc,
+				  num_bytes);
+		root->qgroup_meta_rsv_prealloc -= num_bytes;
+	} else {
+		num_bytes = min_t(u64, root->qgroup_meta_rsv_pertrans,
+				  num_bytes);
+		root->qgroup_meta_rsv_pertrans -= num_bytes;
+	}
+	spin_unlock(&root->qgroup_meta_rsv_lock);
+	return num_bytes;
+}
+
 int __btrfs_qgroup_reserve_meta(struct btrfs_root *root, int num_bytes,
 				enum btrfs_qgroup_rsv_type type, bool enforce)
 {
@@ -3102,6 +3142,15 @@ int __btrfs_qgroup_reserve_meta(struct btrfs_root *root, int num_bytes,
 	ret = qgroup_reserve(root, num_bytes, enforce, type);
 	if (ret < 0)
 		return ret;
+	/*
+	 * Record what we have reserved into root.
+	 *
+	 * To avoid quota disabled->enabled underflow.
+	 * In that case, we may try to free space we haven't reserved
+	 * (since quota was disabled), so record what we reserved into root.
+	 * And ensure later release won't underflow this number.
+	 */
+	add_root_meta_rsv(root, num_bytes, type);
 	return ret;
 }
 
@@ -3129,6 +3178,12 @@ void __btrfs_qgroup_free_meta(struct btrfs_root *root, int num_bytes,
 	    !is_fstree(root->objectid))
 		return;
 
+	/*
+	 * reservation for META_PREALLOC can happen before quota is enabled,
+	 * which can lead to underflow.
+	 * Here ensure we will only free what we really have reserved.
+	 */
+	num_bytes = sub_root_meta_rsv(root, num_bytes, type);
 	BUG_ON(num_bytes != round_down(num_bytes, fs_info->nodesize));
 	trace_qgroup_meta_reserve(root, -(s64)num_bytes);
 	btrfs_qgroup_free_refroot(fs_info, root->objectid, num_bytes, type);
@@ -3187,6 +3242,9 @@ void btrfs_qgroup_convert_reserved_meta(struct btrfs_root *root, int num_bytes)
 	if (!test_bit(BTRFS_FS_QUOTA_ENABLED, &fs_info->flags) ||
 	    !is_fstree(root->objectid))
 		return;
+	/* Same as btrfs_qgroup_free_meta_prealloc() */
+	num_bytes = sub_root_meta_rsv(root, num_bytes,
+				      BTRFS_QGROUP_RSV_META_PREALLOC);
 	qgroup_convert_meta(fs_info, root->objectid, num_bytes);
 }
 
