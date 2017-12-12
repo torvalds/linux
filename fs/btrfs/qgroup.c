@@ -75,15 +75,19 @@ static const char *qgroup_rsv_type_str(enum btrfs_qgroup_rsv_type type)
 }
 #endif
 
-static void qgroup_rsv_add(struct btrfs_qgroup *qgroup, u64 num_bytes,
+static void qgroup_rsv_add(struct btrfs_fs_info *fs_info,
+			   struct btrfs_qgroup *qgroup, u64 num_bytes,
 			   enum btrfs_qgroup_rsv_type type)
 {
+	trace_qgroup_update_reserve(fs_info, qgroup, num_bytes, type);
 	qgroup->rsv.values[type] += num_bytes;
 }
 
-static void qgroup_rsv_release(struct btrfs_qgroup *qgroup, u64 num_bytes,
+static void qgroup_rsv_release(struct btrfs_fs_info *fs_info,
+			       struct btrfs_qgroup *qgroup, u64 num_bytes,
 			       enum btrfs_qgroup_rsv_type type)
 {
+	trace_qgroup_update_reserve(fs_info, qgroup, -(s64)num_bytes, type);
 	if (qgroup->rsv.values[type] >= num_bytes) {
 		qgroup->rsv.values[type] -= num_bytes;
 		return;
@@ -97,22 +101,24 @@ static void qgroup_rsv_release(struct btrfs_qgroup *qgroup, u64 num_bytes,
 	qgroup->rsv.values[type] = 0;
 }
 
-static void qgroup_rsv_add_by_qgroup(struct btrfs_qgroup *dest,
-					  struct btrfs_qgroup *src)
+static void qgroup_rsv_add_by_qgroup(struct btrfs_fs_info *fs_info,
+				     struct btrfs_qgroup *dest,
+				     struct btrfs_qgroup *src)
 {
 	int i;
 
 	for (i = 0; i < BTRFS_QGROUP_RSV_LAST; i++)
-		qgroup_rsv_add(dest, src->rsv.values[i], i);
+		qgroup_rsv_add(fs_info, dest, src->rsv.values[i], i);
 }
 
-static void qgroup_rsv_release_by_qgroup(struct btrfs_qgroup *dest,
+static void qgroup_rsv_release_by_qgroup(struct btrfs_fs_info *fs_info,
+					 struct btrfs_qgroup *dest,
 					  struct btrfs_qgroup *src)
 {
 	int i;
 
 	for (i = 0; i < BTRFS_QGROUP_RSV_LAST; i++)
-		qgroup_rsv_release(dest, src->rsv.values[i], i);
+		qgroup_rsv_release(fs_info, dest, src->rsv.values[i], i);
 }
 
 static void btrfs_qgroup_update_old_refcnt(struct btrfs_qgroup *qg, u64 seq,
@@ -1114,9 +1120,9 @@ static int __qgroup_excl_accounting(struct btrfs_fs_info *fs_info,
 	qgroup->excl_cmpr += sign * num_bytes;
 
 	if (sign > 0)
-		qgroup_rsv_add_by_qgroup(qgroup, src);
+		qgroup_rsv_add_by_qgroup(fs_info, qgroup, src);
 	else
-		qgroup_rsv_release_by_qgroup(qgroup, src);
+		qgroup_rsv_release_by_qgroup(fs_info, qgroup, src);
 
 	qgroup_dirty(fs_info, qgroup);
 
@@ -1137,9 +1143,9 @@ static int __qgroup_excl_accounting(struct btrfs_fs_info *fs_info,
 		WARN_ON(sign < 0 && qgroup->excl < num_bytes);
 		qgroup->excl += sign * num_bytes;
 		if (sign > 0)
-			qgroup_rsv_add_by_qgroup(qgroup, src);
+			qgroup_rsv_add_by_qgroup(fs_info, qgroup, src);
 		else
-			qgroup_rsv_release_by_qgroup(qgroup, src);
+			qgroup_rsv_release_by_qgroup(fs_info, qgroup, src);
 		qgroup->excl_cmpr += sign * num_bytes;
 		qgroup_dirty(fs_info, qgroup);
 
@@ -2495,8 +2501,8 @@ retry:
 
 		qg = unode_aux_to_qgroup(unode);
 
-		trace_qgroup_update_reserve(fs_info, qg, num_bytes);
-		qgroup_rsv_add(qg, num_bytes, type);
+		trace_qgroup_update_reserve(fs_info, qg, num_bytes, type);
+		qgroup_rsv_add(fs_info, qg, num_bytes, type);
 	}
 
 out:
@@ -2542,8 +2548,8 @@ void btrfs_qgroup_free_refroot(struct btrfs_fs_info *fs_info,
 
 		qg = unode_aux_to_qgroup(unode);
 
-		trace_qgroup_update_reserve(fs_info, qg, -(s64)num_bytes);
-		qgroup_rsv_release(qg, num_bytes, type);
+		trace_qgroup_update_reserve(fs_info, qg, -(s64)num_bytes, type);
+		qgroup_rsv_release(fs_info, qg, num_bytes, type);
 
 		list_for_each_entry(glist, &qg->groups, next_group) {
 			ret = ulist_add(fs_info->qgroup_ulist,

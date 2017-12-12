@@ -71,6 +71,11 @@ TRACE_DEFINE_ENUM(COMMIT_TRANS);
 		 { BTRFS_FILE_EXTENT_REG,	"REG"	 },		\
 		 { BTRFS_FILE_EXTENT_PREALLOC,	"PREALLOC"})
 
+#define show_qgroup_rsv_type(type)					\
+	__print_symbolic(type,						\
+		{ BTRFS_QGROUP_RSV_DATA,	"DATA"	},		\
+		{ BTRFS_QGROUP_RSV_META,	"META"	})
+
 #define BTRFS_GROUP_FLAGS	\
 	{ BTRFS_BLOCK_GROUP_DATA,	"DATA"},	\
 	{ BTRFS_BLOCK_GROUP_SYSTEM,	"SYSTEM"},	\
@@ -1633,24 +1638,26 @@ TRACE_EVENT(qgroup_update_counters,
 TRACE_EVENT(qgroup_update_reserve,
 
 	TP_PROTO(struct btrfs_fs_info *fs_info, struct btrfs_qgroup *qgroup,
-		 s64 diff),
+		 s64 diff, int type),
 
-	TP_ARGS(fs_info, qgroup, diff),
+	TP_ARGS(fs_info, qgroup, diff, type),
 
 	TP_STRUCT__entry_btrfs(
 		__field(	u64,	qgid			)
 		__field(	u64,	cur_reserved		)
 		__field(	s64,	diff			)
+		__field(	int,	type			)
 	),
 
 	TP_fast_assign_btrfs(fs_info,
 		__entry->qgid		= qgroup->qgroupid;
-		__entry->cur_reserved	= qgroup->reserved;
+		__entry->cur_reserved	= qgroup->rsv.values[type];
 		__entry->diff		= diff;
 	),
 
-	TP_printk_btrfs("qgid=%llu cur_reserved=%llu diff=%lld",
-		__entry->qgid, __entry->cur_reserved, __entry->diff)
+	TP_printk_btrfs("qgid=%llu type=%s cur_reserved=%llu diff=%lld",
+		__entry->qgid, show_qgroup_rsv_type(__entry->type),
+		__entry->cur_reserved, __entry->diff)
 );
 
 TRACE_EVENT(qgroup_meta_reserve,
