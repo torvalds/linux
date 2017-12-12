@@ -2896,9 +2896,7 @@ static int amdgpu_reset(struct amdgpu_device *adev, uint64_t* reset_flags)
 		r = amdgpu_suspend(adev);
 
 retry:
-		amdgpu_atombios_scratch_regs_save(adev);
 		r = amdgpu_asic_reset(adev);
-		amdgpu_atombios_scratch_regs_restore(adev);
 		/* post card */
 		amdgpu_atom_asic_init(adev->mode_info.atom_context);
 
