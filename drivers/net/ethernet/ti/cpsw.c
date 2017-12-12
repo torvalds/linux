@@ -3065,10 +3065,16 @@ static int cpsw_probe(struct platform_device *pdev)
 	}
 
 	cpsw->txv[0].ch = cpdma_chan_create(cpsw->dma, 0, cpsw_tx_handler, 0);
+	if (IS_ERR(cpsw->txv[0].ch)) {
+		dev_err(priv->dev, "error initializing tx dma channel\n");
+		ret = PTR_ERR(cpsw->txv[0].ch);
+		goto clean_dma_ret;
+	}
+
 	cpsw->rxv[0].ch = cpdma_chan_create(cpsw->dma, 0, cpsw_rx_handler, 1);
-	if (WARN_ON(!cpsw->rxv[0].ch || !cpsw->txv[0].ch)) {
-		dev_err(priv->dev, "error initializing dma channels\n");
-		ret = -ENOMEM;
+	if (IS_ERR(cpsw->rxv[0].ch)) {
+		dev_err(priv->dev, "error initializing rx dma channel\n");
+		ret = PTR_ERR(cpsw->rxv[0].ch);
 		goto clean_dma_ret;
 	}
 

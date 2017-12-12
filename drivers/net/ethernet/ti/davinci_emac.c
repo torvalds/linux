@@ -1870,10 +1870,17 @@ static int davinci_emac_probe(struct platform_device *pdev)
 
 	priv->txchan = cpdma_chan_create(priv->dma, EMAC_DEF_TX_CH,
 					 emac_tx_handler, 0);
+	if (IS_ERR(priv->txchan)) {
+		dev_err(&pdev->dev, "error initializing tx dma channel\n");
+		rc = PTR_ERR(priv->txchan);
+		goto no_cpdma_chan;
+	}
+
 	priv->rxchan = cpdma_chan_create(priv->dma, EMAC_DEF_RX_CH,
 					 emac_rx_handler, 1);
-	if (WARN_ON(!priv->txchan || !priv->rxchan)) {
-		rc = -ENOMEM;
+	if (IS_ERR(priv->rxchan)) {
+		dev_err(&pdev->dev, "error initializing rx dma channel\n");
+		rc = PTR_ERR(priv->rxchan);
 		goto no_cpdma_chan;
 	}
 
