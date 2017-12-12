@@ -8680,6 +8680,15 @@ T:	git git://linuxtv.org/media_tree.git
 S:	Maintained
 F:	drivers/media/dvb-frontends/stv6111*
 
+MEDIA DRIVERS FOR NVIDIA TEGRA - VDE
+M:	Dmitry Osipenko <digetx@gmail.com>
+L:	linux-media@vger.kernel.org
+L:	linux-tegra@vger.kernel.org
+T:	git git://linuxtv.org/media_tree.git
+S:	Maintained
+F:	Documentation/devicetree/bindings/media/nvidia,tegra-vde.txt
+F:	drivers/staging/media/tegra-vde/
+
 MEDIA INPUT INFRASTRUCTURE (V4L/DVB)
 M:	Mauro Carvalho Chehab <mchehab@s-opensource.com>
 M:	Mauro Carvalho Chehab <mchehab@kernel.org>
