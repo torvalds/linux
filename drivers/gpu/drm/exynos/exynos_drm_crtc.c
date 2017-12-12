@@ -228,7 +228,7 @@ struct exynos_drm_crtc *exynos_drm_crtc_get_by_type(struct drm_device *drm_dev,
 		if (to_exynos_crtc(crtc)->type == out_type)
 			return to_exynos_crtc(crtc);
 
-	return ERR_PTR(-EPERM);
+	return ERR_PTR(-ENODEV);
 }
 
 int exynos_drm_set_possible_crtcs(struct drm_encoder *encoder,
