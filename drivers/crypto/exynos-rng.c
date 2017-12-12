@@ -131,34 +131,6 @@ static int exynos_rng_set_seed(struct exynos_rng_dev *rng,
 }
 
 /*
- * Read from output registers and put the data under 'dst' array,
- * up to dlen bytes.
- *
- * Returns number of bytes actually stored in 'dst' (dlen
- * or EXYNOS_RNG_SEED_SIZE).
- */
-static unsigned int exynos_rng_copy_random(struct exynos_rng_dev *rng,
-					   u8 *dst, unsigned int dlen)
-{
-	unsigned int cnt = 0;
-	int i, j;
-	u32 val;
-
-	for (j = 0; j < EXYNOS_RNG_SEED_REGS; j++) {
-		val = exynos_rng_readl(rng, EXYNOS_RNG_OUT(j));
-
-		for (i = 0; i < 4; i++) {
-			dst[cnt] = val & 0xff;
-			val >>= 8;
-			if (++cnt >= dlen)
-				return cnt;
-		}
-	}
-
-	return cnt;
-}
-
-/*
  * Start the engine and poll for finish.  Then read from output registers
  * filling the 'dst' buffer up to 'dlen' bytes or up to size of generated
  * random data (EXYNOS_RNG_SEED_SIZE).
@@ -190,7 +162,8 @@ static int exynos_rng_get_random(struct exynos_rng_dev *rng,
 	/* Clear status bit */
 	exynos_rng_writel(rng, EXYNOS_RNG_STATUS_RNG_DONE,
 			  EXYNOS_RNG_STATUS);
-	*read = exynos_rng_copy_random(rng, dst, dlen);
+	*read = min_t(size_t, dlen, EXYNOS_RNG_SEED_SIZE);
+	memcpy_fromio(dst, rng->mem + EXYNOS_RNG_OUT_BASE, *read);
 
 	return 0;
 }
