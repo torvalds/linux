@@ -38,8 +38,8 @@ and elsewhere regarding submitting Linux kernel patches.
    your patch.
 
 6) Any new or modified ``CONFIG`` options do not muck up the config menu and
-  default to off unless they meet the exception criteria documented in
-  ``Documentation/kbuild/kconfig-language.txt`` Menu attributes: default value.
+   default to off unless they meet the exception criteria documented in
+   ``Documentation/kbuild/kconfig-language.txt`` Menu attributes: default value.
 
 7) All new ``Kconfig`` options have help text.
 
