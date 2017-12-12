@@ -579,7 +579,7 @@ static bool qcom_smd_channel_intr(struct qcom_smd_channel *channel)
 
 	/* Signal waiting qcom_smd_send() about the interrupt */
 	if (!GET_TX_CHANNEL_FLAG(channel, fBLOCKREADINTR))
-		wake_up_interruptible(&channel->fblockread_event);
+		wake_up_interruptible_all(&channel->fblockread_event);
 
 	/* Don't consume any data until we've opened the channel */
 	if (channel->state != SMD_CHANNEL_OPENED)
@@ -1191,7 +1191,7 @@ static void qcom_channel_scan_worker(struct work_struct *work)
 			dev_dbg(&edge->dev, "new channel found: '%s'\n", channel->name);
 			set_bit(i, edge->allocated[tbl]);
 
-			wake_up_interruptible(&edge->new_channel_event);
+			wake_up_interruptible_all(&edge->new_channel_event);
 		}
 	}
 
