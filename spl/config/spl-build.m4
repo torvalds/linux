@@ -56,6 +56,7 @@ AC_DEFUN([SPL_AC_CONFIG_KERNEL], [
 	SPL_AC_WAIT_QUEUE_HEAD_ENTRY
 	SPL_AC_KERNEL_WRITE
 	SPL_AC_KERNEL_READ
+	SPL_AC_TIMER_SETUP
 ])
 
 AC_DEFUN([SPL_AC_MODULE_SYMVERS], [
@@ -1754,4 +1755,28 @@ AC_DEFUN([SPL_AC_KERNEL_READ], [
 		AC_MSG_RESULT(no)
 	])
 	EXTRA_KCFLAGS="$tmp_flags"
+])
+
+dnl #
+dnl # 4.16 new API
+dnl # new timer_setup()
+dnl #
+AC_DEFUN([SPL_AC_TIMER_SETUP], [
+	AC_MSG_CHECKING([whether timer_setup() exists])
+	tmp_flags="$EXTRA_KCFLAGS"
+        EXTRA_KCFLAGS="-Werror"
+	SPL_LINUX_TRY_COMPILE([
+                #include <linux/timer.h>
+        ],[
+		struct timer_list timer;
+
+		timer_setup(&timer, NULL, 0);
+        ],[
+                AC_MSG_RESULT(yes)
+                AC_DEFINE(HAVE_KERNEL_TIMER_SETUP, 1,
+                    [use timer_setup() for timer initialization])
+        ],[
+                AC_MSG_RESULT(no)
+        ])
+        EXTRA_KCFLAGS="$tmp_flags"
 ])

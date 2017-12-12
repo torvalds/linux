@@ -81,6 +81,9 @@
 /* kernel_read() take loff_t pointer */
 #undef HAVE_KERNEL_READ_PPOS
 
+/* use timer_setup() for timer initialization */
+#undef HAVE_KERNEL_TIMER_SETUP
+
 /* kernel_write() take loff_t pointer */
 #undef HAVE_KERNEL_WRITE_PPOS
 
