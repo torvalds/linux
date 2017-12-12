@@ -121,7 +121,7 @@
 					switch0port10: port@10 {
 						reg = <10>;
 						label = "dsa";
-						phy-mode = "xgmii";
+						phy-mode = "xaui";
 						link = <&switch1port10>;
 					};
 				};
@@ -208,7 +208,7 @@
 					switch1port10: port@10 {
 						reg = <10>;
 						label = "dsa";
-						phy-mode = "xgmii";
+						phy-mode = "xaui";
 						link = <&switch0port10>;
 					};
 				};
