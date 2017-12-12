@@ -725,7 +725,8 @@ u64 kvmppc_xive_get_icp(struct kvm_vcpu *vcpu)
 
 	/* Return the per-cpu state for state saving/migration */
 	return (u64)xc->cppr << KVM_REG_PPC_ICP_CPPR_SHIFT |
-	       (u64)xc->mfrr << KVM_REG_PPC_ICP_MFRR_SHIFT;
+	       (u64)xc->mfrr << KVM_REG_PPC_ICP_MFRR_SHIFT |
+	       (u64)0xff << KVM_REG_PPC_ICP_PPRI_SHIFT;
 }
 
 int kvmppc_xive_set_icp(struct kvm_vcpu *vcpu, u64 icpval)
