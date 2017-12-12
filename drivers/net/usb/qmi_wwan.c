@@ -261,9 +261,11 @@ static void qmi_wwan_netdev_setup(struct net_device *net)
 		net->hard_header_len = 0;
 		net->addr_len        = 0;
 		net->flags           = IFF_POINTOPOINT | IFF_NOARP | IFF_MULTICAST;
+		set_bit(EVENT_NO_IP_ALIGN, &dev->flags);
 		netdev_dbg(net, "mode: raw IP\n");
 	} else if (!net->header_ops) { /* don't bother if already set */
 		ether_setup(net);
+		clear_bit(EVENT_NO_IP_ALIGN, &dev->flags);
 		netdev_dbg(net, "mode: Ethernet\n");
 	}
 

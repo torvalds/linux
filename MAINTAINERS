@@ -2047,7 +2047,7 @@ F:	arch/arm/boot/dts/uniphier*
 F:	arch/arm/include/asm/hardware/cache-uniphier.h
 F:	arch/arm/mach-uniphier/
 F:	arch/arm/mm/cache-uniphier.c
-F:	arch/arm64/boot/dts/socionext/
+F:	arch/arm64/boot/dts/socionext/uniphier*
 F:	drivers/bus/uniphier-system-bus.c
 F:	drivers/clk/uniphier/
 F:	drivers/gpio/gpio-uniphier.c
@@ -7767,6 +7767,7 @@ F:	security/keys/
 
 KGDB / KDB /debug_core
 M:	Jason Wessel <jason.wessel@windriver.com>
+M:	Daniel Thompson <daniel.thompson@linaro.org>
 W:	http://kgdb.wiki.kernel.org/
 L:	kgdb-bugreport@lists.sourceforge.net
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jwessel/kgdb.git
@@ -12641,6 +12642,14 @@ L:	linux-wireless@vger.kernel.org
 S:	Maintained
 F:	drivers/ssb/
 F:	include/linux/ssb/
+
+SONY IMX274 SENSOR DRIVER
+M:	Leon Luo <leonl@leopardimaging.com>
+L:	linux-media@vger.kernel.org
+T:	git git://linuxtv.org/media_tree.git
+S:	Maintained
+F:	drivers/media/i2c/imx274.c
+F:	Documentation/devicetree/bindings/media/i2c/imx274.txt
 
 SONY MEMORYSTICK CARD SUPPORT
 M:	Alex Dubov <oakad@yahoo.com>

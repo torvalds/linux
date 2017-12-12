@@ -657,7 +657,8 @@ int iwl_mvm_tx_skb_non_sta(struct iwl_mvm *mvm, struct sk_buff *skb)
 			if (ap_sta_id != IWL_MVM_INVALID_STA)
 				sta_id = ap_sta_id;
 		} else if (info.control.vif->type == NL80211_IFTYPE_MONITOR) {
-			queue = mvm->aux_queue;
+			queue = mvm->snif_queue;
+			sta_id = mvm->snif_sta.sta_id;
 		}
 	}
 

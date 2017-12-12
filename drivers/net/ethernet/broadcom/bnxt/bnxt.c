@@ -1883,7 +1883,7 @@ static int bnxt_poll_work(struct bnxt *bp, struct bnxt_napi *bnapi, int budget)
 			 * here forever if we consistently cannot allocate
 			 * buffers.
 			 */
-			else if (rc == -ENOMEM)
+			else if (rc == -ENOMEM && budget)
 				rx_pkts++;
 			else if (rc == -EBUSY)	/* partial completion */
 				break;
@@ -1969,7 +1969,7 @@ static int bnxt_poll_nitroa0(struct napi_struct *napi, int budget)
 				cpu_to_le32(RX_CMPL_ERRORS_CRC_ERROR);
 
 			rc = bnxt_rx_pkt(bp, bnapi, &raw_cons, &event);
-			if (likely(rc == -EIO))
+			if (likely(rc == -EIO) && budget)
 				rx_pkts++;
 			else if (rc == -EBUSY)	/* partial completion */
 				break;

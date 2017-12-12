@@ -152,6 +152,16 @@ static void drm_connector_free(struct kref *kref)
 	connector->funcs->destroy(connector);
 }
 
+static void drm_connector_free_work_fn(struct work_struct *work)
+{
+	struct drm_connector *connector =
+		container_of(work, struct drm_connector, free_work);
+	struct drm_device *dev = connector->dev;
+
+	drm_mode_object_unregister(dev, &connector->base);
+	connector->funcs->destroy(connector);
+}
+
 /**
  * drm_connector_init - Init a preallocated connector
  * @dev: DRM device
@@ -180,6 +190,8 @@ int drm_connector_init(struct drm_device *dev,
 				    false, drm_connector_free);
 	if (ret)
 		return ret;
+
+	INIT_WORK(&connector->free_work, drm_connector_free_work_fn);
 
 	connector->base.properties = &connector->properties;
 	connector->dev = dev;
@@ -529,6 +541,18 @@ void drm_connector_list_iter_begin(struct drm_device *dev,
 }
 EXPORT_SYMBOL(drm_connector_list_iter_begin);
 
+/*
+ * Extra-safe connector put function that works in any context. Should only be
+ * used from the connector_iter functions, where we never really expect to
+ * actually release the connector when dropping our final reference.
+ */
+static void
+drm_connector_put_safe(struct drm_connector *conn)
+{
+	if (refcount_dec_and_test(&conn->base.refcount.refcount))
+		schedule_work(&conn->free_work);
+}
+
 /**
  * drm_connector_list_iter_next - return next connector
  * @iter: connectr_list iterator
@@ -561,7 +585,7 @@ drm_connector_list_iter_next(struct drm_connector_list_iter *iter)
 	spin_unlock_irqrestore(&config->connector_list_lock, flags);
 
 	if (old_conn)
-		drm_connector_put(old_conn);
+		drm_connector_put_safe(old_conn);
 
 	return iter->conn;
 }
@@ -580,7 +604,7 @@ void drm_connector_list_iter_end(struct drm_connector_list_iter *iter)
 {
 	iter->dev = NULL;
 	if (iter->conn)
-		drm_connector_put(iter->conn);
+		drm_connector_put_safe(iter->conn);
 	lock_release(&connector_list_iter_dep_map, 0, _RET_IP_);
 }
 EXPORT_SYMBOL(drm_connector_list_iter_end);
