@@ -34,6 +34,7 @@
 #include "log.h"
 #include "inode.h"
 #include "trace_gfs2.h"
+#include "dir.h"
 
 #define BFITNOENT ((u32)~0)
 #define NO_BLOCK ((u64)~0)
@@ -1047,6 +1048,7 @@ static void gfs2_rgrp_out(struct gfs2_rgrpd *rgd, void *buf)
 {
 	struct gfs2_rgrpd *next = gfs2_rgrpd_get_next(rgd);
 	struct gfs2_rgrp *str = buf;
+	u32 crc;
 
 	str->rg_flags = cpu_to_be32(rgd->rd_flags & ~GFS2_RDF_MASK);
 	str->rg_free = cpu_to_be32(rgd->rd_free);
@@ -1059,6 +1061,9 @@ static void gfs2_rgrp_out(struct gfs2_rgrpd *rgd, void *buf)
 	str->rg_data0 = cpu_to_be64(rgd->rd_data0);
 	str->rg_data = cpu_to_be32(rgd->rd_data);
 	str->rg_bitbytes = cpu_to_be32(rgd->rd_bitbytes);
+	str->rg_crc = 0;
+	crc = gfs2_disk_hash(buf, sizeof(struct gfs2_rgrp));
+	str->rg_crc = cpu_to_be32(crc);
 
 	memset(&str->rg_reserved, 0, sizeof(str->rg_reserved));
 }

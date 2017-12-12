@@ -197,8 +197,9 @@ struct gfs2_rgrp {
 	__be64 rg_data0;     /* First data location */
 	__be32 rg_data;      /* Number of data blocks in rgrp */
 	__be32 rg_bitbytes;  /* Number of bytes in data bitmaps */
+	__be32 rg_crc;       /* crc32 of the structure with this field 0 */
 
-	__u8 rg_reserved[64]; /* Several fields from gfs1 now reserved */
+	__u8 rg_reserved[60]; /* Several fields from gfs1 now reserved */
 };
 
 /*
