@@ -676,7 +676,8 @@ static int aic32x4_hw_params(struct snd_pcm_substream *substream,
 {
 	struct snd_soc_codec *codec = dai->codec;
 	struct aic32x4_priv *aic32x4 = snd_soc_codec_get_drvdata(codec);
-	u8 data;
+	u8 iface1_reg = 0;
+	u8 dacsetup_reg = 0;
 	int i;
 
 	i = aic32x4_get_divs(aic32x4->sysclk, params_rate(params));
@@ -685,87 +686,88 @@ static int aic32x4_hw_params(struct snd_pcm_substream *substream,
 		return i;
 	}
 
-	/* Use PLL as CODEC_CLKIN and DAC_MOD_CLK as BDIV_CLKIN */
-	snd_soc_write(codec, AIC32X4_CLKMUX, AIC32X4_CODEC_CLKIN_PLL);
-	snd_soc_write(codec, AIC32X4_IFACE3, AIC32X4_DACMOD2BCLK);
+	/* MCLK as PLL_CLKIN */
+	snd_soc_update_bits(codec, AIC32X4_CLKMUX, AIC32X4_PLL_CLKIN_MASK,
+			    AIC32X4_PLL_CLKIN_MCLK << AIC32X4_PLL_CLKIN_SHIFT);
+	/* PLL as CODEC_CLKIN */
+	snd_soc_update_bits(codec, AIC32X4_CLKMUX, AIC32X4_CODEC_CLKIN_MASK,
+			    AIC32X4_CODEC_CLKIN_PLL << AIC32X4_CODEC_CLKIN_SHIFT);
+	/* DAC_MOD_CLK as BDIV_CLKIN */
+	snd_soc_update_bits(codec, AIC32X4_IFACE3, AIC32X4_BDIVCLK_MASK,
+			    AIC32X4_DACMOD2BCLK << AIC32X4_BDIVCLK_SHIFT);
 
-	/* We will fix R value to 1 and will make P & J=K.D as varialble */
-	data = snd_soc_read(codec, AIC32X4_PLLPR);
-	data &= ~(7 << 4);
-	snd_soc_write(codec, AIC32X4_PLLPR,
-		      (data | (aic32x4_divs[i].p_val << 4) | 0x01));
+	/* We will fix R value to 1 and will make P & J=K.D as variable */
+	snd_soc_update_bits(codec, AIC32X4_PLLPR, AIC32X4_PLL_R_MASK, 0x01);
 
+	/* PLL P value */
+	snd_soc_update_bits(codec, AIC32X4_PLLPR, AIC32X4_PLL_P_MASK,
+			    aic32x4_divs[i].p_val << AIC32X4_PLL_P_SHIFT);
+
+	/* PLL J value */
 	snd_soc_write(codec, AIC32X4_PLLJ, aic32x4_divs[i].pll_j);
 
+	/* PLL D value */
 	snd_soc_write(codec, AIC32X4_PLLDMSB, (aic32x4_divs[i].pll_d >> 8));
-	snd_soc_write(codec, AIC32X4_PLLDLSB,
-		      (aic32x4_divs[i].pll_d & 0xff));
+	snd_soc_write(codec, AIC32X4_PLLDLSB, (aic32x4_divs[i].pll_d & 0xff));
 
 	/* NDAC divider value */
-	data = snd_soc_read(codec, AIC32X4_NDAC);
-	data &= ~(0x7f);
-	snd_soc_write(codec, AIC32X4_NDAC, data | aic32x4_divs[i].ndac);
+	snd_soc_update_bits(codec, AIC32X4_NDAC,
+			    AIC32X4_NDAC_MASK, aic32x4_divs[i].ndac);
 
 	/* MDAC divider value */
-	data = snd_soc_read(codec, AIC32X4_MDAC);
-	data &= ~(0x7f);
-	snd_soc_write(codec, AIC32X4_MDAC, data | aic32x4_divs[i].mdac);
+	snd_soc_update_bits(codec, AIC32X4_MDAC,
+			    AIC32X4_MDAC_MASK, aic32x4_divs[i].mdac);
 
 	/* DOSR MSB & LSB values */
 	snd_soc_write(codec, AIC32X4_DOSRMSB, aic32x4_divs[i].dosr >> 8);
-	snd_soc_write(codec, AIC32X4_DOSRLSB,
-		      (aic32x4_divs[i].dosr & 0xff));
+	snd_soc_write(codec, AIC32X4_DOSRLSB, (aic32x4_divs[i].dosr & 0xff));
 
 	/* NADC divider value */
-	data = snd_soc_read(codec, AIC32X4_NADC);
-	data &= ~(0x7f);
-	snd_soc_write(codec, AIC32X4_NADC, data | aic32x4_divs[i].nadc);
+	snd_soc_update_bits(codec, AIC32X4_NADC,
+			    AIC32X4_NADC_MASK, aic32x4_divs[i].nadc);
 
 	/* MADC divider value */
-	data = snd_soc_read(codec, AIC32X4_MADC);
-	data &= ~(0x7f);
-	snd_soc_write(codec, AIC32X4_MADC, data | aic32x4_divs[i].madc);
+	snd_soc_update_bits(codec, AIC32X4_MADC,
+			    AIC32X4_MADC_MASK, aic32x4_divs[i].madc);
 
 	/* AOSR value */
 	snd_soc_write(codec, AIC32X4_AOSR, aic32x4_divs[i].aosr);
 
 	/* BCLK N divider */
-	data = snd_soc_read(codec, AIC32X4_BCLKN);
-	data &= ~(0x7f);
-	snd_soc_write(codec, AIC32X4_BCLKN, data | aic32x4_divs[i].blck_N);
+	snd_soc_update_bits(codec, AIC32X4_BCLKN,
+			    AIC32X4_BCLK_MASK, aic32x4_divs[i].blck_N);
 
-	data = snd_soc_read(codec, AIC32X4_IFACE1);
-	data = data & ~(3 << 4);
 	switch (params_width(params)) {
 	case 16:
-		data |= (AIC32X4_WORD_LEN_16BITS <<
-			 AIC32X4_IFACE1_DATALEN_SHIFT);
+		iface1_reg |= (AIC32X4_WORD_LEN_16BITS <<
+			       AIC32X4_IFACE1_DATALEN_SHIFT);
 		break;
 	case 20:
-		data |= (AIC32X4_WORD_LEN_20BITS <<
-			 AIC32X4_IFACE1_DATALEN_SHIFT);
+		iface1_reg |= (AIC32X4_WORD_LEN_20BITS <<
+			       AIC32X4_IFACE1_DATALEN_SHIFT);
 		break;
 	case 24:
-		data |= (AIC32X4_WORD_LEN_24BITS <<
-			 AIC32X4_IFACE1_DATALEN_SHIFT);
+		iface1_reg |= (AIC32X4_WORD_LEN_24BITS <<
+			       AIC32X4_IFACE1_DATALEN_SHIFT);
 		break;
 	case 32:
-		data |= (AIC32X4_WORD_LEN_32BITS <<
-			 AIC32X4_IFACE1_DATALEN_SHIFT);
+		iface1_reg |= (AIC32X4_WORD_LEN_32BITS <<
+			       AIC32X4_IFACE1_DATALEN_SHIFT);
 		break;
 	}
-	snd_soc_write(codec, AIC32X4_IFACE1, data);
+	snd_soc_update_bits(codec, AIC32X4_IFACE1,
+			    AIC32X4_IFACE1_DATALEN_MASK, iface1_reg);
 
 	if (params_channels(params) == 1) {
-		data = AIC32X4_RDAC2LCHN | AIC32X4_LDAC2LCHN;
+		dacsetup_reg = AIC32X4_RDAC2LCHN | AIC32X4_LDAC2LCHN;
 	} else {
 		if (aic32x4->swapdacs)
-			data = AIC32X4_RDAC2LCHN | AIC32X4_LDAC2RCHN;
+			dacsetup_reg = AIC32X4_RDAC2LCHN | AIC32X4_LDAC2RCHN;
 		else
-			data = AIC32X4_LDAC2LCHN | AIC32X4_RDAC2RCHN;
+			dacsetup_reg = AIC32X4_LDAC2LCHN | AIC32X4_RDAC2RCHN;
 	}
-	snd_soc_update_bits(codec, AIC32X4_DACSETUP, AIC32X4_DAC_CHAN_MASK,
-			data);
+	snd_soc_update_bits(codec, AIC32X4_DACSETUP,
+			    AIC32X4_DAC_CHAN_MASK, dacsetup_reg);
 
 	return 0;
 }
