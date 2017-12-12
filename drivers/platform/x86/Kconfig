@@ -258,6 +258,18 @@ config AMILO_RFKILL
 	  This is a driver for enabling wifi on some Fujitsu-Siemens Amilo
 	  laptops.
 
+config GPD_POCKET_FAN
+	tristate "GPD Pocket Fan Controller support"
+	depends on ACPI
+	depends on THERMAL
+	---help---
+	  Driver for the GPD Pocket vendor specific FAN02501 ACPI device
+	  which controls the fan speed on the GPD Pocket.
+
+	  Without this driver the fan on the Pocket will stay off independent
+	  of the CPU temperature. Say Y or M if the kernel may be used on a
+	  GPD pocket.
+
 config TC1100_WMI
 	tristate "HP Compaq TC1100 Tablet WMI Extras"
 	depends on !X86_64
