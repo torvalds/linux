@@ -738,15 +738,20 @@ static int aic32x4_hw_params(struct snd_pcm_substream *substream,
 	data = data & ~(3 << 4);
 	switch (params_width(params)) {
 	case 16:
+		data |= (AIC32X4_WORD_LEN_16BITS <<
+			 AIC32X4_IFACE1_DATALEN_SHIFT);
 		break;
 	case 20:
-		data |= (AIC32X4_WORD_LEN_20BITS << AIC32X4_DOSRMSB_SHIFT);
+		data |= (AIC32X4_WORD_LEN_20BITS <<
+			 AIC32X4_IFACE1_DATALEN_SHIFT);
 		break;
 	case 24:
-		data |= (AIC32X4_WORD_LEN_24BITS << AIC32X4_DOSRMSB_SHIFT);
+		data |= (AIC32X4_WORD_LEN_24BITS <<
+			 AIC32X4_IFACE1_DATALEN_SHIFT);
 		break;
 	case 32:
-		data |= (AIC32X4_WORD_LEN_32BITS << AIC32X4_DOSRMSB_SHIFT);
+		data |= (AIC32X4_WORD_LEN_32BITS <<
+			 AIC32X4_IFACE1_DATALEN_SHIFT);
 		break;
 	}
 	snd_soc_write(codec, AIC32X4_IFACE1, data);
