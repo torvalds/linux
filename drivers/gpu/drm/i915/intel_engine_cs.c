@@ -1513,10 +1513,8 @@ bool intel_engines_are_idle(struct drm_i915_private *dev_priv)
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
 
-	if (READ_ONCE(dev_priv->gt.active_requests))
-		return false;
-
-	/* If the driver is wedged, HW state may be very inconsistent and
+	/*
+	 * If the driver is wedged, HW state may be very inconsistent and
 	 * report that it is still busy, even though we have stopped using it.
 	 */
 	if (i915_terminally_wedged(&dev_priv->gpu_error))

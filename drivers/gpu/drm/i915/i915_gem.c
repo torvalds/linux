@@ -3571,9 +3571,7 @@ int i915_gem_wait_for_idle(struct drm_i915_private *i915, unsigned int flags)
 			if (ret)
 				return ret;
 		}
-
 		i915_gem_retire_requests(i915);
-		GEM_BUG_ON(i915->gt.active_requests);
 
 		ret = wait_for_engines(i915);
 	} else {
