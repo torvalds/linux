@@ -64,10 +64,8 @@ static const u64 sha512_init[] = {
 	SHA512_H3, SHA512_H2, SHA512_H1, SHA512_H0 };
 #endif
 
-static void cc_setup_xcbc(
-	struct ahash_request *areq,
-	struct cc_hw_desc desc[],
-	unsigned int *seq_size);
+static void cc_setup_xcbc(struct ahash_request *areq, struct cc_hw_desc desc[],
+			  unsigned int *seq_size);
 
 static void cc_setup_cmac(struct ahash_request *areq, struct cc_hw_desc desc[],
 			  unsigned int *seq_size);
@@ -106,12 +104,9 @@ struct cc_hash_ctx {
 	bool is_hmac;
 };
 
-static void cc_set_desc(
-	struct ahash_req_ctx *areq_ctx,
-	struct cc_hash_ctx *ctx,
-	unsigned int flow_mode, struct cc_hw_desc desc[],
-	bool is_not_last_data,
-	unsigned int *seq_size);
+static void cc_set_desc(struct ahash_req_ctx *areq_ctx, struct cc_hash_ctx *ctx,
+			unsigned int flow_mode, struct cc_hw_desc desc[],
+			bool is_not_last_data, unsigned int *seq_size);
 
 static void cc_set_endianity(u32 mode, struct cc_hw_desc *desc)
 {
@@ -1971,9 +1966,8 @@ static struct cc_hash_template driver_hash[] = {
 
 };
 
-static struct cc_hash_alg *
-cc_alloc_hash_alg(struct cc_hash_template *template, struct device *dev,
-		  bool keyed)
+static struct cc_hash_alg *cc_alloc_hash_alg(struct cc_hash_template *template,
+					     struct device *dev, bool keyed)
 {
 	struct cc_hash_alg *t_crypto_alg;
 	struct crypto_alg *alg;
