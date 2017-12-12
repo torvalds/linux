@@ -320,6 +320,45 @@ static int rmnet_rtnl_validate(struct nlattr *tb[], struct nlattr *data[],
 	return 0;
 }
 
+static int rmnet_changelink(struct net_device *dev, struct nlattr *tb[],
+			    struct nlattr *data[],
+			    struct netlink_ext_ack *extack)
+{
+	struct rmnet_priv *priv = netdev_priv(dev);
+	struct net_device *real_dev;
+	struct rmnet_endpoint *ep;
+	struct rmnet_port *port;
+	u16 mux_id;
+
+	real_dev = __dev_get_by_index(dev_net(dev),
+				      nla_get_u32(tb[IFLA_LINK]));
+
+	if (!real_dev || !dev || !rmnet_is_real_dev_registered(real_dev))
+		return -ENODEV;
+
+	port = rmnet_get_port_rtnl(real_dev);
+
+	if (data[IFLA_VLAN_ID]) {
+		mux_id = nla_get_u16(data[IFLA_VLAN_ID]);
+		ep = rmnet_get_endpoint(port, priv->mux_id);
+
+		hlist_del_init_rcu(&ep->hlnode);
+		hlist_add_head_rcu(&ep->hlnode, &port->muxed_ep[mux_id]);
+
+		ep->mux_id = mux_id;
+		priv->mux_id = mux_id;
+	}
+
+	if (data[IFLA_VLAN_FLAGS]) {
+		struct ifla_vlan_flags *flags;
+
+		flags = nla_data(data[IFLA_VLAN_FLAGS]);
+		port->ingress_data_format = flags->flags & flags->mask;
+	}
+
+	return 0;
+}
+
 static size_t rmnet_get_size(const struct net_device *dev)
 {
 	return nla_total_size(2) /* IFLA_VLAN_ID */ +
@@ -335,6 +374,7 @@ struct rtnl_link_ops rmnet_link_ops __read_mostly = {
 	.newlink	= rmnet_newlink,
 	.dellink	= rmnet_dellink,
 	.get_size	= rmnet_get_size,
+	.changelink     = rmnet_changelink,
 };
 
 /* Needs either rcu_read_lock() or rtnl lock */
