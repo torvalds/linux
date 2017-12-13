@@ -162,6 +162,7 @@ static inline int sip_smc_set_suspend_mode(u32 ctrl, u32 config1, u32 config2)
 }
 
 static inline int sip_smc_virtual_poweroff(void) { return 0; }
+static inline int sip_smc_remotectl_config(u32 func, u32 data) { return 0; }
 static inline u32 sip_smc_secure_reg_read(u32 addr_phy) { return 0; }
 static inline int sip_smc_secure_reg_write(u32 addr_phy, u32 val) { return 0; }
 
