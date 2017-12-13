@@ -58,7 +58,7 @@ struct gpio_device {
 	struct gpio_desc	*descs;
 	int			base;
 	u16			ngpio;
-	char			*label;
+	const char		*label;
 	void			*data;
 	struct list_head        list;
 
