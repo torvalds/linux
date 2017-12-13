@@ -149,8 +149,41 @@ static struct engine_mmio gen9_engine_mmio_list[] __cacheline_aligned = {
 	{ /* Terminated */ }
 };
 
-static u32 gen9_render_mocs[I915_NUM_ENGINES][64];
-static u32 gen9_render_mocs_L3[32];
+static struct {
+	bool initialized;
+	u32 control_table[I915_NUM_ENGINES][64];
+	u32 l3cc_table[32];
+} gen9_render_mocs;
+
+static void load_render_mocs(struct drm_i915_private *dev_priv)
+{
+	i915_reg_t offset;
+	u32 regs[] = {
+		[RCS] = 0xc800,
+		[VCS] = 0xc900,
+		[VCS2] = 0xca00,
+		[BCS] = 0xcc00,
+		[VECS] = 0xcb00,
+	};
+	int ring_id, i;
+
+	for (ring_id = 0; ring_id < I915_NUM_ENGINES; ring_id++) {
+		offset.reg = regs[ring_id];
+		for (i = 0; i < 64; i++) {
+			gen9_render_mocs.control_table[ring_id][i] =
+				I915_READ_FW(offset);
+			offset.reg += 4;
+		}
+	}
+
+	offset.reg = 0xb020;
+	for (i = 0; i < 32; i++) {
+		gen9_render_mocs.l3cc_table[i] =
+			I915_READ_FW(offset);
+		offset.reg += 4;
+	}
+	gen9_render_mocs.initialized = true;
+}
 
 static void handle_tlb_pending_event(struct intel_vgpu *vgpu, int ring_id)
 {
@@ -218,18 +251,19 @@ static void switch_mocs(struct intel_vgpu *pre, struct intel_vgpu *next,
 	if (WARN_ON(ring_id >= ARRAY_SIZE(regs)))
 		return;
 
-	offset.reg = regs[ring_id];
+	if (!pre && !gen9_render_mocs.initialized)
+		load_render_mocs(dev_priv);
 
+	offset.reg = regs[ring_id];
 	for (i = 0; i < 64; i++) {
 		if (pre)
 			old_v = vgpu_vreg(pre, offset);
 		else
-			old_v = gen9_render_mocs[ring_id][i]
-			      = I915_READ_FW(offset);
+			old_v = gen9_render_mocs.control_table[ring_id][i];
 		if (next)
 			new_v = vgpu_vreg(next, offset);
 		else
-			new_v = gen9_render_mocs[ring_id][i];
+			new_v = gen9_render_mocs.control_table[ring_id][i];
 
 		if (old_v != new_v)
 			I915_WRITE_FW(offset, new_v);
@@ -243,12 +277,11 @@ static void switch_mocs(struct intel_vgpu *pre, struct intel_vgpu *next,
 			if (pre)
 				old_v = vgpu_vreg(pre, l3_offset);
 			else
-				old_v = gen9_render_mocs_L3[i]
-				      = I915_READ_FW(offset);
+				old_v = gen9_render_mocs.l3cc_table[i];
 			if (next)
 				new_v = vgpu_vreg(next, l3_offset);
 			else
-				new_v = gen9_render_mocs_L3[i];
+				new_v = gen9_render_mocs.l3cc_table[i];
 
 			if (old_v != new_v)
 				I915_WRITE_FW(l3_offset, new_v);
