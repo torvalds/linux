@@ -27,6 +27,7 @@
  * Remarks: bit[31:11] and bit[9:6] should be 0
  */
 #define UGCTRL2_RESERVED_3	0x00000001	/* bit[3:0] should be B'0001 */
+#define UGCTRL2_USB0SEL_EHCI	0x00000010
 #define UGCTRL2_USB0SEL_HSUSB	0x00000020
 #define UGCTRL2_USB0SEL_OTG	0x00000030
 #define UGCTRL2_VBUSSEL		0x00000400
@@ -47,6 +48,14 @@ static u32 usbhs_read32(struct usbhs_priv *priv, u32 reg)
 static void usbhs_rcar3_set_ugctrl2(struct usbhs_priv *priv, u32 val)
 {
 	usbhs_write32(priv, UGCTRL2, val | UGCTRL2_RESERVED_3);
+}
+
+static void usbhs_rcar3_set_usbsel(struct usbhs_priv *priv, bool ehci)
+{
+	if (ehci)
+		usbhs_rcar3_set_ugctrl2(priv, UGCTRL2_USB0SEL_EHCI);
+	else
+		usbhs_rcar3_set_ugctrl2(priv, UGCTRL2_USB0SEL_HSUSB);
 }
 
 static int usbhs_rcar3_power_ctrl(struct platform_device *pdev,
@@ -74,10 +83,14 @@ static int usbhs_rcar3_power_and_pll_ctrl(struct platform_device *pdev,
 	struct usbhs_priv *priv = usbhs_pdev_to_priv(pdev);
 	u32 val;
 	int timeout = 1000;
+	bool is_host = false;
 
 	if (enable) {
 		usbhs_write32(priv, UGCTRL, 0);	/* release PLLRESET */
-		usbhs_rcar3_set_ugctrl2(priv, UGCTRL2_USB0SEL_HSUSB);
+		if (priv->edev)
+			is_host = extcon_get_state(priv->edev, EXTCON_USB_HOST);
+
+		usbhs_rcar3_set_usbsel(priv, is_host);
 
 		usbhs_bset(priv, LPSTS, LPSTS_SUSPM, LPSTS_SUSPM);
 		do {
