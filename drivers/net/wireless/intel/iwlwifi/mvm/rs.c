@@ -4052,7 +4052,7 @@ static const struct rate_control_ops rs_mvm_ops_drv = {
 void iwl_mvm_rs_rate_init(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 			  enum nl80211_band band, bool init)
 {
-	if (fw_has_capa(&mvm->fw->ucode_capa, IWL_UCODE_TLV_CAPA_TLC_OFFLOAD))
+	if (iwl_mvm_has_tlc_offload(mvm))
 		rs_fw_rate_init(mvm, sta, band);
 	else
 		rs_drv_rate_init(mvm, sta, band, init);
@@ -4096,7 +4096,7 @@ static int rs_drv_tx_protection(struct iwl_mvm *mvm, struct iwl_mvm_sta *mvmsta,
 int iwl_mvm_tx_protection(struct iwl_mvm *mvm, struct iwl_mvm_sta *mvmsta,
 			  bool enable)
 {
-	if (fw_has_capa(&mvm->fw->ucode_capa, IWL_UCODE_TLV_CAPA_TLC_OFFLOAD))
+	if (iwl_mvm_has_tlc_offload(mvm))
 		return rs_fw_tx_protection(mvm, mvmsta, enable);
 	else
 		return rs_drv_tx_protection(mvm, mvmsta, enable);

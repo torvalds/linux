@@ -1443,7 +1443,7 @@ int iwl_mvm_add_sta(struct iwl_mvm *mvm,
 	 * if rs is registered with mac80211, then "add station" will be handled
 	 * via the corresponding ops, otherwise need to notify rate scaling here
 	 */
-	if (fw_has_capa(&mvm->fw->ucode_capa, IWL_UCODE_TLV_CAPA_TLC_OFFLOAD))
+	if (iwl_mvm_has_tlc_offload(mvm))
 		iwl_mvm_rs_add_sta(mvm, mvm_sta);
 
 update_fw:
@@ -2586,8 +2586,7 @@ int iwl_mvm_sta_tx_agg_oper(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	 * When FW supports TLC_OFFLOAD, it also implements Tx aggregation
 	 * manager, so this function should never be called in this case.
 	 */
-	if (WARN_ON_ONCE(fw_has_capa(&mvm->fw->ucode_capa,
-				     IWL_UCODE_TLV_CAPA_TLC_OFFLOAD)))
+	if (WARN_ON_ONCE(iwl_mvm_has_tlc_offload(mvm)))
 		return -EINVAL;
 
 	BUILD_BUG_ON((sizeof(mvmsta->agg_tids) * BITS_PER_BYTE)

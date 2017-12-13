@@ -912,8 +912,7 @@ int iwl_mvm_send_lq_cmd(struct iwl_mvm *mvm, struct iwl_lq_cmd *lq, bool init)
 	};
 
 	if (WARN_ON(lq->sta_id == IWL_MVM_INVALID_STA ||
-		    fw_has_capa(&mvm->fw->ucode_capa,
-				IWL_UCODE_TLV_CAPA_TLC_OFFLOAD)))
+		    iwl_mvm_has_tlc_offload(mvm)))
 		return -EINVAL;
 
 	return iwl_mvm_send_cmd(mvm, &cmd);

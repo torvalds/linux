@@ -1278,6 +1278,12 @@ static inline bool iwl_mvm_has_quota_low_latency(struct iwl_mvm *mvm)
 			  IWL_UCODE_TLV_API_QUOTA_LOW_LATENCY);
 }
 
+static inline bool iwl_mvm_has_tlc_offload(const struct iwl_mvm *mvm)
+{
+	return fw_has_capa(&mvm->fw->ucode_capa,
+			   IWL_UCODE_TLV_CAPA_TLC_OFFLOAD);
+}
+
 static inline struct agg_tx_status *
 iwl_mvm_get_agg_status(struct iwl_mvm *mvm, void *tx_resp)
 {

@@ -1718,8 +1718,7 @@ static void iwl_mvm_tx_reclaim(struct iwl_mvm *mvm, int sta_id, int tid,
 		ba_info->band = chanctx_conf->def.chan->band;
 		iwl_mvm_hwrate_to_tx_status(rate, ba_info);
 
-		if (!fw_has_capa(&mvm->fw->ucode_capa,
-				 IWL_UCODE_TLV_CAPA_TLC_OFFLOAD)) {
+		if (!iwl_mvm_has_tlc_offload(mvm)) {
 			IWL_DEBUG_TX_REPLY(mvm,
 					   "No reclaim. Update rs directly\n");
 			iwl_mvm_rs_tx_status(mvm, sta, tid, ba_info, false);
