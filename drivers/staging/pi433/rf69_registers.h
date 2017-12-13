@@ -188,8 +188,6 @@
 #define  MASK_PALEVEL_PA2			0x20
 #define  MASK_PALEVEL_OUTPUT_POWER		0x1F
 
-
-
 // RegPaRamp
 #define  PARAMP_3400				0x00
 #define  PARAMP_2000				0x01
@@ -246,7 +244,6 @@
 #define  LNA_GAIN_MAX_MINUS_36			0x05
 #define  LNA_GAIN_MAX_MINUS_48			0x06
 
-
 /* RegRxBw (0x19) and RegAfcBw (0x1A) */
 #define  MASK_BW_DCC_FREQ			0xE0
 #define  MASK_BW_MANTISSE			0x18
@@ -264,7 +261,6 @@
 #define  BW_MANT_16				0x00
 #define  BW_MANT_20				0x08
 #define  BW_MANT_24				0x10 /* default */
-
 
 /* RegOokPeak (0x1B) */
 #define  MASK_OOKPEAK_THRESTYPE			0xc0

@@ -54,7 +54,6 @@
 #include "pi433_if.h"
 #include "rf69.h"
 
-
 #define N_PI433_MINORS			(1U << MINORBITS) /*32*/	/* ... up to 256 */
 #define MAX_MSG_SIZE			900	/* min: FIFO_SIZE! */
 #define MSG_FIFO_SIZE			65536   /* 65536 = 2^16  */
@@ -118,7 +117,6 @@ struct pi433_instance {
 	struct pi433_device	*device;
 	struct pi433_tx_cfg	tx_cfg;
 };
-
 
 /*-------------------------------------------------------------------------*/
 
@@ -406,7 +404,6 @@ pi433_start_rx(struct pi433_device *dev)
 	return 0;
 }
 
-
 /*-------------------------------------------------------------------------*/
 
 static int
@@ -526,7 +523,6 @@ pi433_receive(void *data)
 		else
 			bytes_to_read = bytes_total - dev->rx_position;
 
-
 		/* access the fifo */
 		if (bytes_to_read > FIFO_SIZE - dev->free_in_fifo)
 			bytes_to_read = FIFO_SIZE - dev->free_in_fifo;
@@ -544,7 +540,6 @@ pi433_receive(void *data)
 		else
 			dev->rx_position += bytes_to_read;
 	}
-
 
 	/* rx done, wait was interrupted or error occurred */
 abort:
@@ -737,7 +732,6 @@ pi433_tx_thread(void *data)
 		if (kthread_should_stop())
 			printk("ABORT\n");
 
-
 		/* STOP_TRANSMISSION */
 		dev_dbg(device->dev, "thread: Packet sent. Set mode to stby.");
 		retval = rf69_set_mode(spi, standby);
@@ -804,7 +798,6 @@ pi433_read(struct file *filp, char __user *buf, size_t size, loff_t *f_pos)
 	return bytes_received;
 }
 
-
 static ssize_t
 pi433_write(struct file *filp, const char __user *buf,
 		size_t count, loff_t *f_pos)
@@ -853,7 +846,6 @@ abort:
 	mutex_unlock(&device->tx_fifo_lock);
 	return -EAGAIN;
 }
-
 
 static long
 pi433_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
@@ -992,7 +984,6 @@ static int pi433_release(struct inode *inode, struct file *filp)
 	return 0;
 }
 
-
 /*-------------------------------------------------------------------------*/
 
 static int setup_GPIOs(struct pi433_device *device)
@@ -1028,13 +1019,11 @@ static int setup_GPIOs(struct pi433_device *device)
 			return retval;
 		}
 
-
 		/* configure the pin */
 		gpiod_unexport(device->gpiod[i]);
 		retval = gpiod_direction_input(device->gpiod[i]);
 		if (retval)
 			return retval;
-
 
 		/* configure irq */
 		device->irq_num[i] = gpiod_to_irq(device->gpiod[i]);

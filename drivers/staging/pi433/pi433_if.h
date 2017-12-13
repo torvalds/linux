@@ -34,9 +34,6 @@
 
 /*---------------------------------------------------------------------------*/
 
-
-/*---------------------------------------------------------------------------*/
-
 enum option_on_off {
 	OPTION_OFF,
 	OPTION_ON
@@ -76,7 +73,6 @@ struct pi433_tx_cfg {
 
 	__u16			repetitions;
 
-
 	/* packet format */
 	enum option_on_off	enable_preamble;
 	enum option_on_off	enable_sync;
@@ -91,7 +87,6 @@ struct pi433_tx_cfg {
 	__u8			sync_pattern[8];
 	__u8			address_byte;
 };
-
 
 /**
  * struct pi433_rx_config - describes the configuration of the radio module for sending
@@ -127,8 +122,6 @@ struct pi433_rx_cfg {
 	__u8			bw_exponent;	/* during AFC: 0x8b */
 	enum dagc		dagc;
 
-
-
 	/* packet format */
 	enum option_on_off	enable_sync;
 	enum option_on_off	enable_length_byte;	  /* should be used in combination with sync, only */
@@ -143,7 +136,6 @@ struct pi433_rx_cfg {
 	__u8			node_address;
 	__u8			broadcast_address;
 };
-
 
 #define PI433_IOC_MAGIC			'r'
 
