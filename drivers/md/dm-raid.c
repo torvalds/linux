@@ -3399,26 +3399,9 @@ static sector_t rs_get_progress(struct raid_set *rs, unsigned long recovery,
 		set_bit(RT_FLAG_RS_IN_SYNC, &rs->runtime_flags);
 
 	} else {
-		/* Reshape is relative to the array size */
-		if (test_bit(MD_RECOVERY_RESHAPE, &recovery)) {
-			r = mddev->reshape_position;
-			if (r != MaxSector) {
-				/* Got to reverse on backward reshape */
-				if (mddev->reshape_backwards)
-					r = mddev->array_sectors - r;
-
-				/* Divide by # of data stripes unless raid1 */
-				if (!rs_is_raid1(rs))
-					sector_div(r, mddev_data_stripes(rs));
-			}
-
-		/*
-		 * Sync/recover is relative to the component device size.
-		 *
-		 * MD_RECOVERY_NEEDED for https://bugzilla.redhat.com/show_bug.cgi?id=1508070
-		 */
-		} else if (test_bit(MD_RECOVERY_NEEDED, &recovery) ||
-			   test_bit(MD_RECOVERY_RUNNING, &recovery))
+		if (test_bit(MD_RECOVERY_NEEDED, &recovery) ||
+		    test_bit(MD_RECOVERY_RESHAPE, &recovery) ||
+		    test_bit(MD_RECOVERY_RUNNING, &recovery))
 			r = mddev->curr_resync_completed;
 		else
 			r = mddev->recovery_cp;
