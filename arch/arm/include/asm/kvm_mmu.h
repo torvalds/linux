@@ -211,6 +211,11 @@ static inline bool __kvm_cpu_uses_extended_idmap(void)
 	return false;
 }
 
+static inline unsigned long __kvm_idmap_ptrs_per_pgd(void)
+{
+	return PTRS_PER_PGD;
+}
+
 static inline void __kvm_extend_hypmap(pgd_t *boot_hyp_pgd,
 				       pgd_t *hyp_pgd,
 				       pgd_t *merged_hyp_pgd,

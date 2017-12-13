@@ -63,11 +63,21 @@ static inline void cpu_set_reserved_ttbr0(void)
  * physical memory, in which case it will be smaller.
  */
 extern u64 idmap_t0sz;
+extern u64 idmap_ptrs_per_pgd;
 
 static inline bool __cpu_uses_extended_idmap(void)
 {
 	return (!IS_ENABLED(CONFIG_ARM64_VA_BITS_48) &&
 		unlikely(idmap_t0sz != TCR_T0SZ(VA_BITS)));
+}
+
+/*
+ * True if the extended ID map requires an extra level of translation table
+ * to be configured.
+ */
+static inline bool __cpu_uses_extended_idmap_level(void)
+{
+	return ARM64_HW_PGTABLE_LEVELS((64 - idmap_t0sz)) > CONFIG_PGTABLE_LEVELS;
 }
 
 /*

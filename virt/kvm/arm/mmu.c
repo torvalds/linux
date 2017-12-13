@@ -629,14 +629,20 @@ static int __create_hyp_mappings(pgd_t *pgdp,
 {
 	pgd_t *pgd;
 	pud_t *pud;
-	unsigned long addr, next;
+	unsigned long addr, next, ptrs_per_pgd = PTRS_PER_PGD;
 	int err = 0;
+
+	/*
+	 * If it's not the hyp_pgd, fall back to the kvm idmap layout.
+	 */
+	if (pgdp != hyp_pgd)
+		ptrs_per_pgd = __kvm_idmap_ptrs_per_pgd();
 
 	mutex_lock(&kvm_hyp_pgd_mutex);
 	addr = start & PAGE_MASK;
 	end = PAGE_ALIGN(end);
 	do {
-		pgd = pgdp + pgd_index(addr);
+		pgd = pgdp + ((addr >> PGDIR_SHIFT) & (ptrs_per_pgd - 1));
 
 		if (pgd_none(*pgd)) {
 			pud = pud_alloc_one(NULL, addr);

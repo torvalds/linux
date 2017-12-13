@@ -273,7 +273,12 @@ void kvm_toggle_cache(struct kvm_vcpu *vcpu, bool was_enabled);
 
 static inline bool __kvm_cpu_uses_extended_idmap(void)
 {
-	return __cpu_uses_extended_idmap();
+	return __cpu_uses_extended_idmap_level();
+}
+
+static inline unsigned long __kvm_idmap_ptrs_per_pgd(void)
+{
+	return idmap_ptrs_per_pgd;
 }
 
 /*

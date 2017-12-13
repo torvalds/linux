@@ -72,24 +72,23 @@ __do_hyp_init:
 	mov	x5, #TCR_EL2_RES1
 	orr	x4, x4, x5
 
-#ifndef CONFIG_ARM64_VA_BITS_48
 	/*
-	 * If we are running with VA_BITS < 48, we may be running with an extra
-	 * level of translation in the ID map. This is only the case if system
-	 * RAM is out of range for the currently configured page size and number
-	 * of translation levels, in which case we will also need the extra
-	 * level for the HYP ID map, or we won't be able to enable the EL2 MMU.
+	 * The ID map may be configured to use an extended virtual address
+	 * range. This is only the case if system RAM is out of range for the
+	 * currently configured page size and VA_BITS, in which case we will
+	 * also need the extended virtual range for the HYP ID map, or we won't
+	 * be able to enable the EL2 MMU.
 	 *
 	 * However, at EL2, there is only one TTBR register, and we can't switch
 	 * between translation tables *and* update TCR_EL2.T0SZ at the same
-	 * time. Bottom line: we need the extra level in *both* our translation
-	 * tables.
+	 * time. Bottom line: we need to use the extended range with *both* our
+	 * translation tables.
 	 *
 	 * So use the same T0SZ value we use for the ID map.
 	 */
 	ldr_l	x5, idmap_t0sz
 	bfi	x4, x5, TCR_T0SZ_OFFSET, TCR_TxSZ_WIDTH
-#endif
+
 	/*
 	 * Set the PS bits in TCR_EL2.
 	 */
