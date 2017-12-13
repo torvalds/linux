@@ -107,6 +107,7 @@ MODULE_PARM_DESC(nr_desc_prm, "number of descriptors (default: 0)");
 
 enum hidma_cap {
 	HIDMA_MSI_CAP = 1,
+	HIDMA_IDENTITY_CAP,
 };
 
 /* process completed descriptors */
@@ -838,7 +839,10 @@ static int hidma_probe(struct platform_device *pdev)
 	if (!dmadev->nr_descriptors)
 		dmadev->nr_descriptors = HIDMA_NR_DEFAULT_DESC;
 
-	dmadev->chidx = readl(dmadev->dev_trca + 0x28);
+	if (hidma_test_capability(&pdev->dev, HIDMA_IDENTITY_CAP))
+		dmadev->chidx = readl(dmadev->dev_trca + 0x40);
+	else
+		dmadev->chidx = readl(dmadev->dev_trca + 0x28);
 
 	/* Set DMA mask to 64 bits. */
 	rc = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64));
@@ -944,7 +948,7 @@ static int hidma_remove(struct platform_device *pdev)
 static const struct acpi_device_id hidma_acpi_ids[] = {
 	{"QCOM8061"},
 	{"QCOM8062", HIDMA_MSI_CAP},
-	{"QCOM8063", HIDMA_MSI_CAP},
+	{"QCOM8063", (HIDMA_MSI_CAP | HIDMA_IDENTITY_CAP)},
 	{},
 };
 MODULE_DEVICE_TABLE(acpi, hidma_acpi_ids);
@@ -953,7 +957,8 @@ MODULE_DEVICE_TABLE(acpi, hidma_acpi_ids);
 static const struct of_device_id hidma_match[] = {
 	{.compatible = "qcom,hidma-1.0",},
 	{.compatible = "qcom,hidma-1.1", .data = (void *)(HIDMA_MSI_CAP),},
-	{.compatible = "qcom,hidma-1.2", .data = (void *)(HIDMA_MSI_CAP),},
+	{.compatible = "qcom,hidma-1.2",
+	 .data = (void *)(HIDMA_MSI_CAP | HIDMA_IDENTITY_CAP),},
 	{},
 };
 MODULE_DEVICE_TABLE(of, hidma_match);
