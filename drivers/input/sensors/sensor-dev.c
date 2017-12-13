@@ -610,7 +610,7 @@ static void sensor_resume(struct early_suspend *h)
 #endif
 
 #ifdef CONFIG_PM
-static int sensor_of_suspend(struct device *dev)
+static int __maybe_unused sensor_of_suspend(struct device *dev)
 {
 	struct sensor_private_data *sensor = dev_get_drvdata(dev);
 
@@ -620,7 +620,7 @@ static int sensor_of_suspend(struct device *dev)
 	return 0;
 }
 
-static int sensor_of_resume(struct device *dev)
+static int __maybe_unused sensor_of_resume(struct device *dev)
 {
 	struct sensor_private_data *sensor = dev_get_drvdata(dev);
 
