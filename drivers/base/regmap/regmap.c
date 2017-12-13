@@ -672,6 +672,14 @@ struct regmap *__regmap_init(struct device *dev,
 		goto err;
 	}
 
+	if (config->name) {
+		map->name = kstrdup_const(config->name, GFP_KERNEL);
+		if (!map->name) {
+			ret = -ENOMEM;
+			goto err_map;
+		}
+	}
+
 	if (config->disable_locking) {
 		map->lock = map->unlock = regmap_lock_unlock_none;
 		regmap_debugfs_disable(map);
@@ -683,7 +691,7 @@ struct regmap *__regmap_init(struct device *dev,
 		map->hwlock = hwspin_lock_request_specific(config->hwlock_id);
 		if (!map->hwlock) {
 			ret = -ENXIO;
-			goto err_map;
+			goto err_name;
 		}
 
 		switch (config->hwlock_mode) {
@@ -763,7 +771,6 @@ struct regmap *__regmap_init(struct device *dev,
 	map->volatile_reg = config->volatile_reg;
 	map->precious_reg = config->precious_reg;
 	map->cache_type = config->cache_type;
-	map->name = config->name;
 
 	spin_lock_init(&map->async_lock);
 	INIT_LIST_HEAD(&map->async_list);
@@ -1119,6 +1126,8 @@ err_range:
 err_hwlock:
 	if (map->hwlock)
 		hwspin_lock_free(map->hwlock);
+err_name:
+	kfree_const(map->name);
 err_map:
 	kfree(map);
 err:
@@ -1308,6 +1317,7 @@ void regmap_exit(struct regmap *map)
 	}
 	if (map->hwlock)
 		hwspin_lock_free(map->hwlock);
+	kfree_const(map->name);
 	kfree(map);
 }
 EXPORT_SYMBOL_GPL(regmap_exit);
