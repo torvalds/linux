@@ -60,6 +60,8 @@ struct sh_msiof_spi_priv {
 	bool slave_aborted;
 };
 
+#define MAX_SS	3	/* Maximum number of native chip selects */
+
 #define TMDR1	0x00	/* Transmit Mode Register 1 */
 #define TMDR2	0x04	/* Transmit Mode Register 2 */
 #define TMDR3	0x08	/* Transmit Mode Register 3 */
@@ -93,6 +95,8 @@ struct sh_msiof_spi_priv {
 #define MDR1_XXSTP	 0x00000001 /* Transmission/Reception Stop on FIFO */
 /* TMDR1 */
 #define TMDR1_PCON	 0x40000000 /* Transfer Signal Connection */
+#define TMDR1_SYNCCH_MASK 0xc000000 /* Synchronization Signal Channel Select */
+#define TMDR1_SYNCCH_SHIFT	 26 /* 0=MSIOF_SYNC, 1=MSIOF_SS1, 2=MSIOF_SS2 */
 
 /* TMDR2 and RMDR2 */
 #define MDR2_BITLEN1(i)	(((i) - 1) << 24) /* Data Size (8-32 bits) */
@@ -326,7 +330,7 @@ static u32 sh_msiof_spi_get_dtdl_and_syncdl(struct sh_msiof_spi_priv *p)
 	return val;
 }
 
-static void sh_msiof_spi_set_pin_regs(struct sh_msiof_spi_priv *p,
+static void sh_msiof_spi_set_pin_regs(struct sh_msiof_spi_priv *p, u32 ss,
 				      u32 cpol, u32 cpha,
 				      u32 tx_hi_z, u32 lsb_first, u32 cs_high)
 {
@@ -344,10 +348,13 @@ static void sh_msiof_spi_set_pin_regs(struct sh_msiof_spi_priv *p,
 	tmp |= !cs_high << MDR1_SYNCAC_SHIFT;
 	tmp |= lsb_first << MDR1_BITLSB_SHIFT;
 	tmp |= sh_msiof_spi_get_dtdl_and_syncdl(p);
-	if (spi_controller_is_slave(p->master))
+	if (spi_controller_is_slave(p->master)) {
 		sh_msiof_write(p, TMDR1, tmp | TMDR1_PCON);
-	else
-		sh_msiof_write(p, TMDR1, tmp | MDR1_TRMD | TMDR1_PCON);
+	} else {
+		sh_msiof_write(p, TMDR1,
+			       tmp | MDR1_TRMD | TMDR1_PCON |
+			       (ss < MAX_SS ? ss : 0) << TMDR1_SYNCCH_SHIFT);
+	}
 	if (p->master->flags & SPI_MASTER_MUST_TX) {
 		/* These bits are reserved if RX needs TX */
 		tmp &= ~0x0000ffff;
@@ -575,7 +582,8 @@ static int sh_msiof_prepare_message(struct spi_master *master,
 	const struct spi_device *spi = msg->spi;
 
 	/* Configure pins before asserting CS */
-	sh_msiof_spi_set_pin_regs(p, !!(spi->mode & SPI_CPOL),
+	sh_msiof_spi_set_pin_regs(p, spi->chip_select,
+				  !!(spi->mode & SPI_CPOL),
 				  !!(spi->mode & SPI_CPHA),
 				  !!(spi->mode & SPI_3WIRE),
 				  !!(spi->mode & SPI_LSB_FIRST),
