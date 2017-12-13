@@ -44,13 +44,17 @@ static u32 usbhs_read32(struct usbhs_priv *priv, u32 reg)
 	return ioread32(priv->base + reg);
 }
 
+static void usbhs_rcar3_set_ugctrl2(struct usbhs_priv *priv, u32 val)
+{
+	usbhs_write32(priv, UGCTRL2, val | UGCTRL2_RESERVED_3);
+}
+
 static int usbhs_rcar3_power_ctrl(struct platform_device *pdev,
 				void __iomem *base, int enable)
 {
 	struct usbhs_priv *priv = usbhs_pdev_to_priv(pdev);
 
-	usbhs_write32(priv, UGCTRL2, UGCTRL2_RESERVED_3 | UGCTRL2_USB0SEL_OTG |
-		      UGCTRL2_VBUSSEL);
+	usbhs_rcar3_set_ugctrl2(priv, UGCTRL2_USB0SEL_OTG | UGCTRL2_VBUSSEL);
 
 	if (enable) {
 		usbhs_bset(priv, LPSTS, LPSTS_SUSPM, LPSTS_SUSPM);
@@ -73,8 +77,7 @@ static int usbhs_rcar3_power_and_pll_ctrl(struct platform_device *pdev,
 
 	if (enable) {
 		usbhs_write32(priv, UGCTRL, 0);	/* release PLLRESET */
-		usbhs_write32(priv, UGCTRL2, UGCTRL2_RESERVED_3 |
-			      UGCTRL2_USB0SEL_HSUSB);
+		usbhs_rcar3_set_ugctrl2(priv, UGCTRL2_USB0SEL_HSUSB);
 
 		usbhs_bset(priv, LPSTS, LPSTS_SUSPM, LPSTS_SUSPM);
 		do {
