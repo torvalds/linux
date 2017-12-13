@@ -112,6 +112,16 @@ static int usbhs_rcar3_get_id(struct platform_device *pdev)
 	return USBHS_GADGET;
 }
 
+static int usbhs_rcar3_notifier(struct notifier_block *nb, unsigned long event,
+				void *data)
+{
+	struct usbhs_priv *priv = container_of(nb, struct usbhs_priv, nb);
+
+	usbhs_rcar3_set_usbsel(priv, !!event);
+
+	return NOTIFY_DONE;
+}
+
 const struct renesas_usbhs_platform_callback usbhs_rcar3_ops = {
 	.power_ctrl = usbhs_rcar3_power_ctrl,
 	.get_id = usbhs_rcar3_get_id,
@@ -120,4 +130,5 @@ const struct renesas_usbhs_platform_callback usbhs_rcar3_ops = {
 const struct renesas_usbhs_platform_callback usbhs_rcar3_with_pll_ops = {
 	.power_ctrl = usbhs_rcar3_power_and_pll_ctrl,
 	.get_id = usbhs_rcar3_get_id,
+	.notifier = usbhs_rcar3_notifier,
 };

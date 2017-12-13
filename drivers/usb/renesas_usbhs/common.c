@@ -581,6 +581,15 @@ static int usbhs_probe(struct platform_device *pdev)
 		break;
 	case USBHS_TYPE_RCAR_GEN3_WITH_PLL:
 		priv->pfunc = usbhs_rcar3_with_pll_ops;
+		if (!IS_ERR_OR_NULL(priv->edev)) {
+			priv->nb.notifier_call = priv->pfunc.notifier;
+			ret = devm_extcon_register_notifier(&pdev->dev,
+							    priv->edev,
+							    EXTCON_USB_HOST,
+							    &priv->nb);
+			if (ret < 0)
+				dev_err(&pdev->dev, "no notifier registered\n");
+		}
 		break;
 	default:
 		if (!info->platform_callback.get_id) {
