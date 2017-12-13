@@ -90,11 +90,9 @@ __do_hyp_init:
 	bfi	x4, x5, TCR_T0SZ_OFFSET, TCR_TxSZ_WIDTH
 #endif
 	/*
-	 * Read the PARange bits from ID_AA64MMFR0_EL1 and set the PS bits in
-	 * TCR_EL2.
+	 * Set the PS bits in TCR_EL2.
 	 */
-	mrs	x5, ID_AA64MMFR0_EL1
-	bfi	x4, x5, #16, #3
+	tcr_compute_pa_size x4, #TCR_EL2_PS_SHIFT, x5, x6
 
 	msr	tcr_el2, x4
 
