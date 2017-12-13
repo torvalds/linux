@@ -76,15 +76,15 @@ enum lnaGain {
 	undefined
 };
 
-enum dccPercent {
-	dcc16Percent,
-	dcc8Percent,
-	dcc4Percent,
-	dcc2Percent,
-	dcc1Percent,
-	dcc0_5Percent,
-	dcc0_25Percent,
-	dcc0_125Percent
+enum dcc_percent {
+	dcc_16_percent,
+	dcc_8_percent,
+	dcc_4_percent,
+	dcc_2_percent,
+	dcc_1_percent,
+	dcc_0_5_percent,
+	dcc_0_25_percent,
+	dcc_0_125_percent
 };
 
 enum mantisse {

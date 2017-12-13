@@ -352,31 +352,31 @@ enum lnaGain rf69_get_lna_gain(struct spi_device *spi)
 	}
 }
 
-int rf69_set_dc_cut_off_frequency_intern(struct spi_device *spi, u8 reg, enum dccPercent dccPercent)
+int rf69_set_dc_cut_off_frequency_intern(struct spi_device *spi, u8 reg, enum dcc_percent dcc_percent)
 {
-	switch (dccPercent) {
-	case dcc16Percent:	return rf69_read_mod_write(spi, reg, MASK_BW_DCC_FREQ, BW_DCC_16_PERCENT);
-	case dcc8Percent:	return rf69_read_mod_write(spi, reg, MASK_BW_DCC_FREQ, BW_DCC_8_PERCENT);
-	case dcc4Percent:	return rf69_read_mod_write(spi, reg, MASK_BW_DCC_FREQ, BW_DCC_4_PERCENT);
-	case dcc2Percent:	return rf69_read_mod_write(spi, reg, MASK_BW_DCC_FREQ, BW_DCC_2_PERCENT);
-	case dcc1Percent:	return rf69_read_mod_write(spi, reg, MASK_BW_DCC_FREQ, BW_DCC_1_PERCENT);
-	case dcc0_5Percent:	return rf69_read_mod_write(spi, reg, MASK_BW_DCC_FREQ, BW_DCC_0_5_PERCENT);
-	case dcc0_25Percent:	return rf69_read_mod_write(spi, reg, MASK_BW_DCC_FREQ, BW_DCC_0_25_PERCENT);
-	case dcc0_125Percent:	return rf69_read_mod_write(spi, reg, MASK_BW_DCC_FREQ, BW_DCC_0_125_PERCENT);
+	switch (dcc_percent) {
+	case dcc_16_percent:	return rf69_read_mod_write(spi, reg, MASK_BW_DCC_FREQ, BW_DCC_16_PERCENT);
+	case dcc_8_percent:	return rf69_read_mod_write(spi, reg, MASK_BW_DCC_FREQ, BW_DCC_8_PERCENT);
+	case dcc_4_percent:	return rf69_read_mod_write(spi, reg, MASK_BW_DCC_FREQ, BW_DCC_4_PERCENT);
+	case dcc_2_percent:	return rf69_read_mod_write(spi, reg, MASK_BW_DCC_FREQ, BW_DCC_2_PERCENT);
+	case dcc_1_percent:	return rf69_read_mod_write(spi, reg, MASK_BW_DCC_FREQ, BW_DCC_1_PERCENT);
+	case dcc_0_5_percent:	return rf69_read_mod_write(spi, reg, MASK_BW_DCC_FREQ, BW_DCC_0_5_PERCENT);
+	case dcc_0_25_percent:	return rf69_read_mod_write(spi, reg, MASK_BW_DCC_FREQ, BW_DCC_0_25_PERCENT);
+	case dcc_0_125_percent:	return rf69_read_mod_write(spi, reg, MASK_BW_DCC_FREQ, BW_DCC_0_125_PERCENT);
 	default:
 		dev_dbg(&spi->dev, "set: illegal input param");
 		return -EINVAL;
 	}
 }
 
-int rf69_set_dc_cut_off_frequency(struct spi_device *spi, enum dccPercent dccPercent)
+int rf69_set_dc_cut_off_frequency(struct spi_device *spi, enum dcc_percent dcc_percent)
 {
-	return rf69_set_dc_cut_off_frequency_intern(spi, REG_RXBW, dccPercent);
+	return rf69_set_dc_cut_off_frequency_intern(spi, REG_RXBW, dcc_percent);
 }
 
-int rf69_set_dc_cut_off_frequency_during_afc(struct spi_device *spi, enum dccPercent dccPercent)
+int rf69_set_dc_cut_off_frequency_during_afc(struct spi_device *spi, enum dcc_percent dcc_percent)
 {
-	return rf69_set_dc_cut_off_frequency_intern(spi, REG_AFCBW, dccPercent);
+	return rf69_set_dc_cut_off_frequency_intern(spi, REG_AFCBW, dcc_percent);
 }
 
 static int rf69_set_bandwidth_intern(struct spi_device *spi, u8 reg,
