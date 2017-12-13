@@ -84,14 +84,6 @@ do {								    \
 	lbug_with_loc(&msgdata);					\
 } while (0)
 
-#ifndef LIBCFS_VMALLOC_SIZE
-#define LIBCFS_VMALLOC_SIZE	(2 << PAGE_SHIFT) /* 2 pages */
-#endif
-
-#define LIBCFS_ALLOC_PRE(size, mask)					\
-	LASSERT(!in_interrupt() || ((size) <= LIBCFS_VMALLOC_SIZE &&	\
-				    !gfpflags_allow_blocking(mask)))
-
 #define LIBCFS_ALLOC_POST(ptr, size)					    \
 do {									    \
 	if (unlikely(!(ptr))) {						    \
@@ -103,45 +95,35 @@ do {									    \
 } while (0)
 
 /**
- * allocate memory with GFP flags @mask
+ * default allocator
  */
-#define LIBCFS_ALLOC_GFP(ptr, size, mask)				    \
+#define LIBCFS_ALLOC(ptr, size)						    \
 do {									    \
-	LIBCFS_ALLOC_PRE((size), (mask));				    \
-	(ptr) = (size) <= LIBCFS_VMALLOC_SIZE ?				    \
-		kmalloc((size), (mask)) : vmalloc(size);	    \
+	LASSERT(!in_interrupt());					    \
+	(ptr) = kvmalloc((size), GFP_NOFS);				    \
 	LIBCFS_ALLOC_POST((ptr), (size));				    \
 } while (0)
 
 /**
- * default allocator
- */
-#define LIBCFS_ALLOC(ptr, size) \
-	LIBCFS_ALLOC_GFP(ptr, size, GFP_NOFS)
-
-/**
  * non-sleeping allocator
  */
-#define LIBCFS_ALLOC_ATOMIC(ptr, size) \
-	LIBCFS_ALLOC_GFP(ptr, size, GFP_ATOMIC)
+#define LIBCFS_ALLOC_ATOMIC(ptr, size)					\
+do {									\
+	(ptr) = kmalloc((size), GFP_ATOMIC);				\
+	LIBCFS_ALLOC_POST(ptr, size);					\
+} while (0)
 
 /**
  * allocate memory for specified CPU partition
  *   \a cptab != NULL, \a cpt is CPU partition id of \a cptab
  *   \a cptab == NULL, \a cpt is HW NUMA node id
  */
-#define LIBCFS_CPT_ALLOC_GFP(ptr, cptab, cpt, size, mask)		    \
+#define LIBCFS_CPT_ALLOC(ptr, cptab, cpt, size)				    \
 do {									    \
-	LIBCFS_ALLOC_PRE((size), (mask));				    \
-	(ptr) = (size) <= LIBCFS_VMALLOC_SIZE ?				    \
-		kmalloc_node((size), (mask), cfs_cpt_spread_node(cptab, cpt)) :\
-		vmalloc_node(size, cfs_cpt_spread_node(cptab, cpt));	    \
+	LASSERT(!in_interrupt());					    \
+	(ptr) = kvmalloc_node((size), GFP_NOFS, cfs_cpt_spread_node(cptab, cpt)); \
 	LIBCFS_ALLOC_POST((ptr), (size));				    \
 } while (0)
-
-/** default numa allocator */
-#define LIBCFS_CPT_ALLOC(ptr, cptab, cpt, size)				    \
-	LIBCFS_CPT_ALLOC_GFP(ptr, cptab, cpt, size, GFP_NOFS)
 
 #define LIBCFS_FREE(ptr, size)					  \
 do {								    \
