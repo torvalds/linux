@@ -823,8 +823,6 @@ struct netvsc_device {
 	u32 max_pkt; /* max number of pkt in one send, e.g. 8 */
 	u32 pkt_align; /* alignment bytes, e.g. 8 */
 
-	atomic_t open_cnt;
-
 	struct netvsc_channel chan_table[VRSS_CHANNEL_MAX];
 
 	struct rcu_head rcu;

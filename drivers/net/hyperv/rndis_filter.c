@@ -1362,9 +1362,6 @@ int rndis_filter_open(struct netvsc_device *nvdev)
 	if (!nvdev)
 		return -EINVAL;
 
-	if (atomic_inc_return(&nvdev->open_cnt) != 1)
-		return 0;
-
 	return rndis_filter_open_device(nvdev->extension);
 }
 
@@ -1373,13 +1370,12 @@ int rndis_filter_close(struct netvsc_device *nvdev)
 	if (!nvdev)
 		return -EINVAL;
 
-	if (atomic_dec_return(&nvdev->open_cnt) != 0)
-		return 0;
-
 	return rndis_filter_close_device(nvdev->extension);
 }
 
 bool rndis_filter_opened(const struct netvsc_device *nvdev)
 {
-	return atomic_read(&nvdev->open_cnt) > 0;
+	const struct rndis_device *dev = nvdev->extension;
+
+	return dev->state == RNDIS_DEV_DATAINITIALIZED;
 }
