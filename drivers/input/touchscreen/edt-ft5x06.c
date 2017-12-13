@@ -778,6 +778,22 @@ edt_ft5x06_ts_teardown_debugfs(struct edt_ft5x06_ts_data *tsdata)
 
 #endif /* CONFIG_DEBUGFS */
 
+static int edt_ft5x06_open(struct input_dev *dev)
+{
+	struct edt_ft5x06_ts_data *tsdata = input_get_drvdata(dev);
+
+	enable_irq(tsdata->client->irq);
+
+	return 0;
+}
+
+static void edt_ft5x06_close(struct input_dev *dev)
+{
+	struct edt_ft5x06_ts_data *tsdata = input_get_drvdata(dev);
+
+	disable_irq(tsdata->client->irq);
+}
+
 static int edt_ft5x06_ts_identify(struct i2c_client *client,
 					struct edt_ft5x06_ts_data *tsdata,
 					char *fw_version)
@@ -1056,6 +1072,8 @@ static int edt_ft5x06_ts_probe(struct i2c_client *client,
 	input->name = tsdata->name;
 	input->id.bustype = BUS_I2C;
 	input->dev.parent = &client->dev;
+	input->open = edt_ft5x06_open;
+	input->close = edt_ft5x06_close;
 
 	if (tsdata->version == EDT_M06 ||
 	    tsdata->version == EDT_M09 ||
@@ -1081,6 +1099,7 @@ static int edt_ft5x06_ts_probe(struct i2c_client *client,
 		return error;
 	}
 
+	input_set_drvdata(input, tsdata);
 	i2c_set_clientdata(client, tsdata);
 
 	irq_flags = irq_get_trigger_type(client->irq);
@@ -1095,6 +1114,7 @@ static int edt_ft5x06_ts_probe(struct i2c_client *client,
 		dev_err(&client->dev, "Unable to request touchscreen IRQ.\n");
 		return error;
 	}
+	disable_irq(client->irq);
 
 	error = devm_device_add_group(&client->dev, &edt_ft5x06_attr_group);
 	if (error)
