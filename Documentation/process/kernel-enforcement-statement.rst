@@ -137,6 +137,7 @@ we might work for today, have in the past, or will in the future.
   - Anna Schumaker
   - Jes Sorensen
   - K.Y. Srinivasan
+  - David Sterba (SUSE)
   - Heiko Stuebner
   - Jiri Kosina (SUSE)
   - Willy Tarreau
