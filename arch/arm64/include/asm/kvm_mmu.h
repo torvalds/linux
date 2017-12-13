@@ -287,6 +287,7 @@ static inline void __kvm_extend_hypmap(pgd_t *boot_hyp_pgd,
 				       unsigned long hyp_idmap_start)
 {
 	int idmap_idx;
+	u64 pgd_addr;
 
 	/*
 	 * Use the first entry to access the HYP mappings. It is
@@ -294,7 +295,8 @@ static inline void __kvm_extend_hypmap(pgd_t *boot_hyp_pgd,
 	 * extended idmap.
 	 */
 	VM_BUG_ON(pgd_val(merged_hyp_pgd[0]));
-	merged_hyp_pgd[0] = __pgd(__pa(hyp_pgd) | PMD_TYPE_TABLE);
+	pgd_addr = __phys_to_pgd_val(__pa(hyp_pgd));
+	merged_hyp_pgd[0] = __pgd(pgd_addr | PMD_TYPE_TABLE);
 
 	/*
 	 * Create another extended level entry that points to the boot HYP map,
@@ -304,7 +306,8 @@ static inline void __kvm_extend_hypmap(pgd_t *boot_hyp_pgd,
 	 */
 	idmap_idx = hyp_idmap_start >> VA_BITS;
 	VM_BUG_ON(pgd_val(merged_hyp_pgd[idmap_idx]));
-	merged_hyp_pgd[idmap_idx] = __pgd(__pa(boot_hyp_pgd) | PMD_TYPE_TABLE);
+	pgd_addr = __phys_to_pgd_val(__pa(boot_hyp_pgd));
+	merged_hyp_pgd[idmap_idx] = __pgd(pgd_addr | PMD_TYPE_TABLE);
 }
 
 static inline unsigned int kvm_get_vmid_bits(void)

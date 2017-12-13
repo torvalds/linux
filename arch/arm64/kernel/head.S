@@ -161,7 +161,7 @@ ENDPROC(preserve_boot_args)
 	 * supporting this configuration with 64K pages.
 	 */
 	orr	\pte, \phys, \phys, lsr #36
-	and	\pte, \pte, #PTE_ADDR_MASK_52
+	and	\pte, \pte, #PTE_ADDR_MASK
 #else
 	mov	\pte, \phys
 #endif

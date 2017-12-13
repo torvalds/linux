@@ -168,10 +168,12 @@
 #define PTE_UXN			(_AT(pteval_t, 1) << 54)	/* User XN */
 #define PTE_HYP_XN		(_AT(pteval_t, 1) << 54)	/* HYP XN */
 
-#ifdef CONFIG_ARM64_PA_BITS_52
 #define PTE_ADDR_LOW		(((_AT(pteval_t, 1) << (48 - PAGE_SHIFT)) - 1) << PAGE_SHIFT)
+#ifdef CONFIG_ARM64_PA_BITS_52
 #define PTE_ADDR_HIGH		(_AT(pteval_t, 0xf) << 12)
-#define PTE_ADDR_MASK_52	(PTE_ADDR_LOW | PTE_ADDR_HIGH)
+#define PTE_ADDR_MASK		(PTE_ADDR_LOW | PTE_ADDR_HIGH)
+#else
+#define PTE_ADDR_MASK		PTE_ADDR_LOW
 #endif
 
 /*
