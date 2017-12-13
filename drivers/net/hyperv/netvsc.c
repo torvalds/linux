@@ -701,19 +701,18 @@ static u32 netvsc_get_next_send_section(struct netvsc_device *net_device)
 	return NETVSC_INVALID_INDEX;
 }
 
-static u32 netvsc_copy_to_send_buf(struct netvsc_device *net_device,
-				   unsigned int section_index,
-				   u32 pend_size,
-				   struct hv_netvsc_packet *packet,
-				   struct rndis_message *rndis_msg,
-				   struct hv_page_buffer *pb,
-				   struct sk_buff *skb)
+static void netvsc_copy_to_send_buf(struct netvsc_device *net_device,
+				    unsigned int section_index,
+				    u32 pend_size,
+				    struct hv_netvsc_packet *packet,
+				    struct rndis_message *rndis_msg,
+				    struct hv_page_buffer *pb,
+				    struct sk_buff *skb)
 {
 	char *start = net_device->send_buf;
 	char *dest = start + (section_index * net_device->send_section_size)
 		     + pend_size;
 	int i;
-	u32 msg_size = 0;
 	u32 padding = 0;
 	u32 page_count = packet->cp_partial ? packet->rmsg_pgcnt :
 		packet->page_buf_cnt;
@@ -733,16 +732,11 @@ static u32 netvsc_copy_to_send_buf(struct netvsc_device *net_device,
 		u32 len = pb[i].len;
 
 		memcpy(dest, (src + offset), len);
-		msg_size += len;
 		dest += len;
 	}
 
-	if (padding) {
+	if (padding)
 		memset(dest, 0, padding);
-		msg_size += padding;
-	}
-
-	return msg_size;
 }
 
 static inline int netvsc_send_pkt(
