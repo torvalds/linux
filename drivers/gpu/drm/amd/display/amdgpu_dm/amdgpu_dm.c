@@ -345,25 +345,53 @@ static void hotplug_notify_work_func(struct work_struct *work)
 }
 
 #if defined(CONFIG_DRM_AMD_DC_FBC)
-#include "dal_asic_id.h"
 /* Allocate memory for FBC compressed data  */
-/* TODO: Dynamic allocation */
-#define AMDGPU_FBC_SIZE    (3840 * 2160 * 4)
-
-static void amdgpu_dm_initialize_fbc(struct amdgpu_device *adev)
+static void amdgpu_dm_fbc_init(struct amdgpu_device *adev)
 {
-	int r;
 	struct dm_comressor_info *compressor = &adev->dm.compressor;
+	struct drm_connector *conn;
+	struct drm_device *dev = adev->ddev;
+	unsigned long max_size = 0;
 
-	if (!compressor->bo_ptr) {
-		r = amdgpu_bo_create_kernel(adev, AMDGPU_FBC_SIZE, PAGE_SIZE,
-				AMDGPU_GEM_DOMAIN_VRAM, &compressor->bo_ptr,
-				&compressor->gpu_addr, &compressor->cpu_addr);
+	if (adev->dm.dc->fbc_compressor == NULL)
+		return;
 
-		if (r)
-			DRM_ERROR("DM: Failed to initialize fbc\n");
+	if (compressor->bo_ptr)
+		return;
+
+	drm_modeset_lock(&dev->mode_config.connection_mutex, NULL);
+
+	/* For eDP connector find a mode requiring max size */
+	list_for_each_entry(conn,
+		    &dev->mode_config.connector_list, head) {
+		struct amdgpu_dm_connector *aconn;
+
+		aconn = to_amdgpu_dm_connector(conn);
+		if (aconn->dc_link->connector_signal == SIGNAL_TYPE_EDP) {
+			struct drm_display_mode *mode;
+
+			list_for_each_entry(mode, &conn->modes, head) {
+				if (max_size < mode->hdisplay * mode->vdisplay)
+					max_size = mode->htotal * mode->vtotal;
+			}
+		}
 	}
 
+	if (max_size) {
+		int r = amdgpu_bo_create_kernel(adev, max_size * 4, PAGE_SIZE,
+			    AMDGPU_GEM_DOMAIN_VRAM, &compressor->bo_ptr,
+			    &compressor->gpu_addr, &compressor->cpu_addr);
+
+		if (r)
+			DRM_ERROR("DM: Failed to initialize FBC\n");
+		else {
+			adev->dm.dc->ctx->fbc_gpu_addr = compressor->gpu_addr;
+			DRM_INFO("DM: FBC alloc %lu\n", max_size*4);
+		}
+
+	}
+
+	drm_modeset_unlock(&dev->mode_config.connection_mutex);
 }
 #endif
 
@@ -422,11 +450,6 @@ static int amdgpu_dm_init(struct amdgpu_device *adev)
 	else
 		init_data.log_mask = DC_MIN_LOG_MASK;
 
-#if defined(CONFIG_DRM_AMD_DC_FBC)
-	if (adev->family == FAMILY_CZ)
-		amdgpu_dm_initialize_fbc(adev);
-	init_data.fbc_gpu_addr = adev->dm.compressor.gpu_addr;
-#endif
 	/* Display Core create. */
 	adev->dm.dc = dc_create(&init_data);
 
@@ -540,9 +563,12 @@ static int detect_mst_link_for_all_connectors(struct drm_device *dev)
 
 static int dm_late_init(void *handle)
 {
-	struct drm_device *dev = ((struct amdgpu_device *)handle)->ddev;
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	return detect_mst_link_for_all_connectors(dev);
+#if defined(CONFIG_DRM_AMD_DC_FBC)
+	amdgpu_dm_fbc_init(adev);
+#endif
+	return detect_mst_link_for_all_connectors(adev->ddev);
 }
 
 static void s3_handle_mst(struct drm_device *dev, bool suspend)
