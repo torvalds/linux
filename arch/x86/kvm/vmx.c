@@ -4972,11 +4972,6 @@ static void nested_vmx_disable_intercept_for_msr(unsigned long *msr_bitmap_l1,
 {
 	int f = sizeof(unsigned long);
 
-	if (!cpu_has_vmx_msr_bitmap()) {
-		WARN_ON(1);
-		return;
-	}
-
 	/*
 	 * See Intel PRM Vol. 3, 20.6.9 (MSR-Bitmap Address). Early manuals
 	 * have the write-low and read-high bitmap offsets the wrong way round.
@@ -7177,6 +7172,7 @@ static int enter_vmx_operation(struct kvm_vcpu *vcpu)
 				(unsigned long *)__get_free_page(GFP_KERNEL);
 		if (!vmx->nested.msr_bitmap)
 			goto out_msr_bitmap;
+		memset(vmx->nested.msr_bitmap, 0xff, PAGE_SIZE);
 	}
 
 	vmx->nested.cached_vmcs12 = kmalloc(VMCS12_SIZE, GFP_KERNEL);
@@ -9844,8 +9840,8 @@ static void vmx_inject_page_fault_nested(struct kvm_vcpu *vcpu,
 	}
 }
 
-static inline bool nested_vmx_merge_msr_bitmap(struct kvm_vcpu *vcpu,
-					       struct vmcs12 *vmcs12);
+static inline bool nested_vmx_prepare_msr_bitmap(struct kvm_vcpu *vcpu,
+						 struct vmcs12 *vmcs12);
 
 static void nested_get_vmcs12_pages(struct kvm_vcpu *vcpu,
 					struct vmcs12 *vmcs12)
@@ -9934,11 +9930,7 @@ static void nested_get_vmcs12_pages(struct kvm_vcpu *vcpu,
 			(unsigned long)(vmcs12->posted_intr_desc_addr &
 			(PAGE_SIZE - 1)));
 	}
-	if (cpu_has_vmx_msr_bitmap() &&
-	    nested_cpu_has(vmcs12, CPU_BASED_USE_MSR_BITMAPS) &&
-	    nested_vmx_merge_msr_bitmap(vcpu, vmcs12))
-		;
-	else
+	if (!nested_vmx_prepare_msr_bitmap(vcpu, vmcs12))
 		vmcs_clear_bits(CPU_BASED_VM_EXEC_CONTROL,
 				CPU_BASED_USE_MSR_BITMAPS);
 }
@@ -10006,13 +9998,18 @@ static int nested_vmx_check_tpr_shadow_controls(struct kvm_vcpu *vcpu,
  * Merge L0's and L1's MSR bitmap, return false to indicate that
  * we do not use the hardware.
  */
-static inline bool nested_vmx_merge_msr_bitmap(struct kvm_vcpu *vcpu,
-					       struct vmcs12 *vmcs12)
+static inline bool nested_vmx_prepare_msr_bitmap(struct kvm_vcpu *vcpu,
+						 struct vmcs12 *vmcs12)
 {
 	int msr;
 	struct page *page;
 	unsigned long *msr_bitmap_l1;
 	unsigned long *msr_bitmap_l0 = to_vmx(vcpu)->nested.msr_bitmap;
+
+	/* Nothing to do if the MSR bitmap is not in use.  */
+	if (!cpu_has_vmx_msr_bitmap() ||
+	    !nested_cpu_has(vmcs12, CPU_BASED_USE_MSR_BITMAPS))
+		return false;
 
 	/* This shortcut is ok because we support only x2APIC MSRs so far. */
 	if (!nested_cpu_has_virt_x2apic_mode(vmcs12))
@@ -10021,32 +10018,41 @@ static inline bool nested_vmx_merge_msr_bitmap(struct kvm_vcpu *vcpu,
 	page = kvm_vcpu_gpa_to_page(vcpu, vmcs12->msr_bitmap);
 	if (is_error_page(page))
 		return false;
+
 	msr_bitmap_l1 = (unsigned long *)kmap(page);
-
-	memset(msr_bitmap_l0, 0xff, PAGE_SIZE);
-
-	if (nested_cpu_has_virt_x2apic_mode(vmcs12)) {
-		if (nested_cpu_has_apic_reg_virt(vmcs12))
-			for (msr = 0x800; msr <= 0x8ff; msr++)
-				nested_vmx_disable_intercept_for_msr(
-					msr_bitmap_l1, msr_bitmap_l0,
-					msr, MSR_TYPE_R);
-
-		nested_vmx_disable_intercept_for_msr(
-				msr_bitmap_l1, msr_bitmap_l0,
-				APIC_BASE_MSR + (APIC_TASKPRI >> 4),
-				MSR_TYPE_R | MSR_TYPE_W);
-
-		if (nested_cpu_has_vid(vmcs12)) {
-			nested_vmx_disable_intercept_for_msr(
-				msr_bitmap_l1, msr_bitmap_l0,
-				APIC_BASE_MSR + (APIC_EOI >> 4),
-				MSR_TYPE_W);
-			nested_vmx_disable_intercept_for_msr(
-				msr_bitmap_l1, msr_bitmap_l0,
-				APIC_BASE_MSR + (APIC_SELF_IPI >> 4),
-				MSR_TYPE_W);
+	if (nested_cpu_has_apic_reg_virt(vmcs12)) {
+		/*
+		 * L0 need not intercept reads for MSRs between 0x800 and 0x8ff, it
+		 * just lets the processor take the value from the virtual-APIC page;
+		 * take those 256 bits directly from the L1 bitmap.
+		 */
+		for (msr = 0x800; msr <= 0x8ff; msr += BITS_PER_LONG) {
+			unsigned word = msr / BITS_PER_LONG;
+			msr_bitmap_l0[word] = msr_bitmap_l1[word];
+			msr_bitmap_l0[word + (0x800 / sizeof(long))] = ~0;
 		}
+	} else {
+		for (msr = 0x800; msr <= 0x8ff; msr += BITS_PER_LONG) {
+			unsigned word = msr / BITS_PER_LONG;
+			msr_bitmap_l0[word] = ~0;
+			msr_bitmap_l0[word + (0x800 / sizeof(long))] = ~0;
+		}
+	}
+
+	nested_vmx_disable_intercept_for_msr(
+		msr_bitmap_l1, msr_bitmap_l0,
+		APIC_BASE_MSR + (APIC_TASKPRI >> 4),
+		MSR_TYPE_W);
+
+	if (nested_cpu_has_vid(vmcs12)) {
+		nested_vmx_disable_intercept_for_msr(
+			msr_bitmap_l1, msr_bitmap_l0,
+			APIC_BASE_MSR + (APIC_EOI >> 4),
+			MSR_TYPE_W);
+		nested_vmx_disable_intercept_for_msr(
+			msr_bitmap_l1, msr_bitmap_l0,
+			APIC_BASE_MSR + (APIC_SELF_IPI >> 4),
+			MSR_TYPE_W);
 	}
 	kunmap(page);
 	kvm_release_page_clean(page);
