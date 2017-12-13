@@ -624,7 +624,7 @@ static int inv_mpu_remove(struct i2c_client *client)
 }
 
 #ifdef CONFIG_PM
-static int inv_mpu_resume(struct device *dev)
+static int __maybe_unused inv_mpu_resume(struct device *dev)
 {
 	struct iio_dev *indio_dev = i2c_get_clientdata(to_i2c_client(dev));
 	struct inv_mpu_iio_s *st = iio_priv(indio_dev);
@@ -667,7 +667,7 @@ rw_err:
 	return result;
 }
 
-static int inv_mpu_suspend(struct device *dev)
+static int __maybe_unused inv_mpu_suspend(struct device *dev)
 {
 	struct iio_dev *indio_dev = i2c_get_clientdata(to_i2c_client(dev));
 	struct inv_mpu_iio_s *st = iio_priv(indio_dev);

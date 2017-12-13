@@ -468,7 +468,7 @@ static int inv_mpu_remove(struct spi_device *spi)
 }
 
 #ifdef CONFIG_PM
-static int inv_mpu_resume(struct device *dev)
+static int __maybe_unused inv_mpu_resume(struct device *dev)
 {
 	struct iio_dev *indio_dev = spi_get_drvdata(to_spi_device(dev));
 	struct inv_mpu_iio_s *st = iio_priv(indio_dev);
@@ -511,7 +511,7 @@ rw_err:
 	return result;
 }
 
-static int inv_mpu_suspend(struct device *dev)
+static int __maybe_unused inv_mpu_suspend(struct device *dev)
 {
 	struct iio_dev *indio_dev = spi_get_drvdata(to_spi_device(dev));
 	struct inv_mpu_iio_s *st = iio_priv(indio_dev);

@@ -215,7 +215,7 @@ static void inv_mpu_shutdown(struct platform_device *pdev)
 }
 
 #ifdef CONFIG_PM
-static int inv_mpu_resume(struct device *dev)
+static int __maybe_unused inv_mpu_resume(struct device *dev)
 {
 	struct inv_mpu_iio_s *st =
 			iio_priv(platform_get_drvdata(to_platform_device(dev)));
@@ -223,7 +223,7 @@ static int inv_mpu_resume(struct device *dev)
 	return st->set_power_state(st, true);
 }
 
-static int inv_mpu_suspend(struct device *dev)
+static int __maybe_unused inv_mpu_suspend(struct device *dev)
 {
 	struct iio_dev *indio_dev = platform_get_drvdata(to_platform_device(dev));
 	struct inv_mpu_iio_s *st = iio_priv(indio_dev);
