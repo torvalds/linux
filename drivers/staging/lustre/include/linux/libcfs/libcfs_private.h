@@ -74,8 +74,6 @@ do {									\
 # define LINVRNT(exp) ((void)sizeof !!(exp))
 #endif
 
-#define KLASSERT(e) LASSERT(e)
-
 void __noreturn lbug_with_loc(struct libcfs_debug_msg_data *msg);
 
 #define LBUG()							  \
