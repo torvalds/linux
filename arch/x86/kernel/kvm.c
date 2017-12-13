@@ -643,7 +643,7 @@ __visible bool __kvm_vcpu_is_preempted(long cpu)
 {
 	struct kvm_steal_time *src = &per_cpu(steal_time, cpu);
 
-	return !!src->preempted;
+	return !!(src->preempted & KVM_VCPU_PREEMPTED);
 }
 PV_CALLEE_SAVE_REGS_THUNK(__kvm_vcpu_is_preempted);
 

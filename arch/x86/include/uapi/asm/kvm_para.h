@@ -51,6 +51,8 @@ struct kvm_steal_time {
 	__u32 pad[11];
 };
 
+#define KVM_VCPU_PREEMPTED          (1 << 0)
+
 #define KVM_CLOCK_PAIRING_WALLCLOCK 0
 struct kvm_clock_pairing {
 	__s64 sec;
