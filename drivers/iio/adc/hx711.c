@@ -153,15 +153,16 @@ static int hx711_wait_for_ready(struct hx711_data *hx711_data)
 	int i, val;
 
 	/*
-	 * a maximum reset cycle time of 56 ms was measured.
-	 * we round it up to 100 ms
+	 * in some rare cases the reset takes quite a long time
+	 * especially when the channel is changed.
+	 * Allow up to one second for it
 	 */
 	for (i = 0; i < 100; i++) {
 		val = gpiod_get_value(hx711_data->gpiod_dout);
 		if (!val)
 			break;
-		/* sleep at least 1 ms */
-		msleep(1);
+		/* sleep at least 10 ms */
+		msleep(10);
 	}
 	if (val)
 		return -EIO;
@@ -203,9 +204,7 @@ static int hx711_reset(struct hx711_data *hx711_data)
 		 * after a dummy read we need to wait vor readiness
 		 * for not mixing gain pulses with the clock
 		 */
-		ret = hx711_wait_for_ready(hx711_data);
-		if (ret)
-			return ret;
+		val = hx711_wait_for_ready(hx711_data);
 	}
 
 	return val;
