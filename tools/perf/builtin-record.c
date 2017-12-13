@@ -1856,8 +1856,8 @@ int cmd_record(int argc, const char **argv)
 		goto out;
 	}
 
-	/* Enable ignoring missing threads when -u option is defined. */
-	rec->opts.ignore_missing_thread = rec->opts.target.uid != UINT_MAX;
+	/* Enable ignoring missing threads when -u/-p option is defined. */
+	rec->opts.ignore_missing_thread = rec->opts.target.uid != UINT_MAX || rec->opts.target.pid;
 
 	err = -ENOMEM;
 	if (perf_evlist__create_maps(rec->evlist, &rec->opts.target) < 0)
