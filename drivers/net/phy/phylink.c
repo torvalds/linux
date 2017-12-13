@@ -765,10 +765,8 @@ int phylink_of_phy_connect(struct phylink *pl, struct device_node *dn,
 		phy_node = of_parse_phandle(dn, "phy-device", 0);
 
 	if (!phy_node) {
-		if (pl->link_an_mode == MLO_AN_PHY) {
-			netdev_err(pl->netdev, "unable to find PHY node\n");
+		if (pl->link_an_mode == MLO_AN_PHY)
 			return -ENODEV;
-		}
 		return 0;
 	}
 
