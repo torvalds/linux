@@ -4865,7 +4865,8 @@ void i915_gem_resume(struct drm_i915_private *i915)
 	i915_gem_restore_gtt_mappings(i915);
 	i915_gem_restore_fences(i915);
 
-	/* As we didn't flush the kernel context before suspend, we cannot
+	/*
+	 * As we didn't flush the kernel context before suspend, we cannot
 	 * guarantee that the context image is complete. So let's just reset
 	 * it and start again.
 	 */
@@ -4886,8 +4887,10 @@ out_unlock:
 	return;
 
 err_wedged:
-	DRM_ERROR("failed to re-initialize GPU, declaring wedged!\n");
-	i915_gem_set_wedged(i915);
+	if (!i915_terminally_wedged(&i915->gpu_error)) {
+		DRM_ERROR("failed to re-initialize GPU, declaring wedged!\n");
+		i915_gem_set_wedged(i915);
+	}
 	goto out_unlock;
 }
 
@@ -5170,22 +5173,28 @@ int i915_gem_init(struct drm_i915_private *dev_priv)
 	intel_uncore_forcewake_get(dev_priv, FORCEWAKE_ALL);
 
 	ret = i915_gem_init_ggtt(dev_priv);
-	if (ret)
-		goto out_unlock;
+	if (ret) {
+		GEM_BUG_ON(ret == -EIO);
+		goto err_unlock;
+	}
 
 	ret = i915_gem_contexts_init(dev_priv);
-	if (ret)
-		goto out_unlock;
+	if (ret) {
+		GEM_BUG_ON(ret == -EIO);
+		goto err_ggtt;
+	}
 
 	ret = intel_engines_init(dev_priv);
-	if (ret)
-		goto out_unlock;
+	if (ret) {
+		GEM_BUG_ON(ret == -EIO);
+		goto err_context;
+	}
 
 	intel_init_gt_powersave(dev_priv);
 
 	ret = i915_gem_init_hw(dev_priv);
 	if (ret)
-		goto out_unlock;
+		goto err_pm;
 
 	/*
 	 * Despite its name intel_init_clock_gating applies both display
@@ -5199,9 +5208,53 @@ int i915_gem_init(struct drm_i915_private *dev_priv)
 	intel_init_clock_gating(dev_priv);
 
 	ret = __intel_engines_record_defaults(dev_priv);
-out_unlock:
+	if (ret)
+		goto err_init_hw;
+
+	if (i915_inject_load_failure()) {
+		ret = -ENODEV;
+		goto err_init_hw;
+	}
+
+	if (i915_inject_load_failure()) {
+		ret = -EIO;
+		goto err_init_hw;
+	}
+
+	intel_uncore_forcewake_put(dev_priv, FORCEWAKE_ALL);
+	mutex_unlock(&dev_priv->drm.struct_mutex);
+
+	return 0;
+
+	/*
+	 * Unwinding is complicated by that we want to handle -EIO to mean
+	 * disable GPU submission but keep KMS alive. We want to mark the
+	 * HW as irrevisibly wedged, but keep enough state around that the
+	 * driver doesn't explode during runtime.
+	 */
+err_init_hw:
+	i915_gem_wait_for_idle(dev_priv, I915_WAIT_LOCKED);
+	i915_gem_contexts_lost(dev_priv);
+	intel_uc_fini_hw(dev_priv);
+err_pm:
+	if (ret != -EIO) {
+		intel_cleanup_gt_powersave(dev_priv);
+		i915_gem_cleanup_engines(dev_priv);
+	}
+err_context:
+	if (ret != -EIO)
+		i915_gem_contexts_fini(dev_priv);
+err_ggtt:
+err_unlock:
+	intel_uncore_forcewake_put(dev_priv, FORCEWAKE_ALL);
+	mutex_unlock(&dev_priv->drm.struct_mutex);
+
+	if (ret != -EIO)
+		i915_gem_cleanup_userptr(dev_priv);
+
 	if (ret == -EIO) {
-		/* Allow engine initialisation to fail by marking the GPU as
+		/*
+		 * Allow engine initialisation to fail by marking the GPU as
 		 * wedged. But we only want to do this where the GPU is angry,
 		 * for all other failure, such as an allocation failure, bail.
 		 */
@@ -5211,9 +5264,8 @@ out_unlock:
 		}
 		ret = 0;
 	}
-	intel_uncore_forcewake_put(dev_priv, FORCEWAKE_ALL);
-	mutex_unlock(&dev_priv->drm.struct_mutex);
 
+	i915_gem_drain_freed_objects(dev_priv);
 	return ret;
 }
 
