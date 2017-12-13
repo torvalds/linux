@@ -568,6 +568,34 @@ static void tegra_gem_prime_release(struct dma_buf *buf)
 	drm_gem_dmabuf_release(buf);
 }
 
+static int tegra_gem_prime_begin_cpu_access(struct dma_buf *buf,
+					    enum dma_data_direction direction)
+{
+	struct drm_gem_object *gem = buf->priv;
+	struct tegra_bo *bo = to_tegra_bo(gem);
+	struct drm_device *drm = gem->dev;
+
+	if (bo->pages)
+		dma_sync_sg_for_cpu(drm->dev, bo->sgt->sgl, bo->sgt->nents,
+				    DMA_FROM_DEVICE);
+
+	return 0;
+}
+
+static int tegra_gem_prime_end_cpu_access(struct dma_buf *buf,
+					  enum dma_data_direction direction)
+{
+	struct drm_gem_object *gem = buf->priv;
+	struct tegra_bo *bo = to_tegra_bo(gem);
+	struct drm_device *drm = gem->dev;
+
+	if (bo->pages)
+		dma_sync_sg_for_device(drm->dev, bo->sgt->sgl, bo->sgt->nents,
+				       DMA_TO_DEVICE);
+
+	return 0;
+}
+
 static void *tegra_gem_prime_kmap_atomic(struct dma_buf *buf,
 					 unsigned long page)
 {
@@ -618,6 +646,8 @@ static const struct dma_buf_ops tegra_gem_prime_dmabuf_ops = {
 	.map_dma_buf = tegra_gem_prime_map_dma_buf,
 	.unmap_dma_buf = tegra_gem_prime_unmap_dma_buf,
 	.release = tegra_gem_prime_release,
+	.begin_cpu_access = tegra_gem_prime_begin_cpu_access,
+	.end_cpu_access = tegra_gem_prime_end_cpu_access,
 	.map_atomic = tegra_gem_prime_kmap_atomic,
 	.unmap_atomic = tegra_gem_prime_kunmap_atomic,
 	.map = tegra_gem_prime_kmap,
