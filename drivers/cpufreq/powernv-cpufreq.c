@@ -41,11 +41,9 @@
 #define POWERNV_MAX_PSTATES	256
 #define PMSR_PSAFE_ENABLE	(1UL << 30)
 #define PMSR_SPR_EM_DISABLE	(1UL << 31)
-#define PMSR_MAX(x)		((x >> 32) & 0xFF)
+#define MAX_PSTATE_SHIFT	32
 #define LPSTATE_SHIFT		48
 #define GPSTATE_SHIFT		56
-#define GET_LPSTATE(x)		(((x) >> LPSTATE_SHIFT) & 0xFF)
-#define GET_GPSTATE(x)		(((x) >> GPSTATE_SHIFT) & 0xFF)
 
 #define MAX_RAMP_DOWN_TIME				5120
 /*
@@ -94,6 +92,7 @@ struct global_pstate_info {
 };
 
 static struct cpufreq_frequency_table powernv_freqs[POWERNV_MAX_PSTATES+1];
+u32 pstate_sign_prefix;
 static bool rebooting, throttled, occ_reset;
 
 static const char * const throttle_reason[] = {
@@ -147,6 +146,20 @@ static struct powernv_pstate_info {
 	unsigned int nr_pstates;
 	bool wof_enabled;
 } powernv_pstate_info;
+
+static inline int extract_pstate(u64 pmsr_val, unsigned int shift)
+{
+	int ret = ((pmsr_val >> shift) & 0xFF);
+
+	if (!ret)
+		return ret;
+
+	return (pstate_sign_prefix | ret);
+}
+
+#define extract_local_pstate(x) extract_pstate(x, LPSTATE_SHIFT)
+#define extract_global_pstate(x) extract_pstate(x, GPSTATE_SHIFT)
+#define extract_max_pstate(x)  extract_pstate(x, MAX_PSTATE_SHIFT)
 
 /* Use following macros for conversions between pstate_id and index */
 static inline int idx_to_pstate(unsigned int i)
@@ -278,6 +291,9 @@ next:
 
 	powernv_pstate_info.nr_pstates = nr_pstates;
 	pr_debug("NR PStates %d\n", nr_pstates);
+
+	pstate_sign_prefix = pstate_min & ~0xFF;
+
 	for (i = 0; i < nr_pstates; i++) {
 		u32 id = be32_to_cpu(pstate_ids[i]);
 		u32 freq = be32_to_cpu(pstate_freqs[i]);
@@ -438,17 +454,10 @@ struct powernv_smp_call_data {
 static void powernv_read_cpu_freq(void *arg)
 {
 	unsigned long pmspr_val;
-	s8 local_pstate_id;
 	struct powernv_smp_call_data *freq_data = arg;
 
 	pmspr_val = get_pmspr(SPRN_PMSR);
-
-	/*
-	 * The local pstate id corresponds bits 48..55 in the PMSR.
-	 * Note: Watch out for the sign!
-	 */
-	local_pstate_id = (pmspr_val >> 48) & 0xFF;
-	freq_data->pstate_id = local_pstate_id;
+	freq_data->pstate_id = extract_local_pstate(pmspr_val);
 	freq_data->freq = pstate_id_to_freq(freq_data->pstate_id);
 
 	pr_debug("cpu %d pmsr %016lX pstate_id %d frequency %d kHz\n",
@@ -522,7 +531,7 @@ static void powernv_cpufreq_throttle_check(void *data)
 	chip = this_cpu_read(chip_info);
 
 	/* Check for Pmax Capping */
-	pmsr_pmax = (s8)PMSR_MAX(pmsr);
+	pmsr_pmax = extract_max_pstate(pmsr);
 	pmsr_pmax_idx = pstate_to_idx(pmsr_pmax);
 	if (pmsr_pmax_idx != powernv_pstate_info.max) {
 		if (chip->throttled)
@@ -645,8 +654,8 @@ void gpstate_timer_handler(struct timer_list *t)
 	 * value. Hence, read from PMCR to get correct data.
 	 */
 	val = get_pmspr(SPRN_PMCR);
-	freq_data.gpstate_id = (s8)GET_GPSTATE(val);
-	freq_data.pstate_id = (s8)GET_LPSTATE(val);
+	freq_data.gpstate_id = extract_global_pstate(val);
+	freq_data.pstate_id = extract_local_pstate(val);
 	if (freq_data.gpstate_id  == freq_data.pstate_id) {
 		reset_gpstates(policy);
 		spin_unlock(&gpstates->gpstate_lock);
