@@ -68,6 +68,7 @@ we might work for today, have in the past, or will in the future.
   - Paul Burton
   - Javier Martinez Canillas
   - Rob Clark
+  - Kees Cook (Google)
   - Jonathan Corbet
   - Dennis Dalessandro
   - Vivien Didelot (Savoir-faire Linux)
