@@ -35,6 +35,13 @@
 #define THREAD_IMC_ENABLE               0x8000000000000000ULL
 
 /*
+ * For debugfs interface for imc-mode and imc-command
+ */
+#define IMC_CNTL_BLK_OFFSET		0x3FC00
+#define IMC_CNTL_BLK_CMD_OFFSET		8
+#define IMC_CNTL_BLK_MODE_OFFSET	32
+
+/*
  * Structure to hold memory address information for imc units.
  */
 struct imc_mem_info {
