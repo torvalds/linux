@@ -646,6 +646,22 @@ config ARM64_VA_BITS
 	default 47 if ARM64_VA_BITS_47
 	default 48 if ARM64_VA_BITS_48
 
+choice
+	prompt "Physical address space size"
+	default ARM64_PA_BITS_48
+	help
+	  Choose the maximum physical address range that the kernel will
+	  support.
+
+config ARM64_PA_BITS_48
+	bool "48-bit"
+
+endchoice
+
+config ARM64_PA_BITS
+	int
+	default 48 if ARM64_PA_BITS_48
+
 config CPU_BIG_ENDIAN
        bool "Build big-endian kernel"
        help
