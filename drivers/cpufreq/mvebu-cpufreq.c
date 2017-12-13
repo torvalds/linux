@@ -99,6 +99,7 @@ static int __init armada_xp_pmsu_cpufreq_init(void)
 		if (ret)
 			dev_err(cpu_dev, "%s: failed to mark OPPs as shared: %d\n",
 				__func__, ret);
+		clk_put(clk);
 	}
 
 	platform_device_register_simple("cpufreq-dt", -1, NULL, 0);
