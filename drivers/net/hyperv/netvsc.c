@@ -1082,7 +1082,7 @@ static int netvsc_receive(struct net_device *ndev,
 		u32 buflen = vmxferpage_packet->ranges[i].byte_count;
 
 		/* Pass it to the upper layer */
-		status = rndis_filter_receive(ndev, net_device, device,
+		status = rndis_filter_receive(ndev, net_device,
 					      channel, data, buflen);
 	}
 

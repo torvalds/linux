@@ -652,21 +652,13 @@ no_memory:
 /*
  * netvsc_linkstatus_callback - Link up/down notification
  */
-void netvsc_linkstatus_callback(struct hv_device *device_obj,
+void netvsc_linkstatus_callback(struct net_device *net,
 				struct rndis_message *resp)
 {
 	struct rndis_indicate_status *indicate = &resp->msg.indicate_status;
-	struct net_device *net;
-	struct net_device_context *ndev_ctx;
+	struct net_device_context *ndev_ctx = netdev_priv(net);
 	struct netvsc_reconfig *event;
 	unsigned long flags;
-
-	net = hv_get_drvdata(device_obj);
-
-	if (!net)
-		return;
-
-	ndev_ctx = netdev_priv(net);
 
 	/* Update the physical link speed when changing to another vSwitch */
 	if (indicate->status == RNDIS_STATUS_LINK_SPEED_CHANGE) {

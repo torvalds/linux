@@ -199,7 +199,7 @@ int netvsc_send(struct net_device_context *ndc,
 		struct rndis_message *rndis_msg,
 		struct hv_page_buffer *page_buffer,
 		struct sk_buff *skb);
-void netvsc_linkstatus_callback(struct hv_device *device_obj,
+void netvsc_linkstatus_callback(struct net_device *net,
 				struct rndis_message *resp);
 int netvsc_recv_callback(struct net_device *net,
 			 struct vmbus_channel *channel,
@@ -222,7 +222,6 @@ int rndis_filter_set_rss_param(struct rndis_device *rdev,
 			       const u8 *key);
 int rndis_filter_receive(struct net_device *ndev,
 			 struct netvsc_device *net_dev,
-			 struct hv_device *dev,
 			 struct vmbus_channel *channel,
 			 void *data, u32 buflen);
 
