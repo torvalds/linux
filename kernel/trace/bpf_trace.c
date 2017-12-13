@@ -856,7 +856,7 @@ unlock:
 	mutex_unlock(&bpf_event_mutex);
 }
 
-int bpf_event_query_prog_array(struct perf_event *event, void __user *info)
+int perf_event_query_prog_array(struct perf_event *event, void __user *info)
 {
 	struct perf_event_query_bpf __user *uquery = info;
 	struct perf_event_query_bpf query = {};
