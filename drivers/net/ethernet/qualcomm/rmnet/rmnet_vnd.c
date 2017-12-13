@@ -185,6 +185,9 @@ int rmnet_vnd_newlink(u8 id, struct net_device *rmnet_dev,
 	if (ep->egress_dev)
 		return -EINVAL;
 
+	if (rmnet_get_endpoint(port, id))
+		return -EBUSY;
+
 	rc = register_netdevice(rmnet_dev);
 	if (!rc) {
 		ep->egress_dev = rmnet_dev;

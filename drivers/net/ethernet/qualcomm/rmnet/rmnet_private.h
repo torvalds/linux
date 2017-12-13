@@ -19,14 +19,8 @@
 #define RMNET_TX_QUEUE_LEN         1000
 
 /* Constants */
-#define RMNET_EGRESS_FORMAT_MAP                 BIT(1)
-#define RMNET_EGRESS_FORMAT_AGGREGATION         BIT(2)
-#define RMNET_EGRESS_FORMAT_MUXING              BIT(3)
-
-#define RMNET_INGRESS_FORMAT_MAP                BIT(1)
-#define RMNET_INGRESS_FORMAT_DEAGGREGATION      BIT(2)
-#define RMNET_INGRESS_FORMAT_DEMUXING           BIT(3)
-#define RMNET_INGRESS_FORMAT_MAP_COMMANDS       BIT(4)
+#define RMNET_INGRESS_FORMAT_DEAGGREGATION      BIT(0)
+#define RMNET_INGRESS_FORMAT_MAP_COMMANDS       BIT(1)
 
 /* Replace skb->dev to a virtual rmnet device and pass up the stack */
 #define RMNET_EPMODE_VND (1)

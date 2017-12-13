@@ -15,6 +15,7 @@
 
 #include <linux/netdevice.h>
 #include <linux/netdev_features.h>
+#include <linux/if_arp.h>
 #include "rmnet_private.h"
 #include "rmnet_config.h"
 #include "rmnet_vnd.h"
@@ -104,6 +105,15 @@ rmnet_map_ingress_handler(struct sk_buff *skb,
 {
 	struct sk_buff *skbn;
 
+	if (skb->dev->type == ARPHRD_ETHER) {
+		if (pskb_expand_head(skb, ETH_HLEN, 0, GFP_KERNEL)) {
+			kfree_skb(skb);
+			return;
+		}
+
+		skb_push(skb, ETH_HLEN);
+	}
+
 	if (port->ingress_data_format & RMNET_INGRESS_FORMAT_DEAGGREGATION) {
 		while ((skbn = rmnet_map_deaggregate(skb)) != NULL)
 			__rmnet_map_ingress_handler(skbn, port);
@@ -133,20 +143,18 @@ static int rmnet_map_egress_handler(struct sk_buff *skb,
 	if (!map_header)
 		goto fail;
 
-	if (port->egress_data_format & RMNET_EGRESS_FORMAT_MUXING) {
-		if (mux_id == 0xff)
-			map_header->mux_id = 0;
-		else
-			map_header->mux_id = mux_id;
-	}
+	if (mux_id == 0xff)
+		map_header->mux_id = 0;
+	else
+		map_header->mux_id = mux_id;
 
 	skb->protocol = htons(ETH_P_MAP);
 
-	return RMNET_MAP_SUCCESS;
+	return 0;
 
 fail:
 	kfree_skb(skb);
-	return RMNET_MAP_CONSUMED;
+	return -ENOMEM;
 }
 
 static void
@@ -178,8 +186,7 @@ rx_handler_result_t rmnet_rx_handler(struct sk_buff **pskb)
 
 	switch (port->rmnet_mode) {
 	case RMNET_EPMODE_VND:
-		if (port->ingress_data_format & RMNET_INGRESS_FORMAT_MAP)
-			rmnet_map_ingress_handler(skb, port);
+		rmnet_map_ingress_handler(skb, port);
 		break;
 	case RMNET_EPMODE_BRIDGE:
 		rmnet_bridge_handler(skb, port->bridge_ep);
@@ -212,19 +219,8 @@ void rmnet_egress_handler(struct sk_buff *skb)
 		return;
 	}
 
-	if (port->egress_data_format & RMNET_EGRESS_FORMAT_MAP) {
-		switch (rmnet_map_egress_handler(skb, port, mux_id, orig_dev)) {
-		case RMNET_MAP_CONSUMED:
-			return;
-
-		case RMNET_MAP_SUCCESS:
-			break;
-
-		default:
-			kfree_skb(skb);
-			return;
-		}
-	}
+	if (rmnet_map_egress_handler(skb, port, mux_id, orig_dev))
+		return;
 
 	rmnet_vnd_tx_fixup(skb, orig_dev);
 
