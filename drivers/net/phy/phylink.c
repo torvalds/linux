@@ -715,6 +715,12 @@ int phylink_connect_phy(struct phylink *pl, struct phy_device *phy)
 		     phy_interface_mode_is_8023z(pl->link_interface))))
 		return -EINVAL;
 
+	/* Use PHY device/driver interface */
+	if (pl->link_interface == PHY_INTERFACE_MODE_NA) {
+		pl->link_interface = phy->interface;
+		pl->link_config.interface = pl->link_interface;
+	}
+
 	ret = phy_attach_direct(pl->netdev, phy, 0, pl->link_interface);
 	if (ret)
 		return ret;
