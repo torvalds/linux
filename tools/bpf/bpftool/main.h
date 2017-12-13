@@ -115,6 +115,7 @@ int do_pin_fd(int fd, const char *name);
 
 int do_prog(int argc, char **arg);
 int do_map(int argc, char **arg);
+int do_cgroup(int argc, char **arg);
 
 int prog_parse_fd(int *argc, char ***argv);
 

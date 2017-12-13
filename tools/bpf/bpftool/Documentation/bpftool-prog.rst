@@ -155,4 +155,4 @@ EXAMPLES
 
 SEE ALSO
 ========
-	**bpftool**\ (8), **bpftool-map**\ (8)
+	**bpftool**\ (8), **bpftool-map**\ (8), **bpftool-cgroup**\ (8)

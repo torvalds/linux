@@ -128,4 +128,4 @@ EXAMPLES
 
 SEE ALSO
 ========
-	**bpftool**\ (8), **bpftool-prog**\ (8)
+	**bpftool**\ (8), **bpftool-prog**\ (8), **bpftool-cgroup**\ (8)
