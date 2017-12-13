@@ -247,8 +247,7 @@ static int create_safe_exec_page(void *src_start, size_t length,
 	}
 
 	pte = pte_offset_kernel(pmd, dst_addr);
-	set_pte(pte, __pte(virt_to_phys((void *)dst) |
-			 pgprot_val(PAGE_KERNEL_EXEC)));
+	set_pte(pte, pfn_pte(virt_to_pfn(dst), PAGE_KERNEL_EXEC));
 
 	/*
 	 * Load our new page tables. A strict BBM approach requires that we

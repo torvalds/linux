@@ -276,6 +276,11 @@ static inline bool __kvm_cpu_uses_extended_idmap(void)
 	return __cpu_uses_extended_idmap();
 }
 
+/*
+ * Can't use pgd_populate here, because the extended idmap adds an extra level
+ * above CONFIG_PGTABLE_LEVELS (which is 2 or 3 if we're using the extended
+ * idmap), and pgd_populate is only available if CONFIG_PGTABLE_LEVELS = 4.
+ */
 static inline void __kvm_extend_hypmap(pgd_t *boot_hyp_pgd,
 				       pgd_t *hyp_pgd,
 				       pgd_t *merged_hyp_pgd,
