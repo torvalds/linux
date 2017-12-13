@@ -202,6 +202,7 @@ int netvsc_send(struct net_device_context *ndc,
 void netvsc_linkstatus_callback(struct net_device *net,
 				struct rndis_message *resp);
 int netvsc_recv_callback(struct net_device *net,
+			 struct netvsc_device *nvdev,
 			 struct vmbus_channel *channel,
 			 void  *data, u32 len,
 			 const struct ndis_tcp_ip_checksum_info *csum_info,

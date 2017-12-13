@@ -352,6 +352,7 @@ static inline void *rndis_get_ppi(struct rndis_packet *rpkt, u32 type)
 }
 
 static int rndis_filter_receive_data(struct net_device *ndev,
+				     struct netvsc_device *nvdev,
 				     struct rndis_device *dev,
 				     struct rndis_message *msg,
 				     struct vmbus_channel *channel,
@@ -388,7 +389,8 @@ static int rndis_filter_receive_data(struct net_device *ndev,
 	 */
 	data = (void *)((unsigned long)data + data_offset);
 	csum_info = rndis_get_ppi(rndis_pkt, TCPIP_CHKSUM_PKTINFO);
-	return netvsc_recv_callback(ndev, channel,
+
+	return netvsc_recv_callback(ndev, nvdev, channel,
 				    data, rndis_pkt->data_len,
 				    csum_info, vlan);
 }
@@ -420,7 +422,8 @@ int rndis_filter_receive(struct net_device *ndev,
 
 	switch (rndis_msg->ndis_msg_type) {
 	case RNDIS_MSG_PACKET:
-		return rndis_filter_receive_data(ndev, rndis_dev, rndis_msg,
+		return rndis_filter_receive_data(ndev, net_dev,
+						 rndis_dev, rndis_msg,
 						 channel, data, buflen);
 	case RNDIS_MSG_INIT_C:
 	case RNDIS_MSG_QUERY_C:
