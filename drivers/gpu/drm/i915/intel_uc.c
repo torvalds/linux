@@ -214,6 +214,51 @@ void intel_uc_fini_wq(struct drm_i915_private *dev_priv)
 	intel_guc_fini_wq(&dev_priv->guc);
 }
 
+int intel_uc_init(struct drm_i915_private *dev_priv)
+{
+	struct intel_guc *guc = &dev_priv->guc;
+	int ret;
+
+	if (!USES_GUC(dev_priv))
+		return 0;
+
+	if (!HAS_GUC(dev_priv))
+		return -ENODEV;
+
+	ret = intel_guc_init(guc);
+	if (ret)
+		return ret;
+
+	if (USES_GUC_SUBMISSION(dev_priv)) {
+		/*
+		 * This is stuff we need to have available at fw load time
+		 * if we are planning to enable submission later
+		 */
+		ret = intel_guc_submission_init(guc);
+		if (ret) {
+			intel_guc_fini(guc);
+			return ret;
+		}
+	}
+
+	return 0;
+}
+
+void intel_uc_fini(struct drm_i915_private *dev_priv)
+{
+	struct intel_guc *guc = &dev_priv->guc;
+
+	if (!USES_GUC(dev_priv))
+		return;
+
+	GEM_BUG_ON(!HAS_GUC(dev_priv));
+
+	if (USES_GUC_SUBMISSION(dev_priv))
+		intel_guc_submission_fini(guc);
+
+	intel_guc_fini(guc);
+}
+
 int intel_uc_init_hw(struct drm_i915_private *dev_priv)
 {
 	struct intel_guc *guc = &dev_priv->guc;
@@ -223,27 +268,10 @@ int intel_uc_init_hw(struct drm_i915_private *dev_priv)
 	if (!USES_GUC(dev_priv))
 		return 0;
 
-	if (!HAS_GUC(dev_priv)) {
-		ret = -ENODEV;
-		goto err_out;
-	}
+	GEM_BUG_ON(!HAS_GUC(dev_priv));
 
 	guc_disable_communication(guc);
 	gen9_reset_guc_interrupts(dev_priv);
-
-	ret = intel_guc_init(guc);
-	if (ret)
-		goto err_out;
-
-	if (USES_GUC_SUBMISSION(dev_priv)) {
-		/*
-		 * This is stuff we need to have available at fw load time
-		 * if we are planning to enable submission later
-		 */
-		ret = intel_guc_submission_init(guc);
-		if (ret)
-			goto err_guc;
-	}
 
 	/* init WOPCM */
 	I915_WRITE(GUC_WOPCM_SIZE, intel_guc_wopcm_size(dev_priv));
@@ -264,12 +292,12 @@ int intel_uc_init_hw(struct drm_i915_private *dev_priv)
 		 */
 		ret = __intel_uc_reset_hw(dev_priv);
 		if (ret)
-			goto err_submission;
+			goto err_out;
 
 		if (USES_HUC(dev_priv)) {
 			ret = intel_huc_init_hw(huc);
 			if (ret)
-				goto err_submission;
+				goto err_out;
 		}
 
 		intel_guc_init_params(guc);
@@ -322,11 +350,6 @@ err_communication:
 	guc_disable_communication(guc);
 err_log_capture:
 	guc_capture_load_err_log(guc);
-err_submission:
-	if (USES_GUC_SUBMISSION(dev_priv))
-		intel_guc_submission_fini(guc);
-err_guc:
-	intel_guc_fini(guc);
 err_out:
 	/*
 	 * Note that there is no fallback as either user explicitly asked for
@@ -348,15 +371,13 @@ void intel_uc_fini_hw(struct drm_i915_private *dev_priv)
 	if (!USES_GUC(dev_priv))
 		return;
 
+	GEM_BUG_ON(!HAS_GUC(dev_priv));
+
 	if (USES_GUC_SUBMISSION(dev_priv))
 		intel_guc_submission_disable(guc);
 
 	guc_disable_communication(guc);
 
-	if (USES_GUC_SUBMISSION(dev_priv)) {
+	if (USES_GUC_SUBMISSION(dev_priv))
 		gen9_disable_guc_interrupts(dev_priv);
-		intel_guc_submission_fini(guc);
-	}
-
-	intel_guc_fini(guc);
 }

@@ -5196,9 +5196,13 @@ int i915_gem_init(struct drm_i915_private *dev_priv)
 
 	intel_init_gt_powersave(dev_priv);
 
-	ret = i915_gem_init_hw(dev_priv);
+	ret = intel_uc_init(dev_priv);
 	if (ret)
 		goto err_pm;
+
+	ret = i915_gem_init_hw(dev_priv);
+	if (ret)
+		goto err_uc_init;
 
 	/*
 	 * Despite its name intel_init_clock_gating applies both display
@@ -5240,6 +5244,8 @@ err_init_hw:
 	i915_gem_wait_for_idle(dev_priv, I915_WAIT_LOCKED);
 	i915_gem_contexts_lost(dev_priv);
 	intel_uc_fini_hw(dev_priv);
+err_uc_init:
+	intel_uc_fini(dev_priv);
 err_pm:
 	if (ret != -EIO) {
 		intel_cleanup_gt_powersave(dev_priv);
