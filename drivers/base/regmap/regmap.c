@@ -459,7 +459,7 @@ static void regmap_unlock_hwlock_irqrestore(void *__map)
 }
 #endif
 
-static void regmap_lock_unlock_empty(void *__map)
+static void regmap_lock_unlock_none(void *__map)
 {
 
 }
@@ -675,7 +675,7 @@ struct regmap *__regmap_init(struct device *dev,
 	}
 
 	if (config->disable_locking) {
-		map->lock = map->unlock = regmap_lock_unlock_empty;
+		map->lock = map->unlock = regmap_lock_unlock_none;
 	} else if (config->lock && config->unlock) {
 		map->lock = config->lock;
 		map->unlock = config->unlock;
