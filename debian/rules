@@ -74,8 +74,6 @@ ifneq ($(do_tools),true)
 	do_tools_common=
 endif
 
-do_zfs=false
-
 ifeq ($(do_zfs),false)
 	do_zfs_disable:=$(shell cat $(DROOT)/zfs-modules.ignore >>$(prev_abidir)/../modules.ignore)
 endif
