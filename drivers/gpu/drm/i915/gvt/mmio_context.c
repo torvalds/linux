@@ -304,7 +304,7 @@ static void switch_mmio_to_vgpu(struct intel_vgpu *vgpu, int ring_id)
 
 		I915_WRITE_FW(mmio->reg, v);
 
-		trace_render_mmio(vgpu->id, "load",
+		trace_render_mmio(0, vgpu->id, "switch",
 				  i915_mmio_reg_offset(mmio->reg),
 				  mmio->value, v);
 	}
@@ -340,7 +340,7 @@ static void switch_mmio_to_host(struct intel_vgpu *vgpu, int ring_id)
 
 		I915_WRITE_FW(mmio->reg, v);
 
-		trace_render_mmio(vgpu->id, "restore",
+		trace_render_mmio(vgpu->id, 0, "switch",
 				  i915_mmio_reg_offset(mmio->reg),
 				  mmio->value, v);
 	}
