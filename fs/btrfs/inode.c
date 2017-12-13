@@ -8449,8 +8449,6 @@ __btrfs_submit_dio_bio(struct bio *bio, struct inode *inode, u64 file_offset,
 	if (async_submit)
 		async_submit = !atomic_read(&BTRFS_I(inode)->sync_writers);
 
-	bio_get(bio);
-
 	if (!write) {
 		ret = btrfs_bio_wq_end_io(fs_info, bio, BTRFS_WQ_ENDIO_DATA);
 		if (ret)
@@ -8483,7 +8481,6 @@ __btrfs_submit_dio_bio(struct bio *bio, struct inode *inode, u64 file_offset,
 map:
 	ret = btrfs_map_bio(fs_info, bio, 0, 0);
 err:
-	bio_put(bio);
 	return ret;
 }
 
