@@ -13,7 +13,9 @@ struct input_dev;
 struct input_mt_pos;
 
 struct touchscreen_properties {
+	unsigned int min_x;
 	unsigned int max_x;
+	unsigned int min_y;
 	unsigned int max_y;
 	bool invert_x;
 	bool invert_y;

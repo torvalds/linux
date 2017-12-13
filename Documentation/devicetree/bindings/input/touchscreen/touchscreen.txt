@@ -1,6 +1,10 @@
 General Touchscreen Properties:
 
 Optional properties for Touchscreens:
+ - touchscreen-min-size-x	: minimal reported horizontal resolution of
+				  touchscreen (in pixels)
+ - touchscreen-min-size-y	: minimal reported vertical resolution of
+				  touchscreen (in pixels)
  - touchscreen-max-size-x	: maximal reported horizontal resolution of
 				  touchscreen (in pixels)
  - touchscreen-max-size-y	: maximal reported vertical resolution of touchscreen
