@@ -410,7 +410,6 @@ int amdgpu_fence_driver_start_ring(struct amdgpu_ring *ring,
 int amdgpu_fence_driver_init_ring(struct amdgpu_ring *ring,
 				  unsigned num_hw_submission)
 {
-	long timeout;
 	int r;
 
 	/* Check that num_hw_submission is a power of two */
@@ -434,20 +433,9 @@ int amdgpu_fence_driver_init_ring(struct amdgpu_ring *ring,
 
 	/* No need to setup the GPU scheduler for KIQ ring */
 	if (ring->funcs->type != AMDGPU_RING_TYPE_KIQ) {
-		timeout = msecs_to_jiffies(amdgpu_lockup_timeout);
-		if (timeout == 0) {
-			/*
-			 * FIXME:
-			 * Delayed workqueue cannot use it directly,
-			 * so the scheduler will not use delayed workqueue if
-			 * MAX_SCHEDULE_TIMEOUT is set.
-			 * Currently keep it simple and silly.
-			 */
-			timeout = MAX_SCHEDULE_TIMEOUT;
-		}
 		r = drm_sched_init(&ring->sched, &amdgpu_sched_ops,
 				   num_hw_submission, amdgpu_job_hang_limit,
-				   timeout, ring->name);
+				   msecs_to_jiffies(amdgpu_lockup_timeout), ring->name);
 		if (r) {
 			DRM_ERROR("Failed to create scheduler on ring %s.\n",
 				  ring->name);

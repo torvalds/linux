@@ -1229,6 +1229,11 @@ static void amdgpu_check_arguments(struct amdgpu_device *adev)
 			 amdgpu_vram_page_split);
 		amdgpu_vram_page_split = 1024;
 	}
+
+	if (amdgpu_lockup_timeout == 0) {
+		dev_warn(adev->dev, "lockup_timeout msut be > 0, adjusting to 10000\n");
+		amdgpu_lockup_timeout = 10000;
+	}
 }
 
 /**
@@ -2827,7 +2832,7 @@ bool amdgpu_need_backup(struct amdgpu_device *adev)
 	if (adev->flags & AMD_IS_APU)
 		return false;
 
-	return amdgpu_lockup_timeout > 0 ? true : false;
+	return amdgpu_gpu_recovery;
 }
 
 static int amdgpu_recover_vram_from_shadow(struct amdgpu_device *adev,
