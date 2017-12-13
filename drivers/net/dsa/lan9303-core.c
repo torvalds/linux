@@ -249,6 +249,29 @@ static int lan9303_read(struct regmap *regmap, unsigned int offset, u32 *reg)
 	return -EIO;
 }
 
+/* Wait a while until mask & reg == value. Otherwise return timeout. */
+static int lan9303_read_wait(struct lan9303 *chip, int offset, u32 mask)
+{
+	int i;
+
+	for (i = 0; i < 25; i++) {
+		u32 reg;
+		int ret;
+
+		ret = lan9303_read(chip->regmap, offset, &reg);
+		if (ret) {
+			dev_err(chip->dev, "%s failed to read offset %d: %d\n",
+				__func__, offset, ret);
+			return ret;
+		}
+		if (!(reg & mask))
+			return 0;
+		usleep_range(1000, 2000);
+	}
+
+	return -ETIMEDOUT;
+}
+
 static int lan9303_virt_phy_reg_read(struct lan9303 *chip, int regnum)
 {
 	int ret;
@@ -274,22 +297,8 @@ static int lan9303_virt_phy_reg_write(struct lan9303 *chip, int regnum, u16 val)
 
 static int lan9303_indirect_phy_wait_for_completion(struct lan9303 *chip)
 {
-	int ret, i;
-	u32 reg;
-
-	for (i = 0; i < 25; i++) {
-		ret = lan9303_read(chip->regmap, LAN9303_PMI_ACCESS, &reg);
-		if (ret) {
-			dev_err(chip->dev,
-				"Failed to read pmi access status: %d\n", ret);
-			return ret;
-		}
-		if (!(reg & LAN9303_PMI_ACCESS_MII_BUSY))
-			return 0;
-		usleep_range(1000, 2000);
-	}
-
-	return -EIO;
+	return lan9303_read_wait(chip, LAN9303_PMI_ACCESS,
+				 LAN9303_PMI_ACCESS_MII_BUSY);
 }
 
 static int lan9303_indirect_phy_read(struct lan9303 *chip, int addr, int regnum)
@@ -366,22 +375,8 @@ EXPORT_SYMBOL_GPL(lan9303_indirect_phy_ops);
 
 static int lan9303_switch_wait_for_completion(struct lan9303 *chip)
 {
-	int ret, i;
-	u32 reg;
-
-	for (i = 0; i < 25; i++) {
-		ret = lan9303_read(chip->regmap, LAN9303_SWITCH_CSR_CMD, &reg);
-		if (ret) {
-			dev_err(chip->dev,
-				"Failed to read csr command status: %d\n", ret);
-			return ret;
-		}
-		if (!(reg & LAN9303_SWITCH_CSR_CMD_BUSY))
-			return 0;
-		usleep_range(1000, 2000);
-	}
-
-	return -EIO;
+	return lan9303_read_wait(chip, LAN9303_SWITCH_CSR_CMD,
+				 LAN9303_SWITCH_CSR_CMD_BUSY);
 }
 
 static int lan9303_write_switch_reg(struct lan9303 *chip, u16 regnum, u32 val)
