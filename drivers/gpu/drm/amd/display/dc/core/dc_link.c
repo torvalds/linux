@@ -1788,7 +1788,19 @@ static enum dc_status enable_link(
 	}
 
 	if (pipe_ctx->stream_res.audio && status == DC_OK) {
+		struct dc *core_dc = pipe_ctx->stream->ctx->dc;
 		/* notify audio driver for audio modes of monitor */
+		struct pp_smu_funcs_rv *pp_smu = core_dc->res_pool->pp_smu;
+		unsigned int i, num_audio = 1;
+		for (i = 0; i < MAX_PIPES; i++) {
+			/*current_state not updated yet*/
+			if (core_dc->current_state->res_ctx.pipe_ctx[i].stream_res.audio != NULL)
+				num_audio++;
+		}
+		if (num_audio == 1 && pp_smu != NULL && pp_smu->set_pme_wa_enable != NULL)
+			/*this is the first audio. apply the PME w/a in order to wake AZ from D3*/
+			pp_smu->set_pme_wa_enable(&pp_smu->pp_smu);
+
 		pipe_ctx->stream_res.audio->funcs->az_enable(pipe_ctx->stream_res.audio);
 
 		/* un-mute audio */
