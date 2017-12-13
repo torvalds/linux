@@ -411,30 +411,8 @@ static int guc_log_runtime_create(struct intel_guc *guc)
 	guc->log.runtime.relay_chan = guc_log_relay_chan;
 
 	INIT_WORK(&guc->log.runtime.flush_work, capture_logs_work);
-
-	/*
-	 * GuC log buffer flush work item has to do register access to
-	 * send the ack to GuC and this work item, if not synced before
-	 * suspend, can potentially get executed after the GFX device is
-	 * suspended.
-	 * By marking the WQ as freezable, we don't have to bother about
-	 * flushing of this work item from the suspend hooks, the pending
-	 * work item if any will be either executed before the suspend
-	 * or scheduled later on resume. This way the handling of work
-	 * item can be kept same between system suspend & rpm suspend.
-	 */
-	guc->log.runtime.flush_wq = alloc_ordered_workqueue("i915-guc_log",
-						WQ_HIGHPRI | WQ_FREEZABLE);
-	if (!guc->log.runtime.flush_wq) {
-		DRM_ERROR("Couldn't allocate the wq for GuC logging\n");
-		ret = -ENOMEM;
-		goto err_relaychan;
-	}
-
 	return 0;
 
-err_relaychan:
-	relay_close(guc->log.runtime.relay_chan);
 err_vaddr:
 	i915_gem_object_unpin_map(guc->log.vma->obj);
 	guc->log.runtime.buf_addr = NULL;
@@ -450,7 +428,6 @@ static void guc_log_runtime_destroy(struct intel_guc *guc)
 	if (!guc_log_has_runtime(guc))
 		return;
 
-	destroy_workqueue(guc->log.runtime.flush_wq);
 	relay_close(guc->log.runtime.relay_chan);
 	i915_gem_object_unpin_map(guc->log.vma->obj);
 	guc->log.runtime.buf_addr = NULL;

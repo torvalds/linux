@@ -188,6 +188,32 @@ static void guc_disable_communication(struct intel_guc *guc)
 	guc->send = intel_guc_send_nop;
 }
 
+int intel_uc_init_wq(struct drm_i915_private *dev_priv)
+{
+	int ret;
+
+	if (!USES_GUC(dev_priv))
+		return 0;
+
+	ret = intel_guc_init_wq(&dev_priv->guc);
+	if (ret) {
+		DRM_ERROR("Couldn't allocate workqueues for GuC\n");
+		return ret;
+	}
+
+	return 0;
+}
+
+void intel_uc_fini_wq(struct drm_i915_private *dev_priv)
+{
+	if (!USES_GUC(dev_priv))
+		return;
+
+	GEM_BUG_ON(!HAS_GUC(dev_priv));
+
+	intel_guc_fini_wq(&dev_priv->guc);
+}
+
 int intel_uc_init_hw(struct drm_i915_private *dev_priv)
 {
 	struct intel_guc *guc = &dev_priv->guc;

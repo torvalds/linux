@@ -1187,57 +1187,15 @@ static void guc_ads_destroy(struct intel_guc *guc)
 	i915_vma_unpin_and_release(&guc->ads_vma);
 }
 
-static int guc_preempt_work_create(struct intel_guc *guc)
-{
-	struct drm_i915_private *dev_priv = guc_to_i915(guc);
-	struct intel_engine_cs *engine;
-	enum intel_engine_id id;
-
-	/*
-	 * Even though both sending GuC action, and adding a new workitem to
-	 * GuC workqueue are serialized (each with its own locking), since
-	 * we're using mutliple engines, it's possible that we're going to
-	 * issue a preempt request with two (or more - each for different
-	 * engine) workitems in GuC queue. In this situation, GuC may submit
-	 * all of them, which will make us very confused.
-	 * Our preemption contexts may even already be complete - before we
-	 * even had the chance to sent the preempt action to GuC!. Rather
-	 * than introducing yet another lock, we can just use ordered workqueue
-	 * to make sure we're always sending a single preemption request with a
-	 * single workitem.
-	 */
-	guc->preempt_wq = alloc_ordered_workqueue("i915-guc_preempt",
-						  WQ_HIGHPRI);
-	if (!guc->preempt_wq)
-		return -ENOMEM;
-
-	for_each_engine(engine, dev_priv, id) {
-		guc->preempt_work[id].engine = engine;
-		INIT_WORK(&guc->preempt_work[id].work, inject_preempt_context);
-	}
-
-	return 0;
-}
-
-static void guc_preempt_work_destroy(struct intel_guc *guc)
-{
-	struct drm_i915_private *dev_priv = guc_to_i915(guc);
-	struct intel_engine_cs *engine;
-	enum intel_engine_id id;
-
-	for_each_engine(engine, dev_priv, id)
-		cancel_work_sync(&guc->preempt_work[id].work);
-
-	destroy_workqueue(guc->preempt_wq);
-	guc->preempt_wq = NULL;
-}
-
 /*
  * Set up the memory resources to be shared with the GuC (via the GGTT)
  * at firmware loading time.
  */
 int intel_guc_submission_init(struct intel_guc *guc)
 {
+	struct drm_i915_private *dev_priv = guc_to_i915(guc);
+	struct intel_engine_cs *engine;
+	enum intel_engine_id id;
 	int ret;
 
 	if (guc->stage_desc_pool)
@@ -1256,20 +1214,18 @@ int intel_guc_submission_init(struct intel_guc *guc)
 	if (ret < 0)
 		goto err_stage_desc_pool;
 
-	ret = guc_preempt_work_create(guc);
-	if (ret)
-		goto err_log;
-	GEM_BUG_ON(!guc->preempt_wq);
-
 	ret = guc_ads_create(guc);
 	if (ret < 0)
-		goto err_wq;
+		goto err_log;
 	GEM_BUG_ON(!guc->ads_vma);
+
+	for_each_engine(engine, dev_priv, id) {
+		guc->preempt_work[id].engine = engine;
+		INIT_WORK(&guc->preempt_work[id].work, inject_preempt_context);
+	}
 
 	return 0;
 
-err_wq:
-	guc_preempt_work_destroy(guc);
 err_log:
 	intel_guc_log_destroy(guc);
 err_stage_desc_pool:
@@ -1279,8 +1235,14 @@ err_stage_desc_pool:
 
 void intel_guc_submission_fini(struct intel_guc *guc)
 {
+	struct drm_i915_private *dev_priv = guc_to_i915(guc);
+	struct intel_engine_cs *engine;
+	enum intel_engine_id id;
+
+	for_each_engine(engine, dev_priv, id)
+		cancel_work_sync(&guc->preempt_work[id].work);
+
 	guc_ads_destroy(guc);
-	guc_preempt_work_destroy(guc);
 	intel_guc_log_destroy(guc);
 	guc_stage_desc_pool_destroy(guc);
 }
