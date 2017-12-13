@@ -825,6 +825,21 @@ static int force_nonpriv_reg_handler(struct parser_exec_state *s,
 	return 0;
 }
 
+static inline bool is_mocs_mmio(unsigned int offset)
+{
+	return ((offset >= 0xc800) && (offset <= 0xcff8)) ||
+		((offset >= 0xb020) && (offset <= 0xb0a0));
+}
+
+static int mocs_cmd_reg_handler(struct parser_exec_state *s,
+				unsigned int offset, unsigned int index)
+{
+	if (!is_mocs_mmio(offset))
+		return -EINVAL;
+	vgpu_vreg(s->vgpu, offset) = cmd_val(s, index + 1);
+	return 0;
+}
+
 static int cmd_reg_handler(struct parser_exec_state *s,
 	unsigned int offset, unsigned int index, char *cmd)
 {
@@ -847,6 +862,10 @@ static int cmd_reg_handler(struct parser_exec_state *s,
 		gvt_vgpu_err("found access of shadowed MMIO %x\n", offset);
 		return 0;
 	}
+
+	if (is_mocs_mmio(offset) &&
+	    mocs_cmd_reg_handler(s, offset, index))
+		return -EINVAL;
 
 	if (is_force_nonpriv_mmio(offset) &&
 		force_nonpriv_reg_handler(s, offset, index))

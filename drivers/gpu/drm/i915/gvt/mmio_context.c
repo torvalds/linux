@@ -203,6 +203,8 @@ static void switch_mocs(struct intel_vgpu *pre, struct intel_vgpu *next,
 {
 	struct drm_i915_private *dev_priv;
 	i915_reg_t offset, l3_offset;
+	u32 old_v, new_v;
+
 	u32 regs[] = {
 		[RCS] = 0xc800,
 		[VCS] = 0xc900,
@@ -220,16 +222,17 @@ static void switch_mocs(struct intel_vgpu *pre, struct intel_vgpu *next,
 
 	for (i = 0; i < 64; i++) {
 		if (pre)
-			vgpu_vreg(pre, offset) =
-				I915_READ_FW(offset);
+			old_v = vgpu_vreg(pre, offset);
 		else
-			gen9_render_mocs[ring_id][i] =
-				I915_READ_FW(offset);
-
+			old_v = gen9_render_mocs[ring_id][i]
+			      = I915_READ_FW(offset);
 		if (next)
-			I915_WRITE_FW(offset, vgpu_vreg(next, offset));
+			new_v = vgpu_vreg(next, offset);
 		else
-			I915_WRITE_FW(offset, gen9_render_mocs[ring_id][i]);
+			new_v = gen9_render_mocs[ring_id][i];
+
+		if (old_v != new_v)
+			I915_WRITE_FW(offset, new_v);
 
 		offset.reg += 4;
 	}
@@ -238,17 +241,17 @@ static void switch_mocs(struct intel_vgpu *pre, struct intel_vgpu *next,
 		l3_offset.reg = 0xb020;
 		for (i = 0; i < 32; i++) {
 			if (pre)
-				vgpu_vreg(pre, l3_offset) =
-					I915_READ_FW(l3_offset);
+				old_v = vgpu_vreg(pre, l3_offset);
 			else
-				gen9_render_mocs_L3[i] =
-					I915_READ_FW(l3_offset);
+				old_v = gen9_render_mocs_L3[i]
+				      = I915_READ_FW(offset);
 			if (next)
-				I915_WRITE_FW(l3_offset,
-					      vgpu_vreg(next, l3_offset));
+				new_v = vgpu_vreg(next, l3_offset);
 			else
-				I915_WRITE_FW(l3_offset,
-					      gen9_render_mocs_L3[i]);
+				new_v = gen9_render_mocs_L3[i];
+
+			if (old_v != new_v)
+				I915_WRITE_FW(l3_offset, new_v);
 
 			l3_offset.reg += 4;
 		}
