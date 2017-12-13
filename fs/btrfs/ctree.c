@@ -2654,17 +2654,29 @@ int btrfs_find_item(struct btrfs_root *fs_root, struct btrfs_path *path,
 }
 
 /*
- * look for key in the tree.  path is filled in with nodes along the way
- * if key is found, we return zero and you can find the item in the leaf
- * level of the path (level 0)
+ * btrfs_search_slot - look for a key in a tree and perform necessary
+ * modifications to preserve tree invariants.
  *
- * If the key isn't found, the path points to the slot where it should
- * be inserted, and 1 is returned.  If there are other errors during the
- * search a negative error number is returned.
+ * @trans:	Handle of transaction, used when modifying the tree
+ * @p:		Holds all btree nodes along the search path
+ * @root:	The root node of the tree
+ * @key:	The key we are looking for
+ * @ins_len:	Indicates purpose of search, for inserts it is 1, for
+ *		deletions it's -1. 0 for plain searches
+ * @cow:	boolean should CoW operations be performed. Must always be 1
+ *		when modifying the tree.
  *
- * if ins_len > 0, nodes and leaves will be split as we walk down the
- * tree.  if ins_len < 0, nodes will be merged as we walk down the tree (if
- * possible)
+ * If @ins_len > 0, nodes and leaves will be split as we walk down the tree.
+ * If @ins_len < 0, nodes will be merged as we walk down the tree (if possible)
+ *
+ * If @key is found, 0 is returned and you can find the item in the leaf level
+ * of the path (level 0)
+ *
+ * If @key isn't found, 1 is returned and the leaf level of the path (level 0)
+ * points to the slot where it should be inserted
+ *
+ * If an error is encountered while searching the tree a negative error number
+ * is returned
  */
 int btrfs_search_slot(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 		      const struct btrfs_key *key, struct btrfs_path *p,
