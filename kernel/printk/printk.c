@@ -236,6 +236,12 @@ struct printk_log {
 	u8 facility;		/* syslog facility */
 	u8 flags:5;		/* internal record flags */
 	u8 level:3;		/* syslog level */
+#ifdef CONFIG_PRINTK_PROCESS
+	char process[16];	/* process name */
+	pid_t pid;		/* process id */
+	u8 cpu;			/* cpu id */
+	u8 in_interrupt;	/* interrupt context */
+#endif
 };
 
 /*
@@ -270,7 +276,11 @@ static enum log_flags console_prev;
 static u64 clear_seq;
 static u32 clear_idx;
 
+#ifdef CONFIG_PRINTK_PROCESS
+#define PREFIX_MAX		48
+#else
 #define PREFIX_MAX		32
+#endif
 #define LOG_LINE_MAX		(1024 - PREFIX_MAX)
 
 #define LOG_LEVEL(v)		((v) & 0x07)
@@ -342,6 +352,25 @@ static u32 log_next(u32 idx)
 	}
 	return idx + msg->len;
 }
+
+#ifdef CONFIG_PRINTK_PROCESS
+static bool printk_process = true;
+static size_t print_process(const struct printk_log *msg, char *buf)
+{
+	if (!printk_process)
+		return 0;
+
+	if (!buf)
+		return snprintf(NULL, 0, "%c[%1d:%15s:%5d] ", ' ', 0, " ", 0);
+
+	return sprintf(buf, "%c[%1d:%15s:%5d] ",
+			msg->in_interrupt ? 'I' : ' ',
+			msg->cpu,
+			msg->process,
+			msg->pid);
+}
+module_param_named(process, printk_process, bool, 0644);
+#endif
 
 /*
  * Check whether there is enough free space for the given message.
@@ -474,6 +503,16 @@ static int log_store(int facility, int level,
 		msg->ts_nsec = local_clock();
 	memset(log_dict(msg) + dict_len, 0, pad_len);
 	msg->len = size;
+
+#ifdef CONFIG_PRINTK_PROCESS
+	if (printk_process) {
+		strncpy(msg->process, current->comm, sizeof(msg->process) - 1);
+		msg->process[sizeof(msg->process) - 1] = '\0';
+		msg->pid = task_pid_nr(current);
+		msg->cpu = raw_smp_processor_id();
+		msg->in_interrupt = in_interrupt() ? 1 : 0;
+	}
+#endif
 
 	/* insert message */
 	log_next_idx += msg->len;
@@ -1077,6 +1116,9 @@ static size_t print_prefix(const struct printk_log *msg, bool syslog, char *buf)
 	}
 
 	len += print_time(msg->ts_nsec, buf ? buf + len : NULL);
+#ifdef CONFIG_PRINTK_PROCESS
+	len += print_process(msg, buf ? buf + len : NULL);
+#endif
 	return len;
 }
 
@@ -1646,6 +1688,10 @@ static size_t cont_print_text(char *text, size_t size)
 
 	if (cont.cons == 0 && (console_prev & LOG_NEWLINE)) {
 		textlen += print_time(cont.ts_nsec, text);
+#ifdef CONFIG_PRINTK_PROCESS
+		*(text + textlen) = ' ';
+		textlen += print_process(NULL, NULL);
+#endif
 		size -= textlen;
 	}
 
