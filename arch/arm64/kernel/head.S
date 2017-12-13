@@ -148,6 +148,26 @@ preserve_boot_args:
 ENDPROC(preserve_boot_args)
 
 /*
+ * Macro to arrange a physical address in a page table entry, taking care of
+ * 52-bit addresses.
+ *
+ * Preserves:	phys
+ * Returns:	pte
+ */
+	.macro	phys_to_pte, phys, pte
+#ifdef CONFIG_ARM64_PA_BITS_52
+	/*
+	 * We assume \phys is 64K aligned and this is guaranteed by only
+	 * supporting this configuration with 64K pages.
+	 */
+	orr	\pte, \phys, \phys, lsr #36
+	and	\pte, \pte, #PTE_ADDR_MASK_52
+#else
+	mov	\pte, \phys
+#endif
+	.endm
+
+/*
  * Macro to create a table entry to the next page.
  *
  *	tbl:	page table address
@@ -160,10 +180,11 @@ ENDPROC(preserve_boot_args)
  * Returns:	tbl -> next level table page address
  */
 	.macro	create_table_entry, tbl, virt, shift, ptrs, tmp1, tmp2
+	add	\tmp1, \tbl, #PAGE_SIZE
+	phys_to_pte \tmp1, \tmp2
+	orr	\tmp2, \tmp2, #PMD_TYPE_TABLE	// address of next table and entry type
 	lsr	\tmp1, \virt, #\shift
 	and	\tmp1, \tmp1, #\ptrs - 1	// table index
-	add	\tmp2, \tbl, #PAGE_SIZE
-	orr	\tmp2, \tmp2, #PMD_TYPE_TABLE	// address of next table and entry type
 	str	\tmp2, [\tbl, \tmp1, lsl #3]
 	add	\tbl, \tbl, #PAGE_SIZE		// next level table page
 	.endm
@@ -190,16 +211,17 @@ ENDPROC(preserve_boot_args)
  * virtual range (inclusive).
  *
  * Preserves:	tbl, flags
- * Corrupts:	phys, start, end, pstate
+ * Corrupts:	phys, start, end, tmp, pstate
  */
-	.macro	create_block_map, tbl, flags, phys, start, end
-	lsr	\phys, \phys, #SWAPPER_BLOCK_SHIFT
+	.macro	create_block_map, tbl, flags, phys, start, end, tmp
 	lsr	\start, \start, #SWAPPER_BLOCK_SHIFT
 	and	\start, \start, #PTRS_PER_PTE - 1	// table index
-	orr	\phys, \flags, \phys, lsl #SWAPPER_BLOCK_SHIFT	// table entry
+	bic	\phys, \phys, #SWAPPER_BLOCK_SIZE - 1
 	lsr	\end, \end, #SWAPPER_BLOCK_SHIFT
 	and	\end, \end, #PTRS_PER_PTE - 1		// table end index
-9999:	str	\phys, [\tbl, \start, lsl #3]		// store the entry
+9999:	phys_to_pte \phys, \tmp
+	orr	\tmp, \tmp, \flags			// table entry
+	str	\tmp, [\tbl, \start, lsl #3]		// store the entry
 	add	\start, \start, #1			// next entry
 	add	\phys, \phys, #SWAPPER_BLOCK_SIZE		// next block
 	cmp	\start, \end
@@ -286,7 +308,7 @@ __create_page_tables:
 	create_pgd_entry x0, x3, x5, x6
 	mov	x5, x3				// __pa(__idmap_text_start)
 	adr_l	x6, __idmap_text_end		// __pa(__idmap_text_end)
-	create_block_map x0, x7, x3, x5, x6
+	create_block_map x0, x7, x3, x5, x6, x4
 
 	/*
 	 * Map the kernel image (starting with PHYS_OFFSET).
@@ -299,7 +321,7 @@ __create_page_tables:
 	adrp	x3, _text			// runtime __pa(_text)
 	sub	x6, x6, x3			// _end - _text
 	add	x6, x6, x5			// runtime __va(_end)
-	create_block_map x0, x7, x3, x5, x6
+	create_block_map x0, x7, x3, x5, x6, x4
 
 	/*
 	 * Since the page tables have been populated with non-cacheable
