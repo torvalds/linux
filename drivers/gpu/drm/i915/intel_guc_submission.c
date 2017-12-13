@@ -820,9 +820,19 @@ static bool doorbell_ok(struct intel_guc *guc, u16 db_id)
 	return false;
 }
 
-static int guc_clients_doorbell_init(struct intel_guc *guc)
+static bool guc_verify_doorbells(struct intel_guc *guc)
 {
 	u16 db_id;
+
+	for (db_id = 0; db_id < GUC_NUM_DOORBELLS; ++db_id)
+		if (!doorbell_ok(guc, db_id))
+			return false;
+
+	return true;
+}
+
+static int guc_clients_doorbell_init(struct intel_guc *guc)
+{
 	int ret;
 
 	ret = create_doorbell(guc->execbuf_client);
@@ -834,10 +844,6 @@ static int guc_clients_doorbell_init(struct intel_guc *guc)
 		destroy_doorbell(guc->execbuf_client);
 		return ret;
 	}
-
-	/* Read back & verify all (used & unused) doorbell registers */
-	for (db_id = 0; db_id < GUC_NUM_DOORBELLS; ++db_id)
-		WARN_ON(!doorbell_ok(guc, db_id));
 
 	return 0;
 }
@@ -1149,6 +1155,7 @@ int intel_guc_submission_init(struct intel_guc *guc)
 		goto err_log;
 	GEM_BUG_ON(!guc->ads_vma);
 
+	WARN_ON(!guc_verify_doorbells(guc));
 	ret = guc_clients_create(guc);
 	if (ret)
 		return ret;
@@ -1177,6 +1184,8 @@ void intel_guc_submission_fini(struct intel_guc *guc)
 		cancel_work_sync(&guc->preempt_work[id].work);
 
 	guc_clients_destroy(guc);
+	WARN_ON(!guc_verify_doorbells(guc));
+
 	guc_ads_destroy(guc);
 	intel_guc_log_destroy(guc);
 	guc_stage_desc_pool_destroy(guc);
