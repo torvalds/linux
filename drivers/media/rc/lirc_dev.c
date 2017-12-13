@@ -347,6 +347,10 @@ static ssize_t ir_lirc_transmit_ir(struct file *file, const char __user *buf,
 	if (ret < 0)
 		goto out_kfree;
 
+	kfree(txbuf);
+	kfree(raw);
+	mutex_unlock(&dev->lock);
+
 	/*
 	 * The lircd gap calculation expects the write function to
 	 * wait for the actual IR signal to be transmitted before
@@ -359,7 +363,7 @@ static ssize_t ir_lirc_transmit_ir(struct file *file, const char __user *buf,
 		schedule_timeout(usecs_to_jiffies(towait));
 	}
 
-	ret = n;
+	return n;
 out_kfree:
 	kfree(txbuf);
 	kfree(raw);
