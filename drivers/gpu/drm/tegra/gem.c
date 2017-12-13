@@ -203,6 +203,8 @@ free:
 static void tegra_bo_free(struct drm_device *drm, struct tegra_bo *bo)
 {
 	if (bo->pages) {
+		dma_unmap_sg(drm->dev, bo->sgt->sgl, bo->sgt->nents,
+			     DMA_BIDIRECTIONAL);
 		drm_gem_put_pages(&bo->gem, bo->pages, true, true);
 		sg_free_table(bo->sgt);
 		kfree(bo->sgt);
@@ -213,8 +215,7 @@ static void tegra_bo_free(struct drm_device *drm, struct tegra_bo *bo)
 
 static int tegra_bo_get_pages(struct drm_device *drm, struct tegra_bo *bo)
 {
-	struct scatterlist *s;
-	unsigned int i;
+	int err;
 
 	bo->pages = drm_gem_get_pages(&bo->gem);
 	if (IS_ERR(bo->pages))
@@ -223,27 +224,26 @@ static int tegra_bo_get_pages(struct drm_device *drm, struct tegra_bo *bo)
 	bo->num_pages = bo->gem.size >> PAGE_SHIFT;
 
 	bo->sgt = drm_prime_pages_to_sg(bo->pages, bo->num_pages);
-	if (IS_ERR(bo->sgt))
+	if (IS_ERR(bo->sgt)) {
+		err = PTR_ERR(bo->sgt);
 		goto put_pages;
+	}
 
-	/*
-	 * Fake up the SG table so that dma_sync_sg_for_device() can be used
-	 * to flush the pages associated with it.
-	 *
-	 * TODO: Replace this by drm_clflash_sg() once it can be implemented
-	 * without relying on symbols that are not exported.
-	 */
-	for_each_sg(bo->sgt->sgl, s, bo->sgt->nents, i)
-		sg_dma_address(s) = sg_phys(s);
-
-	dma_sync_sg_for_device(drm->dev, bo->sgt->sgl, bo->sgt->nents,
-			       DMA_TO_DEVICE);
+	err = dma_map_sg(drm->dev, bo->sgt->sgl, bo->sgt->nents,
+			 DMA_BIDIRECTIONAL);
+	if (err == 0) {
+		err = -EFAULT;
+		goto free_sgt;
+	}
 
 	return 0;
 
+free_sgt:
+	sg_free_table(bo->sgt);
+	kfree(bo->sgt);
 put_pages:
 	drm_gem_put_pages(&bo->gem, bo->pages, false, false);
-	return PTR_ERR(bo->sgt);
+	return err;
 }
 
 static int tegra_bo_alloc(struct drm_device *drm, struct tegra_bo *bo)
