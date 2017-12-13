@@ -243,40 +243,13 @@ do {							    \
 
 #define MKSTR(ptr) ((ptr)) ? (ptr) : ""
 
-static inline size_t cfs_size_round4(int val)
-{
-	return (val + 3) & (~0x3);
-}
-
 #ifndef HAVE_CFS_SIZE_ROUND
 static inline size_t cfs_size_round(int val)
 {
-	return (val + 7) & (~0x7);
+	return round_up(val, 8);
 }
 
 #define HAVE_CFS_SIZE_ROUND
 #endif
-
-static inline size_t cfs_size_round16(int val)
-{
-	return (val + 0xf) & (~0xf);
-}
-
-static inline size_t cfs_size_round32(int val)
-{
-	return (val + 0x1f) & (~0x1f);
-}
-
-static inline size_t cfs_size_round0(int val)
-{
-	if (!val)
-		return 0;
-	return (val + 1 + 7) & (~0x7);
-}
-
-static inline size_t cfs_round_strlen(char *fset)
-{
-	return cfs_size_round((int)strlen(fset) + 1);
-}
 
 #endif
