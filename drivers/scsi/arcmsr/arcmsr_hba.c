@@ -122,9 +122,6 @@ static void arcmsr_stop_adapter_bgrb(struct AdapterControlBlock *acb);
 static void arcmsr_hbaA_flush_cache(struct AdapterControlBlock *acb);
 static void arcmsr_hbaB_flush_cache(struct AdapterControlBlock *acb);
 static void arcmsr_request_device_map(struct timer_list *t);
-static void arcmsr_hbaA_request_device_map(struct AdapterControlBlock *acb);
-static void arcmsr_hbaB_request_device_map(struct AdapterControlBlock *acb);
-static void arcmsr_hbaC_request_device_map(struct AdapterControlBlock *acb);
 static void arcmsr_message_isr_bh_fn(struct work_struct *work);
 static bool arcmsr_get_firmware_spec(struct AdapterControlBlock *acb);
 static void arcmsr_start_adapter_bgrb(struct AdapterControlBlock *acb);
@@ -3789,159 +3786,61 @@ static void arcmsr_wait_firmware_ready(struct AdapterControlBlock *acb)
 	}
 }
 
-static void arcmsr_hbaA_request_device_map(struct AdapterControlBlock *acb)
-{
-	struct MessageUnit_A __iomem *reg = acb->pmuA;
-	if (unlikely(atomic_read(&acb->rq_map_token) == 0) || ((acb->acb_flags & ACB_F_BUS_RESET) != 0 ) || ((acb->acb_flags & ACB_F_ABORT) != 0 )){
-		mod_timer(&acb->eternal_timer, jiffies + msecs_to_jiffies(6 * HZ));
-		return;
-	} else {
-		acb->fw_flag = FW_NORMAL;
-		if (atomic_read(&acb->ante_token_value) == atomic_read(&acb->rq_map_token)){
-			atomic_set(&acb->rq_map_token, 16);
-		}
-		atomic_set(&acb->ante_token_value, atomic_read(&acb->rq_map_token));
-		if (atomic_dec_and_test(&acb->rq_map_token)) {
-			mod_timer(&acb->eternal_timer, jiffies + msecs_to_jiffies(6 * HZ));
-			return;
-		}
-		writel(ARCMSR_INBOUND_MESG0_GET_CONFIG, &reg->inbound_msgaddr0);
-		acb->acb_flags |= ACB_F_MSG_GET_CONFIG;
-		mod_timer(&acb->eternal_timer, jiffies + msecs_to_jiffies(6 * HZ));
-	}
-	return;
-}
-
-static void arcmsr_hbaB_request_device_map(struct AdapterControlBlock *acb)
-{
-	struct MessageUnit_B *reg = acb->pmuB;
-	if (unlikely(atomic_read(&acb->rq_map_token) == 0) || ((acb->acb_flags & ACB_F_BUS_RESET) != 0 ) || ((acb->acb_flags & ACB_F_ABORT) != 0 )){
-		mod_timer(&acb->eternal_timer, jiffies + msecs_to_jiffies(6 * HZ));
-		return;
-	} else {
-		acb->fw_flag = FW_NORMAL;
-		if (atomic_read(&acb->ante_token_value) == atomic_read(&acb->rq_map_token)) {
-			atomic_set(&acb->rq_map_token, 16);
-		}
-		atomic_set(&acb->ante_token_value, atomic_read(&acb->rq_map_token));
-		if (atomic_dec_and_test(&acb->rq_map_token)) {
-			mod_timer(&acb->eternal_timer, jiffies + msecs_to_jiffies(6 * HZ));
-			return;
-		}
-		writel(ARCMSR_MESSAGE_GET_CONFIG, reg->drv2iop_doorbell);
-		acb->acb_flags |= ACB_F_MSG_GET_CONFIG;
-		mod_timer(&acb->eternal_timer, jiffies + msecs_to_jiffies(6 * HZ));
-	}
-	return;
-}
-
-static void arcmsr_hbaC_request_device_map(struct AdapterControlBlock *acb)
-{
-	struct MessageUnit_C __iomem *reg = acb->pmuC;
-	if (unlikely(atomic_read(&acb->rq_map_token) == 0) || ((acb->acb_flags & ACB_F_BUS_RESET) != 0) || ((acb->acb_flags & ACB_F_ABORT) != 0)) {
-		mod_timer(&acb->eternal_timer, jiffies + msecs_to_jiffies(6 * HZ));
-		return;
-	} else {
-		acb->fw_flag = FW_NORMAL;
-		if (atomic_read(&acb->ante_token_value) == atomic_read(&acb->rq_map_token)) {
-			atomic_set(&acb->rq_map_token, 16);
-		}
-		atomic_set(&acb->ante_token_value, atomic_read(&acb->rq_map_token));
-		if (atomic_dec_and_test(&acb->rq_map_token)) {
-			mod_timer(&acb->eternal_timer, jiffies + msecs_to_jiffies(6 * HZ));
-			return;
-		}
-		writel(ARCMSR_INBOUND_MESG0_GET_CONFIG, &reg->inbound_msgaddr0);
-		writel(ARCMSR_HBCMU_DRV2IOP_MESSAGE_CMD_DONE, &reg->inbound_doorbell);
-		acb->acb_flags |= ACB_F_MSG_GET_CONFIG;
-		mod_timer(&acb->eternal_timer, jiffies + msecs_to_jiffies(6 * HZ));
-	}
-	return;
-}
-
-static void arcmsr_hbaD_request_device_map(struct AdapterControlBlock *acb)
-{
-	struct MessageUnit_D *reg = acb->pmuD;
-
-	if (unlikely(atomic_read(&acb->rq_map_token) == 0) ||
-		((acb->acb_flags & ACB_F_BUS_RESET) != 0) ||
-		((acb->acb_flags & ACB_F_ABORT) != 0)) {
-		mod_timer(&acb->eternal_timer,
-			jiffies + msecs_to_jiffies(6 * HZ));
-	} else {
-		acb->fw_flag = FW_NORMAL;
-		if (atomic_read(&acb->ante_token_value) ==
-			atomic_read(&acb->rq_map_token)) {
-			atomic_set(&acb->rq_map_token, 16);
-		}
-		atomic_set(&acb->ante_token_value,
-			atomic_read(&acb->rq_map_token));
-		if (atomic_dec_and_test(&acb->rq_map_token)) {
-			mod_timer(&acb->eternal_timer, jiffies +
-				msecs_to_jiffies(6 * HZ));
-			return;
-		}
-		writel(ARCMSR_INBOUND_MESG0_GET_CONFIG,
-			reg->inbound_msgaddr0);
-		acb->acb_flags |= ACB_F_MSG_GET_CONFIG;
-		mod_timer(&acb->eternal_timer, jiffies +
-			msecs_to_jiffies(6 * HZ));
-	}
-}
-
-static void arcmsr_hbaE_request_device_map(struct AdapterControlBlock *acb)
-{
-	struct MessageUnit_E __iomem *reg = acb->pmuE;
-
-	if (unlikely(atomic_read(&acb->rq_map_token) == 0) ||
-		((acb->acb_flags & ACB_F_BUS_RESET) != 0) ||
-		((acb->acb_flags & ACB_F_ABORT) != 0)) {
-		mod_timer(&acb->eternal_timer,
-			jiffies + msecs_to_jiffies(6 * HZ));
-	} else {
-		acb->fw_flag = FW_NORMAL;
-		if (atomic_read(&acb->ante_token_value) ==
-			atomic_read(&acb->rq_map_token)) {
-			atomic_set(&acb->rq_map_token, 16);
-		}
-		atomic_set(&acb->ante_token_value,
-			atomic_read(&acb->rq_map_token));
-		if (atomic_dec_and_test(&acb->rq_map_token)) {
-			mod_timer(&acb->eternal_timer, jiffies +
-				msecs_to_jiffies(6 * HZ));
-			return;
-		}
-		writel(ARCMSR_INBOUND_MESG0_GET_CONFIG, &reg->inbound_msgaddr0);
-		acb->out_doorbell ^= ARCMSR_HBEMU_DRV2IOP_MESSAGE_CMD_DONE;
-		writel(acb->out_doorbell, &reg->iobound_doorbell);
-		acb->acb_flags |= ACB_F_MSG_GET_CONFIG;
-		mod_timer(&acb->eternal_timer, jiffies +
-			msecs_to_jiffies(6 * HZ));
-	}
-}
-
 static void arcmsr_request_device_map(struct timer_list *t)
 {
 	struct AdapterControlBlock *acb = from_timer(acb, t, eternal_timer);
-	switch (acb->adapter_type) {
+	if (unlikely(atomic_read(&acb->rq_map_token) == 0) ||
+		(acb->acb_flags & ACB_F_BUS_RESET) ||
+		(acb->acb_flags & ACB_F_ABORT)) {
+		mod_timer(&acb->eternal_timer,
+			jiffies + msecs_to_jiffies(6 * HZ));
+	} else {
+		acb->fw_flag = FW_NORMAL;
+		if (atomic_read(&acb->ante_token_value) ==
+			atomic_read(&acb->rq_map_token)) {
+			atomic_set(&acb->rq_map_token, 16);
+		}
+		atomic_set(&acb->ante_token_value,
+			atomic_read(&acb->rq_map_token));
+		if (atomic_dec_and_test(&acb->rq_map_token)) {
+			mod_timer(&acb->eternal_timer, jiffies +
+				msecs_to_jiffies(6 * HZ));
+			return;
+		}
+		switch (acb->adapter_type) {
 		case ACB_ADAPTER_TYPE_A: {
-			arcmsr_hbaA_request_device_map(acb);
-		}
-		break;
+			struct MessageUnit_A __iomem *reg = acb->pmuA;
+			writel(ARCMSR_INBOUND_MESG0_GET_CONFIG, &reg->inbound_msgaddr0);
+			break;
+			}
 		case ACB_ADAPTER_TYPE_B: {
-			arcmsr_hbaB_request_device_map(acb);
-		}
-		break;
+			struct MessageUnit_B *reg = acb->pmuB;
+			writel(ARCMSR_MESSAGE_GET_CONFIG, reg->drv2iop_doorbell);
+			break;
+			}
 		case ACB_ADAPTER_TYPE_C: {
-			arcmsr_hbaC_request_device_map(acb);
+			struct MessageUnit_C __iomem *reg = acb->pmuC;
+			writel(ARCMSR_INBOUND_MESG0_GET_CONFIG, &reg->inbound_msgaddr0);
+			writel(ARCMSR_HBCMU_DRV2IOP_MESSAGE_CMD_DONE, &reg->inbound_doorbell);
+			break;
+			}
+		case ACB_ADAPTER_TYPE_D: {
+			struct MessageUnit_D *reg = acb->pmuD;
+			writel(ARCMSR_INBOUND_MESG0_GET_CONFIG, reg->inbound_msgaddr0);
+			break;
+			}
+		case ACB_ADAPTER_TYPE_E: {
+			struct MessageUnit_E __iomem *reg = acb->pmuE;
+			writel(ARCMSR_INBOUND_MESG0_GET_CONFIG, &reg->inbound_msgaddr0);
+			acb->out_doorbell ^= ARCMSR_HBEMU_DRV2IOP_MESSAGE_CMD_DONE;
+			writel(acb->out_doorbell, &reg->iobound_doorbell);
+			break;
+			}
+		default:
+			return;
 		}
-		break;
-		case ACB_ADAPTER_TYPE_D:
-			arcmsr_hbaD_request_device_map(acb);
-		break;
-		case ACB_ADAPTER_TYPE_E:
-			arcmsr_hbaE_request_device_map(acb);
-		break;
+		acb->acb_flags |= ACB_F_MSG_GET_CONFIG;
+		mod_timer(&acb->eternal_timer, jiffies + msecs_to_jiffies(6 * HZ));
 	}
 }
 
