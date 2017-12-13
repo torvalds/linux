@@ -35,7 +35,7 @@ include $(DROOT)/rules.d/1-maintainer.mk
 
 do_linux_tools=$(sort $(filter-out false,$(do_tools_usbip) $(do_tools_cpupower) $(do_tools_perf) $(do_tools_x86)))
 do_cloud_tools=$(sort $(filter-out false,$(do_tools_hyperv)))
-do_tools_common=true
+do_tools_common?=true
 
 # Don't build tools or udebs in a cross compile environment.
 ifneq ($(DEB_HOST_ARCH),$(DEB_BUILD_ARCH))
