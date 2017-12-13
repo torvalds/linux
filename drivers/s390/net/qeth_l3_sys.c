@@ -395,6 +395,7 @@ static ssize_t qeth_l3_dev_ipato_enable_store(struct device *dev,
 		goto out;
 	card->ipato.enabled = enable;
 
+	spin_lock_bh(&card->ip_lock);
 	hash_for_each(card->ip_htable, i, addr, hnode) {
 		if (addr->type != QETH_IP_TYPE_NORMAL)
 			continue;
@@ -403,6 +404,7 @@ static ssize_t qeth_l3_dev_ipato_enable_store(struct device *dev,
 		else if (qeth_l3_is_addr_covered_by_ipato(card, addr))
 			addr->set_flags |= QETH_IPA_SETIP_TAKEOVER_FLAG;
 	}
+	spin_unlock_bh(&card->ip_lock);
 out:
 	mutex_unlock(&card->conf_mutex);
 	return rc ? rc : count;
