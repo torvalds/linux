@@ -45,6 +45,7 @@
 #include <sys/stat.h>
 
 #include <bpf.h>
+#include <libbpf.h>
 
 #include "main.h"
 #include "disasm.h"
@@ -635,6 +636,30 @@ static int do_pin(int argc, char **argv)
 	return err;
 }
 
+static int do_load(int argc, char **argv)
+{
+	struct bpf_object *obj;
+	int prog_fd;
+
+	if (argc != 2)
+		usage();
+
+	if (bpf_prog_load(argv[0], BPF_PROG_TYPE_UNSPEC, &obj, &prog_fd)) {
+		p_err("failed to load program\n");
+		return -1;
+	}
+
+	if (do_pin_fd(prog_fd, argv[1])) {
+		p_err("failed to pin program\n");
+		return -1;
+	}
+
+	if (json_output)
+		jsonw_null(json_wtr);
+
+	return 0;
+}
+
 static int do_help(int argc, char **argv)
 {
 	if (json_output) {
@@ -647,13 +672,14 @@ static int do_help(int argc, char **argv)
 		"       %s %s dump xlated PROG [{ file FILE | opcodes }]\n"
 		"       %s %s dump jited  PROG [{ file FILE | opcodes }]\n"
 		"       %s %s pin   PROG FILE\n"
+		"       %s %s load  OBJ  FILE\n"
 		"       %s %s help\n"
 		"\n"
 		"       " HELP_SPEC_PROGRAM "\n"
 		"       " HELP_SPEC_OPTIONS "\n"
 		"",
 		bin_name, argv[-2], bin_name, argv[-2], bin_name, argv[-2],
-		bin_name, argv[-2], bin_name, argv[-2]);
+		bin_name, argv[-2], bin_name, argv[-2], bin_name, argv[-2]);
 
 	return 0;
 }
@@ -663,6 +689,7 @@ static const struct cmd cmds[] = {
 	{ "help",	do_help },
 	{ "dump",	do_dump },
 	{ "pin",	do_pin },
+	{ "load",	do_load },
 	{ 0 }
 };
 

@@ -26,7 +26,7 @@ SYNOPSIS
 	| **pin** | **help** }
 
 	*PROG-COMMANDS* := { **show** | **dump jited** | **dump xlated** | **pin**
-	| **help** }
+	| **load** | **help** }
 
 DESCRIPTION
 ===========
