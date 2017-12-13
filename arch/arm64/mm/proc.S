@@ -138,10 +138,11 @@ ENDPROC(cpu_do_resume)
  *	- pgd_phys - physical address of new TTB
  */
 ENTRY(cpu_do_switch_mm)
-	pre_ttbr0_update_workaround x0, x2, x3
+	phys_to_ttbr x0, x2
+	pre_ttbr0_update_workaround x2, x3, x4
 	mmid	x1, x1				// get mm->context.id
-	bfi	x0, x1, #48, #16		// set the ASID
-	msr	ttbr0_el1, x0			// set TTBR0
+	bfi	x2, x1, #48, #16		// set the ASID
+	msr	ttbr0_el1, x2			// set TTBR0
 	isb
 	post_ttbr0_update_workaround
 	ret
@@ -158,14 +159,16 @@ ENTRY(idmap_cpu_replace_ttbr1)
 	save_and_disable_daif flags=x2
 
 	adrp	x1, empty_zero_page
-	msr	ttbr1_el1, x1
+	phys_to_ttbr x1, x3
+	msr	ttbr1_el1, x3
 	isb
 
 	tlbi	vmalle1
 	dsb	nsh
 	isb
 
-	msr	ttbr1_el1, x0
+	phys_to_ttbr x0, x3
+	msr	ttbr1_el1, x3
 	isb
 
 	restore_daif x2

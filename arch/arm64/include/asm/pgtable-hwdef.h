@@ -16,6 +16,8 @@
 #ifndef __ASM_PGTABLE_HWDEF_H
 #define __ASM_PGTABLE_HWDEF_H
 
+#include <asm/memory.h>
+
 /*
  * Number of page-table levels required to address 'va_bits' wide
  * address, without section mapping. We resolve the top (va_bits - PAGE_SHIFT)
@@ -278,5 +280,16 @@
 #define TCR_TBI0		(UL(1) << 37)
 #define TCR_HA			(UL(1) << 39)
 #define TCR_HD			(UL(1) << 40)
+
+/*
+ * TTBR.
+ */
+#ifdef CONFIG_ARM64_PA_BITS_52
+/*
+ * This should be GENMASK_ULL(47, 2).
+ * TTBR_ELx[1] is RES0 in this configuration.
+ */
+#define TTBR_BADDR_MASK_52	(((UL(1) << 46) - 1) << 2)
+#endif
 
 #endif

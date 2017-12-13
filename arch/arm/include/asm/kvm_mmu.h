@@ -221,6 +221,8 @@ static inline unsigned int kvm_get_vmid_bits(void)
 	return 8;
 }
 
+#define kvm_phys_to_vttbr(addr)		(addr)
+
 #endif	/* !__ASSEMBLY__ */
 
 #endif /* __ARM_KVM_MMU_H__ */
