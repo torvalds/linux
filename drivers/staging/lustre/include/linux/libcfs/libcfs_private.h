@@ -43,13 +43,6 @@
 # define DEBUG_SUBSYSTEM S_UNDEFINED
 #endif
 
-/*
- * When this is on, LASSERT macro includes check for assignment used instead
- * of equality check, but doesn't have unlikely(). Turn this on from time to
- * time to make test-builds. This shouldn't be on for production release.
- */
-#define LASSERT_CHECKED (0)
-
 #define LASSERTF(cond, fmt, ...)					\
 do {									\
 	if (unlikely(!(cond))) {					\
