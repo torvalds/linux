@@ -1216,9 +1216,11 @@ sbc_execute_unmap(struct se_cmd *cmd)
 			goto err;
 		}
 
-		ret = ops->execute_unmap(cmd, lba, range);
-		if (ret)
-			goto err;
+		if (range) {
+			ret = ops->execute_unmap(cmd, lba, range);
+			if (ret)
+				goto err;
+		}
 
 		ptr += 16;
 		size -= 16;
