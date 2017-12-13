@@ -396,10 +396,11 @@ static ssize_t qeth_l3_dev_ipato_enable_store(struct device *dev,
 	card->ipato.enabled = enable;
 
 	hash_for_each(card->ip_htable, i, addr, hnode) {
+		if (addr->type != QETH_IP_TYPE_NORMAL)
+			continue;
 		if (!enable)
 			addr->set_flags &= ~QETH_IPA_SETIP_TAKEOVER_FLAG;
-		else if (addr->type == QETH_IP_TYPE_NORMAL &&
-			 qeth_l3_is_addr_covered_by_ipato(card, addr))
+		else if (qeth_l3_is_addr_covered_by_ipato(card, addr))
 			addr->set_flags |= QETH_IPA_SETIP_TAKEOVER_FLAG;
 	}
 out:
