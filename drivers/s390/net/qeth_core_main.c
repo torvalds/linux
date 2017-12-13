@@ -1479,7 +1479,7 @@ static int qeth_setup_card(struct qeth_card *card)
 	qeth_set_intial_options(card);
 	/* IP address takeover */
 	INIT_LIST_HEAD(&card->ipato.entries);
-	card->ipato.enabled = 0;
+	card->ipato.enabled = false;
 	card->ipato.invert4 = 0;
 	card->ipato.invert6 = 0;
 	/* init QDIO stuff */

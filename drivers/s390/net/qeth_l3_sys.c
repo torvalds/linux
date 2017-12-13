@@ -372,6 +372,7 @@ static ssize_t qeth_l3_dev_ipato_enable_store(struct device *dev,
 	struct qeth_card *card = dev_get_drvdata(dev);
 	struct qeth_ipaddr *addr;
 	int i, rc = 0;
+	bool enable;
 
 	if (!card)
 		return -EINVAL;
@@ -384,25 +385,23 @@ static ssize_t qeth_l3_dev_ipato_enable_store(struct device *dev,
 	}
 
 	if (sysfs_streq(buf, "toggle")) {
-		card->ipato.enabled = (card->ipato.enabled)? 0 : 1;
-	} else if (sysfs_streq(buf, "1")) {
-		card->ipato.enabled = 1;
-		hash_for_each(card->ip_htable, i, addr, hnode) {
-				if ((addr->type == QETH_IP_TYPE_NORMAL) &&
-				qeth_l3_is_addr_covered_by_ipato(card, addr))
-					addr->set_flags |=
-					QETH_IPA_SETIP_TAKEOVER_FLAG;
-			}
-	} else if (sysfs_streq(buf, "0")) {
-		card->ipato.enabled = 0;
-		hash_for_each(card->ip_htable, i, addr, hnode) {
-			if (addr->set_flags &
-			QETH_IPA_SETIP_TAKEOVER_FLAG)
-				addr->set_flags &=
-				~QETH_IPA_SETIP_TAKEOVER_FLAG;
-			}
-	} else
+		enable = !card->ipato.enabled;
+	} else if (kstrtobool(buf, &enable)) {
 		rc = -EINVAL;
+		goto out;
+	}
+
+	if (card->ipato.enabled == enable)
+		goto out;
+	card->ipato.enabled = enable;
+
+	hash_for_each(card->ip_htable, i, addr, hnode) {
+		if (!enable)
+			addr->set_flags &= ~QETH_IPA_SETIP_TAKEOVER_FLAG;
+		else if (addr->type == QETH_IP_TYPE_NORMAL &&
+			 qeth_l3_is_addr_covered_by_ipato(card, addr))
+			addr->set_flags |= QETH_IPA_SETIP_TAKEOVER_FLAG;
+	}
 out:
 	mutex_unlock(&card->conf_mutex);
 	return rc ? rc : count;
