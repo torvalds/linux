@@ -98,7 +98,7 @@
 #define ACLK_CRYPTO		172
 #define ACLK_VI_PRE		173
 #define ACLK_VO_PRE		174
-#define ACLK_VPU_PRE		175
+#define ACLK_VPU		175
 #define ACLK_PERI_PRE		176
 #define ACLK_GMAC		178
 #define ACLK_CIF		179
@@ -115,7 +115,7 @@
 #define HCLK_CRYPTO		241
 #define HCLK_VI_PRE		242
 #define HCLK_VO_PRE		243
-#define HCLK_VPU_PRE		244
+#define HCLK_VPU		244
 #define HCLK_PERI_PRE		245
 #define HCLK_MMC_NAND		246
 #define HCLK_SDCARD		247

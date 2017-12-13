@@ -558,9 +558,9 @@ static struct rockchip_clk_branch px30_clk_branches[] __initdata = {
 	GATE(0, "clk_cpu_boost", "xin24m", CLK_IGNORE_UNUSED,
 			PX30_CLKGATE_CON(12), 12, GFLAGS),
 
-	GATE(ACLK_CRYPTO, "aclk_crypto", "aclk_bus_pre", 0,
+	GATE(0, "aclk_crypto_pre", "aclk_bus_pre", 0,
 			PX30_CLKGATE_CON(8), 12, GFLAGS),
-	GATE(HCLK_CRYPTO, "hclk_crypto", "hclk_bus_pre", 0,
+	GATE(0, "hclk_crypto_pre", "hclk_bus_pre", 0,
 			PX30_CLKGATE_CON(8), 13, GFLAGS),
 	COMPOSITE(SCLK_CRYPTO, "clk_crypto", mux_gpll_cpll_npll_p, 0,
 			PX30_CLKSEL_CON(25), 6, 2, MFLAGS, 0, 5, DFLAGS,
@@ -669,10 +669,10 @@ static struct rockchip_clk_branch px30_clk_branches[] __initdata = {
 			PX30_CLKGATE_CON(2), 5, GFLAGS),
 
 	/* PD_VPU */
-	COMPOSITE(ACLK_VPU_PRE, "aclk_vpu_pre", mux_gpll_cpll_npll_p, 0,
+	COMPOSITE(0, "aclk_vpu_pre", mux_gpll_cpll_npll_p, 0,
 			PX30_CLKSEL_CON(10), 6, 2, MFLAGS, 0, 5, DFLAGS,
 			PX30_CLKGATE_CON(4), 0, GFLAGS),
-	COMPOSITE_NOMUX(HCLK_VPU_PRE, "hclk_vpu_pre", "aclk_vpu_pre", 0,
+	COMPOSITE_NOMUX(0, "hclk_vpu_pre", "aclk_vpu_pre", 0,
 			PX30_CLKSEL_CON(10), 8, 4, DFLAGS,
 			PX30_CLKGATE_CON(4), 2, GFLAGS),
 	COMPOSITE(SCLK_CORE_VPU, "sclk_core_vpu", mux_gpll_cpll_npll_p, 0,
@@ -736,7 +736,7 @@ static struct rockchip_clk_branch px30_clk_branches[] __initdata = {
 			PX30_CLKGATE_CON(6), 7, GFLAGS),
 
 	/* PD_SDCARD */
-	GATE(HCLK_SDCARD, "hclk_sdcard", "hclk_peri_pre", 0,
+	GATE(0, "hclk_sdcard_pre", "hclk_peri_pre", 0,
 			PX30_CLKGATE_CON(6), 12, GFLAGS),
 	MUX(0, "clk_sdcard_src", mux_gpll_cpll_npll_xin24m_p,  0,
 			PX30_CLKSEL_CON(16), 8, 2, MFLAGS),
@@ -875,6 +875,22 @@ static struct rockchip_clk_branch px30_clk_branches[] __initdata = {
 	GATE(PCLK_GPIO2, "pclk_gpio2", "pclk_bus_pre", 0, PX30_CLKGATE_CON(15), 9, GFLAGS),
 	GATE(PCLK_GPIO3, "pclk_gpio3", "pclk_bus_pre", 0, PX30_CLKGATE_CON(15), 10, GFLAGS),
 	GATE(0, "pclk_grf", "pclk_bus_pre", CLK_IGNORE_UNUSED, PX30_CLKGATE_CON(15), 11, GFLAGS),
+
+	/* PD_VPU */
+	GATE(0, "hclk_vpu_niu", "hclk_vpu_pre", CLK_IGNORE_UNUSED, PX30_CLKGATE_CON(4), 7, GFLAGS),
+	GATE(HCLK_VPU, "hclk_vpu", "hclk_vpu_pre", 0, PX30_CLKGATE_CON(4), 6, GFLAGS),
+	GATE(0, "aclk_vpu_niu", "aclk_vpu_pre", CLK_IGNORE_UNUSED, PX30_CLKGATE_CON(4), 5, GFLAGS),
+	GATE(ACLK_VPU, "aclk_vpu", "aclk_vpu_pre", 0, PX30_CLKGATE_CON(4), 4, GFLAGS),
+
+	/* PD_CRYPTO */
+	GATE(0, "hclk_crypto_niu", "hclk_crypto_pre", CLK_IGNORE_UNUSED, PX30_CLKGATE_CON(9), 3, GFLAGS),
+	GATE(HCLK_CRYPTO, "hclk_crypto", "hclk_crypto_pre", 0, PX30_CLKGATE_CON(9), 5, GFLAGS),
+	GATE(0, "aclk_crypto_niu", "aclk_crypto_pre", CLK_IGNORE_UNUSED, PX30_CLKGATE_CON(9), 2, GFLAGS),
+	GATE(ACLK_CRYPTO, "aclk_crypto", "aclk_crypto_pre", 0, PX30_CLKGATE_CON(9), 4, GFLAGS),
+
+	/* PD_SDCARD */
+	GATE(0, "hclk_sdcard_niu", "hclk_sdcard_pre", CLK_IGNORE_UNUSED, PX30_CLKGATE_CON(7), 0, GFLAGS),
+	GATE(HCLK_SDCARD, "hclk_sdcard", "hclk_sdcard_pre", 0, PX30_CLKGATE_CON(7), 1, GFLAGS),
 
 	/* PD_MMC */
 	MMC(SCLK_SDMMC_DRV, "sdmmc_drv", "sclk_sdmmc",
