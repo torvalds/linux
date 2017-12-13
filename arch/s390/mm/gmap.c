@@ -1998,7 +1998,7 @@ EXPORT_SYMBOL_GPL(gmap_shadow_page);
  * Called with sg->parent->shadow_lock.
  */
 static void gmap_shadow_notify(struct gmap *sg, unsigned long vmaddr,
-			       unsigned long gaddr, pte_t *pte)
+			       unsigned long gaddr)
 {
 	struct gmap_rmap *rmap, *rnext, *head;
 	unsigned long start, end, bits, raddr;
@@ -2083,7 +2083,7 @@ void ptep_notify(struct mm_struct *mm, unsigned long vmaddr,
 			spin_lock(&gmap->shadow_lock);
 			list_for_each_entry_safe(sg, next,
 						 &gmap->children, list)
-				gmap_shadow_notify(sg, vmaddr, gaddr, pte);
+				gmap_shadow_notify(sg, vmaddr, gaddr);
 			spin_unlock(&gmap->shadow_lock);
 		}
 		if (bits & PGSTE_IN_BIT)
