@@ -65,6 +65,8 @@ struct msm_gpu_funcs {
 #ifdef CONFIG_DEBUG_FS
 	/* show GPU status in debugfs: */
 	void (*show)(struct msm_gpu *gpu, struct seq_file *m);
+	/* for generation specific debugfs: */
+	int (*debugfs_init)(struct msm_gpu *gpu, struct drm_minor *minor);
 #endif
 	int (*gpu_busy)(struct msm_gpu *gpu, uint64_t *value);
 };

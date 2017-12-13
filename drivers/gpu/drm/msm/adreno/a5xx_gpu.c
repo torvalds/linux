@@ -1195,6 +1195,7 @@ static const struct adreno_gpu_funcs funcs = {
 		.destroy = a5xx_destroy,
 #ifdef CONFIG_DEBUG_FS
 		.show = a5xx_show,
+		.debugfs_init = a5xx_debugfs_init,
 #endif
 		.gpu_busy = a5xx_gpu_busy,
 	},
