@@ -9708,7 +9708,7 @@ F:	drivers/ntb/hw/amd/
 NTB DRIVER CORE
 M:	Jon Mason <jdmason@kudzu.us>
 M:	Dave Jiang <dave.jiang@intel.com>
-M:	Allen Hubbe <Allen.Hubbe@emc.com>
+M:	Allen Hubbe <allenbh@gmail.com>
 L:	linux-ntb@googlegroups.com
 S:	Supported
 W:	https://github.com/jonmason/ntb/wiki
