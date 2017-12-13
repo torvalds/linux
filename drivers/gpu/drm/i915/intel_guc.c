@@ -69,6 +69,57 @@ void intel_guc_init_early(struct intel_guc *guc)
 	guc->notify = gen8_guc_raise_irq;
 }
 
+static int guc_shared_data_create(struct intel_guc *guc)
+{
+	struct i915_vma *vma;
+	void *vaddr;
+
+	vma = intel_guc_allocate_vma(guc, PAGE_SIZE);
+	if (IS_ERR(vma))
+		return PTR_ERR(vma);
+
+	vaddr = i915_gem_object_pin_map(vma->obj, I915_MAP_WB);
+	if (IS_ERR(vaddr)) {
+		i915_vma_unpin_and_release(&vma);
+		return PTR_ERR(vaddr);
+	}
+
+	guc->shared_data = vma;
+	guc->shared_data_vaddr = vaddr;
+
+	return 0;
+}
+
+static void guc_shared_data_destroy(struct intel_guc *guc)
+{
+	i915_gem_object_unpin_map(guc->shared_data->obj);
+	i915_vma_unpin_and_release(&guc->shared_data);
+}
+
+int intel_guc_init(struct intel_guc *guc)
+{
+	struct drm_i915_private *dev_priv = guc_to_i915(guc);
+	int ret;
+
+	ret = guc_shared_data_create(guc);
+	if (ret)
+		return ret;
+	GEM_BUG_ON(!guc->shared_data);
+
+	/* We need to notify the guc whenever we change the GGTT */
+	i915_ggtt_enable_guc(dev_priv);
+
+	return 0;
+}
+
+void intel_guc_fini(struct intel_guc *guc)
+{
+	struct drm_i915_private *dev_priv = guc_to_i915(guc);
+
+	i915_ggtt_disable_guc(dev_priv);
+	guc_shared_data_destroy(guc);
+}
+
 static u32 get_gt_type(struct drm_i915_private *dev_priv)
 {
 	/* XXX: GT type based on PCI device ID? field seems unused by fw */

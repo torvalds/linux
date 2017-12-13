@@ -24,6 +24,7 @@
 
 #include "intel_uc.h"
 #include "intel_guc_submission.h"
+#include "intel_guc.h"
 #include "i915_drv.h"
 
 /* Reset GuC providing us with fresh state for both GuC and HuC.
@@ -204,8 +205,9 @@ int intel_uc_init_hw(struct drm_i915_private *dev_priv)
 	guc_disable_communication(guc);
 	gen9_reset_guc_interrupts(dev_priv);
 
-	/* We need to notify the guc whenever we change the GGTT */
-	i915_ggtt_enable_guc(dev_priv);
+	ret = intel_guc_init(guc);
+	if (ret)
+		goto err_out;
 
 	if (USES_GUC_SUBMISSION(dev_priv)) {
 		/*
@@ -298,7 +300,7 @@ err_submission:
 	if (USES_GUC_SUBMISSION(dev_priv))
 		intel_guc_submission_fini(guc);
 err_guc:
-	i915_ggtt_disable_guc(dev_priv);
+	intel_guc_fini(guc);
 err_out:
 	/*
 	 * Note that there is no fallback as either user explicitly asked for
@@ -330,5 +332,5 @@ void intel_uc_fini_hw(struct drm_i915_private *dev_priv)
 		intel_guc_submission_fini(guc);
 	}
 
-	i915_ggtt_disable_guc(dev_priv);
+	intel_guc_fini(guc);
 }

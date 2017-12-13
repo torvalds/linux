@@ -447,33 +447,6 @@ static void guc_stage_desc_fini(struct intel_guc *guc,
 	memset(desc, 0, sizeof(*desc));
 }
 
-static int guc_shared_data_create(struct intel_guc *guc)
-{
-	struct i915_vma *vma;
-	void *vaddr;
-
-	vma = intel_guc_allocate_vma(guc, PAGE_SIZE);
-	if (IS_ERR(vma))
-		return PTR_ERR(vma);
-
-	vaddr = i915_gem_object_pin_map(vma->obj, I915_MAP_WB);
-	if (IS_ERR(vaddr)) {
-		i915_vma_unpin_and_release(&vma);
-		return PTR_ERR(vaddr);
-	}
-
-	guc->shared_data = vma;
-	guc->shared_data_vaddr = vaddr;
-
-	return 0;
-}
-
-static void guc_shared_data_destroy(struct intel_guc *guc)
-{
-	i915_gem_object_unpin_map(guc->shared_data->obj);
-	i915_vma_unpin_and_release(&guc->shared_data);
-}
-
 /* Construct a Work Item and append it to the GuC's Work Queue */
 static void guc_wq_item_append(struct intel_guc_client *client,
 			       u32 target_engine, u32 context_desc,
@@ -1279,14 +1252,9 @@ int intel_guc_submission_init(struct intel_guc *guc)
 	 */
 	GEM_BUG_ON(!guc->stage_desc_pool);
 
-	ret = guc_shared_data_create(guc);
-	if (ret)
-		goto err_stage_desc_pool;
-	GEM_BUG_ON(!guc->shared_data);
-
 	ret = intel_guc_log_create(guc);
 	if (ret < 0)
-		goto err_shared_data;
+		goto err_stage_desc_pool;
 
 	ret = guc_preempt_work_create(guc);
 	if (ret)
@@ -1304,8 +1272,6 @@ err_wq:
 	guc_preempt_work_destroy(guc);
 err_log:
 	intel_guc_log_destroy(guc);
-err_shared_data:
-	guc_shared_data_destroy(guc);
 err_stage_desc_pool:
 	guc_stage_desc_pool_destroy(guc);
 	return ret;
@@ -1316,7 +1282,6 @@ void intel_guc_submission_fini(struct intel_guc *guc)
 	guc_ads_destroy(guc);
 	guc_preempt_work_destroy(guc);
 	intel_guc_log_destroy(guc);
-	guc_shared_data_destroy(guc);
 	guc_stage_desc_pool_destroy(guc);
 }
 
