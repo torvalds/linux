@@ -18,6 +18,7 @@ Required properties:
  - compatible:  "edt,edt-ft5206"
            or:  "edt,edt-ft5306"
            or:  "edt,edt-ft5406"
+           or:  "edt,edt-ft5426"
            or:  "edt,edt-ft5506"
            or:  "focaltech,ft6236"
 
