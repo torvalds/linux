@@ -1251,7 +1251,7 @@ static int dw_hdmi_rockchip_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static int dw_hdmi_rockchip_suspend(struct device *dev)
+static int __maybe_unused dw_hdmi_rockchip_suspend(struct device *dev)
 {
 	dw_hdmi_suspend(dev);
 	pm_runtime_put_sync(dev);
@@ -1259,7 +1259,7 @@ static int dw_hdmi_rockchip_suspend(struct device *dev)
 	return 0;
 }
 
-static int dw_hdmi_rockchip_resume(struct device *dev)
+static int __maybe_unused dw_hdmi_rockchip_resume(struct device *dev)
 {
 	pm_runtime_get_sync(dev);
 	dw_hdmi_resume(dev);
