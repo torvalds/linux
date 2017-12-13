@@ -362,8 +362,6 @@ blk_status_t btrfs_submit_compressed_write(struct inode *inode, u64 start,
 		page->mapping = NULL;
 		if (submit || bio_add_page(bio, page, PAGE_SIZE, 0) <
 		    PAGE_SIZE) {
-			bio_get(bio);
-
 			/*
 			 * inc the count before we submit the bio so
 			 * we know the end IO handler won't happen before
@@ -386,8 +384,6 @@ blk_status_t btrfs_submit_compressed_write(struct inode *inode, u64 start,
 				bio_endio(bio);
 			}
 
-			bio_put(bio);
-
 			bio = btrfs_bio_alloc(bdev, first_byte);
 			bio->bi_opf = REQ_OP_WRITE | write_flags;
 			bio->bi_private = cb;
@@ -403,7 +399,6 @@ blk_status_t btrfs_submit_compressed_write(struct inode *inode, u64 start,
 		first_byte += PAGE_SIZE;
 		cond_resched();
 	}
-	bio_get(bio);
 
 	ret = btrfs_bio_wq_end_io(fs_info, bio, BTRFS_WQ_ENDIO_DATA);
 	BUG_ON(ret); /* -ENOMEM */
@@ -419,7 +414,6 @@ blk_status_t btrfs_submit_compressed_write(struct inode *inode, u64 start,
 		bio_endio(bio);
 	}
 
-	bio_put(bio);
 	return 0;
 }
 
@@ -652,8 +646,6 @@ blk_status_t btrfs_submit_compressed_read(struct inode *inode, struct bio *bio,
 		page->mapping = NULL;
 		if (submit || bio_add_page(comp_bio, page, PAGE_SIZE, 0) <
 		    PAGE_SIZE) {
-			bio_get(comp_bio);
-
 			ret = btrfs_bio_wq_end_io(fs_info, comp_bio,
 						  BTRFS_WQ_ENDIO_DATA);
 			BUG_ON(ret); /* -ENOMEM */
@@ -680,8 +672,6 @@ blk_status_t btrfs_submit_compressed_read(struct inode *inode, struct bio *bio,
 				bio_endio(comp_bio);
 			}
 
-			bio_put(comp_bio);
-
 			comp_bio = btrfs_bio_alloc(bdev, cur_disk_byte);
 			bio_set_op_attrs(comp_bio, REQ_OP_READ, 0);
 			comp_bio->bi_private = cb;
@@ -691,7 +681,6 @@ blk_status_t btrfs_submit_compressed_read(struct inode *inode, struct bio *bio,
 		}
 		cur_disk_byte += PAGE_SIZE;
 	}
-	bio_get(comp_bio);
 
 	ret = btrfs_bio_wq_end_io(fs_info, comp_bio, BTRFS_WQ_ENDIO_DATA);
 	BUG_ON(ret); /* -ENOMEM */
@@ -707,7 +696,6 @@ blk_status_t btrfs_submit_compressed_read(struct inode *inode, struct bio *bio,
 		bio_endio(comp_bio);
 	}
 
-	bio_put(comp_bio);
 	return 0;
 
 fail2:
