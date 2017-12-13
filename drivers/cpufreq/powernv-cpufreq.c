@@ -29,6 +29,7 @@
 #include <linux/reboot.h>
 #include <linux/slab.h>
 #include <linux/cpu.h>
+#include <linux/hashtable.h>
 #include <trace/events/power.h>
 
 #include <asm/cputhreads.h>
@@ -38,7 +39,8 @@
 #include <asm/opal.h>
 #include <linux/timer.h>
 
-#define POWERNV_MAX_PSTATES	256
+#define POWERNV_MAX_PSTATES_ORDER  8
+#define POWERNV_MAX_PSTATES	(1UL << (POWERNV_MAX_PSTATES_ORDER))
 #define PMSR_PSAFE_ENABLE	(1UL << 30)
 #define PMSR_SPR_EM_DISABLE	(1UL << 31)
 #define MAX_PSTATE_SHIFT	32
@@ -92,6 +94,27 @@ struct global_pstate_info {
 };
 
 static struct cpufreq_frequency_table powernv_freqs[POWERNV_MAX_PSTATES+1];
+
+DEFINE_HASHTABLE(pstate_revmap, POWERNV_MAX_PSTATES_ORDER);
+/**
+ * struct pstate_idx_revmap_data: Entry in the hashmap pstate_revmap
+ *				  indexed by a function of pstate id.
+ *
+ * @pstate_id: pstate id for this entry.
+ *
+ * @cpufreq_table_idx: Index into the powernv_freqs
+ *		       cpufreq_frequency_table for frequency
+ *		       corresponding to pstate_id.
+ *
+ * @hentry: hlist_node that hooks this entry into the pstate_revmap
+ *	    hashtable
+ */
+struct pstate_idx_revmap_data {
+	int pstate_id;
+	unsigned int cpufreq_table_idx;
+	struct hlist_node hentry;
+};
+
 u32 pstate_sign_prefix;
 static bool rebooting, throttled, occ_reset;
 
@@ -161,39 +184,47 @@ static inline int extract_pstate(u64 pmsr_val, unsigned int shift)
 #define extract_global_pstate(x) extract_pstate(x, GPSTATE_SHIFT)
 #define extract_max_pstate(x)  extract_pstate(x, MAX_PSTATE_SHIFT)
 
-/* Use following macros for conversions between pstate_id and index */
+/* Use following functions for conversions between pstate_id and index */
+
+/**
+ * idx_to_pstate : Returns the pstate id corresponding to the
+ *		   frequency in the cpufreq frequency table
+ *		   powernv_freqs indexed by @i.
+ *
+ *		   If @i is out of bound, this will return the pstate
+ *		   corresponding to the nominal frequency.
+ */
 static inline int idx_to_pstate(unsigned int i)
 {
 	if (unlikely(i >= powernv_pstate_info.nr_pstates)) {
-		pr_warn_once("index %u is out of bound\n", i);
+		pr_warn_once("idx_to_pstate: index %u is out of bound\n", i);
 		return powernv_freqs[powernv_pstate_info.nominal].driver_data;
 	}
 
 	return powernv_freqs[i].driver_data;
 }
 
-static inline unsigned int pstate_to_idx(int pstate)
+/**
+ * pstate_to_idx : Returns the index in the cpufreq frequencytable
+ *		   powernv_freqs for the frequency whose corresponding
+ *		   pstate id is @pstate.
+ *
+ *		   If no frequency corresponding to @pstate is found,
+ *		   this will return the index of the nominal
+ *		   frequency.
+ */
+static unsigned int pstate_to_idx(int pstate)
 {
-	int min = powernv_freqs[powernv_pstate_info.min].driver_data;
-	int max = powernv_freqs[powernv_pstate_info.max].driver_data;
+	unsigned int key = pstate % POWERNV_MAX_PSTATES;
+	struct pstate_idx_revmap_data *revmap_data;
 
-	if (min > 0) {
-		if (unlikely((pstate < max) || (pstate > min))) {
-			pr_warn_once("pstate %d is out of bound\n", pstate);
-			return powernv_pstate_info.nominal;
-		}
-	} else {
-		if (unlikely((pstate > max) || (pstate < min))) {
-			pr_warn_once("pstate %d is out of bound\n", pstate);
-			return powernv_pstate_info.nominal;
-		}
+	hash_for_each_possible(pstate_revmap, revmap_data, hentry, key) {
+		if (revmap_data->pstate_id == pstate)
+			return revmap_data->cpufreq_table_idx;
 	}
-	/*
-	 * abs() is deliberately used so that is works with
-	 * both monotonically increasing and decreasing
-	 * pstate values
-	 */
-	return abs(pstate - idx_to_pstate(powernv_pstate_info.max));
+
+	pr_warn_once("pstate_to_idx: pstate %d not found\n", pstate);
+	return powernv_pstate_info.nominal;
 }
 
 static inline void reset_gpstates(struct cpufreq_policy *policy)
@@ -297,10 +328,20 @@ next:
 	for (i = 0; i < nr_pstates; i++) {
 		u32 id = be32_to_cpu(pstate_ids[i]);
 		u32 freq = be32_to_cpu(pstate_freqs[i]);
+		struct pstate_idx_revmap_data *revmap_data;
+		unsigned int key;
 
 		pr_debug("PState id %d freq %d MHz\n", id, freq);
 		powernv_freqs[i].frequency = freq * 1000; /* kHz */
 		powernv_freqs[i].driver_data = id;
+
+		revmap_data = (struct pstate_idx_revmap_data *)
+			      kmalloc(sizeof(*revmap_data), GFP_KERNEL);
+
+		revmap_data->pstate_id = id;
+		revmap_data->cpufreq_table_idx = i;
+		key = id % POWERNV_MAX_PSTATES;
+		hash_add(pstate_revmap, &revmap_data->hentry, key);
 
 		if (id == pstate_max)
 			powernv_pstate_info.max = i;
