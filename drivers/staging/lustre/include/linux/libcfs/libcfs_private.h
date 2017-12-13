@@ -235,14 +235,6 @@ do {							    \
 /* logical equivalence */
 #define equi(a, b) (!!(a) == !!(b))
 
-/* --------------------------------------------------------------------
- * Light-weight trace
- * Support for temporary event tracing with minimal Heisenberg effect.
- * --------------------------------------------------------------------
- */
-
-#define MKSTR(ptr) ((ptr)) ? (ptr) : ""
-
 #ifndef HAVE_CFS_SIZE_ROUND
 static inline size_t cfs_size_round(int val)
 {
