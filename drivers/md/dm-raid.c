@@ -1007,7 +1007,7 @@ static int validate_raid_redundancy(struct raid_set *rs)
 		    !rs->dev[i].rdev.sb_page)
 			rebuild_cnt++;
 
-	switch (rs->raid_type->level) {
+	switch (rs->md.level) {
 	case 0:
 		break;
 	case 1:
@@ -1022,6 +1022,11 @@ static int validate_raid_redundancy(struct raid_set *rs)
 		break;
 	case 10:
 		copies = raid10_md_layout_to_copies(rs->md.new_layout);
+		if (copies < 2) {
+			DMERR("Bogus raid10 data copies < 2!");
+			return -EINVAL;
+		}
+
 		if (rebuild_cnt < copies)
 			break;
 
