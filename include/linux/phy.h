@@ -59,6 +59,7 @@
 
 #define PHY_HAS_INTERRUPT	0x00000001
 #define PHY_IS_INTERNAL		0x00000002
+#define PHY_RST_AFTER_CLK_EN	0x00000004
 #define MDIO_DEVICE_IS_PHY	0x80000000
 
 /* Interface Mode definitions */
@@ -853,6 +854,7 @@ int phy_aneg_done(struct phy_device *phydev);
 
 int phy_stop_interrupts(struct phy_device *phydev);
 int phy_restart_aneg(struct phy_device *phydev);
+int phy_reset_after_clk_enable(struct phy_device *phydev);
 
 static inline void phy_device_reset(struct phy_device *phydev, int value)
 {
