@@ -359,9 +359,6 @@ static bool construct(struct dc *dc,
 	dc_version = resource_parse_asic_id(init_params->asic_id);
 	dc_ctx->dce_version = dc_version;
 
-#if defined(CONFIG_DRM_AMD_DC_FBC)
-	dc->ctx->fbc_gpu_addr = init_params->fbc_gpu_addr;
-#endif
 	/* Resource should construct all asic specific resources.
 	 * This should be the only place where we need to parse the asic id
 	 */

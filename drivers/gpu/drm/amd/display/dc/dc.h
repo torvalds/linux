@@ -288,9 +288,6 @@ struct dc_init_data {
 
 	struct dc_config flags;
 	uint32_t log_mask;
-#if defined(CONFIG_DRM_AMD_DC_FBC)
-	uint64_t fbc_gpu_addr;
-#endif
 };
 
 struct dc *dc_create(const struct dc_init_data *init_params);
