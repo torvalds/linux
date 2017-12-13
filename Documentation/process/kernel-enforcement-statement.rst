@@ -144,6 +144,7 @@ we might work for today, have in the past, or will in the future.
   - Linus Torvalds
   - Thierry Reding
   - Rik van Riel
+  - Luis R. Rodriguez
   - Geert Uytterhoeven (Glider bvba)
   - Eduardo Valentin (Amazon.com)
   - Daniel Vetter
