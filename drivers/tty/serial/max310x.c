@@ -233,6 +233,7 @@
 /* Misc definitions */
 #define MAX310X_FIFO_SIZE		(128)
 #define MAX310x_REV_MASK		(0xf8)
+#define MAX310X_WRITE_BIT		0x80
 
 /* MAX3107 specific */
 #define MAX3107_REV_ID			(0xa0)
@@ -593,6 +594,21 @@ static int max310x_set_ref_clk(struct max310x_port *s, unsigned long freq,
 	return (int)bestfreq;
 }
 
+static void max310x_batch_write(struct uart_port *port, u8 *txbuf, unsigned int len)
+{
+	u8 header[] = { (port->iobase + MAX310X_THR_REG) | MAX310X_WRITE_BIT };
+	struct spi_transfer xfer[] = {
+		{
+			.tx_buf = &header,
+			.len = sizeof(header),
+		}, {
+			.tx_buf = txbuf,
+			.len = len,
+		}
+	};
+	spi_sync_transfer(to_spi_device(port->dev), xfer, ARRAY_SIZE(xfer));
+}
+
 static void max310x_handle_rx(struct uart_port *port, unsigned int rxlen)
 {
 	unsigned int sts, ch, flag;
@@ -652,7 +668,7 @@ static void max310x_handle_rx(struct uart_port *port, unsigned int rxlen)
 static void max310x_handle_tx(struct uart_port *port)
 {
 	struct circ_buf *xmit = &port->state->xmit;
-	unsigned int txlen, to_send;
+	unsigned int txlen, to_send, until_end;
 
 	if (unlikely(port->x_char)) {
 		max310x_port_write(port, MAX310X_THR_REG, port->x_char);
@@ -666,19 +682,25 @@ static void max310x_handle_tx(struct uart_port *port)
 
 	/* Get length of data pending in circular buffer */
 	to_send = uart_circ_chars_pending(xmit);
+	until_end = CIRC_CNT_TO_END(xmit->head, xmit->tail, UART_XMIT_SIZE);
 	if (likely(to_send)) {
 		/* Limit to size of TX FIFO */
 		txlen = max310x_port_read(port, MAX310X_TXFIFOLVL_REG);
 		txlen = port->fifosize - txlen;
 		to_send = (to_send > txlen) ? txlen : to_send;
 
+		if (until_end < to_send) {
+			/* It's a circ buffer -- wrap around.
+			 * We could do that in one SPI transaction, but meh. */
+			max310x_batch_write(port, xmit->buf + xmit->tail, until_end);
+			max310x_batch_write(port, xmit->buf, to_send - until_end);
+		} else {
+			max310x_batch_write(port, xmit->buf + xmit->tail, to_send);
+		}
+
 		/* Add data to send */
 		port->icount.tx += to_send;
-		while (to_send--) {
-			max310x_port_write(port, MAX310X_THR_REG,
-					   xmit->buf[xmit->tail]);
-			xmit->tail = (xmit->tail + 1) & (UART_XMIT_SIZE - 1);
-		}
+		xmit->tail = (xmit->tail + to_send) & (UART_XMIT_SIZE - 1);
 	}
 
 	if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
@@ -1301,7 +1323,7 @@ MODULE_DEVICE_TABLE(of, max310x_dt_ids);
 static struct regmap_config regcfg = {
 	.reg_bits = 8,
 	.val_bits = 8,
-	.write_flag_mask = 0x80,
+	.write_flag_mask = MAX310X_WRITE_BIT,
 	.cache_type = REGCACHE_RBTREE,
 	.writeable_reg = max310x_reg_writeable,
 	.volatile_reg = max310x_reg_volatile,
