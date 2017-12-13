@@ -1229,6 +1229,19 @@ int drm_mode_connector_update_edid_property(struct drm_connector *connector,
 	if (edid)
 		size = EDID_LENGTH * (1 + edid->extensions);
 
+	/* Set the display info, using edid if available, otherwise
+	 * reseting the values to defaults. This duplicates the work
+	 * done in drm_add_edid_modes, but that function is not
+	 * consistently called before this one in all drivers and the
+	 * computation is cheap enough that it seems better to
+	 * duplicate it rather than attempt to ensure some arbitrary
+	 * ordering of calls.
+	 */
+	if (edid)
+		drm_add_display_info(connector, edid);
+	else
+		drm_reset_display_info(connector);
+
 	drm_object_property_set_value(&connector->base,
 				      dev->mode_config.non_desktop_property,
 				      connector->display_info.non_desktop);
