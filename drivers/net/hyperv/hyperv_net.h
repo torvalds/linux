@@ -705,6 +705,7 @@ struct netvsc_ethtool_stats {
 	unsigned long tx_busy;
 	unsigned long tx_send_full;
 	unsigned long rx_comp_busy;
+	unsigned long rx_no_memory;
 	unsigned long stop_queue;
 	unsigned long wake_queue;
 };
