@@ -96,6 +96,7 @@ enum nfp_nsp_cmd {
 	SPCODE_FW_LOAD		= 6, /* Load fw from buffer, len in option */
 	SPCODE_ETH_RESCAN	= 7, /* Rescan ETHs, write ETH_TABLE to buf */
 	SPCODE_ETH_CONTROL	= 8, /* Update media config from buffer */
+	SPCODE_NSP_WRITE_FLASH	= 11, /* Load and flash image from buffer */
 	SPCODE_NSP_SENSORS	= 12, /* Read NSP sensor(s) */
 	SPCODE_NSP_IDENTIFY	= 13, /* Read NSP version */
 };
@@ -512,6 +513,17 @@ int nfp_nsp_load_fw(struct nfp_nsp *state, const struct firmware *fw)
 {
 	return nfp_nsp_command_buf(state, SPCODE_FW_LOAD, fw->size, fw->data,
 				   fw->size, NULL, 0);
+}
+
+int nfp_nsp_write_flash(struct nfp_nsp *state, const struct firmware *fw)
+{
+	/* The flash time is specified to take a maximum of 70s so we add an
+	 * additional factor to this spec time.
+	 */
+	u32 timeout_sec = 2.5 * 70;
+
+	return __nfp_nsp_command_buf(state, SPCODE_NSP_WRITE_FLASH, fw->size,
+				     fw->data, fw->size, NULL, 0, timeout_sec);
 }
 
 int nfp_nsp_read_eth_table(struct nfp_nsp *state, void *buf, unsigned int size)
