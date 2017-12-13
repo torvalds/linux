@@ -51,6 +51,9 @@
 #include "nfp_cpp.h"
 #include "nfp_nsp.h"
 
+#define NFP_NSP_TIMEOUT_DEFAULT	30
+#define NFP_NSP_TIMEOUT_BOOT	30
+
 /* Offsets relative to the CSR base */
 #define NSP_STATUS		0x00
 #define   NSP_STATUS_MAGIC	GENMASK_ULL(63, 48)
@@ -260,10 +263,10 @@ u16 nfp_nsp_get_abi_ver_minor(struct nfp_nsp *state)
 }
 
 static int
-nfp_nsp_wait_reg(struct nfp_cpp *cpp, u64 *reg,
-		 u32 nsp_cpp, u64 addr, u64 mask, u64 val)
+nfp_nsp_wait_reg(struct nfp_cpp *cpp, u64 *reg, u32 nsp_cpp, u64 addr,
+		 u64 mask, u64 val, u32 timeout_sec)
 {
-	const unsigned long wait_until = jiffies + 30 * HZ;
+	const unsigned long wait_until = jiffies + timeout_sec * HZ;
 	int err;
 
 	for (;;) {
@@ -285,12 +288,13 @@ nfp_nsp_wait_reg(struct nfp_cpp *cpp, u64 *reg,
 }
 
 /**
- * nfp_nsp_command() - Execute a command on the NFP Service Processor
+ * __nfp_nsp_command() - Execute a command on the NFP Service Processor
  * @state:	NFP SP state
  * @code:	NFP SP Command Code
  * @option:	NFP SP Command Argument
  * @buff_cpp:	NFP SP Buffer CPP Address info
  * @buff_addr:	NFP SP Buffer Host address
+ * @timeout_sec:Timeout value to wait for completion in seconds
  *
  * Return: 0 for success with no result
  *
@@ -300,10 +304,11 @@ nfp_nsp_wait_reg(struct nfp_cpp *cpp, u64 *reg,
  *	-ENODEV if the NSP is not a supported model
  *	-EBUSY if the NSP is stuck
  *	-EINTR if interrupted while waiting for completion
- *	-ETIMEDOUT if the NSP took longer than 30 seconds to complete
+ *	-ETIMEDOUT if the NSP took longer than @timeout_sec seconds to complete
  */
-static int nfp_nsp_command(struct nfp_nsp *state, u16 code, u32 option,
-			   u32 buff_cpp, u64 buff_addr)
+static int
+__nfp_nsp_command(struct nfp_nsp *state, u16 code, u32 option, u32 buff_cpp,
+		  u64 buff_addr, u32 timeout_sec)
 {
 	u64 reg, ret_val, nsp_base, nsp_buffer, nsp_status, nsp_command;
 	struct nfp_cpp *cpp = state->cpp;
@@ -341,8 +346,8 @@ static int nfp_nsp_command(struct nfp_nsp *state, u16 code, u32 option,
 		return err;
 
 	/* Wait for NSP_COMMAND_START to go to 0 */
-	err = nfp_nsp_wait_reg(cpp, &reg,
-			       nsp_cpp, nsp_command, NSP_COMMAND_START, 0);
+	err = nfp_nsp_wait_reg(cpp, &reg, nsp_cpp, nsp_command,
+			       NSP_COMMAND_START, 0, NFP_NSP_TIMEOUT_DEFAULT);
 	if (err) {
 		nfp_err(cpp, "Error %d waiting for code 0x%04x to start\n",
 			err, code);
@@ -350,8 +355,8 @@ static int nfp_nsp_command(struct nfp_nsp *state, u16 code, u32 option,
 	}
 
 	/* Wait for NSP_STATUS_BUSY to go to 0 */
-	err = nfp_nsp_wait_reg(cpp, &reg,
-			       nsp_cpp, nsp_status, NSP_STATUS_BUSY, 0);
+	err = nfp_nsp_wait_reg(cpp, &reg, nsp_cpp, nsp_status, NSP_STATUS_BUSY,
+			       0, timeout_sec);
 	if (err) {
 		nfp_err(cpp, "Error %d waiting for code 0x%04x to complete\n",
 			err, code);
@@ -374,9 +379,18 @@ static int nfp_nsp_command(struct nfp_nsp *state, u16 code, u32 option,
 	return ret_val;
 }
 
-static int nfp_nsp_command_buf(struct nfp_nsp *nsp, u16 code, u32 option,
-			       const void *in_buf, unsigned int in_size,
-			       void *out_buf, unsigned int out_size)
+static int
+nfp_nsp_command(struct nfp_nsp *state, u16 code, u32 option, u32 buff_cpp,
+		u64 buff_addr)
+{
+	return __nfp_nsp_command(state, code, option, buff_cpp, buff_addr,
+				 NFP_NSP_TIMEOUT_DEFAULT);
+}
+
+static int
+__nfp_nsp_command_buf(struct nfp_nsp *nsp, u16 code, u32 option,
+		      const void *in_buf, unsigned int in_size, void *out_buf,
+		      unsigned int out_size, u32 timeout_sec)
 {
 	struct nfp_cpp *cpp = nsp->cpp;
 	unsigned int max_size;
@@ -429,7 +443,8 @@ static int nfp_nsp_command_buf(struct nfp_nsp *nsp, u16 code, u32 option,
 			return err;
 	}
 
-	ret = nfp_nsp_command(nsp, code, option, cpp_id, cpp_buf);
+	ret = __nfp_nsp_command(nsp, code, option, cpp_id, cpp_buf,
+				timeout_sec);
 	if (ret < 0)
 		return ret;
 
@@ -442,12 +457,23 @@ static int nfp_nsp_command_buf(struct nfp_nsp *nsp, u16 code, u32 option,
 	return ret;
 }
 
+static int
+nfp_nsp_command_buf(struct nfp_nsp *nsp, u16 code, u32 option,
+		    const void *in_buf, unsigned int in_size, void *out_buf,
+		    unsigned int out_size)
+{
+	return __nfp_nsp_command_buf(nsp, code, option, in_buf, in_size,
+				     out_buf, out_size,
+				     NFP_NSP_TIMEOUT_DEFAULT);
+}
+
 int nfp_nsp_wait(struct nfp_nsp *state)
 {
-	const unsigned long wait_until = jiffies + 30 * HZ;
+	const unsigned long wait_until = jiffies + NFP_NSP_TIMEOUT_BOOT * HZ;
 	int err;
 
-	nfp_dbg(state->cpp, "Waiting for NSP to respond (30 sec max).\n");
+	nfp_dbg(state->cpp, "Waiting for NSP to respond (%u sec max).\n",
+		NFP_NSP_TIMEOUT_BOOT);
 
 	for (;;) {
 		const unsigned long start_time = jiffies;
