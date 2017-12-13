@@ -73,7 +73,7 @@ static struct netvsc_device *alloc_net_device(void)
 
 	init_waitqueue_head(&net_device->wait_drain);
 	net_device->destroy = false;
-	atomic_set(&net_device->open_cnt, 0);
+
 	net_device->max_pkt = RNDIS_MAX_PKT_DEFAULT;
 	net_device->pkt_align = RNDIS_PKT_ALIGN_DEFAULT;
 
@@ -701,19 +701,18 @@ static u32 netvsc_get_next_send_section(struct netvsc_device *net_device)
 	return NETVSC_INVALID_INDEX;
 }
 
-static u32 netvsc_copy_to_send_buf(struct netvsc_device *net_device,
-				   unsigned int section_index,
-				   u32 pend_size,
-				   struct hv_netvsc_packet *packet,
-				   struct rndis_message *rndis_msg,
-				   struct hv_page_buffer *pb,
-				   struct sk_buff *skb)
+static void netvsc_copy_to_send_buf(struct netvsc_device *net_device,
+				    unsigned int section_index,
+				    u32 pend_size,
+				    struct hv_netvsc_packet *packet,
+				    struct rndis_message *rndis_msg,
+				    struct hv_page_buffer *pb,
+				    bool xmit_more)
 {
 	char *start = net_device->send_buf;
 	char *dest = start + (section_index * net_device->send_section_size)
 		     + pend_size;
 	int i;
-	u32 msg_size = 0;
 	u32 padding = 0;
 	u32 page_count = packet->cp_partial ? packet->rmsg_pgcnt :
 		packet->page_buf_cnt;
@@ -721,7 +720,7 @@ static u32 netvsc_copy_to_send_buf(struct netvsc_device *net_device,
 
 	/* Add padding */
 	remain = packet->total_data_buflen & (net_device->pkt_align - 1);
-	if (skb->xmit_more && remain && !packet->cp_partial) {
+	if (xmit_more && remain) {
 		padding = net_device->pkt_align - remain;
 		rndis_msg->msg_len += padding;
 		packet->total_data_buflen += padding;
@@ -733,16 +732,11 @@ static u32 netvsc_copy_to_send_buf(struct netvsc_device *net_device,
 		u32 len = pb[i].len;
 
 		memcpy(dest, (src + offset), len);
-		msg_size += len;
 		dest += len;
 	}
 
-	if (padding) {
+	if (padding)
 		memset(dest, 0, padding);
-		msg_size += padding;
-	}
-
-	return msg_size;
 }
 
 static inline int netvsc_send_pkt(
@@ -835,12 +829,13 @@ static inline void move_pkt_msd(struct hv_netvsc_packet **msd_send,
 }
 
 /* RCU already held by caller */
-int netvsc_send(struct net_device_context *ndev_ctx,
+int netvsc_send(struct net_device *ndev,
 		struct hv_netvsc_packet *packet,
 		struct rndis_message *rndis_msg,
 		struct hv_page_buffer *pb,
 		struct sk_buff *skb)
 {
+	struct net_device_context *ndev_ctx = netdev_priv(ndev);
 	struct netvsc_device *net_device
 		= rcu_dereference_bh(ndev_ctx->nvdev);
 	struct hv_device *device = ndev_ctx->device_ctx;
@@ -851,7 +846,7 @@ int netvsc_send(struct net_device_context *ndev_ctx,
 	struct multi_send_data *msdp;
 	struct hv_netvsc_packet *msd_send = NULL, *cur_send = NULL;
 	struct sk_buff *msd_skb = NULL;
-	bool try_batch;
+	bool try_batch, xmit_more;
 
 	/* If device is rescinded, return error and packet will get dropped. */
 	if (unlikely(!net_device || net_device->destroy))
@@ -902,10 +897,17 @@ int netvsc_send(struct net_device_context *ndev_ctx,
 		}
 	}
 
+	/* Keep aggregating only if stack says more data is coming
+	 * and not doing mixed modes send and not flow blocked
+	 */
+	xmit_more = skb->xmit_more &&
+		!packet->cp_partial &&
+		!netif_xmit_stopped(netdev_get_tx_queue(ndev, packet->q_idx));
+
 	if (section_index != NETVSC_INVALID_INDEX) {
 		netvsc_copy_to_send_buf(net_device,
 					section_index, msd_len,
-					packet, rndis_msg, pb, skb);
+					packet, rndis_msg, pb, xmit_more);
 
 		packet->send_buf_index = section_index;
 
@@ -925,7 +927,7 @@ int netvsc_send(struct net_device_context *ndev_ctx,
 		if (msdp->skb)
 			dev_consume_skb_any(msdp->skb);
 
-		if (skb->xmit_more && !packet->cp_partial) {
+		if (xmit_more) {
 			msdp->skb = skb;
 			msdp->pkt = packet;
 			msdp->count++;
@@ -1088,7 +1090,7 @@ static int netvsc_receive(struct net_device *ndev,
 		u32 buflen = vmxferpage_packet->ranges[i].byte_count;
 
 		/* Pass it to the upper layer */
-		status = rndis_filter_receive(ndev, net_device, device,
+		status = rndis_filter_receive(ndev, net_device,
 					      channel, data, buflen);
 	}
 

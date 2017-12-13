@@ -194,14 +194,15 @@ struct netvsc_device *netvsc_device_add(struct hv_device *device,
 					const struct netvsc_device_info *info);
 int netvsc_alloc_recv_comp_ring(struct netvsc_device *net_device, u32 q_idx);
 void netvsc_device_remove(struct hv_device *device);
-int netvsc_send(struct net_device_context *ndc,
+int netvsc_send(struct net_device *net,
 		struct hv_netvsc_packet *packet,
 		struct rndis_message *rndis_msg,
 		struct hv_page_buffer *page_buffer,
 		struct sk_buff *skb);
-void netvsc_linkstatus_callback(struct hv_device *device_obj,
+void netvsc_linkstatus_callback(struct net_device *net,
 				struct rndis_message *resp);
 int netvsc_recv_callback(struct net_device *net,
+			 struct netvsc_device *nvdev,
 			 struct vmbus_channel *channel,
 			 void  *data, u32 len,
 			 const struct ndis_tcp_ip_checksum_info *csum_info,
@@ -222,7 +223,6 @@ int rndis_filter_set_rss_param(struct rndis_device *rdev,
 			       const u8 *key);
 int rndis_filter_receive(struct net_device *ndev,
 			 struct netvsc_device *net_dev,
-			 struct hv_device *dev,
 			 struct vmbus_channel *channel,
 			 void *data, u32 buflen);
 
@@ -705,6 +705,7 @@ struct netvsc_ethtool_stats {
 	unsigned long tx_busy;
 	unsigned long tx_send_full;
 	unsigned long rx_comp_busy;
+	unsigned long rx_no_memory;
 	unsigned long stop_queue;
 	unsigned long wake_queue;
 };
@@ -821,8 +822,6 @@ struct netvsc_device {
 
 	u32 max_pkt; /* max number of pkt in one send, e.g. 8 */
 	u32 pkt_align; /* alignment bytes, e.g. 8 */
-
-	atomic_t open_cnt;
 
 	struct netvsc_channel chan_table[VRSS_CHANNEL_MAX];
 

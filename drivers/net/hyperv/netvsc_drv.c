@@ -626,7 +626,7 @@ static int netvsc_start_xmit(struct sk_buff *skb, struct net_device *net)
 	/* timestamp packet in software */
 	skb_tx_timestamp(skb);
 
-	ret = netvsc_send(net_device_ctx, packet, rndis_msg, pb, skb);
+	ret = netvsc_send(net, packet, rndis_msg, pb, skb);
 	if (likely(ret == 0))
 		return NETDEV_TX_OK;
 
@@ -652,21 +652,13 @@ no_memory:
 /*
  * netvsc_linkstatus_callback - Link up/down notification
  */
-void netvsc_linkstatus_callback(struct hv_device *device_obj,
+void netvsc_linkstatus_callback(struct net_device *net,
 				struct rndis_message *resp)
 {
 	struct rndis_indicate_status *indicate = &resp->msg.indicate_status;
-	struct net_device *net;
-	struct net_device_context *ndev_ctx;
+	struct net_device_context *ndev_ctx = netdev_priv(net);
 	struct netvsc_reconfig *event;
 	unsigned long flags;
-
-	net = hv_get_drvdata(device_obj);
-
-	if (!net)
-		return;
-
-	ndev_ctx = netdev_priv(net);
 
 	/* Update the physical link speed when changing to another vSwitch */
 	if (indicate->status == RNDIS_STATUS_LINK_SPEED_CHANGE) {
@@ -747,34 +739,26 @@ static struct sk_buff *netvsc_alloc_recv_skb(struct net_device *net,
  * "wire" on the specified device.
  */
 int netvsc_recv_callback(struct net_device *net,
+			 struct netvsc_device *net_device,
 			 struct vmbus_channel *channel,
 			 void  *data, u32 len,
 			 const struct ndis_tcp_ip_checksum_info *csum_info,
 			 const struct ndis_pkt_8021q_info *vlan)
 {
 	struct net_device_context *net_device_ctx = netdev_priv(net);
-	struct netvsc_device *net_device;
 	u16 q_idx = channel->offermsg.offer.sub_channel_index;
-	struct netvsc_channel *nvchan;
+	struct netvsc_channel *nvchan = &net_device->chan_table[q_idx];
 	struct sk_buff *skb;
 	struct netvsc_stats *rx_stats;
 
 	if (net->reg_state != NETREG_REGISTERED)
 		return NVSP_STAT_FAIL;
 
-	rcu_read_lock();
-	net_device = rcu_dereference(net_device_ctx->nvdev);
-	if (unlikely(!net_device))
-		goto drop;
-
-	nvchan = &net_device->chan_table[q_idx];
-
 	/* Allocate a skb - TODO direct I/O to pages? */
 	skb = netvsc_alloc_recv_skb(net, &nvchan->napi,
 				    csum_info, vlan, data, len);
 	if (unlikely(!skb)) {
-drop:
-		++net->stats.rx_dropped;
+		++net_device_ctx->eth_stats.rx_no_memory;
 		rcu_read_unlock();
 		return NVSP_STAT_FAIL;
 	}
@@ -798,8 +782,6 @@ drop:
 	u64_stats_update_end(&rx_stats->syncp);
 
 	napi_gro_receive(&nvchan->napi, skb);
-	rcu_read_unlock();
-
 	return 0;
 }
 
@@ -1125,12 +1107,13 @@ static const struct {
 	u16 offset;
 } netvsc_stats[] = {
 	{ "tx_scattered", offsetof(struct netvsc_ethtool_stats, tx_scattered) },
-	{ "tx_no_memory",  offsetof(struct netvsc_ethtool_stats, tx_no_memory) },
+	{ "tx_no_memory", offsetof(struct netvsc_ethtool_stats, tx_no_memory) },
 	{ "tx_no_space",  offsetof(struct netvsc_ethtool_stats, tx_no_space) },
 	{ "tx_too_big",	  offsetof(struct netvsc_ethtool_stats, tx_too_big) },
 	{ "tx_busy",	  offsetof(struct netvsc_ethtool_stats, tx_busy) },
 	{ "tx_send_full", offsetof(struct netvsc_ethtool_stats, tx_send_full) },
 	{ "rx_comp_busy", offsetof(struct netvsc_ethtool_stats, rx_comp_busy) },
+	{ "rx_no_memory", offsetof(struct netvsc_ethtool_stats, rx_no_memory) },
 	{ "stop_queue", offsetof(struct netvsc_ethtool_stats, stop_queue) },
 	{ "wake_queue", offsetof(struct netvsc_ethtool_stats, wake_queue) },
 }, vf_stats[] = {
