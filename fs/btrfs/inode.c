@@ -7941,15 +7941,12 @@ static inline blk_status_t submit_dio_repair_bio(struct inode *inode,
 
 	BUG_ON(bio_op(bio) == REQ_OP_WRITE);
 
-	bio_get(bio);
-
 	ret = btrfs_bio_wq_end_io(fs_info, bio, BTRFS_WQ_ENDIO_DIO_REPAIR);
 	if (ret)
-		goto err;
+		return ret;
 
 	ret = btrfs_map_bio(fs_info, bio, mirror_num, 0);
-err:
-	bio_put(bio);
+
 	return ret;
 }
 
