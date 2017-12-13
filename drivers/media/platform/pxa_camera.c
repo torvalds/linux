@@ -646,16 +646,16 @@ static unsigned int pxa_mbus_config_compatible(const struct v4l2_mbus_config *cf
 }
 
 /**
- * struct soc_camera_format_xlate - match between host and sensor formats
+ * struct pxa_camera_format_xlate - match between host and sensor formats
  * @code: code of a sensor provided format
  * @host_fmt: host format after host translation from code
  *
  * Host and sensor translation structure. Used in table of host and sensor
- * formats matchings in soc_camera_device. A host can override the generic list
+ * formats matchings in pxa_camera_device. A host can override the generic list
  * generation by implementing get_formats(), and use it for format checks and
  * format setup.
  */
-struct soc_camera_format_xlate {
+struct pxa_camera_format_xlate {
 	u32 code;
 	const struct pxa_mbus_pixelfmt *host_fmt;
 };
@@ -692,8 +692,8 @@ struct pxa_camera_dev {
 	struct v4l2_async_notifier notifier;
 	struct vb2_queue	vb2_vq;
 	struct v4l2_subdev	*sensor;
-	struct soc_camera_format_xlate *user_formats;
-	const struct soc_camera_format_xlate *current_fmt;
+	struct pxa_camera_format_xlate *user_formats;
+	const struct pxa_camera_format_xlate *current_fmt;
 	struct v4l2_pix_format	current_pix;
 
 	struct v4l2_async_subdev asd;
@@ -742,8 +742,8 @@ static const char *pxa_cam_driver_description = "PXA_Camera";
 /*
  * Format translation functions
  */
-static const struct soc_camera_format_xlate
-*pxa_mbus_xlate_by_fourcc(struct soc_camera_format_xlate *user_formats,
+static const struct pxa_camera_format_xlate
+*pxa_mbus_xlate_by_fourcc(struct pxa_camera_format_xlate *user_formats,
 			  unsigned int fourcc)
 {
 	unsigned int i;
@@ -754,17 +754,17 @@ static const struct soc_camera_format_xlate
 	return NULL;
 }
 
-static struct soc_camera_format_xlate *pxa_mbus_build_fmts_xlate(
+static struct pxa_camera_format_xlate *pxa_mbus_build_fmts_xlate(
 	struct v4l2_device *v4l2_dev, struct v4l2_subdev *subdev,
 	int (*get_formats)(struct v4l2_device *, unsigned int,
-			   struct soc_camera_format_xlate *xlate))
+			   struct pxa_camera_format_xlate *xlate))
 {
 	unsigned int i, fmts = 0, raw_fmts = 0;
 	int ret;
 	struct v4l2_subdev_mbus_code_enum code = {
 		.which = V4L2_SUBDEV_FORMAT_ACTIVE,
 	};
-	struct soc_camera_format_xlate *user_formats;
+	struct pxa_camera_format_xlate *user_formats;
 
 	while (!v4l2_subdev_call(subdev, pad, enum_mbus_code, NULL, &code)) {
 		raw_fmts++;
@@ -1721,7 +1721,7 @@ static bool pxa_camera_packing_supported(const struct pxa_mbus_pixelfmt *fmt)
 
 static int pxa_camera_get_formats(struct v4l2_device *v4l2_dev,
 				  unsigned int idx,
-				  struct soc_camera_format_xlate *xlate)
+				  struct pxa_camera_format_xlate *xlate)
 {
 	struct pxa_camera_dev *pcdev = v4l2_dev_to_pcdev(v4l2_dev);
 	int formats = 0, ret;
@@ -1793,7 +1793,7 @@ static int pxa_camera_get_formats(struct v4l2_device *v4l2_dev,
 
 static int pxa_camera_build_formats(struct pxa_camera_dev *pcdev)
 {
-	struct soc_camera_format_xlate *xlate;
+	struct pxa_camera_format_xlate *xlate;
 
 	xlate = pxa_mbus_build_fmts_xlate(&pcdev->v4l2_dev, pcdev->sensor,
 					  pxa_camera_get_formats);
@@ -1882,7 +1882,7 @@ static int pxac_vidioc_try_fmt_vid_cap(struct file *filp, void *priv,
 				      struct v4l2_format *f)
 {
 	struct pxa_camera_dev *pcdev = video_drvdata(filp);
-	const struct soc_camera_format_xlate *xlate;
+	const struct pxa_camera_format_xlate *xlate;
 	struct v4l2_pix_format *pix = &f->fmt.pix;
 	struct v4l2_subdev_pad_config pad_cfg;
 	struct v4l2_subdev_format format = {
@@ -1946,7 +1946,7 @@ static int pxac_vidioc_s_fmt_vid_cap(struct file *filp, void *priv,
 				    struct v4l2_format *f)
 {
 	struct pxa_camera_dev *pcdev = video_drvdata(filp);
-	const struct soc_camera_format_xlate *xlate;
+	const struct pxa_camera_format_xlate *xlate;
 	struct v4l2_pix_format *pix = &f->fmt.pix;
 	struct v4l2_subdev_format format = {
 		.which = V4L2_SUBDEV_FORMAT_ACTIVE,
