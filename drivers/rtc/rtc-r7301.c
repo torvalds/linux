@@ -95,7 +95,7 @@ static int rtc7301_wait_while_busy(struct rtc7301_priv *priv)
 		if (!(val & RTC7301_CONTROL_BUSY))
 			return 0;
 
-		usleep_range(200, 300);
+		udelay(300);
 	}
 
 	return -ETIMEDOUT;
