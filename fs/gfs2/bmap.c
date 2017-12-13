@@ -904,17 +904,18 @@ int gfs2_extent_map(struct inode *inode, u64 lblock, int *new, u64 *dblock, unsi
 }
 
 /**
- * gfs2_block_truncate_page - Deal with zeroing out data for truncate
+ * gfs2_block_zero_range - Deal with zeroing out data
  *
  * This is partly borrowed from ext3.
  */
-static int gfs2_block_truncate_page(struct address_space *mapping, loff_t from)
+static int gfs2_block_zero_range(struct inode *inode, loff_t from,
+				 unsigned int length)
 {
-	struct inode *inode = mapping->host;
+	struct address_space *mapping = inode->i_mapping;
 	struct gfs2_inode *ip = GFS2_I(inode);
 	unsigned long index = from >> PAGE_SHIFT;
 	unsigned offset = from & (PAGE_SIZE-1);
-	unsigned blocksize, iblock, length, pos;
+	unsigned blocksize, iblock, pos;
 	struct buffer_head *bh;
 	struct page *page;
 	int err;
@@ -924,7 +925,6 @@ static int gfs2_block_truncate_page(struct address_space *mapping, loff_t from)
 		return 0;
 
 	blocksize = inode->i_sb->s_blocksize;
-	length = blocksize - (offset & (blocksize - 1));
 	iblock = index << (PAGE_SHIFT - inode->i_sb->s_blocksize_bits);
 
 	if (!page_has_buffers(page))
@@ -1025,7 +1025,6 @@ static int trunc_start(struct inode *inode, u64 newsize)
 {
 	struct gfs2_inode *ip = GFS2_I(inode);
 	struct gfs2_sbd *sdp = GFS2_SB(inode);
-	struct address_space *mapping = inode->i_mapping;
 	struct buffer_head *dibh = NULL;
 	int journaled = gfs2_is_jdata(ip);
 	u64 oldsize = inode->i_size;
@@ -1047,8 +1046,11 @@ static int trunc_start(struct inode *inode, u64 newsize)
 	if (gfs2_is_stuffed(ip)) {
 		gfs2_buffer_clear_tail(dibh, sizeof(struct gfs2_dinode) + newsize);
 	} else {
-		if (newsize & (u64)(sdp->sd_sb.sb_bsize - 1)) {
-			error = gfs2_block_truncate_page(mapping, newsize);
+		unsigned int blocksize = i_blocksize(inode);
+		unsigned int offs = newsize & (blocksize - 1);
+		if (offs) {
+			error = gfs2_block_zero_range(inode, newsize,
+						      blocksize - offs);
 			if (error)
 				goto out;
 		}
