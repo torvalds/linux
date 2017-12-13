@@ -227,9 +227,6 @@ do {							    \
 #define CFS_ALLOC_PTR(ptr)      LIBCFS_ALLOC(ptr, sizeof(*(ptr)))
 #define CFS_FREE_PTR(ptr)       LIBCFS_FREE(ptr, sizeof(*(ptr)))
 
-/* max value for numeric network address */
-#define MAX_NUMERIC_VALUE 0xffffffff
-
 /* implication */
 #define ergo(a, b) (!(a) || (b))
 /* logical equivalence */
