@@ -1,10 +1,18 @@
-TI WiLink 7/8 (wl12xx/wl18xx) Shared Transport BT/FM/GPS devices
+Texas Instruments Bluetooth Chips
+---------------------------------
+
+This documents the binding structure and common properties for serial
+attached TI Bluetooth devices. The following chips are included in this
+binding:
+
+* TI CC256x Bluetooth devices
+* TI WiLink 7/8 (wl12xx/wl18xx) Shared Transport BT/FM/GPS devices
 
 TI WiLink devices have a UART interface for providing Bluetooth, FM radio,
 and GPS over what's called "shared transport". The shared transport is
 standard BT HCI protocol with additional channels for the other functions.
 
-These devices also have a separate WiFi interface as described in
+TI WiLink devices also have a separate WiFi interface as described in
 wireless/ti,wlcore.txt.
 
 This bindings follows the UART slave device binding in
@@ -12,6 +20,7 @@ This bindings follows the UART slave device binding in
 
 Required properties:
  - compatible: should be one of the following:
+    "ti,cc2560"
     "ti,wl1271-st"
     "ti,wl1273-st"
     "ti,wl1281-st"
