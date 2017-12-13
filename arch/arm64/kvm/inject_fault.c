@@ -128,7 +128,7 @@ static void inject_undef64(struct kvm_vcpu *vcpu)
  */
 void kvm_inject_dabt(struct kvm_vcpu *vcpu, unsigned long addr)
 {
-	if (!(vcpu->arch.hcr_el2 & HCR_RW))
+	if (vcpu_el1_is_32bit(vcpu))
 		kvm_inject_dabt32(vcpu, addr);
 	else
 		inject_abt64(vcpu, false, addr);
@@ -144,7 +144,7 @@ void kvm_inject_dabt(struct kvm_vcpu *vcpu, unsigned long addr)
  */
 void kvm_inject_pabt(struct kvm_vcpu *vcpu, unsigned long addr)
 {
-	if (!(vcpu->arch.hcr_el2 & HCR_RW))
+	if (vcpu_el1_is_32bit(vcpu))
 		kvm_inject_pabt32(vcpu, addr);
 	else
 		inject_abt64(vcpu, true, addr);
@@ -158,7 +158,7 @@ void kvm_inject_pabt(struct kvm_vcpu *vcpu, unsigned long addr)
  */
 void kvm_inject_undefined(struct kvm_vcpu *vcpu)
 {
-	if (!(vcpu->arch.hcr_el2 & HCR_RW))
+	if (vcpu_el1_is_32bit(vcpu))
 		kvm_inject_undef32(vcpu);
 	else
 		inject_undef64(vcpu);
