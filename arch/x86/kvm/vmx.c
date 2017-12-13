@@ -686,7 +686,7 @@ static struct pi_desc *vcpu_to_pi_desc(struct kvm_vcpu *vcpu)
 				[number##_HIGH] = VMCS12_OFFSET(name)+4
 
 
-static unsigned long shadow_read_only_fields[] = {
+static u16 shadow_read_only_fields[] = {
 	/*
 	 * We do NOT shadow fields that are modified when L0
 	 * traps and emulates any vmx instruction (e.g. VMPTRLD,
@@ -699,49 +699,59 @@ static unsigned long shadow_read_only_fields[] = {
 	 * (e.g. force a sync if VM_INSTRUCTION_ERROR is modified
 	 * by nested_vmx_failValid)
 	 */
+	/* 32-bits */
 	VM_EXIT_REASON,
 	VM_EXIT_INTR_INFO,
 	VM_EXIT_INSTRUCTION_LEN,
 	IDT_VECTORING_INFO_FIELD,
 	IDT_VECTORING_ERROR_CODE,
 	VM_EXIT_INTR_ERROR_CODE,
+
+	/* Natural width */
 	EXIT_QUALIFICATION,
 	GUEST_LINEAR_ADDRESS,
-	GUEST_PHYSICAL_ADDRESS
+
+	/* 64-bit */
+	GUEST_PHYSICAL_ADDRESS,
+	GUEST_PHYSICAL_ADDRESS_HIGH,
 };
 static int max_shadow_read_only_fields =
 	ARRAY_SIZE(shadow_read_only_fields);
 
-static unsigned long shadow_read_write_fields[] = {
+static u16 shadow_read_write_fields[] = {
+	/* 16-bits */
+	GUEST_CS_SELECTOR,
+	GUEST_INTR_STATUS,
+	GUEST_PML_INDEX,
+	HOST_FS_SELECTOR,
+	HOST_GS_SELECTOR,
+
+	/* 32-bits */
+	CPU_BASED_VM_EXEC_CONTROL,
+	EXCEPTION_BITMAP,
+	VM_ENTRY_EXCEPTION_ERROR_CODE,
+	VM_ENTRY_INTR_INFO_FIELD,
+	VM_ENTRY_INSTRUCTION_LEN,
 	TPR_THRESHOLD,
+	GUEST_CS_LIMIT,
+	GUEST_CS_AR_BYTES,
+	GUEST_INTERRUPTIBILITY_INFO,
+	VMX_PREEMPTION_TIMER_VALUE,
+
+	/* Natural width */
 	GUEST_RIP,
 	GUEST_RSP,
 	GUEST_CR0,
 	GUEST_CR3,
 	GUEST_CR4,
-	GUEST_INTERRUPTIBILITY_INFO,
 	GUEST_RFLAGS,
-	GUEST_CS_SELECTOR,
-	GUEST_CS_AR_BYTES,
-	GUEST_CS_LIMIT,
 	GUEST_CS_BASE,
 	GUEST_ES_BASE,
-	GUEST_PML_INDEX,
-	GUEST_INTR_STATUS,
-	VMX_PREEMPTION_TIMER_VALUE,
 	CR0_GUEST_HOST_MASK,
 	CR0_READ_SHADOW,
 	CR4_READ_SHADOW,
-	EXCEPTION_BITMAP,
-	CPU_BASED_VM_EXEC_CONTROL,
-	VM_ENTRY_EXCEPTION_ERROR_CODE,
-	VM_ENTRY_INTR_INFO_FIELD,
-	VM_ENTRY_INSTRUCTION_LEN,
-	VM_ENTRY_EXCEPTION_ERROR_CODE,
 	HOST_FS_BASE,
 	HOST_GS_BASE,
-	HOST_FS_SELECTOR,
-	HOST_GS_SELECTOR
 };
 static int max_shadow_read_write_fields =
 	ARRAY_SIZE(shadow_read_write_fields);
@@ -3901,15 +3911,39 @@ static void init_vmcs_shadow_fields(void)
 {
 	int i, j;
 
-	/* No checks for read only fields yet */
+	for (i = j = 0; i < max_shadow_read_only_fields; i++) {
+		u16 field = shadow_read_only_fields[i];
+		if (vmcs_field_type(field) == VMCS_FIELD_TYPE_U64 &&
+		    (i + 1 == max_shadow_read_only_fields ||
+		     shadow_read_only_fields[i + 1] != field + 1))
+			pr_err("Missing field from shadow_read_only_field %x\n",
+			       field + 1);
+
+		clear_bit(field, vmx_vmread_bitmap);
+#ifdef CONFIG_X86_64
+		if (field & 1)
+			continue;
+#endif
+		if (j < i)
+			shadow_read_only_fields[j] = field;
+		j++;
+	}
+	max_shadow_read_only_fields = j;
 
 	for (i = j = 0; i < max_shadow_read_write_fields; i++) {
+		u16 field = shadow_read_write_fields[i];
+		if (vmcs_field_type(field) == VMCS_FIELD_TYPE_U64 &&
+		    (i + 1 == max_shadow_read_write_fields ||
+		     shadow_read_write_fields[i + 1] != field + 1))
+			pr_err("Missing field from shadow_read_write_field %x\n",
+			       field + 1);
+
 		/*
 		 * PML and the preemption timer can be emulated, but the
 		 * processor cannot vmwrite to fields that don't exist
 		 * on bare metal.
 		 */
-		switch (shadow_read_write_fields[i]) {
+		switch (field) {
 		case GUEST_PML_INDEX:
 			if (!cpu_has_vmx_pml())
 				continue;
@@ -3926,31 +3960,17 @@ static void init_vmcs_shadow_fields(void)
 			break;
 		}
 
+		clear_bit(field, vmx_vmwrite_bitmap);
+		clear_bit(field, vmx_vmread_bitmap);
+#ifdef CONFIG_X86_64
+		if (field & 1)
+			continue;
+#endif
 		if (j < i)
-			shadow_read_write_fields[j] =
-				shadow_read_write_fields[i];
+			shadow_read_write_fields[j] = field;
 		j++;
 	}
 	max_shadow_read_write_fields = j;
-
-	/* shadowed fields guest access without vmexit */
-	for (i = 0; i < max_shadow_read_write_fields; i++) {
-		unsigned long field = shadow_read_write_fields[i];
-
-		clear_bit(field, vmx_vmwrite_bitmap);
-		clear_bit(field, vmx_vmread_bitmap);
-		if (vmcs_field_type(field) == VMCS_FIELD_TYPE_U64) {
-			clear_bit(field + 1, vmx_vmwrite_bitmap);
-			clear_bit(field + 1, vmx_vmread_bitmap);
-		}
-	}
-	for (i = 0; i < max_shadow_read_only_fields; i++) {
-		unsigned long field = shadow_read_only_fields[i];
-
-		clear_bit(field, vmx_vmread_bitmap);
-		if (vmcs_field_type(field) == VMCS_FIELD_TYPE_U64)
-			clear_bit(field + 1, vmx_vmread_bitmap);
-	}
 }
 
 static __init int alloc_kvm_area(void)
@@ -7538,7 +7558,7 @@ static void copy_shadow_to_vmcs12(struct vcpu_vmx *vmx)
 	unsigned long field;
 	u64 field_value;
 	struct vmcs *shadow_vmcs = vmx->vmcs01.shadow_vmcs;
-	const unsigned long *fields = shadow_read_write_fields;
+	const u16 *fields = shadow_read_write_fields;
 	const int num_fields = max_shadow_read_write_fields;
 
 	preempt_disable();
@@ -7547,23 +7567,7 @@ static void copy_shadow_to_vmcs12(struct vcpu_vmx *vmx)
 
 	for (i = 0; i < num_fields; i++) {
 		field = fields[i];
-		switch (vmcs_field_type(field)) {
-		case VMCS_FIELD_TYPE_U16:
-			field_value = vmcs_read16(field);
-			break;
-		case VMCS_FIELD_TYPE_U32:
-			field_value = vmcs_read32(field);
-			break;
-		case VMCS_FIELD_TYPE_U64:
-			field_value = vmcs_read64(field);
-			break;
-		case VMCS_FIELD_TYPE_NATURAL_WIDTH:
-			field_value = vmcs_readl(field);
-			break;
-		default:
-			WARN_ON(1);
-			continue;
-		}
+		field_value = __vmcs_readl(field);
 		vmcs12_write_any(&vmx->vcpu, field, field_value);
 	}
 
@@ -7575,7 +7579,7 @@ static void copy_shadow_to_vmcs12(struct vcpu_vmx *vmx)
 
 static void copy_vmcs12_to_shadow(struct vcpu_vmx *vmx)
 {
-	const unsigned long *fields[] = {
+	const u16 *fields[] = {
 		shadow_read_write_fields,
 		shadow_read_only_fields
 	};
@@ -7594,24 +7598,7 @@ static void copy_vmcs12_to_shadow(struct vcpu_vmx *vmx)
 		for (i = 0; i < max_fields[q]; i++) {
 			field = fields[q][i];
 			vmcs12_read_any(&vmx->vcpu, field, &field_value);
-
-			switch (vmcs_field_type(field)) {
-			case VMCS_FIELD_TYPE_U16:
-				vmcs_write16(field, (u16)field_value);
-				break;
-			case VMCS_FIELD_TYPE_U32:
-				vmcs_write32(field, (u32)field_value);
-				break;
-			case VMCS_FIELD_TYPE_U64:
-				vmcs_write64(field, (u64)field_value);
-				break;
-			case VMCS_FIELD_TYPE_NATURAL_WIDTH:
-				vmcs_writel(field, (long)field_value);
-				break;
-			default:
-				WARN_ON(1);
-				break;
-			}
+			__vmcs_writel(field, field_value);
 		}
 	}
 
