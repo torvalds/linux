@@ -416,7 +416,7 @@ static u32 read_timestamp_frequency(struct drm_i915_private *dev_priv)
 		return freq;
 	}
 
-	DRM_ERROR("Unknown gen, unable to compute command stream timestamp frequency\n");
+	MISSING_CASE("Unknown gen, unable to read command streamer timestamp frequency\n");
 	return 0;
 }
 
