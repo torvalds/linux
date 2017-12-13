@@ -726,11 +726,12 @@ static unsigned long shadow_read_write_fields[] = {
 	GUEST_CS_LIMIT,
 	GUEST_CS_BASE,
 	GUEST_ES_BASE,
-	GUEST_BNDCFGS,
+	GUEST_PML_INDEX,
+	GUEST_INTR_STATUS,
+	VMX_PREEMPTION_TIMER_VALUE,
 	CR0_GUEST_HOST_MASK,
 	CR0_READ_SHADOW,
 	CR4_READ_SHADOW,
-	TSC_OFFSET,
 	EXCEPTION_BITMAP,
 	CPU_BASED_VM_EXEC_CONTROL,
 	VM_ENTRY_EXCEPTION_ERROR_CODE,
@@ -3903,9 +3904,22 @@ static void init_vmcs_shadow_fields(void)
 	/* No checks for read only fields yet */
 
 	for (i = j = 0; i < max_shadow_read_write_fields; i++) {
+		/*
+		 * PML and the preemption timer can be emulated, but the
+		 * processor cannot vmwrite to fields that don't exist
+		 * on bare metal.
+		 */
 		switch (shadow_read_write_fields[i]) {
-		case GUEST_BNDCFGS:
-			if (!kvm_mpx_supported())
+		case GUEST_PML_INDEX:
+			if (!cpu_has_vmx_pml())
+				continue;
+			break;
+		case VMX_PREEMPTION_TIMER_VALUE:
+			if (!cpu_has_vmx_preemption_timer())
+				continue;
+			break;
+		case GUEST_INTR_STATUS:
+			if (!cpu_has_vmx_apicv())
 				continue;
 			break;
 		default:
@@ -6802,11 +6816,6 @@ static __init int hardware_setup(void)
 		!(cpu_has_vmx_invvpid_single() || cpu_has_vmx_invvpid_global()))
 		enable_vpid = 0;
 
-	if (!cpu_has_vmx_shadow_vmcs())
-		enable_shadow_vmcs = 0;
-	if (enable_shadow_vmcs)
-		init_vmcs_shadow_fields();
-
 	if (!cpu_has_vmx_ept() ||
 	    !cpu_has_vmx_ept_4levels() ||
 	    !cpu_has_vmx_ept_mt_wb() ||
@@ -6925,6 +6934,11 @@ static __init int hardware_setup(void)
 		kvm_x86_ops->set_hv_timer = NULL;
 		kvm_x86_ops->cancel_hv_timer = NULL;
 	}
+
+	if (!cpu_has_vmx_shadow_vmcs())
+		enable_shadow_vmcs = 0;
+	if (enable_shadow_vmcs)
+		init_vmcs_shadow_fields();
 
 	kvm_set_posted_intr_wakeup_handler(wakeup_handler);
 
