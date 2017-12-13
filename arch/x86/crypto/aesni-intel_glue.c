@@ -1117,7 +1117,7 @@ static int generic_gcmaes_decrypt(struct aead_request *req)
 {
 	__be32 counter = cpu_to_be32(1);
 	struct crypto_aead *tfm = crypto_aead_reqtfm(req);
-	struct aesni_rfc4106_gcm_ctx *ctx = aesni_rfc4106_gcm_ctx_get(tfm);
+	struct generic_gcmaes_ctx *ctx = generic_gcmaes_ctx_get(tfm);
 	void *aes_ctx = &(ctx->aes_key_expanded);
 	u8 iv[16] __attribute__ ((__aligned__(AESNI_ALIGN)));
 
