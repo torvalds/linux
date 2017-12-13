@@ -454,11 +454,11 @@
 /* Various constants */
 
 /* Coalescing */
-#define MVPP2_TXDONE_COAL_PKTS_THRESH	15
+#define MVPP2_TXDONE_COAL_PKTS_THRESH	64
 #define MVPP2_TXDONE_HRTIMER_PERIOD_NS	1000000UL
 #define MVPP2_TXDONE_COAL_USEC		1000
 #define MVPP2_RX_COAL_PKTS		32
-#define MVPP2_RX_COAL_USEC		100
+#define MVPP2_RX_COAL_USEC		64
 
 /* The two bytes Marvell header. Either contains a special value used
  * by Marvell switches when a specific hardware mode is enabled (not
@@ -504,10 +504,12 @@
 #define MVPP2_DEFAULT_RXQ		4
 
 /* Max number of Rx descriptors */
-#define MVPP2_MAX_RXD			128
+#define MVPP2_MAX_RXD_MAX		1024
+#define MVPP2_MAX_RXD_DFLT		128
 
 /* Max number of Tx descriptors */
-#define MVPP2_MAX_TXD			1024
+#define MVPP2_MAX_TXD_MAX		2048
+#define MVPP2_MAX_TXD_DFLT		1024
 
 /* Amount of Tx descriptors that can be reserved at once by CPU */
 #define MVPP2_CPU_DESC_CHUNK		64
@@ -5802,6 +5804,7 @@ static int mvpp2_txq_init(struct mvpp2_port *port,
 		txq_pcpu->reserved_num = 0;
 		txq_pcpu->txq_put_index = 0;
 		txq_pcpu->txq_get_index = 0;
+		txq_pcpu->tso_headers = NULL;
 
 		txq_pcpu->stop_threshold = txq->size - MVPP2_MAX_SKB_DESCS;
 		txq_pcpu->wake_threshold = txq_pcpu->stop_threshold / 2;
@@ -5829,10 +5832,13 @@ static void mvpp2_txq_deinit(struct mvpp2_port *port,
 		txq_pcpu = per_cpu_ptr(txq->pcpu, cpu);
 		kfree(txq_pcpu->buffs);
 
-		dma_free_coherent(port->dev->dev.parent,
-				  txq_pcpu->size * TSO_HEADER_SIZE,
-				  txq_pcpu->tso_headers,
-				  txq_pcpu->tso_headers_dma);
+		if (txq_pcpu->tso_headers)
+			dma_free_coherent(port->dev->dev.parent,
+					  txq_pcpu->size * TSO_HEADER_SIZE,
+					  txq_pcpu->tso_headers,
+					  txq_pcpu->tso_headers_dma);
+
+		txq_pcpu->tso_headers = NULL;
 	}
 
 	if (txq->descs)
@@ -6832,13 +6838,13 @@ static int mvpp2_check_ringparam_valid(struct net_device *dev,
 	if (ring->rx_pending == 0 || ring->tx_pending == 0)
 		return -EINVAL;
 
-	if (ring->rx_pending > MVPP2_MAX_RXD)
-		new_rx_pending = MVPP2_MAX_RXD;
+	if (ring->rx_pending > MVPP2_MAX_RXD_MAX)
+		new_rx_pending = MVPP2_MAX_RXD_MAX;
 	else if (!IS_ALIGNED(ring->rx_pending, 16))
 		new_rx_pending = ALIGN(ring->rx_pending, 16);
 
-	if (ring->tx_pending > MVPP2_MAX_TXD)
-		new_tx_pending = MVPP2_MAX_TXD;
+	if (ring->tx_pending > MVPP2_MAX_TXD_MAX)
+		new_tx_pending = MVPP2_MAX_TXD_MAX;
 	else if (!IS_ALIGNED(ring->tx_pending, 32))
 		new_tx_pending = ALIGN(ring->tx_pending, 32);
 
@@ -7318,9 +7324,10 @@ static int mvpp2_ethtool_get_coalesce(struct net_device *dev,
 {
 	struct mvpp2_port *port = netdev_priv(dev);
 
-	c->rx_coalesce_usecs        = port->rxqs[0]->time_coal;
-	c->rx_max_coalesced_frames  = port->rxqs[0]->pkts_coal;
-	c->tx_max_coalesced_frames =  port->txqs[0]->done_pkts_coal;
+	c->rx_coalesce_usecs       = port->rxqs[0]->time_coal;
+	c->rx_max_coalesced_frames = port->rxqs[0]->pkts_coal;
+	c->tx_max_coalesced_frames = port->txqs[0]->done_pkts_coal;
+	c->tx_coalesce_usecs       = port->tx_time_coal;
 	return 0;
 }
 
@@ -7340,8 +7347,8 @@ static void mvpp2_ethtool_get_ringparam(struct net_device *dev,
 {
 	struct mvpp2_port *port = netdev_priv(dev);
 
-	ring->rx_max_pending = MVPP2_MAX_RXD;
-	ring->tx_max_pending = MVPP2_MAX_TXD;
+	ring->rx_max_pending = MVPP2_MAX_RXD_MAX;
+	ring->tx_max_pending = MVPP2_MAX_TXD_MAX;
 	ring->rx_pending = port->rx_ring_size;
 	ring->tx_pending = port->tx_ring_size;
 }
@@ -7788,7 +7795,7 @@ static int mvpp2_port_probe(struct platform_device *pdev,
 		goto err_free_netdev;
 	}
 
-	dev->tx_queue_len = MVPP2_MAX_TXD;
+	dev->tx_queue_len = MVPP2_MAX_TXD_MAX;
 	dev->watchdog_timeo = 5 * HZ;
 	dev->netdev_ops = &mvpp2_netdev_ops;
 	dev->ethtool_ops = &mvpp2_eth_tool_ops;
@@ -7871,8 +7878,8 @@ static int mvpp2_port_probe(struct platform_device *pdev,
 
 	mvpp2_port_copy_mac_addr(dev, priv, port_node, &mac_from);
 
-	port->tx_ring_size = MVPP2_MAX_TXD;
-	port->rx_ring_size = MVPP2_MAX_RXD;
+	port->tx_ring_size = MVPP2_MAX_TXD_DFLT;
+	port->rx_ring_size = MVPP2_MAX_RXD_DFLT;
 	SET_NETDEV_DEV(dev, &pdev->dev);
 
 	err = mvpp2_port_init(port);
