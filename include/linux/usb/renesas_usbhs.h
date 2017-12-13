@@ -17,6 +17,7 @@
  */
 #ifndef RENESAS_USB_H
 #define RENESAS_USB_H
+#include <linux/notifier.h>
 #include <linux/platform_device.h>
 #include <linux/usb/ch9.h>
 
@@ -98,6 +99,13 @@ struct renesas_usbhs_platform_callback {
 	 * VBUS control is needed for Host
 	 */
 	int (*set_vbus)(struct platform_device *pdev, int enable);
+
+	/*
+	 * option:
+	 * extcon notifier to set host/peripheral mode.
+	 */
+	int (*notifier)(struct notifier_block *nb, unsigned long event,
+			void *data);
 };
 
 /*
