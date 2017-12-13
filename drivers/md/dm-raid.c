@@ -29,6 +29,9 @@
  */
 #define	MIN_RAID456_JOURNAL_SPACE (4*2048)
 
+/* Global list of all raid sets */
+LIST_HEAD(raid_sets);
+
 static bool devices_handle_discard_safely = false;
 
 /*
@@ -104,8 +107,6 @@ struct raid_dev {
 #define CTR_FLAG_RAID10_USE_NEAR_SETS	(1 << __CTR_FLAG_RAID10_USE_NEAR_SETS)
 #define CTR_FLAG_JOURNAL_DEV		(1 << __CTR_FLAG_JOURNAL_DEV)
 #define CTR_FLAG_JOURNAL_MODE		(1 << __CTR_FLAG_JOURNAL_MODE)
-
-#define RESUME_STAY_FROZEN_FLAGS (CTR_FLAG_DELTA_DISKS | CTR_FLAG_DATA_OFFSET)
 
 /*
  * Definitions of various constructor flags to
@@ -226,6 +227,7 @@ struct rs_layout {
 
 struct raid_set {
 	struct dm_target *ti;
+	struct list_head list;
 
 	uint32_t stripe_cache_entries;
 	unsigned long ctr_flags;
@@ -269,6 +271,19 @@ static void rs_config_restore(struct raid_set *rs, struct rs_layout *l)
 	mddev->new_level = l->new_level;
 	mddev->new_layout = l->new_layout;
 	mddev->new_chunk_sectors = l->new_chunk_sectors;
+}
+
+/* Find any raid_set in active slot for @rs on global list */
+static struct raid_set *rs_find_active(struct raid_set *rs)
+{
+	struct raid_set *r;
+	struct mapped_device *md = dm_table_get_md(rs->ti->table);
+
+	list_for_each_entry(r, &raid_sets, list)
+		if (r != rs && dm_table_get_md(r->ti->table) == md)
+			return r;
+
+	return NULL;
 }
 
 /* raid10 algorithms (i.e. formats) */
@@ -749,6 +764,7 @@ static struct raid_set *raid_set_alloc(struct dm_target *ti, struct raid_type *r
 
 	mddev_init(&rs->md);
 
+	INIT_LIST_HEAD(&rs->list);
 	rs->raid_disks = raid_devs;
 	rs->delta_disks = 0;
 
@@ -766,6 +782,9 @@ static struct raid_set *raid_set_alloc(struct dm_target *ti, struct raid_type *r
 	for (i = 0; i < raid_devs; i++)
 		md_rdev_init(&rs->dev[i].rdev);
 
+	/* Add @rs to global list. */
+	list_add(&rs->list, &raid_sets);
+
 	/*
 	 * Remaining items to be initialized by further RAID params:
 	 *  rs->md.persistent
@@ -778,6 +797,7 @@ static struct raid_set *raid_set_alloc(struct dm_target *ti, struct raid_type *r
 	return rs;
 }
 
+/* Free all @rs allocations and remove it from global list. */
 static void raid_set_free(struct raid_set *rs)
 {
 	int i;
@@ -794,6 +814,8 @@ static void raid_set_free(struct raid_set *rs)
 		if (rs->dev[i].data_dev)
 			dm_put_device(rs->ti, rs->dev[i].data_dev);
 	}
+
+	list_del(&rs->list);
 
 	kfree(rs);
 }
@@ -2371,7 +2393,7 @@ static int super_init_validation(struct raid_set *rs, struct md_rdev *rdev)
 			DMERR("new device%s provided without 'rebuild'",
 			      new_devs > 1 ? "s" : "");
 			return -EINVAL;
-		} else if (rs_is_recovering(rs)) {
+		} else if (!test_bit(__CTR_FLAG_REBUILD, &rs->ctr_flags) && rs_is_recovering(rs)) {
 			DMERR("'rebuild' specified while raid set is not in-sync (recovery_cp=%llu)",
 			      (unsigned long long) mddev->recovery_cp);
 			return -EINVAL;
@@ -3173,19 +3195,22 @@ static int raid_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 			goto bad;
 		}
 
-		/*
-		  * We can only prepare for a reshape here, because the
-		  * raid set needs to run to provide the repective reshape
-		  * check functions via its MD personality instance.
-		  *
-		  * So do the reshape check after md_run() succeeded.
-		  */
-		r = rs_prepare_reshape(rs);
-		if (r)
-			return r;
+		/* Out-of-place space has to be available to allow for a reshape unless raid1! */
+		if (reshape_sectors || rs_is_raid1(rs)) {
+			/*
+			  * We can only prepare for a reshape here, because the
+			  * raid set needs to run to provide the repective reshape
+			  * check functions via its MD personality instance.
+			  *
+			  * So do the reshape check after md_run() succeeded.
+			  */
+			r = rs_prepare_reshape(rs);
+			if (r)
+				return r;
 
-		/* Reshaping ain't recovery, so disable recovery */
-		rs_setup_recovery(rs, MaxSector);
+			/* Reshaping ain't recovery, so disable recovery */
+			rs_setup_recovery(rs, MaxSector);
+		}
 		rs_set_cur(rs);
 	} else {
 		/* May not set recovery when a device rebuild is requested */
@@ -3395,7 +3420,6 @@ static sector_t rs_get_progress(struct raid_set *rs, unsigned long recovery,
 		} else if (test_bit(MD_RECOVERY_NEEDED, &recovery) ||
 			   test_bit(MD_RECOVERY_RUNNING, &recovery))
 			r = mddev->curr_resync_completed;
-
 		else
 			r = mddev->recovery_cp;
 
@@ -3904,9 +3928,32 @@ static int raid_preresume(struct dm_target *ti)
 	struct raid_set *rs = ti->private;
 	struct mddev *mddev = &rs->md;
 
-	/* This is a resume after a suspend of the set -> it's already started */
+	/* This is a resume after a suspend of the set -> it's already started. */
 	if (test_and_set_bit(RT_FLAG_RS_PRERESUMED, &rs->runtime_flags))
 		return 0;
+
+	if (!test_bit(__CTR_FLAG_REBUILD, &rs->ctr_flags)) {
+		struct raid_set *rs_active = rs_find_active(rs);
+
+		if (rs_active) {
+			/*
+			 * In case no rebuilds have been requested
+			 * and an active table slot exists, copy
+			 * current resynchonization completed and
+			 * reshape position pointers across from
+			 * suspended raid set in the active slot.
+			 *
+			 * This resumes the new mapping at current
+			 * offsets to continue recover/reshape without
+			 * necessarily redoing a raid set partially or
+			 * causing data corruption in case of a reshape.
+			 */
+			if (rs_active->md.curr_resync_completed != MaxSector)
+				mddev->curr_resync_completed = rs_active->md.curr_resync_completed;
+			if (rs_active->md.reshape_position != MaxSector)
+				mddev->reshape_position = rs_active->md.reshape_position;
+		}
+	}
 
 	/*
 	 * The superblocks need to be updated on disk if the
@@ -3968,28 +4015,13 @@ static void raid_resume(struct dm_target *ti)
 		attempt_restore_of_faulty_devices(rs);
 	}
 
-	/* Only reduce raid set size before running a disk removing reshape. */
-	if (mddev->delta_disks < 0)
-		rs_set_capacity(rs);
-
-	/*
-	 * Keep the RAID set frozen if reshape/rebuild flags are set.
-	 * The RAID set is unfrozen once the next table load/resume,
-	 * which clears the reshape/rebuild flags, occurs.
-	 * This ensures that the constructor for the inactive table
-	 * retrieves an up-to-date reshape_position.
-	 */
-	if (!test_and_clear_bit(RT_FLAG_RESHAPE_RS, &rs->runtime_flags) &&
-	    !(rs->ctr_flags & RESUME_STAY_FROZEN_FLAGS)) {
-		if (rs_is_reshapable(rs)) {
-			if (!rs_is_reshaping(rs) || _get_reshape_sectors(rs))
-				clear_bit(MD_RECOVERY_FROZEN, &mddev->recovery);
-		} else
-			clear_bit(MD_RECOVERY_FROZEN, &mddev->recovery);
-	}
-
 	if (test_and_clear_bit(RT_FLAG_RS_SUSPENDED, &rs->runtime_flags)) {
+		/* Only reduce raid set size before running a disk removing reshape. */
+		if (mddev->delta_disks < 0)
+			rs_set_capacity(rs);
+
 		mddev_lock_nointr(mddev);
+		clear_bit(MD_RECOVERY_FROZEN, &mddev->recovery);
 		mddev->ro = 0;
 		mddev->in_sync = 0;
 		mddev_resume(mddev);
@@ -3999,7 +4031,7 @@ static void raid_resume(struct dm_target *ti)
 
 static struct target_type raid_target = {
 	.name = "raid",
-	.version = {1, 13, 1},
+	.version = {1, 13, 2},
 	.module = THIS_MODULE,
 	.ctr = raid_ctr,
 	.dtr = raid_dtr,

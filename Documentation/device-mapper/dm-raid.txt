@@ -347,3 +347,4 @@ Version History
 1.13.0  Fix dev_health status at end of "recover" (was 'a', now 'A')
 1.13.1  Fix deadlock caused by early md_stop_writes().  Also fix size an
 	state races.
+1.13.2  Fix raid redundancy validation and avoid keeping raid set frozen
