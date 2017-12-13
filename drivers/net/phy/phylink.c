@@ -54,6 +54,8 @@ struct phylink {
 	/* The link configuration settings */
 	struct phylink_link_state link_config;
 	struct gpio_desc *link_gpio;
+	void (*get_fixed_state)(struct net_device *dev,
+				struct phylink_link_state *s);
 
 	struct mutex state_mutex;
 	struct phylink_link_state phy_state;
@@ -350,12 +352,14 @@ static int phylink_get_mac_state(struct phylink *pl, struct phylink_link_state *
 }
 
 /* The fixed state is... fixed except for the link state,
- * which may be determined by a GPIO.
+ * which may be determined by a GPIO or a callback.
  */
 static void phylink_get_fixed_state(struct phylink *pl, struct phylink_link_state *state)
 {
 	*state = pl->link_config;
-	if (pl->link_gpio)
+	if (pl->get_fixed_state)
+		pl->get_fixed_state(pl->netdev, state);
+	else if (pl->link_gpio)
 		state->link = !!gpiod_get_value(pl->link_gpio);
 }
 
@@ -813,6 +817,32 @@ void phylink_disconnect_phy(struct phylink *pl)
 	}
 }
 EXPORT_SYMBOL_GPL(phylink_disconnect_phy);
+
+/**
+ * phylink_fixed_state_cb() - allow setting a fixed link callback
+ * @pl: a pointer to a &struct phylink returned from phylink_create()
+ * @cb: callback to execute to determine the fixed link state.
+ *
+ * The MAC driver should call this driver when the state of its link
+ * can be determined through e.g: an out of band MMIO register.
+ */
+int phylink_fixed_state_cb(struct phylink *pl,
+			   void (*cb)(struct net_device *dev,
+				      struct phylink_link_state *state))
+{
+	/* It does not make sense to let the link be overriden unless we use
+	 * MLO_AN_FIXED
+	 */
+	if (pl->link_an_mode != MLO_AN_FIXED)
+		return -EINVAL;
+
+	mutex_lock(&pl->state_mutex);
+	pl->get_fixed_state = cb;
+	mutex_unlock(&pl->state_mutex);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(phylink_fixed_state_cb);
 
 /**
  * phylink_mac_change() - notify phylink of a change in MAC state
