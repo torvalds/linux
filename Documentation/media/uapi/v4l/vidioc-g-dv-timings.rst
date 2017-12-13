@@ -267,7 +267,7 @@ EBUSY
 	will also be cleared.
     * - ``V4L2_DV_FL_HALF_LINE``
       - Specific to interlaced formats: if set, then the vertical
-	frontporch of field 1 (aka the odd field) is really one half-line
+	backporch of field 1 (aka the odd field) is really one half-line
 	longer and the vertical backporch of field 2 (aka the even field)
 	is really one half-line shorter, so each field has exactly the
 	same number of half-lines. Whether half-lines can be detected or
