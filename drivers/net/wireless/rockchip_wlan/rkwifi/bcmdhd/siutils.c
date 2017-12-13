@@ -604,11 +604,14 @@ si_doattach(si_info_t *sii, uint devid, osl_t *osh, volatile void *regs,
 	}
 
 	sih->bustype = bustype;
+
+#ifdef BCMBUSTYPE
 	if (bustype != BUSTYPE(bustype)) {
 		SI_ERROR(("si_doattach: bus type %d does not match configured bus type %d\n",
 			bustype, BUSTYPE(bustype)));
 		return NULL;
 	}
+#endif
 
 	/* bus/core/clk setup for register access */
 	if (!si_buscore_prep(sii, bustype, devid, sdh)) {
