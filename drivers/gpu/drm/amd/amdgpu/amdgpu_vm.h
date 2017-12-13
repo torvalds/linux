@@ -120,6 +120,16 @@ struct amdgpu_bo_list_entry;
 #define AMDGPU_VM_USE_CPU_FOR_GFX (1 << 0)
 #define AMDGPU_VM_USE_CPU_FOR_COMPUTE (1 << 1)
 
+/* VMPT level enumerate, and the hiberachy is:
+ * PDB2->PDB1->PDB0->PTB
+ */
+enum amdgpu_vm_level {
+	AMDGPU_VM_PDB2,
+	AMDGPU_VM_PDB1,
+	AMDGPU_VM_PDB0,
+	AMDGPU_VM_PTB
+};
+
 /* base structure for tracking BO usage in a VM */
 struct amdgpu_vm_bo_base {
 	/* constant after initialization */
@@ -236,6 +246,7 @@ struct amdgpu_vm_manager {
 	uint32_t				num_level;
 	uint32_t				block_size;
 	uint32_t				fragment_size;
+	enum amdgpu_vm_level			root_level;
 	/* vram base address for page table entry  */
 	u64					vram_base_offset;
 	/* vm pte handling */
