@@ -387,6 +387,8 @@ bpf_object__init_prog_names(struct bpf_object *obj)
 				continue;
 			if (sym.st_shndx != prog->idx)
 				continue;
+			if (GELF_ST_BIND(sym.st_info) != STB_GLOBAL)
+				continue;
 
 			name = elf_strptr(obj->efile.elf,
 					  obj->efile.strtabidx,
