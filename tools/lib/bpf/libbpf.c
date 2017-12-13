@@ -1721,6 +1721,45 @@ BPF_PROG_TYPE_FNS(tracepoint, BPF_PROG_TYPE_TRACEPOINT);
 BPF_PROG_TYPE_FNS(xdp, BPF_PROG_TYPE_XDP);
 BPF_PROG_TYPE_FNS(perf_event, BPF_PROG_TYPE_PERF_EVENT);
 
+#define BPF_PROG_SEC(string, type) { string, sizeof(string), type }
+static const struct {
+	const char *sec;
+	size_t len;
+	enum bpf_prog_type prog_type;
+} section_names[] = {
+	BPF_PROG_SEC("socket",		BPF_PROG_TYPE_SOCKET_FILTER),
+	BPF_PROG_SEC("kprobe/",		BPF_PROG_TYPE_KPROBE),
+	BPF_PROG_SEC("kretprobe/",	BPF_PROG_TYPE_KPROBE),
+	BPF_PROG_SEC("tracepoint/",	BPF_PROG_TYPE_TRACEPOINT),
+	BPF_PROG_SEC("xdp",		BPF_PROG_TYPE_XDP),
+	BPF_PROG_SEC("perf_event",	BPF_PROG_TYPE_PERF_EVENT),
+	BPF_PROG_SEC("cgroup/skb",	BPF_PROG_TYPE_CGROUP_SKB),
+	BPF_PROG_SEC("cgroup/sock",	BPF_PROG_TYPE_CGROUP_SOCK),
+	BPF_PROG_SEC("cgroup/dev",	BPF_PROG_TYPE_CGROUP_DEVICE),
+	BPF_PROG_SEC("sockops",		BPF_PROG_TYPE_SOCK_OPS),
+	BPF_PROG_SEC("sk_skb",		BPF_PROG_TYPE_SK_SKB),
+};
+#undef BPF_PROG_SEC
+
+static enum bpf_prog_type bpf_program__guess_type(struct bpf_program *prog)
+{
+	int i;
+
+	if (!prog->section_name)
+		goto err;
+
+	for (i = 0; i < ARRAY_SIZE(section_names); i++)
+		if (strncmp(prog->section_name, section_names[i].sec,
+			    section_names[i].len) == 0)
+			return section_names[i].prog_type;
+
+err:
+	pr_warning("failed to guess program type based on section name %s\n",
+		   prog->section_name);
+
+	return BPF_PROG_TYPE_UNSPEC;
+}
+
 int bpf_map__fd(struct bpf_map *map)
 {
 	return map ? map->fd : -EINVAL;
@@ -1830,6 +1869,18 @@ int bpf_prog_load(const char *file, enum bpf_prog_type type,
 	if (!prog) {
 		bpf_object__close(obj);
 		return -ENOENT;
+	}
+
+	/*
+	 * If type is not specified, try to guess it based on
+	 * section name.
+	 */
+	if (type == BPF_PROG_TYPE_UNSPEC) {
+		type = bpf_program__guess_type(prog);
+		if (type == BPF_PROG_TYPE_UNSPEC) {
+			bpf_object__close(obj);
+			return -EINVAL;
+		}
 	}
 
 	bpf_program__set_type(prog, type);
