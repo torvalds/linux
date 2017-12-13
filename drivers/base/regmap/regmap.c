@@ -457,6 +457,11 @@ static void regmap_unlock_hwlock_irqrestore(void *__map)
 	hwspin_unlock_irqrestore(map->hwlock, &map->spinlock_flags);
 }
 
+static void regmap_lock_unlock_none(void *__map)
+{
+
+}
+
 static void regmap_lock_mutex(void *__map)
 {
 	struct regmap *map = __map;
@@ -667,7 +672,10 @@ struct regmap *__regmap_init(struct device *dev,
 		goto err;
 	}
 
-	if (config->lock && config->unlock) {
+	if (config->disable_locking) {
+		map->lock = map->unlock = regmap_lock_unlock_none;
+		regmap_debugfs_disable(map);
+	} else if (config->lock && config->unlock) {
 		map->lock = config->lock;
 		map->unlock = config->unlock;
 		map->lock_arg = config->lock_arg;
