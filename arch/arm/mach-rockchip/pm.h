@@ -16,7 +16,13 @@
 #define __MACH_ROCKCHIP_PM_H
 
 void rockchip_slp_cpu_resume(void);
+#ifdef CONFIG_PM_SLEEP
 void __init rockchip_suspend_init(void);
+#else
+static inline void rockchip_suspend_init(void)
+{
+}
+#endif
 
 struct rk3288_ddr_save_data;
 int __init rk3288_ddr_suspend_init(struct rk3288_ddr_save_data *ddr_save);
