@@ -115,6 +115,7 @@ struct rkisp1_device {
 	struct rkisp1_isp_params_vdev params_vdev;
 	struct rkisp1_pipeline pipe;
 	struct vb2_alloc_ctx *alloc_ctx;
+	struct iommu_domain *domain;
 };
 
 #endif

@@ -40,6 +40,9 @@
 #include <linux/of_platform.h>
 #include <linux/pm_runtime.h>
 #include <linux/pinctrl/consumer.h>
+#include <linux/dma-iommu.h>
+#include "regs.h"
+#include "rkisp1.h"
 #include "common.h"
 #include "regs.h"
 
@@ -499,6 +502,56 @@ err:
 	return ret;
 }
 
+static int rkisp1_iommu_init(struct rkisp1_device *rkisp1_dev)
+{
+	struct iommu_group *group;
+	int ret;
+
+	rkisp1_dev->domain = iommu_domain_alloc(&platform_bus_type);
+	if (!rkisp1_dev->domain) {
+		ret = -ENOMEM;
+		goto err;
+	}
+
+	ret = iommu_get_dma_cookie(rkisp1_dev->domain);
+	if (ret)
+		goto err;
+
+	group = iommu_group_get(rkisp1_dev->dev);
+	if (!group) {
+		group = iommu_group_alloc();
+		if (IS_ERR(group))
+			goto err;
+		ret = iommu_group_add_device(group, rkisp1_dev->dev);
+		iommu_group_put(group);
+		if (ret)
+			goto err;
+	}
+
+	ret = iommu_attach_device(rkisp1_dev->domain, rkisp1_dev->dev);
+	if (ret)
+		goto err;
+	if (!common_iommu_setup_dma_ops(rkisp1_dev->dev, 0x10000000,
+	    SZ_2G, rkisp1_dev->domain->ops)) {
+		iommu_detach_device(rkisp1_dev->domain, rkisp1_dev->dev);
+		ret = -ENODEV;
+		goto err;
+	}
+
+	return 0;
+
+err:
+	dev_err(rkisp1_dev->dev, "Failed to setup IOMMU\n");
+
+	return ret;
+}
+
+static void rkisp1_iommu_cleanup(struct rkisp1_device *rkisp1_dev)
+{
+	iommu_detach_device(rkisp1_dev->domain, rkisp1_dev->dev);
+	iommu_domain_free(rkisp1_dev->domain);
+}
+
 static int rkisp1_plat_probe(struct platform_device *pdev)
 {
 	const struct of_device_id *match;
@@ -582,6 +635,7 @@ static int rkisp1_plat_probe(struct platform_device *pdev)
 	if (ret < 0)
 		goto err_unreg_media_dev;
 
+	rkisp1_iommu_init(isp_dev);
 	pm_runtime_enable(&pdev->dev);
 
 	return 0;
@@ -598,6 +652,8 @@ static int rkisp1_plat_remove(struct platform_device *pdev)
 	struct rkisp1_device *isp_dev = platform_get_drvdata(pdev);
 
 	pm_runtime_disable(&pdev->dev);
+	rkisp1_iommu_cleanup(isp_dev);
+
 	media_device_unregister(&isp_dev->media_dev);
 	v4l2_device_unregister(&isp_dev->v4l2_dev);
 	rkisp1_unregister_params_vdev(&isp_dev->params_vdev);
