@@ -140,6 +140,65 @@ static void a5xx_flush(struct msm_gpu *gpu, struct msm_ringbuffer *ring)
 		gpu_write(gpu, REG_A5XX_CP_RB_WPTR, wptr);
 }
 
+static void a5xx_submit_in_rb(struct msm_gpu *gpu, struct msm_gem_submit *submit,
+	struct msm_file_private *ctx)
+{
+	struct msm_drm_private *priv = gpu->dev->dev_private;
+	struct msm_ringbuffer *ring = submit->ring;
+	struct msm_gem_object *obj;
+	uint32_t *ptr, dwords;
+	unsigned int i;
+
+	for (i = 0; i < submit->nr_cmds; i++) {
+		switch (submit->cmd[i].type) {
+		case MSM_SUBMIT_CMD_IB_TARGET_BUF:
+			break;
+		case MSM_SUBMIT_CMD_CTX_RESTORE_BUF:
+			if (priv->lastctx == ctx)
+				break;
+		case MSM_SUBMIT_CMD_BUF:
+			/* copy commands into RB: */
+			obj = submit->bos[submit->cmd[i].idx].obj;
+			dwords = submit->cmd[i].size;
+
+			ptr = msm_gem_get_vaddr(&obj->base);
+
+			/* _get_vaddr() shouldn't fail at this point,
+			 * since we've already mapped it once in
+			 * submit_reloc()
+			 */
+			if (WARN_ON(!ptr))
+				return;
+
+			for (i = 0; i < dwords; i++) {
+				/* normally the OUT_PKTn() would wait
+				 * for space for the packet.  But since
+				 * we just OUT_RING() the whole thing,
+				 * need to call adreno_wait_ring()
+				 * ourself:
+				 */
+				adreno_wait_ring(ring, 1);
+				OUT_RING(ring, ptr[i]);
+			}
+
+			msm_gem_put_vaddr(&obj->base);
+
+			break;
+		}
+	}
+
+	a5xx_flush(gpu, ring);
+	a5xx_preempt_trigger(gpu);
+
+	/* we might not necessarily have a cmd from userspace to
+	 * trigger an event to know that submit has completed, so
+	 * do this manually:
+	 */
+	a5xx_idle(gpu, ring);
+	ring->memptrs->fence = submit->seqno;
+	msm_gpu_retire(gpu);
+}
+
 static void a5xx_submit(struct msm_gpu *gpu, struct msm_gem_submit *submit,
 	struct msm_file_private *ctx)
 {
@@ -148,6 +207,12 @@ static void a5xx_submit(struct msm_gpu *gpu, struct msm_gem_submit *submit,
 	struct msm_drm_private *priv = gpu->dev->dev_private;
 	struct msm_ringbuffer *ring = submit->ring;
 	unsigned int i, ibs = 0;
+
+	if (IS_ENABLED(CONFIG_DRM_MSM_GPU_SUDO) && submit->in_rb) {
+		priv->lastctx = NULL;
+		a5xx_submit_in_rb(gpu, submit, ctx);
+		return;
+	}
 
 	OUT_PKT7(ring, CP_PREEMPT_ENABLE_GLOBAL, 1);
 	OUT_RING(ring, 0x02);
