@@ -322,6 +322,9 @@ static int tegra_dpaux_pad_config(struct tegra_dpaux *dpaux, unsigned function)
 	case DPAUX_PADCTL_FUNC_I2C:
 		value = DPAUX_HYBRID_PADCTL_I2C_SDA_INPUT_RCV |
 			DPAUX_HYBRID_PADCTL_I2C_SCL_INPUT_RCV |
+			DPAUX_HYBRID_PADCTL_AUX_CMH(2) |
+			DPAUX_HYBRID_PADCTL_AUX_DRVZ(4) |
+			DPAUX_HYBRID_PADCTL_AUX_DRVI(0x18) |
 			DPAUX_HYBRID_PADCTL_MODE_I2C;
 		break;
 
