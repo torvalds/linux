@@ -1443,6 +1443,16 @@ static inline __u16 sctp_datahdr_len(const struct sctp_stream *stream)
 	return stream->si->data_chunk_len - sizeof(struct sctp_chunkhdr);
 }
 
+static inline __u16 sctp_ftsnchk_len(const struct sctp_stream *stream)
+{
+	return stream->si->ftsn_chunk_len;
+}
+
+static inline __u16 sctp_ftsnhdr_len(const struct sctp_stream *stream)
+{
+	return stream->si->ftsn_chunk_len - sizeof(struct sctp_chunkhdr);
+}
+
 /* SCTP_GET_ASSOC_STATS counters */
 struct sctp_priv_assoc_stats {
 	/* Maximum observed rto in the association during subsequent

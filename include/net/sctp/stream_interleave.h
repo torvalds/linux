@@ -33,6 +33,7 @@
 
 struct sctp_stream_interleave {
 	__u16	data_chunk_len;
+	__u16	ftsn_chunk_len;
 	/* (I-)DATA process */
 	struct sctp_chunk *(*make_datafrag)(const struct sctp_association *asoc,
 					    const struct sctp_sndrcvinfo *sinfo,
@@ -49,6 +50,7 @@ struct sctp_stream_interleave {
 	void	(*abort_pd)(struct sctp_ulpq *ulpq, gfp_t gfp);
 	/* (I-)FORWARD-TSN process */
 	void	(*generate_ftsn)(struct sctp_outq *q, __u32 ctsn);
+	bool	(*validate_ftsn)(struct sctp_chunk *chunk);
 };
 
 void sctp_stream_interleave_init(struct sctp_stream *stream);
