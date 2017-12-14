@@ -704,7 +704,7 @@ struct wil6210_priv {
 	struct wil_sta_info sta[WIL6210_MAX_CID];
 	int bcast_vring;
 	u32 vring_idle_trsh; /* HW fetches up to 16 descriptors at once  */
-	bool use_extended_dma_addr; /* indicates whether we are using 48 bits */
+	u32 dma_addr_size; /* indicates dma addr size */
 	/* scan */
 	struct cfg80211_scan_request *scan_request;
 
