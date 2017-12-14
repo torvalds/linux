@@ -527,10 +527,16 @@ static int safexcel_ahash_enqueue(struct ahash_request *areq)
 
 	req->needs_inv = false;
 
-	if (req->processed && ctx->digest == CONTEXT_CONTROL_DIGEST_PRECOMPUTED)
-		ctx->base.needs_inv = safexcel_ahash_needs_inv_get(areq);
-
 	if (ctx->base.ctxr) {
+		if (!ctx->base.needs_inv && req->processed &&
+		    ctx->digest == CONTEXT_CONTROL_DIGEST_PRECOMPUTED)
+			/* We're still setting needs_inv here, even though it is
+			 * cleared right away, because the needs_inv flag can be
+			 * set in other functions and we want to keep the same
+			 * logic.
+			 */
+			ctx->base.needs_inv = safexcel_ahash_needs_inv_get(areq);
+
 		if (ctx->base.needs_inv) {
 			ctx->base.needs_inv = false;
 			req->needs_inv = true;
@@ -928,11 +934,13 @@ static int safexcel_hmac_sha1_setkey(struct crypto_ahash *tfm, const u8 *key,
 	if (ret)
 		return ret;
 
-	for (i = 0; i < SHA1_DIGEST_SIZE / sizeof(u32); i++) {
-		if (ctx->ipad[i] != le32_to_cpu(istate.state[i]) ||
-		    ctx->opad[i] != le32_to_cpu(ostate.state[i])) {
-			ctx->base.needs_inv = true;
-			break;
+	if (ctx->base.ctxr) {
+		for (i = 0; i < SHA1_DIGEST_SIZE / sizeof(u32); i++) {
+			if (ctx->ipad[i] != le32_to_cpu(istate.state[i]) ||
+			    ctx->opad[i] != le32_to_cpu(ostate.state[i])) {
+				ctx->base.needs_inv = true;
+				break;
+			}
 		}
 	}
 
