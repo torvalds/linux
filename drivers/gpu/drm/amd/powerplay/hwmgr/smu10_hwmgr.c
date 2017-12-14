@@ -81,10 +81,14 @@ static int smu10_initialize_dpm_defaults(struct pp_hwmgr *hwmgr)
 	smu10_data->thermal_auto_throttling_treshold = 0;
 	smu10_data->is_nb_dpm_enabled = 1;
 	smu10_data->dpm_flags = 1;
-	smu10_data->gfx_off_controled_by_driver = false;
 	smu10_data->need_min_deep_sleep_dcefclk = true;
 	smu10_data->num_active_display = 0;
 	smu10_data->deep_sleep_dcefclk = 0;
+
+	if (hwmgr->feature_mask & PP_GFXOFF_MASK)
+		smu10_data->gfx_off_controled_by_driver = true;
+	else
+		smu10_data->gfx_off_controled_by_driver = false;
 
 	phm_cap_unset(hwmgr->platform_descriptor.platformCaps,
 					PHM_PlatformCaps_SclkDeepSleep);
