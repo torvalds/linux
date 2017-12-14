@@ -512,20 +512,16 @@ static const struct dev_pm_ops arm_cc7x_driver_pm = {
 #define	CC_DRIVER_RUNTIME_PM	NULL
 #endif
 
-#ifdef CONFIG_OF
 static const struct of_device_id arm_cc7x_dev_of_match[] = {
 	{.compatible = "arm,cryptocell-712-ree"},
 	{}
 };
 MODULE_DEVICE_TABLE(of, arm_cc7x_dev_of_match);
-#endif
 
 static struct platform_driver cc7x_driver = {
 	.driver = {
 		   .name = "cc7xree",
-#ifdef CONFIG_OF
 		   .of_match_table = arm_cc7x_dev_of_match,
-#endif
 		   .pm = CC_DRIVER_RUNTIME_PM,
 	},
 	.probe = cc7x_probe,
