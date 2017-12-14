@@ -174,6 +174,9 @@ static void fix_processor_context(void)
 	write_gdt_entry(desc, GDT_ENTRY_TSS, &tss, DESC_TSS);
 
 	syscall_init();				/* This sets MSR_*STAR and related */
+#else
+	if (boot_cpu_has(X86_FEATURE_SEP))
+		enable_sep_cpu();
 #endif
 	load_TR_desc();				/* This does ltr */
 	load_mm_ldt(current->active_mm);	/* This does lldt */
@@ -237,12 +240,6 @@ static void notrace __restore_processor_state(struct saved_context *ctxt)
 	loadsegment(fs, ctxt->fs);
 	loadsegment(gs, ctxt->gs);
 	loadsegment(ss, ctxt->ss);
-
-	/*
-	 * sysenter MSRs
-	 */
-	if (boot_cpu_has(X86_FEATURE_SEP))
-		enable_sep_cpu();
 #else
 /* CONFIG_X86_64 */
 	asm volatile ("movw %0, %%ds" :: "r" (ctxt->ds));
