@@ -600,12 +600,15 @@ static inline void safexcel_handle_result_descriptor(struct safexcel_crypto_priv
 {
 	struct safexcel_request *sreq;
 	struct safexcel_context *ctx;
-	int ret, i, nreq, ndesc = 0, tot_descs = 0, done;
+	int ret, i, nreq, ndesc, tot_descs, done;
 	bool should_complete;
 
+handle_results:
+	tot_descs = 0;
+
 	nreq = readl(priv->base + EIP197_HIA_RDR(ring) + EIP197_HIA_xDR_PROC_COUNT);
-	nreq >>= 24;
-	nreq &= GENMASK(6, 0);
+	nreq >>= EIP197_xDR_PROC_xD_PKT_OFFSET;
+	nreq &= EIP197_xDR_PROC_xD_PKT_MASK;
 	if (!nreq)
 		goto requests_left;
 
@@ -641,6 +644,12 @@ acknowledge:
 		       EIP197_xDR_PROC_xD_COUNT(tot_descs * priv->config.rd_offset),
 		       priv->base + EIP197_HIA_RDR(ring) + EIP197_HIA_xDR_PROC_COUNT);
 	}
+
+	/* If the number of requests overflowed the counter, try to proceed more
+	 * requests.
+	 */
+	if (nreq == EIP197_xDR_PROC_xD_PKT_MASK)
+		goto handle_results;
 
 requests_left:
 	spin_lock_bh(&priv->ring[ring].egress_lock);
