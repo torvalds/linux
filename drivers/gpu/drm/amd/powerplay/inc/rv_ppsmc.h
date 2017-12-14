@@ -75,6 +75,7 @@
 #define PPSMC_MSG_GetMinGfxclkFrequency         0x2C
 #define PPSMC_MSG_GetMaxGfxclkFrequency         0x2D
 #define PPSMC_MSG_SoftReset                     0x2E
+#define PPSMC_MSG_SetGfxCGPG			0x2F
 #define PPSMC_MSG_SetSoftMaxGfxClk              0x30
 #define PPSMC_MSG_SetHardMinGfxClk              0x31
 #define PPSMC_MSG_SetSoftMaxSocclkByFreq        0x32

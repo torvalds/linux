@@ -206,12 +206,18 @@ static int smu10_set_power_state_tasks(struct pp_hwmgr *hwmgr, const void *input
 static int smu10_init_power_gate_state(struct pp_hwmgr *hwmgr)
 {
 	struct smu10_hwmgr *smu10_data = (struct smu10_hwmgr *)(hwmgr->backend);
+	struct amdgpu_device *adev = hwmgr->adev;
 
 	smu10_data->vcn_power_gated = true;
 	smu10_data->isp_tileA_power_gated = true;
 	smu10_data->isp_tileB_power_gated = true;
 
-	return 0;
+	if (adev->pg_flags & AMD_PG_SUPPORT_GFX_PG)
+		return smum_send_msg_to_smc_with_parameter(hwmgr,
+							   PPSMC_MSG_SetGfxCGPG,
+							   true);
+	else
+		return 0;
 }
 
 
