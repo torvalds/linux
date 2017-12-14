@@ -793,6 +793,7 @@ static void aq_nic_update_ndev_stats(struct aq_nic_s *self)
 	ndev->stats.tx_packets = stats->uptc + stats->mptc + stats->bptc;
 	ndev->stats.tx_bytes = stats->ubtc + stats->mbtc + stats->bbtc;
 	ndev->stats.tx_errors = stats->erpt;
+	ndev->stats.multicast = stats->mprc;
 }
 
 void aq_nic_get_link_ksettings(struct aq_nic_s *self,
