@@ -117,11 +117,12 @@ mt76x2_get_max_power(struct mt76_rate_power *r)
 void mt76x2_phy_set_txpower(struct mt76x2_dev *dev)
 {
 	enum nl80211_chan_width width = dev->mt76.chandef.width;
+	struct ieee80211_channel *chan = dev->mt76.chandef.chan;
 	struct mt76x2_tx_power_info txp;
 	int txp_0, txp_1, delta = 0;
 	struct mt76_rate_power t = {};
 
-	mt76x2_get_power_info(dev, &txp);
+	mt76x2_get_power_info(dev, &txp, chan);
 
 	if (width == NL80211_CHAN_WIDTH_40)
 		delta = txp.delta_bw40;
@@ -131,7 +132,7 @@ void mt76x2_phy_set_txpower(struct mt76x2_dev *dev)
 	if (txp.target_power > dev->txpower_conf)
 		delta -= txp.target_power - dev->txpower_conf;
 
-	mt76x2_get_rate_power(dev, &t);
+	mt76x2_get_rate_power(dev, &t, chan);
 	mt76x2_add_rate_power_offset(&t, txp.chain[0].target_power +
 				   txp.chain[0].delta);
 	mt76x2_limit_rate_power(&t, dev->txpower_conf);
@@ -675,7 +676,7 @@ mt76x2_phy_tssi_compensate(struct mt76x2_dev *dev)
 			return;
 
 		dev->cal.tssi_comp_pending = false;
-		mt76x2_get_power_info(dev, &txp);
+		mt76x2_get_power_info(dev, &txp, chan);
 
 		if (mt76x2_ext_pa_enabled(dev, chan->band))
 			t.pa_mode = 1;
