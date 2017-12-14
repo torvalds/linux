@@ -118,21 +118,6 @@ static const struct kfd_device_info tonga_device_info = {
 	.num_sdma_engines = 2,
 };
 
-static const struct kfd_device_info tonga_vf_device_info = {
-	.asic_family = CHIP_TONGA,
-	.max_pasid_bits = 16,
-	.max_no_of_hqd  = 24,
-	.doorbell_size  = 4,
-	.ih_ring_entry_size = 4 * sizeof(uint32_t),
-	.event_interrupt_class = &event_interrupt_class_cik,
-	.num_of_watch_points = 4,
-	.mqd_size_aligned = MQD_SIZE_ALIGNED,
-	.supports_cwsr = false,
-	.needs_iommu_device = false,
-	.needs_pci_atomics = false,
-	.num_sdma_engines = 2,
-};
-
 static const struct kfd_device_info fiji_device_info = {
 	.asic_family = CHIP_FIJI,
 	.max_pasid_bits = 16,
@@ -293,7 +278,6 @@ static const struct kfd_deviceid supported_devices[] = {
 	{ 0x6928, &tonga_device_info },		/* Tonga */
 	{ 0x6929, &tonga_device_info },		/* Tonga */
 	{ 0x692B, &tonga_device_info },		/* Tonga */
-	{ 0x692F, &tonga_vf_device_info },	/* Tonga vf */
 	{ 0x6938, &tonga_device_info },		/* Tonga */
 	{ 0x6939, &tonga_device_info },		/* Tonga */
 	{ 0x7300, &fiji_device_info },		/* Fiji */
