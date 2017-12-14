@@ -80,6 +80,7 @@
 #define AQ_CFG_DRV_VERSION	__stringify(NIC_MAJOR_DRIVER_VERSION)"."\
 				__stringify(NIC_MINOR_DRIVER_VERSION)"."\
 				__stringify(NIC_BUILD_DRIVER_VERSION)"."\
-				__stringify(NIC_REVISION_DRIVER_VERSION)
+				__stringify(NIC_REVISION_DRIVER_VERSION) \
+				AQ_CFG_DRV_VERSION_SUFFIX
 
 #endif /* AQ_CFG_H */
