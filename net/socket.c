@@ -163,12 +163,6 @@ static DEFINE_SPINLOCK(net_family_lock);
 static const struct net_proto_family __rcu *net_families[NPROTO] __read_mostly;
 
 /*
- *	Statistics counters of the socket lists
- */
-
-static DEFINE_PER_CPU(int, sockets_in_use);
-
-/*
  * Support routines.
  * Move socket addresses back and forth across the kernel/user
  * divide and look after the messy bits.
@@ -578,7 +572,6 @@ struct socket *sock_alloc(void)
 	inode->i_gid = current_fsgid();
 	inode->i_op = &sockfs_inode_ops;
 
-	this_cpu_add(sockets_in_use, 1);
 	return sock;
 }
 EXPORT_SYMBOL(sock_alloc);
@@ -605,7 +598,6 @@ void sock_release(struct socket *sock)
 	if (rcu_dereference_protected(sock->wq, 1)->fasync_list)
 		pr_err("%s: fasync list not empty!\n", __func__);
 
-	this_cpu_sub(sockets_in_use, 1);
 	if (!sock->file) {
 		iput(SOCK_INODE(sock));
 		return;
@@ -2622,17 +2614,8 @@ core_initcall(sock_init);	/* early initcall */
 #ifdef CONFIG_PROC_FS
 void socket_seq_show(struct seq_file *seq)
 {
-	int cpu;
-	int counter = 0;
-
-	for_each_possible_cpu(cpu)
-	    counter += per_cpu(sockets_in_use, cpu);
-
-	/* It can be negative, by the way. 8) */
-	if (counter < 0)
-		counter = 0;
-
-	seq_printf(seq, "sockets: used %d\n", counter);
+	seq_printf(seq, "sockets: used %d\n",
+		   sock_inuse_get(seq->private));
 }
 #endif				/* CONFIG_PROC_FS */
 
