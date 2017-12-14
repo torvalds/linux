@@ -530,7 +530,7 @@ static int amdgpu_device_wb_init(struct amdgpu_device *adev)
 }
 
 /**
- * amdgpu_wb_get - Allocate a wb entry
+ * amdgpu_device_wb_get - Allocate a wb entry
  *
  * @adev: amdgpu_device pointer
  * @wb: wb index
@@ -538,7 +538,7 @@ static int amdgpu_device_wb_init(struct amdgpu_device *adev)
  * Allocate a wb slot for use by the driver (all asics).
  * Returns 0 on success or -EINVAL on failure.
  */
-int amdgpu_wb_get(struct amdgpu_device *adev, u32 *wb)
+int amdgpu_device_wb_get(struct amdgpu_device *adev, u32 *wb)
 {
 	unsigned long offset = find_first_zero_bit(adev->wb.used, adev->wb.num_wb);
 
@@ -552,14 +552,14 @@ int amdgpu_wb_get(struct amdgpu_device *adev, u32 *wb)
 }
 
 /**
- * amdgpu_wb_free - Free a wb entry
+ * amdgpu_device_wb_free - Free a wb entry
  *
  * @adev: amdgpu_device pointer
  * @wb: wb index
  *
  * Free a wb slot allocated for use by the driver (all asics)
  */
-void amdgpu_wb_free(struct amdgpu_device *adev, u32 wb)
+void amdgpu_device_wb_free(struct amdgpu_device *adev, u32 wb)
 {
 	if (wb < adev->wb.num_wb)
 		__clear_bit(wb >> 3, adev->wb.used);
