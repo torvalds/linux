@@ -429,8 +429,6 @@ void safexcel_dequeue(struct safexcel_crypto_priv *priv, int ring)
 	struct safexcel_request *request;
 	int ret, nreq = 0, cdesc = 0, rdesc = 0, commands, results;
 
-	priv->ring[ring].need_dequeue = false;
-
 	do {
 		spin_lock_bh(&priv->ring[ring].queue_lock);
 		backlog = crypto_get_backlog(&priv->ring[ring].queue);
@@ -445,8 +443,6 @@ void safexcel_dequeue(struct safexcel_crypto_priv *priv, int ring)
 			spin_lock_bh(&priv->ring[ring].queue_lock);
 			crypto_enqueue_request(&priv->ring[ring].queue, req);
 			spin_unlock_bh(&priv->ring[ring].queue_lock);
-
-			priv->ring[ring].need_dequeue = true;
 			goto finalize;
 		}
 
@@ -455,7 +451,6 @@ void safexcel_dequeue(struct safexcel_crypto_priv *priv, int ring)
 		if (ret) {
 			kfree(request);
 			req->complete(req, ret);
-			priv->ring[ring].need_dequeue = true;
 			goto finalize;
 		}
 
@@ -471,9 +466,7 @@ void safexcel_dequeue(struct safexcel_crypto_priv *priv, int ring)
 	} while (nreq++ < EIP197_MAX_BATCH_SZ);
 
 finalize:
-	if (nreq == EIP197_MAX_BATCH_SZ)
-		priv->ring[ring].need_dequeue = true;
-	else if (!nreq)
+	if (!nreq)
 		return;
 
 	spin_lock_bh(&priv->ring[ring].lock);
@@ -628,13 +621,18 @@ static inline void safexcel_handle_result_descriptor(struct safexcel_crypto_priv
 static void safexcel_handle_result_work(struct work_struct *work)
 {
 	struct safexcel_work_data *data =
-			container_of(work, struct safexcel_work_data, work);
+			container_of(work, struct safexcel_work_data, result_work);
 	struct safexcel_crypto_priv *priv = data->priv;
 
 	safexcel_handle_result_descriptor(priv, data->ring);
+}
 
-	if (priv->ring[data->ring].need_dequeue)
-		safexcel_dequeue(data->priv, data->ring);
+static void safexcel_dequeue_work(struct work_struct *work)
+{
+	struct safexcel_work_data *data =
+			container_of(work, struct safexcel_work_data, work);
+
+	safexcel_dequeue(data->priv, data->ring);
 }
 
 struct safexcel_ring_irq_data {
@@ -665,7 +663,10 @@ static irqreturn_t safexcel_irq_ring(int irq, void *data)
 			 */
 			dev_err(priv->dev, "RDR: fatal error.");
 		} else if (likely(stat & EIP197_xDR_THRESH)) {
-			queue_work(priv->ring[ring].workqueue, &priv->ring[ring].work_data.work);
+			queue_work(priv->ring[ring].workqueue,
+				   &priv->ring[ring].work_data.result_work);
+			queue_work(priv->ring[ring].workqueue,
+				   &priv->ring[ring].work_data.work);
 		}
 
 		/* ACK the interrupts */
@@ -846,7 +847,9 @@ static int safexcel_probe(struct platform_device *pdev)
 
 		priv->ring[i].work_data.priv = priv;
 		priv->ring[i].work_data.ring = i;
-		INIT_WORK(&priv->ring[i].work_data.work, safexcel_handle_result_work);
+		INIT_WORK(&priv->ring[i].work_data.result_work,
+			  safexcel_handle_result_work);
+		INIT_WORK(&priv->ring[i].work_data.work, safexcel_dequeue_work);
 
 		snprintf(wq_name, 9, "wq_ring%d", i);
 		priv->ring[i].workqueue = create_singlethread_workqueue(wq_name);

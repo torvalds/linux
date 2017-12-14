@@ -459,6 +459,7 @@ struct safexcel_config {
 
 struct safexcel_work_data {
 	struct work_struct work;
+	struct work_struct result_work;
 	struct safexcel_crypto_priv *priv;
 	int ring;
 };
@@ -489,7 +490,6 @@ struct safexcel_crypto_priv {
 		/* queue */
 		struct crypto_queue queue;
 		spinlock_t queue_lock;
-		bool need_dequeue;
 	} ring[EIP197_MAX_RINGS];
 };
 
