@@ -85,7 +85,7 @@ SYSCALL(sys_sigsuspend,compat_sys_sigsuspend)
 SYSCALL(sys_sigpending,compat_sys_sigpending)
 SYSCALL(sys_sethostname,compat_sys_sethostname)
 SYSCALL(sys_setrlimit,compat_sys_setrlimit)		/* 75 */
-SYSCALL(sys_getrlimit,compat_sys_old_getrlimit)
+SYSCALL(sys_ni_syscall,compat_sys_old_getrlimit)
 SYSCALL(sys_getrusage,compat_sys_getrusage)
 SYSCALL(sys_gettimeofday,compat_sys_gettimeofday)
 SYSCALL(sys_settimeofday,compat_sys_settimeofday)
@@ -149,7 +149,7 @@ SYSCALL(sys_s390_personality,sys_s390_personality)
 NI_SYSCALL						/* for afs_syscall */
 SYSCALL(sys_ni_syscall,compat_sys_s390_setfsuid16)	/* old setfsuid16 syscall */
 SYSCALL(sys_ni_syscall,compat_sys_s390_setfsgid16)	/* old setfsgid16 syscall */
-SYSCALL(sys_llseek,compat_sys_llseek)			/* 140 */
+SYSCALL(sys_ni_syscall,compat_sys_llseek)		/* 140 */
 SYSCALL(sys_getdents,compat_sys_getdents)
 SYSCALL(sys_select,compat_sys_select)
 SYSCALL(sys_flock,sys_flock)
@@ -201,7 +201,7 @@ NI_SYSCALL						/* streams1 */
 NI_SYSCALL						/* streams2 */
 SYSCALL(sys_vfork,sys_vfork)				/* 190 */
 SYSCALL(sys_getrlimit,compat_sys_getrlimit)
-SYSCALL(sys_mmap2,compat_sys_s390_mmap2)
+SYSCALL(sys_ni_syscall,compat_sys_s390_mmap2)
 SYSCALL(sys_ni_syscall,compat_sys_s390_truncate64)
 SYSCALL(sys_ni_syscall,compat_sys_s390_ftruncate64)
 SYSCALL(sys_ni_syscall,compat_sys_s390_stat64)		/* 195 */
