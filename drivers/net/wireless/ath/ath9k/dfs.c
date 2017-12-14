@@ -123,11 +123,9 @@ static bool ath9k_check_chirping(struct ath_softc *sc, u8 *data,
 			fft = (struct ath9k_dfs_fft_40 *) (data + 2);
 			ath_dbg(common, DFS, "fixing datalen by 2\n");
 		}
-		if (IS_CHAN_HT40MINUS(ah->curchan)) {
-			int temp = is_ctl;
-			is_ctl = is_ext;
-			is_ext = temp;
-		}
+		if (IS_CHAN_HT40MINUS(ah->curchan))
+			swap(is_ctl, is_ext);
+
 		for (i = 0; i < FFT_NUM_SAMPLES; i++)
 			max_bin[i] = ath9k_get_max_index_ht40(fft + i, is_ctl,
 							      is_ext);

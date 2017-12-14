@@ -227,7 +227,7 @@ void ath10k_htt_rx_free(struct ath10k_htt *htt)
 {
 	del_timer_sync(&htt->rx_ring.refill_retry_timer);
 
-	skb_queue_purge(&htt->rx_compl_q);
+	skb_queue_purge(&htt->rx_msdus_q);
 	skb_queue_purge(&htt->rx_in_ord_compl_q);
 	skb_queue_purge(&htt->tx_fetch_ind_q);
 
@@ -515,7 +515,7 @@ int ath10k_htt_rx_alloc(struct ath10k_htt *htt)
 	htt->rx_ring.sw_rd_idx.msdu_payld = 0;
 	hash_init(htt->rx_ring.skb_table);
 
-	skb_queue_head_init(&htt->rx_compl_q);
+	skb_queue_head_init(&htt->rx_msdus_q);
 	skb_queue_head_init(&htt->rx_in_ord_compl_q);
 	skb_queue_head_init(&htt->tx_fetch_ind_q);
 	atomic_set(&htt->num_mpdus_ready, 0);
@@ -974,16 +974,25 @@ static char *ath10k_get_tid(struct ieee80211_hdr *hdr, char *out, size_t size)
 	return out;
 }
 
-static void ath10k_process_rx(struct ath10k *ar,
-			      struct ieee80211_rx_status *rx_status,
-			      struct sk_buff *skb)
+static void ath10k_htt_rx_h_queue_msdu(struct ath10k *ar,
+				       struct ieee80211_rx_status *rx_status,
+				       struct sk_buff *skb)
+{
+	struct ieee80211_rx_status *status;
+
+	status = IEEE80211_SKB_RXCB(skb);
+	*status = *rx_status;
+
+	__skb_queue_tail(&ar->htt.rx_msdus_q, skb);
+}
+
+static void ath10k_process_rx(struct ath10k *ar, struct sk_buff *skb)
 {
 	struct ieee80211_rx_status *status;
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 	char tid[32];
 
 	status = IEEE80211_SKB_RXCB(skb);
-	*status = *rx_status;
 
 	ath10k_dbg(ar, ATH10K_DBG_DATA,
 		   "rx skb %pK len %u peer %pM %s %s sn %u %s%s%s%s%s%s %srate_idx %u vht_nss %u freq %u band %u flag 0x%x fcs-err %i mic-err %i amsdu-more %i\n",
@@ -1517,7 +1526,7 @@ static void ath10k_htt_rx_h_mpdu(struct ath10k *ar,
 	}
 }
 
-static void ath10k_htt_rx_h_deliver(struct ath10k *ar,
+static void ath10k_htt_rx_h_enqueue(struct ath10k *ar,
 				    struct sk_buff_head *amsdu,
 				    struct ieee80211_rx_status *status)
 {
@@ -1540,7 +1549,7 @@ static void ath10k_htt_rx_h_deliver(struct ath10k *ar,
 			status->flag |= RX_FLAG_ALLOW_SAME_PN;
 		}
 
-		ath10k_process_rx(ar, status, msdu);
+		ath10k_htt_rx_h_queue_msdu(ar, status, msdu);
 	}
 }
 
@@ -1652,7 +1661,7 @@ static int ath10k_htt_rx_handle_amsdu(struct ath10k_htt *htt)
 	struct ath10k *ar = htt->ar;
 	struct ieee80211_rx_status *rx_status = &htt->rx_status;
 	struct sk_buff_head amsdu;
-	int ret, num_msdus;
+	int ret;
 
 	__skb_queue_head_init(&amsdu);
 
@@ -1674,7 +1683,6 @@ static int ath10k_htt_rx_handle_amsdu(struct ath10k_htt *htt)
 		return ret;
 	}
 
-	num_msdus = skb_queue_len(&amsdu);
 	ath10k_htt_rx_h_ppdu(ar, &amsdu, rx_status, 0xffff);
 
 	/* only for ret = 1 indicates chained msdus */
@@ -1683,9 +1691,9 @@ static int ath10k_htt_rx_handle_amsdu(struct ath10k_htt *htt)
 
 	ath10k_htt_rx_h_filter(ar, &amsdu, rx_status);
 	ath10k_htt_rx_h_mpdu(ar, &amsdu, rx_status, true);
-	ath10k_htt_rx_h_deliver(ar, &amsdu, rx_status);
+	ath10k_htt_rx_h_enqueue(ar, &amsdu, rx_status);
 
-	return num_msdus;
+	return 0;
 }
 
 static void ath10k_htt_rx_proc_rx_ind(struct ath10k_htt *htt,
@@ -1893,15 +1901,14 @@ static void ath10k_htt_rx_h_rx_offload_prot(struct ieee80211_rx_status *status,
 			RX_FLAG_MMIC_STRIPPED;
 }
 
-static int ath10k_htt_rx_h_rx_offload(struct ath10k *ar,
-				      struct sk_buff_head *list)
+static void ath10k_htt_rx_h_rx_offload(struct ath10k *ar,
+				       struct sk_buff_head *list)
 {
 	struct ath10k_htt *htt = &ar->htt;
 	struct ieee80211_rx_status *status = &htt->rx_status;
 	struct htt_rx_offload_msdu *rx;
 	struct sk_buff *msdu;
 	size_t offset;
-	int num_msdu = 0;
 
 	while ((msdu = __skb_dequeue(list))) {
 		/* Offloaded frames don't have Rx descriptor. Instead they have
@@ -1940,10 +1947,8 @@ static int ath10k_htt_rx_h_rx_offload(struct ath10k *ar,
 
 		ath10k_htt_rx_h_rx_offload_prot(status, msdu);
 		ath10k_htt_rx_h_channel(ar, status, NULL, rx->vdev_id);
-		ath10k_process_rx(ar, status, msdu);
-		num_msdu++;
+		ath10k_htt_rx_h_queue_msdu(ar, status, msdu);
 	}
-	return num_msdu;
 }
 
 static int ath10k_htt_rx_in_ord_ind(struct ath10k *ar, struct sk_buff *skb)
@@ -1959,7 +1964,7 @@ static int ath10k_htt_rx_in_ord_ind(struct ath10k *ar, struct sk_buff *skb)
 	u8 tid;
 	bool offload;
 	bool frag;
-	int ret, num_msdus = 0;
+	int ret;
 
 	lockdep_assert_held(&htt->rx_ring.lock);
 
@@ -2001,7 +2006,7 @@ static int ath10k_htt_rx_in_ord_ind(struct ath10k *ar, struct sk_buff *skb)
 	 * separately.
 	 */
 	if (offload)
-		num_msdus = ath10k_htt_rx_h_rx_offload(ar, &list);
+		ath10k_htt_rx_h_rx_offload(ar, &list);
 
 	while (!skb_queue_empty(&list)) {
 		__skb_queue_head_init(&amsdu);
@@ -2014,11 +2019,10 @@ static int ath10k_htt_rx_in_ord_ind(struct ath10k *ar, struct sk_buff *skb)
 			 * better to report something than nothing though. This
 			 * should still give an idea about rx rate to the user.
 			 */
-			num_msdus += skb_queue_len(&amsdu);
 			ath10k_htt_rx_h_ppdu(ar, &amsdu, status, vdev_id);
 			ath10k_htt_rx_h_filter(ar, &amsdu, status);
 			ath10k_htt_rx_h_mpdu(ar, &amsdu, status, false);
-			ath10k_htt_rx_h_deliver(ar, &amsdu, status);
+			ath10k_htt_rx_h_enqueue(ar, &amsdu, status);
 			break;
 		case -EAGAIN:
 			/* fall through */
@@ -2030,7 +2034,7 @@ static int ath10k_htt_rx_in_ord_ind(struct ath10k *ar, struct sk_buff *skb)
 			return -EIO;
 		}
 	}
-	return num_msdus;
+	return ret;
 }
 
 static void ath10k_htt_rx_tx_fetch_resp_id_confirm(struct ath10k *ar,
@@ -2449,6 +2453,62 @@ out:
 	rcu_read_unlock();
 }
 
+static void ath10k_fetch_10_2_tx_stats(struct ath10k *ar, u8 *data)
+{
+	struct ath10k_pktlog_hdr *hdr = (struct ath10k_pktlog_hdr *)data;
+	struct ath10k_per_peer_tx_stats *p_tx_stats = &ar->peer_tx_stats;
+	struct ath10k_10_2_peer_tx_stats *tx_stats;
+	struct ieee80211_sta *sta;
+	struct ath10k_peer *peer;
+	u16 log_type = __le16_to_cpu(hdr->log_type);
+	u32 peer_id = 0, i;
+
+	if (log_type != ATH_PKTLOG_TYPE_TX_STAT)
+		return;
+
+	tx_stats = (struct ath10k_10_2_peer_tx_stats *)((hdr->payload) +
+		    ATH10K_10_2_TX_STATS_OFFSET);
+
+	if (!tx_stats->tx_ppdu_cnt)
+		return;
+
+	peer_id = tx_stats->peer_id;
+
+	rcu_read_lock();
+	spin_lock_bh(&ar->data_lock);
+	peer = ath10k_peer_find_by_id(ar, peer_id);
+	if (!peer) {
+		ath10k_warn(ar, "Invalid peer id %d in peer stats buffer\n",
+			    peer_id);
+		goto out;
+	}
+
+	sta = peer->sta;
+	for (i = 0; i < tx_stats->tx_ppdu_cnt; i++) {
+		p_tx_stats->succ_bytes =
+			__le16_to_cpu(tx_stats->success_bytes[i]);
+		p_tx_stats->retry_bytes =
+			__le16_to_cpu(tx_stats->retry_bytes[i]);
+		p_tx_stats->failed_bytes =
+			__le16_to_cpu(tx_stats->failed_bytes[i]);
+		p_tx_stats->ratecode = tx_stats->ratecode[i];
+		p_tx_stats->flags = tx_stats->flags[i];
+		p_tx_stats->succ_pkts = tx_stats->success_pkts[i];
+		p_tx_stats->retry_pkts = tx_stats->retry_pkts[i];
+		p_tx_stats->failed_pkts = tx_stats->failed_pkts[i];
+
+		ath10k_update_per_peer_tx_stats(ar, sta, p_tx_stats);
+	}
+	spin_unlock_bh(&ar->data_lock);
+	rcu_read_unlock();
+
+	return;
+
+out:
+	spin_unlock_bh(&ar->data_lock);
+	rcu_read_unlock();
+}
+
 bool ath10k_htt_t2h_msg_handler(struct ath10k *ar, struct sk_buff *skb)
 {
 	struct ath10k_htt *htt = &ar->htt;
@@ -2566,6 +2626,10 @@ bool ath10k_htt_t2h_msg_handler(struct ath10k *ar, struct sk_buff *skb)
 					skb->len -
 					offsetof(struct htt_resp,
 						 pktlog_msg.payload));
+
+		if (ath10k_peer_stats_enabled(ar))
+			ath10k_fetch_10_2_tx_stats(ar,
+						   resp->pktlog_msg.payload);
 		break;
 	}
 	case HTT_T2H_MSG_TYPE_RX_FLUSH: {
@@ -2631,6 +2695,24 @@ void ath10k_htt_rx_pktlog_completion_handler(struct ath10k *ar,
 }
 EXPORT_SYMBOL(ath10k_htt_rx_pktlog_completion_handler);
 
+static int ath10k_htt_rx_deliver_msdu(struct ath10k *ar, int quota, int budget)
+{
+	struct sk_buff *skb;
+
+	while (quota < budget) {
+		if (skb_queue_empty(&ar->htt.rx_msdus_q))
+			break;
+
+		skb = __skb_dequeue(&ar->htt.rx_msdus_q);
+		if (!skb)
+			break;
+		ath10k_process_rx(ar, skb);
+		quota++;
+	}
+
+	return quota;
+}
+
 int ath10k_htt_txrx_compl_task(struct ath10k *ar, int budget)
 {
 	struct ath10k_htt *htt = &ar->htt;
@@ -2638,62 +2720,43 @@ int ath10k_htt_txrx_compl_task(struct ath10k *ar, int budget)
 	struct sk_buff_head tx_ind_q;
 	struct sk_buff *skb;
 	unsigned long flags;
-	int quota = 0, done, num_rx_msdus;
+	int quota = 0, done, ret;
 	bool resched_napi = false;
 
 	__skb_queue_head_init(&tx_ind_q);
 
-	/* Since in-ord-ind can deliver more than 1 A-MSDU in single event,
-	 * process it first to utilize full available quota.
+	/* Process pending frames before dequeuing more data
+	 * from hardware.
 	 */
-	while (quota < budget) {
-		if (skb_queue_empty(&htt->rx_in_ord_compl_q))
-			break;
+	quota = ath10k_htt_rx_deliver_msdu(ar, quota, budget);
+	if (quota == budget) {
+		resched_napi = true;
+		goto exit;
+	}
 
-		skb = __skb_dequeue(&htt->rx_in_ord_compl_q);
-		if (!skb) {
-			resched_napi = true;
-			goto exit;
-		}
-
+	while ((skb = __skb_dequeue(&htt->rx_in_ord_compl_q))) {
 		spin_lock_bh(&htt->rx_ring.lock);
-		num_rx_msdus = ath10k_htt_rx_in_ord_ind(ar, skb);
+		ret = ath10k_htt_rx_in_ord_ind(ar, skb);
 		spin_unlock_bh(&htt->rx_ring.lock);
-		if (num_rx_msdus < 0) {
-			resched_napi = true;
-			goto exit;
-		}
 
 		dev_kfree_skb_any(skb);
-		if (num_rx_msdus > 0)
-			quota += num_rx_msdus;
-
-		if ((quota > ATH10K_NAPI_QUOTA_LIMIT) &&
-		    !skb_queue_empty(&htt->rx_in_ord_compl_q)) {
+		if (ret == -EIO) {
 			resched_napi = true;
 			goto exit;
 		}
 	}
 
-	while (quota < budget) {
-		/* no more data to receive */
-		if (!atomic_read(&htt->num_mpdus_ready))
-			break;
-
-		num_rx_msdus = ath10k_htt_rx_handle_amsdu(htt);
-		if (num_rx_msdus < 0) {
+	while (atomic_read(&htt->num_mpdus_ready)) {
+		ret = ath10k_htt_rx_handle_amsdu(htt);
+		if (ret == -EIO) {
 			resched_napi = true;
 			goto exit;
 		}
-
-		quota += num_rx_msdus;
 		atomic_dec(&htt->num_mpdus_ready);
-		if ((quota > ATH10K_NAPI_QUOTA_LIMIT) &&
-		    atomic_read(&htt->num_mpdus_ready)) {
-			resched_napi = true;
-			goto exit;
-		}
 	}
+
+	/* Deliver received data after processing data from hardware */
+	quota = ath10k_htt_rx_deliver_msdu(ar, quota, budget);
 
 	/* From NAPI documentation:
 	 *  The napi poll() function may also process TX completions, in which

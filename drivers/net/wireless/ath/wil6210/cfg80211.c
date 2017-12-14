@@ -901,7 +901,7 @@ int wil_cfg80211_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 			 u64 *cookie)
 {
 	const u8 *buf = params->buf;
-	size_t len = params->len;
+	size_t len = params->len, total;
 	struct wil6210_priv *wil = wiphy_to_wil(wiphy);
 	int rc;
 	bool tx_status = false;
@@ -926,7 +926,11 @@ int wil_cfg80211_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 	if (len < sizeof(struct ieee80211_hdr_3addr))
 		return -EINVAL;
 
-	cmd = kmalloc(sizeof(*cmd) + len, GFP_KERNEL);
+	total = sizeof(*cmd) + len;
+	if (total < len)
+		return -EINVAL;
+
+	cmd = kmalloc(total, GFP_KERNEL);
 	if (!cmd) {
 		rc = -ENOMEM;
 		goto out;
@@ -936,7 +940,7 @@ int wil_cfg80211_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 	cmd->len = cpu_to_le16(len);
 	memcpy(cmd->payload, buf, len);
 
-	rc = wmi_call(wil, WMI_SW_TX_REQ_CMDID, cmd, sizeof(*cmd) + len,
+	rc = wmi_call(wil, WMI_SW_TX_REQ_CMDID, cmd, total,
 		      WMI_SW_TX_COMPLETE_EVENTID, &evt, sizeof(evt), 2000);
 	if (rc == 0)
 		tx_status = !evt.evt.status;
@@ -1727,9 +1731,12 @@ static int wil_cfg80211_suspend(struct wiphy *wiphy,
 
 	wil_dbg_pm(wil, "suspending\n");
 
-	wil_p2p_stop_discovery(wil);
-
+	mutex_lock(&wil->mutex);
+	mutex_lock(&wil->p2p_wdev_mutex);
+	wil_p2p_stop_radio_operations(wil);
 	wil_abort_scan(wil, true);
+	mutex_unlock(&wil->p2p_wdev_mutex);
+	mutex_unlock(&wil->mutex);
 
 out:
 	return rc;

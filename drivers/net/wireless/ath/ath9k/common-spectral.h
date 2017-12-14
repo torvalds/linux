@@ -151,7 +151,7 @@ static inline u8 spectral_bitmap_weight(u8 *bins)
 	return bins[0] & 0x3f;
 }
 
-#ifdef CONFIG_ATH9K_COMMON_DEBUG
+#ifdef CONFIG_ATH9K_COMMON_SPECTRAL
 void ath9k_cmn_spectral_init_debug(struct ath_spec_scan_priv *spec_priv, struct dentry *debugfs_phy);
 void ath9k_cmn_spectral_deinit_debug(struct ath_spec_scan_priv *spec_priv);
 
@@ -183,6 +183,6 @@ static inline int ath_cmn_process_fft(struct ath_spec_scan_priv *spec_priv,
 {
 	return 0;
 }
-#endif /* CONFIG_ATH9K_COMMON_DEBUG */
+#endif /* CONFIG_ATH9K_COMMON_SPECTRAL */
 
 #endif /* SPECTRAL_H */

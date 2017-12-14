@@ -195,6 +195,7 @@ enum wmi_service {
 	WMI_SERVICE_SMART_LOGGING_SUPPORT,
 	WMI_SERVICE_TDLS_CONN_TRACKER_IN_HOST_MODE,
 	WMI_SERVICE_TDLS_EXPLICIT_MODE_ONLY,
+	WMI_SERVICE_MGMT_TX_WMI,
 
 	/* keep last */
 	WMI_SERVICE_MAX,
@@ -797,6 +798,7 @@ struct wmi_cmd_map {
 	u32 bcn_filter_rx_cmdid;
 	u32 prb_req_filter_rx_cmdid;
 	u32 mgmt_tx_cmdid;
+	u32 mgmt_tx_send_cmdid;
 	u32 prb_tmpl_cmdid;
 	u32 addba_clear_resp_cmdid;
 	u32 addba_send_cmdid;
@@ -5236,7 +5238,8 @@ enum wmi_10_4_vdev_param {
 #define WMI_VDEV_PARAM_TXBF_MU_TX_BFER BIT(3)
 
 #define WMI_TXBF_STS_CAP_OFFSET_LSB	4
-#define WMI_TXBF_STS_CAP_OFFSET_MASK	0xf0
+#define WMI_TXBF_STS_CAP_OFFSET_MASK	0x70
+#define WMI_TXBF_CONF_IMPLICIT_BF       BIT(7)
 #define WMI_BF_SOUND_DIM_OFFSET_LSB	8
 #define WMI_BF_SOUND_DIM_OFFSET_MASK	0xf00
 

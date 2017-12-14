@@ -579,7 +579,6 @@ int wil_priv_init(struct wil6210_priv *wil)
 	wil->wakeup_trigger = WMI_WAKEUP_TRIGGER_UCAST |
 			      WMI_WAKEUP_TRIGGER_BCAST;
 	memset(&wil->suspend_stats, 0, sizeof(wil->suspend_stats));
-	wil->suspend_stats.min_suspend_time = ULONG_MAX;
 	wil->vring_idle_trsh = 16;
 
 	return 0;
@@ -760,11 +759,32 @@ static void wil_collect_fw_info(struct wil6210_priv *wil)
 	u8 retry_short;
 	int rc;
 
+	wil_refresh_fw_capabilities(wil);
+
 	rc = wmi_get_mgmt_retry(wil, &retry_short);
 	if (!rc) {
 		wiphy->retry_short = retry_short;
 		wil_dbg_misc(wil, "FW retry_short: %d\n", retry_short);
 	}
+}
+
+void wil_refresh_fw_capabilities(struct wil6210_priv *wil)
+{
+	struct wiphy *wiphy = wil_to_wiphy(wil);
+
+	wil->keep_radio_on_during_sleep =
+		wil->platform_ops.keep_radio_on_during_sleep &&
+		wil->platform_ops.keep_radio_on_during_sleep(
+			wil->platform_handle) &&
+		test_bit(WMI_FW_CAPABILITY_D3_SUSPEND, wil->fw_capabilities);
+
+	wil_info(wil, "keep_radio_on_during_sleep (%d)\n",
+		 wil->keep_radio_on_during_sleep);
+
+	if (test_bit(WMI_FW_CAPABILITY_RSSI_REPORTING, wil->fw_capabilities))
+		wiphy->signal_type = CFG80211_SIGNAL_TYPE_MBM;
+	else
+		wiphy->signal_type = CFG80211_SIGNAL_TYPE_UNSPEC;
 }
 
 void wil_mbox_ring_le2cpus(struct wil6210_mbox_ring *r)
@@ -1071,10 +1091,10 @@ int wil_reset(struct wil6210_priv *wil, bool load_fw)
 			return rc;
 		}
 
+		wil_collect_fw_info(wil);
+
 		if (wil->ps_profile != WMI_PS_PROFILE_TYPE_DEFAULT)
 			wil_ps_update(wil, wil->ps_profile);
-
-		wil_collect_fw_info(wil);
 
 		if (wil->platform_ops.notify) {
 			rc = wil->platform_ops.notify(wil->platform_handle,

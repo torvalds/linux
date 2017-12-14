@@ -82,18 +82,18 @@ static inline u32 WIL_GET_BITS(u32 x, int b0, int b1)
  */
 #define WIL_MAX_MPDU_OVERHEAD	(62)
 
-struct wil_suspend_stats {
+struct wil_suspend_count_stats {
 	unsigned long successful_suspends;
-	unsigned long failed_suspends;
 	unsigned long successful_resumes;
+	unsigned long failed_suspends;
 	unsigned long failed_resumes;
-	unsigned long rejected_by_device;
+};
+
+struct wil_suspend_stats {
+	struct wil_suspend_count_stats r_off;
+	struct wil_suspend_count_stats r_on;
+	unsigned long rejected_by_device; /* only radio on */
 	unsigned long rejected_by_host;
-	unsigned long long total_suspend_time;
-	unsigned long long min_suspend_time;
-	unsigned long long max_suspend_time;
-	ktime_t collection_start;
-	ktime_t suspend_start_time;
 };
 
 /* Calculate MAC buffer size for the firmware. It includes all overhead,
@@ -616,6 +616,16 @@ struct blink_on_off_time {
 	u32 off_ms;
 };
 
+struct wil_debugfs_iomem_data {
+	void *offset;
+	struct wil6210_priv *wil;
+};
+
+struct wil_debugfs_data {
+	struct wil_debugfs_iomem_data *data_arr;
+	int iomem_data_count;
+};
+
 extern struct blink_on_off_time led_blink_time[WIL_LED_TIME_LAST];
 extern u8 led_id;
 extern u8 led_polarity;
@@ -708,6 +718,7 @@ struct wil6210_priv {
 	u8 abft_len;
 	u8 wakeup_trigger;
 	struct wil_suspend_stats suspend_stats;
+	struct wil_debugfs_data dbg_data;
 
 	void *platform_handle;
 	struct wil_platform_ops platform_ops;
@@ -732,9 +743,7 @@ struct wil6210_priv {
 	int fw_calib_result;
 
 #ifdef CONFIG_PM
-#ifdef CONFIG_PM_SLEEP
 	struct notifier_block pm_notify;
-#endif /* CONFIG_PM_SLEEP */
 #endif /* CONFIG_PM */
 
 	bool suspend_resp_rcvd;
@@ -861,10 +870,12 @@ int wil_up(struct wil6210_priv *wil);
 int __wil_up(struct wil6210_priv *wil);
 int wil_down(struct wil6210_priv *wil);
 int __wil_down(struct wil6210_priv *wil);
+void wil_refresh_fw_capabilities(struct wil6210_priv *wil);
 void wil_mbox_ring_le2cpus(struct wil6210_mbox_ring *r);
 int wil_find_cid(struct wil6210_priv *wil, const u8 *mac);
 void wil_set_ethtoolops(struct net_device *ndev);
 
+void __iomem *wmi_buffer_block(struct wil6210_priv *wil, __le32 ptr, u32 size);
 void __iomem *wmi_buffer(struct wil6210_priv *wil, __le32 ptr);
 void __iomem *wmi_addr(struct wil6210_priv *wil, u32 ptr);
 int wmi_read_hdr(struct wil6210_priv *wil, __le32 ptr,
@@ -999,9 +1010,14 @@ int wil_request_firmware(struct wil6210_priv *wil, const char *name,
 			 bool load);
 bool wil_fw_verify_file_exists(struct wil6210_priv *wil, const char *name);
 
+void wil_pm_runtime_allow(struct wil6210_priv *wil);
+void wil_pm_runtime_forbid(struct wil6210_priv *wil);
+int wil_pm_runtime_get(struct wil6210_priv *wil);
+void wil_pm_runtime_put(struct wil6210_priv *wil);
+
 int wil_can_suspend(struct wil6210_priv *wil, bool is_runtime);
-int wil_suspend(struct wil6210_priv *wil, bool is_runtime);
-int wil_resume(struct wil6210_priv *wil, bool is_runtime);
+int wil_suspend(struct wil6210_priv *wil, bool is_runtime, bool keep_radio_on);
+int wil_resume(struct wil6210_priv *wil, bool is_runtime, bool keep_radio_on);
 bool wil_is_wmi_idle(struct wil6210_priv *wil);
 int wmi_resume(struct wil6210_priv *wil);
 int wmi_suspend(struct wil6210_priv *wil);
