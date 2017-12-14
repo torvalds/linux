@@ -79,6 +79,91 @@ static int hclge_send_mbx_msg(struct hclge_vport *vport, u8 *msg, u16 msg_len,
 	return status;
 }
 
+static void hclge_free_vector_ring_chain(struct hnae3_ring_chain_node *head)
+{
+	struct hnae3_ring_chain_node *chain_tmp, *chain;
+
+	chain = head->next;
+
+	while (chain) {
+		chain_tmp = chain->next;
+		kzfree(chain);
+		chain = chain_tmp;
+	}
+}
+
+/* hclge_get_ring_chain_from_mbx: get ring type & tqpid from mailbox message
+ * msg[0]: opcode
+ * msg[1]: <not relevant to this function>
+ * msg[2]: ring_num
+ * msg[3]: first ring type (TX|RX)
+ * msg[4]: first tqp id
+ * msg[5] ~ msg[14]: other ring type and tqp id
+ */
+static int hclge_get_ring_chain_from_mbx(
+			struct hclge_mbx_vf_to_pf_cmd *req,
+			struct hnae3_ring_chain_node *ring_chain,
+			struct hclge_vport *vport)
+{
+#define HCLGE_RING_NODE_VARIABLE_NUM		3
+#define HCLGE_RING_MAP_MBX_BASIC_MSG_NUM	3
+	struct hnae3_ring_chain_node *cur_chain, *new_chain;
+	int ring_num;
+	int i;
+
+	ring_num = req->msg[2];
+
+	hnae_set_bit(ring_chain->flag, HNAE3_RING_TYPE_B, req->msg[3]);
+	ring_chain->tqp_index =
+			hclge_get_queue_id(vport->nic.kinfo.tqp[req->msg[4]]);
+
+	cur_chain = ring_chain;
+
+	for (i = 1; i < ring_num; i++) {
+		new_chain = kzalloc(sizeof(*new_chain), GFP_KERNEL);
+		if (!new_chain)
+			goto err;
+
+		hnae_set_bit(new_chain->flag, HNAE3_RING_TYPE_B,
+			     req->msg[HCLGE_RING_NODE_VARIABLE_NUM * i +
+			     HCLGE_RING_MAP_MBX_BASIC_MSG_NUM]);
+
+		new_chain->tqp_index =
+		hclge_get_queue_id(vport->nic.kinfo.tqp
+			[req->msg[HCLGE_RING_NODE_VARIABLE_NUM * i +
+			HCLGE_RING_MAP_MBX_BASIC_MSG_NUM + 1]]);
+
+		cur_chain->next = new_chain;
+		cur_chain = new_chain;
+	}
+
+	return 0;
+err:
+	hclge_free_vector_ring_chain(ring_chain);
+	return -ENOMEM;
+}
+
+static int hclge_map_unmap_ring_to_vf_vector(struct hclge_vport *vport, bool en,
+					     struct hclge_mbx_vf_to_pf_cmd *req)
+{
+	struct hnae3_ring_chain_node ring_chain;
+	int vector_id = req->msg[1];
+	int ret;
+
+	memset(&ring_chain, 0, sizeof(ring_chain));
+	ret = hclge_get_ring_chain_from_mbx(req, &ring_chain, vport);
+	if (ret)
+		return ret;
+
+	ret = hclge_bind_ring_with_vector(vport, vector_id, en, &ring_chain);
+	if (ret)
+		return ret;
+
+	hclge_free_vector_ring_chain(&ring_chain);
+
+	return 0;
+}
+
 static int hclge_set_vf_promisc_mode(struct hclge_vport *vport,
 				     struct hclge_mbx_vf_to_pf_cmd *req)
 {
@@ -224,6 +309,16 @@ static int hclge_get_link_info(struct hclge_vport *vport,
 				  HCLGE_MBX_LINK_STAT_CHANGE, dest_vfid);
 }
 
+static void hclge_reset_vf_queue(struct hclge_vport *vport,
+				 struct hclge_mbx_vf_to_pf_cmd *mbx_req)
+{
+	u16 queue_id;
+
+	memcpy(&queue_id, &mbx_req->msg[2], sizeof(queue_id));
+
+	hclge_reset_tqp(&vport->nic, queue_id);
+}
+
 void hclge_mbx_handler(struct hclge_dev *hdev)
 {
 	struct hclge_cmq_ring *crq = &hdev->hw.cmq.crq;
@@ -241,6 +336,14 @@ void hclge_mbx_handler(struct hclge_dev *hdev)
 		vport = &hdev->vport[req->mbx_src_vfid];
 
 		switch (req->msg[0]) {
+		case HCLGE_MBX_MAP_RING_TO_VECTOR:
+			ret = hclge_map_unmap_ring_to_vf_vector(vport, true,
+								req);
+			break;
+		case HCLGE_MBX_UNMAP_RING_TO_VECTOR:
+			ret = hclge_map_unmap_ring_to_vf_vector(vport, false,
+								req);
+			break;
 		case HCLGE_MBX_SET_PROMISC_MODE:
 			ret = hclge_set_vf_promisc_mode(vport, req);
 			if (ret)
@@ -289,6 +392,9 @@ void hclge_mbx_handler(struct hclge_dev *hdev)
 				dev_err(&hdev->pdev->dev,
 					"PF fail(%d) to get link stat for VF\n",
 					ret);
+			break;
+		case HCLGE_MBX_QUEUE_RESET:
+			hclge_reset_vf_queue(vport, req);
 			break;
 		default:
 			dev_err(&hdev->pdev->dev,
