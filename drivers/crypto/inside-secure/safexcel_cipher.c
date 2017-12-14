@@ -69,6 +69,7 @@ static int safexcel_aes_setkey(struct crypto_skcipher *ctfm, const u8 *key,
 {
 	struct crypto_tfm *tfm = crypto_skcipher_tfm(ctfm);
 	struct safexcel_cipher_ctx *ctx = crypto_tfm_ctx(tfm);
+	struct safexcel_crypto_priv *priv = ctx->priv;
 	struct crypto_aes_ctx aes;
 	int ret, i;
 
@@ -78,7 +79,7 @@ static int safexcel_aes_setkey(struct crypto_skcipher *ctfm, const u8 *key,
 		return ret;
 	}
 
-	if (ctx->base.ctxr_dma) {
+	if (priv->version == EIP197 && ctx->base.ctxr_dma) {
 		for (i = 0; i < len / sizeof(u32); i++) {
 			if (ctx->key[i] != cpu_to_le32(aes.key_enc[i])) {
 				ctx->base.needs_inv = true;
@@ -411,8 +412,12 @@ static int safexcel_send(struct crypto_async_request *async,
 			 int *commands, int *results)
 {
 	struct skcipher_request *req = skcipher_request_cast(async);
+	struct safexcel_cipher_ctx *ctx = crypto_tfm_ctx(req->base.tfm);
 	struct safexcel_cipher_req *sreq = skcipher_request_ctx(req);
+	struct safexcel_crypto_priv *priv = ctx->priv;
 	int ret;
+
+	BUG_ON(priv->version == EIP97 && sreq->needs_inv);
 
 	if (sreq->needs_inv)
 		ret = safexcel_cipher_send_inv(async, ring, request,
@@ -476,7 +481,7 @@ static int safexcel_aes(struct skcipher_request *req,
 	ctx->mode = mode;
 
 	if (ctx->base.ctxr) {
-		if (ctx->base.needs_inv) {
+		if (priv->version == EIP197 && ctx->base.needs_inv) {
 			sreq->needs_inv = true;
 			ctx->base.needs_inv = false;
 		}
@@ -544,9 +549,14 @@ static void safexcel_skcipher_cra_exit(struct crypto_tfm *tfm)
 
 	memzero_explicit(ctx->base.ctxr->data, 8 * sizeof(u32));
 
-	ret = safexcel_cipher_exit_inv(tfm);
-	if (ret)
-		dev_warn(priv->dev, "cipher: invalidation error %d\n", ret);
+	if (priv->version == EIP197) {
+		ret = safexcel_cipher_exit_inv(tfm);
+		if (ret)
+			dev_warn(priv->dev, "cipher: invalidation error %d\n", ret);
+	} else {
+		dma_pool_free(priv->context_pool, ctx->base.ctxr,
+			      ctx->base.ctxr_dma);
+	}
 }
 
 struct safexcel_alg_template safexcel_alg_ecb_aes = {
