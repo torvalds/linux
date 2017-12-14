@@ -17,6 +17,9 @@
 #include <linux/log2.h>
 #include <linux/workqueue.h>
 
+#define CREATE_TRACE_POINTS
+#include <trace/events/rtc.h>
+
 static int rtc_timer_enqueue(struct rtc_device *rtc, struct rtc_timer *timer);
 static void rtc_timer_remove(struct rtc_device *rtc, struct rtc_timer *timer);
 
@@ -53,6 +56,8 @@ int rtc_read_time(struct rtc_device *rtc, struct rtc_time *tm)
 
 	err = __rtc_read_time(rtc, tm);
 	mutex_unlock(&rtc->ops_lock);
+
+	trace_rtc_read_time(rtc_tm_to_time64(tm), err);
 	return err;
 }
 EXPORT_SYMBOL_GPL(rtc_read_time);
@@ -87,6 +92,8 @@ int rtc_set_time(struct rtc_device *rtc, struct rtc_time *tm)
 	mutex_unlock(&rtc->ops_lock);
 	/* A timer might have just expired */
 	schedule_work(&rtc->irqwork);
+
+	trace_rtc_set_time(rtc_tm_to_time64(tm), err);
 	return err;
 }
 EXPORT_SYMBOL_GPL(rtc_set_time);
@@ -119,6 +126,8 @@ static int rtc_read_alarm_internal(struct rtc_device *rtc, struct rtc_wkalrm *al
 	}
 
 	mutex_unlock(&rtc->ops_lock);
+
+	trace_rtc_read_alarm(rtc_tm_to_time64(&alarm->time), err);
 	return err;
 }
 
@@ -316,6 +325,7 @@ int rtc_read_alarm(struct rtc_device *rtc, struct rtc_wkalrm *alarm)
 	}
 	mutex_unlock(&rtc->ops_lock);
 
+	trace_rtc_read_alarm(rtc_tm_to_time64(&alarm->time), err);
 	return err;
 }
 EXPORT_SYMBOL_GPL(rtc_read_alarm);
@@ -352,6 +362,7 @@ static int __rtc_set_alarm(struct rtc_device *rtc, struct rtc_wkalrm *alarm)
 	else
 		err = rtc->ops->set_alarm(rtc->dev.parent, alarm);
 
+	trace_rtc_set_alarm(rtc_tm_to_time64(&alarm->time), err);
 	return err;
 }
 
@@ -406,6 +417,7 @@ int rtc_initialize_alarm(struct rtc_device *rtc, struct rtc_wkalrm *alarm)
 
 		rtc->aie_timer.enabled = 1;
 		timerqueue_add(&rtc->timerqueue, &rtc->aie_timer.node);
+		trace_rtc_timer_enqueue(&rtc->aie_timer);
 	}
 	mutex_unlock(&rtc->ops_lock);
 	return err;
@@ -435,6 +447,8 @@ int rtc_alarm_irq_enable(struct rtc_device *rtc, unsigned int enabled)
 		err = rtc->ops->alarm_irq_enable(rtc->dev.parent, enabled);
 
 	mutex_unlock(&rtc->ops_lock);
+
+	trace_rtc_alarm_irq_enable(enabled, err);
 	return err;
 }
 EXPORT_SYMBOL_GPL(rtc_alarm_irq_enable);
@@ -709,6 +723,8 @@ retry:
 		rtc->pie_enabled = enabled;
 	}
 	spin_unlock_irqrestore(&rtc->irq_task_lock, flags);
+
+	trace_rtc_irq_set_state(enabled, err);
 	return err;
 }
 EXPORT_SYMBOL_GPL(rtc_irq_set_state);
@@ -745,6 +761,8 @@ retry:
 		}
 	}
 	spin_unlock_irqrestore(&rtc->irq_task_lock, flags);
+
+	trace_rtc_irq_set_freq(freq, err);
 	return err;
 }
 EXPORT_SYMBOL_GPL(rtc_irq_set_freq);
@@ -779,6 +797,7 @@ static int rtc_timer_enqueue(struct rtc_device *rtc, struct rtc_timer *timer)
 	}
 
 	timerqueue_add(&rtc->timerqueue, &timer->node);
+	trace_rtc_timer_enqueue(timer);
 	if (!next || ktime_before(timer->node.expires, next->expires)) {
 		struct rtc_wkalrm alarm;
 		int err;
@@ -790,6 +809,7 @@ static int rtc_timer_enqueue(struct rtc_device *rtc, struct rtc_timer *timer)
 			schedule_work(&rtc->irqwork);
 		} else if (err) {
 			timerqueue_del(&rtc->timerqueue, &timer->node);
+			trace_rtc_timer_dequeue(timer);
 			timer->enabled = 0;
 			return err;
 		}
@@ -803,6 +823,7 @@ static void rtc_alarm_disable(struct rtc_device *rtc)
 		return;
 
 	rtc->ops->alarm_irq_enable(rtc->dev.parent, false);
+	trace_rtc_alarm_irq_enable(0, 0);
 }
 
 /**
@@ -821,6 +842,7 @@ static void rtc_timer_remove(struct rtc_device *rtc, struct rtc_timer *timer)
 {
 	struct timerqueue_node *next = timerqueue_getnext(&rtc->timerqueue);
 	timerqueue_del(&rtc->timerqueue, &timer->node);
+	trace_rtc_timer_dequeue(timer);
 	timer->enabled = 0;
 	if (next == &timer->node) {
 		struct rtc_wkalrm alarm;
@@ -871,16 +893,19 @@ again:
 		/* expire timer */
 		timer = container_of(next, struct rtc_timer, node);
 		timerqueue_del(&rtc->timerqueue, &timer->node);
+		trace_rtc_timer_dequeue(timer);
 		timer->enabled = 0;
 		if (timer->task.func)
 			timer->task.func(timer->task.private_data);
 
+		trace_rtc_timer_fired(timer);
 		/* Re-add/fwd periodic timers */
 		if (ktime_to_ns(timer->period)) {
 			timer->node.expires = ktime_add(timer->node.expires,
 							timer->period);
 			timer->enabled = 1;
 			timerqueue_add(&rtc->timerqueue, &timer->node);
+			trace_rtc_timer_enqueue(timer);
 		}
 	}
 
@@ -902,6 +927,7 @@ reprogram:
 
 			timer = container_of(next, struct rtc_timer, node);
 			timerqueue_del(&rtc->timerqueue, &timer->node);
+			trace_rtc_timer_dequeue(timer);
 			timer->enabled = 0;
 			dev_err(&rtc->dev, "__rtc_set_alarm: err=%d\n", err);
 			goto again;
@@ -992,6 +1018,8 @@ int rtc_read_offset(struct rtc_device *rtc, long *offset)
 	mutex_lock(&rtc->ops_lock);
 	ret = rtc->ops->read_offset(rtc->dev.parent, offset);
 	mutex_unlock(&rtc->ops_lock);
+
+	trace_rtc_read_offset(*offset, ret);
 	return ret;
 }
 
@@ -1025,5 +1053,7 @@ int rtc_set_offset(struct rtc_device *rtc, long offset)
 	mutex_lock(&rtc->ops_lock);
 	ret = rtc->ops->set_offset(rtc->dev.parent, offset);
 	mutex_unlock(&rtc->ops_lock);
+
+	trace_rtc_set_offset(offset, ret);
 	return ret;
 }
