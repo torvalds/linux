@@ -1246,7 +1246,7 @@ static int cik_gpu_pci_config_reset(struct amdgpu_device *adev)
 	/* disable BM */
 	pci_clear_master(adev->pdev);
 	/* reset */
-	amdgpu_pci_config_reset(adev);
+	amdgpu_device_pci_config_reset(adev);
 
 	udelay(100);
 

@@ -377,7 +377,7 @@ void amdgpu_device_program_register_sequence(struct amdgpu_device *adev,
 	}
 }
 
-void amdgpu_pci_config_reset(struct amdgpu_device *adev)
+void amdgpu_device_pci_config_reset(struct amdgpu_device *adev)
 {
 	pci_write_config_dword(adev->pdev, 0x7c, AMDGPU_ASIC_RESET_DATA);
 }
