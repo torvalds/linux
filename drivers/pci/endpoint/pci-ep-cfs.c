@@ -109,7 +109,10 @@ static int pci_epc_epf_link(struct config_item *epc_item,
 		goto err_add_epf;
 
 	func_no = find_first_zero_bit(&epc_group->function_num_map,
-				      sizeof(epc_group->function_num_map));
+				      BITS_PER_LONG);
+	if (func_no >= BITS_PER_LONG)
+		return -EINVAL;
+
 	set_bit(func_no, &epc_group->function_num_map);
 	epf->func_no = func_no;
 
