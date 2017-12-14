@@ -813,8 +813,6 @@ static void wmi_evt_connect(struct wil6210_priv *wil, int id, void *d, int len)
 		}
 	}
 
-	/* FIXME FW can transmit only ucast frames to peer */
-	/* FIXME real ring_id instead of hard coded 0 */
 	ether_addr_copy(wil->sta[evt->cid].addr, evt->bssid);
 	wil->sta[evt->cid].status = wil_sta_conn_pending;
 

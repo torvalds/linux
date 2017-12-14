@@ -439,7 +439,7 @@ enum { /* for wil6210_priv.status */
 	wil_status_fwconnected,
 	wil_status_dontscan,
 	wil_status_mbox_ready, /* MBOX structures ready */
-	wil_status_irqen, /* FIXME: interrupts enabled - for debug */
+	wil_status_irqen, /* interrupts enabled - for debug */
 	wil_status_napi_en, /* NAPI enabled protected by wil->mutex */
 	wil_status_resetting, /* reset in progress */
 	wil_status_suspending, /* suspend in progress */
