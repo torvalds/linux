@@ -862,7 +862,7 @@ static int safexcel_hmac_init_iv(struct ahash_request *areq,
 	req->last_req = true;
 
 	ret = crypto_ahash_update(areq);
-	if (ret && ret != -EINPROGRESS)
+	if (ret && ret != -EINPROGRESS && ret != -EBUSY)
 		return ret;
 
 	wait_for_completion_interruptible(&result.completion);
