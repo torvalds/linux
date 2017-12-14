@@ -1082,6 +1082,77 @@ static void sctp_intl_abort_pd(struct sctp_ulpq *ulpq, gfp_t gfp)
 	sctp_ulpq_flush(ulpq);
 }
 
+static inline int sctp_get_skip_pos(struct sctp_ifwdtsn_skip *skiplist,
+				    int nskips, __be16 stream, __u8 flags)
+{
+	int i;
+
+	for (i = 0; i < nskips; i++)
+		if (skiplist[i].stream == stream &&
+		    skiplist[i].flags == flags)
+			return i;
+
+	return i;
+}
+
+#define SCTP_FTSN_U_BIT	0x1
+static void sctp_generate_iftsn(struct sctp_outq *q, __u32 ctsn)
+{
+	struct sctp_ifwdtsn_skip ftsn_skip_arr[10];
+	struct sctp_association *asoc = q->asoc;
+	struct sctp_chunk *ftsn_chunk = NULL;
+	struct list_head *lchunk, *temp;
+	int nskips = 0, skip_pos;
+	struct sctp_chunk *chunk;
+	__u32 tsn;
+
+	if (!asoc->peer.prsctp_capable)
+		return;
+
+	if (TSN_lt(asoc->adv_peer_ack_point, ctsn))
+		asoc->adv_peer_ack_point = ctsn;
+
+	list_for_each_safe(lchunk, temp, &q->abandoned) {
+		chunk = list_entry(lchunk, struct sctp_chunk, transmitted_list);
+		tsn = ntohl(chunk->subh.data_hdr->tsn);
+
+		if (TSN_lte(tsn, ctsn)) {
+			list_del_init(lchunk);
+			sctp_chunk_free(chunk);
+		} else if (TSN_lte(tsn, asoc->adv_peer_ack_point + 1)) {
+			__be16 sid = chunk->subh.idata_hdr->stream;
+			__be32 mid = chunk->subh.idata_hdr->mid;
+			__u8 flags = 0;
+
+			if (chunk->chunk_hdr->flags & SCTP_DATA_UNORDERED)
+				flags |= SCTP_FTSN_U_BIT;
+
+			asoc->adv_peer_ack_point = tsn;
+			skip_pos = sctp_get_skip_pos(&ftsn_skip_arr[0], nskips,
+						     sid, flags);
+			ftsn_skip_arr[skip_pos].stream = sid;
+			ftsn_skip_arr[skip_pos].reserved = 0;
+			ftsn_skip_arr[skip_pos].flags = flags;
+			ftsn_skip_arr[skip_pos].mid = mid;
+			if (skip_pos == nskips)
+				nskips++;
+			if (nskips == 10)
+				break;
+		} else {
+			break;
+		}
+	}
+
+	if (asoc->adv_peer_ack_point > ctsn)
+		ftsn_chunk = sctp_make_ifwdtsn(asoc, asoc->adv_peer_ack_point,
+					       nskips, &ftsn_skip_arr[0]);
+
+	if (ftsn_chunk) {
+		list_add_tail(&ftsn_chunk->list, &q->control_chunk_list);
+		SCTP_INC_STATS(sock_net(asoc->base.sk), SCTP_MIB_OUTCTRLCHUNKS);
+	}
+}
+
 static struct sctp_stream_interleave sctp_stream_interleave_0 = {
 	.data_chunk_len		= sizeof(struct sctp_data_chunk),
 	/* DATA process functions */
@@ -1093,6 +1164,8 @@ static struct sctp_stream_interleave sctp_stream_interleave_0 = {
 	.renege_events		= sctp_ulpq_renege,
 	.start_pd		= sctp_ulpq_partial_delivery,
 	.abort_pd		= sctp_ulpq_abort_pd,
+	/* FORWARD-TSN process functions */
+	.generate_ftsn		= sctp_generate_fwdtsn,
 };
 
 static struct sctp_stream_interleave sctp_stream_interleave_1 = {
@@ -1106,6 +1179,8 @@ static struct sctp_stream_interleave sctp_stream_interleave_1 = {
 	.renege_events		= sctp_renege_events,
 	.start_pd		= sctp_intl_start_pd,
 	.abort_pd		= sctp_intl_abort_pd,
+	/* I-FORWARD-TSN process functions */
+	.generate_ftsn		= sctp_generate_iftsn,
 };
 
 void sctp_stream_interleave_init(struct sctp_stream *stream)

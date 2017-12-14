@@ -1100,6 +1100,7 @@ void sctp_retransmit_mark(struct sctp_outq *, struct sctp_transport *, __u8);
 void sctp_outq_uncork(struct sctp_outq *, gfp_t gfp);
 void sctp_prsctp_prune(struct sctp_association *asoc,
 		       struct sctp_sndrcvinfo *sinfo, int msg_len);
+void sctp_generate_fwdtsn(struct sctp_outq *q, __u32 sack_ctsn);
 /* Uncork and flush an outqueue.  */
 static inline void sctp_outq_cork(struct sctp_outq *q)
 {

@@ -47,6 +47,8 @@ struct sctp_stream_interleave {
 				 struct sctp_chunk *chunk, gfp_t gfp);
 	void	(*start_pd)(struct sctp_ulpq *ulpq, gfp_t gfp);
 	void	(*abort_pd)(struct sctp_ulpq *ulpq, gfp_t gfp);
+	/* (I-)FORWARD-TSN process */
+	void	(*generate_ftsn)(struct sctp_outq *q, __u32 ctsn);
 };
 
 void sctp_stream_interleave_init(struct sctp_stream *stream);
