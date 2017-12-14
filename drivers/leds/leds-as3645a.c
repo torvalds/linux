@@ -360,7 +360,8 @@ static int as3645a_set_flash_brightness(struct led_classdev_flash *fled,
 {
 	struct as3645a *flash = fled_to_as3645a(fled);
 
-	flash->flash_current = as3645a_current_to_reg(flash, true, brightness_ua);
+	flash->flash_current = as3645a_current_to_reg(flash, true,
+						      brightness_ua);
 
 	return as3645a_set_current(flash);
 }
