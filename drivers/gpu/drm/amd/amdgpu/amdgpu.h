@@ -71,7 +71,7 @@
 #include "amdgpu_dm.h"
 #include "amdgpu_virt.h"
 #include "amdgpu_gart.h"
-
+#include "amdgpu_debugfs.h"
 
 /*
  * Modules parameters.
@@ -425,7 +425,6 @@ struct reservation_object *amdgpu_gem_prime_res_obj(struct drm_gem_object *);
 void *amdgpu_gem_prime_vmap(struct drm_gem_object *obj);
 void amdgpu_gem_prime_vunmap(struct drm_gem_object *obj, void *vaddr);
 int amdgpu_gem_prime_mmap(struct drm_gem_object *obj, struct vm_area_struct *vma);
-int amdgpu_gem_debugfs_init(struct amdgpu_device *adev);
 
 /* sub-allocation manager, it has to be protected by another lock.
  * By conception this is an helper for other part of the driver
@@ -1240,19 +1239,6 @@ void amdgpu_benchmark(struct amdgpu_device *adev, int test_number);
  */
 void amdgpu_test_moves(struct amdgpu_device *adev);
 
-/*
- * Debugfs
- */
-struct amdgpu_debugfs {
-	const struct drm_info_list	*files;
-	unsigned		num_files;
-};
-
-int amdgpu_debugfs_add_files(struct amdgpu_device *adev,
-			     const struct drm_info_list *files,
-			     unsigned nfiles);
-int amdgpu_debugfs_fence_init(struct amdgpu_device *adev);
-int amdgpu_debugfs_firmware_init(struct amdgpu_device *adev);
 
 /*
  * amdgpu smumgr functions
