@@ -38,6 +38,27 @@ enum sdw_slave_status {
 	SDW_SLAVE_RESERVED = 3,
 };
 
+/**
+ * enum sdw_command_response - Command response as defined by SDW spec
+ * @SDW_CMD_OK: cmd was successful
+ * @SDW_CMD_IGNORED: cmd was ignored
+ * @SDW_CMD_FAIL: cmd was NACKed
+ * @SDW_CMD_TIMEOUT: cmd timedout
+ * @SDW_CMD_FAIL_OTHER: cmd failed due to other reason than above
+ *
+ * NOTE: The enum is different than actual Spec as response in the Spec is
+ * combination of ACK/NAK bits
+ *
+ * SDW_CMD_TIMEOUT/FAIL_OTHER is defined for SW use, not in spec
+ */
+enum sdw_command_response {
+	SDW_CMD_OK = 0,
+	SDW_CMD_IGNORED = 1,
+	SDW_CMD_FAIL = 2,
+	SDW_CMD_TIMEOUT = 3,
+	SDW_CMD_FAIL_OTHER = 4,
+};
+
 /*
  * SDW properties, defined in MIPI DisCo spec v1.0
  */
@@ -363,12 +384,37 @@ struct sdw_driver {
  * SDW master structures and APIs
  */
 
+struct sdw_msg;
+
+/**
+ * struct sdw_defer - SDW deffered message
+ * @length: message length
+ * @complete: message completion
+ * @msg: SDW message
+ */
+struct sdw_defer {
+	int length;
+	struct completion complete;
+	struct sdw_msg *msg;
+};
+
 /**
  * struct sdw_master_ops - Master driver ops
  * @read_prop: Read Master properties
+ * @xfer_msg: Transfer message callback
+ * @xfer_msg_defer: Defer version of transfer message callback
+ * @reset_page_addr: Reset the SCP page address registers
  */
 struct sdw_master_ops {
 	int (*read_prop)(struct sdw_bus *bus);
+
+	enum sdw_command_response (*xfer_msg)
+			(struct sdw_bus *bus, struct sdw_msg *msg);
+	enum sdw_command_response (*xfer_msg_defer)
+			(struct sdw_bus *bus, struct sdw_msg *msg,
+			struct sdw_defer *defer);
+	enum sdw_command_response (*reset_page_addr)
+			(struct sdw_bus *bus, unsigned int dev_num);
 };
 
 /**
@@ -379,8 +425,10 @@ struct sdw_master_ops {
  * @assigned: Bitmap for Slave device numbers.
  * Bit set implies used number, bit clear implies unused number.
  * @bus_lock: bus lock
+ * @msg_lock: message lock
  * @ops: Master callback ops
  * @prop: Master properties
+ * @defer_msg: Defer message
  * @clk_stop_timeout: Clock stop timeout computed
  */
 struct sdw_bus {
@@ -389,12 +437,21 @@ struct sdw_bus {
 	struct list_head slaves;
 	DECLARE_BITMAP(assigned, SDW_MAX_DEVICES);
 	struct mutex bus_lock;
+	struct mutex msg_lock;
 	const struct sdw_master_ops *ops;
 	struct sdw_master_prop prop;
+	struct sdw_defer defer_msg;
 	unsigned int clk_stop_timeout;
 };
 
 int sdw_add_bus_master(struct sdw_bus *bus);
 void sdw_delete_bus_master(struct sdw_bus *bus);
+
+/* messaging and data APIs */
+
+int sdw_read(struct sdw_slave *slave, u32 addr);
+int sdw_write(struct sdw_slave *slave, u32 addr, u8 value);
+int sdw_nread(struct sdw_slave *slave, u32 addr, size_t count, u8 *val);
+int sdw_nwrite(struct sdw_slave *slave, u32 addr, size_t count, u8 *val);
 
 #endif /* __SOUNDWIRE_H */

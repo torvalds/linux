@@ -16,4 +16,40 @@ static inline int sdw_acpi_find_slaves(struct sdw_bus *bus)
 void sdw_extract_slave_id(struct sdw_bus *bus,
 			u64 addr, struct sdw_slave_id *id);
 
+enum {
+	SDW_MSG_FLAG_READ = 0,
+	SDW_MSG_FLAG_WRITE,
+};
+
+/**
+ * struct sdw_msg - Message structure
+ * @addr: Register address accessed in the Slave
+ * @len: number of messages
+ * @dev_num: Slave device number
+ * @addr_page1: SCP address page 1 Slave register
+ * @addr_page2: SCP address page 2 Slave register
+ * @flags: transfer flags, indicate if xfer is read or write
+ * @buf: message data buffer
+ * @ssp_sync: Send message at SSP (Stream Synchronization Point)
+ * @page: address requires paging
+ */
+struct sdw_msg {
+	u16 addr;
+	u16 len;
+	u8 dev_num;
+	u8 addr_page1;
+	u8 addr_page2;
+	u8 flags;
+	u8 *buf;
+	bool ssp_sync;
+	bool page;
+};
+
+int sdw_transfer(struct sdw_bus *bus, struct sdw_msg *msg);
+int sdw_transfer_defer(struct sdw_bus *bus, struct sdw_msg *msg,
+				struct sdw_defer *defer);
+
+int sdw_fill_msg(struct sdw_msg *msg, struct sdw_slave *slave,
+		u32 addr, size_t count, u16 dev_num, u8 flags, u8 *buf);
+
 #endif /* __SDW_BUS_H */
