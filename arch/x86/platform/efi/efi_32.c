@@ -38,11 +38,6 @@
  * say 0 - 3G.
  */
 
-int __init efi_alloc_page_tables(void)
-{
-	return 0;
-}
-
 void efi_sync_low_kernel_mappings(void) {}
 void __init efi_dump_pagetable(void) {}
 int __init efi_setup_page_tables(unsigned long pa_memmap, unsigned num_pages)
