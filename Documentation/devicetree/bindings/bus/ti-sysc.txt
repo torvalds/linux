@@ -19,6 +19,7 @@ Required standard properties:
 
 - compatible	shall be one of the following generic types:
 
+		"ti,sysc"
 		"ti,sysc-omap2"
 		"ti,sysc-omap4"
 		"ti,sysc-omap4-simple"
