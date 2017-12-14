@@ -11,6 +11,7 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3368-r88.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3368-r88-dcdc.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3368-sheep.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3368-sheep-lvds.dtb
+dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3368-sziauto-rk618.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3368-xikp.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3399-box-808-android-6.0.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3399-box-rev1-android-6.0.dtb
