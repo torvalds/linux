@@ -600,7 +600,7 @@ static inline void safexcel_handle_result_descriptor(struct safexcel_crypto_priv
 {
 	struct safexcel_request *sreq;
 	struct safexcel_context *ctx;
-	int ret, i, nreq, ndesc = 0, done;
+	int ret, i, nreq, ndesc = 0, tot_descs = 0, done;
 	bool should_complete;
 
 	nreq = readl(priv->base + EIP197_HIA_RDR(ring) + EIP197_HIA_xDR_PROC_COUNT);
@@ -622,12 +622,8 @@ static inline void safexcel_handle_result_descriptor(struct safexcel_crypto_priv
 		if (ndesc < 0) {
 			kfree(sreq);
 			dev_err(priv->dev, "failed to handle result (%d)", ndesc);
-			goto requests_left;
+			goto acknowledge;
 		}
-
-		writel(EIP197_xDR_PROC_xD_PKT(1) |
-		       EIP197_xDR_PROC_xD_COUNT(ndesc * priv->config.rd_offset),
-		       priv->base + EIP197_HIA_RDR(ring) + EIP197_HIA_xDR_PROC_COUNT);
 
 		if (should_complete) {
 			local_bh_disable();
@@ -636,6 +632,14 @@ static inline void safexcel_handle_result_descriptor(struct safexcel_crypto_priv
 		}
 
 		kfree(sreq);
+		tot_descs += ndesc;
+	}
+
+acknowledge:
+	if (i) {
+		writel(EIP197_xDR_PROC_xD_PKT(i) |
+		       EIP197_xDR_PROC_xD_COUNT(tot_descs * priv->config.rd_offset),
+		       priv->base + EIP197_HIA_RDR(ring) + EIP197_HIA_xDR_PROC_COUNT);
 	}
 
 requests_left:
