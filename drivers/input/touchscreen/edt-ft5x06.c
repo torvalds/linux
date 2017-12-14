@@ -996,45 +996,45 @@ static int edt_ft5x06_ts_probe(struct i2c_client *client,
 			       const struct i2c_device_id *id)
 {
 	const struct edt_i2c_chip_data *chip_data;
+	struct device *dev = &client->dev;
 	struct edt_ft5x06_ts_data *tsdata;
 	struct input_dev *input;
 	unsigned long irq_flags;
 	int error;
 	char fw_version[EDT_NAME_LEN];
 
-	dev_dbg(&client->dev, "probing for EDT FT5x06 I2C\n");
+	dev_dbg(dev, "probing for EDT FT5x06 I2C\n");
 
-	tsdata = devm_kzalloc(&client->dev, sizeof(*tsdata), GFP_KERNEL);
+	tsdata = devm_kzalloc(dev, sizeof(*tsdata), GFP_KERNEL);
 	if (!tsdata) {
-		dev_err(&client->dev, "failed to allocate driver data.\n");
+		dev_err(dev, "failed to allocate driver data\n");
 		return -ENOMEM;
 	}
 
-	chip_data = of_device_get_match_data(&client->dev);
+	chip_data = of_device_get_match_data(dev);
 	if (!chip_data)
 		chip_data = (const struct edt_i2c_chip_data *)id->driver_data;
 	if (!chip_data || !chip_data->max_support_points) {
-		dev_err(&client->dev, "invalid or missing chip data\n");
+		dev_err(dev, "invalid or missing chip data\n");
 		return -EINVAL;
 	}
 
 	tsdata->max_support_points = chip_data->max_support_points;
 
-	tsdata->reset_gpio = devm_gpiod_get_optional(&client->dev,
+	tsdata->reset_gpio = devm_gpiod_get_optional(dev,
 						     "reset", GPIOD_OUT_HIGH);
 	if (IS_ERR(tsdata->reset_gpio)) {
 		error = PTR_ERR(tsdata->reset_gpio);
-		dev_err(&client->dev,
-			"Failed to request GPIO reset pin, error %d\n", error);
+		dev_err(dev, "failed to request GPIO reset pin, error %d\n",
+			error);
 		return error;
 	}
 
-	tsdata->wake_gpio = devm_gpiod_get_optional(&client->dev,
-						    "wake", GPIOD_OUT_LOW);
+	tsdata->wake_gpio = devm_gpiod_get_optional(dev, "wake", GPIOD_OUT_LOW);
 	if (IS_ERR(tsdata->wake_gpio)) {
 		error = PTR_ERR(tsdata->wake_gpio);
-		dev_err(&client->dev,
-			"Failed to request GPIO wake pin, error %d\n", error);
+		dev_err(dev, "failed to request GPIO wake pin, error %d\n",
+			error);
 		return error;
 	}
 
@@ -1049,9 +1049,9 @@ static int edt_ft5x06_ts_probe(struct i2c_client *client,
 		msleep(300);
 	}
 
-	input = devm_input_allocate_device(&client->dev);
+	input = devm_input_allocate_device(dev);
 	if (!input) {
-		dev_err(&client->dev, "failed to allocate input device.\n");
+		dev_err(dev, "failed to allocate input device\n");
 		return -ENOMEM;
 	}
 
@@ -1062,21 +1062,20 @@ static int edt_ft5x06_ts_probe(struct i2c_client *client,
 
 	error = edt_ft5x06_ts_identify(client, tsdata, fw_version);
 	if (error) {
-		dev_err(&client->dev, "touchscreen probe failed\n");
+		dev_err(dev, "touchscreen probe failed\n");
 		return error;
 	}
 
 	edt_ft5x06_ts_set_regs(tsdata);
-	edt_ft5x06_ts_get_defaults(&client->dev, tsdata);
+	edt_ft5x06_ts_get_defaults(dev, tsdata);
 	edt_ft5x06_ts_get_parameters(tsdata);
 
-	dev_dbg(&client->dev,
-		"Model \"%s\", Rev. \"%s\", %dx%d sensors\n",
+	dev_dbg(dev, "model \"%s\", Rev. \"%s\", %dx%d sensors\n",
 		tsdata->name, fw_version, tsdata->num_x, tsdata->num_y);
 
 	input->name = tsdata->name;
 	input->id.bustype = BUS_I2C;
-	input->dev.parent = &client->dev;
+	input->dev.parent = dev;
 	input->open = edt_ft5x06_open;
 	input->close = edt_ft5x06_close;
 
@@ -1100,7 +1099,7 @@ static int edt_ft5x06_ts_probe(struct i2c_client *client,
 	error = input_mt_init_slots(input, tsdata->max_support_points,
 				    INPUT_MT_DIRECT);
 	if (error) {
-		dev_err(&client->dev, "Unable to init MT slots.\n");
+		dev_err(dev, "unable to init MT slots\n");
 		return error;
 	}
 
@@ -1112,16 +1111,16 @@ static int edt_ft5x06_ts_probe(struct i2c_client *client,
 		irq_flags = IRQF_TRIGGER_FALLING;
 	irq_flags |= IRQF_ONESHOT;
 
-	error = devm_request_threaded_irq(&client->dev, client->irq,
-					NULL, edt_ft5x06_ts_isr, irq_flags,
-					client->name, tsdata);
+	error = devm_request_threaded_irq(dev, client->irq, NULL,
+					  edt_ft5x06_ts_isr, irq_flags,
+					  client->name, tsdata);
 	if (error) {
-		dev_err(&client->dev, "Unable to request touchscreen IRQ.\n");
+		dev_err(dev, "unable to request touchscreen IRQ\n");
 		return error;
 	}
 	disable_irq(client->irq);
 
-	error = devm_device_add_group(&client->dev, &edt_ft5x06_attr_group);
+	error = devm_device_add_group(dev, &edt_ft5x06_attr_group);
 	if (error)
 		return error;
 
@@ -1129,11 +1128,11 @@ static int edt_ft5x06_ts_probe(struct i2c_client *client,
 	if (error)
 		return error;
 
-	edt_ft5x06_ts_prepare_debugfs(tsdata, dev_driver_string(&client->dev));
-	device_init_wakeup(&client->dev, 1);
+	edt_ft5x06_ts_prepare_debugfs(tsdata, dev_driver_string(dev));
+	device_init_wakeup(dev, 1);
 
-	dev_dbg(&client->dev,
-		"EDT FT5x06 initialized: IRQ %d, WAKE pin %d, Reset pin %d.\n",
+	dev_dbg(dev,
+		"EDT FT5x06 initialized: IRQ %d, WAKE pin %d, Reset pin %d\n",
 		client->irq,
 		tsdata->wake_gpio ? desc_to_gpio(tsdata->wake_gpio) : -1,
 		tsdata->reset_gpio ? desc_to_gpio(tsdata->reset_gpio) : -1);
