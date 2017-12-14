@@ -44,7 +44,7 @@
 #include "execlist.h"
 #include "scheduler.h"
 #include "sched_policy.h"
-#include "render.h"
+#include "mmio_context.h"
 #include "cmd_parser.h"
 #include "fb_decoder.h"
 #include "dmabuf.h"
@@ -309,6 +309,8 @@ struct intel_gvt {
 	struct task_struct *service_thread;
 	wait_queue_head_t service_thread_wq;
 	unsigned long service_request;
+
+	struct engine_mmio *engine_mmio_list;
 
 	struct dentry *debugfs_root;
 };

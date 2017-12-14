@@ -222,6 +222,12 @@ int intel_vgpu_decode_primary_plane(struct intel_vgpu *vgpu,
 			val & PLANE_CTL_ORDER_RGBX,
 			val & PLANE_CTL_ALPHA_MASK,
 			val & PLANE_CTL_YUV422_ORDER_MASK);
+
+		if (fmt >= ARRAY_SIZE(skl_pixel_formats)) {
+			gvt_vgpu_err("Out-of-bounds pixel format index\n");
+			return -EINVAL;
+		}
+
 		plane->bpp = skl_pixel_formats[fmt].bpp;
 		plane->drm_format = skl_pixel_formats[fmt].drm_format;
 	} else {

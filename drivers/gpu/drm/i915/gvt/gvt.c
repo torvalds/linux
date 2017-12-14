@@ -386,6 +386,8 @@ int intel_gvt_init_device(struct drm_i915_private *dev_priv)
 	if (ret)
 		goto out_clean_idr;
 
+	intel_gvt_init_engine_mmio_context(gvt);
+
 	ret = intel_gvt_load_firmware(gvt);
 	if (ret)
 		goto out_clean_mmio_info;

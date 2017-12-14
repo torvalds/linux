@@ -1029,13 +1029,17 @@ static long intel_vgpu_ioctl(struct mdev_device *mdev, unsigned int cmd,
 		case VFIO_PCI_BAR3_REGION_INDEX ... VFIO_PCI_BAR5_REGION_INDEX:
 			info.offset = VFIO_PCI_INDEX_TO_OFFSET(info.index);
 			info.size = 0;
-
 			info.flags = 0;
+
 			gvt_dbg_core("get region info bar:%d\n", info.index);
 			break;
 
 		case VFIO_PCI_ROM_REGION_INDEX:
 		case VFIO_PCI_VGA_REGION_INDEX:
+			info.offset = VFIO_PCI_INDEX_TO_OFFSET(info.index);
+			info.size = 0;
+			info.flags = 0;
+
 			gvt_dbg_core("get region info index:%d\n", info.index);
 			break;
 		default:
