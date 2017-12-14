@@ -922,8 +922,9 @@ static int s3c_onenand_probe(struct platform_device *pdev)
 		}
 	}
 
-	if (onenand_scan(mtd, 1))
-		return -EFAULT;
+	err = onenand_scan(mtd, 1);
+	if (err)
+		return err;
 
 	if (onenand->type != TYPE_S5PC110) {
 		/* S3C doesn't handle subpage write */
