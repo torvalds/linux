@@ -1062,7 +1062,7 @@ static void gpiodevice_release(struct device *dev)
 
 	list_del(&gdev->list);
 	ida_simple_remove(&gpio_ida, gdev->id);
-	kfree(gdev->label);
+	kfree_const(gdev->label);
 	kfree(gdev->descs);
 	kfree(gdev);
 }
@@ -1170,10 +1170,7 @@ int gpiochip_add_data_with_key(struct gpio_chip *chip, void *data,
 		goto err_free_descs;
 	}
 
-	if (chip->label)
-		gdev->label = kstrdup(chip->label, GFP_KERNEL);
-	else
-		gdev->label = kstrdup("unknown", GFP_KERNEL);
+	gdev->label = kstrdup_const(chip->label ?: "unknown", GFP_KERNEL);
 	if (!gdev->label) {
 		status = -ENOMEM;
 		goto err_free_descs;
@@ -1294,7 +1291,7 @@ err_remove_from_list:
 	list_del(&gdev->list);
 	spin_unlock_irqrestore(&gpio_lock, flags);
 err_free_label:
-	kfree(gdev->label);
+	kfree_const(gdev->label);
 err_free_descs:
 	kfree(gdev->descs);
 err_free_gdev:
