@@ -618,15 +618,6 @@ static inline void safexcel_handle_result_descriptor(struct safexcel_crypto_priv
 	}
 }
 
-static void safexcel_handle_result_work(struct work_struct *work)
-{
-	struct safexcel_work_data *data =
-			container_of(work, struct safexcel_work_data, result_work);
-	struct safexcel_crypto_priv *priv = data->priv;
-
-	safexcel_handle_result_descriptor(priv, data->ring);
-}
-
 static void safexcel_dequeue_work(struct work_struct *work)
 {
 	struct safexcel_work_data *data =
@@ -644,12 +635,12 @@ static irqreturn_t safexcel_irq_ring(int irq, void *data)
 {
 	struct safexcel_ring_irq_data *irq_data = data;
 	struct safexcel_crypto_priv *priv = irq_data->priv;
-	int ring = irq_data->ring;
+	int ring = irq_data->ring, rc = IRQ_NONE;
 	u32 status, stat;
 
 	status = readl(priv->base + EIP197_HIA_AIC_R_ENABLED_STAT(ring));
 	if (!status)
-		return IRQ_NONE;
+		return rc;
 
 	/* RDR interrupts */
 	if (status & EIP197_RDR_IRQ(ring)) {
@@ -663,10 +654,7 @@ static irqreturn_t safexcel_irq_ring(int irq, void *data)
 			 */
 			dev_err(priv->dev, "RDR: fatal error.");
 		} else if (likely(stat & EIP197_xDR_THRESH)) {
-			queue_work(priv->ring[ring].workqueue,
-				   &priv->ring[ring].work_data.result_work);
-			queue_work(priv->ring[ring].workqueue,
-				   &priv->ring[ring].work_data.work);
+			rc = IRQ_WAKE_THREAD;
 		}
 
 		/* ACK the interrupts */
@@ -677,11 +665,26 @@ static irqreturn_t safexcel_irq_ring(int irq, void *data)
 	/* ACK the interrupts */
 	writel(status, priv->base + EIP197_HIA_AIC_R_ACK(ring));
 
+	return rc;
+}
+
+static irqreturn_t safexcel_irq_ring_thread(int irq, void *data)
+{
+	struct safexcel_ring_irq_data *irq_data = data;
+	struct safexcel_crypto_priv *priv = irq_data->priv;
+	int ring = irq_data->ring;
+
+	safexcel_handle_result_descriptor(priv, ring);
+
+	queue_work(priv->ring[ring].workqueue,
+		   &priv->ring[ring].work_data.work);
+
 	return IRQ_HANDLED;
 }
 
 static int safexcel_request_ring_irq(struct platform_device *pdev, const char *name,
 				     irq_handler_t handler,
+				     irq_handler_t threaded_handler,
 				     struct safexcel_ring_irq_data *ring_irq_priv)
 {
 	int ret, irq = platform_get_irq_byname(pdev, name);
@@ -691,8 +694,9 @@ static int safexcel_request_ring_irq(struct platform_device *pdev, const char *n
 		return irq;
 	}
 
-	ret = devm_request_irq(&pdev->dev, irq, handler, 0,
-			       dev_name(&pdev->dev), ring_irq_priv);
+	ret = devm_request_threaded_irq(&pdev->dev, irq, handler,
+					threaded_handler, IRQF_ONESHOT,
+					dev_name(&pdev->dev), ring_irq_priv);
 	if (ret) {
 		dev_err(&pdev->dev, "unable to request IRQ %d\n", irq);
 		return ret;
@@ -839,6 +843,7 @@ static int safexcel_probe(struct platform_device *pdev)
 
 		snprintf(irq_name, 6, "ring%d", i);
 		irq = safexcel_request_ring_irq(pdev, irq_name, safexcel_irq_ring,
+						safexcel_irq_ring_thread,
 						ring_irq);
 		if (irq < 0) {
 			ret = irq;
@@ -847,8 +852,6 @@ static int safexcel_probe(struct platform_device *pdev)
 
 		priv->ring[i].work_data.priv = priv;
 		priv->ring[i].work_data.ring = i;
-		INIT_WORK(&priv->ring[i].work_data.result_work,
-			  safexcel_handle_result_work);
 		INIT_WORK(&priv->ring[i].work_data.work, safexcel_dequeue_work);
 
 		snprintf(wq_name, 9, "wq_ring%d", i);

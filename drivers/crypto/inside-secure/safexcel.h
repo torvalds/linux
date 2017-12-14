@@ -459,7 +459,6 @@ struct safexcel_config {
 
 struct safexcel_work_data {
 	struct work_struct work;
-	struct work_struct result_work;
 	struct safexcel_crypto_priv *priv;
 	int ring;
 };
