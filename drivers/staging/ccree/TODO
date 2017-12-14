@@ -6,6 +6,5 @@
 *									*
 *************************************************************************
 
-1. Migrate sysfs to debugfs.
-2. Handle HW FIFO fullness more cleanly.
+1. Handle HW FIFO fullness more cleanly.
 
