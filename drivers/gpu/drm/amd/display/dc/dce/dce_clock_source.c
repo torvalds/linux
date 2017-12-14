@@ -908,18 +908,8 @@ static bool dce110_program_pix_clk(
 #if defined(CONFIG_DRM_AMD_DC_DCN1_0)
 	if (IS_FPGA_MAXIMUS_DC(clock_source->ctx->dce_environment)) {
 		unsigned int inst = pix_clk_params->controller_id - CONTROLLER_ID_D0;
-		unsigned dp_dto_ref_kHz = 600000;
-		/* DPREF clock from FPGA TODO: Does FPGA have this value? */
+		unsigned dp_dto_ref_kHz = 700000;
 		unsigned clock_kHz = pll_settings->actual_pix_clk;
-
-		/* For faster simulation, if mode pixe clock less than 290MHz,
-		 * pixel clock can be hard coded to 290Mhz. For 4K mode, pixel clock
-		 * is greater than 500Mhz, need real pixel clock
-		 * clock_kHz = 290000;
-		 */
-		/* TODO: un-hardcode when we can set display clock properly*/
-		/*clock_kHz = pix_clk_params->requested_pix_clk;*/
-		clock_kHz = 290000;
 
 		/* Set DTO values: phase = target clock, modulo = reference clock */
 		REG_WRITE(PHASE[inst], clock_kHz);
