@@ -77,6 +77,8 @@ static int sdw_drv_probe(struct device *dev)
 	if (!id)
 		return -ENODEV;
 
+	slave->ops = drv->ops;
+
 	/*
 	 * attach to power domain but don't turn on (last arg)
 	 */
@@ -89,7 +91,26 @@ static int sdw_drv_probe(struct device *dev)
 		}
 	}
 
-	return ret;
+	if (ret)
+		return ret;
+
+	/* device is probed so let's read the properties now */
+	if (slave->ops && slave->ops->read_prop)
+		slave->ops->read_prop(slave);
+
+	/*
+	 * Check for valid clk_stop_timeout, use DisCo worst case value of
+	 * 300ms
+	 *
+	 * TODO: check the timeouts and driver removal case
+	 */
+	if (slave->prop.clk_stop_timeout == 0)
+		slave->prop.clk_stop_timeout = 300;
+
+	slave->bus->clk_stop_timeout = max_t(u32, slave->bus->clk_stop_timeout,
+					slave->prop.clk_stop_timeout);
+
+	return 0;
 }
 
 static int sdw_drv_remove(struct device *dev)

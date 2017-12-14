@@ -25,6 +25,14 @@ int sdw_add_bus_master(struct sdw_bus *bus)
 	mutex_init(&bus->bus_lock);
 	INIT_LIST_HEAD(&bus->slaves);
 
+	if (bus->ops->read_prop) {
+		ret = bus->ops->read_prop(bus);
+		if (ret < 0) {
+			dev_err(bus->dev, "Bus read properties failed:%d", ret);
+			return ret;
+		}
+	}
+
 	/*
 	 * Device numbers in SoundWire are 0 thru 15. Enumeration device
 	 * number (0), Broadcast device number (15), Group numbers (12 and
