@@ -117,7 +117,7 @@ static irqreturn_t cc_isr(int irq, void *dev_id)
 		irr &= ~SSI_COMP_IRQ_MASK;
 		complete_request(drvdata);
 	}
-#ifdef CC_SUPPORT_FIPS
+#ifdef CONFIG_CRYPTO_FIPS
 	/* TEE FIPS interrupt */
 	if (likely((irr & SSI_GPR0_IRQ_MASK) != 0)) {
 		/* Mask interrupt - will be unmasked in Deferred service handler */
