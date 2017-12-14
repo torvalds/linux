@@ -785,6 +785,14 @@ void wil_refresh_fw_capabilities(struct wil6210_priv *wil)
 		wiphy->signal_type = CFG80211_SIGNAL_TYPE_MBM;
 	else
 		wiphy->signal_type = CFG80211_SIGNAL_TYPE_UNSPEC;
+
+	if (test_bit(WMI_FW_CAPABILITY_PNO, wil->fw_capabilities)) {
+		wiphy->max_sched_scan_reqs = 1;
+		wiphy->max_sched_scan_ssids = WMI_MAX_PNO_SSID_NUM;
+		wiphy->max_match_sets = WMI_MAX_PNO_SSID_NUM;
+		wiphy->max_sched_scan_ie_len = WMI_MAX_IE_LEN;
+		wiphy->max_sched_scan_plans = WMI_MAX_PLANS_NUM;
+	}
 }
 
 void wil_mbox_ring_le2cpus(struct wil6210_mbox_ring *r)
