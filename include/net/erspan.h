@@ -15,7 +15,7 @@
  *  s, Recur, Flags, Version fields only S (bit 03) is set to 1. The
  *  other fields are set to zero, so only a sequence number follows.
  *
- *  ERSPAN Type II header (8 octets [42:49])
+ *  ERSPAN Version 1 (Type II) header (8 octets [42:49])
  *  0                   1                   2                   3
  *  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
  * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
@@ -27,7 +27,7 @@
  * GRE proto ERSPAN type II = 0x88BE, type III = 0x22EB
  */
 
-#define ERSPAN_VERSION	0x1
+#define ERSPAN_VERSION	0x1	/* ERSPAN type II */
 
 #define VER_MASK	0xf000
 #define VLAN_MASK	0x0fff
@@ -44,19 +44,28 @@ enum erspan_encap_type {
 	ERSPAN_ENCAP_INFRAME = 0x3,	/* VLAN tag perserved in frame */
 };
 
+#define ERSPAN_V1_MDSIZE	4
+#define ERSPAN_V2_MDSIZE	8
 struct erspan_metadata {
-	__be32 index;   /* type II */
+	union {
+		__be32 index;	/* Version 1 (type II)*/
+	} u;
 };
 
-struct erspanhdr {
+struct erspan_base_hdr {
 	__be16 ver_vlan;
 #define VER_OFFSET  12
 	__be16 session_id;
 #define COS_OFFSET  13
 #define EN_OFFSET   11
 #define T_OFFSET    10
-	struct erspan_metadata md;
 };
+
+static inline int erspan_hdr_len(int version)
+{
+	return sizeof(struct erspan_base_hdr) +
+	       (version == 1 ? ERSPAN_V1_MDSIZE : ERSPAN_V2_MDSIZE);
+}
 
 static inline u8 tos_to_cos(u8 tos)
 {
@@ -73,7 +82,8 @@ static inline void erspan_build_header(struct sk_buff *skb,
 {
 	struct ethhdr *eth = eth_hdr(skb);
 	enum erspan_encap_type enc_type;
-	struct erspanhdr *ershdr;
+	struct erspan_base_hdr *ershdr;
+	struct erspan_metadata *ersmd;
 	struct qtag_prefix {
 		__be16 eth_type;
 		__be16 tci;
@@ -96,17 +106,21 @@ static inline void erspan_build_header(struct sk_buff *skb,
 		enc_type = ERSPAN_ENCAP_INFRAME;
 	}
 
-	skb_push(skb, sizeof(*ershdr));
-	ershdr = (struct erspanhdr *)skb->data;
-	memset(ershdr, 0, sizeof(*ershdr));
+	skb_push(skb, sizeof(*ershdr) + ERSPAN_V1_MDSIZE);
+	ershdr = (struct erspan_base_hdr *)skb->data;
+	memset(ershdr, 0, sizeof(*ershdr) + ERSPAN_V1_MDSIZE);
 
+	/* Build base header */
 	ershdr->ver_vlan = htons((vlan_tci & VLAN_MASK) |
 				 (ERSPAN_VERSION << VER_OFFSET));
 	ershdr->session_id = htons((u16)(ntohl(id) & ID_MASK) |
 			   ((tos_to_cos(tos) << COS_OFFSET) & COS_MASK) |
 			   (enc_type << EN_OFFSET & EN_MASK) |
 			   ((truncate << T_OFFSET) & T_MASK));
-	ershdr->md.index = htonl(index & INDEX_MASK);
+
+	/* Build metadata */
+	ersmd = (struct erspan_metadata *)(ershdr + 1);
+	ersmd->u.index = htonl(index & INDEX_MASK);
 }
 
 #endif

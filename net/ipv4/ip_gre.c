@@ -256,34 +256,41 @@ static int erspan_rcv(struct sk_buff *skb, struct tnl_ptk_info *tpi,
 {
 	struct net *net = dev_net(skb->dev);
 	struct metadata_dst *tun_dst = NULL;
+	struct erspan_base_hdr *ershdr;
+	struct erspan_metadata *pkt_md;
 	struct ip_tunnel_net *itn;
 	struct ip_tunnel *tunnel;
-	struct erspanhdr *ershdr;
 	const struct iphdr *iph;
-	__be32 index;
+	int ver;
 	int len;
 
 	itn = net_generic(net, erspan_net_id);
 	len = gre_hdr_len + sizeof(*ershdr);
 
+	/* Check based hdr len */
 	if (unlikely(!pskb_may_pull(skb, len)))
 		return -ENOMEM;
 
 	iph = ip_hdr(skb);
-	ershdr = (struct erspanhdr *)(skb->data + gre_hdr_len);
+	ershdr = (struct erspan_base_hdr *)(skb->data + gre_hdr_len);
+	ver = (ntohs(ershdr->ver_vlan) & VER_MASK) >> VER_OFFSET;
 
 	/* The original GRE header does not have key field,
 	 * Use ERSPAN 10-bit session ID as key.
 	 */
 	tpi->key = cpu_to_be32(ntohs(ershdr->session_id) & ID_MASK);
-	index = ershdr->md.index;
+	pkt_md = (struct erspan_metadata *)(ershdr + 1);
 	tunnel = ip_tunnel_lookup(itn, skb->dev->ifindex,
 				  tpi->flags | TUNNEL_KEY,
 				  iph->saddr, iph->daddr, tpi->key);
 
 	if (tunnel) {
+		len = gre_hdr_len + erspan_hdr_len(ver);
+		if (unlikely(!pskb_may_pull(skb, len)))
+			return -ENOMEM;
+
 		if (__iptunnel_pull_header(skb,
-					   gre_hdr_len + sizeof(*ershdr),
+					   len,
 					   htons(ETH_P_TEB),
 					   false, false) < 0)
 			goto drop;
@@ -307,12 +314,12 @@ static int erspan_rcv(struct sk_buff *skb, struct tnl_ptk_info *tpi,
 			if (!md)
 				return PACKET_REJECT;
 
-			md->index = index;
+			memcpy(md, pkt_md, sizeof(*md));
 			info = &tun_dst->u.tun_info;
 			info->key.tun_flags |= TUNNEL_ERSPAN_OPT;
 			info->options_len = sizeof(*md);
 		} else {
-			tunnel->index = ntohl(index);
+			tunnel->index = ntohl(pkt_md->u.index);
 		}
 
 		skb_reset_mac_header(skb);
@@ -571,7 +578,7 @@ static void erspan_fb_xmit(struct sk_buff *skb, struct net_device *dev,
 	key = &tun_info->key;
 
 	/* ERSPAN has fixed 8 byte GRE header */
-	tunnel_hlen = 8 + sizeof(struct erspanhdr);
+	tunnel_hlen = 8 + sizeof(struct erspan_base_hdr) + ERSPAN_V1_MDSIZE;
 
 	rt = prepare_fb_xmit(skb, dev, &fl, tunnel_hlen);
 	if (!rt)
@@ -590,7 +597,7 @@ static void erspan_fb_xmit(struct sk_buff *skb, struct net_device *dev,
 		goto err_free_rt;
 
 	erspan_build_header(skb, tunnel_id_to_key32(key->tun_id),
-			    ntohl(md->index), truncate, true);
+			    ntohl(md->u.index), truncate, true);
 
 	gre_build_header(skb, 8, TUNNEL_SEQ,
 			 htons(ETH_P_ERSPAN), 0, htonl(tunnel->o_seqno++));
@@ -1238,7 +1245,7 @@ static int erspan_tunnel_init(struct net_device *dev)
 	tunnel->tun_hlen = 8;
 	tunnel->parms.iph.protocol = IPPROTO_GRE;
 	tunnel->hlen = tunnel->tun_hlen + tunnel->encap_hlen +
-		       sizeof(struct erspanhdr);
+		       sizeof(struct erspan_base_hdr) + ERSPAN_V1_MDSIZE;
 	t_hlen = tunnel->hlen + sizeof(struct iphdr);
 
 	dev->needed_headroom = LL_MAX_HEADER + t_hlen + 4;

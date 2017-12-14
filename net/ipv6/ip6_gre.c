@@ -501,25 +501,32 @@ static int ip6gre_rcv(struct sk_buff *skb, const struct tnl_ptk_info *tpi)
 static int ip6erspan_rcv(struct sk_buff *skb, int gre_hdr_len,
 			 struct tnl_ptk_info *tpi)
 {
+	struct erspan_base_hdr *ershdr;
+	struct erspan_metadata *pkt_md;
 	const struct ipv6hdr *ipv6h;
-	struct erspanhdr *ershdr;
 	struct ip6_tnl *tunnel;
-	__be32 index;
+	u8 ver;
 
 	ipv6h = ipv6_hdr(skb);
-	ershdr = (struct erspanhdr *)skb->data;
+	ershdr = (struct erspan_base_hdr *)skb->data;
 
 	if (unlikely(!pskb_may_pull(skb, sizeof(*ershdr))))
 		return PACKET_REJECT;
 
+	ver = (ntohs(ershdr->ver_vlan) & VER_MASK) >> VER_OFFSET;
 	tpi->key = cpu_to_be32(ntohs(ershdr->session_id) & ID_MASK);
-	index = ershdr->md.index;
+	pkt_md = (struct erspan_metadata *)(ershdr + 1);
 
 	tunnel = ip6gre_tunnel_lookup(skb->dev,
 				      &ipv6h->saddr, &ipv6h->daddr, tpi->key,
 				      tpi->proto);
 	if (tunnel) {
-		if (__iptunnel_pull_header(skb, sizeof(*ershdr),
+		int len = erspan_hdr_len(ver);
+
+		if (unlikely(!pskb_may_pull(skb, len)))
+			return -ENOMEM;
+
+		if (__iptunnel_pull_header(skb, len,
 					   htons(ETH_P_TEB),
 					   false, false) < 0)
 			return PACKET_REJECT;
@@ -545,14 +552,14 @@ static int ip6erspan_rcv(struct sk_buff *skb, int gre_hdr_len,
 			if (!md)
 				return PACKET_REJECT;
 
-			md->index = index;
+			memcpy(md, pkt_md, sizeof(*md));
 			info->key.tun_flags |= TUNNEL_ERSPAN_OPT;
 			info->options_len = sizeof(*md);
 
 			ip6_tnl_rcv(tunnel, skb, tpi, tun_dst, log_ecn_error);
 
 		} else {
-			tunnel->parms.index = ntohl(index);
+			tunnel->parms.index = ntohl(pkt_md->u.index);
 			ip6_tnl_rcv(tunnel, skb, tpi, NULL, log_ecn_error);
 		}
 
@@ -921,7 +928,7 @@ static netdev_tx_t ip6erspan_tunnel_xmit(struct sk_buff *skb,
 			goto tx_err;
 
 		erspan_build_header(skb, tunnel_id_to_key32(key->tun_id),
-				    ntohl(md->index), truncate, false);
+				    ntohl(md->u.index), truncate, false);
 
 	} else {
 		switch (skb->protocol) {
@@ -1657,7 +1664,7 @@ static int ip6erspan_tap_init(struct net_device *dev)
 
 	tunnel->tun_hlen = 8;
 	tunnel->hlen = tunnel->tun_hlen + tunnel->encap_hlen +
-		       sizeof(struct erspanhdr);
+		       sizeof(struct erspan_base_hdr) + ERSPAN_V1_MDSIZE;
 	t_hlen = tunnel->hlen + sizeof(struct ipv6hdr);
 
 	dev->hard_header_len = LL_MAX_HEADER + t_hlen;

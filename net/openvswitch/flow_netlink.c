@@ -644,12 +644,12 @@ static int erspan_tun_opt_from_nlattr(const struct nlattr *attr,
 	BUILD_BUG_ON(sizeof(opts) > sizeof(match->key->tun_opts));
 
 	memset(&opts, 0, sizeof(opts));
-	opts.index = nla_get_be32(attr);
+	opts.u.index = nla_get_be32(attr);
 
 	/* Index has only 20-bit */
-	if (ntohl(opts.index) & ~INDEX_MASK) {
+	if (ntohl(opts.u.index) & ~INDEX_MASK) {
 		OVS_NLERR(log, "ERSPAN index number %x too large.",
-			  ntohl(opts.index));
+			  ntohl(opts.u.index));
 		return -EINVAL;
 	}
 
@@ -907,7 +907,7 @@ static int __ip_tun_to_nlattr(struct sk_buff *skb,
 			return -EMSGSIZE;
 		else if (output->tun_flags & TUNNEL_ERSPAN_OPT &&
 			 nla_put_be32(skb, OVS_TUNNEL_KEY_ATTR_ERSPAN_OPTS,
-				      ((struct erspan_metadata *)tun_opts)->index))
+				      ((struct erspan_metadata *)tun_opts)->u.index))
 			return -EMSGSIZE;
 	}
 
