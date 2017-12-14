@@ -25,8 +25,6 @@
 #include <linux/interrupt.h>
 #include <linux/io.h>
 
-#include <asm/mach/flash.h>
-
 #include "samsung.h"
 
 enum soc_type {
