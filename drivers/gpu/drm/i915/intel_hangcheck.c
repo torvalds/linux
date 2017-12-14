@@ -349,13 +349,18 @@ static void hangcheck_accumulate_sample(struct intel_engine_cs *engine,
 
 	case ENGINE_ACTIVE_HEAD:
 	case ENGINE_ACTIVE_SUBUNITS:
-		/* Seqno stuck with still active engine gets leeway,
+		/*
+		 * Seqno stuck with still active engine gets leeway,
 		 * in hopes that it is just a long shader.
 		 */
 		timeout = I915_SEQNO_DEAD_TIMEOUT;
 		break;
 
 	case ENGINE_DEAD:
+		if (drm_debug & DRM_UT_DRIVER) {
+			struct drm_printer p = drm_debug_printer("hangcheck");
+			intel_engine_dump(engine, &p, "%s", engine->name);
+		}
 		break;
 
 	default:
