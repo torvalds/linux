@@ -454,6 +454,8 @@ retry:
 	if (error)
 		goto out_bmap_cancel;
 
+	xfs_inode_set_cowblocks_tag(ip);
+
 	/* Finish up. */
 	error = xfs_defer_finish(&tp, &dfops);
 	if (error)
