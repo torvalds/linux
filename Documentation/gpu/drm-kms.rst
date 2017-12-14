@@ -271,6 +271,12 @@ Taken all together there's two consequences for the atomic design:
 Read on in this chapter, and also in :ref:`drm_atomic_helper` for more detailed
 coverage of specific topics.
 
+Handling Driver Private State
+-----------------------------
+
+.. kernel-doc:: drivers/gpu/drm/drm_atomic.c
+   :doc: handling driver private state
+
 Atomic Mode Setting Function Reference
 --------------------------------------
 
