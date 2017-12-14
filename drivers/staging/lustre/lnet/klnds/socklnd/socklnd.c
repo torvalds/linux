@@ -487,21 +487,18 @@ ksocknal_add_peer(struct lnet_ni *ni, struct lnet_process_id id, __u32 ipaddr,
 			      ksocknal_nid2peerlist(id.nid));
 	}
 
-	route2 = NULL;
 	list_for_each_entry(route2, &peer->ksnp_routes, ksnr_list) {
-		if (route2->ksnr_ipaddr == ipaddr)
-			break;
-
-		route2 = NULL;
+		if (route2->ksnr_ipaddr == ipaddr) {
+			/* Route already exists, use the old one */
+			ksocknal_route_decref(route);
+			route2->ksnr_share_count++;
+			goto out;
+		}
 	}
-	if (!route2) {
-		ksocknal_add_route_locked(peer, route);
-		route->ksnr_share_count++;
-	} else {
-		ksocknal_route_decref(route);
-		route2->ksnr_share_count++;
-	}
-
+	/* Route doesn't already exist, add the new one */
+	ksocknal_add_route_locked(peer, route);
+	route->ksnr_share_count++;
+out:
 	write_unlock_bh(&ksocknal_data.ksnd_global_lock);
 
 	return 0;
