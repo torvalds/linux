@@ -1690,7 +1690,7 @@ static void amdgpu_device_ip_late_init_func_handler(struct work_struct *work)
 	amdgpu_device_ip_late_set_cg_state(adev);
 }
 
-int amdgpu_suspend(struct amdgpu_device *adev)
+int amdgpu_device_ip_suspend(struct amdgpu_device *adev)
 {
 	int i, r;
 
@@ -2344,7 +2344,7 @@ int amdgpu_device_suspend(struct drm_device *dev, bool suspend, bool fbcon)
 
 	amdgpu_fence_driver_suspend(adev);
 
-	r = amdgpu_suspend(adev);
+	r = amdgpu_device_ip_suspend(adev);
 
 	/* evict remaining vram memory
 	 * This second call to evict vram is to evict the gart page table
@@ -2669,7 +2669,7 @@ static int amdgpu_device_reset(struct amdgpu_device *adev,
 	}
 
 	if (need_full_reset) {
-		r = amdgpu_suspend(adev);
+		r = amdgpu_device_ip_suspend(adev);
 
 retry:
 		r = amdgpu_asic_reset(adev);
@@ -2708,7 +2708,7 @@ out:
 		r = amdgpu_ib_ring_tests(adev);
 		if (r) {
 			dev_err(adev->dev, "ib ring test failed (%d).\n", r);
-			r = amdgpu_suspend(adev);
+			r = amdgpu_device_ip_suspend(adev);
 			need_full_reset = true;
 			goto retry;
 		}
