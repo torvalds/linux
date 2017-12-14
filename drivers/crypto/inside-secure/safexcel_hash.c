@@ -624,7 +624,6 @@ static int safexcel_ahash_export(struct ahash_request *areq, void *out)
 	export->processed = req->processed;
 
 	memcpy(export->state, req->state, req->state_sz);
-	memset(export->cache, 0, crypto_ahash_blocksize(ahash));
 	memcpy(export->cache, req->cache, crypto_ahash_blocksize(ahash));
 
 	return 0;
