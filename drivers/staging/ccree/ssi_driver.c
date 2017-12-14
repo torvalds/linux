@@ -517,7 +517,18 @@ static struct platform_driver cc7x_driver = {
 	.probe = cc7x_probe,
 	.remove = cc7x_remove,
 };
-module_platform_driver(cc7x_driver);
+
+static int __init ccree_init(void)
+{
+	return platform_driver_register(&cc7x_driver);
+}
+module_init(ccree_init);
+
+static void __exit ccree_exit(void)
+{
+	platform_driver_unregister(&cc7x_driver);
+}
+module_exit(ccree_exit);
 
 /* Module description */
 MODULE_DESCRIPTION("ARM TrustZone CryptoCell REE Driver");
