@@ -3047,6 +3047,8 @@ static int tegra_sor_probe(struct platform_device *pdev)
 				name, err);
 			goto remove;
 		}
+	} else {
+		sor->clk_out = sor->clk;
 	}
 
 	sor->clk_parent = devm_clk_get(&pdev->dev, "parent");

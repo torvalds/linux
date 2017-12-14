@@ -49,39 +49,37 @@ static const u32 tegra_shared_plane_formats[] = {
 	DRM_FORMAT_YUV422,
 };
 
-static inline unsigned int tegra_plane_offset(struct tegra_shared_plane *plane,
+static inline unsigned int tegra_plane_offset(struct tegra_plane *plane,
 					      unsigned int offset)
 {
-	struct tegra_plane *p = &plane->base;
-
 	if (offset >= 0x500 && offset <= 0x581) {
 		offset = 0x000 + (offset - 0x500);
-		return p->offset + offset;
+		return plane->offset + offset;
 	}
 
 	if (offset >= 0x700 && offset <= 0x73c) {
 		offset = 0x180 + (offset - 0x700);
-		return p->offset + offset;
+		return plane->offset + offset;
 	}
 
 	if (offset >= 0x800 && offset <= 0x83e) {
 		offset = 0x1c0 + (offset - 0x800);
-		return p->offset + offset;
+		return plane->offset + offset;
 	}
 
 	dev_WARN(plane->dc->dev, "invalid offset: %x\n", offset);
 
-	return p->offset + offset;
+	return plane->offset + offset;
 }
 
-static inline u32 tegra_plane_readl(struct tegra_shared_plane *plane,
+static inline u32 tegra_plane_readl(struct tegra_plane *plane,
 				    unsigned int offset)
 {
 	return tegra_dc_readl(plane->dc, tegra_plane_offset(plane, offset));
 }
 
-static inline void tegra_plane_writel(struct tegra_shared_plane *plane,
-				      u32 value, unsigned int offset)
+static inline void tegra_plane_writel(struct tegra_plane *plane, u32 value,
+				      unsigned int offset)
 {
 	tegra_dc_writel(plane->dc, value, tegra_plane_offset(plane, offset));
 }
@@ -155,7 +153,7 @@ void tegra_display_hub_cleanup(struct tegra_display_hub *hub)
 	}
 }
 
-static void tegra_shared_plane_update(struct tegra_shared_plane *plane)
+static void tegra_shared_plane_update(struct tegra_plane *plane)
 {
 	struct tegra_dc *dc = plane->dc;
 	unsigned long timeout;
@@ -175,7 +173,7 @@ static void tegra_shared_plane_update(struct tegra_shared_plane *plane)
 	}
 }
 
-static void tegra_shared_plane_activate(struct tegra_shared_plane *plane)
+static void tegra_shared_plane_activate(struct tegra_plane *plane)
 {
 	struct tegra_dc *dc = plane->dc;
 	unsigned long timeout;
@@ -196,8 +194,7 @@ static void tegra_shared_plane_activate(struct tegra_shared_plane *plane)
 }
 
 static unsigned int
-tegra_shared_plane_get_owner(struct tegra_shared_plane *plane,
-			     struct tegra_dc *dc)
+tegra_shared_plane_get_owner(struct tegra_plane *plane, struct tegra_dc *dc)
 {
 	unsigned int offset =
 		tegra_plane_offset(plane, DC_WIN_CORE_WINDOWGROUP_SET_CONTROL);
@@ -206,7 +203,7 @@ tegra_shared_plane_get_owner(struct tegra_shared_plane *plane,
 }
 
 static bool tegra_dc_owns_shared_plane(struct tegra_dc *dc,
-				       struct tegra_shared_plane *plane)
+				       struct tegra_plane *plane)
 {
 	struct device *dev = dc->dev;
 
@@ -215,20 +212,20 @@ static bool tegra_dc_owns_shared_plane(struct tegra_dc *dc,
 			return true;
 
 		dev_WARN(dev, "head %u owns window %u but is not attached\n",
-			 dc->pipe, plane->base.index);
+			 dc->pipe, plane->index);
 	}
 
 	return false;
 }
 
-static int tegra_shared_plane_set_owner(struct tegra_shared_plane *plane,
+static int tegra_shared_plane_set_owner(struct tegra_plane *plane,
 					struct tegra_dc *new)
 {
 	unsigned int offset =
 		tegra_plane_offset(plane, DC_WIN_CORE_WINDOWGROUP_SET_CONTROL);
 	struct tegra_dc *old = plane->dc, *dc = new ? new : old;
 	struct device *dev = new ? new->dev : old->dev;
-	unsigned int owner, index = plane->base.index;
+	unsigned int owner, index = plane->index;
 	u32 value;
 
 	value = tegra_dc_readl(dc, offset);
@@ -246,7 +243,7 @@ static int tegra_shared_plane_set_owner(struct tegra_shared_plane *plane,
 	 */
 	if (old && owner == OWNER_MASK)
 		dev_dbg(dev, "window %u not owned by head %u but %u\n", index,
-			 old->pipe, owner);
+			old->pipe, owner);
 
 	value &= ~OWNER_MASK;
 
@@ -263,7 +260,7 @@ static int tegra_shared_plane_set_owner(struct tegra_shared_plane *plane,
 }
 
 static void tegra_dc_assign_shared_plane(struct tegra_dc *dc,
-					 struct tegra_shared_plane *plane)
+					 struct tegra_plane *plane)
 {
 	u32 value;
 	int err;
@@ -312,7 +309,7 @@ static void tegra_dc_assign_shared_plane(struct tegra_dc *dc,
 }
 
 static void tegra_dc_remove_shared_plane(struct tegra_dc *dc,
-					 struct tegra_shared_plane *plane)
+					 struct tegra_plane *plane)
 {
 	tegra_shared_plane_set_owner(plane, NULL);
 }
@@ -370,8 +367,8 @@ static int tegra_shared_plane_atomic_check(struct drm_plane *plane,
 static void tegra_shared_plane_atomic_disable(struct drm_plane *plane,
 					      struct drm_plane_state *old_state)
 {
-	struct tegra_shared_plane *p = to_tegra_shared_plane(plane);
 	struct tegra_dc *dc = to_tegra_dc(old_state->crtc);
+	struct tegra_plane *p = to_tegra_plane(plane);
 	u32 value;
 
 	/* rien ne va plus */
@@ -401,9 +398,9 @@ static void tegra_shared_plane_atomic_update(struct drm_plane *plane,
 					     struct drm_plane_state *old_state)
 {
 	struct tegra_plane_state *state = to_tegra_plane_state(plane->state);
-	struct tegra_shared_plane *p = to_tegra_shared_plane(plane);
 	struct tegra_dc *dc = to_tegra_dc(plane->state->crtc);
 	struct drm_framebuffer *fb = plane->state->fb;
+	struct tegra_plane *p = to_tegra_plane(plane);
 	struct tegra_bo *bo;
 	dma_addr_t base;
 	u32 value;
@@ -434,7 +431,7 @@ static void tegra_shared_plane_atomic_update(struct drm_plane *plane,
 		BLEND_FACTOR_SRC_COLOR_K1_TIMES_SRC;
 	tegra_plane_writel(p, value, DC_WIN_BLEND_NOMATCH_SELECT);
 
-	value = K2(255) | K1(255) | WINDOW_LAYER_DEPTH(p->base.depth);
+	value = K2(255) | K1(255) | WINDOW_LAYER_DEPTH(p->depth);
 	tegra_plane_writel(p, value, DC_WIN_BLEND_LAYER_CONTROL);
 
 	/* bypass scaling */

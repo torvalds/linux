@@ -12,9 +12,11 @@
 #include <drm/drm_plane.h>
 
 struct tegra_bo;
+struct tegra_dc;
 
 struct tegra_plane {
 	struct drm_plane base;
+	struct tegra_dc *dc;
 	unsigned int offset;
 	unsigned int index;
 	unsigned int depth;

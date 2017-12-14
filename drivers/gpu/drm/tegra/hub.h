@@ -28,7 +28,6 @@ struct tegra_windowgroup {
 struct tegra_shared_plane {
 	struct tegra_plane base;
 	struct tegra_windowgroup *wgrp;
-	struct tegra_dc *dc;
 };
 
 static inline struct tegra_shared_plane *
