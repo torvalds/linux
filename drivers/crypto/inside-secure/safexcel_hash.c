@@ -484,13 +484,23 @@ static int safexcel_ahash_exit_inv(struct crypto_tfm *tfm)
 	return 0;
 }
 
+/* safexcel_ahash_cache: cache data until at least one request can be sent to
+ * the engine, aka. when there is at least 1 block size in the pipe.
+ */
 static int safexcel_ahash_cache(struct ahash_request *areq)
 {
 	struct safexcel_ahash_req *req = ahash_request_ctx(areq);
 	struct crypto_ahash *ahash = crypto_ahash_reqtfm(areq);
 	int queued, cache_len;
 
+	/* cache_len: everyting accepted by the driver but not sent yet,
+	 * tot sz handled by update() - last req sz - tot sz handled by send()
+	 */
 	cache_len = req->len - areq->nbytes - req->processed;
+	/* queued: everything accepted by the driver which will be handled by
+	 * the next send() calls.
+	 * tot sz handled by update() - tot sz handled by send()
+	 */
 	queued = req->len - req->processed;
 
 	/*
