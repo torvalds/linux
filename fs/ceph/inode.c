@@ -548,17 +548,22 @@ void ceph_destroy_inode(struct inode *inode)
 	 */
 	if (ci->i_snap_realm) {
 		struct ceph_mds_client *mdsc =
-			ceph_sb_to_client(ci->vfs_inode.i_sb)->mdsc;
-		struct ceph_snap_realm *realm = ci->i_snap_realm;
-
-		dout(" dropping residual ref to snap realm %p\n", realm);
-		spin_lock(&realm->inodes_with_caps_lock);
-		list_del_init(&ci->i_snap_realm_item);
-		ci->i_snap_realm = NULL;
-		if (realm->ino == ci->i_vino.ino)
-			realm->inode = NULL;
-		spin_unlock(&realm->inodes_with_caps_lock);
-		ceph_put_snap_realm(mdsc, realm);
+					ceph_inode_to_client(inode)->mdsc;
+		if (ceph_snap(inode) == CEPH_NOSNAP) {
+			struct ceph_snap_realm *realm = ci->i_snap_realm;
+			dout(" dropping residual ref to snap realm %p\n",
+			     realm);
+			spin_lock(&realm->inodes_with_caps_lock);
+			list_del_init(&ci->i_snap_realm_item);
+			ci->i_snap_realm = NULL;
+			if (realm->ino == ci->i_vino.ino)
+				realm->inode = NULL;
+			spin_unlock(&realm->inodes_with_caps_lock);
+			ceph_put_snap_realm(mdsc, realm);
+		} else {
+			ceph_put_snapid_map(mdsc, ci->i_snapid_map);
+			ci->i_snap_realm = NULL;
+		}
 	}
 
 	kfree(ci->i_symlink);
@@ -775,6 +780,9 @@ static int fill_inode(struct inode *inode, struct page *locked_page,
 	if (iinfo->pool_ns_len > 0)
 		pool_ns = ceph_find_or_create_string(iinfo->pool_ns_data,
 						     iinfo->pool_ns_len);
+
+	if (ceph_snap(inode) != CEPH_NOSNAP && !ci->i_snapid_map)
+		ci->i_snapid_map = ceph_get_snapid_map(mdsc, ceph_snap(inode));
 
 	spin_lock(&ci->i_ceph_lock);
 
@@ -2260,10 +2268,11 @@ int ceph_getattr(const struct path *path, struct kstat *stat,
 	if (!err) {
 		generic_fillattr(inode, stat);
 		stat->ino = ceph_translate_ino(inode->i_sb, inode->i_ino);
-		if (ceph_snap(inode) != CEPH_NOSNAP)
-			stat->dev = ceph_snap(inode);
+		if (ceph_snap(inode) == CEPH_NOSNAP)
+			stat->dev = inode->i_sb->s_dev;
 		else
-			stat->dev = 0;
+			stat->dev = ci->i_snapid_map ? ci->i_snapid_map->dev : 0;
+
 		if (S_ISDIR(inode->i_mode)) {
 			if (ceph_test_mount_opt(ceph_sb_to_client(inode->i_sb),
 						RBYTES))

@@ -3791,6 +3791,8 @@ static void delayed_work(struct work_struct *work)
 	dout("mdsc delayed_work\n");
 	ceph_check_delayed_caps(mdsc);
 
+	ceph_trim_snapid_map(mdsc);
+
 	mutex_lock(&mdsc->mutex);
 	renew_interval = mdsc->mdsmap->m_session_timeout >> 2;
 	renew_caps = time_after_eq(jiffies, HZ*renew_interval +
@@ -3892,6 +3894,10 @@ int ceph_mdsc_init(struct ceph_fs_client *fsc)
 
 	ceph_caps_init(mdsc);
 	ceph_adjust_min_caps(mdsc, fsc->min_caps);
+
+	spin_lock_init(&mdsc->snapid_map_lock);
+	mdsc->snapid_map_tree = RB_ROOT;
+	INIT_LIST_HEAD(&mdsc->snapid_map_lru);
 
 	init_rwsem(&mdsc->pool_perm_rwsem);
 	mdsc->pool_perm_tree = RB_ROOT;
@@ -4085,6 +4091,8 @@ void ceph_mdsc_close_sessions(struct ceph_mds_client *mdsc)
 	}
 	WARN_ON(!list_empty(&mdsc->cap_delay_list));
 	mutex_unlock(&mdsc->mutex);
+
+	ceph_cleanup_snapid_map(mdsc);
 
 	ceph_cleanup_empty_realms(mdsc);
 

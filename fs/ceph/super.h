@@ -370,7 +370,10 @@ struct ceph_inode_info {
 	struct list_head i_unsafe_iops;   /* uncommitted mds inode ops */
 	spinlock_t i_unsafe_lock;
 
-	struct ceph_snap_realm *i_snap_realm; /* snap realm (if caps) */
+	union {
+		struct ceph_snap_realm *i_snap_realm; /* snap realm (if caps) */
+		struct ceph_snapid_map *i_snapid_map; /* snapid -> dev_t */
+	};
 	int i_snap_realm_counter; /* snap realm (if caps) */
 	struct list_head i_snap_realm_item;
 	struct list_head i_snap_flush_item;
@@ -836,6 +839,14 @@ extern void ceph_queue_cap_snap(struct ceph_inode_info *ci);
 extern int __ceph_finish_cap_snap(struct ceph_inode_info *ci,
 				  struct ceph_cap_snap *capsnap);
 extern void ceph_cleanup_empty_realms(struct ceph_mds_client *mdsc);
+
+extern struct ceph_snapid_map *ceph_get_snapid_map(struct ceph_mds_client *mdsc,
+						   u64 snap);
+extern void ceph_put_snapid_map(struct ceph_mds_client* mdsc,
+				struct ceph_snapid_map *sm);
+extern void ceph_trim_snapid_map(struct ceph_mds_client *mdsc);
+extern void ceph_cleanup_snapid_map(struct ceph_mds_client *mdsc);
+
 
 /*
  * a cap_snap is "pending" if it is still awaiting an in-progress
