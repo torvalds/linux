@@ -504,7 +504,7 @@ static int safexcel_ahash_cache(struct ahash_request *areq)
 		return areq->nbytes;
 	}
 
-	/* We could'nt cache all the data */
+	/* We couldn't cache all the data */
 	return -E2BIG;
 }
 
