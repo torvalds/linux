@@ -1387,9 +1387,6 @@ struct amdgpu_fw_vram_usage {
 	void *va;
 };
 
-int amdgpu_fw_reserve_vram_init(struct amdgpu_device *adev);
-void amdgpu_fw_reserve_vram_fini(struct amdgpu_device *adev);
-
 /*
  * CGS
  */
