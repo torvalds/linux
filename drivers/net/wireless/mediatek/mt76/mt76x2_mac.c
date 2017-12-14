@@ -186,7 +186,7 @@ void mt76x2_mac_write_txwi(struct mt76x2_dev *dev, struct mt76x2_txwi *txwi,
 	txwi->pktid = 1;
 
 	spin_lock_bh(&dev->mt76.lock);
-	if (rate->idx < 0 || !rate->count) {
+	if (wcid && (rate->idx < 0 || !rate->count)) {
 		txwi->rate = wcid->tx_rate;
 		max_txpwr_adj = wcid->max_txpwr_adj;
 		nss = wcid->tx_rate_nss;
