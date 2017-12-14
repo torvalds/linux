@@ -500,18 +500,6 @@ static int cc7x_remove(struct platform_device *plat_dev)
 	return 0;
 }
 
-#if defined(CONFIG_PM)
-static const struct dev_pm_ops arm_cc7x_driver_pm = {
-	SET_RUNTIME_PM_OPS(cc_pm_suspend, cc_pm_resume, NULL)
-};
-#endif
-
-#if defined(CONFIG_PM)
-#define	CC_DRIVER_RUNTIME_PM	(&arm_cc7x_driver_pm)
-#else
-#define	CC_DRIVER_RUNTIME_PM	NULL
-#endif
-
 static const struct of_device_id arm_cc7x_dev_of_match[] = {
 	{.compatible = "arm,cryptocell-712-ree"},
 	{}
@@ -522,7 +510,9 @@ static struct platform_driver cc7x_driver = {
 	.driver = {
 		   .name = "cc7xree",
 		   .of_match_table = arm_cc7x_dev_of_match,
-		   .pm = CC_DRIVER_RUNTIME_PM,
+#ifdef CONFIG_PM
+		   .pm = &ccree_pm,
+#endif
 	},
 	.probe = cc7x_probe,
 	.remove = cc7x_remove,
