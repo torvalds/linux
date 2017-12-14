@@ -2227,6 +2227,12 @@ static int hclge_mac_init(struct hclge_dev *hdev)
 	return hclge_cfg_func_mta_filter(hdev, 0, hdev->accept_mta_mc);
 }
 
+static void hclge_mbx_task_schedule(struct hclge_dev *hdev)
+{
+	if (!test_and_set_bit(HCLGE_STATE_MBX_SERVICE_SCHED, &hdev->state))
+		schedule_work(&hdev->mbx_service_task);
+}
+
 static void hclge_reset_task_schedule(struct hclge_dev *hdev)
 {
 	if (!test_and_set_bit(HCLGE_STATE_RST_SERVICE_SCHED, &hdev->state))
@@ -2372,9 +2378,18 @@ static void hclge_service_complete(struct hclge_dev *hdev)
 static u32 hclge_check_event_cause(struct hclge_dev *hdev, u32 *clearval)
 {
 	u32 rst_src_reg;
+	u32 cmdq_src_reg;
 
 	/* fetch the events from their corresponding regs */
 	rst_src_reg = hclge_read_dev(&hdev->hw, HCLGE_MISC_RESET_STS_REG);
+	cmdq_src_reg = hclge_read_dev(&hdev->hw, HCLGE_VECTOR0_CMDQ_SRC_REG);
+
+	/* Assumption: If by any chance reset and mailbox events are reported
+	 * together then we will only process reset event in this go and will
+	 * defer the processing of the mailbox events. Since, we would have not
+	 * cleared RX CMDQ event this time we would receive again another
+	 * interrupt from H/W just for the mailbox.
+	 */
 
 	/* check for vector0 reset event sources */
 	if (BIT(HCLGE_VECTOR0_GLOBALRESET_INT_B) & rst_src_reg) {
@@ -2395,7 +2410,12 @@ static u32 hclge_check_event_cause(struct hclge_dev *hdev, u32 *clearval)
 		return HCLGE_VECTOR0_EVENT_RST;
 	}
 
-	/* mailbox event sharing vector 0 interrupt would be placed here */
+	/* check for vector0 mailbox(=CMDQ RX) event source */
+	if (BIT(HCLGE_VECTOR0_RX_CMDQ_INT_B) & cmdq_src_reg) {
+		cmdq_src_reg &= ~BIT(HCLGE_VECTOR0_RX_CMDQ_INT_B);
+		*clearval = cmdq_src_reg;
+		return HCLGE_VECTOR0_EVENT_MBX;
+	}
 
 	return HCLGE_VECTOR0_EVENT_OTHER;
 }
@@ -2403,10 +2423,14 @@ static u32 hclge_check_event_cause(struct hclge_dev *hdev, u32 *clearval)
 static void hclge_clear_event_cause(struct hclge_dev *hdev, u32 event_type,
 				    u32 regclr)
 {
-	if (event_type == HCLGE_VECTOR0_EVENT_RST)
+	switch (event_type) {
+	case HCLGE_VECTOR0_EVENT_RST:
 		hclge_write_dev(&hdev->hw, HCLGE_MISC_RESET_STS_REG, regclr);
-
-	/* mailbox event sharing vector 0 interrupt would be placed here */
+		break;
+	case HCLGE_VECTOR0_EVENT_MBX:
+		hclge_write_dev(&hdev->hw, HCLGE_VECTOR0_CMDQ_SRC_REG, regclr);
+		break;
+	}
 }
 
 static void hclge_enable_vector(struct hclge_misc_vector *vector, bool enable)
@@ -2423,13 +2447,23 @@ static irqreturn_t hclge_misc_irq_handle(int irq, void *data)
 	hclge_enable_vector(&hdev->misc_vector, false);
 	event_cause = hclge_check_event_cause(hdev, &clearval);
 
-	/* vector 0 interrupt is shared with reset and mailbox source events.
-	 * For now, we are not handling mailbox events.
-	 */
+	/* vector 0 interrupt is shared with reset and mailbox source events.*/
 	switch (event_cause) {
 	case HCLGE_VECTOR0_EVENT_RST:
 		hclge_reset_task_schedule(hdev);
 		break;
+	case HCLGE_VECTOR0_EVENT_MBX:
+		/* If we are here then,
+		 * 1. Either we are not handling any mbx task and we are not
+		 *    scheduled as well
+		 *                        OR
+		 * 2. We could be handling a mbx task but nothing more is
+		 *    scheduled.
+		 * In both cases, we should schedule mbx task as there are more
+		 * mbx messages reported by this interrupt.
+		 */
+		hclge_mbx_task_schedule(hdev);
+
 	default:
 		dev_dbg(&hdev->pdev->dev,
 			"received unknown or unhandled event of vector0\n");
@@ -2706,6 +2740,21 @@ static void hclge_reset_service_task(struct work_struct *work)
 	hclge_reset_subtask(hdev);
 
 	clear_bit(HCLGE_STATE_RST_HANDLING, &hdev->state);
+}
+
+static void hclge_mailbox_service_task(struct work_struct *work)
+{
+	struct hclge_dev *hdev =
+		container_of(work, struct hclge_dev, mbx_service_task);
+
+	if (test_and_set_bit(HCLGE_STATE_MBX_HANDLING, &hdev->state))
+		return;
+
+	clear_bit(HCLGE_STATE_MBX_SERVICE_SCHED, &hdev->state);
+
+	hclge_mbx_handler(hdev);
+
+	clear_bit(HCLGE_STATE_MBX_HANDLING, &hdev->state);
 }
 
 static void hclge_service_task(struct work_struct *work)
@@ -4815,6 +4864,7 @@ static int hclge_init_ae_dev(struct hnae3_ae_dev *ae_dev)
 	timer_setup(&hdev->service_timer, hclge_service_timer, 0);
 	INIT_WORK(&hdev->service_task, hclge_service_task);
 	INIT_WORK(&hdev->rst_service_task, hclge_reset_service_task);
+	INIT_WORK(&hdev->mbx_service_task, hclge_mailbox_service_task);
 
 	/* Enable MISC vector(vector0) */
 	hclge_enable_vector(&hdev->misc_vector, true);
@@ -4823,6 +4873,8 @@ static int hclge_init_ae_dev(struct hnae3_ae_dev *ae_dev)
 	set_bit(HCLGE_STATE_DOWN, &hdev->state);
 	clear_bit(HCLGE_STATE_RST_SERVICE_SCHED, &hdev->state);
 	clear_bit(HCLGE_STATE_RST_HANDLING, &hdev->state);
+	clear_bit(HCLGE_STATE_MBX_SERVICE_SCHED, &hdev->state);
+	clear_bit(HCLGE_STATE_MBX_HANDLING, &hdev->state);
 
 	pr_info("%s driver initialization finished.\n", HCLGE_DRIVER_NAME);
 	return 0;
@@ -4936,6 +4988,8 @@ static void hclge_uninit_ae_dev(struct hnae3_ae_dev *ae_dev)
 		cancel_work_sync(&hdev->service_task);
 	if (hdev->rst_service_task.func)
 		cancel_work_sync(&hdev->rst_service_task);
+	if (hdev->mbx_service_task.func)
+		cancel_work_sync(&hdev->mbx_service_task);
 
 	if (mac->phydev)
 		mdiobus_unregister(mac->mdio_bus);

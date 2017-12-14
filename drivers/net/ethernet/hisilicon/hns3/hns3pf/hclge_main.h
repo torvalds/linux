@@ -92,6 +92,11 @@
 #define HCLGE_VECTOR0_CORERESET_INT_B	6
 #define HCLGE_VECTOR0_IMPRESET_INT_B	7
 
+/* Vector0 interrupt CMDQ event source register(RW) */
+#define HCLGE_VECTOR0_CMDQ_SRC_REG	0x27100
+/* CMDQ register bits for RX event(=MBX event) */
+#define HCLGE_VECTOR0_RX_CMDQ_INT_B	1
+
 enum HCLGE_DEV_STATE {
 	HCLGE_STATE_REINITING,
 	HCLGE_STATE_DOWN,
@@ -101,8 +106,8 @@ enum HCLGE_DEV_STATE {
 	HCLGE_STATE_SERVICE_SCHED,
 	HCLGE_STATE_RST_SERVICE_SCHED,
 	HCLGE_STATE_RST_HANDLING,
+	HCLGE_STATE_MBX_SERVICE_SCHED,
 	HCLGE_STATE_MBX_HANDLING,
-	HCLGE_STATE_MBX_IRQ,
 	HCLGE_STATE_MAX
 };
 
@@ -479,6 +484,7 @@ struct hclge_dev {
 	struct timer_list service_timer;
 	struct work_struct service_task;
 	struct work_struct rst_service_task;
+	struct work_struct mbx_service_task;
 
 	bool cur_promisc;
 	int num_alloc_vfs;	/* Actual number of VFs allocated */
