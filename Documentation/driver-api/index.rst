@@ -48,6 +48,7 @@ available subsections can be seen below.
    misc_devices
    dmaengine/index
    slimbus
+   soundwire/index
 
 .. only::  subproject and html
 
