@@ -609,6 +609,10 @@ struct usb3_lpm_parameters {
  *	to keep track of the number of functions that require USB 3.0 Link Power
  *	Management to be disabled for this usb_device.  This count should only
  *	be manipulated by those functions, with the bandwidth_mutex is held.
+ * @hub_delay: cached value consisting of:
+ *		parent->hub_delay + wHubDelay + tTPTransmissionDelay (40ns)
+ *
+ *	Will be used as wValue for SetIsochDelay requests.
  *
  * Notes:
  * Usbcore drivers should not set usbdev->state directly.  Instead use
@@ -689,6 +693,8 @@ struct usb_device {
 	struct usb3_lpm_parameters u1_params;
 	struct usb3_lpm_parameters u2_params;
 	unsigned lpm_disable_count;
+
+	u16 hub_delay;
 };
 #define	to_usb_device(d) container_of(d, struct usb_device, dev)
 
