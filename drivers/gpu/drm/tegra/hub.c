@@ -399,6 +399,7 @@ static void tegra_shared_plane_atomic_update(struct drm_plane *plane,
 {
 	struct tegra_plane_state *state = to_tegra_plane_state(plane->state);
 	struct tegra_dc *dc = to_tegra_dc(plane->state->crtc);
+	unsigned int zpos = plane->state->normalized_zpos;
 	struct drm_framebuffer *fb = plane->state->fb;
 	struct tegra_plane *p = to_tegra_plane(plane);
 	struct tegra_bo *bo;
@@ -431,7 +432,7 @@ static void tegra_shared_plane_atomic_update(struct drm_plane *plane,
 		BLEND_FACTOR_SRC_COLOR_K1_TIMES_SRC;
 	tegra_plane_writel(p, value, DC_WIN_BLEND_NOMATCH_SELECT);
 
-	value = K2(255) | K1(255) | WINDOW_LAYER_DEPTH(p->depth);
+	value = K2(255) | K1(255) | WINDOW_LAYER_DEPTH(255 - zpos);
 	tegra_plane_writel(p, value, DC_WIN_BLEND_LAYER_CONTROL);
 
 	/* bypass scaling */
@@ -536,7 +537,6 @@ struct drm_plane *tegra_shared_plane_create(struct drm_device *drm,
 
 	plane->base.offset = 0x0a00 + 0x0300 * index;
 	plane->base.index = index;
-	plane->base.depth = 0;
 
 	plane->wgrp = &hub->wgrps[wgrp];
 	plane->wgrp->parent = dc->dev;
@@ -555,6 +555,7 @@ struct drm_plane *tegra_shared_plane_create(struct drm_device *drm,
 	}
 
 	drm_plane_helper_add(p, &tegra_shared_plane_helper_funcs);
+	drm_plane_create_zpos_property(p, 0, 0, 255);
 
 	return p;
 }

@@ -152,6 +152,55 @@ static inline u32 compute_initial_dda(unsigned int in)
 	return dfixed_frac(inf);
 }
 
+static void tegra_plane_setup_blending_legacy(struct tegra_plane *plane)
+{
+	/*
+	 * Disable blending and assume Window A is the bottom-most window,
+	 * Window C is the top-most window and Window B is in the middle.
+	 */
+	tegra_plane_writel(plane, 0xffff00, DC_WIN_BLEND_NOKEY);
+	tegra_plane_writel(plane, 0xffff00, DC_WIN_BLEND_1WIN);
+
+	switch (plane->index) {
+	case 0:
+		tegra_plane_writel(plane, 0x000000, DC_WIN_BLEND_2WIN_X);
+		tegra_plane_writel(plane, 0x000000, DC_WIN_BLEND_2WIN_Y);
+		tegra_plane_writel(plane, 0x000000, DC_WIN_BLEND_3WIN_XY);
+		break;
+
+	case 1:
+		tegra_plane_writel(plane, 0xffff00, DC_WIN_BLEND_2WIN_X);
+		tegra_plane_writel(plane, 0x000000, DC_WIN_BLEND_2WIN_Y);
+		tegra_plane_writel(plane, 0x000000, DC_WIN_BLEND_3WIN_XY);
+		break;
+
+	case 2:
+		tegra_plane_writel(plane, 0xffff00, DC_WIN_BLEND_2WIN_X);
+		tegra_plane_writel(plane, 0xffff00, DC_WIN_BLEND_2WIN_Y);
+		tegra_plane_writel(plane, 0xffff00, DC_WIN_BLEND_3WIN_XY);
+		break;
+	}
+}
+
+static void tegra_plane_setup_blending(struct tegra_plane *plane,
+				       const struct tegra_dc_window *window)
+{
+	u32 value;
+
+	value = BLEND_FACTOR_DST_ALPHA_ZERO | BLEND_FACTOR_SRC_ALPHA_K2 |
+		BLEND_FACTOR_DST_COLOR_NEG_K1_TIMES_SRC |
+		BLEND_FACTOR_SRC_COLOR_K1_TIMES_SRC;
+	tegra_plane_writel(plane, value, DC_WIN_BLEND_MATCH_SELECT);
+
+	value = BLEND_FACTOR_DST_ALPHA_ZERO | BLEND_FACTOR_SRC_ALPHA_K2 |
+		BLEND_FACTOR_DST_COLOR_NEG_K1_TIMES_SRC |
+		BLEND_FACTOR_SRC_COLOR_K1_TIMES_SRC;
+	tegra_plane_writel(plane, value, DC_WIN_BLEND_NOMATCH_SELECT);
+
+	value = K2(255) | K1(255) | WINDOW_LAYER_DEPTH(255 - window->zpos);
+	tegra_plane_writel(plane, value, DC_WIN_BLEND_LAYER_CONTROL);
+}
+
 static void tegra_dc_setup_window(struct tegra_plane *plane,
 				  const struct tegra_dc_window *window)
 {
@@ -291,32 +340,10 @@ static void tegra_dc_setup_window(struct tegra_plane *plane,
 
 	tegra_plane_writel(plane, value, DC_WIN_WIN_OPTIONS);
 
-	/*
-	 * Disable blending and assume Window A is the bottom-most window,
-	 * Window C is the top-most window and Window B is in the middle.
-	 */
-	tegra_plane_writel(plane, 0xffff00, DC_WIN_BLEND_NOKEY);
-	tegra_plane_writel(plane, 0xffff00, DC_WIN_BLEND_1WIN);
-
-	switch (plane->index) {
-	case 0:
-		tegra_plane_writel(plane, 0x000000, DC_WIN_BLEND_2WIN_X);
-		tegra_plane_writel(plane, 0x000000, DC_WIN_BLEND_2WIN_Y);
-		tegra_plane_writel(plane, 0x000000, DC_WIN_BLEND_3WIN_XY);
-		break;
-
-	case 1:
-		tegra_plane_writel(plane, 0xffff00, DC_WIN_BLEND_2WIN_X);
-		tegra_plane_writel(plane, 0x000000, DC_WIN_BLEND_2WIN_Y);
-		tegra_plane_writel(plane, 0x000000, DC_WIN_BLEND_3WIN_XY);
-		break;
-
-	case 2:
-		tegra_plane_writel(plane, 0xffff00, DC_WIN_BLEND_2WIN_X);
-		tegra_plane_writel(plane, 0xffff00, DC_WIN_BLEND_2WIN_Y);
-		tegra_plane_writel(plane, 0xffff00, DC_WIN_BLEND_3WIN_XY);
-		break;
-	}
+	if (dc->soc->supports_blending)
+		tegra_plane_setup_blending(plane, window);
+	else
+		tegra_plane_setup_blending_legacy(plane);
 }
 
 static const u32 tegra20_primary_formats[] = {
@@ -467,6 +494,7 @@ static void tegra_plane_atomic_update(struct drm_plane *plane,
 	window.bottom_up = tegra_fb_is_bottom_up(fb);
 
 	/* copy from state */
+	window.zpos = plane->state->normalized_zpos;
 	window.tiling = state->tiling;
 	window.format = state->format;
 	window.swap = state->swap;
@@ -523,7 +551,6 @@ static struct drm_plane *tegra_primary_plane_create(struct drm_device *drm,
 	/* Always use window A as primary window */
 	plane->offset = 0xa00;
 	plane->index = 0;
-	plane->depth = 255;
 	plane->dc = dc;
 
 	num_formats = dc->soc->num_primary_formats;
@@ -538,6 +565,9 @@ static struct drm_plane *tegra_primary_plane_create(struct drm_device *drm,
 	}
 
 	drm_plane_helper_add(&plane->base, &tegra_plane_helper_funcs);
+
+	if (dc->soc->supports_blending)
+		drm_plane_create_zpos_property(&plane->base, 0, 0, 255);
 
 	return &plane->base;
 }
@@ -786,7 +816,6 @@ static struct drm_plane *tegra_dc_overlay_plane_create(struct drm_device *drm,
 
 	plane->offset = 0xa00 + 0x200 * index;
 	plane->index = index;
-	plane->depth = 0;
 	plane->dc = dc;
 
 	num_formats = dc->soc->num_overlay_formats;
@@ -802,6 +831,9 @@ static struct drm_plane *tegra_dc_overlay_plane_create(struct drm_device *drm,
 	}
 
 	drm_plane_helper_add(&plane->base, &tegra_plane_helper_funcs);
+
+	if (dc->soc->supports_blending)
+		drm_plane_create_zpos_property(&plane->base, 0, 0, 255);
 
 	return &plane->base;
 }
@@ -1834,6 +1866,7 @@ static const struct tegra_dc_soc_info tegra20_dc_soc_info = {
 	.supports_interlacing = false,
 	.supports_cursor = false,
 	.supports_block_linear = false,
+	.supports_blending = false,
 	.pitch_align = 8,
 	.has_powergate = false,
 	.broken_reset = true,
@@ -1849,6 +1882,7 @@ static const struct tegra_dc_soc_info tegra30_dc_soc_info = {
 	.supports_interlacing = false,
 	.supports_cursor = false,
 	.supports_block_linear = false,
+	.supports_blending = false,
 	.pitch_align = 8,
 	.has_powergate = false,
 	.broken_reset = false,
@@ -1864,6 +1898,7 @@ static const struct tegra_dc_soc_info tegra114_dc_soc_info = {
 	.supports_interlacing = false,
 	.supports_cursor = false,
 	.supports_block_linear = false,
+	.supports_blending = false,
 	.pitch_align = 64,
 	.has_powergate = true,
 	.broken_reset = false,
@@ -1879,6 +1914,7 @@ static const struct tegra_dc_soc_info tegra124_dc_soc_info = {
 	.supports_interlacing = true,
 	.supports_cursor = true,
 	.supports_block_linear = true,
+	.supports_blending = true,
 	.pitch_align = 64,
 	.has_powergate = true,
 	.broken_reset = false,
@@ -1894,6 +1930,7 @@ static const struct tegra_dc_soc_info tegra210_dc_soc_info = {
 	.supports_interlacing = true,
 	.supports_cursor = true,
 	.supports_block_linear = true,
+	.supports_blending = true,
 	.pitch_align = 64,
 	.has_powergate = true,
 	.broken_reset = false,
@@ -1943,6 +1980,7 @@ static const struct tegra_dc_soc_info tegra186_dc_soc_info = {
 	.supports_interlacing = true,
 	.supports_cursor = true,
 	.supports_block_linear = true,
+	.supports_blending = true,
 	.pitch_align = 64,
 	.has_powergate = false,
 	.broken_reset = false,

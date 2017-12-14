@@ -33,6 +33,29 @@ struct tegra_drm_file {
 	struct mutex lock;
 };
 
+static int tegra_atomic_check(struct drm_device *drm,
+			      struct drm_atomic_state *state)
+{
+	int err;
+
+	err = drm_atomic_helper_check_modeset(drm, state);
+	if (err < 0)
+		return err;
+
+	err = drm_atomic_normalize_zpos(drm, state);
+	if (err < 0)
+		return err;
+
+	err = drm_atomic_helper_check_planes(drm, state);
+	if (err < 0)
+		return err;
+
+	if (state->legacy_cursor_update)
+		state->async_update = !drm_atomic_helper_async_check(drm, state);
+
+	return 0;
+}
+
 static struct drm_atomic_state *
 tegra_atomic_state_alloc(struct drm_device *drm)
 {
@@ -67,7 +90,7 @@ static const struct drm_mode_config_funcs tegra_drm_mode_config_funcs = {
 #ifdef CONFIG_DRM_FBDEV_EMULATION
 	.output_poll_changed = tegra_fb_output_poll_changed,
 #endif
-	.atomic_check = drm_atomic_helper_check,
+	.atomic_check = tegra_atomic_check,
 	.atomic_commit = drm_atomic_helper_commit,
 	.atomic_state_alloc = tegra_atomic_state_alloc,
 	.atomic_state_clear = tegra_atomic_state_clear,
