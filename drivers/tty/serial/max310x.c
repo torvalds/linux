@@ -609,57 +609,103 @@ static void max310x_batch_write(struct uart_port *port, u8 *txbuf, unsigned int 
 	spi_sync_transfer(to_spi_device(port->dev), xfer, ARRAY_SIZE(xfer));
 }
 
+static void max310x_batch_read(struct uart_port *port, u8 *rxbuf, unsigned int len)
+{
+	u8 header[] = { port->iobase + MAX310X_RHR_REG };
+	struct spi_transfer xfer[] = {
+		{
+			.tx_buf = &header,
+			.len = sizeof(header),
+		}, {
+			.rx_buf = rxbuf,
+			.len = len,
+		}
+	};
+	spi_sync_transfer(to_spi_device(port->dev), xfer, ARRAY_SIZE(xfer));
+}
+
 static void max310x_handle_rx(struct uart_port *port, unsigned int rxlen)
 {
-	unsigned int sts, ch, flag;
+	unsigned int sts, ch, flag, i;
+	u8 buf[MAX310X_FIFO_SIZE];
 
-	if (unlikely(rxlen >= port->fifosize)) {
-		dev_warn_ratelimited(port->dev, "Possible RX FIFO overrun\n");
-		port->icount.buf_overrun++;
-		/* Ensure sanity of RX level */
-		rxlen = port->fifosize;
-	}
+	if (port->read_status_mask == MAX310X_LSR_RXOVR_BIT) {
+		/* We are just reading, happily ignoring any error conditions.
+		 * Break condition, parity checking, framing errors -- they
+		 * are all ignored. That means that we can do a batch-read.
+		 *
+		 * There is a small opportunity for race if the RX FIFO
+		 * overruns while we're reading the buffer; the datasheets says
+		 * that the LSR register applies to the "current" character.
+		 * That's also the reason why we cannot do batched reads when
+		 * asked to check the individual statuses.
+		 * */
 
-	while (rxlen--) {
-		ch = max310x_port_read(port, MAX310X_RHR_REG);
 		sts = max310x_port_read(port, MAX310X_LSR_IRQSTS_REG);
+		max310x_batch_read(port, buf, rxlen);
 
-		sts &= MAX310X_LSR_RXPAR_BIT | MAX310X_LSR_FRERR_BIT |
-		       MAX310X_LSR_RXOVR_BIT | MAX310X_LSR_RXBRK_BIT;
-
-		port->icount.rx++;
+		port->icount.rx += rxlen;
 		flag = TTY_NORMAL;
+		sts &= port->read_status_mask;
 
-		if (unlikely(sts)) {
-			if (sts & MAX310X_LSR_RXBRK_BIT) {
-				port->icount.brk++;
-				if (uart_handle_break(port))
-					continue;
-			} else if (sts & MAX310X_LSR_RXPAR_BIT)
-				port->icount.parity++;
-			else if (sts & MAX310X_LSR_FRERR_BIT)
-				port->icount.frame++;
-			else if (sts & MAX310X_LSR_RXOVR_BIT)
-				port->icount.overrun++;
-
-			sts &= port->read_status_mask;
-			if (sts & MAX310X_LSR_RXBRK_BIT)
-				flag = TTY_BREAK;
-			else if (sts & MAX310X_LSR_RXPAR_BIT)
-				flag = TTY_PARITY;
-			else if (sts & MAX310X_LSR_FRERR_BIT)
-				flag = TTY_FRAME;
-			else if (sts & MAX310X_LSR_RXOVR_BIT)
-				flag = TTY_OVERRUN;
+		if (sts & MAX310X_LSR_RXOVR_BIT) {
+			dev_warn_ratelimited(port->dev, "Hardware RX FIFO overrun\n");
+			port->icount.overrun++;
 		}
 
-		if (uart_handle_sysrq_char(port, ch))
-			continue;
+		for (i = 0; i < rxlen; ++i) {
+			uart_insert_char(port, sts, MAX310X_LSR_RXOVR_BIT, buf[i], flag);
+		}
 
-		if (sts & port->ignore_status_mask)
-			continue;
+	} else {
+		if (unlikely(rxlen >= port->fifosize)) {
+			dev_warn_ratelimited(port->dev, "Possible RX FIFO overrun\n");
+			port->icount.buf_overrun++;
+			/* Ensure sanity of RX level */
+			rxlen = port->fifosize;
+		}
 
-		uart_insert_char(port, sts, MAX310X_LSR_RXOVR_BIT, ch, flag);
+		while (rxlen--) {
+			ch = max310x_port_read(port, MAX310X_RHR_REG);
+			sts = max310x_port_read(port, MAX310X_LSR_IRQSTS_REG);
+
+			sts &= MAX310X_LSR_RXPAR_BIT | MAX310X_LSR_FRERR_BIT |
+			       MAX310X_LSR_RXOVR_BIT | MAX310X_LSR_RXBRK_BIT;
+
+			port->icount.rx++;
+			flag = TTY_NORMAL;
+
+			if (unlikely(sts)) {
+				if (sts & MAX310X_LSR_RXBRK_BIT) {
+					port->icount.brk++;
+					if (uart_handle_break(port))
+						continue;
+				} else if (sts & MAX310X_LSR_RXPAR_BIT)
+					port->icount.parity++;
+				else if (sts & MAX310X_LSR_FRERR_BIT)
+					port->icount.frame++;
+				else if (sts & MAX310X_LSR_RXOVR_BIT)
+					port->icount.overrun++;
+
+				sts &= port->read_status_mask;
+				if (sts & MAX310X_LSR_RXBRK_BIT)
+					flag = TTY_BREAK;
+				else if (sts & MAX310X_LSR_RXPAR_BIT)
+					flag = TTY_PARITY;
+				else if (sts & MAX310X_LSR_FRERR_BIT)
+					flag = TTY_FRAME;
+				else if (sts & MAX310X_LSR_RXOVR_BIT)
+					flag = TTY_OVERRUN;
+			}
+
+			if (uart_handle_sysrq_char(port, ch))
+				continue;
+
+			if (sts & port->ignore_status_mask)
+				continue;
+
+			uart_insert_char(port, sts, MAX310X_LSR_RXOVR_BIT, ch, flag);
+		}
 	}
 
 	tty_flip_buffer_push(&port->state->port);
