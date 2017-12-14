@@ -38,6 +38,7 @@
 #include "nfp_main.h"
 #include "nfpcore/nfp.h"
 #include "nfpcore/nfp_nffw.h"
+#include "nfpcore/nfp6000/nfp6000.h"
 
 #define NFP_DUMP_SPEC_RTSYM	"_abi_dump_spec"
 
@@ -478,6 +479,12 @@ static int nfp_dump_hwinfo_field(struct nfp_pf *pf, struct nfp_dump_tl *spec,
 	return 0;
 }
 
+static bool is_xpb_read(struct nfp_dumpspec_cpp_isl_id *cpp_id)
+{
+	return cpp_id->target == NFP_CPP_TARGET_ISLAND_XPB &&
+	       cpp_id->action == 0 && cpp_id->token == 0;
+}
+
 static int
 nfp_dump_csr_range(struct nfp_pf *pf, struct nfp_dumpspec_csr *spec_csr,
 		   struct nfp_dump_state *dump)
@@ -511,8 +518,12 @@ nfp_dump_csr_range(struct nfp_pf *pf, struct nfp_dumpspec_csr *spec_csr,
 	max_rd_addr = cpp_rd_addr + be32_to_cpu(spec_csr->cpp.dump_length);
 
 	while (cpp_rd_addr < max_rd_addr) {
-		bytes_read = nfp_cpp_read(pf->cpp, cpp_id, cpp_rd_addr, dest,
-					  reg_sz);
+		if (is_xpb_read(&spec_csr->cpp.cpp_id))
+			bytes_read = nfp_xpb_readl(pf->cpp, cpp_rd_addr,
+						   (u32 *)dest);
+		else
+			bytes_read = nfp_cpp_read(pf->cpp, cpp_id, cpp_rd_addr,
+						  dest, reg_sz);
 		if (bytes_read != reg_sz) {
 			if (bytes_read >= 0)
 				bytes_read = -EIO;
