@@ -7,6 +7,21 @@
 struct sdw_bus;
 struct sdw_slave;
 
+/* SDW spec defines and enums, as defined by MIPI 1.1. Spec */
+
+/* SDW Broadcast Device Number */
+#define SDW_BROADCAST_DEV_NUM		15
+
+/* SDW Enumeration Device Number */
+#define SDW_ENUM_DEV_NUM		0
+
+/* SDW Group Device Numbers */
+#define SDW_GROUP12_DEV_NUM		12
+#define SDW_GROUP13_DEV_NUM		13
+
+/* SDW Master Device Number, not supported yet */
+#define SDW_MASTER_DEV_NUM		14
+
 #define SDW_MAX_DEVICES			11
 
 /**
@@ -104,5 +119,8 @@ struct sdw_bus {
 	DECLARE_BITMAP(assigned, SDW_MAX_DEVICES);
 	struct mutex bus_lock;
 };
+
+int sdw_add_bus_master(struct sdw_bus *bus);
+void sdw_delete_bus_master(struct sdw_bus *bus);
 
 #endif /* __SOUNDWIRE_H */
