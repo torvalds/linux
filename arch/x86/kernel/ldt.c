@@ -131,28 +131,20 @@ static void free_ldt_struct(struct ldt_struct *ldt)
 }
 
 /*
- * we do not have to muck with descriptors here, that is
- * done in switch_mm() as needed.
+ * Called on fork from arch_dup_mmap(). Just copy the current LDT state,
+ * the new task is not running, so nothing can be installed.
  */
-int init_new_context_ldt(struct task_struct *tsk, struct mm_struct *mm)
+int ldt_dup_context(struct mm_struct *old_mm, struct mm_struct *mm)
 {
 	struct ldt_struct *new_ldt;
-	struct mm_struct *old_mm;
 	int retval = 0;
 
-	init_rwsem(&mm->context.ldt_usr_sem);
-
-	old_mm = current->mm;
-	if (!old_mm) {
-		mm->context.ldt = NULL;
+	if (!old_mm)
 		return 0;
-	}
 
 	mutex_lock(&old_mm->context.lock);
-	if (!old_mm->context.ldt) {
-		mm->context.ldt = NULL;
+	if (!old_mm->context.ldt)
 		goto out_unlock;
-	}
 
 	new_ldt = alloc_ldt_struct(old_mm->context.ldt->nr_entries);
 	if (!new_ldt) {

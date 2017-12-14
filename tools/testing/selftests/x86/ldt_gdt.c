@@ -627,13 +627,10 @@ static void do_multicpu_tests(void)
 static int finish_exec_test(void)
 {
 	/*
-	 * In a sensible world, this would be check_invalid_segment(0, 1);
-	 * For better or for worse, though, the LDT is inherited across exec.
-	 * We can probably change this safely, but for now we test it.
+	 * Older kernel versions did inherit the LDT on exec() which is
+	 * wrong because exec() starts from a clean state.
 	 */
-	check_valid_segment(0, 1,
-			    AR_DPL3 | AR_TYPE_XRCODE | AR_S | AR_P | AR_DB,
-			    42, true);
+	check_invalid_segment(0, 1);
 
 	return nerrs ? 1 : 0;
 }
