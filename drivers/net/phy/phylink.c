@@ -506,6 +506,9 @@ static int phylink_register_sfp(struct phylink *pl,
 	struct fwnode_reference_args ref;
 	int ret;
 
+	if (!fwnode)
+		return 0;
+
 	ret = fwnode_property_get_reference_args(fwnode, "sfp", NULL,
 						 0, 0, &ref);
 	if (ret < 0) {
