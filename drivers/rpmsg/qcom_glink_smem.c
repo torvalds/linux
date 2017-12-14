@@ -183,6 +183,9 @@ static void glink_smem_tx_write(struct qcom_glink_pipe *glink_pipe,
 	if (head >= pipe->native.length)
 		head -= pipe->native.length;
 
+	/* Ensure ordering of fifo and head update */
+	wmb();
+
 	*pipe->head = cpu_to_le32(head);
 }
 
