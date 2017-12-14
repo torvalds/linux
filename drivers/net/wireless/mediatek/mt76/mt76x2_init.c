@@ -308,8 +308,6 @@ int mt76x2_mac_reset(struct mt76x2_dev *dev, bool hard)
 	for (i = 0; i < 16; i++)
 		mt76_rr(dev, MT_TX_STAT_FIFO);
 
-	mt76_set(dev, MT_MAC_APC_BSSID_H(0), MT_MAC_APC_BSSID0_H_EN);
-
 	mt76_wr(dev, MT_CH_TIME_CFG,
 		MT_CH_TIME_CFG_TIMER_EN |
 		MT_CH_TIME_CFG_TX_AS_BUSY |
