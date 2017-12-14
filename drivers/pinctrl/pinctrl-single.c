@@ -1774,8 +1774,7 @@ static int pcs_probe(struct platform_device *pdev)
 			dev_warn(pcs->dev, "initialized with no interrupts\n");
 	}
 
-	dev_info(pcs->dev, "%i pins at pa %p size %u\n",
-		 pcs->desc.npins, pcs->base, pcs->size);
+	dev_info(pcs->dev, "%i pins, size %u\n", pcs->desc.npins, pcs->size);
 
 	return pinctrl_enable(pcs->pctl);
 
