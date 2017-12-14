@@ -153,6 +153,8 @@ source "drivers/remoteproc/Kconfig"
 
 source "drivers/rpmsg/Kconfig"
 
+source "drivers/soundwire/Kconfig"
+
 source "drivers/soc/Kconfig"
 
 source "drivers/devfreq/Kconfig"
