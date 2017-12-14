@@ -331,11 +331,28 @@ struct sdw_slave_id {
 };
 
 /**
+ * struct sdw_slave_intr_status - Slave interrupt status
+ * @control_port: control port status
+ * @port: data port status
+ */
+struct sdw_slave_intr_status {
+	u8 control_port;
+	u8 port[15];
+};
+
+/**
  * struct sdw_slave_ops - Slave driver callback ops
  * @read_prop: Read Slave properties
+ * @interrupt_callback: Device interrupt notification (invoked in thread
+ * context)
+ * @update_status: Update Slave status
  */
 struct sdw_slave_ops {
 	int (*read_prop)(struct sdw_slave *sdw);
+	int (*interrupt_callback)(struct sdw_slave *slave,
+			struct sdw_slave_intr_status *status);
+	int (*update_status)(struct sdw_slave *slave,
+			enum sdw_slave_status status);
 };
 
 /**
@@ -381,6 +398,9 @@ struct sdw_driver {
 #define SDW_SLAVE_ENTRY(_mfg_id, _part_id, _drv_data) \
 	{ .mfg_id = (_mfg_id), .part_id = (_part_id), \
 	  .driver_data = (unsigned long)(_drv_data) }
+
+int sdw_handle_slave_status(struct sdw_bus *bus,
+			enum sdw_slave_status status[]);
 
 /*
  * SDW master structures and APIs

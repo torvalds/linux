@@ -49,6 +49,8 @@ int sdw_transfer(struct sdw_bus *bus, struct sdw_msg *msg);
 int sdw_transfer_defer(struct sdw_bus *bus, struct sdw_msg *msg,
 				struct sdw_defer *defer);
 
+#define SDW_READ_INTR_CLEAR_RETRY	10
+
 int sdw_fill_msg(struct sdw_msg *msg, struct sdw_slave *slave,
 		u32 addr, size_t count, u16 dev_num, u8 flags, u8 *buf);
 
