@@ -33,11 +33,8 @@ static void __intel_timeline_init(struct intel_timeline *tl,
 {
 	tl->fence_context = context;
 	tl->common = parent;
-#ifdef CONFIG_DEBUG_SPINLOCK
-	__raw_spin_lock_init(&tl->lock.rlock, lockname, lockclass);
-#else
 	spin_lock_init(&tl->lock);
-#endif
+	lockdep_set_class_and_name(&tl->lock, lockclass, lockname);
 	init_request_active(&tl->last_request, NULL);
 	INIT_LIST_HEAD(&tl->requests);
 	i915_syncmap_init(&tl->sync);
