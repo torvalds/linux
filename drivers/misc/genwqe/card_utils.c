@@ -571,7 +571,7 @@ static int genwqe_free_user_pages(struct page **page_list,
  * Return: 0 if success
  */
 int genwqe_user_vmap(struct genwqe_dev *cd, struct dma_mapping *m, void *uaddr,
-		     unsigned long size, struct ddcb_requ *req)
+		     unsigned long size)
 {
 	int rc = -EINVAL;
 	unsigned long data, offs;
@@ -641,8 +641,7 @@ int genwqe_user_vmap(struct genwqe_dev *cd, struct dma_mapping *m, void *uaddr,
  * @cd:         pointer to genwqe device
  * @m:          mapping params
  */
-int genwqe_user_vunmap(struct genwqe_dev *cd, struct dma_mapping *m,
-		       struct ddcb_requ *req)
+int genwqe_user_vunmap(struct genwqe_dev *cd, struct dma_mapping *m)
 {
 	struct pci_dev *pci_dev = cd->pci_dev;
 

@@ -490,11 +490,9 @@ int  genwqe_read_app_id(struct genwqe_dev *cd, char *app_name, int len);
 
 /* Memory allocation/deallocation; dma address handling */
 int  genwqe_user_vmap(struct genwqe_dev *cd, struct dma_mapping *m,
-		      void *uaddr, unsigned long size,
-		      struct ddcb_requ *req);
+		      void *uaddr, unsigned long size);
 
-int  genwqe_user_vunmap(struct genwqe_dev *cd, struct dma_mapping *m,
-			struct ddcb_requ *req);
+int  genwqe_user_vunmap(struct genwqe_dev *cd, struct dma_mapping *m);
 
 static inline bool dma_mapping_used(struct dma_mapping *m)
 {

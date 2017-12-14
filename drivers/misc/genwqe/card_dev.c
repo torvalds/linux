@@ -226,7 +226,7 @@ static void genwqe_remove_mappings(struct genwqe_file *cfile)
 			kfree(dma_map);
 		} else if (dma_map->type == GENWQE_MAPPING_SGL_TEMP) {
 			/* we use dma_map statically from the request */
-			genwqe_user_vunmap(cd, dma_map, NULL);
+			genwqe_user_vunmap(cd, dma_map);
 		}
 	}
 }
@@ -249,7 +249,7 @@ static void genwqe_remove_pinnings(struct genwqe_file *cfile)
 		 * deleted.
 		 */
 		list_del_init(&dma_map->pin_list);
-		genwqe_user_vunmap(cd, dma_map, NULL);
+		genwqe_user_vunmap(cd, dma_map);
 		kfree(dma_map);
 	}
 }
@@ -790,7 +790,7 @@ static int genwqe_pin_mem(struct genwqe_file *cfile, struct genwqe_mem *m)
 		return -ENOMEM;
 
 	genwqe_mapping_init(dma_map, GENWQE_MAPPING_SGL_PINNED);
-	rc = genwqe_user_vmap(cd, dma_map, (void *)map_addr, map_size, NULL);
+	rc = genwqe_user_vmap(cd, dma_map, (void *)map_addr, map_size);
 	if (rc != 0) {
 		dev_err(&pci_dev->dev,
 			"[%s] genwqe_user_vmap rc=%d\n", __func__, rc);
@@ -820,7 +820,7 @@ static int genwqe_unpin_mem(struct genwqe_file *cfile, struct genwqe_mem *m)
 		return -ENOENT;
 
 	genwqe_del_pin(cfile, dma_map);
-	genwqe_user_vunmap(cd, dma_map, NULL);
+	genwqe_user_vunmap(cd, dma_map);
 	kfree(dma_map);
 	return 0;
 }
@@ -841,7 +841,7 @@ static int ddcb_cmd_cleanup(struct genwqe_file *cfile, struct ddcb_requ *req)
 
 		if (dma_mapping_used(dma_map)) {
 			__genwqe_del_mapping(cfile, dma_map);
-			genwqe_user_vunmap(cd, dma_map, req);
+			genwqe_user_vunmap(cd, dma_map);
 		}
 		if (req->sgls[i].sgl != NULL)
 			genwqe_free_sync_sgl(cd, &req->sgls[i]);
@@ -947,7 +947,7 @@ static int ddcb_cmd_fixups(struct genwqe_file *cfile, struct ddcb_requ *req)
 					m->write = 0;
 
 				rc = genwqe_user_vmap(cd, m, (void *)u_addr,
-						      u_size, req);
+						      u_size);
 				if (rc != 0)
 					goto err_out;
 
