@@ -344,6 +344,10 @@ static int hw_atl_a0_hw_init(struct aq_hw_s *self,
 	hw_atl_a0_hw_rss_set(self, &aq_nic_cfg->aq_rss);
 	hw_atl_a0_hw_rss_hash_set(self, &aq_nic_cfg->aq_rss);
 
+	/* Reset link status and read out initial hardware counters */
+	self->aq_link_status.mbps = 0;
+	hw_atl_utils_update_stats(self);
+
 	err = aq_hw_err_from_flags(self);
 	if (err < 0)
 		goto err_exit;

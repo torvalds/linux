@@ -397,6 +397,10 @@ static int hw_atl_b0_hw_init(struct aq_hw_s *self,
 	 */
 	aq_hw_write_reg(self, tx_dma_total_req_limit_adr, 24);
 
+	/* Reset link status and read out initial hardware counters */
+	self->aq_link_status.mbps = 0;
+	hw_atl_utils_update_stats(self);
+
 	err = aq_hw_err_from_flags(self);
 	if (err < 0)
 		goto err_exit;
