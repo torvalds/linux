@@ -45,6 +45,8 @@ static struct sk_buff *mt76x2_mcu_msg_alloc(const void *data, int len)
 	struct sk_buff *skb;
 
 	skb = alloc_skb(len, GFP_KERNEL);
+	if (!skb)
+		return NULL;
 	memcpy(skb_put(skb, len), data, len);
 
 	return skb;
