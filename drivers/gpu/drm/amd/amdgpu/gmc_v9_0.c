@@ -918,9 +918,9 @@ static int gmc_v9_0_gart_enable(struct amdgpu_device *adev)
 	bool value;
 	u32 tmp;
 
-	amdgpu_program_register_sequence(adev,
-		golden_settings_vega10_hdp,
-		ARRAY_SIZE(golden_settings_vega10_hdp));
+	amdgpu_device_program_register_sequence(adev,
+						golden_settings_vega10_hdp,
+						ARRAY_SIZE(golden_settings_vega10_hdp));
 
 	if (adev->gart.robj == NULL) {
 		dev_err(adev->dev, "No VRAM object for PCIE GART.\n");

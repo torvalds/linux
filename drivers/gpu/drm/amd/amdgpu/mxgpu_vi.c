@@ -279,32 +279,32 @@ void xgpu_vi_init_golden_registers(struct amdgpu_device *adev)
 {
 	switch (adev->asic_type) {
 	case CHIP_FIJI:
-		amdgpu_program_register_sequence(adev,
-						 xgpu_fiji_mgcg_cgcg_init,
-						 ARRAY_SIZE(
-						 xgpu_fiji_mgcg_cgcg_init));
-		amdgpu_program_register_sequence(adev,
-						 xgpu_fiji_golden_settings_a10,
-						 ARRAY_SIZE(
-						 xgpu_fiji_golden_settings_a10));
-		amdgpu_program_register_sequence(adev,
-						 xgpu_fiji_golden_common_all,
-						 ARRAY_SIZE(
-						 xgpu_fiji_golden_common_all));
+		amdgpu_device_program_register_sequence(adev,
+							xgpu_fiji_mgcg_cgcg_init,
+							ARRAY_SIZE(
+								xgpu_fiji_mgcg_cgcg_init));
+		amdgpu_device_program_register_sequence(adev,
+							xgpu_fiji_golden_settings_a10,
+							ARRAY_SIZE(
+								xgpu_fiji_golden_settings_a10));
+		amdgpu_device_program_register_sequence(adev,
+							xgpu_fiji_golden_common_all,
+							ARRAY_SIZE(
+								xgpu_fiji_golden_common_all));
 		break;
 	case CHIP_TONGA:
-		amdgpu_program_register_sequence(adev,
-						 xgpu_tonga_mgcg_cgcg_init,
-						 ARRAY_SIZE(
-						 xgpu_tonga_mgcg_cgcg_init));
-		amdgpu_program_register_sequence(adev,
-						 xgpu_tonga_golden_settings_a11,
-						 ARRAY_SIZE(
-						 xgpu_tonga_golden_settings_a11));
-		amdgpu_program_register_sequence(adev,
-						 xgpu_tonga_golden_common_all,
-						 ARRAY_SIZE(
-						 xgpu_tonga_golden_common_all));
+		amdgpu_device_program_register_sequence(adev,
+							xgpu_tonga_mgcg_cgcg_init,
+							ARRAY_SIZE(
+								xgpu_tonga_mgcg_cgcg_init));
+		amdgpu_device_program_register_sequence(adev,
+							xgpu_tonga_golden_settings_a11,
+							ARRAY_SIZE(
+								xgpu_tonga_golden_settings_a11));
+		amdgpu_device_program_register_sequence(adev,
+							xgpu_tonga_golden_common_all,
+							ARRAY_SIZE(
+								xgpu_tonga_golden_common_all));
 		break;
 	default:
 		BUG_ON("Doesn't support chip type.\n");

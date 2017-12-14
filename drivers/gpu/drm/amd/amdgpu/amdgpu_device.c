@@ -342,7 +342,7 @@ static void amdgpu_device_vram_scratch_fini(struct amdgpu_device *adev)
 }
 
 /**
- * amdgpu_program_register_sequence - program an array of registers.
+ * amdgpu_device_program_register_sequence - program an array of registers.
  *
  * @adev: amdgpu_device pointer
  * @registers: pointer to the register array
@@ -351,9 +351,9 @@ static void amdgpu_device_vram_scratch_fini(struct amdgpu_device *adev)
  * Programs an array or registers with and and or masks.
  * This is a helper for setting golden registers.
  */
-void amdgpu_program_register_sequence(struct amdgpu_device *adev,
-				      const u32 *registers,
-				      const u32 array_size)
+void amdgpu_device_program_register_sequence(struct amdgpu_device *adev,
+					     const u32 *registers,
+					     const u32 array_size)
 {
 	u32 tmp, reg, and_mask, or_mask;
 	int i;

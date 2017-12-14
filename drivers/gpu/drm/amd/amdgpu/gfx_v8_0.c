@@ -679,55 +679,55 @@ static void gfx_v8_0_init_golden_registers(struct amdgpu_device *adev)
 {
 	switch (adev->asic_type) {
 	case CHIP_TOPAZ:
-		amdgpu_program_register_sequence(adev,
-						 iceland_mgcg_cgcg_init,
-						 ARRAY_SIZE(iceland_mgcg_cgcg_init));
-		amdgpu_program_register_sequence(adev,
-						 golden_settings_iceland_a11,
-						 ARRAY_SIZE(golden_settings_iceland_a11));
-		amdgpu_program_register_sequence(adev,
-						 iceland_golden_common_all,
-						 ARRAY_SIZE(iceland_golden_common_all));
+		amdgpu_device_program_register_sequence(adev,
+							iceland_mgcg_cgcg_init,
+							ARRAY_SIZE(iceland_mgcg_cgcg_init));
+		amdgpu_device_program_register_sequence(adev,
+							golden_settings_iceland_a11,
+							ARRAY_SIZE(golden_settings_iceland_a11));
+		amdgpu_device_program_register_sequence(adev,
+							iceland_golden_common_all,
+							ARRAY_SIZE(iceland_golden_common_all));
 		break;
 	case CHIP_FIJI:
-		amdgpu_program_register_sequence(adev,
-						 fiji_mgcg_cgcg_init,
-						 ARRAY_SIZE(fiji_mgcg_cgcg_init));
-		amdgpu_program_register_sequence(adev,
-						 golden_settings_fiji_a10,
-						 ARRAY_SIZE(golden_settings_fiji_a10));
-		amdgpu_program_register_sequence(adev,
-						 fiji_golden_common_all,
-						 ARRAY_SIZE(fiji_golden_common_all));
+		amdgpu_device_program_register_sequence(adev,
+							fiji_mgcg_cgcg_init,
+							ARRAY_SIZE(fiji_mgcg_cgcg_init));
+		amdgpu_device_program_register_sequence(adev,
+							golden_settings_fiji_a10,
+							ARRAY_SIZE(golden_settings_fiji_a10));
+		amdgpu_device_program_register_sequence(adev,
+							fiji_golden_common_all,
+							ARRAY_SIZE(fiji_golden_common_all));
 		break;
 
 	case CHIP_TONGA:
-		amdgpu_program_register_sequence(adev,
-						 tonga_mgcg_cgcg_init,
-						 ARRAY_SIZE(tonga_mgcg_cgcg_init));
-		amdgpu_program_register_sequence(adev,
-						 golden_settings_tonga_a11,
-						 ARRAY_SIZE(golden_settings_tonga_a11));
-		amdgpu_program_register_sequence(adev,
-						 tonga_golden_common_all,
-						 ARRAY_SIZE(tonga_golden_common_all));
+		amdgpu_device_program_register_sequence(adev,
+							tonga_mgcg_cgcg_init,
+							ARRAY_SIZE(tonga_mgcg_cgcg_init));
+		amdgpu_device_program_register_sequence(adev,
+							golden_settings_tonga_a11,
+							ARRAY_SIZE(golden_settings_tonga_a11));
+		amdgpu_device_program_register_sequence(adev,
+							tonga_golden_common_all,
+							ARRAY_SIZE(tonga_golden_common_all));
 		break;
 	case CHIP_POLARIS11:
 	case CHIP_POLARIS12:
-		amdgpu_program_register_sequence(adev,
-						 golden_settings_polaris11_a11,
-						 ARRAY_SIZE(golden_settings_polaris11_a11));
-		amdgpu_program_register_sequence(adev,
-						 polaris11_golden_common_all,
-						 ARRAY_SIZE(polaris11_golden_common_all));
+		amdgpu_device_program_register_sequence(adev,
+							golden_settings_polaris11_a11,
+							ARRAY_SIZE(golden_settings_polaris11_a11));
+		amdgpu_device_program_register_sequence(adev,
+							polaris11_golden_common_all,
+							ARRAY_SIZE(polaris11_golden_common_all));
 		break;
 	case CHIP_POLARIS10:
-		amdgpu_program_register_sequence(adev,
-						 golden_settings_polaris10_a11,
-						 ARRAY_SIZE(golden_settings_polaris10_a11));
-		amdgpu_program_register_sequence(adev,
-						 polaris10_golden_common_all,
-						 ARRAY_SIZE(polaris10_golden_common_all));
+		amdgpu_device_program_register_sequence(adev,
+							golden_settings_polaris10_a11,
+							ARRAY_SIZE(golden_settings_polaris10_a11));
+		amdgpu_device_program_register_sequence(adev,
+							polaris10_golden_common_all,
+							ARRAY_SIZE(polaris10_golden_common_all));
 		WREG32_SMC(ixCG_ACLK_CNTL, 0x0000001C);
 		if (adev->pdev->revision == 0xc7 &&
 		    ((adev->pdev->subsystem_device == 0xb37 && adev->pdev->subsystem_vendor == 0x1002) ||
@@ -738,26 +738,26 @@ static void gfx_v8_0_init_golden_registers(struct amdgpu_device *adev)
 		}
 		break;
 	case CHIP_CARRIZO:
-		amdgpu_program_register_sequence(adev,
-						 cz_mgcg_cgcg_init,
-						 ARRAY_SIZE(cz_mgcg_cgcg_init));
-		amdgpu_program_register_sequence(adev,
-						 cz_golden_settings_a11,
-						 ARRAY_SIZE(cz_golden_settings_a11));
-		amdgpu_program_register_sequence(adev,
-						 cz_golden_common_all,
-						 ARRAY_SIZE(cz_golden_common_all));
+		amdgpu_device_program_register_sequence(adev,
+							cz_mgcg_cgcg_init,
+							ARRAY_SIZE(cz_mgcg_cgcg_init));
+		amdgpu_device_program_register_sequence(adev,
+							cz_golden_settings_a11,
+							ARRAY_SIZE(cz_golden_settings_a11));
+		amdgpu_device_program_register_sequence(adev,
+							cz_golden_common_all,
+							ARRAY_SIZE(cz_golden_common_all));
 		break;
 	case CHIP_STONEY:
-		amdgpu_program_register_sequence(adev,
-						 stoney_mgcg_cgcg_init,
-						 ARRAY_SIZE(stoney_mgcg_cgcg_init));
-		amdgpu_program_register_sequence(adev,
-						 stoney_golden_settings_a11,
-						 ARRAY_SIZE(stoney_golden_settings_a11));
-		amdgpu_program_register_sequence(adev,
-						 stoney_golden_common_all,
-						 ARRAY_SIZE(stoney_golden_common_all));
+		amdgpu_device_program_register_sequence(adev,
+							stoney_mgcg_cgcg_init,
+							ARRAY_SIZE(stoney_mgcg_cgcg_init));
+		amdgpu_device_program_register_sequence(adev,
+							stoney_golden_settings_a11,
+							ARRAY_SIZE(stoney_golden_settings_a11));
+		amdgpu_device_program_register_sequence(adev,
+							stoney_golden_common_all,
+							ARRAY_SIZE(stoney_golden_common_all));
 		break;
 	default:
 		break;
