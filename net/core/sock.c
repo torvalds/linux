@@ -3045,7 +3045,7 @@ static DECLARE_BITMAP(proto_inuse_idx, PROTO_INUSE_NR);
 
 void sock_prot_inuse_add(struct net *net, struct proto *prot, int val)
 {
-	__this_cpu_add(net->core.inuse->val[prot->inuse_idx], val);
+	__this_cpu_add(net->core.prot_inuse->val[prot->inuse_idx], val);
 }
 EXPORT_SYMBOL_GPL(sock_prot_inuse_add);
 
@@ -3055,7 +3055,7 @@ int sock_prot_inuse_get(struct net *net, struct proto *prot)
 	int res = 0;
 
 	for_each_possible_cpu(cpu)
-		res += per_cpu_ptr(net->core.inuse, cpu)->val[idx];
+		res += per_cpu_ptr(net->core.prot_inuse, cpu)->val[idx];
 
 	return res >= 0 ? res : 0;
 }
@@ -3063,13 +3063,13 @@ EXPORT_SYMBOL_GPL(sock_prot_inuse_get);
 
 static int __net_init sock_inuse_init_net(struct net *net)
 {
-	net->core.inuse = alloc_percpu(struct prot_inuse);
-	return net->core.inuse ? 0 : -ENOMEM;
+	net->core.prot_inuse = alloc_percpu(struct prot_inuse);
+	return net->core.prot_inuse ? 0 : -ENOMEM;
 }
 
 static void __net_exit sock_inuse_exit_net(struct net *net)
 {
-	free_percpu(net->core.inuse);
+	free_percpu(net->core.prot_inuse);
 }
 
 static struct pernet_operations net_inuse_ops = {
