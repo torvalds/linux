@@ -93,7 +93,7 @@ void hns3_dcbnl_setup(struct hnae3_handle *handle)
 {
 	struct net_device *dev = handle->kinfo.netdev;
 
-	if (!handle->kinfo.dcb_ops)
+	if ((!handle->kinfo.dcb_ops) || (handle->flags & HNAE3_SUPPORT_VF))
 		return;
 
 	dev->dcbnl_ops = &hns3_dcbnl_ops;
