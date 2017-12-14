@@ -446,29 +446,36 @@ void safexcel_dequeue(struct safexcel_crypto_priv *priv, int ring)
 	struct safexcel_request *request;
 	int ret, nreq = 0, cdesc = 0, rdesc = 0, commands, results;
 
+	/* If a request wasn't properly dequeued because of a lack of resources,
+	 * proceeded it first,
+	 */
+	req = priv->ring[ring].req;
+	backlog = priv->ring[ring].backlog;
+	if (req)
+		goto handle_req;
+
 	while (true) {
 		spin_lock_bh(&priv->ring[ring].queue_lock);
 		backlog = crypto_get_backlog(&priv->ring[ring].queue);
 		req = crypto_dequeue_request(&priv->ring[ring].queue);
 		spin_unlock_bh(&priv->ring[ring].queue_lock);
 
-		if (!req)
-			goto finalize;
-
-		request = kzalloc(sizeof(*request), EIP197_GFP_FLAGS(*req));
-		if (!request) {
-			spin_lock_bh(&priv->ring[ring].queue_lock);
-			crypto_enqueue_request(&priv->ring[ring].queue, req);
-			spin_unlock_bh(&priv->ring[ring].queue_lock);
+		if (!req) {
+			priv->ring[ring].req = NULL;
+			priv->ring[ring].backlog = NULL;
 			goto finalize;
 		}
+
+handle_req:
+		request = kzalloc(sizeof(*request), EIP197_GFP_FLAGS(*req));
+		if (!request)
+			goto request_failed;
 
 		ctx = crypto_tfm_ctx(req->tfm);
 		ret = ctx->send(req, ring, request, &commands, &results);
 		if (ret) {
 			kfree(request);
-			req->complete(req, ret);
-			goto finalize;
+			goto request_failed;
 		}
 
 		if (backlog)
@@ -482,6 +489,13 @@ void safexcel_dequeue(struct safexcel_crypto_priv *priv, int ring)
 		rdesc += results;
 		nreq++;
 	}
+
+request_failed:
+	/* Not enough resources to handle all the requests. Bail out and save
+	 * the request and the backlog for the next dequeue call (per-ring).
+	 */
+	priv->ring[ring].req = req;
+	priv->ring[ring].backlog = backlog;
 
 finalize:
 	if (!nreq)

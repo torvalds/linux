@@ -499,6 +499,12 @@ struct safexcel_crypto_priv {
 
 		/* The ring is currently handling at least one request */
 		bool busy;
+
+		/* Store for current requests when bailing out of the dequeueing
+		 * function when no enough resources are available.
+		 */
+		struct crypto_async_request *req;
+		struct crypto_async_request *backlog;
 	} ring[EIP197_MAX_RINGS];
 };
 
