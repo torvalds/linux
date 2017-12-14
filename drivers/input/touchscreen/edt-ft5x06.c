@@ -643,7 +643,8 @@ DEFINE_SIMPLE_ATTRIBUTE(debugfs_mode_fops, edt_ft5x06_debugfs_mode_get,
 			edt_ft5x06_debugfs_mode_set, "%llu\n");
 
 static ssize_t edt_ft5x06_debugfs_raw_data_read(struct file *file,
-				char __user *buf, size_t count, loff_t *off)
+						char __user *buf,
+						size_t count, loff_t *off)
 {
 	struct edt_ft5x06_ts_data *tsdata = file->private_data;
 	struct i2c_client *client = tsdata->client;
@@ -781,8 +782,8 @@ static void edt_ft5x06_close(struct input_dev *dev)
 }
 
 static int edt_ft5x06_ts_identify(struct i2c_client *client,
-					struct edt_ft5x06_ts_data *tsdata,
-					char *fw_version)
+				  struct edt_ft5x06_ts_data *tsdata,
+				  char *fw_version)
 {
 	u8 rdbuf[EDT_NAME_LEN];
 	char *p;
@@ -908,7 +909,7 @@ edt_ft5x06_ts_set_regs(struct edt_ft5x06_ts_data *tsdata)
 }
 
 static int edt_ft5x06_ts_probe(struct i2c_client *client,
-					 const struct i2c_device_id *id)
+			       const struct i2c_device_id *id)
 {
 	const struct edt_i2c_chip_data *chip_data;
 	struct edt_ft5x06_ts_data *tsdata;
@@ -1003,7 +1004,7 @@ static int edt_ft5x06_ts_probe(struct i2c_client *client,
 	touchscreen_parse_properties(input, true, &tsdata->prop);
 
 	error = input_mt_init_slots(input, tsdata->max_support_points,
-				INPUT_MT_DIRECT);
+				    INPUT_MT_DIRECT);
 	if (error) {
 		dev_err(&client->dev, "Unable to init MT slots.\n");
 		return error;
