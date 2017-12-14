@@ -27,7 +27,6 @@
 #include "ssi_driver.h"
 #include "ssi_buffer_mgr.h"
 #include "ssi_request_mgr.h"
-#include "ssi_sysfs.h"
 #include "ssi_ivgen.h"
 #include "ssi_pm.h"
 

@@ -32,7 +32,6 @@
 #include "ssi_buffer_mgr.h"
 #include "ssi_cipher.h"
 #include "ssi_request_mgr.h"
-#include "ssi_sysfs.h"
 
 #define MAX_ABLKCIPHER_SEQ_LEN 6
 

@@ -34,7 +34,6 @@
 #include "ssi_aead.h"
 #include "ssi_request_mgr.h"
 #include "ssi_hash.h"
-#include "ssi_sysfs.h"
 #include "ssi_sram_mgr.h"
 
 #define template_aead	template_u.aead

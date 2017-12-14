@@ -14,19 +14,32 @@
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-/* \file ssi_sysfs.h
- * ARM CryptoCell sysfs APIs
- */
+#ifndef __CC_DEBUGFS_H__
+#define __CC_DEBUGFS_H__
 
-#ifndef __CC_SYSFS_H__
-#define __CC_SYSFS_H__
+#ifdef CONFIG_DEBUG_FS
+int cc_debugfs_global_init(void);
+void cc_debugfs_global_fini(void);
 
-#include <asm/timex.h>
+int cc_debugfs_init(struct cc_drvdata *drvdata);
+void cc_debugfs_fini(struct cc_drvdata *drvdata);
 
-/* forward declaration */
-struct cc_drvdata;
+#else
 
-int ssi_sysfs_init(struct kobject *sys_dev_obj, struct cc_drvdata *drvdata);
-void ssi_sysfs_fini(void);
+int cc_debugfs_global_init(void)
+{
+	return 0;
+}
+
+void cc_debugfs_global_fini(void) {}
+
+int cc_debugfs_init(struct cc_drvdata *drvdata)
+{
+	return 0;
+}
+
+void cc_debugfs_fini(struct cc_drvdata *drvdata) {}
+
+#endif
 
 #endif /*__CC_SYSFS_H__*/

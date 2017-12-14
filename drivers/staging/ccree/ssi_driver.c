@@ -63,7 +63,7 @@
 #include "ssi_driver.h"
 #include "ssi_request_mgr.h"
 #include "ssi_buffer_mgr.h"
-#include "ssi_sysfs.h"
+#include "cc_debugfs.h"
 #include "ssi_cipher.h"
 #include "ssi_aead.h"
 #include "ssi_hash.h"
@@ -299,18 +299,16 @@ static int init_cc_resources(struct platform_device *plat_dev)
 		goto post_clk_err;
 	}
 
-#ifdef ENABLE_CC_SYSFS
-	rc = ssi_sysfs_init(&dev->kobj, new_drvdata);
+	rc = cc_debugfs_init(new_drvdata);
 	if (rc) {
-		dev_err(dev, "init_stat_db failed\n");
+		dev_err(dev, "Failed registering debugfs interface\n");
 		goto post_regs_err;
 	}
-#endif
 
 	rc = cc_fips_init(new_drvdata);
 	if (rc) {
 		dev_err(dev, "CC_FIPS_INIT failed 0x%x\n", rc);
-		goto post_sysfs_err;
+		goto post_debugfs_err;
 	}
 	rc = cc_sram_mgr_init(new_drvdata);
 	if (rc) {
@@ -394,10 +392,8 @@ post_sram_mgr_err:
 	cc_sram_mgr_fini(new_drvdata);
 post_fips_init_err:
 	cc_fips_fini(new_drvdata);
-post_sysfs_err:
-#ifdef ENABLE_CC_SYSFS
-	ssi_sysfs_fini();
-#endif
+post_debugfs_err:
+	cc_debugfs_fini(new_drvdata);
 post_regs_err:
 	fini_cc_regs(new_drvdata);
 post_clk_err:
@@ -425,9 +421,7 @@ static void cleanup_cc_resources(struct platform_device *plat_dev)
 	cc_req_mgr_fini(drvdata);
 	cc_sram_mgr_fini(drvdata);
 	cc_fips_fini(drvdata);
-#ifdef ENABLE_CC_SYSFS
-	ssi_sysfs_fini();
-#endif
+	cc_debugfs_fini(drvdata);
 	fini_cc_regs(drvdata);
 	cc_clk_off(drvdata);
 }
@@ -520,6 +514,12 @@ static struct platform_driver cc7x_driver = {
 
 static int __init ccree_init(void)
 {
+	int ret;
+
+	ret = cc_debugfs_global_init();
+	if (ret)
+		return ret;
+
 	return platform_driver_register(&cc7x_driver);
 }
 module_init(ccree_init);
@@ -527,6 +527,7 @@ module_init(ccree_init);
 static void __exit ccree_exit(void)
 {
 	platform_driver_unregister(&cc7x_driver);
+	cc_debugfs_global_fini();
 }
 module_exit(ccree_exit);
 

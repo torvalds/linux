@@ -24,7 +24,6 @@
 #include "ssi_buffer_mgr.h"
 #include "ssi_request_mgr.h"
 #include "ssi_sram_mgr.h"
-#include "ssi_sysfs.h"
 #include "ssi_ivgen.h"
 #include "ssi_hash.h"
 #include "ssi_pm.h"
