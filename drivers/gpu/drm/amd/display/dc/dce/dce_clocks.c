@@ -34,6 +34,7 @@
 #include "dcn_calcs.h"
 #endif
 #include "core_types.h"
+#include "dc_types.h"
 
 
 #define TO_DCE_CLOCKS(clocks)\
@@ -415,9 +416,12 @@ static int dce112_set_clock(
 
 	bp->funcs->set_dce_clock(bp, &dce_clk_params);
 
-	if (clk_dce->dfs_bypass_disp_clk != actual_clock)
-		dmcu->funcs->set_psr_wait_loop(dmcu,
-				actual_clock / 1000 / 7);
+	if (!IS_FPGA_MAXIMUS_DC(core_dc->ctx->dce_environment)) {
+		if (clk_dce->dfs_bypass_disp_clk != actual_clock)
+			dmcu->funcs->set_psr_wait_loop(dmcu,
+					actual_clock / 1000 / 7);
+	}
+
 	clk_dce->dfs_bypass_disp_clk = actual_clock;
 	return actual_clock;
 }

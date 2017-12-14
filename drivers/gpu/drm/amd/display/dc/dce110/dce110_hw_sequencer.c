@@ -1748,36 +1748,6 @@ static void enable_fbc(struct dc *dc,
 }
 #endif
 
-static enum dc_status apply_ctx_to_hw_fpga(
-		struct dc *dc,
-		struct dc_state *context)
-{
-	enum dc_status status = DC_ERROR_UNEXPECTED;
-	int i;
-
-	for (i = 0; i < MAX_PIPES; i++) {
-		struct pipe_ctx *pipe_ctx_old =
-				&dc->current_state->res_ctx.pipe_ctx[i];
-		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
-
-		if (pipe_ctx->stream == NULL)
-			continue;
-
-		if (pipe_ctx->stream == pipe_ctx_old->stream)
-			continue;
-
-		status = apply_single_controller_ctx_to_hw(
-				pipe_ctx,
-				context,
-				dc);
-
-		if (status != DC_OK)
-			return status;
-	}
-
-	return DC_OK;
-}
-
 static void dce110_reset_hw_ctx_wrap(
 		struct dc *dc,
 		struct dc_state *context)
@@ -1846,11 +1816,6 @@ enum dc_status dce110_apply_ctx_to_hw(
 	/* Skip applying if no targets */
 	if (context->stream_count <= 0)
 		return DC_OK;
-
-	if (IS_FPGA_MAXIMUS_DC(dc->ctx->dce_environment)) {
-		apply_ctx_to_hw_fpga(dc, context);
-		return DC_OK;
-	}
 
 	/* Apply new context */
 	dcb->funcs->set_scratch_critical_state(dcb, true);

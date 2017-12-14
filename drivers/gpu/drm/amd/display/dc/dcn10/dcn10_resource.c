@@ -1316,13 +1316,11 @@ static bool construct(
 		}
 	}
 
-	if (!IS_FPGA_MAXIMUS_DC(dc->ctx->dce_environment)) {
-		pool->base.display_clock = dce120_disp_clk_create(ctx);
-		if (pool->base.display_clock == NULL) {
-			dm_error("DC: failed to create display clock!\n");
-			BREAK_TO_DEBUGGER();
-			goto fail;
-		}
+	pool->base.display_clock = dce120_disp_clk_create(ctx);
+	if (pool->base.display_clock == NULL) {
+		dm_error("DC: failed to create display clock!\n");
+		BREAK_TO_DEBUGGER();
+		goto fail;
 	}
 
 	pool->base.dmcu = dcn10_dmcu_create(ctx,
