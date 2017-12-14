@@ -18,4 +18,7 @@ struct sdw_intel_res {
 	struct device *parent;
 };
 
+void *sdw_intel_init(acpi_handle *parent_handle, struct sdw_intel_res *res);
+void sdw_intel_exit(void *arg);
+
 #endif
