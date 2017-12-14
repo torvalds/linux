@@ -21,6 +21,7 @@
 #include "hclge_cmd.h"
 #include "hclge_dcb.h"
 #include "hclge_main.h"
+#include "hclge_mbx.h"
 #include "hclge_mdio.h"
 #include "hclge_tm.h"
 #include "hnae3.h"
