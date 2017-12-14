@@ -1376,8 +1376,7 @@ static void s626_reset_adc(struct comedi_device *dev, u8 *ppl)
 		jmp_adrs =
 			(u32)devpriv->rps_buf.physical_base +
 			(u32)((unsigned long)rps -
-				   (unsigned long)devpriv->
-						  rps_buf.logical_base);
+			      (unsigned long)devpriv->rps_buf.logical_base);
 		for (i = 0; i < (10 * S626_RPSCLK_PER_US / 2); i++) {
 			jmp_adrs += 8;	/* Repeat to implement time delay: */
 			/* Jump to next RPS instruction. */
@@ -1894,9 +1893,9 @@ static int s626_ai_cmdtest(struct comedi_device *dev,
 
 		if (cmd->scan_begin_src == TRIG_TIMER) {
 			arg = cmd->convert_arg * cmd->scan_end_arg;
-			err |= comedi_check_trigger_arg_min(&cmd->
-							    scan_begin_arg,
-							    arg);
+			err |= comedi_check_trigger_arg_min(
+				&cmd->scan_begin_arg,
+				arg);
 		}
 	}
 
