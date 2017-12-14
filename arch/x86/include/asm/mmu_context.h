@@ -132,6 +132,8 @@ void enter_lazy_tlb(struct mm_struct *mm, struct task_struct *tsk);
 static inline int init_new_context(struct task_struct *tsk,
 				   struct mm_struct *mm)
 {
+	mutex_init(&mm->context.lock);
+
 	mm->context.ctx_id = atomic64_inc_return(&last_mm_ctx_id);
 	atomic64_set(&mm->context.tlb_gen, 0);
 
