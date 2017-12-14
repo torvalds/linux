@@ -14,7 +14,6 @@
 #include <linux/dma-mapping.h>
 #include <linux/dmapool.h>
 
-
 #include "safexcel.h"
 
 struct safexcel_ahash_ctx {
