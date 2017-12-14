@@ -483,6 +483,17 @@ void mt76x2_get_rate_power(struct mt76x2_dev *dev, struct mt76_rate_power *t,
 	t->vht[8] = t->vht[9] = mt76x2_rate_power_val(val >> 8);
 }
 
+int mt76x2_get_max_rate_power(struct mt76_rate_power *r)
+{
+	int i;
+	s8 ret = 0;
+
+	for (i = 0; i < sizeof(r->all); i++)
+		ret = max(ret, r->all[i]);
+
+	return ret;
+}
+
 static void
 mt76x2_get_power_info_2g(struct mt76x2_dev *dev, struct mt76x2_tx_power_info *t,
 		         struct ieee80211_channel *chan, int chain, int offset)

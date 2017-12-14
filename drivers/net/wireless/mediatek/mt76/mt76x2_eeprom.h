@@ -148,6 +148,7 @@ mt76x2_eeprom_get(struct mt76x2_dev *dev, enum mt76x2_eeprom_field field)
 
 void mt76x2_get_rate_power(struct mt76x2_dev *dev, struct mt76_rate_power *t,
 			   struct ieee80211_channel *chan);
+int mt76x2_get_max_rate_power(struct mt76_rate_power *r);
 void mt76x2_get_power_info(struct mt76x2_dev *dev,
 			   struct mt76x2_tx_power_info *t,
 			   struct ieee80211_channel *chan);
