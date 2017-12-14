@@ -446,19 +446,6 @@ static int cc7x_probe(struct platform_device *plat_dev)
 {
 	int rc;
 	struct device *dev = &plat_dev->dev;
-#if defined(CONFIG_ARM) && defined(CC_DEBUG)
-	u32 ctr, cacheline_size;
-
-	asm volatile("mrc p15, 0, %0, c0, c0, 1" : "=r" (ctr));
-	cacheline_size =  4 << ((ctr >> 16) & 0xf);
-	dev_dbg(dev, "CP15(L1_CACHE_BYTES) = %u , Kconfig(L1_CACHE_BYTES) = %u\n",
-		cacheline_size, L1_CACHE_BYTES);
-
-	asm volatile("mrc p15, 0, %0, c0, c0, 0" : "=r" (ctr));
-	dev_dbg(dev, "Main ID register (MIDR): Implementer 0x%02X, Arch 0x%01X, Part 0x%03X, Rev r%dp%d\n",
-		(ctr >> 24), (ctr >> 16) & 0xF, (ctr >> 4) & 0xFFF,
-		(ctr >> 20) & 0xF, ctr & 0xF);
-#endif
 
 	/* Map registers space */
 	rc = init_cc_resources(plat_dev);

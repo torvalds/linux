@@ -20,9 +20,6 @@
 #include <linux/interrupt.h>
 #include <linux/delay.h>
 #include <crypto/ctr.h>
-#ifdef FLUSH_CACHE_ALL
-#include <asm/cacheflush.h>
-#endif
 #include <linux/pm_runtime.h>
 #include "ssi_driver.h"
 #include "ssi_buffer_mgr.h"
@@ -359,9 +356,6 @@ int send_request(struct cc_drvdata *drvdata, struct cc_crypto_req *cc_req,
 
 	dev_dbg(dev, "Enqueue request head=%u\n", req_mgr_h->req_queue_head);
 
-#ifdef FLUSH_CACHE_ALL
-	flush_cache_all();
-#endif
 	/*
 	 * We are about to push command to the HW via the command registers
 	 * that may refernece hsot memory. We need to issue a memory barrier
@@ -492,23 +486,6 @@ static void proc_completions(struct cc_drvdata *drvdata)
 		}
 
 		cc_req = &request_mgr_handle->req_queue[*tail];
-
-#ifdef FLUSH_CACHE_ALL
-		flush_cache_all();
-#endif
-
-#ifdef COMPLETION_DELAY
-		/* Delay */
-		{
-			u32 axi_err;
-			int i;
-
-			dev_info(dev, "Delay\n");
-			for (i = 0; i < 1000000; i++)
-				axi_err = cc_ioread(drvdata,
-						    CC_REG(AXIM_MON_ERR));
-		}
-#endif /* COMPLETION_DELAY */
 
 		if (cc_req->user_cb)
 			cc_req->user_cb(dev, cc_req->user_arg);

@@ -23,11 +23,8 @@
 
 #include <linux/version.h>
 
-//#define FLUSH_CACHE_ALL
-//#define COMPLETION_DELAY
 //#define CC_DUMP_DESCS
 // #define CC_DUMP_BYTES
-// #define CC_DEBUG
 /* was 32 bit, but for juno's sake it was enlarged to 48 bit */
 #define DMA_BIT_MASK_LEN	48
 

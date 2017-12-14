@@ -1834,51 +1834,6 @@ static int cc_gcm(struct aead_request *req, struct cc_hw_desc desc[],
 	return 0;
 }
 
-#ifdef CC_DEBUG
-static void cc_dump_gcm(const char *title, struct aead_request *req)
-{
-	struct crypto_aead *tfm = crypto_aead_reqtfm(req);
-	struct cc_aead_ctx *ctx = crypto_aead_ctx(tfm);
-	struct aead_req_ctx *req_ctx = aead_request_ctx(req);
-
-	if (ctx->cipher_mode != DRV_CIPHER_GCTR)
-		return;
-
-	if (title) {
-		dev_dbg(dev, "----------------------------------------------------------------------------------");
-		dev_dbg(dev, "%s\n", title);
-	}
-
-	dev_dbg(dev, "cipher_mode %d, authsize %d, enc_keylen %d, assoclen %d, cryptlen %d\n",
-		ctx->cipher_mode, ctx->authsize, ctx->enc_keylen,
-		req->assoclen, req_ctx->cryptlen);
-
-	if (ctx->enckey)
-		dump_byte_array("mac key", ctx->enckey, 16);
-
-	dump_byte_array("req->iv", req->iv, AES_BLOCK_SIZE);
-
-	dump_byte_array("gcm_iv_inc1", req_ctx->gcm_iv_inc1, AES_BLOCK_SIZE);
-
-	dump_byte_array("gcm_iv_inc2", req_ctx->gcm_iv_inc2, AES_BLOCK_SIZE);
-
-	dump_byte_array("hkey", req_ctx->hkey, AES_BLOCK_SIZE);
-
-	dump_byte_array("mac_buf", req_ctx->mac_buf, AES_BLOCK_SIZE);
-
-	dump_byte_array("gcm_len_block", req_ctx->gcm_len_block.len_a,
-			AES_BLOCK_SIZE);
-
-	if (req->src && req->cryptlen)
-		dump_byte_array("req->src", sg_virt(req->src),
-				req->cryptlen + req->assoclen);
-
-	if (req->dst)
-		dump_byte_array("req->dst", sg_virt(req->dst),
-				req->cryptlen + ctx->authsize + req->assoclen);
-}
-#endif
-
 static int config_gcm_context(struct aead_request *req)
 {
 	struct crypto_aead *tfm = crypto_aead_reqtfm(req);
