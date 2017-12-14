@@ -489,6 +489,14 @@ struct safexcel_crypto_priv {
 		/* queue */
 		struct crypto_queue queue;
 		spinlock_t queue_lock;
+
+		/* Number of requests in the engine that needs the threshold
+		 * interrupt to be set up.
+		 */
+		int requests_left;
+
+		/* The ring is currently handling at least one request */
+		bool busy;
 	} ring[EIP197_MAX_RINGS];
 };
 
