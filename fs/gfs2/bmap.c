@@ -1351,7 +1351,7 @@ static int punch_hole(struct gfs2_inode *ip, u64 offset, u64 length)
 	u64 lblock = (offset + (1 << bsize_shift) - 1) >> bsize_shift;
 	__u16 start_list[GFS2_MAX_META_HEIGHT];
 	__u16 __end_list[GFS2_MAX_META_HEIGHT], *end_list = NULL;
-	unsigned int start_aligned, end_aligned;
+	unsigned int start_aligned, uninitialized_var(end_aligned);
 	unsigned int strip_h = ip->i_height - 1;
 	u32 btotal = 0;
 	int ret, state;
@@ -1956,3 +1956,123 @@ int gfs2_write_alloc_required(struct gfs2_inode *ip, u64 offset,
 	return 0;
 }
 
+static int stuffed_zero_range(struct inode *inode, loff_t offset, loff_t length)
+{
+	struct gfs2_inode *ip = GFS2_I(inode);
+	struct buffer_head *dibh;
+	int error;
+
+	if (offset >= inode->i_size)
+		return 0;
+	if (offset + length > inode->i_size)
+		length = inode->i_size - offset;
+
+	error = gfs2_meta_inode_buffer(ip, &dibh);
+	if (error)
+		return error;
+	gfs2_trans_add_meta(ip->i_gl, dibh);
+	memset(dibh->b_data + sizeof(struct gfs2_dinode) + offset, 0,
+	       length);
+	brelse(dibh);
+	return 0;
+}
+
+static int gfs2_journaled_truncate_range(struct inode *inode, loff_t offset,
+					 loff_t length)
+{
+	struct gfs2_sbd *sdp = GFS2_SB(inode);
+	loff_t max_chunk = GFS2_JTRUNC_REVOKES * sdp->sd_vfs->s_blocksize;
+	int error;
+
+	while (length) {
+		struct gfs2_trans *tr;
+		loff_t chunk;
+		unsigned int offs;
+
+		chunk = length;
+		if (chunk > max_chunk)
+			chunk = max_chunk;
+
+		offs = offset & ~PAGE_MASK;
+		if (offs && chunk > PAGE_SIZE)
+			chunk = offs + ((chunk - offs) & PAGE_MASK);
+
+		truncate_pagecache_range(inode, offset, chunk);
+		offset += chunk;
+		length -= chunk;
+
+		tr = current->journal_info;
+		if (!test_bit(TR_TOUCHED, &tr->tr_flags))
+			continue;
+
+		gfs2_trans_end(sdp);
+		error = gfs2_trans_begin(sdp, RES_DINODE, GFS2_JTRUNC_REVOKES);
+		if (error)
+			return error;
+	}
+	return 0;
+}
+
+int __gfs2_punch_hole(struct file *file, loff_t offset, loff_t length)
+{
+	struct inode *inode = file_inode(file);
+	struct gfs2_inode *ip = GFS2_I(inode);
+	struct gfs2_sbd *sdp = GFS2_SB(inode);
+	int error;
+
+	if (gfs2_is_jdata(ip))
+		error = gfs2_trans_begin(sdp, RES_DINODE + 2 * RES_JDATA,
+					 GFS2_JTRUNC_REVOKES);
+	else
+		error = gfs2_trans_begin(sdp, RES_DINODE, 0);
+	if (error)
+		return error;
+
+	if (gfs2_is_stuffed(ip)) {
+		error = stuffed_zero_range(inode, offset, length);
+		if (error)
+			goto out;
+	} else {
+		unsigned int start_off, end_off, blocksize;
+
+		blocksize = i_blocksize(inode);
+		start_off = offset & (blocksize - 1);
+		end_off = (offset + length) & (blocksize - 1);
+		if (start_off) {
+			unsigned int len = length;
+			if (length > blocksize - start_off)
+				len = blocksize - start_off;
+			error = gfs2_block_zero_range(inode, offset, len);
+			if (error)
+				goto out;
+			if (start_off + length < blocksize)
+				end_off = 0;
+		}
+		if (end_off) {
+			error = gfs2_block_zero_range(inode,
+				offset + length - end_off, end_off);
+			if (error)
+				goto out;
+		}
+	}
+
+	if (gfs2_is_jdata(ip)) {
+		BUG_ON(!current->journal_info);
+		gfs2_journaled_truncate_range(inode, offset, length);
+	} else
+		truncate_pagecache_range(inode, offset, offset + length - 1);
+
+	file_update_time(file);
+	mark_inode_dirty(inode);
+
+	if (current->journal_info)
+		gfs2_trans_end(sdp);
+
+	if (!gfs2_is_stuffed(ip))
+		error = punch_hole(ip, offset, length);
+
+out:
+	if (current->journal_info)
+		gfs2_trans_end(sdp);
+	return error;
+}
