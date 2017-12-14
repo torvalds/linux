@@ -23,7 +23,6 @@
 
 #include <crypto/algapi.h>
 
-#include "ssi_config.h"
 #include "ssi_driver.h"
 
 enum cc_req_dma_buf_type {

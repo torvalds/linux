@@ -16,7 +16,6 @@
 
 #include <linux/platform_device.h>
 #include <crypto/ctr.h>
-#include "ssi_config.h"
 #include "ssi_driver.h"
 #include "ssi_ivgen.h"
 #include "ssi_request_mgr.h"

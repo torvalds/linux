@@ -17,7 +17,6 @@
 #include <linux/kernel.h>
 #include <linux/debugfs.h>
 #include <linux/stringify.h>
-#include "ssi_config.h"
 #include "ssi_driver.h"
 #include "cc_crypto_ctx.h"
 

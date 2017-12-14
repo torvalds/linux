@@ -21,7 +21,6 @@
 #ifndef __CC_DRIVER_H__
 #define __CC_DRIVER_H__
 
-#include "ssi_config.h"
 #ifdef COMP_IN_WQ
 #include <linux/workqueue.h>
 #else
@@ -55,6 +54,9 @@ extern bool cc_dump_bytes;
 
 #define CC_DEV_NAME_STR "cc715ree"
 #define CC_COHERENT_CACHE_PARAMS 0xEEE
+
+/* Maximum DMA mask supported by IP */
+#define DMA_BIT_MASK_LEN 48
 
 #define CC_AXI_IRQ_MASK ((1 << CC_AXIM_CFG_BRESPMASK_BIT_SHIFT) | \
 			  (1 << CC_AXIM_CFG_RRESPMASK_BIT_SHIFT) | \

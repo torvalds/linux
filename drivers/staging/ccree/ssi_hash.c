@@ -23,7 +23,6 @@
 #include <crypto/md5.h>
 #include <crypto/internal/hash.h>
 
-#include "ssi_config.h"
 #include "ssi_driver.h"
 #include "ssi_request_mgr.h"
 #include "ssi_buffer_mgr.h"

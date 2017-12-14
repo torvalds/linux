@@ -20,7 +20,6 @@
 #ifndef __CC_POWER_MGR_H__
 #define __CC_POWER_MGR_H__
 
-#include "ssi_config.h"
 #include "ssi_driver.h"
 
 #define CC_SUSPEND_TIMEOUT 3000

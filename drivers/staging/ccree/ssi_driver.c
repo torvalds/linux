@@ -59,7 +59,6 @@
 #include <linux/clk.h>
 #include <linux/of_address.h>
 
-#include "ssi_config.h"
 #include "ssi_driver.h"
 #include "ssi_request_mgr.h"
 #include "ssi_buffer_mgr.h"

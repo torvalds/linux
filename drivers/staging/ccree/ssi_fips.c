@@ -17,7 +17,6 @@
 #include <linux/kernel.h>
 #include <linux/fips.h>
 
-#include "ssi_config.h"
 #include "ssi_driver.h"
 #include "ssi_fips.h"
 

@@ -26,7 +26,6 @@
 #include <crypto/xts.h>
 #include <crypto/scatterwalk.h>
 
-#include "ssi_config.h"
 #include "ssi_driver.h"
 #include "cc_lli_defs.h"
 #include "ssi_buffer_mgr.h"

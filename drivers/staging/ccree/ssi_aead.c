@@ -28,7 +28,6 @@
 #include <crypto/des.h>
 #include <linux/rtnetlink.h>
 #include <linux/version.h>
-#include "ssi_config.h"
 #include "ssi_driver.h"
 #include "ssi_buffer_mgr.h"
 #include "ssi_aead.h"
