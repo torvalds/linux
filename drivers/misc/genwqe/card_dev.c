@@ -1342,7 +1342,7 @@ static int genwqe_inform_and_stop_processes(struct genwqe_dev *cd)
 	rc = genwqe_kill_fasync(cd, SIGIO);
 	if (rc > 0) {
 		/* give kill_timeout seconds to close file descriptors ... */
-		for (i = 0; (i < genwqe_kill_timeout) &&
+		for (i = 0; (i < GENWQE_KILL_TIMEOUT) &&
 			     genwqe_open_files(cd); i++) {
 			dev_info(&pci_dev->dev, "  %d sec ...", i);
 
@@ -1360,7 +1360,7 @@ static int genwqe_inform_and_stop_processes(struct genwqe_dev *cd)
 		rc = genwqe_force_sig(cd, SIGKILL); /* force terminate */
 		if (rc) {
 			/* Give kill_timout more seconds to end processes */
-			for (i = 0; (i < genwqe_kill_timeout) &&
+			for (i = 0; (i < GENWQE_KILL_TIMEOUT) &&
 				     genwqe_open_files(cd); i++) {
 				dev_warn(&pci_dev->dev, "  %d sec ...", i);
 
