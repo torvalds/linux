@@ -1011,15 +1011,12 @@ static int do_execute_ddcb(struct genwqe_file *cfile,
 {
 	int rc;
 	struct genwqe_ddcb_cmd *cmd;
-	struct ddcb_requ *req;
 	struct genwqe_dev *cd = cfile->cd;
 	struct file *filp = cfile->filp;
 
 	cmd = ddcb_requ_alloc();
 	if (cmd == NULL)
 		return -ENOMEM;
-
-	req = container_of(cmd, struct ddcb_requ, cmd);
 
 	if (copy_from_user(cmd, (void __user *)arg, sizeof(*cmd))) {
 		ddcb_requ_free(cmd);
