@@ -65,6 +65,7 @@
 			device_type = "cpu";
 			compatible = "arm,cortex-a53", "arm,armv8";
 			reg = <0>;
+			clocks = <&nb_periph_clk 16>;
 			enable-method = "psci";
 		};
 	};
@@ -232,6 +233,12 @@
 					groups = "uart2";
 					function = "uart";
 				};
+			};
+
+			nb_pm: syscon@14000 {
+				compatible = "marvell,armada-3700-nb-pm",
+					     "syscon";
+				reg = <0x14000 0x60>;
 			};
 
 			pinctrl_sb: pinctrl@18800 {
