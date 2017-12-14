@@ -171,17 +171,6 @@ int init_cc_regs(struct cc_drvdata *drvdata, bool is_probe)
 			       CC_GPR0_IRQ_MASK));
 	cc_iowrite(drvdata, CC_REG(HOST_IMR), val);
 
-#ifdef CC_HOST_IRQ_TIMER_INIT_VAL_REG_OFFSET
-#ifdef CC_IRQ_DELAY
-	/* Set CC IRQ delay */
-	cc_iowrite(drvdata, CC_REG(HOST_IRQ_TIMER_INIT_VAL), CC_IRQ_DELAY);
-#endif
-	if (cc_ioread(drvdata, CC_REG(HOST_IRQ_TIMER_INIT_VAL)) > 0) {
-		dev_dbg(dev, "irq_delay=%d CC cycles\n",
-			cc_ioread(drvdata, CC_REG(HOST_IRQ_TIMER_INIT_VAL)));
-	}
-#endif
-
 	cache_params = (drvdata->coherent ? CC_COHERENT_CACHE_PARAMS : 0x0);
 
 	val = cc_ioread(drvdata, CC_REG(AXIM_CACHE_PARAMS));
