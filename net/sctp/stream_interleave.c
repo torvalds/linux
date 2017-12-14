@@ -1193,6 +1193,52 @@ static bool sctp_validate_iftsn(struct sctp_chunk *chunk)
 	return true;
 }
 
+static void sctp_report_fwdtsn(struct sctp_ulpq *ulpq, __u32 ftsn)
+{
+	/* Move the Cumulattive TSN Ack ahead. */
+	sctp_tsnmap_skip(&ulpq->asoc->peer.tsn_map, ftsn);
+	/* purge the fragmentation queue */
+	sctp_ulpq_reasm_flushtsn(ulpq, ftsn);
+	/* Abort any in progress partial delivery. */
+	sctp_ulpq_abort_pd(ulpq, GFP_ATOMIC);
+}
+
+static void sctp_intl_reasm_flushtsn(struct sctp_ulpq *ulpq, __u32 ftsn)
+{
+	struct sk_buff *pos, *tmp;
+
+	skb_queue_walk_safe(&ulpq->reasm, pos, tmp) {
+		struct sctp_ulpevent *event = sctp_skb2event(pos);
+		__u32 tsn = event->tsn;
+
+		if (TSN_lte(tsn, ftsn)) {
+			__skb_unlink(pos, &ulpq->reasm);
+			sctp_ulpevent_free(event);
+		}
+	}
+
+	skb_queue_walk_safe(&ulpq->reasm_uo, pos, tmp) {
+		struct sctp_ulpevent *event = sctp_skb2event(pos);
+		__u32 tsn = event->tsn;
+
+		if (TSN_lte(tsn, ftsn)) {
+			__skb_unlink(pos, &ulpq->reasm_uo);
+			sctp_ulpevent_free(event);
+		}
+	}
+}
+
+static void sctp_report_iftsn(struct sctp_ulpq *ulpq, __u32 ftsn)
+{
+	/* Move the Cumulattive TSN Ack ahead. */
+	sctp_tsnmap_skip(&ulpq->asoc->peer.tsn_map, ftsn);
+	/* purge the fragmentation queue */
+	sctp_intl_reasm_flushtsn(ulpq, ftsn);
+	/* abort only when it's for all data */
+	if (ftsn == sctp_tsnmap_get_max_tsn_seen(&ulpq->asoc->peer.tsn_map))
+		sctp_intl_abort_pd(ulpq, GFP_ATOMIC);
+}
+
 static struct sctp_stream_interleave sctp_stream_interleave_0 = {
 	.data_chunk_len		= sizeof(struct sctp_data_chunk),
 	.ftsn_chunk_len		= sizeof(struct sctp_fwdtsn_chunk),
@@ -1208,6 +1254,7 @@ static struct sctp_stream_interleave sctp_stream_interleave_0 = {
 	/* FORWARD-TSN process functions */
 	.generate_ftsn		= sctp_generate_fwdtsn,
 	.validate_ftsn		= sctp_validate_fwdtsn,
+	.report_ftsn		= sctp_report_fwdtsn,
 };
 
 static struct sctp_stream_interleave sctp_stream_interleave_1 = {
@@ -1225,6 +1272,7 @@ static struct sctp_stream_interleave sctp_stream_interleave_1 = {
 	/* I-FORWARD-TSN process functions */
 	.generate_ftsn		= sctp_generate_iftsn,
 	.validate_ftsn		= sctp_validate_iftsn,
+	.report_ftsn		= sctp_report_iftsn,
 };
 
 void sctp_stream_interleave_init(struct sctp_stream *stream)

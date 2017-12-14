@@ -754,8 +754,7 @@ struct sctp_chunk *sctp_process_strreset_tsnreq(
 	 *     performed.
 	 */
 	max_tsn_seen = sctp_tsnmap_get_max_tsn_seen(&asoc->peer.tsn_map);
-	sctp_ulpq_reasm_flushtsn(&asoc->ulpq, max_tsn_seen);
-	sctp_ulpq_abort_pd(&asoc->ulpq, GFP_ATOMIC);
+	asoc->stream.si->report_ftsn(&asoc->ulpq, max_tsn_seen);
 
 	/* G1: Compute an appropriate value for the Receiver's Next TSN -- the
 	 *     TSN that the peer should use to send the next DATA chunk.  The
@@ -1024,8 +1023,7 @@ struct sctp_chunk *sctp_process_strreset_resp(
 						&asoc->peer.tsn_map);
 			LIST_HEAD(temp);
 
-			sctp_ulpq_reasm_flushtsn(&asoc->ulpq, mtsn);
-			sctp_ulpq_abort_pd(&asoc->ulpq, GFP_ATOMIC);
+			asoc->stream.si->report_ftsn(&asoc->ulpq, mtsn);
 
 			sctp_tsnmap_init(&asoc->peer.tsn_map,
 					 SCTP_TSN_MAP_INITIAL,
