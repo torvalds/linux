@@ -50,7 +50,7 @@
 #define AQ_CFG_PCI_FUNC_MSIX_IRQS   9U
 #define AQ_CFG_PCI_FUNC_PORTS       2U
 
-#define AQ_CFG_SERVICE_TIMER_INTERVAL    (2 * HZ)
+#define AQ_CFG_SERVICE_TIMER_INTERVAL    (1 * HZ)
 #define AQ_CFG_POLLING_TIMER_INTERVAL   ((unsigned int)(2 * HZ))
 
 #define AQ_CFG_SKB_FRAGS_MAX   32U

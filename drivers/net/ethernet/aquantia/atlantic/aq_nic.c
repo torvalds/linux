@@ -168,6 +168,7 @@ static int aq_nic_update_link_status(struct aq_nic_s *self)
 static void aq_nic_service_timer_cb(struct timer_list *t)
 {
 	struct aq_nic_s *self = from_timer(self, t, service_timer);
+	int ctimer = AQ_CFG_SERVICE_TIMER_INTERVAL;
 	int err = 0;
 
 	if (aq_utils_obj_test(&self->header.flags, AQ_NIC_FLAGS_IS_NOT_READY))
@@ -182,10 +183,12 @@ static void aq_nic_service_timer_cb(struct timer_list *t)
 
 	aq_nic_update_ndev_stats(self);
 
+	/* If no link - use faster timer rate to detect link up asap */
+	if (!netif_carrier_ok(self->ndev))
+		ctimer = max(ctimer / 2, 1);
 
 err_exit:
-	mod_timer(&self->service_timer,
-		  jiffies + AQ_CFG_SERVICE_TIMER_INTERVAL);
+	mod_timer(&self->service_timer, jiffies + ctimer);
 }
 
 static void aq_nic_polling_timer_cb(struct timer_list *t)
