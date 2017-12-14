@@ -82,12 +82,8 @@ static void __save_processor_state(struct saved_context *ctxt)
 	/*
 	 * descriptor tables
 	 */
-#ifdef CONFIG_X86_32
 	store_idt(&ctxt->idt);
-#else
-/* CONFIG_X86_64 */
-	store_idt((struct desc_ptr *)&ctxt->idt_limit);
-#endif
+
 	/*
 	 * We save it here, but restore it only in the hibernate case.
 	 * For ACPI S3 resume, this is loaded via 'early_gdt_desc' in 64-bit
@@ -219,12 +215,7 @@ static void notrace __restore_processor_state(struct saved_context *ctxt)
 	 * now restore the descriptor tables to their proper values
 	 * ltr is done i fix_processor_context().
 	 */
-#ifdef CONFIG_X86_32
 	load_idt(&ctxt->idt);
-#else
-/* CONFIG_X86_64 */
-	load_idt((const struct desc_ptr *)&ctxt->idt_limit);
-#endif
 
 #ifdef CONFIG_X86_64
 	/*

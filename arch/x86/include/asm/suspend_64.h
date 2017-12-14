@@ -30,8 +30,7 @@ struct saved_context {
 	u16 gdt_pad; /* Unused */
 	struct desc_ptr gdt_desc;
 	u16 idt_pad;
-	u16 idt_limit;
-	unsigned long idt_base;
+	struct desc_ptr idt;
 	u16 ldt;
 	u16 tss;
 	unsigned long tr;
