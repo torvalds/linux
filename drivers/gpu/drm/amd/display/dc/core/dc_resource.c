@@ -1554,6 +1554,9 @@ enum dc_status dc_remove_stream_from_ctx(
 							  dc->res_pool,
 							  del_pipe->clock_source);
 
+			if (dc->res_pool->funcs->remove_stream_from_ctx)
+				dc->res_pool->funcs->remove_stream_from_ctx(dc, new_ctx, stream);
+
 			memset(del_pipe, 0, sizeof(*del_pipe));
 
 			break;
