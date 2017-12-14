@@ -19,4 +19,7 @@ comment "SoundWire Devices"
 config SOUNDWIRE_BUS
 	tristate
 
+config SOUNDWIRE_CADENCE
+	tristate
+
 endif
