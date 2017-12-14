@@ -55,11 +55,11 @@
 #define WORK_REGISTER_NUM_X		0x33
 #define WORK_REGISTER_NUM_Y		0x34
 
-#define M09_REGISTER_THRESHOLD		0x80
-#define M09_REGISTER_GAIN		0x92
-#define M09_REGISTER_OFFSET		0x93
-#define M09_REGISTER_NUM_X		0x94
-#define M09_REGISTER_NUM_Y		0x95
+#define M09_THRESHOLD			0x80
+#define M09_GAIN			0x92
+#define M09_OFFSET			0x93
+#define M09_NUM_X			0x94
+#define M09_NUM_Y			0x95
 
 #define NO_REGISTER			0xff
 
@@ -475,11 +475,11 @@ out:
 }
 
 static EDT_ATTR(gain, S_IWUSR | S_IRUGO, WORK_REGISTER_GAIN,
-		M09_REGISTER_GAIN, 0, 31);
+		M09_GAIN, 0, 31);
 static EDT_ATTR(offset, S_IWUSR | S_IRUGO, WORK_REGISTER_OFFSET,
-		M09_REGISTER_OFFSET, 0, 31);
+		M09_OFFSET, 0, 31);
 static EDT_ATTR(threshold, S_IWUSR | S_IRUGO, WORK_REGISTER_THRESHOLD,
-		M09_REGISTER_THRESHOLD, 0, 80);
+		M09_THRESHOLD, 0, 80);
 static EDT_ATTR(report_rate, S_IWUSR | S_IRUGO, WORK_REGISTER_REPORT_RATE,
 		NO_REGISTER, 3, 14);
 
@@ -898,12 +898,12 @@ edt_ft5x06_ts_set_regs(struct edt_ft5x06_ts_data *tsdata)
 		break;
 
 	case M09:
-		reg_addr->reg_threshold = M09_REGISTER_THRESHOLD;
+		reg_addr->reg_threshold = M09_THRESHOLD;
 		reg_addr->reg_report_rate = NO_REGISTER;
-		reg_addr->reg_gain = M09_REGISTER_GAIN;
-		reg_addr->reg_offset = M09_REGISTER_OFFSET;
-		reg_addr->reg_num_x = M09_REGISTER_NUM_X;
-		reg_addr->reg_num_y = M09_REGISTER_NUM_Y;
+		reg_addr->reg_gain = M09_GAIN;
+		reg_addr->reg_offset = M09_OFFSET;
+		reg_addr->reg_num_x = M09_NUM_X;
+		reg_addr->reg_num_y = M09_NUM_Y;
 		break;
 	}
 }
