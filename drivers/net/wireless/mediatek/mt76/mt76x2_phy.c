@@ -325,8 +325,7 @@ mt76x2_configure_tx_delay(struct mt76x2_dev *dev, enum nl80211_band band, u8 bw)
 	mt76_wr(dev, MT_TX_SW_CFG0, cfg0);
 	mt76_wr(dev, MT_TX_SW_CFG1, cfg1);
 
-	mt76_rmw_field(dev, MT_XIFS_TIME_CFG, MT_XIFS_TIME_CFG_CCK_SIFS,
-		       13 + (bw ? 1 : 0));
+	mt76_rmw_field(dev, MT_XIFS_TIME_CFG, MT_XIFS_TIME_CFG_OFDM_SIFS, 15);
 }
 
 static void
@@ -559,7 +558,6 @@ int mt76x2_phy_set_channel(struct mt76x2_dev *dev,
 	u8 bw, bw_index;
 	int freq, freq1;
 	int ret;
-	u8 sifs = 13;
 
 	dev->cal.channel_cal_done = false;
 	freq = chandef->chan->center_freq;
@@ -610,11 +608,6 @@ int mt76x2_phy_set_channel(struct mt76x2_dev *dev,
 		  MT_EXT_CCA_CFG_CCA3 |
 		  MT_EXT_CCA_CFG_CCA_MASK),
 		 ext_cca_chan[ch_group_index]);
-
-	if (chandef->width >= NL80211_CHAN_WIDTH_40)
-		sifs++;
-
-	mt76_rmw_field(dev, MT_XIFS_TIME_CFG, MT_XIFS_TIME_CFG_OFDM_SIFS, sifs);
 
 	ret = mt76x2_mcu_set_channel(dev, channel, bw, bw_index, scan);
 	if (ret)
