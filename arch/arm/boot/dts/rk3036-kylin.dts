@@ -62,6 +62,8 @@
 		};
 	};
 
+	/delete-node/ psci;
+
 	sdio_pwrseq: sdio-pwrseq {
 		compatible = "mmc-pwrseq-simple";
 		pinctrl-names = "default";
