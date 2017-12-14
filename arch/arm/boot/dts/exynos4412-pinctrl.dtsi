@@ -925,7 +925,7 @@
 		};
 	};
 
-	pinctrl_3: pinctrl@106E0000 {
+	pinctrl_3: pinctrl@106e0000 {
 		gpv0: gpv0 {
 			gpio-controller;
 			#gpio-cells = <2>;

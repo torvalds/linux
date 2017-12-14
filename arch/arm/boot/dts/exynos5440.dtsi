@@ -35,7 +35,7 @@
 		#clock-cells = <1>;
 	};
 
-	gic: interrupt-controller@2E0000 {
+	gic: interrupt-controller@2e0000 {
 		compatible = "arm,cortex-a15-gic";
 		#interrupt-cells = <3>;
 		interrupt-controller;
@@ -108,7 +108,7 @@
 		>;
 	};
 
-	serial_0: serial@B0000 {
+	serial_0: serial@b0000 {
 		compatible = "samsung,exynos4210-uart";
 		reg = <0xB0000 0x1000>;
 		interrupts = <GIC_SPI 2 IRQ_TYPE_LEVEL_HIGH>;
@@ -116,7 +116,7 @@
 		clock-names = "uart", "clk_uart_baud0";
 	};
 
-	serial_1: serial@C0000 {
+	serial_1: serial@c0000 {
 		compatible = "samsung,exynos4210-uart";
 		reg = <0xC0000 0x1000>;
 		interrupts = <GIC_SPI 3 IRQ_TYPE_LEVEL_HIGH>;
@@ -124,7 +124,7 @@
 		clock-names = "uart", "clk_uart_baud0";
 	};
 
-	spi_0: spi@D0000 {
+	spi_0: spi@d0000 {
 		compatible = "samsung,exynos5440-spi";
 		reg = <0xD0000 0x100>;
 		interrupts = <GIC_SPI 4 IRQ_TYPE_LEVEL_HIGH>;
@@ -136,7 +136,7 @@
 		clock-names = "spi", "spi_busclk0";
 	};
 
-	pin_ctrl: pinctrl@E0000 {
+	pin_ctrl: pinctrl@e0000 {
 		compatible = "samsung,exynos5440-pinctrl";
 		reg = <0xE0000 0x1000>;
 		interrupts = <GIC_SPI 37 IRQ_TYPE_LEVEL_HIGH>,
@@ -168,7 +168,7 @@
 		};
 	};
 
-	i2c@F0000 {
+	i2c@f0000 {
 		compatible = "samsung,exynos5440-i2c";
 		reg = <0xF0000 0x1000>;
 		interrupts = <GIC_SPI 5 IRQ_TYPE_LEVEL_HIGH>;
@@ -233,7 +233,7 @@
 		#include "exynos5440-tmu-sensor-conf.dtsi"
 	};
 
-	tmuctrl_1: tmuctrl@16011C {
+	tmuctrl_1: tmuctrl@16011c {
 		compatible = "samsung,exynos5440-tmu";
 		reg = <0x16011C 0x230>, <0x160368 0x10>;
 		interrupts = <GIC_SPI 58 IRQ_TYPE_LEVEL_HIGH>;

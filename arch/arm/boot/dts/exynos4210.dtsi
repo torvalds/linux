@@ -82,7 +82,7 @@
 		};
 	};
 
-	pd_lcd1: lcd1-power-domain@10023CA0 {
+	pd_lcd1: lcd1-power-domain@10023ca0 {
 		compatible = "samsung,exynos4210-pd";
 		reg = <0x10023CA0 0x20>;
 		#power-domain-cells = <0>;
@@ -156,7 +156,7 @@
 		reg = <0x03860000 0x1000>;
 	};
 
-	tmu: tmu@100C0000 {
+	tmu: tmu@100c0000 {
 		compatible = "samsung,exynos4210-tmu";
 		interrupt-parent = <&combiner>;
 		reg = <0x100C0000 0x100>;
@@ -229,7 +229,7 @@
 		};
 	};
 
-	mixer: mixer@12C10000 {
+	mixer: mixer@12c10000 {
 		clock-names = "mixer", "hdmi", "sclk_hdmi", "vp", "mout_mixer",
 			"sclk_mixer";
 		clocks = <&clock CLK_MIXER>, <&clock CLK_HDMI>,
@@ -245,7 +245,7 @@
 		status = "disabled";
 	};
 
-	sysmmu_g2d: sysmmu@12A20000 {
+	sysmmu_g2d: sysmmu@12a20000 {
 		compatible = "samsung,exynos-sysmmu";
 		reg = <0x12A20000 0x1000>;
 		interrupt-parent = <&combiner>;

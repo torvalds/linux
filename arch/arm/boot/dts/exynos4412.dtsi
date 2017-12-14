@@ -38,7 +38,7 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		cpu0: cpu@A00 {
+		cpu0: cpu@a00 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a9";
 			reg = <0xA00>;
@@ -50,21 +50,21 @@
 			#cooling-cells = <2>; /* min followed by max */
 		};
 
-		cpu@A01 {
+		cpu@a01 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a9";
 			reg = <0xA01>;
 			operating-points-v2 = <&cpu0_opp_table>;
 		};
 
-		cpu@A02 {
+		cpu@a02 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a9";
 			reg = <0xA02>;
 			operating-points-v2 = <&cpu0_opp_table>;
 		};
 
-		cpu@A03 {
+		cpu@a03 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a9";
 			reg = <0xA03>;
@@ -168,7 +168,7 @@
 		};
 	};
 
-	pd_isp: isp-power-domain@10023CA0 {
+	pd_isp: isp-power-domain@10023ca0 {
 		compatible = "samsung,exynos4210-pd";
 		reg = <0x10023CA0 0x20>;
 		#power-domain-cells = <0>;
@@ -233,7 +233,7 @@
 		samsung,syscon-phandle = <&pmu_system_controller>;
 	};
 
-	adc: adc@126C0000 {
+	adc: adc@126c0000 {
 		compatible = "samsung,exynos-adc-v1";
 		reg = <0x126C0000 0x100>;
 		interrupt-parent = <&combiner>;
@@ -272,7 +272,7 @@
 			status = "disabled";
 		};
 
-		fimc_lite_1: fimc-lite@123A0000 {
+		fimc_lite_1: fimc-lite@123a0000 {
 			compatible = "samsung,exynos4212-fimc-lite";
 			reg = <0x123A0000 0x1000>;
 			interrupts = <GIC_SPI 106 IRQ_TYPE_LEVEL_HIGH>;
@@ -385,7 +385,7 @@
 		#iommu-cells = <0>;
 	};
 
-	sysmmu_fimc_fd: sysmmu@122A0000 {
+	sysmmu_fimc_fd: sysmmu@122a0000 {
 		compatible = "samsung,exynos-sysmmu";
 		reg = <0x122A0000 0x1000>;
 		interrupt-parent = <&combiner>;
@@ -396,7 +396,7 @@
 		#iommu-cells = <0>;
 	};
 
-	sysmmu_fimc_mcuctl: sysmmu@122B0000 {
+	sysmmu_fimc_mcuctl: sysmmu@122b0000 {
 		compatible = "samsung,exynos-sysmmu";
 		reg = <0x122B0000 0x1000>;
 		interrupt-parent = <&combiner>;
@@ -407,7 +407,7 @@
 		#iommu-cells = <0>;
 	};
 
-	sysmmu_fimc_lite0: sysmmu@123B0000 {
+	sysmmu_fimc_lite0: sysmmu@123b0000 {
 		compatible = "samsung,exynos-sysmmu";
 		reg = <0x123B0000 0x1000>;
 		interrupt-parent = <&combiner>;
@@ -419,7 +419,7 @@
 		#iommu-cells = <0>;
 	};
 
-	sysmmu_fimc_lite1: sysmmu@123C0000 {
+	sysmmu_fimc_lite1: sysmmu@123c0000 {
 		compatible = "samsung,exynos-sysmmu";
 		reg = <0x123C0000 0x1000>;
 		interrupt-parent = <&combiner>;
