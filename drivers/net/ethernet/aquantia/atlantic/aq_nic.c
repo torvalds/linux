@@ -37,6 +37,8 @@ static unsigned int aq_itr_rx;
 module_param_named(aq_itr_rx, aq_itr_rx, uint, 0644);
 MODULE_PARM_DESC(aq_itr_rx, "RX interrupt throttle rate");
 
+static void aq_nic_update_ndev_stats(struct aq_nic_s *self);
+
 static void aq_nic_rss_init(struct aq_nic_s *self, unsigned int num_rss_queues)
 {
 	struct aq_nic_cfg_s *cfg = &self->aq_nic_cfg;
@@ -166,11 +168,7 @@ static int aq_nic_update_link_status(struct aq_nic_s *self)
 static void aq_nic_service_timer_cb(struct timer_list *t)
 {
 	struct aq_nic_s *self = from_timer(self, t, service_timer);
-	struct net_device *ndev = aq_nic_get_ndev(self);
 	int err = 0;
-	unsigned int i = 0U;
-	struct aq_ring_stats_rx_s stats_rx;
-	struct aq_ring_stats_tx_s stats_tx;
 
 	if (aq_utils_obj_test(&self->header.flags, AQ_NIC_FLAGS_IS_NOT_READY))
 		goto err_exit;
@@ -182,19 +180,8 @@ static void aq_nic_service_timer_cb(struct timer_list *t)
 	if (self->aq_hw_ops.hw_update_stats)
 		self->aq_hw_ops.hw_update_stats(self->aq_hw);
 
-	memset(&stats_rx, 0U, sizeof(struct aq_ring_stats_rx_s));
-	memset(&stats_tx, 0U, sizeof(struct aq_ring_stats_tx_s));
-	for (i = AQ_DIMOF(self->aq_vec); i--;) {
-		if (self->aq_vec[i])
-			aq_vec_add_stats(self->aq_vec[i], &stats_rx, &stats_tx);
-	}
+	aq_nic_update_ndev_stats(self);
 
-	ndev->stats.rx_packets = stats_rx.packets;
-	ndev->stats.rx_bytes = stats_rx.bytes;
-	ndev->stats.rx_errors = stats_rx.errors;
-	ndev->stats.tx_packets = stats_tx.packets;
-	ndev->stats.tx_bytes = stats_tx.bytes;
-	ndev->stats.tx_errors = stats_tx.errors;
 
 err_exit:
 	mod_timer(&self->service_timer,
@@ -793,6 +780,19 @@ void aq_nic_get_stats(struct aq_nic_s *self, u64 *data)
 	}
 
 err_exit:;
+}
+
+static void aq_nic_update_ndev_stats(struct aq_nic_s *self)
+{
+	struct net_device *ndev = self->ndev;
+	struct aq_stats_s *stats = self->aq_hw_ops.hw_get_hw_stats(self->aq_hw);
+
+	ndev->stats.rx_packets = stats->uprc + stats->mprc + stats->bprc;
+	ndev->stats.rx_bytes = stats->ubrc + stats->mbrc + stats->bbrc;
+	ndev->stats.rx_errors = stats->erpr;
+	ndev->stats.tx_packets = stats->uptc + stats->mptc + stats->bptc;
+	ndev->stats.tx_bytes = stats->ubtc + stats->mbtc + stats->bbtc;
+	ndev->stats.tx_errors = stats->erpt;
 }
 
 void aq_nic_get_link_ksettings(struct aq_nic_s *self,
