@@ -63,7 +63,6 @@ void dm_issue_global_event(void)
  * One of these is allocated (on-stack) per original bio.
  */
 struct clone_info {
-	struct mapped_device *md;
 	struct dm_table *map;
 	struct bio *bio;
 	struct dm_io *io;
@@ -567,7 +566,7 @@ static struct dm_target_io *alloc_tio(struct clone_info *ci, struct dm_target *t
 		/* the dm_target_io embedded in ci->io is available */
 		tio = &ci->io->tio;
 	} else {
-		struct bio *clone = bio_alloc_bioset(gfp_mask, 0, ci->md->bs);
+		struct bio *clone = bio_alloc_bioset(gfp_mask, 0, ci->io->md->bs);
 		if (!clone)
 			return NULL;
 
@@ -1298,7 +1297,7 @@ static void alloc_multiple_bios(struct bio_list *blist, struct clone_info *ci,
 		struct bio *bio;
 
 		if (try)
-			mutex_lock(&ci->md->table_devices_lock);
+			mutex_lock(&ci->io->md->table_devices_lock);
 		for (bio_nr = 0; bio_nr < num_bios; bio_nr++) {
 			tio = alloc_tio(ci, ti, bio_nr, try ? GFP_NOIO : GFP_NOWAIT);
 			if (!tio)
@@ -1307,7 +1306,7 @@ static void alloc_multiple_bios(struct bio_list *blist, struct clone_info *ci,
 			bio_list_add(blist, &tio->clone);
 		}
 		if (try)
-			mutex_unlock(&ci->md->table_devices_lock);
+			mutex_unlock(&ci->io->md->table_devices_lock);
 		if (bio_nr == num_bios)
 			return;
 
@@ -1500,7 +1499,6 @@ static void __split_and_process_bio(struct mapped_device *md,
 	}
 
 	ci.map = map;
-	ci.md = md;
 	ci.io = alloc_io(md);
 	ci.io->status = 0;
 	atomic_set(&ci.io->io_count, 1);
@@ -1512,7 +1510,7 @@ static void __split_and_process_bio(struct mapped_device *md,
 	start_io_acct(ci.io);
 
 	if (bio->bi_opf & REQ_PREFLUSH) {
-		ci.bio = &ci.md->flush_bio;
+		ci.bio = &ci.io->md->flush_bio;
 		ci.sector_count = 0;
 		error = __send_empty_flush(&ci);
 		/* dec_pending submits any data associated with flush */
