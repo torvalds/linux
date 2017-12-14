@@ -3,7 +3,9 @@ Transceiver
 
 Required properties:
 
-- compatible : must be "sff,sfp"
+- compatible : must be one of
+  "sff,sfp" for SFP modules
+  "sff,sff" for soldered down SFF modules
 
 Optional Properties:
 
@@ -11,7 +13,8 @@ Optional Properties:
   interface
 
 - mod-def0-gpios : GPIO phandle and a specifier of the MOD-DEF0 (AKA Mod_ABS)
-  module presence input gpio signal, active (module absent) high
+  module presence input gpio signal, active (module absent) high. Must
+  not be present for SFF modules
 
 - los-gpios : GPIO phandle and a specifier of the Receiver Loss of Signal
   Indication input gpio signal, active (signal lost) high
@@ -24,10 +27,11 @@ Optional Properties:
 
 - rate-select0-gpios : GPIO phandle and a specifier of the Rx Signaling Rate
   Select (AKA RS0) output gpio signal, low: low Rx rate, high: high Rx rate
+  Must not be present for SFF modules
 
 - rate-select1-gpios : GPIO phandle and a specifier of the Tx Signaling Rate
   Select (AKA RS1) output gpio signal (SFP+ only), low: low Tx rate, high:
-  high Tx rate
+  high Tx rate. Must not be present for SFF modules
 
 Example #1: Direct serdes to SFP connection
 
