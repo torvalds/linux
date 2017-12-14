@@ -869,7 +869,6 @@ static ssize_t wil_write_file_txmgmt(struct file *file, const char __user *buf,
 
 	params.buf = frame;
 	params.len = len;
-	params.chan = wdev->preset_chandef.chan;
 
 	rc = wil_cfg80211_mgmt_tx(wiphy, wdev, &params, NULL);
 

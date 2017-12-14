@@ -956,9 +956,8 @@ static int wil_cfg80211_set_channel(struct wiphy *wiphy,
 				    struct cfg80211_chan_def *chandef)
 {
 	struct wil6210_priv *wil = wiphy_to_wil(wiphy);
-	struct wireless_dev *wdev = wil_to_wdev(wil);
 
-	wdev->preset_chandef = *chandef;
+	wil->monitor_chandef = *chandef;
 
 	return 0;
 }

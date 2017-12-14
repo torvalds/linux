@@ -655,6 +655,7 @@ struct wil6210_priv {
 	unsigned long last_fw_recovery; /* jiffies of last fw recovery */
 	wait_queue_head_t wq; /* for all wait_event() use */
 	/* profile */
+	struct cfg80211_chan_def monitor_chandef;
 	u32 monitor_flags;
 	u32 privacy; /* secure connection? */
 	u8 hidden_ssid; /* relevant in AP mode */

@@ -348,7 +348,6 @@ static int wil_vring_alloc_skb(struct wil6210_priv *wil, struct vring *vring,
 static void wil_rx_add_radiotap_header(struct wil6210_priv *wil,
 				       struct sk_buff *skb)
 {
-	struct wireless_dev *wdev = wil->wdev;
 	struct wil6210_rtap {
 		struct ieee80211_radiotap_header rthdr;
 		/* fields should be in the order of bits in rthdr.it_present */
@@ -375,7 +374,7 @@ static void wil_rx_add_radiotap_header(struct wil6210_priv *wil,
 	int rtap_len = sizeof(struct wil6210_rtap);
 	int phy_length = 0; /* phy info header size, bytes */
 	static char phy_data[128];
-	struct ieee80211_channel *ch = wdev->preset_chandef.chan;
+	struct ieee80211_channel *ch = wil->monitor_chandef.chan;
 
 	if (rtap_include_phy_info) {
 		rtap_len = sizeof(*rtap_vendor) + sizeof(*d);

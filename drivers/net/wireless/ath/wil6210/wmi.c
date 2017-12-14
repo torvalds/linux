@@ -1782,7 +1782,7 @@ int wmi_rx_chain_add(struct wil6210_priv *wil, struct vring *vring)
 	int rc;
 
 	if (wdev->iftype == NL80211_IFTYPE_MONITOR) {
-		struct ieee80211_channel *ch = wdev->preset_chandef.chan;
+		struct ieee80211_channel *ch = wil->monitor_chandef.chan;
 
 		cmd.sniffer_cfg.mode = cpu_to_le32(WMI_SNIFFER_ON);
 		if (ch)
