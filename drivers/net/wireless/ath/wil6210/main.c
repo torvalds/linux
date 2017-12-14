@@ -771,6 +771,7 @@ static void wil_collect_fw_info(struct wil6210_priv *wil)
 void wil_refresh_fw_capabilities(struct wil6210_priv *wil)
 {
 	struct wiphy *wiphy = wil_to_wiphy(wil);
+	int features;
 
 	wil->keep_radio_on_during_sleep =
 		test_bit(WIL_PLATFORM_CAPA_RADIO_ON_IN_SUSPEND,
@@ -791,6 +792,16 @@ void wil_refresh_fw_capabilities(struct wil6210_priv *wil)
 		wiphy->max_match_sets = WMI_MAX_PNO_SSID_NUM;
 		wiphy->max_sched_scan_ie_len = WMI_MAX_IE_LEN;
 		wiphy->max_sched_scan_plans = WMI_MAX_PLANS_NUM;
+	}
+
+	if (wil->platform_ops.set_features) {
+		features = (test_bit(WMI_FW_CAPABILITY_REF_CLOCK_CONTROL,
+				     wil->fw_capabilities) &&
+			    test_bit(WIL_PLATFORM_CAPA_EXT_CLK,
+				     wil->platform_capa)) ?
+			BIT(WIL_PLATFORM_FEATURE_FW_EXT_CLK_CONTROL) : 0;
+
+		wil->platform_ops.set_features(wil->platform_handle, features);
 	}
 }
 
