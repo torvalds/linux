@@ -72,20 +72,26 @@
 #include "ssi_pm.h"
 #include "ssi_fips.h"
 
-#ifdef CC_DUMP_BYTES
-void dump_byte_array(const char *name, const u8 *buf, size_t len)
+bool cc_dump_desc;
+module_param_named(dump_desc, cc_dump_desc, bool, 0600);
+MODULE_PARM_DESC(cc_dump_desc, "Dump descriptors to kernel log as debugging aid");
+
+bool cc_dump_bytes;
+module_param_named(dump_bytes, cc_dump_bytes, bool, 0600);
+MODULE_PARM_DESC(cc_dump_bytes, "Dump buffers to kernel log as debugging aid");
+
+void __dump_byte_array(const char *name, const u8 *buf, size_t len)
 {
-	char prefix[NAME_LEN];
+	char prefix[64];
 
 	if (!buf)
 		return;
 
 	snprintf(prefix, sizeof(prefix), "%s[%lu]: ", name, len);
 
-	print_hex_dump(KERN_DEBUG, prefix, DUMP_PREFIX_ADDRESS, 16, 1, len,
-		       false);
+	print_hex_dump(KERN_DEBUG, prefix, DUMP_PREFIX_ADDRESS, 16, 1, buf,
+		       len, false);
 }
-#endif
 
 static irqreturn_t cc_isr(int irq, void *dev_id)
 {

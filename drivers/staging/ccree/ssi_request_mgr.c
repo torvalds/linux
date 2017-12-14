@@ -161,11 +161,12 @@ req_mgr_init_err:
 	return rc;
 }
 
-static void enqueue_seq(void __iomem *cc_base, struct cc_hw_desc seq[],
+static void enqueue_seq(struct cc_drvdata *drvdata, struct cc_hw_desc seq[],
 			unsigned int seq_len)
 {
 	int i, w;
-	void * __iomem reg = cc_base + CC_REG(DSCRPTR_QUEUE_WORD0);
+	void * __iomem reg = drvdata->cc_base + CC_REG(DSCRPTR_QUEUE_WORD0);
+	struct device *dev = drvdata_to_dev(drvdata);
 
 	/*
 	 * We do indeed write all 6 command words to the same
@@ -175,11 +176,12 @@ static void enqueue_seq(void __iomem *cc_base, struct cc_hw_desc seq[],
 	for (i = 0; i < seq_len; i++) {
 		for (w = 0; w <= 5; w++)
 			writel_relaxed(seq[i].word[w], reg);
-#ifdef CC_DUMP_DESCS
-		dev_dbg(dev, "desc[%02d]: 0x%08X 0x%08X 0x%08X 0x%08X 0x%08X 0x%08X\n",
-			i, seq[i].word[0], seq[i].word[1], seq[i].word[2],
-			seq[i].word[3], seq[i].word[4], seq[i].word[5]);
-#endif
+
+		if (cc_dump_desc)
+			dev_dbg(dev, "desc[%02d]: 0x%08X 0x%08X 0x%08X 0x%08X 0x%08X 0x%08X\n",
+				i, seq[i].word[0], seq[i].word[1],
+				seq[i].word[2], seq[i].word[3],
+				seq[i].word[4], seq[i].word[5]);
 	}
 }
 
@@ -256,7 +258,6 @@ static int cc_queues_status(struct cc_drvdata *drvdata,
 int send_request(struct cc_drvdata *drvdata, struct cc_crypto_req *cc_req,
 		 struct cc_hw_desc *desc, unsigned int len, bool is_dout)
 {
-	void __iomem *cc_base = drvdata->cc_base;
 	struct cc_req_mgr_handle *req_mgr_h = drvdata->request_mgr_handle;
 	unsigned int used_sw_slots;
 	unsigned int iv_seq_len = 0;
@@ -364,9 +365,9 @@ int send_request(struct cc_drvdata *drvdata, struct cc_crypto_req *cc_req,
 	wmb();
 
 	/* STAT_PHASE_4: Push sequence */
-	enqueue_seq(cc_base, iv_seq, iv_seq_len);
-	enqueue_seq(cc_base, desc, len);
-	enqueue_seq(cc_base, &req_mgr_h->compl_desc, (is_dout ? 0 : 1));
+	enqueue_seq(drvdata, iv_seq, iv_seq_len);
+	enqueue_seq(drvdata, desc, len);
+	enqueue_seq(drvdata, &req_mgr_h->compl_desc, (is_dout ? 0 : 1));
 
 	if (req_mgr_h->q_free_slots < total_seq_len) {
 		/* This situation should never occur. Maybe indicating problem
@@ -407,7 +408,6 @@ int send_request(struct cc_drvdata *drvdata, struct cc_crypto_req *cc_req,
 int send_request_init(struct cc_drvdata *drvdata, struct cc_hw_desc *desc,
 		      unsigned int len)
 {
-	void __iomem *cc_base = drvdata->cc_base;
 	struct cc_req_mgr_handle *req_mgr_h = drvdata->request_mgr_handle;
 	unsigned int total_seq_len = len; /*initial sequence length*/
 	int rc = 0;
@@ -426,7 +426,7 @@ int send_request_init(struct cc_drvdata *drvdata, struct cc_hw_desc *desc,
 	 * to make sure there are no outstnading memory writes
 	 */
 	wmb();
-	enqueue_seq(cc_base, desc, len);
+	enqueue_seq(drvdata, desc, len);
 
 	/* Update the free slots in HW queue */
 	req_mgr_h->q_free_slots =

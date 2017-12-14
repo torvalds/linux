@@ -48,6 +48,9 @@
 #include "cc_hw_queue_defs.h"
 #include "ssi_sram_mgr.h"
 
+extern bool cc_dump_desc;
+extern bool cc_dump_bytes;
+
 #define DRV_MODULE_VERSION "3.0"
 
 #define CC_DEV_NAME_STR "cc715ree"
@@ -169,13 +172,14 @@ static inline struct device *drvdata_to_dev(struct cc_drvdata *drvdata)
 	return &drvdata->plat_dev->dev;
 }
 
-#ifdef CC_DUMP_BYTES
-void dump_byte_array(const char *name, const u8 *the_array,
-		     unsigned long size);
-#else
+void __dump_byte_array(const char *name, const u8 *the_array,
+		       unsigned long size);
 static inline void dump_byte_array(const char *name, const u8 *the_array,
-				   unsigned long size) {};
-#endif
+				   unsigned long size)
+{
+	if (cc_dump_bytes)
+		__dump_byte_array(name, the_array, size);
+}
 
 int init_cc_regs(struct cc_drvdata *drvdata, bool is_probe);
 void fini_cc_regs(struct cc_drvdata *drvdata);
