@@ -315,11 +315,26 @@ static int erspan_rcv(struct sk_buff *skb, struct tnl_ptk_info *tpi,
 				return PACKET_REJECT;
 
 			memcpy(md, pkt_md, sizeof(*md));
+			md->version = ver;
+
 			info = &tun_dst->u.tun_info;
 			info->key.tun_flags |= TUNNEL_ERSPAN_OPT;
 			info->options_len = sizeof(*md);
 		} else {
-			tunnel->index = ntohl(pkt_md->u.index);
+			tunnel->erspan_ver = ver;
+			if (ver == 1) {
+				tunnel->index = ntohl(pkt_md->u.index);
+			} else {
+				u16 md2_flags;
+				u16 dir, hwid;
+
+				md2_flags = ntohs(pkt_md->u.md2.flags);
+				dir = (md2_flags & DIR_MASK) >> DIR_OFFSET;
+				hwid = (md2_flags & HWID_MASK) >> HWID_OFFSET;
+				tunnel->dir = dir;
+				tunnel->hwid = hwid;
+			}
+
 		}
 
 		skb_reset_mac_header(skb);
@@ -413,7 +428,8 @@ static int gre_rcv(struct sk_buff *skb)
 	if (hdr_len < 0)
 		goto drop;
 
-	if (unlikely(tpi.proto == htons(ETH_P_ERSPAN))) {
+	if (unlikely(tpi.proto == htons(ETH_P_ERSPAN) ||
+		     tpi.proto == htons(ETH_P_ERSPAN2))) {
 		if (erspan_rcv(skb, &tpi, hdr_len) == PACKET_RCVD)
 			return 0;
 	}
@@ -568,6 +584,7 @@ static void erspan_fb_xmit(struct sk_buff *skb, struct net_device *dev,
 	bool truncate = false;
 	struct flowi4 fl;
 	int tunnel_hlen;
+	int version;
 	__be16 df;
 
 	tun_info = skb_tunnel_info(skb);
@@ -576,9 +593,13 @@ static void erspan_fb_xmit(struct sk_buff *skb, struct net_device *dev,
 		goto err_free_skb;
 
 	key = &tun_info->key;
+	md = ip_tunnel_info_opts(tun_info);
+	if (!md)
+		goto err_free_rt;
 
 	/* ERSPAN has fixed 8 byte GRE header */
-	tunnel_hlen = 8 + sizeof(struct erspan_base_hdr) + ERSPAN_V1_MDSIZE;
+	version = md->version;
+	tunnel_hlen = 8 + erspan_hdr_len(version);
 
 	rt = prepare_fb_xmit(skb, dev, &fl, tunnel_hlen);
 	if (!rt)
@@ -592,12 +613,23 @@ static void erspan_fb_xmit(struct sk_buff *skb, struct net_device *dev,
 		truncate = true;
 	}
 
-	md = ip_tunnel_info_opts(tun_info);
-	if (!md)
-		goto err_free_rt;
+	if (version == 1) {
+		erspan_build_header(skb, tunnel_id_to_key32(key->tun_id),
+				    ntohl(md->u.index), truncate, true);
+	} else if (version == 2) {
+		u16 md2_flags;
+		u8 direction;
+		u16 hwid;
 
-	erspan_build_header(skb, tunnel_id_to_key32(key->tun_id),
-			    ntohl(md->u.index), truncate, true);
+		md2_flags = ntohs(md->u.md2.flags);
+		direction = (md2_flags & DIR_MASK) >> DIR_OFFSET;
+		hwid = (md2_flags & HWID_MASK) >> HWID_OFFSET;
+
+		erspan_build_header_v2(skb, tunnel_id_to_key32(key->tun_id),
+				       direction, hwid,	truncate, true);
+	} else {
+		goto err_free_rt;
+	}
 
 	gre_build_header(skb, 8, TUNNEL_SEQ,
 			 htons(ETH_P_ERSPAN), 0, htonl(tunnel->o_seqno++));
@@ -699,8 +731,14 @@ static netdev_tx_t erspan_xmit(struct sk_buff *skb,
 	}
 
 	/* Push ERSPAN header */
-	erspan_build_header(skb, tunnel->parms.o_key, tunnel->index,
-			    truncate, true);
+	if (tunnel->erspan_ver == 1)
+		erspan_build_header(skb, tunnel->parms.o_key, tunnel->index,
+				    truncate, true);
+	else
+		erspan_build_header_v2(skb, tunnel->parms.o_key,
+				       tunnel->dir, tunnel->hwid,
+				       truncate, true);
+
 	tunnel->parms.o_flags &= ~TUNNEL_KEY;
 	__gre_xmit(skb, dev, &tunnel->parms.iph, htons(ETH_P_ERSPAN));
 	return NETDEV_TX_OK;
@@ -1172,11 +1210,30 @@ static int ipgre_netlink_parms(struct net_device *dev,
 	if (data[IFLA_GRE_FWMARK])
 		*fwmark = nla_get_u32(data[IFLA_GRE_FWMARK]);
 
-	if (data[IFLA_GRE_ERSPAN_INDEX]) {
-		t->index = nla_get_u32(data[IFLA_GRE_ERSPAN_INDEX]);
+	if (data[IFLA_GRE_ERSPAN_VER]) {
+		t->erspan_ver = nla_get_u8(data[IFLA_GRE_ERSPAN_VER]);
 
-		if (t->index & ~INDEX_MASK)
+		if (t->erspan_ver != 1 && t->erspan_ver != 2)
 			return -EINVAL;
+	}
+
+	if (t->erspan_ver == 1) {
+		if (data[IFLA_GRE_ERSPAN_INDEX]) {
+			t->index = nla_get_u32(data[IFLA_GRE_ERSPAN_INDEX]);
+			if (t->index & ~INDEX_MASK)
+				return -EINVAL;
+		}
+	} else if (t->erspan_ver == 2) {
+		if (data[IFLA_GRE_ERSPAN_DIR]) {
+			t->dir = nla_get_u8(data[IFLA_GRE_ERSPAN_DIR]);
+			if (t->dir & ~(DIR_MASK >> DIR_OFFSET))
+				return -EINVAL;
+		}
+		if (data[IFLA_GRE_ERSPAN_HWID]) {
+			t->hwid = nla_get_u16(data[IFLA_GRE_ERSPAN_HWID]);
+			if (t->hwid & ~(HWID_MASK >> HWID_OFFSET))
+				return -EINVAL;
+		}
 	}
 
 	return 0;
@@ -1245,7 +1302,7 @@ static int erspan_tunnel_init(struct net_device *dev)
 	tunnel->tun_hlen = 8;
 	tunnel->parms.iph.protocol = IPPROTO_GRE;
 	tunnel->hlen = tunnel->tun_hlen + tunnel->encap_hlen +
-		       sizeof(struct erspan_base_hdr) + ERSPAN_V1_MDSIZE;
+		       erspan_hdr_len(tunnel->erspan_ver);
 	t_hlen = tunnel->hlen + sizeof(struct iphdr);
 
 	dev->needed_headroom = LL_MAX_HEADER + t_hlen + 4;
@@ -1375,6 +1432,12 @@ static size_t ipgre_get_size(const struct net_device *dev)
 		nla_total_size(4) +
 		/* IFLA_GRE_ERSPAN_INDEX */
 		nla_total_size(4) +
+		/* IFLA_GRE_ERSPAN_VER */
+		nla_total_size(1) +
+		/* IFLA_GRE_ERSPAN_DIR */
+		nla_total_size(1) +
+		/* IFLA_GRE_ERSPAN_HWID */
+		nla_total_size(2) +
 		0;
 }
 
@@ -1417,9 +1480,18 @@ static int ipgre_fill_info(struct sk_buff *skb, const struct net_device *dev)
 			goto nla_put_failure;
 	}
 
-	if (t->index)
+	if (nla_put_u8(skb, IFLA_GRE_ERSPAN_VER, t->erspan_ver))
+		goto nla_put_failure;
+
+	if (t->erspan_ver == 1) {
 		if (nla_put_u32(skb, IFLA_GRE_ERSPAN_INDEX, t->index))
 			goto nla_put_failure;
+	} else if (t->erspan_ver == 2) {
+		if (nla_put_u8(skb, IFLA_GRE_ERSPAN_DIR, t->dir))
+			goto nla_put_failure;
+		if (nla_put_u16(skb, IFLA_GRE_ERSPAN_HWID, t->hwid))
+			goto nla_put_failure;
+	}
 
 	return 0;
 
@@ -1455,6 +1527,9 @@ static const struct nla_policy ipgre_policy[IFLA_GRE_MAX + 1] = {
 	[IFLA_GRE_IGNORE_DF]	= { .type = NLA_U8 },
 	[IFLA_GRE_FWMARK]	= { .type = NLA_U32 },
 	[IFLA_GRE_ERSPAN_INDEX]	= { .type = NLA_U32 },
+	[IFLA_GRE_ERSPAN_VER]	= { .type = NLA_U8 },
+	[IFLA_GRE_ERSPAN_DIR]	= { .type = NLA_U8 },
+	[IFLA_GRE_ERSPAN_HWID]	= { .type = NLA_U16 },
 };
 
 static struct rtnl_link_ops ipgre_link_ops __read_mostly = {
