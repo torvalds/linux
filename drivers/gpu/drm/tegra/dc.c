@@ -1261,15 +1261,11 @@ static u32 tegra_dc_get_vblank_counter(struct drm_crtc *crtc)
 static int tegra_dc_enable_vblank(struct drm_crtc *crtc)
 {
 	struct tegra_dc *dc = to_tegra_dc(crtc);
-	unsigned long value, flags;
-
-	spin_lock_irqsave(&dc->lock, flags);
+	u32 value;
 
 	value = tegra_dc_readl(dc, DC_CMD_INT_MASK);
 	value |= VBLANK_INT;
 	tegra_dc_writel(dc, value, DC_CMD_INT_MASK);
-
-	spin_unlock_irqrestore(&dc->lock, flags);
 
 	return 0;
 }
@@ -1277,15 +1273,11 @@ static int tegra_dc_enable_vblank(struct drm_crtc *crtc)
 static void tegra_dc_disable_vblank(struct drm_crtc *crtc)
 {
 	struct tegra_dc *dc = to_tegra_dc(crtc);
-	unsigned long value, flags;
-
-	spin_lock_irqsave(&dc->lock, flags);
+	u32 value;
 
 	value = tegra_dc_readl(dc, DC_CMD_INT_MASK);
 	value &= ~VBLANK_INT;
 	tegra_dc_writel(dc, value, DC_CMD_INT_MASK);
-
-	spin_unlock_irqrestore(&dc->lock, flags);
 }
 
 static const struct drm_crtc_funcs tegra_crtc_funcs = {
@@ -2033,7 +2025,6 @@ static int tegra_dc_probe(struct platform_device *pdev)
 
 	dc->soc = of_device_get_match_data(&pdev->dev);
 
-	spin_lock_init(&dc->lock);
 	INIT_LIST_HEAD(&dc->list);
 	dc->dev = &pdev->dev;
 

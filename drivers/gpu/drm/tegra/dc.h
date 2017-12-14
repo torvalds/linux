@@ -71,7 +71,6 @@ struct tegra_dc {
 	struct host1x_client client;
 	struct host1x_syncpt *syncpt;
 	struct device *dev;
-	spinlock_t lock;
 
 	struct drm_crtc base;
 	unsigned int powergate;
