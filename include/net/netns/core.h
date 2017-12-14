@@ -13,8 +13,8 @@ struct netns_core {
 
 #ifdef CONFIG_PROC_FS
 	int __percpu *sock_inuse;
-#endif
 	struct prot_inuse __percpu *prot_inuse;
+#endif
 };
 
 #endif
