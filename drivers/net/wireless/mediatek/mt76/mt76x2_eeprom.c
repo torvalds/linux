@@ -536,7 +536,7 @@ mt76x2_get_power_info_5g(struct mt76x2_dev *dev, struct mt76x2_tx_power_info *t,
 
 	if (channel >= 192)
 		delta_idx = 4;
-	else if (channel >= 484)
+	else if (channel >= 184)
 		delta_idx = 3;
 	else if (channel < 44)
 		delta_idx = 3;
