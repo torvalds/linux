@@ -41,9 +41,11 @@ void wil_set_capabilities(struct wil6210_priv *wil)
 	u32 jtag_id = wil_r(wil, RGF_USER_JTAG_DEV_ID);
 	u8 chip_revision = (wil_r(wil, RGF_USER_REVISION_ID) &
 			    RGF_USER_REVISION_ID_MASK);
+	int platform_capa;
 
 	bitmap_zero(wil->hw_capabilities, hw_capability_last);
 	bitmap_zero(wil->fw_capabilities, WMI_FW_CAPABILITY_MAX);
+	bitmap_zero(wil->platform_capa, WIL_PLATFORM_CAPA_MAX);
 	wil->wil_fw_name = ftm_mode ? WIL_FW_NAME_FTM_DEFAULT :
 			   WIL_FW_NAME_DEFAULT;
 	wil->chip_revision = chip_revision;
@@ -78,6 +80,14 @@ void wil_set_capabilities(struct wil6210_priv *wil)
 	}
 
 	wil_info(wil, "Board hardware is %s\n", wil->hw_name);
+
+	/* Get platform capabilities */
+	if (wil->platform_ops.get_capa) {
+		platform_capa =
+			wil->platform_ops.get_capa(wil->platform_handle);
+		memcpy(wil->platform_capa, &platform_capa,
+		       min(sizeof(wil->platform_capa), sizeof(platform_capa)));
+	}
 
 	/* extract FW capabilities from file without loading the FW */
 	wil_request_firmware(wil, wil->wil_fw_name, false);

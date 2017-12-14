@@ -161,6 +161,10 @@ struct RGF_ICR {
 #define RGF_USER_USAGE_6		(0x880018)
 	#define BIT_USER_OOB_MODE		BIT(31)
 	#define BIT_USER_OOB_R2_MODE		BIT(30)
+#define RGF_USER_USAGE_8		(0x880020)
+	#define BIT_USER_PREVENT_DEEP_SLEEP	BIT(0)
+	#define BIT_USER_SUPPORT_T_POWER_ON_0	BIT(1)
+	#define BIT_USER_EXT_CLK		BIT(2)
 #define RGF_USER_HW_MACHINE_STATE	(0x8801dc)
 	#define HW_MACHINE_BOOT_DONE	(0x3fffffd)
 #define RGF_USER_USER_CPU_0		(0x8801e0)
@@ -643,6 +647,7 @@ struct wil6210_priv {
 	const char *wil_fw_name;
 	DECLARE_BITMAP(hw_capabilities, hw_capability_last);
 	DECLARE_BITMAP(fw_capabilities, WMI_FW_CAPABILITY_MAX);
+	DECLARE_BITMAP(platform_capa, WIL_PLATFORM_CAPA_MAX);
 	u8 n_mids; /* number of additional MIDs as reported by FW */
 	u32 recovery_count; /* num of FW recovery attempts in a short time */
 	u32 recovery_state; /* FW recovery state machine */
