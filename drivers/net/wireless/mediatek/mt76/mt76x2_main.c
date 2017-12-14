@@ -152,6 +152,15 @@ mt76x2_config(struct ieee80211_hw *hw, u32 changed)
 
 	mutex_lock(&dev->mutex);
 
+	if (changed & IEEE80211_CONF_CHANGE_MONITOR) {
+		if (!(hw->conf.flags & IEEE80211_CONF_MONITOR))
+			dev->rxfilter |= MT_RX_FILTR_CFG_PROMISC;
+		else
+			dev->rxfilter &= ~MT_RX_FILTR_CFG_PROMISC;
+
+		mt76_wr(dev, MT_RX_FILTR_CFG, dev->rxfilter);
+	}
+
 	if (changed & IEEE80211_CONF_CHANGE_POWER) {
 		dev->txpower_conf = hw->conf.power_level * 2;
 
