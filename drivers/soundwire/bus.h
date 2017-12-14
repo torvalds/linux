@@ -52,4 +52,18 @@ int sdw_transfer_defer(struct sdw_bus *bus, struct sdw_msg *msg,
 int sdw_fill_msg(struct sdw_msg *msg, struct sdw_slave *slave,
 		u32 addr, size_t count, u16 dev_num, u8 flags, u8 *buf);
 
+/* Read-Modify-Write Slave register */
+static inline int
+sdw_update(struct sdw_slave *slave, u32 addr, u8 mask, u8 val)
+{
+	int tmp;
+
+	tmp = sdw_read(slave, addr);
+	if (tmp < 0)
+		return tmp;
+
+	tmp = (tmp & ~mask) | val;
+	return sdw_write(slave, addr, tmp);
+}
+
 #endif /* __SDW_BUS_H */

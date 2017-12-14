@@ -374,6 +374,93 @@ int sdw_write(struct sdw_slave *slave, u32 addr, u8 value)
 }
 EXPORT_SYMBOL(sdw_write);
 
+/*
+ * SDW alert handling
+ */
+
+/* called with bus_lock held */
+static struct sdw_slave *sdw_get_slave(struct sdw_bus *bus, int i)
+{
+	struct sdw_slave *slave = NULL;
+
+	list_for_each_entry(slave, &bus->slaves, node) {
+		if (slave->dev_num == i)
+			return slave;
+	}
+
+	return NULL;
+}
+
+static int sdw_compare_devid(struct sdw_slave *slave, struct sdw_slave_id id)
+{
+
+	if ((slave->id.unique_id != id.unique_id) ||
+	    (slave->id.mfg_id != id.mfg_id) ||
+	    (slave->id.part_id != id.part_id) ||
+	    (slave->id.class_id != id.class_id))
+		return -ENODEV;
+
+	return 0;
+}
+
+/* called with bus_lock held */
+static int sdw_get_device_num(struct sdw_slave *slave)
+{
+	int bit;
+
+	bit = find_first_zero_bit(slave->bus->assigned, SDW_MAX_DEVICES);
+	if (bit == SDW_MAX_DEVICES) {
+		bit = -ENODEV;
+		goto err;
+	}
+
+	/*
+	 * Do not update dev_num in Slave data structure here,
+	 * Update once program dev_num is successful
+	 */
+	set_bit(bit, slave->bus->assigned);
+
+err:
+	return bit;
+}
+
+static int sdw_assign_device_num(struct sdw_slave *slave)
+{
+	int ret, dev_num;
+
+	/* check first if device number is assigned, if so reuse that */
+	if (!slave->dev_num) {
+		mutex_lock(&slave->bus->bus_lock);
+		dev_num = sdw_get_device_num(slave);
+		mutex_unlock(&slave->bus->bus_lock);
+		if (dev_num < 0) {
+			dev_err(slave->bus->dev, "Get dev_num failed: %d",
+								dev_num);
+			return dev_num;
+		}
+	} else {
+		dev_info(slave->bus->dev,
+				"Slave already registered dev_num:%d",
+				slave->dev_num);
+
+		/* Clear the slave->dev_num to transfer message on device 0 */
+		dev_num = slave->dev_num;
+		slave->dev_num = 0;
+
+	}
+
+	ret = sdw_write(slave, SDW_SCP_DEVNUMBER, dev_num);
+	if (ret < 0) {
+		dev_err(&slave->dev, "Program device_num failed: %d", ret);
+		return ret;
+	}
+
+	/* After xfer of msg, restore dev_num */
+	slave->dev_num = dev_num;
+
+	return 0;
+}
+
 void sdw_extract_slave_id(struct sdw_bus *bus,
 			u64 addr, struct sdw_slave_id *id)
 {
@@ -401,4 +488,131 @@ void sdw_extract_slave_id(struct sdw_bus *bus,
 				id->class_id, id->part_id, id->mfg_id,
 				id->unique_id, id->sdw_version);
 
+}
+
+static int sdw_program_device_num(struct sdw_bus *bus)
+{
+	u8 buf[SDW_NUM_DEV_ID_REGISTERS] = {0};
+	struct sdw_slave *slave, *_s;
+	struct sdw_slave_id id;
+	struct sdw_msg msg;
+	bool found = false;
+	int count = 0, ret;
+	u64 addr;
+
+	/* No Slave, so use raw xfer api */
+	ret = sdw_fill_msg(&msg, NULL, SDW_SCP_DEVID_0,
+			SDW_NUM_DEV_ID_REGISTERS, 0, SDW_MSG_FLAG_READ, buf);
+	if (ret < 0)
+		return ret;
+
+	do {
+		ret = sdw_transfer(bus, &msg);
+		if (ret == -ENODATA) { /* end of device id reads */
+			ret = 0;
+			break;
+		}
+		if (ret < 0) {
+			dev_err(bus->dev, "DEVID read fail:%d\n", ret);
+			break;
+		}
+
+		/*
+		 * Construct the addr and extract. Cast the higher shift
+		 * bits to avoid truncation due to size limit.
+		 */
+		addr = buf[5] | (buf[4] << 8) | (buf[3] << 16) |
+			(buf[2] << 24) | ((unsigned long long)buf[1] << 32) |
+			((unsigned long long)buf[0] << 40);
+
+		sdw_extract_slave_id(bus, addr, &id);
+
+		/* Now compare with entries */
+		list_for_each_entry_safe(slave, _s, &bus->slaves, node) {
+			if (sdw_compare_devid(slave, id) == 0) {
+				found = true;
+
+				/*
+				 * Assign a new dev_num to this Slave and
+				 * not mark it present. It will be marked
+				 * present after it reports ATTACHED on new
+				 * dev_num
+				 */
+				ret = sdw_assign_device_num(slave);
+				if (ret) {
+					dev_err(slave->bus->dev,
+						"Assign dev_num failed:%d",
+						ret);
+					return ret;
+				}
+
+				break;
+			}
+		}
+
+		if (found == false) {
+			/* TODO: Park this device in Group 13 */
+			dev_err(bus->dev, "Slave Entry not found");
+		}
+
+		count++;
+
+		/*
+		 * Check till error out or retry (count) exhausts.
+		 * Device can drop off and rejoin during enumeration
+		 * so count till twice the bound.
+		 */
+
+	} while (ret == 0 && count < (SDW_MAX_DEVICES * 2));
+
+	return ret;
+}
+
+static void sdw_modify_slave_status(struct sdw_slave *slave,
+				enum sdw_slave_status status)
+{
+	mutex_lock(&slave->bus->bus_lock);
+	slave->status = status;
+	mutex_unlock(&slave->bus->bus_lock);
+}
+
+static int sdw_initialize_slave(struct sdw_slave *slave)
+{
+	struct sdw_slave_prop *prop = &slave->prop;
+	int ret;
+	u8 val;
+
+	/*
+	 * Set bus clash, parity and SCP implementation
+	 * defined interrupt mask
+	 * TODO: Read implementation defined interrupt mask
+	 * from Slave property
+	 */
+	val = SDW_SCP_INT1_IMPL_DEF | SDW_SCP_INT1_BUS_CLASH |
+					SDW_SCP_INT1_PARITY;
+
+	/* Enable SCP interrupts */
+	ret = sdw_update(slave, SDW_SCP_INTMASK1, val, val);
+	if (ret < 0) {
+		dev_err(slave->bus->dev,
+				"SDW_SCP_INTMASK1 write failed:%d", ret);
+		return ret;
+	}
+
+	/* No need to continue if DP0 is not present */
+	if (!slave->prop.dp0_prop)
+		return 0;
+
+	/* Enable DP0 interrupts */
+	val = prop->dp0_prop->device_interrupts;
+	val |= SDW_DP0_INT_PORT_READY | SDW_DP0_INT_BRA_FAILURE;
+
+	ret = sdw_update(slave, SDW_DP0_INTMASK, val, val);
+	if (ret < 0) {
+		dev_err(slave->bus->dev,
+				"SDW_DP0_INTMASK read failed:%d", ret);
+		return val;
+	}
+
+	return 0;
 }

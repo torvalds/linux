@@ -22,6 +22,8 @@ struct sdw_slave;
 /* SDW Master Device Number, not supported yet */
 #define SDW_MASTER_DEV_NUM		14
 
+#define SDW_NUM_DEV_ID_REGISTERS	6
+
 #define SDW_MAX_DEVICES			11
 
 /**
