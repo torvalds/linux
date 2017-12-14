@@ -870,7 +870,7 @@ xfs_eofblocks_worker(
  * based on the 'speculative_cow_prealloc_lifetime' tunable (5m by default).
  * (We'll just piggyback on the post-EOF prealloc space workqueue.)
  */
-STATIC void
+void
 xfs_queue_cowblocks(
 	struct xfs_mount *mp)
 {
