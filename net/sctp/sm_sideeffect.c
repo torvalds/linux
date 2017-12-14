@@ -1007,18 +1007,6 @@ static void sctp_cmd_process_operr(struct sctp_cmd_seq *cmds,
 	}
 }
 
-/* Process variable FWDTSN chunk information. */
-static void sctp_cmd_process_fwdtsn(struct sctp_ulpq *ulpq,
-				    struct sctp_chunk *chunk)
-{
-	struct sctp_fwdtsn_skip *skip;
-
-	/* Walk through all the skipped SSNs */
-	sctp_walk_fwdtsn(skip, chunk) {
-		sctp_ulpq_skip(ulpq, ntohs(skip->stream), ntohs(skip->ssn));
-	}
-}
-
 /* Helper function to remove the association non-primary peer
  * transports.
  */
@@ -1372,7 +1360,8 @@ static int sctp_cmd_interpreter(enum sctp_event event_type,
 			break;
 
 		case SCTP_CMD_PROCESS_FWDTSN:
-			sctp_cmd_process_fwdtsn(&asoc->ulpq, cmd->obj.chunk);
+			asoc->stream.si->handle_ftsn(&asoc->ulpq,
+						     cmd->obj.chunk);
 			break;
 
 		case SCTP_CMD_GEN_SACK:

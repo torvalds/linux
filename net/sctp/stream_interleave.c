@@ -1239,6 +1239,53 @@ static void sctp_report_iftsn(struct sctp_ulpq *ulpq, __u32 ftsn)
 		sctp_intl_abort_pd(ulpq, GFP_ATOMIC);
 }
 
+static void sctp_handle_fwdtsn(struct sctp_ulpq *ulpq, struct sctp_chunk *chunk)
+{
+	struct sctp_fwdtsn_skip *skip;
+
+	/* Walk through all the skipped SSNs */
+	sctp_walk_fwdtsn(skip, chunk)
+		sctp_ulpq_skip(ulpq, ntohs(skip->stream), ntohs(skip->ssn));
+}
+
+static void sctp_intl_skip(struct sctp_ulpq *ulpq, __u16 sid, __u32 mid,
+			   __u8 flags)
+{
+	struct sctp_stream_in *sin = sctp_stream_in(ulpq->asoc, sid);
+	struct sctp_stream *stream  = &ulpq->asoc->stream;
+
+	if (flags & SCTP_FTSN_U_BIT) {
+		if (sin->pd_mode_uo && MID_lt(sin->mid_uo, mid)) {
+			sin->pd_mode_uo = 0;
+			sctp_intl_stream_abort_pd(ulpq, sid, mid, 0x1,
+						  GFP_ATOMIC);
+		}
+		return;
+	}
+
+	if (MID_lt(mid, sctp_mid_peek(stream, in, sid)))
+		return;
+
+	if (sin->pd_mode) {
+		sin->pd_mode = 0;
+		sctp_intl_stream_abort_pd(ulpq, sid, mid, 0x0, GFP_ATOMIC);
+	}
+
+	sctp_mid_skip(stream, in, sid, mid);
+
+	sctp_intl_reap_ordered(ulpq, sid);
+}
+
+static void sctp_handle_iftsn(struct sctp_ulpq *ulpq, struct sctp_chunk *chunk)
+{
+	struct sctp_ifwdtsn_skip *skip;
+
+	/* Walk through all the skipped MIDs and abort stream pd if possible */
+	sctp_walk_ifwdtsn(skip, chunk)
+		sctp_intl_skip(ulpq, ntohs(skip->stream),
+			       ntohl(skip->mid), skip->flags);
+}
+
 static struct sctp_stream_interleave sctp_stream_interleave_0 = {
 	.data_chunk_len		= sizeof(struct sctp_data_chunk),
 	.ftsn_chunk_len		= sizeof(struct sctp_fwdtsn_chunk),
@@ -1255,6 +1302,7 @@ static struct sctp_stream_interleave sctp_stream_interleave_0 = {
 	.generate_ftsn		= sctp_generate_fwdtsn,
 	.validate_ftsn		= sctp_validate_fwdtsn,
 	.report_ftsn		= sctp_report_fwdtsn,
+	.handle_ftsn		= sctp_handle_fwdtsn,
 };
 
 static struct sctp_stream_interleave sctp_stream_interleave_1 = {
@@ -1273,6 +1321,7 @@ static struct sctp_stream_interleave sctp_stream_interleave_1 = {
 	.generate_ftsn		= sctp_generate_iftsn,
 	.validate_ftsn		= sctp_validate_iftsn,
 	.report_ftsn		= sctp_report_iftsn,
+	.handle_ftsn		= sctp_handle_iftsn,
 };
 
 void sctp_stream_interleave_init(struct sctp_stream *stream)
