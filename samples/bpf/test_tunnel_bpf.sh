@@ -59,8 +59,17 @@ function add_ip6gretap_tunnel {
 
 function add_erspan_tunnel {
 	# in namespace
-	ip netns exec at_ns0 \
-		ip link add dev $DEV_NS type $TYPE seq key 2 local 172.16.1.100 remote 172.16.1.200 erspan 123
+	if [ "$1" == "v1" ]; then
+		ip netns exec at_ns0 \
+		ip link add dev $DEV_NS type $TYPE seq key 2 \
+		local 172.16.1.100 remote 172.16.1.200 \
+		erspan_ver 1 erspan 123
+	else
+		ip netns exec at_ns0 \
+		ip link add dev $DEV_NS type $TYPE seq key 2 \
+		local 172.16.1.100 remote 172.16.1.200 \
+		erspan_ver 2 erspan_dir 1 erspan_hwid 3
+	fi
 	ip netns exec at_ns0 ip link set dev $DEV_NS up
 	ip netns exec at_ns0 ip addr add dev $DEV_NS 10.1.1.100/24
 
@@ -79,10 +88,17 @@ function add_ip6erspan_tunnel {
 	ip link set dev veth1 up
 
 	# in namespace
-	ip netns exec at_ns0 \
-		ip link add dev $DEV_NS type $TYPE seq key 2 erspan 123 \
-		local ::11 remote ::22
-
+	if [ "$1" == "v1" ]; then
+		ip netns exec at_ns0 \
+		ip link add dev $DEV_NS type $TYPE seq key 2 \
+		local ::11 remote ::22 \
+		erspan_ver 1 erspan 123
+	else
+		ip netns exec at_ns0 \
+		ip link add dev $DEV_NS type $TYPE seq key 2 \
+		local ::11 remote ::22 \
+		erspan_ver 2 erspan_dir 1 erspan_hwid 7
+	fi
 	ip netns exec at_ns0 ip addr add dev $DEV_NS 10.1.1.100/24
 	ip netns exec at_ns0 ip link set dev $DEV_NS up
 
@@ -199,7 +215,7 @@ function test_erspan {
 	DEV_NS=erspan00
 	DEV=erspan11
 	config_device
-	add_erspan_tunnel
+	add_erspan_tunnel $1
 	attach_bpf $DEV erspan_set_tunnel erspan_get_tunnel
 	ping -c 1 10.1.1.100
 	ip netns exec at_ns0 ping -c 1 10.1.1.200
@@ -211,7 +227,7 @@ function test_ip6erspan {
 	DEV_NS=ip6erspan00
 	DEV=ip6erspan11
 	config_device
-	add_ip6erspan_tunnel
+	add_ip6erspan_tunnel $1
 	attach_bpf $DEV ip4ip6erspan_set_tunnel ip4ip6erspan_get_tunnel
 	ping6 -c 3 ::11
 	ip netns exec at_ns0 ping -c 1 10.1.1.200
@@ -288,9 +304,11 @@ test_ip6gre
 echo "Testing IP6GRETAP tunnel..."
 test_ip6gretap
 echo "Testing ERSPAN tunnel..."
-test_erspan
+test_erspan v1
+test_erspan v2
 echo "Testing IP6ERSPAN tunnel..."
-test_ip6erspan
+test_ip6erspan v1
+test_ip6erspan v2
 echo "Testing VXLAN tunnel..."
 test_vxlan
 echo "Testing GENEVE tunnel..."

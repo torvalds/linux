@@ -35,12 +35,22 @@ struct geneve_opt {
 	u8	opt_data[8]; /* hard-coded to 8 byte */
 };
 
+struct erspan_md2 {
+	__be32 timestamp;
+	__be16 sgt;
+	__be16 flags;
+};
+
 struct vxlan_metadata {
 	u32     gbp;
 };
 
 struct erspan_metadata {
-	__be32 index;
+	union {
+		__be32 index;
+		struct erspan_md2 md2;
+	} u;
+	int version;
 };
 
 SEC("gre_set_tunnel")
@@ -143,7 +153,18 @@ int _erspan_set_tunnel(struct __sk_buff *skb)
 		return TC_ACT_SHOT;
 	}
 
-	md.index = htonl(123);
+	__builtin_memset(&md, 0, sizeof(md));
+#ifdef ERSPAN_V1
+	md.version = 1;
+	md.u.index = htonl(123);
+#else
+	u8 direction = 1;
+	u16 hwid = 7;
+
+	md.version = 2;
+	md.u.md2.flags = htons((direction << 3) | (hwid << 4));
+#endif
+
 	ret = bpf_skb_set_tunnel_opt(skb, &md, sizeof(md));
 	if (ret < 0) {
 		ERROR(ret);
@@ -156,7 +177,7 @@ int _erspan_set_tunnel(struct __sk_buff *skb)
 SEC("erspan_get_tunnel")
 int _erspan_get_tunnel(struct __sk_buff *skb)
 {
-	char fmt[] = "key %d remote ip 0x%x erspan index 0x%x\n";
+	char fmt[] = "key %d remote ip 0x%x erspan version %d\n";
 	struct bpf_tunnel_key key;
 	struct erspan_metadata md;
 	u32 index;
@@ -174,9 +195,22 @@ int _erspan_get_tunnel(struct __sk_buff *skb)
 		return TC_ACT_SHOT;
 	}
 
-	index = bpf_ntohl(md.index);
 	bpf_trace_printk(fmt, sizeof(fmt),
-			key.tunnel_id, key.remote_ipv4, index);
+			key.tunnel_id, key.remote_ipv4, md.version);
+
+#ifdef ERSPAN_V1
+	char fmt2[] = "\tindex %x\n";
+
+	index = bpf_ntohl(md.u.index);
+	bpf_trace_printk(fmt2, sizeof(fmt2), index);
+#else
+	char fmt2[] = "\tdirection %d hwid %x timestamp %u\n";
+
+	bpf_trace_printk(fmt2, sizeof(fmt2),
+		(ntohs(md.u.md2.flags) >> 3) & 0x1,
+		(ntohs(md.u.md2.flags) >> 4) & 0x3f,
+		bpf_ntohl(md.u.md2.timestamp));
+#endif
 
 	return TC_ACT_OK;
 }
@@ -201,7 +235,19 @@ int _ip4ip6erspan_set_tunnel(struct __sk_buff *skb)
 		return TC_ACT_SHOT;
 	}
 
-	md.index = htonl(123);
+	__builtin_memset(&md, 0, sizeof(md));
+
+#ifdef ERSPAN_V1
+	md.u.index = htonl(123);
+	md.version = 1;
+#else
+	u8 direction = 0;
+	u16 hwid = 17;
+
+	md.version = 2;
+	md.u.md2.flags = htons((direction << 3) | (hwid << 4));
+#endif
+
 	ret = bpf_skb_set_tunnel_opt(skb, &md, sizeof(md));
 	if (ret < 0) {
 		ERROR(ret);
@@ -214,7 +260,7 @@ int _ip4ip6erspan_set_tunnel(struct __sk_buff *skb)
 SEC("ip4ip6erspan_get_tunnel")
 int _ip4ip6erspan_get_tunnel(struct __sk_buff *skb)
 {
-	char fmt[] = "key %d remote ip6 ::%x erspan index 0x%x\n";
+	char fmt[] = "ip6erspan get key %d remote ip6 ::%x erspan version %d\n";
 	struct bpf_tunnel_key key;
 	struct erspan_metadata md;
 	u32 index;
@@ -232,9 +278,22 @@ int _ip4ip6erspan_get_tunnel(struct __sk_buff *skb)
 		return TC_ACT_SHOT;
 	}
 
-	index = bpf_ntohl(md.index);
 	bpf_trace_printk(fmt, sizeof(fmt),
-			key.tunnel_id, key.remote_ipv6[0], index);
+			key.tunnel_id, key.remote_ipv4, md.version);
+
+#ifdef ERSPAN_V1
+	char fmt2[] = "\tindex %x\n";
+
+	index = bpf_ntohl(md.u.index);
+	bpf_trace_printk(fmt2, sizeof(fmt2), index);
+#else
+	char fmt2[] = "\tdirection %d hwid %x timestamp %u\n";
+
+	bpf_trace_printk(fmt2, sizeof(fmt2),
+		(ntohs(md.u.md2.flags) >> 3) & 0x1,
+		(ntohs(md.u.md2.flags) >> 4) & 0x3f,
+		bpf_ntohl(md.u.md2.timestamp));
+#endif
 
 	return TC_ACT_OK;
 }
