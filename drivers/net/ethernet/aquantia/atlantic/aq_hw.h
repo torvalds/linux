@@ -46,6 +46,28 @@ struct aq_hw_link_status_s {
 	unsigned int mbps;
 };
 
+struct aq_stats_s {
+	u64 uprc;
+	u64 mprc;
+	u64 bprc;
+	u64 erpt;
+	u64 uptc;
+	u64 mptc;
+	u64 bptc;
+	u64 erpr;
+	u64 mbtc;
+	u64 bbtc;
+	u64 mbrc;
+	u64 bbrc;
+	u64 ubrc;
+	u64 ubtc;
+	u64 dpc;
+	u64 dma_pkt_rc;
+	u64 dma_pkt_tc;
+	u64 dma_oct_rc;
+	u64 dma_oct_tc;
+};
+
 #define AQ_HW_IRQ_INVALID 0U
 #define AQ_HW_IRQ_LEGACY  1U
 #define AQ_HW_IRQ_MSI     2U
@@ -166,8 +188,7 @@ struct aq_hw_ops {
 
 	int (*hw_update_stats)(struct aq_hw_s *self);
 
-	int (*hw_get_hw_stats)(struct aq_hw_s *self, u64 *data,
-			       unsigned int *p_count);
+	struct aq_stats_s *(*hw_get_hw_stats)(struct aq_hw_s *self);
 
 	int (*hw_get_fw_version)(struct aq_hw_s *self, u32 *fw_version);
 

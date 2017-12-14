@@ -750,16 +750,40 @@ int aq_nic_get_regs_count(struct aq_nic_s *self)
 
 void aq_nic_get_stats(struct aq_nic_s *self, u64 *data)
 {
-	struct aq_vec_s *aq_vec = NULL;
 	unsigned int i = 0U;
 	unsigned int count = 0U;
-	int err = 0;
+	struct aq_vec_s *aq_vec = NULL;
+	struct aq_stats_s *stats = self->aq_hw_ops.hw_get_hw_stats(self->aq_hw);
 
-	err = self->aq_hw_ops.hw_get_hw_stats(self->aq_hw, data, &count);
-	if (err < 0)
+	if (!stats)
 		goto err_exit;
 
-	data += count;
+	data[i] = stats->uprc + stats->mprc + stats->bprc;
+	data[++i] = stats->uprc;
+	data[++i] = stats->mprc;
+	data[++i] = stats->bprc;
+	data[++i] = stats->erpt;
+	data[++i] = stats->uptc + stats->mptc + stats->bptc;
+	data[++i] = stats->uptc;
+	data[++i] = stats->mptc;
+	data[++i] = stats->bptc;
+	data[++i] = stats->ubrc;
+	data[++i] = stats->ubtc;
+	data[++i] = stats->mbrc;
+	data[++i] = stats->mbtc;
+	data[++i] = stats->bbrc;
+	data[++i] = stats->bbtc;
+	data[++i] = stats->ubrc + stats->mbrc + stats->bbrc;
+	data[++i] = stats->ubtc + stats->mbtc + stats->bbtc;
+	data[++i] = stats->dma_pkt_rc;
+	data[++i] = stats->dma_pkt_tc;
+	data[++i] = stats->dma_oct_rc;
+	data[++i] = stats->dma_oct_tc;
+	data[++i] = stats->dpc;
+
+	i++;
+
+	data += i;
 	count = 0U;
 
 	for (i = 0U, aq_vec = self->aq_vec[0];
@@ -769,7 +793,6 @@ void aq_nic_get_stats(struct aq_nic_s *self, u64 *data)
 	}
 
 err_exit:;
-	(void)err;
 }
 
 void aq_nic_get_link_ksettings(struct aq_nic_s *self,
