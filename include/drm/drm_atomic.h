@@ -246,6 +246,10 @@ struct __drm_private_objs_state {
  * @num_private_objs: size of the @private_objs array
  * @private_objs: pointer to array of private object pointers
  * @acquire_ctx: acquire context for this atomic modeset state update
+ *
+ * States are added to an atomic update by calling drm_atomic_get_crtc_state(),
+ * drm_atomic_get_plane_state(), drm_atomic_get_connector_state(), or for
+ * private state structures, drm_atomic_get_private_obj_state().
  */
 struct drm_atomic_state {
 	struct kref ref;
