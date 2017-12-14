@@ -785,6 +785,9 @@ mt76x2_init_txpower(struct mt76x2_dev *dev,
 		chan->max_power = mt76x2_get_max_rate_power(&t) +
 				  target_power;
 		chan->max_power /= 2;
+
+		/* convert to combined output power on 2x2 devices */
+		chan->max_power += 3;
 	}
 }
 
