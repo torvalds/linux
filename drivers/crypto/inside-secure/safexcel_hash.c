@@ -417,7 +417,7 @@ static int safexcel_ahash_send_inv(struct crypto_async_request *async,
 	struct safexcel_ahash_ctx *ctx = crypto_ahash_ctx(crypto_ahash_reqtfm(areq));
 	int ret;
 
-	ret = safexcel_invalidate_cache(async, &ctx->base, ctx->priv,
+	ret = safexcel_invalidate_cache(async, ctx->priv,
 					ctx->base.ctxr_dma, ring, request);
 	if (unlikely(ret))
 		return ret;

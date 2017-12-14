@@ -395,7 +395,7 @@ static int safexcel_cipher_send_inv(struct crypto_async_request *async,
 	struct safexcel_crypto_priv *priv = ctx->priv;
 	int ret;
 
-	ret = safexcel_invalidate_cache(async, &ctx->base, priv,
+	ret = safexcel_invalidate_cache(async, priv,
 					ctx->base.ctxr_dma, ring, request);
 	if (unlikely(ret))
 		return ret;

@@ -539,7 +539,6 @@ void safexcel_free_context(struct safexcel_crypto_priv *priv,
 				  struct crypto_async_request *req,
 				  int result_sz);
 int safexcel_invalidate_cache(struct crypto_async_request *async,
-			      struct safexcel_context *ctx,
 			      struct safexcel_crypto_priv *priv,
 			      dma_addr_t ctxr_dma, int ring,
 			      struct safexcel_request *request);
