@@ -1737,7 +1737,7 @@
 	isapnp=		[ISAPNP]
 			Format: <RDP>,<reset>,<pci_scan>,<verbosity>
 
-	isolcpus=	[KNL,SMP] Isolate a given set of CPUs from disturbance.
+	isolcpus=	[KNL,SMP,ISOL] Isolate a given set of CPUs from disturbance.
 			[Deprecated - use cpusets instead]
 			Format: [flag-list,]<cpu-list>
 
@@ -2662,7 +2662,7 @@
 			Valid arguments: on, off
 			Default: on
 
-	nohz_full=	[KNL,BOOT]
+	nohz_full=	[KNL,BOOT,SMP,ISOL]
 			The argument is a cpu list, as described above.
 			In kernels built with CONFIG_NO_HZ_FULL=y, set
 			the specified list of CPUs whose tick will be stopped
