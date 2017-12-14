@@ -27,7 +27,6 @@ struct safexcel_cipher_ctx {
 	struct safexcel_context base;
 	struct safexcel_crypto_priv *priv;
 
-	enum safexcel_cipher_direction direction;
 	u32 mode;
 
 	__le32 key[8];
@@ -35,6 +34,7 @@ struct safexcel_cipher_ctx {
 };
 
 struct safexcel_cipher_req {
+	enum safexcel_cipher_direction direction;
 	bool needs_inv;
 };
 
@@ -97,12 +97,15 @@ static int safexcel_aes_setkey(struct crypto_skcipher *ctfm, const u8 *key,
 }
 
 static int safexcel_context_control(struct safexcel_cipher_ctx *ctx,
+				    struct crypto_async_request *async,
 				    struct safexcel_command_desc *cdesc)
 {
 	struct safexcel_crypto_priv *priv = ctx->priv;
+	struct skcipher_request *req = skcipher_request_cast(async);
+	struct safexcel_cipher_req *sreq = skcipher_request_ctx(req);
 	int ctrl_size;
 
-	if (ctx->direction == SAFEXCEL_ENCRYPT)
+	if (sreq->direction == SAFEXCEL_ENCRYPT)
 		cdesc->control_data.control0 |= CONTEXT_CONTROL_TYPE_CRYPTO_OUT;
 	else
 		cdesc->control_data.control0 |= CONTEXT_CONTROL_TYPE_CRYPTO_IN;
@@ -245,7 +248,7 @@ static int safexcel_aes_send(struct crypto_async_request *async,
 		n_cdesc++;
 
 		if (n_cdesc == 1) {
-			safexcel_context_control(ctx, cdesc);
+			safexcel_context_control(ctx, async, cdesc);
 			safexcel_cipher_token(ctx, async, cdesc, req->cryptlen);
 		}
 
@@ -469,7 +472,7 @@ static int safexcel_aes(struct skcipher_request *req,
 	int ret, ring;
 
 	sreq->needs_inv = false;
-	ctx->direction = dir;
+	sreq->direction = dir;
 	ctx->mode = mode;
 
 	if (ctx->base.ctxr) {
