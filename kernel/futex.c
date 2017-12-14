@@ -1878,6 +1878,9 @@ static int futex_requeue(u32 __user *uaddr1, unsigned int flags,
 	struct futex_q *this, *next;
 	DEFINE_WAKE_Q(wake_q);
 
+	if (nr_wake < 0 || nr_requeue < 0)
+		return -EINVAL;
+
 	/*
 	 * When PI not supported: return -ENOSYS if requeue_pi is true,
 	 * consequently the compiler knows requeue_pi is always false past
