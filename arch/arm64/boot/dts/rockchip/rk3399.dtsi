@@ -397,9 +397,11 @@
 		#size-cells = <2>;
 		ranges;
 		clocks = <&cru SCLK_USB3OTG0_REF>, <&cru SCLK_USB3OTG0_SUSPEND>,
-			 <&cru ACLK_USB3OTG0>, <&cru ACLK_USB3_GRF>;
+			 <&cru ACLK_USB3OTG0>, <&cru ACLK_USB3_RKSOC_AXI_PERF>,
+			 <&cru ACLK_USB3>, <&cru ACLK_USB3_GRF>;
 		clock-names = "ref_clk", "suspend_clk",
-			      "bus_clk", "grf_clk";
+			      "bus_clk", "aclk_usb3_rksoc_axi_perf",
+			      "aclk_usb3", "grf_clk";
 		status = "disabled";
 
 		usbdrd_dwc3_0: dwc3 {
@@ -426,9 +428,11 @@
 		#size-cells = <2>;
 		ranges;
 		clocks = <&cru SCLK_USB3OTG1_REF>, <&cru SCLK_USB3OTG1_SUSPEND>,
-			 <&cru ACLK_USB3OTG1>, <&cru ACLK_USB3_GRF>;
+			 <&cru ACLK_USB3OTG1>, <&cru ACLK_USB3_RKSOC_AXI_PERF>,
+			 <&cru ACLK_USB3>, <&cru ACLK_USB3_GRF>;
 		clock-names = "ref_clk", "suspend_clk",
-			      "bus_clk", "grf_clk";
+			      "bus_clk", "aclk_usb3_rksoc_axi_perf",
+			      "aclk_usb3", "grf_clk";
 		status = "disabled";
 
 		usbdrd_dwc3_1: dwc3 {
