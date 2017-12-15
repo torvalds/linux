@@ -11,6 +11,7 @@
 #include <linux/delay.h>
 #include <linux/fs.h>
 #include <linux/module.h>
+#include <linux/of_graph.h>
 #include <linux/of_platform.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/platform_device.h>
@@ -128,50 +129,6 @@ out:
 }
 
 /*
- * Adds an imx-media link to a subdev pad's link list. This is called
- * during driver load when forming the links between subdevs.
- *
- * @pad: the local pad
- * @remote_node: the device node of the remote subdev
- * @remote_devname: the device name of the remote subdev
- * @local_pad: local pad index
- * @remote_pad: remote pad index
- */
-int imx_media_add_pad_link(struct imx_media_dev *imxmd,
-			   struct imx_media_pad *pad,
-			   struct device_node *remote_node,
-			   const char *remote_devname,
-			   int local_pad, int remote_pad)
-{
-	struct imx_media_link *link;
-	int link_idx, ret = 0;
-
-	mutex_lock(&imxmd->mutex);
-
-	link_idx = pad->num_links;
-	if (link_idx >= IMX_MEDIA_MAX_LINKS) {
-		dev_err(imxmd->md.dev, "%s: too many links!\n", __func__);
-		ret = -ENOSPC;
-		goto out;
-	}
-
-	link = &pad->link[link_idx];
-
-	link->remote_sd_node = remote_node;
-	if (remote_devname)
-		strncpy(link->remote_devname, remote_devname,
-			sizeof(link->remote_devname));
-
-	link->local_pad = local_pad;
-	link->remote_pad = remote_pad;
-
-	pad->num_links++;
-out:
-	mutex_unlock(&imxmd->mutex);
-	return ret;
-}
-
-/*
  * get IPU from this CSI and add it to the list of IPUs
  * the media driver will control.
  */
@@ -240,76 +197,38 @@ out_unlock:
 }
 
 /*
- * Create a single source->sink media link given a subdev and a single
- * link from one of its source pads. Called after all subdevs have
- * registered.
- */
-static int imx_media_create_link(struct imx_media_dev *imxmd,
-				 struct imx_media_subdev *src,
-				 struct imx_media_link *link)
-{
-	struct imx_media_subdev *sink;
-	u16 source_pad, sink_pad;
-	int ret;
-
-	sink = imx_media_find_async_subdev(imxmd, link->remote_sd_node,
-					   link->remote_devname);
-	if (!sink) {
-		v4l2_warn(&imxmd->v4l2_dev, "%s: no sink for %s:%d\n",
-			  __func__, src->sd->name, link->local_pad);
-		return 0;
-	}
-
-	source_pad = link->local_pad;
-	sink_pad = link->remote_pad;
-
-	v4l2_info(&imxmd->v4l2_dev, "%s: %s:%d -> %s:%d\n", __func__,
-		  src->sd->name, source_pad, sink->sd->name, sink_pad);
-
-	ret = media_create_pad_link(&src->sd->entity, source_pad,
-				    &sink->sd->entity, sink_pad, 0);
-	if (ret)
-		v4l2_err(&imxmd->v4l2_dev,
-			 "create_pad_link failed: %d\n", ret);
-
-	return ret;
-}
-
-/*
- * create the media links from all imx-media pads and their links.
+ * create the media links from all pads and their links.
  * Called after all subdevs have registered.
  */
 static int imx_media_create_links(struct imx_media_dev *imxmd)
 {
 	struct imx_media_subdev *imxsd;
-	struct imx_media_link *link;
-	struct imx_media_pad *pad;
-	int num_pads, i, j, k;
-	int ret = 0;
+	struct v4l2_subdev *sd;
+	int i, ret;
 
 	for (i = 0; i < imxmd->num_subdevs; i++) {
 		imxsd = &imxmd->subdev[i];
-		num_pads = imxsd->num_sink_pads + imxsd->num_src_pads;
+		sd = imxsd->sd;
 
-		for (j = 0; j < num_pads; j++) {
-			pad = &imxsd->pad[j];
-
-			/* only create the source->sink links */
-			if (!(pad->pad.flags & MEDIA_PAD_FL_SOURCE))
-				continue;
-
-			for (k = 0; k < pad->num_links; k++) {
-				link = &pad->link[k];
-
-				ret = imx_media_create_link(imxmd, imxsd, link);
-				if (ret)
-					goto out;
-			}
+		if (((sd->grp_id & IMX_MEDIA_GRP_ID_CSI) || imxsd->pdev)) {
+			/* this is an internal subdev or a CSI */
+			ret = imx_media_create_internal_links(imxmd, imxsd);
+			if (ret)
+				return ret;
+			/*
+			 * the CSIs straddle between the external and the IPU
+			 * internal entities, so create the external links
+			 * to the CSI sink pads.
+			 */
+			if (sd->grp_id & IMX_MEDIA_GRP_ID_CSI)
+				imx_media_create_csi_of_links(imxmd, imxsd);
+		} else {
+			/* this is an external fwnode subdev */
+			imx_media_create_of_links(imxmd, imxsd);
 		}
 	}
 
-out:
-	return ret;
+	return 0;
 }
 
 /*
@@ -550,7 +469,6 @@ static int imx_media_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct device_node *node = dev->of_node;
-	struct imx_media_subdev *csi[4] = {0};
 	struct imx_media_dev *imxmd;
 	int ret;
 
@@ -581,14 +499,14 @@ static int imx_media_probe(struct platform_device *pdev)
 
 	dev_set_drvdata(imxmd->v4l2_dev.dev, imxmd);
 
-	ret = imx_media_of_parse(imxmd, &csi, node);
+	ret = imx_media_add_of_subdevs(imxmd, node);
 	if (ret) {
 		v4l2_err(&imxmd->v4l2_dev,
-			 "imx_media_of_parse failed with %d\n", ret);
+			 "add_of_subdevs failed with %d\n", ret);
 		goto unreg_dev;
 	}
 
-	ret = imx_media_add_internal_subdevs(imxmd, csi);
+	ret = imx_media_add_internal_subdevs(imxmd);
 	if (ret) {
 		v4l2_err(&imxmd->v4l2_dev,
 			 "add_internal_subdevs failed with %d\n", ret);

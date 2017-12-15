@@ -35,8 +35,6 @@
 #define IMX_MEDIA_MAX_SUBDEVS       32
 /* max pads per subdev */
 #define IMX_MEDIA_MAX_PADS          16
-/* max links per pad */
-#define IMX_MEDIA_MAX_LINKS          8
 
 /*
  * Pad definitions for the subdevs with multiple source or
@@ -119,19 +117,7 @@ static inline struct imx_media_buffer *to_imx_media_vb(struct vb2_buffer *vb)
 	return container_of(vbuf, struct imx_media_buffer, vbuf);
 }
 
-struct imx_media_link {
-	struct device_node *remote_sd_node;
-	char               remote_devname[32];
-	int                local_pad;
-	int                remote_pad;
-};
-
 struct imx_media_pad {
-	struct media_pad  pad;
-	struct imx_media_link link[IMX_MEDIA_MAX_LINKS];
-	bool devnode; /* does this pad link to a device node */
-	int num_links;
-
 	/*
 	 * list of video devices that can be reached from this pad,
 	 * list is only valid for source pads.
@@ -154,7 +140,7 @@ struct imx_media_subdev {
 	int num_sink_pads;
 	int num_src_pads;
 
-	/* the platform device if this is an internal subdev */
+	/* the platform device if this is an IPU-internal subdev */
 	struct platform_device *pdev;
 	/* the devname is needed for async devname match */
 	char devname[32];
@@ -225,17 +211,13 @@ struct imx_media_subdev *
 imx_media_add_async_subdev(struct imx_media_dev *imxmd,
 			   struct device_node *np,
 			   struct platform_device *pdev);
-int imx_media_add_pad_link(struct imx_media_dev *imxmd,
-			   struct imx_media_pad *pad,
-			   struct device_node *remote_node,
-			   const char *remote_devname,
-			   int local_pad, int remote_pad);
 
 void imx_media_grp_id_to_sd_name(char *sd_name, int sz,
 				 u32 grp_id, int ipu_id);
 
-int imx_media_add_internal_subdevs(struct imx_media_dev *imxmd,
-				   struct imx_media_subdev *csi[4]);
+int imx_media_add_internal_subdevs(struct imx_media_dev *imxmd);
+int imx_media_create_internal_links(struct imx_media_dev *imxmd,
+				    struct imx_media_subdev *imxsd);
 void imx_media_remove_internal_subdevs(struct imx_media_dev *imxmd);
 
 struct imx_media_subdev *
@@ -284,13 +266,12 @@ struct imx_media_fim *imx_media_fim_init(struct v4l2_subdev *sd);
 void imx_media_fim_free(struct imx_media_fim *fim);
 
 /* imx-media-of.c */
-struct imx_media_subdev *
-imx_media_of_find_subdev(struct imx_media_dev *imxmd,
-			 struct device_node *np,
-			 const char *name);
-int imx_media_of_parse(struct imx_media_dev *dev,
-		       struct imx_media_subdev *(*csi)[4],
-		       struct device_node *np);
+int imx_media_add_of_subdevs(struct imx_media_dev *dev,
+			     struct device_node *np);
+int imx_media_create_of_links(struct imx_media_dev *imxmd,
+			      struct imx_media_subdev *imxsd);
+int imx_media_create_csi_of_links(struct imx_media_dev *imxmd,
+				  struct imx_media_subdev *csi);
 
 /* imx-media-capture.c */
 struct imx_media_video_dev *
