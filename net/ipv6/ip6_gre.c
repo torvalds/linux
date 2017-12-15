@@ -501,25 +501,32 @@ static int ip6gre_rcv(struct sk_buff *skb, const struct tnl_ptk_info *tpi)
 static int ip6erspan_rcv(struct sk_buff *skb, int gre_hdr_len,
 			 struct tnl_ptk_info *tpi)
 {
+	struct erspan_base_hdr *ershdr;
+	struct erspan_metadata *pkt_md;
 	const struct ipv6hdr *ipv6h;
-	struct erspanhdr *ershdr;
 	struct ip6_tnl *tunnel;
-	__be32 index;
+	u8 ver;
 
 	ipv6h = ipv6_hdr(skb);
-	ershdr = (struct erspanhdr *)skb->data;
+	ershdr = (struct erspan_base_hdr *)skb->data;
 
 	if (unlikely(!pskb_may_pull(skb, sizeof(*ershdr))))
 		return PACKET_REJECT;
 
+	ver = (ntohs(ershdr->ver_vlan) & VER_MASK) >> VER_OFFSET;
 	tpi->key = cpu_to_be32(ntohs(ershdr->session_id) & ID_MASK);
-	index = ershdr->md.index;
+	pkt_md = (struct erspan_metadata *)(ershdr + 1);
 
 	tunnel = ip6gre_tunnel_lookup(skb->dev,
 				      &ipv6h->saddr, &ipv6h->daddr, tpi->key,
 				      tpi->proto);
 	if (tunnel) {
-		if (__iptunnel_pull_header(skb, sizeof(*ershdr),
+		int len = erspan_hdr_len(ver);
+
+		if (unlikely(!pskb_may_pull(skb, len)))
+			return -ENOMEM;
+
+		if (__iptunnel_pull_header(skb, len,
 					   htons(ETH_P_TEB),
 					   false, false) < 0)
 			return PACKET_REJECT;
@@ -545,14 +552,29 @@ static int ip6erspan_rcv(struct sk_buff *skb, int gre_hdr_len,
 			if (!md)
 				return PACKET_REJECT;
 
-			md->index = index;
+			memcpy(md, pkt_md, sizeof(*md));
+			md->version = ver;
 			info->key.tun_flags |= TUNNEL_ERSPAN_OPT;
 			info->options_len = sizeof(*md);
 
 			ip6_tnl_rcv(tunnel, skb, tpi, tun_dst, log_ecn_error);
 
 		} else {
-			tunnel->parms.index = ntohl(index);
+			tunnel->parms.erspan_ver = ver;
+
+			if (ver == 1) {
+				tunnel->parms.index = ntohl(pkt_md->u.index);
+			} else {
+				u16 md2_flags;
+				u16 dir, hwid;
+
+				md2_flags = ntohs(pkt_md->u.md2.flags);
+				dir = (md2_flags & DIR_MASK) >> DIR_OFFSET;
+				hwid = (md2_flags & HWID_MASK) >> HWID_OFFSET;
+				tunnel->parms.dir = dir;
+				tunnel->parms.hwid = hwid;
+			}
+
 			ip6_tnl_rcv(tunnel, skb, tpi, NULL, log_ecn_error);
 		}
 
@@ -575,7 +597,8 @@ static int gre_rcv(struct sk_buff *skb)
 	if (iptunnel_pull_header(skb, hdr_len, tpi.proto, false))
 		goto drop;
 
-	if (unlikely(tpi.proto == htons(ETH_P_ERSPAN))) {
+	if (unlikely(tpi.proto == htons(ETH_P_ERSPAN) ||
+		     tpi.proto == htons(ETH_P_ERSPAN2))) {
 		if (ip6erspan_rcv(skb, hdr_len, &tpi) == PACKET_RCVD)
 			return 0;
 		goto drop;
@@ -920,9 +943,24 @@ static netdev_tx_t ip6erspan_tunnel_xmit(struct sk_buff *skb,
 		if (!md)
 			goto tx_err;
 
-		erspan_build_header(skb, tunnel_id_to_key32(key->tun_id),
-				    ntohl(md->index), truncate, false);
+		if (md->version == 1) {
+			erspan_build_header(skb,
+					    tunnel_id_to_key32(key->tun_id),
+					    ntohl(md->u.index), truncate,
+					    false);
+		} else if (md->version == 2) {
+			u16 md2_flags;
+			u16 dir, hwid;
 
+			md2_flags = ntohs(md->u.md2.flags);
+			dir = (md2_flags & DIR_MASK) >> DIR_OFFSET;
+			hwid = (md2_flags & HWID_MASK) >> HWID_OFFSET;
+
+			erspan_build_header_v2(skb,
+					       tunnel_id_to_key32(key->tun_id),
+					       dir, hwid, truncate,
+					       false);
+		}
 	} else {
 		switch (skb->protocol) {
 		case htons(ETH_P_IP):
@@ -942,8 +980,15 @@ static netdev_tx_t ip6erspan_tunnel_xmit(struct sk_buff *skb,
 			break;
 		}
 
-		erspan_build_header(skb, t->parms.o_key, t->parms.index,
-				    truncate, false);
+		if (t->parms.erspan_ver == 1)
+			erspan_build_header(skb, t->parms.o_key,
+					    t->parms.index,
+					    truncate, false);
+		else
+			erspan_build_header_v2(skb, t->parms.o_key,
+					       t->parms.dir,
+					       t->parms.hwid,
+					       truncate, false);
 		fl6.daddr = t->parms.raddr;
 	}
 
@@ -1507,7 +1552,7 @@ static int ip6erspan_tap_validate(struct nlattr *tb[], struct nlattr *data[],
 				  struct netlink_ext_ack *extack)
 {
 	__be16 flags = 0;
-	int ret;
+	int ret, ver = 0;
 
 	if (!data)
 		return 0;
@@ -1536,12 +1581,35 @@ static int ip6erspan_tap_validate(struct nlattr *tb[], struct nlattr *data[],
 	    (ntohl(nla_get_be32(data[IFLA_GRE_OKEY])) & ~ID_MASK))
 		return -EINVAL;
 
-	if (data[IFLA_GRE_ERSPAN_INDEX]) {
-		u32 index = nla_get_u32(data[IFLA_GRE_ERSPAN_INDEX]);
-
-		if (index & ~INDEX_MASK)
+	if (data[IFLA_GRE_ERSPAN_VER]) {
+		ver = nla_get_u8(data[IFLA_GRE_ERSPAN_VER]);
+		if (ver != 1 && ver != 2)
 			return -EINVAL;
 	}
+
+	if (ver == 1) {
+		if (data[IFLA_GRE_ERSPAN_INDEX]) {
+			u32 index = nla_get_u32(data[IFLA_GRE_ERSPAN_INDEX]);
+
+			if (index & ~INDEX_MASK)
+				return -EINVAL;
+		}
+	} else if (ver == 2) {
+		if (data[IFLA_GRE_ERSPAN_DIR]) {
+			u16 dir = nla_get_u8(data[IFLA_GRE_ERSPAN_DIR]);
+
+			if (dir & ~(DIR_MASK >> DIR_OFFSET))
+				return -EINVAL;
+		}
+
+		if (data[IFLA_GRE_ERSPAN_HWID]) {
+			u16 hwid = nla_get_u16(data[IFLA_GRE_ERSPAN_HWID]);
+
+			if (hwid & ~(HWID_MASK >> HWID_OFFSET))
+				return -EINVAL;
+		}
+	}
+
 	return 0;
 }
 
@@ -1591,11 +1659,21 @@ static void ip6gre_netlink_parms(struct nlattr *data[],
 	if (data[IFLA_GRE_FWMARK])
 		parms->fwmark = nla_get_u32(data[IFLA_GRE_FWMARK]);
 
-	if (data[IFLA_GRE_ERSPAN_INDEX])
-		parms->index = nla_get_u32(data[IFLA_GRE_ERSPAN_INDEX]);
-
 	if (data[IFLA_GRE_COLLECT_METADATA])
 		parms->collect_md = true;
+
+	if (data[IFLA_GRE_ERSPAN_VER])
+		parms->erspan_ver = nla_get_u8(data[IFLA_GRE_ERSPAN_VER]);
+
+	if (parms->erspan_ver == 1) {
+		if (data[IFLA_GRE_ERSPAN_INDEX])
+			parms->index = nla_get_u32(data[IFLA_GRE_ERSPAN_INDEX]);
+	} else if (parms->erspan_ver == 2) {
+		if (data[IFLA_GRE_ERSPAN_DIR])
+			parms->dir = nla_get_u8(data[IFLA_GRE_ERSPAN_DIR]);
+		if (data[IFLA_GRE_ERSPAN_HWID])
+			parms->hwid = nla_get_u16(data[IFLA_GRE_ERSPAN_HWID]);
+	}
 }
 
 static int ip6gre_tap_init(struct net_device *dev)
@@ -1657,7 +1735,7 @@ static int ip6erspan_tap_init(struct net_device *dev)
 
 	tunnel->tun_hlen = 8;
 	tunnel->hlen = tunnel->tun_hlen + tunnel->encap_hlen +
-		       sizeof(struct erspanhdr);
+		       erspan_hdr_len(tunnel->parms.erspan_ver);
 	t_hlen = tunnel->hlen + sizeof(struct ipv6hdr);
 
 	dev->hard_header_len = LL_MAX_HEADER + t_hlen;
@@ -1925,6 +2003,19 @@ static int ip6gre_fill_info(struct sk_buff *skb, const struct net_device *dev)
 			goto nla_put_failure;
 	}
 
+	if (nla_put_u8(skb, IFLA_GRE_ERSPAN_VER, p->erspan_ver))
+		goto nla_put_failure;
+
+	if (p->erspan_ver == 1) {
+		if (nla_put_u32(skb, IFLA_GRE_ERSPAN_INDEX, p->index))
+			goto nla_put_failure;
+	} else if (p->erspan_ver == 2) {
+		if (nla_put_u8(skb, IFLA_GRE_ERSPAN_DIR, p->dir))
+			goto nla_put_failure;
+		if (nla_put_u16(skb, IFLA_GRE_ERSPAN_HWID, p->hwid))
+			goto nla_put_failure;
+	}
+
 	return 0;
 
 nla_put_failure:
@@ -1950,6 +2041,9 @@ static const struct nla_policy ip6gre_policy[IFLA_GRE_MAX + 1] = {
 	[IFLA_GRE_COLLECT_METADATA] = { .type = NLA_FLAG },
 	[IFLA_GRE_FWMARK]       = { .type = NLA_U32 },
 	[IFLA_GRE_ERSPAN_INDEX] = { .type = NLA_U32 },
+	[IFLA_GRE_ERSPAN_VER]	= { .type = NLA_U8 },
+	[IFLA_GRE_ERSPAN_DIR]	= { .type = NLA_U8 },
+	[IFLA_GRE_ERSPAN_HWID]	= { .type = NLA_U16 },
 };
 
 static void ip6erspan_tap_setup(struct net_device *dev)
@@ -2071,4 +2165,5 @@ MODULE_AUTHOR("D. Kozlov (xeb@mail.ru)");
 MODULE_DESCRIPTION("GRE over IPv6 tunneling device");
 MODULE_ALIAS_RTNL_LINK("ip6gre");
 MODULE_ALIAS_RTNL_LINK("ip6gretap");
+MODULE_ALIAS_RTNL_LINK("ip6erspan");
 MODULE_ALIAS_NETDEV("ip6gre0");
