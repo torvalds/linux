@@ -699,22 +699,12 @@ xprt_rdma_free(struct rpc_task *task)
  *
  * Caller holds the transport's write lock.
  *
- * Return values:
- *        0:	The request has been sent
- * ENOTCONN:	Caller needs to invoke connect logic then call again
- *  ENOBUFS:	Call again later to send the request
- *      EIO:	A permanent error occurred. The request was not sent,
- *		and don't try it again
- *
- * send_request invokes the meat of RPC RDMA. It must do the following:
- *
- *  1.  Marshal the RPC request into an RPC RDMA request, which means
- *	putting a header in front of data, and creating IOVs for RDMA
- *	from those in the request.
- *  2.  In marshaling, detect opportunities for RDMA, and use them.
- *  3.  Post a recv message to set up asynch completion, then send
- *	the request (rpcrdma_ep_post).
- *  4.  No partial sends are possible in the RPC-RDMA protocol (as in UDP).
+ * Returns:
+ *	%0 if the RPC message has been sent
+ *	%-ENOTCONN if the caller should reconnect and call again
+ *	%-ENOBUFS if the caller should call again later
+ *	%-EIO if a permanent error occurred and the request was not
+ *		sent. Do not try to send this message again.
  */
 static int
 xprt_rdma_send_request(struct rpc_task *task)
@@ -724,6 +714,11 @@ xprt_rdma_send_request(struct rpc_task *task)
 	struct rpcrdma_req *req = rpcr_to_rdmar(rqst);
 	struct rpcrdma_xprt *r_xprt = rpcx_to_rdmax(xprt);
 	int rc = 0;
+
+#if defined(CONFIG_SUNRPC_BACKCHANNEL)
+	if (unlikely(!rqst->rq_buffer))
+		return xprt_rdma_bc_send_reply(rqst);
+#endif	/* CONFIG_SUNRPC_BACKCHANNEL */
 
 	if (!xprt_connected(xprt))
 		goto drop_connection;

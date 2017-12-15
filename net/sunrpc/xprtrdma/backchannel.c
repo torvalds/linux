@@ -187,13 +187,7 @@ size_t xprt_rdma_bc_maxpayload(struct rpc_xprt *xprt)
 	return maxmsg - RPCRDMA_HDRLEN_MIN;
 }
 
-/**
- * rpcrdma_bc_marshal_reply - Send backwards direction reply
- * @rqst: buffer containing RPC reply data
- *
- * Returns zero on success.
- */
-int rpcrdma_bc_marshal_reply(struct rpc_rqst *rqst)
+static int rpcrdma_bc_marshal_reply(struct rpc_rqst *rqst)
 {
 	struct rpcrdma_xprt *r_xprt = rpcx_to_rdmax(rqst->rq_xprt);
 	struct rpcrdma_req *req = rpcr_to_rdmar(rqst);
@@ -218,6 +212,43 @@ int rpcrdma_bc_marshal_reply(struct rpc_rqst *rqst)
 				      &rqst->rq_snd_buf, rpcrdma_noch))
 		return -EIO;
 	return 0;
+}
+
+/**
+ * xprt_rdma_bc_send_reply - marshal and send a backchannel reply
+ * @rqst: RPC rqst with a backchannel RPC reply in rq_snd_buf
+ *
+ * Caller holds the transport's write lock.
+ *
+ * Returns:
+ *	%0 if the RPC message has been sent
+ *	%-ENOTCONN if the caller should reconnect and call again
+ *	%-EIO if a permanent error occurred and the request was not
+ *		sent. Do not try to send this message again.
+ */
+int xprt_rdma_bc_send_reply(struct rpc_rqst *rqst)
+{
+	struct rpcrdma_xprt *r_xprt = rpcx_to_rdmax(rqst->rq_xprt);
+	struct rpcrdma_req *req = rpcr_to_rdmar(rqst);
+	int rc;
+
+	if (!xprt_connected(rqst->rq_xprt))
+		goto drop_connection;
+
+	rc = rpcrdma_bc_marshal_reply(rqst);
+	if (rc < 0)
+		goto failed_marshal;
+
+	if (rpcrdma_ep_post(&r_xprt->rx_ia, &r_xprt->rx_ep, req))
+		goto drop_connection;
+	return 0;
+
+failed_marshal:
+	if (rc != -ENOTCONN)
+		return rc;
+drop_connection:
+	xprt_disconnect_done(rqst->rq_xprt);
+	return -ENOTCONN;
 }
 
 /**
@@ -329,9 +360,6 @@ void rpcrdma_bc_receive_call(struct rpcrdma_xprt *r_xprt,
 	dprintk("RPC:       %s: attaching rep %p to req %p\n",
 		__func__, rep, req);
 	req->rl_reply = rep;
-
-	/* Defeat the retransmit detection logic in send_request */
-	req->rl_connect_cookie = 0;
 
 	/* Queue rqst for ULP's callback service */
 	bc_serv = xprt->bc_serv;

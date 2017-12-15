@@ -754,11 +754,6 @@ rpcrdma_marshal_req(struct rpcrdma_xprt *r_xprt, struct rpc_rqst *rqst)
 	__be32 *p;
 	int ret;
 
-#if defined(CONFIG_SUNRPC_BACKCHANNEL)
-	if (test_bit(RPC_BC_PA_IN_USE, &rqst->rq_bc_pa_state))
-		return rpcrdma_bc_marshal_reply(rqst);
-#endif
-
 	rpcrdma_set_xdrlen(&req->rl_hdrbuf, 0);
 	xdr_init_encode(xdr, &req->rl_hdrbuf,
 			req->rl_rdmabuf->rg_base);
