@@ -2055,17 +2055,12 @@ static struct omap_hwmod dra7xx_sata_hwmod = {
  */
 
 /* The IP is not compliant to type1 / type2 scheme */
-static struct omap_hwmod_sysc_fields omap_hwmod_sysc_type_smartreflex = {
-	.sidle_shift	= 24,
-	.enwkup_shift	= 26,
-};
-
 static struct omap_hwmod_class_sysconfig dra7xx_smartreflex_sysc = {
 	.sysc_offs	= 0x0038,
 	.sysc_flags	= (SYSC_HAS_ENAWAKEUP | SYSC_HAS_SIDLEMODE),
 	.idlemodes	= (SIDLE_FORCE | SIDLE_NO | SIDLE_SMART |
 			   SIDLE_SMART_WKUP),
-	.sysc_fields	= &omap_hwmod_sysc_type_smartreflex,
+	.sysc_fields	= &omap36xx_sr_sysc_fields,
 };
 
 static struct omap_hwmod_class dra7xx_smartreflex_hwmod_class = {

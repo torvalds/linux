@@ -40,6 +40,12 @@ struct omap_device;
 extern struct omap_hwmod_sysc_fields omap_hwmod_sysc_type1;
 extern struct omap_hwmod_sysc_fields omap_hwmod_sysc_type2;
 extern struct omap_hwmod_sysc_fields omap_hwmod_sysc_type3;
+extern struct omap_hwmod_sysc_fields omap34xx_sr_sysc_fields;
+extern struct omap_hwmod_sysc_fields omap36xx_sr_sysc_fields;
+extern struct omap_hwmod_sysc_fields omap3_sham_sysc_fields;
+extern struct omap_hwmod_sysc_fields omap3xxx_aes_sysc_fields;
+extern struct omap_hwmod_sysc_fields omap_hwmod_sysc_type_mcasp;
+extern struct omap_hwmod_sysc_fields omap_hwmod_sysc_type_usb_host_fs;
 
 /*
  * OCP SYSCONFIG bit shifts/masks TYPE1. These are for IPs compliant
