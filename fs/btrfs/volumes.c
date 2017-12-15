@@ -1186,7 +1186,7 @@ int btrfs_scan_one_device(const char *path, fmode_t flags, void *holder,
 	struct btrfs_super_block *disk_super;
 	struct block_device *bdev;
 	struct page *page;
-	int ret = -EINVAL;
+	int ret;
 	u64 devid;
 	u64 transid;
 	u64 total_devices;
@@ -1208,8 +1208,10 @@ int btrfs_scan_one_device(const char *path, fmode_t flags, void *holder,
 		goto error;
 	}
 
-	if (btrfs_read_disk_super(bdev, bytenr, &page, &disk_super))
+	if (btrfs_read_disk_super(bdev, bytenr, &page, &disk_super)) {
+		ret = -EINVAL;
 		goto error_bdev_put;
+	}
 
 	devid = btrfs_stack_device_id(&disk_super->dev_item);
 	transid = btrfs_super_generation(disk_super);
@@ -1217,11 +1219,10 @@ int btrfs_scan_one_device(const char *path, fmode_t flags, void *holder,
 
 	ret = device_list_add(path, disk_super, devid, fs_devices_ret);
 	if (ret > 0) {
-		if (disk_super->label[0]) {
+		if (disk_super->label[0])
 			pr_info("BTRFS: device label %s ", disk_super->label);
-		} else {
+		else
 			pr_info("BTRFS: device fsid %pU ", disk_super->fsid);
-		}
 
 		pr_cont("devid %llu transid %llu %s\n", devid, transid, path);
 		ret = 0;
