@@ -5950,7 +5950,7 @@ find_idlest_group_cpu(struct sched_group *group, struct task_struct *p, int this
 			}
 		} else if (shallowest_idle_cpu == -1) {
 			load = weighted_cpuload(cpu_rq(i));
-			if (load < min_load || (load == min_load && i == this_cpu)) {
+			if (load < min_load) {
 				min_load = load;
 				least_loaded_cpu = i;
 			}
