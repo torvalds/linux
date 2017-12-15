@@ -193,6 +193,7 @@ void dpp1_cm_set_gamut_remap(
 	const struct dpp_grph_csc_adjustment *adjust)
 {
 	struct dcn10_dpp *dpp = TO_DCN10_DPP(dpp_base);
+	int i = 0;
 
 	if (adjust->gamut_adjust_type != GRAPHICS_GAMUT_ADJUST_TYPE_SW)
 		/* Bypass if type is bypass or hw */
@@ -201,20 +202,8 @@ void dpp1_cm_set_gamut_remap(
 		struct fixed31_32 arr_matrix[12];
 		uint16_t arr_reg_val[12];
 
-		arr_matrix[0] = adjust->temperature_matrix[0];
-		arr_matrix[1] = adjust->temperature_matrix[1];
-		arr_matrix[2] = adjust->temperature_matrix[2];
-		arr_matrix[3] = dal_fixed31_32_zero;
-
-		arr_matrix[4] = adjust->temperature_matrix[3];
-		arr_matrix[5] = adjust->temperature_matrix[4];
-		arr_matrix[6] = adjust->temperature_matrix[5];
-		arr_matrix[7] = dal_fixed31_32_zero;
-
-		arr_matrix[8] = adjust->temperature_matrix[6];
-		arr_matrix[9] = adjust->temperature_matrix[7];
-		arr_matrix[10] = adjust->temperature_matrix[8];
-		arr_matrix[11] = dal_fixed31_32_zero;
+		for (i = 0; i < 12; i++)
+			arr_matrix[i] = adjust->temperature_matrix[i];
 
 		convert_float_matrix(
 			arr_reg_val, arr_matrix, 12);

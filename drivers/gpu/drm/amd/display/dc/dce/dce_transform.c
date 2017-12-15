@@ -879,6 +879,7 @@ static void dce_transform_set_gamut_remap(
 	const struct xfm_grph_csc_adjustment *adjust)
 {
 	struct dce_transform *xfm_dce = TO_DCE_TRANSFORM(xfm);
+	int i = 0;
 
 	if (adjust->gamut_adjust_type != GRAPHICS_GAMUT_ADJUST_TYPE_SW)
 		/* Bypass if type is bypass or hw */
@@ -887,20 +888,8 @@ static void dce_transform_set_gamut_remap(
 		struct fixed31_32 arr_matrix[GAMUT_MATRIX_SIZE];
 		uint16_t arr_reg_val[GAMUT_MATRIX_SIZE];
 
-		arr_matrix[0] = adjust->temperature_matrix[0];
-		arr_matrix[1] = adjust->temperature_matrix[1];
-		arr_matrix[2] = adjust->temperature_matrix[2];
-		arr_matrix[3] = dal_fixed31_32_zero;
-
-		arr_matrix[4] = adjust->temperature_matrix[3];
-		arr_matrix[5] = adjust->temperature_matrix[4];
-		arr_matrix[6] = adjust->temperature_matrix[5];
-		arr_matrix[7] = dal_fixed31_32_zero;
-
-		arr_matrix[8] = adjust->temperature_matrix[6];
-		arr_matrix[9] = adjust->temperature_matrix[7];
-		arr_matrix[10] = adjust->temperature_matrix[8];
-		arr_matrix[11] = dal_fixed31_32_zero;
+		for (i = 0; i < GAMUT_MATRIX_SIZE; i++)
+			arr_matrix[i] = adjust->temperature_matrix[i];
 
 		convert_float_matrix(
 			arr_reg_val, arr_matrix, GAMUT_MATRIX_SIZE);

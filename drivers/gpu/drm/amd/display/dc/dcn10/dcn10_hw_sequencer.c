@@ -1380,6 +1380,7 @@ static void dcn10_enable_plane(
 
 static void program_gamut_remap(struct pipe_ctx *pipe_ctx)
 {
+	int i = 0;
 	struct dpp_grph_csc_adjustment adjust;
 	memset(&adjust, 0, sizeof(adjust));
 	adjust.gamut_adjust_type = GRAPHICS_GAMUT_ADJUST_TYPE_BYPASS;
@@ -1387,33 +1388,9 @@ static void program_gamut_remap(struct pipe_ctx *pipe_ctx)
 
 	if (pipe_ctx->stream->gamut_remap_matrix.enable_remap == true) {
 		adjust.gamut_adjust_type = GRAPHICS_GAMUT_ADJUST_TYPE_SW;
-		adjust.temperature_matrix[0] =
-				pipe_ctx->stream->
-				gamut_remap_matrix.matrix[0];
-		adjust.temperature_matrix[1] =
-				pipe_ctx->stream->
-				gamut_remap_matrix.matrix[1];
-		adjust.temperature_matrix[2] =
-				pipe_ctx->stream->
-				gamut_remap_matrix.matrix[2];
-		adjust.temperature_matrix[3] =
-				pipe_ctx->stream->
-				gamut_remap_matrix.matrix[4];
-		adjust.temperature_matrix[4] =
-				pipe_ctx->stream->
-				gamut_remap_matrix.matrix[5];
-		adjust.temperature_matrix[5] =
-				pipe_ctx->stream->
-				gamut_remap_matrix.matrix[6];
-		adjust.temperature_matrix[6] =
-				pipe_ctx->stream->
-				gamut_remap_matrix.matrix[8];
-		adjust.temperature_matrix[7] =
-				pipe_ctx->stream->
-				gamut_remap_matrix.matrix[9];
-		adjust.temperature_matrix[8] =
-				pipe_ctx->stream->
-				gamut_remap_matrix.matrix[10];
+		for (i = 0; i < CSC_TEMPERATURE_MATRIX_SIZE; i++)
+			adjust.temperature_matrix[i] =
+				pipe_ctx->stream->gamut_remap_matrix.matrix[i];
 	}
 
 	pipe_ctx->plane_res.dpp->funcs->dpp_set_gamut_remap(pipe_ctx->plane_res.dpp, &adjust);
