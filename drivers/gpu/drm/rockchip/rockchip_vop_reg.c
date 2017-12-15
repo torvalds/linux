@@ -1310,6 +1310,46 @@ static const struct vop_ctrl rk3366_lit_ctrl_data = {
 	.out_mode = VOP_REG(RK3366_LIT_DSP_CTRL2, 0xf, 16),
 	.dsp_background = VOP_REG(RK3366_LIT_DSP_BG, 0x00ffffff, 0),
 	.cfg_done = VOP_REG(RK3366_LIT_REG_CFG_DONE, 0x1, 0),
+
+	.bcsh_en = VOP_REG(RK3366_LIT_BCSH_CTRL, 0x1, 0),
+	.bcsh_r2y_csc_mode = VOP_REG(RK3366_LIT_BCSH_CTRL, 0x1, 1),
+	.bcsh_out_mode = VOP_REG(RK3366_LIT_BCSH_CTRL, 0x3, 2),
+	.bcsh_y2r_csc_mode = VOP_REG(RK3366_LIT_BCSH_CTRL, 0x3, 4),
+	.bcsh_y2r_en = VOP_REG(RK3366_LIT_BCSH_CTRL, 0x1, 6),
+	.bcsh_r2y_en = VOP_REG(RK3366_LIT_BCSH_CTRL, 0x1, 7),
+	.bcsh_color_bar = VOP_REG(RK3366_LIT_BCSH_COL_BAR, 0xffffff, 0),
+	.bcsh_brightness = VOP_REG(RK3366_LIT_BCSH_BCS, 0xff, 0),
+	.bcsh_contrast = VOP_REG(RK3366_LIT_BCSH_BCS, 0x1ff, 8),
+	.bcsh_sat_con = VOP_REG(RK3366_LIT_BCSH_BCS, 0x3ff, 20),
+	.bcsh_sin_hue = VOP_REG(RK3366_LIT_BCSH_H, 0x1ff, 0),
+	.bcsh_cos_hue = VOP_REG(RK3366_LIT_BCSH_H, 0x1ff, 16),
+
+	.afbdc_en = VOP_REG_VER(PX30_AFBCD0_CTRL, 0x1, 0, 2, 6, -1),
+	.afbdc_format = VOP_REG_VER(PX30_AFBCD0_CTRL, 0xf, 4, 2, 6, -1),
+	.afbdc_pic_vir_width = VOP_REG_VER(PX30_AFBCD0_CTRL, 0xffff,
+					   16, 2, 6, -1),
+	.afbdc_hdr_ptr = VOP_REG_VER(PX30_AFBCD0_HDR_PTR, 0xffffffff,
+				     0, 2, 6, -1),
+	.afbdc_pic_size = VOP_REG_VER(PX30_AFBCD0_PIC_SIZE, 0xffffffff,
+				      0, 2, 6, -1),
+	.afbdc_pic_offset = VOP_REG_VER(PX30_AFBCD0_PIC_SIZE, 0xffffffff,
+				      0, 2, 6, -1),
+	.afbdc_axi_ctrl =  VOP_REG_VER(PX30_AFBCD0_AXI_CTRL, 0xffffffff,
+				      0, 2, 6, -1),
+
+	.cabc_config_mode = VOP_REG_VER(PX30_CABC_CTRL0, 0x3, 1, 2, 6, -1),
+	.cabc_calc_pixel_num = VOP_REG_VER(PX30_CABC_CTRL0, 0x7fffff, 4,
+					   2, 6, -1),
+	.cabc_handle_en = VOP_REG_VER(PX30_CABC_CTRL0, 0x1, 3, 2, 6, -1),
+	.cabc_en = VOP_REG_VER(PX30_CABC_CTRL0, 0x1, 0, 2, 6, -1),
+	.cabc_total_num = VOP_REG_VER(PX30_CABC_CTRL1, 0x7fffff, 4, 2, 6, -1),
+	.cabc_lut_en = VOP_REG_VER(PX30_CABC_CTRL1, 0x1, 0, 2, 6, -1),
+	.cabc_stage_up_mode = VOP_REG_VER(PX30_CABC_CTRL2, 0x1, 19, 2, 6, -1),
+	.cabc_stage_up = VOP_REG_VER(PX30_CABC_CTRL2, 0x1ff, 8, 2, 6, -1),
+	.cabc_stage_down = VOP_REG_VER(PX30_CABC_CTRL2, 0xff, 0, 2, 6, -1),
+	.cabc_global_dn = VOP_REG_VER(PX30_CABC_CTRL3, 0xff, 0, 2, 6, -1),
+	.cabc_global_dn_limit_en = VOP_REG_VER(PX30_CABC_CTRL3, 0x1, 8,
+					       2, 6, -1),
 };
 
 static const struct vop_data rk3366_vop_lit = {
@@ -1353,6 +1393,49 @@ static const struct vop_data rk3126_vop = {
 	.win_size = ARRAY_SIZE(rk3126_vop_win_data),
 };
 
+/* PX30 VOPB win2 is same with RK3368,
+ * but RK3368 win2 register offset is 0xb0 and px30 is 0x190,
+ * so we set the PX30 VOPB win2 base = 0x190 - 0xb0 = 0xe0
+ */
+static const struct vop_win_data px30_vop_big_win_data[] = {
+	{ .base = 0x00, .phy = &rk3366_lit_win0_data,
+	  .type = DRM_PLANE_TYPE_PRIMARY },
+	{ .base = 0x00, .phy = &rk3366_lit_win1_data,
+	  .type = DRM_PLANE_TYPE_CURSOR,
+	  .feature = WIN_FEATURE_AFBDC },
+	{ .base = 0xe0, .phy = &rk3368_win23_data,
+	  .type = DRM_PLANE_TYPE_OVERLAY,
+	  .area = rk3368_area_data,
+	  .area_size = ARRAY_SIZE(rk3368_area_data), },
+};
+
+static const struct vop_win_data px30_vop_lit_win_data[] = {
+	{ .phy = NULL },
+	{ .base = 0x00, .phy = &rk3366_lit_win1_data,
+	  .type = DRM_PLANE_TYPE_PRIMARY },
+	{ .phy = NULL },
+};
+
+static const struct vop_data px30_vop_lit = {
+	.version = VOP_VERSION(2, 5),
+	.max_input = {1920, 8192},
+	.max_output = {1920, 1080},
+	.ctrl = &rk3366_lit_ctrl_data,
+	.intr = &rk3366_lit_intr,
+	.win = px30_vop_lit_win_data,
+	.win_size = ARRAY_SIZE(px30_vop_lit_win_data),
+};
+
+static const struct vop_data px30_vop_big = {
+	.version = VOP_VERSION(2, 6),
+	.max_input = {1920, 8192},
+	.max_output = {1920, 1080},
+	.ctrl = &rk3366_lit_ctrl_data,
+	.intr = &rk3366_lit_intr,
+	.win = px30_vop_big_win_data,
+	.win_size = ARRAY_SIZE(px30_vop_big_win_data),
+};
+
 static const struct of_device_id vop_driver_dt_match[] = {
 	{ .compatible = "rockchip,rk3036-vop",
 	  .data = &rk3036_vop },
@@ -1360,6 +1443,10 @@ static const struct of_device_id vop_driver_dt_match[] = {
 	  .data = &rk3066_vop },
 	{ .compatible = "rockchip,rk3126-vop",
 	  .data = &rk3126_vop },
+	{ .compatible = "rockchip,px30-vop-lit",
+	  .data = &px30_vop_lit },
+	{ .compatible = "rockchip,px30-vop-big",
+	  .data = &px30_vop_big },
 	{ .compatible = "rockchip,rk3288-vop",
 	  .data = &rk3288_vop },
 	{ .compatible = "rockchip,rk3368-vop",

@@ -1020,4 +1020,22 @@
 #define RK3126_WIN1_DSP_ST			0x00054
 /* rk3126 register definition end */
 
+/* px30 register definition */
+#define PX30_CABC_CTRL0				0x00200
+#define PX30_CABC_CTRL1				0x00204
+#define PX30_CABC_CTRL2				0x00208
+#define PX30_CABC_CTRL3				0x0020c
+#define PX30_CABC_GAUSS_LINE0_0			0x00210
+#define PX30_CABC_GAUSS_LINE0_1			0x00214
+#define PX30_CABC_GAUSS_LINE1_0			0x00218
+#define PX30_CABC_GAUSS_LINE1_1			0x0021c
+#define PX30_CABC_GAUSS_LINE2_0			0x00220
+#define PX30_CABC_GAUSS_LINE2_1			0x00224
+#define PX30_AFBCD0_CTRL			0x00240
+#define PX30_AFBCD0_HDR_PTR			0x00244
+#define PX30_AFBCD0_PIC_SIZE			0x00248
+#define PX30_AFBCD0_PIC_OFFSET			0x0024c
+#define PX30_AFBCD0_AXI_CTRL			0x00250
+/* px30 register definition end */
+
 #endif /* _ROCKCHIP_VOP_REG_H */

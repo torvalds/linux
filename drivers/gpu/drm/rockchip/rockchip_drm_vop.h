@@ -173,6 +173,9 @@ struct vop_ctrl {
 	struct vop_reg afbdc_pic_size;
 	struct vop_reg afbdc_hdr_ptr;
 	struct vop_reg afbdc_rstn;
+	struct vop_reg afbdc_pic_vir_width;
+	struct vop_reg afbdc_pic_offset;
+	struct vop_reg afbdc_axi_ctrl;
 
 	/* CABC */
 	struct vop_reg cabc_total_num;
