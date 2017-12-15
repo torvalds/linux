@@ -1452,6 +1452,7 @@
 		pinctrl-0 = <&cif_clkout &isp_dvp_d2d9 &isp_dvp_d10d11>;
 		rockchip,grf = <&grf>;
 		power-domains = <&power RK3368_PD_VIO>;
+		iommus = <&vip_mmu>;
 		status = "disabled";
 	};
 
