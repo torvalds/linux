@@ -1074,7 +1074,7 @@ static int vi_common_early_init(void *handle)
 	/* vi use smc load by default */
 	adev->firmware.load_type = amdgpu_ucode_get_load_type(adev, amdgpu_fw_load_type);
 
-	amdgpu_get_pcie_info(adev);
+	amdgpu_device_get_pcie_info(adev);
 
 	return 0;
 }

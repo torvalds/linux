@@ -2749,7 +2749,7 @@ int amdgpu_device_gpu_recover(struct amdgpu_device *adev,
 	return r;
 }
 
-void amdgpu_get_pcie_info(struct amdgpu_device *adev)
+void amdgpu_device_get_pcie_info(struct amdgpu_device *adev)
 {
 	u32 mask;
 	int ret;

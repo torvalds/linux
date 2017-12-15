@@ -1167,7 +1167,7 @@ struct amdgpu_wb {
 int amdgpu_device_wb_get(struct amdgpu_device *adev, u32 *wb);
 void amdgpu_device_wb_free(struct amdgpu_device *adev, u32 wb);
 
-void amdgpu_get_pcie_info(struct amdgpu_device *adev);
+void amdgpu_device_get_pcie_info(struct amdgpu_device *adev);
 
 /*
  * SDMA
