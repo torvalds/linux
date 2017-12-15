@@ -179,8 +179,12 @@ static int amdgpu_gfx_kiq_acquire(struct amdgpu_device *adev,
 
 		amdgpu_gfx_bit_to_queue(adev, queue_bit, &mec, &pipe, &queue);
 
-		/* Using pipes 2/3 from MEC 2 seems cause problems */
-		if (mec == 1 && pipe > 1)
+		/*
+		 * 1. Using pipes 2/3 from MEC 2 seems cause problems.
+		 * 2. It must use queue id 0, because CGPG_IDLE/SAVE/LOAD/RUN
+		 * only can be issued on queue 0.
+		 */
+		if ((mec == 1 && pipe > 1) || queue != 0)
 			continue;
 
 		ring->me = mec + 1;
