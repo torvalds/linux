@@ -543,7 +543,25 @@ void smp_send_debugger_break(void)
 #ifdef CONFIG_KEXEC_CORE
 void crash_send_ipi(void (*crash_ipi_callback)(struct pt_regs *))
 {
+	int cpu;
+
 	smp_send_nmi_ipi(NMI_IPI_ALL_OTHERS, crash_ipi_callback, 1000000);
+	if (kdump_in_progress() && crash_wake_offline) {
+		for_each_present_cpu(cpu) {
+			if (cpu_online(cpu))
+				continue;
+			/*
+			 * crash_ipi_callback will wait for
+			 * all cpus, including offline CPUs.
+			 * We don't care about nmi_ipi_function.
+			 * Offline cpus will jump straight into
+			 * crash_ipi_callback, we can skip the
+			 * entire NMI dance and waiting for
+			 * cpus to clear pending mask, etc.
+			 */
+			do_smp_send_nmi_ipi(cpu);
+		}
+	}
 }
 #endif
 

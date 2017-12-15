@@ -37,6 +37,8 @@
 #include <asm/kvm_ppc.h>
 #include <asm/ppc-opcode.h>
 #include <asm/cpuidle.h>
+#include <asm/kexec.h>
+#include <asm/reg.h>
 
 #include "powernv.h"
 
@@ -209,8 +211,31 @@ static void pnv_smp_cpu_kill_self(void)
 		} else if ((srr1 & wmask) == SRR1_WAKEHDBELL) {
 			unsigned long msg = PPC_DBELL_TYPE(PPC_DBELL_SERVER);
 			asm volatile(PPC_MSGCLR(%0) : : "r" (msg));
+		} else if ((srr1 & wmask) == SRR1_WAKERESET) {
+			irq_set_pending_from_srr1(srr1);
+			/* Does not return */
 		}
+
 		smp_mb();
+
+		/*
+		 * For kdump kernels, we process the ipi and jump to
+		 * crash_ipi_callback
+		 */
+		if (kdump_in_progress()) {
+			/*
+			 * If we got to this point, we've not used
+			 * NMI's, otherwise we would have gone
+			 * via the SRR1_WAKERESET path. We are
+			 * using regular IPI's for waking up offline
+			 * threads.
+			 */
+			struct pt_regs regs;
+
+			ppc_save_regs(&regs);
+			crash_ipi_callback(&regs);
+			/* Does not return */
+		}
 
 		if (cpu_core_split_required())
 			continue;
@@ -371,5 +396,8 @@ void __init pnv_smp_init(void)
 
 #ifdef CONFIG_HOTPLUG_CPU
 	ppc_md.cpu_die	= pnv_smp_cpu_kill_self;
+#ifdef CONFIG_KEXEC_CORE
+	crash_wake_offline = 1;
+#endif
 #endif
 }
