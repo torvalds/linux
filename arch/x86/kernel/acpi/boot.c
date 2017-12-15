@@ -68,8 +68,9 @@ int acpi_ioapic;
 int acpi_strict;
 int acpi_disable_cmcff;
 
+/* ACPI SCI override configuration */
 u8 acpi_sci_flags __initdata;
-int acpi_sci_override_gsi __initdata;
+u32 acpi_sci_override_gsi __initdata = INVALID_ACPI_IRQ;
 int acpi_skip_timer_override __initdata;
 int acpi_use_timer_override __initdata;
 int acpi_fix_pin2_polarity __initdata;
@@ -1209,7 +1210,7 @@ static int __init acpi_parse_madt_ioapic_entries(void)
 	 * If BIOS did not supply an INT_SRC_OVR for the SCI
 	 * pretend we got one so we can set the SCI flags.
 	 */
-	if (!acpi_sci_override_gsi)
+	if (acpi_sci_override_gsi == INVALID_ACPI_IRQ)
 		acpi_sci_ioapic_setup(acpi_gbl_FADT.sci_interrupt, 0, 0,
 				      acpi_gbl_FADT.sci_interrupt);
 
