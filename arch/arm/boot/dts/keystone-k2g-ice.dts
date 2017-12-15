@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Device Tree Source for K2G Industrial Communication Engine EVM
  *
  * Copyright (C) 2017 Texas Instruments Incorporated - http://www.ti.com/
- *
- * SPDX-License-Identifier: GPL-2.0
  */
 /dts-v1/;
 
