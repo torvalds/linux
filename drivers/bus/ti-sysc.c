@@ -50,6 +50,8 @@ static const char * const clock_names[] = { "fck", "ick", };
  * @legacy_mode: configured for legacy mode if set
  * @cap: interconnect target module capabilities
  * @cfg: interconnect target module configuration
+ * @name: name if available
+ * @revision: interconnect target module revision
  */
 struct sysc {
 	struct device *dev;
@@ -61,12 +63,32 @@ struct sysc {
 	const char *legacy_mode;
 	const struct sysc_capabilities *cap;
 	struct sysc_config cfg;
+	const char *name;
+	u32 revision;
 };
+
+static u32 sysc_read(struct sysc *ddata, int offset)
+{
+	if (ddata->cfg.quirks & SYSC_QUIRK_16BIT) {
+		u32 val;
+
+		val = readw_relaxed(ddata->module_va + offset);
+		val |= (readw_relaxed(ddata->module_va + offset + 4) << 16);
+
+		return val;
+	}
+
+	return readl_relaxed(ddata->module_va + offset);
+}
 
 static u32 sysc_read_revision(struct sysc *ddata)
 {
-	return readl_relaxed(ddata->module_va +
-			     ddata->offsets[SYSC_REVISION]);
+	int offset = ddata->offsets[SYSC_REVISION];
+
+	if (offset < 0)
+		return 0;
+
+	return sysc_read(ddata, offset);
 }
 
 static int sysc_get_one_clock(struct sysc *ddata,
@@ -393,22 +415,12 @@ static int sysc_map_and_check_registers(struct sysc *ddata)
  */
 static int sysc_show_rev(char *bufp, struct sysc *ddata)
 {
-	int error, len;
+	int len;
 
 	if (ddata->offsets[SYSC_REVISION] < 0)
 		return sprintf(bufp, ":NA");
 
-	error = pm_runtime_get_sync(ddata->dev);
-	if (error < 0) {
-		pm_runtime_put_noidle(ddata->dev);
-
-		return 0;
-	}
-
-	len = sprintf(bufp, ":%08x", sysc_read_revision(ddata));
-
-	pm_runtime_mark_last_busy(ddata->dev);
-	pm_runtime_put_autosuspend(ddata->dev);
+	len = sprintf(bufp, ":%08x", ddata->revision);
 
 	return len;
 }
@@ -487,6 +499,66 @@ static const struct dev_pm_ops sysc_pm_ops = {
 			   sysc_runtime_resume,
 			   NULL)
 };
+
+/* At this point the module is configured enough to read the revision */
+static int sysc_init_module(struct sysc *ddata)
+{
+	int error;
+
+	error = pm_runtime_get_sync(ddata->dev);
+	if (error < 0) {
+		pm_runtime_put_noidle(ddata->dev);
+
+		return 0;
+	}
+	ddata->revision = sysc_read_revision(ddata);
+	pm_runtime_put_sync(ddata->dev);
+
+	return 0;
+}
+
+/* Device tree configured quirks */
+struct sysc_dts_quirk {
+	const char *name;
+	u32 mask;
+};
+
+static const struct sysc_dts_quirk sysc_dts_quirks[] = {
+	{ .name = "ti,no-idle-on-init",
+	  .mask = SYSC_QUIRK_NO_IDLE_ON_INIT, },
+	{ .name = "ti,no-reset-on-init",
+	  .mask = SYSC_QUIRK_NO_RESET_ON_INIT, },
+};
+
+static int sysc_init_dts_quirks(struct sysc *ddata)
+{
+	struct device_node *np = ddata->dev->of_node;
+	const struct property *prop;
+	int i, len, error;
+	u32 val;
+
+	ddata->legacy_mode = of_get_property(np, "ti,hwmods", NULL);
+
+	for (i = 0; i < ARRAY_SIZE(sysc_dts_quirks); i++) {
+		prop = of_get_property(np, sysc_dts_quirks[i].name, &len);
+		if (!prop)
+			break;
+
+		ddata->cfg.quirks |= sysc_dts_quirks[i].mask;
+	}
+
+	error = of_property_read_u32(np, "ti,sysc-delay-us", &val);
+	if (!error) {
+		if (val > 255) {
+			dev_warn(ddata->dev, "bad ti,sysc-delay-us: %i\n",
+				 val);
+		}
+
+		ddata->cfg.srst_udelay = (u8)val;
+	}
+
+	return 0;
+}
 
 static void sysc_unprepare(struct sysc *ddata)
 {
@@ -722,7 +794,6 @@ static int sysc_init_match(struct sysc *ddata)
 
 static int sysc_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
 	struct sysc *ddata;
 	int error;
 
@@ -731,11 +802,15 @@ static int sysc_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	ddata->dev = &pdev->dev;
-	ddata->legacy_mode = of_get_property(np, "ti,hwmods", NULL);
+	platform_set_drvdata(pdev, ddata);
 
 	error = sysc_init_match(ddata);
 	if (error)
 		return error;
+
+	error = sysc_init_dts_quirks(ddata);
+	if (error)
+		goto unprepare;
 
 	error = sysc_get_clocks(ddata);
 	if (error)
@@ -745,9 +820,12 @@ static int sysc_probe(struct platform_device *pdev)
 	if (error)
 		goto unprepare;
 
-	platform_set_drvdata(pdev, ddata);
-
 	pm_runtime_enable(ddata->dev);
+
+	error = sysc_init_module(ddata);
+	if (error)
+		goto unprepare;
+
 	error = pm_runtime_get_sync(ddata->dev);
 	if (error < 0) {
 		pm_runtime_put_noidle(ddata->dev);
