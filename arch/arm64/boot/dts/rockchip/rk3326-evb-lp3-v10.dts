@@ -1,0 +1,136 @@
+/*
+ * Copyright (c) 2017 Fuzhou Rockchip Electronics Co., Ltd
+ *
+ * SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+ */
+
+/dts-v1/;
+#include "rk3326.dtsi"
+#include "px30-android.dtsi"
+
+&display_subsystem {
+	status = "okay";
+};
+
+&lvds_panel {
+	compatible ="simple-panel";
+	bus-format = <MEDIA_BUS_FMT_RGB666_1X18>;
+	//backlight = <&backlight>;
+	//enable-gpios = <&gpio7 4 GPIO_ACTIVE_HIGH>;
+	//delay,disable = <10>;
+	//power-supply = <&vcc_lcd>;
+	rockchip,data-mapping = "jeida";
+	rockchip,data-width = <24>;
+	rockchip,output = "lvds";
+	status = "okay";
+
+	display-timings {
+		native-mode = <&timing0>;
+		timing0: timing0 {
+			clock-frequency = <71000000>;
+			hactive = <800>;
+			vactive = <1280>;
+			hback-porch = <100>;
+			hfront-porch = <18>;
+			vback-porch = <8>;
+			vfront-porch = <6>;
+			hsync-len = <10>;
+			vsync-len = <2>;
+			hsync-active = <0>;
+			vsync-active = <0>;
+			de-active = <0>;
+			pixelclk-active = <0>;
+		};
+	};
+};
+
+&lvds {
+	pinctrl-names = "lcdc";
+	pinctrl-0 = <&lcdc_lcdc>;
+
+	status = "okay";
+};
+
+&vopb {
+	status = "okay";
+};
+
+&vopb_mmu {
+	status = "okay";
+};
+
+&vopl {
+	status = "okay";
+};
+
+&vopl_mmu {
+	status = "okay";
+};
+
+&pinctrl {
+	lcdc {
+		lcdc_lcdc: lcdc-ctl {
+			rockchip,pins =
+				/* depend on hardware design */
+				/* den */
+				<3 RK_PA3 RK_FUNC_1 &pcfg_pull_none>,
+				/* vsync */
+				<3 RK_PA2 RK_FUNC_1 &pcfg_pull_none>,
+				/* hsync */
+				<3 RK_PA1 RK_FUNC_1 &pcfg_pull_none>,
+				/* dclk */
+				<3 RK_PA0 RK_FUNC_1 &pcfg_pull_none>,
+				/* data3 */
+				<3 RK_PA7 RK_FUNC_1 &pcfg_pull_none>,
+				/* data2 */
+				<3 RK_PA6 RK_FUNC_1 &pcfg_pull_none>,
+				/* data1 */
+				<3 RK_PA5 RK_FUNC_1 &pcfg_pull_none>,
+				/* data0 */
+				<3 RK_PA4 RK_FUNC_1 &pcfg_pull_none>,
+
+				/* data7 */
+				<3 RK_PB3 RK_FUNC_1 &pcfg_pull_none>,
+				/* data6 */
+				<3 RK_PB2 RK_FUNC_1 &pcfg_pull_none>,
+				/* data5 */
+				<3 RK_PB1 RK_FUNC_1 &pcfg_pull_none>,
+				/* data4 */
+				<3 RK_PB0 RK_FUNC_1 &pcfg_pull_none>,
+				/* data11 */
+				<3 RK_PB7 RK_FUNC_1 &pcfg_pull_none>,
+				/* data10 */
+				<3 RK_PB6 RK_FUNC_1 &pcfg_pull_none>,
+				/* data9 */
+				<3 RK_PB5 RK_FUNC_1 &pcfg_pull_none>,
+				/* data8 */
+				<3 RK_PB4 RK_FUNC_1 &pcfg_pull_none>,
+
+				/* data15 */
+				<3 RK_PC3 RK_FUNC_1 &pcfg_pull_none>,
+				/* data14 */
+				<3 RK_PC2 RK_FUNC_1 &pcfg_pull_none>,
+				/* data13 */
+				<3 RK_PC1 RK_FUNC_1 &pcfg_pull_none>,
+				/* data12 */
+				<3 RK_PC0 RK_FUNC_1 &pcfg_pull_none>,
+				/* data19 */
+				<3 RK_PC7 RK_FUNC_1 &pcfg_pull_none>,
+				/* data18 */
+				<3 RK_PC6 RK_FUNC_1 &pcfg_pull_none>,
+				/* data17 */
+				<3 RK_PC5 RK_FUNC_1 &pcfg_pull_none>,
+				/* data16 */
+				<3 RK_PC4 RK_FUNC_1 &pcfg_pull_none>,
+
+				/* data23 */
+				<3 RK_PD3 RK_FUNC_1 &pcfg_pull_none>,
+				/* data22 */
+				<3 RK_PD2 RK_FUNC_1 &pcfg_pull_none>,
+				/* data21 */
+				<3 RK_PD1 RK_FUNC_1 &pcfg_pull_none>,
+				/* data20 */
+				<3 RK_PD0 RK_FUNC_1 &pcfg_pull_none>;
+		};
+	};
+};
