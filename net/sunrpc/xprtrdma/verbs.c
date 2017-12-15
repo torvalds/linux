@@ -219,9 +219,6 @@ rpcrdma_conn_upcall(struct rdma_cm_id *id, struct rdma_cm_event *event)
 	struct rpcrdma_xprt *xprt = id->context;
 	struct rpcrdma_ia *ia = &xprt->rx_ia;
 	struct rpcrdma_ep *ep = &xprt->rx_ep;
-#if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
-	struct sockaddr *sap = (struct sockaddr *)&ep->rep_remote_addr;
-#endif
 	int connstate = 0;
 
 	switch (event->event) {
@@ -244,9 +241,9 @@ rpcrdma_conn_upcall(struct rdma_cm_id *id, struct rdma_cm_event *event)
 		break;
 	case RDMA_CM_EVENT_DEVICE_REMOVAL:
 #if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
-		pr_info("rpcrdma: removing device %s for %pIS:%u\n",
+		pr_info("rpcrdma: removing device %s for %s:%s\n",
 			ia->ri_device->name,
-			sap, rpc_get_port(sap));
+			rpcrdma_addrstr(xprt), rpcrdma_portstr(xprt));
 #endif
 		set_bit(RPCRDMA_IAF_REMOVING, &ia->ri_flags);
 		ep->rep_connected = -ENODEV;
@@ -269,8 +266,8 @@ rpcrdma_conn_upcall(struct rdma_cm_id *id, struct rdma_cm_event *event)
 		connstate = -ENETDOWN;
 		goto connected;
 	case RDMA_CM_EVENT_REJECTED:
-		dprintk("rpcrdma: connection to %pIS:%u rejected: %s\n",
-			sap, rpc_get_port(sap),
+		dprintk("rpcrdma: connection to %s:%s rejected: %s\n",
+			rpcrdma_addrstr(xprt), rpcrdma_portstr(xprt),
 			rdma_reject_msg(id, event->status));
 		connstate = -ECONNREFUSED;
 		if (event->status == IB_CM_REJ_STALE_CONN)
@@ -285,8 +282,9 @@ connected:
 		wake_up_all(&ep->rep_connect_wait);
 		/*FALLTHROUGH*/
 	default:
-		dprintk("RPC:       %s: %pIS:%u on %s/%s (ep 0x%p): %s\n",
-			__func__, sap, rpc_get_port(sap),
+		dprintk("RPC:       %s: %s:%s on %s/%s (ep 0x%p): %s\n",
+			__func__,
+			rpcrdma_addrstr(xprt), rpcrdma_portstr(xprt),
 			ia->ri_device->name, ia->ri_ops->ro_displayname,
 			ep, rdma_event_msg(event->event));
 		break;

@@ -100,7 +100,6 @@ struct rpcrdma_ep {
 	wait_queue_head_t 	rep_connect_wait;
 	struct rpcrdma_connect_private	rep_cm_private;
 	struct rdma_conn_param	rep_remote_cma;
-	struct sockaddr_storage	rep_remote_addr;
 	struct delayed_work	rep_connect_worker;
 };
 
@@ -518,6 +517,18 @@ struct rpcrdma_xprt {
 
 #define rpcx_to_rdmax(x) container_of(x, struct rpcrdma_xprt, rx_xprt)
 #define rpcx_to_rdmad(x) (rpcx_to_rdmax(x)->rx_data)
+
+static inline const char *
+rpcrdma_addrstr(const struct rpcrdma_xprt *r_xprt)
+{
+	return r_xprt->rx_xprt.address_strings[RPC_DISPLAY_ADDR];
+}
+
+static inline const char *
+rpcrdma_portstr(const struct rpcrdma_xprt *r_xprt)
+{
+	return r_xprt->rx_xprt.address_strings[RPC_DISPLAY_PORT];
+}
 
 /* Setting this to 0 ensures interoperability with early servers.
  * Setting this to 1 enhances certain unaligned read/write performance.

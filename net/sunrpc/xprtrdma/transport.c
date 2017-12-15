@@ -373,6 +373,7 @@ xprt_setup_rdma(struct xprt_create *args)
 
 	if (rpc_get_port(sap))
 		xprt_set_bound(xprt);
+	xprt_rdma_format_addresses(xprt, sap);
 
 	cdata.max_requests = xprt->max_reqs;
 
@@ -405,7 +406,6 @@ xprt_setup_rdma(struct xprt_create *args)
 	 */
 	new_xprt->rx_data = cdata;
 	new_ep = &new_xprt->rx_ep;
-	new_ep->rep_remote_addr = cdata.addr;
 
 	rc = rpcrdma_ep_create(&new_xprt->rx_ep,
 				&new_xprt->rx_ia, &new_xprt->rx_data);
@@ -419,7 +419,6 @@ xprt_setup_rdma(struct xprt_create *args)
 	INIT_DELAYED_WORK(&new_xprt->rx_connect_worker,
 			  xprt_rdma_connect_worker);
 
-	xprt_rdma_format_addresses(xprt, sap);
 	xprt->max_payload = new_xprt->rx_ia.ri_ops->ro_maxpages(new_xprt);
 	if (xprt->max_payload == 0)
 		goto out4;
@@ -437,13 +436,13 @@ xprt_setup_rdma(struct xprt_create *args)
 
 out4:
 	rpcrdma_buffer_destroy(&new_xprt->rx_buf);
-	xprt_rdma_free_addresses(xprt);
 	rc = -ENODEV;
 out3:
 	rpcrdma_ep_destroy(new_ep, &new_xprt->rx_ia);
 out2:
 	rpcrdma_ia_close(&new_xprt->rx_ia);
 out1:
+	xprt_rdma_free_addresses(xprt);
 	xprt_free(xprt);
 	return ERR_PTR(rc);
 }
