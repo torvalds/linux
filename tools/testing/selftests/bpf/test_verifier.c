@@ -5649,7 +5649,7 @@ static struct bpf_test tests[] = {
 		"helper access to variable memory: size > 0 not allowed on NULL (ARG_PTR_TO_MEM_OR_NULL)",
 		.insns = {
 			BPF_MOV64_IMM(BPF_REG_1, 0),
-			BPF_MOV64_IMM(BPF_REG_2, 0),
+			BPF_MOV64_IMM(BPF_REG_2, 1),
 			BPF_STX_MEM(BPF_DW, BPF_REG_10, BPF_REG_2, -128),
 			BPF_LDX_MEM(BPF_DW, BPF_REG_2, BPF_REG_10, -128),
 			BPF_ALU64_IMM(BPF_AND, BPF_REG_2, 64),
@@ -5884,7 +5884,7 @@ static struct bpf_test tests[] = {
 			BPF_STX_MEM(BPF_DW, BPF_REG_10, BPF_REG_0, -24),
 			BPF_STX_MEM(BPF_DW, BPF_REG_10, BPF_REG_0, -16),
 			BPF_STX_MEM(BPF_DW, BPF_REG_10, BPF_REG_0, -8),
-			BPF_MOV64_IMM(BPF_REG_2, 0),
+			BPF_MOV64_IMM(BPF_REG_2, 1),
 			BPF_STX_MEM(BPF_DW, BPF_REG_10, BPF_REG_2, -128),
 			BPF_LDX_MEM(BPF_DW, BPF_REG_2, BPF_REG_10, -128),
 			BPF_ALU64_IMM(BPF_AND, BPF_REG_2, 63),
@@ -9055,6 +9055,68 @@ static struct bpf_test tests[] = {
 		},
 		.result = ACCEPT,
 		.prog_type = BPF_PROG_TYPE_SCHED_CLS,
+	},
+	{
+		"calls: caller stack init to zero or map_value_or_null",
+		.insns = {
+			BPF_MOV64_IMM(BPF_REG_0, 0),
+			BPF_STX_MEM(BPF_DW, BPF_REG_10, BPF_REG_0, -8),
+			BPF_MOV64_REG(BPF_REG_2, BPF_REG_10),
+			BPF_ALU64_IMM(BPF_ADD, BPF_REG_2, -8),
+			BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 1, 0, 4),
+			/* fetch map_value_or_null or const_zero from stack */
+			BPF_LDX_MEM(BPF_DW, BPF_REG_0, BPF_REG_10, -8),
+			BPF_JMP_IMM(BPF_JEQ, BPF_REG_0, 0, 1),
+			/* store into map_value */
+			BPF_ST_MEM(BPF_W, BPF_REG_0, 0, 0),
+			BPF_EXIT_INSN(),
+
+			/* subprog 1 */
+			/* if (ctx == 0) return; */
+			BPF_JMP_IMM(BPF_JEQ, BPF_REG_1, 0, 8),
+			/* else bpf_map_lookup() and *(fp - 8) = r0 */
+			BPF_MOV64_REG(BPF_REG_6, BPF_REG_2),
+			BPF_MOV64_REG(BPF_REG_2, BPF_REG_10),
+			BPF_ALU64_IMM(BPF_ADD, BPF_REG_2, -8),
+			BPF_LD_MAP_FD(BPF_REG_1, 0),
+			BPF_ST_MEM(BPF_DW, BPF_REG_10, -8, 0),
+			BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 0, 0,
+				     BPF_FUNC_map_lookup_elem),
+			/* write map_value_ptr_or_null into stack frame of main prog at fp-8 */
+			BPF_STX_MEM(BPF_DW, BPF_REG_6, BPF_REG_0, 0),
+			BPF_EXIT_INSN(),
+		},
+		.fixup_map1 = { 13 },
+		.result = ACCEPT,
+		.prog_type = BPF_PROG_TYPE_XDP,
+	},
+	{
+		"calls: stack init to zero and pruning",
+		.insns = {
+			/* first make allocated_stack 16 byte */
+			BPF_ST_MEM(BPF_DW, BPF_REG_10, -16, 0),
+			/* now fork the execution such that the false branch
+			 * of JGT insn will be verified second and it skisp zero
+			 * init of fp-8 stack slot. If stack liveness marking
+			 * is missing live_read marks from call map_lookup
+			 * processing then pruning will incorrectly assume
+			 * that fp-8 stack slot was unused in the fall-through
+			 * branch and will accept the program incorrectly
+			 */
+			BPF_JMP_IMM(BPF_JGT, BPF_REG_1, 2, 2),
+			BPF_ST_MEM(BPF_DW, BPF_REG_10, -8, 0),
+			BPF_JMP_IMM(BPF_JA, 0, 0, 0),
+			BPF_MOV64_REG(BPF_REG_2, BPF_REG_10),
+			BPF_ALU64_IMM(BPF_ADD, BPF_REG_2, -8),
+			BPF_LD_MAP_FD(BPF_REG_1, 0),
+			BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 0, 0,
+				     BPF_FUNC_map_lookup_elem),
+			BPF_EXIT_INSN(),
+		},
+		.fixup_map2 = { 6 },
+		.errstr = "invalid indirect read from stack off -8+0 size 8",
+		.result = REJECT,
+		.prog_type = BPF_PROG_TYPE_XDP,
 	},
 };
 
