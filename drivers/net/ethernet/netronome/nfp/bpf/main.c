@@ -34,6 +34,7 @@
 #include <net/pkt_cls.h>
 
 #include "../nfpcore/nfp_cpp.h"
+#include "../nfpcore/nfp_nffw.h"
 #include "../nfp_app.h"
 #include "../nfp_main.h"
 #include "../nfp_net.h"
@@ -155,9 +156,83 @@ static bool nfp_bpf_tc_busy(struct nfp_app *app, struct nfp_net *nn)
 	return nn->dp.ctrl & NFP_NET_CFG_CTRL_BPF;
 }
 
+static int nfp_bpf_parse_capabilities(struct nfp_app *app)
+{
+	struct nfp_cpp *cpp = app->pf->cpp;
+	struct nfp_cpp_area *area;
+	u8 __iomem *mem, *start;
+
+	mem = nfp_rtsym_map(app->pf->rtbl, "_abi_bpf_capabilities", "bpf.cap",
+			    8, &area);
+	if (IS_ERR(mem))
+		return PTR_ERR(mem) == -ENOENT ? 0 : PTR_ERR(mem);
+
+	start = mem;
+	while (mem - start + 8 < nfp_cpp_area_size(area)) {
+		u32 type, length;
+
+		type = readl(mem);
+		length = readl(mem + 4);
+
+		mem += 8 + length;
+		if (mem - start > nfp_cpp_area_size(area))
+			goto err_release_free;
+
+		switch (type) {
+		default:
+			nfp_dbg(cpp, "unknown BPF capability: %d\n", type);
+			break;
+		}
+	}
+	if (mem - start != nfp_cpp_area_size(area)) {
+		nfp_err(cpp, "BPF capabilities left after parsing, parsed:%lu total length:%lu\n",
+			mem - start, nfp_cpp_area_size(area));
+		goto err_release_free;
+	}
+
+	nfp_cpp_area_release_free(area);
+
+	return 0;
+
+err_release_free:
+	nfp_err(cpp, "invalid BPF capabilities at offset:%ld\n", mem - start);
+	nfp_cpp_area_release_free(area);
+	return -EINVAL;
+}
+
+static int nfp_bpf_init(struct nfp_app *app)
+{
+	struct nfp_app_bpf *bpf;
+	int err;
+
+	bpf = kzalloc(sizeof(*bpf), GFP_KERNEL);
+	if (!bpf)
+		return -ENOMEM;
+	bpf->app = app;
+	app->priv = bpf;
+
+	err = nfp_bpf_parse_capabilities(app);
+	if (err)
+		goto err_free_bpf;
+
+	return 0;
+
+err_free_bpf:
+	kfree(bpf);
+	return err;
+}
+
+static void nfp_bpf_clean(struct nfp_app *app)
+{
+	kfree(app->priv);
+}
+
 const struct nfp_app_type app_bpf = {
 	.id		= NFP_APP_BPF_NIC,
 	.name		= "ebpf",
+
+	.init		= nfp_bpf_init,
+	.clean		= nfp_bpf_clean,
 
 	.extra_cap	= nfp_bpf_extra_cap,
 

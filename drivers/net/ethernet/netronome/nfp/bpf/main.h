@@ -78,6 +78,14 @@ enum pkt_vec {
 #define NFP_BPF_ABI_FLAGS	reg_imm(0)
 #define   NFP_BPF_ABI_FLAG_MARK	1
 
+/**
+ * struct nfp_app_bpf - bpf app priv structure
+ * @app:		backpointer to the app
+ */
+struct nfp_app_bpf {
+	struct nfp_app *app;
+};
+
 struct nfp_prog;
 struct nfp_insn_meta;
 typedef int (*instr_cb_t)(struct nfp_prog *, struct nfp_insn_meta *);
@@ -160,6 +168,7 @@ static inline bool is_mbpf_store(const struct nfp_insn_meta *meta)
 
 /**
  * struct nfp_prog - nfp BPF program
+ * @bpf: backpointer to the bpf app priv structure
  * @prog: machine code
  * @prog_len: number of valid instructions in @prog array
  * @__prog_alloc_len: alloc size of @prog array
@@ -176,6 +185,8 @@ static inline bool is_mbpf_store(const struct nfp_insn_meta *meta)
  * @insns: list of BPF instruction wrappers (struct nfp_insn_meta)
  */
 struct nfp_prog {
+	struct nfp_app_bpf *bpf;
+
 	u64 *prog;
 	unsigned int prog_len;
 	unsigned int __prog_alloc_len;

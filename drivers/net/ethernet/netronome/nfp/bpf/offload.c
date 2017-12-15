@@ -48,6 +48,7 @@
 #include <net/tc_act/tc_mirred.h>
 
 #include "main.h"
+#include "../nfp_app.h"
 #include "../nfp_net_ctrl.h"
 #include "../nfp_net.h"
 
@@ -115,6 +116,7 @@ int nfp_bpf_verifier_prep(struct nfp_app *app, struct nfp_net *nn,
 
 	INIT_LIST_HEAD(&nfp_prog->insns);
 	nfp_prog->type = prog->type;
+	nfp_prog->bpf = app->priv;
 
 	ret = nfp_prog_prepare(nfp_prog, prog->insnsi, prog->len);
 	if (ret)
