@@ -586,12 +586,17 @@ static bool ttm_bo_delayed_delete(struct ttm_bo_device *bdev, bool remove_all)
 				      ddestroy);
 		kref_get(&bo->list_kref);
 		list_move_tail(&bo->ddestroy, &removed);
-		spin_unlock(&glob->lru_lock);
 
-		reservation_object_lock(bo->resv, NULL);
+		if (remove_all || bo->resv != &bo->ttm_resv) {
+			spin_unlock(&glob->lru_lock);
+			reservation_object_lock(bo->resv, NULL);
 
-		spin_lock(&glob->lru_lock);
-		ttm_bo_cleanup_refs(bo, false, !remove_all, true);
+			spin_lock(&glob->lru_lock);
+			ttm_bo_cleanup_refs(bo, false, !remove_all, true);
+
+		} else if (reservation_object_trylock(bo->resv)) {
+			ttm_bo_cleanup_refs(bo, false, !remove_all, true);
+		}
 
 		kref_put(&bo->list_kref, ttm_bo_release_list);
 		spin_lock(&glob->lru_lock);
