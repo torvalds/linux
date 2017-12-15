@@ -73,7 +73,7 @@ struct rpcrdma_ia {
 	struct completion	ri_remove_done;
 	int			ri_async_rc;
 	unsigned int		ri_max_segs;
-	unsigned int		ri_max_frmr_depth;
+	unsigned int		ri_max_frwr_depth;
 	unsigned int		ri_max_inline_write;
 	unsigned int		ri_max_inline_read;
 	unsigned int		ri_max_send_sges;
@@ -242,17 +242,17 @@ enum {
  * rpcrdma_deregister_external() uses this metadata to unmap and
  * release these resources when an RPC is complete.
  */
-enum rpcrdma_frmr_state {
-	FRMR_IS_INVALID,	/* ready to be used */
-	FRMR_IS_VALID,		/* in use */
-	FRMR_FLUSHED_FR,	/* flushed FASTREG WR */
-	FRMR_FLUSHED_LI,	/* flushed LOCALINV WR */
+enum rpcrdma_frwr_state {
+	FRWR_IS_INVALID,	/* ready to be used */
+	FRWR_IS_VALID,		/* in use */
+	FRWR_FLUSHED_FR,	/* flushed FASTREG WR */
+	FRWR_FLUSHED_LI,	/* flushed LOCALINV WR */
 };
 
-struct rpcrdma_frmr {
+struct rpcrdma_frwr {
 	struct ib_mr			*fr_mr;
 	struct ib_cqe			fr_cqe;
-	enum rpcrdma_frmr_state		fr_state;
+	enum rpcrdma_frwr_state		fr_state;
 	struct completion		fr_linv_done;
 	union {
 		struct ib_reg_wr	fr_regwr;
@@ -272,7 +272,7 @@ struct rpcrdma_mw {
 	enum dma_data_direction	mw_dir;
 	union {
 		struct rpcrdma_fmr	fmr;
-		struct rpcrdma_frmr	frmr;
+		struct rpcrdma_frwr	frwr;
 	};
 	struct rpcrdma_xprt	*mw_xprt;
 	u32			mw_handle;

@@ -388,7 +388,7 @@ rpcrdma_ia_open(struct rpcrdma_xprt *xprt)
 	}
 
 	switch (xprt_rdma_memreg_strategy) {
-	case RPCRDMA_FRMR:
+	case RPCRDMA_FRWR:
 		if (frwr_is_supported(ia)) {
 			ia->ri_ops = &rpcrdma_frwr_memreg_ops;
 			break;
