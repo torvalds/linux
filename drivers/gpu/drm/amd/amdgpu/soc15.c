@@ -682,6 +682,11 @@ static int soc15_common_early_init(void *handle)
 			AMD_CG_SUPPORT_SDMA_LS;
 		adev->pg_flags = AMD_PG_SUPPORT_SDMA;
 
+		if (adev->powerplay.pp_feature & PP_GFXOFF_MASK)
+			adev->pg_flags |= AMD_PG_SUPPORT_GFX_PG |
+				AMD_PG_SUPPORT_CP |
+				AMD_PG_SUPPORT_RLC_SMU_HS;
+
 		adev->external_rev_id = 0x1;
 		break;
 	default:
