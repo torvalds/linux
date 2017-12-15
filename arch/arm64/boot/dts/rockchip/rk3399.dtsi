@@ -402,6 +402,8 @@
 		clock-names = "ref_clk", "suspend_clk",
 			      "bus_clk", "aclk_usb3_rksoc_axi_perf",
 			      "aclk_usb3", "grf_clk";
+		resets = <&cru SRST_A_USB3_OTG0>;
+		reset-names = "usb3-otg";
 		status = "disabled";
 
 		usbdrd_dwc3_0: dwc3 {
@@ -433,6 +435,8 @@
 		clock-names = "ref_clk", "suspend_clk",
 			      "bus_clk", "aclk_usb3_rksoc_axi_perf",
 			      "aclk_usb3", "grf_clk";
+		resets = <&cru SRST_A_USB3_OTG1>;
+		reset-names = "usb3-otg";
 		status = "disabled";
 
 		usbdrd_dwc3_1: dwc3 {
