@@ -67,7 +67,6 @@
 static unsigned int xprt_rdma_slot_table_entries = RPCRDMA_DEF_SLOT_TABLE;
 unsigned int xprt_rdma_max_inline_read = RPCRDMA_DEF_INLINE;
 static unsigned int xprt_rdma_max_inline_write = RPCRDMA_DEF_INLINE;
-static unsigned int xprt_rdma_inline_write_padding;
 unsigned int xprt_rdma_memreg_strategy		= RPCRDMA_FRMR;
 int xprt_rdma_pad_optimize;
 
@@ -81,6 +80,7 @@ static unsigned int zero;
 static unsigned int max_padding = PAGE_SIZE;
 static unsigned int min_memreg = RPCRDMA_BOUNCEBUFFERS;
 static unsigned int max_memreg = RPCRDMA_LAST - 1;
+static unsigned int dummy;
 
 static struct ctl_table_header *sunrpc_table_header;
 
@@ -114,7 +114,7 @@ static struct ctl_table xr_tunables_table[] = {
 	},
 	{
 		.procname	= "rdma_inline_write_padding",
-		.data		= &xprt_rdma_inline_write_padding,
+		.data		= &dummy,
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec_minmax,
@@ -386,8 +386,6 @@ xprt_setup_rdma(struct xprt_create *args)
 	cdata.inline_rsize = xprt_rdma_max_inline_read;
 	if (cdata.inline_rsize > cdata.rsize)
 		cdata.inline_rsize = cdata.rsize;
-
-	cdata.padding = xprt_rdma_inline_write_padding;
 
 	/*
 	 * Create new transport instance, which includes initialized
@@ -895,8 +893,7 @@ int xprt_rdma_init(void)
 		"\tMaxInlineRead %d\n\tMaxInlineWrite %d\n",
 		xprt_rdma_slot_table_entries,
 		xprt_rdma_max_inline_read, xprt_rdma_max_inline_write);
-	dprintk("\tPadding %d\n\tMemreg %d\n",
-		xprt_rdma_inline_write_padding, xprt_rdma_memreg_strategy);
+	dprintk("\tPadding 0\n\tMemreg %d\n", xprt_rdma_memreg_strategy);
 
 #if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
 	if (!sunrpc_table_header)
