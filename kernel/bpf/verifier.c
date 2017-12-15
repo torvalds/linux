@@ -1674,7 +1674,13 @@ static int check_call(struct bpf_verifier_env *env, int func_id, int insn_idx)
 		return -EINVAL;
 	}
 
+	/* With LD_ABS/IND some JITs save/restore skb from r1. */
 	changes_data = bpf_helper_changes_pkt_data(fn->func);
+	if (changes_data && fn->arg1_type != ARG_PTR_TO_CTX) {
+		verbose(env, "kernel subsystem misconfigured func %s#%d: r1 != ctx\n",
+			func_id_name(func_id), func_id);
+		return -EINVAL;
+	}
 
 	memset(&meta, 0, sizeof(meta));
 	meta.pkt_access = fn->pkt_access;
