@@ -5431,7 +5431,7 @@ F:	drivers/media/tuners/fc2580*
 
 FCOE SUBSYSTEM (libfc, libfcoe, fcoe)
 M:	Johannes Thumshirn <jth@kernel.org>
-L:	fcoe-devel@open-fcoe.org
+L:	linux-scsi@vger.kernel.org
 W:	www.Open-FCoE.org
 S:	Supported
 F:	drivers/scsi/libfc/
