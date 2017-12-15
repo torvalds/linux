@@ -1690,9 +1690,13 @@ static void apply_min_clocks(
  *  Check if FBC can be enabled
  */
 static bool should_enable_fbc(struct dc *dc,
-			      struct dc_state *context)
+			      struct dc_state *context,
+			      uint32_t *pipe_idx)
 {
-	struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[0];
+	uint32_t i;
+	struct pipe_ctx *pipe_ctx = NULL;
+	struct resource_context *res_ctx = &context->res_ctx;
+
 
 	ASSERT(dc->fbc_compressor);
 
@@ -1703,6 +1707,14 @@ static bool should_enable_fbc(struct dc *dc,
 	/* Only supports single display */
 	if (context->stream_count != 1)
 		return false;
+
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+		if (res_ctx->pipe_ctx[i].stream) {
+			pipe_ctx = &res_ctx->pipe_ctx[i];
+			*pipe_idx = i;
+			break;
+		}
+	}
 
 	/* Only supports eDP */
 	if (pipe_ctx->stream->sink->link->connector_signal != SIGNAL_TYPE_EDP)
@@ -1729,11 +1741,14 @@ static bool should_enable_fbc(struct dc *dc,
 static void enable_fbc(struct dc *dc,
 		       struct dc_state *context)
 {
-	if (should_enable_fbc(dc, context)) {
+	uint32_t pipe_idx = 0;
+
+	if (should_enable_fbc(dc, context, &pipe_idx)) {
 		/* Program GRPH COMPRESSED ADDRESS and PITCH */
 		struct compr_addr_and_pitch_params params = {0, 0, 0};
 		struct compressor *compr = dc->fbc_compressor;
-		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[0];
+		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[pipe_idx];
+
 
 		params.source_view_width = pipe_ctx->stream->timing.h_addressable;
 		params.source_view_height = pipe_ctx->stream->timing.v_addressable;
