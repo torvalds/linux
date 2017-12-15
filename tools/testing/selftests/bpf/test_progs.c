@@ -169,10 +169,9 @@ out:
 #define NUM_ITER 100000
 #define VIP_NUM 5
 
-static void test_l4lb(void)
+static void test_l4lb(const char *file)
 {
 	unsigned int nr_cpus = bpf_num_possible_cpus();
-	const char *file = "./test_l4lb.o";
 	struct vip key = {.protocol = 6};
 	struct vip_meta {
 		__u32 flags;
@@ -247,6 +246,15 @@ static void test_l4lb(void)
 	}
 out:
 	bpf_object__close(obj);
+}
+
+static void test_l4lb_all(void)
+{
+	const char *file1 = "./test_l4lb.o";
+	const char *file2 = "./test_l4lb_noinline.o";
+
+	test_l4lb(file1);
+	test_l4lb(file2);
 }
 
 static void test_tcp_estats(void)
@@ -757,7 +765,7 @@ int main(void)
 
 	test_pkt_access();
 	test_xdp();
-	test_l4lb();
+	test_l4lb_all();
 	test_tcp_estats();
 	test_bpf_obj_id();
 	test_pkt_md_access();
