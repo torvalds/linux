@@ -731,11 +731,6 @@ xprt_rdma_send_request(struct rpc_task *task)
 	if (!xprt_connected(xprt))
 		goto drop_connection;
 
-	/* On retransmit, remove any previously registered chunks */
-	if (unlikely(!list_empty(&req->rl_registered)))
-		r_xprt->rx_ia.ri_ops->ro_unmap_sync(r_xprt,
-						    &req->rl_registered);
-
 	rc = rpcrdma_marshal_req(r_xprt, rqst);
 	if (rc < 0)
 		goto failed_marshal;

@@ -821,6 +821,17 @@ rpcrdma_marshal_req(struct rpcrdma_xprt *r_xprt, struct rpc_rqst *rqst)
 		rtype = rpcrdma_areadch;
 	}
 
+	/* If this is a retransmit, discard previously registered
+	 * chunks. Very likely the connection has been replaced,
+	 * so these registrations are invalid and unusable.
+	 */
+	while (unlikely(!list_empty(&req->rl_registered))) {
+		struct rpcrdma_mw *mw;
+
+		mw = rpcrdma_pop_mw(&req->rl_registered);
+		rpcrdma_defer_mr_recovery(mw);
+	}
+
 	/* This implementation supports the following combinations
 	 * of chunk lists in one RPC-over-RDMA Call message:
 	 *
