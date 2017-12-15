@@ -113,7 +113,7 @@ config EFI_CAPSULE_LOADER
 	  Most users should say N.
 
 config EFI_CAPSULE_QUIRK_QUARK_CSH
-	boolean "Add support for Quark capsules with non-standard headers"
+	bool "Add support for Quark capsules with non-standard headers"
 	depends on X86 && !64BIT
 	select EFI_CAPSULE_LOADER
 	default y

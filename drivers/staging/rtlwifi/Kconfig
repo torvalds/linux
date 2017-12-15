@@ -17,6 +17,6 @@ config RTLPHYDM_ST
 	default m
 
 config RTLWIFI_DEBUG_ST
-	boolean
+	bool
 	depends on R8822BE
 	default y
