@@ -143,6 +143,8 @@
 #include <linux/of_address.h>
 #include <linux/bootmem.h>
 
+#include <linux/platform_data/ti-sysc.h>
+
 #include <asm/system_misc.h>
 
 #include "clock.h"
