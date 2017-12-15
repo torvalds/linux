@@ -141,6 +141,28 @@
 				#reset-cells = <1>;
 			};
 
+			spicc0: spi@13000 {
+				compatible = "amlogic,meson-axg-spicc";
+				reg = <0x0 0x13000 0x0 0x3c>;
+				interrupts = <GIC_SPI 81 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&clkc CLKID_SPICC0>;
+				clock-names = "core";
+				#address-cells = <1>;
+				#size-cells = <0>;
+				status = "disabled";
+			};
+
+			spicc1: spi@15000 {
+				compatible = "amlogic,meson-axg-spicc";
+				reg = <0x0 0x15000 0x0 0x3c>;
+				interrupts = <GIC_SPI 82 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&clkc CLKID_SPICC1>;
+				clock-names = "core";
+				#address-cells = <1>;
+				#size-cells = <0>;
+				status = "disabled";
+			};
+
 			uart_A: serial@24000 {
 				compatible = "amlogic,meson-gx-uart", "amlogic,meson-uart";
 				reg = <0x0 0x24000 0x0 0x14>;
@@ -297,6 +319,76 @@
 					mux {
 						groups = "pwm_d_x16";
 						function = "pwm_d";
+					};
+				};
+
+				spi0_pins: spi0 {
+					mux {
+						groups = "spi0_miso",
+							"spi0_mosi",
+							"spi0_clk";
+						function = "spi0";
+					};
+				};
+
+				spi0_ss0_pins: spi0_ss0 {
+					mux {
+						groups = "spi0_ss0";
+						function = "spi0";
+					};
+				};
+
+				spi0_ss1_pins: spi0_ss1 {
+					mux {
+						groups = "spi0_ss1";
+						function = "spi0";
+					};
+				};
+
+				spi0_ss2_pins: spi0_ss2 {
+					mux {
+						groups = "spi0_ss2";
+						function = "spi0";
+					};
+				};
+
+
+				spi1_a_pins: spi1_a {
+					mux {
+						groups = "spi1_miso_a",
+							"spi1_mosi_a",
+							"spi1_clk_a";
+						function = "spi1";
+					};
+				};
+
+				spi1_ss0_a_pins: spi1_ss0_a {
+					mux {
+						groups = "spi1_ss0_a";
+						function = "spi1";
+					};
+				};
+
+				spi1_ss1_pins: spi1_ss1 {
+					mux {
+						groups = "spi1_ss1";
+						function = "spi1";
+					};
+				};
+
+				spi1_x_pins: spi1_x {
+					mux {
+						groups = "spi1_miso_x",
+							"spi1_mosi_x",
+							"spi1_clk_x";
+						function = "spi1";
+					};
+				};
+
+				spi1_ss0_x_pins: spi1_ss0_x {
+					mux {
+						groups = "spi1_ss0_x";
+						function = "spi1";
 					};
 				};
 			};
