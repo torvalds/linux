@@ -578,7 +578,6 @@ static int writepage_nounlock(struct page *page, struct writeback_control *wbc)
 	struct ceph_fs_client *fsc;
 	struct ceph_snap_context *snapc, *oldest;
 	loff_t page_off = page_offset(page);
-	long writeback_stat;
 	int err, len = PAGE_SIZE;
 	struct ceph_writeback_ctl ceph_wbc;
 
@@ -619,8 +618,7 @@ static int writepage_nounlock(struct page *page, struct writeback_control *wbc)
 	dout("writepage %p page %p index %lu on %llu~%u snapc %p seq %lld\n",
 	     inode, page, page->index, page_off, len, snapc, snapc->seq);
 
-	writeback_stat = atomic_long_inc_return(&fsc->writeback_count);
-	if (writeback_stat >
+	if (atomic_long_inc_return(&fsc->writeback_count) >
 	    CONGESTION_ON_THRESH(fsc->mount_options->congestion_kb))
 		set_bdi_congested(inode_to_bdi(inode), BLK_RW_ASYNC);
 
@@ -655,6 +653,11 @@ static int writepage_nounlock(struct page *page, struct writeback_control *wbc)
 	end_page_writeback(page);
 	ceph_put_wrbuffer_cap_refs(ci, 1, snapc);
 	ceph_put_snap_context(snapc);  /* page's reference */
+
+	if (atomic_long_dec_return(&fsc->writeback_count) <
+	    CONGESTION_OFF_THRESH(fsc->mount_options->congestion_kb))
+		clear_bdi_congested(inode_to_bdi(inode), BLK_RW_ASYNC);
+
 	return err;
 }
 
