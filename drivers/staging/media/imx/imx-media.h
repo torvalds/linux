@@ -128,8 +128,6 @@ struct imx_media_subdev {
 
 	/* the platform device if this is an IPU-internal subdev */
 	struct platform_device *pdev;
-	/* the devname is needed for async devname match */
-	char devname[32];
 };
 
 struct imx_media_dev {

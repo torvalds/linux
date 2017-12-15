@@ -112,8 +112,7 @@ imx_media_add_async_subdev(struct imx_media_dev *imxmd,
 		asd->match.fwnode.fwnode = of_fwnode_handle(np);
 	} else {
 		asd->match_type = V4L2_ASYNC_MATCH_DEVNAME;
-		strncpy(imxsd->devname, devname, sizeof(imxsd->devname));
-		asd->match.device_name.name = imxsd->devname;
+		asd->match.device_name.name = devname;
 		imxsd->pdev = pdev;
 	}
 
