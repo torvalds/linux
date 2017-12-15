@@ -686,9 +686,6 @@ xprt_rdma_free(struct rpc_task *task)
 	struct rpcrdma_xprt *r_xprt = rpcx_to_rdmax(rqst->rq_xprt);
 	struct rpcrdma_req *req = rpcr_to_rdmar(rqst);
 
-	if (test_bit(RPCRDMA_REQ_F_BACKCHANNEL, &req->rl_flags))
-		return;
-
 	dprintk("RPC:       %s: called on 0x%p\n", __func__, req->rl_reply);
 
 	if (test_bit(RPCRDMA_REQ_F_PENDING, &req->rl_flags))

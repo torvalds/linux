@@ -354,8 +354,7 @@ struct rpcrdma_req {
 
 /* rl_flags */
 enum {
-	RPCRDMA_REQ_F_BACKCHANNEL = 0,
-	RPCRDMA_REQ_F_PENDING,
+	RPCRDMA_REQ_F_PENDING = 0,
 	RPCRDMA_REQ_F_TX_RESOURCES,
 };
 
