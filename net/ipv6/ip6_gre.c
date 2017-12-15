@@ -515,7 +515,6 @@ static int ip6erspan_rcv(struct sk_buff *skb, int gre_hdr_len,
 
 	ver = (ntohs(ershdr->ver_vlan) & VER_MASK) >> VER_OFFSET;
 	tpi->key = cpu_to_be32(ntohs(ershdr->session_id) & ID_MASK);
-	pkt_md = (struct erspan_metadata *)(ershdr + 1);
 
 	tunnel = ip6gre_tunnel_lookup(skb->dev,
 				      &ipv6h->saddr, &ipv6h->daddr, tpi->key,
@@ -525,6 +524,9 @@ static int ip6erspan_rcv(struct sk_buff *skb, int gre_hdr_len,
 
 		if (unlikely(!pskb_may_pull(skb, len)))
 			return PACKET_REJECT;
+
+		ershdr = (struct erspan_base_hdr *)skb->data;
+		pkt_md = (struct erspan_metadata *)(ershdr + 1);
 
 		if (__iptunnel_pull_header(skb, len,
 					   htons(ETH_P_TEB),
