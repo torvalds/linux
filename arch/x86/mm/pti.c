@@ -288,6 +288,16 @@ static void __init pti_clone_user_shared(void)
 }
 
 /*
+ * Clone the ESPFIX P4D into the user space visinble page table
+ */
+static void __init pti_setup_espfix64(void)
+{
+#ifdef CONFIG_X86_ESPFIX64
+	pti_clone_p4d(ESPFIX_BASE_ADDR);
+#endif
+}
+
+/*
  * Clone the populated PMDs of the entry and irqentry text and force it RO.
  */
 static void __init pti_clone_entry_text(void)
@@ -308,4 +318,5 @@ void __init pti_init(void)
 
 	pti_clone_user_shared();
 	pti_clone_entry_text();
+	pti_setup_espfix64();
 }
