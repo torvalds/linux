@@ -269,13 +269,13 @@ static void sym_check_prop(struct symbol *sym)
 			if (sym->type != S_BOOLEAN && sym->type != S_TRISTATE)
 				prop_warn(prop,
 				    "config symbol '%s' uses %s, but is "
-				    "not boolean or tristate", sym->name, use);
+				    "not bool or tristate", sym->name, use);
 			else if (sym2->type != S_UNKNOWN &&
 				 sym2->type != S_BOOLEAN &&
 				 sym2->type != S_TRISTATE)
 				prop_warn(prop,
 				    "'%s' has wrong type. '%s' only "
-				    "accept arguments of boolean and "
+				    "accept arguments of bool and "
 				    "tristate type", sym2->name, use);
 			break;
 		case P_RANGE:
