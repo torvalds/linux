@@ -317,26 +317,20 @@ int usbip_recv(struct socket *sock, void *buf, int size)
 	struct msghdr msg = {.msg_flags = MSG_NOSIGNAL};
 	int total = 0;
 
+	if (!sock || !buf || !size)
+		return -EINVAL;
+
 	iov_iter_kvec(&msg.msg_iter, READ|ITER_KVEC, &iov, 1, size);
 
 	usbip_dbg_xmit("enter\n");
 
-	if (!sock || !buf || !size) {
-		pr_err("invalid arg, sock %p buff %p size %d\n", sock, buf,
-		       size);
-		return -EINVAL;
-	}
-
 	do {
-		int sz = msg_data_left(&msg);
+		msg_data_left(&msg);
 		sock->sk->sk_allocation = GFP_NOIO;
 
 		result = sock_recvmsg(sock, &msg, MSG_WAITALL);
-		if (result <= 0) {
-			pr_debug("receive sock %p buf %p size %u ret %d total %d\n",
-				 sock, buf + total, sz, result, total);
+		if (result <= 0)
 			goto err;
-		}
 
 		total += result;
 	} while (msg_data_left(&msg));
