@@ -1084,16 +1084,18 @@ static int edt_ft5x06_ts_probe(struct i2c_client *client,
 						     "reset", GPIOD_OUT_HIGH);
 	if (IS_ERR(tsdata->reset_gpio)) {
 		error = PTR_ERR(tsdata->reset_gpio);
-		dev_err(dev, "failed to request GPIO reset pin, error %d\n",
-			error);
+		if (error != -EPROBE_DEFER)
+			dev_err(dev, "failed to request GPIO reset pin: %d\n",
+				error);
 		return error;
 	}
 
 	tsdata->wake_gpio = devm_gpiod_get_optional(dev, "wake", GPIOD_OUT_LOW);
 	if (IS_ERR(tsdata->wake_gpio)) {
 		error = PTR_ERR(tsdata->wake_gpio);
-		dev_err(dev, "failed to request GPIO wake pin, error %d\n",
-			error);
+		if (error != -EPROBE_DEFER)
+			dev_err(dev, "failed to request GPIO wake pin: %d\n",
+				error);
 		return error;
 	}
 
