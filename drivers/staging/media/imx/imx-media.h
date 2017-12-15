@@ -189,11 +189,11 @@ int imx_media_ipu_image_to_mbus_fmt(struct v4l2_mbus_framefmt *mbus,
 
 struct imx_media_subdev *
 imx_media_find_async_subdev(struct imx_media_dev *imxmd,
-			    struct device_node *np,
+			    struct fwnode_handle *fwnode,
 			    const char *devname);
 struct imx_media_subdev *
 imx_media_add_async_subdev(struct imx_media_dev *imxmd,
-			   struct device_node *np,
+			   struct fwnode_handle *fwnode,
 			   struct platform_device *pdev);
 
 void imx_media_grp_id_to_sd_name(char *sd_name, int sz,

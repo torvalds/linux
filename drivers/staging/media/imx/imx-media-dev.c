@@ -33,15 +33,14 @@ static inline struct imx_media_dev *notifier2dev(struct v4l2_async_notifier *n)
 }
 
 /*
- * Find a subdev by device node or device name. This is called during
+ * Find a subdev by fwnode or device name. This is called during
  * driver load to form the async subdev list and bind them.
  */
 struct imx_media_subdev *
 imx_media_find_async_subdev(struct imx_media_dev *imxmd,
-			    struct device_node *np,
+			    struct fwnode_handle *fwnode,
 			    const char *devname)
 {
-	struct fwnode_handle *fwnode = np ? of_fwnode_handle(np) : NULL;
 	struct imx_media_subdev *imxsd;
 	int i;
 
@@ -67,7 +66,7 @@ imx_media_find_async_subdev(struct imx_media_dev *imxmd,
 
 
 /*
- * Adds a subdev to the async subdev list. If np is non-NULL, adds
+ * Adds a subdev to the async subdev list. If fwnode is non-NULL, adds
  * the async as a V4L2_ASYNC_MATCH_FWNODE match type, otherwise as
  * a V4L2_ASYNC_MATCH_DEVNAME match type using the dev_name of the
  * given platform_device. This is called during driver load when
@@ -75,9 +74,10 @@ imx_media_find_async_subdev(struct imx_media_dev *imxmd,
  */
 struct imx_media_subdev *
 imx_media_add_async_subdev(struct imx_media_dev *imxmd,
-			   struct device_node *np,
+			   struct fwnode_handle *fwnode,
 			   struct platform_device *pdev)
 {
+	struct device_node *np = to_of_node(fwnode);
 	struct imx_media_subdev *imxsd;
 	struct v4l2_async_subdev *asd;
 	const char *devname = NULL;
@@ -89,7 +89,7 @@ imx_media_add_async_subdev(struct imx_media_dev *imxmd,
 		devname = dev_name(&pdev->dev);
 
 	/* return -EEXIST if this subdev already added */
-	if (imx_media_find_async_subdev(imxmd, np, devname)) {
+	if (imx_media_find_async_subdev(imxmd, fwnode, devname)) {
 		dev_dbg(imxmd->md.dev, "%s: already added %s\n",
 			__func__, np ? np->name : devname);
 		imxsd = ERR_PTR(-EEXIST);
@@ -107,9 +107,9 @@ imx_media_add_async_subdev(struct imx_media_dev *imxmd,
 	imxsd = &imxmd->subdev[sd_idx];
 
 	asd = &imxsd->asd;
-	if (np) {
+	if (fwnode) {
 		asd->match_type = V4L2_ASYNC_MATCH_FWNODE;
-		asd->match.fwnode.fwnode = of_fwnode_handle(np);
+		asd->match.fwnode.fwnode = fwnode;
 	} else {
 		asd->match_type = V4L2_ASYNC_MATCH_DEVNAME;
 		asd->match.device_name.name = devname;
@@ -162,13 +162,13 @@ static int imx_media_subdev_bound(struct v4l2_async_notifier *notifier,
 				  struct v4l2_async_subdev *asd)
 {
 	struct imx_media_dev *imxmd = notifier2dev(notifier);
-	struct device_node *np = to_of_node(sd->fwnode);
 	struct imx_media_subdev *imxsd;
 	int ret = 0;
 
 	mutex_lock(&imxmd->mutex);
 
-	imxsd = imx_media_find_async_subdev(imxmd, np, dev_name(sd->dev));
+	imxsd = imx_media_find_async_subdev(imxmd, sd->fwnode,
+					    dev_name(sd->dev));
 	if (!imxsd) {
 		ret = -EINVAL;
 		goto out;

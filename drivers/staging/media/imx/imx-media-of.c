@@ -87,7 +87,8 @@ of_parse_subdev(struct imx_media_dev *imxmd, struct device_node *sd_np,
 	}
 
 	/* register this subdev with async notifier */
-	imxsd = imx_media_add_async_subdev(imxmd, sd_np, NULL);
+	imxsd = imx_media_add_async_subdev(imxmd, of_fwnode_handle(sd_np),
+					   NULL);
 	ret = PTR_ERR_OR_ZERO(imxsd);
 	if (ret) {
 		if (ret == -EEXIST) {
@@ -176,9 +177,7 @@ static int create_of_link(struct imx_media_dev *imxmd,
 	if (link->local_port >= sd->entity.num_pads)
 		return -EINVAL;
 
-	remote = imx_media_find_async_subdev(imxmd,
-					     to_of_node(link->remote_node),
-					     NULL);
+	remote = imx_media_find_async_subdev(imxmd, link->remote_node, NULL);
 	if (!remote)
 		return 0;
 
