@@ -464,8 +464,8 @@ struct nvmem_device *nvmem_register(const struct nvmem_config *config)
 	nvmem->owner = config->owner;
 	if (!nvmem->owner && config->dev->driver)
 		nvmem->owner = config->dev->driver->owner;
-	nvmem->stride = config->stride;
-	nvmem->word_size = config->word_size;
+	nvmem->stride = config->stride ?: 1;
+	nvmem->word_size = config->word_size ?: 1;
 	nvmem->size = config->size;
 	nvmem->dev.type = &nvmem_provider_type;
 	nvmem->dev.bus = &nvmem_bus_type;
