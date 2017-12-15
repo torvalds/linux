@@ -33,6 +33,7 @@
 #include <linux/kallsyms.h>
 #include <linux/delay.h>
 #include <linux/hardirq.h>
+#include <linux/ratelimit.h>
 
 #include <asm/stacktrace.h>
 #include <asm/ptrace.h>
@@ -178,13 +179,14 @@ __die_if_kernel(const char *str, struct pt_regs *regs, long err)
 void do_unhandled(struct pt_regs *regs, unsigned long exccause)
 {
 	__die_if_kernel("Caught unhandled exception - should not happen",
-	    		regs, SIGKILL);
+			regs, SIGKILL);
 
 	/* If in user mode, send SIGILL signal to current process */
-	printk("Caught unhandled exception in '%s' "
-	       "(pid = %d, pc = %#010lx) - should not happen\n"
-	       "\tEXCCAUSE is %ld\n",
-	       current->comm, task_pid_nr(current), regs->pc, exccause);
+	pr_info_ratelimited("Caught unhandled exception in '%s' "
+			    "(pid = %d, pc = %#010lx) - should not happen\n"
+			    "\tEXCCAUSE is %ld\n",
+			    current->comm, task_pid_nr(current), regs->pc,
+			    exccause);
 	force_sig(SIGILL, current);
 }
 
@@ -305,8 +307,8 @@ do_illegal_instruction(struct pt_regs *regs)
 
 	/* If in user mode, send SIGILL signal to current process. */
 
-	printk("Illegal Instruction in '%s' (pid = %d, pc = %#010lx)\n",
-	    current->comm, task_pid_nr(current), regs->pc);
+	pr_info_ratelimited("Illegal Instruction in '%s' (pid = %d, pc = %#010lx)\n",
+			    current->comm, task_pid_nr(current), regs->pc);
 	force_sig(SIGILL, current);
 }
 
@@ -325,13 +327,14 @@ do_unaligned_user (struct pt_regs *regs)
 	siginfo_t info;
 
 	__die_if_kernel("Unhandled unaligned exception in kernel",
-	    		regs, SIGKILL);
+			regs, SIGKILL);
 
 	current->thread.bad_vaddr = regs->excvaddr;
 	current->thread.error_code = -3;
-	printk("Unaligned memory access to %08lx in '%s' "
-	       "(pid = %d, pc = %#010lx)\n",
-	       regs->excvaddr, current->comm, task_pid_nr(current), regs->pc);
+	pr_info_ratelimited("Unaligned memory access to %08lx in '%s' "
+			    "(pid = %d, pc = %#010lx)\n",
+			    regs->excvaddr, current->comm,
+			    task_pid_nr(current), regs->pc);
 	info.si_signo = SIGBUS;
 	info.si_errno = 0;
 	info.si_code = BUS_ADRALN;

@@ -33,9 +33,6 @@
 #include <asm/pgalloc.h>
 #include <asm/pgtable.h>
 
-//#define printd(x...) printk(x)
-#define printd(x...) do { } while(0)
-
 /* 
  * Note:
  * The kernel provides one architecture bit PG_arch_1 in the page flags that 

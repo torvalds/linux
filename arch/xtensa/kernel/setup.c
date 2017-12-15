@@ -156,7 +156,7 @@ static int __init parse_bootparam(const bp_tag_t* tag)
 	/* Boot parameters must start with a BP_TAG_FIRST tag. */
 
 	if (tag->id != BP_TAG_FIRST) {
-		printk(KERN_WARNING "Invalid boot parameters!\n");
+		pr_warn("Invalid boot parameters!\n");
 		return 0;
 	}
 
@@ -165,15 +165,14 @@ static int __init parse_bootparam(const bp_tag_t* tag)
 	/* Parse all tags. */
 
 	while (tag != NULL && tag->id != BP_TAG_LAST) {
-	 	for (t = &__tagtable_begin; t < &__tagtable_end; t++) {
+		for (t = &__tagtable_begin; t < &__tagtable_end; t++) {
 			if (tag->id == t->tag) {
 				t->parse(tag);
 				break;
 			}
 		}
 		if (t == &__tagtable_end)
-			printk(KERN_WARNING "Ignoring tag "
-			       "0x%08x\n", tag->id);
+			pr_warn("Ignoring tag 0x%08x\n", tag->id);
 		tag = (bp_tag_t*)((unsigned long)(tag + 1) + tag->size);
 	}
 
