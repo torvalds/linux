@@ -600,16 +600,11 @@ static void __nvmem_device_put(struct nvmem_device *nvmem)
 	mutex_unlock(&nvmem_mutex);
 }
 
-static int nvmem_match(struct device *dev, void *data)
-{
-	return !strcmp(dev_name(dev), data);
-}
-
 static struct nvmem_device *nvmem_find(const char *name)
 {
 	struct device *d;
 
-	d = bus_find_device(&nvmem_bus_type, NULL, (void *)name, nvmem_match);
+	d = bus_find_device_by_name(&nvmem_bus_type, NULL, name);
 
 	if (!d)
 		return NULL;
