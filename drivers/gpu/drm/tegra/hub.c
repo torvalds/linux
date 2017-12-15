@@ -728,7 +728,7 @@ static int tegra_display_hub_remove(struct platform_device *pdev)
 	return err;
 }
 
-static int tegra_display_hub_suspend(struct device *dev)
+static int __maybe_unused tegra_display_hub_suspend(struct device *dev)
 {
 	struct tegra_display_hub *hub = dev_get_drvdata(dev);
 	int err;
@@ -744,7 +744,7 @@ static int tegra_display_hub_suspend(struct device *dev)
 	return 0;
 }
 
-static int tegra_display_hub_resume(struct device *dev)
+static int __maybe_unused tegra_display_hub_resume(struct device *dev)
 {
 	struct tegra_display_hub *hub = dev_get_drvdata(dev);
 	int err;
