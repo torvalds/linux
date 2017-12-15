@@ -32,7 +32,7 @@ clocks {
 		reg-names = "control";
 	};
 
-	clkusb1: clkusb1 {
+	clkusb1: clkusb1@2350004 {
 		#clock-cells = <0>;
 		compatible = "ti,keystone,psc-clock";
 		clocks = <&chipclk16>;
@@ -42,7 +42,7 @@ clocks {
 		domain-id = <0>;
 	};
 
-	clkhyperlink0: clkhyperlink0 {
+	clkhyperlink0: clkhyperlink02350030 {
 		#clock-cells = <0>;
 		compatible = "ti,keystone,psc-clock";
 		clocks = <&chipclk12>;
@@ -52,7 +52,7 @@ clocks {
 		domain-id = <5>;
 	};
 
-	clkpcie1: clkpcie1 {
+	clkpcie1: clkpcie1@235006c {
 		#clock-cells = <0>;
 		compatible = "ti,keystone,psc-clock";
 		clocks = <&chipclk12>;
@@ -62,7 +62,7 @@ clocks {
 		domain-id = <18>;
 	};
 
-	clkxge: clkxge {
+	clkxge: clkxge@23500c8 {
 		#clock-cells = <0>;
 		compatible = "ti,keystone,psc-clock";
 		clocks = <&chipclk13>;
