@@ -450,6 +450,26 @@ out_senderr:
 	return ERR_PTR(-ENOTCONN);
 }
 
+/* Handle a remotely invalidated mw on the @mws list
+ */
+static void
+frwr_op_reminv(struct rpcrdma_rep *rep, struct list_head *mws)
+{
+	struct rpcrdma_mw *mw;
+
+	list_for_each_entry(mw, mws, mw_list)
+		if (mw->mw_handle == rep->rr_inv_rkey) {
+			struct rpcrdma_xprt *r_xprt = mw->mw_xprt;
+
+			list_del(&mw->mw_list);
+			mw->frmr.fr_state = FRMR_IS_INVALID;
+			ib_dma_unmap_sg(r_xprt->rx_ia.ri_device,
+					mw->mw_sg, mw->mw_nents, mw->mw_dir);
+			rpcrdma_put_mw(r_xprt, mw);
+			break;	/* only one invalidated MR per RPC */
+		}
+}
+
 /* Invalidate all memory regions that were registered for "req".
  *
  * Sleeps until it is safe for the host CPU to access the
@@ -477,9 +497,6 @@ frwr_op_unmap_sync(struct rpcrdma_xprt *r_xprt, struct list_head *mws)
 	prev = &first;
 	list_for_each_entry(mw, mws, mw_list) {
 		mw->frmr.fr_state = FRMR_IS_INVALID;
-
-		if (mw->mw_flags & RPCRDMA_MW_F_RI)
-			continue;
 
 		f = &mw->frmr;
 		dprintk("RPC:       %s: invalidating frmr %p\n",
@@ -553,6 +570,7 @@ reset_mrs:
 
 const struct rpcrdma_memreg_ops rpcrdma_frwr_memreg_ops = {
 	.ro_map				= frwr_op_map,
+	.ro_reminv			= frwr_op_reminv,
 	.ro_unmap_sync			= frwr_op_unmap_sync,
 	.ro_recover_mr			= frwr_op_recover_mr,
 	.ro_open			= frwr_op_open,

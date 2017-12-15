@@ -272,7 +272,6 @@ struct rpcrdma_mw {
 	struct scatterlist	*mw_sg;
 	int			mw_nents;
 	enum dma_data_direction	mw_dir;
-	unsigned long		mw_flags;
 	union {
 		struct rpcrdma_fmr	fmr;
 		struct rpcrdma_frmr	frmr;
@@ -282,11 +281,6 @@ struct rpcrdma_mw {
 	u32			mw_length;
 	u64			mw_offset;
 	struct list_head	mw_all;
-};
-
-/* mw_flags */
-enum {
-	RPCRDMA_MW_F_RI		= 1,
 };
 
 /*
@@ -485,6 +479,8 @@ struct rpcrdma_memreg_ops {
 			(*ro_map)(struct rpcrdma_xprt *,
 				  struct rpcrdma_mr_seg *, int, bool,
 				  struct rpcrdma_mw **);
+	void		(*ro_reminv)(struct rpcrdma_rep *rep,
+				     struct list_head *mws);
 	void		(*ro_unmap_sync)(struct rpcrdma_xprt *,
 					 struct list_head *);
 	void		(*ro_recover_mr)(struct rpcrdma_mw *);

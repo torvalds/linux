@@ -984,24 +984,6 @@ rpcrdma_inline_fixup(struct rpc_rqst *rqst, char *srcp, int copy_len, int pad)
 	return fixup_copy_count;
 }
 
-/* Caller must guarantee @rep remains stable during this call.
- */
-static void
-rpcrdma_mark_remote_invalidation(struct list_head *mws,
-				 struct rpcrdma_rep *rep)
-{
-	struct rpcrdma_mw *mw;
-
-	if (!(rep->rr_wc_flags & IB_WC_WITH_INVALIDATE))
-		return;
-
-	list_for_each_entry(mw, mws, mw_list)
-		if (mw->mw_handle == rep->rr_inv_rkey) {
-			mw->mw_flags = RPCRDMA_MW_F_RI;
-			break; /* only one invalidated MR per RPC */
-		}
-}
-
 /* By convention, backchannel calls arrive via rdma_msg type
  * messages, and never populate the chunk lists. This makes
  * the RPC/RDMA header small and fixed in size, so it is
@@ -1339,9 +1321,11 @@ void rpcrdma_deferred_completion(struct work_struct *work)
 	struct rpcrdma_rep *rep =
 			container_of(work, struct rpcrdma_rep, rr_work);
 	struct rpcrdma_req *req = rpcr_to_rdmar(rep->rr_rqst);
+	struct rpcrdma_xprt *r_xprt = rep->rr_rxprt;
 
-	rpcrdma_mark_remote_invalidation(&req->rl_registered, rep);
-	rpcrdma_release_rqst(rep->rr_rxprt, req);
+	if (rep->rr_wc_flags & IB_WC_WITH_INVALIDATE)
+		r_xprt->rx_ia.ri_ops->ro_reminv(rep, &req->rl_registered);
+	rpcrdma_release_rqst(r_xprt, req);
 	rpcrdma_complete_rqst(rep);
 }
 
