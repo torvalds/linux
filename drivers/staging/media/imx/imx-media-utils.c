@@ -668,38 +668,35 @@ void imx_media_grp_id_to_sd_name(char *sd_name, int sz, u32 grp_id, int ipu_id)
 }
 EXPORT_SYMBOL_GPL(imx_media_grp_id_to_sd_name);
 
-struct imx_media_subdev *
-imx_media_find_subdev_by_sd(struct imx_media_dev *imxmd,
-			    struct v4l2_subdev *sd)
+struct v4l2_subdev *
+imx_media_find_subdev_by_fwnode(struct imx_media_dev *imxmd,
+				struct fwnode_handle *fwnode)
 {
-	struct imx_media_subdev *imxsd;
-	int i;
+	struct v4l2_subdev *sd;
 
-	for (i = 0; i < imxmd->num_subdevs; i++) {
-		imxsd = &imxmd->subdev[i];
-		if (sd == imxsd->sd)
-			return imxsd;
+	list_for_each_entry(sd, &imxmd->v4l2_dev.subdevs, list) {
+		if (sd->fwnode == fwnode)
+			return sd;
 	}
 
-	return ERR_PTR(-ENODEV);
+	return NULL;
 }
-EXPORT_SYMBOL_GPL(imx_media_find_subdev_by_sd);
+EXPORT_SYMBOL_GPL(imx_media_find_subdev_by_fwnode);
 
-struct imx_media_subdev *
-imx_media_find_subdev_by_id(struct imx_media_dev *imxmd, u32 grp_id)
+struct v4l2_subdev *
+imx_media_find_subdev_by_devname(struct imx_media_dev *imxmd,
+				 const char *devname)
 {
-	struct imx_media_subdev *imxsd;
-	int i;
+	struct v4l2_subdev *sd;
 
-	for (i = 0; i < imxmd->num_subdevs; i++) {
-		imxsd = &imxmd->subdev[i];
-		if (imxsd->sd && imxsd->sd->grp_id == grp_id)
-			return imxsd;
+	list_for_each_entry(sd, &imxmd->v4l2_dev.subdevs, list) {
+		if (!strcmp(devname, dev_name(sd->dev)))
+			return sd;
 	}
 
-	return ERR_PTR(-ENODEV);
+	return NULL;
 }
-EXPORT_SYMBOL_GPL(imx_media_find_subdev_by_id);
+EXPORT_SYMBOL_GPL(imx_media_find_subdev_by_devname);
 
 /*
  * Adds a video device to the master video device list. This is called by
@@ -842,7 +839,7 @@ EXPORT_SYMBOL_GPL(imx_media_find_upstream_pad);
  * the current pipeline.
  * Must be called with mdev->graph_mutex held.
  */
-struct imx_media_subdev *
+struct v4l2_subdev *
 imx_media_find_upstream_subdev(struct imx_media_dev *imxmd,
 			       struct media_entity *start_entity,
 			       u32 grp_id)
@@ -853,7 +850,7 @@ imx_media_find_upstream_subdev(struct imx_media_dev *imxmd,
 	if (!sd)
 		return ERR_PTR(-ENODEV);
 
-	return imx_media_find_subdev_by_sd(imxmd, sd);
+	return sd;
 }
 EXPORT_SYMBOL_GPL(imx_media_find_upstream_subdev);
 

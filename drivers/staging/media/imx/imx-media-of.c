@@ -76,7 +76,6 @@ static int
 of_parse_subdev(struct imx_media_dev *imxmd, struct device_node *sd_np,
 		bool is_csi_port)
 {
-	struct imx_media_subdev *imxsd;
 	int i, num_ports, ret;
 
 	if (!of_device_is_available(sd_np)) {
@@ -87,9 +86,8 @@ of_parse_subdev(struct imx_media_dev *imxmd, struct device_node *sd_np,
 	}
 
 	/* register this subdev with async notifier */
-	imxsd = imx_media_add_async_subdev(imxmd, of_fwnode_handle(sd_np),
-					   NULL);
-	ret = PTR_ERR_OR_ZERO(imxsd);
+	ret = imx_media_add_async_subdev(imxmd, of_fwnode_handle(sd_np),
+					 NULL);
 	if (ret) {
 		if (ret == -EEXIST) {
 			/* already added, everything is fine */
@@ -159,37 +157,35 @@ int imx_media_add_of_subdevs(struct imx_media_dev *imxmd,
 }
 
 /*
- * Create a single media link to/from imxsd using a fwnode link.
+ * Create a single media link to/from sd using a fwnode link.
  *
  * NOTE: this function assumes an OF port node is equivalent to
  * a media pad (port id equal to media pad index), and that an
  * OF endpoint node is equivalent to a media link.
  */
 static int create_of_link(struct imx_media_dev *imxmd,
-			  struct imx_media_subdev *imxsd,
+			  struct v4l2_subdev *sd,
 			  struct v4l2_fwnode_link *link)
 {
-	struct v4l2_subdev *sd = imxsd->sd;
-	struct imx_media_subdev *remote;
-	struct v4l2_subdev *src, *sink;
+	struct v4l2_subdev *remote, *src, *sink;
 	int src_pad, sink_pad;
 
 	if (link->local_port >= sd->entity.num_pads)
 		return -EINVAL;
 
-	remote = imx_media_find_async_subdev(imxmd, link->remote_node, NULL);
+	remote = imx_media_find_subdev_by_fwnode(imxmd, link->remote_node);
 	if (!remote)
 		return 0;
 
 	if (sd->entity.pads[link->local_port].flags & MEDIA_PAD_FL_SINK) {
-		src = remote->sd;
+		src = remote;
 		src_pad = link->remote_port;
 		sink = sd;
 		sink_pad = link->local_port;
 	} else {
 		src = sd;
 		src_pad = link->local_port;
-		sink = remote->sd;
+		sink = remote;
 		sink_pad = link->remote_port;
 	}
 
@@ -206,12 +202,11 @@ static int create_of_link(struct imx_media_dev *imxmd,
 }
 
 /*
- * Create media links to/from imxsd using its device-tree endpoints.
+ * Create media links to/from sd using its device-tree endpoints.
  */
 int imx_media_create_of_links(struct imx_media_dev *imxmd,
-			      struct imx_media_subdev *imxsd)
+			      struct v4l2_subdev *sd)
 {
-	struct v4l2_subdev *sd = imxsd->sd;
 	struct v4l2_fwnode_link link;
 	struct device_node *ep;
 	int ret;
@@ -221,7 +216,7 @@ int imx_media_create_of_links(struct imx_media_dev *imxmd,
 		if (ret)
 			continue;
 
-		ret = create_of_link(imxmd, imxsd, &link);
+		ret = create_of_link(imxmd, sd, &link);
 		v4l2_fwnode_put_link(&link);
 		if (ret)
 			return ret;
@@ -235,9 +230,9 @@ int imx_media_create_of_links(struct imx_media_dev *imxmd,
  * using its device-tree endpoints.
  */
 int imx_media_create_csi_of_links(struct imx_media_dev *imxmd,
-				  struct imx_media_subdev *csi)
+				  struct v4l2_subdev *csi)
 {
-	struct device_node *csi_np = csi->sd->dev->of_node;
+	struct device_node *csi_np = csi->dev->of_node;
 	struct fwnode_handle *fwnode, *csi_ep;
 	struct v4l2_fwnode_link link;
 	struct device_node *ep;

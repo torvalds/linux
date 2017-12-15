@@ -138,7 +138,6 @@ static int csi_get_upstream_endpoint(struct csi_priv *priv,
 				     struct v4l2_fwnode_endpoint *ep)
 {
 	struct device_node *endpoint, *port;
-	struct imx_media_subdev *imxsd;
 	struct media_entity *src;
 	struct v4l2_subdev *sd;
 	struct media_pad *pad;
@@ -154,10 +153,10 @@ static int csi_get_upstream_endpoint(struct csi_priv *priv,
 		 * CSI-2 receiver if it is in the path, otherwise stay
 		 * with video mux.
 		 */
-		imxsd = imx_media_find_upstream_subdev(priv->md, src,
-						       IMX_MEDIA_GRP_ID_CSI2);
-		if (!IS_ERR(imxsd))
-			src = &imxsd->sd->entity;
+		sd = imx_media_find_upstream_subdev(priv->md, src,
+						    IMX_MEDIA_GRP_ID_CSI2);
+		if (!IS_ERR(sd))
+			src = &sd->entity;
 	}
 
 	/* get source pad of entity directly upstream from src */

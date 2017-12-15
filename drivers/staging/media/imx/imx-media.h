@@ -11,6 +11,7 @@
 #ifndef _IMX_MEDIA_H
 #define _IMX_MEDIA_H
 
+#include <linux/platform_device.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-fwnode.h>
@@ -18,23 +19,8 @@
 #include <media/videobuf2-dma-contig.h>
 #include <video/imx-ipu-v3.h>
 
-/*
- * This is somewhat arbitrary, but we need at least:
- * - 4 video devices per IPU
- * - 3 IC subdevs per IPU
- * - 1 VDIC subdev per IPU
- * - 2 CSI subdevs per IPU
- * - 1 mipi-csi2 receiver subdev
- * - 2 video-mux subdevs
- * - 2 camera sensor subdevs per IPU (1 parallel, 1 mipi-csi2)
- *
- */
 /* max video devices */
 #define IMX_MEDIA_MAX_VDEVS          8
-/* max subdevices */
-#define IMX_MEDIA_MAX_SUBDEVS       32
-/* max pads per subdev */
-#define IMX_MEDIA_MAX_PADS          16
 
 /*
  * Pad definitions for the subdevs with multiple source or
@@ -105,6 +91,7 @@ static inline struct imx_media_buffer *to_imx_media_vb(struct vb2_buffer *vb)
 	return container_of(vbuf, struct imx_media_buffer, vbuf);
 }
 
+/* to support control inheritance to video devices */
 struct imx_media_pad {
 	/*
 	 * list of video devices that can be reached from this pad,
@@ -114,21 +101,33 @@ struct imx_media_pad {
 	int num_vdevs;
 };
 
+static inline struct imx_media_pad *
+to_imx_media_pad(struct v4l2_subdev *sd, int pad_index)
+{
+	struct imx_media_pad *imxpads = sd->host_priv;
+
+	return imxpads ? &imxpads[pad_index] : NULL;
+}
+
 struct imx_media_internal_sd_platformdata {
 	char sd_name[V4L2_SUBDEV_NAME_SIZE];
 	u32 grp_id;
 	int ipu_id;
 };
 
-struct imx_media_subdev {
+
+struct imx_media_async_subdev {
 	struct v4l2_async_subdev asd;
-	struct v4l2_subdev       *sd; /* set when bound */
-
-	struct imx_media_pad     pad[IMX_MEDIA_MAX_PADS];
-
-	/* the platform device if this is an IPU-internal subdev */
+	/* the platform device of IPU-internal subdevs */
 	struct platform_device *pdev;
+	struct list_head list;
 };
+
+static inline struct imx_media_async_subdev *
+to_imx_media_asd(struct v4l2_async_subdev *asd)
+{
+	return container_of(asd, struct imx_media_async_subdev, asd);
+}
 
 struct imx_media_dev {
 	struct media_device md;
@@ -139,10 +138,6 @@ struct imx_media_dev {
 
 	struct mutex mutex; /* protect elements below */
 
-	/* master subdevice list */
-	struct imx_media_subdev subdev[IMX_MEDIA_MAX_SUBDEVS];
-	int num_subdevs;
-
 	/* master video device list */
 	struct imx_media_video_dev *vdev[IMX_MEDIA_MAX_VDEVS];
 	int num_vdevs;
@@ -151,7 +146,7 @@ struct imx_media_dev {
 	struct ipu_soc *ipu[2];
 
 	/* for async subdev registration */
-	struct v4l2_async_subdev *async_ptrs[IMX_MEDIA_MAX_SUBDEVS];
+	struct list_head asd_list;
 	struct v4l2_async_notifier subdev_notifier;
 };
 
@@ -172,7 +167,6 @@ int imx_media_enum_mbus_format(u32 *code, u32 index, enum codespace_sel cs_sel,
 const struct imx_media_pixfmt *
 imx_media_find_ipu_format(u32 code, enum codespace_sel cs_sel);
 int imx_media_enum_ipu_format(u32 *code, u32 index, enum codespace_sel cs_sel);
-
 int imx_media_init_mbus_fmt(struct v4l2_mbus_framefmt *mbus,
 			    u32 width, u32 height, u32 code, u32 field,
 			    const struct imx_media_pixfmt **cc);
@@ -186,30 +180,23 @@ int imx_media_mbus_fmt_to_ipu_image(struct ipu_image *image,
 				    struct v4l2_mbus_framefmt *mbus);
 int imx_media_ipu_image_to_mbus_fmt(struct v4l2_mbus_framefmt *mbus,
 				    struct ipu_image *image);
-
-struct imx_media_subdev *
-imx_media_find_async_subdev(struct imx_media_dev *imxmd,
-			    struct fwnode_handle *fwnode,
-			    const char *devname);
-struct imx_media_subdev *
-imx_media_add_async_subdev(struct imx_media_dev *imxmd,
-			   struct fwnode_handle *fwnode,
-			   struct platform_device *pdev);
-
+int imx_media_add_async_subdev(struct imx_media_dev *imxmd,
+			       struct fwnode_handle *fwnode,
+			       struct platform_device *pdev);
 void imx_media_grp_id_to_sd_name(char *sd_name, int sz,
 				 u32 grp_id, int ipu_id);
 
 int imx_media_add_internal_subdevs(struct imx_media_dev *imxmd);
 int imx_media_create_internal_links(struct imx_media_dev *imxmd,
-				    struct imx_media_subdev *imxsd);
+				    struct v4l2_subdev *sd);
 void imx_media_remove_internal_subdevs(struct imx_media_dev *imxmd);
 
-struct imx_media_subdev *
-imx_media_find_subdev_by_sd(struct imx_media_dev *imxmd,
-			    struct v4l2_subdev *sd);
-struct imx_media_subdev *
-imx_media_find_subdev_by_id(struct imx_media_dev *imxmd,
-			    u32 grp_id);
+struct v4l2_subdev *
+imx_media_find_subdev_by_fwnode(struct imx_media_dev *imxmd,
+				struct fwnode_handle *fwnode);
+struct v4l2_subdev *
+imx_media_find_subdev_by_devname(struct imx_media_dev *imxmd,
+				 const char *devname);
 int imx_media_add_video_device(struct imx_media_dev *imxmd,
 			       struct imx_media_video_dev *vdev);
 int imx_media_find_mipi_csi2_channel(struct imx_media_dev *imxmd,
@@ -218,7 +205,7 @@ struct media_pad *
 imx_media_find_upstream_pad(struct imx_media_dev *imxmd,
 			    struct media_entity *start_entity,
 			    u32 grp_id);
-struct imx_media_subdev *
+struct v4l2_subdev *
 imx_media_find_upstream_subdev(struct imx_media_dev *imxmd,
 			       struct media_entity *start_entity,
 			       u32 grp_id);
@@ -253,9 +240,9 @@ void imx_media_fim_free(struct imx_media_fim *fim);
 int imx_media_add_of_subdevs(struct imx_media_dev *dev,
 			     struct device_node *np);
 int imx_media_create_of_links(struct imx_media_dev *imxmd,
-			      struct imx_media_subdev *imxsd);
+			      struct v4l2_subdev *sd);
 int imx_media_create_csi_of_links(struct imx_media_dev *imxmd,
-				  struct imx_media_subdev *csi);
+				  struct v4l2_subdev *csi);
 
 /* imx-media-capture.c */
 struct imx_media_video_dev *

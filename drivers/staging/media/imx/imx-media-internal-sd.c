@@ -68,6 +68,8 @@ struct internal_link {
 	int remote_pad;
 };
 
+/* max pads per internal-sd */
+#define MAX_INTERNAL_PADS   8
 /* max links per internal-sd pad */
 #define MAX_INTERNAL_LINKS  8
 
@@ -77,7 +79,7 @@ struct internal_pad {
 
 static const struct internal_subdev {
 	const struct internal_subdev_id *id;
-	struct internal_pad pad[IMX_MEDIA_MAX_PADS];
+	struct internal_pad pad[MAX_INTERNAL_PADS];
 } int_subdev[num_isd] = {
 	[isd_csi0] = {
 		.id = &isd_id[isd_csi0],
@@ -181,9 +183,9 @@ static const struct internal_subdev *find_intsd_by_grp_id(u32 grp_id)
 	return NULL;
 }
 
-static struct imx_media_subdev *find_sink(struct imx_media_dev *imxmd,
-					  struct imx_media_subdev *src,
-					  const struct internal_link *link)
+static struct v4l2_subdev *find_sink(struct imx_media_dev *imxmd,
+				     struct v4l2_subdev *src,
+				     const struct internal_link *link)
 {
 	char sink_devname[32];
 	int ipu_id;
@@ -194,20 +196,20 @@ static struct imx_media_subdev *find_sink(struct imx_media_dev *imxmd,
 	 * a CSI, it has different struct ipu_client_platformdata which
 	 * does not contain IPU id.
 	 */
-	if (sscanf(src->sd->name, "ipu%d", &ipu_id) != 1)
+	if (sscanf(src->name, "ipu%d", &ipu_id) != 1)
 		return NULL;
 
 	isd_to_devname(sink_devname, sizeof(sink_devname),
 		       link->remote, ipu_id - 1);
 
-	return imx_media_find_async_subdev(imxmd, NULL, sink_devname);
+	return imx_media_find_subdev_by_devname(imxmd, sink_devname);
 }
 
 static int create_ipu_internal_link(struct imx_media_dev *imxmd,
-				    struct imx_media_subdev *src,
+				    struct v4l2_subdev *src,
 				    const struct internal_link *link)
 {
-	struct imx_media_subdev *sink;
+	struct v4l2_subdev *sink;
 	int ret;
 
 	sink = find_sink(imxmd, src, link);
@@ -215,11 +217,11 @@ static int create_ipu_internal_link(struct imx_media_dev *imxmd,
 		return -ENODEV;
 
 	v4l2_info(&imxmd->v4l2_dev, "%s:%d -> %s:%d\n",
-		  src->sd->name, link->local_pad,
-		  sink->sd->name, link->remote_pad);
+		  src->name, link->local_pad,
+		  sink->name, link->remote_pad);
 
-	ret = media_create_pad_link(&src->sd->entity, link->local_pad,
-				    &sink->sd->entity, link->remote_pad, 0);
+	ret = media_create_pad_link(&src->entity, link->local_pad,
+				    &sink->entity, link->remote_pad, 0);
 	if (ret)
 		v4l2_err(&imxmd->v4l2_dev,
 			 "create_pad_link failed: %d\n", ret);
@@ -228,16 +230,15 @@ static int create_ipu_internal_link(struct imx_media_dev *imxmd,
 }
 
 int imx_media_create_internal_links(struct imx_media_dev *imxmd,
-				    struct imx_media_subdev *imxsd)
+				    struct v4l2_subdev *sd)
 {
-	struct v4l2_subdev *sd = imxsd->sd;
 	const struct internal_subdev *intsd;
 	const struct internal_pad *intpad;
 	const struct internal_link *link;
 	struct media_pad *pad;
 	int i, j, ret;
 
-	intsd = find_intsd_by_grp_id(imxsd->sd->grp_id);
+	intsd = find_intsd_by_grp_id(sd->grp_id);
 	if (!intsd)
 		return -ENODEV;
 
@@ -255,7 +256,7 @@ int imx_media_create_internal_links(struct imx_media_dev *imxmd,
 			if (!link->remote)
 				break;
 
-			ret = create_ipu_internal_link(imxmd, imxsd, link);
+			ret = create_ipu_internal_link(imxmd, sd, link);
 			if (ret)
 				return ret;
 		}
@@ -271,7 +272,6 @@ static int add_internal_subdev(struct imx_media_dev *imxmd,
 {
 	struct imx_media_internal_sd_platformdata pdata;
 	struct platform_device_info pdevinfo = {0};
-	struct imx_media_subdev *imxsd;
 	struct platform_device *pdev;
 
 	pdata.grp_id = isd->id->grp_id;
@@ -294,11 +294,7 @@ static int add_internal_subdev(struct imx_media_dev *imxmd,
 	if (IS_ERR(pdev))
 		return PTR_ERR(pdev);
 
-	imxsd = imx_media_add_async_subdev(imxmd, NULL, pdev);
-	if (IS_ERR(imxsd))
-		return PTR_ERR(imxsd);
-
-	return 0;
+	return imx_media_add_async_subdev(imxmd, NULL, pdev);
 }
 
 /* adds the internal subdevs in one ipu */
@@ -353,13 +349,12 @@ remove:
 
 void imx_media_remove_internal_subdevs(struct imx_media_dev *imxmd)
 {
-	struct imx_media_subdev *imxsd;
-	int i;
+	struct imx_media_async_subdev *imxasd;
 
-	for (i = 0; i < imxmd->subdev_notifier.num_subdevs; i++) {
-		imxsd = &imxmd->subdev[i];
-		if (!imxsd->pdev)
+	list_for_each_entry(imxasd, &imxmd->asd_list, list) {
+		if (!imxasd->pdev)
 			continue;
-		platform_device_unregister(imxsd->pdev);
+
+		platform_device_unregister(imxasd->pdev);
 	}
 }
