@@ -107,7 +107,8 @@ static DEFINE_MUTEX(kernel_fb_helper_lock);
  * always run in process context since the fb_*() function could be running in
  * atomic context. If drm_fb_helper_deferred_io() is used as the deferred_io
  * callback it will also schedule dirty_work with the damage collected from the
- * mmap page writes.
+ * mmap page writes. Drivers can use drm_fb_helper_defio_init() to setup
+ * deferred I/O (coupled with drm_fb_helper_fbdev_teardown()).
  */
 
 #define drm_fb_helper_for_each_connector(fbh, i__) \
@@ -1027,6 +1028,49 @@ void drm_fb_helper_deferred_io(struct fb_info *info,
 	}
 }
 EXPORT_SYMBOL(drm_fb_helper_deferred_io);
+
+/**
+ * drm_fb_helper_defio_init - fbdev deferred I/O initialization
+ * @fb_helper: driver-allocated fbdev helper
+ *
+ * This function allocates &fb_deferred_io, sets callback to
+ * drm_fb_helper_deferred_io(), delay to 50ms and calls fb_deferred_io_init().
+ * It should be called from the &drm_fb_helper_funcs->fb_probe callback.
+ * drm_fb_helper_fbdev_teardown() cleans up deferred I/O.
+ *
+ * NOTE: A copy of &fb_ops is made and assigned to &info->fbops. This is done
+ * because fb_deferred_io_cleanup() clears &fbops->fb_mmap and would thereby
+ * affect other instances of that &fb_ops.
+ *
+ * Returns:
+ * 0 on success or a negative error code on failure.
+ */
+int drm_fb_helper_defio_init(struct drm_fb_helper *fb_helper)
+{
+	struct fb_info *info = fb_helper->fbdev;
+	struct fb_deferred_io *fbdefio;
+	struct fb_ops *fbops;
+
+	fbdefio = kzalloc(sizeof(*fbdefio), GFP_KERNEL);
+	fbops = kzalloc(sizeof(*fbops), GFP_KERNEL);
+	if (!fbdefio || !fbops) {
+		kfree(fbdefio);
+		kfree(fbops);
+		return -ENOMEM;
+	}
+
+	info->fbdefio = fbdefio;
+	fbdefio->delay = msecs_to_jiffies(50);
+	fbdefio->deferred_io = drm_fb_helper_deferred_io;
+
+	*fbops = *info->fbops;
+	info->fbops = fbops;
+
+	fb_deferred_io_init(info);
+
+	return 0;
+}
+EXPORT_SYMBOL(drm_fb_helper_defio_init);
 
 /**
  * drm_fb_helper_sys_read - wrapper around fb_sys_read
@@ -2824,6 +2868,7 @@ EXPORT_SYMBOL(drm_fb_helper_fbdev_setup);
 void drm_fb_helper_fbdev_teardown(struct drm_device *dev)
 {
 	struct drm_fb_helper *fb_helper = dev->fb_helper;
+	struct fb_ops *fbops = NULL;
 
 	if (!fb_helper)
 		return;
@@ -2832,7 +2877,14 @@ void drm_fb_helper_fbdev_teardown(struct drm_device *dev)
 	if (fb_helper->fbdev && fb_helper->fbdev->dev)
 		drm_fb_helper_unregister_fbi(fb_helper);
 
+	if (fb_helper->fbdev && fb_helper->fbdev->fbdefio) {
+		fb_deferred_io_cleanup(fb_helper->fbdev);
+		kfree(fb_helper->fbdev->fbdefio);
+		fbops = fb_helper->fbdev->fbops;
+	}
+
 	drm_fb_helper_fini(fb_helper);
+	kfree(fbops);
 
 	if (fb_helper->fb)
 		drm_framebuffer_remove(fb_helper->fb);
