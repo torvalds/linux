@@ -377,9 +377,6 @@ struct amdgpu_dummy_page {
 	struct page	*page;
 	dma_addr_t	addr;
 };
-int amdgpu_dummy_page_init(struct amdgpu_device *adev);
-void amdgpu_dummy_page_fini(struct amdgpu_device *adev);
-
 
 /*
  * Clocks
