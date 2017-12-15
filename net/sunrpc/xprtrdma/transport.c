@@ -414,20 +414,10 @@ xprt_setup_rdma(struct xprt_create *args)
 	if (rc)
 		goto out2;
 
-	/*
-	 * Allocate pre-registered send and receive buffers for headers and
-	 * any inline data. Also specify any padding which will be provided
-	 * from a preregistered zero buffer.
-	 */
 	rc = rpcrdma_buffer_create(new_xprt);
 	if (rc)
 		goto out3;
 
-	/*
-	 * Register a callback for connection events. This is necessary because
-	 * connection loss notification is async. We also catch connection loss
-	 * when reaping receives.
-	 */
 	INIT_DELAYED_WORK(&new_xprt->rx_connect_worker,
 			  xprt_rdma_connect_worker);
 
@@ -448,8 +438,9 @@ xprt_setup_rdma(struct xprt_create *args)
 	return xprt;
 
 out4:
+	rpcrdma_buffer_destroy(&new_xprt->rx_buf);
 	xprt_rdma_free_addresses(xprt);
-	rc = -EINVAL;
+	rc = -ENODEV;
 out3:
 	rpcrdma_ep_destroy(new_ep, &new_xprt->rx_ia);
 out2:
