@@ -120,6 +120,7 @@ int xprt_rdma_bc_setup(struct rpc_xprt *xprt, unsigned int reqs)
 		rqst->rq_xprt = &r_xprt->rx_xprt;
 		INIT_LIST_HEAD(&rqst->rq_list);
 		INIT_LIST_HEAD(&rqst->rq_bc_list);
+		__set_bit(RPC_BC_PA_IN_USE, &rqst->rq_bc_pa_state);
 
 		if (rpcrdma_bc_setup_rqst(r_xprt, rqst))
 			goto out_free;
@@ -284,11 +285,6 @@ void xprt_rdma_bc_free_rqst(struct rpc_rqst *rqst)
 	dprintk("RPC:       %s: freeing rqst %p (req %p)\n",
 		__func__, rqst, rpcr_to_rdmar(rqst));
 
-	smp_mb__before_atomic();
-	WARN_ON_ONCE(!test_bit(RPC_BC_PA_IN_USE, &rqst->rq_bc_pa_state));
-	clear_bit(RPC_BC_PA_IN_USE, &rqst->rq_bc_pa_state);
-	smp_mb__after_atomic();
-
 	spin_lock_bh(&xprt->bc_pa_lock);
 	list_add_tail(&rqst->rq_bc_pa_list, &xprt->bc_pa_list);
 	spin_unlock_bh(&xprt->bc_pa_lock);
@@ -343,7 +339,6 @@ void rpcrdma_bc_receive_call(struct rpcrdma_xprt *r_xprt,
 	rqst->rq_xid = *p;
 
 	rqst->rq_private_buf.len = size;
-	set_bit(RPC_BC_PA_IN_USE, &rqst->rq_bc_pa_state);
 
 	buf = &rqst->rq_rcv_buf;
 	memset(buf, 0, sizeof(*buf));
