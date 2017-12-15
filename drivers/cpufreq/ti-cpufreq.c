@@ -17,6 +17,7 @@
 #include <linux/cpu.h>
 #include <linux/io.h>
 #include <linux/mfd/syscon.h>
+#include <linux/module.h>
 #include <linux/init.h>
 #include <linux/of.h>
 #include <linux/of_platform.h>
@@ -195,7 +196,7 @@ static const struct of_device_id ti_cpufreq_of_match[] = {
 	{},
 };
 
-static int ti_cpufreq_init(void)
+static int ti_cpufreq_probe(struct platform_device *pdev)
 {
 	u32 version[VERSION_COUNT];
 	struct device_node *np;
@@ -269,4 +270,22 @@ free_opp_data:
 
 	return ret;
 }
-device_initcall(ti_cpufreq_init);
+
+static int ti_cpufreq_init(void)
+{
+	platform_device_register_simple("ti-cpufreq", -1, NULL, 0);
+	return 0;
+}
+module_init(ti_cpufreq_init);
+
+static struct platform_driver ti_cpufreq_driver = {
+	.probe = ti_cpufreq_probe,
+	.driver = {
+		.name = "ti-cpufreq",
+	},
+};
+module_platform_driver(ti_cpufreq_driver);
+
+MODULE_DESCRIPTION("TI CPUFreq/OPP hw-supported driver");
+MODULE_AUTHOR("Dave Gerlach <d-gerlach@ti.com>");
+MODULE_LICENSE("GPL v2");
