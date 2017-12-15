@@ -669,6 +669,9 @@ struct ceph_file_info {
 	short fmode;     /* initialized on open */
 	short flags;     /* CEPH_F_* */
 
+	spinlock_t rw_contexts_lock;
+	struct list_head rw_contexts;
+
 	/* readdir: position within the dir */
 	u32 frag;
 	struct ceph_mds_request *last_readdir;
@@ -684,6 +687,49 @@ struct ceph_file_info {
 	char *dir_info;
 	int dir_info_len;
 };
+
+struct ceph_rw_context {
+	struct list_head list;
+	struct task_struct *thread;
+	int caps;
+};
+
+#define CEPH_DEFINE_RW_CONTEXT(_name, _caps)	\
+	struct ceph_rw_context _name = {	\
+		.thread = current,		\
+		.caps = _caps,			\
+	}
+
+static inline void ceph_add_rw_context(struct ceph_file_info *cf,
+				       struct ceph_rw_context *ctx)
+{
+	spin_lock(&cf->rw_contexts_lock);
+	list_add(&ctx->list, &cf->rw_contexts);
+	spin_unlock(&cf->rw_contexts_lock);
+}
+
+static inline void ceph_del_rw_context(struct ceph_file_info *cf,
+				       struct ceph_rw_context *ctx)
+{
+	spin_lock(&cf->rw_contexts_lock);
+	list_del(&ctx->list);
+	spin_unlock(&cf->rw_contexts_lock);
+}
+
+static inline struct ceph_rw_context*
+ceph_find_rw_context(struct ceph_file_info *cf)
+{
+	struct ceph_rw_context *ctx, *found = NULL;
+	spin_lock(&cf->rw_contexts_lock);
+	list_for_each_entry(ctx, &cf->rw_contexts, list) {
+		if (ctx->thread == current) {
+			found = ctx;
+			break;
+		}
+	}
+	spin_unlock(&cf->rw_contexts_lock);
+	return found;
+}
 
 struct ceph_readdir_cache_control {
 	struct page  *page;
