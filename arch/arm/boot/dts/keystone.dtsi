@@ -27,7 +27,7 @@
 		reg = <0x00000000 0x80000000 0x00000000 0x40000000>;
 	};
 
-	gic: interrupt-controller {
+	gic: interrupt-controller@2561000 {
 		compatible = "arm,gic-400", "arm,cortex-a15-gic";
 		#interrupt-cells = <3>;
 		interrupt-controller;
