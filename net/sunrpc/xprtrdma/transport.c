@@ -735,7 +735,7 @@ xprt_rdma_send_request(struct rpc_task *task)
 		goto drop_connection;
 	req->rl_connect_cookie = xprt->connect_cookie;
 
-	set_bit(RPCRDMA_REQ_F_PENDING, &req->rl_flags);
+	__set_bit(RPCRDMA_REQ_F_PENDING, &req->rl_flags);
 	if (rpcrdma_ep_post(&r_xprt->rx_ia, &r_xprt->rx_ep, req))
 		goto drop_connection;
 
