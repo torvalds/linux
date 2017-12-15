@@ -42,10 +42,6 @@
 #include <linux/atomic.h>
 #include <linux/reservation.h>
 
-#define TTM_ASSERT_LOCKED(param)
-#define TTM_DEBUG(fmt, arg...)
-#define TTM_BO_HASH_ORDER 13
-
 static int ttm_bo_swapout(struct ttm_mem_shrink *shrink);
 static void ttm_bo_global_kobj_release(struct kobject *kobj);
 
@@ -233,7 +229,7 @@ static int ttm_bo_add_ttm(struct ttm_buffer_object *bo, bool zero_alloc)
 	int ret = 0;
 	uint32_t page_flags = 0;
 
-	TTM_ASSERT_LOCKED(&bo->mutex);
+	reservation_object_assert_held(bo->resv);
 	bo->ttm = NULL;
 
 	if (bdev->need_dma32)
@@ -1544,12 +1540,12 @@ int ttm_bo_device_release(struct ttm_bo_device *bdev)
 	cancel_delayed_work_sync(&bdev->wq);
 
 	if (ttm_bo_delayed_delete(bdev, true))
-		TTM_DEBUG("Delayed destroy list was clean\n");
+		pr_debug("Delayed destroy list was clean\n");
 
 	spin_lock(&glob->lru_lock);
 	for (i = 0; i < TTM_MAX_BO_PRIORITY; ++i)
 		if (list_empty(&bdev->man[0].lru[0]))
-			TTM_DEBUG("Swap list %d was clean\n", i);
+			pr_debug("Swap list %d was clean\n", i);
 	spin_unlock(&glob->lru_lock);
 
 	drm_vma_offset_manager_destroy(&bdev->vma_manager);
