@@ -1710,6 +1710,35 @@ static int test_halt(struct usbtest_dev *tdev, int ep, struct urb *urb)
 	return 0;
 }
 
+static int test_toggle_sync(struct usbtest_dev *tdev, int ep, struct urb *urb)
+{
+	int	retval;
+
+	/* clear initial data toggle to DATA0 */
+	retval = usb_clear_halt(urb->dev, urb->pipe);
+	if (retval < 0) {
+		ERROR(tdev, "ep %02x couldn't clear halt, %d\n", ep, retval);
+		return retval;
+	}
+
+	/* transfer 3 data packets, should be DATA0, DATA1, DATA0 */
+	retval = simple_io(tdev, urb, 1, 0, 0, __func__);
+	if (retval != 0)
+		return -EINVAL;
+
+	/* clear halt resets device side data toggle, host should react to it */
+	retval = usb_clear_halt(urb->dev, urb->pipe);
+	if (retval < 0) {
+		ERROR(tdev, "ep %02x couldn't clear halt, %d\n", ep, retval);
+		return retval;
+	}
+
+	/* host should use DATA0 again after clear halt */
+	retval = simple_io(tdev, urb, 1, 0, 0, __func__);
+
+	return retval;
+}
+
 static int halt_simple(struct usbtest_dev *dev)
 {
 	int			ep;
@@ -1738,6 +1767,33 @@ static int halt_simple(struct usbtest_dev *dev)
 		retval = test_halt(dev, ep, urb);
 	}
 done:
+	simple_free_urb(urb);
+	return retval;
+}
+
+static int toggle_sync_simple(struct usbtest_dev *dev)
+{
+	int			ep;
+	int			retval = 0;
+	struct urb		*urb;
+	struct usb_device	*udev = testdev_to_usbdev(dev);
+	unsigned		maxp = get_maxpacket(udev, dev->out_pipe);
+
+	/*
+	 * Create a URB that causes a transfer of uneven amount of data packets
+	 * This way the clear toggle has an impact on the data toggle sequence.
+	 * Use 2 maxpacket length packets and one zero packet.
+	 */
+	urb = simple_alloc_urb(udev, 0,  2 * maxp, 0);
+	if (urb == NULL)
+		return -ENOMEM;
+
+	urb->transfer_flags |= URB_ZERO_PACKET;
+
+	ep = usb_pipeendpoint(dev->out_pipe);
+	urb->pipe = dev->out_pipe;
+	retval = test_toggle_sync(dev, ep, urb);
+
 	simple_free_urb(urb);
 	return retval;
 }
@@ -2523,6 +2579,20 @@ usbtest_do_ioctl(struct usb_interface *intf, struct usbtest_param_32 *param)
 			param->sglen * param->length) / (1024 * 1024));
 		retval = test_queue(dev, param,
 				dev->in_pipe, NULL, 0);
+		break;
+	/* Test data Toggle/seq_nr clear between bulk out transfers */
+	case 29:
+		if (dev->out_pipe == 0)
+			break;
+		retval = 0;
+		dev_info(&intf->dev, "TEST 29: Clear toggle between bulk writes %d times\n",
+				param->iterations);
+		for (i = param->iterations; retval == 0 && i > 0; --i)
+			retval = toggle_sync_simple(dev);
+
+		if (retval)
+			ERROR(dev, "toggle sync failed, iterations left %d\n",
+			      i);
 		break;
 	}
 	return retval;
