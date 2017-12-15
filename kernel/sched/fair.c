@@ -3020,9 +3020,7 @@ static inline void cfs_rq_util_change(struct cfs_rq *cfs_rq)
 		/*
 		 * There are a few boundary cases this might miss but it should
 		 * get called often enough that that should (hopefully) not be
-		 * a real problem -- added to that it only calls on the local
-		 * CPU, so if we enqueue remotely we'll miss an update, but
-		 * the next tick/schedule should update.
+		 * a real problem.
 		 *
 		 * It will not get called when we go idle, because the idle
 		 * thread is a different class (!fair), nor will the utilization
