@@ -135,20 +135,21 @@ fmr_op_recover_mr(struct rpcrdma_mr *mr)
 
 	/* ORDER: invalidate first */
 	rc = __fmr_unmap(mr);
-
-	/* ORDER: then DMA unmap */
-	ib_dma_unmap_sg(r_xprt->rx_ia.ri_device,
-			mr->mr_sg, mr->mr_nents, mr->mr_dir);
 	if (rc)
 		goto out_release;
 
-	rpcrdma_mr_put(mr);
+	/* ORDER: then DMA unmap */
+	rpcrdma_mr_unmap_and_put(mr);
+
 	r_xprt->rx_stats.mrs_recovered++;
 	return;
 
 out_release:
 	pr_err("rpcrdma: FMR reset failed (%d), %p released\n", rc, mr);
 	r_xprt->rx_stats.mrs_orphaned++;
+
+	ib_dma_unmap_sg(r_xprt->rx_ia.ri_device,
+			mr->mr_sg, mr->mr_nents, mr->mr_dir);
 
 	spin_lock(&r_xprt->rx_buf.rb_mrlock);
 	list_del(&mr->mr_all);
@@ -245,9 +246,7 @@ out_maperr:
 	pr_err("rpcrdma: ib_map_phys_fmr %u@0x%llx+%i (%d) status %i\n",
 	       len, (unsigned long long)dma_pages[0],
 	       pageoff, mr->mr_nents, rc);
-	ib_dma_unmap_sg(r_xprt->rx_ia.ri_device,
-			mr->mr_sg, mr->mr_nents, mr->mr_dir);
-	rpcrdma_mr_put(mr);
+	rpcrdma_mr_unmap_and_put(mr);
 	return ERR_PTR(-EIO);
 }
 
@@ -289,9 +288,7 @@ fmr_op_unmap_sync(struct rpcrdma_xprt *r_xprt, struct list_head *mrs)
 		dprintk("RPC:       %s: DMA unmapping fmr %p\n",
 			__func__, &mr->fmr);
 		list_del(&mr->fmr.fm_mr->list);
-		ib_dma_unmap_sg(r_xprt->rx_ia.ri_device,
-				mr->mr_sg, mr->mr_nents, mr->mr_dir);
-		rpcrdma_mr_put(mr);
+		rpcrdma_mr_unmap_and_put(mr);
 	}
 
 	return;

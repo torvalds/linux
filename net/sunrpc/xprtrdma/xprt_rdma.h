@@ -576,6 +576,7 @@ void rpcrdma_sendctx_put_locked(struct rpcrdma_sendctx *sc);
 
 struct rpcrdma_mr *rpcrdma_mr_get(struct rpcrdma_xprt *r_xprt);
 void rpcrdma_mr_put(struct rpcrdma_mr *mr);
+void rpcrdma_mr_unmap_and_put(struct rpcrdma_mr *mr);
 void rpcrdma_mr_defer_recovery(struct rpcrdma_mr *mr);
 
 struct rpcrdma_req *rpcrdma_buffer_get(struct rpcrdma_buffer *);

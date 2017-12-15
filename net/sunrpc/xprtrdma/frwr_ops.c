@@ -459,13 +459,9 @@ frwr_op_reminv(struct rpcrdma_rep *rep, struct list_head *mrs)
 
 	list_for_each_entry(mr, mrs, mr_list)
 		if (mr->mr_handle == rep->rr_inv_rkey) {
-			struct rpcrdma_xprt *r_xprt = mr->mr_xprt;
-
 			list_del(&mr->mr_list);
 			mr->frwr.fr_state = FRWR_IS_INVALID;
-			ib_dma_unmap_sg(r_xprt->rx_ia.ri_device,
-					mr->mr_sg, mr->mr_nents, mr->mr_dir);
-			rpcrdma_mr_put(mr);
+			rpcrdma_mr_unmap_and_put(mr);
 			break;	/* only one invalidated MR per RPC */
 		}
 }
@@ -545,9 +541,7 @@ unmap:
 		mr = rpcrdma_mr_pop(mrs);
 		dprintk("RPC:       %s: DMA unmapping frwr %p\n",
 			__func__, &mr->frwr);
-		ib_dma_unmap_sg(ia->ri_device,
-				mr->mr_sg, mr->mr_nents, mr->mr_dir);
-		rpcrdma_mr_put(mr);
+		rpcrdma_mr_unmap_and_put(mr);
 	}
 	return;
 
