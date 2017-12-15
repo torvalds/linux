@@ -225,7 +225,7 @@ static int nfp_bpf_parse_capabilities(struct nfp_app *app)
 		}
 	}
 	if (mem - start != nfp_cpp_area_size(area)) {
-		nfp_err(cpp, "BPF capabilities left after parsing, parsed:%lu total length:%lu\n",
+		nfp_err(cpp, "BPF capabilities left after parsing, parsed:%zd total length:%zu\n",
 			mem - start, nfp_cpp_area_size(area));
 		goto err_release_free;
 	}
@@ -235,7 +235,7 @@ static int nfp_bpf_parse_capabilities(struct nfp_app *app)
 	return 0;
 
 err_release_free:
-	nfp_err(cpp, "invalid BPF capabilities at offset:%ld\n", mem - start);
+	nfp_err(cpp, "invalid BPF capabilities at offset:%zd\n", mem - start);
 	nfp_cpp_area_release_free(area);
 	return -EINVAL;
 }
