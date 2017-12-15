@@ -616,6 +616,7 @@
 &io_domains {
 	status = "okay";
 
+	bb-supply = <&vcc_18>;
 	sdcard-supply = <&vccio_sd>;
 	wifi-supply = <&vcc_18>;
 };
