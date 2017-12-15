@@ -741,7 +741,7 @@ void amdgpu_vm_check_compute_bug(struct amdgpu_device *adev)
 
 	has_compute_vm_bug = false;
 
-	ip_block = amdgpu_get_ip_block(adev, AMD_IP_BLOCK_TYPE_GFX);
+	ip_block = amdgpu_device_ip_get_ip_block(adev, AMD_IP_BLOCK_TYPE_GFX);
 	if (ip_block) {
 		/* Compute has a VM bug for GFX version < 7.
 		   Compute has a VM bug for GFX 8 MEC firmware version < 673.*/

@@ -5062,8 +5062,9 @@ static int gfx_v8_0_hw_fini(void *handle)
 	gfx_v8_0_cp_enable(adev, false);
 	gfx_v8_0_rlc_stop(adev);
 
-	amdgpu_set_powergating_state(adev,
-			AMD_IP_BLOCK_TYPE_GFX, AMD_PG_STATE_UNGATE);
+	amdgpu_device_ip_set_powergating_state(adev,
+					       AMD_IP_BLOCK_TYPE_GFX,
+					       AMD_PG_STATE_UNGATE);
 
 	return 0;
 }
@@ -5480,8 +5481,9 @@ static int gfx_v8_0_late_init(void *handle)
 	if (r)
 		return r;
 
-	amdgpu_set_powergating_state(adev,
-			AMD_IP_BLOCK_TYPE_GFX, AMD_PG_STATE_GATE);
+	amdgpu_device_ip_set_powergating_state(adev,
+					       AMD_IP_BLOCK_TYPE_GFX,
+					       AMD_PG_STATE_GATE);
 
 	return 0;
 }
@@ -5492,10 +5494,10 @@ static void gfx_v8_0_enable_gfx_static_mg_power_gating(struct amdgpu_device *ade
 	if ((adev->asic_type == CHIP_POLARIS11) ||
 	    (adev->asic_type == CHIP_POLARIS12))
 		/* Send msg to SMU via Powerplay */
-		amdgpu_set_powergating_state(adev,
-					     AMD_IP_BLOCK_TYPE_SMC,
-					     enable ?
-					     AMD_PG_STATE_GATE : AMD_PG_STATE_UNGATE);
+		amdgpu_device_ip_set_powergating_state(adev,
+						       AMD_IP_BLOCK_TYPE_SMC,
+						       enable ?
+						       AMD_PG_STATE_GATE : AMD_PG_STATE_UNGATE);
 
 	WREG32_FIELD(RLC_PG_CNTL, STATIC_PER_CU_PG_ENABLE, enable ? 1 : 0);
 }

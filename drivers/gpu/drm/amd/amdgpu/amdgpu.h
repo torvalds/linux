@@ -224,17 +224,18 @@ enum amdgpu_kiq_irq {
 	AMDGPU_CP_KIQ_IRQ_LAST
 };
 
-int amdgpu_set_clockgating_state(struct amdgpu_device *adev,
-				  enum amd_ip_block_type block_type,
-				  enum amd_clockgating_state state);
-int amdgpu_set_powergating_state(struct amdgpu_device *adev,
-				  enum amd_ip_block_type block_type,
-				  enum amd_powergating_state state);
-void amdgpu_get_clockgating_state(struct amdgpu_device *adev, u32 *flags);
-int amdgpu_wait_for_idle(struct amdgpu_device *adev,
-			 enum amd_ip_block_type block_type);
-bool amdgpu_is_idle(struct amdgpu_device *adev,
-		    enum amd_ip_block_type block_type);
+int amdgpu_device_ip_set_clockgating_state(struct amdgpu_device *adev,
+					   enum amd_ip_block_type block_type,
+					   enum amd_clockgating_state state);
+int amdgpu_device_ip_set_powergating_state(struct amdgpu_device *adev,
+					   enum amd_ip_block_type block_type,
+					   enum amd_powergating_state state);
+void amdgpu_device_ip_get_clockgating_state(struct amdgpu_device *adev,
+					    u32 *flags);
+int amdgpu_device_ip_wait_for_idle(struct amdgpu_device *adev,
+				   enum amd_ip_block_type block_type);
+bool amdgpu_device_ip_is_idle(struct amdgpu_device *adev,
+			      enum amd_ip_block_type block_type);
 
 #define AMDGPU_MAX_IP_NUM 16
 
@@ -259,15 +260,16 @@ struct amdgpu_ip_block {
 	const struct amdgpu_ip_block_version *version;
 };
 
-int amdgpu_ip_block_version_cmp(struct amdgpu_device *adev,
-				enum amd_ip_block_type type,
-				u32 major, u32 minor);
+int amdgpu_device_ip_block_version_cmp(struct amdgpu_device *adev,
+				       enum amd_ip_block_type type,
+				       u32 major, u32 minor);
 
-struct amdgpu_ip_block * amdgpu_get_ip_block(struct amdgpu_device *adev,
-					     enum amd_ip_block_type type);
+struct amdgpu_ip_block *
+amdgpu_device_ip_get_ip_block(struct amdgpu_device *adev,
+			      enum amd_ip_block_type type);
 
-int amdgpu_ip_block_add(struct amdgpu_device *adev,
-			const struct amdgpu_ip_block_version *ip_block_version);
+int amdgpu_device_ip_block_add(struct amdgpu_device *adev,
+			       const struct amdgpu_ip_block_version *ip_block_version);
 
 /* provided by hw blocks that can move/clear data.  e.g., gfx or sdma */
 struct amdgpu_buffer_funcs {
