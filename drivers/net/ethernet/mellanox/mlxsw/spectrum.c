@@ -4300,6 +4300,7 @@ static int mlxsw_sp_port_stp_set(struct mlxsw_sp_port *mlxsw_sp_port,
 
 static int mlxsw_sp_port_ovs_join(struct mlxsw_sp_port *mlxsw_sp_port)
 {
+	u16 vid = 1;
 	int err;
 
 	err = mlxsw_sp_port_vp_mode_set(mlxsw_sp_port, true);
@@ -4312,8 +4313,19 @@ static int mlxsw_sp_port_ovs_join(struct mlxsw_sp_port *mlxsw_sp_port)
 				     true, false);
 	if (err)
 		goto err_port_vlan_set;
+
+	for (; vid <= VLAN_N_VID - 1; vid++) {
+		err = mlxsw_sp_port_vid_learning_set(mlxsw_sp_port,
+						     vid, false);
+		if (err)
+			goto err_vid_learning_set;
+	}
+
 	return 0;
 
+err_vid_learning_set:
+	for (vid--; vid >= 1; vid--)
+		mlxsw_sp_port_vid_learning_set(mlxsw_sp_port, vid, true);
 err_port_vlan_set:
 	mlxsw_sp_port_stp_set(mlxsw_sp_port, false);
 err_port_stp_set:
@@ -4323,6 +4335,12 @@ err_port_stp_set:
 
 static void mlxsw_sp_port_ovs_leave(struct mlxsw_sp_port *mlxsw_sp_port)
 {
+	u16 vid;
+
+	for (vid = VLAN_N_VID - 1; vid >= 1; vid--)
+		mlxsw_sp_port_vid_learning_set(mlxsw_sp_port,
+					       vid, true);
+
 	mlxsw_sp_port_vlan_set(mlxsw_sp_port, 2, VLAN_N_VID - 1,
 			       false, false);
 	mlxsw_sp_port_stp_set(mlxsw_sp_port, false);
