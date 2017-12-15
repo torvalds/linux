@@ -228,7 +228,8 @@ union __fpsimd_vreg {
 
 static int compat_preserve_vfp_context(struct compat_vfp_sigframe __user *frame)
 {
-	struct fpsimd_state *fpsimd = &current->thread.fpsimd_state;
+	struct user_fpsimd_state const *fpsimd =
+		&current->thread.fpsimd_state.user_fpsimd;
 	compat_ulong_t magic = VFP_MAGIC;
 	compat_ulong_t size = VFP_STORAGE_SIZE;
 	compat_ulong_t fpscr, fpexc;
@@ -277,7 +278,7 @@ static int compat_preserve_vfp_context(struct compat_vfp_sigframe __user *frame)
 
 static int compat_restore_vfp_context(struct compat_vfp_sigframe __user *frame)
 {
-	struct fpsimd_state fpsimd;
+	struct user_fpsimd_state fpsimd;
 	compat_ulong_t magic = VFP_MAGIC;
 	compat_ulong_t size = VFP_STORAGE_SIZE;
 	compat_ulong_t fpscr;
