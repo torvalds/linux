@@ -112,8 +112,6 @@ static u32 isa_irq_to_gsi[NR_IRQS_LEGACY] __read_mostly = {
 	0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15
 };
 
-#define	ACPI_INVALID_GSI		INT_MIN
-
 /*
  * This is just a simple wrapper around early_memremap(),
  * with sanity checks for phys == 0 and size == 0.
@@ -372,7 +370,7 @@ static void __init mp_override_legacy_irq(u8 bus_irq, u8 polarity, u8 trigger,
 	 * and acpi_isa_irq_to_gsi() may give wrong result.
 	 */
 	if (gsi < nr_legacy_irqs() && isa_irq_to_gsi[gsi] == gsi)
-		isa_irq_to_gsi[gsi] = ACPI_INVALID_GSI;
+		isa_irq_to_gsi[gsi] = INVALID_ACPI_IRQ;
 	isa_irq_to_gsi[bus_irq] = gsi;
 }
 
@@ -637,7 +635,7 @@ EXPORT_SYMBOL_GPL(acpi_gsi_to_irq);
 int acpi_isa_irq_to_gsi(unsigned isa_irq, u32 *gsi)
 {
 	if (isa_irq < nr_legacy_irqs() &&
-	    isa_irq_to_gsi[isa_irq] != ACPI_INVALID_GSI) {
+	    isa_irq_to_gsi[isa_irq] != INVALID_ACPI_IRQ) {
 		*gsi = isa_irq_to_gsi[isa_irq];
 		return 0;
 	}
