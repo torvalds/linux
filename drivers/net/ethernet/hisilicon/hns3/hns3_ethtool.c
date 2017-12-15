@@ -849,6 +849,21 @@ static int hns3_nway_reset(struct net_device *netdev)
 	return genphy_restart_aneg(phy);
 }
 
+static const struct ethtool_ops hns3vf_ethtool_ops = {
+	.get_drvinfo = hns3_get_drvinfo,
+	.get_ringparam = hns3_get_ringparam,
+	.set_ringparam = hns3_set_ringparam,
+	.get_strings = hns3_get_strings,
+	.get_ethtool_stats = hns3_get_stats,
+	.get_sset_count = hns3_get_sset_count,
+	.get_rxnfc = hns3_get_rxnfc,
+	.get_rxfh_key_size = hns3_get_rss_key_size,
+	.get_rxfh_indir_size = hns3_get_rss_indir_size,
+	.get_rxfh = hns3_get_rss,
+	.set_rxfh = hns3_set_rss,
+	.get_link_ksettings = hns3_get_link_ksettings,
+};
+
 static const struct ethtool_ops hns3_ethtool_ops = {
 	.self_test = hns3_self_test,
 	.get_drvinfo = hns3_get_drvinfo,
@@ -872,5 +887,10 @@ static const struct ethtool_ops hns3_ethtool_ops = {
 
 void hns3_ethtool_set_ops(struct net_device *netdev)
 {
-	netdev->ethtool_ops = &hns3_ethtool_ops;
+	struct hnae3_handle *h = hns3_get_handle(netdev);
+
+	if (h->flags & HNAE3_SUPPORT_VF)
+		netdev->ethtool_ops = &hns3vf_ethtool_ops;
+	else
+		netdev->ethtool_ops = &hns3_ethtool_ops;
 }
