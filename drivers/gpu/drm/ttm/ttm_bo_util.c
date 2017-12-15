@@ -485,7 +485,7 @@ static int ttm_buffer_object_transfer(struct ttm_buffer_object *bo,
 	fbo->acc_size = 0;
 	fbo->resv = &fbo->ttm_resv;
 	reservation_object_init(fbo->resv);
-	ret = ww_mutex_trylock(&fbo->resv->lock);
+	ret = reservation_object_trylock(fbo->resv);
 	WARN_ON(!ret);
 
 	*new_obj = fbo;
