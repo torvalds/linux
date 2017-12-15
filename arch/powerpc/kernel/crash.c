@@ -69,9 +69,6 @@ static void crash_ipi_callback(struct pt_regs *regs)
 
 	int cpu = smp_processor_id();
 
-	if (!cpu_online(cpu))
-		return;
-
 	hard_irq_disable();
 	if (!cpumask_test_cpu(cpu, &cpus_state_saved)) {
 		crash_save_cpu(regs, cpu);
