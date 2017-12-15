@@ -317,7 +317,7 @@
 			};
 		};
 
-		vrefbuf: regulator@58003C00 {
+		vrefbuf: regulator@58003c00 {
 			compatible = "st,stm32-vrefbuf";
 			reg = <0x58003C00 0x8>;
 			clocks = <&rcc VREF_CK>;
