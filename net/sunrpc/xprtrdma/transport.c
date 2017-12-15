@@ -474,14 +474,34 @@ xprt_rdma_close(struct rpc_xprt *xprt)
 	rpcrdma_ep_disconnect(ep, ia);
 }
 
+/**
+ * xprt_rdma_set_port - update server port with rpcbind result
+ * @xprt: controlling RPC transport
+ * @port: new port value
+ *
+ * Transport connect status is unchanged.
+ */
 static void
 xprt_rdma_set_port(struct rpc_xprt *xprt, u16 port)
 {
-	struct sockaddr_in *sap;
+	struct sockaddr *sap = (struct sockaddr *)&xprt->addr;
+	char buf[8];
 
-	sap = (struct sockaddr_in *)&xprt->addr;
-	sap->sin_port = htons(port);
-	dprintk("RPC:       %s: %u\n", __func__, port);
+	dprintk("RPC:       %s: setting port for xprt %p (%s:%s) to %u\n",
+		__func__, xprt,
+		xprt->address_strings[RPC_DISPLAY_ADDR],
+		xprt->address_strings[RPC_DISPLAY_PORT],
+		port);
+
+	rpc_set_port(sap, port);
+
+	kfree(xprt->address_strings[RPC_DISPLAY_PORT]);
+	snprintf(buf, sizeof(buf), "%u", port);
+	xprt->address_strings[RPC_DISPLAY_PORT] = kstrdup(buf, GFP_KERNEL);
+
+	kfree(xprt->address_strings[RPC_DISPLAY_HEX_PORT]);
+	snprintf(buf, sizeof(buf), "%4hx", port);
+	xprt->address_strings[RPC_DISPLAY_HEX_PORT] = kstrdup(buf, GFP_KERNEL);
 }
 
 /**
