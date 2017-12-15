@@ -430,7 +430,6 @@ struct rpcrdma_buffer {
  * This data should be set with mount options
  */
 struct rpcrdma_create_data_internal {
-	struct sockaddr_storage	addr;	/* RDMA server address */
 	unsigned int	max_requests;	/* max requests (slots) in flight */
 	unsigned int	rsize;		/* mount rsize - max read hdr+data */
 	unsigned int	wsize;		/* mount wsize - max write hdr+data */
@@ -543,7 +542,7 @@ extern unsigned int xprt_rdma_memreg_strategy;
 /*
  * Interface Adapter calls - xprtrdma/verbs.c
  */
-int rpcrdma_ia_open(struct rpcrdma_xprt *xprt, struct sockaddr *addr);
+int rpcrdma_ia_open(struct rpcrdma_xprt *xprt);
 void rpcrdma_ia_remove(struct rpcrdma_ia *ia);
 void rpcrdma_ia_close(struct rpcrdma_ia *);
 bool frwr_is_supported(struct rpcrdma_ia *);

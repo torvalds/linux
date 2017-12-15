@@ -294,8 +294,7 @@ connected:
 }
 
 static struct rdma_cm_id *
-rpcrdma_create_id(struct rpcrdma_xprt *xprt,
-			struct rpcrdma_ia *ia, struct sockaddr *addr)
+rpcrdma_create_id(struct rpcrdma_xprt *xprt, struct rpcrdma_ia *ia)
 {
 	unsigned long wtimeout = msecs_to_jiffies(RDMA_RESOLVE_TIMEOUT) + 1;
 	struct rdma_cm_id *id;
@@ -314,7 +313,9 @@ rpcrdma_create_id(struct rpcrdma_xprt *xprt,
 	}
 
 	ia->ri_async_rc = -ETIMEDOUT;
-	rc = rdma_resolve_addr(id, NULL, addr, RDMA_RESOLVE_TIMEOUT);
+	rc = rdma_resolve_addr(id, NULL,
+			       (struct sockaddr *)&xprt->rx_xprt.addr,
+			       RDMA_RESOLVE_TIMEOUT);
 	if (rc) {
 		dprintk("RPC:       %s: rdma_resolve_addr() failed %i\n",
 			__func__, rc);
@@ -361,19 +362,18 @@ out:
 
 /**
  * rpcrdma_ia_open - Open and initialize an Interface Adapter.
- * @xprt: controlling transport
- * @addr: IP address of remote peer
+ * @xprt: transport with IA to (re)initialize
  *
  * Returns 0 on success, negative errno if an appropriate
  * Interface Adapter could not be found and opened.
  */
 int
-rpcrdma_ia_open(struct rpcrdma_xprt *xprt, struct sockaddr *addr)
+rpcrdma_ia_open(struct rpcrdma_xprt *xprt)
 {
 	struct rpcrdma_ia *ia = &xprt->rx_ia;
 	int rc;
 
-	ia->ri_id = rpcrdma_create_id(xprt, ia, addr);
+	ia->ri_id = rpcrdma_create_id(xprt, ia);
 	if (IS_ERR(ia->ri_id)) {
 		rc = PTR_ERR(ia->ri_id);
 		goto out_err;
@@ -649,13 +649,12 @@ static int
 rpcrdma_ep_recreate_xprt(struct rpcrdma_xprt *r_xprt,
 			 struct rpcrdma_ep *ep, struct rpcrdma_ia *ia)
 {
-	struct sockaddr *sap = (struct sockaddr *)&r_xprt->rx_data.addr;
 	int rc, err;
 
 	pr_info("%s: r_xprt = %p\n", __func__, r_xprt);
 
 	rc = -EHOSTUNREACH;
-	if (rpcrdma_ia_open(r_xprt, sap))
+	if (rpcrdma_ia_open(r_xprt))
 		goto out1;
 
 	rc = -ENOMEM;
@@ -687,7 +686,6 @@ static int
 rpcrdma_ep_reconnect(struct rpcrdma_xprt *r_xprt, struct rpcrdma_ep *ep,
 		     struct rpcrdma_ia *ia)
 {
-	struct sockaddr *sap = (struct sockaddr *)&r_xprt->rx_data.addr;
 	struct rdma_cm_id *id, *old;
 	int err, rc;
 
@@ -696,7 +694,7 @@ rpcrdma_ep_reconnect(struct rpcrdma_xprt *r_xprt, struct rpcrdma_ep *ep,
 	rpcrdma_ep_disconnect(ep, ia);
 
 	rc = -EHOSTUNREACH;
-	id = rpcrdma_create_id(r_xprt, ia, sap);
+	id = rpcrdma_create_id(r_xprt, ia);
 	if (IS_ERR(id))
 		goto out;
 

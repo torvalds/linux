@@ -361,9 +361,7 @@ xprt_setup_rdma(struct xprt_create *args)
 	/*
 	 * Set up RDMA-specific connect data.
 	 */
-
-	sap = (struct sockaddr *)&cdata.addr;
-	memcpy(sap, args->dstaddr, args->addrlen);
+	sap = args->dstaddr;
 
 	/* Ensure xprt->addr holds valid server TCP (not RDMA)
 	 * address, for any side protocols which peek at it */
@@ -397,7 +395,7 @@ xprt_setup_rdma(struct xprt_create *args)
 
 	new_xprt = rpcx_to_rdmax(xprt);
 
-	rc = rpcrdma_ia_open(new_xprt, sap);
+	rc = rpcrdma_ia_open(new_xprt);
 	if (rc)
 		goto out1;
 
@@ -482,8 +480,6 @@ xprt_rdma_set_port(struct rpc_xprt *xprt, u16 port)
 	struct sockaddr_in *sap;
 
 	sap = (struct sockaddr_in *)&xprt->addr;
-	sap->sin_port = htons(port);
-	sap = (struct sockaddr_in *)&rpcx_to_rdmad(xprt).addr;
 	sap->sin_port = htons(port);
 	dprintk("RPC:       %s: %u\n", __func__, port);
 }
