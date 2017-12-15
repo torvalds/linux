@@ -213,6 +213,21 @@ static int sysc_check_children(struct sysc *ddata)
 	return 0;
 }
 
+/*
+ * So far only I2C uses 16-bit read access with clockactivity with revision
+ * in two registers with stride of 4. We can detect this based on the rev
+ * register size to configure things far enough to be able to properly read
+ * the revision register.
+ */
+static void sysc_check_quirk_16bit(struct sysc *ddata, struct resource *res)
+{
+	if (resource_size(res) == 8) {
+		dev_dbg(ddata->dev,
+			"enabling 16-bit and clockactivity quirks\n");
+		ddata->cfg.quirks |= SYSC_QUIRK_16BIT | SYSC_QUIRK_USE_CLOCKACT;
+	}
+}
+
 /**
  * sysc_parse_one - parses the interconnect target module registers
  * @ddata: device driver data
@@ -243,6 +258,8 @@ static int sysc_parse_one(struct sysc *ddata, enum sysc_registers reg)
 	}
 
 	ddata->offsets[reg] = res->start - ddata->module_pa;
+	if (reg == SYSC_REVISION)
+		sysc_check_quirk_16bit(ddata, res);
 
 	return 0;
 }
