@@ -77,6 +77,7 @@
 enum br_mask {
 	BR_BEQ = 0x00,
 	BR_BNE = 0x01,
+	BR_BMI = 0x02,
 	BR_BHS = 0x04,
 	BR_BLO = 0x05,
 	BR_BGE = 0x08,
@@ -175,6 +176,7 @@ enum alu_op {
 	ALU_OP_NONE	= 0x00,
 	ALU_OP_ADD	= 0x01,
 	ALU_OP_NOT	= 0x04,
+	ALU_OP_ADD_2B	= 0x05,
 	ALU_OP_AND	= 0x08,
 	ALU_OP_SUB_C	= 0x0d,
 	ALU_OP_ADD_C	= 0x11,

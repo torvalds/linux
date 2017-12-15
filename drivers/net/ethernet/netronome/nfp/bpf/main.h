@@ -81,9 +81,20 @@ enum pkt_vec {
 /**
  * struct nfp_app_bpf - bpf app priv structure
  * @app:		backpointer to the app
+ *
+ * @adjust_head:	adjust head capability
+ * @flags:		extra flags for adjust head
+ * @off_min:		minimal packet offset within buffer required
+ * @off_max:		maximum packet offset within buffer required
  */
 struct nfp_app_bpf {
 	struct nfp_app *app;
+
+	struct nfp_bpf_cap_adjust_head {
+		u32 flags;
+		int off_min;
+		int off_max;
+	} adjust_head;
 };
 
 struct nfp_prog;

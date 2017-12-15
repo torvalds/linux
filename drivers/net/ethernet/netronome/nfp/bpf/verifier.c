@@ -38,6 +38,7 @@
 #include <linux/kernel.h>
 #include <linux/pkt_cls.h>
 
+#include "fw.h"
 #include "main.h"
 
 struct nfp_insn_meta *
@@ -71,9 +72,20 @@ nfp_bpf_goto_meta(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
 static int
 nfp_bpf_check_call(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 {
+	struct nfp_app_bpf *bpf = nfp_prog->bpf;
 	u32 func_id = meta->insn.imm;
 
 	switch (func_id) {
+	case BPF_FUNC_xdp_adjust_head:
+		if (!bpf->adjust_head.off_max) {
+			pr_warn("adjust_head not supported by FW\n");
+			return -EOPNOTSUPP;
+		}
+		if (!(bpf->adjust_head.flags & NFP_BPF_ADJUST_HEAD_NO_META)) {
+			pr_warn("adjust_head: FW requires shifting metadata, not supported by the driver\n");
+			return -EOPNOTSUPP;
+		}
+		break;
 	default:
 		pr_warn("unsupported function id: %d\n", func_id);
 		return -EOPNOTSUPP;
