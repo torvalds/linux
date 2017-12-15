@@ -64,6 +64,7 @@ struct rockchip_drm_mode_set {
 	int hdisplay;
 	int vdisplay;
 	int vrefresh;
+	int flags;
 
 	bool mode_changed;
 	bool ymirror;
@@ -389,6 +390,9 @@ of_parse_display_resource(struct drm_device *drm_dev, struct device_node *route)
 	if (!of_property_read_u32(route, "video,vrefresh", &val))
 		set->vrefresh = val;
 
+	if (!of_property_read_u32(route, "video,flags", &val))
+		set->flags = val;
+
 	if (!of_property_read_u32(route, "logo,ymirror", &val))
 		set->ymirror = val;
 
@@ -452,7 +456,8 @@ int setup_initial_state(struct drm_device *drm_dev,
 	list_for_each_entry(mode, &connector->modes, head) {
 		if (mode->hdisplay == set->hdisplay &&
 		    mode->vdisplay == set->vdisplay &&
-		    drm_mode_vrefresh(mode) == set->vrefresh) {
+		    drm_mode_vrefresh(mode) == set->vrefresh &&
+		    mode->flags == set->flags) {
 			found = 1;
 			match = 1;
 			break;
