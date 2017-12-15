@@ -5394,10 +5394,15 @@ static int reserve_metadata_bytes(struct btrfs_root *root,
 		    !block_rsv_use_bytes(global_rsv, orig_bytes))
 			ret = 0;
 	}
-	if (ret == -ENOSPC)
+	if (ret == -ENOSPC) {
 		trace_btrfs_space_reservation(fs_info, "space_info:enospc",
 					      block_rsv->space_info->flags,
 					      orig_bytes, 1);
+
+		if (btrfs_test_opt(fs_info, ENOSPC_DEBUG))
+			dump_space_info(fs_info, block_rsv->space_info,
+					orig_bytes, 0);
+	}
 	return ret;
 }
 
