@@ -2425,14 +2425,6 @@ static int amdgpu_device_ip_post_soft_reset(struct amdgpu_device *adev)
 	return 0;
 }
 
-bool amdgpu_need_backup(struct amdgpu_device *adev)
-{
-	if (adev->flags & AMD_IS_APU)
-		return false;
-
-	return amdgpu_gpu_recovery;
-}
-
 static int amdgpu_device_recover_vram_from_shadow(struct amdgpu_device *adev,
 						  struct amdgpu_ring *ring,
 						  struct amdgpu_bo *bo,

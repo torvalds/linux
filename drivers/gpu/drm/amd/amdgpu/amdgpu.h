@@ -1889,7 +1889,6 @@ amdgpu_get_sdma_instance(struct amdgpu_ring *ring)
 /* Common functions */
 int amdgpu_device_gpu_recover(struct amdgpu_device *adev,
 			      struct amdgpu_job* job, bool force);
-bool amdgpu_need_backup(struct amdgpu_device *adev);
 void amdgpu_device_pci_config_reset(struct amdgpu_device *adev);
 bool amdgpu_device_need_post(struct amdgpu_device *adev);
 void amdgpu_update_display_priority(struct amdgpu_device *adev);
