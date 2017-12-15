@@ -80,7 +80,7 @@
 			status = "disabled";
 		};
 
-		fb0: fb@0x00600000 {
+		fb0: fb@600000 {
 			compatible = "atmel,at91sam9261-lcdc";
 			reg = <0x00600000 0x1000>;
 			interrupts = <21 IRQ_TYPE_LEVEL_HIGH 3>;

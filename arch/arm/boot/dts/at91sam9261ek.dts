@@ -36,7 +36,7 @@
 			status = "okay";
 		};
 
-		fb0: fb@0x00600000 {
+		fb0: fb@600000 {
 			display = <&display0>;
 			atmel,power-control-gpio = <&pioA 12 GPIO_ACTIVE_LOW>;
 			status = "okay";

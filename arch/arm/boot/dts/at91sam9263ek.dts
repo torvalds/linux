@@ -95,7 +95,7 @@
 			};
 		};
 
-		fb0: fb@0x00700000 {
+		fb0: fb@700000 {
 			display = <&display0>;
 			status = "okay";
 
