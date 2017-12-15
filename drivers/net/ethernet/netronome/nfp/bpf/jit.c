@@ -1930,6 +1930,15 @@ static int jne_reg(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 	return wrp_test_reg(nfp_prog, meta, ALU_OP_XOR, BR_BNE);
 }
 
+static int call(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
+{
+	switch (meta->insn.imm) {
+	default:
+		WARN_ONCE(1, "verifier allowed unsupported function\n");
+		return -EOPNOTSUPP;
+	}
+}
+
 static int goto_out(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 {
 	wrp_br_special(nfp_prog, BR_UNC, OP_BR_GO_OUT);
@@ -2002,6 +2011,7 @@ static const instr_cb_t instr_cb[256] = {
 	[BPF_JMP | BPF_JLE | BPF_X] =	jle_reg,
 	[BPF_JMP | BPF_JSET | BPF_X] =	jset_reg,
 	[BPF_JMP | BPF_JNE | BPF_X] =	jne_reg,
+	[BPF_JMP | BPF_CALL] =		call,
 	[BPF_JMP | BPF_EXIT] =		goto_out,
 };
 
@@ -2025,6 +2035,8 @@ static int nfp_fixup_branches(struct nfp_prog *nfp_prog)
 
 	list_for_each_entry(meta, &nfp_prog->insns, l) {
 		if (meta->skip)
+			continue;
+		if (meta->insn.code == (BPF_JMP | BPF_CALL))
 			continue;
 		if (BPF_CLASS(meta->insn.code) != BPF_JMP)
 			continue;
