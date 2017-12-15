@@ -228,6 +228,8 @@ x25.txt
 	- general info on X.25 development.
 x25-iface.txt
 	- description of the X.25 Packet Layer to LAPB device interface.
+xfrm_device.txt
+	- description of XFRM offload API
 xfrm_proc.txt
 	- description of the statistics package for XFRM.
 xfrm_sync.txt
