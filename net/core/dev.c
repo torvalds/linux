@@ -3904,7 +3904,7 @@ static u32 netif_receive_generic_xdp(struct sk_buff *skb,
 				     hroom > 0 ? ALIGN(hroom, NET_SKB_PAD) : 0,
 				     troom > 0 ? troom + 128 : 0, GFP_ATOMIC))
 			goto do_drop;
-		if (troom > 0 && __skb_linearize(skb))
+		if (skb_linearize(skb))
 			goto do_drop;
 	}
 
