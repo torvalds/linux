@@ -1,6 +1,21 @@
 #ifndef __TI_SYSC_DATA_H__
 #define __TI_SYSC_DATA_H__
 
+enum ti_sysc_module_type {
+	TI_SYSC_OMAP2,
+	TI_SYSC_OMAP2_TIMER,
+	TI_SYSC_OMAP3_SHAM,
+	TI_SYSC_OMAP3_AES,
+	TI_SYSC_OMAP4,
+	TI_SYSC_OMAP4_TIMER,
+	TI_SYSC_OMAP4_SIMPLE,
+	TI_SYSC_OMAP34XX_SR,
+	TI_SYSC_OMAP36XX_SR,
+	TI_SYSC_OMAP4_SR,
+	TI_SYSC_OMAP4_MCASP,
+	TI_SYSC_OMAP4_USB_HOST_FS,
+};
+
 /**
  * struct sysc_regbits - TI OCP_SYSCONFIG register field offsets
  * @midle_shift: Offset of the midle bit
@@ -24,6 +39,31 @@ struct sysc_regbits {
 	s8 autoidle_shift;
 	s8 dmadisable_shift;
 	s8 emufree_shift;
+};
+
+#define SYSC_QUIRK_UNCACHED		BIT(1)
+#define SYSC_QUIRK_USE_CLOCKACT		BIT(0)
+
+/**
+ * struct sysc_capabilities - capabilities for an interconnect target module
+ *
+ * @sysc_mask: bitmask of supported SYSCONFIG register bits
+ * @regbits: bitmask of SYSCONFIG register bits
+ * @mod_quirks: bitmask of module specific quirks
+ */
+struct sysc_capabilities {
+	const enum ti_sysc_module_type type;
+	const u32 sysc_mask;
+	const struct sysc_regbits *regbits;
+	const u32 mod_quirks;
+};
+
+/**
+ * struct sysc_config - configuration for an interconnect target module
+ * @quirks: bitmask of enabled quirks
+ */
+struct sysc_config {
+	u32 quirks;
 };
 
 #endif	/* __TI_SYSC_DATA_H__ */
