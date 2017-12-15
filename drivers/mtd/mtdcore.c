@@ -503,6 +503,11 @@ int add_mtd_device(struct mtd_info *mtd)
 		return -EEXIST;
 
 	BUG_ON(mtd->writesize == 0);
+
+	if (WARN_ON((!mtd->erasesize || !mtd->_erase) &&
+		    !(mtd->flags & MTD_NO_ERASE)))
+		return -EINVAL;
+
 	mutex_lock(&mtd_table_mutex);
 
 	i = idr_alloc(&mtd_idr, mtd, 0, 0, GFP_KERNEL);
