@@ -12,6 +12,10 @@ Required properties:
 - clocks: Should be the clock id of eFuse
 - clock-names: Should be "pclk_efuse"
 
+Optional properties:
+- rockchip,efuse-size: Should be exact eFuse size in byte, the eFuse
+  size in property <reg> will be invalid if define this property.
+
 Deprecated properties:
 - compatible: "rockchip,rockchip-efuse"
   Old efuse compatible value compatible to rk3066a, rk3188 and rk3288

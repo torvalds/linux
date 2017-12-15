@@ -217,7 +217,9 @@ static int rockchip_efuse_probe(struct platform_device *pdev)
 		return PTR_ERR(efuse->clk);
 
 	efuse->dev = &pdev->dev;
-	econfig.size = resource_size(res);
+	if (of_property_read_u32(dev->of_node, "rockchip,efuse-size",
+				 &econfig.size))
+		econfig.size = resource_size(res);
 	econfig.reg_read = match->data;
 	econfig.priv = efuse;
 	econfig.dev = efuse->dev;
