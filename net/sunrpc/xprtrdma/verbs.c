@@ -192,7 +192,6 @@ rpcrdma_update_connect_private(struct rpcrdma_xprt *r_xprt,
 	unsigned int rsize, wsize;
 
 	/* Default settings for RPC-over-RDMA Version One */
-	r_xprt->rx_ia.ri_reminv_expected = false;
 	r_xprt->rx_ia.ri_implicit_roundup = xprt_rdma_pad_optimize;
 	rsize = RPCRDMA_V1_DEF_INLINE_SIZE;
 	wsize = RPCRDMA_V1_DEF_INLINE_SIZE;
@@ -200,7 +199,6 @@ rpcrdma_update_connect_private(struct rpcrdma_xprt *r_xprt,
 	if (pmsg &&
 	    pmsg->cp_magic == rpcrdma_cmp_magic &&
 	    pmsg->cp_version == RPCRDMA_CMP_VERSION) {
-		r_xprt->rx_ia.ri_reminv_expected = true;
 		r_xprt->rx_ia.ri_implicit_roundup = true;
 		rsize = rpcrdma_decode_buffer_size(pmsg->cp_send_size);
 		wsize = rpcrdma_decode_buffer_size(pmsg->cp_recv_size);

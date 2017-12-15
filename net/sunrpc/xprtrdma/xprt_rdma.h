@@ -77,7 +77,6 @@ struct rpcrdma_ia {
 	unsigned int		ri_max_inline_write;
 	unsigned int		ri_max_inline_read;
 	unsigned int		ri_max_send_sges;
-	bool			ri_reminv_expected;
 	bool			ri_implicit_roundup;
 	enum ib_mr_type		ri_mrtype;
 	unsigned long		ri_flags;
