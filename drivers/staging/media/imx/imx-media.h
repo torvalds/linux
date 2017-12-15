@@ -158,9 +158,6 @@ struct imx_media_subdev {
 	struct platform_device *pdev;
 	/* the devname is needed for async devname match */
 	char devname[32];
-
-	/* if this is a sensor */
-	struct v4l2_fwnode_endpoint sensor_ep;
 };
 
 struct imx_media_dev {
@@ -251,16 +248,14 @@ int imx_media_add_video_device(struct imx_media_dev *imxmd,
 			       struct imx_media_video_dev *vdev);
 int imx_media_find_mipi_csi2_channel(struct imx_media_dev *imxmd,
 				     struct media_entity *start_entity);
+struct media_pad *
+imx_media_find_upstream_pad(struct imx_media_dev *imxmd,
+			    struct media_entity *start_entity,
+			    u32 grp_id);
 struct imx_media_subdev *
 imx_media_find_upstream_subdev(struct imx_media_dev *imxmd,
 			       struct media_entity *start_entity,
 			       u32 grp_id);
-struct imx_media_subdev *
-__imx_media_find_sensor(struct imx_media_dev *imxmd,
-			struct media_entity *start_entity);
-struct imx_media_subdev *
-imx_media_find_sensor(struct imx_media_dev *imxmd,
-		      struct media_entity *start_entity);
 
 struct imx_media_dma_buf {
 	void          *virt;
@@ -310,16 +305,14 @@ void imx_media_capture_device_set_format(struct imx_media_video_dev *vdev,
 void imx_media_capture_device_error(struct imx_media_video_dev *vdev);
 
 /* subdev group ids */
-#define IMX_MEDIA_GRP_ID_SENSOR    BIT(8)
-#define IMX_MEDIA_GRP_ID_VIDMUX    BIT(9)
-#define IMX_MEDIA_GRP_ID_CSI2      BIT(10)
-#define IMX_MEDIA_GRP_ID_CSI_BIT   11
+#define IMX_MEDIA_GRP_ID_CSI2      BIT(8)
+#define IMX_MEDIA_GRP_ID_CSI_BIT   9
 #define IMX_MEDIA_GRP_ID_CSI       (0x3 << IMX_MEDIA_GRP_ID_CSI_BIT)
 #define IMX_MEDIA_GRP_ID_CSI0      BIT(IMX_MEDIA_GRP_ID_CSI_BIT)
 #define IMX_MEDIA_GRP_ID_CSI1      (2 << IMX_MEDIA_GRP_ID_CSI_BIT)
-#define IMX_MEDIA_GRP_ID_VDIC      BIT(13)
-#define IMX_MEDIA_GRP_ID_IC_PRP    BIT(14)
-#define IMX_MEDIA_GRP_ID_IC_PRPENC BIT(15)
-#define IMX_MEDIA_GRP_ID_IC_PRPVF  BIT(16)
+#define IMX_MEDIA_GRP_ID_VDIC      BIT(11)
+#define IMX_MEDIA_GRP_ID_IC_PRP    BIT(12)
+#define IMX_MEDIA_GRP_ID_IC_PRPENC BIT(13)
+#define IMX_MEDIA_GRP_ID_IC_PRPVF  BIT(14)
 
 #endif

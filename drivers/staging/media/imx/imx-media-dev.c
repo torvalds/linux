@@ -222,18 +222,6 @@ static int imx_media_subdev_bound(struct v4l2_async_notifier *notifier,
 		ret = imx_media_get_ipu(imxmd, sd);
 		if (ret)
 			goto out_unlock;
-	} else if (sd->entity.function == MEDIA_ENT_F_VID_MUX) {
-		/* this is a video mux */
-		sd->grp_id = IMX_MEDIA_GRP_ID_VIDMUX;
-	} else if (imxsd->num_sink_pads == 0) {
-		/*
-		 * this is an original source of video frames, it
-		 * could be a camera sensor, an analog decoder, or
-		 * a bridge device (HDMI -> MIPI CSI-2 for example).
-		 * This group ID is used to locate the entity that
-		 * is the original source of video in a pipeline.
-		 */
-		sd->grp_id = IMX_MEDIA_GRP_ID_SENSOR;
 	}
 
 	/* attach the subdev */

@@ -730,10 +730,11 @@ out:
 EXPORT_SYMBOL_GPL(imx_media_add_video_device);
 
 /*
- * Search upstream or downstream for a subdevice in the current pipeline
+ * Search upstream/downstream for a subdevice in the current pipeline
  * with given grp_id, starting from start_entity. Returns the subdev's
- * source/sink pad that it was reached from. Must be called with
- * mdev->graph_mutex held.
+ * source/sink pad that it was reached from. If grp_id is zero, just
+ * returns the nearest source/sink pad to start_entity. Must be called
+ * with mdev->graph_mutex held.
  */
 static struct media_pad *
 find_pipeline_pad(struct imx_media_dev *imxmd,
@@ -756,11 +757,16 @@ find_pipeline_pad(struct imx_media_dev *imxmd,
 		if (!pad || !is_media_entity_v4l2_subdev(pad->entity))
 			continue;
 
-		sd = media_entity_to_v4l2_subdev(pad->entity);
-		if (sd->grp_id & grp_id)
-			return pad;
+		if (grp_id != 0) {
+			sd = media_entity_to_v4l2_subdev(pad->entity);
+			if (sd->grp_id & grp_id)
+				return pad;
 
-		return find_pipeline_pad(imxmd, pad->entity, grp_id, upstream);
+			return find_pipeline_pad(imxmd, pad->entity,
+						 grp_id, upstream);
+		} else {
+			return pad;
+		}
 	}
 
 	return NULL;
@@ -789,7 +795,6 @@ find_upstream_subdev(struct imx_media_dev *imxmd,
 	return pad ? media_entity_to_v4l2_subdev(pad->entity) : NULL;
 }
 
-
 /*
  * Find the upstream mipi-csi2 virtual channel reached from the given
  * start entity in the current pipeline.
@@ -814,6 +819,25 @@ int imx_media_find_mipi_csi2_channel(struct imx_media_dev *imxmd,
 EXPORT_SYMBOL_GPL(imx_media_find_mipi_csi2_channel);
 
 /*
+ * Find a source pad reached upstream from the given start entity in
+ * the current pipeline. Must be called with mdev->graph_mutex held.
+ */
+struct media_pad *
+imx_media_find_upstream_pad(struct imx_media_dev *imxmd,
+			    struct media_entity *start_entity,
+			    u32 grp_id)
+{
+	struct media_pad *pad;
+
+	pad = find_pipeline_pad(imxmd, start_entity, grp_id, true);
+	if (!pad)
+		return ERR_PTR(-ENODEV);
+
+	return pad;
+}
+EXPORT_SYMBOL_GPL(imx_media_find_upstream_pad);
+
+/*
  * Find a subdev reached upstream from the given start entity in
  * the current pipeline.
  * Must be called with mdev->graph_mutex held.
@@ -832,29 +856,6 @@ imx_media_find_upstream_subdev(struct imx_media_dev *imxmd,
 	return imx_media_find_subdev_by_sd(imxmd, sd);
 }
 EXPORT_SYMBOL_GPL(imx_media_find_upstream_subdev);
-
-struct imx_media_subdev *
-__imx_media_find_sensor(struct imx_media_dev *imxmd,
-			struct media_entity *start_entity)
-{
-	return imx_media_find_upstream_subdev(imxmd, start_entity,
-					      IMX_MEDIA_GRP_ID_SENSOR);
-}
-EXPORT_SYMBOL_GPL(__imx_media_find_sensor);
-
-struct imx_media_subdev *
-imx_media_find_sensor(struct imx_media_dev *imxmd,
-		      struct media_entity *start_entity)
-{
-	struct imx_media_subdev *sensor;
-
-	mutex_lock(&imxmd->md.graph_mutex);
-	sensor = __imx_media_find_sensor(imxmd, start_entity);
-	mutex_unlock(&imxmd->md.graph_mutex);
-
-	return sensor;
-}
-EXPORT_SYMBOL_GPL(imx_media_find_sensor);
 
 /*
  * Turn current pipeline streaming on/off starting from entity.

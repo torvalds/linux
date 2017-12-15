@@ -34,20 +34,6 @@ static int of_add_pad_link(struct imx_media_dev *imxmd,
 				      local_pad, remote_pad);
 }
 
-static void of_parse_sensor(struct imx_media_dev *imxmd,
-			    struct imx_media_subdev *sensor,
-			    struct device_node *sensor_np)
-{
-	struct device_node *endpoint;
-
-	endpoint = of_graph_get_next_endpoint(sensor_np, NULL);
-	if (endpoint) {
-		v4l2_fwnode_endpoint_parse(of_fwnode_handle(endpoint),
-					   &sensor->sensor_ep);
-		of_node_put(endpoint);
-	}
-}
-
 static int of_get_port_count(const struct device_node *np)
 {
 	struct device_node *ports, *child;
@@ -171,13 +157,6 @@ of_parse_subdev(struct imx_media_dev *imxmd, struct device_node *sd_np,
 	dev_dbg(imxmd->md.dev, "%s: %s has %d pads (%d sink, %d src)\n",
 		__func__, sd_np->name, num_pads,
 		imxsd->num_sink_pads, imxsd->num_src_pads);
-
-	/*
-	 * With no sink, this subdev node is the original source
-	 * of video, parse it's media bus for use by the pipeline.
-	 */
-	if (imxsd->num_sink_pads == 0)
-		of_parse_sensor(imxmd, imxsd, sd_np);
 
 	for (i = 0; i < num_pads; i++) {
 		struct device_node *epnode = NULL, *port, *remote_np;
