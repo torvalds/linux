@@ -671,7 +671,7 @@ int amdgpu_device_resize_fb_bar(struct amdgpu_device *adev)
  * GPU helpers function.
  */
 /**
- * amdgpu_need_post - check if the hw need post or not
+ * amdgpu_device_need_post - check if the hw need post or not
  *
  * @adev: amdgpu_device pointer
  *
@@ -679,7 +679,7 @@ int amdgpu_device_resize_fb_bar(struct amdgpu_device *adev)
  * or post is needed if  hw reset is performed.
  * Returns true if need or false if not.
  */
-bool amdgpu_need_post(struct amdgpu_device *adev)
+bool amdgpu_device_need_post(struct amdgpu_device *adev)
 {
 	uint32_t reg;
 
@@ -1946,7 +1946,7 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 	amdgpu_device_detect_sriov_bios(adev);
 
 	/* Post card if necessary */
-	if (amdgpu_need_post(adev)) {
+	if (amdgpu_device_need_post(adev)) {
 		if (!adev->bios) {
 			dev_err(adev->dev, "no vBIOS found\n");
 			r = -EINVAL;
@@ -2275,7 +2275,7 @@ int amdgpu_device_resume(struct drm_device *dev, bool resume, bool fbcon)
 	}
 
 	/* post card */
-	if (amdgpu_need_post(adev)) {
+	if (amdgpu_device_need_post(adev)) {
 		r = amdgpu_atom_asic_init(adev->mode_info.atom_context);
 		if (r)
 			DRM_ERROR("amdgpu asic init failed\n");
