@@ -91,7 +91,8 @@ struct bpf_reg_state {
 enum bpf_stack_slot_type {
 	STACK_INVALID,    /* nothing was stored in this stack slot */
 	STACK_SPILL,      /* register spilled into stack */
-	STACK_MISC	  /* BPF program wrote some data into this slot */
+	STACK_MISC,	  /* BPF program wrote some data into this slot */
+	STACK_ZERO,	  /* BPF program wrote constant zero */
 };
 
 #define BPF_REG_SIZE 8	/* size of eBPF register in bytes */
