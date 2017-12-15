@@ -6329,6 +6329,7 @@ enum {
 #define   PLANE_CTL_TILED_X			(  1 << 10)
 #define   PLANE_CTL_TILED_Y			(  4 << 10)
 #define   PLANE_CTL_TILED_YF			(  5 << 10)
+#define   PLANE_CTL_FLIP_HORIZONTAL		(  1 << 8)
 #define   PLANE_CTL_ALPHA_MASK			(0x3 << 4) /* Pre-GLK */
 #define   PLANE_CTL_ALPHA_DISABLE		(  0 << 4)
 #define   PLANE_CTL_ALPHA_SW_PREMULTIPLY	(  2 << 4)

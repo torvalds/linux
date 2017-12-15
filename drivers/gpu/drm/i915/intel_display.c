@@ -3073,6 +3073,12 @@ int skl_check_plane_surface(struct intel_plane_state *plane_state)
 	unsigned int rotation = plane_state->base.rotation;
 	int ret;
 
+	if (rotation & DRM_MODE_REFLECT_X &&
+	    fb->modifier == DRM_FORMAT_MOD_LINEAR) {
+		DRM_DEBUG_KMS("horizontal flip is not supported with linear surface formats\n");
+		return -EINVAL;
+	}
+
 	if (!plane_state->base.visible)
 		return 0;
 
@@ -3453,9 +3459,9 @@ static u32 skl_plane_ctl_tiling(uint64_t fb_modifier)
 	return 0;
 }
 
-static u32 skl_plane_ctl_rotation(unsigned int rotation)
+static u32 skl_plane_ctl_rotate(unsigned int rotate)
 {
-	switch (rotation) {
+	switch (rotate) {
 	case DRM_MODE_ROTATE_0:
 		break;
 	/*
@@ -3469,7 +3475,22 @@ static u32 skl_plane_ctl_rotation(unsigned int rotation)
 	case DRM_MODE_ROTATE_270:
 		return PLANE_CTL_ROTATE_90;
 	default:
-		MISSING_CASE(rotation);
+		MISSING_CASE(rotate);
+	}
+
+	return 0;
+}
+
+static u32 cnl_plane_ctl_flip(unsigned int reflect)
+{
+	switch (reflect) {
+	case 0:
+		break;
+	case DRM_MODE_REFLECT_X:
+		return PLANE_CTL_FLIP_HORIZONTAL;
+	case DRM_MODE_REFLECT_Y:
+	default:
+		MISSING_CASE(reflect);
 	}
 
 	return 0;
@@ -3497,7 +3518,11 @@ u32 skl_plane_ctl(const struct intel_crtc_state *crtc_state,
 
 	plane_ctl |= skl_plane_ctl_format(fb->format->format);
 	plane_ctl |= skl_plane_ctl_tiling(fb->modifier);
-	plane_ctl |= skl_plane_ctl_rotation(rotation);
+	plane_ctl |= skl_plane_ctl_rotate(rotation & DRM_MODE_ROTATE_MASK);
+
+	if (INTEL_GEN(dev_priv) >= 10)
+		plane_ctl |= cnl_plane_ctl_flip(rotation &
+						DRM_MODE_REFLECT_MASK);
 
 	if (key->flags & I915_SET_COLORKEY_DESTINATION)
 		plane_ctl |= PLANE_CTL_KEY_ENABLE_DESTINATION;
@@ -13300,7 +13325,12 @@ intel_primary_plane_create(struct drm_i915_private *dev_priv, enum pipe pipe)
 	if (ret)
 		goto fail;
 
-	if (INTEL_GEN(dev_priv) >= 9) {
+	if (INTEL_GEN(dev_priv) >= 10) {
+		supported_rotations =
+			DRM_MODE_ROTATE_0 | DRM_MODE_ROTATE_90 |
+			DRM_MODE_ROTATE_180 | DRM_MODE_ROTATE_270 |
+			DRM_MODE_REFLECT_X;
+	} else if (INTEL_GEN(dev_priv) >= 9) {
 		supported_rotations =
 			DRM_MODE_ROTATE_0 | DRM_MODE_ROTATE_90 |
 			DRM_MODE_ROTATE_180 | DRM_MODE_ROTATE_270;
