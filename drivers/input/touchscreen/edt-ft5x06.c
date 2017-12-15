@@ -25,6 +25,7 @@
  *    http://www.glyn.com/Products/Displays
  */
 
+#include <linux/bitops.h>
 #include <linux/debugfs.h>
 #include <linux/delay.h>
 #include <linux/device.h>
@@ -55,27 +56,56 @@
 #define WORK_REGISTER_NUM_X		0x33
 #define WORK_REGISTER_NUM_Y		0x34
 
+#define M06_TOUCH_REPORT		0x05
+#define M06_TOUCH_REPORT_LEN		4
+#define M06_TOUCH_REPORT_CRC_LEN	1
+#define M06_TOUCH_REPORT_HEADER_H		0x00
+#define M06_TOUCH_REPORT_HEADER_L		0x01
+#define M06_TOUCH_REPORT_DATALEN		0x02
+#define M06_TOUCH_REPORT_MAGIC		0xaa
+
+#define M09_TD_STATUS			0x02
+#define M09_TOUCH_REPORT		0x03
+#define M09_TOUCH_REPORT_LEN		6
+
+#define EDT_TOUCH_XH_EVENT			0x00
+#define EDT_TOUCH_XH_MASK				GENMASK(3, 0)
+#define EDT_TOUCH_EVENT_DOWN				0x00
+#define EDT_TOUCH_EVENT_UP				BIT(6)
+#define EDT_TOUCH_EVENT_ON				BIT(7)
+#define EDT_TOUCH_EVENT_RESERVED			\
+	(EDT_TOUCH_EVENT_UP | EDT_TOUCH_EVENT_ON)
+#define EDT_TOUCH_EVENT_FLAG_MASK			GENMASK(7, 6)
+#define EDT_TOUCH_XL				0x01
+#define EDT_TOUCH_ID_YH				0x02
+#define EDT_TOUCH_YH_MASK				GENMASK(3, 0)
+#define EDT_TOUCH_ID_MASK				GENMASK(7, 4)
+#define EDT_TOUCH_ID_SHIFT			4
+#define EDT_TOUCH_YL				0x03
+
 #define M09_THRESHOLD			0x80
 #define M09_GAIN			0x92
 #define M09_OFFSET			0x93
 #define M09_NUM_X			0x94
 #define M09_NUM_Y			0x95
 
+#define M06_TOUCH_REPORT_REQ		0xf9
+
 #define NO_REGISTER			0xff
 
 #define WORK_REGISTER_OPMODE		0x3c
 #define FACTORY_REGISTER_OPMODE		0x01
-
-#define TOUCH_EVENT_DOWN		0x00
-#define TOUCH_EVENT_UP			0x01
-#define TOUCH_EVENT_ON			0x02
-#define TOUCH_EVENT_RESERVED		0x03
 
 #define EDT_NAME_LEN			23
 #define EDT_SWITCH_MODE_RETRIES		10
 #define EDT_SWITCH_MODE_DELAY		5 /* msec */
 #define EDT_RAW_DATA_RETRIES		100
 #define EDT_RAW_DATA_DELAY		1000 /* usec */
+
+#define EDT_TOUCH_REPORT_MAX_SIZE	((10 * M09_TOUCH_REPORT_LEN) + \
+					M09_TOUCH_REPORT_LEN + \
+					M06_TOUCH_REPORT + \
+					M06_TOUCH_REPORT_CRC_LEN)
 
 enum edt_ver {
 	M06,
@@ -181,23 +211,23 @@ static irqreturn_t edt_ft5x06_ts_isr(int irq, void *dev_id)
 	struct edt_ft5x06_ts_data *tsdata = dev_id;
 	struct device *dev = &tsdata->client->dev;
 	u8 cmd;
-	u8 rdbuf[63];
+	u8 rdbuf[EDT_TOUCH_REPORT_MAX_SIZE];
 	int i, type, x, y, id;
 	int offset, tplen, datalen, crclen;
 	int error;
 
 	switch (tsdata->version) {
 	case M06:
-		cmd = 0xf9; /* tell the controller to send touch data */
-		offset = 5; /* where the actual touch data starts */
-		tplen = 4;  /* data comes in so called frames */
-		crclen = 1; /* length of the crc data */
+		cmd = M06_TOUCH_REPORT_REQ; /* tell the controller to send touch data */
+		offset = M06_TOUCH_REPORT; /* where the actual touch data starts */
+		tplen = M06_TOUCH_REPORT_LEN;  /* data comes in so called frames */
+		crclen = M06_TOUCH_REPORT_CRC_LEN; /* length of the crc data */
 		break;
 
 	case M09:
 		cmd = 0x0;
-		offset = 3;
-		tplen = 6;
+		offset = M09_TOUCH_REPORT;
+		tplen = M09_TOUCH_REPORT_LEN;
 		crclen = 0;
 		break;
 
@@ -219,12 +249,15 @@ static irqreturn_t edt_ft5x06_ts_isr(int irq, void *dev_id)
 
 	/* M09 does not send header or CRC */
 	if (tsdata->version == M06) {
-		if (rdbuf[0] != 0xaa || rdbuf[1] != 0xaa ||
-			rdbuf[2] != datalen) {
+		if (rdbuf[M06_TOUCH_REPORT_HEADER_H] != M06_TOUCH_REPORT_MAGIC ||
+		    rdbuf[M06_TOUCH_REPORT_HEADER_L] != M06_TOUCH_REPORT_MAGIC ||
+		    rdbuf[M06_TOUCH_REPORT_DATALEN] != datalen) {
 			dev_err_ratelimited(dev,
-					"Unexpected header: %02x%02x%02x!\n",
-					rdbuf[0], rdbuf[1], rdbuf[2]);
-			goto out;
+					    "Unexpected header: %02x%02x%02x!\n",
+					    rdbuf[M06_TOUCH_REPORT_HEADER_H],
+					    rdbuf[M06_TOUCH_REPORT_HEADER_L],
+					    rdbuf[M06_TOUCH_REPORT_DATALEN]);
+			goto: out;
 		}
 
 		if (!edt_ft5x06_ts_check_crc(tsdata, rdbuf, datalen))
@@ -235,19 +268,26 @@ static irqreturn_t edt_ft5x06_ts_isr(int irq, void *dev_id)
 		u8 *buf = &rdbuf[i * tplen + offset];
 		bool down;
 
-		type = buf[0] >> 6;
+		type = buf[EDT_TOUCH_XH_EVENT] & EDT_TOUCH_EVENT_FLAG_MASK;
 		/* ignore Reserved events */
-		if (type == TOUCH_EVENT_RESERVED)
+		if (type == EDT_TOUCH_EVENT_RESERVED)
 			continue;
 
 		/* M06 sometimes sends bogus coordinates in TOUCH_DOWN */
-		if (tsdata->version == M06 && type == TOUCH_EVENT_DOWN)
+		if (tsdata->version == M06 && type == EDT_TOUCH_EVENT_DOWN)
 			continue;
 
-		x = ((buf[0] << 8) | buf[1]) & 0x0fff;
-		y = ((buf[2] << 8) | buf[3]) & 0x0fff;
-		id = (buf[2] >> 4) & 0x0f;
-		down = type != TOUCH_EVENT_UP;
+		x = buf[EDT_TOUCH_XH_EVENT] & EDT_TOUCH_XH_MASK;
+		x <<= BITS_PER_BYTE;
+		x |= buf[EDT_TOUCH_XL];
+
+		y = buf[EDT_TOUCH_ID_YH] & EDT_TOUCH_YH_MASK;
+		y <<= BITS_PER_BYTE;
+		y |= buf[EDT_TOUCH_YL];
+
+		id = (buf[EDT_TOUCH_ID_YH] & EDT_TOUCH_ID_MASK);
+		id >>= EDT_TOUCH_ID_SHIFT;
+		down = type != EDT_TOUCH_EVENT_UP;
 
 		input_mt_slot(tsdata->input, id);
 		input_mt_report_slot_state(tsdata->input, MT_TOOL_FINGER, down);
