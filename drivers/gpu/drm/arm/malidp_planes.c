@@ -154,8 +154,14 @@ static int malidp_se_check_scaling(struct malidp_plane *mp,
 	if (ret)
 		return ret;
 
-	src_w = state->src_w >> 16;
-	src_h = state->src_h >> 16;
+	if (state->rotation & MALIDP_ROTATED_MASK) {
+		src_w = state->src_h >> 16;
+		src_h = state->src_w >> 16;
+	} else {
+		src_w = state->src_w >> 16;
+		src_h = state->src_h >> 16;
+	}
+
 	if ((state->crtc_w == src_w) && (state->crtc_h == src_h)) {
 		/* Scaling not necessary for this plane. */
 		mc->scaled_planes_mask &= ~(mp->layer->id);
