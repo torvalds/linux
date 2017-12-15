@@ -110,6 +110,7 @@ enum sctp_cid {
 
 	/* Use hex, as defined in ADDIP sec. 3.1 */
 	SCTP_CID_ASCONF			= 0xC1,
+	SCTP_CID_I_FWD_TSN		= 0xC2,
 	SCTP_CID_ASCONF_ACK		= 0x80,
 	SCTP_CID_RECONF			= 0x82,
 }; /* enum */
@@ -616,6 +617,22 @@ struct sctp_fwdtsn_chunk {
 	struct sctp_fwdtsn_hdr fwdtsn_hdr;
 };
 
+struct sctp_ifwdtsn_skip {
+	__be16 stream;
+	__u8 reserved;
+	__u8 flags;
+	__be32 mid;
+};
+
+struct sctp_ifwdtsn_hdr {
+	__be32 new_cum_tsn;
+	struct sctp_ifwdtsn_skip skip[0];
+};
+
+struct sctp_ifwdtsn_chunk {
+	struct sctp_chunkhdr chunk_hdr;
+	struct sctp_ifwdtsn_hdr fwdtsn_hdr;
+};
 
 /* ADDIP
  * Section 3.1.1 Address Configuration Change Chunk (ASCONF)

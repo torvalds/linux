@@ -1082,8 +1082,213 @@ static void sctp_intl_abort_pd(struct sctp_ulpq *ulpq, gfp_t gfp)
 	sctp_ulpq_flush(ulpq);
 }
 
+static inline int sctp_get_skip_pos(struct sctp_ifwdtsn_skip *skiplist,
+				    int nskips, __be16 stream, __u8 flags)
+{
+	int i;
+
+	for (i = 0; i < nskips; i++)
+		if (skiplist[i].stream == stream &&
+		    skiplist[i].flags == flags)
+			return i;
+
+	return i;
+}
+
+#define SCTP_FTSN_U_BIT	0x1
+static void sctp_generate_iftsn(struct sctp_outq *q, __u32 ctsn)
+{
+	struct sctp_ifwdtsn_skip ftsn_skip_arr[10];
+	struct sctp_association *asoc = q->asoc;
+	struct sctp_chunk *ftsn_chunk = NULL;
+	struct list_head *lchunk, *temp;
+	int nskips = 0, skip_pos;
+	struct sctp_chunk *chunk;
+	__u32 tsn;
+
+	if (!asoc->peer.prsctp_capable)
+		return;
+
+	if (TSN_lt(asoc->adv_peer_ack_point, ctsn))
+		asoc->adv_peer_ack_point = ctsn;
+
+	list_for_each_safe(lchunk, temp, &q->abandoned) {
+		chunk = list_entry(lchunk, struct sctp_chunk, transmitted_list);
+		tsn = ntohl(chunk->subh.data_hdr->tsn);
+
+		if (TSN_lte(tsn, ctsn)) {
+			list_del_init(lchunk);
+			sctp_chunk_free(chunk);
+		} else if (TSN_lte(tsn, asoc->adv_peer_ack_point + 1)) {
+			__be16 sid = chunk->subh.idata_hdr->stream;
+			__be32 mid = chunk->subh.idata_hdr->mid;
+			__u8 flags = 0;
+
+			if (chunk->chunk_hdr->flags & SCTP_DATA_UNORDERED)
+				flags |= SCTP_FTSN_U_BIT;
+
+			asoc->adv_peer_ack_point = tsn;
+			skip_pos = sctp_get_skip_pos(&ftsn_skip_arr[0], nskips,
+						     sid, flags);
+			ftsn_skip_arr[skip_pos].stream = sid;
+			ftsn_skip_arr[skip_pos].reserved = 0;
+			ftsn_skip_arr[skip_pos].flags = flags;
+			ftsn_skip_arr[skip_pos].mid = mid;
+			if (skip_pos == nskips)
+				nskips++;
+			if (nskips == 10)
+				break;
+		} else {
+			break;
+		}
+	}
+
+	if (asoc->adv_peer_ack_point > ctsn)
+		ftsn_chunk = sctp_make_ifwdtsn(asoc, asoc->adv_peer_ack_point,
+					       nskips, &ftsn_skip_arr[0]);
+
+	if (ftsn_chunk) {
+		list_add_tail(&ftsn_chunk->list, &q->control_chunk_list);
+		SCTP_INC_STATS(sock_net(asoc->base.sk), SCTP_MIB_OUTCTRLCHUNKS);
+	}
+}
+
+#define _sctp_walk_ifwdtsn(pos, chunk, end) \
+	for (pos = chunk->subh.ifwdtsn_hdr->skip; \
+	     (void *)pos < (void *)chunk->subh.ifwdtsn_hdr->skip + (end); pos++)
+
+#define sctp_walk_ifwdtsn(pos, ch) \
+	_sctp_walk_ifwdtsn((pos), (ch), ntohs((ch)->chunk_hdr->length) - \
+					sizeof(struct sctp_ifwdtsn_chunk))
+
+static bool sctp_validate_fwdtsn(struct sctp_chunk *chunk)
+{
+	struct sctp_fwdtsn_skip *skip;
+	__u16 incnt;
+
+	if (chunk->chunk_hdr->type != SCTP_CID_FWD_TSN)
+		return false;
+
+	incnt = chunk->asoc->stream.incnt;
+	sctp_walk_fwdtsn(skip, chunk)
+		if (ntohs(skip->stream) >= incnt)
+			return false;
+
+	return true;
+}
+
+static bool sctp_validate_iftsn(struct sctp_chunk *chunk)
+{
+	struct sctp_ifwdtsn_skip *skip;
+	__u16 incnt;
+
+	if (chunk->chunk_hdr->type != SCTP_CID_I_FWD_TSN)
+		return false;
+
+	incnt = chunk->asoc->stream.incnt;
+	sctp_walk_ifwdtsn(skip, chunk)
+		if (ntohs(skip->stream) >= incnt)
+			return false;
+
+	return true;
+}
+
+static void sctp_report_fwdtsn(struct sctp_ulpq *ulpq, __u32 ftsn)
+{
+	/* Move the Cumulattive TSN Ack ahead. */
+	sctp_tsnmap_skip(&ulpq->asoc->peer.tsn_map, ftsn);
+	/* purge the fragmentation queue */
+	sctp_ulpq_reasm_flushtsn(ulpq, ftsn);
+	/* Abort any in progress partial delivery. */
+	sctp_ulpq_abort_pd(ulpq, GFP_ATOMIC);
+}
+
+static void sctp_intl_reasm_flushtsn(struct sctp_ulpq *ulpq, __u32 ftsn)
+{
+	struct sk_buff *pos, *tmp;
+
+	skb_queue_walk_safe(&ulpq->reasm, pos, tmp) {
+		struct sctp_ulpevent *event = sctp_skb2event(pos);
+		__u32 tsn = event->tsn;
+
+		if (TSN_lte(tsn, ftsn)) {
+			__skb_unlink(pos, &ulpq->reasm);
+			sctp_ulpevent_free(event);
+		}
+	}
+
+	skb_queue_walk_safe(&ulpq->reasm_uo, pos, tmp) {
+		struct sctp_ulpevent *event = sctp_skb2event(pos);
+		__u32 tsn = event->tsn;
+
+		if (TSN_lte(tsn, ftsn)) {
+			__skb_unlink(pos, &ulpq->reasm_uo);
+			sctp_ulpevent_free(event);
+		}
+	}
+}
+
+static void sctp_report_iftsn(struct sctp_ulpq *ulpq, __u32 ftsn)
+{
+	/* Move the Cumulattive TSN Ack ahead. */
+	sctp_tsnmap_skip(&ulpq->asoc->peer.tsn_map, ftsn);
+	/* purge the fragmentation queue */
+	sctp_intl_reasm_flushtsn(ulpq, ftsn);
+	/* abort only when it's for all data */
+	if (ftsn == sctp_tsnmap_get_max_tsn_seen(&ulpq->asoc->peer.tsn_map))
+		sctp_intl_abort_pd(ulpq, GFP_ATOMIC);
+}
+
+static void sctp_handle_fwdtsn(struct sctp_ulpq *ulpq, struct sctp_chunk *chunk)
+{
+	struct sctp_fwdtsn_skip *skip;
+
+	/* Walk through all the skipped SSNs */
+	sctp_walk_fwdtsn(skip, chunk)
+		sctp_ulpq_skip(ulpq, ntohs(skip->stream), ntohs(skip->ssn));
+}
+
+static void sctp_intl_skip(struct sctp_ulpq *ulpq, __u16 sid, __u32 mid,
+			   __u8 flags)
+{
+	struct sctp_stream_in *sin = sctp_stream_in(ulpq->asoc, sid);
+	struct sctp_stream *stream  = &ulpq->asoc->stream;
+
+	if (flags & SCTP_FTSN_U_BIT) {
+		if (sin->pd_mode_uo && MID_lt(sin->mid_uo, mid)) {
+			sin->pd_mode_uo = 0;
+			sctp_intl_stream_abort_pd(ulpq, sid, mid, 0x1,
+						  GFP_ATOMIC);
+		}
+		return;
+	}
+
+	if (MID_lt(mid, sctp_mid_peek(stream, in, sid)))
+		return;
+
+	if (sin->pd_mode) {
+		sin->pd_mode = 0;
+		sctp_intl_stream_abort_pd(ulpq, sid, mid, 0x0, GFP_ATOMIC);
+	}
+
+	sctp_mid_skip(stream, in, sid, mid);
+
+	sctp_intl_reap_ordered(ulpq, sid);
+}
+
+static void sctp_handle_iftsn(struct sctp_ulpq *ulpq, struct sctp_chunk *chunk)
+{
+	struct sctp_ifwdtsn_skip *skip;
+
+	/* Walk through all the skipped MIDs and abort stream pd if possible */
+	sctp_walk_ifwdtsn(skip, chunk)
+		sctp_intl_skip(ulpq, ntohs(skip->stream),
+			       ntohl(skip->mid), skip->flags);
+}
+
 static struct sctp_stream_interleave sctp_stream_interleave_0 = {
 	.data_chunk_len		= sizeof(struct sctp_data_chunk),
+	.ftsn_chunk_len		= sizeof(struct sctp_fwdtsn_chunk),
 	/* DATA process functions */
 	.make_datafrag		= sctp_make_datafrag_empty,
 	.assign_number		= sctp_chunk_assign_ssn,
@@ -1093,10 +1298,16 @@ static struct sctp_stream_interleave sctp_stream_interleave_0 = {
 	.renege_events		= sctp_ulpq_renege,
 	.start_pd		= sctp_ulpq_partial_delivery,
 	.abort_pd		= sctp_ulpq_abort_pd,
+	/* FORWARD-TSN process functions */
+	.generate_ftsn		= sctp_generate_fwdtsn,
+	.validate_ftsn		= sctp_validate_fwdtsn,
+	.report_ftsn		= sctp_report_fwdtsn,
+	.handle_ftsn		= sctp_handle_fwdtsn,
 };
 
 static struct sctp_stream_interleave sctp_stream_interleave_1 = {
 	.data_chunk_len		= sizeof(struct sctp_idata_chunk),
+	.ftsn_chunk_len		= sizeof(struct sctp_ifwdtsn_chunk),
 	/* I-DATA process functions */
 	.make_datafrag		= sctp_make_idatafrag_empty,
 	.assign_number		= sctp_chunk_assign_mid,
@@ -1106,6 +1317,11 @@ static struct sctp_stream_interleave sctp_stream_interleave_1 = {
 	.renege_events		= sctp_renege_events,
 	.start_pd		= sctp_intl_start_pd,
 	.abort_pd		= sctp_intl_abort_pd,
+	/* I-FORWARD-TSN process functions */
+	.generate_ftsn		= sctp_generate_iftsn,
+	.validate_ftsn		= sctp_validate_iftsn,
+	.report_ftsn		= sctp_report_iftsn,
+	.handle_ftsn		= sctp_handle_iftsn,
 };
 
 void sctp_stream_interleave_init(struct sctp_stream *stream)

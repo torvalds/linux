@@ -599,6 +599,7 @@ struct sctp_chunk {
 		struct sctp_fwdtsn_hdr *fwdtsn_hdr;
 		struct sctp_authhdr *auth_hdr;
 		struct sctp_idatahdr *idata_hdr;
+		struct sctp_ifwdtsn_hdr *ifwdtsn_hdr;
 	} subh;
 
 	__u8 *chunk_end;
@@ -1099,6 +1100,7 @@ void sctp_retransmit_mark(struct sctp_outq *, struct sctp_transport *, __u8);
 void sctp_outq_uncork(struct sctp_outq *, gfp_t gfp);
 void sctp_prsctp_prune(struct sctp_association *asoc,
 		       struct sctp_sndrcvinfo *sinfo, int msg_len);
+void sctp_generate_fwdtsn(struct sctp_outq *q, __u32 sack_ctsn);
 /* Uncork and flush an outqueue.  */
 static inline void sctp_outq_cork(struct sctp_outq *q)
 {
@@ -1439,6 +1441,16 @@ static inline __u16 sctp_datachk_len(const struct sctp_stream *stream)
 static inline __u16 sctp_datahdr_len(const struct sctp_stream *stream)
 {
 	return stream->si->data_chunk_len - sizeof(struct sctp_chunkhdr);
+}
+
+static inline __u16 sctp_ftsnchk_len(const struct sctp_stream *stream)
+{
+	return stream->si->ftsn_chunk_len;
+}
+
+static inline __u16 sctp_ftsnhdr_len(const struct sctp_stream *stream)
+{
+	return stream->si->ftsn_chunk_len - sizeof(struct sctp_chunkhdr);
 }
 
 /* SCTP_GET_ASSOC_STATS counters */

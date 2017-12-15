@@ -3957,7 +3957,6 @@ enum sctp_disposition sctp_sf_eat_fwd_tsn(struct net *net,
 {
 	struct sctp_fwdtsn_hdr *fwdtsn_hdr;
 	struct sctp_chunk *chunk = arg;
-	struct sctp_fwdtsn_skip *skip;
 	__u16 len;
 	__u32 tsn;
 
@@ -3971,7 +3970,7 @@ enum sctp_disposition sctp_sf_eat_fwd_tsn(struct net *net,
 		return sctp_sf_unk_chunk(net, ep, asoc, type, arg, commands);
 
 	/* Make sure that the FORWARD_TSN chunk has valid length.  */
-	if (!sctp_chunk_length_valid(chunk, sizeof(struct sctp_fwdtsn_chunk)))
+	if (!sctp_chunk_length_valid(chunk, sctp_ftsnchk_len(&asoc->stream)))
 		return sctp_sf_violation_chunklen(net, ep, asoc, type, arg,
 						  commands);
 
@@ -3990,14 +3989,11 @@ enum sctp_disposition sctp_sf_eat_fwd_tsn(struct net *net,
 	if (sctp_tsnmap_check(&asoc->peer.tsn_map, tsn) < 0)
 		goto discard_noforce;
 
-	/* Silently discard the chunk if stream-id is not valid */
-	sctp_walk_fwdtsn(skip, chunk) {
-		if (ntohs(skip->stream) >= asoc->stream.incnt)
-			goto discard_noforce;
-	}
+	if (!asoc->stream.si->validate_ftsn(chunk))
+		goto discard_noforce;
 
 	sctp_add_cmd_sf(commands, SCTP_CMD_REPORT_FWDTSN, SCTP_U32(tsn));
-	if (len > sizeof(struct sctp_fwdtsn_hdr))
+	if (len > sctp_ftsnhdr_len(&asoc->stream))
 		sctp_add_cmd_sf(commands, SCTP_CMD_PROCESS_FWDTSN,
 				SCTP_CHUNK(chunk));
 
@@ -4028,7 +4024,6 @@ enum sctp_disposition sctp_sf_eat_fwd_tsn_fast(
 {
 	struct sctp_fwdtsn_hdr *fwdtsn_hdr;
 	struct sctp_chunk *chunk = arg;
-	struct sctp_fwdtsn_skip *skip;
 	__u16 len;
 	__u32 tsn;
 
@@ -4042,7 +4037,7 @@ enum sctp_disposition sctp_sf_eat_fwd_tsn_fast(
 		return sctp_sf_unk_chunk(net, ep, asoc, type, arg, commands);
 
 	/* Make sure that the FORWARD_TSN chunk has a valid length.  */
-	if (!sctp_chunk_length_valid(chunk, sizeof(struct sctp_fwdtsn_chunk)))
+	if (!sctp_chunk_length_valid(chunk, sctp_ftsnchk_len(&asoc->stream)))
 		return sctp_sf_violation_chunklen(net, ep, asoc, type, arg,
 						  commands);
 
@@ -4061,14 +4056,11 @@ enum sctp_disposition sctp_sf_eat_fwd_tsn_fast(
 	if (sctp_tsnmap_check(&asoc->peer.tsn_map, tsn) < 0)
 		goto gen_shutdown;
 
-	/* Silently discard the chunk if stream-id is not valid */
-	sctp_walk_fwdtsn(skip, chunk) {
-		if (ntohs(skip->stream) >= asoc->stream.incnt)
-			goto gen_shutdown;
-	}
+	if (!asoc->stream.si->validate_ftsn(chunk))
+		goto gen_shutdown;
 
 	sctp_add_cmd_sf(commands, SCTP_CMD_REPORT_FWDTSN, SCTP_U32(tsn));
-	if (len > sizeof(struct sctp_fwdtsn_hdr))
+	if (len > sctp_ftsnhdr_len(&asoc->stream))
 		sctp_add_cmd_sf(commands, SCTP_CMD_PROCESS_FWDTSN,
 				SCTP_CHUNK(chunk));
 
