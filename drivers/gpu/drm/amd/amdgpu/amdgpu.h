@@ -1887,7 +1887,8 @@ amdgpu_get_sdma_instance(struct amdgpu_ring *ring)
 #define amdgpu_psp_check_fw_loading_status(adev, i) (adev)->firmware.funcs->check_fw_loading_status((adev), (i))
 
 /* Common functions */
-int amdgpu_gpu_recover(struct amdgpu_device *adev, struct amdgpu_job* job, bool force);
+int amdgpu_device_gpu_recover(struct amdgpu_device *adev,
+			      struct amdgpu_job* job, bool force);
 bool amdgpu_need_backup(struct amdgpu_device *adev);
 void amdgpu_device_pci_config_reset(struct amdgpu_device *adev);
 bool amdgpu_device_need_post(struct amdgpu_device *adev);

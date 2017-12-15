@@ -2611,7 +2611,7 @@ error:
 }
 
 /**
- * amdgpu_gpu_recover - reset the asic and recover scheduler
+ * amdgpu_device_gpu_recover - reset the asic and recover scheduler
  *
  * @adev: amdgpu device pointer
  * @job: which job trigger hang
@@ -2620,7 +2620,8 @@ error:
  * Attempt to reset the GPU if it has hung (all asics).
  * Returns 0 for success or an error on failure.
  */
-int amdgpu_gpu_recover(struct amdgpu_device *adev, struct amdgpu_job *job, bool force)
+int amdgpu_device_gpu_recover(struct amdgpu_device *adev,
+			      struct amdgpu_job *job, bool force)
 {
 	struct drm_atomic_state *state = NULL;
 	uint64_t reset_flags = 0;
