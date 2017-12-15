@@ -157,6 +157,7 @@ enum codespace_sel {
 	CS_SEL_ANY,
 };
 
+/* imx-media-utils.c */
 const struct imx_media_pixfmt *
 imx_media_find_format(u32 fourcc, enum codespace_sel cs_sel, bool allow_bayer);
 int imx_media_enum_format(u32 *fourcc, u32 index, enum codespace_sel cs_sel);
@@ -181,17 +182,8 @@ int imx_media_mbus_fmt_to_ipu_image(struct ipu_image *image,
 				    struct v4l2_mbus_framefmt *mbus);
 int imx_media_ipu_image_to_mbus_fmt(struct v4l2_mbus_framefmt *mbus,
 				    struct ipu_image *image);
-int imx_media_add_async_subdev(struct imx_media_dev *imxmd,
-			       struct fwnode_handle *fwnode,
-			       struct platform_device *pdev);
 void imx_media_grp_id_to_sd_name(char *sd_name, int sz,
 				 u32 grp_id, int ipu_id);
-
-int imx_media_add_internal_subdevs(struct imx_media_dev *imxmd);
-int imx_media_create_internal_links(struct imx_media_dev *imxmd,
-				    struct v4l2_subdev *sd);
-void imx_media_remove_internal_subdevs(struct imx_media_dev *imxmd);
-
 struct v4l2_subdev *
 imx_media_find_subdev_by_fwnode(struct imx_media_dev *imxmd,
 				struct fwnode_handle *fwnode);
@@ -227,6 +219,11 @@ int imx_media_pipeline_set_stream(struct imx_media_dev *imxmd,
 				  struct media_entity *entity,
 				  bool on);
 
+/* imx-media-dev.c */
+int imx_media_add_async_subdev(struct imx_media_dev *imxmd,
+			       struct fwnode_handle *fwnode,
+			       struct platform_device *pdev);
+
 /* imx-media-fim.c */
 struct imx_media_fim;
 void imx_media_fim_eof_monitor(struct imx_media_fim *fim, ktime_t timestamp);
@@ -236,6 +233,12 @@ int imx_media_fim_set_stream(struct imx_media_fim *fim,
 int imx_media_fim_add_controls(struct imx_media_fim *fim);
 struct imx_media_fim *imx_media_fim_init(struct v4l2_subdev *sd);
 void imx_media_fim_free(struct imx_media_fim *fim);
+
+/* imx-media-internal-sd.c */
+int imx_media_add_internal_subdevs(struct imx_media_dev *imxmd);
+int imx_media_create_internal_links(struct imx_media_dev *imxmd,
+				    struct v4l2_subdev *sd);
+void imx_media_remove_internal_subdevs(struct imx_media_dev *imxmd);
 
 /* imx-media-of.c */
 int imx_media_add_of_subdevs(struct imx_media_dev *dev,
