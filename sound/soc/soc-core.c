@@ -1945,7 +1945,9 @@ int snd_soc_runtime_set_dai_fmt(struct snd_soc_pcm_runtime *rtd,
 	}
 
 	/* Flip the polarity for the "CPU" end of a CODEC<->CODEC link */
-	if (cpu_dai->codec) {
+	/* the component which has non_legacy_dai_naming is Codec */
+	if (cpu_dai->codec ||
+	    cpu_dai->component->driver->non_legacy_dai_naming) {
 		unsigned int inv_dai_fmt;
 
 		inv_dai_fmt = dai_fmt & ~SND_SOC_DAIFMT_MASTER_MASK;
