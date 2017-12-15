@@ -568,6 +568,17 @@ int nfp_cpp_area_write(struct nfp_cpp_area *area,
 }
 
 /**
+ * nfp_cpp_area_size() - return size of a CPP area
+ * @cpp_area:	CPP area handle
+ *
+ * Return: Size of the area
+ */
+size_t nfp_cpp_area_size(struct nfp_cpp_area *cpp_area)
+{
+	return cpp_area->size;
+}
+
+/**
  * nfp_cpp_area_name() - return name of a CPP area
  * @cpp_area:	CPP area handle
  *
