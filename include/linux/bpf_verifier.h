@@ -76,6 +76,14 @@ struct bpf_reg_state {
 	s64 smax_value; /* maximum possible (s64)value */
 	u64 umin_value; /* minimum possible (u64)value */
 	u64 umax_value; /* maximum possible (u64)value */
+	/* Inside the callee two registers can be both PTR_TO_STACK like
+	 * R1=fp-8 and R2=fp-8, but one of them points to this function stack
+	 * while another to the caller's stack. To differentiate them 'frameno'
+	 * is used which is an index in bpf_verifier_state->frame[] array
+	 * pointing to bpf_func_state.
+	 * This field must be second to last, for states_equal() reasons.
+	 */
+	u32 frameno;
 	/* This field must be last, for states_equal() reasons. */
 	enum bpf_reg_liveness live;
 };
@@ -96,11 +104,32 @@ struct bpf_stack_state {
 /* state of the program:
  * type of all registers and stack info
  */
-struct bpf_verifier_state {
+struct bpf_func_state {
 	struct bpf_reg_state regs[MAX_BPF_REG];
 	struct bpf_verifier_state *parent;
+	/* index of call instruction that called into this func */
+	int callsite;
+	/* stack frame number of this function state from pov of
+	 * enclosing bpf_verifier_state.
+	 * 0 = main function, 1 = first callee.
+	 */
+	u32 frameno;
+	/* subprog number == index within subprog_stack_depth
+	 * zero == main subprog
+	 */
+	u32 subprogno;
+
+	/* should be second to last. See copy_func_state() */
 	int allocated_stack;
 	struct bpf_stack_state *stack;
+};
+
+#define MAX_CALL_FRAMES 8
+struct bpf_verifier_state {
+	/* call stack tracking */
+	struct bpf_func_state *frame[MAX_CALL_FRAMES];
+	struct bpf_verifier_state *parent;
+	u32 curframe;
 };
 
 /* linked list of verifier states used to prune search */
@@ -163,12 +192,15 @@ struct bpf_verifier_env {
 	struct bpf_insn_aux_data *insn_aux_data; /* array of per-insn state */
 	struct bpf_verifer_log log;
 	u32 subprog_starts[BPF_MAX_SUBPROGS];
+	u16 subprog_stack_depth[BPF_MAX_SUBPROGS + 1];
 	u32 subprog_cnt;
 };
 
 static inline struct bpf_reg_state *cur_regs(struct bpf_verifier_env *env)
 {
-	return env->cur_state->regs;
+	struct bpf_verifier_state *cur = env->cur_state;
+
+	return cur->frame[cur->curframe]->regs;
 }
 
 #if defined(CONFIG_NET) && defined(CONFIG_BPF_SYSCALL)
