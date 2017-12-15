@@ -141,6 +141,8 @@ struct bpf_ext_analyzer_ops {
 			 int insn_idx, int prev_insn_idx);
 };
 
+#define BPF_MAX_SUBPROGS 256
+
 /* single container for all structs
  * one verifier_env per bpf_check() call
  */
@@ -159,8 +161,9 @@ struct bpf_verifier_env {
 	bool allow_ptr_leaks;
 	bool seen_direct_write;
 	struct bpf_insn_aux_data *insn_aux_data; /* array of per-insn state */
-
 	struct bpf_verifer_log log;
+	u32 subprog_starts[BPF_MAX_SUBPROGS];
+	u32 subprog_cnt;
 };
 
 static inline struct bpf_reg_state *cur_regs(struct bpf_verifier_env *env)

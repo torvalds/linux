@@ -20,6 +20,8 @@
 #include <linux/file.h>
 #include <linux/vmalloc.h>
 #include <linux/stringify.h>
+#include <linux/bsearch.h>
+#include <linux/sort.h>
 
 #include "disasm.h"
 
@@ -635,6 +637,113 @@ enum reg_arg_type {
 	DST_OP,		/* register is used as destination operand */
 	DST_OP_NO_MARK	/* same as above, check only, don't mark */
 };
+
+static int cmp_subprogs(const void *a, const void *b)
+{
+	return *(int *)a - *(int *)b;
+}
+
+static int find_subprog(struct bpf_verifier_env *env, int off)
+{
+	u32 *p;
+
+	p = bsearch(&off, env->subprog_starts, env->subprog_cnt,
+		    sizeof(env->subprog_starts[0]), cmp_subprogs);
+	if (!p)
+		return -ENOENT;
+	return p - env->subprog_starts;
+
+}
+
+static int add_subprog(struct bpf_verifier_env *env, int off)
+{
+	int insn_cnt = env->prog->len;
+	int ret;
+
+	if (off >= insn_cnt || off < 0) {
+		verbose(env, "call to invalid destination\n");
+		return -EINVAL;
+	}
+	ret = find_subprog(env, off);
+	if (ret >= 0)
+		return 0;
+	if (env->subprog_cnt >= BPF_MAX_SUBPROGS) {
+		verbose(env, "too many subprograms\n");
+		return -E2BIG;
+	}
+	env->subprog_starts[env->subprog_cnt++] = off;
+	sort(env->subprog_starts, env->subprog_cnt,
+	     sizeof(env->subprog_starts[0]), cmp_subprogs, NULL);
+	return 0;
+}
+
+static int check_subprogs(struct bpf_verifier_env *env)
+{
+	int i, ret, subprog_start, subprog_end, off, cur_subprog = 0;
+	struct bpf_insn *insn = env->prog->insnsi;
+	int insn_cnt = env->prog->len;
+
+	/* determine subprog starts. The end is one before the next starts */
+	for (i = 0; i < insn_cnt; i++) {
+		if (insn[i].code != (BPF_JMP | BPF_CALL))
+			continue;
+		if (insn[i].src_reg != BPF_PSEUDO_CALL)
+			continue;
+		if (!env->allow_ptr_leaks) {
+			verbose(env, "function calls to other bpf functions are allowed for root only\n");
+			return -EPERM;
+		}
+		if (bpf_prog_is_dev_bound(env->prog->aux)) {
+			verbose(env, "funcation calls in offloaded programs are not supported yet\n");
+			return -EINVAL;
+		}
+		ret = add_subprog(env, i + insn[i].imm + 1);
+		if (ret < 0)
+			return ret;
+	}
+
+	if (env->log.level > 1)
+		for (i = 0; i < env->subprog_cnt; i++)
+			verbose(env, "func#%d @%d\n", i, env->subprog_starts[i]);
+
+	/* now check that all jumps are within the same subprog */
+	subprog_start = 0;
+	if (env->subprog_cnt == cur_subprog)
+		subprog_end = insn_cnt;
+	else
+		subprog_end = env->subprog_starts[cur_subprog++];
+	for (i = 0; i < insn_cnt; i++) {
+		u8 code = insn[i].code;
+
+		if (BPF_CLASS(code) != BPF_JMP)
+			goto next;
+		if (BPF_OP(code) == BPF_EXIT || BPF_OP(code) == BPF_CALL)
+			goto next;
+		off = i + insn[i].off + 1;
+		if (off < subprog_start || off >= subprog_end) {
+			verbose(env, "jump out of range from insn %d to %d\n", i, off);
+			return -EINVAL;
+		}
+next:
+		if (i == subprog_end - 1) {
+			/* to avoid fall-through from one subprog into another
+			 * the last insn of the subprog should be either exit
+			 * or unconditional jump back
+			 */
+			if (code != (BPF_JMP | BPF_EXIT) &&
+			    code != (BPF_JMP | BPF_JA)) {
+				verbose(env, "last insn is not an exit or jmp\n");
+				return -EINVAL;
+			}
+			subprog_start = subprog_end;
+			if (env->subprog_cnt == cur_subprog)
+				subprog_end = insn_cnt;
+			else
+				subprog_end = env->subprog_starts[cur_subprog++];
+		}
+	}
+	return 0;
+}
 
 static void mark_reg_read(const struct bpf_verifier_state *state, u32 regno)
 {
@@ -3284,6 +3393,10 @@ static int check_cfg(struct bpf_verifier_env *env)
 	int ret = 0;
 	int i, t;
 
+	ret = check_subprogs(env);
+	if (ret < 0)
+		return ret;
+
 	insn_state = kcalloc(insn_cnt, sizeof(int), GFP_KERNEL);
 	if (!insn_state)
 		return -ENOMEM;
@@ -3316,6 +3429,14 @@ peek_stack:
 				goto err_free;
 			if (t + 1 < insn_cnt)
 				env->explored_states[t + 1] = STATE_LIST_MARK;
+			if (insns[t].src_reg == BPF_PSEUDO_CALL) {
+				env->explored_states[t] = STATE_LIST_MARK;
+				ret = push_insn(t, t + insns[t].imm + 1, BRANCH, env);
+				if (ret == 1)
+					goto peek_stack;
+				else if (ret < 0)
+					goto err_free;
+			}
 		} else if (opcode == BPF_JA) {
 			if (BPF_SRC(insns[t].code) != BPF_K) {
 				ret = -EINVAL;
@@ -4245,6 +4366,19 @@ static int adjust_insn_aux_data(struct bpf_verifier_env *env, u32 prog_len,
 	return 0;
 }
 
+static void adjust_subprog_starts(struct bpf_verifier_env *env, u32 off, u32 len)
+{
+	int i;
+
+	if (len == 1)
+		return;
+	for (i = 0; i < env->subprog_cnt; i++) {
+		if (env->subprog_starts[i] < off)
+			continue;
+		env->subprog_starts[i] += len - 1;
+	}
+}
+
 static struct bpf_prog *bpf_patch_insn_data(struct bpf_verifier_env *env, u32 off,
 					    const struct bpf_insn *patch, u32 len)
 {
@@ -4255,6 +4389,7 @@ static struct bpf_prog *bpf_patch_insn_data(struct bpf_verifier_env *env, u32 of
 		return NULL;
 	if (adjust_insn_aux_data(env, new_prog->len, off, len))
 		return NULL;
+	adjust_subprog_starts(env, off, len);
 	return new_prog;
 }
 
@@ -4407,6 +4542,8 @@ static int fixup_bpf_calls(struct bpf_verifier_env *env)
 
 	for (i = 0; i < insn_cnt; i++, insn++) {
 		if (insn->code != (BPF_JMP | BPF_CALL))
+			continue;
+		if (insn->src_reg == BPF_PSEUDO_CALL)
 			continue;
 
 		if (insn->imm == BPF_FUNC_get_route_realm)
@@ -4589,11 +4726,11 @@ int bpf_check(struct bpf_prog **prog, union bpf_attr *attr)
 	if (!env->explored_states)
 		goto skip_full_check;
 
+	env->allow_ptr_leaks = capable(CAP_SYS_ADMIN);
+
 	ret = check_cfg(env);
 	if (ret < 0)
 		goto skip_full_check;
-
-	env->allow_ptr_leaks = capable(CAP_SYS_ADMIN);
 
 	ret = do_check(env);
 	if (env->cur_state) {
