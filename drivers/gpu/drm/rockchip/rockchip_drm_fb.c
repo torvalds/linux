@@ -23,6 +23,7 @@
 #include <soc/rockchip/rockchip_dmc.h>
 
 #include "rockchip_drm_drv.h"
+#include "rockchip_drm_fb.h"
 #include "rockchip_drm_gem.h"
 #include "rockchip_drm_backlight.h"
 
