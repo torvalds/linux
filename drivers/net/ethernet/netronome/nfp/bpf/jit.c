@@ -1217,6 +1217,28 @@ static int adjust_head(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 
 	adjust_head = &nfp_prog->bpf->adjust_head;
 
+	/* Optimized version - 5 vs 14 cycles */
+	if (nfp_prog->adjust_head_location != UINT_MAX) {
+		if (WARN_ON_ONCE(nfp_prog->adjust_head_location != meta->n))
+			return -EINVAL;
+
+		emit_alu(nfp_prog, pptr_reg(nfp_prog),
+			 reg_a(2 * 2), ALU_OP_ADD, pptr_reg(nfp_prog));
+		emit_alu(nfp_prog, plen_reg(nfp_prog),
+			 plen_reg(nfp_prog), ALU_OP_SUB, reg_a(2 * 2));
+		emit_alu(nfp_prog, pv_len(nfp_prog),
+			 pv_len(nfp_prog), ALU_OP_SUB, reg_a(2 * 2));
+
+		wrp_immed(nfp_prog, reg_both(0), 0);
+		wrp_immed(nfp_prog, reg_both(1), 0);
+
+		/* TODO: when adjust head is guaranteed to succeed we can
+		 * also eliminate the following if (r0 == 0) branch.
+		 */
+
+		return 0;
+	}
+
 	ret_einval = nfp_prog_current_offset(nfp_prog) + 14;
 	end = ret_einval + 2;
 

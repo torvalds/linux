@@ -86,6 +86,8 @@ enum pkt_vec {
  * @flags:		extra flags for adjust head
  * @off_min:		minimal packet offset within buffer required
  * @off_max:		maximum packet offset within buffer required
+ * @guaranteed_sub:	amount of negative adjustment guaranteed possible
+ * @guaranteed_add:	amount of positive adjustment guaranteed possible
  */
 struct nfp_app_bpf {
 	struct nfp_app *app;
@@ -94,6 +96,8 @@ struct nfp_app_bpf {
 		u32 flags;
 		int off_min;
 		int off_max;
+		int guaranteed_sub;
+		int guaranteed_add;
 	} adjust_head;
 };
 
@@ -116,6 +120,7 @@ typedef int (*instr_cb_t)(struct nfp_prog *, struct nfp_insn_meta *);
  * @ptr: pointer type for memory operations
  * @ldst_gather_len: memcpy length gathered from load/store sequence
  * @paired_st: the paired store insn at the head of the sequence
+ * @arg2: arg2 for call instructions
  * @ptr_not_const: pointer is not always constant
  * @jmp_dst: destination info for jump instructions
  * @off: index of first generated machine instruction (in nfp_prog.prog)
@@ -135,6 +140,7 @@ struct nfp_insn_meta {
 			bool ptr_not_const;
 		};
 		struct nfp_insn_meta *jmp_dst;
+		struct bpf_reg_state arg2;
 	};
 	unsigned int off;
 	unsigned short n;
@@ -193,6 +199,7 @@ static inline bool is_mbpf_store(const struct nfp_insn_meta *meta)
  * @n_translated: number of successfully translated instructions (for errors)
  * @error: error code if something went wrong
  * @stack_depth: max stack depth from the verifier
+ * @adjust_head_location: if program has single adjust head call - the insn no.
  * @insns: list of BPF instruction wrappers (struct nfp_insn_meta)
  */
 struct nfp_prog {
@@ -216,6 +223,7 @@ struct nfp_prog {
 	int error;
 
 	unsigned int stack_depth;
+	unsigned int adjust_head_location;
 
 	struct list_head insns;
 };

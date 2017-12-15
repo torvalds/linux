@@ -69,9 +69,47 @@ nfp_bpf_goto_meta(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
 	return meta;
 }
 
-static int
-nfp_bpf_check_call(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
+static void
+nfp_record_adjust_head(struct nfp_app_bpf *bpf, struct nfp_prog *nfp_prog,
+		       struct nfp_insn_meta *meta,
+		       const struct bpf_reg_state *reg2)
 {
+	unsigned int location =	UINT_MAX;
+	int imm;
+
+	/* Datapath usually can give us guarantees on how much adjust head
+	 * can be done without the need for any checks.  Optimize the simple
+	 * case where there is only one adjust head by a constant.
+	 */
+	if (reg2->type != SCALAR_VALUE || !tnum_is_const(reg2->var_off))
+		goto exit_set_location;
+	imm = reg2->var_off.value;
+	/* Translator will skip all checks, we need to guarantee min pkt len */
+	if (imm > ETH_ZLEN - ETH_HLEN)
+		goto exit_set_location;
+	if (imm > (int)bpf->adjust_head.guaranteed_add ||
+	    imm < -bpf->adjust_head.guaranteed_sub)
+		goto exit_set_location;
+
+	if (nfp_prog->adjust_head_location) {
+		/* Only one call per program allowed */
+		if (nfp_prog->adjust_head_location != meta->n)
+			goto exit_set_location;
+
+		if (meta->arg2.var_off.value != imm)
+			goto exit_set_location;
+	}
+
+	location = meta->n;
+exit_set_location:
+	nfp_prog->adjust_head_location = location;
+}
+
+static int
+nfp_bpf_check_call(struct nfp_prog *nfp_prog, struct bpf_verifier_env *env,
+		   struct nfp_insn_meta *meta)
+{
+	const struct bpf_reg_state *reg2 = cur_regs(env) + BPF_REG_2;
 	struct nfp_app_bpf *bpf = nfp_prog->bpf;
 	u32 func_id = meta->insn.imm;
 
@@ -85,11 +123,15 @@ nfp_bpf_check_call(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 			pr_warn("adjust_head: FW requires shifting metadata, not supported by the driver\n");
 			return -EOPNOTSUPP;
 		}
+
+		nfp_record_adjust_head(bpf, nfp_prog, meta, reg2);
 		break;
 	default:
 		pr_warn("unsupported function id: %d\n", func_id);
 		return -EOPNOTSUPP;
 	}
+
+	meta->arg2 = *reg2;
 
 	return 0;
 }
@@ -204,7 +246,7 @@ nfp_verify_insn(struct bpf_verifier_env *env, int insn_idx, int prev_insn_idx)
 	}
 
 	if (meta->insn.code == (BPF_JMP | BPF_CALL))
-		return nfp_bpf_check_call(nfp_prog, meta);
+		return nfp_bpf_check_call(nfp_prog, env, meta);
 	if (meta->insn.code == (BPF_JMP | BPF_EXIT))
 		return nfp_bpf_check_exit(nfp_prog, env);
 

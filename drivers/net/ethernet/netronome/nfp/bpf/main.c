@@ -172,6 +172,8 @@ nfp_bpf_parse_cap_adjust_head(struct nfp_app_bpf *bpf, void __iomem *value,
 	bpf->adjust_head.flags = readl(&cap->flags);
 	bpf->adjust_head.off_min = readl(&cap->off_min);
 	bpf->adjust_head.off_max = readl(&cap->off_max);
+	bpf->adjust_head.guaranteed_sub = readl(&cap->guaranteed_sub);
+	bpf->adjust_head.guaranteed_add = readl(&cap->guaranteed_add);
 
 	if (bpf->adjust_head.off_min > bpf->adjust_head.off_max) {
 		nfp_err(cpp, "invalid adjust_head TLV: min > max\n");
