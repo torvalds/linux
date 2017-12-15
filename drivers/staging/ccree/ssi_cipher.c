@@ -371,6 +371,7 @@ static int cc_cipher_setkey(struct crypto_ablkcipher *atfm, const u8 *key,
 		/* sha256 for key2 - use sw implementation */
 		int key_len = keylen >> 1;
 		int err;
+
 		SHASH_DESC_ON_STACK(desc, ctx_p->shash_tfm);
 
 		desc->tfm = ctx_p->shash_tfm;
