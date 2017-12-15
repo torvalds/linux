@@ -317,18 +317,14 @@ int usbip_recv(struct socket *sock, void *buf, int size)
 	struct msghdr msg;
 	struct kvec iov;
 	int total = 0;
-
 	/* for blocks of if (usbip_dbg_flag_xmit) */
 	char *bp = buf;
 	int osize = size;
 
-	usbip_dbg_xmit("enter\n");
-
-	if (!sock || !buf || !size) {
-		pr_err("invalid arg, sock %p buff %p size %d\n", sock, buf,
-		       size);
+	if (!sock || !buf || !size)
 		return -EINVAL;
-	}
+
+	usbip_dbg_xmit("enter\n");
 
 	do {
 		sock->sk->sk_allocation = GFP_NOIO;
@@ -341,11 +337,8 @@ int usbip_recv(struct socket *sock, void *buf, int size)
 		msg.msg_flags      = MSG_NOSIGNAL;
 
 		result = kernel_recvmsg(sock, &msg, &iov, 1, size, MSG_WAITALL);
-		if (result <= 0) {
-			pr_debug("receive sock %p buf %p size %u ret %d total %d\n",
-				 sock, buf, size, result, total);
+		if (result <= 0)
 			goto err;
-		}
 
 		size -= result;
 		buf += result;
