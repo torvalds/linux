@@ -41,6 +41,7 @@ struct sysc_regbits {
 	s8 emufree_shift;
 };
 
+#define SYSC_QUIRK_RESET_STATUS		BIT(7)
 #define SYSC_QUIRK_NO_IDLE_ON_INIT	BIT(6)
 #define SYSC_QUIRK_NO_RESET_ON_INIT	BIT(5)
 #define SYSC_QUIRK_OPT_CLKS_NEEDED	BIT(4)
@@ -48,6 +49,8 @@ struct sysc_regbits {
 #define SYSC_QUIRK_16BIT		BIT(2)
 #define SYSC_QUIRK_UNCACHED		BIT(1)
 #define SYSC_QUIRK_USE_CLOCKACT		BIT(0)
+
+#define SYSC_NR_IDLEMODES		4
 
 /**
  * struct sysc_capabilities - capabilities for an interconnect target module
@@ -65,10 +68,17 @@ struct sysc_capabilities {
 
 /**
  * struct sysc_config - configuration for an interconnect target module
+ * @sysc_val: configured value for sysc register
+ * @midlemodes: bitmask of supported master idle modes
+ * @sidlemodes: bitmask of supported master idle modes
  * @srst_udelay: optional delay needed after OCP soft reset
  * @quirks: bitmask of enabled quirks
  */
 struct sysc_config {
+	u32 sysc_val;
+	u32 syss_mask;
+	u8 midlemodes;
+	u8 sidlemodes;
 	u8 srst_udelay;
 	u32 quirks;
 };

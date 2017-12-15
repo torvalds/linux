@@ -39,6 +39,9 @@ enum sysc_clocks {
 
 static const char * const clock_names[] = { "fck", "ick", };
 
+#define SYSC_IDLEMODE_MASK		3
+#define SYSC_CLOCKACTIVITY_MASK		3
+
 /**
  * struct sysc - TI sysc interconnect target module registers and capabilities
  * @dev: struct device pointer
@@ -517,6 +520,91 @@ static int sysc_init_module(struct sysc *ddata)
 	return 0;
 }
 
+static int sysc_init_sysc_mask(struct sysc *ddata)
+{
+	struct device_node *np = ddata->dev->of_node;
+	int error;
+	u32 val;
+
+	error = of_property_read_u32(np, "ti,sysc-mask", &val);
+	if (error)
+		return 0;
+
+	if (val)
+		ddata->cfg.sysc_val = val & ddata->cap->sysc_mask;
+	else
+		ddata->cfg.sysc_val = ddata->cap->sysc_mask;
+
+	return 0;
+}
+
+static int sysc_init_idlemode(struct sysc *ddata, u8 *idlemodes,
+			      const char *name)
+{
+	struct device_node *np = ddata->dev->of_node;
+	struct property *prop;
+	const __be32 *p;
+	u32 val;
+
+	of_property_for_each_u32(np, name, prop, p, val) {
+		if (val >= SYSC_NR_IDLEMODES) {
+			dev_err(ddata->dev, "invalid idlemode: %i\n", val);
+			return -EINVAL;
+		}
+		*idlemodes |=  (1 << val);
+	}
+
+	return 0;
+}
+
+static int sysc_init_idlemodes(struct sysc *ddata)
+{
+	int error;
+
+	error = sysc_init_idlemode(ddata, &ddata->cfg.midlemodes,
+				   "ti,sysc-midle");
+	if (error)
+		return error;
+
+	error = sysc_init_idlemode(ddata, &ddata->cfg.sidlemodes,
+				   "ti,sysc-sidle");
+	if (error)
+		return error;
+
+	return 0;
+}
+
+/*
+ * Only some devices on omap4 and later have SYSCONFIG reset done
+ * bit. We can detect this if there is no SYSSTATUS at all, or the
+ * SYSTATUS bit 0 is not used. Note that some SYSSTATUS registers
+ * have multiple bits for the child devices like OHCI and EHCI.
+ * Depends on SYSC being parsed first.
+ */
+static int sysc_init_syss_mask(struct sysc *ddata)
+{
+	struct device_node *np = ddata->dev->of_node;
+	int error;
+	u32 val;
+
+	error = of_property_read_u32(np, "ti,syss-mask", &val);
+	if (error) {
+		if ((ddata->cap->type == TI_SYSC_OMAP4 ||
+		     ddata->cap->type == TI_SYSC_OMAP4_TIMER) &&
+		    (ddata->cfg.sysc_val & SYSC_OMAP4_SOFTRESET))
+			ddata->cfg.quirks |= SYSC_QUIRK_RESET_STATUS;
+
+		return 0;
+	}
+
+	if (!(val & 1) && (ddata->cfg.sysc_val & SYSC_OMAP4_SOFTRESET))
+		ddata->cfg.quirks |= SYSC_QUIRK_RESET_STATUS;
+
+	ddata->cfg.syss_mask = val;
+
+	return 0;
+}
+
 /* Device tree configured quirks */
 struct sysc_dts_quirk {
 	const char *name;
@@ -817,6 +905,18 @@ static int sysc_probe(struct platform_device *pdev)
 		return error;
 
 	error = sysc_map_and_check_registers(ddata);
+	if (error)
+		goto unprepare;
+
+	error = sysc_init_sysc_mask(ddata);
+	if (error)
+		goto unprepare;
+
+	error = sysc_init_idlemodes(ddata);
+	if (error)
+		goto unprepare;
+
+	error = sysc_init_syss_mask(ddata);
 	if (error)
 		goto unprepare;
 
