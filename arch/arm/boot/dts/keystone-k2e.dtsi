@@ -45,8 +45,9 @@
 	aliases {
 		rproc0 = &dsp0;
 	};
+};
 
-	soc {
+&soc0 {
 		/include/ "keystone-k2e-clocks.dtsi"
 
 		usb: usb@2680000 {
@@ -191,5 +192,4 @@
 			bus_freq	= <2500000>;
 		};
 		/include/ "keystone-k2e-netcp.dtsi"
-	};
 };

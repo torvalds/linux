@@ -36,8 +36,9 @@
 		rproc2 = &dsp2;
 		rproc3 = &dsp3;
 	};
+};
 
-	soc {
+&soc0 {
 		/include/ "keystone-k2l-clocks.dtsi"
 
 		uart2: serial@2348400 {
@@ -391,7 +392,6 @@
 			bus_freq	= <2500000>;
 		};
 		/include/ "keystone-k2l-netcp.dtsi"
-	};
 };
 
 &spi0 {

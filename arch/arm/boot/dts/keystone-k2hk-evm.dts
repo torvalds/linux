@@ -26,7 +26,31 @@
 		};
 	};
 
-	soc {
+	leds {
+		compatible = "gpio-leds";
+		debug1_1 {
+			label = "keystone:green:debug1";
+			gpios = <&gpio0 12 GPIO_ACTIVE_HIGH>; /* 12 */
+		};
+
+		debug1_2 {
+			label = "keystone:red:debug1";
+			gpios = <&gpio0 13 GPIO_ACTIVE_HIGH>; /* 13 */
+		};
+
+		debug2 {
+			label = "keystone:blue:debug2";
+			gpios = <&gpio0 14 GPIO_ACTIVE_HIGH>; /* 14 */
+		};
+
+		debug3 {
+			label = "keystone:blue:debug3";
+			gpios = <&gpio0 15 GPIO_ACTIVE_HIGH>; /* 15 */
+		};
+	};
+};
+
+&soc0 {
 		clocks {
 			refclksys: refclksys {
 				#clock-cells = <0>;
@@ -63,30 +87,6 @@
 				clock-output-names = "refclk-ddr3b";
 			};
 		};
-	};
-
-	leds {
-		compatible = "gpio-leds";
-		debug1_1 {
-			label = "keystone:green:debug1";
-			gpios = <&gpio0 12 GPIO_ACTIVE_HIGH>; /* 12 */
-		};
-
-		debug1_2 {
-			label = "keystone:red:debug1";
-			gpios = <&gpio0 13 GPIO_ACTIVE_HIGH>; /* 13 */
-		};
-
-		debug2 {
-			label = "keystone:blue:debug2";
-			gpios = <&gpio0 14 GPIO_ACTIVE_HIGH>; /* 14 */
-		};
-
-		debug3 {
-			label = "keystone:blue:debug3";
-			gpios = <&gpio0 15 GPIO_ACTIVE_HIGH>; /* 15 */
-		};
-	};
 };
 
 &usb_phy {

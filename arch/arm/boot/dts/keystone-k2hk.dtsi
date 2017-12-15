@@ -52,8 +52,9 @@
 		rproc6 = &dsp6;
 		rproc7 = &dsp7;
 	};
+};
 
-	soc {
+&soc0 {
 		/include/ "keystone-k2hk-clocks.dtsi"
 
 		msm_ram: msmram@c000000 {
@@ -281,5 +282,4 @@
 			bus_freq	= <2500000>;
 		};
 		/include/ "keystone-k2hk-netcp.dtsi"
-	};
 };

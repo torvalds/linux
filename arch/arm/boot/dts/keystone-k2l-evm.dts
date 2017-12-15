@@ -25,8 +25,9 @@
 			status = "okay";
 		};
 	};
+};
 
-	soc {
+&soc0 {
 		clocks {
 			refclksys: refclksys {
 				#clock-cells = <0>;
@@ -35,7 +36,6 @@
 				clock-output-names = "refclk-sys";
 			};
 		};
-	};
 };
 
 &usb_phy {

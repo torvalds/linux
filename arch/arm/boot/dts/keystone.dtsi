@@ -67,7 +67,7 @@
 		cpu_on		= <0x84000003>;
 	};
 
-	soc {
+	soc0: soc@0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
 		compatible = "ti,keystone","simple-bus";
