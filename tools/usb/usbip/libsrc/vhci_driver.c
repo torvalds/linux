@@ -50,14 +50,14 @@ static int parse_status(const char *value)
 
 	while (*c != '\0') {
 		int port, status, speed, devid;
-		unsigned long socket;
+		int sockfd;
 		char lbusid[SYSFS_BUS_ID_SIZE];
 		struct usbip_imported_device *idev;
 		char hub[3];
 
-		ret = sscanf(c, "%2s  %d %d %d %x %lx %31s\n",
+		ret = sscanf(c, "%2s  %d %d %d %x %u %31s\n",
 				hub, &port, &status, &speed,
-				&devid, &socket, lbusid);
+				&devid, &sockfd, lbusid);
 
 		if (ret < 5) {
 			dbg("sscanf failed: %d", ret);
@@ -66,7 +66,7 @@ static int parse_status(const char *value)
 
 		dbg("hub %s port %d status %d speed %d devid %x",
 				hub, port, status, speed, devid);
-		dbg("socket %lx lbusid %s", socket, lbusid);
+		dbg("sockfd %u lbusid %s", sockfd, lbusid);
 
 		/* if a device is connected, look at it */
 		idev = &vhci_driver->idev[port];
@@ -106,7 +106,7 @@ static int parse_status(const char *value)
 	return 0;
 }
 
-#define MAX_STATUS_NAME 16
+#define MAX_STATUS_NAME 18
 
 static int refresh_imported_device_list(void)
 {

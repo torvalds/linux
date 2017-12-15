@@ -13,14 +13,6 @@
 # both kinds of controller can also support "USB On-the-Go" (CONFIG_USB_OTG).
 #
 
-menuconfig USB_GADGET_LEGACY
-	bool "Legacy USB Gadget Support"
-	help
-	   Legacy USB gadgets are USB gadgets that do not use the USB gadget
-	   configfs interface.
-
-if USB_GADGET_LEGACY
-
 config USB_ZERO
 	tristate "Gadget Zero (DEVELOPMENT)"
 	select USB_LIBCOMPOSITE
@@ -487,7 +479,7 @@ endif
 # or video class gadget drivers), or specific hardware, here.
 config USB_G_WEBCAM
 	tristate "USB Webcam Gadget"
-	depends on VIDEO_DEV
+	depends on VIDEO_V4L2
 	select USB_LIBCOMPOSITE
 	select VIDEOBUF2_VMALLOC
 	select USB_F_UVC
@@ -498,5 +490,3 @@ config USB_G_WEBCAM
 
 	  Say "y" to link the driver statically, or "m" to build a
 	  dynamically linked module called "g_webcam".
-
-endif
