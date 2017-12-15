@@ -158,7 +158,12 @@ map_ldt_struct(struct mm_struct *mm, struct ldt_struct *ldt, int slot)
 		ptep = get_locked_pte(mm, va, &ptl);
 		if (!ptep)
 			return -ENOMEM;
-		pte = pfn_pte(pfn, __pgprot(__PAGE_KERNEL & ~_PAGE_GLOBAL));
+		/*
+		 * Map it RO so the easy to find address is not a primary
+		 * target via some kernel interface which misses a
+		 * permission check.
+		 */
+		pte = pfn_pte(pfn, __pgprot(__PAGE_KERNEL_RO & ~_PAGE_GLOBAL));
 		set_pte_at(mm, va, ptep, pte);
 		pte_unmap_unlock(ptep, ptl);
 	}
