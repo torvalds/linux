@@ -1602,10 +1602,8 @@ static int i915_fbc_status(struct seq_file *m, void *unused)
 {
 	struct drm_i915_private *dev_priv = node_to_i915(m->private);
 
-	if (!HAS_FBC(dev_priv)) {
-		seq_puts(m, "FBC unsupported on this chipset\n");
-		return 0;
-	}
+	if (!HAS_FBC(dev_priv))
+		return -ENODEV;
 
 	intel_runtime_pm_get(dev_priv);
 	mutex_lock(&dev_priv->fbc.lock);
@@ -1681,10 +1679,8 @@ static int i915_ips_status(struct seq_file *m, void *unused)
 {
 	struct drm_i915_private *dev_priv = node_to_i915(m->private);
 
-	if (!HAS_IPS(dev_priv)) {
-		seq_puts(m, "not supported\n");
-		return 0;
-	}
+	if (!HAS_IPS(dev_priv))
+		return -ENODEV;
 
 	intel_runtime_pm_get(dev_priv);
 
@@ -1770,10 +1766,8 @@ static int i915_ring_freq_table(struct seq_file *m, void *unused)
 	int gpu_freq, ia_freq;
 	unsigned int max_gpu_freq, min_gpu_freq;
 
-	if (!HAS_LLC(dev_priv)) {
-		seq_puts(m, "unsupported on this chipset\n");
-		return 0;
-	}
+	if (!HAS_LLC(dev_priv))
+		return -ENODEV;
 
 	intel_runtime_pm_get(dev_priv);
 
@@ -2253,8 +2247,8 @@ static int i915_huc_load_status_info(struct seq_file *m, void *data)
 	struct drm_i915_private *dev_priv = node_to_i915(m->private);
 	struct drm_printer p;
 
-	if (!HAS_HUC_UCODE(dev_priv))
-		return 0;
+	if (!HAS_HUC(dev_priv))
+		return -ENODEV;
 
 	p = drm_seq_file_printer(m);
 	intel_uc_fw_dump(&dev_priv->huc.fw, &p);
@@ -2272,8 +2266,8 @@ static int i915_guc_load_status_info(struct seq_file *m, void *data)
 	struct drm_printer p;
 	u32 tmp, i;
 
-	if (!HAS_GUC_UCODE(dev_priv))
-		return 0;
+	if (!HAS_GUC(dev_priv))
+		return -ENODEV;
 
 	p = drm_seq_file_printer(m);
 	intel_uc_fw_dump(&dev_priv->guc.fw, &p);
@@ -2346,29 +2340,16 @@ static void i915_guc_client_info(struct seq_file *m,
 	seq_printf(m, "\tTotal: %llu\n", tot);
 }
 
-static bool check_guc_submission(struct seq_file *m)
-{
-	struct drm_i915_private *dev_priv = node_to_i915(m->private);
-	const struct intel_guc *guc = &dev_priv->guc;
-
-	if (!guc->execbuf_client) {
-		seq_printf(m, "GuC submission %s\n",
-			   HAS_GUC_SCHED(dev_priv) ?
-			   "disabled" :
-			   "not supported");
-		return false;
-	}
-
-	return true;
-}
-
 static int i915_guc_info(struct seq_file *m, void *data)
 {
 	struct drm_i915_private *dev_priv = node_to_i915(m->private);
 	const struct intel_guc *guc = &dev_priv->guc;
 
-	if (!check_guc_submission(m))
-		return 0;
+	if (!USES_GUC_SUBMISSION(dev_priv))
+		return -ENODEV;
+
+	GEM_BUG_ON(!guc->execbuf_client);
+	GEM_BUG_ON(!guc->preempt_client);
 
 	seq_printf(m, "Doorbell map:\n");
 	seq_printf(m, "\t%*pb\n", GUC_NUM_DOORBELLS, guc->doorbell_bitmap);
@@ -2395,8 +2376,8 @@ static int i915_guc_stage_pool(struct seq_file *m, void *data)
 	unsigned int tmp;
 	int index;
 
-	if (!check_guc_submission(m))
-		return 0;
+	if (!USES_GUC_SUBMISSION(dev_priv))
+		return -ENODEV;
 
 	for (index = 0; index < GUC_MAX_STAGE_DESCRIPTORS; index++, desc++) {
 		struct intel_engine_cs *engine;
@@ -2449,6 +2430,9 @@ static int i915_guc_log_dump(struct seq_file *m, void *data)
 	u32 *log;
 	int i = 0;
 
+	if (!HAS_GUC(dev_priv))
+		return -ENODEV;
+
 	if (dump_load_err)
 		obj = dev_priv->guc.load_err_log;
 	else if (dev_priv->guc.log.vma)
@@ -2480,6 +2464,9 @@ static int i915_guc_log_control_get(void *data, u64 *val)
 {
 	struct drm_i915_private *dev_priv = data;
 
+	if (!HAS_GUC(dev_priv))
+		return -ENODEV;
+
 	if (!dev_priv->guc.log.vma)
 		return -EINVAL;
 
@@ -2492,6 +2479,9 @@ static int i915_guc_log_control_set(void *data, u64 val)
 {
 	struct drm_i915_private *dev_priv = data;
 	int ret;
+
+	if (!HAS_GUC(dev_priv))
+		return -ENODEV;
 
 	if (!dev_priv->guc.log.vma)
 		return -EINVAL;
@@ -2543,10 +2533,8 @@ static int i915_edp_psr_status(struct seq_file *m, void *data)
 	enum pipe pipe;
 	bool enabled = false;
 
-	if (!HAS_PSR(dev_priv)) {
-		seq_puts(m, "PSR not supported\n");
-		return 0;
-	}
+	if (!HAS_PSR(dev_priv))
+		return -ENODEV;
 
 	intel_runtime_pm_get(dev_priv);
 
@@ -2785,10 +2773,8 @@ static int i915_dmc_info(struct seq_file *m, void *unused)
 	struct drm_i915_private *dev_priv = node_to_i915(m->private);
 	struct intel_csr *csr;
 
-	if (!HAS_CSR(dev_priv)) {
-		seq_puts(m, "not supported\n");
-		return 0;
-	}
+	if (!HAS_CSR(dev_priv))
+		return -ENODEV;
 
 	csr = &dev_priv->csr;
 
@@ -3324,7 +3310,7 @@ static int i915_ddb_info(struct seq_file *m, void *unused)
 	int plane;
 
 	if (INTEL_GEN(dev_priv) < 9)
-		return 0;
+		return -ENODEV;
 
 	drm_modeset_lock_all(dev);
 
