@@ -1824,7 +1824,7 @@ struct bpf_prog *bpf_int_jit_compile(struct bpf_prog *prog)
 	/* If BPF JIT was not enabled then we must fall back to
 	 * the interpreter.
 	 */
-	if (!bpf_jit_enable)
+	if (!prog->jit_requested)
 		return orig_prog;
 
 	/* If constant blinding was enabled and we failed during blinding

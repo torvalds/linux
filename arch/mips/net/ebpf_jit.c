@@ -1869,7 +1869,7 @@ struct bpf_prog *bpf_int_jit_compile(struct bpf_prog *prog)
 	unsigned int image_size;
 	u8 *image_ptr;
 
-	if (!bpf_jit_enable || !cpu_has_mips64r2)
+	if (!prog->jit_requested || !cpu_has_mips64r2)
 		return prog;
 
 	tmp = bpf_jit_blind_constants(prog);

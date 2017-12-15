@@ -5080,7 +5080,7 @@ static int fixup_bpf_calls(struct bpf_verifier_env *env)
 		/* BPF_EMIT_CALL() assumptions in some of the map_gen_lookup
 		 * handlers are currently limited to 64 bit only.
 		 */
-		if (ebpf_jit_enabled() && BITS_PER_LONG == 64 &&
+		if (prog->jit_requested && BITS_PER_LONG == 64 &&
 		    insn->imm == BPF_FUNC_map_lookup_elem) {
 			map_ptr = env->insn_aux_data[i + delta].map_ptr;
 			if (map_ptr == BPF_MAP_PTR_POISON ||
