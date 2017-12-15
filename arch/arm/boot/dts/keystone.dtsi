@@ -6,8 +6,6 @@
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/gpio/gpio.h>
 
-#include "skeleton.dtsi"
-
 / {
 	compatible = "ti,keystone";
 	model = "Texas Instruments Keystone 2 SoC";
@@ -22,7 +20,10 @@
 		spi2 = &spi2;
 	};
 
-	memory {
+	chosen { };
+
+	memory: memory@80000000 {
+		device_type = "memory";
 		reg = <0x00000000 0x80000000 0x00000000 0x40000000>;
 	};
 
