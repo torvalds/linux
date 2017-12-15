@@ -724,20 +724,19 @@ static int sfp_module_eeprom(struct sfp *sfp, struct ethtool_eeprom *ee,
 		len = min_t(unsigned int, last, ETH_MODULE_SFF_8079_LEN);
 		len -= first;
 
-		ret = sfp->read(sfp, false, first, data, len);
+		ret = sfp_read(sfp, false, first, data, len);
 		if (ret < 0)
 			return ret;
 
 		first += len;
 		data += len;
 	}
-	if (first >= ETH_MODULE_SFF_8079_LEN &&
-	    first < ETH_MODULE_SFF_8472_LEN) {
+	if (first < ETH_MODULE_SFF_8472_LEN && last > ETH_MODULE_SFF_8079_LEN) {
 		len = min_t(unsigned int, last, ETH_MODULE_SFF_8472_LEN);
 		len -= first;
 		first -= ETH_MODULE_SFF_8079_LEN;
 
-		ret = sfp->read(sfp, true, first, data, len);
+		ret = sfp_read(sfp, true, first, data, len);
 		if (ret < 0)
 			return ret;
 	}
