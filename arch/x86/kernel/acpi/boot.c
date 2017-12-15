@@ -676,8 +676,7 @@ static int acpi_register_gsi_ioapic(struct device *dev, u32 gsi,
 	mutex_lock(&acpi_ioapic_lock);
 	irq = mp_map_gsi_to_irq(gsi, IOAPIC_MAP_ALLOC, &info);
 	/* Don't set up the ACPI SCI because it's already set up */
-	if (irq >= 0 && enable_update_mptable &&
-	    acpi_gbl_FADT.sci_interrupt != gsi)
+	if (irq >= 0 && enable_update_mptable && gsi != acpi_gbl_FADT.sci_interrupt)
 		mp_config_acpi_gsi(dev, gsi, trigger, polarity);
 	mutex_unlock(&acpi_ioapic_lock);
 #endif
