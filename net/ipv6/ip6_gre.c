@@ -524,7 +524,7 @@ static int ip6erspan_rcv(struct sk_buff *skb, int gre_hdr_len,
 		int len = erspan_hdr_len(ver);
 
 		if (unlikely(!pskb_may_pull(skb, len)))
-			return -ENOMEM;
+			return PACKET_REJECT;
 
 		if (__iptunnel_pull_header(skb, len,
 					   htons(ETH_P_TEB),

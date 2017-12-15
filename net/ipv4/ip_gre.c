@@ -287,7 +287,7 @@ static int erspan_rcv(struct sk_buff *skb, struct tnl_ptk_info *tpi,
 	if (tunnel) {
 		len = gre_hdr_len + erspan_hdr_len(ver);
 		if (unlikely(!pskb_may_pull(skb, len)))
-			return -ENOMEM;
+			return PACKET_REJECT;
 
 		if (__iptunnel_pull_header(skb,
 					   len,
