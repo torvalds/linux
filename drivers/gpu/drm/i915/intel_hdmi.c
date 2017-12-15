@@ -1567,7 +1567,10 @@ intel_hdmi_dp_dual_mode_detect(struct drm_connector *connector, bool has_edid)
 	 * there's nothing connected to the port.
 	 */
 	if (type == DRM_DP_DUAL_MODE_UNKNOWN) {
-		if (has_edid &&
+		/* An overridden EDID imply that we want this port for testing.
+		 * Make sure not to set limits for that port.
+		 */
+		if (has_edid && !connector->override_edid &&
 		    intel_bios_is_port_dp_dual_mode(dev_priv, port)) {
 			DRM_DEBUG_KMS("Assuming DP dual mode adaptor presence based on VBT\n");
 			type = DRM_DP_DUAL_MODE_TYPE1_DVI;
