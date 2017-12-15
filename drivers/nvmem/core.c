@@ -444,7 +444,6 @@ static int nvmem_setup_compat(struct nvmem_device *nvmem,
 struct nvmem_device *nvmem_register(const struct nvmem_config *config)
 {
 	struct nvmem_device *nvmem;
-	struct device_node *np;
 	int rval;
 
 	if (!config->dev)
@@ -473,13 +472,12 @@ struct nvmem_device *nvmem_register(const struct nvmem_config *config)
 	nvmem->priv = config->priv;
 	nvmem->reg_read = config->reg_read;
 	nvmem->reg_write = config->reg_write;
-	np = config->dev->of_node;
-	nvmem->dev.of_node = np;
+	nvmem->dev.of_node = config->dev->of_node;
 	dev_set_name(&nvmem->dev, "%s%d",
 		     config->name ? : "nvmem",
 		     config->name ? config->id : nvmem->id);
 
-	nvmem->read_only = of_property_read_bool(np, "read-only") |
+	nvmem->read_only = device_property_present(config->dev, "read-only") |
 			   config->read_only;
 
 	if (config->root_only)
