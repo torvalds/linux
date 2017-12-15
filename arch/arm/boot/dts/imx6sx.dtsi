@@ -760,6 +760,19 @@
 				#interrupt-cells = <3>;
 				interrupts = <GIC_SPI 89 IRQ_TYPE_LEVEL_HIGH>;
 				interrupt-parent = <&intc>;
+				clocks = <&clks IMX6SX_CLK_IPG>;
+				clock-names = "ipg";
+
+				pgc {
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					pd_pci: power-domain@3 {
+						reg = <3>;
+						#power-domain-cells = <0>;
+						power-supply = <&reg_pcie>;
+					};
+				};
 			};
 
 			iomuxc: iomuxc@20e0000 {
@@ -1338,6 +1351,7 @@
 				 <&clks IMX6SX_CLK_PCIE_REF_125M>,
 				 <&clks IMX6SX_CLK_DISPLAY_AXI>;
 			clock-names = "pcie", "pcie_bus", "pcie_phy", "pcie_inbound_axi";
+			power-domains = <&pd_pci>;
 			status = "disabled";
 		};
 	};
