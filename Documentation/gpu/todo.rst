@@ -194,6 +194,24 @@ drm_mode_config_helper_suspend/resume().
 
 Contact: Maintainer of the driver you plan to convert
 
+Convert drivers to use drm_fb_helper_fbdev_setup/teardown()
+-----------------------------------------------------------
+
+Most drivers can use drm_fb_helper_fbdev_setup() except maybe:
+
+- amdgpu which has special logic to decide whether to call
+  drm_helper_disable_unused_functions()
+
+- armada which isn't atomic and doesn't call
+  drm_helper_disable_unused_functions()
+
+- i915 which calls drm_fb_helper_initial_config() in a worker
+
+Drivers that use drm_framebuffer_remove() to clean up the fbdev framebuffer can
+probably use drm_fb_helper_fbdev_teardown().
+
+Contact: Maintainer of the driver you plan to convert
+
 Core refactorings
 =================
 
