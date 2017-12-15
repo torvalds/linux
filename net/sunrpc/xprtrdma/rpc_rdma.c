@@ -292,15 +292,15 @@ encode_item_not_present(struct xdr_stream *xdr)
 }
 
 static void
-xdr_encode_rdma_segment(__be32 *iptr, struct rpcrdma_mw *mw)
+xdr_encode_rdma_segment(__be32 *iptr, struct rpcrdma_mr *mr)
 {
-	*iptr++ = cpu_to_be32(mw->mw_handle);
-	*iptr++ = cpu_to_be32(mw->mw_length);
-	xdr_encode_hyper(iptr, mw->mw_offset);
+	*iptr++ = cpu_to_be32(mr->mr_handle);
+	*iptr++ = cpu_to_be32(mr->mr_length);
+	xdr_encode_hyper(iptr, mr->mr_offset);
 }
 
 static int
-encode_rdma_segment(struct xdr_stream *xdr, struct rpcrdma_mw *mw)
+encode_rdma_segment(struct xdr_stream *xdr, struct rpcrdma_mr *mr)
 {
 	__be32 *p;
 
@@ -308,12 +308,12 @@ encode_rdma_segment(struct xdr_stream *xdr, struct rpcrdma_mw *mw)
 	if (unlikely(!p))
 		return -EMSGSIZE;
 
-	xdr_encode_rdma_segment(p, mw);
+	xdr_encode_rdma_segment(p, mr);
 	return 0;
 }
 
 static int
-encode_read_segment(struct xdr_stream *xdr, struct rpcrdma_mw *mw,
+encode_read_segment(struct xdr_stream *xdr, struct rpcrdma_mr *mr,
 		    u32 position)
 {
 	__be32 *p;
@@ -324,7 +324,7 @@ encode_read_segment(struct xdr_stream *xdr, struct rpcrdma_mw *mw,
 
 	*p++ = xdr_one;			/* Item present */
 	*p++ = cpu_to_be32(position);
-	xdr_encode_rdma_segment(p, mw);
+	xdr_encode_rdma_segment(p, mr);
 	return 0;
 }
 
@@ -348,7 +348,7 @@ rpcrdma_encode_read_list(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req,
 {
 	struct xdr_stream *xdr = &req->rl_stream;
 	struct rpcrdma_mr_seg *seg;
-	struct rpcrdma_mw *mw;
+	struct rpcrdma_mr *mr;
 	unsigned int pos;
 	int nsegs;
 
@@ -363,21 +363,21 @@ rpcrdma_encode_read_list(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req,
 
 	do {
 		seg = r_xprt->rx_ia.ri_ops->ro_map(r_xprt, seg, nsegs,
-						   false, &mw);
+						   false, &mr);
 		if (IS_ERR(seg))
 			return PTR_ERR(seg);
-		rpcrdma_push_mw(mw, &req->rl_registered);
+		rpcrdma_mr_push(mr, &req->rl_registered);
 
-		if (encode_read_segment(xdr, mw, pos) < 0)
+		if (encode_read_segment(xdr, mr, pos) < 0)
 			return -EMSGSIZE;
 
 		dprintk("RPC: %5u %s: pos %u %u@0x%016llx:0x%08x (%s)\n",
 			rqst->rq_task->tk_pid, __func__, pos,
-			mw->mw_length, (unsigned long long)mw->mw_offset,
-			mw->mw_handle, mw->mw_nents < nsegs ? "more" : "last");
+			mr->mr_length, (unsigned long long)mr->mr_offset,
+			mr->mr_handle, mr->mr_nents < nsegs ? "more" : "last");
 
 		r_xprt->rx_stats.read_chunk_count++;
-		nsegs -= mw->mw_nents;
+		nsegs -= mr->mr_nents;
 	} while (nsegs);
 
 	return 0;
@@ -404,7 +404,7 @@ rpcrdma_encode_write_list(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req,
 {
 	struct xdr_stream *xdr = &req->rl_stream;
 	struct rpcrdma_mr_seg *seg;
-	struct rpcrdma_mw *mw;
+	struct rpcrdma_mr *mr;
 	int nsegs, nchunks;
 	__be32 *segcount;
 
@@ -425,23 +425,23 @@ rpcrdma_encode_write_list(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req,
 	nchunks = 0;
 	do {
 		seg = r_xprt->rx_ia.ri_ops->ro_map(r_xprt, seg, nsegs,
-						   true, &mw);
+						   true, &mr);
 		if (IS_ERR(seg))
 			return PTR_ERR(seg);
-		rpcrdma_push_mw(mw, &req->rl_registered);
+		rpcrdma_mr_push(mr, &req->rl_registered);
 
-		if (encode_rdma_segment(xdr, mw) < 0)
+		if (encode_rdma_segment(xdr, mr) < 0)
 			return -EMSGSIZE;
 
 		dprintk("RPC: %5u %s: %u@0x016%llx:0x%08x (%s)\n",
 			rqst->rq_task->tk_pid, __func__,
-			mw->mw_length, (unsigned long long)mw->mw_offset,
-			mw->mw_handle, mw->mw_nents < nsegs ? "more" : "last");
+			mr->mr_length, (unsigned long long)mr->mr_offset,
+			mr->mr_handle, mr->mr_nents < nsegs ? "more" : "last");
 
 		r_xprt->rx_stats.write_chunk_count++;
 		r_xprt->rx_stats.total_rdma_request += seg->mr_len;
 		nchunks++;
-		nsegs -= mw->mw_nents;
+		nsegs -= mr->mr_nents;
 	} while (nsegs);
 
 	/* Update count of segments in this Write chunk */
@@ -468,7 +468,7 @@ rpcrdma_encode_reply_chunk(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req,
 {
 	struct xdr_stream *xdr = &req->rl_stream;
 	struct rpcrdma_mr_seg *seg;
-	struct rpcrdma_mw *mw;
+	struct rpcrdma_mr *mr;
 	int nsegs, nchunks;
 	__be32 *segcount;
 
@@ -487,23 +487,23 @@ rpcrdma_encode_reply_chunk(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req,
 	nchunks = 0;
 	do {
 		seg = r_xprt->rx_ia.ri_ops->ro_map(r_xprt, seg, nsegs,
-						   true, &mw);
+						   true, &mr);
 		if (IS_ERR(seg))
 			return PTR_ERR(seg);
-		rpcrdma_push_mw(mw, &req->rl_registered);
+		rpcrdma_mr_push(mr, &req->rl_registered);
 
-		if (encode_rdma_segment(xdr, mw) < 0)
+		if (encode_rdma_segment(xdr, mr) < 0)
 			return -EMSGSIZE;
 
 		dprintk("RPC: %5u %s: %u@0x%016llx:0x%08x (%s)\n",
 			rqst->rq_task->tk_pid, __func__,
-			mw->mw_length, (unsigned long long)mw->mw_offset,
-			mw->mw_handle, mw->mw_nents < nsegs ? "more" : "last");
+			mr->mr_length, (unsigned long long)mr->mr_offset,
+			mr->mr_handle, mr->mr_nents < nsegs ? "more" : "last");
 
 		r_xprt->rx_stats.reply_chunk_count++;
 		r_xprt->rx_stats.total_rdma_request += seg->mr_len;
 		nchunks++;
-		nsegs -= mw->mw_nents;
+		nsegs -= mr->mr_nents;
 	} while (nsegs);
 
 	/* Update count of segments in the Reply chunk */
@@ -821,10 +821,10 @@ rpcrdma_marshal_req(struct rpcrdma_xprt *r_xprt, struct rpc_rqst *rqst)
 	 * so these registrations are invalid and unusable.
 	 */
 	while (unlikely(!list_empty(&req->rl_registered))) {
-		struct rpcrdma_mw *mw;
+		struct rpcrdma_mr *mr;
 
-		mw = rpcrdma_pop_mw(&req->rl_registered);
-		rpcrdma_defer_mr_recovery(mw);
+		mr = rpcrdma_mr_pop(&req->rl_registered);
+		rpcrdma_mr_defer_recovery(mr);
 	}
 
 	/* This implementation supports the following combinations

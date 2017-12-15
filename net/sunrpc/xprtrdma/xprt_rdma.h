@@ -230,12 +230,12 @@ enum {
 };
 
 /*
- * struct rpcrdma_mw - external memory region metadata
+ * struct rpcrdma_mr - external memory region metadata
  *
  * An external memory region is any buffer or page that is registered
  * on the fly (ie, not pre-registered).
  *
- * Each rpcrdma_buffer has a list of free MWs anchored in rb_mws. During
+ * Each rpcrdma_buffer has a list of free MWs anchored in rb_mrs. During
  * call_allocate, rpcrdma_buffer_get() assigns one to each segment in
  * an rpcrdma_req. Then rpcrdma_register_external() grabs these to keep
  * track of registration metadata while each RPC is pending.
@@ -265,20 +265,20 @@ struct rpcrdma_fmr {
 	u64			*fm_physaddrs;
 };
 
-struct rpcrdma_mw {
-	struct list_head	mw_list;
-	struct scatterlist	*mw_sg;
-	int			mw_nents;
-	enum dma_data_direction	mw_dir;
+struct rpcrdma_mr {
+	struct list_head	mr_list;
+	struct scatterlist	*mr_sg;
+	int			mr_nents;
+	enum dma_data_direction	mr_dir;
 	union {
 		struct rpcrdma_fmr	fmr;
 		struct rpcrdma_frwr	frwr;
 	};
-	struct rpcrdma_xprt	*mw_xprt;
-	u32			mw_handle;
-	u32			mw_length;
-	u64			mw_offset;
-	struct list_head	mw_all;
+	struct rpcrdma_xprt	*mr_xprt;
+	u32			mr_handle;
+	u32			mr_length;
+	u64			mr_offset;
+	struct list_head	mr_all;
 };
 
 /*
@@ -371,19 +371,19 @@ rpcr_to_rdmar(struct rpc_rqst *rqst)
 }
 
 static inline void
-rpcrdma_push_mw(struct rpcrdma_mw *mw, struct list_head *list)
+rpcrdma_mr_push(struct rpcrdma_mr *mr, struct list_head *list)
 {
-	list_add_tail(&mw->mw_list, list);
+	list_add_tail(&mr->mr_list, list);
 }
 
-static inline struct rpcrdma_mw *
-rpcrdma_pop_mw(struct list_head *list)
+static inline struct rpcrdma_mr *
+rpcrdma_mr_pop(struct list_head *list)
 {
-	struct rpcrdma_mw *mw;
+	struct rpcrdma_mr *mr;
 
-	mw = list_first_entry(list, struct rpcrdma_mw, mw_list);
-	list_del(&mw->mw_list);
-	return mw;
+	mr = list_first_entry(list, struct rpcrdma_mr, mr_list);
+	list_del(&mr->mr_list);
+	return mr;
 }
 
 /*
@@ -393,8 +393,8 @@ rpcrdma_pop_mw(struct list_head *list)
  * One of these is associated with a transport instance
  */
 struct rpcrdma_buffer {
-	spinlock_t		rb_mwlock;	/* protect rb_mws list */
-	struct list_head	rb_mws;
+	spinlock_t		rb_mrlock;	/* protect rb_mrs list */
+	struct list_head	rb_mrs;
 	struct list_head	rb_all;
 
 	unsigned long		rb_sc_head;
@@ -473,19 +473,19 @@ struct rpcrdma_memreg_ops {
 	struct rpcrdma_mr_seg *
 			(*ro_map)(struct rpcrdma_xprt *,
 				  struct rpcrdma_mr_seg *, int, bool,
-				  struct rpcrdma_mw **);
+				  struct rpcrdma_mr **);
 	void		(*ro_reminv)(struct rpcrdma_rep *rep,
-				     struct list_head *mws);
+				     struct list_head *mrs);
 	void		(*ro_unmap_sync)(struct rpcrdma_xprt *,
 					 struct list_head *);
-	void		(*ro_recover_mr)(struct rpcrdma_mw *);
+	void		(*ro_recover_mr)(struct rpcrdma_mr *mr);
 	int		(*ro_open)(struct rpcrdma_ia *,
 				   struct rpcrdma_ep *,
 				   struct rpcrdma_create_data_internal *);
 	size_t		(*ro_maxpages)(struct rpcrdma_xprt *);
 	int		(*ro_init_mr)(struct rpcrdma_ia *,
-				      struct rpcrdma_mw *);
-	void		(*ro_release_mr)(struct rpcrdma_mw *);
+				      struct rpcrdma_mr *);
+	void		(*ro_release_mr)(struct rpcrdma_mr *mr);
 	const char	*ro_displayname;
 	const int	ro_send_w_inv_ok;
 };
@@ -574,14 +574,14 @@ void rpcrdma_buffer_destroy(struct rpcrdma_buffer *);
 struct rpcrdma_sendctx *rpcrdma_sendctx_get_locked(struct rpcrdma_buffer *buf);
 void rpcrdma_sendctx_put_locked(struct rpcrdma_sendctx *sc);
 
-struct rpcrdma_mw *rpcrdma_get_mw(struct rpcrdma_xprt *);
-void rpcrdma_put_mw(struct rpcrdma_xprt *, struct rpcrdma_mw *);
+struct rpcrdma_mr *rpcrdma_mr_get(struct rpcrdma_xprt *r_xprt);
+void rpcrdma_mr_put(struct rpcrdma_mr *mr);
+void rpcrdma_mr_defer_recovery(struct rpcrdma_mr *mr);
+
 struct rpcrdma_req *rpcrdma_buffer_get(struct rpcrdma_buffer *);
 void rpcrdma_buffer_put(struct rpcrdma_req *);
 void rpcrdma_recv_buffer_get(struct rpcrdma_req *);
 void rpcrdma_recv_buffer_put(struct rpcrdma_rep *);
-
-void rpcrdma_defer_mr_recovery(struct rpcrdma_mw *);
 
 struct rpcrdma_regbuf *rpcrdma_alloc_regbuf(size_t, enum dma_data_direction,
 					    gfp_t);
