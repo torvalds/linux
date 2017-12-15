@@ -49,9 +49,6 @@ enum {
 	CSI_NUM_PADS,
 };
 
-#define CSI_NUM_SINK_PADS 1
-#define CSI_NUM_SRC_PADS  2
-
 /* ipu_vdic */
 enum {
 	VDIC_SINK_PAD_DIRECT = 0,
@@ -59,9 +56,6 @@ enum {
 	VDIC_SRC_PAD_DIRECT,
 	VDIC_NUM_PADS,
 };
-
-#define VDIC_NUM_SINK_PADS 2
-#define VDIC_NUM_SRC_PADS  1
 
 /* ipu_ic_prp */
 enum {
@@ -71,18 +65,12 @@ enum {
 	PRP_NUM_PADS,
 };
 
-#define PRP_NUM_SINK_PADS 1
-#define PRP_NUM_SRC_PADS  2
-
 /* ipu_ic_prpencvf */
 enum {
 	PRPENCVF_SINK_PAD = 0,
 	PRPENCVF_SRC_PAD,
 	PRPENCVF_NUM_PADS,
 };
-
-#define PRPENCVF_NUM_SINK_PADS 1
-#define PRPENCVF_NUM_SRC_PADS  1
 
 /* How long to wait for EOF interrupts in the buffer-capture subdevs */
 #define IMX_MEDIA_EOF_TIMEOUT       1000
@@ -137,8 +125,6 @@ struct imx_media_subdev {
 	struct v4l2_subdev       *sd; /* set when bound */
 
 	struct imx_media_pad     pad[IMX_MEDIA_MAX_PADS];
-	int num_sink_pads;
-	int num_src_pads;
 
 	/* the platform device if this is an IPU-internal subdev */
 	struct platform_device *pdev;

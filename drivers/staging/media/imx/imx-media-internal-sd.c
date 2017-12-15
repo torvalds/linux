@@ -78,13 +78,9 @@ struct internal_pad {
 static const struct internal_subdev {
 	const struct internal_subdev_id *id;
 	struct internal_pad pad[IMX_MEDIA_MAX_PADS];
-	int num_sink_pads;
-	int num_src_pads;
 } int_subdev[num_isd] = {
 	[isd_csi0] = {
 		.id = &isd_id[isd_csi0],
-		.num_sink_pads = CSI_NUM_SINK_PADS,
-		.num_src_pads = CSI_NUM_SRC_PADS,
 		.pad[CSI_SRC_PAD_DIRECT] = {
 			.link = {
 				{
@@ -102,8 +98,6 @@ static const struct internal_subdev {
 
 	[isd_csi1] = {
 		.id = &isd_id[isd_csi1],
-		.num_sink_pads = CSI_NUM_SINK_PADS,
-		.num_src_pads = CSI_NUM_SRC_PADS,
 		.pad[CSI_SRC_PAD_DIRECT] = {
 			.link = {
 				{
@@ -121,8 +115,6 @@ static const struct internal_subdev {
 
 	[isd_vdic] = {
 		.id = &isd_id[isd_vdic],
-		.num_sink_pads = VDIC_NUM_SINK_PADS,
-		.num_src_pads = VDIC_NUM_SRC_PADS,
 		.pad[VDIC_SRC_PAD_DIRECT] = {
 			.link = {
 				{
@@ -136,8 +128,6 @@ static const struct internal_subdev {
 
 	[isd_ic_prp] = {
 		.id = &isd_id[isd_ic_prp],
-		.num_sink_pads = PRP_NUM_SINK_PADS,
-		.num_src_pads = PRP_NUM_SRC_PADS,
 		.pad[PRP_SRC_PAD_PRPENC] = {
 			.link = {
 				{
@@ -160,14 +150,10 @@ static const struct internal_subdev {
 
 	[isd_ic_prpenc] = {
 		.id = &isd_id[isd_ic_prpenc],
-		.num_sink_pads = PRPENCVF_NUM_SINK_PADS,
-		.num_src_pads = PRPENCVF_NUM_SRC_PADS,
 	},
 
 	[isd_ic_prpvf] = {
 		.id = &isd_id[isd_ic_prpvf],
-		.num_sink_pads = PRPENCVF_NUM_SINK_PADS,
-		.num_src_pads = PRPENCVF_NUM_SRC_PADS,
 	},
 };
 
@@ -311,9 +297,6 @@ static int add_internal_subdev(struct imx_media_dev *imxmd,
 	imxsd = imx_media_add_async_subdev(imxmd, NULL, pdev);
 	if (IS_ERR(imxsd))
 		return PTR_ERR(imxsd);
-
-	imxsd->num_sink_pads = isd->num_sink_pads;
-	imxsd->num_src_pads = isd->num_src_pads;
 
 	return 0;
 }

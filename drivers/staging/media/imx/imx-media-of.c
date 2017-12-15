@@ -41,11 +41,12 @@ static int of_get_port_count(const struct device_node *np)
 /*
  * find the remote device node given local endpoint node
  */
-static void of_get_remote(struct device_node *epnode,
+static bool of_get_remote(struct device_node *epnode,
 			  struct device_node **remote_node)
 {
 	struct device_node *rp, *rpp;
 	struct device_node *remote;
+	bool is_csi_port;
 
 	rp = of_graph_get_remote_port(epnode);
 	rpp = of_graph_get_remote_port_parent(epnode);
@@ -54,9 +55,11 @@ static void of_get_remote(struct device_node *epnode,
 		/* the remote is one of the CSI ports */
 		remote = rp;
 		of_node_put(rpp);
+		is_csi_port = true;
 	} else {
 		remote = rpp;
 		of_node_put(rp);
+		is_csi_port = false;
 	}
 
 	if (!of_device_is_available(remote)) {
@@ -65,6 +68,8 @@ static void of_get_remote(struct device_node *epnode,
 	} else {
 		*remote_node = remote;
 	}
+
+	return is_csi_port;
 }
 
 static int
@@ -72,7 +77,7 @@ of_parse_subdev(struct imx_media_dev *imxmd, struct device_node *sd_np,
 		bool is_csi_port)
 {
 	struct imx_media_subdev *imxsd;
-	int i, num_pads, ret;
+	int i, num_ports, ret;
 
 	if (!of_device_is_available(sd_np)) {
 		dev_dbg(imxmd->md.dev, "%s: %s not enabled\n", __func__,
@@ -94,77 +99,36 @@ of_parse_subdev(struct imx_media_dev *imxmd, struct device_node *sd_np,
 		return ret;
 	}
 
-	if (is_csi_port) {
-		/*
-		 * the ipu-csi has one sink port and two source ports.
-		 * The source ports are not represented in the device tree,
-		 * but are described by the internal pads and links later.
-		 */
-		num_pads = CSI_NUM_PADS;
-		imxsd->num_sink_pads = CSI_NUM_SINK_PADS;
-	} else if (of_device_is_compatible(sd_np, "fsl,imx6-mipi-csi2")) {
-		num_pads = of_get_port_count(sd_np);
-		/* the mipi csi2 receiver has only one sink port */
-		imxsd->num_sink_pads = 1;
-	} else if (of_device_is_compatible(sd_np, "video-mux")) {
-		num_pads = of_get_port_count(sd_np);
-		/* for the video mux, all but the last port are sinks */
-		imxsd->num_sink_pads = num_pads - 1;
-	} else {
-		num_pads = of_get_port_count(sd_np);
-		if (num_pads != 1) {
-			/* confused, but no reason to give up here */
-			dev_warn(imxmd->md.dev,
-				 "%s: unknown device %s with %d ports\n",
-				 __func__, sd_np->name, num_pads);
-			return 0;
-		}
+	/*
+	 * the ipu-csi has one sink port. The source pads are not
+	 * represented in the device tree by port nodes, but are
+	 * described by the internal pads and links later.
+	 */
+	num_ports = is_csi_port ? 1 : of_get_port_count(sd_np);
 
-		/*
-		 * we got to this node from this single source port,
-		 * there are no sink pads.
-		 */
-		imxsd->num_sink_pads = 0;
-	}
-
-	if (imxsd->num_sink_pads >= num_pads)
-		return -EINVAL;
-
-	imxsd->num_src_pads = num_pads - imxsd->num_sink_pads;
-
-	dev_dbg(imxmd->md.dev, "%s: %s has %d pads (%d sink, %d src)\n",
-		__func__, sd_np->name, num_pads,
-		imxsd->num_sink_pads, imxsd->num_src_pads);
-
-	for (i = 0; i < num_pads; i++) {
+	for (i = 0; i < num_ports; i++) {
 		struct device_node *epnode = NULL, *port, *remote_np;
 
-		if (is_csi_port)
-			port = (i < imxsd->num_sink_pads) ? sd_np : NULL;
-		else
-			port = of_graph_get_port_by_id(sd_np, i);
+		port = is_csi_port ? sd_np : of_graph_get_port_by_id(sd_np, i);
 		if (!port)
 			continue;
 
 		for_each_child_of_node(port, epnode) {
-			of_get_remote(epnode, &remote_np);
+			bool remote_is_csi;
+
+			remote_is_csi = of_get_remote(epnode, &remote_np);
 			if (!remote_np)
 				continue;
 
-			if (i < imxsd->num_sink_pads) {
-				/* follow sink endpoints upstream */
-				ret = of_parse_subdev(imxmd, remote_np, false);
-				if (ret)
-					break;
-			}
-
+			ret = of_parse_subdev(imxmd, remote_np, remote_is_csi);
 			of_node_put(remote_np);
+			if (ret)
+				break;
 		}
 
 		if (port != sd_np)
 			of_node_put(port);
 		if (ret) {
-			of_node_put(remote_np);
 			of_node_put(epnode);
 			break;
 		}
