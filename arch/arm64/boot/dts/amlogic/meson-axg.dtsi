@@ -342,6 +342,13 @@
 					#gpio-cells = <2>;
 					gpio-ranges = <&pinctrl_aobus 0 0 15>;
 				};
+
+				remote_input_ao_pins: remote_input_ao {
+					mux {
+						groups = "remote_input_ao";
+						function = "remote_input_ao";
+					};
+				};
 			};
 
 			pwm_AO_ab: pwm@7000 {
@@ -373,6 +380,13 @@
 				interrupts = <GIC_SPI 197 IRQ_TYPE_EDGE_RISING>;
 				clocks = <&xtal>, <&clkc CLKID_CLK81>, <&xtal>;
 				clock-names = "xtal", "pclk", "baud";
+				status = "disabled";
+			};
+
+			ir: ir@8000 {
+				compatible = "amlogic,meson-gxbb-ir";
+				reg = <0x0 0x8000 0x0 0x20>;
+				interrupts = <GIC_SPI 196 IRQ_TYPE_EDGE_RISING>;
 				status = "disabled";
 			};
 		};
