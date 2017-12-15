@@ -705,24 +705,12 @@ EXPORT_SYMBOL_GPL(imx_media_find_subdev_by_devname);
 int imx_media_add_video_device(struct imx_media_dev *imxmd,
 			       struct imx_media_video_dev *vdev)
 {
-	int vdev_idx, ret = 0;
-
 	mutex_lock(&imxmd->mutex);
 
-	vdev_idx = imxmd->num_vdevs;
-	if (vdev_idx >= IMX_MEDIA_MAX_VDEVS) {
-		dev_err(imxmd->md.dev,
-			"%s: too many video devices! can't add %s\n",
-			__func__, vdev->vfd->name);
-		ret = -ENOSPC;
-		goto out;
-	}
+	list_add_tail(&vdev->list, &imxmd->vdev_list);
 
-	imxmd->vdev[vdev_idx] = vdev;
-	imxmd->num_vdevs++;
-out:
 	mutex_unlock(&imxmd->mutex);
-	return ret;
+	return 0;
 }
 EXPORT_SYMBOL_GPL(imx_media_add_video_device);
 

@@ -748,6 +748,8 @@ imx_media_capture_device_init(struct v4l2_subdev *src_sd, int pad)
 	vfd->queue = &priv->q;
 	priv->vdev.vfd = vfd;
 
+	INIT_LIST_HEAD(&priv->vdev.list);
+
 	video_set_drvdata(vfd, priv);
 
 	v4l2_ctrl_handler_init(&priv->ctrl_hdlr, 0);

@@ -19,9 +19,6 @@
 #include <media/videobuf2-dma-contig.h>
 #include <video/imx-ipu-v3.h>
 
-/* max video devices */
-#define IMX_MEDIA_MAX_VDEVS          8
-
 /*
  * Pad definitions for the subdevs with multiple source or
  * sink pads
@@ -82,6 +79,9 @@ struct imx_media_video_dev {
 	/* the user format */
 	struct v4l2_format fmt;
 	const struct imx_media_pixfmt *cc;
+
+	/* links this vdev to master list */
+	struct list_head list;
 };
 
 static inline struct imx_media_buffer *to_imx_media_vb(struct vb2_buffer *vb)
@@ -91,23 +91,25 @@ static inline struct imx_media_buffer *to_imx_media_vb(struct vb2_buffer *vb)
 	return container_of(vbuf, struct imx_media_buffer, vbuf);
 }
 
-/* to support control inheritance to video devices */
-struct imx_media_pad {
-	/*
-	 * list of video devices that can be reached from this pad,
-	 * list is only valid for source pads.
-	 */
-	struct imx_media_video_dev *vdev[IMX_MEDIA_MAX_VDEVS];
-	int num_vdevs;
-};
-
-static inline struct imx_media_pad *
-to_imx_media_pad(struct v4l2_subdev *sd, int pad_index)
+/*
+ * to support control inheritance to video devices, this
+ * retrieves a pad's list_head of video devices that can
+ * be reached from the pad. Note that only the lists in
+ * source pads get populated, sink pads have empty lists.
+ */
+static inline struct list_head *
+to_pad_vdev_list(struct v4l2_subdev *sd, int pad_index)
 {
-	struct imx_media_pad *imxpads = sd->host_priv;
+	struct list_head *vdev_list = sd->host_priv;
 
-	return imxpads ? &imxpads[pad_index] : NULL;
+	return vdev_list ? &vdev_list[pad_index] : NULL;
 }
+
+/* an entry in a pad's video device list */
+struct imx_media_pad_vdev {
+	struct imx_media_video_dev *vdev;
+	struct list_head list;
+};
 
 struct imx_media_internal_sd_platformdata {
 	char sd_name[V4L2_SUBDEV_NAME_SIZE];
@@ -139,8 +141,7 @@ struct imx_media_dev {
 	struct mutex mutex; /* protect elements below */
 
 	/* master video device list */
-	struct imx_media_video_dev *vdev[IMX_MEDIA_MAX_VDEVS];
-	int num_vdevs;
+	struct list_head vdev_list;
 
 	/* IPUs this media driver control, valid after subdevs bound */
 	struct ipu_soc *ipu[2];

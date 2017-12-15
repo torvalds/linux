@@ -229,10 +229,11 @@ static int imx_media_add_vdev_to_pad(struct imx_media_dev *imxmd,
 				     struct media_pad *srcpad)
 {
 	struct media_entity *entity = srcpad->entity;
-	struct imx_media_pad *imxpad;
+	struct imx_media_pad_vdev *pad_vdev;
+	struct list_head *pad_vdev_list;
 	struct media_link *link;
 	struct v4l2_subdev *sd;
-	int i, vdev_idx, ret;
+	int i, ret;
 
 	/* skip this entity if not a v4l2_subdev */
 	if (!is_media_entity_v4l2_subdev(entity))
@@ -240,8 +241,8 @@ static int imx_media_add_vdev_to_pad(struct imx_media_dev *imxmd,
 
 	sd = media_entity_to_v4l2_subdev(entity);
 
-	imxpad = to_imx_media_pad(sd, srcpad->index);
-	if (!imxpad) {
+	pad_vdev_list = to_pad_vdev_list(sd, srcpad->index);
+	if (!pad_vdev_list) {
 		v4l2_warn(&imxmd->v4l2_dev, "%s:%u has no vdev list!\n",
 			  entity->name, srcpad->index);
 		/*
@@ -251,23 +252,22 @@ static int imx_media_add_vdev_to_pad(struct imx_media_dev *imxmd,
 		return 0;
 	}
 
-	vdev_idx = imxpad->num_vdevs;
-
 	/* just return if we've been here before */
-	for (i = 0; i < vdev_idx; i++)
-		if (vdev == imxpad->vdev[i])
+	list_for_each_entry(pad_vdev, pad_vdev_list, list) {
+		if (pad_vdev->vdev == vdev)
 			return 0;
-
-	if (vdev_idx >= IMX_MEDIA_MAX_VDEVS) {
-		dev_err(imxmd->md.dev, "can't add %s to pad %s:%u\n",
-			vdev->vfd->entity.name, entity->name, srcpad->index);
-		return -ENOSPC;
 	}
 
 	dev_dbg(imxmd->md.dev, "adding %s to pad %s:%u\n",
 		vdev->vfd->entity.name, entity->name, srcpad->index);
-	imxpad->vdev[vdev_idx] = vdev;
-	imxpad->num_vdevs++;
+
+	pad_vdev = devm_kzalloc(imxmd->md.dev, sizeof(*pad_vdev), GFP_KERNEL);
+	if (!pad_vdev)
+		return -ENOMEM;
+
+	/* attach this vdev to this pad */
+	pad_vdev->vdev = vdev;
+	list_add_tail(&pad_vdev->list, pad_vdev_list);
 
 	/* move upstream from this entity's sink pads */
 	for (i = 0; i < entity->num_pads; i++) {
@@ -289,22 +289,32 @@ static int imx_media_add_vdev_to_pad(struct imx_media_dev *imxmd,
 	return 0;
 }
 
+/*
+ * For every subdevice, allocate an array of list_head's, one list_head
+ * for each pad, to hold the list of video devices reachable from that
+ * pad.
+ */
 static int imx_media_alloc_pad_vdev_lists(struct imx_media_dev *imxmd)
 {
-	struct imx_media_pad *imxpads;
+	struct list_head *vdev_lists;
 	struct media_entity *entity;
 	struct v4l2_subdev *sd;
+	int i;
 
 	list_for_each_entry(sd, &imxmd->v4l2_dev.subdevs, list) {
 		entity = &sd->entity;
-		imxpads = devm_kzalloc(imxmd->md.dev,
-				       entity->num_pads * sizeof(*imxpads),
-				       GFP_KERNEL);
-		if (!imxpads)
+		vdev_lists = devm_kzalloc(
+			imxmd->md.dev,
+			entity->num_pads * sizeof(*vdev_lists),
+			GFP_KERNEL);
+		if (!vdev_lists)
 			return -ENOMEM;
 
-		/* attach imxpads to the subdev's host private pointer */
-		sd->host_priv = imxpads;
+		/* attach to the subdev's host private pointer */
+		sd->host_priv = vdev_lists;
+
+		for (i = 0; i < entity->num_pads; i++)
+			INIT_LIST_HEAD(to_pad_vdev_list(sd, i));
 	}
 
 	return 0;
@@ -315,14 +325,13 @@ static int imx_media_create_pad_vdev_lists(struct imx_media_dev *imxmd)
 {
 	struct imx_media_video_dev *vdev;
 	struct media_link *link;
-	int i, ret;
+	int ret;
 
 	ret = imx_media_alloc_pad_vdev_lists(imxmd);
 	if (ret)
 		return ret;
 
-	for (i = 0; i < imxmd->num_vdevs; i++) {
-		vdev = imxmd->vdev[i];
+	list_for_each_entry(vdev, &imxmd->vdev_list, list) {
 		link = list_first_entry(&vdev->vfd->entity.links,
 					struct media_link, list);
 		ret = imx_media_add_vdev_to_pad(imxmd, vdev, link->source);
@@ -410,11 +419,12 @@ static int imx_media_link_notify(struct media_link *link, u32 flags,
 				 unsigned int notification)
 {
 	struct media_entity *source = link->source->entity;
-	struct imx_media_pad *imxpad;
+	struct imx_media_pad_vdev *pad_vdev;
+	struct list_head *pad_vdev_list;
 	struct imx_media_dev *imxmd;
 	struct video_device *vfd;
 	struct v4l2_subdev *sd;
-	int i, pad_idx, ret;
+	int pad_idx, ret;
 
 	ret = v4l2_pipeline_link_notify(link, flags, notification);
 	if (ret)
@@ -429,8 +439,8 @@ static int imx_media_link_notify(struct media_link *link, u32 flags,
 
 	imxmd = dev_get_drvdata(sd->v4l2_dev->dev);
 
-	imxpad = to_imx_media_pad(sd, pad_idx);
-	if (!imxpad) {
+	pad_vdev_list = to_pad_vdev_list(sd, pad_idx);
+	if (!pad_vdev_list) {
 		/* shouldn't happen, but no reason to fail link setup */
 		return 0;
 	}
@@ -444,8 +454,8 @@ static int imx_media_link_notify(struct media_link *link, u32 flags,
 	 */
 	if (notification == MEDIA_DEV_NOTIFY_PRE_LINK_CH &&
 	    !(flags & MEDIA_LNK_FL_ENABLED)) {
-		for (i = 0; i < imxpad->num_vdevs; i++) {
-			vfd = imxpad->vdev[i]->vfd;
+		list_for_each_entry(pad_vdev, pad_vdev_list, list) {
+			vfd = pad_vdev->vdev->vfd;
 			dev_dbg(imxmd->md.dev,
 				"reset controls for %s\n",
 				vfd->entity.name);
@@ -454,8 +464,8 @@ static int imx_media_link_notify(struct media_link *link, u32 flags,
 		}
 	} else if (notification == MEDIA_DEV_NOTIFY_POST_LINK_CH &&
 		   (link->flags & MEDIA_LNK_FL_ENABLED)) {
-		for (i = 0; i < imxpad->num_vdevs; i++) {
-			vfd = imxpad->vdev[i]->vfd;
+		list_for_each_entry(pad_vdev, pad_vdev_list, list) {
+			vfd = pad_vdev->vdev->vfd;
 			dev_dbg(imxmd->md.dev,
 				"refresh controls for %s\n",
 				vfd->entity.name);
@@ -510,6 +520,7 @@ static int imx_media_probe(struct platform_device *pdev)
 	dev_set_drvdata(imxmd->v4l2_dev.dev, imxmd);
 
 	INIT_LIST_HEAD(&imxmd->asd_list);
+	INIT_LIST_HEAD(&imxmd->vdev_list);
 
 	ret = imx_media_add_of_subdevs(imxmd, node);
 	if (ret) {
