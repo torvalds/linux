@@ -1272,6 +1272,9 @@ static int cnl_init_workarounds(struct intel_engine_cs *engine)
 	if (ret)
 		return ret;
 
+	/* WaDisableEarlyEOT:cnl */
+	WA_SET_BIT_MASKED(GEN8_ROW_CHICKEN, DISABLE_EARLY_EOT);
+
 	return 0;
 }
 
