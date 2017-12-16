@@ -56,7 +56,6 @@ static void __init fixedrange_init(void)
 
 void __init paging_init(void)
 {
-	memset(swapper_pg_dir, 0, PAGE_SIZE);
 #ifdef CONFIG_HIGHMEM
 	fixedrange_init();
 	pkmap_page_table = init_pmd(PKMAP_BASE, LAST_PKMAP);
