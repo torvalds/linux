@@ -3119,6 +3119,25 @@ void i915_gem_reset(struct drm_i915_private *dev_priv)
 		ctx = fetch_and_zero(&engine->last_retired_context);
 		if (ctx)
 			engine->context_unpin(engine, ctx);
+
+		/*
+		 * Ostensibily, we always want a context loaded for powersaving,
+		 * so if the engine is idle after the reset, send a request
+		 * to load our scratch kernel_context.
+		 *
+		 * More mysteriously, if we leave the engine idle after a reset,
+		 * the next userspace batch may hang, with what appears to be
+		 * an incoherent read by the CS (presumably stale TLB). An
+		 * empty request appears sufficient to paper over the glitch.
+		 */
+		if (list_empty(&engine->timeline->requests)) {
+			struct drm_i915_gem_request *rq;
+
+			rq = i915_gem_request_alloc(engine,
+						    dev_priv->kernel_context);
+			if (!IS_ERR(rq))
+				__i915_add_request(rq, false);
+		}
 	}
 
 	i915_gem_restore_fences(dev_priv);
