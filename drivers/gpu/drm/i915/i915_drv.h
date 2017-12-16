@@ -2745,6 +2745,9 @@ struct drm_i915_private {
 
 	bool ipc_enabled;
 
+	/* Hack to bypass TMDS_OE write on DP->HDMI dongle */
+	bool bypass_tmds_oe;
+
 	/* Used to save the pipe-to-encoder mapping for audio */
 	struct intel_encoder *av_enc_map[I915_MAX_PIPES];
 

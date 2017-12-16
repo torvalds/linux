@@ -867,6 +867,11 @@ void intel_dp_dual_mode_set_tmds_output(struct intel_hdmi *hdmi, bool enable)
 	if (hdmi->dp_dual_mode.type < DRM_DP_DUAL_MODE_TYPE2_DVI)
 		return;
 
+	if (dev_priv->bypass_tmds_oe) {
+		DRM_DEBUG_KMS("Bypassing TMDS_OE setting\n");
+		return;
+	}
+
 	DRM_DEBUG_KMS("%s DP dual mode adaptor TMDS output\n",
 		      enable ? "Enabling" : "Disabling");
 

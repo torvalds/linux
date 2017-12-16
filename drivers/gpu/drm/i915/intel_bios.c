@@ -29,6 +29,7 @@
 #include <drm/drmP.h>
 #include <drm/i915_drm.h>
 #include "i915_drv.h"
+#include <linux/dmi.h>
 
 #define _INTEL_BIOS_PRIVATE
 #include "intel_vbt_defs.h"
@@ -1488,6 +1489,22 @@ static const struct vbt_header *find_vbt(void __iomem *bios, size_t size)
 	return NULL;
 }
 
+#define DRM_DMI_PRODUCT_VERSION 0x6
+
+static void parse_product_info(struct drm_i915_private *dev_priv)
+{
+	const char *product_ver = dmi_get_system_info(DRM_DMI_PRODUCT_VERSION);
+	if (!product_ver)
+		return;
+
+	if (!strncmp(product_ver, "ThinkPad X1", 11)) {
+		DRM_DEBUG_KMS("dmi: %s, Bypassing TMDS_OE write\n", product_ver);
+		dev_priv->bypass_tmds_oe = true;
+	}
+
+	return;
+}
+
 /**
  * intel_bios_init - find VBT and initialize settings from the BIOS
  * @dev_priv: i915 device instance
@@ -1545,6 +1562,8 @@ void intel_bios_init(struct drm_i915_private *dev_priv)
 	/* Further processing on pre-parsed data */
 	parse_sdvo_device_mapping(dev_priv, bdb->version);
 	parse_ddi_ports(dev_priv, bdb->version);
+
+	parse_product_info(dev_priv);
 
 out:
 	if (!vbt) {
