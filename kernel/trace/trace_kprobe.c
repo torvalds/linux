@@ -1322,8 +1322,15 @@ static int kprobe_dispatcher(struct kprobe *kp, struct pt_regs *regs)
 	if (tk->tp.flags & TP_FLAG_TRACE)
 		kprobe_trace_func(tk, regs);
 #ifdef CONFIG_PERF_EVENTS
-	if (tk->tp.flags & TP_FLAG_PROFILE)
+	if (tk->tp.flags & TP_FLAG_PROFILE) {
 		ret = kprobe_perf_func(tk, regs);
+		/*
+		 * The ftrace kprobe handler leaves it up to us to re-enable
+		 * preemption here before returning if we've modified the ip.
+		 */
+		if (ret)
+			preempt_enable_no_resched();
+	}
 #endif
 	return ret;
 }
