@@ -207,6 +207,8 @@ static int __init xtensa_dt_io_area(unsigned long node, const char *uname,
 	/* round down to nearest 256MB boundary */
 	xtensa_kio_paddr &= 0xf0000000;
 
+	init_kio();
+
 	return 1;
 }
 #else
@@ -245,6 +247,10 @@ void __init early_init_devtree(void *params)
 
 void __init init_arch(bp_tag_t *bp_start)
 {
+	/* Initialize MMU. */
+
+	init_mmu();
+
 	/* Parse boot parameters */
 
 	if (bp_start)
@@ -262,10 +268,6 @@ void __init init_arch(bp_tag_t *bp_start)
 	/* Early hook for platforms */
 
 	platform_init(bp_start);
-
-	/* Initialize MMU. */
-
-	init_mmu();
 }
 
 /*
