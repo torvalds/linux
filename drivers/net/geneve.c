@@ -1638,19 +1638,16 @@ static __net_init int geneve_init_net(struct net *net)
 	return 0;
 }
 
-static void __net_exit geneve_exit_net(struct net *net)
+static void geneve_destroy_tunnels(struct net *net, struct list_head *head)
 {
 	struct geneve_net *gn = net_generic(net, geneve_net_id);
 	struct geneve_dev *geneve, *next;
 	struct net_device *dev, *aux;
-	LIST_HEAD(list);
-
-	rtnl_lock();
 
 	/* gather any geneve devices that were moved into this ns */
 	for_each_netdev_safe(net, dev, aux)
 		if (dev->rtnl_link_ops == &geneve_link_ops)
-			unregister_netdevice_queue(dev, &list);
+			unregister_netdevice_queue(dev, head);
 
 	/* now gather any other geneve devices that were created in this ns */
 	list_for_each_entry_safe(geneve, next, &gn->geneve_list, next) {
@@ -1658,18 +1655,29 @@ static void __net_exit geneve_exit_net(struct net *net)
 		 * to the list by the previous loop.
 		 */
 		if (!net_eq(dev_net(geneve->dev), net))
-			unregister_netdevice_queue(geneve->dev, &list);
+			unregister_netdevice_queue(geneve->dev, head);
 	}
+
+	WARN_ON_ONCE(!list_empty(&gn->sock_list));
+}
+
+static void __net_exit geneve_exit_batch_net(struct list_head *net_list)
+{
+	struct net *net;
+	LIST_HEAD(list);
+
+	rtnl_lock();
+	list_for_each_entry(net, net_list, exit_list)
+		geneve_destroy_tunnels(net, &list);
 
 	/* unregister the devices gathered above */
 	unregister_netdevice_many(&list);
 	rtnl_unlock();
-	WARN_ON_ONCE(!list_empty(&gn->sock_list));
 }
 
 static struct pernet_operations geneve_net_ops = {
 	.init = geneve_init_net,
-	.exit = geneve_exit_net,
+	.exit_batch = geneve_exit_batch_net,
 	.id   = &geneve_net_id,
 	.size = sizeof(struct geneve_net),
 };
