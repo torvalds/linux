@@ -549,7 +549,7 @@ int mei_cldev_disable(struct mei_cl_device *cldev)
 	}
 
 	if (bus->dev_state == MEI_DEV_POWER_DOWN) {
-		dev_dbg(bus->dev, "Device is powering down don't botther with disconnection\n");
+		dev_dbg(bus->dev, "Device is powering down, don't bother with disconnection\n");
 		err = 0;
 		goto out;
 	}
