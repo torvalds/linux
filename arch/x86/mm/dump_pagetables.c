@@ -140,7 +140,7 @@ static void printk_prot(struct seq_file *m, pgprot_t prot, int level, bool dmsg)
 	static const char * const level_name[] =
 		{ "cr3", "pgd", "p4d", "pud", "pmd", "pte" };
 
-	if (!pgprot_val(prot)) {
+	if (!(pr & _PAGE_PRESENT)) {
 		/* Not present */
 		pt_dump_cont_printf(m, dmsg, "                              ");
 	} else {
