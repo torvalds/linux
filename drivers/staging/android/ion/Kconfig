@@ -37,7 +37,7 @@ config ION_CHUNK_HEAP
 
 config ION_CMA_HEAP
 	bool "Ion CMA heap support"
-	depends on ION && CMA
+	depends on ION && DMA_CMA
 	help
 	  Choose this option to enable CMA heaps with Ion. This heap is backed
 	  by the Contiguous Memory Allocator (CMA). If your system has these
