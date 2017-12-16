@@ -3780,8 +3780,11 @@ CONFIG_MTD_SPI_NOR_USE_4K_SECTORS               policy<{'amd64': 'y', 'arm64': '
 CONFIG_SPI_CADENCE_QUADSPI                      policy<{'armhf': 'm'}>
 CONFIG_SPI_FSL_QUADSPI                          policy<{'arm64': 'm', 'armhf-generic': 'm'}>
 CONFIG_SPI_HISI_SFC                             policy<{'arm64': 'm', 'armhf': 'm'}>
-CONFIG_SPI_INTEL_SPI_PCI                        policy<{'amd64': 'm', 'i386': 'm'}>
-CONFIG_SPI_INTEL_SPI_PLATFORM                   policy<{'amd64': 'm', 'i386': 'm'}>
+CONFIG_SPI_INTEL_SPI_PCI                        policy<{'amd64': 'n', 'i386': 'n'}>
+CONFIG_SPI_INTEL_SPI_PLATFORM                   policy<{'amd64': 'n', 'i386': 'n'}>
+#
+CONFIG_SPI_INTEL_SPI_PCI                        mark<ENFORCE> note<LP:1734147>
+CONFIG_SPI_INTEL_SPI_PLATFORM                   mark<ENFORCE> note<LP:1734147>
 
 # Menu: Device Drivers >> Memory Technology Device (MTD) support >> Self-contained MTD device drivers
 CONFIG_MTD_PMC551                               policy<{'amd64': 'm', 'arm64': 'm', 'armhf': 'm', 'i386': 'm', 'ppc64el': 'm'}>
