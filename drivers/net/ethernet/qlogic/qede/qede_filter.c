@@ -895,19 +895,26 @@ static void qede_set_features_reload(struct qede_dev *edev,
 	edev->ndev->features = args->u.features;
 }
 
+netdev_features_t qede_fix_features(struct net_device *dev,
+				    netdev_features_t features)
+{
+	struct qede_dev *edev = netdev_priv(dev);
+
+	if (edev->xdp_prog || edev->ndev->mtu > PAGE_SIZE ||
+	    !(features & NETIF_F_GRO))
+		features &= ~NETIF_F_GRO_HW;
+
+	return features;
+}
+
 int qede_set_features(struct net_device *dev, netdev_features_t features)
 {
 	struct qede_dev *edev = netdev_priv(dev);
 	netdev_features_t changes = features ^ dev->features;
 	bool need_reload = false;
 
-	/* No action needed if hardware GRO is disabled during driver load */
-	if (changes & NETIF_F_GRO) {
-		if (dev->features & NETIF_F_GRO)
-			need_reload = !edev->gro_disable;
-		else
-			need_reload = edev->gro_disable;
-	}
+	if (changes & NETIF_F_GRO_HW)
+		need_reload = true;
 
 	if (need_reload) {
 		struct qede_reload_args args;
