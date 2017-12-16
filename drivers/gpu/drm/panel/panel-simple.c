@@ -581,6 +581,29 @@ static const struct panel_desc auo_b133htn01 = {
 	},
 };
 
+static const struct drm_display_mode auo_g104sn02_mode = {
+	.clock = 40000,
+	.hdisplay = 800,
+	.hsync_start = 800 + 40,
+	.hsync_end = 800 + 40 + 216,
+	.htotal = 800 + 40 + 216 + 128,
+	.vdisplay = 600,
+	.vsync_start = 600 + 10,
+	.vsync_end = 600 + 10 + 35,
+	.vtotal = 600 + 10 + 35 + 2,
+	.vrefresh = 60,
+};
+
+static const struct panel_desc auo_g104sn02 = {
+	.modes = &auo_g104sn02_mode,
+	.num_modes = 1,
+	.bpc = 8,
+	.size = {
+		.width = 211,
+		.height = 158,
+	},
+};
+
 static const struct display_timing auo_g133han01_timings = {
 	.pixelclock = { 134000000, 141200000, 149000000 },
 	.hactive = { 1920, 1920, 1920 },
@@ -2071,6 +2094,9 @@ static const struct of_device_id platform_of_match[] = {
 	}, {
 		.compatible = "auo,b133xtn01",
 		.data = &auo_b133xtn01,
+	}, {
+		.compatible = "auo,g104sn02",
+		.data = &auo_g104sn02,
 	}, {
 		.compatible = "auo,g133han01",
 		.data = &auo_g133han01,
