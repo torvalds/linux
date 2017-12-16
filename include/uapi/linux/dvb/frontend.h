@@ -547,7 +547,10 @@ enum fe_interleaving {
 #define DTV_STAT_ERROR_BLOCK_COUNT	68
 #define DTV_STAT_TOTAL_BLOCK_COUNT	69
 
-#define DTV_MAX_COMMAND		DTV_STAT_TOTAL_BLOCK_COUNT
+/* Physical layer scrambling */
+#define DTV_SCRAMBLING_SEQUENCE_INDEX	70
+
+#define DTV_MAX_COMMAND		DTV_SCRAMBLING_SEQUENCE_INDEX
 
 /**
  * enum fe_pilot - Type of pilot tone
