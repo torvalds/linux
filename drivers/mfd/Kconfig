@@ -222,6 +222,16 @@ config MFD_CROS_EC_SPI
 	  response time cannot be guaranteed, we support ignoring
 	  'pre-amble' bytes before the response actually starts.
 
+config MFD_CROS_EC_CHARDEV
+        tristate "Chrome OS Embedded Controller userspace device interface"
+        depends on MFD_CROS_EC
+        select CROS_EC_CTL
+        ---help---
+          This driver adds support to talk with the ChromeOS EC from userspace.
+
+          If you have a supported Chromebook, choose Y or M here.
+          The module will be called cros_ec_dev.
+
 config MFD_ASIC3
 	bool "Compaq ASIC3"
 	depends on GPIOLIB && ARM

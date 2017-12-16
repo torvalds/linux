@@ -34,8 +34,6 @@
 #include <linux/types.h>
 #include <linux/uaccess.h>
 
-#include "cros_ec_dev.h"
-
 /* Accessor functions */
 
 static ssize_t show_ec_reboot(struct device *dev,
@@ -294,4 +292,7 @@ static struct attribute *__ec_attrs[] = {
 struct attribute_group cros_ec_attr_group = {
 	.attrs = __ec_attrs,
 };
+EXPORT_SYMBOL(cros_ec_attr_group);
 
+MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("ChromeOS EC control driver");
