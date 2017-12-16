@@ -110,12 +110,12 @@ ieee80211_frag_cache_get(struct ieee80211_device *ieee,
 	  hdr_4addrqos = (struct rtl_80211_hdr_4addrqos *)hdr;
 	  tid = le16_to_cpu(hdr_4addrqos->qos_ctl) & IEEE80211_QCTL_TID;
 	  tid = UP2AC(tid);
-	  tid ++;
+	  tid++;
 	} else if (IEEE80211_QOS_HAS_SEQ(fc)) {
 	  hdr_3addrqos = (struct rtl_80211_hdr_3addrqos *)hdr;
 	  tid = le16_to_cpu(hdr_3addrqos->qos_ctl) & IEEE80211_QCTL_TID;
 	  tid = UP2AC(tid);
-	  tid ++;
+	  tid++;
 	} else {
 	  tid = 0;
 	}
@@ -177,12 +177,12 @@ static int ieee80211_frag_cache_invalidate(struct ieee80211_device *ieee,
 	  hdr_4addrqos = (struct rtl_80211_hdr_4addrqos *)hdr;
 	  tid = le16_to_cpu(hdr_4addrqos->qos_ctl) & IEEE80211_QCTL_TID;
 	  tid = UP2AC(tid);
-	  tid ++;
+	  tid++;
 	} else if (IEEE80211_QOS_HAS_SEQ(fc)) {
 	  hdr_3addrqos = (struct rtl_80211_hdr_3addrqos *)hdr;
 	  tid = le16_to_cpu(hdr_3addrqos->qos_ctl) & IEEE80211_QCTL_TID;
 	  tid = UP2AC(tid);
-	  tid ++;
+	  tid++;
 	} else {
 	  tid = 0;
 	}
@@ -434,12 +434,12 @@ static int is_duplicate_packet(struct ieee80211_device *ieee,
 	  hdr_4addrqos = (struct rtl_80211_hdr_4addrqos *)header;
 	  tid = le16_to_cpu(hdr_4addrqos->qos_ctl) & IEEE80211_QCTL_TID;
 	  tid = UP2AC(tid);
-	  tid ++;
+	  tid++;
 	} else if(IEEE80211_QOS_HAS_SEQ(fc)) { //QoS
 	  hdr_3addrqos = (struct rtl_80211_hdr_3addrqos *)header;
 	  tid = le16_to_cpu(hdr_3addrqos->qos_ctl) & IEEE80211_QCTL_TID;
 	  tid = UP2AC(tid);
-	  tid ++;
+	  tid++;
 	} else { // no QoS
 	  tid = 0;
 	}
