@@ -149,25 +149,6 @@ void __init sbi_save(unsigned int hartid, void *dtb)
 	early_init_dt_scan(__va(dtb));
 }
 
-/*
- * Allow the user to manually add a memory region (in case DTS is broken);
- * "mem_end=nn[KkMmGg]"
- */
-static int __init mem_end_override(char *p)
-{
-	resource_size_t base, end;
-
-	if (!p)
-		return -EINVAL;
-	base = (uintptr_t) __pa(PAGE_OFFSET);
-	end = memparse(p, &p) & PMD_MASK;
-	if (end == 0)
-		return -EINVAL;
-	memblock_add(base, end - base);
-	return 0;
-}
-early_param("mem_end", mem_end_override);
-
 static void __init setup_bootmem(void)
 {
 	struct memblock_region *reg;
