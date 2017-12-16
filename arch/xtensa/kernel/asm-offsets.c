@@ -132,5 +132,18 @@ int main(void)
 	       offsetof(struct debug_table, icount_level_save));
 #endif
 
+	/* struct exc_table */
+	DEFINE(EXC_TABLE_KSTK, offsetof(struct exc_table, kstk));
+	DEFINE(EXC_TABLE_DOUBLE_SAVE, offsetof(struct exc_table, double_save));
+	DEFINE(EXC_TABLE_FIXUP, offsetof(struct exc_table, fixup));
+	DEFINE(EXC_TABLE_PARAM, offsetof(struct exc_table, fixup_param));
+	DEFINE(EXC_TABLE_SYSCALL_SAVE,
+	       offsetof(struct exc_table, syscall_save));
+	DEFINE(EXC_TABLE_FAST_USER,
+	       offsetof(struct exc_table, fast_user_handler));
+	DEFINE(EXC_TABLE_FAST_KERNEL,
+	       offsetof(struct exc_table, fast_kernel_handler));
+	DEFINE(EXC_TABLE_DEFAULT, offsetof(struct exc_table, default_handler));
+
 	return 0;
 }

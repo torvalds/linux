@@ -13,6 +13,29 @@
 #include <asm/ptrace.h>
 
 /*
+ * Per-CPU exception handling data structure.
+ * EXCSAVE1 points to it.
+ */
+struct exc_table {
+	/* Kernel Stack */
+	void *kstk;
+	/* Double exception save area for a0 */
+	unsigned long double_save;
+	/* Fixup handler */
+	void *fixup;
+	/* For passing a parameter to fixup */
+	void *fixup_param;
+	/* For fast syscall handler */
+	unsigned long syscall_save;
+	/* Fast user exception handlers */
+	void *fast_user_handler[EXCCAUSE_N];
+	/* Fast kernel exception handlers */
+	void *fast_kernel_handler[EXCCAUSE_N];
+	/* Default C-Handlers */
+	void *default_handler[EXCCAUSE_N];
+};
+
+/*
  * handler must be either of the following:
  *  void (*)(struct pt_regs *regs);
  *  void (*)(struct pt_regs *regs, unsigned long exccause);
