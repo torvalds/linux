@@ -289,6 +289,8 @@ static int rt5514_spi_pcm_probe(struct snd_soc_platform *platform)
 			dev_err(&rt5514_spi->dev,
 				"%s Failed to reguest IRQ: %d\n", __func__,
 				ret);
+		else
+			device_init_wakeup(rt5514_dsp->dev, true);
 	}
 
 	return 0;
@@ -455,8 +457,6 @@ static int rt5514_spi_probe(struct spi_device *spi)
 		dev_err(&spi->dev, "Failed to register component.\n");
 		return ret;
 	}
-
-	device_init_wakeup(&spi->dev, true);
 
 	return 0;
 }
