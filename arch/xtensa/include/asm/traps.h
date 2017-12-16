@@ -42,6 +42,18 @@ struct exc_table {
  */
 extern void * __init trap_set_handler(int cause, void *handler);
 extern void do_unhandled(struct pt_regs *regs, unsigned long exccause);
+void fast_second_level_miss(void);
+
+/* Initialize minimal exc_table structure sufficient for basic paging */
+static inline void __init early_trap_init(void)
+{
+	static struct exc_table exc_table __initdata = {
+		.fast_kernel_handler[EXCCAUSE_DTLB_MISS] =
+			fast_second_level_miss,
+	};
+	__asm__ __volatile__("wsr  %0, excsave1\n" : : "a" (&exc_table));
+}
+
 void secondary_trap_init(void);
 
 static inline void spill_registers(void)
