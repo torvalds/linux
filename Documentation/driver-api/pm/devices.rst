@@ -788,6 +788,29 @@ must reflect the "active" status for runtime PM in that case.
 
 During system-wide resume from a sleep state it's easiest to put devices into
 the full-power state, as explained in :file:`Documentation/power/runtime_pm.txt`.
-Refer to that document for more information regarding this particular issue as
+[Refer to that document for more information regarding this particular issue as
 well as for information on the device runtime power management framework in
-general.
+general.]
+
+However, it often is desirable to leave devices in suspend after system
+transitions to the working state, especially if those devices had been in
+runtime suspend before the preceding system-wide suspend (or analogous)
+transition.  Device drivers can use the ``DPM_FLAG_LEAVE_SUSPENDED`` flag to
+indicate to the PM core (and middle-layer code) that they prefer the specific
+devices handled by them to be left suspended and they have no problems with
+skipping their system-wide resume callbacks for this reason.  Whether or not the
+devices will actually be left in suspend may depend on their state before the
+given system suspend-resume cycle and on the type of the system transition under
+way.  In particular, devices are not left suspended if that transition is a
+restore from hibernation, as device states are not guaranteed to be reflected
+by the information stored in the hibernation image in that case.
+
+The middle-layer code involved in the handling of the device is expected to
+indicate to the PM core if the device may be left in suspend by setting its
+:c:member:`power.may_skip_resume` status bit which is checked by the PM core
+during the "noirq" phase of the preceding system-wide suspend (or analogous)
+transition.  The middle layer is then responsible for handling the device as
+appropriate in its "noirq" resume callback, which is executed regardless of
+whether or not the device is left suspended, but the other resume callbacks
+(except for ``->complete``) will be skipped automatically by the PM core if the
+device really can be left in suspend.
