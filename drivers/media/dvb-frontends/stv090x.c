@@ -3430,6 +3430,21 @@ err:
 	return -1;
 }
 
+static int stv090x_set_pls(struct stv090x_state *state, u32 pls_code)
+{
+	dprintk(FE_DEBUG, 1, "Set Gold PLS code %d", pls_code);
+	if (STV090x_WRITE_DEMOD(state, PLROOT0, pls_code & 0xff) < 0)
+		goto err;
+	if (STV090x_WRITE_DEMOD(state, PLROOT1, (pls_code >> 8) & 0xff) < 0)
+		goto err;
+	if (STV090x_WRITE_DEMOD(state, PLROOT2, 0x04 | (pls_code >> 16)) < 0)
+		goto err;
+	return 0;
+err:
+	dprintk(FE_ERROR, 1, "I/O error");
+	return -1;
+}
+
 static int stv090x_set_mis(struct stv090x_state *state, int mis)
 {
 	u32 reg;
@@ -3492,6 +3507,7 @@ static enum dvbfe_search stv090x_search(struct dvb_frontend *fe)
 		state->search_range = 5000000;
 	}
 
+	stv090x_set_pls(state, props->scrambling_sequence_index);
 	stv090x_set_mis(state, props->stream_id);
 
 	if (stv090x_algo(state) == STV090x_RANGEOK) {
