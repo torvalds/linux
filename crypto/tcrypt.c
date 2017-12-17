@@ -385,7 +385,7 @@ static inline int do_one_ahash_op(struct ahash_request *req, int ret)
 }
 
 struct test_mb_ahash_data {
-	struct scatterlist sg[TVMEMSIZE];
+	struct scatterlist sg[XBUFSIZE];
 	char result[64];
 	struct ahash_request *req;
 	struct crypto_wait wait;
@@ -428,7 +428,12 @@ static void test_mb_ahash_speed(const char *algo, unsigned int sec,
 
 		ahash_request_set_callback(data[i].req, 0, crypto_req_done,
 					   &data[i].wait);
-		test_hash_sg_init(data[i].sg);
+
+		sg_init_table(data[i].sg, XBUFSIZE);
+		for (j = 0; j < XBUFSIZE; j++) {
+			sg_set_buf(data[i].sg + j, data[i].xbuf[j], PAGE_SIZE);
+			memset(data[i].xbuf[j], 0xff, PAGE_SIZE);
+		}
 	}
 
 	pr_info("\ntesting speed of multibuffer %s (%s)\n", algo,
@@ -439,9 +444,9 @@ static void test_mb_ahash_speed(const char *algo, unsigned int sec,
 		if (speed[i].blen != speed[i].plen)
 			continue;
 
-		if (speed[i].blen > TVMEMSIZE * PAGE_SIZE) {
+		if (speed[i].blen > XBUFSIZE * PAGE_SIZE) {
 			pr_err("template (%u) too big for tvmem (%lu)\n",
-			       speed[i].blen, TVMEMSIZE * PAGE_SIZE);
+			       speed[i].blen, XBUFSIZE * PAGE_SIZE);
 			goto out;
 		}
 
