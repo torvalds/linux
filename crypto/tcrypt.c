@@ -67,6 +67,7 @@ static char *alg = NULL;
 static u32 type;
 static u32 mask;
 static int mode;
+static u32 num_mb = 8;
 static char *tvmem[TVMEMSIZE];
 
 static char *check[] = {
@@ -413,7 +414,7 @@ struct test_mb_ahash_data {
 };
 
 static void test_mb_ahash_speed(const char *algo, unsigned int sec,
-				struct hash_speed *speed)
+				struct hash_speed *speed, u32 num_mb)
 {
 	struct test_mb_ahash_data *data;
 	struct crypto_ahash *tfm;
@@ -422,7 +423,7 @@ static void test_mb_ahash_speed(const char *algo, unsigned int sec,
 	unsigned int i, j, k;
 	int ret;
 
-	data = kzalloc(sizeof(*data) * 8, GFP_KERNEL);
+	data = kcalloc(num_mb, sizeof(*data), GFP_KERNEL);
 	if (!data)
 		return;
 
@@ -433,7 +434,7 @@ static void test_mb_ahash_speed(const char *algo, unsigned int sec,
 		goto free_data;
 	}
 
-	for (i = 0; i < 8; ++i) {
+	for (i = 0; i < num_mb; ++i) {
 		if (testmgr_alloc_buf(data[i].xbuf))
 			goto out;
 
@@ -473,7 +474,7 @@ static void test_mb_ahash_speed(const char *algo, unsigned int sec,
 		if (speed[i].klen)
 			crypto_ahash_setkey(tfm, tvmem[0], speed[i].klen);
 
-		for (k = 0; k < 8; k++)
+		for (k = 0; k < num_mb; k++)
 			ahash_request_set_crypt(data[k].req, data[k].sg,
 						data[k].result, speed[i].blen);
 
@@ -484,7 +485,7 @@ static void test_mb_ahash_speed(const char *algo, unsigned int sec,
 
 		start = get_cycles();
 
-		for (k = 0; k < 8; k++) {
+		for (k = 0; k < num_mb; k++) {
 			ret = crypto_ahash_digest(data[k].req);
 			if (ret == -EINPROGRESS) {
 				ret = 0;
@@ -509,7 +510,7 @@ static void test_mb_ahash_speed(const char *algo, unsigned int sec,
 		end = get_cycles();
 		cycles = end - start;
 		pr_cont("%6lu cycles/operation, %4lu cycles/byte\n",
-			cycles, cycles / (8 * speed[i].blen));
+			cycles, cycles / (num_mb * speed[i].blen));
 
 		if (ret) {
 			pr_err("At least one hashing failed ret=%d\n", ret);
@@ -518,10 +519,10 @@ static void test_mb_ahash_speed(const char *algo, unsigned int sec,
 	}
 
 out:
-	for (k = 0; k < 8; ++k)
+	for (k = 0; k < num_mb; ++k)
 		ahash_request_free(data[k].req);
 
-	for (k = 0; k < 8; ++k)
+	for (k = 0; k < num_mb; ++k)
 		testmgr_free_buf(data[k].xbuf);
 
 	crypto_free_ahash(tfm);
@@ -1815,19 +1816,23 @@ static int do_test(const char *alg, u32 type, u32 mask, int m)
 		if (mode > 400 && mode < 500) break;
 		/* fall through */
 	case 422:
-		test_mb_ahash_speed("sha1", sec, generic_hash_speed_template);
+		test_mb_ahash_speed("sha1", sec, generic_hash_speed_template,
+				    num_mb);
 		if (mode > 400 && mode < 500) break;
 		/* fall through */
 	case 423:
-		test_mb_ahash_speed("sha256", sec, generic_hash_speed_template);
+		test_mb_ahash_speed("sha256", sec, generic_hash_speed_template,
+				    num_mb);
 		if (mode > 400 && mode < 500) break;
 		/* fall through */
 	case 424:
-		test_mb_ahash_speed("sha512", sec, generic_hash_speed_template);
+		test_mb_ahash_speed("sha512", sec, generic_hash_speed_template,
+				    num_mb);
 		if (mode > 400 && mode < 500) break;
 		/* fall through */
 	case 425:
-		test_mb_ahash_speed("sm3", sec, generic_hash_speed_template);
+		test_mb_ahash_speed("sm3", sec, generic_hash_speed_template,
+				    num_mb);
 		if (mode > 400 && mode < 500) break;
 		/* fall through */
 	case 499:
@@ -2106,6 +2111,8 @@ module_param(mode, int, 0);
 module_param(sec, uint, 0);
 MODULE_PARM_DESC(sec, "Length in seconds of speed tests "
 		      "(defaults to zero which uses CPU cycles instead)");
+module_param(num_mb, uint, 0000);
+MODULE_PARM_DESC(num_mb, "Number of concurrent requests to be used in mb speed tests (defaults to 8)");
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Quick & dirty crypto testing module");
