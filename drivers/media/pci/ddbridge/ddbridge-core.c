@@ -1964,7 +1964,7 @@ static int ddb_port_attach(struct ddb_port *port)
 
 int ddb_ports_attach(struct ddb *dev)
 {
-	int i, ret = 0;
+	int i, numports, err_ports = 0, ret = 0;
 	struct ddb_port *port;
 
 	if (dev->port_num) {
@@ -1974,11 +1974,31 @@ int ddb_ports_attach(struct ddb *dev)
 			return ret;
 		}
 	}
+
+	numports = dev->port_num;
+
 	for (i = 0; i < dev->port_num; i++) {
 		port = &dev->port[i];
-		ret = ddb_port_attach(port);
+		if (port->class != DDB_PORT_NONE) {
+			ret = ddb_port_attach(port);
+			if (ret)
+				err_ports++;
+		} else {
+			numports--;
+		}
 	}
-	return ret;
+
+	if (err_ports) {
+		if (err_ports == numports) {
+			dev_err(dev->dev, "All connected ports failed to initialise!\n");
+			return -ENODEV;
+		}
+
+		dev_warn(dev->dev, "%d of %d connected ports failed to initialise!\n",
+			 err_ports, numports);
+	}
+
+	return 0;
 }
 
 void ddb_ports_detach(struct ddb *dev)
