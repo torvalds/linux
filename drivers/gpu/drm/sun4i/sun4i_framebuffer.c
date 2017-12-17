@@ -20,9 +20,21 @@
 #include "sun4i_drv.h"
 #include "sun4i_framebuffer.h"
 
+static int sun4i_de_atomic_check(struct drm_device *dev,
+				 struct drm_atomic_state *state)
+{
+	int ret;
+
+	ret = drm_atomic_helper_check_modeset(dev, state);
+	if (ret)
+		return ret;
+
+	return drm_atomic_helper_check_planes(dev, state);
+}
+
 static const struct drm_mode_config_funcs sun4i_de_mode_config_funcs = {
 	.output_poll_changed	= drm_fb_helper_output_poll_changed,
-	.atomic_check		= drm_atomic_helper_check,
+	.atomic_check		= sun4i_de_atomic_check,
 	.atomic_commit		= drm_atomic_helper_commit,
 	.fb_create		= drm_gem_fb_create,
 };
