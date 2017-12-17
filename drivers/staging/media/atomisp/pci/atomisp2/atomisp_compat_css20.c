@@ -4051,7 +4051,7 @@ int atomisp_css_get_formats_config(struct atomisp_sub_device *asd,
 int atomisp_css_get_zoom_factor(struct atomisp_sub_device *asd,
 					unsigned int *zoom)
 {
-	struct ia_css_dz_config dz_config;  /**< Digital Zoom */
+	struct ia_css_dz_config dz_config;  /** Digital Zoom */
 	struct ia_css_isp_config isp_config;
 	struct atomisp_device *isp = asd->isp;
 

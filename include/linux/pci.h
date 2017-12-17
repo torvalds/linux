@@ -1674,6 +1674,9 @@ static inline struct pci_dev *pci_get_slot(struct pci_bus *bus,
 static inline struct pci_dev *pci_get_bus_and_slot(unsigned int bus,
 						unsigned int devfn)
 { return NULL; }
+static inline struct pci_dev *pci_get_domain_bus_and_slot(int domain,
+					unsigned int bus, unsigned int devfn)
+{ return NULL; }
 
 static inline int pci_domain_nr(struct pci_bus *bus) { return 0; }
 static inline struct pci_dev *pci_dev_get(struct pci_dev *dev) { return NULL; }

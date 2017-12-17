@@ -306,16 +306,17 @@ update_cache:
 }
 
 /**
- * @icd		- soc-camera device
- * @rect	- camera cropping window
- * @subrect	- part of rect, sent to the user
- * @mf		- in- / output camera output window
- * @width	- on input: max host input width
- *		  on output: user width, mapped back to input
- * @height	- on input: max host input height
- *		  on output: user height, mapped back to input
- * @host_can_scale - host can scale this pixel format
- * @shift	- shift, used for scaling
+ * soc_camera_client_scale
+ * @icd:		soc-camera device
+ * @rect:		camera cropping window
+ * @subrect:		part of rect, sent to the user
+ * @mf:			in- / output camera output window
+ * @width:		on input: max host input width;
+ *			on output: user width, mapped back to input
+ * @height:		on input: max host input height;
+ *			on output: user height, mapped back to input
+ * @host_can_scale:	host can scale this pixel format
+ * @shift:		shift, used for scaling
  */
 int soc_camera_client_scale(struct soc_camera_device *icd,
 			struct v4l2_rect *rect, struct v4l2_rect *subrect,

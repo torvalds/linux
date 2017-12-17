@@ -254,9 +254,9 @@ static struct drm_master *drm_lease_create(struct drm_master *lessor, struct idr
 	return lessee;
 
 out_lessee:
-	drm_master_put(&lessee);
-
 	mutex_unlock(&dev->mode_config.idr_mutex);
+
+	drm_master_put(&lessee);
 
 	return ERR_PTR(error);
 }

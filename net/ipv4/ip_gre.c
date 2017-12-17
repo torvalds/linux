@@ -266,7 +266,7 @@ static int erspan_rcv(struct sk_buff *skb, struct tnl_ptk_info *tpi,
 	len = gre_hdr_len + sizeof(*ershdr);
 
 	if (unlikely(!pskb_may_pull(skb, len)))
-		return -ENOMEM;
+		return PACKET_REJECT;
 
 	iph = ip_hdr(skb);
 	ershdr = (struct erspanhdr *)(skb->data + gre_hdr_len);
