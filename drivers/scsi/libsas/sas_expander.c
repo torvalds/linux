@@ -2145,7 +2145,7 @@ void sas_smp_handler(struct bsg_job *job, struct Scsi_Host *shost,
 		struct sas_rphy *rphy)
 {
 	struct domain_device *dev;
-	unsigned int reslen = 0;
+	unsigned int rcvlen = 0;
 	int ret = -EINVAL;
 
 	/* no rphy means no smp target support (ie aic94xx host) */
@@ -2179,12 +2179,12 @@ void sas_smp_handler(struct bsg_job *job, struct Scsi_Host *shost,
 
 	ret = smp_execute_task_sg(dev, job->request_payload.sg_list,
 			job->reply_payload.sg_list);
-	if (ret > 0) {
-		/* positive number is the untransferred residual */
-		reslen = ret;
+	if (ret >= 0) {
+		/* bsg_job_done() requires the length received  */
+		rcvlen = job->reply_payload.payload_len - ret;
 		ret = 0;
 	}
 
 out:
-	bsg_job_done(job, ret, reslen);
+	bsg_job_done(job, ret, rcvlen);
 }

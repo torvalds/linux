@@ -499,7 +499,7 @@ out:
 	return err;
 
 fail:
-	pr_warn_ratelimited("overlay: failed to look up (%s) for ino (%i)\n",
+	pr_warn_ratelimited("overlayfs: failed to look up (%s) for ino (%i)\n",
 			    p->name, err);
 	goto out;
 }
@@ -663,7 +663,10 @@ static int ovl_iterate_real(struct file *file, struct dir_context *ctx)
 			return PTR_ERR(rdt.cache);
 	}
 
-	return iterate_dir(od->realfile, &rdt.ctx);
+	err = iterate_dir(od->realfile, &rdt.ctx);
+	ctx->pos = rdt.ctx.pos;
+
+	return err;
 }
 
 

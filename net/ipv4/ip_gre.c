@@ -269,7 +269,7 @@ static int erspan_rcv(struct sk_buff *skb, struct tnl_ptk_info *tpi,
 
 	/* Check based hdr len */
 	if (unlikely(!pskb_may_pull(skb, len)))
-		return -ENOMEM;
+		return PACKET_REJECT;
 
 	iph = ip_hdr(skb);
 	ershdr = (struct erspan_base_hdr *)(skb->data + gre_hdr_len);

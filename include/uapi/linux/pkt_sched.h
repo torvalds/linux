@@ -256,7 +256,6 @@ struct tc_red_qopt {
 #define TC_RED_ECN		1
 #define TC_RED_HARDDROP		2
 #define TC_RED_ADAPTATIVE	4
-#define TC_RED_OFFLOADED	8
 };
 
 struct tc_red_xstats {

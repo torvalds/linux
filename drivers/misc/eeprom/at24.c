@@ -562,7 +562,7 @@ static ssize_t at24_eeprom_write_i2c(struct at24_data *at24, const char *buf,
 static int at24_read(void *priv, unsigned int off, void *val, size_t count)
 {
 	struct at24_data *at24 = priv;
-	struct i2c_client *client;
+	struct device *dev = &at24->client[0]->dev;
 	char *buf = val;
 	int ret;
 
@@ -572,11 +572,9 @@ static int at24_read(void *priv, unsigned int off, void *val, size_t count)
 	if (off + count > at24->chip.byte_len)
 		return -EINVAL;
 
-	client = at24_translate_offset(at24, &off);
-
-	ret = pm_runtime_get_sync(&client->dev);
+	ret = pm_runtime_get_sync(dev);
 	if (ret < 0) {
-		pm_runtime_put_noidle(&client->dev);
+		pm_runtime_put_noidle(dev);
 		return ret;
 	}
 
@@ -592,7 +590,7 @@ static int at24_read(void *priv, unsigned int off, void *val, size_t count)
 		status = at24->read_func(at24, buf, off, count);
 		if (status < 0) {
 			mutex_unlock(&at24->lock);
-			pm_runtime_put(&client->dev);
+			pm_runtime_put(dev);
 			return status;
 		}
 		buf += status;
@@ -602,7 +600,7 @@ static int at24_read(void *priv, unsigned int off, void *val, size_t count)
 
 	mutex_unlock(&at24->lock);
 
-	pm_runtime_put(&client->dev);
+	pm_runtime_put(dev);
 
 	return 0;
 }
@@ -610,7 +608,7 @@ static int at24_read(void *priv, unsigned int off, void *val, size_t count)
 static int at24_write(void *priv, unsigned int off, void *val, size_t count)
 {
 	struct at24_data *at24 = priv;
-	struct i2c_client *client;
+	struct device *dev = &at24->client[0]->dev;
 	char *buf = val;
 	int ret;
 
@@ -620,11 +618,9 @@ static int at24_write(void *priv, unsigned int off, void *val, size_t count)
 	if (off + count > at24->chip.byte_len)
 		return -EINVAL;
 
-	client = at24_translate_offset(at24, &off);
-
-	ret = pm_runtime_get_sync(&client->dev);
+	ret = pm_runtime_get_sync(dev);
 	if (ret < 0) {
-		pm_runtime_put_noidle(&client->dev);
+		pm_runtime_put_noidle(dev);
 		return ret;
 	}
 
@@ -640,7 +636,7 @@ static int at24_write(void *priv, unsigned int off, void *val, size_t count)
 		status = at24->write_func(at24, buf, off, count);
 		if (status < 0) {
 			mutex_unlock(&at24->lock);
-			pm_runtime_put(&client->dev);
+			pm_runtime_put(dev);
 			return status;
 		}
 		buf += status;
@@ -650,7 +646,7 @@ static int at24_write(void *priv, unsigned int off, void *val, size_t count)
 
 	mutex_unlock(&at24->lock);
 
-	pm_runtime_put(&client->dev);
+	pm_runtime_put(dev);
 
 	return 0;
 }
@@ -880,7 +876,7 @@ static int at24_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	at24->nvmem_config.reg_read = at24_read;
 	at24->nvmem_config.reg_write = at24_write;
 	at24->nvmem_config.priv = at24;
-	at24->nvmem_config.stride = 4;
+	at24->nvmem_config.stride = 1;
 	at24->nvmem_config.word_size = 1;
 	at24->nvmem_config.size = chip.byte_len;
 

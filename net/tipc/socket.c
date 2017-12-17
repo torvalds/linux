@@ -1140,7 +1140,7 @@ void tipc_sk_mcast_rcv(struct net *net, struct sk_buff_head *arrvq,
 				__skb_dequeue(arrvq);
 				__skb_queue_tail(inputq, skb);
 			}
-			refcount_dec(&skb->users);
+			kfree_skb(skb);
 			spin_unlock_bh(&inputq->lock);
 			continue;
 		}
