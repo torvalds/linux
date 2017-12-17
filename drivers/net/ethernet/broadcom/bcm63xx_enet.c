@@ -1787,7 +1787,7 @@ static int bcm_enet_probe(struct platform_device *pdev)
 		priv->tx_chan = pd->tx_chan;
 	}
 
-	if (priv->mac_id == 0 && priv->has_phy && !priv->use_external_mii) {
+	if (priv->has_phy && !priv->use_external_mii) {
 		/* using internal PHY, enable clock */
 		priv->phy_clk = devm_clk_get(&pdev->dev, "ephy");
 		if (IS_ERR(priv->phy_clk)) {
