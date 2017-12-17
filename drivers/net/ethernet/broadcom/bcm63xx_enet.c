@@ -1716,7 +1716,6 @@ static int bcm_enet_probe(struct platform_device *pdev)
 	struct bcm63xx_enet_platform_data *pd;
 	struct resource *res_mem, *res_irq, *res_irq_rx, *res_irq_tx;
 	struct mii_bus *bus;
-	const char *clk_name;
 	int i, ret;
 
 	if (!bcm_enet_shared_base[0])
@@ -1757,14 +1756,12 @@ static int bcm_enet_probe(struct platform_device *pdev)
 	if (priv->mac_id == 0) {
 		priv->rx_chan = 0;
 		priv->tx_chan = 1;
-		clk_name = "enet0";
 	} else {
 		priv->rx_chan = 2;
 		priv->tx_chan = 3;
-		clk_name = "enet1";
 	}
 
-	priv->mac_clk = devm_clk_get(&pdev->dev, clk_name);
+	priv->mac_clk = devm_clk_get(&pdev->dev, "enet");
 	if (IS_ERR(priv->mac_clk)) {
 		ret = PTR_ERR(priv->mac_clk);
 		goto out;
