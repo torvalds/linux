@@ -28,6 +28,7 @@ struct sun4i_plane_desc {
 
 static void sun4i_backend_layer_reset(struct drm_plane *plane)
 {
+	struct sun4i_layer *layer = plane_to_sun4i_layer(plane);
 	struct sun4i_layer_state *state;
 
 	if (plane->state) {
@@ -43,6 +44,7 @@ static void sun4i_backend_layer_reset(struct drm_plane *plane)
 	if (state) {
 		plane->state = &state->state;
 		plane->state->plane = plane;
+		plane->state->zpos = layer->id;
 	}
 }
 
