@@ -329,10 +329,30 @@ static void test_aead_speed(const char *algo, int enc, unsigned int secs,
 				     *b_size + (enc ? authsize : 0), assoc,
 				     aad_size);
 
+			aead_request_set_ad(req, aad_size);
+
+			if (!enc) {
+
+				/*
+				 * For decryption we need a proper auth so
+				 * we do the encryption path once with buffers
+				 * reversed (input <-> output) to calculate it
+				 */
+				aead_request_set_crypt(req, sgout, sg,
+						       *b_size, iv);
+				ret = do_one_aead_op(req,
+						     crypto_aead_encrypt(req));
+
+				if (ret) {
+					pr_err("calculating auth failed failed (%d)\n",
+					       ret);
+					break;
+				}
+			}
+
 			aead_request_set_crypt(req, sg, sgout,
 					       *b_size + (enc ? 0 : authsize),
 					       iv);
-			aead_request_set_ad(req, aad_size);
 
 			if (secs)
 				ret = test_aead_jiffies(req, enc, *b_size,
@@ -1566,15 +1586,23 @@ static int do_test(const char *alg, u32 type, u32 mask, int m)
 				NULL, 0, 16, 16, aead_speed_template_20);
 		test_aead_speed("gcm(aes)", ENCRYPT, sec,
 				NULL, 0, 16, 8, speed_template_16_24_32);
+		test_aead_speed("rfc4106(gcm(aes))", DECRYPT, sec,
+				NULL, 0, 16, 16, aead_speed_template_20);
+		test_aead_speed("gcm(aes)", DECRYPT, sec,
+				NULL, 0, 16, 8, speed_template_16_24_32);
 		break;
 
 	case 212:
 		test_aead_speed("rfc4309(ccm(aes))", ENCRYPT, sec,
 				NULL, 0, 16, 16, aead_speed_template_19);
+		test_aead_speed("rfc4309(ccm(aes))", DECRYPT, sec,
+				NULL, 0, 16, 16, aead_speed_template_19);
 		break;
 
 	case 213:
 		test_aead_speed("rfc7539esp(chacha20,poly1305)", ENCRYPT, sec,
+				NULL, 0, 16, 8, aead_speed_template_36);
+		test_aead_speed("rfc7539esp(chacha20,poly1305)", DECRYPT, sec,
 				NULL, 0, 16, 8, aead_speed_template_36);
 		break;
 
