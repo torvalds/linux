@@ -200,6 +200,9 @@ struct bpf_prog_aux {
 	u32 max_ctx_offset;
 	u32 stack_depth;
 	u32 id;
+	u32 func_cnt;
+	struct bpf_prog **func;
+	void *jit_data; /* JIT specific data. arch dependent */
 	struct latch_tree_node ksym_tnode;
 	struct list_head ksym_lnode;
 	const struct bpf_prog_ops *ops;
@@ -402,6 +405,7 @@ static inline void bpf_long_memcpy(void *dst, const void *src, u32 size)
 
 /* verify correctness of eBPF program */
 int bpf_check(struct bpf_prog **fp, union bpf_attr *attr);
+void bpf_patch_call_args(struct bpf_insn *insn, u32 stack_depth);
 
 /* Map specifics */
 struct net_device  *__dev_map_lookup_elem(struct bpf_map *map, u32 key);

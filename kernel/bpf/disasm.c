@@ -189,8 +189,12 @@ void print_bpf_insn(bpf_insn_print_cb verbose, struct bpf_verifier_env *env,
 		u8 opcode = BPF_OP(insn->code);
 
 		if (opcode == BPF_CALL) {
-			verbose(env, "(%02x) call %s#%d\n", insn->code,
-				func_id_name(insn->imm), insn->imm);
+			if (insn->src_reg == BPF_PSEUDO_CALL)
+				verbose(env, "(%02x) call pc%+d\n", insn->code,
+					insn->imm);
+			else
+				verbose(env, "(%02x) call %s#%d\n", insn->code,
+					func_id_name(insn->imm), insn->imm);
 		} else if (insn->code == (BPF_JMP | BPF_JA)) {
 			verbose(env, "(%02x) goto pc%+d\n",
 				insn->code, insn->off);

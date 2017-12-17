@@ -1300,7 +1300,7 @@ struct bpf_prog *bpf_int_jit_compile(struct bpf_prog *fp)
 	struct bpf_jit jit;
 	int pass;
 
-	if (!bpf_jit_enable)
+	if (!fp->jit_requested)
 		return orig_fp;
 
 	tmp = bpf_jit_blind_constants(fp);
