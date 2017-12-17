@@ -346,3 +346,14 @@ int ddb_ci_attach(struct ddb_port *port, u32 bitrate)
 	dvb_ca_en50221_init(port->dvb[0].adap, port->en, 0, 1);
 	return 0;
 }
+
+void ddb_ci_detach(struct ddb_port *port)
+{
+	if (port->dvb[0].dev)
+		dvb_unregister_device(port->dvb[0].dev);
+	if (port->en) {
+		dvb_ca_en50221_release(port->en);
+		kfree(port->en->data);
+		port->en = NULL;
+	}
+}

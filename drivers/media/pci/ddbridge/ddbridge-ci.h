@@ -26,5 +26,6 @@
 /******************************************************************************/
 
 int ddb_ci_attach(struct ddb_port *port, u32 bitrate);
+void ddb_ci_detach(struct ddb_port *port);
 
 #endif /* __DDBRIDGE_CI_H__ */

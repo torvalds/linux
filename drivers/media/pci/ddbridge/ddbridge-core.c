@@ -2016,13 +2016,7 @@ void ddb_ports_detach(struct ddb *dev)
 			break;
 		case DDB_PORT_CI:
 		case DDB_PORT_LOOP:
-			if (port->dvb[0].dev)
-				dvb_unregister_device(port->dvb[0].dev);
-			if (port->en) {
-				dvb_ca_en50221_release(port->en);
-				kfree(port->en->data);
-				port->en = NULL;
-			}
+			ddb_ci_detach(port);
 			break;
 		}
 	}
