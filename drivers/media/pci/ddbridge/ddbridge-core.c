@@ -1263,6 +1263,14 @@ static void dvb_input_detach(struct ddb_input *input)
 			dvb_unregister_frontend(dvb->fe);
 		/* fallthrough */
 	case 0x30:
+		client = dvb->i2c_client[0];
+		if (client) {
+			module_put(client->dev.driver->owner);
+			i2c_unregister_device(client);
+			dvb->i2c_client[0] = NULL;
+			client = NULL;
+		}
+
 		if (dvb->fe2)
 			dvb_frontend_detach(dvb->fe2);
 		if (dvb->fe)
@@ -1271,12 +1279,6 @@ static void dvb_input_detach(struct ddb_input *input)
 		dvb->fe2 = NULL;
 		/* fallthrough */
 	case 0x20:
-		client = dvb->i2c_client[0];
-		if (client) {
-			module_put(client->dev.driver->owner);
-			i2c_unregister_device(client);
-		}
-
 		dvb_net_release(&dvb->dvbnet);
 		/* fallthrough */
 	case 0x12:
