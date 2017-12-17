@@ -3279,7 +3279,7 @@ int ddb_init(struct ddb *dev)
 	ddb_init_boards(dev);
 
 	if (ddb_i2c_init(dev) < 0)
-		goto fail;
+		goto fail1;
 	ddb_ports_init(dev);
 	if (ddb_buffers_alloc(dev) < 0) {
 		dev_info(dev->dev, "Could not allocate buffer memory\n");
@@ -3297,14 +3297,14 @@ int ddb_init(struct ddb *dev)
 	return 0;
 
 fail3:
-	ddb_ports_detach(dev);
 	dev_err(dev->dev, "fail3\n");
-	ddb_ports_release(dev);
+	ddb_ports_detach(dev);
+	ddb_buffers_free(dev);
 fail2:
 	dev_err(dev->dev, "fail2\n");
-	ddb_buffers_free(dev);
+	ddb_ports_release(dev);
 	ddb_i2c_release(dev);
-fail:
+fail1:
 	dev_err(dev->dev, "fail1\n");
 	return -1;
 }
