@@ -1935,8 +1935,10 @@ static int ddb_port_attach(struct ddb_port *port)
 		if (ret < 0)
 			break;
 		ret = dvb_input_attach(port->input[1]);
-		if (ret < 0)
+		if (ret < 0) {
+			dvb_input_detach(port->input[0]);
 			break;
+		}
 		port->input[0]->redi = port->input[0];
 		port->input[1]->redi = port->input[1];
 		break;
