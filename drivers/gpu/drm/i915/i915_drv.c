@@ -1924,9 +1924,6 @@ void i915_reset(struct drm_i915_private *i915, unsigned int flags)
 		goto taint;
 	}
 
-	i915_gem_reset(i915);
-	intel_overlay_reset(i915);
-
 	/* Ok, now get things going again... */
 
 	/*
@@ -1938,6 +1935,9 @@ void i915_reset(struct drm_i915_private *i915, unsigned int flags)
 		DRM_ERROR("Failed to re-enable GGTT following reset %d\n", ret);
 		goto error;
 	}
+
+	i915_gem_reset(i915);
+	intel_overlay_reset(i915);
 
 	/*
 	 * Next we need to restore the context, but we don't use those
