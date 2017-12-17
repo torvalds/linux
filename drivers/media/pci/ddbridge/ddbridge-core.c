@@ -1990,7 +1990,7 @@ void ddb_ports_detach(struct ddb *dev)
 				dvb_unregister_device(port->dvb[0].dev);
 			if (port->en) {
 				dvb_ca_en50221_release(port->en);
-				kfree(port->en);
+				kfree(port->en->data);
 				port->en = NULL;
 			}
 			break;
