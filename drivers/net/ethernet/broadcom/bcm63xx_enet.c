@@ -1750,7 +1750,6 @@ static int bcm_enet_probe(struct platform_device *pdev)
 	dev->irq = priv->irq = res_irq->start;
 	priv->irq_rx = res_irq_rx->start;
 	priv->irq_tx = res_irq_tx->start;
-	priv->mac_id = pdev->id;
 
 	priv->mac_clk = devm_clk_get(&pdev->dev, "enet");
 	if (IS_ERR(priv->mac_clk)) {
@@ -1818,7 +1817,7 @@ static int bcm_enet_probe(struct platform_device *pdev)
 		bus->priv = priv;
 		bus->read = bcm_enet_mdio_read_phylib;
 		bus->write = bcm_enet_mdio_write_phylib;
-		sprintf(bus->id, "%s-%d", pdev->name, priv->mac_id);
+		sprintf(bus->id, "%s-%d", pdev->name, pdev->id);
 
 		/* only probe bus where we think the PHY is, because
 		 * the mdio read operation return 0 instead of 0xffff
