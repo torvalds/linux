@@ -3691,7 +3691,7 @@ int i40iw_accept(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 	cm_node->qhash_set = false;
 	i40iw_modify_qp(&iwqp->ibqp, &attr, IB_QP_STATE, NULL);
 
-	cm_node->accelerated = 1;
+	cm_node->accelerated = true;
 	status =
 		i40iw_send_cm_event(cm_node, cm_id, IW_CM_EVENT_ESTABLISHED, 0);
 	if (status)
@@ -4058,7 +4058,7 @@ static void i40iw_cm_event_connected(struct i40iw_cm_event *event)
 	cm_node->qhash_set = false;
 	i40iw_modify_qp(&iwqp->ibqp, &attr, IB_QP_STATE, NULL);
 
-	cm_node->accelerated = 1;
+	cm_node->accelerated = true;
 	status = i40iw_send_cm_event(cm_node, cm_id, IW_CM_EVENT_CONNECT_REPLY,
 				     0);
 	if (status)

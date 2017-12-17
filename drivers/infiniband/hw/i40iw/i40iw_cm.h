@@ -337,7 +337,7 @@ struct i40iw_cm_node {
 	u16     mpav2_ird_ord;
 	struct iw_cm_id *cm_id;
 	struct list_head list;
-	int accelerated;
+	bool accelerated;
 	struct i40iw_cm_listener *listener;
 	int apbvt_set;
 	int accept_pend;
