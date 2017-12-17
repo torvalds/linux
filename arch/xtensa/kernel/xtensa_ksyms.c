@@ -44,7 +44,9 @@ EXPORT_SYMBOL(memmove);
 EXPORT_SYMBOL(__memset);
 EXPORT_SYMBOL(__memcpy);
 EXPORT_SYMBOL(__memmove);
+#ifndef CONFIG_GENERIC_STRNCPY_FROM_USER
 EXPORT_SYMBOL(__strncpy_user);
+#endif
 EXPORT_SYMBOL(clear_page);
 EXPORT_SYMBOL(copy_page);
 
