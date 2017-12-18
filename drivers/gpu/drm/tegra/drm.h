@@ -188,10 +188,6 @@ int tegra_drm_fb_init(struct drm_device *drm);
 void tegra_drm_fb_exit(struct drm_device *drm);
 void tegra_drm_fb_suspend(struct drm_device *drm);
 void tegra_drm_fb_resume(struct drm_device *drm);
-#ifdef CONFIG_DRM_FBDEV_EMULATION
-void tegra_fbdev_restore_mode(struct tegra_fbdev *fbdev);
-void tegra_fb_output_poll_changed(struct drm_device *drm);
-#endif
 
 extern struct platform_driver tegra_dc_driver;
 extern struct platform_driver tegra_hdmi_driver;

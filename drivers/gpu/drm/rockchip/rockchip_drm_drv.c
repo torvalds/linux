@@ -207,13 +207,6 @@ static void rockchip_drm_unbind(struct device *dev)
 	drm_dev_unref(drm_dev);
 }
 
-static void rockchip_drm_lastclose(struct drm_device *dev)
-{
-	struct rockchip_drm_private *priv = dev->dev_private;
-
-	drm_fb_helper_restore_fbdev_mode_unlocked(&priv->fbdev_helper);
-}
-
 static const struct file_operations rockchip_drm_driver_fops = {
 	.owner = THIS_MODULE,
 	.open = drm_open,
@@ -228,7 +221,7 @@ static const struct file_operations rockchip_drm_driver_fops = {
 static struct drm_driver rockchip_drm_driver = {
 	.driver_features	= DRIVER_MODESET | DRIVER_GEM |
 				  DRIVER_PRIME | DRIVER_ATOMIC,
-	.lastclose		= rockchip_drm_lastclose,
+	.lastclose		= drm_fb_helper_lastclose,
 	.gem_vm_ops		= &drm_gem_cma_vm_ops,
 	.gem_free_object_unlocked = rockchip_gem_free_object,
 	.dumb_create		= rockchip_gem_dumb_create,

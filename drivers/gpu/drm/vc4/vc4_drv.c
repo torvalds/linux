@@ -111,13 +111,6 @@ static int vc4_get_param_ioctl(struct drm_device *dev, void *data,
 	return 0;
 }
 
-static void vc4_lastclose(struct drm_device *dev)
-{
-	struct vc4_dev *vc4 = to_vc4_dev(dev);
-
-	drm_fbdev_cma_restore_mode(vc4->fbdev);
-}
-
 static const struct vm_operations_struct vc4_vm_ops = {
 	.fault = vc4_fault,
 	.open = drm_gem_vm_open,
@@ -159,7 +152,7 @@ static struct drm_driver vc4_drm_driver = {
 			    DRIVER_HAVE_IRQ |
 			    DRIVER_RENDER |
 			    DRIVER_PRIME),
-	.lastclose = vc4_lastclose,
+	.lastclose = drm_fb_helper_lastclose,
 	.irq_handler = vc4_irq,
 	.irq_preinstall = vc4_irq_preinstall,
 	.irq_postinstall = vc4_irq_postinstall,
@@ -301,12 +294,10 @@ static void vc4_drm_unbind(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct drm_device *drm = platform_get_drvdata(pdev);
-	struct vc4_dev *vc4 = to_vc4_dev(drm);
 
 	drm_dev_unregister(drm);
 
-	if (vc4->fbdev)
-		drm_fbdev_cma_fini(vc4->fbdev);
+	drm_fb_cma_fbdev_fini(drm);
 
 	drm_mode_config_cleanup(drm);
 
