@@ -1599,7 +1599,7 @@ out1:
 }
 
 /* Create a SMBD connection, called by upper layer */
-struct smbd_connection *_smbd_get_connection(
+static struct smbd_connection *_smbd_get_connection(
 	struct TCP_Server_Info *server, struct sockaddr *dstaddr, int port)
 {
 	int rc;
