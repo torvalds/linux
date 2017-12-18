@@ -1662,9 +1662,11 @@ void efx_ptp_event(struct efx_nic *efx, efx_qword_t *ev)
 	int code = EFX_QWORD_FIELD(*ev, MCDI_EVENT_CODE);
 
 	if (!ptp) {
-		if (net_ratelimit())
+		if (!efx->ptp_warned) {
 			netif_warn(efx, drv, efx->net_dev,
 				   "Received PTP event but PTP not set up\n");
+			efx->ptp_warned = true;
+		}
 		return;
 	}
 

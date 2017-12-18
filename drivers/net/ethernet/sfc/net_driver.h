@@ -813,6 +813,7 @@ struct vfdi_status;
  * @vf_init_count: Number of VFs that have been fully initialised.
  * @vi_scale: log2 number of vnics per VF.
  * @ptp_data: PTP state data
+ * @ptp_warned: has this NIC seen and warned about unexpected PTP events?
  * @vpd_sn: Serial number read from VPD
  * @monitor_work: Hardware monitor workitem
  * @biu_lock: BIU (bus interface unit) lock
@@ -968,6 +969,7 @@ struct efx_nic {
 #endif
 
 	struct efx_ptp_data *ptp_data;
+	bool ptp_warned;
 
 	char *vpd_sn;
 
