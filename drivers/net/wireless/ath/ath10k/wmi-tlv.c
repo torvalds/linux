@@ -2494,7 +2494,6 @@ ath10k_wmi_tlv_op_gen_mgmt_tx(struct ath10k *ar, struct sk_buff *msdu)
 	void *ptr;
 	int len;
 	u32 buf_len = msdu->len;
-	u16 fc;
 	struct ath10k_vif *arvif;
 	dma_addr_t mgmt_frame_dma;
 	u32 vdev_id;
@@ -2503,7 +2502,6 @@ ath10k_wmi_tlv_op_gen_mgmt_tx(struct ath10k *ar, struct sk_buff *msdu)
 		return ERR_PTR(-EINVAL);
 
 	hdr = (struct ieee80211_hdr *)msdu->data;
-	fc = le16_to_cpu(hdr->frame_control);
 	arvif = (void *)cb->vif->drv_priv;
 	vdev_id = arvif->vdev_id;
 
