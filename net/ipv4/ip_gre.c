@@ -279,7 +279,6 @@ static int erspan_rcv(struct sk_buff *skb, struct tnl_ptk_info *tpi,
 	 * Use ERSPAN 10-bit session ID as key.
 	 */
 	tpi->key = cpu_to_be32(ntohs(ershdr->session_id) & ID_MASK);
-	pkt_md = (struct erspan_metadata *)(ershdr + 1);
 	tunnel = ip_tunnel_lookup(itn, skb->dev->ifindex,
 				  tpi->flags | TUNNEL_KEY,
 				  iph->saddr, iph->daddr, tpi->key);
@@ -287,7 +286,10 @@ static int erspan_rcv(struct sk_buff *skb, struct tnl_ptk_info *tpi,
 	if (tunnel) {
 		len = gre_hdr_len + erspan_hdr_len(ver);
 		if (unlikely(!pskb_may_pull(skb, len)))
-			return -ENOMEM;
+			return PACKET_REJECT;
+
+		ershdr = (struct erspan_base_hdr *)(skb->data + gre_hdr_len);
+		pkt_md = (struct erspan_metadata *)(ershdr + 1);
 
 		if (__iptunnel_pull_header(skb,
 					   len,
