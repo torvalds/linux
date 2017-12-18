@@ -659,6 +659,12 @@ static void pfifo_fast_reset(struct Qdisc *qdisc)
 		struct skb_array *q = band2list(priv, band);
 		struct sk_buff *skb;
 
+		/* NULL ring is possible if destroy path is due to a failed
+		 * skb_array_init() in pfifo_fast_init() case.
+		 */
+		if (!q->ring.queue)
+			continue;
+
 		while ((skb = skb_array_consume_bh(q)) != NULL)
 			kfree_skb(skb);
 	}
@@ -719,7 +725,7 @@ static void pfifo_fast_destroy(struct Qdisc *sch)
 		/* NULL ring is possible if destroy path is due to a failed
 		 * skb_array_init() in pfifo_fast_init() case.
 		 */
-		if (!&q->ring.queue)
+		if (!q->ring.queue)
 			continue;
 		/* Destroy ring but no need to kfree_skb because a call to
 		 * pfifo_fast_reset() has already done that work.
