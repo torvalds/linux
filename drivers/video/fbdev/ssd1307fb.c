@@ -124,7 +124,7 @@ static int ssd1307fb_write_array(struct i2c_client *client,
 
 	ret = i2c_master_send(client, (u8 *)array, len);
 	if (ret != len) {
-		dev_err(&client->dev, "Couldn't send I2C command.\n");
+		dev_err_ratelimited(&client->dev, "couldn't send I2C command\n");
 		return ret;
 	}
 
