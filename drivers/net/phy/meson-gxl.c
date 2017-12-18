@@ -147,7 +147,7 @@ static int meson_gxl_config_init(struct phy_device *phydev)
 	if (ret)
 		return ret;
 
-	return 0;
+	return genphy_config_init(phydev);
 }
 
 /* This function is provided to cope with the possible failures of this phy
