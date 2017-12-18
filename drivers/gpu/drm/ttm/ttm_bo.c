@@ -42,7 +42,6 @@
 #include <linux/atomic.h>
 #include <linux/reservation.h>
 
-static int ttm_bo_swapout(struct ttm_mem_shrink *shrink);
 static void ttm_bo_global_kobj_release(struct kobject *kobj);
 
 static struct attribute ttm_bo_count = {
@@ -1456,7 +1455,6 @@ static void ttm_bo_global_kobj_release(struct kobject *kobj)
 	struct ttm_bo_global *glob =
 		container_of(kobj, struct ttm_bo_global, kobj);
 
-	ttm_mem_unregister_shrink(glob->mem_glob, &glob->shrink);
 	__free_page(glob->dummy_read_page);
 	kfree(glob);
 }
@@ -1481,6 +1479,7 @@ int ttm_bo_global_init(struct drm_global_reference *ref)
 	mutex_init(&glob->device_list_mutex);
 	spin_lock_init(&glob->lru_lock);
 	glob->mem_glob = bo_ref->mem_glob;
+	glob->mem_glob->bo_glob = glob;
 	glob->dummy_read_page = alloc_page(__GFP_ZERO | GFP_DMA32);
 
 	if (unlikely(glob->dummy_read_page == NULL)) {
@@ -1491,14 +1490,6 @@ int ttm_bo_global_init(struct drm_global_reference *ref)
 	for (i = 0; i < TTM_MAX_BO_PRIORITY; ++i)
 		INIT_LIST_HEAD(&glob->swap_lru[i]);
 	INIT_LIST_HEAD(&glob->device_list);
-
-	ttm_mem_init_shrink(&glob->shrink, ttm_bo_swapout);
-	ret = ttm_mem_register_shrink(glob->mem_glob, &glob->shrink);
-	if (unlikely(ret != 0)) {
-		pr_err("Could not register buffer object swapout\n");
-		goto out_no_shrink;
-	}
-
 	atomic_set(&glob->bo_count, 0);
 
 	ret = kobject_init_and_add(
@@ -1506,8 +1497,6 @@ int ttm_bo_global_init(struct drm_global_reference *ref)
 	if (unlikely(ret != 0))
 		kobject_put(&glob->kobj);
 	return ret;
-out_no_shrink:
-	__free_page(glob->dummy_read_page);
 out_no_drp:
 	kfree(glob);
 	return ret;
@@ -1690,11 +1679,8 @@ EXPORT_SYMBOL(ttm_bo_synccpu_write_release);
  * A buffer object shrink method that tries to swap out the first
  * buffer object on the bo_global::swap_lru list.
  */
-
-static int ttm_bo_swapout(struct ttm_mem_shrink *shrink)
+int ttm_bo_swapout(struct ttm_bo_global *glob)
 {
-	struct ttm_bo_global *glob =
-	    container_of(shrink, struct ttm_bo_global, shrink);
 	struct ttm_buffer_object *bo;
 	int ret = -EBUSY;
 	unsigned i;
@@ -1776,10 +1762,11 @@ out:
 	kref_put(&bo->list_kref, ttm_bo_release_list);
 	return ret;
 }
+EXPORT_SYMBOL(ttm_bo_swapout);
 
 void ttm_bo_swapout_all(struct ttm_bo_device *bdev)
 {
-	while (ttm_bo_swapout(&bdev->glob->shrink) == 0)
+	while (ttm_bo_swapout(bdev->glob) == 0)
 		;
 }
 EXPORT_SYMBOL(ttm_bo_swapout_all);

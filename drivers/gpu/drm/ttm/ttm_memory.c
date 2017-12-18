@@ -214,25 +214,19 @@ static void ttm_shrink(struct ttm_mem_global *glob, bool from_wq,
 		       uint64_t extra)
 {
 	int ret;
-	struct ttm_mem_shrink *shrink;
 
 	spin_lock(&glob->lock);
-	if (glob->shrink == NULL)
-		goto out;
 
 	while (ttm_zones_above_swap_target(glob, from_wq, extra)) {
-		shrink = glob->shrink;
 		spin_unlock(&glob->lock);
-		ret = shrink->do_shrink(shrink);
+		ret = ttm_bo_swapout(glob->bo_glob);
 		spin_lock(&glob->lock);
 		if (unlikely(ret != 0))
-			goto out;
+			break;
 	}
-out:
+
 	spin_unlock(&glob->lock);
 }
-
-
 
 static void ttm_shrink_work(struct work_struct *work)
 {
