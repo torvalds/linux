@@ -724,6 +724,56 @@ static void rockchip_set_transfer_mode(struct dw_mipi_dsi *dsi, int flags)
 	}
 }
 
+static int dw_mipi_dsi_read_from_fifo(struct dw_mipi_dsi *dsi,
+				      const struct mipi_dsi_msg *msg)
+{
+	u8 *payload = msg->rx_buf;
+	u16 length;
+	u32 val;
+	int ret;
+
+	ret = readl_relaxed_poll_timeout(dsi->base + DSI_CMD_PKT_STATUS,
+					 val, !(val & GEN_RD_CMD_BUSY),
+					 50, 5000);
+	if (ret) {
+		dev_err(dsi->dev, "entire response isn't stored in the FIFO\n");
+		return ret;
+	}
+
+	/* Receive payload */
+	for (length = msg->rx_len; length; length -= 4) {
+		ret = readl_relaxed_poll_timeout(dsi->base + DSI_CMD_PKT_STATUS,
+						 val, !(val & GEN_PLD_R_EMPTY),
+						 50, 5000);
+		if (ret) {
+			dev_err(dsi->dev, "Read payload FIFO is empty\n");
+			return ret;
+		}
+
+		val = dsi_read(dsi, DSI_GEN_PLD_DATA);
+
+		switch (length) {
+		case 3:
+			payload[2] = (val >> 16) & 0xff;
+			/* Fall through */
+		case 2:
+			payload[1] = (val >> 8) & 0xff;
+			/* Fall through */
+		case 1:
+			payload[0] = val & 0xff;
+			return 0;
+		}
+
+		payload[0] = (val >>  0) & 0xff;
+		payload[1] = (val >>  8) & 0xff;
+		payload[2] = (val >> 16) & 0xff;
+		payload[3] = (val >> 24) & 0xff;
+		payload += 4;
+	}
+
+	return 0;
+}
+
 static ssize_t rockchip_dsi_send_packet(struct dw_mipi_dsi *dsi,
 					const struct mipi_dsi_msg *msg)
 {
@@ -781,6 +831,12 @@ static ssize_t rockchip_dsi_send_packet(struct dw_mipi_dsi *dsi,
 	ret = rockchip_wait_write_fifo_empty(dsi);
 	if (ret)
 		return ret;
+
+	if (msg->rx_len) {
+		ret = dw_mipi_dsi_read_from_fifo(dsi, msg);
+		if (ret < 0)
+			return ret;
+	}
 
 	if (dsi->slave)
 		rockchip_dsi_send_packet(dsi->slave, msg);
