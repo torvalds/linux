@@ -110,11 +110,12 @@ inode_set_iversion_queried(struct inode *inode, u64 new)
 static inline bool
 inode_maybe_inc_iversion(struct inode *inode, bool force)
 {
-	spin_lock(&inode->i_lock);
-	inode->i_version++;
-	spin_unlock(&inode->i_lock);
+	atomic64_t *ivp = (atomic64_t *)&inode->i_version;
+
+	atomic64_inc(ivp);
 	return true;
 }
+
 
 /**
  * inode_inc_iversion - forcibly increment i_version
