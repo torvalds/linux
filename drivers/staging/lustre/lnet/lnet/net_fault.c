@@ -161,7 +161,7 @@ lnet_drop_rule_add(struct lnet_fault_attr *attr)
 	if (lnet_fault_attr_validate(attr))
 		return -EINVAL;
 
-	CFS_ALLOC_PTR(rule);
+	rule = kzalloc(sizeof(*rule), GFP_NOFS);
 	if (!rule)
 		return -ENOMEM;
 
@@ -223,7 +223,7 @@ lnet_drop_rule_del(lnet_nid_t src, lnet_nid_t dst)
 		       rule->dr_attr.u.drop.da_interval);
 
 		list_del(&rule->dr_link);
-		CFS_FREE_PTR(rule);
+		kfree(rule);
 		n++;
 	}
 
@@ -452,7 +452,7 @@ delay_rule_decref(struct lnet_delay_rule *rule)
 		LASSERT(list_empty(&rule->dl_msg_list));
 		LASSERT(list_empty(&rule->dl_link));
 
-		CFS_FREE_PTR(rule);
+		kfree(rule);
 	}
 }
 
@@ -739,7 +739,7 @@ lnet_delay_rule_add(struct lnet_fault_attr *attr)
 	if (lnet_fault_attr_validate(attr))
 		return -EINVAL;
 
-	CFS_ALLOC_PTR(rule);
+	rule = kzalloc(sizeof(*rule), GFP_NOFS);
 	if (!rule)
 		return -ENOMEM;
 
@@ -793,7 +793,7 @@ lnet_delay_rule_add(struct lnet_fault_attr *attr)
 	return 0;
 failed:
 	mutex_unlock(&delay_dd.dd_mutex);
-	CFS_FREE_PTR(rule);
+	kfree(rule);
 	return rc;
 }
 

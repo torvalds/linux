@@ -215,9 +215,6 @@ do {							    \
 #define LASSERT_ATOMIC_ZERO(a)		  LASSERT_ATOMIC_EQ(a, 0)
 #define LASSERT_ATOMIC_POS(a)		   LASSERT_ATOMIC_GT(a, 0)
 
-#define CFS_ALLOC_PTR(ptr)      LIBCFS_ALLOC(ptr, sizeof(*(ptr)))
-#define CFS_FREE_PTR(ptr)       LIBCFS_FREE(ptr, sizeof(*(ptr)))
-
 /* implication */
 #define ergo(a, b) (!(a) || (b))
 /* logical equivalence */
