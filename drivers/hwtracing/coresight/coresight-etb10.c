@@ -33,7 +33,6 @@
 #include <linux/mm.h>
 #include <linux/perf_event.h>
 
-#include <asm/local.h>
 
 #include "coresight-priv.h"
 
