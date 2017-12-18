@@ -772,7 +772,7 @@ static int check_subprogs(struct bpf_verifier_env *env)
 			return -EPERM;
 		}
 		if (bpf_prog_is_dev_bound(env->prog->aux)) {
-			verbose(env, "funcation calls in offloaded programs are not supported yet\n");
+			verbose(env, "function calls in offloaded programs are not supported yet\n");
 			return -EINVAL;
 		}
 		ret = add_subprog(env, i + insn[i].imm + 1);
