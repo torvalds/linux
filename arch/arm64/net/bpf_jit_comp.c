@@ -897,6 +897,7 @@ struct bpf_prog *bpf_int_jit_compile(struct bpf_prog *prog)
 		image_ptr = jit_data->image;
 		header = jit_data->header;
 		extra_pass = true;
+		image_size = sizeof(u32) * ctx.idx;
 		goto skip_init_ctx;
 	}
 	memset(&ctx, 0, sizeof(ctx));
