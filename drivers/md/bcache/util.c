@@ -249,6 +249,13 @@ uint64_t bch_next_delay(struct bch_ratelimit *d, uint64_t done)
 		: 0;
 }
 
+/*
+ * Generally it isn't good to access .bi_io_vec and .bi_vcnt directly,
+ * the preferred way is bio_add_page, but in this case, bch_bio_map()
+ * supposes that the bvec table is empty, so it is safe to access
+ * .bi_vcnt & .bi_io_vec in this way even after multipage bvec is
+ * supported.
+ */
 void bch_bio_map(struct bio *bio, void *base)
 {
 	size_t size = bio->bi_iter.bi_size;
