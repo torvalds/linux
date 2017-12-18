@@ -554,12 +554,10 @@ static int libcfs_init(void)
 		goto cleanup_deregister;
 	}
 
-	/* max to 4 threads, should be enough for rehash */
-	rc = min(cfs_cpt_weight(cfs_cpt_table, CFS_CPT_ANY), 4);
-	rc = cfs_wi_sched_create("cfs_rh", cfs_cpt_table, CFS_CPT_ANY,
-				 rc, &cfs_sched_rehash);
-	if (rc) {
-		CERROR("Startup workitem scheduler: error: %d\n", rc);
+	cfs_rehash_wq = alloc_workqueue("cfs_rh", WQ_SYSFS, 4);
+	if (!cfs_rehash_wq) {
+		CERROR("Failed to start rehash workqueue.\n");
+		rc = -ENOMEM;
 		goto cleanup_deregister;
 	}
 
@@ -590,9 +588,9 @@ static void libcfs_exit(void)
 
 	lustre_remove_debugfs();
 
-	if (cfs_sched_rehash) {
-		cfs_wi_sched_destroy(cfs_sched_rehash);
-		cfs_sched_rehash = NULL;
+	if (cfs_rehash_wq) {
+		destroy_workqueue(cfs_rehash_wq);
+		cfs_rehash_wq = NULL;
 	}
 
 	cfs_crypto_unregister();

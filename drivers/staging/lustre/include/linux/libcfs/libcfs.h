@@ -126,7 +126,7 @@ extern struct miscdevice libcfs_dev;
  */
 extern char lnet_debug_log_upcall[1024];
 
-extern struct cfs_wi_sched *cfs_sched_rehash;
+extern struct workqueue_struct *cfs_rehash_wq;
 
 struct lnet_debugfs_symlink_def {
 	char *name;
