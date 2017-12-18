@@ -50,69 +50,100 @@
 #define FR_PLL_DIV0	0x1c
 #define FR_PLL_DIV1	0x1d
 
+static int meson_gxl_open_banks(struct phy_device *phydev)
+{
+	int ret;
+
+	/* Enable Analog and DSP register Bank access by
+	 * toggling TSTCNTL_TEST_MODE bit in the TSTCNTL register
+	 */
+	ret = phy_write(phydev, TSTCNTL, 0);
+	if (ret)
+		return ret;
+	ret = phy_write(phydev, TSTCNTL, TSTCNTL_TEST_MODE);
+	if (ret)
+		return ret;
+	ret = phy_write(phydev, TSTCNTL, 0);
+	if (ret)
+		return ret;
+	return phy_write(phydev, TSTCNTL, TSTCNTL_TEST_MODE);
+}
+
+static void meson_gxl_close_banks(struct phy_device *phydev)
+{
+	phy_write(phydev, TSTCNTL, 0);
+}
+
+static int meson_gxl_read_reg(struct phy_device *phydev,
+			      unsigned int bank, unsigned int reg)
+{
+	int ret;
+
+	ret = meson_gxl_open_banks(phydev);
+	if (ret)
+		goto out;
+
+	ret = phy_write(phydev, TSTCNTL, TSTCNTL_READ |
+			FIELD_PREP(TSTCNTL_REG_BANK_SEL, bank) |
+			TSTCNTL_TEST_MODE |
+			FIELD_PREP(TSTCNTL_READ_ADDRESS, reg));
+	if (ret)
+		goto out;
+
+	ret = phy_read(phydev, TSTREAD1);
+out:
+	/* Close the bank access on our way out */
+	meson_gxl_close_banks(phydev);
+	return ret;
+}
+
+static int meson_gxl_write_reg(struct phy_device *phydev,
+			       unsigned int bank, unsigned int reg,
+			       uint16_t value)
+{
+	int ret;
+
+	ret = meson_gxl_open_banks(phydev);
+	if (ret)
+		goto out;
+
+	ret = phy_write(phydev, TSTWRITE, value);
+	if (ret)
+		goto out;
+
+	ret = phy_write(phydev, TSTCNTL, TSTCNTL_WRITE |
+			FIELD_PREP(TSTCNTL_REG_BANK_SEL, bank) |
+			TSTCNTL_TEST_MODE |
+			FIELD_PREP(TSTCNTL_WRITE_ADDRESS, reg));
+
+out:
+	/* Close the bank access on our way out */
+	meson_gxl_close_banks(phydev);
+	return ret;
+}
+
 static int meson_gxl_config_init(struct phy_device *phydev)
 {
 	int ret;
 
-	/* Enable Analog and DSP register Bank access by */
-	ret = phy_write(phydev, TSTCNTL, 0);
-	if (ret)
-		return ret;
-	ret = phy_write(phydev, TSTCNTL, TSTCNTL_TEST_MODE);
-	if (ret)
-		return ret;
-	ret = phy_write(phydev, TSTCNTL, 0);
-	if (ret)
-		return ret;
-	ret = phy_write(phydev, TSTCNTL, TSTCNTL_TEST_MODE);
-	if (ret)
-		return ret;
-
 	/* Write CONFIG_A6*/
-	ret = phy_write(phydev, TSTWRITE, 0x8e0d);
-	if (ret)
-		return ret;
-	ret = phy_write(phydev, TSTCNTL,
-			TSTCNTL_WRITE
-			| FIELD_PREP(TSTCNTL_REG_BANK_SEL, BANK_ANALOG_DSP)
-			| TSTCNTL_TEST_MODE
-			| FIELD_PREP(TSTCNTL_WRITE_ADDRESS, A6_CONFIG_REG));
+	ret = meson_gxl_write_reg(phydev, BANK_ANALOG_DSP, A6_CONFIG_REG,
+				  0x8e0d);
 	if (ret)
 		return ret;
 
 	/* Enable fractional PLL */
-	ret = phy_write(phydev, TSTWRITE, 0x0005);
-	if (ret)
-		return ret;
-	ret = phy_write(phydev, TSTCNTL,
-			TSTCNTL_WRITE
-			| FIELD_PREP(TSTCNTL_REG_BANK_SEL, BANK_BIST)
-			| TSTCNTL_TEST_MODE
-			| FIELD_PREP(TSTCNTL_WRITE_ADDRESS, FR_PLL_CONTROL));
+	ret = meson_gxl_write_reg(phydev, BANK_BIST, FR_PLL_CONTROL, 0x5);
 	if (ret)
 		return ret;
 
 	/* Program fraction FR_PLL_DIV1 */
-	ret = phy_write(phydev, TSTWRITE, 0x029a);
-	if (ret)
-		return ret;
-	ret = phy_write(phydev, TSTCNTL,
-			TSTCNTL_WRITE
-			| FIELD_PREP(TSTCNTL_REG_BANK_SEL, BANK_BIST)
-			| TSTCNTL_TEST_MODE
-			| FIELD_PREP(TSTCNTL_WRITE_ADDRESS, FR_PLL_DIV1));
+	ret = meson_gxl_write_reg(phydev, BANK_BIST, FR_PLL_DIV1, 0x029a);
 	if (ret)
 		return ret;
 
 	/* Program fraction FR_PLL_DIV1 */
-	ret = phy_write(phydev, TSTWRITE, 0xaaaa);
-	if (ret)
-		return ret;
-	ret = phy_write(phydev, TSTCNTL,
-			TSTCNTL_WRITE
-			| FIELD_PREP(TSTCNTL_REG_BANK_SEL, BANK_BIST)
-			| TSTCNTL_TEST_MODE
-			| FIELD_PREP(TSTCNTL_WRITE_ADDRESS, FR_PLL_DIV0));
+	ret = meson_gxl_write_reg(phydev, BANK_BIST, FR_PLL_DIV0, 0xaaaa);
 	if (ret)
 		return ret;
 
@@ -146,31 +177,8 @@ static int meson_gxl_read_status(struct phy_device *phydev)
 		else if (!ret)
 			goto read_status_continue;
 
-		/* Need to access WOL bank, make sure the access is open */
-		ret = phy_write(phydev, TSTCNTL, 0);
-		if (ret)
-			return ret;
-		ret = phy_write(phydev, TSTCNTL, TSTCNTL_TEST_MODE);
-		if (ret)
-			return ret;
-		ret = phy_write(phydev, TSTCNTL, 0);
-		if (ret)
-			return ret;
-		ret = phy_write(phydev, TSTCNTL, TSTCNTL_TEST_MODE);
-		if (ret)
-			return ret;
-
-		/* Request LPI_STATUS WOL register */
-		ret = phy_write(phydev, TSTCNTL,
-				TSTCNTL_READ
-				| FIELD_PREP(TSTCNTL_REG_BANK_SEL, BANK_WOL)
-				| TSTCNTL_TEST_MODE
-				| FIELD_PREP(TSTCNTL_READ_ADDRESS, LPI_STATUS));
-		if (ret)
-			return ret;
-
-		/* Read LPI_STATUS value */
-		wol = phy_read(phydev, TSTREAD1);
+		/* Aneg is done, let's check everything is fine */
+		wol = meson_gxl_read_reg(phydev, BANK_WOL, LPI_STATUS);
 		if (wol < 0)
 			return wol;
 
