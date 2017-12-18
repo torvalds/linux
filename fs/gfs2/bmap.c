@@ -461,13 +461,6 @@ enum alloc_state {
 	/* ALLOC_UNSTUFF = 3,   TBD and rather complicated */
 };
 
-static inline unsigned int hptrs(struct gfs2_sbd *sdp, const unsigned int hgt)
-{
-	if (hgt)
-		return sdp->sd_inptrs;
-	return sdp->sd_diptrs;
-}
-
 /**
  * gfs2_bmap_alloc - Build a metadata tree of the requested height
  * @inode: The GFS2 inode
@@ -1243,38 +1236,48 @@ out:
 	return ret;
 }
 
+static bool mp_eq_to_hgt(struct metapath *mp, __u16 *list, unsigned int h)
+{
+	if (memcmp(mp->mp_list, list, h * sizeof(mp->mp_list[0])))
+		return false;
+	return true;
+}
+
 /**
  * find_nonnull_ptr - find a non-null pointer given a metapath and height
- * assumes the metapath is valid (with buffers) out to height h
  * @mp: starting metapath
  * @h: desired height to search
  *
+ * Assumes the metapath is valid (with buffers) out to height h.
  * Returns: true if a non-null pointer was found in the metapath buffer
  *          false if all remaining pointers are NULL in the buffer
  */
 static bool find_nonnull_ptr(struct gfs2_sbd *sdp, struct metapath *mp,
-			     unsigned int h)
+			     unsigned int h,
+			     __u16 *end_list, unsigned int end_aligned)
 {
-	__be64 *ptr;
-	unsigned int ptrs = hptrs(sdp, h) - 1;
+	struct buffer_head *bh = mp->mp_bh[h];
+	__be64 *first, *ptr, *end;
 
-	while (true) {
-		ptr = metapointer(h, mp);
+	first = metaptr1(h, mp);
+	ptr = first + mp->mp_list[h];
+	end = (__be64 *)(bh->b_data + bh->b_size);
+	if (end_list && mp_eq_to_hgt(mp, end_list, h)) {
+		bool keep_end = h < end_aligned;
+		end = first + end_list[h] + keep_end;
+	}
+
+	while (ptr < end) {
 		if (*ptr) { /* if we have a non-null pointer */
-			/* Now zero the metapath after the current height. */
+			mp->mp_list[h] = ptr - first;
 			h++;
 			if (h < GFS2_MAX_META_HEIGHT)
-				memset(&mp->mp_list[h], 0,
-				       (GFS2_MAX_META_HEIGHT - h) *
-				       sizeof(mp->mp_list[0]));
+				mp->mp_list[h] = 0;
 			return true;
 		}
-
-		if (mp->mp_list[h] < ptrs)
-			mp->mp_list[h]++;
-		else
-			return false; /* no more pointers in this buffer */
+		ptr++;
 	}
+	return false;
 }
 
 enum dealloc_states {
@@ -1284,16 +1287,10 @@ enum dealloc_states {
 	DEALLOC_DONE = 3,       /* process complete */
 };
 
-static bool mp_eq_to_hgt(struct metapath *mp, __u16 *list, unsigned int h)
-{
-	if (memcmp(mp->mp_list, list, h * sizeof(mp->mp_list[0])))
-		return false;
-	return true;
-}
-
 static inline void
 metapointer_range(struct metapath *mp, int height,
 		  __u16 *start_list, unsigned int start_aligned,
+		  __u16 *end_list, unsigned int end_aligned,
 		  __be64 **start, __be64 **end)
 {
 	struct buffer_head *bh = mp->mp_bh[height];
@@ -1306,29 +1303,55 @@ metapointer_range(struct metapath *mp, int height,
 		*start = first + start_list[height] + keep_start;
 	}
 	*end = (__be64 *)(bh->b_data + bh->b_size);
+	if (end_list && mp_eq_to_hgt(mp, end_list, height)) {
+		bool keep_end = height < end_aligned;
+		*end = first + end_list[height] + keep_end;
+	}
+}
+
+static inline bool walk_done(struct gfs2_sbd *sdp,
+			     struct metapath *mp, int height,
+			     __u16 *end_list, unsigned int end_aligned)
+{
+	__u16 end;
+
+	if (end_list) {
+		bool keep_end = height < end_aligned;
+		if (!mp_eq_to_hgt(mp, end_list, height))
+			return false;
+		end = end_list[height] + keep_end;
+	} else
+		end = (height > 0) ? sdp->sd_inptrs : sdp->sd_diptrs;
+	return mp->mp_list[height] >= end;
 }
 
 /**
- * trunc_dealloc - truncate a file down to a desired size
+ * punch_hole - deallocate blocks in a file
  * @ip: inode to truncate
- * @newsize: The desired size of the file
+ * @offset: the start of the hole
+ * @length: the size of the hole (or 0 for truncate)
  *
- * This function truncates a file to newsize. It works from the
- * bottom up, and from the right to the left. In other words, it strips off
- * the highest layer (data) before stripping any of the metadata. Doing it
- * this way is best in case the operation is interrupted by power failure, etc.
- * The dinode is rewritten in every transaction to guarantee integrity.
+ * Punch a hole into a file or truncate a file at a given position.  This
+ * function operates in whole blocks (@offset and @length are rounded
+ * accordingly); partially filled blocks must be cleared otherwise.
+ *
+ * This function works from the bottom up, and from the right to the left. In
+ * other words, it strips off the highest layer (data) before stripping any of
+ * the metadata. Doing it this way is best in case the operation is interrupted
+ * by power failure, etc.  The dinode is rewritten in every transaction to
+ * guarantee integrity.
  */
-static int trunc_dealloc(struct gfs2_inode *ip, u64 newsize)
+static int punch_hole(struct gfs2_inode *ip, u64 offset, u64 length)
 {
 	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
-	struct metapath mp;
+	struct metapath mp = {};
 	struct buffer_head *dibh, *bh;
 	struct gfs2_holder rd_gh;
 	unsigned int bsize_shift = sdp->sd_sb.sb_bsize_shift;
-	u64 lblock = (newsize + (1 << bsize_shift) - 1) >> bsize_shift;
-	__u16 start_list[GFS2_MAX_META_HEIGHT]; /* new beginning of truncation */
-	unsigned int start_aligned;
+	u64 lblock = (offset + (1 << bsize_shift) - 1) >> bsize_shift;
+	__u16 start_list[GFS2_MAX_META_HEIGHT];
+	__u16 __end_list[GFS2_MAX_META_HEIGHT], *end_list = NULL;
+	unsigned int start_aligned, end_aligned;
 	unsigned int strip_h = ip->i_height - 1;
 	u32 btotal = 0;
 	int ret, state;
@@ -1336,19 +1359,49 @@ static int trunc_dealloc(struct gfs2_inode *ip, u64 newsize)
 	u64 prev_bnr = 0;
 	__be64 *start, *end;
 
-	memset(&mp, 0, sizeof(mp));
-	find_metapath(sdp, lblock, &mp, ip->i_height);
+	/*
+	 * The start position of the hole is defined by lblock, start_list, and
+	 * start_aligned.  The end position of the hole is defined by lend,
+	 * end_list, and end_aligned.
+	 *
+	 * start_aligned and end_aligned define down to which height the start
+	 * and end positions are aligned to the metadata tree (i.e., the
+	 * position is a multiple of the metadata granularity at the height
+	 * above).  This determines at which heights additional meta pointers
+	 * needs to be preserved for the remaining data.
+	 */
 
+	if (length) {
+		u64 maxsize = sdp->sd_heightsize[ip->i_height];
+		u64 end_offset = offset + length;
+		u64 lend;
+
+		/*
+		 * Clip the end at the maximum file size for the given height:
+		 * that's how far the metadata goes; files bigger than that
+		 * will have additional layers of indirection.
+		 */
+		if (end_offset > maxsize)
+			end_offset = maxsize;
+		lend = end_offset >> bsize_shift;
+
+		if (lblock >= lend)
+			return 0;
+
+		find_metapath(sdp, lend, &mp, ip->i_height);
+		end_list = __end_list;
+		memcpy(end_list, mp.mp_list, sizeof(mp.mp_list));
+
+		for (mp_h = ip->i_height - 1; mp_h > 0; mp_h--) {
+			if (end_list[mp_h])
+				break;
+		}
+		end_aligned = mp_h;
+	}
+
+	find_metapath(sdp, lblock, &mp, ip->i_height);
 	memcpy(start_list, mp.mp_list, sizeof(start_list));
 
-	/*
-	 * Set start_aligned to the metadata height up to which the truncate
-	 * point is aligned to the metadata tree (i.e., the truncate point is a
-	 * multiple of the granularity at the height above).  This determines
-	 * at which heights an additional meta pointer needs to be preserved:
-	 * an additional meta pointer is needed at a given height if
-	 * height < start_aligned.
-	 */
 	for (mp_h = ip->i_height - 1; mp_h > 0; mp_h--) {
 		if (start_list[mp_h])
 			break;
@@ -1367,7 +1420,7 @@ static int trunc_dealloc(struct gfs2_inode *ip, u64 newsize)
 	/* issue read-ahead on metadata */
 	for (mp_h = 0; mp_h < mp.mp_aheight - 1; mp_h++) {
 		metapointer_range(&mp, mp_h, start_list, start_aligned,
-				  &start, &end);
+				  end_list, end_aligned, &start, &end);
 		gfs2_metapath_ra(ip->i_gl, start, end);
 	}
 
@@ -1411,7 +1464,14 @@ static int trunc_dealloc(struct gfs2_inode *ip, u64 newsize)
 				goto out;
 			}
 
+			/*
+			 * Below, passing end_aligned as 0 gives us the
+			 * metapointer range excluding the end point: the end
+			 * point is the first metapath we must not deallocate!
+			 */
+
 			metapointer_range(&mp, mp_h, start_list, start_aligned,
+					  end_list, 0 /* end_aligned */,
 					  &start, &end);
 			ret = sweep_bh_for_rgrps(ip, &rd_gh, mp.mp_bh[mp_h],
 						 start, end,
@@ -1448,13 +1508,13 @@ static int trunc_dealloc(struct gfs2_inode *ip, u64 newsize)
 			}
 			mp.mp_list[mp_h] = 0;
 			mp_h--; /* search one metadata height down */
-			if (mp.mp_list[mp_h] >= hptrs(sdp, mp_h) - 1)
-				break; /* loop around in the same state */
 			mp.mp_list[mp_h]++;
+			if (walk_done(sdp, &mp, mp_h, end_list, end_aligned))
+				break;
 			/* Here we've found a part of the metapath that is not
 			 * allocated. We need to search at that height for the
 			 * next non-null pointer. */
-			if (find_nonnull_ptr(sdp, &mp, mp_h)) {
+			if (find_nonnull_ptr(sdp, &mp, mp_h, end_list, end_aligned)) {
 				state = DEALLOC_FILL_MP;
 				mp_h++;
 			}
@@ -1474,6 +1534,7 @@ static int trunc_dealloc(struct gfs2_inode *ip, u64 newsize)
 				for (; ret > 1; ret--) {
 					metapointer_range(&mp, mp.mp_aheight - ret,
 							  start_list, start_aligned,
+							  end_list, end_aligned,
 							  &start, &end);
 					gfs2_metapath_ra(ip->i_gl, start, end);
 				}
@@ -1490,7 +1551,7 @@ static int trunc_dealloc(struct gfs2_inode *ip, u64 newsize)
 			/* If we find a non-null block pointer, crawl a bit
 			   higher up in the metapath and try again, otherwise
 			   we need to look lower for a new starting point. */
-			if (find_nonnull_ptr(sdp, &mp, mp_h))
+			if (find_nonnull_ptr(sdp, &mp, mp_h, end_list, end_aligned))
 				mp_h++;
 			else
 				state = DEALLOC_MP_LOWER;
@@ -1587,7 +1648,7 @@ static int do_shrink(struct inode *inode, u64 newsize)
 	if (gfs2_is_stuffed(ip))
 		return 0;
 
-	error = trunc_dealloc(ip, newsize);
+	error = punch_hole(ip, newsize, 0);
 	if (error == 0)
 		error = trunc_end(ip);
 
@@ -1719,7 +1780,7 @@ out:
 int gfs2_truncatei_resume(struct gfs2_inode *ip)
 {
 	int error;
-	error = trunc_dealloc(ip, i_size_read(&ip->i_inode));
+	error = punch_hole(ip, i_size_read(&ip->i_inode), 0);
 	if (!error)
 		error = trunc_end(ip);
 	return error;
@@ -1727,7 +1788,7 @@ int gfs2_truncatei_resume(struct gfs2_inode *ip)
 
 int gfs2_file_dealloc(struct gfs2_inode *ip)
 {
-	return trunc_dealloc(ip, 0);
+	return punch_hole(ip, 0, 0);
 }
 
 /**
