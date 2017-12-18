@@ -22,6 +22,7 @@
 #include <linux/of_gpio.h>
 #include <linux/gpio/consumer.h>
 #include <linux/slab.h>
+#include <uapi/linux/uleds.h>
 
 #define LP8860_DISP_CL1_BRT_MSB		0x00
 #define LP8860_DISP_CL1_BRT_LSB		0x01
@@ -86,8 +87,6 @@
 
 #define LP8860_CLEAR_FAULTS		0x01
 
-#define LP8860_DISP_LED_NAME		"display_cluster"
-
 /**
  * struct lp8860_led -
  * @lock - Lock for reading/writing the device
@@ -107,7 +106,7 @@ struct lp8860_led {
 	struct regmap *eeprom_regmap;
 	struct gpio_desc *enable_gpio;
 	struct regulator *regulator;
-	const char *label;
+	char label[LED_MAX_NAME_SIZE];
 };
 
 struct lp8860_eeprom_reg {
@@ -387,19 +386,21 @@ static int lp8860_probe(struct i2c_client *client,
 	int ret;
 	struct lp8860_led *led;
 	struct device_node *np = client->dev.of_node;
+	struct device_node *child_node;
+	const char *name;
 
 	led = devm_kzalloc(&client->dev, sizeof(*led), GFP_KERNEL);
 	if (!led)
 		return -ENOMEM;
 
-	led->label = LP8860_DISP_LED_NAME;
-
-	if (client->dev.of_node) {
-		ret = of_property_read_string(np, "label", &led->label);
-		if (ret) {
-			dev_err(&client->dev, "Missing label in dt\n");
-			return -EINVAL;
-		}
+	for_each_available_child_of_node(np, child_node) {
+		ret = of_property_read_string(child_node, "label", &name);
+		if (!ret)
+			snprintf(led->label, sizeof(led->label), "%s:%s",
+				 id->name, name);
+		else
+			snprintf(led->label, sizeof(led->label),
+				"%s::display_cluster", id->name);
 	}
 
 	led->enable_gpio = devm_gpiod_get_optional(&client->dev,
