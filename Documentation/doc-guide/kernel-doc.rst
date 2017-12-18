@@ -112,16 +112,17 @@ Example kernel-doc function comment::
 
   /**
    * foobar() - Brief description of foobar.
-   * @arg: Description of argument of foobar.
+   * @argument1: Description of parameter argument1 of foobar.
+   * @argument2: Description of parameter argument2 of foobar.
    *
    * Longer description of foobar.
    *
    * Return: Description of return value of foobar.
    */
-  int foobar(int arg)
+  int foobar(int argument1, char *argument2)
 
 The format is similar for documentation for structures, enums, paragraphs,
-etc. See the sections below for details.
+etc. See the sections below for specific details of each type.
 
 The kernel-doc structure is extracted from the comments, and proper `Sphinx C
 Domain`_ function and type descriptions with anchors are generated for them. The
@@ -129,6 +130,43 @@ descriptions are filtered for special kernel-doc highlights and
 cross-references. See below for details.
 
 .. _Sphinx C Domain: http://www.sphinx-doc.org/en/stable/domains.html
+
+
+Parameters and member arguments
+-------------------------------
+
+The kernel-doc function comments describe each parameter to the function and
+function typedefs or each member of struct/union, in order, with the
+``@argument:`` descriptions. For each non-private member argument, one
+``@argument`` definition is needed.
+
+The ``@argument:`` descriptions begin on the very next line following
+the opening brief function description line, with no intervening blank
+comment lines.
+
+The ``@argument:`` descriptions may span multiple lines.
+
+.. note::
+
+   If the ``@argument`` description has multiple lines, the continuation
+   of the description should be starting exactly at the same column as
+   the previous line, e. g.::
+
+      * @argument: some long description
+      *       that continues on next lines
+
+   or::
+
+      * @argument:
+      *		some long description
+      *		that continues on next lines
+
+If a function or typedef parameter argument is ``...`` (e. g. a variable
+number of arguments), its description should be listed in kernel-doc
+notation as::
+
+      * @...: description
+
 
 Highlights and cross-references
 -------------------------------
