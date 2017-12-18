@@ -32,4 +32,10 @@ config PINCTRL_STM32H743
 	depends on OF
 	default MACH_STM32H743
 	select PINCTRL_STM32
+
+config PINCTRL_STM32MP157
+	bool "STMicroelectronics STM32MP157 pin control" if COMPILE_TEST && !MACH_STM32MP157
+	depends on OF
+	default MACH_STM32MP157
+	select PINCTRL_STM32
 endif
