@@ -299,6 +299,18 @@ static int sh_mobile_i2c_init(struct sh_mobile_i2c_data *pd)
 	return sh_mobile_i2c_check_timing(pd);
 }
 
+static int sh_mobile_i2c_v2_init(struct sh_mobile_i2c_data *pd)
+{
+	unsigned long clks_per_cycle;
+
+	/* L = 5, H = 4, L + H = 9 */
+	clks_per_cycle = clk_get_rate(pd->clk) / pd->bus_speed;
+	pd->iccl = DIV_ROUND_UP(clks_per_cycle * 5 / 9 - 1, pd->clks_per_count);
+	pd->icch = DIV_ROUND_UP(clks_per_cycle * 4 / 9 - 5, pd->clks_per_count);
+
+	return sh_mobile_i2c_check_timing(pd);
+}
+
 static unsigned char i2c_op(struct sh_mobile_i2c_data *pd,
 			    enum sh_mobile_i2c_op op, unsigned char data)
 {
@@ -785,6 +797,11 @@ static const struct sh_mobile_dt_config fast_clock_dt_config = {
 	.setup = sh_mobile_i2c_init,
 };
 
+static const struct sh_mobile_dt_config v2_freq_calc_dt_config = {
+	.clks_per_count = 2,
+	.setup = sh_mobile_i2c_v2_init,
+};
+
 static const struct sh_mobile_dt_config r8a7740_dt_config = {
 	.clks_per_count = 1,
 	.setup = sh_mobile_i2c_r8a7740_workaround,
@@ -875,7 +892,7 @@ static int sh_mobile_i2c_probe(struct platform_device *dev)
 		return PTR_ERR(pd->reg);
 
 	ret = of_property_read_u32(dev->dev.of_node, "clock-frequency", &bus_speed);
-	pd->bus_speed = ret ? STANDARD_MODE : bus_speed;
+	pd->bus_speed = (ret || !bus_speed) ? STANDARD_MODE : bus_speed;
 	pd->clks_per_count = 1;
 
 	/* Newer variants come with two new bits in ICIC */
