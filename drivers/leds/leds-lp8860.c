@@ -421,7 +421,6 @@ static int lp8860_probe(struct i2c_client *client,
 
 	led->client = client;
 	led->led_dev.name = led->label;
-	led->led_dev.max_brightness = LED_FULL;
 	led->led_dev.brightness_set_blocking = lp8860_brightness_set;
 
 	mutex_init(&led->lock);
@@ -448,7 +447,7 @@ static int lp8860_probe(struct i2c_client *client,
 	if (ret)
 		return ret;
 
-	ret = led_classdev_register(&client->dev, &led->led_dev);
+	ret = devm_led_classdev_register(&client->dev, &led->led_dev);
 	if (ret) {
 		dev_err(&client->dev, "led register err: %d\n", ret);
 		return ret;
@@ -462,8 +461,6 @@ static int lp8860_remove(struct i2c_client *client)
 	struct lp8860_led *led = i2c_get_clientdata(client);
 	int ret;
 
-	led_classdev_unregister(&led->led_dev);
-
 	if (led->enable_gpio)
 		gpiod_direction_output(led->enable_gpio, 0);
 
@@ -474,6 +471,8 @@ static int lp8860_remove(struct i2c_client *client)
 				"Failed to disable regulator\n");
 	}
 
+	mutex_destroy(&led->lock);
+
 	return 0;
 }
 
@@ -483,18 +482,16 @@ static const struct i2c_device_id lp8860_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, lp8860_id);
 
-#ifdef CONFIG_OF
 static const struct of_device_id of_lp8860_leds_match[] = {
 	{ .compatible = "ti,lp8860", },
 	{},
 };
 MODULE_DEVICE_TABLE(of, of_lp8860_leds_match);
-#endif
 
 static struct i2c_driver lp8860_driver = {
 	.driver = {
 		.name	= "lp8860",
-		.of_match_table = of_match_ptr(of_lp8860_leds_match),
+		.of_match_table = of_lp8860_leds_match,
 	},
 	.probe		= lp8860_probe,
 	.remove		= lp8860_remove,
@@ -504,4 +501,4 @@ module_i2c_driver(lp8860_driver);
 
 MODULE_DESCRIPTION("Texas Instruments LP8860 LED driver");
 MODULE_AUTHOR("Dan Murphy <dmurphy@ti.com>");
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");
