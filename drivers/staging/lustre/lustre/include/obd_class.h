@@ -1562,7 +1562,7 @@ int class_procfs_init(void);
 int class_procfs_clean(void);
 
 /* prng.c */
-#define ll_generate_random_uuid(uuid_out) cfs_get_random_bytes(uuid_out, sizeof(class_uuid_t))
+#define ll_generate_random_uuid(uuid_out) get_random_bytes(uuid_out, sizeof(class_uuid_t))
 
 /* statfs_pack.c */
 struct kstatfs;

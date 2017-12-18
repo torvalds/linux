@@ -196,7 +196,7 @@ int class_handle_init(void)
 		spin_lock_init(&bucket->lock);
 	}
 
-	cfs_get_random_bytes(&handle_base, sizeof(handle_base));
+	get_random_bytes(&handle_base, sizeof(handle_base));
 	LASSERT(handle_base != 0ULL);
 
 	return 0;
