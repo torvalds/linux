@@ -159,8 +159,7 @@ static int __init lustre_init(void)
 	if (rc != 0)
 		goto out_inode_fini_env;
 
-	lustre_register_client_fill_super(ll_fill_super);
-	lustre_register_kill_super_cb(ll_kill_super);
+	lustre_register_super_ops(THIS_MODULE, ll_fill_super, ll_kill_super);
 	lustre_register_client_process_config(ll_process_config);
 
 	return 0;
@@ -181,8 +180,7 @@ out_cache:
 
 static void __exit lustre_exit(void)
 {
-	lustre_register_client_fill_super(NULL);
-	lustre_register_kill_super_cb(NULL);
+	lustre_register_super_ops(NULL, NULL, NULL);
 	lustre_register_client_process_config(NULL);
 
 	debugfs_remove(llite_root);
