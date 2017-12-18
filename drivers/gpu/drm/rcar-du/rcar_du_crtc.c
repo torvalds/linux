@@ -132,7 +132,7 @@ static void rcar_du_dpll_divider(struct rcar_du_crtc *rcrtc,
 
 				output = input * (n + 1) / (m + 1)
 				       / (fdpll + 1);
-				if (output >= 400000000)
+				if (output >= 400 * 1000 * 1000)
 					continue;
 
 				diff = abs((long)output - (long)target);
