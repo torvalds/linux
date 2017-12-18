@@ -2839,10 +2839,11 @@ int amdgpu_dm_connector_mode_valid(struct drm_connector *connector,
 	if (dc_result == DC_OK)
 		result = MODE_OK;
 	else
-		DRM_DEBUG_KMS("Mode %dx%d (clk %d) failed DC validation\n",
+		DRM_DEBUG_KMS("Mode %dx%d (clk %d) failed DC validation with error %d\n",
 			      mode->vdisplay,
 			      mode->hdisplay,
-			      mode->clock);
+			      mode->clock,
+			      dc_result);
 
 	dc_stream_release(stream);
 
