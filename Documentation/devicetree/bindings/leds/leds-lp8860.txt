@@ -9,20 +9,33 @@ Required properties:
 	- compatible :
 		"ti,lp8860"
 	- reg : I2C slave address
-	- label : Used for naming LEDs
+	- #address-cells : 1
+	- #size-cells : 0
 
 Optional properties:
 	- enable-gpios : gpio pin to enable (active high)/disable the device.
 	- vled-supply : LED supply
 
+Required child properties:
+	- reg : 0
+
+Optional child properties:
+	- label : see Documentation/devicetree/bindings/leds/common.txt
+
 Example:
 
 led-controller@2d {
 	compatible = "ti,lp8860";
+	#address-cells = <1>;
+	#size-cells = <0>;
 	reg = <0x2d>;
-	label = "display_cluster";
 	enable-gpios = <&gpio1 28 GPIO_ACTIVE_HIGH>;
 	vled-supply = <&vbatt>;
+
+	led@0 {
+		reg = <0>;
+		label = "white:backlight";
+	};
 }
 
 For more product information please see the link below:
