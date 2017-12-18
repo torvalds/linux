@@ -441,6 +441,13 @@
 				clock-names = "ipg", "per";
 			};
 
+			srtc: rtc@53fa4000 {
+				compatible = "fsl,imx53-rtc";
+				reg = <0x53fa4000 0x4000>;
+				interrupts = <24>;
+				clocks = <&clks IMX5_CLK_SRTC_GATE>;
+			};
+
 			iomuxc: iomuxc@53fa8000 {
 				compatible = "fsl,imx53-iomuxc";
 				reg = <0x53fa8000 0x4000>;
