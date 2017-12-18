@@ -2364,12 +2364,12 @@ create_stream_for_sink(struct amdgpu_dm_connector *aconnector,
 
 	if (aconnector == NULL) {
 		DRM_ERROR("aconnector is NULL!\n");
-		goto drm_connector_null;
+		return stream;
 	}
 
 	if (dm_state == NULL) {
 		DRM_ERROR("dm_state is NULL!\n");
-		goto dm_state_null;
+		return stream;
 	}
 
 	drm_connector = &aconnector->base;
@@ -2381,18 +2381,18 @@ create_stream_for_sink(struct amdgpu_dm_connector *aconnector,
 		 */
 		if (aconnector->mst_port) {
 			dm_dp_mst_dc_sink_create(drm_connector);
-			goto mst_dc_sink_create_done;
+			return stream;
 		}
 
 		if (create_fake_sink(aconnector))
-			goto stream_create_fail;
+			return stream;
 	}
 
 	stream = dc_create_stream_for_sink(aconnector->dc_sink);
 
 	if (stream == NULL) {
 		DRM_ERROR("Failed to create stream for sink!\n");
-		goto stream_create_fail;
+		return stream;
 	}
 
 	list_for_each_entry(preferred_mode, &aconnector->base.modes, head) {
@@ -2430,10 +2430,6 @@ create_stream_for_sink(struct amdgpu_dm_connector *aconnector,
 		drm_connector,
 		aconnector->dc_sink);
 
-stream_create_fail:
-dm_state_null:
-drm_connector_null:
-mst_dc_sink_create_done:
 	return stream;
 }
 
