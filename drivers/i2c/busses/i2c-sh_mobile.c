@@ -873,6 +873,10 @@ static int sh_mobile_i2c_probe(struct platform_device *dev)
 	pd->bus_speed = ret ? STANDARD_MODE : bus_speed;
 	pd->clks_per_count = 1;
 
+	/* Newer variants come with two new bits in ICIC */
+	if (resource_size(res) > 0x17)
+		pd->flags |= IIC_FLAG_HAS_ICIC67;
+
 	config = of_device_get_match_data(&dev->dev);
 	if (config) {
 		pd->clks_per_count = config->clks_per_count;
@@ -880,12 +884,6 @@ static int sh_mobile_i2c_probe(struct platform_device *dev)
 		if (config->setup)
 			config->setup(pd);
 	}
-
-	/* The IIC blocks on SH-Mobile ARM processors
-	 * come with two new bits in ICIC.
-	 */
-	if (resource_size(res) > 0x17)
-		pd->flags |= IIC_FLAG_HAS_ICIC67;
 
 	ret = sh_mobile_i2c_init(pd);
 	if (ret)
