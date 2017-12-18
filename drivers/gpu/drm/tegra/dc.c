@@ -1242,9 +1242,15 @@ static int tegra_dc_late_register(struct drm_crtc *crtc)
 {
 	unsigned int i, count = ARRAY_SIZE(debugfs_files);
 	struct drm_minor *minor = crtc->dev->primary;
-	struct dentry *root = crtc->debugfs_entry;
+	struct dentry *root;
 	struct tegra_dc *dc = to_tegra_dc(crtc);
 	int err;
+
+#ifdef CONFIG_DEBUG_FS
+	root = crtc->debugfs_entry;
+#else
+	root = NULL;
+#endif
 
 	dc->debugfs_files = kmemdup(debugfs_files, sizeof(debugfs_files),
 				    GFP_KERNEL);
