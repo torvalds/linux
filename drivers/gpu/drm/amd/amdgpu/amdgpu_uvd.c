@@ -346,6 +346,8 @@ int amdgpu_uvd_resume(struct amdgpu_device *adev)
 			ptr += le32_to_cpu(hdr->ucode_size_bytes);
 		}
 		memset_io(ptr, 0, size);
+		/* to restore uvd fence seq */
+		amdgpu_fence_driver_force_completion(&adev->uvd.ring);
 	}
 
 	return 0;
