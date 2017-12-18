@@ -8,6 +8,7 @@
 #include <linux/interrupt.h>
 #include <linux/kdev_t.h>
 #include <linux/slab.h>
+#include <linux/ctype.h>
 
 #include "gpiolib.h"
 
@@ -124,7 +125,7 @@ static ssize_t value_store(struct device *dev,
 {
 	struct gpiod_data *data = dev_get_drvdata(dev);
 	struct gpio_desc *desc = data->desc;
-	ssize_t			status;
+	ssize_t status = 0;
 
 	mutex_lock(&data->mutex);
 
@@ -133,7 +134,11 @@ static ssize_t value_store(struct device *dev,
 	} else {
 		long		value;
 
-		status = kstrtol(buf, 0, &value);
+		if (size <= 2 && isdigit(buf[0]) &&
+		    (size == 1 || buf[1] == '\n'))
+			value = buf[0] - '0';
+		else
+			status = kstrtol(buf, 0, &value);
 		if (status == 0) {
 			gpiod_set_value_cansleep(desc, value);
 			status = size;
