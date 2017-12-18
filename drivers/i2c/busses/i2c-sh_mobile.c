@@ -252,11 +252,7 @@ static int sh_mobile_i2c_init(struct sh_mobile_i2c_data *pd)
 	u32 tHIGH, tLOW, tf;
 	uint16_t max_val;
 
-	/* Get clock rate after clock is enabled */
-	clk_prepare_enable(pd->clk);
-	i2c_clk_khz = clk_get_rate(pd->clk) / 1000;
-	clk_disable_unprepare(pd->clk);
-	i2c_clk_khz /= pd->clks_per_count;
+	i2c_clk_khz = clk_get_rate(pd->clk) / 1000 / pd->clks_per_count;
 
 	if (pd->bus_speed == STANDARD_MODE) {
 		tLOW	= 47;	/* tLOW = 4.7 us */
@@ -881,21 +877,6 @@ static int sh_mobile_i2c_probe(struct platform_device *dev)
 	if (resource_size(res) > 0x17)
 		pd->flags |= IIC_FLAG_HAS_ICIC67;
 
-	config = of_device_get_match_data(&dev->dev);
-	if (config) {
-		pd->clks_per_count = config->clks_per_count;
-		ret = config->setup(pd);
-	} else {
-		ret = sh_mobile_i2c_init(pd);
-	}
-	if (ret)
-		return ret;
-
-	/* Init DMA */
-	sg_init_table(&pd->sg, 1);
-	pd->dma_direction = DMA_NONE;
-	pd->dma_rx = pd->dma_tx = ERR_PTR(-EPROBE_DEFER);
-
 	/* Enable Runtime PM for this device.
 	 *
 	 * Also tell the Runtime PM core to ignore children
@@ -908,6 +889,24 @@ static int sh_mobile_i2c_probe(struct platform_device *dev)
 	 */
 	pm_suspend_ignore_children(&dev->dev, true);
 	pm_runtime_enable(&dev->dev);
+	pm_runtime_get_sync(&dev->dev);
+
+	config = of_device_get_match_data(&dev->dev);
+	if (config) {
+		pd->clks_per_count = config->clks_per_count;
+		ret = config->setup(pd);
+	} else {
+		ret = sh_mobile_i2c_init(pd);
+	}
+
+	pm_runtime_put_sync(&dev->dev);
+	if (ret)
+		return ret;
+
+	/* Init DMA */
+	sg_init_table(&pd->sg, 1);
+	pd->dma_direction = DMA_NONE;
+	pd->dma_rx = pd->dma_tx = ERR_PTR(-EPROBE_DEFER);
 
 	/* setup the private data */
 	adap = &pd->adap;
