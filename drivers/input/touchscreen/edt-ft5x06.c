@@ -305,6 +305,9 @@ static irqreturn_t edt_ft5x06_ts_isr(int irq, void *dev_id)
 	int offset, tplen, datalen, crclen;
 	int error;
 
+	if ((!tsdata) || (!tsdata->input))
+		return;
+
 	switch (tsdata->version) {
 	case EDT_M06:
 		cmd = M06_TOUCH_REPORT_REQ; /* tell the controller to send touch data */
