@@ -268,12 +268,12 @@ my $kernelversion;
 my $dohighlight = "";
 
 my $verbose = 0;
-my $output_mode = "man";
+my $output_mode = "rst";
 my $output_preformatted = 0;
 my $no_doc_sections = 0;
 my $enable_lineno = 0;
-my @highlights = @highlights_man;
-my $blankline = $blankline_man;
+my @highlights = @highlights_rst;
+my $blankline = $blankline_rst;
 my $modulename = "Kernel API";
 
 use constant {
