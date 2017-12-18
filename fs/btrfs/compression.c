@@ -563,7 +563,7 @@ blk_status_t btrfs_submit_compressed_read(struct inode *inode, struct bio *bio,
 	/* we need the actual starting offset of this extent in the file */
 	read_lock(&em_tree->lock);
 	em = lookup_extent_mapping(em_tree,
-				   page_offset(bio->bi_io_vec->bv_page),
+				   page_offset(bio_first_page_all(bio)),
 				   PAGE_SIZE);
 	read_unlock(&em_tree->lock);
 	if (!em)
