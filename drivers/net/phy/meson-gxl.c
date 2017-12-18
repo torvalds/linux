@@ -255,4 +255,5 @@ MODULE_DEVICE_TABLE(mdio, meson_gxl_tbl);
 MODULE_DESCRIPTION("Amlogic Meson GXL Internal PHY driver");
 MODULE_AUTHOR("Baoqi wang");
 MODULE_AUTHOR("Neil Armstrong <narmstrong@baylibre.com>");
+MODULE_AUTHOR("Jerome Brunet <jbrunet@baylibre.com>");
 MODULE_LICENSE("GPL");
