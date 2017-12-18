@@ -1716,6 +1716,8 @@ static void i40evf_watchdog_task(struct work_struct *work)
 	if (adapter->state == __I40EVF_RUNNING)
 		i40evf_request_stats(adapter);
 watchdog_done:
+	if (adapter->state == __I40EVF_RUNNING)
+		i40evf_detect_recover_hung(&adapter->vsi);
 	clear_bit(__I40EVF_IN_CRITICAL_TASK, &adapter->crit_section);
 restart_watchdog:
 	if (adapter->state == __I40EVF_REMOVE)

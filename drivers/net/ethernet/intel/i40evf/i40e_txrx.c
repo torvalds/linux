@@ -148,6 +148,59 @@ u32 i40evf_get_tx_pending(struct i40e_ring *ring, bool in_sw)
 	return 0;
 }
 
+/**
+ * i40evf_detect_recover_hung - Function to detect and recover hung_queues
+ * @vsi:  pointer to vsi struct with tx queues
+ *
+ * VSI has netdev and netdev has TX queues. This function is to check each of
+ * those TX queues if they are hung, trigger recovery by issuing SW interrupt.
+ **/
+void i40evf_detect_recover_hung(struct i40e_vsi *vsi)
+{
+	struct i40e_ring *tx_ring = NULL;
+	struct net_device *netdev;
+	unsigned int i;
+	int packets;
+
+	if (!vsi)
+		return;
+
+	if (test_bit(__I40E_VSI_DOWN, vsi->state))
+		return;
+
+	netdev = vsi->netdev;
+	if (!netdev)
+		return;
+
+	if (!netif_carrier_ok(netdev))
+		return;
+
+	for (i = 0; i < vsi->back->num_active_queues; i++) {
+		tx_ring = &vsi->back->tx_rings[i];
+		if (tx_ring && tx_ring->desc) {
+			/* If packet counter has not changed the queue is
+			 * likely stalled, so force an interrupt for this
+			 * queue.
+			 *
+			 * prev_pkt_ctr would be negative if there was no
+			 * pending work.
+			 */
+			packets = tx_ring->stats.packets & INT_MAX;
+			if (tx_ring->tx_stats.prev_pkt_ctr == packets) {
+				i40evf_force_wb(vsi, tx_ring->q_vector);
+				continue;
+			}
+
+			/* Memory barrier between read of packet count and call
+			 * to i40evf_get_tx_pending()
+			 */
+			smp_rmb();
+			tx_ring->tx_stats.prev_pkt_ctr =
+			  i40evf_get_tx_pending(tx_ring, false) ? packets : -1;
+		}
+	}
+}
+
 #define WB_STRIDE 4
 
 /**
@@ -469,6 +522,7 @@ int i40evf_setup_tx_descriptors(struct i40e_ring *tx_ring)
 
 	tx_ring->next_to_use = 0;
 	tx_ring->next_to_clean = 0;
+	tx_ring->tx_stats.prev_pkt_ctr = -1;
 	return 0;
 
 err:

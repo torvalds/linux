@@ -4877,104 +4877,6 @@ static int i40e_pf_wait_queues_disabled(struct i40e_pf *pf)
 #endif
 
 /**
- * i40e_detect_recover_hung_queue - Function to detect and recover hung_queue
- * @q_idx: TX queue number
- * @vsi: Pointer to VSI struct
- *
- * This function checks specified queue for given VSI. Detects hung condition.
- * We proactively detect hung TX queues by checking if interrupts are disabled
- * but there are pending descriptors.  If it appears hung, attempt to recover
- * by triggering a SW interrupt.
- **/
-static void i40e_detect_recover_hung_queue(int q_idx, struct i40e_vsi *vsi)
-{
-	struct i40e_ring *tx_ring = NULL;
-	struct i40e_pf	*pf;
-	u32 val, tx_pending;
-	int i;
-
-	pf = vsi->back;
-
-	/* now that we have an index, find the tx_ring struct */
-	for (i = 0; i < vsi->num_queue_pairs; i++) {
-		if (vsi->tx_rings[i] && vsi->tx_rings[i]->desc) {
-			if (q_idx == vsi->tx_rings[i]->queue_index) {
-				tx_ring = vsi->tx_rings[i];
-				break;
-			}
-		}
-	}
-
-	if (!tx_ring)
-		return;
-
-	/* Read interrupt register */
-	if (pf->flags & I40E_FLAG_MSIX_ENABLED)
-		val = rd32(&pf->hw,
-			   I40E_PFINT_DYN_CTLN(tx_ring->q_vector->v_idx +
-					       tx_ring->vsi->base_vector - 1));
-	else
-		val = rd32(&pf->hw, I40E_PFINT_DYN_CTL0);
-
-	tx_pending = i40e_get_tx_pending(tx_ring);
-
-	/* Interrupts are disabled and TX pending is non-zero,
-	 * trigger the SW interrupt (don't wait). Worst case
-	 * there will be one extra interrupt which may result
-	 * into not cleaning any queues because queues are cleaned.
-	 */
-	if (tx_pending && (!(val & I40E_PFINT_DYN_CTLN_INTENA_MASK)))
-		i40e_force_wb(vsi, tx_ring->q_vector);
-}
-
-/**
- * i40e_detect_recover_hung - Function to detect and recover hung_queues
- * @pf:  pointer to PF struct
- *
- * LAN VSI has netdev and netdev has TX queues. This function is to check
- * each of those TX queues if they are hung, trigger recovery by issuing
- * SW interrupt.
- **/
-static void i40e_detect_recover_hung(struct i40e_pf *pf)
-{
-	struct net_device *netdev;
-	struct i40e_vsi *vsi;
-	unsigned int i;
-
-	/* Only for LAN VSI */
-	vsi = pf->vsi[pf->lan_vsi];
-
-	if (!vsi)
-		return;
-
-	/* Make sure, VSI state is not DOWN/RECOVERY_PENDING */
-	if (test_bit(__I40E_VSI_DOWN, vsi->back->state) ||
-	    test_bit(__I40E_RESET_RECOVERY_PENDING, vsi->back->state))
-		return;
-
-	/* Make sure type is MAIN VSI */
-	if (vsi->type != I40E_VSI_MAIN)
-		return;
-
-	netdev = vsi->netdev;
-	if (!netdev)
-		return;
-
-	/* Bail out if netif_carrier is not OK */
-	if (!netif_carrier_ok(netdev))
-		return;
-
-	/* Go thru' TX queues for netdev */
-	for (i = 0; i < netdev->num_tx_queues; i++) {
-		struct netdev_queue *q;
-
-		q = netdev_get_tx_queue(netdev, i);
-		if (q)
-			i40e_detect_recover_hung_queue(i, vsi);
-	}
-}
-
-/**
  * i40e_get_iscsi_tc_map - Return TC map for iSCSI APP
  * @pf: pointer to PF
  *
@@ -9695,7 +9597,7 @@ static void i40e_service_task(struct work_struct *work)
 	if (test_and_set_bit(__I40E_SERVICE_SCHED, pf->state))
 		return;
 
-	i40e_detect_recover_hung(pf);
+	i40e_detect_recover_hung(pf->vsi[pf->lan_vsi]);
 	i40e_sync_filters_subtask(pf);
 	i40e_reset_subtask(pf);
 	i40e_handle_mdd_event(pf);
