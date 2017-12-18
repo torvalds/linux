@@ -744,11 +744,6 @@ static int exynos5433_decon_probe(struct platform_device *pdev)
 	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(dev, "cannot find IO resource\n");
-		return -ENXIO;
-	}
-
 	ctx->addr = devm_ioremap_resource(dev, res);
 	if (IS_ERR(ctx->addr)) {
 		dev_err(dev, "ioremap failed\n");
