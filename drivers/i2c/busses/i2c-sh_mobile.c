@@ -771,15 +771,17 @@ static int sh_mobile_i2c_r8a7740_workaround(struct sh_mobile_i2c_data *pd)
 	iic_wr(pd, ICCR, ICCR_TRS);
 	udelay(10);
 
-	return 0;
+	return sh_mobile_i2c_init(pd);
 }
 
 static const struct sh_mobile_dt_config default_dt_config = {
 	.clks_per_count = 1,
+	.setup = sh_mobile_i2c_init,
 };
 
 static const struct sh_mobile_dt_config fast_clock_dt_config = {
 	.clks_per_count = 2,
+	.setup = sh_mobile_i2c_init,
 };
 
 static const struct sh_mobile_dt_config r8a7740_dt_config = {
@@ -882,15 +884,10 @@ static int sh_mobile_i2c_probe(struct platform_device *dev)
 	config = of_device_get_match_data(&dev->dev);
 	if (config) {
 		pd->clks_per_count = config->clks_per_count;
-
-		if (config->setup) {
-			ret = config->setup(pd);
-			if (ret)
-				return ret;
-		}
+		ret = config->setup(pd);
+	} else {
+		ret = sh_mobile_i2c_init(pd);
 	}
-
-	ret = sh_mobile_i2c_init(pd);
 	if (ret)
 		return ret;
 
