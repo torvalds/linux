@@ -1107,20 +1107,14 @@ invalid:
 	return -EINVAL;
 }
 
-struct lustre_mount_data2 {
-	void *lmd2_data;
-	struct vfsmount *lmd2_mnt;
-};
-
 /** This is the entry point for the mount call into Lustre.
  * This is called when a server or client is mounted,
  * and this is where we start setting things up.
  * @param data Mount options (e.g. -o flock,abort_recov)
  */
-static int lustre_fill_super(struct super_block *sb, void *data, int silent)
+static int lustre_fill_super(struct super_block *sb, void *lmd2_data, int silent)
 {
 	struct lustre_mount_data *lmd;
-	struct lustre_mount_data2 *lmd2 = data;
 	struct lustre_sb_info *lsi;
 	int rc;
 
@@ -1143,7 +1137,7 @@ static int lustre_fill_super(struct super_block *sb, void *data, int silent)
 	obd_zombie_barrier();
 
 	/* Figure out the lmd from the mount options */
-	if (lmd_parse((lmd2->lmd2_data), lmd)) {
+	if (lmd_parse(lmd2_data, lmd)) {
 		lustre_put_lsi(sb);
 		rc = -EINVAL;
 		goto out;
@@ -1165,7 +1159,7 @@ static int lustre_fill_super(struct super_block *sb, void *data, int silent)
 			}
 			/* Connect and start */
 			/* (should always be ll_fill_super) */
-			rc = (*client_fill_super)(sb, lmd2->lmd2_mnt);
+			rc = (*client_fill_super)(sb, NULL);
 			/* c_f_s will call lustre_common_put_super on failure */
 		}
 	} else {
@@ -1209,12 +1203,7 @@ EXPORT_SYMBOL(lustre_register_kill_super_cb);
 static struct dentry *lustre_mount(struct file_system_type *fs_type, int flags,
 				   const char *devname, void *data)
 {
-	struct lustre_mount_data2 lmd2 = {
-		.lmd2_data = data,
-		.lmd2_mnt = NULL
-	};
-
-	return mount_nodev(fs_type, flags, &lmd2, lustre_fill_super);
+	return mount_nodev(fs_type, flags, data, lustre_fill_super);
 }
 
 static void lustre_kill_super(struct super_block *sb)
