@@ -302,7 +302,7 @@ static irqreturn_t edt_ft5x06_ts_isr(int irq, void *dev_id)
 	u8 cmd;
 	u8 rdbuf[EDT_TOUCH_REPORT_MAX_SIZE];
 	int i, type, x, y, id;
-	int offset, tplen, datalen, crclen;
+	int offset, touch_cnt, tplen, datalen, crclen;
 	int error;
 
 	if ((!tsdata) || (!tsdata->input))
@@ -310,6 +310,7 @@ static irqreturn_t edt_ft5x06_ts_isr(int irq, void *dev_id)
 
 	switch (tsdata->version) {
 	case EDT_M06:
+		touch_cnt = tsdata->max_support_points;
 		cmd = M06_TOUCH_REPORT_REQ; /* tell the controller to send touch data */
 		offset = M06_TOUCH_REPORT; /* where the actual touch data starts */
 		tplen = M06_TOUCH_REPORT_LEN;  /* data comes in so called frames */
@@ -319,6 +320,7 @@ static irqreturn_t edt_ft5x06_ts_isr(int irq, void *dev_id)
 	case EDT_M09:
 	case EDT_M12:
 	case GENERIC_FT:
+		touch_cnt = 0;
 		cmd = 0x0;
 		offset = M09_TOUCH_REPORT;
 		tplen = M09_TOUCH_REPORT_LEN;
@@ -356,6 +358,8 @@ static irqreturn_t edt_ft5x06_ts_isr(int irq, void *dev_id)
 
 		if (!edt_ft5x06_ts_check_crc(tsdata, rdbuf, datalen))
 			goto out;
+	} else {
+		touch_cnt = rdbuf[M09_TD_STATUS];
 	}
 
 	for (i = 0; i < tsdata->max_support_points; i++) {
@@ -367,7 +371,7 @@ static irqreturn_t edt_ft5x06_ts_isr(int irq, void *dev_id)
 		type = buf[EDT_TOUCH_XH_EVENT] & EDT_TOUCH_EVENT_FLAG_MASK;
 
 		down = type != EDT_TOUCH_EVENT_UP;
-		if (!down) {
+		if (!down || i > touch_cnt) {
 			input_report_abs(tsdata->input, ABS_MT_TRACKING_ID, -1);
 			continue;
 		}
