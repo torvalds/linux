@@ -394,6 +394,10 @@ static int lp8860_probe(struct i2c_client *client,
 		return -ENOMEM;
 
 	for_each_available_child_of_node(np, child_node) {
+		led->led_dev.default_trigger = of_get_property(child_node,
+						    "linux,default-trigger",
+						    NULL);
+
 		ret = of_property_read_string(child_node, "label", &name);
 		if (!ret)
 			snprintf(led->label, sizeof(led->label), "%s:%s",
