@@ -160,11 +160,31 @@ static int efx_ef10_get_warm_boot_count(struct efx_nic *efx)
 		EFX_DWORD_FIELD(reg, EFX_WORD_0) : -EIO;
 }
 
+/* On all EF10s up to and including SFC9220 (Medford1), all PFs use BAR 0 for
+ * I/O space and BAR 2(&3) for memory.  On SFC9250 (Medford2), there is no I/O
+ * bar; PFs use BAR 0/1 for memory.
+ */
+static unsigned int efx_ef10_pf_mem_bar(struct efx_nic *efx)
+{
+	switch (efx->pci_dev->device) {
+	case 0x0b03: /* SFC9250 PF */
+		return 0;
+	default:
+		return 2;
+	}
+}
+
+/* All VFs use BAR 0/1 for memory */
+static unsigned int efx_ef10_vf_mem_bar(struct efx_nic *efx)
+{
+	return 0;
+}
+
 static unsigned int efx_ef10_mem_map_size(struct efx_nic *efx)
 {
 	int bar;
 
-	bar = efx->type->mem_bar;
+	bar = efx->type->mem_bar(efx);
 	return resource_size(&efx->pci_dev->resource[bar]);
 }
 
@@ -6392,7 +6412,7 @@ out_unlock:
 
 const struct efx_nic_type efx_hunt_a0_vf_nic_type = {
 	.is_vf = true,
-	.mem_bar = EFX_MEM_VF_BAR,
+	.mem_bar = efx_ef10_vf_mem_bar,
 	.mem_map_size = efx_ef10_mem_map_size,
 	.probe = efx_ef10_probe_vf,
 	.remove = efx_ef10_remove,
@@ -6500,7 +6520,7 @@ const struct efx_nic_type efx_hunt_a0_vf_nic_type = {
 
 const struct efx_nic_type efx_hunt_a0_nic_type = {
 	.is_vf = false,
-	.mem_bar = EFX_MEM_BAR,
+	.mem_bar = efx_ef10_pf_mem_bar,
 	.mem_map_size = efx_ef10_mem_map_size,
 	.probe = efx_ef10_probe_pf,
 	.remove = efx_ef10_remove,

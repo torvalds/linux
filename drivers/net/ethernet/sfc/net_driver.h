@@ -1154,7 +1154,7 @@ struct efx_udp_tunnel {
  */
 struct efx_nic_type {
 	bool is_vf;
-	unsigned int mem_bar;
+	unsigned int (*mem_bar)(struct efx_nic *efx);
 	unsigned int (*mem_map_size)(struct efx_nic *efx);
 	int (*probe)(struct efx_nic *efx);
 	void (*remove)(struct efx_nic *efx);
