@@ -186,6 +186,7 @@ enum i40evf_state_t {
 enum i40evf_critical_section_t {
 	__I40EVF_IN_CRITICAL_TASK,	/* cannot be interrupted */
 	__I40EVF_IN_CLIENT_TASK,
+	__I40EVF_IN_REMOVE_TASK,	/* device being removed */
 };
 
 /* board specific private data structure */
