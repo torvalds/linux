@@ -10972,7 +10972,7 @@ i40e_status i40e_commit_partition_bw_setting(struct i40e_pf *pf)
 	ret = i40e_aq_update_nvm(&pf->hw,
 				 I40E_SR_NVM_CONTROL_WORD,
 				 0x10, sizeof(nvm_word),
-				 &nvm_word, true, NULL);
+				 &nvm_word, true, 0, NULL);
 	/* Save off last admin queue command status before releasing
 	 * the NVM
 	 */

@@ -1027,7 +1027,7 @@ i40e_status i40e_clean_arq_element(struct i40e_hw *hw,
 	hw->aq.arq.next_to_clean = ntc;
 	hw->aq.arq.next_to_use = ntu;
 
-	i40e_nvmupd_check_wait_event(hw, le16_to_cpu(e->desc.opcode));
+	i40e_nvmupd_check_wait_event(hw, le16_to_cpu(e->desc.opcode), &e->desc);
 clean_arq_element_out:
 	/* Set pending if needed, unlock and return */
 	if (pending)

@@ -3465,13 +3465,14 @@ exit:
  * @length: length of the section to be written (in bytes from the offset)
  * @data: command buffer (size [bytes] = length)
  * @last_command: tells if this is the last command in a series
+ * @preservation_flags: Preservation mode flags
  * @cmd_details: pointer to command details structure or NULL
  *
  * Update the NVM using the admin queue commands
  **/
 i40e_status i40e_aq_update_nvm(struct i40e_hw *hw, u8 module_pointer,
 			       u32 offset, u16 length, void *data,
-			       bool last_command,
+				bool last_command, u8 preservation_flags,
 			       struct i40e_asq_cmd_details *cmd_details)
 {
 	struct i40e_aq_desc desc;
@@ -3490,6 +3491,16 @@ i40e_status i40e_aq_update_nvm(struct i40e_hw *hw, u8 module_pointer,
 	/* If this is the last command in a series, set the proper flag. */
 	if (last_command)
 		cmd->command_flags |= I40E_AQ_NVM_LAST_CMD;
+	if (hw->mac.type == I40E_MAC_X722) {
+		if (preservation_flags == I40E_NVM_PRESERVATION_FLAGS_SELECTED)
+			cmd->command_flags |=
+				(I40E_AQ_NVM_PRESERVATION_FLAGS_SELECTED <<
+				 I40E_AQ_NVM_PRESERVATION_FLAGS_SHIFT);
+		else if (preservation_flags == I40E_NVM_PRESERVATION_FLAGS_ALL)
+			cmd->command_flags |=
+				(I40E_AQ_NVM_PRESERVATION_FLAGS_ALL <<
+				 I40E_AQ_NVM_PRESERVATION_FLAGS_SHIFT);
+	}
 	cmd->module_pointer = module_pointer;
 	cmd->offset = cpu_to_le32(offset);
 	cmd->length = cpu_to_le16(length);
