@@ -693,7 +693,8 @@ struct dentry *ovl_lookup(struct inode *dir, struct dentry *dentry,
 		 */
 		err = -EPERM;
 		if (d.redirect && !ofs->config.redirect_follow) {
-			pr_warn_ratelimited("overlay: refusing to follow redirect for (%pd2)\n", dentry);
+			pr_warn_ratelimited("overlayfs: refusing to follow redirect for (%pd2)\n",
+					    dentry);
 			goto out_put;
 		}
 
