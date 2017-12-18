@@ -6062,7 +6062,7 @@ static int init_drxk(struct drxk_state *state)
 	u16 driver_version;
 
 	dprintk(1, "\n");
-	if ((state->m_drxk_state == DRXK_UNINITIALIZED)) {
+	if (state->m_drxk_state == DRXK_UNINITIALIZED) {
 		drxk_i2c_lock(state);
 		status = power_up_device(state);
 		if (status < 0)
