@@ -215,6 +215,91 @@ bool dc_stream_get_crtc_position(struct dc *dc,
 	return ret;
 }
 
+/**
+ * dc_stream_configure_crc: Configure CRC capture for the given stream.
+ * @dc: DC Object
+ * @stream: The stream to configure CRC on.
+ * @enable: Enable CRC if true, disable otherwise.
+ * @continuous: Capture CRC on every frame if true. Otherwise, only capture
+ *              once.
+ *
+ * By default, only CRC0 is configured, and the entire frame is used to
+ * calculate the crc.
+ */
+bool dc_stream_configure_crc(struct dc *dc, struct dc_stream_state *stream,
+			     bool enable, bool continuous)
+{
+	int i;
+	struct pipe_ctx *pipe;
+	struct crc_params param;
+	struct timing_generator *tg;
+
+	for (i = 0; i < MAX_PIPES; i++) {
+		pipe = &dc->current_state->res_ctx.pipe_ctx[i];
+		if (pipe->stream == stream)
+			break;
+	}
+	/* Stream not found */
+	if (i == MAX_PIPES)
+		return false;
+
+	/* Always capture the full frame */
+	param.windowa_x_start = 0;
+	param.windowa_y_start = 0;
+	param.windowa_x_end = pipe->stream->timing.h_addressable;
+	param.windowa_y_end = pipe->stream->timing.v_addressable;
+	param.windowb_x_start = 0;
+	param.windowb_y_start = 0;
+	param.windowb_x_end = pipe->stream->timing.h_addressable;
+	param.windowb_y_end = pipe->stream->timing.v_addressable;
+
+	/* Default to the union of both windows */
+	param.selection = UNION_WINDOW_A_B;
+	param.continuous_mode = continuous;
+	param.enable = enable;
+
+	tg = pipe->stream_res.tg;
+
+	/* Only call if supported */
+	if (tg->funcs->configure_crc)
+		return tg->funcs->configure_crc(tg, &param);
+	dm_logger_write(dc->ctx->logger, LOG_WARNING, "CRC capture not supported.");
+	return false;
+}
+
+/**
+ * dc_stream_get_crc: Get CRC values for the given stream.
+ * @dc: DC object
+ * @stream: The DC stream state of the stream to get CRCs from.
+ * @r_cr, g_y, b_cb: CRC values for the three channels are stored here.
+ *
+ * dc_stream_configure_crc needs to be called beforehand to enable CRCs.
+ * Return false if stream is not found, or if CRCs are not enabled.
+ */
+bool dc_stream_get_crc(struct dc *dc, struct dc_stream_state *stream,
+		       uint32_t *r_cr, uint32_t *g_y, uint32_t *b_cb)
+{
+	int i;
+	struct pipe_ctx *pipe;
+	struct timing_generator *tg;
+
+	for (i = 0; i < MAX_PIPES; i++) {
+		pipe = &dc->current_state->res_ctx.pipe_ctx[i];
+		if (pipe->stream == stream)
+			break;
+	}
+	/* Stream not found */
+	if (i == MAX_PIPES)
+		return false;
+
+	tg = pipe->stream_res.tg;
+
+	if (tg->funcs->get_crc)
+		return tg->funcs->get_crc(tg, r_cr, g_y, b_cb);
+	dm_logger_write(dc->ctx->logger, LOG_WARNING, "CRC capture not supported.");
+	return false;
+}
+
 void dc_stream_set_static_screen_events(struct dc *dc,
 		struct dc_stream_state **streams,
 		int num_streams,

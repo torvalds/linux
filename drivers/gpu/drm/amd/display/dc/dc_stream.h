@@ -267,6 +267,17 @@ bool dc_stream_get_crtc_position(struct dc *dc,
 				 unsigned int *v_pos,
 				 unsigned int *nom_v_pos);
 
+bool dc_stream_configure_crc(struct dc *dc,
+			     struct dc_stream_state *stream,
+			     bool enable,
+			     bool continuous);
+
+bool dc_stream_get_crc(struct dc *dc,
+		       struct dc_stream_state *stream,
+		       uint32_t *r_cr,
+		       uint32_t *g_y,
+		       uint32_t *b_cb);
+
 void dc_stream_set_static_screen_events(struct dc *dc,
 					struct dc_stream_state **stream,
 					int num_streams,

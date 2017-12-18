@@ -31,6 +31,10 @@ ifneq ($(CONFIG_DRM_AMD_DC),)
 AMDGPUDM += amdgpu_dm_services.o amdgpu_dm_helpers.o
 endif
 
+ifneq ($(CONFIG_DEBUG_FS),)
+AMDGPUDM += amdgpu_dm_crc.o
+endif
+
 subdir-ccflags-y += -I$(FULL_AMD_DISPLAY_PATH)/dc
 
 AMDGPU_DM = $(addprefix $(AMDDALPATH)/amdgpu_dm/,$(AMDGPUDM))

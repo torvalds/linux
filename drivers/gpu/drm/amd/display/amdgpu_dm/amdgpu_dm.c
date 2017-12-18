@@ -319,6 +319,7 @@ static void dm_crtc_high_irq(void *interrupt_params)
 		crtc_index = acrtc->crtc_id;
 
 	drm_handle_vblank(adev->ddev, crtc_index);
+	amdgpu_dm_crtc_handle_crc_irq(&acrtc->base);
 }
 
 static int dm_set_clockgating_state(void *handle,
@@ -2523,6 +2524,7 @@ static const struct drm_crtc_funcs amdgpu_dm_crtc_funcs = {
 	.page_flip = drm_atomic_helper_page_flip,
 	.atomic_duplicate_state = dm_crtc_duplicate_state,
 	.atomic_destroy_state = dm_crtc_destroy_state,
+	.set_crc_source = amdgpu_dm_crtc_set_crc_source,
 };
 
 static enum drm_connector_status
