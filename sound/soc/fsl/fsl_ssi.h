@@ -35,10 +35,12 @@
 #define REG_SSI_STCR			0x1c
 /* SSI Receive Configuration Register */
 #define REG_SSI_SRCR			0x20
+#define REG_SSI_SxCR(tx)		((tx) ? REG_SSI_STCR : REG_SSI_SRCR)
 /* SSI Transmit Clock Control Register */
 #define REG_SSI_STCCR			0x24
 /* SSI Receive Clock Control Register */
 #define REG_SSI_SRCCR			0x28
+#define REG_SSI_SxCCR(tx)		((tx) ? REG_SSI_STCCR : REG_SSI_SRCCR)
 /* SSI FIFO Control/Status Register */
 #define REG_SSI_SFCSR			0x2c
 /*
@@ -67,6 +69,7 @@
 #define REG_SSI_STMSK			0x48
 /* SSI  Receive Time Slot Mask Register */
 #define REG_SSI_SRMSK			0x4c
+#define REG_SSI_SxMSK(tx)		((tx) ? REG_SSI_STMSK : REG_SSI_SRMSK)
 /*
  * SSI AC97 Channel Status Register
  *
@@ -249,6 +252,7 @@
 #define SSI_SOR_CLKOFF			0x00000040
 #define SSI_SOR_RX_CLR			0x00000020
 #define SSI_SOR_TX_CLR			0x00000010
+#define SSI_SOR_xX_CLR(tx)		((tx) ? SSI_SOR_TX_CLR : SSI_SOR_RX_CLR)
 #define SSI_SOR_INIT			0x00000008
 #define SSI_SOR_WAIT_SHIFT		1
 #define SSI_SOR_WAIT_MASK		0x00000006
