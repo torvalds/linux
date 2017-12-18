@@ -48,7 +48,7 @@ Read C language source or header FILEs, extract embedded documentation comments,
 and print formatted documentation to standard output.
 
 The documentation comments are identified by "/**" opening comment mark. See
-Documentation/kernel-doc-nano-HOWTO.txt for the documentation comment syntax.
+Documentation/doc-guide/kernel-doc.rst for the documentation comment syntax.
 
 Output format selection (mutually exclusive):
   -docbook		Output DocBook format.
