@@ -33,7 +33,7 @@
 /*******************************************************************************
  * Private functions
  ******************************************************************************/
-static void update_stream_signal(struct dc_stream_state *stream)
+void update_stream_signal(struct dc_stream_state *stream)
 {
 
 	struct dc_sink *dc_sink = stream->sink;
