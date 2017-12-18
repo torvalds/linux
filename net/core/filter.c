@@ -2684,8 +2684,9 @@ static int __xdp_generic_ok_fwd_dev(struct sk_buff *skb, struct net_device *fwd)
 	return 0;
 }
 
-int xdp_do_generic_redirect_map(struct net_device *dev, struct sk_buff *skb,
-				struct bpf_prog *xdp_prog)
+static int xdp_do_generic_redirect_map(struct net_device *dev,
+				       struct sk_buff *skb,
+				       struct bpf_prog *xdp_prog)
 {
 	struct redirect_info *ri = this_cpu_ptr(&redirect_info);
 	unsigned long map_owner = ri->map_owner;
