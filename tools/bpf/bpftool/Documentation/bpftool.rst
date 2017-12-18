@@ -16,7 +16,7 @@ SYNOPSIS
 
 	**bpftool** **version**
 
-	*OBJECT* := { **map** | **program** }
+	*OBJECT* := { **map** | **program** | **cgroup** }
 
 	*OPTIONS* := { { **-V** | **--version** } | { **-h** | **--help** }
 	| { **-j** | **--json** } [{ **-p** | **--pretty** }] }
@@ -26,7 +26,9 @@ SYNOPSIS
 	| **pin** | **help** }
 
 	*PROG-COMMANDS* := { **show** | **dump jited** | **dump xlated** | **pin**
-	| **help** }
+	| **load** | **help** }
+
+	*CGROUP-COMMANDS* := { **list** | **attach** | **detach** | **help** }
 
 DESCRIPTION
 ===========
@@ -53,4 +55,4 @@ OPTIONS
 
 SEE ALSO
 ========
-	**bpftool-map**\ (8), **bpftool-prog**\ (8)
+	**bpftool-map**\ (8), **bpftool-prog**\ (8), **bpftool-cgroup**\ (8)

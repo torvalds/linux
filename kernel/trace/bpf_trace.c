@@ -13,6 +13,10 @@
 #include <linux/filter.h>
 #include <linux/uaccess.h>
 #include <linux/ctype.h>
+#include <linux/kprobes.h>
+#include <asm/kprobes.h>
+
+#include "trace_probe.h"
 #include "trace.h"
 
 u64 bpf_get_stackid(u64 r1, u64 r2, u64 r3, u64 r4, u64 r5);
@@ -75,6 +79,24 @@ unsigned int trace_call_bpf(struct trace_event_call *call, void *ctx)
 	return ret;
 }
 EXPORT_SYMBOL_GPL(trace_call_bpf);
+
+#ifdef CONFIG_BPF_KPROBE_OVERRIDE
+BPF_CALL_2(bpf_override_return, struct pt_regs *, regs, unsigned long, rc)
+{
+	__this_cpu_write(bpf_kprobe_override, 1);
+	regs_set_return_value(regs, rc);
+	arch_ftrace_kprobe_override_function(regs);
+	return 0;
+}
+
+static const struct bpf_func_proto bpf_override_return_proto = {
+	.func		= bpf_override_return,
+	.gpl_only	= true,
+	.ret_type	= RET_INTEGER,
+	.arg1_type	= ARG_PTR_TO_CTX,
+	.arg2_type	= ARG_ANYTHING,
+};
+#endif
 
 BPF_CALL_3(bpf_probe_read, void *, dst, u32, size, const void *, unsafe_ptr)
 {
@@ -556,6 +578,10 @@ static const struct bpf_func_proto *kprobe_prog_func_proto(enum bpf_func_id func
 		return &bpf_get_stackid_proto;
 	case BPF_FUNC_perf_event_read_value:
 		return &bpf_perf_event_read_value_proto;
+#ifdef CONFIG_BPF_KPROBE_OVERRIDE
+	case BPF_FUNC_override_return:
+		return &bpf_override_return_proto;
+#endif
 	default:
 		return tracing_func_proto(func_id);
 	}
@@ -773,6 +799,15 @@ int perf_event_attach_bpf_prog(struct perf_event *event,
 	struct bpf_prog_array *new_array;
 	int ret = -EEXIST;
 
+	/*
+	 * Kprobe override only works for ftrace based kprobes, and only if they
+	 * are on the opt-in list.
+	 */
+	if (prog->kprobe_override &&
+	    (!trace_kprobe_ftrace(event->tp_event) ||
+	     !trace_kprobe_error_injectable(event->tp_event)))
+		return -EINVAL;
+
 	mutex_lock(&bpf_event_mutex);
 
 	if (event->prog)
@@ -824,4 +859,27 @@ void perf_event_detach_bpf_prog(struct perf_event *event)
 
 unlock:
 	mutex_unlock(&bpf_event_mutex);
+}
+
+int perf_event_query_prog_array(struct perf_event *event, void __user *info)
+{
+	struct perf_event_query_bpf __user *uquery = info;
+	struct perf_event_query_bpf query = {};
+	int ret;
+
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
+	if (event->attr.type != PERF_TYPE_TRACEPOINT)
+		return -EINVAL;
+	if (copy_from_user(&query, uquery, sizeof(query)))
+		return -EFAULT;
+
+	mutex_lock(&bpf_event_mutex);
+	ret = bpf_prog_array_copy_info(event->tp_event->prog_array,
+				       uquery->ids,
+				       query.ids_len,
+				       &uquery->prog_cnt);
+	mutex_unlock(&bpf_event_mutex);
+
+	return ret;
 }

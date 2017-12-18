@@ -213,10 +213,10 @@ PHONY += force elfdep bpfdep
 force:
 
 elfdep:
-	@if [ "$(feature-libelf)" != "1" ]; then echo "No libelf found"; exit -1 ; fi
+	@if [ "$(feature-libelf)" != "1" ]; then echo "No libelf found"; exit 1 ; fi
 
 bpfdep:
-	@if [ "$(feature-bpf)" != "1" ]; then echo "BPF API too old"; exit -1 ; fi
+	@if [ "$(feature-bpf)" != "1" ]; then echo "BPF API too old"; exit 1 ; fi
 
 # Declare the contents of the .PHONY variable as phony.  We keep that
 # information in a variable so we can use it in if_changed and friends.

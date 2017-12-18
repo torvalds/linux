@@ -475,6 +475,11 @@ struct module {
 	ctor_fn_t *ctors;
 	unsigned int num_ctors;
 #endif
+
+#ifdef CONFIG_BPF_KPROBE_OVERRIDE
+	unsigned int num_kprobe_ei_funcs;
+	unsigned long *kprobe_ei_funcs;
+#endif
 } ____cacheline_aligned __randomize_layout;
 #ifndef MODULE_ARCH_INIT
 #define MODULE_ARCH_INIT {}

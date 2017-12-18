@@ -1,25 +1,10 @@
 include ../../scripts/Makefile.include
-
 include ../../scripts/utilities.mak
 
 ifeq ($(srctree),)
 srctree := $(patsubst %/,%,$(dir $(CURDIR)))
 srctree := $(patsubst %/,%,$(dir $(srctree)))
 srctree := $(patsubst %/,%,$(dir $(srctree)))
-#$(info Determined 'srctree' to be $(srctree))
-endif
-
-ifneq ($(objtree),)
-#$(info Determined 'objtree' to be $(objtree))
-endif
-
-ifneq ($(OUTPUT),)
-#$(info Determined 'OUTPUT' to be $(OUTPUT))
-# Adding $(OUTPUT) as a directory to look for source files,
-# because use generated output files as sources dependency
-# for flex/bison parsers.
-VPATH += $(OUTPUT)
-export VPATH
 endif
 
 ifeq ($(V),1)
@@ -28,12 +13,12 @@ else
   Q = @
 endif
 
-BPF_DIR	= $(srctree)/tools/lib/bpf/
+BPF_DIR = $(srctree)/tools/lib/bpf/
 
 ifneq ($(OUTPUT),)
-  BPF_PATH=$(OUTPUT)
+  BPF_PATH = $(OUTPUT)
 else
-  BPF_PATH=$(BPF_DIR)
+  BPF_PATH = $(BPF_DIR)
 endif
 
 LIBBPF = $(BPF_PATH)libbpf.a
@@ -45,7 +30,7 @@ $(LIBBPF)-clean:
 	$(call QUIET_CLEAN, libbpf)
 	$(Q)$(MAKE) -C $(BPF_DIR) OUTPUT=$(OUTPUT) clean >/dev/null
 
-prefix = /usr/local
+prefix ?= /usr/local
 bash_compdir ?= /usr/share/bash-completion/completions
 
 CC = gcc
@@ -55,12 +40,15 @@ CFLAGS += -W -Wall -Wextra -Wno-unused-parameter -Wshadow
 CFLAGS += -D__EXPORTED_HEADERS__ -I$(srctree)/tools/include/uapi -I$(srctree)/tools/include -I$(srctree)/tools/lib/bpf -I$(srctree)/kernel/bpf/
 LIBS = -lelf -lbfd -lopcodes $(LIBBPF)
 
+INSTALL ?= install
+RM ?= rm -f
+
 include $(wildcard *.d)
 
 all: $(OUTPUT)bpftool
 
-SRCS=$(wildcard *.c)
-OBJS=$(patsubst %.c,$(OUTPUT)%.o,$(SRCS)) $(OUTPUT)disasm.o
+SRCS = $(wildcard *.c)
+OBJS = $(patsubst %.c,$(OUTPUT)%.o,$(SRCS)) $(OUTPUT)disasm.o
 
 $(OUTPUT)disasm.o: $(srctree)/kernel/bpf/disasm.c
 	$(QUIET_CC)$(COMPILE.c) -MMD -o $@ $<
@@ -73,21 +61,34 @@ $(OUTPUT)%.o: %.c
 
 clean: $(LIBBPF)-clean
 	$(call QUIET_CLEAN, bpftool)
-	$(Q)rm -rf $(OUTPUT)bpftool $(OUTPUT)*.o $(OUTPUT)*.d
+	$(Q)$(RM) $(OUTPUT)bpftool $(OUTPUT)*.o $(OUTPUT)*.d
 
-install:
-	install -m 0755 -d $(prefix)/sbin
-	install $(OUTPUT)bpftool $(prefix)/sbin/bpftool
-	install -m 0755 -d $(bash_compdir)
-	install -m 0644 bash-completion/bpftool $(bash_compdir)
+install: $(OUTPUT)bpftool
+	$(call QUIET_INSTALL, bpftool)
+	$(Q)$(INSTALL) -m 0755 -d $(DESTDIR)$(prefix)/sbin
+	$(Q)$(INSTALL) $(OUTPUT)bpftool $(DESTDIR)$(prefix)/sbin/bpftool
+	$(Q)$(INSTALL) -m 0755 -d $(DESTDIR)$(bash_compdir)
+	$(Q)$(INSTALL) -m 0644 bash-completion/bpftool $(DESTDIR)$(bash_compdir)
+
+uninstall:
+	$(call QUIET_UNINST, bpftool)
+	$(Q)$(RM) $(DESTDIR)$(prefix)/sbin/bpftool
+	$(Q)$(RM) $(DESTDIR)$(bash_compdir)/bpftool
 
 doc:
-	$(Q)$(MAKE) -C Documentation/
+	$(call descend,Documentation)
+
+doc-clean:
+	$(call descend,Documentation,clean)
 
 doc-install:
-	$(Q)$(MAKE) -C Documentation/ install
+	$(call descend,Documentation,install)
+
+doc-uninstall:
+	$(call descend,Documentation,uninstall)
 
 FORCE:
 
-.PHONY: all clean FORCE install doc doc-install
+.PHONY: all FORCE clean install uninstall
+.PHONY: doc doc-clean doc-install doc-uninstall
 .DEFAULT_GOAL := all

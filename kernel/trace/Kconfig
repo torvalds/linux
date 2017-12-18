@@ -530,6 +530,17 @@ config FUNCTION_PROFILER
 
 	  If in doubt, say N.
 
+config BPF_KPROBE_OVERRIDE
+	bool "Enable BPF programs to override a kprobed function"
+	depends on BPF_EVENTS
+	depends on KPROBES_ON_FTRACE
+	depends on HAVE_KPROBE_OVERRIDE
+	depends on DYNAMIC_FTRACE_WITH_REGS
+	default n
+	help
+	 Allows BPF to override the execution of a probed function and
+	 set a different return value.  This is used for error injection.
+
 config FTRACE_MCOUNT_RECORD
 	def_bool y
 	depends on DYNAMIC_FTRACE

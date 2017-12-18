@@ -15,7 +15,7 @@ SYNOPSIS
 	*OPTIONS* := { { **-j** | **--json** } [{ **-p** | **--pretty** }] | { **-f** | **--bpffs** } }
 
 	*COMMANDS* :=
-	{ **show** | **dump xlated** | **dump jited** | **pin** | **help** }
+	{ **show** | **dump xlated** | **dump jited** | **pin** | **load** | **help** }
 
 MAP COMMANDS
 =============
@@ -24,6 +24,7 @@ MAP COMMANDS
 |	**bpftool** **prog dump xlated** *PROG* [{**file** *FILE* | **opcodes**}]
 |	**bpftool** **prog dump jited**  *PROG* [{**file** *FILE* | **opcodes**}]
 |	**bpftool** **prog pin** *PROG* *FILE*
+|	**bpftool** **prog load** *OBJ* *FILE*
 |	**bpftool** **prog help**
 |
 |	*PROG* := { **id** *PROG_ID* | **pinned** *FILE* | **tag** *PROG_TAG* }
@@ -54,6 +55,11 @@ DESCRIPTION
 
 	**bpftool prog pin** *PROG* *FILE*
 		  Pin program *PROG* as *FILE*.
+
+		  Note: *FILE* must be located in *bpffs* mount.
+
+	**bpftool prog load** *OBJ* *FILE*
+		  Load bpf program from binary *OBJ* and pin as *FILE*.
 
 		  Note: *FILE* must be located in *bpffs* mount.
 
@@ -126,8 +132,10 @@ EXAMPLES
 |
 | **# mount -t bpf none /sys/fs/bpf/**
 | **# bpftool prog pin id 10 /sys/fs/bpf/prog**
+| **# bpftool prog load ./my_prog.o /sys/fs/bpf/prog2**
 | **# ls -l /sys/fs/bpf/**
 |   -rw------- 1 root root 0 Jul 22 01:43 prog
+|   -rw------- 1 root root 0 Jul 22 01:44 prog2
 
 **# bpftool prog dum jited pinned /sys/fs/bpf/prog opcodes**
 
@@ -147,4 +155,4 @@ EXAMPLES
 
 SEE ALSO
 ========
-	**bpftool**\ (8), **bpftool-map**\ (8)
+	**bpftool**\ (8), **bpftool-map**\ (8), **bpftool-cgroup**\ (8)

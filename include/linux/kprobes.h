@@ -271,6 +271,7 @@ extern bool arch_kprobe_on_func_entry(unsigned long offset);
 extern bool kprobe_on_func_entry(kprobe_opcode_t *addr, const char *sym, unsigned long offset);
 
 extern bool within_kprobe_blacklist(unsigned long addr);
+extern bool within_kprobe_error_injection_list(unsigned long addr);
 
 struct kprobe_insn_cache {
 	struct mutex mutex;

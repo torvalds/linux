@@ -163,13 +163,49 @@ int open_obj_pinned_any(char *path, enum bpf_obj_type exp_type)
 	return fd;
 }
 
-int do_pin_any(int argc, char **argv, int (*get_fd_by_id)(__u32))
+int do_pin_fd(int fd, const char *name)
 {
 	char err_str[ERR_MAX_LEN];
-	unsigned int id;
-	char *endptr;
 	char *file;
 	char *dir;
+	int err = 0;
+
+	err = bpf_obj_pin(fd, name);
+	if (!err)
+		goto out;
+
+	file = malloc(strlen(name) + 1);
+	strcpy(file, name);
+	dir = dirname(file);
+
+	if (errno != EPERM || is_bpffs(dir)) {
+		p_err("can't pin the object (%s): %s", name, strerror(errno));
+		goto out_free;
+	}
+
+	/* Attempt to mount bpffs, then retry pinning. */
+	err = mnt_bpffs(dir, err_str, ERR_MAX_LEN);
+	if (!err) {
+		err = bpf_obj_pin(fd, name);
+		if (err)
+			p_err("can't pin the object (%s): %s", name,
+			      strerror(errno));
+	} else {
+		err_str[ERR_MAX_LEN - 1] = '\0';
+		p_err("can't mount BPF file system to pin the object (%s): %s",
+		      name, err_str);
+	}
+
+out_free:
+	free(file);
+out:
+	return err;
+}
+
+int do_pin_any(int argc, char **argv, int (*get_fd_by_id)(__u32))
+{
+	unsigned int id;
+	char *endptr;
 	int err;
 	int fd;
 
@@ -195,35 +231,8 @@ int do_pin_any(int argc, char **argv, int (*get_fd_by_id)(__u32))
 		return -1;
 	}
 
-	err = bpf_obj_pin(fd, *argv);
-	if (!err)
-		goto out_close;
+	err = do_pin_fd(fd, *argv);
 
-	file = malloc(strlen(*argv) + 1);
-	strcpy(file, *argv);
-	dir = dirname(file);
-
-	if (errno != EPERM || is_bpffs(dir)) {
-		p_err("can't pin the object (%s): %s", *argv, strerror(errno));
-		goto out_free;
-	}
-
-	/* Attempt to mount bpffs, then retry pinning. */
-	err = mnt_bpffs(dir, err_str, ERR_MAX_LEN);
-	if (!err) {
-		err = bpf_obj_pin(fd, *argv);
-		if (err)
-			p_err("can't pin the object (%s): %s", *argv,
-			      strerror(errno));
-	} else {
-		err_str[ERR_MAX_LEN - 1] = '\0';
-		p_err("can't mount BPF file system to pin the object (%s): %s",
-		      *argv, err_str);
-	}
-
-out_free:
-	free(file);
-out_close:
 	close(fd);
 	return err;
 }

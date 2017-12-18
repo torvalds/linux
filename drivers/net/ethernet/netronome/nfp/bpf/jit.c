@@ -33,6 +33,7 @@
 
 #define pr_fmt(fmt)	"NFP net bpf: " fmt
 
+#include <linux/bug.h>
 #include <linux/kernel.h>
 #include <linux/bpf.h>
 #include <linux/filter.h>
@@ -85,6 +86,18 @@ static void nfp_prog_push(struct nfp_prog *nfp_prog, u64 insn)
 static unsigned int nfp_prog_current_offset(struct nfp_prog *nfp_prog)
 {
 	return nfp_prog->start_off + nfp_prog->prog_len;
+}
+
+static bool
+nfp_prog_confirm_current_offset(struct nfp_prog *nfp_prog, unsigned int off)
+{
+	/* If there is a recorded error we may have dropped instructions;
+	 * that doesn't have to be due to translator bug, and the translation
+	 * will fail anyway, so just return OK.
+	 */
+	if (nfp_prog->error)
+		return true;
+	return !WARN_ON_ONCE(nfp_prog_current_offset(nfp_prog) != off);
 }
 
 static unsigned int
@@ -1196,6 +1209,86 @@ static void wrp_end32(struct nfp_prog *nfp_prog, swreg reg_in, u8 gpr_out)
 		      SHF_SC_R_ROT, 16);
 }
 
+static int adjust_head(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
+{
+	swreg tmp = imm_a(nfp_prog), tmp_len = imm_b(nfp_prog);
+	struct nfp_bpf_cap_adjust_head *adjust_head;
+	u32 ret_einval, end;
+
+	adjust_head = &nfp_prog->bpf->adjust_head;
+
+	/* Optimized version - 5 vs 14 cycles */
+	if (nfp_prog->adjust_head_location != UINT_MAX) {
+		if (WARN_ON_ONCE(nfp_prog->adjust_head_location != meta->n))
+			return -EINVAL;
+
+		emit_alu(nfp_prog, pptr_reg(nfp_prog),
+			 reg_a(2 * 2), ALU_OP_ADD, pptr_reg(nfp_prog));
+		emit_alu(nfp_prog, plen_reg(nfp_prog),
+			 plen_reg(nfp_prog), ALU_OP_SUB, reg_a(2 * 2));
+		emit_alu(nfp_prog, pv_len(nfp_prog),
+			 pv_len(nfp_prog), ALU_OP_SUB, reg_a(2 * 2));
+
+		wrp_immed(nfp_prog, reg_both(0), 0);
+		wrp_immed(nfp_prog, reg_both(1), 0);
+
+		/* TODO: when adjust head is guaranteed to succeed we can
+		 * also eliminate the following if (r0 == 0) branch.
+		 */
+
+		return 0;
+	}
+
+	ret_einval = nfp_prog_current_offset(nfp_prog) + 14;
+	end = ret_einval + 2;
+
+	/* We need to use a temp because offset is just a part of the pkt ptr */
+	emit_alu(nfp_prog, tmp,
+		 reg_a(2 * 2), ALU_OP_ADD_2B, pptr_reg(nfp_prog));
+
+	/* Validate result will fit within FW datapath constraints */
+	emit_alu(nfp_prog, reg_none(),
+		 tmp, ALU_OP_SUB, reg_imm(adjust_head->off_min));
+	emit_br(nfp_prog, BR_BLO, ret_einval, 0);
+	emit_alu(nfp_prog, reg_none(),
+		 reg_imm(adjust_head->off_max), ALU_OP_SUB, tmp);
+	emit_br(nfp_prog, BR_BLO, ret_einval, 0);
+
+	/* Validate the length is at least ETH_HLEN */
+	emit_alu(nfp_prog, tmp_len,
+		 plen_reg(nfp_prog), ALU_OP_SUB, reg_a(2 * 2));
+	emit_alu(nfp_prog, reg_none(),
+		 tmp_len, ALU_OP_SUB, reg_imm(ETH_HLEN));
+	emit_br(nfp_prog, BR_BMI, ret_einval, 0);
+
+	/* Load the ret code */
+	wrp_immed(nfp_prog, reg_both(0), 0);
+	wrp_immed(nfp_prog, reg_both(1), 0);
+
+	/* Modify the packet metadata */
+	emit_ld_field(nfp_prog, pptr_reg(nfp_prog), 0x3, tmp, SHF_SC_NONE, 0);
+
+	/* Skip over the -EINVAL ret code (defer 2) */
+	emit_br_def(nfp_prog, end, 2);
+
+	emit_alu(nfp_prog, plen_reg(nfp_prog),
+		 plen_reg(nfp_prog), ALU_OP_SUB, reg_a(2 * 2));
+	emit_alu(nfp_prog, pv_len(nfp_prog),
+		 pv_len(nfp_prog), ALU_OP_SUB, reg_a(2 * 2));
+
+	/* return -EINVAL target */
+	if (!nfp_prog_confirm_current_offset(nfp_prog, ret_einval))
+		return -EINVAL;
+
+	wrp_immed(nfp_prog, reg_both(0), -22);
+	wrp_immed(nfp_prog, reg_both(1), ~0);
+
+	if (!nfp_prog_confirm_current_offset(nfp_prog, end))
+		return -EINVAL;
+
+	return 0;
+}
+
 /* --- Callbacks --- */
 static int mov_reg64(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 {
@@ -1930,6 +2023,17 @@ static int jne_reg(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 	return wrp_test_reg(nfp_prog, meta, ALU_OP_XOR, BR_BNE);
 }
 
+static int call(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
+{
+	switch (meta->insn.imm) {
+	case BPF_FUNC_xdp_adjust_head:
+		return adjust_head(nfp_prog, meta);
+	default:
+		WARN_ONCE(1, "verifier allowed unsupported function\n");
+		return -EOPNOTSUPP;
+	}
+}
+
 static int goto_out(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 {
 	wrp_br_special(nfp_prog, BR_UNC, OP_BR_GO_OUT);
@@ -2002,6 +2106,7 @@ static const instr_cb_t instr_cb[256] = {
 	[BPF_JMP | BPF_JLE | BPF_X] =	jle_reg,
 	[BPF_JMP | BPF_JSET | BPF_X] =	jset_reg,
 	[BPF_JMP | BPF_JNE | BPF_X] =	jne_reg,
+	[BPF_JMP | BPF_CALL] =		call,
 	[BPF_JMP | BPF_EXIT] =		goto_out,
 };
 
@@ -2025,6 +2130,8 @@ static int nfp_fixup_branches(struct nfp_prog *nfp_prog)
 
 	list_for_each_entry(meta, &nfp_prog->insns, l) {
 		if (meta->skip)
+			continue;
+		if (meta->insn.code == (BPF_JMP | BPF_CALL))
 			continue;
 		if (BPF_CLASS(meta->insn.code) != BPF_JMP)
 			continue;
