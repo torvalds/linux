@@ -476,13 +476,13 @@ swi_wi_action(struct cfs_workitem *wi)
 }
 
 static inline void
-swi_init_workitem(struct swi_workitem *swi, void *data,
+swi_init_workitem(struct swi_workitem *swi,
 		  swi_action_t action, struct cfs_wi_sched *sched)
 {
 	swi->swi_sched = sched;
 	swi->swi_action = action;
 	swi->swi_state = SWI_STATE_NEWBORN;
-	cfs_wi_init(&swi->swi_workitem, data, swi_wi_action);
+	cfs_wi_init(&swi->swi_workitem, swi_wi_action);
 }
 
 static inline void
@@ -533,7 +533,7 @@ srpc_init_client_rpc(struct srpc_client_rpc *rpc, struct lnet_process_id peer,
 				crpc_bulk.bk_iovs[nbulkiov]));
 
 	INIT_LIST_HEAD(&rpc->crpc_list);
-	swi_init_workitem(&rpc->crpc_wi, rpc, srpc_send_rpc,
+	swi_init_workitem(&rpc->crpc_wi, srpc_send_rpc,
 			  lst_sched_test[lnet_cpt_of_nid(peer.nid)]);
 	spin_lock_init(&rpc->crpc_lock);
 	atomic_set(&rpc->crpc_refcount, 1); /* 1 ref for caller */

@@ -75,8 +75,6 @@ struct cfs_workitem {
 	struct list_head       wi_list;
 	/** working function */
 	cfs_wi_action_t  wi_action;
-	/** arg for working function */
-	void	    *wi_data;
 	/** in running */
 	unsigned short   wi_running:1;
 	/** scheduled */
@@ -84,13 +82,12 @@ struct cfs_workitem {
 };
 
 static inline void
-cfs_wi_init(struct cfs_workitem *wi, void *data, cfs_wi_action_t action)
+cfs_wi_init(struct cfs_workitem *wi, cfs_wi_action_t action)
 {
 	INIT_LIST_HEAD(&wi->wi_list);
 
 	wi->wi_running   = 0;
 	wi->wi_scheduled = 0;
-	wi->wi_data      = data;
 	wi->wi_action    = action;
 }
 
