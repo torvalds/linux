@@ -59,6 +59,7 @@
 #include <linux/mm.h>
 #include <linux/ethtool.h>
 #include <linux/proc_fs.h>
+#include <linux/if_arp.h>
 #include <linux/in.h>
 #include <linux/ip.h>
 #include <linux/ipv6.h>
@@ -1153,6 +1154,9 @@ static int build_hdr_data(u8 hdr_field, struct sk_buff *skb,
 			hdr_len[2] = tcp_hdrlen(skb);
 		else if (ipv6_hdr(skb)->nexthdr == IPPROTO_UDP)
 			hdr_len[2] = sizeof(struct udphdr);
+	} else if (skb->protocol == htons(ETH_P_ARP)) {
+		hdr_len[1] = arp_hdr_len(skb->dev);
+		hdr_len[2] = 0;
 	}
 
 	memset(hdr_data, 0, 120);
@@ -1386,7 +1390,8 @@ static int ibmvnic_xmit(struct sk_buff *skb, struct net_device *netdev)
 	/* determine if l2/3/4 headers are sent to firmware */
 	if ((*hdrs >> 7) & 1 &&
 	    (skb->protocol == htons(ETH_P_IP) ||
-	     skb->protocol == htons(ETH_P_IPV6))) {
+	     skb->protocol == htons(ETH_P_IPV6) ||
+	     skb->protocol == htons(ETH_P_ARP))) {
 		build_hdr_descs_arr(tx_buff, &num_entries, *hdrs);
 		tx_crq.v1.n_crq_elem = num_entries;
 		tx_buff->indir_arr[0] = tx_crq;
