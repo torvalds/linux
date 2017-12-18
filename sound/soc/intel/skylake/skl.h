@@ -94,6 +94,7 @@ struct skl {
 	struct skl_module **modules;
 	bool use_tplg_pcm;
 	struct skl_fw_config cfg;
+	struct snd_soc_acpi_mach *mach;
 };
 
 #define skl_to_ebus(s)	(&(s)->ebus)
