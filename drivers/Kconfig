@@ -211,4 +211,6 @@ source "drivers/mux/Kconfig"
 
 source "drivers/opp/Kconfig"
 
+source "drivers/siox/Kconfig"
+
 endmenu
