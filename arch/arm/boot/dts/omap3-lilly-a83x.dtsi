@@ -51,6 +51,7 @@
 	hsusb1_phy: hsusb1_phy {
 		compatible = "usb-nop-xceiv";
 		vcc-supply = <&reg_vcc3>;
+		#phy-cells = <0>;
 	};
 };
 

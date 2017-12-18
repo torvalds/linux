@@ -117,7 +117,7 @@ static int cifs_xattr_set(const struct xattr_handler *handler,
 #ifdef CONFIG_CIFS_POSIX
 		if (!value)
 			goto out;
-		if (sb->s_flags & MS_POSIXACL)
+		if (sb->s_flags & SB_POSIXACL)
 			rc = CIFSSMBSetPosixACL(xid, pTcon, full_path,
 				value, (const int)size,
 				ACL_TYPE_ACCESS, cifs_sb->local_nls,
@@ -129,7 +129,7 @@ static int cifs_xattr_set(const struct xattr_handler *handler,
 #ifdef CONFIG_CIFS_POSIX
 		if (!value)
 			goto out;
-		if (sb->s_flags & MS_POSIXACL)
+		if (sb->s_flags & SB_POSIXACL)
 			rc = CIFSSMBSetPosixACL(xid, pTcon, full_path,
 				value, (const int)size,
 				ACL_TYPE_DEFAULT, cifs_sb->local_nls,
@@ -266,7 +266,7 @@ static int cifs_xattr_get(const struct xattr_handler *handler,
 
 	case XATTR_ACL_ACCESS:
 #ifdef CONFIG_CIFS_POSIX
-		if (sb->s_flags & MS_POSIXACL)
+		if (sb->s_flags & SB_POSIXACL)
 			rc = CIFSSMBGetPosixACL(xid, pTcon, full_path,
 				value, size, ACL_TYPE_ACCESS,
 				cifs_sb->local_nls,
@@ -276,7 +276,7 @@ static int cifs_xattr_get(const struct xattr_handler *handler,
 
 	case XATTR_ACL_DEFAULT:
 #ifdef CONFIG_CIFS_POSIX
-		if (sb->s_flags & MS_POSIXACL)
+		if (sb->s_flags & SB_POSIXACL)
 			rc = CIFSSMBGetPosixACL(xid, pTcon, full_path,
 				value, size, ACL_TYPE_DEFAULT,
 				cifs_sb->local_nls,

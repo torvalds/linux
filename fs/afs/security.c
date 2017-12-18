@@ -120,7 +120,7 @@ static void afs_hash_permits(struct afs_permits *permits)
 void afs_cache_permit(struct afs_vnode *vnode, struct key *key,
 		      unsigned int cb_break)
 {
-	struct afs_permits *permits, *xpermits, *replacement, *new = NULL;
+	struct afs_permits *permits, *xpermits, *replacement, *zap, *new = NULL;
 	afs_access_t caller_access = READ_ONCE(vnode->status.caller_access);
 	size_t size = 0;
 	bool changed = false;
@@ -204,7 +204,7 @@ void afs_cache_permit(struct afs_vnode *vnode, struct key *key,
 	new = kzalloc(sizeof(struct afs_permits) +
 		      sizeof(struct afs_permit) * size, GFP_NOFS);
 	if (!new)
-		return;
+		goto out_put;
 
 	refcount_set(&new->usage, 1);
 	new->nr_permits = size;
@@ -228,8 +228,6 @@ void afs_cache_permit(struct afs_vnode *vnode, struct key *key,
 	}
 
 	afs_hash_permits(new);
-
-	afs_put_permits(permits);
 
 	/* Now see if the permit list we want is actually already available */
 	spin_lock(&afs_permits_lock);
@@ -262,11 +260,15 @@ found:
 	kfree(new);
 
 	spin_lock(&vnode->lock);
-	if (cb_break != (vnode->cb_break + vnode->cb_interest->server->cb_s_break) ||
-	    permits != rcu_access_pointer(vnode->permit_cache))
-		goto someone_else_changed_it_unlock;
-	rcu_assign_pointer(vnode->permit_cache, replacement);
+	zap = rcu_access_pointer(vnode->permit_cache);
+	if (cb_break == (vnode->cb_break + vnode->cb_interest->server->cb_s_break) &&
+	    zap == permits)
+		rcu_assign_pointer(vnode->permit_cache, replacement);
+	else
+		zap = replacement;
 	spin_unlock(&vnode->lock);
+	afs_put_permits(zap);
+out_put:
 	afs_put_permits(permits);
 	return;
 

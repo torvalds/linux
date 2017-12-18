@@ -96,7 +96,7 @@ void coda_destroy_inodecache(void)
 static int coda_remount(struct super_block *sb, int *flags, char *data)
 {
 	sync_filesystem(sb);
-	*flags |= MS_NOATIME;
+	*flags |= SB_NOATIME;
 	return 0;
 }
 
@@ -188,7 +188,7 @@ static int coda_fill_super(struct super_block *sb, void *data, int silent)
 	mutex_unlock(&vc->vc_mutex);
 
 	sb->s_fs_info = vc;
-	sb->s_flags |= MS_NOATIME;
+	sb->s_flags |= SB_NOATIME;
 	sb->s_blocksize = 4096;	/* XXXXX  what do we put here?? */
 	sb->s_blocksize_bits = 12;
 	sb->s_magic = CODA_SUPER_MAGIC;

@@ -494,17 +494,10 @@ int lmc_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd) /*fold00*/
                             break;
                     }
 
-                    data = kmalloc(xc.len, GFP_KERNEL);
-                    if (!data) {
-                            ret = -ENOMEM;
+                    data = memdup_user(xc.data, xc.len);
+                    if (IS_ERR(data)) {
+                            ret = PTR_ERR(data);
                             break;
-                    }
-                    
-                    if(copy_from_user(data, xc.data, xc.len))
-                    {
-                    	kfree(data);
-                    	ret = -ENOMEM;
-                    	break;
                     }
 
                     printk("%s: Starting load of data Len: %d at 0x%p == 0x%p\n", dev->name, xc.len, xc.data, data);

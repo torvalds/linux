@@ -3,6 +3,8 @@
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
+#include <sys/time.h>
+#include <sys/resource.h>
 
 #include <linux/bpf.h>
 #include <linux/filter.h>
@@ -131,10 +133,15 @@ static void test_log_bad(char *log, size_t log_len, int log_level)
 
 int main(int argc, char **argv)
 {
+	struct rlimit limit  = { RLIM_INFINITY, RLIM_INFINITY };
 	char full_log[LOG_SIZE];
 	char log[LOG_SIZE];
 	size_t want_len;
 	int i;
+
+	/* allow unlimited locked memory to have more consistent error code */
+	if (setrlimit(RLIMIT_MEMLOCK, &limit) < 0)
+		perror("Unable to lift memlock rlimit");
 
 	memset(log, 1, LOG_SIZE);
 

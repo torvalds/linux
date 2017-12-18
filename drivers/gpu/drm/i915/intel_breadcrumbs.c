@@ -517,6 +517,7 @@ static void __intel_engine_remove_wait(struct intel_engine_cs *engine,
 
 	GEM_BUG_ON(RB_EMPTY_NODE(&wait->node));
 	rb_erase(&wait->node, &b->waiters);
+	RB_CLEAR_NODE(&wait->node);
 
 out:
 	GEM_BUG_ON(b->irq_wait == wait);

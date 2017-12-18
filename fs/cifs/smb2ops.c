@@ -1406,7 +1406,8 @@ smb2_get_dfs_refer(const unsigned int xid, struct cifs_ses *ses,
 	} while (rc == -EAGAIN);
 
 	if (rc) {
-		cifs_dbg(VFS, "ioctl error in smb2_get_dfs_refer rc=%d\n", rc);
+		if (rc != -ENOENT)
+			cifs_dbg(VFS, "ioctl error in smb2_get_dfs_refer rc=%d\n", rc);
 		goto out;
 	}
 

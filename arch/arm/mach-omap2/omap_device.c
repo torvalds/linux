@@ -391,10 +391,8 @@ omap_device_copy_resources(struct omap_hwmod *oh,
 	const char *name;
 	int error, irq = 0;
 
-	if (!oh || !oh->od || !oh->od->pdev) {
-		error = -EINVAL;
-		goto error;
-	}
+	if (!oh || !oh->od || !oh->od->pdev)
+		return -EINVAL;
 
 	np = oh->od->pdev->dev.of_node;
 	if (!np) {
@@ -516,8 +514,10 @@ struct platform_device __init *omap_device_build(const char *pdev_name,
 		goto odbs_exit1;
 
 	od = omap_device_alloc(pdev, &oh, 1);
-	if (IS_ERR(od))
+	if (IS_ERR(od)) {
+		ret = PTR_ERR(od);
 		goto odbs_exit1;
+	}
 
 	ret = platform_device_add_data(pdev, pdata, pdata_len);
 	if (ret)

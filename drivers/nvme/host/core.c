@@ -1449,19 +1449,19 @@ static int nvme_pr_command(struct block_device *bdev, u32 cdw10,
 	int srcu_idx, ret;
 	u8 data[16] = { 0, };
 
+	ns = nvme_get_ns_from_disk(bdev->bd_disk, &head, &srcu_idx);
+	if (unlikely(!ns))
+		return -EWOULDBLOCK;
+
 	put_unaligned_le64(key, &data[0]);
 	put_unaligned_le64(sa_key, &data[8]);
 
 	memset(&c, 0, sizeof(c));
 	c.common.opcode = op;
-	c.common.nsid = cpu_to_le32(head->ns_id);
+	c.common.nsid = cpu_to_le32(ns->head->ns_id);
 	c.common.cdw10[0] = cpu_to_le32(cdw10);
 
-	ns = nvme_get_ns_from_disk(bdev->bd_disk, &head, &srcu_idx);
-	if (unlikely(!ns))
-		ret = -EWOULDBLOCK;
-	else
-		ret = nvme_submit_sync_cmd(ns->queue, &c, data, 16);
+	ret = nvme_submit_sync_cmd(ns->queue, &c, data, 16);
 	nvme_put_ns_from_disk(head, srcu_idx);
 	return ret;
 }
@@ -2961,8 +2961,6 @@ static void nvme_alloc_ns(struct nvme_ctrl *ctrl, unsigned nsid)
 
 static void nvme_ns_remove(struct nvme_ns *ns)
 {
-	struct nvme_ns_head *head = ns->head;
-
 	if (test_and_set_bit(NVME_NS_REMOVING, &ns->flags))
 		return;
 
@@ -2980,15 +2978,14 @@ static void nvme_ns_remove(struct nvme_ns *ns)
 
 	mutex_lock(&ns->ctrl->subsys->lock);
 	nvme_mpath_clear_current_path(ns);
-	if (head)
-		list_del_rcu(&ns->siblings);
+	list_del_rcu(&ns->siblings);
 	mutex_unlock(&ns->ctrl->subsys->lock);
 
 	mutex_lock(&ns->ctrl->namespaces_mutex);
 	list_del_init(&ns->list);
 	mutex_unlock(&ns->ctrl->namespaces_mutex);
 
-	synchronize_srcu(&head->srcu);
+	synchronize_srcu(&ns->head->srcu);
 	nvme_put_ns(ns);
 }
 
