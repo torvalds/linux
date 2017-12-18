@@ -1486,6 +1486,7 @@ u32 i40e_led_get(struct i40e_hw *hw)
 		case I40E_COMBINED_ACTIVITY:
 		case I40E_FILTER_ACTIVITY:
 		case I40E_MAC_ACTIVITY:
+		case I40E_LINK_ACTIVITY:
 			continue;
 		default:
 			break;
@@ -1534,6 +1535,7 @@ void i40e_led_set(struct i40e_hw *hw, u32 mode, bool blink)
 		case I40E_COMBINED_ACTIVITY:
 		case I40E_FILTER_ACTIVITY:
 		case I40E_MAC_ACTIVITY:
+		case I40E_LINK_ACTIVITY:
 			continue;
 		default:
 			break;
@@ -1543,9 +1545,6 @@ void i40e_led_set(struct i40e_hw *hw, u32 mode, bool blink)
 		/* this & is a bit of paranoia, but serves as a range check */
 		gpio_val |= ((mode << I40E_GLGEN_GPIO_CTL_LED_MODE_SHIFT) &
 			     I40E_GLGEN_GPIO_CTL_LED_MODE_MASK);
-
-		if (mode == I40E_LINK_ACTIVITY)
-			blink = false;
 
 		if (blink)
 			gpio_val |= BIT(I40E_GLGEN_GPIO_CTL_LED_BLINK_SHIFT);
