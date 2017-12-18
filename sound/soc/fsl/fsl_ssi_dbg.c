@@ -18,67 +18,67 @@
 
 void fsl_ssi_dbg_isr(struct fsl_ssi_dbg *dbg, u32 sisr)
 {
-	if (sisr & CCSR_SSI_SISR_RFRC)
+	if (sisr & SSI_SISR_RFRC)
 		dbg->stats.rfrc++;
 
-	if (sisr & CCSR_SSI_SISR_TFRC)
+	if (sisr & SSI_SISR_TFRC)
 		dbg->stats.tfrc++;
 
-	if (sisr & CCSR_SSI_SISR_CMDAU)
+	if (sisr & SSI_SISR_CMDAU)
 		dbg->stats.cmdau++;
 
-	if (sisr & CCSR_SSI_SISR_CMDDU)
+	if (sisr & SSI_SISR_CMDDU)
 		dbg->stats.cmddu++;
 
-	if (sisr & CCSR_SSI_SISR_RXT)
+	if (sisr & SSI_SISR_RXT)
 		dbg->stats.rxt++;
 
-	if (sisr & CCSR_SSI_SISR_RDR1)
+	if (sisr & SSI_SISR_RDR1)
 		dbg->stats.rdr1++;
 
-	if (sisr & CCSR_SSI_SISR_RDR0)
+	if (sisr & SSI_SISR_RDR0)
 		dbg->stats.rdr0++;
 
-	if (sisr & CCSR_SSI_SISR_TDE1)
+	if (sisr & SSI_SISR_TDE1)
 		dbg->stats.tde1++;
 
-	if (sisr & CCSR_SSI_SISR_TDE0)
+	if (sisr & SSI_SISR_TDE0)
 		dbg->stats.tde0++;
 
-	if (sisr & CCSR_SSI_SISR_ROE1)
+	if (sisr & SSI_SISR_ROE1)
 		dbg->stats.roe1++;
 
-	if (sisr & CCSR_SSI_SISR_ROE0)
+	if (sisr & SSI_SISR_ROE0)
 		dbg->stats.roe0++;
 
-	if (sisr & CCSR_SSI_SISR_TUE1)
+	if (sisr & SSI_SISR_TUE1)
 		dbg->stats.tue1++;
 
-	if (sisr & CCSR_SSI_SISR_TUE0)
+	if (sisr & SSI_SISR_TUE0)
 		dbg->stats.tue0++;
 
-	if (sisr & CCSR_SSI_SISR_TFS)
+	if (sisr & SSI_SISR_TFS)
 		dbg->stats.tfs++;
 
-	if (sisr & CCSR_SSI_SISR_RFS)
+	if (sisr & SSI_SISR_RFS)
 		dbg->stats.rfs++;
 
-	if (sisr & CCSR_SSI_SISR_TLS)
+	if (sisr & SSI_SISR_TLS)
 		dbg->stats.tls++;
 
-	if (sisr & CCSR_SSI_SISR_RLS)
+	if (sisr & SSI_SISR_RLS)
 		dbg->stats.rls++;
 
-	if (sisr & CCSR_SSI_SISR_RFF1)
+	if (sisr & SSI_SISR_RFF1)
 		dbg->stats.rff1++;
 
-	if (sisr & CCSR_SSI_SISR_RFF0)
+	if (sisr & SSI_SISR_RFF0)
 		dbg->stats.rff0++;
 
-	if (sisr & CCSR_SSI_SISR_TFE1)
+	if (sisr & SSI_SISR_TFE1)
 		dbg->stats.tfe1++;
 
-	if (sisr & CCSR_SSI_SISR_TFE0)
+	if (sisr & SSI_SISR_TFE0)
 		dbg->stats.tfe0++;
 }
 
@@ -89,7 +89,7 @@ void fsl_ssi_dbg_isr(struct fsl_ssi_dbg *dbg, u32 sisr)
  */
 #define SIER_SHOW(flag, name) \
 	do { \
-		if (CCSR_SSI_SIER_##flag) \
+		if (SSI_SIER_##flag) \
 			seq_printf(s, #name "=%u\n", ssi_dbg->stats.name); \
 	} while (0)
 
