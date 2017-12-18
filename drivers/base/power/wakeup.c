@@ -298,7 +298,7 @@ int device_wakeup_attach_irq(struct device *dev,
 
 	ws = dev->power.wakeup;
 	if (!ws) {
-		dev_err(dev, "forgot to call call device_init_wakeup?\n");
+		dev_err(dev, "forgot to call device_init_wakeup?\n");
 		return -EINVAL;
 	}
 
