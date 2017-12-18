@@ -8,6 +8,7 @@
 
 #include <linux/backlight.h>
 #include <linux/delay.h>
+#include <linux/device.h>
 #include <linux/fb.h>
 #include <linux/gpio/consumer.h>
 #include <linux/i2c.h>
@@ -291,11 +292,12 @@ static int ssd1307fb_init(struct ssd1307fb_par *par)
 	u32 precharge, dclk, com_invdir, compins;
 	struct pwm_args pargs;
 	char status;
+	struct device *dev = &par->client->dev;
 
 	if (par->device_info->need_pwm) {
-		par->pwm = pwm_get(&par->client->dev, NULL);
+		par->pwm = pwm_get(dev, NULL);
 		if (IS_ERR(par->pwm)) {
-			dev_err(&par->client->dev, "Could not get PWM from device tree!\n");
+			dev_err(dev, "could not get PWM from device tree\n");
 			return PTR_ERR(par->pwm);
 		}
 
@@ -312,14 +314,14 @@ static int ssd1307fb_init(struct ssd1307fb_par *par)
 		pwm_config(par->pwm, par->pwm_period / 2, par->pwm_period);
 		pwm_enable(par->pwm);
 
-		dev_dbg(&par->client->dev, "Using PWM%d with a %dns period.\n",
+		dev_dbg(dev, "using PWM%d with a %dns period\n",
 			par->pwm->pwm, par->pwm_period);
 	};
 
 	/* Check if we can talk to the display */
 	ret = i2c_master_recv(par->client, &status, 1);
 	if (ret < 0) {
-		dev_err(&par->client->dev, "controller not found\n");
+		dev_err(dev, "controller not found\n");
 		return ret;
 	}
 
