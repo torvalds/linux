@@ -648,6 +648,7 @@ static void tipc_group_proto_xmit(struct tipc_group *grp, struct tipc_member *m,
 	} else if (mtyp == GRP_REMIT_MSG) {
 		msg_set_grp_remitted(hdr, m->window);
 	}
+	msg_set_dest_droppable(hdr, true);
 	__skb_queue_tail(xmitq, skb);
 }
 
