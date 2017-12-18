@@ -110,6 +110,20 @@ const char *smca_get_long_name(enum smca_bank_types t)
 }
 EXPORT_SYMBOL_GPL(smca_get_long_name);
 
+static enum smca_bank_types smca_get_bank_type(struct mce *m)
+{
+	struct smca_bank *b;
+
+	if (m->bank >= N_SMCA_BANK_TYPES)
+		return N_SMCA_BANK_TYPES;
+
+	b = &smca_banks[m->bank];
+	if (!b->hwid)
+		return N_SMCA_BANK_TYPES;
+
+	return b->hwid->bank_type;
+}
+
 static struct smca_hwid smca_hwid_mcatypes[] = {
 	/* { bank_type, hwid_mcatype, xec_bitmap } */
 
