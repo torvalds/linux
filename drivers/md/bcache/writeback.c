@@ -278,7 +278,7 @@ static void read_dirty(struct cached_dev *dc)
 		bio_set_dev(&io->bio, PTR_CACHE(dc->disk.c, &w->key, 0)->bdev);
 		io->bio.bi_end_io	= read_dirty_endio;
 
-		if (bio_alloc_pages(&io->bio, GFP_KERNEL))
+		if (bch_bio_alloc_pages(&io->bio, GFP_KERNEL))
 			goto err_free;
 
 		trace_bcache_writeback(&w->key);
