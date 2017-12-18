@@ -1160,16 +1160,26 @@ sub dump_enum($$) {
 	    push @parameterlist, $arg;
 	    if (!$parameterdescs{$arg}) {
 		$parameterdescs{$arg} = $undescribed;
-		print STDERR "${file}:$.: warning: Enum value '$arg' ".
-		    "not described in enum '$declaration_name'\n";
+	        if (($output_selection == OUTPUT_ALL) ||
+		    ($output_selection == OUTPUT_INCLUDE &&
+		     defined($function_table{$declaration_name})) ||
+		    ($output_selection == OUTPUT_EXCLUDE &&
+		     !defined($function_table{$declaration_name}))) {
+			print STDERR "${file}:$.: warning: Enum value '$arg' not described in enum '$declaration_name'\n";
+		}
 	    }
 	    $_members{$arg} = 1;
 	}
 
 	while (my ($k, $v) = each %parameterdescs) {
 	    if (!exists($_members{$k})) {
-	     print STDERR "${file}:$.: warning: Excess enum value " .
-	                  "'$k' description in '$declaration_name'\n";
+	        if (($output_selection == OUTPUT_ALL) ||
+		    ($output_selection == OUTPUT_INCLUDE &&
+		     defined($function_table{$declaration_name})) ||
+		    ($output_selection == OUTPUT_EXCLUDE &&
+		     !defined($function_table{$declaration_name}))) {
+		     print STDERR "${file}:$.: warning: Excess enum value '$k' description in '$declaration_name'\n";
+		}
 	    }
         }
 
@@ -1375,9 +1385,15 @@ sub push_parameter($$$$) {
 	if (!defined $parameterdescs{$param} && $param !~ /^#/) {
 		$parameterdescs{$param} = $undescribed;
 
-		print STDERR
-		      "${file}:$.: warning: Function parameter or member '$param' not described in '$declaration_name'\n";
-		++$warnings;
+	        if (($output_selection == OUTPUT_ALL) ||
+		    ($output_selection == OUTPUT_INCLUDE &&
+		     defined($function_table{$declaration_name})) ||
+		    ($output_selection == OUTPUT_EXCLUDE &&
+		     !defined($function_table{$declaration_name}))) {
+			print STDERR
+			      "${file}:$.: warning: Function parameter or member '$param' not described in '$declaration_name'\n";
+			++$warnings;
+		}
 	}
 
 	$param = xml_escape($param);
