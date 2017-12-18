@@ -149,7 +149,7 @@ struct sh_mobile_i2c_data {
 
 struct sh_mobile_dt_config {
 	int clks_per_count;
-	void (*setup)(struct sh_mobile_i2c_data *pd);
+	int (*setup)(struct sh_mobile_i2c_data *pd);
 };
 
 #define IIC_FLAG_HAS_ICIC67	(1 << 0)
@@ -749,7 +749,7 @@ static const struct i2c_algorithm sh_mobile_i2c_algorithm = {
  * r8a7740 chip has lasting errata on I2C I/O pad reset.
  * this is work-around for it.
  */
-static void sh_mobile_i2c_r8a7740_workaround(struct sh_mobile_i2c_data *pd)
+static int sh_mobile_i2c_r8a7740_workaround(struct sh_mobile_i2c_data *pd)
 {
 	iic_set_clr(pd, ICCR, ICCR_ICE, 0);
 	iic_rd(pd, ICCR); /* dummy read */
@@ -770,6 +770,8 @@ static void sh_mobile_i2c_r8a7740_workaround(struct sh_mobile_i2c_data *pd)
 	udelay(10);
 	iic_wr(pd, ICCR, ICCR_TRS);
 	udelay(10);
+
+	return 0;
 }
 
 static const struct sh_mobile_dt_config default_dt_config = {
@@ -881,8 +883,11 @@ static int sh_mobile_i2c_probe(struct platform_device *dev)
 	if (config) {
 		pd->clks_per_count = config->clks_per_count;
 
-		if (config->setup)
-			config->setup(pd);
+		if (config->setup) {
+			ret = config->setup(pd);
+			if (ret)
+				return ret;
+		}
 	}
 
 	ret = sh_mobile_i2c_init(pd);
