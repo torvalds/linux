@@ -13,6 +13,7 @@ Required properties:
 	nxp,pca9555
 	nxp,pca9556
 	nxp,pca9557
+	nxp,pca9570
 	nxp,pca9574
 	nxp,pca9575
 	nxp,pca9698
