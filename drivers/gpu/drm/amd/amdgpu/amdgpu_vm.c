@@ -2256,7 +2256,6 @@ int amdgpu_vm_init(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 	uint64_t init_pde_value = 0;
 
 	vm->va = RB_ROOT_CACHED;
-	vm->client_id = atomic64_inc_return(&adev->vm_manager.client_counter);
 	for (i = 0; i < AMDGPU_MAX_VMHUBS; i++)
 		vm->reserved_vmid[i] = NULL;
 	spin_lock_init(&vm->status_lock);
@@ -2502,7 +2501,6 @@ void amdgpu_vm_manager_init(struct amdgpu_device *adev)
 		adev->vm_manager.seqno[i] = 0;
 
 	atomic_set(&adev->vm_manager.vm_pte_next_ring, 0);
-	atomic64_set(&adev->vm_manager.client_counter, 0);
 	spin_lock_init(&adev->vm_manager.prt_lock);
 	atomic_set(&adev->vm_manager.num_prt_users, 0);
 

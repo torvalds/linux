@@ -191,8 +191,6 @@ struct amdgpu_vm {
 	/* Scheduler entity for page table updates */
 	struct drm_sched_entity	entity;
 
-	/* client id and PASID (TODO: replace client_id with PASID) */
-	u64                     client_id;
 	unsigned int		pasid;
 	/* dedicated to vm */
 	struct amdgpu_vmid	*reserved_vmid[AMDGPU_MAX_VMHUBS];
@@ -230,8 +228,6 @@ struct amdgpu_vm_manager {
 	struct amdgpu_ring                      *vm_pte_rings[AMDGPU_MAX_RINGS];
 	unsigned				vm_pte_num_rings;
 	atomic_t				vm_pte_next_ring;
-	/* client id counter */
-	atomic64_t				client_counter;
 
 	/* partial resident texture handling */
 	spinlock_t				prt_lock;
