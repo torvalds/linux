@@ -560,7 +560,6 @@ pi433_tx_thread(void *data)
 	struct pi433_device *device = data;
 	struct spi_device *spi = device->spi;
 	struct pi433_tx_cfg tx_cfg;
-	u8     *buffer = device->buffer;
 	size_t size;
 	bool   rx_interrupted = false;
 	int    position, repetitions;
@@ -609,19 +608,19 @@ pi433_tx_thread(void *data)
 			size++;
 
 		/* prime buffer */
-		memset(buffer, 0, size);
+		memset(device->buffer, 0, size);
 		position = 0;
 
 		/* add length byte, if requested */
 		if (tx_cfg.enable_length_byte  == OPTION_ON)
-			buffer[position++] = size - 1; /* according to spec length byte itself must be excluded from the length calculation */
+			device->buffer[position++] = size - 1; /* according to spec length byte itself must be excluded from the length calculation */
 
 		/* add adr byte, if requested */
 		if (tx_cfg.enable_address_byte == OPTION_ON)
-			buffer[position++] = tx_cfg.address_byte;
+			device->buffer[position++] = tx_cfg.address_byte;
 
 		/* finally get message data from fifo */
-		retval = kfifo_out(&device->tx_fifo, &buffer[position], sizeof(buffer) - position);
+		retval = kfifo_out(&device->tx_fifo, &device->buffer[position], sizeof(device->buffer) - position);
 		dev_dbg(device->dev, "read %d message byte(s) from fifo queue.", retval);
 		mutex_unlock(&device->tx_fifo_lock);
 
@@ -703,7 +702,7 @@ pi433_tx_thread(void *data)
 				int temp = device->free_in_fifo;
 				device->free_in_fifo = 0;
 				rf69_write_fifo(spi,
-						&buffer[position],
+						&device->buffer[position],
 						temp);
 				position += temp;
 			} else {
@@ -711,7 +710,7 @@ pi433_tx_thread(void *data)
 				device->free_in_fifo -= size;
 				repetitions--;
 				rf69_write_fifo(spi,
-						&buffer[position],
+						&device->buffer[position],
 						(size - position));
 				position = 0; /* reset for next repetition */
 			}
