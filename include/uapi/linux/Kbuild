@@ -354,6 +354,7 @@ header-y += reiserfs_fs.h
 header-y += reiserfs_xattr.h
 header-y += resource.h
 header-y += rfkill.h
+header-y += rkisp1-config.h
 header-y += romfs_fs.h
 header-y += rose.h
 header-y += route.h
