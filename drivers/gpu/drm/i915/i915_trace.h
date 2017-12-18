@@ -641,8 +641,8 @@ DECLARE_EVENT_CLASS(i915_gem_request,
 
 	    TP_STRUCT__entry(
 			     __field(u32, dev)
-			     __field(u32, ctx)
 			     __field(u32, ring)
+			     __field(u32, ctx)
 			     __field(u32, seqno)
 			     __field(u32, global)
 			     ),
@@ -684,9 +684,9 @@ DECLARE_EVENT_CLASS(i915_gem_request_hw,
 		    TP_STRUCT__entry(
 				     __field(u32, dev)
 				     __field(u32, ring)
+				     __field(u32, ctx)
 				     __field(u32, seqno)
 				     __field(u32, global_seqno)
-				     __field(u32, ctx)
 				     __field(u32, port)
 				    ),
 
