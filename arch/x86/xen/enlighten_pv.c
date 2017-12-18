@@ -87,6 +87,8 @@
 #include "multicalls.h"
 #include "pmu.h"
 
+#include "../kernel/cpu/cpu.h" /* get_cpu_cap() */
+
 void *xen_initial_gdt;
 
 static int xen_cpu_up_prepare_pv(unsigned int cpu);
@@ -1249,6 +1251,7 @@ asmlinkage __visible void __init xen_start_kernel(void)
 	__userpte_alloc_gfp &= ~__GFP_HIGHMEM;
 
 	/* Work out if we support NX */
+	get_cpu_cap(&boot_cpu_data);
 	x86_configure_nx();
 
 	/* Get mfn list */
