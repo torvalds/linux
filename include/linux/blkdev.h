@@ -241,19 +241,36 @@ struct request {
 	struct request *next_rq;
 };
 
+static inline bool blk_op_is_scsi(unsigned int op)
+{
+	return op == REQ_OP_SCSI_IN || op == REQ_OP_SCSI_OUT;
+}
+
+static inline bool blk_op_is_private(unsigned int op)
+{
+	return op == REQ_OP_DRV_IN || op == REQ_OP_DRV_OUT;
+}
+
 static inline bool blk_rq_is_scsi(struct request *rq)
 {
-	return req_op(rq) == REQ_OP_SCSI_IN || req_op(rq) == REQ_OP_SCSI_OUT;
+	return blk_op_is_scsi(req_op(rq));
 }
 
 static inline bool blk_rq_is_private(struct request *rq)
 {
-	return req_op(rq) == REQ_OP_DRV_IN || req_op(rq) == REQ_OP_DRV_OUT;
+	return blk_op_is_private(req_op(rq));
 }
 
 static inline bool blk_rq_is_passthrough(struct request *rq)
 {
 	return blk_rq_is_scsi(rq) || blk_rq_is_private(rq);
+}
+
+static inline bool bio_is_passthrough(struct bio *bio)
+{
+	unsigned op = bio_op(bio);
+
+	return blk_op_is_scsi(op) || blk_op_is_private(op);
 }
 
 static inline unsigned short req_get_ioprio(struct request *req)
