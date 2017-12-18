@@ -21,6 +21,8 @@ Required child properties:
 
 Optional child properties:
 	- label : see Documentation/devicetree/bindings/leds/common.txt
+	- linux,default-trigger :
+	   see Documentation/devicetree/bindings/leds/common.txt
 
 Example:
 
@@ -35,6 +37,7 @@ led-controller@2d {
 	led@0 {
 		reg = <0>;
 		label = "white:backlight";
+		linux,default-trigger = "backlight";
 	};
 }
 
