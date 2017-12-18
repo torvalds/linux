@@ -160,10 +160,8 @@ static int tpiu_probe(struct amba_device *adev, const struct amba_id *id)
 	desc.pdata = pdata;
 	desc.dev = dev;
 	drvdata->csdev = coresight_register(&desc);
-	if (IS_ERR(drvdata->csdev))
-		return PTR_ERR(drvdata->csdev);
 
-	return 0;
+	return PTR_ERR_OR_ZERO(drvdata->csdev);
 }
 
 #ifdef CONFIG_PM
