@@ -138,7 +138,7 @@ static ssize_t value_store(struct device *dev,
 
 	return status;
 }
-static DEVICE_ATTR_RW(value);
+static DEVICE_ATTR_PREALLOC(value, S_IWUSR | S_IRUGO, value_show, value_store);
 
 static irqreturn_t gpio_sysfs_irq(int irq, void *priv)
 {
