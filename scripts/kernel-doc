@@ -1041,18 +1041,32 @@ sub dump_struct($$) {
 			$id =~ s/^\*+//;
 			foreach my $arg (split /;/, $content) {
 				next if ($arg =~ m/^\s*$/);
-				my $type = $arg;
-				my $name = $arg;
-				$type =~ s/\s\S+$//;
-				$name =~ s/.*\s//;
-				$name =~ s/[:\[].*//;
-				$name =~ s/^\*+//;
-				next if (($name =~ m/^\s*$/));
-				if ($id =~ m/^\s*$/) {
-					# anonymous struct/union
-					$newmember .= "$type $name;";
+				if ($arg =~ m/^([^\(]+\(\*?\s*)([\w\.]*)(\s*\).*)/) {
+					# pointer-to-function
+					my $type = $1;
+					my $name = $2;
+					my $extra = $3;
+					next if (!$name);
+					if ($id =~ m/^\s*$/) {
+						# anonymous struct/union
+						$newmember .= "$type$name$extra;";
+					} else {
+						$newmember .= "$type$id.$name$extra;";
+					}
 				} else {
-					$newmember .= "$type $id.$name;";
+					my $type = $arg;
+					my $name = $arg;
+					$type =~ s/\s\S+$//;
+					$name =~ s/.*\s+//;
+					$name =~ s/[:\[].*//;
+					$name =~ s/^\*+//;
+					next if (($name =~ m/^\s*$/));
+					if ($id =~ m/^\s*$/) {
+						# anonymous struct/union
+						$newmember .= "$type $name;";
+					} else {
+						$newmember .= "$type $id.$name;";
+					}
 				}
 			}
 			$members =~ s/(struct|union)([^{};]+){([^{}]*)}([^{}\;]*)\;/$newmember/;
@@ -1250,7 +1264,7 @@ sub create_parameterlist($$$$) {
 	} elsif ($arg =~ m/\(.+\)\s*\(/) {
 	    # pointer-to-function
 	    $arg =~ tr/#/,/;
-	    $arg =~ m/[^\(]+\(\*?\s*(\w*)\s*\)/;
+	    $arg =~ m/[^\(]+\(\*?\s*([\w\.]*)\s*\)/;
 	    $param = $1;
 	    $type = $arg;
 	    $type =~ s/([^\(]+\(\*?)\s*$param/$1/;
