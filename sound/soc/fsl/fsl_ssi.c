@@ -201,7 +201,7 @@ struct fsl_ssi_soc_data {
  * @cpu_dai_drv: CPU DAI driver for this device
  *
  * @dai_fmt: DAI configuration this device is currently used with
- * @i2s_mode: I2S and Network mode configuration of SCR register
+ * @i2s_net: I2S and Network mode configurations of SCR register
  * @use_dma: DMA is used or FIQ with stream filter
  * @use_dual_fifo: DMA with support for dual FIFO mode
  * @has_ipg_clk_name: If "ipg" is in the clock name list of device tree
@@ -245,7 +245,7 @@ struct fsl_ssi {
 	struct snd_soc_dai_driver cpu_dai_drv;
 
 	unsigned int dai_fmt;
-	u8 i2s_mode;
+	u8 i2s_net;
 	bool use_dma;
 	bool use_dual_fifo;
 	bool has_ipg_clk_name;
@@ -836,16 +836,16 @@ static int fsl_ssi_hw_params(struct snd_pcm_substream *substream,
 	}
 
 	if (!fsl_ssi_is_ac97(ssi)) {
-		u8 i2smode;
+		u8 i2s_net;
 		/* Normal + Network mode to send 16-bit data in 32-bit frames */
 		if (fsl_ssi_is_i2s_cbm_cfs(ssi) && sample_size == 16)
-			i2smode = SSI_SCR_I2S_MODE_NORMAL | SSI_SCR_NET;
+			i2s_net = SSI_SCR_I2S_MODE_NORMAL | SSI_SCR_NET;
 		else
-			i2smode = ssi->i2s_mode;
+			i2s_net = ssi->i2s_net;
 
 		regmap_update_bits(regs, REG_SSI_SCR,
-				   SSI_SCR_NET | SSI_SCR_I2S_MODE_MASK,
-				   channels == 1 ? 0 : i2smode);
+				   SSI_SCR_I2S_NET_MASK,
+				   channels == 1 ? 0 : i2s_net);
 	}
 
 	/* In synchronous mode, the SSI uses STCCR for capture */
@@ -902,7 +902,7 @@ static int _fsl_ssi_set_dai_fmt(struct device *dev,
 	srcr &= ~mask;
 
 	/* Use Network mode as default */
-	ssi->i2s_mode = SSI_SCR_NET;
+	ssi->i2s_net = SSI_SCR_NET;
 	switch (fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
 	case SND_SOC_DAIFMT_I2S:
 		regmap_update_bits(regs, REG_SSI_STCCR,
@@ -912,10 +912,10 @@ static int _fsl_ssi_set_dai_fmt(struct device *dev,
 		switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
 		case SND_SOC_DAIFMT_CBM_CFS:
 		case SND_SOC_DAIFMT_CBS_CFS:
-			ssi->i2s_mode |= SSI_SCR_I2S_MODE_MASTER;
+			ssi->i2s_net |= SSI_SCR_I2S_MODE_MASTER;
 			break;
 		case SND_SOC_DAIFMT_CBM_CFM:
-			ssi->i2s_mode |= SSI_SCR_I2S_MODE_SLAVE;
+			ssi->i2s_net |= SSI_SCR_I2S_MODE_SLAVE;
 			break;
 		default:
 			return -EINVAL;
@@ -940,12 +940,12 @@ static int _fsl_ssi_set_dai_fmt(struct device *dev,
 		break;
 	case SND_SOC_DAIFMT_AC97:
 		/* Data on falling edge of bclk, frame high, 1clk before data */
-		ssi->i2s_mode |= SSI_SCR_I2S_MODE_NORMAL;
+		ssi->i2s_net |= SSI_SCR_I2S_MODE_NORMAL;
 		break;
 	default:
 		return -EINVAL;
 	}
-	scr |= ssi->i2s_mode;
+	scr |= ssi->i2s_net;
 
 	/* DAI clock inversion */
 	switch (fmt & SND_SOC_DAIFMT_INV_MASK) {
