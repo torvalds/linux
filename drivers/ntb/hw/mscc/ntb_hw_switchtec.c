@@ -320,6 +320,19 @@ static int switchtec_ntb_mw_set_trans(struct ntb_dev *ntb, int pidx, int widx,
 	if (xlate_pos < 12)
 		return -EINVAL;
 
+	if (!IS_ALIGNED(addr, BIT_ULL(xlate_pos))) {
+		/*
+		 * In certain circumstances we can get a buffer that is
+		 * not aligned to its size. (Most of the time
+		 * dma_alloc_coherent ensures this). This can happen when
+		 * using large buffers allocated by the CMA
+		 * (see CMA_CONFIG_ALIGNMENT)
+		 */
+		dev_err(&sndev->stdev->dev,
+			"ERROR: Memory window address is not aligned to it's size!\n");
+		return -EINVAL;
+	}
+
 	rc = switchtec_ntb_part_op(sndev, ctl, NTB_CTRL_PART_OP_LOCK,
 				   NTB_CTRL_PART_STATUS_LOCKED);
 	if (rc)
