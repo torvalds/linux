@@ -3292,8 +3292,8 @@ static u16 efx_ef10_handle_rx_event_errors(struct efx_channel *channel,
 		if (unlikely(rx_encap_hdr != ESE_EZ_ENCAP_HDR_VXLAN &&
 			     ((rx_l3_class != ESE_DZ_L3_CLASS_IP4 &&
 			       rx_l3_class != ESE_DZ_L3_CLASS_IP6) ||
-			      (rx_l4_class != ESE_DZ_L4_CLASS_TCP &&
-			       rx_l4_class != ESE_DZ_L4_CLASS_UDP))))
+			      (rx_l4_class != ESE_FZ_L4_CLASS_TCP &&
+			       rx_l4_class != ESE_FZ_L4_CLASS_UDP))))
 			netdev_WARN(efx->net_dev,
 				    "invalid class for RX_TCPUDP_CKSUM_ERR: event="
 				    EFX_QWORD_FMT "\n",
@@ -3330,8 +3330,8 @@ static u16 efx_ef10_handle_rx_event_errors(struct efx_channel *channel,
 				    EFX_QWORD_VAL(*event));
 		else if (unlikely((rx_l3_class != ESE_DZ_L3_CLASS_IP4 &&
 				   rx_l3_class != ESE_DZ_L3_CLASS_IP6) ||
-				  (rx_l4_class != ESE_DZ_L4_CLASS_TCP &&
-				   rx_l4_class != ESE_DZ_L4_CLASS_UDP)))
+				  (rx_l4_class != ESE_FZ_L4_CLASS_TCP &&
+				   rx_l4_class != ESE_FZ_L4_CLASS_UDP)))
 			netdev_WARN(efx->net_dev,
 				    "invalid class for RX_TCP_UDP_INNER_CHKSUM_ERR: event="
 				    EFX_QWORD_FMT "\n",
@@ -3366,7 +3366,7 @@ static int efx_ef10_handle_rx_event(struct efx_channel *channel,
 	next_ptr_lbits = EFX_QWORD_FIELD(*event, ESF_DZ_RX_DSC_PTR_LBITS);
 	rx_queue_label = EFX_QWORD_FIELD(*event, ESF_DZ_RX_QLABEL);
 	rx_l3_class = EFX_QWORD_FIELD(*event, ESF_DZ_RX_L3_CLASS);
-	rx_l4_class = EFX_QWORD_FIELD(*event, ESF_DZ_RX_L4_CLASS);
+	rx_l4_class = EFX_QWORD_FIELD(*event, ESF_FZ_RX_L4_CLASS);
 	rx_cont = EFX_QWORD_FIELD(*event, ESF_DZ_RX_CONT);
 	rx_encap_hdr =
 		nic_data->datapath_caps &
@@ -3444,8 +3444,8 @@ static int efx_ef10_handle_rx_event(struct efx_channel *channel,
 							 rx_l3_class, rx_l4_class,
 							 event);
 	} else {
-		bool tcpudp = rx_l4_class == ESE_DZ_L4_CLASS_TCP ||
-			      rx_l4_class == ESE_DZ_L4_CLASS_UDP;
+		bool tcpudp = rx_l4_class == ESE_FZ_L4_CLASS_TCP ||
+			      rx_l4_class == ESE_FZ_L4_CLASS_UDP;
 
 		switch (rx_encap_hdr) {
 		case ESE_EZ_ENCAP_HDR_VXLAN: /* VxLAN or GENEVE */
@@ -3466,7 +3466,7 @@ static int efx_ef10_handle_rx_event(struct efx_channel *channel,
 		}
 	}
 
-	if (rx_l4_class == ESE_DZ_L4_CLASS_TCP)
+	if (rx_l4_class == ESE_FZ_L4_CLASS_TCP)
 		flags |= EFX_RX_PKT_TCP;
 
 	channel->irq_mod_score += 2 * n_packets;
