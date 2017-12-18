@@ -2348,7 +2348,7 @@ static void set_master_stream(struct dc_stream_state *stream_set[],
 		}
 	}
 	for (j = 0;  j < stream_count; j++) {
-		if (stream_set[j] && j != master_stream)
+		if (stream_set[j])
 			stream_set[j]->triggered_crtc_reset.event_source = stream_set[master_stream];
 	}
 }

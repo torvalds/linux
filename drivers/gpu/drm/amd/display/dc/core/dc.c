@@ -521,11 +521,13 @@ static void enable_timing_multisync(
 		if (!ctx->res_ctx.pipe_ctx[i].stream ||
 				!ctx->res_ctx.pipe_ctx[i].stream->triggered_crtc_reset.enabled)
 			continue;
+		if (ctx->res_ctx.pipe_ctx[i].stream == ctx->res_ctx.pipe_ctx[i].stream->triggered_crtc_reset.event_source)
+			continue;
 		multisync_pipes[multisync_count] = &ctx->res_ctx.pipe_ctx[i];
 		multisync_count++;
 	}
 
-	if (multisync_count > 1) {
+	if (multisync_count > 0) {
 		dc->hwss.enable_per_frame_crtc_position_reset(
 			dc, multisync_count, multisync_pipes);
 	}

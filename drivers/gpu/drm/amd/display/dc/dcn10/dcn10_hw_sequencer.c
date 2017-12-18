@@ -1097,7 +1097,7 @@ static void dcn10_enable_per_frame_crtc_position_reset(
 
 	DC_SYNC_INFO("Waiting for trigger\n");
 
-	for (i = 1; i < group_size; i++)
+	for (i = 0; i < group_size; i++)
 		wait_for_reset_trigger_to_occur(dc_ctx, grouped_pipes[i]->stream_res.tg);
 
 	DC_SYNC_INFO("Multi-display sync is complete\n");
