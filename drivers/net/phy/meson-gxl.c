@@ -38,9 +38,6 @@
 #define BANK_WOL		1
 #define BANK_BIST		3
 
-/* Analog/DSP Registers */
-#define A6_CONFIG_REG	0x17
-
 /* WOL Registers */
 #define LPI_STATUS	0xc
 #define  LPI_STATUS_RSV12	BIT(12)
@@ -125,12 +122,6 @@ out:
 static int meson_gxl_config_init(struct phy_device *phydev)
 {
 	int ret;
-
-	/* Write CONFIG_A6*/
-	ret = meson_gxl_write_reg(phydev, BANK_ANALOG_DSP, A6_CONFIG_REG,
-				  0x8e0d);
-	if (ret)
-		return ret;
 
 	/* Enable fractional PLL */
 	ret = meson_gxl_write_reg(phydev, BANK_BIST, FR_PLL_CONTROL, 0x5);
