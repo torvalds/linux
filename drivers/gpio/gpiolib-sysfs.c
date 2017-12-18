@@ -106,8 +106,12 @@ static ssize_t value_show(struct device *dev,
 
 	mutex_lock(&data->mutex);
 
-	status = sprintf(buf, "%d\n", gpiod_get_value_cansleep(desc));
+	status = gpiod_get_value_cansleep(desc);
+	if (status < 0)
+		goto err;
 
+	status = sprintf(buf, "%d\n", status);
+err:
 	mutex_unlock(&data->mutex);
 
 	return status;
