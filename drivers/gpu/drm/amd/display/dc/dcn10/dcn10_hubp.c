@@ -909,6 +909,21 @@ void hubp1_cursor_set_position(
 	/* TODO Handle surface pixel formats other than 4:4:4 */
 }
 
+void hubp1_clk_cntl(struct hubp *hubp, bool enable)
+{
+	struct dcn10_hubp *hubp1 = TO_DCN10_HUBP(hubp);
+	uint32_t clk_enable = enable ? 1 : 0;
+
+	REG_UPDATE(HUBP_CLK_CNTL, HUBP_CLOCK_ENABLE, clk_enable);
+}
+
+void hubp1_vtg_sel(struct hubp *hubp, uint32_t otg_inst)
+{
+	struct dcn10_hubp *hubp1 = TO_DCN10_HUBP(hubp);
+
+	REG_UPDATE(DCHUBP_CNTL, HUBP_VTG_SEL, otg_inst);
+}
+
 static struct hubp_funcs dcn10_hubp_funcs = {
 	.hubp_program_surface_flip_and_addr =
 			hubp1_program_surface_flip_and_addr,
@@ -925,6 +940,8 @@ static struct hubp_funcs dcn10_hubp_funcs = {
 	.set_cursor_attributes	= hubp1_cursor_set_attributes,
 	.set_cursor_position	= hubp1_cursor_set_position,
 	.hubp_disconnect = hubp1_disconnect,
+	.hubp_clk_cntl = hubp1_clk_cntl,
+	.hubp_vtg_sel = hubp1_vtg_sel,
 };
 
 /*****************************************/

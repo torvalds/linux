@@ -660,8 +660,8 @@ static void plane_atomic_disable(struct dc *dc, struct pipe_ctx *pipe_ctx)
 
 	dc->hwss.wait_for_mpcc_disconnect(dc, dc->res_pool, pipe_ctx);
 
-	REG_UPDATE(HUBP_CLK_CNTL[fe_idx],
-			HUBP_CLOCK_ENABLE, 0);
+	hubp->funcs->hubp_clk_cntl(hubp, false);
+
 	REG_UPDATE(DPP_CONTROL[fe_idx],
 			DPP_CLOCK_ENABLE, 0);
 
@@ -1326,8 +1326,7 @@ static void dcn10_enable_plane(
 		pipe_ctx->pipe_idx);
 
 	/* enable DCFCLK current DCHUB */
-	REG_UPDATE(HUBP_CLK_CNTL[pipe_ctx->pipe_idx],
-			HUBP_CLOCK_ENABLE, 1);
+	pipe_ctx->plane_res.hubp->funcs->hubp_clk_cntl(pipe_ctx->plane_res.hubp, true);
 
 	/* make sure OPP_PIPE_CLOCK_EN = 1 */
 	REG_UPDATE(OPP_PIPE_CONTROL[pipe_ctx->stream_res.tg->inst],
@@ -1679,7 +1678,6 @@ static void update_dchubp_dpp(
 	struct pipe_ctx *pipe_ctx,
 	struct dc_state *context)
 {
-	struct dce_hwseq *hws = dc->hwseq;
 	struct hubp *hubp = pipe_ctx->plane_res.hubp;
 	struct dpp *dpp = pipe_ctx->plane_res.dpp;
 	struct dc_plane_state *plane_state = pipe_ctx->plane_state;
@@ -1702,7 +1700,7 @@ static void update_dchubp_dpp(
 	 * VTG is 1:1 mapping with OTG. Each pipe HUBP will select which VTG
 	 */
 	if (plane_state->update_flags.bits.full_update) {
-		REG_UPDATE(DCHUBP_CNTL[pipe_ctx->pipe_idx], HUBP_VTG_SEL, pipe_ctx->stream_res.tg->inst);
+		hubp->funcs->hubp_vtg_sel(hubp, pipe_ctx->stream_res.tg->inst);
 
 		hubp->funcs->hubp_setup(
 			hubp,
