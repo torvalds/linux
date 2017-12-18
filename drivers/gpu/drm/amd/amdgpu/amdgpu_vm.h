@@ -31,6 +31,7 @@
 
 #include "amdgpu_sync.h"
 #include "amdgpu_ring.h"
+#include "amdgpu_ids.h"
 
 struct amdgpu_bo_va;
 struct amdgpu_job;
@@ -39,9 +40,6 @@ struct amdgpu_bo_list_entry;
 /*
  * GPUVM handling
  */
-
-/* maximum number of VMIDs */
-#define AMDGPU_NUM_VM	16
 
 /* Maximum number of PTEs the hardware can write with one command */
 #define AMDGPU_VM_MAX_UPDATE_SIZE	0x3FFFF
@@ -197,7 +195,7 @@ struct amdgpu_vm {
 	u64                     client_id;
 	unsigned int		pasid;
 	/* dedicated to vm */
-	struct amdgpu_vm_id	*reserved_vmid[AMDGPU_MAX_VMHUBS];
+	struct amdgpu_vmid	*reserved_vmid[AMDGPU_MAX_VMHUBS];
 
 	/* Flag to indicate if VM tables are updated by CPU or GPU (SDMA) */
 	bool                    use_cpu_for_update;
@@ -212,37 +210,9 @@ struct amdgpu_vm {
 	unsigned int		fault_credit;
 };
 
-struct amdgpu_vm_id {
-	struct list_head	list;
-	struct amdgpu_sync	active;
-	struct dma_fence		*last_flush;
-	atomic64_t		owner;
-
-	uint64_t		pd_gpu_addr;
-	/* last flushed PD/PT update */
-	struct dma_fence		*flushed_updates;
-
-	uint32_t                current_gpu_reset_count;
-
-	uint32_t		gds_base;
-	uint32_t		gds_size;
-	uint32_t		gws_base;
-	uint32_t		gws_size;
-	uint32_t		oa_base;
-	uint32_t		oa_size;
-};
-
-struct amdgpu_vm_id_manager {
-	struct mutex		lock;
-	unsigned		num_ids;
-	struct list_head	ids_lru;
-	struct amdgpu_vm_id	ids[AMDGPU_NUM_VM];
-	atomic_t		reserved_vmid_num;
-};
-
 struct amdgpu_vm_manager {
 	/* Handling of VMIDs */
-	struct amdgpu_vm_id_manager		id_mgr[AMDGPU_MAX_VMHUBS];
+	struct amdgpu_vmid_mgr			id_mgr[AMDGPU_MAX_VMHUBS];
 
 	/* Handling of VM fences */
 	u64					fence_context;
@@ -280,8 +250,6 @@ struct amdgpu_vm_manager {
 	spinlock_t				pasid_lock;
 };
 
-int amdgpu_vm_alloc_pasid(unsigned int bits);
-void amdgpu_vm_free_pasid(unsigned int pasid);
 void amdgpu_vm_manager_init(struct amdgpu_device *adev);
 void amdgpu_vm_manager_fini(struct amdgpu_device *adev);
 int amdgpu_vm_init(struct amdgpu_device *adev, struct amdgpu_vm *vm,
@@ -299,13 +267,7 @@ int amdgpu_vm_validate_pt_bos(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 int amdgpu_vm_alloc_pts(struct amdgpu_device *adev,
 			struct amdgpu_vm *vm,
 			uint64_t saddr, uint64_t size);
-int amdgpu_vm_grab_id(struct amdgpu_vm *vm, struct amdgpu_ring *ring,
-		      struct amdgpu_sync *sync, struct dma_fence *fence,
-		      struct amdgpu_job *job);
 int amdgpu_vm_flush(struct amdgpu_ring *ring, struct amdgpu_job *job, bool need_pipe_sync);
-void amdgpu_vm_reset_id(struct amdgpu_device *adev, unsigned vmhub,
-			unsigned vmid);
-void amdgpu_vm_reset_all_ids(struct amdgpu_device *adev);
 int amdgpu_vm_update_directories(struct amdgpu_device *adev,
 				 struct amdgpu_vm *vm);
 int amdgpu_vm_clear_freed(struct amdgpu_device *adev,
