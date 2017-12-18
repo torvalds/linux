@@ -1523,6 +1523,7 @@ static void vop_plane_atomic_update(struct drm_plane *plane,
 {
 	struct drm_plane_state *state = plane->state;
 	struct drm_crtc *crtc = state->crtc;
+	struct drm_display_mode *mode = &crtc->state->adjusted_mode;
 	struct vop_win *win = to_vop_win(plane);
 	struct vop_plane_state *vop_plane_state = to_vop_plane_state(state);
 	struct rockchip_crtc_state *s;
@@ -1558,8 +1559,8 @@ static void vop_plane_atomic_update(struct drm_plane *plane,
 	dsp_info = (drm_rect_height(dest) - 1) << 16;
 	dsp_info |= (drm_rect_width(dest) - 1) & 0xffff;
 
-	dsp_stx = dest->x1 + crtc->mode.htotal - crtc->mode.hsync_start;
-	dsp_sty = dest->y1 + crtc->mode.vtotal - crtc->mode.vsync_start;
+	dsp_stx = dest->x1 + mode->crtc_htotal - mode->crtc_hsync_start;
+	dsp_sty = dest->y1 + mode->crtc_vtotal - mode->crtc_vsync_start;
 	dsp_st = dsp_sty << 16 | (dsp_stx & 0xffff);
 
 	ymirror = state->rotation & BIT(DRM_REFLECT_Y) ||
