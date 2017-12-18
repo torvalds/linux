@@ -59,7 +59,8 @@ static void ttyport_write_wakeup(struct tty_port *port)
 	    test_bit(SERPORT_ACTIVE, &serport->flags))
 		serdev_controller_write_wakeup(ctrl);
 
-	wake_up_interruptible_poll(&tty->write_wait, POLLOUT);
+	/* Wake up any tty_wait_until_sent() */
+	wake_up_interruptible(&tty->write_wait);
 
 	tty_kref_put(tty);
 }
