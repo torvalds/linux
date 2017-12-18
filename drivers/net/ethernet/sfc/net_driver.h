@@ -708,6 +708,7 @@ struct vfdi_status;
  * @reset_work: Scheduled reset workitem
  * @membase_phys: Memory BAR value as physical address
  * @membase: Memory BAR value
+ * @vi_stride: step between per-VI registers / memory regions
  * @interrupt_mode: Interrupt mode
  * @timer_quantum_ns: Interrupt timer quantum, in nanoseconds
  * @timer_max_ns: Interrupt timer maximum value, in nanoseconds
@@ -841,6 +842,8 @@ struct efx_nic {
 	struct work_struct reset_work;
 	resource_size_t membase_phys;
 	void __iomem *membase;
+
+	unsigned int vi_stride;
 
 	enum efx_int_mode interrupt_mode;
 	unsigned int timer_quantum_ns;

@@ -27,6 +27,7 @@
 #include <net/udp_tunnel.h>
 #include "efx.h"
 #include "nic.h"
+#include "io.h"
 #include "selftest.h"
 #include "sriov.h"
 
@@ -2977,6 +2978,7 @@ static int efx_init_struct(struct efx_nic *efx,
 	efx->rx_packet_ts_offset =
 		efx->type->rx_ts_offset - efx->type->rx_prefix_size;
 	spin_lock_init(&efx->stats_lock);
+	efx->vi_stride = EFX_DEFAULT_VI_STRIDE;
 	mutex_init(&efx->mac_lock);
 	efx->phy_op = &efx_dummy_phy_operations;
 	efx->mdio.dev = net_dev;
