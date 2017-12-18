@@ -275,7 +275,7 @@ lnet_parse_networks(struct list_head *nilist, char *networks)
 
 			if (comma)
 				*comma++ = 0;
-			net = libcfs_str2net(cfs_trimwhite(str));
+			net = libcfs_str2net(strim(str));
 
 			if (net == LNET_NIDNET(LNET_NID_ANY)) {
 				LCONSOLE_ERROR_MSG(0x113,
@@ -298,7 +298,7 @@ lnet_parse_networks(struct list_head *nilist, char *networks)
 		}
 
 		*bracket = 0;
-		net = libcfs_str2net(cfs_trimwhite(str));
+		net = libcfs_str2net(strim(str));
 		if (net == LNET_NIDNET(LNET_NID_ANY)) {
 			tmp = str;
 			goto failed_syntax;
@@ -328,7 +328,7 @@ lnet_parse_networks(struct list_head *nilist, char *networks)
 			if (comma)
 				*comma++ = 0;
 
-			iface = cfs_trimwhite(iface);
+			iface = strim(iface);
 			if (!*iface) {
 				tmp = iface;
 				goto failed_syntax;
@@ -365,7 +365,7 @@ lnet_parse_networks(struct list_head *nilist, char *networks)
 		comma = strchr(bracket + 1, ',');
 		if (comma) {
 			*comma = 0;
-			str = cfs_trimwhite(str);
+			str = strim(str);
 			if (*str) {
 				tmp = str;
 				goto failed_syntax;
@@ -374,7 +374,7 @@ lnet_parse_networks(struct list_head *nilist, char *networks)
 			continue;
 		}
 
-		str = cfs_trimwhite(str);
+		str = strim(str);
 		if (*str) {
 			tmp = str;
 			goto failed_syntax;

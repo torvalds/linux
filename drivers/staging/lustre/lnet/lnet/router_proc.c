@@ -829,7 +829,7 @@ static int __proc_lnet_portal_rotor(void *data, int write,
 	if (rc < 0)
 		goto out;
 
-	tmp = cfs_trimwhite(buf);
+	tmp = strim(buf);
 
 	rc = -EINVAL;
 	lnet_res_lock(0);

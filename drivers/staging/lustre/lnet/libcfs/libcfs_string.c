@@ -137,26 +137,6 @@ out:
 }
 EXPORT_SYMBOL(cfs_firststr);
 
-char *
-cfs_trimwhite(char *str)
-{
-	char *end;
-
-	while (isspace(*str))
-		str++;
-
-	end = str + strlen(str);
-	while (end > str) {
-		if (!isspace(end[-1]))
-			break;
-		end--;
-	}
-
-	*end = 0;
-	return str;
-}
-EXPORT_SYMBOL(cfs_trimwhite);
-
 /**
  * Extracts tokens from strings.
  *
