@@ -13963,7 +13963,7 @@ void nl80211_send_disconnected(struct cfg80211_registered_device *rdev,
 
 	if (nla_put_u32(msg, NL80211_ATTR_WIPHY, rdev->wiphy_idx) ||
 	    nla_put_u32(msg, NL80211_ATTR_IFINDEX, netdev->ifindex) ||
-	    (from_ap && reason &&
+	    (reason &&
 	     nla_put_u16(msg, NL80211_ATTR_REASON_CODE, reason)) ||
 	    (from_ap &&
 	     nla_put_flag(msg, NL80211_ATTR_DISCONNECTED_BY_AP)) ||
