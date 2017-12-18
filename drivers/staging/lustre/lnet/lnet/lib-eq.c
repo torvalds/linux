@@ -90,7 +90,7 @@ LNetEQAlloc(unsigned int count, lnet_eq_handler_t callback,
 	if (!count && callback == LNET_EQ_HANDLER_NONE)
 		return -EINVAL;
 
-	eq = lnet_eq_alloc();
+	eq = kzalloc(sizeof(*eq), GFP_NOFS);
 	if (!eq)
 		return -ENOMEM;
 
@@ -138,7 +138,7 @@ failed:
 	if (eq->eq_refs)
 		cfs_percpt_free(eq->eq_refs);
 
-	lnet_eq_free(eq);
+	kfree(eq);
 	return -ENOMEM;
 }
 EXPORT_SYMBOL(LNetEQAlloc);
@@ -197,7 +197,7 @@ LNetEQFree(struct lnet_handle_eq eqh)
 
 	lnet_res_lh_invalidate(&eq->eq_lh);
 	list_del(&eq->eq_list);
-	lnet_eq_free(eq);
+	kfree(eq);
  out:
 	lnet_eq_wait_unlock();
 	lnet_res_unlock(LNET_LOCK_EX);

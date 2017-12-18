@@ -771,7 +771,7 @@ lnet_ptl_cleanup(struct lnet_portal *ptl)
 						struct lnet_me, me_list);
 				CERROR("Active ME %p on exit\n", me);
 				list_del(&me->me_list);
-				lnet_me_free(me);
+				kfree(me);
 			}
 		}
 		/* the extra entry is for MEs with ignore bits */
