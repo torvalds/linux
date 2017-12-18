@@ -281,6 +281,52 @@ comment block.
 The kernel-doc data structure comments describe each member of the structure,
 in order, with the member descriptions.
 
+Nested structs/unions
+~~~~~~~~~~~~~~~~~~~~~
+
+It is possible to document nested structs unions, like::
+
+      /**
+       * struct nested_foobar - a struct with nested unions and structs
+       * @arg1: - first argument of anonymous union/anonymous struct
+       * @arg2: - second argument of anonymous union/anonymous struct
+       * @arg3: - third argument of anonymous union/anonymous struct
+       * @arg4: - fourth argument of anonymous union/anonymous struct
+       * @bar.st1.arg1 - first argument of struct st1 on union bar
+       * @bar.st1.arg2 - second argument of struct st1 on union bar
+       * @bar.st2.arg1 - first argument of struct st2 on union bar
+       * @bar.st2.arg2 - second argument of struct st2 on union bar
+      struct nested_foobar {
+        /* Anonymous union/struct*/
+        union {
+          struct {
+            int arg1;
+            int arg2;
+	  }
+          struct {
+            void *arg3;
+            int arg4;
+	  }
+	}
+	union {
+          struct {
+            int arg1;
+            int arg2;
+	  } st1;
+          struct {
+            void *arg1;
+            int arg2;
+	  } st2;
+	} bar;
+      };
+
+.. note::
+
+   #) When documenting nested structs or unions, if the struct/union ``foo``
+      is named, the argument ``bar`` inside it should be documented as
+      ``@foo.bar:``
+   #) When the nested struct/union is anonymous, the argument ``bar`` on it
+      should be documented as ``@bar:``
 
 Typedef documentation
 ---------------------
