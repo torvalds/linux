@@ -2010,8 +2010,9 @@ static void efx_ef10_push_irq_moderation(struct efx_channel *channel)
 	} else {
 		unsigned int ticks = efx_usecs_to_ticks(efx, usecs);
 
-		EFX_POPULATE_DWORD_2(timer_cmd, ERF_DZ_TC_TIMER_MODE, mode,
-				     ERF_DZ_TC_TIMER_VAL, ticks);
+		EFX_POPULATE_DWORD_3(timer_cmd, ERF_DZ_TC_TIMER_MODE, mode,
+				     ERF_DZ_TC_TIMER_VAL, ticks,
+				     ERF_FZ_TC_TMR_REL_VAL, ticks);
 		efx_writed_page(efx, &timer_cmd, ER_DZ_EVQ_TMR,
 				channel->channel);
 	}
