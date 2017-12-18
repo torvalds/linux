@@ -1853,7 +1853,7 @@ static int dummy(struct net_device *dev,
 		struct iw_request_info *a,
 		union iwreq_data *wrqu, char *b)
 {
-	return -ENOSYS;
+	return -EINVAL;
 }
 
 static int r8711_drvext_hdl(struct net_device *dev,
