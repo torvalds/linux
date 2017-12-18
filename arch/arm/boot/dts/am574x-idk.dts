@@ -1,0 +1,22 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * Copyright (C) 2017 Texas Instruments Incorporated - http://www.ti.com/
+ */
+
+
+/dts-v1/;
+
+#include "dra76x.dtsi"
+#include "am572x-idk-common.dtsi"
+
+/ {
+	model = "TI AM5748 IDK";
+	compatible = "ti,am5728-idk", "ti,dra762", "ti,dra7";
+};
+
+&qspi {
+	spi-max-frequency = <96000000>;
+	m25p80@0 {
+		spi-max-frequency = <96000000>;
+	};
+};
