@@ -351,8 +351,7 @@ void tipc_group_update_member(struct tipc_member *m, int len)
 	if (m->window >= ADV_IDLE)
 		return;
 
-	if (!list_empty(&m->congested))
-		return;
+	list_del_init(&m->congested);
 
 	/* Sort member into congested members' list */
 	list_for_each_entry_safe(_m, tmp, &grp->congested, congested) {
