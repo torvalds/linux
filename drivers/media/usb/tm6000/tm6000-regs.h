@@ -1,7 +1,9 @@
-// SPDX-License-Identifier: GPL-2.0
-// tm6000-regs.h - driver for TM5600/TM6000/TM6010 USB video capture devices
-//
-// Copyright (c) 2006-2007 Mauro Carvalho Chehab <mchehab@infradead.org>
+/*
+ * SPDX-License-Identifier: GPL-2.0
+ * tm6000-regs.h - driver for TM5600/TM6000/TM6010 USB video capture devices
+ *
+ * Copyright (c) 2006-2007 Mauro Carvalho Chehab <mchehab@infradead.org>
+ */
 
 /*
  * Define TV Master TM5600/TM6000/TM6010 Request codes
