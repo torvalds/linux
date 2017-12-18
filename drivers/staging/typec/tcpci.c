@@ -47,7 +47,7 @@ static inline struct tcpci *tcpc_to_tcpci(struct tcpc_dev *tcpc)
 }
 
 static int tcpci_read16(struct tcpci *tcpci, unsigned int reg,
-			unsigned int *val)
+			u16 *val)
 {
 	return regmap_raw_read(tcpci->regmap, reg, val, sizeof(u16));
 }
@@ -285,15 +285,15 @@ static int tcpci_pd_transmit(struct tcpc_dev *tcpc,
 			     const struct pd_message *msg)
 {
 	struct tcpci *tcpci = tcpc_to_tcpci(tcpc);
-	unsigned int reg, cnt, header;
+	u16 header = msg ? le16_to_cpu(msg->header) : 0;
+	unsigned int reg, cnt;
 	int ret;
 
-	cnt = msg ? pd_header_cnt(msg->header) * 4 : 0;
+	cnt = msg ? pd_header_cnt(header) * 4 : 0;
 	ret = regmap_write(tcpci->regmap, TCPC_TX_BYTE_CNT, cnt + 2);
 	if (ret < 0)
 		return ret;
 
-	header = msg ? msg->header : 0;
 	ret = tcpci_write16(tcpci, TCPC_TX_HDR, header);
 	if (ret < 0)
 		return ret;
@@ -356,7 +356,7 @@ static int tcpci_init(struct tcpc_dev *tcpc)
 static irqreturn_t tcpci_irq(int irq, void *dev_id)
 {
 	struct tcpci *tcpci = dev_id;
-	unsigned int status, reg;
+	u16 status;
 
 	tcpci_read16(tcpci, TCPC_ALERT, &status);
 
@@ -372,6 +372,8 @@ static irqreturn_t tcpci_irq(int irq, void *dev_id)
 		tcpm_cc_change(tcpci->port);
 
 	if (status & TCPC_ALERT_POWER_STATUS) {
+		unsigned int reg;
+
 		regmap_read(tcpci->regmap, TCPC_POWER_STATUS_MASK, &reg);
 
 		/*
@@ -387,11 +389,12 @@ static irqreturn_t tcpci_irq(int irq, void *dev_id)
 	if (status & TCPC_ALERT_RX_STATUS) {
 		struct pd_message msg;
 		unsigned int cnt;
+		u16 header;
 
 		regmap_read(tcpci->regmap, TCPC_RX_BYTE_CNT, &cnt);
 
-		tcpci_read16(tcpci, TCPC_RX_HDR, &reg);
-		msg.header = reg;
+		tcpci_read16(tcpci, TCPC_RX_HDR, &header);
+		msg.header = cpu_to_le16(header);
 
 		if (WARN_ON(cnt > sizeof(msg.payload)))
 			cnt = sizeof(msg.payload);
