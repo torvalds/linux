@@ -147,7 +147,8 @@ int fsl_ssi_debugfs_create(struct fsl_ssi_dbg *ssi_dbg, struct device *dev)
 		return -ENOMEM;
 
 	ssi_dbg->dbg_stats = debugfs_create_file("stats", S_IRUGO,
-			ssi_dbg->dbg_dir, ssi_dbg, &fsl_ssi_stats_ops);
+						 ssi_dbg->dbg_dir, ssi_dbg,
+						 &fsl_ssi_stats_ops);
 	if (!ssi_dbg->dbg_stats) {
 		debugfs_remove(ssi_dbg->dbg_dir);
 		return -ENOMEM;

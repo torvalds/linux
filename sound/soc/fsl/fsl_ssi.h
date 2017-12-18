@@ -310,7 +310,7 @@ static inline void fsl_ssi_dbg_isr(struct fsl_ssi_dbg *stats, u32 sisr)
 }
 
 static inline int fsl_ssi_debugfs_create(struct fsl_ssi_dbg *ssi_dbg,
-		struct device *dev)
+					 struct device *dev)
 {
 	return 0;
 }
