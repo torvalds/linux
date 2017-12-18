@@ -10783,8 +10783,13 @@ static int i40e_pf_config_rss(struct i40e_pf *pf)
 	/* Determine the RSS size of the VSI */
 	if (!vsi->rss_size) {
 		u16 qcount;
-
-		qcount = vsi->num_queue_pairs / vsi->tc_config.numtc;
+		/* If the firmware does something weird during VSI init, we
+		 * could end up with zero TCs. Check for that to avoid
+		 * divide-by-zero. It probably won't pass traffic, but it also
+		 * won't panic.
+		 */
+		qcount = vsi->num_queue_pairs /
+			 (vsi->tc_config.numtc ? vsi->tc_config.numtc : 1);
 		vsi->rss_size = min_t(int, pf->alloc_rss_size, qcount);
 	}
 	if (!vsi->rss_size)
