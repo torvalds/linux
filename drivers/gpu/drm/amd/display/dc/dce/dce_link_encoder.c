@@ -907,8 +907,7 @@ void dce110_link_encoder_enable_tmds_output(
 	struct link_encoder *enc,
 	enum clock_source_id clock_source,
 	enum dc_color_depth color_depth,
-	bool hdmi,
-	bool dual_link,
+	enum signal_type signal,
 	uint32_t pixel_clock)
 {
 	struct dce110_link_encoder *enc110 = TO_DCE110_LINK_ENC(enc);
@@ -922,16 +921,12 @@ void dce110_link_encoder_enable_tmds_output(
 	cntl.engine_id = enc->preferred_engine;
 	cntl.transmitter = enc110->base.transmitter;
 	cntl.pll_id = clock_source;
-	if (hdmi) {
-		cntl.signal = SIGNAL_TYPE_HDMI_TYPE_A;
-		cntl.lanes_number = 4;
-	} else if (dual_link) {
-		cntl.signal = SIGNAL_TYPE_DVI_DUAL_LINK;
+	cntl.signal = signal;
+	if (cntl.signal == SIGNAL_TYPE_DVI_DUAL_LINK)
 		cntl.lanes_number = 8;
-	} else {
-		cntl.signal = SIGNAL_TYPE_DVI_SINGLE_LINK;
+	else
 		cntl.lanes_number = 4;
-	}
+
 	cntl.hpd_sel = enc110->base.hpd_source;
 
 	cntl.pixel_clock = pixel_clock;
