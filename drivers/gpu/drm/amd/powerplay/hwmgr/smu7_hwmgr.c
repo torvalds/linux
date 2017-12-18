@@ -2722,9 +2722,6 @@ static int smu7_apply_state_adjust_rules(struct pp_hwmgr *hwmgr,
 		}
 	}
 
-	smu7_ps->vce_clks.evclk = hwmgr->vce_arbiter.evclk;
-	smu7_ps->vce_clks.ecclk = hwmgr->vce_arbiter.ecclk;
-
 	cgs_get_active_displays_info(hwmgr->device, &info);
 
 	minimum_clocks.engineClock = hwmgr->display_config.min_core_set_clock;
@@ -2752,38 +2749,6 @@ static int smu7_apply_state_adjust_rules(struct pp_hwmgr *hwmgr,
 
 		minimum_clocks.engineClock = stable_pstate_sclk;
 		minimum_clocks.memoryClock = stable_pstate_mclk;
-	}
-
-	if (minimum_clocks.engineClock < hwmgr->gfx_arbiter.sclk)
-		minimum_clocks.engineClock = hwmgr->gfx_arbiter.sclk;
-
-	if (minimum_clocks.memoryClock < hwmgr->gfx_arbiter.mclk)
-		minimum_clocks.memoryClock = hwmgr->gfx_arbiter.mclk;
-
-	smu7_ps->sclk_threshold = hwmgr->gfx_arbiter.sclk_threshold;
-
-	if (0 != hwmgr->gfx_arbiter.sclk_over_drive) {
-		PP_ASSERT_WITH_CODE((hwmgr->gfx_arbiter.sclk_over_drive <=
-				hwmgr->platform_descriptor.overdriveLimit.engineClock),
-				"Overdrive sclk exceeds limit",
-				hwmgr->gfx_arbiter.sclk_over_drive =
-						hwmgr->platform_descriptor.overdriveLimit.engineClock);
-
-		if (hwmgr->gfx_arbiter.sclk_over_drive >= hwmgr->gfx_arbiter.sclk)
-			smu7_ps->performance_levels[1].engine_clock =
-					hwmgr->gfx_arbiter.sclk_over_drive;
-	}
-
-	if (0 != hwmgr->gfx_arbiter.mclk_over_drive) {
-		PP_ASSERT_WITH_CODE((hwmgr->gfx_arbiter.mclk_over_drive <=
-				hwmgr->platform_descriptor.overdriveLimit.memoryClock),
-				"Overdrive mclk exceeds limit",
-				hwmgr->gfx_arbiter.mclk_over_drive =
-						hwmgr->platform_descriptor.overdriveLimit.memoryClock);
-
-		if (hwmgr->gfx_arbiter.mclk_over_drive >= hwmgr->gfx_arbiter.mclk)
-			smu7_ps->performance_levels[1].memory_clock =
-					hwmgr->gfx_arbiter.mclk_over_drive;
 	}
 
 	disable_mclk_switching_for_frame_lock = phm_cap_enabled(

@@ -159,7 +159,6 @@ static int rv_construct_boot_state(struct pp_hwmgr *hwmgr)
 
 static int rv_set_clock_limit(struct pp_hwmgr *hwmgr, const void *input)
 {
-	struct rv_hwmgr *rv_data = (struct rv_hwmgr *)(hwmgr->backend);
 	struct PP_Clocks clocks = {0};
 	struct pp_display_clock_request clock_req;
 
@@ -169,39 +168,6 @@ static int rv_set_clock_limit(struct pp_hwmgr *hwmgr, const void *input)
 
 	PP_ASSERT_WITH_CODE(!rv_display_clock_voltage_request(hwmgr, &clock_req),
 				"Attempt to set DCF Clock Failed!", return -EINVAL);
-
-	if (((hwmgr->uvd_arbiter.vclk_soft_min / 100) != rv_data->vclk_soft_min) ||
-	    ((hwmgr->uvd_arbiter.dclk_soft_min / 100) != rv_data->dclk_soft_min)) {
-		rv_data->vclk_soft_min = hwmgr->uvd_arbiter.vclk_soft_min / 100;
-		rv_data->dclk_soft_min = hwmgr->uvd_arbiter.dclk_soft_min / 100;
-		smum_send_msg_to_smc_with_parameter(hwmgr,
-			PPSMC_MSG_SetSoftMinVcn,
-			(rv_data->vclk_soft_min << 16) | rv_data->vclk_soft_min);
-	}
-
-	if((hwmgr->gfx_arbiter.sclk_hard_min != 0) &&
-		((hwmgr->gfx_arbiter.sclk_hard_min / 100) != rv_data->soc_actual_hard_min_freq)) {
-		smum_send_msg_to_smc_with_parameter(hwmgr,
-					PPSMC_MSG_SetHardMinSocclkByFreq,
-					hwmgr->gfx_arbiter.sclk_hard_min / 100);
-		rv_read_arg_from_smc(hwmgr, &rv_data->soc_actual_hard_min_freq);
-	}
-
-	if ((hwmgr->gfx_arbiter.gfxclk != 0) &&
-		(rv_data->gfx_actual_soft_min_freq != (hwmgr->gfx_arbiter.gfxclk))) {
-		smum_send_msg_to_smc_with_parameter(hwmgr,
-					PPSMC_MSG_SetMinVideoGfxclkFreq,
-					hwmgr->gfx_arbiter.gfxclk / 100);
-		rv_read_arg_from_smc(hwmgr, &rv_data->gfx_actual_soft_min_freq);
-	}
-
-	if ((hwmgr->gfx_arbiter.fclk != 0) &&
-		(rv_data->fabric_actual_soft_min_freq != (hwmgr->gfx_arbiter.fclk / 100))) {
-		smum_send_msg_to_smc_with_parameter(hwmgr,
-					PPSMC_MSG_SetMinVideoFclkFreq,
-					hwmgr->gfx_arbiter.fclk / 100);
-		rv_read_arg_from_smc(hwmgr, &rv_data->fabric_actual_soft_min_freq);
-	}
 
 	return 0;
 }
