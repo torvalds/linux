@@ -1,5 +1,5 @@
 /*
- * fsl_ssi.h - ALSA SSI interface for the Freescale MPC8610 SoC
+ * fsl_ssi.h - ALSA SSI interface for the Freescale MPC8610 and i.MX SoC
  *
  * Author: Timur Tabi <timur@freescale.com>
  *
@@ -12,31 +12,75 @@
 #ifndef _MPC8610_I2S_H
 #define _MPC8610_I2S_H
 
-/* SSI registers */
+/* -- SSI Register Map -- */
+
+/* SSI Transmit Data Register 0 */
 #define CCSR_SSI_STX0			0x00
+/* SSI Transmit Data Register 1 */
 #define CCSR_SSI_STX1			0x04
+/* SSI Receive Data Register 0 */
 #define CCSR_SSI_SRX0			0x08
+/* SSI Receive Data Register 1 */
 #define CCSR_SSI_SRX1			0x0c
+/* SSI Control Register */
 #define CCSR_SSI_SCR			0x10
+/* SSI Interrupt Status Register */
 #define CCSR_SSI_SISR			0x14
+/* SSI Interrupt Enable Register */
 #define CCSR_SSI_SIER			0x18
+/* SSI Transmit Configuration Register */
 #define CCSR_SSI_STCR			0x1c
+/* SSI Receive Configuration Register */
 #define CCSR_SSI_SRCR			0x20
+/* SSI Transmit Clock Control Register */
 #define CCSR_SSI_STCCR			0x24
+/* SSI Receive Clock Control Register */
 #define CCSR_SSI_SRCCR			0x28
+/* SSI FIFO Control/Status Register */
 #define CCSR_SSI_SFCSR			0x2c
+/*
+ * SSI Test Register (Intended for debugging purposes only)
+ *
+ * Note: STR is not documented in recent IMX datasheet, but
+ * is described in IMX51 reference manual at section 56.3.3.14
+ */
 #define CCSR_SSI_STR			0x30
+/*
+ * SSI Option Register (Intended for internal use only)
+ *
+ * Note: SOR is not documented in recent IMX datasheet, but
+ * is described in IMX51 reference manual at section 56.3.3.15
+ */
 #define CCSR_SSI_SOR			0x34
+/* SSI AC97 Control Register */
 #define CCSR_SSI_SACNT			0x38
+/* SSI AC97 Command Address Register */
 #define CCSR_SSI_SACADD			0x3c
+/* SSI AC97 Command Data Register */
 #define CCSR_SSI_SACDAT			0x40
+/* SSI AC97 Tag Register */
 #define CCSR_SSI_SATAG			0x44
+/* SSI Transmit Time Slot Mask Register */
 #define CCSR_SSI_STMSK			0x48
+/* SSI  Receive Time Slot Mask Register */
 #define CCSR_SSI_SRMSK			0x4c
+/*
+ * SSI AC97 Channel Status Register
+ *
+ * The status could be changed by:
+ * 1) Writing a '1' bit at some position in SACCEN sets relevant bit in SACCST
+ * 2) Writing a '1' bit at some position in SACCDIS unsets the relevant bit
+ * 3) Receivng a '1' in SLOTREQ bit from external CODEC via AC Link
+ */
 #define CCSR_SSI_SACCST			0x50
+/* SSI AC97 Channel Enable Register -- Set bits in SACCST */
 #define CCSR_SSI_SACCEN			0x54
+/* SSI AC97 Channel Disable Register -- Clear bits in SACCST */
 #define CCSR_SSI_SACCDIS		0x58
 
+/* -- SSI Register Field Maps -- */
+
+/* SSI Control Register -- CCSR_SSI_SCR 0x10 */
 #define CCSR_SSI_SCR_SYNC_TX_FS		0x00001000
 #define CCSR_SSI_SCR_RFR_CLK_DIS	0x00000800
 #define CCSR_SSI_SCR_TFR_CLK_DIS	0x00000400
@@ -52,6 +96,7 @@
 #define CCSR_SSI_SCR_TE			0x00000002
 #define CCSR_SSI_SCR_SSIEN		0x00000001
 
+/* SSI Interrupt Status Register -- CCSR_SSI_SISR 0x14 */
 #define CCSR_SSI_SISR_RFRC		0x01000000
 #define CCSR_SSI_SISR_TFRC		0x00800000
 #define CCSR_SSI_SISR_CMDAU		0x00040000
@@ -74,6 +119,7 @@
 #define CCSR_SSI_SISR_TFE1		0x00000002
 #define CCSR_SSI_SISR_TFE0		0x00000001
 
+/* SSI Interrupt Enable Register -- CCSR_SSI_SIER 0x18 */
 #define CCSR_SSI_SIER_RFRC_EN		0x01000000
 #define CCSR_SSI_SIER_TFRC_EN		0x00800000
 #define CCSR_SSI_SIER_RDMAE		0x00400000
@@ -100,6 +146,7 @@
 #define CCSR_SSI_SIER_TFE1_EN		0x00000002
 #define CCSR_SSI_SIER_TFE0_EN		0x00000001
 
+/* SSI Transmit Configuration Register -- CCSR_SSI_STCR 0x1C */
 #define CCSR_SSI_STCR_TXBIT0		0x00000200
 #define CCSR_SSI_STCR_TFEN1		0x00000100
 #define CCSR_SSI_STCR_TFEN0		0x00000080
@@ -111,6 +158,7 @@
 #define CCSR_SSI_STCR_TFSL		0x00000002
 #define CCSR_SSI_STCR_TEFS		0x00000001
 
+/* SSI Receive Configuration Register -- CCSR_SSI_SRCR 0x20 */
 #define CCSR_SSI_SRCR_RXEXT		0x00000400
 #define CCSR_SSI_SRCR_RXBIT0		0x00000200
 #define CCSR_SSI_SRCR_RFEN1		0x00000100
@@ -123,7 +171,10 @@
 #define CCSR_SSI_SRCR_RFSL		0x00000002
 #define CCSR_SSI_SRCR_REFS		0x00000001
 
-/* STCCR and SRCCR */
+/*
+ * SSI Transmit Clock Control Register -- CCSR_SSI_STCCR 0x24
+ * SSI Receive Clock Control Register -- CCSR_SSI_SRCCR 0x28
+ */
 #define CCSR_SSI_SxCCR_DIV2_SHIFT	18
 #define CCSR_SSI_SxCCR_DIV2		0x00040000
 #define CCSR_SSI_SxCCR_PSR_SHIFT	17
@@ -142,9 +193,10 @@
 	((((x) - 1) << CCSR_SSI_SxCCR_PM_SHIFT) & CCSR_SSI_SxCCR_PM_MASK)
 
 /*
- * The xFCNT bits are read-only, and the xFWM bits are read/write.  Use the
- * CCSR_SSI_SFCSR_xFCNTy() macros to read the FIFO counters, and use the
- * CCSR_SSI_SFCSR_xFWMy() macros to set the watermarks.
+ * SSI FIFO Control/Status Register -- CCSR_SSI_SFCSR 0x2c
+ *
+ * Tx or Rx FIFO Counter -- CCSR_SSI_SFCSR_xFCNTy Read-Only
+ * Tx or Rx FIFO Watermarks -- CCSR_SSI_SFCSR_xFWMy Read/Write
  */
 #define CCSR_SSI_SFCSR_RFCNT1_SHIFT	28
 #define CCSR_SSI_SFCSR_RFCNT1_MASK	0xF0000000
@@ -179,6 +231,7 @@
 #define CCSR_SSI_SFCSR_TFWM0(x)	\
 	(((x) << CCSR_SSI_SFCSR_TFWM0_SHIFT) & CCSR_SSI_SFCSR_TFWM0_MASK)
 
+/* SSI Test Register -- CCSR_SSI_STR 0x30 */
 #define CCSR_SSI_STR_TEST		0x00008000
 #define CCSR_SSI_STR_RCK2TCK		0x00004000
 #define CCSR_SSI_STR_RFS2TFS		0x00002000
@@ -188,6 +241,7 @@
 #define CCSR_SSI_STR_TFS2RFS		0x00000020
 #define CCSR_SSI_STR_TXSTATE(x) ((x) & 0x1F)
 
+/* SSI Option Register -- CCSR_SSI_SOR 0x34 */
 #define CCSR_SSI_SOR_CLKOFF		0x00000040
 #define CCSR_SSI_SOR_RX_CLR		0x00000020
 #define CCSR_SSI_SOR_TX_CLR		0x00000010
@@ -197,6 +251,7 @@
 #define CCSR_SSI_SOR_WAIT(x) (((x) & 3) << CCSR_SSI_SOR_WAIT_SHIFT)
 #define CCSR_SSI_SOR_SYNRST 		0x00000001
 
+/* SSI AC97 Control Register -- CCSR_SSI_SACNT 0x38 */
 #define CCSR_SSI_SACNT_FRDIV(x)		(((x) & 0x3f) << 5)
 #define CCSR_SSI_SACNT_WR		0x00000010
 #define CCSR_SSI_SACNT_RD		0x00000008
