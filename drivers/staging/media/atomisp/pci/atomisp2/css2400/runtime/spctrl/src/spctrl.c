@@ -13,7 +13,7 @@
  * more details.
  */
 #else
-/**
+/*
 Support for Intel Camera Imaging ISP subsystem.
 Copyright (c) 2010 - 2015, Intel Corporation.
 
@@ -39,7 +39,7 @@ more details.
 
 struct spctrl_context_info {
 	struct ia_css_sp_init_dmem_cfg dmem_config;
-	uint32_t        spctrl_config_dmem_addr; /** location of dmem_cfg  in SP dmem */
+	uint32_t        spctrl_config_dmem_addr; /* location of dmem_cfg  in SP dmem */
 	uint32_t        spctrl_state_dmem_addr;
 	unsigned int    sp_entry;           /* entry function ptr on SP */
 	hrt_vaddress    code_addr;          /* sp firmware location in host mem-DDR*/

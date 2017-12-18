@@ -50,7 +50,7 @@ static int current_css_set_read(struct seq_file *seq, void *v)
 
 	spin_lock_irq(&css_set_lock);
 	rcu_read_lock();
-	cset = rcu_dereference(current->cgroups);
+	cset = task_css_set(current);
 	refcnt = refcount_read(&cset->refcount);
 	seq_printf(seq, "css_set %pK %d", cset, refcnt);
 	if (refcnt > cset->nr_tasks)
@@ -96,7 +96,7 @@ static int current_css_set_cg_links_read(struct seq_file *seq, void *v)
 
 	spin_lock_irq(&css_set_lock);
 	rcu_read_lock();
-	cset = rcu_dereference(current->cgroups);
+	cset = task_css_set(current);
 	list_for_each_entry(link, &cset->cgrp_links, cgrp_link) {
 		struct cgroup *c = link->cgrp;
 

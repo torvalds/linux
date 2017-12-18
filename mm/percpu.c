@@ -2719,7 +2719,11 @@ void __init setup_per_cpu_areas(void)
 
 	if (pcpu_setup_first_chunk(ai, fc) < 0)
 		panic("Failed to initialize percpu areas.");
+#ifdef CONFIG_CRIS
+#warning "the CRIS architecture has physical and virtual addresses confused"
+#else
 	pcpu_free_alloc_info(ai);
+#endif
 }
 
 #endif	/* CONFIG_SMP */
