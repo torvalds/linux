@@ -411,7 +411,7 @@ blk_status_t btrfs_submit_compressed_write(struct inode *inode, u64 start,
 
 static u64 bio_end_offset(struct bio *bio)
 {
-	struct bio_vec *last = &bio->bi_io_vec[bio->bi_vcnt - 1];
+	struct bio_vec *last = bio_last_bvec_all(bio);
 
 	return page_offset(last->bv_page) + last->bv_len + last->bv_offset;
 }
