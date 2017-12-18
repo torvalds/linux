@@ -238,28 +238,25 @@ lnet_find_net_locked(__u32 net)
 static void lnet_shuffle_seed(void)
 {
 	static int seeded;
-	__u32 lnd_type, seed[2];
-	struct timespec64 ts;
 	struct lnet_ni *ni;
 
 	if (seeded)
 		return;
-
-	cfs_get_random_bytes(seed, sizeof(seed));
 
 	/*
 	 * Nodes with small feet have little entropy
 	 * the NID for this node gives the most entropy in the low bits
 	 */
 	list_for_each_entry(ni, &the_lnet.ln_nis, ni_list) {
-		lnd_type = LNET_NETTYP(LNET_NIDNET(ni->ni_nid));
+		__u32 lnd_type, seed;
 
-		if (lnd_type != LOLND)
-			seed[0] ^= (LNET_NIDADDR(ni->ni_nid) | lnd_type);
+		lnd_type = LNET_NETTYP(LNET_NIDNET(ni->ni_nid));
+		if (lnd_type != LOLND) {
+			seed = (LNET_NIDADDR(ni->ni_nid) | lnd_type);
+			add_device_randomness(&seed, sizeof(seed));
+		}
 	}
 
-	ktime_get_ts64(&ts);
-	cfs_srand(ts.tv_sec ^ seed[0], ts.tv_nsec ^ seed[1]);
 	seeded = 1;
 }
 
