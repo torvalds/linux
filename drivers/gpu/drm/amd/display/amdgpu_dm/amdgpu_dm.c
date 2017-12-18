@@ -2016,30 +2016,32 @@ static void update_stream_scaling_settings(const struct drm_display_mode *mode,
 	dst.width = stream->timing.h_addressable;
 	dst.height = stream->timing.v_addressable;
 
-	rmx_type = dm_state->scaling;
-	if (rmx_type == RMX_ASPECT || rmx_type == RMX_OFF) {
-		if (src.width * dst.height <
-				src.height * dst.width) {
-			/* height needs less upscaling/more downscaling */
-			dst.width = src.width *
-					dst.height / src.height;
-		} else {
-			/* width needs less upscaling/more downscaling */
-			dst.height = src.height *
-					dst.width / src.width;
+	if (dm_state) {
+		rmx_type = dm_state->scaling;
+		if (rmx_type == RMX_ASPECT || rmx_type == RMX_OFF) {
+			if (src.width * dst.height <
+					src.height * dst.width) {
+				/* height needs less upscaling/more downscaling */
+				dst.width = src.width *
+						dst.height / src.height;
+			} else {
+				/* width needs less upscaling/more downscaling */
+				dst.height = src.height *
+						dst.width / src.width;
+			}
+		} else if (rmx_type == RMX_CENTER) {
+			dst = src;
 		}
-	} else if (rmx_type == RMX_CENTER) {
-		dst = src;
-	}
 
-	dst.x = (stream->timing.h_addressable - dst.width) / 2;
-	dst.y = (stream->timing.v_addressable - dst.height) / 2;
+		dst.x = (stream->timing.h_addressable - dst.width) / 2;
+		dst.y = (stream->timing.v_addressable - dst.height) / 2;
 
-	if (dm_state->underscan_enable) {
-		dst.x += dm_state->underscan_hborder / 2;
-		dst.y += dm_state->underscan_vborder / 2;
-		dst.width -= dm_state->underscan_hborder;
-		dst.height -= dm_state->underscan_vborder;
+		if (dm_state->underscan_enable) {
+			dst.x += dm_state->underscan_hborder / 2;
+			dst.y += dm_state->underscan_vborder / 2;
+			dst.width -= dm_state->underscan_hborder;
+			dst.height -= dm_state->underscan_vborder;
+		}
 	}
 
 	stream->src = src;
@@ -2367,11 +2369,6 @@ create_stream_for_sink(struct amdgpu_dm_connector *aconnector,
 		return stream;
 	}
 
-	if (dm_state == NULL) {
-		DRM_ERROR("dm_state is NULL!\n");
-		return stream;
-	}
-
 	drm_connector = &aconnector->base;
 
 	if (!aconnector->dc_sink) {
@@ -2418,7 +2415,7 @@ create_stream_for_sink(struct amdgpu_dm_connector *aconnector,
 	} else {
 		decide_crtc_timing_for_drm_display_mode(
 				&mode, preferred_mode,
-				dm_state->scaling != RMX_OFF);
+				dm_state ? (dm_state->scaling != RMX_OFF) : false);
 	}
 
 	fill_stream_properties_from_drm_display_mode(stream,
@@ -2800,7 +2797,7 @@ int amdgpu_dm_connector_mode_valid(struct drm_connector *connector,
 		goto fail;
 	}
 
-	stream = dc_create_stream_for_sink(dc_sink);
+	stream = create_stream_for_sink(aconnector, mode, NULL);
 	if (stream == NULL) {
 		DRM_ERROR("Failed to create stream for sink!\n");
 		goto fail;
