@@ -362,7 +362,16 @@ static irqreturn_t edt_ft5x06_ts_isr(int irq, void *dev_id)
 		u8 *buf = &rdbuf[i * tplen + offset];
 		bool down;
 
+		input_mt_slot(tsdata->input, i);
+
 		type = buf[EDT_TOUCH_XH_EVENT] & EDT_TOUCH_EVENT_FLAG_MASK;
+
+		down = type != EDT_TOUCH_EVENT_UP;
+		if (!down) {
+			input_report_abs(tsdata->input, ABS_MT_TRACKING_ID, -1);
+			continue;
+		}
+
 		/* ignore Reserved events */
 		if (type == EDT_TOUCH_EVENT_RESERVED)
 			continue;
@@ -371,6 +380,12 @@ static irqreturn_t edt_ft5x06_ts_isr(int irq, void *dev_id)
 		if (tsdata->version == EDT_M06 && type == EDT_TOUCH_EVENT_DOWN)
 			continue;
 
+		input_mt_report_slot_state(tsdata->input, MT_TOOL_FINGER, down);
+
+		id = (buf[EDT_TOUCH_ID_YH] & EDT_TOUCH_ID_MASK);
+		id >>= EDT_TOUCH_ID_OFFSET;
+		input_report_abs(tsdata->input, ABS_MT_TRACKING_ID, id);
+
 		x = buf[EDT_TOUCH_XH_EVENT] & EDT_TOUCH_XH_MASK;
 		x <<= BITS_PER_BYTE;
 		x |= buf[EDT_TOUCH_XL];
@@ -378,17 +393,6 @@ static irqreturn_t edt_ft5x06_ts_isr(int irq, void *dev_id)
 		y = buf[EDT_TOUCH_ID_YH] & EDT_TOUCH_YH_MASK;
 		y <<= BITS_PER_BYTE;
 		y |= buf[EDT_TOUCH_YL];
-
-		id = (buf[EDT_TOUCH_ID_YH] & EDT_TOUCH_ID_MASK);
-		id >>= EDT_TOUCH_ID_OFFSET;
-
-		down = type != EDT_TOUCH_EVENT_UP;
-
-		input_mt_slot(tsdata->input, id);
-		input_mt_report_slot_state(tsdata->input, MT_TOOL_FINGER, down);
-
-		if (!down)
-			continue;
 
 		touchscreen_report_pos(tsdata->input, &tsdata->prop, x, y,
 				       true);
