@@ -3594,7 +3594,7 @@ static void gfx_v9_0_ring_emit_hdp_invalidate(struct amdgpu_ring *ring)
 
 static void gfx_v9_0_ring_emit_ib_gfx(struct amdgpu_ring *ring,
                                       struct amdgpu_ib *ib,
-                                      unsigned vm_id, bool ctx_switch)
+                                      unsigned vmid, bool ctx_switch)
 {
 	u32 header, control = 0;
 
@@ -3603,7 +3603,7 @@ static void gfx_v9_0_ring_emit_ib_gfx(struct amdgpu_ring *ring,
 	else
 		header = PACKET3(PACKET3_INDIRECT_BUFFER, 2);
 
-	control |= ib->length_dw | (vm_id << 24);
+	control |= ib->length_dw | (vmid << 24);
 
 	if (amdgpu_sriov_vf(ring->adev) && (ib->flags & AMDGPU_IB_FLAG_PREEMPT)) {
 		control |= INDIRECT_BUFFER_PRE_ENB(1);
@@ -3625,9 +3625,9 @@ BUG_ON(ib->gpu_addr & 0x3); /* Dword align */
 
 static void gfx_v9_0_ring_emit_ib_compute(struct amdgpu_ring *ring,
                                           struct amdgpu_ib *ib,
-                                          unsigned vm_id, bool ctx_switch)
+                                          unsigned vmid, bool ctx_switch)
 {
-        u32 control = INDIRECT_BUFFER_VALID | ib->length_dw | (vm_id << 24);
+        u32 control = INDIRECT_BUFFER_VALID | ib->length_dw | (vmid << 24);
 
         amdgpu_ring_write(ring, PACKET3(PACKET3_INDIRECT_BUFFER, 2));
 	BUG_ON(ib->gpu_addr & 0x3); /* Dword align */
@@ -3683,11 +3683,11 @@ static void gfx_v9_0_ring_emit_pipeline_sync(struct amdgpu_ring *ring)
 }
 
 static void gfx_v9_0_ring_emit_vm_flush(struct amdgpu_ring *ring,
-					unsigned vm_id, uint64_t pd_addr)
+					unsigned vmid, uint64_t pd_addr)
 {
 	struct amdgpu_vmhub *hub = &ring->adev->vmhub[ring->funcs->vmhub];
 	int usepfp = (ring->funcs->type == AMDGPU_RING_TYPE_GFX);
-	uint32_t req = ring->adev->gart.gart_funcs->get_invalidate_req(vm_id);
+	uint32_t req = ring->adev->gart.gart_funcs->get_invalidate_req(vmid);
 	uint64_t flags = AMDGPU_PTE_VALID;
 	unsigned eng = ring->vm_inv_eng;
 
@@ -3695,11 +3695,11 @@ static void gfx_v9_0_ring_emit_vm_flush(struct amdgpu_ring *ring,
 	pd_addr |= flags;
 
 	gfx_v9_0_write_data_to_reg(ring, usepfp, true,
-				   hub->ctx0_ptb_addr_lo32 + (2 * vm_id),
+				   hub->ctx0_ptb_addr_lo32 + (2 * vmid),
 				   lower_32_bits(pd_addr));
 
 	gfx_v9_0_write_data_to_reg(ring, usepfp, true,
-				   hub->ctx0_ptb_addr_hi32 + (2 * vm_id),
+				   hub->ctx0_ptb_addr_hi32 + (2 * vmid),
 				   upper_32_bits(pd_addr));
 
 	gfx_v9_0_write_data_to_reg(ring, usepfp, true,
@@ -3707,7 +3707,7 @@ static void gfx_v9_0_ring_emit_vm_flush(struct amdgpu_ring *ring,
 
 	/* wait for the invalidate to complete */
 	gfx_v9_0_wait_reg_mem(ring, 0, 0, 0, hub->vm_inv_eng0_ack +
-			      eng, 0, 1 << vm_id, 1 << vm_id, 0x20);
+			      eng, 0, 1 << vmid, 1 << vmid, 0x20);
 
 	/* compute doesn't have PFP */
 	if (usepfp) {

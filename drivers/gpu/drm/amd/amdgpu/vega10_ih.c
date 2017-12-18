@@ -327,8 +327,8 @@ static void vega10_ih_decode_iv(struct amdgpu_device *adev,
 	entry->client_id = dw[0] & 0xff;
 	entry->src_id = (dw[0] >> 8) & 0xff;
 	entry->ring_id = (dw[0] >> 16) & 0xff;
-	entry->vm_id = (dw[0] >> 24) & 0xf;
-	entry->vm_id_src = (dw[0] >> 31);
+	entry->vmid = (dw[0] >> 24) & 0xf;
+	entry->vmid_src = (dw[0] >> 31);
 	entry->timestamp = dw[1] | ((u64)(dw[2] & 0xffff) << 32);
 	entry->timestamp_src = dw[2] >> 31;
 	entry->pas_id = dw[3] & 0xffff;

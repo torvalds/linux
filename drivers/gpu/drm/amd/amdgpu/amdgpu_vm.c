@@ -446,9 +446,9 @@ bool amdgpu_vm_need_pipeline_sync(struct amdgpu_ring *ring,
 	bool gds_switch_needed;
 	bool vm_flush_needed = job->vm_needs_flush || ring->has_compute_vm_bug;
 
-	if (job->vm_id == 0)
+	if (job->vmid == 0)
 		return false;
-	id = &id_mgr->ids[job->vm_id];
+	id = &id_mgr->ids[job->vmid];
 	gds_switch_needed = ring->funcs->emit_gds_switch && (
 		id->gds_base != job->gds_base ||
 		id->gds_size != job->gds_size ||
@@ -472,7 +472,7 @@ static bool amdgpu_vm_is_large_bar(struct amdgpu_device *adev)
  * amdgpu_vm_flush - hardware flush the vm
  *
  * @ring: ring to use for flush
- * @vm_id: vmid number to use
+ * @vmid: vmid number to use
  * @pd_addr: address of the page directory
  *
  * Emit a VM flush when it is necessary.
@@ -482,7 +482,7 @@ int amdgpu_vm_flush(struct amdgpu_ring *ring, struct amdgpu_job *job, bool need_
 	struct amdgpu_device *adev = ring->adev;
 	unsigned vmhub = ring->funcs->vmhub;
 	struct amdgpu_vmid_mgr *id_mgr = &adev->vm_manager.id_mgr[vmhub];
-	struct amdgpu_vmid *id = &id_mgr->ids[job->vm_id];
+	struct amdgpu_vmid *id = &id_mgr->ids[job->vmid];
 	bool gds_switch_needed = ring->funcs->emit_gds_switch && (
 		id->gds_base != job->gds_base ||
 		id->gds_size != job->gds_size ||
@@ -511,8 +511,8 @@ int amdgpu_vm_flush(struct amdgpu_ring *ring, struct amdgpu_job *job, bool need_
 	if (ring->funcs->emit_vm_flush && vm_flush_needed) {
 		struct dma_fence *fence;
 
-		trace_amdgpu_vm_flush(ring, job->vm_id, job->vm_pd_addr);
-		amdgpu_ring_emit_vm_flush(ring, job->vm_id, job->vm_pd_addr);
+		trace_amdgpu_vm_flush(ring, job->vmid, job->vm_pd_addr);
+		amdgpu_ring_emit_vm_flush(ring, job->vmid, job->vm_pd_addr);
 
 		r = amdgpu_fence_emit(ring, &fence);
 		if (r)
@@ -532,7 +532,7 @@ int amdgpu_vm_flush(struct amdgpu_ring *ring, struct amdgpu_job *job, bool need_
 		id->gws_size = job->gws_size;
 		id->oa_base = job->oa_base;
 		id->oa_size = job->oa_size;
-		amdgpu_ring_emit_gds_switch(ring, job->vm_id, job->gds_base,
+		amdgpu_ring_emit_gds_switch(ring, job->vmid, job->gds_base,
 					    job->gds_size, job->gws_base,
 					    job->gws_size, job->oa_base,
 					    job->oa_size);

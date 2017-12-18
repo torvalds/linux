@@ -61,14 +61,14 @@ static void si_dma_ring_set_wptr(struct amdgpu_ring *ring)
 
 static void si_dma_ring_emit_ib(struct amdgpu_ring *ring,
 				struct amdgpu_ib *ib,
-				unsigned vm_id, bool ctx_switch)
+				unsigned vmid, bool ctx_switch)
 {
 	/* The indirect buffer packet must end on an 8 DW boundary in the DMA ring.
 	 * Pad as necessary with NOPs.
 	 */
 	while ((lower_32_bits(ring->wptr) & 7) != 5)
 		amdgpu_ring_write(ring, DMA_PACKET(DMA_PACKET_NOP, 0, 0, 0, 0));
-	amdgpu_ring_write(ring, DMA_IB_PACKET(DMA_PACKET_INDIRECT_BUFFER, vm_id, 0));
+	amdgpu_ring_write(ring, DMA_IB_PACKET(DMA_PACKET_INDIRECT_BUFFER, vmid, 0));
 	amdgpu_ring_write(ring, (ib->gpu_addr & 0xFFFFFFE0));
 	amdgpu_ring_write(ring, (ib->length_dw << 12) | (upper_32_bits(ib->gpu_addr) & 0xFF));
 
@@ -473,25 +473,25 @@ static void si_dma_ring_emit_pipeline_sync(struct amdgpu_ring *ring)
  * using sDMA (VI).
  */
 static void si_dma_ring_emit_vm_flush(struct amdgpu_ring *ring,
-				      unsigned vm_id, uint64_t pd_addr)
+				      unsigned vmid, uint64_t pd_addr)
 {
 	amdgpu_ring_write(ring, DMA_PACKET(DMA_PACKET_SRBM_WRITE, 0, 0, 0, 0));
-	if (vm_id < 8)
-		amdgpu_ring_write(ring, (0xf << 16) | (VM_CONTEXT0_PAGE_TABLE_BASE_ADDR + vm_id));
+	if (vmid < 8)
+		amdgpu_ring_write(ring, (0xf << 16) | (VM_CONTEXT0_PAGE_TABLE_BASE_ADDR + vmid));
 	else
-		amdgpu_ring_write(ring, (0xf << 16) | (VM_CONTEXT8_PAGE_TABLE_BASE_ADDR + (vm_id - 8)));
+		amdgpu_ring_write(ring, (0xf << 16) | (VM_CONTEXT8_PAGE_TABLE_BASE_ADDR + (vmid - 8)));
 	amdgpu_ring_write(ring, pd_addr >> 12);
 
 	/* bits 0-7 are the VM contexts0-7 */
 	amdgpu_ring_write(ring, DMA_PACKET(DMA_PACKET_SRBM_WRITE, 0, 0, 0, 0));
 	amdgpu_ring_write(ring, (0xf << 16) | (VM_INVALIDATE_REQUEST));
-	amdgpu_ring_write(ring, 1 << vm_id);
+	amdgpu_ring_write(ring, 1 << vmid);
 
 	/* wait for invalidate to complete */
 	amdgpu_ring_write(ring, DMA_PACKET(DMA_PACKET_POLL_REG_MEM, 0, 0, 0, 0));
 	amdgpu_ring_write(ring, VM_INVALIDATE_REQUEST);
 	amdgpu_ring_write(ring, 0xff << 16); /* retry */
-	amdgpu_ring_write(ring, 1 << vm_id); /* mask */
+	amdgpu_ring_write(ring, 1 << vmid); /* mask */
 	amdgpu_ring_write(ring, 0); /* value */
 	amdgpu_ring_write(ring, (0 << 28) | 0x20); /* func(always) | poll interval */
 }

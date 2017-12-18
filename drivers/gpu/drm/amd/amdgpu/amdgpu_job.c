@@ -158,7 +158,7 @@ static struct dma_fence *amdgpu_job_dependency(struct drm_sched_job *sched_job,
 		}
 	}
 
-	while (fence == NULL && vm && !job->vm_id) {
+	while (fence == NULL && vm && !job->vmid) {
 		struct amdgpu_ring *ring = job->ring;
 
 		r = amdgpu_vmid_grab(vm, ring, &job->sync,
