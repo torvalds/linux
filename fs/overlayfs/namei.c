@@ -435,7 +435,7 @@ int ovl_verify_index(struct dentry *index, struct ovl_path *lower,
 
 	/* Check if index is orphan and don't warn before cleaning it */
 	if (d_inode(index)->i_nlink == 1 &&
-	    ovl_get_nlink(index, origin.dentry, 0) == 0)
+	    ovl_get_nlink(origin.dentry, index, 0) == 0)
 		err = -ENOENT;
 
 	dput(origin.dentry);
@@ -680,6 +680,22 @@ struct dentry *ovl_lookup(struct inode *dir, struct dentry *dentry,
 
 		if (d.stop)
 			break;
+
+		/*
+		 * Following redirects can have security consequences: it's like
+		 * a symlink into the lower layer without the permission checks.
+		 * This is only a problem if the upper layer is untrusted (e.g
+		 * comes from an USB drive).  This can allow a non-readable file
+		 * or directory to become readable.
+		 *
+		 * Only following redirects when redirects are enabled disables
+		 * this attack vector when not necessary.
+		 */
+		err = -EPERM;
+		if (d.redirect && !ofs->config.redirect_follow) {
+			pr_warn_ratelimited("overlay: refusing to follow redirect for (%pd2)\n", dentry);
+			goto out_put;
+		}
 
 		if (d.redirect && d.redirect[0] == '/' && poe != roe) {
 			poe = roe;
