@@ -23,12 +23,12 @@ Required properties:
            or:  "focaltech,ft6236"
 
  - reg:         I2C slave address of the chip (0x38)
+
+Optional properties:
  - interrupt-parent: a phandle pointing to the interrupt controller
                      serving the interrupt for this chip
  - interrupts:       interrupt specification for the touchdetect
                      interrupt
-
-Optional properties:
  - reset-gpios: GPIO specification for the RESET input
  - wake-gpios:  GPIO specification for the WAKE input
 
@@ -45,6 +45,7 @@ Optional properties:
 
  - offset:      allows setting the edge compensation in the range from
                 0 to 31.
+ - poll-interval: Poll interval time in milliseconds
  - touchscreen-size-x	   : See touchscreen.txt
  - touchscreen-size-y	   : See touchscreen.txt
  - touchscreen-fuzz-x      : See touchscreen.txt

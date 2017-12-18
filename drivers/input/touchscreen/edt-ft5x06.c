@@ -34,12 +34,14 @@
 #include <linux/gfp.h>
 #include <linux/gpio/consumer.h>
 #include <linux/i2c.h>
+#include <linux/input-polldev.h>
 #include <linux/input.h>
 #include <linux/input/mt.h>
 #include <linux/input/touchscreen.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/irqreturn.h>
+#include <linux/kconfig.h>
 #include <linux/kernel.h>
 #include <linux/mod_devicetable.h>
 #include <linux/module.h>
@@ -47,6 +49,7 @@
 #include <linux/property.h>
 #include <linux/ratelimit.h>
 #include <linux/slab.h>
+#include <linux/types.h>
 #include <linux/uaccess.h>
 
 #define NIBBLE_LOWER(x)	\
@@ -131,6 +134,11 @@ enum edt_ver {
 	GENERIC_FT,
 };
 
+enum readout_mode {
+	EDT_READOUT_MODE_POLL,
+	EDT_READOUT_MODE_IRQ,
+};
+
 struct edt_reg_addr {
 	int reg_threshold;
 	int reg_report_rate;
@@ -143,6 +151,9 @@ struct edt_reg_addr {
 struct edt_ft5x06_ts_data {
 	struct i2c_client *client;
 	struct input_dev *input;
+#if IS_ENABLED(CONFIG_INPUT_POLLDEV)
+	struct input_polled_dev *polldev;
+#endif
 	struct touchscreen_properties prop;
 	u16 num_x;
 	u16 num_y;
@@ -295,9 +306,8 @@ static bool edt_ft5x06_ts_check_crc(struct edt_ft5x06_ts_data *tsdata,
 	return true;
 }
 
-static irqreturn_t edt_ft5x06_ts_isr(int irq, void *dev_id)
+static void edt_ft5x06_report(struct edt_ft5x06_ts_data *tsdata)
 {
-	struct edt_ft5x06_ts_data *tsdata = dev_id;
 	struct device *dev = &tsdata->client->dev;
 	u8 cmd;
 	u8 rdbuf[EDT_TOUCH_REPORT_MAX_SIZE];
@@ -328,7 +338,7 @@ static irqreturn_t edt_ft5x06_ts_isr(int irq, void *dev_id)
 		break;
 
 	default:
-		goto out;
+		return;
 	}
 
 	memset(rdbuf, 0, sizeof(rdbuf));
@@ -340,7 +350,7 @@ static irqreturn_t edt_ft5x06_ts_isr(int irq, void *dev_id)
 	if (error) {
 		dev_err_ratelimited(dev, "Unable to fetch data, error: %d\n",
 				    error);
-		goto out;
+		return;
 	}
 
 	/* M09/M12 does not send header or CRC */
@@ -353,11 +363,11 @@ static irqreturn_t edt_ft5x06_ts_isr(int irq, void *dev_id)
 					    rdbuf[M06_TOUCH_REPORT_HEADER_H],
 					    rdbuf[M06_TOUCH_REPORT_HEADER_L],
 					    rdbuf[M06_TOUCH_REPORT_DATALEN]);
-			goto: out;
+			return;
 		}
 
 		if (!edt_ft5x06_ts_check_crc(tsdata, rdbuf, datalen))
-			goto out;
+			return;
 	} else {
 		touch_cnt = rdbuf[M09_TD_STATUS];
 	}
@@ -404,9 +414,22 @@ static irqreturn_t edt_ft5x06_ts_isr(int irq, void *dev_id)
 
 	input_mt_report_pointer_emulation(tsdata->input, true);
 	input_sync(tsdata->input);
+}
 
-out:
+static irqreturn_t edt_ft5x06_ts_isr(int irq, void *dev_id)
+{
+	struct edt_ft5x06_ts_data *tsdata = dev_id;
+
+	edt_ft5x06_report(tsdata);
+
 	return IRQ_HANDLED;
+}
+
+static void edt_ft5x06_poll(struct input_polled_dev *polldev)
+{
+	struct edt_ft5x06_ts_data *tsdata = polldev->private;
+
+	edt_ft5x06_report(tsdata);
 }
 
 struct edt_ft5x06_attribute {
@@ -1028,6 +1051,26 @@ edt_ft5x06_ts_get_parameters(struct edt_ft5x06_ts_data *tsdata)
 	}
 }
 
+static void edt_ft5x06_ts_set_readout_mode(struct edt_ft5x06_ts_data *tsdata,
+					   enum readout_mode mode)
+{
+	uint8_t readout_mode;
+
+	switch (tsdata->version) {
+	case EDT_M06:
+		break;
+	case EDT_M09: /* fall through */
+	case EDT_M12: /* fall through */
+	case GENERIC_FT:
+		readout_mode = (mode == EDT_READOUT_MODE_POLL) ?
+			M09_ID_G_MODE_POLL :
+			M09_ID_G_MODE_IRQ;
+		edt_ft5x06_register_write(tsdata, M09_ID_G_MODE, readout_mode);
+		break;
+	}
+}
+
+
 static void
 edt_ft5x06_ts_set_regs(struct edt_ft5x06_ts_data *tsdata)
 {
@@ -1069,7 +1112,6 @@ static int edt_ft5x06_ts_probe(struct i2c_client *client,
 	struct device *dev = &client->dev;
 	struct edt_ft5x06_ts_data *tsdata;
 	struct input_dev *input;
-	unsigned long irq_flags;
 	int error;
 	char fw_version[EDT_NAME_LEN];
 
@@ -1121,15 +1163,8 @@ static int edt_ft5x06_ts_probe(struct i2c_client *client,
 		msleep(300);
 	}
 
-	input = devm_input_allocate_device(dev);
-	if (!input) {
-		dev_err(dev, "failed to allocate input device\n");
-		return -ENOMEM;
-	}
-
 	mutex_init(&tsdata->mutex);
 	tsdata->client = client;
-	tsdata->input = input;
 	tsdata->factory_mode = false;
 
 	error = edt_ft5x06_ts_identify(client, tsdata, fw_version);
@@ -1145,11 +1180,66 @@ static int edt_ft5x06_ts_probe(struct i2c_client *client,
 	dev_dbg(dev, "model \"%s\", Rev. \"%s\", %dx%d sensors\n",
 		tsdata->name, fw_version, tsdata->num_x, tsdata->num_y);
 
+	i2c_set_clientdata(client, tsdata);
+
+	if (client->irq) {
+		unsigned long irq_flags;
+
+		irq_flags = irq_get_trigger_type(client->irq);
+		if (irq_flags == IRQF_TRIGGER_NONE)
+			irq_flags = IRQF_TRIGGER_FALLING;
+		irq_flags |= IRQF_ONESHOT;
+
+		error = devm_request_threaded_irq(dev, client->irq, NULL,
+						  edt_ft5x06_ts_isr, irq_flags,
+						  client->name, tsdata);
+		if (error) {
+			dev_err(dev, "unable to request touchscreen IRQ\n");
+			return error;
+		}
+
+		disable_irq(client->irq);
+
+		input = devm_input_allocate_device(dev);
+		if (!input) {
+			dev_err(dev, "failed to allocate input device\n");
+			return -ENOMEM;
+		}
+		input->open = edt_ft5x06_open;
+		input->close = edt_ft5x06_close;
+
+		edt_ft5x06_ts_set_readout_mode(tsdata, EDT_READOUT_MODE_IRQ);
+	} else {
+#if !IS_ENABLED(CONFIG_INPUT_POLLDEV)
+		dev_err(dev, "no IRQ setup and built without INPUT_POLLDEV\n");
+		return -ENODEV;
+#else
+		uint32_t poll_interval;
+
+		dev_warn(dev, "no IRQ setup, using polled input\n");
+
+		tsdata->polldev = devm_input_allocate_polled_device(dev);
+		if (!tsdata->polldev) {
+			dev_err(dev, "failed to allocate polldev\n");
+			return -ENOMEM;
+		}
+
+		if (!device_property_read_u32(dev, "poll-interval", &poll_interval))
+			tsdata->polldev->poll_interval = poll_interval;
+
+		tsdata->polldev->private = tsdata;
+		tsdata->polldev->poll = edt_ft5x06_poll;
+		input = tsdata->polldev->input;
+
+		edt_ft5x06_ts_set_readout_mode(tsdata, EDT_READOUT_MODE_POLL);
+#endif
+	}
+
 	input->name = tsdata->name;
 	input->id.bustype = BUS_I2C;
 	input->dev.parent = dev;
-	input->open = edt_ft5x06_open;
-	input->close = edt_ft5x06_close;
+	input_set_drvdata(input, tsdata);
+	tsdata->input = input;
 
 	if (tsdata->version == EDT_M06 ||
 	    tsdata->version == EDT_M09 ||
@@ -1175,28 +1265,14 @@ static int edt_ft5x06_ts_probe(struct i2c_client *client,
 		return error;
 	}
 
-	input_set_drvdata(input, tsdata);
-	i2c_set_clientdata(client, tsdata);
-
-	irq_flags = irq_get_trigger_type(client->irq);
-	if (irq_flags == IRQF_TRIGGER_NONE)
-		irq_flags = IRQF_TRIGGER_FALLING;
-	irq_flags |= IRQF_ONESHOT;
-
-	error = devm_request_threaded_irq(dev, client->irq, NULL,
-					  edt_ft5x06_ts_isr, irq_flags,
-					  client->name, tsdata);
-	if (error) {
-		dev_err(dev, "unable to request touchscreen IRQ\n");
-		return error;
-	}
-	disable_irq(client->irq);
-
 	error = devm_device_add_group(dev, &edt_ft5x06_attr_group);
 	if (error)
 		return error;
 
-	error = input_register_device(input);
+	if (client->irq)
+		error = input_register_device(input);
+	else
+		error = input_register_polled_device(tsdata->polldev);
 	if (error)
 		return error;
 
