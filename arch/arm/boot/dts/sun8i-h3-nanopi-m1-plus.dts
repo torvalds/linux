@@ -48,6 +48,7 @@
 
 	aliases {
 		serial1 = &uart3;
+		ethernet0 = &emac;
 		ethernet1 = &sdio_wifi;
 	};
 
