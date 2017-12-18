@@ -1637,7 +1637,7 @@ static int igt_shrink_thp(void *arg)
 	 * shmem to truncate our pages.
 	 */
 	i915_gem_shrink_all(i915);
-	if (!IS_ERR_OR_NULL(obj->mm.pages)) {
+	if (i915_gem_object_has_pages(obj)) {
 		pr_err("shrink-all didn't truncate the pages\n");
 		err = -EINVAL;
 		goto out_close;

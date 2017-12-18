@@ -2596,7 +2596,7 @@ static int ____i915_gem_object_get_pages(struct drm_i915_gem_object *obj)
 	}
 
 	err = obj->ops->get_pages(obj);
-	GEM_BUG_ON(!err && IS_ERR_OR_NULL(obj->mm.pages));
+	GEM_BUG_ON(!err && !i915_gem_object_has_pages(obj));
 
 	return err;
 }
