@@ -207,7 +207,7 @@ static inline int arch_within_stack_frames(const void * const stack,
 #else /* !__ASSEMBLY__ */
 
 #ifdef CONFIG_X86_64
-# define cpu_current_top_of_stack (cpu_tss + TSS_sp0)
+# define cpu_current_top_of_stack (cpu_tss_rw + TSS_sp1)
 #endif
 
 #endif
