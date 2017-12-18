@@ -109,6 +109,7 @@ static struct bio *blk_bio_segment_split(struct request_queue *q,
 	bool do_split = true;
 	struct bio *new = NULL;
 	const unsigned max_sectors = get_max_io_size(q, bio);
+	unsigned advance = 0;
 
 	bio_for_each_segment(bv, bio, iter) {
 		/*
@@ -134,12 +135,32 @@ static struct bio *blk_bio_segment_split(struct request_queue *q,
 		}
 
 		if (bvprvp && blk_queue_cluster(q)) {
-			if (seg_size + bv.bv_len > queue_max_segment_size(q))
-				goto new_segment;
 			if (!BIOVEC_PHYS_MERGEABLE(bvprvp, &bv))
 				goto new_segment;
 			if (!BIOVEC_SEG_BOUNDARY(q, bvprvp, &bv))
 				goto new_segment;
+			if (seg_size + bv.bv_len > queue_max_segment_size(q)) {
+				/*
+				 * One assumption is that initial value of
+				 * @seg_size(equals to bv.bv_len) won't be
+				 * bigger than max segment size, but this
+				 * becomes false after multipage bvecs.
+				 */
+				advance = queue_max_segment_size(q) - seg_size;
+
+				if (advance > 0) {
+					seg_size += advance;
+					sectors += advance >> 9;
+					bv.bv_len -= advance;
+					bv.bv_offset += advance;
+				}
+
+				/*
+				 * Still need to put remainder of current
+				 * bvec into a new segment.
+				 */
+				goto new_segment;
+			}
 
 			seg_size += bv.bv_len;
 			bvprv = bv;
@@ -161,6 +182,12 @@ new_segment:
 		seg_size = bv.bv_len;
 		sectors += bv.bv_len >> 9;
 
+		/* restore the bvec for iterator */
+		if (advance) {
+			bv.bv_len += advance;
+			bv.bv_offset -= advance;
+			advance = 0;
+		}
 	}
 
 	do_split = false;
@@ -361,15 +388,28 @@ __blk_segment_map_sg(struct request_queue *q, struct bio_vec *bvec,
 {
 
 	int nbytes = bvec->bv_len;
+	unsigned advance = 0;
 
 	if (*sg && *cluster) {
-		if ((*sg)->length + nbytes > queue_max_segment_size(q))
-			goto new_segment;
-
 		if (!BIOVEC_PHYS_MERGEABLE(bvprv, bvec))
 			goto new_segment;
 		if (!BIOVEC_SEG_BOUNDARY(q, bvprv, bvec))
 			goto new_segment;
+
+		/*
+		 * try best to merge part of the bvec into previous
+		 * segment and follow same policy with
+		 * blk_bio_segment_split()
+		 */
+		if ((*sg)->length + nbytes > queue_max_segment_size(q)) {
+			advance = queue_max_segment_size(q) - (*sg)->length;
+			if (advance) {
+				(*sg)->length += advance;
+				bvec->bv_offset += advance;
+				bvec->bv_len -= advance;
+			}
+			goto new_segment;
+		}
 
 		(*sg)->length += nbytes;
 	} else {
@@ -393,6 +433,10 @@ new_segment:
 
 		sg_set_page(*sg, bvec->bv_page, nbytes, bvec->bv_offset);
 		(*nsegs)++;
+
+		/* for making iterator happy */
+		bvec->bv_offset -= advance;
+		bvec->bv_len += advance;
 	}
 	*bvprv = *bvec;
 }
