@@ -24,53 +24,95 @@
 #include <linux/netdevice.h>
 #include <linux/bitfield.h>
 
+#define TSTCNTL		20
+#define  TSTCNTL_READ		BIT(15)
+#define  TSTCNTL_WRITE		BIT(14)
+#define  TSTCNTL_REG_BANK_SEL	GENMASK(12, 11)
+#define  TSTCNTL_TEST_MODE	BIT(10)
+#define  TSTCNTL_READ_ADDRESS	GENMASK(9, 5)
+#define  TSTCNTL_WRITE_ADDRESS	GENMASK(4, 0)
+#define TSTREAD1	21
+#define TSTWRITE	23
+
+#define BANK_ANALOG_DSP		0
+#define BANK_WOL		1
+#define BANK_BIST		3
+
+/* Analog/DSP Registers */
+#define A6_CONFIG_REG	0x17
+
+/* WOL Registers */
+#define LPI_STATUS	0xc
+#define  LPI_STATUS_RSV12	BIT(12)
+
+/* BIST Registers */
+#define FR_PLL_CONTROL	0x1b
+#define FR_PLL_DIV0	0x1c
+#define FR_PLL_DIV1	0x1d
+
 static int meson_gxl_config_init(struct phy_device *phydev)
 {
 	int ret;
 
 	/* Enable Analog and DSP register Bank access by */
-	ret = phy_write(phydev, 0x14, 0x0000);
+	ret = phy_write(phydev, TSTCNTL, 0);
 	if (ret)
 		return ret;
-	ret = phy_write(phydev, 0x14, 0x0400);
+	ret = phy_write(phydev, TSTCNTL, TSTCNTL_TEST_MODE);
 	if (ret)
 		return ret;
-	ret = phy_write(phydev, 0x14, 0x0000);
+	ret = phy_write(phydev, TSTCNTL, 0);
 	if (ret)
 		return ret;
-	ret = phy_write(phydev, 0x14, 0x0400);
+	ret = phy_write(phydev, TSTCNTL, TSTCNTL_TEST_MODE);
 	if (ret)
 		return ret;
 
-	/* Write Analog register 23 */
-	ret = phy_write(phydev, 0x17, 0x8E0D);
+	/* Write CONFIG_A6*/
+	ret = phy_write(phydev, TSTWRITE, 0x8e0d);
 	if (ret)
 		return ret;
-	ret = phy_write(phydev, 0x14, 0x4417);
+	ret = phy_write(phydev, TSTCNTL,
+			TSTCNTL_WRITE
+			| FIELD_PREP(TSTCNTL_REG_BANK_SEL, BANK_ANALOG_DSP)
+			| TSTCNTL_TEST_MODE
+			| FIELD_PREP(TSTCNTL_WRITE_ADDRESS, A6_CONFIG_REG));
 	if (ret)
 		return ret;
 
 	/* Enable fractional PLL */
-	ret = phy_write(phydev, 0x17, 0x0005);
+	ret = phy_write(phydev, TSTWRITE, 0x0005);
 	if (ret)
 		return ret;
-	ret = phy_write(phydev, 0x14, 0x5C1B);
-	if (ret)
-		return ret;
-
-	/* Program fraction FR_PLL_DIV1 */
-	ret = phy_write(phydev, 0x17, 0x029A);
-	if (ret)
-		return ret;
-	ret = phy_write(phydev, 0x14, 0x5C1D);
+	ret = phy_write(phydev, TSTCNTL,
+			TSTCNTL_WRITE
+			| FIELD_PREP(TSTCNTL_REG_BANK_SEL, BANK_BIST)
+			| TSTCNTL_TEST_MODE
+			| FIELD_PREP(TSTCNTL_WRITE_ADDRESS, FR_PLL_CONTROL));
 	if (ret)
 		return ret;
 
 	/* Program fraction FR_PLL_DIV1 */
-	ret = phy_write(phydev, 0x17, 0xAAAA);
+	ret = phy_write(phydev, TSTWRITE, 0x029a);
 	if (ret)
 		return ret;
-	ret = phy_write(phydev, 0x14, 0x5C1C);
+	ret = phy_write(phydev, TSTCNTL,
+			TSTCNTL_WRITE
+			| FIELD_PREP(TSTCNTL_REG_BANK_SEL, BANK_BIST)
+			| TSTCNTL_TEST_MODE
+			| FIELD_PREP(TSTCNTL_WRITE_ADDRESS, FR_PLL_DIV1));
+	if (ret)
+		return ret;
+
+	/* Program fraction FR_PLL_DIV1 */
+	ret = phy_write(phydev, TSTWRITE, 0xaaaa);
+	if (ret)
+		return ret;
+	ret = phy_write(phydev, TSTCNTL,
+			TSTCNTL_WRITE
+			| FIELD_PREP(TSTCNTL_REG_BANK_SEL, BANK_BIST)
+			| TSTCNTL_TEST_MODE
+			| FIELD_PREP(TSTCNTL_WRITE_ADDRESS, FR_PLL_DIV0));
 	if (ret)
 		return ret;
 
@@ -105,26 +147,30 @@ static int meson_gxl_read_status(struct phy_device *phydev)
 			goto read_status_continue;
 
 		/* Need to access WOL bank, make sure the access is open */
-		ret = phy_write(phydev, 0x14, 0x0000);
+		ret = phy_write(phydev, TSTCNTL, 0);
 		if (ret)
 			return ret;
-		ret = phy_write(phydev, 0x14, 0x0400);
+		ret = phy_write(phydev, TSTCNTL, TSTCNTL_TEST_MODE);
 		if (ret)
 			return ret;
-		ret = phy_write(phydev, 0x14, 0x0000);
+		ret = phy_write(phydev, TSTCNTL, 0);
 		if (ret)
 			return ret;
-		ret = phy_write(phydev, 0x14, 0x0400);
+		ret = phy_write(phydev, TSTCNTL, TSTCNTL_TEST_MODE);
 		if (ret)
 			return ret;
 
 		/* Request LPI_STATUS WOL register */
-		ret = phy_write(phydev, 0x14, 0x8D80);
+		ret = phy_write(phydev, TSTCNTL,
+				TSTCNTL_READ
+				| FIELD_PREP(TSTCNTL_REG_BANK_SEL, BANK_WOL)
+				| TSTCNTL_TEST_MODE
+				| FIELD_PREP(TSTCNTL_READ_ADDRESS, LPI_STATUS));
 		if (ret)
 			return ret;
 
 		/* Read LPI_STATUS value */
-		wol = phy_read(phydev, 0x15);
+		wol = phy_read(phydev, TSTREAD1);
 		if (wol < 0)
 			return wol;
 
@@ -136,7 +182,7 @@ static int meson_gxl_read_status(struct phy_device *phydev)
 		if (exp < 0)
 			return exp;
 
-		if (!(wol & BIT(12)) ||
+		if (!(wol & LPI_STATUS_RSV12) ||
 		    ((exp & EXPANSION_NWAY) && !(lpa & LPA_LPACK))) {
 			/* Looks like aneg failed after all */
 			phydev_dbg(phydev, "LPA corruption - aneg restart\n");
