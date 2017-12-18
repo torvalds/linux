@@ -1030,15 +1030,16 @@ sub dump_struct($$) {
 	my $declaration = $members;
 
 	# Split nested struct/union elements as newer ones
-	my $cont = 1;
-	while ($cont) {
-		$cont = 0;
-		while ($members =~ m/(struct|union)([^{};]+){([^{}]*)}([^{}\;]*)\;/) {
-			my $newmember = "$1 $4;";
-			my $id = $4;
-			my $content = $3;
+	while ($members =~ m/(struct|union)([^\{\};]+)\{([^\{\}]*)\}([^\{\}\;]*)\;/) {
+		my $newmember;
+		my $maintype = $1;
+		my $ids = $4;
+		my $content = $3;
+		foreach my $id(split /,/, $ids) {
+			$newmember .= "$maintype $id; ";
+
 			$id =~ s/[:\[].*//;
-			$id =~ s/^\*+//;
+			$id =~ s/^\s*\**(\S+)\s*/$1/;
 			foreach my $arg (split /;/, $content) {
 				next if ($arg =~ m/^\s*$/);
 				if ($arg =~ m/^([^\(]+\(\*?\s*)([\w\.]*)(\s*\).*)/) {
@@ -1049,30 +1050,48 @@ sub dump_struct($$) {
 					next if (!$name);
 					if ($id =~ m/^\s*$/) {
 						# anonymous struct/union
-						$newmember .= "$type$name$extra;";
+						$newmember .= "$type$name$extra; ";
 					} else {
-						$newmember .= "$type$id.$name$extra;";
+						$newmember .= "$type$id.$name$extra; ";
 					}
 				} else {
-					my $type = $arg;
-					my $name = $arg;
-					$type =~ s/\s\S+$//;
-					$name =~ s/.*\s+//;
-					$name =~ s/[:\[].*//;
-					$name =~ s/^\*+//;
-					next if (($name =~ m/^\s*$/));
-					if ($id =~ m/^\s*$/) {
-						# anonymous struct/union
-						$newmember .= "$type $name;";
+					my $type;
+					my $names;
+					$arg =~ s/^\s+//;
+					$arg =~ s/\s+$//;
+					# Handle bitmaps
+					$arg =~ s/:\s*\d+\s*//g;
+					# Handle arrays
+					$arg =~ s/\[\S+\]//g;
+					# The type may have multiple words,
+					# and multiple IDs can be defined, like:
+					#	const struct foo, *bar, foobar
+					# So, we remove spaces when parsing the
+					# names, in order to match just names
+					# and commas for the names
+					$arg =~ s/\s*,\s*/,/g;
+					if ($arg =~ m/(.*)\s+([\S+,]+)/) {
+						$type = $1;
+						$names = $2;
 					} else {
-						$newmember .= "$type $id.$name;";
+						$newmember .= "$arg; ";
+						next;
+					}
+					foreach my $name (split /,/, $names) {
+						$name =~ s/^\s*\**(\S+)\s*/$1/;
+						next if (($name =~ m/^\s*$/));
+						if ($id =~ m/^\s*$/) {
+							# anonymous struct/union
+							$newmember .= "$type $name; ";
+						} else {
+							$newmember .= "$type $id.$name; ";
+						}
 					}
 				}
 			}
-			$members =~ s/(struct|union)([^{};]+){([^{}]*)}([^{}\;]*)\;/$newmember/;
-			$cont = 1;
-		};
-	};
+		}
+		$members =~ s/(struct|union)([^\{\};]+)\{([^\{\}]*)}([^\{\}\;]*)\;/$newmember/;
+	}
 
 	# Ignore other nested elements, like enums
 	$members =~ s/({[^\{\}]*})//g;
