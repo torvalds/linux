@@ -514,16 +514,6 @@ static unsigned int at24_get_offset_adj(u8 flags, unsigned int byte_len)
 	}
 }
 
-static const struct regmap_config regmap_config_8 = {
-	.reg_bits = 8,
-	.val_bits = 8,
-};
-
-static const struct regmap_config regmap_config_16 = {
-	.reg_bits = 16,
-	.val_bits = 8,
-};
-
 static int at24_probe(struct i2c_client *client, const struct i2c_device_id *id)
 {
 	struct at24_platform_data chip;
@@ -532,7 +522,7 @@ static int at24_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	struct at24_data *at24;
 	int err;
 	unsigned int i, num_addresses;
-	const struct regmap_config *config;
+	struct regmap_config regmap_config = { };
 	u8 test_byte;
 
 	if (client->dev.platform_data) {
@@ -601,10 +591,8 @@ static int at24_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		num_addresses =	DIV_ROUND_UP(chip.byte_len,
 			(chip.flags & AT24_FLAG_ADDR16) ? 65536 : 256);
 
-	if (chip.flags & AT24_FLAG_ADDR16)
-		config = &regmap_config_16;
-	else
-		config = &regmap_config_8;
+	regmap_config.val_bits = 8;
+	regmap_config.reg_bits = (chip.flags & AT24_FLAG_ADDR16) ? 16 : 8;
 
 	at24 = devm_kzalloc(&client->dev, sizeof(struct at24_data) +
 		num_addresses * sizeof(struct at24_client), GFP_KERNEL);
@@ -617,7 +605,7 @@ static int at24_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	at24->offset_adj = at24_get_offset_adj(chip.flags, chip.byte_len);
 
 	at24->client[0].client = client;
-	at24->client[0].regmap = devm_regmap_init_i2c(client, config);
+	at24->client[0].regmap = devm_regmap_init_i2c(client, &regmap_config);
 	if (IS_ERR(at24->client[0].regmap))
 		return PTR_ERR(at24->client[0].regmap);
 
@@ -647,7 +635,8 @@ static int at24_probe(struct i2c_client *client, const struct i2c_device_id *id)
 			goto err_clients;
 		}
 		at24->client[i].regmap = devm_regmap_init_i2c(
-					at24->client[i].client, config);
+						at24->client[i].client,
+						&regmap_config);
 		if (IS_ERR(at24->client[i].regmap)) {
 			err = PTR_ERR(at24->client[i].regmap);
 			goto err_clients;
