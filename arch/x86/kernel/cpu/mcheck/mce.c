@@ -528,6 +528,17 @@ bool mce_is_memory_error(struct mce *m)
 }
 EXPORT_SYMBOL_GPL(mce_is_memory_error);
 
+static bool mce_is_correctable(struct mce *m)
+{
+	if (m->cpuvendor == X86_VENDOR_AMD && m->status & MCI_STATUS_DEFERRED)
+		return false;
+
+	if (m->status & MCI_STATUS_UC)
+		return false;
+
+	return true;
+}
+
 static bool cec_add_mce(struct mce *m)
 {
 	if (!m)
@@ -535,7 +546,7 @@ static bool cec_add_mce(struct mce *m)
 
 	/* We eat only correctable DRAM errors with usable addresses. */
 	if (mce_is_memory_error(m) &&
-	    !(m->status & MCI_STATUS_UC) &&
+	    mce_is_correctable(m)  &&
 	    mce_usable_address(m))
 		if (!cec_add_elem(m->addr >> PAGE_SHIFT))
 			return true;
