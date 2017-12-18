@@ -160,8 +160,12 @@ int save_stack_trace_tsk_reliable(struct task_struct *tsk,
 {
 	int ret;
 
+	/*
+	 * If the task doesn't have a stack (e.g., a zombie), the stack is
+	 * "reliably" empty.
+	 */
 	if (!try_get_task_stack(tsk))
-		return -EINVAL;
+		return 0;
 
 	ret = __save_stack_trace_reliable(trace, tsk);
 
