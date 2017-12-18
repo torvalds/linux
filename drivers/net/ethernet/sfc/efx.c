@@ -27,6 +27,7 @@
 #include <net/udp_tunnel.h>
 #include "efx.h"
 #include "nic.h"
+#include "io.h"
 #include "selftest.h"
 #include "sriov.h"
 
@@ -1248,7 +1249,7 @@ static int efx_init_io(struct efx_nic *efx)
 
 	netif_dbg(efx, probe, efx->net_dev, "initialising I/O\n");
 
-	bar = efx->type->mem_bar;
+	bar = efx->type->mem_bar(efx);
 
 	rc = pci_enable_device(pci_dev);
 	if (rc) {
@@ -1323,7 +1324,7 @@ static void efx_fini_io(struct efx_nic *efx)
 	}
 
 	if (efx->membase_phys) {
-		bar = efx->type->mem_bar;
+		bar = efx->type->mem_bar(efx);
 		pci_release_region(efx->pci_dev, bar);
 		efx->membase_phys = 0;
 	}
@@ -2909,6 +2910,10 @@ static const struct pci_device_id efx_pci_table[] = {
 	 .driver_data = (unsigned long) &efx_hunt_a0_nic_type},
 	{PCI_DEVICE(PCI_VENDOR_ID_SOLARFLARE, 0x1a03),  /* SFC9220 VF */
 	 .driver_data = (unsigned long) &efx_hunt_a0_vf_nic_type},
+	{PCI_DEVICE(PCI_VENDOR_ID_SOLARFLARE, 0x0b03),  /* SFC9250 PF */
+	 .driver_data = (unsigned long) &efx_hunt_a0_nic_type},
+	{PCI_DEVICE(PCI_VENDOR_ID_SOLARFLARE, 0x1b03),  /* SFC9250 VF */
+	 .driver_data = (unsigned long) &efx_hunt_a0_vf_nic_type},
 	{0}			/* end of list */
 };
 
@@ -2977,6 +2982,7 @@ static int efx_init_struct(struct efx_nic *efx,
 	efx->rx_packet_ts_offset =
 		efx->type->rx_ts_offset - efx->type->rx_prefix_size;
 	spin_lock_init(&efx->stats_lock);
+	efx->vi_stride = EFX_DEFAULT_VI_STRIDE;
 	mutex_init(&efx->mac_lock);
 	efx->phy_op = &efx_dummy_phy_operations;
 	efx->mdio.dev = net_dev;

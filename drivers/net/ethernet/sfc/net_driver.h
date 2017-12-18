@@ -708,6 +708,7 @@ struct vfdi_status;
  * @reset_work: Scheduled reset workitem
  * @membase_phys: Memory BAR value as physical address
  * @membase: Memory BAR value
+ * @vi_stride: step between per-VI registers / memory regions
  * @interrupt_mode: Interrupt mode
  * @timer_quantum_ns: Interrupt timer quantum, in nanoseconds
  * @timer_max_ns: Interrupt timer maximum value, in nanoseconds
@@ -812,6 +813,7 @@ struct vfdi_status;
  * @vf_init_count: Number of VFs that have been fully initialised.
  * @vi_scale: log2 number of vnics per VF.
  * @ptp_data: PTP state data
+ * @ptp_warned: has this NIC seen and warned about unexpected PTP events?
  * @vpd_sn: Serial number read from VPD
  * @monitor_work: Hardware monitor workitem
  * @biu_lock: BIU (bus interface unit) lock
@@ -841,6 +843,8 @@ struct efx_nic {
 	struct work_struct reset_work;
 	resource_size_t membase_phys;
 	void __iomem *membase;
+
+	unsigned int vi_stride;
 
 	enum efx_int_mode interrupt_mode;
 	unsigned int timer_quantum_ns;
@@ -965,6 +969,7 @@ struct efx_nic {
 #endif
 
 	struct efx_ptp_data *ptp_data;
+	bool ptp_warned;
 
 	char *vpd_sn;
 
@@ -1154,7 +1159,7 @@ struct efx_udp_tunnel {
  */
 struct efx_nic_type {
 	bool is_vf;
-	unsigned int mem_bar;
+	unsigned int (*mem_bar)(struct efx_nic *efx);
 	unsigned int (*mem_map_size)(struct efx_nic *efx);
 	int (*probe)(struct efx_nic *efx);
 	void (*remove)(struct efx_nic *efx);

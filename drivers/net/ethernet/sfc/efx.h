@@ -14,11 +14,6 @@
 #include "net_driver.h"
 #include "filter.h"
 
-/* All controllers use BAR 0 for I/O space and BAR 2(&3) for memory */
-/* All VFs use BAR 0/1 for memory */
-#define EFX_MEM_BAR 2
-#define EFX_MEM_VF_BAR 0
-
 int efx_net_open(struct net_device *net_dev);
 int efx_net_stop(struct net_device *net_dev);
 
