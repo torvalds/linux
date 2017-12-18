@@ -20,6 +20,7 @@
 #include "bmap.h"
 #include "glock.h"
 #include "glops.h"
+#include "log.h"
 #include "lops.h"
 #include "meta_io.h"
 #include "recovery.h"
@@ -370,62 +371,22 @@ static int foreach_descriptor(struct gfs2_jdesc *jd, unsigned int start,
 
 /**
  * clean_journal - mark a dirty journal as being clean
- * @sdp: the filesystem
  * @jd: the journal
- * @gl: the journal's glock
  * @head: the head journal to start from
  *
  * Returns: errno
  */
 
-static int clean_journal(struct gfs2_jdesc *jd, struct gfs2_log_header_host *head)
+static void clean_journal(struct gfs2_jdesc *jd,
+			  struct gfs2_log_header_host *head)
 {
-	struct gfs2_inode *ip = GFS2_I(jd->jd_inode);
 	struct gfs2_sbd *sdp = GFS2_SB(jd->jd_inode);
-	unsigned int lblock;
-	struct gfs2_log_header *lh;
-	u32 hash;
-	struct buffer_head *bh;
-	int error;
-	struct buffer_head bh_map = { .b_state = 0, .b_blocknr = 0 };
 
-	lblock = head->lh_blkno;
-	gfs2_replay_incr_blk(jd, &lblock);
-	bh_map.b_size = 1 << ip->i_inode.i_blkbits;
-	error = gfs2_block_map(&ip->i_inode, lblock, &bh_map, 0);
-	if (error)
-		return error;
-	if (!bh_map.b_blocknr) {
-		gfs2_consist_inode(ip);
-		return -EIO;
-	}
-
-	bh = sb_getblk(sdp->sd_vfs, bh_map.b_blocknr);
-	lock_buffer(bh);
-	memset(bh->b_data, 0, bh->b_size);
-	set_buffer_uptodate(bh);
-	clear_buffer_dirty(bh);
-	unlock_buffer(bh);
-
-	lh = (struct gfs2_log_header *)bh->b_data;
-	memset(lh, 0, sizeof(struct gfs2_log_header));
-	lh->lh_header.mh_magic = cpu_to_be32(GFS2_MAGIC);
-	lh->lh_header.mh_type = cpu_to_be32(GFS2_METATYPE_LH);
-	lh->lh_header.__pad0 = cpu_to_be64(0);
-	lh->lh_header.mh_format = cpu_to_be32(GFS2_FORMAT_LH);
-	lh->lh_header.mh_jid = cpu_to_be32(sdp->sd_jdesc->jd_jid);
-	lh->lh_sequence = cpu_to_be64(head->lh_sequence + 1);
-	lh->lh_flags = cpu_to_be32(GFS2_LOG_HEAD_UNMOUNT);
-	lh->lh_blkno = cpu_to_be32(lblock);
-	hash = gfs2_disk_hash((const char *)lh, sizeof(struct gfs2_log_header));
-	lh->lh_hash = cpu_to_be32(hash);
-
-	set_buffer_dirty(bh);
-	if (sync_dirty_buffer(bh))
-		gfs2_io_error_bh(sdp, bh);
-	brelse(bh);
-
-	return error;
+	sdp->sd_log_flush_head = head->lh_blkno;
+	gfs2_replay_incr_blk(jd, &sdp->sd_log_flush_head);
+	gfs2_write_log_header(sdp, head->lh_sequence + 1, 0,
+			      GFS2_LOG_HEAD_UNMOUNT, REQ_PREFLUSH |
+			      REQ_FUA | REQ_META | REQ_SYNC);
 }
 
 
@@ -552,9 +513,7 @@ void gfs2_recover_func(struct work_struct *work)
 				goto fail_gunlock_thaw;
 		}
 
-		error = clean_journal(jd, &head);
-		if (error)
-			goto fail_gunlock_thaw;
+		clean_journal(jd, &head);
 
 		gfs2_glock_dq_uninit(&thaw_gh);
 		t = DIV_ROUND_UP(jiffies - t, HZ);

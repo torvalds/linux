@@ -71,6 +71,8 @@ enum gfs2_flush_type {
 	SHUTDOWN_FLUSH,
 	FREEZE_FLUSH
 };
+extern void gfs2_write_log_header(struct gfs2_sbd *sdp, u64 seq, u32 tail,
+				  u32 flags, int op_flags);
 extern void gfs2_log_flush(struct gfs2_sbd *sdp, struct gfs2_glock *gl,
 			   enum gfs2_flush_type type);
 extern void gfs2_log_commit(struct gfs2_sbd *sdp, struct gfs2_trans *trans);
