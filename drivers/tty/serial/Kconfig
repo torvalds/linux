@@ -766,6 +766,7 @@ config SERIAL_SH_SCI_NR_UARTS
 	default "3" if H8300
 	default "10" if SUPERH
 	default "18" if ARCH_RENESAS
+	default "2"
 
 config SERIAL_SH_SCI_CONSOLE
 	bool "Support for console on SuperH SCI(F)" if EXPERT
