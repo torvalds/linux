@@ -110,7 +110,9 @@ static ssize_t value_show(struct device *dev,
 	if (status < 0)
 		goto err;
 
-	status = sprintf(buf, "%d\n", status);
+	buf[0] = '0' + status;
+	buf[1] = '\n';
+	status = 2;
 err:
 	mutex_unlock(&data->mutex);
 
