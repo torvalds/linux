@@ -2360,9 +2360,9 @@ static int xilinx_dma_chan_probe(struct xilinx_dma_device *xdev,
 	chan->has_sg = xdev->has_sg;
 	chan->desc_pendingcount = 0x0;
 	chan->ext_addr = xdev->ext_addr;
-	/* This variable enusres that descripotrs are not
-	 * Submited when dma engine is in progress. This variable is
-	 * Added to avoid pollling for a bit in the status register to
+	/* This variable ensures that descriptors are not
+	 * Submitted when dma engine is in progress. This variable is
+	 * Added to avoid polling for a bit in the status register to
 	 * Know dma state in the driver hot path.
 	 */
 	chan->idle = true;
