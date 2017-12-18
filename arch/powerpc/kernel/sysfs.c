@@ -590,6 +590,17 @@ static void sysfs_create_dscr_default(void)
 	if (cpu_has_feature(CPU_FTR_DSCR))
 		err = device_create_file(cpu_subsys.dev_root, &dev_attr_dscr_default);
 }
+
+void __init record_spr_defaults(void)
+{
+	int cpu;
+
+	if (cpu_has_feature(CPU_FTR_DSCR)) {
+		dscr_default = mfspr(SPRN_DSCR);
+		for (cpu = 0; cpu < nr_cpu_ids; cpu++)
+			paca[cpu].dscr_default = dscr_default;
+	}
+}
 #endif /* CONFIG_PPC64 */
 
 #ifdef HAS_PPC_PMC_PA6T

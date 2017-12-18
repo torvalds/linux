@@ -199,9 +199,9 @@ static int snd_echo_midi_output_open(struct snd_rawmidi_substream *substream)
 
 
 
-static void snd_echo_midi_output_write(unsigned long data)
+static void snd_echo_midi_output_write(struct timer_list *t)
 {
-	struct echoaudio *chip = (struct echoaudio *)data;
+	struct echoaudio *chip = from_timer(chip, t, timer);
 	unsigned long flags;
 	int bytes, sent, time;
 	unsigned char buf[MIDI_OUT_BUFFER_SIZE - 1];
@@ -257,8 +257,8 @@ static void snd_echo_midi_output_trigger(struct snd_rawmidi_substream *substream
 	spin_lock_irq(&chip->lock);
 	if (up) {
 		if (!chip->tinuse) {
-			setup_timer(&chip->timer, snd_echo_midi_output_write,
-				    (unsigned long)chip);
+			timer_setup(&chip->timer, snd_echo_midi_output_write,
+				    0);
 			chip->tinuse = 1;
 		}
 	} else {
@@ -273,7 +273,7 @@ static void snd_echo_midi_output_trigger(struct snd_rawmidi_substream *substream
 	spin_unlock_irq(&chip->lock);
 
 	if (up && !chip->midi_full)
-		snd_echo_midi_output_write((unsigned long)chip);
+		snd_echo_midi_output_write(&chip->timer);
 }
 
 

@@ -1216,9 +1216,9 @@ static int oa_get_render_ctx_id(struct i915_perf_stream *stream)
 {
 	struct drm_i915_private *dev_priv = stream->dev_priv;
 
-	if (i915_modparams.enable_execlists)
+	if (HAS_LOGICAL_RING_CONTEXTS(dev_priv)) {
 		dev_priv->perf.oa.specific_ctx_id = stream->ctx->hw_id;
-	else {
+	} else {
 		struct intel_engine_cs *engine = dev_priv->engine[RCS];
 		struct intel_ring *ring;
 		int ret;
@@ -1262,7 +1262,7 @@ static void oa_put_render_ctx_id(struct i915_perf_stream *stream)
 {
 	struct drm_i915_private *dev_priv = stream->dev_priv;
 
-	if (i915_modparams.enable_execlists) {
+	if (HAS_LOGICAL_RING_CONTEXTS(dev_priv)) {
 		dev_priv->perf.oa.specific_ctx_id = INVALID_CTX_ID;
 	} else {
 		struct intel_engine_cs *engine = dev_priv->engine[RCS];
@@ -1726,10 +1726,9 @@ static int gen8_switch_to_updated_kernel_context(struct drm_i915_private *dev_pr
 							 GFP_KERNEL);
 	}
 
-	ret = i915_switch_context(req);
 	i915_add_request(req);
 
-	return ret;
+	return 0;
 }
 
 /*
@@ -2691,8 +2690,8 @@ err:
 
 static u64 oa_exponent_to_ns(struct drm_i915_private *dev_priv, int exponent)
 {
-	return div_u64(1000000000ULL * (2ULL << exponent),
-		       dev_priv->perf.oa.timestamp_frequency);
+	return div64_u64(1000000000ULL * (2ULL << exponent),
+			 1000ULL * INTEL_INFO(dev_priv)->cs_timestamp_frequency_khz);
 }
 
 /**
@@ -3007,7 +3006,7 @@ static bool gen8_is_valid_flex_addr(struct drm_i915_private *dev_priv, u32 addr)
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(flex_eu_regs); i++) {
-		if (flex_eu_regs[i].reg == addr)
+		if (i915_mmio_reg_offset(flex_eu_regs[i]) == addr)
 			return true;
 	}
 	return false;
@@ -3015,38 +3014,47 @@ static bool gen8_is_valid_flex_addr(struct drm_i915_private *dev_priv, u32 addr)
 
 static bool gen7_is_valid_b_counter_addr(struct drm_i915_private *dev_priv, u32 addr)
 {
-	return (addr >= OASTARTTRIG1.reg && addr <= OASTARTTRIG8.reg) ||
-		(addr >= OAREPORTTRIG1.reg && addr <= OAREPORTTRIG8.reg) ||
-		(addr >= OACEC0_0.reg && addr <= OACEC7_1.reg);
+	return (addr >= i915_mmio_reg_offset(OASTARTTRIG1) &&
+		addr <= i915_mmio_reg_offset(OASTARTTRIG8)) ||
+		(addr >= i915_mmio_reg_offset(OAREPORTTRIG1) &&
+		 addr <= i915_mmio_reg_offset(OAREPORTTRIG8)) ||
+		(addr >= i915_mmio_reg_offset(OACEC0_0) &&
+		 addr <= i915_mmio_reg_offset(OACEC7_1));
 }
 
 static bool gen7_is_valid_mux_addr(struct drm_i915_private *dev_priv, u32 addr)
 {
-	return addr == HALF_SLICE_CHICKEN2.reg ||
-		(addr >= MICRO_BP0_0.reg && addr <= NOA_WRITE.reg) ||
-		(addr >= OA_PERFCNT1_LO.reg && addr <= OA_PERFCNT2_HI.reg) ||
-		(addr >= OA_PERFMATRIX_LO.reg && addr <= OA_PERFMATRIX_HI.reg);
+	return addr == i915_mmio_reg_offset(HALF_SLICE_CHICKEN2) ||
+		(addr >= i915_mmio_reg_offset(MICRO_BP0_0) &&
+		 addr <= i915_mmio_reg_offset(NOA_WRITE)) ||
+		(addr >= i915_mmio_reg_offset(OA_PERFCNT1_LO) &&
+		 addr <= i915_mmio_reg_offset(OA_PERFCNT2_HI)) ||
+		(addr >= i915_mmio_reg_offset(OA_PERFMATRIX_LO) &&
+		 addr <= i915_mmio_reg_offset(OA_PERFMATRIX_HI));
 }
 
 static bool gen8_is_valid_mux_addr(struct drm_i915_private *dev_priv, u32 addr)
 {
 	return gen7_is_valid_mux_addr(dev_priv, addr) ||
-		addr == WAIT_FOR_RC6_EXIT.reg ||
-		(addr >= RPM_CONFIG0.reg && addr <= NOA_CONFIG(8).reg);
+		addr == i915_mmio_reg_offset(WAIT_FOR_RC6_EXIT) ||
+		(addr >= i915_mmio_reg_offset(RPM_CONFIG0) &&
+		 addr <= i915_mmio_reg_offset(NOA_CONFIG(8)));
 }
 
 static bool gen10_is_valid_mux_addr(struct drm_i915_private *dev_priv, u32 addr)
 {
 	return gen8_is_valid_mux_addr(dev_priv, addr) ||
-		(addr >= OA_PERFCNT3_LO.reg && addr <= OA_PERFCNT4_HI.reg);
+		(addr >= i915_mmio_reg_offset(OA_PERFCNT3_LO) &&
+		 addr <= i915_mmio_reg_offset(OA_PERFCNT4_HI));
 }
 
 static bool hsw_is_valid_mux_addr(struct drm_i915_private *dev_priv, u32 addr)
 {
 	return gen7_is_valid_mux_addr(dev_priv, addr) ||
 		(addr >= 0x25100 && addr <= 0x2FF90) ||
-		(addr >= HSW_MBVID2_NOA0.reg && addr <= HSW_MBVID2_NOA9.reg) ||
-		addr == HSW_MBVID2_MISR0.reg;
+		(addr >= i915_mmio_reg_offset(HSW_MBVID2_NOA0) &&
+		 addr <= i915_mmio_reg_offset(HSW_MBVID2_NOA9)) ||
+		addr == i915_mmio_reg_offset(HSW_MBVID2_MISR0);
 }
 
 static bool chv_is_valid_mux_addr(struct drm_i915_private *dev_priv, u32 addr)
@@ -3061,14 +3069,14 @@ static uint32_t mask_reg_value(u32 reg, u32 val)
 	 * WaDisableSTUnitPowerOptimization workaround. Make sure the value
 	 * programmed by userspace doesn't change this.
 	 */
-	if (HALF_SLICE_CHICKEN2.reg == reg)
+	if (i915_mmio_reg_offset(HALF_SLICE_CHICKEN2) == reg)
 		val = val & ~_MASKED_BIT_ENABLE(GEN8_ST_PO_DISABLE);
 
 	/* WAIT_FOR_RC6_EXIT has only one bit fullfilling the function
 	 * indicated by its name and a bunch of selection fields used by OA
 	 * configs.
 	 */
-	if (WAIT_FOR_RC6_EXIT.reg == reg)
+	if (i915_mmio_reg_offset(WAIT_FOR_RC6_EXIT) == reg)
 		val = val & ~_MASKED_BIT_ENABLE(HSW_WAIT_FOR_RC6_EXIT_ENABLE);
 
 	return val;
@@ -3415,8 +3423,6 @@ static struct ctl_table dev_root[] = {
  */
 void i915_perf_init(struct drm_i915_private *dev_priv)
 {
-	dev_priv->perf.oa.timestamp_frequency = 0;
-
 	if (IS_HASWELL(dev_priv)) {
 		dev_priv->perf.oa.ops.is_valid_b_counter_reg =
 			gen7_is_valid_b_counter_addr;
@@ -3432,10 +3438,8 @@ void i915_perf_init(struct drm_i915_private *dev_priv)
 		dev_priv->perf.oa.ops.oa_hw_tail_read =
 			gen7_oa_hw_tail_read;
 
-		dev_priv->perf.oa.timestamp_frequency = 12500000;
-
 		dev_priv->perf.oa.oa_formats = hsw_oa_formats;
-	} else if (i915_modparams.enable_execlists) {
+	} else if (HAS_LOGICAL_RING_CONTEXTS(dev_priv)) {
 		/* Note: that although we could theoretically also support the
 		 * legacy ringbuffer mode on BDW (and earlier iterations of
 		 * this driver, before upstreaming did this) it didn't seem
@@ -3477,23 +3481,6 @@ void i915_perf_init(struct drm_i915_private *dev_priv)
 
 				dev_priv->perf.oa.gen8_valid_ctx_bit = (1<<16);
 			}
-
-			switch (dev_priv->info.platform) {
-			case INTEL_BROADWELL:
-				dev_priv->perf.oa.timestamp_frequency = 12500000;
-				break;
-			case INTEL_BROXTON:
-			case INTEL_GEMINILAKE:
-				dev_priv->perf.oa.timestamp_frequency = 19200000;
-				break;
-			case INTEL_SKYLAKE:
-			case INTEL_KABYLAKE:
-			case INTEL_COFFEELAKE:
-				dev_priv->perf.oa.timestamp_frequency = 12000000;
-				break;
-			default:
-				break;
-			}
 		} else if (IS_GEN10(dev_priv)) {
 			dev_priv->perf.oa.ops.is_valid_b_counter_reg =
 				gen7_is_valid_b_counter_addr;
@@ -3509,15 +3496,10 @@ void i915_perf_init(struct drm_i915_private *dev_priv)
 			dev_priv->perf.oa.ctx_flexeu0_offset = 0x3de;
 
 			dev_priv->perf.oa.gen8_valid_ctx_bit = (1<<16);
-
-			/* Default frequency, although we need to read it from
-			 * the register as it might vary between parts.
-			 */
-			dev_priv->perf.oa.timestamp_frequency = 12000000;
 		}
 	}
 
-	if (dev_priv->perf.oa.timestamp_frequency) {
+	if (dev_priv->perf.oa.ops.enable_metric_set) {
 		hrtimer_init(&dev_priv->perf.oa.poll_check_timer,
 				CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 		dev_priv->perf.oa.poll_check_timer.function = oa_poll_check_timer_cb;
@@ -3527,8 +3509,8 @@ void i915_perf_init(struct drm_i915_private *dev_priv)
 		mutex_init(&dev_priv->perf.lock);
 		spin_lock_init(&dev_priv->perf.oa.oa_buffer.ptr_lock);
 
-		oa_sample_rate_hard_limit =
-			dev_priv->perf.oa.timestamp_frequency / 2;
+		oa_sample_rate_hard_limit = 1000 *
+			(INTEL_INFO(dev_priv)->cs_timestamp_frequency_khz / 2);
 		dev_priv->perf.sysctl_header = register_sysctl_table(dev_root);
 
 		mutex_init(&dev_priv->perf.metrics_lock);

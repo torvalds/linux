@@ -18,3 +18,5 @@ threadtest
 valid-adjtimex
 adjtick
 set-tz
+freq-step
+rtctest_setdate

@@ -21,7 +21,7 @@ http://www.t10.org/members/w_pqi2.htm
 
 Supported devices:
 ------------------
-<Controller names to be added as they become publically available.>
+<Controller names to be added as they become publicly available.>
 
 smartpqi specific entries in /sys
 -----------------------------

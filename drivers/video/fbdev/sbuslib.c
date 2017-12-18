@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /* sbuslib.c: Helper library for SBUS framebuffer drivers.
  *
  * Copyright (C) 2003 David S. Miller (davem@redhat.com)

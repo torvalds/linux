@@ -120,7 +120,7 @@ void rtl_init_rx_config(struct ieee80211_hw *hw);
 void rtl_init_rfkill(struct ieee80211_hw *hw);
 void rtl_deinit_rfkill(struct ieee80211_hw *hw);
 
-void rtl_watch_dog_timer_callback(unsigned long data);
+void rtl_watch_dog_timer_callback(struct timer_list *t);
 void rtl_deinit_deferred_work(struct ieee80211_hw *hw);
 
 bool rtl_action_proc(struct ieee80211_hw *hw, struct sk_buff *skb, u8 is_tx);
@@ -176,7 +176,7 @@ int rtl_send_smps_action(struct ieee80211_hw *hw,
 u8 *rtl_find_ie(u8 *data, unsigned int len, u8 ie);
 void rtl_recognize_peer(struct ieee80211_hw *hw, u8 *data, unsigned int len);
 u8 rtl_tid_to_ac(u8 tid);
-void rtl_easy_concurrent_retrytimer_callback(unsigned long data);
+void rtl_easy_concurrent_retrytimer_callback(struct timer_list *t);
 extern struct rtl_global_var rtl_global_var;
 void rtl_phy_scan_operation_backup(struct ieee80211_hw *hw, u8 operation);
 bool rtl_check_beacon_key(struct ieee80211_hw *hw, void *data,

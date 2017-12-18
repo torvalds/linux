@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 ifdef CONFIG_GCC_PLUGINS
   __PLUGINCC := $(call cc-ifversion, -ge, 0408, $(HOSTCXX), $(HOSTCC))
   PLUGINCC := $(shell $(CONFIG_SHELL) $(srctree)/scripts/gcc-plugin.sh "$(__PLUGINCC)" "$(HOSTCXX)" "$(CC)")

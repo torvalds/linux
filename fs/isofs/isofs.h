@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #include <linux/fs.h>
 #include <linux/buffer_head.h>
 #include <linux/exportfs.h>
@@ -72,41 +73,41 @@ static inline struct iso_inode_info *ISOFS_I(struct inode *inode)
 	return container_of(inode, struct iso_inode_info, vfs_inode);
 }
 
-static inline int isonum_711(char *p)
+static inline int isonum_711(u8 *p)
 {
-	return *(u8 *)p;
+	return *p;
 }
-static inline int isonum_712(char *p)
+static inline int isonum_712(s8 *p)
 {
-	return *(s8 *)p;
+	return *p;
 }
-static inline unsigned int isonum_721(char *p)
+static inline unsigned int isonum_721(u8 *p)
 {
 	return get_unaligned_le16(p);
 }
-static inline unsigned int isonum_722(char *p)
+static inline unsigned int isonum_722(u8 *p)
 {
 	return get_unaligned_be16(p);
 }
-static inline unsigned int isonum_723(char *p)
+static inline unsigned int isonum_723(u8 *p)
 {
 	/* Ignore bigendian datum due to broken mastering programs */
 	return get_unaligned_le16(p);
 }
-static inline unsigned int isonum_731(char *p)
+static inline unsigned int isonum_731(u8 *p)
 {
 	return get_unaligned_le32(p);
 }
-static inline unsigned int isonum_732(char *p)
+static inline unsigned int isonum_732(u8 *p)
 {
 	return get_unaligned_be32(p);
 }
-static inline unsigned int isonum_733(char *p)
+static inline unsigned int isonum_733(u8 *p)
 {
 	/* Ignore bigendian datum due to broken mastering programs */
 	return get_unaligned_le32(p);
 }
-extern int iso_date(char *, int);
+extern int iso_date(u8 *, int);
 
 struct inode;		/* To make gcc happy */
 

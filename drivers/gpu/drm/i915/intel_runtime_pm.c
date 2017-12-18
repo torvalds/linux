@@ -130,6 +130,8 @@ intel_display_power_domain_str(enum intel_display_power_domain domain)
 		return "INIT";
 	case POWER_DOMAIN_MODESET:
 		return "MODESET";
+	case POWER_DOMAIN_GT_IRQ:
+		return "GT_IRQ";
 	default:
 		MISSING_CASE(domain);
 		return "?";
@@ -1705,6 +1707,7 @@ void intel_display_power_put(struct drm_i915_private *dev_priv,
 	BIT_ULL(POWER_DOMAIN_INIT))
 #define SKL_DISPLAY_DC_OFF_POWER_DOMAINS (		\
 	SKL_DISPLAY_POWERWELL_2_POWER_DOMAINS |		\
+	BIT_ULL(POWER_DOMAIN_GT_IRQ) |			\
 	BIT_ULL(POWER_DOMAIN_MODESET) |			\
 	BIT_ULL(POWER_DOMAIN_AUX_A) |			\
 	BIT_ULL(POWER_DOMAIN_INIT))
@@ -1727,6 +1730,7 @@ void intel_display_power_put(struct drm_i915_private *dev_priv,
 	BIT_ULL(POWER_DOMAIN_INIT))
 #define BXT_DISPLAY_DC_OFF_POWER_DOMAINS (		\
 	BXT_DISPLAY_POWERWELL_2_POWER_DOMAINS |		\
+	BIT_ULL(POWER_DOMAIN_GT_IRQ) |			\
 	BIT_ULL(POWER_DOMAIN_MODESET) |			\
 	BIT_ULL(POWER_DOMAIN_AUX_A) |			\
 	BIT_ULL(POWER_DOMAIN_INIT))
@@ -1785,6 +1789,7 @@ void intel_display_power_put(struct drm_i915_private *dev_priv,
 	BIT_ULL(POWER_DOMAIN_INIT))
 #define GLK_DISPLAY_DC_OFF_POWER_DOMAINS (		\
 	GLK_DISPLAY_POWERWELL_2_POWER_DOMAINS |		\
+	BIT_ULL(POWER_DOMAIN_GT_IRQ) |			\
 	BIT_ULL(POWER_DOMAIN_MODESET) |			\
 	BIT_ULL(POWER_DOMAIN_AUX_A) |			\
 	BIT_ULL(POWER_DOMAIN_INIT))

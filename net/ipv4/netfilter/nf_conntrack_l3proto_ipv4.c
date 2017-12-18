@@ -344,7 +344,7 @@ static void ipv4_hooks_unregister(struct net *net)
 	mutex_unlock(&register_ipv4_hooks);
 }
 
-struct nf_conntrack_l3proto nf_conntrack_l3proto_ipv4 __read_mostly = {
+const struct nf_conntrack_l3proto nf_conntrack_l3proto_ipv4 = {
 	.l3proto	 = PF_INET,
 	.pkt_to_tuple	 = ipv4_pkt_to_tuple,
 	.invert_tuple	 = ipv4_invert_tuple,

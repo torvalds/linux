@@ -1,4 +1,5 @@
 #!/bin/bash
+# SPDX-License-Identifier: GPL-2.0
 #
 # Script will generate one flow per thread (-t N)
 #  - Same destination IP

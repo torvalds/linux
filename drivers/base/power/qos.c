@@ -139,6 +139,9 @@ static int apply_constraint(struct dev_pm_qos_request *req,
 
 	switch(req->type) {
 	case DEV_PM_QOS_RESUME_LATENCY:
+		if (WARN_ON(action != PM_QOS_REMOVE_REQ && value < 0))
+			value = 0;
+
 		ret = pm_qos_update_target(&qos->resume_latency,
 					   &req->data.pnode, action, value);
 		break;

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __AU1X00_PROM_H
 #define __AU1X00_PROM_H
 

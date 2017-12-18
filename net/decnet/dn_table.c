@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * DECnet       An implementation of the DECnet protocol suite for the LINUX
  *              operating system.  DECnet is implemented using the  BSD Socket
@@ -155,6 +156,7 @@ static void dn_rehash_zone(struct dn_zone *dz)
 	default:
 		printk(KERN_DEBUG "DECnet: dn_rehash_zone: BUG! %d\n",
 		       old_divisor);
+		/* fall through */
 	case 256:
 		new_divisor = 1024;
 		new_hashmask = 0x3FF;

@@ -55,23 +55,23 @@
 
 static struct iommu_table_group *iommu_pseries_alloc_group(int node)
 {
-	struct iommu_table_group *table_group = NULL;
-	struct iommu_table *tbl = NULL;
-	struct iommu_table_group_link *tgl = NULL;
+	struct iommu_table_group *table_group;
+	struct iommu_table *tbl;
+	struct iommu_table_group_link *tgl;
 
 	table_group = kzalloc_node(sizeof(struct iommu_table_group), GFP_KERNEL,
 			   node);
 	if (!table_group)
-		goto fail_exit;
+		return NULL;
 
 	tbl = kzalloc_node(sizeof(struct iommu_table), GFP_KERNEL, node);
 	if (!tbl)
-		goto fail_exit;
+		goto free_group;
 
 	tgl = kzalloc_node(sizeof(struct iommu_table_group_link), GFP_KERNEL,
 			node);
 	if (!tgl)
-		goto fail_exit;
+		goto free_table;
 
 	INIT_LIST_HEAD_RCU(&tbl->it_group_list);
 	kref_init(&tbl->it_kref);
@@ -82,11 +82,10 @@ static struct iommu_table_group *iommu_pseries_alloc_group(int node)
 
 	return table_group;
 
-fail_exit:
-	kfree(tgl);
-	kfree(table_group);
+free_table:
 	kfree(tbl);
-
+free_group:
+	kfree(table_group);
 	return NULL;
 }
 

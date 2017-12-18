@@ -116,3 +116,7 @@ static struct mdio_device_id __maybe_unused cortina_tbl[] = {
 };
 
 MODULE_DEVICE_TABLE(mdio, cortina_tbl);
+
+MODULE_DESCRIPTION("Cortina EDC CDR 10G Ethernet PHY driver");
+MODULE_AUTHOR("NXP");
+MODULE_LICENSE("GPL");

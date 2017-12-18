@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 all:
 
 all: ring virtio_ring_0_9 virtio_ring_poll virtio_ring_inorder ptr_ring noring

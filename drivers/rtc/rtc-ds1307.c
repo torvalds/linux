@@ -325,6 +325,10 @@ static const struct of_device_id ds1307_of_match[] = {
 		.compatible = "isil,isl12057",
 		.data = (void *)ds_1337
 	},
+	{
+		.compatible = "epson,rx8130",
+		.data = (void *)rx_8130
+	},
 	{ }
 };
 MODULE_DEVICE_TABLE(of, ds1307_of_match);
@@ -348,6 +352,7 @@ static const struct acpi_device_id ds1307_acpi_ids[] = {
 	{ .id = "PT7C4338", .driver_data = ds_1307 },
 	{ .id = "RX8025", .driver_data = rx_8025 },
 	{ .id = "ISL12057", .driver_data = ds_1337 },
+	{ .id = "RX8130", .driver_data = rx_8130 },
 	{ }
 };
 MODULE_DEVICE_TABLE(acpi, ds1307_acpi_ids);
@@ -787,8 +792,6 @@ static int rx8130_alarm_irq_enable(struct device *dev, unsigned int enabled)
  * Alarm support for mcp794xx devices.
  */
 
-#define MCP794XX_REG_WEEKDAY		0x3
-#define MCP794XX_REG_WEEKDAY_WDAY_MASK	0x7
 #define MCP794XX_REG_CONTROL		0x07
 #	define MCP794XX_BIT_ALM0_EN	0x10
 #	define MCP794XX_BIT_ALM1_EN	0x20
@@ -877,14 +880,37 @@ static int mcp794xx_read_alarm(struct device *dev, struct rtc_wkalrm *t)
 	return 0;
 }
 
+/*
+ * We may have a random RTC weekday, therefore calculate alarm weekday based
+ * on current weekday we read from the RTC timekeeping regs
+ */
+static int mcp794xx_alm_weekday(struct device *dev, struct rtc_time *tm_alarm)
+{
+	struct rtc_time tm_now;
+	int days_now, days_alarm, ret;
+
+	ret = ds1307_get_time(dev, &tm_now);
+	if (ret)
+		return ret;
+
+	days_now = div_s64(rtc_tm_to_time64(&tm_now), 24 * 60 * 60);
+	days_alarm = div_s64(rtc_tm_to_time64(tm_alarm), 24 * 60 * 60);
+
+	return (tm_now.tm_wday + days_alarm - days_now) % 7 + 1;
+}
+
 static int mcp794xx_set_alarm(struct device *dev, struct rtc_wkalrm *t)
 {
 	struct ds1307 *ds1307 = dev_get_drvdata(dev);
 	unsigned char regs[10];
-	int ret;
+	int wday, ret;
 
 	if (!test_bit(HAS_ALARM, &ds1307->flags))
 		return -EINVAL;
+
+	wday = mcp794xx_alm_weekday(dev, &t->time);
+	if (wday < 0)
+		return wday;
 
 	dev_dbg(dev, "%s, sec=%d min=%d hour=%d wday=%d mday=%d mon=%d "
 		"enabled=%d pending=%d\n", __func__,
@@ -902,7 +928,7 @@ static int mcp794xx_set_alarm(struct device *dev, struct rtc_wkalrm *t)
 	regs[3] = bin2bcd(t->time.tm_sec);
 	regs[4] = bin2bcd(t->time.tm_min);
 	regs[5] = bin2bcd(t->time.tm_hour);
-	regs[6] = bin2bcd(t->time.tm_wday + 1);
+	regs[6] = wday;
 	regs[7] = bin2bcd(t->time.tm_mday);
 	regs[8] = bin2bcd(t->time.tm_mon + 1);
 
@@ -1354,14 +1380,12 @@ static int ds1307_probe(struct i2c_client *client,
 {
 	struct ds1307		*ds1307;
 	int			err = -ENODEV;
-	int			tmp, wday;
+	int			tmp;
 	const struct chip_desc	*chip;
 	bool			want_irq;
 	bool			ds1307_can_wakeup_device = false;
 	unsigned char		regs[8];
 	struct ds1307_platform_data *pdata = dev_get_platdata(&client->dev);
-	struct rtc_time		tm;
-	unsigned long		timestamp;
 	u8			trickle_charger_setup = 0;
 
 	ds1307 = devm_kzalloc(&client->dev, sizeof(struct ds1307), GFP_KERNEL);
@@ -1640,25 +1664,6 @@ read_rtc:
 		regmap_write(ds1307->regmap, chip->offset + DS1307_REG_HOUR,
 			     bin2bcd(tmp));
 	}
-
-	/*
-	 * Some IPs have weekday reset value = 0x1 which might not correct
-	 * hence compute the wday using the current date/month/year values
-	 */
-	ds1307_get_time(ds1307->dev, &tm);
-	wday = tm.tm_wday;
-	timestamp = rtc_tm_to_time64(&tm);
-	rtc_time64_to_tm(timestamp, &tm);
-
-	/*
-	 * Check if reset wday is different from the computed wday
-	 * If different then set the wday which we computed using
-	 * timestamp
-	 */
-	if (wday != tm.tm_wday)
-		regmap_update_bits(ds1307->regmap, MCP794XX_REG_WEEKDAY,
-				   MCP794XX_REG_WEEKDAY_WDAY_MASK,
-				   tm.tm_wday + 1);
 
 	if (want_irq || ds1307_can_wakeup_device) {
 		device_set_wakeup_capable(ds1307->dev, true);

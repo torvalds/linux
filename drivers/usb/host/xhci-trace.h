@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * xHCI host controller driver
  *
@@ -5,10 +6,6 @@
  *
  * Author: Xenia Ragiadakou
  * Email : burzalodowa@gmail.com
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #undef TRACE_SYSTEM
@@ -384,6 +381,11 @@ DEFINE_EVENT(xhci_log_slot_ctx, xhci_handle_cmd_reset_dev,
 );
 
 DEFINE_EVENT(xhci_log_slot_ctx, xhci_handle_cmd_set_deq,
+	TP_PROTO(struct xhci_slot_ctx *ctx),
+	TP_ARGS(ctx)
+);
+
+DEFINE_EVENT(xhci_log_slot_ctx, xhci_configure_endpoint,
 	TP_PROTO(struct xhci_slot_ctx *ctx),
 	TP_ARGS(ctx)
 );

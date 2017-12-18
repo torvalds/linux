@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __NV31_MPEG_H__
 #define __NV31_MPEG_H__
 #define nv31_mpeg(p) container_of((p), struct nv31_mpeg, engine)

@@ -39,7 +39,7 @@ Required properties:
 
 Example:
 
-spdif: spdif@02004000 {
+spdif: spdif@2004000 {
 	compatible = "fsl,imx35-spdif";
 	reg = <0x02004000 0x4000>;
 	interrupts = <0 52 0x04>;

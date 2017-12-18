@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include "parse-events.h"
 #include "evsel.h"
 #include "evlist.h"

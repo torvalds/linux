@@ -541,9 +541,17 @@ static int kyber_get_domain_token(struct kyber_queue_data *kqd,
 
 		/*
 		 * Try again in case a token was freed before we got on the wait
-		 * queue.
+		 * queue. The waker may have already removed the entry from the
+		 * wait queue, but list_del_init() is okay with that.
 		 */
 		nr = __sbitmap_queue_get(domain_tokens);
+		if (nr >= 0) {
+			unsigned long flags;
+
+			spin_lock_irqsave(&ws->wait.lock, flags);
+			list_del_init(&wait->entry);
+			spin_unlock_irqrestore(&ws->wait.lock, flags);
+		}
 	}
 	return nr;
 }
@@ -641,7 +649,7 @@ static bool kyber_has_work(struct blk_mq_hw_ctx *hctx)
 		if (!list_empty_careful(&khd->rqs[i]))
 			return true;
 	}
-	return false;
+	return sbitmap_any_bit_set(&hctx->ctx_map);
 }
 
 #define KYBER_LAT_SHOW_STORE(op)					\

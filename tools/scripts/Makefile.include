@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 ifneq ($(O),)
 ifeq ($(origin O), command line)
 	dummy := $(if $(shell test -d $(O) || echo $(O)),$(error O=$(O) does not exist),)
@@ -12,7 +13,7 @@ endif
 
 # check that the output directory actually exists
 ifneq ($(OUTPUT),)
-OUTDIR := $(shell cd $(OUTPUT) && /bin/pwd)
+OUTDIR := $(shell cd $(OUTPUT) && pwd)
 $(if $(OUTDIR),, $(error output directory "$(OUTPUT)" does not exist))
 endif
 

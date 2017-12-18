@@ -172,17 +172,6 @@ void ODM_sleep_ms(u32 ms);
 
 void ODM_sleep_us(u32 us);
 
-void odm_set_timer(struct phy_dm_struct *dm, struct timer_list *timer,
-		   u32 ms_delay);
-
-void odm_initialize_timer(struct phy_dm_struct *dm, struct timer_list *timer,
-			  void *call_back_func, void *context,
-			  const char *sz_id);
-
-void odm_cancel_timer(struct phy_dm_struct *dm, struct timer_list *timer);
-
-void odm_release_timer(struct phy_dm_struct *dm, struct timer_list *timer);
-
 /*
  * ODM FW relative API.
  */

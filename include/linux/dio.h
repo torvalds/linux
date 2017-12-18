@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* header file for DIO boards for the HP300 architecture.
  * Maybe this should handle DIO-II later?
  * The general structure of this is vaguely based on how

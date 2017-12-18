@@ -71,7 +71,7 @@ EXPORT_SYMBOL_GPL(rl6231_get_pre_div);
  */
 int rl6231_calc_dmic_clk(int rate)
 {
-	int div[] = {2, 3, 4, 6, 8, 12};
+	static const int div[] = {2, 3, 4, 6, 8, 12};
 	int i;
 
 	if (rate < 1000000 * div[0]) {
@@ -189,7 +189,8 @@ EXPORT_SYMBOL_GPL(rl6231_pll_calc);
 
 int rl6231_get_clk_info(int sclk, int rate)
 {
-	int i, pd[] = {1, 2, 3, 4, 6, 8, 12, 16};
+	int i;
+	static const int pd[] = {1, 2, 3, 4, 6, 8, 12, 16};
 
 	if (sclk <= 0 || rate <= 0)
 		return -EINVAL;

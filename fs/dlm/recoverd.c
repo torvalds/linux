@@ -287,11 +287,23 @@ static int dlm_recoverd(void *arg)
 	set_bit(LSFL_RECOVER_LOCK, &ls->ls_flags);
 	wake_up(&ls->ls_recover_lock_wait);
 
-	while (!kthread_should_stop()) {
+	while (1) {
+		/*
+		 * We call kthread_should_stop() after set_current_state().
+		 * This is because it works correctly if kthread_stop() is
+		 * called just before set_current_state().
+		 */
 		set_current_state(TASK_INTERRUPTIBLE);
+		if (kthread_should_stop()) {
+			set_current_state(TASK_RUNNING);
+			break;
+		}
 		if (!test_bit(LSFL_RECOVER_WORK, &ls->ls_flags) &&
-		    !test_bit(LSFL_RECOVER_DOWN, &ls->ls_flags))
+		    !test_bit(LSFL_RECOVER_DOWN, &ls->ls_flags)) {
+			if (kthread_should_stop())
+				break;
 			schedule();
+		}
 		set_current_state(TASK_RUNNING);
 
 		if (test_and_clear_bit(LSFL_RECOVER_DOWN, &ls->ls_flags)) {

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _LINUX_BLOCKGROUP_LOCK_H
 #define _LINUX_BLOCKGROUP_LOCK_H
 /*

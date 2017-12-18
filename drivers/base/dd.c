@@ -350,6 +350,15 @@ EXPORT_SYMBOL_GPL(device_bind_driver);
 static atomic_t probe_count = ATOMIC_INIT(0);
 static DECLARE_WAIT_QUEUE_HEAD(probe_waitqueue);
 
+static void driver_deferred_probe_add_trigger(struct device *dev,
+					      int local_trigger_count)
+{
+	driver_deferred_probe_add(dev);
+	/* Did a trigger occur while probing? Need to re-trigger if yes */
+	if (local_trigger_count != atomic_read(&deferred_trigger_count))
+		driver_deferred_probe_trigger();
+}
+
 static int really_probe(struct device *dev, struct device_driver *drv)
 {
 	int ret = -EPROBE_DEFER;
@@ -369,6 +378,8 @@ static int really_probe(struct device *dev, struct device_driver *drv)
 	}
 
 	ret = device_links_check_suppliers(dev);
+	if (ret == -EPROBE_DEFER)
+		driver_deferred_probe_add_trigger(dev, local_trigger_count);
 	if (ret)
 		return ret;
 
@@ -464,15 +475,13 @@ pinctrl_bind_failed:
 	if (dev->pm_domain && dev->pm_domain->dismiss)
 		dev->pm_domain->dismiss(dev);
 	pm_runtime_reinit(dev);
+	dev_pm_set_driver_flags(dev, 0);
 
 	switch (ret) {
 	case -EPROBE_DEFER:
 		/* Driver requested deferred probing */
 		dev_dbg(dev, "Driver %s requests probe deferral\n", drv->name);
-		driver_deferred_probe_add(dev);
-		/* Did a trigger occur while probing? Need to re-trigger if yes */
-		if (local_trigger_count != atomic_read(&deferred_trigger_count))
-			driver_deferred_probe_trigger();
+		driver_deferred_probe_add_trigger(dev, local_trigger_count);
 		break;
 	case -ENODEV:
 	case -ENXIO:
@@ -869,6 +878,7 @@ static void __device_release_driver(struct device *dev, struct device *parent)
 		if (dev->pm_domain && dev->pm_domain->dismiss)
 			dev->pm_domain->dismiss(dev);
 		pm_runtime_reinit(dev);
+		dev_pm_set_driver_flags(dev, 0);
 
 		klist_remove(&dev->p->knode_driver);
 		device_pm_check_callbacks(dev);

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  * Definitions for the NVM Express ioctl interface
  * Copyright (c) 2011-2014, Intel Corporation.

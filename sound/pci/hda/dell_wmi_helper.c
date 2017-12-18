@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /* Helper functions for Dell Mic Mute LED control;
  * to be included from codec driver
  */

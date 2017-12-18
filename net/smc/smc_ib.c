@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *  Shared Memory Communications over RDMA (SMC-R) and RoCE
  *
@@ -369,26 +370,17 @@ void smc_ib_buf_unmap_sg(struct smc_ib_device *smcibdev,
 
 static int smc_ib_fill_gid_and_mac(struct smc_ib_device *smcibdev, u8 ibport)
 {
-	struct net_device *ndev;
+	struct ib_gid_attr gattr;
 	int rc;
 
 	rc = ib_query_gid(smcibdev->ibdev, ibport, 0,
-			  &smcibdev->gid[ibport - 1], NULL);
-	/* the SMC protocol requires specification of the roce MAC address;
-	 * if net_device cannot be determined, it can be derived from gid 0
-	 */
-	ndev = smcibdev->ibdev->get_netdev(smcibdev->ibdev, ibport);
-	if (ndev) {
-		memcpy(&smcibdev->mac, ndev->dev_addr, ETH_ALEN);
-		dev_put(ndev);
-	} else if (!rc) {
-		memcpy(&smcibdev->mac[ibport - 1][0],
-		       &smcibdev->gid[ibport - 1].raw[8], 3);
-		memcpy(&smcibdev->mac[ibport - 1][3],
-		       &smcibdev->gid[ibport - 1].raw[13], 3);
-		smcibdev->mac[ibport - 1][0] &= ~0x02;
-	}
-	return rc;
+			  &smcibdev->gid[ibport - 1], &gattr);
+	if (rc || !gattr.ndev)
+		return -ENODEV;
+
+	memcpy(smcibdev->mac[ibport - 1], gattr.ndev->dev_addr, ETH_ALEN);
+	dev_put(gattr.ndev);
+	return 0;
 }
 
 /* Create an identifier unique for this instance of SMC-R.
@@ -419,6 +411,7 @@ int smc_ib_remember_port_attr(struct smc_ib_device *smcibdev, u8 ibport)
 			   &smcibdev->pattr[ibport - 1]);
 	if (rc)
 		goto out;
+	/* the SMC protocol requires specification of the RoCE MAC address */
 	rc = smc_ib_fill_gid_and_mac(smcibdev, ibport);
 	if (rc)
 		goto out;

@@ -74,70 +74,46 @@
 #include "ssi_fips.h"
 
 #ifdef DX_DUMP_BYTES
-void dump_byte_array(const char *name, const u8 *the_array, unsigned long size)
+void dump_byte_array(const char *name, const u8 *buf, size_t len)
 {
-	int i, line_offset = 0, ret = 0;
-	const u8 *cur_byte;
-	char line_buf[80];
+	char prefix[NAME_LEN];
 
-	if (!the_array) {
-		SSI_LOG_ERR("cannot dump array - NULL pointer\n");
+	if (!buf)
 		return;
-	}
 
-	ret = snprintf(line_buf, sizeof(line_buf), "%s[%lu]: ", name, size);
-	if (ret < 0) {
-		SSI_LOG_ERR("snprintf returned %d . aborting buffer array dump\n", ret);
-		return;
-	}
-	line_offset = ret;
-	for (i = 0, cur_byte = the_array;
-	     (i < size) && (line_offset < sizeof(line_buf)); i++, cur_byte++) {
-			ret = snprintf(line_buf + line_offset,
-				       sizeof(line_buf) - line_offset,
-				       "0x%02X ", *cur_byte);
-		if (ret < 0) {
-			SSI_LOG_ERR("snprintf returned %d . aborting buffer array dump\n", ret);
-			return;
-		}
-		line_offset += ret;
-		if (line_offset > 75) { /* Cut before line end */
-			SSI_LOG_DEBUG("%s\n", line_buf);
-			line_offset = 0;
-		}
-	}
+	snprintf(prefix, sizeof(prefix), "%s[%lu]: ", name, len);
 
-	if (line_offset > 0) /* Dump remaining line */
-		SSI_LOG_DEBUG("%s\n", line_buf);
+	print_hex_dump(KERN_DEBUG, prefix, DUMP_PREFIX_ADDRESS, 16, 1, len,
+		       false);
 }
 #endif
 
 static irqreturn_t cc_isr(int irq, void *dev_id)
 {
 	struct ssi_drvdata *drvdata = (struct ssi_drvdata *)dev_id;
-	void __iomem *cc_base = drvdata->cc_base;
+	struct device *dev = drvdata_to_dev(drvdata);
 	u32 irr;
 	u32 imr;
 
 	/* STAT_OP_TYPE_GENERIC STAT_PHASE_0: Interrupt */
 
 	/* read the interrupt status */
-	irr = CC_HAL_READ_REGISTER(CC_REG_OFFSET(HOST_RGF, HOST_IRR));
-	SSI_LOG_DEBUG("Got IRR=0x%08X\n", irr);
+	irr = cc_ioread(drvdata, CC_REG(HOST_IRR));
+	dev_dbg(dev, "Got IRR=0x%08X\n", irr);
 	if (unlikely(irr == 0)) { /* Probably shared interrupt line */
-		SSI_LOG_ERR("Got interrupt with empty IRR\n");
+		dev_err(dev, "Got interrupt with empty IRR\n");
 		return IRQ_NONE;
 	}
-	imr = CC_HAL_READ_REGISTER(CC_REG_OFFSET(HOST_RGF, HOST_IMR));
+	imr = cc_ioread(drvdata, CC_REG(HOST_IMR));
 
 	/* clear interrupt - must be before processing events */
-	CC_HAL_WRITE_REGISTER(CC_REG_OFFSET(HOST_RGF, HOST_ICR), irr);
+	cc_iowrite(drvdata, CC_REG(HOST_ICR), irr);
 
 	drvdata->irq = irr;
 	/* Completion interrupt - most probable */
 	if (likely((irr & SSI_COMP_IRQ_MASK) != 0)) {
 		/* Mask AXI completion interrupt - will be unmasked in Deferred service handler */
-		CC_HAL_WRITE_REGISTER(CC_REG_OFFSET(HOST_RGF, HOST_IMR), imr | SSI_COMP_IRQ_MASK);
+		cc_iowrite(drvdata, CC_REG(HOST_IMR), imr | SSI_COMP_IRQ_MASK);
 		irr &= ~SSI_COMP_IRQ_MASK;
 		complete_request(drvdata);
 	}
@@ -145,7 +121,7 @@ static irqreturn_t cc_isr(int irq, void *dev_id)
 	/* TEE FIPS interrupt */
 	if (likely((irr & SSI_GPR0_IRQ_MASK) != 0)) {
 		/* Mask interrupt - will be unmasked in Deferred service handler */
-		CC_HAL_WRITE_REGISTER(CC_REG_OFFSET(HOST_RGF, HOST_IMR), imr | SSI_GPR0_IRQ_MASK);
+		cc_iowrite(drvdata, CC_REG(HOST_IMR), imr | SSI_GPR0_IRQ_MASK);
 		irr &= ~SSI_GPR0_IRQ_MASK;
 		fips_handler(drvdata);
 	}
@@ -155,14 +131,16 @@ static irqreturn_t cc_isr(int irq, void *dev_id)
 		u32 axi_err;
 
 		/* Read the AXI error ID */
-		axi_err = CC_HAL_READ_REGISTER(CC_REG_OFFSET(CRY_KERNEL, AXIM_MON_ERR));
-		SSI_LOG_DEBUG("AXI completion error: axim_mon_err=0x%08X\n", axi_err);
+		axi_err = cc_ioread(drvdata, CC_REG(AXIM_MON_ERR));
+		dev_dbg(dev, "AXI completion error: axim_mon_err=0x%08X\n",
+			axi_err);
 
 		irr &= ~SSI_AXI_ERR_IRQ_MASK;
 	}
 
 	if (unlikely(irr != 0)) {
-		SSI_LOG_DEBUG("IRR includes unknown cause bits (0x%08X)\n", irr);
+		dev_dbg(dev, "IRR includes unknown cause bits (0x%08X)\n",
+			irr);
 		/* Just warning */
 	}
 
@@ -172,48 +150,48 @@ static irqreturn_t cc_isr(int irq, void *dev_id)
 int init_cc_regs(struct ssi_drvdata *drvdata, bool is_probe)
 {
 	unsigned int val, cache_params;
-	void __iomem *cc_base = drvdata->cc_base;
+	struct device *dev = drvdata_to_dev(drvdata);
 
 	/* Unmask all AXI interrupt sources AXI_CFG1 register */
-	val = CC_HAL_READ_REGISTER(CC_REG_OFFSET(CRY_KERNEL, AXIM_CFG));
-	CC_HAL_WRITE_REGISTER(CC_REG_OFFSET(CRY_KERNEL, AXIM_CFG), val & ~SSI_AXI_IRQ_MASK);
-	SSI_LOG_DEBUG("AXIM_CFG=0x%08X\n", CC_HAL_READ_REGISTER(CC_REG_OFFSET(CRY_KERNEL, AXIM_CFG)));
+	val = cc_ioread(drvdata, CC_REG(AXIM_CFG));
+	cc_iowrite(drvdata, CC_REG(AXIM_CFG), val & ~SSI_AXI_IRQ_MASK);
+	dev_dbg(dev, "AXIM_CFG=0x%08X\n",
+		cc_ioread(drvdata, CC_REG(AXIM_CFG)));
 
 	/* Clear all pending interrupts */
-	val = CC_HAL_READ_REGISTER(CC_REG_OFFSET(HOST_RGF, HOST_IRR));
-	SSI_LOG_DEBUG("IRR=0x%08X\n", val);
-	CC_HAL_WRITE_REGISTER(CC_REG_OFFSET(HOST_RGF, HOST_ICR), val);
+	val = cc_ioread(drvdata, CC_REG(HOST_IRR));
+	dev_dbg(dev, "IRR=0x%08X\n", val);
+	cc_iowrite(drvdata, CC_REG(HOST_ICR), val);
 
 	/* Unmask relevant interrupt cause */
-	val = (~(SSI_COMP_IRQ_MASK | SSI_AXI_ERR_IRQ_MASK | SSI_GPR0_IRQ_MASK));
-	CC_HAL_WRITE_REGISTER(CC_REG_OFFSET(HOST_RGF, HOST_IMR), val);
+	val = (unsigned int)(~(SSI_COMP_IRQ_MASK | SSI_AXI_ERR_IRQ_MASK |
+			       SSI_GPR0_IRQ_MASK));
+	cc_iowrite(drvdata, CC_REG(HOST_IMR), val);
 
 #ifdef DX_HOST_IRQ_TIMER_INIT_VAL_REG_OFFSET
 #ifdef DX_IRQ_DELAY
 	/* Set CC IRQ delay */
-	CC_HAL_WRITE_REGISTER(CC_REG_OFFSET(HOST_RGF, HOST_IRQ_TIMER_INIT_VAL),
-			      DX_IRQ_DELAY);
+	cc_iowrite(drvdata, CC_REG(HOST_IRQ_TIMER_INIT_VAL), DX_IRQ_DELAY);
 #endif
-	if (CC_HAL_READ_REGISTER(CC_REG_OFFSET(HOST_RGF, HOST_IRQ_TIMER_INIT_VAL)) > 0) {
-		SSI_LOG_DEBUG("irq_delay=%d CC cycles\n",
-			      CC_HAL_READ_REGISTER(CC_REG_OFFSET(HOST_RGF, HOST_IRQ_TIMER_INIT_VAL)));
+	if (cc_ioread(drvdata, CC_REG(HOST_IRQ_TIMER_INIT_VAL)) > 0) {
+		dev_dbg(dev, "irq_delay=%d CC cycles\n",
+			cc_ioread(drvdata, CC_REG(HOST_IRQ_TIMER_INIT_VAL)));
 	}
 #endif
 
 	cache_params = (drvdata->coherent ? CC_COHERENT_CACHE_PARAMS : 0x0);
 
-	val = CC_HAL_READ_REGISTER(CC_REG_OFFSET(CRY_KERNEL, AXIM_CACHE_PARAMS));
+	val = cc_ioread(drvdata, CC_REG(AXIM_CACHE_PARAMS));
 
 	if (is_probe)
-		SSI_LOG_INFO("Cache params previous: 0x%08X\n", val);
+		dev_info(dev, "Cache params previous: 0x%08X\n", val);
 
-	CC_HAL_WRITE_REGISTER(CC_REG_OFFSET(CRY_KERNEL, AXIM_CACHE_PARAMS),
-			      cache_params);
-	val = CC_HAL_READ_REGISTER(CC_REG_OFFSET(CRY_KERNEL, AXIM_CACHE_PARAMS));
+	cc_iowrite(drvdata, CC_REG(AXIM_CACHE_PARAMS), cache_params);
+	val = cc_ioread(drvdata, CC_REG(AXIM_CACHE_PARAMS));
 
 	if (is_probe)
-		SSI_LOG_INFO("Cache params current: 0x%08X (expect: 0x%08X)\n",
-			     val, cache_params);
+		dev_info(dev, "Cache params current: 0x%08X (expect: 0x%08X)\n",
+			 val, cache_params);
 
 	return 0;
 }
@@ -222,181 +200,172 @@ static int init_cc_resources(struct platform_device *plat_dev)
 {
 	struct resource *req_mem_cc_regs = NULL;
 	void __iomem *cc_base = NULL;
-	bool irq_registered = false;
-	struct ssi_drvdata *new_drvdata = kzalloc(sizeof(*new_drvdata),
-						  GFP_KERNEL);
+	struct ssi_drvdata *new_drvdata;
 	struct device *dev = &plat_dev->dev;
 	struct device_node *np = dev->of_node;
 	u32 signature_val;
+	dma_addr_t dma_mask;
 	int rc = 0;
 
-	if (unlikely(!new_drvdata)) {
-		SSI_LOG_ERR("Failed to allocate drvdata");
-		rc = -ENOMEM;
-		goto init_cc_res_err;
-	}
+	new_drvdata = devm_kzalloc(dev, sizeof(*new_drvdata), GFP_KERNEL);
+	if (!new_drvdata)
+		return -ENOMEM;
+
+	platform_set_drvdata(plat_dev, new_drvdata);
+	new_drvdata->plat_dev = plat_dev;
 
 	new_drvdata->clk = of_clk_get(np, 0);
 	new_drvdata->coherent = of_dma_is_coherent(np);
 
-	/*Initialize inflight counter used in dx_ablkcipher_secure_complete used for count of BYSPASS blocks operations*/
-	new_drvdata->inflight_counter = 0;
-
-	dev_set_drvdata(&plat_dev->dev, new_drvdata);
 	/* Get device resources */
 	/* First CC registers space */
-	new_drvdata->res_mem = platform_get_resource(plat_dev, IORESOURCE_MEM, 0);
-	if (unlikely(!new_drvdata->res_mem)) {
-		SSI_LOG_ERR("Failed getting IO memory resource\n");
-		rc = -ENODEV;
-		goto init_cc_res_err;
-	}
-	SSI_LOG_DEBUG("Got MEM resource (%s): start=%pad end=%pad\n",
-		      new_drvdata->res_mem->name,
-		      new_drvdata->res_mem->start,
-		      new_drvdata->res_mem->end);
+	req_mem_cc_regs = platform_get_resource(plat_dev, IORESOURCE_MEM, 0);
 	/* Map registers space */
-	req_mem_cc_regs = request_mem_region(new_drvdata->res_mem->start, resource_size(new_drvdata->res_mem), "arm_cc7x_regs");
-	if (unlikely(!req_mem_cc_regs)) {
-		SSI_LOG_ERR("Couldn't allocate registers memory region at "
-			     "0x%08X\n", (unsigned int)new_drvdata->res_mem->start);
-		rc = -EBUSY;
-		goto init_cc_res_err;
+	new_drvdata->cc_base = devm_ioremap_resource(dev, req_mem_cc_regs);
+	if (IS_ERR(new_drvdata->cc_base)) {
+		dev_err(dev, "Failed to ioremap registers");
+		return PTR_ERR(new_drvdata->cc_base);
 	}
-	cc_base = ioremap(new_drvdata->res_mem->start, resource_size(new_drvdata->res_mem));
-	if (unlikely(!cc_base)) {
-		SSI_LOG_ERR("ioremap[CC](0x%08X,0x%08X) failed\n",
-			    (unsigned int)new_drvdata->res_mem->start,
-			    (unsigned int)resource_size(new_drvdata->res_mem));
-		rc = -ENOMEM;
-		goto init_cc_res_err;
-	}
-	SSI_LOG_DEBUG("CC registers mapped from %pa to 0x%p\n", &new_drvdata->res_mem->start, cc_base);
-	new_drvdata->cc_base = cc_base;
+
+	dev_dbg(dev, "Got MEM resource (%s): %pR\n", req_mem_cc_regs->name,
+		req_mem_cc_regs);
+	dev_dbg(dev, "CC registers mapped from %pa to 0x%p\n",
+		&req_mem_cc_regs->start, new_drvdata->cc_base);
+
+	cc_base = new_drvdata->cc_base;
 
 	/* Then IRQ */
-	new_drvdata->res_irq = platform_get_resource(plat_dev, IORESOURCE_IRQ, 0);
-	if (unlikely(!new_drvdata->res_irq)) {
-		SSI_LOG_ERR("Failed getting IRQ resource\n");
-		rc = -ENODEV;
-		goto init_cc_res_err;
+	new_drvdata->irq = platform_get_irq(plat_dev, 0);
+	if (new_drvdata->irq < 0) {
+		dev_err(dev, "Failed getting IRQ resource\n");
+		return new_drvdata->irq;
 	}
-	rc = request_irq(new_drvdata->res_irq->start, cc_isr,
-			 IRQF_SHARED, "arm_cc7x", new_drvdata);
-	if (unlikely(rc != 0)) {
-		SSI_LOG_ERR("Could not register to interrupt %llu\n",
-			    (unsigned long long)new_drvdata->res_irq->start);
-		goto init_cc_res_err;
+
+	rc = devm_request_irq(dev, new_drvdata->irq, cc_isr,
+			      IRQF_SHARED, "arm_cc7x", new_drvdata);
+	if (rc) {
+		dev_err(dev, "Could not register to interrupt %d\n",
+			new_drvdata->irq);
+		return rc;
 	}
-	init_completion(&new_drvdata->icache_setup_completion);
+	dev_dbg(dev, "Registered to IRQ: %d\n", new_drvdata->irq);
 
-	irq_registered = true;
-	SSI_LOG_DEBUG("Registered to IRQ (%s) %llu\n",
-		      new_drvdata->res_irq->name,
-		      (unsigned long long)new_drvdata->res_irq->start);
+	if (!plat_dev->dev.dma_mask)
+		plat_dev->dev.dma_mask = &plat_dev->dev.coherent_dma_mask;
 
-	new_drvdata->plat_dev = plat_dev;
+	dma_mask = (dma_addr_t)(DMA_BIT_MASK(DMA_BIT_MASK_LEN));
+	while (dma_mask > 0x7fffffffUL) {
+		if (dma_supported(&plat_dev->dev, dma_mask)) {
+			rc = dma_set_coherent_mask(&plat_dev->dev, dma_mask);
+			if (!rc)
+				break;
+		}
+		dma_mask >>= 1;
+	}
+
+	if (rc) {
+		dev_err(dev, "Failed in dma_set_mask, mask=%par\n",
+			&dma_mask);
+		return rc;
+	}
 
 	rc = cc_clk_on(new_drvdata);
-	if (rc)
-		goto init_cc_res_err;
-
-	if (!new_drvdata->plat_dev->dev.dma_mask)
-		new_drvdata->plat_dev->dev.dma_mask = &new_drvdata->plat_dev->dev.coherent_dma_mask;
-
-	if (!new_drvdata->plat_dev->dev.coherent_dma_mask)
-		new_drvdata->plat_dev->dev.coherent_dma_mask = DMA_BIT_MASK(DMA_BIT_MASK_LEN);
+	if (rc) {
+		dev_err(dev, "Failed to enable clock");
+		return rc;
+	}
 
 	/* Verify correct mapping */
-	signature_val = CC_HAL_READ_REGISTER(CC_REG_OFFSET(HOST_RGF, HOST_SIGNATURE));
+	signature_val = cc_ioread(new_drvdata, CC_REG(HOST_SIGNATURE));
 	if (signature_val != DX_DEV_SIGNATURE) {
-		SSI_LOG_ERR("Invalid CC signature: SIGNATURE=0x%08X != expected=0x%08X\n",
-			    signature_val, (u32)DX_DEV_SIGNATURE);
+		dev_err(dev, "Invalid CC signature: SIGNATURE=0x%08X != expected=0x%08X\n",
+			signature_val, (u32)DX_DEV_SIGNATURE);
 		rc = -EINVAL;
-		goto init_cc_res_err;
+		goto post_clk_err;
 	}
-	SSI_LOG_DEBUG("CC SIGNATURE=0x%08X\n", signature_val);
+	dev_dbg(dev, "CC SIGNATURE=0x%08X\n", signature_val);
 
 	/* Display HW versions */
-	SSI_LOG(KERN_INFO, "ARM CryptoCell %s Driver: HW version 0x%08X, Driver version %s\n", SSI_DEV_NAME_STR,
-		CC_HAL_READ_REGISTER(CC_REG_OFFSET(HOST_RGF, HOST_VERSION)), DRV_MODULE_VERSION);
+	dev_info(dev, "ARM CryptoCell %s Driver: HW version 0x%08X, Driver version %s\n",
+		 SSI_DEV_NAME_STR,
+		 cc_ioread(new_drvdata, CC_REG(HOST_VERSION)),
+		 DRV_MODULE_VERSION);
 
 	rc = init_cc_regs(new_drvdata, true);
 	if (unlikely(rc != 0)) {
-		SSI_LOG_ERR("init_cc_regs failed\n");
-		goto init_cc_res_err;
+		dev_err(dev, "init_cc_regs failed\n");
+		goto post_clk_err;
 	}
 
 #ifdef ENABLE_CC_SYSFS
-	rc = ssi_sysfs_init(&plat_dev->dev.kobj, new_drvdata);
+	rc = ssi_sysfs_init(&dev->kobj, new_drvdata);
 	if (unlikely(rc != 0)) {
-		SSI_LOG_ERR("init_stat_db failed\n");
-		goto init_cc_res_err;
+		dev_err(dev, "init_stat_db failed\n");
+		goto post_regs_err;
 	}
 #endif
 
+	rc = ssi_fips_init(new_drvdata);
+	if (unlikely(rc != 0)) {
+		dev_err(dev, "SSI_FIPS_INIT failed 0x%x\n", rc);
+		goto post_sysfs_err;
+	}
 	rc = ssi_sram_mgr_init(new_drvdata);
 	if (unlikely(rc != 0)) {
-		SSI_LOG_ERR("ssi_sram_mgr_init failed\n");
-		goto init_cc_res_err;
+		dev_err(dev, "ssi_sram_mgr_init failed\n");
+		goto post_fips_init_err;
 	}
 
 	new_drvdata->mlli_sram_addr =
 		ssi_sram_mgr_alloc(new_drvdata, MAX_MLLI_BUFF_SIZE);
 	if (unlikely(new_drvdata->mlli_sram_addr == NULL_SRAM_ADDR)) {
-		SSI_LOG_ERR("Failed to alloc MLLI Sram buffer\n");
+		dev_err(dev, "Failed to alloc MLLI Sram buffer\n");
 		rc = -ENOMEM;
-		goto init_cc_res_err;
+		goto post_sram_mgr_err;
 	}
 
 	rc = request_mgr_init(new_drvdata);
 	if (unlikely(rc != 0)) {
-		SSI_LOG_ERR("request_mgr_init failed\n");
-		goto init_cc_res_err;
+		dev_err(dev, "request_mgr_init failed\n");
+		goto post_sram_mgr_err;
 	}
 
 	rc = ssi_buffer_mgr_init(new_drvdata);
 	if (unlikely(rc != 0)) {
-		SSI_LOG_ERR("buffer_mgr_init failed\n");
-		goto init_cc_res_err;
+		dev_err(dev, "buffer_mgr_init failed\n");
+		goto post_req_mgr_err;
 	}
 
 	rc = ssi_power_mgr_init(new_drvdata);
 	if (unlikely(rc != 0)) {
-		SSI_LOG_ERR("ssi_power_mgr_init failed\n");
-		goto init_cc_res_err;
-	}
-
-	rc = ssi_fips_init(new_drvdata);
-	if (unlikely(rc != 0)) {
-		SSI_LOG_ERR("SSI_FIPS_INIT failed 0x%x\n", rc);
-		goto init_cc_res_err;
+		dev_err(dev, "ssi_power_mgr_init failed\n");
+		goto post_buf_mgr_err;
 	}
 
 	rc = ssi_ivgen_init(new_drvdata);
 	if (unlikely(rc != 0)) {
-		SSI_LOG_ERR("ssi_ivgen_init failed\n");
-		goto init_cc_res_err;
+		dev_err(dev, "ssi_ivgen_init failed\n");
+		goto post_power_mgr_err;
 	}
 
 	/* Allocate crypto algs */
 	rc = ssi_ablkcipher_alloc(new_drvdata);
 	if (unlikely(rc != 0)) {
-		SSI_LOG_ERR("ssi_ablkcipher_alloc failed\n");
-		goto init_cc_res_err;
+		dev_err(dev, "ssi_ablkcipher_alloc failed\n");
+		goto post_ivgen_err;
 	}
 
 	/* hash must be allocated before aead since hash exports APIs */
 	rc = ssi_hash_alloc(new_drvdata);
 	if (unlikely(rc != 0)) {
-		SSI_LOG_ERR("ssi_hash_alloc failed\n");
-		goto init_cc_res_err;
+		dev_err(dev, "ssi_hash_alloc failed\n");
+		goto post_cipher_err;
 	}
 
 	rc = ssi_aead_alloc(new_drvdata);
 	if (unlikely(rc != 0)) {
-		SSI_LOG_ERR("ssi_aead_alloc failed\n");
-		goto init_cc_res_err;
+		dev_err(dev, "ssi_aead_alloc failed\n");
+		goto post_hash_err;
 	}
 
 	/* If we got here and FIPS mode is enabled
@@ -407,52 +376,43 @@ static int init_cc_resources(struct platform_device *plat_dev)
 
 	return 0;
 
-init_cc_res_err:
-	SSI_LOG_ERR("Freeing CC HW resources!\n");
-
-	if (new_drvdata) {
-		ssi_aead_free(new_drvdata);
-		ssi_hash_free(new_drvdata);
-		ssi_ablkcipher_free(new_drvdata);
-		ssi_ivgen_fini(new_drvdata);
-		ssi_power_mgr_fini(new_drvdata);
-		ssi_buffer_mgr_fini(new_drvdata);
-		request_mgr_fini(new_drvdata);
-		ssi_sram_mgr_fini(new_drvdata);
-		ssi_fips_fini(new_drvdata);
+post_hash_err:
+	ssi_hash_free(new_drvdata);
+post_cipher_err:
+	ssi_ablkcipher_free(new_drvdata);
+post_ivgen_err:
+	ssi_ivgen_fini(new_drvdata);
+post_power_mgr_err:
+	ssi_power_mgr_fini(new_drvdata);
+post_buf_mgr_err:
+	 ssi_buffer_mgr_fini(new_drvdata);
+post_req_mgr_err:
+	request_mgr_fini(new_drvdata);
+post_sram_mgr_err:
+	ssi_sram_mgr_fini(new_drvdata);
+post_fips_init_err:
+	ssi_fips_fini(new_drvdata);
+post_sysfs_err:
 #ifdef ENABLE_CC_SYSFS
-		ssi_sysfs_fini();
+	ssi_sysfs_fini();
 #endif
-
-		if (req_mem_cc_regs) {
-			if (irq_registered) {
-				free_irq(new_drvdata->res_irq->start, new_drvdata);
-				new_drvdata->res_irq = NULL;
-				iounmap(cc_base);
-				new_drvdata->cc_base = NULL;
-			}
-			release_mem_region(new_drvdata->res_mem->start,
-					   resource_size(new_drvdata->res_mem));
-			new_drvdata->res_mem = NULL;
-		}
-		kfree(new_drvdata);
-		dev_set_drvdata(&plat_dev->dev, NULL);
-	}
-
+post_regs_err:
+	fini_cc_regs(new_drvdata);
+post_clk_err:
+	cc_clk_off(new_drvdata);
 	return rc;
 }
 
 void fini_cc_regs(struct ssi_drvdata *drvdata)
 {
 	/* Mask all interrupts */
-	WRITE_REGISTER(drvdata->cc_base +
-		       CC_REG_OFFSET(HOST_RGF, HOST_IMR), 0xFFFFFFFF);
+	cc_iowrite(drvdata, CC_REG(HOST_IMR), 0xFFFFFFFF);
 }
 
 static void cleanup_cc_resources(struct platform_device *plat_dev)
 {
 	struct ssi_drvdata *drvdata =
-		(struct ssi_drvdata *)dev_get_drvdata(&plat_dev->dev);
+		(struct ssi_drvdata *)platform_get_drvdata(plat_dev);
 
 	ssi_aead_free(drvdata);
 	ssi_hash_free(drvdata);
@@ -466,22 +426,8 @@ static void cleanup_cc_resources(struct platform_device *plat_dev)
 #ifdef ENABLE_CC_SYSFS
 	ssi_sysfs_fini();
 #endif
-
 	fini_cc_regs(drvdata);
 	cc_clk_off(drvdata);
-	free_irq(drvdata->res_irq->start, drvdata);
-	drvdata->res_irq = NULL;
-
-	if (drvdata->cc_base) {
-		iounmap(drvdata->cc_base);
-		release_mem_region(drvdata->res_mem->start,
-				   resource_size(drvdata->res_mem));
-		drvdata->cc_base = NULL;
-		drvdata->res_mem = NULL;
-	}
-
-	kfree(drvdata);
-	dev_set_drvdata(&plat_dev->dev, NULL);
 }
 
 int cc_clk_on(struct ssi_drvdata *drvdata)
@@ -514,18 +460,19 @@ void cc_clk_off(struct ssi_drvdata *drvdata)
 static int cc7x_probe(struct platform_device *plat_dev)
 {
 	int rc;
+	struct device *dev = &plat_dev->dev;
 #if defined(CONFIG_ARM) && defined(CC_DEBUG)
 	u32 ctr, cacheline_size;
 
 	asm volatile("mrc p15, 0, %0, c0, c0, 1" : "=r" (ctr));
 	cacheline_size =  4 << ((ctr >> 16) & 0xf);
-	SSI_LOG_DEBUG("CP15(L1_CACHE_BYTES) = %u , Kconfig(L1_CACHE_BYTES) = %u\n",
-		      cacheline_size, L1_CACHE_BYTES);
+	dev_dbg(dev, "CP15(L1_CACHE_BYTES) = %u , Kconfig(L1_CACHE_BYTES) = %u\n",
+		cacheline_size, L1_CACHE_BYTES);
 
 	asm volatile("mrc p15, 0, %0, c0, c0, 0" : "=r" (ctr));
-	SSI_LOG_DEBUG("Main ID register (MIDR): Implementer 0x%02X, Arch 0x%01X, Part 0x%03X, Rev r%dp%d\n",
-		      (ctr >> 24), (ctr >> 16) & 0xF, (ctr >> 4) & 0xFFF,
-		      (ctr >> 20) & 0xF, ctr & 0xF);
+	dev_dbg(dev, "Main ID register (MIDR): Implementer 0x%02X, Arch 0x%01X, Part 0x%03X, Rev r%dp%d\n",
+		(ctr >> 24), (ctr >> 16) & 0xF, (ctr >> 4) & 0xFFF,
+		(ctr >> 20) & 0xF, ctr & 0xF);
 #endif
 
 	/* Map registers space */
@@ -533,18 +480,20 @@ static int cc7x_probe(struct platform_device *plat_dev)
 	if (rc != 0)
 		return rc;
 
-	SSI_LOG(KERN_INFO, "ARM cc7x_ree device initialized\n");
+	dev_info(dev, "ARM ccree device initialized\n");
 
 	return 0;
 }
 
 static int cc7x_remove(struct platform_device *plat_dev)
 {
-	SSI_LOG_DEBUG("Releasing cc7x resources...\n");
+	struct device *dev = &plat_dev->dev;
+
+	dev_dbg(dev, "Releasing cc7x resources...\n");
 
 	cleanup_cc_resources(plat_dev);
 
-	SSI_LOG(KERN_INFO, "ARM cc7x_ree device terminated\n");
+	dev_info(dev, "ARM ccree device terminated\n");
 
 	return 0;
 }

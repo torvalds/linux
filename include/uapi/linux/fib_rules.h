@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 #ifndef __LINUX_FIB_RULES_H
 #define __LINUX_FIB_RULES_H
 

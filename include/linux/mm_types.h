@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _LINUX_MM_TYPES_H
 #define _LINUX_MM_TYPES_H
 
@@ -47,8 +48,10 @@ struct page {
 						 * inode address_space, or NULL.
 						 * If page mapped as anonymous
 						 * memory, low bit is set, and
-						 * it points to anon_vma object:
-						 * see PAGE_MAPPING_ANON below.
+						 * it points to anon_vma object
+						 * or KSM private structure. See
+						 * PAGE_MAPPING_ANON and
+						 * PAGE_MAPPING_KSM.
 						 */
 		void *s_mem;			/* slab first object */
 		atomic_t compound_mapcount;	/* first tail page */
@@ -205,14 +208,6 @@ struct page {
 	void *virtual;			/* Kernel virtual address (NULL if
 					   not kmapped, ie. highmem) */
 #endif /* WANT_PAGE_VIRTUAL */
-
-#ifdef CONFIG_KMEMCHECK
-	/*
-	 * kmemcheck wants to track the status of each byte in a page; this
-	 * is a pointer to such a status block. NULL if not tracked.
-	 */
-	void *shadow;
-#endif
 
 #ifdef LAST_CPUPID_NOT_IN_PAGE_FLAGS
 	int _last_cpupid;
@@ -398,9 +393,8 @@ struct mm_struct {
 	 */
 	atomic_t mm_count;
 
-	atomic_long_t nr_ptes;			/* PTE page table pages */
-#if CONFIG_PGTABLE_LEVELS > 2
-	atomic_long_t nr_pmds;			/* PMD page table pages */
+#ifdef CONFIG_MMU
+	atomic_long_t pgtables_bytes;		/* PTE page table pages */
 #endif
 	int map_count;				/* number of VMAs */
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Finite state machine for vfio-ccw device handling
  *

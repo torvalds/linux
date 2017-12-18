@@ -1408,7 +1408,7 @@ static void __gpio_irq_handler(struct st_gpio_bank *bank)
 					continue;
 			}
 
-			generic_handle_irq(irq_find_mapping(bank->gpio_chip.irqdomain, n));
+			generic_handle_irq(irq_find_mapping(bank->gpio_chip.irq.domain, n));
 		}
 	}
 }

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_X86_STRING_64_H
 #define _ASM_X86_STRING_64_H
 
@@ -32,7 +33,6 @@ extern void *memcpy(void *to, const void *from, size_t len);
 extern void *__memcpy(void *to, const void *from, size_t len);
 
 #ifndef CONFIG_FORTIFY_SOURCE
-#ifndef CONFIG_KMEMCHECK
 #if (__GNUC__ == 4 && __GNUC_MINOR__ < 3) || __GNUC__ < 4
 #define memcpy(dst, src, len)					\
 ({								\
@@ -44,13 +44,6 @@ extern void *__memcpy(void *to, const void *from, size_t len);
 		__ret = __builtin_memcpy((dst), (src), __len);	\
 	__ret;							\
 })
-#endif
-#else
-/*
- * kmemcheck becomes very happy if we use the REP instructions unconditionally,
- * because it means that we know both memory operands in advance.
- */
-#define memcpy(dst, src, len) __inline_memcpy((dst), (src), (len))
 #endif
 #endif /* !CONFIG_FORTIFY_SOURCE */
 

@@ -368,13 +368,14 @@ static int sun4i_pwm_probe(struct platform_device *pdev)
 	struct sun4i_pwm_chip *pwm;
 	struct resource *res;
 	int ret;
-	const struct of_device_id *match;
-
-	match = of_match_device(sun4i_pwm_dt_ids, &pdev->dev);
 
 	pwm = devm_kzalloc(&pdev->dev, sizeof(*pwm), GFP_KERNEL);
 	if (!pwm)
 		return -ENOMEM;
+
+	pwm->data = of_device_get_match_data(&pdev->dev);
+	if (!pwm->data)
+		return -ENODEV;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	pwm->base = devm_ioremap_resource(&pdev->dev, res);
@@ -385,7 +386,6 @@ static int sun4i_pwm_probe(struct platform_device *pdev)
 	if (IS_ERR(pwm->clk))
 		return PTR_ERR(pwm->clk);
 
-	pwm->data = match->data;
 	pwm->chip.dev = &pdev->dev;
 	pwm->chip.ops = &sun4i_pwm_ops;
 	pwm->chip.base = -1;

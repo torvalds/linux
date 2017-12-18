@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * otg_fsm.c - ChipIdea USB IP core OTG FSM driver
  *
  * Copyright (C) 2014 Freescale Semiconductor, Inc.
  *
  * Author: Jun Li
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 /*

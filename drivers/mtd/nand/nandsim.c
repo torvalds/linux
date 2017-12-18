@@ -520,11 +520,16 @@ static int nandsim_debugfs_create(struct nandsim *dev)
 	struct dentry *root = nsmtd->dbg.dfs_dir;
 	struct dentry *dent;
 
-	if (!IS_ENABLED(CONFIG_DEBUG_FS))
+	/*
+	 * Just skip debugfs initialization when the debugfs directory is
+	 * missing.
+	 */
+	if (IS_ERR_OR_NULL(root)) {
+		if (IS_ENABLED(CONFIG_DEBUG_FS) &&
+		    !IS_ENABLED(CONFIG_MTD_PARTITIONED_MASTER))
+			NS_WARN("CONFIG_MTD_PARTITIONED_MASTER must be enabled to expose debugfs stuff\n");
 		return 0;
-
-	if (IS_ERR_OR_NULL(root))
-		return -1;
+	}
 
 	dent = debugfs_create_file("nandsim_wear_report", S_IRUSR,
 				   root, dev, &dfs_fops);

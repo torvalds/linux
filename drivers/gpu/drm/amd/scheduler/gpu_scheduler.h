@@ -26,9 +26,23 @@
 
 #include <linux/kfifo.h>
 #include <linux/dma-fence.h>
+#include "spsc_queue.h"
 
 struct amd_gpu_scheduler;
 struct amd_sched_rq;
+
+enum amd_sched_priority {
+	AMD_SCHED_PRIORITY_MIN,
+	AMD_SCHED_PRIORITY_LOW = AMD_SCHED_PRIORITY_MIN,
+	AMD_SCHED_PRIORITY_NORMAL,
+	AMD_SCHED_PRIORITY_HIGH_SW,
+	AMD_SCHED_PRIORITY_HIGH_HW,
+	AMD_SCHED_PRIORITY_KERNEL,
+	AMD_SCHED_PRIORITY_MAX,
+	AMD_SCHED_PRIORITY_INVALID = -1,
+	AMD_SCHED_PRIORITY_UNSET = -2
+};
+
 
 /**
  * A scheduler entity is a wrapper around a job queue or a group
@@ -43,13 +57,14 @@ struct amd_sched_entity {
 	struct amd_gpu_scheduler	*sched;
 
 	spinlock_t			queue_lock;
-	struct kfifo                    job_queue;
+	struct spsc_queue	job_queue;
 
 	atomic_t			fence_seq;
 	uint64_t                        fence_context;
 
 	struct dma_fence		*dependency;
 	struct dma_fence_cb		cb;
+	atomic_t	*guilty; /* points to ctx's guilty */
 };
 
 /**
@@ -74,8 +89,8 @@ struct amd_sched_fence {
 };
 
 struct amd_sched_job {
+	struct spsc_node queue_node;
 	struct amd_gpu_scheduler        *sched;
-	struct amd_sched_entity         *s_entity;
 	struct amd_sched_fence          *s_fence;
 	struct dma_fence_cb		finish_cb;
 	struct work_struct		finish_work;
@@ -83,6 +98,7 @@ struct amd_sched_job {
 	struct delayed_work		work_tdr;
 	uint64_t			id;
 	atomic_t karma;
+	enum amd_sched_priority s_priority;
 };
 
 extern const struct dma_fence_ops amd_sched_fence_ops_scheduled;
@@ -108,22 +124,11 @@ static inline bool amd_sched_invalidate_job(struct amd_sched_job *s_job, int thr
  * these functions should be implemented in driver side
 */
 struct amd_sched_backend_ops {
-	struct dma_fence *(*dependency)(struct amd_sched_job *sched_job);
+	struct dma_fence *(*dependency)(struct amd_sched_job *sched_job,
+					struct amd_sched_entity *s_entity);
 	struct dma_fence *(*run_job)(struct amd_sched_job *sched_job);
 	void (*timedout_job)(struct amd_sched_job *sched_job);
 	void (*free_job)(struct amd_sched_job *sched_job);
-};
-
-enum amd_sched_priority {
-	AMD_SCHED_PRIORITY_MIN,
-	AMD_SCHED_PRIORITY_LOW = AMD_SCHED_PRIORITY_MIN,
-	AMD_SCHED_PRIORITY_NORMAL,
-	AMD_SCHED_PRIORITY_HIGH_SW,
-	AMD_SCHED_PRIORITY_HIGH_HW,
-	AMD_SCHED_PRIORITY_KERNEL,
-	AMD_SCHED_PRIORITY_MAX,
-	AMD_SCHED_PRIORITY_INVALID = -1,
-	AMD_SCHED_PRIORITY_UNSET = -2
 };
 
 /**
@@ -142,20 +147,22 @@ struct amd_gpu_scheduler {
 	struct task_struct		*thread;
 	struct list_head	ring_mirror_list;
 	spinlock_t			job_list_lock;
+	int hang_limit;
 };
 
 int amd_sched_init(struct amd_gpu_scheduler *sched,
 		   const struct amd_sched_backend_ops *ops,
-		   uint32_t hw_submission, long timeout, const char *name);
+		   uint32_t hw_submission, unsigned hang_limit, long timeout, const char *name);
 void amd_sched_fini(struct amd_gpu_scheduler *sched);
 
 int amd_sched_entity_init(struct amd_gpu_scheduler *sched,
 			  struct amd_sched_entity *entity,
 			  struct amd_sched_rq *rq,
-			  uint32_t jobs);
+			  uint32_t jobs, atomic_t* guilty);
 void amd_sched_entity_fini(struct amd_gpu_scheduler *sched,
 			   struct amd_sched_entity *entity);
-void amd_sched_entity_push_job(struct amd_sched_job *sched_job);
+void amd_sched_entity_push_job(struct amd_sched_job *sched_job,
+			       struct amd_sched_entity *entity);
 void amd_sched_entity_set_rq(struct amd_sched_entity *entity,
 			     struct amd_sched_rq *rq);
 
@@ -170,16 +177,10 @@ int amd_sched_job_init(struct amd_sched_job *job,
 		       struct amd_gpu_scheduler *sched,
 		       struct amd_sched_entity *entity,
 		       void *owner);
-void amd_sched_hw_job_reset(struct amd_gpu_scheduler *sched);
+void amd_sched_hw_job_reset(struct amd_gpu_scheduler *sched, struct amd_sched_job *job);
 void amd_sched_job_recovery(struct amd_gpu_scheduler *sched);
 bool amd_sched_dependency_optimized(struct dma_fence* fence,
 				    struct amd_sched_entity *entity);
 void amd_sched_job_kickout(struct amd_sched_job *s_job);
-
-static inline enum amd_sched_priority
-amd_sched_get_job_priority(struct amd_sched_job *job)
-{
-	return (job->s_entity->rq - job->sched->sched_rq);
-}
 
 #endif

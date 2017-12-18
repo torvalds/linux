@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 OBJECT_FILES_NON_STANDARD_xen-asm_$(BITS).o := y
 OBJECT_FILES_NON_STANDARD_xen-pvh.o := y
 

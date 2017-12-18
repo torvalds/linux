@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 # AT91 Platform Support
 snd-soc-atmel-pcm-pdc-objs := atmel-pcm-pdc.o
 snd-soc-atmel-pcm-dma-objs := atmel-pcm-dma.o

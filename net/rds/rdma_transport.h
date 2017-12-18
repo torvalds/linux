@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _RDMA_TRANSPORT_H
 #define _RDMA_TRANSPORT_H
 

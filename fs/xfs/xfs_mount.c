@@ -1022,10 +1022,21 @@ xfs_mountfs(
 	xfs_rtunmount_inodes(mp);
  out_rele_rip:
 	IRELE(rip);
-	cancel_delayed_work_sync(&mp->m_reclaim_work);
-	xfs_reclaim_inodes(mp, SYNC_WAIT);
 	/* Clean out dquots that might be in memory after quotacheck. */
 	xfs_qm_unmount(mp);
+	/*
+	 * Cancel all delayed reclaim work and reclaim the inodes directly.
+	 * We have to do this /after/ rtunmount and qm_unmount because those
+	 * two will have scheduled delayed reclaim for the rt/quota inodes.
+	 *
+	 * This is slightly different from the unmountfs call sequence
+	 * because we could be tearing down a partially set up mount.  In
+	 * particular, if log_mount_finish fails we bail out without calling
+	 * qm_unmount_quotas and therefore rely on qm_unmount to release the
+	 * quota inodes.
+	 */
+	cancel_delayed_work_sync(&mp->m_reclaim_work);
+	xfs_reclaim_inodes(mp, SYNC_WAIT);
  out_log_dealloc:
 	mp->m_flags |= XFS_MOUNT_UNMOUNTING;
 	xfs_log_mount_cancel(mp);

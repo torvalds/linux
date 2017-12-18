@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __LINUX_SERIAL_SCI_H
 #define __LINUX_SERIAL_SCI_H
 

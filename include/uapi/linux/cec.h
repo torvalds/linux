@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR BSD-3-Clause) */
 /*
  * cec - HDMI Consumer Electronics Control public header
  *
@@ -410,6 +411,8 @@ struct cec_log_addrs {
 #define CEC_EVENT_LOST_MSGS		2
 #define CEC_EVENT_PIN_CEC_LOW		3
 #define CEC_EVENT_PIN_CEC_HIGH		4
+#define CEC_EVENT_PIN_HPD_LOW		5
+#define CEC_EVENT_PIN_HPD_HIGH		6
 
 #define CEC_EVENT_FL_INITIAL_STATE	(1 << 0)
 #define CEC_EVENT_FL_DROPPED_EVENTS	(1 << 1)

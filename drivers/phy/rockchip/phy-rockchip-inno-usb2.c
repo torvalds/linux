@@ -17,7 +17,7 @@
 #include <linux/clk.h>
 #include <linux/clk-provider.h>
 #include <linux/delay.h>
-#include <linux/extcon.h>
+#include <linux/extcon-provider.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/gpio/consumer.h>

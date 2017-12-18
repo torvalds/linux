@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 #ifndef __alpha_regdef_h__
 #define __alpha_regdef_h__
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * driver for NXP USB Host devices
  *
@@ -13,10 +14,7 @@
  * NOTE: This driver does not have suspend/resume functionality
  * This driver is intended for engineering development purposes only
  *
- * 2005-2006 (c) MontaVista Software, Inc. This file is licensed under
- * the terms of the GNU General Public License version 2. This program
- * is licensed "as is" without any warranty of any kind, whether express
- * or implied.
+ * 2005-2006 (c) MontaVista Software, Inc.
  */
 #include <linux/clk.h>
 #include <linux/dma-mapping.h>

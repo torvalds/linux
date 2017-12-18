@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *  This file contains quirk handling code for PnP devices
  *  Some devices do not report all their resources, and need to have extra

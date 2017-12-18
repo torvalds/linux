@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _LINUX_PM_QOS_H
 #define _LINUX_PM_QOS_H
 /* interface for the pm_qos_power infrastructure of the linux kernel.
@@ -29,18 +30,19 @@ enum pm_qos_flags_status {
 
 #define PM_QOS_DEFAULT_VALUE	(-1)
 #define PM_QOS_LATENCY_ANY	S32_MAX
+#define PM_QOS_LATENCY_ANY_NS	((s64)PM_QOS_LATENCY_ANY * NSEC_PER_USEC)
 
 #define PM_QOS_CPU_DMA_LAT_DEFAULT_VALUE	(2000 * USEC_PER_SEC)
 #define PM_QOS_NETWORK_LAT_DEFAULT_VALUE	(2000 * USEC_PER_SEC)
 #define PM_QOS_NETWORK_THROUGHPUT_DEFAULT_VALUE	0
 #define PM_QOS_MEMORY_BANDWIDTH_DEFAULT_VALUE	0
-#define PM_QOS_RESUME_LATENCY_DEFAULT_VALUE	0
+#define PM_QOS_RESUME_LATENCY_DEFAULT_VALUE	PM_QOS_LATENCY_ANY
 #define PM_QOS_RESUME_LATENCY_NO_CONSTRAINT	PM_QOS_LATENCY_ANY
+#define PM_QOS_RESUME_LATENCY_NO_CONSTRAINT_NS	PM_QOS_LATENCY_ANY_NS
 #define PM_QOS_LATENCY_TOLERANCE_DEFAULT_VALUE	0
 #define PM_QOS_LATENCY_TOLERANCE_NO_CONSTRAINT	(-1)
 
 #define PM_QOS_FLAG_NO_POWER_OFF	(1 << 0)
-#define PM_QOS_FLAG_REMOTE_WAKEUP	(1 << 1)
 
 struct pm_qos_request {
 	struct plist_node node;
@@ -175,7 +177,8 @@ static inline s32 dev_pm_qos_requested_flags(struct device *dev)
 static inline s32 dev_pm_qos_raw_read_value(struct device *dev)
 {
 	return IS_ERR_OR_NULL(dev->power.qos) ?
-		0 : pm_qos_read_value(&dev->power.qos->resume_latency);
+		PM_QOS_RESUME_LATENCY_NO_CONSTRAINT :
+		pm_qos_read_value(&dev->power.qos->resume_latency);
 }
 #else
 static inline enum pm_qos_flags_status __dev_pm_qos_flags(struct device *dev,
@@ -185,9 +188,9 @@ static inline enum pm_qos_flags_status dev_pm_qos_flags(struct device *dev,
 							s32 mask)
 			{ return PM_QOS_FLAGS_UNDEFINED; }
 static inline s32 __dev_pm_qos_read_value(struct device *dev)
-			{ return 0; }
+			{ return PM_QOS_RESUME_LATENCY_NO_CONSTRAINT; }
 static inline s32 dev_pm_qos_read_value(struct device *dev)
-			{ return 0; }
+			{ return PM_QOS_RESUME_LATENCY_NO_CONSTRAINT; }
 static inline int dev_pm_qos_add_request(struct device *dev,
 					 struct dev_pm_qos_request *req,
 					 enum dev_pm_qos_req_type type,
@@ -233,9 +236,15 @@ static inline int dev_pm_qos_expose_latency_tolerance(struct device *dev)
 			{ return 0; }
 static inline void dev_pm_qos_hide_latency_tolerance(struct device *dev) {}
 
-static inline s32 dev_pm_qos_requested_resume_latency(struct device *dev) { return 0; }
+static inline s32 dev_pm_qos_requested_resume_latency(struct device *dev)
+{
+	return PM_QOS_RESUME_LATENCY_NO_CONSTRAINT;
+}
 static inline s32 dev_pm_qos_requested_flags(struct device *dev) { return 0; }
-static inline s32 dev_pm_qos_raw_read_value(struct device *dev) { return 0; }
+static inline s32 dev_pm_qos_raw_read_value(struct device *dev)
+{
+	return PM_QOS_RESUME_LATENCY_NO_CONSTRAINT;
+}
 #endif
 
 #endif

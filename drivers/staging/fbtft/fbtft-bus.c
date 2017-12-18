@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/export.h>
 #include <linux/errno.h>
 #include <linux/gpio.h>
@@ -10,33 +11,33 @@
  *
  *****************************************************************************/
 
-#define define_fbtft_write_reg(func, type, modifier)                          \
+#define define_fbtft_write_reg(func, buffer_type, data_type, modifier)        \
 void func(struct fbtft_par *par, int len, ...)                                \
 {                                                                             \
 	va_list args;                                                         \
 	int i, ret;                                                           \
 	int offset = 0;                                                       \
-	type *buf = (type *)par->buf;                                         \
+	buffer_type *buf = (buffer_type *)par->buf;                           \
 									      \
 	if (unlikely(par->debug & DEBUG_WRITE_REGISTER)) {                    \
 		va_start(args, len);                                          \
 		for (i = 0; i < len; i++) {                                   \
-			buf[i] = (type)va_arg(args, unsigned int);            \
+			buf[i] = modifier((data_type)va_arg(args, unsigned int)); \
 		}                                                             \
 		va_end(args);                                                 \
-		fbtft_par_dbg_hex(DEBUG_WRITE_REGISTER, par, par->info->device, type, buf, len, "%s: ", __func__);   \
+		fbtft_par_dbg_hex(DEBUG_WRITE_REGISTER, par, par->info->device, buffer_type, buf, len, "%s: ", __func__); \
 	}                                                                     \
 									      \
 	va_start(args, len);                                                  \
 									      \
 	if (par->startbyte) {                                                 \
 		*(u8 *)par->buf = par->startbyte;                             \
-		buf = (type *)(par->buf + 1);                                 \
+		buf = (buffer_type *)(par->buf + 1);                          \
 		offset = 1;                                                   \
 	}                                                                     \
 									      \
-	*buf = modifier((type)va_arg(args, unsigned int));                    \
-	ret = fbtft_write_buf_dc(par, par->buf, sizeof(type) + offset, 0);    \
+	*buf = modifier((data_type)va_arg(args, unsigned int));               \
+	ret = fbtft_write_buf_dc(par, par->buf, sizeof(data_type) + offset, 0); \
 	if (ret < 0)							      \
 		goto out;						      \
 	len--;                                                                \
@@ -47,18 +48,18 @@ void func(struct fbtft_par *par, int len, ...)                                \
 	if (len) {                                                            \
 		i = len;                                                      \
 		while (i--)						      \
-			*buf++ = modifier((type)va_arg(args, unsigned int));  \
+			*buf++ = modifier((data_type)va_arg(args, unsigned int)); \
 		fbtft_write_buf_dc(par, par->buf,			      \
-				   len * (sizeof(type) + offset), 1);	      \
+				   len * (sizeof(data_type) + offset), 1);    \
 	}                                                                     \
 out:									      \
 	va_end(args);                                                         \
 }                                                                             \
 EXPORT_SYMBOL(func);
 
-define_fbtft_write_reg(fbtft_write_reg8_bus8, u8, )
-define_fbtft_write_reg(fbtft_write_reg16_bus8, u16, cpu_to_be16)
-define_fbtft_write_reg(fbtft_write_reg16_bus16, u16, )
+define_fbtft_write_reg(fbtft_write_reg8_bus8, u8, u8, )
+define_fbtft_write_reg(fbtft_write_reg16_bus8, __be16, u16, cpu_to_be16)
+define_fbtft_write_reg(fbtft_write_reg16_bus16, u16, u16, )
 
 void fbtft_write_reg8_bus9(struct fbtft_par *par, int len, ...)
 {

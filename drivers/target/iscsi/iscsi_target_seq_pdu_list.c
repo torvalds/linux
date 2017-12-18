@@ -25,8 +25,6 @@
 #include "iscsi_target_tpg.h"
 #include "iscsi_target_seq_pdu_list.h"
 
-#define OFFLOAD_BUF_SIZE	32768
-
 #ifdef DEBUG
 static void iscsit_dump_seq_list(struct iscsi_cmd *cmd)
 {

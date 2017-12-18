@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 
 &tlmm_pinmux {
 	sdc4_gpios: sdc4-gpios {

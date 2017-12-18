@@ -194,45 +194,45 @@ static void sdma_v3_0_init_golden_registers(struct amdgpu_device *adev)
 	case CHIP_FIJI:
 		amdgpu_program_register_sequence(adev,
 						 fiji_mgcg_cgcg_init,
-						 (const u32)ARRAY_SIZE(fiji_mgcg_cgcg_init));
+						 ARRAY_SIZE(fiji_mgcg_cgcg_init));
 		amdgpu_program_register_sequence(adev,
 						 golden_settings_fiji_a10,
-						 (const u32)ARRAY_SIZE(golden_settings_fiji_a10));
+						 ARRAY_SIZE(golden_settings_fiji_a10));
 		break;
 	case CHIP_TONGA:
 		amdgpu_program_register_sequence(adev,
 						 tonga_mgcg_cgcg_init,
-						 (const u32)ARRAY_SIZE(tonga_mgcg_cgcg_init));
+						 ARRAY_SIZE(tonga_mgcg_cgcg_init));
 		amdgpu_program_register_sequence(adev,
 						 golden_settings_tonga_a11,
-						 (const u32)ARRAY_SIZE(golden_settings_tonga_a11));
+						 ARRAY_SIZE(golden_settings_tonga_a11));
 		break;
 	case CHIP_POLARIS11:
 	case CHIP_POLARIS12:
 		amdgpu_program_register_sequence(adev,
 						 golden_settings_polaris11_a11,
-						 (const u32)ARRAY_SIZE(golden_settings_polaris11_a11));
+						 ARRAY_SIZE(golden_settings_polaris11_a11));
 		break;
 	case CHIP_POLARIS10:
 		amdgpu_program_register_sequence(adev,
 						 golden_settings_polaris10_a11,
-						 (const u32)ARRAY_SIZE(golden_settings_polaris10_a11));
+						 ARRAY_SIZE(golden_settings_polaris10_a11));
 		break;
 	case CHIP_CARRIZO:
 		amdgpu_program_register_sequence(adev,
 						 cz_mgcg_cgcg_init,
-						 (const u32)ARRAY_SIZE(cz_mgcg_cgcg_init));
+						 ARRAY_SIZE(cz_mgcg_cgcg_init));
 		amdgpu_program_register_sequence(adev,
 						 cz_golden_settings_a11,
-						 (const u32)ARRAY_SIZE(cz_golden_settings_a11));
+						 ARRAY_SIZE(cz_golden_settings_a11));
 		break;
 	case CHIP_STONEY:
 		amdgpu_program_register_sequence(adev,
 						 stoney_mgcg_cgcg_init,
-						 (const u32)ARRAY_SIZE(stoney_mgcg_cgcg_init));
+						 ARRAY_SIZE(stoney_mgcg_cgcg_init));
 		amdgpu_program_register_sequence(adev,
 						 stoney_golden_settings_a11,
-						 (const u32)ARRAY_SIZE(stoney_golden_settings_a11));
+						 ARRAY_SIZE(stoney_golden_settings_a11));
 		break;
 	default:
 		break;
@@ -893,7 +893,7 @@ static int sdma_v3_0_ring_test_ring(struct amdgpu_ring *ring)
 	}
 
 	if (i < adev->usec_timeout) {
-		DRM_INFO("ring test on %d succeeded in %d usecs\n", ring->idx, i);
+		DRM_DEBUG("ring test on %d succeeded in %d usecs\n", ring->idx, i);
 	} else {
 		DRM_ERROR("amdgpu: ring %d test failed (0x%08X)\n",
 			  ring->idx, tmp);
@@ -964,7 +964,7 @@ static int sdma_v3_0_ring_test_ib(struct amdgpu_ring *ring, long timeout)
 	}
 	tmp = le32_to_cpu(adev->wb.wb[index]);
 	if (tmp == 0xDEADBEEF) {
-		DRM_INFO("ib test on ring %d succeeded\n", ring->idx);
+		DRM_DEBUG("ib test on ring %d succeeded\n", ring->idx);
 		r = 0;
 	} else {
 		DRM_ERROR("amdgpu: ib test failed (0x%08X)\n", tmp);

@@ -49,10 +49,9 @@ struct arch {
 	void		*priv;
 	unsigned int	model;
 	unsigned int	family;
-	int		(*init)(struct arch *arch);
+	int		(*init)(struct arch *arch, char *cpuid);
 	bool		(*ins_is_fused)(struct arch *arch, const char *ins1,
 					const char *ins2);
-	int		(*cpuid_parse)(struct arch *arch, char *cpuid);
 	struct		{
 		char comment_char;
 		char skip_functions_char;
@@ -132,10 +131,10 @@ static struct arch architectures[] = {
 	},
 	{
 		.name = "x86",
+		.init = x86__annotate_init,
 		.instructions = x86__instructions,
 		.nr_instructions = ARRAY_SIZE(x86__instructions),
 		.ins_is_fused = x86__ins_is_fused,
-		.cpuid_parse = x86__cpuid_parse,
 		.objdump =  {
 			.comment_char = '#',
 		},
@@ -606,8 +605,18 @@ static struct arch *arch__find(const char *name)
 int symbol__alloc_hist(struct symbol *sym)
 {
 	struct annotation *notes = symbol__annotation(sym);
-	const size_t size = symbol__size(sym);
+	size_t size = symbol__size(sym);
 	size_t sizeof_sym_hist;
+
+	/*
+	 * Add buffer of one element for zero length symbol.
+	 * When sample is taken from first instruction of
+	 * zero length symbol, perf still resolves it and
+	 * shows symbol name in perf report and allows to
+	 * annotate it.
+	 */
+	if (size == 0)
+		size = 1;
 
 	/* Check for overflow when calculating sizeof_sym_hist */
 	if (size > (SIZE_MAX - sizeof(struct sym_hist)) / sizeof(struct sym_hist_entry))
@@ -1447,15 +1456,12 @@ int symbol__disassemble(struct symbol *sym, struct map *map,
 		*parch = arch;
 
 	if (arch->init) {
-		err = arch->init(arch);
+		err = arch->init(arch, cpuid);
 		if (err) {
 			pr_err("%s: failed to initialize %s arch priv area\n", __func__, arch->name);
 			return err;
 		}
 	}
-
-	if (arch->cpuid_parse && cpuid)
-		arch->cpuid_parse(arch, cpuid);
 
 	pr_debug("%s: filename=%s, sym=%s, start=%#" PRIx64 ", end=%#" PRIx64 "\n", __func__,
 		 symfs_filename, sym->name, map->unmap_ip(map, sym->start),

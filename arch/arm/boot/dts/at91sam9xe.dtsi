@@ -49,11 +49,11 @@
 	model = "Atmel AT91SAM9XE family SoC";
 	compatible = "atmel,at91sam9xe", "atmel,at91sam9260";
 
-	sram0: sram@002ff000 {
+	sram0: sram@2ff000 {
 		status = "disabled";
 	};
 
-	sram1: sram@00300000 {
+	sram1: sram@300000 {
 		compatible = "mmio-sram";
 		reg = <0x00300000 0x4000>;
 	};

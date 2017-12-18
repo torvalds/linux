@@ -157,7 +157,7 @@ static void do_loaddata_free(struct work_struct *work)
 	struct aa_ns *ns = aa_get_ns(d->ns);
 
 	if (ns) {
-		mutex_lock(&ns->lock);
+		mutex_lock_nested(&ns->lock, ns->level);
 		__aa_fs_remove_rawdata(d);
 		mutex_unlock(&ns->lock);
 		aa_put_ns(ns);

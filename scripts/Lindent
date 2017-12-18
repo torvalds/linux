@@ -1,4 +1,5 @@
 #!/bin/sh
+# SPDX-License-Identifier: GPL-2.0
 
 PARAM="-npro -kr -i8 -ts8 -sob -l80 -ss -ncs -cp1"
 

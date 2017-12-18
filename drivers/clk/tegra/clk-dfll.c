@@ -1728,10 +1728,10 @@ EXPORT_SYMBOL(tegra_dfll_register);
  * @pdev: DFLL platform_device *
  *
  * Unbind this driver from the DFLL hardware device represented by
- * @pdev. The DFLL must be disabled for this to succeed. Returns 0
- * upon success or -EBUSY if the DFLL is still active.
+ * @pdev. The DFLL must be disabled for this to succeed. Returns a
+ * soc pointer upon success or -EBUSY if the DFLL is still active.
  */
-int tegra_dfll_unregister(struct platform_device *pdev)
+struct tegra_dfll_soc_data *tegra_dfll_unregister(struct platform_device *pdev)
 {
 	struct tegra_dfll *td = platform_get_drvdata(pdev);
 
@@ -1739,7 +1739,7 @@ int tegra_dfll_unregister(struct platform_device *pdev)
 	if (td->mode != DFLL_DISABLED) {
 		dev_err(&pdev->dev,
 			"must disable DFLL before removing driver\n");
-		return -EBUSY;
+		return ERR_PTR(-EBUSY);
 	}
 
 	debugfs_remove_recursive(td->debugfs_dir);
@@ -1753,6 +1753,6 @@ int tegra_dfll_unregister(struct platform_device *pdev)
 
 	reset_control_assert(td->dvco_rst);
 
-	return 0;
+	return td->soc;
 }
 EXPORT_SYMBOL(tegra_dfll_unregister);

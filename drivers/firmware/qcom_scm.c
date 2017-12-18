@@ -19,14 +19,19 @@
 #include <linux/cpumask.h>
 #include <linux/export.h>
 #include <linux/dma-mapping.h>
+#include <linux/module.h>
 #include <linux/types.h>
 #include <linux/qcom_scm.h>
 #include <linux/of.h>
+#include <linux/of_address.h>
 #include <linux/of_platform.h>
 #include <linux/clk.h>
 #include <linux/reset-controller.h>
 
 #include "qcom_scm.h"
+
+static bool download_mode = IS_ENABLED(CONFIG_QCOM_SCM_DOWNLOAD_MODE_DEFAULT);
+module_param(download_mode, bool, 0);
 
 #define SCM_HAS_CORE_CLK	BIT(0)
 #define SCM_HAS_IFACE_CLK	BIT(1)
@@ -38,6 +43,21 @@ struct qcom_scm {
 	struct clk *iface_clk;
 	struct clk *bus_clk;
 	struct reset_controller_dev reset;
+
+	u64 dload_mode_addr;
+};
+
+struct qcom_scm_current_perm_info {
+	__le32 vmid;
+	__le32 perm;
+	__le64 ctx;
+	__le32 ctx_size;
+	__le32 unused;
+};
+
+struct qcom_scm_mem_map_info {
+	__le64 mem_addr;
+	__le64 mem_size;
 };
 
 static struct qcom_scm *__scm;
@@ -333,6 +353,66 @@ int qcom_scm_iommu_secure_ptbl_init(u64 addr, u32 size, u32 spare)
 }
 EXPORT_SYMBOL(qcom_scm_iommu_secure_ptbl_init);
 
+int qcom_scm_io_readl(phys_addr_t addr, unsigned int *val)
+{
+	return __qcom_scm_io_readl(__scm->dev, addr, val);
+}
+EXPORT_SYMBOL(qcom_scm_io_readl);
+
+int qcom_scm_io_writel(phys_addr_t addr, unsigned int val)
+{
+	return __qcom_scm_io_writel(__scm->dev, addr, val);
+}
+EXPORT_SYMBOL(qcom_scm_io_writel);
+
+static void qcom_scm_set_download_mode(bool enable)
+{
+	bool avail;
+	int ret = 0;
+
+	avail = __qcom_scm_is_call_available(__scm->dev,
+					     QCOM_SCM_SVC_BOOT,
+					     QCOM_SCM_SET_DLOAD_MODE);
+	if (avail) {
+		ret = __qcom_scm_set_dload_mode(__scm->dev, enable);
+	} else if (__scm->dload_mode_addr) {
+		ret = __qcom_scm_io_writel(__scm->dev, __scm->dload_mode_addr,
+					   enable ? QCOM_SCM_SET_DLOAD_MODE : 0);
+	} else {
+		dev_err(__scm->dev,
+			"No available mechanism for setting download mode\n");
+	}
+
+	if (ret)
+		dev_err(__scm->dev, "failed to set download mode: %d\n", ret);
+}
+
+static int qcom_scm_find_dload_address(struct device *dev, u64 *addr)
+{
+	struct device_node *tcsr;
+	struct device_node *np = dev->of_node;
+	struct resource res;
+	u32 offset;
+	int ret;
+
+	tcsr = of_parse_phandle(np, "qcom,dload-mode", 0);
+	if (!tcsr)
+		return 0;
+
+	ret = of_address_to_resource(tcsr, 0, &res);
+	of_node_put(tcsr);
+	if (ret)
+		return ret;
+
+	ret = of_property_read_u32_index(np, "qcom,dload-mode", 1, &offset);
+	if (ret < 0)
+		return ret;
+
+	*addr = res.start + offset;
+
+	return 0;
+}
+
 /**
  * qcom_scm_is_available() - Checks if SCM is available
  */
@@ -348,6 +428,88 @@ int qcom_scm_set_remote_state(u32 state, u32 id)
 }
 EXPORT_SYMBOL(qcom_scm_set_remote_state);
 
+/**
+ * qcom_scm_assign_mem() - Make a secure call to reassign memory ownership
+ * @mem_addr: mem region whose ownership need to be reassigned
+ * @mem_sz:   size of the region.
+ * @srcvm:    vmid for current set of owners, each set bit in
+ *            flag indicate a unique owner
+ * @newvm:    array having new owners and corrsponding permission
+ *            flags
+ * @dest_cnt: number of owners in next set.
+ *
+ * Return negative errno on failure, 0 on success, with @srcvm updated.
+ */
+int qcom_scm_assign_mem(phys_addr_t mem_addr, size_t mem_sz,
+			unsigned int *srcvm,
+			struct qcom_scm_vmperm *newvm, int dest_cnt)
+{
+	struct qcom_scm_current_perm_info *destvm;
+	struct qcom_scm_mem_map_info *mem_to_map;
+	phys_addr_t mem_to_map_phys;
+	phys_addr_t dest_phys;
+	phys_addr_t ptr_phys;
+	size_t mem_to_map_sz;
+	size_t dest_sz;
+	size_t src_sz;
+	size_t ptr_sz;
+	int next_vm;
+	__le32 *src;
+	void *ptr;
+	int ret;
+	int len;
+	int i;
+
+	src_sz = hweight_long(*srcvm) * sizeof(*src);
+	mem_to_map_sz = sizeof(*mem_to_map);
+	dest_sz = dest_cnt * sizeof(*destvm);
+	ptr_sz = ALIGN(src_sz, SZ_64) + ALIGN(mem_to_map_sz, SZ_64) +
+			ALIGN(dest_sz, SZ_64);
+
+	ptr = dma_alloc_coherent(__scm->dev, ptr_sz, &ptr_phys, GFP_KERNEL);
+	if (!ptr)
+		return -ENOMEM;
+
+	/* Fill source vmid detail */
+	src = ptr;
+	len = hweight_long(*srcvm);
+	for (i = 0; i < len; i++) {
+		src[i] = cpu_to_le32(ffs(*srcvm) - 1);
+		*srcvm ^= 1 << (ffs(*srcvm) - 1);
+	}
+
+	/* Fill details of mem buff to map */
+	mem_to_map = ptr + ALIGN(src_sz, SZ_64);
+	mem_to_map_phys = ptr_phys + ALIGN(src_sz, SZ_64);
+	mem_to_map[0].mem_addr = cpu_to_le64(mem_addr);
+	mem_to_map[0].mem_size = cpu_to_le64(mem_sz);
+
+	next_vm = 0;
+	/* Fill details of next vmid detail */
+	destvm = ptr + ALIGN(mem_to_map_sz, SZ_64) + ALIGN(src_sz, SZ_64);
+	dest_phys = ptr_phys + ALIGN(mem_to_map_sz, SZ_64) + ALIGN(src_sz, SZ_64);
+	for (i = 0; i < dest_cnt; i++) {
+		destvm[i].vmid = cpu_to_le32(newvm[i].vmid);
+		destvm[i].perm = cpu_to_le32(newvm[i].perm);
+		destvm[i].ctx = 0;
+		destvm[i].ctx_size = 0;
+		next_vm |= BIT(newvm[i].vmid);
+	}
+
+	ret = __qcom_scm_assign_mem(__scm->dev, mem_to_map_phys, mem_to_map_sz,
+				    ptr_phys, src_sz, dest_phys, dest_sz);
+	dma_free_coherent(__scm->dev, ALIGN(ptr_sz, SZ_64), ptr, ptr_phys);
+	if (ret) {
+		dev_err(__scm->dev,
+			"Assign memory protection call failed %d.\n", ret);
+		return -EINVAL;
+	}
+
+	*srcvm = next_vm;
+	return 0;
+}
+EXPORT_SYMBOL(qcom_scm_assign_mem);
+
 static int qcom_scm_probe(struct platform_device *pdev)
 {
 	struct qcom_scm *scm;
@@ -357,6 +519,10 @@ static int qcom_scm_probe(struct platform_device *pdev)
 	scm = devm_kzalloc(&pdev->dev, sizeof(*scm), GFP_KERNEL);
 	if (!scm)
 		return -ENOMEM;
+
+	ret = qcom_scm_find_dload_address(&pdev->dev, &scm->dload_mode_addr);
+	if (ret < 0)
+		return ret;
 
 	clks = (unsigned long)of_device_get_match_data(&pdev->dev);
 	if (clks & SCM_HAS_CORE_CLK) {
@@ -406,7 +572,22 @@ static int qcom_scm_probe(struct platform_device *pdev)
 
 	__qcom_scm_init();
 
+	/*
+	 * If requested enable "download mode", from this point on warmboot
+	 * will cause the the boot stages to enter download mode, unless
+	 * disabled below by a clean shutdown/reboot.
+	 */
+	if (download_mode)
+		qcom_scm_set_download_mode(true);
+
 	return 0;
+}
+
+static void qcom_scm_shutdown(struct platform_device *pdev)
+{
+	/* Clean shutdown, disable download mode to allow normal restart */
+	if (download_mode)
+		qcom_scm_set_download_mode(false);
 }
 
 static const struct of_device_id qcom_scm_dt_match[] = {
@@ -436,6 +617,7 @@ static struct platform_driver qcom_scm_driver = {
 		.of_match_table = qcom_scm_dt_match,
 	},
 	.probe = qcom_scm_probe,
+	.shutdown = qcom_scm_shutdown,
 };
 
 static int __init qcom_scm_init(void)

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Serial port driver for the ETRAX 100LX chip
  *
@@ -2058,7 +2059,7 @@ static void flush_timeout_function(unsigned long data)
 static struct timer_list flush_timer;
 
 static void
-timed_flush_handler(unsigned long ptr)
+timed_flush_handler(struct timer_list *unused)
 {
 	struct e100_serial *info;
 	int i;
@@ -4136,7 +4137,7 @@ static int __init rs_init(void)
 	/* Setup the timed flush handler system */
 
 #if !defined(CONFIG_ETRAX_SERIAL_FAST_TIMER)
-	setup_timer(&flush_timer, timed_flush_handler, 0);
+	timer_setup(&flush_timer, timed_flush_handler, 0);
 	mod_timer(&flush_timer, jiffies + 5);
 #endif
 

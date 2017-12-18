@@ -523,8 +523,7 @@ static int get_pcie_table(
 		if ((uint32_t)atom_pcie_table->ucNumEntries <= pcie_count)
 			pcie_count = (uint32_t)atom_pcie_table->ucNumEntries;
 		else
-			pr_err("Number of Pcie Entries exceed the number of SCLK Dpm Levels! \
-			Disregarding the excess entries... \n");
+			pr_err("Number of Pcie Entries exceed the number of SCLK Dpm Levels! Disregarding the excess entries...\n");
 
 		pcie_table->count = pcie_count;
 		for (i = 0; i < pcie_count; i++) {
@@ -563,8 +562,7 @@ static int get_pcie_table(
 		if ((uint32_t)atom_pcie_table->ucNumEntries <= pcie_count)
 			pcie_count = (uint32_t)atom_pcie_table->ucNumEntries;
 		else
-			pr_err("Number of Pcie Entries exceed the number of SCLK Dpm Levels! \
-			Disregarding the excess entries... \n");
+			pr_err("Number of Pcie Entries exceed the number of SCLK Dpm Levels! Disregarding the excess entries...\n");
 
 		pcie_table->count = pcie_count;
 
@@ -830,9 +828,9 @@ static int init_over_drive_limits(
 		const ATOM_Tonga_POWERPLAYTABLE *powerplay_table)
 {
 	hwmgr->platform_descriptor.overdriveLimit.engineClock =
-		le16_to_cpu(powerplay_table->ulMaxODEngineClock);
+		le32_to_cpu(powerplay_table->ulMaxODEngineClock);
 	hwmgr->platform_descriptor.overdriveLimit.memoryClock =
-		le16_to_cpu(powerplay_table->ulMaxODMemoryClock);
+		le32_to_cpu(powerplay_table->ulMaxODMemoryClock);
 
 	hwmgr->platform_descriptor.minOverdriveVDDC = 0;
 	hwmgr->platform_descriptor.maxOverdriveVDDC = 0;

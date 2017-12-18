@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_POWERPC_HUGETLB_H
 #define _ASM_POWERPC_HUGETLB_H
 
@@ -40,12 +41,6 @@ static inline void flush_hugetlb_page(struct vm_area_struct *vma,
 		return radix__flush_hugetlb_page(vma, vmaddr);
 }
 
-static inline void __local_flush_hugetlb_page(struct vm_area_struct *vma,
-					      unsigned long vmaddr)
-{
-	if (radix_enabled())
-		return radix__local_flush_hugetlb_page(vma, vmaddr);
-}
 #else
 
 static inline pte_t *hugepd_page(hugepd_t hpd)

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 
 /*
  * DOMAIN(name, num, index_kind, is_physical)

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *	pci_regs.h
  *
@@ -746,6 +747,7 @@
 #define PCI_ERR_ROOT_FIRST_FATAL	0x00000010 /* First UNC is Fatal */
 #define PCI_ERR_ROOT_NONFATAL_RCV	0x00000020 /* Non-Fatal Received */
 #define PCI_ERR_ROOT_FATAL_RCV		0x00000040 /* Fatal Received */
+#define PCI_ERR_ROOT_AER_IRQ		0xf8000000 /* Advanced Error Interrupt Message Number */
 #define PCI_ERR_ROOT_ERR_SRC	52	/* Error Source Identification */
 
 /* Virtual Channel */
@@ -939,9 +941,13 @@
 #define PCI_SATA_SIZEOF_LONG	16
 
 /* Resizable BARs */
+#define PCI_REBAR_CAP		4	/* capability register */
+#define  PCI_REBAR_CAP_SIZES		0x00FFFFF0  /* supported BAR sizes */
 #define PCI_REBAR_CTRL		8	/* control register */
-#define  PCI_REBAR_CTRL_NBAR_MASK	(7 << 5)	/* mask for # bars */
-#define  PCI_REBAR_CTRL_NBAR_SHIFT	5	/* shift for # bars */
+#define  PCI_REBAR_CTRL_BAR_IDX		0x00000007  /* BAR index */
+#define  PCI_REBAR_CTRL_NBAR_MASK	0x000000E0  /* # of resizable BARs */
+#define  PCI_REBAR_CTRL_NBAR_SHIFT	5  	    /* shift for # of BARs */
+#define  PCI_REBAR_CTRL_BAR_SIZE	0x00001F00  /* BAR size */
 
 /* Dynamic Power Allocation */
 #define PCI_DPA_CAP		4	/* capability register */
@@ -960,6 +966,7 @@
 
 /* Downstream Port Containment */
 #define PCI_EXP_DPC_CAP			4	/* DPC Capability */
+#define PCI_EXP_DPC_IRQ			0x1f	/* DPC Interrupt Message Number */
 #define  PCI_EXP_DPC_CAP_RP_EXT		0x20	/* Root Port Extensions for DPC */
 #define  PCI_EXP_DPC_CAP_POISONED_TLP	0x40	/* Poisoned TLP Egress Blocking Supported */
 #define  PCI_EXP_DPC_CAP_SW_TRIGGER	0x80	/* Software Triggering Supported */
@@ -995,19 +1002,25 @@
 #define  PCI_PTM_CTRL_ENABLE		0x00000001  /* PTM enable */
 #define  PCI_PTM_CTRL_ROOT		0x00000002  /* Root select */
 
-/* L1 PM Substates */
-#define PCI_L1SS_CAP		    4	/* capability register */
-#define  PCI_L1SS_CAP_PCIPM_L1_2	 1	/* PCI PM L1.2 Support */
-#define  PCI_L1SS_CAP_PCIPM_L1_1	 2	/* PCI PM L1.1 Support */
-#define  PCI_L1SS_CAP_ASPM_L1_2		 4	/* ASPM L1.2 Support */
-#define  PCI_L1SS_CAP_ASPM_L1_1		 8	/* ASPM L1.1 Support */
-#define  PCI_L1SS_CAP_L1_PM_SS		16	/* L1 PM Substates Support */
-#define PCI_L1SS_CTL1		    8	/* Control Register 1 */
-#define  PCI_L1SS_CTL1_PCIPM_L1_2	1	/* PCI PM L1.2 Enable */
-#define  PCI_L1SS_CTL1_PCIPM_L1_1	2	/* PCI PM L1.1 Support */
-#define  PCI_L1SS_CTL1_ASPM_L1_2	4	/* ASPM L1.2 Support */
-#define  PCI_L1SS_CTL1_ASPM_L1_1	8	/* ASPM L1.1 Support */
-#define  PCI_L1SS_CTL1_L1SS_MASK	0x0000000F
-#define PCI_L1SS_CTL2		    0xC	/* Control Register 2 */
+/* ASPM L1 PM Substates */
+#define PCI_L1SS_CAP		0x04	/* Capabilities Register */
+#define  PCI_L1SS_CAP_PCIPM_L1_2	0x00000001  /* PCI-PM L1.2 Supported */
+#define  PCI_L1SS_CAP_PCIPM_L1_1	0x00000002  /* PCI-PM L1.1 Supported */
+#define  PCI_L1SS_CAP_ASPM_L1_2		0x00000004  /* ASPM L1.2 Supported */
+#define  PCI_L1SS_CAP_ASPM_L1_1		0x00000008  /* ASPM L1.1 Supported */
+#define  PCI_L1SS_CAP_L1_PM_SS		0x00000010  /* L1 PM Substates Supported */
+#define  PCI_L1SS_CAP_CM_RESTORE_TIME	0x0000ff00  /* Port Common_Mode_Restore_Time */
+#define  PCI_L1SS_CAP_P_PWR_ON_SCALE	0x00030000  /* Port T_POWER_ON scale */
+#define  PCI_L1SS_CAP_P_PWR_ON_VALUE	0x00f80000  /* Port T_POWER_ON value */
+#define PCI_L1SS_CTL1		0x08	/* Control 1 Register */
+#define  PCI_L1SS_CTL1_PCIPM_L1_2	0x00000001  /* PCI-PM L1.2 Enable */
+#define  PCI_L1SS_CTL1_PCIPM_L1_1	0x00000002  /* PCI-PM L1.1 Enable */
+#define  PCI_L1SS_CTL1_ASPM_L1_2	0x00000004  /* ASPM L1.2 Enable */
+#define  PCI_L1SS_CTL1_ASPM_L1_1	0x00000008  /* ASPM L1.1 Enable */
+#define  PCI_L1SS_CTL1_L1SS_MASK	0x0000000f
+#define  PCI_L1SS_CTL1_CM_RESTORE_TIME	0x0000ff00  /* Common_Mode_Restore_Time */
+#define  PCI_L1SS_CTL1_LTR_L12_TH_VALUE	0x03ff0000  /* LTR_L1.2_THRESHOLD_Value */
+#define  PCI_L1SS_CTL1_LTR_L12_TH_SCALE	0xe0000000  /* LTR_L1.2_THRESHOLD_Scale */
+#define PCI_L1SS_CTL2		0x0c	/* Control 2 Register */
 
 #endif /* LINUX_PCI_REGS_H */

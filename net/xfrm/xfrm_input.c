@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * xfrm_input.c
  *
@@ -265,8 +266,6 @@ int xfrm_input(struct sk_buff *skb, int nexthdr, __be32 spi, int encap_type)
 		goto lock;
 	}
 
-	daddr = (xfrm_address_t *)(skb_network_header(skb) +
-				   XFRM_SPI_SKB_CB(skb)->daddroff);
 	family = XFRM_SPI_SKB_CB(skb)->family;
 
 	/* if tunnel is present override skb->mark value with tunnel i_key */
@@ -293,6 +292,8 @@ int xfrm_input(struct sk_buff *skb, int nexthdr, __be32 spi, int encap_type)
 		goto drop;
 	}
 
+	daddr = (xfrm_address_t *)(skb_network_header(skb) +
+				   XFRM_SPI_SKB_CB(skb)->daddroff);
 	do {
 		if (skb->sp->len == XFRM_MAX_DEPTH) {
 			XFRM_INC_STATS(net, LINUX_MIB_XFRMINBUFFERERROR);

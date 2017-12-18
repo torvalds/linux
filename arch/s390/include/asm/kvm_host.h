@@ -1,11 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * definition for kernel virtual machines on s390
  *
  * Copyright IBM Corp. 2008, 2009
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License (version 2 only)
- * as published by the Free Software Foundation.
  *
  *    Author(s): Carsten Otte <cotte@de.ibm.com>
  */
@@ -685,11 +682,28 @@ struct kvm_s390_crypto {
 	__u8 dea_kw;
 };
 
+#define APCB0_MASK_SIZE 1
+struct kvm_s390_apcb0 {
+	__u64 apm[APCB0_MASK_SIZE];		/* 0x0000 */
+	__u64 aqm[APCB0_MASK_SIZE];		/* 0x0008 */
+	__u64 adm[APCB0_MASK_SIZE];		/* 0x0010 */
+	__u64 reserved18;			/* 0x0018 */
+};
+
+#define APCB1_MASK_SIZE 4
+struct kvm_s390_apcb1 {
+	__u64 apm[APCB1_MASK_SIZE];		/* 0x0000 */
+	__u64 aqm[APCB1_MASK_SIZE];		/* 0x0020 */
+	__u64 adm[APCB1_MASK_SIZE];		/* 0x0040 */
+	__u64 reserved60[4];			/* 0x0060 */
+};
+
 struct kvm_s390_crypto_cb {
-	__u8    reserved00[72];                 /* 0x0000 */
-	__u8    dea_wrapping_key_mask[24];      /* 0x0048 */
-	__u8    aes_wrapping_key_mask[32];      /* 0x0060 */
-	__u8    reserved80[128];                /* 0x0080 */
+	struct kvm_s390_apcb0 apcb0;		/* 0x0000 */
+	__u8   reserved20[0x0048 - 0x0020];	/* 0x0020 */
+	__u8   dea_wrapping_key_mask[24];	/* 0x0048 */
+	__u8   aes_wrapping_key_mask[32];	/* 0x0060 */
+	struct kvm_s390_apcb1 apcb1;		/* 0x0080 */
 };
 
 /*
@@ -736,7 +750,6 @@ struct kvm_arch{
 	wait_queue_head_t ipte_wq;
 	int ipte_lock_count;
 	struct mutex ipte_mutex;
-	struct ratelimit_state sthyi_limit;
 	spinlock_t start_stop_lock;
 	struct sie_page2 *sie_page2;
 	struct kvm_s390_cpu_model model;

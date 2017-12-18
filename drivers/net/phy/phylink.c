@@ -357,7 +357,7 @@ static void phylink_get_fixed_state(struct phylink *pl, struct phylink_link_stat
  *    1     1       0     1     TX
  */
 static void phylink_resolve_flow(struct phylink *pl,
-	struct phylink_link_state *state)
+				 struct phylink_link_state *state)
 {
 	int new_pause = 0;
 
@@ -506,7 +506,8 @@ static int phylink_register_sfp(struct phylink *pl, struct device_node *np)
 }
 
 struct phylink *phylink_create(struct net_device *ndev, struct device_node *np,
-	phy_interface_t iface, const struct phylink_mac_ops *ops)
+			       phy_interface_t iface,
+			       const struct phylink_mac_ops *ops)
 {
 	struct phylink *pl;
 	int ret;
@@ -566,7 +567,8 @@ void phylink_destroy(struct phylink *pl)
 }
 EXPORT_SYMBOL_GPL(phylink_destroy);
 
-void phylink_phy_change(struct phy_device *phydev, bool up, bool do_carrier)
+static void phylink_phy_change(struct phy_device *phydev, bool up,
+			       bool do_carrier)
 {
 	struct phylink *pl = phydev->phylink;
 
@@ -585,7 +587,7 @@ void phylink_phy_change(struct phy_device *phydev, bool up, bool do_carrier)
 	phylink_run_resolve(pl);
 
 	netdev_dbg(pl->netdev, "phy link %s %s/%s/%s\n", up ? "up" : "down",
-	           phy_modes(phydev->interface),
+		   phy_modes(phydev->interface),
 		   phy_speed_to_str(phydev->speed),
 		   phy_duplex_to_str(phydev->duplex));
 }
@@ -823,7 +825,7 @@ static void phylink_get_ksettings(const struct phylink_link_state *state,
 }
 
 int phylink_ethtool_ksettings_get(struct phylink *pl,
-	struct ethtool_link_ksettings *kset)
+				  struct ethtool_link_ksettings *kset)
 {
 	struct phylink_link_state link_state;
 
@@ -870,7 +872,7 @@ int phylink_ethtool_ksettings_get(struct phylink *pl,
 EXPORT_SYMBOL_GPL(phylink_ethtool_ksettings_get);
 
 int phylink_ethtool_ksettings_set(struct phylink *pl,
-	const struct ethtool_link_ksettings *kset)
+				  const struct ethtool_link_ksettings *kset)
 {
 	struct ethtool_link_ksettings our_kset;
 	struct phylink_link_state config;
@@ -1336,8 +1338,6 @@ int phylink_mii_ioctl(struct phylink *pl, struct ifreq *ifr, int cmd)
 	return ret;
 }
 EXPORT_SYMBOL_GPL(phylink_mii_ioctl);
-
-
 
 static int phylink_sfp_module_insert(void *upstream,
 				     const struct sfp_eeprom_id *id)

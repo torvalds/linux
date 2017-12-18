@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Variant of atomic_t specialized for reference counts.
  *

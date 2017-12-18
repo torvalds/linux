@@ -10,9 +10,9 @@
  * and select subsets of aarch64), a Device Tree node (on arm), or using
  * a kernel module (or command line) parameter with the following syntax:
  *
- *      [fw_cfg.]ioport=<size>@<base>[:<ctrl_off>:<data_off>]
+ *      [qemu_fw_cfg.]ioport=<size>@<base>[:<ctrl_off>:<data_off>]
  * or
- *      [fw_cfg.]mmio=<size>@<base>[:<ctrl_off>:<data_off>]
+ *      [qemu_fw_cfg.]mmio=<size>@<base>[:<ctrl_off>:<data_off>]
  *
  * where:
  *      <size>     := size of ioport or mmio range
@@ -21,9 +21,9 @@
  *      <data_off> := (optional) offset of data register
  *
  * e.g.:
- *      fw_cfg.ioport=2@0x510:0:1		(the default on x86)
+ *      qemu_fw_cfg.ioport=2@0x510:0:1		(the default on x86)
  * or
- *      fw_cfg.mmio=0xA@0x9020000:8:0		(the default on arm)
+ *      qemu_fw_cfg.mmio=0xA@0x9020000:8:0	(the default on arm)
  */
 
 #include <linux/module.h>

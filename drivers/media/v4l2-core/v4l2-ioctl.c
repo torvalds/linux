@@ -730,9 +730,12 @@ static void v4l_print_frmsizeenum(const void *arg, bool write_only)
 		break;
 	case V4L2_FRMSIZE_TYPE_STEPWISE:
 		pr_cont(", min=%ux%u, max=%ux%u, step=%ux%u\n",
-				p->stepwise.min_width,  p->stepwise.min_height,
-				p->stepwise.step_width, p->stepwise.step_height,
-				p->stepwise.max_width,  p->stepwise.max_height);
+				p->stepwise.min_width,
+				p->stepwise.min_height,
+				p->stepwise.max_width,
+				p->stepwise.max_height,
+				p->stepwise.step_width,
+				p->stepwise.step_height);
 		break;
 	case V4L2_FRMSIZE_TYPE_CONTINUOUS:
 		/* fall through */

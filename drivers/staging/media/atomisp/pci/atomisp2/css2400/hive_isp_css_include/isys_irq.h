@@ -16,21 +16,20 @@
 #define __IA_CSS_ISYS_IRQ_H__
 
 #include <type_support.h>
-#include <storage_class.h>
 #include <system_local.h>
 
 #if defined(USE_INPUT_SYSTEM_VERSION_2401)
 
 #ifndef __INLINE_ISYS2401_IRQ__
 
-#define STORAGE_CLASS_ISYS2401_IRQ_H STORAGE_CLASS_EXTERN
-#define STORAGE_CLASS_ISYS2401_IRQ_C STORAGE_CLASS_EXTERN
+#define STORAGE_CLASS_ISYS2401_IRQ_H extern
+#define STORAGE_CLASS_ISYS2401_IRQ_C extern
 #include "isys_irq_public.h"
 
 #else  /* __INLINE_ISYS2401_IRQ__ */
 
-#define STORAGE_CLASS_ISYS2401_IRQ_H STORAGE_CLASS_INLINE
-#define STORAGE_CLASS_ISYS2401_IRQ_C STORAGE_CLASS_INLINE
+#define STORAGE_CLASS_ISYS2401_IRQ_H static inline
+#define STORAGE_CLASS_ISYS2401_IRQ_C static inline
 #include "isys_irq_private.h"
 
 #endif /* __INLINE_ISYS2401_IRQ__ */

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  * Microsemi Switchtec PCIe Driver
  * Copyright (c) 2017, Microsemi Corporation

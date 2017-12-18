@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 #ifndef _ARPT_MANGLE_H
 #define _ARPT_MANGLE_H
 #include <linux/netfilter_arp/arp_tables.h>

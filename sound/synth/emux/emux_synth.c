@@ -202,9 +202,9 @@ snd_emux_note_off(void *p, int note, int vel, struct snd_midi_channel *chan)
  *
  * release the pending note-offs
  */
-void snd_emux_timer_callback(unsigned long data)
+void snd_emux_timer_callback(struct timer_list *t)
 {
-	struct snd_emux *emu = (struct snd_emux *) data;
+	struct snd_emux *emu = from_timer(emu, t, tlist);
 	struct snd_emux_voice *vp;
 	unsigned long flags;
 	int ch, do_again = 0;

@@ -13,6 +13,14 @@
 
 #include "cirrus_drv.h"
 
+static int cirrus_create_handle(struct drm_framebuffer *fb,
+				struct drm_file* file_priv,
+				unsigned int* handle)
+{
+	struct cirrus_framebuffer *cirrus_fb = to_cirrus_framebuffer(fb);
+
+	return drm_gem_handle_create(file_priv, cirrus_fb->obj, handle);
+}
 
 static void cirrus_user_framebuffer_destroy(struct drm_framebuffer *fb)
 {
@@ -24,6 +32,7 @@ static void cirrus_user_framebuffer_destroy(struct drm_framebuffer *fb)
 }
 
 static const struct drm_framebuffer_funcs cirrus_fb_funcs = {
+	.create_handle = cirrus_create_handle,
 	.destroy = cirrus_user_framebuffer_destroy,
 };
 

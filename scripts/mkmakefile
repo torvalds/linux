@@ -1,4 +1,5 @@
 #!/bin/sh
+# SPDX-License-Identifier: GPL-2.0
 # Generates a small Makefile used in the root of the output
 # directory, to allow make to be started from there.
 # The Makefile also allow for more convinient build of external modules

@@ -719,6 +719,10 @@ struct vmbus_channel {
 
 	struct vmbus_close_msg close_msg;
 
+	/* Statistics */
+	u64	interrupts;	/* Host to Guest interrupts */
+	u64	sig_events;	/* Guest to Host events */
+
 	/* Channel callback's invoked in softirq context */
 	struct tasklet_struct callback_event;
 	void (*onchannel_callback)(void *context);
@@ -827,6 +831,11 @@ struct vmbus_channel {
 	 * gone through grace period.
 	 */
 	struct rcu_head rcu;
+
+	/*
+	 * For sysfs per-channel properties.
+	 */
+	struct kobject			kobj;
 
 	/*
 	 * For performance critical channels (storage, networking
@@ -1089,6 +1098,7 @@ struct hv_device {
 	struct device device;
 
 	struct vmbus_channel *channel;
+	struct kset	     *channels_kset;
 };
 
 

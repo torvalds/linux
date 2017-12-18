@@ -63,7 +63,7 @@ static int amdgpu_update_cached_map(struct amdgpu_queue_mapper *mapper,
 
 static int amdgpu_identity_map(struct amdgpu_device *adev,
 			       struct amdgpu_queue_mapper *mapper,
-			       int ring,
+			       u32 ring,
 			       struct amdgpu_ring **out_ring)
 {
 	switch (mapper->hw_ip) {
@@ -121,7 +121,7 @@ static enum amdgpu_ring_type amdgpu_hw_ip_to_ring_type(int hw_ip)
 
 static int amdgpu_lru_map(struct amdgpu_device *adev,
 			  struct amdgpu_queue_mapper *mapper,
-			  int user_ring, bool lru_pipe_order,
+			  u32 user_ring, bool lru_pipe_order,
 			  struct amdgpu_ring **out_ring)
 {
 	int r, i, j;
@@ -208,7 +208,7 @@ int amdgpu_queue_mgr_fini(struct amdgpu_device *adev,
  */
 int amdgpu_queue_mgr_map(struct amdgpu_device *adev,
 			 struct amdgpu_queue_mgr *mgr,
-			 int hw_ip, int instance, int ring,
+			 u32 hw_ip, u32 instance, u32 ring,
 			 struct amdgpu_ring **out_ring)
 {
 	int r, ip_num_rings;
@@ -225,7 +225,7 @@ int amdgpu_queue_mgr_map(struct amdgpu_device *adev,
 
 	/* Right now all IPs have only one instance - multiple rings. */
 	if (instance != 0) {
-		DRM_ERROR("invalid ip instance: %d\n", instance);
+		DRM_DEBUG("invalid ip instance: %d\n", instance);
 		return -EINVAL;
 	}
 
@@ -255,13 +255,13 @@ int amdgpu_queue_mgr_map(struct amdgpu_device *adev,
 		ip_num_rings = adev->vcn.num_enc_rings;
 		break;
 	default:
-		DRM_ERROR("unknown ip type: %d\n", hw_ip);
+		DRM_DEBUG("unknown ip type: %d\n", hw_ip);
 		return -EINVAL;
 	}
 
 	if (ring >= ip_num_rings) {
-		DRM_ERROR("Ring index:%d exceeds maximum:%d for ip:%d\n",
-				ring, ip_num_rings, hw_ip);
+		DRM_DEBUG("Ring index:%d exceeds maximum:%d for ip:%d\n",
+			  ring, ip_num_rings, hw_ip);
 		return -EINVAL;
 	}
 
@@ -292,7 +292,7 @@ int amdgpu_queue_mgr_map(struct amdgpu_device *adev,
 	default:
 		*out_ring = NULL;
 		r = -EINVAL;
-		DRM_ERROR("unknown HW IP type: %d\n", mapper->hw_ip);
+		DRM_DEBUG("unknown HW IP type: %d\n", mapper->hw_ip);
 	}
 
 out_unlock:

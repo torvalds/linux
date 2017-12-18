@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _VB_STRUCT_
 #define _VB_STRUCT_
 #include "../../video/fbdev/sis/vstruct.h"

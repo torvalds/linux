@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef XONAR_H_INCLUDED
 #define XONAR_H_INCLUDED
 

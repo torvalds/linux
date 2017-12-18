@@ -122,7 +122,6 @@ static void hardware_disable_all(void);
 
 static void kvm_io_bus_destroy(struct kvm_io_bus *bus);
 
-static void kvm_release_pfn_dirty(kvm_pfn_t pfn);
 static void mark_page_dirty_in_slot(struct kvm_memory_slot *memslot, gfn_t gfn);
 
 __visible bool kvm_rebooting;
@@ -1679,11 +1678,12 @@ void kvm_release_page_dirty(struct page *page)
 }
 EXPORT_SYMBOL_GPL(kvm_release_page_dirty);
 
-static void kvm_release_pfn_dirty(kvm_pfn_t pfn)
+void kvm_release_pfn_dirty(kvm_pfn_t pfn)
 {
 	kvm_set_pfn_dirty(pfn);
 	kvm_release_pfn_clean(pfn);
 }
+EXPORT_SYMBOL_GPL(kvm_release_pfn_dirty);
 
 void kvm_set_pfn_dirty(kvm_pfn_t pfn)
 {
@@ -2065,6 +2065,29 @@ void kvm_vcpu_mark_page_dirty(struct kvm_vcpu *vcpu, gfn_t gfn)
 }
 EXPORT_SYMBOL_GPL(kvm_vcpu_mark_page_dirty);
 
+void kvm_sigset_activate(struct kvm_vcpu *vcpu)
+{
+	if (!vcpu->sigset_active)
+		return;
+
+	/*
+	 * This does a lockless modification of ->real_blocked, which is fine
+	 * because, only current can change ->real_blocked and all readers of
+	 * ->real_blocked don't care as long ->real_blocked is always a subset
+	 * of ->blocked.
+	 */
+	sigprocmask(SIG_SETMASK, &vcpu->sigset, &current->real_blocked);
+}
+
+void kvm_sigset_deactivate(struct kvm_vcpu *vcpu)
+{
+	if (!vcpu->sigset_active)
+		return;
+
+	sigprocmask(SIG_SETMASK, &current->real_blocked, NULL);
+	sigemptyset(&current->real_blocked);
+}
+
 static void grow_halt_poll_ns(struct kvm_vcpu *vcpu)
 {
 	unsigned int old, val, grow;
@@ -2302,7 +2325,7 @@ void kvm_vcpu_on_spin(struct kvm_vcpu *me, bool yield_to_kernel_mode)
 				continue;
 			} else if (pass && i > last_boosted_vcpu)
 				break;
-			if (!ACCESS_ONCE(vcpu->preempted))
+			if (!READ_ONCE(vcpu->preempted))
 				continue;
 			if (vcpu == me)
 				continue;
@@ -2724,7 +2747,6 @@ static long kvm_vcpu_compat_ioctl(struct file *filp,
 	case KVM_SET_SIGNAL_MASK: {
 		struct kvm_signal_mask __user *sigmask_arg = argp;
 		struct kvm_signal_mask kvm_sigmask;
-		compat_sigset_t csigset;
 		sigset_t sigset;
 
 		if (argp) {
@@ -2733,13 +2755,11 @@ static long kvm_vcpu_compat_ioctl(struct file *filp,
 					   sizeof(kvm_sigmask)))
 				goto out;
 			r = -EINVAL;
-			if (kvm_sigmask.len != sizeof(csigset))
+			if (kvm_sigmask.len != sizeof(compat_sigset_t))
 				goto out;
 			r = -EFAULT;
-			if (copy_from_user(&csigset, sigmask_arg->sigset,
-					   sizeof(csigset)))
+			if (get_compat_sigset(&sigset, (void *)sigmask_arg->sigset))
 				goto out;
-			sigset_from_compat(&sigset, &csigset);
 			r = kvm_vcpu_ioctl_set_sigmask(vcpu, &sigset);
 		} else
 			r = kvm_vcpu_ioctl_set_sigmask(vcpu, NULL);
@@ -4010,7 +4030,7 @@ int kvm_init(void *opaque, unsigned vcpu_size, unsigned vcpu_align,
 	if (!vcpu_align)
 		vcpu_align = __alignof__(struct kvm_vcpu);
 	kvm_vcpu_cache = kmem_cache_create("kvm_vcpu", vcpu_size, vcpu_align,
-					   0, NULL);
+					   SLAB_ACCOUNT, NULL);
 	if (!kvm_vcpu_cache) {
 		r = -ENOMEM;
 		goto out_free_3;

@@ -350,7 +350,7 @@ int intel_gvt_load_firmware(struct intel_gvt *gvt);
 
 /* Aperture/GM space definitions for GVT device */
 #define gvt_aperture_sz(gvt)	  (gvt->dev_priv->ggtt.mappable_end)
-#define gvt_aperture_pa_base(gvt) (gvt->dev_priv->ggtt.mappable_base)
+#define gvt_aperture_pa_base(gvt) (gvt->dev_priv->ggtt.gmadr.start)
 
 #define gvt_ggtt_gm_sz(gvt)	  (gvt->dev_priv->ggtt.base.total)
 #define gvt_ggtt_sz(gvt) \

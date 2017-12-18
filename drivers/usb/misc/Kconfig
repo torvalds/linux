@@ -238,8 +238,8 @@ config USB_HUB_USB251XB
 	depends on I2C
 	help
 	  This option enables support for configuration via SMBus of the
-	  Microchip USB251xB/xBi USB 2.0 Hub Controller series.
-	  Configuration parameters may be set in devicetree or platform data.
+	  Microchip USB251x/xBi USB 2.0 Hub Controller series. Configuration
+	  parameters may be set in devicetree or platform data.
 	  Say Y or M here if you need to configure such a device via SMBus.
 
 config USB_HSIC_USB3503

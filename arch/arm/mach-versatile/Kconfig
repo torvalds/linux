@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 config ARCH_VERSATILE
 	bool "ARM Ltd. Versatile family"
 	depends on ARCH_MULTI_V5

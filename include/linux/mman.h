@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _LINUX_MMAN_H
 #define _LINUX_MMAN_H
 
@@ -6,6 +7,48 @@
 
 #include <linux/atomic.h>
 #include <uapi/linux/mman.h>
+
+/*
+ * Arrange for legacy / undefined architecture specific flags to be
+ * ignored by mmap handling code.
+ */
+#ifndef MAP_32BIT
+#define MAP_32BIT 0
+#endif
+#ifndef MAP_HUGE_2MB
+#define MAP_HUGE_2MB 0
+#endif
+#ifndef MAP_HUGE_1GB
+#define MAP_HUGE_1GB 0
+#endif
+#ifndef MAP_UNINITIALIZED
+#define MAP_UNINITIALIZED 0
+#endif
+#ifndef MAP_SYNC
+#define MAP_SYNC 0
+#endif
+
+/*
+ * The historical set of flags that all mmap implementations implicitly
+ * support when a ->mmap_validate() op is not provided in file_operations.
+ */
+#define LEGACY_MAP_MASK (MAP_SHARED \
+		| MAP_PRIVATE \
+		| MAP_FIXED \
+		| MAP_ANONYMOUS \
+		| MAP_DENYWRITE \
+		| MAP_EXECUTABLE \
+		| MAP_UNINITIALIZED \
+		| MAP_GROWSDOWN \
+		| MAP_LOCKED \
+		| MAP_NORESERVE \
+		| MAP_POPULATE \
+		| MAP_NONBLOCK \
+		| MAP_STACK \
+		| MAP_HUGETLB \
+		| MAP_32BIT \
+		| MAP_HUGE_2MB \
+		| MAP_HUGE_1GB)
 
 extern int sysctl_overcommit_memory;
 extern int sysctl_overcommit_ratio;
@@ -63,8 +106,9 @@ static inline bool arch_validate_prot(unsigned long prot)
  * ("bit1" and "bit2" must be single bits)
  */
 #define _calc_vm_trans(x, bit1, bit2) \
+  ((!(bit1) || !(bit2)) ? 0 : \
   ((bit1) <= (bit2) ? ((x) & (bit1)) * ((bit2) / (bit1)) \
-   : ((x) & (bit1)) / ((bit1) / (bit2)))
+   : ((x) & (bit1)) / ((bit1) / (bit2))))
 
 /*
  * Combine the mmap "prot" argument into "vm_flags" used internally.
@@ -86,7 +130,8 @@ calc_vm_flag_bits(unsigned long flags)
 {
 	return _calc_vm_trans(flags, MAP_GROWSDOWN,  VM_GROWSDOWN ) |
 	       _calc_vm_trans(flags, MAP_DENYWRITE,  VM_DENYWRITE ) |
-	       _calc_vm_trans(flags, MAP_LOCKED,     VM_LOCKED    );
+	       _calc_vm_trans(flags, MAP_LOCKED,     VM_LOCKED    ) |
+	       _calc_vm_trans(flags, MAP_SYNC,	     VM_SYNC      );
 }
 
 unsigned long vm_commit_limit(void);

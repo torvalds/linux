@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _MPX_HW_H
 #define _MPX_HW_H
 
@@ -51,14 +52,14 @@
 struct mpx_bd_entry {
 	union {
 		char x[MPX_BOUNDS_DIR_ENTRY_SIZE_BYTES];
-		void *contents[1];
+		void *contents[0];
 	};
 } __attribute__((packed));
 
 struct mpx_bt_entry {
 	union {
 		char x[MPX_BOUNDS_TABLE_ENTRY_SIZE_BYTES];
-		unsigned long contents[1];
+		unsigned long contents[0];
 	};
 } __attribute__((packed));
 

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __X86_KERNEL_KPROBES_COMMON_H
 #define __X86_KERNEL_KPROBES_COMMON_H
 
@@ -84,11 +85,11 @@ extern unsigned long recover_probed_instruction(kprobe_opcode_t *buf,
  * Copy an instruction and adjust the displacement if the instruction
  * uses the %rip-relative addressing mode.
  */
-extern int __copy_instruction(u8 *dest, u8 *src, struct insn *insn);
+extern int __copy_instruction(u8 *dest, u8 *src, u8 *real, struct insn *insn);
 
 /* Generate a relative-jump/call instruction */
-extern void synthesize_reljump(void *from, void *to);
-extern void synthesize_relcall(void *from, void *to);
+extern void synthesize_reljump(void *dest, void *from, void *to);
+extern void synthesize_relcall(void *dest, void *from, void *to);
 
 #ifdef	CONFIG_OPTPROBES
 extern int setup_detour_execution(struct kprobe *p, struct pt_regs *regs, int reenter);

@@ -1,4 +1,5 @@
 #!/bin/bash
+# SPDX-License-Identifier: GPL-2.0
 
 efivarfs_mount=/sys/firmware/efi/efivars
 test_guid=210be57c-9849-4fc7-a635-e6382d1aec27

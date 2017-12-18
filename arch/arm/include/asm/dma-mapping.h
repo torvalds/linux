@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef ASMARM_DMA_MAPPING_H
 #define ASMARM_DMA_MAPPING_H
 
@@ -188,13 +189,6 @@ extern void arm_dma_free(struct device *dev, size_t size, void *cpu_addr,
 extern int arm_dma_mmap(struct device *dev, struct vm_area_struct *vma,
 			void *cpu_addr, dma_addr_t dma_addr, size_t size,
 			unsigned long attrs);
-
-/*
- * This can be called during early boot to increase the size of the atomic
- * coherent DMA pool above the default value of 256KiB. It must be called
- * before postcore_initcall.
- */
-extern void __init init_dma_coherent_pool_size(unsigned long size);
 
 /*
  * For SA-1111, IXP425, and ADI systems  the dma-mapping functions are "magic"

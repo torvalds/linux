@@ -113,7 +113,7 @@ EXPORT_SYMBOL(config_item_set_name);
 
 void config_item_init_type_name(struct config_item *item,
 				const char *name,
-				struct config_item_type *type)
+				const struct config_item_type *type)
 {
 	config_item_set_name(item, "%s", name);
 	item->ci_type = type;
@@ -122,7 +122,7 @@ void config_item_init_type_name(struct config_item *item,
 EXPORT_SYMBOL(config_item_init_type_name);
 
 void config_group_init_type_name(struct config_group *group, const char *name,
-			 struct config_item_type *type)
+			 const struct config_item_type *type)
 {
 	config_item_set_name(&group->cg_item, "%s", name);
 	group->cg_item.ci_type = type;
@@ -148,7 +148,7 @@ EXPORT_SYMBOL(config_item_get_unless_zero);
 
 static void config_item_cleanup(struct config_item *item)
 {
-	struct config_item_type *t = item->ci_type;
+	const struct config_item_type *t = item->ci_type;
 	struct config_group *s = item->ci_group;
 	struct config_item *parent = item->ci_parent;
 

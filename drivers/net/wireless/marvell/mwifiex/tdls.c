@@ -1389,9 +1389,9 @@ void mwifiex_auto_tdls_update_peer_signal(struct mwifiex_private *priv,
 	spin_unlock_irqrestore(&priv->auto_tdls_lock, flags);
 }
 
-void mwifiex_check_auto_tdls(unsigned long context)
+void mwifiex_check_auto_tdls(struct timer_list *t)
 {
-	struct mwifiex_private *priv = (struct mwifiex_private *)context;
+	struct mwifiex_private *priv = from_timer(priv, t, auto_tdls_timer);
 	struct mwifiex_auto_tdls_peer *tdls_peer;
 	unsigned long flags;
 	u16 reason = WLAN_REASON_TDLS_TEARDOWN_UNSPECIFIED;
@@ -1412,13 +1412,6 @@ void mwifiex_check_auto_tdls(unsigned long context)
 	}
 
 	priv->check_tdls_tx = false;
-
-	if (list_empty(&priv->auto_tdls_list)) {
-		mod_timer(&priv->auto_tdls_timer,
-			  jiffies +
-			  msecs_to_jiffies(MWIFIEX_TIMER_10S));
-		return;
-	}
 
 	spin_lock_irqsave(&priv->auto_tdls_lock, flags);
 	list_for_each_entry(tdls_peer, &priv->auto_tdls_list, list) {
@@ -1463,8 +1456,7 @@ void mwifiex_check_auto_tdls(unsigned long context)
 
 void mwifiex_setup_auto_tdls_timer(struct mwifiex_private *priv)
 {
-	setup_timer(&priv->auto_tdls_timer, mwifiex_check_auto_tdls,
-		    (unsigned long)priv);
+	timer_setup(&priv->auto_tdls_timer, mwifiex_check_auto_tdls, 0);
 	priv->auto_tdls_timer_active = true;
 	mod_timer(&priv->auto_tdls_timer,
 		  jiffies + msecs_to_jiffies(MWIFIEX_TIMER_10S));

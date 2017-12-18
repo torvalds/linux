@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  *	sp5100_tco:	TCO timer driver for sp5100 chipsets.
  *

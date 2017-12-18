@@ -50,8 +50,9 @@ be stronger.
 Except where noted below, we speak only for ourselves, and not for any company
 we might work for today, have in the past, or will in the future.
 
+  - Laura Abbott
   - Bjorn Andersson (Linaro)
-  - Andrea Arcangeli (Red Hat)
+  - Andrea Arcangeli
   - Neil Armstrong
   - Jens Axboe
   - Pablo Neira Ayuso
@@ -60,15 +61,17 @@ we might work for today, have in the past, or will in the future.
   - Felipe Balbi
   - Arnd Bergmann
   - Ard Biesheuvel
-  - Paolo Bonzini (Red Hat)
+  - Tim Bird
+  - Paolo Bonzini
   - Christian Borntraeger
   - Mark Brown (Linaro)
   - Paul Burton
   - Javier Martinez Canillas
   - Rob Clark
   - Jonathan Corbet
+  - Dennis Dalessandro
   - Vivien Didelot (Savoir-faire Linux)
-  - Hans de Goede (Red Hat)
+  - Hans de Goede
   - Mel Gorman (SUSE)
   - Sven Eckelmann
   - Alex Elder (Linaro)
@@ -79,6 +82,7 @@ we might work for today, have in the past, or will in the future.
   - Juergen Gross
   - Shawn Guo
   - Ulf Hansson
+  - Stephen Hemminger (Microsoft)
   - Tejun Heo
   - Rob Herring
   - Masami Hiramatsu
@@ -104,18 +108,21 @@ we might work for today, have in the past, or will in the future.
   - Viresh Kumar
   - Aneesh Kumar K.V
   - Julia Lawall
-  - Doug Ledford (Red Hat)
+  - Doug Ledford
   - Chuck Lever (Oracle)
   - Daniel Lezcano
   - Shaohua Li
-  - Xin Long (Red Hat)
+  - Xin Long
   - Tony Luck
+  - Catalin Marinas (Arm Ltd)
   - Mike Marshall
   - Chris Mason
   - Paul E. McKenney
   - David S. Miller
   - Ingo Molnar
   - Kuninori Morimoto
+  - Trond Myklebust
+  - Martin K. Petersen (Oracle)
   - Borislav Petkov
   - Jiri Pirko
   - Josh Poimboeuf
@@ -124,18 +131,20 @@ we might work for today, have in the past, or will in the future.
   - Joerg Roedel
   - Leon Romanovsky
   - Steven Rostedt (VMware)
-  - Ivan Safonov
+  - Frank Rowand
   - Ivan Safonov
   - Anna Schumaker
   - Jes Sorensen
   - K.Y. Srinivasan
   - Heiko Stuebner
   - Jiri Kosina (SUSE)
+  - Willy Tarreau
   - Dmitry Torokhov
   - Linus Torvalds
   - Thierry Reding
   - Rik van Riel
   - Geert Uytterhoeven (Glider bvba)
+  - Eduardo Valentin (Amazon.com)
   - Daniel Vetter
   - Linus Walleij
   - Richard Weinberger
@@ -145,3 +154,4 @@ we might work for today, have in the past, or will in the future.
   - Masahiro Yamada
   - Wei Yongjun
   - Lv Zheng
+  - Marc Zyngier (Arm Ltd)

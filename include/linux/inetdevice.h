@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _LINUX_INETDEVICE_H
 #define _LINUX_INETDEVICE_H
 
@@ -154,6 +155,7 @@ struct in_ifaddr {
 struct in_validator_info {
 	__be32			ivi_addr;
 	struct in_device	*ivi_dev;
+	struct netlink_ext_ack	*extack;
 };
 
 int register_inetaddr_notifier(struct notifier_block *nb);
@@ -179,6 +181,7 @@ __be32 inet_confirm_addr(struct net *net, struct in_device *in_dev, __be32 dst,
 			 __be32 local, int scope);
 struct in_ifaddr *inet_ifa_byprefix(struct in_device *in_dev, __be32 prefix,
 				    __be32 mask);
+struct in_ifaddr *inet_lookup_ifaddr_rcu(struct net *net, __be32 addr);
 static __inline__ bool inet_ifa_match(__be32 addr, struct in_ifaddr *ifa)
 {
 	return !((addr^ifa->ifa_address)&ifa->ifa_mask);

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *	SUCS NET3:
  *
@@ -188,7 +189,7 @@ struct sk_buff *__skb_try_recv_from_queue(struct sock *sk,
 			}
 			if (!skb->len) {
 				skb = skb_set_peeked(skb);
-				if (unlikely(IS_ERR(skb))) {
+				if (IS_ERR(skb)) {
 					*err = PTR_ERR(skb);
 					return NULL;
 				}

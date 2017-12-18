@@ -47,7 +47,6 @@
 #include <linux/stringify.h>
 #include <linux/bitops.h>
 #include <linux/gfp.h>
-#include <linux/kmemcheck.h>
 #include <linux/random.h>
 #include <linux/jhash.h>
 
@@ -75,6 +74,19 @@ module_param(lock_stat, int, 0644);
 #else
 #define lock_stat 0
 #endif
+
+#ifdef CONFIG_BOOTPARAM_LOCKDEP_CROSSRELEASE_FULLSTACK
+static int crossrelease_fullstack = 1;
+#else
+static int crossrelease_fullstack;
+#endif
+static int __init allow_crossrelease_fullstack(char *str)
+{
+	crossrelease_fullstack = 1;
+	return 0;
+}
+
+early_param("crossrelease_fullstack", allow_crossrelease_fullstack);
 
 /*
  * lockdep_lock: protects the lockdep graph, the hashes and the
@@ -3225,8 +3237,6 @@ static void __lockdep_init_map(struct lockdep_map *lock, const char *name,
 {
 	int i;
 
-	kmemcheck_mark_initialized(lock, sizeof(*lock));
-
 	for (i = 0; i < NR_LOCKDEP_CACHING_CLASSES; i++)
 		lock->class_cache[i] = NULL;
 
@@ -4863,8 +4873,14 @@ static void add_xhlock(struct held_lock *hlock)
 	xhlock->trace.nr_entries = 0;
 	xhlock->trace.max_entries = MAX_XHLOCK_TRACE_ENTRIES;
 	xhlock->trace.entries = xhlock->trace_entries;
-	xhlock->trace.skip = 3;
-	save_stack_trace(&xhlock->trace);
+
+	if (crossrelease_fullstack) {
+		xhlock->trace.skip = 3;
+		save_stack_trace(&xhlock->trace);
+	} else {
+		xhlock->trace.nr_entries = 1;
+		xhlock->trace.entries[0] = hlock->acquire_ip;
+	}
 }
 
 static inline int same_context_xhlock(struct hist_lock *xhlock)

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __X86_MM_NUMA_INTERNAL_H
 #define __X86_MM_NUMA_INTERNAL_H
 

@@ -199,7 +199,7 @@ static irqreturn_t idio_16_irq_handler(int irq, void *dev_id)
 	int gpio;
 
 	for_each_set_bit(gpio, &idio16gpio->irq_mask, chip->ngpio)
-		generic_handle_irq(irq_find_mapping(chip->irqdomain, gpio));
+		generic_handle_irq(irq_find_mapping(chip->irq.domain, gpio));
 
 	raw_spin_lock(&idio16gpio->lock);
 

@@ -25,7 +25,7 @@
 #include <linux/kobject.h>
 #include <linux/mfd/max8997.h>
 #include <linux/mfd/max8997-private.h>
-#include <linux/extcon.h>
+#include <linux/extcon-provider.h>
 #include <linux/irqdomain.h>
 
 #define	DEV_NAME			"max8997-muic"

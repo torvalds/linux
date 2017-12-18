@@ -898,8 +898,8 @@ static void __init mac_identify(void)
 		mac_bi_data.id, mac_bi_data.cpuid, mac_bi_data.memsize);
 
 	iop_init();
-	via_init();
 	oss_init();
+	via_init();
 	psc_init();
 	baboon_init();
 

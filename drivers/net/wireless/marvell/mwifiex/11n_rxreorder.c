@@ -312,10 +312,10 @@ mwifiex_11n_find_last_seq_num(struct reorder_tmr_cnxt *ctx)
  * them and then dumps the Rx reordering table.
  */
 static void
-mwifiex_flush_data(unsigned long context)
+mwifiex_flush_data(struct timer_list *t)
 {
 	struct reorder_tmr_cnxt *ctx =
-		(struct reorder_tmr_cnxt *) context;
+		from_timer(ctx, t, timer);
 	int start_win, seq_num;
 
 	ctx->timer_is_set = false;
@@ -412,8 +412,7 @@ mwifiex_11n_create_rx_reorder_tbl(struct mwifiex_private *priv, u8 *ta,
 	new_node->timer_context.priv = priv;
 	new_node->timer_context.timer_is_set = false;
 
-	setup_timer(&new_node->timer_context.timer, mwifiex_flush_data,
-		    (unsigned long)&new_node->timer_context);
+	timer_setup(&new_node->timer_context.timer, mwifiex_flush_data, 0);
 
 	for (i = 0; i < win_size; ++i)
 		new_node->rx_reorder_ptr[i] = NULL;
@@ -835,12 +834,6 @@ void mwifiex_update_rxreor_flags(struct mwifiex_adapter *adapter, u8 flags)
 			continue;
 
 		spin_lock_irqsave(&priv->rx_reorder_tbl_lock, lock_flags);
-		if (list_empty(&priv->rx_reorder_tbl_ptr)) {
-			spin_unlock_irqrestore(&priv->rx_reorder_tbl_lock,
-					       lock_flags);
-			continue;
-		}
-
 		list_for_each_entry(tbl, &priv->rx_reorder_tbl_ptr, list)
 			tbl->flags = flags;
 		spin_unlock_irqrestore(&priv->rx_reorder_tbl_lock, lock_flags);

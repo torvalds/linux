@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef SCSI_TRANSPORT_SRP_H
 #define SCSI_TRANSPORT_SRP_H
 

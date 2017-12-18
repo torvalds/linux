@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Naive system call dropper built on seccomp_filter.
  *

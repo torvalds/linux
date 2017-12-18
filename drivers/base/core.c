@@ -668,7 +668,7 @@ const char *dev_driver_string(const struct device *dev)
 	 * so be careful about accessing it.  dev->bus and dev->class should
 	 * never change once they are set, so they don't need special care.
 	 */
-	drv = ACCESS_ONCE(dev->driver);
+	drv = READ_ONCE(dev->driver);
 	return drv ? drv->name :
 			(dev->bus ? dev->bus->name :
 			(dev->class ? dev->class->name : ""));
@@ -1571,7 +1571,7 @@ static int device_add_class_symlinks(struct device *dev)
 	int error;
 
 	if (of_node) {
-		error = sysfs_create_link(&dev->kobj, &of_node->kobj,"of_node");
+		error = sysfs_create_link(&dev->kobj, of_node_kobj(of_node), "of_node");
 		if (error)
 			dev_warn(dev, "Error %d creating of_node link\n",error);
 		/* An error here doesn't warrant bringing down the device */
@@ -1958,7 +1958,6 @@ void device_del(struct device *dev)
 		blocking_notifier_call_chain(&dev->bus->p->bus_notifier,
 					     BUS_NOTIFY_DEL_DEVICE, dev);
 
-	device_links_purge(dev);
 	dpm_sysfs_remove(dev);
 	if (parent)
 		klist_del(&dev->p->knode_parent);
@@ -1986,6 +1985,7 @@ void device_del(struct device *dev)
 	device_pm_remove(dev);
 	driver_deferred_probe_del(dev);
 	device_remove_properties(dev);
+	device_links_purge(dev);
 
 	/* Notify the platform of the removal, in case they
 	 * need to do anything...

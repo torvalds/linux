@@ -172,7 +172,9 @@ i915_mmu_notifier_create(struct mm_struct *mm)
 	spin_lock_init(&mn->lock);
 	mn->mn.ops = &i915_gem_userptr_notifier;
 	mn->objects = RB_ROOT_CACHED;
-	mn->wq = alloc_workqueue("i915-userptr-release", WQ_UNBOUND, 0);
+	mn->wq = alloc_workqueue("i915-userptr-release",
+				 WQ_UNBOUND | WQ_MEM_RECLAIM,
+				 0);
 	if (mn->wq == NULL) {
 		kfree(mn);
 		return ERR_PTR(-ENOMEM);
@@ -547,7 +549,7 @@ __i915_gem_userptr_get_pages_worker(struct work_struct *_work)
 	}
 	mutex_unlock(&obj->mm.lock);
 
-	release_pages(pvec, pinned, 0);
+	release_pages(pvec, pinned);
 	kvfree(pvec);
 
 	i915_gem_object_put(obj);
@@ -660,7 +662,7 @@ static int i915_gem_userptr_get_pages(struct drm_i915_gem_object *obj)
 		__i915_gem_userptr_set_active(obj, true);
 
 	if (IS_ERR(pages))
-		release_pages(pvec, pinned, 0);
+		release_pages(pvec, pinned);
 	kvfree(pvec);
 
 	return PTR_ERR_OR_ZERO(pages);
@@ -827,7 +829,7 @@ int i915_gem_init_userptr(struct drm_i915_private *dev_priv)
 
 	dev_priv->mm.userptr_wq =
 		alloc_workqueue("i915-userptr-acquire",
-				WQ_HIGHPRI | WQ_MEM_RECLAIM,
+				WQ_HIGHPRI | WQ_UNBOUND,
 				0);
 	if (!dev_priv->mm.userptr_wq)
 		return -ENOMEM;

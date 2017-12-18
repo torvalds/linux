@@ -274,7 +274,7 @@ static int __init rk_clksrc_init(struct device_node *np)
 		TIMER_NAME, rk_clksrc->freq, 250, 32,
 		clocksource_mmio_readl_down);
 	if (ret) {
-		pr_err("Failed to register clocksource");
+		pr_err("Failed to register clocksource\n");
 		goto out_clocksource;
 	}
 

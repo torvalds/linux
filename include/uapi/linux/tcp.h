@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
 /*
  * INET		An implementation of the TCP/IP protocol suite for the LINUX
  *		operating system.  INET is implemented using the  BSD Socket
@@ -119,6 +120,8 @@ enum {
 #define TCP_FASTOPEN_CONNECT	30	/* Attempt FastOpen with connect */
 #define TCP_ULP			31	/* Attach a ULP to a TCP connection */
 #define TCP_MD5SIG_EXT		32	/* TCP MD5 Signature with extensions */
+#define TCP_FASTOPEN_KEY	33	/* Set the key for Fast Open (cookie) */
+#define TCP_FASTOPEN_NO_COOKIE	34	/* Enable TFO without a TFO cookie */
 
 struct tcp_repair_opt {
 	__u32	opt_code;

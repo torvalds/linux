@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Texas Instruments DA8xx/OMAP-L1x "glue layer"
  *
@@ -10,23 +11,6 @@
  * Copyright (c) 2016 Petr Kulhavy <petr@barix.com>
  *
  * This file is part of the Inventra Controller Driver for Linux.
- *
- * The Inventra Controller Driver for Linux is free software; you
- * can redistribute it and/or modify it under the terms of the GNU
- * General Public License version 2 as published by the Free Software
- * Foundation.
- *
- * The Inventra Controller Driver for Linux is distributed in
- * the hope that it will be useful, but WITHOUT ANY WARRANTY;
- * without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public
- * License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with The Inventra Controller Driver for Linux ; if not,
- * write to the Free Software Foundation, Inc., 59 Temple Place,
- * Suite 330, Boston, MA  02111-1307  USA
- *
  */
 
 #include <linux/module.h>
@@ -50,10 +34,7 @@
 #define DA8XX_USB_CTRL_REG	0x04
 #define DA8XX_USB_STAT_REG	0x08
 #define DA8XX_USB_EMULATION_REG 0x0c
-#define DA8XX_USB_MODE_REG	0x10	/* Transparent, CDC, [Generic] RNDIS */
-#define DA8XX_USB_AUTOREQ_REG	0x14
 #define DA8XX_USB_SRP_FIX_TIME_REG 0x18
-#define DA8XX_USB_TEARDOWN_REG	0x1c
 #define DA8XX_USB_INTR_SRC_REG	0x20
 #define DA8XX_USB_INTR_SRC_SET_REG 0x24
 #define DA8XX_USB_INTR_SRC_CLEAR_REG 0x28
@@ -138,11 +119,9 @@ static void da8xx_musb_set_vbus(struct musb *musb, int is_on)
 
 #define	POLL_SECONDS	2
 
-static struct timer_list otg_workaround;
-
-static void otg_timer(unsigned long _musb)
+static void otg_timer(struct timer_list *t)
 {
-	struct musb		*musb = (void *)_musb;
+	struct musb		*musb = from_timer(musb, t, dev_timer);
 	void __iomem		*mregs = musb->mregs;
 	u8			devctl;
 	unsigned long		flags;
@@ -178,7 +157,7 @@ static void otg_timer(unsigned long _musb)
 		 * VBUSERR got reported during enumeration" cases.
 		 */
 		if (devctl & MUSB_DEVCTL_VBUS) {
-			mod_timer(&otg_workaround, jiffies + POLL_SECONDS * HZ);
+			mod_timer(&musb->dev_timer, jiffies + POLL_SECONDS * HZ);
 			break;
 		}
 		musb->xceiv->otg->state = OTG_STATE_A_WAIT_VRISE;
@@ -201,7 +180,7 @@ static void otg_timer(unsigned long _musb)
 		musb_writeb(mregs, MUSB_DEVCTL, devctl | MUSB_DEVCTL_SESSION);
 		devctl = musb_readb(mregs, MUSB_DEVCTL);
 		if (devctl & MUSB_DEVCTL_BDEVICE)
-			mod_timer(&otg_workaround, jiffies + POLL_SECONDS * HZ);
+			mod_timer(&musb->dev_timer, jiffies + POLL_SECONDS * HZ);
 		else
 			musb->xceiv->otg->state = OTG_STATE_A_IDLE;
 		break;
@@ -223,12 +202,12 @@ static void da8xx_musb_try_idle(struct musb *musb, unsigned long timeout)
 				musb->xceiv->otg->state == OTG_STATE_A_WAIT_BCON)) {
 		dev_dbg(musb->controller, "%s active, deleting timer\n",
 			usb_otg_state_string(musb->xceiv->otg->state));
-		del_timer(&otg_workaround);
+		del_timer(&musb->dev_timer);
 		last_timer = jiffies;
 		return;
 	}
 
-	if (time_after(last_timer, timeout) && timer_pending(&otg_workaround)) {
+	if (time_after(last_timer, timeout) && timer_pending(&musb->dev_timer)) {
 		dev_dbg(musb->controller, "Longer idle timer already pending, ignoring...\n");
 		return;
 	}
@@ -237,7 +216,7 @@ static void da8xx_musb_try_idle(struct musb *musb, unsigned long timeout)
 	dev_dbg(musb->controller, "%s inactive, starting idle timer for %u ms\n",
 		usb_otg_state_string(musb->xceiv->otg->state),
 		jiffies_to_msecs(timeout - jiffies));
-	mod_timer(&otg_workaround, timeout);
+	mod_timer(&musb->dev_timer, timeout);
 }
 
 static irqreturn_t da8xx_musb_interrupt(int irq, void *hci)
@@ -297,14 +276,14 @@ static irqreturn_t da8xx_musb_interrupt(int irq, void *hci)
 			 */
 			musb->int_usb &= ~MUSB_INTR_VBUSERROR;
 			musb->xceiv->otg->state = OTG_STATE_A_WAIT_VFALL;
-			mod_timer(&otg_workaround, jiffies + POLL_SECONDS * HZ);
+			mod_timer(&musb->dev_timer, jiffies + POLL_SECONDS * HZ);
 			WARNING("VBUS error workaround (delay coming)\n");
 		} else if (drvvbus) {
 			MUSB_HST_MODE(musb);
 			otg->default_a = 1;
 			musb->xceiv->otg->state = OTG_STATE_A_WAIT_VRISE;
 			portstate(musb->port1_status |= USB_PORT_STAT_POWER);
-			del_timer(&otg_workaround);
+			del_timer(&musb->dev_timer);
 		} else {
 			musb->is_active = 0;
 			MUSB_DEV_MODE(musb);
@@ -331,7 +310,7 @@ static irqreturn_t da8xx_musb_interrupt(int irq, void *hci)
 
 	/* Poll for ID change */
 	if (musb->xceiv->otg->state == OTG_STATE_B_IDLE)
-		mod_timer(&otg_workaround, jiffies + POLL_SECONDS * HZ);
+		mod_timer(&musb->dev_timer, jiffies + POLL_SECONDS * HZ);
 
 	spin_unlock_irqrestore(&musb->lock, flags);
 
@@ -393,7 +372,7 @@ static int da8xx_musb_init(struct musb *musb)
 		goto fail;
 	}
 
-	setup_timer(&otg_workaround, otg_timer, (unsigned long)musb);
+	timer_setup(&musb->dev_timer, otg_timer, 0);
 
 	/* Reset the controller */
 	musb_writel(reg_base, DA8XX_USB_CTRL_REG, DA8XX_SOFT_RESET_MASK);
@@ -431,7 +410,7 @@ static int da8xx_musb_exit(struct musb *musb)
 {
 	struct da8xx_glue *glue = dev_get_drvdata(musb->controller->parent);
 
-	del_timer_sync(&otg_workaround);
+	del_timer_sync(&musb->dev_timer);
 
 	phy_power_off(glue->phy);
 	phy_exit(glue->phy);

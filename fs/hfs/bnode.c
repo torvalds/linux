@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *  linux/fs/hfs/bnode.c
  *
@@ -97,13 +98,11 @@ void hfs_bnode_clear(struct hfs_bnode *node, int off, int len)
 void hfs_bnode_copy(struct hfs_bnode *dst_node, int dst,
 		struct hfs_bnode *src_node, int src, int len)
 {
-	struct hfs_btree *tree;
 	struct page *src_page, *dst_page;
 
 	hfs_dbg(BNODE_MOD, "copybytes: %u,%u,%u\n", dst, src, len);
 	if (!len)
 		return;
-	tree = src_node->tree;
 	src += src_node->page_offset;
 	dst += dst_node->page_offset;
 	src_page = src_node->page[0];
@@ -236,7 +235,6 @@ struct hfs_bnode *hfs_bnode_findhash(struct hfs_btree *tree, u32 cnid)
 
 static struct hfs_bnode *__hfs_bnode_create(struct hfs_btree *tree, u32 cnid)
 {
-	struct super_block *sb;
 	struct hfs_bnode *node, *node2;
 	struct address_space *mapping;
 	struct page *page;
@@ -248,7 +246,6 @@ static struct hfs_bnode *__hfs_bnode_create(struct hfs_btree *tree, u32 cnid)
 		return NULL;
 	}
 
-	sb = tree->inode->i_sb;
 	size = sizeof(struct hfs_bnode) + tree->pages_per_bnode *
 		sizeof(struct page *);
 	node = kzalloc(size, GFP_KERNEL);

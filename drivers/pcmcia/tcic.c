@@ -98,7 +98,7 @@ module_param(cycle_time, int, 0444);
 /*====================================================================*/
 
 static irqreturn_t tcic_interrupt(int irq, void *dev);
-static void tcic_timer(u_long data);
+static void tcic_timer(struct timer_list *unused);
 static struct pccard_operations tcic_operations;
 
 struct tcic_socket {
@@ -435,9 +435,7 @@ static int __init init_tcic(void)
     }
     
     /* Set up polling */
-    poll_timer.function = &tcic_timer;
-    poll_timer.data = 0;
-    init_timer(&poll_timer);
+    timer_setup(&poll_timer, &tcic_timer, 0);
 
     /* Build interrupt mask */
     printk(KERN_CONT ", %d sockets\n", sockets);
@@ -583,7 +581,7 @@ static irqreturn_t tcic_interrupt(int irq, void *dev)
     return IRQ_HANDLED;
 } /* tcic_interrupt */
 
-static void tcic_timer(u_long data)
+static void tcic_timer(struct timer_list *unused)
 {
     pr_debug("tcic_timer()\n");
     tcic_timer_pending = 0;

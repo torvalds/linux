@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * NETLINK      Netlink attributes
  *
@@ -14,17 +15,21 @@
 #include <linux/types.h>
 #include <net/netlink.h>
 
-static const u8 nla_attr_minlen[NLA_TYPE_MAX+1] = {
+/* for these data types attribute length must be exactly given size */
+static const u8 nla_attr_len[NLA_TYPE_MAX+1] = {
 	[NLA_U8]	= sizeof(u8),
 	[NLA_U16]	= sizeof(u16),
 	[NLA_U32]	= sizeof(u32),
 	[NLA_U64]	= sizeof(u64),
-	[NLA_MSECS]	= sizeof(u64),
-	[NLA_NESTED]	= NLA_HDRLEN,
 	[NLA_S8]	= sizeof(s8),
 	[NLA_S16]	= sizeof(s16),
 	[NLA_S32]	= sizeof(s32),
 	[NLA_S64]	= sizeof(s64),
+};
+
+static const u8 nla_attr_minlen[NLA_TYPE_MAX+1] = {
+	[NLA_MSECS]	= sizeof(u64),
+	[NLA_NESTED]	= NLA_HDRLEN,
 };
 
 static int validate_nla_bitfield32(const struct nlattr *nla,
@@ -63,6 +68,13 @@ static int validate_nla(const struct nlattr *nla, int maxtype,
 	pt = &policy[type];
 
 	BUG_ON(pt->type > NLA_TYPE_MAX);
+
+	/* for data types NLA_U* and NLA_S* require exact length */
+	if (nla_attr_len[pt->type]) {
+		if (attrlen != nla_attr_len[pt->type])
+			return -ERANGE;
+		return 0;
+	}
 
 	switch (pt->type) {
 	case NLA_FLAG:
@@ -190,6 +202,8 @@ nla_policy_len(const struct nla_policy *p, int n)
 	for (i = 0; i < n; i++, p++) {
 		if (p->len)
 			len += nla_total_size(p->len);
+		else if (nla_attr_len[p->type])
+			len += nla_total_size(nla_attr_len[p->type]);
 		else if (nla_attr_minlen[p->type])
 			len += nla_total_size(nla_attr_minlen[p->type]);
 	}

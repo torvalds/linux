@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /* getdelays.c
  *
  * Utility to get per-pid and per-tgid delay accounting statistics

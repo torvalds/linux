@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *	kernel/crash_dump.c - Memory preserving reboot related code.
  *

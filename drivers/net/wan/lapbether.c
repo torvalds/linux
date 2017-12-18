@@ -346,7 +346,6 @@ out:
 fail:
 	dev_put(dev);
 	free_netdev(ndev);
-	kfree(lapbeth);
 	goto out;
 }
 

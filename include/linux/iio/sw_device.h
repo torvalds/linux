@@ -60,7 +60,7 @@ void iio_sw_device_type_configfs_unregister(struct iio_sw_device_type *dt);
 static inline
 void iio_swd_group_init_type_name(struct iio_sw_device *d,
 				  const char *name,
-				  struct config_item_type *type)
+				  const struct config_item_type *type)
 {
 #if IS_ENABLED(CONFIG_CONFIGFS_FS)
 	config_group_init_type_name(&d->group, name, type);

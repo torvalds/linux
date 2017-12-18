@@ -387,6 +387,7 @@ static int vmw_cotable_readback(struct vmw_resource *res)
  */
 static int vmw_cotable_resize(struct vmw_resource *res, size_t new_size)
 {
+	struct ttm_operation_ctx ctx = { false, false };
 	struct vmw_private *dev_priv = res->dev_priv;
 	struct vmw_cotable *vcotbl = vmw_cotable(res);
 	struct vmw_dma_buffer *buf, *old_buf = res->backup;
@@ -455,7 +456,7 @@ static int vmw_cotable_resize(struct vmw_resource *res, size_t new_size)
 	}
 
 	/* Unpin new buffer, and switch backup buffers. */
-	ret = ttm_bo_validate(bo, &vmw_mob_placement, false, false);
+	ret = ttm_bo_validate(bo, &vmw_mob_placement, &ctx);
 	if (unlikely(ret != 0)) {
 		DRM_ERROR("Failed validating new COTable backup buffer.\n");
 		goto out_wait;

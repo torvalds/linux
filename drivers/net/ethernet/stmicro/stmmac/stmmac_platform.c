@@ -168,8 +168,8 @@ static void stmmac_mtl_setup(struct platform_device *pdev,
 	}
 
 	/* Processing RX queues common config */
-	if (of_property_read_u8(rx_node, "snps,rx-queues-to-use",
-				&plat->rx_queues_to_use))
+	if (of_property_read_u32(rx_node, "snps,rx-queues-to-use",
+				 &plat->rx_queues_to_use))
 		plat->rx_queues_to_use = 1;
 
 	if (of_property_read_bool(rx_node, "snps,rx-sched-sp"))
@@ -191,8 +191,8 @@ static void stmmac_mtl_setup(struct platform_device *pdev,
 		else
 			plat->rx_queues_cfg[queue].mode_to_use = MTL_QUEUE_DCB;
 
-		if (of_property_read_u8(q_node, "snps,map-to-dma-channel",
-					&plat->rx_queues_cfg[queue].chan))
+		if (of_property_read_u32(q_node, "snps,map-to-dma-channel",
+					 &plat->rx_queues_cfg[queue].chan))
 			plat->rx_queues_cfg[queue].chan = queue;
 		/* TODO: Dynamic mapping to be included in the future */
 
@@ -222,8 +222,8 @@ static void stmmac_mtl_setup(struct platform_device *pdev,
 	}
 
 	/* Processing TX queues common config */
-	if (of_property_read_u8(tx_node, "snps,tx-queues-to-use",
-				&plat->tx_queues_to_use))
+	if (of_property_read_u32(tx_node, "snps,tx-queues-to-use",
+				 &plat->tx_queues_to_use))
 		plat->tx_queues_to_use = 1;
 
 	if (of_property_read_bool(tx_node, "snps,tx-sched-wrr"))
@@ -244,8 +244,8 @@ static void stmmac_mtl_setup(struct platform_device *pdev,
 		if (queue >= plat->tx_queues_to_use)
 			break;
 
-		if (of_property_read_u8(q_node, "snps,weight",
-					&plat->tx_queues_cfg[queue].weight))
+		if (of_property_read_u32(q_node, "snps,weight",
+					 &plat->tx_queues_cfg[queue].weight))
 			plat->tx_queues_cfg[queue].weight = 0x10 + queue;
 
 		if (of_property_read_bool(q_node, "snps,dcb-algorithm")) {
@@ -318,10 +318,6 @@ static int stmmac_dt_phy(struct plat_stmmacenet_data *plat,
 	bool mdio = true;
 	static const struct of_device_id need_mdio_ids[] = {
 		{ .compatible = "snps,dwc-qos-ethernet-4.10" },
-		{ .compatible = "allwinner,sun8i-a83t-emac" },
-		{ .compatible = "allwinner,sun8i-h3-emac" },
-		{ .compatible = "allwinner,sun8i-v3s-emac" },
-		{ .compatible = "allwinner,sun50i-a64-emac" },
 		{},
 	};
 

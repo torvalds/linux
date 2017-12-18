@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * SoC core Device Tree for the ARM Integrator platforms
  */
@@ -10,7 +11,7 @@
 		reg = <0x10000000 0x200>;
 
 		/* Use core module LED to indicate CPU load */
-		led@0c.0 {
+		led@c.0 {
 			compatible = "register-bit-led";
 			offset = <0x0c>;
 			mask = <0x01>;
@@ -99,7 +100,7 @@
 			compatible = "syscon", "simple-mfd";
 			reg = <0x1a000000 0x10>;
 
-			led@04.0 {
+			led@4.0 {
 				compatible = "register-bit-led";
 				offset = <0x04>;
 				mask = <0x01>;
@@ -107,21 +108,21 @@
 				linux,default-trigger = "heartbeat";
 				default-state = "on";
 			};
-			led@04.1 {
+			led@4.1 {
 				compatible = "register-bit-led";
 				offset = <0x04>;
 				mask = <0x02>;
 				label = "integrator:yellow";
 				default-state = "off";
 			};
-			led@04.2 {
+			led@4.2 {
 				compatible = "register-bit-led";
 				offset = <0x04>;
 				mask = <0x04>;
 				label = "integrator:red";
 				default-state = "off";
 			};
-			led@04.3 {
+			led@4.3 {
 				compatible = "register-bit-led";
 				offset = <0x04>;
 				mask = <0x08>;

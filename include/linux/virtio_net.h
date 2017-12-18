@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _LINUX_VIRTIO_NET_H
 #define _LINUX_VIRTIO_NET_H
 
@@ -8,7 +9,7 @@ static inline int virtio_net_hdr_to_skb(struct sk_buff *skb,
 					const struct virtio_net_hdr *hdr,
 					bool little_endian)
 {
-	unsigned short gso_type = 0;
+	unsigned int gso_type = 0;
 
 	if (hdr->gso_type != VIRTIO_NET_HDR_GSO_NONE) {
 		switch (hdr->gso_type & ~VIRTIO_NET_HDR_GSO_ECN) {
@@ -17,6 +18,9 @@ static inline int virtio_net_hdr_to_skb(struct sk_buff *skb,
 			break;
 		case VIRTIO_NET_HDR_GSO_TCPV6:
 			gso_type = SKB_GSO_TCPV6;
+			break;
+		case VIRTIO_NET_HDR_GSO_UDP:
+			gso_type = SKB_GSO_UDP;
 			break;
 		default:
 			return -EINVAL;

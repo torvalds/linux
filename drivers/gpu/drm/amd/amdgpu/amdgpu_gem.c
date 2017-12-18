@@ -63,11 +63,16 @@ retry:
 			     flags, NULL, resv, 0, &bo);
 	if (r) {
 		if (r != -ERESTARTSYS) {
+			if (flags & AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED) {
+				flags &= ~AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED;
+				goto retry;
+			}
+
 			if (initial_domain == AMDGPU_GEM_DOMAIN_VRAM) {
 				initial_domain |= AMDGPU_GEM_DOMAIN_GTT;
 				goto retry;
 			}
-			DRM_ERROR("Failed to allocate GEM object (%ld, %d, %u, %d)\n",
+			DRM_DEBUG("Failed to allocate GEM object (%ld, %d, %u, %d)\n",
 				  size, initial_domain, alignment, r);
 		}
 		return r;
@@ -277,6 +282,7 @@ int amdgpu_gem_create_ioctl(struct drm_device *dev, void *data,
 int amdgpu_gem_userptr_ioctl(struct drm_device *dev, void *data,
 			     struct drm_file *filp)
 {
+	struct ttm_operation_ctx ctx = { true, false };
 	struct amdgpu_device *adev = dev->dev_private;
 	struct drm_amdgpu_gem_userptr *args = data;
 	struct drm_gem_object *gobj;
@@ -323,14 +329,14 @@ int amdgpu_gem_userptr_ioctl(struct drm_device *dev, void *data,
 		r = amdgpu_ttm_tt_get_user_pages(bo->tbo.ttm,
 						 bo->tbo.ttm->pages);
 		if (r)
-			goto unlock_mmap_sem;
+			goto release_object;
 
 		r = amdgpu_bo_reserve(bo, true);
 		if (r)
 			goto free_pages;
 
 		amdgpu_ttm_placement_from_domain(bo, AMDGPU_GEM_DOMAIN_GTT);
-		r = ttm_bo_validate(&bo->tbo, &bo->placement, true, false);
+		r = ttm_bo_validate(&bo->tbo, &bo->placement, &ctx);
 		amdgpu_bo_unreserve(bo);
 		if (r)
 			goto free_pages;
@@ -346,10 +352,7 @@ int amdgpu_gem_userptr_ioctl(struct drm_device *dev, void *data,
 	return 0;
 
 free_pages:
-	release_pages(bo->tbo.ttm->pages, bo->tbo.ttm->num_pages, false);
-
-unlock_mmap_sem:
-	up_read(&current->mm->mmap_sem);
+	release_pages(bo->tbo.ttm->pages, bo->tbo.ttm->num_pages);
 
 release_object:
 	drm_gem_object_put_unlocked(gobj);
@@ -555,15 +558,25 @@ int amdgpu_gem_va_ioctl(struct drm_device *dev, void *data,
 	int r = 0;
 
 	if (args->va_address < AMDGPU_VA_RESERVED_SIZE) {
-		dev_err(&dev->pdev->dev,
-			"va_address 0x%lX is in reserved area 0x%X\n",
-			(unsigned long)args->va_address,
-			AMDGPU_VA_RESERVED_SIZE);
+		dev_dbg(&dev->pdev->dev,
+			"va_address 0x%LX is in reserved area 0x%LX\n",
+			args->va_address, AMDGPU_VA_RESERVED_SIZE);
 		return -EINVAL;
 	}
 
+	if (args->va_address >= AMDGPU_VA_HOLE_START &&
+	    args->va_address < AMDGPU_VA_HOLE_END) {
+		dev_dbg(&dev->pdev->dev,
+			"va_address 0x%LX is in VA hole 0x%LX-0x%LX\n",
+			args->va_address, AMDGPU_VA_HOLE_START,
+			AMDGPU_VA_HOLE_END);
+		return -EINVAL;
+	}
+
+	args->va_address &= AMDGPU_VA_HOLE_MASK;
+
 	if ((args->flags & ~valid_flags) && (args->flags & ~prt_flags)) {
-		dev_err(&dev->pdev->dev, "invalid flags combination 0x%08X\n",
+		dev_dbg(&dev->pdev->dev, "invalid flags combination 0x%08X\n",
 			args->flags);
 		return -EINVAL;
 	}
@@ -575,7 +588,7 @@ int amdgpu_gem_va_ioctl(struct drm_device *dev, void *data,
 	case AMDGPU_VA_OP_REPLACE:
 		break;
 	default:
-		dev_err(&dev->pdev->dev, "unsupported operation %d\n",
+		dev_dbg(&dev->pdev->dev, "unsupported operation %d\n",
 			args->operation);
 		return -EINVAL;
 	}
@@ -786,11 +799,11 @@ static int amdgpu_debugfs_gem_bo_info(int id, void *ptr, void *data)
 	seq_printf(m, "\t0x%08x: %12ld byte %s",
 		   id, amdgpu_bo_size(bo), placement);
 
-	offset = ACCESS_ONCE(bo->tbo.mem.start);
+	offset = READ_ONCE(bo->tbo.mem.start);
 	if (offset != AMDGPU_BO_INVALID_OFFSET)
 		seq_printf(m, " @ 0x%010Lx", offset);
 
-	pin_count = ACCESS_ONCE(bo->pin_count);
+	pin_count = READ_ONCE(bo->pin_count);
 	if (pin_count)
 		seq_printf(m, " pin count %d", pin_count);
 	seq_printf(m, "\n");

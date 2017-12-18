@@ -1,4 +1,5 @@
 #!/bin/sh
+# SPDX-License-Identifier: GPL-2.0
 #
 # This test is for checking network interface
 # For the moment it tests only ethernet interface (but wifi could be easily added)

@@ -283,6 +283,7 @@ static inline u64 bochs_bo_gpu_offset(struct bochs_bo *bo)
 
 int bochs_bo_pin(struct bochs_bo *bo, u32 pl_flag, u64 *gpu_addr)
 {
+	struct ttm_operation_ctx ctx = { false, false };
 	int i, ret;
 
 	if (bo->pin_count) {
@@ -295,7 +296,7 @@ int bochs_bo_pin(struct bochs_bo *bo, u32 pl_flag, u64 *gpu_addr)
 	bochs_ttm_placement(bo, pl_flag);
 	for (i = 0; i < bo->placement.num_placement; i++)
 		bo->placements[i].flags |= TTM_PL_FLAG_NO_EVICT;
-	ret = ttm_bo_validate(&bo->bo, &bo->placement, false, false);
+	ret = ttm_bo_validate(&bo->bo, &bo->placement, &ctx);
 	if (ret)
 		return ret;
 
@@ -307,6 +308,7 @@ int bochs_bo_pin(struct bochs_bo *bo, u32 pl_flag, u64 *gpu_addr)
 
 int bochs_bo_unpin(struct bochs_bo *bo)
 {
+	struct ttm_operation_ctx ctx = { false, false };
 	int i, ret;
 
 	if (!bo->pin_count) {
@@ -320,7 +322,7 @@ int bochs_bo_unpin(struct bochs_bo *bo)
 
 	for (i = 0; i < bo->placement.num_placement; i++)
 		bo->placements[i].flags &= ~TTM_PL_FLAG_NO_EVICT;
-	ret = ttm_bo_validate(&bo->bo, &bo->placement, false, false);
+	ret = ttm_bo_validate(&bo->bo, &bo->placement, &ctx);
 	if (ret)
 		return ret;
 

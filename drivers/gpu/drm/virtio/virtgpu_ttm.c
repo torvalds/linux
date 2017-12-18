@@ -369,14 +369,13 @@ static void virtio_gpu_move_null(struct ttm_buffer_object *bo,
 	new_mem->mm_node = NULL;
 }
 
-static int virtio_gpu_bo_move(struct ttm_buffer_object *bo,
-			      bool evict, bool interruptible,
-			      bool no_wait_gpu,
+static int virtio_gpu_bo_move(struct ttm_buffer_object *bo, bool evict,
+			      struct ttm_operation_ctx *ctx,
 			      struct ttm_mem_reg *new_mem)
 {
 	int ret;
 
-	ret = ttm_bo_wait(bo, interruptible, no_wait_gpu);
+	ret = ttm_bo_wait(bo, ctx->interruptible, ctx->no_wait_gpu);
 	if (ret)
 		return ret;
 

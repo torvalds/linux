@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 # Makefile for vm selftests
 
 ifndef OUTPUT
@@ -17,6 +18,7 @@ TEST_GEN_FILES += transhuge-stress
 TEST_GEN_FILES += userfaultfd
 TEST_GEN_FILES += mlock-random-test
 TEST_GEN_FILES += virtual_address_range
+TEST_GEN_FILES += gup_benchmark
 
 TEST_PROGS := run_vmtests
 

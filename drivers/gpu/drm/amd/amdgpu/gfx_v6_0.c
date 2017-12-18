@@ -1798,7 +1798,7 @@ static int gfx_v6_0_ring_test_ring(struct amdgpu_ring *ring)
 		DRM_UDELAY(1);
 	}
 	if (i < adev->usec_timeout) {
-		DRM_INFO("ring test on %d succeeded in %d usecs\n", ring->idx, i);
+		DRM_DEBUG("ring test on %d succeeded in %d usecs\n", ring->idx, i);
 	} else {
 		DRM_ERROR("amdgpu: ring %d test failed (scratch(0x%04X)=0x%08X)\n",
 			  ring->idx, scratch, tmp);
@@ -1951,7 +1951,7 @@ static int gfx_v6_0_ring_test_ib(struct amdgpu_ring *ring, long timeout)
 	}
 	tmp = RREG32(scratch);
 	if (tmp == 0xDEADBEEF) {
-		DRM_INFO("ib test on ring %d succeeded\n", ring->idx);
+		DRM_DEBUG("ib test on ring %d succeeded\n", ring->idx);
 		r = 0;
 	} else {
 		DRM_ERROR("amdgpu: ib test failed (scratch(0x%04X)=0x%08X)\n",
@@ -2962,25 +2962,7 @@ static void gfx_v6_0_get_csb_buffer(struct amdgpu_device *adev,
 
 	buffer[count++] = cpu_to_le32(PACKET3(PACKET3_SET_CONTEXT_REG, 1));
 	buffer[count++] = cpu_to_le32(mmPA_SC_RASTER_CONFIG - PACKET3_SET_CONTEXT_REG_START);
-
-	switch (adev->asic_type) {
-	case CHIP_TAHITI:
-	case CHIP_PITCAIRN:
-		buffer[count++] = cpu_to_le32(0x2a00126a);
-		break;
-	case CHIP_VERDE:
-		buffer[count++] = cpu_to_le32(0x0000124a);
-		break;
-	case CHIP_OLAND:
-		buffer[count++] = cpu_to_le32(0x00000082);
-		break;
-	case CHIP_HAINAN:
-		buffer[count++] = cpu_to_le32(0x00000000);
-		break;
-	default:
-		buffer[count++] = cpu_to_le32(0x00000000);
-		break;
-	}
+	buffer[count++] = cpu_to_le32(adev->gfx.config.rb_config[0][0].raster_config);
 
 	buffer[count++] = cpu_to_le32(PACKET3(PACKET3_PREAMBLE_CNTL, 0));
 	buffer[count++] = cpu_to_le32(PACKET3_PREAMBLE_END_CLEAR_STATE);

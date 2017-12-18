@@ -27,6 +27,12 @@
 
 #include "i915_drv.h"
 
+#ifdef CONFIG_SMP
+#define task_asleep(tsk) ((tsk)->state & TASK_NORMAL && !(tsk)->on_cpu)
+#else
+#define task_asleep(tsk) ((tsk)->state & TASK_NORMAL)
+#endif
+
 static unsigned int __intel_breadcrumbs_wakeup(struct intel_breadcrumbs *b)
 {
 	struct intel_wait *wait;
@@ -36,8 +42,20 @@ static unsigned int __intel_breadcrumbs_wakeup(struct intel_breadcrumbs *b)
 
 	wait = b->irq_wait;
 	if (wait) {
+		/*
+		 * N.B. Since task_asleep() and ttwu are not atomic, the
+		 * waiter may actually go to sleep after the check, causing
+		 * us to suppress a valid wakeup. We prefer to reduce the
+		 * number of false positive missed_breadcrumb() warnings
+		 * at the expense of a few false negatives, as it it easy
+		 * to trigger a false positive under heavy load. Enough
+		 * signal should remain from genuine missed_breadcrumb()
+		 * for us to detect in CI.
+		 */
+		bool was_asleep = task_asleep(wait->tsk);
+
 		result = ENGINE_WAKEUP_WAITER;
-		if (wake_up_process(wait->tsk))
+		if (wake_up_process(wait->tsk) && was_asleep)
 			result |= ENGINE_WAKEUP_ASLEEP;
 	}
 
@@ -64,20 +82,21 @@ static unsigned long wait_timeout(void)
 
 static noinline void missed_breadcrumb(struct intel_engine_cs *engine)
 {
-	DRM_DEBUG_DRIVER("%s missed breadcrumb at %pS, irq posted? %s, current seqno=%x, last=%x\n",
-			 engine->name, __builtin_return_address(0),
-			 yesno(test_bit(ENGINE_IRQ_BREADCRUMB,
-					&engine->irq_posted)),
-			 intel_engine_get_seqno(engine),
-			 intel_engine_last_submit(engine));
+	if (drm_debug & DRM_UT_DRIVER) {
+		struct drm_printer p = drm_debug_printer(__func__);
+
+		intel_engine_dump(engine, &p,
+				  "%s missed breadcrumb at %pS\n",
+				  engine->name, __builtin_return_address(0));
+	}
 
 	set_bit(engine->id, &engine->i915->gpu_error.missed_irq_rings);
 }
 
 static void intel_breadcrumbs_hangcheck(struct timer_list *t)
 {
-	struct intel_engine_cs *engine = from_timer(engine, t,
-						    breadcrumbs.hangcheck);
+	struct intel_engine_cs *engine =
+		from_timer(engine, t, breadcrumbs.hangcheck);
 	struct intel_breadcrumbs *b = &engine->breadcrumbs;
 
 	if (!b->irq_armed)
@@ -103,7 +122,7 @@ static void intel_breadcrumbs_hangcheck(struct timer_list *t)
 	 */
 	if (intel_engine_wakeup(engine) & ENGINE_WAKEUP_ASLEEP) {
 		missed_breadcrumb(engine);
-		mod_timer(&engine->breadcrumbs.fake_irq, jiffies + 1);
+		mod_timer(&b->fake_irq, jiffies + 1);
 	} else {
 		mod_timer(&b->hangcheck, wait_timeout());
 	}
@@ -213,32 +232,42 @@ void intel_engine_unpin_breadcrumbs_irq(struct intel_engine_cs *engine)
 void intel_engine_disarm_breadcrumbs(struct intel_engine_cs *engine)
 {
 	struct intel_breadcrumbs *b = &engine->breadcrumbs;
-	struct intel_wait *wait, *n, *first;
+	struct intel_wait *wait, *n;
 
 	if (!b->irq_armed)
-		return;
+		goto wakeup_signaler;
 
-	/* We only disarm the irq when we are idle (all requests completed),
+	/*
+	 * We only disarm the irq when we are idle (all requests completed),
 	 * so if the bottom-half remains asleep, it missed the request
 	 * completion.
 	 */
+	if (intel_engine_wakeup(engine) & ENGINE_WAKEUP_ASLEEP)
+		missed_breadcrumb(engine);
 
 	spin_lock_irq(&b->rb_lock);
 
 	spin_lock(&b->irq_lock);
-	first = fetch_and_zero(&b->irq_wait);
+	b->irq_wait = NULL;
 	if (b->irq_armed)
 		__intel_engine_disarm_breadcrumbs(engine);
 	spin_unlock(&b->irq_lock);
 
 	rbtree_postorder_for_each_entry_safe(wait, n, &b->waiters, node) {
 		RB_CLEAR_NODE(&wait->node);
-		if (wake_up_process(wait->tsk) && wait == first)
-			missed_breadcrumb(engine);
+		wake_up_process(wait->tsk);
 	}
 	b->waiters = RB_ROOT;
 
 	spin_unlock_irq(&b->rb_lock);
+
+	/*
+	 * The signaling thread may be asleep holding a reference to a request,
+	 * that had its signaling cancelled prior to being preempted. We need
+	 * to kick the signaler, just in case, to release any such reference.
+	 */
+wakeup_signaler:
+	wake_up_process(b->signaler);
 }
 
 static bool use_fake_irq(const struct intel_breadcrumbs *b)
@@ -549,6 +578,7 @@ static void __intel_engine_remove_wait(struct intel_engine_cs *engine,
 
 	GEM_BUG_ON(RB_EMPTY_NODE(&wait->node));
 	rb_erase(&wait->node, &b->waiters);
+	RB_CLEAR_NODE(&wait->node);
 
 out:
 	GEM_BUG_ON(b->irq_wait == wait);
@@ -682,23 +712,15 @@ static int intel_breadcrumbs_signaler(void *arg)
 		}
 
 		if (unlikely(do_schedule)) {
-			DEFINE_WAIT(exec);
-
 			if (kthread_should_park())
 				kthread_parkme();
 
-			if (kthread_should_stop()) {
-				GEM_BUG_ON(request);
+			if (unlikely(kthread_should_stop())) {
+				i915_gem_request_put(request);
 				break;
 			}
 
-			if (request)
-				add_wait_queue(&request->execute, &exec);
-
 			schedule();
-
-			if (request)
-				remove_wait_queue(&request->execute, &exec);
 		}
 		i915_gem_request_put(request);
 	} while (1);

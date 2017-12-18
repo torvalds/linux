@@ -67,7 +67,7 @@ static int clk_div_set_rate(struct clk_hw *hw, unsigned long rate,
 	return ret;
 }
 
-static struct clk_ops clk_div_ops = {
+static const struct clk_ops clk_div_ops = {
 	.recalc_rate = clk_div_recalc_rate,
 	.round_rate = clk_div_round_rate,
 	.set_rate = clk_div_set_rate,

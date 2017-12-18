@@ -1009,9 +1009,14 @@ static void ipmi_register_watchdog(int ipmi_intf)
 		goto out;
 	}
 
-	ipmi_get_version(watchdog_user,
-			 &ipmi_version_major,
-			 &ipmi_version_minor);
+	rv = ipmi_get_version(watchdog_user,
+			      &ipmi_version_major,
+			      &ipmi_version_minor);
+	if (rv) {
+		pr_warn(PFX "Unable to get IPMI version, assuming 1.0\n");
+		ipmi_version_major = 1;
+		ipmi_version_minor = 0;
+	}
 
 	rv = misc_register(&ipmi_wdog_miscdev);
 	if (rv < 0) {

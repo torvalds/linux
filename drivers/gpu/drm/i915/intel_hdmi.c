@@ -487,7 +487,8 @@ static void intel_hdmi_set_avi_infoframe(struct drm_encoder *encoder,
 					   crtc_state->limited_color_range ?
 					   HDMI_QUANTIZATION_RANGE_LIMITED :
 					   HDMI_QUANTIZATION_RANGE_FULL,
-					   intel_hdmi->rgb_quant_range_selectable);
+					   intel_hdmi->rgb_quant_range_selectable,
+					   is_hdmi2_sink);
 
 	/* TODO: handle pixel repetition for YCBCR420 outputs */
 	intel_write_infoframe(encoder, crtc_state, &frame);
@@ -512,12 +513,14 @@ static void intel_hdmi_set_spd_infoframe(struct drm_encoder *encoder,
 
 static void
 intel_hdmi_set_hdmi_infoframe(struct drm_encoder *encoder,
-			      const struct intel_crtc_state *crtc_state)
+			      const struct intel_crtc_state *crtc_state,
+			      const struct drm_connector_state *conn_state)
 {
 	union hdmi_infoframe frame;
 	int ret;
 
 	ret = drm_hdmi_vendor_infoframe_from_display_mode(&frame.vendor.hdmi,
+							  conn_state->connector,
 							  &crtc_state->base.adjusted_mode);
 	if (ret < 0)
 		return;
@@ -584,7 +587,7 @@ static void g4x_set_infoframes(struct drm_encoder *encoder,
 
 	intel_hdmi_set_avi_infoframe(encoder, crtc_state);
 	intel_hdmi_set_spd_infoframe(encoder, crtc_state);
-	intel_hdmi_set_hdmi_infoframe(encoder, crtc_state);
+	intel_hdmi_set_hdmi_infoframe(encoder, crtc_state, conn_state);
 }
 
 static bool hdmi_sink_is_deep_color(const struct drm_connector_state *conn_state)
@@ -725,7 +728,7 @@ static void ibx_set_infoframes(struct drm_encoder *encoder,
 
 	intel_hdmi_set_avi_infoframe(encoder, crtc_state);
 	intel_hdmi_set_spd_infoframe(encoder, crtc_state);
-	intel_hdmi_set_hdmi_infoframe(encoder, crtc_state);
+	intel_hdmi_set_hdmi_infoframe(encoder, crtc_state, conn_state);
 }
 
 static void cpt_set_infoframes(struct drm_encoder *encoder,
@@ -768,7 +771,7 @@ static void cpt_set_infoframes(struct drm_encoder *encoder,
 
 	intel_hdmi_set_avi_infoframe(encoder, crtc_state);
 	intel_hdmi_set_spd_infoframe(encoder, crtc_state);
-	intel_hdmi_set_hdmi_infoframe(encoder, crtc_state);
+	intel_hdmi_set_hdmi_infoframe(encoder, crtc_state, conn_state);
 }
 
 static void vlv_set_infoframes(struct drm_encoder *encoder,
@@ -821,7 +824,7 @@ static void vlv_set_infoframes(struct drm_encoder *encoder,
 
 	intel_hdmi_set_avi_infoframe(encoder, crtc_state);
 	intel_hdmi_set_spd_infoframe(encoder, crtc_state);
-	intel_hdmi_set_hdmi_infoframe(encoder, crtc_state);
+	intel_hdmi_set_hdmi_infoframe(encoder, crtc_state, conn_state);
 }
 
 static void hsw_set_infoframes(struct drm_encoder *encoder,
@@ -854,7 +857,7 @@ static void hsw_set_infoframes(struct drm_encoder *encoder,
 
 	intel_hdmi_set_avi_infoframe(encoder, crtc_state);
 	intel_hdmi_set_spd_infoframe(encoder, crtc_state);
-	intel_hdmi_set_hdmi_infoframe(encoder, crtc_state);
+	intel_hdmi_set_hdmi_infoframe(encoder, crtc_state, conn_state);
 }
 
 void intel_dp_dual_mode_set_tmds_output(struct intel_hdmi *hdmi, bool enable)
@@ -1235,7 +1238,7 @@ static int intel_hdmi_source_max_tmds_clock(struct intel_encoder *encoder)
 		&dev_priv->vbt.ddi_port_info[encoder->port];
 	int max_tmds_clock;
 
-	if (IS_GEMINILAKE(dev_priv))
+	if (INTEL_GEN(dev_priv) >= 10 || IS_GEMINILAKE(dev_priv))
 		max_tmds_clock = 594000;
 	else if (INTEL_GEN(dev_priv) >= 8 || IS_HASWELL(dev_priv))
 		max_tmds_clock = 300000;
@@ -1380,7 +1383,7 @@ static bool hdmi_12bpc_possible(const struct intel_crtc_state *crtc_state)
 		}
 	}
 
-	/* Display Wa #1139 */
+	/* Display WA #1139: glk */
 	if (IS_GLK_REVID(dev_priv, 0, GLK_REVID_A1) &&
 	    crtc_state->base.adjusted_mode.htotal > 5460)
 		return false;
@@ -1511,7 +1514,8 @@ bool intel_hdmi_compute_config(struct intel_encoder *encoder,
 
 	pipe_config->lane_count = 4;
 
-	if (scdc->scrambling.supported && IS_GEMINILAKE(dev_priv)) {
+	if (scdc->scrambling.supported && (INTEL_GEN(dev_priv) >= 10 ||
+					   IS_GEMINILAKE(dev_priv))) {
 		if (scdc->scrambling.low_rates)
 			pipe_config->hdmi_scrambling = true;
 
@@ -2033,7 +2037,7 @@ void intel_hdmi_init_connector(struct intel_digital_port *intel_dig_port,
 	connector->doublescan_allowed = 0;
 	connector->stereo_allowed = 1;
 
-	if (IS_GEMINILAKE(dev_priv))
+	if (INTEL_GEN(dev_priv) >= 10 || IS_GEMINILAKE(dev_priv))
 		connector->ycbcr_420_allowed = true;
 
 	intel_hdmi->ddc_bus = intel_hdmi_ddc_pin(dev_priv, port);

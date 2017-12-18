@@ -2290,7 +2290,6 @@ static int wm5110_codec_probe(struct snd_soc_codec *codec)
 
 	arizona_init_gpio(codec);
 	arizona_init_mono(codec);
-	arizona_init_notifiers(codec);
 
 	for (i = 0; i < WM5110_NUM_ADSP; ++i) {
 		ret = wm_adsp2_codec_probe(&priv->core.adsp[i], codec);
@@ -2398,6 +2397,14 @@ static int wm5110_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	platform_set_drvdata(pdev, wm5110);
 
+	if (IS_ENABLED(CONFIG_OF)) {
+		if (!dev_get_platdata(arizona->dev)) {
+			ret = arizona_of_get_audio_pdata(arizona);
+			if (ret < 0)
+				return ret;
+		}
+	}
+
 	wm5110->core.arizona = arizona;
 	wm5110->core.num_inputs = 8;
 
@@ -2454,6 +2461,11 @@ static int wm5110_probe(struct platform_device *pdev)
 		return ret;
 	}
 
+	arizona_init_common(arizona);
+
+	ret = arizona_init_vol_limit(arizona);
+	if (ret < 0)
+		goto err_dsp_irq;
 	ret = arizona_init_spk_irqs(arizona);
 	if (ret < 0)
 		goto err_dsp_irq;

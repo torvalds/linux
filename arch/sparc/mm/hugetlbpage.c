@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * SPARC64 Huge TLB page support.
  *
@@ -396,7 +397,7 @@ static void hugetlb_free_pte_range(struct mmu_gather *tlb, pmd_t *pmd,
 
 	pmd_clear(pmd);
 	pte_free_tlb(tlb, token, addr);
-	atomic_long_dec(&tlb->mm->nr_ptes);
+	mm_dec_nr_ptes(tlb->mm);
 }
 
 static void hugetlb_free_pmd_range(struct mmu_gather *tlb, pud_t *pud,
@@ -471,6 +472,7 @@ static void hugetlb_free_pud_range(struct mmu_gather *tlb, pgd_t *pgd,
 	pud = pud_offset(pgd, start);
 	pgd_clear(pgd);
 	pud_free_tlb(tlb, pud, start);
+	mm_dec_nr_puds(tlb->mm);
 }
 
 void hugetlb_free_pgd_range(struct mmu_gather *tlb,

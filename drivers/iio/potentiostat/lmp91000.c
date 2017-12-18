@@ -207,7 +207,6 @@ static int lmp91000_read_raw(struct iio_dev *indio_dev,
 }
 
 static const struct iio_info lmp91000_info = {
-	.driver_module = THIS_MODULE,
 	.read_raw = lmp91000_read_raw,
 };
 
@@ -283,7 +282,6 @@ static int lmp91000_buffer_cb(const void *val, void *private)
 }
 
 static const struct iio_trigger_ops lmp91000_trigger_ops = {
-	.owner = THIS_MODULE,
 };
 
 

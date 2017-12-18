@@ -1,4 +1,5 @@
 #!/bin/sh
+# SPDX-License-Identifier: GPL-2.0
 # description: Kprobe dynamic event with arguments
 
 [ -f kprobe_events ] || exit_unsupported # this is configurable
@@ -13,5 +14,5 @@ echo 1 > events/kprobes/testprobe/enable
 echo 0 > events/kprobes/testprobe/enable
 echo "-:testprobe" >> kprobe_events
 clear_trace
-test -d events/kprobes/testprobe && exit 1 || exit 0
+test -d events/kprobes/testprobe && exit_fail || exit_pass
 

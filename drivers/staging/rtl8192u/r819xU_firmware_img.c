@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*Created on  2008/ 7/16,  5:31*/
 #include <linux/types.h>
 #include "r819xU_firmware_img.h"

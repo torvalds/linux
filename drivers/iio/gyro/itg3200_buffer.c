@@ -101,7 +101,6 @@ error_ret:
 }
 
 static const struct iio_trigger_ops itg3200_trigger_ops = {
-	.owner = THIS_MODULE,
 	.set_trigger_state = &itg3200_data_rdy_trigger_set_state,
 };
 

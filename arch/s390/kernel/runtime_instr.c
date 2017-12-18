@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright IBM Corp. 2012
  * Author(s): Jan Glauber <jang@linux.vnet.ibm.com>
@@ -20,11 +21,24 @@
 /* empty control block to disable RI by loading it */
 struct runtime_instr_cb runtime_instr_empty_cb;
 
+void runtime_instr_release(struct task_struct *tsk)
+{
+	kfree(tsk->thread.ri_cb);
+}
+
 static void disable_runtime_instr(void)
 {
-	struct pt_regs *regs = task_pt_regs(current);
+	struct task_struct *task = current;
+	struct pt_regs *regs;
 
+	if (!task->thread.ri_cb)
+		return;
+	regs = task_pt_regs(task);
+	preempt_disable();
 	load_runtime_instr_cb(&runtime_instr_empty_cb);
+	kfree(task->thread.ri_cb);
+	task->thread.ri_cb = NULL;
+	preempt_enable();
 
 	/*
 	 * Make sure the RI bit is deleted from the PSW. If the user did not
@@ -36,24 +50,13 @@ static void disable_runtime_instr(void)
 
 static void init_runtime_instr_cb(struct runtime_instr_cb *cb)
 {
-	cb->buf_limit = 0xfff;
-	cb->pstate = 1;
-	cb->pstate_set_buf = 1;
-	cb->pstate_sample = 1;
-	cb->pstate_collect = 1;
+	cb->rla = 0xfff;
+	cb->s = 1;
+	cb->k = 1;
+	cb->ps = 1;
+	cb->pc = 1;
 	cb->key = PAGE_DEFAULT_KEY;
-	cb->valid = 1;
-}
-
-void exit_thread_runtime_instr(void)
-{
-	struct task_struct *task = current;
-
-	if (!task->thread.ri_cb)
-		return;
-	disable_runtime_instr();
-	kfree(task->thread.ri_cb);
-	task->thread.ri_cb = NULL;
+	cb->v = 1;
 }
 
 SYSCALL_DEFINE1(s390_runtime_instr, int, command)
@@ -64,9 +67,7 @@ SYSCALL_DEFINE1(s390_runtime_instr, int, command)
 		return -EOPNOTSUPP;
 
 	if (command == S390_RUNTIME_INSTR_STOP) {
-		preempt_disable();
-		exit_thread_runtime_instr();
-		preempt_enable();
+		disable_runtime_instr();
 		return 0;
 	}
 

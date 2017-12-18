@@ -33,7 +33,7 @@ static int pSeries_reconfig_add_node(const char *path, struct property *proplist
 	if (!np)
 		goto out_err;
 
-	np->full_name = kstrdup(path, GFP_KERNEL);
+	np->full_name = kstrdup(kbasename(path), GFP_KERNEL);
 	if (!np->full_name)
 		goto out_err;
 

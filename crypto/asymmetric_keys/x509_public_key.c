@@ -275,4 +275,5 @@ module_init(x509_key_init);
 module_exit(x509_key_exit);
 
 MODULE_DESCRIPTION("X.509 certificate parser");
+MODULE_AUTHOR("Red Hat, Inc.");
 MODULE_LICENSE("GPL");

@@ -69,7 +69,7 @@ static struct {
 
 /* generic helper functions */
 
-static void cpu5wdt_trigger(unsigned long unused)
+static void cpu5wdt_trigger(struct timer_list *unused)
 {
 	if (verbose > 2)
 		pr_debug("trigger at %i ticks\n", ticks);
@@ -224,7 +224,7 @@ static int cpu5wdt_init(void)
 
 	init_completion(&cpu5wdt_device.stop);
 	cpu5wdt_device.queue = 0;
-	setup_timer(&cpu5wdt_device.timer, cpu5wdt_trigger, 0);
+	timer_setup(&cpu5wdt_device.timer, cpu5wdt_trigger, 0);
 	cpu5wdt_device.default_ticks = ticks;
 
 	if (!request_region(port, CPU5WDT_EXTENT, PFX)) {

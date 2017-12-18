@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * linux/include/linux/sunrpc/svc.h
  *
@@ -46,6 +47,7 @@ struct svc_pool {
 	struct svc_pool_stats	sp_stats;	/* statistics on pool operation */
 #define	SP_TASK_PENDING		(0)		/* still work to do even if no
 						 * xprt is queued. */
+#define SP_CONGESTED		(1)
 	unsigned long		sp_flags;
 } ____cacheline_aligned_in_smp;
 

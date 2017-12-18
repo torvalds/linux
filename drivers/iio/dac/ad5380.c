@@ -237,7 +237,6 @@ static int ad5380_read_raw(struct iio_dev *indio_dev,
 static const struct iio_info ad5380_info = {
 	.read_raw = ad5380_read_raw,
 	.write_raw = ad5380_write_raw,
-	.driver_module = THIS_MODULE,
 };
 
 static struct iio_chan_spec_ext_info ad5380_ext_info[] = {

@@ -246,36 +246,6 @@ static irqreturn_t pca954x_irq_handler(int irq, void *dev_id)
 	return handled ? IRQ_HANDLED : IRQ_NONE;
 }
 
-static void pca954x_irq_mask(struct irq_data *idata)
-{
-	struct pca954x *data = irq_data_get_irq_chip_data(idata);
-	unsigned int pos = idata->hwirq;
-	unsigned long flags;
-
-	raw_spin_lock_irqsave(&data->lock, flags);
-
-	data->irq_mask &= ~BIT(pos);
-	if (!data->irq_mask)
-		disable_irq(data->client->irq);
-
-	raw_spin_unlock_irqrestore(&data->lock, flags);
-}
-
-static void pca954x_irq_unmask(struct irq_data *idata)
-{
-	struct pca954x *data = irq_data_get_irq_chip_data(idata);
-	unsigned int pos = idata->hwirq;
-	unsigned long flags;
-
-	raw_spin_lock_irqsave(&data->lock, flags);
-
-	if (!data->irq_mask)
-		enable_irq(data->client->irq);
-	data->irq_mask |= BIT(pos);
-
-	raw_spin_unlock_irqrestore(&data->lock, flags);
-}
-
 static int pca954x_irq_set_type(struct irq_data *idata, unsigned int type)
 {
 	if ((type & IRQ_TYPE_SENSE_MASK) != IRQ_TYPE_LEVEL_LOW)
@@ -285,8 +255,6 @@ static int pca954x_irq_set_type(struct irq_data *idata, unsigned int type)
 
 static struct irq_chip pca954x_irq_chip = {
 	.name = "i2c-mux-pca954x",
-	.irq_mask = pca954x_irq_mask,
-	.irq_unmask = pca954x_irq_unmask,
 	.irq_set_type = pca954x_irq_set_type,
 };
 
@@ -294,7 +262,7 @@ static int pca954x_irq_setup(struct i2c_mux_core *muxc)
 {
 	struct pca954x *data = i2c_mux_priv(muxc);
 	struct i2c_client *client = data->client;
-	int c, err, irq;
+	int c, irq;
 
 	if (!data->chip->has_irq || client->irq <= 0)
 		return 0;
@@ -309,29 +277,31 @@ static int pca954x_irq_setup(struct i2c_mux_core *muxc)
 
 	for (c = 0; c < data->chip->nchans; c++) {
 		irq = irq_create_mapping(data->irq, c);
+		if (!irq) {
+			dev_err(&client->dev, "failed irq create map\n");
+			return -EINVAL;
+		}
 		irq_set_chip_data(irq, data);
 		irq_set_chip_and_handler(irq, &pca954x_irq_chip,
 			handle_simple_irq);
 	}
 
-	err = devm_request_threaded_irq(&client->dev, data->client->irq, NULL,
-					pca954x_irq_handler,
-					IRQF_ONESHOT | IRQF_SHARED,
-					"pca954x", data);
-	if (err)
-		goto err_req_irq;
-
-	disable_irq(data->client->irq);
-
 	return 0;
-err_req_irq:
-	for (c = 0; c < data->chip->nchans; c++) {
-		irq = irq_find_mapping(data->irq, c);
-		irq_dispose_mapping(irq);
-	}
-	irq_domain_remove(data->irq);
+}
 
-	return err;
+static void pca954x_cleanup(struct i2c_mux_core *muxc)
+{
+	struct pca954x *data = i2c_mux_priv(muxc);
+	int c, irq;
+
+	if (data->irq) {
+		for (c = 0; c < data->chip->nchans; c++) {
+			irq = irq_find_mapping(data->irq, c);
+			irq_dispose_mapping(irq);
+		}
+		irq_domain_remove(data->irq);
+	}
+	i2c_mux_del_adapters(muxc);
 }
 
 /*
@@ -391,7 +361,7 @@ static int pca954x_probe(struct i2c_client *client,
 
 	ret = pca954x_irq_setup(muxc);
 	if (ret)
-		goto fail_del_adapters;
+		goto fail_cleanup;
 
 	/* Now create an adapter for each channel */
 	for (num = 0; num < data->chip->nchans; num++) {
@@ -414,7 +384,16 @@ static int pca954x_probe(struct i2c_client *client,
 
 		ret = i2c_mux_add_adapter(muxc, force, num, class);
 		if (ret)
-			goto fail_del_adapters;
+			goto fail_cleanup;
+	}
+
+	if (data->irq) {
+		ret = devm_request_threaded_irq(&client->dev, data->client->irq,
+						NULL, pca954x_irq_handler,
+						IRQF_ONESHOT | IRQF_SHARED,
+						"pca954x", data);
+		if (ret)
+			goto fail_cleanup;
 	}
 
 	dev_info(&client->dev,
@@ -424,26 +403,16 @@ static int pca954x_probe(struct i2c_client *client,
 
 	return 0;
 
-fail_del_adapters:
-	i2c_mux_del_adapters(muxc);
+fail_cleanup:
+	pca954x_cleanup(muxc);
 	return ret;
 }
 
 static int pca954x_remove(struct i2c_client *client)
 {
 	struct i2c_mux_core *muxc = i2c_get_clientdata(client);
-	struct pca954x *data = i2c_mux_priv(muxc);
-	int c, irq;
 
-	if (data->irq) {
-		for (c = 0; c < data->chip->nchans; c++) {
-			irq = irq_find_mapping(data->irq, c);
-			irq_dispose_mapping(irq);
-		}
-		irq_domain_remove(data->irq);
-	}
-
-	i2c_mux_del_adapters(muxc);
+	pca954x_cleanup(muxc);
 	return 0;
 }
 

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /* This file is derived from the GAS 2.1.4 assembler control file.
    The GAS product is under the GNU General Public License, version 2 or later.
    As such, this file is also under that license.

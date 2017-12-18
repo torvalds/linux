@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 # Makefile for USB tools
 
 CC = $(CROSS_COMPILE)gcc

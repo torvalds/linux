@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * linux/kernel/irq/autoprobe.c
  *
@@ -53,7 +54,7 @@ unsigned long probe_irq_on(void)
 			if (desc->irq_data.chip->irq_set_type)
 				desc->irq_data.chip->irq_set_type(&desc->irq_data,
 							 IRQ_TYPE_PROBE);
-			irq_startup(desc, IRQ_NORESEND, IRQ_START_FORCE);
+			irq_activate_and_startup(desc, IRQ_NORESEND);
 		}
 		raw_spin_unlock_irq(&desc->lock);
 	}

@@ -15,8 +15,6 @@
 #ifndef _INET_TIMEWAIT_SOCK_
 #define _INET_TIMEWAIT_SOCK_
 
-
-#include <linux/kmemcheck.h>
 #include <linux/list.h>
 #include <linux/timer.h>
 #include <linux/types.h>
@@ -69,14 +67,12 @@ struct inet_timewait_sock {
 	/* Socket demultiplex comparisons on incoming packets. */
 	/* these three are in inet_sock */
 	__be16			tw_sport;
-	kmemcheck_bitfield_begin(flags);
 	/* And these are ours. */
 	unsigned int		tw_kill		: 1,
 				tw_transparent  : 1,
 				tw_flowlabel	: 20,
 				tw_pad		: 2,	/* 2 bits hole */
 				tw_tos		: 8;
-	kmemcheck_bitfield_end(flags);
 	struct timer_list	tw_timer;
 	struct inet_bind_bucket	*tw_tb;
 };

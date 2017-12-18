@@ -79,8 +79,7 @@ struct amdgpu_fence_driver {
 
 int amdgpu_fence_driver_init(struct amdgpu_device *adev);
 void amdgpu_fence_driver_fini(struct amdgpu_device *adev);
-void amdgpu_fence_driver_force_completion(struct amdgpu_device *adev);
-void amdgpu_fence_driver_force_completion_ring(struct amdgpu_ring *ring);
+void amdgpu_fence_driver_force_completion(struct amdgpu_ring *ring);
 
 int amdgpu_fence_driver_init_ring(struct amdgpu_ring *ring,
 				  unsigned num_hw_submission);

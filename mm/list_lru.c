@@ -221,6 +221,7 @@ restart:
 		switch (ret) {
 		case LRU_REMOVED_RETRY:
 			assert_spin_locked(&nlru->lock);
+			/* fall through */
 		case LRU_REMOVED:
 			isolated++;
 			nlru->nr_items--;

@@ -1,7 +1,9 @@
 Renesas MSIOF spi controller
 
 Required properties:
-- compatible           : "renesas,msiof-r8a7790" (R-Car H2)
+- compatible           : "renesas,msiof-r8a7743" (RZ/G1M)
+			 "renesas,msiof-r8a7745" (RZ/G1E)
+			 "renesas,msiof-r8a7790" (R-Car H2)
 			 "renesas,msiof-r8a7791" (R-Car M2-W)
 			 "renesas,msiof-r8a7792" (R-Car V2H)
 			 "renesas,msiof-r8a7793" (R-Car M2-N)
@@ -10,7 +12,7 @@ Required properties:
 			 "renesas,msiof-r8a7796" (R-Car M3-W)
 			 "renesas,msiof-sh73a0" (SH-Mobile AG5)
 			 "renesas,sh-mobile-msiof" (generic SH-Mobile compatibile device)
-			 "renesas,rcar-gen2-msiof" (generic R-Car Gen2 compatible device)
+			 "renesas,rcar-gen2-msiof" (generic R-Car Gen2 and RZ/G1 compatible device)
 			 "renesas,rcar-gen3-msiof" (generic R-Car Gen3 compatible device)
 			 "renesas,sh-msiof"      (deprecated)
 

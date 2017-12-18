@@ -19,7 +19,7 @@ Optional properties:
 
 Example:
 
-spi1: spi@01c69000 {
+spi1: spi@1c69000 {
 	compatible = "allwinner,sun6i-a31-spi";
 	reg = <0x01c69000 0x1000>;
 	interrupts = <0 66 4>;
@@ -28,7 +28,7 @@ spi1: spi@01c69000 {
 	resets = <&ahb1_rst 21>;
 };
 
-spi0: spi@01c68000 {
+spi0: spi@1c68000 {
 	compatible = "allwinner,sun8i-h3-spi";
 	reg = <0x01c68000 0x1000>;
 	interrupts = <GIC_SPI 65 IRQ_TYPE_LEVEL_HIGH>;

@@ -282,8 +282,12 @@ static void sugov_update_single(struct update_util_data *hook, u64 time,
 		 * Do not reduce the frequency if the CPU has not been idle
 		 * recently, as the reduction is likely to be premature then.
 		 */
-		if (busy && next_f < sg_policy->next_freq)
+		if (busy && next_f < sg_policy->next_freq) {
 			next_f = sg_policy->next_freq;
+
+			/* Reset cached freq as next_freq has changed */
+			sg_policy->cached_raw_freq = 0;
+		}
 	}
 	sugov_update_commit(sg_policy, time, next_f);
 }
@@ -649,6 +653,7 @@ static int sugov_start(struct cpufreq_policy *policy)
 		struct sugov_cpu *sg_cpu = &per_cpu(sugov_cpu, cpu);
 
 		memset(sg_cpu, 0, sizeof(*sg_cpu));
+		sg_cpu->cpu = cpu;
 		sg_cpu->sg_policy = sg_policy;
 		sg_cpu->flags = SCHED_CPUFREQ_RT;
 		sg_cpu->iowait_boost_max = policy->cpuinfo.max_freq;
@@ -714,11 +719,6 @@ struct cpufreq_governor *cpufreq_default_governor(void)
 
 static int __init sugov_register(void)
 {
-	int cpu;
-
-	for_each_possible_cpu(cpu)
-		per_cpu(sugov_cpu, cpu).cpu = cpu;
-
 	return cpufreq_register_governor(&schedutil_gov);
 }
 fs_initcall(sugov_register);

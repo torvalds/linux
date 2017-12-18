@@ -744,7 +744,7 @@ count_targets(struct aoedev *d, int *untainted)
 }
 
 static void
-rexmit_timer(ulong vp)
+rexmit_timer(struct timer_list *timer)
 {
 	struct aoedev *d;
 	struct aoetgt *t;
@@ -758,7 +758,7 @@ rexmit_timer(ulong vp)
 	int utgts;	/* number of aoetgt descriptors (not slots) */
 	int since;
 
-	d = (struct aoedev *) vp;
+	d = from_timer(d, timer, timer);
 
 	spin_lock_irqsave(&d->lock, flags);
 

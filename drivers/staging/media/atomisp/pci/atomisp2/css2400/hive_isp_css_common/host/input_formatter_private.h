@@ -26,21 +26,21 @@ STORAGE_CLASS_INPUT_FORMATTER_C void input_formatter_reg_store(
 	const hrt_address			reg_addr,
 	const hrt_data				value)
 {
-assert(ID < N_INPUT_FORMATTER_ID);
-assert(INPUT_FORMATTER_BASE[ID] != (hrt_address)-1);
-assert((reg_addr % sizeof(hrt_data)) == 0);
+	assert(ID < N_INPUT_FORMATTER_ID);
+	assert(INPUT_FORMATTER_BASE[ID] != (hrt_address)-1);
+	assert((reg_addr % sizeof(hrt_data)) == 0);
 	ia_css_device_store_uint32(INPUT_FORMATTER_BASE[ID] + reg_addr, value);
-return;
+	return;
 }
 
 STORAGE_CLASS_INPUT_FORMATTER_C hrt_data input_formatter_reg_load(
 	const input_formatter_ID_t	ID,
 	const unsigned int			reg_addr)
 {
-assert(ID < N_INPUT_FORMATTER_ID);
-assert(INPUT_FORMATTER_BASE[ID] != (hrt_address)-1);
-assert((reg_addr % sizeof(hrt_data)) == 0);
-return ia_css_device_load_uint32(INPUT_FORMATTER_BASE[ID] + reg_addr);
+	assert(ID < N_INPUT_FORMATTER_ID);
+	assert(INPUT_FORMATTER_BASE[ID] != (hrt_address)-1);
+	assert((reg_addr % sizeof(hrt_data)) == 0);
+	return ia_css_device_load_uint32(INPUT_FORMATTER_BASE[ID] + reg_addr);
 }
 
 #endif /* __INPUT_FORMATTER_PRIVATE_H_INCLUDED__ */

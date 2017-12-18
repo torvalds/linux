@@ -1,6 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Released under the GPLv2 only.
- * SPDX-License-Identifier: GPL-2.0
  */
 
 #include <linux/module.h>
@@ -187,6 +187,31 @@ EXPORT_SYMBOL_GPL(usb_unanchor_urb);
 
 /*-------------------------------------------------------------------*/
 
+static const int pipetypes[4] = {
+	PIPE_CONTROL, PIPE_ISOCHRONOUS, PIPE_BULK, PIPE_INTERRUPT
+};
+
+/**
+ * usb_urb_ep_type_check - sanity check of endpoint in the given urb
+ * @urb: urb to be checked
+ *
+ * This performs a light-weight sanity check for the endpoint in the
+ * given urb.  It returns 0 if the urb contains a valid endpoint, otherwise
+ * a negative error code.
+ */
+int usb_urb_ep_type_check(const struct urb *urb)
+{
+	const struct usb_host_endpoint *ep;
+
+	ep = usb_pipe_endpoint(urb->dev, urb->pipe);
+	if (!ep)
+		return -EINVAL;
+	if (usb_pipetype(urb->pipe) != pipetypes[usb_endpoint_type(&ep->desc)])
+		return -EINVAL;
+	return 0;
+}
+EXPORT_SYMBOL_GPL(usb_urb_ep_type_check);
+
 /**
  * usb_submit_urb - issue an asynchronous transfer request for an endpoint
  * @urb: pointer to the urb describing the request
@@ -326,9 +351,6 @@ EXPORT_SYMBOL_GPL(usb_unanchor_urb);
  */
 int usb_submit_urb(struct urb *urb, gfp_t mem_flags)
 {
-	static int			pipetypes[4] = {
-		PIPE_CONTROL, PIPE_ISOCHRONOUS, PIPE_BULK, PIPE_INTERRUPT
-	};
 	int				xfertype, max;
 	struct usb_device		*dev;
 	struct usb_host_endpoint	*ep;
@@ -444,7 +466,7 @@ int usb_submit_urb(struct urb *urb, gfp_t mem_flags)
 	 */
 
 	/* Check that the pipe's type matches the endpoint's type */
-	if (usb_pipetype(urb->pipe) != pipetypes[xfertype])
+	if (usb_urb_ep_type_check(urb))
 		dev_WARN(&dev->dev, "BOGUS urb xfer, pipe %x != type %x\n",
 			usb_pipetype(urb->pipe), pipetypes[xfertype]);
 
@@ -492,6 +514,7 @@ int usb_submit_urb(struct urb *urb, gfp_t mem_flags)
 			if ((urb->interval < 6)
 				&& (xfertype == USB_ENDPOINT_XFER_INT))
 				return -EINVAL;
+			/* fall through */
 		default:
 			if (urb->interval <= 0)
 				return -EINVAL;

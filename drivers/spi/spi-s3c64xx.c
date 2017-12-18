@@ -752,7 +752,6 @@ static int s3c64xx_spi_setup(struct spi_device *spi)
 {
 	struct s3c64xx_spi_csinfo *cs = spi->controller_data;
 	struct s3c64xx_spi_driver_data *sdd;
-	struct s3c64xx_spi_info *sci;
 	int err;
 
 	sdd = spi_master_get_devdata(spi->master);
@@ -787,8 +786,6 @@ static int s3c64xx_spi_setup(struct spi_device *spi)
 
 		spi_set_ctldata(spi, cs);
 	}
-
-	sci = sdd->cntrlr_info;
 
 	pm_runtime_get_sync(&sdd->pdev->dev);
 

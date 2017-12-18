@@ -50,7 +50,7 @@ struct inode *udf_new_inode(struct inode *dir, umode_t mode)
 	struct super_block *sb = dir->i_sb;
 	struct udf_sb_info *sbi = UDF_SB(sb);
 	struct inode *inode;
-	int block;
+	udf_pblk_t block;
 	uint32_t start = UDF_I(dir)->i_location.logicalBlockNum;
 	struct udf_inode_info *iinfo;
 	struct udf_inode_info *dinfo = UDF_I(dir);

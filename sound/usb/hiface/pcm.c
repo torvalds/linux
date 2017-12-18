@@ -541,6 +541,8 @@ static int hiface_pcm_init_urb(struct pcm_urb *urb,
 	usb_fill_bulk_urb(&urb->instance, chip->dev,
 			  usb_sndbulkpipe(chip->dev, ep), (void *)urb->buffer,
 			  PCM_PACKET_SIZE, handler, urb);
+	if (usb_urb_ep_type_check(&urb->instance))
+		return -EINVAL;
 	init_usb_anchor(&urb->submitted);
 
 	return 0;
@@ -599,9 +601,12 @@ int hiface_pcm_init(struct hiface_chip *chip, u8 extra_freq)
 	mutex_init(&rt->stream_mutex);
 	spin_lock_init(&rt->playback.lock);
 
-	for (i = 0; i < PCM_N_URBS; i++)
-		hiface_pcm_init_urb(&rt->out_urbs[i], chip, OUT_EP,
+	for (i = 0; i < PCM_N_URBS; i++) {
+		ret = hiface_pcm_init_urb(&rt->out_urbs[i], chip, OUT_EP,
 				    hiface_pcm_out_urb_handler);
+		if (ret < 0)
+			return ret;
+	}
 
 	ret = snd_pcm_new(chip->card, "USB-SPDIF Audio", 0, 1, 0, &pcm);
 	if (ret < 0) {

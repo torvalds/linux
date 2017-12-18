@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* linux/net/inet/arp.h */
 #ifndef _ARP_H
 #define _ARP_H

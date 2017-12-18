@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 #ifndef _LINUX_MINIX_FS_H
 #define _LINUX_MINIX_FS_H
 

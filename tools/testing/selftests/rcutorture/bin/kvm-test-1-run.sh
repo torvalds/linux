@@ -38,7 +38,7 @@
 #
 # Authors: Paul E. McKenney <paulmck@linux.vnet.ibm.com>
 
-T=/tmp/kvm-test-1-run.sh.$$
+T=${TMPDIR-/tmp}/kvm-test-1-run.sh.$$
 trap 'rm -rf $T' 0
 mkdir $T
 

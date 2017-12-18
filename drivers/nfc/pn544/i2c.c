@@ -54,7 +54,7 @@
 #define PN544_HCI_I2C_LLC_MAX_SIZE	(PN544_HCI_I2C_LLC_LEN_CRC + 1 + \
 					 PN544_HCI_I2C_LLC_MAX_PAYLOAD)
 
-static struct i2c_device_id pn544_hci_i2c_id_table[] = {
+static const struct i2c_device_id pn544_hci_i2c_id_table[] = {
 	{"pn544", 0},
 	{}
 };

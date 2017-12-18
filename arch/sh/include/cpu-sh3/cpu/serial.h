@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __CPU_SH3_SERIAL_H
 #define __CPU_SH3_SERIAL_H
 

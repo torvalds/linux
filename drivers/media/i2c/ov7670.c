@@ -213,6 +213,9 @@ struct ov7670_devtype {
 struct ov7670_format_struct;  /* coming later */
 struct ov7670_info {
 	struct v4l2_subdev sd;
+#if defined(CONFIG_MEDIA_CONTROLLER)
+	struct media_pad pad;
+#endif
 	struct v4l2_ctrl_handler hdl;
 	struct {
 		/* gain cluster */
@@ -229,6 +232,7 @@ struct ov7670_info {
 		struct v4l2_ctrl *saturation;
 		struct v4l2_ctrl *hue;
 	};
+	struct v4l2_mbus_framefmt format;
 	struct ov7670_format_struct *fmt;  /* Current format */
 	struct clk *clk;
 	struct gpio_desc *resetb_gpio;
@@ -972,6 +976,9 @@ static int ov7670_try_fmt_internal(struct v4l2_subdev *sd,
 	fmt->width = wsize->width;
 	fmt->height = wsize->height;
 	fmt->colorspace = ov7670_formats[index].colorspace;
+
+	info->format = *fmt;
+
 	return 0;
 }
 
@@ -985,6 +992,9 @@ static int ov7670_set_fmt(struct v4l2_subdev *sd,
 	struct ov7670_format_struct *ovfmt;
 	struct ov7670_win_size *wsize;
 	struct ov7670_info *info = to_state(sd);
+#ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
+	struct v4l2_mbus_framefmt *mbus_fmt;
+#endif
 	unsigned char com7;
 	int ret;
 
@@ -995,8 +1005,13 @@ static int ov7670_set_fmt(struct v4l2_subdev *sd,
 		ret = ov7670_try_fmt_internal(sd, &format->format, NULL, NULL);
 		if (ret)
 			return ret;
-		cfg->try_fmt = format->format;
+#ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
+		mbus_fmt = v4l2_subdev_get_try_format(sd, cfg, format->pad);
+		*mbus_fmt = format->format;
 		return 0;
+#else
+		return -ENOTTY;
+#endif
 	}
 
 	ret = ov7670_try_fmt_internal(sd, &format->format, &ovfmt, &wsize);
@@ -1035,6 +1050,30 @@ static int ov7670_set_fmt(struct v4l2_subdev *sd,
 	 */
 	if (ret == 0)
 		ret = ov7670_write(sd, REG_CLKRC, info->clkrc);
+	return 0;
+}
+
+static int ov7670_get_fmt(struct v4l2_subdev *sd,
+			  struct v4l2_subdev_pad_config *cfg,
+			  struct v4l2_subdev_format *format)
+{
+	struct ov7670_info *info = to_state(sd);
+#ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
+	struct v4l2_mbus_framefmt *mbus_fmt;
+#endif
+
+	if (format->which == V4L2_SUBDEV_FORMAT_TRY) {
+#ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
+		mbus_fmt = v4l2_subdev_get_try_format(sd, cfg, 0);
+		format->format = *mbus_fmt;
+		return 0;
+#else
+		return -ENOTTY;
+#endif
+	} else {
+		format->format = info->format;
+	}
+
 	return 0;
 }
 
@@ -1505,6 +1544,46 @@ static int ov7670_s_register(struct v4l2_subdev *sd, const struct v4l2_dbg_regis
 }
 #endif
 
+static int ov7670_s_power(struct v4l2_subdev *sd, int on)
+{
+	struct ov7670_info *info = to_state(sd);
+
+	if (info->pwdn_gpio)
+		gpiod_set_value(info->pwdn_gpio, !on);
+	if (on && info->resetb_gpio) {
+		gpiod_set_value(info->resetb_gpio, 1);
+		usleep_range(500, 1000);
+		gpiod_set_value(info->resetb_gpio, 0);
+		usleep_range(3000, 5000);
+	}
+
+	return 0;
+}
+
+static void ov7670_get_default_format(struct v4l2_subdev *sd,
+				      struct v4l2_mbus_framefmt *format)
+{
+	struct ov7670_info *info = to_state(sd);
+
+	format->width = info->devtype->win_sizes[0].width;
+	format->height = info->devtype->win_sizes[0].height;
+	format->colorspace = info->fmt->colorspace;
+	format->code = info->fmt->mbus_code;
+	format->field = V4L2_FIELD_NONE;
+}
+
+#ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
+static int ov7670_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
+{
+	struct v4l2_mbus_framefmt *format =
+				v4l2_subdev_get_try_format(sd, fh->pad, 0);
+
+	ov7670_get_default_format(sd, format);
+
+	return 0;
+}
+#endif
+
 /* ----------------------------------------------------------------------- */
 
 static const struct v4l2_subdev_core_ops ov7670_core_ops = {
@@ -1525,6 +1604,7 @@ static const struct v4l2_subdev_pad_ops ov7670_pad_ops = {
 	.enum_frame_interval = ov7670_enum_frame_interval,
 	.enum_frame_size = ov7670_enum_frame_size,
 	.enum_mbus_code = ov7670_enum_mbus_code,
+	.get_fmt = ov7670_get_fmt,
 	.set_fmt = ov7670_set_fmt,
 };
 
@@ -1533,6 +1613,12 @@ static const struct v4l2_subdev_ops ov7670_ops = {
 	.video = &ov7670_video_ops,
 	.pad = &ov7670_pad_ops,
 };
+
+#ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
+static const struct v4l2_subdev_internal_ops ov7670_subdev_internal_ops = {
+	.open = ov7670_open,
+};
+#endif
 
 /* ----------------------------------------------------------------------- */
 
@@ -1586,6 +1672,11 @@ static int ov7670_probe(struct i2c_client *client,
 	sd = &info->sd;
 	v4l2_i2c_subdev_init(sd, client, &ov7670_ops);
 
+#ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
+	sd->internal_ops = &ov7670_subdev_internal_ops;
+	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+#endif
+
 	info->clock_speed = 30; /* default: a guess */
 	if (client->dev.platform_data) {
 		struct ov7670_config *config = client->dev.platform_data;
@@ -1619,15 +1710,17 @@ static int ov7670_probe(struct i2c_client *client,
 	if (ret)
 		return ret;
 
-	ret = ov7670_init_gpio(client, info);
-	if (ret)
-		goto clk_disable;
-
 	info->clock_speed = clk_get_rate(info->clk) / 1000000;
 	if (info->clock_speed < 10 || info->clock_speed > 48) {
 		ret = -EINVAL;
 		goto clk_disable;
 	}
+
+	ret = ov7670_init_gpio(client, info);
+	if (ret)
+		goto clk_disable;
+
+	ov7670_s_power(sd, 1);
 
 	/* Make sure it's an ov7670 */
 	ret = ov7670_detect(sd);
@@ -1635,13 +1728,16 @@ static int ov7670_probe(struct i2c_client *client,
 		v4l_dbg(1, debug, client,
 			"chip found @ 0x%x (%s) is not an ov7670 chip.\n",
 			client->addr << 1, client->adapter->name);
-		goto clk_disable;
+		goto power_off;
 	}
 	v4l_info(client, "chip found @ 0x%02x (%s)\n",
 			client->addr << 1, client->adapter->name);
 
 	info->devtype = &ov7670_devdata[id->driver_data];
 	info->fmt = &ov7670_formats[0];
+
+	ov7670_get_default_format(sd, &info->format);
+
 	info->clkrc = 0;
 
 	/* Set default frame rate to 30 fps */
@@ -1688,16 +1784,31 @@ static int ov7670_probe(struct i2c_client *client,
 	v4l2_ctrl_auto_cluster(2, &info->auto_exposure,
 			       V4L2_EXPOSURE_MANUAL, false);
 	v4l2_ctrl_cluster(2, &info->saturation);
+
+#if defined(CONFIG_MEDIA_CONTROLLER)
+	info->pad.flags = MEDIA_PAD_FL_SOURCE;
+	info->sd.entity.function = MEDIA_ENT_F_CAM_SENSOR;
+	ret = media_entity_pads_init(&info->sd.entity, 1, &info->pad);
+	if (ret < 0)
+		goto hdl_free;
+#endif
+
 	v4l2_ctrl_handler_setup(&info->hdl);
 
 	ret = v4l2_async_register_subdev(&info->sd);
 	if (ret < 0)
-		goto hdl_free;
+		goto entity_cleanup;
 
 	return 0;
 
+entity_cleanup:
+#if defined(CONFIG_MEDIA_CONTROLLER)
+	media_entity_cleanup(&info->sd.entity);
+#endif
 hdl_free:
 	v4l2_ctrl_handler_free(&info->hdl);
+power_off:
+	ov7670_s_power(sd, 0);
 clk_disable:
 	clk_disable_unprepare(info->clk);
 	return ret;
@@ -1712,6 +1823,10 @@ static int ov7670_remove(struct i2c_client *client)
 	v4l2_device_unregister_subdev(sd);
 	v4l2_ctrl_handler_free(&info->hdl);
 	clk_disable_unprepare(info->clk);
+#if defined(CONFIG_MEDIA_CONTROLLER)
+	media_entity_cleanup(&info->sd.entity);
+#endif
+	ov7670_s_power(sd, 0);
 	return 0;
 }
 

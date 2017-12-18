@@ -114,14 +114,6 @@ static int emit_recurse_batch(struct hang *h,
 	if (err)
 		goto unpin_vma;
 
-	err = rq->engine->emit_flush(rq, EMIT_INVALIDATE);
-	if (err)
-		goto unpin_hws;
-
-	err = i915_switch_context(rq);
-	if (err)
-		goto unpin_hws;
-
 	i915_vma_move_to_active(vma, rq, 0);
 	if (!i915_gem_object_has_active_reference(vma->obj)) {
 		i915_gem_object_get(vma->obj);
@@ -173,7 +165,6 @@ static int emit_recurse_batch(struct hang *h,
 
 	err = rq->engine->emit_bb_start(rq, vma->node.start, PAGE_SIZE, flags);
 
-unpin_hws:
 	i915_vma_unpin(hws);
 unpin_vma:
 	i915_vma_unpin(vma);
@@ -628,7 +619,7 @@ static int igt_wait_reset(void *arg)
 
 		pr_err("Failed to start request %x, at %x\n",
 		       rq->fence.seqno, hws_seqno(&h, rq));
-		intel_engine_dump(rq->engine, &p);
+		intel_engine_dump(rq->engine, &p, "%s\n", rq->engine->name);
 
 		i915_reset(i915, 0);
 		i915_gem_set_wedged(i915);
@@ -723,7 +714,8 @@ static int igt_reset_queue(void *arg)
 
 				pr_err("Failed to start request %x, at %x\n",
 				       prev->fence.seqno, hws_seqno(&h, prev));
-				intel_engine_dump(rq->engine, &p);
+				intel_engine_dump(prev->engine, &p,
+						  "%s\n", prev->engine->name);
 
 				i915_gem_request_put(rq);
 				i915_gem_request_put(prev);
@@ -829,7 +821,7 @@ static int igt_handle_error(void *arg)
 
 		pr_err("Failed to start request %x, at %x\n",
 		       rq->fence.seqno, hws_seqno(&h, rq));
-		intel_engine_dump(rq->engine, &p);
+		intel_engine_dump(rq->engine, &p, "%s\n", rq->engine->name);
 
 		i915_reset(i915, 0);
 		i915_gem_set_wedged(i915);

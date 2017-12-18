@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #include "hisax_if.h"
 #include "hisax_isac.h"
 #include <linux/pci.h>

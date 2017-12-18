@@ -43,6 +43,12 @@ static int bcm54210e_config_init(struct phy_device *phydev)
 	val &= ~BCM54810_SHD_CLK_CTL_GTXCLK_EN;
 	bcm_phy_write_shadow(phydev, BCM54810_SHD_CLK_CTL, val);
 
+	if (phydev->dev_flags & PHY_BRCM_EN_MASTER_MODE) {
+		val = phy_read(phydev, MII_CTRL1000);
+		val |= CTL1000_AS_MASTER | CTL1000_ENABLE_MASTER;
+		phy_write(phydev, MII_CTRL1000, val);
+	}
+
 	return 0;
 }
 

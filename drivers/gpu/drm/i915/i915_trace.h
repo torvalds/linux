@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #if !defined(_I915_TRACE_H_) || defined(TRACE_HEADER_MULTI_READ)
 #define _I915_TRACE_H_
 

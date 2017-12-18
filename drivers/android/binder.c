@@ -150,7 +150,7 @@ static DECLARE_WAIT_QUEUE_HEAD(binder_user_error_wait);
 static int binder_stop_on_user_error;
 
 static int binder_set_stop_on_user_error(const char *val,
-					 struct kernel_param *kp)
+					 const struct kernel_param *kp)
 {
 	int ret;
 
@@ -2192,7 +2192,7 @@ static void binder_transaction_buffer_release(struct binder_proc *proc,
 						     off_start,
 						     offp - off_start);
 			if (!parent) {
-				pr_err("transaction release %d bad parent offset",
+				pr_err("transaction release %d bad parent offset\n",
 				       debug_id);
 				continue;
 			}

@@ -305,7 +305,7 @@ static int nvme_nvm_identity(struct nvm_dev *nvmdev, struct nvm_id *nvm_id)
 	int ret;
 
 	c.identity.opcode = nvme_nvm_admin_identity;
-	c.identity.nsid = cpu_to_le32(ns->ns_id);
+	c.identity.nsid = cpu_to_le32(ns->head->ns_id);
 	c.identity.chnl_off = 0;
 
 	nvme_nvm_id = kmalloc(sizeof(struct nvme_nvm_id), GFP_KERNEL);
@@ -344,7 +344,7 @@ static int nvme_nvm_get_l2p_tbl(struct nvm_dev *nvmdev, u64 slba, u32 nlb,
 	int ret = 0;
 
 	c.l2p.opcode = nvme_nvm_admin_get_l2p_tbl;
-	c.l2p.nsid = cpu_to_le32(ns->ns_id);
+	c.l2p.nsid = cpu_to_le32(ns->head->ns_id);
 	entries = kmalloc(len, GFP_KERNEL);
 	if (!entries)
 		return -ENOMEM;
@@ -402,7 +402,7 @@ static int nvme_nvm_get_bb_tbl(struct nvm_dev *nvmdev, struct ppa_addr ppa,
 	int ret = 0;
 
 	c.get_bb.opcode = nvme_nvm_admin_get_bb_tbl;
-	c.get_bb.nsid = cpu_to_le32(ns->ns_id);
+	c.get_bb.nsid = cpu_to_le32(ns->head->ns_id);
 	c.get_bb.spba = cpu_to_le64(ppa.ppa);
 
 	bb_tbl = kzalloc(tblsz, GFP_KERNEL);
@@ -452,7 +452,7 @@ static int nvme_nvm_set_bb_tbl(struct nvm_dev *nvmdev, struct ppa_addr *ppas,
 	int ret = 0;
 
 	c.set_bb.opcode = nvme_nvm_admin_set_bb_tbl;
-	c.set_bb.nsid = cpu_to_le32(ns->ns_id);
+	c.set_bb.nsid = cpu_to_le32(ns->head->ns_id);
 	c.set_bb.spba = cpu_to_le64(ppas->ppa);
 	c.set_bb.nlb = cpu_to_le16(nr_ppas - 1);
 	c.set_bb.value = type;
@@ -469,7 +469,7 @@ static inline void nvme_nvm_rqtocmd(struct nvm_rq *rqd, struct nvme_ns *ns,
 				    struct nvme_nvm_command *c)
 {
 	c->ph_rw.opcode = rqd->opcode;
-	c->ph_rw.nsid = cpu_to_le32(ns->ns_id);
+	c->ph_rw.nsid = cpu_to_le32(ns->head->ns_id);
 	c->ph_rw.spba = cpu_to_le64(rqd->ppa_addr.ppa);
 	c->ph_rw.metadata = cpu_to_le64(rqd->dma_meta_list);
 	c->ph_rw.control = cpu_to_le16(rqd->flags);
@@ -492,32 +492,45 @@ static void nvme_nvm_end_io(struct request *rq, blk_status_t status)
 	blk_mq_free_request(rq);
 }
 
+static struct request *nvme_nvm_alloc_request(struct request_queue *q,
+					      struct nvm_rq *rqd,
+					      struct nvme_nvm_command *cmd)
+{
+	struct nvme_ns *ns = q->queuedata;
+	struct request *rq;
+
+	nvme_nvm_rqtocmd(rqd, ns, cmd);
+
+	rq = nvme_alloc_request(q, (struct nvme_command *)cmd, 0, NVME_QID_ANY);
+	if (IS_ERR(rq))
+		return rq;
+
+	rq->cmd_flags &= ~REQ_FAILFAST_DRIVER;
+
+	if (rqd->bio) {
+		blk_init_request_from_bio(rq, rqd->bio);
+	} else {
+		rq->ioprio = IOPRIO_PRIO_VALUE(IOPRIO_CLASS_BE, IOPRIO_NORM);
+		rq->__data_len = 0;
+	}
+
+	return rq;
+}
+
 static int nvme_nvm_submit_io(struct nvm_dev *dev, struct nvm_rq *rqd)
 {
 	struct request_queue *q = dev->q;
-	struct nvme_ns *ns = q->queuedata;
-	struct request *rq;
-	struct bio *bio = rqd->bio;
 	struct nvme_nvm_command *cmd;
+	struct request *rq;
 
 	cmd = kzalloc(sizeof(struct nvme_nvm_command), GFP_KERNEL);
 	if (!cmd)
 		return -ENOMEM;
 
-	nvme_nvm_rqtocmd(rqd, ns, cmd);
-
-	rq = nvme_alloc_request(q, (struct nvme_command *)cmd, 0, NVME_QID_ANY);
+	rq = nvme_nvm_alloc_request(q, rqd, cmd);
 	if (IS_ERR(rq)) {
 		kfree(cmd);
 		return PTR_ERR(rq);
-	}
-	rq->cmd_flags &= ~REQ_FAILFAST_DRIVER;
-
-	if (bio) {
-		blk_init_request_from_bio(rq, bio);
-	} else {
-		rq->ioprio = IOPRIO_PRIO_VALUE(IOPRIO_CLASS_BE, IOPRIO_NORM);
-		rq->__data_len = 0;
 	}
 
 	rq->end_io_data = rqd;
@@ -525,6 +538,34 @@ static int nvme_nvm_submit_io(struct nvm_dev *dev, struct nvm_rq *rqd)
 	blk_execute_rq_nowait(q, NULL, rq, 0, nvme_nvm_end_io);
 
 	return 0;
+}
+
+static int nvme_nvm_submit_io_sync(struct nvm_dev *dev, struct nvm_rq *rqd)
+{
+	struct request_queue *q = dev->q;
+	struct request *rq;
+	struct nvme_nvm_command cmd;
+	int ret = 0;
+
+	memset(&cmd, 0, sizeof(struct nvme_nvm_command));
+
+	rq = nvme_nvm_alloc_request(q, rqd, &cmd);
+	if (IS_ERR(rq))
+		return PTR_ERR(rq);
+
+	/* I/Os can fail and the error is signaled through rqd. Callers must
+	 * handle the error accordingly.
+	 */
+	blk_execute_rq(q, NULL, rq, 0);
+	if (nvme_req(rq)->flags & NVME_REQ_CANCELLED)
+		ret = -EINTR;
+
+	rqd->ppa_status = le64_to_cpu(nvme_req(rq)->result.u64);
+	rqd->error = nvme_req(rq)->status;
+
+	blk_mq_free_request(rq);
+
+	return ret;
 }
 
 static void *nvme_nvm_create_dma_pool(struct nvm_dev *nvmdev, char *name)
@@ -562,6 +603,7 @@ static struct nvm_dev_ops nvme_nvm_dev_ops = {
 	.set_bb_tbl		= nvme_nvm_set_bb_tbl,
 
 	.submit_io		= nvme_nvm_submit_io,
+	.submit_io_sync		= nvme_nvm_submit_io_sync,
 
 	.create_dma_pool	= nvme_nvm_create_dma_pool,
 	.destroy_dma_pool	= nvme_nvm_destroy_dma_pool,
@@ -599,8 +641,6 @@ static int nvme_nvm_submit_user_cmd(struct request_queue *q,
 	}
 
 	rq->timeout = timeout ? timeout : ADMIN_TIMEOUT;
-
-	rq->cmd_flags &= ~REQ_FAILFAST_DRIVER;
 
 	if (ppa_buf && ppa_len) {
 		ppa_list = dma_pool_alloc(dev->dma_pool, GFP_KERNEL, &ppa_dma);
@@ -691,7 +731,7 @@ static int nvme_nvm_submit_vio(struct nvme_ns *ns,
 
 	memset(&c, 0, sizeof(c));
 	c.ph_rw.opcode = vio.opcode;
-	c.ph_rw.nsid = cpu_to_le32(ns->ns_id);
+	c.ph_rw.nsid = cpu_to_le32(ns->head->ns_id);
 	c.ph_rw.control = cpu_to_le16(vio.control);
 	c.ph_rw.length = cpu_to_le16(vio.nppas);
 
@@ -728,7 +768,7 @@ static int nvme_nvm_user_vcmd(struct nvme_ns *ns, int admin,
 
 	memset(&c, 0, sizeof(c));
 	c.common.opcode = vcmd.opcode;
-	c.common.nsid = cpu_to_le32(ns->ns_id);
+	c.common.nsid = cpu_to_le32(ns->head->ns_id);
 	c.common.cdw2[0] = cpu_to_le32(vcmd.cdw2);
 	c.common.cdw2[1] = cpu_to_le32(vcmd.cdw3);
 	/* cdw11-12 */

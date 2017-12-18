@@ -565,12 +565,6 @@ static struct omap_hwmod_class i2c_class = {
 	.reset	= &omap_i2c_reset,
 };
 
-static struct omap_hwmod_dma_info omap3xxx_dss_sdma_chs[] = {
-	{ .name = "dispc", .dma_req = 5 },
-	{ .name = "dsi1", .dma_req = 74 },
-	{ .dma_req = -1, },
-};
-
 /* dss */
 static struct omap_hwmod_opt_clk dss_opt_clks[] = {
 	/*
@@ -587,7 +581,6 @@ static struct omap_hwmod omap3430es1_dss_core_hwmod = {
 	.name		= "dss_core",
 	.class		= &omap2_dss_hwmod_class,
 	.main_clk	= "dss1_alwon_fck", /* instead of dss_fck */
-	.sdma_reqs	= omap3xxx_dss_sdma_chs,
 	.prcm		= {
 		.omap2 = {
 			.prcm_reg_id = 1,
@@ -607,7 +600,6 @@ static struct omap_hwmod omap3xxx_dss_core_hwmod = {
 	.flags		= HWMOD_CONTROL_OPT_CLKS_IN_RESET,
 	.class		= &omap2_dss_hwmod_class,
 	.main_clk	= "dss1_alwon_fck", /* instead of dss_fck */
-	.sdma_reqs	= omap3xxx_dss_sdma_chs,
 	.prcm		= {
 		.omap2 = {
 			.prcm_reg_id = 1,
@@ -647,7 +639,6 @@ static struct omap_hwmod_class omap3_dispc_hwmod_class = {
 static struct omap_hwmod omap3xxx_dss_dispc_hwmod = {
 	.name		= "dss_dispc",
 	.class		= &omap3_dispc_hwmod_class,
-	.mpu_irqs	= omap2_dispc_irqs,
 	.main_clk	= "dss1_alwon_fck",
 	.prcm		= {
 		.omap2 = {
@@ -1017,7 +1008,6 @@ static struct omap_hwmod_class omap3xxx_dma_hwmod_class = {
 static struct omap_hwmod omap3xxx_dma_system_hwmod = {
 	.name		= "dma",
 	.class		= &omap3xxx_dma_hwmod_class,
-	.mpu_irqs	= omap2_dma_system_irqs,
 	.main_clk	= "core_l3_ick",
 	.prcm = {
 		.omap2 = {
@@ -2108,20 +2098,10 @@ static struct omap_hwmod_ocp_if omap3_l4_core__i2c3 = {
 };
 
 /* L4 CORE -> SR1 interface */
-static struct omap_hwmod_addr_space omap3_sr1_addr_space[] = {
-	{
-		.pa_start	= OMAP34XX_SR1_BASE,
-		.pa_end		= OMAP34XX_SR1_BASE + SZ_1K - 1,
-		.flags		= ADDR_TYPE_RT,
-	},
-	{ },
-};
-
 static struct omap_hwmod_ocp_if omap34xx_l4_core__sr1 = {
 	.master		= &omap3xxx_l4_core_hwmod,
 	.slave		= &omap34xx_sr1_hwmod,
 	.clk		= "sr_l4_ick",
-	.addr		= omap3_sr1_addr_space,
 	.user		= OCP_USER_MPU,
 };
 
@@ -2129,25 +2109,15 @@ static struct omap_hwmod_ocp_if omap36xx_l4_core__sr1 = {
 	.master		= &omap3xxx_l4_core_hwmod,
 	.slave		= &omap36xx_sr1_hwmod,
 	.clk		= "sr_l4_ick",
-	.addr		= omap3_sr1_addr_space,
 	.user		= OCP_USER_MPU,
 };
 
-/* L4 CORE -> SR1 interface */
-static struct omap_hwmod_addr_space omap3_sr2_addr_space[] = {
-	{
-		.pa_start	= OMAP34XX_SR2_BASE,
-		.pa_end		= OMAP34XX_SR2_BASE + SZ_1K - 1,
-		.flags		= ADDR_TYPE_RT,
-	},
-	{ },
-};
+/* L4 CORE -> SR2 interface */
 
 static struct omap_hwmod_ocp_if omap34xx_l4_core__sr2 = {
 	.master		= &omap3xxx_l4_core_hwmod,
 	.slave		= &omap34xx_sr2_hwmod,
 	.clk		= "sr_l4_ick",
-	.addr		= omap3_sr2_addr_space,
 	.user		= OCP_USER_MPU,
 };
 
@@ -2155,7 +2125,6 @@ static struct omap_hwmod_ocp_if omap36xx_l4_core__sr2 = {
 	.master		= &omap3xxx_l4_core_hwmod,
 	.slave		= &omap36xx_sr2_hwmod,
 	.clk		= "sr_l4_ick",
-	.addr		= omap3_sr2_addr_space,
 	.user		= OCP_USER_MPU,
 };
 
@@ -2524,21 +2493,11 @@ static struct omap_hwmod_ocp_if omap3xxx_dma_system__l3 = {
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
-static struct omap_hwmod_addr_space omap3xxx_dma_system_addrs[] = {
-	{
-		.pa_start	= 0x48056000,
-		.pa_end		= 0x48056fff,
-		.flags		= ADDR_TYPE_RT,
-	},
-	{ },
-};
-
 /* l4_cfg -> dma_system */
 static struct omap_hwmod_ocp_if omap3xxx_l4_core__dma_system = {
 	.master		= &omap3xxx_l4_core_hwmod,
 	.slave		= &omap3xxx_dma_system_hwmod,
 	.clk		= "core_l4_ick",
-	.addr		= omap3xxx_dma_system_addrs,
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
@@ -3148,7 +3107,7 @@ int __init omap3xxx_hwmod_init(void)
 	int r;
 	struct omap_hwmod_ocp_if **h = NULL, **h_gp = NULL, **h_sham = NULL;
 	struct omap_hwmod_ocp_if **h_aes = NULL;
-	struct device_node *bus = NULL;
+	struct device_node *bus;
 	unsigned int rev;
 
 	omap_hwmod_init();
@@ -3208,18 +3167,14 @@ int __init omap3xxx_hwmod_init(void)
 
 	if (h_sham && omap3xxx_hwmod_is_hs_ip_block_usable(bus, "sham")) {
 		r = omap_hwmod_register_links(h_sham);
-		if (r < 0) {
-			of_node_put(bus);
-			return r;
-		}
+		if (r < 0)
+			goto put_node;
 	}
 
 	if (h_aes && omap3xxx_hwmod_is_hs_ip_block_usable(bus, "aes")) {
 		r = omap_hwmod_register_links(h_aes);
-		if (r < 0) {
-			of_node_put(bus);
-			return r;
-		}
+		if (r < 0)
+			goto put_node;
 	}
 	of_node_put(bus);
 
@@ -3269,5 +3224,9 @@ int __init omap3xxx_hwmod_init(void)
 	 */
 	r = omap_hwmod_register_links(omap3xxx_dss_hwmod_ocp_ifs);
 
+	return r;
+
+put_node:
+	of_node_put(bus);
 	return r;
 }

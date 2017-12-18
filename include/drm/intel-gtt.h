@@ -1,12 +1,12 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* Common header for intel-gtt.ko and i915.ko */
 
 #ifndef _DRM_INTEL_GTT_H
 #define	_DRM_INTEL_GTT_H
 
 void intel_gtt_get(u64 *gtt_total,
-		   u32 *stolen_size,
 		   phys_addr_t *mappable_base,
-		   u64 *mappable_end);
+		   resource_size_t *mappable_end);
 
 int intel_gmch_probe(struct pci_dev *bridge_pdev, struct pci_dev *gpu_pdev,
 		     struct agp_bridge_data *bridge);

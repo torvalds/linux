@@ -52,8 +52,8 @@ struct __dispatch {
  *  @return  Failure: NULL
  *
  */
-static inline void *octeon_get_dispatch_arg(struct octeon_device *octeon_dev,
-					    u16 opcode, u16 subcode)
+void *octeon_get_dispatch_arg(struct octeon_device *octeon_dev,
+			      u16 opcode, u16 subcode)
 {
 	int idx;
 	struct list_head *dispatch;

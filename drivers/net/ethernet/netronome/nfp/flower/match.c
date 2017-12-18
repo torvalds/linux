@@ -77,14 +77,17 @@ nfp_flower_compile_meta(struct nfp_flower_meta_one *frame, u8 key_type)
 
 static int
 nfp_flower_compile_port(struct nfp_flower_in_port *frame, u32 cmsg_port,
-			bool mask_version)
+			bool mask_version, enum nfp_flower_tun_type tun_type)
 {
 	if (mask_version) {
 		frame->in_port = cpu_to_be32(~0);
 		return 0;
 	}
 
-	frame->in_port = cpu_to_be32(cmsg_port);
+	if (tun_type)
+		frame->in_port = cpu_to_be32(NFP_FL_PORT_TYPE_TUN | tun_type);
+	else
+		frame->in_port = cpu_to_be32(cmsg_port);
 
 	return 0;
 }
@@ -108,8 +111,21 @@ nfp_flower_compile_mac(struct nfp_flower_mac_mpls *frame,
 		ether_addr_copy(frame->mac_src, &addr->src[0]);
 	}
 
-	if (mask_version)
-		frame->mpls_lse = cpu_to_be32(~0);
+	if (dissector_uses_key(flow->dissector, FLOW_DISSECTOR_KEY_MPLS)) {
+		struct flow_dissector_key_mpls *mpls;
+		u32 t_mpls;
+
+		mpls = skb_flow_dissector_target(flow->dissector,
+						 FLOW_DISSECTOR_KEY_MPLS,
+						 target);
+
+		t_mpls = FIELD_PREP(NFP_FLOWER_MASK_MPLS_LB, mpls->mpls_label) |
+			 FIELD_PREP(NFP_FLOWER_MASK_MPLS_TC, mpls->mpls_tc) |
+			 FIELD_PREP(NFP_FLOWER_MASK_MPLS_BOS, mpls->mpls_bos) |
+			 NFP_FLOWER_MASK_MPLS_Q;
+
+		frame->mpls_lse = cpu_to_be32(t_mpls);
+	}
 }
 
 static void
@@ -140,7 +156,6 @@ nfp_flower_compile_ipv4(struct nfp_flower_ipv4 *frame,
 	struct flow_dissector_key_ipv4_addrs *addr;
 	struct flow_dissector_key_basic *basic;
 
-	/* Wildcard TOS/TTL for now. */
 	memset(frame, 0, sizeof(struct nfp_flower_ipv4));
 
 	if (dissector_uses_key(flow->dissector,
@@ -158,6 +173,16 @@ nfp_flower_compile_ipv4(struct nfp_flower_ipv4 *frame,
 						  target);
 		frame->proto = basic->ip_proto;
 	}
+
+	if (dissector_uses_key(flow->dissector, FLOW_DISSECTOR_KEY_IP)) {
+		struct flow_dissector_key_ip *flow_ip;
+
+		flow_ip = skb_flow_dissector_target(flow->dissector,
+						    FLOW_DISSECTOR_KEY_IP,
+						    target);
+		frame->tos = flow_ip->tos;
+		frame->ttl = flow_ip->ttl;
+	}
 }
 
 static void
@@ -169,7 +194,6 @@ nfp_flower_compile_ipv6(struct nfp_flower_ipv6 *frame,
 	struct flow_dissector_key_ipv6_addrs *addr;
 	struct flow_dissector_key_basic *basic;
 
-	/* Wildcard LABEL/TOS/TTL for now. */
 	memset(frame, 0, sizeof(struct nfp_flower_ipv6));
 
 	if (dissector_uses_key(flow->dissector,
@@ -187,6 +211,51 @@ nfp_flower_compile_ipv6(struct nfp_flower_ipv6 *frame,
 						  target);
 		frame->proto = basic->ip_proto;
 	}
+
+	if (dissector_uses_key(flow->dissector, FLOW_DISSECTOR_KEY_IP)) {
+		struct flow_dissector_key_ip *flow_ip;
+
+		flow_ip = skb_flow_dissector_target(flow->dissector,
+						    FLOW_DISSECTOR_KEY_IP,
+						    target);
+		frame->tos = flow_ip->tos;
+		frame->ttl = flow_ip->ttl;
+	}
+}
+
+static void
+nfp_flower_compile_vxlan(struct nfp_flower_vxlan *frame,
+			 struct tc_cls_flower_offload *flow,
+			 bool mask_version, __be32 *tun_dst)
+{
+	struct fl_flow_key *target = mask_version ? flow->mask : flow->key;
+	struct flow_dissector_key_ipv4_addrs *vxlan_ips;
+	struct flow_dissector_key_keyid *vni;
+
+	/* Wildcard TOS/TTL/GPE_FLAGS/NXT_PROTO for now. */
+	memset(frame, 0, sizeof(struct nfp_flower_vxlan));
+
+	if (dissector_uses_key(flow->dissector,
+			       FLOW_DISSECTOR_KEY_ENC_KEYID)) {
+		u32 temp_vni;
+
+		vni = skb_flow_dissector_target(flow->dissector,
+						FLOW_DISSECTOR_KEY_ENC_KEYID,
+						target);
+		temp_vni = be32_to_cpu(vni->keyid) << NFP_FL_TUN_VNI_OFFSET;
+		frame->tun_id = cpu_to_be32(temp_vni);
+	}
+
+	if (dissector_uses_key(flow->dissector,
+			       FLOW_DISSECTOR_KEY_ENC_IPV4_ADDRS)) {
+		vxlan_ips =
+		   skb_flow_dissector_target(flow->dissector,
+					     FLOW_DISSECTOR_KEY_ENC_IPV4_ADDRS,
+					     target);
+		frame->ip_src = vxlan_ips->src;
+		frame->ip_dst = vxlan_ips->dst;
+		*tun_dst = vxlan_ips->dst;
+	}
 }
 
 int nfp_flower_compile_flow_match(struct tc_cls_flower_offload *flow,
@@ -194,9 +263,15 @@ int nfp_flower_compile_flow_match(struct tc_cls_flower_offload *flow,
 				  struct net_device *netdev,
 				  struct nfp_fl_payload *nfp_flow)
 {
+	enum nfp_flower_tun_type tun_type = NFP_FL_TUNNEL_NONE;
+	__be32 tun_dst, tun_dst_mask = 0;
+	struct nfp_repr *netdev_repr;
 	int err;
 	u8 *ext;
 	u8 *msk;
+
+	if (key_ls->key_layer & NFP_FLOWER_LAYER_VXLAN)
+		tun_type = NFP_FL_TUNNEL_VXLAN;
 
 	memset(nfp_flow->unmasked_data, 0, key_ls->key_size);
 	memset(nfp_flow->mask_data, 0, key_ls->key_size);
@@ -216,14 +291,14 @@ int nfp_flower_compile_flow_match(struct tc_cls_flower_offload *flow,
 		/* Populate Exact Port data. */
 		err = nfp_flower_compile_port((struct nfp_flower_in_port *)ext,
 					      nfp_repr_get_port_id(netdev),
-					      false);
+					      false, tun_type);
 		if (err)
 			return err;
 
 		/* Populate Mask Port Data. */
 		err = nfp_flower_compile_port((struct nfp_flower_in_port *)msk,
 					      nfp_repr_get_port_id(netdev),
-					      true);
+					      true, tun_type);
 		if (err)
 			return err;
 
@@ -289,6 +364,29 @@ int nfp_flower_compile_flow_match(struct tc_cls_flower_offload *flow,
 					flow, true);
 		ext += sizeof(struct nfp_flower_ipv6);
 		msk += sizeof(struct nfp_flower_ipv6);
+	}
+
+	if (key_ls->key_layer & NFP_FLOWER_LAYER_VXLAN) {
+		/* Populate Exact VXLAN Data. */
+		nfp_flower_compile_vxlan((struct nfp_flower_vxlan *)ext,
+					 flow, false, &tun_dst);
+		/* Populate Mask VXLAN Data. */
+		nfp_flower_compile_vxlan((struct nfp_flower_vxlan *)msk,
+					 flow, true, &tun_dst_mask);
+		ext += sizeof(struct nfp_flower_vxlan);
+		msk += sizeof(struct nfp_flower_vxlan);
+
+		/* Configure tunnel end point MAC. */
+		if (nfp_netdev_is_nfp_repr(netdev)) {
+			netdev_repr = netdev_priv(netdev);
+			nfp_tunnel_write_macs(netdev_repr->app);
+
+			/* Store the tunnel destination in the rule data.
+			 * This must be present and be an exact match.
+			 */
+			nfp_flow->nfp_tun_ipv4_addr = tun_dst;
+			nfp_tunnel_add_ipv4_off(netdev_repr->app, tun_dst);
+		}
 	}
 
 	return 0;

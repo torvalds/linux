@@ -18,6 +18,7 @@ config DRM_I915_WERROR
 config DRM_I915_DEBUG
         bool "Enable additional driver debugging"
         depends on DRM_I915
+        select DEBUG_FS
         select PREEMPT_COUNT
         select I2C_CHARDEV
         select DRM_DP_AUX_CHARDEV

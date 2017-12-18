@@ -14,8 +14,8 @@
  */
 
 #include "bnx2fc.h"
-static void bnx2fc_upld_timer(unsigned long data);
-static void bnx2fc_ofld_timer(unsigned long data);
+static void bnx2fc_upld_timer(struct timer_list *t);
+static void bnx2fc_ofld_timer(struct timer_list *t);
 static int bnx2fc_init_tgt(struct bnx2fc_rport *tgt,
 			   struct fcoe_port *port,
 			   struct fc_rport_priv *rdata);
@@ -27,10 +27,10 @@ static void bnx2fc_free_session_resc(struct bnx2fc_hba *hba,
 			      struct bnx2fc_rport *tgt);
 static void bnx2fc_free_conn_id(struct bnx2fc_hba *hba, u32 conn_id);
 
-static void bnx2fc_upld_timer(unsigned long data)
+static void bnx2fc_upld_timer(struct timer_list *t)
 {
 
-	struct bnx2fc_rport *tgt = (struct bnx2fc_rport *)data;
+	struct bnx2fc_rport *tgt = from_timer(tgt, t, upld_timer);
 
 	BNX2FC_TGT_DBG(tgt, "upld_timer - Upload compl not received!!\n");
 	/* fake upload completion */
@@ -40,10 +40,10 @@ static void bnx2fc_upld_timer(unsigned long data)
 	wake_up_interruptible(&tgt->upld_wait);
 }
 
-static void bnx2fc_ofld_timer(unsigned long data)
+static void bnx2fc_ofld_timer(struct timer_list *t)
 {
 
-	struct bnx2fc_rport *tgt = (struct bnx2fc_rport *)data;
+	struct bnx2fc_rport *tgt = from_timer(tgt, t, ofld_timer);
 
 	BNX2FC_TGT_DBG(tgt, "entered bnx2fc_ofld_timer\n");
 	/* NOTE: This function should never be called, as
@@ -65,7 +65,7 @@ static void bnx2fc_ofld_timer(unsigned long data)
 
 static void bnx2fc_ofld_wait(struct bnx2fc_rport *tgt)
 {
-	setup_timer(&tgt->ofld_timer, bnx2fc_ofld_timer, (unsigned long)tgt);
+	timer_setup(&tgt->ofld_timer, bnx2fc_ofld_timer, 0);
 	mod_timer(&tgt->ofld_timer, jiffies + BNX2FC_FW_TIMEOUT);
 
 	wait_event_interruptible(tgt->ofld_wait,
@@ -277,7 +277,7 @@ void bnx2fc_flush_active_ios(struct bnx2fc_rport *tgt)
 
 static void bnx2fc_upld_wait(struct bnx2fc_rport *tgt)
 {
-	setup_timer(&tgt->upld_timer, bnx2fc_upld_timer, (unsigned long)tgt);
+	timer_setup(&tgt->upld_timer, bnx2fc_upld_timer, 0);
 	mod_timer(&tgt->upld_timer, jiffies + BNX2FC_FW_TIMEOUT);
 	wait_event_interruptible(tgt->upld_wait,
 				 (test_bit(

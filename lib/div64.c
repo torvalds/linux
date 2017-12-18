@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 2003 Bernardo Innocenti <bernie@develer.com>
  *
@@ -60,6 +61,12 @@ uint32_t __attribute__((weak)) __div64_32(uint64_t *n, uint32_t base)
 EXPORT_SYMBOL(__div64_32);
 #endif
 
+/**
+ * div_s64_rem - signed 64bit divide with 64bit divisor and remainder
+ * @dividend:	64bit dividend
+ * @divisor:	64bit divisor
+ * @remainder:  64bit remainder
+ */
 #ifndef div_s64_rem
 s64 div_s64_rem(s64 dividend, s32 divisor, s32 *remainder)
 {

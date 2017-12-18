@@ -198,6 +198,7 @@ struct ib_qp *pvrdma_create_qp(struct ib_pd *pd,
 	struct pvrdma_create_qp ucmd;
 	unsigned long flags;
 	int ret;
+	bool is_srq = !!init_attr->srq;
 
 	if (init_attr->create_flags) {
 		dev_warn(&dev->pdev->dev,
@@ -211,6 +212,12 @@ struct ib_qp *pvrdma_create_qp(struct ib_pd *pd,
 	    init_attr->qp_type != IB_QPT_GSI) {
 		dev_warn(&dev->pdev->dev, "queuepair type %d not supported\n",
 			 init_attr->qp_type);
+		return ERR_PTR(-EINVAL);
+	}
+
+	if (is_srq && !dev->dsr->caps.max_srq) {
+		dev_warn(&dev->pdev->dev,
+			 "SRQs not supported by device\n");
 		return ERR_PTR(-EINVAL);
 	}
 
@@ -252,26 +259,36 @@ struct ib_qp *pvrdma_create_qp(struct ib_pd *pd,
 				goto err_qp;
 			}
 
-			/* set qp->sq.wqe_cnt, shift, buf_size.. */
-			qp->rumem = ib_umem_get(pd->uobject->context,
-						ucmd.rbuf_addr,
-						ucmd.rbuf_size, 0, 0);
-			if (IS_ERR(qp->rumem)) {
-				ret = PTR_ERR(qp->rumem);
-				goto err_qp;
+			if (!is_srq) {
+				/* set qp->sq.wqe_cnt, shift, buf_size.. */
+				qp->rumem = ib_umem_get(pd->uobject->context,
+							ucmd.rbuf_addr,
+							ucmd.rbuf_size, 0, 0);
+				if (IS_ERR(qp->rumem)) {
+					ret = PTR_ERR(qp->rumem);
+					goto err_qp;
+				}
+				qp->srq = NULL;
+			} else {
+				qp->rumem = NULL;
+				qp->srq = to_vsrq(init_attr->srq);
 			}
 
 			qp->sumem = ib_umem_get(pd->uobject->context,
 						ucmd.sbuf_addr,
 						ucmd.sbuf_size, 0, 0);
 			if (IS_ERR(qp->sumem)) {
-				ib_umem_release(qp->rumem);
+				if (!is_srq)
+					ib_umem_release(qp->rumem);
 				ret = PTR_ERR(qp->sumem);
 				goto err_qp;
 			}
 
 			qp->npages_send = ib_umem_page_count(qp->sumem);
-			qp->npages_recv = ib_umem_page_count(qp->rumem);
+			if (!is_srq)
+				qp->npages_recv = ib_umem_page_count(qp->rumem);
+			else
+				qp->npages_recv = 0;
 			qp->npages = qp->npages_send + qp->npages_recv;
 		} else {
 			qp->is_kernel = true;
@@ -312,12 +329,14 @@ struct ib_qp *pvrdma_create_qp(struct ib_pd *pd,
 
 		if (!qp->is_kernel) {
 			pvrdma_page_dir_insert_umem(&qp->pdir, qp->sumem, 0);
-			pvrdma_page_dir_insert_umem(&qp->pdir, qp->rumem,
-						    qp->npages_send);
+			if (!is_srq)
+				pvrdma_page_dir_insert_umem(&qp->pdir,
+							    qp->rumem,
+							    qp->npages_send);
 		} else {
 			/* Ring state is always the first page. */
 			qp->sq.ring = qp->pdir.pages[0];
-			qp->rq.ring = &qp->sq.ring[1];
+			qp->rq.ring = is_srq ? NULL : &qp->sq.ring[1];
 		}
 		break;
 	default:
@@ -333,6 +352,10 @@ struct ib_qp *pvrdma_create_qp(struct ib_pd *pd,
 	cmd->pd_handle = to_vpd(pd)->pd_handle;
 	cmd->send_cq_handle = to_vcq(init_attr->send_cq)->cq_handle;
 	cmd->recv_cq_handle = to_vcq(init_attr->recv_cq)->cq_handle;
+	if (is_srq)
+		cmd->srq_handle = to_vsrq(init_attr->srq)->srq_handle;
+	else
+		cmd->srq_handle = 0;
 	cmd->max_send_wr = init_attr->cap.max_send_wr;
 	cmd->max_recv_wr = init_attr->cap.max_recv_wr;
 	cmd->max_send_sge = init_attr->cap.max_send_sge;
@@ -340,6 +363,8 @@ struct ib_qp *pvrdma_create_qp(struct ib_pd *pd,
 	cmd->max_inline_data = init_attr->cap.max_inline_data;
 	cmd->sq_sig_all = (init_attr->sq_sig_type == IB_SIGNAL_ALL_WR) ? 1 : 0;
 	cmd->qp_type = ib_qp_type_to_pvrdma(init_attr->qp_type);
+	cmd->is_srq = is_srq;
+	cmd->lkey = 0;
 	cmd->access_flags = IB_ACCESS_LOCAL_WRITE;
 	cmd->total_chunks = qp->npages;
 	cmd->send_chunks = qp->npages_send - PVRDMA_QP_NUM_HEADER_PAGES;
@@ -811,6 +836,12 @@ int pvrdma_post_recv(struct ib_qp *ibqp, struct ib_recv_wr *wr,
 	 * just post and let the device figure it out.
 	 */
 	if (qp->state == IB_QPS_RESET) {
+		*bad_wr = wr;
+		return -EINVAL;
+	}
+
+	if (qp->srq) {
+		dev_warn(&dev->pdev->dev, "QP associated with SRQ\n");
 		*bad_wr = wr;
 		return -EINVAL;
 	}

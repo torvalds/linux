@@ -12,6 +12,7 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/module.h>
+#include <linux/of_device.h>
 #include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/mutex.h>
@@ -24,6 +25,7 @@
 #include <linux/i2c.h>
 #include <linux/nvmem-provider.h>
 #include <linux/platform_data/at24.h>
+#include <linux/pm_runtime.h>
 
 /*
  * I2C EEPROMs from most vendors are inexpensive and mostly interchangeable.
@@ -174,6 +176,64 @@ static const struct i2c_device_id at24_ids[] = {
 	{ /* END OF LIST */ }
 };
 MODULE_DEVICE_TABLE(i2c, at24_ids);
+
+static const struct of_device_id at24_of_match[] = {
+	{
+		.compatible = "atmel,24c00",
+		.data = (void *)AT24_DEVICE_MAGIC(128 / 8, AT24_FLAG_TAKE8ADDR)
+	},
+	{
+		.compatible = "atmel,24c01",
+		.data = (void *)AT24_DEVICE_MAGIC(1024 / 8, 0)
+	},
+	{
+		.compatible = "atmel,24c02",
+		.data = (void *)AT24_DEVICE_MAGIC(2048 / 8, 0)
+	},
+	{
+		.compatible = "atmel,spd",
+		.data = (void *)AT24_DEVICE_MAGIC(2048 / 8,
+				AT24_FLAG_READONLY | AT24_FLAG_IRUGO)
+	},
+	{
+		.compatible = "atmel,24c04",
+		.data = (void *)AT24_DEVICE_MAGIC(4096 / 8, 0)
+	},
+	{
+		.compatible = "atmel,24c08",
+		.data = (void *)AT24_DEVICE_MAGIC(8192 / 8, 0)
+	},
+	{
+		.compatible = "atmel,24c16",
+		.data = (void *)AT24_DEVICE_MAGIC(16384 / 8, 0)
+	},
+	{
+		.compatible = "atmel,24c32",
+		.data = (void *)AT24_DEVICE_MAGIC(32768 / 8, AT24_FLAG_ADDR16)
+	},
+	{
+		.compatible = "atmel,24c64",
+		.data = (void *)AT24_DEVICE_MAGIC(65536 / 8, AT24_FLAG_ADDR16)
+	},
+	{
+		.compatible = "atmel,24c128",
+		.data = (void *)AT24_DEVICE_MAGIC(131072 / 8, AT24_FLAG_ADDR16)
+	},
+	{
+		.compatible = "atmel,24c256",
+		.data = (void *)AT24_DEVICE_MAGIC(262144 / 8, AT24_FLAG_ADDR16)
+	},
+	{
+		.compatible = "atmel,24c512",
+		.data = (void *)AT24_DEVICE_MAGIC(524288 / 8, AT24_FLAG_ADDR16)
+	},
+	{
+		.compatible = "atmel,24c1024",
+		.data = (void *)AT24_DEVICE_MAGIC(1048576 / 8, AT24_FLAG_ADDR16)
+	},
+	{ },
+};
+MODULE_DEVICE_TABLE(of, at24_of_match);
 
 static const struct acpi_device_id at24_acpi_ids[] = {
 	{ "INT3499", AT24_DEVICE_MAGIC(8192 / 8, 0) },
@@ -365,7 +425,8 @@ static ssize_t at24_eeprom_read_mac(struct at24_data *at24, char *buf,
 	memset(msg, 0, sizeof(msg));
 	msg[0].addr = client->addr;
 	msg[0].buf = addrbuf;
-	addrbuf[0] = 0x90 + offset;
+	/* EUI-48 starts from 0x9a, EUI-64 from 0x98 */
+	addrbuf[0] = 0xa0 - at24->chip.byte_len + offset;
 	msg[0].len = 1;
 	msg[1].addr = client->addr;
 	msg[1].flags = I2C_M_RD;
@@ -501,10 +562,23 @@ static ssize_t at24_eeprom_write_i2c(struct at24_data *at24, const char *buf,
 static int at24_read(void *priv, unsigned int off, void *val, size_t count)
 {
 	struct at24_data *at24 = priv;
+	struct i2c_client *client;
 	char *buf = val;
+	int ret;
 
 	if (unlikely(!count))
 		return count;
+
+	if (off + count > at24->chip.byte_len)
+		return -EINVAL;
+
+	client = at24_translate_offset(at24, &off);
+
+	ret = pm_runtime_get_sync(&client->dev);
+	if (ret < 0) {
+		pm_runtime_put_noidle(&client->dev);
+		return ret;
+	}
 
 	/*
 	 * Read data from chip, protecting against concurrent updates
@@ -518,6 +592,7 @@ static int at24_read(void *priv, unsigned int off, void *val, size_t count)
 		status = at24->read_func(at24, buf, off, count);
 		if (status < 0) {
 			mutex_unlock(&at24->lock);
+			pm_runtime_put(&client->dev);
 			return status;
 		}
 		buf += status;
@@ -527,16 +602,31 @@ static int at24_read(void *priv, unsigned int off, void *val, size_t count)
 
 	mutex_unlock(&at24->lock);
 
+	pm_runtime_put(&client->dev);
+
 	return 0;
 }
 
 static int at24_write(void *priv, unsigned int off, void *val, size_t count)
 {
 	struct at24_data *at24 = priv;
+	struct i2c_client *client;
 	char *buf = val;
+	int ret;
 
 	if (unlikely(!count))
 		return -EINVAL;
+
+	if (off + count > at24->chip.byte_len)
+		return -EINVAL;
+
+	client = at24_translate_offset(at24, &off);
+
+	ret = pm_runtime_get_sync(&client->dev);
+	if (ret < 0) {
+		pm_runtime_put_noidle(&client->dev);
+		return ret;
+	}
 
 	/*
 	 * Write data to chip, protecting against concurrent updates
@@ -550,6 +640,7 @@ static int at24_write(void *priv, unsigned int off, void *val, size_t count)
 		status = at24->write_func(at24, buf, off, count);
 		if (status < 0) {
 			mutex_unlock(&at24->lock);
+			pm_runtime_put(&client->dev);
 			return status;
 		}
 		buf += status;
@@ -558,6 +649,8 @@ static int at24_write(void *priv, unsigned int off, void *val, size_t count)
 	}
 
 	mutex_unlock(&at24->lock);
+
+	pm_runtime_put(&client->dev);
 
 	return 0;
 }
@@ -569,6 +662,10 @@ static void at24_get_pdata(struct device *dev, struct at24_platform_data *chip)
 
 	if (device_property_present(dev, "read-only"))
 		chip->flags |= AT24_FLAG_READONLY;
+
+	err = device_property_read_u32(dev, "size", &val);
+	if (!err)
+		chip->byte_len = val;
 
 	err = device_property_read_u32(dev, "pagesize", &val);
 	if (!err) {
@@ -598,7 +695,16 @@ static int at24_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	if (client->dev.platform_data) {
 		chip = *(struct at24_platform_data *)client->dev.platform_data;
 	} else {
-		if (id) {
+		/*
+		 * The I2C core allows OF nodes compatibles to match against the
+		 * I2C device ID table as a fallback, so check not only if an OF
+		 * node is present but also if it matches an OF device ID entry.
+		 */
+		if (client->dev.of_node &&
+		    of_match_device(at24_of_match, &client->dev)) {
+			magic = (kernel_ulong_t)
+				of_device_get_match_data(&client->dev);
+		} else if (id) {
 			magic = id->driver_data;
 		} else {
 			const struct acpi_device_id *aid;
@@ -630,6 +736,16 @@ static int at24_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	if (!is_power_of_2(chip.page_size))
 		dev_warn(&client->dev,
 			"page_size looks suspicious (no power of 2)!\n");
+
+	/*
+	 * REVISIT: the size of the EUI-48 byte array is 6 in at24mac402, while
+	 * the call to ilog2() in AT24_DEVICE_MAGIC() rounds it down to 4.
+	 *
+	 * Eventually we'll get rid of the magic values altoghether in favor of
+	 * real structs, but for now just manually set the right size.
+	 */
+	if (chip.flags & AT24_FLAG_MAC && chip.byte_len == 4)
+		chip.byte_len = 6;
 
 	/* Use I2C operations unless we're stuck with SMBus extensions. */
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
@@ -739,11 +855,16 @@ static int at24_probe(struct i2c_client *client, const struct i2c_device_id *id)
 
 	i2c_set_clientdata(client, at24);
 
+	/* enable runtime pm */
+	pm_runtime_set_active(&client->dev);
+	pm_runtime_enable(&client->dev);
+
 	/*
 	 * Perform a one-byte test read to verify that the
 	 * chip is functional.
 	 */
 	err = at24_read(at24, 0, &test_byte, 1);
+	pm_runtime_idle(&client->dev);
 	if (err) {
 		err = -ENODEV;
 		goto err_clients;
@@ -791,6 +912,8 @@ err_clients:
 		if (at24->client[i])
 			i2c_unregister_device(at24->client[i]);
 
+	pm_runtime_disable(&client->dev);
+
 	return err;
 }
 
@@ -806,6 +929,9 @@ static int at24_remove(struct i2c_client *client)
 	for (i = 1; i < at24->num_addresses; i++)
 		i2c_unregister_device(at24->client[i]);
 
+	pm_runtime_disable(&client->dev);
+	pm_runtime_set_suspended(&client->dev);
+
 	return 0;
 }
 
@@ -814,6 +940,7 @@ static int at24_remove(struct i2c_client *client)
 static struct i2c_driver at24_driver = {
 	.driver = {
 		.name = "at24",
+		.of_match_table = at24_of_match,
 		.acpi_match_table = ACPI_PTR(at24_acpi_ids),
 	},
 	.probe = at24_probe,

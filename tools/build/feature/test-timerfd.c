@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * test for timerfd functions used by perf-kvm-stat-live
  */

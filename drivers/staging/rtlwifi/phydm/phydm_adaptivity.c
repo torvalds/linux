@@ -762,7 +762,7 @@ void phydm_adaptivity(void *dm_void)
 		dm->rssi_min, adaptivity->adajust_igi_level,
 		dm->adaptivity_flag, dm->adaptivity_enable);
 
-	if (adaptivity->dynamic_link_adaptivity && (!dm->is_linked) &&
+	if (adaptivity->dynamic_link_adaptivity && !dm->is_linked &&
 	    !dm->adaptivity_enable) {
 		phydm_set_edcca_threshold(dm, 0x7f, 0x7f);
 		ODM_RT_TRACE(
@@ -773,7 +773,7 @@ void phydm_adaptivity(void *dm_void)
 
 	if (dm->support_ic_type &
 	    (ODM_IC_11AC_GAIN_IDX_EDCCA | ODM_IC_11N_GAIN_IDX_EDCCA)) {
-		if ((adaptivity->adajust_igi_level > IGI) &&
+		if (adaptivity->adajust_igi_level > IGI &&
 		    dm->adaptivity_enable)
 			diff = adaptivity->adajust_igi_level - IGI;
 

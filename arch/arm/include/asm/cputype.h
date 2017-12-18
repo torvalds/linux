@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __ASM_ARM_CPUTYPE_H
 #define __ASM_ARM_CPUTYPE_H
 
@@ -173,6 +174,11 @@ static inline unsigned int __attribute_const__ read_cpuid_cachetype(void)
 	return read_cpuid(CPUID_CACHETYPE);
 }
 
+static inline unsigned int __attribute_const__ read_cpuid_mputype(void)
+{
+	return read_cpuid(CPUID_MPUIR);
+}
+
 #elif defined(CONFIG_CPU_V7M)
 
 static inline unsigned int __attribute_const__ read_cpuid_id(void)
@@ -183,6 +189,11 @@ static inline unsigned int __attribute_const__ read_cpuid_id(void)
 static inline unsigned int __attribute_const__ read_cpuid_cachetype(void)
 {
 	return readl(BASEADDR_V7M_SCB + V7M_SCB_CTR);
+}
+
+static inline unsigned int __attribute_const__ read_cpuid_mputype(void)
+{
+	return readl(BASEADDR_V7M_SCB + MPU_TYPE);
 }
 
 #else /* ifdef CONFIG_CPU_CP15 / elif defined(CONFIG_CPU_V7M) */

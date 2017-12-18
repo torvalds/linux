@@ -24,7 +24,7 @@
 		#address-cells = <1>;
 		#size-cells = <1>;
 
-		uart0: serial@0300 {
+		uart0: serial@300 {
 			compatible = "ns16550";
 			reg = <0x0300 0x100>;
 			interrupts = <GIC_SPI 85 IRQ_TYPE_LEVEL_HIGH>;
@@ -32,7 +32,7 @@
 			status = "disabled";
 		};
 
-		uart1: serial@0400 {
+		uart1: serial@400 {
 			compatible = "ns16550";
 			reg = <0x0400 0x100>;
 			interrupts = <GIC_SPI 85 IRQ_TYPE_LEVEL_HIGH>;
@@ -47,7 +47,7 @@
 		#address-cells = <1>;
 		#size-cells = <1>;
 
-		a9pll: arm_clk@00000 {
+		a9pll: arm_clk@0 {
 			#clock-cells = <0>;
 			compatible = "brcm,nsp-armpll";
 			clocks = <&osc>;

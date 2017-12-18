@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __NVKM_GRCTX_H__
 #define __NVKM_GRCTX_H__
 #include <core/gpuobj.h>

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * arch/alpha/lib/csum_ipv6_magic.S
  * Contributed by Richard Henderson <rth@tamu.edu>

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifdef __KERNEL__
 #ifndef _ASM_M32R_IRQ_H
 #define _ASM_M32R_IRQ_H

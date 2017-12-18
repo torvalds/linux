@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _FPU_PROTO_H
 #define _FPU_PROTO_H
 

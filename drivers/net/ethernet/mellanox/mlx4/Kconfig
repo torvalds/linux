@@ -38,3 +38,11 @@ config MLX4_DEBUG
 	  mlx4_core driver.  The output can be turned on via the
 	  debug_level module parameter (which can also be set after
 	  the driver is loaded through sysfs).
+
+config MLX4_CORE_GEN2
+	bool "Support for old gen2 Mellanox PCI IDs" if (MLX4_CORE)
+	depends on MLX4_CORE
+	default y
+	---help---
+	  Say Y here if you want to use old gen2 Mellanox devices in the
+	  driver.

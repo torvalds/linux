@@ -3778,7 +3778,7 @@ static int smu7_unfreeze_sclk_mclk_dpm(struct pp_hwmgr *hwmgr)
 				"Trying to Unfreeze MCLK DPM when DPM is disabled",
 				);
 		PP_ASSERT_WITH_CODE(0 == smum_send_msg_to_smc(hwmgr,
-				PPSMC_MSG_SCLKDPM_UnfreezeLevel),
+				PPSMC_MSG_MCLKDPM_UnfreezeLevel),
 		    "Failed to unfreeze MCLK DPM during UnFreezeSclkMclkDPM Function!",
 		    return -EINVAL);
 	}
@@ -4339,9 +4339,9 @@ static int smu7_print_clock_levels(struct pp_hwmgr *hwmgr,
 
 		for (i = 0; i < pcie_table->count; i++)
 			size += sprintf(buf + size, "%d: %s %s\n", i,
-					(pcie_table->dpm_levels[i].value == 0) ? "2.5GB, x8" :
-					(pcie_table->dpm_levels[i].value == 1) ? "5.0GB, x16" :
-					(pcie_table->dpm_levels[i].value == 2) ? "8.0GB, x16" : "",
+					(pcie_table->dpm_levels[i].value == 0) ? "2.5GT/s, x8" :
+					(pcie_table->dpm_levels[i].value == 1) ? "5.0GT/s, x16" :
+					(pcie_table->dpm_levels[i].value == 2) ? "8.0GT/s, x16" : "",
 					(i == now) ? "*" : "");
 		break;
 	default:

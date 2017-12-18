@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __NVKM_I2C_H__
 #define __NVKM_I2C_H__
 #include <core/subdev.h>

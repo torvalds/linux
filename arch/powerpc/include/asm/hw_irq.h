@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (C) 1999 Cort Dougan <cort@cs.nmt.edu>
  */
@@ -31,6 +32,7 @@
 
 #ifndef __ASSEMBLY__
 
+extern void replay_system_reset(void);
 extern void __replay_interrupt(unsigned int vector);
 
 extern void timer_interrupt(struct pt_regs *);

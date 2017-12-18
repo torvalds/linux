@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASMARM_TRAP_H
 #define _ASMARM_TRAP_H
 

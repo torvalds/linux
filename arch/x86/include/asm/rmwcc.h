@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_X86_RMWcc
 #define _ASM_X86_RMWcc
 
@@ -28,7 +29,7 @@ cc_label:								\
 #define __GEN_RMWcc(fullop, var, cc, clobbers, ...)			\
 do {									\
 	bool c;								\
-	asm volatile (fullop ";" CC_SET(cc)				\
+	asm volatile (fullop CC_SET(cc)					\
 			: [counter] "+m" (var), CC_OUT(cc) (c)		\
 			: __VA_ARGS__ : clobbers);			\
 	return c;							\

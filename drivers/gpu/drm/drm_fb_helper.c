@@ -41,6 +41,7 @@
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 
+#include "drm_crtc_internal.h"
 #include "drm_crtc_helper_internal.h"
 
 static bool drm_fbdev_emulation = true;
@@ -150,6 +151,9 @@ int drm_fb_helper_add_one_connector(struct drm_fb_helper *fb_helper,
 {
 	int err;
 
+	if (!fb_helper)
+		return 0;
+
 	mutex_lock(&fb_helper->lock);
 	err = __drm_fb_helper_add_one_connector(fb_helper, connector);
 	mutex_unlock(&fb_helper->lock);
@@ -161,7 +165,7 @@ EXPORT_SYMBOL(drm_fb_helper_add_one_connector);
 /**
  * drm_fb_helper_single_add_all_connectors() - add all connectors to fbdev
  * 					       emulation helper
- * @fb_helper: fbdev initialized with drm_fb_helper_init
+ * @fb_helper: fbdev initialized with drm_fb_helper_init, can be NULL
  *
  * This functions adds all the available connectors for use with the given
  * fb_helper. This is a separate step to allow drivers to freely assign
@@ -174,13 +178,15 @@ EXPORT_SYMBOL(drm_fb_helper_add_one_connector);
  */
 int drm_fb_helper_single_add_all_connectors(struct drm_fb_helper *fb_helper)
 {
-	struct drm_device *dev = fb_helper->dev;
+	struct drm_device *dev;
 	struct drm_connector *connector;
 	struct drm_connector_list_iter conn_iter;
 	int i, ret = 0;
 
-	if (!drm_fbdev_emulation)
+	if (!drm_fbdev_emulation || !fb_helper)
 		return 0;
+
+	dev = fb_helper->dev;
 
 	mutex_lock(&fb_helper->lock);
 	drm_connector_list_iter_begin(dev, &conn_iter);
@@ -244,6 +250,9 @@ int drm_fb_helper_remove_one_connector(struct drm_fb_helper *fb_helper,
 				       struct drm_connector *connector)
 {
 	int err;
+
+	if (!fb_helper)
+		return 0;
 
 	mutex_lock(&fb_helper->lock);
 	err = __drm_fb_helper_remove_one_connector(fb_helper, connector);
@@ -350,6 +359,7 @@ EXPORT_SYMBOL(drm_fb_helper_debug_leave);
 static int restore_fbdev_mode_atomic(struct drm_fb_helper *fb_helper, bool active)
 {
 	struct drm_device *dev = fb_helper->dev;
+	struct drm_plane_state *plane_state;
 	struct drm_plane *plane;
 	struct drm_atomic_state *state;
 	int i, ret;
@@ -368,8 +378,6 @@ static int restore_fbdev_mode_atomic(struct drm_fb_helper *fb_helper, bool activ
 retry:
 	plane_mask = 0;
 	drm_for_each_plane(plane, dev) {
-		struct drm_plane_state *plane_state;
-
 		plane_state = drm_atomic_get_plane_state(state, plane);
 		if (IS_ERR(plane_state)) {
 			ret = PTR_ERR(plane_state);
@@ -392,6 +400,11 @@ retry:
 
 	for (i = 0; i < fb_helper->crtc_count; i++) {
 		struct drm_mode_set *mode_set = &fb_helper->crtc_info[i].mode_set;
+		struct drm_plane *primary = mode_set->crtc->primary;
+
+		/* Cannot fail as we've already gotten the plane state above */
+		plane_state = drm_atomic_get_new_plane_state(state, primary);
+		plane_state->rotation = fb_helper->crtc_info[i].rotation;
 
 		ret = __drm_atomic_helper_set_config(mode_set, state);
 		if (ret != 0)
@@ -484,7 +497,7 @@ static int restore_fbdev_mode(struct drm_fb_helper *fb_helper)
 
 /**
  * drm_fb_helper_restore_fbdev_mode_unlocked - restore fbdev configuration
- * @fb_helper: fbcon to restore
+ * @fb_helper: driver-allocated fbdev helper, can be NULL
  *
  * This should be called from driver's drm &drm_driver.lastclose callback
  * when implementing an fbcon on top of kms using this helper. This ensures that
@@ -498,7 +511,7 @@ int drm_fb_helper_restore_fbdev_mode_unlocked(struct drm_fb_helper *fb_helper)
 	bool do_delayed;
 	int ret;
 
-	if (!drm_fbdev_emulation)
+	if (!drm_fbdev_emulation || !fb_helper)
 		return -ENODEV;
 
 	if (READ_ONCE(fb_helper->deferred_setup))
@@ -793,8 +806,10 @@ int drm_fb_helper_init(struct drm_device *dev,
 	struct drm_mode_config *config = &dev->mode_config;
 	int i;
 
-	if (!drm_fbdev_emulation)
+	if (!drm_fbdev_emulation) {
+		dev->fb_helper = fb_helper;
 		return 0;
+	}
 
 	if (!max_conn_count)
 		return -EINVAL;
@@ -821,6 +836,7 @@ int drm_fb_helper_init(struct drm_device *dev,
 		if (!fb_helper->crtc_info[i].mode_set.connectors)
 			goto out_free;
 		fb_helper->crtc_info[i].mode_set.num_connectors = 0;
+		fb_helper->crtc_info[i].rotation = DRM_MODE_ROTATE_0;
 	}
 
 	i = 0;
@@ -828,6 +844,8 @@ int drm_fb_helper_init(struct drm_device *dev,
 		fb_helper->crtc_info[i].mode_set.crtc = crtc;
 		i++;
 	}
+
+	dev->fb_helper = fb_helper;
 
 	return 0;
 out_free:
@@ -883,7 +901,7 @@ EXPORT_SYMBOL(drm_fb_helper_alloc_fbi);
 
 /**
  * drm_fb_helper_unregister_fbi - unregister fb_info framebuffer device
- * @fb_helper: driver-allocated fbdev helper
+ * @fb_helper: driver-allocated fbdev helper, can be NULL
  *
  * A wrapper around unregister_framebuffer, to release the fb_info
  * framebuffer device. This must be called before releasing all resources for
@@ -898,7 +916,7 @@ EXPORT_SYMBOL(drm_fb_helper_unregister_fbi);
 
 /**
  * drm_fb_helper_fini - finialize a &struct drm_fb_helper
- * @fb_helper: driver-allocated fbdev helper
+ * @fb_helper: driver-allocated fbdev helper, can be NULL
  *
  * This cleans up all remaining resources associated with @fb_helper. Must be
  * called after drm_fb_helper_unlink_fbi() was called.
@@ -907,7 +925,12 @@ void drm_fb_helper_fini(struct drm_fb_helper *fb_helper)
 {
 	struct fb_info *info;
 
-	if (!drm_fbdev_emulation || !fb_helper)
+	if (!fb_helper)
+		return;
+
+	fb_helper->dev->fb_helper = NULL;
+
+	if (!drm_fbdev_emulation)
 		return;
 
 	cancel_work_sync(&fb_helper->resume_work);
@@ -937,7 +960,7 @@ EXPORT_SYMBOL(drm_fb_helper_fini);
 
 /**
  * drm_fb_helper_unlink_fbi - wrapper around unlink_framebuffer
- * @fb_helper: driver-allocated fbdev helper
+ * @fb_helper: driver-allocated fbdev helper, can be NULL
  *
  * A wrapper around unlink_framebuffer implemented by fbdev core
  */
@@ -1138,7 +1161,7 @@ EXPORT_SYMBOL(drm_fb_helper_cfb_imageblit);
 
 /**
  * drm_fb_helper_set_suspend - wrapper around fb_set_suspend
- * @fb_helper: driver-allocated fbdev helper
+ * @fb_helper: driver-allocated fbdev helper, can be NULL
  * @suspend: whether to suspend or resume
  *
  * A wrapper around fb_set_suspend implemented by fbdev core.
@@ -1155,7 +1178,7 @@ EXPORT_SYMBOL(drm_fb_helper_set_suspend);
 /**
  * drm_fb_helper_set_suspend_unlocked - wrapper around fb_set_suspend that also
  *                                      takes the console lock
- * @fb_helper: driver-allocated fbdev helper
+ * @fb_helper: driver-allocated fbdev helper, can be NULL
  * @suspend: whether to suspend or resume
  *
  * A wrapper around fb_set_suspend() that takes the console lock. If the lock
@@ -1809,6 +1832,10 @@ static int drm_fb_helper_single_fb_probe(struct drm_fb_helper *fb_helper,
 
 	if (crtc_count == 0 || sizes.fb_width == -1 || sizes.fb_height == -1) {
 		DRM_INFO("Cannot find any crtc or sizes\n");
+
+		/* First time: disable all crtc's.. */
+		if (!fb_helper->deferred_setup && !READ_ONCE(fb_helper->dev->master))
+			restore_fbdev_mode(fb_helper);
 		return -EAGAIN;
 	}
 
@@ -2033,6 +2060,9 @@ static bool drm_connector_enabled(struct drm_connector *connector, bool strict)
 {
 	bool enable;
 
+	if (connector->display_info.non_desktop)
+		return false;
+
 	if (strict)
 		enable = connector->status == connector_status_connected;
 	else
@@ -2052,7 +2082,8 @@ static void drm_enable_connectors(struct drm_fb_helper *fb_helper,
 		connector = fb_helper->connector_info[i]->connector;
 		enabled[i] = drm_connector_enabled(connector, true);
 		DRM_DEBUG_KMS("connector %d enabled? %s\n", connector->base.id,
-			  enabled[i] ? "yes" : "no");
+			      connector->display_info.non_desktop ? "non desktop" : enabled[i] ? "yes" : "no");
+
 		any_enabled |= enabled[i];
 	}
 
@@ -2334,6 +2365,62 @@ out:
 	return best_score;
 }
 
+/*
+ * This function checks if rotation is necessary because of panel orientation
+ * and if it is, if it is supported.
+ * If rotation is necessary and supported, its gets set in fb_crtc.rotation.
+ * If rotation is necessary but not supported, a DRM_MODE_ROTATE_* flag gets
+ * or-ed into fb_helper->sw_rotations. In drm_setup_crtcs_fb() we check if only
+ * one bit is set and then we set fb_info.fbcon_rotate_hint to make fbcon do
+ * the unsupported rotation.
+ */
+static void drm_setup_crtc_rotation(struct drm_fb_helper *fb_helper,
+				    struct drm_fb_helper_crtc *fb_crtc,
+				    struct drm_connector *connector)
+{
+	struct drm_plane *plane = fb_crtc->mode_set.crtc->primary;
+	uint64_t valid_mask = 0;
+	int i, rotation;
+
+	fb_crtc->rotation = DRM_MODE_ROTATE_0;
+
+	switch (connector->display_info.panel_orientation) {
+	case DRM_MODE_PANEL_ORIENTATION_BOTTOM_UP:
+		rotation = DRM_MODE_ROTATE_180;
+		break;
+	case DRM_MODE_PANEL_ORIENTATION_LEFT_UP:
+		rotation = DRM_MODE_ROTATE_90;
+		break;
+	case DRM_MODE_PANEL_ORIENTATION_RIGHT_UP:
+		rotation = DRM_MODE_ROTATE_270;
+		break;
+	default:
+		rotation = DRM_MODE_ROTATE_0;
+	}
+
+	/*
+	 * TODO: support 90 / 270 degree hardware rotation,
+	 * depending on the hardware this may require the framebuffer
+	 * to be in a specific tiling format.
+	 */
+	if (rotation != DRM_MODE_ROTATE_180 || !plane->rotation_property) {
+		fb_helper->sw_rotations |= rotation;
+		return;
+	}
+
+	for (i = 0; i < plane->rotation_property->num_values; i++)
+		valid_mask |= (1ULL << plane->rotation_property->values[i]);
+
+	if (!(rotation & valid_mask)) {
+		fb_helper->sw_rotations |= rotation;
+		return;
+	}
+
+	fb_crtc->rotation = rotation;
+	/* Rotating in hardware, fbcon should not rotate */
+	fb_helper->sw_rotations |= DRM_MODE_ROTATE_0;
+}
+
 static void drm_setup_crtcs(struct drm_fb_helper *fb_helper,
 			    u32 width, u32 height)
 {
@@ -2393,6 +2480,7 @@ static void drm_setup_crtcs(struct drm_fb_helper *fb_helper,
 		drm_fb_helper_modeset_release(fb_helper,
 					      &fb_helper->crtc_info[i].mode_set);
 
+	fb_helper->sw_rotations = 0;
 	drm_fb_helper_for_each_connector(fb_helper, i) {
 		struct drm_display_mode *mode = modes[i];
 		struct drm_fb_helper_crtc *fb_crtc = crtcs[i];
@@ -2412,6 +2500,7 @@ static void drm_setup_crtcs(struct drm_fb_helper *fb_helper,
 			modeset->mode = drm_mode_duplicate(dev,
 							   fb_crtc->desired_mode);
 			drm_connector_get(connector);
+			drm_setup_crtc_rotation(fb_helper, fb_crtc, connector);
 			modeset->connectors[modeset->num_connectors++] = connector;
 			modeset->x = offset->x;
 			modeset->y = offset->y;
@@ -2453,6 +2542,28 @@ static void drm_setup_crtcs_fb(struct drm_fb_helper *fb_helper)
 		}
 	}
 	mutex_unlock(&fb_helper->dev->mode_config.mutex);
+
+	switch (fb_helper->sw_rotations) {
+	case DRM_MODE_ROTATE_0:
+		info->fbcon_rotate_hint = FB_ROTATE_UR;
+		break;
+	case DRM_MODE_ROTATE_90:
+		info->fbcon_rotate_hint = FB_ROTATE_CCW;
+		break;
+	case DRM_MODE_ROTATE_180:
+		info->fbcon_rotate_hint = FB_ROTATE_UD;
+		break;
+	case DRM_MODE_ROTATE_270:
+		info->fbcon_rotate_hint = FB_ROTATE_CW;
+		break;
+	default:
+		/*
+		 * Multiple bits are set / multiple rotations requested
+		 * fbcon cannot handle separate rotation settings per
+		 * output, so fallback to unrotated.
+		 */
+		info->fbcon_rotate_hint = FB_ROTATE_UR;
+	}
 }
 
 /* Note: Drops fb_helper->lock before returning. */
@@ -2568,7 +2679,7 @@ EXPORT_SYMBOL(drm_fb_helper_initial_config);
 /**
  * drm_fb_helper_hotplug_event - respond to a hotplug notification by
  *                               probing all the outputs attached to the fb
- * @fb_helper: the drm_fb_helper
+ * @fb_helper: driver-allocated fbdev helper, can be NULL
  *
  * Scan the connectors attached to the fb_helper and try to put together a
  * setup after notification of a change in output configuration.
@@ -2590,7 +2701,7 @@ int drm_fb_helper_hotplug_event(struct drm_fb_helper *fb_helper)
 {
 	int err = 0;
 
-	if (!drm_fbdev_emulation)
+	if (!drm_fbdev_emulation || !fb_helper)
 		return 0;
 
 	mutex_lock(&fb_helper->lock);
@@ -2617,6 +2728,34 @@ int drm_fb_helper_hotplug_event(struct drm_fb_helper *fb_helper)
 	return 0;
 }
 EXPORT_SYMBOL(drm_fb_helper_hotplug_event);
+
+/**
+ * drm_fb_helper_lastclose - DRM driver lastclose helper for fbdev emulation
+ * @dev: DRM device
+ *
+ * This function can be used as the &drm_driver->lastclose callback for drivers
+ * that only need to call drm_fb_helper_restore_fbdev_mode_unlocked().
+ */
+void drm_fb_helper_lastclose(struct drm_device *dev)
+{
+	drm_fb_helper_restore_fbdev_mode_unlocked(dev->fb_helper);
+}
+EXPORT_SYMBOL(drm_fb_helper_lastclose);
+
+/**
+ * drm_fb_helper_output_poll_changed - DRM mode config \.output_poll_changed
+ *                                     helper for fbdev emulation
+ * @dev: DRM device
+ *
+ * This function can be used as the
+ * &drm_mode_config_funcs.output_poll_changed callback for drivers that only
+ * need to call drm_fb_helper_hotplug_event().
+ */
+void drm_fb_helper_output_poll_changed(struct drm_device *dev)
+{
+	drm_fb_helper_hotplug_event(dev->fb_helper);
+}
+EXPORT_SYMBOL(drm_fb_helper_output_poll_changed);
 
 /* The Kconfig DRM_KMS_HELPER selects FRAMEBUFFER_CONSOLE (if !EXPERT)
  * but the module doesn't depend on any fb console symbols.  At least

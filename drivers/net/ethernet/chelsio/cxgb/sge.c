@@ -1882,10 +1882,10 @@ send:
 /*
  * Callback for the Tx buffer reclaim timer.  Runs with softirqs disabled.
  */
-static void sge_tx_reclaim_cb(unsigned long data)
+static void sge_tx_reclaim_cb(struct timer_list *t)
 {
 	int i;
-	struct sge *sge = (struct sge *)data;
+	struct sge *sge = from_timer(sge, t, tx_reclaim_timer);
 
 	for (i = 0; i < SGE_CMDQ_N; ++i) {
 		struct cmdQ *q = &sge->cmdQ[i];
@@ -1978,10 +1978,10 @@ void t1_sge_start(struct sge *sge)
 /*
  * Callback for the T2 ESPI 'stuck packet feature' workaorund
  */
-static void espibug_workaround_t204(unsigned long data)
+static void espibug_workaround_t204(struct timer_list *t)
 {
-	struct adapter *adapter = (struct adapter *)data;
-	struct sge *sge = adapter->sge;
+	struct sge *sge = from_timer(sge, t, espibug_timer);
+	struct adapter *adapter = sge->adapter;
 	unsigned int nports = adapter->params.nports;
 	u32 seop[MAX_NPORTS];
 
@@ -2021,10 +2021,10 @@ static void espibug_workaround_t204(unsigned long data)
 	mod_timer(&sge->espibug_timer, jiffies + sge->espibug_timeout);
 }
 
-static void espibug_workaround(unsigned long data)
+static void espibug_workaround(struct timer_list *t)
 {
-	struct adapter *adapter = (struct adapter *)data;
-	struct sge *sge = adapter->sge;
+	struct sge *sge = from_timer(sge, t, espibug_timer);
+	struct adapter *adapter = sge->adapter;
 
 	if (netif_running(adapter->port[0].dev)) {
 	        struct sk_buff *skb = sge->espibug_skb[0];
@@ -2075,19 +2075,15 @@ struct sge *t1_sge_create(struct adapter *adapter, struct sge_params *p)
 			goto nomem_port;
 	}
 
-	init_timer(&sge->tx_reclaim_timer);
-	sge->tx_reclaim_timer.data = (unsigned long)sge;
-	sge->tx_reclaim_timer.function = sge_tx_reclaim_cb;
+	timer_setup(&sge->tx_reclaim_timer, sge_tx_reclaim_cb, 0);
 
 	if (is_T2(sge->adapter)) {
-		init_timer(&sge->espibug_timer);
+		timer_setup(&sge->espibug_timer,
+			    adapter->params.nports > 1 ? espibug_workaround_t204 : espibug_workaround,
+			    0);
 
-		if (adapter->params.nports > 1) {
+		if (adapter->params.nports > 1)
 			tx_sched_init(sge);
-			sge->espibug_timer.function = espibug_workaround_t204;
-		} else
-			sge->espibug_timer.function = espibug_workaround;
-		sge->espibug_timer.data = (unsigned long)sge->adapter;
 
 		sge->espibug_timeout = 1;
 		/* for T204, every 10ms */

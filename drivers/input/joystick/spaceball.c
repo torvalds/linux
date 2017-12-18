@@ -162,6 +162,7 @@ static irqreturn_t spaceball_interrupt(struct serio *serio,
 				break;
 			}
 			spaceball->escape = 0;
+			/* fall through */
 		case 'M':
 		case 'Q':
 		case 'S':
@@ -169,6 +170,7 @@ static irqreturn_t spaceball_interrupt(struct serio *serio,
 				spaceball->escape = 0;
 				data &= 0x1f;
 			}
+			/* fall through */
 		default:
 			if (spaceball->escape)
 				spaceball->escape = 0;
@@ -234,11 +236,13 @@ static int spaceball_connect(struct serio *serio, struct serio_driver *drv)
 			input_dev->keybit[BIT_WORD(BTN_A)] |= BIT_MASK(BTN_A) |
 				BIT_MASK(BTN_B) | BIT_MASK(BTN_C) |
 				BIT_MASK(BTN_MODE);
+			/* fall through */
 		default:
 			input_dev->keybit[BIT_WORD(BTN_0)] |= BIT_MASK(BTN_2) |
 				BIT_MASK(BTN_3) | BIT_MASK(BTN_4) |
 				BIT_MASK(BTN_5) | BIT_MASK(BTN_6) |
 				BIT_MASK(BTN_7) | BIT_MASK(BTN_8);
+			/* fall through */
 		case SPACEBALL_3003C:
 			input_dev->keybit[BIT_WORD(BTN_0)] |= BIT_MASK(BTN_1) |
 				BIT_MASK(BTN_8);

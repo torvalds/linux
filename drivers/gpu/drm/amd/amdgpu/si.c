@@ -1392,63 +1392,63 @@ static void si_init_golden_registers(struct amdgpu_device *adev)
 	case CHIP_TAHITI:
 		amdgpu_program_register_sequence(adev,
 						 tahiti_golden_registers,
-						 (const u32)ARRAY_SIZE(tahiti_golden_registers));
+						 ARRAY_SIZE(tahiti_golden_registers));
 		amdgpu_program_register_sequence(adev,
 						 tahiti_golden_rlc_registers,
-						 (const u32)ARRAY_SIZE(tahiti_golden_rlc_registers));
+						 ARRAY_SIZE(tahiti_golden_rlc_registers));
 		amdgpu_program_register_sequence(adev,
 						 tahiti_mgcg_cgcg_init,
-						 (const u32)ARRAY_SIZE(tahiti_mgcg_cgcg_init));
+						 ARRAY_SIZE(tahiti_mgcg_cgcg_init));
 		amdgpu_program_register_sequence(adev,
 						 tahiti_golden_registers2,
-						 (const u32)ARRAY_SIZE(tahiti_golden_registers2));
+						 ARRAY_SIZE(tahiti_golden_registers2));
 		break;
 	case CHIP_PITCAIRN:
 		amdgpu_program_register_sequence(adev,
 						 pitcairn_golden_registers,
-						 (const u32)ARRAY_SIZE(pitcairn_golden_registers));
+						 ARRAY_SIZE(pitcairn_golden_registers));
 		amdgpu_program_register_sequence(adev,
 						 pitcairn_golden_rlc_registers,
-						 (const u32)ARRAY_SIZE(pitcairn_golden_rlc_registers));
+						 ARRAY_SIZE(pitcairn_golden_rlc_registers));
 		amdgpu_program_register_sequence(adev,
 						 pitcairn_mgcg_cgcg_init,
-						 (const u32)ARRAY_SIZE(pitcairn_mgcg_cgcg_init));
+						 ARRAY_SIZE(pitcairn_mgcg_cgcg_init));
 		break;
 	case CHIP_VERDE:
 		amdgpu_program_register_sequence(adev,
 						 verde_golden_registers,
-						 (const u32)ARRAY_SIZE(verde_golden_registers));
+						 ARRAY_SIZE(verde_golden_registers));
 		amdgpu_program_register_sequence(adev,
 						 verde_golden_rlc_registers,
-						 (const u32)ARRAY_SIZE(verde_golden_rlc_registers));
+						 ARRAY_SIZE(verde_golden_rlc_registers));
 		amdgpu_program_register_sequence(adev,
 						 verde_mgcg_cgcg_init,
-						 (const u32)ARRAY_SIZE(verde_mgcg_cgcg_init));
+						 ARRAY_SIZE(verde_mgcg_cgcg_init));
 		amdgpu_program_register_sequence(adev,
 						 verde_pg_init,
-						 (const u32)ARRAY_SIZE(verde_pg_init));
+						 ARRAY_SIZE(verde_pg_init));
 		break;
 	case CHIP_OLAND:
 		amdgpu_program_register_sequence(adev,
 						 oland_golden_registers,
-						 (const u32)ARRAY_SIZE(oland_golden_registers));
+						 ARRAY_SIZE(oland_golden_registers));
 		amdgpu_program_register_sequence(adev,
 						 oland_golden_rlc_registers,
-						 (const u32)ARRAY_SIZE(oland_golden_rlc_registers));
+						 ARRAY_SIZE(oland_golden_rlc_registers));
 		amdgpu_program_register_sequence(adev,
 						 oland_mgcg_cgcg_init,
-						 (const u32)ARRAY_SIZE(oland_mgcg_cgcg_init));
+						 ARRAY_SIZE(oland_mgcg_cgcg_init));
 		break;
 	case CHIP_HAINAN:
 		amdgpu_program_register_sequence(adev,
 						 hainan_golden_registers,
-						 (const u32)ARRAY_SIZE(hainan_golden_registers));
+						 ARRAY_SIZE(hainan_golden_registers));
 		amdgpu_program_register_sequence(adev,
 						 hainan_golden_registers2,
-						 (const u32)ARRAY_SIZE(hainan_golden_registers2));
+						 ARRAY_SIZE(hainan_golden_registers2));
 		amdgpu_program_register_sequence(adev,
 						 hainan_mgcg_cgcg_init,
-						 (const u32)ARRAY_SIZE(hainan_mgcg_cgcg_init));
+						 ARRAY_SIZE(hainan_mgcg_cgcg_init));
 		break;
 
 

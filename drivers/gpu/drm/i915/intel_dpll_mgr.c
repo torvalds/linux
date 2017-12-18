@@ -2110,10 +2110,8 @@ out:
 	return ret;
 }
 
-static void cnl_wrpll_get_multipliers(unsigned int bestdiv,
-				      unsigned int *pdiv,
-				      unsigned int *qdiv,
-				      unsigned int *kdiv)
+static void cnl_wrpll_get_multipliers(int bestdiv, int *pdiv,
+				      int *qdiv, int *kdiv)
 {
 	/* even dividers */
 	if (bestdiv % 2 == 0) {
@@ -2151,10 +2149,12 @@ static void cnl_wrpll_get_multipliers(unsigned int bestdiv,
 	}
 }
 
-static void cnl_wrpll_params_populate(struct skl_wrpll_params *params, uint32_t dco_freq,
-				      uint32_t ref_freq, uint32_t pdiv, uint32_t qdiv,
-				      uint32_t kdiv)
+static void cnl_wrpll_params_populate(struct skl_wrpll_params *params,
+				      u32 dco_freq, u32 ref_freq,
+				      int pdiv, int qdiv, int kdiv)
 {
+	u32 dco;
+
 	switch (kdiv) {
 	case 1:
 		params->kdiv = 1;
@@ -2186,39 +2186,35 @@ static void cnl_wrpll_params_populate(struct skl_wrpll_params *params, uint32_t 
 		WARN(1, "Incorrect PDiv\n");
 	}
 
-	if (kdiv != 2)
-		qdiv = 1;
+	WARN_ON(kdiv != 2 && qdiv != 1);
 
 	params->qdiv_ratio = qdiv;
 	params->qdiv_mode = (qdiv == 1) ? 0 : 1;
 
-	params->dco_integer = div_u64(dco_freq, ref_freq);
-	params->dco_fraction = div_u64((div_u64((uint64_t)dco_freq<<15, (uint64_t)ref_freq) -
-					((uint64_t)params->dco_integer<<15)) * 0x8000, 0x8000);
+	dco = div_u64((u64)dco_freq << 15, ref_freq);
+
+	params->dco_integer = dco >> 15;
+	params->dco_fraction = dco & 0x7fff;
 }
 
 static bool
-cnl_ddi_calculate_wrpll(int clock /* in Hz */,
+cnl_ddi_calculate_wrpll(int clock,
 			struct drm_i915_private *dev_priv,
 			struct skl_wrpll_params *wrpll_params)
 {
-	uint64_t afe_clock = clock * 5 / KHz(1); /* clocks in kHz */
-	unsigned int dco_min = 7998 * KHz(1);
-	unsigned int dco_max = 10000 * KHz(1);
-	unsigned int dco_mid = (dco_min + dco_max) / 2;
-
+	u32 afe_clock = clock * 5;
+	u32 dco_min = 7998000;
+	u32 dco_max = 10000000;
+	u32 dco_mid = (dco_min + dco_max) / 2;
 	static const int dividers[] = {  2,  4,  6,  8, 10, 12,  14,  16,
 					 18, 20, 24, 28, 30, 32,  36,  40,
 					 42, 44, 48, 50, 52, 54,  56,  60,
 					 64, 66, 68, 70, 72, 76,  78,  80,
 					 84, 88, 90, 92, 96, 98, 100, 102,
 					  3,  5,  7,  9, 15, 21 };
-	unsigned int d, dco;
-	unsigned int dco_centrality = 0;
-	unsigned int best_dco_centrality = 999999;
-	unsigned int best_div = 0;
-	unsigned int best_dco = 0;
-	unsigned int pdiv = 0, qdiv = 0, kdiv = 0;
+	u32 dco, best_dco = 0, dco_centrality = 0;
+	u32 best_dco_centrality = U32_MAX; /* Spec meaning of 999999 MHz */
+	int d, best_div = 0, pdiv = 0, qdiv = 0, kdiv = 0;
 
 	for (d = 0; d < ARRAY_SIZE(dividers); d++) {
 		dco = afe_clock * dividers[d];
@@ -2255,7 +2251,7 @@ static bool cnl_ddi_hdmi_pll_dividers(struct intel_crtc *crtc,
 
 	cfgcr0 = DPLL_CFGCR0_HDMI_MODE;
 
-	if (!cnl_ddi_calculate_wrpll(clock * 1000, dev_priv, &wrpll_params))
+	if (!cnl_ddi_calculate_wrpll(clock, dev_priv, &wrpll_params))
 		return false;
 
 	cfgcr0 |= DPLL_CFGCR0_DCO_FRACTION(wrpll_params.dco_fraction) |
@@ -2265,7 +2261,6 @@ static bool cnl_ddi_hdmi_pll_dividers(struct intel_crtc *crtc,
 		DPLL_CFGCR1_QDIV_MODE(wrpll_params.qdiv_mode) |
 		DPLL_CFGCR1_KDIV(wrpll_params.kdiv) |
 		DPLL_CFGCR1_PDIV(wrpll_params.pdiv) |
-		wrpll_params.central_freq |
 		DPLL_CFGCR1_CENTRAL_FREQ;
 
 	memset(&crtc_state->dpll_hw_state, 0,

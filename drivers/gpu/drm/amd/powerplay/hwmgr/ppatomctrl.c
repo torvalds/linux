@@ -1486,7 +1486,7 @@ int atomctrl_get_leakage_vddc_base_on_leakage(struct pp_hwmgr *hwmgr,
 				if (vddci_id_buf[i] == virtual_voltage_id) {
 					for (j = 0; j < profile->ucLeakageBinNum; j++) {
 						if (efuse_voltage_id <= leakage_bin[j]) {
-							*vddci = vddci_buf[j * profile->ucElbVDDC_Num + i];
+							*vddci = vddci_buf[j * profile->ucElbVDDCI_Num + i];
 							break;
 						}
 					}

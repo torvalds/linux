@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef SUN3X_TIME_H
 #define SUN3X_TIME_H
 
