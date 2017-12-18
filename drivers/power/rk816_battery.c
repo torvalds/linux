@@ -276,6 +276,10 @@ struct rk816_battery {
 	int				dbg_meet_soc;
 	int				dbg_calc_dsoc;
 	int				dbg_calc_rsoc;
+	bool				is_charging;
+	unsigned long			charge_count;
+	int				current_max;
+	int				voltage_max;
 };
 
 struct led_ops {
@@ -1051,6 +1055,7 @@ static enum power_supply_property rk816_bat_props[] = {
 	POWER_SUPPLY_PROP_HEALTH,
 	POWER_SUPPLY_PROP_CAPACITY,
 	POWER_SUPPLY_PROP_TEMP,
+	POWER_SUPPLY_PROP_CHARGE_COUNTER,
 };
 
 static int rk816_battery_get_property(struct power_supply *psy,
@@ -1094,6 +1099,9 @@ static int rk816_battery_get_property(struct power_supply *psy,
 		if (di->pdata->bat_mode == MODE_VIRTUAL)
 			val->intval = VIRTUAL_TEMPERATURE;
 		break;
+	case POWER_SUPPLY_PROP_CHARGE_COUNTER:
+		val->intval = di->charge_count;
+		break;
 	default:
 		return -EINVAL;
 	}
@@ -1103,10 +1111,14 @@ static int rk816_battery_get_property(struct power_supply *psy,
 
 static enum power_supply_property rk816_ac_props[] = {
 	POWER_SUPPLY_PROP_ONLINE,
+	POWER_SUPPLY_PROP_VOLTAGE_MAX,
+	POWER_SUPPLY_PROP_CURRENT_MAX,
 };
 
 static enum power_supply_property rk816_usb_props[] = {
 	POWER_SUPPLY_PROP_ONLINE,
+	POWER_SUPPLY_PROP_VOLTAGE_MAX,
+	POWER_SUPPLY_PROP_CURRENT_MAX,
 };
 
 static int rk816_bat_ac_get_property(struct power_supply *psy,
@@ -1124,6 +1136,12 @@ static int rk816_bat_ac_get_property(struct power_supply *psy,
 			val->intval = 0;
 		else
 			val->intval = di->ac_in | di->dc_in;
+		break;
+	case POWER_SUPPLY_PROP_VOLTAGE_MAX:
+		val->intval = di->voltage_max;
+		break;
+	case POWER_SUPPLY_PROP_CURRENT_MAX:
+		val->intval = di->current_max;
 		break;
 	default:
 		ret = -EINVAL;
@@ -1148,6 +1166,12 @@ static int rk816_bat_usb_get_property(struct power_supply *psy,
 			val->intval = 0;
 		else
 			val->intval = di->usb_in;
+		break;
+	case POWER_SUPPLY_PROP_VOLTAGE_MAX:
+		val->intval = di->voltage_max;
+		break;
+	case POWER_SUPPLY_PROP_CURRENT_MAX:
+		val->intval = di->current_max;
 		break;
 	default:
 		ret = -EINVAL;
@@ -3289,12 +3313,24 @@ static void rk816_bat_rsoc_daemon(struct rk816_battery *di)
 
 static void rk816_bat_update_info(struct rk816_battery *di)
 {
+	bool is_charging;
+
 	di->voltage_avg = rk816_bat_get_avg_voltage(di);
 	di->current_avg = rk816_bat_get_avg_current(di);
 	di->chrg_status = rk816_bat_get_chrg_status(di);
 	di->voltage_relax = rk816_bat_get_relax_voltage(di);
 	di->rsoc = rk816_bat_get_rsoc(di);
 	di->remain_cap = rk816_bat_get_coulomb_cap(di);
+	is_charging = rk816_bat_chrg_online(di);
+	if (is_charging != di->is_charging) {
+		di->is_charging = is_charging;
+		if (is_charging)
+			di->charge_count++;
+	}
+	if (di->voltage_avg > di->voltage_max)
+		di->voltage_max = di->voltage_avg;
+	if (di->current_avg > di->current_max)
+		di->current_max = di->current_avg;
 
 	/* smooth charge */
 	if (di->remain_cap > di->fcc) {
