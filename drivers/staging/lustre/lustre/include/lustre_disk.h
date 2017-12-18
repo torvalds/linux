@@ -141,8 +141,7 @@ struct lustre_sb_info {
 /* obd_mount.c */
 
 int lustre_start_mgc(struct super_block *sb);
-void lustre_register_client_fill_super(int (*cfs)(struct super_block *sb,
-						  struct vfsmount *mnt));
+void lustre_register_client_fill_super(int (*cfs)(struct super_block *sb));
 void lustre_register_kill_super_cb(void (*cfs)(struct super_block *sb));
 int lustre_common_put_super(struct super_block *sb);
 

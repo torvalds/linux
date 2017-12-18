@@ -792,7 +792,7 @@ int ll_revalidate_it_finish(struct ptlrpc_request *request,
 extern struct super_operations lustre_super_operations;
 
 void ll_lli_init(struct ll_inode_info *lli);
-int ll_fill_super(struct super_block *sb, struct vfsmount *mnt);
+int ll_fill_super(struct super_block *sb);
 void ll_put_super(struct super_block *sb);
 void ll_kill_super(struct super_block *sb);
 struct inode *ll_inode_from_resource_lock(struct ldlm_lock *lock);
