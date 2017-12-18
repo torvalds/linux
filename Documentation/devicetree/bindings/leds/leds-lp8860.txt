@@ -6,22 +6,22 @@ current sinks that can be controlled by a PWM input
 signal, a SPI/I2C master, or both.
 
 Required properties:
-	- compatible:
+	- compatible :
 		"ti,lp8860"
-	- reg -  I2C slave address
-	- label - Used for naming LEDs
+	- reg : I2C slave address
+	- label : Used for naming LEDs
 
 Optional properties:
-	- enable-gpio - gpio pin to enable/disable the device.
-	- supply - "vled" - LED supply
+	- enable-gpios : gpio pin to enable (active high)/disable the device.
+	- vled-supply : LED supply
 
 Example:
 
-leds: leds@6 {
+led-controller@2d {
 	compatible = "ti,lp8860";
 	reg = <0x2d>;
 	label = "display_cluster";
-	enable-gpio = <&gpio1 28 GPIO_ACTIVE_HIGH>;
+	enable-gpios = <&gpio1 28 GPIO_ACTIVE_HIGH>;
 	vled-supply = <&vbatt>;
 }
 
