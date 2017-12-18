@@ -649,7 +649,31 @@ bool dc_enable_stereo(
 	return ret;
 }
 
+static void disable_eDP_not_in_use(struct dc *dc, struct dc_state *context)
+{
+	int i;
+	struct dc_link *link = NULL;
 
+	/* check if eDP panel is suppose to be set mode, if yes, no need to disable */
+	for (i = 0; i < context->stream_count; i++) {
+		if (context->streams[i]->signal == SIGNAL_TYPE_EDP)
+			return;
+	}
+
+	/* check if there is an eDP panel not in use */
+	for (i = 0; i < dc->link_count; i++) {
+		if (dc->links[i]->local_sink &&
+			dc->links[i]->local_sink->sink_signal == SIGNAL_TYPE_EDP) {
+			link = dc->links[i];
+			break;
+		}
+	}
+
+	if (link) {
+		dc->hwss.edp_backlight_control(link, false);
+		dc->hwss.edp_power_control(link, false);
+	}
+}
 /*
  * Applies given context to HW and copy it into current context.
  * It's up to the user to release the src context afterwards.
@@ -667,8 +691,10 @@ static enum dc_status dc_commit_state_no_check(struct dc *dc, struct dc_state *c
 	for (i = 0; i < context->stream_count; i++)
 		dc_streams[i] =  context->streams[i];
 
-	if (!dcb->funcs->is_accelerated_mode(dcb))
+	if (!dcb->funcs->is_accelerated_mode(dcb)) {
 		dc->hwss.enable_accelerated_mode(dc);
+		disable_eDP_not_in_use(dc, context);
+	}
 
 	/* re-program planes for existing stream, in case we need to
 	 * free up plane resource for later use
