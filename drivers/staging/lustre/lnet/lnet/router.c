@@ -277,8 +277,8 @@ lnet_add_route_to_rnet(struct lnet_remotenet *rnet, struct lnet_route *route)
 		len++;
 	}
 
-	/* len+1 positions to add a new entry, also prevents division by 0 */
-	offset = cfs_rand() % (len + 1);
+	/* len+1 positions to add a new entry */
+	offset = prandom_u32_max(len + 1);
 	list_for_each(e, &rnet->lrn_routes) {
 		if (!offset)
 			break;

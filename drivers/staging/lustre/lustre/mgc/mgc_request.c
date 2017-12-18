@@ -523,7 +523,7 @@ static void do_requeue(struct config_llog_data *cld)
  * in order to not flood the MGS.
  */
 #define MGC_TIMEOUT_MIN_SECONDS   5
-#define MGC_TIMEOUT_RAND_CENTISEC 0x1ff /* ~500 */
+#define MGC_TIMEOUT_RAND_CENTISEC 500
 
 static int mgc_requeue_thread(void *data)
 {
@@ -537,7 +537,7 @@ static int mgc_requeue_thread(void *data)
 	while (!(rq_state & RQ_STOP)) {
 		struct l_wait_info lwi;
 		struct config_llog_data *cld, *cld_prev;
-		int rand = cfs_rand() & MGC_TIMEOUT_RAND_CENTISEC;
+		int rand = prandom_u32_max(MGC_TIMEOUT_RAND_CENTISEC);
 		int to;
 
 		/* Any new or requeued lostlocks will change the state */

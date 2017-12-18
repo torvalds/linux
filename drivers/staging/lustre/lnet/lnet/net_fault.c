@@ -170,10 +170,10 @@ lnet_drop_rule_add(struct lnet_fault_attr *attr)
 	rule->dr_attr = *attr;
 	if (attr->u.drop.da_interval) {
 		rule->dr_time_base = cfs_time_shift(attr->u.drop.da_interval);
-		rule->dr_drop_time = cfs_time_shift(cfs_rand() %
-						    attr->u.drop.da_interval);
+		rule->dr_drop_time = cfs_time_shift(
+			prandom_u32_max(attr->u.drop.da_interval));
 	} else {
-		rule->dr_drop_at = cfs_rand() % attr->u.drop.da_rate;
+		rule->dr_drop_at = prandom_u32_max(attr->u.drop.da_rate);
 	}
 
 	lnet_net_lock(LNET_LOCK_EX);
@@ -277,10 +277,10 @@ lnet_drop_rule_reset(void)
 
 		memset(&rule->dr_stat, 0, sizeof(rule->dr_stat));
 		if (attr->u.drop.da_rate) {
-			rule->dr_drop_at = cfs_rand() % attr->u.drop.da_rate;
+			rule->dr_drop_at = prandom_u32_max(attr->u.drop.da_rate);
 		} else {
-			rule->dr_drop_time = cfs_time_shift(cfs_rand() %
-						attr->u.drop.da_interval);
+			rule->dr_drop_time = cfs_time_shift(
+				prandom_u32_max(attr->u.drop.da_interval));
 			rule->dr_time_base = cfs_time_shift(attr->u.drop.da_interval);
 		}
 		spin_unlock(&rule->dr_lock);
@@ -315,8 +315,8 @@ drop_rule_match(struct lnet_drop_rule *rule, lnet_nid_t src,
 				rule->dr_time_base = now;
 
 			rule->dr_drop_time = rule->dr_time_base +
-					     cfs_time_seconds(cfs_rand() %
-						attr->u.drop.da_interval);
+				cfs_time_seconds(
+					prandom_u32_max(attr->u.drop.da_interval));
 			rule->dr_time_base += cfs_time_seconds(attr->u.drop.da_interval);
 
 			CDEBUG(D_NET, "Drop Rule %s->%s: next drop : %lu\n",
@@ -330,7 +330,7 @@ drop_rule_match(struct lnet_drop_rule *rule, lnet_nid_t src,
 
 		if (!do_div(rule->dr_stat.fs_count, attr->u.drop.da_rate)) {
 			rule->dr_drop_at = rule->dr_stat.fs_count +
-					   cfs_rand() % attr->u.drop.da_rate;
+				prandom_u32_max(attr->u.drop.da_rate);
 			CDEBUG(D_NET, "Drop Rule %s->%s: next drop: %lu\n",
 			       libcfs_nid2str(attr->fa_src),
 			       libcfs_nid2str(attr->fa_dst), rule->dr_drop_at);
@@ -483,8 +483,9 @@ delay_rule_match(struct lnet_delay_rule *rule, lnet_nid_t src,
 				rule->dl_time_base = now;
 
 			rule->dl_delay_time = rule->dl_time_base +
-					     cfs_time_seconds(cfs_rand() %
-						attr->u.delay.la_interval);
+				cfs_time_seconds(
+					prandom_u32_max(
+						attr->u.delay.la_interval));
 			rule->dl_time_base += cfs_time_seconds(attr->u.delay.la_interval);
 
 			CDEBUG(D_NET, "Delay Rule %s->%s: next delay : %lu\n",
@@ -498,7 +499,7 @@ delay_rule_match(struct lnet_delay_rule *rule, lnet_nid_t src,
 		/* generate the next random rate sequence */
 		if (!do_div(rule->dl_stat.fs_count, attr->u.delay.la_rate)) {
 			rule->dl_delay_at = rule->dl_stat.fs_count +
-					    cfs_rand() % attr->u.delay.la_rate;
+				prandom_u32_max(attr->u.delay.la_rate);
 			CDEBUG(D_NET, "Delay Rule %s->%s: next delay: %lu\n",
 			       libcfs_nid2str(attr->fa_src),
 			       libcfs_nid2str(attr->fa_dst), rule->dl_delay_at);
@@ -771,10 +772,10 @@ lnet_delay_rule_add(struct lnet_fault_attr *attr)
 	rule->dl_attr = *attr;
 	if (attr->u.delay.la_interval) {
 		rule->dl_time_base = cfs_time_shift(attr->u.delay.la_interval);
-		rule->dl_delay_time = cfs_time_shift(cfs_rand() %
-						     attr->u.delay.la_interval);
+		rule->dl_delay_time = cfs_time_shift(
+			prandom_u32_max(attr->u.delay.la_interval));
 	} else {
-		rule->dl_delay_at = cfs_rand() % attr->u.delay.la_rate;
+		rule->dl_delay_at = prandom_u32_max(attr->u.delay.la_rate);
 	}
 
 	rule->dl_msg_send = -1;
@@ -920,10 +921,11 @@ lnet_delay_rule_reset(void)
 
 		memset(&rule->dl_stat, 0, sizeof(rule->dl_stat));
 		if (attr->u.delay.la_rate) {
-			rule->dl_delay_at = cfs_rand() % attr->u.delay.la_rate;
+			rule->dl_delay_at = prandom_u32_max(attr->u.delay.la_rate);
 		} else {
-			rule->dl_delay_time = cfs_time_shift(cfs_rand() %
-						attr->u.delay.la_interval);
+			rule->dl_delay_time =
+				cfs_time_shift(prandom_u32_max(
+						       attr->u.delay.la_interval));
 			rule->dl_time_base = cfs_time_shift(attr->u.delay.la_interval);
 		}
 		spin_unlock(&rule->dl_lock);
