@@ -5265,7 +5265,7 @@ static int i40e_vsi_config_tc(struct i40e_vsi *vsi, u8 enabled_tc)
 	if (ret) {
 		struct i40e_aqc_query_vsi_bw_config_resp bw_config = {0};
 
-		dev_info(&vsi->back->pdev->dev,
+		dev_info(&pf->pdev->dev,
 			 "Failed configuring TC map %d for VSI %d\n",
 			 enabled_tc, vsi->seid);
 		ret = i40e_aq_query_vsi_bw_config(hw, vsi->seid,
@@ -5336,13 +5336,12 @@ static int i40e_vsi_config_tc(struct i40e_vsi *vsi, u8 enabled_tc)
 	/* Update the VSI after updating the VSI queue-mapping
 	 * information
 	 */
-	ret = i40e_aq_update_vsi_params(&vsi->back->hw, &ctxt, NULL);
+	ret = i40e_aq_update_vsi_params(hw, &ctxt, NULL);
 	if (ret) {
-		dev_info(&vsi->back->pdev->dev,
+		dev_info(&pf->pdev->dev,
 			 "Update vsi tc config failed, err %s aq_err %s\n",
-			 i40e_stat_str(&vsi->back->hw, ret),
-			 i40e_aq_str(&vsi->back->hw,
-				     vsi->back->hw.aq.asq_last_status));
+			 i40e_stat_str(hw, ret),
+			 i40e_aq_str(hw, hw->aq.asq_last_status));
 		goto out;
 	}
 	/* update the local VSI info with updated queue map */
@@ -5352,11 +5351,10 @@ static int i40e_vsi_config_tc(struct i40e_vsi *vsi, u8 enabled_tc)
 	/* Update current VSI BW information */
 	ret = i40e_vsi_get_bw_info(vsi);
 	if (ret) {
-		dev_info(&vsi->back->pdev->dev,
+		dev_info(&pf->pdev->dev,
 			 "Failed updating vsi bw info, err %s aq_err %s\n",
-			 i40e_stat_str(&vsi->back->hw, ret),
-			 i40e_aq_str(&vsi->back->hw,
-				     vsi->back->hw.aq.asq_last_status));
+			 i40e_stat_str(hw, ret),
+			 i40e_aq_str(hw, hw->aq.asq_last_status));
 		goto out;
 	}
 
