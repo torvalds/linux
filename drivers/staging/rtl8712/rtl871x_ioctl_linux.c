@@ -1719,12 +1719,12 @@ static int r871x_wx_set_auth(struct net_device *dev,
 		 */
 		if (padapter->securitypriv.ndisencryptstatus ==
 		    Ndis802_11Encryption1Enabled) {
-				/* it means init value, or using wep,
-				 * ndisencryptstatus =
-				 *	Ndis802_11Encryption1Enabled,
-				 * then it needn't reset it;
-				 */
-				break;
+			/* it means init value, or using wep,
+			 * ndisencryptstatus =
+			 *	Ndis802_11Encryption1Enabled,
+			 * then it needn't reset it;
+			 */
+			break;
 		}
 
 		if (paramval) {
