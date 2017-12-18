@@ -1063,7 +1063,7 @@ sub dump_struct($$) {
 	# Ignore other nested elements, like enums
 	$members =~ s/({[^\{\}]*})//g;
 
-	create_parameterlist($members, ';', $file);
+	create_parameterlist($members, ';', $file, $declaration_name);
 	check_sections($file, $declaration_name, $decl_type, $sectcheck, $struct_actual);
 
 	# Adjust declaration for better display
@@ -1172,7 +1172,7 @@ sub dump_typedef($$) {
 	$declaration_name = $2;
 	my $args = $3;
 
-	create_parameterlist($args, ',', $file);
+	create_parameterlist($args, ',', $file, $declaration_name);
 
 	output_declaration($declaration_name,
 			   'function',
@@ -1221,10 +1221,11 @@ sub save_struct_actual($) {
     $struct_actual = $struct_actual . $actual . " ";
 }
 
-sub create_parameterlist($$$) {
+sub create_parameterlist($$$$) {
     my $args = shift;
     my $splitter = shift;
     my $file = shift;
+    my $declaration_name = shift;
     my $type;
     my $param;
 
@@ -1254,7 +1255,7 @@ sub create_parameterlist($$$) {
 	    $type = $arg;
 	    $type =~ s/([^\(]+\(\*?)\s*$param/$1/;
 	    save_struct_actual($param);
-	    push_parameter($param, $type, $file);
+	    push_parameter($param, $type, $file, $declaration_name);
 	} elsif ($arg) {
 	    $arg =~ s/\s*:\s*/:/g;
 	    $arg =~ s/\s*\[/\[/g;
@@ -1279,27 +1280,28 @@ sub create_parameterlist($$$) {
 	    foreach $param (@args) {
 		if ($param =~ m/^(\*+)\s*(.*)/) {
 		    save_struct_actual($2);
-		    push_parameter($2, "$type $1", $file);
+		    push_parameter($2, "$type $1", $file, $declaration_name);
 		}
 		elsif ($param =~ m/(.*?):(\d+)/) {
 		    if ($type ne "") { # skip unnamed bit-fields
 			save_struct_actual($1);
-			push_parameter($1, "$type:$2", $file)
+			push_parameter($1, "$type:$2", $file, $declaration_name)
 		    }
 		}
 		else {
 		    save_struct_actual($param);
-		    push_parameter($param, $type, $file);
+		    push_parameter($param, $type, $file, $declaration_name);
 		}
 	    }
 	}
     }
 }
 
-sub push_parameter($$$) {
+sub push_parameter($$$$) {
 	my $param = shift;
 	my $type = shift;
 	my $file = shift;
+	my $declaration_name = shift;
 
 	if (($anon_struct_union == 1) && ($type eq "") &&
 	    ($param eq "}")) {
@@ -1336,21 +1338,13 @@ sub push_parameter($$$) {
 	# warn if parameter has no description
 	# (but ignore ones starting with # as these are not parameters
 	# but inline preprocessor statements);
-	# also ignore unnamed structs/unions;
-	if (!$anon_struct_union) {
+	# Note: It will also ignore void params and unnamed structs/unions
 	if (!defined $parameterdescs{$param} && $param !~ /^#/) {
+		$parameterdescs{$param} = $undescribed;
 
-	    $parameterdescs{$param} = $undescribed;
-
-	    if (($type eq 'function') || ($type eq 'enum')) {
-		print STDERR "${file}:$.: warning: Function parameter ".
-		    "or member '$param' not " .
-		    "described in '$declaration_name'\n";
-	    }
-	    print STDERR "${file}:$.: warning:" .
-			 " No description found for parameter '$param'\n";
-	    ++$warnings;
-	}
+		print STDERR
+		      "${file}:$.: warning: Function parameter or member '$param' not described in '$declaration_name'\n";
+		++$warnings;
 	}
 
 	$param = xml_escape($param);
@@ -1507,7 +1501,7 @@ sub dump_function($$) {
 	$declaration_name = $2;
 	my $args = $3;
 
-	create_parameterlist($args, ',', $file);
+	create_parameterlist($args, ',', $file, $declaration_name);
     } else {
 	print STDERR "${file}:$.: warning: cannot understand function prototype: '$prototype'\n";
 	return;
