@@ -169,12 +169,13 @@ int r8712_generate_ie(struct registry_priv *pregistrypriv)
 	int sz = 0, rate_len;
 	struct wlan_bssid_ex *pdev_network = &pregistrypriv->dev_network;
 	u8 *ie = pdev_network->IEs;
+	u16 beaconPeriod = (u16)pdev_network->Configuration.BeaconPeriod;
 
 	/*timestamp will be inserted by hardware*/
 	sz += 8;
 	ie += sz;
 	/*beacon interval : 2bytes*/
-	*(__le16 *)ie = cpu_to_le16((u16)pdev_network->Configuration.BeaconPeriod);
+	*(__le16 *)ie = cpu_to_le16(beaconPeriod);
 	sz += 2;
 	ie += 2;
 	/*capability info*/
@@ -221,7 +222,8 @@ unsigned char *r8712_get_wpa_ie(unsigned char *pie, int *wpa_ie_len, int limit)
 		pbuf = r8712_get_ie(pbuf, _WPA_IE_ID_, &len, limit);
 		if (pbuf) {
 			/*check if oui matches...*/
-			if (memcmp((pbuf + 2), wpa_oui_type, sizeof(wpa_oui_type)))
+			if (memcmp((pbuf + 2), wpa_oui_type,
+				   sizeof(wpa_oui_type)))
 				goto check_next_ie;
 			/*check version...*/
 			memcpy((u8 *)&val16, (pbuf + 6), sizeof(val16));
