@@ -435,14 +435,14 @@
 
 &u2phy {
 	status = "okay";
+};
 
-	u2phy_host: host-port {
-		status = "okay";
-	};
+&u2phy_host {
+	status = "okay";
+};
 
-	u2phy_otg: otg-port {
-		status = "okay";
-	};
+&u2phy_otg {
+	status = "okay";
 };
 
 &usb20_otg {
