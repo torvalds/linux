@@ -198,6 +198,8 @@ struct dw_pcie_ep {
 	unsigned long		ob_window_map;
 	u32			num_ib_windows;
 	u32			num_ob_windows;
+	void __iomem		*msi_mem;
+	phys_addr_t		msi_mem_phys;
 };
 
 struct dw_pcie_ops {

@@ -286,6 +286,9 @@ void dw_pcie_ep_exit(struct dw_pcie_ep *ep)
 {
 	struct pci_epc *epc = ep->epc;
 
+	pci_epc_mem_free_addr(epc, ep->msi_mem_phys, ep->msi_mem,
+			      epc->mem->page_size);
+
 	pci_epc_mem_exit(epc);
 }
 
@@ -339,6 +342,13 @@ int dw_pcie_ep_init(struct dw_pcie_ep *ep)
 	if (ret < 0) {
 		dev_err(dev, "Failed to initialize address space\n");
 		return ret;
+	}
+
+	ep->msi_mem = pci_epc_mem_alloc_addr(epc, &ep->msi_mem_phys,
+					     epc->mem->page_size);
+	if (!ep->msi_mem) {
+		dev_err(dev, "Failed to reserve memory for MSI\n");
+		return -ENOMEM;
 	}
 
 	ep->epc = epc;
