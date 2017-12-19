@@ -19,7 +19,7 @@
 
 #include <linux/ieee80211.h>
 
-#define QLINK_PROTO_VER		7
+#define QLINK_PROTO_VER		8
 
 #define QLINK_MACID_RSVD		0xFF
 #define QLINK_VIFID_RSVD		0xFF
@@ -916,15 +916,16 @@ enum qlink_rxmgmt_flags {
  * struct qlink_event_rxmgmt - data for QLINK_EVENT_MGMT_RECEIVED event
  *
  * @freq: Frequency on which the frame was received in MHz.
- * @sig_dbm: signal strength in dBm.
  * @flags: bitmap of &enum qlink_rxmgmt_flags.
+ * @sig_dbm: signal strength in dBm.
  * @frame_data: data of Rx'd frame itself.
  */
 struct qlink_event_rxmgmt {
 	struct qlink_event ehdr;
 	__le32 freq;
-	__le32 sig_dbm;
 	__le32 flags;
+	s8 sig_dbm;
+	u8 rsvd[3];
 	u8 frame_data[0];
 } __packed;
 
@@ -936,7 +937,7 @@ struct qlink_event_rxmgmt {
  *	event was generated was discovered.
  * @capab: capabilities field.
  * @bintval: beacon interval announced by discovered BSS.
- * @signal: signal strength.
+ * @sig_dbm: signal strength in dBm.
  * @bssid: BSSID announced by discovered BSS.
  * @ssid_len: length of SSID announced by BSS.
  * @ssid: SSID announced by discovered BSS.
@@ -948,7 +949,7 @@ struct qlink_event_scan_result {
 	__le16 freq;
 	__le16 capab;
 	__le16 bintval;
-	s8 signal;
+	s8 sig_dbm;
 	u8 ssid_len;
 	u8 ssid[IEEE80211_MAX_SSID_LEN];
 	u8 bssid[ETH_ALEN];

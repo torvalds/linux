@@ -237,9 +237,8 @@ qtnf_event_handle_mgmt_received(struct qtnf_vif *vif,
 	pr_debug("%s LEN:%u FC:%.4X SA:%pM\n", vif->netdev->name, frame_len,
 		 le16_to_cpu(frame->frame_control), frame->addr2);
 
-	cfg80211_rx_mgmt(&vif->wdev, le32_to_cpu(rxmgmt->freq),
-			 le32_to_cpu(rxmgmt->sig_dbm), rxmgmt->frame_data,
-			 frame_len, flags);
+	cfg80211_rx_mgmt(&vif->wdev, le32_to_cpu(rxmgmt->freq), rxmgmt->sig_dbm,
+			 rxmgmt->frame_data, frame_len, flags);
 
 	return 0;
 }
@@ -324,7 +323,7 @@ qtnf_event_handle_scan_results(struct qtnf_vif *vif,
 				  sr->bssid, get_unaligned_le64(&sr->tsf),
 				  le16_to_cpu(sr->capab),
 				  le16_to_cpu(sr->bintval), ies, ies_len,
-				  sr->signal, GFP_KERNEL);
+				  DBM_TO_MBM(sr->sig_dbm), GFP_KERNEL);
 	if (!bss)
 		return -ENOMEM;
 
