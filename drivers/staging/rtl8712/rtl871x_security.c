@@ -165,7 +165,7 @@ void r8712_wep_encrypt(struct _adapter *padapter, u8 *pxmitframe)
 {	/* exclude ICV */
 	unsigned char	crc[4];
 	struct arc4context  mycontext;
-	u32 curfragnum, length, keylength;
+	u32 curfragnum, length, keylength, pki;
 	u8 *pframe, *payload, *iv;    /*,*wepkey*/
 	u8 wepkey[16];
 	struct	pkt_attrib  *pattrib = &((struct xmit_frame *)
@@ -178,8 +178,8 @@ void r8712_wep_encrypt(struct _adapter *padapter, u8 *pxmitframe)
 	pframe = ((struct xmit_frame *)pxmitframe)->buf_addr + TXDESC_OFFSET;
 	/*start to encrypt each fragment*/
 	if ((pattrib->encrypt == _WEP40_) || (pattrib->encrypt == _WEP104_)) {
-		keylength = psecuritypriv->DefKeylen[psecuritypriv->
-			    PrivacyKeyIndex];
+		pki = psecuritypriv->PrivacyKeyIndex;
+		keylength = psecuritypriv->DefKeylen[pki];
 		for (curfragnum = 0; curfragnum < pattrib->nr_frags;
 		     curfragnum++) {
 			iv = pframe + pattrib->hdrlen;
@@ -189,9 +189,10 @@ void r8712_wep_encrypt(struct _adapter *padapter, u8 *pxmitframe)
 				keylength);
 			payload = pframe + pattrib->iv_len + pattrib->hdrlen;
 			if ((curfragnum + 1) == pattrib->nr_frags) {
-				length = pattrib->last_txcmdsz - pattrib->
-					 hdrlen - pattrib->iv_len -
-					 pattrib->icv_len;
+				length = pattrib->last_txcmdsz -
+					pattrib->hdrlen -
+					pattrib->iv_len -
+					pattrib->icv_len;
 				*((__le32 *)crc) = cpu_to_le32(getcrc32(
 						payload, length));
 				arcfour_init(&mycontext, wepkey, 3 + keylength);
@@ -606,8 +607,8 @@ u32 r8712_tkip_encrypt(struct _adapter *padapter, u8 *pxmitframe)
 				GET_TKIP_PN(iv, txpn);
 				pnl = (u16)(txpn.val);
 				pnh = (u32)(txpn.val >> 16);
-				phase1((u16 *)&ttkey[0], prwskey, &pattrib->
-				       ta[0], pnh);
+				phase1((u16 *)&ttkey[0], prwskey,
+				       &pattrib->ta[0], pnh);
 				phase2(&rc4key[0], prwskey, (u16 *)&ttkey[0],
 				       pnl);
 				if ((curfragnum + 1) == pattrib->nr_frags) {
@@ -1185,15 +1186,15 @@ u32 r8712_aes_encrypt(struct _adapter *padapter, u8 *pxmitframe)
 						 pattrib->hdrlen -
 						 pattrib->iv_len -
 						 pattrib->icv_len;
-					aes_cipher(prwskey, pattrib->
-						  hdrlen, pframe, length);
+					aes_cipher(prwskey, pattrib->hdrlen,
+						   pframe, length);
 				} else {
 					length = pxmitpriv->frag_len -
 						 pattrib->hdrlen -
 						 pattrib->iv_len -
 						 pattrib->icv_len;
-					aes_cipher(prwskey, pattrib->
-						   hdrlen, pframe, length);
+					aes_cipher(prwskey, pattrib->hdrlen,
+						   pframe, length);
 					pframe += pxmitpriv->frag_len;
 					pframe = (u8 *)RND4((addr_t)(pframe));
 				}
