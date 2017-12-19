@@ -829,7 +829,7 @@ core99_ata100_enable(struct device_node *node, long value)
 
 	if (value) {
 		if (pci_device_from_OF_node(node, &pbus, &pid) == 0)
-			pdev = pci_get_bus_and_slot(pbus, pid);
+			pdev = pci_get_domain_bus_and_slot(0, pbus, pid);
 		if (pdev == NULL)
 			return 0;
 		rc = pci_enable_device(pdev);
