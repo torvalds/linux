@@ -2490,10 +2490,10 @@ static int r5l_recovery_log(struct r5l_log *log)
 	ctx->seq += 10000;
 
 	if ((ctx->data_only_stripes == 0) && (ctx->data_parity_stripes == 0))
-		pr_debug("md/raid:%s: starting from clean shutdown\n",
+		pr_info("md/raid:%s: starting from clean shutdown\n",
 			 mdname(mddev));
 	else
-		pr_debug("md/raid:%s: recovering %d data-only stripes and %d data-parity stripes\n",
+		pr_info("md/raid:%s: recovering %d data-only stripes and %d data-parity stripes\n",
 			 mdname(mddev), ctx->data_only_stripes,
 			 ctx->data_parity_stripes);
 
