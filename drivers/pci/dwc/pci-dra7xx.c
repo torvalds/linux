@@ -461,6 +461,8 @@ static int __init dra7xx_add_pcie_port(struct dra7xx_pcie *dra7xx,
 	if (!pci->dbi_base)
 		return -ENOMEM;
 
+	pp->ops = &dra7xx_pcie_host_ops;
+
 	ret = dw_pcie_host_init(pp);
 	if (ret) {
 		dev_err(dev, "failed to initialize host\n");
@@ -590,7 +592,6 @@ static int __init dra7xx_pcie_probe(struct platform_device *pdev)
 	void __iomem *base;
 	struct resource *res;
 	struct dw_pcie *pci;
-	struct pcie_port *pp;
 	struct dra7xx_pcie *dra7xx;
 	struct device *dev = &pdev->dev;
 	struct device_node *np = dev->of_node;
@@ -617,9 +618,6 @@ static int __init dra7xx_pcie_probe(struct platform_device *pdev)
 
 	pci->dev = dev;
 	pci->ops = &dw_pcie_ops;
-
-	pp = &pci->pp;
-	pp->ops = &dra7xx_pcie_host_ops;
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
