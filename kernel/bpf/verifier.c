@@ -1303,6 +1303,7 @@ static int check_stack_boundary(struct bpf_verifier_env *env, int regno,
 		tnum_strn(tn_buf, sizeof(tn_buf), regs[regno].var_off);
 		verbose(env, "invalid variable stack read R%d var_off=%s\n",
 			regno, tn_buf);
+		return -EACCES;
 	}
 	off = regs[regno].off + regs[regno].var_off.value;
 	if (off >= 0 || off < -MAX_BPF_STACK || off + access_size > 0 ||
