@@ -3842,6 +3842,11 @@ brcmf_sdio_probe_attach(struct brcmf_sdio *bus)
 	if (!bus->sdio_core)
 		goto fail;
 
+	/* Pick up the CHIPCOMMON core info struct, for bulk IO in bcmsdh.c */
+	sdiodev->cc_core = brcmf_chip_get_core(bus->ci, BCMA_CORE_CHIPCOMMON);
+	if (!sdiodev->cc_core)
+		goto fail;
+
 	sdiodev->settings = brcmf_get_module_param(sdiodev->dev,
 						   BRCMF_BUSTYPE_SDIO,
 						   bus->ci->chip,
