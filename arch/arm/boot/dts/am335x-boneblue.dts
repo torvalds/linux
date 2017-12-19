@@ -216,7 +216,7 @@
 	wl18xx_pins: pinmux_wl18xx_pins {
 		pinctrl-single,pins = <
 			AM33XX_IOPAD(0x92c, PIN_OUTPUT_PULLDOWN | MUX_MODE7)	/* (K18) gmii1_txclk.gpio3[9] - WL_EN */
-			AM33XX_IOPAD(0x944, PIN_INPUT_PULLDOWN | MUX_MODE7)	/* (H18) rmii1_refclk.gpio0[29] - WL_IRQ */
+			AM33XX_IOPAD(0x924, PIN_INPUT_PULLDOWN | MUX_MODE7)	/* (K16) gmii1_txd1.gpio0[21] - WL_IRQ */
 			AM33XX_IOPAD(0x930, PIN_OUTPUT_PULLUP | MUX_MODE7)	/* (L18) gmii1_rxclk.gpio3[10] - LS_BUF_EN */
 		>;
 	};
@@ -414,7 +414,7 @@
 		compatible = "ti,wl1835";
 		reg = <2>;
 		interrupt-parent = <&gpio0>;
-		interrupts = <29 IRQ_TYPE_EDGE_RISING>;
+		interrupts = <21 IRQ_TYPE_EDGE_RISING>;
 	};
 };
 
