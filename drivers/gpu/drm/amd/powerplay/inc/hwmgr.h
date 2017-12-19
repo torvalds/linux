@@ -692,6 +692,7 @@ enum PP_TABLE_VERSION {
 struct pp_hwmgr {
 	uint32_t chip_family;
 	uint32_t chip_id;
+	uint32_t smu_version;
 
 	uint32_t pp_table_version;
 	void *device;

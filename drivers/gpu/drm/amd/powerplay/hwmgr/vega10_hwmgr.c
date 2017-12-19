@@ -426,9 +426,9 @@ static void vega10_init_dpm_defaults(struct pp_hwmgr *hwmgr)
 		data->smu_features[GNLD_VR0HOT].supported = true;
 
 	smum_send_msg_to_smc(hwmgr, PPSMC_MSG_GetSmuVersion);
-	vega10_read_arg_from_smc(hwmgr, &(data->smu_version));
+	vega10_read_arg_from_smc(hwmgr, &(hwmgr->smu_version));
 		/* ACG firmware has major version 5 */
-	if ((data->smu_version & 0xff000000) == 0x5000000)
+	if ((hwmgr->smu_version & 0xff000000) == 0x5000000)
 		data->smu_features[GNLD_ACG].supported = true;
 
 	if (data->registry_data.didt_support)
@@ -2879,8 +2879,8 @@ static int vega10_enable_dpm_tasks(struct pp_hwmgr *hwmgr)
 			"DPM is already running right , skipping re-enablement!",
 			return 0);
 
-	if ((data->smu_version == 0x001c2c00) ||
-			(data->smu_version == 0x001c2d00)) {
+	if ((hwmgr->smu_version == 0x001c2c00) ||
+			(hwmgr->smu_version == 0x001c2d00)) {
 		tmp_result = smum_send_msg_to_smc_with_parameter(hwmgr,
 				PPSMC_MSG_UpdatePkgPwrPidAlpha, 1);
 		PP_ASSERT_WITH_CODE(!tmp_result,
