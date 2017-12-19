@@ -34,8 +34,6 @@ struct artpec6_pcie {
 
 /* PCIe Port Logic registers (memory-mapped) */
 #define PL_OFFSET			0x700
-#define PCIE_PHY_DEBUG_R0		(PL_OFFSET + 0x28)
-#define PCIE_PHY_DEBUG_R1		(PL_OFFSET + 0x2c)
 
 /* ARTPEC-6 specific registers */
 #define PCIECFG				0x18
@@ -80,17 +78,22 @@ static u64 artpec6_pcie_cpu_addr_fixup(u64 pci_addr)
 	return pci_addr & ARTPEC6_CPU_TO_BUS_ADDR;
 }
 
-static int artpec6_pcie_establish_link(struct artpec6_pcie *artpec6_pcie)
+static int artpec6_pcie_establish_link(struct dw_pcie *pci)
 {
-	struct dw_pcie *pci = artpec6_pcie->pci;
-	struct pcie_port *pp = &pci->pp;
+	struct artpec6_pcie *artpec6_pcie = to_artpec6_pcie(pci);
+	u32 val;
+
+	val = artpec6_pcie_readl(artpec6_pcie, PCIECFG);
+	val |= PCIECFG_LTSSM_ENABLE;
+	artpec6_pcie_writel(artpec6_pcie, PCIECFG, val);
+
+	return 0;
+}
+
+static void artpec6_pcie_init_phy(struct artpec6_pcie *artpec6_pcie)
+{
 	u32 val;
 	unsigned int retries;
-
-	/* Hold DW core in reset */
-	val = artpec6_pcie_readl(artpec6_pcie, PCIECFG);
-	val |= PCIECFG_CORE_RESET_REQ;
-	artpec6_pcie_writel(artpec6_pcie, PCIECFG, val);
 
 	val = artpec6_pcie_readl(artpec6_pcie, PCIECFG);
 	val |=  PCIECFG_RISRCREN |	/* Receiver term. 50 Ohm */
@@ -131,30 +134,25 @@ static int artpec6_pcie_establish_link(struct artpec6_pcie *artpec6_pcie)
 		val = readl(artpec6_pcie->phy_base + PHY_STATUS);
 		retries--;
 	} while (retries && !(val & PHY_COSPLLLOCK));
+}
 
-	/* Take DW core out of reset */
+static void artpec6_pcie_assert_core_reset(struct artpec6_pcie *artpec6_pcie)
+{
+	u32 val;
+
+	val = artpec6_pcie_readl(artpec6_pcie, PCIECFG);
+	val |= PCIECFG_CORE_RESET_REQ;
+	artpec6_pcie_writel(artpec6_pcie, PCIECFG, val);
+}
+
+static void artpec6_pcie_deassert_core_reset(struct artpec6_pcie *artpec6_pcie)
+{
+	u32 val;
+
 	val = artpec6_pcie_readl(artpec6_pcie, PCIECFG);
 	val &= ~PCIECFG_CORE_RESET_REQ;
 	artpec6_pcie_writel(artpec6_pcie, PCIECFG, val);
 	usleep_range(100, 200);
-
-	/* setup root complex */
-	dw_pcie_setup_rc(pp);
-
-	/* assert LTSSM enable */
-	val = artpec6_pcie_readl(artpec6_pcie, PCIECFG);
-	val |= PCIECFG_LTSSM_ENABLE;
-	artpec6_pcie_writel(artpec6_pcie, PCIECFG, val);
-
-	/* check if the link is up or not */
-	if (!dw_pcie_wait_for_link(pci))
-		return 0;
-
-	dev_dbg(pci->dev, "DEBUG_R0: 0x%08x, DEBUG_R1: 0x%08x\n",
-		dw_pcie_readl_dbi(pci, PCIE_PHY_DEBUG_R0),
-		dw_pcie_readl_dbi(pci, PCIE_PHY_DEBUG_R1));
-
-	return -ETIMEDOUT;
 }
 
 static void artpec6_pcie_enable_interrupts(struct artpec6_pcie *artpec6_pcie)
@@ -171,7 +169,12 @@ static int artpec6_pcie_host_init(struct pcie_port *pp)
 	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
 	struct artpec6_pcie *artpec6_pcie = to_artpec6_pcie(pci);
 
-	artpec6_pcie_establish_link(artpec6_pcie);
+	artpec6_pcie_assert_core_reset(artpec6_pcie);
+	artpec6_pcie_init_phy(artpec6_pcie);
+	artpec6_pcie_deassert_core_reset(artpec6_pcie);
+	dw_pcie_setup_rc(pp);
+	artpec6_pcie_establish_link(pci);
+	dw_pcie_wait_for_link(pci);
 	artpec6_pcie_enable_interrupts(artpec6_pcie);
 
 	return 0;
