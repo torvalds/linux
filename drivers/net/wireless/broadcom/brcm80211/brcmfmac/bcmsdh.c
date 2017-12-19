@@ -291,8 +291,9 @@ out:
 		*ret = retval;
 }
 
-static int brcmf_sdiod_buff_read(struct brcmf_sdio_dev *sdiodev, uint fn,
-				 u32 addr, struct sk_buff *pkt)
+static int brcmf_sdiod_buff_read(struct brcmf_sdio_dev *sdiodev,
+				 struct sdio_func *func, u32 addr,
+				 struct sk_buff *pkt)
 {
 	unsigned int req_sz;
 	int err;
@@ -301,13 +302,19 @@ static int brcmf_sdiod_buff_read(struct brcmf_sdio_dev *sdiodev, uint fn,
 	req_sz = pkt->len + 3;
 	req_sz &= (uint)~3;
 
-	if (fn == 1)
-		err = sdio_memcpy_fromio(sdiodev->func[fn],
-					 ((u8 *)(pkt->data)), addr, req_sz);
-	else
-		/* function 2 read is FIFO operation */
-		err = sdio_readsb(sdiodev->func[fn],
-				  ((u8 *)(pkt->data)), addr, req_sz);
+	switch (func->num) {
+	case 1:
+		err = sdio_memcpy_fromio(func, ((u8 *)(pkt->data)), addr,
+					 req_sz);
+		break;
+	case 2:
+		err = sdio_readsb(func, ((u8 *)(pkt->data)), addr, req_sz);
+		break;
+	default:
+		/* bail out as things are really fishy here */
+		WARN(1, "invalid sdio function number: %d\n", func->num);
+		err = -ENOMEDIUM;
+	};
 
 	if (err == -ENOMEDIUM)
 		brcmf_sdiod_change_state(sdiodev, BRCMF_SDIOD_NOMEDIUM);
@@ -315,8 +322,9 @@ static int brcmf_sdiod_buff_read(struct brcmf_sdio_dev *sdiodev, uint fn,
 	return err;
 }
 
-static int brcmf_sdiod_buff_write(struct brcmf_sdio_dev *sdiodev, uint fn,
-				  u32 addr, struct sk_buff *pkt)
+static int brcmf_sdiod_buff_write(struct brcmf_sdio_dev *sdiodev,
+				  struct sdio_func *func, u32 addr,
+				  struct sk_buff *pkt)
 {
 	unsigned int req_sz;
 	int err;
@@ -325,8 +333,7 @@ static int brcmf_sdiod_buff_write(struct brcmf_sdio_dev *sdiodev, uint fn,
 	req_sz = pkt->len + 3;
 	req_sz &= (uint)~3;
 
-	err = sdio_memcpy_toio(sdiodev->func[fn], addr,
-			       ((u8 *)(pkt->data)), req_sz);
+	err = sdio_memcpy_toio(func, addr, ((u8 *)(pkt->data)), req_sz);
 
 	if (err == -ENOMEDIUM)
 		brcmf_sdiod_change_state(sdiodev, BRCMF_SDIOD_NOMEDIUM);
@@ -337,7 +344,7 @@ static int brcmf_sdiod_buff_write(struct brcmf_sdio_dev *sdiodev, uint fn,
 /**
  * brcmf_sdiod_sglist_rw - SDIO interface function for block data access
  * @sdiodev: brcmfmac sdio device
- * @fn: SDIO function number
+ * @func: SDIO function
  * @write: direction flag
  * @addr: dongle memory address as source/destination
  * @pkt: skb pointer
@@ -346,7 +353,8 @@ static int brcmf_sdiod_buff_write(struct brcmf_sdio_dev *sdiodev, uint fn,
  * stack for block data access. It assumes that the skb passed down by the
  * caller has already been padded and aligned.
  */
-static int brcmf_sdiod_sglist_rw(struct brcmf_sdio_dev *sdiodev, uint fn,
+static int brcmf_sdiod_sglist_rw(struct brcmf_sdio_dev *sdiodev,
+				 struct sdio_func *func,
 				 bool write, u32 addr,
 				 struct sk_buff_head *pktlist)
 {
@@ -372,7 +380,7 @@ static int brcmf_sdiod_sglist_rw(struct brcmf_sdio_dev *sdiodev, uint fn,
 		req_sz = 0;
 		skb_queue_walk(pktlist, pkt_next)
 			req_sz += pkt_next->len;
-		req_sz = ALIGN(req_sz, sdiodev->func[fn]->cur_blksize);
+		req_sz = ALIGN(req_sz, func->cur_blksize);
 		while (req_sz > PAGE_SIZE) {
 			pkt_next = brcmu_pkt_buf_get_skb(PAGE_SIZE);
 			if (pkt_next == NULL) {
@@ -391,7 +399,7 @@ static int brcmf_sdiod_sglist_rw(struct brcmf_sdio_dev *sdiodev, uint fn,
 		target_list = &local_list;
 	}
 
-	func_blk_sz = sdiodev->func[fn]->cur_blksize;
+	func_blk_sz = func->cur_blksize;
 	max_req_sz = sdiodev->max_request_size;
 	max_seg_cnt = min_t(unsigned short, sdiodev->max_segment_count,
 			    target_list->qlen);
@@ -408,10 +416,10 @@ static int brcmf_sdiod_sglist_rw(struct brcmf_sdio_dev *sdiodev, uint fn,
 	mmc_dat.flags = write ? MMC_DATA_WRITE : MMC_DATA_READ;
 	mmc_cmd.opcode = SD_IO_RW_EXTENDED;
 	mmc_cmd.arg = write ? 1<<31 : 0;	/* write flag  */
-	mmc_cmd.arg |= (fn & 0x7) << 28;	/* SDIO func num */
-	mmc_cmd.arg |= 1<<27;			/* block mode */
+	mmc_cmd.arg |= (func->num & 0x7) << 28;	/* SDIO func num */
+	mmc_cmd.arg |= 1 << 27;			/* block mode */
 	/* for function 1 the addr will be incremented */
-	mmc_cmd.arg |= (fn == 1) ? 1<<26 : 0;
+	mmc_cmd.arg |= (func->num == 1) ? 1 << 26 : 0;
 	mmc_cmd.flags = MMC_RSP_SPI_R5 | MMC_RSP_R5 | MMC_CMD_ADTC;
 	mmc_req.cmd = &mmc_cmd;
 	mmc_req.data = &mmc_dat;
@@ -457,11 +465,11 @@ static int brcmf_sdiod_sglist_rw(struct brcmf_sdio_dev *sdiodev, uint fn,
 		mmc_cmd.arg |= (addr & 0x1FFFF) << 9;	/* address */
 		mmc_cmd.arg |= mmc_dat.blocks & 0x1FF;	/* block count */
 		/* incrementing addr for function 1 */
-		if (fn == 1)
+		if (func->num == 1)
 			addr += req_sz;
 
-		mmc_set_data_timeout(&mmc_dat, sdiodev->func[fn]->card);
-		mmc_wait_for_req(sdiodev->func[fn]->card->host, &mmc_req);
+		mmc_set_data_timeout(&mmc_dat, func->card);
+		mmc_wait_for_req(func->card->host, &mmc_req);
 
 		ret = mmc_cmd.error ? mmc_cmd.error : mmc_dat.error;
 		if (ret == -ENOMEDIUM) {
@@ -541,7 +549,7 @@ int brcmf_sdiod_recv_pkt(struct brcmf_sdio_dev *sdiodev, struct sk_buff *pkt)
 	addr &= SBSDIO_SB_OFT_ADDR_MASK;
 	addr |= SBSDIO_SB_ACCESS_2_4B_FLAG;
 
-	err = brcmf_sdiod_buff_read(sdiodev, SDIO_FUNC_2, addr, pkt);
+	err = brcmf_sdiod_buff_read(sdiodev, sdiodev->func[2], addr, pkt);
 
 done:
 	return err;
@@ -566,13 +574,13 @@ int brcmf_sdiod_recv_chain(struct brcmf_sdio_dev *sdiodev,
 	addr |= SBSDIO_SB_ACCESS_2_4B_FLAG;
 
 	if (pktq->qlen == 1)
-		err = brcmf_sdiod_buff_read(sdiodev, SDIO_FUNC_2, addr,
+		err = brcmf_sdiod_buff_read(sdiodev, sdiodev->func[2], addr,
 					    pktq->next);
 	else if (!sdiodev->sg_support) {
 		glom_skb = brcmu_pkt_buf_get_skb(totlen);
 		if (!glom_skb)
 			return -ENOMEM;
-		err = brcmf_sdiod_buff_read(sdiodev, SDIO_FUNC_2, addr,
+		err = brcmf_sdiod_buff_read(sdiodev, sdiodev->func[2], addr,
 					    glom_skb);
 		if (err)
 			goto done;
@@ -582,8 +590,8 @@ int brcmf_sdiod_recv_chain(struct brcmf_sdio_dev *sdiodev,
 			skb_pull(glom_skb, skb->len);
 		}
 	} else
-		err = brcmf_sdiod_sglist_rw(sdiodev, SDIO_FUNC_2, false, addr,
-					    pktq);
+		err = brcmf_sdiod_sglist_rw(sdiodev, sdiodev->func[2], false,
+					    addr, pktq);
 
 done:
 	brcmu_pkt_buf_free_skb(glom_skb);
@@ -614,7 +622,8 @@ int brcmf_sdiod_send_buf(struct brcmf_sdio_dev *sdiodev, u8 *buf, uint nbytes)
 	addr |= SBSDIO_SB_ACCESS_2_4B_FLAG;
 
 	if (!err)
-		err = brcmf_sdiod_buff_write(sdiodev, SDIO_FUNC_2, addr, mypkt);
+		err = brcmf_sdiod_buff_write(sdiodev, sdiodev->func[2], addr,
+					     mypkt);
 
 	brcmu_pkt_buf_free_skb(mypkt);
 
@@ -639,14 +648,14 @@ int brcmf_sdiod_send_pkt(struct brcmf_sdio_dev *sdiodev,
 
 	if (pktq->qlen == 1 || !sdiodev->sg_support) {
 		skb_queue_walk(pktq, skb) {
-			err = brcmf_sdiod_buff_write(sdiodev, SDIO_FUNC_2,
+			err = brcmf_sdiod_buff_write(sdiodev, sdiodev->func[2],
 						     addr, skb);
 			if (err)
 				break;
 		}
 	} else {
-		err = brcmf_sdiod_sglist_rw(sdiodev, SDIO_FUNC_2, true, addr,
-					    pktq);
+		err = brcmf_sdiod_sglist_rw(sdiodev, sdiodev->func[2], true,
+					    addr, pktq);
 	}
 
 	return err;
@@ -696,10 +705,10 @@ brcmf_sdiod_ramrw(struct brcmf_sdio_dev *sdiodev, bool write, u32 address,
 
 		if (write) {
 			memcpy(pkt->data, data, dsize);
-			err = brcmf_sdiod_buff_write(sdiodev, SDIO_FUNC_1,
+			err = brcmf_sdiod_buff_write(sdiodev, sdiodev->func[1],
 						     sdaddr, pkt);
 		} else {
-			err = brcmf_sdiod_buff_read(sdiodev, SDIO_FUNC_1,
+			err = brcmf_sdiod_buff_read(sdiodev, sdiodev->func[1],
 						    sdaddr, pkt);
 		}
 
@@ -728,12 +737,12 @@ brcmf_sdiod_ramrw(struct brcmf_sdio_dev *sdiodev, bool write, u32 address,
 	return err;
 }
 
-int brcmf_sdiod_abort(struct brcmf_sdio_dev *sdiodev, u8 fn)
+int brcmf_sdiod_abort(struct brcmf_sdio_dev *sdiodev, struct sdio_func *func)
 {
 	brcmf_dbg(SDIO, "Enter\n");
 
 	/* Issue abort cmd52 command through F0 */
-	brcmf_sdiod_func0_wb(sdiodev, SDIO_CCCR_ABORT, fn, NULL);
+	brcmf_sdiod_func0_wb(sdiodev, SDIO_CCCR_ABORT, func->num, NULL);
 
 	brcmf_dbg(SDIO, "Exit\n");
 	return 0;
@@ -1105,7 +1114,7 @@ static int brcmf_ops_sdio_suspend(struct device *dev)
 
 	func = container_of(dev, struct sdio_func, dev);
 	brcmf_dbg(SDIO, "Enter: F%d\n", func->num);
-	if (func->num != SDIO_FUNC_1)
+	if (func->num != 1)
 		return 0;
 
 
@@ -1134,7 +1143,7 @@ static int brcmf_ops_sdio_resume(struct device *dev)
 	struct sdio_func *func = container_of(dev, struct sdio_func, dev);
 
 	brcmf_dbg(SDIO, "Enter: F%d\n", func->num);
-	if (func->num != SDIO_FUNC_2)
+	if (func->num != 2)
 		return 0;
 
 	brcmf_sdiod_freezer_off(sdiodev);
