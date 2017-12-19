@@ -1144,7 +1144,7 @@ static ssize_t rx_fifo_timeout_store(struct device *dev,
 	return count;
 }
 
-static DEVICE_ATTR(rx_fifo_timeout, 0644, rx_fifo_timeout_show, rx_fifo_timeout_store);
+static DEVICE_ATTR_RW(rx_fifo_timeout);
 
 
 #ifdef CONFIG_SERIAL_SH_SCI_DMA

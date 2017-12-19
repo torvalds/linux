@@ -310,7 +310,7 @@ static ssize_t otg_mode_store(struct device *device,
 
 	return r;
 }
-static DEVICE_ATTR(otg_mode, 0644, otg_mode_show, otg_mode_store);
+static DEVICE_ATTR_RW(otg_mode);
 
 static struct attribute *tahvo_attributes[] = {
 	&dev_attr_vbus.attr,

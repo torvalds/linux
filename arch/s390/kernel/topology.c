@@ -404,8 +404,7 @@ out:
 	put_online_cpus();
 	return rc ? rc : count;
 }
-static DEVICE_ATTR(dispatching, 0644, dispatching_show,
-			 dispatching_store);
+static DEVICE_ATTR_RW(dispatching);
 
 static ssize_t cpu_polarization_show(struct device *dev,
 				     struct device_attribute *attr, char *buf)

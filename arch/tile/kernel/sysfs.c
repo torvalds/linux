@@ -184,7 +184,7 @@ static ssize_t hv_stats_store(struct device *dev,
 	return n < 0 ? n : count;
 }
 
-static DEVICE_ATTR(hv_stats, 0644, hv_stats_show, hv_stats_store);
+static DEVICE_ATTR_RW(hv_stats);
 
 static int hv_stats_device_add(struct device *dev, struct subsys_interface *sif)
 {

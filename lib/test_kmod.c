@@ -694,8 +694,7 @@ static ssize_t config_test_driver_show(struct device *dev,
 	return config_test_show_str(&test_dev->config_mutex, buf,
 				    config->test_driver);
 }
-static DEVICE_ATTR(config_test_driver, 0644, config_test_driver_show,
-		   config_test_driver_store);
+static DEVICE_ATTR_RW(config_test_driver);
 
 static ssize_t config_test_fs_store(struct device *dev,
 				    struct device_attribute *attr,
@@ -726,8 +725,7 @@ static ssize_t config_test_fs_show(struct device *dev,
 	return config_test_show_str(&test_dev->config_mutex, buf,
 				    config->test_fs);
 }
-static DEVICE_ATTR(config_test_fs, 0644, config_test_fs_show,
-		   config_test_fs_store);
+static DEVICE_ATTR_RW(config_test_fs);
 
 static int trigger_config_run_type(struct kmod_test_device *test_dev,
 				   enum kmod_test_case test_case,
@@ -1012,8 +1010,7 @@ static ssize_t config_num_threads_show(struct device *dev,
 
 	return test_dev_config_show_int(test_dev, buf, config->num_threads);
 }
-static DEVICE_ATTR(config_num_threads, 0644, config_num_threads_show,
-		   config_num_threads_store);
+static DEVICE_ATTR_RW(config_num_threads);
 
 static ssize_t config_test_case_store(struct device *dev,
 				      struct device_attribute *attr,
@@ -1037,8 +1034,7 @@ static ssize_t config_test_case_show(struct device *dev,
 
 	return test_dev_config_show_uint(test_dev, buf, config->test_case);
 }
-static DEVICE_ATTR(config_test_case, 0644, config_test_case_show,
-		   config_test_case_store);
+static DEVICE_ATTR_RW(config_test_case);
 
 static ssize_t test_result_show(struct device *dev,
 				struct device_attribute *attr,
@@ -1049,7 +1045,7 @@ static ssize_t test_result_show(struct device *dev,
 
 	return test_dev_config_show_int(test_dev, buf, config->test_result);
 }
-static DEVICE_ATTR(test_result, 0644, test_result_show, test_result_store);
+static DEVICE_ATTR_RW(test_result);
 
 #define TEST_KMOD_DEV_ATTR(name)		&dev_attr_##name.attr
 

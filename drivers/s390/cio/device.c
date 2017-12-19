@@ -600,7 +600,7 @@ static ssize_t vpm_show(struct device *dev, struct device_attribute *attr,
 static DEVICE_ATTR(devtype, 0444, devtype_show, NULL);
 static DEVICE_ATTR(cutype, 0444, cutype_show, NULL);
 static DEVICE_ATTR(modalias, 0444, modalias_show, NULL);
-static DEVICE_ATTR(online, 0644, online_show, online_store);
+static DEVICE_ATTR_RW(online);
 static DEVICE_ATTR(availability, 0444, available_show, NULL);
 static DEVICE_ATTR(logging, 0200, NULL, initiate_logging);
 static DEVICE_ATTR(vpm, 0444, vpm_show, NULL);
