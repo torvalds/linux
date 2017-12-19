@@ -625,7 +625,6 @@ static int ablkcipher_setkey(struct crypto_ablkcipher *ablkcipher,
 	const bool is_rfc3686 = (ctr_mode &&
 				 (strstr(alg_name, "rfc3686") != NULL));
 
-	memcpy(ctx->key, key, keylen);
 #ifdef DEBUG
 	print_hex_dump(KERN_ERR, "key in @"__stringify(__LINE__)": ",
 		       DUMP_PREFIX_ADDRESS, 16, 4, key, keylen, 1);
@@ -648,9 +647,8 @@ static int ablkcipher_setkey(struct crypto_ablkcipher *ablkcipher,
 		keylen -= CTR_RFC3686_NONCE_SIZE;
 	}
 
-	dma_sync_single_for_device(jrdev, ctx->key_dma, keylen, DMA_TO_DEVICE);
 	ctx->cdata.keylen = keylen;
-	ctx->cdata.key_virt = ctx->key;
+	ctx->cdata.key_virt = key;
 	ctx->cdata.key_inline = true;
 
 	/* ablkcipher_encrypt shared descriptor */
@@ -691,10 +689,8 @@ static int xts_ablkcipher_setkey(struct crypto_ablkcipher *ablkcipher,
 		return -EINVAL;
 	}
 
-	memcpy(ctx->key, key, keylen);
-	dma_sync_single_for_device(jrdev, ctx->key_dma, keylen, DMA_TO_DEVICE);
 	ctx->cdata.keylen = keylen;
-	ctx->cdata.key_virt = ctx->key;
+	ctx->cdata.key_virt = key;
 	ctx->cdata.key_inline = true;
 
 	/* xts_ablkcipher_encrypt shared descriptor */
