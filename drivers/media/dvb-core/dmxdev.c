@@ -28,6 +28,7 @@
 #include <linux/wait.h>
 #include <linux/uaccess.h>
 #include "dmxdev.h"
+#include "dvb_vb2.h"
 
 static int debug;
 
@@ -138,14 +139,8 @@ static int dvb_dvr_open(struct inode *inode, struct file *file)
 		return -ENODEV;
 	}
 
-	if ((file->f_flags & O_ACCMODE) == O_RDWR) {
-		if (!(dmxdev->capabilities & DMXDEV_CAP_DUPLEX)) {
-			mutex_unlock(&dmxdev->mutex);
-			return -EOPNOTSUPP;
-		}
-	}
-
-	if ((file->f_flags & O_ACCMODE) == O_RDONLY) {
+	if (((file->f_flags & O_ACCMODE) == O_RDONLY) ||
+	    ((file->f_flags & O_ACCMODE) == O_RDWR)) {
 		void *mem;
 
 		if (!dvbdev->readers) {
@@ -158,6 +153,8 @@ static int dvb_dvr_open(struct inode *inode, struct file *file)
 			return -ENOMEM;
 		}
 		dvb_ringbuffer_init(&dmxdev->dvr_buffer, mem, DVR_BUFFER_SIZE);
+		dvb_vb2_init(&dmxdev->dvr_vb2_ctx, "dvr",
+			     file->f_flags & O_NONBLOCK);
 		dvbdev->readers--;
 	}
 
@@ -195,7 +192,11 @@ static int dvb_dvr_release(struct inode *inode, struct file *file)
 		dmxdev->demux->connect_frontend(dmxdev->demux,
 						dmxdev->dvr_orig_fe);
 	}
-	if ((file->f_flags & O_ACCMODE) == O_RDONLY) {
+	if (((file->f_flags & O_ACCMODE) == O_RDONLY) ||
+	    ((file->f_flags & O_ACCMODE) == O_RDWR)) {
+		if (dvb_vb2_is_streaming(&dmxdev->dvr_vb2_ctx))
+			dvb_vb2_stream_off(&dmxdev->dvr_vb2_ctx);
+		dvb_vb2_release(&dmxdev->dvr_vb2_ctx);
 		dvbdev->readers++;
 		if (dmxdev->dvr_buffer.data) {
 			void *mem = dmxdev->dvr_buffer.data;
@@ -358,8 +359,8 @@ static int dvb_dmxdev_section_callback(const u8 *buffer1, size_t buffer1_len,
 {
 	struct dmxdev_filter *dmxdevfilter = filter->priv;
 	int ret;
-
-	if (dmxdevfilter->buffer.error) {
+	if (!dvb_vb2_is_streaming(&dmxdevfilter->vb2_ctx) &&
+	    dmxdevfilter->buffer.error) {
 		wake_up(&dmxdevfilter->buffer.queue);
 		return 0;
 	}
@@ -370,11 +371,19 @@ static int dvb_dmxdev_section_callback(const u8 *buffer1, size_t buffer1_len,
 	}
 	del_timer(&dmxdevfilter->timer);
 	dprintk("section callback %*ph\n", 6, buffer1);
-	ret = dvb_dmxdev_buffer_write(&dmxdevfilter->buffer, buffer1,
-				      buffer1_len);
-	if (ret == buffer1_len) {
-		ret = dvb_dmxdev_buffer_write(&dmxdevfilter->buffer, buffer2,
-					      buffer2_len);
+	if (dvb_vb2_is_streaming(&dmxdevfilter->vb2_ctx)) {
+		ret = dvb_vb2_fill_buffer(&dmxdevfilter->vb2_ctx,
+					  buffer1, buffer1_len);
+		if (ret == buffer1_len)
+			ret = dvb_vb2_fill_buffer(&dmxdevfilter->vb2_ctx,
+						  buffer2, buffer2_len);
+	} else {
+		ret = dvb_dmxdev_buffer_write(&dmxdevfilter->buffer,
+					      buffer1, buffer1_len);
+		if (ret == buffer1_len) {
+			ret = dvb_dmxdev_buffer_write(&dmxdevfilter->buffer,
+						      buffer2, buffer2_len);
+		}
 	}
 	if (ret < 0)
 		dmxdevfilter->buffer.error = ret;
@@ -391,6 +400,7 @@ static int dvb_dmxdev_ts_callback(const u8 *buffer1, size_t buffer1_len,
 {
 	struct dmxdev_filter *dmxdevfilter = feed->priv;
 	struct dvb_ringbuffer *buffer;
+	struct dvb_vb2_ctx *ctx;
 	int ret;
 
 	spin_lock(&dmxdevfilter->dev->lock);
@@ -399,19 +409,30 @@ static int dvb_dmxdev_ts_callback(const u8 *buffer1, size_t buffer1_len,
 		return 0;
 	}
 
-	if (dmxdevfilter->params.pes.output == DMX_OUT_TAP
-	    || dmxdevfilter->params.pes.output == DMX_OUT_TSDEMUX_TAP)
+	if (dmxdevfilter->params.pes.output == DMX_OUT_TAP ||
+	    dmxdevfilter->params.pes.output == DMX_OUT_TSDEMUX_TAP) {
 		buffer = &dmxdevfilter->buffer;
-	else
+		ctx = &dmxdevfilter->vb2_ctx;
+	} else {
 		buffer = &dmxdevfilter->dev->dvr_buffer;
-	if (buffer->error) {
-		spin_unlock(&dmxdevfilter->dev->lock);
-		wake_up(&buffer->queue);
-		return 0;
+		ctx = &dmxdevfilter->dev->dvr_vb2_ctx;
 	}
-	ret = dvb_dmxdev_buffer_write(buffer, buffer1, buffer1_len);
-	if (ret == buffer1_len)
-		ret = dvb_dmxdev_buffer_write(buffer, buffer2, buffer2_len);
+
+	if (dvb_vb2_is_streaming(ctx)) {
+		ret = dvb_vb2_fill_buffer(ctx, buffer1, buffer1_len);
+		if (ret == buffer1_len)
+			ret = dvb_vb2_fill_buffer(ctx, buffer2, buffer2_len);
+	} else {
+		if (buffer->error) {
+			spin_unlock(&dmxdevfilter->dev->lock);
+			wake_up(&buffer->queue);
+			return 0;
+		}
+		ret = dvb_dmxdev_buffer_write(buffer, buffer1, buffer1_len);
+		if (ret == buffer1_len)
+			ret = dvb_dmxdev_buffer_write(buffer,
+						      buffer2, buffer2_len);
+	}
 	if (ret < 0)
 		buffer->error = ret;
 	spin_unlock(&dmxdevfilter->dev->lock);
@@ -750,6 +771,8 @@ static int dvb_demux_open(struct inode *inode, struct file *file)
 	file->private_data = dmxdevfilter;
 
 	dvb_ringbuffer_init(&dmxdevfilter->buffer, NULL, 8192);
+	dvb_vb2_init(&dmxdevfilter->vb2_ctx, "demux_filter",
+		     file->f_flags & O_NONBLOCK);
 	dmxdevfilter->type = DMXDEV_TYPE_NONE;
 	dvb_dmxdev_filter_state_set(dmxdevfilter, DMXDEV_STATE_ALLOCATED);
 	timer_setup(&dmxdevfilter->timer, dvb_dmxdev_filter_timeout, 0);
@@ -765,6 +788,10 @@ static int dvb_dmxdev_filter_free(struct dmxdev *dmxdev,
 {
 	mutex_lock(&dmxdev->mutex);
 	mutex_lock(&dmxdevfilter->mutex);
+	if (dvb_vb2_is_streaming(&dmxdevfilter->vb2_ctx))
+		dvb_vb2_stream_off(&dmxdevfilter->vb2_ctx);
+	dvb_vb2_release(&dmxdevfilter->vb2_ctx);
+
 
 	dvb_dmxdev_filter_stop(dmxdevfilter);
 	dvb_dmxdev_filter_reset(dmxdevfilter);
@@ -1052,6 +1079,53 @@ static int dvb_demux_do_ioctl(struct file *file,
 		mutex_unlock(&dmxdevfilter->mutex);
 		break;
 
+	case DMX_REQBUFS:
+		if (mutex_lock_interruptible(&dmxdevfilter->mutex)) {
+			mutex_unlock(&dmxdev->mutex);
+			return -ERESTARTSYS;
+		}
+		ret = dvb_vb2_reqbufs(&dmxdevfilter->vb2_ctx, parg);
+		mutex_unlock(&dmxdevfilter->mutex);
+		break;
+
+	case DMX_QUERYBUF:
+		if (mutex_lock_interruptible(&dmxdevfilter->mutex)) {
+			mutex_unlock(&dmxdev->mutex);
+			return -ERESTARTSYS;
+		}
+		ret = dvb_vb2_querybuf(&dmxdevfilter->vb2_ctx, parg);
+		mutex_unlock(&dmxdevfilter->mutex);
+		break;
+
+	case DMX_EXPBUF:
+		if (mutex_lock_interruptible(&dmxdevfilter->mutex)) {
+			mutex_unlock(&dmxdev->mutex);
+			return -ERESTARTSYS;
+		}
+		ret = dvb_vb2_expbuf(&dmxdevfilter->vb2_ctx, parg);
+		mutex_unlock(&dmxdevfilter->mutex);
+		break;
+
+	case DMX_QBUF:
+		if (mutex_lock_interruptible(&dmxdevfilter->mutex)) {
+			mutex_unlock(&dmxdev->mutex);
+			return -ERESTARTSYS;
+		}
+		ret = dvb_vb2_qbuf(&dmxdevfilter->vb2_ctx, parg);
+		if (ret == 0 && !dvb_vb2_is_streaming(&dmxdevfilter->vb2_ctx))
+			ret = dvb_vb2_stream_on(&dmxdevfilter->vb2_ctx);
+		mutex_unlock(&dmxdevfilter->mutex);
+		break;
+
+	case DMX_DQBUF:
+		if (mutex_lock_interruptible(&dmxdevfilter->mutex)) {
+			mutex_unlock(&dmxdev->mutex);
+			return -ERESTARTSYS;
+		}
+		ret = dvb_vb2_dqbuf(&dmxdevfilter->vb2_ctx, parg);
+		mutex_unlock(&dmxdevfilter->mutex);
+		break;
+
 	default:
 		ret = -EINVAL;
 		break;
@@ -1073,6 +1147,8 @@ static unsigned int dvb_demux_poll(struct file *file, poll_table *wait)
 
 	if ((!dmxdevfilter) || dmxdevfilter->dev->exit)
 		return POLLERR;
+	if (dvb_vb2_is_streaming(&dmxdevfilter->vb2_ctx))
+		return dvb_vb2_poll(&dmxdevfilter->vb2_ctx, file, wait);
 
 	poll_wait(file, &dmxdevfilter->buffer.queue, wait);
 
@@ -1090,11 +1166,31 @@ static unsigned int dvb_demux_poll(struct file *file, poll_table *wait)
 	return mask;
 }
 
+static int dvb_demux_mmap(struct file *file, struct vm_area_struct *vma)
+{
+	struct dmxdev_filter *dmxdevfilter = file->private_data;
+	struct dmxdev *dmxdev = dmxdevfilter->dev;
+	int ret;
+
+	if (mutex_lock_interruptible(&dmxdev->mutex))
+		return -ERESTARTSYS;
+
+	if (mutex_lock_interruptible(&dmxdevfilter->mutex)) {
+		mutex_unlock(&dmxdev->mutex);
+		return -ERESTARTSYS;
+	}
+	ret = dvb_vb2_mmap(&dmxdevfilter->vb2_ctx, vma);
+
+	mutex_unlock(&dmxdevfilter->mutex);
+	mutex_unlock(&dmxdev->mutex);
+
+	return ret;
+}
+
 static int dvb_demux_release(struct inode *inode, struct file *file)
 {
 	struct dmxdev_filter *dmxdevfilter = file->private_data;
 	struct dmxdev *dmxdev = dmxdevfilter->dev;
-
 	int ret;
 
 	ret = dvb_dmxdev_filter_free(dmxdev, dmxdevfilter);
@@ -1118,6 +1214,7 @@ static const struct file_operations dvb_demux_fops = {
 	.release = dvb_demux_release,
 	.poll = dvb_demux_poll,
 	.llseek = default_llseek,
+	.mmap = dvb_demux_mmap,
 };
 
 static const struct dvb_device dvbdev_demux = {
@@ -1146,6 +1243,28 @@ static int dvb_dvr_do_ioctl(struct file *file,
 		ret = dvb_dvr_set_buffer_size(dmxdev, arg);
 		break;
 
+	case DMX_REQBUFS:
+		ret = dvb_vb2_reqbufs(&dmxdev->dvr_vb2_ctx, parg);
+		break;
+
+	case DMX_QUERYBUF:
+		ret = dvb_vb2_querybuf(&dmxdev->dvr_vb2_ctx, parg);
+		break;
+
+	case DMX_EXPBUF:
+		ret = dvb_vb2_expbuf(&dmxdev->dvr_vb2_ctx, parg);
+		break;
+
+	case DMX_QBUF:
+		ret = dvb_vb2_qbuf(&dmxdev->dvr_vb2_ctx, parg);
+		if (ret == 0 && !dvb_vb2_is_streaming(&dmxdev->dvr_vb2_ctx))
+			ret = dvb_vb2_stream_on(&dmxdev->dvr_vb2_ctx);
+		break;
+
+	case DMX_DQBUF:
+		ret = dvb_vb2_dqbuf(&dmxdev->dvr_vb2_ctx, parg);
+		break;
+
 	default:
 		ret = -EINVAL;
 		break;
@@ -1170,10 +1289,13 @@ static unsigned int dvb_dvr_poll(struct file *file, poll_table *wait)
 
 	if (dmxdev->exit)
 		return POLLERR;
+	if (dvb_vb2_is_streaming(&dmxdev->dvr_vb2_ctx))
+		return dvb_vb2_poll(&dmxdev->dvr_vb2_ctx, file, wait);
 
 	poll_wait(file, &dmxdev->dvr_buffer.queue, wait);
 
-	if ((file->f_flags & O_ACCMODE) == O_RDONLY) {
+	if (((file->f_flags & O_ACCMODE) == O_RDONLY) ||
+	    ((file->f_flags & O_ACCMODE) == O_RDWR)) {
 		if (dmxdev->dvr_buffer.error)
 			mask |= (POLLIN | POLLRDNORM | POLLPRI | POLLERR);
 
@@ -1185,6 +1307,23 @@ static unsigned int dvb_dvr_poll(struct file *file, poll_table *wait)
 	return mask;
 }
 
+static int dvb_dvr_mmap(struct file *file, struct vm_area_struct *vma)
+{
+	struct dvb_device *dvbdev = file->private_data;
+	struct dmxdev *dmxdev = dvbdev->priv;
+	int ret;
+
+	if (dmxdev->exit)
+		return -ENODEV;
+
+	if (mutex_lock_interruptible(&dmxdev->mutex))
+		return -ERESTARTSYS;
+
+	ret = dvb_vb2_mmap(&dmxdev->dvr_vb2_ctx, vma);
+	mutex_unlock(&dmxdev->mutex);
+	return ret;
+}
+
 static const struct file_operations dvb_dvr_fops = {
 	.owner = THIS_MODULE,
 	.read = dvb_dvr_read,
@@ -1194,6 +1333,7 @@ static const struct file_operations dvb_dvr_fops = {
 	.release = dvb_dvr_release,
 	.poll = dvb_dvr_poll,
 	.llseek = default_llseek,
+	.mmap = dvb_dvr_mmap,
 };
 
 static const struct dvb_device dvbdev_dvr = {

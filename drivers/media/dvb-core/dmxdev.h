@@ -35,6 +35,7 @@
 #include "dvbdev.h"
 #include "demux.h"
 #include "dvb_ringbuffer.h"
+#include "dvb_vb2.h"
 
 /**
  * enum dmxdev_type - type of demux filter type.
@@ -140,6 +141,7 @@ struct dmxdev_filter {
 	enum dmxdev_state state;
 	struct dmxdev *dev;
 	struct dvb_ringbuffer buffer;
+	struct dvb_vb2_ctx vb2_ctx;
 
 	struct mutex mutex;
 
@@ -182,6 +184,8 @@ struct dmxdev {
 
 	struct dvb_ringbuffer dvr_buffer;
 #define DVR_BUFFER_SIZE (10*188*1024)
+
+	struct dvb_vb2_ctx dvr_vb2_ctx;
 
 	struct mutex mutex;
 	spinlock_t lock;
