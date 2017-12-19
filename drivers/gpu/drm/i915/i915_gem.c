@@ -3089,7 +3089,12 @@ i915_gem_reset_request(struct intel_engine_cs *engine,
 void i915_gem_reset_engine(struct intel_engine_cs *engine,
 			   struct drm_i915_gem_request *request)
 {
-	engine->irq_posted = 0;
+	/*
+	 * Make sure this write is visible before we re-enable the interrupt
+	 * handlers on another CPU, as tasklet_enable() resolves to just
+	 * a compiler barrier which is insufficient for our purpose here.
+	 */
+	smp_store_mb(engine->irq_posted, 0);
 
 	if (request)
 		request = i915_gem_reset_request(engine, request);
