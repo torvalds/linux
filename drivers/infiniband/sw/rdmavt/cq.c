@@ -198,7 +198,7 @@ struct ib_cq *rvt_create_cq(struct ib_device *ibdev,
 		return ERR_PTR(-EINVAL);
 
 	/* Allocate the completion queue structure. */
-	cq = kzalloc(sizeof(*cq), GFP_KERNEL);
+	cq = kzalloc_node(sizeof(*cq), GFP_KERNEL, rdi->dparms.node);
 	if (!cq)
 		return ERR_PTR(-ENOMEM);
 
@@ -214,7 +214,9 @@ struct ib_cq *rvt_create_cq(struct ib_device *ibdev,
 		sz += sizeof(struct ib_uverbs_wc) * (entries + 1);
 	else
 		sz += sizeof(struct ib_wc) * (entries + 1);
-	wc = vmalloc_user(sz);
+	wc = udata ?
+		vmalloc_user(sz) :
+		vzalloc_node(sz, rdi->dparms.node);
 	if (!wc) {
 		ret = ERR_PTR(-ENOMEM);
 		goto bail_cq;
@@ -369,7 +371,9 @@ int rvt_resize_cq(struct ib_cq *ibcq, int cqe, struct ib_udata *udata)
 		sz += sizeof(struct ib_uverbs_wc) * (cqe + 1);
 	else
 		sz += sizeof(struct ib_wc) * (cqe + 1);
-	wc = vmalloc_user(sz);
+	wc = udata ?
+		vmalloc_user(sz) :
+		vzalloc_node(sz, rdi->dparms.node);
 	if (!wc)
 		return -ENOMEM;
 
