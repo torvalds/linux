@@ -67,6 +67,12 @@ nfp_flower_compile_meta_tci(struct nfp_flower_meta_tci *frame,
 	}
 }
 
+static void
+nfp_flower_compile_ext_meta(struct nfp_flower_ext_meta *frame, u32 key_ext)
+{
+	frame->nfp_flow_key_layer2 = cpu_to_be32(key_ext);
+}
+
 static int
 nfp_flower_compile_port(struct nfp_flower_in_port *frame, u32 cmsg_port,
 			bool mask_version, enum nfp_flower_tun_type tun_type)
@@ -216,16 +222,15 @@ nfp_flower_compile_ipv6(struct nfp_flower_ipv6 *frame,
 }
 
 static void
-nfp_flower_compile_vxlan(struct nfp_flower_vxlan *frame,
-			 struct tc_cls_flower_offload *flow,
-			 bool mask_version)
+nfp_flower_compile_ipv4_udp_tun(struct nfp_flower_ipv4_udp_tun *frame,
+				struct tc_cls_flower_offload *flow,
+				bool mask_version)
 {
 	struct fl_flow_key *target = mask_version ? flow->mask : flow->key;
-	struct flow_dissector_key_ipv4_addrs *vxlan_ips;
+	struct flow_dissector_key_ipv4_addrs *tun_ips;
 	struct flow_dissector_key_keyid *vni;
 
-	/* Wildcard TOS/TTL/GPE_FLAGS/NXT_PROTO for now. */
-	memset(frame, 0, sizeof(struct nfp_flower_vxlan));
+	memset(frame, 0, sizeof(struct nfp_flower_ipv4_udp_tun));
 
 	if (dissector_uses_key(flow->dissector,
 			       FLOW_DISSECTOR_KEY_ENC_KEYID)) {
@@ -240,28 +245,25 @@ nfp_flower_compile_vxlan(struct nfp_flower_vxlan *frame,
 
 	if (dissector_uses_key(flow->dissector,
 			       FLOW_DISSECTOR_KEY_ENC_IPV4_ADDRS)) {
-		vxlan_ips =
+		tun_ips =
 		   skb_flow_dissector_target(flow->dissector,
 					     FLOW_DISSECTOR_KEY_ENC_IPV4_ADDRS,
 					     target);
-		frame->ip_src = vxlan_ips->src;
-		frame->ip_dst = vxlan_ips->dst;
+		frame->ip_src = tun_ips->src;
+		frame->ip_dst = tun_ips->dst;
 	}
 }
 
 int nfp_flower_compile_flow_match(struct tc_cls_flower_offload *flow,
 				  struct nfp_fl_key_ls *key_ls,
 				  struct net_device *netdev,
-				  struct nfp_fl_payload *nfp_flow)
+				  struct nfp_fl_payload *nfp_flow,
+				  enum nfp_flower_tun_type tun_type)
 {
-	enum nfp_flower_tun_type tun_type = NFP_FL_TUNNEL_NONE;
 	struct nfp_repr *netdev_repr;
 	int err;
 	u8 *ext;
 	u8 *msk;
-
-	if (key_ls->key_layer & NFP_FLOWER_LAYER_VXLAN)
-		tun_type = NFP_FL_TUNNEL_VXLAN;
 
 	memset(nfp_flow->unmasked_data, 0, key_ls->key_size);
 	memset(nfp_flow->mask_data, 0, key_ls->key_size);
@@ -277,6 +279,16 @@ int nfp_flower_compile_flow_match(struct tc_cls_flower_offload *flow,
 				    flow, key_ls->key_layer, true);
 	ext += sizeof(struct nfp_flower_meta_tci);
 	msk += sizeof(struct nfp_flower_meta_tci);
+
+	/* Populate Extended Metadata if Required. */
+	if (NFP_FLOWER_LAYER_EXT_META & key_ls->key_layer) {
+		nfp_flower_compile_ext_meta((struct nfp_flower_ext_meta *)ext,
+					    key_ls->key_layer_two);
+		nfp_flower_compile_ext_meta((struct nfp_flower_ext_meta *)msk,
+					    key_ls->key_layer_two);
+		ext += sizeof(struct nfp_flower_ext_meta);
+		msk += sizeof(struct nfp_flower_ext_meta);
+	}
 
 	/* Populate Exact Port data. */
 	err = nfp_flower_compile_port((struct nfp_flower_in_port *)ext,
@@ -339,18 +351,17 @@ int nfp_flower_compile_flow_match(struct tc_cls_flower_offload *flow,
 		msk += sizeof(struct nfp_flower_ipv6);
 	}
 
-	if (key_ls->key_layer & NFP_FLOWER_LAYER_VXLAN) {
+	if (key_ls->key_layer & NFP_FLOWER_LAYER_VXLAN ||
+	    key_ls->key_layer_two & NFP_FLOWER_LAYER2_GENEVE) {
 		__be32 tun_dst;
 
 		/* Populate Exact VXLAN Data. */
-		nfp_flower_compile_vxlan((struct nfp_flower_vxlan *)ext,
-					 flow, false);
+		nfp_flower_compile_ipv4_udp_tun((void *)ext, flow, false);
 		/* Populate Mask VXLAN Data. */
-		nfp_flower_compile_vxlan((struct nfp_flower_vxlan *)msk,
-					 flow, true);
-		tun_dst = ((struct nfp_flower_vxlan *)ext)->ip_dst;
-		ext += sizeof(struct nfp_flower_vxlan);
-		msk += sizeof(struct nfp_flower_vxlan);
+		nfp_flower_compile_ipv4_udp_tun((void *)msk, flow, true);
+		tun_dst = ((struct nfp_flower_ipv4_udp_tun *)ext)->ip_dst;
+		ext += sizeof(struct nfp_flower_ipv4_udp_tun);
+		msk += sizeof(struct nfp_flower_ipv4_udp_tun);
 
 		/* Configure tunnel end point MAC. */
 		if (nfp_netdev_is_nfp_repr(netdev)) {

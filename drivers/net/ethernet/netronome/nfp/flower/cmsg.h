@@ -41,7 +41,7 @@
 #include "../nfp_app.h"
 #include "../nfpcore/nfp_cpp.h"
 
-#define NFP_FLOWER_LAYER_META		BIT(0)
+#define NFP_FLOWER_LAYER_EXT_META	BIT(0)
 #define NFP_FLOWER_LAYER_PORT		BIT(1)
 #define NFP_FLOWER_LAYER_MAC		BIT(2)
 #define NFP_FLOWER_LAYER_TP		BIT(3)
@@ -49,6 +49,8 @@
 #define NFP_FLOWER_LAYER_IPV6		BIT(5)
 #define NFP_FLOWER_LAYER_CT		BIT(6)
 #define NFP_FLOWER_LAYER_VXLAN		BIT(7)
+
+#define NFP_FLOWER_LAYER2_GENEVE	BIT(5)
 
 #define NFP_FLOWER_MASK_VLAN_PRIO	GENMASK(15, 13)
 #define NFP_FLOWER_MASK_VLAN_CFI	BIT(12)
@@ -105,6 +107,7 @@
 enum nfp_flower_tun_type {
 	NFP_FL_TUNNEL_NONE =	0,
 	NFP_FL_TUNNEL_VXLAN =	2,
+	NFP_FL_TUNNEL_GENEVE =	4,
 };
 
 struct nfp_fl_act_head {
@@ -196,6 +199,18 @@ struct nfp_flower_meta_tci {
 	u8 nfp_flow_key_layer;
 	u8 mask_id;
 	__be16 tci;
+};
+
+/* Extended metadata for additional key_layers (1W/4B)
+ * ----------------------------------------------------------------
+ *    3                   2                   1
+ *  1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0
+ * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ * |                      nfp_flow_key_layer2                      |
+ * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ */
+struct nfp_flower_ext_meta {
+	__be32 nfp_flow_key_layer2;
 };
 
 /* Port details (1W/4B)
@@ -296,7 +311,7 @@ struct nfp_flower_ipv6 {
 	struct in6_addr ipv6_dst;
 };
 
-/* Flow Frame VXLAN --> Tunnel details (4W/16B)
+/* Flow Frame IPv4 UDP TUNNEL --> Tunnel details (4W/16B)
  * -----------------------------------------------------------------
  *    3                   2                   1
  *  1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0
@@ -305,22 +320,17 @@ struct nfp_flower_ipv6 {
  * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
  * |                         ipv4_addr_dst                         |
  * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
- * |           tun_flags           |       tos     |       ttl     |
+ * |                            Reserved                           |
  * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
- * |   gpe_flags   |            Reserved           | Next Protocol |
+ * |                            Reserved                           |
  * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
  * |                     VNI                       |   Reserved    |
  * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
  */
-struct nfp_flower_vxlan {
+struct nfp_flower_ipv4_udp_tun {
 	__be32 ip_src;
 	__be32 ip_dst;
-	__be16 tun_flags;
-	u8 tos;
-	u8 ttl;
-	u8 gpe_flags;
-	u8 reserved[2];
-	u8 nxt_proto;
+	__be32 reserved[2];
 	__be32 tun_id;
 };
 

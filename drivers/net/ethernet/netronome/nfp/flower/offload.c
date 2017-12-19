@@ -130,12 +130,15 @@ static bool nfp_flower_check_higher_than_mac(struct tc_cls_flower_offload *f)
 }
 
 static int
-nfp_flower_calculate_key_layers(struct nfp_fl_key_ls *ret_key_ls,
+nfp_flower_calculate_key_layers(struct nfp_app *app,
+				struct nfp_fl_key_ls *ret_key_ls,
 				struct tc_cls_flower_offload *flow,
-				bool egress)
+				bool egress,
+				enum nfp_flower_tun_type *tun_type)
 {
 	struct flow_dissector_key_basic *mask_basic = NULL;
 	struct flow_dissector_key_basic *key_basic = NULL;
+	struct nfp_flower_priv *priv = app->priv;
 	u32 key_layer_two;
 	u8 key_layer;
 	int key_size;
@@ -197,12 +200,27 @@ nfp_flower_calculate_key_layers(struct nfp_fl_key_ls *ret_key_ls,
 						  FLOW_DISSECTOR_KEY_ENC_PORTS,
 						  flow->key);
 
-		if (mask_enc_ports->dst != cpu_to_be16(~0) ||
-		    enc_ports->dst != htons(NFP_FL_VXLAN_PORT))
+		if (mask_enc_ports->dst != cpu_to_be16(~0))
 			return -EOPNOTSUPP;
 
-		key_layer |= NFP_FLOWER_LAYER_VXLAN;
-		key_size += sizeof(struct nfp_flower_vxlan);
+		switch (enc_ports->dst) {
+		case htons(NFP_FL_VXLAN_PORT):
+			*tun_type = NFP_FL_TUNNEL_VXLAN;
+			key_layer |= NFP_FLOWER_LAYER_VXLAN;
+			key_size += sizeof(struct nfp_flower_ipv4_udp_tun);
+			break;
+		case htons(NFP_FL_GENEVE_PORT):
+			if (!(priv->flower_ext_feats & NFP_FL_FEATS_GENEVE))
+				return -EOPNOTSUPP;
+			*tun_type = NFP_FL_TUNNEL_GENEVE;
+			key_layer |= NFP_FLOWER_LAYER_EXT_META;
+			key_size += sizeof(struct nfp_flower_ext_meta);
+			key_layer_two |= NFP_FLOWER_LAYER2_GENEVE;
+			key_size += sizeof(struct nfp_flower_ipv4_udp_tun);
+			break;
+		default:
+			return -EOPNOTSUPP;
+		}
 	} else if (egress) {
 		/* Reject non tunnel matches offloaded to egress repr. */
 		return -EOPNOTSUPP;
@@ -330,6 +348,7 @@ static int
 nfp_flower_add_offload(struct nfp_app *app, struct net_device *netdev,
 		       struct tc_cls_flower_offload *flow, bool egress)
 {
+	enum nfp_flower_tun_type tun_type = NFP_FL_TUNNEL_NONE;
 	struct nfp_flower_priv *priv = app->priv;
 	struct nfp_fl_payload *flow_pay;
 	struct nfp_fl_key_ls *key_layer;
@@ -339,7 +358,8 @@ nfp_flower_add_offload(struct nfp_app *app, struct net_device *netdev,
 	if (!key_layer)
 		return -ENOMEM;
 
-	err = nfp_flower_calculate_key_layers(key_layer, flow, egress);
+	err = nfp_flower_calculate_key_layers(app, key_layer, flow, egress,
+					      &tun_type);
 	if (err)
 		goto err_free_key_ls;
 
@@ -349,7 +369,8 @@ nfp_flower_add_offload(struct nfp_app *app, struct net_device *netdev,
 		goto err_free_key_ls;
 	}
 
-	err = nfp_flower_compile_flow_match(flow, key_layer, netdev, flow_pay);
+	err = nfp_flower_compile_flow_match(flow, key_layer, netdev, flow_pay,
+					    tun_type);
 	if (err)
 		goto err_destroy_flow;
 
