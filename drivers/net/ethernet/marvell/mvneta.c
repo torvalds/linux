@@ -1962,9 +1962,9 @@ static int mvneta_rx_swbm(struct mvneta_port *pp, int rx_todo,
 
 		if (!mvneta_rxq_desc_is_first_last(rx_status) ||
 		    (rx_status & MVNETA_RXD_ERR_SUMMARY)) {
+			mvneta_rx_error(pp, rx_desc);
 err_drop_frame:
 			dev->stats.rx_errors++;
-			mvneta_rx_error(pp, rx_desc);
 			/* leave the descriptor untouched */
 			continue;
 		}
