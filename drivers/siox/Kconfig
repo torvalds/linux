@@ -7,3 +7,12 @@ menuconfig SIOX
 	  to drive additional I/O units.
 
 	  Unless you know better, it is probably safe to say "no" here.
+
+if SIOX
+
+config SIOX_BUS_GPIO
+	tristate "SIOX GPIO bus driver"
+	help
+	  SIOX bus driver that controls the four bus lines using GPIOs.
+
+endif
