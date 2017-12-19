@@ -319,7 +319,7 @@ static int record_root_in_trans(struct btrfs_trans_handle *trans,
 	if ((test_bit(BTRFS_ROOT_REF_COWS, &root->state) &&
 	    root->last_trans < trans->transid) || force) {
 		WARN_ON(root == fs_info->extent_root);
-		WARN_ON(root->commit_root != root->node);
+		WARN_ON(!force && root->commit_root != root->node);
 
 		/*
 		 * see below for IN_TRANS_SETUP usage rules
@@ -1364,6 +1364,14 @@ static int qgroup_account_snapshot(struct btrfs_trans_handle *trans,
 	 */
 	if (!test_bit(BTRFS_FS_QUOTA_ENABLED, &fs_info->flags))
 		return 0;
+
+	/*
+	 * Ensure dirty @src will be commited.  Or, after comming
+	 * commit_fs_roots() and switch_commit_roots(), any dirty but not
+	 * recorded root will never be updated again, causing an outdated root
+	 * item.
+	 */
+	record_root_in_trans(trans, src, 1);
 
 	/*
 	 * We are going to commit transaction, see btrfs_commit_transaction()
