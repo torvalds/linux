@@ -67,8 +67,6 @@ static const struct of_device_id artpec6_pcie_of_match[];
 #define PHY_STATUS			0x118
 #define  PHY_COSPLLLOCK			BIT(0)
 
-#define ARTPEC6_CPU_TO_BUS_ADDR		GENMASK(27, 0)
-
 static u32 artpec6_pcie_readl(struct artpec6_pcie *artpec6_pcie, u32 offset)
 {
 	u32 val;
@@ -82,9 +80,21 @@ static void artpec6_pcie_writel(struct artpec6_pcie *artpec6_pcie, u32 offset, u
 	regmap_write(artpec6_pcie->regmap, offset, val);
 }
 
-static u64 artpec6_pcie_cpu_addr_fixup(u64 pci_addr)
+static u64 artpec6_pcie_cpu_addr_fixup(struct dw_pcie *pci, u64 pci_addr)
 {
-	return pci_addr & ARTPEC6_CPU_TO_BUS_ADDR;
+	struct artpec6_pcie *artpec6_pcie = to_artpec6_pcie(pci);
+	struct pcie_port *pp = &pci->pp;
+	struct dw_pcie_ep *ep = &pci->ep;
+
+	switch (artpec6_pcie->mode) {
+	case DW_PCIE_RC_TYPE:
+		return pci_addr - pp->cfg0_base;
+	case DW_PCIE_EP_TYPE:
+		return pci_addr - ep->phys_base;
+	default:
+		dev_err(pci->dev, "UNKNOWN device type\n");
+	}
+	return pci_addr;
 }
 
 static int artpec6_pcie_establish_link(struct dw_pcie *pci)
