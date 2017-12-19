@@ -2384,8 +2384,7 @@ lpfc_soft_wwn_enable_store(struct device *dev, struct device_attribute *attr,
 
 	return count;
 }
-static DEVICE_ATTR(lpfc_soft_wwn_enable, S_IWUSR, NULL,
-		   lpfc_soft_wwn_enable_store);
+static DEVICE_ATTR_WO(lpfc_soft_wwn_enable);
 
 /**
  * lpfc_soft_wwpn_show - Return the cfg soft ww port name of the adapter

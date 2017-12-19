@@ -317,7 +317,7 @@ emul_temp_store(struct device *dev, struct device_attribute *attr,
 
 	return ret ? ret : count;
 }
-static DEVICE_ATTR(emul_temp, S_IWUSR, NULL, emul_temp_store);
+static DEVICE_ATTR_WO(emul_temp);
 #endif
 
 static ssize_t
