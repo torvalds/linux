@@ -228,7 +228,7 @@ int tmio_mmc_host_runtime_resume(struct device *dev);
 
 static inline u16 sd_ctrl_read16(struct tmio_mmc_host *host, int addr)
 {
-	return readw(host->ctl + (addr << host->bus_shift));
+	return ioread16(host->ctl + (addr << host->bus_shift));
 }
 
 static inline void sd_ctrl_read16_rep(struct tmio_mmc_host *host, int addr,
@@ -240,8 +240,8 @@ static inline void sd_ctrl_read16_rep(struct tmio_mmc_host *host, int addr,
 static inline u32 sd_ctrl_read16_and_16_as_32(struct tmio_mmc_host *host,
 					      int addr)
 {
-	return readw(host->ctl + (addr << host->bus_shift)) |
-	       readw(host->ctl + ((addr + 2) << host->bus_shift)) << 16;
+	return ioread16(host->ctl + (addr << host->bus_shift)) |
+	       ioread16(host->ctl + ((addr + 2) << host->bus_shift)) << 16;
 }
 
 static inline void sd_ctrl_read32_rep(struct tmio_mmc_host *host, int addr,
@@ -258,7 +258,7 @@ static inline void sd_ctrl_write16(struct tmio_mmc_host *host, int addr,
 	 */
 	if (host->write16_hook && host->write16_hook(host, addr))
 		return;
-	writew(val, host->ctl + (addr << host->bus_shift));
+	iowrite16(val, host->ctl + (addr << host->bus_shift));
 }
 
 static inline void sd_ctrl_write16_rep(struct tmio_mmc_host *host, int addr,
@@ -270,8 +270,8 @@ static inline void sd_ctrl_write16_rep(struct tmio_mmc_host *host, int addr,
 static inline void sd_ctrl_write32_as_16_and_16(struct tmio_mmc_host *host,
 						int addr, u32 val)
 {
-	writew(val & 0xffff, host->ctl + (addr << host->bus_shift));
-	writew(val >> 16, host->ctl + ((addr + 2) << host->bus_shift));
+	iowrite16(val & 0xffff, host->ctl + (addr << host->bus_shift));
+	iowrite16(val >> 16, host->ctl + ((addr + 2) << host->bus_shift));
 }
 
 static inline void sd_ctrl_write32_rep(struct tmio_mmc_host *host, int addr,
