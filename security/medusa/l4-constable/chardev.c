@@ -72,46 +72,45 @@ static MED_LOCK_DATA(constable_openclose);
 /* fetch or update answer */
 static atomic_t fetch_requests = ATOMIC_INIT(0);
 static atomic_t update_requests = ATOMIC_INIT(0);
- static struct medusa_kclass_s * answ_kclass;
- static struct medusa_kobject_s * answ_kobj;
- static MCPptr_t answ_kclassid;
- static MCPptr_t answ_seq;
- static medusa_answer_t answ_result;
+ static struct medusa_kclass_s * answ_kclass = NULL;
+ static struct medusa_kobject_s * answ_kobj = NULL;
+ static MCPptr_t answ_seq = 0;
 
 /* to-register queue for constable */
 static MED_LOCK_DATA(registration_lock);
- static struct medusa_kclass_s * kclasses_to_register = NULL;
- static struct medusa_evtype_s * evtypes_to_register = NULL;
- /* the following two are circular lists */
+ // static struct medusa_kclass_s * kclasses_to_register = NULL;
+ // static struct medusa_evtype_s * evtypes_to_register = NULL;
+ /* the following two are circular lists, they have to be global
+  * because of put operations in user_close() */
  static struct medusa_kclass_s * kclasses_registered = NULL;
  static struct medusa_evtype_s * evtypes_registered = NULL;
  static atomic_t announce_ready = ATOMIC_INIT(0);
 
 /* a question from kernel to constable */
-static DEFINE_SEMAPHORE(constable_mutex);
+// static DEFINE_SEMAPHORE(constable_mutex);
  static atomic_t questions = ATOMIC_INIT(0);
  static atomic_t questions_waiting = ATOMIC_INIT(0);
  static atomic_t decision_request_id = ATOMIC_INIT(0);
  /* and the answer */
- static medusa_answer_t user_answer;
- static DECLARE_WAIT_QUEUE_HEAD(userspace);
+ static medusa_answer_t user_answer = MED_ERR;
+ // static DECLARE_WAIT_QUEUE_HEAD(userspace);
 
 /* is the user-space currently sending us something? */
 static atomic_t currently_receiving = ATOMIC_INIT(0);
- static char recv_buf[32768]; /* hopefully enough */
- static MCPptr_t recv_type;
- static int recv_phase;
+static char recv_buf[32768]; /* hopefully enough */
 
 static DECLARE_WAIT_QUEUE_HEAD(close_wait);
 
 static DECLARE_WAIT_QUEUE_HEAD(userspace_answer);
 static DECLARE_WAIT_QUEUE_HEAD(userspace_chardev);
+ // Nie je dobre riesit cez globalnu premennu, potrebna fronta:
 static int recv_req_id = -1;
 static struct semaphore take_answer;
 static struct semaphore fetch_update_lock;
 static struct semaphore user_read_lock;
 static struct semaphore queue_items;
 static struct semaphore queue_lock;
+static struct semaphore next_question;
 static LIST_HEAD(tele_queue);
 struct tele_item {
     teleport_insn_t *tele;
@@ -124,6 +123,18 @@ struct tele_item {
 static size_t left_in_teleport = 0;
 static struct tele_item *local_list_item;
 static teleport_insn_t *processed_teleport;
+// TODO urobit reinicializaciu lokalnych statickych premennych
+
+static DEFINE_SEMAPHORE(ls_switch);
+static DEFINE_SEMAPHORE(lock_sem);
+typedef struct {
+    struct semaphore* lock_sem;
+    int counter;
+} lightswitch_t;
+static lightswitch_t lightswitch = {
+    .lock_sem = &lock_sem,
+    .counter = 0,
+};
 
 static char* recv_type_name[] = {"FETCH_REQUEST", "UPDATE_REQUEST"};
 
@@ -302,6 +313,22 @@ static int l4_add_evtype(struct medusa_evtype_s * at)
 	return MED_YES;
 }
 
+inline static void ls_lock(lightswitch_t* ls, struct semaphore* sem) {
+    down(ls->lock_sem);
+    ls->counter++;
+    if (ls->counter == 1)
+        down(sem);
+    up(ls->lock_sem);
+}
+
+inline static void ls_unlock(lightswitch_t* ls, struct semaphore* sem) {
+    down(ls->lock_sem);
+    ls->counter--;
+    if (!ls->counter)
+        up(sem);
+    up(ls->lock_sem);
+}
+
 /* the sad fact about this routine is that it sleeps...
  *
  * guess what? we can FULLY solve that silly problem on SMP,
@@ -311,33 +338,36 @@ static int l4_add_evtype(struct medusa_evtype_s * at)
 static medusa_answer_t l4_decide(struct medusa_event_s * event,
 		struct medusa_kobject_s * o1, struct medusa_kobject_s * o2)
 {
+    // return MED_YES;
 	int retval;
 	int local_req_id;
     teleport_insn_t tele_mem_decide[6];
     struct tele_item *local_tele_item;
-    local_tele_item = (struct tele_item*) kmalloc(sizeof(struct tele_item), GFP_KERNEL);
-    local_tele_item->tele = tele_mem_decide;
-    local_tele_item->size = 0;
-    local_tele_item->post = NULL;
 
 	if (in_interrupt()) {
 		/* houston, we have a problem! */
 		MED_PRINTF("decide called from interrupt context :(\n");
 		return MED_ERR;
 	}
-	if (am_i_constable() || current == gdb)
+	if (am_i_constable() || current == gdb) {
 		return MED_OK;
+    }
 
-	if (current->pid < 1)
+	if (current->pid < 1) {
 		return MED_ERR;
+    }
 #ifdef GDB_HACK
-	if (gdb_pid == current->pid)
+	if (gdb_pid == current->pid) {
 		return MED_OK;
+    }
 #endif
 
-	/* end before sleeping, if possible */
-	if (!atomic_read(&constable_present))
-		return MED_ERR;
+    local_tele_item = (struct tele_item*) kmalloc(sizeof(struct tele_item), GFP_KERNEL);
+    if (!local_tele_item)
+        return MED_ERR;
+    local_tele_item->tele = tele_mem_decide;
+    local_tele_item->size = 0;
+    local_tele_item->post = NULL;
 
     // Local telemem structure (no need to kfree it)
 #define decision_evtype (event->evtype_id)
@@ -369,21 +399,32 @@ static medusa_answer_t l4_decide(struct medusa_event_s * event,
     local_tele_item->size += decision_evtype->arg_kclass[1]->kobject_size;
 		tele_mem_decide[5].opcode = tp_HALT;
 	}
+
+    ls_lock(&lightswitch, &ls_switch);
+
+	if (!atomic_read(&constable_present)) {
+        kfree(local_tele_item);
+        ls_unlock(&lightswitch, &ls_switch);
+		return MED_ERR;
+    }
+
     // PREPARE FOR NEXT DECISION
     atomic_inc(&decision_request_id);
 #undef decision_evtype
     // INSERT TELEPORT STRUCTURE TO THE QUEUE
-    down(&queue_lock);
+    //down(&next_question);
     printk("l4_decide: adding %p, id: %i\n", tele_mem_decide, local_req_id);
+    down(&queue_lock);
     list_add_tail(&(local_tele_item->list), &tele_queue);
     up(&queue_lock);
     up(&queue_items);
 	atomic_inc(&questions);
 	wake_up(&userspace_chardev);
     // WAIT UNTIL ANSWER IS READY
-    atomic_inc(&questions_waiting);
+    ls_unlock(&lightswitch, &ls_switch);
 	if (wait_event_timeout(userspace_answer,
-                           local_req_id == recv_req_id, 5*HZ) == 0){
+                           local_req_id == recv_req_id || \
+                           !atomic_read(&constable_present), 5*HZ) == 0){
         user_release(NULL, NULL);
     }
 
@@ -391,11 +432,15 @@ static medusa_answer_t l4_decide(struct medusa_event_s * event,
         atomic_dec(&questions_waiting);
 		retval = user_answer;
     }
-	else
+	else {
 		retval = MED_ERR;
-  up(&take_answer);
+        printk("l4_decide: error at %i\n", local_req_id);
+    }
+    up(&take_answer);
+    // up(&next_question);
 	barrier();
-    printk("l4_decide: retval is %i\n", retval);
+    printk("l4_decide: retval is %i for %i\n", retval, local_req_id);
+    // wake_up(&userspace_chardev);
 	return retval;
 }
 
@@ -439,35 +484,66 @@ void decrement_counters(teleport_insn_t* tele) {
     return;
   switch (tele[2].opcode) {
     case tp_CUTNPASTE: // Authorization server answer
+      atomic_inc(&questions_waiting);
       atomic_dec(&questions);
+      printk("decrement_counters: questions now: %i\n", atomic_read(&questions));
       break;
     case tp_PUTPtr: // Fetch or update
       switch (tele[1].args.put32.what) {
       case MEDUSA_COMM_FETCH_ANSWER:
         atomic_dec(&fetch_requests);
+        printk("decrement_counters: fetch_requests now: %i\n", atomic_read(&fetch_requests));
         break;
       case MEDUSA_COMM_UPDATE_ANSWER:
         atomic_dec(&update_requests);
+        printk("decrement_counters: update_requests now: %i\n", atomic_read(&update_requests));
         break;
       }
       break;
     case tp_PUTKCLASS :
     case tp_PUTEVTYPE :
       atomic_dec(&announce_ready);
+      printk("decrement_counters: announce_ready now: %i\n", atomic_read(&announce_ready));
       break;
   }
 }
 
-static inline void teleport_pop(void) {
-  down(&queue_items);
-  down(&queue_lock);
+#define DOWN(m) do {  \
+        if (down_trylock(m)) { \
+            printk("Strasny vypis: %d\n", __LINE__); \
+        } \
+    } while(0)
+
+/*
+ * trylock - if true, don't block
+ * returns 1 if queue is empty, otherwise 0
+ * returns -EPIPE if Constable was disconnected
+ * while waiting for new event
+ */
+static inline int teleport_pop(int trylock) {
+  if (trylock) {
+      if (down_trylock(&queue_items))
+          return 1;
+  } else {
+      ls_unlock(&lightswitch, &ls_switch);
+      while (down_timeout(&queue_items, 5*HZ) == -ETIME) {
+          ls_lock(&lightswitch, &ls_switch);
+          if (!atomic_read(&constable_present))
+              return -EPIPE;
+          ls_unlock(&lightswitch, &ls_switch);
+      }
+      ls_lock(&lightswitch, &ls_switch);
+  }
+  DOWN(&queue_lock);
   local_list_item = list_first_entry(&tele_queue, struct tele_item, list);
   processed_teleport = local_list_item->tele;
   left_in_teleport = local_list_item->size;
   list_del(&(local_list_item->list));
   up(&queue_lock);
+  printk("teleport pop: resetujem s adresou %p\n", &(processed_teleport[0]));
   teleport_reset(&teleport, &(processed_teleport[0]), to_user);
   decrement_counters(processed_teleport);
+  return 0;
 }
 
 static inline void teleport_put(void) {
@@ -478,6 +554,7 @@ static inline void teleport_put(void) {
   local_list_item = NULL;
 }
 
+
 /*
  * READ()
  */
@@ -486,41 +563,55 @@ static ssize_t user_read(struct file * filp, char * buf,
 {
     ssize_t retval;
     size_t retval_sum = 0;
-    int empty;
     static int counter = 0;
     int local_counter = counter++;
     char comm[TASK_COMM_LEN];
 
+    ls_lock(&lightswitch, &ls_switch);
+
     printk("user_read: starting %i with %i to read\n", local_counter, count);
+	if (!atomic_read(&constable_present)) {
+        printk("user_read: return constable fast disconnect %i\n", local_counter);
+        ls_unlock(&lightswitch, &ls_switch);
+        return -EPIPE;
+    }
+
 	if (!am_i_constable()) {
         printk("user_read: EPERM error %i\n", local_counter);
         printk("user_read constable pointer %p\n", constable);
-        printk("user_read was called by  %s\n", get_task_comm(comm, constable));
-
+        // printk("user_read was called by  %s\n", get_task_comm(comm, constable));
+        ls_unlock(&lightswitch, &ls_switch);
 		return -EPERM;
     }
 	if (*ppos != filp->f_pos) {
         printk("user_read: ppos error %i\n", local_counter);
+        ls_unlock(&lightswitch, &ls_switch);
 		return -ESPIPE;
     }
 	if (!access_ok(VERIFY_WRITE, buf, count)){
         printk("user_read: EFAULT error %i\n", local_counter);
+        ls_unlock(&lightswitch, &ls_switch);
 		return -EFAULT;
     }
 
 	/* do we have an unfinished write? (e.g. dumb user-space) */
 	if (atomic_read(&currently_receiving)) {
         printk("user_read: unfininshed write\n");
+        ls_unlock(&lightswitch, &ls_switch);
 		return -EIO;
     }
   // Lock it before someone can change the userspace_buf
-  down(&user_read_lock);
+  DOWN(&user_read_lock);
 	userspace_buf = buf;
       // Get an item from the queue
     if (!left_in_teleport) {
       // Get a new item only if the previous teleport has been fully transported
       printk("user_read: Nothing left in teleport, popping it %i\n", local_counter);
-      teleport_pop();
+      if (teleport_pop(0) == -ETIME) {
+          ls_unlock(&lightswitch, &ls_switch);
+          printk("user_read: return constable disconnected %i\n", local_counter);
+          return -ETIME;
+      }
     }
     while (1) {
       retval = teleport_cycle(&teleport, count);
@@ -531,6 +622,7 @@ static ssize_t user_read(struct file * filp, char * buf,
             // something was processed, so we leave current teleport loaded
             up(&user_read_lock);
             printk("user_read: return error eith sum %i\n", local_counter);
+            ls_unlock(&lightswitch, &ls_switch);
             return retval_sum;
         } else {
             // this teleport was broken, we get rid of it
@@ -538,6 +630,7 @@ static ssize_t user_read(struct file * filp, char * buf,
             teleport_put();
             up(&user_read_lock);
             printk("user_read: unexpected error %i\n", local_counter);
+            ls_unlock(&lightswitch, &ls_switch);
             return retval;
         }
       }
@@ -550,11 +643,9 @@ static ssize_t user_read(struct file * filp, char * buf,
         if (!count)
             break;
         // Userspace wants more data
-        empty = down_trylock(&queue_items);
-        if (empty) {
-          break;
-        }
-        teleport_pop();
+        printk("user_read: userspace wants more data\n");
+        if (teleport_pop(1))
+            break;
       } else {
         // Something was left in teleport
         if (retval == 0 && teleport.cycle == tpc_HALT) {
@@ -562,22 +653,25 @@ static ssize_t user_read(struct file * filp, char * buf,
             left_in_teleport = 0;
             teleport_put();
             // Get new teleport
-            teleport_pop();
+            printk("user_read: before pop get new teleport\n");
+            teleport_pop(0);
             continue;
         }
         break;
       }
-    }
+    } // while
   if (retval_sum > 0 || teleport.cycle != tpc_HALT) {
     up(&user_read_lock);
     printk("user_read: return normal %i\n", local_counter);
+    ls_unlock(&lightswitch, &ls_switch);
     return retval_sum;
   }
 
   // Something is still in teleport, but we didn't transport any data
   up(&user_read_lock);
-  // printk("user_read: returning zero %i\n", local_counter);
-  // return 0;
+  printk("user_read: returning zero %i\n", local_counter);
+  ls_unlock(&lightswitch, &ls_switch);
+  return 0;
 }
 
 /*
@@ -601,18 +695,33 @@ static ssize_t user_write(struct file *filp, const char *buf, size_t count, loff
     struct tele_item *local_tele_item;
     static int counter = 0;
     int local_counter = counter++;
+    medusa_answer_t answ_result;
+    int recv_phase;
+    MCPptr_t recv_type;
+    MCPptr_t answ_kclassid = 0;
     printk("user_write: entry %i\n", local_counter);
+
+    // Lightswitch
+    ls_lock(&lightswitch, &ls_switch);
+
+	if (!atomic_read(&constable_present)) {
+        printk("user_write: constable fast disconnect %i\n", local_counter);
+        return -EPIPE;
+    }
 
 	if (!am_i_constable()) {
         printk("user_write: EPERM error\n");
+        ls_unlock(&lightswitch, &ls_switch);
 		return -EPERM;
     }
 	if (*ppos != filp->f_pos) {
         printk("user_write: ppos error\n");
+        ls_unlock(&lightswitch, &ls_switch);
 		return -ESPIPE;
     }
 	if (!access_ok(VERIFY_READ, buf, count)) {
         printk("user_write: EFAULT error\n");
+        ls_unlock(&lightswitch, &ls_switch);
 		return -EFAULT;
     }
 
@@ -682,6 +791,7 @@ static ssize_t user_write(struct file *filp, const char *buf, size_t count, loff
 				atomic_set(&currently_receiving, 0);
                 up(&fetch_update_lock);
 #ifdef ERRORS_CAUSE_SEGFAULT
+                ls_unlock(&lightswitch, &ls_switch);
 				return -EFAULT;
 #else
 				break;
@@ -770,11 +880,13 @@ static ssize_t user_write(struct file *filp, const char *buf, size_t count, loff
 			MED_PRINTF(MODULENAME ": protocol error at write(): unknown command %llx!\n", (MCPptr_t)recv_type);
 			atomic_set(&currently_receiving, 0);
 #ifdef ERRORS_CAUSE_SEGFAULT
+            ls_unlock(&lightswitch, &ls_switch);
             return -EFAULT;
 #endif
 		}
 	}
-  printk("user_write: return %i\n", local_counter);
+    printk("user_write: return %i\n", local_counter);
+    ls_unlock(&lightswitch, &ls_switch);
 	return orig_count;
 }
 
@@ -783,9 +895,6 @@ static ssize_t user_write(struct file *filp, const char *buf, size_t count, loff
  */
 static unsigned int user_poll(struct file *filp, poll_table * wait)
 {
-	unsigned int mask = POLLOUT | POLLWRNORM;
-	// unsigned int mask = POLLIN | POLLRDNORM;
-
 	if (!am_i_constable())
 		return -EPERM;
     
@@ -794,27 +903,38 @@ static unsigned int user_poll(struct file *filp, poll_table * wait)
     //     return mask;
     // }
 
-    printk("user_poll: before wait\n");
-    poll_wait(filp, &userspace_chardev, wait);
-    printk("user_poll: fetches %i\n", atomic_read(&fetch_requests));
-    printk("user_poll: updates %i\n", atomic_read(&update_requests));
-    printk("user_poll: announces %i\n", atomic_read(&announce_ready));
-    printk("user_poll: questions %i\n", atomic_read(&questions));
+    if (!atomic_read(&constable_present))
+            return -EPIPE;
+    // printk("user_poll: fetches %i\n", atomic_read(&fetch_requests));
+    // printk("user_poll: updates %i\n", atomic_read(&update_requests));
+    // printk("user_poll: announces %i\n", atomic_read(&announce_ready));
+    // printk("user_poll: questions %i\n", atomic_read(&questions));
     if (atomic_read(&currently_receiving)) {
-        printk("user_poll: receiving\n");
-        mask = POLLOUT | POLLWRNORM;
+        // printk("user_poll: receiving\n");
+        printk("user_poll: return write continuing\n");
+        return POLLOUT | POLLWRNORM;
     }
     if (teleport.cycle != tpc_HALT) {
-        printk("user_poll: teleport not halted\n");
-        mask = POLLIN | POLLRDNORM;
+        // printk("user_poll: teleport not halted\n");
+        printk("user_poll: return read continuing\n");
+        return POLLIN | POLLRDNORM;
+    }
+    else if (atomic_read(&questions_waiting)) {
+        printk("user_poll: return write new\n");
+        return POLLOUT | POLLWRNORM;
     }
     else if (atomic_read(&fetch_requests) || atomic_read(&update_requests) ||
             atomic_read(&announce_ready) || atomic_read(&questions)) {
-        printk("user_poll: something is ready\n");
-        mask = POLLIN | POLLRDNORM;
+        // printk("user_poll: something is ready\n");
+        printk("user_poll: return read new\n");
+        return POLLIN | POLLRDNORM;
     }
-    printk("user_poll: return\n");
-    return mask;
+    printk("user_poll: before wait\n");
+    // printk("user_poll does not wait: %i\n", poll_does_not_wait(wait));
+    poll_wait(filp, &userspace_chardev, wait);
+    // userspace_chardev wakes up only when adding teleport to the queue
+    // for user to read
+    return POLLIN | POLLRDNORM;
 }
 
 /*
@@ -836,34 +956,37 @@ static int user_open(struct inode *inode, struct file *file)
 	if (strstr(current->parent->comm, "gdb"))
 		gdb = current->parent;
 
+    teleport.cycle = tpc_HALT;
     // Reset semaphores
     sema_init(&take_answer, 1);
     sema_init(&fetch_update_lock, 1);
     sema_init(&user_read_lock, 1);
     sema_init(&queue_items, 0);
     sema_init(&queue_lock, 1);
+    sema_init(&next_question, 1);
 
 	atomic_set(&currently_receiving, 0);
-  tele_mem_open = (teleport_insn_t*) kmalloc(sizeof(teleport_insn_t) * 2, GFP_KERNEL);
-  local_tele_item = (struct tele_item*) kmalloc(sizeof(struct tele_item), GFP_KERNEL);
-	tele_mem_open[0].opcode = tp_PUTPtr;
-	tele_mem_open[0].args.putPtr.what = (MCPptr_t)MEDUSA_COMM_GREETING;
-  local_tele_item->size = sizeof(MCPptr_t);
-	tele_mem_open[1].opcode = tp_HALT;
-  local_tele_item->tele = tele_mem_open;
-  local_tele_item->post = kfree;
-  down(&queue_lock);
-  printk("user_open: adding %p\n", tele_mem_open);
-  list_add_tail(&(local_tele_item->list), &tele_queue);
-  up(&queue_lock);
-  up(&queue_items);
+    tele_mem_open = (teleport_insn_t*) kmalloc(sizeof(teleport_insn_t) * 2, GFP_KERNEL);
+    local_tele_item = (struct tele_item*) kmalloc(sizeof(struct tele_item), GFP_KERNEL);
+      tele_mem_open[0].opcode = tp_PUTPtr;
+      tele_mem_open[0].args.putPtr.what = (MCPptr_t)MEDUSA_COMM_GREETING;
+    local_tele_item->size = sizeof(MCPptr_t);
+      tele_mem_open[1].opcode = tp_HALT;
+    local_tele_item->tele = tele_mem_open;
+    local_tele_item->post = kfree;
+    down(&queue_lock);
+    printk("user_open: adding %p\n", tele_mem_open);
+    list_add_tail(&(local_tele_item->list), &tele_queue);
+    up(&queue_lock);
+    up(&queue_items);
+    wake_up(&userspace_chardev);
 
 	/* this must be the last thing done */
 	atomic_set(&constable_present, 1);
 	MED_UNLOCK_W(constable_openclose);
 
-	evtypes_to_register = NULL;
-	kclasses_to_register = NULL;
+	// evtypes_to_register = NULL;
+	// kclasses_to_register = NULL;
 
     init_waitqueue_head(&userspace_answer);
 
@@ -882,8 +1005,12 @@ static int user_release(struct inode *inode, struct file *file)
   struct list_head *pos, *next;
 	DECLARE_WAITQUEUE(wait,current);
 
-	if (!atomic_read(&constable_present))
+    down(&ls_switch);
+
+	if (!atomic_read(&constable_present)) {
+        up(&ls_switch);
 		return 0;
+    }
 
 	/* this function is invoked also from context of process which requires decision
 	   after 5s of inactivity of our brave user space authorization server constable;
@@ -916,9 +1043,13 @@ static int user_release(struct inode *inode, struct file *file)
 	MED_UNLOCK_W(registration_lock);
 	if (atomic_read(&fetch_requests) || atomic_read(&update_requests)) {
 		med_put_kclass(answ_kclass);
-		atomic_set(&fetch_requests, 0);
-		atomic_set(&update_requests, 0);
 	}
+    atomic_set(&fetch_requests, 0);
+    atomic_set(&update_requests, 0);
+    answ_kclass = NULL;
+    answ_kobj = NULL;
+    // answ_kclassid = 0;
+    answ_seq = 0;
 
 	MED_PRINTF("Security daemon unregistered.\n");
 #if defined(CONFIG_MEDUSA_HALT)
@@ -945,11 +1076,12 @@ static int user_release(struct inode *inode, struct file *file)
    *    constable_present has to be cleared after this procedure bacause it's
    *    tested in a) after wake up
    */
-  down(&take_answer);
+  //down(&take_answer);
 	user_answer = MED_ERR; // XXXXX change to MED_ERR !!
-  up(&take_answer);
+  //up(&take_answer);
 	atomic_set(&constable_present, 0);
 	constable = NULL;
+    gdb = NULL;
 
 	// complete(&userspace_answer);	/* the one which already might be in */
     wake_up_all(&userspace_answer);
@@ -957,6 +1089,9 @@ static int user_release(struct inode *inode, struct file *file)
 	atomic_set(&questions, 0);
 	atomic_set(&questions_waiting, 0);
 	atomic_set(&announce_ready, 0);
+	atomic_set(&decision_request_id, 0);
+	atomic_set(&currently_receiving, 0);
+    recv_req_id = -1;
 
   // Clear the teleport queue
   left_in_teleport = 0;
@@ -978,6 +1113,10 @@ static int user_release(struct inode *inode, struct file *file)
 		MED_PRINTF("Authorization server is not responding.\n");
 	remove_wait_queue(&close_wait, &wait);
 	//MOD_DEC_USE_COUNT; Not needed anymore? JK
+    
+
+    teleport.cycle = tpc_HALT;
+    up(&ls_switch);
 	return 0;
 }
 
