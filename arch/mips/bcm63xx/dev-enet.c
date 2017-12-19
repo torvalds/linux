@@ -265,6 +265,14 @@ int __init bcm63xx_enet_register(int unit,
 		dpd->dma_chan_width = ENETDMA_CHAN_WIDTH;
 	}
 
+	if (unit == 0) {
+		dpd->rx_chan = 0;
+		dpd->tx_chan = 1;
+	} else {
+		dpd->rx_chan = 2;
+		dpd->tx_chan = 3;
+	}
+
 	ret = platform_device_register(pdev);
 	if (ret)
 		return ret;

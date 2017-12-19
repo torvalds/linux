@@ -1716,7 +1716,6 @@ static int bcm_enet_probe(struct platform_device *pdev)
 	struct bcm63xx_enet_platform_data *pd;
 	struct resource *res_mem, *res_irq, *res_irq_rx, *res_irq_tx;
 	struct mii_bus *bus;
-	const char *clk_name;
 	int i, ret;
 
 	if (!bcm_enet_shared_base[0])
@@ -1751,20 +1750,8 @@ static int bcm_enet_probe(struct platform_device *pdev)
 	dev->irq = priv->irq = res_irq->start;
 	priv->irq_rx = res_irq_rx->start;
 	priv->irq_tx = res_irq_tx->start;
-	priv->mac_id = pdev->id;
 
-	/* get rx & tx dma channel id for this mac */
-	if (priv->mac_id == 0) {
-		priv->rx_chan = 0;
-		priv->tx_chan = 1;
-		clk_name = "enet0";
-	} else {
-		priv->rx_chan = 2;
-		priv->tx_chan = 3;
-		clk_name = "enet1";
-	}
-
-	priv->mac_clk = devm_clk_get(&pdev->dev, clk_name);
+	priv->mac_clk = devm_clk_get(&pdev->dev, "enet");
 	if (IS_ERR(priv->mac_clk)) {
 		ret = PTR_ERR(priv->mac_clk);
 		goto out;
@@ -1795,9 +1782,11 @@ static int bcm_enet_probe(struct platform_device *pdev)
 		priv->dma_chan_width = pd->dma_chan_width;
 		priv->dma_has_sram = pd->dma_has_sram;
 		priv->dma_desc_shift = pd->dma_desc_shift;
+		priv->rx_chan = pd->rx_chan;
+		priv->tx_chan = pd->tx_chan;
 	}
 
-	if (priv->mac_id == 0 && priv->has_phy && !priv->use_external_mii) {
+	if (priv->has_phy && !priv->use_external_mii) {
 		/* using internal PHY, enable clock */
 		priv->phy_clk = devm_clk_get(&pdev->dev, "ephy");
 		if (IS_ERR(priv->phy_clk)) {
@@ -1828,7 +1817,7 @@ static int bcm_enet_probe(struct platform_device *pdev)
 		bus->priv = priv;
 		bus->read = bcm_enet_mdio_read_phylib;
 		bus->write = bcm_enet_mdio_write_phylib;
-		sprintf(bus->id, "%s-%d", pdev->name, priv->mac_id);
+		sprintf(bus->id, "%s-%d", pdev->name, pdev->id);
 
 		/* only probe bus where we think the PHY is, because
 		 * the mdio read operation return 0 instead of 0xffff
