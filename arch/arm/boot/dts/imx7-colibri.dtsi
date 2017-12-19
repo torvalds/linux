@@ -86,7 +86,7 @@
 };
 
 &cpu0 {
-	arm-supply = <&reg_DCDC2>;
+	cpu-supply = <&reg_DCDC2>;
 };
 
 &fec1 {
