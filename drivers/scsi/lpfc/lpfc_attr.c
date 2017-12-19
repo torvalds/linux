@@ -2260,8 +2260,8 @@ static DEVICE_ATTR(num_discovered_ports, S_IRUGO,
 		   lpfc_num_discovered_ports_show, NULL);
 static DEVICE_ATTR(menlo_mgmt_mode, S_IRUGO, lpfc_mlomgmt_show, NULL);
 static DEVICE_ATTR(nport_evt_cnt, S_IRUGO, lpfc_nport_evt_cnt_show, NULL);
-static DEVICE_ATTR(lpfc_drvr_version, S_IRUGO, lpfc_drvr_version_show, NULL);
-static DEVICE_ATTR(lpfc_enable_fip, S_IRUGO, lpfc_enable_fip_show, NULL);
+static DEVICE_ATTR_RO(lpfc_drvr_version);
+static DEVICE_ATTR_RO(lpfc_enable_fip);
 static DEVICE_ATTR(board_mode, S_IRUGO | S_IWUSR,
 		   lpfc_board_mode_show, lpfc_board_mode_store);
 static DEVICE_ATTR(issue_reset, S_IWUSR, NULL, lpfc_issue_reset);
@@ -2272,12 +2272,11 @@ static DEVICE_ATTR(used_rpi, S_IRUGO, lpfc_used_rpi_show, NULL);
 static DEVICE_ATTR(max_xri, S_IRUGO, lpfc_max_xri_show, NULL);
 static DEVICE_ATTR(used_xri, S_IRUGO, lpfc_used_xri_show, NULL);
 static DEVICE_ATTR(npiv_info, S_IRUGO, lpfc_npiv_info_show, NULL);
-static DEVICE_ATTR(lpfc_temp_sensor, S_IRUGO, lpfc_temp_sensor_show, NULL);
-static DEVICE_ATTR(lpfc_fips_level, S_IRUGO, lpfc_fips_level_show, NULL);
-static DEVICE_ATTR(lpfc_fips_rev, S_IRUGO, lpfc_fips_rev_show, NULL);
-static DEVICE_ATTR(lpfc_dss, S_IRUGO, lpfc_dss_show, NULL);
-static DEVICE_ATTR(lpfc_sriov_hw_max_virtfn, S_IRUGO,
-		   lpfc_sriov_hw_max_virtfn_show, NULL);
+static DEVICE_ATTR_RO(lpfc_temp_sensor);
+static DEVICE_ATTR_RO(lpfc_fips_level);
+static DEVICE_ATTR_RO(lpfc_fips_rev);
+static DEVICE_ATTR_RO(lpfc_dss);
+static DEVICE_ATTR_RO(lpfc_sriov_hw_max_virtfn);
 static DEVICE_ATTR(protocol, S_IRUGO, lpfc_sli4_protocol_show, NULL);
 static DEVICE_ATTR(lpfc_xlane_supported, S_IRUGO, lpfc_oas_supported_show,
 		   NULL);
@@ -3684,8 +3683,7 @@ lpfc_static_vport_show(struct device *dev, struct device_attribute *attr,
 /*
  * Sysfs attribute to control the statistical data collection.
  */
-static DEVICE_ATTR(lpfc_static_vport, S_IRUGO,
-		   lpfc_static_vport_show, NULL);
+static DEVICE_ATTR_RO(lpfc_static_vport);
 
 /**
  * lpfc_stat_data_ctrl_store - write call back for lpfc_stat_data_ctrl sysfs file

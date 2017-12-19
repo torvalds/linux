@@ -396,10 +396,10 @@ create_s32_tzp_attr(offset);
  * All the attributes created for tzp (create_s32_tzp_attr) also are always
  * present on the sysfs interface.
  */
-static DEVICE_ATTR(type, 0444, type_show, NULL);
-static DEVICE_ATTR(temp, 0444, temp_show, NULL);
+static DEVICE_ATTR_RO(type);
+static DEVICE_ATTR_RO(temp);
 static DEVICE_ATTR_RW(policy);
-static DEVICE_ATTR(available_policies, S_IRUGO, available_policies_show, NULL);
+static DEVICE_ATTR_RO(available_policies);
 static DEVICE_ATTR_RW(sustainable_power);
 
 /* These thermal zone device attributes are created based on conditions */
