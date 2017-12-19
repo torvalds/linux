@@ -577,18 +577,30 @@ void ceph_add_cap(struct inode *inode,
 		}
 	}
 
-	if (!ci->i_snap_realm) {
+	if (!ci->i_snap_realm ||
+	    ((flags & CEPH_CAP_FLAG_AUTH) &&
+	     realmino != (u64)-1 && ci->i_snap_realm->ino != realmino)) {
 		/*
 		 * add this inode to the appropriate snap realm
 		 */
 		struct ceph_snap_realm *realm = ceph_lookup_snap_realm(mdsc,
 							       realmino);
 		if (realm) {
+			struct ceph_snap_realm *oldrealm = ci->i_snap_realm;
+			if (oldrealm) {
+				spin_lock(&oldrealm->inodes_with_caps_lock);
+				list_del_init(&ci->i_snap_realm_item);
+				spin_unlock(&oldrealm->inodes_with_caps_lock);
+			}
+
 			spin_lock(&realm->inodes_with_caps_lock);
 			ci->i_snap_realm = realm;
 			list_add(&ci->i_snap_realm_item,
 				 &realm->inodes_with_caps);
 			spin_unlock(&realm->inodes_with_caps_lock);
+
+			if (oldrealm)
+				ceph_put_snap_realm(mdsc, oldrealm);
 		} else {
 			pr_err("ceph_add_cap: couldn't find snap realm %llx\n",
 			       realmino);
