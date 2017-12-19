@@ -2110,10 +2110,8 @@ static int rvt_stop_rnr_timer(struct rvt_qp *qp)
 
 	lockdep_assert_held(&qp->s_lock);
 	/* Remove QP from rnr timer */
-	if (qp->s_flags & RVT_S_WAIT_RNR) {
+	if (qp->s_flags & RVT_S_WAIT_RNR)
 		qp->s_flags &= ~RVT_S_WAIT_RNR;
-		rval = hrtimer_try_to_cancel(&qp->s_rnr_timer);
-	}
 	return rval;
 }
 
