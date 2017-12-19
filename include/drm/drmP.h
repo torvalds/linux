@@ -158,6 +158,26 @@ void drm_err(const char *format, ...);
 /** \name Macros to make printk easier */
 /*@{*/
 
+#define _DRM_PRINTK(once, level, fmt, ...)				\
+	do {								\
+		printk##once(KERN_##level "[" DRM_NAME "] " fmt,	\
+			     ##__VA_ARGS__);				\
+	} while (0)
+
+#define DRM_INFO(fmt, ...)						\
+	_DRM_PRINTK(, INFO, fmt, ##__VA_ARGS__)
+#define DRM_NOTE(fmt, ...)						\
+	_DRM_PRINTK(, NOTICE, fmt, ##__VA_ARGS__)
+#define DRM_WARN(fmt, ...)						\
+	_DRM_PRINTK(, WARNING, fmt, ##__VA_ARGS__)
+
+#define DRM_INFO_ONCE(fmt, ...)						\
+	_DRM_PRINTK(_once, INFO, fmt, ##__VA_ARGS__)
+#define DRM_NOTE_ONCE(fmt, ...)						\
+	_DRM_PRINTK(_once, NOTICE, fmt, ##__VA_ARGS__)
+#define DRM_WARN_ONCE(fmt, ...)						\
+	_DRM_PRINTK(_once, WARNING, fmt, ##__VA_ARGS__)
+
 /**
  * Error output.
  *
@@ -182,12 +202,6 @@ void drm_err(const char *format, ...);
 	if (__ratelimit(&_rs))						\
 		drm_err(fmt, ##__VA_ARGS__);				\
 })
-
-#define DRM_INFO(fmt, ...)				\
-	printk(KERN_INFO "[" DRM_NAME "] " fmt, ##__VA_ARGS__)
-
-#define DRM_INFO_ONCE(fmt, ...)				\
-	printk_once(KERN_INFO "[" DRM_NAME "] " fmt, ##__VA_ARGS__)
 
 /**
  * Debug output.

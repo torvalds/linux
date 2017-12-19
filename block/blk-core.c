@@ -526,8 +526,8 @@ void blk_set_queue_dying(struct request_queue *q)
 
 		blk_queue_for_each_rl(rl, q) {
 			if (rl->rq_pool) {
-				wake_up(&rl->wait[BLK_RW_SYNC]);
-				wake_up(&rl->wait[BLK_RW_ASYNC]);
+				wake_up_all(&rl->wait[BLK_RW_SYNC]);
+				wake_up_all(&rl->wait[BLK_RW_ASYNC]);
 			}
 		}
 	}
