@@ -299,6 +299,47 @@ static void ixgbe_ipsec_start_engine(struct ixgbe_adapter *adapter)
 }
 
 /**
+ * ixgbe_ipsec_restore - restore the ipsec HW settings after a reset
+ * @adapter: board private structure
+ **/
+void ixgbe_ipsec_restore(struct ixgbe_adapter *adapter)
+{
+	struct ixgbe_ipsec *ipsec = adapter->ipsec;
+	struct ixgbe_hw *hw = &adapter->hw;
+	int i;
+
+	if (!(adapter->flags2 & IXGBE_FLAG2_IPSEC_ENABLED))
+		return;
+
+	/* clean up and restart the engine */
+	ixgbe_ipsec_stop_engine(adapter);
+	ixgbe_ipsec_clear_hw_tables(adapter);
+	ixgbe_ipsec_start_engine(adapter);
+
+	/* reload the IP addrs */
+	for (i = 0; i < IXGBE_IPSEC_MAX_RX_IP_COUNT; i++) {
+		struct rx_ip_sa *ipsa = &ipsec->ip_tbl[i];
+
+		if (ipsa->used)
+			ixgbe_ipsec_set_rx_ip(hw, i, ipsa->ipaddr);
+	}
+
+	/* reload the Rx and Tx keys */
+	for (i = 0; i < IXGBE_IPSEC_MAX_SA_COUNT; i++) {
+		struct rx_sa *rsa = &ipsec->rx_tbl[i];
+		struct tx_sa *tsa = &ipsec->tx_tbl[i];
+
+		if (rsa->used)
+			ixgbe_ipsec_set_rx_sa(hw, i, rsa->xs->id.spi,
+					      rsa->key, rsa->salt,
+					      rsa->mode, rsa->iptbl_ind);
+
+		if (tsa->used)
+			ixgbe_ipsec_set_tx_sa(hw, i, tsa->key, tsa->salt);
+	}
+}
+
+/**
  * ixgbe_ipsec_find_empty_idx - find the first unused security parameter index
  * @ipsec: pointer to ipsec struct
  * @rxtable: true if we need to look in the Rx table

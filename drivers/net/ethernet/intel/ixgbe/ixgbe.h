@@ -1020,8 +1020,10 @@ s32 ixgbe_negotiate_fc(struct ixgbe_hw *hw, u32 adv_reg, u32 lp_reg,
 #ifdef CONFIG_XFRM_OFFLOAD
 void ixgbe_init_ipsec_offload(struct ixgbe_adapter *adapter);
 void ixgbe_stop_ipsec_offload(struct ixgbe_adapter *adapter);
+void ixgbe_ipsec_restore(struct ixgbe_adapter *adapter);
 #else
 static inline void ixgbe_init_ipsec_offload(struct ixgbe_adapter *adapter) { };
 static inline void ixgbe_stop_ipsec_offload(struct ixgbe_adapter *adapter) { };
+static inline void ixgbe_ipsec_restore(struct ixgbe_adapter *adapter) { };
 #endif /* CONFIG_XFRM_OFFLOAD */
 #endif /* _IXGBE_H_ */
