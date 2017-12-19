@@ -1542,6 +1542,23 @@ void dev_disable_lro(struct net_device *dev)
 }
 EXPORT_SYMBOL(dev_disable_lro);
 
+/**
+ *	dev_disable_gro_hw - disable HW Generic Receive Offload on a device
+ *	@dev: device
+ *
+ *	Disable HW Generic Receive Offload (GRO_HW) on a net device.  Must be
+ *	called under RTNL.  This is needed if Generic XDP is installed on
+ *	the device.
+ */
+static void dev_disable_gro_hw(struct net_device *dev)
+{
+	dev->wanted_features &= ~NETIF_F_GRO_HW;
+	netdev_update_features(dev);
+
+	if (unlikely(dev->features & NETIF_F_GRO_HW))
+		netdev_WARN(dev, "failed to disable GRO_HW!\n");
+}
+
 static int call_netdevice_notifier(struct notifier_block *nb, unsigned long val,
 				   struct net_device *dev)
 {
@@ -4564,6 +4581,7 @@ static int generic_xdp_install(struct net_device *dev, struct netdev_bpf *xdp)
 		} else if (new && !old) {
 			static_key_slow_inc(&generic_xdp_needed);
 			dev_disable_lro(dev);
+			dev_disable_gro_hw(dev);
 		}
 		break;
 
@@ -7422,6 +7440,18 @@ static netdev_features_t netdev_fix_features(struct net_device *dev,
 		netdev_dbg(dev,
 			   "Dropping partially supported GSO features since no GSO partial.\n");
 		features &= ~dev->gso_partial_features;
+	}
+
+	if (!(features & NETIF_F_RXCSUM)) {
+		/* NETIF_F_GRO_HW implies doing RXCSUM since every packet
+		 * successfully merged by hardware must also have the
+		 * checksum verified by hardware.  If the user does not
+		 * want to enable RXCSUM, logically, we should disable GRO_HW.
+		 */
+		if (features & NETIF_F_GRO_HW) {
+			netdev_dbg(dev, "Dropping NETIF_F_GRO_HW since no RXCSUM feature.\n");
+			features &= ~NETIF_F_GRO_HW;
+		}
 	}
 
 	return features;
