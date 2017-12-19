@@ -100,34 +100,6 @@ static enum nl80211_chan_width qlink_chanwidth_to_nl(u8 qlw)
 	}
 }
 
-void qlink_chandef_q2cfg(struct wiphy *wiphy,
-			 const struct qlink_chandef *qch,
-			 struct cfg80211_chan_def *chdef)
-{
-	chdef->center_freq1 = le16_to_cpu(qch->center_freq1);
-	chdef->center_freq2 = le16_to_cpu(qch->center_freq2);
-	chdef->width = qlink_chanwidth_to_nl(qch->width);
-
-	switch (chdef->width) {
-	case NL80211_CHAN_WIDTH_20_NOHT:
-	case NL80211_CHAN_WIDTH_20:
-	case NL80211_CHAN_WIDTH_5:
-	case NL80211_CHAN_WIDTH_10:
-		chdef->chan = ieee80211_get_channel(wiphy, chdef->center_freq1);
-		break;
-	case NL80211_CHAN_WIDTH_40:
-	case NL80211_CHAN_WIDTH_80:
-	case NL80211_CHAN_WIDTH_80P80:
-	case NL80211_CHAN_WIDTH_160:
-		chdef->chan = ieee80211_get_channel(wiphy,
-						    chdef->center_freq1 - 10);
-		break;
-	default:
-		chdef->chan = NULL;
-		break;
-	}
-}
-
 static u8 qlink_chanwidth_nl_to_qlink(enum nl80211_chan_width nlwidth)
 {
 	switch (nlwidth) {
@@ -152,9 +124,29 @@ static u8 qlink_chanwidth_nl_to_qlink(enum nl80211_chan_width nlwidth)
 	}
 }
 
+void qlink_chandef_q2cfg(struct wiphy *wiphy,
+			 const struct qlink_chandef *qch,
+			 struct cfg80211_chan_def *chdef)
+{
+	struct ieee80211_channel *chan;
+
+	chan = ieee80211_get_channel(wiphy, le16_to_cpu(qch->chan.center_freq));
+
+	chdef->chan = chan;
+	chdef->center_freq1 = le16_to_cpu(qch->center_freq1);
+	chdef->center_freq2 = le16_to_cpu(qch->center_freq2);
+	chdef->width = qlink_chanwidth_to_nl(qch->width);
+}
+
 void qlink_chandef_cfg2q(const struct cfg80211_chan_def *chdef,
 			 struct qlink_chandef *qch)
 {
+	struct ieee80211_channel *chan = chdef->chan;
+
+	qch->chan.hw_value = cpu_to_le16(chan->hw_value);
+	qch->chan.center_freq = cpu_to_le16(chan->center_freq);
+	qch->chan.flags = cpu_to_le32(chan->flags);
+
 	qch->center_freq1 = cpu_to_le16(chdef->center_freq1);
 	qch->center_freq2 = cpu_to_le16(chdef->center_freq2);
 	qch->width = qlink_chanwidth_nl_to_qlink(chdef->width);

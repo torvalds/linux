@@ -369,7 +369,8 @@ qtnf_event_handle_freq_change(struct qtnf_wmac *mac,
 	qlink_chandef_q2cfg(wiphy, &data->chan, &chandef);
 
 	if (!cfg80211_chandef_valid(&chandef)) {
-		pr_err("MAC%u: bad channel f1=%u f2=%u bw=%u\n", mac->macid,
+		pr_err("MAC%u: bad channel freq=%u cf1=%u cf2=%u bw=%u\n",
+		       mac->macid, chandef.chan->center_freq,
 		       chandef.center_freq1, chandef.center_freq2,
 		       chandef.width);
 		return -EINVAL;

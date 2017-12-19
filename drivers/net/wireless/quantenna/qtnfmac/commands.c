@@ -247,7 +247,7 @@ int qtnf_cmd_send_start_ap(struct qtnf_vif *vif,
 		chtlv->hdr.type = cpu_to_le16(QTN_TLV_ID_CHANDEF);
 		chtlv->hdr.len = cpu_to_le16(sizeof(*chtlv) -
 					     sizeof(chtlv->hdr));
-		qlink_chandef_cfg2q(&s->chandef, &chtlv->chan);
+		qlink_chandef_cfg2q(&s->chandef, &chtlv->chdef);
 	}
 
 	qtnf_cmd_tlv_ie_set_add(cmd_skb, QLINK_IE_SET_BEACON_HEAD,
@@ -1186,7 +1186,7 @@ qtnf_cmd_resp_fill_band_info(struct ieee80211_supported_band *band,
 	size_t tlv_len;
 	size_t tlv_dlen;
 	const struct qlink_tlv_hdr *tlv;
-	const struct qlink_tlv_channel *qchan;
+	const struct qlink_channel *qchan;
 	struct ieee80211_channel *chan;
 	unsigned int chidx = 0;
 	u32 qflags;
@@ -1232,7 +1232,7 @@ qtnf_cmd_resp_fill_band_info(struct ieee80211_supported_band *band,
 
 		switch (tlv_type) {
 		case QTN_TLV_ID_CHANNEL:
-			if (unlikely(tlv_len != sizeof(*qchan))) {
+			if (unlikely(tlv_dlen != sizeof(*qchan))) {
 				pr_err("invalid channel TLV len %zu\n",
 				       tlv_len);
 				goto error_ret;
@@ -1243,7 +1243,7 @@ qtnf_cmd_resp_fill_band_info(struct ieee80211_supported_band *band,
 				goto error_ret;
 			}
 
-			qchan = (const struct qlink_tlv_channel *)tlv;
+			qchan = (const struct qlink_channel *)tlv->val;
 			chan = &band->channels[chidx++];
 			qflags = le32_to_cpu(qchan->flags);
 
@@ -2037,8 +2037,8 @@ static void qtnf_cmd_channel_tlv_add(struct sk_buff *cmd_skb,
 	qchan = skb_put_zero(cmd_skb, sizeof(*qchan));
 	qchan->hdr.type = cpu_to_le16(QTN_TLV_ID_CHANNEL);
 	qchan->hdr.len = cpu_to_le16(sizeof(*qchan) - sizeof(qchan->hdr));
-	qchan->center_freq = cpu_to_le16(sc->center_freq);
-	qchan->hw_value = cpu_to_le16(sc->hw_value);
+	qchan->chan.center_freq = cpu_to_le16(sc->center_freq);
+	qchan->chan.hw_value = cpu_to_le16(sc->hw_value);
 
 	if (sc->flags & IEEE80211_CHAN_NO_IR)
 		flags |= QLINK_CHAN_NO_IR;
@@ -2046,7 +2046,7 @@ static void qtnf_cmd_channel_tlv_add(struct sk_buff *cmd_skb,
 	if (sc->flags & IEEE80211_CHAN_RADAR)
 		flags |= QLINK_CHAN_RADAR;
 
-	qchan->flags = cpu_to_le32(flags);
+	qchan->chan.flags = cpu_to_le32(flags);
 }
 
 int qtnf_cmd_send_scan(struct qtnf_wmac *mac)

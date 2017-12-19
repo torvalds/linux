@@ -19,7 +19,7 @@
 
 #include <linux/ieee80211.h>
 
-#define QLINK_PROTO_VER		6
+#define QLINK_PROTO_VER		7
 
 #define QLINK_MACID_RSVD		0xFF
 #define QLINK_VIFID_RSVD		0xFF
@@ -122,17 +122,49 @@ enum qlink_channel_width {
 };
 
 /**
+ * struct qlink_channel - qlink control channel definition
+ *
+ * @hw_value: hardware-specific value for the channel
+ * @center_freq: center frequency in MHz
+ * @flags: channel flags from &enum qlink_channel_flags
+ * @band: band this channel belongs to
+ * @max_antenna_gain: maximum antenna gain in dBi
+ * @max_power: maximum transmission power (in dBm)
+ * @max_reg_power: maximum regulatory transmission power (in dBm)
+ * @dfs_state: current state of this channel.
+ *      Only relevant if radar is required on this channel.
+ * @beacon_found: helper to regulatory code to indicate when a beacon
+ *	has been found on this channel. Use regulatory_hint_found_beacon()
+ *	to enable this, this is useful only on 5 GHz band.
+ */
+struct qlink_channel {
+	__le16 hw_value;
+	__le16 center_freq;
+	__le32 flags;
+	u8 band;
+	u8 max_antenna_gain;
+	u8 max_power;
+	u8 max_reg_power;
+	__le32 dfs_cac_ms;
+	u8 dfs_state;
+	u8 beacon_found;
+	u8 rsvd[2];
+} __packed;
+
+/**
  * struct qlink_chandef - qlink channel definition
  *
+ * @chan: primary channel definition
  * @center_freq1: center frequency of first segment
  * @center_freq2: center frequency of second segment (80+80 only)
  * @width: channel width, one of @enum qlink_channel_width
  */
 struct qlink_chandef {
+	struct qlink_channel chan;
 	__le16 center_freq1;
 	__le16 center_freq2;
 	u8 width;
-	u8 rsvd[3];
+	u8 rsvd;
 } __packed;
 
 #define QLINK_MAX_NR_CIPHER_SUITES            5
@@ -1113,19 +1145,16 @@ enum qlink_dfs_state {
 	QLINK_DFS_AVAILABLE,
 };
 
+/**
+ * struct qlink_tlv_channel - data for QTN_TLV_ID_CHANNEL TLV
+ *
+ * Channel settings.
+ *
+ * @channel: ieee80211 channel settings.
+ */
 struct qlink_tlv_channel {
 	struct qlink_tlv_hdr hdr;
-	__le16 hw_value;
-	__le16 center_freq;
-	__le32 flags;
-	u8 band;
-	u8 max_antenna_gain;
-	u8 max_power;
-	u8 max_reg_power;
-	__le32 dfs_cac_ms;
-	u8 dfs_state;
-	u8 beacon_found;
-	u8 rsvd[2];
+	struct qlink_channel chan;
 } __packed;
 
 /**
@@ -1137,7 +1166,7 @@ struct qlink_tlv_channel {
  */
 struct qlink_tlv_chandef {
 	struct qlink_tlv_hdr hdr;
-	struct qlink_chandef chan;
+	struct qlink_chandef chdef;
 } __packed;
 
 enum qlink_ie_set_type {

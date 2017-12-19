@@ -717,7 +717,8 @@ qtnf_get_channel(struct wiphy *wiphy, struct wireless_dev *wdev,
 	}
 
 	if (!cfg80211_chandef_valid(chandef)) {
-		pr_err("%s: bad chan freq1=%u freq2=%u bw=%u\n", ndev->name,
+		pr_err("%s: bad channel freq=%u cf1=%u cf2=%u bw=%u\n",
+		       ndev->name, chandef->chan->center_freq,
 		       chandef->center_freq1, chandef->center_freq2,
 		       chandef->width);
 		ret = -ENODATA;
