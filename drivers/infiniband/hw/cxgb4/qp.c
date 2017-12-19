@@ -858,6 +858,22 @@ static int complete_sq_drain_wr(struct c4iw_qp *qhp, struct ib_send_wr *wr)
 	return 0;
 }
 
+static int complete_sq_drain_wrs(struct c4iw_qp *qhp, struct ib_send_wr *wr,
+				struct ib_send_wr **bad_wr)
+{
+	int ret = 0;
+
+	while (wr) {
+		ret = complete_sq_drain_wr(qhp, wr);
+		if (ret) {
+			*bad_wr = wr;
+			break;
+		}
+		wr = wr->next;
+	}
+	return ret;
+}
+
 static void complete_rq_drain_wr(struct c4iw_qp *qhp, struct ib_recv_wr *wr)
 {
 	struct t4_cqe cqe = {};
@@ -890,6 +906,14 @@ static void complete_rq_drain_wr(struct c4iw_qp *qhp, struct ib_recv_wr *wr)
 	}
 }
 
+static void complete_rq_drain_wrs(struct c4iw_qp *qhp, struct ib_recv_wr *wr)
+{
+	while (wr) {
+		complete_rq_drain_wr(qhp, wr);
+		wr = wr->next;
+	}
+}
+
 int c4iw_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 		   struct ib_send_wr **bad_wr)
 {
@@ -913,7 +937,7 @@ int c4iw_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 	 */
 	if (qhp->wq.flushed) {
 		spin_unlock_irqrestore(&qhp->lock, flag);
-		err = complete_sq_drain_wr(qhp, wr);
+		err = complete_sq_drain_wrs(qhp, wr, bad_wr);
 		return err;
 	}
 	num_wrs = t4_sq_avail(&qhp->wq);
@@ -1061,7 +1085,7 @@ int c4iw_post_receive(struct ib_qp *ibqp, struct ib_recv_wr *wr,
 	 */
 	if (qhp->wq.flushed) {
 		spin_unlock_irqrestore(&qhp->lock, flag);
-		complete_rq_drain_wr(qhp, wr);
+		complete_rq_drain_wrs(qhp, wr);
 		return err;
 	}
 	num_wrs = t4_rq_avail(&qhp->wq);
