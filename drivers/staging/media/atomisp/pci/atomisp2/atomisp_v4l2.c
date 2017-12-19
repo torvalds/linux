@@ -1152,8 +1152,6 @@ alloc_fail:
 	return err;
 }
 
-static struct pci_driver atomisp_pci_driver;
-
 #define ATOM_ISP_PCI_BAR	0
 
 static int atomisp_pci_probe(struct pci_dev *dev,
@@ -1451,7 +1449,7 @@ static int atomisp_pci_probe(struct pci_dev *dev,
 	isp->firmware = NULL;
 	isp->css_env.isp_css_fw.data = NULL;
 
-	atomisp_drvfs_init(&atomisp_pci_driver, isp);
+	atomisp_drvfs_init(&dev->driver->driver, isp);
 
 	return 0;
 

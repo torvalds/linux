@@ -15,9 +15,9 @@
  *
  */
 
+#include <linux/device.h>
 #include <linux/err.h>
 #include <linux/kernel.h>
-#include <linux/pci.h>
 
 #include "atomisp_compat.h"
 #include "atomisp_internal.h"
@@ -33,7 +33,7 @@
  *        bit 2: memory statistic
 */
 struct _iunit_debug {
-	struct pci_driver	*drv;
+	struct device_driver	*drv;
 	struct atomisp_device	*isp;
 	unsigned int		dbglvl;
 	unsigned int		dbgfun;
@@ -164,26 +164,25 @@ static const struct driver_attribute iunit_drvfs_attrs[] = {
 	__ATTR(dbgopt, 0644, iunit_dbgopt_show, iunit_dbgopt_store),
 };
 
-static int iunit_drvfs_create_files(struct pci_driver *drv)
+static int iunit_drvfs_create_files(struct device_driver *drv)
 {
 	int i, ret = 0;
 
 	for (i = 0; i < ARRAY_SIZE(iunit_drvfs_attrs); i++)
-		ret |= driver_create_file(&(drv->driver),
-					&iunit_drvfs_attrs[i]);
+		ret |= driver_create_file(drv, &iunit_drvfs_attrs[i]);
 
 	return ret;
 }
 
-static void iunit_drvfs_remove_files(struct pci_driver *drv)
+static void iunit_drvfs_remove_files(struct device_driver *drv)
 {
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(iunit_drvfs_attrs); i++)
-		driver_remove_file(&(drv->driver), &iunit_drvfs_attrs[i]);
+		driver_remove_file(drv, &iunit_drvfs_attrs[i]);
 }
 
-int atomisp_drvfs_init(struct pci_driver *drv, struct atomisp_device *isp)
+int atomisp_drvfs_init(struct device_driver *drv, struct atomisp_device *isp)
 {
 	int ret;
 
@@ -193,7 +192,7 @@ int atomisp_drvfs_init(struct pci_driver *drv, struct atomisp_device *isp)
 	ret = iunit_drvfs_create_files(iunit_debug.drv);
 	if (ret) {
 		dev_err(atomisp_dev, "drvfs_create_files error: %d\n", ret);
-		iunit_drvfs_remove_files(drv);
+		iunit_drvfs_remove_files(iunit_debug.drv);
 	}
 
 	return ret;
