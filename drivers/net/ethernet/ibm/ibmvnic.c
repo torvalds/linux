@@ -4285,7 +4285,7 @@ static int ibmvnic_probe(struct vio_dev *dev, const struct vio_device_id *id)
 	}
 
 	netdev = alloc_etherdev_mq(sizeof(struct ibmvnic_adapter),
-				   IBMVNIC_MAX_TX_QUEUES);
+				   IBMVNIC_MAX_QUEUES);
 	if (!netdev)
 		return -ENOMEM;
 
