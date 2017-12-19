@@ -837,7 +837,7 @@ pi433_write(struct file *filp, const char __user *buf,
 	wake_up_interruptible(&device->tx_wait_queue);
 	dev_dbg(device->dev, "write: generated new msg with %d bytes.", copied);
 
-	return 0;
+	return copied;
 
 abort:
 	dev_dbg(device->dev, "write to fifo failed: 0x%x", retval);
