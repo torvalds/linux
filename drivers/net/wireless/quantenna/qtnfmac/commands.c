@@ -2512,3 +2512,41 @@ out:
 	consume_skb(resp_skb);
 	return ret;
 }
+
+int qtnf_cmd_start_cac(const struct qtnf_vif *vif,
+		       const struct cfg80211_chan_def *chdef,
+		       u32 cac_time_ms)
+{
+	struct qtnf_bus *bus = vif->mac->bus;
+	struct sk_buff *cmd_skb;
+	struct qlink_cmd_start_cac *cmd;
+	int ret;
+	u16 res_code;
+
+	cmd_skb = qtnf_cmd_alloc_new_cmdskb(vif->mac->macid, vif->vifid,
+					    QLINK_CMD_START_CAC,
+					    sizeof(*cmd));
+	if (unlikely(!cmd_skb))
+		return -ENOMEM;
+
+	cmd = (struct qlink_cmd_start_cac *)cmd_skb->data;
+	cmd->cac_time_ms = cpu_to_le32(cac_time_ms);
+	qlink_chandef_cfg2q(chdef, &cmd->chan);
+
+	qtnf_bus_lock(bus);
+	ret = qtnf_cmd_send(bus, cmd_skb, &res_code);
+	qtnf_bus_unlock(bus);
+
+	if (ret)
+		return ret;
+
+	switch (res_code) {
+	case QLINK_CMD_RESULT_OK:
+		break;
+	default:
+		ret = -EOPNOTSUPP;
+		break;
+	}
+
+	return ret;
+}

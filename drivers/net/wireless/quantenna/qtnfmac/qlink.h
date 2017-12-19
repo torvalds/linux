@@ -205,6 +205,7 @@ struct qlink_auth_encr {
  * @QLINK_CMD_REG_NOTIFY: notify device about regulatory domain change. This
  *	command is supported only if device reports QLINK_HW_SUPPORTS_REG_UPDATE
  *	capability.
+ * @QLINK_CMD_START_CAC: start radar detection procedure on a specified channel.
  */
 enum qlink_cmd_type {
 	QLINK_CMD_FW_INIT		= 0x0001,
@@ -224,6 +225,7 @@ enum qlink_cmd_type {
 	QLINK_CMD_BAND_INFO_GET		= 0x001A,
 	QLINK_CMD_CHAN_SWITCH		= 0x001B,
 	QLINK_CMD_CHAN_GET		= 0x001C,
+	QLINK_CMD_START_CAC		= 0x001D,
 	QLINK_CMD_START_AP		= 0x0021,
 	QLINK_CMD_STOP_AP		= 0x0022,
 	QLINK_CMD_GET_STA_INFO		= 0x0030,
@@ -617,6 +619,18 @@ struct qlink_cmd_start_ap {
 	u8 info[0];
 } __packed;
 
+/**
+ * struct qlink_cmd_start_cac - data for QLINK_CMD_START_CAC command
+ *
+ * @chan: a channel to start a radar detection procedure on.
+ * @cac_time_ms: CAC time.
+ */
+struct qlink_cmd_start_cac {
+	struct qlink_cmd chdr;
+	struct qlink_chandef chan;
+	__le32 cac_time_ms;
+} __packed;
+
 /* QLINK Command Responses messages related definitions
  */
 
@@ -814,6 +828,7 @@ enum qlink_event_type {
 	QLINK_EVENT_BSS_JOIN		= 0x0026,
 	QLINK_EVENT_BSS_LEAVE		= 0x0027,
 	QLINK_EVENT_FREQ_CHANGE		= 0x0028,
+	QLINK_EVENT_RADAR		= 0x0029,
 };
 
 /**
@@ -961,6 +976,27 @@ enum qlink_scan_complete_flags {
 struct qlink_event_scan_complete {
 	struct qlink_event ehdr;
 	__le32 flags;
+} __packed;
+
+enum qlink_radar_event {
+	QLINK_RADAR_DETECTED,
+	QLINK_RADAR_CAC_FINISHED,
+	QLINK_RADAR_CAC_ABORTED,
+	QLINK_RADAR_NOP_FINISHED,
+	QLINK_RADAR_PRE_CAC_EXPIRED,
+};
+
+/**
+ * struct qlink_event_radar - data for QLINK_EVENT_RADAR event
+ *
+ * @chan: channel on which radar event happened.
+ * @event: radar event type, one of &enum qlink_radar_event.
+ */
+struct qlink_event_radar {
+	struct qlink_event ehdr;
+	struct qlink_chandef chan;
+	u8 event;
+	u8 rsvd[3];
 } __packed;
 
 /* QLINK TLVs (Type-Length Values) definitions

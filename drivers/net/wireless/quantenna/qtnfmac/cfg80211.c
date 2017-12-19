@@ -751,6 +751,21 @@ static int qtnf_channel_switch(struct wiphy *wiphy, struct net_device *dev,
 	return ret;
 }
 
+static int qtnf_start_radar_detection(struct wiphy *wiphy,
+				      struct net_device *ndev,
+				      struct cfg80211_chan_def *chandef,
+				      u32 cac_time_ms)
+{
+	struct qtnf_vif *vif = qtnf_netdev_get_priv(ndev);
+	int ret;
+
+	ret = qtnf_cmd_start_cac(vif, chandef, cac_time_ms);
+	if (ret)
+		pr_err("%s: failed to start CAC ret=%d\n", ndev->name, ret);
+
+	return ret;
+}
+
 static struct cfg80211_ops qtn_cfg80211_ops = {
 	.add_virtual_intf	= qtnf_add_virtual_intf,
 	.change_virtual_intf	= qtnf_change_virtual_intf,
@@ -774,7 +789,8 @@ static struct cfg80211_ops qtn_cfg80211_ops = {
 	.disconnect		= qtnf_disconnect,
 	.dump_survey		= qtnf_dump_survey,
 	.get_channel		= qtnf_get_channel,
-	.channel_switch		= qtnf_channel_switch
+	.channel_switch		= qtnf_channel_switch,
+	.start_radar_detection	= qtnf_start_radar_detection,
 };
 
 static void qtnf_cfg80211_reg_notifier(struct wiphy *wiphy_in,

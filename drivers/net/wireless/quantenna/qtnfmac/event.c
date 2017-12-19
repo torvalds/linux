@@ -395,6 +395,63 @@ qtnf_event_handle_freq_change(struct qtnf_wmac *mac,
 	return 0;
 }
 
+static int qtnf_event_handle_radar(struct qtnf_vif *vif,
+				   const struct qlink_event_radar *ev,
+				   u16 len)
+{
+	struct wiphy *wiphy = priv_to_wiphy(vif->mac);
+	struct cfg80211_chan_def chandef;
+
+	if (len < sizeof(*ev)) {
+		pr_err("MAC%u: payload is too short\n", vif->mac->macid);
+		return -EINVAL;
+	}
+
+	if (!wiphy->registered || !vif->netdev)
+		return 0;
+
+	qlink_chandef_q2cfg(wiphy, &ev->chan, &chandef);
+
+	if (!cfg80211_chandef_valid(&chandef)) {
+		pr_err("MAC%u: bad channel f1=%u f2=%u bw=%u\n",
+		       vif->mac->macid,
+		       chandef.center_freq1, chandef.center_freq2,
+		       chandef.width);
+		return -EINVAL;
+	}
+
+	pr_info("%s: radar event=%u f1=%u f2=%u bw=%u\n",
+		vif->netdev->name, ev->event,
+		chandef.center_freq1, chandef.center_freq2,
+		chandef.width);
+
+	switch (ev->event) {
+	case QLINK_RADAR_DETECTED:
+		cfg80211_radar_event(wiphy, &chandef, GFP_KERNEL);
+		break;
+	case QLINK_RADAR_CAC_FINISHED:
+		if (!vif->wdev.cac_started)
+			break;
+
+		cfg80211_cac_event(vif->netdev, &chandef,
+				   NL80211_RADAR_CAC_FINISHED, GFP_KERNEL);
+		break;
+	case QLINK_RADAR_CAC_ABORTED:
+		if (!vif->wdev.cac_started)
+			break;
+
+		cfg80211_cac_event(vif->netdev, &chandef,
+				   NL80211_RADAR_CAC_ABORTED, GFP_KERNEL);
+		break;
+	default:
+		pr_warn("%s: unhandled radar event %u\n",
+			vif->netdev->name, ev->event);
+		break;
+	}
+
+	return 0;
+}
+
 static int qtnf_event_parse(struct qtnf_wmac *mac,
 			    const struct sk_buff *event_skb)
 {
@@ -448,6 +505,10 @@ static int qtnf_event_parse(struct qtnf_wmac *mac,
 	case QLINK_EVENT_FREQ_CHANGE:
 		ret = qtnf_event_handle_freq_change(mac, (const void *)event,
 						    event_len);
+		break;
+	case QLINK_EVENT_RADAR:
+		ret = qtnf_event_handle_radar(vif, (const void *)event,
+					      event_len);
 		break;
 	default:
 		pr_warn("unknown event type: %x\n", event_id);
