@@ -176,3 +176,21 @@ bool qtnf_utils_is_bit_set(const u8 *arr, unsigned int bit,
 
 	return arr[idx] & mask;
 }
+
+void qlink_acl_data_cfg2q(const struct cfg80211_acl_data *acl,
+			  struct qlink_acl_data *qacl)
+{
+	switch (acl->acl_policy) {
+	case NL80211_ACL_POLICY_ACCEPT_UNLESS_LISTED:
+		qacl->policy =
+			cpu_to_le32(QLINK_ACL_POLICY_ACCEPT_UNLESS_LISTED);
+		break;
+	case NL80211_ACL_POLICY_DENY_UNLESS_LISTED:
+		qacl->policy = cpu_to_le32(QLINK_ACL_POLICY_DENY_UNLESS_LISTED);
+		break;
+	}
+
+	qacl->num_entries = cpu_to_le32(acl->n_acl_entries);
+	memcpy(qacl->mac_addrs, acl->mac_addrs,
+	       acl->n_acl_entries * sizeof(*qacl->mac_addrs));
+}

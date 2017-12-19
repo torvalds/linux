@@ -778,6 +778,20 @@ static int qtnf_start_radar_detection(struct wiphy *wiphy,
 	return ret;
 }
 
+static int qtnf_set_mac_acl(struct wiphy *wiphy,
+			    struct net_device *dev,
+			    const struct cfg80211_acl_data *params)
+{
+	struct qtnf_vif *vif = qtnf_netdev_get_priv(dev);
+	int ret;
+
+	ret = qtnf_cmd_set_mac_acl(vif, params);
+	if (ret)
+		pr_err("%s: failed to set mac ACL ret=%d\n", dev->name, ret);
+
+	return ret;
+}
+
 static struct cfg80211_ops qtn_cfg80211_ops = {
 	.add_virtual_intf	= qtnf_add_virtual_intf,
 	.change_virtual_intf	= qtnf_change_virtual_intf,
@@ -803,6 +817,7 @@ static struct cfg80211_ops qtn_cfg80211_ops = {
 	.get_channel		= qtnf_get_channel,
 	.channel_switch		= qtnf_channel_switch,
 	.start_radar_detection	= qtnf_start_radar_detection,
+	.set_mac_acl		= qtnf_set_mac_acl,
 };
 
 static void qtnf_cfg80211_reg_notifier(struct wiphy *wiphy_in,
@@ -918,6 +933,7 @@ int qtnf_wiphy_register(struct qtnf_hw_info *hw_info, struct qtnf_wmac *mac)
 	wiphy->max_scan_ie_len = QTNF_MAX_VSIE_LEN;
 	wiphy->mgmt_stypes = qtnf_mgmt_stypes;
 	wiphy->max_remain_on_channel_duration = 5000;
+	wiphy->max_acl_mac_addrs = mac->macinfo.max_acl_mac_addrs;
 
 	wiphy->iface_combinations = iface_comb;
 	wiphy->n_iface_combinations = 1;

@@ -79,5 +79,7 @@ int qtnf_cmd_get_channel(struct qtnf_vif *vif, struct cfg80211_chan_def *chdef);
 int qtnf_cmd_start_cac(const struct qtnf_vif *vif,
 		       const struct cfg80211_chan_def *chdef,
 		       u32 cac_time_ms);
+int qtnf_cmd_set_mac_acl(const struct qtnf_vif *vif,
+			 const struct cfg80211_acl_data *params);
 
 #endif /* QLINK_COMMANDS_H_ */

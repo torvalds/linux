@@ -162,6 +162,14 @@ static void qtnf_cmd_tlv_ie_set_add(struct sk_buff *cmd_skb, u8 frame_type,
 		memcpy(tlv->ie_data, buf, len);
 }
 
+static inline size_t qtnf_cmd_acl_data_size(const struct cfg80211_acl_data *acl)
+{
+	size_t size = sizeof(struct qlink_acl_data) +
+		      acl->n_acl_entries * sizeof(struct qlink_mac_address);
+
+	return size;
+}
+
 static bool qtnf_cmd_start_ap_can_fit(const struct qtnf_vif *vif,
 				      const struct cfg80211_ap_settings *s)
 {
@@ -177,6 +185,9 @@ static bool qtnf_cmd_start_ap_can_fit(const struct qtnf_vif *vif,
 
 	if (cfg80211_chandef_valid(&s->chandef))
 		len += sizeof(struct qlink_tlv_chandef);
+
+	if (s->acl)
+		len += qtnf_cmd_acl_data_size(s->acl);
 
 	if (len > (sizeof(struct qlink_cmd) + QTNF_MAX_CMD_BUF_SIZE)) {
 		pr_err("VIF%u.%u: can not fit AP settings: %u\n",
@@ -281,6 +292,16 @@ int qtnf_cmd_send_start_ap(struct qtnf_vif *vif,
 		tlv->type = cpu_to_le16(WLAN_EID_VHT_CAPABILITY);
 		tlv->len = cpu_to_le16(sizeof(*s->vht_cap));
 		memcpy(tlv->val, s->vht_cap, sizeof(*s->vht_cap));
+	}
+
+	if (s->acl) {
+		size_t acl_size = qtnf_cmd_acl_data_size(s->acl);
+		struct qlink_tlv_hdr *tlv =
+			skb_put(cmd_skb, sizeof(*tlv) + acl_size);
+
+		tlv->type = cpu_to_le16(QTN_TLV_ID_ACL_DATA);
+		tlv->len = cpu_to_le16(acl_size);
+		qlink_acl_data_cfg2q(s->acl, (struct qlink_acl_data *)tlv->val);
 	}
 
 	qtnf_bus_lock(vif->mac->bus);
@@ -1206,6 +1227,7 @@ qtnf_cmd_resp_proc_mac_info(struct qtnf_wmac *mac,
 	mac_info->radar_detect_widths =
 			qlink_chan_width_mask_to_nl(le16_to_cpu(
 					resp_info->radar_detect_widths));
+	mac_info->max_acl_mac_addrs = le32_to_cpu(resp_info->max_acl_mac_addrs);
 
 	memcpy(&mac_info->ht_cap_mod_mask, &resp_info->ht_cap_mod_mask,
 	       sizeof(mac_info->ht_cap_mod_mask));
@@ -2601,6 +2623,46 @@ int qtnf_cmd_start_cac(const struct qtnf_vif *vif,
 
 	switch (res_code) {
 	case QLINK_CMD_RESULT_OK:
+		break;
+	default:
+		ret = -EOPNOTSUPP;
+		break;
+	}
+
+	return ret;
+}
+
+int qtnf_cmd_set_mac_acl(const struct qtnf_vif *vif,
+			 const struct cfg80211_acl_data *params)
+{
+	struct qtnf_bus *bus = vif->mac->bus;
+	struct sk_buff *cmd_skb;
+	struct qlink_cmd_set_mac_acl *cmd;
+	u16 res_code;
+	int ret;
+
+	cmd_skb = qtnf_cmd_alloc_new_cmdskb(vif->mac->macid, vif->vifid,
+					    QLINK_CMD_SET_MAC_ACL,
+					    sizeof(*cmd) +
+					    qtnf_cmd_acl_data_size(params));
+	if (unlikely(!cmd_skb))
+		return -ENOMEM;
+
+	cmd = (struct qlink_cmd_set_mac_acl *)cmd_skb->data;
+	qlink_acl_data_cfg2q(params, &cmd->acl);
+
+	qtnf_bus_lock(bus);
+	ret = qtnf_cmd_send(bus, cmd_skb, &res_code);
+	qtnf_bus_unlock(bus);
+
+	if (unlikely(ret))
+		return ret;
+
+	switch (res_code) {
+	case QLINK_CMD_RESULT_OK:
+		break;
+	case QLINK_CMD_RESULT_INVALID:
+		ret = -EINVAL;
 		break;
 	default:
 		ret = -EOPNOTSUPP;

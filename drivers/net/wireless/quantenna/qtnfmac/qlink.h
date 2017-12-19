@@ -19,7 +19,7 @@
 
 #include <linux/ieee80211.h>
 
-#define QLINK_PROTO_VER		9
+#define QLINK_PROTO_VER		10
 
 #define QLINK_MACID_RSVD		0xFF
 #define QLINK_VIFID_RSVD		0xFF
@@ -239,6 +239,7 @@ enum qlink_cmd_type {
 	QLINK_CMD_START_CAC		= 0x001D,
 	QLINK_CMD_START_AP		= 0x0021,
 	QLINK_CMD_STOP_AP		= 0x0022,
+	QLINK_CMD_SET_MAC_ACL		= 0x0023,
 	QLINK_CMD_GET_STA_INFO		= 0x0030,
 	QLINK_CMD_ADD_KEY		= 0x0040,
 	QLINK_CMD_DEL_KEY		= 0x0041,
@@ -640,6 +641,38 @@ struct qlink_cmd_start_cac {
 	__le32 cac_time_ms;
 } __packed;
 
+enum qlink_acl_policy {
+	QLINK_ACL_POLICY_ACCEPT_UNLESS_LISTED,
+	QLINK_ACL_POLICY_DENY_UNLESS_LISTED,
+};
+
+struct qlink_mac_address {
+	u8 addr[ETH_ALEN];
+} __packed;
+
+/**
+ * struct qlink_acl_data - ACL data
+ *
+ * @policy: filter policy, one of &enum qlink_acl_policy.
+ * @num_entries: number of MAC addresses in array.
+ * @mac_address: MAC addresses array.
+ */
+struct qlink_acl_data {
+	__le32 policy;
+	__le32 num_entries;
+	struct qlink_mac_address mac_addrs[0];
+} __packed;
+
+/**
+ * struct qlink_cmd_set_mac_acl - data for QLINK_CMD_SET_MAC_ACL command
+ *
+ * @acl: ACL data.
+ */
+struct qlink_cmd_set_mac_acl {
+	struct qlink_cmd chdr;
+	struct qlink_acl_data acl;
+} __packed;
+
 /* QLINK Command Responses messages related definitions
  */
 
@@ -701,6 +734,7 @@ struct qlink_resp_get_mac_info {
 	struct ieee80211_ht_cap ht_cap_mod_mask;
 	__le16 max_ap_assoc_sta;
 	__le16 radar_detect_widths;
+	__le32 max_acl_mac_addrs;
 	u8 bands_cap;
 	u8 rsvd[1];
 	u8 var_info[0];
@@ -1049,6 +1083,7 @@ enum qlink_tlv_id {
 	QTN_TLV_ID_SEQ			= 0x0303,
 	QTN_TLV_ID_IE_SET		= 0x0305,
 	QTN_TLV_ID_EXT_CAPABILITY_MASK	= 0x0306,
+	QTN_TLV_ID_ACL_DATA		= 0x0307,
 };
 
 struct qlink_tlv_hdr {
