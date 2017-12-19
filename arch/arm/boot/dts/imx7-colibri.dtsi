@@ -559,7 +559,7 @@
 		>;
 	};
 
-	pinctrl_usbotg2_reg: gpio-usbotg2-vbus {
+	pinctrl_usbh_reg: gpio-usbh-vbus {
 		fsl,pins = <
 			MX7D_PAD_UART3_CTS_B__GPIO4_IO7	0x14 /* SODIMM 129 USBH PEN */
 		>;
