@@ -524,7 +524,8 @@ nouveau_get_hdmi_dev(struct nouveau_drm *drm)
 	}
 
 	/* subfunction one is a hdmi audio device? */
-	drm->hdmi_device = pci_get_bus_and_slot((unsigned int)pdev->bus->number,
+	drm->hdmi_device = pci_get_domain_bus_and_slot(pci_domain_nr(pdev->bus),
+						(unsigned int)pdev->bus->number,
 						PCI_DEVFN(PCI_SLOT(pdev->devfn), 1));
 
 	if (!drm->hdmi_device) {
