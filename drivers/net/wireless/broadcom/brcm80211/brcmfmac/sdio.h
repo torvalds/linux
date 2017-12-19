@@ -24,9 +24,6 @@
 /* Maximum number of I/O funcs */
 #define NUM_SDIO_FUNCS	3
 
-#define SDIO_FUNC_1		1
-#define SDIO_FUNC_2		2
-
 #define SDIOD_FBR_SIZE		0x100
 
 /* io_en */
@@ -51,6 +48,11 @@
 #define SDIO_CCCR_BRCM_CARDCAP_CMD14_SUPPORT	BIT(1)
 #define SDIO_CCCR_BRCM_CARDCAP_CMD14_EXT	BIT(2)
 #define SDIO_CCCR_BRCM_CARDCAP_CMD_NODEC	BIT(3)
+
+/* Interrupt enable bits for each function */
+#define SDIO_CCCR_IEN_FUNC0			BIT(0)
+#define SDIO_CCCR_IEN_FUNC1			BIT(1)
+#define SDIO_CCCR_IEN_FUNC2			BIT(2)
 
 #define SDIO_CCCR_BRCM_CARDCTRL			0xf1
 #define SDIO_CCCR_BRCM_CARDCTRL_WLANRESET	BIT(1)

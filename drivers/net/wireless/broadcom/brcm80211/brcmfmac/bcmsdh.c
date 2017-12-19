@@ -149,7 +149,8 @@ int brcmf_sdiod_intr_register(struct brcmf_sdio_dev *sdiodev)
 
 		/* must configure SDIO_CCCR_IENx to enable irq */
 		data = brcmf_sdiod_func0_rb(sdiodev, SDIO_CCCR_IENx, &ret);
-		data |= 1 << SDIO_FUNC_1 | 1 << SDIO_FUNC_2 | 1;
+		data |= SDIO_CCCR_IEN_FUNC1 | SDIO_CCCR_IEN_FUNC2 |
+			SDIO_CCCR_IEN_FUNC0;
 		brcmf_sdiod_func0_wb(sdiodev, SDIO_CCCR_IENx, data, &ret);
 
 		/* redirect, configure and enable io for interrupt signal */
