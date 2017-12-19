@@ -179,7 +179,7 @@ static u32 cxgb4_get_entity_length(struct adapter *adap, u32 entity)
 		len = cudbg_mbytes_to_bytes(len);
 		break;
 	case CUDBG_RSS:
-		len = RSS_NENTRIES * sizeof(u16);
+		len = t4_chip_rss_size(adap) * sizeof(u16);
 		break;
 	case CUDBG_RSS_VF_CONF:
 		len = adap->params.arch.vfcount *

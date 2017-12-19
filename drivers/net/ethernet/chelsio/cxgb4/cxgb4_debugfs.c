@@ -2021,11 +2021,12 @@ static int rss_show(struct seq_file *seq, void *v, int idx)
 
 static int rss_open(struct inode *inode, struct file *file)
 {
-	int ret;
-	struct seq_tab *p;
 	struct adapter *adap = inode->i_private;
+	int ret, nentries;
+	struct seq_tab *p;
 
-	p = seq_open_tab(file, RSS_NENTRIES / 8, 8 * sizeof(u16), 0, rss_show);
+	nentries = t4_chip_rss_size(adap);
+	p = seq_open_tab(file, nentries / 8, 8 * sizeof(u16), 0, rss_show);
 	if (!p)
 		return -ENOMEM;
 

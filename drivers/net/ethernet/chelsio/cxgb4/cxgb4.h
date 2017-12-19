@@ -1528,6 +1528,7 @@ int t4_init_portinfo(struct port_info *pi, int mbox,
 		     int port, int pf, int vf, u8 mac[]);
 int t4_port_init(struct adapter *adap, int mbox, int pf, int vf);
 void t4_fatal_err(struct adapter *adapter);
+unsigned int t4_chip_rss_size(struct adapter *adapter);
 int t4_config_rss_range(struct adapter *adapter, int mbox, unsigned int viid,
 			int start, int n, const u16 *rspq, unsigned int nrspq);
 int t4_config_glbl_rss(struct adapter *adapter, int mbox, unsigned int mode,

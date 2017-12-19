@@ -4927,6 +4927,14 @@ void t4_intr_disable(struct adapter *adapter)
 	t4_set_reg_field(adapter, PL_INT_MAP0_A, 1 << pf, 0);
 }
 
+unsigned int t4_chip_rss_size(struct adapter *adap)
+{
+	if (CHELSIO_CHIP_VERSION(adap->params.chip) <= CHELSIO_T5)
+		return RSS_NENTRIES;
+	else
+		return T6_RSS_NENTRIES;
+}
+
 /**
  *	t4_config_rss_range - configure a portion of the RSS mapping table
  *	@adapter: the adapter
@@ -5065,10 +5073,11 @@ static int rd_rss_row(struct adapter *adap, int row, u32 *val)
  */
 int t4_read_rss(struct adapter *adapter, u16 *map)
 {
+	int i, ret, nentries;
 	u32 val;
-	int i, ret;
 
-	for (i = 0; i < RSS_NENTRIES / 2; ++i) {
+	nentries = t4_chip_rss_size(adapter);
+	for (i = 0; i < nentries / 2; ++i) {
 		ret = rd_rss_row(adapter, i, &val);
 		if (ret)
 			return ret;

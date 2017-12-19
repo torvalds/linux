@@ -38,21 +38,22 @@
 #include <linux/types.h>
 
 enum {
-	NCHAN          = 4,     /* # of HW channels */
-	MAX_MTU        = 9600,  /* max MAC MTU, excluding header + FCS */
-	EEPROMSIZE     = 17408, /* Serial EEPROM physical size */
-	EEPROMVSIZE    = 32768, /* Serial EEPROM virtual address space size */
-	EEPROMPFSIZE   = 1024,  /* EEPROM writable area size for PFn, n>0 */
-	RSS_NENTRIES   = 2048,  /* # of entries in RSS mapping table */
-	TCB_SIZE       = 128,   /* TCB size */
-	NMTUS          = 16,    /* size of MTU table */
-	NCCTRL_WIN     = 32,    /* # of congestion control windows */
-	NTX_SCHED      = 8,     /* # of HW Tx scheduling queues */
-	PM_NSTATS      = 5,     /* # of PM stats */
-	T6_PM_NSTATS   = 7,     /* # of PM stats in T6 */
-	MBOX_LEN       = 64,    /* mailbox size in bytes */
-	TRACE_LEN      = 112,   /* length of trace data and mask */
-	FILTER_OPT_LEN = 36,    /* filter tuple width for optional components */
+	NCHAN           = 4,    /* # of HW channels */
+	MAX_MTU         = 9600, /* max MAC MTU, excluding header + FCS */
+	EEPROMSIZE      = 17408,/* Serial EEPROM physical size */
+	EEPROMVSIZE     = 32768,/* Serial EEPROM virtual address space size */
+	EEPROMPFSIZE    = 1024, /* EEPROM writable area size for PFn, n>0 */
+	RSS_NENTRIES    = 2048, /* # of entries in RSS mapping table */
+	T6_RSS_NENTRIES = 4096, /* # of entries in RSS mapping table */
+	TCB_SIZE        = 128,  /* TCB size */
+	NMTUS           = 16,   /* size of MTU table */
+	NCCTRL_WIN      = 32,   /* # of congestion control windows */
+	NTX_SCHED       = 8,    /* # of HW Tx scheduling queues */
+	PM_NSTATS       = 5,    /* # of PM stats */
+	T6_PM_NSTATS    = 7,    /* # of PM stats in T6 */
+	MBOX_LEN        = 64,   /* mailbox size in bytes */
+	TRACE_LEN       = 112,  /* length of trace data and mask */
+	FILTER_OPT_LEN  = 36,   /* filter tuple width for optional components */
 };
 
 enum {

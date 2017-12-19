@@ -1004,9 +1004,10 @@ int cudbg_collect_rss(struct cudbg_init *pdbg_init,
 {
 	struct adapter *padap = pdbg_init->adap;
 	struct cudbg_buffer temp_buff = { 0 };
-	int rc;
+	int rc, nentries;
 
-	rc = cudbg_get_buff(dbg_buff, RSS_NENTRIES * sizeof(u16), &temp_buff);
+	nentries = t4_chip_rss_size(padap);
+	rc = cudbg_get_buff(dbg_buff, nentries * sizeof(u16), &temp_buff);
 	if (rc)
 		return rc;
 
