@@ -5,8 +5,8 @@ then
   exit 1;
 fi
 
-if [[ -z "$(which arm-linux-gnueabihf-gcc)" ]];then echo "erst gcc-arm-linux-gnueabihf installieren";exit 1;fi
-if [[ -z "$(which mkimage)" ]];then echo "erst u-boot-tools installieren";exit 1;fi
+if [[ -z "$(which arm-linux-gnueabihf-gcc)" ]];then echo "please install gcc-arm-linux-gnueabihf";exit 1;fi
+if [[ -z "$(which mkimage)" ]];then echo "please install u-boot-tools";exit 1;fi
 
 if [[ -d drivers ]];
 then
