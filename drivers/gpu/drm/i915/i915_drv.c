@@ -931,7 +931,11 @@ static int i915_driver_init_early(struct drm_i915_private *dev_priv,
 
 	intel_display_crc_init(dev_priv);
 
-	intel_device_info_dump(dev_priv);
+	if (drm_debug & DRM_UT_DRIVER) {
+		struct drm_printer p = drm_debug_printer("i915 device info:");
+
+		intel_device_info_dump(&dev_priv->info, &p);
+	}
 
 	intel_detect_preproduction_hw(dev_priv);
 
