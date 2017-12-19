@@ -110,16 +110,10 @@ static int nfp_bpf_setup_tc_block_cb(enum tc_setup_type type,
 		return -EOPNOTSUPP;
 	}
 
-	switch (cls_bpf->command) {
-	case TC_CLSBPF_REPLACE:
-		return nfp_net_bpf_offload(nn, cls_bpf->prog, true);
-	case TC_CLSBPF_ADD:
-		return nfp_net_bpf_offload(nn, cls_bpf->prog, false);
-	case TC_CLSBPF_DESTROY:
-		return nfp_net_bpf_offload(nn, NULL, true);
-	default:
+	if (cls_bpf->command != TC_CLSBPF_OFFLOAD)
 		return -EOPNOTSUPP;
-	}
+
+	return nfp_net_bpf_offload(nn, cls_bpf->prog, cls_bpf->oldprog);
 }
 
 static int nfp_bpf_setup_tc_block(struct net_device *netdev,
