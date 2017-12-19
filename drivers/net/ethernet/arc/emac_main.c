@@ -26,6 +26,8 @@
 
 #include "emac.h"
 
+static void arc_emac_restart(struct net_device *ndev);
+
 /**
  * arc_emac_tx_avail - Return the number of available slots in the tx ring.
  * @priv: Pointer to ARC EMAC private data structure.
@@ -268,6 +270,53 @@ static int arc_emac_rx(struct net_device *ndev, int budget)
 }
 
 /**
+ * arc_emac_rx_miss_handle - handle R_MISS register
+ * @ndev:	Pointer to the net_device structure.
+ */
+static void arc_emac_rx_miss_handle(struct net_device *ndev)
+{
+	struct arc_emac_priv *priv = netdev_priv(ndev);
+	struct net_device_stats *stats = &ndev->stats;
+	unsigned int miss;
+
+	miss = arc_reg_get(priv, R_MISS);
+	if (miss) {
+		stats->rx_errors += miss;
+		stats->rx_missed_errors += miss;
+		priv->rx_missed_errors += miss;
+	}
+}
+
+/**
+ * arc_emac_rx_stall_check - check RX stall
+ * @ndev:	Pointer to the net_device structure.
+ * @budget:	How many BDs requested to process on 1 call.
+ * @work_done:	How many BDs processed
+ *
+ * Under certain conditions EMAC stop reception of incoming packets and
+ * continuously increment R_MISS register instead of saving data into
+ * provided buffer. This function detect that condition and restart
+ * EMAC.
+ */
+static void arc_emac_rx_stall_check(struct net_device *ndev,
+				    int budget, unsigned int work_done)
+{
+	struct arc_emac_priv *priv = netdev_priv(ndev);
+	struct arc_emac_bd *rxbd;
+
+	if (work_done)
+		priv->rx_missed_errors = 0;
+
+	if (priv->rx_missed_errors && budget) {
+		rxbd = &priv->rxbd[priv->last_rx_bd];
+		if (le32_to_cpu(rxbd->info) & FOR_EMAC) {
+			arc_emac_restart(ndev);
+			priv->rx_missed_errors = 0;
+		}
+	}
+}
+
+/**
  * arc_emac_poll - NAPI poll handler.
  * @napi:	Pointer to napi_struct structure.
  * @budget:	How many BDs to process on 1 call.
@@ -281,12 +330,15 @@ static int arc_emac_poll(struct napi_struct *napi, int budget)
 	unsigned int work_done;
 
 	arc_emac_tx_clean(ndev);
+	arc_emac_rx_miss_handle(ndev);
 
 	work_done = arc_emac_rx(ndev, budget);
 	if (work_done < budget) {
 		napi_complete_done(napi, work_done);
 		arc_reg_or(priv, R_ENABLE, RXINT_MASK | TXINT_MASK);
 	}
+
+	arc_emac_rx_stall_check(ndev, budget, work_done);
 
 	return work_done;
 }
@@ -329,6 +381,8 @@ static irqreturn_t arc_emac_intr(int irq, void *dev_instance)
 		if (status & MSER_MASK) {
 			stats->rx_missed_errors += 0x100;
 			stats->rx_errors += 0x100;
+			priv->rx_missed_errors += 0x100;
+			napi_schedule(&priv->napi);
 		}
 
 		if (status & RXCR_MASK) {
@@ -740,6 +794,63 @@ static int arc_emac_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 	return phy_mii_ioctl(dev->phydev, rq, cmd);
 }
 
+
+/**
+ * arc_emac_restart - Restart EMAC
+ * @ndev:	Pointer to net_device structure.
+ *
+ * This function do hardware reset of EMAC in order to restore
+ * network packets reception.
+ */
+static void arc_emac_restart(struct net_device *ndev)
+{
+	struct arc_emac_priv *priv = netdev_priv(ndev);
+	struct net_device_stats *stats = &ndev->stats;
+	int i;
+
+	if (net_ratelimit())
+		netdev_warn(ndev, "restarting stalled EMAC\n");
+
+	netif_stop_queue(ndev);
+
+	/* Disable interrupts */
+	arc_reg_clr(priv, R_ENABLE, RXINT_MASK | TXINT_MASK | ERR_MASK);
+
+	/* Disable EMAC */
+	arc_reg_clr(priv, R_CTRL, EN_MASK);
+
+	/* Return the sk_buff to system */
+	arc_free_tx_queue(ndev);
+
+	/* Clean Tx BD's */
+	priv->txbd_curr = 0;
+	priv->txbd_dirty = 0;
+	memset(priv->txbd, 0, TX_RING_SZ);
+
+	for (i = 0; i < RX_BD_NUM; i++) {
+		struct arc_emac_bd *rxbd = &priv->rxbd[i];
+		unsigned int info = le32_to_cpu(rxbd->info);
+
+		if (!(info & FOR_EMAC)) {
+			stats->rx_errors++;
+			stats->rx_dropped++;
+		}
+		/* Return ownership to EMAC */
+		rxbd->info = cpu_to_le32(FOR_EMAC | EMAC_BUFFER_SIZE);
+	}
+	priv->last_rx_bd = 0;
+
+	/* Make sure info is visible to EMAC before enable */
+	wmb();
+
+	/* Enable interrupts */
+	arc_reg_set(priv, R_ENABLE, RXINT_MASK | TXINT_MASK | ERR_MASK);
+
+	/* Enable EMAC */
+	arc_reg_or(priv, R_CTRL, EN_MASK);
+
+	netif_start_queue(ndev);
+}
 
 static const struct net_device_ops arc_emac_netdev_ops = {
 	.ndo_open		= arc_emac_open,
