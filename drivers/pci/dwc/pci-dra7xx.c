@@ -694,6 +694,11 @@ static int __init dra7xx_pcie_probe(struct platform_device *pdev)
 
 	switch (mode) {
 	case DW_PCIE_RC_TYPE:
+		if (!IS_ENABLED(CONFIG_PCI_DRA7XX_HOST)) {
+			ret = -ENODEV;
+			goto err_gpio;
+		}
+
 		dra7xx_pcie_writel(dra7xx, PCIECTRL_TI_CONF_DEVICE_TYPE,
 				   DEVICE_TYPE_RC);
 		ret = dra7xx_add_pcie_port(dra7xx, pdev);
@@ -701,6 +706,11 @@ static int __init dra7xx_pcie_probe(struct platform_device *pdev)
 			goto err_gpio;
 		break;
 	case DW_PCIE_EP_TYPE:
+		if (!IS_ENABLED(CONFIG_PCI_DRA7XX_EP)) {
+			ret = -ENODEV;
+			goto err_gpio;
+		}
+
 		dra7xx_pcie_writel(dra7xx, PCIECTRL_TI_CONF_DEVICE_TYPE,
 				   DEVICE_TYPE_EP);
 
