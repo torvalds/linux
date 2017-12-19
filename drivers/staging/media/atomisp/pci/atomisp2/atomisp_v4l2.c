@@ -1210,11 +1210,6 @@ static int atomisp_pci_probe(struct pci_dev *dev,
 	isp->pdev = dev;
 	isp->dev = &dev->dev;
 	isp->sw_contex.power_state = ATOM_ISP_POWER_UP;
-	isp->pci_root = pci_get_domain_bus_and_slot(0, 0, 0);
-	if (!isp->pci_root) {
-		dev_err(&dev->dev, "Unable to find PCI host\n");
-		return -ENODEV;
-	}
 	isp->saved_regs.ispmmadr = start;
 
 	rt_mutex_init(&isp->mutex);
@@ -1494,7 +1489,6 @@ load_fw_fail:
 	/* Address later when we worry about the ...field chips */
 	if (IS_ENABLED(CONFIG_PM) && atomisp_mrfld_power_down(isp))
 		dev_err(&dev->dev, "Failed to switch off ISP\n");
-	pci_dev_put(isp->pci_root);
 	return err;
 }
 
@@ -1515,8 +1509,6 @@ static void atomisp_pci_remove(struct pci_dev *dev)
 	pm_qos_remove_request(&isp->pm_qos);
 
 	atomisp_msi_irq_uninit(isp, dev);
-	pci_dev_put(isp->pci_root);
-
 	atomisp_unregister_entities(isp);
 
 	destroy_workqueue(isp->wdt_work_queue);
