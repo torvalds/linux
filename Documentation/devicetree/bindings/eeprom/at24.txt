@@ -43,10 +43,13 @@ Optional properties:
 			eeprom does not automatically roll over reads to the next
 			slave address. Please consult the manual of your device.
 
+  - wp-gpios: GPIO to which the write-protect pin of the chip is connected.
+
 Example:
 
 eeprom@52 {
 	compatible = "atmel,24c32";
 	reg = <0x52>;
 	pagesize = <32>;
+	wp-gpios = <&gpio1 3 0>;
 };
