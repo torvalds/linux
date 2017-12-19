@@ -4165,6 +4165,8 @@ mkwrite_device_info(struct drm_i915_private *dev_priv)
 const char *intel_platform_name(enum intel_platform platform);
 void intel_device_info_runtime_init(struct drm_i915_private *dev_priv);
 void intel_device_info_dump(struct drm_i915_private *dev_priv);
+void intel_device_info_dump_flags(const struct intel_device_info *info,
+				  struct drm_printer *p);
 
 /* modesetting */
 extern void intel_modeset_init_hw(struct drm_device *dev);

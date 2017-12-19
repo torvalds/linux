@@ -58,14 +58,13 @@ static int i915_capabilities(struct seq_file *m, void *data)
 {
 	struct drm_i915_private *dev_priv = node_to_i915(m->private);
 	const struct intel_device_info *info = INTEL_INFO(dev_priv);
+	struct drm_printer p = drm_seq_file_printer(m);
 
 	seq_printf(m, "gen: %d\n", INTEL_GEN(dev_priv));
 	seq_printf(m, "platform: %s\n", intel_platform_name(info->platform));
 	seq_printf(m, "pch: %d\n", INTEL_PCH_TYPE(dev_priv));
 
-#define PRINT_FLAG(x)  seq_printf(m, #x ": %s\n", yesno(info->x))
-	DEV_INFO_FOR_EACH_FLAG(PRINT_FLAG);
-#undef PRINT_FLAG
+	intel_device_info_dump_flags(info, &p);
 
 	kernel_param_lock(THIS_MODULE);
 #define PRINT_PARAM(T, x, ...) seq_print_param(m, #x, #T, &i915_modparams.x);

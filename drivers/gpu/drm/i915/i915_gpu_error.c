@@ -564,9 +564,9 @@ static void print_error_obj(struct drm_i915_error_state_buf *m,
 static void err_print_capabilities(struct drm_i915_error_state_buf *m,
 				   const struct intel_device_info *info)
 {
-#define PRINT_FLAG(x)  err_printf(m, #x ": %s\n", yesno(info->x))
-	DEV_INFO_FOR_EACH_FLAG(PRINT_FLAG);
-#undef PRINT_FLAG
+	struct drm_printer p = i915_error_printer(m);
+
+	intel_device_info_dump_flags(info, &p);
 }
 
 static __always_inline void err_print_param(struct drm_i915_error_state_buf *m,

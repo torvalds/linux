@@ -22,6 +22,8 @@
  *
  */
 
+#include <drm/drm_print.h>
+
 #include "i915_drv.h"
 
 #define PLATFORM_NAME(x) [INTEL_##x] = #x
@@ -67,6 +69,14 @@ const char *intel_platform_name(enum intel_platform platform)
 	return platform_names[platform];
 }
 
+void intel_device_info_dump_flags(const struct intel_device_info *info,
+				  struct drm_printer *p)
+{
+#define PRINT_FLAG(name) drm_printf(p, "%s: %s\n", #name, yesno(info->name));
+	DEV_INFO_FOR_EACH_FLAG(PRINT_FLAG);
+#undef PRINT_FLAG
+}
+
 void intel_device_info_dump(struct drm_i915_private *dev_priv)
 {
 	const struct intel_device_info *info = &dev_priv->info;
@@ -76,10 +86,12 @@ void intel_device_info_dump(struct drm_i915_private *dev_priv)
 			 info->gen,
 			 dev_priv->drm.pdev->device,
 			 dev_priv->drm.pdev->revision);
-#define PRINT_FLAG(name) \
-	DRM_DEBUG_DRIVER("i915 device info: " #name ": %s", yesno(info->name))
-	DEV_INFO_FOR_EACH_FLAG(PRINT_FLAG);
-#undef PRINT_FLAG
+
+	if (drm_debug & DRM_UT_DRIVER) {
+		struct drm_printer p = drm_debug_printer("i915 device info: ");
+
+		intel_device_info_dump_flags(info, &p);
+	}
 }
 
 static void gen10_sseu_info_init(struct drm_i915_private *dev_priv)
