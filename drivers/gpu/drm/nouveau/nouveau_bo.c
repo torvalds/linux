@@ -224,7 +224,7 @@ nouveau_bo_new(struct nouveau_cli *cli, u64 size, int align,
 		/* Determine if we can get a cache-coherent map, forcing
 		 * uncached mapping if we can't.
 		 */
-		if (mmu->type[drm->ttm.type_host].type & NVIF_MEM_UNCACHED)
+		if (!nouveau_drm_use_coherent_gpu_mapping(drm))
 			nvbo->force_coherent = true;
 	}
 
@@ -262,7 +262,8 @@ nouveau_bo_new(struct nouveau_cli *cli, u64 size, int align,
 		if (cli->device.info.family > NV_DEVICE_INFO_V0_CURIE &&
 		    (flags & TTM_PL_FLAG_VRAM) && !vmm->page[i].vram)
 			continue;
-		if ((flags & TTM_PL_FLAG_TT  ) && !vmm->page[i].host)
+		if ((flags & TTM_PL_FLAG_TT) &&
+		    (!vmm->page[i].host || vmm->page[i].shift > PAGE_SHIFT))
 			continue;
 
 		/* Select this page size if it's the first that supports
