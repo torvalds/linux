@@ -12462,6 +12462,13 @@ F:	lib/siphash.c
 F:	lib/test_siphash.c
 F:	include/linux/siphash.h
 
+SIOX
+M:	Gavin Schenk <g.schenk@eckelmann.de>
+M:	Uwe Kleine-König <kernel@pengutronix.de>
+S:	Supported
+F:	drivers/siox/*
+F:	include/trace/events/siox.h
+
 SIS 190 ETHERNET DRIVER
 M:	Francois Romieu <romieu@fr.zoreil.com>
 L:	netdev@vger.kernel.org
