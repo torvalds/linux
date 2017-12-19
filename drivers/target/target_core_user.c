@@ -1342,7 +1342,6 @@ static int tcmu_find_mem_index(struct vm_area_struct *vma)
 static struct page *tcmu_try_get_block_page(struct tcmu_dev *udev, uint32_t dbi)
 {
 	struct page *page;
-	int ret;
 
 	mutex_lock(&udev->cmdr_lock);
 	page = tcmu_get_block_page(udev, dbi);
@@ -1352,42 +1351,12 @@ static struct page *tcmu_try_get_block_page(struct tcmu_dev *udev, uint32_t dbi)
 	}
 
 	/*
-	 * Normally it shouldn't be here:
-	 * Only when the userspace has touched the blocks which
-	 * are out of the tcmu_cmd's data iov[], and will return
-	 * one zeroed page.
+	 * Userspace messed up and passed in a address not in the
+	 * data iov passed to it.
 	 */
-	pr_warn("Block(%u) out of cmd's iov[] has been touched!\n", dbi);
-	pr_warn("Mostly it will be a bug of userspace, please have a check!\n");
-
-	if (dbi >= udev->dbi_thresh) {
-		/* Extern the udev->dbi_thresh to dbi + 1 */
-		udev->dbi_thresh = dbi + 1;
-		udev->dbi_max = dbi;
-	}
-
-	page = radix_tree_lookup(&udev->data_blocks, dbi);
-	if (!page) {
-		page = alloc_page(GFP_KERNEL | __GFP_ZERO);
-		if (!page) {
-			mutex_unlock(&udev->cmdr_lock);
-			return NULL;
-		}
-
-		ret = radix_tree_insert(&udev->data_blocks, dbi, page);
-		if (ret) {
-			mutex_unlock(&udev->cmdr_lock);
-			__free_page(page);
-			return NULL;
-		}
-
-		/*
-		 * Since this case is rare in page fault routine, here we
-		 * will allow the global_db_count >= tcmu_global_max_blocks
-		 * to reduce possible page fault call trace.
-		 */
-		atomic_inc(&global_db_count);
-	}
+	pr_err("Invalid addr to data block mapping  (dbi %u) on device %s\n",
+	       dbi, udev->name);
+	page = NULL;
 	mutex_unlock(&udev->cmdr_lock);
 
 	return page;
@@ -1422,7 +1391,7 @@ static int tcmu_vma_fault(struct vm_fault *vmf)
 		dbi = (offset - udev->data_off) / DATA_BLOCK_SIZE;
 		page = tcmu_try_get_block_page(udev, dbi);
 		if (!page)
-			return VM_FAULT_NOPAGE;
+			return VM_FAULT_SIGBUS;
 	}
 
 	get_page(page);
