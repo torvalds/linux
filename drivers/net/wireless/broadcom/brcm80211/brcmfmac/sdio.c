@@ -660,30 +660,6 @@ static bool data_ok(struct brcmf_sdio *bus)
 	       ((u8)(bus->tx_max - bus->tx_seq) & 0x80) == 0;
 }
 
-/*
- * Reads a register in the SDIO hardware block. This block occupies a series of
- * adresses on the 32 bit backplane bus.
- */
-static int r_sdreg32(struct brcmf_sdio *bus, u32 *regvar, u32 offset)
-{
-	struct brcmf_core *core = bus->sdio_core;
-	int ret;
-
-	*regvar = brcmf_sdiod_readl(bus->sdiodev, core->base + offset, &ret);
-
-	return ret;
-}
-
-static int w_sdreg32(struct brcmf_sdio *bus, u32 regval, u32 reg_offset)
-{
-	struct brcmf_core *core = bus->sdio_core;
-	int ret;
-
-	brcmf_sdiod_writel(bus->sdiodev, core->base + reg_offset, regval, &ret);
-
-	return ret;
-}
-
 static int
 brcmf_sdio_kso_control(struct brcmf_sdio *bus, bool on)
 {
@@ -1078,6 +1054,8 @@ static void brcmf_sdio_get_console_addr(struct brcmf_sdio *bus)
 
 static u32 brcmf_sdio_hostmail(struct brcmf_sdio *bus)
 {
+	struct brcmf_sdio_dev *sdiod = bus->sdiodev;
+	struct brcmf_core *core = bus->sdio_core;
 	u32 intstatus = 0;
 	u32 hmb_data;
 	u8 fcbits;
@@ -1086,10 +1064,14 @@ static u32 brcmf_sdio_hostmail(struct brcmf_sdio *bus)
 	brcmf_dbg(SDIO, "Enter\n");
 
 	/* Read mailbox data and ack that we did so */
-	ret = r_sdreg32(bus, &hmb_data,	SD_REG(tohostmailboxdata));
+	hmb_data = brcmf_sdiod_readl(sdiod,
+				     core->base + SD_REG(tohostmailboxdata),
+				     &ret);
 
-	if (ret == 0)
-		w_sdreg32(bus, SMB_INT_ACK, SD_REG(tosbmailbox));
+	if (!ret)
+		brcmf_sdiod_writel(sdiod, core->base + SD_REG(tosbmailbox),
+				   SMB_INT_ACK, &ret);
+
 	bus->sdcnt.f1regdata += 2;
 
 	/* dongle indicates the firmware has halted/crashed */
@@ -1163,6 +1145,8 @@ static u32 brcmf_sdio_hostmail(struct brcmf_sdio *bus)
 
 static void brcmf_sdio_rxfail(struct brcmf_sdio *bus, bool abort, bool rtx)
 {
+	struct brcmf_sdio_dev *sdiod = bus->sdiodev;
+	struct brcmf_core *core = bus->sdio_core;
 	uint retries = 0;
 	u16 lastrbc;
 	u8 hi, lo;
@@ -1204,7 +1188,8 @@ static void brcmf_sdio_rxfail(struct brcmf_sdio *bus, bool abort, bool rtx)
 
 	if (rtx) {
 		bus->sdcnt.rxrtx++;
-		err = w_sdreg32(bus, SMB_NAK, SD_REG(tosbmailbox));
+		brcmf_sdiod_writel(sdiod, core->base + SD_REG(tosbmailbox),
+				   SMB_NAK, &err);
 
 		bus->sdcnt.f1regdata++;
 		if (err == 0)
@@ -2291,6 +2276,7 @@ static uint brcmf_sdio_sendfromq(struct brcmf_sdio *bus, uint maxframes)
 {
 	struct sk_buff *pkt;
 	struct sk_buff_head pktq;
+	u32 intstat_addr = bus->sdio_core->base + SD_REG(intstatus);
 	u32 intstatus = 0;
 	int ret = 0, prec_out, i;
 	uint cnt = 0;
@@ -2329,7 +2315,8 @@ static uint brcmf_sdio_sendfromq(struct brcmf_sdio *bus, uint maxframes)
 		if (!bus->intr) {
 			/* Check device status, signal pending interrupt */
 			sdio_claim_host(bus->sdiodev->func[1]);
-			ret = r_sdreg32(bus, &intstatus, SD_REG(intstatus));
+			intstatus = brcmf_sdiod_readl(bus->sdiodev,
+						      intstat_addr, &ret);
 			sdio_release_host(bus->sdiodev->func[1]);
 			bus->sdcnt.f2txdata++;
 			if (ret != 0)
@@ -2413,12 +2400,13 @@ static int brcmf_sdio_tx_ctrlframe(struct brcmf_sdio *bus, u8 *frame, u16 len)
 
 static void brcmf_sdio_bus_stop(struct device *dev)
 {
-	u32 local_hostintmask;
-	u8 saveclk;
-	int err;
 	struct brcmf_bus *bus_if = dev_get_drvdata(dev);
 	struct brcmf_sdio_dev *sdiodev = bus_if->bus_priv.sdio;
 	struct brcmf_sdio *bus = sdiodev->bus;
+	struct brcmf_core *core = bus->sdio_core;
+	u32 local_hostintmask;
+	u8 saveclk;
+	int err;
 
 	brcmf_dbg(TRACE, "Enter\n");
 
@@ -2435,7 +2423,9 @@ static void brcmf_sdio_bus_stop(struct device *dev)
 		brcmf_sdio_bus_sleep(bus, false, false);
 
 		/* Disable and clear interrupts at the chip level also */
-		w_sdreg32(bus, 0, SD_REG(hostintmask));
+		brcmf_sdiod_writel(sdiodev, core->base + SD_REG(hostintmask),
+				   0, NULL);
+
 		local_hostintmask = bus->hostintmask;
 		bus->hostintmask = 0;
 
@@ -2454,7 +2444,8 @@ static void brcmf_sdio_bus_stop(struct device *dev)
 		sdio_disable_func(sdiodev->func[SDIO_FUNC_2]);
 
 		/* Clear any pending interrupts now that F2 is disabled */
-		w_sdreg32(bus, local_hostintmask, SD_REG(intstatus));
+		brcmf_sdiod_writel(sdiodev, core->base + SD_REG(intstatus),
+				   local_hostintmask, NULL);
 
 		sdio_release_host(sdiodev->func[1]);
 	}
@@ -2521,7 +2512,9 @@ static int brcmf_sdio_intr_rstatus(struct brcmf_sdio *bus)
 
 static void brcmf_sdio_dpc(struct brcmf_sdio *bus)
 {
+	struct brcmf_sdio_dev *sdiod = bus->sdiodev;
 	u32 newstatus = 0;
+	u32 intstat_addr = bus->sdio_core->base + SD_REG(intstatus);
 	unsigned long intstatus;
 	uint txlimit = bus->txbound;	/* Tx frames to send before resched */
 	uint framecnt;			/* Temporary counter of tx/rx frames */
@@ -2576,9 +2569,10 @@ static void brcmf_sdio_dpc(struct brcmf_sdio *bus)
 	 */
 	if (intstatus & I_HMB_FC_CHANGE) {
 		intstatus &= ~I_HMB_FC_CHANGE;
-		err = w_sdreg32(bus, I_HMB_FC_CHANGE, SD_REG(intstatus));
+		brcmf_sdiod_writel(sdiod, intstat_addr, I_HMB_FC_CHANGE, &err);
 
-		err = r_sdreg32(bus, &newstatus, SD_REG(intstatus));
+		newstatus = brcmf_sdiod_readl(sdiod, intstat_addr, &err);
+
 		bus->sdcnt.f1regdata += 2;
 		atomic_set(&bus->fcstate,
 			   !!(newstatus & (I_HMB_FC_STATE | I_HMB_FC_CHANGE)));
@@ -4017,21 +4011,20 @@ static void brcmf_sdio_firmware_callback(struct device *dev, int err,
 					 const struct firmware *code,
 					 void *nvram, u32 nvram_len)
 {
-	struct brcmf_bus *bus_if;
-	struct brcmf_sdio_dev *sdiodev;
-	struct brcmf_sdio *bus;
+	struct brcmf_bus *bus_if = dev_get_drvdata(dev);
+	struct brcmf_sdio_dev *sdiodev = bus_if->bus_priv.sdio;
+	struct brcmf_sdio *bus = sdiodev->bus;
+	struct brcmf_sdio_dev *sdiod = bus->sdiodev;
+	struct brcmf_core *core = bus->sdio_core;
 	u8 saveclk;
 
 	brcmf_dbg(TRACE, "Enter: dev=%s, err=%d\n", dev_name(dev), err);
-	bus_if = dev_get_drvdata(dev);
-	sdiodev = bus_if->bus_priv.sdio;
+
 	if (err)
 		goto fail;
 
 	if (!bus_if->drvr)
 		return;
-
-	bus = sdiodev->bus;
 
 	/* try to download image and nvram to the dongle */
 	bus->alp_only = true;
@@ -4063,8 +4056,9 @@ static void brcmf_sdio_firmware_callback(struct device *dev, int err,
 	}
 
 	/* Enable function 2 (frame transfers) */
-	w_sdreg32(bus, SDPCM_PROT_VERSION << SMB_DATA_VERSION_SHIFT,
-		  SD_REG(tosbmailboxdata));
+	brcmf_sdiod_writel(sdiod, core->base + SD_REG(tosbmailboxdata),
+			   SDPCM_PROT_VERSION << SMB_DATA_VERSION_SHIFT, NULL);
+
 	err = sdio_enable_func(sdiodev->func[SDIO_FUNC_2]);
 
 
@@ -4074,7 +4068,9 @@ static void brcmf_sdio_firmware_callback(struct device *dev, int err,
 	if (!err) {
 		/* Set up the interrupt mask and enable interrupts */
 		bus->hostintmask = HOSTINTMASK;
-		w_sdreg32(bus, bus->hostintmask, SD_REG(hostintmask));
+		brcmf_sdiod_writel(sdiod, core->base + SD_REG(hostintmask),
+				   bus->hostintmask, NULL);
+
 
 		brcmf_sdiod_writeb(sdiodev, SBSDIO_WATERMARK, 8, &err);
 	} else {
