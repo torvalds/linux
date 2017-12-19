@@ -429,18 +429,18 @@ static void i915_hangcheck_elapsed(struct work_struct *work)
 	intel_uncore_arm_unclaimed_mmio_detection(dev_priv);
 
 	for_each_engine(engine, dev_priv, id) {
-		struct intel_engine_hangcheck cur_state, *hc = &cur_state;
 		const bool busy = intel_engine_has_waiter(engine);
+		struct intel_engine_hangcheck hc;
 
 		semaphore_clear_deadlocks(dev_priv);
 
-		hangcheck_load_sample(engine, hc);
-		hangcheck_accumulate_sample(engine, hc);
-		hangcheck_store_sample(engine, hc);
+		hangcheck_load_sample(engine, &hc);
+		hangcheck_accumulate_sample(engine, &hc);
+		hangcheck_store_sample(engine, &hc);
 
 		if (engine->hangcheck.stalled) {
 			hung |= intel_engine_flag(engine);
-			if (hc->action != ENGINE_DEAD)
+			if (hc.action != ENGINE_DEAD)
 				stuck |= intel_engine_flag(engine);
 		}
 
