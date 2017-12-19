@@ -188,32 +188,6 @@ static ssize_t sta_aqm_read(struct file *file, char __user *userbuf,
 }
 STA_OPS(aqm);
 
-static ssize_t sta_airtime_read(struct file *file, char __user *userbuf,
-				size_t count, loff_t *ppos)
-{
-	struct sta_info *sta = file->private_data;
-	size_t bufsz = 200;
-	char *buf = kzalloc(bufsz, GFP_KERNEL), *p = buf;
-	ssize_t rv;
-
-	if (!buf)
-		return -ENOMEM;
-
-	spin_lock_bh(&sta->lock);
-
-	p += scnprintf(p, bufsz + buf - p,
-		"RX: %llu us\nTX: %llu us\nDeficit: %lld us\n",
-		sta->airtime_stats.rx_airtime,
-		sta->airtime_stats.tx_airtime,
-		sta->airtime_deficit);
-
-	spin_unlock_bh(&sta->lock);
-	rv = simple_read_from_buffer(userbuf, count, ppos, buf, p - buf);
-	kfree(buf);
-	return rv;
-}
-STA_OPS(airtime);
-
 static ssize_t sta_agg_status_read(struct file *file, char __user *userbuf,
 					size_t count, loff_t *ppos)
 {
@@ -567,9 +541,6 @@ void ieee80211_sta_debugfs_add(struct sta_info *sta)
 
 	if (local->ops->wake_tx_queue)
 		DEBUGFS_ADD(aqm);
-
-	if (ieee80211_hw_check(&local->hw, AIRTIME_ACCOUNTING))
-		DEBUGFS_ADD(airtime);
 
 	if (sizeof(sta->driver_buffered_tids) == sizeof(u32))
 		debugfs_create_x32("driver_buffered_tids", 0400,

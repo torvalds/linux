@@ -425,8 +425,6 @@ struct sta_info *sta_info_alloc(struct ieee80211_sub_if_data *sdata,
 	sta->cparams.interval = MS2TIME(100);
 	sta->cparams.ecn = true;
 
-	sta->airtime_deficit = IEEE80211_AIRTIME_QUANTUM;
-
 	sta_dbg(sdata, "Allocated STA %pM\n", sta->sta.addr);
 
 	return sta;

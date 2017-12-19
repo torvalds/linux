@@ -559,13 +559,6 @@ struct sta_info {
 	} tx_stats;
 	u16 tid_seq[IEEE80211_QOS_CTL_TID_MASK + 1];
 
-	/* Airtime stats and deficit, protected by lock */
-	struct {
-		u64 rx_airtime;
-		u64 tx_airtime;
-	} airtime_stats;
-	s64 airtime_deficit;
-
 	/*
 	 * Aggregation information, locked with lock.
 	 */

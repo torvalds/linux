@@ -1188,8 +1188,6 @@ enum mac80211_rx_encoding {
  *	HT or VHT is used (%RX_FLAG_HT/%RX_FLAG_VHT)
  * @nss: number of streams (VHT and HE only)
  * @flag: %RX_FLAG_\*
- * @airtime: Duration of frame in usec. See @IEEE80211_HW_AIRTIME_ACCOUNTING for
- *       how to use this.
  * @encoding: &enum mac80211_rx_encoding
  * @bw: &enum rate_info_bw
  * @enc_flags: uses bits from &enum mac80211_rx_encoding_flags
@@ -1204,7 +1202,6 @@ struct ieee80211_rx_status {
 	u32 device_timestamp;
 	u32 ampdu_reference;
 	u32 flag;
-	u16 airtime;
 	u16 freq;
 	u8 enc_flags;
 	u8 encoding:2, bw:3;
@@ -2069,26 +2066,6 @@ struct ieee80211_txq {
  * @IEEE80211_HW_SUPPORTS_TDLS_BUFFER_STA: Hardware supports buffer STA on
  *	TDLS links.
  *
- * @IEEE80211_HW_AIRTIME_ACCOUNTING: Hardware supports accounting the airtime
- *      usage of other stations and reports it in the @tx_time and/or @airtime
- *      fields of the TX/RX status structs.
- *      When setting this flag, the driver should ensure that the respective
- *      fields in the TX and RX status structs are always either zero or
- *      contains a valid duration for the frame in usec. The driver can choose
- *      to report either or both of TX and RX airtime, but it is recommended to
- *      report both.
- *      The reported airtime should as a minimum include all time that is spent
- *      transmitting to the remote station, including overhead and padding, but
- *      not including time spent waiting for a TXOP. If the time is not reported
- *      by the hardware it can in some cases be calculated from the rate and
- *      known frame composition. When possible, the time should include any
- *      failed transmission attempts.
- *      For aggregated frames, there are two possible strategies to report the
- *      airtime: Either include the airtime of the entire aggregate in the first
- *      (or last) frame and leave the others at zero. Alternatively, include the
- *      overhead of the full aggregate in the first or last frame and report the
- *      time of each frame + padding not including the full aggregate overhead.
- *
  * @NUM_IEEE80211_HW_FLAGS: number of hardware flags, used for sizing arrays
  */
 enum ieee80211_hw_flags {
@@ -2132,7 +2109,6 @@ enum ieee80211_hw_flags {
 	IEEE80211_HW_REPORTS_LOW_ACK,
 	IEEE80211_HW_SUPPORTS_TX_FRAG,
 	IEEE80211_HW_SUPPORTS_TDLS_BUFFER_STA,
-	IEEE80211_HW_AIRTIME_ACCOUNTING,
 
 	/* keep last, obviously */
 	NUM_IEEE80211_HW_FLAGS

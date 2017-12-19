@@ -3566,7 +3566,7 @@ bool ieee80211_schedule_txq(struct ieee80211_hw *hw,
 	spin_lock_bh(&local->active_txq_lock);
 
 	if (list_empty(&txqi->schedule_order)) {
-		list_add_tail(&txqi->schedule_order, &local->active_txqs_new);
+		list_add_tail(&txqi->schedule_order, &local->active_txqs);
 		ret = true;
 	}
 
@@ -3580,35 +3580,14 @@ struct ieee80211_txq *ieee80211_next_txq(struct ieee80211_hw *hw)
 {
 	struct ieee80211_local *local = hw_to_local(hw);
 	struct txq_info *txqi = NULL;
-	struct list_head *head;
 
 	spin_lock_bh(&local->active_txq_lock);
 
-begin:
-	head = &local->active_txqs_new;
-	if (list_empty(head)) {
-		head = &local->active_txqs_old;
-		if (list_empty(head))
-			goto out;
-	}
+	if (list_empty(&local->active_txqs))
+		goto out;
 
-	txqi = list_first_entry(head, struct txq_info, schedule_order);
-
-	if (txqi->txq.sta) {
-		struct sta_info *sta = container_of(txqi->txq.sta,
-						struct sta_info, sta);
-
-		spin_lock_bh(&sta->lock);
-		if (sta->airtime_deficit < 0) {
-			sta->airtime_deficit += IEEE80211_AIRTIME_QUANTUM;
-			list_move_tail(&txqi->schedule_order,
-				       &local->active_txqs_old);
-			spin_unlock_bh(&sta->lock);
-			goto begin;
-		}
-		spin_unlock_bh(&sta->lock);
-	}
-
+	txqi = list_first_entry(&local->active_txqs,
+				struct txq_info, schedule_order);
 	list_del_init(&txqi->schedule_order);
 
 out:

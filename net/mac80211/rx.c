@@ -1630,14 +1630,6 @@ ieee80211_rx_h_sta_process(struct ieee80211_rx_data *rx)
 	if (ieee80211_vif_is_mesh(&rx->sdata->vif))
 		ieee80211_mps_rx_h_sta_process(sta, hdr);
 
-	/* airtime accounting */
-	if (status->airtime) {
-		spin_lock_bh(&sta->lock);
-		sta->airtime_stats.rx_airtime += status->airtime;
-		sta->airtime_deficit -= status->airtime;
-		spin_unlock_bh(&sta->lock);
-	}
-
 	/*
 	 * Drop (qos-)data::nullfunc frames silently, since they
 	 * are used only to control station power saving mode.

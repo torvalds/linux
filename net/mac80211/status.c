@@ -823,14 +823,6 @@ static void __ieee80211_tx_status(struct ieee80211_hw *hw,
 				ieee80211_lost_packet(sta, info);
 			}
 		}
-
-		if (info->status.tx_time &&
-		    ieee80211_hw_check(&local->hw, AIRTIME_ACCOUNTING)) {
-			spin_lock_bh(&sta->lock);
-			sta->airtime_stats.tx_airtime += info->status.tx_time;
-			sta->airtime_deficit -= info->status.tx_time;
-			spin_unlock_bh(&sta->lock);
-		}
 	}
 
 	/* SNMP counters
@@ -954,14 +946,6 @@ void ieee80211_tx_status_ext(struct ieee80211_hw *hw,
 		if (!acked)
 			sta->status_stats.retry_failed++;
 		sta->status_stats.retry_count += retry_count;
-
-		if (info->status.tx_time &&
-		    ieee80211_hw_check(&local->hw, AIRTIME_ACCOUNTING)) {
-			spin_lock_bh(&sta->lock);
-			sta->airtime_stats.tx_airtime += info->status.tx_time;
-			sta->airtime_deficit -= info->status.tx_time;
-			spin_unlock_bh(&sta->lock);
-		}
 
 		if (acked) {
 			sta->status_stats.last_ack = jiffies;

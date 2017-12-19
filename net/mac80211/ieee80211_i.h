@@ -90,9 +90,6 @@ extern const u8 ieee80211_ac_to_qos_mask[IEEE80211_NUM_ACS];
 
 #define IEEE80211_MAX_NAN_INSTANCE_ID 255
 
-/* How much to increase airtime deficit on each scheduling round */
-#define IEEE80211_AIRTIME_QUANTUM        1000 /* usec */
-
 struct ieee80211_fragment_entry {
 	struct sk_buff_head skb_list;
 	unsigned long first_frag_time;
@@ -1126,10 +1123,9 @@ struct ieee80211_local {
 	struct codel_vars *cvars;
 	struct codel_params cparams;
 
-	/* protects active_txqs_{new,old} and txqi->schedule_order */
+	/* protects active_txqs and txqi->schedule_order */
 	spinlock_t active_txq_lock;
-	struct list_head active_txqs_new;
-	struct list_head active_txqs_old;
+	struct list_head active_txqs;
 
 	const struct ieee80211_ops *ops;
 
