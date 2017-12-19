@@ -718,7 +718,7 @@ pi433_tx_thread(void *data)
 			retval = wait_event_interruptible(device->fifo_wait_queue,
 							  device->free_in_fifo > 0);
 			if (retval) {
-				printk("ABORT\n");
+				dev_dbg(device->dev, "ABORT\n");
 				goto abort;
 			}
 		}
@@ -729,7 +729,7 @@ pi433_tx_thread(void *data)
 					 device->free_in_fifo == FIFO_SIZE ||
 					 kthread_should_stop());
 		if (kthread_should_stop())
-			printk("ABORT\n");
+			dev_dbg(device->dev, "ABORT\n");
 
 		/* STOP_TRANSMISSION */
 		dev_dbg(device->dev, "thread: Packet sent. Set mode to stby.");
