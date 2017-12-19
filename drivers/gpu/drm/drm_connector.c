@@ -153,6 +153,25 @@ static void drm_connector_free(struct kref *kref)
 	connector->funcs->destroy(connector);
 }
 
+void drm_connector_free_work_fn(struct work_struct *work)
+{
+	struct drm_connector *connector, *n;
+	struct drm_device *dev =
+		container_of(work, struct drm_device, mode_config.connector_free_work);
+	struct drm_mode_config *config = &dev->mode_config;
+	unsigned long flags;
+	struct llist_node *freed;
+
+	spin_lock_irqsave(&config->connector_list_lock, flags);
+	freed = llist_del_all(&config->connector_free_list);
+	spin_unlock_irqrestore(&config->connector_list_lock, flags);
+
+	llist_for_each_entry_safe(connector, n, freed, free_node) {
+		drm_mode_object_unregister(dev, &connector->base);
+		connector->funcs->destroy(connector);
+	}
+}
+
 /**
  * drm_connector_init - Init a preallocated connector
  * @dev: DRM device
@@ -532,6 +551,25 @@ void drm_connector_list_iter_begin(struct drm_device *dev,
 }
 EXPORT_SYMBOL(drm_connector_list_iter_begin);
 
+/*
+ * Extra-safe connector put function that works in any context. Should only be
+ * used from the connector_iter functions, where we never really expect to
+ * actually release the connector when dropping our final reference.
+ */
+static void
+__drm_connector_put_safe(struct drm_connector *conn)
+{
+	struct drm_mode_config *config = &conn->dev->mode_config;
+
+	lockdep_assert_held(&config->connector_list_lock);
+
+	if (!refcount_dec_and_test(&conn->base.refcount.refcount))
+		return;
+
+	llist_add(&conn->free_node, &config->connector_free_list);
+	schedule_work(&config->connector_free_work);
+}
+
 /**
  * drm_connector_list_iter_next - return next connector
  * @iter: connectr_list iterator
@@ -561,10 +599,10 @@ drm_connector_list_iter_next(struct drm_connector_list_iter *iter)
 
 		/* loop until it's not a zombie connector */
 	} while (!kref_get_unless_zero(&iter->conn->base.refcount));
-	spin_unlock_irqrestore(&config->connector_list_lock, flags);
 
 	if (old_conn)
-		drm_connector_put(old_conn);
+		__drm_connector_put_safe(old_conn);
+	spin_unlock_irqrestore(&config->connector_list_lock, flags);
 
 	return iter->conn;
 }
@@ -581,9 +619,15 @@ EXPORT_SYMBOL(drm_connector_list_iter_next);
  */
 void drm_connector_list_iter_end(struct drm_connector_list_iter *iter)
 {
+	struct drm_mode_config *config = &iter->dev->mode_config;
+	unsigned long flags;
+
 	iter->dev = NULL;
-	if (iter->conn)
-		drm_connector_put(iter->conn);
+	if (iter->conn) {
+		spin_lock_irqsave(&config->connector_list_lock, flags);
+		__drm_connector_put_safe(iter->conn);
+		spin_unlock_irqrestore(&config->connector_list_lock, flags);
+	}
 	lock_release(&connector_list_iter_dep_map, 0, _RET_IP_);
 }
 EXPORT_SYMBOL(drm_connector_list_iter_end);

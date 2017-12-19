@@ -53,6 +53,9 @@ enum {
  * @gpio_reset: GPIO connected to the sensor's reset pin
  * @lock: mutex protecting the structure's members below
  * @format: media bus format at the sensor's source pad
+ * @clock: pointer to &struct clk.
+ * @clock_frequency: clock frequency
+ * @power_count: stores state if device is powered
  */
 struct s5k6a3 {
 	struct device *dev;

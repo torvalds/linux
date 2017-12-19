@@ -70,7 +70,7 @@ SYSCALL_DEFINE3(riscv_flush_icache, uintptr_t, start, uintptr_t, end,
 	bool local = (flags & SYS_RISCV_FLUSH_ICACHE_LOCAL) != 0;
 
 	/* Check the reserved flags. */
-	if (unlikely(flags & !SYS_RISCV_FLUSH_ICACHE_ALL))
+	if (unlikely(flags & ~SYS_RISCV_FLUSH_ICACHE_ALL))
 		return -EINVAL;
 
 	flush_icache_mm(mm, local);

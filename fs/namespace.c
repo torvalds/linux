@@ -2826,6 +2826,7 @@ long do_mount(const char *dev_name, const char __user *dir_name,
 			    SB_DIRSYNC |
 			    SB_SILENT |
 			    SB_POSIXACL |
+			    SB_LAZYTIME |
 			    SB_I_VERSION);
 
 	if (flags & MS_REMOUNT)
