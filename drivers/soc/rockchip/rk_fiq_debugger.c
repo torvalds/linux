@@ -125,8 +125,8 @@ static int debug_port_init(struct platform_device *pdev)
 	rk_fiq_write(t, dlm, UART_DLM);
 	rk_fiq_write(t, 0x03, UART_LCR);
 
-	/* enable rx and lsr interrupt */
-	rk_fiq_write(t, UART_IER_RLSI | UART_IER_RDI, UART_IER);
+	/* enable rx interrupt */
+	rk_fiq_write(t, UART_IER_RDI, UART_IER);
 
 	/*
 	 * Interrupt on every character when received, but we can enable fifo for TX
@@ -152,13 +152,11 @@ static int debug_getc(struct platform_device *pdev)
 	static char buf[32];
 
 	t = container_of(dev_get_platdata(&pdev->dev), typeof(*t), pdata);
-
+	/*
+	 * Clear uart interrupt status
+	 */
+	rk_fiq_read(t, UART_USR);
 	lsr = rk_fiq_read_lsr(t);
-
-	if (lsr & UART_LSR_BI || t->break_seen) {
-		t->break_seen = false;
-		return FIQ_DEBUGGER_NO_CHAR;
-	}
 
 	if (lsr & UART_LSR_DR) {
 		temp = rk_fiq_read(t, UART_RX);
