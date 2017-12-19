@@ -1067,6 +1067,29 @@ static int check_ptr_alignment(struct bpf_verifier_env *env,
 					   strict);
 }
 
+/* truncate register to smaller size (in bytes)
+ * must be called with size < BPF_REG_SIZE
+ */
+static void coerce_reg_to_size(struct bpf_reg_state *reg, int size)
+{
+	u64 mask;
+
+	/* clear high bits in bit representation */
+	reg->var_off = tnum_cast(reg->var_off, size);
+
+	/* fix arithmetic bounds */
+	mask = ((u64)1 << (size * 8)) - 1;
+	if ((reg->umin_value & ~mask) == (reg->umax_value & ~mask)) {
+		reg->umin_value &= mask;
+		reg->umax_value &= mask;
+	} else {
+		reg->umin_value = 0;
+		reg->umax_value = mask;
+	}
+	reg->smin_value = reg->umin_value;
+	reg->smax_value = reg->umax_value;
+}
+
 /* check whether memory at (regno + off) is accessible for t = (read | write)
  * if t==write, value_regno is a register which value is stored into memory
  * if t==read, value_regno is a register which will receive the value from memory
@@ -1200,9 +1223,7 @@ static int check_mem_access(struct bpf_verifier_env *env, int insn_idx, u32 regn
 	if (!err && size < BPF_REG_SIZE && value_regno >= 0 && t == BPF_READ &&
 	    regs[value_regno].type == SCALAR_VALUE) {
 		/* b/h/w load zero-extends, mark upper bits as known 0 */
-		regs[value_regno].var_off =
-			tnum_cast(regs[value_regno].var_off, size);
-		__update_reg_bounds(&regs[value_regno]);
+		coerce_reg_to_size(&regs[value_regno], size);
 	}
 	return err;
 }
@@ -1772,14 +1793,6 @@ static int check_call(struct bpf_verifier_env *env, int func_id, int insn_idx)
 	return 0;
 }
 
-static void coerce_reg_to_32(struct bpf_reg_state *reg)
-{
-	/* clear high 32 bits */
-	reg->var_off = tnum_cast(reg->var_off, 4);
-	/* Update bounds */
-	__update_reg_bounds(reg);
-}
-
 static bool signed_add_overflows(s64 a, s64 b)
 {
 	/* Do the add in u64, where overflow is well-defined */
@@ -2017,8 +2030,8 @@ static int adjust_scalar_min_max_vals(struct bpf_verifier_env *env,
 
 	if (BPF_CLASS(insn->code) != BPF_ALU64) {
 		/* 32-bit ALU ops are (32,32)->64 */
-		coerce_reg_to_32(dst_reg);
-		coerce_reg_to_32(&src_reg);
+		coerce_reg_to_size(dst_reg, 4);
+		coerce_reg_to_size(&src_reg, 4);
 	}
 	smin_val = src_reg.smin_value;
 	smax_val = src_reg.smax_value;
@@ -2398,10 +2411,7 @@ static int check_alu_op(struct bpf_verifier_env *env, struct bpf_insn *insn)
 					return -EACCES;
 				}
 				mark_reg_unknown(env, regs, insn->dst_reg);
-				/* high 32 bits are known zero. */
-				regs[insn->dst_reg].var_off = tnum_cast(
-						regs[insn->dst_reg].var_off, 4);
-				__update_reg_bounds(&regs[insn->dst_reg]);
+				coerce_reg_to_size(&regs[insn->dst_reg], 4);
 			}
 		} else {
 			/* case: R = imm
