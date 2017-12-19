@@ -336,10 +336,10 @@ void intel_vgpu_reset_mmio(struct intel_vgpu *vgpu, bool dmlr)
 		memcpy(vgpu->mmio.vreg, mmio, info->mmio_size);
 		memcpy(vgpu->mmio.sreg, mmio, info->mmio_size);
 
-		vgpu_vreg(vgpu, GEN6_GT_THREAD_STATUS_REG) = 0;
+		vgpu_vreg_t(vgpu, GEN6_GT_THREAD_STATUS_REG) = 0;
 
 		/* set the bit 0:2(Core C-State ) to C0 */
-		vgpu_vreg(vgpu, GEN6_GT_CORE_STATUS) = 0;
+		vgpu_vreg_t(vgpu, GEN6_GT_CORE_STATUS) = 0;
 
 		vgpu->mmio.disable_warn_untrack = false;
 	} else {

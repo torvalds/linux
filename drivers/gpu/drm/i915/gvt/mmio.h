@@ -76,13 +76,6 @@ int intel_gvt_for_each_tracked_mmio(struct intel_gvt *gvt,
 	int (*handler)(struct intel_gvt *gvt, u32 offset, void *data),
 	void *data);
 
-
-#define INTEL_GVT_MMIO_OFFSET(reg) ({ \
-	typeof(reg) __reg = reg; \
-	u32 *offset = (u32 *)&__reg; \
-	*offset; \
-})
-
 int intel_vgpu_init_mmio(struct intel_vgpu *vgpu);
 void intel_vgpu_reset_mmio(struct intel_vgpu *vgpu, bool dmlr);
 void intel_vgpu_clean_mmio(struct intel_vgpu *vgpu);

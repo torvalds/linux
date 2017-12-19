@@ -147,7 +147,7 @@ static u32 intel_vgpu_get_stride(struct intel_vgpu *vgpu, int pipe,
 {
 	struct drm_i915_private *dev_priv = vgpu->gvt->dev_priv;
 
-	u32 stride_reg = vgpu_vreg(vgpu, DSPSTRIDE(pipe)) & stride_mask;
+	u32 stride_reg = vgpu_vreg_t(vgpu, DSPSTRIDE(pipe)) & stride_mask;
 	u32 stride = stride_reg;
 
 	if (IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv)) {
@@ -209,7 +209,7 @@ int intel_vgpu_decode_primary_plane(struct intel_vgpu *vgpu,
 	if (pipe >= I915_MAX_PIPES)
 		return -ENODEV;
 
-	val = vgpu_vreg(vgpu, DSPCNTR(pipe));
+	val = vgpu_vreg_t(vgpu, DSPCNTR(pipe));
 	plane->enabled = !!(val & DISPLAY_PLANE_ENABLE);
 	if (!plane->enabled)
 		return -ENODEV;
@@ -244,7 +244,7 @@ int intel_vgpu_decode_primary_plane(struct intel_vgpu *vgpu,
 
 	plane->hw_format = fmt;
 
-	plane->base = vgpu_vreg(vgpu, DSPSURF(pipe)) & I915_GTT_PAGE_MASK;
+	plane->base = vgpu_vreg_t(vgpu, DSPSURF(pipe)) & I915_GTT_PAGE_MASK;
 	if (!intel_gvt_ggtt_validate_range(vgpu, plane->base, 0)) {
 		gvt_vgpu_err("invalid gma address: %lx\n",
 			     (unsigned long)plane->base);
@@ -263,14 +263,14 @@ int intel_vgpu_decode_primary_plane(struct intel_vgpu *vgpu,
 			(_PRI_PLANE_STRIDE_MASK >> 6) :
 				_PRI_PLANE_STRIDE_MASK, plane->bpp);
 
-	plane->width = (vgpu_vreg(vgpu, PIPESRC(pipe)) & _PIPE_H_SRCSZ_MASK) >>
+	plane->width = (vgpu_vreg_t(vgpu, PIPESRC(pipe)) & _PIPE_H_SRCSZ_MASK) >>
 		_PIPE_H_SRCSZ_SHIFT;
 	plane->width += 1;
-	plane->height = (vgpu_vreg(vgpu, PIPESRC(pipe)) &
+	plane->height = (vgpu_vreg_t(vgpu, PIPESRC(pipe)) &
 			_PIPE_V_SRCSZ_MASK) >> _PIPE_V_SRCSZ_SHIFT;
 	plane->height += 1;	/* raw height is one minus the real value */
 
-	val = vgpu_vreg(vgpu, DSPTILEOFF(pipe));
+	val = vgpu_vreg_t(vgpu, DSPTILEOFF(pipe));
 	plane->x_offset = (val & _PRI_PLANE_X_OFF_MASK) >>
 		_PRI_PLANE_X_OFF_SHIFT;
 	plane->y_offset = (val & _PRI_PLANE_Y_OFF_MASK) >>
@@ -344,7 +344,7 @@ int intel_vgpu_decode_cursor_plane(struct intel_vgpu *vgpu,
 	if (pipe >= I915_MAX_PIPES)
 		return -ENODEV;
 
-	val = vgpu_vreg(vgpu, CURCNTR(pipe));
+	val = vgpu_vreg_t(vgpu, CURCNTR(pipe));
 	mode = val & CURSOR_MODE;
 	plane->enabled = (mode != CURSOR_MODE_DISABLE);
 	if (!plane->enabled)
@@ -370,7 +370,7 @@ int intel_vgpu_decode_cursor_plane(struct intel_vgpu *vgpu,
 		gvt_dbg_core("alpha_plane=0x%x, alpha_force=0x%x\n",
 			alpha_plane, alpha_force);
 
-	plane->base = vgpu_vreg(vgpu, CURBASE(pipe)) & I915_GTT_PAGE_MASK;
+	plane->base = vgpu_vreg_t(vgpu, CURBASE(pipe)) & I915_GTT_PAGE_MASK;
 	if (!intel_gvt_ggtt_validate_range(vgpu, plane->base, 0)) {
 		gvt_vgpu_err("invalid gma address: %lx\n",
 			     (unsigned long)plane->base);
@@ -384,7 +384,7 @@ int intel_vgpu_decode_cursor_plane(struct intel_vgpu *vgpu,
 		return  -EINVAL;
 	}
 
-	val = vgpu_vreg(vgpu, CURPOS(pipe));
+	val = vgpu_vreg_t(vgpu, CURPOS(pipe));
 	plane->x_pos = (val & _CURSOR_POS_X_MASK) >> _CURSOR_POS_X_SHIFT;
 	plane->x_sign = (val & _CURSOR_SIGN_X_MASK) >> _CURSOR_SIGN_X_SHIFT;
 	plane->y_pos = (val & _CURSOR_POS_Y_MASK) >> _CURSOR_POS_Y_SHIFT;
@@ -424,7 +424,7 @@ int intel_vgpu_decode_sprite_plane(struct intel_vgpu *vgpu,
 	if (pipe >= I915_MAX_PIPES)
 		return -ENODEV;
 
-	val = vgpu_vreg(vgpu, SPRCTL(pipe));
+	val = vgpu_vreg_t(vgpu, SPRCTL(pipe));
 	plane->enabled = !!(val & SPRITE_ENABLE);
 	if (!plane->enabled)
 		return -ENODEV;
@@ -475,7 +475,7 @@ int intel_vgpu_decode_sprite_plane(struct intel_vgpu *vgpu,
 
 	plane->drm_format = drm_format;
 
-	plane->base = vgpu_vreg(vgpu, SPRSURF(pipe)) & I915_GTT_PAGE_MASK;
+	plane->base = vgpu_vreg_t(vgpu, SPRSURF(pipe)) & I915_GTT_PAGE_MASK;
 	if (!intel_gvt_ggtt_validate_range(vgpu, plane->base, 0)) {
 		gvt_vgpu_err("invalid gma address: %lx\n",
 			     (unsigned long)plane->base);
@@ -489,10 +489,10 @@ int intel_vgpu_decode_sprite_plane(struct intel_vgpu *vgpu,
 		return  -EINVAL;
 	}
 
-	plane->stride = vgpu_vreg(vgpu, SPRSTRIDE(pipe)) &
+	plane->stride = vgpu_vreg_t(vgpu, SPRSTRIDE(pipe)) &
 				_SPRITE_STRIDE_MASK;
 
-	val = vgpu_vreg(vgpu, SPRSIZE(pipe));
+	val = vgpu_vreg_t(vgpu, SPRSIZE(pipe));
 	plane->height = (val & _SPRITE_SIZE_HEIGHT_MASK) >>
 		_SPRITE_SIZE_HEIGHT_SHIFT;
 	plane->width = (val & _SPRITE_SIZE_WIDTH_MASK) >>
@@ -500,11 +500,11 @@ int intel_vgpu_decode_sprite_plane(struct intel_vgpu *vgpu,
 	plane->height += 1;	/* raw height is one minus the real value */
 	plane->width += 1;	/* raw width is one minus the real value */
 
-	val = vgpu_vreg(vgpu, SPRPOS(pipe));
+	val = vgpu_vreg_t(vgpu, SPRPOS(pipe));
 	plane->x_pos = (val & _SPRITE_POS_X_MASK) >> _SPRITE_POS_X_SHIFT;
 	plane->y_pos = (val & _SPRITE_POS_Y_MASK) >> _SPRITE_POS_Y_SHIFT;
 
-	val = vgpu_vreg(vgpu, SPROFFSET(pipe));
+	val = vgpu_vreg_t(vgpu, SPROFFSET(pipe));
 	plane->x_offset = (val & _SPRITE_OFFSET_START_X_MASK) >>
 			   _SPRITE_OFFSET_START_X_SHIFT;
 	plane->y_offset = (val & _SPRITE_OFFSET_START_Y_MASK) >>

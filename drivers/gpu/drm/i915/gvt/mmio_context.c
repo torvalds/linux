@@ -224,7 +224,7 @@ static void handle_tlb_pending_event(struct intel_vgpu *vgpu, int ring_id)
 	if (wait_for_atomic((I915_READ_FW(reg) == 0), 50))
 		gvt_vgpu_err("timeout in invalidate ring (%d) tlb\n", ring_id);
 	else
-		vgpu_vreg(vgpu, regs[ring_id]) = 0;
+		vgpu_vreg_t(vgpu, reg) = 0;
 
 	intel_uncore_forcewake_put(dev_priv, fw);
 
@@ -257,11 +257,11 @@ static void switch_mocs(struct intel_vgpu *pre, struct intel_vgpu *next,
 	offset.reg = regs[ring_id];
 	for (i = 0; i < 64; i++) {
 		if (pre)
-			old_v = vgpu_vreg(pre, offset);
+			old_v = vgpu_vreg_t(pre, offset);
 		else
 			old_v = gen9_render_mocs.control_table[ring_id][i];
 		if (next)
-			new_v = vgpu_vreg(next, offset);
+			new_v = vgpu_vreg_t(next, offset);
 		else
 			new_v = gen9_render_mocs.control_table[ring_id][i];
 
@@ -275,11 +275,11 @@ static void switch_mocs(struct intel_vgpu *pre, struct intel_vgpu *next,
 		l3_offset.reg = 0xb020;
 		for (i = 0; i < 32; i++) {
 			if (pre)
-				old_v = vgpu_vreg(pre, l3_offset);
+				old_v = vgpu_vreg_t(pre, l3_offset);
 			else
 				old_v = gen9_render_mocs.l3cc_table[i];
 			if (next)
-				new_v = vgpu_vreg(next, l3_offset);
+				new_v = vgpu_vreg_t(next, l3_offset);
 			else
 				new_v = gen9_render_mocs.l3cc_table[i];
 
@@ -316,11 +316,11 @@ static void switch_mmio(struct intel_vgpu *pre,
 			continue;
 		// save
 		if (pre) {
-			vgpu_vreg(pre, mmio->reg) = I915_READ_FW(mmio->reg);
+			vgpu_vreg_t(pre, mmio->reg) = I915_READ_FW(mmio->reg);
 			if (mmio->mask)
-				vgpu_vreg(pre, mmio->reg) &=
+				vgpu_vreg_t(pre, mmio->reg) &=
 						~(mmio->mask << 16);
-			old_v = vgpu_vreg(pre, mmio->reg);
+			old_v = vgpu_vreg_t(pre, mmio->reg);
 		} else
 			old_v = mmio->value = I915_READ_FW(mmio->reg);
 
@@ -340,10 +340,10 @@ static void switch_mmio(struct intel_vgpu *pre,
 				continue;
 
 			if (mmio->mask)
-				new_v = vgpu_vreg(next, mmio->reg) |
+				new_v = vgpu_vreg_t(next, mmio->reg) |
 							(mmio->mask << 16);
 			else
-				new_v = vgpu_vreg(next, mmio->reg);
+				new_v = vgpu_vreg_t(next, mmio->reg);
 		} else {
 			if (mmio->in_context)
 				continue;

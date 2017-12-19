@@ -343,13 +343,13 @@ static int pch_pp_control_mmio_write(struct intel_vgpu *vgpu,
 	write_vreg(vgpu, offset, p_data, bytes);
 
 	if (vgpu_vreg(vgpu, offset) & PANEL_POWER_ON) {
-		vgpu_vreg(vgpu, PCH_PP_STATUS) |= PP_ON;
-		vgpu_vreg(vgpu, PCH_PP_STATUS) |= PP_SEQUENCE_STATE_ON_IDLE;
-		vgpu_vreg(vgpu, PCH_PP_STATUS) &= ~PP_SEQUENCE_POWER_DOWN;
-		vgpu_vreg(vgpu, PCH_PP_STATUS) &= ~PP_CYCLE_DELAY_ACTIVE;
+		vgpu_vreg_t(vgpu, PCH_PP_STATUS) |= PP_ON;
+		vgpu_vreg_t(vgpu, PCH_PP_STATUS) |= PP_SEQUENCE_STATE_ON_IDLE;
+		vgpu_vreg_t(vgpu, PCH_PP_STATUS) &= ~PP_SEQUENCE_POWER_DOWN;
+		vgpu_vreg_t(vgpu, PCH_PP_STATUS) &= ~PP_CYCLE_DELAY_ACTIVE;
 
 	} else
-		vgpu_vreg(vgpu, PCH_PP_STATUS) &=
+		vgpu_vreg_t(vgpu, PCH_PP_STATUS) &=
 			~(PP_ON | PP_SEQUENCE_POWER_DOWN
 					| PP_CYCLE_DELAY_ACTIVE);
 	return 0;
@@ -503,7 +503,7 @@ static int ddi_buf_ctl_mmio_write(struct intel_vgpu *vgpu, unsigned int offset,
 	} else {
 		vgpu_vreg(vgpu, offset) |= DDI_BUF_IS_IDLE;
 		if (offset == i915_mmio_reg_offset(DDI_BUF_CTL(PORT_E)))
-			vgpu_vreg(vgpu, DP_TP_STATUS(PORT_E))
+			vgpu_vreg_t(vgpu, DP_TP_STATUS(PORT_E))
 				&= ~DP_TP_STATUS_AUTOTRAIN_DONE;
 	}
 	return 0;
@@ -521,9 +521,9 @@ static int fdi_rx_iir_mmio_write(struct intel_vgpu *vgpu,
 
 static int fdi_auto_training_started(struct intel_vgpu *vgpu)
 {
-	u32 ddi_buf_ctl = vgpu_vreg(vgpu, DDI_BUF_CTL(PORT_E));
+	u32 ddi_buf_ctl = vgpu_vreg_t(vgpu, DDI_BUF_CTL(PORT_E));
 	u32 rx_ctl = vgpu_vreg(vgpu, _FDI_RXA_CTL);
-	u32 tx_ctl = vgpu_vreg(vgpu, DP_TP_CTL(PORT_E));
+	u32 tx_ctl = vgpu_vreg_t(vgpu, DP_TP_CTL(PORT_E));
 
 	if ((ddi_buf_ctl & DDI_BUF_CTL_ENABLE) &&
 			(rx_ctl & FDI_RX_ENABLE) &&
@@ -564,12 +564,12 @@ static int check_fdi_rx_train_status(struct intel_vgpu *vgpu,
 	fdi_tx_check_bits = FDI_TX_ENABLE | fdi_tx_train_bits;
 
 	/* If imr bit has been masked */
-	if (vgpu_vreg(vgpu, fdi_rx_imr) & fdi_iir_check_bits)
+	if (vgpu_vreg_t(vgpu, fdi_rx_imr) & fdi_iir_check_bits)
 		return 0;
 
-	if (((vgpu_vreg(vgpu, fdi_tx_ctl) & fdi_tx_check_bits)
+	if (((vgpu_vreg_t(vgpu, fdi_tx_ctl) & fdi_tx_check_bits)
 			== fdi_tx_check_bits)
-		&& ((vgpu_vreg(vgpu, fdi_rx_ctl) & fdi_rx_check_bits)
+		&& ((vgpu_vreg_t(vgpu, fdi_rx_ctl) & fdi_rx_check_bits)
 			== fdi_rx_check_bits))
 		return 1;
 	else
@@ -626,17 +626,17 @@ static int update_fdi_rx_iir_status(struct intel_vgpu *vgpu,
 	if (ret < 0)
 		return ret;
 	if (ret)
-		vgpu_vreg(vgpu, fdi_rx_iir) |= FDI_RX_BIT_LOCK;
+		vgpu_vreg_t(vgpu, fdi_rx_iir) |= FDI_RX_BIT_LOCK;
 
 	ret = check_fdi_rx_train_status(vgpu, index, FDI_LINK_TRAIN_PATTERN2);
 	if (ret < 0)
 		return ret;
 	if (ret)
-		vgpu_vreg(vgpu, fdi_rx_iir) |= FDI_RX_SYMBOL_LOCK;
+		vgpu_vreg_t(vgpu, fdi_rx_iir) |= FDI_RX_SYMBOL_LOCK;
 
 	if (offset == _FDI_RXA_CTL)
 		if (fdi_auto_training_started(vgpu))
-			vgpu_vreg(vgpu, DP_TP_STATUS(PORT_E)) |=
+			vgpu_vreg_t(vgpu, DP_TP_STATUS(PORT_E)) |=
 				DP_TP_STATUS_AUTOTRAIN_DONE;
 	return 0;
 }
@@ -657,7 +657,7 @@ static int dp_tp_ctl_mmio_write(struct intel_vgpu *vgpu, unsigned int offset,
 	data = (vgpu_vreg(vgpu, offset) & GENMASK(10, 8)) >> 8;
 	if (data == 0x2) {
 		status_reg = DP_TP_STATUS(index);
-		vgpu_vreg(vgpu, status_reg) |= (1 << 25);
+		vgpu_vreg_t(vgpu, status_reg) |= (1 << 25);
 	}
 	return 0;
 }
@@ -721,7 +721,7 @@ static int pri_surf_mmio_write(struct intel_vgpu *vgpu, unsigned int offset,
 	};
 
 	write_vreg(vgpu, offset, p_data, bytes);
-	vgpu_vreg(vgpu, surflive_reg) = vgpu_vreg(vgpu, offset);
+	vgpu_vreg_t(vgpu, surflive_reg) = vgpu_vreg(vgpu, offset);
 
 	set_bit(flip_event[index], vgpu->irq.flip_done_event[index]);
 	return 0;
@@ -742,7 +742,7 @@ static int spr_surf_mmio_write(struct intel_vgpu *vgpu, unsigned int offset,
 	};
 
 	write_vreg(vgpu, offset, p_data, bytes);
-	vgpu_vreg(vgpu, surflive_reg) = vgpu_vreg(vgpu, offset);
+	vgpu_vreg_t(vgpu, surflive_reg) = vgpu_vreg(vgpu, offset);
 
 	set_bit(flip_event[index], vgpu->irq.flip_done_event[index]);
 	return 0;
@@ -1064,9 +1064,9 @@ static void write_virtual_sbi_register(struct intel_vgpu *vgpu,
 static int sbi_data_mmio_read(struct intel_vgpu *vgpu, unsigned int offset,
 		void *p_data, unsigned int bytes)
 {
-	if (((vgpu_vreg(vgpu, SBI_CTL_STAT) & SBI_OPCODE_MASK) >>
+	if (((vgpu_vreg_t(vgpu, SBI_CTL_STAT) & SBI_OPCODE_MASK) >>
 				SBI_OPCODE_SHIFT) == SBI_CMD_CRRD) {
-		unsigned int sbi_offset = (vgpu_vreg(vgpu, SBI_ADDR) &
+		unsigned int sbi_offset = (vgpu_vreg_t(vgpu, SBI_ADDR) &
 				SBI_ADDR_OFFSET_MASK) >> SBI_ADDR_OFFSET_SHIFT;
 		vgpu_vreg(vgpu, offset) = read_virtual_sbi_register(vgpu,
 				sbi_offset);
@@ -1091,13 +1091,13 @@ static int sbi_ctl_mmio_write(struct intel_vgpu *vgpu, unsigned int offset,
 
 	vgpu_vreg(vgpu, offset) = data;
 
-	if (((vgpu_vreg(vgpu, SBI_CTL_STAT) & SBI_OPCODE_MASK) >>
+	if (((vgpu_vreg_t(vgpu, SBI_CTL_STAT) & SBI_OPCODE_MASK) >>
 				SBI_OPCODE_SHIFT) == SBI_CMD_CRWR) {
-		unsigned int sbi_offset = (vgpu_vreg(vgpu, SBI_ADDR) &
+		unsigned int sbi_offset = (vgpu_vreg_t(vgpu, SBI_ADDR) &
 				SBI_ADDR_OFFSET_MASK) >> SBI_ADDR_OFFSET_SHIFT;
 
 		write_virtual_sbi_register(vgpu, sbi_offset,
-				vgpu_vreg(vgpu, SBI_DATA));
+					   vgpu_vreg_t(vgpu, SBI_DATA));
 	}
 	return 0;
 }
@@ -1343,7 +1343,7 @@ static int mailbox_write(struct intel_vgpu *vgpu, unsigned int offset,
 {
 	u32 value = *(u32 *)p_data;
 	u32 cmd = value & 0xff;
-	u32 *data0 = &vgpu_vreg(vgpu, GEN6_PCODE_DATA);
+	u32 *data0 = &vgpu_vreg_t(vgpu, GEN6_PCODE_DATA);
 
 	switch (cmd) {
 	case GEN9_PCODE_READ_MEM_LATENCY:

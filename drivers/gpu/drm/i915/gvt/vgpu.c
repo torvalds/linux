@@ -38,25 +38,25 @@
 void populate_pvinfo_page(struct intel_vgpu *vgpu)
 {
 	/* setup the ballooning information */
-	vgpu_vreg64(vgpu, vgtif_reg(magic)) = VGT_MAGIC;
-	vgpu_vreg(vgpu, vgtif_reg(version_major)) = 1;
-	vgpu_vreg(vgpu, vgtif_reg(version_minor)) = 0;
-	vgpu_vreg(vgpu, vgtif_reg(display_ready)) = 0;
-	vgpu_vreg(vgpu, vgtif_reg(vgt_id)) = vgpu->id;
+	vgpu_vreg64_t(vgpu, vgtif_reg(magic)) = VGT_MAGIC;
+	vgpu_vreg_t(vgpu, vgtif_reg(version_major)) = 1;
+	vgpu_vreg_t(vgpu, vgtif_reg(version_minor)) = 0;
+	vgpu_vreg_t(vgpu, vgtif_reg(display_ready)) = 0;
+	vgpu_vreg_t(vgpu, vgtif_reg(vgt_id)) = vgpu->id;
 
-	vgpu_vreg(vgpu, vgtif_reg(vgt_caps)) = VGT_CAPS_FULL_48BIT_PPGTT;
-	vgpu_vreg(vgpu, vgtif_reg(vgt_caps)) |= VGT_CAPS_HWSP_EMULATION;
+	vgpu_vreg_t(vgpu, vgtif_reg(vgt_caps)) = VGT_CAPS_FULL_48BIT_PPGTT;
+	vgpu_vreg_t(vgpu, vgtif_reg(vgt_caps)) |= VGT_CAPS_HWSP_EMULATION;
 
-	vgpu_vreg(vgpu, vgtif_reg(avail_rs.mappable_gmadr.base)) =
+	vgpu_vreg_t(vgpu, vgtif_reg(avail_rs.mappable_gmadr.base)) =
 		vgpu_aperture_gmadr_base(vgpu);
-	vgpu_vreg(vgpu, vgtif_reg(avail_rs.mappable_gmadr.size)) =
+	vgpu_vreg_t(vgpu, vgtif_reg(avail_rs.mappable_gmadr.size)) =
 		vgpu_aperture_sz(vgpu);
-	vgpu_vreg(vgpu, vgtif_reg(avail_rs.nonmappable_gmadr.base)) =
+	vgpu_vreg_t(vgpu, vgtif_reg(avail_rs.nonmappable_gmadr.base)) =
 		vgpu_hidden_gmadr_base(vgpu);
-	vgpu_vreg(vgpu, vgtif_reg(avail_rs.nonmappable_gmadr.size)) =
+	vgpu_vreg_t(vgpu, vgtif_reg(avail_rs.nonmappable_gmadr.size)) =
 		vgpu_hidden_sz(vgpu);
 
-	vgpu_vreg(vgpu, vgtif_reg(avail_rs.fence_num)) = vgpu_fence_sz(vgpu);
+	vgpu_vreg_t(vgpu, vgtif_reg(avail_rs.fence_num)) = vgpu_fence_sz(vgpu);
 
 	gvt_dbg_core("Populate PVINFO PAGE for vGPU %d\n", vgpu->id);
 	gvt_dbg_core("aperture base [GMADR] 0x%llx size 0x%llx\n",
