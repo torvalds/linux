@@ -419,6 +419,19 @@ struct rvt_dev_info {
 
 };
 
+/**
+ * rvt_set_ibdev_name - Craft an IB device name from client info
+ * @rdi: pointer to the client rvt_dev_info structure
+ * @name: client specific name
+ * @unit: client specific unit number.
+ */
+static inline void rvt_set_ibdev_name(struct rvt_dev_info *rdi,
+				      const char *fmt, const char *name,
+				      const int unit)
+{
+	snprintf(rdi->ibdev.name, sizeof(rdi->ibdev.name), fmt, name, unit);
+}
+
 static inline struct rvt_pd *ibpd_to_rvtpd(struct ib_pd *ibpd)
 {
 	return container_of(ibpd, struct rvt_pd, ibpd);
