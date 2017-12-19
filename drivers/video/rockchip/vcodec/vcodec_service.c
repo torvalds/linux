@@ -43,6 +43,7 @@
 
 #include <linux/rockchip/pmu.h>
 #include <linux/rockchip/grf.h>
+#include <linux/rockchip/rockchip_sip.h>
 
 #include <linux/dma-iommu.h>
 #include <linux/dma-buf.h>
@@ -621,6 +622,7 @@ static int vpu_get_clk(struct vpu_service_info *pservice)
 static void _vpu_reset(struct vpu_subdev_data *data)
 {
 	struct vpu_service_info *pservice = data->pservice;
+	int ret = 0;
 
 	dev_info(pservice->dev, "resetting...\n");
 	WARN_ON(pservice->reg_codec != NULL);
@@ -631,28 +633,32 @@ static void _vpu_reset(struct vpu_subdev_data *data)
 	pservice->reg_resev = NULL;
 
 #ifdef CONFIG_RESET_CONTROLLER
-	rockchip_pmu_idle_request(pservice->dev, true);
-	if (pservice->hw_ops->reduce_freq)
-		pservice->hw_ops->reduce_freq(pservice);
+	ret = rockchip_pmu_idle_request(pservice->dev, true);
+	if (ret < 0) {
+		sip_smc_vpu_reset(0, 0, 0);
+	} else {
+		if (pservice->hw_ops->reduce_freq)
+			pservice->hw_ops->reduce_freq(pservice);
 
-	try_reset_assert(pservice->rst_niu_a);
-	try_reset_assert(pservice->rst_niu_h);
-	try_reset_assert(pservice->rst_v);
-	try_reset_assert(pservice->rst_a);
-	try_reset_assert(pservice->rst_h);
-	try_reset_assert(pservice->rst_core);
-	try_reset_assert(pservice->rst_cabac);
-	udelay(5);
+		try_reset_assert(pservice->rst_niu_a);
+		try_reset_assert(pservice->rst_niu_h);
+		try_reset_assert(pservice->rst_v);
+		try_reset_assert(pservice->rst_a);
+		try_reset_assert(pservice->rst_h);
+		try_reset_assert(pservice->rst_core);
+		try_reset_assert(pservice->rst_cabac);
+		udelay(5);
 
-	try_reset_deassert(pservice->rst_niu_h);
-	try_reset_deassert(pservice->rst_niu_a);
-	try_reset_deassert(pservice->rst_v);
-	try_reset_deassert(pservice->rst_h);
-	try_reset_deassert(pservice->rst_a);
-	try_reset_deassert(pservice->rst_core);
-	try_reset_deassert(pservice->rst_cabac);
+		try_reset_deassert(pservice->rst_niu_h);
+		try_reset_deassert(pservice->rst_niu_a);
+		try_reset_deassert(pservice->rst_v);
+		try_reset_deassert(pservice->rst_h);
+		try_reset_deassert(pservice->rst_a);
+		try_reset_deassert(pservice->rst_core);
+		try_reset_deassert(pservice->rst_cabac);
 
-	rockchip_pmu_idle_request(pservice->dev, false);
+		rockchip_pmu_idle_request(pservice->dev, false);
+	}
 	dev_info(pservice->dev, "reset done\n");
 #endif
 }
@@ -1796,6 +1802,18 @@ static long vpu_service_ioctl(struct file *filp, unsigned int cmd,
 			return -EFAULT;
 		}
 	} break;
+	case VPU_IOC_SET_DRIVER_DATA: {
+		u32 val;
+
+		if (copy_from_user(&val, (void __user *)arg,
+				   sizeof(int))) {
+			vpu_err("error: COMPAT_VPU_IOC_SET_DRIVER_DATA copy_from_user failed\n");
+			return -EFAULT;
+		}
+
+		if (pservice->grf)
+			regmap_write(pservice->grf, 0x5d8, val);
+	} break;
 	default: {
 		vpu_err("error: unknow vpu service ioctl cmd %x\n", cmd);
 		return -ENOIOCTLCMD;
@@ -1815,6 +1833,7 @@ static long vpu_service_ioctl(struct file *filp, unsigned int cmd,
 #define VPU_IOC_GET_REG32                  _IOW(VPU_IOC_MAGIC, 4, \
 						compat_ulong_t)
 #define VPU_IOC_PROBE_IOMMU_STATUS32       _IOR(VPU_IOC_MAGIC, 5, u32)
+#define VPU_IOC_SET_DRIVER_DATA32		_IOW(VPU_IOC_MAGIC, 64, u32)
 
 static long native_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
@@ -1853,6 +1872,9 @@ static long compat_vpu_service_ioctl(struct file *file, unsigned int cmd,
 		break;
 	case VPU_IOC_PROBE_IOMMU_STATUS32:
 		cmd = VPU_IOC_PROBE_IOMMU_STATUS;
+		break;
+	case VPU_IOC_SET_DRIVER_DATA32:
+		cmd = VPU_IOC_SET_DRIVER_DATA;
 		break;
 	}
 

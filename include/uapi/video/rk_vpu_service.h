@@ -32,6 +32,7 @@
 #define VPU_IOC_GET_REG			_IOW(VPU_IOC_MAGIC, 4, unsigned long)
 
 #define VPU_IOC_PROBE_IOMMU_STATUS	_IOR(VPU_IOC_MAGIC, 5, __u32)
+#define VPU_IOC_SET_DRIVER_DATA		_IOW(VPU_IOC_MAGIC, 64, u32)
 
 struct vpu_request {
 	__u32 *req;
