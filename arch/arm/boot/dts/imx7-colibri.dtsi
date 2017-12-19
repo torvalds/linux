@@ -507,6 +507,7 @@
 	pinctrl_pwm1: pwm1-grp {
 		fsl,pins = <
 			MX7D_PAD_GPIO1_IO08__PWM1_OUT		0x79
+			MX7D_PAD_ECSPI2_MOSI__GPIO4_IO21	0x4
 		>;
 	};
 
@@ -525,6 +526,7 @@
 	pinctrl_pwm4: pwm4-grp {
 		fsl,pins = <
 			MX7D_PAD_GPIO1_IO11__PWM4_OUT		0x79
+			MX7D_PAD_ECSPI2_SCLK__GPIO4_IO20	0x4
 		>;
 	};
 
