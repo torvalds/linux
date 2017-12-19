@@ -55,7 +55,7 @@ void dce110_unblank_stream(struct pipe_ctx *pipe_ctx,
 void dce110_update_info_frame(struct pipe_ctx *pipe_ctx);
 
 void dce110_set_avmute(struct pipe_ctx *pipe_ctx, bool enable);
-void dce110_enable_accelerated_mode(struct dc *dc);
+void dce110_enable_accelerated_mode(struct dc *dc, struct dc_state *context);
 
 void dce110_power_down(struct dc *dc);
 

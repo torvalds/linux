@@ -1407,6 +1407,31 @@ static void disable_vga_and_power_gate_all_controllers(
 	}
 }
 
+static struct dc_link *get_link_for_eDP_not_in_use(
+		struct dc *dc,
+		struct dc_state *context)
+{
+	int i;
+	struct dc_link *link = NULL;
+
+	/* check if eDP panel is suppose to be set mode, if yes, no need to disable */
+	for (i = 0; i < context->stream_count; i++) {
+		if (context->streams[i]->signal == SIGNAL_TYPE_EDP)
+			return NULL;
+	}
+
+	/* check if there is an eDP panel not in use */
+	for (i = 0; i < dc->link_count; i++) {
+		if (dc->links[i]->local_sink &&
+			dc->links[i]->local_sink->sink_signal == SIGNAL_TYPE_EDP) {
+			link = dc->links[i];
+			break;
+		}
+	}
+
+	return link;
+}
+
 /**
  * When ASIC goes from VBIOS/VGA mode to driver/accelerated mode we need:
  *  1. Power down all DC HW blocks
@@ -1414,11 +1439,19 @@ static void disable_vga_and_power_gate_all_controllers(
  *  3. Enable power gating for controller
  *  4. Set acc_mode_change bit (VBIOS will clear this bit when going to FSDOS)
  */
-void dce110_enable_accelerated_mode(struct dc *dc)
+void dce110_enable_accelerated_mode(struct dc *dc, struct dc_state *context)
 {
-	power_down_all_hw_blocks(dc);
+	struct dc_link *eDP_link_to_turnoff = get_link_for_eDP_not_in_use(dc, context);
 
+	if (eDP_link_to_turnoff)
+		dc->hwss.edp_backlight_control(eDP_link_to_turnoff, false);
+
+	power_down_all_hw_blocks(dc);
 	disable_vga_and_power_gate_all_controllers(dc);
+
+	if (eDP_link_to_turnoff)
+		dc->hwss.edp_power_control(eDP_link_to_turnoff, false);
+
 	bios_set_scratch_acc_mode_change(dc->ctx->dc_bios);
 }
 

@@ -114,7 +114,7 @@ struct hw_sequencer_funcs {
 
 	void (*power_down)(struct dc *dc);
 
-	void (*enable_accelerated_mode)(struct dc *dc);
+	void (*enable_accelerated_mode)(struct dc *dc, struct dc_state *context);
 
 	void (*enable_timing_synchronization)(
 			struct dc *dc,
