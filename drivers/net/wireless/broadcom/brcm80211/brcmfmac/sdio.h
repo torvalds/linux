@@ -297,10 +297,10 @@ void brcmf_sdiod_intr_unregister(struct brcmf_sdio_dev *sdiodev);
 /* SDIO device register access interface */
 /* Accessors for SDIO Function 0 */
 #define brcmf_sdiod_func0_rb(sdiodev, addr, r) \
-	sdio_readb((sdiodev)->func[0], (addr), (r))
+	sdio_f0_readb((sdiodev)->func[0], (addr), (r))
 
 #define brcmf_sdiod_func0_wb(sdiodev, addr, v, ret) \
-	sdio_writeb((sdiodev)->func[0], (v), (addr), (ret))
+	sdio_f0_writeb((sdiodev)->func[0], (v), (addr), (ret))
 
 /* Accessors for SDIO Function 1 */
 #define brcmf_sdiod_readb(sdiodev, addr, r) \

@@ -995,6 +995,10 @@ static int brcmf_ops_sdio_probe(struct sdio_func *func,
 	brcmf_dbg(SDIO, "Function#: %d\n", func->num);
 
 	dev = &func->dev;
+
+	/* Set MMC_QUIRK_LENIENT_FN0 for this card */
+	func->card->quirks |= MMC_QUIRK_LENIENT_FN0;
+
 	/* prohibit ACPI power management for this device */
 	brcmf_sdiod_acpi_set_power_manageable(dev, 0);
 
