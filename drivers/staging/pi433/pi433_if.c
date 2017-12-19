@@ -772,10 +772,10 @@ pi433_read(struct file *filp, char __user *buf, size_t size, loff_t *f_pos)
 	if (device->rx_active) {
 		mutex_unlock(&device->rx_lock);
 		return -EAGAIN;
-	} else {
-		device->rx_active = true;
-		mutex_unlock(&device->rx_lock);
 	}
+
+	device->rx_active = true;
+	mutex_unlock(&device->rx_lock);
 
 	/* start receiving */
 	/* will block until something was received*/
@@ -1116,11 +1116,11 @@ static int pi433_probe(struct spi_device *spi)
 	if (retval) {
 		dev_dbg(&spi->dev, "configuration of SPI interface failed!\n");
 		return retval;
-	} else {
-		dev_dbg(&spi->dev,
-			"spi interface setup: mode 0x%2x, %d bits per word, %dhz max speed",
-			spi->mode, spi->bits_per_word, spi->max_speed_hz);
 	}
+
+	dev_dbg(&spi->dev,
+		"spi interface setup: mode 0x%2x, %d bits per word, %dhz max speed",
+		spi->mode, spi->bits_per_word, spi->max_speed_hz);
 
 	/* Ping the chip by reading the version register */
 	retval = spi_w8r8(spi, 0x10);
