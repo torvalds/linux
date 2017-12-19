@@ -88,6 +88,7 @@ struct qtnf_vif {
 	struct work_struct reset_work;
 	struct qtnf_sta_list sta_list;
 	unsigned long cons_tx_timeout_cnt;
+	int generation;
 };
 
 struct qtnf_mac_info {

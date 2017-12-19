@@ -418,6 +418,7 @@ qtnf_get_station(struct wiphy *wiphy, struct net_device *dev,
 {
 	struct qtnf_vif *vif = qtnf_netdev_get_priv(dev);
 
+	sinfo->generation = vif->generation;
 	return qtnf_cmd_get_sta_info(vif, mac, sinfo);
 }
 
@@ -439,10 +440,12 @@ qtnf_dump_station(struct wiphy *wiphy, struct net_device *dev,
 	ret = qtnf_cmd_get_sta_info(vif, sta_node->mac_addr, sinfo);
 
 	if (unlikely(ret == -ENOENT)) {
-		qtnf_sta_list_del(&vif->sta_list, mac);
+		qtnf_sta_list_del(vif, mac);
 		cfg80211_del_sta(vif->netdev, mac, GFP_KERNEL);
 		sinfo->filled = 0;
 	}
+
+	sinfo->generation = vif->generation;
 
 	return ret;
 }

@@ -59,10 +59,11 @@ qtnf_event_handle_sta_assoc(struct qtnf_wmac *mac, struct qtnf_vif *vif,
 	pr_debug("VIF%u.%u: MAC:%pM FC:%x\n", mac->macid, vif->vifid, sta_addr,
 		 frame_control);
 
-	qtnf_sta_list_add(&vif->sta_list, sta_addr);
+	qtnf_sta_list_add(vif, sta_addr);
 
 	sinfo.assoc_req_ies = NULL;
 	sinfo.assoc_req_ies_len = 0;
+	sinfo.generation = vif->generation;
 
 	payload_len = len - sizeof(*sta_assoc);
 	tlv = (const struct qlink_tlv_hdr *)sta_assoc->ies;
@@ -132,7 +133,7 @@ qtnf_event_handle_sta_deauth(struct qtnf_wmac *mac, struct qtnf_vif *vif,
 	pr_debug("VIF%u.%u: MAC:%pM reason:%x\n", mac->macid, vif->vifid,
 		 sta_addr, reason);
 
-	if (qtnf_sta_list_del(&vif->sta_list, sta_addr))
+	if (qtnf_sta_list_del(vif, sta_addr))
 		cfg80211_del_sta(vif->netdev, sta_deauth->sta_addr,
 				 GFP_KERNEL);
 
