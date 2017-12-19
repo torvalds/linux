@@ -608,8 +608,8 @@ EXPORT_SYMBOL_GPL(atomisp_gmin_register_vcm_control);
  * argument should be a device with an ACPI companion, as all
  * configuration is based on firmware ID.
  */
-int gmin_get_config_var(struct device *dev, const char *var, char *out,
-			size_t *out_len)
+static int gmin_get_config_var(struct device *dev, const char *var,
+			       char *out, size_t *out_len)
 {
 	char var8[CFG_VAR_NAME_MAX];
 	efi_char16_t var16[CFG_VAR_NAME_MAX];
@@ -691,7 +691,6 @@ int gmin_get_config_var(struct device *dev, const char *var, char *out,
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(gmin_get_config_var);
 
 int gmin_get_var_int(struct device *dev, const char *var, int def)
 {
