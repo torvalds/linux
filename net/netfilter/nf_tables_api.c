@@ -2072,7 +2072,7 @@ static int nf_tables_dump_rules(struct sk_buff *skb,
 				continue;
 
 			list_for_each_entry_rcu(chain, &table->chains, list) {
-				if (ctx && ctx->chain[0] &&
+				if (ctx && ctx->chain &&
 				    strcmp(ctx->chain, chain->name) != 0)
 					continue;
 
