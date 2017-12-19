@@ -148,15 +148,28 @@ config PCIE_ARMADA_8K
 	  DesignWare core functions to implement the driver.
 
 config PCIE_ARTPEC6
-	bool "Axis ARTPEC-6 PCIe controller"
-	depends on PCI
+	bool
+
+config PCIE_ARTPEC6_HOST
+	bool "Axis ARTPEC-6 PCIe controller Host Mode"
 	depends on MACH_ARTPEC6
-	depends on PCI_MSI_IRQ_DOMAIN
+	depends on PCI && PCI_MSI_IRQ_DOMAIN
 	select PCIEPORTBUS
 	select PCIE_DW_HOST
+	select PCIE_ARTPEC6
 	help
-	  Say Y here to enable PCIe controller support on Axis ARTPEC-6
-	  SoCs.  This PCIe controller uses the DesignWare core.
+	  Enables support for the PCIe controller in the ARTPEC-6 SoC to work in
+	  host mode. This uses the DesignWare core.
+
+config PCIE_ARTPEC6_EP
+	bool "Axis ARTPEC-6 PCIe controller Endpoint Mode"
+	depends on MACH_ARTPEC6
+	depends on PCI_ENDPOINT
+	select PCIE_DW_EP
+	select PCIE_ARTPEC6
+	help
+	  Enables support for the PCIe controller in the ARTPEC-6 SoC to work in
+	  endpoint mode. This uses the DesignWare core.
 
 config PCIE_KIRIN
 	depends on OF && ARM64

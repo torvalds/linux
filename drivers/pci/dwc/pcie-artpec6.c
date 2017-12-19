@@ -13,6 +13,7 @@
 #include <linux/delay.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
+#include <linux/of_device.h>
 #include <linux/pci.h>
 #include <linux/platform_device.h>
 #include <linux/resource.h>
@@ -30,7 +31,14 @@ struct artpec6_pcie {
 	struct dw_pcie		*pci;
 	struct regmap		*regmap;	/* DT axis,syscon-pcie */
 	void __iomem		*phy_base;	/* DT phy */
+	enum dw_pcie_device_mode mode;
 };
+
+struct artpec_pcie_of_data {
+	enum dw_pcie_device_mode mode;
+};
+
+static const struct of_device_id artpec6_pcie_of_match[];
 
 /* PCIe Port Logic registers (memory-mapped) */
 #define PL_OFFSET			0x700
@@ -40,6 +48,7 @@ struct artpec6_pcie {
 #define  PCIECFG_DBG_OEN		BIT(24)
 #define  PCIECFG_CORE_RESET_REQ		BIT(21)
 #define  PCIECFG_LTSSM_ENABLE		BIT(20)
+#define  PCIECFG_DEVICE_TYPE_MASK	GENMASK(19, 16)
 #define  PCIECFG_CLKREQ_B		BIT(11)
 #define  PCIECFG_REFCLK_ENABLE		BIT(10)
 #define  PCIECFG_PLL_ENABLE		BIT(9)
@@ -89,6 +98,22 @@ static int artpec6_pcie_establish_link(struct dw_pcie *pci)
 
 	return 0;
 }
+
+static void artpec6_pcie_stop_link(struct dw_pcie *pci)
+{
+	struct artpec6_pcie *artpec6_pcie = to_artpec6_pcie(pci);
+	u32 val;
+
+	val = artpec6_pcie_readl(artpec6_pcie, PCIECFG);
+	val &= ~PCIECFG_LTSSM_ENABLE;
+	artpec6_pcie_writel(artpec6_pcie, PCIECFG, val);
+}
+
+static const struct dw_pcie_ops dw_pcie_ops = {
+	.cpu_addr_fixup = artpec6_pcie_cpu_addr_fixup,
+	.start_link = artpec6_pcie_establish_link,
+	.stop_link = artpec6_pcie_stop_link,
+};
 
 static void artpec6_pcie_init_phy(struct artpec6_pcie *artpec6_pcie)
 {
@@ -230,9 +255,75 @@ static int artpec6_add_pcie_port(struct artpec6_pcie *artpec6_pcie,
 	return 0;
 }
 
-static const struct dw_pcie_ops dw_pcie_ops = {
-	.cpu_addr_fixup = artpec6_pcie_cpu_addr_fixup,
+static void artpec6_pcie_ep_init(struct dw_pcie_ep *ep)
+{
+	struct dw_pcie *pci = to_dw_pcie_from_ep(ep);
+	struct artpec6_pcie *artpec6_pcie = to_artpec6_pcie(pci);
+	enum pci_barno bar;
+
+	artpec6_pcie_assert_core_reset(artpec6_pcie);
+	artpec6_pcie_init_phy(artpec6_pcie);
+	artpec6_pcie_deassert_core_reset(artpec6_pcie);
+
+	for (bar = BAR_0; bar <= BAR_5; bar++)
+		dw_pcie_ep_reset_bar(pci, bar);
+}
+
+static int artpec6_pcie_raise_irq(struct dw_pcie_ep *ep,
+				  enum pci_epc_irq_type type, u8 interrupt_num)
+{
+	struct dw_pcie *pci = to_dw_pcie_from_ep(ep);
+
+	switch (type) {
+	case PCI_EPC_IRQ_LEGACY:
+		dev_err(pci->dev, "EP cannot trigger legacy IRQs\n");
+		return -EINVAL;
+	case PCI_EPC_IRQ_MSI:
+		return dw_pcie_ep_raise_msi_irq(ep, interrupt_num);
+	default:
+		dev_err(pci->dev, "UNKNOWN IRQ type\n");
+	}
+
+	return 0;
+}
+
+static struct dw_pcie_ep_ops pcie_ep_ops = {
+	.ep_init = artpec6_pcie_ep_init,
+	.raise_irq = artpec6_pcie_raise_irq,
 };
+
+static int artpec6_add_pcie_ep(struct artpec6_pcie *artpec6_pcie,
+			       struct platform_device *pdev)
+{
+	int ret;
+	struct dw_pcie_ep *ep;
+	struct resource *res;
+	struct device *dev = &pdev->dev;
+	struct dw_pcie *pci = artpec6_pcie->pci;
+
+	ep = &pci->ep;
+	ep->ops = &pcie_ep_ops;
+
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "dbi2");
+	pci->dbi_base2 = devm_ioremap(dev, res->start, resource_size(res));
+	if (IS_ERR(pci->dbi_base2))
+		return PTR_ERR(pci->dbi_base2);
+
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "addr_space");
+	if (!res)
+		return -EINVAL;
+
+	ep->phys_base = res->start;
+	ep->addr_size = resource_size(res);
+
+	ret = dw_pcie_ep_init(ep);
+	if (ret) {
+		dev_err(dev, "failed to initialize endpoint\n");
+		return ret;
+	}
+
+	return 0;
+}
 
 static int artpec6_pcie_probe(struct platform_device *pdev)
 {
@@ -242,6 +333,16 @@ static int artpec6_pcie_probe(struct platform_device *pdev)
 	struct resource *dbi_base;
 	struct resource *phy_base;
 	int ret;
+	const struct of_device_id *match;
+	const struct artpec_pcie_of_data *data;
+	enum dw_pcie_device_mode mode;
+
+	match = of_match_device(artpec6_pcie_of_match, dev);
+	if (!match)
+		return -EINVAL;
+
+	data = (struct artpec_pcie_of_data *)match->data;
+	mode = (enum dw_pcie_device_mode)data->mode;
 
 	artpec6_pcie = devm_kzalloc(dev, sizeof(*artpec6_pcie), GFP_KERNEL);
 	if (!artpec6_pcie)
@@ -255,6 +356,7 @@ static int artpec6_pcie_probe(struct platform_device *pdev)
 	pci->ops = &dw_pcie_ops;
 
 	artpec6_pcie->pci = pci;
+	artpec6_pcie->mode = mode;
 
 	dbi_base = platform_get_resource_byname(pdev, IORESOURCE_MEM, "dbi");
 	pci->dbi_base = devm_ioremap_resource(dev, dbi_base);
@@ -274,15 +376,53 @@ static int artpec6_pcie_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, artpec6_pcie);
 
-	ret = artpec6_add_pcie_port(artpec6_pcie, pdev);
-	if (ret < 0)
-		return ret;
+	switch (artpec6_pcie->mode) {
+	case DW_PCIE_RC_TYPE:
+		if (!IS_ENABLED(CONFIG_PCIE_ARTPEC6_HOST))
+			return -ENODEV;
+
+		ret = artpec6_add_pcie_port(artpec6_pcie, pdev);
+		if (ret < 0)
+			return ret;
+		break;
+	case DW_PCIE_EP_TYPE: {
+		u32 val;
+
+		if (!IS_ENABLED(CONFIG_PCIE_ARTPEC6_EP))
+			return -ENODEV;
+
+		val = artpec6_pcie_readl(artpec6_pcie, PCIECFG);
+		val &= ~PCIECFG_DEVICE_TYPE_MASK;
+		artpec6_pcie_writel(artpec6_pcie, PCIECFG, val);
+		ret = artpec6_add_pcie_ep(artpec6_pcie, pdev);
+		if (ret < 0)
+			return ret;
+		break;
+	}
+	default:
+		dev_err(dev, "INVALID device type %d\n", artpec6_pcie->mode);
+	}
 
 	return 0;
 }
 
+static const struct artpec_pcie_of_data artpec6_pcie_rc_of_data = {
+	.mode = DW_PCIE_RC_TYPE,
+};
+
+static const struct artpec_pcie_of_data artpec6_pcie_ep_of_data = {
+	.mode = DW_PCIE_EP_TYPE,
+};
+
 static const struct of_device_id artpec6_pcie_of_match[] = {
-	{ .compatible = "axis,artpec6-pcie", },
+	{
+		.compatible = "axis,artpec6-pcie",
+		.data = &artpec6_pcie_rc_of_data,
+	},
+	{
+		.compatible = "axis,artpec6-pcie-ep",
+		.data = &artpec6_pcie_ep_of_data,
+	},
 	{},
 };
 
