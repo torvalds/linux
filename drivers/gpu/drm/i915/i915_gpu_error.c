@@ -416,6 +416,7 @@ static void error_print_engine(struct drm_i915_error_state_buf *m,
 	int n;
 
 	err_printf(m, "%s command stream:\n", engine_str(ee->engine_id));
+	err_printf(m, "  IDLE?: %s\n", yesno(ee->idle));
 	err_printf(m, "  START: 0x%08x\n", ee->start);
 	err_printf(m, "  HEAD:  0x%08x [0x%08x]\n", ee->head, ee->rq_head);
 	err_printf(m, "  TAIL:  0x%08x [0x%08x, 0x%08x]\n",
@@ -1239,6 +1240,7 @@ static void error_record_engine_registers(struct i915_gpu_state *error,
 		ee->hws = I915_READ(mmio);
 	}
 
+	ee->idle = intel_engine_is_idle(engine);
 	ee->hangcheck_timestamp = engine->hangcheck.action_timestamp;
 	ee->hangcheck_action = engine->hangcheck.action;
 	ee->hangcheck_stalled = engine->hangcheck.stalled;

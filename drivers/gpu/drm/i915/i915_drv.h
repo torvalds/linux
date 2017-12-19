@@ -948,6 +948,7 @@ struct i915_gpu_state {
 	struct drm_i915_error_engine {
 		int engine_id;
 		/* Software tracked state */
+		bool idle;
 		bool waiting;
 		int num_waiters;
 		unsigned long hangcheck_timestamp;
