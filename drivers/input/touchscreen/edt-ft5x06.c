@@ -96,6 +96,11 @@
 #define M09_ID_G_MODE_POLL			0x00
 #define M09_ID_G_MODE_IRQ			0x01
 
+#define M09_ID_G_PMODE			0xa5
+#define M09_ID_G_PMODE_ACTIVE			0x00
+#define M09_ID_G_PMODE_MONITOR			0x01
+#define M09_ID_G_PMODE_HIBERNATE		0x03
+
 #define M06_TOUCH_REPORT_REQ		0xf9
 
 #define NO_REGISTER			0xff
@@ -407,6 +412,15 @@ static irqreturn_t edt_ft5x06_ts_isr(int irq, void *dev_id)
 static void edt_ft5x06_poll(struct input_polled_dev *polldev)
 {
 	struct edt_ft5x06_ts_data *tsdata = polldev->private;
+
+	switch (tsdata->version) {
+	case M06:
+		break;
+	case M09:
+		edt_ft5x06_register_write(tsdata, M09_ID_G_PMODE,
+					  M09_ID_G_PMODE_ACTIVE);
+		break;
+	}
 
 	edt_ft5x06_report(tsdata);
 }
