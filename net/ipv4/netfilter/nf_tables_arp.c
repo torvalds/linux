@@ -29,7 +29,6 @@ nft_do_chain_arp(void *priv,
 
 static struct nft_af_info nft_af_arp __read_mostly = {
 	.family		= NFPROTO_ARP,
-	.nhooks		= NF_ARP_NUMHOOKS,
 	.owner		= THIS_MODULE,
 };
 

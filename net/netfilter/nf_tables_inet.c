@@ -40,7 +40,6 @@ static unsigned int nft_do_chain_inet(void *priv, struct sk_buff *skb,
 
 static struct nft_af_info nft_af_inet __read_mostly = {
 	.family		= NFPROTO_INET,
-	.nhooks		= NF_INET_NUMHOOKS,
 	.owner		= THIS_MODULE,
 };
 

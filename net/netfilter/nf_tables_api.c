@@ -1328,9 +1328,6 @@ static int nft_chain_parse_hook(struct net *net,
 		return -EINVAL;
 
 	hook->num = ntohl(nla_get_be32(ha[NFTA_HOOK_HOOKNUM]));
-	if (hook->num >= afi->nhooks)
-		return -EINVAL;
-
 	hook->priority = ntohl(nla_get_be32(ha[NFTA_HOOK_PRIORITY]));
 
 	type = chain_type[afi->family][NFT_CHAIN_T_DEFAULT];
@@ -4993,7 +4990,7 @@ static int nf_tables_flowtable_parse_hook(const struct nft_ctx *ctx,
 		return -EINVAL;
 
 	hooknum = ntohl(nla_get_be32(tb[NFTA_FLOWTABLE_HOOK_NUM]));
-	if (hooknum >= ctx->afi->nhooks)
+	if (hooknum != NF_NETDEV_INGRESS)
 		return -EINVAL;
 
 	priority = ntohl(nla_get_be32(tb[NFTA_FLOWTABLE_HOOK_PRIORITY]));

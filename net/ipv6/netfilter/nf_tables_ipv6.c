@@ -30,7 +30,6 @@ static unsigned int nft_do_chain_ipv6(void *priv,
 
 static struct nft_af_info nft_af_ipv6 __read_mostly = {
 	.family		= NFPROTO_IPV6,
-	.nhooks		= NF_INET_NUMHOOKS,
 	.owner		= THIS_MODULE,
 };
 

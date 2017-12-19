@@ -44,7 +44,6 @@ nft_do_chain_bridge(void *priv,
 
 static struct nft_af_info nft_af_bridge __read_mostly = {
 	.family		= NFPROTO_BRIDGE,
-	.nhooks		= NF_BR_NUMHOOKS,
 	.owner		= THIS_MODULE,
 };
 
