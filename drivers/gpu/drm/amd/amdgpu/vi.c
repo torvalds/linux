@@ -455,11 +455,10 @@ static void vi_detect_hw_virtualization(struct amdgpu_device *adev)
 	    adev->asic_type == CHIP_FIJI) {
 	       reg = RREG32(mmBIF_IOV_FUNC_IDENTIFIER);
 	       /* bit0: 0 means pf and 1 means vf */
-	       /* bit31: 0 means disable IOV and 1 means enable */
-	       if (reg & 1)
+	       if (REG_GET_FIELD(reg, BIF_IOV_FUNC_IDENTIFIER, FUNC_IDENTIFIER))
 		       adev->virt.caps |= AMDGPU_SRIOV_CAPS_IS_VF;
-
-	       if (reg & 0x80000000)
+	       /* bit31: 0 means disable IOV and 1 means enable */
+	       if (REG_GET_FIELD(reg, BIF_IOV_FUNC_IDENTIFIER, IOV_ENABLE))
 		       adev->virt.caps |= AMDGPU_SRIOV_CAPS_ENABLE_IOV;
 	}
 
