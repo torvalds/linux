@@ -423,7 +423,7 @@ static inline u64 nf_tables_alloc_handle(struct nft_table *table)
 static const struct nf_chain_type *chain_type[NFPROTO_NUMPROTO][NFT_CHAIN_T_MAX];
 
 static const struct nf_chain_type *
-__nf_tables_chain_type_lookup(int family, const struct nlattr *nla)
+__nf_tables_chain_type_lookup(const struct nlattr *nla, u8 family)
 {
 	int i;
 
@@ -436,22 +436,20 @@ __nf_tables_chain_type_lookup(int family, const struct nlattr *nla)
 }
 
 static const struct nf_chain_type *
-nf_tables_chain_type_lookup(const struct nft_af_info *afi,
-			    const struct nlattr *nla,
-			    bool autoload)
+nf_tables_chain_type_lookup(const struct nlattr *nla, u8 family, bool autoload)
 {
 	const struct nf_chain_type *type;
 
-	type = __nf_tables_chain_type_lookup(afi->family, nla);
+	type = __nf_tables_chain_type_lookup(nla, family);
 	if (type != NULL)
 		return type;
 #ifdef CONFIG_MODULES
 	if (autoload) {
 		nfnl_unlock(NFNL_SUBSYS_NFTABLES);
-		request_module("nft-chain-%u-%.*s", afi->family,
+		request_module("nft-chain-%u-%.*s", family,
 			       nla_len(nla), (const char *)nla_data(nla));
 		nfnl_lock(NFNL_SUBSYS_NFTABLES);
-		type = __nf_tables_chain_type_lookup(afi->family, nla);
+		type = __nf_tables_chain_type_lookup(nla, family);
 		if (type != NULL)
 			return ERR_PTR(-EAGAIN);
 	}
@@ -1325,8 +1323,8 @@ static int nft_chain_parse_hook(struct net *net,
 
 	type = chain_type[afi->family][NFT_CHAIN_T_DEFAULT];
 	if (nla[NFTA_CHAIN_TYPE]) {
-		type = nf_tables_chain_type_lookup(afi, nla[NFTA_CHAIN_TYPE],
-						   create);
+		type = nf_tables_chain_type_lookup(nla[NFTA_CHAIN_TYPE],
+						   afi->family, create);
 		if (IS_ERR(type))
 			return PTR_ERR(type);
 	}
