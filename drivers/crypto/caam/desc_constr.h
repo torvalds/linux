@@ -496,4 +496,45 @@ static inline int desc_inline_query(unsigned int sd_base_len,
 	return (rem_bytes >= 0) ? 0 : -1;
 }
 
+/**
+ * append_proto_dkp - Derived Key Protocol (DKP): key -> split key
+ * @desc: pointer to buffer used for descriptor construction
+ * @adata: pointer to authentication transform definitions.
+ *         keylen should be the length of initial key, while keylen_pad
+ *         the length of the derived (split) key.
+ *         Valid algorithm values - one of OP_ALG_ALGSEL_{MD5, SHA1, SHA224,
+ *         SHA256, SHA384, SHA512}.
+ */
+static inline void append_proto_dkp(u32 * const desc, struct alginfo *adata)
+{
+	u32 protid;
+
+	/*
+	 * Quick & dirty translation from OP_ALG_ALGSEL_{MD5, SHA*}
+	 * to OP_PCLID_DKP_{MD5, SHA*}
+	 */
+	protid = (adata->algtype & OP_ALG_ALGSEL_SUBMASK) |
+		 (0x20 << OP_ALG_ALGSEL_SHIFT);
+
+	if (adata->key_inline) {
+		int words;
+
+		append_operation(desc, OP_TYPE_UNI_PROTOCOL | protid |
+				 OP_PCL_DKP_SRC_IMM | OP_PCL_DKP_DST_IMM |
+				 adata->keylen);
+		append_data(desc, adata->key_virt, adata->keylen);
+
+		/* Reserve space in descriptor buffer for the derived key */
+		words = (ALIGN(adata->keylen_pad, CAAM_CMD_SZ) -
+			 ALIGN(adata->keylen, CAAM_CMD_SZ)) / CAAM_CMD_SZ;
+		if (words)
+			(*desc) = cpu_to_caam32(caam32_to_cpu(*desc) + words);
+	} else {
+		append_operation(desc, OP_TYPE_UNI_PROTOCOL | protid |
+				 OP_PCL_DKP_SRC_PTR | OP_PCL_DKP_DST_PTR |
+				 adata->keylen);
+		append_ptr(desc, adata->key_dma);
+	}
+}
+
 #endif /* DESC_CONSTR_H */
