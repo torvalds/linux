@@ -707,7 +707,8 @@ static void ibm_unconfigure_device(struct pci_func *func)
 	pci_lock_rescan_remove();
 
 	for (j = 0; j < 0x08; j++) {
-		temp = pci_get_bus_and_slot(func->busno, (func->device << 3) | j);
+		temp = pci_get_domain_bus_and_slot(0, func->busno,
+						   (func->device << 3) | j);
 		if (temp) {
 			pci_stop_and_remove_bus_device(temp);
 			pci_dev_put(temp);
@@ -780,7 +781,7 @@ static int ibm_configure_device(struct pci_func *func)
 	if (!(bus_structure_fixup(func->busno)))
 		flag = 1;
 	if (func->dev == NULL)
-		func->dev = pci_get_bus_and_slot(func->busno,
+		func->dev = pci_get_domain_bus_and_slot(0, func->busno,
 				PCI_DEVFN(func->device, func->function));
 
 	if (func->dev == NULL) {
@@ -793,7 +794,7 @@ static int ibm_configure_device(struct pci_func *func)
 		if (num)
 			pci_bus_add_devices(bus);
 
-		func->dev = pci_get_bus_and_slot(func->busno,
+		func->dev = pci_get_domain_bus_and_slot(0, func->busno,
 				PCI_DEVFN(func->device, func->function));
 		if (func->dev == NULL) {
 			err("ERROR... : pci_dev still NULL\n");
