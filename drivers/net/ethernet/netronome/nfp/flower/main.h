@@ -34,6 +34,8 @@
 #ifndef __NFP_FLOWER_H__
 #define __NFP_FLOWER_H__ 1
 
+#include "cmsg.h"
+
 #include <linux/circ_buf.h>
 #include <linux/hashtable.h>
 #include <linux/time64.h>
@@ -58,6 +60,10 @@ struct nfp_app;
 #define NFP_FL_MASK_ID_LOCATION		1
 
 #define NFP_FL_VXLAN_PORT		4789
+#define NFP_FL_GENEVE_PORT		6081
+
+/* Extra features bitmap. */
+#define NFP_FL_FEATS_GENEVE		BIT(0)
 
 struct nfp_fl_mask_id {
 	struct circ_buf mask_id_free_list;
@@ -77,6 +83,7 @@ struct nfp_fl_stats_id {
  * @nn:			Pointer to vNIC
  * @mask_id_seed:	Seed used for mask hash table
  * @flower_version:	HW version of flower
+ * @flower_ext_feats:	Bitmap of extra features the HW supports
  * @stats_ids:		List of free stats ids
  * @mask_ids:		List of free mask ids
  * @mask_table:		Hash table used to store masks
@@ -101,6 +108,7 @@ struct nfp_flower_priv {
 	struct nfp_net *nn;
 	u32 mask_id_seed;
 	u64 flower_version;
+	u64 flower_ext_feats;
 	struct nfp_fl_stats_id stats_ids;
 	struct nfp_fl_mask_id mask_ids;
 	DECLARE_HASHTABLE(mask_table, NFP_FLOWER_MASK_HASH_BITS);
@@ -172,7 +180,8 @@ int nfp_flower_setup_tc(struct nfp_app *app, struct net_device *netdev,
 int nfp_flower_compile_flow_match(struct tc_cls_flower_offload *flow,
 				  struct nfp_fl_key_ls *key_ls,
 				  struct net_device *netdev,
-				  struct nfp_fl_payload *nfp_flow);
+				  struct nfp_fl_payload *nfp_flow,
+				  enum nfp_flower_tun_type tun_type);
 int nfp_flower_compile_action(struct tc_cls_flower_offload *flow,
 			      struct net_device *netdev,
 			      struct nfp_fl_payload *nfp_flow);
