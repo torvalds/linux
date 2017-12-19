@@ -2485,12 +2485,12 @@ static inline void brcmf_sdio_clrintr(struct brcmf_sdio *bus)
 
 static int brcmf_sdio_intr_rstatus(struct brcmf_sdio *bus)
 {
-	struct brcmf_core *buscore = bus->sdio_core;
+	struct brcmf_core *core = bus->sdio_core;
 	u32 addr;
 	unsigned long val;
 	int ret;
 
-	addr = buscore->base + SD_REG(intstatus);
+	addr = core->base + SD_REG(intstatus);
 
 	val = brcmf_sdiod_readl(bus->sdiodev, addr, &ret);
 	bus->sdcnt.f1regdata++;
