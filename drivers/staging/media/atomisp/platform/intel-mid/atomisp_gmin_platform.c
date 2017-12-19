@@ -286,7 +286,8 @@ static const struct dmi_system_id gmin_vars[] = {
 	{
 		.ident = "MRD7",
 		.matches = {
-			DMI_MATCH(DMI_BOARD_NAME, "MRD7"),
+			DMI_MATCH(DMI_BOARD_NAME, "TABLET"),
+			DMI_MATCH(DMI_BOARD_VERSION, "MRD 7"),
 		},
 		.driver_data = mrd7_vars,
 	},
