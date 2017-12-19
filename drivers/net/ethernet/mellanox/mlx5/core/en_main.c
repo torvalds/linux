@@ -3757,10 +3757,37 @@ static netdev_features_t mlx5e_features_check(struct sk_buff *skb,
 	return features;
 }
 
+static bool mlx5e_tx_timeout_eq_recover(struct net_device *dev,
+					struct mlx5e_txqsq *sq)
+{
+	struct mlx5e_priv *priv = netdev_priv(dev);
+	struct mlx5_core_dev *mdev = priv->mdev;
+	int irqn_not_used, eqn;
+	struct mlx5_eq *eq;
+	u32 eqe_count;
+
+	if (mlx5_vector2eqn(mdev, sq->cq.mcq.vector, &eqn, &irqn_not_used))
+		return false;
+
+	eq = mlx5_eqn2eq(mdev, eqn);
+	if (IS_ERR(eq))
+		return false;
+
+	netdev_err(dev, "EQ 0x%x: Cons = 0x%x, irqn = 0x%x\n",
+		   eqn, eq->cons_index, eq->irqn);
+
+	eqe_count = mlx5_eq_poll_irq_disabled(eq);
+	if (!eqe_count)
+		return false;
+
+	netdev_err(dev, "Recover %d eqes on EQ 0x%x\n", eqe_count, eq->eqn);
+	return true;
+}
+
 static void mlx5e_tx_timeout(struct net_device *dev)
 {
 	struct mlx5e_priv *priv = netdev_priv(dev);
-	bool sched_work = false;
+	bool reopen_channels = false;
 	int i;
 
 	netdev_err(dev, "TX timeout detected\n");
@@ -3768,29 +3795,23 @@ static void mlx5e_tx_timeout(struct net_device *dev)
 	for (i = 0; i < priv->channels.num * priv->channels.params.num_tc; i++) {
 		struct netdev_queue *dev_queue = netdev_get_tx_queue(dev, i);
 		struct mlx5e_txqsq *sq = priv->txq2sq[i];
-		struct mlx5_core_dev *mdev = priv->mdev;
-		int irqn_not_used, eqn;
-		struct mlx5_eq *eq;
 
 		if (!netif_xmit_stopped(dev_queue))
 			continue;
-		sched_work = true;
-		clear_bit(MLX5E_SQ_STATE_ENABLED, &sq->state);
 		netdev_err(dev, "TX timeout on queue: %d, SQ: 0x%x, CQ: 0x%x, SQ Cons: 0x%x SQ Prod: 0x%x, usecs since last trans: %u\n",
 			   i, sq->sqn, sq->cq.mcq.cqn, sq->cc, sq->pc,
 			   jiffies_to_usecs(jiffies - dev_queue->trans_start));
 
-		if (mlx5_vector2eqn(mdev, sq->cq.mcq.vector, &eqn,
-				    &irqn_not_used))
-			continue;
-
-		eq = mlx5_eqn2eq(mdev, eqn);
-		if (!IS_ERR(eq))
-			netdev_err(dev, "EQ 0x%x: Cons = 0x%x, irqn = 0x%x\n",
-				   eqn, eq->cons_index, eq->irqn);
+		/* If we recover a lost interrupt, most likely TX timeout will
+		 * be resolved, skip reopening channels
+		 */
+		if (!mlx5e_tx_timeout_eq_recover(dev, sq)) {
+			clear_bit(MLX5E_SQ_STATE_ENABLED, &sq->state);
+			reopen_channels = true;
+		}
 	}
 
-	if (sched_work && test_bit(MLX5E_STATE_OPENED, &priv->state))
+	if (reopen_channels && test_bit(MLX5E_STATE_OPENED, &priv->state))
 		schedule_work(&priv->tx_timeout_work);
 }
 
