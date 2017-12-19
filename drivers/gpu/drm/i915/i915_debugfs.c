@@ -37,23 +37,6 @@ static inline struct drm_i915_private *node_to_i915(struct drm_info_node *node)
 	return to_i915(node->minor->dev);
 }
 
-static __always_inline void seq_print_param(struct seq_file *m,
-					    const char *name,
-					    const char *type,
-					    const void *x)
-{
-	if (!__builtin_strcmp(type, "bool"))
-		seq_printf(m, "i915.%s=%s\n", name, yesno(*(const bool *)x));
-	else if (!__builtin_strcmp(type, "int"))
-		seq_printf(m, "i915.%s=%d\n", name, *(const int *)x);
-	else if (!__builtin_strcmp(type, "unsigned int"))
-		seq_printf(m, "i915.%s=%u\n", name, *(const unsigned int *)x);
-	else if (!__builtin_strcmp(type, "char *"))
-		seq_printf(m, "i915.%s=%s\n", name, *(const char **)x);
-	else
-		BUILD_BUG();
-}
-
 static int i915_capabilities(struct seq_file *m, void *data)
 {
 	struct drm_i915_private *dev_priv = node_to_i915(m->private);
@@ -67,9 +50,7 @@ static int i915_capabilities(struct seq_file *m, void *data)
 	intel_device_info_dump_flags(info, &p);
 
 	kernel_param_lock(THIS_MODULE);
-#define PRINT_PARAM(T, x, ...) seq_print_param(m, #x, #T, &i915_modparams.x);
-	I915_PARAMS_FOR_EACH(PRINT_PARAM);
-#undef PRINT_PARAM
+	i915_params_dump(&i915_modparams, &p);
 	kernel_param_unlock(THIS_MODULE);
 
 	return 0;

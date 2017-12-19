@@ -569,29 +569,12 @@ static void err_print_capabilities(struct drm_i915_error_state_buf *m,
 	intel_device_info_dump_flags(info, &p);
 }
 
-static __always_inline void err_print_param(struct drm_i915_error_state_buf *m,
-					    const char *name,
-					    const char *type,
-					    const void *x)
-{
-	if (!__builtin_strcmp(type, "bool"))
-		err_printf(m, "i915.%s=%s\n", name, yesno(*(const bool *)x));
-	else if (!__builtin_strcmp(type, "int"))
-		err_printf(m, "i915.%s=%d\n", name, *(const int *)x);
-	else if (!__builtin_strcmp(type, "unsigned int"))
-		err_printf(m, "i915.%s=%u\n", name, *(const unsigned int *)x);
-	else if (!__builtin_strcmp(type, "char *"))
-		err_printf(m, "i915.%s=%s\n", name, *(const char **)x);
-	else
-		BUILD_BUG();
-}
-
 static void err_print_params(struct drm_i915_error_state_buf *m,
-			     const struct i915_params *p)
+			     const struct i915_params *params)
 {
-#define PRINT(T, x, ...) err_print_param(m, #x, #T, &p->x);
-	I915_PARAMS_FOR_EACH(PRINT);
-#undef PRINT
+	struct drm_printer p = i915_error_printer(m);
+
+	i915_params_dump(params, &p);
 }
 
 static void err_print_pciid(struct drm_i915_error_state_buf *m,

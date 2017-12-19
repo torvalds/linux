@@ -28,6 +28,8 @@
 #include <linux/bitops.h>
 #include <linux/cache.h> /* for __read_mostly */
 
+struct drm_printer;
+
 #define ENABLE_GUC_SUBMISSION		BIT(0)
 #define ENABLE_GUC_LOAD_HUC		BIT(1)
 
@@ -76,6 +78,8 @@ struct i915_params {
 #undef MEMBER
 
 extern struct i915_params i915_modparams __read_mostly;
+
+void i915_params_dump(const struct i915_params *params, struct drm_printer *p);
 
 #endif
 

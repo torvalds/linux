@@ -22,6 +22,8 @@
  * IN THE SOFTWARE.
  */
 
+#include <drm/drm_print.h>
+
 #include "i915_params.h"
 #include "i915_drv.h"
 
@@ -172,3 +174,34 @@ i915_param_named(enable_dpcd_backlight, bool, 0600,
 
 i915_param_named(enable_gvt, bool, 0400,
 	"Enable support for Intel GVT-g graphics virtualization host support(default:false)");
+
+static __always_inline void _print_param(struct drm_printer *p,
+					 const char *name,
+					 const char *type,
+					 const void *x)
+{
+	if (!__builtin_strcmp(type, "bool"))
+		drm_printf(p, "i915.%s=%s\n", name, yesno(*(const bool *)x));
+	else if (!__builtin_strcmp(type, "int"))
+		drm_printf(p, "i915.%s=%d\n", name, *(const int *)x);
+	else if (!__builtin_strcmp(type, "unsigned int"))
+		drm_printf(p, "i915.%s=%u\n", name, *(const unsigned int *)x);
+	else if (!__builtin_strcmp(type, "char *"))
+		drm_printf(p, "i915.%s=%s\n", name, *(const char **)x);
+	else
+		BUILD_BUG();
+}
+
+/**
+ * i915_params_dump - dump i915 modparams
+ * @params: i915 modparams
+ * @p: the &drm_printer
+ *
+ * Pretty printer for i915 modparams.
+ */
+void i915_params_dump(const struct i915_params *params, struct drm_printer *p)
+{
+#define PRINT(T, x, ...) _print_param(p, #x, #T, &params->x);
+	I915_PARAMS_FOR_EACH(PRINT);
+#undef PRINT
+}
