@@ -422,3 +422,19 @@
 		spi-max-frequency = <96000000>;
 	};
 };
+
+&pcie2_phy {
+	status = "okay";
+};
+
+&pcie1_rc {
+	num-lanes = <2>;
+	phys = <&pcie1_phy>, <&pcie2_phy>;
+	phy-names = "pcie-phy0", "pcie-phy1";
+};
+
+&pcie1_ep {
+	num-lanes = <2>;
+	phys = <&pcie1_phy>, <&pcie2_phy>;
+	phy-names = "pcie-phy0", "pcie-phy1";
+};
