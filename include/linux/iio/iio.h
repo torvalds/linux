@@ -606,8 +606,8 @@ const struct iio_chan_spec
  * iio_device_register() - register a device with the IIO subsystem
  * @indio_dev:		Device structure filled by the device driver
  **/
-#define iio_device_register(iio_dev) \
-	__iio_device_register((iio_dev), THIS_MODULE)
+#define iio_device_register(indio_dev) \
+	__iio_device_register((indio_dev), THIS_MODULE)
 int __iio_device_register(struct iio_dev *indio_dev, struct module *this_mod);
 void iio_device_unregister(struct iio_dev *indio_dev);
 /**
