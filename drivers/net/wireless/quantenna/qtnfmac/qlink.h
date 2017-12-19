@@ -19,7 +19,7 @@
 
 #include <linux/ieee80211.h>
 
-#define QLINK_PROTO_VER		8
+#define QLINK_PROTO_VER		9
 
 #define QLINK_MACID_RSVD		0xFF
 #define QLINK_VIFID_RSVD		0xFF
@@ -183,6 +183,17 @@ struct qlink_auth_encr {
 	u8 control_port;
 	u8 control_port_no_encrypt;
 	u8 rsvd[2];
+} __packed;
+
+/**
+ * struct qlink_sta_info_state - station flags mask/value
+ *
+ * @mask: STA flags mask, bitmap of &enum qlink_sta_flags
+ * @value: STA flags values, bitmap of &enum qlink_sta_flags
+ */
+struct qlink_sta_info_state {
+	__le32 mask;
+	__le32 value;
 } __packed;
 
 /* QLINK Command messages related definitions
@@ -402,16 +413,14 @@ struct qlink_cmd_set_def_mgmt_key {
 /**
  * struct qlink_cmd_change_sta - data for QLINK_CMD_CHANGE_STA command
  *
- * @sta_flags_mask: STA flags mask, bitmap of &enum qlink_sta_flags
- * @sta_flags_set: STA flags values, bitmap of &enum qlink_sta_flags
+ * @flag_update: STA flags to update
  * @if_type: Mode of interface operation, one of &enum qlink_iface_type
  * @vlanid: VLAN ID to assign to specific STA
  * @sta_addr: address of the STA for which parameters are set.
  */
 struct qlink_cmd_change_sta {
 	struct qlink_cmd chdr;
-	__le32 sta_flags_mask;
-	__le32 sta_flags_set;
+	struct qlink_sta_info_state flag_update;
 	__le16 if_type;
 	__le16 vlanid;
 	u8 sta_addr[ETH_ALEN];
@@ -755,17 +764,27 @@ struct qlink_resp_manage_intf {
 	struct qlink_intf_info intf_info;
 } __packed;
 
+enum qlink_sta_info_rate_flags {
+	QLINK_STA_INFO_RATE_FLAG_HT_MCS		= BIT(0),
+	QLINK_STA_INFO_RATE_FLAG_VHT_MCS	= BIT(1),
+	QLINK_STA_INFO_RATE_FLAG_SHORT_GI	= BIT(2),
+	QLINK_STA_INFO_RATE_FLAG_60G		= BIT(3),
+};
+
 /**
  * struct qlink_resp_get_sta_info - response for QLINK_CMD_GET_STA_INFO command
  *
  * Response data containing statistics for specified STA.
  *
+ * @filled: a bitmask of &enum qlink_sta_info, specifies which info in response
+ *	is valid.
  * @sta_addr: MAC address of STA the response carries statistic for.
- * @info: statistics for specified STA.
+ * @info: variable statistics for specified STA.
  */
 struct qlink_resp_get_sta_info {
 	struct qlink_resp rhdr;
 	u8 sta_addr[ETH_ALEN];
+	u8 rsvd[2];
 	u8 info[0];
 } __packed;
 
@@ -1003,6 +1022,15 @@ struct qlink_event_radar {
 /* QLINK TLVs (Type-Length Values) definitions
  */
 
+/**
+ * enum qlink_tlv_id - list of TLVs that Qlink messages can carry
+ *
+ * @QTN_TLV_ID_STA_STATS_MAP: a bitmap of &enum qlink_sta_info, used to
+ *	indicate which statistic carried in QTN_TLV_ID_STA_STATS is valid.
+ * @QTN_TLV_ID_STA_STATS: per-STA statistics as defined by
+ *	&struct qlink_sta_stats. Valid values are marked as such in a bitmap
+ *	carried by QTN_TLV_ID_STA_STATS_MAP.
+ */
 enum qlink_tlv_id {
 	QTN_TLV_ID_FRAG_THRESH		= 0x0201,
 	QTN_TLV_ID_RTS_THRESH		= 0x0202,
@@ -1011,12 +1039,12 @@ enum qlink_tlv_id {
 	QTN_TLV_ID_REG_RULE		= 0x0207,
 	QTN_TLV_ID_CHANNEL		= 0x020F,
 	QTN_TLV_ID_CHANDEF		= 0x0210,
+	QTN_TLV_ID_STA_STATS_MAP	= 0x0211,
+	QTN_TLV_ID_STA_STATS		= 0x0212,
 	QTN_TLV_ID_COVERAGE_CLASS	= 0x0213,
 	QTN_TLV_ID_IFACE_LIMIT		= 0x0214,
 	QTN_TLV_ID_NUM_IFACE_COMB	= 0x0215,
 	QTN_TLV_ID_CHANNEL_STATS	= 0x0216,
-	QTN_TLV_ID_STA_BASIC_COUNTERS	= 0x0300,
-	QTN_TLV_ID_STA_GENERIC_INFO	= 0x0301,
 	QTN_TLV_ID_KEY			= 0x0302,
 	QTN_TLV_ID_SEQ			= 0x0303,
 	QTN_TLV_ID_IE_SET		= 0x0305,
@@ -1038,66 +1066,7 @@ struct qlink_iface_comb_num {
 	__le16 iface_comb_num;
 } __packed;
 
-struct qlink_sta_stat_basic_counters {
-	__le64 rx_bytes;
-	__le64 tx_bytes;
-	__le64 rx_beacons;
-	__le32 rx_packets;
-	__le32 tx_packets;
-	__le32 rx_dropped;
-	__le32 tx_failed;
-} __packed;
-
-enum qlink_sta_info_rate_flags {
-	QLINK_STA_INFO_RATE_FLAG_INVALID	= 0,
-	QLINK_STA_INFO_RATE_FLAG_HT_MCS		= BIT(0),
-	QLINK_STA_INFO_RATE_FLAG_VHT_MCS	= BIT(1),
-	QLINK_STA_INFO_RATE_FLAG_SHORT_GI	= BIT(2),
-	QLINK_STA_INFO_RATE_FLAG_60G		= BIT(3),
-};
-
-enum qlink_sta_info_rate_bw {
-	QLINK_STA_INFO_RATE_BW_5		= 0,
-	QLINK_STA_INFO_RATE_BW_10		= 1,
-	QLINK_STA_INFO_RATE_BW_20		= 2,
-	QLINK_STA_INFO_RATE_BW_40		= 3,
-	QLINK_STA_INFO_RATE_BW_80		= 4,
-	QLINK_STA_INFO_RATE_BW_160		= 5,
-};
-
-/**
- * struct qlink_sta_info_rate - STA rate statistics
- *
- * @rate: data rate in Mbps.
- * @flags: bitmap of &enum qlink_sta_flags.
- * @mcs: 802.11-defined MCS index.
- * nss: Number of Spatial Streams.
- * @bw: bandwidth, one of &enum qlink_sta_info_rate_bw.
- */
-struct qlink_sta_info_rate {
-	__le16 rate;
-	u8 flags;
-	u8 mcs;
-	u8 nss;
-	u8 bw;
-} __packed;
-
-struct qlink_sta_info_state {
-	__le32 mask;
-	__le32 value;
-} __packed;
-
 #define QLINK_RSSI_OFFSET	120
-
-struct qlink_sta_info_generic {
-	struct qlink_sta_info_state state;
-	__le32 connected_time;
-	__le32 inactive_time;
-	struct qlink_sta_info_rate rx_rate;
-	struct qlink_sta_info_rate tx_rate;
-	u8 rssi;
-	u8 rssi_avg;
-} __packed;
 
 struct qlink_tlv_frag_rts_thr {
 	struct qlink_tlv_hdr hdr;
@@ -1242,5 +1211,106 @@ struct qlink_chan_stats {
 	__le32 cca_try;
 	s8 chan_noise;
 } __packed;
+
+/**
+ * enum qlink_sta_info - station information bitmap
+ *
+ * Used to indicate which statistics values in &struct qlink_sta_stats
+ * are valid. Individual values are used to fill a bitmap carried in a
+ * payload of QTN_TLV_ID_STA_STATS_MAP.
+ *
+ * @QLINK_STA_INFO_CONNECTED_TIME: connected_time value is valid.
+ * @QLINK_STA_INFO_INACTIVE_TIME: inactive_time value is valid.
+ * @QLINK_STA_INFO_RX_BYTES: lower 32 bits of rx_bytes value are valid.
+ * @QLINK_STA_INFO_TX_BYTES: lower 32 bits of tx_bytes value are valid.
+ * @QLINK_STA_INFO_RX_BYTES64: rx_bytes value is valid.
+ * @QLINK_STA_INFO_TX_BYTES64: tx_bytes value is valid.
+ * @QLINK_STA_INFO_RX_DROP_MISC: rx_dropped_misc value is valid.
+ * @QLINK_STA_INFO_BEACON_RX: rx_beacon value is valid.
+ * @QLINK_STA_INFO_SIGNAL: signal value is valid.
+ * @QLINK_STA_INFO_SIGNAL_AVG: signal_avg value is valid.
+ * @QLINK_STA_INFO_RX_BITRATE: rxrate value is valid.
+ * @QLINK_STA_INFO_TX_BITRATE: txrate value is valid.
+ * @QLINK_STA_INFO_RX_PACKETS: rx_packets value is valid.
+ * @QLINK_STA_INFO_TX_PACKETS: tx_packets value is valid.
+ * @QLINK_STA_INFO_TX_RETRIES: tx_retries value is valid.
+ * @QLINK_STA_INFO_TX_FAILED: tx_failed value is valid.
+ * @QLINK_STA_INFO_STA_FLAGS: sta_flags value is valid.
+ */
+enum qlink_sta_info {
+	QLINK_STA_INFO_CONNECTED_TIME,
+	QLINK_STA_INFO_INACTIVE_TIME,
+	QLINK_STA_INFO_RX_BYTES,
+	QLINK_STA_INFO_TX_BYTES,
+	QLINK_STA_INFO_RX_BYTES64,
+	QLINK_STA_INFO_TX_BYTES64,
+	QLINK_STA_INFO_RX_DROP_MISC,
+	QLINK_STA_INFO_BEACON_RX,
+	QLINK_STA_INFO_SIGNAL,
+	QLINK_STA_INFO_SIGNAL_AVG,
+	QLINK_STA_INFO_RX_BITRATE,
+	QLINK_STA_INFO_TX_BITRATE,
+	QLINK_STA_INFO_RX_PACKETS,
+	QLINK_STA_INFO_TX_PACKETS,
+	QLINK_STA_INFO_TX_RETRIES,
+	QLINK_STA_INFO_TX_FAILED,
+	QLINK_STA_INFO_STA_FLAGS,
+	QLINK_STA_INFO_NUM,
+};
+
+/**
+ * struct qlink_sta_info_rate - STA rate statistics
+ *
+ * @rate: data rate in Mbps.
+ * @flags: bitmap of &enum qlink_sta_info_rate_flags.
+ * @mcs: 802.11-defined MCS index.
+ * nss: Number of Spatial Streams.
+ * @bw: bandwidth, one of &enum qlink_channel_width.
+ */
+struct qlink_sta_info_rate {
+	__le16 rate;
+	u8 flags;
+	u8 mcs;
+	u8 nss;
+	u8 bw;
+} __packed;
+
+/**
+ * struct qlink_sta_stats - data for QTN_TLV_ID_STA_STATS
+ *
+ * Carries statistics of a STA. Not all fields may be filled with
+ * valid values. Valid fields should be indicated as such using a bitmap of
+ * &enum qlink_sta_info. Bitmap is carried separately in a payload of
+ * QTN_TLV_ID_STA_STATS_MAP.
+ */
+struct qlink_sta_stats {
+	__le64 rx_bytes;
+	__le64 tx_bytes;
+	__le64 rx_beacon;
+	__le64 rx_duration;
+	__le64 t_offset;
+	__le32 connected_time;
+	__le32 inactive_time;
+	__le32 rx_packets;
+	__le32 tx_packets;
+	__le32 tx_retries;
+	__le32 tx_failed;
+	__le32 rx_dropped_misc;
+	__le32 beacon_loss_count;
+	__le32 expected_throughput;
+	struct qlink_sta_info_state sta_flags;
+	struct qlink_sta_info_rate txrate;
+	struct qlink_sta_info_rate rxrate;
+	__le16 llid;
+	__le16 plid;
+	u8 local_pm;
+	u8 peer_pm;
+	u8 nonpeer_pm;
+	u8 rx_beacon_signal_avg;
+	u8 plink_state;
+	u8 signal;
+	u8 signal_avg;
+	u8 rsvd[1];
+};
 
 #endif /* _QTN_QLINK_H_ */

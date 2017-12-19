@@ -164,3 +164,15 @@ enum qlink_hidden_ssid qlink_hidden_ssid_nl2q(enum nl80211_hidden_ssid nl_val)
 		return QLINK_HIDDEN_SSID_NOT_IN_USE;
 	}
 }
+
+bool qtnf_utils_is_bit_set(const u8 *arr, unsigned int bit,
+			   unsigned int arr_max_len)
+{
+	unsigned int idx = bit / BITS_PER_BYTE;
+	u8 mask = 1 << (bit - (idx * BITS_PER_BYTE));
+
+	if (idx >= arr_max_len)
+		return false;
+
+	return arr[idx] & mask;
+}

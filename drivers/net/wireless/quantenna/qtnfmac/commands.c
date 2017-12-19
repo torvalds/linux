@@ -461,30 +461,8 @@ out:
 }
 
 static void
-qtnf_sta_info_parse_basic_counters(struct station_info *sinfo,
-		const struct qlink_sta_stat_basic_counters *counters)
-{
-	sinfo->filled |= BIT(NL80211_STA_INFO_RX_BYTES) |
-			 BIT(NL80211_STA_INFO_TX_BYTES);
-	sinfo->rx_bytes = get_unaligned_le64(&counters->rx_bytes);
-	sinfo->tx_bytes = get_unaligned_le64(&counters->tx_bytes);
-
-	sinfo->filled |= BIT(NL80211_STA_INFO_RX_PACKETS) |
-			 BIT(NL80211_STA_INFO_TX_PACKETS) |
-			 BIT(NL80211_STA_INFO_BEACON_RX);
-	sinfo->rx_packets = get_unaligned_le32(&counters->rx_packets);
-	sinfo->tx_packets = get_unaligned_le32(&counters->tx_packets);
-	sinfo->rx_beacon = get_unaligned_le64(&counters->rx_beacons);
-
-	sinfo->filled |= BIT(NL80211_STA_INFO_RX_DROP_MISC) |
-			 BIT(NL80211_STA_INFO_TX_FAILED);
-	sinfo->rx_dropped_misc = get_unaligned_le32(&counters->rx_dropped);
-	sinfo->tx_failed = get_unaligned_le32(&counters->tx_failed);
-}
-
-static void
 qtnf_sta_info_parse_rate(struct rate_info *rate_dst,
-			 const struct  qlink_sta_info_rate *rate_src)
+			 const struct qlink_sta_info_rate *rate_src)
 {
 	rate_dst->legacy = get_unaligned_le16(&rate_src->rate) * 10;
 
@@ -493,22 +471,23 @@ qtnf_sta_info_parse_rate(struct rate_info *rate_dst,
 	rate_dst->flags = 0;
 
 	switch (rate_src->bw) {
-	case QLINK_STA_INFO_RATE_BW_5:
+	case QLINK_CHAN_WIDTH_5:
 		rate_dst->bw = RATE_INFO_BW_5;
 		break;
-	case QLINK_STA_INFO_RATE_BW_10:
+	case QLINK_CHAN_WIDTH_10:
 		rate_dst->bw = RATE_INFO_BW_10;
 		break;
-	case QLINK_STA_INFO_RATE_BW_20:
+	case QLINK_CHAN_WIDTH_20:
+	case QLINK_CHAN_WIDTH_20_NOHT:
 		rate_dst->bw = RATE_INFO_BW_20;
 		break;
-	case QLINK_STA_INFO_RATE_BW_40:
+	case QLINK_CHAN_WIDTH_40:
 		rate_dst->bw = RATE_INFO_BW_40;
 		break;
-	case QLINK_STA_INFO_RATE_BW_80:
+	case QLINK_CHAN_WIDTH_80:
 		rate_dst->bw = RATE_INFO_BW_80;
 		break;
-	case QLINK_STA_INFO_RATE_BW_160:
+	case QLINK_CHAN_WIDTH_160:
 		rate_dst->bw = RATE_INFO_BW_160;
 		break;
 	default:
@@ -578,87 +557,125 @@ qtnf_sta_info_parse_flags(struct nl80211_sta_flag_update *dst,
 }
 
 static void
-qtnf_sta_info_parse_generic_info(struct station_info *sinfo,
-				 const struct qlink_sta_info_generic *info)
+qtnf_cmd_sta_info_parse(struct station_info *sinfo,
+			const struct qlink_tlv_hdr *tlv,
+			size_t resp_size)
 {
-	sinfo->filled |= BIT(NL80211_STA_INFO_CONNECTED_TIME) |
-			 BIT(NL80211_STA_INFO_INACTIVE_TIME);
-	sinfo->connected_time = get_unaligned_le32(&info->connected_time);
-	sinfo->inactive_time = get_unaligned_le32(&info->inactive_time);
+	const struct qlink_sta_stats *stats = NULL;
+	const u8 *map = NULL;
+	unsigned int map_len = 0;
+	unsigned int stats_len = 0;
+	u16 tlv_len;
 
-	sinfo->filled |= BIT(NL80211_STA_INFO_SIGNAL) |
-			 BIT(NL80211_STA_INFO_SIGNAL_AVG);
-	sinfo->signal = info->rssi - 120;
-	sinfo->signal_avg = info->rssi_avg - QLINK_RSSI_OFFSET;
+#define qtnf_sta_stat_avail(stat_name, bitn)	\
+	(qtnf_utils_is_bit_set(map, bitn, map_len) && \
+	 (offsetofend(struct qlink_sta_stats, stat_name) <= stats_len))
 
-	if (info->rx_rate.rate) {
-		sinfo->filled |= BIT(NL80211_STA_INFO_RX_BITRATE);
-		qtnf_sta_info_parse_rate(&sinfo->rxrate, &info->rx_rate);
-	}
+	while (resp_size >= sizeof(*tlv)) {
+		tlv_len = le16_to_cpu(tlv->len);
 
-	if (info->tx_rate.rate) {
-		sinfo->filled |= BIT(NL80211_STA_INFO_TX_BITRATE);
-		qtnf_sta_info_parse_rate(&sinfo->txrate, &info->tx_rate);
-	}
-
-	sinfo->filled |= BIT(NL80211_STA_INFO_STA_FLAGS);
-	qtnf_sta_info_parse_flags(&sinfo->sta_flags, &info->state);
-}
-
-static int qtnf_cmd_sta_info_parse(struct station_info *sinfo,
-				   const u8 *payload, size_t payload_size)
-{
-	const struct qlink_sta_stat_basic_counters *counters;
-	const struct qlink_sta_info_generic *sta_info;
-	u16 tlv_type;
-	u16 tlv_value_len;
-	size_t tlv_full_len;
-	const struct qlink_tlv_hdr *tlv;
-
-	sinfo->filled = 0;
-
-	tlv = (const struct qlink_tlv_hdr *)payload;
-	while (payload_size >= sizeof(struct qlink_tlv_hdr)) {
-		tlv_type = le16_to_cpu(tlv->type);
-		tlv_value_len = le16_to_cpu(tlv->len);
-		tlv_full_len = tlv_value_len + sizeof(struct qlink_tlv_hdr);
-		if (tlv_full_len > payload_size) {
-			pr_warn("malformed TLV 0x%.2X; LEN: %u\n",
-				tlv_type, tlv_value_len);
-			return -EINVAL;
-		}
-		switch (tlv_type) {
-		case QTN_TLV_ID_STA_BASIC_COUNTERS:
-			if (unlikely(tlv_value_len < sizeof(*counters))) {
-				pr_err("invalid TLV size %.4X: %u\n",
-				       tlv_type, tlv_value_len);
-				break;
-			}
-
-			counters = (void *)tlv->val;
-			qtnf_sta_info_parse_basic_counters(sinfo, counters);
+		switch (le16_to_cpu(tlv->type)) {
+		case QTN_TLV_ID_STA_STATS_MAP:
+			map_len = tlv_len;
+			map = tlv->val;
 			break;
-		case QTN_TLV_ID_STA_GENERIC_INFO:
-			if (unlikely(tlv_value_len < sizeof(*sta_info)))
-				break;
-
-			sta_info = (void *)tlv->val;
-			qtnf_sta_info_parse_generic_info(sinfo, sta_info);
+		case QTN_TLV_ID_STA_STATS:
+			stats_len = tlv_len;
+			stats = (const struct qlink_sta_stats *)tlv->val;
 			break;
 		default:
-			pr_warn("unexpected TLV type: %.4X\n", tlv_type);
 			break;
 		}
-		payload_size -= tlv_full_len;
-		tlv = (struct qlink_tlv_hdr *)(tlv->val + tlv_value_len);
+
+		resp_size -= tlv_len + sizeof(*tlv);
+		tlv = (const struct qlink_tlv_hdr *)(tlv->val + tlv_len);
 	}
 
-	if (payload_size) {
-		pr_warn("malformed TLV buf; bytes left: %zu\n", payload_size);
-		return -EINVAL;
+	if (!map || !stats)
+		return;
+
+	if (qtnf_sta_stat_avail(inactive_time, QLINK_STA_INFO_INACTIVE_TIME)) {
+		sinfo->filled |= BIT(NL80211_STA_INFO_INACTIVE_TIME);
+		sinfo->inactive_time = le32_to_cpu(stats->inactive_time);
 	}
 
-	return 0;
+	if (qtnf_sta_stat_avail(connected_time,
+				QLINK_STA_INFO_CONNECTED_TIME)) {
+		sinfo->filled |= BIT(NL80211_STA_INFO_CONNECTED_TIME);
+		sinfo->connected_time = le32_to_cpu(stats->connected_time);
+	}
+
+	if (qtnf_sta_stat_avail(signal, QLINK_STA_INFO_SIGNAL)) {
+		sinfo->filled |= BIT(NL80211_STA_INFO_SIGNAL);
+		sinfo->signal = stats->signal - QLINK_RSSI_OFFSET;
+	}
+
+	if (qtnf_sta_stat_avail(signal_avg, QLINK_STA_INFO_SIGNAL_AVG)) {
+		sinfo->filled |= BIT(NL80211_STA_INFO_SIGNAL_AVG);
+		sinfo->signal_avg = stats->signal_avg - QLINK_RSSI_OFFSET;
+	}
+
+	if (qtnf_sta_stat_avail(rxrate, QLINK_STA_INFO_RX_BITRATE)) {
+		sinfo->filled |= BIT(NL80211_STA_INFO_RX_BITRATE);
+		qtnf_sta_info_parse_rate(&sinfo->rxrate, &stats->rxrate);
+	}
+
+	if (qtnf_sta_stat_avail(txrate, QLINK_STA_INFO_TX_BITRATE)) {
+		sinfo->filled |= BIT(NL80211_STA_INFO_TX_BITRATE);
+		qtnf_sta_info_parse_rate(&sinfo->txrate, &stats->txrate);
+	}
+
+	if (qtnf_sta_stat_avail(sta_flags, QLINK_STA_INFO_STA_FLAGS)) {
+		sinfo->filled |= BIT(NL80211_STA_INFO_STA_FLAGS);
+		qtnf_sta_info_parse_flags(&sinfo->sta_flags, &stats->sta_flags);
+	}
+
+	if (qtnf_sta_stat_avail(rx_bytes, QLINK_STA_INFO_RX_BYTES)) {
+		sinfo->filled |= BIT(NL80211_STA_INFO_RX_BYTES);
+		sinfo->rx_bytes = le64_to_cpu(stats->rx_bytes);
+	}
+
+	if (qtnf_sta_stat_avail(tx_bytes, QLINK_STA_INFO_TX_BYTES)) {
+		sinfo->filled |= BIT(NL80211_STA_INFO_TX_BYTES);
+		sinfo->tx_bytes = le64_to_cpu(stats->tx_bytes);
+	}
+
+	if (qtnf_sta_stat_avail(rx_bytes, QLINK_STA_INFO_RX_BYTES64)) {
+		sinfo->filled |= BIT(NL80211_STA_INFO_RX_BYTES64);
+		sinfo->rx_bytes = le64_to_cpu(stats->rx_bytes);
+	}
+
+	if (qtnf_sta_stat_avail(tx_bytes, QLINK_STA_INFO_TX_BYTES64)) {
+		sinfo->filled |= BIT(NL80211_STA_INFO_TX_BYTES64);
+		sinfo->tx_bytes = le64_to_cpu(stats->tx_bytes);
+	}
+
+	if (qtnf_sta_stat_avail(rx_packets, QLINK_STA_INFO_RX_PACKETS)) {
+		sinfo->filled |= BIT(NL80211_STA_INFO_RX_PACKETS);
+		sinfo->rx_packets = le32_to_cpu(stats->rx_packets);
+	}
+
+	if (qtnf_sta_stat_avail(tx_packets, QLINK_STA_INFO_TX_PACKETS)) {
+		sinfo->filled |= BIT(NL80211_STA_INFO_TX_PACKETS);
+		sinfo->tx_packets = le32_to_cpu(stats->tx_packets);
+	}
+
+	if (qtnf_sta_stat_avail(rx_beacon, QLINK_STA_INFO_BEACON_RX)) {
+		sinfo->filled |= BIT(NL80211_STA_INFO_BEACON_RX);
+		sinfo->rx_beacon = le64_to_cpu(stats->rx_beacon);
+	}
+
+	if (qtnf_sta_stat_avail(rx_dropped_misc, QLINK_STA_INFO_RX_DROP_MISC)) {
+		sinfo->filled |= BIT(NL80211_STA_INFO_RX_DROP_MISC);
+		sinfo->rx_dropped_misc = le32_to_cpu(stats->rx_dropped_misc);
+	}
+
+	if (qtnf_sta_stat_avail(tx_failed, QLINK_STA_INFO_TX_FAILED)) {
+		sinfo->filled |= BIT(NL80211_STA_INFO_TX_FAILED);
+		sinfo->tx_failed = le32_to_cpu(stats->tx_failed);
+	}
+
+#undef qtnf_sta_stat_avail
 }
 
 int qtnf_cmd_get_sta_info(struct qtnf_vif *vif, const u8 *sta_mac,
@@ -715,7 +732,9 @@ int qtnf_cmd_get_sta_info(struct qtnf_vif *vif, const u8 *sta_mac,
 		goto out;
 	}
 
-	ret = qtnf_cmd_sta_info_parse(sinfo, resp->info, var_resp_len);
+	qtnf_cmd_sta_info_parse(sinfo,
+				(const struct qlink_tlv_hdr *)resp->info,
+				var_resp_len);
 
 out:
 	qtnf_bus_unlock(vif->mac->bus);
@@ -1992,21 +2011,17 @@ int qtnf_cmd_send_change_sta(struct qtnf_vif *vif, const u8 *mac,
 
 	cmd = (struct qlink_cmd_change_sta *)cmd_skb->data;
 	ether_addr_copy(cmd->sta_addr, mac);
+	cmd->flag_update.mask =
+		cpu_to_le32(qtnf_encode_sta_flags(params->sta_flags_mask));
+	cmd->flag_update.value =
+		cpu_to_le32(qtnf_encode_sta_flags(params->sta_flags_set));
 
 	switch (vif->wdev.iftype) {
 	case NL80211_IFTYPE_AP:
 		cmd->if_type = cpu_to_le16(QLINK_IFTYPE_AP);
-		cmd->sta_flags_mask = cpu_to_le32(qtnf_encode_sta_flags(
-						  params->sta_flags_mask));
-		cmd->sta_flags_set = cpu_to_le32(qtnf_encode_sta_flags(
-						 params->sta_flags_set));
 		break;
 	case NL80211_IFTYPE_STATION:
 		cmd->if_type = cpu_to_le16(QLINK_IFTYPE_STATION);
-		cmd->sta_flags_mask = cpu_to_le32(qtnf_encode_sta_flags(
-						  params->sta_flags_mask));
-		cmd->sta_flags_set = cpu_to_le32(qtnf_encode_sta_flags(
-						 params->sta_flags_set));
 		break;
 	default:
 		pr_err("unsupported iftype %d\n", vif->wdev.iftype);

@@ -69,5 +69,7 @@ void qlink_chandef_q2cfg(struct wiphy *wiphy,
 void qlink_chandef_cfg2q(const struct cfg80211_chan_def *chdef,
 			 struct qlink_chandef *qch);
 enum qlink_hidden_ssid qlink_hidden_ssid_nl2q(enum nl80211_hidden_ssid nl_val);
+bool qtnf_utils_is_bit_set(const u8 *arr, unsigned int bit,
+			   unsigned int arr_max_len);
 
 #endif /* _QTN_FMAC_QLINK_UTIL_H_ */
