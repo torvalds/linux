@@ -394,7 +394,7 @@ static int gmin_gpio0_ctrl(struct v4l2_subdev *subdev, int on)
 {
 	struct gmin_subdev *gs = find_gmin_subdev(subdev);
 
-	if (gs && gs->gpio0) {
+	if (gs) {
 		gpiod_set_value(gs->gpio0, on);
 		return 0;
 	}
@@ -405,7 +405,7 @@ static int gmin_gpio1_ctrl(struct v4l2_subdev *subdev, int on)
 {
 	struct gmin_subdev *gs = find_gmin_subdev(subdev);
 
-	if (gs && gs->gpio1) {
+	if (gs) {
 		gpiod_set_value(gs->gpio1, on);
 		return 0;
 	}
