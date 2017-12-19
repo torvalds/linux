@@ -37,9 +37,6 @@ struct artpec6_pcie {
 #define PCIE_PHY_DEBUG_R0		(PL_OFFSET + 0x28)
 #define PCIE_PHY_DEBUG_R1		(PL_OFFSET + 0x2c)
 
-#define MISC_CONTROL_1_OFF		(PL_OFFSET + 0x1bc)
-#define  DBI_RO_WR_EN			1
-
 /* ARTPEC-6 specific registers */
 #define PCIECFG				0x18
 #define  PCIECFG_DBG_OEN		(1 << 24)
