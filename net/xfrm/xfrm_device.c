@@ -273,15 +273,29 @@ void xfrm_dev_backlog(struct softnet_data *sd)
 }
 #endif
 
-static int xfrm_dev_register(struct net_device *dev)
+static int xfrm_api_check(struct net_device *dev)
 {
-	if ((dev->features & NETIF_F_HW_ESP) && !dev->xfrmdev_ops)
-		return NOTIFY_BAD;
+#ifdef CONFIG_XFRM_OFFLOAD
 	if ((dev->features & NETIF_F_HW_ESP_TX_CSUM) &&
 	    !(dev->features & NETIF_F_HW_ESP))
 		return NOTIFY_BAD;
 
+	if ((dev->features & NETIF_F_HW_ESP) &&
+	    (!(dev->xfrmdev_ops &&
+	       dev->xfrmdev_ops->xdo_dev_state_add &&
+	       dev->xfrmdev_ops->xdo_dev_state_delete)))
+		return NOTIFY_BAD;
+#else
+	if (dev->features & (NETIF_F_HW_ESP | NETIF_F_HW_ESP_TX_CSUM))
+		return NOTIFY_BAD;
+#endif
+
 	return NOTIFY_DONE;
+}
+
+static int xfrm_dev_register(struct net_device *dev)
+{
+	return xfrm_api_check(dev);
 }
 
 static int xfrm_dev_unregister(struct net_device *dev)
@@ -292,16 +306,7 @@ static int xfrm_dev_unregister(struct net_device *dev)
 
 static int xfrm_dev_feat_change(struct net_device *dev)
 {
-	if ((dev->features & NETIF_F_HW_ESP) && !dev->xfrmdev_ops)
-		return NOTIFY_BAD;
-	else if (!(dev->features & NETIF_F_HW_ESP))
-		dev->xfrmdev_ops = NULL;
-
-	if ((dev->features & NETIF_F_HW_ESP_TX_CSUM) &&
-	    !(dev->features & NETIF_F_HW_ESP))
-		return NOTIFY_BAD;
-
-	return NOTIFY_DONE;
+	return xfrm_api_check(dev);
 }
 
 static int xfrm_dev_down(struct net_device *dev)
