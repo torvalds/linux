@@ -597,8 +597,8 @@ static void dcn10_verify_allow_pstate_change_high(struct dc *dc)
 /* trigger HW to start disconnect plane from stream on the next vsync */
 static void plane_atomic_disconnect(struct dc *dc, struct pipe_ctx *pipe_ctx)
 {
-	int fe_idx = pipe_ctx->pipe_idx;
-	struct hubp *hubp = dc->res_pool->hubps[fe_idx];
+	struct hubp *hubp = pipe_ctx->plane_res.hubp;
+	int dpp_id = pipe_ctx->plane_res.dpp->inst;
 	struct mpc *mpc = dc->res_pool->mpc;
 	int opp_id;
 	struct mpc_tree *mpc_tree_params;
@@ -609,7 +609,7 @@ static void plane_atomic_disconnect(struct dc *dc, struct pipe_ctx *pipe_ctx)
 		struct output_pixel_processor *opp = dc->res_pool->opps[opp_id];
 
 		mpc_tree_params = &(opp->mpc_tree_params);
-		mpcc_to_remove = mpc->funcs->get_mpcc_for_dpp(mpc_tree_params, fe_idx);
+		mpcc_to_remove = mpc->funcs->get_mpcc_for_dpp(mpc_tree_params, dpp_id);
 		if (mpcc_to_remove != NULL)
 			break;
 	}
@@ -619,7 +619,7 @@ static void plane_atomic_disconnect(struct dc *dc, struct pipe_ctx *pipe_ctx)
 		return;
 
 	mpc->funcs->remove_mpcc(mpc, mpc_tree_params, mpcc_to_remove);
-	dc->res_pool->opps[opp_id]->mpcc_disconnect_pending[fe_idx] = true;
+	dc->res_pool->opps[opp_id]->mpcc_disconnect_pending[pipe_ctx->plane_res.mpcc_inst] = true;
 
 	dc->optimized_required = true;
 
@@ -630,21 +630,21 @@ static void plane_atomic_disconnect(struct dc *dc, struct pipe_ctx *pipe_ctx)
 		dcn10_verify_allow_pstate_change_high(dc);
 }
 
-static void plane_atomic_power_down(struct dc *dc, int fe_idx)
+static void plane_atomic_power_down(struct dc *dc, struct pipe_ctx *pipe_ctx)
 {
 	struct dce_hwseq *hws = dc->hwseq;
-	struct dpp *dpp = dc->res_pool->dpps[fe_idx];
+	struct dpp *dpp = pipe_ctx->plane_res.dpp;
 
 	if (REG(DC_IP_REQUEST_CNTL)) {
 		REG_SET(DC_IP_REQUEST_CNTL, 0,
 				IP_REQUEST_EN, 1);
-		dpp_pg_control(hws, fe_idx, false);
-		hubp_pg_control(hws, fe_idx, false);
+		dpp_pg_control(hws, dpp->inst, false);
+		hubp_pg_control(hws, pipe_ctx->plane_res.hubp->inst, false);
 		dpp->funcs->dpp_reset(dpp);
 		REG_SET(DC_IP_REQUEST_CNTL, 0,
 				IP_REQUEST_EN, 0);
 		dm_logger_write(dc->ctx->logger, LOG_DEBUG,
-				"Power gated front end %d\n", fe_idx);
+				"Power gated front end %d\n", pipe_ctx->pipe_idx);
 	}
 }
 
@@ -653,16 +653,16 @@ static void plane_atomic_power_down(struct dc *dc, int fe_idx)
  */
 static void plane_atomic_disable(struct dc *dc, struct pipe_ctx *pipe_ctx)
 {
-	int fe_idx = pipe_ctx->pipe_idx;
 	struct dce_hwseq *hws = dc->hwseq;
-	struct hubp *hubp = dc->res_pool->hubps[fe_idx];
+	struct hubp *hubp = pipe_ctx->plane_res.hubp;
 	int opp_id = hubp->opp_id;
+	int dpp_id = pipe_ctx->plane_res.dpp->inst;
 
 	dc->hwss.wait_for_mpcc_disconnect(dc, dc->res_pool, pipe_ctx);
 
 	hubp->funcs->hubp_clk_cntl(hubp, false);
 
-	REG_UPDATE(DPP_CONTROL[fe_idx],
+	REG_UPDATE(DPP_CONTROL[dpp_id],
 			DPP_CLOCK_ENABLE, 0);
 
 	if (opp_id != 0xf && dc->res_pool->opps[opp_id]->mpc_tree_params.opp_list == NULL)
@@ -672,7 +672,7 @@ static void plane_atomic_disable(struct dc *dc, struct pipe_ctx *pipe_ctx)
 	hubp->power_gated = true;
 	dc->optimized_required = false; /* We're powering off, no need to optimize */
 
-	plane_atomic_power_down(dc, fe_idx);
+	plane_atomic_power_down(dc, pipe_ctx);
 
 	pipe_ctx->stream = NULL;
 	memset(&pipe_ctx->stream_res, 0, sizeof(pipe_ctx->stream_res));
@@ -768,18 +768,21 @@ static void dcn10_init_hw(struct dc *dc)
 		struct timing_generator *tg = dc->res_pool->timing_generators[i];
 		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
 		struct hubp *hubp = dc->res_pool->hubps[i];
+		struct dpp *dpp = dc->res_pool->dpps[i];
 
 		pipe_ctx->stream_res.tg = tg;
 		pipe_ctx->pipe_idx = i;
 
 		pipe_ctx->plane_res.hubp = hubp;
-		hubp->mpcc_id = i;
+		pipe_ctx->plane_res.dpp = dpp;
+		pipe_ctx->plane_res.mpcc_inst = dpp->inst;
+		hubp->mpcc_id = dpp->inst;
 		hubp->opp_id = 0xf;
 		hubp->power_gated = false;
 
 		dc->res_pool->opps[i]->mpc_tree_params.opp_id = dc->res_pool->opps[i]->inst;
 		dc->res_pool->opps[i]->mpc_tree_params.opp_list = NULL;
-		dc->res_pool->opps[i]->mpcc_disconnect_pending[i] = true;
+		dc->res_pool->opps[i]->mpcc_disconnect_pending[pipe_ctx->plane_res.mpcc_inst] = true;
 		pipe_ctx->stream_res.opp = dc->res_pool->opps[i];
 
 		plane_atomic_disconnect(dc, pipe_ctx);
@@ -1323,7 +1326,7 @@ static void dcn10_enable_plane(
 	undo_DEGVIDCN10_253_wa(dc);
 
 	power_on_plane(dc->hwseq,
-		pipe_ctx->pipe_idx);
+		pipe_ctx->plane_res.hubp->inst);
 
 	/* enable DCFCLK current DCHUB */
 	pipe_ctx->plane_res.hubp->funcs->hubp_clk_cntl(pipe_ctx->plane_res.hubp, true);
@@ -1687,7 +1690,7 @@ static void update_dchubp_dpp(
 	if (plane_state->update_flags.bits.full_update) {
 		enable_dppclk(
 			dc->hwseq,
-			pipe_ctx->pipe_idx,
+			pipe_ctx->plane_res.dpp->inst,
 			pipe_ctx->stream_res.pix_clk_params.requested_pix_clk,
 			context->bw.dcn.calc_clk.dppclk_div);
 		dc->current_state->bw.dcn.cur_clk.dppclk_div =
@@ -2231,12 +2234,24 @@ static void dcn10_setup_stereo(struct pipe_ctx *pipe_ctx, struct dc *dc)
 	return;
 }
 
+static struct hubp *get_hubp_by_inst(struct resource_pool *res_pool, int mpcc_inst)
+{
+	int i;
+
+	for (i = 0; i < res_pool->pipe_count; i++) {
+		if (res_pool->hubps[i]->inst == mpcc_inst)
+			return res_pool->hubps[i];
+	}
+	ASSERT(false);
+	return NULL;
+}
+
 static void dcn10_wait_for_mpcc_disconnect(
 		struct dc *dc,
 		struct resource_pool *res_pool,
 		struct pipe_ctx *pipe_ctx)
 {
-	int i;
+	int mpcc_inst;
 
 	if (dc->debug.sanity_checks) {
 		dcn10_verify_allow_pstate_change_high(dc);
@@ -2245,11 +2260,13 @@ static void dcn10_wait_for_mpcc_disconnect(
 	if (!pipe_ctx->stream_res.opp)
 		return;
 
-	for (i = 0; i < MAX_PIPES; i++) {
-		if (pipe_ctx->stream_res.opp->mpcc_disconnect_pending[i]) {
-			res_pool->mpc->funcs->wait_for_idle(res_pool->mpc, i);
-			pipe_ctx->stream_res.opp->mpcc_disconnect_pending[i] = false;
-			res_pool->hubps[i]->funcs->set_blank(res_pool->hubps[i], true);
+	for (mpcc_inst = 0; mpcc_inst < MAX_PIPES; mpcc_inst++) {
+		if (pipe_ctx->stream_res.opp->mpcc_disconnect_pending[mpcc_inst]) {
+			struct hubp *hubp = get_hubp_by_inst(res_pool, mpcc_inst);
+
+			res_pool->mpc->funcs->wait_for_idle(res_pool->mpc, mpcc_inst);
+			pipe_ctx->stream_res.opp->mpcc_disconnect_pending[mpcc_inst] = false;
+			hubp->funcs->set_blank(hubp, true);
 			/*dm_logger_write(dc->ctx->logger, LOG_ERROR,
 					"[debug_mpo: wait_for_mpcc finished waiting on mpcc %d]\n",
 					i);*/

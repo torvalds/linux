@@ -188,6 +188,7 @@ struct plane_resource {
 	struct input_pixel_processor *ipp;
 	struct transform *xfm;
 	struct dpp *dpp;
+	uint8_t mpcc_inst;
 };
 
 struct pipe_ctx {

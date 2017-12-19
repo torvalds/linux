@@ -625,7 +625,7 @@ static enum dc_status bios_parser_crtc_source_select(
 	const struct dc_sink *sink = pipe_ctx->stream->sink;
 
 	crtc_source_select.engine_id = pipe_ctx->stream_res.stream_enc->id;
-	crtc_source_select.controller_id = pipe_ctx->pipe_idx + 1;
+	crtc_source_select.controller_id = pipe_ctx->stream_res.tg->inst + 1;
 	/*TODO: Need to un-hardcode color depth, dp_audio and account for
 	 * the case where signal and sink signal is different (translator
 	 * encoder)*/
@@ -1091,7 +1091,7 @@ static void build_audio_output(
 
 	audio_output->pll_info.dto_source =
 		translate_to_dto_source(
-			pipe_ctx->pipe_idx + 1);
+			pipe_ctx->stream_res.tg->inst + 1);
 
 	/* TODO hard code to enable for now. Need get from stream */
 	audio_output->pll_info.ss_enabled = true;
@@ -2147,7 +2147,7 @@ static void program_surface_visibility(const struct dc *dc,
 	} else if (!pipe_ctx->plane_state->visible)
 		blank_target = true;
 
-	dce_set_blender_mode(dc->hwseq, pipe_ctx->pipe_idx, blender_mode);
+	dce_set_blender_mode(dc->hwseq, pipe_ctx->stream_res.tg->inst, blender_mode);
 	pipe_ctx->stream_res.tg->funcs->set_blank(pipe_ctx->stream_res.tg, blank_target);
 
 }
@@ -2189,7 +2189,7 @@ static void set_plane_config(
 	memset(&tbl_entry, 0, sizeof(tbl_entry));
 	adjust.gamut_adjust_type = GRAPHICS_GAMUT_ADJUST_TYPE_BYPASS;
 
-	dce_enable_fe_clock(dc->hwseq, pipe_ctx->pipe_idx, true);
+	dce_enable_fe_clock(dc->hwseq, mi->inst, true);
 
 	set_default_colors(pipe_ctx);
 	if (pipe_ctx->stream->csc_color_matrix.enable_adjustment == true) {
@@ -2495,7 +2495,7 @@ void dce110_fill_display_configs(
 
 		num_cfgs++;
 		cfg->signal = pipe_ctx->stream->signal;
-		cfg->pipe_idx = pipe_ctx->pipe_idx;
+		cfg->pipe_idx = pipe_ctx->stream_res.tg->inst;
 		cfg->src_height = stream->src.height;
 		cfg->src_width = stream->src.width;
 		cfg->ddi_channel_mapping =
@@ -2659,7 +2659,7 @@ static void dce110_program_front_end_for_pipe(
 	memset(&adjust, 0, sizeof(adjust));
 	adjust.gamut_adjust_type = GRAPHICS_GAMUT_ADJUST_TYPE_BYPASS;
 
-	dce_enable_fe_clock(dc->hwseq, pipe_ctx->pipe_idx, true);
+	dce_enable_fe_clock(dc->hwseq, mi->inst, true);
 
 	set_default_colors(pipe_ctx);
 	if (pipe_ctx->stream->csc_color_matrix.enable_adjustment
@@ -2817,7 +2817,7 @@ static void dce110_apply_ctx_for_surface(
 
 static void dce110_power_down_fe(struct dc *dc, struct pipe_ctx *pipe_ctx)
 {
-	int fe_idx = pipe_ctx->pipe_idx;
+	int fe_idx = pipe_ctx->plane_res.mi->inst;
 
 	/* Do not power down fe when stream is active on dce*/
 	if (dc->current_state->res_ctx.pipe_ctx[fe_idx].stream)
