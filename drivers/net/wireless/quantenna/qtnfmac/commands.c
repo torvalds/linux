@@ -1029,6 +1029,10 @@ static int qtnf_parse_variable_mac_info(struct qtnf_wmac *mac,
 	struct qlink_iface_comb_num *comb;
 	size_t tlv_full_len;
 	const struct qlink_tlv_hdr *tlv;
+	u8 *ext_capa = NULL;
+	u8 *ext_capa_mask = NULL;
+	u8 ext_capa_len = 0;
+	u8 ext_capa_mask_len = 0;
 
 	mac->macinfo.n_limits = 0;
 
@@ -1092,6 +1096,18 @@ static int qtnf_parse_variable_mac_info(struct qtnf_wmac *mac,
 			if (limits[rec].types)
 				rec++;
 			break;
+		case WLAN_EID_EXT_CAPABILITY:
+			if (unlikely(tlv_value_len > U8_MAX))
+				return -EINVAL;
+			ext_capa = (u8 *)tlv->val;
+			ext_capa_len = tlv_value_len;
+			break;
+		case QTN_TLV_ID_EXT_CAPABILITY_MASK:
+			if (unlikely(tlv_value_len > U8_MAX))
+				return -EINVAL;
+			ext_capa_mask = (u8 *)tlv->val;
+			ext_capa_mask_len = tlv_value_len;
+			break;
 		default:
 			break;
 		}
@@ -1111,6 +1127,34 @@ static int qtnf_parse_variable_mac_info(struct qtnf_wmac *mac,
 		       mac->macid, mac->macinfo.n_limits, rec);
 		return -EINVAL;
 	}
+
+	if (ext_capa_len != ext_capa_mask_len) {
+		pr_err("MAC%u: ext_capa/_mask lengths mismatch: %u != %u\n",
+		       mac->macid, ext_capa_len, ext_capa_mask_len);
+		return -EINVAL;
+	}
+
+	if (ext_capa_len > 0) {
+		ext_capa = kmemdup(ext_capa, ext_capa_len, GFP_KERNEL);
+		if (!ext_capa)
+			return -ENOMEM;
+
+		ext_capa_mask =
+			kmemdup(ext_capa_mask, ext_capa_mask_len, GFP_KERNEL);
+		if (!ext_capa_mask) {
+			kfree(ext_capa);
+			return -ENOMEM;
+		}
+	} else {
+		ext_capa = NULL;
+		ext_capa_mask = NULL;
+	}
+
+	kfree(mac->macinfo.extended_capabilities);
+	kfree(mac->macinfo.extended_capabilities_mask);
+	mac->macinfo.extended_capabilities = ext_capa;
+	mac->macinfo.extended_capabilities_mask = ext_capa_mask;
+	mac->macinfo.extended_capabilities_len = ext_capa_len;
 
 	return 0;
 }

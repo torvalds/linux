@@ -106,6 +106,9 @@ struct qtnf_mac_info {
 	struct ieee80211_vht_cap vht_cap_mod_mask;
 	struct ieee80211_iface_limit *limits;
 	size_t n_limits;
+	u8 *extended_capabilities;
+	u8 *extended_capabilities_mask;
+	u8 extended_capabilities_len;
 };
 
 struct qtnf_chan_stats {

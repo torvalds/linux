@@ -381,6 +381,8 @@ static void qtnf_core_mac_detach(struct qtnf_bus *bus, unsigned int macid)
 	}
 
 	kfree(mac->macinfo.limits);
+	kfree(mac->macinfo.extended_capabilities);
+	kfree(mac->macinfo.extended_capabilities_mask);
 	kfree(wiphy->iface_combinations);
 	wiphy_free(wiphy);
 	bus->mac[macid] = NULL;

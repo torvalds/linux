@@ -1020,6 +1020,7 @@ enum qlink_tlv_id {
 	QTN_TLV_ID_KEY			= 0x0302,
 	QTN_TLV_ID_SEQ			= 0x0303,
 	QTN_TLV_ID_IE_SET		= 0x0305,
+	QTN_TLV_ID_EXT_CAPABILITY_MASK	= 0x0306,
 };
 
 struct qlink_tlv_hdr {
