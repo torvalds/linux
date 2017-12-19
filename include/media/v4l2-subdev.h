@@ -861,6 +861,13 @@ struct v4l2_subdev {
 	struct v4l2_subdev_platform_data *pdata;
 };
 
+
+/**
+ * media_entity_to_v4l2_subdev - Returns a &struct v4l2_subdev from
+ *    the &struct media_entity embedded in it.
+ *
+ * @ent: pointer to &struct media_entity.
+ */
 #define media_entity_to_v4l2_subdev(ent)				\
 ({									\
 	typeof(ent) __me_sd_ent = (ent);				\
@@ -870,14 +877,20 @@ struct v4l2_subdev {
 		NULL;							\
 })
 
+/**
+ * vdev_to_v4l2_subdev - Returns a &struct v4l2_subdev from
+ *	the &struct video_device embedded on it.
+ *
+ * @vdev: pointer to &struct video_device
+ */
 #define vdev_to_v4l2_subdev(vdev) \
 	((struct v4l2_subdev *)video_get_drvdata(vdev))
 
 /**
  * struct v4l2_subdev_fh - Used for storing subdev information per file handle
  *
- * @vfh: pointer to struct v4l2_fh
- * @pad: pointer to v4l2_subdev_pad_config
+ * @vfh: pointer to &struct v4l2_fh
+ * @pad: pointer to &struct v4l2_subdev_pad_config
  */
 struct v4l2_subdev_fh {
 	struct v4l2_fh vfh;
@@ -886,10 +899,25 @@ struct v4l2_subdev_fh {
 #endif
 };
 
+/**
+ * to_v4l2_subdev_fh - Returns a &struct v4l2_subdev_fh from
+ *	the &struct v4l2_fh embedded on it.
+ *
+ * @fh: pointer to &struct v4l2_fh
+ */
 #define to_v4l2_subdev_fh(fh)	\
 	container_of(fh, struct v4l2_subdev_fh, vfh)
 
 #if defined(CONFIG_VIDEO_V4L2_SUBDEV_API)
+
+/**
+ * v4l2_subdev_get_try_format - ancillary routine to call
+ *	&struct v4l2_subdev_pad_config->try_fmt
+ *
+ * @sd: pointer to &struct v4l2_subdev
+ * @cfg: pointer to &struct v4l2_subdev_pad_config array.
+ * @pad: index of the pad in the @cfg array.
+ */
 static inline struct v4l2_mbus_framefmt
 *v4l2_subdev_get_try_format(struct v4l2_subdev *sd,
 			    struct v4l2_subdev_pad_config *cfg,
@@ -900,6 +928,14 @@ static inline struct v4l2_mbus_framefmt
 	return &cfg[pad].try_fmt;
 }
 
+/**
+ * v4l2_subdev_get_try_crop - ancillary routine to call
+ *	&struct v4l2_subdev_pad_config->try_crop
+ *
+ * @sd: pointer to &struct v4l2_subdev
+ * @cfg: pointer to &struct v4l2_subdev_pad_config array.
+ * @pad: index of the pad in the @cfg array.
+ */
 static inline struct v4l2_rect
 *v4l2_subdev_get_try_crop(struct v4l2_subdev *sd,
 			  struct v4l2_subdev_pad_config *cfg,
@@ -910,6 +946,14 @@ static inline struct v4l2_rect
 	return &cfg[pad].try_crop;
 }
 
+/**
+ * v4l2_subdev_get_try_crop - ancillary routine to call
+ *	&struct v4l2_subdev_pad_config->try_compose
+ *
+ * @sd: pointer to &struct v4l2_subdev
+ * @cfg: pointer to &struct v4l2_subdev_pad_config array.
+ * @pad: index of the pad in the @cfg array.
+ */
 static inline struct v4l2_rect
 *v4l2_subdev_get_try_compose(struct v4l2_subdev *sd,
 			     struct v4l2_subdev_pad_config *cfg,
@@ -1026,9 +1070,16 @@ void v4l2_subdev_free_pad_config(struct v4l2_subdev_pad_config *cfg);
 void v4l2_subdev_init(struct v4l2_subdev *sd,
 		      const struct v4l2_subdev_ops *ops);
 
-/*
- * Call an ops of a v4l2_subdev, doing the right checks against
- * NULL pointers.
+/**
+ * v4l2_subdev_call - call an operation of a v4l2_subdev.
+ *
+ * @sd: pointer to the &struct v4l2_subdev
+ * @o: name of the element at &struct v4l2_subdev_ops that contains @f.
+ *     Each element there groups a set of callbacks functions.
+ * @f: callback function that will be called if @cond matches.
+ *     The callback functions are defined in groups, according to
+ *     each element at &struct v4l2_subdev_ops.
+ * @args...: arguments for @f.
  *
  * Example: err = v4l2_subdev_call(sd, video, s_std, norm);
  */
@@ -1044,6 +1095,14 @@ void v4l2_subdev_init(struct v4l2_subdev *sd,
 		__result;						\
 	})
 
+/**
+ * v4l2_subdev_has_op - Checks if a subdev defines a certain operation.
+ *
+ * @sd: pointer to the &struct v4l2_subdev
+ * @o: The group of callback functions in &struct v4l2_subdev_ops
+ * which @f is a part of.
+ * @f: callback function to be checked for its existence.
+ */
 #define v4l2_subdev_has_op(sd, o, f) \
 	((sd)->ops->o && (sd)->ops->o->f)
 
