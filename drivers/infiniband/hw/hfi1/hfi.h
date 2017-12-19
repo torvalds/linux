@@ -1972,7 +1972,6 @@ int get_platform_config_field(struct hfi1_devdata *dd,
 			      u32 *data, u32 len);
 
 const char *get_unit_name(int unit);
-const char *get_card_name(struct rvt_dev_info *rdi);
 struct pci_dev *get_pci_dev(struct rvt_dev_info *rdi);
 
 /*

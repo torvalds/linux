@@ -413,7 +413,6 @@ static noinline int check_support(struct rvt_dev_info *rdi, int verb)
 		 * required for rdmavt to function.
 		 */
 		if ((!rdi->driver_f.port_callback) ||
-		    (!rdi->driver_f.get_card_name) ||
 		    (!rdi->driver_f.get_pci_dev))
 			return -EINVAL;
 		break;
