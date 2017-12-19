@@ -611,10 +611,7 @@ err:
 	return err;
 }
 
-static void _nf_tables_table_disable(struct net *net,
-				     const struct nft_af_info *afi,
-				     struct nft_table *table,
-				     u32 cnt)
+static void nft_table_disable(struct net *net, struct nft_table *table, u32 cnt)
 {
 	struct nft_chain *chain;
 	u32 i = 0;
@@ -632,9 +629,7 @@ static void _nf_tables_table_disable(struct net *net,
 	}
 }
 
-static int nf_tables_table_enable(struct net *net,
-				  const struct nft_af_info *afi,
-				  struct nft_table *table)
+static int nf_tables_table_enable(struct net *net, struct nft_table *table)
 {
 	struct nft_chain *chain;
 	int err, i = 0;
@@ -654,15 +649,13 @@ static int nf_tables_table_enable(struct net *net,
 	return 0;
 err:
 	if (i)
-		_nf_tables_table_disable(net, afi, table, i);
+		nft_table_disable(net, table, i);
 	return err;
 }
 
-static void nf_tables_table_disable(struct net *net,
-				    const struct nft_af_info *afi,
-				    struct nft_table *table)
+static void nf_tables_table_disable(struct net *net, struct nft_table *table)
 {
-	_nf_tables_table_disable(net, afi, table, 0);
+	nft_table_disable(net, table, 0);
 }
 
 static int nf_tables_updtable(struct nft_ctx *ctx)
@@ -691,7 +684,7 @@ static int nf_tables_updtable(struct nft_ctx *ctx)
 		nft_trans_table_enable(trans) = false;
 	} else if (!(flags & NFT_TABLE_F_DORMANT) &&
 		   ctx->table->flags & NFT_TABLE_F_DORMANT) {
-		ret = nf_tables_table_enable(ctx->net, ctx->afi, ctx->table);
+		ret = nf_tables_table_enable(ctx->net, ctx->table);
 		if (ret >= 0) {
 			ctx->table->flags &= ~NFT_TABLE_F_DORMANT;
 			nft_trans_table_enable(trans) = true;
@@ -5795,7 +5788,6 @@ static int nf_tables_commit(struct net *net, struct sk_buff *skb)
 			if (nft_trans_table_update(trans)) {
 				if (!nft_trans_table_enable(trans)) {
 					nf_tables_table_disable(net,
-								trans->ctx.afi,
 								trans->ctx.table);
 					trans->ctx.table->flags |= NFT_TABLE_F_DORMANT;
 				}
@@ -5957,7 +5949,6 @@ static int nf_tables_abort(struct net *net, struct sk_buff *skb)
 			if (nft_trans_table_update(trans)) {
 				if (nft_trans_table_enable(trans)) {
 					nf_tables_table_disable(net,
-								trans->ctx.afi,
 								trans->ctx.table);
 					trans->ctx.table->flags |= NFT_TABLE_F_DORMANT;
 				}
