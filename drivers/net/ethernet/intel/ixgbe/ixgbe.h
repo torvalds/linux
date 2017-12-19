@@ -1019,7 +1019,9 @@ s32 ixgbe_negotiate_fc(struct ixgbe_hw *hw, u32 adv_reg, u32 lp_reg,
 		       u32 adv_sym, u32 adv_asm, u32 lp_sym, u32 lp_asm);
 #ifdef CONFIG_XFRM_OFFLOAD
 void ixgbe_init_ipsec_offload(struct ixgbe_adapter *adapter);
+void ixgbe_stop_ipsec_offload(struct ixgbe_adapter *adapter);
 #else
 static inline void ixgbe_init_ipsec_offload(struct ixgbe_adapter *adapter) { };
+static inline void ixgbe_stop_ipsec_offload(struct ixgbe_adapter *adapter) { };
 #endif /* CONFIG_XFRM_OFFLOAD */
 #endif /* _IXGBE_H_ */
