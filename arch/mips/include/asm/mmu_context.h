@@ -126,8 +126,6 @@ init_new_context(struct task_struct *tsk, struct mm_struct *mm)
 	for_each_possible_cpu(i)
 		cpu_context(i, mm) = 0;
 
-	atomic_set(&mm->context.fp_mode_switching, 0);
-
 	mm->context.bd_emupage_allocmap = NULL;
 	spin_lock_init(&mm->context.bd_emupage_lock);
 	init_waitqueue_head(&mm->context.bd_emupage_queue);
