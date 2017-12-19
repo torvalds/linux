@@ -39,7 +39,6 @@ int rf69_set_output_power_level(struct spi_device *spi, u8 powerLevel);
 int rf69_set_pa_ramp(struct spi_device *spi, enum paRamp paRamp);
 int rf69_set_antenna_impedance(struct spi_device *spi, enum antennaImpedance antennaImpedance);
 int rf69_set_lna_gain(struct spi_device *spi, enum lnaGain lnaGain);
-enum lnaGain rf69_get_lna_gain(struct spi_device *spi);
 int rf69_set_dc_cut_off_frequency_intern(struct spi_device *spi, u8 reg, enum dcc_percent dcc_percent);
 int rf69_set_dc_cut_off_frequency(struct spi_device *spi, enum dcc_percent dcc_percent);
 int rf69_set_dc_cut_off_frequency_during_afc(struct spi_device *spi, enum dcc_percent dcc_percent);

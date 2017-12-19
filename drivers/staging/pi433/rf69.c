@@ -334,24 +334,6 @@ int rf69_set_lna_gain(struct spi_device *spi, enum lnaGain lnaGain)
 	}
 }
 
-enum lnaGain rf69_get_lna_gain(struct spi_device *spi)
-{
-	u8 currentValue;
-
-	currentValue = rf69_read_reg(spi, REG_LNA);
-
-	switch (currentValue & MASK_LNA_CURRENT_GAIN >> 3) { // improvement: change 3 to define
-	case LNA_GAIN_AUTO:	    return automatic;
-	case LNA_GAIN_MAX:	    return max;
-	case LNA_GAIN_MAX_MINUS_6:  return maxMinus6;
-	case LNA_GAIN_MAX_MINUS_12: return maxMinus12;
-	case LNA_GAIN_MAX_MINUS_24: return maxMinus24;
-	case LNA_GAIN_MAX_MINUS_36: return maxMinus36;
-	case LNA_GAIN_MAX_MINUS_48: return maxMinus48;
-	default:		    return undefined;
-	}
-}
-
 int rf69_set_dc_cut_off_frequency_intern(struct spi_device *spi, u8 reg, enum dcc_percent dcc_percent)
 {
 	switch (dcc_percent) {
