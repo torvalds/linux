@@ -381,7 +381,7 @@ static int nfp_flower_init(struct nfp_app *app)
 {
 	const struct nfp_pf *pf = app->pf;
 	struct nfp_flower_priv *app_priv;
-	u64 version;
+	u64 version, features;
 	int err;
 
 	if (!pf->eth_tbl) {
@@ -423,6 +423,14 @@ static int nfp_flower_init(struct nfp_app *app)
 	err = nfp_flower_metadata_init(app);
 	if (err)
 		goto err_free_app_priv;
+
+	/* Extract the extra features supported by the firmware. */
+	features = nfp_rtsym_read_le(app->pf->rtbl,
+				     "_abi_flower_extra_features", &err);
+	if (err)
+		app_priv->flower_ext_feats = 0;
+	else
+		app_priv->flower_ext_feats = features;
 
 	return 0;
 

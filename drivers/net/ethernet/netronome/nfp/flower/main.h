@@ -77,6 +77,7 @@ struct nfp_fl_stats_id {
  * @nn:			Pointer to vNIC
  * @mask_id_seed:	Seed used for mask hash table
  * @flower_version:	HW version of flower
+ * @flower_ext_feats:	Bitmap of extra features the HW supports
  * @stats_ids:		List of free stats ids
  * @mask_ids:		List of free mask ids
  * @mask_table:		Hash table used to store masks
@@ -101,6 +102,7 @@ struct nfp_flower_priv {
 	struct nfp_net *nn;
 	u32 mask_id_seed;
 	u64 flower_version;
+	u64 flower_ext_feats;
 	struct nfp_fl_stats_id stats_ids;
 	struct nfp_fl_mask_id mask_ids;
 	DECLARE_HASHTABLE(mask_table, NFP_FLOWER_MASK_HASH_BITS);
