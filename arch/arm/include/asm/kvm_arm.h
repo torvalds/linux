@@ -161,8 +161,7 @@
 #else
 #define VTTBR_X		(5 - KVM_T0SZ)
 #endif
-#define VTTBR_BADDR_SHIFT (VTTBR_X - 1)
-#define VTTBR_BADDR_MASK  (((_AC(1, ULL) << (40 - VTTBR_X)) - 1) << VTTBR_BADDR_SHIFT)
+#define VTTBR_BADDR_MASK  (((1LLU << (40 - VTTBR_X)) - 1) << VTTBR_X)
 #define VTTBR_VMID_SHIFT  _AC(48, ULL)
 #define VTTBR_VMID_MASK(size)	(_AT(u64, (1 << size) - 1) << VTTBR_VMID_SHIFT)
 
@@ -209,6 +208,7 @@
 #define HSR_EC_IABT_HYP	(0x21)
 #define HSR_EC_DABT	(0x24)
 #define HSR_EC_DABT_HYP	(0x25)
+#define HSR_EC_MAX	(0x3f)
 
 #define HSR_WFI_IS_WFE		(_AC(1, UL) << 0)
 

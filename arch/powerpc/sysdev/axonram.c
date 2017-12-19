@@ -276,7 +276,9 @@ failed:
 			if (bank->disk->major > 0)
 				unregister_blkdev(bank->disk->major,
 						bank->disk->disk_name);
-			del_gendisk(bank->disk);
+			if (bank->disk->flags & GENHD_FL_UP)
+				del_gendisk(bank->disk);
+			put_disk(bank->disk);
 		}
 		device->dev.platform_data = NULL;
 		if (bank->io_addr != 0)
@@ -301,6 +303,7 @@ axon_ram_remove(struct platform_device *device)
 	device_remove_file(&device->dev, &dev_attr_ecc);
 	free_irq(bank->irq_id, device);
 	del_gendisk(bank->disk);
+	put_disk(bank->disk);
 	iounmap((void __iomem *) bank->io_addr);
 	kfree(bank);
 

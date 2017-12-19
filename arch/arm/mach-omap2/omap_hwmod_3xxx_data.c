@@ -3885,16 +3885,20 @@ static struct omap_hwmod_ocp_if *omap3xxx_dss_hwmod_ocp_ifs[] __initdata = {
  * Return: 0 if device named @dev_name is not likely to be accessible,
  * or 1 if it is likely to be accessible.
  */
-static int __init omap3xxx_hwmod_is_hs_ip_block_usable(struct device_node *bus,
-						       const char *dev_name)
+static bool __init omap3xxx_hwmod_is_hs_ip_block_usable(struct device_node *bus,
+							const char *dev_name)
 {
+	struct device_node *node;
+	bool available;
+
 	if (!bus)
-		return (omap_type() == OMAP2_DEVICE_TYPE_GP) ? 1 : 0;
+		return omap_type() == OMAP2_DEVICE_TYPE_GP;
 
-	if (of_device_is_available(of_find_node_by_name(bus, dev_name)))
-		return 1;
+	node = of_get_child_by_name(bus, dev_name);
+	available = of_device_is_available(node);
+	of_node_put(node);
 
-	return 0;
+	return available;
 }
 
 int __init omap3xxx_hwmod_init(void)
@@ -3963,15 +3967,20 @@ int __init omap3xxx_hwmod_init(void)
 
 	if (h_sham && omap3xxx_hwmod_is_hs_ip_block_usable(bus, "sham")) {
 		r = omap_hwmod_register_links(h_sham);
-		if (r < 0)
+		if (r < 0) {
+			of_node_put(bus);
 			return r;
+		}
 	}
 
 	if (h_aes && omap3xxx_hwmod_is_hs_ip_block_usable(bus, "aes")) {
 		r = omap_hwmod_register_links(h_aes);
-		if (r < 0)
+		if (r < 0) {
+			of_node_put(bus);
 			return r;
+		}
 	}
+	of_node_put(bus);
 
 	/*
 	 * Register hwmod links specific to certain ES levels of a
