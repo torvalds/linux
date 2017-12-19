@@ -964,10 +964,6 @@ struct nft_table {
 	char				*name;
 };
 
-enum nft_af_flags {
-	NFT_AF_NEEDS_DEV	= (1 << 0),
-};
-
 /**
  *	struct nft_af_info - nf_tables address family info
  *
@@ -975,14 +971,12 @@ enum nft_af_flags {
  *	@family: address family
  *	@owner: module owner
  *	@tables: used internally
- *	@flags: family flags
  */
 struct nft_af_info {
 	struct list_head		list;
 	int				family;
 	struct module			*owner;
 	struct list_head		tables;
-	u32				flags;
 };
 
 int nft_register_afinfo(struct net *, struct nft_af_info *);

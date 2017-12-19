@@ -41,7 +41,6 @@ nft_do_chain_netdev(void *priv, struct sk_buff *skb,
 static struct nft_af_info nft_af_netdev __read_mostly = {
 	.family		= NFPROTO_NETDEV,
 	.owner		= THIS_MODULE,
-	.flags		= NFT_AF_NEEDS_DEV,
 };
 
 static int nf_tables_netdev_init_net(struct net *net)
