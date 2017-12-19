@@ -89,6 +89,8 @@ static inline void iwl_fw_resume_timestamp(struct iwl_fw_runtime *fwrt)
 			      round_jiffies_relative(fwrt->timestamp.delay));
 }
 
+void iwl_fw_trigger_timestamp(struct iwl_fw_runtime *fwrt, u32 delay);
+
 #else
 static inline int iwl_fwrt_dbgfs_register(struct iwl_fw_runtime *fwrt,
 					  struct dentry *dbgfs_dir)
@@ -101,5 +103,8 @@ static inline void iwl_fw_cancel_timestamp(struct iwl_fw_runtime *fwrt) {}
 static inline void iwl_fw_suspend_timestamp(struct iwl_fw_runtime *fwrt) {}
 
 static inline void iwl_fw_resume_timestamp(struct iwl_fw_runtime *fwrt) {}
+
+static inline void iwl_fw_trigger_timestamp(struct iwl_fw_runtime *fwrt,
+					    u32 delay) {}
 
 #endif /* CONFIG_IWLWIFI_DEBUGFS */
