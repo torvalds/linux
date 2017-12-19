@@ -29,7 +29,6 @@ config DRM_I915_DEBUG
 	select SW_SYNC # signaling validation framework (igt/syncobj*)
 	select DRM_I915_SW_FENCE_DEBUG_OBJECTS
 	select DRM_I915_SELFTEST
-	select DRM_I915_TRACE_GEM
         default n
         help
           Choose this option to turn on extra driver debugging that may affect
@@ -53,6 +52,7 @@ config DRM_I915_DEBUG_GEM
 
 config DRM_I915_TRACE_GEM
 	bool "Insert extra ftrace output from the GEM internals"
+	depends on DRM_I915_DEBUG_GEM
 	select TRACING
 	default n
 	help
