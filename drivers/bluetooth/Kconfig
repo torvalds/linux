@@ -31,6 +31,16 @@ config BT_HCIBTUSB
 	  Say Y here to compile support for Bluetooth USB devices into the
 	  kernel or say M to compile it as module (btusb).
 
+config BT_HCIBTUSB_AUTOSUSPEND
+	bool "Enable USB autosuspend for Bluetooth USB devices by default"
+	depends on BT_HCIBTUSB
+	help
+	  Say Y here to enable USB autosuspend for Bluetooth USB devices by
+	  default.
+
+	  This can be overridden by passing btusb.enable_autosuspend=[y|n]
+	  on the kernel commandline.
+
 config BT_HCIBTUSB_BCM
 	bool "Broadcom protocol support"
 	depends on BT_HCIBTUSB
