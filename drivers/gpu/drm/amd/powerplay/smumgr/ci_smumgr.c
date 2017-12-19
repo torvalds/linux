@@ -2316,6 +2316,7 @@ static int ci_load_smc_ucode(struct pp_hwmgr *hwmgr)
 	cgs_get_firmware_info(hwmgr->device, CGS_UCODE_ID_SMU, &info);
 
 	hwmgr->is_kicker = info.is_kicker;
+	hwmgr->smu_version = info.version;
 	byte_count = info.image_size;
 	src = (uint8_t *)info.kptr;
 	start_addr = info.ucode_start_address;
