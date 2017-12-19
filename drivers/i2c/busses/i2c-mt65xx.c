@@ -861,9 +861,18 @@ static int mtk_i2c_remove(struct platform_device *pdev)
 #ifdef CONFIG_PM_SLEEP
 static int mtk_i2c_resume(struct device *dev)
 {
+	int ret;
 	struct mtk_i2c *i2c = dev_get_drvdata(dev);
 
+	ret = mtk_i2c_clock_enable(i2c);
+	if (ret) {
+		dev_err(dev, "clock enable failed!\n");
+		return ret;
+	}
+
 	mtk_i2c_init_hw(i2c);
+
+	mtk_i2c_clock_disable(i2c);
 
 	return 0;
 }
