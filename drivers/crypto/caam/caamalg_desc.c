@@ -1075,7 +1075,7 @@ void cnstr_shdsc_ablkcipher_encap(u32 * const desc, struct alginfo *cdata,
 
 	/* Load nonce into CONTEXT1 reg */
 	if (is_rfc3686) {
-		u8 *nonce = cdata->key_virt + cdata->keylen;
+		const u8 *nonce = cdata->key_virt + cdata->keylen;
 
 		append_load_as_imm(desc, nonce, CTR_RFC3686_NONCE_SIZE,
 				   LDST_CLASS_IND_CCB |
@@ -1140,7 +1140,7 @@ void cnstr_shdsc_ablkcipher_decap(u32 * const desc, struct alginfo *cdata,
 
 	/* Load nonce into CONTEXT1 reg */
 	if (is_rfc3686) {
-		u8 *nonce = cdata->key_virt + cdata->keylen;
+		const u8 *nonce = cdata->key_virt + cdata->keylen;
 
 		append_load_as_imm(desc, nonce, CTR_RFC3686_NONCE_SIZE,
 				   LDST_CLASS_IND_CCB |
@@ -1209,7 +1209,7 @@ void cnstr_shdsc_ablkcipher_givencap(u32 * const desc, struct alginfo *cdata,
 
 	/* Load Nonce into CONTEXT1 reg */
 	if (is_rfc3686) {
-		u8 *nonce = cdata->key_virt + cdata->keylen;
+		const u8 *nonce = cdata->key_virt + cdata->keylen;
 
 		append_load_as_imm(desc, nonce, CTR_RFC3686_NONCE_SIZE,
 				   LDST_CLASS_IND_CCB |
