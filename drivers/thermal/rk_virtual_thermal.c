@@ -142,6 +142,8 @@ struct virtual_thermal_data {
 	int sigma_time_20ms;
 	struct kobject virtual_thermal_kobj;
 	struct thermal_tuning_info *tuning_info;
+	struct clk *gpu_clk;
+	struct clk *vpu_clk;
 };
 
 static struct platform_device *platform_dev;
@@ -372,6 +374,9 @@ static struct clk *clk_get_by_name(const char *clk_name)
 	int i;
 
 	np = of_find_node_by_name(NULL, "clock-controller");
+	if (!np)
+		return ERR_PTR(-ENODEV);
+
 	clkspec.np = np;
 	clkspec.args_count = 1;
 	for (i = 1; i < CLK_NR_CLKS; i++) {
@@ -380,11 +385,19 @@ static struct clk *clk_get_by_name(const char *clk_name)
 		if (IS_ERR_OR_NULL(clk))
 			continue;
 		name = __clk_get_name(clk);
-		if (strlen(name) != strlen(clk_name))
+
+		if (strlen(name) != strlen(clk_name)) {
+			clk_put(clk);
 			continue;
+		}
+
 		if (!strncmp(name, clk_name, strlen(clk_name)))
 			break;
+
+		clk_put(clk);
 	}
+
+	of_node_put(np);
 
 	if (i == CLK_NR_CLKS)
 		clk = NULL;
@@ -397,15 +410,14 @@ static int get_actual_brightness(void)
 	struct backlight_device *bd;
 
 	struct device_node *np;
-	int brightness;
+	int brightness = 0;
 
 	np = of_find_node_by_name(NULL, "backlight");
 	if (!np)
 		return 0;
 	bd = of_find_backlight_by_node(np);
-
 	if (!bd)
-		return 0;
+		goto exit;
 
 	mutex_lock(&bd->ops_lock);
 	if (bd->ops && bd->ops->get_brightness)
@@ -415,6 +427,8 @@ static int get_actual_brightness(void)
 
 	mutex_unlock(&bd->ops_lock);
 
+exit:
+	of_node_put(np);
 	return brightness;
 }
 
@@ -486,15 +500,13 @@ static int ajust_temp_on_gpu_vpu(int temp)
 	int delta_vpu_temp = 0;
 	int gpu_enabled = 0;
 	int vpu_enabled = 0;
-	struct clk *clk;
 	int delta;
 	static int sigma_vpu_20ms;
 	static int sigma_gpu_20ms;
 
 	delta = (int)update_working_time_for_gpu_vpu();
-	clk = clk_get_by_name("aclk_gpu");
 
-	if (!IS_ERR(clk) && __clk_is_enabled(clk)) {
+	if (__clk_is_enabled(ctx->gpu_clk)) {
 		gpu_enabled = 1;
 		sigma_gpu_20ms -= delta;
 		sigma_gpu_20ms = max(sigma_gpu_20ms, 0);
@@ -502,9 +514,7 @@ static int ajust_temp_on_gpu_vpu(int temp)
 		sigma_gpu_20ms += delta;
 	}
 
-	clk = clk_get_by_name("aclk_vdpu");
-
-	if (!IS_ERR(clk) && __clk_is_enabled(clk)) {
+	if (__clk_is_enabled(ctx->vpu_clk)) {
 		vpu_enabled = 1;
 		sigma_vpu_20ms -= delta;
 		sigma_vpu_20ms = max(sigma_vpu_20ms, 0);
@@ -823,6 +833,20 @@ static int virtual_thermal_probe(struct platform_device *pdev)
 	ctx->psy_usb = power_supply_get_by_name("usb");
 	ctx->psy_ac = power_supply_get_by_name("ac");
 
+	ctx->gpu_clk = clk_get_by_name("aclk_gpu");
+	if (IS_ERR_OR_NULL(ctx->gpu_clk)) {
+		ret = PTR_ERR(ctx->gpu_clk);
+		ctx->gpu_clk = NULL;
+		dev_warn(&pdev->dev, "failed to get gpu's clock: %d\n", ret);
+	}
+
+	ctx->vpu_clk = clk_get_by_name("aclk_vdpu");
+	if (IS_ERR_OR_NULL(ctx->vpu_clk)) {
+		ret = PTR_ERR(ctx->vpu_clk);
+		ctx->vpu_clk = NULL;
+		dev_warn(&pdev->dev, "failed to get vpu's clock: %d\n", ret);
+	}
+
 	ret = cpufreq_register_notifier(&temp_notifier_block,
 					CPUFREQ_TRANSITION_NOTIFIER);
 	if (ret) {
@@ -860,10 +884,16 @@ err_unreg_cpufreq_notifier:
 
 static int virtual_thermal_remove(struct platform_device *pdev)
 {
+	struct virtual_thermal_data *ctx = platform_get_drvdata(pdev);
 	atomic_notifier_chain_unregister(&panic_notifier_list,
 					 &virtual_thermal_panic_block);
 	cpufreq_unregister_notifier(&temp_notifier_block,
 				    CPUFREQ_TRANSITION_NOTIFIER);
+	if (ctx->gpu_clk)
+		clk_put(ctx->gpu_clk);
+	if (ctx->vpu_clk)
+		clk_put(ctx->vpu_clk);
+
 	return 0;
 }
 
