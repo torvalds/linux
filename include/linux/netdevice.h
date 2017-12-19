@@ -1726,7 +1726,7 @@ struct net_device {
 	const struct ndisc_ops *ndisc_ops;
 #endif
 
-#ifdef CONFIG_XFRM
+#ifdef CONFIG_XFRM_OFFLOAD
 	const struct xfrmdev_ops *xfrmdev_ops;
 #endif
 
