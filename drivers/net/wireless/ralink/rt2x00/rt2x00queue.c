@@ -715,6 +715,14 @@ int rt2x00queue_write_tx_frame(struct data_queue *queue, struct sk_buff *skb,
 	rt2x00queue_kick_tx_queue(queue, &txdesc);
 
 out:
+	/*
+	 * Pausing queue has to be serialized with rt2x00lib_txdone(), so we
+	 * do this under queue->tx_lock. Bottom halve was already disabled
+	 * before ieee80211_xmit() call.
+	 */
+	if (rt2x00queue_threshold(queue))
+		rt2x00queue_pause_queue(queue);
+
 	spin_unlock(&queue->tx_lock);
 	return ret;
 }
