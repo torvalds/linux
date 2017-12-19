@@ -97,6 +97,15 @@
 #define M09_NUM_X			0x94
 #define M09_NUM_Y			0x95
 
+#define M09_ID_G_MODE			0xa4
+#define M09_ID_G_MODE_POLL			0x00
+#define M09_ID_G_MODE_IRQ			0x01
+
+#define M09_ID_G_PMODE			0xa5
+#define M09_ID_G_PMODE_ACTIVE			0x00
+#define M09_ID_G_PMODE_MONITOR			0x01
+#define M09_ID_G_PMODE_HIBERNATE		0x03
+
 #define EDT_FW_VERSION			0xa6
 #define EDT_PANEL_ID			0xa8
 #define EDT_PANEL_ID_EP0350M09			0x35
@@ -428,6 +437,18 @@ static irqreturn_t edt_ft5x06_ts_isr(int irq, void *dev_id)
 static void edt_ft5x06_poll(struct input_polled_dev *polldev)
 {
 	struct edt_ft5x06_ts_data *tsdata = polldev->private;
+
+	/* Ensure display is always awake */
+	switch (tsdata->version) {
+	case EDT_M06:
+		break;
+	case EDT_M09: /* fall through */
+	case EDT_M12: /* fall through */
+	case GENERIC_FT:
+		edt_ft5x06_register_write(tsdata, M09_ID_G_PMODE,
+					  M09_ID_G_PMODE_ACTIVE);
+		break;
+	}
 
 	edt_ft5x06_report(tsdata);
 }
