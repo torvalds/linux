@@ -33,6 +33,9 @@
  */
 #define SIOX_STATUS_TYPE		0xf0
 
+#define CREATE_TRACE_POINTS
+#include <trace/events/siox.h>
+
 static bool siox_is_registered;
 
 static void siox_master_lock(struct siox_master *smaster)
@@ -126,6 +129,7 @@ static void siox_poll(struct siox_master *smaster)
 {
 	struct siox_device *sdevice;
 	size_t i = smaster->setbuf_len;
+	unsigned int devno = 0;
 	int unsync_error = 0;
 
 	smaster->last_poll = jiffies;
@@ -172,6 +176,10 @@ static void siox_poll(struct siox_master *smaster)
 			sdevice->status_written &= ~SIOX_STATUS_WDG;
 
 		smaster->buf[i] = sdevice->status_written;
+
+		trace_siox_set_data(smaster, sdevice, devno, i);
+
+		devno++;
 	}
 
 	smaster->pushpull(smaster, smaster->setbuf_len, smaster->buf,
@@ -181,6 +189,7 @@ static void siox_poll(struct siox_master *smaster)
 	unsync_error = 0;
 
 	/* interpret data pulled in from devices in buf[setbuf_len..] */
+	devno = 0;
 	i = smaster->setbuf_len;
 	list_for_each_entry(sdevice, &smaster->devices, node) {
 		struct siox_driver *sdriver =
@@ -255,10 +264,13 @@ static void siox_poll(struct siox_master *smaster)
 		sdevice->status_written_lastcycle = sdevice->status_written;
 		sdevice->connected = connected;
 
+		trace_siox_get_data(smaster, sdevice, devno, status_clean, i);
+
 		/* only give data read to driver if the device is connected */
 		if (sdriver && connected)
 			sdriver->get_data(sdevice, &smaster->buf[i]);
 
+		devno++;
 		i += sdevice->outbytes;
 	}
 }
