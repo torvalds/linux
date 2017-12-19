@@ -236,6 +236,8 @@ static void option_instat_callback(struct urb *urb);
 /* These Quectel products use Qualcomm's vendor ID */
 #define QUECTEL_PRODUCT_UC20			0x9003
 #define QUECTEL_PRODUCT_UC15			0x9090
+/* These Yuga products use Qualcomm's vendor ID */
+#define YUGA_PRODUCT_CLM920_NC5			0x9625
 
 #define QUECTEL_VENDOR_ID			0x2c7c
 /* These Quectel products use Quectel's vendor ID */
@@ -681,6 +683,10 @@ static const struct option_blacklist_info telit_le922_blacklist_usbcfg3 = {
 
 static const struct option_blacklist_info cinterion_rmnet2_blacklist = {
 	.reserved = BIT(4) | BIT(5),
+};
+
+static const struct option_blacklist_info yuga_clm920_nc5_blacklist = {
+	.reserved = BIT(1) | BIT(4),
 };
 
 static const struct usb_device_id option_ids[] = {
@@ -1187,6 +1193,9 @@ static const struct usb_device_id option_ids[] = {
 	{ USB_DEVICE(QUALCOMM_VENDOR_ID, QUECTEL_PRODUCT_UC15)},
 	{ USB_DEVICE(QUALCOMM_VENDOR_ID, QUECTEL_PRODUCT_UC20),
 	  .driver_info = (kernel_ulong_t)&net_intf4_blacklist },
+	/* Yuga products use Qualcomm vendor ID */
+	{ USB_DEVICE(QUALCOMM_VENDOR_ID, YUGA_PRODUCT_CLM920_NC5),
+	  .driver_info = (kernel_ulong_t)&yuga_clm920_nc5_blacklist },
 	/* Quectel products using Quectel vendor ID */
 	{ USB_DEVICE(QUECTEL_VENDOR_ID, QUECTEL_PRODUCT_EC21),
 	  .driver_info = (kernel_ulong_t)&net_intf4_blacklist },
