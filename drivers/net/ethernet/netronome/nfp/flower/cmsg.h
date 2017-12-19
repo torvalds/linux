@@ -173,16 +173,13 @@ struct nfp_fl_pre_tunnel {
 	__be32 extra[3];
 };
 
-struct nfp_fl_set_vxlan {
+struct nfp_fl_set_ipv4_udp_tun {
 	struct nfp_fl_act_head head;
 	__be16 reserved;
-	__be64 tun_id;
+	__be64 tun_id __packed;
 	__be32 tun_type_index;
-	__be16 tun_flags;
-	u8 ipv4_ttl;
-	u8 ipv4_tos;
-	__be32 extra[2];
-} __packed;
+	__be32 extra[3];
+};
 
 /* Metadata with L2 (1W/4B)
  * ----------------------------------------------------------------
