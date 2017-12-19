@@ -1428,7 +1428,6 @@ u64 qib_sps_ints(void);
  */
 dma_addr_t qib_map_page(struct pci_dev *, struct page *, unsigned long,
 			  size_t, int);
-const char *qib_get_unit_name(int unit);
 struct pci_dev *qib_get_pci_dev(struct rvt_dev_info *rdi);
 
 /*
@@ -1487,15 +1486,15 @@ extern struct mutex qib_mutex;
 
 #define qib_dev_err(dd, fmt, ...) \
 	dev_err(&(dd)->pcidev->dev, "%s: " fmt, \
-		qib_get_unit_name((dd)->unit), ##__VA_ARGS__)
+		rvt_get_ibdev_name(&(dd)->verbs_dev.rdi), ##__VA_ARGS__)
 
 #define qib_dev_warn(dd, fmt, ...) \
 	dev_warn(&(dd)->pcidev->dev, "%s: " fmt, \
-		qib_get_unit_name((dd)->unit), ##__VA_ARGS__)
+		 rvt_get_ibdev_name(&(dd)->verbs_dev.rdi), ##__VA_ARGS__)
 
 #define qib_dev_porterr(dd, port, fmt, ...) \
 	dev_err(&(dd)->pcidev->dev, "%s: IB%u:%u " fmt, \
-		qib_get_unit_name((dd)->unit), (dd)->unit, (port), \
+		rvt_get_ibdev_name(&(dd)->verbs_dev.rdi), (dd)->unit, (port), \
 		##__VA_ARGS__)
 
 #define qib_devinfo(pcidev, fmt, ...) \

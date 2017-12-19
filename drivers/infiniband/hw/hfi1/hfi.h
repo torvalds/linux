@@ -1971,7 +1971,6 @@ int get_platform_config_field(struct hfi1_devdata *dd,
 			      table_type, int table_index, int field_index,
 			      u32 *data, u32 len);
 
-const char *get_unit_name(int unit);
 struct pci_dev *get_pci_dev(struct rvt_dev_info *rdi);
 
 /*
@@ -2121,39 +2120,42 @@ static inline u64 hfi1_pkt_base_sdma_integrity(struct hfi1_devdata *dd)
 
 #define dd_dev_emerg(dd, fmt, ...) \
 	dev_emerg(&(dd)->pcidev->dev, "%s: " fmt, \
-		  get_unit_name((dd)->unit), ##__VA_ARGS__)
+		  rvt_get_ibdev_name(&(dd)->verbs_dev.rdi), ##__VA_ARGS__)
 
 #define dd_dev_err(dd, fmt, ...) \
 	dev_err(&(dd)->pcidev->dev, "%s: " fmt, \
-			get_unit_name((dd)->unit), ##__VA_ARGS__)
+		rvt_get_ibdev_name(&(dd)->verbs_dev.rdi), ##__VA_ARGS__)
 
 #define dd_dev_err_ratelimited(dd, fmt, ...) \
 	dev_err_ratelimited(&(dd)->pcidev->dev, "%s: " fmt, \
-			get_unit_name((dd)->unit), ##__VA_ARGS__)
+			    rvt_get_ibdev_name(&(dd)->verbs_dev.rdi), \
+			    ##__VA_ARGS__)
 
 #define dd_dev_warn(dd, fmt, ...) \
 	dev_warn(&(dd)->pcidev->dev, "%s: " fmt, \
-			get_unit_name((dd)->unit), ##__VA_ARGS__)
+		 rvt_get_ibdev_name(&(dd)->verbs_dev.rdi), ##__VA_ARGS__)
 
 #define dd_dev_warn_ratelimited(dd, fmt, ...) \
 	dev_warn_ratelimited(&(dd)->pcidev->dev, "%s: " fmt, \
-			get_unit_name((dd)->unit), ##__VA_ARGS__)
+			     rvt_get_ibdev_name(&(dd)->verbs_dev.rdi), \
+			     ##__VA_ARGS__)
 
 #define dd_dev_info(dd, fmt, ...) \
 	dev_info(&(dd)->pcidev->dev, "%s: " fmt, \
-			get_unit_name((dd)->unit), ##__VA_ARGS__)
+		 rvt_get_ibdev_name(&(dd)->verbs_dev.rdi), ##__VA_ARGS__)
 
 #define dd_dev_info_ratelimited(dd, fmt, ...) \
 	dev_info_ratelimited(&(dd)->pcidev->dev, "%s: " fmt, \
-			get_unit_name((dd)->unit), ##__VA_ARGS__)
+			     rvt_get_ibdev_name(&(dd)->verbs_dev.rdi), \
+			     ##__VA_ARGS__)
 
 #define dd_dev_dbg(dd, fmt, ...) \
 	dev_dbg(&(dd)->pcidev->dev, "%s: " fmt, \
-		get_unit_name((dd)->unit), ##__VA_ARGS__)
+		rvt_get_ibdev_name(&(dd)->verbs_dev.rdi), ##__VA_ARGS__)
 
 #define hfi1_dev_porterr(dd, port, fmt, ...) \
 	dev_err(&(dd)->pcidev->dev, "%s: port %u: " fmt, \
-			get_unit_name((dd)->unit), (port), ##__VA_ARGS__)
+		rvt_get_ibdev_name(&(dd)->verbs_dev.rdi), (port), ##__VA_ARGS__)
 
 /*
  * this is used for formatting hw error messages...
