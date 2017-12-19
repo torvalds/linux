@@ -802,6 +802,9 @@ static void qtnf_cfg80211_reg_notifier(struct wiphy *wiphy_in,
 			continue;
 
 		mac = bus->mac[mac_idx];
+		if (!mac)
+			continue;
+
 		wiphy = priv_to_wiphy(mac);
 
 		for (band = 0; band < NUM_NL80211_BANDS; ++band) {
