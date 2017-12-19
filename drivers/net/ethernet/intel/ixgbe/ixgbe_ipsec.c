@@ -374,6 +374,38 @@ static int ixgbe_ipsec_find_empty_idx(struct ixgbe_ipsec *ipsec, bool rxtable)
 }
 
 /**
+ * ixgbe_ipsec_find_rx_state - find the state that matches
+ * @ipsec: pointer to ipsec struct
+ * @daddr: inbound address to match
+ * @proto: protocol to match
+ * @spi: SPI to match
+ * @ip4: true if using an ipv4 address
+ *
+ * Returns a pointer to the matching SA state information
+ **/
+static struct xfrm_state *ixgbe_ipsec_find_rx_state(struct ixgbe_ipsec *ipsec,
+						    __be32 *daddr, u8 proto,
+						    __be32 spi, bool ip4)
+{
+	struct rx_sa *rsa;
+	struct xfrm_state *ret = NULL;
+
+	rcu_read_lock();
+	hash_for_each_possible_rcu(ipsec->rx_sa_list, rsa, hlist, spi)
+		if (spi == rsa->xs->id.spi &&
+		    ((ip4 && *daddr == rsa->xs->id.daddr.a4) ||
+		      (!ip4 && !memcmp(daddr, &rsa->xs->id.daddr.a6,
+				       sizeof(rsa->xs->id.daddr.a6)))) &&
+		    proto == rsa->xs->id.proto) {
+			ret = rsa->xs;
+			xfrm_state_hold(ret);
+			break;
+		}
+	rcu_read_unlock();
+	return ret;
+}
+
+/**
  * ixgbe_ipsec_parse_proto_keys - find the key and salt based on the protocol
  * @xs: pointer to xfrm_state struct
  * @mykey: pointer to key array to populate
@@ -476,7 +508,7 @@ static int ixgbe_ipsec_add_sa(struct xfrm_state *xs)
 		}
 
 		/* get ip for rx sa table */
-		if (xs->xso.flags & XFRM_OFFLOAD_IPV6)
+		if (xs->props.family == AF_INET6)
 			memcpy(rsa.ipaddr, &xs->id.daddr.a6, 16);
 		else
 			memcpy(&rsa.ipaddr[3], &xs->id.daddr.a4, 4);
@@ -541,7 +573,7 @@ static int ixgbe_ipsec_add_sa(struct xfrm_state *xs)
 			rsa.mode |= IXGBE_RXMOD_PROTO_ESP;
 		if (rsa.decrypt)
 			rsa.mode |= IXGBE_RXMOD_DECRYPT;
-		if (rsa.xs->xso.flags & XFRM_OFFLOAD_IPV6)
+		if (rsa.xs->props.family == AF_INET6)
 			rsa.mode |= IXGBE_RXMOD_IPV6;
 
 		/* the preparations worked, so save the info */
@@ -670,6 +702,78 @@ static const struct xfrmdev_ops ixgbe_xfrmdev_ops = {
 	.xdo_dev_state_add = ixgbe_ipsec_add_sa,
 	.xdo_dev_state_delete = ixgbe_ipsec_del_sa,
 };
+
+/**
+ * ixgbe_ipsec_rx - decode ipsec bits from Rx descriptor
+ * @rx_ring: receiving ring
+ * @rx_desc: receive data descriptor
+ * @skb: current data packet
+ *
+ * Determine if there was an ipsec encapsulation noticed, and if so set up
+ * the resulting status for later in the receive stack.
+ **/
+void ixgbe_ipsec_rx(struct ixgbe_ring *rx_ring,
+		    union ixgbe_adv_rx_desc *rx_desc,
+		    struct sk_buff *skb)
+{
+	struct ixgbe_adapter *adapter = netdev_priv(rx_ring->netdev);
+	__le16 pkt_info = rx_desc->wb.lower.lo_dword.hs_rss.pkt_info;
+	__le16 ipsec_pkt_types = cpu_to_le16(IXGBE_RXDADV_PKTTYPE_IPSEC_AH |
+					     IXGBE_RXDADV_PKTTYPE_IPSEC_ESP);
+	struct ixgbe_ipsec *ipsec = adapter->ipsec;
+	struct xfrm_offload *xo = NULL;
+	struct xfrm_state *xs = NULL;
+	struct ipv6hdr *ip6 = NULL;
+	struct iphdr *ip4 = NULL;
+	void *daddr;
+	__be32 spi;
+	u8 *c_hdr;
+	u8 proto;
+
+	/* Find the ip and crypto headers in the data.
+	 * We can assume no vlan header in the way, b/c the
+	 * hw won't recognize the IPsec packet and anyway the
+	 * currently vlan device doesn't support xfrm offload.
+	 */
+	if (pkt_info & cpu_to_le16(IXGBE_RXDADV_PKTTYPE_IPV4)) {
+		ip4 = (struct iphdr *)(skb->data + ETH_HLEN);
+		daddr = &ip4->daddr;
+		c_hdr = (u8 *)ip4 + ip4->ihl * 4;
+	} else if (pkt_info & cpu_to_le16(IXGBE_RXDADV_PKTTYPE_IPV6)) {
+		ip6 = (struct ipv6hdr *)(skb->data + ETH_HLEN);
+		daddr = &ip6->daddr;
+		c_hdr = (u8 *)ip6 + sizeof(struct ipv6hdr);
+	} else {
+		return;
+	}
+
+	switch (pkt_info & ipsec_pkt_types) {
+	case cpu_to_le16(IXGBE_RXDADV_PKTTYPE_IPSEC_AH):
+		spi = ((struct ip_auth_hdr *)c_hdr)->spi;
+		proto = IPPROTO_AH;
+		break;
+	case cpu_to_le16(IXGBE_RXDADV_PKTTYPE_IPSEC_ESP):
+		spi = ((struct ip_esp_hdr *)c_hdr)->spi;
+		proto = IPPROTO_ESP;
+		break;
+	default:
+		return;
+	}
+
+	xs = ixgbe_ipsec_find_rx_state(ipsec, daddr, proto, spi, !!ip4);
+	if (unlikely(!xs))
+		return;
+
+	skb->sp = secpath_dup(skb->sp);
+	if (unlikely(!skb->sp))
+		return;
+
+	skb->sp->xvec[skb->sp->len++] = xs;
+	skb->sp->olen++;
+	xo = xfrm_offload(skb);
+	xo->flags = CRYPTO_DONE;
+	xo->status = CRYPTO_SUCCESS;
+}
 
 /**
  * ixgbe_init_ipsec_offload - initialize security registers for IPSec operation
