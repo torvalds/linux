@@ -505,24 +505,24 @@ int rf69_set_dio_mapping(struct spi_device *spi, u8 DIONumber, u8 value)
 bool rf69_get_flag(struct spi_device *spi, enum flag flag)
 {
 	switch (flag) {
-	case modeSwitchCompleted:     return (rf69_read_reg(spi, REG_IRQFLAGS1) & MASK_IRQFLAGS1_MODE_READY);
-	case readyToReceive:	      return (rf69_read_reg(spi, REG_IRQFLAGS1) & MASK_IRQFLAGS1_RX_READY);
-	case readyToSend:	      return (rf69_read_reg(spi, REG_IRQFLAGS1) & MASK_IRQFLAGS1_TX_READY);
-	case pllLocked:		      return (rf69_read_reg(spi, REG_IRQFLAGS1) & MASK_IRQFLAGS1_PLL_LOCK);
-	case rssiExceededThreshold:   return (rf69_read_reg(spi, REG_IRQFLAGS1) & MASK_IRQFLAGS1_RSSI);
-	case timeout:		      return (rf69_read_reg(spi, REG_IRQFLAGS1) & MASK_IRQFLAGS1_TIMEOUT);
-	case automode:		      return (rf69_read_reg(spi, REG_IRQFLAGS1) & MASK_IRQFLAGS1_AUTOMODE);
-	case syncAddressMatch:	      return (rf69_read_reg(spi, REG_IRQFLAGS1) & MASK_IRQFLAGS1_SYNC_ADDRESS_MATCH);
-	case fifoFull:		      return (rf69_read_reg(spi, REG_IRQFLAGS2) & MASK_IRQFLAGS2_FIFO_FULL);
-/*	case fifoNotEmpty:	      return (rf69_read_reg(spi, REG_IRQFLAGS2) & MASK_IRQFLAGS2_FIFO_NOT_EMPTY); */
-	case fifoEmpty:		      return !(rf69_read_reg(spi, REG_IRQFLAGS2) & MASK_IRQFLAGS2_FIFO_NOT_EMPTY);
-	case fifoLevelBelowThreshold: return (rf69_read_reg(spi, REG_IRQFLAGS2) & MASK_IRQFLAGS2_FIFO_LEVEL);
-	case fifoOverrun:	      return (rf69_read_reg(spi, REG_IRQFLAGS2) & MASK_IRQFLAGS2_FIFO_OVERRUN);
-	case packetSent:	      return (rf69_read_reg(spi, REG_IRQFLAGS2) & MASK_IRQFLAGS2_PACKET_SENT);
-	case payloadReady:	      return (rf69_read_reg(spi, REG_IRQFLAGS2) & MASK_IRQFLAGS2_PAYLOAD_READY);
-	case crcOk:		      return (rf69_read_reg(spi, REG_IRQFLAGS2) & MASK_IRQFLAGS2_CRC_OK);
-	case batteryLow:	      return (rf69_read_reg(spi, REG_IRQFLAGS2) & MASK_IRQFLAGS2_LOW_BAT);
-	default:		      return false;
+	case modeSwitchCompleted:	 return (rf69_read_reg(spi, REG_IRQFLAGS1) & MASK_IRQFLAGS1_MODE_READY);
+	case readyToReceive:		 return (rf69_read_reg(spi, REG_IRQFLAGS1) & MASK_IRQFLAGS1_RX_READY);
+	case readyToSend:		 return (rf69_read_reg(spi, REG_IRQFLAGS1) & MASK_IRQFLAGS1_TX_READY);
+	case pllLocked:			 return (rf69_read_reg(spi, REG_IRQFLAGS1) & MASK_IRQFLAGS1_PLL_LOCK);
+	case rssiExceededThreshold:	 return (rf69_read_reg(spi, REG_IRQFLAGS1) & MASK_IRQFLAGS1_RSSI);
+	case timeout:			 return (rf69_read_reg(spi, REG_IRQFLAGS1) & MASK_IRQFLAGS1_TIMEOUT);
+	case automode:			 return (rf69_read_reg(spi, REG_IRQFLAGS1) & MASK_IRQFLAGS1_AUTOMODE);
+	case syncAddressMatch:		 return (rf69_read_reg(spi, REG_IRQFLAGS1) & MASK_IRQFLAGS1_SYNC_ADDRESS_MATCH);
+	case fifo_full:			 return (rf69_read_reg(spi, REG_IRQFLAGS2) & MASK_IRQFLAGS2_FIFO_FULL);
+/*	case fifo_not_empty:		 return (rf69_read_reg(spi, REG_IRQFLAGS2) & MASK_IRQFLAGS2_FIFO_NOT_EMPTY); */
+	case fifo_empty:		 return !(rf69_read_reg(spi, REG_IRQFLAGS2) & MASK_IRQFLAGS2_FIFO_NOT_EMPTY);
+	case fifo_level_below_threshold: return (rf69_read_reg(spi, REG_IRQFLAGS2) & MASK_IRQFLAGS2_FIFO_LEVEL);
+	case fifo_overrun:		 return (rf69_read_reg(spi, REG_IRQFLAGS2) & MASK_IRQFLAGS2_FIFO_OVERRUN);
+	case packetSent:		 return (rf69_read_reg(spi, REG_IRQFLAGS2) & MASK_IRQFLAGS2_PACKET_SENT);
+	case payloadReady:		 return (rf69_read_reg(spi, REG_IRQFLAGS2) & MASK_IRQFLAGS2_PAYLOAD_READY);
+	case crcOk:			 return (rf69_read_reg(spi, REG_IRQFLAGS2) & MASK_IRQFLAGS2_CRC_OK);
+	case batteryLow:		 return (rf69_read_reg(spi, REG_IRQFLAGS2) & MASK_IRQFLAGS2_LOW_BAT);
+	default:			 return false;
 	}
 }
 
@@ -531,7 +531,7 @@ int rf69_reset_flag(struct spi_device *spi, enum flag flag)
 	switch (flag) {
 	case rssiExceededThreshold: return rf69_write_reg(spi, REG_IRQFLAGS1, MASK_IRQFLAGS1_RSSI);
 	case syncAddressMatch:	    return rf69_write_reg(spi, REG_IRQFLAGS1, MASK_IRQFLAGS1_SYNC_ADDRESS_MATCH);
-	case fifoOverrun:	    return rf69_write_reg(spi, REG_IRQFLAGS2, MASK_IRQFLAGS2_FIFO_OVERRUN);
+	case fifo_overrun:	    return rf69_write_reg(spi, REG_IRQFLAGS2, MASK_IRQFLAGS2_FIFO_OVERRUN);
 	default:
 		dev_dbg(&spi->dev, "set: illegal input param");
 		return -EINVAL;
@@ -589,9 +589,9 @@ int rf69_disable_sync(struct spi_device *spi)
 	return rf69_clear_bit(spi, REG_SYNC_CONFIG, MASK_SYNC_CONFIG_SYNC_ON);
 }
 
-int rf69_set_fifo_fill_condition(struct spi_device *spi, enum fifoFillCondition fifoFillCondition)
+int rf69_set_fifo_fill_condition(struct spi_device *spi, enum fifo_fill_condition fifo_fill_condition)
 {
-	switch (fifoFillCondition) {
+	switch (fifo_fill_condition) {
 	case always:		 return rf69_set_bit(spi, REG_SYNC_CONFIG, MASK_SYNC_CONFIG_FIFO_FILL_CONDITION);
 	case afterSyncInterrupt: return rf69_clear_bit(spi, REG_SYNC_CONFIG, MASK_SYNC_CONFIG_FIFO_FILL_CONDITION);
 	default:
@@ -696,8 +696,8 @@ int rf69_set_broadcast_address(struct spi_device *spi, u8 broadcastAddress)
 int rf69_set_tx_start_condition(struct spi_device *spi, enum txStartCondition txStartCondition)
 {
 	switch (txStartCondition) {
-	case fifoLevel:	   return rf69_clear_bit(spi, REG_FIFO_THRESH, MASK_FIFO_THRESH_TXSTART);
-	case fifoNotEmpty: return rf69_set_bit(spi, REG_FIFO_THRESH, MASK_FIFO_THRESH_TXSTART);
+	case fifo_level:	return rf69_clear_bit(spi, REG_FIFO_THRESH, MASK_FIFO_THRESH_TXSTART);
+	case fifo_not_empty:	return rf69_set_bit(spi, REG_FIFO_THRESH, MASK_FIFO_THRESH_TXSTART);
 	default:
 		dev_dbg(&spi->dev, "set: illegal input param");
 		return -EINVAL;

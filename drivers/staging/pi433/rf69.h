@@ -56,7 +56,7 @@ int rf69_set_rssi_timeout(struct spi_device *spi, u8 timeout);
 int rf69_set_preamble_length(struct spi_device *spi, u16 preambleLength);
 int rf69_enable_sync(struct spi_device *spi);
 int rf69_disable_sync(struct spi_device *spi);
-int rf69_set_fifo_fill_condition(struct spi_device *spi, enum fifoFillCondition fifoFillCondition);
+int rf69_set_fifo_fill_condition(struct spi_device *spi, enum fifo_fill_condition fifo_fill_condition);
 int rf69_set_sync_size(struct spi_device *spi, u8 sync_size);
 int rf69_set_sync_tolerance(struct spi_device *spi, u8 syncTolerance);
 int rf69_set_sync_values(struct spi_device *spi, u8 syncValues[8]);

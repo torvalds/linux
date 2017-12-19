@@ -130,18 +130,18 @@ enum flag {
 	timeout,
 	automode,
 	syncAddressMatch,
-	fifoFull,
-//	fifoNotEmpty, collision with next enum; replaced by following enum...
-	fifoEmpty,
-	fifoLevelBelowThreshold,
-	fifoOverrun,
+	fifo_full,
+//	fifo_not_empty, collision with next enum; replaced by following enum...
+	fifo_empty,
+	fifo_level_below_threshold,
+	fifo_overrun,
 	packetSent,
 	payloadReady,
 	crcOk,
 	batteryLow
 };
 
-enum fifoFillCondition {
+enum fifo_fill_condition {
 	afterSyncInterrupt,
 	always
 };
@@ -152,8 +152,8 @@ enum packetFormat {
 };
 
 enum txStartCondition {
-	fifoLevel,
-	fifoNotEmpty
+	fifo_level,
+	fifo_not_empty
 };
 
 enum addressFiltering {

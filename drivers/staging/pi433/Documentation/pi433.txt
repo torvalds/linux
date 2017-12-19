@@ -110,9 +110,9 @@ rf params:
 		ramp12		- amp ramps up in 12us
 		ramp10		- amp ramps up in 10us
 	tx_start_condition
-		fifoLevel	- transmission starts, if fifo is filled to
+		fifo_level	- transmission starts, if fifo is filled to
 				  threshold level
-		fifoNotEmpty	- transmission starts, as soon as there is one
+		fifo_not_empty	- transmission starts, as soon as there is one
 				  byte in internal fifo
 	repetitions
 		This gives the option, to send a telegram multiple times. Default: 1
