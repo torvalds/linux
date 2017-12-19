@@ -53,6 +53,7 @@ struct target_backend_ops {
 	void (*free_prot)(struct se_device *);
 
 	struct configfs_attribute **tb_dev_attrib_attrs;
+	struct configfs_attribute **tb_dev_action_attrs;
 };
 
 struct sbc_ops {
