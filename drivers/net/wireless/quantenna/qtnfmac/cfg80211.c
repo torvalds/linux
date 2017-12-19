@@ -381,6 +381,7 @@ qtnf_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 	const struct ieee80211_mgmt *mgmt_frame = (void *)params->buf;
 	u32 short_cookie = prandom_u32();
 	u16 flags = 0;
+	u16 freq;
 
 	*cookie = short_cookie;
 
@@ -393,13 +394,21 @@ qtnf_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 	if (params->dont_wait_for_ack)
 		flags |= QLINK_MGMT_FRAME_TX_FLAG_ACK_NOWAIT;
 
+	/* If channel is not specified, pass "freq = 0" to tell device
+	 * firmware to use current channel.
+	 */
+	if (params->chan)
+		freq = params->chan->center_freq;
+	else
+		freq = 0;
+
 	pr_debug("%s freq:%u; FC:%.4X; DA:%pM; len:%zu; C:%.8X; FL:%.4X\n",
-		 wdev->netdev->name, params->chan->center_freq,
+		 wdev->netdev->name, freq,
 		 le16_to_cpu(mgmt_frame->frame_control), mgmt_frame->da,
 		 params->len, short_cookie, flags);
 
 	return qtnf_cmd_send_mgmt_frame(vif, short_cookie, flags,
-					params->chan->center_freq,
+					freq,
 					params->buf, params->len);
 }
 
