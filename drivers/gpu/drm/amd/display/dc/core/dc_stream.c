@@ -45,8 +45,9 @@ static void update_stream_signal(struct dc_stream_state *stream)
 		stream->signal = dc_sink->sink_signal;
 
 	if (dc_is_dvi_signal(stream->signal)) {
-		if (stream->timing.pix_clk_khz > TMDS_MAX_PIXEL_CLOCK_IN_KHZ_UPMOST &&
-			stream->sink->sink_signal != SIGNAL_TYPE_DVI_SINGLE_LINK)
+		if (stream->ctx->dc->caps.dual_link_dvi &&
+		    stream->timing.pix_clk_khz > TMDS_MAX_PIXEL_CLOCK_IN_KHZ_UPMOST &&
+		    stream->sink->sink_signal != SIGNAL_TYPE_DVI_SINGLE_LINK)
 			stream->signal = SIGNAL_TYPE_DVI_DUAL_LINK;
 		else
 			stream->signal = SIGNAL_TYPE_DVI_SINGLE_LINK;
