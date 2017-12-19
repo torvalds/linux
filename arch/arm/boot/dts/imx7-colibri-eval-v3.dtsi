@@ -45,6 +45,13 @@
 		stdout-path = "serial0:115200n8";
 	};
 
+	/* fixed crystal dedicated to mpc258x */
+	clk16m: clk16m {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <16000000>;
+	};
+
 	panel: panel {
 		compatible = "edt,et057090dhu";
 		backlight = <&bl>;
@@ -97,6 +104,24 @@
 
 &adc2 {
 	status = "okay";
+};
+
+&ecspi3 {
+	status = "okay";
+
+	mcp2515: can@0 {
+		compatible = "microchip,mcp2515";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_can_int>;
+		reg = <0>;
+		clocks = <&clk16m>;
+		interrupt-parent = <&gpio5>;
+		interrupts = <2 IRQ_TYPE_EDGE_FALLING>;
+		spi-max-frequency = <10000000>;
+		vdd-supply = <&reg_3v3>;
+		xceiver-supply = <&reg_5v0>;
+		status = "okay";
+	};
 };
 
 &fec1 {
