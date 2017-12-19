@@ -39,28 +39,28 @@ struct artpec6_pcie {
 
 /* ARTPEC-6 specific registers */
 #define PCIECFG				0x18
-#define  PCIECFG_DBG_OEN		(1 << 24)
-#define  PCIECFG_CORE_RESET_REQ		(1 << 21)
-#define  PCIECFG_LTSSM_ENABLE		(1 << 20)
-#define  PCIECFG_CLKREQ_B		(1 << 11)
-#define  PCIECFG_REFCLK_ENABLE		(1 << 10)
-#define  PCIECFG_PLL_ENABLE		(1 << 9)
-#define  PCIECFG_PCLK_ENABLE		(1 << 8)
-#define  PCIECFG_RISRCREN		(1 << 4)
-#define  PCIECFG_MODE_TX_DRV_EN		(1 << 3)
-#define  PCIECFG_CISRREN		(1 << 2)
-#define  PCIECFG_MACRO_ENABLE		(1 << 0)
+#define  PCIECFG_DBG_OEN		BIT(24)
+#define  PCIECFG_CORE_RESET_REQ		BIT(21)
+#define  PCIECFG_LTSSM_ENABLE		BIT(20)
+#define  PCIECFG_CLKREQ_B		BIT(11)
+#define  PCIECFG_REFCLK_ENABLE		BIT(10)
+#define  PCIECFG_PLL_ENABLE		BIT(9)
+#define  PCIECFG_PCLK_ENABLE		BIT(8)
+#define  PCIECFG_RISRCREN		BIT(4)
+#define  PCIECFG_MODE_TX_DRV_EN		BIT(3)
+#define  PCIECFG_CISRREN		BIT(2)
+#define  PCIECFG_MACRO_ENABLE		BIT(0)
 
 #define NOCCFG				0x40
-#define NOCCFG_ENABLE_CLK_PCIE		(1 << 4)
-#define NOCCFG_POWER_PCIE_IDLEACK	(1 << 3)
-#define NOCCFG_POWER_PCIE_IDLE		(1 << 2)
-#define NOCCFG_POWER_PCIE_IDLEREQ	(1 << 1)
+#define  NOCCFG_ENABLE_CLK_PCIE		BIT(4)
+#define  NOCCFG_POWER_PCIE_IDLEACK	BIT(3)
+#define  NOCCFG_POWER_PCIE_IDLE		BIT(2)
+#define  NOCCFG_POWER_PCIE_IDLEREQ	BIT(1)
 
 #define PHY_STATUS			0x118
-#define PHY_COSPLLLOCK			(1 << 0)
+#define  PHY_COSPLLLOCK			BIT(0)
 
-#define ARTPEC6_CPU_TO_BUS_ADDR		0x0fffffff
+#define ARTPEC6_CPU_TO_BUS_ADDR		GENMASK(27, 0)
 
 static u32 artpec6_pcie_readl(struct artpec6_pcie *artpec6_pcie, u32 offset)
 {
