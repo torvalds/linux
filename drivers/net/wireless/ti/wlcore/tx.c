@@ -264,7 +264,6 @@ static void wl1271_tx_fill_hdr(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 			       struct sk_buff *skb, u32 extra,
 			       struct ieee80211_tx_info *control, u8 hlid)
 {
-	struct timespec ts;
 	struct wl1271_tx_hw_descr *desc;
 	int ac, rate_idx;
 	s64 hosttime;
@@ -287,8 +286,7 @@ static void wl1271_tx_fill_hdr(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 	}
 
 	/* configure packet life time */
-	getnstimeofday(&ts);
-	hosttime = (timespec_to_ns(&ts) >> 10);
+	hosttime = (ktime_get_boot_ns() >> 10);
 	desc->start_time = cpu_to_le32(hosttime - wl->time_offset);
 
 	is_dummy = wl12xx_is_dummy_packet(wl, skb);

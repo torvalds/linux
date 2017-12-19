@@ -50,17 +50,19 @@
 #define SBSDIO_NUM_FUNCTION		3
 
 /* function 0 vendor specific CCCR registers */
-#define SDIO_CCCR_BRCM_CARDCAP			0xf0
-#define SDIO_CCCR_BRCM_CARDCAP_CMD14_SUPPORT	0x02
-#define SDIO_CCCR_BRCM_CARDCAP_CMD14_EXT	0x04
-#define SDIO_CCCR_BRCM_CARDCAP_CMD_NODEC	0x08
-#define SDIO_CCCR_BRCM_CARDCTRL		0xf1
-#define SDIO_CCCR_BRCM_CARDCTRL_WLANRESET	0x02
-#define SDIO_CCCR_BRCM_SEPINT			0xf2
 
-#define  SDIO_SEPINT_MASK		0x01
-#define  SDIO_SEPINT_OE			0x02
-#define  SDIO_SEPINT_ACT_HI		0x04
+#define SDIO_CCCR_BRCM_CARDCAP			0xf0
+#define SDIO_CCCR_BRCM_CARDCAP_CMD14_SUPPORT	BIT(1)
+#define SDIO_CCCR_BRCM_CARDCAP_CMD14_EXT	BIT(2)
+#define SDIO_CCCR_BRCM_CARDCAP_CMD_NODEC	BIT(3)
+
+#define SDIO_CCCR_BRCM_CARDCTRL			0xf1
+#define SDIO_CCCR_BRCM_CARDCTRL_WLANRESET	BIT(1)
+
+#define SDIO_CCCR_BRCM_SEPINT			0xf2
+#define SDIO_CCCR_BRCM_SEPINT_MASK		BIT(0)
+#define SDIO_CCCR_BRCM_SEPINT_OE		BIT(1)
+#define SDIO_CCCR_BRCM_SEPINT_ACT_HI		BIT(2)
 
 /* function 1 miscellaneous registers */
 
@@ -131,11 +133,6 @@
 /* with b15, maps to 32-bit SB access */
 #define SBSDIO_SB_ACCESS_2_4B_FLAG	0x08000
 
-/* valid bits in SBSDIO_FUNC1_SBADDRxxx regs */
-
-#define SBSDIO_SBADDRLOW_MASK		0x80	/* Valid bits in SBADDRLOW */
-#define SBSDIO_SBADDRMID_MASK		0xff	/* Valid bits in SBADDRMID */
-#define SBSDIO_SBADDRHIGH_MASK		0xffU	/* Valid bits in SBADDRHIGH */
 /* Address bits from SBADDR regs */
 #define SBSDIO_SBWINDOW_MASK		0xffff8000
 
@@ -296,13 +293,24 @@ struct sdpcmd_regs {
 int brcmf_sdiod_intr_register(struct brcmf_sdio_dev *sdiodev);
 void brcmf_sdiod_intr_unregister(struct brcmf_sdio_dev *sdiodev);
 
-/* sdio device register access interface */
-u8 brcmf_sdiod_regrb(struct brcmf_sdio_dev *sdiodev, u32 addr, int *ret);
-u32 brcmf_sdiod_regrl(struct brcmf_sdio_dev *sdiodev, u32 addr, int *ret);
-void brcmf_sdiod_regwb(struct brcmf_sdio_dev *sdiodev, u32 addr, u8 data,
-		       int *ret);
-void brcmf_sdiod_regwl(struct brcmf_sdio_dev *sdiodev, u32 addr, u32 data,
-		       int *ret);
+/* SDIO device register access interface */
+/* Accessors for SDIO Function 0 */
+#define brcmf_sdiod_func0_rb(sdiodev, addr, r) \
+	sdio_readb((sdiodev)->func[0], (addr), (r))
+
+#define brcmf_sdiod_func0_wb(sdiodev, addr, v, ret) \
+	sdio_writeb((sdiodev)->func[0], (v), (addr), (ret))
+
+/* Accessors for SDIO Function 1 */
+#define brcmf_sdiod_readb(sdiodev, addr, r) \
+	sdio_readb((sdiodev)->func[1], (addr), (r))
+
+#define brcmf_sdiod_writeb(sdiodev, addr, v, ret) \
+	sdio_writeb((sdiodev)->func[1], (v), (addr), (ret))
+
+u32 brcmf_sdiod_readl(struct brcmf_sdio_dev *sdiodev, u32 addr, int *ret);
+void brcmf_sdiod_writel(struct brcmf_sdio_dev *sdiodev, u32 addr, u32 data,
+			int *ret);
 
 /* Buffer transfer to/from device (client) core via cmd53.
  *   fn:       function number
@@ -342,7 +350,7 @@ int brcmf_sdiod_ramrw(struct brcmf_sdio_dev *sdiodev, bool write, u32 address,
 		      u8 *data, uint size);
 
 /* Issue an abort to the specified function */
-int brcmf_sdiod_abort(struct brcmf_sdio_dev *sdiodev, uint fn);
+int brcmf_sdiod_abort(struct brcmf_sdio_dev *sdiodev, u8 fn);
 void brcmf_sdiod_sgtable_alloc(struct brcmf_sdio_dev *sdiodev);
 void brcmf_sdiod_change_state(struct brcmf_sdio_dev *sdiodev,
 			      enum brcmf_sdiod_state state);

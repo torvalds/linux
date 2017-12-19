@@ -16,15 +16,30 @@
 
 #include "wil6210.h"
 #include <linux/jiffies.h>
+#include <linux/pm_runtime.h>
+
+#define WIL6210_AUTOSUSPEND_DELAY_MS (1000)
 
 int wil_can_suspend(struct wil6210_priv *wil, bool is_runtime)
 {
 	int rc = 0;
 	struct wireless_dev *wdev = wil->wdev;
 	struct net_device *ndev = wil_to_ndev(wil);
+	bool wmi_only = test_bit(WMI_FW_CAPABILITY_WMI_ONLY,
+				 wil->fw_capabilities);
 
 	wil_dbg_pm(wil, "can_suspend: %s\n", is_runtime ? "runtime" : "system");
 
+	if (wmi_only || debug_fw) {
+		wil_dbg_pm(wil, "Deny any suspend - %s mode\n",
+			   wmi_only ? "wmi_only" : "debug_fw");
+		rc = -EBUSY;
+		goto out;
+	}
+	if (is_runtime && !wil->platform_ops.suspend) {
+		rc = -EBUSY;
+		goto out;
+	}
 	if (!(ndev->flags & IFF_UP)) {
 		/* can always sleep when down */
 		wil_dbg_pm(wil, "Interface is down\n");
@@ -44,10 +59,20 @@ int wil_can_suspend(struct wil6210_priv *wil, bool is_runtime)
 	/* interface is running */
 	switch (wdev->iftype) {
 	case NL80211_IFTYPE_MONITOR:
+		wil_dbg_pm(wil, "Sniffer\n");
+		rc = -EBUSY;
+		goto out;
+	/* for STA-like interface, don't runtime suspend */
 	case NL80211_IFTYPE_STATION:
 	case NL80211_IFTYPE_P2P_CLIENT:
 		if (test_bit(wil_status_fwconnecting, wil->status)) {
 			wil_dbg_pm(wil, "Delay suspend when connecting\n");
+			rc = -EBUSY;
+			goto out;
+		}
+		/* Runtime pm not supported in case the interface is up */
+		if (is_runtime) {
+			wil_dbg_pm(wil, "STA-like interface\n");
 			rc = -EBUSY;
 			goto out;
 		}
@@ -158,7 +183,7 @@ static int wil_suspend_keep_radio_on(struct wil6210_priv *wil)
 					break;
 				wil_err(wil,
 					"TO waiting for idle RX, suspend failed\n");
-				wil->suspend_stats.failed_suspends++;
+				wil->suspend_stats.r_on.failed_suspends++;
 				goto resume_after_fail;
 			}
 			wil_dbg_ratelimited(wil, "rx vring is not empty -> NAPI\n");
@@ -174,7 +199,7 @@ static int wil_suspend_keep_radio_on(struct wil6210_priv *wil)
 	 */
 	if (!wil_is_wmi_idle(wil)) {
 		wil_err(wil, "suspend failed due to pending WMI events\n");
-		wil->suspend_stats.failed_suspends++;
+		wil->suspend_stats.r_on.failed_suspends++;
 		goto resume_after_fail;
 	}
 
@@ -188,7 +213,7 @@ static int wil_suspend_keep_radio_on(struct wil6210_priv *wil)
 		if (rc) {
 			wil_err(wil, "platform device failed to suspend (%d)\n",
 				rc);
-			wil->suspend_stats.failed_suspends++;
+			wil->suspend_stats.r_on.failed_suspends++;
 			wil_c(wil, RGF_USER_CLKS_CTL_0, BIT_USER_CLKS_RST_PWGD);
 			wil_unmask_irq(wil);
 			goto resume_after_fail;
@@ -235,6 +260,7 @@ static int wil_suspend_radio_off(struct wil6210_priv *wil)
 		rc = wil_down(wil);
 		if (rc) {
 			wil_err(wil, "wil_down : %d\n", rc);
+			wil->suspend_stats.r_off.failed_suspends++;
 			goto out;
 		}
 	}
@@ -247,6 +273,7 @@ static int wil_suspend_radio_off(struct wil6210_priv *wil)
 		rc = wil->platform_ops.suspend(wil->platform_handle, false);
 		if (rc) {
 			wil_enable_irq(wil);
+			wil->suspend_stats.r_off.failed_suspends++;
 			goto out;
 		}
 	}
@@ -279,12 +306,9 @@ static int wil_resume_radio_off(struct wil6210_priv *wil)
 	return rc;
 }
 
-int wil_suspend(struct wil6210_priv *wil, bool is_runtime)
+int wil_suspend(struct wil6210_priv *wil, bool is_runtime, bool keep_radio_on)
 {
 	int rc = 0;
-	struct net_device *ndev = wil_to_ndev(wil);
-	bool keep_radio_on = ndev->flags & IFF_UP &&
-			     wil->keep_radio_on_during_sleep;
 
 	wil_dbg_pm(wil, "suspend: %s\n", is_runtime ? "runtime" : "system");
 
@@ -301,19 +325,12 @@ int wil_suspend(struct wil6210_priv *wil, bool is_runtime)
 	wil_dbg_pm(wil, "suspend: %s => %d\n",
 		   is_runtime ? "runtime" : "system", rc);
 
-	if (!rc)
-		wil->suspend_stats.suspend_start_time = ktime_get();
-
 	return rc;
 }
 
-int wil_resume(struct wil6210_priv *wil, bool is_runtime)
+int wil_resume(struct wil6210_priv *wil, bool is_runtime, bool keep_radio_on)
 {
 	int rc = 0;
-	struct net_device *ndev = wil_to_ndev(wil);
-	bool keep_radio_on = ndev->flags & IFF_UP &&
-			     wil->keep_radio_on_during_sleep;
-	unsigned long long suspend_time_usec = 0;
 
 	wil_dbg_pm(wil, "resume: %s\n", is_runtime ? "runtime" : "system");
 
@@ -331,20 +348,49 @@ int wil_resume(struct wil6210_priv *wil, bool is_runtime)
 	else
 		rc = wil_resume_radio_off(wil);
 
-	if (rc)
-		goto out;
-
-	suspend_time_usec =
-		ktime_to_us(ktime_sub(ktime_get(),
-				      wil->suspend_stats.suspend_start_time));
-	wil->suspend_stats.total_suspend_time += suspend_time_usec;
-	if (suspend_time_usec < wil->suspend_stats.min_suspend_time)
-		wil->suspend_stats.min_suspend_time = suspend_time_usec;
-	if (suspend_time_usec > wil->suspend_stats.max_suspend_time)
-		wil->suspend_stats.max_suspend_time = suspend_time_usec;
-
 out:
-	wil_dbg_pm(wil, "resume: %s => %d, suspend time %lld usec\n",
-		   is_runtime ? "runtime" : "system", rc, suspend_time_usec);
+	wil_dbg_pm(wil, "resume: %s => %d\n", is_runtime ? "runtime" : "system",
+		   rc);
 	return rc;
+}
+
+void wil_pm_runtime_allow(struct wil6210_priv *wil)
+{
+	struct device *dev = wil_to_dev(wil);
+
+	pm_runtime_put_noidle(dev);
+	pm_runtime_set_autosuspend_delay(dev, WIL6210_AUTOSUSPEND_DELAY_MS);
+	pm_runtime_use_autosuspend(dev);
+	pm_runtime_allow(dev);
+}
+
+void wil_pm_runtime_forbid(struct wil6210_priv *wil)
+{
+	struct device *dev = wil_to_dev(wil);
+
+	pm_runtime_forbid(dev);
+	pm_runtime_get_noresume(dev);
+}
+
+int wil_pm_runtime_get(struct wil6210_priv *wil)
+{
+	int rc;
+	struct device *dev = wil_to_dev(wil);
+
+	rc = pm_runtime_get_sync(dev);
+	if (rc < 0) {
+		wil_err(wil, "pm_runtime_get_sync() failed, rc = %d\n", rc);
+		pm_runtime_put_noidle(dev);
+		return rc;
+	}
+
+	return 0;
+}
+
+void wil_pm_runtime_put(struct wil6210_priv *wil)
+{
+	struct device *dev = wil_to_dev(wil);
+
+	pm_runtime_mark_last_busy(dev);
+	pm_runtime_put_autosuspend(dev);
 }

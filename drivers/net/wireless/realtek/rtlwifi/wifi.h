@@ -2093,14 +2093,21 @@ struct rtl_wow_pattern {
 	u32 mask[4];
 };
 
+/* struct to store contents of interrupt vectors */
+struct rtl_int {
+	u32 inta;
+	u32 intb;
+	u32 intc;
+	u32 intd;
+};
+
 struct rtl_hal_ops {
 	int (*init_sw_vars) (struct ieee80211_hw *hw);
 	void (*deinit_sw_vars) (struct ieee80211_hw *hw);
 	void (*read_chip_version)(struct ieee80211_hw *hw);
 	void (*read_eeprom_info) (struct ieee80211_hw *hw);
 	void (*interrupt_recognized) (struct ieee80211_hw *hw,
-				      u32 *p_inta, u32 *p_intb,
-				      u32 *p_intc, u32 *p_intd);
+				      struct rtl_int *intvec);
 	int (*hw_init) (struct ieee80211_hw *hw);
 	void (*hw_disable) (struct ieee80211_hw *hw);
 	void (*hw_suspend) (struct ieee80211_hw *hw);

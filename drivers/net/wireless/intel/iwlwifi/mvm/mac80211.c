@@ -114,29 +114,6 @@ static const struct ieee80211_iface_combination iwl_mvm_iface_combinations[] = {
 	},
 };
 
-#ifdef CONFIG_PM_SLEEP
-static const struct nl80211_wowlan_tcp_data_token_feature
-iwl_mvm_wowlan_tcp_token_feature = {
-	.min_len = 0,
-	.max_len = 255,
-	.bufsize = IWL_WOWLAN_REMOTE_WAKE_MAX_TOKENS,
-};
-
-static const struct wiphy_wowlan_tcp_support iwl_mvm_wowlan_tcp_support = {
-	.tok = &iwl_mvm_wowlan_tcp_token_feature,
-	.data_payload_max = IWL_WOWLAN_TCP_MAX_PACKET_LEN -
-			    sizeof(struct ethhdr) -
-			    sizeof(struct iphdr) -
-			    sizeof(struct tcphdr),
-	.data_interval_max = 65535, /* __le16 in API */
-	.wake_payload_max = IWL_WOWLAN_REMOTE_WAKE_MAX_PACKET_LEN -
-			    sizeof(struct ethhdr) -
-			    sizeof(struct iphdr) -
-			    sizeof(struct tcphdr),
-	.seq = true,
-};
-#endif
-
 #ifdef CONFIG_IWLWIFI_BCAST_FILTERING
 /*
  * Use the reserved field to indicate magic values.
@@ -443,6 +420,12 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 	ieee80211_hw_set(hw, SUPPORTS_CLONED_SKBS);
 	ieee80211_hw_set(hw, SUPPORTS_AMSDU_IN_AMPDU);
 	ieee80211_hw_set(hw, NEEDS_UNIQUE_STA_ADDR);
+
+	if (fw_has_capa(&mvm->fw->ucode_capa, IWL_UCODE_TLV_CAPA_TLC_OFFLOAD)) {
+		ieee80211_hw_set(hw, TX_AMPDU_SETUP_IN_HW);
+		ieee80211_hw_set(hw, HAS_RATE_CONTROL);
+	}
+
 	if (iwl_mvm_has_new_rx_api(mvm))
 		ieee80211_hw_set(hw, SUPPORTS_REORDERING_BUFFER);
 
@@ -477,7 +460,9 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 	/* this is the case for CCK frames, it's better (only 8) for OFDM */
 	hw->radiotap_timestamp.accuracy = 22;
 
-	hw->rate_control_algorithm = "iwl-mvm-rs";
+	if (!fw_has_capa(&mvm->fw->ucode_capa, IWL_UCODE_TLV_CAPA_TLC_OFFLOAD))
+		hw->rate_control_algorithm = RS_NAME;
+
 	hw->uapsd_queues = IWL_MVM_UAPSD_QUEUES;
 	hw->uapsd_max_sp_len = IWL_UAPSD_MAX_SP;
 
@@ -702,7 +687,6 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 		mvm->wowlan.pattern_min_len = IWL_WOWLAN_MIN_PATTERN_LEN;
 		mvm->wowlan.pattern_max_len = IWL_WOWLAN_MAX_PATTERN_LEN;
 		mvm->wowlan.max_nd_match_sets = IWL_SCAN_MAX_PROFILES;
-		mvm->wowlan.tcp = &iwl_mvm_wowlan_tcp_support;
 		hw->wiphy->wowlan = &mvm->wowlan;
 	}
 #endif
@@ -3216,6 +3200,10 @@ static int iwl_mvm_roc(struct ieee80211_hw *hw,
 	IWL_DEBUG_MAC80211(mvm, "enter (%d, %d, %d)\n", channel->hw_value,
 			   duration, type);
 
+	/*
+	 * Flush the done work, just in case it's still pending, so that
+	 * the work it does can complete and we can accept new frames.
+	 */
 	flush_work(&mvm->roc_done_wk);
 
 	mutex_lock(&mvm->mutex);
@@ -4301,7 +4289,7 @@ void iwl_mvm_sync_rx_queues_internal(struct iwl_mvm *mvm,
 			   mvm->trans->num_rx_queues);
 
 	/* TODO - remove this when we have RXQ config API */
-	if (mvm->trans->cfg->device_family == IWL_DEVICE_FAMILY_A000) {
+	if (mvm->trans->cfg->device_family == IWL_DEVICE_FAMILY_22000) {
 		qmask = BIT(0);
 		if (notif->sync)
 			atomic_set(&mvm->queue_sync_counter, 1);
@@ -4414,4 +4402,7 @@ const struct ieee80211_ops iwl_mvm_hw_ops = {
 #endif
 	.get_survey = iwl_mvm_mac_get_survey,
 	.sta_statistics = iwl_mvm_mac_sta_statistics,
+#ifdef CONFIG_IWLWIFI_DEBUGFS
+	.sta_add_debugfs = iwl_mvm_sta_add_debugfs,
+#endif
 };

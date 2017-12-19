@@ -425,6 +425,50 @@ static ssize_t iwl_dbgfs_stations_read(struct file *file, char __user *user_buf,
 	return simple_read_from_buffer(user_buf, count, ppos, buf, pos);
 }
 
+static ssize_t iwl_dbgfs_rs_data_read(struct file *file, char __user *user_buf,
+				      size_t count, loff_t *ppos)
+{
+	struct ieee80211_sta *sta = file->private_data;
+	struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
+	struct iwl_lq_sta_rs_fw *lq_sta = &mvmsta->lq_sta.rs_fw;
+	struct iwl_mvm *mvm = lq_sta->pers.drv;
+	static const size_t bufsz = 2048;
+	char *buff;
+	int desc = 0;
+	ssize_t ret;
+
+	buff = kmalloc(bufsz, GFP_KERNEL);
+	if (!buff)
+		return -ENOMEM;
+
+	mutex_lock(&mvm->mutex);
+
+	desc += scnprintf(buff + desc, bufsz - desc, "sta_id %d\n",
+			  lq_sta->pers.sta_id);
+	desc += scnprintf(buff + desc, bufsz - desc,
+			  "fixed rate 0x%X\n",
+			  lq_sta->pers.dbg_fixed_rate);
+	desc += scnprintf(buff + desc, bufsz - desc,
+			  "A-MPDU size limit %d\n",
+			  lq_sta->pers.dbg_agg_frame_count_lim);
+	desc += scnprintf(buff + desc, bufsz - desc,
+			  "valid_tx_ant %s%s%s\n",
+		(iwl_mvm_get_valid_tx_ant(mvm) & ANT_A) ? "ANT_A," : "",
+		(iwl_mvm_get_valid_tx_ant(mvm) & ANT_B) ? "ANT_B," : "",
+		(iwl_mvm_get_valid_tx_ant(mvm) & ANT_C) ? "ANT_C" : "");
+	desc += scnprintf(buff + desc, bufsz - desc,
+			  "last tx rate=0x%X ",
+			  lq_sta->last_rate_n_flags);
+
+	desc += rs_pretty_print_rate(buff + desc, bufsz - desc,
+				     lq_sta->last_rate_n_flags);
+	mutex_unlock(&mvm->mutex);
+
+	ret = simple_read_from_buffer(user_buf, count, ppos, buff, desc);
+	kfree(buff);
+	return ret;
+}
+
 static ssize_t iwl_dbgfs_disable_power_off_read(struct file *file,
 						char __user *user_buf,
 						size_t count, loff_t *ppos)
@@ -470,8 +514,7 @@ static ssize_t iwl_dbgfs_disable_power_off_write(struct iwl_mvm *mvm, char *buf,
 }
 
 static
-int iwl_mvm_coex_dump_mbox(struct iwl_mvm *mvm,
-			   struct iwl_bt_coex_profile_notif *notif, char *buf,
+int iwl_mvm_coex_dump_mbox(struct iwl_bt_coex_profile_notif *notif, char *buf,
 			   int pos, int bufsz)
 {
 	pos += scnprintf(buf+pos, bufsz-pos, "MBOX dw0:\n");
@@ -525,12 +568,7 @@ int iwl_mvm_coex_dump_mbox(struct iwl_mvm *mvm,
 	BT_MBOX_PRINT(3, INBAND_P, false);
 	BT_MBOX_PRINT(3, MSG_TYPE_2, false);
 	BT_MBOX_PRINT(3, SSN_2, false);
-	BT_MBOX_PRINT(3, UPDATE_REQUEST, !iwl_mvm_has_new_ats_coex_api(mvm));
-
-	if (iwl_mvm_has_new_ats_coex_api(mvm)) {
-		BT_MBOX_PRINT(4, ATS_BT_INTERVAL, false);
-		BT_MBOX_PRINT(4, ATS_BT_ACTIVE_MAX_TH, true);
-	}
+	BT_MBOX_PRINT(3, UPDATE_REQUEST, true);
 
 	return pos;
 }
@@ -549,7 +587,7 @@ static ssize_t iwl_dbgfs_bt_notif_read(struct file *file, char __user *user_buf,
 
 	mutex_lock(&mvm->mutex);
 
-	pos += iwl_mvm_coex_dump_mbox(mvm, notif, buf, pos, bufsz);
+	pos += iwl_mvm_coex_dump_mbox(notif, buf, pos, bufsz);
 
 	pos += scnprintf(buf + pos, bufsz - pos, "bt_ci_compliance = %d\n",
 			 notif->bt_ci_compliance);
@@ -720,6 +758,9 @@ static ssize_t iwl_dbgfs_fw_rx_stats_read(struct file *file,
 		return -ENOMEM;
 
 	mutex_lock(&mvm->mutex);
+
+	if (iwl_mvm_firmware_running(mvm))
+		iwl_mvm_request_statistics(mvm, false);
 
 	pos += scnprintf(buf + pos, bufsz - pos, fmt_header,
 			 "Statistics_Rx - OFDM");
@@ -936,7 +977,8 @@ static ssize_t iwl_dbgfs_frame_stats_read(struct iwl_mvm *mvm,
 			continue;
 		pos += scnprintf(pos, endpos - pos, "Rate[%d]: ",
 				 (int)(ARRAY_SIZE(stats->last_rates) - i));
-		pos += rs_pretty_print_rate(pos, stats->last_rates[idx]);
+		pos += rs_pretty_print_rate(pos, endpos - pos,
+					    stats->last_rates[idx]);
 	}
 	spin_unlock_bh(&mvm->drv_stats_lock);
 
@@ -1603,6 +1645,19 @@ static ssize_t iwl_dbgfs_d0i3_refs_write(struct iwl_mvm *mvm, char *buf,
 #define MVM_DEBUGFS_ADD_FILE(name, parent, mode) \
 	MVM_DEBUGFS_ADD_FILE_ALIAS(#name, name, parent, mode)
 
+#define MVM_DEBUGFS_WRITE_STA_FILE_OPS(name, bufsz) \
+	_MVM_DEBUGFS_WRITE_FILE_OPS(name, bufsz, struct ieee80211_sta)
+#define MVM_DEBUGFS_READ_WRITE_STA_FILE_OPS(name, bufsz) \
+	_MVM_DEBUGFS_READ_WRITE_FILE_OPS(name, bufsz, struct ieee80211_sta)
+
+#define MVM_DEBUGFS_ADD_STA_FILE_ALIAS(alias, name, parent, mode) do {	\
+		if (!debugfs_create_file(alias, mode, parent, sta,	\
+					 &iwl_dbgfs_##name##_ops))	\
+			goto err;					\
+	} while (0)
+#define MVM_DEBUGFS_ADD_STA_FILE(name, parent, mode) \
+	MVM_DEBUGFS_ADD_STA_FILE_ALIAS(#name, name, parent, mode)
+
 static ssize_t
 iwl_dbgfs_prph_reg_read(struct file *file,
 			char __user *user_buf,
@@ -1687,6 +1742,7 @@ MVM_DEBUGFS_READ_WRITE_FILE_OPS(sram, 64);
 MVM_DEBUGFS_READ_WRITE_FILE_OPS(set_nic_temperature, 64);
 MVM_DEBUGFS_READ_FILE_OPS(nic_temp);
 MVM_DEBUGFS_READ_FILE_OPS(stations);
+MVM_DEBUGFS_READ_FILE_OPS(rs_data);
 MVM_DEBUGFS_READ_FILE_OPS(bt_notif);
 MVM_DEBUGFS_READ_FILE_OPS(bt_cmd);
 MVM_DEBUGFS_READ_WRITE_FILE_OPS(disable_power_off, 64);
@@ -1850,6 +1906,21 @@ static const struct file_operations iwl_dbgfs_mem_ops = {
 	.open = simple_open,
 	.llseek = default_llseek,
 };
+
+void iwl_mvm_sta_add_debugfs(struct ieee80211_hw *hw,
+			     struct ieee80211_vif *vif,
+			     struct ieee80211_sta *sta,
+			     struct dentry *dir)
+{
+	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
+
+	if (fw_has_capa(&mvm->fw->ucode_capa, IWL_UCODE_TLV_CAPA_TLC_OFFLOAD))
+		MVM_DEBUGFS_ADD_STA_FILE(rs_data, dir, S_IRUSR);
+
+	return;
+err:
+	IWL_ERR(mvm, "Can't create the mvm station debugfs entry\n");
+}
 
 int iwl_mvm_dbgfs_register(struct iwl_mvm *mvm, struct dentry *dbgfs_dir)
 {

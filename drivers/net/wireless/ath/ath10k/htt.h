@@ -1497,6 +1497,23 @@ struct htt_peer_tx_stats {
 	u8 payload[0];
 } __packed;
 
+#define ATH10K_10_2_TX_STATS_OFFSET	136
+#define PEER_STATS_FOR_NO_OF_PPDUS	4
+
+struct ath10k_10_2_peer_tx_stats {
+	u8 ratecode[PEER_STATS_FOR_NO_OF_PPDUS];
+	u8 success_pkts[PEER_STATS_FOR_NO_OF_PPDUS];
+	__le16 success_bytes[PEER_STATS_FOR_NO_OF_PPDUS];
+	u8 retry_pkts[PEER_STATS_FOR_NO_OF_PPDUS];
+	__le16 retry_bytes[PEER_STATS_FOR_NO_OF_PPDUS];
+	u8 failed_pkts[PEER_STATS_FOR_NO_OF_PPDUS];
+	__le16 failed_bytes[PEER_STATS_FOR_NO_OF_PPDUS];
+	u8 flags[PEER_STATS_FOR_NO_OF_PPDUS];
+	__le32 tx_duration;
+	u8 tx_ppdu_cnt;
+	u8 peer_id;
+} __packed;
+
 union htt_rx_pn_t {
 	/* WEP: 24-bit PN */
 	u32 pn24;
@@ -1695,7 +1712,7 @@ struct ath10k_htt {
 	/* This is used to group tx/rx completions separately and process them
 	 * in batches to reduce cache stalls
 	 */
-	struct sk_buff_head rx_compl_q;
+	struct sk_buff_head rx_msdus_q;
 	struct sk_buff_head rx_in_ord_compl_q;
 	struct sk_buff_head tx_fetch_ind_q;
 

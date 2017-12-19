@@ -1,0 +1,10 @@
+config MT76_CORE
+	tristate
+
+config MT76x2E
+	tristate "MediaTek MT76x2E (PCIe) support"
+	select MT76_CORE
+	depends on MAC80211
+	depends on PCI
+	---help---
+	  This adds support for MT7612/MT7602/MT7662-based wireless PCIe devices.

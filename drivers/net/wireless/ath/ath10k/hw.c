@@ -931,3 +931,5 @@ const struct ath10k_hw_ops qca6174_ops = {
 	.set_coverage_class = ath10k_hw_qca988x_set_coverage_class,
 	.enable_pll_clk = ath10k_hw_qca6174_enable_pll_clock,
 };
+
+const struct ath10k_hw_ops wcn3990_ops = {};
