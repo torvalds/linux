@@ -3830,16 +3830,24 @@ static void ath10k_mac_txq_init(struct ieee80211_txq *txq)
 		return;
 
 	artxq = (void *)txq->drv_priv;
+	INIT_LIST_HEAD(&artxq->list);
 }
 
 static void ath10k_mac_txq_unref(struct ath10k *ar, struct ieee80211_txq *txq)
 {
+	struct ath10k_txq *artxq;
 	struct ath10k_skb_cb *cb;
 	struct sk_buff *msdu;
 	int msdu_id;
 
 	if (!txq)
 		return;
+
+	artxq = (void *)txq->drv_priv;
+	spin_lock_bh(&ar->txqs_lock);
+	if (!list_empty(&artxq->list))
+		list_del_init(&artxq->list);
+	spin_unlock_bh(&ar->txqs_lock);
 
 	spin_lock_bh(&ar->htt.tx_lock);
 	idr_for_each_entry(&ar->htt.pending_tx, msdu, msdu_id) {
@@ -3970,17 +3978,23 @@ int ath10k_mac_tx_push_txq(struct ieee80211_hw *hw,
 void ath10k_mac_tx_push_pending(struct ath10k *ar)
 {
 	struct ieee80211_hw *hw = ar->hw;
-	struct ieee80211_txq *txq, *first = NULL;
+	struct ieee80211_txq *txq;
+	struct ath10k_txq *artxq;
+	struct ath10k_txq *last;
 	int ret;
 	int max;
 
 	if (ar->htt.num_pending_tx >= (ar->htt.max_num_pending_tx / 2))
 		return;
 
+	spin_lock_bh(&ar->txqs_lock);
 	rcu_read_lock();
 
-	txq = ieee80211_next_txq(hw);
-	while (txq) {
+	last = list_last_entry(&ar->txqs, struct ath10k_txq, list);
+	while (!list_empty(&ar->txqs)) {
+		artxq = list_first_entry(&ar->txqs, struct ath10k_txq, list);
+		txq = container_of((void *)artxq, struct ieee80211_txq,
+				   drv_priv);
 
 		/* Prevent aggressive sta/tid taking over tx queue */
 		max = 16;
@@ -3991,21 +4005,18 @@ void ath10k_mac_tx_push_pending(struct ath10k *ar)
 				break;
 		}
 
+		list_del_init(&artxq->list);
 		if (ret != -ENOENT)
-			ieee80211_schedule_txq(hw, txq);
+			list_add_tail(&artxq->list, &ar->txqs);
 
 		ath10k_htt_tx_txq_update(hw, txq);
 
-		if (first == txq || (ret < 0 && ret != -ENOENT))
+		if (artxq == last || (ret < 0 && ret != -ENOENT))
 			break;
-
-		if (!first)
-			first = txq;
-
-		txq = ieee80211_next_txq(hw);
 	}
 
 	rcu_read_unlock();
+	spin_unlock_bh(&ar->txqs_lock);
 }
 
 /************/
@@ -4239,22 +4250,34 @@ static void ath10k_mac_op_tx(struct ieee80211_hw *hw,
 	}
 }
 
-static void ath10k_mac_op_wake_tx_queue(struct ieee80211_hw *hw)
+static void ath10k_mac_op_wake_tx_queue(struct ieee80211_hw *hw,
+					struct ieee80211_txq *txq)
 {
-	struct ieee80211_txq *txq;
+	struct ath10k *ar = hw->priv;
+	struct ath10k_txq *artxq = (void *)txq->drv_priv;
+	struct ieee80211_txq *f_txq;
+	struct ath10k_txq *f_artxq;
 	int ret = 0;
 	int max = 16;
 
-	txq = ieee80211_next_txq(hw);
+	spin_lock_bh(&ar->txqs_lock);
+	if (list_empty(&artxq->list))
+		list_add_tail(&artxq->list, &ar->txqs);
 
-	while (ath10k_mac_tx_can_push(hw, txq) && max--) {
-		ret = ath10k_mac_tx_push_txq(hw, txq);
+	f_artxq = list_first_entry(&ar->txqs, struct ath10k_txq, list);
+	f_txq = container_of((void *)f_artxq, struct ieee80211_txq, drv_priv);
+	list_del_init(&f_artxq->list);
+
+	while (ath10k_mac_tx_can_push(hw, f_txq) && max--) {
+		ret = ath10k_mac_tx_push_txq(hw, f_txq);
 		if (ret)
 			break;
 	}
 	if (ret != -ENOENT)
-		ieee80211_schedule_txq(hw, txq);
+		list_add_tail(&f_artxq->list, &ar->txqs);
+	spin_unlock_bh(&ar->txqs_lock);
 
+	ath10k_htt_tx_txq_update(hw, f_txq);
 	ath10k_htt_tx_txq_update(hw, txq);
 }
 

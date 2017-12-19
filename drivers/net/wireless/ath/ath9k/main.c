@@ -266,7 +266,7 @@ static bool ath_complete_reset(struct ath_softc *sc, bool start)
 		}
 	work:
 		ath_restart_work(sc);
-		ath_txq_schedule(sc);
+		ath_txq_schedule_all(sc);
 	}
 
 	sc->gtt_cnt = 0;

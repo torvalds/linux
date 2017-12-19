@@ -226,13 +226,9 @@ ieee80211_agg_start_txq(struct sta_info *sta, int tid, bool enable)
 		clear_bit(IEEE80211_TXQ_AMPDU, &txqi->flags);
 
 	clear_bit(IEEE80211_TXQ_STOP, &txqi->flags);
-
-	if (!ieee80211_schedule_txq(&sta->sdata->local->hw, txq))
-		return;
-
 	local_bh_disable();
 	rcu_read_lock();
-	drv_wake_tx_queue(sta->sdata->local);
+	drv_wake_tx_queue(sta->sdata->local, txqi);
 	rcu_read_unlock();
 	local_bh_enable();
 }

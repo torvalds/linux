@@ -105,12 +105,9 @@
  * The driver is expected to initialize its private per-queue data for stations
  * and interfaces in the .add_interface and .sta_add ops.
  *
- * The driver can't access the queue directly. To obtain the next queue to pull
- * frames from, the driver calls ieee80211_next_txq(). To dequeue a frame from a
- * txq, it calls ieee80211_tx_dequeue(). Whenever mac80211 adds a new frame to a
- * queue, it calls the .wake_tx_queue driver op. The driver is expected to
- * re-schedule the txq using ieee80211_schedule_txq() if it is still active
- * after the driver has finished pulling packets from it.
+ * The driver can't access the queue directly. To dequeue a frame, it calls
+ * ieee80211_tx_dequeue(). Whenever mac80211 adds a new frame to a queue, it
+ * calls the .wake_tx_queue driver op.
  *
  * For AP powersave TIM handling, the driver only needs to indicate if it has
  * buffered packets in the driver specific data structures by calling
@@ -3734,7 +3731,8 @@ struct ieee80211_ops {
 					 struct ieee80211_vif *vif,
 					 struct ieee80211_tdls_ch_sw_params *params);
 
-	void (*wake_tx_queue)(struct ieee80211_hw *hw);
+	void (*wake_tx_queue)(struct ieee80211_hw *hw,
+			      struct ieee80211_txq *txq);
 	void (*sync_rx_queues)(struct ieee80211_hw *hw);
 
 	int (*start_nan)(struct ieee80211_hw *hw,
@@ -5885,35 +5883,12 @@ void ieee80211_unreserve_tid(struct ieee80211_sta *sta, u8 tid);
  * ieee80211_tx_dequeue - dequeue a packet from a software tx queue
  *
  * @hw: pointer as obtained from ieee80211_alloc_hw()
- * @txq: pointer obtained from ieee80211_next_txq()
+ * @txq: pointer obtained from station or virtual interface
  *
  * Returns the skb if successful, %NULL if no frame was available.
  */
 struct sk_buff *ieee80211_tx_dequeue(struct ieee80211_hw *hw,
 				     struct ieee80211_txq *txq);
-
-/**
- * ieee80211_schedule_txq - add txq to scheduling loop
- *
- * @hw: pointer as obtained from ieee80211_alloc_hw()
- * @txq: pointer obtained from station or virtual interface
- *
- * Returns %true if the txq was actually added to the scheduling,
- * %false otherwise.
- */
-bool ieee80211_schedule_txq(struct ieee80211_hw *hw,
-			    struct ieee80211_txq *txq);
-
-/**
- * ieee80211_next_txq - get next tx queue to pull packets from
- *
- * @hw: pointer as obtained from ieee80211_alloc_hw()
- *
- * Returns the next txq if successful, %NULL if no queue is eligible. If a txq
- * is returned, it will have been removed from the scheduler queue and needs to
- * be re-scheduled with ieee80211_schedule_txq() to continue to be active.
- */
-struct ieee80211_txq *ieee80211_next_txq(struct ieee80211_hw *hw);
 
 /**
  * ieee80211_txq_get_depth - get pending frame/byte count of given txq
