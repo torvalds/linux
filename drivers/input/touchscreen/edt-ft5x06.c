@@ -151,6 +151,76 @@ static int edt_ft5x06_ts_readwrite(struct i2c_client *client,
 	return 0;
 }
 
+static int edt_ft5x06_register_write(struct edt_ft5x06_ts_data *tsdata,
+				     u8 addr, u8 value)
+{
+	u8 wrbuf[4];
+
+	switch (tsdata->version) {
+	case EDT_M06:
+		wrbuf[0] = tsdata->factory_mode ? 0xf3 : 0xfc;
+		wrbuf[1] = tsdata->factory_mode ? addr & 0x7f : addr & 0x3f;
+		wrbuf[2] = value;
+		wrbuf[3] = wrbuf[0] ^ wrbuf[1] ^ wrbuf[2];
+		return edt_ft5x06_ts_readwrite(tsdata->client, 4,
+					wrbuf, 0, NULL);
+	case EDT_M09:
+	case EDT_M12:
+	case GENERIC_FT:
+		wrbuf[0] = addr;
+		wrbuf[1] = value;
+
+		return edt_ft5x06_ts_readwrite(tsdata->client, 2,
+					wrbuf, 0, NULL);
+
+	default:
+		return -EINVAL;
+	}
+}
+
+static int edt_ft5x06_register_read(struct edt_ft5x06_ts_data *tsdata,
+				    u8 addr)
+{
+	u8 wrbuf[2], rdbuf[2];
+	int error;
+
+	switch (tsdata->version) {
+	case EDT_M06:
+		wrbuf[0] = tsdata->factory_mode ? 0xf3 : 0xfc;
+		wrbuf[1] = tsdata->factory_mode ? addr & 0x7f : addr & 0x3f;
+		wrbuf[1] |= tsdata->factory_mode ? 0x80 : 0x40;
+
+		error = edt_ft5x06_ts_readwrite(tsdata->client, 2, wrbuf, 2,
+						rdbuf);
+		if (error)
+			return error;
+
+		if ((wrbuf[0] ^ wrbuf[1] ^ rdbuf[0]) != rdbuf[1]) {
+			dev_err(&tsdata->client->dev,
+				"crc error: 0x%02x expected, got 0x%02x\n",
+				wrbuf[0] ^ wrbuf[1] ^ rdbuf[0],
+				rdbuf[1]);
+			return -EIO;
+		}
+		break;
+
+	case EDT_M09:
+	case EDT_M12:
+	case GENERIC_FT:
+		wrbuf[0] = addr;
+		error = edt_ft5x06_ts_readwrite(tsdata->client, 1,
+						wrbuf, 1, rdbuf);
+		if (error)
+			return error;
+		break;
+
+	default:
+		return -EINVAL;
+	}
+
+	return rdbuf[0];
+}
+
 static bool edt_ft5x06_ts_check_crc(struct edt_ft5x06_ts_data *tsdata,
 				    u8 *buf, int buflen)
 {
@@ -260,76 +330,6 @@ static irqreturn_t edt_ft5x06_ts_isr(int irq, void *dev_id)
 
 out:
 	return IRQ_HANDLED;
-}
-
-static int edt_ft5x06_register_write(struct edt_ft5x06_ts_data *tsdata,
-				     u8 addr, u8 value)
-{
-	u8 wrbuf[4];
-
-	switch (tsdata->version) {
-	case EDT_M06:
-		wrbuf[0] = tsdata->factory_mode ? 0xf3 : 0xfc;
-		wrbuf[1] = tsdata->factory_mode ? addr & 0x7f : addr & 0x3f;
-		wrbuf[2] = value;
-		wrbuf[3] = wrbuf[0] ^ wrbuf[1] ^ wrbuf[2];
-		return edt_ft5x06_ts_readwrite(tsdata->client, 4,
-					wrbuf, 0, NULL);
-	case EDT_M09:
-	case EDT_M12:
-	case GENERIC_FT:
-		wrbuf[0] = addr;
-		wrbuf[1] = value;
-
-		return edt_ft5x06_ts_readwrite(tsdata->client, 2,
-					wrbuf, 0, NULL);
-
-	default:
-		return -EINVAL;
-	}
-}
-
-static int edt_ft5x06_register_read(struct edt_ft5x06_ts_data *tsdata,
-				    u8 addr)
-{
-	u8 wrbuf[2], rdbuf[2];
-	int error;
-
-	switch (tsdata->version) {
-	case EDT_M06:
-		wrbuf[0] = tsdata->factory_mode ? 0xf3 : 0xfc;
-		wrbuf[1] = tsdata->factory_mode ? addr & 0x7f : addr & 0x3f;
-		wrbuf[1] |= tsdata->factory_mode ? 0x80 : 0x40;
-
-		error = edt_ft5x06_ts_readwrite(tsdata->client, 2, wrbuf, 2,
-						rdbuf);
-		if (error)
-			return error;
-
-		if ((wrbuf[0] ^ wrbuf[1] ^ rdbuf[0]) != rdbuf[1]) {
-			dev_err(&tsdata->client->dev,
-				"crc error: 0x%02x expected, got 0x%02x\n",
-				wrbuf[0] ^ wrbuf[1] ^ rdbuf[0],
-				rdbuf[1]);
-			return -EIO;
-		}
-		break;
-
-	case EDT_M09:
-	case EDT_M12:
-	case GENERIC_FT:
-		wrbuf[0] = addr;
-		error = edt_ft5x06_ts_readwrite(tsdata->client, 1,
-						wrbuf, 1, rdbuf);
-		if (error)
-			return error;
-		break;
-
-	default:
-		return -EINVAL;
-	}
-
-	return rdbuf[0];
 }
 
 struct edt_ft5x06_attribute {
