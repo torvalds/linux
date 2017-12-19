@@ -1834,7 +1834,8 @@ static char *ptr_to_id(char *buf, char *end, void *ptr, struct printf_spec spec)
  *
  * - 'x' For printing the address. Equivalent to "%lx".
  *
- * ** Please update also Documentation/printk-formats.txt when making changes **
+ * ** When making changes please also update:
+ *	Documentation/core-api/printk-formats.rst
  *
  * Note: The difference between 'S' and 'F' is that on ia64 and ppc64
  * function pointers are really function descriptors, which contain a

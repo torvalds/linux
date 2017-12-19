@@ -346,8 +346,6 @@ prctl/
 	- directory with info on the priveledge control subsystem
 preempt-locking.txt
 	- info on locking under a preemptive kernel.
-printk-formats.txt
-	- how to get printk format specifiers right
 process/
 	- how to work with the mainline kernel development process.
 pps/
