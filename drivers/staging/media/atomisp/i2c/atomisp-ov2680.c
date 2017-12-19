@@ -1447,13 +1447,9 @@ static int ov2680_probe(struct i2c_client *client)
 	dev->fmt_idx = 0;
 	v4l2_i2c_subdev_init(&(dev->sd), client, &ov2680_ops);
 
-	if (ACPI_COMPANION(&client->dev))
-		pdata = gmin_camera_platform_data(&dev->sd,
-						  ATOMISP_INPUT_FORMAT_RAW_10,
-						  atomisp_bayer_order_bggr);
-	else
-		pdata = client->dev.platform_data;
-
+	pdata = gmin_camera_platform_data(&dev->sd,
+					  ATOMISP_INPUT_FORMAT_RAW_10,
+					  atomisp_bayer_order_bggr);
 	if (!pdata) {
 		ret = -EINVAL;
 		goto out_free;

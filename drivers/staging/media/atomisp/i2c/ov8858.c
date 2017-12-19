@@ -2077,29 +2077,28 @@ static int ov8858_probe(struct i2c_client *client)
 
 	v4l2_i2c_subdev_init(&(dev->sd), client, &ov8858_ops);
 
-	if (ACPI_COMPANION(&client->dev)) {
-		pdata = gmin_camera_platform_data(&dev->sd,
-						  ATOMISP_INPUT_FORMAT_RAW_10,
-						  atomisp_bayer_order_bggr);
-		if (!pdata) {
-			dev_err(&client->dev,
-				"%s: failed to get acpi platform data\n",
-				__func__);
-			goto out_free;
-		}
-		ret = ov8858_s_config(&dev->sd, client->irq, pdata);
-		if (ret) {
-			dev_err(&client->dev,
-				"%s: failed to set config\n", __func__);
-			goto out_free;
-		}
-		ret = atomisp_register_i2c_module(&dev->sd, pdata, RAW_CAMERA);
-		if (ret) {
-			dev_err(&client->dev,
-				"%s: failed to register subdev\n", __func__);
-			goto out_free;
-		}
+	pdata = gmin_camera_platform_data(&dev->sd,
+					  ATOMISP_INPUT_FORMAT_RAW_10,
+					  atomisp_bayer_order_bggr);
+	if (!pdata) {
+		dev_err(&client->dev,
+			"%s: failed to get acpi platform data\n",
+			__func__);
+		goto out_free;
 	}
+	ret = ov8858_s_config(&dev->sd, client->irq, pdata);
+	if (ret) {
+		dev_err(&client->dev,
+			"%s: failed to set config\n", __func__);
+		goto out_free;
+	}
+	ret = atomisp_register_i2c_module(&dev->sd, pdata, RAW_CAMERA);
+	if (ret) {
+		dev_err(&client->dev,
+			"%s: failed to register subdev\n", __func__);
+		goto out_free;
+	}
+
 	/*
 	 * sd->name is updated with sensor driver name by the v4l2.
 	 * change it to sensor name in this case.

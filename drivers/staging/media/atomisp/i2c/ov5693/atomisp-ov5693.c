@@ -1948,7 +1948,6 @@ static int ov5693_probe(struct i2c_client *client)
 	int i2c;
 	int ret = 0;
 	void *pdata = client->dev.platform_data;
-	struct acpi_device *adev;
 	unsigned int i;
 
 	/*
@@ -1974,14 +1973,9 @@ static int ov5693_probe(struct i2c_client *client)
 	dev->fmt_idx = 0;
 	v4l2_i2c_subdev_init(&(dev->sd), client, &ov5693_ops);
 
-	adev = ACPI_COMPANION(&client->dev);
-	if (adev) {
-		adev->power.flags.power_resources = 0;
-		pdata = gmin_camera_platform_data(&dev->sd,
-						  ATOMISP_INPUT_FORMAT_RAW_10,
-						  atomisp_bayer_order_bggr);
-	}
-
+	pdata = gmin_camera_platform_data(&dev->sd,
+					  ATOMISP_INPUT_FORMAT_RAW_10,
+					  atomisp_bayer_order_bggr);
 	if (!pdata)
 		goto out_free;
 
