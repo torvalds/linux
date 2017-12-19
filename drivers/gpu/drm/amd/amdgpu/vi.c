@@ -449,14 +449,19 @@ static bool vi_read_bios_from_rom(struct amdgpu_device *adev,
 
 static void vi_detect_hw_virtualization(struct amdgpu_device *adev)
 {
-	uint32_t reg = RREG32(mmBIF_IOV_FUNC_IDENTIFIER);
-	/* bit0: 0 means pf and 1 means vf */
-	/* bit31: 0 means disable IOV and 1 means enable */
-	if (reg & 1)
-		adev->virt.caps |= AMDGPU_SRIOV_CAPS_IS_VF;
+	uint32_t reg = 0;
 
-	if (reg & 0x80000000)
-		adev->virt.caps |= AMDGPU_SRIOV_CAPS_ENABLE_IOV;
+	if (adev->asic_type == CHIP_TONGA ||
+	    adev->asic_type == CHIP_FIJI) {
+	       reg = RREG32(mmBIF_IOV_FUNC_IDENTIFIER);
+	       /* bit0: 0 means pf and 1 means vf */
+	       /* bit31: 0 means disable IOV and 1 means enable */
+	       if (reg & 1)
+		       adev->virt.caps |= AMDGPU_SRIOV_CAPS_IS_VF;
+
+	       if (reg & 0x80000000)
+		       adev->virt.caps |= AMDGPU_SRIOV_CAPS_ENABLE_IOV;
+	}
 
 	if (reg == 0) {
 		if (is_virtual_machine()) /* passthrough mode exclus sr-iov mode */
