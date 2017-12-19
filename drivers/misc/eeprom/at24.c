@@ -27,6 +27,7 @@
 #include <linux/regmap.h>
 #include <linux/platform_data/at24.h>
 #include <linux/pm_runtime.h>
+#include <linux/gpio/consumer.h>
 
 /*
  * I2C EEPROMs from most vendors are inexpensive and mostly interchangeable.
@@ -76,6 +77,8 @@ struct at24_data {
 
 	struct nvmem_config nvmem_config;
 	struct nvmem_device *nvmem;
+
+	struct gpio_desc *wp_gpio;
 
 	/*
 	 * Some chips tie up multiple I2C addresses; dummy devices reserve
@@ -427,12 +430,14 @@ static int at24_write(void *priv, unsigned int off, void *val, size_t count)
 	 * from this host, but not from other I2C masters.
 	 */
 	mutex_lock(&at24->lock);
+	gpiod_set_value_cansleep(at24->wp_gpio, 0);
 
 	while (count) {
 		int status;
 
 		status = at24_regmap_write(at24, buf, off, count);
 		if (status < 0) {
+			gpiod_set_value_cansleep(at24->wp_gpio, 1);
 			mutex_unlock(&at24->lock);
 			pm_runtime_put(dev);
 			return status;
@@ -442,6 +447,7 @@ static int at24_write(void *priv, unsigned int off, void *val, size_t count)
 		count -= status;
 	}
 
+	gpiod_set_value_cansleep(at24->wp_gpio, 1);
 	mutex_unlock(&at24->lock);
 
 	pm_runtime_put(dev);
@@ -572,6 +578,11 @@ static int at24_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	at24->chip = chip;
 	at24->num_addresses = num_addresses;
 	at24->offset_adj = at24_get_offset_adj(chip.flags, chip.byte_len);
+
+	at24->wp_gpio = devm_gpiod_get_optional(&client->dev,
+						"wp", GPIOD_OUT_HIGH);
+	if (IS_ERR(at24->wp_gpio))
+		return PTR_ERR(at24->wp_gpio);
 
 	at24->client[0].client = client;
 	at24->client[0].regmap = devm_regmap_init_i2c(client, &regmap_config);
