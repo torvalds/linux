@@ -1031,17 +1031,7 @@ static struct clk_gate gxbb_sd_emmc_a_clk0 = {
 		.ops = &clk_gate_ops,
 		.parent_names = (const char *[]){ "sd_emmc_a_clk0_div" },
 		.num_parents = 1,
-
-		/*
-		 * FIXME:
-		 * We need CLK_IGNORE_UNUSED because mmc DT node point to xtal
-		 * instead of this clock. CCF would gate this on boot, killing
-		 * the mmc controller. Please remove this flag once DT properly
-		 * point to this clock instead of xtal
-		 *
-		 * Same goes for emmc B and C clocks
-		 */
-		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -1084,7 +1074,7 @@ static struct clk_gate gxbb_sd_emmc_b_clk0 = {
 		.ops = &clk_gate_ops,
 		.parent_names = (const char *[]){ "sd_emmc_b_clk0_div" },
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -1127,7 +1117,7 @@ static struct clk_gate gxbb_sd_emmc_c_clk0 = {
 		.ops = &clk_gate_ops,
 		.parent_names = (const char *[]){ "sd_emmc_c_clk0_div" },
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -1386,7 +1376,7 @@ static MESON_GATE(gxbb_pl301, HHI_GCLK_MPEG0, 6);
 static MESON_GATE(gxbb_periphs, HHI_GCLK_MPEG0, 7);
 static MESON_GATE(gxbb_spicc, HHI_GCLK_MPEG0, 8);
 static MESON_GATE(gxbb_i2c, HHI_GCLK_MPEG0, 9);
-static MESON_GATE(gxbb_sar_adc, HHI_GCLK_MPEG0, 10);
+static MESON_GATE(gxbb_sana, HHI_GCLK_MPEG0, 10);
 static MESON_GATE(gxbb_smart_card, HHI_GCLK_MPEG0, 11);
 static MESON_GATE(gxbb_rng0, HHI_GCLK_MPEG0, 12);
 static MESON_GATE(gxbb_uart0, HHI_GCLK_MPEG0, 13);
@@ -1437,7 +1427,7 @@ static MESON_GATE(gxbb_usb0_ddr_bridge, HHI_GCLK_MPEG2, 9);
 static MESON_GATE(gxbb_mmc_pclk, HHI_GCLK_MPEG2, 11);
 static MESON_GATE(gxbb_dvin, HHI_GCLK_MPEG2, 12);
 static MESON_GATE(gxbb_uart2, HHI_GCLK_MPEG2, 15);
-static MESON_GATE(gxbb_sana, HHI_GCLK_MPEG2, 22);
+static MESON_GATE(gxbb_sar_adc, HHI_GCLK_MPEG2, 22);
 static MESON_GATE(gxbb_vpu_intr, HHI_GCLK_MPEG2, 25);
 static MESON_GATE(gxbb_sec_ahb_ahb3_bridge, HHI_GCLK_MPEG2, 26);
 static MESON_GATE(gxbb_clk81_a53, HHI_GCLK_MPEG2, 29);
