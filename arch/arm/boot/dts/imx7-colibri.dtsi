@@ -299,6 +299,7 @@
 	no-1-8-v;
 	cd-gpios = <&gpio1 0 GPIO_ACTIVE_LOW>;
 	disable-wp;
+	vqmmc-supply = <&reg_LDO2>;
 };
 
 &iomuxc {
