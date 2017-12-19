@@ -395,7 +395,7 @@ next_cqe:
 
 static int cqe_completes_wr(struct t4_cqe *cqe, struct t4_wq *wq)
 {
-	if (CQE_OPCODE(cqe) == C4IW_DRAIN_OPCODE) {
+	if (DRAIN_CQE(cqe)) {
 		WARN_ONCE(1, "Unexpected DRAIN CQE qp id %u!\n", wq->sq.qid);
 		return 0;
 	}
@@ -494,7 +494,7 @@ static int poll_cq(struct t4_wq *wq, struct t4_cq *cq, struct t4_cqe *cqe,
 	/*
 	 * Special cqe for drain WR completions...
 	 */
-	if (CQE_OPCODE(hw_cqe) == C4IW_DRAIN_OPCODE) {
+	if (DRAIN_CQE(hw_cqe)) {
 		*cookie = CQE_DRAIN_COOKIE(hw_cqe);
 		*cqe = *hw_cqe;
 		goto skip_cqe;
@@ -747,9 +747,6 @@ static int c4iw_poll_cq_one(struct c4iw_cq *chp, struct ib_wc *wc)
 			if (CQE_STATUS(&cqe) != T4_ERR_SUCCESS)
 				c4iw_invalidate_mr(qhp->rhp,
 						   CQE_WRID_FR_STAG(&cqe));
-			break;
-		case C4IW_DRAIN_OPCODE:
-			wc->opcode = IB_WC_SEND;
 			break;
 		default:
 			pr_err("Unexpected opcode %d in the CQE received for QPID=0x%0x\n",
