@@ -6518,11 +6518,12 @@ static void _dc_start(struct hfi1_devdata *dd)
 	if (!dd->dc_shutdown)
 		return;
 
-	/*
-	 * Take the 8051 out of reset, wait until 8051 is ready, and set host
-	 * version bit.
-	 */
-	release_and_wait_ready_8051_firmware(dd);
+	/* Take the 8051 out of reset */
+	write_csr(dd, DC_DC8051_CFG_RST, 0ull);
+	/* Wait until 8051 is ready */
+	if (wait_fm_ready(dd, TIMEOUT_8051_START))
+		dd_dev_err(dd, "%s: timeout starting 8051 firmware\n",
+			   __func__);
 
 	/* Take away reset for LCB and RX FPE (set in lcb_shutdown). */
 	write_csr(dd, DCC_CFG_RESET, 0x10);
@@ -8564,22 +8565,26 @@ int write_lcb_csr(struct hfi1_devdata *dd, u32 addr, u64 data)
 }
 
 /*
- * If the 8051 is in reset mode (dd->dc_shutdown == 1), this function
- * will still continue executing.
- *
  * Returns:
  *	< 0 = Linux error, not able to get access
  *	> 0 = 8051 command RETURN_CODE
  */
-static int _do_8051_command(struct hfi1_devdata *dd, u32 type, u64 in_data,
-			    u64 *out_data)
+static int do_8051_command(struct hfi1_devdata *dd, u32 type, u64 in_data,
+			   u64 *out_data)
 {
 	u64 reg, completed;
 	int return_code;
 	unsigned long timeout;
 
-	lockdep_assert_held(&dd->dc8051_lock);
 	hfi1_cdbg(DC8051, "type %d, data 0x%012llx", type, in_data);
+
+	mutex_lock(&dd->dc8051_lock);
+
+	/* We can't send any commands to the 8051 if it's in reset */
+	if (dd->dc_shutdown) {
+		return_code = -ENODEV;
+		goto fail;
+	}
 
 	/*
 	 * If an 8051 host command timed out previously, then the 8051 is
@@ -8681,29 +8686,6 @@ static int _do_8051_command(struct hfi1_devdata *dd, u32 type, u64 in_data,
 	write_csr(dd, DC_DC8051_CFG_HOST_CMD_0, 0);
 
 fail:
-	return return_code;
-}
-
-/*
- * Returns:
- *	< 0 = Linux error, not able to get access
- *	> 0 = 8051 command RETURN_CODE
- */
-static int do_8051_command(struct hfi1_devdata *dd, u32 type, u64 in_data,
-			   u64 *out_data)
-{
-	int return_code;
-
-	mutex_lock(&dd->dc8051_lock);
-	/* We can't send any commands to the 8051 if it's in reset */
-	if (dd->dc_shutdown) {
-		return_code = -ENODEV;
-		goto fail;
-	}
-
-	return_code = _do_8051_command(dd, type, in_data, out_data);
-
-fail:
 	mutex_unlock(&dd->dc8051_lock);
 	return return_code;
 }
@@ -8713,35 +8695,22 @@ static int set_physical_link_state(struct hfi1_devdata *dd, u64 state)
 	return do_8051_command(dd, HCMD_CHANGE_PHY_STATE, state, NULL);
 }
 
-static int _load_8051_config(struct hfi1_devdata *dd, u8 field_id,
-			     u8 lane_id, u32 config_data)
+int load_8051_config(struct hfi1_devdata *dd, u8 field_id,
+		     u8 lane_id, u32 config_data)
 {
 	u64 data;
 	int ret;
 
-	lockdep_assert_held(&dd->dc8051_lock);
 	data = (u64)field_id << LOAD_DATA_FIELD_ID_SHIFT
 		| (u64)lane_id << LOAD_DATA_LANE_ID_SHIFT
 		| (u64)config_data << LOAD_DATA_DATA_SHIFT;
-	ret = _do_8051_command(dd, HCMD_LOAD_CONFIG_DATA, data, NULL);
+	ret = do_8051_command(dd, HCMD_LOAD_CONFIG_DATA, data, NULL);
 	if (ret != HCMD_SUCCESS) {
 		dd_dev_err(dd,
 			   "load 8051 config: field id %d, lane %d, err %d\n",
 			   (int)field_id, (int)lane_id, ret);
 	}
 	return ret;
-}
-
-int load_8051_config(struct hfi1_devdata *dd, u8 field_id,
-		     u8 lane_id, u32 config_data)
-{
-	int return_code;
-
-	mutex_lock(&dd->dc8051_lock);
-	return_code = _load_8051_config(dd, field_id, lane_id, config_data);
-	mutex_unlock(&dd->dc8051_lock);
-
-	return return_code;
 }
 
 /*
@@ -8859,14 +8828,13 @@ int write_host_interface_version(struct hfi1_devdata *dd, u8 version)
 	u32 frame;
 	u32 mask;
 
-	lockdep_assert_held(&dd->dc8051_lock);
 	mask = (HOST_INTERFACE_VERSION_MASK << HOST_INTERFACE_VERSION_SHIFT);
 	read_8051_config(dd, RESERVED_REGISTERS, GENERAL_CONFIG, &frame);
 	/* Clear, then set field */
 	frame &= ~mask;
 	frame |= ((u32)version << HOST_INTERFACE_VERSION_SHIFT);
-	return _load_8051_config(dd, RESERVED_REGISTERS, GENERAL_CONFIG,
-				 frame);
+	return load_8051_config(dd, RESERVED_REGISTERS, GENERAL_CONFIG,
+				frame);
 }
 
 void read_misc_status(struct hfi1_devdata *dd, u8 *ver_major, u8 *ver_minor,
@@ -9269,6 +9237,14 @@ static int set_local_link_attributes(struct hfi1_pportdata *ppd)
 				rx_polarity_inversion, ppd->local_tx_rate);
 	if (ret != HCMD_SUCCESS)
 		goto set_local_link_attributes_fail;
+
+	ret = write_host_interface_version(dd, HOST_INTERFACE_VERSION);
+	if (ret != HCMD_SUCCESS) {
+		dd_dev_err(dd,
+			   "Failed to set host interface version, return 0x%x\n",
+			   ret);
+		goto set_local_link_attributes_fail;
+	}
 
 	/*
 	 * DC supports continuous updates.
