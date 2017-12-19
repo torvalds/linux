@@ -1098,7 +1098,8 @@ static unsigned int tcmu_handle_completions(struct tcmu_dev *udev)
 
 		cmd = idr_remove(&udev->commands, entry->hdr.cmd_id);
 		if (!cmd) {
-			pr_err("cmd_id not found, ring is broken\n");
+			pr_err("cmd_id %u not found, ring is broken\n",
+			       entry->hdr.cmd_id);
 			set_bit(TCMU_DEV_BIT_BROKEN, &udev->flags);
 			break;
 		}
