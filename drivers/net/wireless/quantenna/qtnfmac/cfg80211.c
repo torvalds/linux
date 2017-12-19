@@ -190,7 +190,7 @@ static struct wireless_dev *qtnf_add_virtual_intf(struct wiphy *wiphy,
 		goto err_mac;
 	}
 
-	if (qtnf_core_net_attach(mac, vif, name, name_assign_t, type)) {
+	if (qtnf_core_net_attach(mac, vif, name, name_assign_t)) {
 		pr_err("VIF%u.%u: failed to attach netdev\n", mac->macid,
 		       vif->vifid);
 		goto err_net;
