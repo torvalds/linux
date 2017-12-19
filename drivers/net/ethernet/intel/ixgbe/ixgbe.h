@@ -630,6 +630,7 @@ struct ixgbe_adapter {
 #define IXGBE_FLAG2_EEE_CAPABLE			BIT(14)
 #define IXGBE_FLAG2_EEE_ENABLED			BIT(15)
 #define IXGBE_FLAG2_RX_LEGACY			BIT(16)
+#define IXGBE_FLAG2_IPSEC_ENABLED		BIT(17)
 
 	/* Tx fast path data */
 	int num_tx_queues;
@@ -782,6 +783,10 @@ struct ixgbe_adapter {
 
 #define IXGBE_RSS_KEY_SIZE     40  /* size of RSS Hash Key in bytes */
 	u32 *rss_key;
+
+#ifdef CONFIG_XFRM
+	struct ixgbe_ipsec *ipsec;
+#endif /* CONFIG_XFRM */
 };
 
 static inline u8 ixgbe_max_rss_indices(struct ixgbe_adapter *adapter)

@@ -50,4 +50,44 @@ enum ixgbe_ipsec_tbl_sel {
 #define IXGBE_RXMOD_DECRYPT		0x00000008
 #define IXGBE_RXMOD_IPV6		0x00000010
 
+struct rx_sa {
+	struct hlist_node hlist;
+	struct xfrm_state *xs;
+	__be32 ipaddr[4];
+	u32 key[4];
+	u32 salt;
+	u32 mode;
+	u8  iptbl_ind;
+	bool used;
+	bool decrypt;
+};
+
+struct rx_ip_sa {
+	__be32 ipaddr[4];
+	u32 ref_cnt;
+	bool used;
+};
+
+struct tx_sa {
+	struct xfrm_state *xs;
+	u32 key[4];
+	u32 salt;
+	bool encrypt;
+	bool used;
+};
+
+struct ixgbe_ipsec_tx_data {
+	u32 flags;
+	u16 trailer_len;
+	u16 sa_idx;
+};
+
+struct ixgbe_ipsec {
+	u16 num_rx_sa;
+	u16 num_tx_sa;
+	struct rx_ip_sa *ip_tbl;
+	struct rx_sa *rx_tbl;
+	struct tx_sa *tx_tbl;
+	DECLARE_HASHTABLE(rx_sa_list, 10);
+};
 #endif /* _IXGBE_IPSEC_H_ */
