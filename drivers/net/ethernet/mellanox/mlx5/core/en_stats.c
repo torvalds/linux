@@ -71,6 +71,7 @@ static const struct counter_desc sw_stats_desc[] = {
 	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, rx_cache_empty) },
 	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, rx_cache_busy) },
 	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, rx_cache_waive) },
+	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, ch_eq_rearm) },
 	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, link_down_events_phy) },
 };
 
@@ -767,12 +768,18 @@ static const struct counter_desc sq_stats_desc[] = {
 	{ MLX5E_DECLARE_TX_STAT(struct mlx5e_sq_stats, xmit_more) },
 };
 
+static const struct counter_desc ch_stats_desc[] = {
+	{ MLX5E_DECLARE_CH_STAT(struct mlx5e_ch_stats, eq_rearm) },
+};
+
 #define NUM_RQ_STATS			ARRAY_SIZE(rq_stats_desc)
 #define NUM_SQ_STATS			ARRAY_SIZE(sq_stats_desc)
+#define NUM_CH_STATS			ARRAY_SIZE(ch_stats_desc)
 
 static int mlx5e_grp_channels_get_num_stats(struct mlx5e_priv *priv)
 {
 	return (NUM_RQ_STATS * priv->channels.num) +
+		(NUM_CH_STATS * priv->channels.num) +
 		(NUM_SQ_STATS * priv->channels.num * priv->channels.params.num_tc);
 }
 
@@ -783,6 +790,11 @@ static int mlx5e_grp_channels_fill_strings(struct mlx5e_priv *priv, u8 *data,
 
 	if (!test_bit(MLX5E_STATE_OPENED, &priv->state))
 		return idx;
+
+	for (i = 0; i < priv->channels.num; i++)
+		for (j = 0; j < NUM_CH_STATS; j++)
+			sprintf(data + (idx++) * ETH_GSTRING_LEN,
+				ch_stats_desc[j].format, i);
 
 	for (i = 0; i < priv->channels.num; i++)
 		for (j = 0; j < NUM_RQ_STATS; j++)
@@ -806,6 +818,12 @@ static int mlx5e_grp_channels_fill_stats(struct mlx5e_priv *priv, u64 *data,
 
 	if (!test_bit(MLX5E_STATE_OPENED, &priv->state))
 		return idx;
+
+	for (i = 0; i < channels->num; i++)
+		for (j = 0; j < NUM_CH_STATS; j++)
+			data[idx++] =
+				MLX5E_READ_CTR64_CPU(&channels->c[i]->stats,
+						     ch_stats_desc, j);
 
 	for (i = 0; i < channels->num; i++)
 		for (j = 0; j < NUM_RQ_STATS; j++)

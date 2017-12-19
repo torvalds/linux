@@ -44,6 +44,7 @@
 #define MLX5E_DECLARE_STAT(type, fld) #fld, offsetof(type, fld)
 #define MLX5E_DECLARE_RX_STAT(type, fld) "rx%d_"#fld, offsetof(type, fld)
 #define MLX5E_DECLARE_TX_STAT(type, fld) "tx%d_"#fld, offsetof(type, fld)
+#define MLX5E_DECLARE_CH_STAT(type, fld) "ch%d_"#fld, offsetof(type, fld)
 
 struct counter_desc {
 	char		format[ETH_GSTRING_LEN];
@@ -88,6 +89,7 @@ struct mlx5e_sw_stats {
 	u64 rx_cache_empty;
 	u64 rx_cache_busy;
 	u64 rx_cache_waive;
+	u64 ch_eq_rearm;
 
 	/* Special handling counters */
 	u64 link_down_events_phy;
@@ -190,6 +192,10 @@ struct mlx5e_sq_stats {
 	u64 stopped;
 	u64 wake;
 	u64 dropped;
+};
+
+struct mlx5e_ch_stats {
+	u64 eq_rearm;
 };
 
 struct mlx5e_stats {

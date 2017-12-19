@@ -561,6 +561,7 @@ struct mlx5e_channel {
 
 	/* data path - accessed per napi poll */
 	struct irq_desc *irq_desc;
+	struct mlx5e_ch_stats      stats;
 
 	/* control */
 	struct mlx5e_priv         *priv;
