@@ -288,8 +288,14 @@ static int malidp_crtc_atomic_check_scaling(struct drm_crtc *crtc,
 		s->enhancer_enable = ((h_upscale_factor >> 16) >= 2 ||
 				      (v_upscale_factor >> 16) >= 2);
 
-		s->input_w = pstate->src_w >> 16;
-		s->input_h = pstate->src_h >> 16;
+		if (pstate->rotation & MALIDP_ROTATED_MASK) {
+			s->input_w = pstate->src_h >> 16;
+			s->input_h = pstate->src_w >> 16;
+		} else {
+			s->input_w = pstate->src_w >> 16;
+			s->input_h = pstate->src_h >> 16;
+		}
+
 		s->output_w = pstate->crtc_w;
 		s->output_h = pstate->crtc_h;
 
