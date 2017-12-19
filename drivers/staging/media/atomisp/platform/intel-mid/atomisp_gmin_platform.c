@@ -322,8 +322,6 @@ static struct gmin_subdev *gmin_subdev_add(struct v4l2_subdev *subdev)
 							VLV2_CLK_PLL_19P2MHZ);
 	gmin_subdevs[i].csi_port = gmin_get_var_int(dev, "CsiPort", 0);
 	gmin_subdevs[i].csi_lanes = gmin_get_var_int(dev, "CsiLanes", 1);
-	gmin_subdevs[i].gpio0 = gpiod_get_index(dev, NULL, 0, GPIOD_OUT_LOW);
-	gmin_subdevs[i].gpio1 = gpiod_get_index(dev, NULL, 1, GPIOD_OUT_LOW);
 
 	/* get PMC clock with clock framework */
 	snprintf(gmin_pmc_clk_name,
@@ -356,9 +354,11 @@ static struct gmin_subdev *gmin_subdev_add(struct v4l2_subdev *subdev)
 	if (!ret)
 		clk_disable_unprepare(gmin_subdevs[i].pmc_clk);
 
+	gmin_subdevs[i].gpio0 = gpiod_get_index(dev, NULL, 0, GPIOD_OUT_LOW);
 	if (IS_ERR(gmin_subdevs[i].gpio0))
 		gmin_subdevs[i].gpio0 = NULL;
 
+	gmin_subdevs[i].gpio1 = gpiod_get_index(dev, NULL, 1, GPIOD_OUT_LOW);
 	if (IS_ERR(gmin_subdevs[i].gpio1))
 		gmin_subdevs[i].gpio1 = NULL;
 
