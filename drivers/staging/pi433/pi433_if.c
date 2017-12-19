@@ -934,10 +934,8 @@ static int pi433_open(struct inode *inode, struct file *filp)
 
 	if (!device->rx_buffer) {
 		device->rx_buffer = kmalloc(MAX_MSG_SIZE, GFP_KERNEL);
-		if (!device->rx_buffer) {
-			dev_dbg(device->dev, "open/ENOMEM\n");
+		if (!device->rx_buffer)
 			return -ENOMEM;
-		}
 	}
 
 	device->users++;
