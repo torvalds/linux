@@ -835,6 +835,8 @@ static bool construct(
 	dc->caps.max_downscale_ratio = 200;
 	dc->caps.i2c_speed_in_khz = 100;
 	dc->caps.max_cursor_size = 128;
+	dc->caps.dual_link_dvi = true;
+
 	dc->debug = debug_defaults;
 
 	/*************************************************

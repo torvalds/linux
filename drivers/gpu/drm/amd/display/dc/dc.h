@@ -62,6 +62,7 @@ struct dc_caps {
 	bool dcc_const_color;
 	bool dynamic_audio;
 	bool is_apu;
+	bool dual_link_dvi;
 };
 
 struct dc_dcc_surface_param {
