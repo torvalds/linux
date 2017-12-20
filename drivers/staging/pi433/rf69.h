@@ -43,7 +43,6 @@ int rf69_set_dc_cut_off_frequency(struct spi_device *spi, enum dcc_percent dcc_p
 int rf69_set_dc_cut_off_frequency_during_afc(struct spi_device *spi, enum dcc_percent dcc_percent);
 int rf69_set_bandwidth(struct spi_device *spi, enum mantisse mantisse, u8 exponent);
 int rf69_set_bandwidth_during_afc(struct spi_device *spi, enum mantisse mantisse, u8 exponent);
-int rf69_set_ook_threshold_type(struct spi_device *spi, enum thresholdType thresholdType);
 int rf69_set_ook_threshold_dec(struct spi_device *spi, enum thresholdDecrement thresholdDecrement);
 int rf69_set_dio_mapping(struct spi_device *spi, u8 DIONumber, u8 value);
 bool rf69_get_flag(struct spi_device *spi, enum flag flag);

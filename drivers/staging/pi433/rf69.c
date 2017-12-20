@@ -461,18 +461,6 @@ int rf69_set_bandwidth_during_afc(struct spi_device *spi, enum mantisse mantisse
 	return rf69_set_bandwidth_intern(spi, REG_AFCBW, mantisse, exponent);
 }
 
-int rf69_set_ook_threshold_type(struct spi_device *spi, enum thresholdType thresholdType)
-{
-	switch (thresholdType) {
-	case fixed:	return rf69_read_mod_write(spi, REG_OOKPEAK, MASK_OOKPEAK_THRESTYPE, OOKPEAK_THRESHTYPE_FIXED);
-	case peak:	return rf69_read_mod_write(spi, REG_OOKPEAK, MASK_OOKPEAK_THRESTYPE, OOKPEAK_THRESHTYPE_PEAK);
-	case average:	return rf69_read_mod_write(spi, REG_OOKPEAK, MASK_OOKPEAK_THRESTYPE, OOKPEAK_THRESHTYPE_AVERAGE);
-	default:
-		dev_dbg(&spi->dev, "set: illegal input param");
-		return -EINVAL;
-	}
-}
-
 int rf69_set_ook_threshold_dec(struct spi_device *spi, enum thresholdDecrement thresholdDecrement)
 {
 	switch (thresholdDecrement) {

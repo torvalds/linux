@@ -93,12 +93,6 @@ enum mantisse {
 	mantisse24
 };
 
-enum thresholdType {
-	fixed,
-	peak,
-	average
-};
-
 enum thresholdDecrement {
 	dec_every8th,
 	dec_every4th,
