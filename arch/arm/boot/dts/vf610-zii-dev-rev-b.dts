@@ -371,7 +371,8 @@
 		reg = <0x22>;
 		gpio-controller;
 		#gpio-cells = <2>;
-		interrupt-parent = <&gpio2>;
+		interrupt-controller;
+		interrupt-parent = <&gpio3>;
 		interrupts = <2 IRQ_TYPE_LEVEL_LOW>;
 	};
 };
