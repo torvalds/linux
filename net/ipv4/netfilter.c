@@ -155,9 +155,9 @@ __sum16 nf_ip_checksum(struct sk_buff *skb, unsigned int hook,
 }
 EXPORT_SYMBOL(nf_ip_checksum);
 
-static __sum16 nf_ip_checksum_partial(struct sk_buff *skb, unsigned int hook,
-				      unsigned int dataoff, unsigned int len,
-				      u_int8_t protocol)
+__sum16 nf_ip_checksum_partial(struct sk_buff *skb, unsigned int hook,
+			       unsigned int dataoff, unsigned int len,
+			       u_int8_t protocol)
 {
 	const struct iphdr *iph = ip_hdr(skb);
 	__sum16 csum = 0;
@@ -175,6 +175,7 @@ static __sum16 nf_ip_checksum_partial(struct sk_buff *skb, unsigned int hook,
 	}
 	return csum;
 }
+EXPORT_SYMBOL_GPL(nf_ip_checksum_partial);
 
 static int nf_ip_route(struct net *net, struct dst_entry **dst,
 		       struct flowi *fl, bool strict __always_unused)
@@ -188,7 +189,6 @@ static int nf_ip_route(struct net *net, struct dst_entry **dst,
 
 static const struct nf_afinfo nf_ip_afinfo = {
 	.family			= AF_INET,
-	.checksum_partial	= nf_ip_checksum_partial,
 	.route			= nf_ip_route,
 	.saveroute		= nf_ip_saveroute,
 	.reroute		= nf_ip_reroute,

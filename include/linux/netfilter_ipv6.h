@@ -21,6 +21,9 @@ struct nf_ipv6_ops {
 			int (*output)(struct net *, struct sock *, struct sk_buff *));
 	__sum16 (*checksum)(struct sk_buff *skb, unsigned int hook,
 			    unsigned int dataoff, u_int8_t protocol);
+	__sum16 (*checksum_partial)(struct sk_buff *skb, unsigned int hook,
+				    unsigned int dataoff, unsigned int len,
+				    u_int8_t protocol);
 };
 
 #ifdef CONFIG_NETFILTER
