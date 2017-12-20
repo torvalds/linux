@@ -10,6 +10,8 @@
 #include <string.h>
 #include <errno.h>
 #include <assert.h>
+#include <sys/time.h>
+#include <sys/resource.h>
 
 #include <linux/bpf.h>
 #include <bpf/bpf.h>
@@ -23,15 +25,19 @@
 
 int main(int argc, char **argv)
 {
+	struct rlimit limit  = { RLIM_INFINITY, RLIM_INFINITY };
 	struct bpf_object *obj;
 	int error = EXIT_FAILURE;
 	int prog_fd, cgroup_fd;
 	__u32 prog_cnt;
 
+	if (setrlimit(RLIMIT_MEMLOCK, &limit) < 0)
+		perror("Unable to lift memlock rlimit");
+
 	if (bpf_prog_load(DEV_CGROUP_PROG, BPF_PROG_TYPE_CGROUP_DEVICE,
 			  &obj, &prog_fd)) {
 		printf("Failed to load DEV_CGROUP program\n");
-		goto err;
+		goto out;
 	}
 
 	if (setup_cgroup_environment()) {
@@ -89,5 +95,6 @@ int main(int argc, char **argv)
 err:
 	cleanup_cgroup_environment();
 
+out:
 	return error;
 }
