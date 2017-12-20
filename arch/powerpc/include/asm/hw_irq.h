@@ -61,18 +61,14 @@ static inline unsigned long arch_local_save_flags(void)
 	return flags;
 }
 
-static inline unsigned long arch_local_irq_disable(void)
+static inline void arch_local_irq_disable(void)
 {
-	unsigned long flags;
-
 	asm volatile(
-		"lbz %0,%1(13); stb %2,%1(13)"
-		: "=&r" (flags)
-		: "i" (offsetof(struct paca_struct, soft_enabled)),
-		  "r" (IRQS_DISABLED)
+		"stb %0,%1(13)"
+		:
+		: "r" (IRQS_DISABLED),
+		  "i" (offsetof(struct paca_struct, soft_enabled))
 		: "memory");
-
-	return flags;
 }
 
 extern void arch_local_irq_restore(unsigned long);
@@ -84,7 +80,16 @@ static inline void arch_local_irq_enable(void)
 
 static inline unsigned long arch_local_irq_save(void)
 {
-	return arch_local_irq_disable();
+	unsigned long flags;
+
+	asm volatile(
+		"lbz %0,%1(13); stb %2,%1(13)"
+		: "=&r" (flags)
+		: "i" (offsetof(struct paca_struct, soft_enabled)),
+		  "r" (IRQS_DISABLED)
+		: "memory");
+
+	return flags;
 }
 
 static inline bool arch_irqs_disabled_flags(unsigned long flags)
