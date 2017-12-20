@@ -4418,11 +4418,12 @@ static int cik_mec_init(struct radeon_device *rdev)
 	/*
 	 * KV:    2 MEC, 4 Pipes/MEC, 8 Queues/Pipe - 64 Queues total
 	 * CI/KB: 1 MEC, 4 Pipes/MEC, 8 Queues/Pipe - 32 Queues total
-	 * Nonetheless, we assign only 1 pipe because all other pipes will
-	 * be handled by KFD
 	 */
-	rdev->mec.num_mec = 1;
-	rdev->mec.num_pipe = 1;
+	if (rdev->family == CHIP_KAVERI)
+		rdev->mec.num_mec = 2;
+	else
+		rdev->mec.num_mec = 1;
+	rdev->mec.num_pipe = 4;
 	rdev->mec.num_queue = rdev->mec.num_mec * rdev->mec.num_pipe * 8;
 
 	if (rdev->mec.hpd_eop_obj == NULL) {
@@ -4565,8 +4566,11 @@ static int cik_cp_compute_resume(struct radeon_device *rdev)
 	/* init the pipes */
 	mutex_lock(&rdev->srbm_mutex);
 
-	for (i = 0; i < rdev->mec.num_pipe; ++i) {
-		cik_srbm_select(rdev, 0, i, 0, 0);
+	for (i = 0; i < (rdev->mec.num_pipe * rdev->mec.num_mec); ++i) {
+		int me = (i < 4) ? 1 : 2;
+		int pipe = (i < 4) ? i : (i - 4);
+
+		cik_srbm_select(rdev, me, pipe, 0, 0);
 
 		eop_gpu_addr = rdev->mec.hpd_eop_gpu_addr + (i * MEC_HPD_SIZE * 2) ;
 		/* write the EOP addr */
@@ -4583,6 +4587,7 @@ static int cik_cp_compute_resume(struct radeon_device *rdev)
 		WREG32(CP_HPD_EOP_CONTROL, tmp);
 
 	}
+	cik_srbm_select(rdev, 0, 0, 0, 0);
 	mutex_unlock(&rdev->srbm_mutex);
 
 	/* init the queues.  Just two for now. */
