@@ -25,7 +25,6 @@
 #else
 #include <uapi/asm/vsyscall.h>
 #endif
-#include <asm/cpu_entry_area.h>
 
 /*
  * We can't declare FIXADDR_TOP as variable for x86_64 because vsyscall
@@ -84,7 +83,6 @@ enum fixed_addresses {
 	FIX_IO_APIC_BASE_0,
 	FIX_IO_APIC_BASE_END = FIX_IO_APIC_BASE_0 + MAX_IO_APICS - 1,
 #endif
-	FIX_RO_IDT,	/* Virtual mapping for read-only IDT */
 #ifdef CONFIG_X86_32
 	FIX_KMAP_BEGIN,	/* reserved pte's for temporary kernel mappings */
 	FIX_KMAP_END = FIX_KMAP_BEGIN+(KM_TYPE_NR*NR_CPUS)-1,
@@ -100,9 +98,6 @@ enum fixed_addresses {
 #ifdef	CONFIG_X86_INTEL_MID
 	FIX_LNW_VRTC,
 #endif
-	/* Fixmap entries to remap the GDTs, one per processor. */
-	FIX_CPU_ENTRY_AREA_TOP,
-	FIX_CPU_ENTRY_AREA_BOTTOM = FIX_CPU_ENTRY_AREA_TOP + (CPU_ENTRY_AREA_PAGES * NR_CPUS) - 1,
 
 #ifdef CONFIG_ACPI_APEI_GHES
 	/* Used for GHES mapping from assorted contexts */
@@ -143,7 +138,7 @@ enum fixed_addresses {
 extern void reserve_top_address(unsigned long reserve);
 
 #define FIXADDR_SIZE	(__end_of_permanent_fixed_addresses << PAGE_SHIFT)
-#define FIXADDR_START		(FIXADDR_TOP - FIXADDR_SIZE)
+#define FIXADDR_START	(FIXADDR_TOP - FIXADDR_SIZE)
 
 extern int fixmaps_set;
 
@@ -190,31 +185,6 @@ void __init *early_memremap_decrypted_wp(resource_size_t phys_addr,
 
 void __early_set_fixmap(enum fixed_addresses idx,
 			phys_addr_t phys, pgprot_t flags);
-
-static inline unsigned int __get_cpu_entry_area_page_index(int cpu, int page)
-{
-	BUILD_BUG_ON(sizeof(struct cpu_entry_area) % PAGE_SIZE != 0);
-
-	return FIX_CPU_ENTRY_AREA_BOTTOM - cpu*CPU_ENTRY_AREA_PAGES - page;
-}
-
-#define __get_cpu_entry_area_offset_index(cpu, offset) ({		\
-	BUILD_BUG_ON(offset % PAGE_SIZE != 0);				\
-	__get_cpu_entry_area_page_index(cpu, offset / PAGE_SIZE);	\
-	})
-
-#define get_cpu_entry_area_index(cpu, field)				\
-	__get_cpu_entry_area_offset_index((cpu), offsetof(struct cpu_entry_area, field))
-
-static inline struct cpu_entry_area *get_cpu_entry_area(int cpu)
-{
-	return (struct cpu_entry_area *)__fix_to_virt(__get_cpu_entry_area_page_index(cpu, 0));
-}
-
-static inline struct entry_stack *cpu_entry_stack(int cpu)
-{
-	return &get_cpu_entry_area(cpu)->entry_stack_page.stack;
-}
 
 #endif /* !__ASSEMBLY__ */
 #endif /* _ASM_X86_FIXMAP_H */
