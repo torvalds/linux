@@ -1349,6 +1349,7 @@ rpcrdma_mr_unmap_and_put(struct rpcrdma_mr *mr)
 {
 	struct rpcrdma_xprt *r_xprt = mr->mr_xprt;
 
+	trace_xprtrdma_dma_unmap(mr);
 	ib_dma_unmap_sg(r_xprt->rx_ia.ri_device,
 			mr->mr_sg, mr->mr_nents, mr->mr_dir);
 	__rpcrdma_mr_put(&r_xprt->rx_buf, mr);

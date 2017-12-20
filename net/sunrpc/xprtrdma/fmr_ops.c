@@ -148,6 +148,7 @@ out_release:
 	pr_err("rpcrdma: FMR reset failed (%d), %p released\n", rc, mr);
 	r_xprt->rx_stats.mrs_orphaned++;
 
+	trace_xprtrdma_dma_unmap(mr);
 	ib_dma_unmap_sg(r_xprt->rx_ia.ri_device,
 			mr->mr_sg, mr->mr_nents, mr->mr_dir);
 
@@ -273,6 +274,7 @@ fmr_op_unmap_sync(struct rpcrdma_xprt *r_xprt, struct list_head *mrs)
 	list_for_each_entry(mr, mrs, mr_list) {
 		dprintk("RPC:       %s: unmapping fmr %p\n",
 			__func__, &mr->fmr);
+		trace_xprtrdma_localinv(mr);
 		list_add_tail(&mr->fmr.fm_mr->list, &unmap_list);
 	}
 	r_xprt->rx_stats.local_inv_needed++;
@@ -285,8 +287,6 @@ fmr_op_unmap_sync(struct rpcrdma_xprt *r_xprt, struct list_head *mrs)
 	 */
 	while (!list_empty(mrs)) {
 		mr = rpcrdma_mr_pop(mrs);
-		dprintk("RPC:       %s: DMA unmapping fmr %p\n",
-			__func__, &mr->fmr);
 		list_del(&mr->fmr.fm_mr->list);
 		rpcrdma_mr_unmap_and_put(mr);
 	}

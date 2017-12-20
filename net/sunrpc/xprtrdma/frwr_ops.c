@@ -182,9 +182,11 @@ frwr_op_recover_mr(struct rpcrdma_mr *mr)
 	int rc;
 
 	rc = __frwr_mr_reset(ia, mr);
-	if (state != FRWR_FLUSHED_LI)
+	if (state != FRWR_FLUSHED_LI) {
+		trace_xprtrdma_dma_unmap(mr);
 		ib_dma_unmap_sg(ia->ri_device,
 				mr->mr_sg, mr->mr_nents, mr->mr_dir);
+	}
 	if (rc)
 		goto out_release;
 
@@ -307,16 +309,16 @@ frwr_wc_fastreg(struct ib_cq *cq, struct ib_wc *wc)
 static void
 frwr_wc_localinv(struct ib_cq *cq, struct ib_wc *wc)
 {
-	struct rpcrdma_frwr *frwr;
-	struct ib_cqe *cqe;
+	struct ib_cqe *cqe = wc->wr_cqe;
+	struct rpcrdma_frwr *frwr = container_of(cqe, struct rpcrdma_frwr,
+						 fr_cqe);
 
 	/* WARNING: Only wr_cqe and status are reliable at this point */
 	if (wc->status != IB_WC_SUCCESS) {
-		cqe = wc->wr_cqe;
-		frwr = container_of(cqe, struct rpcrdma_frwr, fr_cqe);
 		frwr->fr_state = FRWR_FLUSHED_LI;
 		__frwr_sendcompletion_flush(wc, "localinv");
 	}
+	trace_xprtrdma_wc_li(wc, frwr);
 }
 
 /**
@@ -329,17 +331,17 @@ frwr_wc_localinv(struct ib_cq *cq, struct ib_wc *wc)
 static void
 frwr_wc_localinv_wake(struct ib_cq *cq, struct ib_wc *wc)
 {
-	struct rpcrdma_frwr *frwr;
-	struct ib_cqe *cqe;
+	struct ib_cqe *cqe = wc->wr_cqe;
+	struct rpcrdma_frwr *frwr = container_of(cqe, struct rpcrdma_frwr,
+						 fr_cqe);
 
 	/* WARNING: Only wr_cqe and status are reliable at this point */
-	cqe = wc->wr_cqe;
-	frwr = container_of(cqe, struct rpcrdma_frwr, fr_cqe);
 	if (wc->status != IB_WC_SUCCESS) {
 		frwr->fr_state = FRWR_FLUSHED_LI;
 		__frwr_sendcompletion_flush(wc, "localinv");
 	}
 	complete(&frwr->fr_linv_done);
+	trace_xprtrdma_wc_li_wake(wc, frwr);
 }
 
 /* Post a REG_MR Work Request to register a memory region
@@ -457,6 +459,7 @@ frwr_op_reminv(struct rpcrdma_rep *rep, struct list_head *mrs)
 	list_for_each_entry(mr, mrs, mr_list)
 		if (mr->mr_handle == rep->rr_inv_rkey) {
 			list_del(&mr->mr_list);
+			trace_xprtrdma_remoteinv(mr);
 			mr->frwr.fr_state = FRWR_IS_INVALID;
 			rpcrdma_mr_unmap_and_put(mr);
 			break;	/* only one invalidated MR per RPC */
@@ -492,9 +495,7 @@ frwr_op_unmap_sync(struct rpcrdma_xprt *r_xprt, struct list_head *mrs)
 		mr->frwr.fr_state = FRWR_IS_INVALID;
 
 		frwr = &mr->frwr;
-
-		dprintk("RPC:       %s: invalidating frwr %p\n",
-			__func__, frwr);
+		trace_xprtrdma_localinv(mr);
 
 		frwr->fr_cqe.done = frwr_wc_localinv;
 		last = &frwr->fr_invwr;
@@ -536,8 +537,6 @@ frwr_op_unmap_sync(struct rpcrdma_xprt *r_xprt, struct list_head *mrs)
 unmap:
 	while (!list_empty(mrs)) {
 		mr = rpcrdma_mr_pop(mrs);
-		dprintk("RPC:       %s: DMA unmapping frwr %p\n",
-			__func__, &mr->frwr);
 		rpcrdma_mr_unmap_and_put(mr);
 	}
 	return;

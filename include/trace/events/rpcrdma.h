@@ -201,6 +201,41 @@ DECLARE_EVENT_CLASS(xprtrdma_frwr_done,
 				),					\
 				TP_ARGS(wc, frwr))
 
+DECLARE_EVENT_CLASS(xprtrdma_mr,
+	TP_PROTO(
+		const struct rpcrdma_mr *mr
+	),
+
+	TP_ARGS(mr),
+
+	TP_STRUCT__entry(
+		__field(const void *, mr)
+		__field(u32, handle)
+		__field(u32, length)
+		__field(u64, offset)
+	),
+
+	TP_fast_assign(
+		__entry->mr = mr;
+		__entry->handle = mr->mr_handle;
+		__entry->length = mr->mr_length;
+		__entry->offset = mr->mr_offset;
+	),
+
+	TP_printk("mr=%p %u@0x%016llx:0x%08x",
+		__entry->mr, __entry->length,
+		(unsigned long long)__entry->offset,
+		__entry->handle
+	)
+);
+
+#define DEFINE_MR_EVENT(name) \
+		DEFINE_EVENT(xprtrdma_mr, name, \
+				TP_PROTO( \
+					const struct rpcrdma_mr *mr \
+				), \
+				TP_ARGS(mr))
+
 /**
  ** Call events
  **/
@@ -382,6 +417,12 @@ TRACE_EVENT(xprtrdma_wc_receive,
 );
 
 DEFINE_FRWR_DONE_EVENT(xprtrdma_wc_fastreg);
+DEFINE_FRWR_DONE_EVENT(xprtrdma_wc_li);
+DEFINE_FRWR_DONE_EVENT(xprtrdma_wc_li_wake);
+
+DEFINE_MR_EVENT(xprtrdma_localinv);
+DEFINE_MR_EVENT(xprtrdma_dma_unmap);
+DEFINE_MR_EVENT(xprtrdma_remoteinv);
 
 /**
  ** Reply events
