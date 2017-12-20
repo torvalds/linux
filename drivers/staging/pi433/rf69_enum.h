@@ -99,17 +99,6 @@ enum thresholdType {
 	average
 };
 
-enum thresholdStep {
-	step_0_5db,
-	step_1_0db,
-	step_1_5db,
-	step_2_0db,
-	step_3_0db,
-	step_4_0db,
-	step_5_0db,
-	step_6_0db
-};
-
 enum thresholdDecrement {
 	dec_every8th,
 	dec_every4th,

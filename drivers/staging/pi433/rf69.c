@@ -473,23 +473,6 @@ int rf69_set_ook_threshold_type(struct spi_device *spi, enum thresholdType thres
 	}
 }
 
-int rf69_set_ook_threshold_step(struct spi_device *spi, enum thresholdStep thresholdStep)
-{
-	switch (thresholdStep) {
-	case step_0_5db: return rf69_read_mod_write(spi, REG_OOKPEAK, MASK_OOKPEAK_THRESSTEP, OOKPEAK_THRESHSTEP_0_5_DB);
-	case step_1_0db: return rf69_read_mod_write(spi, REG_OOKPEAK, MASK_OOKPEAK_THRESSTEP, OOKPEAK_THRESHSTEP_1_0_DB);
-	case step_1_5db: return rf69_read_mod_write(spi, REG_OOKPEAK, MASK_OOKPEAK_THRESSTEP, OOKPEAK_THRESHSTEP_1_5_DB);
-	case step_2_0db: return rf69_read_mod_write(spi, REG_OOKPEAK, MASK_OOKPEAK_THRESSTEP, OOKPEAK_THRESHSTEP_2_0_DB);
-	case step_3_0db: return rf69_read_mod_write(spi, REG_OOKPEAK, MASK_OOKPEAK_THRESSTEP, OOKPEAK_THRESHSTEP_3_0_DB);
-	case step_4_0db: return rf69_read_mod_write(spi, REG_OOKPEAK, MASK_OOKPEAK_THRESSTEP, OOKPEAK_THRESHSTEP_4_0_DB);
-	case step_5_0db: return rf69_read_mod_write(spi, REG_OOKPEAK, MASK_OOKPEAK_THRESSTEP, OOKPEAK_THRESHSTEP_5_0_DB);
-	case step_6_0db: return rf69_read_mod_write(spi, REG_OOKPEAK, MASK_OOKPEAK_THRESSTEP, OOKPEAK_THRESHSTEP_6_0_DB);
-	default:
-		dev_dbg(&spi->dev, "set: illegal input param");
-		return -EINVAL;
-	}
-}
-
 int rf69_set_ook_threshold_dec(struct spi_device *spi, enum thresholdDecrement thresholdDecrement)
 {
 	switch (thresholdDecrement) {
