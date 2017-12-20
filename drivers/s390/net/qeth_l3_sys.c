@@ -10,10 +10,22 @@
 #include <linux/slab.h>
 #include <asm/ebcdic.h>
 #include <linux/hashtable.h>
+#include <linux/inet.h>
 #include "qeth_l3.h"
 
 #define QETH_DEVICE_ATTR(_id, _name, _mode, _show, _store) \
 struct device_attribute dev_attr_##_id = __ATTR(_name, _mode, _show, _store)
+
+static int qeth_l3_string_to_ipaddr(const char *buf,
+				    enum qeth_prot_versions proto, u8 *addr)
+{
+	const char *end;
+
+	if ((proto == QETH_PROT_IPV4 && !in4_pton(buf, -1, addr, -1, &end)) ||
+	    (proto == QETH_PROT_IPV6 && !in6_pton(buf, -1, addr, -1, &end)))
+		return -EINVAL;
+	return 0;
+}
 
 static ssize_t qeth_l3_dev_route_show(struct qeth_card *card,
 			struct qeth_routing_info *route, char *buf)
