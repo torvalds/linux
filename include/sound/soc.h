@@ -858,11 +858,10 @@ struct snd_soc_component {
 	struct list_head card_aux_list; /* for auxiliary bound components */
 	struct list_head card_list;
 
-	int num_dai;
-
 	const struct snd_soc_component_driver *driver;
 
 	struct list_head dai_list;
+	int num_dai;
 
 	int (*read)(struct snd_soc_component *, unsigned int, unsigned int *);
 	int (*write)(struct snd_soc_component *, unsigned int, unsigned int);
