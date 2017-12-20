@@ -9,8 +9,7 @@
  */
 
 #define SCHED_CPUFREQ_RT	(1U << 0)
-#define SCHED_CPUFREQ_DL	(1U << 1)
-#define SCHED_CPUFREQ_IOWAIT	(1U << 2)
+#define SCHED_CPUFREQ_IOWAIT	(1U << 1)
 
 #ifdef CONFIG_CPU_FREQ
 struct update_util_data {
