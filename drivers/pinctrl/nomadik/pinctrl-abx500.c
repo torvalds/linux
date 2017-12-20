@@ -1157,11 +1157,8 @@ static int abx500_gpio_probe(struct platform_device *pdev)
 
 	pct = devm_kzalloc(&pdev->dev, sizeof(struct abx500_pinctrl),
 				   GFP_KERNEL);
-	if (pct == NULL) {
-		dev_err(&pdev->dev,
-			"failed to allocate memory for pct\n");
+	if (!pct)
 		return -ENOMEM;
-	}
 
 	pct->dev = &pdev->dev;
 	pct->parent = dev_get_drvdata(pdev->dev.parent);
