@@ -724,11 +724,6 @@ int rf69_set_payload_length(struct spi_device *spi, u8 payloadLength)
 	return rf69_write_reg(spi, REG_PAYLOAD_LENGTH, payloadLength);
 }
 
-u8  rf69_get_payload_length(struct spi_device *spi)
-{
-	return (u8)rf69_read_reg(spi, REG_PAYLOAD_LENGTH);
-}
-
 int rf69_set_node_address(struct spi_device *spi, u8 nodeAddress)
 {
 	return rf69_write_reg(spi, REG_NODEADRS, nodeAddress);
