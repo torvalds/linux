@@ -41,6 +41,10 @@ int intel_svm_alloc_pasid_tables(struct intel_iommu *iommu)
 	struct page *pages;
 	int order;
 
+	if (cpu_feature_enabled(X86_FEATURE_GBPAGES) &&
+			!cap_fl1gp_support(iommu->cap))
+		return -EINVAL;
+
 	/* Start at 2 because it's defined as 2^(1+PSS) */
 	iommu->pasid_max = 2 << ecap_pss(iommu->ecap);
 
