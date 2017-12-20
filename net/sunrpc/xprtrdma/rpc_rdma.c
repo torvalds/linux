@@ -524,9 +524,6 @@ rpcrdma_unmap_sendctx(struct rpcrdma_sendctx *sc)
 	struct ib_sge *sge;
 	unsigned int count;
 
-	dprintk("RPC:       %s: unmapping %u sges for sc=%p\n",
-		__func__, sc->sc_unmap_count, sc);
-
 	/* The first two SGEs contain the transport header and
 	 * the inline buffer. These are always left mapped so
 	 * they can be cheaply re-used.
@@ -874,10 +871,7 @@ rpcrdma_marshal_req(struct rpcrdma_xprt *r_xprt, struct rpc_rqst *rqst)
 	if (ret)
 		goto out_err;
 
-	dprintk("RPC: %5u %s: %s/%s: hdrlen %u rpclen\n",
-		rqst->rq_task->tk_pid, __func__,
-		transfertypes[rtype], transfertypes[wtype],
-		xdr_stream_pos(xdr));
+	trace_xprtrdma_marshal(rqst, xdr_stream_pos(xdr), rtype, wtype);
 
 	ret = rpcrdma_prepare_send_sges(r_xprt, req, xdr_stream_pos(xdr),
 					&rqst->rq_snd_buf, rtype);

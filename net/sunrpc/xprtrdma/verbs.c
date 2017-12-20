@@ -133,6 +133,7 @@ rpcrdma_wc_send(struct ib_cq *cq, struct ib_wc *wc)
 		container_of(cqe, struct rpcrdma_sendctx, sc_cqe);
 
 	/* WARNING: Only wr_cqe and status are reliable at this point */
+	trace_xprtrdma_wc_send(sc, wc);
 	if (wc->status != IB_WC_SUCCESS && wc->status != IB_WC_WR_FLUSH_ERR)
 		pr_err("rpcrdma: Send: %s (%u/0x%x)\n",
 		       ib_wc_status_msg(wc->status),
@@ -1549,9 +1550,6 @@ rpcrdma_ep_post(struct rpcrdma_ia *ia,
 		req->rl_reply = NULL;
 	}
 
-	dprintk("RPC:       %s: posting %d s/g entries\n",
-		__func__, send_wr->num_sge);
-
 	if (!ep->rep_send_count ||
 	    test_bit(RPCRDMA_REQ_F_TX_RESOURCES, &req->rl_flags)) {
 		send_wr->send_flags |= IB_SEND_SIGNALED;
@@ -1560,14 +1558,12 @@ rpcrdma_ep_post(struct rpcrdma_ia *ia,
 		send_wr->send_flags &= ~IB_SEND_SIGNALED;
 		--ep->rep_send_count;
 	}
-	rc = ib_post_send(ia->ri_id->qp, send_wr, &send_wr_fail);
-	if (rc)
-		goto out_postsend_err;
-	return 0;
 
-out_postsend_err:
-	pr_err("rpcrdma: RDMA Send ib_post_send returned %i\n", rc);
-	return -ENOTCONN;
+	rc = ib_post_send(ia->ri_id->qp, send_wr, &send_wr_fail);
+	trace_xprtrdma_post_send(req, rc);
+	if (rc)
+		return -ENOTCONN;
+	return 0;
 }
 
 int
