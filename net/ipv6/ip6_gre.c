@@ -550,8 +550,10 @@ static int ip6erspan_rcv(struct sk_buff *skb, int gre_hdr_len,
 
 			info = &tun_dst->u.tun_info;
 			md = ip_tunnel_info_opts(info);
-			if (!md)
+			if (!md) {
+				dst_release((struct dst_entry *)tun_dst);
 				return PACKET_REJECT;
+			}
 
 			memcpy(md, pkt_md, sizeof(*md));
 			md->version = ver;
