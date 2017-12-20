@@ -42,7 +42,11 @@ static bool amdgpu_need_backup(struct amdgpu_device *adev)
 	if (adev->flags & AMD_IS_APU)
 		return false;
 
-	return amdgpu_gpu_recovery;
+	if (amdgpu_gpu_recovery == 0 ||
+	    (amdgpu_gpu_recovery == -1  && !amdgpu_sriov_vf(adev)))
+		return false;
+
+	return true;
 }
 
 static void amdgpu_ttm_bo_destroy(struct ttm_buffer_object *tbo)
