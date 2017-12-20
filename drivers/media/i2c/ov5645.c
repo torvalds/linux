@@ -768,7 +768,7 @@ static int ov5645_s_power(struct v4l2_subdev *sd, int on)
 			}
 
 			ret = ov5645_write_reg_to(ov5645, 0x3100,
-						ov5645->i2c_client->addr, 0x78);
+						ov5645->i2c_client->addr << 1, 0x3c);
 			if (ret < 0) {
 				dev_err(ov5645->dev,
 					"could not change i2c address\n");
