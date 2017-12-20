@@ -174,6 +174,8 @@ static void del_hw_fte(struct fs_node *node);
 static void del_sw_flow_table(struct fs_node *node);
 static void del_sw_flow_group(struct fs_node *node);
 static void del_sw_fte(struct fs_node *node);
+static void del_sw_prio(struct fs_node *node);
+static void del_sw_ns(struct fs_node *node);
 /* Delete rule (destination) is special case that 
  * requires to lock the FTE for all the deletion process.
  */
@@ -406,6 +408,16 @@ static inline struct mlx5_core_dev *get_dev(struct fs_node *node)
 	if (root)
 		return root->dev;
 	return NULL;
+}
+
+static void del_sw_ns(struct fs_node *node)
+{
+	kfree(node);
+}
+
+static void del_sw_prio(struct fs_node *node)
+{
+	kfree(node);
 }
 
 static void del_hw_flow_table(struct fs_node *node)
@@ -2064,7 +2076,7 @@ static struct fs_prio *fs_create_prio(struct mlx5_flow_namespace *ns,
 		return ERR_PTR(-ENOMEM);
 
 	fs_prio->node.type = FS_TYPE_PRIO;
-	tree_init_node(&fs_prio->node, NULL, NULL);
+	tree_init_node(&fs_prio->node, NULL, del_sw_prio);
 	tree_add_node(&fs_prio->node, &ns->node);
 	fs_prio->num_levels = num_levels;
 	fs_prio->prio = prio;
@@ -2090,7 +2102,7 @@ static struct mlx5_flow_namespace *fs_create_namespace(struct fs_prio *prio)
 		return ERR_PTR(-ENOMEM);
 
 	fs_init_namespace(ns);
-	tree_init_node(&ns->node, NULL, NULL);
+	tree_init_node(&ns->node, NULL, del_sw_ns);
 	tree_add_node(&ns->node, &prio->node);
 	list_add_tail(&ns->node.list, &prio->node.children);
 
