@@ -833,6 +833,14 @@ static int virtual_thermal_probe(struct platform_device *pdev)
 	ctx->psy_usb = power_supply_get_by_name("usb");
 	ctx->psy_ac = power_supply_get_by_name("ac");
 
+	ret = cpufreq_register_notifier(&temp_notifier_block,
+					CPUFREQ_TRANSITION_NOTIFIER);
+	if (ret) {
+		dev_err(&pdev->dev, "failed to register cpufreq notifier: %d\n",
+			ret);
+		return ret;
+	}
+
 	ctx->gpu_clk = clk_get_by_name("aclk_gpu");
 	if (IS_ERR_OR_NULL(ctx->gpu_clk)) {
 		ret = PTR_ERR(ctx->gpu_clk);
@@ -845,14 +853,6 @@ static int virtual_thermal_probe(struct platform_device *pdev)
 		ret = PTR_ERR(ctx->vpu_clk);
 		ctx->vpu_clk = NULL;
 		dev_warn(&pdev->dev, "failed to get vpu's clock: %d\n", ret);
-	}
-
-	ret = cpufreq_register_notifier(&temp_notifier_block,
-					CPUFREQ_TRANSITION_NOTIFIER);
-	if (ret) {
-		dev_err(&pdev->dev, "failed to register cpufreq notifier: %d\n",
-			ret);
-		return ret;
 	}
 
 	ctx->tzd = devm_thermal_zone_of_sensor_register(&pdev->dev, 0,
@@ -879,6 +879,11 @@ static int virtual_thermal_probe(struct platform_device *pdev)
 err_unreg_cpufreq_notifier:
 	cpufreq_unregister_notifier(&temp_notifier_block,
 				    CPUFREQ_TRANSITION_NOTIFIER);
+	if (ctx->gpu_clk)
+		clk_put(ctx->gpu_clk);
+	if (ctx->vpu_clk)
+		clk_put(ctx->vpu_clk);
+
 	return ret;
 }
 
