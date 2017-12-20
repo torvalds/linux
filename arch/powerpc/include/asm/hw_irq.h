@@ -131,12 +131,11 @@ static inline bool arch_irqs_disabled(void)
 #endif
 
 #define hard_irq_disable()	do {			\
-	u8 _was_enabled;				\
+	unsigned long flags;				\
 	__hard_irq_disable();				\
-	_was_enabled = local_paca->soft_enabled;	\
-	local_paca->soft_enabled = IRQS_DISABLED;\
+	flags = soft_enabled_set_return(IRQS_DISABLED);	\
 	local_paca->irq_happened |= PACA_IRQ_HARD_DIS;	\
-	if (_was_enabled == IRQS_ENABLED)	\
+	if (!arch_irqs_disabled_flags(flags))		\
 		trace_hardirqs_off();			\
 } while(0)
 
