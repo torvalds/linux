@@ -59,24 +59,6 @@ static inline int rgmii_valid_mode(int phy_mode)
 		phy_mode == PHY_MODE_RTBI;
 }
 
-static inline const char *rgmii_mode_name(int mode)
-{
-	switch (mode) {
-	case PHY_MODE_RGMII:
-		return "RGMII";
-	case PHY_MODE_TBI:
-		return "TBI";
-	case PHY_MODE_GMII:
-		return "GMII";
-	case PHY_MODE_MII:
-		return "MII";
-	case PHY_MODE_RTBI:
-		return "RTBI";
-	default:
-		BUG();
-	}
-}
-
 static inline u32 rgmii_mode_mask(int mode, int input)
 {
 	switch (mode) {
@@ -115,7 +97,7 @@ int rgmii_attach(struct platform_device *ofdev, int input, int mode)
 	out_be32(&p->fer, in_be32(&p->fer) | rgmii_mode_mask(mode, input));
 
 	printk(KERN_NOTICE "%pOF: input %d in %s mode\n",
-	       ofdev->dev.of_node, input, rgmii_mode_name(mode));
+	       ofdev->dev.of_node, input, phy_modes(mode));
 
 	++dev->users;
 
