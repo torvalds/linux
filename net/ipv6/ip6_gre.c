@@ -602,12 +602,13 @@ static int gre_rcv(struct sk_buff *skb)
 		     tpi.proto == htons(ETH_P_ERSPAN2))) {
 		if (ip6erspan_rcv(skb, hdr_len, &tpi) == PACKET_RCVD)
 			return 0;
-		goto drop;
+		goto out;
 	}
 
 	if (ip6gre_rcv(skb, &tpi) == PACKET_RCVD)
 		return 0;
 
+out:
 	icmpv6_send(skb, ICMPV6_DEST_UNREACH, ICMPV6_PORT_UNREACH, 0);
 drop:
 	kfree_skb(skb);
