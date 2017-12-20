@@ -58,6 +58,7 @@ enum address_markers_idx {
 	KASAN_SHADOW_START_NR,
 	KASAN_SHADOW_END_NR,
 #endif
+	CPU_ENTRY_AREA_NR,
 #ifdef CONFIG_X86_ESPFIX64
 	ESPFIX_START_NR,
 #endif
@@ -81,6 +82,7 @@ static struct addr_marker address_markers[] = {
 	[KASAN_SHADOW_START_NR]	= { KASAN_SHADOW_START,	"KASAN shadow" },
 	[KASAN_SHADOW_END_NR]	= { KASAN_SHADOW_END,	"KASAN shadow end" },
 #endif
+	[CPU_ENTRY_AREA_NR]	= { CPU_ENTRY_AREA_BASE,"CPU entry Area" },
 #ifdef CONFIG_X86_ESPFIX64
 	[ESPFIX_START_NR]	= { ESPFIX_BASE_ADDR,	"ESPfix Area", 16 },
 #endif
@@ -104,6 +106,7 @@ enum address_markers_idx {
 #ifdef CONFIG_HIGHMEM
 	PKMAP_BASE_NR,
 #endif
+	CPU_ENTRY_AREA_NR,
 	FIXADDR_START_NR,
 	END_OF_SPACE_NR,
 };
@@ -116,6 +119,7 @@ static struct addr_marker address_markers[] = {
 #ifdef CONFIG_HIGHMEM
 	[PKMAP_BASE_NR]		= { 0UL,		"Persistent kmap() Area" },
 #endif
+	[CPU_ENTRY_AREA_NR]	= { 0UL,		"CPU entry area" },
 	[FIXADDR_START_NR]	= { 0UL,		"Fixmap area" },
 	[END_OF_SPACE_NR]	= { -1,			NULL }
 };
@@ -541,8 +545,8 @@ static int __init pt_dump_init(void)
 	address_markers[PKMAP_BASE_NR].start_address = PKMAP_BASE;
 # endif
 	address_markers[FIXADDR_START_NR].start_address = FIXADDR_START;
+	address_markers[CPU_ENTRY_AREA_NR].start_address = CPU_ENTRY_AREA_BASE;
 #endif
-
 	return 0;
 }
 __initcall(pt_dump_init);

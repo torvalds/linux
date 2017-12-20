@@ -43,10 +43,26 @@ struct cpu_entry_area {
 };
 
 #define CPU_ENTRY_AREA_SIZE	(sizeof(struct cpu_entry_area))
-#define CPU_ENTRY_AREA_PAGES	(CPU_ENTRY_AREA_SIZE / PAGE_SIZE)
+#define CPU_ENTRY_AREA_TOT_SIZE	(CPU_ENTRY_AREA_SIZE * NR_CPUS)
 
 DECLARE_PER_CPU(struct cpu_entry_area *, cpu_entry_area);
 
 extern void setup_cpu_entry_areas(void);
+extern void cea_set_pte(void *cea_vaddr, phys_addr_t pa, pgprot_t flags);
+
+#define	CPU_ENTRY_AREA_RO_IDT		CPU_ENTRY_AREA_BASE
+#define CPU_ENTRY_AREA_PER_CPU		(CPU_ENTRY_AREA_RO_IDT + PAGE_SIZE)
+
+#define CPU_ENTRY_AREA_RO_IDT_VADDR	((void *)CPU_ENTRY_AREA_RO_IDT)
+
+#define CPU_ENTRY_AREA_MAP_SIZE			\
+	(CPU_ENTRY_AREA_PER_CPU + CPU_ENTRY_AREA_TOT_SIZE - CPU_ENTRY_AREA_BASE)
+
+extern struct cpu_entry_area *get_cpu_entry_area(int cpu);
+
+static inline struct entry_stack *cpu_entry_stack(int cpu)
+{
+	return &get_cpu_entry_area(cpu)->entry_stack_page.stack;
+}
 
 #endif

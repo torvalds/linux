@@ -2261,7 +2261,6 @@ static void xen_set_fixmap(unsigned idx, phys_addr_t phys, pgprot_t prot)
 
 	switch (idx) {
 	case FIX_BTMAP_END ... FIX_BTMAP_BEGIN:
-	case FIX_RO_IDT:
 #ifdef CONFIG_X86_32
 	case FIX_WP_TEST:
 # ifdef CONFIG_HIGHMEM
@@ -2272,7 +2271,6 @@ static void xen_set_fixmap(unsigned idx, phys_addr_t phys, pgprot_t prot)
 #endif
 	case FIX_TEXT_POKE0:
 	case FIX_TEXT_POKE1:
-	case FIX_CPU_ENTRY_AREA_TOP ... FIX_CPU_ENTRY_AREA_BOTTOM:
 		/* All local page mappings */
 		pte = pfn_pte(phys, prot);
 		break;
