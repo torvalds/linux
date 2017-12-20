@@ -4216,9 +4216,8 @@ static int qeth_setadpparms_change_macaddr_cb(struct qeth_card *card,
 	cmd = (struct qeth_ipa_cmd *) data;
 	if (!card->options.layer2 ||
 	    !(card->info.mac_bits & QETH_LAYER2_MAC_READ)) {
-		memcpy(card->dev->dev_addr,
-		       &cmd->data.setadapterparms.data.change_addr.addr,
-		       OSA_ADDR_LEN);
+		ether_addr_copy(card->dev->dev_addr,
+				cmd->data.setadapterparms.data.change_addr.addr);
 		card->info.mac_bits |= QETH_LAYER2_MAC_READ;
 	}
 	qeth_default_setadapterparms_cb(card, reply, (unsigned long) cmd);
@@ -4240,9 +4239,9 @@ int qeth_setadpparms_change_macaddr(struct qeth_card *card)
 		return -ENOMEM;
 	cmd = (struct qeth_ipa_cmd *)(iob->data+IPA_PDU_HEADER_SIZE);
 	cmd->data.setadapterparms.data.change_addr.cmd = CHANGE_ADDR_READ_MAC;
-	cmd->data.setadapterparms.data.change_addr.addr_size = OSA_ADDR_LEN;
-	memcpy(&cmd->data.setadapterparms.data.change_addr.addr,
-	       card->dev->dev_addr, OSA_ADDR_LEN);
+	cmd->data.setadapterparms.data.change_addr.addr_size = ETH_ALEN;
+	ether_addr_copy(cmd->data.setadapterparms.data.change_addr.addr,
+			card->dev->dev_addr);
 	rc = qeth_send_ipa_cmd(card, iob, qeth_setadpparms_change_macaddr_cb,
 			       NULL);
 	return rc;

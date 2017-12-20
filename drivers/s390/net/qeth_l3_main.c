@@ -207,8 +207,8 @@ inline int
 qeth_l3_ipaddrs_is_equal(struct qeth_ipaddr *addr1, struct qeth_ipaddr *addr2)
 {
 	return addr1->proto == addr2->proto &&
-		!memcmp(&addr1->u, &addr2->u, sizeof(addr1->u))  &&
-		!memcmp(&addr1->mac, &addr2->mac, sizeof(addr1->mac));
+	       !memcmp(&addr1->u, &addr2->u, sizeof(addr1->u)) &&
+	       ether_addr_equal_64bits(addr1->mac, addr2->mac);
 }
 
 static struct qeth_ipaddr *
@@ -446,7 +446,7 @@ static int qeth_l3_send_setdelmc(struct qeth_card *card,
 	if (!iob)
 		return -ENOMEM;
 	cmd = (struct qeth_ipa_cmd *)(iob->data+IPA_PDU_HEADER_SIZE);
-	memcpy(&cmd->data.setdelipm.mac, addr->mac, OSA_ADDR_LEN);
+	ether_addr_copy(cmd->data.setdelipm.mac, addr->mac);
 	if (addr->proto == QETH_PROT_IPV6)
 		memcpy(cmd->data.setdelipm.ip6, &addr->u.a6.addr,
 		       sizeof(struct in6_addr));
@@ -1168,8 +1168,8 @@ static int qeth_l3_iqd_read_initial_mac_cb(struct qeth_card *card,
 
 	cmd = (struct qeth_ipa_cmd *) data;
 	if (cmd->hdr.return_code == 0)
-		memcpy(card->dev->dev_addr,
-			cmd->data.create_destroy_addr.unique_id, ETH_ALEN);
+		ether_addr_copy(card->dev->dev_addr,
+				cmd->data.create_destroy_addr.unique_id);
 	else
 		eth_random_addr(card->dev->dev_addr);
 
@@ -1392,7 +1392,7 @@ qeth_l3_add_mc_to_hash(struct qeth_card *card, struct in_device *in4_dev)
 			ipm = qeth_l3_get_addr_buffer(QETH_PROT_IPV4);
 			if (!ipm)
 				continue;
-			memcpy(ipm->mac, tmp->mac, sizeof(tmp->mac));
+			ether_addr_copy(ipm->mac, tmp->mac);
 			ipm->u.a4.addr = be32_to_cpu(im4->multiaddr);
 			ipm->is_multicast = 1;
 			ipm->disp_flag = QETH_DISP_ADDR_ADD;
@@ -1475,7 +1475,7 @@ static void qeth_l3_add_mc6_to_hash(struct qeth_card *card,
 		if (!ipm)
 			continue;
 
-		memcpy(ipm->mac, tmp->mac, sizeof(tmp->mac));
+		ether_addr_copy(ipm->mac, tmp->mac);
 		memcpy(&ipm->u.a6.addr, &im6->mca_addr.s6_addr,
 		       sizeof(struct in6_addr));
 		ipm->is_multicast = 1;
@@ -1652,11 +1652,10 @@ static int qeth_l3_vlan_rx_kill_vid(struct net_device *dev,
 static void qeth_l3_rebuild_skb(struct qeth_card *card, struct sk_buff *skb,
 				struct qeth_hdr *hdr)
 {
-	unsigned char tg_addr[MAX_ADDR_LEN];
-
 	if (!(hdr->hdr.l3.flags & QETH_HDR_PASSTHRU)) {
 		u16 prot = (hdr->hdr.l3.flags & QETH_HDR_IPV6) ? ETH_P_IPV6 :
 								 ETH_P_IP;
+		unsigned char tg_addr[ETH_ALEN];
 
 		skb_reset_network_header(skb);
 		switch (hdr->hdr.l3.flags & QETH_HDR_CAST_MASK) {
@@ -1670,8 +1669,7 @@ static void qeth_l3_rebuild_skb(struct qeth_card *card, struct sk_buff *skb,
 			skb->pkt_type = PACKET_MULTICAST;
 			break;
 		case QETH_CAST_BROADCAST:
-			memcpy(tg_addr, card->dev->broadcast,
-				card->dev->addr_len);
+			ether_addr_copy(tg_addr, card->dev->broadcast);
 			card->stats.multicast++;
 			skb->pkt_type = PACKET_BROADCAST;
 			break;
@@ -1683,8 +1681,7 @@ static void qeth_l3_rebuild_skb(struct qeth_card *card, struct sk_buff *skb,
 				skb->pkt_type = PACKET_OTHERHOST;
 			else
 				skb->pkt_type = PACKET_HOST;
-			memcpy(tg_addr, card->dev->dev_addr,
-				card->dev->addr_len);
+			ether_addr_copy(tg_addr, card->dev->dev_addr);
 		}
 		if (hdr->hdr.l3.ext_flags & QETH_HDR_EXT_SRC_MAC_ADDR)
 			card->dev->header_ops->create(skb, card->dev, prot,
@@ -2411,7 +2408,7 @@ static int qeth_l3_get_cast_type(struct qeth_card *card, struct sk_buff *skb)
 		return ((skb_network_header(skb)[16] & 0xf0) == 0xe0) ?
 				RTN_MULTICAST : 0;
 	/* ... */
-	if (!memcmp(skb->data, skb->dev->broadcast, 6))
+	if (ether_addr_equal_64bits(eth_hdr(skb)->h_dest, skb->dev->broadcast))
 		return RTN_BROADCAST;
 	else {
 		u16 hdr_mac;
@@ -2504,8 +2501,8 @@ static void qeth_l3_fill_header(struct qeth_card *card, struct qeth_hdr *hdr,
 			hdr->hdr.l3.flags &= ~QETH_HDR_PASSTHRU;
 		memcpy(hdr->hdr.l3.dest_addr, pkey, 16);
 	} else {
-		if (!memcmp(skb->data + sizeof(struct qeth_hdr),
-			    skb->dev->broadcast, 6)) {
+		if (ether_addr_equal_64bits(eth_hdr(skb)->h_dest,
+					    skb->dev->broadcast)) {
 			/* broadcast? */
 			hdr->hdr.l3.flags = QETH_CAST_BROADCAST |
 						QETH_HDR_PASSTHRU;

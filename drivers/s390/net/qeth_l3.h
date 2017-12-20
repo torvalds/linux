@@ -29,7 +29,7 @@ struct qeth_ipaddr {
 	 */
 	int  ref_counter;
 	enum qeth_prot_versions proto;
-	unsigned char mac[OSA_ADDR_LEN];
+	unsigned char mac[ETH_ALEN];
 	union {
 		struct {
 			unsigned int addr;
