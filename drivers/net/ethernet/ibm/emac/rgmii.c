@@ -52,25 +52,25 @@
 /* RGMII bridge supports only GMII/TBI and RGMII/RTBI PHYs */
 static inline int rgmii_valid_mode(int phy_mode)
 {
-	return  phy_mode == PHY_MODE_GMII ||
-		phy_mode == PHY_MODE_MII ||
-		phy_mode == PHY_MODE_RGMII ||
-		phy_mode == PHY_MODE_TBI ||
-		phy_mode == PHY_MODE_RTBI;
+	return  phy_mode == PHY_INTERFACE_MODE_GMII ||
+		phy_mode == PHY_INTERFACE_MODE_MII ||
+		phy_mode == PHY_INTERFACE_MODE_RGMII ||
+		phy_mode == PHY_INTERFACE_MODE_TBI ||
+		phy_mode == PHY_INTERFACE_MODE_RTBI;
 }
 
 static inline u32 rgmii_mode_mask(int mode, int input)
 {
 	switch (mode) {
-	case PHY_MODE_RGMII:
+	case PHY_INTERFACE_MODE_RGMII:
 		return RGMII_FER_RGMII(input);
-	case PHY_MODE_TBI:
+	case PHY_INTERFACE_MODE_TBI:
 		return RGMII_FER_TBI(input);
-	case PHY_MODE_GMII:
+	case PHY_INTERFACE_MODE_GMII:
 		return RGMII_FER_GMII(input);
-	case PHY_MODE_MII:
+	case PHY_INTERFACE_MODE_MII:
 		return RGMII_FER_MII(input);
-	case PHY_MODE_RTBI:
+	case PHY_INTERFACE_MODE_RTBI:
 		return RGMII_FER_RTBI(input);
 	default:
 		BUG();
