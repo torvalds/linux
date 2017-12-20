@@ -33,6 +33,52 @@
 
 /*-------------------------------------------------------------------------*/
 
+static u8 rf69_read_reg(struct spi_device *spi, u8 addr)
+{
+	int retval;
+
+	retval = spi_w8r8(spi, addr);
+
+#ifdef DEBUG_VALUES
+	if (retval < 0)
+		/* should never happen, since we already checked,
+		 * that module is connected. Therefore no error
+		 * handling, just an optional error message...
+		 */
+		dev_dbg(&spi->dev, "read 0x%x FAILED\n", addr);
+	else
+		dev_dbg(&spi->dev, "read 0x%x from reg 0x%x\n", retval, addr);
+#endif
+
+	return retval;
+}
+
+static int rf69_write_reg(struct spi_device *spi, u8 addr, u8 value)
+{
+	int retval;
+	char buffer[2];
+
+	buffer[0] = addr | WRITE_BIT;
+	buffer[1] = value;
+
+	retval = spi_write(spi, &buffer, 2);
+
+#ifdef DEBUG_VALUES
+	if (retval < 0)
+		/* should never happen, since we already checked,
+		 * that module is connected. Therefore no error
+		 * handling, just an optional error message...
+		 */
+		dev_dbg(&spi->dev, "write 0x%x to 0x%x FAILED\n", value, addr);
+	else
+		dev_dbg(&spi->dev, "wrote 0x%x to reg 0x%x\n", value, addr);
+#endif
+
+	return retval;
+}
+
+/*-------------------------------------------------------------------------*/
+
 static int rf69_set_bit(struct spi_device *spi, u8 reg, u8 mask)
 {
 	u8 tmp;
@@ -96,7 +142,7 @@ int rf69_set_modulation(struct spi_device *spi, enum modulation modulation)
 	}
 }
 
-enum modulation rf69_get_modulation(struct spi_device *spi)
+static enum modulation rf69_get_modulation(struct spi_device *spi)
 {
 	u8 currentValue;
 
@@ -794,51 +840,5 @@ int rf69_write_fifo(struct spi_device *spi, u8 *buffer, unsigned int size)
 #endif
 
 	return spi_write(spi, local_buffer, size + 1);
-}
-
-/*-------------------------------------------------------------------------*/
-
-u8 rf69_read_reg(struct spi_device *spi, u8 addr)
-{
-	int retval;
-
-	retval = spi_w8r8(spi, addr);
-
-#ifdef DEBUG_VALUES
-	if (retval < 0)
-		/* should never happen, since we already checked,
-		 * that module is connected. Therefore no error
-		 * handling, just an optional error message...
-		 */
-		dev_dbg(&spi->dev, "read 0x%x FAILED\n", addr);
-	else
-		dev_dbg(&spi->dev, "read 0x%x from reg 0x%x\n", retval, addr);
-#endif
-
-	return retval;
-}
-
-int rf69_write_reg(struct spi_device *spi, u8 addr, u8 value)
-{
-	int retval;
-	char buffer[2];
-
-	buffer[0] = addr | WRITE_BIT;
-	buffer[1] = value;
-
-	retval = spi_write(spi, &buffer, 2);
-
-#ifdef DEBUG_VALUES
-	if (retval < 0)
-		/* should never happen, since we already checked,
-		 * that module is connected. Therefore no error
-		 * handling, just an optional error message...
-		 */
-		dev_dbg(&spi->dev, "write 0x%x to 0x%x FAILED\n", value, addr);
-	else
-		dev_dbg(&spi->dev, "wrote 0x%x to reg 0x%x\n", value, addr);
-#endif
-
-	return retval;
 }
 
