@@ -627,20 +627,24 @@ static void qeth_l2_set_rx_mode(struct net_device *dev)
 		qeth_l2_add_mac(card, ha);
 
 	hash_for_each_safe(card->mac_htable, i, tmp, mac, hnode) {
-		if (mac->disp_flag == QETH_DISP_ADDR_DELETE) {
+		switch (mac->disp_flag) {
+		case QETH_DISP_ADDR_DELETE:
 			qeth_l2_remove_mac(card, mac->mac_addr);
 			hash_del(&mac->hnode);
 			kfree(mac);
-
-		} else if (mac->disp_flag == QETH_DISP_ADDR_ADD) {
+			break;
+		case QETH_DISP_ADDR_ADD:
 			rc = qeth_l2_write_mac(card, mac->mac_addr);
 			if (rc) {
 				hash_del(&mac->hnode);
 				kfree(mac);
-			} else
-				mac->disp_flag = QETH_DISP_ADDR_DELETE;
-		} else
+				break;
+			}
+			/* fall through */
+		default:
+			/* for next call to set_rx_mode(): */
 			mac->disp_flag = QETH_DISP_ADDR_DELETE;
+		}
 	}
 
 	spin_unlock_bh(&card->mclock);

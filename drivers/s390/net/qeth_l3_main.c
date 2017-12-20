@@ -37,7 +37,7 @@
 
 static int qeth_l3_set_offline(struct ccwgroup_device *);
 static int qeth_l3_stop(struct net_device *);
-static void qeth_l3_set_multicast_list(struct net_device *);
+static void qeth_l3_set_rx_mode(struct net_device *dev);
 static int qeth_l3_register_addr_entry(struct qeth_card *,
 		struct qeth_ipaddr *);
 static int qeth_l3_deregister_addr_entry(struct qeth_card *,
@@ -1317,56 +1317,6 @@ qeth_diags_trace(struct qeth_card *card, enum qeth_diags_trace_cmds diags_cmd)
 	return qeth_send_ipa_cmd(card, iob, qeth_diags_trace_cb, NULL);
 }
 
-static void qeth_l3_mark_all_mc_to_be_deleted(struct qeth_card *card)
-{
-	struct qeth_ipaddr *addr;
-	int i;
-
-	hash_for_each(card->ip_mc_htable, i, addr, hnode)
-		addr->disp_flag = QETH_DISP_ADDR_DELETE;
-
-}
-
-static void qeth_l3_add_all_new_mc(struct qeth_card *card)
-{
-	struct qeth_ipaddr *addr;
-	struct hlist_node *tmp;
-	int i;
-	int rc;
-
-	hash_for_each_safe(card->ip_mc_htable, i, tmp, addr, hnode) {
-		if (addr->disp_flag == QETH_DISP_ADDR_ADD) {
-			rc = qeth_l3_register_addr_entry(card, addr);
-			if (!rc || (rc == IPA_RC_LAN_OFFLINE))
-				addr->ref_counter = 1;
-			else {
-				hash_del(&addr->hnode);
-				kfree(addr);
-			}
-		}
-	}
-
-}
-
-static void qeth_l3_delete_nonused_mc(struct qeth_card *card)
-{
-	struct qeth_ipaddr *addr;
-	struct hlist_node *tmp;
-	int i;
-	int rc;
-
-	hash_for_each_safe(card->ip_mc_htable, i, tmp, addr, hnode) {
-		if (addr->disp_flag == QETH_DISP_ADDR_DELETE) {
-			rc = qeth_l3_deregister_addr_entry(card, addr);
-			if (!rc || (rc == IPA_RC_MC_ADDR_NOT_FOUND)) {
-				hash_del(&addr->hnode);
-				kfree(addr);
-			}
-		}
-	}
-
-}
-
 static void
 qeth_l3_add_mc_to_hash(struct qeth_card *card, struct in_device *in4_dev)
 {
@@ -1645,7 +1595,7 @@ static int qeth_l3_vlan_rx_kill_vid(struct net_device *dev,
 	/* unregister IP addresses of vlan device */
 	qeth_l3_free_vlan_addresses(card, vid);
 	clear_bit(vid, card->active_vlans);
-	qeth_l3_set_multicast_list(card->dev);
+	qeth_l3_set_rx_mode(dev);
 	return 0;
 }
 
@@ -1908,24 +1858,46 @@ qeth_l3_handle_promisc_mode(struct qeth_card *card)
 	}
 }
 
-static void qeth_l3_set_multicast_list(struct net_device *dev)
+static void qeth_l3_set_rx_mode(struct net_device *dev)
 {
 	struct qeth_card *card = dev->ml_priv;
+	struct qeth_ipaddr *addr;
+	struct hlist_node *tmp;
+	int i, rc;
 
 	QETH_CARD_TEXT(card, 3, "setmulti");
 	if (qeth_threads_running(card, QETH_RECOVER_THREAD) &&
 	    (card->state != CARD_STATE_UP))
 		return;
 	if (!card->options.sniffer) {
-
 		spin_lock_bh(&card->mclock);
-
-		qeth_l3_mark_all_mc_to_be_deleted(card);
 
 		qeth_l3_add_multicast_ipv4(card);
 		qeth_l3_add_multicast_ipv6(card);
-		qeth_l3_delete_nonused_mc(card);
-		qeth_l3_add_all_new_mc(card);
+
+		hash_for_each_safe(card->ip_mc_htable, i, tmp, addr, hnode) {
+			switch (addr->disp_flag) {
+			case QETH_DISP_ADDR_DELETE:
+				rc = qeth_l3_deregister_addr_entry(card, addr);
+				if (!rc || rc == IPA_RC_MC_ADDR_NOT_FOUND) {
+					hash_del(&addr->hnode);
+					kfree(addr);
+				}
+				break;
+			case QETH_DISP_ADDR_ADD:
+				rc = qeth_l3_register_addr_entry(card, addr);
+				if (rc && rc != IPA_RC_LAN_OFFLINE) {
+					hash_del(&addr->hnode);
+					kfree(addr);
+					break;
+				}
+				addr->ref_counter = 1;
+				/* fall through */
+			default:
+				/* for next call to set_rx_mode(): */
+				addr->disp_flag = QETH_DISP_ADDR_DELETE;
+			}
+		}
 
 		spin_unlock_bh(&card->mclock);
 
@@ -2885,7 +2857,7 @@ static const struct net_device_ops qeth_l3_netdev_ops = {
 	.ndo_get_stats		= qeth_get_stats,
 	.ndo_start_xmit		= qeth_l3_hard_start_xmit,
 	.ndo_validate_addr	= eth_validate_addr,
-	.ndo_set_rx_mode	= qeth_l3_set_multicast_list,
+	.ndo_set_rx_mode	= qeth_l3_set_rx_mode,
 	.ndo_do_ioctl		= qeth_do_ioctl,
 	.ndo_change_mtu		= qeth_change_mtu,
 	.ndo_fix_features	= qeth_fix_features,
@@ -2902,7 +2874,7 @@ static const struct net_device_ops qeth_l3_osa_netdev_ops = {
 	.ndo_start_xmit		= qeth_l3_hard_start_xmit,
 	.ndo_features_check	= qeth_features_check,
 	.ndo_validate_addr	= eth_validate_addr,
-	.ndo_set_rx_mode	= qeth_l3_set_multicast_list,
+	.ndo_set_rx_mode	= qeth_l3_set_rx_mode,
 	.ndo_do_ioctl		= qeth_do_ioctl,
 	.ndo_change_mtu		= qeth_change_mtu,
 	.ndo_fix_features	= qeth_fix_features,
@@ -3100,7 +3072,7 @@ static int __qeth_l3_set_online(struct ccwgroup_device *gdev, int recovery_mode)
 			__qeth_l3_open(card->dev);
 		else
 			dev_open(card->dev);
-		qeth_l3_set_multicast_list(card->dev);
+		qeth_l3_set_rx_mode(card->dev);
 		qeth_recover_features(card->dev);
 		rtnl_unlock();
 	}
