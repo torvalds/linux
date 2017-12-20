@@ -313,8 +313,6 @@ struct nf_afinfo {
 	unsigned short	family;
 	int		(*route)(struct net *net, struct dst_entry **dst,
 				 struct flowi *fl, bool strict);
-	void		(*saveroute)(const struct sk_buff *skb,
-				     struct nf_queue_entry *entry);
 	int		(*reroute)(struct net *net, struct sk_buff *skb,
 				   const struct nf_queue_entry *entry);
 	int		route_key_size;

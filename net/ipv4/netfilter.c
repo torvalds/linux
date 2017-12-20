@@ -80,33 +80,6 @@ int ip_route_me_harder(struct net *net, struct sk_buff *skb, unsigned int addr_t
 }
 EXPORT_SYMBOL(ip_route_me_harder);
 
-/*
- * Extra routing may needed on local out, as the QUEUE target never
- * returns control to the table.
- */
-
-struct ip_rt_info {
-	__be32 daddr;
-	__be32 saddr;
-	u_int8_t tos;
-	u_int32_t mark;
-};
-
-static void nf_ip_saveroute(const struct sk_buff *skb,
-			    struct nf_queue_entry *entry)
-{
-	struct ip_rt_info *rt_info = nf_queue_entry_reroute(entry);
-
-	if (entry->state.hook == NF_INET_LOCAL_OUT) {
-		const struct iphdr *iph = ip_hdr(skb);
-
-		rt_info->tos = iph->tos;
-		rt_info->daddr = iph->daddr;
-		rt_info->saddr = iph->saddr;
-		rt_info->mark = skb->mark;
-	}
-}
-
 static int nf_ip_reroute(struct net *net, struct sk_buff *skb,
 			 const struct nf_queue_entry *entry)
 {
@@ -190,7 +163,6 @@ static int nf_ip_route(struct net *net, struct dst_entry **dst,
 static const struct nf_afinfo nf_ip_afinfo = {
 	.family			= AF_INET,
 	.route			= nf_ip_route,
-	.saveroute		= nf_ip_saveroute,
 	.reroute		= nf_ip_reroute,
 	.route_key_size		= sizeof(struct ip_rt_info),
 };

@@ -6,6 +6,16 @@
 
 #include <uapi/linux/netfilter_ipv4.h>
 
+/* Extra routing may needed on local out, as the QUEUE target never returns
+ * control to the table.
+ */
+struct ip_rt_info {
+	__be32 daddr;
+	__be32 saddr;
+	u_int8_t tos;
+	u_int32_t mark;
+};
+
 int ip_route_me_harder(struct net *net, struct sk_buff *skb, unsigned addr_type);
 
 #ifdef CONFIG_INET

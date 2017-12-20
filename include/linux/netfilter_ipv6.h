@@ -9,6 +9,15 @@
 
 #include <uapi/linux/netfilter_ipv6.h>
 
+/* Extra routing may needed on local out, as the QUEUE target never returns
+ * control to the table.
+ */
+struct ip6_rt_info {
+	struct in6_addr daddr;
+	struct in6_addr saddr;
+	u_int32_t mark;
+};
+
 /*
  * Hook functions for ipv6 to allow xt_* modules to be built-in even
  * if IPv6 is a module.

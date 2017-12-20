@@ -95,11 +95,6 @@ static const struct nf_chain_type filter_bridge = {
 	},
 };
 
-static void nf_br_saveroute(const struct sk_buff *skb,
-			    struct nf_queue_entry *entry)
-{
-}
-
 static int nf_br_reroute(struct net *net, struct sk_buff *skb,
 			 const struct nf_queue_entry *entry)
 {
@@ -115,7 +110,6 @@ static int nf_br_route(struct net *net, struct dst_entry **dst,
 static const struct nf_afinfo nf_br_afinfo = {
 	.family                 = AF_BRIDGE,
 	.route                  = nf_br_route,
-	.saveroute              = nf_br_saveroute,
 	.reroute                = nf_br_reroute,
 	.route_key_size         = 0,
 };
