@@ -136,6 +136,7 @@ struct hdac_hdmi_priv {
 	struct mutex pin_mutex;
 	struct hdac_chmap chmap;
 	struct hdac_hdmi_drv_data *drv_data;
+	struct snd_soc_dai_driver *dai_drv;
 };
 
 #define hdev_to_hdmi_priv(_hdev) ((to_ehdac_device(_hdev))->private_data)
@@ -1035,7 +1036,7 @@ static int create_fill_widget_route_map(struct snd_soc_dapm_context *dapm)
 	struct snd_soc_dapm_route *route;
 	struct hdac_ext_device *edev = to_hda_ext_device(dapm->dev);
 	struct hdac_hdmi_priv *hdmi = hdev_to_hdmi_priv(&edev->hdev);
-	struct snd_soc_dai_driver *dai_drv = dapm->component->dai_drv;
+	struct snd_soc_dai_driver *dai_drv = hdmi->dai_drv;
 	char widget_name[NAME_SIZE];
 	struct hdac_hdmi_cvt *cvt;
 	struct hdac_hdmi_pin *pin;
@@ -1437,6 +1438,7 @@ static int hdac_hdmi_create_dais(struct hdac_device *hdev,
 	}
 
 	*dais = hdmi_dais;
+	hdmi->dai_drv = hdmi_dais;
 
 	return 0;
 }
