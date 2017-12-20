@@ -698,10 +698,89 @@ static void ixgbe_ipsec_del_sa(struct xfrm_state *xs)
 	}
 }
 
+/**
+ * ixgbe_ipsec_offload_ok - can this packet use the xfrm hw offload
+ * @skb: current data packet
+ * @xs: pointer to transformer state struct
+ **/
+static bool ixgbe_ipsec_offload_ok(struct sk_buff *skb, struct xfrm_state *xs)
+{
+	if (xs->props.family == AF_INET) {
+		/* Offload with IPv4 options is not supported yet */
+		if (ip_hdr(skb)->ihl != 5)
+			return false;
+	} else {
+		/* Offload with IPv6 extension headers is not support yet */
+		if (ipv6_ext_hdr(ipv6_hdr(skb)->nexthdr))
+			return false;
+	}
+
+	return true;
+}
+
 static const struct xfrmdev_ops ixgbe_xfrmdev_ops = {
 	.xdo_dev_state_add = ixgbe_ipsec_add_sa,
 	.xdo_dev_state_delete = ixgbe_ipsec_del_sa,
+	.xdo_dev_offload_ok = ixgbe_ipsec_offload_ok,
 };
+
+/**
+ * ixgbe_ipsec_tx - setup Tx flags for ipsec offload
+ * @tx_ring: outgoing context
+ * @first: current data packet
+ * @itd: ipsec Tx data for later use in building context descriptor
+ **/
+int ixgbe_ipsec_tx(struct ixgbe_ring *tx_ring,
+		   struct ixgbe_tx_buffer *first,
+		   struct ixgbe_ipsec_tx_data *itd)
+{
+	struct ixgbe_adapter *adapter = netdev_priv(tx_ring->netdev);
+	struct ixgbe_ipsec *ipsec = adapter->ipsec;
+	struct xfrm_state *xs;
+	struct tx_sa *tsa;
+
+	if (unlikely(!first->skb->sp->len)) {
+		netdev_err(tx_ring->netdev, "%s: no xfrm state len = %d\n",
+			   __func__, first->skb->sp->len);
+		return 0;
+	}
+
+	xs = xfrm_input_state(first->skb);
+	if (unlikely(!xs)) {
+		netdev_err(tx_ring->netdev, "%s: no xfrm_input_state() xs = %p\n",
+			   __func__, xs);
+		return 0;
+	}
+
+	itd->sa_idx = xs->xso.offload_handle - IXGBE_IPSEC_BASE_TX_INDEX;
+	if (unlikely(itd->sa_idx > IXGBE_IPSEC_MAX_SA_COUNT)) {
+		netdev_err(tx_ring->netdev, "%s: bad sa_idx=%d handle=%lu\n",
+			   __func__, itd->sa_idx, xs->xso.offload_handle);
+		return 0;
+	}
+
+	tsa = &ipsec->tx_tbl[itd->sa_idx];
+	if (unlikely(!tsa->used)) {
+		netdev_err(tx_ring->netdev, "%s: unused sa_idx=%d\n",
+			   __func__, itd->sa_idx);
+		return 0;
+	}
+
+	first->tx_flags |= IXGBE_TX_FLAGS_IPSEC | IXGBE_TX_FLAGS_CC;
+
+	itd->flags = 0;
+	if (xs->id.proto == IPPROTO_ESP) {
+		itd->flags |= IXGBE_ADVTXD_TUCMD_IPSEC_TYPE_ESP |
+			      IXGBE_ADVTXD_TUCMD_L4T_TCP;
+		if (first->protocol == htons(ETH_P_IP))
+			itd->flags |= IXGBE_ADVTXD_TUCMD_IPV4;
+		itd->trailer_len = xs->props.trailer_len;
+	}
+	if (tsa->encrypt)
+		itd->flags |= IXGBE_ADVTXD_TUCMD_IPSEC_ENCRYPT_EN;
+
+	return 1;
+}
 
 /**
  * ixgbe_ipsec_rx - decode ipsec bits from Rx descriptor

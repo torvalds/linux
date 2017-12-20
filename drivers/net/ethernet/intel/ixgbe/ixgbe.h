@@ -172,10 +172,11 @@ enum ixgbe_tx_flags {
 	IXGBE_TX_FLAGS_CC	= 0x08,
 	IXGBE_TX_FLAGS_IPV4	= 0x10,
 	IXGBE_TX_FLAGS_CSUM	= 0x20,
+	IXGBE_TX_FLAGS_IPSEC	= 0x40,
 
 	/* software defined flags */
-	IXGBE_TX_FLAGS_SW_VLAN	= 0x40,
-	IXGBE_TX_FLAGS_FCOE	= 0x80,
+	IXGBE_TX_FLAGS_SW_VLAN	= 0x80,
+	IXGBE_TX_FLAGS_FCOE	= 0x100,
 };
 
 /* VLAN info */
@@ -1024,6 +1025,8 @@ void ixgbe_ipsec_restore(struct ixgbe_adapter *adapter);
 void ixgbe_ipsec_rx(struct ixgbe_ring *rx_ring,
 		    union ixgbe_adv_rx_desc *rx_desc,
 		    struct sk_buff *skb);
+int ixgbe_ipsec_tx(struct ixgbe_ring *tx_ring, struct ixgbe_tx_buffer *first,
+		   struct ixgbe_ipsec_tx_data *itd);
 #else
 static inline void ixgbe_init_ipsec_offload(struct ixgbe_adapter *adapter) { };
 static inline void ixgbe_stop_ipsec_offload(struct ixgbe_adapter *adapter) { };
@@ -1031,5 +1034,8 @@ static inline void ixgbe_ipsec_restore(struct ixgbe_adapter *adapter) { };
 static inline void ixgbe_ipsec_rx(struct ixgbe_ring *rx_ring,
 				  union ixgbe_adv_rx_desc *rx_desc,
 				  struct sk_buff *skb) { };
+static inline int ixgbe_ipsec_tx(struct ixgbe_ring *tx_ring,
+				 struct ixgbe_tx_buffer *first,
+				 struct ixgbe_ipsec_tx_data *itd) { return 0; };
 #endif /* CONFIG_XFRM_OFFLOAD */
 #endif /* _IXGBE_H_ */
