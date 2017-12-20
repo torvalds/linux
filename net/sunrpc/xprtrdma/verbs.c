@@ -108,7 +108,10 @@ static void
 rpcrdma_qp_async_error_upcall(struct ib_event *event, void *context)
 {
 	struct rpcrdma_ep *ep = context;
+	struct rpcrdma_xprt *r_xprt = container_of(ep, struct rpcrdma_xprt,
+						   rx_ep);
 
+	trace_xprtrdma_qp_error(r_xprt, event);
 	pr_err("rpcrdma: %s on device %s ep %p\n",
 	       ib_event_msg(event->event), event->device->name, context);
 

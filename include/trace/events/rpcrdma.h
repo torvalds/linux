@@ -375,6 +375,37 @@ DEFINE_RXPRT_EVENT(xprtrdma_reinsert);
 DEFINE_RXPRT_EVENT(xprtrdma_reconnect);
 DEFINE_RXPRT_EVENT(xprtrdma_inject_dsc);
 
+TRACE_EVENT(xprtrdma_qp_error,
+	TP_PROTO(
+		const struct rpcrdma_xprt *r_xprt,
+		const struct ib_event *event
+	),
+
+	TP_ARGS(r_xprt, event),
+
+	TP_STRUCT__entry(
+		__field(const void *, r_xprt)
+		__field(unsigned int, event)
+		__string(name, event->device->name)
+		__string(addr, rpcrdma_addrstr(r_xprt))
+		__string(port, rpcrdma_portstr(r_xprt))
+	),
+
+	TP_fast_assign(
+		__entry->r_xprt = r_xprt;
+		__entry->event = event->event;
+		__assign_str(name, event->device->name);
+		__assign_str(addr, rpcrdma_addrstr(r_xprt));
+		__assign_str(port, rpcrdma_portstr(r_xprt));
+	),
+
+	TP_printk("peer=[%s]:%s r_xprt=%p: dev %s: %s (%u)",
+		__get_str(addr), __get_str(port), __entry->r_xprt,
+		__get_str(name), rdma_show_ib_event(__entry->event),
+		__entry->event
+	)
+);
+
 /**
  ** Call events
  **/
