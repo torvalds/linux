@@ -1171,7 +1171,7 @@ int cppc_set_perf(int cpu, struct cppc_perf_ctrls *perf_ctrls)
 	struct cpc_desc *cpc_desc = per_cpu(cpc_desc_ptr, cpu);
 	struct cpc_register_resource *desired_reg;
 	int pcc_ss_id = per_cpu(cpu_pcc_subspace_idx, cpu);
-	struct cppc_pcc_data *pcc_ss_data = pcc_data[pcc_ss_id];
+	struct cppc_pcc_data *pcc_ss_data;
 	int ret = 0;
 
 	if (!cpc_desc || pcc_ss_id < 0) {
