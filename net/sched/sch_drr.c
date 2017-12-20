@@ -74,17 +74,21 @@ static int drr_change_class(struct Qdisc *sch, u32 classid, u32 parentid,
 	u32 quantum;
 	int err;
 
-	if (!opt)
+	if (!opt) {
+		NL_SET_ERR_MSG(extack, "DRR options are required for this operation");
 		return -EINVAL;
+	}
 
-	err = nla_parse_nested(tb, TCA_DRR_MAX, opt, drr_policy, NULL);
+	err = nla_parse_nested(tb, TCA_DRR_MAX, opt, drr_policy, extack);
 	if (err < 0)
 		return err;
 
 	if (tb[TCA_DRR_QUANTUM]) {
 		quantum = nla_get_u32(tb[TCA_DRR_QUANTUM]);
-		if (quantum == 0)
+		if (quantum == 0) {
+			NL_SET_ERR_MSG(extack, "Specified DRR quantum cannot be zero");
 			return -EINVAL;
+		}
 	} else
 		quantum = psched_mtu(qdisc_dev(sch));
 
@@ -95,8 +99,10 @@ static int drr_change_class(struct Qdisc *sch, u32 classid, u32 parentid,
 						    NULL,
 						    qdisc_root_sleeping_running(sch),
 						    tca[TCA_RATE]);
-			if (err)
+			if (err) {
+				NL_SET_ERR_MSG(extack, "Failed to replace estimator");
 				return err;
+			}
 		}
 
 		sch_tree_lock(sch);
@@ -127,6 +133,7 @@ static int drr_change_class(struct Qdisc *sch, u32 classid, u32 parentid,
 					    qdisc_root_sleeping_running(sch),
 					    tca[TCA_RATE]);
 		if (err) {
+			NL_SET_ERR_MSG(extack, "Failed to replace estimator");
 			qdisc_destroy(cl->qdisc);
 			kfree(cl);
 			return err;
@@ -179,8 +186,10 @@ static struct tcf_block *drr_tcf_block(struct Qdisc *sch, unsigned long cl,
 {
 	struct drr_sched *q = qdisc_priv(sch);
 
-	if (cl)
+	if (cl) {
+		NL_SET_ERR_MSG(extack, "DRR classid must be zero");
 		return NULL;
+	}
 
 	return q->block;
 }
