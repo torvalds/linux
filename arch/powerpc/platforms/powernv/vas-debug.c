@@ -166,13 +166,13 @@ void vas_window_init_dbgdir(struct vas_window *window)
 
 	return;
 
-free_name:
-	kfree(window->dbgname);
-	window->dbgname = NULL;
-
 remove_dir:
 	debugfs_remove_recursive(window->dbgdir);
 	window->dbgdir = NULL;
+
+free_name:
+	kfree(window->dbgname);
+	window->dbgname = NULL;
 }
 
 void vas_instance_init_dbgdir(struct vas_instance *vinst)
