@@ -273,7 +273,7 @@ static int _opp_set_voltage(struct device *dev,
  *
  * Return: If successful, 0, else appropriate error value.
  */
-int ti_opp_supply_set_opp(struct dev_pm_set_opp_data *data)
+static int ti_opp_supply_set_opp(struct dev_pm_set_opp_data *data)
 {
 	struct dev_pm_opp_supply *old_supply_vdd = &data->old_opp.supplies[0];
 	struct dev_pm_opp_supply *old_supply_vbb = &data->old_opp.supplies[1];
