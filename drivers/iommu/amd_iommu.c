@@ -616,7 +616,9 @@ retry:
 		       address, flags);
 		break;
 	default:
-		printk(KERN_ERR "UNKNOWN type=0x%02x]\n", type);
+		printk(KERN_ERR "UNKNOWN type=0x%02x event[0]=0x%08x "
+		       "event[1]=0x%08x event[2]=0x%08x event[3]=0x%08x\n",
+		       type, event[0], event[1], event[2], event[3]);
 	}
 
 	memset(__evt, 0, 4 * sizeof(u32));
