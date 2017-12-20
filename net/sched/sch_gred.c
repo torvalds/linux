@@ -392,7 +392,8 @@ static const struct nla_policy gred_policy[TCA_GRED_MAX + 1] = {
 	[TCA_GRED_LIMIT]	= { .type = NLA_U32 },
 };
 
-static int gred_change(struct Qdisc *sch, struct nlattr *opt)
+static int gred_change(struct Qdisc *sch, struct nlattr *opt,
+		       struct netlink_ext_ack *extack)
 {
 	struct gred_sched *table = qdisc_priv(sch);
 	struct tc_gred_qopt *ctl;

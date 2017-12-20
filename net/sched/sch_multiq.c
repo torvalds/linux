@@ -180,7 +180,8 @@ multiq_destroy(struct Qdisc *sch)
 	kfree(q->queues);
 }
 
-static int multiq_tune(struct Qdisc *sch, struct nlattr *opt)
+static int multiq_tune(struct Qdisc *sch, struct nlattr *opt,
+		       struct netlink_ext_ack *extack)
 {
 	struct multiq_sched_data *q = qdisc_priv(sch);
 	struct tc_multiq_qopt *qopt;
@@ -259,7 +260,7 @@ static int multiq_init(struct Qdisc *sch, struct nlattr *opt,
 	for (i = 0; i < q->max_bands; i++)
 		q->queues[i] = &noop_qdisc;
 
-	return multiq_tune(sch, opt);
+	return multiq_tune(sch, opt, extack);
 }
 
 static int multiq_dump(struct Qdisc *sch, struct sk_buff *skb)

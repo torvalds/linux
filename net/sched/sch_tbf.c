@@ -302,7 +302,8 @@ static const struct nla_policy tbf_policy[TCA_TBF_MAX + 1] = {
 	[TCA_TBF_PBURST] = { .type = NLA_U32 },
 };
 
-static int tbf_change(struct Qdisc *sch, struct nlattr *opt)
+static int tbf_change(struct Qdisc *sch, struct nlattr *opt,
+		      struct netlink_ext_ack *extack)
 {
 	int err;
 	struct tbf_sched_data *q = qdisc_priv(sch);
@@ -434,7 +435,7 @@ static int tbf_init(struct Qdisc *sch, struct nlattr *opt,
 
 	q->t_c = ktime_get_ns();
 
-	return tbf_change(sch, opt);
+	return tbf_change(sch, opt, extack);
 }
 
 static void tbf_destroy(struct Qdisc *sch)

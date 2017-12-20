@@ -89,11 +89,6 @@ static int fifo_init(struct Qdisc *sch, struct nlattr *opt,
 	return 0;
 }
 
-static int fifo_change(struct Qdisc *sch, struct nlattr *opt)
-{
-	return fifo_init(sch, opt, NULL);
-}
-
 static int fifo_dump(struct Qdisc *sch, struct sk_buff *skb)
 {
 	struct tc_fifo_qopt opt = { .limit = sch->limit };
@@ -114,7 +109,7 @@ struct Qdisc_ops pfifo_qdisc_ops __read_mostly = {
 	.peek		=	qdisc_peek_head,
 	.init		=	fifo_init,
 	.reset		=	qdisc_reset_queue,
-	.change		=	fifo_change,
+	.change		=	fifo_init,
 	.dump		=	fifo_dump,
 	.owner		=	THIS_MODULE,
 };
@@ -128,7 +123,7 @@ struct Qdisc_ops bfifo_qdisc_ops __read_mostly = {
 	.peek		=	qdisc_peek_head,
 	.init		=	fifo_init,
 	.reset		=	qdisc_reset_queue,
-	.change		=	fifo_change,
+	.change		=	fifo_init,
 	.dump		=	fifo_dump,
 	.owner		=	THIS_MODULE,
 };
@@ -142,7 +137,7 @@ struct Qdisc_ops pfifo_head_drop_qdisc_ops __read_mostly = {
 	.peek		=	qdisc_peek_head,
 	.init		=	fifo_init,
 	.reset		=	qdisc_reset_queue,
-	.change		=	fifo_change,
+	.change		=	fifo_init,
 	.dump		=	fifo_dump,
 	.owner		=	THIS_MODULE,
 };
@@ -163,7 +158,7 @@ int fifo_set_limit(struct Qdisc *q, unsigned int limit)
 		nla->nla_len = nla_attr_size(sizeof(struct tc_fifo_qopt));
 		((struct tc_fifo_qopt *)nla_data(nla))->limit = limit;
 
-		ret = q->ops->change(q, nla);
+		ret = q->ops->change(q, nla, NULL);
 		kfree(nla);
 	}
 	return ret;

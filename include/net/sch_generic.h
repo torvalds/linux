@@ -194,7 +194,8 @@ struct Qdisc_ops {
 	void			(*reset)(struct Qdisc *);
 	void			(*destroy)(struct Qdisc *);
 	int			(*change)(struct Qdisc *sch,
-					  struct nlattr *arg);
+					  struct nlattr *arg,
+					  struct netlink_ext_ack *extack);
 	void			(*attach)(struct Qdisc *sch);
 
 	int			(*dump)(struct Qdisc *, struct sk_buff *);

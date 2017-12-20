@@ -246,7 +246,8 @@ static int cbs_enable_offload(struct net_device *dev, struct cbs_sched_data *q,
 	return 0;
 }
 
-static int cbs_change(struct Qdisc *sch, struct nlattr *opt)
+static int cbs_change(struct Qdisc *sch, struct nlattr *opt,
+		      struct netlink_ext_ack *extack)
 {
 	struct cbs_sched_data *q = qdisc_priv(sch);
 	struct net_device *dev = qdisc_dev(sch);
@@ -307,7 +308,7 @@ static int cbs_init(struct Qdisc *sch, struct nlattr *opt,
 
 	qdisc_watchdog_init(&q->watchdog, sch);
 
-	return cbs_change(sch, opt);
+	return cbs_change(sch, opt, extack);
 }
 
 static void cbs_destroy(struct Qdisc *sch)

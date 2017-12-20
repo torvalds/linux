@@ -1177,7 +1177,7 @@ static int qdisc_change(struct Qdisc *sch, struct nlattr **tca,
 			NL_SET_ERR_MSG(extack, "Change operation not supported by specified qdisc");
 			return -EINVAL;
 		}
-		err = sch->ops->change(sch, tca[TCA_OPTIONS]);
+		err = sch->ops->change(sch, tca[TCA_OPTIONS], extack);
 		if (err)
 			return err;
 	}

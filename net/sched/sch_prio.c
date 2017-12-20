@@ -153,7 +153,8 @@ prio_destroy(struct Qdisc *sch)
 		qdisc_destroy(q->queues[prio]);
 }
 
-static int prio_tune(struct Qdisc *sch, struct nlattr *opt)
+static int prio_tune(struct Qdisc *sch, struct nlattr *opt,
+		     struct netlink_ext_ack *extack)
 {
 	struct prio_sched_data *q = qdisc_priv(sch);
 	struct Qdisc *queues[TCQ_PRIO_BANDS];
@@ -218,7 +219,7 @@ static int prio_init(struct Qdisc *sch, struct nlattr *opt,
 	if (err)
 		return err;
 
-	return prio_tune(sch, opt);
+	return prio_tune(sch, opt, extack);
 }
 
 static int prio_dump(struct Qdisc *sch, struct sk_buff *skb)

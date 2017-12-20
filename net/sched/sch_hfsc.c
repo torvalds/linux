@@ -1430,7 +1430,8 @@ hfsc_init_qdisc(struct Qdisc *sch, struct nlattr *opt,
 }
 
 static int
-hfsc_change_qdisc(struct Qdisc *sch, struct nlattr *opt)
+hfsc_change_qdisc(struct Qdisc *sch, struct nlattr *opt,
+		  struct netlink_ext_ack *extack)
 {
 	struct hfsc_sched *q = qdisc_priv(sch);
 	struct tc_hfsc_qopt *qopt;

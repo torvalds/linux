@@ -893,7 +893,8 @@ static int parse_attr(struct nlattr *tb[], int maxtype, struct nlattr *nla,
 }
 
 /* Parse netlink message to set options */
-static int netem_change(struct Qdisc *sch, struct nlattr *opt)
+static int netem_change(struct Qdisc *sch, struct nlattr *opt,
+			struct netlink_ext_ack *extack)
 {
 	struct netem_sched_data *q = qdisc_priv(sch);
 	struct nlattr *tb[TCA_NETEM_MAX + 1];
@@ -996,7 +997,7 @@ static int netem_init(struct Qdisc *sch, struct nlattr *opt,
 		return -EINVAL;
 
 	q->loss_model = CLG_RANDOM;
-	ret = netem_change(sch, opt);
+	ret = netem_change(sch, opt, extack);
 	if (ret)
 		pr_info("netem: change failed\n");
 	return ret;

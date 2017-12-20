@@ -488,7 +488,8 @@ static const struct tc_sfb_qopt sfb_default_ops = {
 	.penalty_burst = 20,
 };
 
-static int sfb_change(struct Qdisc *sch, struct nlattr *opt)
+static int sfb_change(struct Qdisc *sch, struct nlattr *opt,
+		      struct netlink_ext_ack *extack)
 {
 	struct sfb_sched_data *q = qdisc_priv(sch);
 	struct Qdisc *child;
@@ -560,7 +561,7 @@ static int sfb_init(struct Qdisc *sch, struct nlattr *opt,
 		return err;
 
 	q->qdisc = &noop_qdisc;
-	return sfb_change(sch, opt);
+	return sfb_change(sch, opt, extack);
 }
 
 static int sfb_dump(struct Qdisc *sch, struct sk_buff *skb)
