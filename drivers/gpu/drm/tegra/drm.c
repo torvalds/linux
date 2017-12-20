@@ -661,7 +661,8 @@ static int tegra_syncpt_wait(struct drm_device *drm, void *data,
 	if (!sp)
 		return -EINVAL;
 
-	return host1x_syncpt_wait(sp, args->thresh, args->timeout,
+	return host1x_syncpt_wait(sp, args->thresh,
+				  msecs_to_jiffies(args->timeout),
 				  &args->value);
 }
 
