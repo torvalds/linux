@@ -31,8 +31,8 @@
 /*
  * flags for paca->soft_enabled
  */
-#define IRQS_ENABLED	1
-#define IRQS_DISABLED	0
+#define IRQS_ENABLED		0
+#define IRQS_DISABLED		1
 
 #endif /* CONFIG_PPC64 */
 
@@ -68,6 +68,18 @@ static inline notrace unsigned long soft_enabled_return(void)
  */
 static inline notrace void soft_enabled_set(unsigned long enable)
 {
+#ifdef CONFIG_TRACE_IRQFLAGS
+	/*
+	 * mask must always include LINUX bit if any are set, and
+	 * interrupts don't get replayed until the Linux interrupt is
+	 * unmasked. This could be changed to replay partial unmasks
+	 * in future, which would allow Linux masks to nest inside
+	 * other masks, among other things. For now, be very dumb and
+	 * simple.
+	 */
+	WARN_ON(mask && !(mask & IRQS_DISABLED));
+#endif
+
 	asm volatile(
 		"stb %0,%1(13)"
 		:
@@ -76,15 +88,19 @@ static inline notrace void soft_enabled_set(unsigned long enable)
 		: "memory");
 }
 
-static inline notrace unsigned long soft_enabled_set_return(unsigned long enable)
+static inline notrace unsigned long soft_enabled_set_return(unsigned long mask)
 {
 	unsigned long flags;
+
+#ifdef CONFIG_TRACE_IRQFLAGS
+	WARN_ON(mask && !(mask & IRQS_DISABLED));
+#endif
 
 	asm volatile(
 		"lbz %0,%1(13); stb %2,%1(13)"
 		: "=&r" (flags)
 		: "i" (offsetof(struct paca_struct, soft_enabled)),
-		  "r" (enable)
+		  "r" (mask)
 		: "memory");
 
 	return flags;
@@ -114,7 +130,7 @@ static inline unsigned long arch_local_irq_save(void)
 
 static inline bool arch_irqs_disabled_flags(unsigned long flags)
 {
-	return flags == IRQS_DISABLED;
+	return flags & IRQS_DISABLED;
 }
 
 static inline bool arch_irqs_disabled(void)
@@ -133,7 +149,7 @@ static inline bool arch_irqs_disabled(void)
 #define hard_irq_disable()	do {			\
 	unsigned long flags;				\
 	__hard_irq_disable();				\
-	flags = soft_enabled_set_return(IRQS_DISABLED);	\
+	flags = soft_enabled_set_return(IRQS_DISABLED);\
 	local_paca->irq_happened |= PACA_IRQ_HARD_DIS;	\
 	if (!arch_irqs_disabled_flags(flags))		\
 		trace_hardirqs_off();			\
@@ -158,7 +174,7 @@ static inline void may_hard_irq_enable(void)
 
 static inline bool arch_irq_disabled_regs(struct pt_regs *regs)
 {
-	return (regs->softe == IRQS_DISABLED);
+	return (regs->softe & IRQS_DISABLED);
 }
 
 extern bool prep_irq_for_idle(void);

@@ -130,8 +130,7 @@ END_FW_FTR_SECTION_IFSET(FW_FEATURE_SPLPAR)
 	 */
 #if defined(CONFIG_TRACE_IRQFLAGS) && defined(CONFIG_BUG)
 	lbz	r10,PACASOFTIRQEN(r13)
-	xori	r10,r10,IRQS_ENABLED
-1:	tdnei	r10,0
+1:	tdnei	r10,IRQS_ENABLED
 	EMIT_BUG_ENTRY 1b,__FILE__,__LINE__,BUGFLAG_WARNING
 #endif
 
@@ -741,10 +740,10 @@ resume_kernel:
 	beq+	restore
 	/* Check that preempt_count() == 0 and interrupts are enabled */
 	lwz	r8,TI_PREEMPT(r9)
-	cmpwi	cr1,r8,0
+	cmpwi	cr0,r8,0
+	bne	restore
 	ld	r0,SOFTE(r1)
-	cmpdi	r0,IRQS_DISABLED
-	crandc	eq,cr1*4+eq,eq
+	andi.	r0,r0,IRQS_DISABLED
 	bne	restore
 
 	/*
@@ -783,11 +782,11 @@ restore:
 	 */
 	ld	r5,SOFTE(r1)
 	lbz	r6,PACASOFTIRQEN(r13)
-	cmpwi	cr0,r5,IRQS_DISABLED
-	beq	.Lrestore_irq_off
+	andi.	r5,r5,IRQS_DISABLED
+	bne	.Lrestore_irq_off
 
 	/* We are enabling, were we already enabled ? Yes, just return */
-	cmpwi	cr0,r6,IRQS_ENABLED
+	andi.	r6,r6,IRQS_DISABLED
 	beq	cr0,.Ldo_restore
 
 	/*
@@ -1031,15 +1030,15 @@ _GLOBAL(enter_rtas)
 	li	r0,0
 	mtcr	r0
 
-#ifdef CONFIG_BUG	
+#ifdef CONFIG_BUG
 	/* There is no way it is acceptable to get here with interrupts enabled,
 	 * check it with the asm equivalent of WARN_ON
 	 */
 	lbz	r0,PACASOFTIRQEN(r13)
-1:	tdnei	r0,IRQS_DISABLED
+1:	tdeqi	r0,IRQS_ENABLED
 	EMIT_BUG_ENTRY 1b,__FILE__,__LINE__,BUGFLAG_WARNING
 #endif
-	
+
 	/* Hard-disable interrupts */
 	mfmsr	r6
 	rldicl	r7,r6,48,1

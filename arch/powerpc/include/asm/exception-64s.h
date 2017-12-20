@@ -499,9 +499,9 @@ END_FTR_SECTION_NESTED(ftr,ftr,943)
 
 #define __SOFTEN_TEST(h, vec)						\
 	lbz	r10,PACASOFTIRQEN(r13);					\
-	cmpwi	r10,IRQS_DISABLED;				\
+	andi.	r10,r10,IRQS_DISABLED;				\
 	li	r10,SOFTEN_VALUE_##vec;					\
-	beq	masked_##h##interrupt
+	bne	masked_##h##interrupt
 
 #define _SOFTEN_TEST(h, vec)	__SOFTEN_TEST(h, vec)
 

@@ -322,7 +322,7 @@ static inline void perf_read_regs(struct pt_regs *regs)
  */
 static inline int perf_intr_is_nmi(struct pt_regs *regs)
 {
-	return (regs->softe == IRQS_DISABLED);
+	return (regs->softe & IRQS_DISABLED);
 }
 
 /*

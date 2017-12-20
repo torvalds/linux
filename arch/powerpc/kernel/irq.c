@@ -219,15 +219,29 @@ notrace unsigned int __check_irq_replay(void)
 	return 0;
 }
 
-notrace void arch_local_irq_restore(unsigned long en)
+notrace void arch_local_irq_restore(unsigned long mask)
 {
 	unsigned char irq_happened;
 	unsigned int replay;
 
 	/* Write the new soft-enabled value */
-	soft_enabled_set(en);
-	if (en == IRQS_DISABLED)
+	soft_enabled_set(mask);
+	if (mask) {
+#ifdef CONFIG_TRACE_IRQFLAGS
+		/*
+		 * mask must always include LINUX bit if any
+		 * are set, and interrupts don't get replayed until
+		 * the Linux interrupt is unmasked. This could be
+		 * changed to replay partial unmasks in future,
+		 * which would allow Linux masks to nest inside
+		 * other masks, among other things. For now, be very
+		 * dumb and simple.
+		 */
+		WARN_ON(!(mask & IRQS_DISABLED));
+#endif
 		return;
+	}
+
 	/*
 	 * From this point onward, we can take interrupts, preempt,
 	 * etc... unless we got hard-disabled. We check if an event
