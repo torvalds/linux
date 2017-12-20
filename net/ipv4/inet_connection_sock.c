@@ -685,7 +685,7 @@ static void reqsk_timer_handler(struct timer_list *t)
 	int max_retries, thresh;
 	u8 defer_accept;
 
-	if (sk_state_load(sk_listener) != TCP_LISTEN)
+	if (inet_sk_state_load(sk_listener) != TCP_LISTEN)
 		goto drop;
 
 	max_retries = icsk->icsk_syn_retries ? : net->ipv4.sysctl_tcp_synack_retries;

@@ -502,7 +502,7 @@ unsigned int tcp_poll(struct file *file, struct socket *sock, poll_table *wait)
 
 	sock_poll_wait(file, sk_sleep(sk), wait);
 
-	state = sk_state_load(sk);
+	state = inet_sk_state_load(sk);
 	if (state == TCP_LISTEN)
 		return inet_csk_listen_poll(sk);
 
@@ -2916,7 +2916,7 @@ void tcp_get_info(struct sock *sk, struct tcp_info *info)
 	if (sk->sk_type != SOCK_STREAM)
 		return;
 
-	info->tcpi_state = sk_state_load(sk);
+	info->tcpi_state = inet_sk_state_load(sk);
 
 	/* Report meaningful fields for all TCP states, including listeners */
 	rate = READ_ONCE(sk->sk_pacing_rate);

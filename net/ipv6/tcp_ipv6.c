@@ -1795,7 +1795,7 @@ static void get_tcp6_sock(struct seq_file *seq, struct sock *sp, int i)
 		timer_expires = jiffies;
 	}
 
-	state = sk_state_load(sp);
+	state = inet_sk_state_load(sp);
 	if (state == TCP_LISTEN)
 		rx_queue = sp->sk_ack_backlog;
 	else
