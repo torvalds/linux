@@ -1760,7 +1760,7 @@ static void tc_bind_tclass(struct Qdisc *q, u32 portid, u32 clid,
 	cl = cops->find(q, portid);
 	if (!cl)
 		return;
-	block = cops->tcf_block(q, cl);
+	block = cops->tcf_block(q, cl, NULL);
 	if (!block)
 		return;
 	list_for_each_entry(chain, &block->chain_list, list) {

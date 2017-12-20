@@ -165,7 +165,8 @@ struct Qdisc_class_ops {
 
 	/* Filter manipulation */
 	struct tcf_block *	(*tcf_block)(struct Qdisc *sch,
-					     unsigned long arg);
+					     unsigned long arg,
+					     struct netlink_ext_ack *extack);
 	unsigned long		(*bind_tcf)(struct Qdisc *, unsigned long,
 					u32 classid);
 	void			(*unbind_tcf)(struct Qdisc *, unsigned long);

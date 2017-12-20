@@ -173,7 +173,8 @@ static unsigned long drr_search_class(struct Qdisc *sch, u32 classid)
 	return (unsigned long)drr_find_class(sch, classid);
 }
 
-static struct tcf_block *drr_tcf_block(struct Qdisc *sch, unsigned long cl)
+static struct tcf_block *drr_tcf_block(struct Qdisc *sch, unsigned long cl,
+				       struct netlink_ext_ack *extack)
 {
 	struct drr_sched *q = qdisc_priv(sch);
 

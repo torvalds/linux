@@ -597,7 +597,8 @@ static void fq_codel_unbind(struct Qdisc *q, unsigned long cl)
 {
 }
 
-static struct tcf_block *fq_codel_tcf_block(struct Qdisc *sch, unsigned long cl)
+static struct tcf_block *fq_codel_tcf_block(struct Qdisc *sch, unsigned long cl,
+					    struct netlink_ext_ack *extack)
 {
 	struct fq_codel_sched_data *q = qdisc_priv(sch);
 

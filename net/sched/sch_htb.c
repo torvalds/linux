@@ -1525,7 +1525,8 @@ failure:
 	return err;
 }
 
-static struct tcf_block *htb_tcf_block(struct Qdisc *sch, unsigned long arg)
+static struct tcf_block *htb_tcf_block(struct Qdisc *sch, unsigned long arg,
+				       struct netlink_ext_ack *extack)
 {
 	struct htb_sched *q = qdisc_priv(sch);
 	struct htb_class *cl = (struct htb_class *)arg;

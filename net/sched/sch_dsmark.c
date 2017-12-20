@@ -185,7 +185,8 @@ ignore:
 	}
 }
 
-static struct tcf_block *dsmark_tcf_block(struct Qdisc *sch, unsigned long cl)
+static struct tcf_block *dsmark_tcf_block(struct Qdisc *sch, unsigned long cl,
+					  struct netlink_ext_ack *extack)
 {
 	struct dsmark_qdisc_data *p = qdisc_priv(sch);
 

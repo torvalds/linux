@@ -565,7 +565,8 @@ static unsigned long qfq_search_class(struct Qdisc *sch, u32 classid)
 	return (unsigned long)qfq_find_class(sch, classid);
 }
 
-static struct tcf_block *qfq_tcf_block(struct Qdisc *sch, unsigned long cl)
+static struct tcf_block *qfq_tcf_block(struct Qdisc *sch, unsigned long cl,
+				       struct netlink_ext_ack *extack)
 {
 	struct qfq_sched *q = qdisc_priv(sch);
 
