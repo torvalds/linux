@@ -878,12 +878,12 @@ static void sctp_cmd_new_state(struct sctp_cmd_seq *cmds,
 		 * successfully completed a connect() call.
 		 */
 		if (sctp_state(asoc, ESTABLISHED) && sctp_sstate(sk, CLOSED))
-			sk->sk_state = SCTP_SS_ESTABLISHED;
+			inet_sk_set_state(sk, SCTP_SS_ESTABLISHED);
 
 		/* Set the RCV_SHUTDOWN flag when a SHUTDOWN is received. */
 		if (sctp_state(asoc, SHUTDOWN_RECEIVED) &&
 		    sctp_sstate(sk, ESTABLISHED)) {
-			sk->sk_state = SCTP_SS_CLOSING;
+			inet_sk_set_state(sk, SCTP_SS_CLOSING);
 			sk->sk_shutdown |= RCV_SHUTDOWN;
 		}
 	}

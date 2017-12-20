@@ -9,22 +9,6 @@
 #include <linux/tracepoint.h>
 #include <net/ipv6.h>
 
-#define tcp_state_name(state)	{ state, #state }
-#define show_tcp_state_name(val)			\
-	__print_symbolic(val,				\
-		tcp_state_name(TCP_ESTABLISHED),	\
-		tcp_state_name(TCP_SYN_SENT),		\
-		tcp_state_name(TCP_SYN_RECV),		\
-		tcp_state_name(TCP_FIN_WAIT1),		\
-		tcp_state_name(TCP_FIN_WAIT2),		\
-		tcp_state_name(TCP_TIME_WAIT),		\
-		tcp_state_name(TCP_CLOSE),		\
-		tcp_state_name(TCP_CLOSE_WAIT),		\
-		tcp_state_name(TCP_LAST_ACK),		\
-		tcp_state_name(TCP_LISTEN),		\
-		tcp_state_name(TCP_CLOSING),		\
-		tcp_state_name(TCP_NEW_SYN_RECV))
-
 /*
  * tcp event with arguments sk and skb
  *

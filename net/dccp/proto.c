@@ -110,7 +110,7 @@ void dccp_set_state(struct sock *sk, const int state)
 	/* Change state AFTER socket is unhashed to avoid closed
 	 * socket sitting in hash tables.
 	 */
-	sk->sk_state = state;
+	inet_sk_set_state(sk, state);
 }
 
 EXPORT_SYMBOL_GPL(dccp_set_state);

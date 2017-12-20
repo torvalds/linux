@@ -544,7 +544,7 @@ bool inet_ehash_nolisten(struct sock *sk, struct sock *osk)
 		sock_prot_inuse_add(sock_net(sk), sk->sk_prot, 1);
 	} else {
 		percpu_counter_inc(sk->sk_prot->orphan_count);
-		sk->sk_state = TCP_CLOSE;
+		inet_sk_set_state(sk, TCP_CLOSE);
 		sock_set_flag(sk, SOCK_DEAD);
 		inet_csk_destroy_sock(sk);
 	}
