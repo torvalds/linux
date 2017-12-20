@@ -377,6 +377,7 @@ static int cros_ec_pkt_xfer_spi(struct cros_ec_device *ec_dev,
 	u8 *ptr;
 	u8 *rx_buf;
 	u8 sum;
+	u8 rx_byte;
 	int ret = 0, final_ret;
 
 	len = cros_ec_prepare_tx(ec_dev, ec_msg);
@@ -421,24 +422,21 @@ static int cros_ec_pkt_xfer_spi(struct cros_ec_device *ec_dev,
 	if (!ret) {
 		/* Verify that EC can process command */
 		for (i = 0; i < len; i++) {
-			switch (rx_buf[i]) {
-			case EC_SPI_PAST_END:
-			case EC_SPI_RX_BAD_DATA:
-			case EC_SPI_NOT_READY:
-				ret = -EAGAIN;
-				ec_msg->result = EC_RES_IN_PROGRESS;
-			default:
+			rx_byte = rx_buf[i];
+			if (rx_byte == EC_SPI_PAST_END  ||
+			    rx_byte == EC_SPI_RX_BAD_DATA ||
+			    rx_byte == EC_SPI_NOT_READY) {
+				ret = -EREMOTEIO;
 				break;
 			}
-			if (ret)
-				break;
 		}
-		if (!ret)
-			ret = cros_ec_spi_receive_packet(ec_dev,
-					ec_msg->insize + sizeof(*response));
-	} else {
-		dev_err(ec_dev->dev, "spi transfer failed: %d\n", ret);
 	}
+
+	if (!ret)
+		ret = cros_ec_spi_receive_packet(ec_dev,
+				ec_msg->insize + sizeof(*response));
+	else
+		dev_err(ec_dev->dev, "spi transfer failed: %d\n", ret);
 
 	final_ret = terminate_request(ec_dev);
 
@@ -508,6 +506,7 @@ static int cros_ec_cmd_xfer_spi(struct cros_ec_device *ec_dev,
 	int i, len;
 	u8 *ptr;
 	u8 *rx_buf;
+	u8 rx_byte;
 	int sum;
 	int ret = 0, final_ret;
 
@@ -544,24 +543,21 @@ static int cros_ec_cmd_xfer_spi(struct cros_ec_device *ec_dev,
 	if (!ret) {
 		/* Verify that EC can process command */
 		for (i = 0; i < len; i++) {
-			switch (rx_buf[i]) {
-			case EC_SPI_PAST_END:
-			case EC_SPI_RX_BAD_DATA:
-			case EC_SPI_NOT_READY:
-				ret = -EAGAIN;
-				ec_msg->result = EC_RES_IN_PROGRESS;
-			default:
+			rx_byte = rx_buf[i];
+			if (rx_byte == EC_SPI_PAST_END  ||
+			    rx_byte == EC_SPI_RX_BAD_DATA ||
+			    rx_byte == EC_SPI_NOT_READY) {
+				ret = -EREMOTEIO;
 				break;
 			}
-			if (ret)
-				break;
 		}
-		if (!ret)
-			ret = cros_ec_spi_receive_response(ec_dev,
-					ec_msg->insize + EC_MSG_TX_PROTO_BYTES);
-	} else {
-		dev_err(ec_dev->dev, "spi transfer failed: %d\n", ret);
 	}
+
+	if (!ret)
+		ret = cros_ec_spi_receive_response(ec_dev,
+				ec_msg->insize + EC_MSG_TX_PROTO_BYTES);
+	else
+		dev_err(ec_dev->dev, "spi transfer failed: %d\n", ret);
 
 	final_ret = terminate_request(ec_dev);
 
@@ -667,6 +663,7 @@ static int cros_ec_spi_probe(struct spi_device *spi)
 			   sizeof(struct ec_response_get_protocol_info);
 	ec_dev->dout_size = sizeof(struct ec_host_request);
 
+	ec_spi->last_transfer_ns = ktime_get_ns();
 
 	err = cros_ec_register(ec_dev);
 	if (err) {
