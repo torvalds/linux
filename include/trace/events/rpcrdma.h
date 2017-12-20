@@ -453,6 +453,99 @@ DEFINE_REPLY_EVENT(xprtrdma_reply_rqst);
 DEFINE_REPLY_EVENT(xprtrdma_reply_short);
 DEFINE_REPLY_EVENT(xprtrdma_reply_hdr);
 
+TRACE_EVENT(xprtrdma_fixup,
+	TP_PROTO(
+		const struct rpc_rqst *rqst,
+		int len,
+		int hdrlen
+	),
+
+	TP_ARGS(rqst, len, hdrlen),
+
+	TP_STRUCT__entry(
+		__field(unsigned int, task_id)
+		__field(unsigned int, client_id)
+		__field(const void *, base)
+		__field(int, len)
+		__field(int, hdrlen)
+	),
+
+	TP_fast_assign(
+		__entry->task_id = rqst->rq_task->tk_pid;
+		__entry->client_id = rqst->rq_task->tk_client->cl_clid;
+		__entry->base = rqst->rq_rcv_buf.head[0].iov_base;
+		__entry->len = len;
+		__entry->hdrlen = hdrlen;
+	),
+
+	TP_printk("task:%u@%u base=%p len=%d hdrlen=%d",
+		__entry->task_id, __entry->client_id,
+		__entry->base, __entry->len, __entry->hdrlen
+	)
+);
+
+TRACE_EVENT(xprtrdma_fixup_pg,
+	TP_PROTO(
+		const struct rpc_rqst *rqst,
+		int pageno,
+		const void *pos,
+		int len,
+		int curlen
+	),
+
+	TP_ARGS(rqst, pageno, pos, len, curlen),
+
+	TP_STRUCT__entry(
+		__field(unsigned int, task_id)
+		__field(unsigned int, client_id)
+		__field(const void *, pos)
+		__field(int, pageno)
+		__field(int, len)
+		__field(int, curlen)
+	),
+
+	TP_fast_assign(
+		__entry->task_id = rqst->rq_task->tk_pid;
+		__entry->client_id = rqst->rq_task->tk_client->cl_clid;
+		__entry->pos = pos;
+		__entry->pageno = pageno;
+		__entry->len = len;
+		__entry->curlen = curlen;
+	),
+
+	TP_printk("task:%u@%u pageno=%d pos=%p len=%d curlen=%d",
+		__entry->task_id, __entry->client_id,
+		__entry->pageno, __entry->pos, __entry->len, __entry->curlen
+	)
+);
+
+TRACE_EVENT(xprtrdma_decode_seg,
+	TP_PROTO(
+		u32 handle,
+		u32 length,
+		u64 offset
+	),
+
+	TP_ARGS(handle, length, offset),
+
+	TP_STRUCT__entry(
+		__field(u32, handle)
+		__field(u32, length)
+		__field(u64, offset)
+	),
+
+	TP_fast_assign(
+		__entry->handle = handle;
+		__entry->length = length;
+		__entry->offset = offset;
+	),
+
+	TP_printk("%u@0x%016llx:0x%08x",
+		__entry->length, (unsigned long long)__entry->offset,
+		__entry->handle
+	)
+);
+
 #endif /* _TRACE_RPCRDMA_H */
 
 #include <trace/define_trace.h>

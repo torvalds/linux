@@ -914,8 +914,7 @@ rpcrdma_inline_fixup(struct rpc_rqst *rqst, char *srcp, int copy_len, int pad)
 	curlen = rqst->rq_rcv_buf.head[0].iov_len;
 	if (curlen > copy_len)
 		curlen = copy_len;
-	dprintk("RPC:       %s: srcp 0x%p len %d hdrlen %d\n",
-		__func__, srcp, copy_len, curlen);
+	trace_xprtrdma_fixup(rqst, copy_len, curlen);
 	srcp += curlen;
 	copy_len -= curlen;
 
@@ -935,9 +934,8 @@ rpcrdma_inline_fixup(struct rpc_rqst *rqst, char *srcp, int copy_len, int pad)
 			if (curlen > pagelist_len)
 				curlen = pagelist_len;
 
-			dprintk("RPC:       %s: page %d"
-				" srcp 0x%p len %d curlen %d\n",
-				__func__, i, srcp, copy_len, curlen);
+			trace_xprtrdma_fixup_pg(rqst, i, srcp,
+						copy_len, curlen);
 			destp = kmap_atomic(ppages[i]);
 			memcpy(destp + page_base, srcp, curlen);
 			flush_dcache_page(ppages[i]);
@@ -1028,26 +1026,19 @@ out_short:
 
 static int decode_rdma_segment(struct xdr_stream *xdr, u32 *length)
 {
+	u32 handle;
+	u64 offset;
 	__be32 *p;
 
 	p = xdr_inline_decode(xdr, 4 * sizeof(*p));
 	if (unlikely(!p))
 		return -EIO;
 
-	ifdebug(FACILITY) {
-		u64 offset;
-		u32 handle;
+	handle = be32_to_cpup(p++);
+	*length = be32_to_cpup(p++);
+	xdr_decode_hyper(p, &offset);
 
-		handle = be32_to_cpup(p++);
-		*length = be32_to_cpup(p++);
-		xdr_decode_hyper(p, &offset);
-		dprintk("RPC:       %s:   segment %u@0x%016llx:0x%08x\n",
-			__func__, *length, (unsigned long long)offset,
-			handle);
-	} else {
-		*length = be32_to_cpup(p + 1);
-	}
-
+	trace_xprtrdma_decode_seg(handle, *length, offset);
 	return 0;
 }
 
@@ -1068,8 +1059,6 @@ static int decode_write_chunk(struct xdr_stream *xdr, u32 *length)
 		*length += seglength;
 	}
 
-	dprintk("RPC:       %s: segcount=%u, %u bytes\n",
-		__func__, be32_to_cpup(p), *length);
 	return 0;
 }
 
