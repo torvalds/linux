@@ -9,21 +9,36 @@
 #include <linux/tracepoint.h>
 #include <net/ipv6.h>
 
+#define tcp_state_names         \
+		EM(TCP_ESTABLISHED)     \
+		EM(TCP_SYN_SENT)        \
+		EM(TCP_SYN_RECV)        \
+		EM(TCP_FIN_WAIT1)       \
+		EM(TCP_FIN_WAIT2)       \
+		EM(TCP_TIME_WAIT)       \
+		EM(TCP_CLOSE)           \
+		EM(TCP_CLOSE_WAIT)      \
+		EM(TCP_LAST_ACK)        \
+		EM(TCP_LISTEN)          \
+		EM(TCP_CLOSING)         \
+		EMe(TCP_NEW_SYN_RECV)   \
+
+/* enums need to be exported to user space */
+#undef EM
+#undef EMe
+#define EM(a)         TRACE_DEFINE_ENUM(a);
+#define EMe(a)        TRACE_DEFINE_ENUM(a);
+
+tcp_state_names
+
+#undef EM
+#undef EMe
+#define EM(a)         tcp_state_name(a),
+#define EMe(a)        tcp_state_name(a)
+
 #define tcp_state_name(state)	{ state, #state }
 #define show_tcp_state_name(val)			\
-	__print_symbolic(val,				\
-		tcp_state_name(TCP_ESTABLISHED),	\
-		tcp_state_name(TCP_SYN_SENT),		\
-		tcp_state_name(TCP_SYN_RECV),		\
-		tcp_state_name(TCP_FIN_WAIT1),		\
-		tcp_state_name(TCP_FIN_WAIT2),		\
-		tcp_state_name(TCP_TIME_WAIT),		\
-		tcp_state_name(TCP_CLOSE),		\
-		tcp_state_name(TCP_CLOSE_WAIT),		\
-		tcp_state_name(TCP_LAST_ACK),		\
-		tcp_state_name(TCP_LISTEN),		\
-		tcp_state_name(TCP_CLOSING),		\
-		tcp_state_name(TCP_NEW_SYN_RECV))
+	__print_symbolic(val, tcp_state_names)
 
 /*
  * tcp event with arguments sk and skb
