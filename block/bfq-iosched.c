@@ -178,7 +178,7 @@ static struct kmem_cache *bfq_pool;
 #define BFQQ_SEEK_THR		(sector_t)(8 * 100)
 #define BFQQ_SECT_THR_NONROT	(sector_t)(2 * 32)
 #define BFQQ_CLOSE_THR		(sector_t)(8 * 1024)
-#define BFQQ_SEEKY(bfqq)	(hweight32(bfqq->seek_history) > 32/8)
+#define BFQQ_SEEKY(bfqq)	(hweight32(bfqq->seek_history) > 19)
 
 /* Min number of samples required to perform peak-rate update */
 #define BFQ_RATE_MIN_SAMPLES	32
