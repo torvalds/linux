@@ -598,13 +598,6 @@ int rf69_set_rx_start_timeout(struct spi_device *spi, u8 timeout)
 	return rf69_write_reg(spi, REG_RXTIMEOUT1, timeout);
 }
 
-int rf69_set_rssi_timeout(struct spi_device *spi, u8 timeout)
-{
-	/* no value check needed - u8 exactly matches register size */
-
-	return rf69_write_reg(spi, REG_RXTIMEOUT2, timeout);
-}
-
 int rf69_set_preamble_length(struct spi_device *spi, u16 preambleLength)
 {
 	int retval;

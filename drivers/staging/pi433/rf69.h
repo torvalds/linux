@@ -51,7 +51,6 @@ bool rf69_get_flag(struct spi_device *spi, enum flag flag);
 int rf69_reset_flag(struct spi_device *spi, enum flag flag);
 int rf69_set_rssi_threshold(struct spi_device *spi, u8 threshold);
 int rf69_set_rx_start_timeout(struct spi_device *spi, u8 timeout);
-int rf69_set_rssi_timeout(struct spi_device *spi, u8 timeout);
 int rf69_set_preamble_length(struct spi_device *spi, u16 preambleLength);
 int rf69_enable_sync(struct spi_device *spi);
 int rf69_disable_sync(struct spi_device *spi);
