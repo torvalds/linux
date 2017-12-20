@@ -5063,7 +5063,10 @@ static int jit_subprogs(struct bpf_verifier_env *env)
 			goto out_free;
 		memcpy(func[i]->insnsi, &prog->insnsi[subprog_start],
 		       len * sizeof(struct bpf_insn));
+		func[i]->type = prog->type;
 		func[i]->len = len;
+		if (bpf_prog_calc_tag(func[i]))
+			goto out_free;
 		func[i]->is_func = 1;
 		/* Use bpf_prog_F_tag to indicate functions in stack traces.
 		 * Long term would need debug info to populate names
