@@ -333,7 +333,7 @@ static void sctp_sched_prio_unsched_all(struct sctp_stream *stream)
 			sctp_sched_prio_unsched(soute);
 }
 
-struct sctp_sched_ops sctp_sched_prio = {
+static struct sctp_sched_ops sctp_sched_prio = {
 	.set = sctp_sched_prio_set,
 	.get = sctp_sched_prio_get,
 	.init = sctp_sched_prio_init,
@@ -345,3 +345,8 @@ struct sctp_sched_ops sctp_sched_prio = {
 	.sched_all = sctp_sched_prio_sched_all,
 	.unsched_all = sctp_sched_prio_unsched_all,
 };
+
+void sctp_sched_ops_prio_init(void)
+{
+	sctp_sched_ops_register(SCTP_SS_PRIO, &sctp_sched_prio);
+}

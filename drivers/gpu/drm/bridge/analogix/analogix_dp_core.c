@@ -946,7 +946,9 @@ static int analogix_dp_get_modes(struct drm_connector *connector)
 			return 0;
 		}
 
+		pm_runtime_get_sync(dp->dev);
 		edid = drm_get_edid(connector, &dp->aux.ddc);
+		pm_runtime_put(dp->dev);
 		if (edid) {
 			drm_mode_connector_update_edid_property(&dp->connector,
 								edid);

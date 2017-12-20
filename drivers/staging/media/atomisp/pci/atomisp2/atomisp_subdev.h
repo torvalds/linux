@@ -223,7 +223,7 @@ struct atomisp_subdev_params {
 
 	bool dis_proj_data_valid;
 
-	struct ia_css_dz_config   dz_config;  /**< Digital Zoom */
+	struct ia_css_dz_config   dz_config;  /** Digital Zoom */
 	struct ia_css_capture_config   capture_config;
 
 	struct atomisp_css_isp_config config;

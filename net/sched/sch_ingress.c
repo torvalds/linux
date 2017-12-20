@@ -68,6 +68,8 @@ static int ingress_init(struct Qdisc *sch, struct nlattr *opt)
 	struct net_device *dev = qdisc_dev(sch);
 	int err;
 
+	net_inc_ingress_queue();
+
 	mini_qdisc_pair_init(&q->miniqp, sch, &dev->miniq_ingress);
 
 	q->block_info.binder_type = TCF_BLOCK_BINDER_TYPE_CLSACT_INGRESS;
@@ -78,7 +80,6 @@ static int ingress_init(struct Qdisc *sch, struct nlattr *opt)
 	if (err)
 		return err;
 
-	net_inc_ingress_queue();
 	sch->flags |= TCQ_F_CPUSTATS;
 
 	return 0;
@@ -172,6 +173,9 @@ static int clsact_init(struct Qdisc *sch, struct nlattr *opt)
 	struct net_device *dev = qdisc_dev(sch);
 	int err;
 
+	net_inc_ingress_queue();
+	net_inc_egress_queue();
+
 	mini_qdisc_pair_init(&q->miniqp_ingress, sch, &dev->miniq_ingress);
 
 	q->ingress_block_info.binder_type = TCF_BLOCK_BINDER_TYPE_CLSACT_INGRESS;
@@ -190,18 +194,11 @@ static int clsact_init(struct Qdisc *sch, struct nlattr *opt)
 
 	err = tcf_block_get_ext(&q->egress_block, sch, &q->egress_block_info);
 	if (err)
-		goto err_egress_block_get;
-
-	net_inc_ingress_queue();
-	net_inc_egress_queue();
+		return err;
 
 	sch->flags |= TCQ_F_CPUSTATS;
 
 	return 0;
-
-err_egress_block_get:
-	tcf_block_put_ext(q->ingress_block, sch, &q->ingress_block_info);
-	return err;
 }
 
 static void clsact_destroy(struct Qdisc *sch)

@@ -779,7 +779,7 @@ static void __exit fat_destroy_inodecache(void)
 
 static int fat_remount(struct super_block *sb, int *flags, char *data)
 {
-	int new_rdonly;
+	bool new_rdonly;
 	struct msdos_sb_info *sbi = MSDOS_SB(sb);
 	*flags |= SB_NODIRATIME | (sbi->options.isvfat ? 0 : SB_NOATIME);
 

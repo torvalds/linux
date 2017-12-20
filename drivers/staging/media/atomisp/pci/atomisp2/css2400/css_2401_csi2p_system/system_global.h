@@ -331,7 +331,7 @@ typedef enum {
 	IBUF_CTRL2_ID,		/* map ISYS2401_IBUF_CNTRL_C */
 	N_IBUF_CTRL_ID
 } ibuf_ctrl_ID_t;
-/** end of Input-buffer Controller */
+/* end of Input-buffer Controller */
 
 /*
  * Stream2MMIO.
@@ -364,7 +364,7 @@ typedef enum {
 	STREAM2MMIO_SID7_ID,
 	N_STREAM2MMIO_SID_ID
 } stream2mmio_sid_ID_t;
-/** end of Stream2MMIO */
+/* end of Stream2MMIO */
 
 /**
  * Input System 2401: CSI-MIPI recevier.
@@ -390,7 +390,7 @@ typedef enum {
 	CSI_RX_DLANE3_ID,		/* map to DLANE3 in CSI RX */
 	N_CSI_RX_DLANE_ID
 } csi_rx_fe_dlane_ID_t;
-/** end of CSI-MIPI receiver */
+/* end of CSI-MIPI receiver */
 
 typedef enum {
 	ISYS2401_DMA0_ID = 0,
@@ -406,7 +406,7 @@ typedef enum {
 	PIXELGEN2_ID,
 	N_PIXELGEN_ID
 } pixelgen_ID_t;
-/** end of pixel-generator. ("system_global.h") */
+/* end of pixel-generator. ("system_global.h") */
 
 typedef enum {
 	INPUT_SYSTEM_CSI_PORT0_ID = 0,

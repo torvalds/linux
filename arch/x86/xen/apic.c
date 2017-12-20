@@ -57,7 +57,7 @@ static u32 xen_apic_read(u32 reg)
 		return 0;
 
 	if (reg == APIC_LVR)
-		return 0x10;
+		return 0x14;
 #ifdef CONFIG_X86_32
 	if (reg == APIC_LDR)
 		return SET_APIC_LOGICAL_ID(1UL << smp_processor_id());

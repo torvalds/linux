@@ -186,7 +186,7 @@ static int xenvif_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	/* Obtain the queue to be used to transmit this packet */
 	index = skb_get_queue_mapping(skb);
 	if (index >= num_queues) {
-		pr_warn_ratelimited("Invalid queue %hu for packet on interface %s\n.",
+		pr_warn_ratelimited("Invalid queue %hu for packet on interface %s\n",
 				    index, vif->dev->name);
 		index %= num_queues;
 	}

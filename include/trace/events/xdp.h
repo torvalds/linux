@@ -8,6 +8,7 @@
 #include <linux/netdevice.h>
 #include <linux/filter.h>
 #include <linux/tracepoint.h>
+#include <linux/bpf.h>
 
 #define __XDP_ACT_MAP(FN)	\
 	FN(ABORTED)		\
