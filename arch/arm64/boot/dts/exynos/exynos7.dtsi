@@ -103,7 +103,7 @@
 			#size-cells = <1>;
 			ranges;
 
-			pdma0: pdma@10E10000 {
+			pdma0: pdma@10e10000 {
 				compatible = "arm,pl330", "arm,primecell";
 				reg = <0x10E10000 0x1000>;
 				interrupts = <GIC_SPI 225 IRQ_TYPE_LEVEL_HIGH>;
@@ -114,7 +114,7 @@
 				#dma-requests = <32>;
 			};
 
-			pdma1: pdma@10EB0000 {
+			pdma1: pdma@10eb0000 {
 				compatible = "arm,pl330", "arm,primecell";
 				reg = <0x10EB0000 0x1000>;
 				interrupts = <GIC_SPI 226 IRQ_TYPE_LEVEL_HIGH>;

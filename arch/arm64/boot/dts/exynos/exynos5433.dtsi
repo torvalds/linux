@@ -994,7 +994,7 @@
 			reg = <0x145f0000 0x1038>;
 		};
 
-		gsc_0: video-scaler@13C00000 {
+		gsc_0: video-scaler@13c00000 {
 			compatible = "samsung,exynos5433-gsc";
 			reg = <0x13c00000 0x1000>;
 			interrupts = <GIC_SPI 297 IRQ_TYPE_LEVEL_HIGH>;
@@ -1008,7 +1008,7 @@
 			power-domains = <&pd_gscl>;
 		};
 
-		gsc_1: video-scaler@13C10000 {
+		gsc_1: video-scaler@13c10000 {
 			compatible = "samsung,exynos5433-gsc";
 			reg = <0x13c10000 0x1000>;
 			interrupts = <GIC_SPI 298 IRQ_TYPE_LEVEL_HIGH>;
@@ -1022,7 +1022,7 @@
 			power-domains = <&pd_gscl>;
 		};
 
-		gsc_2: video-scaler@13C20000 {
+		gsc_2: video-scaler@13c20000 {
 			compatible = "samsung,exynos5433-gsc";
 			reg = <0x13c20000 0x1000>;
 			interrupts = <GIC_SPI 299 IRQ_TYPE_LEVEL_HIGH>;
@@ -1049,7 +1049,7 @@
 			power-domains = <&pd_mscl>;
 		};
 
-		mfc: codec@152E0000 {
+		mfc: codec@152e0000 {
 			compatible = "samsung,exynos5433-mfc";
 			reg = <0x152E0000 0x10000>;
 			interrupts = <GIC_SPI 358 IRQ_TYPE_LEVEL_HIGH>;
