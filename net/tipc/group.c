@@ -689,10 +689,8 @@ void tipc_group_proto_rcv(struct tipc_group *grp, bool *usr_wakeup,
 			msg_set_grp_bc_seqno(ehdr, m->bc_syncpt);
 			__skb_queue_tail(inputq, m->event_msg);
 		}
-		if (m->window < ADV_IDLE)
-			tipc_group_update_member(m, 0);
-		else
-			list_del_init(&m->congested);
+		list_del_init(&m->congested);
+		tipc_group_update_member(m, 0);
 		return;
 	case GRP_LEAVE_MSG:
 		if (!m)
