@@ -177,7 +177,7 @@ struct ib_cq *pvrdma_create_cq(struct ib_device *ibdev,
 	else
 		pvrdma_page_dir_insert_umem(&cq->pdir, cq->umem, 0);
 
-	atomic_set(&cq->refcnt, 1);
+	refcount_set(&cq->refcnt, 1);
 	init_completion(&cq->free);
 	spin_lock_init(&cq->cq_lock);
 
@@ -229,7 +229,7 @@ err_cq:
 
 static void pvrdma_free_cq(struct pvrdma_dev *dev, struct pvrdma_cq *cq)
 {
-	if (atomic_dec_and_test(&cq->refcnt))
+	if (refcount_dec_and_test(&cq->refcnt))
 		complete(&cq->free);
 	wait_for_completion(&cq->free);
 

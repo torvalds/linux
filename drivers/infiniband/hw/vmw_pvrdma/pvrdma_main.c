@@ -333,7 +333,7 @@ static void pvrdma_qp_event(struct pvrdma_dev *dev, u32 qpn, int type)
 	spin_lock_irqsave(&dev->qp_tbl_lock, flags);
 	qp = dev->qp_tbl[qpn % dev->dsr->caps.max_qp];
 	if (qp)
-		atomic_inc(&qp->refcnt);
+		refcount_inc(&qp->refcnt);
 	spin_unlock_irqrestore(&dev->qp_tbl_lock, flags);
 
 	if (qp && qp->ibqp.event_handler) {
@@ -346,7 +346,7 @@ static void pvrdma_qp_event(struct pvrdma_dev *dev, u32 qpn, int type)
 		ibqp->event_handler(&e, ibqp->qp_context);
 	}
 	if (qp) {
-		if (atomic_dec_and_test(&qp->refcnt))
+		if (refcount_dec_and_test(&qp->refcnt))
 			complete(&qp->free);
 	}
 }
@@ -359,7 +359,7 @@ static void pvrdma_cq_event(struct pvrdma_dev *dev, u32 cqn, int type)
 	spin_lock_irqsave(&dev->cq_tbl_lock, flags);
 	cq = dev->cq_tbl[cqn % dev->dsr->caps.max_cq];
 	if (cq)
-		atomic_inc(&cq->refcnt);
+		refcount_inc(&cq->refcnt);
 	spin_unlock_irqrestore(&dev->cq_tbl_lock, flags);
 
 	if (cq && cq->ibcq.event_handler) {
@@ -372,7 +372,7 @@ static void pvrdma_cq_event(struct pvrdma_dev *dev, u32 cqn, int type)
 		ibcq->event_handler(&e, ibcq->cq_context);
 	}
 	if (cq) {
-		if (atomic_dec_and_test(&cq->refcnt))
+		if (refcount_dec_and_test(&cq->refcnt))
 			complete(&cq->free);
 	}
 }
@@ -531,13 +531,13 @@ static irqreturn_t pvrdma_intrx_handler(int irq, void *dev_id)
 		spin_lock_irqsave(&dev->cq_tbl_lock, flags);
 		cq = dev->cq_tbl[cqne->info % dev->dsr->caps.max_cq];
 		if (cq)
-			atomic_inc(&cq->refcnt);
+			refcount_inc(&cq->refcnt);
 		spin_unlock_irqrestore(&dev->cq_tbl_lock, flags);
 
 		if (cq && cq->ibcq.comp_handler)
 			cq->ibcq.comp_handler(&cq->ibcq, cq->ibcq.cq_context);
 		if (cq) {
-			if (atomic_dec_and_test(&cq->refcnt))
+			if (refcount_dec_and_test(&cq->refcnt))
 				complete(&cq->free);
 		}
 		pvrdma_idx_ring_inc(&ring->cons_head, ring_slots);
