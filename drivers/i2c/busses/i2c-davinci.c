@@ -33,7 +33,7 @@
 #include <linux/io.h>
 #include <linux/slab.h>
 #include <linux/cpufreq.h>
-#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/of_device.h>
 #include <linux/platform_data/i2c-davinci.h>
 #include <linux/pm_runtime.h>
@@ -869,19 +869,20 @@ static int davinci_i2c_probe(struct platform_device *pdev)
 
 	if (dev->pdata->has_pfunc)
 		adap->bus_recovery_info = &davinci_i2c_scl_recovery_info;
-	else if (dev->pdata->scl_pin) {
+	else if (dev->pdata->gpio_recovery) {
 		rinfo =  &davinci_i2c_gpio_recovery_info;
 		adap->bus_recovery_info = rinfo;
-		r = gpio_request_one(dev->pdata->scl_pin, GPIOF_OPEN_DRAIN |
-				     GPIOF_OUT_INIT_HIGH, "i2c-scl");
-		if (r)
+		rinfo->scl_gpiod = devm_gpiod_get(&pdev->dev, "scl",
+						  GPIOD_OUT_HIGH_OPEN_DRAIN);
+		if (IS_ERR(rinfo->scl_gpiod)) {
+			r = PTR_ERR(rinfo->scl_gpiod);
 			goto err_unuse_clocks;
-		rinfo->scl_gpiod = gpio_to_desc(dev->pdata->scl_pin);
-
-		r = gpio_request_one(dev->pdata->sda_pin, GPIOF_IN, "i2c-sda");
-		if (r)
+		}
+		rinfo->sda_gpiod = devm_gpiod_get(&pdev->dev, "sda", GPIOD_IN);
+		if (IS_ERR(rinfo->sda_gpiod)) {
+			r = PTR_ERR(rinfo->sda_gpiod);
 			goto err_unuse_clocks;
-		rinfo->sda_gpiod = gpio_to_desc(dev->pdata->scl_pin);
+		}
 	}
 
 	adap->nr = pdev->id;
