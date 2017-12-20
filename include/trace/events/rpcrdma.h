@@ -268,6 +268,81 @@ DECLARE_EVENT_CLASS(xprtrdma_mr,
 				TP_ARGS(mr))
 
 /**
+ ** Connection events
+ **/
+
+TRACE_EVENT(xprtrdma_conn_upcall,
+	TP_PROTO(
+		const struct rpcrdma_xprt *r_xprt,
+		struct rdma_cm_event *event
+	),
+
+	TP_ARGS(r_xprt, event),
+
+	TP_STRUCT__entry(
+		__field(const void *, r_xprt)
+		__field(unsigned int, event)
+		__field(int, status)
+		__string(addr, rpcrdma_addrstr(r_xprt))
+		__string(port, rpcrdma_portstr(r_xprt))
+	),
+
+	TP_fast_assign(
+		__entry->r_xprt = r_xprt;
+		__entry->event = event->event;
+		__entry->status = event->status;
+		__assign_str(addr, rpcrdma_addrstr(r_xprt));
+		__assign_str(port, rpcrdma_portstr(r_xprt));
+	),
+
+	TP_printk("peer=[%s]:%s r_xprt=%p: %s (%u/%d)",
+		__get_str(addr), __get_str(port),
+		__entry->r_xprt, rdma_show_cm_event(__entry->event),
+		__entry->event, __entry->status
+	)
+);
+
+TRACE_EVENT(xprtrdma_disconnect,
+	TP_PROTO(
+		const struct rpcrdma_xprt *r_xprt,
+		int status
+	),
+
+	TP_ARGS(r_xprt, status),
+
+	TP_STRUCT__entry(
+		__field(const void *, r_xprt)
+		__field(int, status)
+		__field(int, connected)
+		__string(addr, rpcrdma_addrstr(r_xprt))
+		__string(port, rpcrdma_portstr(r_xprt))
+	),
+
+	TP_fast_assign(
+		__entry->r_xprt = r_xprt;
+		__entry->status = status;
+		__entry->connected = r_xprt->rx_ep.rep_connected;
+		__assign_str(addr, rpcrdma_addrstr(r_xprt));
+		__assign_str(port, rpcrdma_portstr(r_xprt));
+	),
+
+	TP_printk("peer=[%s]:%s r_xprt=%p: status=%d %sconnected",
+		__get_str(addr), __get_str(port),
+		__entry->r_xprt, __entry->status,
+		__entry->connected == 1 ? "still " : "dis"
+	)
+);
+
+DEFINE_RXPRT_EVENT(xprtrdma_conn_start);
+DEFINE_RXPRT_EVENT(xprtrdma_conn_tout);
+DEFINE_RXPRT_EVENT(xprtrdma_create);
+DEFINE_RXPRT_EVENT(xprtrdma_destroy);
+DEFINE_RXPRT_EVENT(xprtrdma_remove);
+DEFINE_RXPRT_EVENT(xprtrdma_reinsert);
+DEFINE_RXPRT_EVENT(xprtrdma_reconnect);
+DEFINE_RXPRT_EVENT(xprtrdma_inject_dsc);
+
+/**
  ** Call events
  **/
 

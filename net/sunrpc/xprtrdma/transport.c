@@ -259,13 +259,10 @@ xprt_rdma_connect_worker(struct work_struct *work)
 
 	xprt_clear_connected(xprt);
 
-	dprintk("RPC:       %s: %sconnect\n", __func__,
-			r_xprt->rx_ep.rep_connected != 0 ? "re" : "");
 	rc = rpcrdma_ep_connect(&r_xprt->rx_ep, &r_xprt->rx_ia);
 	if (rc)
 		xprt_wake_pending_tasks(xprt, rc);
 
-	dprintk("RPC:       %s: exit\n", __func__);
 	xprt_clear_connecting(xprt);
 }
 
@@ -275,7 +272,7 @@ xprt_rdma_inject_disconnect(struct rpc_xprt *xprt)
 	struct rpcrdma_xprt *r_xprt = container_of(xprt, struct rpcrdma_xprt,
 						   rx_xprt);
 
-	pr_info("rpcrdma: injecting transport disconnect on xprt=%p\n", xprt);
+	trace_xprtrdma_inject_dsc(r_xprt);
 	rdma_disconnect(r_xprt->rx_ia.ri_id);
 }
 
@@ -295,7 +292,7 @@ xprt_rdma_destroy(struct rpc_xprt *xprt)
 {
 	struct rpcrdma_xprt *r_xprt = rpcx_to_rdmax(xprt);
 
-	dprintk("RPC:       %s: called\n", __func__);
+	trace_xprtrdma_destroy(r_xprt);
 
 	cancel_delayed_work_sync(&r_xprt->rx_connect_worker);
 
@@ -306,10 +303,7 @@ xprt_rdma_destroy(struct rpc_xprt *xprt)
 	rpcrdma_ia_close(&r_xprt->rx_ia);
 
 	xprt_rdma_free_addresses(xprt);
-
 	xprt_free(xprt);
-
-	dprintk("RPC:       %s: returning\n", __func__);
 
 	module_put(THIS_MODULE);
 }
@@ -430,6 +424,7 @@ xprt_setup_rdma(struct xprt_create *args)
 	dprintk("RPC:       %s: %s:%s\n", __func__,
 		xprt->address_strings[RPC_DISPLAY_ADDR],
 		xprt->address_strings[RPC_DISPLAY_PORT]);
+	trace_xprtrdma_create(new_xprt);
 	return xprt;
 
 out4:
@@ -440,6 +435,7 @@ out3:
 out2:
 	rpcrdma_ia_close(&new_xprt->rx_ia);
 out1:
+	trace_xprtrdma_destroy(new_xprt);
 	xprt_rdma_free_addresses(xprt);
 	xprt_free(xprt);
 	return ERR_PTR(rc);

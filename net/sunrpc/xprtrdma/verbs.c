@@ -220,6 +220,7 @@ rpcrdma_conn_upcall(struct rdma_cm_id *id, struct rdma_cm_event *event)
 	struct rpcrdma_ep *ep = &xprt->rx_ep;
 	int connstate = 0;
 
+	trace_xprtrdma_conn_upcall(xprt, event);
 	switch (event->event) {
 	case RDMA_CM_EVENT_ADDR_RESOLVED:
 	case RDMA_CM_EVENT_ROUTE_RESOLVED:
@@ -228,14 +229,10 @@ rpcrdma_conn_upcall(struct rdma_cm_id *id, struct rdma_cm_event *event)
 		break;
 	case RDMA_CM_EVENT_ADDR_ERROR:
 		ia->ri_async_rc = -EHOSTUNREACH;
-		dprintk("RPC:       %s: CM address resolution error, ep 0x%p\n",
-			__func__, ep);
 		complete(&ia->ri_done);
 		break;
 	case RDMA_CM_EVENT_ROUTE_ERROR:
 		ia->ri_async_rc = -ENETUNREACH;
-		dprintk("RPC:       %s: CM route resolution error, ep 0x%p\n",
-			__func__, ep);
 		complete(&ia->ri_done);
 		break;
 	case RDMA_CM_EVENT_DEVICE_REMOVAL:
@@ -299,6 +296,8 @@ rpcrdma_create_id(struct rpcrdma_xprt *xprt, struct rpcrdma_ia *ia)
 	struct rdma_cm_id *id;
 	int rc;
 
+	trace_xprtrdma_conn_start(xprt);
+
 	init_completion(&ia->ri_done);
 	init_completion(&ia->ri_remove_done);
 
@@ -322,8 +321,7 @@ rpcrdma_create_id(struct rpcrdma_xprt *xprt, struct rpcrdma_ia *ia)
 	}
 	rc = wait_for_completion_interruptible_timeout(&ia->ri_done, wtimeout);
 	if (rc < 0) {
-		dprintk("RPC:       %s: wait() exited: %i\n",
-			__func__, rc);
+		trace_xprtrdma_conn_tout(xprt);
 		goto out;
 	}
 
@@ -340,8 +338,7 @@ rpcrdma_create_id(struct rpcrdma_xprt *xprt, struct rpcrdma_ia *ia)
 	}
 	rc = wait_for_completion_interruptible_timeout(&ia->ri_done, wtimeout);
 	if (rc < 0) {
-		dprintk("RPC:       %s: wait() exited: %i\n",
-			__func__, rc);
+		trace_xprtrdma_conn_tout(xprt);
 		goto out;
 	}
 	rc = ia->ri_async_rc;
@@ -461,6 +458,8 @@ rpcrdma_ia_remove(struct rpcrdma_ia *ia)
 
 	/* Allow waiters to continue */
 	complete(&ia->ri_remove_done);
+
+	trace_xprtrdma_remove(r_xprt);
 }
 
 /**
@@ -471,7 +470,6 @@ rpcrdma_ia_remove(struct rpcrdma_ia *ia)
 void
 rpcrdma_ia_close(struct rpcrdma_ia *ia)
 {
-	dprintk("RPC:       %s: entering\n", __func__);
 	if (ia->ri_id != NULL && !IS_ERR(ia->ri_id)) {
 		if (ia->ri_id->qp)
 			rdma_destroy_qp(ia->ri_id);
@@ -625,9 +623,6 @@ out1:
 void
 rpcrdma_ep_destroy(struct rpcrdma_ep *ep, struct rpcrdma_ia *ia)
 {
-	dprintk("RPC:       %s: entering, connected is %d\n",
-		__func__, ep->rep_connected);
-
 	cancel_delayed_work_sync(&ep->rep_connect_worker);
 
 	if (ia->ri_id->qp) {
@@ -650,7 +645,7 @@ rpcrdma_ep_recreate_xprt(struct rpcrdma_xprt *r_xprt,
 {
 	int rc, err;
 
-	pr_info("%s: r_xprt = %p\n", __func__, r_xprt);
+	trace_xprtrdma_reinsert(r_xprt);
 
 	rc = -EHOSTUNREACH;
 	if (rpcrdma_ia_open(r_xprt))
@@ -688,7 +683,7 @@ rpcrdma_ep_reconnect(struct rpcrdma_xprt *r_xprt, struct rpcrdma_ep *ep,
 	struct rdma_cm_id *id, *old;
 	int err, rc;
 
-	dprintk("RPC:       %s: reconnecting...\n", __func__);
+	trace_xprtrdma_reconnect(r_xprt);
 
 	rpcrdma_ep_disconnect(ep, ia);
 
@@ -810,16 +805,14 @@ rpcrdma_ep_disconnect(struct rpcrdma_ep *ep, struct rpcrdma_ia *ia)
 	int rc;
 
 	rc = rdma_disconnect(ia->ri_id);
-	if (!rc) {
+	if (!rc)
 		/* returns without wait if not connected */
 		wait_event_interruptible(ep->rep_connect_wait,
 							ep->rep_connected != 1);
-		dprintk("RPC:       %s: after wait, %sconnected\n", __func__,
-			(ep->rep_connected == 1) ? "still " : "dis");
-	} else {
-		dprintk("RPC:       %s: rdma_disconnect %i\n", __func__, rc);
+	else
 		ep->rep_connected = rc;
-	}
+	trace_xprtrdma_disconnect(container_of(ep, struct rpcrdma_xprt,
+					       rx_ep), rc);
 
 	ib_drain_qp(ia->ri_id->qp);
 }
