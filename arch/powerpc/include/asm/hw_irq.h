@@ -49,6 +49,21 @@ extern void unknown_exception(struct pt_regs *regs);
 #ifdef CONFIG_PPC64
 #include <asm/paca.h>
 
+/*
+ * The "memory" clobber acts as both a compiler barrier
+ * for the critical section and as a clobber because
+ * we changed paca->soft_enabled
+ */
+static inline notrace void soft_enabled_set(unsigned long enable)
+{
+	asm volatile(
+		"stb %0,%1(13)"
+		:
+		: "r" (enable),
+		  "i" (offsetof(struct paca_struct, soft_enabled))
+		: "memory");
+}
+
 static inline unsigned long arch_local_save_flags(void)
 {
 	unsigned long flags;
@@ -63,12 +78,7 @@ static inline unsigned long arch_local_save_flags(void)
 
 static inline void arch_local_irq_disable(void)
 {
-	asm volatile(
-		"stb %0,%1(13)"
-		:
-		: "r" (IRQS_DISABLED),
-		  "i" (offsetof(struct paca_struct, soft_enabled))
-		: "memory");
+	soft_enabled_set(IRQS_DISABLED);
 }
 
 extern void arch_local_irq_restore(unsigned long);

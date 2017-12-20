@@ -107,12 +107,6 @@ static inline notrace unsigned long get_irq_happened(void)
 	return happened;
 }
 
-static inline notrace void set_soft_enabled(unsigned long enable)
-{
-	__asm__ __volatile__("stb %0,%1(13)"
-	: : "r" (enable), "i" (offsetof(struct paca_struct, soft_enabled)));
-}
-
 static inline notrace int decrementer_check_overflow(void)
 {
  	u64 now = get_tb_or_rtc();
@@ -231,7 +225,7 @@ notrace void arch_local_irq_restore(unsigned long en)
 	unsigned int replay;
 
 	/* Write the new soft-enabled value */
-	set_soft_enabled(en);
+	soft_enabled_set(en);
 	if (en == IRQS_DISABLED)
 		return;
 	/*
@@ -277,7 +271,7 @@ notrace void arch_local_irq_restore(unsigned long en)
 	}
 #endif /* CONFIG_TRACE_IRQFLAGS */
 
-	set_soft_enabled(IRQS_DISABLED);
+	soft_enabled_set(IRQS_DISABLED);
 	trace_hardirqs_off();
 
 	/*
@@ -289,7 +283,7 @@ notrace void arch_local_irq_restore(unsigned long en)
 
 	/* We can soft-enable now */
 	trace_hardirqs_on();
-	set_soft_enabled(IRQS_ENABLED);
+	soft_enabled_set(IRQS_ENABLED);
 
 	/*
 	 * And replay if we have to. This will return with interrupts
@@ -364,7 +358,7 @@ bool prep_irq_for_idle(void)
 	 * of entering the low power state.
 	 */
 	local_paca->irq_happened &= ~PACA_IRQ_HARD_DIS;
-	local_paca->soft_enabled = IRQS_ENABLED;
+	soft_enabled_set(IRQS_ENABLED);
 
 	/* Tell the caller to enter the low power state */
 	return true;
