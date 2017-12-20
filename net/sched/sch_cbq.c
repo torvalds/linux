@@ -1452,7 +1452,7 @@ static void cbq_destroy(struct Qdisc *sch)
 
 static int
 cbq_change_class(struct Qdisc *sch, u32 classid, u32 parentid, struct nlattr **tca,
-		 unsigned long *arg)
+		 unsigned long *arg, struct netlink_ext_ack *extack)
 {
 	int err;
 	struct cbq_sched_data *q = qdisc_priv(sch);

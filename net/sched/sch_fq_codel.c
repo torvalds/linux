@@ -479,7 +479,7 @@ static int fq_codel_init(struct Qdisc *sch, struct nlattr *opt,
 	q->cparams.mtu = psched_mtu(qdisc_dev(sch));
 
 	if (opt) {
-		int err = fq_codel_change(sch, opt, NULL);
+		int err = fq_codel_change(sch, opt, extack);
 		if (err)
 			return err;
 	}

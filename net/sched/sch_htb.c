@@ -1327,7 +1327,7 @@ static int htb_delete(struct Qdisc *sch, unsigned long arg)
 
 static int htb_change_class(struct Qdisc *sch, u32 classid,
 			    u32 parentid, struct nlattr **tca,
-			    unsigned long *arg)
+			    unsigned long *arg, struct netlink_ext_ack *extack)
 {
 	int err = -EINVAL;
 	struct htb_sched *q = qdisc_priv(sch);

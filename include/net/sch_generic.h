@@ -158,7 +158,8 @@ struct Qdisc_class_ops {
 	/* Class manipulation routines */
 	unsigned long		(*find)(struct Qdisc *, u32 classid);
 	int			(*change)(struct Qdisc *, u32, u32,
-					struct nlattr **, unsigned long *);
+					struct nlattr **, unsigned long *,
+					struct netlink_ext_ack *);
 	int			(*delete)(struct Qdisc *, unsigned long);
 	void			(*walk)(struct Qdisc *, struct qdisc_walker * arg);
 
