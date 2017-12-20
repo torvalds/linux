@@ -275,7 +275,7 @@ dce110_set_input_transfer_func(struct pipe_ctx *pipe_ctx,
 	build_prescale_params(&prescale_params, plane_state);
 	ipp->funcs->ipp_program_prescale(ipp, &prescale_params);
 
-	if (plane_state->gamma_correction && dce_use_lut(plane_state))
+	if (plane_state->gamma_correction && dce_use_lut(plane_state->format))
 		ipp->funcs->ipp_program_input_lut(ipp, plane_state->gamma_correction);
 
 	if (tf == NULL) {
@@ -2648,7 +2648,6 @@ static void dce110_program_front_end_for_pipe(
 	struct dc_plane_state *plane_state = pipe_ctx->plane_state;
 	struct xfm_grph_csc_adjustment adjust;
 	struct out_csc_color_matrix tbl_entry;
-	struct pipe_ctx *cur_pipe_ctx = &dc->current_state->res_ctx.pipe_ctx[pipe_ctx->pipe_idx];
 	unsigned int i;
 
 	memset(&tbl_entry, 0, sizeof(tbl_entry));
@@ -2717,10 +2716,13 @@ static void dce110_program_front_end_for_pipe(
 				plane_state->rotation);
 
 	/* Moved programming gamma from dc to hwss */
-	if (cur_pipe_ctx->plane_state != pipe_ctx->plane_state) {
+	if (pipe_ctx->plane_state->update_flags.bits.full_update ||
+			pipe_ctx->plane_state->update_flags.bits.in_transfer_func_change ||
+			pipe_ctx->plane_state->update_flags.bits.gamma_change)
 		dc->hwss.set_input_transfer_func(pipe_ctx, pipe_ctx->plane_state);
+
+	if (pipe_ctx->plane_state->update_flags.bits.full_update)
 		dc->hwss.set_output_transfer_func(pipe_ctx, pipe_ctx->stream);
-	}
 
 	dm_logger_write(dc->ctx->logger, LOG_SURFACE,
 			"Pipe:%d 0x%x: addr hi:0x%x, "

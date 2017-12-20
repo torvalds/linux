@@ -925,7 +925,7 @@ static bool dcn10_set_input_transfer_func(struct pipe_ctx *pipe_ctx,
 	if (plane_state->in_transfer_func)
 		tf = plane_state->in_transfer_func;
 
-	if (plane_state->gamma_correction && dce_use_lut(plane_state))
+	if (plane_state->gamma_correction && dce_use_lut(plane_state->format))
 		dpp_base->funcs->dpp_program_input_lut(dpp_base, plane_state->gamma_correction);
 
 	if (tf == NULL)
@@ -1800,15 +1800,14 @@ static void program_all_pipe_in_tree(
 	}
 
 	if (pipe_ctx->plane_state != NULL) {
-		struct pipe_ctx *cur_pipe_ctx =
-				&dc->current_state->res_ctx.pipe_ctx[pipe_ctx->pipe_idx];
-
 		if (pipe_ctx->plane_state->update_flags.bits.full_update)
 			dcn10_enable_plane(dc, pipe_ctx, context);
 
 		update_dchubp_dpp(dc, pipe_ctx, context);
 
-		if (cur_pipe_ctx->plane_state != pipe_ctx->plane_state)
+		if (pipe_ctx->plane_state->update_flags.bits.full_update ||
+				pipe_ctx->plane_state->update_flags.bits.in_transfer_func_change ||
+				pipe_ctx->plane_state->update_flags.bits.gamma_change)
 			dc->hwss.set_input_transfer_func(pipe_ctx, pipe_ctx->plane_state);
 
 		/* dcn10_translate_regamma_to_hw_format takes 750us to finish

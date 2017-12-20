@@ -395,12 +395,13 @@ union surface_update_flags {
 		uint32_t swizzle_change:1;
 		uint32_t scaling_change:1;
 		uint32_t position_change:1;
-		uint32_t in_transfer_func:1;
+		uint32_t in_transfer_func_change:1;
 		uint32_t input_csc_change:1;
 
 		/* Full updates */
 		uint32_t new_plane:1;
 		uint32_t bpp_change:1;
+		uint32_t gamma_change:1;
 		uint32_t bandwidth_change:1;
 		uint32_t clock_change:1;
 		uint32_t stereo_format_change:1;
