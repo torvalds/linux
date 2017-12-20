@@ -507,9 +507,6 @@ struct qeth_qdio_info {
 
 #define QETH_ETH_MAC_V4      0x0100 /* like v4 */
 #define QETH_ETH_MAC_V6      0x3333 /* like v6 */
-/* tr mc mac is longer, but that will be enough to detect mc frames */
-#define QETH_TR_MAC_NC       0xc000 /* non-canonical */
-#define QETH_TR_MAC_C        0x0300 /* canonical */
 
 /**
  * buffer stuff for read channel
