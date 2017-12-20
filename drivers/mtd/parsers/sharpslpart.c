@@ -219,7 +219,7 @@ exit:
 	return ret;
 }
 
-void sharpsl_nand_cleanup_ftl(struct sharpsl_ftl *ftl)
+static void sharpsl_nand_cleanup_ftl(struct sharpsl_ftl *ftl)
 {
 	kfree(ftl->log2phy);
 }
