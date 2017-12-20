@@ -26,10 +26,7 @@
 struct rsnd_dmaen {
 	struct dma_chan		*chan;
 	dma_cookie_t		cookie;
-	dma_addr_t		dma_buf;
 	unsigned int		dma_len;
-	unsigned int		dma_period;
-	unsigned int		dma_cnt;
 };
 
 struct rsnd_dmapp {
@@ -71,38 +68,10 @@ static struct rsnd_mod mem = {
 /*
  *		Audio DMAC
  */
-#define rsnd_dmaen_sync(dmaen, io, i)	__rsnd_dmaen_sync(dmaen, io, i, 1)
-#define rsnd_dmaen_unsync(dmaen, io, i)	__rsnd_dmaen_sync(dmaen, io, i, 0)
-static void __rsnd_dmaen_sync(struct rsnd_dmaen *dmaen, struct rsnd_dai_stream *io,
-			      int i, int sync)
-{
-	struct device *dev = dmaen->chan->device->dev;
-	enum dma_data_direction dir;
-	int is_play = rsnd_io_is_play(io);
-	dma_addr_t buf;
-	int len, max;
-	size_t period;
-
-	len	= dmaen->dma_len;
-	period	= dmaen->dma_period;
-	max	= len / period;
-	i	= i % max;
-	buf	= dmaen->dma_buf + (period * i);
-
-	dir = is_play ? DMA_TO_DEVICE : DMA_FROM_DEVICE;
-
-	if (sync)
-		dma_sync_single_for_device(dev, buf, period, dir);
-	else
-		dma_sync_single_for_cpu(dev, buf, period, dir);
-}
-
 static void __rsnd_dmaen_complete(struct rsnd_mod *mod,
 				  struct rsnd_dai_stream *io)
 {
 	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
-	struct rsnd_dma *dma = rsnd_mod_to_dma(mod);
-	struct rsnd_dmaen *dmaen = rsnd_dma_to_dmaen(dma);
 	bool elapsed = false;
 	unsigned long flags;
 
@@ -115,21 +84,8 @@ static void __rsnd_dmaen_complete(struct rsnd_mod *mod,
 	 */
 	spin_lock_irqsave(&priv->lock, flags);
 
-	if (rsnd_io_is_working(io)) {
-		rsnd_dmaen_unsync(dmaen, io, dmaen->dma_cnt);
-
-		/*
-		 * Next period is already started.
-		 * Let's sync Next Next period
-		 * see
-		 *	rsnd_dmaen_start()
-		 */
-		rsnd_dmaen_sync(dmaen, io, dmaen->dma_cnt + 2);
-
+	if (rsnd_io_is_working(io))
 		elapsed = true;
-
-		dmaen->dma_cnt++;
-	}
 
 	spin_unlock_irqrestore(&priv->lock, flags);
 
@@ -165,14 +121,8 @@ static int rsnd_dmaen_stop(struct rsnd_mod *mod,
 	struct rsnd_dma *dma = rsnd_mod_to_dma(mod);
 	struct rsnd_dmaen *dmaen = rsnd_dma_to_dmaen(dma);
 
-	if (dmaen->chan) {
-		int is_play = rsnd_io_is_play(io);
-
+	if (dmaen->chan)
 		dmaengine_terminate_all(dmaen->chan);
-		dma_unmap_single(dmaen->chan->device->dev,
-				 dmaen->dma_buf, dmaen->dma_len,
-				 is_play ? DMA_TO_DEVICE : DMA_FROM_DEVICE);
-	}
 
 	return 0;
 }
@@ -237,11 +187,7 @@ static int rsnd_dmaen_start(struct rsnd_mod *mod,
 	struct device *dev = rsnd_priv_to_dev(priv);
 	struct dma_async_tx_descriptor *desc;
 	struct dma_slave_config cfg = {};
-	dma_addr_t buf;
-	size_t len;
-	size_t period;
 	int is_play = rsnd_io_is_play(io);
-	int i;
 	int ret;
 
 	cfg.direction	= is_play ? DMA_MEM_TO_DEV : DMA_DEV_TO_MEM;
@@ -258,19 +204,10 @@ static int rsnd_dmaen_start(struct rsnd_mod *mod,
 	if (ret < 0)
 		return ret;
 
-	len	= snd_pcm_lib_buffer_bytes(substream);
-	period	= snd_pcm_lib_period_bytes(substream);
-	buf	= dma_map_single(dmaen->chan->device->dev,
-				 substream->runtime->dma_area,
-				 len,
-				 is_play ? DMA_TO_DEVICE : DMA_FROM_DEVICE);
-	if (dma_mapping_error(dmaen->chan->device->dev, buf)) {
-		dev_err(dev, "dma map failed\n");
-		return -EIO;
-	}
-
 	desc = dmaengine_prep_dma_cyclic(dmaen->chan,
-					 buf, len, period,
+					 substream->runtime->dma_addr,
+					 snd_pcm_lib_buffer_bytes(substream),
+					 snd_pcm_lib_period_bytes(substream),
 					 is_play ? DMA_MEM_TO_DEV : DMA_DEV_TO_MEM,
 					 DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
 
@@ -282,18 +219,7 @@ static int rsnd_dmaen_start(struct rsnd_mod *mod,
 	desc->callback		= rsnd_dmaen_complete;
 	desc->callback_param	= rsnd_mod_get(dma);
 
-	dmaen->dma_buf		= buf;
-	dmaen->dma_len		= len;
-	dmaen->dma_period	= period;
-	dmaen->dma_cnt		= 0;
-
-	/*
-	 * synchronize this and next period
-	 * see
-	 *	__rsnd_dmaen_complete()
-	 */
-	for (i = 0; i < 2; i++)
-		rsnd_dmaen_sync(dmaen, io, i);
+	dmaen->dma_len		= snd_pcm_lib_buffer_bytes(substream);
 
 	dmaen->cookie = dmaengine_submit(desc);
 	if (dmaen->cookie < 0) {

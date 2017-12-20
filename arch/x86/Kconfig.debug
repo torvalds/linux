@@ -400,6 +400,7 @@ config UNWINDER_FRAME_POINTER
 config UNWINDER_GUESS
 	bool "Guess unwinder"
 	depends on EXPERT
+	depends on !STACKDEPOT
 	---help---
 	  This option enables the "guess" unwinder for unwinding kernel stack
 	  traces.  It scans the stack and reports every kernel text address it

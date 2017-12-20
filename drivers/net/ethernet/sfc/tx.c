@@ -77,6 +77,7 @@ static void efx_dequeue_buffer(struct efx_tx_queue *tx_queue,
 	}
 
 	if (buffer->flags & EFX_TX_BUF_SKB) {
+		EFX_WARN_ON_PARANOID(!pkts_compl || !bytes_compl);
 		(*pkts_compl)++;
 		(*bytes_compl) += buffer->skb->len;
 		dev_consume_skb_any((struct sk_buff *)buffer->skb);
@@ -426,12 +427,14 @@ static int efx_tx_map_data(struct efx_tx_queue *tx_queue, struct sk_buff *skb,
 static void efx_enqueue_unwind(struct efx_tx_queue *tx_queue)
 {
 	struct efx_tx_buffer *buffer;
+	unsigned int bytes_compl = 0;
+	unsigned int pkts_compl = 0;
 
 	/* Work backwards until we hit the original insert pointer value */
 	while (tx_queue->insert_count != tx_queue->write_count) {
 		--tx_queue->insert_count;
 		buffer = __efx_tx_queue_get_insert_buffer(tx_queue);
-		efx_dequeue_buffer(tx_queue, buffer, NULL, NULL);
+		efx_dequeue_buffer(tx_queue, buffer, &pkts_compl, &bytes_compl);
 	}
 }
 

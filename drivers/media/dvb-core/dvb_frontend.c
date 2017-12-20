@@ -369,11 +369,14 @@ static void dvb_frontend_swzigzag_update_delay(struct dvb_frontend_private *fepr
 }
 
 /**
- * Performs automatic twiddling of frontend parameters.
+ * dvb_frontend_swzigzag_autotune - Performs automatic twiddling of frontend
+ *	parameters.
  *
- * @param fe The frontend concerned.
- * @param check_wrapped Checks if an iteration has completed. DO NOT SET ON THE FIRST ATTEMPT
- * @returns Number of complete iterations that have been performed.
+ * @fe: The frontend concerned.
+ * @check_wrapped: Checks if an iteration has completed.
+ *		   DO NOT SET ON THE FIRST ATTEMPT.
+ *
+ * return: Number of complete iterations that have been performed.
  */
 static int dvb_frontend_swzigzag_autotune(struct dvb_frontend *fe, int check_wrapped)
 {
@@ -1253,7 +1256,7 @@ dtv_property_legacy_params_sync(struct dvb_frontend *fe,
  * dtv_get_frontend - calls a callback for retrieving DTV parameters
  * @fe:		struct dvb_frontend pointer
  * @c:		struct dtv_frontend_properties pointer (DVBv5 cache)
- * @p_out	struct dvb_frontend_parameters pointer (DVBv3 FE struct)
+ * @p_out:	struct dvb_frontend_parameters pointer (DVBv3 FE struct)
  *
  * This routine calls either the DVBv3 or DVBv5 get_frontend call.
  * If c is not null, it will update the DVBv5 cache struct pointed by it.

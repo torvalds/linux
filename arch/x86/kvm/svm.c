@@ -361,6 +361,7 @@ static void recalc_intercepts(struct vcpu_svm *svm)
 {
 	struct vmcb_control_area *c, *h;
 	struct nested_state *g;
+	u32 h_intercept_exceptions;
 
 	mark_dirty(svm->vmcb, VMCB_INTERCEPTS);
 
@@ -371,9 +372,14 @@ static void recalc_intercepts(struct vcpu_svm *svm)
 	h = &svm->nested.hsave->control;
 	g = &svm->nested;
 
+	/* No need to intercept #UD if L1 doesn't intercept it */
+	h_intercept_exceptions =
+		h->intercept_exceptions & ~(1U << UD_VECTOR);
+
 	c->intercept_cr = h->intercept_cr | g->intercept_cr;
 	c->intercept_dr = h->intercept_dr | g->intercept_dr;
-	c->intercept_exceptions = h->intercept_exceptions | g->intercept_exceptions;
+	c->intercept_exceptions =
+		h_intercept_exceptions | g->intercept_exceptions;
 	c->intercept = h->intercept | g->intercept;
 }
 
@@ -2196,7 +2202,10 @@ static int ud_interception(struct vcpu_svm *svm)
 {
 	int er;
 
+	WARN_ON_ONCE(is_guest_mode(&svm->vcpu));
 	er = emulate_instruction(&svm->vcpu, EMULTYPE_TRAP_UD);
+	if (er == EMULATE_USER_EXIT)
+		return 0;
 	if (er != EMULATE_DONE)
 		kvm_queue_exception(&svm->vcpu, UD_VECTOR);
 	return 1;

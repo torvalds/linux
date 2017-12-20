@@ -40,6 +40,7 @@ generic-y += resource.h
 generic-y += scatterlist.h
 generic-y += sections.h
 generic-y += sembuf.h
+generic-y += serial.h
 generic-y += setup.h
 generic-y += shmbuf.h
 generic-y += shmparam.h

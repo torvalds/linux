@@ -1128,12 +1128,12 @@ static int rcar_pcie_probe(struct platform_device *pdev)
 	err = rcar_pcie_get_resources(pcie);
 	if (err < 0) {
 		dev_err(dev, "failed to request resources: %d\n", err);
-		goto err_free_bridge;
+		goto err_free_resource_list;
 	}
 
 	err = rcar_pcie_parse_map_dma_ranges(pcie, dev->of_node);
 	if (err)
-		goto err_free_bridge;
+		goto err_free_resource_list;
 
 	pm_runtime_enable(dev);
 	err = pm_runtime_get_sync(dev);
@@ -1176,9 +1176,9 @@ err_pm_put:
 err_pm_disable:
 	pm_runtime_disable(dev);
 
-err_free_bridge:
-	pci_free_host_bridge(bridge);
+err_free_resource_list:
 	pci_free_resource_list(&pcie->resources);
+	pci_free_host_bridge(bridge);
 
 	return err;
 }

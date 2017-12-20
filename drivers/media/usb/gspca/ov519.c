@@ -1,4 +1,4 @@
-/**
+/*
  * OV519 driver
  *
  * Copyright (C) 2008-2011 Jean-François Moine <moinejf@free.fr>

@@ -339,6 +339,22 @@ static int record__open(struct record *rec)
 	struct perf_evsel_config_term *err_term;
 	int rc = 0;
 
+	/*
+	 * For initial_delay we need to add a dummy event so that we can track
+	 * PERF_RECORD_MMAP while we wait for the initial delay to enable the
+	 * real events, the ones asked by the user.
+	 */
+	if (opts->initial_delay) {
+		if (perf_evlist__add_dummy(evlist))
+			return -ENOMEM;
+
+		pos = perf_evlist__first(evlist);
+		pos->tracking = 0;
+		pos = perf_evlist__last(evlist);
+		pos->tracking = 1;
+		pos->attr.enable_on_exec = 1;
+	}
+
 	perf_evlist__config(evlist, opts, &callchain_param);
 
 	evlist__for_each_entry(evlist, pos) {
@@ -749,17 +765,19 @@ static int record__synthesize(struct record *rec, bool tail)
 			goto out;
 	}
 
-	err = perf_event__synthesize_kernel_mmap(tool, process_synthesized_event,
-						 machine);
-	WARN_ONCE(err < 0, "Couldn't record kernel reference relocation symbol\n"
-			   "Symbol resolution may be skewed if relocation was used (e.g. kexec).\n"
-			   "Check /proc/kallsyms permission or run as root.\n");
+	if (!perf_evlist__exclude_kernel(rec->evlist)) {
+		err = perf_event__synthesize_kernel_mmap(tool, process_synthesized_event,
+							 machine);
+		WARN_ONCE(err < 0, "Couldn't record kernel reference relocation symbol\n"
+				   "Symbol resolution may be skewed if relocation was used (e.g. kexec).\n"
+				   "Check /proc/kallsyms permission or run as root.\n");
 
-	err = perf_event__synthesize_modules(tool, process_synthesized_event,
-					     machine);
-	WARN_ONCE(err < 0, "Couldn't record kernel module information.\n"
-			   "Symbol resolution may be skewed if relocation was used (e.g. kexec).\n"
-			   "Check /proc/modules permission or run as root.\n");
+		err = perf_event__synthesize_modules(tool, process_synthesized_event,
+						     machine);
+		WARN_ONCE(err < 0, "Couldn't record kernel module information.\n"
+				   "Symbol resolution may be skewed if relocation was used (e.g. kexec).\n"
+				   "Check /proc/modules permission or run as root.\n");
+	}
 
 	if (perf_guest) {
 		machines__process_guests(&session->machines,
@@ -1693,7 +1711,7 @@ int cmd_record(int argc, const char **argv)
 
 	err = -ENOMEM;
 
-	if (symbol_conf.kptr_restrict)
+	if (symbol_conf.kptr_restrict && !perf_evlist__exclude_kernel(rec->evlist))
 		pr_warning(
 "WARNING: Kernel address maps (/proc/{kallsyms,modules}) are restricted,\n"
 "check /proc/sys/kernel/kptr_restrict.\n\n"
