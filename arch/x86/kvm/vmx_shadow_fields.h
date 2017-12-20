@@ -17,6 +17,12 @@
  * (e.g. force a sync if VM_INSTRUCTION_ERROR is modified
  * by nested_vmx_failValid)
  *
+ * When adding or removing fields here, note that shadowed
+ * fields must always be synced by prepare_vmcs02, not just
+ * prepare_vmcs02_full.
+ */
+
+/*
  * Keeping the fields ordered by size is an attempt at improving
  * branch prediction in vmcs_read_any and vmcs_write_any.
  */

@@ -436,6 +436,7 @@ struct nested_vmx {
 	 * data hold by vmcs12
 	 */
 	bool sync_shadow_vmcs;
+	bool dirty_vmcs12;
 
 	bool change_vmcs01_virtual_x2apic_mode;
 	/* L2 must run next, and mustn't decide to exit to L1. */
@@ -7623,8 +7624,10 @@ static int handle_vmwrite(struct kvm_vcpu *vcpu)
 {
 	unsigned long field;
 	gva_t gva;
+	struct vcpu_vmx *vmx = to_vmx(vcpu);
 	unsigned long exit_qualification = vmcs_readl(EXIT_QUALIFICATION);
 	u32 vmx_instruction_info = vmcs_read32(VMX_INSTRUCTION_INFO);
+
 	/* The value to write might be 32 or 64 bits, depending on L1's long
 	 * mode, and eventually we need to write that into a field of several
 	 * possible lengths. The code below first zero-extends the value to 64
@@ -7667,6 +7670,20 @@ static int handle_vmwrite(struct kvm_vcpu *vcpu)
 		return kvm_skip_emulated_instruction(vcpu);
 	}
 
+	switch (field) {
+#define SHADOW_FIELD_RW(x) case x:
+#include "vmx_shadow_fields.h"
+		/*
+		 * The fields that can be updated by L1 without a vmexit are
+		 * always updated in the vmcs02, the others go down the slow
+		 * path of prepare_vmcs02.
+		 */
+		break;
+	default:
+		vmx->nested.dirty_vmcs12 = true;
+		break;
+	}
+
 	nested_vmx_succeed(vcpu);
 	return kvm_skip_emulated_instruction(vcpu);
 }
@@ -7681,6 +7698,7 @@ static void set_current_vmptr(struct vcpu_vmx *vmx, gpa_t vmptr)
 			     __pa(vmx->vmcs01.shadow_vmcs));
 		vmx->nested.sync_shadow_vmcs = true;
 	}
+	vmx->nested.dirty_vmcs12 = true;
 }
 
 /* Emulate the VMPTRLD instruction */
@@ -10297,6 +10315,11 @@ static int nested_vmx_load_cr3(struct kvm_vcpu *vcpu, unsigned long cr3, bool ne
 	return 0;
 }
 
+static void prepare_vmcs02_full(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12,
+			       bool from_vmentry)
+{
+}
+
 /*
  * prepare_vmcs02 is called when the L1 guest hypervisor runs its nested
  * L2 guest. L1 has a vmcs for L2 (vmcs12), and this function "merges" it
@@ -10592,7 +10615,6 @@ static int prepare_vmcs02(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12,
 			vmcs_write16(VIRTUAL_PROCESSOR_ID, vmx->vpid);
 			vmx_flush_tlb(vcpu, true);
 		}
-
 	}
 
 	if (enable_pml) {
@@ -10640,6 +10662,11 @@ static int prepare_vmcs02(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12,
 		vcpu->arch.efer &= ~(EFER_LMA | EFER_LME);
 	/* Note: modifies VM_ENTRY/EXIT_CONTROLS and GUEST/HOST_IA32_EFER */
 	vmx_set_efer(vcpu, vcpu->arch.efer);
+
+	if (vmx->nested.dirty_vmcs12) {
+		prepare_vmcs02_full(vcpu, vmcs12, from_vmentry);
+		vmx->nested.dirty_vmcs12 = false;
+	}
 
 	/* Shadow page tables on either EPT or shadow page tables. */
 	if (nested_vmx_load_cr3(vcpu, vmcs12->guest_cr3, nested_cpu_has_ept(vmcs12),
