@@ -174,10 +174,9 @@ static inline struct device *drvdata_to_dev(struct cc_drvdata *drvdata)
 	return &drvdata->plat_dev->dev;
 }
 
-void __dump_byte_array(const char *name, const u8 *the_array,
-		       unsigned long size);
+void __dump_byte_array(const char *name, const u8 *buf, size_t len);
 static inline void dump_byte_array(const char *name, const u8 *the_array,
-				   unsigned long size)
+				   size_t size)
 {
 	if (cc_dump_bytes)
 		__dump_byte_array(name, the_array, size);

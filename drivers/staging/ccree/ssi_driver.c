@@ -86,7 +86,7 @@ void __dump_byte_array(const char *name, const u8 *buf, size_t len)
 	if (!buf)
 		return;
 
-	snprintf(prefix, sizeof(prefix), "%s[%lu]: ", name, len);
+	snprintf(prefix, sizeof(prefix), "%s[%zu]: ", name, len);
 
 	print_hex_dump(KERN_DEBUG, prefix, DUMP_PREFIX_ADDRESS, 16, 1, buf,
 		       len, false);
