@@ -640,7 +640,7 @@ xprt_rdma_allocate(struct rpc_task *task)
 
 	req = rpcrdma_buffer_get(&r_xprt->rx_buf);
 	if (req == NULL)
-		return -ENOMEM;
+		goto out_get;
 
 	flags = RPCRDMA_DEF_GFP;
 	if (RPC_IS_SWAPPER(task))
@@ -653,19 +653,18 @@ xprt_rdma_allocate(struct rpc_task *task)
 	if (!rpcrdma_get_recvbuf(r_xprt, req, rqst->rq_rcvsize, flags))
 		goto out_fail;
 
-	dprintk("RPC: %5u %s: send size = %zd, recv size = %zd, req = %p\n",
-		task->tk_pid, __func__, rqst->rq_callsize,
-		rqst->rq_rcvsize, req);
-
 	req->rl_cpu = smp_processor_id();
 	req->rl_connect_cookie = 0;	/* our reserved value */
 	rpcrdma_set_xprtdata(rqst, req);
 	rqst->rq_buffer = req->rl_sendbuf->rg_base;
 	rqst->rq_rbuffer = req->rl_recvbuf->rg_base;
+	trace_xprtrdma_allocate(task, req);
 	return 0;
 
 out_fail:
 	rpcrdma_buffer_put(req);
+out_get:
+	trace_xprtrdma_allocate(task, NULL);
 	return -ENOMEM;
 }
 
@@ -682,10 +681,9 @@ xprt_rdma_free(struct rpc_task *task)
 	struct rpcrdma_xprt *r_xprt = rpcx_to_rdmax(rqst->rq_xprt);
 	struct rpcrdma_req *req = rpcr_to_rdmar(rqst);
 
-	dprintk("RPC:       %s: called on 0x%p\n", __func__, req->rl_reply);
-
 	if (test_bit(RPCRDMA_REQ_F_PENDING, &req->rl_flags))
 		rpcrdma_release_rqst(r_xprt, req);
+	trace_xprtrdma_rpc_done(task, req);
 	rpcrdma_buffer_put(req);
 }
 

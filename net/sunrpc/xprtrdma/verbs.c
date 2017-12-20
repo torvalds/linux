@@ -1385,11 +1385,11 @@ rpcrdma_buffer_get(struct rpcrdma_buffer *buffers)
 	req = rpcrdma_buffer_get_req_locked(buffers);
 	req->rl_reply = rpcrdma_buffer_get_rep(buffers);
 	spin_unlock(&buffers->rb_lock);
+
 	return req;
 
 out_reqbuf:
 	spin_unlock(&buffers->rb_lock);
-	pr_warn("RPC:       %s: out of request buffers\n", __func__);
 	return NULL;
 }
 
@@ -1612,7 +1612,7 @@ rpcrdma_ep_post_extra_recv(struct rpcrdma_xprt *r_xprt, unsigned int count)
 
 out_reqbuf:
 	spin_unlock(&buffers->rb_lock);
-	pr_warn("%s: no extra receive buffers\n", __func__);
+	trace_xprtrdma_noreps(r_xprt);
 	return -ENOMEM;
 
 out_rc:
