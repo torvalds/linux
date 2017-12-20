@@ -51,6 +51,37 @@ DECLARE_EVENT_CLASS(xprtrdma_reply_event,
 				),					\
 				TP_ARGS(rep))
 
+DECLARE_EVENT_CLASS(xprtrdma_rxprt,
+	TP_PROTO(
+		const struct rpcrdma_xprt *r_xprt
+	),
+
+	TP_ARGS(r_xprt),
+
+	TP_STRUCT__entry(
+		__field(const void *, r_xprt)
+		__string(addr, rpcrdma_addrstr(r_xprt))
+		__string(port, rpcrdma_portstr(r_xprt))
+	),
+
+	TP_fast_assign(
+		__entry->r_xprt = r_xprt;
+		__assign_str(addr, rpcrdma_addrstr(r_xprt));
+		__assign_str(port, rpcrdma_portstr(r_xprt));
+	),
+
+	TP_printk("peer=[%s]:%s r_xprt=%p",
+		__get_str(addr), __get_str(port), __entry->r_xprt
+	)
+);
+
+#define DEFINE_RXPRT_EVENT(name)					\
+		DEFINE_EVENT(xprtrdma_rxprt, name,			\
+				TP_PROTO(				\
+					const struct rpcrdma_xprt *r_xprt \
+				),					\
+				TP_ARGS(r_xprt))
+
 DECLARE_EVENT_CLASS(xprtrdma_rdch_event,
 	TP_PROTO(
 		const struct rpc_task *task,
@@ -240,6 +271,31 @@ DECLARE_EVENT_CLASS(xprtrdma_mr,
  ** Call events
  **/
 
+TRACE_EVENT(xprtrdma_createmrs,
+	TP_PROTO(
+		const struct rpcrdma_xprt *r_xprt,
+		unsigned int count
+	),
+
+	TP_ARGS(r_xprt, count),
+
+	TP_STRUCT__entry(
+		__field(const void *, r_xprt)
+		__field(unsigned int, count)
+	),
+
+	TP_fast_assign(
+		__entry->r_xprt = r_xprt;
+		__entry->count = count;
+	),
+
+	TP_printk("r_xprt=%p: created %u MRs",
+		__entry->r_xprt, __entry->count
+	)
+);
+
+DEFINE_RXPRT_EVENT(xprtrdma_nomrs);
+
 DEFINE_RDCH_EVENT(xprtrdma_read_chunk);
 DEFINE_WRCH_EVENT(xprtrdma_write_chunk);
 DEFINE_WRCH_EVENT(xprtrdma_reply_chunk);
@@ -423,6 +479,7 @@ DEFINE_FRWR_DONE_EVENT(xprtrdma_wc_li_wake);
 DEFINE_MR_EVENT(xprtrdma_localinv);
 DEFINE_MR_EVENT(xprtrdma_dma_unmap);
 DEFINE_MR_EVENT(xprtrdma_remoteinv);
+DEFINE_MR_EVENT(xprtrdma_recover_mr);
 
 /**
  ** Reply events

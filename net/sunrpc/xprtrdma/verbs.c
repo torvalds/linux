@@ -998,7 +998,7 @@ rpcrdma_mr_recovery_worker(struct work_struct *work)
 		mr = rpcrdma_mr_pop(&buf->rb_stale_mrs);
 		spin_unlock(&buf->rb_recovery_lock);
 
-		dprintk("RPC:       %s: recovering MR %p\n", __func__, mr);
+		trace_xprtrdma_recover_mr(mr);
 		mr->mr_xprt->rx_ia.ri_ops->ro_recover_mr(mr);
 
 		spin_lock(&buf->rb_recovery_lock);
@@ -1054,7 +1054,7 @@ rpcrdma_mrs_create(struct rpcrdma_xprt *r_xprt)
 	r_xprt->rx_stats.mrs_allocated += count;
 	spin_unlock(&buf->rb_mrlock);
 
-	dprintk("RPC:       %s: created %u MRs\n", __func__, count);
+	trace_xprtrdma_createmrs(r_xprt, count);
 }
 
 static void
@@ -1310,7 +1310,7 @@ rpcrdma_mr_get(struct rpcrdma_xprt *r_xprt)
 	return mr;
 
 out_nomrs:
-	dprintk("RPC:       %s: no MRs available\n", __func__);
+	trace_xprtrdma_nomrs(r_xprt);
 	if (r_xprt->rx_ep.rep_connected != -ENODEV)
 		schedule_delayed_work(&buf->rb_refresh_worker, 0);
 
