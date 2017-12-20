@@ -2064,7 +2064,8 @@ static void bfq_bfqq_save_state(struct bfq_queue *bfqq)
 	bic->saved_in_large_burst = bfq_bfqq_in_large_burst(bfqq);
 	bic->was_in_burst_list = !hlist_unhashed(&bfqq->burst_list_node);
 	if (unlikely(bfq_bfqq_just_created(bfqq) &&
-		     !bfq_bfqq_in_large_burst(bfqq))) {
+		     !bfq_bfqq_in_large_burst(bfqq) &&
+		     bfqq->bfqd->low_latency)) {
 		/*
 		 * bfqq being merged right after being created: bfqq
 		 * would have deserved interactive weight raising, but
