@@ -26,6 +26,12 @@
 		stdout-path = "serial3:115200n8";
 	};
 
+	audio_clock: audio_clock {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <26000000>;
+	};
+
 	vccq_sdhi0: regulator-vccq-sdhi0 {
 		compatible = "regulator-gpio";
 
@@ -80,6 +86,23 @@
 	pinctrl-names = "default";
 };
 
+&i2c5 {
+	pinctrl-0 = <&i2c5_pins>;
+	pinctrl-names = "default";
+
+	status = "okay";
+	clock-frequency = <400000>;
+
+	sgtl5000: codec@a {
+		compatible = "fsl,sgtl5000";
+		#sound-dai-cells = <0>;
+		reg = <0x0a>;
+		clocks = <&audio_clock>;
+		VDDA-supply = <&reg_3p3v>;
+		VDDIO-supply = <&reg_3p3v>;
+	};
+};
+
 &pci1 {
 	status = "okay";
 	pinctrl-0 = <&usb1_pins>;
@@ -100,6 +123,11 @@
 	hscif1_pins: hscif1 {
 		groups = "hscif1_data", "hscif1_ctrl";
 		function = "hscif1";
+	};
+
+	i2c5_pins: i2c5 {
+		groups = "i2c5_b";
+		function = "i2c5";
 	};
 
 	scif4_pins: scif4 {
