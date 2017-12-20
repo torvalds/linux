@@ -140,7 +140,7 @@ int xprt_rdma_bc_setup(struct rpc_xprt *xprt, unsigned int reqs)
 
 	buffer->rb_bc_srv_max_requests = reqs;
 	request_module("svcrdma");
-
+	trace_xprtrdma_cb_setup(r_xprt, reqs);
 	return 0;
 
 out_free:
@@ -212,6 +212,8 @@ static int rpcrdma_bc_marshal_reply(struct rpc_rqst *rqst)
 	if (rpcrdma_prepare_send_sges(r_xprt, req, RPCRDMA_HDRLEN_MIN,
 				      &rqst->rq_snd_buf, rpcrdma_noch))
 		return -EIO;
+
+	trace_xprtrdma_cb_reply(rqst);
 	return 0;
 }
 
@@ -331,7 +333,6 @@ void rpcrdma_bc_receive_call(struct rpcrdma_xprt *r_xprt,
 				struct rpc_rqst, rq_bc_pa_list);
 	list_del(&rqst->rq_bc_pa_list);
 	spin_unlock(&xprt->bc_pa_lock);
-	dprintk("RPC:       %s: using rqst %p\n", __func__, rqst);
 
 	/* Prepare rqst */
 	rqst->rq_reply_bytes_recvd = 0;
@@ -352,9 +353,8 @@ void rpcrdma_bc_receive_call(struct rpcrdma_xprt *r_xprt,
 	 * the Upper Layer is done decoding it.
 	 */
 	req = rpcr_to_rdmar(rqst);
-	dprintk("RPC:       %s: attaching rep %p to req %p\n",
-		__func__, rep, req);
 	req->rl_reply = rep;
+	trace_xprtrdma_cb_call(rqst);
 
 	/* Queue rqst for ULP's callback service */
 	bc_serv = xprt->bc_serv;

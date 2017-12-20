@@ -365,7 +365,7 @@ rpcrdma_set_xprtdata(struct rpc_rqst *rqst, struct rpcrdma_req *req)
 }
 
 static inline struct rpcrdma_req *
-rpcr_to_rdmar(struct rpc_rqst *rqst)
+rpcr_to_rdmar(const struct rpc_rqst *rqst)
 {
 	return rqst->rq_xprtdata;
 }
