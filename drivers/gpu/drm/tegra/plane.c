@@ -43,6 +43,7 @@ tegra_plane_atomic_duplicate_state(struct drm_plane *plane)
 {
 	struct tegra_plane_state *state = to_tegra_plane_state(plane->state);
 	struct tegra_plane_state *copy;
+	unsigned int i;
 
 	copy = kmalloc(sizeof(*copy), GFP_KERNEL);
 	if (!copy)
@@ -52,6 +53,10 @@ tegra_plane_atomic_duplicate_state(struct drm_plane *plane)
 	copy->tiling = state->tiling;
 	copy->format = state->format;
 	copy->swap = state->swap;
+	copy->opaque = state->opaque;
+
+	for (i = 0; i < 3; i++)
+		copy->dependent[i] = state->dependent[i];
 
 	return &copy->base;
 }
@@ -237,4 +242,137 @@ bool tegra_plane_format_is_yuv(unsigned int format, bool *planar)
 		*planar = false;
 
 	return false;
+}
+
+static bool __drm_format_has_alpha(u32 format)
+{
+	switch (format) {
+	case DRM_FORMAT_ARGB1555:
+	case DRM_FORMAT_RGBA5551:
+	case DRM_FORMAT_ABGR8888:
+	case DRM_FORMAT_ARGB8888:
+		return true;
+	}
+
+	return false;
+}
+
+/*
+ * This is applicable to Tegra20 and Tegra30 only where the opaque formats can
+ * be emulated using the alpha formats and alpha blending disabled.
+ */
+bool tegra_plane_format_has_alpha(unsigned int format)
+{
+	switch (format) {
+	case WIN_COLOR_DEPTH_B5G5R5A1:
+	case WIN_COLOR_DEPTH_A1B5G5R5:
+	case WIN_COLOR_DEPTH_R8G8B8A8:
+	case WIN_COLOR_DEPTH_B8G8R8A8:
+		return true;
+	}
+
+	return false;
+}
+
+int tegra_plane_format_get_alpha(unsigned int opaque, unsigned int *alpha)
+{
+	switch (opaque) {
+	case WIN_COLOR_DEPTH_B5G5R5X1:
+		*alpha = WIN_COLOR_DEPTH_B5G5R5A1;
+		return 0;
+
+	case WIN_COLOR_DEPTH_X1B5G5R5:
+		*alpha = WIN_COLOR_DEPTH_A1B5G5R5;
+		return 0;
+
+	case WIN_COLOR_DEPTH_R8G8B8X8:
+		*alpha = WIN_COLOR_DEPTH_R8G8B8A8;
+		return 0;
+
+	case WIN_COLOR_DEPTH_B8G8R8X8:
+		*alpha = WIN_COLOR_DEPTH_B8G8R8A8;
+		return 0;
+	}
+
+	return -EINVAL;
+}
+
+unsigned int tegra_plane_get_overlap_index(struct tegra_plane *plane,
+					   struct tegra_plane *other)
+{
+	unsigned int index = 0, i;
+
+	WARN_ON(plane == other);
+
+	for (i = 0; i < 3; i++) {
+		if (i == plane->index)
+			continue;
+
+		if (i == other->index)
+			break;
+
+		index++;
+	}
+
+	return index;
+}
+
+void tegra_plane_check_dependent(struct tegra_plane *tegra,
+				 struct tegra_plane_state *state)
+{
+	struct drm_plane_state *old, *new;
+	struct drm_plane *plane;
+	unsigned int zpos[2];
+	unsigned int i;
+
+	for (i = 0; i < 3; i++)
+		state->dependent[i] = false;
+
+	for (i = 0; i < 2; i++)
+		zpos[i] = 0;
+
+	for_each_oldnew_plane_in_state(state->base.state, plane, old, new, i) {
+		struct tegra_plane *p = to_tegra_plane(plane);
+		unsigned index;
+
+		/* skip this plane and planes on different CRTCs */
+		if (p == tegra || new->crtc != state->base.crtc)
+			continue;
+
+		index = tegra_plane_get_overlap_index(tegra, p);
+
+		/*
+		 * If any of the other planes is on top of this plane and uses
+		 * a format with an alpha component, mark this plane as being
+		 * dependent, meaning it's alpha value will be 1 minus the sum
+		 * of alpha components of the overlapping planes.
+		 */
+		if (p->index > tegra->index) {
+			if (__drm_format_has_alpha(new->fb->format->format))
+				state->dependent[index] = true;
+
+			/* keep track of the Z position */
+			zpos[index] = p->index;
+		}
+	}
+
+	/*
+	 * The region where three windows overlap is the intersection of the
+	 * two regions where two windows overlap. It contributes to the area
+	 * if any of the windows on top of it have an alpha component.
+	 */
+	for (i = 0; i < 2; i++)
+		state->dependent[2] = state->dependent[2] ||
+				      state->dependent[i];
+
+	/*
+	 * However, if any of the windows on top of this window is opaque, it
+	 * will completely conceal this window within that area, so avoid the
+	 * window from contributing to the area.
+	 */
+	for (i = 0; i < 2; i++) {
+		if (zpos[i] > tegra->index)
+			state->dependent[2] = state->dependent[2] &&
+					      state->dependent[i];
+	}
 }

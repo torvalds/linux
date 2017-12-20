@@ -154,30 +154,53 @@ static inline u32 compute_initial_dda(unsigned int in)
 
 static void tegra_plane_setup_blending_legacy(struct tegra_plane *plane)
 {
+	u32 background[3] = {
+		BLEND_WEIGHT1(0) | BLEND_WEIGHT0(0) | BLEND_COLOR_KEY_NONE,
+		BLEND_WEIGHT1(0) | BLEND_WEIGHT0(0) | BLEND_COLOR_KEY_NONE,
+		BLEND_WEIGHT1(0) | BLEND_WEIGHT0(0) | BLEND_COLOR_KEY_NONE,
+	};
+	u32 foreground = BLEND_WEIGHT1(255) | BLEND_WEIGHT0(255) |
+			 BLEND_COLOR_KEY_NONE;
+	u32 blendnokey = BLEND_WEIGHT1(255) | BLEND_WEIGHT0(255);
+	struct tegra_plane_state *state;
+	unsigned int i;
+
+	state = to_tegra_plane_state(plane->base.state);
+
+	/* alpha contribution is 1 minus sum of overlapping windows */
+	for (i = 0; i < 3; i++) {
+		if (state->dependent[i])
+			background[i] |= BLEND_CONTROL_DEPENDENT;
+	}
+
+	/* enable alpha blending if pixel format has an alpha component */
+	if (!state->opaque)
+		foreground |= BLEND_CONTROL_ALPHA;
+
 	/*
 	 * Disable blending and assume Window A is the bottom-most window,
 	 * Window C is the top-most window and Window B is in the middle.
 	 */
-	tegra_plane_writel(plane, 0xffff00, DC_WIN_BLEND_NOKEY);
-	tegra_plane_writel(plane, 0xffff00, DC_WIN_BLEND_1WIN);
+	tegra_plane_writel(plane, blendnokey, DC_WIN_BLEND_NOKEY);
+	tegra_plane_writel(plane, foreground, DC_WIN_BLEND_1WIN);
 
 	switch (plane->index) {
 	case 0:
-		tegra_plane_writel(plane, 0x000000, DC_WIN_BLEND_2WIN_X);
-		tegra_plane_writel(plane, 0x000000, DC_WIN_BLEND_2WIN_Y);
-		tegra_plane_writel(plane, 0x000000, DC_WIN_BLEND_3WIN_XY);
+		tegra_plane_writel(plane, background[0], DC_WIN_BLEND_2WIN_X);
+		tegra_plane_writel(plane, background[1], DC_WIN_BLEND_2WIN_Y);
+		tegra_plane_writel(plane, background[2], DC_WIN_BLEND_3WIN_XY);
 		break;
 
 	case 1:
-		tegra_plane_writel(plane, 0xffff00, DC_WIN_BLEND_2WIN_X);
-		tegra_plane_writel(plane, 0x000000, DC_WIN_BLEND_2WIN_Y);
-		tegra_plane_writel(plane, 0x000000, DC_WIN_BLEND_3WIN_XY);
+		tegra_plane_writel(plane, foreground, DC_WIN_BLEND_2WIN_X);
+		tegra_plane_writel(plane, background[1], DC_WIN_BLEND_2WIN_Y);
+		tegra_plane_writel(plane, background[2], DC_WIN_BLEND_3WIN_XY);
 		break;
 
 	case 2:
-		tegra_plane_writel(plane, 0xffff00, DC_WIN_BLEND_2WIN_X);
-		tegra_plane_writel(plane, 0xffff00, DC_WIN_BLEND_2WIN_Y);
-		tegra_plane_writel(plane, 0xffff00, DC_WIN_BLEND_3WIN_XY);
+		tegra_plane_writel(plane, foreground, DC_WIN_BLEND_2WIN_X);
+		tegra_plane_writel(plane, foreground, DC_WIN_BLEND_2WIN_Y);
+		tegra_plane_writel(plane, foreground, DC_WIN_BLEND_3WIN_XY);
 		break;
 	}
 }
@@ -353,6 +376,11 @@ static const u32 tegra20_primary_formats[] = {
 	DRM_FORMAT_RGBA5551,
 	DRM_FORMAT_ABGR8888,
 	DRM_FORMAT_ARGB8888,
+	/* non-native formats */
+	DRM_FORMAT_XRGB1555,
+	DRM_FORMAT_RGBX5551,
+	DRM_FORMAT_XBGR8888,
+	DRM_FORMAT_XRGB8888,
 };
 
 static const u32 tegra114_primary_formats[] = {
@@ -409,17 +437,39 @@ static int tegra_plane_atomic_check(struct drm_plane *plane,
 	struct tegra_bo_tiling *tiling = &plane_state->tiling;
 	struct tegra_plane *tegra = to_tegra_plane(plane);
 	struct tegra_dc *dc = to_tegra_dc(state->crtc);
+	unsigned int format;
 	int err;
 
 	/* no need for further checks if the plane is being disabled */
 	if (!state->crtc)
 		return 0;
 
-	err = tegra_plane_format(state->fb->format->format,
-				 &plane_state->format,
+	err = tegra_plane_format(state->fb->format->format, &format,
 				 &plane_state->swap);
 	if (err < 0)
 		return err;
+
+	/*
+	 * Tegra20 and Tegra30 are special cases here because they support
+	 * only variants of specific formats with an alpha component, but not
+	 * the corresponding opaque formats. However, the opaque formats can
+	 * be emulated by disabling alpha blending for the plane.
+	 */
+	if (!dc->soc->supports_blending) {
+		if (!tegra_plane_format_has_alpha(format)) {
+			err = tegra_plane_format_get_alpha(format, &format);
+			if (err < 0)
+				return err;
+
+			plane_state->opaque = true;
+		} else {
+			plane_state->opaque = false;
+		}
+
+		tegra_plane_check_dependent(tegra, plane_state);
+	}
+
+	plane_state->format = format;
 
 	err = tegra_fb_get_tiling(state->fb, tiling);
 	if (err < 0)
@@ -737,6 +787,11 @@ static const u32 tegra20_overlay_formats[] = {
 	DRM_FORMAT_RGBA5551,
 	DRM_FORMAT_ABGR8888,
 	DRM_FORMAT_ARGB8888,
+	/* non-native formats */
+	DRM_FORMAT_XRGB1555,
+	DRM_FORMAT_RGBX5551,
+	DRM_FORMAT_XBGR8888,
+	DRM_FORMAT_XRGB8888,
 	/* planar formats */
 	DRM_FORMAT_UYVY,
 	DRM_FORMAT_YUYV,

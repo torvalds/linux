@@ -254,18 +254,6 @@ static int tegra_fbdev_probe(struct drm_fb_helper *helper,
 	cmd.pitches[0] = round_up(sizes->surface_width * bytes_per_pixel,
 				  tegra->pitch_align);
 
-	/*
-	 * Early generations of Tegra (Tegra20 and Tegra30) do not support any
-	 * of the X* or *X formats, only their A* or *A equivalents. Force the
-	 * legacy framebuffer format to include an alpha component so that the
-	 * framebuffer emulation can be supported on all generations.
-	 */
-	if (sizes->surface_bpp == 32 && sizes->surface_depth == 24)
-		sizes->surface_depth = 32;
-
-	if (sizes->surface_bpp == 16 && sizes->surface_depth == 15)
-		sizes->surface_depth = 16;
-
 	cmd.pixel_format = drm_mode_legacy_fb_format(sizes->surface_bpp,
 						     sizes->surface_depth);
 

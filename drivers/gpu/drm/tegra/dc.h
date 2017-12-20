@@ -649,8 +649,20 @@ int tegra_dc_rgb_exit(struct tegra_dc *dc);
 #define DC_WIN_DV_CONTROL			0x70e
 
 #define DC_WIN_BLEND_NOKEY			0x70f
+#define  BLEND_WEIGHT1(x) (((x) & 0xff) << 16)
+#define  BLEND_WEIGHT0(x) (((x) & 0xff) <<  8)
+
 #define DC_WIN_BLEND_1WIN			0x710
+#define  BLEND_CONTROL_FIX    (0 << 2)
+#define  BLEND_CONTROL_ALPHA  (1 << 2)
+#define  BLEND_COLOR_KEY_NONE (0 << 0)
+#define  BLEND_COLOR_KEY_0    (1 << 0)
+#define  BLEND_COLOR_KEY_1    (2 << 0)
+#define  BLEND_COLOR_KEY_BOTH (3 << 0)
+
 #define DC_WIN_BLEND_2WIN_X			0x711
+#define  BLEND_CONTROL_DEPENDENT (2 << 2)
+
 #define DC_WIN_BLEND_2WIN_Y			0x712
 #define DC_WIN_BLEND_3WIN_XY			0x713
 
