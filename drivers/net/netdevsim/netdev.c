@@ -139,7 +139,7 @@ static void nsim_dev_release(struct device *dev)
 	free_netdev(ns->netdev);
 }
 
-struct device_type nsim_dev_type = {
+static struct device_type nsim_dev_type = {
 	.groups = nsim_dev_attr_groups,
 	.release = nsim_dev_release,
 };
