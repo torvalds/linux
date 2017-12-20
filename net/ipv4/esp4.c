@@ -843,17 +843,13 @@ static int esp_init_aead(struct xfrm_state *x)
 	char aead_name[CRYPTO_MAX_ALG_NAME];
 	struct crypto_aead *aead;
 	int err;
-	u32 mask = 0;
 
 	err = -ENAMETOOLONG;
 	if (snprintf(aead_name, CRYPTO_MAX_ALG_NAME, "%s(%s)",
 		     x->geniv, x->aead->alg_name) >= CRYPTO_MAX_ALG_NAME)
 		goto error;
 
-	if (x->xso.offload_handle)
-		mask |= CRYPTO_ALG_ASYNC;
-
-	aead = crypto_alloc_aead(aead_name, 0, mask);
+	aead = crypto_alloc_aead(aead_name, 0, 0);
 	err = PTR_ERR(aead);
 	if (IS_ERR(aead))
 		goto error;
@@ -883,7 +879,6 @@ static int esp_init_authenc(struct xfrm_state *x)
 	char authenc_name[CRYPTO_MAX_ALG_NAME];
 	unsigned int keylen;
 	int err;
-	u32 mask = 0;
 
 	err = -EINVAL;
 	if (!x->ealg)
@@ -909,10 +904,7 @@ static int esp_init_authenc(struct xfrm_state *x)
 			goto error;
 	}
 
-	if (x->xso.offload_handle)
-		mask |= CRYPTO_ALG_ASYNC;
-
-	aead = crypto_alloc_aead(authenc_name, 0, mask);
+	aead = crypto_alloc_aead(authenc_name, 0, 0);
 	err = PTR_ERR(aead);
 	if (IS_ERR(aead))
 		goto error;
