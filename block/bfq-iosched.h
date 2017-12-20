@@ -344,6 +344,8 @@ struct bfq_queue {
 	unsigned long wr_start_at_switch_to_srt;
 
 	unsigned long split_time; /* time of last split */
+
+	unsigned long first_IO_time; /* time of first I/O for this queue */
 };
 
 /**
