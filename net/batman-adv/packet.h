@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* Copyright (C) 2007-2017  B.A.T.M.A.N. contributors:
  *
  * Marek Lindner, Simon Wunderlich
@@ -21,6 +22,12 @@
 #include <asm/byteorder.h>
 #include <linux/types.h>
 
+/**
+ * batadv_tp_is_error() - Check throughput meter return code for error
+ * @n: throughput meter return code
+ *
+ * Return: 0 when not error was detected, != 0 otherwise
+ */
 #define batadv_tp_is_error(n) ((u8)(n) > 127 ? 1 : 0)
 
 /**
@@ -88,7 +95,15 @@ enum batadv_iv_flags {
 	BATADV_DIRECTLINK          = BIT(2),
 };
 
-/* ICMP message types */
+/**
+ * enum batadv_icmp_packettype - ICMP message types
+ * @BATADV_ECHO_REPLY: success reply to BATADV_ECHO_REQUEST
+ * @BATADV_DESTINATION_UNREACHABLE: failure when route to destination not found
+ * @BATADV_ECHO_REQUEST: request BATADV_ECHO_REPLY from destination
+ * @BATADV_TTL_EXCEEDED: error after BATADV_ECHO_REQUEST traversed too many hops
+ * @BATADV_PARAMETER_PROBLEM: return code for malformed messages
+ * @BATADV_TP: throughput meter packet
+ */
 enum batadv_icmp_packettype {
 	BATADV_ECHO_REPLY	       = 0,
 	BATADV_DESTINATION_UNREACHABLE = 3,
@@ -136,7 +151,14 @@ enum batadv_vlan_flags {
 	BATADV_VLAN_HAS_TAG	= BIT(15),
 };
 
-/* claim frame types for the bridge loop avoidance */
+/**
+ * enum batadv_bla_claimframe - claim frame types for the bridge loop avoidance
+ * @BATADV_CLAIM_TYPE_CLAIM: claim of a client mac address
+ * @BATADV_CLAIM_TYPE_UNCLAIM: unclaim of a client mac address
+ * @BATADV_CLAIM_TYPE_ANNOUNCE: announcement of backbone with current crc
+ * @BATADV_CLAIM_TYPE_REQUEST: request of full claim table
+ * @BATADV_CLAIM_TYPE_LOOPDETECT: mesh-traversing loop detect packet
+ */
 enum batadv_bla_claimframe {
 	BATADV_CLAIM_TYPE_CLAIM		= 0x00,
 	BATADV_CLAIM_TYPE_UNCLAIM	= 0x01,
