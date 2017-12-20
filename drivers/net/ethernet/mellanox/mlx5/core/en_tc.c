@@ -111,7 +111,7 @@ struct mlx5e_hairpin_entry {
 	/* flows sharing the same hairpin */
 	struct list_head flows;
 
-	int peer_ifindex;
+	u16 peer_vhca_id;
 	struct mlx5e_hairpin *hp;
 };
 
@@ -334,13 +334,13 @@ static void mlx5e_hairpin_destroy(struct mlx5e_hairpin *hp)
 }
 
 static struct mlx5e_hairpin_entry *mlx5e_hairpin_get(struct mlx5e_priv *priv,
-						     int peer_ifindex)
+						     u16 peer_vhca_id)
 {
 	struct mlx5e_hairpin_entry *hpe;
 
 	hash_for_each_possible(priv->fs.tc.hairpin_tbl, hpe,
-			       hairpin_hlist, peer_ifindex) {
-		if (hpe->peer_ifindex == peer_ifindex)
+			       hairpin_hlist, peer_vhca_id) {
+		if (hpe->peer_vhca_id == peer_vhca_id)
 			return hpe;
 	}
 
@@ -353,16 +353,20 @@ static int mlx5e_hairpin_flow_add(struct mlx5e_priv *priv,
 {
 	int peer_ifindex = parse_attr->mirred_ifindex;
 	struct mlx5_hairpin_params params;
+	struct mlx5_core_dev *peer_mdev;
 	struct mlx5e_hairpin_entry *hpe;
 	struct mlx5e_hairpin *hp;
+	u16 peer_id;
 	int err;
 
-	if (!MLX5_CAP_GEN(priv->mdev, hairpin)) {
+	peer_mdev = mlx5e_hairpin_get_mdev(dev_net(priv->netdev), peer_ifindex);
+	if (!MLX5_CAP_GEN(priv->mdev, hairpin) || !MLX5_CAP_GEN(peer_mdev, hairpin)) {
 		netdev_warn(priv->netdev, "hairpin is not supported\n");
 		return -EOPNOTSUPP;
 	}
 
-	hpe = mlx5e_hairpin_get(priv, peer_ifindex);
+	peer_id = MLX5_CAP_GEN(peer_mdev, vhca_id);
+	hpe = mlx5e_hairpin_get(priv, peer_id);
 	if (hpe)
 		goto attach_flow;
 
@@ -371,7 +375,7 @@ static int mlx5e_hairpin_flow_add(struct mlx5e_priv *priv,
 		return -ENOMEM;
 
 	INIT_LIST_HEAD(&hpe->flows);
-	hpe->peer_ifindex = peer_ifindex;
+	hpe->peer_vhca_id = peer_id;
 
 	params.log_data_size = 15;
 	params.log_data_size = min_t(u8, params.log_data_size,
@@ -391,7 +395,7 @@ static int mlx5e_hairpin_flow_add(struct mlx5e_priv *priv,
 		   hp->pair->sqn, params.log_data_size);
 
 	hpe->hp = hp;
-	hash_add(priv->fs.tc.hairpin_tbl, &hpe->hairpin_hlist, peer_ifindex);
+	hash_add(priv->fs.tc.hairpin_tbl, &hpe->hairpin_hlist, peer_id);
 
 attach_flow:
 	flow->nic_attr->hairpin_tirn = hpe->hp->tirn;
