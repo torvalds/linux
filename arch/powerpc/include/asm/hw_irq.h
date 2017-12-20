@@ -63,13 +63,13 @@ static inline unsigned long arch_local_save_flags(void)
 
 static inline unsigned long arch_local_irq_disable(void)
 {
-	unsigned long flags, zero;
+	unsigned long flags;
 
 	asm volatile(
-		"li %1,%3; lbz %0,%2(13); stb %1,%2(13)"
-		: "=r" (flags), "=&r" (zero)
-		: "i" (offsetof(struct paca_struct, soft_enabled)),\
-		  "i" (IRQS_DISABLED)
+		"lbz %0,%1(13); stb %2,%1(13)"
+		: "=&r" (flags)
+		: "i" (offsetof(struct paca_struct, soft_enabled)),
+		  "r" (IRQS_DISABLED)
 		: "memory");
 
 	return flags;
