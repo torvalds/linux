@@ -51,9 +51,163 @@ DECLARE_EVENT_CLASS(xprtrdma_reply_event,
 				),					\
 				TP_ARGS(rep))
 
+DECLARE_EVENT_CLASS(xprtrdma_rdch_event,
+	TP_PROTO(
+		const struct rpc_task *task,
+		unsigned int pos,
+		struct rpcrdma_mr *mr,
+		int nsegs
+	),
+
+	TP_ARGS(task, pos, mr, nsegs),
+
+	TP_STRUCT__entry(
+		__field(unsigned int, task_id)
+		__field(unsigned int, client_id)
+		__field(const void *, mr)
+		__field(unsigned int, pos)
+		__field(int, nents)
+		__field(u32, handle)
+		__field(u32, length)
+		__field(u64, offset)
+		__field(int, nsegs)
+	),
+
+	TP_fast_assign(
+		__entry->task_id = task->tk_pid;
+		__entry->client_id = task->tk_client->cl_clid;
+		__entry->mr = mr;
+		__entry->pos = pos;
+		__entry->nents = mr->mr_nents;
+		__entry->handle = mr->mr_handle;
+		__entry->length = mr->mr_length;
+		__entry->offset = mr->mr_offset;
+		__entry->nsegs = nsegs;
+	),
+
+	TP_printk("task:%u@%u mr=%p pos=%u %u@0x%016llx:0x%08x (%s)",
+		__entry->task_id, __entry->client_id, __entry->mr,
+		__entry->pos, __entry->length,
+		(unsigned long long)__entry->offset, __entry->handle,
+		__entry->nents < __entry->nsegs ? "more" : "last"
+	)
+);
+
+#define DEFINE_RDCH_EVENT(name)						\
+		DEFINE_EVENT(xprtrdma_rdch_event, name,			\
+				TP_PROTO(				\
+					const struct rpc_task *task,	\
+					unsigned int pos,		\
+					struct rpcrdma_mr *mr,		\
+					int nsegs			\
+				),					\
+				TP_ARGS(task, pos, mr, nsegs))
+
+DECLARE_EVENT_CLASS(xprtrdma_wrch_event,
+	TP_PROTO(
+		const struct rpc_task *task,
+		struct rpcrdma_mr *mr,
+		int nsegs
+	),
+
+	TP_ARGS(task, mr, nsegs),
+
+	TP_STRUCT__entry(
+		__field(unsigned int, task_id)
+		__field(unsigned int, client_id)
+		__field(const void *, mr)
+		__field(int, nents)
+		__field(u32, handle)
+		__field(u32, length)
+		__field(u64, offset)
+		__field(int, nsegs)
+	),
+
+	TP_fast_assign(
+		__entry->task_id = task->tk_pid;
+		__entry->client_id = task->tk_client->cl_clid;
+		__entry->mr = mr;
+		__entry->nents = mr->mr_nents;
+		__entry->handle = mr->mr_handle;
+		__entry->length = mr->mr_length;
+		__entry->offset = mr->mr_offset;
+		__entry->nsegs = nsegs;
+	),
+
+	TP_printk("task:%u@%u mr=%p %u@0x%016llx:0x%08x (%s)",
+		__entry->task_id, __entry->client_id, __entry->mr,
+		__entry->length, (unsigned long long)__entry->offset,
+		__entry->handle,
+		__entry->nents < __entry->nsegs ? "more" : "last"
+	)
+);
+
+#define DEFINE_WRCH_EVENT(name)						\
+		DEFINE_EVENT(xprtrdma_wrch_event, name,			\
+				TP_PROTO(				\
+					const struct rpc_task *task,	\
+					struct rpcrdma_mr *mr,		\
+					int nsegs			\
+				),					\
+				TP_ARGS(task, mr, nsegs))
+
+TRACE_DEFINE_ENUM(FRWR_IS_INVALID);
+TRACE_DEFINE_ENUM(FRWR_IS_VALID);
+TRACE_DEFINE_ENUM(FRWR_FLUSHED_FR);
+TRACE_DEFINE_ENUM(FRWR_FLUSHED_LI);
+
+#define xprtrdma_show_frwr_state(x)					\
+		__print_symbolic(x,					\
+				{ FRWR_IS_INVALID, "INVALID" },		\
+				{ FRWR_IS_VALID, "VALID" },		\
+				{ FRWR_FLUSHED_FR, "FLUSHED_FR" },	\
+				{ FRWR_FLUSHED_LI, "FLUSHED_LI" })
+
+DECLARE_EVENT_CLASS(xprtrdma_frwr_done,
+	TP_PROTO(
+		const struct ib_wc *wc,
+		const struct rpcrdma_frwr *frwr
+	),
+
+	TP_ARGS(wc, frwr),
+
+	TP_STRUCT__entry(
+		__field(const void *, mr)
+		__field(unsigned int, state)
+		__field(unsigned int, status)
+		__field(unsigned int, vendor_err)
+	),
+
+	TP_fast_assign(
+		__entry->mr = container_of(frwr, struct rpcrdma_mr, frwr);
+		__entry->state = frwr->fr_state;
+		__entry->status = wc->status;
+		__entry->vendor_err = __entry->status ? wc->vendor_err : 0;
+	),
+
+	TP_printk(
+		"mr=%p state=%s: %s (%u/0x%x)",
+		__entry->mr, xprtrdma_show_frwr_state(__entry->state),
+		rdma_show_wc_status(__entry->status),
+		__entry->status, __entry->vendor_err
+	)
+);
+
+#define DEFINE_FRWR_DONE_EVENT(name)					\
+		DEFINE_EVENT(xprtrdma_frwr_done, name,			\
+				TP_PROTO(				\
+					const struct ib_wc *wc,		\
+					const struct rpcrdma_frwr *frwr	\
+				),					\
+				TP_ARGS(wc, frwr))
+
 /**
  ** Call events
  **/
+
+DEFINE_RDCH_EVENT(xprtrdma_read_chunk);
+DEFINE_WRCH_EVENT(xprtrdma_write_chunk);
+DEFINE_WRCH_EVENT(xprtrdma_reply_chunk);
 
 TRACE_DEFINE_ENUM(rpcrdma_noch);
 TRACE_DEFINE_ENUM(rpcrdma_readch);
@@ -226,6 +380,8 @@ TRACE_EVENT(xprtrdma_wc_receive,
 		__entry->status, __entry->vendor_err
 	)
 );
+
+DEFINE_FRWR_DONE_EVENT(xprtrdma_wc_fastreg);
 
 /**
  ** Reply events

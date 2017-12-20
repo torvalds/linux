@@ -286,16 +286,16 @@ __frwr_sendcompletion_flush(struct ib_wc *wc, const char *wr)
 static void
 frwr_wc_fastreg(struct ib_cq *cq, struct ib_wc *wc)
 {
-	struct rpcrdma_frwr *frwr;
-	struct ib_cqe *cqe;
+	struct ib_cqe *cqe = wc->wr_cqe;
+	struct rpcrdma_frwr *frwr =
+			container_of(cqe, struct rpcrdma_frwr, fr_cqe);
 
 	/* WARNING: Only wr_cqe and status are reliable at this point */
 	if (wc->status != IB_WC_SUCCESS) {
-		cqe = wc->wr_cqe;
-		frwr = container_of(cqe, struct rpcrdma_frwr, fr_cqe);
 		frwr->fr_state = FRWR_FLUSHED_FR;
 		__frwr_sendcompletion_flush(wc, "fastreg");
 	}
+	trace_xprtrdma_wc_fastreg(wc, frwr);
 }
 
 /**
@@ -400,9 +400,6 @@ frwr_op_map(struct rpcrdma_xprt *r_xprt, struct rpcrdma_mr_seg *seg,
 	n = ib_map_mr_sg(ibmr, mr->mr_sg, mr->mr_nents, NULL, PAGE_SIZE);
 	if (unlikely(n != mr->mr_nents))
 		goto out_mapmr_err;
-
-	dprintk("RPC:       %s: Using frwr %p to map %u segments (%llu bytes)\n",
-		__func__, frwr, mr->mr_nents, ibmr->length);
 
 	key = (u8)(ibmr->rkey & 0x000000FF);
 	ib_update_fast_reg_key(ibmr, ++key);

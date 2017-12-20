@@ -371,11 +371,7 @@ rpcrdma_encode_read_list(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req,
 		if (encode_read_segment(xdr, mr, pos) < 0)
 			return -EMSGSIZE;
 
-		dprintk("RPC: %5u %s: pos %u %u@0x%016llx:0x%08x (%s)\n",
-			rqst->rq_task->tk_pid, __func__, pos,
-			mr->mr_length, (unsigned long long)mr->mr_offset,
-			mr->mr_handle, mr->mr_nents < nsegs ? "more" : "last");
-
+		trace_xprtrdma_read_chunk(rqst->rq_task, pos, mr, nsegs);
 		r_xprt->rx_stats.read_chunk_count++;
 		nsegs -= mr->mr_nents;
 	} while (nsegs);
@@ -433,11 +429,7 @@ rpcrdma_encode_write_list(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req,
 		if (encode_rdma_segment(xdr, mr) < 0)
 			return -EMSGSIZE;
 
-		dprintk("RPC: %5u %s: %u@0x016%llx:0x%08x (%s)\n",
-			rqst->rq_task->tk_pid, __func__,
-			mr->mr_length, (unsigned long long)mr->mr_offset,
-			mr->mr_handle, mr->mr_nents < nsegs ? "more" : "last");
-
+		trace_xprtrdma_write_chunk(rqst->rq_task, mr, nsegs);
 		r_xprt->rx_stats.write_chunk_count++;
 		r_xprt->rx_stats.total_rdma_request += seg->mr_len;
 		nchunks++;
@@ -495,11 +487,7 @@ rpcrdma_encode_reply_chunk(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req,
 		if (encode_rdma_segment(xdr, mr) < 0)
 			return -EMSGSIZE;
 
-		dprintk("RPC: %5u %s: %u@0x%016llx:0x%08x (%s)\n",
-			rqst->rq_task->tk_pid, __func__,
-			mr->mr_length, (unsigned long long)mr->mr_offset,
-			mr->mr_handle, mr->mr_nents < nsegs ? "more" : "last");
-
+		trace_xprtrdma_reply_chunk(rqst->rq_task, mr, nsegs);
 		r_xprt->rx_stats.reply_chunk_count++;
 		r_xprt->rx_stats.total_rdma_request += seg->mr_len;
 		nchunks++;
