@@ -595,7 +595,8 @@ static void qfq_unbind_tcf(struct Qdisc *sch, unsigned long arg)
 }
 
 static int qfq_graft_class(struct Qdisc *sch, unsigned long arg,
-			   struct Qdisc *new, struct Qdisc **old)
+			   struct Qdisc *new, struct Qdisc **old,
+			   struct netlink_ext_ack *extack)
 {
 	struct qfq_class *cl = (struct qfq_class *)arg;
 

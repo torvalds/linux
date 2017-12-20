@@ -155,7 +155,7 @@ static struct netdev_queue *mq_select_queue(struct Qdisc *sch,
 }
 
 static int mq_graft(struct Qdisc *sch, unsigned long cl, struct Qdisc *new,
-		    struct Qdisc **old)
+		    struct Qdisc **old, struct netlink_ext_ack *extack)
 {
 	struct netdev_queue *dev_queue = mq_queue_get(sch, cl);
 	struct net_device *dev = qdisc_dev(sch);

@@ -203,7 +203,8 @@ static void drr_unbind_tcf(struct Qdisc *sch, unsigned long arg)
 }
 
 static int drr_graft_class(struct Qdisc *sch, unsigned long arg,
-			   struct Qdisc *new, struct Qdisc **old)
+			   struct Qdisc *new, struct Qdisc **old,
+			   struct netlink_ext_ack *extack)
 {
 	struct drr_class *cl = (struct drr_class *)arg;
 

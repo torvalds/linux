@@ -1371,7 +1371,7 @@ cbq_dump_class_stats(struct Qdisc *sch, unsigned long arg,
 }
 
 static int cbq_graft(struct Qdisc *sch, unsigned long arg, struct Qdisc *new,
-		     struct Qdisc **old)
+		     struct Qdisc **old, struct netlink_ext_ack *extack)
 {
 	struct cbq_class *cl = (struct cbq_class *)arg;
 

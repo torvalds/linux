@@ -61,7 +61,8 @@ static inline int dsmark_valid_index(struct dsmark_qdisc_data *p, u16 index)
 /* ------------------------- Class/flow operations ------------------------- */
 
 static int dsmark_graft(struct Qdisc *sch, unsigned long arg,
-			struct Qdisc *new, struct Qdisc **old)
+			struct Qdisc *new, struct Qdisc **old,
+			struct netlink_ext_ack *extack)
 {
 	struct dsmark_qdisc_data *p = qdisc_priv(sch);
 

@@ -977,7 +977,8 @@ skip:
 			unsigned long cl = cops->find(parent, classid);
 
 			if (cl) {
-				err = cops->graft(parent, cl, new, &old);
+				err = cops->graft(parent, cl, new, &old,
+						  extack);
 			} else {
 				NL_SET_ERR_MSG(extack, "Specified class not found");
 				err = -ENOENT;

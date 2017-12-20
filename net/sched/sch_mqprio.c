@@ -320,7 +320,7 @@ static struct netdev_queue *mqprio_queue_get(struct Qdisc *sch,
 }
 
 static int mqprio_graft(struct Qdisc *sch, unsigned long cl, struct Qdisc *new,
-		    struct Qdisc **old)
+			struct Qdisc **old, struct netlink_ext_ack *extack)
 {
 	struct net_device *dev = qdisc_dev(sch);
 	struct netdev_queue *dev_queue = mqprio_queue_get(sch, cl);
