@@ -290,6 +290,8 @@ static inline void inet_sk_copy_descendant(struct sock *sk_to,
 #endif
 
 int inet_sk_rebuild_header(struct sock *sk);
+void inet_sk_set_state(struct sock *sk, int state);
+void inet_sk_state_store(struct sock *sk, int newstate);
 
 static inline unsigned int __inet_ehashfn(const __be32 laddr,
 					  const __u16 lport,
