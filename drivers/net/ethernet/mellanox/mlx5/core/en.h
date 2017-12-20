@@ -84,6 +84,7 @@
 
 #define MLX5_MTT_OCTW(npages) (ALIGN(npages, 8) / 2)
 #define MLX5E_REQUIRED_WQE_MTTS		(ALIGN(MLX5_MPWRQ_PAGES_PER_WQE, 8))
+#define MLX5E_LOG_ALIGNED_MPWQE_PPW	(ilog2(MLX5E_REQUIRED_WQE_MTTS))
 #define MLX5E_REQUIRED_MTTS(wqes)	(wqes * MLX5E_REQUIRED_WQE_MTTS)
 #define MLX5E_MAX_RQ_NUM_MTTS	\
 	((1 << 16) * 2) /* So that MLX5_MTT_OCTW(num_mtts) fits into u16 */
@@ -450,7 +451,6 @@ struct mlx5e_wqe_frag_info {
 
 struct mlx5e_umr_dma_info {
 	struct mlx5e_dma_info  dma_info[MLX5_MPWRQ_PAGES_PER_WQE];
-	struct mlx5e_umr_wqe   wqe;
 };
 
 struct mlx5e_mpw_info {
@@ -496,6 +496,7 @@ struct mlx5e_rq {
 			};
 		} wqe;
 		struct {
+			struct mlx5e_umr_wqe   umr_wqe;
 			struct mlx5e_mpw_info *info;
 			mlx5e_fp_skb_from_cqe_mpwrq skb_from_cqe_mpwrq;
 			u16                    num_strides;
@@ -976,11 +977,6 @@ static inline void mlx5e_cq_arm(struct mlx5e_cq *cq)
 
 	mcq = &cq->mcq;
 	mlx5_cq_arm(mcq, MLX5_CQ_DB_REQ_NOT, mcq->uar->map, cq->wq.cc);
-}
-
-static inline u32 mlx5e_get_wqe_mtt_offset(struct mlx5e_rq *rq, u16 wqe_ix)
-{
-	return wqe_ix * ALIGN(MLX5_MPWRQ_PAGES_PER_WQE, 8);
 }
 
 extern const struct ethtool_ops mlx5e_ethtool_ops;

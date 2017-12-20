@@ -373,6 +373,7 @@ static int mlx5e_alloc_rx_mpwqe(struct mlx5e_rq *rq, u16 ix)
 	struct mlx5_wq_cyc *wq = &sq->wq;
 	struct mlx5e_umr_wqe *umr_wqe;
 	int cpy = offsetof(struct mlx5e_umr_wqe, inline_mtts);
+	u16 xlt_offset = ix << (MLX5E_LOG_ALIGNED_MPWQE_PPW - 1);
 	int err;
 	u16 pi;
 	int i;
@@ -384,7 +385,7 @@ static int mlx5e_alloc_rx_mpwqe(struct mlx5e_rq *rq, u16 ix)
 	}
 
 	umr_wqe = mlx5_wq_cyc_get_wqe(wq, pi);
-	memcpy(umr_wqe, &wi->umr.wqe, cpy);
+	memcpy(umr_wqe, &rq->mpwqe.umr_wqe, cpy);
 	for (i = 0; i < MLX5_MPWRQ_PAGES_PER_WQE; i++, dma_info++) {
 		err = mlx5e_page_alloc_mapped(rq, dma_info);
 		if (unlikely(err))
@@ -400,6 +401,7 @@ static int mlx5e_alloc_rx_mpwqe(struct mlx5e_rq *rq, u16 ix)
 	umr_wqe->ctrl.opmod_idx_opcode =
 		cpu_to_be32((sq->pc << MLX5_WQE_CTRL_WQE_INDEX_SHIFT) |
 			    MLX5_OPCODE_UMR);
+	umr_wqe->uctrl.xlt_offset = cpu_to_be16(xlt_offset);
 
 	sq->db.ico_wqe[pi].opcode = MLX5_OPCODE_UMR;
 	sq->pc += MLX5E_UMR_WQEBBS;

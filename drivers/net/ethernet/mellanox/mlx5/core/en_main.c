@@ -306,13 +306,11 @@ static void mlx5e_disable_async_events(struct mlx5e_priv *priv)
 
 static inline void mlx5e_build_umr_wqe(struct mlx5e_rq *rq,
 				       struct mlx5e_icosq *sq,
-				       struct mlx5e_umr_wqe *wqe,
-				       u16 ix)
+				       struct mlx5e_umr_wqe *wqe)
 {
 	struct mlx5_wqe_ctrl_seg      *cseg = &wqe->ctrl;
 	struct mlx5_wqe_umr_ctrl_seg *ucseg = &wqe->uctrl;
 	u8 ds_cnt = DIV_ROUND_UP(MLX5E_UMR_WQE_INLINE_SZ, MLX5_SEND_WQE_DS);
-	u32 umr_wqe_mtt_offset = mlx5e_get_wqe_mtt_offset(rq, ix);
 
 	cseg->qpn_ds    = cpu_to_be32((sq->sqn << MLX5_WQE_CTRL_QPN_SHIFT) |
 				      ds_cnt);
@@ -322,8 +320,6 @@ static inline void mlx5e_build_umr_wqe(struct mlx5e_rq *rq,
 	ucseg->flags = MLX5_UMR_TRANSLATION_OFFSET_EN | MLX5_UMR_INLINE;
 	ucseg->xlt_octowords =
 		cpu_to_be16(MLX5_MTT_OCTW(MLX5_MPWRQ_PAGES_PER_WQE));
-	ucseg->bsf_octowords =
-		cpu_to_be16(MLX5_MTT_OCTW(umr_wqe_mtt_offset));
 	ucseg->mkey_mask     = cpu_to_be64(MLX5_MKEY_MASK_FREE);
 }
 
@@ -331,18 +327,13 @@ static int mlx5e_rq_alloc_mpwqe_info(struct mlx5e_rq *rq,
 				     struct mlx5e_channel *c)
 {
 	int wq_sz = mlx5_wq_ll_get_size(&rq->wq);
-	int i;
 
 	rq->mpwqe.info = kzalloc_node(wq_sz * sizeof(*rq->mpwqe.info),
 				      GFP_KERNEL, cpu_to_node(c->cpu));
 	if (!rq->mpwqe.info)
 		return -ENOMEM;
 
-	for (i = 0; i < wq_sz; i++) {
-		struct mlx5e_mpw_info *wi = &rq->mpwqe.info[i];
-
-		mlx5e_build_umr_wqe(rq, &c->icosq, &wi->umr.wqe, i);
-	}
+	mlx5e_build_umr_wqe(rq, &c->icosq, &rq->mpwqe.umr_wqe);
 
 	return 0;
 }
@@ -386,6 +377,11 @@ static int mlx5e_create_rq_umr_mkey(struct mlx5_core_dev *mdev, struct mlx5e_rq 
 	u64 num_mtts = MLX5E_REQUIRED_MTTS(mlx5_wq_ll_get_size(&rq->wq));
 
 	return mlx5e_create_umr_mkey(mdev, num_mtts, PAGE_SHIFT, &rq->umr_mkey);
+}
+
+static inline u64 mlx5e_get_mpwqe_offset(struct mlx5e_rq *rq, u16 wqe_ix)
+{
+	return (wqe_ix << MLX5E_LOG_ALIGNED_MPWQE_PPW) << PAGE_SHIFT;
 }
 
 static int mlx5e_alloc_rq(struct mlx5e_channel *c,
@@ -520,7 +516,7 @@ static int mlx5e_alloc_rq(struct mlx5e_channel *c,
 		struct mlx5e_rx_wqe *wqe = mlx5_wq_ll_get_wqe(&rq->wq, i);
 
 		if (rq->wq_type == MLX5_WQ_TYPE_LINKED_LIST_STRIDING_RQ) {
-			u64 dma_offset = (u64)mlx5e_get_wqe_mtt_offset(rq, i) << PAGE_SHIFT;
+			u64 dma_offset = mlx5e_get_mpwqe_offset(rq, i);
 
 			wqe->data.addr = cpu_to_be64(dma_offset + rq->buff.headroom);
 		}
