@@ -115,6 +115,8 @@ static const struct ixgbe_stats ixgbe_gstrings_stats[] = {
 	{"tx_hwtstamp_timeouts", IXGBE_STAT(tx_hwtstamp_timeouts)},
 	{"tx_hwtstamp_skipped", IXGBE_STAT(tx_hwtstamp_skipped)},
 	{"rx_hwtstamp_cleared", IXGBE_STAT(rx_hwtstamp_cleared)},
+	{"tx_ipsec", IXGBE_STAT(tx_ipsec)},
+	{"rx_ipsec", IXGBE_STAT(rx_ipsec)},
 #ifdef IXGBE_FCOE
 	{"fcoe_bad_fccrc", IXGBE_STAT(stats.fccrc)},
 	{"rx_fcoe_dropped", IXGBE_STAT(stats.fcoerpdc)},

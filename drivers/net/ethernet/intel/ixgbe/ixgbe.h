@@ -637,10 +637,12 @@ struct ixgbe_adapter {
 	int num_tx_queues;
 	u16 tx_itr_setting;
 	u16 tx_work_limit;
+	u64 tx_ipsec;
 
 	/* Rx fast path data */
 	int num_rx_queues;
 	u16 rx_itr_setting;
+	u64 rx_ipsec;
 
 	/* Port number used to identify VXLAN traffic */
 	__be16 vxlan_port;

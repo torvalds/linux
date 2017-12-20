@@ -852,6 +852,8 @@ void ixgbe_ipsec_rx(struct ixgbe_ring *rx_ring,
 	xo = xfrm_offload(skb);
 	xo->flags = CRYPTO_DONE;
 	xo->status = CRYPTO_SUCCESS;
+
+	adapter->rx_ipsec++;
 }
 
 /**
