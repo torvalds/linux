@@ -1627,6 +1627,8 @@ static void bfq_remove_request(struct request_queue *q,
 			rb_erase(&bfqq->pos_node, bfqq->pos_root);
 			bfqq->pos_root = NULL;
 		}
+	} else {
+		bfq_pos_tree_add_move(bfqd, bfqq);
 	}
 
 	if (rq->cmd_flags & REQ_META)
