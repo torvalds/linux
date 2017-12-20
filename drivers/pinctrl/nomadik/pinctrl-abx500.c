@@ -1155,8 +1155,7 @@ static int abx500_gpio_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	pct = devm_kzalloc(&pdev->dev, sizeof(struct abx500_pinctrl),
-				   GFP_KERNEL);
+	pct = devm_kzalloc(&pdev->dev, sizeof(*pct), GFP_KERNEL);
 	if (!pct)
 		return -ENOMEM;
 
