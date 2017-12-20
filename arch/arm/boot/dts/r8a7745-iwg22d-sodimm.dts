@@ -207,11 +207,11 @@
 };
 
 &ssi3 {
-	pio-transfer;
+	no-busif;
 };
 
 &ssi4 {
-	pio-transfer;
+	no-busif;
 	shared-pin;
 };
 
