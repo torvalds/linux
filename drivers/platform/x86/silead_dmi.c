@@ -203,6 +203,20 @@ static const struct silead_ts_dmi_data onda_obook_20_plus_data = {
 	.properties	= onda_obook_20_plus_props,
 };
 
+static const struct property_entry chuwi_hi8_props[] = {
+	PROPERTY_ENTRY_U32("touchscreen-size-x", 1665),
+	PROPERTY_ENTRY_U32("touchscreen-size-y", 1140),
+	PROPERTY_ENTRY_BOOL("touchscreen-swapped-x-y"),
+	PROPERTY_ENTRY_BOOL("silead,home-button"),
+	PROPERTY_ENTRY_STRING("firmware-name", "gsl1680-chuwi-hi8.fw"),
+	{ }
+};
+
+static const struct silead_ts_dmi_data chuwi_hi8_data = {
+	.acpi_name      = "MSSL0001:00",
+	.properties     = chuwi_hi8_props,
+};
+
 static const struct dmi_system_id silead_ts_dmi_table[] = {
 	{
 		/* CUBE iwork8 Air */
@@ -317,6 +331,14 @@ static const struct dmi_system_id silead_ts_dmi_table[] = {
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "ONDA"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "OBOOK 20 PLUS"),
+		},
+	},
+	{
+		/* Chuwi Hi8 */
+		.driver_data = (void *)&chuwi_hi8_data,
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "ilife"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "S806"),
 		},
 	},
 	{ },
