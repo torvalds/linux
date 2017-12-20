@@ -827,9 +827,8 @@ static int adi_gpio_pint_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct resource *res;
-	struct gpio_pint *pint;
+	struct gpio_pint *pint = devm_kzalloc(dev, sizeof(*pint), GFP_KERNEL);
 
-	pint = devm_kzalloc(dev, sizeof(struct gpio_pint), GFP_KERNEL);
 	if (!pint)
 		return -ENOMEM;
 
@@ -943,7 +942,7 @@ static int adi_gpio_probe(struct platform_device *pdev)
 	if (!pdata)
 		return -EINVAL;
 
-	port = devm_kzalloc(dev, sizeof(struct gpio_port), GFP_KERNEL);
+	port = devm_kzalloc(dev, sizeof(*port), GFP_KERNEL);
 	if (!port)
 		return -ENOMEM;
 
