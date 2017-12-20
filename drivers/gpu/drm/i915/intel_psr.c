@@ -465,7 +465,7 @@ static void hsw_psr_enable_source(struct intel_dp *intel_dp,
 			chicken |= PSR2_ADD_VERTICAL_LINE_COUNT;
 		I915_WRITE(CHICKEN_TRANS(cpu_transcoder), chicken);
 
-		I915_WRITE(EDP_PSR_DEBUG_CTL,
+		I915_WRITE(EDP_PSR_DEBUG,
 			   EDP_PSR_DEBUG_MASK_MEMUP |
 			   EDP_PSR_DEBUG_MASK_HPD |
 			   EDP_PSR_DEBUG_MASK_LPSP |
@@ -479,7 +479,7 @@ static void hsw_psr_enable_source(struct intel_dp *intel_dp,
 		 * preventing  other hw tracking issues now we can rely
 		 * on frontbuffer tracking.
 		 */
-		I915_WRITE(EDP_PSR_DEBUG_CTL,
+		I915_WRITE(EDP_PSR_DEBUG,
 			   EDP_PSR_DEBUG_MASK_MEMUP |
 			   EDP_PSR_DEBUG_MASK_HPD |
 			   EDP_PSR_DEBUG_MASK_LPSP);
@@ -589,7 +589,7 @@ static void hsw_psr_disable(struct intel_dp *intel_dp,
 					0);
 
 		if (dev_priv->psr.psr2_support) {
-			psr_status = EDP_PSR2_STATUS_CTL;
+			psr_status = EDP_PSR2_STATUS;
 			psr_status_mask = EDP_PSR2_STATUS_STATE_MASK;
 
 			I915_WRITE(EDP_PSR2_CTL,
@@ -597,7 +597,7 @@ static void hsw_psr_disable(struct intel_dp *intel_dp,
 				   ~(EDP_PSR2_ENABLE | EDP_SU_TRACK_ENABLE));
 
 		} else {
-			psr_status = EDP_PSR_STATUS_CTL;
+			psr_status = EDP_PSR_STATUS;
 			psr_status_mask = EDP_PSR_STATUS_STATE_MASK;
 
 			I915_WRITE(EDP_PSR_CTL,
@@ -672,19 +672,19 @@ static void intel_psr_work(struct work_struct *work)
 	if (HAS_DDI(dev_priv)) {
 		if (dev_priv->psr.psr2_support) {
 			if (intel_wait_for_register(dev_priv,
-						EDP_PSR2_STATUS_CTL,
-						EDP_PSR2_STATUS_STATE_MASK,
-						0,
-						50)) {
+						    EDP_PSR2_STATUS,
+						    EDP_PSR2_STATUS_STATE_MASK,
+						    0,
+						    50)) {
 				DRM_ERROR("Timed out waiting for PSR2 Idle for re-enable\n");
 				return;
 			}
 		} else {
 			if (intel_wait_for_register(dev_priv,
-						EDP_PSR_STATUS_CTL,
-						EDP_PSR_STATUS_STATE_MASK,
-						0,
-						50)) {
+						    EDP_PSR_STATUS,
+						    EDP_PSR_STATUS_STATE_MASK,
+						    0,
+						    50)) {
 				DRM_ERROR("Timed out waiting for PSR Idle for re-enable\n");
 				return;
 			}
