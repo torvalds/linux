@@ -198,7 +198,6 @@ static int nsim_bpf_create_prog(struct netdevsim *ns, struct bpf_prog *prog)
 {
 	struct nsim_bpf_bound_prog *state;
 	char name[16];
-	int err;
 
 	state = kzalloc(sizeof(*state), GFP_KERNEL);
 	if (!state)
@@ -211,10 +210,9 @@ static int nsim_bpf_create_prog(struct netdevsim *ns, struct bpf_prog *prog)
 	/* Program id is not populated yet when we create the state. */
 	sprintf(name, "%u", ns->prog_id_gen++);
 	state->ddir = debugfs_create_dir(name, ns->ddir_bpf_bound_progs);
-	if (IS_ERR(state->ddir)) {
-		err = PTR_ERR(state->ddir);
+	if (IS_ERR_OR_NULL(state->ddir)) {
 		kfree(state);
-		return err;
+		return -ENOMEM;
 	}
 
 	debugfs_create_u32("id", 0400, state->ddir, &prog->aux->id);
@@ -346,6 +344,8 @@ int nsim_bpf_init(struct netdevsim *ns)
 			   &ns->bpf_bind_verifier_delay);
 	ns->ddir_bpf_bound_progs =
 		debugfs_create_dir("bpf_bound_progs", ns->ddir);
+	if (IS_ERR_OR_NULL(ns->ddir_bpf_bound_progs))
+		return -ENOMEM;
 
 	ns->bpf_tc_accept = true;
 	debugfs_create_bool("bpf_tc_accept", 0600, ns->ddir,

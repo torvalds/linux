@@ -151,6 +151,8 @@ static int nsim_init(struct net_device *dev)
 
 	ns->netdev = dev;
 	ns->ddir = debugfs_create_dir(netdev_name(dev), nsim_ddir);
+	if (IS_ERR_OR_NULL(ns->ddir))
+		return -ENOMEM;
 
 	err = nsim_bpf_init(ns);
 	if (err)
@@ -469,8 +471,8 @@ static int __init nsim_module_init(void)
 	int err;
 
 	nsim_ddir = debugfs_create_dir(DRV_NAME, NULL);
-	if (IS_ERR(nsim_ddir))
-		return PTR_ERR(nsim_ddir);
+	if (IS_ERR_OR_NULL(nsim_ddir))
+		return -ENOMEM;
 
 	err = bus_register(&nsim_bus);
 	if (err)
