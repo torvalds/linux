@@ -2405,11 +2405,12 @@ static u8 qeth_l3_cast_type_to_flag(int cast_type)
 }
 
 static void qeth_l3_fill_header(struct qeth_card *card, struct qeth_hdr *hdr,
-				struct sk_buff *skb, int ipv, int cast_type)
+				struct sk_buff *skb, int ipv, int cast_type,
+				unsigned int data_len)
 {
 	memset(hdr, 0, sizeof(struct qeth_hdr));
 	hdr->hdr.l3.id = QETH_HEADER_TYPE_LAYER3;
-	hdr->hdr.l3.length = skb->len - sizeof(struct qeth_hdr);
+	hdr->hdr.l3.length = data_len;
 
 	/*
 	 * before we're going to overwrite this location with next hop ip.
@@ -2488,7 +2489,6 @@ static void qeth_tso_fill_header(struct qeth_card *card,
 
 	/*fix header to TSO values ...*/
 	hdr->hdr.hdr.l3.id = QETH_HEADER_TYPE_TSO;
-	hdr->hdr.hdr.l3.length = skb->len - sizeof(struct qeth_hdr_tso);
 	/*set values which are fix for the first approach ...*/
 	hdr->ext.hdr_tot_len = (__u16) sizeof(struct qeth_hdr_ext_tso);
 	hdr->ext.imb_hdr_no  = 1;
@@ -2649,21 +2649,23 @@ static netdev_tx_t qeth_l3_hard_start_xmit(struct sk_buff *skb,
 	if (use_tso) {
 		hdr = skb_push(new_skb, sizeof(struct qeth_hdr_tso));
 		memset(hdr, 0, sizeof(struct qeth_hdr_tso));
-		qeth_l3_fill_header(card, hdr, new_skb, ipv, cast_type);
+		qeth_l3_fill_header(card, hdr, new_skb, ipv, cast_type,
+				    new_skb->len - sizeof(struct qeth_hdr_tso));
 		qeth_tso_fill_header(card, hdr, new_skb);
 		hdr_elements++;
 	} else {
 		if (data_offset < 0) {
 			hdr = skb_push(new_skb, sizeof(struct qeth_hdr));
-			qeth_l3_fill_header(card, hdr, new_skb, ipv,
-						cast_type);
+			qeth_l3_fill_header(card, hdr, new_skb, ipv, cast_type,
+					    new_skb->len -
+					    sizeof(struct qeth_hdr));
 		} else {
 			if (be16_to_cpu(new_skb->protocol) == ETH_P_AF_IUCV)
 				qeth_l3_fill_af_iucv_hdr(card, hdr, new_skb);
 			else {
 				qeth_l3_fill_header(card, hdr, new_skb, ipv,
-							cast_type);
-				hdr->hdr.l3.length = new_skb->len - data_offset;
+						    cast_type,
+						    new_skb->len - data_offset);
 			}
 		}
 
