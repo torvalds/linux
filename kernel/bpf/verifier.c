@@ -4427,9 +4427,12 @@ static int do_check(struct bpf_verifier_env *env)
 		}
 
 		if (env->log.level) {
+			const struct bpf_insn_cbs cbs = {
+				.cb_print	= verbose,
+			};
+
 			verbose(env, "%d: ", insn_idx);
-			print_bpf_insn(verbose, env, insn,
-				       env->allow_ptr_leaks);
+			print_bpf_insn(&cbs, env, insn, env->allow_ptr_leaks);
 		}
 
 		err = ext_analyzer_insn_hook(env, insn_idx, prev_insn_idx);
@@ -5017,14 +5020,14 @@ static int jit_subprogs(struct bpf_verifier_env *env)
 {
 	struct bpf_prog *prog = env->prog, **func, *tmp;
 	int i, j, subprog_start, subprog_end = 0, len, subprog;
-	struct bpf_insn *insn = prog->insnsi;
+	struct bpf_insn *insn;
 	void *old_bpf_func;
 	int err = -ENOMEM;
 
 	if (env->subprog_cnt == 0)
 		return 0;
 
-	for (i = 0; i < prog->len; i++, insn++) {
+	for (i = 0, insn = prog->insnsi; i < prog->len; i++, insn++) {
 		if (insn->code != (BPF_JMP | BPF_CALL) ||
 		    insn->src_reg != BPF_PSEUDO_CALL)
 			continue;
@@ -5116,6 +5119,25 @@ static int jit_subprogs(struct bpf_verifier_env *env)
 		bpf_prog_lock_ro(func[i]);
 		bpf_prog_kallsyms_add(func[i]);
 	}
+
+	/* Last step: make now unused interpreter insns from main
+	 * prog consistent for later dump requests, so they can
+	 * later look the same as if they were interpreted only.
+	 */
+	for (i = 0, insn = prog->insnsi; i < prog->len; i++, insn++) {
+		unsigned long addr;
+
+		if (insn->code != (BPF_JMP | BPF_CALL) ||
+		    insn->src_reg != BPF_PSEUDO_CALL)
+			continue;
+		insn->off = env->insn_aux_data[i].call_imm;
+		subprog = find_subprog(env, i + insn->off + 1);
+		addr  = (unsigned long)func[subprog + 1]->bpf_func;
+		addr &= PAGE_MASK;
+		insn->imm = (u64 (*)(u64, u64, u64, u64, u64))
+			    addr - __bpf_call_base;
+	}
+
 	prog->jited = 1;
 	prog->bpf_func = func[0]->bpf_func;
 	prog->aux->func = func;
