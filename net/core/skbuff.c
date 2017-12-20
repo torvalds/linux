@@ -1182,7 +1182,7 @@ int skb_copy_ubufs(struct sk_buff *skb, gfp_t gfp_mask)
 	u32 d_off;
 
 	if (!num_frags)
-		return 0;
+		goto release;
 
 	if (skb_shared(skb) || skb_unclone(skb, gfp_mask))
 		return -EINVAL;
@@ -1242,6 +1242,7 @@ int skb_copy_ubufs(struct sk_buff *skb, gfp_t gfp_mask)
 	__skb_fill_page_desc(skb, new_frags - 1, head, 0, d_off);
 	skb_shinfo(skb)->nr_frags = new_frags;
 
+release:
 	skb_zcopy_clear(skb, false);
 	return 0;
 }
