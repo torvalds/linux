@@ -10318,6 +10318,39 @@ static int nested_vmx_load_cr3(struct kvm_vcpu *vcpu, unsigned long cr3, bool ne
 static void prepare_vmcs02_full(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12,
 			       bool from_vmentry)
 {
+	struct vcpu_vmx *vmx = to_vmx(vcpu);
+
+	vmcs_write16(GUEST_ES_SELECTOR, vmcs12->guest_es_selector);
+	vmcs_write16(GUEST_SS_SELECTOR, vmcs12->guest_ss_selector);
+	vmcs_write16(GUEST_DS_SELECTOR, vmcs12->guest_ds_selector);
+	vmcs_write16(GUEST_FS_SELECTOR, vmcs12->guest_fs_selector);
+	vmcs_write16(GUEST_GS_SELECTOR, vmcs12->guest_gs_selector);
+	vmcs_write16(GUEST_LDTR_SELECTOR, vmcs12->guest_ldtr_selector);
+	vmcs_write16(GUEST_TR_SELECTOR, vmcs12->guest_tr_selector);
+	vmcs_write32(GUEST_ES_LIMIT, vmcs12->guest_es_limit);
+	vmcs_write32(GUEST_SS_LIMIT, vmcs12->guest_ss_limit);
+	vmcs_write32(GUEST_DS_LIMIT, vmcs12->guest_ds_limit);
+	vmcs_write32(GUEST_FS_LIMIT, vmcs12->guest_fs_limit);
+	vmcs_write32(GUEST_GS_LIMIT, vmcs12->guest_gs_limit);
+	vmcs_write32(GUEST_LDTR_LIMIT, vmcs12->guest_ldtr_limit);
+	vmcs_write32(GUEST_TR_LIMIT, vmcs12->guest_tr_limit);
+	vmcs_write32(GUEST_GDTR_LIMIT, vmcs12->guest_gdtr_limit);
+	vmcs_write32(GUEST_IDTR_LIMIT, vmcs12->guest_idtr_limit);
+	vmcs_write32(GUEST_ES_AR_BYTES, vmcs12->guest_es_ar_bytes);
+	vmcs_write32(GUEST_SS_AR_BYTES, vmcs12->guest_ss_ar_bytes);
+	vmcs_write32(GUEST_DS_AR_BYTES, vmcs12->guest_ds_ar_bytes);
+	vmcs_write32(GUEST_FS_AR_BYTES, vmcs12->guest_fs_ar_bytes);
+	vmcs_write32(GUEST_GS_AR_BYTES, vmcs12->guest_gs_ar_bytes);
+	vmcs_write32(GUEST_LDTR_AR_BYTES, vmcs12->guest_ldtr_ar_bytes);
+	vmcs_write32(GUEST_TR_AR_BYTES, vmcs12->guest_tr_ar_bytes);
+	vmcs_writel(GUEST_SS_BASE, vmcs12->guest_ss_base);
+	vmcs_writel(GUEST_DS_BASE, vmcs12->guest_ds_base);
+	vmcs_writel(GUEST_FS_BASE, vmcs12->guest_fs_base);
+	vmcs_writel(GUEST_GS_BASE, vmcs12->guest_gs_base);
+	vmcs_writel(GUEST_LDTR_BASE, vmcs12->guest_ldtr_base);
+	vmcs_writel(GUEST_TR_BASE, vmcs12->guest_tr_base);
+	vmcs_writel(GUEST_GDTR_BASE, vmcs12->guest_gdtr_base);
+	vmcs_writel(GUEST_IDTR_BASE, vmcs12->guest_idtr_base);
 }
 
 /*
@@ -10337,42 +10370,21 @@ static int prepare_vmcs02(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12,
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 	u32 exec_control, vmcs12_exec_ctrl;
 
-	vmcs_write16(GUEST_ES_SELECTOR, vmcs12->guest_es_selector);
+	/*
+	 * First, the fields that are shadowed.  This must be kept in sync
+	 * with vmx_shadow_fields.h.
+	 */
+
 	vmcs_write16(GUEST_CS_SELECTOR, vmcs12->guest_cs_selector);
-	vmcs_write16(GUEST_SS_SELECTOR, vmcs12->guest_ss_selector);
-	vmcs_write16(GUEST_DS_SELECTOR, vmcs12->guest_ds_selector);
-	vmcs_write16(GUEST_FS_SELECTOR, vmcs12->guest_fs_selector);
-	vmcs_write16(GUEST_GS_SELECTOR, vmcs12->guest_gs_selector);
-	vmcs_write16(GUEST_LDTR_SELECTOR, vmcs12->guest_ldtr_selector);
-	vmcs_write16(GUEST_TR_SELECTOR, vmcs12->guest_tr_selector);
-	vmcs_write32(GUEST_ES_LIMIT, vmcs12->guest_es_limit);
 	vmcs_write32(GUEST_CS_LIMIT, vmcs12->guest_cs_limit);
-	vmcs_write32(GUEST_SS_LIMIT, vmcs12->guest_ss_limit);
-	vmcs_write32(GUEST_DS_LIMIT, vmcs12->guest_ds_limit);
-	vmcs_write32(GUEST_FS_LIMIT, vmcs12->guest_fs_limit);
-	vmcs_write32(GUEST_GS_LIMIT, vmcs12->guest_gs_limit);
-	vmcs_write32(GUEST_LDTR_LIMIT, vmcs12->guest_ldtr_limit);
-	vmcs_write32(GUEST_TR_LIMIT, vmcs12->guest_tr_limit);
-	vmcs_write32(GUEST_GDTR_LIMIT, vmcs12->guest_gdtr_limit);
-	vmcs_write32(GUEST_IDTR_LIMIT, vmcs12->guest_idtr_limit);
-	vmcs_write32(GUEST_ES_AR_BYTES, vmcs12->guest_es_ar_bytes);
 	vmcs_write32(GUEST_CS_AR_BYTES, vmcs12->guest_cs_ar_bytes);
-	vmcs_write32(GUEST_SS_AR_BYTES, vmcs12->guest_ss_ar_bytes);
-	vmcs_write32(GUEST_DS_AR_BYTES, vmcs12->guest_ds_ar_bytes);
-	vmcs_write32(GUEST_FS_AR_BYTES, vmcs12->guest_fs_ar_bytes);
-	vmcs_write32(GUEST_GS_AR_BYTES, vmcs12->guest_gs_ar_bytes);
-	vmcs_write32(GUEST_LDTR_AR_BYTES, vmcs12->guest_ldtr_ar_bytes);
-	vmcs_write32(GUEST_TR_AR_BYTES, vmcs12->guest_tr_ar_bytes);
 	vmcs_writel(GUEST_ES_BASE, vmcs12->guest_es_base);
 	vmcs_writel(GUEST_CS_BASE, vmcs12->guest_cs_base);
-	vmcs_writel(GUEST_SS_BASE, vmcs12->guest_ss_base);
-	vmcs_writel(GUEST_DS_BASE, vmcs12->guest_ds_base);
-	vmcs_writel(GUEST_FS_BASE, vmcs12->guest_fs_base);
-	vmcs_writel(GUEST_GS_BASE, vmcs12->guest_gs_base);
-	vmcs_writel(GUEST_LDTR_BASE, vmcs12->guest_ldtr_base);
-	vmcs_writel(GUEST_TR_BASE, vmcs12->guest_tr_base);
-	vmcs_writel(GUEST_GDTR_BASE, vmcs12->guest_gdtr_base);
-	vmcs_writel(GUEST_IDTR_BASE, vmcs12->guest_idtr_base);
+
+	/*
+	 * Not in vmcs02: GUEST_PML_INDEX, HOST_FS_SELECTOR, HOST_GS_SELECTOR,
+	 * HOST_FS_BASE, HOST_GS_BASE.
+	 */
 
 	if (from_vmentry &&
 	    (vmcs12->vm_entry_controls & VM_ENTRY_LOAD_DEBUG_CONTROLS)) {
