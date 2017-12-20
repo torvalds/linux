@@ -3766,14 +3766,16 @@ static void mlx5e_tx_timeout(struct net_device *dev)
 	netdev_err(dev, "TX timeout detected\n");
 
 	for (i = 0; i < priv->channels.num * priv->channels.params.num_tc; i++) {
+		struct netdev_queue *dev_queue = netdev_get_tx_queue(dev, i);
 		struct mlx5e_txqsq *sq = priv->txq2sq[i];
 
-		if (!netif_xmit_stopped(netdev_get_tx_queue(dev, i)))
+		if (!netif_xmit_stopped(dev_queue))
 			continue;
 		sched_work = true;
 		clear_bit(MLX5E_SQ_STATE_ENABLED, &sq->state);
-		netdev_err(dev, "TX timeout on queue: %d, SQ: 0x%x, CQ: 0x%x, SQ Cons: 0x%x SQ Prod: 0x%x\n",
-			   i, sq->sqn, sq->cq.mcq.cqn, sq->cc, sq->pc);
+		netdev_err(dev, "TX timeout on queue: %d, SQ: 0x%x, CQ: 0x%x, SQ Cons: 0x%x SQ Prod: 0x%x, usecs since last trans: %u\n",
+			   i, sq->sqn, sq->cq.mcq.cqn, sq->cc, sq->pc,
+			   jiffies_to_usecs(jiffies - dev_queue->trans_start));
 	}
 
 	if (sched_work && test_bit(MLX5E_STATE_OPENED, &priv->state))
