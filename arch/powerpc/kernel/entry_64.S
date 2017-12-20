@@ -128,7 +128,7 @@ END_FW_FTR_SECTION_IFSET(FW_FEATURE_SPLPAR)
 	 * of irq tracing is used, we additionally check that condition
 	 * is correct
 	 */
-#if defined(CONFIG_TRACE_IRQFLAGS) && defined(CONFIG_BUG)
+#if defined(CONFIG_PPC_IRQ_SOFT_MASK_DEBUG) && defined(CONFIG_BUG)
 	lbz	r10,PACAIRQSOFTMASK(r13)
 1:	tdnei	r10,IRQS_ENABLED
 	EMIT_BUG_ENTRY 1b,__FILE__,__LINE__,BUGFLAG_WARNING
@@ -911,7 +911,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_HAS_PPR)
 	rlwinm	r7,r7,0,~PACA_IRQ_HARD_DIS
 	stb	r7,PACAIRQHAPPENED(r13)
 1:
-#if defined(CONFIG_TRACE_IRQFLAGS) && defined(CONFIG_BUG)
+#if defined(CONFIG_PPC_IRQ_SOFT_MASK_DEBUG) && defined(CONFIG_BUG)
 	/* The interrupt should not have soft enabled. */
 	lbz	r7,PACAIRQSOFTMASK(r13)
 1:	tdeqi	r7,IRQS_ENABLED

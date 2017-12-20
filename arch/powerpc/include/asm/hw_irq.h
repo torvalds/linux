@@ -71,7 +71,7 @@ static inline notrace unsigned long irq_soft_mask_return(void)
  */
 static inline notrace void irq_soft_mask_set(unsigned long mask)
 {
-#ifdef CONFIG_TRACE_IRQFLAGS
+#ifdef CONFIG_PPC_IRQ_SOFT_MASK_DEBUG
 	/*
 	 * The irq mask must always include the STD bit if any are set.
 	 *
@@ -101,7 +101,7 @@ static inline notrace unsigned long irq_soft_mask_set_return(unsigned long mask)
 {
 	unsigned long flags;
 
-#ifdef CONFIG_TRACE_IRQFLAGS
+#ifdef CONFIG_PPC_IRQ_SOFT_MASK_DEBUG
 	WARN_ON(mask && !(mask & IRQS_DISABLED));
 #endif
 

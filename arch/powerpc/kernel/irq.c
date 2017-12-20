@@ -264,7 +264,7 @@ notrace void arch_local_irq_restore(unsigned long mask)
 	 */
 	if (unlikely(irq_happened != PACA_IRQ_HARD_DIS))
 		__hard_irq_disable();
-#ifdef CONFIG_TRACE_IRQFLAGS
+#ifdef CONFIG_PPC_IRQ_SOFT_MASK_DEBUG
 	else {
 		/*
 		 * We should already be hard disabled here. We had bugs
@@ -275,7 +275,7 @@ notrace void arch_local_irq_restore(unsigned long mask)
 		if (WARN_ON(mfmsr() & MSR_EE))
 			__hard_irq_disable();
 	}
-#endif /* CONFIG_TRACE_IRQFLAGS */
+#endif
 
 	irq_soft_mask_set(IRQS_ALL_DISABLED);
 	trace_hardirqs_off();
