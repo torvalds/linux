@@ -285,7 +285,7 @@ int ptrace_get_reg(struct task_struct *task, int regno, unsigned long *data)
 
 #ifdef CONFIG_PPC64
 	/*
-	 * softe copies paca->soft_enabled variable state. Since soft_enabled is
+	 * softe copies paca->irq_soft_mask variable state. Since irq_soft_mask is
 	 * no more used as a flag, lets force usr to alway see the softe value as 1
 	 * which means interrupts are not soft disabled.
 	 */

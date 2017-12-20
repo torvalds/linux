@@ -3249,7 +3249,7 @@ kvmppc_bad_host_intr:
 	mfctr	r4
 #endif
 	mfxer	r5
-	lbz	r6, PACASOFTIRQEN(r13)
+	lbz	r6, PACAIRQSOFTMASK(r13)
 	std	r3, _LINK(r1)
 	std	r4, _CTR(r1)
 	std	r5, _XER(r1)

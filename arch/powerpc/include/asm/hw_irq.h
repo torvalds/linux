@@ -29,7 +29,7 @@
 #define PACA_IRQ_HMI		0x20
 
 /*
- * flags for paca->soft_enabled
+ * flags for paca->irq_soft_mask
  */
 #define IRQS_ENABLED		0
 #define IRQS_DISABLED		1
@@ -49,14 +49,14 @@ extern void unknown_exception(struct pt_regs *regs);
 #ifdef CONFIG_PPC64
 #include <asm/paca.h>
 
-static inline notrace unsigned long soft_enabled_return(void)
+static inline notrace unsigned long irq_soft_mask_return(void)
 {
 	unsigned long flags;
 
 	asm volatile(
 		"lbz %0,%1(13)"
 		: "=r" (flags)
-		: "i" (offsetof(struct paca_struct, soft_enabled)));
+		: "i" (offsetof(struct paca_struct, irq_soft_mask)));
 
 	return flags;
 }
@@ -64,18 +64,24 @@ static inline notrace unsigned long soft_enabled_return(void)
 /*
  * The "memory" clobber acts as both a compiler barrier
  * for the critical section and as a clobber because
- * we changed paca->soft_enabled
+ * we changed paca->irq_soft_mask
  */
-static inline notrace void soft_enabled_set(unsigned long enable)
+static inline notrace void irq_soft_mask_set(unsigned long mask)
 {
 #ifdef CONFIG_TRACE_IRQFLAGS
 	/*
-	 * mask must always include LINUX bit if any are set, and
-	 * interrupts don't get replayed until the Linux interrupt is
-	 * unmasked. This could be changed to replay partial unmasks
-	 * in future, which would allow Linux masks to nest inside
-	 * other masks, among other things. For now, be very dumb and
-	 * simple.
+	 * The irq mask must always include the STD bit if any are set.
+	 *
+	 * and interrupts don't get replayed until the standard
+	 * interrupt (local_irq_disable()) is unmasked.
+	 *
+	 * Other masks must only provide additional masking beyond
+	 * the standard, and they are also not replayed until the
+	 * standard interrupt becomes unmasked.
+	 *
+	 * This could be changed, but it will require partial
+	 * unmasks to be replayed, among other things. For now, take
+	 * the simple approach.
 	 */
 	WARN_ON(mask && !(mask & IRQS_DISABLED));
 #endif
@@ -83,12 +89,12 @@ static inline notrace void soft_enabled_set(unsigned long enable)
 	asm volatile(
 		"stb %0,%1(13)"
 		:
-		: "r" (enable),
-		  "i" (offsetof(struct paca_struct, soft_enabled))
+		: "r" (mask),
+		  "i" (offsetof(struct paca_struct, irq_soft_mask))
 		: "memory");
 }
 
-static inline notrace unsigned long soft_enabled_set_return(unsigned long mask)
+static inline notrace unsigned long irq_soft_mask_set_return(unsigned long mask)
 {
 	unsigned long flags;
 
@@ -99,7 +105,7 @@ static inline notrace unsigned long soft_enabled_set_return(unsigned long mask)
 	asm volatile(
 		"lbz %0,%1(13); stb %2,%1(13)"
 		: "=&r" (flags)
-		: "i" (offsetof(struct paca_struct, soft_enabled)),
+		: "i" (offsetof(struct paca_struct, irq_soft_mask)),
 		  "r" (mask)
 		: "memory");
 
@@ -108,12 +114,12 @@ static inline notrace unsigned long soft_enabled_set_return(unsigned long mask)
 
 static inline unsigned long arch_local_save_flags(void)
 {
-	return soft_enabled_return();
+	return irq_soft_mask_return();
 }
 
 static inline void arch_local_irq_disable(void)
 {
-	soft_enabled_set(IRQS_DISABLED);
+	irq_soft_mask_set(IRQS_DISABLED);
 }
 
 extern void arch_local_irq_restore(unsigned long);
@@ -125,7 +131,7 @@ static inline void arch_local_irq_enable(void)
 
 static inline unsigned long arch_local_irq_save(void)
 {
-	return soft_enabled_set_return(IRQS_DISABLED);
+	return irq_soft_mask_set_return(IRQS_DISABLED);
 }
 
 static inline bool arch_irqs_disabled_flags(unsigned long flags)
@@ -146,13 +152,13 @@ static inline bool arch_irqs_disabled(void)
 #define __hard_irq_disable()	__mtmsrd(local_paca->kernel_msr, 1)
 #endif
 
-#define hard_irq_disable()	do {			\
-	unsigned long flags;				\
-	__hard_irq_disable();				\
-	flags = soft_enabled_set_return(IRQS_DISABLED);\
-	local_paca->irq_happened |= PACA_IRQ_HARD_DIS;	\
-	if (!arch_irqs_disabled_flags(flags))		\
-		trace_hardirqs_off();			\
+#define hard_irq_disable()	do {				\
+	unsigned long flags;					\
+	__hard_irq_disable();					\
+	flags = irq_soft_mask_set_return(IRQS_DISABLED);	\
+	local_paca->irq_happened |= PACA_IRQ_HARD_DIS;		\
+	if (!arch_irqs_disabled_flags(flags))			\
+		trace_hardirqs_off();				\
 } while(0)
 
 static inline bool lazy_irq_pending(void)

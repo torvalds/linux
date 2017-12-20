@@ -766,7 +766,7 @@ _GLOBAL(pmac_secondary_start)
 	 * in the PACA when doing hotplug)
 	 */
 	li	r0,IRQS_DISABLED
-	stb	r0,PACASOFTIRQEN(r13)
+	stb	r0,PACAIRQSOFTMASK(r13)
 	li	r0,PACA_IRQ_HARD_DIS
 	stb	r0,PACAIRQHAPPENED(r13)
 
@@ -823,7 +823,7 @@ __secondary_start:
 	 * in the PACA when doing hotplug)
 	 */
 	li	r7,IRQS_DISABLED
-	stb	r7,PACASOFTIRQEN(r13)
+	stb	r7,PACAIRQSOFTMASK(r13)
 	li	r0,PACA_IRQ_HARD_DIS
 	stb	r0,PACAIRQHAPPENED(r13)
 
@@ -990,7 +990,7 @@ start_here_common:
 	 * in the PACA when doing hotplug)
 	 */
 	li	r0,IRQS_DISABLED
-	stb	r0,PACASOFTIRQEN(r13)
+	stb	r0,PACAIRQSOFTMASK(r13)
 	li	r0,PACA_IRQ_HARD_DIS
 	stb	r0,PACAIRQHAPPENED(r13)
 

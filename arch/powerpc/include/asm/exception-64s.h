@@ -432,7 +432,7 @@ END_FTR_SECTION_NESTED(ftr,ftr,943)
 	mflr	r9;			/* Get LR, later save to stack	*/ \
 	ld	r2,PACATOC(r13);	/* get kernel TOC into r2	*/ \
 	std	r9,_LINK(r1);						   \
-	lbz	r10,PACASOFTIRQEN(r13);				   \
+	lbz	r10,PACAIRQSOFTMASK(r13);				   \
 	mfspr	r11,SPRN_XER;		/* save XER in stackframe	*/ \
 	std	r10,SOFTE(r1);						   \
 	std	r11,_XER(r1);						   \
@@ -498,7 +498,7 @@ END_FTR_SECTION_NESTED(ftr,ftr,943)
 #define SOFTEN_VALUE_0xea0	PACA_IRQ_EE
 
 #define __SOFTEN_TEST(h, vec)						\
-	lbz	r10,PACASOFTIRQEN(r13);					\
+	lbz	r10,PACAIRQSOFTMASK(r13);				\
 	andi.	r10,r10,IRQS_DISABLED;				\
 	li	r10,SOFTEN_VALUE_##vec;					\
 	bne	masked_##h##interrupt

@@ -129,7 +129,7 @@ END_FW_FTR_SECTION_IFSET(FW_FEATURE_SPLPAR)
 	 * is correct
 	 */
 #if defined(CONFIG_TRACE_IRQFLAGS) && defined(CONFIG_BUG)
-	lbz	r10,PACASOFTIRQEN(r13)
+	lbz	r10,PACAIRQSOFTMASK(r13)
 1:	tdnei	r10,IRQS_ENABLED
 	EMIT_BUG_ENTRY 1b,__FILE__,__LINE__,BUGFLAG_WARNING
 #endif
@@ -781,7 +781,7 @@ restore:
 	 * are about to re-enable interrupts
 	 */
 	ld	r5,SOFTE(r1)
-	lbz	r6,PACASOFTIRQEN(r13)
+	lbz	r6,PACAIRQSOFTMASK(r13)
 	andi.	r5,r5,IRQS_DISABLED
 	bne	.Lrestore_irq_off
 
@@ -806,7 +806,7 @@ restore:
 .Lrestore_no_replay:
 	TRACE_ENABLE_INTS
 	li	r0,IRQS_ENABLED
-	stb	r0,PACASOFTIRQEN(r13);
+	stb	r0,PACAIRQSOFTMASK(r13);
 
 	/*
 	 * Final return path. BookE is handled in a different file
@@ -913,8 +913,8 @@ END_FTR_SECTION_IFSET(CPU_FTR_HAS_PPR)
 1:
 #if defined(CONFIG_TRACE_IRQFLAGS) && defined(CONFIG_BUG)
 	/* The interrupt should not have soft enabled. */
-	lbz	r7,PACASOFTIRQEN(r13)
-1:	tdnei	r7,IRQS_DISABLED
+	lbz	r7,PACAIRQSOFTMASK(r13)
+1:	tdeqi	r7,IRQS_ENABLED
 	EMIT_BUG_ENTRY 1b,__FILE__,__LINE__,BUGFLAG_WARNING
 #endif
 	b	.Ldo_restore
@@ -1034,7 +1034,7 @@ _GLOBAL(enter_rtas)
 	/* There is no way it is acceptable to get here with interrupts enabled,
 	 * check it with the asm equivalent of WARN_ON
 	 */
-	lbz	r0,PACASOFTIRQEN(r13)
+	lbz	r0,PACAIRQSOFTMASK(r13)
 1:	tdeqi	r0,IRQS_ENABLED
 	EMIT_BUG_ENTRY 1b,__FILE__,__LINE__,BUGFLAG_WARNING
 #endif

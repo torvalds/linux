@@ -225,22 +225,9 @@ notrace void arch_local_irq_restore(unsigned long mask)
 	unsigned int replay;
 
 	/* Write the new soft-enabled value */
-	soft_enabled_set(mask);
-	if (mask) {
-#ifdef CONFIG_TRACE_IRQFLAGS
-		/*
-		 * mask must always include LINUX bit if any
-		 * are set, and interrupts don't get replayed until
-		 * the Linux interrupt is unmasked. This could be
-		 * changed to replay partial unmasks in future,
-		 * which would allow Linux masks to nest inside
-		 * other masks, among other things. For now, be very
-		 * dumb and simple.
-		 */
-		WARN_ON(!(mask & IRQS_DISABLED));
-#endif
+	irq_soft_mask_set(mask);
+	if (mask)
 		return;
-	}
 
 	/*
 	 * From this point onward, we can take interrupts, preempt,
@@ -285,7 +272,7 @@ notrace void arch_local_irq_restore(unsigned long mask)
 	}
 #endif /* CONFIG_TRACE_IRQFLAGS */
 
-	soft_enabled_set(IRQS_DISABLED);
+	irq_soft_mask_set(IRQS_DISABLED);
 	trace_hardirqs_off();
 
 	/*
@@ -297,7 +284,7 @@ notrace void arch_local_irq_restore(unsigned long mask)
 
 	/* We can soft-enable now */
 	trace_hardirqs_on();
-	soft_enabled_set(IRQS_ENABLED);
+	irq_soft_mask_set(IRQS_ENABLED);
 
 	/*
 	 * And replay if we have to. This will return with interrupts
@@ -372,7 +359,7 @@ bool prep_irq_for_idle(void)
 	 * of entering the low power state.
 	 */
 	local_paca->irq_happened &= ~PACA_IRQ_HARD_DIS;
-	soft_enabled_set(IRQS_ENABLED);
+	irq_soft_mask_set(IRQS_ENABLED);
 
 	/* Tell the caller to enter the low power state */
 	return true;
