@@ -123,8 +123,8 @@ int puts(const char *s)
 	while ((nuline = strchr(s, '\n')) != NULL) {
 		if (nuline != s)
 			pdc_iodc_print(s, nuline - s);
-			pdc_iodc_print("\r\n", 2);
-			s = nuline + 1;
+		pdc_iodc_print("\r\n", 2);
+		s = nuline + 1;
 	}
 	if (*s != '\0')
 		pdc_iodc_print(s, strlen(s));
