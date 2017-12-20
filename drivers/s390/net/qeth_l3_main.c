@@ -2353,7 +2353,6 @@ static int qeth_l3_do_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 
 static int qeth_l3_get_cast_type(struct sk_buff *skb)
 {
-	u16 hdr_mac = *((u16 *)skb->data);
 	struct neighbour *n = NULL;
 	struct dst_entry *dst;
 
@@ -2385,7 +2384,7 @@ static int qeth_l3_get_cast_type(struct sk_buff *skb)
 	/* ... and MAC address */
 	if (ether_addr_equal_64bits(eth_hdr(skb)->h_dest, skb->dev->broadcast))
 		return RTN_BROADCAST;
-	if (hdr_mac == QETH_ETH_MAC_V4 || hdr_mac == QETH_ETH_MAC_V6)
+	if (is_multicast_ether_addr(eth_hdr(skb)->h_dest))
 		return RTN_MULTICAST;
 
 	/* default to unicast */

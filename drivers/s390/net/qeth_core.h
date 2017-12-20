@@ -505,9 +505,6 @@ struct qeth_qdio_info {
 	int default_out_queue;
 };
 
-#define QETH_ETH_MAC_V4      0x0100 /* like v4 */
-#define QETH_ETH_MAC_V6      0x3333 /* like v6 */
-
 /**
  * buffer stuff for read channel
  */
