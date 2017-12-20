@@ -755,7 +755,8 @@ static struct lock_class_key qdisc_tx_busylock;
 static struct lock_class_key qdisc_running_key;
 
 struct Qdisc *qdisc_alloc(struct netdev_queue *dev_queue,
-			  const struct Qdisc_ops *ops)
+			  const struct Qdisc_ops *ops,
+			  struct netlink_ext_ack *extack)
 {
 	void *p;
 	struct Qdisc *sch;
@@ -764,6 +765,7 @@ struct Qdisc *qdisc_alloc(struct netdev_queue *dev_queue,
 	struct net_device *dev;
 
 	if (!dev_queue) {
+		NL_SET_ERR_MSG(extack, "No device queue given");
 		err = -EINVAL;
 		goto errout;
 	}
@@ -835,7 +837,7 @@ struct Qdisc *qdisc_create_dflt(struct netdev_queue *dev_queue,
 	if (!try_module_get(ops->owner))
 		return NULL;
 
-	sch = qdisc_alloc(dev_queue, ops);
+	sch = qdisc_alloc(dev_queue, ops, NULL);
 	if (IS_ERR(sch)) {
 		module_put(ops->owner);
 		return NULL;
