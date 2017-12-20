@@ -135,7 +135,7 @@ typedef __u32 __bitwise req_flags_t;
 struct request {
 	struct list_head queuelist;
 	union {
-		call_single_data_t csd;
+		struct __call_single_data csd;
 		u64 fifo_time;
 	};
 
