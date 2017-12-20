@@ -272,7 +272,8 @@ struct ipv6_pinfo {
 						 * 100: prefer care-of address
 						 */
 				dontfrag:1,
-				autoflowlabel:1;
+				autoflowlabel:1,
+				autoflowlabel_set:1;
 	__u8			min_hopcount;
 	__u8			tclass;
 	__be32			rcv_flowinfo;
