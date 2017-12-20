@@ -525,6 +525,7 @@ struct phylink *phylink_create(struct net_device *ndev, struct device_node *np,
 	pl->link_config.pause = MLO_PAUSE_AN;
 	pl->link_config.speed = SPEED_UNKNOWN;
 	pl->link_config.duplex = DUPLEX_UNKNOWN;
+	pl->link_config.an_enabled = true;
 	pl->ops = ops;
 	__set_bit(PHYLINK_DISABLE_STOPPED, &pl->phylink_disable_state);
 
