@@ -156,13 +156,11 @@ rpcrdma_wc_receive(struct ib_cq *cq, struct ib_wc *wc)
 					       rr_cqe);
 
 	/* WARNING: Only wr_id and status are reliable at this point */
+	trace_xprtrdma_wc_receive(rep, wc);
 	if (wc->status != IB_WC_SUCCESS)
 		goto out_fail;
 
 	/* status == SUCCESS means all fields in wc are trustworthy */
-	dprintk("RPC:       %s: rep %p opcode 'recv', length %u: success\n",
-		__func__, rep, wc->byte_len);
-
 	rpcrdma_set_xdrlen(&rep->rr_hdrbuf, wc->byte_len);
 	rep->rr_wc_flags = wc->wc_flags;
 	rep->rr_inv_rkey = wc->ex.invalidate_rkey;
@@ -1576,17 +1574,14 @@ rpcrdma_ep_post_recv(struct rpcrdma_ia *ia,
 	if (!rpcrdma_dma_map_regbuf(ia, rep->rr_rdmabuf))
 		goto out_map;
 	rc = ib_post_recv(ia->ri_id->qp, &rep->rr_recv_wr, &recv_wr_fail);
+	trace_xprtrdma_post_recv(rep, rc);
 	if (rc)
-		goto out_postrecv;
+		return -ENOTCONN;
 	return 0;
 
 out_map:
 	pr_err("rpcrdma: failed to DMA map the Receive buffer\n");
 	return -EIO;
-
-out_postrecv:
-	pr_err("rpcrdma: ib_post_recv returned %i\n", rc);
-	return -ENOTCONN;
 }
 
 /**

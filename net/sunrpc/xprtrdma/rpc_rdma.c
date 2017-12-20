@@ -1278,8 +1278,7 @@ out:
  * being marshaled.
  */
 out_badheader:
-	dprintk("RPC: %5u %s: invalid rpcrdma reply (type %u)\n",
-		rqst->rq_task->tk_pid, __func__, be32_to_cpu(rep->rr_proc));
+	trace_xprtrdma_reply_hdr(rep);
 	r_xprt->rx_stats.bad_reply_count++;
 	status = -EIO;
 	goto out;
@@ -1323,6 +1322,7 @@ void rpcrdma_deferred_completion(struct work_struct *work)
 	struct rpcrdma_req *req = rpcr_to_rdmar(rep->rr_rqst);
 	struct rpcrdma_xprt *r_xprt = rep->rr_rxprt;
 
+	trace_xprtrdma_defer_cmp(rep);
 	if (rep->rr_wc_flags & IB_WC_WITH_INVALIDATE)
 		r_xprt->rx_ia.ri_ops->ro_reminv(rep, &req->rl_registered);
 	rpcrdma_release_rqst(r_xprt, req);
@@ -1343,8 +1343,6 @@ void rpcrdma_reply_handler(struct rpcrdma_rep *rep)
 	struct rpc_rqst *rqst;
 	u32 credits;
 	__be32 *p;
-
-	dprintk("RPC:       %s: incoming rep %p\n", __func__, rep);
 
 	if (rep->rr_hdrbuf.head[0].iov_len == 0)
 		goto out_badstatus;
@@ -1389,8 +1387,7 @@ void rpcrdma_reply_handler(struct rpcrdma_rep *rep)
 	rep->rr_rqst = rqst;
 	clear_bit(RPCRDMA_REQ_F_PENDING, &req->rl_flags);
 
-	dprintk("RPC:       %s: reply %p completes request %p (xid 0x%08x)\n",
-		__func__, rep, req, be32_to_cpu(rep->rr_xid));
+	trace_xprtrdma_reply(rqst->rq_task, rep, req, credits);
 
 	queue_work_on(req->rl_cpu, rpcrdma_receive_wq, &rep->rr_work);
 	return;
@@ -1404,8 +1401,7 @@ out_badstatus:
 	return;
 
 out_badversion:
-	dprintk("RPC:       %s: invalid version %d\n",
-		__func__, be32_to_cpu(rep->rr_vers));
+	trace_xprtrdma_reply_vers(rep);
 	goto repost;
 
 /* The RPC transaction has already been terminated, or the header
@@ -1413,12 +1409,11 @@ out_badversion:
  */
 out_norqst:
 	spin_unlock(&xprt->recv_lock);
-	dprintk("RPC:       %s: no match for incoming xid 0x%08x\n",
-		__func__, be32_to_cpu(rep->rr_xid));
+	trace_xprtrdma_reply_rqst(rep);
 	goto repost;
 
 out_shortreply:
-	dprintk("RPC:       %s: short/invalid reply\n", __func__);
+	trace_xprtrdma_reply_short(rep);
 
 /* If no pending RPC transaction was matched, post a replacement
  * receive buffer before returning.
