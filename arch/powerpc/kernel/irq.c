@@ -186,6 +186,11 @@ notrace unsigned int __check_irq_replay(void)
 		return 0x900;
 	}
 
+	if (happened & PACA_IRQ_PMI) {
+		local_paca->irq_happened &= ~PACA_IRQ_PMI;
+		return 0xf00;
+	}
+
 	if (happened & PACA_IRQ_EE) {
 		local_paca->irq_happened &= ~PACA_IRQ_EE;
 		return 0x500;
@@ -272,7 +277,7 @@ notrace void arch_local_irq_restore(unsigned long mask)
 	}
 #endif /* CONFIG_TRACE_IRQFLAGS */
 
-	irq_soft_mask_set(IRQS_DISABLED);
+	irq_soft_mask_set(IRQS_ALL_DISABLED);
 	trace_hardirqs_off();
 
 	/*
