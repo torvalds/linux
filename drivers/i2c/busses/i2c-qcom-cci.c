@@ -479,7 +479,7 @@ static int cci_i2c_read(struct cci *cci, u16 addr, u8 *buf, u16 len)
 	if (ret < 0)
 		return ret;
 
-	val = CCI_I2C_SET_PARAM | ((addr >> 1) & 0x7f) << 4;
+	val = CCI_I2C_SET_PARAM | (addr & 0x7f) << 4;
 	writel(val, cci->base + CCI_I2C_Mm_Qn_LOAD_DATA(master, queue));
 
 	val = CCI_I2C_READ | len << 4;
@@ -531,7 +531,7 @@ static int cci_i2c_write(struct cci *cci, u16 addr, u8 *buf, u16 len)
 	if (ret < 0)
 		return ret;
 
-	val = CCI_I2C_SET_PARAM | ((addr >> 1) & 0x7f) << 4;
+	val = CCI_I2C_SET_PARAM | (addr & 0x7f) << 4;
 	writel(val, cci->base + CCI_I2C_Mm_Qn_LOAD_DATA(master, queue));
 
 	i = 0;
