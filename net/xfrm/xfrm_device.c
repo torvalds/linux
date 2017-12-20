@@ -23,32 +23,99 @@
 #include <linux/notifier.h>
 
 #ifdef CONFIG_XFRM_OFFLOAD
-int validate_xmit_xfrm(struct sk_buff *skb, netdev_features_t features)
+struct sk_buff *validate_xmit_xfrm(struct sk_buff *skb, netdev_features_t features)
 {
 	int err;
+	__u32 seq;
 	struct xfrm_state *x;
+	struct sk_buff *skb2;
+	netdev_features_t esp_features = features;
 	struct xfrm_offload *xo = xfrm_offload(skb);
 
-	if (skb_is_gso(skb))
-		return 0;
+	if (!xo)
+		return skb;
 
-	if (xo) {
-		x = skb->sp->xvec[skb->sp->len - 1];
-		if (xo->flags & XFRM_GRO || x->xso.flags & XFRM_OFFLOAD_INBOUND)
-			return 0;
+	if (!(features & NETIF_F_HW_ESP))
+		esp_features = features & ~(NETIF_F_SG | NETIF_F_CSUM_MASK);
 
+	x = skb->sp->xvec[skb->sp->len - 1];
+	if (xo->flags & XFRM_GRO || x->xso.flags & XFRM_OFFLOAD_INBOUND)
+		return skb;
+
+	if (skb_is_gso(skb)) {
+		struct net_device *dev = skb->dev;
+
+		if (unlikely(!x->xso.offload_handle || (x->xso.dev != dev))) {
+			struct sk_buff *segs;
+
+			/* Packet got rerouted, fixup features and segment it. */
+			esp_features = esp_features & ~(NETIF_F_HW_ESP
+							| NETIF_F_GSO_ESP);
+
+			segs = skb_gso_segment(skb, esp_features);
+			if (IS_ERR(segs)) {
+				XFRM_INC_STATS(xs_net(x), LINUX_MIB_XFRMOUTSTATEPROTOERROR);
+				kfree_skb(skb);
+				return NULL;
+			} else {
+				consume_skb(skb);
+				skb = segs;
+			}
+		} else {
+			return skb;
+		}
+	}
+
+	if (!skb->next) {
 		x->outer_mode->xmit(x, skb);
 
-		err = x->type_offload->xmit(x, skb, features);
+		err = x->type_offload->xmit(x, skb, esp_features);
 		if (err) {
 			XFRM_INC_STATS(xs_net(x), LINUX_MIB_XFRMOUTSTATEPROTOERROR);
-			return err;
+			kfree_skb(skb);
+			return NULL;
 		}
 
 		skb_push(skb, skb->data - skb_mac_header(skb));
+
+		return skb;
 	}
 
-	return 0;
+	skb2 = skb;
+	seq = xo->seq.low;
+
+	do {
+		struct sk_buff *nskb = skb2->next;
+
+		xo = xfrm_offload(skb2);
+		xo->flags |= XFRM_GSO_SEGMENT;
+		xo->seq.low = seq;
+		xo->seq.hi = xfrm_replay_seqhi(x, seq);
+
+		if(!(features & NETIF_F_HW_ESP))
+			xo->flags |= CRYPTO_FALLBACK;
+
+		x->outer_mode->xmit(x, skb2);
+
+		err = x->type_offload->xmit(x, skb2, esp_features);
+		if (err) {
+			XFRM_INC_STATS(xs_net(x), LINUX_MIB_XFRMOUTSTATEPROTOERROR);
+			skb2->next = nskb;
+			kfree_skb_list(skb2);
+			return NULL;
+		}
+
+		if (!skb_is_gso(skb2))
+			seq++;
+		else
+			seq += skb_shinfo(skb2)->gso_segs;
+
+		skb_push(skb2, skb2->data - skb_mac_header(skb2));
+
+		skb2 = nskb;
+	} while (skb2);
+
+	return skb;
 }
 EXPORT_SYMBOL_GPL(validate_xmit_xfrm);
 
