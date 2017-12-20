@@ -1364,7 +1364,7 @@ static int nvme_cmb_qdepth(struct nvme_dev *dev, int nr_io_queues,
 static int nvme_alloc_sq_cmds(struct nvme_dev *dev, struct nvme_queue *nvmeq,
 				int qid, int depth)
 {
-	if (qid && dev->cmb && use_cmb_sqes && NVME_CMB_SQS(dev->cmbsz)) {
+	if (qid && dev->cmb && use_cmb_sqes && (dev->cmbsz & NVME_CMBSZ_SQS)) {
 		unsigned offset = (qid - 1) * roundup(SQ_SIZE(depth),
 						      dev->ctrl.page_size);
 		nvmeq->sq_dma_addr = dev->cmb_bus_addr + offset;
@@ -1651,9 +1651,21 @@ static ssize_t nvme_cmb_show(struct device *dev,
 }
 static DEVICE_ATTR(cmb, S_IRUGO, nvme_cmb_show, NULL);
 
+static u64 nvme_cmb_size_unit(struct nvme_dev *dev)
+{
+	u8 szu = (dev->cmbsz >> NVME_CMBSZ_SZU_SHIFT) & NVME_CMBSZ_SZU_MASK;
+
+	return 1ULL << (12 + 4 * szu);
+}
+
+static u32 nvme_cmb_size(struct nvme_dev *dev)
+{
+	return (dev->cmbsz >> NVME_CMBSZ_SZ_SHIFT) & NVME_CMBSZ_SZ_MASK;
+}
+
 static void nvme_map_cmb(struct nvme_dev *dev)
 {
-	u64 szu, size, offset;
+	u64 size, offset;
 	resource_size_t bar_size;
 	struct pci_dev *pdev = to_pci_dev(dev->dev);
 	int bar;
@@ -1666,9 +1678,8 @@ static void nvme_map_cmb(struct nvme_dev *dev)
 	if (!use_cmb_sqes)
 		return;
 
-	szu = (u64)1 << (12 + 4 * NVME_CMB_SZU(dev->cmbsz));
-	size = szu * NVME_CMB_SZ(dev->cmbsz);
-	offset = szu * NVME_CMB_OFST(dev->cmbloc);
+	size = nvme_cmb_size_unit(dev) * nvme_cmb_size(dev);
+	offset = nvme_cmb_size_unit(dev) * NVME_CMB_OFST(dev->cmbloc);
 	bar = NVME_CMB_BIR(dev->cmbloc);
 	bar_size = pci_resource_len(pdev, bar);
 
@@ -1897,7 +1908,7 @@ static int nvme_setup_io_queues(struct nvme_dev *dev)
 	if (nr_io_queues == 0)
 		return 0;
 
-	if (dev->cmb && NVME_CMB_SQS(dev->cmbsz)) {
+	if (dev->cmb && (dev->cmbsz & NVME_CMBSZ_SQS)) {
 		result = nvme_cmb_qdepth(dev, nr_io_queues,
 				sizeof(struct nvme_command));
 		if (result > 0)
