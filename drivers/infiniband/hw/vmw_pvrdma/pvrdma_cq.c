@@ -132,8 +132,9 @@ struct ib_cq *pvrdma_create_cq(struct ib_device *ibdev,
 	}
 
 	cq->ibcq.cqe = entries;
+	cq->is_kernel = !context;
 
-	if (context) {
+	if (!cq->is_kernel) {
 		if (ib_copy_from_udata(&ucmd, udata, sizeof(ucmd))) {
 			ret = -EFAULT;
 			goto err_cq;
@@ -148,8 +149,6 @@ struct ib_cq *pvrdma_create_cq(struct ib_device *ibdev,
 
 		npages = ib_umem_page_count(cq->umem);
 	} else {
-		cq->is_kernel = true;
-
 		/* One extra page for shared ring state */
 		npages = 1 + (entries * sizeof(struct pvrdma_cqe) +
 			      PAGE_SIZE - 1) / PAGE_SIZE;
@@ -202,7 +201,7 @@ struct ib_cq *pvrdma_create_cq(struct ib_device *ibdev,
 	dev->cq_tbl[cq->cq_handle % dev->dsr->caps.max_cq] = cq;
 	spin_unlock_irqrestore(&dev->cq_tbl_lock, flags);
 
-	if (context) {
+	if (!cq->is_kernel) {
 		cq->uar = &(to_vucontext(context)->uar);
 
 		/* Copy udata back. */
@@ -219,7 +218,7 @@ struct ib_cq *pvrdma_create_cq(struct ib_device *ibdev,
 err_page_dir:
 	pvrdma_page_dir_cleanup(dev, &cq->pdir);
 err_umem:
-	if (context)
+	if (!cq->is_kernel)
 		ib_umem_release(cq->umem);
 err_cq:
 	atomic_dec(&dev->num_cqs);

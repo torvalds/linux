@@ -249,8 +249,9 @@ struct ib_qp *pvrdma_create_qp(struct ib_pd *pd,
 		init_completion(&qp->free);
 
 		qp->state = IB_QPS_RESET;
+		qp->is_kernel = !(pd->uobject && udata);
 
-		if (pd->uobject && udata) {
+		if (!qp->is_kernel) {
 			dev_dbg(&dev->pdev->dev,
 				"create queuepair from user space\n");
 
@@ -291,8 +292,6 @@ struct ib_qp *pvrdma_create_qp(struct ib_pd *pd,
 				qp->npages_recv = 0;
 			qp->npages = qp->npages_send + qp->npages_recv;
 		} else {
-			qp->is_kernel = true;
-
 			ret = pvrdma_set_sq_size(to_vdev(pd->device),
 						 &init_attr->cap, qp);
 			if (ret)
@@ -394,7 +393,7 @@ struct ib_qp *pvrdma_create_qp(struct ib_pd *pd,
 err_pdir:
 	pvrdma_page_dir_cleanup(dev, &qp->pdir);
 err_umem:
-	if (pd->uobject && udata) {
+	if (!qp->is_kernel) {
 		if (qp->rumem)
 			ib_umem_release(qp->rumem);
 		if (qp->sumem)
