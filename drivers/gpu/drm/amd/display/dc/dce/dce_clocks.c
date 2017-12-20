@@ -293,7 +293,10 @@ static enum dm_pp_clocks_state dce_get_required_clocks_state(
 	low_req_clk = i + 1;
 	if (low_req_clk > clk->max_clks_state) {
 		dm_logger_write(clk->ctx->logger, LOG_WARNING,
-				"%s: clocks unsupported", __func__);
+				"%s: clocks unsupported disp_clk %d pix_clk %d",
+				__func__,
+				req_clocks->display_clk_khz,
+				req_clocks->pixel_clk_khz);
 		low_req_clk = DM_PP_CLOCKS_STATE_INVALID;
 	}
 
