@@ -297,8 +297,23 @@ struct qeth_hdr_layer3 {
 	__u8  ext_flags;
 	__u16 vlan_id;
 	__u16 frame_offset;
-	__u8  dest_addr[16];
-} __attribute__ ((packed));
+	union {
+		/* TX: */
+		u8 ipv6_addr[16];
+		struct ipv4 {
+			u8 res[12];
+			u32 addr;
+		} ipv4;
+		/* RX: */
+		struct rx {
+			u8 res1[2];
+			u8 src_mac[6];
+			u8 res2[4];
+			u16 vlan_id;
+			u8 res3[2];
+		} rx;
+	} next_hop;
+};
 
 struct qeth_hdr_layer2 {
 	__u8 id;

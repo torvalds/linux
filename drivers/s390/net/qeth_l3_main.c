@@ -1637,7 +1637,7 @@ static void qeth_l3_rebuild_skb(struct qeth_card *card, struct sk_buff *skb,
 		}
 		if (hdr->hdr.l3.ext_flags & QETH_HDR_EXT_SRC_MAC_ADDR)
 			card->dev->header_ops->create(skb, card->dev, prot,
-				tg_addr, &hdr->hdr.l3.dest_addr[2],
+				tg_addr, &hdr->hdr.l3.next_hop.rx.src_mac,
 				card->dev->addr_len);
 		else
 			card->dev->header_ops->create(skb, card->dev, prot,
@@ -1652,7 +1652,7 @@ static void qeth_l3_rebuild_skb(struct qeth_card *card, struct sk_buff *skb,
 				      QETH_HDR_EXT_INCLUDE_VLAN_TAG))) {
 		u16 tag = (hdr->hdr.l3.ext_flags & QETH_HDR_EXT_VLAN_FRAME) ?
 				hdr->hdr.l3.vlan_id :
-				*((u16 *)&hdr->hdr.l3.dest_addr[12]);
+				hdr->hdr.l3.next_hop.rx.vlan_id;
 		__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), tag);
 	}
 
@@ -2408,7 +2408,7 @@ static void qeth_l3_fill_af_iucv_hdr(struct qeth_card *card,
 	daddr[0] = 0xfe;
 	daddr[1] = 0x80;
 	memcpy(&daddr[8], iucv_hdr->destUserID, 8);
-	memcpy(hdr->hdr.l3.dest_addr, daddr, 16);
+	memcpy(hdr->hdr.l3.next_hop.ipv6_addr, daddr, 16);
 }
 
 static void qeth_l3_fill_header(struct qeth_card *card, struct qeth_hdr *hdr,
@@ -2445,8 +2445,8 @@ static void qeth_l3_fill_header(struct qeth_card *card, struct qeth_hdr *hdr,
 
 		/* IPv4 */
 		hdr->hdr.l3.flags = qeth_l3_get_qeth_hdr_flags4(cast_type);
-		memset(hdr->hdr.l3.dest_addr, 0, 12);
-		*((__be32 *) (&hdr->hdr.l3.dest_addr[12])) = *pkey;
+		memset(hdr->hdr.l3.next_hop.ipv4.res, 0, 12);
+		*((__be32 *) &hdr->hdr.l3.next_hop.ipv4.addr) = *pkey;
 	} else if (ipv == 6) {
 		struct rt6_info *rt = (struct rt6_info *) dst;
 		struct in6_addr *pkey = &ipv6_hdr(skb)->daddr;
@@ -2458,7 +2458,7 @@ static void qeth_l3_fill_header(struct qeth_card *card, struct qeth_hdr *hdr,
 		hdr->hdr.l3.flags = qeth_l3_get_qeth_hdr_flags6(cast_type);
 		if (card->info.type == QETH_CARD_TYPE_IQD)
 			hdr->hdr.l3.flags &= ~QETH_HDR_PASSTHRU;
-		memcpy(hdr->hdr.l3.dest_addr, pkey, 16);
+		memcpy(hdr->hdr.l3.next_hop.ipv6_addr, pkey, 16);
 	} else {
 		if (ether_addr_equal_64bits(eth_hdr(skb)->h_dest,
 					    skb->dev->broadcast)) {
