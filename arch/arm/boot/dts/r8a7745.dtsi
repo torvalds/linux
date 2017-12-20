@@ -35,6 +35,27 @@
 		vin1 = &vin1;
 	};
 
+	/*
+	 * The external audio clocks are configured  as 0 Hz fixed
+	 * frequency clocks by default.  Boards that provide audio
+	 * clocks should override them.
+	 */
+	audio_clka: audio_clka {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <0>;
+	};
+	audio_clkb: audio_clkb {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <0>;
+	};
+	audio_clkc: audio_clkc {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <0>;
+	};
+
 	/* External CAN clock */
 	can_clk: can {
 		compatible = "fixed-clock";
