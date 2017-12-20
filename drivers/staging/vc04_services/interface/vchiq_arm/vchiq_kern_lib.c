@@ -64,11 +64,6 @@ static VCHIQ_STATUS_T
 vchiq_blocking_bulk_transfer(VCHIQ_SERVICE_HANDLE_T handle, void *data,
 	unsigned int size, VCHIQ_BULK_DIR_T dir);
 
-/****************************************************************************
-*
-*   vchiq_initialise
-*
-***************************************************************************/
 #define VCHIQ_INIT_RETRIES 10
 VCHIQ_STATUS_T vchiq_initialise(VCHIQ_INSTANCE_T *instance_out)
 {
@@ -120,12 +115,6 @@ failed:
 }
 EXPORT_SYMBOL(vchiq_initialise);
 
-/****************************************************************************
-*
-*   vchiq_shutdown
-*
-***************************************************************************/
-
 VCHIQ_STATUS_T vchiq_shutdown(VCHIQ_INSTANCE_T instance)
 {
 	VCHIQ_STATUS_T status;
@@ -168,22 +157,10 @@ VCHIQ_STATUS_T vchiq_shutdown(VCHIQ_INSTANCE_T instance)
 }
 EXPORT_SYMBOL(vchiq_shutdown);
 
-/****************************************************************************
-*
-*   vchiq_is_connected
-*
-***************************************************************************/
-
 static int vchiq_is_connected(VCHIQ_INSTANCE_T instance)
 {
 	return instance->connected;
 }
-
-/****************************************************************************
-*
-*   vchiq_connect
-*
-***************************************************************************/
 
 VCHIQ_STATUS_T vchiq_connect(VCHIQ_INSTANCE_T instance)
 {
@@ -213,12 +190,6 @@ failed:
 	return status;
 }
 EXPORT_SYMBOL(vchiq_connect);
-
-/****************************************************************************
-*
-*   vchiq_add_service
-*
-***************************************************************************/
 
 VCHIQ_STATUS_T vchiq_add_service(
 	VCHIQ_INSTANCE_T              instance,
@@ -258,12 +229,6 @@ VCHIQ_STATUS_T vchiq_add_service(
 	return status;
 }
 EXPORT_SYMBOL(vchiq_add_service);
-
-/****************************************************************************
-*
-*   vchiq_open_service
-*
-***************************************************************************/
 
 VCHIQ_STATUS_T vchiq_open_service(
 	VCHIQ_INSTANCE_T              instance,
