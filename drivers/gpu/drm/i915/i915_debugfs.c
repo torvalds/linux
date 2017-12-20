@@ -1581,18 +1581,23 @@ static int i915_frontbuffer_tracking(struct seq_file *m, void *unused)
 static int i915_fbc_status(struct seq_file *m, void *unused)
 {
 	struct drm_i915_private *dev_priv = node_to_i915(m->private);
+	struct intel_fbc *fbc = &dev_priv->fbc;
 
 	if (!HAS_FBC(dev_priv))
 		return -ENODEV;
 
 	intel_runtime_pm_get(dev_priv);
-	mutex_lock(&dev_priv->fbc.lock);
+	mutex_lock(&fbc->lock);
 
 	if (intel_fbc_is_active(dev_priv))
 		seq_puts(m, "FBC enabled\n");
 	else
-		seq_printf(m, "FBC disabled: %s\n",
-			   dev_priv->fbc.no_fbc_reason);
+		seq_printf(m, "FBC disabled: %s\n", fbc->no_fbc_reason);
+
+	if (fbc->work.scheduled)
+		seq_printf(m, "FBC worker scheduled on vblank %u, now %llu\n",
+			   fbc->work.scheduled_vblank,
+			   drm_crtc_vblank_count(&fbc->crtc->base));
 
 	if (intel_fbc_is_active(dev_priv)) {
 		u32 mask;
@@ -1612,7 +1617,7 @@ static int i915_fbc_status(struct seq_file *m, void *unused)
 		seq_printf(m, "Compressing: %s\n", yesno(mask));
 	}
 
-	mutex_unlock(&dev_priv->fbc.lock);
+	mutex_unlock(&fbc->lock);
 	intel_runtime_pm_put(dev_priv);
 
 	return 0;
