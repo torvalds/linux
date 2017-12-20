@@ -291,7 +291,8 @@ static int cbs_change(struct Qdisc *sch, struct nlattr *opt)
 	return 0;
 }
 
-static int cbs_init(struct Qdisc *sch, struct nlattr *opt)
+static int cbs_init(struct Qdisc *sch, struct nlattr *opt,
+		    struct netlink_ext_ack *extack)
 {
 	struct cbs_sched_data *q = qdisc_priv(sch);
 	struct net_device *dev = qdisc_dev(sch);

@@ -1017,7 +1017,8 @@ static void htb_work_func(struct work_struct *work)
 	rcu_read_unlock();
 }
 
-static int htb_init(struct Qdisc *sch, struct nlattr *opt)
+static int htb_init(struct Qdisc *sch, struct nlattr *opt,
+		    struct netlink_ext_ack *extack)
 {
 	struct htb_sched *q = qdisc_priv(sch);
 	struct nlattr *tb[TCA_HTB_MAX + 1];

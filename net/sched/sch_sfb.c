@@ -549,7 +549,8 @@ static int sfb_change(struct Qdisc *sch, struct nlattr *opt)
 	return 0;
 }
 
-static int sfb_init(struct Qdisc *sch, struct nlattr *opt)
+static int sfb_init(struct Qdisc *sch, struct nlattr *opt,
+		    struct netlink_ext_ack *extack)
 {
 	struct sfb_sched_data *q = qdisc_priv(sch);
 	int err;

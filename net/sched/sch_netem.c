@@ -984,7 +984,8 @@ static int netem_change(struct Qdisc *sch, struct nlattr *opt)
 	return ret;
 }
 
-static int netem_init(struct Qdisc *sch, struct nlattr *opt)
+static int netem_init(struct Qdisc *sch, struct nlattr *opt,
+		      struct netlink_ext_ack *extack)
 {
 	struct netem_sched_data *q = qdisc_priv(sch);
 	int ret;

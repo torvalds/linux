@@ -551,7 +551,8 @@ struct Qdisc noop_qdisc = {
 };
 EXPORT_SYMBOL(noop_qdisc);
 
-static int noqueue_init(struct Qdisc *qdisc, struct nlattr *opt)
+static int noqueue_init(struct Qdisc *qdisc, struct nlattr *opt,
+			struct netlink_ext_ack *extack)
 {
 	/* register_qdisc() assigns a default of noop_enqueue if unset,
 	 * but __dev_queue_xmit() treats noqueue only as such
@@ -690,7 +691,8 @@ nla_put_failure:
 	return -1;
 }
 
-static int pfifo_fast_init(struct Qdisc *qdisc, struct nlattr *opt)
+static int pfifo_fast_init(struct Qdisc *qdisc, struct nlattr *opt,
+			   struct netlink_ext_ack *extack)
 {
 	unsigned int qlen = qdisc_dev(qdisc)->tx_queue_len;
 	struct pfifo_fast_priv *priv = qdisc_priv(qdisc);
@@ -840,7 +842,7 @@ struct Qdisc *qdisc_create_dflt(struct netdev_queue *dev_queue,
 	}
 	sch->parent = parentid;
 
-	if (!ops->init || ops->init(sch, NULL) == 0)
+	if (!ops->init || ops->init(sch, NULL, NULL) == 0)
 		return sch;
 
 	qdisc_destroy(sch);

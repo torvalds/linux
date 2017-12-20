@@ -458,7 +458,8 @@ static void fq_codel_destroy(struct Qdisc *sch)
 	kvfree(q->flows);
 }
 
-static int fq_codel_init(struct Qdisc *sch, struct nlattr *opt)
+static int fq_codel_init(struct Qdisc *sch, struct nlattr *opt,
+			 struct netlink_ext_ack *extack)
 {
 	struct fq_codel_sched_data *q = qdisc_priv(sch);
 	int i;

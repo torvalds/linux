@@ -1132,7 +1132,8 @@ static const struct nla_policy cbq_policy[TCA_CBQ_MAX + 1] = {
 	[TCA_CBQ_POLICE]	= { .len = sizeof(struct tc_cbq_police) },
 };
 
-static int cbq_init(struct Qdisc *sch, struct nlattr *opt)
+static int cbq_init(struct Qdisc *sch, struct nlattr *opt,
+		    struct netlink_ext_ack *extack)
 {
 	struct cbq_sched_data *q = qdisc_priv(sch);
 	struct nlattr *tb[TCA_CBQ_MAX + 1];

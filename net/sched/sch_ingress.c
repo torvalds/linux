@@ -62,7 +62,8 @@ static void clsact_chain_head_change(struct tcf_proto *tp_head, void *priv)
 	mini_qdisc_pair_swap(miniqp, tp_head);
 }
 
-static int ingress_init(struct Qdisc *sch, struct nlattr *opt)
+static int ingress_init(struct Qdisc *sch, struct nlattr *opt,
+			struct netlink_ext_ack *extack)
 {
 	struct ingress_sched_data *q = qdisc_priv(sch);
 	struct net_device *dev = qdisc_dev(sch);
@@ -167,7 +168,8 @@ static struct tcf_block *clsact_tcf_block(struct Qdisc *sch, unsigned long cl)
 	}
 }
 
-static int clsact_init(struct Qdisc *sch, struct nlattr *opt)
+static int clsact_init(struct Qdisc *sch, struct nlattr *opt,
+		       struct netlink_ext_ack *extack)
 {
 	struct clsact_sched_data *q = qdisc_priv(sch);
 	struct net_device *dev = qdisc_dev(sch);

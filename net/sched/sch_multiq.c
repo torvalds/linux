@@ -236,7 +236,8 @@ static int multiq_tune(struct Qdisc *sch, struct nlattr *opt)
 	return 0;
 }
 
-static int multiq_init(struct Qdisc *sch, struct nlattr *opt)
+static int multiq_init(struct Qdisc *sch, struct nlattr *opt,
+		       struct netlink_ext_ack *extack)
 {
 	struct multiq_sched_data *q = qdisc_priv(sch);
 	int i, err;

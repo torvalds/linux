@@ -421,7 +421,8 @@ done:
 	return err;
 }
 
-static int tbf_init(struct Qdisc *sch, struct nlattr *opt)
+static int tbf_init(struct Qdisc *sch, struct nlattr *opt,
+		    struct netlink_ext_ack *extack)
 {
 	struct tbf_sched_data *q = qdisc_priv(sch);
 

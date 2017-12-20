@@ -571,7 +571,8 @@ static int hhf_change(struct Qdisc *sch, struct nlattr *opt)
 	return 0;
 }
 
-static int hhf_init(struct Qdisc *sch, struct nlattr *opt)
+static int hhf_init(struct Qdisc *sch, struct nlattr *opt,
+		    struct netlink_ext_ack *extack)
 {
 	struct hhf_sched_data *q = qdisc_priv(sch);
 	int i;

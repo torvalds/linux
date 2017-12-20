@@ -721,7 +721,8 @@ static void sfq_destroy(struct Qdisc *sch)
 	kfree(q->red_parms);
 }
 
-static int sfq_init(struct Qdisc *sch, struct nlattr *opt)
+static int sfq_init(struct Qdisc *sch, struct nlattr *opt,
+		    struct netlink_ext_ack *extack)
 {
 	struct sfq_sched_data *q = qdisc_priv(sch);
 	int i;

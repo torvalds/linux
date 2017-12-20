@@ -132,7 +132,8 @@ static int parse_attr(struct nlattr *tb[], int maxtype, struct nlattr *nla,
 	return 0;
 }
 
-static int mqprio_init(struct Qdisc *sch, struct nlattr *opt)
+static int mqprio_init(struct Qdisc *sch, struct nlattr *opt,
+		       struct netlink_ext_ack *extack)
 {
 	struct net_device *dev = qdisc_dev(sch);
 	struct mqprio_sched *priv = qdisc_priv(sch);

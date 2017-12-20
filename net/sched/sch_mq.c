@@ -36,7 +36,8 @@ static void mq_destroy(struct Qdisc *sch)
 	kfree(priv->qdiscs);
 }
 
-static int mq_init(struct Qdisc *sch, struct nlattr *opt)
+static int mq_init(struct Qdisc *sch, struct nlattr *opt,
+		   struct netlink_ext_ack *extack)
 {
 	struct net_device *dev = qdisc_dev(sch);
 	struct mq_sched *priv = qdisc_priv(sch);

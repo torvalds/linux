@@ -55,7 +55,8 @@ static int pfifo_tail_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 	return NET_XMIT_CN;
 }
 
-static int fifo_init(struct Qdisc *sch, struct nlattr *opt)
+static int fifo_init(struct Qdisc *sch, struct nlattr *opt,
+		     struct netlink_ext_ack *extack)
 {
 	bool bypass;
 	bool is_bfifo = sch->ops == &bfifo_qdisc_ops;
@@ -88,6 +89,11 @@ static int fifo_init(struct Qdisc *sch, struct nlattr *opt)
 	return 0;
 }
 
+static int fifo_change(struct Qdisc *sch, struct nlattr *opt)
+{
+	return fifo_init(sch, opt, NULL);
+}
+
 static int fifo_dump(struct Qdisc *sch, struct sk_buff *skb)
 {
 	struct tc_fifo_qopt opt = { .limit = sch->limit };
@@ -108,7 +114,7 @@ struct Qdisc_ops pfifo_qdisc_ops __read_mostly = {
 	.peek		=	qdisc_peek_head,
 	.init		=	fifo_init,
 	.reset		=	qdisc_reset_queue,
-	.change		=	fifo_init,
+	.change		=	fifo_change,
 	.dump		=	fifo_dump,
 	.owner		=	THIS_MODULE,
 };
@@ -122,7 +128,7 @@ struct Qdisc_ops bfifo_qdisc_ops __read_mostly = {
 	.peek		=	qdisc_peek_head,
 	.init		=	fifo_init,
 	.reset		=	qdisc_reset_queue,
-	.change		=	fifo_init,
+	.change		=	fifo_change,
 	.dump		=	fifo_dump,
 	.owner		=	THIS_MODULE,
 };
@@ -136,7 +142,7 @@ struct Qdisc_ops pfifo_head_drop_qdisc_ops __read_mostly = {
 	.peek		=	qdisc_peek_head,
 	.init		=	fifo_init,
 	.reset		=	qdisc_reset_queue,
-	.change		=	fifo_init,
+	.change		=	fifo_change,
 	.dump		=	fifo_dump,
 	.owner		=	THIS_MODULE,
 };

@@ -788,7 +788,8 @@ static void fq_destroy(struct Qdisc *sch)
 	qdisc_watchdog_cancel(&q->watchdog);
 }
 
-static int fq_init(struct Qdisc *sch, struct nlattr *opt)
+static int fq_init(struct Qdisc *sch, struct nlattr *opt,
+		   struct netlink_ext_ack *extack)
 {
 	struct fq_sched_data *q = qdisc_priv(sch);
 	int err;

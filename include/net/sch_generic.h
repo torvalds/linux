@@ -189,7 +189,8 @@ struct Qdisc_ops {
 	struct sk_buff *	(*dequeue)(struct Qdisc *);
 	struct sk_buff *	(*peek)(struct Qdisc *);
 
-	int			(*init)(struct Qdisc *sch, struct nlattr *arg);
+	int			(*init)(struct Qdisc *sch, struct nlattr *arg,
+					struct netlink_ext_ack *extack);
 	void			(*reset)(struct Qdisc *);
 	void			(*destroy)(struct Qdisc *);
 	int			(*change)(struct Qdisc *sch,

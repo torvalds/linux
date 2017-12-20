@@ -466,7 +466,8 @@ errout:
 	return err;
 }
 
-static int gred_init(struct Qdisc *sch, struct nlattr *opt)
+static int gred_init(struct Qdisc *sch, struct nlattr *opt,
+		     struct netlink_ext_ack *extack)
 {
 	struct nlattr *tb[TCA_GRED_MAX + 1];
 	int err;

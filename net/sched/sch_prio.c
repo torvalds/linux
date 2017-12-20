@@ -205,7 +205,8 @@ static int prio_tune(struct Qdisc *sch, struct nlattr *opt)
 	return 0;
 }
 
-static int prio_init(struct Qdisc *sch, struct nlattr *opt)
+static int prio_init(struct Qdisc *sch, struct nlattr *opt,
+		     struct netlink_ext_ack *extack)
 {
 	struct prio_sched_data *q = qdisc_priv(sch);
 	int err;

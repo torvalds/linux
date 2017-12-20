@@ -1388,7 +1388,8 @@ hfsc_schedule_watchdog(struct Qdisc *sch)
 }
 
 static int
-hfsc_init_qdisc(struct Qdisc *sch, struct nlattr *opt)
+hfsc_init_qdisc(struct Qdisc *sch, struct nlattr *opt,
+		struct netlink_ext_ack *extack)
 {
 	struct hfsc_sched *q = qdisc_priv(sch);
 	struct tc_hfsc_qopt *qopt;

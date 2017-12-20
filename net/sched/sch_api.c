@@ -1084,7 +1084,7 @@ static struct Qdisc *qdisc_create(struct net_device *dev,
 	}
 
 	if (ops->init) {
-		err = ops->init(sch, tca[TCA_OPTIONS]);
+		err = ops->init(sch, tca[TCA_OPTIONS], extack);
 		if (err != 0)
 			goto err_out5;
 	}

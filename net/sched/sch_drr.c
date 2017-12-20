@@ -408,7 +408,8 @@ out:
 	return NULL;
 }
 
-static int drr_init_qdisc(struct Qdisc *sch, struct nlattr *opt)
+static int drr_init_qdisc(struct Qdisc *sch, struct nlattr *opt,
+			  struct netlink_ext_ack *extack)
 {
 	struct drr_sched *q = qdisc_priv(sch);
 	int err;

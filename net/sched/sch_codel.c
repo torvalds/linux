@@ -184,7 +184,8 @@ static int codel_change(struct Qdisc *sch, struct nlattr *opt)
 	return 0;
 }
 
-static int codel_init(struct Qdisc *sch, struct nlattr *opt)
+static int codel_init(struct Qdisc *sch, struct nlattr *opt,
+		      struct netlink_ext_ack *extack)
 {
 	struct codel_sched_data *q = qdisc_priv(sch);
 

@@ -330,7 +330,8 @@ static struct sk_buff *dsmark_peek(struct Qdisc *sch)
 	return p->q->ops->peek(p->q);
 }
 
-static int dsmark_init(struct Qdisc *sch, struct nlattr *opt)
+static int dsmark_init(struct Qdisc *sch, struct nlattr *opt,
+		       struct netlink_ext_ack *extack)
 {
 	struct dsmark_qdisc_data *p = qdisc_priv(sch);
 	struct nlattr *tb[TCA_DSMARK_MAX + 1];

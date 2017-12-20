@@ -531,7 +531,8 @@ static struct sk_buff *atm_tc_peek(struct Qdisc *sch)
 	return p->link.q->ops->peek(p->link.q);
 }
 
-static int atm_tc_init(struct Qdisc *sch, struct nlattr *opt)
+static int atm_tc_init(struct Qdisc *sch, struct nlattr *opt,
+		       struct netlink_ext_ack *extack)
 {
 	struct atm_qdisc_data *p = qdisc_priv(sch);
 	int err;

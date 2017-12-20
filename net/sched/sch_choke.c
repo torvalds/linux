@@ -431,7 +431,8 @@ static int choke_change(struct Qdisc *sch, struct nlattr *opt)
 	return 0;
 }
 
-static int choke_init(struct Qdisc *sch, struct nlattr *opt)
+static int choke_init(struct Qdisc *sch, struct nlattr *opt,
+		      struct netlink_ext_ack *extack)
 {
 	return choke_change(sch, opt);
 }

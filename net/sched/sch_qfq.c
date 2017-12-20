@@ -1413,7 +1413,8 @@ static void qfq_qlen_notify(struct Qdisc *sch, unsigned long arg)
 	qfq_deactivate_class(q, cl);
 }
 
-static int qfq_init_qdisc(struct Qdisc *sch, struct nlattr *opt)
+static int qfq_init_qdisc(struct Qdisc *sch, struct nlattr *opt,
+			  struct netlink_ext_ack *extack)
 {
 	struct qfq_sched *q = qdisc_priv(sch);
 	struct qfq_group *grp;
