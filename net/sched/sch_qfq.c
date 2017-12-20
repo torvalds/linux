@@ -1424,7 +1424,7 @@ static int qfq_init_qdisc(struct Qdisc *sch, struct nlattr *opt,
 	int i, j, err;
 	u32 max_cl_shift, maxbudg_shift, max_classes;
 
-	err = tcf_block_get(&q->block, &q->filter_list, sch);
+	err = tcf_block_get(&q->block, &q->filter_list, sch, extack);
 	if (err)
 		return err;
 

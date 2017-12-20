@@ -283,7 +283,8 @@ static int atm_tc_change(struct Qdisc *sch, u32 classid, u32 parent,
 		goto err_out;
 	}
 
-	error = tcf_block_get(&flow->block, &flow->filter_list, sch);
+	error = tcf_block_get(&flow->block, &flow->filter_list, sch,
+			      extack);
 	if (error) {
 		kfree(flow);
 		goto err_out;
@@ -550,7 +551,8 @@ static int atm_tc_init(struct Qdisc *sch, struct nlattr *opt,
 		p->link.q = &noop_qdisc;
 	pr_debug("atm_tc_init: link (%p) qdisc %p\n", &p->link, p->link.q);
 
-	err = tcf_block_get(&p->link.block, &p->link.filter_list, sch);
+	err = tcf_block_get(&p->link.block, &p->link.filter_list, sch,
+			    extack);
 	if (err)
 		return err;
 

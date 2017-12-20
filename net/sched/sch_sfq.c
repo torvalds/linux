@@ -731,7 +731,7 @@ static int sfq_init(struct Qdisc *sch, struct nlattr *opt,
 	q->sch = sch;
 	timer_setup(&q->perturb_timer, sfq_perturbation, TIMER_DEFERRABLE);
 
-	err = tcf_block_get(&q->block, &q->filter_list, sch);
+	err = tcf_block_get(&q->block, &q->filter_list, sch, extack);
 	if (err)
 		return err;
 

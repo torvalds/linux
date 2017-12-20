@@ -1034,7 +1034,7 @@ hfsc_change_class(struct Qdisc *sch, u32 classid, u32 parentid,
 	if (cl == NULL)
 		return -ENOBUFS;
 
-	err = tcf_block_get(&cl->block, &cl->filter_list, sch);
+	err = tcf_block_get(&cl->block, &cl->filter_list, sch, extack);
 	if (err) {
 		kfree(cl);
 		return err;
@@ -1409,7 +1409,7 @@ hfsc_init_qdisc(struct Qdisc *sch, struct nlattr *opt,
 		return err;
 	q->eligible = RB_ROOT;
 
-	err = tcf_block_get(&q->root.block, &q->root.filter_list, sch);
+	err = tcf_block_get(&q->root.block, &q->root.filter_list, sch, extack);
 	if (err)
 		return err;
 
