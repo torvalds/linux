@@ -5012,6 +5012,8 @@ static void vmx_disable_intercept_for_msr(u32 msr, bool longmode_only)
 						msr, MSR_TYPE_R | MSR_TYPE_W);
 }
 
+#define X2APIC_MSR(r) (APIC_BASE_MSR + ((r) >> 4))
+
 static void vmx_disable_intercept_msr_x2apic(u32 msr, int type, bool apicv_only)
 {
 	__vmx_disable_intercept_for_msr(vmx_msr_bitmap_legacy_x2apic_apicv,
@@ -6857,7 +6859,7 @@ static __init int hardware_setup(void)
 	set_bit(0, vmx_vpid_bitmap); /* 0 is reserved for host */
 
 	for (msr = 0x800; msr <= 0x8ff; msr++) {
-		if (msr == 0x839 /* TMCCT */)
+		if (msr == X2APIC_MSR(APIC_TMCCT))
 			continue;
 		vmx_disable_intercept_msr_x2apic(msr, MSR_TYPE_R, true);
 	}
@@ -6866,12 +6868,9 @@ static __init int hardware_setup(void)
 	 * TPR reads and writes can be virtualized even if virtual interrupt
 	 * delivery is not in use.
 	 */
-	vmx_disable_intercept_msr_x2apic(0x808, MSR_TYPE_R | MSR_TYPE_W, false);
-
-	/* EOI */
-	vmx_disable_intercept_msr_x2apic(0x80b, MSR_TYPE_W, true);
-	/* SELF-IPI */
-	vmx_disable_intercept_msr_x2apic(0x83f, MSR_TYPE_W, true);
+	vmx_disable_intercept_msr_x2apic(X2APIC_MSR(APIC_TASKPRI), MSR_TYPE_R | MSR_TYPE_W, false);
+	vmx_disable_intercept_msr_x2apic(X2APIC_MSR(APIC_EOI), MSR_TYPE_W, true);
+	vmx_disable_intercept_msr_x2apic(X2APIC_MSR(APIC_SELF_IPI), MSR_TYPE_W, true);
 
 	if (enable_ept)
 		vmx_enable_tdp();
@@ -10041,17 +10040,17 @@ static inline bool nested_vmx_prepare_msr_bitmap(struct kvm_vcpu *vcpu,
 
 	nested_vmx_disable_intercept_for_msr(
 		msr_bitmap_l1, msr_bitmap_l0,
-		APIC_BASE_MSR + (APIC_TASKPRI >> 4),
+		X2APIC_MSR(APIC_TASKPRI),
 		MSR_TYPE_W);
 
 	if (nested_cpu_has_vid(vmcs12)) {
 		nested_vmx_disable_intercept_for_msr(
 			msr_bitmap_l1, msr_bitmap_l0,
-			APIC_BASE_MSR + (APIC_EOI >> 4),
+			X2APIC_MSR(APIC_EOI),
 			MSR_TYPE_W);
 		nested_vmx_disable_intercept_for_msr(
 			msr_bitmap_l1, msr_bitmap_l0,
-			APIC_BASE_MSR + (APIC_SELF_IPI >> 4),
+			X2APIC_MSR(APIC_SELF_IPI),
 			MSR_TYPE_W);
 	}
 	kunmap(page);
