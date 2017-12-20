@@ -236,8 +236,8 @@ static void pvrdma_free_srq(struct pvrdma_dev *dev, struct pvrdma_srq *srq)
 	dev->srq_tbl[srq->srq_handle] = NULL;
 	spin_unlock_irqrestore(&dev->srq_tbl_lock, flags);
 
-	refcount_dec(&srq->refcnt);
-	wait_event(srq->wait, !refcount_read(&srq->refcnt));
+	if (!refcount_dec_and_test(&srq->refcnt))
+		wait_event(srq->wait, !refcount_read(&srq->refcnt));
 
 	/* There is no support for kernel clients, so this is safe. */
 	ib_umem_release(srq->umem);
