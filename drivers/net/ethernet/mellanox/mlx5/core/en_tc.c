@@ -112,6 +112,7 @@ struct mlx5e_hairpin_entry {
 	struct list_head flows;
 
 	u16 peer_vhca_id;
+	u8 prio;
 	struct mlx5e_hairpin *hp;
 };
 
@@ -333,18 +334,61 @@ static void mlx5e_hairpin_destroy(struct mlx5e_hairpin *hp)
 	kvfree(hp);
 }
 
+static inline u32 hash_hairpin_info(u16 peer_vhca_id, u8 prio)
+{
+	return (peer_vhca_id << 16 | prio);
+}
+
 static struct mlx5e_hairpin_entry *mlx5e_hairpin_get(struct mlx5e_priv *priv,
-						     u16 peer_vhca_id)
+						     u16 peer_vhca_id, u8 prio)
 {
 	struct mlx5e_hairpin_entry *hpe;
+	u32 hash_key = hash_hairpin_info(peer_vhca_id, prio);
 
 	hash_for_each_possible(priv->fs.tc.hairpin_tbl, hpe,
-			       hairpin_hlist, peer_vhca_id) {
-		if (hpe->peer_vhca_id == peer_vhca_id)
+			       hairpin_hlist, hash_key) {
+		if (hpe->peer_vhca_id == peer_vhca_id && hpe->prio == prio)
 			return hpe;
 	}
 
 	return NULL;
+}
+
+#define UNKNOWN_MATCH_PRIO 8
+
+static int mlx5e_hairpin_get_prio(struct mlx5e_priv *priv,
+				  struct mlx5_flow_spec *spec, u8 *match_prio)
+{
+	void *headers_c, *headers_v;
+	u8 prio_val, prio_mask = 0;
+	bool vlan_present;
+
+#ifdef CONFIG_MLX5_CORE_EN_DCB
+	if (priv->dcbx_dp.trust_state != MLX5_QPTS_TRUST_PCP) {
+		netdev_warn(priv->netdev,
+			    "only PCP trust state supported for hairpin\n");
+		return -EOPNOTSUPP;
+	}
+#endif
+	headers_c = MLX5_ADDR_OF(fte_match_param, spec->match_criteria, outer_headers);
+	headers_v = MLX5_ADDR_OF(fte_match_param, spec->match_value, outer_headers);
+
+	vlan_present = MLX5_GET(fte_match_set_lyr_2_4, headers_v, cvlan_tag);
+	if (vlan_present) {
+		prio_mask = MLX5_GET(fte_match_set_lyr_2_4, headers_c, first_prio);
+		prio_val = MLX5_GET(fte_match_set_lyr_2_4, headers_v, first_prio);
+	}
+
+	if (!vlan_present || !prio_mask) {
+		prio_val = UNKNOWN_MATCH_PRIO;
+	} else if (prio_mask != 0x7) {
+		netdev_warn(priv->netdev,
+			    "masked priority match not supported for hairpin\n");
+		return -EOPNOTSUPP;
+	}
+
+	*match_prio = prio_val;
+	return 0;
 }
 
 static int mlx5e_hairpin_flow_add(struct mlx5e_priv *priv,
@@ -356,6 +400,7 @@ static int mlx5e_hairpin_flow_add(struct mlx5e_priv *priv,
 	struct mlx5_core_dev *peer_mdev;
 	struct mlx5e_hairpin_entry *hpe;
 	struct mlx5e_hairpin *hp;
+	u8 match_prio;
 	u16 peer_id;
 	int err;
 
@@ -366,7 +411,10 @@ static int mlx5e_hairpin_flow_add(struct mlx5e_priv *priv,
 	}
 
 	peer_id = MLX5_CAP_GEN(peer_mdev, vhca_id);
-	hpe = mlx5e_hairpin_get(priv, peer_id);
+	err = mlx5e_hairpin_get_prio(priv, &parse_attr->spec, &match_prio);
+	if (err)
+		return err;
+	hpe = mlx5e_hairpin_get(priv, peer_id, match_prio);
 	if (hpe)
 		goto attach_flow;
 
@@ -376,6 +424,7 @@ static int mlx5e_hairpin_flow_add(struct mlx5e_priv *priv,
 
 	INIT_LIST_HEAD(&hpe->flows);
 	hpe->peer_vhca_id = peer_id;
+	hpe->prio = match_prio;
 
 	params.log_data_size = 15;
 	params.log_data_size = min_t(u8, params.log_data_size,
@@ -390,12 +439,13 @@ static int mlx5e_hairpin_flow_add(struct mlx5e_priv *priv,
 		goto create_hairpin_err;
 	}
 
-	netdev_dbg(priv->netdev, "add hairpin: tirn %x rqn %x peer %s sqn %x log data size %d\n",
+	netdev_dbg(priv->netdev, "add hairpin: tirn %x rqn %x peer %s sqn %x prio %d log data size %d\n",
 		   hp->tirn, hp->pair->rqn, hp->pair->peer_mdev->priv.name,
-		   hp->pair->sqn, params.log_data_size);
+		   hp->pair->sqn, match_prio, params.log_data_size);
 
 	hpe->hp = hp;
-	hash_add(priv->fs.tc.hairpin_tbl, &hpe->hairpin_hlist, peer_id);
+	hash_add(priv->fs.tc.hairpin_tbl, &hpe->hairpin_hlist,
+		 hash_hairpin_info(peer_id, match_prio));
 
 attach_flow:
 	flow->nic_attr->hairpin_tirn = hpe->hp->tirn;
