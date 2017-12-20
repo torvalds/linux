@@ -832,7 +832,7 @@ static struct iommu_group *tegra_smmu_group_get(struct tegra_smmu *smmu,
 	group->soc = soc;
 
 	group->group = iommu_group_alloc();
-	if (!group->group) {
+	if (IS_ERR(group->group)) {
 		devm_kfree(smmu->dev, group);
 		mutex_unlock(&smmu->lock);
 		return NULL;
