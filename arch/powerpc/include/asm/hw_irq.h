@@ -76,6 +76,20 @@ static inline notrace void soft_enabled_set(unsigned long enable)
 		: "memory");
 }
 
+static inline notrace unsigned long soft_enabled_set_return(unsigned long enable)
+{
+	unsigned long flags;
+
+	asm volatile(
+		"lbz %0,%1(13); stb %2,%1(13)"
+		: "=&r" (flags)
+		: "i" (offsetof(struct paca_struct, soft_enabled)),
+		  "r" (enable)
+		: "memory");
+
+	return flags;
+}
+
 static inline unsigned long arch_local_save_flags(void)
 {
 	return soft_enabled_return();
@@ -95,16 +109,7 @@ static inline void arch_local_irq_enable(void)
 
 static inline unsigned long arch_local_irq_save(void)
 {
-	unsigned long flags;
-
-	asm volatile(
-		"lbz %0,%1(13); stb %2,%1(13)"
-		: "=&r" (flags)
-		: "i" (offsetof(struct paca_struct, soft_enabled)),
-		  "r" (IRQS_DISABLED)
-		: "memory");
-
-	return flags;
+	return soft_enabled_set_return(IRQS_DISABLED);
 }
 
 static inline bool arch_irqs_disabled_flags(unsigned long flags)
