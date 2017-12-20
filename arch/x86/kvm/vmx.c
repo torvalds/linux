@@ -3248,6 +3248,7 @@ static inline bool vmx_feature_control_msr_valid(struct kvm_vcpu *vcpu,
  */
 static int vmx_get_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 {
+	struct vcpu_vmx *vmx = to_vmx(vcpu);
 	struct shared_msr_entry *msr;
 
 	switch (msr_info->index) {
@@ -3259,8 +3260,8 @@ static int vmx_get_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 		msr_info->data = vmcs_readl(GUEST_GS_BASE);
 		break;
 	case MSR_KERNEL_GS_BASE:
-		vmx_load_host_state(to_vmx(vcpu));
-		msr_info->data = to_vmx(vcpu)->msr_guest_kernel_gs_base;
+		vmx_load_host_state(vmx);
+		msr_info->data = vmx->msr_guest_kernel_gs_base;
 		break;
 #endif
 	case MSR_EFER:
@@ -3286,13 +3287,13 @@ static int vmx_get_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 		break;
 	case MSR_IA32_MCG_EXT_CTL:
 		if (!msr_info->host_initiated &&
-		    !(to_vmx(vcpu)->msr_ia32_feature_control &
+		    !(vmx->msr_ia32_feature_control &
 		      FEATURE_CONTROL_LMCE))
 			return 1;
 		msr_info->data = vcpu->arch.mcg_ext_ctl;
 		break;
 	case MSR_IA32_FEATURE_CONTROL:
-		msr_info->data = to_vmx(vcpu)->msr_ia32_feature_control;
+		msr_info->data = vmx->msr_ia32_feature_control;
 		break;
 	case MSR_IA32_VMX_BASIC ... MSR_IA32_VMX_VMFUNC:
 		if (!nested_vmx_allowed(vcpu))
@@ -3309,7 +3310,7 @@ static int vmx_get_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 			return 1;
 		/* Otherwise falls through */
 	default:
-		msr = find_msr_entry(to_vmx(vcpu), msr_info->index);
+		msr = find_msr_entry(vmx, msr_info->index);
 		if (msr) {
 			msr_info->data = msr->data;
 			break;
