@@ -9719,111 +9719,27 @@ err:
 	return ERR_PTR(ret);
 }
 
-static u32
-intel_framebuffer_pitch_for_width(int width, int bpp)
+static int intel_modeset_disable_planes(struct drm_atomic_state *state,
+					struct drm_crtc *crtc)
 {
-	u32 pitch = DIV_ROUND_UP(width * bpp, 8);
-	return ALIGN(pitch, 64);
-}
-
-static u32
-intel_framebuffer_size_for_mode(const struct drm_display_mode *mode, int bpp)
-{
-	u32 pitch = intel_framebuffer_pitch_for_width(mode->hdisplay, bpp);
-	return PAGE_ALIGN(pitch * mode->vdisplay);
-}
-
-static struct drm_framebuffer *
-intel_framebuffer_create_for_mode(struct drm_device *dev,
-				  const struct drm_display_mode *mode,
-				  int depth, int bpp)
-{
-	struct drm_framebuffer *fb;
-	struct drm_i915_gem_object *obj;
-	struct drm_mode_fb_cmd2 mode_cmd = { 0 };
-
-	obj = i915_gem_object_create(to_i915(dev),
-				    intel_framebuffer_size_for_mode(mode, bpp));
-	if (IS_ERR(obj))
-		return ERR_CAST(obj);
-
-	mode_cmd.width = mode->hdisplay;
-	mode_cmd.height = mode->vdisplay;
-	mode_cmd.pitches[0] = intel_framebuffer_pitch_for_width(mode_cmd.width,
-								bpp);
-	mode_cmd.pixel_format = drm_mode_legacy_fb_format(bpp, depth);
-
-	fb = intel_framebuffer_create(obj, &mode_cmd);
-	if (IS_ERR(fb))
-		i915_gem_object_put(obj);
-
-	return fb;
-}
-
-static struct drm_framebuffer *
-mode_fits_in_fbdev(struct drm_device *dev,
-		   const struct drm_display_mode *mode)
-{
-#ifdef CONFIG_DRM_FBDEV_EMULATION
-	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct drm_i915_gem_object *obj;
-	struct drm_framebuffer *fb;
-
-	if (!dev_priv->fbdev)
-		return NULL;
-
-	if (!dev_priv->fbdev->fb)
-		return NULL;
-
-	obj = dev_priv->fbdev->fb->obj;
-	BUG_ON(!obj);
-
-	fb = &dev_priv->fbdev->fb->base;
-	if (fb->pitches[0] < intel_framebuffer_pitch_for_width(mode->hdisplay,
-							       fb->format->cpp[0] * 8))
-		return NULL;
-
-	if (obj->base.size < mode->vdisplay * fb->pitches[0])
-		return NULL;
-
-	drm_framebuffer_get(fb);
-	return fb;
-#else
-	return NULL;
-#endif
-}
-
-static int intel_modeset_setup_plane_state(struct drm_atomic_state *state,
-					   struct drm_crtc *crtc,
-					   const struct drm_display_mode *mode,
-					   struct drm_framebuffer *fb,
-					   int x, int y)
-{
+	struct drm_plane *plane;
 	struct drm_plane_state *plane_state;
-	int hdisplay, vdisplay;
-	int ret;
+	int ret, i;
 
-	plane_state = drm_atomic_get_plane_state(state, crtc->primary);
-	if (IS_ERR(plane_state))
-		return PTR_ERR(plane_state);
-
-	if (mode)
-		drm_mode_get_hv_timing(mode, &hdisplay, &vdisplay);
-	else
-		hdisplay = vdisplay = 0;
-
-	ret = drm_atomic_set_crtc_for_plane(plane_state, fb ? crtc : NULL);
+	ret = drm_atomic_add_affected_planes(state, crtc);
 	if (ret)
 		return ret;
-	drm_atomic_set_fb_for_plane(plane_state, fb);
-	plane_state->crtc_x = 0;
-	plane_state->crtc_y = 0;
-	plane_state->crtc_w = hdisplay;
-	plane_state->crtc_h = vdisplay;
-	plane_state->src_x = x << 16;
-	plane_state->src_y = y << 16;
-	plane_state->src_w = hdisplay << 16;
-	plane_state->src_h = vdisplay << 16;
+
+	for_each_new_plane_in_state(state, plane, plane_state, i) {
+		if (plane_state->crtc != crtc)
+			continue;
+
+		ret = drm_atomic_set_crtc_for_plane(plane_state, NULL);
+		if (ret)
+			return ret;
+
+		drm_atomic_set_fb_for_plane(plane_state, NULL);
+	}
 
 	return 0;
 }
@@ -9841,7 +9757,6 @@ int intel_get_load_detect_pipe(struct drm_connector *connector,
 	struct drm_crtc *crtc = NULL;
 	struct drm_device *dev = encoder->dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct drm_framebuffer *fb;
 	struct drm_mode_config *config = &dev->mode_config;
 	struct drm_atomic_state *state = NULL, *restore_state = NULL;
 	struct drm_connector_state *connector_state;
@@ -9909,10 +9824,6 @@ int intel_get_load_detect_pipe(struct drm_connector *connector,
 found:
 	intel_crtc = to_intel_crtc(crtc);
 
-	ret = drm_modeset_lock(&crtc->primary->mutex, ctx);
-	if (ret)
-		goto fail;
-
 	state = drm_atomic_state_alloc(dev);
 	restore_state = drm_atomic_state_alloc(dev);
 	if (!state || !restore_state) {
@@ -9944,39 +9855,17 @@ found:
 	if (!mode)
 		mode = &load_detect_mode;
 
-	/* We need a framebuffer large enough to accommodate all accesses
-	 * that the plane may generate whilst we perform load detection.
-	 * We can not rely on the fbcon either being present (we get called
-	 * during its initialisation to detect all boot displays, or it may
-	 * not even exist) or that it is large enough to satisfy the
-	 * requested mode.
-	 */
-	fb = mode_fits_in_fbdev(dev, mode);
-	if (fb == NULL) {
-		DRM_DEBUG_KMS("creating tmp fb for load-detection\n");
-		fb = intel_framebuffer_create_for_mode(dev, mode, 24, 32);
-	} else
-		DRM_DEBUG_KMS("reusing fbdev for load-detection framebuffer\n");
-	if (IS_ERR(fb)) {
-		DRM_DEBUG_KMS("failed to allocate framebuffer for load-detection\n");
-		ret = PTR_ERR(fb);
-		goto fail;
-	}
-
-	ret = intel_modeset_setup_plane_state(state, crtc, mode, fb, 0, 0);
-	drm_framebuffer_put(fb);
+	ret = drm_atomic_set_mode_for_crtc(&crtc_state->base, mode);
 	if (ret)
 		goto fail;
 
-	ret = drm_atomic_set_mode_for_crtc(&crtc_state->base, mode);
+	ret = intel_modeset_disable_planes(state, crtc);
 	if (ret)
 		goto fail;
 
 	ret = PTR_ERR_OR_ZERO(drm_atomic_get_connector_state(restore_state, connector));
 	if (!ret)
 		ret = PTR_ERR_OR_ZERO(drm_atomic_get_crtc_state(restore_state, crtc));
-	if (!ret)
-		ret = PTR_ERR_OR_ZERO(drm_atomic_get_plane_state(restore_state, crtc->primary));
 	if (ret) {
 		DRM_DEBUG_KMS("Failed to create a copy of old state to restore: %i\n", ret);
 		goto fail;
