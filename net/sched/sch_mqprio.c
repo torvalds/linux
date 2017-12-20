@@ -230,7 +230,7 @@ static int mqprio_init(struct Qdisc *sch, struct nlattr *opt,
 		qdisc = qdisc_create_dflt(dev_queue,
 					  get_default_qdisc_ops(dev, i),
 					  TC_H_MAKE(TC_H_MAJ(sch->handle),
-						    TC_H_MIN(i + 1)));
+						    TC_H_MIN(i + 1)), extack);
 		if (!qdisc)
 			return -ENOMEM;
 

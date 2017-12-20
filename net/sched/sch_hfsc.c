@@ -1062,8 +1062,8 @@ hfsc_change_class(struct Qdisc *sch, u32 classid, u32 parentid,
 	cl->cl_common.classid = classid;
 	cl->sched     = q;
 	cl->cl_parent = parent;
-	cl->qdisc = qdisc_create_dflt(sch->dev_queue,
-				      &pfifo_qdisc_ops, classid);
+	cl->qdisc = qdisc_create_dflt(sch->dev_queue, &pfifo_qdisc_ops,
+				      classid, NULL);
 	if (cl->qdisc == NULL)
 		cl->qdisc = &noop_qdisc;
 	else
@@ -1185,7 +1185,7 @@ hfsc_graft_class(struct Qdisc *sch, unsigned long arg, struct Qdisc *new,
 		return -EINVAL;
 	if (new == NULL) {
 		new = qdisc_create_dflt(sch->dev_queue, &pfifo_qdisc_ops,
-					cl->cl_common.classid);
+					cl->cl_common.classid, NULL);
 		if (new == NULL)
 			new = &noop_qdisc;
 	}
@@ -1416,7 +1416,7 @@ hfsc_init_qdisc(struct Qdisc *sch, struct nlattr *opt,
 	q->root.cl_common.classid = sch->handle;
 	q->root.sched   = q;
 	q->root.qdisc = qdisc_create_dflt(sch->dev_queue, &pfifo_qdisc_ops,
-					  sch->handle);
+					  sch->handle, NULL);
 	if (q->root.qdisc == NULL)
 		q->root.qdisc = &noop_qdisc;
 	else

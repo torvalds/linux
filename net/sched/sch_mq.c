@@ -61,7 +61,8 @@ static int mq_init(struct Qdisc *sch, struct nlattr *opt,
 		dev_queue = netdev_get_tx_queue(dev, ntx);
 		qdisc = qdisc_create_dflt(dev_queue, get_default_qdisc_ops(dev, ntx),
 					  TC_H_MAKE(TC_H_MAJ(sch->handle),
-						    TC_H_MIN(ntx + 1)));
+						    TC_H_MIN(ntx + 1)),
+					  extack);
 		if (!qdisc)
 			return -ENOMEM;
 		priv->qdiscs[ntx] = qdisc;

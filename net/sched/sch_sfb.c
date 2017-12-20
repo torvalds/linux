@@ -513,7 +513,7 @@ static int sfb_change(struct Qdisc *sch, struct nlattr *opt,
 	if (limit == 0)
 		limit = qdisc_dev(sch)->tx_queue_len;
 
-	child = fifo_create_dflt(sch, &pfifo_qdisc_ops, limit);
+	child = fifo_create_dflt(sch, &pfifo_qdisc_ops, limit, extack);
 	if (IS_ERR(child))
 		return PTR_ERR(child);
 

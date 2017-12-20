@@ -166,12 +166,14 @@ int fifo_set_limit(struct Qdisc *q, unsigned int limit)
 EXPORT_SYMBOL(fifo_set_limit);
 
 struct Qdisc *fifo_create_dflt(struct Qdisc *sch, struct Qdisc_ops *ops,
-			       unsigned int limit)
+			       unsigned int limit,
+			       struct netlink_ext_ack *extack)
 {
 	struct Qdisc *q;
 	int err = -ENOMEM;
 
-	q = qdisc_create_dflt(sch->dev_queue, ops, TC_H_MAKE(sch->handle, 1));
+	q = qdisc_create_dflt(sch->dev_queue, ops, TC_H_MAKE(sch->handle, 1),
+			      extack);
 	if (q) {
 		err = fifo_set_limit(q, limit);
 		if (err < 0) {

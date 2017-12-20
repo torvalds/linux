@@ -176,7 +176,8 @@ static int prio_tune(struct Qdisc *sch, struct nlattr *opt,
 	/* Before commit, make sure we can allocate all new qdiscs */
 	for (i = oldbands; i < qopt->bands; i++) {
 		queues[i] = qdisc_create_dflt(sch->dev_queue, &pfifo_qdisc_ops,
-					      TC_H_MAKE(sch->handle, i + 1));
+					      TC_H_MAKE(sch->handle, i + 1),
+					      extack);
 		if (!queues[i]) {
 			while (i > oldbands)
 				qdisc_destroy(queues[--i]);

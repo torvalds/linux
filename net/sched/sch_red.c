@@ -225,7 +225,8 @@ static int red_change(struct Qdisc *sch, struct nlattr *opt,
 		return -EINVAL;
 
 	if (ctl->limit > 0) {
-		child = fifo_create_dflt(sch, &bfifo_qdisc_ops, ctl->limit);
+		child = fifo_create_dflt(sch, &bfifo_qdisc_ops, ctl->limit,
+					 extack);
 		if (IS_ERR(child))
 			return PTR_ERR(child);
 	}

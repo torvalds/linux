@@ -89,7 +89,8 @@ extern struct Qdisc_ops pfifo_head_drop_qdisc_ops;
 
 int fifo_set_limit(struct Qdisc *q, unsigned int limit);
 struct Qdisc *fifo_create_dflt(struct Qdisc *sch, struct Qdisc_ops *ops,
-			       unsigned int limit);
+			       unsigned int limit,
+			       struct netlink_ext_ack *extack);
 
 int register_qdisc(struct Qdisc_ops *qops);
 int unregister_qdisc(struct Qdisc_ops *qops);

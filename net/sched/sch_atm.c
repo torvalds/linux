@@ -290,7 +290,8 @@ static int atm_tc_change(struct Qdisc *sch, u32 classid, u32 parent,
 		goto err_out;
 	}
 
-	flow->q = qdisc_create_dflt(sch->dev_queue, &pfifo_qdisc_ops, classid);
+	flow->q = qdisc_create_dflt(sch->dev_queue, &pfifo_qdisc_ops, classid,
+				    extack);
 	if (!flow->q)
 		flow->q = &noop_qdisc;
 	pr_debug("atm_tc_change: qdisc %p\n", flow->q);
@@ -546,7 +547,7 @@ static int atm_tc_init(struct Qdisc *sch, struct nlattr *opt,
 	INIT_LIST_HEAD(&p->link.list);
 	list_add(&p->link.list, &p->flows);
 	p->link.q = qdisc_create_dflt(sch->dev_queue,
-				      &pfifo_qdisc_ops, sch->handle);
+				      &pfifo_qdisc_ops, sch->handle, extack);
 	if (!p->link.q)
 		p->link.q = &noop_qdisc;
 	pr_debug("atm_tc_init: link (%p) qdisc %p\n", &p->link, p->link.q);

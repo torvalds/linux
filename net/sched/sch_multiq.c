@@ -216,7 +216,7 @@ static int multiq_tune(struct Qdisc *sch, struct nlattr *opt,
 			child = qdisc_create_dflt(sch->dev_queue,
 						  &pfifo_qdisc_ops,
 						  TC_H_MAKE(sch->handle,
-							    i + 1));
+							    i + 1), extack);
 			if (child) {
 				sch_tree_lock(sch);
 				old = q->queues[i];

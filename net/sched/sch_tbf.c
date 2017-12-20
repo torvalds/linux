@@ -386,7 +386,8 @@ static int tbf_change(struct Qdisc *sch, struct nlattr *opt,
 		if (err)
 			goto done;
 	} else if (qopt->limit > 0) {
-		child = fifo_create_dflt(sch, &bfifo_qdisc_ops, qopt->limit);
+		child = fifo_create_dflt(sch, &bfifo_qdisc_ops, qopt->limit,
+					 extack);
 		if (IS_ERR(child)) {
 			err = PTR_ERR(child);
 			goto done;

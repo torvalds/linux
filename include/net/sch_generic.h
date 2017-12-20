@@ -474,7 +474,8 @@ struct Qdisc *qdisc_alloc(struct netdev_queue *dev_queue,
 			  const struct Qdisc_ops *ops,
 			  struct netlink_ext_ack *extack);
 struct Qdisc *qdisc_create_dflt(struct netdev_queue *dev_queue,
-				const struct Qdisc_ops *ops, u32 parentid);
+				const struct Qdisc_ops *ops, u32 parentid,
+				struct netlink_ext_ack *extack);
 void __qdisc_calculate_pkt_len(struct sk_buff *skb,
 			       const struct qdisc_size_table *stab);
 int skb_do_redirect(struct sk_buff *);
