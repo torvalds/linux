@@ -591,13 +591,6 @@ int rf69_set_rssi_threshold(struct spi_device *spi, u8 threshold)
 	return rf69_write_reg(spi, REG_RSSITHRESH, threshold);
 }
 
-int rf69_set_rx_start_timeout(struct spi_device *spi, u8 timeout)
-{
-	/* no value check needed - u8 exactly matches register size */
-
-	return rf69_write_reg(spi, REG_RXTIMEOUT1, timeout);
-}
-
 int rf69_set_preamble_length(struct spi_device *spi, u16 preambleLength)
 {
 	int retval;
