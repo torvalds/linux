@@ -468,7 +468,7 @@
 			clocks = <&xxti>, <&cmu_mif CLK_SCLK_BUS_PLL_ATLAS>;
 		};
 
-		cmu_mscl: clock-controller@105d0000 {
+		cmu_mscl: clock-controller@150d0000 {
 			compatible = "samsung,exynos5433-cmu-mscl";
 			reg = <0x150d0000 0x1000>;
 			#clock-cells = <1>;
