@@ -590,7 +590,7 @@ static void hsw_psr_disable(struct intel_dp *intel_dp,
 	struct drm_i915_private *dev_priv = to_i915(dev);
 
 	if (dev_priv->psr.active) {
-		i915_reg_t psr_ctl;
+		i915_reg_t psr_status;
 		u32 psr_status_mask;
 
 		if (dev_priv->psr.aux_frame_sync)
@@ -599,24 +599,24 @@ static void hsw_psr_disable(struct intel_dp *intel_dp,
 					0);
 
 		if (dev_priv->psr.psr2_support) {
-			psr_ctl = EDP_PSR2_CTL;
+			psr_status = EDP_PSR2_STATUS_CTL;
 			psr_status_mask = EDP_PSR2_STATUS_STATE_MASK;
 
-			I915_WRITE(psr_ctl,
-				   I915_READ(psr_ctl) &
+			I915_WRITE(EDP_PSR2_CTL,
+				   I915_READ(EDP_PSR2_CTL) &
 				   ~(EDP_PSR2_ENABLE | EDP_SU_TRACK_ENABLE));
 
 		} else {
-			psr_ctl = EDP_PSR_STATUS_CTL;
+			psr_status = EDP_PSR_STATUS_CTL;
 			psr_status_mask = EDP_PSR_STATUS_STATE_MASK;
 
-			I915_WRITE(psr_ctl,
-				   I915_READ(psr_ctl) & ~EDP_PSR_ENABLE);
+			I915_WRITE(EDP_PSR_CTL,
+				   I915_READ(EDP_PSR_CTL) & ~EDP_PSR_ENABLE);
 		}
 
 		/* Wait till PSR is idle */
 		if (intel_wait_for_register(dev_priv,
-					    psr_ctl, psr_status_mask, 0,
+					    psr_status, psr_status_mask, 0,
 					    2000))
 			DRM_ERROR("Timed out waiting for PSR Idle State\n");
 
