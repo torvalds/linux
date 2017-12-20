@@ -206,12 +206,7 @@
 	status = "okay";
 };
 
-&ssi3 {
-	no-busif;
-};
-
 &ssi4 {
-	no-busif;
 	shared-pin;
 };
 
