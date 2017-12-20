@@ -695,71 +695,15 @@ static struct pi_desc *vcpu_to_pi_desc(struct kvm_vcpu *vcpu)
 
 
 static u16 shadow_read_only_fields[] = {
-	/*
-	 * We do NOT shadow fields that are modified when L0
-	 * traps and emulates any vmx instruction (e.g. VMPTRLD,
-	 * VMXON...) executed by L1.
-	 * For example, VM_INSTRUCTION_ERROR is read
-	 * by L1 if a vmx instruction fails (part of the error path).
-	 * Note the code assumes this logic. If for some reason
-	 * we start shadowing these fields then we need to
-	 * force a shadow sync when L0 emulates vmx instructions
-	 * (e.g. force a sync if VM_INSTRUCTION_ERROR is modified
-	 * by nested_vmx_failValid)
-	 */
-	/* 32-bits */
-	VM_EXIT_REASON,
-	VM_EXIT_INTR_INFO,
-	VM_EXIT_INSTRUCTION_LEN,
-	IDT_VECTORING_INFO_FIELD,
-	IDT_VECTORING_ERROR_CODE,
-	VM_EXIT_INTR_ERROR_CODE,
-
-	/* Natural width */
-	EXIT_QUALIFICATION,
-	GUEST_LINEAR_ADDRESS,
-
-	/* 64-bit */
-	GUEST_PHYSICAL_ADDRESS,
-	GUEST_PHYSICAL_ADDRESS_HIGH,
+#define SHADOW_FIELD_RO(x) x,
+#include "vmx_shadow_fields.h"
 };
 static int max_shadow_read_only_fields =
 	ARRAY_SIZE(shadow_read_only_fields);
 
 static u16 shadow_read_write_fields[] = {
-	/* 16-bits */
-	GUEST_CS_SELECTOR,
-	GUEST_INTR_STATUS,
-	GUEST_PML_INDEX,
-	HOST_FS_SELECTOR,
-	HOST_GS_SELECTOR,
-
-	/* 32-bits */
-	CPU_BASED_VM_EXEC_CONTROL,
-	EXCEPTION_BITMAP,
-	VM_ENTRY_EXCEPTION_ERROR_CODE,
-	VM_ENTRY_INTR_INFO_FIELD,
-	VM_ENTRY_INSTRUCTION_LEN,
-	TPR_THRESHOLD,
-	GUEST_CS_LIMIT,
-	GUEST_CS_AR_BYTES,
-	GUEST_INTERRUPTIBILITY_INFO,
-	VMX_PREEMPTION_TIMER_VALUE,
-
-	/* Natural width */
-	GUEST_RIP,
-	GUEST_RSP,
-	GUEST_CR0,
-	GUEST_CR3,
-	GUEST_CR4,
-	GUEST_RFLAGS,
-	GUEST_CS_BASE,
-	GUEST_ES_BASE,
-	CR0_GUEST_HOST_MASK,
-	CR0_READ_SHADOW,
-	CR4_READ_SHADOW,
-	HOST_FS_BASE,
-	HOST_GS_BASE,
+#define SHADOW_FIELD_RW(x) x,
+#include "vmx_shadow_fields.h"
 };
 static int max_shadow_read_write_fields =
 	ARRAY_SIZE(shadow_read_write_fields);
