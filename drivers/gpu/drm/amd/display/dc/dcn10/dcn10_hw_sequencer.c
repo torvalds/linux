@@ -193,26 +193,6 @@ void dcn10_log_hw_state(struct dc *dc)
 	DTN_INFO_END();
 }
 
-static void enable_dppclk(
-	struct dce_hwseq *hws,
-	uint8_t plane_id,
-	uint32_t requested_pix_clk,
-	bool dppclk_div)
-{
-	dm_logger_write(hws->ctx->logger, LOG_SURFACE,
-			"dppclk_rate_control for pipe %d programed to %d\n",
-			plane_id,
-			dppclk_div);
-
-	if (hws->shifts->DPPCLK_RATE_CONTROL)
-		REG_UPDATE_2(DPP_CONTROL[plane_id],
-			DPPCLK_RATE_CONTROL, dppclk_div,
-			DPP_CLOCK_ENABLE, 1);
-	else
-		REG_UPDATE(DPP_CONTROL[plane_id],
-			DPP_CLOCK_ENABLE, 1);
-}
-
 static void enable_power_gating_plane(
 	struct dce_hwseq *hws,
 	bool enable)
@@ -655,15 +635,14 @@ static void plane_atomic_disable(struct dc *dc, struct pipe_ctx *pipe_ctx)
 {
 	struct dce_hwseq *hws = dc->hwseq;
 	struct hubp *hubp = pipe_ctx->plane_res.hubp;
+	struct dpp *dpp = pipe_ctx->plane_res.dpp;
 	int opp_id = hubp->opp_id;
-	int dpp_id = pipe_ctx->plane_res.dpp->inst;
 
 	dc->hwss.wait_for_mpcc_disconnect(dc, dc->res_pool, pipe_ctx);
 
 	hubp->funcs->hubp_clk_cntl(hubp, false);
 
-	REG_UPDATE(DPP_CONTROL[dpp_id],
-			DPP_CLOCK_ENABLE, 0);
+	dpp->funcs->dpp_dppclk_control(dpp, false, false);
 
 	if (opp_id != 0xf && pipe_ctx->stream_res.opp->mpc_tree_params.opp_list == NULL)
 		REG_UPDATE(OPP_PIPE_CONTROL[opp_id],
@@ -1688,11 +1667,11 @@ static void update_dchubp_dpp(
 
 	/* depends on DML calculation, DPP clock value may change dynamically */
 	if (plane_state->update_flags.bits.full_update) {
-		enable_dppclk(
-			dc->hwseq,
-			pipe_ctx->plane_res.dpp->inst,
-			pipe_ctx->stream_res.pix_clk_params.requested_pix_clk,
-			context->bw.dcn.calc_clk.dppclk_div);
+		dpp->funcs->dpp_dppclk_control(
+				dpp,
+				context->bw.dcn.calc_clk.dppclk_div,
+				true);
+
 		dc->current_state->bw.dcn.cur_clk.dppclk_div =
 				context->bw.dcn.calc_clk.dppclk_div;
 		context->bw.dcn.cur_clk.dppclk_div = context->bw.dcn.calc_clk.dppclk_div;
