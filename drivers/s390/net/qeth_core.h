@@ -847,14 +847,16 @@ static inline int qeth_get_micros(void)
 
 static inline int qeth_get_ip_version(struct sk_buff *skb)
 {
-	__be16 *p = &((struct ethhdr *)skb->data)->h_proto;
+	struct vlan_ethhdr *veth = vlan_eth_hdr(skb);
+	__be16 prot = veth->h_vlan_proto;
 
-	if (be16_to_cpu(*p) == ETH_P_8021Q)
-		p += 2;
-	switch (be16_to_cpu(*p)) {
-	case ETH_P_IPV6:
+	if (prot == htons(ETH_P_8021Q))
+		prot = veth->h_vlan_encapsulated_proto;
+
+	switch (prot) {
+	case htons(ETH_P_IPV6):
 		return 6;
-	case ETH_P_IP:
+	case htons(ETH_P_IP):
 		return 4;
 	default:
 		return 0;
