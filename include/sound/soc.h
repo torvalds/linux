@@ -858,7 +858,6 @@ struct snd_soc_component {
 	struct list_head card_aux_list; /* for auxiliary bound components */
 	struct list_head card_list;
 
-	struct snd_soc_dai_driver *dai_drv;
 	int num_dai;
 
 	const struct snd_soc_component_driver *driver;
