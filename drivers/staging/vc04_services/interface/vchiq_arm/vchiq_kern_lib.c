@@ -75,7 +75,9 @@ VCHIQ_STATUS_T vchiq_initialise(VCHIQ_INSTANCE_T *instance_out)
 	vchiq_log_trace(vchiq_core_log_level, "%s called", __func__);
 
 	/* VideoCore may not be ready due to boot up timing.
-	   It may never be ready if kernel and firmware are mismatched, so don't block forever. */
+	 * It may never be ready if kernel and firmware are mismatched,so don't
+	 * block forever.
+	 */
 	for (i = 0; i < VCHIQ_INIT_RETRIES; i++) {
 		state = vchiq_get_state();
 		if (state)
@@ -379,8 +381,9 @@ vchiq_blocking_bulk_transfer(VCHIQ_SERVICE_HANDLE_T handle, void *data,
 			if ((bulk->data != data) ||
 				(bulk->size != size)) {
 				/* This is not a retry of the previous one.
-				** Cancel the signal when the transfer
-				** completes. */
+				 * Cancel the signal when the transfer
+				 * completes.
+				 */
 				spin_lock(&bulk_waiter_spinlock);
 				bulk->userdata = NULL;
 				spin_unlock(&bulk_waiter_spinlock);
@@ -406,7 +409,8 @@ vchiq_blocking_bulk_transfer(VCHIQ_SERVICE_HANDLE_T handle, void *data,
 
 		if (bulk) {
 			/* Cancel the signal when the transfer
-			 ** completes. */
+			 * completes.
+			 */
 			spin_lock(&bulk_waiter_spinlock);
 			bulk->userdata = NULL;
 			spin_unlock(&bulk_waiter_spinlock);
