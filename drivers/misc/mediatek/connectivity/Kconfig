@@ -1,0 +1,298 @@
+config MTK_COMBO
+	tristate "MediaTek Connectivity Combo Chip Support"
+	help
+	  MTK connectivity combo chip driver for MT66xx
+
+#
+# MTK Combo Chip Selection
+#
+
+choice
+	prompt "Select Chip"
+	depends on MTK_COMBO
+
+config MTK_COMBO_CHIP_MT6620
+	bool "MT6620"
+	help
+	  this config is used to decided combo chip version
+	  in current platform
+	  is
+	  MT6620
+
+config MTK_COMBO_CHIP_MT6628
+	bool "MT6628"
+	help
+	  this config is used to decided combo chip version
+	  in current platform
+	  is
+	  MT6628
+
+config MTK_COMBO_CHIP_MT6630
+	bool "MT6630"
+	help
+	  this config is used to decided combo chip version
+	  in current platform
+	  is
+	  MT6630
+
+config MTK_COMBO_CHIP_CONSYS_6572
+	bool "CONSYS_6572"
+	help
+	  this config is used to decided SOC consys version
+	  in current platform
+	  is
+	  MT6572
+
+config MTK_COMBO_CHIP_CONSYS_6582
+	bool "CONSYS_6582"
+	help
+	  this config is used to decided SOC consys version
+	  in current platform
+	  is
+	  MT6582
+
+config MTK_COMBO_CHIP_CONSYS_8127
+	bool "CONSYS_8127"
+	help
+	  this config is used to decided SOC consys version
+	  in current platform
+	  is
+	  MT6572
+
+config MTK_COMBO_CHIP_CONSYS_7623
+	bool "CONSYS_7623"
+	help
+	  this config is used to decide SOC consys version
+	  in current platform is MT7623 and prepare proper
+	  system services like radio power on/off and firmware
+	  download for the Bluetotoh and Wifi.
+
+
+config MTK_COMBO_CHIP_CONSYS_6752
+	bool "CONSYS_6752"
+	help
+	  this config is used to decided SOC consys version
+	  in current platform
+	  is
+	  MT6752
+
+config MTK_COMBO_CHIP_CONSYS_6592
+	bool "CONSYS_6592"
+	help
+	  this config is used to decided SOC consys version
+	  in current platform
+	  is
+	  MT6592
+
+config MTK_COMBO_CHIP_CONSYS_8163
+	bool "CONSYS_8163"
+	help
+	  this config is used to decided SOC consys version
+	  in current platform
+	  is
+	  MT8163
+
+config MTK_COMBO_CHIP_CONSYS_6735
+	bool "CONSYS_6735"
+	help
+	  this config is used to decided SOC consys version
+	  in current platform
+	  is
+	  MT6735
+
+config MTK_COMBO_CHIP_CONSYS_6755
+	bool "CONSYS_6755"
+	help
+	  this config is used to decided SOC consys version
+	  in current platform
+	  is
+	  MT6755
+
+config MTK_COMBO_CHIP_CONSYS_6580
+	bool "CONSYS_6580"
+	help
+	  this config is used to decided SOC consys version
+	  in current platform
+	  is
+	  MT6580
+
+config MTK_COMBO_CHIP_CONSYS_6797
+	bool "CONSYS_6797"
+	help
+	  this config is used to decided SOC consys version
+	  in current platform
+	  is
+	  MT6797
+endchoice
+
+config MTK_COMBO_CHIP
+	string
+	default "MT6620" if MTK_COMBO_CHIP_MT6620
+	default "MT6628" if MTK_COMBO_CHIP_MT6628
+	default "MT6630" if MTK_COMBO_CHIP_MT6630
+	default "CONSYS_6572" if MTK_COMBO_CHIP_CONSYS_6572
+	default "CONSYS_6582" if MTK_COMBO_CHIP_CONSYS_6582
+	default "CONSYS_8127" if MTK_COMBO_CHIP_CONSYS_8127
+	default "CONSYS_7623" if MTK_COMBO_CHIP_CONSYS_7623
+	default "CONSYS_6752" if MTK_COMBO_CHIP_CONSYS_6752
+	default "CONSYS_6755" if MTK_COMBO_CHIP_CONSYS_6755
+	default "CONSYS_6592" if MTK_COMBO_CHIP_CONSYS_6592
+	default "CONSYS_8163" if MTK_COMBO_CHIP_CONSYS_8163
+	default "CONSYS_6735" if MTK_COMBO_CHIP_CONSYS_6735
+	default "CONSYS_6580" if MTK_COMBO_CHIP_CONSYS_6580
+	default "CONSYS_6797" if MTK_COMBO_CHIP_CONSYS_6797
+	help
+	  this feature is used to identify combo chip version or SOC chip
+	  consys version.
+
+#
+# Target Platform Selection
+#
+config MTK_COMBO_PLAT_PATH
+	string "Platform folder name"
+	depends on MTK_COMBO
+	default "sample" if MTK_COMBO_PLAT_SAMPLE
+	help
+	  Specify platform folder under common driver platform folder:
+	  mtk_wcn_combo/common/platform/*
+
+#
+# MTK COMBO Chip Configuration
+#
+config MTK_COMBO_COMM
+	depends on MTK_COMBO
+	tristate "MediaTek Combo Chip Common part driver"
+	help
+	  MediaTek combo chip common part driver
+
+#config MTK_COMBO_COMM_PS
+#	depends on MTK_COMBO_COMM
+#	bool "Enable PS support"
+#	default n
+#	help
+#	  Enable PS support of common UART interface
+
+config MTK_COMBO_COMM_UART
+	depends on MTK_COMBO_COMM
+	tristate "Common interface UART"
+	help
+	  Use UART for common part interface type
+
+config MTK_COMBO_COMM_SDIO
+	depends on MTK_COMBO_COMM
+	tristate "Common interface SDIO"
+	help
+	  Use SDIO for common part interface type
+
+config MTK_COMBO_COMM_NPWR
+	depends on MTK_COMBO_COMM
+	bool "Enable NPWR support"
+	default n
+	help
+	  Enable NPWR support of new power on swquence
+
+config MTK_COMBO_COMM_APO
+	depends on MTK_COMBO_COMM
+	bool "Enable always power on support"
+	#default y
+	help
+	  Enable chip will always power on
+
+config MTK_COMBO_BT
+	tristate "MediaTek Combo Chip BT driver"
+	depends on MTK_COMBO
+	select MTK_BTIF
+	help
+	  MTK BT /dev/stpbt driver for Bluedroid
+
+config MTK_COMBO_BT_HCI
+	tristate "MediaTek Combo Chip BlueZ driver"
+	depends on BT && MTK_COMBO
+	select MTK_BTIF
+	help
+	  MTK BT driver for BlueZ
+
+config MTK_COMBO_WIFI
+	tristate "MediaTek combo chip Wi-Fi support"
+	depends on MTK_COMBO
+	select MTK_BTIF
+	select WIRELESS_EXT
+	select WEXT_PRIV
+
+config MTK_WAPI_SUPPORT
+	bool "MTK_WAPI_SUPPORT"
+	depends on MTK_COMBO_WIFI
+	#default y
+	help
+	  if it is set to TRUE: Support WAPI (WLAN Authentication and
+	  Privacy Infrastructure)
+
+config MTK_PASSPOINT_R1_SUPPORT
+	bool "MTK_PASSPOINT_R1_SUPPORT"
+	depends on MTK_COMBO_WIFI
+	help
+	  Support Passpoint R1 (Hotspot 2.0 R1)
+
+config MTK_PASSPOINT_R2_SUPPORT
+	bool "MTK_PASSPOINT_R2_SUPPORT"
+	depends on MTK_COMBO_WIFI
+	help
+	   Support Passpoint R2
+
+config MTK_WIFI_MCC_SUPPORT
+	bool "MTK_WIFI_MCC_SUPPORT"
+	depends on MTK_COMBO_WIFI
+	#default y
+	help
+	   if it is set to TRUE, wlan will support Multi-Channel Concurrency,
+	   otherwise, only support Single Channel Concurrency
+
+config MTK_DHCPV6C_WIFI
+	bool "MTK_DHCPV6C_WIFI"
+	help
+	  no: disable this feature
+
+config MTK_CONN_LTE_IDC_SUPPORT
+	bool "MediaTek CONN LTE IDC support"
+	select MTK_CONN_MD
+	#default y
+	help
+	  This option enables CONN LTE IDC support
+
+menuconfig GPS
+        tristate "GPS drivers"
+        #default y
+        ---help---
+          Say Y here for supporting GPS.
+
+if GPS
+config MTK_GPS
+        tristate "MediaTek GPS driver"
+        #default y
+        ---help---
+          MTK GPS driver
+          To switch gps nmea port driver.
+          Set "yes" to turn on.
+          Set "no" to turn off.
+endif # GPS
+
+config MTK_GPS_SUPPORT
+        tristate "MediaTek GPS driver"
+        select MTK_GPS
+        help
+          to switch GPS feature on the platform.
+          Set "yes" to turn on and set "no"
+          (with MTK_AGPS_APP=no at the same time)
+          to turn off.
+
+config MTK_GPS_REGISTER_SETTING
+	tristate "MediaTek GPS Register Setting"
+	depends on MTK_COMBO_GPS
+	help
+	   GPS register settings.
+
+config MTK_GPS_EMI
+	tristate "MediaTek GPS EMI Driver"
+	depends on MTK_COMBO_GPS
+	help
+	   GPS EMI driver is for MNL OFFLOAD feature.

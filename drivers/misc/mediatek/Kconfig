@@ -1,0 +1,11 @@
+menu "Mediatek Peripherals "
+
+config MTK_PLATFORM
+        string "MTK platform name"
+source "drivers/misc/mediatek/btif/Kconfig"
+
+menu "Modem & Connectivity related configs"
+source "drivers/misc/mediatek/connectivity/Kconfig"
+endmenu
+
+endmenu  # CONN

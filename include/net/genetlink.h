@@ -144,6 +144,51 @@ struct genl_ops {
 };
 
 int genl_register_family(struct genl_family *family);
+
+/**
+ * genl_register_family_with_ops - register a generic netlink family with ops
+ * @family: generic netlink family
+ * @ops: operations to be registered
+ * @n_ops: number of elements to register
+ *
+ * Registers the specified family and operations from the specified table.
+ * Only one family may be registered with the same family name or identifier.
+ *
+ * The family id may equal GENL_ID_GENERATE causing an unique id to
+ * be automatically generated and assigned.
+ *
+ * Either a doit or dumpit callback must be specified for every registered
+ * operation or the function will fail. Only one operation structure per
+ * command identifier may be registered.
+ *
+ * See include/net/genetlink.h for more documenation on the operations
+ * structure.
+ *
+ * Return 0 on success or a negative error code.
+ */
+static inline int
+_genl_register_family_with_ops_grps(struct genl_family *family,
+                                   const struct genl_ops *ops, size_t n_ops,
+                                   const struct genl_multicast_group *mcgrps,
+                                   size_t n_mcgrps)
+{
+	family->module = THIS_MODULE;
+	family->ops = ops;
+	family->n_ops = n_ops;
+	family->mcgrps = mcgrps;
+	family->n_mcgrps = n_mcgrps;
+	return genl_register_family(family);
+}
+
+#define genl_register_family_with_ops(family, ops)					\
+		_genl_register_family_with_ops_grps((family),				\
+											(ops), ARRAY_SIZE(ops),	\
+											NULL, 0)
+#define genl_register_family_with_ops_groups(family, ops, grps)		\
+		_genl_register_family_with_ops_grps((family),				\
+											(ops), ARRAY_SIZE(ops),	\
+											(grps), ARRAY_SIZE(grps))
+
 int genl_unregister_family(const struct genl_family *family);
 void genl_notify(const struct genl_family *family, struct sk_buff *skb,
 		 struct genl_info *info, u32 group, gfp_t flags);

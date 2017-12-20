@@ -1,0 +1,4 @@
+config MTK_BTIF
+	tristate"MediaTek BTIF Driver"
+	help
+	  MTK connectivity BTIF driver for A/D die
