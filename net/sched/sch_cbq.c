@@ -1150,12 +1150,13 @@ static int cbq_init(struct Qdisc *sch, struct nlattr *opt)
 	if (err < 0)
 		return err;
 
-	if (tb[TCA_CBQ_RTAB] == NULL || tb[TCA_CBQ_RATE] == NULL)
+	if (!tb[TCA_CBQ_RTAB] || !tb[TCA_CBQ_RATE])
 		return -EINVAL;
 
 	r = nla_data(tb[TCA_CBQ_RATE]);
 
-	if ((q->link.R_tab = qdisc_get_rtab(r, tb[TCA_CBQ_RTAB])) == NULL)
+	q->link.R_tab = qdisc_get_rtab(r, tb[TCA_CBQ_RTAB]);
+	if (!q->link.R_tab)
 		return -EINVAL;
 
 	err = tcf_block_get(&q->link.block, &q->link.filter_list, sch);
@@ -1460,7 +1461,7 @@ cbq_change_class(struct Qdisc *sch, u32 classid, u32 parentid, struct nlattr **t
 	struct cbq_class *parent;
 	struct qdisc_rate_table *rtab = NULL;
 
-	if (opt == NULL)
+	if (!opt)
 		return -EINVAL;
 
 	err = nla_parse_nested(tb, TCA_CBQ_MAX, opt, cbq_policy, NULL);
@@ -1532,8 +1533,7 @@ cbq_change_class(struct Qdisc *sch, u32 classid, u32 parentid, struct nlattr **t
 	if (parentid == TC_H_ROOT)
 		return -EINVAL;
 
-	if (tb[TCA_CBQ_WRROPT] == NULL || tb[TCA_CBQ_RATE] == NULL ||
-	    tb[TCA_CBQ_LSSOPT] == NULL)
+	if (!tb[TCA_CBQ_WRROPT] || !tb[TCA_CBQ_RATE] || !tb[TCA_CBQ_LSSOPT])
 		return -EINVAL;
 
 	rtab = qdisc_get_rtab(nla_data(tb[TCA_CBQ_RATE]), tb[TCA_CBQ_RTAB]);
@@ -1565,7 +1565,7 @@ cbq_change_class(struct Qdisc *sch, u32 classid, u32 parentid, struct nlattr **t
 	if (parentid) {
 		parent = cbq_class_lookup(q, parentid);
 		err = -EINVAL;
-		if (parent == NULL)
+		if (!parent)
 			goto failure;
 	}
 

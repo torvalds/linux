@@ -243,7 +243,7 @@ static int multiq_init(struct Qdisc *sch, struct nlattr *opt)
 
 	q->queues = NULL;
 
-	if (opt == NULL)
+	if (!opt)
 		return -EINVAL;
 
 	err = tcf_block_get(&q->block, &q->filter_list, sch);

@@ -428,7 +428,7 @@ static int tbf_init(struct Qdisc *sch, struct nlattr *opt)
 	qdisc_watchdog_init(&q->watchdog, sch);
 	q->qdisc = &noop_qdisc;
 
-	if (opt == NULL)
+	if (!opt)
 		return -EINVAL;
 
 	q->t_c = ktime_get_ns();

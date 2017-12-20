@@ -669,7 +669,7 @@ int qdisc_class_hash_init(struct Qdisc_class_hash *clhash)
 	unsigned int size = 4;
 
 	clhash->hash = qdisc_class_hash_alloc(size);
-	if (clhash->hash == NULL)
+	if (!clhash->hash)
 		return -ENOMEM;
 	clhash->hashsize  = size;
 	clhash->hashmask  = size - 1;

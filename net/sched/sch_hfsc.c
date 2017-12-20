@@ -1396,7 +1396,7 @@ hfsc_init_qdisc(struct Qdisc *sch, struct nlattr *opt)
 
 	qdisc_watchdog_init(&q->watchdog, sch);
 
-	if (opt == NULL || nla_len(opt) < sizeof(*qopt))
+	if (!opt || nla_len(opt) < sizeof(*qopt))
 		return -EINVAL;
 	qopt = nla_data(opt);
 
