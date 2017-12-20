@@ -240,7 +240,7 @@
 		compatible =	"renesas,thermal-r8a7791",
 				"renesas,rcar-gen2-thermal",
 				"renesas,rcar-thermal";
-		reg = <0 0xe61f0000 0 0x14>, <0 0xe61f0100 0 0x38>;
+		reg = <0 0xe61f0000 0 0x10>, <0 0xe61f0100 0 0x38>;
 		interrupts = <GIC_SPI 69 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cpg CPG_MOD 522>;
 		power-domains = <&sysc R8A7791_PD_ALWAYS_ON>;
