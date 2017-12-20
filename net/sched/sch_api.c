@@ -393,13 +393,16 @@ static __u8 __detect_linklayer(struct tc_ratespec *r, __u32 *rtab)
 static struct qdisc_rate_table *qdisc_rtab_list;
 
 struct qdisc_rate_table *qdisc_get_rtab(struct tc_ratespec *r,
-					struct nlattr *tab)
+					struct nlattr *tab,
+					struct netlink_ext_ack *extack)
 {
 	struct qdisc_rate_table *rtab;
 
 	if (tab == NULL || r->rate == 0 || r->cell_log == 0 ||
-	    nla_len(tab) != TC_RTAB_SIZE)
+	    nla_len(tab) != TC_RTAB_SIZE) {
+		NL_SET_ERR_MSG(extack, "Invalid rate table parameters for searching");
 		return NULL;
+	}
 
 	for (rtab = qdisc_rtab_list; rtab; rtab = rtab->next) {
 		if (!memcmp(&rtab->rate, r, sizeof(struct tc_ratespec)) &&
@@ -418,6 +421,8 @@ struct qdisc_rate_table *qdisc_get_rtab(struct tc_ratespec *r,
 			r->linklayer = __detect_linklayer(r, rtab->data);
 		rtab->next = qdisc_rtab_list;
 		qdisc_rtab_list = rtab;
+	} else {
+		NL_SET_ERR_MSG(extack, "Failed to allocate new qdisc rate table");
 	}
 	return rtab;
 }

@@ -1156,7 +1156,7 @@ static int cbq_init(struct Qdisc *sch, struct nlattr *opt,
 
 	r = nla_data(tb[TCA_CBQ_RATE]);
 
-	q->link.R_tab = qdisc_get_rtab(r, tb[TCA_CBQ_RTAB]);
+	q->link.R_tab = qdisc_get_rtab(r, tb[TCA_CBQ_RTAB], extack);
 	if (!q->link.R_tab)
 		return -EINVAL;
 
@@ -1484,7 +1484,7 @@ cbq_change_class(struct Qdisc *sch, u32 classid, u32 parentid, struct nlattr **t
 
 		if (tb[TCA_CBQ_RATE]) {
 			rtab = qdisc_get_rtab(nla_data(tb[TCA_CBQ_RATE]),
-					      tb[TCA_CBQ_RTAB]);
+					      tb[TCA_CBQ_RTAB], extack);
 			if (rtab == NULL)
 				return -EINVAL;
 		}
@@ -1537,7 +1537,8 @@ cbq_change_class(struct Qdisc *sch, u32 classid, u32 parentid, struct nlattr **t
 	if (!tb[TCA_CBQ_WRROPT] || !tb[TCA_CBQ_RATE] || !tb[TCA_CBQ_LSSOPT])
 		return -EINVAL;
 
-	rtab = qdisc_get_rtab(nla_data(tb[TCA_CBQ_RATE]), tb[TCA_CBQ_RTAB]);
+	rtab = qdisc_get_rtab(nla_data(tb[TCA_CBQ_RATE]), tb[TCA_CBQ_RTAB],
+			      extack);
 	if (rtab == NULL)
 		return -EINVAL;
 

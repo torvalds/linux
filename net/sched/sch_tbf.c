@@ -327,11 +327,13 @@ static int tbf_change(struct Qdisc *sch, struct nlattr *opt,
 	qopt = nla_data(tb[TCA_TBF_PARMS]);
 	if (qopt->rate.linklayer == TC_LINKLAYER_UNAWARE)
 		qdisc_put_rtab(qdisc_get_rtab(&qopt->rate,
-					      tb[TCA_TBF_RTAB]));
+					      tb[TCA_TBF_RTAB],
+					      NULL));
 
 	if (qopt->peakrate.linklayer == TC_LINKLAYER_UNAWARE)
 			qdisc_put_rtab(qdisc_get_rtab(&qopt->peakrate,
-						      tb[TCA_TBF_PTAB]));
+						      tb[TCA_TBF_PTAB],
+						      NULL));
 
 	buffer = min_t(u64, PSCHED_TICKS2NS(qopt->buffer), ~0U);
 	mtu = min_t(u64, PSCHED_TICKS2NS(qopt->mtu), ~0U);
