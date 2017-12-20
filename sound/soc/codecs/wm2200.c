@@ -1550,7 +1550,7 @@ static const struct snd_soc_dapm_route wm2200_dapm_routes[] = {
 
 static int wm2200_probe(struct snd_soc_codec *codec)
 {
-	struct wm2200_priv *wm2200 = dev_get_drvdata(codec->dev);
+	struct wm2200_priv *wm2200 = snd_soc_codec_get_drvdata(codec);
 	int ret;
 
 	wm2200->codec = codec;
