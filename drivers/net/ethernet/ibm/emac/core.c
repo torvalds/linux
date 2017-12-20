@@ -199,8 +199,8 @@ static void __emac_set_multicast_list(struct emac_instance *dev);
 
 static inline int emac_phy_supports_gige(int phy_mode)
 {
-	return  phy_mode == PHY_INTERFACE_MODE_GMII ||
-		phy_mode == PHY_INTERFACE_MODE_RGMII ||
+	return  phy_interface_mode_is_rgmii(phy_mode) ||
+		phy_mode == PHY_INTERFACE_MODE_GMII ||
 		phy_mode == PHY_INTERFACE_MODE_SGMII ||
 		phy_mode == PHY_INTERFACE_MODE_TBI ||
 		phy_mode == PHY_INTERFACE_MODE_RTBI;
