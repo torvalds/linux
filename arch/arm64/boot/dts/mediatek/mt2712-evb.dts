@@ -24,6 +24,33 @@
 	chosen {
 		stdout-path = "serial0:921600n8";
 	};
+
+	cpus_fixed_vproc0: fixedregulator@0 {
+		compatible = "regulator-fixed";
+		regulator-name = "vproc_buck0";
+		regulator-min-microvolt = <1000000>;
+		regulator-max-microvolt = <1000000>;
+	};
+
+	cpus_fixed_vproc1: fixedregulator@1 {
+		compatible = "regulator-fixed";
+		regulator-name = "vproc_buck1";
+		regulator-min-microvolt = <1000000>;
+		regulator-max-microvolt = <1000000>;
+	};
+
+};
+
+&cpu0 {
+	proc-supply = <&cpus_fixed_vproc0>;
+};
+
+&cpu1 {
+	proc-supply = <&cpus_fixed_vproc0>;
+};
+
+&cpu2 {
+	proc-supply = <&cpus_fixed_vproc1>;
 };
 
 &uart0 {
