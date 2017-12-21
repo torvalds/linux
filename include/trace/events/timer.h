@@ -186,15 +186,16 @@ TRACE_EVENT(hrtimer_init,
  */
 TRACE_EVENT(hrtimer_start,
 
-	TP_PROTO(struct hrtimer *hrtimer),
+	TP_PROTO(struct hrtimer *hrtimer, enum hrtimer_mode mode),
 
-	TP_ARGS(hrtimer),
+	TP_ARGS(hrtimer, mode),
 
 	TP_STRUCT__entry(
 		__field( void *,	hrtimer		)
 		__field( void *,	function	)
 		__field( s64,		expires		)
 		__field( s64,		softexpires	)
+		__field( enum hrtimer_mode,	mode	)
 	),
 
 	TP_fast_assign(
@@ -202,12 +203,14 @@ TRACE_EVENT(hrtimer_start,
 		__entry->function	= hrtimer->function;
 		__entry->expires	= hrtimer_get_expires(hrtimer);
 		__entry->softexpires	= hrtimer_get_softexpires(hrtimer);
+		__entry->mode		= mode;
 	),
 
-	TP_printk("hrtimer=%p function=%pf expires=%llu softexpires=%llu",
-		  __entry->hrtimer, __entry->function,
+	TP_printk("hrtimer=%p function=%pf expires=%llu softexpires=%llu "
+		  "mode=%s", __entry->hrtimer, __entry->function,
 		  (unsigned long long) __entry->expires,
-		  (unsigned long long) __entry->softexpires)
+		  (unsigned long long) __entry->softexpires,
+		  decode_hrtimer_mode(__entry->mode))
 );
 
 /**
