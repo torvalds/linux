@@ -699,13 +699,10 @@ static const struct iio_chan_spec ina219_channels[] = {
 	IIO_CHAN_SOFT_TIMESTAMP(4),
 };
 
-static int ina2xx_work_buffer(struct iio_dev *indio_dev)
+static int ina2xx_conversion_ready(struct iio_dev *indio_dev)
 {
 	struct ina2xx_chip_info *chip = iio_priv(indio_dev);
-	/* data buffer needs space for channel data and timestap */
-	unsigned short data[4 + sizeof(s64)/sizeof(short)];
-	int bit, ret, i = 0;
-	s64 time;
+	int ret;
 	unsigned int alert;
 
 	/*
@@ -719,22 +716,29 @@ static int ina2xx_work_buffer(struct iio_dev *indio_dev)
 	 * For now, we do an extra read of the MASK_ENABLE register (INA226)
 	 * resp. the BUS_VOLTAGE register (INA219).
 	 */
-	if (!chip->allow_async_readout)
-		do {
-			if (chip->config->chip_id == ina226) {
-				ret = regmap_read(chip->regmap,
-						  INA226_MASK_ENABLE, &alert);
-				alert &= INA226_CVRF;
-			} else {
-				ret = regmap_read(chip->regmap,
-						  INA2XX_BUS_VOLTAGE, &alert);
-				alert &= INA219_CNVR;
-			}
+	if (chip->config->chip_id == ina226) {
+		ret = regmap_read(chip->regmap,
+				  INA226_MASK_ENABLE, &alert);
+		alert &= INA226_CVRF;
+	} else {
+		ret = regmap_read(chip->regmap,
+				  INA2XX_BUS_VOLTAGE, &alert);
+		alert &= INA219_CNVR;
+	}
 
-			if (ret < 0)
-				return ret;
+	if (ret < 0)
+		return ret;
 
-		} while (!alert);
+	return !!alert;
+}
+
+static int ina2xx_work_buffer(struct iio_dev *indio_dev)
+{
+	struct ina2xx_chip_info *chip = iio_priv(indio_dev);
+	/* data buffer needs space for channel data and timestap */
+	unsigned short data[4 + sizeof(s64)/sizeof(short)];
+	int bit, ret, i = 0;
+	s64 time;
 
 	time = iio_get_time_ns(indio_dev);
 
@@ -778,6 +782,21 @@ static int ina2xx_capture_thread(void *data)
 	ktime_get_ts64(&next);
 
 	do {
+		while (!chip->allow_async_readout) {
+			ret = ina2xx_conversion_ready(indio_dev);
+			if (ret < 0)
+				return ret;
+
+			/*
+			 * If the conversion was not yet finished,
+			 * reset the reference timestamp.
+			 */
+			if (ret == 0)
+				ktime_get_ts64(&next);
+			else
+				break;
+		}
+
 		ret = ina2xx_work_buffer(indio_dev);
 		if (ret < 0)
 			return ret;
