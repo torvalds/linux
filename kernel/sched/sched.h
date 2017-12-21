@@ -763,7 +763,7 @@ struct rq {
 #ifdef CONFIG_SMP
 	unsigned long		last_load_update_tick;
 #endif /* CONFIG_SMP */
-	unsigned long		nohz_flags;
+	atomic_t nohz_flags;
 #endif /* CONFIG_NO_HZ_COMMON */
 
 	/* capture load from *all* tasks on this CPU: */
@@ -2034,10 +2034,11 @@ extern void cfs_bandwidth_usage_inc(void);
 extern void cfs_bandwidth_usage_dec(void);
 
 #ifdef CONFIG_NO_HZ_COMMON
-enum rq_nohz_flag_bits {
-	NOHZ_TICK_STOPPED,
-	NOHZ_BALANCE_KICK,
-};
+#define NOHZ_TICK_STOPPED_BIT	0
+#define NOHZ_BALANCE_KICK_BIT	1
+
+#define NOHZ_TICK_STOPPED	BIT(NOHZ_TICK_STOPPED_BIT)
+#define NOHZ_BALANCE_KICK	BIT(NOHZ_BALANCE_KICK_BIT)
 
 #define nohz_flags(cpu)	(&cpu_rq(cpu)->nohz_flags)
 

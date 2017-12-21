@@ -583,7 +583,7 @@ static inline bool got_nohz_idle_kick(void)
 {
 	int cpu = smp_processor_id();
 
-	if (!test_bit(NOHZ_BALANCE_KICK, nohz_flags(cpu)))
+	if (!(atomic_read(nohz_flags(cpu)) & NOHZ_BALANCE_KICK))
 		return false;
 
 	if (idle_cpu(cpu) && !need_resched())
@@ -593,7 +593,7 @@ static inline bool got_nohz_idle_kick(void)
 	 * We can't run Idle Load Balance on this CPU for this time so we
 	 * cancel it and clear NOHZ_BALANCE_KICK
 	 */
-	clear_bit(NOHZ_BALANCE_KICK, nohz_flags(cpu));
+	atomic_andnot(NOHZ_BALANCE_KICK, nohz_flags(cpu));
 	return false;
 }
 
@@ -6074,7 +6074,7 @@ void __init sched_init(void)
 		rq_attach_root(rq, &def_root_domain);
 #ifdef CONFIG_NO_HZ_COMMON
 		rq->last_load_update_tick = jiffies;
-		rq->nohz_flags = 0;
+		atomic_set(&rq->nohz_flags, 0);
 #endif
 #endif /* CONFIG_SMP */
 		hrtick_rq_init(rq);
