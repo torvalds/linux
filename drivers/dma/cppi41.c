@@ -934,7 +934,7 @@ static bool cpp41_dma_filter_fn(struct dma_chan *chan, void *param)
 
 	BUILD_BUG_ON(ARRAY_SIZE(am335x_usb_queues_rx) !=
 		     ARRAY_SIZE(am335x_usb_queues_tx));
-	if (WARN_ON(cchan->port_num > ARRAY_SIZE(am335x_usb_queues_rx)))
+	if (WARN_ON(cchan->port_num >= ARRAY_SIZE(am335x_usb_queues_rx)))
 		return false;
 
 	cchan->q_num = queues[cchan->port_num].submit;
