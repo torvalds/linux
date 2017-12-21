@@ -785,7 +785,7 @@ static int __ath10k_pci_rx_post_buf(struct ath10k_pci_pipe *pipe)
 	ATH10K_SKB_RXCB(skb)->paddr = paddr;
 
 	spin_lock_bh(&ce->ce_lock);
-	ret = __ath10k_ce_rx_post_buf(ce_pipe, skb, paddr);
+	ret = ce_pipe->ops->ce_rx_post_buf(ce_pipe, skb, paddr);
 	spin_unlock_bh(&ce->ce_lock);
 	if (ret) {
 		dma_unmap_single(ar->dev, paddr, skb->len + skb_tailroom(skb),
@@ -923,7 +923,7 @@ static int ath10k_pci_diag_read_mem(struct ath10k *ar, u32 address, void *data,
 		nbytes = min_t(unsigned int, remaining_bytes,
 			       DIAG_TRANSFER_LIMIT);
 
-		ret = __ath10k_ce_rx_post_buf(ce_diag, &ce_data, ce_data);
+		ret = ce_diag->ops->ce_rx_post_buf(ce_diag, &ce_data, ce_data);
 		if (ret != 0)
 			goto done;
 
@@ -1089,7 +1089,7 @@ int ath10k_pci_diag_write_mem(struct ath10k *ar, u32 address,
 		nbytes = min_t(int, remaining_bytes, DIAG_TRANSFER_LIMIT);
 
 		/* Set up to receive directly into Target(!) address */
-		ret = __ath10k_ce_rx_post_buf(ce_diag, &address, address);
+		ret = ce_diag->ops->ce_rx_post_buf(ce_diag, &address, address);
 		if (ret != 0)
 			goto done;
 
