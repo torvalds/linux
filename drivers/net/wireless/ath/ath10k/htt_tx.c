@@ -607,12 +607,50 @@ int ath10k_htt_send_frag_desc_bank_cfg(struct ath10k_htt *htt)
 	return 0;
 }
 
-int ath10k_htt_send_rx_ring_cfg_ll(struct ath10k_htt *htt)
+static void ath10k_htt_fill_rx_desc_offset_32(void *rx_ring)
+{
+	struct htt_rx_ring_setup_ring32 *ring =
+			(struct htt_rx_ring_setup_ring32 *)rx_ring;
+
+#define desc_offset(x) (offsetof(struct htt_rx_desc, x) / 4)
+	ring->mac80211_hdr_offset = __cpu_to_le16(desc_offset(rx_hdr_status));
+	ring->msdu_payload_offset = __cpu_to_le16(desc_offset(msdu_payload));
+	ring->ppdu_start_offset = __cpu_to_le16(desc_offset(ppdu_start));
+	ring->ppdu_end_offset = __cpu_to_le16(desc_offset(ppdu_end));
+	ring->mpdu_start_offset = __cpu_to_le16(desc_offset(mpdu_start));
+	ring->mpdu_end_offset = __cpu_to_le16(desc_offset(mpdu_end));
+	ring->msdu_start_offset = __cpu_to_le16(desc_offset(msdu_start));
+	ring->msdu_end_offset = __cpu_to_le16(desc_offset(msdu_end));
+	ring->rx_attention_offset = __cpu_to_le16(desc_offset(attention));
+	ring->frag_info_offset = __cpu_to_le16(desc_offset(frag_info));
+#undef desc_offset
+}
+
+static void ath10k_htt_fill_rx_desc_offset_64(void *rx_ring)
+{
+	struct htt_rx_ring_setup_ring64 *ring =
+			(struct htt_rx_ring_setup_ring64 *)rx_ring;
+
+#define desc_offset(x) (offsetof(struct htt_rx_desc, x) / 4)
+	ring->mac80211_hdr_offset = __cpu_to_le16(desc_offset(rx_hdr_status));
+	ring->msdu_payload_offset = __cpu_to_le16(desc_offset(msdu_payload));
+	ring->ppdu_start_offset = __cpu_to_le16(desc_offset(ppdu_start));
+	ring->ppdu_end_offset = __cpu_to_le16(desc_offset(ppdu_end));
+	ring->mpdu_start_offset = __cpu_to_le16(desc_offset(mpdu_start));
+	ring->mpdu_end_offset = __cpu_to_le16(desc_offset(mpdu_end));
+	ring->msdu_start_offset = __cpu_to_le16(desc_offset(msdu_start));
+	ring->msdu_end_offset = __cpu_to_le16(desc_offset(msdu_end));
+	ring->rx_attention_offset = __cpu_to_le16(desc_offset(attention));
+	ring->frag_info_offset = __cpu_to_le16(desc_offset(frag_info));
+#undef desc_offset
+}
+
+static int ath10k_htt_send_rx_ring_cfg_32(struct ath10k_htt *htt)
 {
 	struct ath10k *ar = htt->ar;
 	struct sk_buff *skb;
 	struct htt_cmd *cmd;
-	struct htt_rx_ring_setup_ring *ring;
+	struct htt_rx_ring_setup_ring32 *ring;
 	const int num_rx_ring = 1;
 	u16 flags;
 	u32 fw_idx;
@@ -626,7 +664,7 @@ int ath10k_htt_send_rx_ring_cfg_ll(struct ath10k_htt *htt)
 	BUILD_BUG_ON(!IS_ALIGNED(HTT_RX_BUF_SIZE, 4));
 	BUILD_BUG_ON((HTT_RX_BUF_SIZE & HTT_MAX_CACHE_LINE_SIZE_MASK) != 0);
 
-	len = sizeof(cmd->hdr) + sizeof(cmd->rx_setup.hdr)
+	len = sizeof(cmd->hdr) + sizeof(cmd->rx_setup_32.hdr)
 	    + (sizeof(*ring) * num_rx_ring);
 	skb = ath10k_htc_alloc_skb(ar, len);
 	if (!skb)
@@ -635,10 +673,10 @@ int ath10k_htt_send_rx_ring_cfg_ll(struct ath10k_htt *htt)
 	skb_put(skb, len);
 
 	cmd = (struct htt_cmd *)skb->data;
-	ring = &cmd->rx_setup.rings[0];
+	ring = &cmd->rx_setup_32.rings[0];
 
 	cmd->hdr.msg_type = HTT_H2T_MSG_TYPE_RX_RING_CFG;
-	cmd->rx_setup.hdr.num_rings = 1;
+	cmd->rx_setup_32.hdr.num_rings = 1;
 
 	/* FIXME: do we need all of this? */
 	flags = 0;
@@ -669,21 +707,76 @@ int ath10k_htt_send_rx_ring_cfg_ll(struct ath10k_htt *htt)
 	ring->flags = __cpu_to_le16(flags);
 	ring->fw_idx_init_val = __cpu_to_le16(fw_idx);
 
-#define desc_offset(x) (offsetof(struct htt_rx_desc, x) / 4)
+	ath10k_htt_fill_rx_desc_offset_32(ring);
+	ret = ath10k_htc_send(&htt->ar->htc, htt->eid, skb);
+	if (ret) {
+		dev_kfree_skb_any(skb);
+		return ret;
+	}
 
-	ring->mac80211_hdr_offset = __cpu_to_le16(desc_offset(rx_hdr_status));
-	ring->msdu_payload_offset = __cpu_to_le16(desc_offset(msdu_payload));
-	ring->ppdu_start_offset = __cpu_to_le16(desc_offset(ppdu_start));
-	ring->ppdu_end_offset = __cpu_to_le16(desc_offset(ppdu_end));
-	ring->mpdu_start_offset = __cpu_to_le16(desc_offset(mpdu_start));
-	ring->mpdu_end_offset = __cpu_to_le16(desc_offset(mpdu_end));
-	ring->msdu_start_offset = __cpu_to_le16(desc_offset(msdu_start));
-	ring->msdu_end_offset = __cpu_to_le16(desc_offset(msdu_end));
-	ring->rx_attention_offset = __cpu_to_le16(desc_offset(attention));
-	ring->frag_info_offset = __cpu_to_le16(desc_offset(frag_info));
+	return 0;
+}
 
-#undef desc_offset
+static int ath10k_htt_send_rx_ring_cfg_64(struct ath10k_htt *htt)
+{
+	struct ath10k *ar = htt->ar;
+	struct sk_buff *skb;
+	struct htt_cmd *cmd;
+	struct htt_rx_ring_setup_ring64 *ring;
+	const int num_rx_ring = 1;
+	u16 flags;
+	u32 fw_idx;
+	int len;
+	int ret;
 
+	/* HW expects the buffer to be an integral number of 4-byte
+	 * "words"
+	 */
+	BUILD_BUG_ON(!IS_ALIGNED(HTT_RX_BUF_SIZE, 4));
+	BUILD_BUG_ON((HTT_RX_BUF_SIZE & HTT_MAX_CACHE_LINE_SIZE_MASK) != 0);
+
+	len = sizeof(cmd->hdr) + sizeof(cmd->rx_setup_64.hdr)
+	    + (sizeof(*ring) * num_rx_ring);
+	skb = ath10k_htc_alloc_skb(ar, len);
+	if (!skb)
+		return -ENOMEM;
+
+	skb_put(skb, len);
+
+	cmd = (struct htt_cmd *)skb->data;
+	ring = &cmd->rx_setup_64.rings[0];
+
+	cmd->hdr.msg_type = HTT_H2T_MSG_TYPE_RX_RING_CFG;
+	cmd->rx_setup_64.hdr.num_rings = 1;
+
+	flags = 0;
+	flags |= HTT_RX_RING_FLAGS_MAC80211_HDR;
+	flags |= HTT_RX_RING_FLAGS_MSDU_PAYLOAD;
+	flags |= HTT_RX_RING_FLAGS_PPDU_START;
+	flags |= HTT_RX_RING_FLAGS_PPDU_END;
+	flags |= HTT_RX_RING_FLAGS_MPDU_START;
+	flags |= HTT_RX_RING_FLAGS_MPDU_END;
+	flags |= HTT_RX_RING_FLAGS_MSDU_START;
+	flags |= HTT_RX_RING_FLAGS_MSDU_END;
+	flags |= HTT_RX_RING_FLAGS_RX_ATTENTION;
+	flags |= HTT_RX_RING_FLAGS_FRAG_INFO;
+	flags |= HTT_RX_RING_FLAGS_UNICAST_RX;
+	flags |= HTT_RX_RING_FLAGS_MULTICAST_RX;
+	flags |= HTT_RX_RING_FLAGS_CTRL_RX;
+	flags |= HTT_RX_RING_FLAGS_MGMT_RX;
+	flags |= HTT_RX_RING_FLAGS_NULL_RX;
+	flags |= HTT_RX_RING_FLAGS_PHY_DATA_RX;
+
+	fw_idx = __le32_to_cpu(*htt->rx_ring.alloc_idx.vaddr);
+
+	ring->fw_idx_shadow_reg_paddr = __cpu_to_le64(htt->rx_ring.alloc_idx.paddr);
+	ring->rx_ring_base_paddr = __cpu_to_le64(htt->rx_ring.base_paddr);
+	ring->rx_ring_len = __cpu_to_le16(htt->rx_ring.size);
+	ring->rx_ring_bufsize = __cpu_to_le16(HTT_RX_BUF_SIZE);
+	ring->flags = __cpu_to_le16(flags);
+	ring->fw_idx_init_val = __cpu_to_le16(fw_idx);
+
+	ath10k_htt_fill_rx_desc_offset_64(ring);
 	ret = ath10k_htc_send(&htt->ar->htc, htt->eid, skb);
 	if (ret) {
 		dev_kfree_skb_any(skb);
@@ -1092,4 +1185,22 @@ err_free_msdu_id:
 	ath10k_htt_tx_free_msdu_id(htt, msdu_id);
 err:
 	return res;
+}
+
+static const struct ath10k_htt_tx_ops htt_tx_ops_32 = {
+	.htt_send_rx_ring_cfg = ath10k_htt_send_rx_ring_cfg_32,
+};
+
+static const struct ath10k_htt_tx_ops htt_tx_ops_64 = {
+	.htt_send_rx_ring_cfg = ath10k_htt_send_rx_ring_cfg_64,
+};
+
+void ath10k_htt_set_tx_ops(struct ath10k_htt *htt)
+{
+	struct ath10k *ar = htt->ar;
+
+	if (ar->hw_params.target_64bit)
+		htt->tx_ops = &htt_tx_ops_64;
+	else
+		htt->tx_ops = &htt_tx_ops_32;
 }

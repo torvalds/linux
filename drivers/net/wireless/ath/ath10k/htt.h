@@ -201,9 +201,30 @@ enum htt_rx_ring_flags {
 #define HTT_RX_RING_SIZE_MIN 128
 #define HTT_RX_RING_SIZE_MAX 2048
 
-struct htt_rx_ring_setup_ring {
+struct htt_rx_ring_setup_ring32 {
 	__le32 fw_idx_shadow_reg_paddr;
 	__le32 rx_ring_base_paddr;
+	__le16 rx_ring_len; /* in 4-byte words */
+	__le16 rx_ring_bufsize; /* rx skb size - in bytes */
+	__le16 flags; /* %HTT_RX_RING_FLAGS_ */
+	__le16 fw_idx_init_val;
+
+	/* the following offsets are in 4-byte units */
+	__le16 mac80211_hdr_offset;
+	__le16 msdu_payload_offset;
+	__le16 ppdu_start_offset;
+	__le16 ppdu_end_offset;
+	__le16 mpdu_start_offset;
+	__le16 mpdu_end_offset;
+	__le16 msdu_start_offset;
+	__le16 msdu_end_offset;
+	__le16 rx_attention_offset;
+	__le16 frag_info_offset;
+} __packed;
+
+struct htt_rx_ring_setup_ring64 {
+	__le64 fw_idx_shadow_reg_paddr;
+	__le64 rx_ring_base_paddr;
 	__le16 rx_ring_len; /* in 4-byte words */
 	__le16 rx_ring_bufsize; /* rx skb size - in bytes */
 	__le16 flags; /* %HTT_RX_RING_FLAGS_ */
@@ -227,9 +248,14 @@ struct htt_rx_ring_setup_hdr {
 	__le16 rsvd0;
 } __packed;
 
-struct htt_rx_ring_setup {
+struct htt_rx_ring_setup_32 {
 	struct htt_rx_ring_setup_hdr hdr;
-	struct htt_rx_ring_setup_ring rings[0];
+	struct htt_rx_ring_setup_ring32 rings[0];
+} __packed;
+
+struct htt_rx_ring_setup_64 {
+	struct htt_rx_ring_setup_hdr hdr;
+	struct htt_rx_ring_setup_ring64 rings[0];
 } __packed;
 
 /*
@@ -1541,7 +1567,8 @@ struct htt_cmd {
 		struct htt_ver_req ver_req;
 		struct htt_mgmt_tx_desc mgmt_tx;
 		struct htt_data_tx_desc data_tx;
-		struct htt_rx_ring_setup rx_setup;
+		struct htt_rx_ring_setup_32 rx_setup_32;
+		struct htt_rx_ring_setup_64 rx_setup_64;
 		struct htt_stats_req stats_req;
 		struct htt_oob_sync_req oob_sync_req;
 		struct htt_aggr_conf aggr_conf;
@@ -1751,6 +1778,11 @@ struct ath10k_htt {
 	} tx_q_state;
 
 	bool tx_mem_allocated;
+	const struct ath10k_htt_tx_ops *tx_ops;
+};
+
+struct ath10k_htt_tx_ops {
+	int (*htt_send_rx_ring_cfg)(struct ath10k_htt *htt);
 };
 
 #define RX_HTT_HDR_STATUS_LEN 64
@@ -1862,5 +1894,5 @@ int ath10k_htt_tx(struct ath10k_htt *htt,
 void ath10k_htt_rx_pktlog_completion_handler(struct ath10k *ar,
 					     struct sk_buff *skb);
 int ath10k_htt_txrx_compl_task(struct ath10k *ar, int budget);
-
+void ath10k_htt_set_tx_ops(struct ath10k_htt *htt);
 #endif
