@@ -90,30 +90,6 @@ SHIFT_MASK: .octa 0x0f0e0d0c0b0a09080706050403020100
 ALL_F:      .octa 0xffffffffffffffffffffffffffffffff
             .octa 0x00000000000000000000000000000000
 
-.section .rodata
-.align 16
-.type aad_shift_arr, @object
-.size aad_shift_arr, 272
-aad_shift_arr:
-        .octa     0xffffffffffffffffffffffffffffffff
-        .octa     0xffffffffffffffffffffffffffffff0C
-        .octa     0xffffffffffffffffffffffffffff0D0C
-        .octa     0xffffffffffffffffffffffffff0E0D0C
-        .octa     0xffffffffffffffffffffffff0F0E0D0C
-        .octa     0xffffffffffffffffffffff0C0B0A0908
-        .octa     0xffffffffffffffffffff0D0C0B0A0908
-        .octa     0xffffffffffffffffff0E0D0C0B0A0908
-        .octa     0xffffffffffffffff0F0E0D0C0B0A0908
-        .octa     0xffffffffffffff0C0B0A090807060504
-        .octa     0xffffffffffff0D0C0B0A090807060504
-        .octa     0xffffffffff0E0D0C0B0A090807060504
-        .octa     0xffffffff0F0E0D0C0B0A090807060504
-        .octa     0xffffff0C0B0A09080706050403020100
-        .octa     0xffff0D0C0B0A09080706050403020100
-        .octa     0xff0E0D0C0B0A09080706050403020100
-        .octa     0x0F0E0D0C0B0A09080706050403020100
-
-
 .text
 
 
@@ -304,62 +280,30 @@ _done_read_partial_block_\@:
 XMM2 XMM3 XMM4 XMMDst TMP6 TMP7 i i_seq operation
         MOVADQ     SHUF_MASK(%rip), %xmm14
 	mov	   arg7, %r10           # %r10 = AAD
-	mov	   arg8, %r12           # %r12 = aadLen
-	mov	   %r12, %r11
+	mov	   arg8, %r11           # %r11 = aadLen
 	pxor	   %xmm\i, %xmm\i
 	pxor       \XMM2, \XMM2
 
 	cmp	   $16, %r11
-	jl	   _get_AAD_rest8\num_initial_blocks\operation
+	jl	   _get_AAD_rest\num_initial_blocks\operation
 _get_AAD_blocks\num_initial_blocks\operation:
 	movdqu	   (%r10), %xmm\i
 	PSHUFB_XMM %xmm14, %xmm\i # byte-reflect the AAD data
 	pxor	   %xmm\i, \XMM2
 	GHASH_MUL  \XMM2, \TMP3, \TMP1, \TMP2, \TMP4, \TMP5, \XMM1
 	add	   $16, %r10
-	sub	   $16, %r12
 	sub	   $16, %r11
 	cmp	   $16, %r11
 	jge	   _get_AAD_blocks\num_initial_blocks\operation
 
 	movdqu	   \XMM2, %xmm\i
+
+	/* read the last <16B of AAD */
+_get_AAD_rest\num_initial_blocks\operation:
 	cmp	   $0, %r11
 	je	   _get_AAD_done\num_initial_blocks\operation
 
-	pxor	   %xmm\i,%xmm\i
-
-	/* read the last <16B of AAD. since we have at least 4B of
-	data right after the AAD (the ICV, and maybe some CT), we can
-	read 4B/8B blocks safely, and then get rid of the extra stuff */
-_get_AAD_rest8\num_initial_blocks\operation:
-	cmp	   $4, %r11
-	jle	   _get_AAD_rest4\num_initial_blocks\operation
-	movq	   (%r10), \TMP1
-	add	   $8, %r10
-	sub	   $8, %r11
-	pslldq	   $8, \TMP1
-	psrldq	   $8, %xmm\i
-	pxor	   \TMP1, %xmm\i
-	jmp	   _get_AAD_rest8\num_initial_blocks\operation
-_get_AAD_rest4\num_initial_blocks\operation:
-	cmp	   $0, %r11
-	jle	   _get_AAD_rest0\num_initial_blocks\operation
-	mov	   (%r10), %eax
-	movq	   %rax, \TMP1
-	add	   $4, %r10
-	sub	   $4, %r10
-	pslldq	   $12, \TMP1
-	psrldq	   $4, %xmm\i
-	pxor	   \TMP1, %xmm\i
-_get_AAD_rest0\num_initial_blocks\operation:
-	/* finalize: shift out the extra bytes we read, and align
-	left. since pslldq can only shift by an immediate, we use
-	vpshufb and an array of shuffle masks */
-	movq	   %r12, %r11
-	salq	   $4, %r11
-	movdqu	   aad_shift_arr(%r11), \TMP1
-	PSHUFB_XMM \TMP1, %xmm\i
-_get_AAD_rest_final\num_initial_blocks\operation:
+	READ_PARTIAL_BLOCK %r10, %r11, \TMP1, %xmm\i
 	PSHUFB_XMM   %xmm14, %xmm\i # byte-reflect the AAD data
 	pxor	   \XMM2, %xmm\i
 	GHASH_MUL  %xmm\i, \TMP3, \TMP1, \TMP2, \TMP4, \TMP5, \XMM1
@@ -563,62 +507,30 @@ _initial_blocks_done\num_initial_blocks\operation:
 XMM2 XMM3 XMM4 XMMDst TMP6 TMP7 i i_seq operation
         MOVADQ     SHUF_MASK(%rip), %xmm14
 	mov	   arg7, %r10           # %r10 = AAD
-	mov	   arg8, %r12           # %r12 = aadLen
-	mov	   %r12, %r11
+	mov	   arg8, %r11           # %r11 = aadLen
 	pxor	   %xmm\i, %xmm\i
 	pxor	   \XMM2, \XMM2
 
 	cmp	   $16, %r11
-	jl	   _get_AAD_rest8\num_initial_blocks\operation
+	jl	   _get_AAD_rest\num_initial_blocks\operation
 _get_AAD_blocks\num_initial_blocks\operation:
 	movdqu	   (%r10), %xmm\i
 	PSHUFB_XMM   %xmm14, %xmm\i # byte-reflect the AAD data
 	pxor	   %xmm\i, \XMM2
 	GHASH_MUL  \XMM2, \TMP3, \TMP1, \TMP2, \TMP4, \TMP5, \XMM1
 	add	   $16, %r10
-	sub	   $16, %r12
 	sub	   $16, %r11
 	cmp	   $16, %r11
 	jge	   _get_AAD_blocks\num_initial_blocks\operation
 
 	movdqu	   \XMM2, %xmm\i
+
+	/* read the last <16B of AAD */
+_get_AAD_rest\num_initial_blocks\operation:
 	cmp	   $0, %r11
 	je	   _get_AAD_done\num_initial_blocks\operation
 
-	pxor	   %xmm\i,%xmm\i
-
-	/* read the last <16B of AAD. since we have at least 4B of
-	data right after the AAD (the ICV, and maybe some PT), we can
-	read 4B/8B blocks safely, and then get rid of the extra stuff */
-_get_AAD_rest8\num_initial_blocks\operation:
-	cmp	   $4, %r11
-	jle	   _get_AAD_rest4\num_initial_blocks\operation
-	movq	   (%r10), \TMP1
-	add	   $8, %r10
-	sub	   $8, %r11
-	pslldq	   $8, \TMP1
-	psrldq	   $8, %xmm\i
-	pxor	   \TMP1, %xmm\i
-	jmp	   _get_AAD_rest8\num_initial_blocks\operation
-_get_AAD_rest4\num_initial_blocks\operation:
-	cmp	   $0, %r11
-	jle	   _get_AAD_rest0\num_initial_blocks\operation
-	mov	   (%r10), %eax
-	movq	   %rax, \TMP1
-	add	   $4, %r10
-	sub	   $4, %r10
-	pslldq	   $12, \TMP1
-	psrldq	   $4, %xmm\i
-	pxor	   \TMP1, %xmm\i
-_get_AAD_rest0\num_initial_blocks\operation:
-	/* finalize: shift out the extra bytes we read, and align
-	left. since pslldq can only shift by an immediate, we use
-	vpshufb and an array of shuffle masks */
-	movq	   %r12, %r11
-	salq	   $4, %r11
-	movdqu	   aad_shift_arr(%r11), \TMP1
-	PSHUFB_XMM \TMP1, %xmm\i
-_get_AAD_rest_final\num_initial_blocks\operation:
+	READ_PARTIAL_BLOCK %r10, %r11, \TMP1, %xmm\i
 	PSHUFB_XMM   %xmm14, %xmm\i # byte-reflect the AAD data
 	pxor	   \XMM2, %xmm\i
 	GHASH_MUL  %xmm\i, \TMP3, \TMP1, \TMP2, \TMP4, \TMP5, \XMM1
