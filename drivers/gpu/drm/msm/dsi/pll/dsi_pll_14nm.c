@@ -698,7 +698,7 @@ static unsigned long dsi_pll_14nm_postdiv_recalc_rate(struct clk_hw *hw,
 	val &= div_mask(width);
 
 	return divider_recalc_rate(hw, parent_rate, val, NULL,
-				   postdiv->flags);
+				   postdiv->flags, width);
 }
 
 static long dsi_pll_14nm_postdiv_round_rate(struct clk_hw *hw,
