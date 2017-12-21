@@ -92,6 +92,26 @@ DEFINE_PER_CPU(struct hrtimer_cpu_base, hrtimer_bases) =
 			.clockid = CLOCK_TAI,
 			.get_time = &ktime_get_clocktai,
 		},
+		{
+			.index = HRTIMER_BASE_MONOTONIC_SOFT,
+			.clockid = CLOCK_MONOTONIC,
+			.get_time = &ktime_get,
+		},
+		{
+			.index = HRTIMER_BASE_REALTIME_SOFT,
+			.clockid = CLOCK_REALTIME,
+			.get_time = &ktime_get_real,
+		},
+		{
+			.index = HRTIMER_BASE_BOOTTIME_SOFT,
+			.clockid = CLOCK_BOOTTIME,
+			.get_time = &ktime_get_boottime,
+		},
+		{
+			.index = HRTIMER_BASE_TAI_SOFT,
+			.clockid = CLOCK_TAI,
+			.get_time = &ktime_get_clocktai,
+		},
 	}
 };
 
