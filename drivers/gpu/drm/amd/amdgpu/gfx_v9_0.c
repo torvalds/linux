@@ -3394,8 +3394,7 @@ static void gfx_v9_0_exit_rlc_safe_mode(struct amdgpu_device *adev)
 static void gfx_v9_0_update_gfx_cg_power_gating(struct amdgpu_device *adev,
 						bool enable)
 {
-	/* TODO: double check if we need to perform under safe mdoe */
-	/* gfx_v9_0_enter_rlc_safe_mode(adev); */
+	gfx_v9_0_enter_rlc_safe_mode(adev);
 
 	if ((adev->pg_flags & AMD_PG_SUPPORT_GFX_PG) && enable) {
 		gfx_v9_0_enable_gfx_cg_power_gating(adev, true);
@@ -3406,7 +3405,7 @@ static void gfx_v9_0_update_gfx_cg_power_gating(struct amdgpu_device *adev,
 		gfx_v9_0_enable_gfx_pipeline_powergating(adev, false);
 	}
 
-	/* gfx_v9_0_exit_rlc_safe_mode(adev); */
+	gfx_v9_0_exit_rlc_safe_mode(adev);
 }
 
 static void gfx_v9_0_update_gfx_mg_power_gating(struct amdgpu_device *adev,
@@ -3797,7 +3796,7 @@ static void gfx_v9_0_ring_emit_ib_gfx(struct amdgpu_ring *ring,
 	}
 
 	amdgpu_ring_write(ring, header);
-BUG_ON(ib->gpu_addr & 0x3); /* Dword align */
+	BUG_ON(ib->gpu_addr & 0x3); /* Dword align */
 	amdgpu_ring_write(ring,
 #ifdef __BIG_ENDIAN
 		(2 << 0) |
