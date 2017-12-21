@@ -12,7 +12,7 @@
 			flash_attach = <0>;
 			resolution = <gc2145_FULL_RESOLUTION>;
 			powerup_sequence = <gc2145_PWRSEQ>;
-			orientation = <180>;
+			orientation = <0>;
 			i2c_add = <gc2145_I2C_ADDR>;
 			i2c_chl = <0>;
 			cif_chl = <0>;
