@@ -694,14 +694,55 @@
 	};
 };
 
+&pwrc_vpu {
+	resets = <&reset RESET_VIU>,
+		 <&reset RESET_VENC>,
+		 <&reset RESET_VCBUS>,
+		 <&reset RESET_BT656>,
+		 <&reset RESET_DVIN_RESET>,
+		 <&reset RESET_RDMA>,
+		 <&reset RESET_VENCI>,
+		 <&reset RESET_VENCP>,
+		 <&reset RESET_VDAC>,
+		 <&reset RESET_VDI6>,
+		 <&reset RESET_VENCL>,
+		 <&reset RESET_VID_LOCK>;
+	clocks = <&clkc CLKID_VPU>,
+	         <&clkc CLKID_VAPB>;
+	clock-names = "vpu", "vapb";
+	/*
+	 * VPU clocking is provided by two identical clock paths
+	 * VPU_0 and VPU_1 muxed to a single clock by a glitch
+	 * free mux to safely change frequency while running.
+	 * Same for VAPB but with a final gate after the glitch free mux.
+	 */
+	assigned-clocks = <&clkc CLKID_VPU_0_SEL>,
+			  <&clkc CLKID_VPU_0>,
+			  <&clkc CLKID_VPU>, /* Glitch free mux */
+			  <&clkc CLKID_VAPB_0_SEL>,
+			  <&clkc CLKID_VAPB_0>,
+			  <&clkc CLKID_VAPB_SEL>; /* Glitch free mux */
+	assigned-clock-parents = <&clkc CLKID_FCLK_DIV3>,
+				 <0>, /* Do Nothing */
+				 <&clkc CLKID_VPU_0>,
+				 <&clkc CLKID_FCLK_DIV4>,
+				 <0>, /* Do Nothing */
+				 <&clkc CLKID_VAPB_0>;
+	assigned-clock-rates = <0>, /* Do Nothing */
+			       <666666666>,
+			       <0>, /* Do Nothing */
+			       <0>, /* Do Nothing */
+			       <250000000>,
+			       <0>; /* Do Nothing */
+};
+
 &saradc {
 	compatible = "amlogic,meson-gxbb-saradc", "amlogic,meson-saradc";
 	clocks = <&xtal>,
 		 <&clkc CLKID_SAR_ADC>,
-		 <&clkc CLKID_SANA>,
 		 <&clkc CLKID_SAR_ADC_CLK>,
 		 <&clkc CLKID_SAR_ADC_SEL>;
-	clock-names = "clkin", "core", "sana", "adc_clk", "adc_sel";
+	clock-names = "clkin", "core", "adc_clk", "adc_sel";
 };
 
 &sd_emmc_a {
@@ -763,4 +804,5 @@
 
 &vpu {
 	compatible = "amlogic,meson-gxbb-vpu", "amlogic,meson-gx-vpu";
+	power-domains = <&pwrc_vpu>;
 };
