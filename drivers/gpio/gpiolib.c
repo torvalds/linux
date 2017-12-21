@@ -2437,7 +2437,7 @@ EXPORT_SYMBOL_GPL(gpiod_direction_output_raw);
  */
 int gpiod_direction_output(struct gpio_desc *desc, int value)
 {
-	struct gpio_chip *gc = desc->gdev->chip;
+	struct gpio_chip *gc;
 	int ret;
 
 	VALIDATE_DESC(desc);
@@ -2454,6 +2454,7 @@ int gpiod_direction_output(struct gpio_desc *desc, int value)
 		return -EIO;
 	}
 
+	gc = desc->gdev->chip;
 	if (test_bit(FLAG_OPEN_DRAIN, &desc->flags)) {
 		/* First see if we can enable open drain in hardware */
 		ret = gpio_set_drive_single_ended(gc, gpio_chip_hwgpio(desc),
