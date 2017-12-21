@@ -1561,6 +1561,7 @@
 				dr_mode = "otg";
 				snps,dis_u3_susphy_quirk;
 				snps,dis_u2_susphy_quirk;
+				snps,dis_metastability_quirk;
 			};
 		};
 
@@ -1929,6 +1930,8 @@
 				clocks = <&dss_clkctrl DRA7_DSS_CORE_CLKCTRL 9>,
 					 <&dss_clkctrl DRA7_DSS_CORE_CLKCTRL 10>;
 				clock-names = "fck", "sys_clk";
+				dmas = <&sdma_xbar 76>;
+				dma-names = "audio_tx";
 			};
 		};
 

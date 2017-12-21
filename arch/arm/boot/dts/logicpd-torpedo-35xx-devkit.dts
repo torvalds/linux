@@ -6,12 +6,12 @@
 
 /dts-v1/;
 
-#include "omap36xx.dtsi"
-#include "logicpd-som-lv.dtsi"
-#include "logicpd-som-lv-baseboard.dtsi"
+#include "omap34xx.dtsi"
+#include "logicpd-torpedo-som.dtsi"
+#include "logicpd-torpedo-baseboard.dtsi"
 #include "omap-gpmc-smsc9221.dtsi"
 
 / {
-	model = "LogicPD Zoom DM3730 SOM-LV Development Kit";
-	compatible = "logicpd,dm3730-som-lv-devkit", "ti,omap3630", "ti,omap3";
+	model = "LogicPD Zoom OMAP35xx Torpedo Development Kit";
+	compatible = "logicpd,dm3730-torpedo-devkit", "ti,omap3";
 };

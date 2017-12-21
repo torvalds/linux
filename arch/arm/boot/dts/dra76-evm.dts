@@ -148,6 +148,7 @@
 		compatible = "ti,tps65917";
 		reg = <0x58>;
 		ti,system-power-controller;
+		ti,palmas-override-powerhold;
 		interrupt-controller;
 		#interrupt-cells = <2>;
 
