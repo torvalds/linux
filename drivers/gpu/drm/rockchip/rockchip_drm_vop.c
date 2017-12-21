@@ -732,7 +732,6 @@ static int vop_hdr_atomic_check(struct drm_crtc *crtc,
 	if (!vop->data->hdr_table)
 		return 0;
 	/* hdr cover */
-	s->yuv_overlay = is_yuv_output(s->bus_format);
 	drm_atomic_crtc_state_for_each_plane(plane, crtc_state) {
 		struct vop_plane_state *vop_plane_state;
 		struct vop_win *win = to_vop_win(plane);
@@ -2278,11 +2277,8 @@ static void vop_update_csc(struct drm_crtc *crtc)
 		     s->output_mode == ROCKCHIP_OUT_MODE_YUV420 ? 1 : 0);
 	VOP_CTRL_SET(vop, hdmi_dclk_out_en,
 		     s->output_mode == ROCKCHIP_OUT_MODE_YUV420 ? 1 : 0);
-	s->yuv_overlay = 0;
-	if (VOP_CTRL_SUPPORT(vop, overlay_mode)) {
-		s->yuv_overlay = is_yuv_output(s->bus_format);
-		VOP_CTRL_SET(vop, overlay_mode, s->yuv_overlay);
-	}
+
+	VOP_CTRL_SET(vop, overlay_mode, s->yuv_overlay);
 	VOP_CTRL_SET(vop, dsp_out_yuv, is_yuv_output(s->bus_format));
 
 	/*
@@ -2583,6 +2579,10 @@ static int vop_crtc_atomic_check(struct drm_crtc *crtc,
 	if (ret)
 		return ret;
 
+	s->yuv_overlay = 0;
+	if (VOP_CTRL_SUPPORT(vop, overlay_mode))
+		s->yuv_overlay = is_yuv_output(s->bus_format);
+
 	ret = vop_hdr_atomic_check(crtc, crtc_state);
 	if (ret)
 		return ret;
@@ -2750,8 +2750,14 @@ static void vop_update_hdr(struct drm_crtc *crtc,
 	if (!vop->data->hdr_table)
 		return;
 
-	if (s->hdr.hdr2sdr_en)
+	if (s->hdr.hdr2sdr_en) {
 		vop_load_hdr2sdr_table(vop);
+		/* This is ic design bug, when in hdr2sdr mode, the overlay mode
+		 * is rgb deomain, so the win0 is do yuv2rgb, but in this case,
+		 * we must close win0 y2r.
+		 */
+		VOP_CTRL_SET(vop, hdr2sdr_en_win0_csc, 0);
+	}
 	VOP_CTRL_SET(vop, hdr2sdr_en, s->hdr.hdr2sdr_en);
 
 	VOP_CTRL_SET(vop, bt1886eotf_pre_conv_en,
@@ -2759,33 +2765,23 @@ static void vop_update_hdr(struct drm_crtc *crtc,
 	VOP_CTRL_SET(vop, bt1886eotf_post_conv_en,
 		     sdr2hdr_state->bt1886eotf_post_conv_en);
 
-	if (sdr2hdr_state->bt1886eotf_pre_conv_en) {
-		VOP_CTRL_SET(vop, rgb2rgb_pre_conv_en,
-			     sdr2hdr_state->rgb2rgb_pre_conv_en);
-		VOP_CTRL_SET(vop, rgb2rgb_pre_conv_mode,
-			     sdr2hdr_state->rgb2rgb_pre_conv_mode);
-		VOP_CTRL_SET(vop, st2084oetf_pre_conv_en,
-			     sdr2hdr_state->st2084oetf_pre_conv_en);
-	}
+	VOP_CTRL_SET(vop, rgb2rgb_pre_conv_en,
+		     sdr2hdr_state->rgb2rgb_pre_conv_en);
+	VOP_CTRL_SET(vop, rgb2rgb_pre_conv_mode,
+		     sdr2hdr_state->rgb2rgb_pre_conv_mode);
+	VOP_CTRL_SET(vop, st2084oetf_pre_conv_en,
+		     sdr2hdr_state->st2084oetf_pre_conv_en);
 
-	if (sdr2hdr_state->bt1886eotf_post_conv_en) {
-		VOP_CTRL_SET(vop, rgb2rgb_post_conv_en,
-			     sdr2hdr_state->rgb2rgb_post_conv_en);
-		VOP_CTRL_SET(vop, rgb2rgb_post_conv_mode,
-			     sdr2hdr_state->rgb2rgb_post_conv_mode);
-		VOP_CTRL_SET(vop, st2084oetf_post_conv_en,
-			     sdr2hdr_state->st2084oetf_post_conv_en);
-	}
+	VOP_CTRL_SET(vop, rgb2rgb_post_conv_en,
+		     sdr2hdr_state->rgb2rgb_post_conv_en);
+	VOP_CTRL_SET(vop, rgb2rgb_post_conv_mode,
+		     sdr2hdr_state->rgb2rgb_post_conv_mode);
+	VOP_CTRL_SET(vop, st2084oetf_post_conv_en,
+		     sdr2hdr_state->st2084oetf_post_conv_en);
 
 	if (sdr2hdr_state->bt1886eotf_pre_conv_en ||
 	    sdr2hdr_state->bt1886eotf_post_conv_en)
 		vop_load_sdr2hdr_table(vop, sdr2hdr_state->sdr2hdr_func);
-
-	/* TODO: maybe need move to irq func */
-	VOP_CTRL_SET(vop, level2_overlay_en, s->hdr.pre_overlay);
-	VOP_CTRL_SET(vop, alpha_hard_calc, s->hdr.pre_overlay);
-
-	VOP_CTRL_SET(vop, overlay_mode, s->yuv_overlay);
 }
 
 static void vop_update_cabc(struct drm_crtc *crtc,
@@ -2830,6 +2826,8 @@ static void vop_tv_config_update(struct drm_crtc *crtc,
 {
 	struct rockchip_crtc_state *s =
 			to_rockchip_crtc_state(crtc->state);
+	struct rockchip_crtc_state *old_s =
+			to_rockchip_crtc_state(old_crtc_state);
 	int brightness, contrast, saturation, hue, sin_hue, cos_hue;
 	struct vop *vop = to_vop(crtc);
 	const struct vop_data *vop_data = vop->data;
@@ -2837,7 +2835,10 @@ static void vop_tv_config_update(struct drm_crtc *crtc,
 	if (!s->tv_state)
 		return;
 
-	if (!memcmp(s->tv_state, &vop->active_tv_state, sizeof(*s->tv_state)))
+	if (!memcmp(s->tv_state,
+		    &vop->active_tv_state, sizeof(*s->tv_state)) &&
+	    s->yuv_overlay == old_s->yuv_overlay &&
+	    s->bcsh_en == old_s->bcsh_en)
 		return;
 
 	memcpy(&vop->active_tv_state, s->tv_state, sizeof(*s->tv_state));
@@ -3322,6 +3323,7 @@ static irqreturn_t vop_isr(int irq, void *data)
 {
 	struct vop *vop = data;
 	struct drm_crtc *crtc = &vop->crtc;
+	struct rockchip_crtc_state *s = to_rockchip_crtc_state(crtc->state);
 	uint32_t active_irqs;
 	unsigned long flags;
 	int ret = IRQ_NONE;
@@ -3360,6 +3362,12 @@ static irqreturn_t vop_isr(int irq, void *data)
 		vop_handle_vblank(vop);
 		active_irqs &= ~FS_INTR;
 		ret = IRQ_HANDLED;
+		/* This is IC design bug, this two register bit need frame
+		 * effective, but actually it's effective immediately, so we
+		 * config this register at frame start.
+		 */
+		VOP_CTRL_SET(vop, level2_overlay_en, s->hdr.pre_overlay);
+		VOP_CTRL_SET(vop, alpha_hard_calc, s->hdr.pre_overlay);
 	}
 
 #define ERROR_HANDLER(x) \

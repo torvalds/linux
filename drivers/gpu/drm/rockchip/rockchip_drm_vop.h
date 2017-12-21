@@ -207,6 +207,7 @@ struct vop_ctrl {
 	struct vop_reg level2_overlay_en;
 	struct vop_reg alpha_hard_calc;
 	struct vop_reg hdr2sdr_en;
+	struct vop_reg hdr2sdr_en_win0_csc;
 	struct vop_reg hdr2sdr_src_min;
 	struct vop_reg hdr2sdr_src_max;
 	struct vop_reg hdr2sdr_normfaceetf;

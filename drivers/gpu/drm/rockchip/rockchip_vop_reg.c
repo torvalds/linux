@@ -911,6 +911,7 @@ static const struct vop_ctrl rk3328_ctrl_data = {
 	.level2_overlay_en = VOP_REG(RK3328_SYS_CTRL1, 0x1, 28),
 
 	.hdr2sdr_en = VOP_REG(RK3328_HDR2DR_CTRL, 0x1, 0),
+	.hdr2sdr_en_win0_csc = VOP_REG(RK3328_SDR2HDR_CTRL, 0x1, 9),
 	.hdr2sdr_src_min = VOP_REG(RK3328_HDR2DR_SRC_RANGE, 0x3fff, 0),
 	.hdr2sdr_src_max = VOP_REG(RK3328_HDR2DR_SRC_RANGE, 0x3fff, 16),
 	.hdr2sdr_normfaceetf = VOP_REG(RK3328_HDR2DR_NORMFACEETF, 0x7ff, 0),
@@ -935,9 +936,9 @@ static const struct vop_ctrl rk3328_ctrl_data = {
 	.bcsh_sin_hue = VOP_REG(RK3328_BCSH_H, 0x1ff, 0),
 	.bcsh_cos_hue = VOP_REG(RK3328_BCSH_H, 0x1ff, 16),
 	.bcsh_r2y_csc_mode = VOP_REG(RK3328_BCSH_CTRL, 0x3, 6),
-	.bcsh_r2y_en = VOP_REG(RK3368_BCSH_CTRL, 0x1, 4),
-	.bcsh_y2r_csc_mode = VOP_REG(RK3368_BCSH_CTRL, 0x3, 2),
-	.bcsh_y2r_en = VOP_REG(RK3368_BCSH_CTRL, 0x1, 0),
+	.bcsh_r2y_en = VOP_REG(RK3328_BCSH_CTRL, 0x1, 4),
+	.bcsh_y2r_csc_mode = VOP_REG(RK3328_BCSH_CTRL, 0x3, 2),
+	.bcsh_y2r_en = VOP_REG(RK3328_BCSH_CTRL, 0x1, 0),
 	.bcsh_color_bar = VOP_REG(RK3328_BCSH_COLOR_BAR, 0xffffff, 8),
 	.bcsh_en = VOP_REG(RK3328_BCSH_COLOR_BAR, 0x1, 0),
 
