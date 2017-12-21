@@ -431,7 +431,10 @@ static u32 read_timestamp_frequency(struct drm_i915_private *dev_priv)
 	return 0;
 }
 
-/*
+/**
+ * intel_device_info_runtime_init - initialize runtime info
+ * @info: intel device info struct
+ *
  * Determine various intel_device_info fields at runtime.
  *
  * Use it when either:
@@ -444,9 +447,10 @@ static u32 read_timestamp_frequency(struct drm_i915_private *dev_priv)
  *   - after the PCH has been detected,
  *   - before the first usage of the fields it can tweak.
  */
-void intel_device_info_runtime_init(struct drm_i915_private *dev_priv)
+void intel_device_info_runtime_init(struct intel_device_info *info)
 {
-	struct intel_device_info *info = mkwrite_device_info(dev_priv);
+	struct drm_i915_private *dev_priv =
+		container_of(info, struct drm_i915_private, info);
 	enum pipe pipe;
 
 	if (INTEL_GEN(dev_priv) >= 10) {
