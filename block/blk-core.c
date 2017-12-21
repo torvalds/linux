@@ -1641,6 +1641,7 @@ void __blk_put_request(struct request_queue *q, struct request *req)
 
 	lockdep_assert_held(q->queue_lock);
 
+	blk_req_zone_write_unlock(req);
 	blk_pm_put_request(req);
 
 	elv_completed_request(q, req);

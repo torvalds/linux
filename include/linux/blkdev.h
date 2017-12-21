@@ -121,6 +121,8 @@ typedef __u32 __bitwise req_flags_t;
 /* Look at ->special_vec for the actual data payload instead of the
    bio chain. */
 #define RQF_SPECIAL_PAYLOAD	((__force req_flags_t)(1 << 18))
+/* The per-zone write lock is held for this request */
+#define RQF_ZONE_WRITE_LOCKED	((__force req_flags_t)(1 << 19))
 
 /* flags that prevent us from merging requests: */
 #define RQF_NOMERGE_FLAGS \
@@ -547,6 +549,22 @@ struct request_queue {
 	struct queue_limits	limits;
 
 	/*
+	 * Zoned block device information for request dispatch control.
+	 * nr_zones is the total number of zones of the device. This is always
+	 * 0 for regular block devices. seq_zones_bitmap is a bitmap of nr_zones
+	 * bits which indicates if a zone is conventional (bit clear) or
+	 * sequential (bit set). seq_zones_wlock is a bitmap of nr_zones
+	 * bits which indicates if a zone is write locked, that is, if a write
+	 * request targeting the zone was dispatched. All three fields are
+	 * initialized by the low level device driver (e.g. scsi/sd.c).
+	 * Stacking drivers (device mappers) may or may not initialize
+	 * these fields.
+	 */
+	unsigned int		nr_zones;
+	unsigned long		*seq_zones_bitmap;
+	unsigned long		*seq_zones_wlock;
+
+	/*
 	 * sg stuff
 	 */
 	unsigned int		sg_timeout;
@@ -790,6 +808,27 @@ static inline unsigned int blk_queue_zone_sectors(struct request_queue *q)
 	return blk_queue_is_zoned(q) ? q->limits.chunk_sectors : 0;
 }
 
+static inline unsigned int blk_queue_nr_zones(struct request_queue *q)
+{
+	return q->nr_zones;
+}
+
+static inline unsigned int blk_queue_zone_no(struct request_queue *q,
+					     sector_t sector)
+{
+	if (!blk_queue_is_zoned(q))
+		return 0;
+	return sector >> ilog2(q->limits.chunk_sectors);
+}
+
+static inline bool blk_queue_zone_is_seq(struct request_queue *q,
+					 sector_t sector)
+{
+	if (!blk_queue_is_zoned(q) || !q->seq_zones_bitmap)
+		return false;
+	return test_bit(blk_queue_zone_no(q, sector), q->seq_zones_bitmap);
+}
+
 static inline bool rq_is_sync(struct request *rq)
 {
 	return op_is_sync(rq->cmd_flags);
@@ -1027,6 +1066,16 @@ static inline unsigned int blk_rq_sectors(const struct request *rq)
 static inline unsigned int blk_rq_cur_sectors(const struct request *rq)
 {
 	return blk_rq_cur_bytes(rq) >> 9;
+}
+
+static inline unsigned int blk_rq_zone_no(struct request *rq)
+{
+	return blk_queue_zone_no(rq->q, blk_rq_pos(rq));
+}
+
+static inline unsigned int blk_rq_zone_is_seq(struct request *rq)
+{
+	return blk_queue_zone_is_seq(rq->q, blk_rq_pos(rq));
 }
 
 /*
@@ -1578,7 +1627,15 @@ static inline unsigned int bdev_zone_sectors(struct block_device *bdev)
 
 	if (q)
 		return blk_queue_zone_sectors(q);
+	return 0;
+}
 
+static inline unsigned int bdev_nr_zones(struct block_device *bdev)
+{
+	struct request_queue *q = bdev_get_queue(bdev);
+
+	if (q)
+		return blk_queue_nr_zones(q);
 	return 0;
 }
 
@@ -1954,6 +2011,60 @@ extern int __blkdev_driver_ioctl(struct block_device *, fmode_t, unsigned int,
 extern int bdev_read_page(struct block_device *, sector_t, struct page *);
 extern int bdev_write_page(struct block_device *, sector_t, struct page *,
 						struct writeback_control *);
+
+#ifdef CONFIG_BLK_DEV_ZONED
+bool blk_req_needs_zone_write_lock(struct request *rq);
+void __blk_req_zone_write_lock(struct request *rq);
+void __blk_req_zone_write_unlock(struct request *rq);
+
+static inline void blk_req_zone_write_lock(struct request *rq)
+{
+	if (blk_req_needs_zone_write_lock(rq))
+		__blk_req_zone_write_lock(rq);
+}
+
+static inline void blk_req_zone_write_unlock(struct request *rq)
+{
+	if (rq->rq_flags & RQF_ZONE_WRITE_LOCKED)
+		__blk_req_zone_write_unlock(rq);
+}
+
+static inline bool blk_req_zone_is_write_locked(struct request *rq)
+{
+	return rq->q->seq_zones_wlock &&
+		test_bit(blk_rq_zone_no(rq), rq->q->seq_zones_wlock);
+}
+
+static inline bool blk_req_can_dispatch_to_zone(struct request *rq)
+{
+	if (!blk_req_needs_zone_write_lock(rq))
+		return true;
+	return !blk_req_zone_is_write_locked(rq);
+}
+#else
+static inline bool blk_req_needs_zone_write_lock(struct request *rq)
+{
+	return false;
+}
+
+static inline void blk_req_zone_write_lock(struct request *rq)
+{
+}
+
+static inline void blk_req_zone_write_unlock(struct request *rq)
+{
+}
+static inline bool blk_req_zone_is_write_locked(struct request *rq)
+{
+	return false;
+}
+
+static inline bool blk_req_can_dispatch_to_zone(struct request *rq)
+{
+	return true;
+}
+#endif /* CONFIG_BLK_DEV_ZONED */
+
 #else /* CONFIG_BLOCK */
 
 struct block_device;
