@@ -855,13 +855,23 @@ struct htt_rx_in_ord_msdu_desc {
 	u8 reserved;
 } __packed;
 
+struct htt_rx_in_ord_msdu_desc_ext {
+	__le64 msdu_paddr;
+	__le16 msdu_len;
+	u8 fw_desc;
+	u8 reserved;
+} __packed;
+
 struct htt_rx_in_ord_ind {
 	u8 info;
 	__le16 peer_id;
 	u8 vdev_id;
 	u8 reserved;
 	__le16 msdu_count;
-	struct htt_rx_in_ord_msdu_desc msdu_descs[0];
+	union {
+		struct htt_rx_in_ord_msdu_desc msdu_descs32[0];
+		struct htt_rx_in_ord_msdu_desc_ext msdu_descs64[0];
+	} __packed;
 } __packed;
 
 #define HTT_RX_IN_ORD_IND_INFO_TID_MASK		0x0000001f

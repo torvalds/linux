@@ -408,12 +408,12 @@ static struct sk_buff *ath10k_htt_rx_pop_paddr(struct ath10k_htt *htt,
 	return msdu;
 }
 
-static int ath10k_htt_rx_pop_paddr_list(struct ath10k_htt *htt,
-					struct htt_rx_in_ord_ind *ev,
-					struct sk_buff_head *list)
+static int ath10k_htt_rx_pop_paddr32_list(struct ath10k_htt *htt,
+					  struct htt_rx_in_ord_ind *ev,
+					  struct sk_buff_head *list)
 {
 	struct ath10k *ar = htt->ar;
-	struct htt_rx_in_ord_msdu_desc *msdu_desc = ev->msdu_descs;
+	struct htt_rx_in_ord_msdu_desc *msdu_desc = ev->msdu_descs32;
 	struct htt_rx_desc *rxd;
 	struct sk_buff *msdu;
 	int msdu_count;
@@ -428,6 +428,55 @@ static int ath10k_htt_rx_pop_paddr_list(struct ath10k_htt *htt,
 	while (msdu_count--) {
 		paddr = __le32_to_cpu(msdu_desc->msdu_paddr);
 
+		msdu = ath10k_htt_rx_pop_paddr(htt, paddr);
+		if (!msdu) {
+			__skb_queue_purge(list);
+			return -ENOENT;
+		}
+
+		__skb_queue_tail(list, msdu);
+
+		if (!is_offload) {
+			rxd = (void *)msdu->data;
+
+			trace_ath10k_htt_rx_desc(ar, rxd, sizeof(*rxd));
+
+			skb_put(msdu, sizeof(*rxd));
+			skb_pull(msdu, sizeof(*rxd));
+			skb_put(msdu, __le16_to_cpu(msdu_desc->msdu_len));
+
+			if (!(__le32_to_cpu(rxd->attention.flags) &
+			      RX_ATTENTION_FLAGS_MSDU_DONE)) {
+				ath10k_warn(htt->ar, "tried to pop an incomplete frame, oops!\n");
+				return -EIO;
+			}
+		}
+
+		msdu_desc++;
+	}
+
+	return 0;
+}
+
+static int ath10k_htt_rx_pop_paddr64_list(struct ath10k_htt *htt,
+					  struct htt_rx_in_ord_ind *ev,
+					  struct sk_buff_head *list)
+{
+	struct ath10k *ar = htt->ar;
+	struct htt_rx_in_ord_msdu_desc_ext *msdu_desc = ev->msdu_descs64;
+	struct htt_rx_desc *rxd;
+	struct sk_buff *msdu;
+	int msdu_count;
+	bool is_offload;
+	u64 paddr;
+
+	lockdep_assert_held(&htt->rx_ring.lock);
+
+	msdu_count = __le16_to_cpu(ev->msdu_count);
+	is_offload = !!(ev->info & HTT_RX_IN_ORD_IND_INFO_OFFLOAD_MASK);
+
+	while (msdu_count--) {
+		paddr = __le64_to_cpu(msdu_desc->msdu_paddr);
 		msdu = ath10k_htt_rx_pop_paddr(htt, paddr);
 		if (!msdu) {
 			__skb_queue_purge(list);
@@ -1986,7 +2035,7 @@ static int ath10k_htt_rx_in_ord_ind(struct ath10k *ar, struct sk_buff *skb)
 		   "htt rx in ord vdev %i peer %i tid %i offload %i frag %i msdu count %i\n",
 		   vdev_id, peer_id, tid, offload, frag, msdu_count);
 
-	if (skb->len < msdu_count * sizeof(*resp->rx_in_ord_ind.msdu_descs)) {
+	if (skb->len < msdu_count * sizeof(*resp->rx_in_ord_ind.msdu_descs32)) {
 		ath10k_warn(ar, "dropping invalid in order rx indication\n");
 		return -EINVAL;
 	}
@@ -1995,7 +2044,13 @@ static int ath10k_htt_rx_in_ord_ind(struct ath10k *ar, struct sk_buff *skb)
 	 * extracted and processed.
 	 */
 	__skb_queue_head_init(&list);
-	ret = ath10k_htt_rx_pop_paddr_list(htt, &resp->rx_in_ord_ind, &list);
+	if (ar->hw_params.target_64bit)
+		ret = ath10k_htt_rx_pop_paddr64_list(htt, &resp->rx_in_ord_ind,
+						     &list);
+	else
+		ret = ath10k_htt_rx_pop_paddr32_list(htt, &resp->rx_in_ord_ind,
+						     &list);
+
 	if (ret < 0) {
 		ath10k_warn(ar, "failed to pop paddr list: %d\n", ret);
 		htt->rx_confused = true;
