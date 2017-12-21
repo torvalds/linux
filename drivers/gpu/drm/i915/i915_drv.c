@@ -931,12 +931,6 @@ static int i915_driver_init_early(struct drm_i915_private *dev_priv,
 
 	intel_display_crc_init(dev_priv);
 
-	if (drm_debug & DRM_UT_DRIVER) {
-		struct drm_printer p = drm_debug_printer("i915 device info:");
-
-		intel_device_info_dump(&dev_priv->info, &p);
-	}
-
 	intel_detect_preproduction_hw(dev_priv);
 
 	return 0;
@@ -1089,11 +1083,6 @@ static int i915_driver_init_hw(struct drm_i915_private *dev_priv)
 		return -ENODEV;
 
 	intel_device_info_runtime_init(mkwrite_device_info(dev_priv));
-	if (drm_debug & DRM_UT_DRIVER) {
-		struct drm_printer p = drm_debug_printer("i915 device info:");
-
-		intel_device_info_dump_runtime(&dev_priv->info, &p);
-	}
 
 	intel_sanitize_options(dev_priv);
 
@@ -1303,6 +1292,21 @@ static void i915_driver_unregister(struct drm_i915_private *dev_priv)
 	i915_gem_shrinker_unregister(dev_priv);
 }
 
+static void i915_welcome_messages(struct drm_i915_private *dev_priv)
+{
+	if (drm_debug & DRM_UT_DRIVER) {
+		struct drm_printer p = drm_debug_printer("i915 device info:");
+
+		intel_device_info_dump(&dev_priv->info, &p);
+		intel_device_info_dump_runtime(&dev_priv->info, &p);
+	}
+
+	if (IS_ENABLED(CONFIG_DRM_I915_DEBUG))
+		DRM_INFO("DRM_I915_DEBUG enabled\n");
+	if (IS_ENABLED(CONFIG_DRM_I915_DEBUG_GEM))
+		DRM_INFO("DRM_I915_DEBUG_GEM enabled\n");
+}
+
 /**
  * i915_driver_load - setup chip and create an initial config
  * @pdev: PCI device
@@ -1388,12 +1392,9 @@ int i915_driver_load(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	intel_init_ipc(dev_priv);
 
-	if (IS_ENABLED(CONFIG_DRM_I915_DEBUG))
-		DRM_INFO("DRM_I915_DEBUG enabled\n");
-	if (IS_ENABLED(CONFIG_DRM_I915_DEBUG_GEM))
-		DRM_INFO("DRM_I915_DEBUG_GEM enabled\n");
-
 	intel_runtime_pm_put(dev_priv);
+
+	i915_welcome_messages(dev_priv);
 
 	return 0;
 
