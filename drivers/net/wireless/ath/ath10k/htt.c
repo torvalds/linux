@@ -208,6 +208,7 @@ int ath10k_htt_init(struct ath10k *ar)
 		return -EINVAL;
 	}
 	ath10k_htt_set_tx_ops(htt);
+	ath10k_htt_set_rx_ops(htt);
 
 	return 0;
 }

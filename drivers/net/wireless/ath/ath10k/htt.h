@@ -1725,7 +1725,10 @@ struct ath10k_htt {
 		 * rx buffers the host SW provides for the MAC HW to
 		 * fill.
 		 */
-		__le32 *paddrs_ring;
+		union {
+			__le64 *paddrs_ring_64;
+			__le32 *paddrs_ring_32;
+		};
 
 		/*
 		 * Base address of ring, as a "physical" device address
@@ -1831,6 +1834,7 @@ struct ath10k_htt {
 
 	bool tx_mem_allocated;
 	const struct ath10k_htt_tx_ops *tx_ops;
+	const struct ath10k_htt_rx_ops *rx_ops;
 };
 
 struct ath10k_htt_tx_ops {
@@ -1844,6 +1848,14 @@ struct ath10k_htt_tx_ops {
 	void (*htt_free_txbuff)(struct ath10k_htt *htt);
 };
 
+struct ath10k_htt_rx_ops {
+	size_t (*htt_get_rx_ring_size)(struct ath10k_htt *htt);
+	void (*htt_config_paddrs_ring)(struct ath10k_htt *htt, void *vaddr);
+	void (*htt_set_paddrs_ring)(struct ath10k_htt *htt, dma_addr_t paddr,
+				    int idx);
+	void* (*htt_get_vaddr_ring)(struct ath10k_htt *htt);
+	void (*htt_reset_paddrs_ring)(struct ath10k_htt *htt, int idx);
+};
 #define RX_HTT_HDR_STATUS_LEN 64
 
 /* This structure layout is programmed via rx ring setup
@@ -1950,4 +1962,5 @@ void ath10k_htt_rx_pktlog_completion_handler(struct ath10k *ar,
 					     struct sk_buff *skb);
 int ath10k_htt_txrx_compl_task(struct ath10k *ar, int budget);
 void ath10k_htt_set_tx_ops(struct ath10k_htt *htt);
+void ath10k_htt_set_rx_ops(struct ath10k_htt *htt);
 #endif
