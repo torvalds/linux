@@ -20,7 +20,6 @@
 #define _NET_BATMAN_ADV_PACKET_H_
 
 #include <asm/byteorder.h>
-#include <linux/bitops.h>
 #include <linux/if_ether.h>
 #include <linux/types.h>
 
@@ -92,9 +91,9 @@ enum batadv_subtype {
  *     one hop neighbor on the interface where it was originally received.
  */
 enum batadv_iv_flags {
-	BATADV_NOT_BEST_NEXT_HOP   = BIT(0),
-	BATADV_PRIMARIES_FIRST_HOP = BIT(1),
-	BATADV_DIRECTLINK          = BIT(2),
+	BATADV_NOT_BEST_NEXT_HOP   = 1UL << 0,
+	BATADV_PRIMARIES_FIRST_HOP = 1UL << 1,
+	BATADV_DIRECTLINK          = 1UL << 2,
 };
 
 /**
@@ -123,9 +122,9 @@ enum batadv_icmp_packettype {
  * @BATADV_MCAST_WANT_ALL_IPV6: we want all IPv6 multicast packets
  */
 enum batadv_mcast_flags {
-	BATADV_MCAST_WANT_ALL_UNSNOOPABLES	= BIT(0),
-	BATADV_MCAST_WANT_ALL_IPV4		= BIT(1),
-	BATADV_MCAST_WANT_ALL_IPV6		= BIT(2),
+	BATADV_MCAST_WANT_ALL_UNSNOOPABLES	= 1UL << 0,
+	BATADV_MCAST_WANT_ALL_IPV4		= 1UL << 1,
+	BATADV_MCAST_WANT_ALL_IPV6		= 1UL << 2,
 };
 
 /* tt data subtypes */
@@ -139,10 +138,10 @@ enum batadv_mcast_flags {
  * @BATADV_TT_FULL_TABLE: contains full table to replace existing table
  */
 enum batadv_tt_data_flags {
-	BATADV_TT_OGM_DIFF   = BIT(0),
-	BATADV_TT_REQUEST    = BIT(1),
-	BATADV_TT_RESPONSE   = BIT(2),
-	BATADV_TT_FULL_TABLE = BIT(4),
+	BATADV_TT_OGM_DIFF   = 1UL << 0,
+	BATADV_TT_REQUEST    = 1UL << 1,
+	BATADV_TT_RESPONSE   = 1UL << 2,
+	BATADV_TT_FULL_TABLE = 1UL << 4,
 };
 
 /**
@@ -150,7 +149,7 @@ enum batadv_tt_data_flags {
  * @BATADV_VLAN_HAS_TAG: whether the field contains a valid vlan tag or not
  */
 enum batadv_vlan_flags {
-	BATADV_VLAN_HAS_TAG	= BIT(15),
+	BATADV_VLAN_HAS_TAG	= 1UL << 15,
 };
 
 /**
