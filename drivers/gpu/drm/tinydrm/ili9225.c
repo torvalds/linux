@@ -391,13 +391,13 @@ static struct drm_driver ili9225_driver = {
 };
 
 static const struct of_device_id ili9225_of_match[] = {
-	{ .compatible = "ilitek,ili9225-2.2in-176x220" },
+	{ .compatible = "vot,v220hf01a-t" },
 	{},
 };
 MODULE_DEVICE_TABLE(of, ili9225_of_match);
 
 static const struct spi_device_id ili9225_id[] = {
-	{ "ili9225-2.2in-176x220", 0 },
+	{ "v220hf01a-t", 0 },
 	{ },
 };
 MODULE_DEVICE_TABLE(spi, ili9225_id);
