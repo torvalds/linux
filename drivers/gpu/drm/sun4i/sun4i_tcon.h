@@ -70,7 +70,21 @@
 #define SUN4I_TCON0_TTL2_REG			0x78
 #define SUN4I_TCON0_TTL3_REG			0x7c
 #define SUN4I_TCON0_TTL4_REG			0x80
+
 #define SUN4I_TCON0_LVDS_IF_REG			0x84
+#define SUN4I_TCON0_LVDS_IF_EN				BIT(31)
+#define SUN4I_TCON0_LVDS_IF_BITWIDTH_MASK		BIT(26)
+#define SUN4I_TCON0_LVDS_IF_BITWIDTH_18BITS		(1 << 26)
+#define SUN4I_TCON0_LVDS_IF_BITWIDTH_24BITS		(0 << 26)
+#define SUN4I_TCON0_LVDS_IF_CLK_SEL_MASK		BIT(20)
+#define SUN4I_TCON0_LVDS_IF_CLK_SEL_TCON0		(1 << 20)
+#define SUN4I_TCON0_LVDS_IF_CLK_POL_MASK		BIT(4)
+#define SUN4I_TCON0_LVDS_IF_CLK_POL_NORMAL		(1 << 4)
+#define SUN4I_TCON0_LVDS_IF_CLK_POL_INV			(0 << 4)
+#define SUN4I_TCON0_LVDS_IF_DATA_POL_MASK		GENMASK(3, 0)
+#define SUN4I_TCON0_LVDS_IF_DATA_POL_NORMAL		(0xf)
+#define SUN4I_TCON0_LVDS_IF_DATA_POL_INV		(0)
+
 #define SUN4I_TCON0_IO_POL_REG			0x88
 #define SUN4I_TCON0_IO_POL_DCLK_PHASE(phase)		((phase & 3) << 28)
 #define SUN4I_TCON0_IO_POL_HSYNC_POSITIVE		BIT(25)
@@ -131,6 +145,16 @@
 #define SUN4I_TCON_CEU_RANGE_G_REG		0x144
 #define SUN4I_TCON_CEU_RANGE_B_REG		0x148
 #define SUN4I_TCON_MUX_CTRL_REG			0x200
+
+#define SUN4I_TCON0_LVDS_ANA0_REG		0x220
+#define SUN6I_TCON0_LVDS_ANA0_EN_MB			BIT(31)
+#define SUN6I_TCON0_LVDS_ANA0_EN_LDO			BIT(30)
+#define SUN6I_TCON0_LVDS_ANA0_EN_DRVC			BIT(24)
+#define SUN6I_TCON0_LVDS_ANA0_EN_DRVD(x)		(((x) & 0xf) << 20)
+#define SUN6I_TCON0_LVDS_ANA0_C(x)			(((x) & 3) << 17)
+#define SUN6I_TCON0_LVDS_ANA0_V(x)			(((x) & 3) << 8)
+#define SUN6I_TCON0_LVDS_ANA0_PD(x)			(((x) & 3) << 4)
+
 #define SUN4I_TCON1_FILL_CTL_REG		0x300
 #define SUN4I_TCON1_FILL_BEG0_REG		0x304
 #define SUN4I_TCON1_FILL_END0_REG		0x308
@@ -149,6 +173,7 @@ struct sun4i_tcon;
 
 struct sun4i_tcon_quirks {
 	bool	has_channel_1;	/* a33 does not have channel 1 */
+	bool	has_lvds_alt;	/* Does the LVDS clock have a parent other than the TCON clock? */
 	bool	needs_de_be_mux; /* sun6i needs mux to select backend */
 
 	/* callback to handle tcon muxing options */
@@ -167,6 +192,9 @@ struct sun4i_tcon {
 	struct clk			*sclk0;
 	struct clk			*sclk1;
 
+	/* Possible mux for the LVDS clock */
+	struct clk			*lvds_pll;
+
 	/* Pixel clock */
 	struct clk			*dclk;
 	u8				dclk_max_div;
@@ -174,6 +202,7 @@ struct sun4i_tcon {
 
 	/* Reset control */
 	struct reset_control		*lcd_rst;
+	struct reset_control		*lvds_rst;
 
 	struct drm_panel		*panel;
 
