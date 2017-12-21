@@ -230,17 +230,6 @@ static inline sector_t sd_zbc_zone_sectors(struct scsi_disk *sdkp)
 }
 
 /**
- * sd_zbc_zone_no - Get the number of the zone conataining a sector.
- * @sdkp: The target disk
- * @sector: 512B sector address contained in the zone
- */
-static inline unsigned int sd_zbc_zone_no(struct scsi_disk *sdkp,
-					  sector_t sector)
-{
-	return sectors_to_logical(sdkp->device, sector) >> sdkp->zone_shift;
-}
-
-/**
  * sd_zbc_setup_reset_cmnd - Prepare a RESET WRITE POINTER scsi command.
  * @cmd: the command to setup
  *
@@ -276,78 +265,6 @@ int sd_zbc_setup_reset_cmnd(struct scsi_cmnd *cmd)
 	cmd->allowed = 0;
 
 	return BLKPREP_OK;
-}
-
-/**
- * sd_zbc_write_lock_zone - Write lock a sequential zone.
- * @cmd: write command
- *
- * Called from sd_init_cmd() for write requests (standard write, write same or
- * write zeroes operations). If the request target zone is not already locked,
- * the zone is locked and BLKPREP_OK returned, allowing the request to proceed
- * through dispatch in scsi_request_fn(). Otherwise, BLKPREP_DEFER is returned,
- * forcing the request to wait for the zone to be unlocked, that is, for the
- * previously issued write request targeting the same zone to complete.
- *
- * This is called from blk_peek_request() context with the queue lock held and
- * before the request is removed from the scheduler. As a result, multiple
- * contexts executing concurrently scsi_request_fn() cannot result in write
- * sequence reordering as only a single write request per zone is allowed to
- * proceed.
- */
-int sd_zbc_write_lock_zone(struct scsi_cmnd *cmd)
-{
-	struct request *rq = cmd->request;
-	struct scsi_disk *sdkp = scsi_disk(rq->rq_disk);
-	sector_t sector = blk_rq_pos(rq);
-	sector_t zone_sectors = sd_zbc_zone_sectors(sdkp);
-	unsigned int zno = sd_zbc_zone_no(sdkp, sector);
-
-	/*
-	 * Note: Checks of the alignment of the write command on
-	 * logical blocks is done in sd.c
-	 */
-
-	/* Do not allow zone boundaries crossing on host-managed drives */
-	if (blk_queue_zoned_model(sdkp->disk->queue) == BLK_ZONED_HM &&
-	    (sector & (zone_sectors - 1)) + blk_rq_sectors(rq) > zone_sectors)
-		return BLKPREP_KILL;
-
-	/*
-	 * Do not issue more than one write at a time per
-	 * zone. This solves write ordering problems due to
-	 * the unlocking of the request queue in the dispatch
-	 * path in the non scsi-mq case.
-	 */
-	if (sdkp->zones_wlock &&
-	    test_and_set_bit(zno, sdkp->zones_wlock))
-		return BLKPREP_DEFER;
-
-	WARN_ON_ONCE(cmd->flags & SCMD_ZONE_WRITE_LOCK);
-	cmd->flags |= SCMD_ZONE_WRITE_LOCK;
-
-	return BLKPREP_OK;
-}
-
-/**
- * sd_zbc_write_unlock_zone - Write unlock a sequential zone.
- * @cmd: write command
- *
- * Called from sd_uninit_cmd(). Unlocking the request target zone will allow
- * dispatching the next write request for the zone.
- */
-void sd_zbc_write_unlock_zone(struct scsi_cmnd *cmd)
-{
-	struct request *rq = cmd->request;
-	struct scsi_disk *sdkp = scsi_disk(rq->rq_disk);
-
-	if (sdkp->zones_wlock && cmd->flags & SCMD_ZONE_WRITE_LOCK) {
-		unsigned int zno = sd_zbc_zone_no(sdkp, blk_rq_pos(rq));
-		WARN_ON_ONCE(!test_bit(zno, sdkp->zones_wlock));
-		cmd->flags &= ~SCMD_ZONE_WRITE_LOCK;
-		clear_bit_unlock(zno, sdkp->zones_wlock);
-		smp_mb__after_atomic();
-	}
 }
 
 /**
