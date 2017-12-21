@@ -471,6 +471,7 @@ static const char *const ath10k_core_fw_feature_str[] = {
 	[ATH10K_FW_FEATURE_ALLOWS_MESH_BCAST] = "allows-mesh-bcast",
 	[ATH10K_FW_FEATURE_NO_PS] = "no-ps",
 	[ATH10K_FW_FEATURE_MGMT_TX_BY_REF] = "mgmt-tx-by-reference",
+	[ATH10K_FW_FEATURE_NON_BMI] = "non-bmi",
 };
 
 static unsigned int ath10k_core_get_fw_feature_str(char *buf,
@@ -1550,8 +1551,8 @@ int ath10k_core_fetch_firmware_api_n(struct ath10k *ar, const char *name,
 		data += ie_len;
 	}
 
-	if (!fw_file->firmware_data ||
-	    !fw_file->firmware_len) {
+	if (!test_bit(ATH10K_FW_FEATURE_NON_BMI, fw_file->fw_features) &&
+	    (!fw_file->firmware_data || !fw_file->firmware_len)) {
 		ath10k_warn(ar, "No ATH10K_FW_IE_FW_IMAGE found from '%s/%s', skipping\n",
 			    ar->hw_params.fw.dir, name);
 		ret = -ENOMEDIUM;
@@ -2105,43 +2106,47 @@ int ath10k_core_start(struct ath10k *ar, enum ath10k_firmware_mode mode,
 
 	ar->running_fw = fw;
 
-	ath10k_bmi_start(ar);
+	if (!test_bit(ATH10K_FW_FEATURE_NON_BMI,
+		      ar->running_fw->fw_file.fw_features)) {
+		ath10k_bmi_start(ar);
 
-	if (ath10k_init_configure_target(ar)) {
-		status = -EINVAL;
-		goto err;
-	}
-
-	status = ath10k_download_cal_data(ar);
-	if (status)
-		goto err;
-
-	/* Some of of qca988x solutions are having global reset issue
-	 * during target initialization. Bypassing PLL setting before
-	 * downloading firmware and letting the SoC run on REF_CLK is
-	 * fixing the problem. Corresponding firmware change is also needed
-	 * to set the clock source once the target is initialized.
-	 */
-	if (test_bit(ATH10K_FW_FEATURE_SUPPORTS_SKIP_CLOCK_INIT,
-		     ar->running_fw->fw_file.fw_features)) {
-		status = ath10k_bmi_write32(ar, hi_skip_clock_init, 1);
-		if (status) {
-			ath10k_err(ar, "could not write to skip_clock_init: %d\n",
-				   status);
+		if (ath10k_init_configure_target(ar)) {
+			status = -EINVAL;
 			goto err;
 		}
+
+		status = ath10k_download_cal_data(ar);
+		if (status)
+			goto err;
+
+		/* Some of of qca988x solutions are having global reset issue
+		 * during target initialization. Bypassing PLL setting before
+		 * downloading firmware and letting the SoC run on REF_CLK is
+		 * fixing the problem. Corresponding firmware change is also
+		 * needed to set the clock source once the target is
+		 * initialized.
+		 */
+		if (test_bit(ATH10K_FW_FEATURE_SUPPORTS_SKIP_CLOCK_INIT,
+			     ar->running_fw->fw_file.fw_features)) {
+			status = ath10k_bmi_write32(ar, hi_skip_clock_init, 1);
+			if (status) {
+				ath10k_err(ar, "could not write to skip_clock_init: %d\n",
+					   status);
+				goto err;
+			}
+		}
+
+		status = ath10k_download_fw(ar);
+		if (status)
+			goto err;
+
+		status = ath10k_init_uart(ar);
+		if (status)
+			goto err;
+
+		if (ar->hif.bus == ATH10K_BUS_SDIO)
+			ath10k_init_sdio(ar);
 	}
-
-	status = ath10k_download_fw(ar);
-	if (status)
-		goto err;
-
-	status = ath10k_init_uart(ar);
-	if (status)
-		goto err;
-
-	if (ar->hif.bus == ATH10K_BUS_SDIO)
-		ath10k_init_sdio(ar);
 
 	ar->htc.htc_ops.target_send_suspend_complete =
 		ath10k_send_suspend_complete;
@@ -2152,9 +2157,12 @@ int ath10k_core_start(struct ath10k *ar, enum ath10k_firmware_mode mode,
 		goto err;
 	}
 
-	status = ath10k_bmi_done(ar);
-	if (status)
-		goto err;
+	if (!test_bit(ATH10K_FW_FEATURE_NON_BMI,
+		      ar->running_fw->fw_file.fw_features)) {
+		status = ath10k_bmi_done(ar);
+		if (status)
+			goto err;
+	}
 
 	status = ath10k_wmi_attach(ar);
 	if (status) {
@@ -2397,18 +2405,33 @@ static int ath10k_core_probe_fw(struct ath10k *ar)
 		return ret;
 	}
 
-	memset(&target_info, 0, sizeof(target_info));
-	if (ar->hif.bus == ATH10K_BUS_SDIO)
+	switch (ar->hif.bus) {
+	case ATH10K_BUS_SDIO:
+		memset(&target_info, 0, sizeof(target_info));
 		ret = ath10k_bmi_get_target_info_sdio(ar, &target_info);
-	else
+		if (ret) {
+			ath10k_err(ar, "could not get target info (%d)\n", ret);
+			goto err_power_down;
+		}
+		ar->target_version = target_info.version;
+		ar->hw->wiphy->hw_version = target_info.version;
+		break;
+	case ATH10K_BUS_PCI:
+	case ATH10K_BUS_AHB:
+		memset(&target_info, 0, sizeof(target_info));
 		ret = ath10k_bmi_get_target_info(ar, &target_info);
-	if (ret) {
-		ath10k_err(ar, "could not get target info (%d)\n", ret);
-		goto err_power_down;
+		if (ret) {
+			ath10k_err(ar, "could not get target info (%d)\n", ret);
+			goto err_power_down;
+		}
+		ar->target_version = target_info.version;
+		ar->hw->wiphy->hw_version = target_info.version;
+		break;
+	case ATH10K_BUS_SNOC:
+		break;
+	default:
+		ath10k_err(ar, "incorrect hif bus type: %d\n", ar->hif.bus);
 	}
-
-	ar->target_version = target_info.version;
-	ar->hw->wiphy->hw_version = target_info.version;
 
 	ret = ath10k_init_hw_params(ar);
 	if (ret) {
@@ -2429,37 +2452,40 @@ static int ath10k_core_probe_fw(struct ath10k *ar)
 
 	ath10k_debug_print_hwfw_info(ar);
 
-	ret = ath10k_core_pre_cal_download(ar);
-	if (ret) {
-		/* pre calibration data download is not necessary
-		 * for all the chipsets. Ignore failures and continue.
-		 */
-		ath10k_dbg(ar, ATH10K_DBG_BOOT,
-			   "could not load pre cal data: %d\n", ret);
+	if (!test_bit(ATH10K_FW_FEATURE_NON_BMI,
+		      ar->normal_mode_fw.fw_file.fw_features)) {
+		ret = ath10k_core_pre_cal_download(ar);
+		if (ret) {
+			/* pre calibration data download is not necessary
+			 * for all the chipsets. Ignore failures and continue.
+			 */
+			ath10k_dbg(ar, ATH10K_DBG_BOOT,
+				   "could not load pre cal data: %d\n", ret);
+		}
+
+		ret = ath10k_core_get_board_id_from_otp(ar);
+		if (ret && ret != -EOPNOTSUPP) {
+			ath10k_err(ar, "failed to get board id from otp: %d\n",
+				   ret);
+			goto err_free_firmware_files;
+		}
+
+		ret = ath10k_core_check_smbios(ar);
+		if (ret)
+			ath10k_dbg(ar, ATH10K_DBG_BOOT, "SMBIOS bdf variant name not set.\n");
+
+		ret = ath10k_core_check_dt(ar);
+		if (ret)
+			ath10k_dbg(ar, ATH10K_DBG_BOOT, "DT bdf variant name not set.\n");
+
+		ret = ath10k_core_fetch_board_file(ar);
+		if (ret) {
+			ath10k_err(ar, "failed to fetch board file: %d\n", ret);
+			goto err_free_firmware_files;
+		}
+
+		ath10k_debug_print_board_info(ar);
 	}
-
-	ret = ath10k_core_get_board_id_from_otp(ar);
-	if (ret && ret != -EOPNOTSUPP) {
-		ath10k_err(ar, "failed to get board id from otp: %d\n",
-			   ret);
-		goto err_free_firmware_files;
-	}
-
-	ret = ath10k_core_check_smbios(ar);
-	if (ret)
-		ath10k_dbg(ar, ATH10K_DBG_BOOT, "SMBIOS bdf variant name not set.\n");
-
-	ret = ath10k_core_check_dt(ar);
-	if (ret)
-		ath10k_dbg(ar, ATH10K_DBG_BOOT, "DT bdf variant name not set.\n");
-
-	ret = ath10k_core_fetch_board_file(ar);
-	if (ret) {
-		ath10k_err(ar, "failed to fetch board file: %d\n", ret);
-		goto err_free_firmware_files;
-	}
-
-	ath10k_debug_print_board_info(ar);
 
 	ret = ath10k_core_init_firmware_features(ar);
 	if (ret) {
@@ -2468,11 +2494,15 @@ static int ath10k_core_probe_fw(struct ath10k *ar)
 		goto err_free_firmware_files;
 	}
 
-	ret = ath10k_swap_code_seg_init(ar, &ar->normal_mode_fw.fw_file);
-	if (ret) {
-		ath10k_err(ar, "failed to initialize code swap segment: %d\n",
-			   ret);
-		goto err_free_firmware_files;
+	if (!test_bit(ATH10K_FW_FEATURE_NON_BMI,
+		      ar->normal_mode_fw.fw_file.fw_features)) {
+		ret = ath10k_swap_code_seg_init(ar,
+						&ar->normal_mode_fw.fw_file);
+		if (ret) {
+			ath10k_err(ar, "failed to initialize code swap segment: %d\n",
+				   ret);
+			goto err_free_firmware_files;
+		}
 	}
 
 	mutex_lock(&ar->conf_mutex);
