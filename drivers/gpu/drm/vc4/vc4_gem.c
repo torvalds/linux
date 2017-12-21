@@ -436,6 +436,19 @@ vc4_flush_caches(struct drm_device *dev)
 		  VC4_SET_FIELD(0xf, V3D_SLCACTL_ICC));
 }
 
+static void
+vc4_flush_texture_caches(struct drm_device *dev)
+{
+	struct vc4_dev *vc4 = to_vc4_dev(dev);
+
+	V3D_WRITE(V3D_L2CACTL,
+		  V3D_L2CACTL_L2CCLR);
+
+	V3D_WRITE(V3D_SLCACTL,
+		  VC4_SET_FIELD(0xf, V3D_SLCACTL_T1CC) |
+		  VC4_SET_FIELD(0xf, V3D_SLCACTL_T0CC));
+}
+
 /* Sets the registers for the next job to be actually be executed in
  * the hardware.
  *
@@ -473,6 +486,14 @@ vc4_submit_next_render_job(struct drm_device *dev)
 
 	if (!exec)
 		return;
+
+	/* A previous RCL may have written to one of our textures, and
+	 * our full cache flush at bin time may have occurred before
+	 * that RCL completed.  Flush the texture cache now, but not
+	 * the instructions or uniforms (since we don't write those
+	 * from an RCL).
+	 */
+	vc4_flush_texture_caches(dev);
 
 	submit_cl(dev, 1, exec->ct1ca, exec->ct1ea);
 }
