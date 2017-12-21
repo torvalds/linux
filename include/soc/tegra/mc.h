@@ -51,12 +51,21 @@ struct tegra_smmu_swgroup {
 	unsigned int reg;
 };
 
+struct tegra_smmu_group_soc {
+	const char *name;
+	const unsigned int *swgroups;
+	unsigned int num_swgroups;
+};
+
 struct tegra_smmu_soc {
 	const struct tegra_mc_client *clients;
 	unsigned int num_clients;
 
 	const struct tegra_smmu_swgroup *swgroups;
 	unsigned int num_swgroups;
+
+	const struct tegra_smmu_group_soc *groups;
+	unsigned int num_groups;
 
 	bool supports_round_robin_arbitration;
 	bool supports_request_limit;
