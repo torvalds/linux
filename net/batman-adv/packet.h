@@ -20,6 +20,8 @@
 #define _NET_BATMAN_ADV_PACKET_H_
 
 #include <asm/byteorder.h>
+#include <linux/bitops.h>
+#include <linux/if_ether.h>
 #include <linux/types.h>
 
 /**

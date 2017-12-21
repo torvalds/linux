@@ -217,10 +217,8 @@ enum batadv_uev_type {
 
 /* Kernel headers */
 
-#include <linux/bitops.h> /* for packet.h */
 #include <linux/compiler.h>
 #include <linux/etherdevice.h>
-#include <linux/if_ether.h> /* for packet.h */
 #include <linux/if_vlan.h>
 #include <linux/jiffies.h>
 #include <linux/percpu.h>
