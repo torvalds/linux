@@ -98,6 +98,12 @@ deadline_add_request(struct request_queue *q, struct request *rq)
 	struct deadline_data *dd = q->elevator->elevator_data;
 	const int data_dir = rq_data_dir(rq);
 
+	/*
+	 * This may be a requeue of a write request that has locked its
+	 * target zone. If it is the case, this releases the zone lock.
+	 */
+	blk_req_zone_write_unlock(rq);
+
 	deadline_add_rq_rb(dd, rq);
 
 	/*
@@ -188,6 +194,12 @@ deadline_move_to_dispatch(struct deadline_data *dd, struct request *rq)
 {
 	struct request_queue *q = rq->q;
 
+	/*
+	 * For a zoned block device, write requests must write lock their
+	 * target zone.
+	 */
+	blk_req_zone_write_lock(rq);
+
 	deadline_remove_request(q, rq);
 	elv_dispatch_add_tail(q, rq);
 }
@@ -235,13 +247,28 @@ static inline int deadline_check_fifo(struct deadline_data *dd, int ddir)
 static struct request *
 deadline_fifo_request(struct deadline_data *dd, int data_dir)
 {
+	struct request *rq;
+
 	if (WARN_ON_ONCE(data_dir != READ && data_dir != WRITE))
 		return NULL;
 
 	if (list_empty(&dd->fifo_list[data_dir]))
 		return NULL;
 
-	return rq_entry_fifo(dd->fifo_list[data_dir].next);
+	rq = rq_entry_fifo(dd->fifo_list[data_dir].next);
+	if (data_dir == READ || !blk_queue_is_zoned(rq->q))
+		return rq;
+
+	/*
+	 * Look for a write request that can be dispatched, that is one with
+	 * an unlocked target zone.
+	 */
+	list_for_each_entry(rq, &dd->fifo_list[WRITE], queuelist) {
+		if (blk_req_can_dispatch_to_zone(rq))
+			return rq;
+	}
+
+	return NULL;
 }
 
 /*
@@ -251,10 +278,29 @@ deadline_fifo_request(struct deadline_data *dd, int data_dir)
 static struct request *
 deadline_next_request(struct deadline_data *dd, int data_dir)
 {
+	struct request *rq;
+
 	if (WARN_ON_ONCE(data_dir != READ && data_dir != WRITE))
 		return NULL;
 
-	return dd->next_rq[data_dir];
+	rq = dd->next_rq[data_dir];
+	if (!rq)
+		return NULL;
+
+	if (data_dir == READ || !blk_queue_is_zoned(rq->q))
+		return rq;
+
+	/*
+	 * Look for a write request that can be dispatched, that is one with
+	 * an unlocked target zone.
+	 */
+	while (rq) {
+		if (blk_req_can_dispatch_to_zone(rq))
+			return rq;
+		rq = deadline_latter_request(rq);
+	}
+
+	return NULL;
 }
 
 /*
@@ -288,7 +334,8 @@ static int deadline_dispatch_requests(struct request_queue *q, int force)
 	if (reads) {
 		BUG_ON(RB_EMPTY_ROOT(&dd->sort_list[READ]));
 
-		if (writes && (dd->starved++ >= dd->writes_starved))
+		if (deadline_fifo_request(dd, WRITE) &&
+		    (dd->starved++ >= dd->writes_starved))
 			goto dispatch_writes;
 
 		data_dir = READ;
@@ -333,6 +380,13 @@ dispatch_find_request:
 		rq = next_rq;
 	}
 
+	/*
+	 * For a zoned block device, if we only have writes queued and none of
+	 * them can be dispatched, rq will be NULL.
+	 */
+	if (!rq)
+		return 0;
+
 	dd->batching = 0;
 
 dispatch_request:
@@ -343,6 +397,16 @@ dispatch_request:
 	deadline_move_request(dd, rq);
 
 	return 1;
+}
+
+/*
+ * For zoned block devices, write unlock the target zone of completed
+ * write requests.
+ */
+static void
+deadline_completed_request(struct request_queue *q, struct request *rq)
+{
+	blk_req_zone_write_unlock(rq);
 }
 
 static void deadline_exit_queue(struct elevator_queue *e)
@@ -466,6 +530,7 @@ static struct elevator_type iosched_deadline = {
 		.elevator_merged_fn =		deadline_merged_request,
 		.elevator_merge_req_fn =	deadline_merged_requests,
 		.elevator_dispatch_fn =		deadline_dispatch_requests,
+		.elevator_completed_req_fn =	deadline_completed_request,
 		.elevator_add_req_fn =		deadline_add_request,
 		.elevator_former_req_fn =	elv_rb_former_request,
 		.elevator_latter_req_fn =	elv_rb_latter_request,
