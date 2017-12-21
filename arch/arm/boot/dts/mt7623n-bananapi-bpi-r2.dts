@@ -757,6 +757,10 @@
 	status = "okay";
 };
 
+/*&uart3 {
+	status = "okay";
+};*/
+
 &usb1 {
 	vusb33-supply = <&mt6323_vusb_reg>;
 	status = "okay";
@@ -778,3 +782,4 @@
 &watchdog {
 	status = "okay";
 };
+
