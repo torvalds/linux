@@ -72,7 +72,7 @@ Optional nodes:
         - compatible: only "samsung,secure-firmware" is currently supported
         - reg: address of non-secure SYSRAM used for communication with firmware
 
-	firmware@203F000 {
+	firmware@203f000 {
 		compatible = "samsung,secure-firmware";
 		reg = <0x0203F000 0x1000>;
 	};

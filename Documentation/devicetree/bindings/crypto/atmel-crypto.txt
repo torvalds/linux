@@ -75,7 +75,7 @@ Required properties:
 - clock-frequency: must be present in the i2c controller node.
 
 Example:
-atecc508a@C0 {
+atecc508a@c0 {
 	compatible = "atmel,atecc508a";
 	reg = <0xC0>;
 };

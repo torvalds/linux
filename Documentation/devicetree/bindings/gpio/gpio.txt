@@ -290,7 +290,7 @@ pins 50..69.
 
 Example 2:
 
-	gpio_pio_i: gpio-controller@14B0 {
+	gpio_pio_i: gpio-controller@14b0 {
 		#gpio-cells = <2>;
 		compatible = "fsl,qe-pario-bank-e", "fsl,qe-pario-bank";
 		reg = <0x1480 0x18>;
