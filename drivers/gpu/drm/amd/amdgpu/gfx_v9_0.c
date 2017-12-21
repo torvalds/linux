@@ -184,6 +184,30 @@ static const struct soc15_reg_golden golden_settings_gc_9_2_1_vg12[] =
 	SOC15_REG_GOLDEN_VALUE(GC, 0, mmTD_CNTL, 0x01bd9f33, 0x01000000)
 };
 
+static const u32 GFX_RLC_SRM_INDEX_CNTL_ADDR_OFFSETS[] =
+{
+	mmRLC_SRM_INDEX_CNTL_ADDR_0 - mmRLC_SRM_INDEX_CNTL_ADDR_0,
+	mmRLC_SRM_INDEX_CNTL_ADDR_1 - mmRLC_SRM_INDEX_CNTL_ADDR_0,
+	mmRLC_SRM_INDEX_CNTL_ADDR_2 - mmRLC_SRM_INDEX_CNTL_ADDR_0,
+	mmRLC_SRM_INDEX_CNTL_ADDR_3 - mmRLC_SRM_INDEX_CNTL_ADDR_0,
+	mmRLC_SRM_INDEX_CNTL_ADDR_4 - mmRLC_SRM_INDEX_CNTL_ADDR_0,
+	mmRLC_SRM_INDEX_CNTL_ADDR_5 - mmRLC_SRM_INDEX_CNTL_ADDR_0,
+	mmRLC_SRM_INDEX_CNTL_ADDR_6 - mmRLC_SRM_INDEX_CNTL_ADDR_0,
+	mmRLC_SRM_INDEX_CNTL_ADDR_7 - mmRLC_SRM_INDEX_CNTL_ADDR_0,
+};
+
+static const u32 GFX_RLC_SRM_INDEX_CNTL_DATA_OFFSETS[] =
+{
+	mmRLC_SRM_INDEX_CNTL_DATA_0 - mmRLC_SRM_INDEX_CNTL_DATA_0,
+	mmRLC_SRM_INDEX_CNTL_DATA_1 - mmRLC_SRM_INDEX_CNTL_DATA_0,
+	mmRLC_SRM_INDEX_CNTL_DATA_2 - mmRLC_SRM_INDEX_CNTL_DATA_0,
+	mmRLC_SRM_INDEX_CNTL_DATA_3 - mmRLC_SRM_INDEX_CNTL_DATA_0,
+	mmRLC_SRM_INDEX_CNTL_DATA_4 - mmRLC_SRM_INDEX_CNTL_DATA_0,
+	mmRLC_SRM_INDEX_CNTL_DATA_5 - mmRLC_SRM_INDEX_CNTL_DATA_0,
+	mmRLC_SRM_INDEX_CNTL_DATA_6 - mmRLC_SRM_INDEX_CNTL_DATA_0,
+	mmRLC_SRM_INDEX_CNTL_DATA_7 - mmRLC_SRM_INDEX_CNTL_DATA_0,
+};
+
 #define VEGA10_GB_ADDR_CONFIG_GOLDEN 0x2a114042
 #define VEGA12_GB_ADDR_CONFIG_GOLDEN 0x24104041
 #define RAVEN_GB_ADDR_CONFIG_GOLDEN 0x24000042
@@ -1763,55 +1787,42 @@ static void gfx_v9_0_init_csb(struct amdgpu_device *adev)
 			adev->gfx.rlc.clear_state_size);
 }
 
-static void gfx_v9_0_parse_ind_reg_list(int *register_list_format,
+static void gfx_v9_1_parse_ind_reg_list(int *register_list_format,
 				int indirect_offset,
 				int list_size,
 				int *unique_indirect_regs,
 				int *unique_indirect_reg_count,
-				int max_indirect_reg_count,
 				int *indirect_start_offsets,
-				int *indirect_start_offsets_count,
-				int max_indirect_start_offsets_count)
+				int *indirect_start_offsets_count)
 {
 	int idx;
-	bool new_entry = true;
 
 	for (; indirect_offset < list_size; indirect_offset++) {
+		indirect_start_offsets[*indirect_start_offsets_count] = indirect_offset;
+		*indirect_start_offsets_count = *indirect_start_offsets_count + 1;
 
-		if (new_entry) {
-			new_entry = false;
-			indirect_start_offsets[*indirect_start_offsets_count] = indirect_offset;
-			*indirect_start_offsets_count = *indirect_start_offsets_count + 1;
-			BUG_ON(*indirect_start_offsets_count >= max_indirect_start_offsets_count);
+		while (register_list_format[indirect_offset] != 0xFFFFFFFF) {
+			indirect_offset += 2;
+
+			/* look for the matching indice */
+			for (idx = 0; idx < *unique_indirect_reg_count; idx++) {
+				if (unique_indirect_regs[idx] ==
+					register_list_format[indirect_offset] ||
+					!unique_indirect_regs[idx])
+					break;
+			}
+
+			BUG_ON(idx >= *unique_indirect_reg_count);
+
+			if (!unique_indirect_regs[idx])
+				unique_indirect_regs[idx] = register_list_format[indirect_offset];
+
+			indirect_offset++;
 		}
-
-		if (register_list_format[indirect_offset] == 0xFFFFFFFF) {
-			new_entry = true;
-			continue;
-		}
-
-		indirect_offset += 2;
-
-		/* look for the matching indice */
-		for (idx = 0; idx < *unique_indirect_reg_count; idx++) {
-			if (unique_indirect_regs[idx] ==
-				register_list_format[indirect_offset])
-				break;
-		}
-
-		if (idx >= *unique_indirect_reg_count) {
-			unique_indirect_regs[*unique_indirect_reg_count] =
-				register_list_format[indirect_offset];
-			idx = *unique_indirect_reg_count;
-			*unique_indirect_reg_count = *unique_indirect_reg_count + 1;
-			BUG_ON(*unique_indirect_reg_count >= max_indirect_reg_count);
-		}
-
-		register_list_format[indirect_offset] = idx;
 	}
 }
 
-static int gfx_v9_0_init_rlc_save_restore_list(struct amdgpu_device *adev)
+static int gfx_v9_1_init_rlc_save_restore_list(struct amdgpu_device *adev)
 {
 	int unique_indirect_regs[] = {0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0};
 	int unique_indirect_reg_count = 0;
@@ -1820,7 +1831,7 @@ static int gfx_v9_0_init_rlc_save_restore_list(struct amdgpu_device *adev)
 	int indirect_start_offsets_count = 0;
 
 	int list_size = 0;
-	int i = 0;
+	int i = 0, j = 0;
 	u32 tmp = 0;
 
 	u32 *register_list_format =
@@ -1831,15 +1842,14 @@ static int gfx_v9_0_init_rlc_save_restore_list(struct amdgpu_device *adev)
 		adev->gfx.rlc.reg_list_format_size_bytes);
 
 	/* setup unique_indirect_regs array and indirect_start_offsets array */
-	gfx_v9_0_parse_ind_reg_list(register_list_format,
-				adev->gfx.rlc.reg_list_format_direct_reg_list_length,
-				adev->gfx.rlc.reg_list_format_size_bytes >> 2,
-				unique_indirect_regs,
-				&unique_indirect_reg_count,
-				ARRAY_SIZE(unique_indirect_regs),
-				indirect_start_offsets,
-				&indirect_start_offsets_count,
-				ARRAY_SIZE(indirect_start_offsets));
+	unique_indirect_reg_count = ARRAY_SIZE(unique_indirect_regs);
+	gfx_v9_1_parse_ind_reg_list(register_list_format,
+				    adev->gfx.rlc.reg_list_format_direct_reg_list_length,
+				    adev->gfx.rlc.reg_list_format_size_bytes >> 2,
+				    unique_indirect_regs,
+				    &unique_indirect_reg_count,
+				    indirect_start_offsets,
+				    &indirect_start_offsets_count);
 
 	/* enable auto inc in case it is disabled */
 	tmp = RREG32(SOC15_REG_OFFSET(GC, 0, mmRLC_SRM_CNTL));
@@ -1853,18 +1863,36 @@ static int gfx_v9_0_init_rlc_save_restore_list(struct amdgpu_device *adev)
 		WREG32(SOC15_REG_OFFSET(GC, 0, mmRLC_SRM_ARAM_DATA),
 			adev->gfx.rlc.register_restore[i]);
 
-	/* load direct register */
-	WREG32(SOC15_REG_OFFSET(GC, 0, mmRLC_SRM_ARAM_ADDR), 0);
-	for (i = 0; i < adev->gfx.rlc.reg_list_size_bytes >> 2; i++)
-		WREG32(SOC15_REG_OFFSET(GC, 0, mmRLC_SRM_ARAM_DATA),
-			adev->gfx.rlc.register_restore[i]);
-
 	/* load indirect register */
 	WREG32(SOC15_REG_OFFSET(GC, 0, mmRLC_GPM_SCRATCH_ADDR),
 		adev->gfx.rlc.reg_list_format_start);
-	for (i = 0; i < adev->gfx.rlc.reg_list_format_size_bytes >> 2; i++)
+
+	/* direct register portion */
+	for (i = 0; i < adev->gfx.rlc.reg_list_format_direct_reg_list_length; i++)
 		WREG32(SOC15_REG_OFFSET(GC, 0, mmRLC_GPM_SCRATCH_DATA),
 			register_list_format[i]);
+
+	/* indirect register portion */
+	while (i < (adev->gfx.rlc.reg_list_format_size_bytes >> 2)) {
+		if (register_list_format[i] == 0xFFFFFFFF) {
+			WREG32_SOC15(GC, 0, mmRLC_GPM_SCRATCH_DATA, register_list_format[i++]);
+			continue;
+		}
+
+		WREG32_SOC15(GC, 0, mmRLC_GPM_SCRATCH_DATA, register_list_format[i++]);
+		WREG32_SOC15(GC, 0, mmRLC_GPM_SCRATCH_DATA, register_list_format[i++]);
+
+		for (j = 0; j < unique_indirect_reg_count; j++) {
+			if (register_list_format[i] == unique_indirect_regs[j]) {
+				WREG32_SOC15(GC, 0, mmRLC_GPM_SCRATCH_DATA, j);
+				break;
+			}
+		}
+
+		BUG_ON(j >= unique_indirect_reg_count);
+
+		i++;
+	}
 
 	/* set save/restore list size */
 	list_size = adev->gfx.rlc.reg_list_size_bytes >> 2;
@@ -1878,14 +1906,19 @@ static int gfx_v9_0_init_rlc_save_restore_list(struct amdgpu_device *adev)
 		adev->gfx.rlc.starting_offsets_start);
 	for (i = 0; i < ARRAY_SIZE(indirect_start_offsets); i++)
 		WREG32(SOC15_REG_OFFSET(GC, 0, mmRLC_GPM_SCRATCH_DATA),
-			indirect_start_offsets[i]);
+		       indirect_start_offsets[i]);
 
 	/* load unique indirect regs*/
 	for (i = 0; i < ARRAY_SIZE(unique_indirect_regs); i++) {
-		WREG32(SOC15_REG_OFFSET(GC, 0, mmRLC_SRM_INDEX_CNTL_ADDR_0) + i,
-			unique_indirect_regs[i] & 0x3FFFF);
-		WREG32(SOC15_REG_OFFSET(GC, 0, mmRLC_SRM_INDEX_CNTL_DATA_0) + i,
-			unique_indirect_regs[i] >> 20);
+		if (unique_indirect_regs[i] != 0) {
+			WREG32(SOC15_REG_OFFSET(GC, 0, mmRLC_SRM_INDEX_CNTL_ADDR_0)
+			       + GFX_RLC_SRM_INDEX_CNTL_ADDR_OFFSETS[i],
+			       unique_indirect_regs[i] & 0x3FFFF);
+
+			WREG32(SOC15_REG_OFFSET(GC, 0, mmRLC_SRM_INDEX_CNTL_DATA_0)
+			       + GFX_RLC_SRM_INDEX_CNTL_DATA_OFFSETS[i],
+			       unique_indirect_regs[i] >> 20);
+		}
 	}
 
 	kfree(register_list_format);
@@ -2075,7 +2108,7 @@ static void gfx_v9_0_init_pg(struct amdgpu_device *adev)
 			      AMD_PG_SUPPORT_GDS |
 			      AMD_PG_SUPPORT_RLC_SMU_HS)) {
 		gfx_v9_0_init_csb(adev);
-		gfx_v9_0_init_rlc_save_restore_list(adev);
+		gfx_v9_1_init_rlc_save_restore_list(adev);
 		gfx_v9_0_enable_save_restore_machine(adev);
 
 		WREG32(mmRLC_JUMP_TABLE_RESTORE,
