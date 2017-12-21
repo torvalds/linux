@@ -351,8 +351,7 @@ void tipc_group_update_member(struct tipc_member *m, int len)
 	if (m->window >= ADV_IDLE)
 		return;
 
-	if (!list_empty(&m->congested))
-		return;
+	list_del_init(&m->congested);
 
 	/* Sort member into congested members' list */
 	list_for_each_entry_safe(_m, tmp, &grp->congested, congested) {
@@ -648,6 +647,7 @@ static void tipc_group_proto_xmit(struct tipc_group *grp, struct tipc_member *m,
 	} else if (mtyp == GRP_REMIT_MSG) {
 		msg_set_grp_remitted(hdr, m->window);
 	}
+	msg_set_dest_droppable(hdr, true);
 	__skb_queue_tail(xmitq, skb);
 }
 
@@ -689,15 +689,16 @@ void tipc_group_proto_rcv(struct tipc_group *grp, bool *usr_wakeup,
 			msg_set_grp_bc_seqno(ehdr, m->bc_syncpt);
 			__skb_queue_tail(inputq, m->event_msg);
 		}
-		if (m->window < ADV_IDLE)
-			tipc_group_update_member(m, 0);
-		else
-			list_del_init(&m->congested);
+		list_del_init(&m->congested);
+		tipc_group_update_member(m, 0);
 		return;
 	case GRP_LEAVE_MSG:
 		if (!m)
 			return;
 		m->bc_syncpt = msg_grp_bc_syncpt(hdr);
+		list_del_init(&m->list);
+		list_del_init(&m->congested);
+		*usr_wakeup = true;
 
 		/* Wait until WITHDRAW event is received */
 		if (m->state != MBR_LEAVING) {
@@ -709,8 +710,6 @@ void tipc_group_proto_rcv(struct tipc_group *grp, bool *usr_wakeup,
 		ehdr = buf_msg(m->event_msg);
 		msg_set_grp_bc_seqno(ehdr, m->bc_syncpt);
 		__skb_queue_tail(inputq, m->event_msg);
-		*usr_wakeup = true;
-		list_del_init(&m->congested);
 		return;
 	case GRP_ADV_MSG:
 		if (!m)
@@ -862,6 +861,7 @@ void tipc_group_member_evt(struct tipc_group *grp,
 				msg_set_grp_bc_seqno(hdr, m->bc_rcv_nxt);
 			__skb_queue_tail(inputq, skb);
 		}
+		list_del_init(&m->list);
 		list_del_init(&m->congested);
 	}
 	*sk_rcvbuf = tipc_group_rcvbuf_limit(grp);

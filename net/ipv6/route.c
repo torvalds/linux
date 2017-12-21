@@ -2336,6 +2336,7 @@ struct dst_entry *icmp6_dst_alloc(struct net_device *dev,
 	}
 
 	rt->dst.flags |= DST_HOST;
+	rt->dst.input = ip6_input;
 	rt->dst.output  = ip6_output;
 	rt->rt6i_gateway  = fl6->daddr;
 	rt->rt6i_dst.addr = fl6->daddr;
@@ -4297,19 +4298,13 @@ static int inet6_rtm_getroute(struct sk_buff *in_skb, struct nlmsghdr *nlh,
 		if (!ipv6_addr_any(&fl6.saddr))
 			flags |= RT6_LOOKUP_F_HAS_SADDR;
 
-		if (!fibmatch)
-			dst = ip6_route_input_lookup(net, dev, &fl6, flags);
-		else
-			dst = ip6_route_lookup(net, &fl6, 0);
+		dst = ip6_route_input_lookup(net, dev, &fl6, flags);
 
 		rcu_read_unlock();
 	} else {
 		fl6.flowi6_oif = oif;
 
-		if (!fibmatch)
-			dst = ip6_route_output(net, NULL, &fl6);
-		else
-			dst = ip6_route_lookup(net, &fl6, 0);
+		dst = ip6_route_output(net, NULL, &fl6);
 	}
 
 
@@ -4324,6 +4319,15 @@ static int inet6_rtm_getroute(struct sk_buff *in_skb, struct nlmsghdr *nlh,
 		err = rt->dst.error;
 		ip6_rt_put(rt);
 		goto errout;
+	}
+
+	if (fibmatch && rt->dst.from) {
+		struct rt6_info *ort = container_of(rt->dst.from,
+						    struct rt6_info, dst);
+
+		dst_hold(&ort->dst);
+		ip6_rt_put(rt);
+		rt = ort;
 	}
 
 	skb = alloc_skb(NLMSG_GOODSIZE, GFP_KERNEL);
