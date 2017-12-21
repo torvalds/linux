@@ -2158,40 +2158,37 @@ done:
  * macro to avoid endless duplication. If the desc is NULL it is an
  * optional GPIO and calls should just bail out.
  */
+static int validate_desc(const struct gpio_desc *desc, const char *func)
+{
+	if (!desc)
+		return 0;
+	if (IS_ERR(desc)) {
+		pr_warn("%s: invalid GPIO (errorpointer)\n", func);
+		return PTR_ERR(desc);
+	}
+	if (!desc->gdev) {
+		pr_warn("%s: invalid GPIO (no device)\n", func);
+		return -EINVAL;
+	}
+	if (!desc->gdev->chip) {
+		dev_warn(&desc->gdev->dev,
+			 "%s: backing chip is gone\n", func);
+		return 0;
+	}
+	return 1;
+}
+
 #define VALIDATE_DESC(desc) do { \
-	if (!desc) \
-		return 0; \
-	if (IS_ERR(desc)) {						\
-		pr_warn("%s: invalid GPIO (errorpointer)\n", __func__); \
-		return PTR_ERR(desc); \
-	} \
-	if (!desc->gdev) { \
-		pr_warn("%s: invalid GPIO (no device)\n", __func__); \
-		return -EINVAL; \
-	} \
-	if ( !desc->gdev->chip ) { \
-		dev_warn(&desc->gdev->dev, \
-			 "%s: backing chip is gone\n", __func__); \
-		return 0; \
-	} } while (0)
+	int __valid = validate_desc(desc, __func__); \
+	if (__valid <= 0) \
+		return __valid; \
+	} while (0)
 
 #define VALIDATE_DESC_VOID(desc) do { \
-	if (!desc) \
+	int __valid = validate_desc(desc, __func__); \
+	if (__valid <= 0) \
 		return; \
-	if (IS_ERR(desc)) {						\
-		pr_warn("%s: invalid GPIO (errorpointer)\n", __func__); \
-		return; \
-	} \
-	if (!desc->gdev) { \
-		pr_warn("%s: invalid GPIO (no device)\n", __func__); \
-		return; \
-	} \
-	if (!desc->gdev->chip) { \
-		dev_warn(&desc->gdev->dev, \
-			 "%s: backing chip is gone\n", __func__); \
-		return; \
-	} } while (0)
-
+	} while (0)
 
 int gpiod_request(struct gpio_desc *desc, const char *label)
 {
