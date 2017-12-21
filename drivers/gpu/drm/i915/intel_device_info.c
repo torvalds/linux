@@ -24,6 +24,7 @@
 
 #include <drm/drm_print.h>
 
+#include "intel_device_info.h"
 #include "i915_drv.h"
 
 #define PLATFORM_NAME(x) [INTEL_##x] = #x
