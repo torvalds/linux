@@ -38,6 +38,7 @@
 #include <linux/spinlock.h>
 #include <net/net_namespace.h>
 #include <net/rtnetlink.h>
+#include <uapi/linux/batadv_packet.h>
 
 #include "bat_v.h"
 #include "bridge_loop_avoidance.h"
@@ -46,7 +47,6 @@
 #include "gateway_client.h"
 #include "log.h"
 #include "originator.h"
-#include "packet.h"
 #include "send.h"
 #include "soft-interface.h"
 #include "sysfs.h"

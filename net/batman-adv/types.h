@@ -35,9 +35,8 @@
 #include <linux/types.h>
 #include <linux/wait.h>
 #include <linux/workqueue.h>
+#include <uapi/linux/batadv_packet.h>
 #include <uapi/linux/batman_adv.h>
-
-#include "packet.h"
 
 struct seq_file;
 

@@ -44,11 +44,11 @@
 #include <linux/string.h>
 #include <linux/uaccess.h>
 #include <linux/wait.h>
+#include <uapi/linux/batadv_packet.h>
 
 #include "hard-interface.h"
 #include "log.h"
 #include "originator.h"
-#include "packet.h"
 #include "send.h"
 
 static struct batadv_socket_client *batadv_socket_client_hash[256];
