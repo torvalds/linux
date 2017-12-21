@@ -9,6 +9,7 @@
  */
 
 #include <linux/dmi.h>
+#include <linux/module.h>
 #include <drm/drm_connector.h>
 
 #ifdef CONFIG_DMI
@@ -172,3 +173,5 @@ int drm_get_panel_orientation_quirk(int width, int height)
 EXPORT_SYMBOL(drm_get_panel_orientation_quirk);
 
 #endif
+
+MODULE_LICENSE("Dual MIT/GPL");
