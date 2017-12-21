@@ -89,8 +89,19 @@ static int _start_streaming(struct vb2_queue *vq, unsigned int count)
 static void _stop_streaming(struct vb2_queue *vq)
 {
 	struct dvb_vb2_ctx *ctx = vb2_get_drv_priv(vq);
+	struct dvb_buffer *buf;
+	unsigned long flags = 0;
 
 	dprintk(3, "[%s]\n", ctx->name);
+
+	spin_lock_irqsave(&ctx->slock, flags);
+	while (!list_empty(&ctx->dvb_q)) {
+		buf = list_entry(ctx->dvb_q.next,
+				 struct dvb_buffer, list);
+		vb2_buffer_done(&buf->vb, VB2_BUF_STATE_ERROR);
+		list_del(&buf->list);
+	}
+	spin_unlock_irqrestore(&ctx->slock, flags);
 }
 
 static void _dmxdev_lock(struct vb2_queue *vq)
@@ -224,21 +235,8 @@ int dvb_vb2_stream_off(struct dvb_vb2_ctx *ctx)
 {
 	struct vb2_queue *q = (struct vb2_queue *)&ctx->vb_q;
 	int ret;
-	unsigned long flags = 0;
 
 	ctx->state &= ~DVB_VB2_STATE_STREAMON;
-	spin_lock_irqsave(&ctx->slock, flags);
-	while (!list_empty(&ctx->dvb_q)) {
-		struct dvb_buffer       *buf;
-
-		buf = list_entry(ctx->dvb_q.next,
-				 struct dvb_buffer, list);
-		list_del(&buf->list);
-		spin_unlock_irqrestore(&ctx->slock, flags);
-		vb2_buffer_done(&buf->vb, VB2_BUF_STATE_ERROR);
-		spin_lock_irqsave(&ctx->slock, flags);
-	}
-	spin_unlock_irqrestore(&ctx->slock, flags);
 	ret = vb2_core_streamoff(q, q->type);
 	if (ret) {
 		ctx->state = DVB_VB2_STATE_NONE;
@@ -272,11 +270,10 @@ int dvb_vb2_fill_buffer(struct dvb_vb2_ctx *ctx,
 		 */
 		return 0;
 	}
+	spin_lock_irqsave(&ctx->slock, flags);
 	while (todo) {
 		if (!ctx->buf) {
-			spin_lock_irqsave(&ctx->slock, flags);
 			if (list_empty(&ctx->dvb_q)) {
-				spin_unlock_irqrestore(&ctx->slock, flags);
 				dprintk(3, "[%s] Buffer overflow!!!\n",
 					ctx->name);
 				break;
@@ -284,14 +281,13 @@ int dvb_vb2_fill_buffer(struct dvb_vb2_ctx *ctx,
 
 			ctx->buf = list_entry(ctx->dvb_q.next,
 					      struct dvb_buffer, list);
-			list_del(&ctx->buf->list);
-			spin_unlock_irqrestore(&ctx->slock, flags);
 			ctx->remain = vb2_plane_size(&ctx->buf->vb, 0);
 			ctx->offset = 0;
 		}
 
 		if (!dvb_vb2_is_streaming(ctx)) {
 			vb2_buffer_done(&ctx->buf->vb, VB2_BUF_STATE_ERROR);
+			list_del(&ctx->buf->list);
 			ctx->buf = NULL;
 			break;
 		}
@@ -308,6 +304,7 @@ int dvb_vb2_fill_buffer(struct dvb_vb2_ctx *ctx,
 
 		if (ctx->remain == 0) {
 			vb2_buffer_done(&ctx->buf->vb, VB2_BUF_STATE_DONE);
+			list_del(&ctx->buf->list);
 			ctx->buf = NULL;
 		}
 	}
@@ -315,8 +312,10 @@ int dvb_vb2_fill_buffer(struct dvb_vb2_ctx *ctx,
 	if (ctx->nonblocking && ctx->buf) {
 		vb2_set_plane_payload(&ctx->buf->vb, 0, ll);
 		vb2_buffer_done(&ctx->buf->vb, VB2_BUF_STATE_DONE);
+		list_del(&ctx->buf->list);
 		ctx->buf = NULL;
 	}
+	spin_unlock_irqrestore(&ctx->slock, flags);
 
 	if (todo)
 		dprintk(1, "[%s] %d bytes are dropped.\n", ctx->name, todo);
