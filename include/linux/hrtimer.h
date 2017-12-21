@@ -103,6 +103,7 @@ enum hrtimer_restart {
  * @base:	pointer to the timer base (per cpu and per clock)
  * @state:	state information (See bit values above)
  * @is_rel:	Set if the timer was armed relative
+ * @is_soft:	Set if hrtimer will be expired in soft interrupt context.
  *
  * The hrtimer structure must be initialized by hrtimer_init()
  */
@@ -113,6 +114,7 @@ struct hrtimer {
 	struct hrtimer_clock_base	*base;
 	u8				state;
 	u8				is_rel;
+	u8				is_soft;
 };
 
 /**
@@ -178,13 +180,18 @@ enum  hrtimer_base_type {
  * @hres_active:	State of high resolution mode
  * @in_hrtirq:		hrtimer_interrupt() is currently executing
  * @hang_detected:	The last hrtimer interrupt detected a hang
+ * @softirq_activated:	displays, if the softirq is raised - update of softirq
+ *			related settings is not required then.
  * @nr_events:		Total number of hrtimer interrupt events
  * @nr_retries:		Total number of hrtimer interrupt retries
  * @nr_hangs:		Total number of hrtimer interrupt hangs
  * @max_hang_time:	Maximum time spent in hrtimer_interrupt
  * @expires_next:	absolute time of the next event, is required for remote
- *			hrtimer enqueue
+ *			hrtimer enqueue; it is the total first expiry time (hard
+ *			and soft hrtimer are taken into account)
  * @next_timer:		Pointer to the first expiring timer
+ * @softirq_expires_next: Time to check, if soft queues needs also to be expired
+ * @softirq_next_timer: Pointer to the first expiring softirq based timer
  * @clock_base:		array of clock bases for this cpu
  *
  * Note: next_timer is just an optimization for __remove_hrtimer().
@@ -196,9 +203,10 @@ struct hrtimer_cpu_base {
 	unsigned int			cpu;
 	unsigned int			active_bases;
 	unsigned int			clock_was_set_seq;
-	unsigned int			hres_active	: 1,
-					in_hrtirq	: 1,
-					hang_detected	: 1;
+	unsigned int			hres_active		: 1,
+					in_hrtirq		: 1,
+					hang_detected		: 1,
+					softirq_activated       : 1;
 #ifdef CONFIG_HIGH_RES_TIMERS
 	unsigned int			nr_events;
 	unsigned short			nr_retries;
@@ -207,6 +215,8 @@ struct hrtimer_cpu_base {
 #endif
 	ktime_t				expires_next;
 	struct hrtimer			*next_timer;
+	ktime_t				softirq_expires_next;
+	struct hrtimer			*softirq_next_timer;
 	struct hrtimer_clock_base	clock_base[HRTIMER_MAX_CLOCK_BASES];
 } ____cacheline_aligned;
 
@@ -379,7 +389,8 @@ extern void hrtimer_start_range_ns(struct hrtimer *timer, ktime_t tim,
  * @timer:	the timer to be added
  * @tim:	expiry time
  * @mode:	timer mode: absolute (HRTIMER_MODE_ABS) or
- *		relative (HRTIMER_MODE_REL), and pinned (HRTIMER_MODE_PINNED)
+ *		relative (HRTIMER_MODE_REL), and pinned (HRTIMER_MODE_PINNED);
+ *		softirq based mode is considered for debug purpose only!
  */
 static inline void hrtimer_start(struct hrtimer *timer, ktime_t tim,
 				 const enum hrtimer_mode mode)

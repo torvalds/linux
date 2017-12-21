@@ -411,7 +411,8 @@ static inline void debug_hrtimer_init(struct hrtimer *timer)
 	debug_object_init(timer, &hrtimer_debug_descr);
 }
 
-static inline void debug_hrtimer_activate(struct hrtimer *timer)
+static inline void debug_hrtimer_activate(struct hrtimer *timer,
+					  enum hrtimer_mode mode)
 {
 	debug_object_activate(timer, &hrtimer_debug_descr);
 }
@@ -444,8 +445,10 @@ void destroy_hrtimer_on_stack(struct hrtimer *timer)
 EXPORT_SYMBOL_GPL(destroy_hrtimer_on_stack);
 
 #else
+
 static inline void debug_hrtimer_init(struct hrtimer *timer) { }
-static inline void debug_hrtimer_activate(struct hrtimer *timer) { }
+static inline void debug_hrtimer_activate(struct hrtimer *timer,
+					  enum hrtimer_mode mode) { }
 static inline void debug_hrtimer_deactivate(struct hrtimer *timer) { }
 #endif
 
@@ -460,7 +463,7 @@ debug_init(struct hrtimer *timer, clockid_t clockid,
 static inline void debug_activate(struct hrtimer *timer,
 				  enum hrtimer_mode mode)
 {
-	debug_hrtimer_activate(timer);
+	debug_hrtimer_activate(timer, mode);
 	trace_hrtimer_start(timer, mode);
 }
 
@@ -503,7 +506,10 @@ static ktime_t __hrtimer_next_event_base(struct hrtimer_cpu_base *cpu_base,
 		expires = ktime_sub(hrtimer_get_expires(timer), base->offset);
 		if (expires < expires_next) {
 			expires_next = expires;
-			cpu_base->next_timer = timer;
+			if (timer->is_soft)
+				cpu_base->softirq_next_timer = timer;
+			else
+				cpu_base->next_timer = timer;
 		}
 	}
 	/*
@@ -520,21 +526,39 @@ static ktime_t __hrtimer_next_event_base(struct hrtimer_cpu_base *cpu_base,
  * Recomputes cpu_base::*next_timer and returns the earliest expires_next but
  * does not set cpu_base::*expires_next, that is done by hrtimer_reprogram.
  *
+ * When a softirq is pending, we can ignore the HRTIMER_ACTIVE_SOFT bases,
+ * those timers will get run whenever the softirq gets handled, at the end of
+ * hrtimer_run_softirq(), hrtimer_update_softirq_timer() will re-add these bases.
+ *
+ * Therefore softirq values are those from the HRTIMER_ACTIVE_SOFT clock bases.
+ * The !softirq values are the minima across HRTIMER_ACTIVE_ALL, unless an actual
+ * softirq is pending, in which case they're the minima of HRTIMER_ACTIVE_HARD.
+ *
  * @active_mask must be one of:
- *  - HRTIMER_ACTIVE,
+ *  - HRTIMER_ACTIVE_ALL,
  *  - HRTIMER_ACTIVE_SOFT, or
  *  - HRTIMER_ACTIVE_HARD.
  */
-static ktime_t __hrtimer_get_next_event(struct hrtimer_cpu_base *cpu_base,
-					unsigned int active_mask)
+static ktime_t
+__hrtimer_get_next_event(struct hrtimer_cpu_base *cpu_base, unsigned int active_mask)
 {
 	unsigned int active;
+	struct hrtimer *next_timer = NULL;
 	ktime_t expires_next = KTIME_MAX;
 
-	cpu_base->next_timer = NULL;
+	if (!cpu_base->softirq_activated && (active_mask & HRTIMER_ACTIVE_SOFT)) {
+		active = cpu_base->active_bases & HRTIMER_ACTIVE_SOFT;
+		cpu_base->softirq_next_timer = NULL;
+		expires_next = __hrtimer_next_event_base(cpu_base, active, KTIME_MAX);
 
-	active = cpu_base->active_bases & active_mask;
-	expires_next = __hrtimer_next_event_base(cpu_base, active, expires_next);
+		next_timer = cpu_base->softirq_next_timer;
+	}
+
+	if (active_mask & HRTIMER_ACTIVE_HARD) {
+		active = cpu_base->active_bases & HRTIMER_ACTIVE_HARD;
+		cpu_base->next_timer = next_timer;
+		expires_next = __hrtimer_next_event_base(cpu_base, active, expires_next);
+	}
 
 	return expires_next;
 }
@@ -545,8 +569,14 @@ static inline ktime_t hrtimer_update_base(struct hrtimer_cpu_base *base)
 	ktime_t *offs_boot = &base->clock_base[HRTIMER_BASE_BOOTTIME].offset;
 	ktime_t *offs_tai = &base->clock_base[HRTIMER_BASE_TAI].offset;
 
-	return ktime_get_update_offsets_now(&base->clock_was_set_seq,
+	ktime_t now = ktime_get_update_offsets_now(&base->clock_was_set_seq,
 					    offs_real, offs_boot, offs_tai);
+
+	base->clock_base[HRTIMER_BASE_REALTIME_SOFT].offset = *offs_real;
+	base->clock_base[HRTIMER_BASE_BOOTTIME_SOFT].offset = *offs_boot;
+	base->clock_base[HRTIMER_BASE_TAI_SOFT].offset = *offs_tai;
+
+	return now;
 }
 
 /*
@@ -573,7 +603,23 @@ hrtimer_force_reprogram(struct hrtimer_cpu_base *cpu_base, int skip_equal)
 {
 	ktime_t expires_next;
 
-	expires_next = __hrtimer_get_next_event(cpu_base, HRTIMER_ACTIVE_HARD);
+	/*
+	 * Find the current next expiration time.
+	 */
+	expires_next = __hrtimer_get_next_event(cpu_base, HRTIMER_ACTIVE_ALL);
+
+	if (cpu_base->next_timer && cpu_base->next_timer->is_soft) {
+		/*
+		 * When the softirq is activated, hrtimer has to be
+		 * programmed with the first hard hrtimer because soft
+		 * timer interrupt could occur too late.
+		 */
+		if (cpu_base->softirq_activated)
+			expires_next = __hrtimer_get_next_event(cpu_base,
+								HRTIMER_ACTIVE_HARD);
+		else
+			cpu_base->softirq_expires_next = expires_next;
+	}
 
 	if (skip_equal && expires_next == cpu_base->expires_next)
 		return;
@@ -700,13 +746,44 @@ static inline void retrigger_next_event(void *arg) { }
  *
  * Called with interrupts disabled and base->cpu_base.lock held
  */
-static void hrtimer_reprogram(struct hrtimer *timer)
+static void hrtimer_reprogram(struct hrtimer *timer, bool reprogram)
 {
 	struct hrtimer_cpu_base *cpu_base = this_cpu_ptr(&hrtimer_bases);
 	struct hrtimer_clock_base *base = timer->base;
 	ktime_t expires = ktime_sub(hrtimer_get_expires(timer), base->offset);
 
 	WARN_ON_ONCE(hrtimer_get_expires_tv64(timer) < 0);
+
+	/*
+	 * CLOCK_REALTIME timer might be requested with an absolute
+	 * expiry time which is less than base->offset. Set it to 0.
+	 */
+	if (expires < 0)
+		expires = 0;
+
+	if (timer->is_soft) {
+		/*
+		 * soft hrtimer could be started on a remote CPU. In this
+		 * case softirq_expires_next needs to be updated on the
+		 * remote CPU. The soft hrtimer will not expire before the
+		 * first hard hrtimer on the remote CPU -
+		 * hrtimer_check_target() prevents this case.
+		 */
+		struct hrtimer_cpu_base *timer_cpu_base = base->cpu_base;
+
+		if (timer_cpu_base->softirq_activated)
+			return;
+
+		if (!ktime_before(expires, timer_cpu_base->softirq_expires_next))
+			return;
+
+		timer_cpu_base->softirq_next_timer = timer;
+		timer_cpu_base->softirq_expires_next = expires;
+
+		if (!ktime_before(expires, timer_cpu_base->expires_next) ||
+		    !reprogram)
+			return;
+	}
 
 	/*
 	 * If the timer is not on the current cpu, we cannot reprogram
@@ -724,13 +801,6 @@ static void hrtimer_reprogram(struct hrtimer *timer)
 	 */
 	if (cpu_base->in_hrtirq)
 		return;
-
-	/*
-	 * CLOCK_REALTIME timer might be requested with an absolute
-	 * expiry time which is less than base->offset. Set it to 0.
-	 */
-	if (expires < 0)
-		expires = 0;
 
 	if (expires >= cpu_base->expires_next)
 		return;
@@ -957,6 +1027,31 @@ static inline ktime_t hrtimer_update_lowres(struct hrtimer *timer, ktime_t tim,
 	return tim;
 }
 
+static void
+hrtimer_update_softirq_timer(struct hrtimer_cpu_base *cpu_base, bool reprogram)
+{
+	ktime_t expires;
+
+	/*
+	 * Find the next SOFT expiration.
+	 */
+	expires = __hrtimer_get_next_event(cpu_base, HRTIMER_ACTIVE_SOFT);
+
+	/*
+	 * reprogramming needs to be triggered, even if the next soft
+	 * hrtimer expires at the same time than the next hard
+	 * hrtimer. cpu_base->softirq_expires_next needs to be updated!
+	 */
+	if (expires == KTIME_MAX)
+		return;
+
+	/*
+	 * cpu_base->*next_timer is recomputed by __hrtimer_get_next_event()
+	 * cpu_base->*expires_next is only set by hrtimer_reprogram()
+	 */
+	hrtimer_reprogram(cpu_base->softirq_next_timer, reprogram);
+}
+
 static int __hrtimer_start_range_ns(struct hrtimer *timer, ktime_t tim,
 				    u64 delta_ns, const enum hrtimer_mode mode,
 				    struct hrtimer_clock_base *base)
@@ -978,13 +1073,15 @@ static int __hrtimer_start_range_ns(struct hrtimer *timer, ktime_t tim,
 
 	return enqueue_hrtimer(timer, new_base, mode);
 }
+
 /**
  * hrtimer_start_range_ns - (re)start an hrtimer
  * @timer:	the timer to be added
  * @tim:	expiry time
  * @delta_ns:	"slack" range for the timer
  * @mode:	timer mode: absolute (HRTIMER_MODE_ABS) or
- *		relative (HRTIMER_MODE_REL), and pinned (HRTIMER_MODE_PINNED)
+ *		relative (HRTIMER_MODE_REL), and pinned (HRTIMER_MODE_PINNED);
+ *		softirq based mode is considered for debug purpose only!
  */
 void hrtimer_start_range_ns(struct hrtimer *timer, ktime_t tim,
 			    u64 delta_ns, const enum hrtimer_mode mode)
@@ -992,10 +1089,16 @@ void hrtimer_start_range_ns(struct hrtimer *timer, ktime_t tim,
 	struct hrtimer_clock_base *base;
 	unsigned long flags;
 
+	/*
+	 * Check whether the HRTIMER_MODE_SOFT bit and hrtimer.is_soft
+	 * match.
+	 */
+	WARN_ON_ONCE(!(mode & HRTIMER_MODE_SOFT) ^ !timer->is_soft);
+
 	base = lock_hrtimer_base(timer, &flags);
 
 	if (__hrtimer_start_range_ns(timer, tim, delta_ns, mode, base))
-		hrtimer_reprogram(timer);
+		hrtimer_reprogram(timer, true);
 
 	unlock_hrtimer_base(timer, &flags);
 }
@@ -1094,7 +1197,7 @@ u64 hrtimer_get_next_event(void)
 	raw_spin_lock_irqsave(&cpu_base->lock, flags);
 
 	if (!__hrtimer_hres_active(cpu_base))
-		expires = __hrtimer_get_next_event(cpu_base, HRTIMER_ACTIVE_HARD);
+		expires = __hrtimer_get_next_event(cpu_base, HRTIMER_ACTIVE_ALL);
 
 	raw_spin_unlock_irqrestore(&cpu_base->lock, flags);
 
@@ -1304,6 +1407,23 @@ static void __hrtimer_run_queues(struct hrtimer_cpu_base *cpu_base, ktime_t now,
 	}
 }
 
+static __latent_entropy void hrtimer_run_softirq(struct softirq_action *h)
+{
+	struct hrtimer_cpu_base *cpu_base = this_cpu_ptr(&hrtimer_bases);
+	unsigned long flags;
+	ktime_t now;
+
+	raw_spin_lock_irqsave(&cpu_base->lock, flags);
+
+	now = hrtimer_update_base(cpu_base);
+	__hrtimer_run_queues(cpu_base, now, flags, HRTIMER_ACTIVE_SOFT);
+
+	cpu_base->softirq_activated = 0;
+	hrtimer_update_softirq_timer(cpu_base, true);
+
+	raw_spin_unlock_irqrestore(&cpu_base->lock, flags);
+}
+
 #ifdef CONFIG_HIGH_RES_TIMERS
 
 /*
@@ -1334,10 +1454,16 @@ retry:
 	 */
 	cpu_base->expires_next = KTIME_MAX;
 
+	if (!ktime_before(now, cpu_base->softirq_expires_next)) {
+		cpu_base->softirq_expires_next = KTIME_MAX;
+		cpu_base->softirq_activated = 1;
+		raise_softirq_irqoff(HRTIMER_SOFTIRQ);
+	}
+
 	__hrtimer_run_queues(cpu_base, now, flags, HRTIMER_ACTIVE_HARD);
 
 	/* Reevaluate the clock bases for the next expiry */
-	expires_next = __hrtimer_get_next_event(cpu_base, HRTIMER_ACTIVE_HARD);
+	expires_next = __hrtimer_get_next_event(cpu_base, HRTIMER_ACTIVE_ALL);
 	/*
 	 * Store the new expiry value so the migration code can verify
 	 * against it.
@@ -1441,6 +1567,13 @@ void hrtimer_run_queues(void)
 
 	raw_spin_lock_irqsave(&cpu_base->lock, flags);
 	now = hrtimer_update_base(cpu_base);
+
+	if (!ktime_before(now, cpu_base->softirq_expires_next)) {
+		cpu_base->softirq_expires_next = KTIME_MAX;
+		cpu_base->softirq_activated = 1;
+		raise_softirq_irqoff(HRTIMER_SOFTIRQ);
+	}
+
 	__hrtimer_run_queues(cpu_base, now, flags, HRTIMER_ACTIVE_HARD);
 	raw_spin_unlock_irqrestore(&cpu_base->lock, flags);
 }
@@ -1622,6 +1755,7 @@ int hrtimers_prepare_cpu(unsigned int cpu)
 	cpu_base->cpu = cpu;
 	cpu_base->hres_active = 0;
 	cpu_base->expires_next = KTIME_MAX;
+	cpu_base->softirq_expires_next = KTIME_MAX;
 	return 0;
 }
 
@@ -1665,6 +1799,12 @@ int hrtimers_dead_cpu(unsigned int scpu)
 	BUG_ON(cpu_online(scpu));
 	tick_cancel_sched_timer(scpu);
 
+	/*
+	 * this BH disable ensures that raise_softirq_irqoff() does
+	 * not wakeup ksoftirqd (and acquire the pi-lock) while
+	 * holding the cpu_base lock
+	 */
+	local_bh_disable();
 	local_irq_disable();
 	old_base = &per_cpu(hrtimer_bases, scpu);
 	new_base = this_cpu_ptr(&hrtimer_bases);
@@ -1680,12 +1820,19 @@ int hrtimers_dead_cpu(unsigned int scpu)
 				     &new_base->clock_base[i]);
 	}
 
+	/*
+	 * The migration might have changed the first expiring softirq
+	 * timer on this CPU. Update it.
+	 */
+	hrtimer_update_softirq_timer(new_base, false);
+
 	raw_spin_unlock(&old_base->lock);
 	raw_spin_unlock(&new_base->lock);
 
 	/* Check, if we got expired work to do */
 	__hrtimer_peek_ahead_timers();
 	local_irq_enable();
+	local_bh_enable();
 	return 0;
 }
 
@@ -1694,6 +1841,7 @@ int hrtimers_dead_cpu(unsigned int scpu)
 void __init hrtimers_init(void)
 {
 	hrtimers_prepare_cpu(smp_processor_id());
+	open_softirq(HRTIMER_SOFTIRQ, hrtimer_run_softirq);
 }
 
 /**
