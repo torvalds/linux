@@ -1,7 +1,7 @@
 /*
- * Device Tree Source for the Eagle board
+ * Device Tree Source for the V3M Starter Kit board
  *
- * Copyright (C) 2016-2017 Renesas Electronics Corp.
+ * Copyright (C) 2017 Renesas Electronics Corp.
  * Copyright (C) 2017 Cogent Embedded, Inc.
  *
  * This file is licensed under the terms of the GNU General Public License
@@ -13,16 +13,14 @@
 #include "r8a77970.dtsi"
 
 / {
-	model = "Renesas Eagle board based on r8a77970";
-	compatible = "renesas,eagle", "renesas,r8a77970";
+	model = "Renesas V3M Starter Kit board";
+	compatible = "renesas,v3msk", "renesas,r8a77970";
 
 	aliases {
 		serial0 = &scif0;
-		ethernet0 = &avb;
 	};
 
 	chosen {
-		bootargs = "ignore_loglevel rw root=/dev/nfs ip=dhcp";
 		stdout-path = "serial0:115200n8";
 	};
 
@@ -50,11 +48,6 @@
 
 &extalr_clk {
 	clock-frequency = <32768>;
-};
-
-&rwdt {
-	timeout-sec = <60>;
-	status = "okay";
 };
 
 &scif0 {

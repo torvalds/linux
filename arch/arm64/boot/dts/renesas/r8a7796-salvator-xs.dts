@@ -1,7 +1,7 @@
 /*
- * Device Tree Source for the Salvator-X board with R-Car M3-W
+ * Device Tree Source for the Salvator-X 2nd version board with R-Car M3-W
  *
- * Copyright (C) 2016 Renesas Electronics Corp.
+ * Copyright (C) 2015-2017 Renesas Electronics Corp.
  *
  * This file is licensed under the terms of the GNU General Public License
  * version 2.  This program is licensed "as is" without any warranty of any
@@ -10,11 +10,11 @@
 
 /dts-v1/;
 #include "r8a7796.dtsi"
-#include "salvator-x.dtsi"
+#include "salvator-xs.dtsi"
 
 / {
-	model = "Renesas Salvator-X board based on r8a7796";
-	compatible = "renesas,salvator-x", "renesas,r8a7796";
+	model = "Renesas Salvator-X 2nd version board based on r8a7796";
+	compatible = "renesas,salvator-xs", "renesas,r8a7796";
 
 	memory@48000000 {
 		device_type = "memory";
@@ -33,9 +33,9 @@
 		 <&cpg CPG_MOD 723>,
 		 <&cpg CPG_MOD 722>,
 		 <&cpg CPG_MOD 727>,
-		 <&versaclock5 1>,
+		 <&versaclock6 1>,
 		 <&x21_clk>,
-		 <&versaclock5 2>;
+		 <&versaclock6 2>;
 	clock-names = "du.0", "du.1", "du.2", "lvds.0",
 		      "dclkin.0", "dclkin.1", "dclkin.2";
 };
