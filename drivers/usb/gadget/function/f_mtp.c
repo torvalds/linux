@@ -42,6 +42,8 @@
 
 #include "configfs.h"
 
+#define MTP_RX_BUFFER_INIT_SIZE		65536
+#define MTP_TX_BUFFER_INIT_SIZE		65536
 #define MTP_BULK_BUFFER_SIZE       16384
 #define INTR_BUFFER_SIZE           28
 #define MAX_INST_NAME_LEN          40
@@ -78,10 +80,10 @@
 
 #define MAX_ITERATION		100
 
-static unsigned int mtp_rx_req_len = MTP_BULK_BUFFER_SIZE;
+static unsigned int mtp_rx_req_len = MTP_RX_BUFFER_INIT_SIZE;
 module_param(mtp_rx_req_len, uint, 0644);
 
-static unsigned int mtp_tx_req_len = MTP_BULK_BUFFER_SIZE;
+static unsigned int mtp_tx_req_len = MTP_TX_BUFFER_INIT_SIZE;
 module_param(mtp_tx_req_len, uint, 0644);
 
 static unsigned int mtp_tx_reqs = MTP_TX_REQ_MAX;
