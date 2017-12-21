@@ -332,6 +332,23 @@ enum {
 	EF10_STAT_fec_corrected_symbols_lane1,
 	EF10_STAT_fec_corrected_symbols_lane2,
 	EF10_STAT_fec_corrected_symbols_lane3,
+	EF10_STAT_ctpio_dmabuf_start,
+	EF10_STAT_ctpio_vi_busy_fallback,
+	EF10_STAT_ctpio_long_write_success,
+	EF10_STAT_ctpio_missing_dbell_fail,
+	EF10_STAT_ctpio_overflow_fail,
+	EF10_STAT_ctpio_underflow_fail,
+	EF10_STAT_ctpio_timeout_fail,
+	EF10_STAT_ctpio_noncontig_wr_fail,
+	EF10_STAT_ctpio_frm_clobber_fail,
+	EF10_STAT_ctpio_invalid_wr_fail,
+	EF10_STAT_ctpio_vi_clobber_fallback,
+	EF10_STAT_ctpio_unqualified_fallback,
+	EF10_STAT_ctpio_runt_fallback,
+	EF10_STAT_ctpio_success,
+	EF10_STAT_ctpio_fallback,
+	EF10_STAT_ctpio_poison,
+	EF10_STAT_ctpio_erase,
 	EF10_STAT_COUNT
 };
 
