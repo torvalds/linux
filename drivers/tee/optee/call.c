@@ -11,11 +11,11 @@
  * GNU General Public License for more details.
  *
  */
-#include <asm/pgtable.h>
 #include <linux/arm-smccc.h>
 #include <linux/device.h>
 #include <linux/err.h>
 #include <linux/errno.h>
+#include <linux/mm.h>
 #include <linux/slab.h>
 #include <linux/tee_drv.h>
 #include <linux/types.h>
