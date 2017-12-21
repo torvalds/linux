@@ -764,6 +764,7 @@ struct rq {
 	unsigned long		last_load_update_tick;
 	unsigned long		last_blocked_load_update_tick;
 #endif /* CONFIG_SMP */
+	unsigned int		nohz_tick_stopped;
 	atomic_t nohz_flags;
 #endif /* CONFIG_NO_HZ_COMMON */
 
@@ -2035,11 +2036,9 @@ extern void cfs_bandwidth_usage_inc(void);
 extern void cfs_bandwidth_usage_dec(void);
 
 #ifdef CONFIG_NO_HZ_COMMON
-#define NOHZ_TICK_STOPPED_BIT	0
-#define NOHZ_BALANCE_KICK_BIT	1
-#define NOHZ_STATS_KICK_BIT	2
+#define NOHZ_BALANCE_KICK_BIT	0
+#define NOHZ_STATS_KICK_BIT	1
 
-#define NOHZ_TICK_STOPPED	BIT(NOHZ_TICK_STOPPED_BIT)
 #define NOHZ_BALANCE_KICK	BIT(NOHZ_BALANCE_KICK_BIT)
 #define NOHZ_STATS_KICK		BIT(NOHZ_STATS_KICK_BIT)
 
@@ -2047,9 +2046,9 @@ extern void cfs_bandwidth_usage_dec(void);
 
 #define nohz_flags(cpu)	(&cpu_rq(cpu)->nohz_flags)
 
-extern void nohz_balance_exit_idle(unsigned int cpu);
+extern void nohz_balance_exit_idle(struct rq *rq);
 #else
-static inline void nohz_balance_exit_idle(unsigned int cpu) { }
+static inline void nohz_balance_exit_idle(struct rq *rq) { }
 #endif
 
 

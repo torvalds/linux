@@ -5861,7 +5861,7 @@ int sched_cpu_dying(unsigned int cpu)
 
 	calc_load_migrate(rq);
 	update_max_interval();
-	nohz_balance_exit_idle(cpu);
+	nohz_balance_exit_idle(rq);
 	hrtick_clear(rq);
 	return 0;
 }
