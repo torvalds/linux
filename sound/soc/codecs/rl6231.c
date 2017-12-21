@@ -178,8 +178,6 @@ int rl6231_pll_calc(const unsigned int freq_in,
 		for (n_t = 0; n_t <= max_n; n_t++) {
 			in_t = f_in * (n_t + 2);
 			pll_out = f_out * (k_t + 2);
-			if (in_t < 0)
-				continue;
 			if (in_t == pll_out) {
 				bypass = true;
 				n = n_t;
