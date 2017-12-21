@@ -2065,6 +2065,9 @@ static void gfx_v9_0_enable_gfx_dynamic_mg_power_gating(struct amdgpu_device *ad
 
 static void gfx_v9_0_init_pg(struct amdgpu_device *adev)
 {
+	if (!adev->gfx.rlc.is_rlc_v2_1)
+		return;
+
 	if (adev->pg_flags & (AMD_PG_SUPPORT_GFX_PG |
 			      AMD_PG_SUPPORT_GFX_SMG |
 			      AMD_PG_SUPPORT_GFX_DMG |
@@ -2075,24 +2078,9 @@ static void gfx_v9_0_init_pg(struct amdgpu_device *adev)
 		gfx_v9_0_init_rlc_save_restore_list(adev);
 		gfx_v9_0_enable_save_restore_machine(adev);
 
-		if (adev->asic_type == CHIP_RAVEN) {
-			WREG32(mmRLC_JUMP_TABLE_RESTORE,
-				adev->gfx.rlc.cp_table_gpu_addr >> 8);
-			gfx_v9_0_init_gfx_power_gating(adev);
-
-			if (adev->pg_flags & AMD_PG_SUPPORT_RLC_SMU_HS) {
-				gfx_v9_0_enable_sck_slow_down_on_power_up(adev, true);
-				gfx_v9_0_enable_sck_slow_down_on_power_down(adev, true);
-			} else {
-				gfx_v9_0_enable_sck_slow_down_on_power_up(adev, false);
-				gfx_v9_0_enable_sck_slow_down_on_power_down(adev, false);
-			}
-
-			if (adev->pg_flags & AMD_PG_SUPPORT_CP)
-				gfx_v9_0_enable_cp_power_gating(adev, true);
-			else
-				gfx_v9_0_enable_cp_power_gating(adev, false);
-		}
+		WREG32(mmRLC_JUMP_TABLE_RESTORE,
+		       adev->gfx.rlc.cp_table_gpu_addr >> 8);
+		gfx_v9_0_init_gfx_power_gating(adev);
 	}
 }
 
