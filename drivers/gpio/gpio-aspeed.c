@@ -149,7 +149,7 @@ static const struct aspeed_gpio_bank *to_bank(unsigned int offset)
 {
 	unsigned int bank = GPIO_BANK(offset);
 
-	WARN_ON(bank > ARRAY_SIZE(aspeed_gpio_banks));
+	WARN_ON(bank >= ARRAY_SIZE(aspeed_gpio_banks));
 	return &aspeed_gpio_banks[bank];
 }
 
