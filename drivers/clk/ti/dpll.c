@@ -152,9 +152,10 @@ static const struct clk_ops dpll_x2_ck_ops = {
  * clk-bypass is missing), the clock is added to retry list and
  * the initialization is retried on later stage.
  */
-static void __init _register_dpll(struct clk_hw *hw,
+static void __init _register_dpll(void *user,
 				  struct device_node *node)
 {
+	struct clk_hw *hw = user;
 	struct clk_hw_omap *clk_hw = to_clk_hw_omap(hw);
 	struct dpll_data *dd = clk_hw->dpll_data;
 	struct clk *clk;

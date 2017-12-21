@@ -25,8 +25,8 @@
 	      <0x58004300 0x20>;
 	reg-names = "dss", "pll1_clkctrl", "pll1";
 
-	clocks = <&dss_dss_clk>,
-		 <&dss_video1_clk>;
+	clocks = <&dss_clkctrl DRA7_DSS_CORE_CLKCTRL 8>,
+		 <&dss_clkctrl DRA7_DSS_CORE_CLKCTRL 12>;
 	clock-names = "fck", "video1_clk";
 };
 

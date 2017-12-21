@@ -10,6 +10,7 @@
 
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/pinctrl/am33xx.h>
+#include <dt-bindings/clock/am3.h>
 
 / {
 	compatible = "ti,am33xx";
@@ -179,8 +180,11 @@
 			};
 
 			prcm: prcm@200000 {
-				compatible = "ti,am3-prcm";
+				compatible = "ti,am3-prcm", "simple-bus";
 				reg = <0x200000 0x4000>;
+				#address-cells = <1>;
+				#size-cells = <1>;
+				ranges = <0 0x200000 0x4000>;
 
 				prcm_clocks: clocks {
 					#address-cells = <1>;
@@ -517,6 +521,8 @@
 			interrupts = <67>;
 			ti,hwmods = "timer1";
 			ti,timer-alwon;
+			clocks = <&timer1_fck>;
+			clock-names = "fck";
 		};
 
 		timer2: timer@48040000 {
@@ -524,6 +530,8 @@
 			reg = <0x48040000 0x400>;
 			interrupts = <68>;
 			ti,hwmods = "timer2";
+			clocks = <&timer2_fck>;
+			clock-names = "fck";
 		};
 
 		timer3: timer@48042000 {
@@ -571,7 +579,7 @@
 			interrupts = <75
 				      76>;
 			ti,hwmods = "rtc";
-			clocks = <&clkdiv32k_ick>;
+			clocks = <&l4_per_clkctrl AM3_CLKDIV32K_CLKCTRL 0>;
 			clock-names = "int-clk";
 		};
 
@@ -1014,4 +1022,4 @@
 	};
 };
 
-/include/ "am33xx-clocks.dtsi"
+#include "am33xx-clocks.dtsi"
