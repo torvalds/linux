@@ -237,7 +237,7 @@ void afs_put_server(struct afs_server *server)
 	spin_lock(&afs_server_graveyard_lock);
 	if (atomic_read(&server->usage) == 0) {
 		list_move_tail(&server->grave, &afs_server_graveyard);
-		server->time_of_death = get_seconds();
+		server->time_of_death = ktime_get_real_seconds();
 		queue_delayed_work(afs_wq, &afs_server_reaper,
 				   afs_server_timeout * HZ);
 	}
@@ -272,9 +272,9 @@ static void afs_reap_server(struct work_struct *work)
 	LIST_HEAD(corpses);
 	struct afs_server *server;
 	unsigned long delay, expiry;
-	time_t now;
+	time64_t now;
 
-	now = get_seconds();
+	now = ktime_get_real_seconds();
 	spin_lock(&afs_server_graveyard_lock);
 
 	while (!list_empty(&afs_server_graveyard)) {

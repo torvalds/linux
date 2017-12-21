@@ -178,6 +178,13 @@ static int stub_send_ret_submit(struct stub_device *sdev)
 		memset(&pdu_header, 0, sizeof(pdu_header));
 		memset(&msg, 0, sizeof(msg));
 
+		if (urb->actual_length > 0 && !urb->transfer_buffer) {
+			dev_err(&sdev->udev->dev,
+				"urb: actual_length %d transfer_buffer null\n",
+				urb->actual_length);
+			return -1;
+		}
+
 		if (usb_pipetype(urb->pipe) == PIPE_ISOCHRONOUS)
 			iovnum = 2 + urb->number_of_packets;
 		else
