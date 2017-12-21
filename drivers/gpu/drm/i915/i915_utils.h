@@ -140,4 +140,19 @@ static inline void drain_delayed_work(struct delayed_work *dw)
 	} while (delayed_work_pending(dw));
 }
 
+static inline const char *yesno(bool v)
+{
+	return v ? "yes" : "no";
+}
+
+static inline const char *onoff(bool v)
+{
+	return v ? "on" : "off";
+}
+
+static inline const char *enableddisabled(bool v)
+{
+	return v ? "enabled" : "disabled";
+}
+
 #endif /* !__I915_UTILS_H */

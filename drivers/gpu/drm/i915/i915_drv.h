@@ -243,21 +243,6 @@ static inline uint_fixed_16_16_t add_fixed16_u32(uint_fixed_16_16_t add1,
 	return clamp_u64_to_fixed16(interm_sum);
 }
 
-static inline const char *yesno(bool v)
-{
-	return v ? "yes" : "no";
-}
-
-static inline const char *onoff(bool v)
-{
-	return v ? "on" : "off";
-}
-
-static inline const char *enableddisabled(bool v)
-{
-	return v ? "enabled" : "disabled";
-}
-
 enum pipe {
 	INVALID_PIPE = -1,
 	PIPE_A = 0,
