@@ -2983,6 +2983,8 @@ static int efx_init_struct(struct efx_nic *efx,
 		efx->type->rx_ts_offset - efx->type->rx_prefix_size;
 	spin_lock_init(&efx->stats_lock);
 	efx->vi_stride = EFX_DEFAULT_VI_STRIDE;
+	efx->num_mac_stats = MC_CMD_MAC_NSTATS;
+	BUILD_BUG_ON(MC_CMD_MAC_NSTATS - 1 != MC_CMD_MAC_GENERATION_END);
 	mutex_init(&efx->mac_lock);
 	efx->phy_op = &efx_dummy_phy_operations;
 	efx->mdio.dev = net_dev;

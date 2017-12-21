@@ -233,7 +233,7 @@ static int efx_ef10_get_vf_index(struct efx_nic *efx)
 
 static int efx_ef10_init_datapath_caps(struct efx_nic *efx)
 {
-	MCDI_DECLARE_BUF(outbuf, MC_CMD_GET_CAPABILITIES_V3_OUT_LEN);
+	MCDI_DECLARE_BUF(outbuf, MC_CMD_GET_CAPABILITIES_V4_OUT_LEN);
 	struct efx_ef10_nic_data *nic_data = efx->nic_data;
 	size_t outlen;
 	int rc;
@@ -304,6 +304,19 @@ static int efx_ef10_init_datapath_caps(struct efx_nic *efx)
 		netif_dbg(efx, probe, efx->net_dev,
 			  "firmware did not report VI window mode, assuming vi_stride = %u\n",
 			  efx->vi_stride);
+	}
+
+	if (outlen >= MC_CMD_GET_CAPABILITIES_V4_OUT_LEN) {
+		efx->num_mac_stats = MCDI_WORD(outbuf,
+				GET_CAPABILITIES_V4_OUT_MAC_STATS_NUM_STATS);
+		netif_dbg(efx, probe, efx->net_dev,
+			  "firmware reports num_mac_stats = %u\n",
+			  efx->num_mac_stats);
+	} else {
+		/* leave num_mac_stats as the default value, MC_CMD_MAC_NSTATS */
+		netif_dbg(efx, probe, efx->net_dev,
+			  "firmware did not report num_mac_stats, assuming %u\n",
+			  efx->num_mac_stats);
 	}
 
 	return 0;
@@ -1850,7 +1863,7 @@ static int efx_ef10_try_update_nic_stats_pf(struct efx_nic *efx)
 
 	dma_stats = efx->stats_buffer.addr;
 
-	generation_end = dma_stats[MC_CMD_MAC_GENERATION_END];
+	generation_end = dma_stats[efx->num_mac_stats - 1];
 	if (generation_end == EFX_MC_STATS_GENERATION_INVALID)
 		return 0;
 	rmb();
@@ -1898,7 +1911,7 @@ static int efx_ef10_try_update_nic_stats_vf(struct efx_nic *efx)
 	DECLARE_BITMAP(mask, EF10_STAT_COUNT);
 	__le64 generation_start, generation_end;
 	u64 *stats = nic_data->stats;
-	u32 dma_len = MC_CMD_MAC_NSTATS * sizeof(u64);
+	u32 dma_len = efx->num_mac_stats * sizeof(u64);
 	struct efx_buffer stats_buf;
 	__le64 *dma_stats;
 	int rc;
@@ -1923,7 +1936,7 @@ static int efx_ef10_try_update_nic_stats_vf(struct efx_nic *efx)
 	}
 
 	dma_stats = stats_buf.addr;
-	dma_stats[MC_CMD_MAC_GENERATION_END] = EFX_MC_STATS_GENERATION_INVALID;
+	dma_stats[efx->num_mac_stats - 1] = EFX_MC_STATS_GENERATION_INVALID;
 
 	MCDI_SET_QWORD(inbuf, MAC_STATS_IN_DMA_ADDR, stats_buf.dma_addr);
 	MCDI_POPULATE_DWORD_1(inbuf, MAC_STATS_IN_CMD,
@@ -1942,7 +1955,7 @@ static int efx_ef10_try_update_nic_stats_vf(struct efx_nic *efx)
 		goto out;
 	}
 
-	generation_end = dma_stats[MC_CMD_MAC_GENERATION_END];
+	generation_end = dma_stats[efx->num_mac_stats - 1];
 	if (generation_end == EFX_MC_STATS_GENERATION_INVALID) {
 		WARN_ON_ONCE(1);
 		goto out;

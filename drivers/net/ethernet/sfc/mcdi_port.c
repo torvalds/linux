@@ -1087,7 +1087,7 @@ static int efx_mcdi_mac_stats(struct efx_nic *efx,
 	int period = action == EFX_STATS_ENABLE ? 1000 : 0;
 	dma_addr_t dma_addr = efx->stats_buffer.dma_addr;
 	u32 dma_len = action != EFX_STATS_DISABLE ?
-		MC_CMD_MAC_NSTATS * sizeof(u64) : 0;
+		efx->num_mac_stats * sizeof(u64) : 0;
 
 	BUILD_BUG_ON(MC_CMD_MAC_STATS_OUT_DMA_LEN != 0);
 
@@ -1121,7 +1121,7 @@ void efx_mcdi_mac_start_stats(struct efx_nic *efx)
 {
 	__le64 *dma_stats = efx->stats_buffer.addr;
 
-	dma_stats[MC_CMD_MAC_GENERATION_END] = EFX_MC_STATS_GENERATION_INVALID;
+	dma_stats[efx->num_mac_stats - 1] = EFX_MC_STATS_GENERATION_INVALID;
 
 	efx_mcdi_mac_stats(efx, EFX_STATS_ENABLE, 0);
 }
@@ -1139,10 +1139,10 @@ void efx_mcdi_mac_pull_stats(struct efx_nic *efx)
 	__le64 *dma_stats = efx->stats_buffer.addr;
 	int attempts = EFX_MAC_STATS_WAIT_ATTEMPTS;
 
-	dma_stats[MC_CMD_MAC_GENERATION_END] = EFX_MC_STATS_GENERATION_INVALID;
+	dma_stats[efx->num_mac_stats - 1] = EFX_MC_STATS_GENERATION_INVALID;
 	efx_mcdi_mac_stats(efx, EFX_STATS_PULL, 0);
 
-	while (dma_stats[MC_CMD_MAC_GENERATION_END] ==
+	while (dma_stats[efx->num_mac_stats - 1] ==
 				EFX_MC_STATS_GENERATION_INVALID &&
 			attempts-- != 0)
 		udelay(EFX_MAC_STATS_WAIT_US);
@@ -1167,7 +1167,7 @@ int efx_mcdi_port_probe(struct efx_nic *efx)
 
 	/* Allocate buffer for stats */
 	rc = efx_nic_alloc_buffer(efx, &efx->stats_buffer,
-				  MC_CMD_MAC_NSTATS * sizeof(u64), GFP_KERNEL);
+				  efx->num_mac_stats * sizeof(u64), GFP_KERNEL);
 	if (rc)
 		return rc;
 	netif_dbg(efx, probe, efx->net_dev,
