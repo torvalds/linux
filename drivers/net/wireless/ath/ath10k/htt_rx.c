@@ -25,9 +25,6 @@
 
 #include <linux/log2.h>
 
-#define HTT_RX_RING_SIZE HTT_RX_RING_SIZE_MAX
-#define HTT_RX_RING_FILL_LEVEL (((HTT_RX_RING_SIZE) / 2) - 1)
-
 /* when under memory pressure rx ring refill may fail and needs a retry */
 #define HTT_RX_RING_REFILL_RETRY_MS 50
 
@@ -522,7 +519,7 @@ int ath10k_htt_rx_alloc(struct ath10k_htt *htt)
 	 */
 	htt->rx_ring.size = HTT_RX_RING_SIZE;
 	htt->rx_ring.size_mask = htt->rx_ring.size - 1;
-	htt->rx_ring.fill_level = HTT_RX_RING_FILL_LEVEL;
+	htt->rx_ring.fill_level = ar->hw_params.rx_ring_fill_level;
 
 	if (!is_power_of_2(htt->rx_ring.size)) {
 		ath10k_warn(ar, "htt rx ring size is not power of 2\n");

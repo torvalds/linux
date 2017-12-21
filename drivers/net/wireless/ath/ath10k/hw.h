@@ -564,6 +564,9 @@ struct ath10k_hw_params {
 
 	/* Targets supporting physical addressing capability above 32-bits */
 	bool target_64bit;
+
+	/* Target rx ring fill level */
+	u32 rx_ring_fill_level;
 };
 
 struct htt_rx_desc;

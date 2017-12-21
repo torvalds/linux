@@ -224,6 +224,9 @@ enum htt_rx_ring_flags {
 
 #define HTT_RX_RING_SIZE_MIN 128
 #define HTT_RX_RING_SIZE_MAX 2048
+#define HTT_RX_RING_SIZE HTT_RX_RING_SIZE_MAX
+#define HTT_RX_RING_FILL_LEVEL (((HTT_RX_RING_SIZE) / 2) - 1)
+#define HTT_RX_RING_FILL_LEVEL_DUAL_MAC (HTT_RX_RING_SIZE - 1)
 
 struct htt_rx_ring_setup_ring32 {
 	__le32 fw_idx_shadow_reg_paddr;
