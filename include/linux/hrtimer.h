@@ -28,13 +28,19 @@ struct hrtimer_cpu_base;
 
 /*
  * Mode arguments of xxx_hrtimer functions:
+ *
+ * HRTIMER_MODE_ABS		- Time value is absolute
+ * HRTIMER_MODE_REL		- Time value is relative to now
+ * HRTIMER_MODE_PINNED		- Timer is bound to CPU (is only considered
+ *				  when starting the timer)
  */
 enum hrtimer_mode {
-	HRTIMER_MODE_ABS = 0x0,		/* Time value is absolute */
-	HRTIMER_MODE_REL = 0x1,		/* Time value is relative to now */
-	HRTIMER_MODE_PINNED = 0x02,	/* Timer is bound to CPU */
-	HRTIMER_MODE_ABS_PINNED = 0x02,
-	HRTIMER_MODE_REL_PINNED = 0x03,
+	HRTIMER_MODE_ABS	= 0x00,
+	HRTIMER_MODE_REL	= 0x01,
+	HRTIMER_MODE_PINNED	= 0x02,
+
+	HRTIMER_MODE_ABS_PINNED = HRTIMER_MODE_ABS | HRTIMER_MODE_PINNED,
+	HRTIMER_MODE_REL_PINNED = HRTIMER_MODE_REL | HRTIMER_MODE_PINNED,
 };
 
 /*
