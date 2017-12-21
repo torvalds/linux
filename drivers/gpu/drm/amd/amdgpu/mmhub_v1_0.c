@@ -272,21 +272,21 @@ static const struct pctl_data pctl0_data[] = {
 	{0x11, 0x6a684},
 	{0x19, 0xea68e},
 	{0x29, 0xa69e},
-	{0x2b, 0x34a6c0},
-	{0x61, 0x83a707},
-	{0xe6, 0x8a7a4},
-	{0xf0, 0x1a7b8},
-	{0xf3, 0xfa7cc},
-	{0x104, 0x17a7dd},
-	{0x11d, 0xa7dc},
-	{0x11f, 0x12a7f5},
-	{0x133, 0xa808},
-	{0x135, 0x12a810},
-	{0x149, 0x7a82c}
+	{0x2b, 0x0010a6c0},
+	{0x3d, 0x83a707},
+	{0xc2, 0x8a7a4},
+	{0xcc, 0x1a7b8},
+	{0xcf, 0xfa7cc},
+	{0xe0, 0x17a7dd},
+	{0xf9, 0xa7dc},
+	{0xfb, 0x12a7f5},
+	{0x10f, 0xa808},
+	{0x111, 0x12a810},
+	{0x125, 0x7a82c}
 };
 #define PCTL0_DATA_LEN (ARRAY_SIZE(pctl0_data))
 
-#define PCTL0_RENG_EXEC_END_PTR 0x151
+#define PCTL0_RENG_EXEC_END_PTR 0x12d
 #define PCTL0_STCTRL_REG_SAVE_RANGE0_BASE  0xa640
 #define PCTL0_STCTRL_REG_SAVE_RANGE0_LIMIT 0xa833
 
@@ -385,10 +385,9 @@ void mmhub_v1_0_initialize_power_gating(struct amdgpu_device *adev)
 	if (amdgpu_sriov_vf(adev))
 		return;
 
+	/****************** pctl0 **********************/
 	pctl0_misc = RREG32_SOC15(MMHUB, 0, mmPCTL0_MISC);
 	pctl0_reng_execute = RREG32_SOC15(MMHUB, 0, mmPCTL0_RENG_EXECUTE);
-	pctl1_misc = RREG32_SOC15(MMHUB, 0, mmPCTL1_MISC);
-	pctl1_reng_execute = RREG32_SOC15(MMHUB, 0, mmPCTL1_RENG_EXECUTE);
 
 	/* Light sleep must be disabled before writing to pctl0 registers */
 	pctl0_misc &= ~PCTL0_MISC__RENG_MEM_LS_ENABLE_MASK;
@@ -402,12 +401,13 @@ void mmhub_v1_0_initialize_power_gating(struct amdgpu_device *adev)
 			pctl0_data[i].data);
         }
 
-	/* Set the reng execute end ptr for pctl0 */
-	pctl0_reng_execute = REG_SET_FIELD(pctl0_reng_execute,
-					PCTL0_RENG_EXECUTE,
-					RENG_EXECUTE_END_PTR,
-					PCTL0_RENG_EXEC_END_PTR);
-	WREG32_SOC15(MMHUB, 0, mmPCTL0_RENG_EXECUTE, pctl0_reng_execute);
+	/* Re-enable light sleep */
+	pctl0_misc |= PCTL0_MISC__RENG_MEM_LS_ENABLE_MASK;
+	WREG32_SOC15(MMHUB, 0, mmPCTL0_MISC, pctl0_misc);
+
+	/****************** pctl1 **********************/
+	pctl1_misc = RREG32_SOC15(MMHUB, 0, mmPCTL1_MISC);
+	pctl1_reng_execute = RREG32_SOC15(MMHUB, 0, mmPCTL1_RENG_EXECUTE);
 
 	/* Light sleep must be disabled before writing to pctl1 registers */
 	pctl1_misc &= ~PCTL1_MISC__RENG_MEM_LS_ENABLE_MASK;
@@ -421,20 +421,25 @@ void mmhub_v1_0_initialize_power_gating(struct amdgpu_device *adev)
 			pctl1_data[i].data);
         }
 
+	/* Re-enable light sleep */
+	pctl1_misc |= PCTL1_MISC__RENG_MEM_LS_ENABLE_MASK;
+	WREG32_SOC15(MMHUB, 0, mmPCTL1_MISC, pctl1_misc);
+
+	mmhub_v1_0_power_gating_write_save_ranges(adev);
+
+	/* Set the reng execute end ptr for pctl0 */
+	pctl0_reng_execute = REG_SET_FIELD(pctl0_reng_execute,
+					PCTL0_RENG_EXECUTE,
+					RENG_EXECUTE_END_PTR,
+					PCTL0_RENG_EXEC_END_PTR);
+	WREG32_SOC15(MMHUB, 0, mmPCTL0_RENG_EXECUTE, pctl0_reng_execute);
+
 	/* Set the reng execute end ptr for pctl1 */
 	pctl1_reng_execute = REG_SET_FIELD(pctl1_reng_execute,
 					PCTL1_RENG_EXECUTE,
 					RENG_EXECUTE_END_PTR,
 					PCTL1_RENG_EXEC_END_PTR);
 	WREG32_SOC15(MMHUB, 0, mmPCTL1_RENG_EXECUTE, pctl1_reng_execute);
-
-	mmhub_v1_0_power_gating_write_save_ranges(adev);
-
-	/* Re-enable light sleep */
-	pctl0_misc |= PCTL0_MISC__RENG_MEM_LS_ENABLE_MASK;
-	WREG32_SOC15(MMHUB, 0, mmPCTL0_MISC, pctl0_misc);
-	pctl1_misc |= PCTL1_MISC__RENG_MEM_LS_ENABLE_MASK;
-	WREG32_SOC15(MMHUB, 0, mmPCTL1_MISC, pctl1_misc);
 }
 
 void mmhub_v1_0_update_power_gating(struct amdgpu_device *adev,
