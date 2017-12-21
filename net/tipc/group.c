@@ -368,18 +368,20 @@ void tipc_group_update_bc_members(struct tipc_group *grp, int len, bool ack)
 	u16 prev = grp->bc_snd_nxt - 1;
 	struct tipc_member *m;
 	struct rb_node *n;
+	u16 ackers = 0;
 
 	for (n = rb_first(&grp->members); n; n = rb_next(n)) {
 		m = container_of(n, struct tipc_member, tree_node);
 		if (tipc_group_is_enabled(m)) {
 			tipc_group_update_member(m, len);
 			m->bc_acked = prev;
+			ackers++;
 		}
 	}
 
 	/* Mark number of acknowledges to expect, if any */
 	if (ack)
-		grp->bc_ackers = grp->member_cnt;
+		grp->bc_ackers = ackers;
 	grp->bc_snd_nxt++;
 }
 
