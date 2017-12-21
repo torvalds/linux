@@ -398,6 +398,15 @@ static int sun8i_mixer_bind(struct device *dev, struct device *master,
 		ret = PTR_ERR(mixer->mod_clk);
 		goto err_disable_bus_clk;
 	}
+
+	/*
+	 * It seems that we need to enforce that rate for whatever
+	 * reason for the mixer to be functional. Make sure it's the
+	 * case.
+	 */
+	if (mixer->cfg->mod_rate)
+		clk_set_rate(mixer->mod_clk, mixer->cfg->mod_rate);
+
 	clk_prepare_enable(mixer->mod_clk);
 
 	list_add_tail(&mixer->engine.list, &drv->engine_list);
@@ -474,6 +483,7 @@ static const struct sun8i_mixer_cfg sun8i_v3s_mixer_cfg = {
 	.ui_num = 1,
 	.scaler_mask = 0x3,
 	.ccsc = 0,
+	.mod_rate = 150000000,
 };
 
 static const struct of_device_id sun8i_mixer_of_table[] = {

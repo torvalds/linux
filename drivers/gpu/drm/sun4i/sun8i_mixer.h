@@ -121,12 +121,15 @@ struct de2_fmt_info {
  *	Set value to 0 if this is first mixer or second mixer with VEP support.
  *	Set value to 1 if this is second mixer without VEP support. Other values
  *	are invalid.
+ * @mod_rate: module clock rate that needs to be set in order to have
+ *	a functional block.
  */
 struct sun8i_mixer_cfg {
 	int		vi_num;
 	int		ui_num;
 	int		scaler_mask;
 	int		ccsc;
+	unsigned long	mod_rate;
 };
 
 struct sun8i_mixer {
