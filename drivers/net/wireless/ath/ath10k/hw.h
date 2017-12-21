@@ -561,6 +561,9 @@ struct ath10k_hw_params {
 	u32 num_peers;
 	u32 ast_skid_limit;
 	u32 num_wds_entries;
+
+	/* Targets supporting physical addressing capability above 32-bits */
+	bool target_64bit;
 };
 
 struct htt_rx_desc;
