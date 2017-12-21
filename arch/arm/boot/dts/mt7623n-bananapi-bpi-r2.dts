@@ -452,6 +452,13 @@
 		};
 	};
 
+	uart3_pins_a: uart@3 {
+		pins_dat {
+			pinmux = <MT7623_PIN_243_UCTS2_FUNC_URXD3>,
+				 <MT7623_PIN_242_URTS2_FUNC_UTXD3>;
+		};
+	};
+
 	consys_pins_default: consys_pins_default {
 		adie {
 			pinmux = <MT7623_PIN_60_WB_RSTB_FUNC_WB_RSTB>,
@@ -757,9 +764,11 @@
 	status = "okay";
 };
 
-/*&uart3 {
+&uart3 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart3_pins_a>;
 	status = "okay";
-};*/
+};
 
 &usb1 {
 	vusb33-supply = <&mt6323_vusb_reg>;
