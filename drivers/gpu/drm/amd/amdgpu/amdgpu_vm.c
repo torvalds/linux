@@ -950,11 +950,8 @@ static void amdgpu_vm_handle_huge_pages(struct amdgpu_pte_update_params *p,
 	uint64_t pd_addr, pde;
 
 	/* In the case of a mixed PT the PDE must point to it*/
-	if (p->adev->asic_type < CHIP_VEGA10 ||
-	    nptes != AMDGPU_VM_PTE_COUNT(p->adev) ||
-	    p->src ||
-	    !(flags & AMDGPU_PTE_VALID)) {
-
+	if (p->adev->asic_type < CHIP_VEGA10 || p->src ||
+	    nptes != AMDGPU_VM_PTE_COUNT(p->adev)) {
 		dst = amdgpu_bo_gpu_offset(entry->base.bo);
 		flags = AMDGPU_PTE_VALID;
 	} else {
