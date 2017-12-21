@@ -121,6 +121,14 @@ Required properties:
 On SoCs other than the A33 and V3s, there is one more clock required:
    - 'tcon-ch1': The clock driving the TCON channel 1
 
+On SoCs that support LVDS (all SoCs but the A13, H3, H5 and V3s), you
+need one more reset line:
+   - 'lvds': The reset line driving the LVDS logic
+
+And on the A23, A31, A31s and A33, you need one more clock line:
+   - 'lvds-alt': An alternative clock source, separate from the TCON channel 0
+                 clock, that can be used to drive the LVDS clock
+
 DRC
 ---
 
