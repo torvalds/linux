@@ -154,6 +154,13 @@ struct tee_ioctl_buf_data {
  */
 #define TEE_IOCTL_PARAM_ATTR_TYPE_MASK		0xff
 
+/* Meta parameter carrying extra information about the message. */
+#define TEE_IOCTL_PARAM_ATTR_META		0x100
+
+/* Mask of all known attr bits */
+#define TEE_IOCTL_PARAM_ATTR_MASK \
+	(TEE_IOCTL_PARAM_ATTR_TYPE_MASK | TEE_IOCTL_PARAM_ATTR_META)
+
 /*
  * Matches TEEC_LOGIN_* in GP TEE Client API
  * Are only defined for GP compliant TEEs

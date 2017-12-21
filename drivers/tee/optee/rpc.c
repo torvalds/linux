@@ -192,10 +192,10 @@ static struct tee_shm *cmd_alloc_suppl(struct tee_context *ctx, size_t sz)
 	if (ret)
 		return ERR_PTR(-ENOMEM);
 
-	mutex_lock(&optee->supp.ctx_mutex);
+	mutex_lock(&optee->supp.mutex);
 	/* Increases count as secure world doesn't have a reference */
 	shm = tee_shm_get_from_id(optee->supp.ctx, param.u.value.c);
-	mutex_unlock(&optee->supp.ctx_mutex);
+	mutex_unlock(&optee->supp.mutex);
 	return shm;
 }
 
