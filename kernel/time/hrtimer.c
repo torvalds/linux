@@ -564,7 +564,7 @@ hrtimer_force_reprogram(struct hrtimer_cpu_base *cpu_base, int skip_equal)
 {
 	ktime_t expires_next;
 
-	if (!cpu_base->hres_active)
+	if (!__hrtimer_hres_active(cpu_base))
 		return;
 
 	expires_next = __hrtimer_get_next_event(cpu_base);
@@ -673,7 +673,7 @@ static void retrigger_next_event(void *arg)
 {
 	struct hrtimer_cpu_base *base = this_cpu_ptr(&hrtimer_bases);
 
-	if (!base->hres_active)
+	if (!__hrtimer_hres_active(base))
 		return;
 
 	raw_spin_lock(&base->lock);
