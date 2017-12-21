@@ -1,4 +1,6 @@
 /*
+ * SPDX-License-Identifier: GPL-2.0
+ *
  * dvb-vb2.h - DVB driver helper framework for streaming I/O
  *
  * Copyright (C) 2015 Samsung Electronics

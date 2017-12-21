@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * dvb-vb2.c - dvb-vb2
  *
