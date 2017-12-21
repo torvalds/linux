@@ -177,23 +177,23 @@ struct comedi_subdevice {
 
 	unsigned int *chanlist;	/* driver-owned chanlist (not used) */
 
-	int (*insn_read)(struct comedi_device *, struct comedi_subdevice *,
-			 struct comedi_insn *, unsigned int *);
-	int (*insn_write)(struct comedi_device *, struct comedi_subdevice *,
-			  struct comedi_insn *, unsigned int *);
-	int (*insn_bits)(struct comedi_device *, struct comedi_subdevice *,
-			 struct comedi_insn *, unsigned int *);
-	int (*insn_config)(struct comedi_device *, struct comedi_subdevice *,
-			   struct comedi_insn *, unsigned int *);
+	int (*insn_read)(struct comedi_device *dev, struct comedi_subdevice *s,
+			 struct comedi_insn *insn, unsigned int *data);
+	int (*insn_write)(struct comedi_device *dev, struct comedi_subdevice *s,
+			  struct comedi_insn *insn, unsigned int *data);
+	int (*insn_bits)(struct comedi_device *dev, struct comedi_subdevice *s,
+			 struct comedi_insn *insn, unsigned int *data);
+	int (*insn_config)(struct comedi_device *dev, struct comedi_subdevice *s,
+			   struct comedi_insn *insn, unsigned int *data);
 
-	int (*do_cmd)(struct comedi_device *, struct comedi_subdevice *);
-	int (*do_cmdtest)(struct comedi_device *, struct comedi_subdevice *,
-			  struct comedi_cmd *);
-	int (*poll)(struct comedi_device *, struct comedi_subdevice *);
-	int (*cancel)(struct comedi_device *, struct comedi_subdevice *);
+	int (*do_cmd)(struct comedi_device *dev, struct comedi_subdevice *s);
+	int (*do_cmdtest)(struct comedi_device *dev, struct comedi_subdevice *s,
+			  struct comedi_cmd *cmd);
+	int (*poll)(struct comedi_device *dev, struct comedi_subdevice *s);
+	int (*cancel)(struct comedi_device *dev, struct comedi_subdevice *s);
 
 	/* called when the buffer changes */
-	int (*buf_change)(struct comedi_device *, struct comedi_subdevice *);
+	int (*buf_change)(struct comedi_device *dev, struct comedi_subdevice *s);
 
 	void (*munge)(struct comedi_device *dev, struct comedi_subdevice *s,
 		      void *data, unsigned int num_bytes,
@@ -436,9 +436,9 @@ struct comedi_driver {
 	/* public: */
 	const char *driver_name;
 	struct module *module;
-	int (*attach)(struct comedi_device *, struct comedi_devconfig *);
-	void (*detach)(struct comedi_device *);
-	int (*auto_attach)(struct comedi_device *, unsigned long);
+	int (*attach)(struct comedi_device *dev, struct comedi_devconfig *it);
+	void (*detach)(struct comedi_device *dev);
+	int (*auto_attach)(struct comedi_device *dev, unsigned long context);
 	unsigned int num_names;
 	const char *const *board_name;
 	int offset;
