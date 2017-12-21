@@ -144,7 +144,7 @@ enum  hrtimer_base_type {
 	HRTIMER_MAX_CLOCK_BASES,
 };
 
-/*
+/**
  * struct hrtimer_cpu_base - the per cpu clock bases
  * @lock:		lock protecting the base and associated clock bases
  *			and timers
@@ -153,12 +153,12 @@ enum  hrtimer_base_type {
  * @cpu:		cpu number
  * @active_bases:	Bitfield to mark bases with active timers
  * @clock_was_set_seq:	Sequence counter of clock was set events
- * @expires_next:	absolute time of the next event which was scheduled
- *			via clock_set_next_event()
- * @next_timer:		Pointer to the first expiring timer
  * @in_hrtirq:		hrtimer_interrupt() is currently executing
  * @hres_active:	State of high resolution mode
  * @hang_detected:	The last hrtimer interrupt detected a hang
+ * @expires_next:	absolute time of the next event, is required for remote
+ *			hrtimer enqueue
+ * @next_timer:		Pointer to the first expiring timer
  * @nr_events:		Total number of hrtimer interrupt events
  * @nr_retries:		Total number of hrtimer interrupt retries
  * @nr_hangs:		Total number of hrtimer interrupt hangs
