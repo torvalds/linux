@@ -225,7 +225,11 @@ static int meson_gx_pwrc_vpu_probe(struct platform_device *pdev)
 
 static void meson_gx_pwrc_vpu_shutdown(struct platform_device *pdev)
 {
-	meson_gx_pwrc_vpu_power_off(&vpu_hdmi_pd.genpd);
+	bool powered_off;
+
+	powered_off = meson_gx_pwrc_vpu_get_power(&vpu_hdmi_pd);
+	if (!powered_off)
+		meson_gx_pwrc_vpu_power_off(&vpu_hdmi_pd.genpd);
 }
 
 static const struct of_device_id meson_gx_pwrc_vpu_match_table[] = {
