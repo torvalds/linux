@@ -923,14 +923,11 @@ static gfp_t ttm_dma_pool_gfp_flags(struct ttm_dma_tt *ttm_dma, bool huge)
  * On success pages list will hold count number of correctly
  * cached pages. On failure will hold the negative return value (-ENOMEM, etc).
  */
-int ttm_dma_populate(struct ttm_dma_tt *ttm_dma, struct device *dev)
+int ttm_dma_populate(struct ttm_dma_tt *ttm_dma, struct device *dev,
+			struct ttm_operation_ctx *ctx)
 {
 	struct ttm_tt *ttm = &ttm_dma->ttm;
 	struct ttm_mem_global *mem_glob = ttm->glob->mem_glob;
-	struct ttm_operation_ctx ctx = {
-		.interruptible = false,
-		.no_wait_gpu = false
-	};
 	unsigned long num_pages = ttm->num_pages;
 	struct dma_pool *pool;
 	enum pool_type type;
@@ -966,7 +963,7 @@ int ttm_dma_populate(struct ttm_dma_tt *ttm_dma, struct device *dev)
 			break;
 
 		ret = ttm_mem_global_alloc_page(mem_glob, ttm->pages[i],
-						pool->size, &ctx);
+						pool->size, ctx);
 		if (unlikely(ret != 0)) {
 			ttm_dma_unpopulate(ttm_dma, dev);
 			return -ENOMEM;
@@ -1002,7 +999,7 @@ skip_huge:
 		}
 
 		ret = ttm_mem_global_alloc_page(mem_glob, ttm->pages[i],
-						pool->size, &ctx);
+						pool->size, ctx);
 		if (unlikely(ret != 0)) {
 			ttm_dma_unpopulate(ttm_dma, dev);
 			return -ENOMEM;

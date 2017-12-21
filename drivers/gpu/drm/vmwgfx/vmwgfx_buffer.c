@@ -635,16 +635,12 @@ static void vmw_ttm_destroy(struct ttm_tt *ttm)
 }
 
 
-static int vmw_ttm_populate(struct ttm_tt *ttm)
+static int vmw_ttm_populate(struct ttm_tt *ttm, struct ttm_operation_ctx *ctx)
 {
 	struct vmw_ttm_tt *vmw_tt =
 		container_of(ttm, struct vmw_ttm_tt, dma_ttm.ttm);
 	struct vmw_private *dev_priv = vmw_tt->dev_priv;
 	struct ttm_mem_global *glob = vmw_mem_glob(dev_priv);
-	struct ttm_operation_ctx ctx = {
-		.interruptible = true,
-		.no_wait_gpu = false
-	};
 	int ret;
 
 	if (ttm->state != tt_unpopulated)
@@ -653,15 +649,16 @@ static int vmw_ttm_populate(struct ttm_tt *ttm)
 	if (dev_priv->map_mode == vmw_dma_alloc_coherent) {
 		size_t size =
 			ttm_round_pot(ttm->num_pages * sizeof(dma_addr_t));
-		ret = ttm_mem_global_alloc(glob, size, &ctx);
+		ret = ttm_mem_global_alloc(glob, size, ctx);
 		if (unlikely(ret != 0))
 			return ret;
 
-		ret = ttm_dma_populate(&vmw_tt->dma_ttm, dev_priv->dev->dev);
+		ret = ttm_dma_populate(&vmw_tt->dma_ttm, dev_priv->dev->dev,
+					ctx);
 		if (unlikely(ret != 0))
 			ttm_mem_global_free(glob, size);
 	} else
-		ret = ttm_pool_populate(ttm);
+		ret = ttm_pool_populate(ttm, ctx);
 
 	return ret;
 }

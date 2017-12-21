@@ -324,12 +324,13 @@ static struct ttm_backend_func virtio_gpu_backend_func = {
 	.destroy = &virtio_gpu_ttm_backend_destroy,
 };
 
-static int virtio_gpu_ttm_tt_populate(struct ttm_tt *ttm)
+static int virtio_gpu_ttm_tt_populate(struct ttm_tt *ttm,
+		struct ttm_operation_ctx *ctx)
 {
 	if (ttm->state != tt_unpopulated)
 		return 0;
 
-	return ttm_pool_populate(ttm);
+	return ttm_pool_populate(ttm, ctx);
 }
 
 static void virtio_gpu_ttm_tt_unpopulate(struct ttm_tt *ttm)

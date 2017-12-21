@@ -1547,7 +1547,7 @@ nouveau_ttm_fault_reserve_notify(struct ttm_buffer_object *bo)
 }
 
 static int
-nouveau_ttm_tt_populate(struct ttm_tt *ttm)
+nouveau_ttm_tt_populate(struct ttm_tt *ttm, struct ttm_operation_ctx *ctx)
 {
 	struct ttm_dma_tt *ttm_dma = (void *)ttm;
 	struct nouveau_drm *drm;
@@ -1572,17 +1572,17 @@ nouveau_ttm_tt_populate(struct ttm_tt *ttm)
 
 #if IS_ENABLED(CONFIG_AGP)
 	if (drm->agp.bridge) {
-		return ttm_agp_tt_populate(ttm);
+		return ttm_agp_tt_populate(ttm, ctx);
 	}
 #endif
 
 #if IS_ENABLED(CONFIG_SWIOTLB) && IS_ENABLED(CONFIG_X86)
 	if (swiotlb_nr_tbl()) {
-		return ttm_dma_populate((void *)ttm, dev);
+		return ttm_dma_populate((void *)ttm, dev, ctx);
 	}
 #endif
 
-	r = ttm_pool_populate(ttm);
+	r = ttm_pool_populate(ttm, ctx);
 	if (r) {
 		return r;
 	}

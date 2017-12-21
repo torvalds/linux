@@ -291,14 +291,15 @@ static struct ttm_backend_func qxl_backend_func = {
 	.destroy = &qxl_ttm_backend_destroy,
 };
 
-static int qxl_ttm_tt_populate(struct ttm_tt *ttm)
+static int qxl_ttm_tt_populate(struct ttm_tt *ttm,
+			struct ttm_operation_ctx *ctx)
 {
 	int r;
 
 	if (ttm->state != tt_unpopulated)
 		return 0;
 
-	r = ttm_pool_populate(ttm);
+	r = ttm_pool_populate(ttm, ctx);
 	if (r)
 		return r;
 

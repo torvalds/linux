@@ -376,7 +376,7 @@ int ttm_bo_move_memcpy(struct ttm_buffer_object *bo,
 	 * TTM might be null for moves within the same region.
 	 */
 	if (ttm && ttm->state == tt_unpopulated) {
-		ret = ttm->bdev->driver->ttm_tt_populate(ttm);
+		ret = ttm->bdev->driver->ttm_tt_populate(ttm, ctx);
 		if (ret)
 			goto out1;
 	}
@@ -545,14 +545,19 @@ static int ttm_bo_kmap_ttm(struct ttm_buffer_object *bo,
 			   unsigned long num_pages,
 			   struct ttm_bo_kmap_obj *map)
 {
-	struct ttm_mem_reg *mem = &bo->mem; pgprot_t prot;
+	struct ttm_mem_reg *mem = &bo->mem;
+	struct ttm_operation_ctx ctx = {
+		.interruptible = false,
+		.no_wait_gpu = false
+	};
 	struct ttm_tt *ttm = bo->ttm;
+	pgprot_t prot;
 	int ret;
 
 	BUG_ON(!ttm);
 
 	if (ttm->state == tt_unpopulated) {
-		ret = ttm->bdev->driver->ttm_tt_populate(ttm);
+		ret = ttm->bdev->driver->ttm_tt_populate(ttm, &ctx);
 		if (ret)
 			return ret;
 	}

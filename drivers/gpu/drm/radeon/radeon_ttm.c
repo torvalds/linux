@@ -721,7 +721,8 @@ static struct radeon_ttm_tt *radeon_ttm_tt_to_gtt(struct ttm_tt *ttm)
 	return (struct radeon_ttm_tt *)ttm;
 }
 
-static int radeon_ttm_tt_populate(struct ttm_tt *ttm)
+static int radeon_ttm_tt_populate(struct ttm_tt *ttm,
+			struct ttm_operation_ctx *ctx)
 {
 	struct radeon_ttm_tt *gtt = radeon_ttm_tt_to_gtt(ttm);
 	struct radeon_device *rdev;
@@ -750,17 +751,17 @@ static int radeon_ttm_tt_populate(struct ttm_tt *ttm)
 	rdev = radeon_get_rdev(ttm->bdev);
 #if IS_ENABLED(CONFIG_AGP)
 	if (rdev->flags & RADEON_IS_AGP) {
-		return ttm_agp_tt_populate(ttm);
+		return ttm_agp_tt_populate(ttm, ctx);
 	}
 #endif
 
 #ifdef CONFIG_SWIOTLB
 	if (swiotlb_nr_tbl()) {
-		return ttm_dma_populate(&gtt->ttm, rdev->dev);
+		return ttm_dma_populate(&gtt->ttm, rdev->dev, ctx);
 	}
 #endif
 
-	return ttm_populate_and_map_pages(rdev->dev, &gtt->ttm);
+	return ttm_populate_and_map_pages(rdev->dev, &gtt->ttm, ctx);
 }
 
 static void radeon_ttm_tt_unpopulate(struct ttm_tt *ttm)

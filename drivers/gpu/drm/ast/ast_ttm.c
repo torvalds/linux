@@ -216,9 +216,10 @@ static struct ttm_tt *ast_ttm_tt_create(struct ttm_bo_device *bdev,
 	return tt;
 }
 
-static int ast_ttm_tt_populate(struct ttm_tt *ttm)
+static int ast_ttm_tt_populate(struct ttm_tt *ttm,
+			struct ttm_operation_ctx *ctx)
 {
-	return ttm_pool_populate(ttm);
+	return ttm_pool_populate(ttm, ctx);
 }
 
 static void ast_ttm_tt_unpopulate(struct ttm_tt *ttm)

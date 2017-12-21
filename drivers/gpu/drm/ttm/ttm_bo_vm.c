@@ -226,12 +226,17 @@ static int ttm_bo_vm_fault(struct vm_fault *vmf)
 		cvma.vm_page_prot = ttm_io_prot(bo->mem.placement,
 						cvma.vm_page_prot);
 	} else {
+		struct ttm_operation_ctx ctx = {
+			.interruptible = false,
+			.no_wait_gpu = false
+		};
+
 		ttm = bo->ttm;
 		cvma.vm_page_prot = ttm_io_prot(bo->mem.placement,
 						cvma.vm_page_prot);
 
 		/* Allocate all page at once, most common usage */
-		if (ttm->bdev->driver->ttm_tt_populate(ttm)) {
+		if (ttm->bdev->driver->ttm_tt_populate(ttm, &ctx)) {
 			retval = VM_FAULT_OOM;
 			goto out_io_unlock;
 		}
