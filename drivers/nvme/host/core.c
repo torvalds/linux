@@ -2991,6 +2991,7 @@ static void nvme_ns_remove(struct nvme_ns *ns)
 	mutex_unlock(&ns->ctrl->namespaces_mutex);
 
 	synchronize_srcu(&ns->head->srcu);
+	nvme_mpath_check_last_path(ns);
 	nvme_put_ns(ns);
 }
 
