@@ -13,6 +13,8 @@ Demux Function Calls
     dmx-fclose
     dmx-fread
     dmx-fwrite
+    dmx-mmap
+    dmx-munmap
     dmx-start
     dmx-stop
     dmx-set-filter
