@@ -161,7 +161,7 @@ EXPORT_SYMBOL_GPL(desc_to_gpio);
  */
 struct gpio_chip *gpiod_to_chip(const struct gpio_desc *desc)
 {
-	if (!desc || !desc->gdev || !desc->gdev->chip)
+	if (!desc || !desc->gdev)
 		return NULL;
 	return desc->gdev->chip;
 }
