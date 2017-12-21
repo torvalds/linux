@@ -3611,8 +3611,6 @@ void xhci_free_dev(struct usb_hcd *hcd, struct usb_device *udev)
 	int i, ret;
 	struct xhci_command *command;
 
-	xhci_debugfs_remove_slot(xhci, udev->slot_id);
-
 	command = xhci_alloc_command(xhci, false, false, GFP_KERNEL);
 	if (!command)
 		return;
@@ -3645,6 +3643,8 @@ void xhci_free_dev(struct usb_hcd *hcd, struct usb_device *udev)
 		virt_dev->eps[i].ep_state &= ~EP_HALT_PENDING;
 		del_timer_sync(&virt_dev->eps[i].stop_cmd_timer);
 	}
+
+	xhci_debugfs_remove_slot(xhci, udev->slot_id);
 
 	spin_lock_irqsave(&xhci->lock, flags);
 
