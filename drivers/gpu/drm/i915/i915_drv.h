@@ -56,13 +56,14 @@
 #include "i915_reg.h"
 #include "i915_utils.h"
 
-#include "intel_uncore.h"
 #include "intel_bios.h"
-#include "intel_dpll_mgr.h"
-#include "intel_uc.h"
-#include "intel_lrc.h"
-#include "intel_ringbuffer.h"
 #include "intel_display.h"
+#include "intel_dpll_mgr.h"
+#include "intel_lrc.h"
+#include "intel_opregion.h"
+#include "intel_ringbuffer.h"
+#include "intel_uncore.h"
+#include "intel_uc.h"
 
 #include "i915_gem.h"
 #include "i915_gem_context.h"
@@ -354,27 +355,6 @@ struct drm_i915_file_private {
 #define DRIVER_MAJOR		1
 #define DRIVER_MINOR		6
 #define DRIVER_PATCHLEVEL	0
-
-struct opregion_header;
-struct opregion_acpi;
-struct opregion_swsci;
-struct opregion_asle;
-
-struct intel_opregion {
-	struct opregion_header *header;
-	struct opregion_acpi *acpi;
-	struct opregion_swsci *swsci;
-	u32 swsci_gbda_sub_functions;
-	u32 swsci_sbcb_sub_functions;
-	struct opregion_asle *asle;
-	void *rvda;
-	void *vbt_firmware;
-	const void *vbt;
-	u32 vbt_size;
-	u32 *lid_state;
-	struct work_struct asle_work;
-};
-#define OPREGION_SIZE            (8*1024)
 
 struct intel_overlay;
 struct intel_overlay_error_state;
@@ -3815,41 +3795,6 @@ bool intel_bios_is_port_hpd_inverted(struct drm_i915_private *dev_priv,
 				     enum port port);
 bool intel_bios_is_lspcon_present(struct drm_i915_private *dev_priv,
 				enum port port);
-
-
-/* intel_opregion.c */
-#ifdef CONFIG_ACPI
-extern int intel_opregion_setup(struct drm_i915_private *dev_priv);
-extern void intel_opregion_register(struct drm_i915_private *dev_priv);
-extern void intel_opregion_unregister(struct drm_i915_private *dev_priv);
-extern void intel_opregion_asle_intr(struct drm_i915_private *dev_priv);
-extern int intel_opregion_notify_encoder(struct intel_encoder *intel_encoder,
-					 bool enable);
-extern int intel_opregion_notify_adapter(struct drm_i915_private *dev_priv,
-					 pci_power_t state);
-extern int intel_opregion_get_panel_type(struct drm_i915_private *dev_priv);
-#else
-static inline int intel_opregion_setup(struct drm_i915_private *dev) { return 0; }
-static inline void intel_opregion_register(struct drm_i915_private *dev_priv) { }
-static inline void intel_opregion_unregister(struct drm_i915_private *dev_priv) { }
-static inline void intel_opregion_asle_intr(struct drm_i915_private *dev_priv)
-{
-}
-static inline int
-intel_opregion_notify_encoder(struct intel_encoder *intel_encoder, bool enable)
-{
-	return 0;
-}
-static inline int
-intel_opregion_notify_adapter(struct drm_i915_private *dev, pci_power_t state)
-{
-	return 0;
-}
-static inline int intel_opregion_get_panel_type(struct drm_i915_private *dev)
-{
-	return -ENODEV;
-}
-#endif
 
 /* intel_acpi.c */
 #ifdef CONFIG_ACPI
