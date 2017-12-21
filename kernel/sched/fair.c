@@ -9053,6 +9053,7 @@ static struct {
 	cpumask_var_t idle_cpus_mask;
 	atomic_t nr_cpus;
 	unsigned long next_balance;     /* in jiffy units */
+	unsigned long next_stats;
 } nohz ____cacheline_aligned;
 
 static inline int find_new_ilb(void)
@@ -9087,9 +9088,8 @@ unlock:
  * nohz_load_balancer CPU (if there is one) otherwise fallback to any idle
  * CPU (if there is one).
  */
-static void kick_ilb(void)
+static void kick_ilb(unsigned int flags)
 {
-	unsigned int flags;
 	int ilb_cpu;
 
 	nohz.next_balance++;
@@ -9099,7 +9099,7 @@ static void kick_ilb(void)
 	if (ilb_cpu >= nr_cpu_ids)
 		return;
 
-	flags = atomic_fetch_or(NOHZ_KICK_MASK, nohz_flags(ilb_cpu));
+	flags = atomic_fetch_or(flags, nohz_flags(ilb_cpu));
 	if (flags & NOHZ_KICK_MASK)
 		return;
 
@@ -9129,7 +9129,7 @@ static void nohz_balancer_kick(struct rq *rq)
 	struct sched_domain_shared *sds;
 	struct sched_domain *sd;
 	int nr_busy, i, cpu = rq->cpu;
-	bool kick = false;
+	unsigned int flags = 0;
 
 	if (unlikely(rq->idle_balance))
 		return;
@@ -9148,11 +9148,14 @@ static void nohz_balancer_kick(struct rq *rq)
 	if (likely(!atomic_read(&nohz.nr_cpus)))
 		return;
 
+	if (time_after(now, nohz.next_stats))
+		flags = NOHZ_STATS_KICK;
+
 	if (time_before(now, nohz.next_balance))
-		return;
+		goto out;
 
 	if (rq->nr_running >= 2) {
-		kick = true;
+		flags = NOHZ_KICK_MASK;
 		goto out;
 	}
 
@@ -9165,7 +9168,7 @@ static void nohz_balancer_kick(struct rq *rq)
 		 */
 		nr_busy = atomic_read(&sds->nr_busy_cpus);
 		if (nr_busy > 1) {
-			kick = true;
+			flags = NOHZ_KICK_MASK;
 			goto unlock;
 		}
 
@@ -9175,7 +9178,7 @@ static void nohz_balancer_kick(struct rq *rq)
 	if (sd) {
 		if ((rq->cfs.h_nr_running >= 1) &&
 				check_cpu_capacity(rq, sd)) {
-			kick = true;
+			flags = NOHZ_KICK_MASK;
 			goto unlock;
 		}
 	}
@@ -9188,7 +9191,7 @@ static void nohz_balancer_kick(struct rq *rq)
 				continue;
 
 			if (sched_asym_prefer(i, cpu)) {
-				kick = true;
+				flags = NOHZ_KICK_MASK;
 				goto unlock;
 			}
 		}
@@ -9196,8 +9199,8 @@ static void nohz_balancer_kick(struct rq *rq)
 unlock:
 	rcu_read_unlock();
 out:
-	if (kick)
-		kick_ilb();
+	if (flags)
+		kick_ilb(flags);
 }
 
 void nohz_balance_exit_idle(unsigned int cpu)
@@ -9389,7 +9392,9 @@ out:
 static bool nohz_idle_balance(struct rq *this_rq, enum cpu_idle_type idle)
 {
 	/* Earliest time when we have to do rebalance again */
-	unsigned long next_balance = jiffies + 60*HZ;
+	unsigned long now = jiffies;
+	unsigned long next_balance = now + 60*HZ;
+	unsigned long next_stats = now + msecs_to_jiffies(LOAD_AVG_PERIOD);
 	int update_next_balance = 0;
 	int this_cpu = this_rq->cpu;
 	unsigned int flags;
@@ -9448,6 +9453,8 @@ static bool nohz_idle_balance(struct rq *this_rq, enum cpu_idle_type idle)
 	update_blocked_averages(this_cpu);
 	if (flags & NOHZ_BALANCE_KICK)
 		rebalance_domains(this_rq, CPU_IDLE);
+
+	nohz.next_stats = next_stats;
 
 	/*
 	 * next_balance will be updated only when there is a need.
