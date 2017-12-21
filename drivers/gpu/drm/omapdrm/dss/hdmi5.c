@@ -1,7 +1,7 @@
 /*
  * HDMI driver for OMAP5
  *
- * Copyright (C) 2014 Texas Instruments Incorporated
+ * Copyright (C) 2014 Texas Instruments Incorporated - http://www.ti.com/
  *
  * Authors:
  *	Yong Zhi
@@ -841,7 +841,7 @@ static const struct of_device_id hdmi_of_match[] = {
 	{},
 };
 
-static struct platform_driver omapdss_hdmihw_driver = {
+struct platform_driver omapdss_hdmi5hw_driver = {
 	.probe		= hdmi5_probe,
 	.remove		= hdmi5_remove,
 	.driver         = {
@@ -851,13 +851,3 @@ static struct platform_driver omapdss_hdmihw_driver = {
 		.suppress_bind_attrs = true,
 	},
 };
-
-int __init hdmi5_init_platform_driver(void)
-{
-	return platform_driver_register(&omapdss_hdmihw_driver);
-}
-
-void hdmi5_uninit_platform_driver(void)
-{
-	platform_driver_unregister(&omapdss_hdmihw_driver);
-}

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2014 Texas Instruments
+ * Copyright (C) 2014 Texas Instruments Incorporated - http://www.ti.com/
  * Author: Tomi Valkeinen <tomi.valkeinen@ti.com>
  *
  * This program is free software; you can redistribute it and/or modify it

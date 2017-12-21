@@ -1,6 +1,4 @@
 /*
- * linux/drivers/video/omap2/dss/dsi.c
- *
  * Copyright (C) 2009 Nokia Corporation
  * Author: Tomi Valkeinen <tomi.valkeinen@nokia.com>
  *
@@ -5660,7 +5658,7 @@ static const struct dev_pm_ops dsi_pm_ops = {
 	.runtime_resume = dsi_runtime_resume,
 };
 
-static struct platform_driver omap_dsihw_driver = {
+struct platform_driver omap_dsihw_driver = {
 	.probe		= dsi_probe,
 	.remove		= dsi_remove,
 	.driver         = {
@@ -5670,13 +5668,3 @@ static struct platform_driver omap_dsihw_driver = {
 		.suppress_bind_attrs = true,
 	},
 };
-
-int __init dsi_init_platform_driver(void)
-{
-	return platform_driver_register(&omap_dsihw_driver);
-}
-
-void dsi_uninit_platform_driver(void)
-{
-	platform_driver_unregister(&omap_dsihw_driver);
-}
