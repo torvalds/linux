@@ -588,18 +588,6 @@ int rf69_set_sync_size(struct spi_device *spi, u8 syncSize)
 	return rf69_read_mod_write(spi, REG_SYNC_CONFIG, MASK_SYNC_CONFIG_SYNC_SIZE, (syncSize << 3));
 }
 
-int rf69_set_sync_tolerance(struct spi_device *spi, u8 syncTolerance)
-{
-	// check input value
-	if (syncTolerance > 0x07) {
-		dev_dbg(&spi->dev, "set: illegal input param");
-		return -EINVAL;
-	}
-
-	// write value
-	return rf69_read_mod_write(spi, REG_SYNC_CONFIG, MASK_SYNC_CONFIG_SYNC_SIZE, syncTolerance);
-}
-
 int rf69_set_sync_values(struct spi_device *spi, u8 syncValues[8])
 {
 	int retval = 0;
