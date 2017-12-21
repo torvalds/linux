@@ -516,18 +516,6 @@ bool rf69_get_flag(struct spi_device *spi, enum flag flag)
 	}
 }
 
-int rf69_reset_flag(struct spi_device *spi, enum flag flag)
-{
-	switch (flag) {
-	case rssiExceededThreshold: return rf69_write_reg(spi, REG_IRQFLAGS1, MASK_IRQFLAGS1_RSSI);
-	case syncAddressMatch:	    return rf69_write_reg(spi, REG_IRQFLAGS1, MASK_IRQFLAGS1_SYNC_ADDRESS_MATCH);
-	case fifo_overrun:	    return rf69_write_reg(spi, REG_IRQFLAGS2, MASK_IRQFLAGS2_FIFO_OVERRUN);
-	default:
-		dev_dbg(&spi->dev, "set: illegal input param");
-		return -EINVAL;
-	}
-}
-
 int rf69_set_rssi_threshold(struct spi_device *spi, u8 threshold)
 {
 	/* no value check needed - u8 exactly matches register size */
