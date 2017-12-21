@@ -592,6 +592,8 @@ static bool ttm_bo_delayed_delete(struct ttm_bo_device *bdev, bool remove_all)
 
 		} else if (reservation_object_trylock(bo->resv)) {
 			ttm_bo_cleanup_refs(bo, false, !remove_all, true);
+		} else {
+			spin_unlock(&glob->lru_lock);
 		}
 
 		kref_put(&bo->list_kref, ttm_bo_release_list);
