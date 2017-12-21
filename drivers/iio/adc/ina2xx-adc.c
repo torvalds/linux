@@ -708,8 +708,6 @@ static int ina2xx_work_buffer(struct iio_dev *indio_dev)
 	s64 time;
 	unsigned int alert;
 
-	time = iio_get_time_ns(indio_dev);
-
 	/*
 	 * Because the timer thread and the chip conversion clock
 	 * are asynchronous, the period difference will eventually
@@ -737,6 +735,8 @@ static int ina2xx_work_buffer(struct iio_dev *indio_dev)
 				return ret;
 
 		} while (!alert);
+
+	time = iio_get_time_ns(indio_dev);
 
 	/*
 	 * Single register reads: bulk_read will not work with ina226/219
