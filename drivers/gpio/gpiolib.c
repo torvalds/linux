@@ -2526,6 +2526,7 @@ int gpiod_set_transitory(struct gpio_desc *desc, bool transitory)
 	int gpio;
 	int rc;
 
+	VALIDATE_DESC(desc);
 	/*
 	 * Handle FLAG_TRANSITORY first, enabling queries to gpiolib for
 	 * persistence state.
