@@ -41,6 +41,41 @@ int vcodec_iommu_create(struct vcodec_iommu_info *iommu_info)
 	return iommu_info->ops->create(iommu_info);
 }
 
+int vcodec_iommu_alloc(struct vcodec_iommu_info *iommu_info,
+		       struct vpu_session *session,
+		       unsigned long size,
+		       unsigned long align)
+{
+	struct vcodec_iommu_session_info *session_info = NULL;
+
+	if (!iommu_info || !iommu_info->ops->alloc || !session)
+		return -EINVAL;
+
+	session_info = vcodec_iommu_get_session_info(iommu_info, session);
+	if (!session_info) {
+		session_info = kzalloc(sizeof(*session_info), GFP_KERNEL);
+		if (!session_info)
+			return -ENOMEM;
+
+		INIT_LIST_HEAD(&session_info->head);
+		INIT_LIST_HEAD(&session_info->buffer_list);
+		mutex_init(&session_info->list_mutex);
+		session_info->max_idx = 0;
+		session_info->session = session;
+		session_info->mmu_dev = iommu_info->mmu_dev;
+		session_info->dev = iommu_info->dev;
+		session_info->iommu_info = iommu_info;
+		session_info->buffer_nums = 0;
+		mutex_lock(&iommu_info->list_mutex);
+		list_add_tail(&session_info->head, &iommu_info->session_list);
+		mutex_unlock(&iommu_info->list_mutex);
+	}
+
+	session_info->debug_level = iommu_info->debug_level;
+
+	return iommu_info->ops->alloc(session_info, size, align);
+}
+
 int vcodec_iommu_import(struct vcodec_iommu_info *iommu_info,
 			struct vpu_session *session, int fd)
 {

@@ -46,9 +46,16 @@ struct vcodec_iommu_session_info;
 
 struct vcodec_iommu_ops {
 	int (*create)(struct vcodec_iommu_info *iommu_info);
+	int (*alloc)(struct vcodec_iommu_session_info *session_info,
+		     unsigned long size,
+		     unsigned long align);
 	int (*import)(struct vcodec_iommu_session_info *session_info, int fd);
 	int (*free)(struct vcodec_iommu_session_info *session_info, int idx);
 	int (*free_fd)(struct vcodec_iommu_session_info *session_info, int fd);
+	void* (*map_kernel)(struct vcodec_iommu_session_info *session_info,
+			    int idx);
+	int (*unmap_kernel)(struct vcodec_iommu_session_info *session_info,
+			    int idx);
 	int (*map_iommu)(struct vcodec_iommu_session_info *session_info,
 			 int idx,
 			 dma_addr_t *iova, unsigned long *size);
@@ -98,6 +105,10 @@ struct vcodec_iommu_info *vcodec_iommu_info_create(struct device *dev,
 int vcodec_iommu_info_destroy(struct vcodec_iommu_info *iommu_info);
 
 int vcodec_iommu_create(struct vcodec_iommu_info *iommu_info);
+int vcodec_iommu_alloc(struct vcodec_iommu_info *iommu_info,
+		       struct vpu_session *session,
+		       unsigned long size,
+		       unsigned long align);
 int vcodec_iommu_import(struct vcodec_iommu_info *iommu_info,
 			struct vpu_session *session, int fd);
 int vcodec_iommu_free(struct vcodec_iommu_info *iommu_info,
