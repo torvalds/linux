@@ -708,6 +708,34 @@ bool ttm_bo_eviction_valuable(struct ttm_buffer_object *bo,
 }
 EXPORT_SYMBOL(ttm_bo_eviction_valuable);
 
+/**
+ * Check the target bo is allowable to be evicted or swapout, including cases:
+ *
+ * a. if share same reservation object with ctx->resv, have assumption
+ * reservation objects should already be locked, so not lock again and
+ * return true directly when either the opreation allow_reserved_eviction
+ * or the target bo already is in delayed free list;
+ *
+ * b. Otherwise, trylock it.
+ */
+static bool ttm_bo_evict_swapout_allowable(struct ttm_buffer_object *bo,
+			struct ttm_operation_ctx *ctx, bool *locked)
+{
+	bool ret = false;
+
+	*locked = false;
+	if (bo->resv == ctx->resv) {
+		reservation_object_assert_held(bo->resv);
+		if (ctx->allow_reserved_eviction || !list_empty(&bo->ddestroy))
+			ret = true;
+	} else {
+		*locked = reservation_object_trylock(bo->resv);
+		ret = *locked;
+	}
+
+	return ret;
+}
+
 static int ttm_mem_evict_first(struct ttm_bo_device *bdev,
 			       uint32_t mem_type,
 			       const struct ttm_place *place,
@@ -723,21 +751,13 @@ static int ttm_mem_evict_first(struct ttm_bo_device *bdev,
 	spin_lock(&glob->lru_lock);
 	for (i = 0; i < TTM_MAX_BO_PRIORITY; ++i) {
 		list_for_each_entry(bo, &man->lru[i], lru) {
-			if (bo->resv == ctx->resv) {
-				if (!ctx->allow_reserved_eviction &&
-				    list_empty(&bo->ddestroy))
-					continue;
-			} else {
-				locked = reservation_object_trylock(bo->resv);
-				if (!locked)
-					continue;
-			}
+			if (!ttm_bo_evict_swapout_allowable(bo, ctx, &locked))
+				continue;
 
 			if (place && !bdev->driver->eviction_valuable(bo,
 								      place)) {
 				if (locked)
 					reservation_object_unlock(bo->resv);
-				locked = false;
 				continue;
 			}
 			break;
