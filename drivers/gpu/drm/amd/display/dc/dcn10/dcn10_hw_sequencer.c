@@ -600,13 +600,13 @@ static void plane_atomic_disconnect(struct dc *dc, struct pipe_ctx *pipe_ctx)
 	struct hubp *hubp = pipe_ctx->plane_res.hubp;
 	int dpp_id = pipe_ctx->plane_res.dpp->inst;
 	struct mpc *mpc = dc->res_pool->mpc;
-	int opp_id;
+	int pipe_idx;
 	struct mpc_tree *mpc_tree_params;
 	struct mpcc *mpcc_to_remove = NULL;
 
 	/* look at tree rather than mi here to know if we already reset */
-	for (opp_id = 0; opp_id < dc->res_pool->pipe_count; opp_id++) {
-		struct output_pixel_processor *opp = dc->res_pool->opps[opp_id];
+	for (pipe_idx = 0; pipe_idx < dc->res_pool->pipe_count; pipe_idx++) {
+		struct output_pixel_processor *opp = dc->res_pool->opps[pipe_idx];
 
 		mpc_tree_params = &(opp->mpc_tree_params);
 		mpcc_to_remove = mpc->funcs->get_mpcc_for_dpp(mpc_tree_params, dpp_id);
@@ -615,11 +615,11 @@ static void plane_atomic_disconnect(struct dc *dc, struct pipe_ctx *pipe_ctx)
 	}
 
 	/*Already reset*/
-	if (opp_id == dc->res_pool->pipe_count)
+	if (pipe_idx == dc->res_pool->pipe_count)
 		return;
 
 	mpc->funcs->remove_mpcc(mpc, mpc_tree_params, mpcc_to_remove);
-	dc->res_pool->opps[opp_id]->mpcc_disconnect_pending[pipe_ctx->plane_res.mpcc_inst] = true;
+	dc->res_pool->opps[pipe_idx]->mpcc_disconnect_pending[pipe_ctx->plane_res.mpcc_inst] = true;
 
 	dc->optimized_required = true;
 
@@ -665,7 +665,7 @@ static void plane_atomic_disable(struct dc *dc, struct pipe_ctx *pipe_ctx)
 	REG_UPDATE(DPP_CONTROL[dpp_id],
 			DPP_CLOCK_ENABLE, 0);
 
-	if (opp_id != 0xf && dc->res_pool->opps[opp_id]->mpc_tree_params.opp_list == NULL)
+	if (opp_id != 0xf && pipe_ctx->stream_res.opp->mpc_tree_params.opp_list == NULL)
 		REG_UPDATE(OPP_PIPE_CONTROL[opp_id],
 				OPP_PIPE_CLOCK_EN, 0);
 
