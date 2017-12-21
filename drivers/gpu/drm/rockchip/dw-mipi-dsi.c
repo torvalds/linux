@@ -167,6 +167,7 @@
 #define DSI_INT_ST1			0x0c0
 #define DSI_INT_MSK0			0x0c4
 #define DSI_INT_MSK1			0x0c8
+#define DSI_MAX_REGISGER		DSI_INT_MSK1
 
 #define PHY_STATUS_TIMEOUT_US		10000
 #define CMD_PKT_STATUS_TIMEOUT_US	20000
@@ -279,6 +280,7 @@ struct dw_mipi_dsi_plat_data {
 };
 
 struct mipi_dphy {
+	struct regmap *regmap;
 	struct clk *ref_clk;
 	struct clk *cfg_clk;
 	u16 input_div;
@@ -292,9 +294,9 @@ struct dw_mipi_dsi {
 	struct drm_panel *panel;
 	struct device *dev;
 	struct regmap *grf;
-	void __iomem *base;
 	struct clk *pclk;
 	struct mipi_dphy dphy;
+	struct regmap *regmap;
 	int id;
 
 	int dpms_mode;
@@ -384,35 +386,6 @@ static inline struct dw_mipi_dsi *encoder_to_dsi(struct drm_encoder *encoder)
 	return container_of(encoder, struct dw_mipi_dsi, encoder);
 }
 
-static inline void dsi_write(struct dw_mipi_dsi *dsi, u32 reg, u32 val)
-{
-	writel(val, dsi->base + reg);
-}
-
-static inline u32 dsi_read(struct dw_mipi_dsi *dsi, u32 reg)
-{
-	return readl(dsi->base + reg);
-}
-
-static void dw_mipi_dsi_phy_write(struct dw_mipi_dsi *dsi, u8 test_code,
-				  u8 test_data)
-{
-	/*
-	 * With the falling edge on TESTCLK, the TESTDIN[7:0] signal content
-	 * is latched internally as the current test code. Test data is
-	 * programmed internally by rising edge on TESTCLK.
-	 */
-	dsi_write(dsi, DSI_PHY_TST_CTRL0, PHY_TESTCLK);
-
-	dsi_write(dsi, DSI_PHY_TST_CTRL1, PHY_TESTEN | PHY_TESTDIN(test_code));
-
-	dsi_write(dsi, DSI_PHY_TST_CTRL0, 0);
-
-	dsi_write(dsi, DSI_PHY_TST_CTRL1, PHY_TESTDIN(test_data));
-
-	dsi_write(dsi, DSI_PHY_TST_CTRL0, PHY_TESTCLK);
-}
-
 /**
  * ns2bc - Nanoseconds to byte clock cycles
  */
@@ -427,6 +400,104 @@ static inline unsigned int ns2bc(struct dw_mipi_dsi *dsi, int ns)
 static inline unsigned int ns2ui(struct dw_mipi_dsi *dsi, int ns)
 {
 	return DIV_ROUND_UP(ns * dsi->lane_mbps, 1000);
+}
+
+static inline void testif_testclk_assert(struct dw_mipi_dsi *dsi)
+{
+	regmap_update_bits(dsi->regmap, DSI_PHY_TST_CTRL0,
+			   PHY_TESTCLK, PHY_TESTCLK);
+	udelay(1);
+}
+
+static inline void testif_testclk_deassert(struct dw_mipi_dsi *dsi)
+{
+	regmap_update_bits(dsi->regmap, DSI_PHY_TST_CTRL0, PHY_TESTCLK, 0);
+	udelay(1);
+}
+
+static inline void testif_testclr_assert(struct dw_mipi_dsi *dsi)
+{
+	regmap_update_bits(dsi->regmap, DSI_PHY_TST_CTRL0,
+			   PHY_TESTCLR, PHY_TESTCLR);
+	udelay(1);
+}
+
+static inline void testif_testclr_deassert(struct dw_mipi_dsi *dsi)
+{
+	regmap_update_bits(dsi->regmap, DSI_PHY_TST_CTRL0, PHY_TESTCLR, 0);
+	udelay(1);
+}
+
+static inline void testif_testen_assert(struct dw_mipi_dsi *dsi)
+{
+	regmap_update_bits(dsi->regmap, DSI_PHY_TST_CTRL1,
+			   PHY_TESTEN, PHY_TESTEN);
+	udelay(1);
+}
+
+static inline void testif_testen_deassert(struct dw_mipi_dsi *dsi)
+{
+	regmap_update_bits(dsi->regmap, DSI_PHY_TST_CTRL1, PHY_TESTEN, 0);
+	udelay(1);
+}
+
+static inline void testif_set_data(struct dw_mipi_dsi *dsi, u8 data)
+{
+	regmap_update_bits(dsi->regmap, DSI_PHY_TST_CTRL1,
+			   PHY_TESTDIN_MASK, PHY_TESTDIN(data));
+	udelay(1);
+}
+
+static inline u8 testif_get_data(struct dw_mipi_dsi *dsi)
+{
+	u32 data = 0;
+
+	regmap_read(dsi->regmap, DSI_PHY_TST_CTRL1, &data);
+
+	return data >> PHY_TESTDOUT_SHIFT;
+}
+
+static void testif_test_code_write(struct dw_mipi_dsi *dsi, u8 test_code)
+{
+	testif_testclk_assert(dsi);
+	testif_set_data(dsi, test_code);
+	testif_testen_assert(dsi);
+	testif_testclk_deassert(dsi);
+	testif_testen_deassert(dsi);
+}
+
+static void testif_test_data_write(struct dw_mipi_dsi *dsi, u8 test_data)
+{
+	testif_testclk_deassert(dsi);
+	testif_set_data(dsi, test_data);
+	testif_testclk_assert(dsi);
+}
+
+static int testif_write(void *context, unsigned int reg, unsigned int value)
+{
+	struct dw_mipi_dsi *dsi = context;
+
+	testif_testclr_deassert(dsi);
+	testif_test_code_write(dsi, reg);
+	testif_test_data_write(dsi, value);
+
+	DRM_DEV_DEBUG(dsi->dev, "test_code=0x%02x, ", reg);
+	DRM_DEV_DEBUG(dsi->dev, "test_data=0x%02x, ", value);
+	DRM_DEV_DEBUG(dsi->dev, "monitor_data=0x%02x\n", testif_get_data(dsi));
+
+	return 0;
+}
+
+static int testif_read(void *context, unsigned int reg, unsigned int *value)
+{
+	struct dw_mipi_dsi *dsi = context;
+
+	testif_testclr_deassert(dsi);
+	testif_test_code_write(dsi, reg);
+	*value = testif_get_data(dsi);
+	testif_test_data_write(dsi, *value);
+
+	return 0;
 }
 
 static int dw_mipi_dsi_phy_init(struct dw_mipi_dsi *dsi)
@@ -445,72 +516,62 @@ static int dw_mipi_dsi_phy_init(struct dw_mipi_dsi *dsi)
 	}
 
 	/* Start by clearing PHY state */
-	dsi_write(dsi, DSI_PHY_TST_CTRL0, 0);
-	dsi_write(dsi, DSI_PHY_TST_CTRL0, PHY_TESTCLR);
-	dsi_write(dsi, DSI_PHY_TST_CTRL0, 0);
+	regmap_write(dsi->regmap, DSI_PHY_TST_CTRL0, 0);
+	regmap_write(dsi->regmap, DSI_PHY_TST_CTRL0, PHY_TESTCLR);
+	regmap_write(dsi->regmap, DSI_PHY_TST_CTRL0, 0);
 
-	dw_mipi_dsi_phy_write(dsi, 0x10, BYPASS_VCO_RANGE |
-					 VCO_RANGE_CON_SEL(vco) |
-					 VCO_IN_CAP_CON_LOW |
-					 REF_BIAS_CUR_SEL);
+	regmap_write(dphy->regmap, 0x10, BYPASS_VCO_RANGE |
+		     VCO_RANGE_CON_SEL(vco) | VCO_IN_CAP_CON_LOW |
+		     REF_BIAS_CUR_SEL);
+	regmap_write(dphy->regmap, 0x11, CP_CURRENT_3MA);
+	regmap_write(dphy->regmap, 0x12, CP_PROGRAM_EN | LPF_PROGRAM_EN |
+		     LPF_RESISTORS_20_KOHM);
+	regmap_write(dphy->regmap, 0x44, HSFREQRANGE_SEL(testdin));
+	regmap_write(dphy->regmap, 0x17, INPUT_DIVIDER(dphy->input_div));
+	regmap_write(dphy->regmap, 0x18, LOOP_DIV_LOW_SEL(dphy->feedback_div) |
+		     LOW_PROGRAM_EN);
+	regmap_write(dphy->regmap, 0x18, LOOP_DIV_HIGH_SEL(dphy->feedback_div) |
+		     HIGH_PROGRAM_EN);
+	regmap_write(dphy->regmap, 0x19, PLL_LOOP_DIV_EN | PLL_INPUT_DIV_EN);
+	regmap_write(dphy->regmap, 0x22, LOW_PROGRAM_EN |
+		     BIASEXTR_SEL(BIASEXTR_127_7));
+	regmap_write(dphy->regmap, 0x22, HIGH_PROGRAM_EN |
+		     BANDGAP_SEL(BANDGAP_96_10));
+	regmap_write(dphy->regmap, 0x20, POWER_CONTROL | INTERNAL_REG_CURRENT |
+		     BIAS_BLOCK_ON | BANDGAP_ON);
+	regmap_write(dphy->regmap, 0x21, TER_RESISTOR_LOW | TER_CAL_DONE |
+		     SETRD_MAX | TER_RESISTORS_ON);
+	regmap_write(dphy->regmap, 0x21, TER_RESISTOR_HIGH | LEVEL_SHIFTERS_ON |
+		     SETRD_MAX | POWER_MANAGE | TER_RESISTORS_ON);
+	regmap_write(dphy->regmap, 0x60, TLP_PROGRAM_EN | ns2bc(dsi, 500));
+	regmap_write(dphy->regmap, 0x61, THS_PRE_PROGRAM_EN | ns2ui(dsi, 40));
+	regmap_write(dphy->regmap, 0x62, THS_ZERO_PROGRAM_EN | ns2bc(dsi, 300));
+	regmap_write(dphy->regmap, 0x63, THS_PRE_PROGRAM_EN | ns2ui(dsi, 100));
+	regmap_write(dphy->regmap, 0x64, BIT(5) | ns2bc(dsi, 100));
+	regmap_write(dphy->regmap, 0x65, BIT(5) | (ns2bc(dsi, 60) + 7));
+	regmap_write(dphy->regmap, 0x70, TLP_PROGRAM_EN | ns2bc(dsi, 500));
+	regmap_write(dphy->regmap, 0x71,
+		     THS_PRE_PROGRAM_EN | (ns2ui(dsi, 50) + 5));
+	regmap_write(dphy->regmap, 0x72,
+		     THS_ZERO_PROGRAM_EN | (ns2bc(dsi, 140) + 2));
+	regmap_write(dphy->regmap, 0x73,
+		     THS_PRE_PROGRAM_EN | (ns2ui(dsi, 60) + 8));
+	regmap_write(dphy->regmap, 0x74, BIT(5) | ns2bc(dsi, 100));
 
-	dw_mipi_dsi_phy_write(dsi, 0x11, CP_CURRENT_3MA);
-	dw_mipi_dsi_phy_write(dsi, 0x12, CP_PROGRAM_EN | LPF_PROGRAM_EN |
-					 LPF_RESISTORS_20_KOHM);
+	regmap_write(dsi->regmap, DSI_PHY_RSTZ,
+		     PHY_FORCEPLL | PHY_ENABLECLK | PHY_RSTZ | PHY_SHUTDOWNZ);
 
-	dw_mipi_dsi_phy_write(dsi, 0x44, HSFREQRANGE_SEL(testdin));
-
-	dw_mipi_dsi_phy_write(dsi, 0x17, INPUT_DIVIDER(dphy->input_div));
-	dw_mipi_dsi_phy_write(dsi, 0x18, LOOP_DIV_LOW_SEL(dphy->feedback_div) |
-					 LOW_PROGRAM_EN);
-	dw_mipi_dsi_phy_write(dsi, 0x18, LOOP_DIV_HIGH_SEL(dphy->feedback_div) |
-					 HIGH_PROGRAM_EN);
-	dw_mipi_dsi_phy_write(dsi, 0x19, PLL_LOOP_DIV_EN | PLL_INPUT_DIV_EN);
-
-	dw_mipi_dsi_phy_write(dsi, 0x22, LOW_PROGRAM_EN |
-					 BIASEXTR_SEL(BIASEXTR_127_7));
-	dw_mipi_dsi_phy_write(dsi, 0x22, HIGH_PROGRAM_EN |
-					 BANDGAP_SEL(BANDGAP_96_10));
-
-	dw_mipi_dsi_phy_write(dsi, 0x20, POWER_CONTROL | INTERNAL_REG_CURRENT |
-					 BIAS_BLOCK_ON | BANDGAP_ON);
-
-	dw_mipi_dsi_phy_write(dsi, 0x21, TER_RESISTOR_LOW | TER_CAL_DONE |
-					 SETRD_MAX | TER_RESISTORS_ON);
-	dw_mipi_dsi_phy_write(dsi, 0x21, TER_RESISTOR_HIGH | LEVEL_SHIFTERS_ON |
-					 SETRD_MAX | POWER_MANAGE |
-					 TER_RESISTORS_ON);
-
-	dw_mipi_dsi_phy_write(dsi, 0x60, TLP_PROGRAM_EN | ns2bc(dsi, 500));
-	dw_mipi_dsi_phy_write(dsi, 0x61, THS_PRE_PROGRAM_EN | ns2ui(dsi, 40));
-	dw_mipi_dsi_phy_write(dsi, 0x62, THS_ZERO_PROGRAM_EN | ns2bc(dsi, 300));
-	dw_mipi_dsi_phy_write(dsi, 0x63, THS_PRE_PROGRAM_EN | ns2ui(dsi, 100));
-	dw_mipi_dsi_phy_write(dsi, 0x64, BIT(5) | ns2bc(dsi, 100));
-	dw_mipi_dsi_phy_write(dsi, 0x65, BIT(5) | (ns2bc(dsi, 60) + 7));
-
-	dw_mipi_dsi_phy_write(dsi, 0x70, TLP_PROGRAM_EN | ns2bc(dsi, 500));
-	dw_mipi_dsi_phy_write(dsi, 0x71,
-			      THS_PRE_PROGRAM_EN | (ns2ui(dsi, 50) + 5));
-	dw_mipi_dsi_phy_write(dsi, 0x72,
-			      THS_ZERO_PROGRAM_EN | (ns2bc(dsi, 140) + 2));
-	dw_mipi_dsi_phy_write(dsi, 0x73,
-			      THS_PRE_PROGRAM_EN | (ns2ui(dsi, 60) + 8));
-	dw_mipi_dsi_phy_write(dsi, 0x74, BIT(5) | ns2bc(dsi, 100));
-
-	dsi_write(dsi, DSI_PHY_RSTZ, PHY_FORCEPLL | PHY_ENABLECLK |
-		  PHY_RSTZ | PHY_SHUTDOWNZ);
-
-	ret = readl_poll_timeout(dsi->base + DSI_PHY_STATUS,
-				 val, val & PHY_LOCK, 1000,
-				 PHY_STATUS_TIMEOUT_US);
+	ret = regmap_read_poll_timeout(dsi->regmap, DSI_PHY_STATUS,
+				       val, val & PHY_LOCK, 1000,
+				       PHY_STATUS_TIMEOUT_US);
 	if (ret < 0) {
 		DRM_DEV_ERROR(dsi->dev, "failed to wait for phy lock state\n");
 		return ret;
 	}
 
-	ret = readl_poll_timeout(dsi->base + DSI_PHY_STATUS,
-				 val, val & PHY_STOPSTATECLKLANE, 1000,
-				 PHY_STATUS_TIMEOUT_US);
+	ret = regmap_read_poll_timeout(dsi->regmap, DSI_PHY_STATUS,
+				       val, val & PHY_STOPSTATECLKLANE, 1000,
+				       PHY_STATUS_TIMEOUT_US);
 	if (ret < 0)
 		DRM_DEV_ERROR(dsi->dev,
 			      "failed to wait for phy clk lane stop state\n");
@@ -557,6 +618,16 @@ static void mipi_dphy_power_off(struct dw_mipi_dsi *dsi)
 	clk_disable_unprepare(dphy->ref_clk);
 }
 
+static const struct regmap_config testif_regmap_config = {
+	.name = "phy",
+	.reg_bits = 8,
+	.val_bits = 8,
+	.max_register = 0x97,
+	.fast_io = true,
+	.reg_write = testif_write,
+	.reg_read = testif_read,
+};
+
 static int mipi_dphy_attach(struct dw_mipi_dsi *dsi)
 {
 	struct mipi_dphy *dphy = &dsi->dphy;
@@ -581,6 +652,13 @@ static int mipi_dphy_attach(struct dw_mipi_dsi *dsi)
 		}
 		/* Clock is optional (for RK3288) */
 		dphy->cfg_clk = NULL;
+	}
+
+	dphy->regmap = devm_regmap_init(dev, NULL, dsi, &testif_regmap_config);
+	if (IS_ERR(dphy->regmap)) {
+		ret = PTR_ERR(dphy->regmap);
+		DRM_DEV_ERROR(dev, "failed to int phy regmap: %d\n", ret);
+		return ret;
 	}
 
 	return 0;
@@ -691,8 +769,8 @@ static void dw_mipi_message_config(struct dw_mipi_dsi *dsi,
 		       GEN_SR_2P_TX | GEN_SR_1P_TX | GEN_SR_0P_TX |
 		       GEN_SW_2P_TX | GEN_SW_1P_TX | GEN_SW_0P_TX;
 
-	dsi_write(dsi, DSI_LPCLK_CTRL, lpm ? 0 : PHY_TXREQUESTCLKHS);
-	dsi_write(dsi, DSI_CMD_MODE_CFG, val);
+	regmap_write(dsi->regmap, DSI_LPCLK_CTRL, lpm ? 0 : PHY_TXREQUESTCLKHS);
+	regmap_write(dsi->regmap, DSI_CMD_MODE_CFG, val);
 }
 
 static int dw_mipi_dsi_gen_pkt_hdr_write(struct dw_mipi_dsi *dsi, u32 hdr_val)
@@ -700,21 +778,21 @@ static int dw_mipi_dsi_gen_pkt_hdr_write(struct dw_mipi_dsi *dsi, u32 hdr_val)
 	int ret;
 	u32 val, mask;
 
-	ret = readl_poll_timeout(dsi->base + DSI_CMD_PKT_STATUS,
-				 val, !(val & GEN_CMD_FULL), 1000,
-				 CMD_PKT_STATUS_TIMEOUT_US);
+	ret = regmap_read_poll_timeout(dsi->regmap, DSI_CMD_PKT_STATUS,
+				       val, !(val & GEN_CMD_FULL), 1000,
+				       CMD_PKT_STATUS_TIMEOUT_US);
 	if (ret < 0) {
 		DRM_DEV_ERROR(dsi->dev,
 			      "failed to get available command FIFO\n");
 		return ret;
 	}
 
-	dsi_write(dsi, DSI_GEN_HDR, hdr_val);
+	regmap_write(dsi->regmap, DSI_GEN_HDR, hdr_val);
 
 	mask = GEN_CMD_EMPTY | GEN_PLD_W_EMPTY;
-	ret = readl_poll_timeout(dsi->base + DSI_CMD_PKT_STATUS,
-				 val, (val & mask) == mask,
-				 1000, CMD_PKT_STATUS_TIMEOUT_US);
+	ret = regmap_read_poll_timeout(dsi->regmap, DSI_CMD_PKT_STATUS,
+				       val, (val & mask) == mask,
+				       1000, CMD_PKT_STATUS_TIMEOUT_US);
 	if (ret < 0) {
 		DRM_DEV_ERROR(dsi->dev, "failed to write command FIFO\n");
 		return ret;
@@ -772,18 +850,18 @@ static int dw_mipi_dsi_dcs_long_write(struct dw_mipi_dsi *dsi,
 		if (len < pld_data_bytes) {
 			remainder = 0;
 			memcpy(&remainder, tx_buf, len);
-			dsi_write(dsi, DSI_GEN_PLD_DATA, remainder);
+			regmap_write(dsi->regmap, DSI_GEN_PLD_DATA, remainder);
 			len = 0;
 		} else {
 			memcpy(&remainder, tx_buf, pld_data_bytes);
-			dsi_write(dsi, DSI_GEN_PLD_DATA, remainder);
+			regmap_write(dsi->regmap, DSI_GEN_PLD_DATA, remainder);
 			tx_buf += pld_data_bytes;
 			len -= pld_data_bytes;
 		}
 
-		ret = readl_poll_timeout(dsi->base + DSI_CMD_PKT_STATUS,
-					 val, !(val & GEN_PLD_W_FULL), 1000,
-					 CMD_PKT_STATUS_TIMEOUT_US);
+		ret = regmap_read_poll_timeout(dsi->regmap, DSI_CMD_PKT_STATUS,
+					       val, !(val & GEN_PLD_W_FULL),
+					       1000, CMD_PKT_STATUS_TIMEOUT_US);
 		if (ret < 0) {
 			DRM_DEV_ERROR(dsi->dev,
 				      "failed to get available write payload FIFO\n");
@@ -840,29 +918,29 @@ static void dw_mipi_dsi_video_mode_config(struct dw_mipi_dsi *dsi)
 	else
 		val |= VID_MODE_TYPE_NON_BURST_SYNC_EVENTS;
 
-	dsi_write(dsi, DSI_VID_MODE_CFG, val);
+	regmap_write(dsi->regmap, DSI_VID_MODE_CFG, val);
 }
 
 static void dw_mipi_dsi_set_vid_mode(struct dw_mipi_dsi *dsi)
 {
-	dsi_write(dsi, DSI_PWR_UP, RESET);
-	dsi_write(dsi, DSI_MODE_CFG, CMD_VIDEO_MODE(VIDEO_MODE));
+	regmap_write(dsi->regmap, DSI_PWR_UP, RESET);
+	regmap_write(dsi->regmap, DSI_MODE_CFG, CMD_VIDEO_MODE(VIDEO_MODE));
 	dw_mipi_dsi_video_mode_config(dsi);
-	dsi_write(dsi, DSI_LPCLK_CTRL, PHY_TXREQUESTCLKHS);
-	dsi_write(dsi, DSI_PWR_UP, POWER_UP);
+	regmap_write(dsi->regmap, DSI_LPCLK_CTRL, PHY_TXREQUESTCLKHS);
+	regmap_write(dsi->regmap, DSI_PWR_UP, POWER_UP);
 }
 
 static void dw_mipi_dsi_set_cmd_mode(struct dw_mipi_dsi *dsi)
 {
-	dsi_write(dsi, DSI_PWR_UP, RESET);
-	dsi_write(dsi, DSI_MODE_CFG, CMD_VIDEO_MODE(COMMAND_MODE));
-	dsi_write(dsi, DSI_PWR_UP, POWER_UP);
+	regmap_write(dsi->regmap, DSI_PWR_UP, RESET);
+	regmap_write(dsi->regmap, DSI_MODE_CFG, CMD_VIDEO_MODE(COMMAND_MODE));
+	regmap_write(dsi->regmap, DSI_PWR_UP, POWER_UP);
 }
 
 static void dw_mipi_dsi_disable(struct dw_mipi_dsi *dsi)
 {
-	dsi_write(dsi, DSI_PWR_UP, RESET);
-	dsi_write(dsi, DSI_PHY_RSTZ, 0);
+	regmap_write(dsi->regmap, DSI_PWR_UP, RESET);
+	regmap_write(dsi->regmap, DSI_PHY_RSTZ, 0);
 }
 
 static void dw_mipi_dsi_init(struct dw_mipi_dsi *dsi)
@@ -877,10 +955,10 @@ static void dw_mipi_dsi_init(struct dw_mipi_dsi *dsi)
 	 */
 	u32 esc_clk_division = (dsi->lane_mbps >> 3) / 20 + 1;
 
-	dsi_write(dsi, DSI_PWR_UP, RESET);
-	dsi_write(dsi, DSI_PHY_RSTZ, 0);
-	dsi_write(dsi, DSI_CLKMGR_CFG, TO_CLK_DIVISION(10) |
-		  TX_ESC_CLK_DIVISION(esc_clk_division));
+	regmap_write(dsi->regmap, DSI_PWR_UP, RESET);
+	regmap_write(dsi->regmap, DSI_PHY_RSTZ, 0);
+	regmap_write(dsi->regmap, DSI_CLKMGR_CFG, TO_CLK_DIVISION(10) |
+		     TX_ESC_CLK_DIVISION(esc_clk_division));
 }
 
 static void dw_mipi_dsi_dpi_config(struct dw_mipi_dsi *dsi,
@@ -910,29 +988,32 @@ static void dw_mipi_dsi_dpi_config(struct dw_mipi_dsi *dsi,
 	if (mode->flags & DRM_MODE_FLAG_NHSYNC)
 		val |= HSYNC_ACTIVE_LOW;
 
-	dsi_write(dsi, DSI_DPI_VCID, DPI_VID(dsi->channel));
-	dsi_write(dsi, DSI_DPI_COLOR_CODING, color);
-	dsi_write(dsi, DSI_DPI_CFG_POL, val);
-	dsi_write(dsi, DSI_DPI_LP_CMD_TIM, OUTVACT_LPCMD_TIME(4) |
-		  INVACT_LPCMD_TIME(4));
+	regmap_write(dsi->regmap, DSI_DPI_VCID, DPI_VID(dsi->channel));
+	regmap_write(dsi->regmap, DSI_DPI_COLOR_CODING, color);
+	regmap_write(dsi->regmap, DSI_DPI_CFG_POL, val);
+	regmap_write(dsi->regmap, DSI_DPI_LP_CMD_TIM, OUTVACT_LPCMD_TIME(4) |
+		     INVACT_LPCMD_TIME(4));
 }
 
 static void dw_mipi_dsi_packet_handler_config(struct dw_mipi_dsi *dsi)
 {
-	dsi_write(dsi, DSI_PCKHDL_CFG, CRC_RX_EN | ECC_RX_EN | BTA_EN);
+	regmap_write(dsi->regmap, DSI_PCKHDL_CFG,
+		     CRC_RX_EN | ECC_RX_EN | BTA_EN);
 }
 
 static void dw_mipi_dsi_video_packet_config(struct dw_mipi_dsi *dsi,
 					    struct drm_display_mode *mode)
 {
-	dsi_write(dsi, DSI_VID_PKT_SIZE, VID_PKT_SIZE(mode->hdisplay));
+	regmap_write(dsi->regmap, DSI_VID_PKT_SIZE,
+		     VID_PKT_SIZE(mode->hdisplay));
 }
 
 static void dw_mipi_dsi_command_mode_config(struct dw_mipi_dsi *dsi)
 {
-	dsi_write(dsi, DSI_TO_CNT_CFG, HSTX_TO_CNT(1000) | LPRX_TO_CNT(1000));
-	dsi_write(dsi, DSI_BTA_TO_CNT, 0xd00);
-	dsi_write(dsi, DSI_MODE_CFG, CMD_VIDEO_MODE(COMMAND_MODE));
+	regmap_write(dsi->regmap, DSI_TO_CNT_CFG,
+		     HSTX_TO_CNT(1000) | LPRX_TO_CNT(1000));
+	regmap_write(dsi->regmap, DSI_BTA_TO_CNT, 0xd00);
+	regmap_write(dsi->regmap, DSI_MODE_CFG, CMD_VIDEO_MODE(COMMAND_MODE));
 }
 
 /* Get lane byte clock cycles. */
@@ -962,13 +1043,13 @@ static void dw_mipi_dsi_line_timer_config(struct dw_mipi_dsi *dsi,
 	hbp = mode->htotal - mode->hsync_end;
 
 	lbcc = dw_mipi_dsi_get_hcomponent_lbcc(dsi, mode, htotal);
-	dsi_write(dsi, DSI_VID_HLINE_TIME, lbcc);
+	regmap_write(dsi->regmap, DSI_VID_HLINE_TIME, lbcc);
 
 	lbcc = dw_mipi_dsi_get_hcomponent_lbcc(dsi, mode, hsa);
-	dsi_write(dsi, DSI_VID_HSA_TIME, lbcc);
+	regmap_write(dsi->regmap, DSI_VID_HSA_TIME, lbcc);
 
 	lbcc = dw_mipi_dsi_get_hcomponent_lbcc(dsi, mode, hbp);
-	dsi_write(dsi, DSI_VID_HBP_TIME, lbcc);
+	regmap_write(dsi->regmap, DSI_VID_HBP_TIME, lbcc);
 }
 
 static void dw_mipi_dsi_vertical_timing_config(struct dw_mipi_dsi *dsi,
@@ -981,33 +1062,31 @@ static void dw_mipi_dsi_vertical_timing_config(struct dw_mipi_dsi *dsi,
 	vfp = mode->vsync_start - mode->vdisplay;
 	vbp = mode->vtotal - mode->vsync_end;
 
-	dsi_write(dsi, DSI_VID_VACTIVE_LINES, vactive);
-	dsi_write(dsi, DSI_VID_VSA_LINES, vsa);
-	dsi_write(dsi, DSI_VID_VFP_LINES, vfp);
-	dsi_write(dsi, DSI_VID_VBP_LINES, vbp);
+	regmap_write(dsi->regmap, DSI_VID_VACTIVE_LINES, vactive);
+	regmap_write(dsi->regmap, DSI_VID_VSA_LINES, vsa);
+	regmap_write(dsi->regmap, DSI_VID_VFP_LINES, vfp);
+	regmap_write(dsi->regmap, DSI_VID_VBP_LINES, vbp);
 }
 
 static void dw_mipi_dsi_dphy_timing_config(struct dw_mipi_dsi *dsi)
 {
-	dsi_write(dsi, DSI_PHY_TMR_CFG, PHY_HS2LP_TIME(0x40)
-		  | PHY_LP2HS_TIME(0x40) | MAX_RD_TIME(10000));
+	regmap_write(dsi->regmap, DSI_PHY_TMR_CFG, PHY_HS2LP_TIME(0x40) |
+		     PHY_LP2HS_TIME(0x40) | MAX_RD_TIME(10000));
 
-	dsi_write(dsi, DSI_PHY_TMR_LPCLK_CFG, PHY_CLKHS2LP_TIME(0x40)
-		  | PHY_CLKLP2HS_TIME(0x40));
+	regmap_write(dsi->regmap, DSI_PHY_TMR_LPCLK_CFG,
+		     PHY_CLKHS2LP_TIME(0x40) | PHY_CLKLP2HS_TIME(0x40));
 }
 
 static void dw_mipi_dsi_dphy_interface_config(struct dw_mipi_dsi *dsi)
 {
-	dsi_write(dsi, DSI_PHY_IF_CFG, PHY_STOP_WAIT_TIME(0x20) |
-		  N_LANES(dsi->lanes - 1));
+	regmap_write(dsi->regmap, DSI_PHY_IF_CFG, PHY_STOP_WAIT_TIME(0x20) |
+		     N_LANES(dsi->lanes - 1));
 }
 
 static void dw_mipi_dsi_clear_err(struct dw_mipi_dsi *dsi)
 {
-	dsi_read(dsi, DSI_INT_ST0);
-	dsi_read(dsi, DSI_INT_ST1);
-	dsi_write(dsi, DSI_INT_MSK0, 0);
-	dsi_write(dsi, DSI_INT_MSK1, 0);
+	regmap_write(dsi->regmap, DSI_INT_MSK0, 0);
+	regmap_write(dsi->regmap, DSI_INT_MSK1, 0);
 }
 
 static void dw_mipi_dsi_encoder_disable(struct drm_encoder *encoder)
@@ -1196,6 +1275,15 @@ static int dw_mipi_dsi_register(struct drm_device *drm,
 	return 0;
 }
 
+static const struct regmap_config dw_mipi_dsi_regmap_config = {
+	.name = "host",
+	.reg_bits = 32,
+	.val_bits = 32,
+	.reg_stride = 4,
+	.fast_io = true,
+	.max_register = DSI_MAX_REGISGER,
+};
+
 static int dw_mipi_dsi_bind(struct device *dev, struct device *master,
 			    void *data)
 {
@@ -1204,6 +1292,7 @@ static int dw_mipi_dsi_bind(struct device *dev, struct device *master,
 	struct drm_device *drm = data;
 	struct dw_mipi_dsi *dsi;
 	struct resource *res;
+	void __iomem *regs;
 	int id;
 	int ret;
 
@@ -1221,9 +1310,17 @@ static int dw_mipi_dsi_bind(struct device *dev, struct device *master,
 	dsi->dpms_mode = DRM_MODE_DPMS_OFF;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	dsi->base = devm_ioremap_resource(dev, res);
-	if (IS_ERR(dsi->base))
-		return PTR_ERR(dsi->base);
+	regs = devm_ioremap_resource(dev, res);
+	if (IS_ERR(regs))
+		return PTR_ERR(regs);
+
+	dsi->regmap = devm_regmap_init_mmio(dev, regs,
+					    &dw_mipi_dsi_regmap_config);
+	if (IS_ERR(dsi->regmap)) {
+		ret = PTR_ERR(dsi->regmap);
+		DRM_DEV_ERROR(dev, "failed to init register map: %d\n", ret);
+		return ret;
+	}
 
 	ret = mipi_dphy_attach(dsi);
 	if (ret)
