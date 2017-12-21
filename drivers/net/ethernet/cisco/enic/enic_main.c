@@ -1500,7 +1500,7 @@ static int enic_poll(struct napi_struct *napi, int budget)
 	unsigned int cq_wq = enic_cq_wq(enic, 0);
 	unsigned int intr = enic_legacy_io_intr();
 	unsigned int rq_work_to_do = budget;
-	unsigned int wq_work_to_do = -1; /* no limit */
+	unsigned int wq_work_to_do = ENIC_WQ_NAPI_BUDGET;
 	unsigned int  work_done, rq_work_done = 0, wq_work_done;
 	int err;
 
@@ -1598,7 +1598,7 @@ static int enic_poll_msix_wq(struct napi_struct *napi, int budget)
 	struct vnic_wq *wq = &enic->wq[wq_index];
 	unsigned int cq;
 	unsigned int intr;
-	unsigned int wq_work_to_do = -1; /* clean all desc possible */
+	unsigned int wq_work_to_do = ENIC_WQ_NAPI_BUDGET;
 	unsigned int wq_work_done;
 	unsigned int wq_irq;
 

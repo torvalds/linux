@@ -43,6 +43,8 @@
 #define ENIC_CQ_MAX		(ENIC_WQ_MAX + ENIC_RQ_MAX)
 #define ENIC_INTR_MAX		(ENIC_CQ_MAX + 2)
 
+#define ENIC_WQ_NAPI_BUDGET	256
+
 #define ENIC_AIC_LARGE_PKT_DIFF	3
 
 struct enic_msix_entry {
