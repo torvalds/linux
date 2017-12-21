@@ -36,8 +36,6 @@ This ioctl is an extension to the memory mapping I/O method.
 It can be used to export a buffer as a DMABUF file at any time after
 buffers have been allocated with the :ref:`DMX_REQBUFS` ioctl.
 
-The ``reserved`` array must be zeroed before calling it.
-
 To export a buffer, applications fill struct :c:type:`dmx_exportbuffer`.
 Applications must set the ``index`` field. Valid index numbers
 range from zero to the number of buffers allocated with :ref:`DMX_REQBUFS`

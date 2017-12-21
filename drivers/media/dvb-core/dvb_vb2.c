@@ -143,7 +143,6 @@ static void _fill_dmx_buffer(struct vb2_buffer *vb, void *pb)
 	b->length = vb->planes[0].length;
 	b->bytesused = vb->planes[0].bytesused;
 	b->offset = vb->planes[0].m.offset;
-	memset(b->reserved, 0, sizeof(b->reserved));
 	dprintk(3, "[%s]\n", ctx->name);
 }
 

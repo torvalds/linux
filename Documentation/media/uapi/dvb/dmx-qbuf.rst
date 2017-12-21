@@ -45,8 +45,6 @@ numbers range from zero to the number of buffers allocated with
 one. The contents of the struct :c:type:`dmx_buffer` returned
 by a :ref:`DMX_QUERYBUF` ioctl will do as well.
 
-The and ``reserved`` field must be set to 0.
-
 When ``DMX_QBUF`` is called with a pointer to this structure, it locks the
 memory pages of the buffer in physical memory, so they cannot be swapped
 out to disk. Buffers remain locked until dequeued, until the

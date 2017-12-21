@@ -36,8 +36,6 @@ This ioctl is part of the mmap streaming I/O method. It can
 be used to query the status of a buffer at any time after buffers have
 been allocated with the :ref:`DMX_REQBUFS` ioctl.
 
-The ``reserved`` array must be zeroed before calling it.
-
 Applications set the ``index`` field. Valid index numbers range from zero
 to the number of buffers allocated with :ref:`DMX_REQBUFS`
 (struct :c:type:`dvb_requestbuffers` ``count``) minus one.

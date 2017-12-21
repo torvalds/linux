@@ -42,8 +42,6 @@ allocated by applications through a device driver, and this ioctl only
 configures the driver into DMABUF I/O mode without performing any direct
 allocation.
 
-The ``reserved`` array must be zeroed before calling it.
-
 To allocate device buffers applications initialize all fields of the
 struct :c:type:`dmx_requestbuffers` structure. They set the  ``count`` field
 to the desired number of buffers,  and ``size`` to the size of each
