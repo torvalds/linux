@@ -131,3 +131,13 @@
 		};
 	};
 };
+
+&arm_a7_pmu {
+	interrupt-affinity = <&cpu0>, <&cpu1>, <&cpu2>, <&cpu3>;
+	status = "okay";
+};
+
+&arm_a15_pmu {
+	interrupt-affinity = <&cpu4>, <&cpu5>, <&cpu6>, <&cpu7>;
+	status = "okay";
+};
