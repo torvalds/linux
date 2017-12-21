@@ -385,21 +385,12 @@ static bool dce_abm_init_backlight(struct abm *abm)
 	return true;
 }
 
-static bool is_dmcu_initialized(struct abm *abm)
-{
-	struct dce_abm *abm_dce = TO_DCE_ABM(abm);
-	unsigned int dmcu_uc_reset;
-
-	REG_GET(DMCU_STATUS, UC_IN_RESET, &dmcu_uc_reset);
-
-	return !dmcu_uc_reset;
-}
-
 static bool dce_abm_set_backlight_level(
 		struct abm *abm,
 		unsigned int backlight_level,
 		unsigned int frame_ramp,
-		unsigned int controller_id)
+		unsigned int controller_id,
+		bool use_smooth_brightness)
 {
 	struct dce_abm *abm_dce = TO_DCE_ABM(abm);
 
@@ -408,7 +399,7 @@ static bool dce_abm_set_backlight_level(
 			backlight_level, backlight_level);
 
 	/* If DMCU is in reset state, DMCU is uninitialized */
-	if (is_dmcu_initialized(abm))
+	if (use_smooth_brightness)
 		dmcu_set_backlight_level(abm_dce,
 				backlight_level,
 				frame_ramp,
@@ -425,8 +416,7 @@ static const struct abm_funcs dce_funcs = {
 	.init_backlight = dce_abm_init_backlight,
 	.set_backlight_level = dce_abm_set_backlight_level,
 	.get_current_backlight_8_bit = dce_abm_get_current_backlight_8_bit,
-	.set_abm_immediate_disable = dce_abm_immediate_disable,
-	.is_dmcu_initialized = is_dmcu_initialized
+	.set_abm_immediate_disable = dce_abm_immediate_disable
 };
 
 static void dce_abm_construct(

@@ -35,35 +35,6 @@ static void set_soc_bounding_box(struct _vcs_dpi_soc_bounding_box_st *soc, enum 
 		soc->writeback_latency_us = 12.0;
 		soc->ideal_dram_bw_after_urgent_percent = 80.0;
 		soc->max_request_size_bytes = 256;
-
-		soc->vmin.dcfclk_mhz = 300.0;
-		soc->vmin.dispclk_mhz = 608.0;
-		soc->vmin.dppclk_mhz = 435.0;
-		soc->vmin.dram_bw_per_chan_gbps = 12.8;
-		soc->vmin.phyclk_mhz = 540.0;
-		soc->vmin.socclk_mhz = 208.0;
-
-		soc->vmid.dcfclk_mhz = 600.0;
-		soc->vmid.dispclk_mhz = 661.0;
-		soc->vmid.dppclk_mhz = 661.0;
-		soc->vmid.dram_bw_per_chan_gbps = 12.8;
-		soc->vmid.phyclk_mhz = 540.0;
-		soc->vmid.socclk_mhz = 208.0;
-
-		soc->vnom.dcfclk_mhz = 600.0;
-		soc->vnom.dispclk_mhz = 661.0;
-		soc->vnom.dppclk_mhz = 661.0;
-		soc->vnom.dram_bw_per_chan_gbps = 38.4;
-		soc->vnom.phyclk_mhz = 810;
-		soc->vnom.socclk_mhz = 208.0;
-
-		soc->vmax.dcfclk_mhz = 600.0;
-		soc->vmax.dispclk_mhz = 1086.0;
-		soc->vmax.dppclk_mhz = 661.0;
-		soc->vmax.dram_bw_per_chan_gbps = 38.4;
-		soc->vmax.phyclk_mhz = 810.0;
-		soc->vmax.socclk_mhz = 208.0;
-
 		soc->downspread_percent = 0.5;
 		soc->dram_page_open_time_ns = 50.0;
 		soc->dram_rw_turnaround_time_ns = 17.5;

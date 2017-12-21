@@ -226,7 +226,7 @@ bool dc_stream_set_cursor_attributes(
 		if (pipe_ctx->plane_res.dpp != NULL &&
 				pipe_ctx->plane_res.dpp->funcs->set_cursor_attributes != NULL)
 			pipe_ctx->plane_res.dpp->funcs->set_cursor_attributes(
-				pipe_ctx->plane_res.dpp, attributes);
+				pipe_ctx->plane_res.dpp, attributes->color_format);
 	}
 
 	stream->cursor_attributes = *attributes;
@@ -300,6 +300,8 @@ bool dc_stream_set_cursor_position(
 			dpp->funcs->set_cursor_position(dpp, &pos_cpy, &param, hubp->curs_attr.width);
 
 	}
+
+	stream->cursor_position = *position;
 
 	return true;
 }

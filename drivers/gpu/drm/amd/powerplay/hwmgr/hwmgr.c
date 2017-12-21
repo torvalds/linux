@@ -149,6 +149,7 @@ int hwmgr_early_init(struct pp_instance *handle)
 	hwmgr->power_source = PP_PowerSource_AC;
 	hwmgr->pp_table_version = PP_TABLE_V1;
 	hwmgr->dpm_level = AMD_DPM_FORCED_LEVEL_AUTO;
+	hwmgr->request_dpm_level = AMD_DPM_FORCED_LEVEL_AUTO;
 	hwmgr_init_default_caps(hwmgr);
 	hwmgr_set_user_specify_caps(hwmgr);
 	hwmgr->fan_ctrl_is_in_default_mode = true;

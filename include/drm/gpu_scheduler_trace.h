@@ -31,14 +31,14 @@
 #include <drm/drmP.h>
 
 #undef TRACE_SYSTEM
-#define TRACE_SYSTEM gpu_sched
-#define TRACE_INCLUDE_FILE gpu_sched_trace
+#define TRACE_SYSTEM gpu_scheduler
+#define TRACE_INCLUDE_FILE gpu_scheduler_trace
 
-TRACE_EVENT(amd_sched_job,
-	    TP_PROTO(struct amd_sched_job *sched_job, struct amd_sched_entity *entity),
+TRACE_EVENT(drm_sched_job,
+	    TP_PROTO(struct drm_sched_job *sched_job, struct drm_sched_entity *entity),
 	    TP_ARGS(sched_job, entity),
 	    TP_STRUCT__entry(
-			     __field(struct amd_sched_entity *, entity)
+			     __field(struct drm_sched_entity *, entity)
 			     __field(struct dma_fence *, fence)
 			     __field(const char *, name)
 			     __field(uint64_t, id)
@@ -61,8 +61,8 @@ TRACE_EVENT(amd_sched_job,
 		      __entry->job_count, __entry->hw_job_count)
 );
 
-TRACE_EVENT(amd_sched_process_job,
-	    TP_PROTO(struct amd_sched_fence *fence),
+TRACE_EVENT(drm_sched_process_job,
+	    TP_PROTO(struct drm_sched_fence *fence),
 	    TP_ARGS(fence),
 	    TP_STRUCT__entry(
 		    __field(struct dma_fence *, fence)

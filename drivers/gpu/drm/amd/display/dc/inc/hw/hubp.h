@@ -28,6 +28,20 @@
 
 #include "mem_input.h"
 
+
+enum cursor_pitch {
+	CURSOR_PITCH_64_PIXELS = 0,
+	CURSOR_PITCH_128_PIXELS,
+	CURSOR_PITCH_256_PIXELS
+};
+
+enum cursor_lines_per_chunk {
+	CURSOR_LINE_PER_CHUNK_2 = 1,
+	CURSOR_LINE_PER_CHUNK_4,
+	CURSOR_LINE_PER_CHUNK_8,
+	CURSOR_LINE_PER_CHUNK_16
+};
+
 struct hubp {
 	struct hubp_funcs *funcs;
 	struct dc_context *ctx;

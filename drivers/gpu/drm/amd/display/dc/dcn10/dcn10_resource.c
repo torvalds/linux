@@ -34,7 +34,7 @@
 #include "dcn10/dcn10_mpc.h"
 #include "irq/dcn10/irq_service_dcn10.h"
 #include "dcn10/dcn10_dpp.h"
-#include "dcn10/dcn10_timing_generator.h"
+#include "dcn10_optc.h"
 #include "dcn10/dcn10_hw_sequencer.h"
 #include "dce110/dce110_hw_sequencer.h"
 #include "dcn10/dcn10_opp.h"
@@ -348,18 +348,18 @@ static const struct dcn_mpc_mask mpc_mask = {
 #define tg_regs(id)\
 [id] = {TG_COMMON_REG_LIST_DCN1_0(id)}
 
-static const struct dcn_tg_registers tg_regs[] = {
+static const struct dcn_optc_registers tg_regs[] = {
 	tg_regs(0),
 	tg_regs(1),
 	tg_regs(2),
 	tg_regs(3),
 };
 
-static const struct dcn_tg_shift tg_shift = {
+static const struct dcn_optc_shift tg_shift = {
 	TG_COMMON_MASK_SH_LIST_DCN1_0(__SHIFT)
 };
 
-static const struct dcn_tg_mask tg_mask = {
+static const struct dcn_optc_mask tg_mask = {
 	TG_COMMON_MASK_SH_LIST_DCN1_0(_MASK)
 };
 
@@ -553,8 +553,8 @@ static struct timing_generator *dcn10_timing_generator_create(
 		struct dc_context *ctx,
 		uint32_t instance)
 {
-	struct dcn10_timing_generator *tgn10 =
-		kzalloc(sizeof(struct dcn10_timing_generator), GFP_KERNEL);
+	struct optc *tgn10 =
+		kzalloc(sizeof(struct optc), GFP_KERNEL);
 
 	if (!tgn10)
 		return NULL;
@@ -678,6 +678,7 @@ static struct dce_hwseq *dcn10_hwseq_create(
 		hws->shifts = &hwseq_shift;
 		hws->masks = &hwseq_mask;
 		hws->wa.DEGVIDCN10_253 = true;
+		hws->wa.false_optc_underflow = true;
 	}
 	return hws;
 }

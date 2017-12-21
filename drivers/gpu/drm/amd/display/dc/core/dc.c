@@ -283,19 +283,17 @@ static bool construct(struct dc *dc,
 		const struct dc_init_data *init_params)
 {
 	struct dal_logger *logger;
-	struct dc_context *dc_ctx = kzalloc(sizeof(*dc_ctx), GFP_KERNEL);
-	struct bw_calcs_dceip *dc_dceip = kzalloc(sizeof(*dc_dceip),
-						  GFP_KERNEL);
-	struct bw_calcs_vbios *dc_vbios = kzalloc(sizeof(*dc_vbios),
-						  GFP_KERNEL);
+	struct dc_context *dc_ctx;
+	struct bw_calcs_dceip *dc_dceip;
+	struct bw_calcs_vbios *dc_vbios;
 #ifdef CONFIG_DRM_AMD_DC_DCN1_0
-	struct dcn_soc_bounding_box *dcn_soc = kzalloc(sizeof(*dcn_soc),
-						       GFP_KERNEL);
-	struct dcn_ip_params *dcn_ip = kzalloc(sizeof(*dcn_ip), GFP_KERNEL);
+	struct dcn_soc_bounding_box *dcn_soc;
+	struct dcn_ip_params *dcn_ip;
 #endif
 
 	enum dce_version dc_version = DCE_VERSION_UNKNOWN;
 
+	dc_dceip = kzalloc(sizeof(*dc_dceip), GFP_KERNEL);
 	if (!dc_dceip) {
 		dm_error("%s: failed to create dceip\n", __func__);
 		goto fail;
@@ -303,6 +301,7 @@ static bool construct(struct dc *dc,
 
 	dc->bw_dceip = dc_dceip;
 
+	dc_vbios = kzalloc(sizeof(*dc_vbios), GFP_KERNEL);
 	if (!dc_vbios) {
 		dm_error("%s: failed to create vbios\n", __func__);
 		goto fail;
@@ -310,6 +309,7 @@ static bool construct(struct dc *dc,
 
 	dc->bw_vbios = dc_vbios;
 #ifdef CONFIG_DRM_AMD_DC_DCN1_0
+	dcn_soc = kzalloc(sizeof(*dcn_soc), GFP_KERNEL);
 	if (!dcn_soc) {
 		dm_error("%s: failed to create dcn_soc\n", __func__);
 		goto fail;
@@ -317,6 +317,7 @@ static bool construct(struct dc *dc,
 
 	dc->dcn_soc = dcn_soc;
 
+	dcn_ip = kzalloc(sizeof(*dcn_ip), GFP_KERNEL);
 	if (!dcn_ip) {
 		dm_error("%s: failed to create dcn_ip\n", __func__);
 		goto fail;
@@ -325,15 +326,9 @@ static bool construct(struct dc *dc,
 	dc->dcn_ip = dcn_ip;
 #endif
 
+	dc_ctx = kzalloc(sizeof(*dc_ctx), GFP_KERNEL);
 	if (!dc_ctx) {
 		dm_error("%s: failed to create ctx\n", __func__);
-		goto fail;
-	}
-
-	dc->current_state = dc_create_state();
-
-	if (!dc->current_state) {
-		dm_error("%s: failed to create validate ctx\n", __func__);
 		goto fail;
 	}
 
@@ -341,6 +336,14 @@ static bool construct(struct dc *dc,
 	dc_ctx->driver_context = init_params->driver;
 	dc_ctx->dc = dc;
 	dc_ctx->asic_id = init_params->asic_id;
+	dc->ctx = dc_ctx;
+
+	dc->current_state = dc_create_state();
+
+	if (!dc->current_state) {
+		dm_error("%s: failed to create validate ctx\n", __func__);
+		goto fail;
+	}
 
 	/* Create logger */
 	logger = dal_logger_create(dc_ctx, init_params->log_mask);
@@ -351,11 +354,10 @@ static bool construct(struct dc *dc,
 		goto fail;
 	}
 	dc_ctx->logger = logger;
-	dc->ctx = dc_ctx;
-	dc->ctx->dce_environment = init_params->dce_environment;
+	dc_ctx->dce_environment = init_params->dce_environment;
 
 	dc_version = resource_parse_asic_id(init_params->asic_id);
-	dc->ctx->dce_version = dc_version;
+	dc_ctx->dce_version = dc_version;
 
 #if defined(CONFIG_DRM_AMD_DC_FBC)
 	dc->ctx->fbc_gpu_addr = init_params->fbc_gpu_addr;
@@ -578,7 +580,7 @@ static void program_timing_sync(
 		for (j = 0; j < group_size; j++) {
 			struct pipe_ctx *temp;
 
-			if (!pipe_set[j]->stream_res.tg->funcs->is_blanked(pipe_set[j]->stream_res.tg)) {
+			if (pipe_set[j]->stream_res.tg->funcs->is_blanked && !pipe_set[j]->stream_res.tg->funcs->is_blanked(pipe_set[j]->stream_res.tg)) {
 				if (j == 0)
 					break;
 
@@ -591,7 +593,7 @@ static void program_timing_sync(
 
 		/* remove any other unblanked pipes as they have already been synced */
 		for (j = j + 1; j < group_size; j++) {
-			if (!pipe_set[j]->stream_res.tg->funcs->is_blanked(pipe_set[j]->stream_res.tg)) {
+			if (pipe_set[j]->stream_res.tg->funcs->is_blanked && !pipe_set[j]->stream_res.tg->funcs->is_blanked(pipe_set[j]->stream_res.tg)) {
 				group_size--;
 				pipe_set[j] = pipe_set[group_size];
 				j--;
@@ -785,6 +787,8 @@ bool dc_post_update_surfaces_to_stream(struct dc *dc)
 			context->res_ctx.pipe_ctx[i].pipe_idx = i;
 			dc->hwss.disable_plane(dc, &context->res_ctx.pipe_ctx[i]);
 		}
+
+	dc->optimized_required = false;
 
 	/* 3rd param should be true, temp w/a for RV*/
 #if defined(CONFIG_DRM_AMD_DC_DCN1_0)
@@ -980,6 +984,11 @@ static enum surface_update_type get_plane_info_update_type(const struct dc_surfa
 
 	if (u->plane_info->per_pixel_alpha != u->surface->per_pixel_alpha)
 		update_flags->bits.per_pixel_alpha_change = 1;
+
+	if (u->plane_info->dcc.enable != u->surface->dcc.enable
+			|| u->plane_info->dcc.grph.independent_64b_blks != u->surface->dcc.grph.independent_64b_blks
+			|| u->plane_info->dcc.grph.meta_pitch != u->surface->dcc.grph.meta_pitch)
+		update_flags->bits.dcc_change = 1;
 
 	if (pixel_format_to_bpp(u->plane_info->format) !=
 			pixel_format_to_bpp(u->surface->format))
@@ -1178,12 +1187,6 @@ static void commit_planes_for_stream(struct dc *dc,
 	if (update_type == UPDATE_TYPE_FULL) {
 		dc->hwss.set_bandwidth(dc, context, false);
 		context_clock_trace(dc, context);
-
-		for (j = 0; j < dc->res_pool->pipe_count; j++) {
-			struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[j];
-
-			dc->hwss.wait_for_mpcc_disconnect(dc, dc->res_pool, pipe_ctx);
-		}
 	}
 
 	if (surface_count == 0) {

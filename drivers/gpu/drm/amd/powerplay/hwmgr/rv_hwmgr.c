@@ -159,7 +159,6 @@ static int rv_construct_boot_state(struct pp_hwmgr *hwmgr)
 
 static int rv_set_clock_limit(struct pp_hwmgr *hwmgr, const void *input)
 {
-	struct rv_hwmgr *rv_data = (struct rv_hwmgr *)(hwmgr->backend);
 	struct PP_Clocks clocks = {0};
 	struct pp_display_clock_request clock_req;
 
@@ -169,39 +168,6 @@ static int rv_set_clock_limit(struct pp_hwmgr *hwmgr, const void *input)
 
 	PP_ASSERT_WITH_CODE(!rv_display_clock_voltage_request(hwmgr, &clock_req),
 				"Attempt to set DCF Clock Failed!", return -EINVAL);
-
-	if (((hwmgr->uvd_arbiter.vclk_soft_min / 100) != rv_data->vclk_soft_min) ||
-	    ((hwmgr->uvd_arbiter.dclk_soft_min / 100) != rv_data->dclk_soft_min)) {
-		rv_data->vclk_soft_min = hwmgr->uvd_arbiter.vclk_soft_min / 100;
-		rv_data->dclk_soft_min = hwmgr->uvd_arbiter.dclk_soft_min / 100;
-		smum_send_msg_to_smc_with_parameter(hwmgr,
-			PPSMC_MSG_SetSoftMinVcn,
-			(rv_data->vclk_soft_min << 16) | rv_data->vclk_soft_min);
-	}
-
-	if((hwmgr->gfx_arbiter.sclk_hard_min != 0) &&
-		((hwmgr->gfx_arbiter.sclk_hard_min / 100) != rv_data->soc_actual_hard_min_freq)) {
-		smum_send_msg_to_smc_with_parameter(hwmgr,
-					PPSMC_MSG_SetHardMinSocclkByFreq,
-					hwmgr->gfx_arbiter.sclk_hard_min / 100);
-		rv_read_arg_from_smc(hwmgr, &rv_data->soc_actual_hard_min_freq);
-	}
-
-	if ((hwmgr->gfx_arbiter.gfxclk != 0) &&
-		(rv_data->gfx_actual_soft_min_freq != (hwmgr->gfx_arbiter.gfxclk))) {
-		smum_send_msg_to_smc_with_parameter(hwmgr,
-					PPSMC_MSG_SetMinVideoGfxclkFreq,
-					hwmgr->gfx_arbiter.gfxclk / 100);
-		rv_read_arg_from_smc(hwmgr, &rv_data->gfx_actual_soft_min_freq);
-	}
-
-	if ((hwmgr->gfx_arbiter.fclk != 0) &&
-		(rv_data->fabric_actual_soft_min_freq != (hwmgr->gfx_arbiter.fclk / 100))) {
-		smum_send_msg_to_smc_with_parameter(hwmgr,
-					PPSMC_MSG_SetMinVideoFclkFreq,
-					hwmgr->gfx_arbiter.fclk / 100);
-		rv_read_arg_from_smc(hwmgr, &rv_data->fabric_actual_soft_min_freq);
-	}
 
 	return 0;
 }
@@ -518,17 +484,161 @@ static int rv_hwmgr_backend_fini(struct pp_hwmgr *hwmgr)
 static int rv_dpm_force_dpm_level(struct pp_hwmgr *hwmgr,
 				enum amd_dpm_forced_level level)
 {
+	if (hwmgr->smu_version < 0x1E3700) {
+		pr_info("smu firmware version too old, can not set dpm level\n");
+		return 0;
+	}
+
+	switch (level) {
+	case AMD_DPM_FORCED_LEVEL_HIGH:
+	case AMD_DPM_FORCED_LEVEL_PROFILE_PEAK:
+		smum_send_msg_to_smc_with_parameter(hwmgr,
+						PPSMC_MSG_SetHardMinGfxClk,
+						RAVEN_UMD_PSTATE_PEAK_GFXCLK);
+		smum_send_msg_to_smc_with_parameter(hwmgr,
+						PPSMC_MSG_SetHardMinFclkByFreq,
+						RAVEN_UMD_PSTATE_PEAK_FCLK);
+		smum_send_msg_to_smc_with_parameter(hwmgr,
+						PPSMC_MSG_SetHardMinSocclkByFreq,
+						RAVEN_UMD_PSTATE_PEAK_SOCCLK);
+		smum_send_msg_to_smc_with_parameter(hwmgr,
+						PPSMC_MSG_SetHardMinVcn,
+						RAVEN_UMD_PSTATE_VCE);
+
+		smum_send_msg_to_smc_with_parameter(hwmgr,
+						PPSMC_MSG_SetSoftMaxGfxClk,
+						RAVEN_UMD_PSTATE_PEAK_GFXCLK);
+		smum_send_msg_to_smc_with_parameter(hwmgr,
+						PPSMC_MSG_SetSoftMaxFclkByFreq,
+						RAVEN_UMD_PSTATE_PEAK_FCLK);
+		smum_send_msg_to_smc_with_parameter(hwmgr,
+						PPSMC_MSG_SetSoftMaxSocclkByFreq,
+						RAVEN_UMD_PSTATE_PEAK_SOCCLK);
+		smum_send_msg_to_smc_with_parameter(hwmgr,
+						PPSMC_MSG_SetSoftMaxVcn,
+						RAVEN_UMD_PSTATE_VCE);
+		break;
+	case AMD_DPM_FORCED_LEVEL_PROFILE_MIN_SCLK:
+		smum_send_msg_to_smc_with_parameter(hwmgr,
+						PPSMC_MSG_SetHardMinGfxClk,
+						RAVEN_UMD_PSTATE_MIN_GFXCLK);
+		smum_send_msg_to_smc_with_parameter(hwmgr,
+						PPSMC_MSG_SetSoftMaxGfxClk,
+						RAVEN_UMD_PSTATE_MIN_GFXCLK);
+		break;
+	case AMD_DPM_FORCED_LEVEL_PROFILE_MIN_MCLK:
+		smum_send_msg_to_smc_with_parameter(hwmgr,
+						PPSMC_MSG_SetHardMinFclkByFreq,
+						RAVEN_UMD_PSTATE_MIN_FCLK);
+		smum_send_msg_to_smc_with_parameter(hwmgr,
+						PPSMC_MSG_SetSoftMaxFclkByFreq,
+						RAVEN_UMD_PSTATE_MIN_FCLK);
+		break;
+	case AMD_DPM_FORCED_LEVEL_PROFILE_STANDARD:
+		smum_send_msg_to_smc_with_parameter(hwmgr,
+						PPSMC_MSG_SetHardMinGfxClk,
+						RAVEN_UMD_PSTATE_GFXCLK);
+		smum_send_msg_to_smc_with_parameter(hwmgr,
+						PPSMC_MSG_SetHardMinFclkByFreq,
+						RAVEN_UMD_PSTATE_FCLK);
+		smum_send_msg_to_smc_with_parameter(hwmgr,
+						PPSMC_MSG_SetHardMinSocclkByFreq,
+						RAVEN_UMD_PSTATE_SOCCLK);
+		smum_send_msg_to_smc_with_parameter(hwmgr,
+						PPSMC_MSG_SetHardMinVcn,
+						RAVEN_UMD_PSTATE_VCE);
+
+		smum_send_msg_to_smc_with_parameter(hwmgr,
+						PPSMC_MSG_SetSoftMaxGfxClk,
+						RAVEN_UMD_PSTATE_GFXCLK);
+		smum_send_msg_to_smc_with_parameter(hwmgr,
+						PPSMC_MSG_SetSoftMaxFclkByFreq,
+						RAVEN_UMD_PSTATE_FCLK);
+		smum_send_msg_to_smc_with_parameter(hwmgr,
+						PPSMC_MSG_SetSoftMaxSocclkByFreq,
+						RAVEN_UMD_PSTATE_SOCCLK);
+		smum_send_msg_to_smc_with_parameter(hwmgr,
+						PPSMC_MSG_SetSoftMaxVcn,
+						RAVEN_UMD_PSTATE_VCE);
+		break;
+	case AMD_DPM_FORCED_LEVEL_AUTO:
+		smum_send_msg_to_smc_with_parameter(hwmgr,
+						PPSMC_MSG_SetHardMinGfxClk,
+						RAVEN_UMD_PSTATE_MIN_GFXCLK);
+		smum_send_msg_to_smc_with_parameter(hwmgr,
+						PPSMC_MSG_SetHardMinFclkByFreq,
+						RAVEN_UMD_PSTATE_MIN_FCLK);
+		smum_send_msg_to_smc_with_parameter(hwmgr,
+						PPSMC_MSG_SetHardMinSocclkByFreq,
+						RAVEN_UMD_PSTATE_MIN_SOCCLK);
+		smum_send_msg_to_smc_with_parameter(hwmgr,
+						PPSMC_MSG_SetHardMinVcn,
+						RAVEN_UMD_PSTATE_MIN_VCE);
+
+		smum_send_msg_to_smc_with_parameter(hwmgr,
+						PPSMC_MSG_SetSoftMaxGfxClk,
+						RAVEN_UMD_PSTATE_PEAK_GFXCLK);
+		smum_send_msg_to_smc_with_parameter(hwmgr,
+						PPSMC_MSG_SetSoftMaxFclkByFreq,
+						RAVEN_UMD_PSTATE_PEAK_FCLK);
+		smum_send_msg_to_smc_with_parameter(hwmgr,
+						PPSMC_MSG_SetSoftMaxSocclkByFreq,
+						RAVEN_UMD_PSTATE_PEAK_SOCCLK);
+		smum_send_msg_to_smc_with_parameter(hwmgr,
+						PPSMC_MSG_SetSoftMaxVcn,
+						RAVEN_UMD_PSTATE_VCE);
+		break;
+	case AMD_DPM_FORCED_LEVEL_LOW:
+		smum_send_msg_to_smc_with_parameter(hwmgr,
+						PPSMC_MSG_SetHardMinGfxClk,
+						RAVEN_UMD_PSTATE_MIN_GFXCLK);
+		smum_send_msg_to_smc_with_parameter(hwmgr,
+						PPSMC_MSG_SetSoftMaxGfxClk,
+						RAVEN_UMD_PSTATE_MIN_GFXCLK);
+		smum_send_msg_to_smc_with_parameter(hwmgr,
+						PPSMC_MSG_SetHardMinFclkByFreq,
+						RAVEN_UMD_PSTATE_MIN_FCLK);
+		smum_send_msg_to_smc_with_parameter(hwmgr,
+						PPSMC_MSG_SetSoftMaxFclkByFreq,
+						RAVEN_UMD_PSTATE_MIN_FCLK);
+		break;
+	case AMD_DPM_FORCED_LEVEL_MANUAL:
+	case AMD_DPM_FORCED_LEVEL_PROFILE_EXIT:
+	default:
+		break;
+	}
 	return 0;
 }
 
 static uint32_t rv_dpm_get_mclk(struct pp_hwmgr *hwmgr, bool low)
 {
-	return 0;
+	struct rv_hwmgr *data;
+
+	if (hwmgr == NULL)
+		return -EINVAL;
+
+	data = (struct rv_hwmgr *)(hwmgr->backend);
+
+	if (low)
+		return data->clock_vol_info.vdd_dep_on_fclk->entries[0].clk;
+	else
+		return data->clock_vol_info.vdd_dep_on_fclk->entries[
+			data->clock_vol_info.vdd_dep_on_fclk->count - 1].clk;
 }
 
 static uint32_t rv_dpm_get_sclk(struct pp_hwmgr *hwmgr, bool low)
 {
-	return 0;
+	struct rv_hwmgr *data;
+
+	if (hwmgr == NULL)
+		return -EINVAL;
+
+	data = (struct rv_hwmgr *)(hwmgr->backend);
+
+	if (low)
+		return data->gfx_min_freq_limit;
+	else
+		return data->gfx_max_freq_limit;
 }
 
 static int rv_dpm_patch_boot_state(struct pp_hwmgr *hwmgr,

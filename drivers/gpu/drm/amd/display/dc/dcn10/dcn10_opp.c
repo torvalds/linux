@@ -296,13 +296,75 @@ void opp1_program_fmt(
 	return;
 }
 
-void opp1_set_stereo_polarity(
-		struct output_pixel_processor *opp,
-		bool enable, bool rightEyePolarity)
+void opp1_program_stereo(
+	struct output_pixel_processor *opp,
+	bool enable,
+	const struct dc_crtc_timing *timing)
 {
 	struct dcn10_opp *oppn10 = TO_DCN10_OPP(opp);
 
-	REG_UPDATE(FMT_CONTROL, FMT_STEREOSYNC_OVERRIDE, enable);
+	uint32_t active_width = timing->h_addressable - timing->h_border_right - timing->h_border_right;
+	uint32_t space1_size = timing->v_total - timing->v_addressable;
+	/* TODO: confirm computation of space2_size */
+	uint32_t space2_size = timing->v_total - timing->v_addressable;
+
+	if (!enable) {
+		active_width = 0;
+		space1_size = 0;
+		space2_size = 0;
+	}
+
+	/* TODO: for which cases should FMT_STEREOSYNC_OVERRIDE be set? */
+	REG_UPDATE(FMT_CONTROL, FMT_STEREOSYNC_OVERRIDE, 0);
+
+	REG_UPDATE(OPPBUF_CONTROL, OPPBUF_ACTIVE_WIDTH, active_width);
+
+	/* Program OPPBUF_3D_VACT_SPACE1_SIZE and OPPBUF_VACT_SPACE2_SIZE registers
+	 * In 3D progressive frames, Vactive space happens only in between the 2 frames,
+	 * so only need to program OPPBUF_3D_VACT_SPACE1_SIZE
+	 * In 3D alternative frames, left and right frames, top and bottom field.
+	 */
+	if (timing->timing_3d_format == TIMING_3D_FORMAT_FRAME_ALTERNATE)
+		REG_UPDATE(OPPBUF_3D_PARAMETERS_0, OPPBUF_3D_VACT_SPACE2_SIZE, space2_size);
+	else
+		REG_UPDATE(OPPBUF_3D_PARAMETERS_0, OPPBUF_3D_VACT_SPACE1_SIZE, space1_size);
+
+	/* TODO: Is programming of OPPBUF_DUMMY_DATA_R/G/B needed? */
+	/*
+	REG_UPDATE(OPPBUF_3D_PARAMETERS_0,
+			OPPBUF_DUMMY_DATA_R, data_r);
+	REG_UPDATE(OPPBUF_3D_PARAMETERS_1,
+			OPPBUF_DUMMY_DATA_G, data_g);
+	REG_UPDATE(OPPBUF_3D_PARAMETERS_1,
+			OPPBUF_DUMMY_DATA_B, _data_b);
+	*/
+}
+
+void opp1_program_oppbuf(
+	struct output_pixel_processor *opp,
+	struct oppbuf_params *oppbuf)
+{
+	struct dcn10_opp *oppn10 = TO_DCN10_OPP(opp);
+
+	/* Program the oppbuf active width to be the frame width from mpc */
+	REG_UPDATE(OPPBUF_CONTROL, OPPBUF_ACTIVE_WIDTH, oppbuf->active_width);
+
+	/* Specifies the number of segments in multi-segment mode (DP-MSO operation)
+	 * description  "In 1/2/4 segment mode, specifies the horizontal active width in pixels of the display panel.
+	 * In 4 segment split left/right mode, specifies the horizontal 1/2 active width in pixels of the display panel.
+	 * Used to determine segment boundaries in multi-segment mode. Used to determine the width of the vertical active space in 3D frame packed modes.
+	 * OPPBUF_ACTIVE_WIDTH must be integer divisible by the total number of segments."
+	 */
+	REG_UPDATE(OPPBUF_CONTROL, OPPBUF_DISPLAY_SEGMENTATION, oppbuf->mso_segmentation);
+
+	/* description  "Specifies the number of overlap pixels (1-8 overlapping pixels supported), used in multi-segment mode (DP-MSO operation)" */
+	REG_UPDATE(OPPBUF_CONTROL, OPPBUF_OVERLAP_PIXEL_NUM, oppbuf->mso_overlap_pixel_num);
+
+	/* description  "Specifies the number of times a pixel is replicated (0-15 pixel replications supported).
+	 * A value of 0 disables replication. The total number of times a pixel is output is OPPBUF_PIXEL_REPETITION + 1."
+	 */
+	REG_UPDATE(OPPBUF_CONTROL, OPPBUF_PIXEL_REPETITION, oppbuf->pixel_repetition);
+
 }
 
 /*****************************************/
@@ -319,7 +381,7 @@ static struct opp_funcs dcn10_opp_funcs = {
 		.opp_set_dyn_expansion = opp1_set_dyn_expansion,
 		.opp_program_fmt = opp1_program_fmt,
 		.opp_program_bit_depth_reduction = opp1_program_bit_depth_reduction,
-		.opp_set_stereo_polarity = opp1_set_stereo_polarity,
+		.opp_program_stereo = opp1_program_stereo,
 		.opp_destroy = opp1_destroy
 };
 
@@ -330,6 +392,7 @@ void dcn10_opp_construct(struct dcn10_opp *oppn10,
 	const struct dcn10_opp_shift *opp_shift,
 	const struct dcn10_opp_mask *opp_mask)
 {
+
 	oppn10->base.ctx = ctx;
 	oppn10->base.inst = inst;
 	oppn10->base.funcs = &dcn10_opp_funcs;
@@ -338,4 +401,3 @@ void dcn10_opp_construct(struct dcn10_opp *oppn10,
 	oppn10->opp_shift = opp_shift;
 	oppn10->opp_mask = opp_mask;
 }
-

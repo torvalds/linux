@@ -535,7 +535,7 @@ int smu7_upload_smu_firmware_image(struct pp_hwmgr *hwmgr)
 			smu7_convert_fw_type_to_cgs(UCODE_ID_SMU_SK), &info);
 
 	hwmgr->is_kicker = info.is_kicker;
-
+	hwmgr->smu_version = info.version;
 	result = smu7_upload_smc_firmware_data(hwmgr, info.image_size, (uint32_t *)info.kptr, SMU7_SMC_SIZE);
 
 	return result;

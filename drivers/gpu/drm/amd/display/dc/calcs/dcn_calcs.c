@@ -33,6 +33,15 @@
 #include "dcn10/dcn10_resource.h"
 #include "dcn_calc_math.h"
 
+/*
+ * NOTE:
+ *   This file is gcc-parseable HW gospel, coming straight from HW engineers.
+ *
+ * It doesn't adhere to Linux kernel style and sometimes will do things in odd
+ * ways. Unless there is something clearly wrong with it the code should
+ * remain as-is as it provides us with a guarantee from HW that it is correct.
+ */
+
 /* Defaults from spreadsheet rev#247 */
 const struct dcn_soc_bounding_box dcn10_soc_defaults = {
 		/* latencies */
@@ -878,6 +887,17 @@ bool dcn_validate_bandwidth(
 						+ pipe->bottom_pipe->plane_res.scl_data.recout.width;
 			}
 
+			if (pipe->plane_state->rotation % 2 == 0) {
+				ASSERT(pipe->plane_res.scl_data.ratios.horz.value != dal_fixed31_32_one.value
+					|| v->scaler_rec_out_width[input_idx] == v->viewport_width[input_idx]);
+				ASSERT(pipe->plane_res.scl_data.ratios.vert.value != dal_fixed31_32_one.value
+					|| v->scaler_recout_height[input_idx] == v->viewport_height[input_idx]);
+			} else {
+				ASSERT(pipe->plane_res.scl_data.ratios.horz.value != dal_fixed31_32_one.value
+					|| v->scaler_recout_height[input_idx] == v->viewport_width[input_idx]);
+				ASSERT(pipe->plane_res.scl_data.ratios.vert.value != dal_fixed31_32_one.value
+					|| v->scaler_rec_out_width[input_idx] == v->viewport_height[input_idx]);
+			}
 			v->dcc_enable[input_idx] = pipe->plane_state->dcc.enable ? dcn_bw_yes : dcn_bw_no;
 			v->source_pixel_format[input_idx] = tl_pixel_format_to_bw_defs(
 					pipe->plane_state->format);
@@ -888,6 +908,15 @@ bool dcn_validate_bandwidth(
 			v->override_vta_ps[input_idx] = pipe->plane_res.scl_data.taps.v_taps;
 			v->override_hta_pschroma[input_idx] = pipe->plane_res.scl_data.taps.h_taps_c;
 			v->override_vta_pschroma[input_idx] = pipe->plane_res.scl_data.taps.v_taps_c;
+			/*
+			 * Spreadsheet doesn't handle taps_c is one properly,
+			 * need to force Chroma to always be scaled to pass
+			 * bandwidth validation.
+			 */
+			if (v->override_hta_pschroma[input_idx] == 1)
+				v->override_hta_pschroma[input_idx] = 2;
+			if (v->override_vta_pschroma[input_idx] == 1)
+				v->override_vta_pschroma[input_idx] = 2;
 			v->source_scan[input_idx] = (pipe->plane_state->rotation % 2) ? dcn_bw_vert : dcn_bw_hor;
 		}
 		if (v->is_line_buffer_bpp_fixed == dcn_bw_yes)
@@ -985,9 +1014,9 @@ bool dcn_validate_bandwidth(
 			if (pipe->top_pipe && pipe->top_pipe->plane_state == pipe->plane_state)
 				continue;
 
-			pipe->pipe_dlg_param.vupdate_width = v->v_update_width[input_idx];
-			pipe->pipe_dlg_param.vupdate_offset = v->v_update_offset[input_idx];
-			pipe->pipe_dlg_param.vready_offset = v->v_ready_offset[input_idx];
+			pipe->pipe_dlg_param.vupdate_width = v->v_update_width[input_idx][v->dpp_per_plane[input_idx] == 2 ? 1 : 0];
+			pipe->pipe_dlg_param.vupdate_offset = v->v_update_offset[input_idx][v->dpp_per_plane[input_idx] == 2 ? 1 : 0];
+			pipe->pipe_dlg_param.vready_offset = v->v_ready_offset[input_idx][v->dpp_per_plane[input_idx] == 2 ? 1 : 0];
 			pipe->pipe_dlg_param.vstartup_start = v->v_startup[input_idx];
 
 			pipe->pipe_dlg_param.htotal = pipe->stream->timing.h_total;
@@ -1026,9 +1055,9 @@ bool dcn_validate_bandwidth(
 					 TIMING_3D_FORMAT_SIDE_BY_SIDE))) {
 					if (hsplit_pipe && hsplit_pipe->plane_state == pipe->plane_state) {
 						/* update previously split pipe */
-						hsplit_pipe->pipe_dlg_param.vupdate_width = v->v_update_width[input_idx];
-						hsplit_pipe->pipe_dlg_param.vupdate_offset = v->v_update_offset[input_idx];
-						hsplit_pipe->pipe_dlg_param.vready_offset = v->v_ready_offset[input_idx];
+						hsplit_pipe->pipe_dlg_param.vupdate_width = v->v_update_width[input_idx][v->dpp_per_plane[input_idx] == 2 ? 1 : 0];
+						hsplit_pipe->pipe_dlg_param.vupdate_offset = v->v_update_offset[input_idx][v->dpp_per_plane[input_idx] == 2 ? 1 : 0];
+						hsplit_pipe->pipe_dlg_param.vready_offset = v->v_ready_offset[input_idx][v->dpp_per_plane[input_idx] == 2 ? 1 : 0];
 						hsplit_pipe->pipe_dlg_param.vstartup_start = v->v_startup[input_idx];
 
 						hsplit_pipe->pipe_dlg_param.htotal = pipe->stream->timing.h_total;
@@ -1556,35 +1585,6 @@ void dcn_bw_sync_calcs_and_dml(struct dc *dc)
 			dc->dcn_ip->can_vstartup_lines_exceed_vsync_plus_back_porch_lines_minus_one,
 			dc->dcn_ip->bug_forcing_luma_and_chroma_request_to_same_size_fixed,
 			dc->dcn_ip->dcfclk_cstate_latency);
-	dc->dml.soc.vmin.socclk_mhz = dc->dcn_soc->socclk;
-	dc->dml.soc.vmid.socclk_mhz = dc->dcn_soc->socclk;
-	dc->dml.soc.vnom.socclk_mhz = dc->dcn_soc->socclk;
-	dc->dml.soc.vmax.socclk_mhz = dc->dcn_soc->socclk;
-
-	dc->dml.soc.vmin.dcfclk_mhz = dc->dcn_soc->dcfclkv_min0p65;
-	dc->dml.soc.vmid.dcfclk_mhz = dc->dcn_soc->dcfclkv_mid0p72;
-	dc->dml.soc.vnom.dcfclk_mhz = dc->dcn_soc->dcfclkv_nom0p8;
-	dc->dml.soc.vmax.dcfclk_mhz = dc->dcn_soc->dcfclkv_max0p9;
-
-	dc->dml.soc.vmin.dispclk_mhz = dc->dcn_soc->max_dispclk_vmin0p65;
-	dc->dml.soc.vmid.dispclk_mhz = dc->dcn_soc->max_dispclk_vmid0p72;
-	dc->dml.soc.vnom.dispclk_mhz = dc->dcn_soc->max_dispclk_vnom0p8;
-	dc->dml.soc.vmax.dispclk_mhz = dc->dcn_soc->max_dispclk_vmax0p9;
-
-	dc->dml.soc.vmin.dppclk_mhz = dc->dcn_soc->max_dppclk_vmin0p65;
-	dc->dml.soc.vmid.dppclk_mhz = dc->dcn_soc->max_dppclk_vmid0p72;
-	dc->dml.soc.vnom.dppclk_mhz = dc->dcn_soc->max_dppclk_vnom0p8;
-	dc->dml.soc.vmax.dppclk_mhz = dc->dcn_soc->max_dppclk_vmax0p9;
-
-	dc->dml.soc.vmin.phyclk_mhz = dc->dcn_soc->phyclkv_min0p65;
-	dc->dml.soc.vmid.phyclk_mhz = dc->dcn_soc->phyclkv_mid0p72;
-	dc->dml.soc.vnom.phyclk_mhz = dc->dcn_soc->phyclkv_nom0p8;
-	dc->dml.soc.vmax.phyclk_mhz = dc->dcn_soc->phyclkv_max0p9;
-
-	dc->dml.soc.vmin.dram_bw_per_chan_gbps = dc->dcn_soc->fabric_and_dram_bandwidth_vmin0p65;
-	dc->dml.soc.vmid.dram_bw_per_chan_gbps = dc->dcn_soc->fabric_and_dram_bandwidth_vmid0p72;
-	dc->dml.soc.vnom.dram_bw_per_chan_gbps = dc->dcn_soc->fabric_and_dram_bandwidth_vnom0p8;
-	dc->dml.soc.vmax.dram_bw_per_chan_gbps = dc->dcn_soc->fabric_and_dram_bandwidth_vmax0p9;
 
 	dc->dml.soc.sr_exit_time_us = dc->dcn_soc->sr_exit_time;
 	dc->dml.soc.sr_enter_plus_exit_time_us = dc->dcn_soc->sr_enter_plus_exit_time;

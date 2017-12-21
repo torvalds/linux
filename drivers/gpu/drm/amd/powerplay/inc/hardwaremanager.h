@@ -437,5 +437,6 @@ extern int phm_display_clock_voltage_request(struct pp_hwmgr *hwmgr,
 
 extern int phm_get_max_high_clocks(struct pp_hwmgr *hwmgr, struct amd_pp_simple_clock_info *clocks);
 extern int phm_disable_smc_firmware_ctf(struct pp_hwmgr *hwmgr);
+extern int phm_reset_power_profile_state(struct pp_hwmgr *hwmgr);
 #endif /* _HARDWARE_MANAGER_H_ */
 

@@ -357,8 +357,7 @@ static int qxl_bo_move(struct ttm_buffer_object *bo, bool evict,
 		qxl_move_null(bo, new_mem);
 		return 0;
 	}
-	return ttm_bo_move_memcpy(bo, ctx->interruptible, ctx->no_wait_gpu,
-				  new_mem);
+	return ttm_bo_move_memcpy(bo, ctx, new_mem);
 }
 
 static void qxl_bo_move_notify(struct ttm_buffer_object *bo,

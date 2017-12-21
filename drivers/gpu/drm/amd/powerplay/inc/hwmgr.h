@@ -105,36 +105,6 @@ struct phm_set_power_state_input {
 	const struct pp_hw_power_state *pnew_state;
 };
 
-struct phm_acp_arbiter {
-	uint32_t acpclk;
-};
-
-struct phm_uvd_arbiter {
-	uint32_t vclk;
-	uint32_t dclk;
-	uint32_t vclk_ceiling;
-	uint32_t dclk_ceiling;
-	uint32_t vclk_soft_min;
-	uint32_t dclk_soft_min;
-};
-
-struct phm_vce_arbiter {
-	uint32_t   evclk;
-	uint32_t   ecclk;
-};
-
-struct phm_gfx_arbiter {
-	uint32_t sclk;
-	uint32_t sclk_hard_min;
-	uint32_t mclk;
-	uint32_t sclk_over_drive;
-	uint32_t mclk_over_drive;
-	uint32_t sclk_threshold;
-	uint32_t num_cus;
-	uint32_t gfxclk;
-	uint32_t fclk;
-};
-
 struct phm_clock_array {
 	uint32_t count;
 	uint32_t values[1];
@@ -722,6 +692,7 @@ enum PP_TABLE_VERSION {
 struct pp_hwmgr {
 	uint32_t chip_family;
 	uint32_t chip_id;
+	uint32_t smu_version;
 
 	uint32_t pp_table_version;
 	void *device;
@@ -737,10 +708,6 @@ struct pp_hwmgr {
 	enum amd_dpm_forced_level dpm_level;
 	enum amd_dpm_forced_level saved_dpm_level;
 	enum amd_dpm_forced_level request_dpm_level;
-	struct phm_gfx_arbiter gfx_arbiter;
-	struct phm_acp_arbiter acp_arbiter;
-	struct phm_uvd_arbiter uvd_arbiter;
-	struct phm_vce_arbiter vce_arbiter;
 	uint32_t usec_timeout;
 	void *pptable;
 	struct phm_platform_descriptor platform_descriptor;

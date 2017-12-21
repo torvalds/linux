@@ -24,10 +24,11 @@
 #ifndef __AMDGPU_VM_H__
 #define __AMDGPU_VM_H__
 
-#include <linux/rbtree.h>
 #include <linux/idr.h>
+#include <linux/kfifo.h>
+#include <linux/rbtree.h>
+#include <drm/gpu_scheduler.h>
 
-#include "gpu_scheduler.h"
 #include "amdgpu_sync.h"
 #include "amdgpu_ring.h"
 
@@ -68,6 +69,12 @@ struct amdgpu_bo_list_entry;
 
 /* PDE is handled as PTE for VEGA10 */
 #define AMDGPU_PDE_PTE		(1ULL << 54)
+
+/* PTE is handled as PDE for VEGA10 (Translate Further) */
+#define AMDGPU_PTE_TF		(1ULL << 56)
+
+/* PDE Block Fragment Size for VEGA10 */
+#define AMDGPU_PDE_BFS(a)	((uint64_t)a << 59)
 
 /* VEGA10 only */
 #define AMDGPU_PTE_MTYPE(a)    ((uint64_t)a << 57)
@@ -119,6 +126,16 @@ struct amdgpu_bo_list_entry;
 #define AMDGPU_VM_USE_CPU_FOR_GFX (1 << 0)
 #define AMDGPU_VM_USE_CPU_FOR_COMPUTE (1 << 1)
 
+/* VMPT level enumerate, and the hiberachy is:
+ * PDB2->PDB1->PDB0->PTB
+ */
+enum amdgpu_vm_level {
+	AMDGPU_VM_PDB2,
+	AMDGPU_VM_PDB1,
+	AMDGPU_VM_PDB0,
+	AMDGPU_VM_PTB
+};
+
 /* base structure for tracking BO usage in a VM */
 struct amdgpu_vm_bo_base {
 	/* constant after initialization */
@@ -137,11 +154,10 @@ struct amdgpu_vm_bo_base {
 
 struct amdgpu_vm_pt {
 	struct amdgpu_vm_bo_base	base;
-	uint64_t			addr;
+	bool				huge;
 
 	/* array of page tables, one for each directory entry */
 	struct amdgpu_vm_pt		*entries;
-	unsigned			last_entry_used;
 };
 
 #define AMDGPU_VM_FAULT(pasid, addr) (((u64)(pasid) << 48) | (addr))
@@ -175,7 +191,7 @@ struct amdgpu_vm {
 	spinlock_t		freed_lock;
 
 	/* Scheduler entity for page table updates */
-	struct amd_sched_entity	entity;
+	struct drm_sched_entity	entity;
 
 	/* client id and PASID (TODO: replace client_id with PASID) */
 	u64                     client_id;
@@ -236,6 +252,7 @@ struct amdgpu_vm_manager {
 	uint32_t				num_level;
 	uint32_t				block_size;
 	uint32_t				fragment_size;
+	enum amdgpu_vm_level			root_level;
 	/* vram base address for page table entry  */
 	u64					vram_base_offset;
 	/* vm pte handling */

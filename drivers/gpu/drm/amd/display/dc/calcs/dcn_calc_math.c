@@ -25,37 +25,44 @@
 
 #include "dcn_calc_math.h"
 
+#define isNaN(number) ((number) != (number))
+
+/*
+ * NOTE:
+ *   This file is gcc-parseable HW gospel, coming straight from HW engineers.
+ *
+ * It doesn't adhere to Linux kernel style and sometimes will do things in odd
+ * ways. Unless there is something clearly wrong with it the code should
+ * remain as-is as it provides us with a guarantee from HW that it is correct.
+ */
+
 float dcn_bw_mod(const float arg1, const float arg2)
 {
-	if (arg1 != arg1)
+	if (isNaN(arg1))
 		return arg2;
-	if (arg2 != arg2)
+	if (isNaN(arg2))
 		return arg1;
 	return arg1 - arg1 * ((int) (arg1 / arg2));
 }
 
 float dcn_bw_min2(const float arg1, const float arg2)
 {
-	if (arg1 != arg1)
+	if (isNaN(arg1))
 		return arg2;
-	if (arg2 != arg2)
+	if (isNaN(arg2))
 		return arg1;
 	return arg1 < arg2 ? arg1 : arg2;
 }
 
 unsigned int dcn_bw_max(const unsigned int arg1, const unsigned int arg2)
 {
-	if (arg1 != arg1)
-		return arg2;
-	if (arg2 != arg2)
-		return arg1;
 	return arg1 > arg2 ? arg1 : arg2;
 }
 float dcn_bw_max2(const float arg1, const float arg2)
 {
-	if (arg1 != arg1)
+	if (isNaN(arg1))
 		return arg2;
-	if (arg2 != arg2)
+	if (isNaN(arg2))
 		return arg1;
 	return arg1 > arg2 ? arg1 : arg2;
 }

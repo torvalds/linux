@@ -1,5 +1,7 @@
 /*
- * Copyright 2012-15 Advanced Micro Devices, Inc.
+ * Copyright 2008 Advanced Micro Devices, Inc.
+ * Copyright 2008 Red Hat Inc.
+ * Copyright 2009 Jerome Glisse.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,57 +21,22 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  *
- * Authors: AMD
- *
  */
 
-#include "dm_services.h"
-#include "include/grph_object_id.h"
+/*
+ * Debugfs
+ */
+struct amdgpu_debugfs {
+	const struct drm_info_list	*files;
+	unsigned		num_files;
+};
 
-static bool dal_graphics_object_id_is_valid(struct graphics_object_id id)
-{
-	bool rc = true;
-
-	switch (id.type) {
-	case OBJECT_TYPE_UNKNOWN:
-		rc = false;
-		break;
-	case OBJECT_TYPE_GPU:
-	case OBJECT_TYPE_ENGINE:
-		/* do NOT check for id.id == 0 */
-		if (id.enum_id == ENUM_ID_UNKNOWN)
-			rc = false;
-		break;
-	default:
-		if (id.id == 0 || id.enum_id == ENUM_ID_UNKNOWN)
-			rc = false;
-		break;
-	}
-
-	return rc;
-}
-
-bool dal_graphics_object_id_is_equal(
-	struct graphics_object_id id1,
-	struct graphics_object_id id2)
-{
-	if (false == dal_graphics_object_id_is_valid(id1)) {
-		dm_output_to_console(
-		"%s: Warning: comparing invalid object 'id1'!\n", __func__);
-		return false;
-	}
-
-	if (false == dal_graphics_object_id_is_valid(id2)) {
-		dm_output_to_console(
-		"%s: Warning: comparing invalid object 'id2'!\n", __func__);
-		return false;
-	}
-
-	if (id1.id == id2.id && id1.enum_id == id2.enum_id
-		&& id1.type == id2.type)
-		return true;
-
-	return false;
-}
-
-
+int amdgpu_debugfs_regs_init(struct amdgpu_device *adev);
+void amdgpu_debugfs_regs_cleanup(struct amdgpu_device *adev);
+int amdgpu_debugfs_init(struct amdgpu_device *adev);
+int amdgpu_debugfs_add_files(struct amdgpu_device *adev,
+			     const struct drm_info_list *files,
+			     unsigned nfiles);
+int amdgpu_debugfs_fence_init(struct amdgpu_device *adev);
+int amdgpu_debugfs_firmware_init(struct amdgpu_device *adev);
+int amdgpu_debugfs_gem_init(struct amdgpu_device *adev);
