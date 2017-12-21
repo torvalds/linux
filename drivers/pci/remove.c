@@ -20,9 +20,9 @@ static void pci_stop_dev(struct pci_dev *dev)
 	pci_pme_active(dev, false);
 
 	if (dev->is_added) {
+		device_release_driver(&dev->dev);
 		pci_proc_detach_device(dev);
 		pci_remove_sysfs_dev_files(dev);
-		device_release_driver(&dev->dev);
 		dev->is_added = 0;
 	}
 
