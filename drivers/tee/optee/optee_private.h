@@ -84,6 +84,8 @@ struct optee_supp {
  * @supp:		supplicant synchronization struct for RPC to supplicant
  * @pool:		shared memory pool
  * @memremaped_shm	virtual address of memory in shared memory pool
+ * @sec_caps:		secure world capabilities defined by
+ *			OPTEE_SMC_SEC_CAP_* in optee_smc.h
  */
 struct optee {
 	struct tee_device *supp_teedev;
@@ -94,6 +96,7 @@ struct optee {
 	struct optee_supp supp;
 	struct tee_shm_pool *pool;
 	void *memremaped_shm;
+	u32 sec_caps;
 };
 
 struct optee_session {
@@ -118,7 +121,16 @@ struct optee_rpc_param {
 	u32	a7;
 };
 
-void optee_handle_rpc(struct tee_context *ctx, struct optee_rpc_param *param);
+/* Holds context that is preserved during one STD call */
+struct optee_call_ctx {
+	/* information about pages list used in last allocation */
+	void *pages_list;
+	size_t num_entries;
+};
+
+void optee_handle_rpc(struct tee_context *ctx, struct optee_rpc_param *param,
+		      struct optee_call_ctx *call_ctx);
+void optee_rpc_finalize_call(struct optee_call_ctx *call_ctx);
 
 void optee_wait_queue_init(struct optee_wait_queue *wq);
 void optee_wait_queue_exit(struct optee_wait_queue *wq);
@@ -149,10 +161,23 @@ int optee_cancel_req(struct tee_context *ctx, u32 cancel_id, u32 session);
 void optee_enable_shm_cache(struct optee *optee);
 void optee_disable_shm_cache(struct optee *optee);
 
+int optee_shm_register(struct tee_context *ctx, struct tee_shm *shm,
+		       struct page **pages, size_t num_pages);
+int optee_shm_unregister(struct tee_context *ctx, struct tee_shm *shm);
+
+int optee_shm_register_supp(struct tee_context *ctx, struct tee_shm *shm,
+			    struct page **pages, size_t num_pages);
+int optee_shm_unregister_supp(struct tee_context *ctx, struct tee_shm *shm);
+
 int optee_from_msg_param(struct tee_param *params, size_t num_params,
 			 const struct optee_msg_param *msg_params);
 int optee_to_msg_param(struct optee_msg_param *msg_params, size_t num_params,
 		       const struct tee_param *params);
+
+u64 *optee_allocate_pages_list(size_t num_entries);
+void optee_free_pages_list(void *array, size_t num_entries);
+void optee_fill_pages_list(u64 *dst, struct page **pages, int num_pages,
+			   size_t page_offset);
 
 /*
  * Small helpers
