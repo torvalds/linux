@@ -42,13 +42,13 @@
 #include <linux/types.h>
 #include <linux/workqueue.h>
 #include <net/cfg80211.h>
+#include <uapi/linux/batadv_packet.h>
 
 #include "bat_algo.h"
 #include "bat_v_ogm.h"
 #include "hard-interface.h"
 #include "log.h"
 #include "originator.h"
-#include "packet.h"
 #include "routing.h"
 #include "send.h"
 

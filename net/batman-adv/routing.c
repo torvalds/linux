@@ -34,6 +34,7 @@
 #include <linux/skbuff.h>
 #include <linux/spinlock.h>
 #include <linux/stddef.h>
+#include <uapi/linux/batadv_packet.h>
 
 #include "bitarray.h"
 #include "bridge_loop_avoidance.h"
@@ -44,7 +45,6 @@
 #include "log.h"
 #include "network-coding.h"
 #include "originator.h"
-#include "packet.h"
 #include "send.h"
 #include "soft-interface.h"
 #include "tp_meter.h"

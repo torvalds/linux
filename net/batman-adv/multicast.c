@@ -55,11 +55,11 @@
 #include <net/if_inet6.h>
 #include <net/ip.h>
 #include <net/ipv6.h>
+#include <uapi/linux/batadv_packet.h>
 
 #include "hard-interface.h"
 #include "hash.h"
 #include "log.h"
-#include "packet.h"
 #include "translation-table.h"
 #include "tvlv.h"
 

@@ -24,9 +24,9 @@
 #include <linux/compiler.h>
 #include <linux/netdevice.h>
 #include <linux/types.h>
+#include <uapi/linux/batadv_packet.h>
 
 #include "originator.h"
-#include "packet.h"
 
 struct seq_file;
 struct sk_buff;

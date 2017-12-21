@@ -43,6 +43,7 @@
 #include <linux/stddef.h>
 #include <linux/udp.h>
 #include <net/sock.h>
+#include <uapi/linux/batadv_packet.h>
 #include <uapi/linux/batman_adv.h>
 
 #include "gateway_common.h"
@@ -50,7 +51,6 @@
 #include "log.h"
 #include "netlink.h"
 #include "originator.h"
-#include "packet.h"
 #include "routing.h"
 #include "soft-interface.h"
 #include "sysfs.h"

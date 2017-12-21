@@ -223,8 +223,8 @@ enum batadv_uev_type {
 #include <linux/jiffies.h>
 #include <linux/percpu.h>
 #include <linux/types.h>
+#include <uapi/linux/batadv_packet.h>
 
-#include "packet.h"
 #include "types.h"
 
 struct net_device;

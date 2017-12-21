@@ -36,9 +36,9 @@
 #include <linux/stddef.h>
 #include <linux/string.h>
 #include <linux/types.h>
+#include <uapi/linux/batadv_packet.h>
 
 #include "originator.h"
-#include "packet.h"
 #include "send.h"
 #include "tvlv.h"
 

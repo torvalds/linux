@@ -39,13 +39,13 @@
 #include <linux/string.h>
 #include <linux/types.h>
 #include <linux/workqueue.h>
+#include <uapi/linux/batadv_packet.h>
 
 #include "bat_algo.h"
 #include "hard-interface.h"
 #include "hash.h"
 #include "log.h"
 #include "originator.h"
-#include "packet.h"
 #include "routing.h"
 #include "send.h"
 #include "translation-table.h"

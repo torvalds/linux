@@ -33,10 +33,10 @@
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/string.h>
+#include <uapi/linux/batadv_packet.h>
 
 #include "hard-interface.h"
 #include "originator.h"
-#include "packet.h"
 #include "routing.h"
 #include "send.h"
 #include "soft-interface.h"
