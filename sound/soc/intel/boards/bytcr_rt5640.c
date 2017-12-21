@@ -740,6 +740,7 @@ static int byt_rt5640_init(struct snd_soc_pcm_runtime *runtime)
 	if (ret)
 		return ret;
 
+#if !IS_ENABLED(CONFIG_SND_SOC_SOF_INTEL)
 	if (byt_rt5640_quirk & BYT_RT5640_SSP2_AIF2) {
 		ret = snd_soc_dapm_add_routes(&card->dapm,
 					byt_rt5640_ssp2_aif2_map,
@@ -759,6 +760,7 @@ static int byt_rt5640_init(struct snd_soc_pcm_runtime *runtime)
 	}
 	if (ret)
 		return ret;
+#endif
 
 	if (byt_rt5640_quirk & BYT_RT5640_MONO_SPEAKER) {
 		ret = snd_soc_dapm_add_routes(&card->dapm,
@@ -1073,11 +1075,13 @@ static int snd_byt_rt5640_mc_probe(struct platform_device *pdev)
 	 * (will be overridden if DMI quirk is detected)
 	 */
 	if (is_valleyview()) {
+#if !IS_ENABLED(CONFIG_SND_SOC_SOF_INTEL) /* FIXME: bytcr not supported yet */
 		struct sst_platform_info *p_info = mach->pdata;
 		const struct sst_res_info *res_info = p_info->res_info;
 
 		if (res_info->acpi_ipc_irq_index == 0)
 			is_bytcr = true;
+#endif
 	}
 
 	if (is_bytcr) {
