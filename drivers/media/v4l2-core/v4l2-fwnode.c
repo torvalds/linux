@@ -456,8 +456,7 @@ static int __v4l2_async_notifier_parse_fwnode_endpoints(
 	if (WARN_ON(asd_struct_size < sizeof(struct v4l2_async_subdev)))
 		return -EINVAL;
 
-	for (fwnode = NULL; (fwnode = fwnode_graph_get_next_endpoint(
-				     dev_fwnode(dev), fwnode)); ) {
+	fwnode_graph_for_each_endpoint(dev_fwnode(dev), fwnode) {
 		struct fwnode_handle *dev_fwnode;
 		bool is_available;
 
