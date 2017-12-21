@@ -2195,7 +2195,7 @@ set_precision(struct printf_spec *spec, int prec)
  *  - ``%n`` is unsupported
  *  - ``%p*`` is handled by pointer()
  *
- * See pointer() or Documentation/printk-formats.txt for more
+ * See pointer() or Documentation/core-api/printk-formats.rst for more
  * extensive description.
  *
  * **Please update the documentation in both places when making changes**
