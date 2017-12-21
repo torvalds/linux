@@ -542,7 +542,8 @@ struct ufs_hba {
 	bool is_sys_suspended;
 
 	int			latency_hist_enabled;
-	struct io_latency_state io_lat_s;
+	struct io_latency_state io_lat_read;
+	struct io_latency_state io_lat_write;
 };
 
 /* Returns true if clocks can be gated. Otherwise false */
