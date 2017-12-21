@@ -325,6 +325,13 @@ enum {
 	EF10_STAT_tx_bad,
 	EF10_STAT_tx_bad_bytes,
 	EF10_STAT_tx_overflow,
+	EF10_STAT_V1_COUNT,
+	EF10_STAT_fec_uncorrected_errors = EF10_STAT_V1_COUNT,
+	EF10_STAT_fec_corrected_errors,
+	EF10_STAT_fec_corrected_symbols_lane0,
+	EF10_STAT_fec_corrected_symbols_lane1,
+	EF10_STAT_fec_corrected_symbols_lane2,
+	EF10_STAT_fec_corrected_symbols_lane3,
 	EF10_STAT_COUNT
 };
 
