@@ -211,7 +211,7 @@ static bool ttm_zones_above_swap_target(struct ttm_mem_global *glob,
  */
 
 static void ttm_shrink(struct ttm_mem_global *glob, bool from_wq,
-		       uint64_t extra)
+			uint64_t extra, struct ttm_operation_ctx *ctx)
 {
 	int ret;
 
@@ -219,7 +219,7 @@ static void ttm_shrink(struct ttm_mem_global *glob, bool from_wq,
 
 	while (ttm_zones_above_swap_target(glob, from_wq, extra)) {
 		spin_unlock(&glob->lock);
-		ret = ttm_bo_swapout(glob->bo_glob);
+		ret = ttm_bo_swapout(glob->bo_glob, ctx);
 		spin_lock(&glob->lock);
 		if (unlikely(ret != 0))
 			break;
@@ -230,10 +230,14 @@ static void ttm_shrink(struct ttm_mem_global *glob, bool from_wq,
 
 static void ttm_shrink_work(struct work_struct *work)
 {
+	struct ttm_operation_ctx ctx = {
+		.interruptible = false,
+		.no_wait_gpu = false
+	};
 	struct ttm_mem_global *glob =
 	    container_of(work, struct ttm_mem_global, work);
 
-	ttm_shrink(glob, true, 0ULL);
+	ttm_shrink(glob, true, 0ULL, &ctx);
 }
 
 static int ttm_mem_init_kernel_zone(struct ttm_mem_global *glob,
@@ -520,7 +524,7 @@ static int ttm_mem_global_alloc_zone(struct ttm_mem_global *glob,
 			return -ENOMEM;
 		if (unlikely(count-- == 0))
 			return -ENOMEM;
-		ttm_shrink(glob, false, memory + (memory >> 2) + 16);
+		ttm_shrink(glob, false, memory + (memory >> 2) + 16, ctx);
 	}
 
 	return 0;

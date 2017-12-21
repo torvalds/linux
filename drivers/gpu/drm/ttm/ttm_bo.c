@@ -1699,18 +1699,20 @@ EXPORT_SYMBOL(ttm_bo_synccpu_write_release);
  * A buffer object shrink method that tries to swap out the first
  * buffer object on the bo_global::swap_lru list.
  */
-int ttm_bo_swapout(struct ttm_bo_global *glob)
+int ttm_bo_swapout(struct ttm_bo_global *glob, struct ttm_operation_ctx *ctx)
 {
 	struct ttm_buffer_object *bo;
 	int ret = -EBUSY;
+	bool locked;
 	unsigned i;
 
 	spin_lock(&glob->lru_lock);
 	for (i = 0; i < TTM_MAX_BO_PRIORITY; ++i) {
 		list_for_each_entry(bo, &glob->swap_lru[i], swap) {
-			ret = reservation_object_trylock(bo->resv) ? 0 : -EBUSY;
-			if (!ret)
+			if (ttm_bo_evict_swapout_allowable(bo, ctx, &locked)) {
+				ret = 0;
 				break;
+			}
 		}
 		if (!ret)
 			break;
@@ -1786,7 +1788,12 @@ EXPORT_SYMBOL(ttm_bo_swapout);
 
 void ttm_bo_swapout_all(struct ttm_bo_device *bdev)
 {
-	while (ttm_bo_swapout(bdev->glob) == 0)
+	struct ttm_operation_ctx ctx = {
+		.interruptible = false,
+		.no_wait_gpu = false
+	};
+
+	while (ttm_bo_swapout(bdev->glob, &ctx) == 0)
 		;
 }
 EXPORT_SYMBOL(ttm_bo_swapout_all);
