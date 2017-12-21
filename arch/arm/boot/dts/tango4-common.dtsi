@@ -156,7 +156,6 @@
 			reg = <0x6e000 0x400>;
 			ranges = <0 0x6e000 0x400>;
 			interrupt-parent = <&gic>;
-			interrupt-controller;
 			#address-cells = <1>;
 			#size-cells = <1>;
 
