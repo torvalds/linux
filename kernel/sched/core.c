@@ -583,7 +583,7 @@ static inline bool got_nohz_idle_kick(void)
 {
 	int cpu = smp_processor_id();
 
-	if (!(atomic_read(nohz_flags(cpu)) & NOHZ_BALANCE_KICK))
+	if (!(atomic_read(nohz_flags(cpu)) & NOHZ_KICK_MASK))
 		return false;
 
 	if (idle_cpu(cpu) && !need_resched())
@@ -593,7 +593,7 @@ static inline bool got_nohz_idle_kick(void)
 	 * We can't run Idle Load Balance on this CPU for this time so we
 	 * cancel it and clear NOHZ_BALANCE_KICK
 	 */
-	atomic_andnot(NOHZ_BALANCE_KICK, nohz_flags(cpu));
+	atomic_andnot(NOHZ_KICK_MASK, nohz_flags(cpu));
 	return false;
 }
 
