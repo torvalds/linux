@@ -233,6 +233,7 @@
 #define DSI_INT_ST1			0xc0
 #define DSI_INT_MSK0			0xc4
 #define DSI_INT_MSK1			0xc8
+#define DSI_MAX_REGISGER		DSI_INT_MSK1
 
 #define PHY_STATUS_TIMEOUT_US		10000
 #define CMD_PKT_STATUS_TIMEOUT_US	20000
@@ -342,7 +343,7 @@ struct dw_mipi_dsi {
 	struct device *dev;
 	struct regmap *grf_regmap;
 	struct reset_control *rst;
-	void __iomem *base;
+	struct regmap *regmap;
 	struct clk *pclk;
 	struct clk *h2p_clk;
 
@@ -411,24 +412,15 @@ static inline struct dw_mipi_dsi *encoder_to_dsi(struct drm_encoder *encoder)
 {
 	return container_of(encoder, struct dw_mipi_dsi, encoder);
 }
-static inline void dsi_write(struct dw_mipi_dsi *dsi, u32 reg, u32 val)
-{
-	writel(val, dsi->base + reg);
-}
-
-static inline u32 dsi_read(struct dw_mipi_dsi *dsi, u32 reg)
-{
-	return readl(dsi->base + reg);
-}
 
 static int rockchip_wait_w_pld_fifo_not_full(struct dw_mipi_dsi *dsi)
 {
 	u32 sts;
 	int ret;
 
-	ret = readl_poll_timeout(dsi->base + DSI_CMD_PKT_STATUS,
-				 sts, !(sts & GEN_PLD_W_FULL), 10,
-				 CMD_PKT_STATUS_TIMEOUT_US);
+	ret = regmap_read_poll_timeout(dsi->regmap, DSI_CMD_PKT_STATUS,
+				       sts, !(sts & GEN_PLD_W_FULL),
+				       10, CMD_PKT_STATUS_TIMEOUT_US);
 	if (ret < 0) {
 		dev_err(dsi->dev, "generic write payload fifo is full\n");
 		return ret;
@@ -442,9 +434,9 @@ static int rockchip_wait_cmd_fifo_not_full(struct dw_mipi_dsi *dsi)
 	u32 sts;
 	int ret;
 
-	ret = readl_poll_timeout(dsi->base + DSI_CMD_PKT_STATUS,
-				 sts, !(sts & GEN_CMD_FULL), 10,
-				 CMD_PKT_STATUS_TIMEOUT_US);
+	ret = regmap_read_poll_timeout(dsi->regmap, DSI_CMD_PKT_STATUS,
+				       sts, !(sts & GEN_CMD_FULL),
+				       10, CMD_PKT_STATUS_TIMEOUT_US);
 	if (ret < 0) {
 		dev_err(dsi->dev, "generic write cmd fifo is full\n");
 		return ret;
@@ -460,9 +452,9 @@ static int rockchip_wait_write_fifo_empty(struct dw_mipi_dsi *dsi)
 	int ret;
 
 	mask = GEN_CMD_EMPTY | GEN_PLD_W_EMPTY;
-	ret = readl_poll_timeout(dsi->base + DSI_CMD_PKT_STATUS,
-				 sts, (sts & mask) == mask, 10,
-				 CMD_PKT_STATUS_TIMEOUT_US);
+	ret = regmap_read_poll_timeout(dsi->regmap, DSI_CMD_PKT_STATUS,
+				       sts, (sts & mask) == mask,
+				       10, CMD_PKT_STATUS_TIMEOUT_US);
 	if (ret < 0) {
 		dev_err(dsi->dev, "generic write fifo is full\n");
 		return ret;
@@ -479,17 +471,16 @@ static void dw_mipi_dsi_phy_write(struct dw_mipi_dsi *dsi, u8 test_code,
 	 * is latched internally as the current test code. Test data is
 	 * programmed internally by rising edge on TESTCLK.
 	 */
-	dsi_write(dsi, DSI_PHY_TST_CTRL0, PHY_TESTCLK | PHY_UNTESTCLR);
-
-	dsi_write(dsi, DSI_PHY_TST_CTRL1, PHY_TESTEN | PHY_TESTDOUT(0) |
-					  PHY_TESTDIN(test_code));
-
-	dsi_write(dsi, DSI_PHY_TST_CTRL0, PHY_UNTESTCLK | PHY_UNTESTCLR);
-
-	dsi_write(dsi, DSI_PHY_TST_CTRL1, PHY_UNTESTEN | PHY_TESTDOUT(0) |
-					  PHY_TESTDIN(test_data));
-
-	dsi_write(dsi, DSI_PHY_TST_CTRL0, PHY_TESTCLK | PHY_UNTESTCLR);
+	regmap_write(dsi->regmap, DSI_PHY_TST_CTRL0,
+		     PHY_TESTCLK | PHY_UNTESTCLR);
+	regmap_write(dsi->regmap, DSI_PHY_TST_CTRL1,
+		     PHY_TESTEN | PHY_TESTDOUT(0) | PHY_TESTDIN(test_code));
+	regmap_write(dsi->regmap, DSI_PHY_TST_CTRL0,
+		     PHY_UNTESTCLK | PHY_UNTESTCLR);
+	regmap_write(dsi->regmap, DSI_PHY_TST_CTRL1,
+		     PHY_UNTESTEN | PHY_TESTDOUT(0) | PHY_TESTDIN(test_data));
+	regmap_write(dsi->regmap, DSI_PHY_TST_CTRL0,
+		     PHY_TESTCLK | PHY_UNTESTCLR);
 }
 
 static int dw_mipi_dsi_phy_init(struct dw_mipi_dsi *dsi)
@@ -506,7 +497,7 @@ static int dw_mipi_dsi_phy_init(struct dw_mipi_dsi *dsi)
 		return testdin;
 	}
 
-	dsi_write(dsi, DSI_PWR_UP, POWERUP);
+	regmap_write(dsi->regmap, DSI_PWR_UP, POWERUP);
 
 	if (!IS_ERR(dsi->dphy.cfg_clk)) {
 		ret = clk_prepare_enable(dsi->dphy.cfg_clk);
@@ -553,19 +544,20 @@ static int dw_mipi_dsi_phy_init(struct dw_mipi_dsi *dsi)
 	dw_mipi_dsi_phy_write(dsi, 0x71, THS_PRE_PROGRAM_EN | 0x2d);
 	dw_mipi_dsi_phy_write(dsi, 0x72, THS_ZERO_PROGRAM_EN | 0xa);
 
-	dsi_write(dsi, DSI_PHY_RSTZ, PHY_ENFORCEPLL | PHY_ENABLECLK |
-				     PHY_UNRSTZ | PHY_UNSHUTDOWNZ);
+	regmap_write(dsi->regmap, DSI_PHY_RSTZ, PHY_ENFORCEPLL |
+		     PHY_ENABLECLK | PHY_UNRSTZ | PHY_UNSHUTDOWNZ);
 
-	ret = readl_poll_timeout(dsi->base + DSI_PHY_STATUS,
-				 val, val & LOCK, 1000, PHY_STATUS_TIMEOUT_US);
+	ret = regmap_read_poll_timeout(dsi->regmap, DSI_PHY_STATUS,
+				       val, val & LOCK,
+				       1000, PHY_STATUS_TIMEOUT_US);
 	if (ret < 0) {
 		dev_err(dsi->dev, "failed to wait for phy lock state\n");
 		goto phy_init_end;
 	}
 
-	ret = readl_poll_timeout(dsi->base + DSI_PHY_STATUS,
-				 val, val & STOP_STATE_CLK_LANE, 1000,
-				 PHY_STATUS_TIMEOUT_US);
+	ret = regmap_read_poll_timeout(dsi->regmap, DSI_PHY_STATUS,
+				       val, val & STOP_STATE_CLK_LANE,
+				       1000, PHY_STATUS_TIMEOUT_US);
 	if (ret < 0)
 		dev_err(dsi->dev,
 			"failed to wait for phy clk lane stop state\n");
@@ -716,11 +708,11 @@ static int dw_mipi_dsi_host_detach(struct mipi_dsi_host *host,
 static void rockchip_set_transfer_mode(struct dw_mipi_dsi *dsi, int flags)
 {
 	if (flags & MIPI_DSI_MSG_USE_LPM) {
-		dsi_write(dsi, DSI_CMD_MODE_CFG, CMD_MODE_ALL_LP);
-		dsi_write(dsi, DSI_LPCLK_CTRL, 0);
+		regmap_write(dsi->regmap, DSI_CMD_MODE_CFG, CMD_MODE_ALL_LP);
+		regmap_write(dsi->regmap, DSI_LPCLK_CTRL, 0);
 	} else {
-		dsi_write(dsi, DSI_CMD_MODE_CFG, 0);
-		dsi_write(dsi, DSI_LPCLK_CTRL, PHY_TXREQUESTCLKHS);
+		regmap_write(dsi->regmap, DSI_CMD_MODE_CFG, 0);
+		regmap_write(dsi->regmap, DSI_LPCLK_CTRL, PHY_TXREQUESTCLKHS);
 	}
 }
 
@@ -732,9 +724,8 @@ static int dw_mipi_dsi_read_from_fifo(struct dw_mipi_dsi *dsi,
 	u32 val;
 	int ret;
 
-	ret = readl_relaxed_poll_timeout(dsi->base + DSI_CMD_PKT_STATUS,
-					 val, !(val & GEN_RD_CMD_BUSY),
-					 50, 5000);
+	ret = regmap_read_poll_timeout(dsi->regmap, DSI_CMD_PKT_STATUS,
+				       val, !(val & GEN_RD_CMD_BUSY), 50, 5000);
 	if (ret) {
 		dev_err(dsi->dev, "entire response isn't stored in the FIFO\n");
 		return ret;
@@ -742,15 +733,15 @@ static int dw_mipi_dsi_read_from_fifo(struct dw_mipi_dsi *dsi,
 
 	/* Receive payload */
 	for (length = msg->rx_len; length; length -= 4) {
-		ret = readl_relaxed_poll_timeout(dsi->base + DSI_CMD_PKT_STATUS,
-						 val, !(val & GEN_PLD_R_EMPTY),
-						 50, 5000);
+		ret = regmap_read_poll_timeout(dsi->regmap, DSI_CMD_PKT_STATUS,
+					       val, !(val & GEN_PLD_R_EMPTY),
+					       50, 5000);
 		if (ret) {
 			dev_err(dsi->dev, "Read payload FIFO is empty\n");
 			return ret;
 		}
 
-		val = dsi_read(dsi, DSI_GEN_PLD_DATA);
+		regmap_read(dsi->regmap, DSI_GEN_PLD_DATA, &val);
 
 		switch (length) {
 		case 3:
@@ -810,11 +801,11 @@ static ssize_t rockchip_dsi_send_packet(struct dw_mipi_dsi *dsi,
 			/* send residu payload */
 			val = 0;
 			memcpy(&val, packet.payload, packet.payload_length);
-			dsi_write(dsi, DSI_GEN_PLD_DATA, val);
+			regmap_write(dsi->regmap, DSI_GEN_PLD_DATA, val);
 			packet.payload_length = 0;
 		} else {
 			val = get_unaligned_le32(packet.payload);
-			dsi_write(dsi, DSI_GEN_PLD_DATA, val);
+			regmap_write(dsi->regmap, DSI_GEN_PLD_DATA, val);
 			packet.payload += 4;
 			packet.payload_length -= 4;
 		}
@@ -826,7 +817,7 @@ static ssize_t rockchip_dsi_send_packet(struct dw_mipi_dsi *dsi,
 
 	/* Send packet header */
 	val = get_unaligned_le32(packet.header);
-	dsi_write(dsi, DSI_GEN_HDR, val);
+	regmap_write(dsi->regmap, DSI_GEN_HDR, val);
 
 	ret = rockchip_wait_write_fifo_empty(dsi);
 	if (ret)
@@ -871,19 +862,19 @@ static void dw_mipi_dsi_video_mode_config(struct dw_mipi_dsi *dsi)
 	else
 		val |= VID_MODE_TYPE_BURST_SYNC_EVENTS;
 
-	dsi_write(dsi, DSI_VID_MODE_CFG, val);
+	regmap_write(dsi->regmap, DSI_VID_MODE_CFG, val);
 }
 
 static void dw_mipi_dsi_set_mode(struct dw_mipi_dsi *dsi,
 				 enum dw_mipi_dsi_mode mode)
 {
 	if (mode == DSI_COMMAND_MODE) {
-		dsi_write(dsi, DSI_MODE_CFG, ENABLE_CMD_MODE);
+		regmap_write(dsi->regmap, DSI_MODE_CFG, ENABLE_CMD_MODE);
 	} else {
-		dsi_write(dsi, DSI_PWR_UP, RESET);
-		dsi_write(dsi, DSI_LPCLK_CTRL, PHY_TXREQUESTCLKHS);
-		dsi_write(dsi, DSI_MODE_CFG, ENABLE_VIDEO_MODE);
-		dsi_write(dsi, DSI_PWR_UP, POWERUP);
+		regmap_write(dsi->regmap, DSI_PWR_UP, RESET);
+		regmap_write(dsi->regmap, DSI_LPCLK_CTRL, PHY_TXREQUESTCLKHS);
+		regmap_write(dsi->regmap, DSI_MODE_CFG, ENABLE_VIDEO_MODE);
+		regmap_write(dsi->regmap, DSI_PWR_UP, POWERUP);
 	}
 }
 
@@ -891,14 +882,14 @@ static void dw_mipi_dsi_init(struct dw_mipi_dsi *dsi)
 {
 	u32 esc_clk_div;
 
-	dsi_write(dsi, DSI_PWR_UP, RESET);
-	dsi_write(dsi, DSI_PHY_RSTZ, PHY_DISFORCEPLL | PHY_DISABLECLK
-		  | PHY_RSTZ | PHY_SHUTDOWNZ);
+	regmap_write(dsi->regmap, DSI_PWR_UP, RESET);
+	regmap_write(dsi->regmap, DSI_PHY_RSTZ, PHY_DISFORCEPLL |
+		     PHY_DISABLECLK | PHY_RSTZ | PHY_SHUTDOWNZ);
 
 	/* The maximum value of the escape clock frequency is 20MHz */
 	esc_clk_div = DIV_ROUND_UP(dsi->lane_mbps >> 3, 20);
-	dsi_write(dsi, DSI_CLKMGR_CFG, TO_CLK_DIVIDSION(10) |
-		  TX_ESC_CLK_DIVIDSION(esc_clk_div));
+	regmap_write(dsi->regmap, DSI_CLKMGR_CFG, TO_CLK_DIVIDSION(10) |
+		     TX_ESC_CLK_DIVIDSION(esc_clk_div));
 }
 
 static void dw_mipi_dsi_dpi_config(struct dw_mipi_dsi *dsi,
@@ -926,16 +917,17 @@ static void dw_mipi_dsi_dpi_config(struct dw_mipi_dsi *dsi,
 	if (mode->flags & DRM_MODE_FLAG_NHSYNC)
 		val |= HSYNC_ACTIVE_LOW;
 
-	dsi_write(dsi, DSI_DPI_VCID, DPI_VID(dsi->channel));
-	dsi_write(dsi, DSI_DPI_COLOR_CODING, color);
-	dsi_write(dsi, DSI_DPI_CFG_POL, val);
-	dsi_write(dsi, DSI_DPI_LP_CMD_TIM, OUTVACT_LPCMD_TIME(4)
-		  | INVACT_LPCMD_TIME(4));
+	regmap_write(dsi->regmap, DSI_DPI_VCID, DPI_VID(dsi->channel));
+	regmap_write(dsi->regmap, DSI_DPI_COLOR_CODING, color);
+	regmap_write(dsi->regmap, DSI_DPI_CFG_POL, val);
+	regmap_write(dsi->regmap, DSI_DPI_LP_CMD_TIM,
+		     OUTVACT_LPCMD_TIME(4) | INVACT_LPCMD_TIME(4));
 }
 
 static void dw_mipi_dsi_packet_handler_config(struct dw_mipi_dsi *dsi)
 {
-	dsi_write(dsi, DSI_PCKHDL_CFG, EN_CRC_RX | EN_ECC_RX | EN_BTA);
+	regmap_write(dsi->regmap, DSI_PCKHDL_CFG,
+		     EN_CRC_RX | EN_ECC_RX | EN_BTA);
 }
 
 static void dw_mipi_dsi_video_packet_config(struct dw_mipi_dsi *dsi,
@@ -948,13 +940,14 @@ static void dw_mipi_dsi_video_packet_config(struct dw_mipi_dsi *dsi,
 	else
 		pkt_size = VID_PKT_SIZE(mode->hdisplay);
 
-	dsi_write(dsi, DSI_VID_PKT_SIZE, pkt_size);
+	regmap_write(dsi->regmap, DSI_VID_PKT_SIZE, pkt_size);
 }
 
 static void dw_mipi_dsi_command_mode_config(struct dw_mipi_dsi *dsi)
 {
-	dsi_write(dsi, DSI_TO_CNT_CFG, HSTX_TO_CNT(1000) | LPRX_TO_CNT(1000));
-	dsi_write(dsi, DSI_BTA_TO_CNT, 0xd00);
+	regmap_write(dsi->regmap, DSI_TO_CNT_CFG,
+		     HSTX_TO_CNT(1000) | LPRX_TO_CNT(1000));
+	regmap_write(dsi->regmap, DSI_BTA_TO_CNT, 0xd00);
 }
 
 /* Get lane byte clock cycles. */
@@ -983,13 +976,13 @@ static void dw_mipi_dsi_line_timer_config(struct dw_mipi_dsi *dsi)
 	hbp = mode->htotal - mode->hsync_end;
 
 	lbcc = dw_mipi_dsi_get_hcomponent_lbcc(dsi, htotal);
-	dsi_write(dsi, DSI_VID_HLINE_TIME, lbcc);
+	regmap_write(dsi->regmap, DSI_VID_HLINE_TIME, lbcc);
 
 	lbcc = dw_mipi_dsi_get_hcomponent_lbcc(dsi, hsa);
-	dsi_write(dsi, DSI_VID_HSA_TIME, lbcc);
+	regmap_write(dsi->regmap, DSI_VID_HSA_TIME, lbcc);
 
 	lbcc = dw_mipi_dsi_get_hcomponent_lbcc(dsi, hbp);
-	dsi_write(dsi, DSI_VID_HBP_TIME, lbcc);
+	regmap_write(dsi->regmap, DSI_VID_HBP_TIME, lbcc);
 }
 
 static void dw_mipi_dsi_vertical_timing_config(struct dw_mipi_dsi *dsi)
@@ -1002,33 +995,34 @@ static void dw_mipi_dsi_vertical_timing_config(struct dw_mipi_dsi *dsi)
 	vfp = mode->vsync_start - mode->vdisplay;
 	vbp = mode->vtotal - mode->vsync_end;
 
-	dsi_write(dsi, DSI_VID_VACTIVE_LINES, vactive);
-	dsi_write(dsi, DSI_VID_VSA_LINES, vsa);
-	dsi_write(dsi, DSI_VID_VFP_LINES, vfp);
-	dsi_write(dsi, DSI_VID_VBP_LINES, vbp);
+	regmap_write(dsi->regmap, DSI_VID_VACTIVE_LINES, vactive);
+	regmap_write(dsi->regmap, DSI_VID_VSA_LINES, vsa);
+	regmap_write(dsi->regmap, DSI_VID_VFP_LINES, vfp);
+	regmap_write(dsi->regmap, DSI_VID_VBP_LINES, vbp);
 }
 
 static void dw_mipi_dsi_dphy_timing_config(struct dw_mipi_dsi *dsi)
 {
-	dsi_write(dsi, DSI_PHY_TMR_CFG, PHY_HS2LP_TIME(0x14)
-		  | PHY_LP2HS_TIME(0x10) | MAX_RD_TIME(10000));
-
-	dsi_write(dsi, DSI_PHY_TMR_LPCLK_CFG, PHY_CLKHS2LP_TIME(0x40)
-		  | PHY_CLKLP2HS_TIME(0x40));
+	regmap_write(dsi->regmap, DSI_PHY_TMR_CFG, PHY_HS2LP_TIME(0x14) |
+		     PHY_LP2HS_TIME(0x10) | MAX_RD_TIME(10000));
+	regmap_write(dsi->regmap, DSI_PHY_TMR_LPCLK_CFG,
+		     PHY_CLKHS2LP_TIME(0x40) | PHY_CLKLP2HS_TIME(0x40));
 }
 
 static void dw_mipi_dsi_dphy_interface_config(struct dw_mipi_dsi *dsi)
 {
-	dsi_write(dsi, DSI_PHY_IF_CFG, PHY_STOP_WAIT_TIME(0x20) |
-		  N_LANES(dsi->lanes));
+	regmap_write(dsi->regmap, DSI_PHY_IF_CFG,
+		     PHY_STOP_WAIT_TIME(0x20) | N_LANES(dsi->lanes));
 }
 
 static void dw_mipi_dsi_clear_err(struct dw_mipi_dsi *dsi)
 {
-	dsi_read(dsi, DSI_INT_ST0);
-	dsi_read(dsi, DSI_INT_ST1);
-	dsi_write(dsi, DSI_INT_MSK0, 0);
-	dsi_write(dsi, DSI_INT_MSK1, 0);
+	unsigned int val;
+
+	regmap_read(dsi->regmap, DSI_INT_ST0, &val);
+	regmap_read(dsi->regmap, DSI_INT_ST1, &val);
+	regmap_write(dsi->regmap, DSI_INT_MSK0, 0);
+	regmap_write(dsi->regmap, DSI_INT_MSK1, 0);
 }
 
 static void dw_mipi_dsi_encoder_mode_set(struct drm_encoder *encoder,
@@ -1054,11 +1048,11 @@ static void rockchip_dsi_pre_disable(struct dw_mipi_dsi *dsi)
 static void rockchip_dsi_disable(struct dw_mipi_dsi *dsi)
 {
 	/* host */
-	dsi_write(dsi, DSI_LPCLK_CTRL, 0);
-	dsi_write(dsi, DSI_PWR_UP, RESET);
+	regmap_write(dsi->regmap, DSI_LPCLK_CTRL, 0);
+	regmap_write(dsi->regmap, DSI_PWR_UP, RESET);
 
 	/* phy */
-	dsi_write(dsi, DSI_PHY_RSTZ, PHY_RSTZ);
+	regmap_write(dsi->regmap, DSI_PHY_RSTZ, PHY_RSTZ);
 	if (dsi->dphy.phy) {
 		clk_disable_unprepare(dsi->dphy.hs_clk);
 		phy_power_off(dsi->dphy.phy);
@@ -1584,12 +1578,20 @@ static int mipi_dphy_attach(struct dw_mipi_dsi *dsi)
 	return 0;
 }
 
+static const struct regmap_config dw_mipi_dsi_regmap_config = {
+	.reg_bits = 32,
+	.val_bits = 32,
+	.reg_stride = 4,
+	.max_register = DSI_MAX_REGISGER,
+};
+
 static int dw_mipi_dsi_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct dw_mipi_dsi *dsi;
 	struct device_node *np = dev->of_node;
 	struct resource *res;
+	void __iomem *regs;
 	int ret;
 	int dsi_id;
 
@@ -1607,15 +1609,22 @@ static int dw_mipi_dsi_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, dsi);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	dsi->base = devm_ioremap_resource(dev, res);
-	if (IS_ERR(dsi->base))
-		return PTR_ERR(dsi->base);
+	regs = devm_ioremap_resource(dev, res);
+	if (IS_ERR(regs))
+		return PTR_ERR(regs);
 
 	dsi->pclk = devm_clk_get(dev, "pclk");
 	if (IS_ERR(dsi->pclk)) {
 		ret = PTR_ERR(dsi->pclk);
 		dev_err(dev, "Unable to get pclk: %d\n", ret);
 		return ret;
+	}
+
+	dsi->regmap = devm_regmap_init_mmio(dev, regs,
+					    &dw_mipi_dsi_regmap_config);
+	if (IS_ERR(dsi->regmap)) {
+		dev_err(dev, "failed to init register map\n");
+		return PTR_ERR(dsi->regmap);
 	}
 
 	if (dsi->pdata->need_h2p_clk) {
