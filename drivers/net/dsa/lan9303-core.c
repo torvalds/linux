@@ -249,7 +249,6 @@ static int lan9303_read(struct regmap *regmap, unsigned int offset, u32 *reg)
 	return -EIO;
 }
 
-/* Wait a while until mask & reg == value. Otherwise return timeout. */
 static int lan9303_read_wait(struct lan9303 *chip, int offset, u32 mask)
 {
 	int i;
@@ -541,20 +540,19 @@ lan9303_alr_cache_find_mac(struct lan9303 *chip, const u8 *mac_addr)
 	return NULL;
 }
 
-/* Wait a while until mask & reg == value. Otherwise return timeout. */
-static int lan9303_csr_reg_wait(struct lan9303 *chip, int regno,
-				int mask, char value)
+static int lan9303_csr_reg_wait(struct lan9303 *chip, int regno, u32 mask)
 {
 	int i;
 
-	for (i = 0; i < 0x1000; i++) {
+	for (i = 0; i < 25; i++) {
 		u32 reg;
 
 		lan9303_read_switch_reg(chip, regno, &reg);
-		if ((reg & mask) == value)
+		if (!(reg & mask))
 			return 0;
 		usleep_range(1000, 2000);
 	}
+
 	return -ETIMEDOUT;
 }
 
@@ -564,8 +562,7 @@ static int lan9303_alr_make_entry_raw(struct lan9303 *chip, u32 dat0, u32 dat1)
 	lan9303_write_switch_reg(chip, LAN9303_SWE_ALR_WR_DAT_1, dat1);
 	lan9303_write_switch_reg(chip, LAN9303_SWE_ALR_CMD,
 				 LAN9303_ALR_CMD_MAKE_ENTRY);
-	lan9303_csr_reg_wait(chip, LAN9303_SWE_ALR_CMD_STS, ALR_STS_MAKE_PEND,
-			     0);
+	lan9303_csr_reg_wait(chip, LAN9303_SWE_ALR_CMD_STS, ALR_STS_MAKE_PEND);
 	lan9303_write_switch_reg(chip, LAN9303_SWE_ALR_CMD, 0);
 
 	return 0;
