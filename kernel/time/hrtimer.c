@@ -70,7 +70,6 @@
 DEFINE_PER_CPU(struct hrtimer_cpu_base, hrtimer_bases) =
 {
 	.lock = __RAW_SPIN_LOCK_UNLOCKED(hrtimer_bases.lock),
-	.seq = SEQCNT_ZERO(hrtimer_bases.seq),
 	.clock_base =
 	{
 		{
@@ -118,7 +117,6 @@ static const int hrtimer_clock_to_base_table[MAX_CLOCKS] = {
  * timer->base->cpu_base
  */
 static struct hrtimer_cpu_base migration_cpu_base = {
-	.seq = SEQCNT_ZERO(migration_cpu_base),
 	.clock_base = { { .cpu_base = &migration_cpu_base, }, },
 };
 
@@ -1148,19 +1146,19 @@ EXPORT_SYMBOL_GPL(hrtimer_init);
  */
 bool hrtimer_active(const struct hrtimer *timer)
 {
-	struct hrtimer_cpu_base *cpu_base;
+	struct hrtimer_clock_base *base;
 	unsigned int seq;
 
 	do {
-		cpu_base = READ_ONCE(timer->base->cpu_base);
-		seq = raw_read_seqcount_begin(&cpu_base->seq);
+		base = READ_ONCE(timer->base);
+		seq = raw_read_seqcount_begin(&base->seq);
 
 		if (timer->state != HRTIMER_STATE_INACTIVE ||
-		    cpu_base->running == timer)
+		    base->running == timer)
 			return true;
 
-	} while (read_seqcount_retry(&cpu_base->seq, seq) ||
-		 cpu_base != READ_ONCE(timer->base->cpu_base));
+	} while (read_seqcount_retry(&base->seq, seq) ||
+		 base != READ_ONCE(timer->base));
 
 	return false;
 }
@@ -1194,16 +1192,16 @@ static void __run_hrtimer(struct hrtimer_cpu_base *cpu_base,
 	lockdep_assert_held(&cpu_base->lock);
 
 	debug_deactivate(timer);
-	cpu_base->running = timer;
+	base->running = timer;
 
 	/*
 	 * Separate the ->running assignment from the ->state assignment.
 	 *
 	 * As with a regular write barrier, this ensures the read side in
-	 * hrtimer_active() cannot observe cpu_base->running == NULL &&
+	 * hrtimer_active() cannot observe base->running == NULL &&
 	 * timer->state == INACTIVE.
 	 */
-	raw_write_seqcount_barrier(&cpu_base->seq);
+	raw_write_seqcount_barrier(&base->seq);
 
 	__remove_hrtimer(timer, base, HRTIMER_STATE_INACTIVE, 0);
 	fn = timer->function;
@@ -1244,13 +1242,13 @@ static void __run_hrtimer(struct hrtimer_cpu_base *cpu_base,
 	 * Separate the ->running assignment from the ->state assignment.
 	 *
 	 * As with a regular write barrier, this ensures the read side in
-	 * hrtimer_active() cannot observe cpu_base->running == NULL &&
+	 * hrtimer_active() cannot observe base->running.timer == NULL &&
 	 * timer->state == INACTIVE.
 	 */
-	raw_write_seqcount_barrier(&cpu_base->seq);
+	raw_write_seqcount_barrier(&base->seq);
 
-	WARN_ON_ONCE(cpu_base->running != timer);
-	cpu_base->running = NULL;
+	WARN_ON_ONCE(base->running != timer);
+	base->running = NULL;
 }
 
 static void __hrtimer_run_queues(struct hrtimer_cpu_base *cpu_base, ktime_t now)
