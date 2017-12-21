@@ -142,6 +142,32 @@ static void pnv_gmbus_clock_gating(struct drm_i915_private *dev_priv,
 	I915_WRITE(DSPCLK_GATE_D, val);
 }
 
+static void pch_gmbus_clock_gating(struct drm_i915_private *dev_priv,
+				   bool enable)
+{
+	u32 val;
+
+	val = I915_READ(SOUTH_DSPCLK_GATE_D);
+	if (!enable)
+		val |= PCH_GMBUSUNIT_CLOCK_GATE_DISABLE;
+	else
+		val &= ~PCH_GMBUSUNIT_CLOCK_GATE_DISABLE;
+	I915_WRITE(SOUTH_DSPCLK_GATE_D, val);
+}
+
+static void bxt_gmbus_clock_gating(struct drm_i915_private *dev_priv,
+				   bool enable)
+{
+	u32 val;
+
+	val = I915_READ(GEN9_CLKGATE_DIS_4);
+	if (!enable)
+		val |= BXT_GMBUS_GATING_DIS;
+	else
+		val &= ~BXT_GMBUS_GATING_DIS;
+	I915_WRITE(GEN9_CLKGATE_DIS_4, val);
+}
+
 static u32 get_reserved(struct intel_gmbus *bus)
 {
 	struct drm_i915_private *dev_priv = bus->dev_priv;
@@ -484,6 +510,13 @@ do_gmbus_xfer(struct i2c_adapter *adapter, struct i2c_msg *msgs, int num)
 	int i = 0, inc, try = 0;
 	int ret = 0;
 
+	/* Display WA #0868: skl,bxt,kbl,cfl,glk,cnl */
+	if (IS_GEN9_LP(dev_priv))
+		bxt_gmbus_clock_gating(dev_priv, false);
+	else if (HAS_PCH_SPT(dev_priv) ||
+		 HAS_PCH_KBP(dev_priv) || HAS_PCH_CNP(dev_priv))
+		pch_gmbus_clock_gating(dev_priv, false);
+
 retry:
 	I915_WRITE_FW(GMBUS0, bus->reg0);
 
@@ -585,6 +618,13 @@ timeout:
 	ret = -EAGAIN;
 
 out:
+	/* Display WA #0868: skl,bxt,kbl,cfl,glk,cnl */
+	if (IS_GEN9_LP(dev_priv))
+		bxt_gmbus_clock_gating(dev_priv, true);
+	else if (HAS_PCH_SPT(dev_priv) ||
+		 HAS_PCH_KBP(dev_priv) || HAS_PCH_CNP(dev_priv))
+		pch_gmbus_clock_gating(dev_priv, true);
+
 	return ret;
 }
 
