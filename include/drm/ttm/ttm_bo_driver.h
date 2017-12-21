@@ -650,7 +650,8 @@ void ttm_dma_tt_fini(struct ttm_dma_tt *ttm_dma);
  *
  * Bind the pages of @ttm to an aperture location identified by @bo_mem
  */
-int ttm_tt_bind(struct ttm_tt *ttm, struct ttm_mem_reg *bo_mem);
+int ttm_tt_bind(struct ttm_tt *ttm, struct ttm_mem_reg *bo_mem,
+		struct ttm_operation_ctx *ctx);
 
 /**
  * ttm_ttm_destroy:

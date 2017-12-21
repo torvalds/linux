@@ -261,12 +261,9 @@ void ttm_tt_unbind(struct ttm_tt *ttm)
 	}
 }
 
-int ttm_tt_bind(struct ttm_tt *ttm, struct ttm_mem_reg *bo_mem)
+int ttm_tt_bind(struct ttm_tt *ttm, struct ttm_mem_reg *bo_mem,
+		struct ttm_operation_ctx *ctx)
 {
-	struct ttm_operation_ctx ctx = {
-		.interruptible = false,
-		.no_wait_gpu = false
-	};
 	int ret = 0;
 
 	if (!ttm)
@@ -275,7 +272,7 @@ int ttm_tt_bind(struct ttm_tt *ttm, struct ttm_mem_reg *bo_mem)
 	if (ttm->state == tt_bound)
 		return 0;
 
-	ret = ttm->bdev->driver->ttm_tt_populate(ttm, &ctx);
+	ret = ttm->bdev->driver->ttm_tt_populate(ttm, ctx);
 	if (ret)
 		return ret;
 

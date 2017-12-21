@@ -1218,7 +1218,7 @@ nouveau_bo_move_flipd(struct ttm_buffer_object *bo, bool evict, bool intr,
 	if (ret)
 		return ret;
 
-	ret = ttm_tt_bind(bo->ttm, &tmp_reg);
+	ret = ttm_tt_bind(bo->ttm, &tmp_reg, &ctx);
 	if (ret)
 		goto out;
 
