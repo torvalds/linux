@@ -458,7 +458,6 @@ __next_base(struct hrtimer_cpu_base *cpu_base, unsigned int *active)
 #define for_each_active_base(base, cpu_base, active)	\
 	while ((base = __next_base((cpu_base), &(active))))
 
-#if defined(CONFIG_NO_HZ_COMMON) || defined(CONFIG_HIGH_RES_TIMERS)
 static ktime_t __hrtimer_get_next_event(struct hrtimer_cpu_base *cpu_base)
 {
 	struct hrtimer_clock_base *base;
@@ -487,7 +486,6 @@ static ktime_t __hrtimer_get_next_event(struct hrtimer_cpu_base *cpu_base)
 		expires_next = 0;
 	return expires_next;
 }
-#endif
 
 static inline ktime_t hrtimer_update_base(struct hrtimer_cpu_base *base)
 {
@@ -511,34 +509,6 @@ static inline int __hrtimer_hres_active(struct hrtimer_cpu_base *cpu_base)
 static inline int hrtimer_hres_active(void)
 {
 	return __hrtimer_hres_active(this_cpu_ptr(&hrtimer_bases));
-}
-
-/* High resolution timer related functions */
-#ifdef CONFIG_HIGH_RES_TIMERS
-
-/*
- * High resolution timer enabled ?
- */
-static bool hrtimer_hres_enabled __read_mostly  = true;
-unsigned int hrtimer_resolution __read_mostly = LOW_RES_NSEC;
-EXPORT_SYMBOL_GPL(hrtimer_resolution);
-
-/*
- * Enable / Disable high resolution mode
- */
-static int __init setup_hrtimer_hres(char *str)
-{
-	return (kstrtobool(str, &hrtimer_hres_enabled) == 0);
-}
-
-__setup("highres=", setup_hrtimer_hres);
-
-/*
- * hrtimer_high_res_enabled - query, if the highres mode is enabled
- */
-static inline int hrtimer_is_hres_enabled(void)
-{
-	return hrtimer_hres_enabled;
 }
 
 /*
@@ -579,6 +549,34 @@ hrtimer_force_reprogram(struct hrtimer_cpu_base *cpu_base, int skip_equal)
 		return;
 
 	tick_program_event(cpu_base->expires_next, 1);
+}
+
+/* High resolution timer related functions */
+#ifdef CONFIG_HIGH_RES_TIMERS
+
+/*
+ * High resolution timer enabled ?
+ */
+static bool hrtimer_hres_enabled __read_mostly  = true;
+unsigned int hrtimer_resolution __read_mostly = LOW_RES_NSEC;
+EXPORT_SYMBOL_GPL(hrtimer_resolution);
+
+/*
+ * Enable / Disable high resolution mode
+ */
+static int __init setup_hrtimer_hres(char *str)
+{
+	return (kstrtobool(str, &hrtimer_hres_enabled) == 0);
+}
+
+__setup("highres=", setup_hrtimer_hres);
+
+/*
+ * hrtimer_high_res_enabled - query, if the highres mode is enabled
+ */
+static inline int hrtimer_is_hres_enabled(void)
+{
+	return hrtimer_hres_enabled;
 }
 
 /*
@@ -639,8 +637,6 @@ void clock_was_set_delayed(void)
 
 static inline int hrtimer_is_hres_enabled(void) { return 0; }
 static inline void hrtimer_switch_to_hres(void) { }
-static inline void
-hrtimer_force_reprogram(struct hrtimer_cpu_base *base, int skip_equal) { }
 static inline void retrigger_next_event(void *arg) { }
 
 #endif /* CONFIG_HIGH_RES_TIMERS */
