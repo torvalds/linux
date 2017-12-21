@@ -1579,17 +1579,13 @@ def main():
 
     stats = Stats(options)
 
-    if options.fields == "help":
+    if options.fields == 'help':
         stats.fields_filter = None
-        event_list = "\n"
-        s = stats.get()
-        for key in s.keys():
-            if key.find('(') != -1:
-                key = key[0:key.find('(')]
-            if event_list.find('\n' + key + '\n') == -1:
-                event_list += key + '\n'
-        sys.stdout.write(event_list)
-        return ""
+        event_list = []
+        for key in stats.get().keys():
+            event_list.append(key.split('(', 1)[0])
+        sys.stdout.write('  ' + '\n  '.join(sorted(set(event_list))) + '\n')
+        sys.exit(0)
 
     if options.log:
         log(stats)
