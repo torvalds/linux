@@ -1133,6 +1133,10 @@ static const struct sun4i_tcon_quirks sun8i_a33_quirks = {
 	.has_lvds_alt		= true,
 };
 
+static const struct sun4i_tcon_quirks sun8i_a83t_lcd_quirks = {
+	/* nothing is supported */
+};
+
 static const struct sun4i_tcon_quirks sun8i_v3s_quirks = {
 	/* nothing is supported */
 };
@@ -1145,6 +1149,7 @@ const struct of_device_id sun4i_tcon_of_table[] = {
 	{ .compatible = "allwinner,sun6i-a31s-tcon", .data = &sun6i_a31s_quirks },
 	{ .compatible = "allwinner,sun7i-a20-tcon", .data = &sun7i_a20_quirks },
 	{ .compatible = "allwinner,sun8i-a33-tcon", .data = &sun8i_a33_quirks },
+	{ .compatible = "allwinner,sun8i-a83t-tcon-lcd", .data = &sun8i_a83t_lcd_quirks },
 	{ .compatible = "allwinner,sun8i-v3s-tcon", .data = &sun8i_v3s_quirks },
 	{ }
 };
