@@ -50,8 +50,6 @@ struct deadline_data {
 	int front_merges;
 };
 
-static void deadline_move_request(struct deadline_data *, struct request *);
-
 static inline struct rb_root *
 deadline_rb_root(struct deadline_data *dd, struct request *rq)
 {
@@ -231,6 +229,35 @@ static inline int deadline_check_fifo(struct deadline_data *dd, int ddir)
 }
 
 /*
+ * For the specified data direction, return the next request to dispatch using
+ * arrival ordered lists.
+ */
+static struct request *
+deadline_fifo_request(struct deadline_data *dd, int data_dir)
+{
+	if (WARN_ON_ONCE(data_dir != READ && data_dir != WRITE))
+		return NULL;
+
+	if (list_empty(&dd->fifo_list[data_dir]))
+		return NULL;
+
+	return rq_entry_fifo(dd->fifo_list[data_dir].next);
+}
+
+/*
+ * For the specified data direction, return the next request to dispatch using
+ * sector position sorted lists.
+ */
+static struct request *
+deadline_next_request(struct deadline_data *dd, int data_dir)
+{
+	if (WARN_ON_ONCE(data_dir != READ && data_dir != WRITE))
+		return NULL;
+
+	return dd->next_rq[data_dir];
+}
+
+/*
  * deadline_dispatch_requests selects the best request according to
  * read/write expire, fifo_batch, etc
  */
@@ -239,16 +266,15 @@ static int deadline_dispatch_requests(struct request_queue *q, int force)
 	struct deadline_data *dd = q->elevator->elevator_data;
 	const int reads = !list_empty(&dd->fifo_list[READ]);
 	const int writes = !list_empty(&dd->fifo_list[WRITE]);
-	struct request *rq;
+	struct request *rq, *next_rq;
 	int data_dir;
 
 	/*
 	 * batches are currently reads XOR writes
 	 */
-	if (dd->next_rq[WRITE])
-		rq = dd->next_rq[WRITE];
-	else
-		rq = dd->next_rq[READ];
+	rq = deadline_next_request(dd, WRITE);
+	if (!rq)
+		rq = deadline_next_request(dd, READ);
 
 	if (rq && dd->batching < dd->fifo_batch)
 		/* we have a next request are still entitled to batch */
@@ -291,19 +317,20 @@ dispatch_find_request:
 	/*
 	 * we are not running a batch, find best request for selected data_dir
 	 */
-	if (deadline_check_fifo(dd, data_dir) || !dd->next_rq[data_dir]) {
+	next_rq = deadline_next_request(dd, data_dir);
+	if (deadline_check_fifo(dd, data_dir) || !next_rq) {
 		/*
 		 * A deadline has expired, the last request was in the other
 		 * direction, or we have run out of higher-sectored requests.
 		 * Start again from the request with the earliest expiry time.
 		 */
-		rq = rq_entry_fifo(dd->fifo_list[data_dir].next);
+		rq = deadline_fifo_request(dd, data_dir);
 	} else {
 		/*
 		 * The last req was the same dir and we have a next request in
 		 * sort order. No expired requests so continue on from here.
 		 */
-		rq = dd->next_rq[data_dir];
+		rq = next_rq;
 	}
 
 	dd->batching = 0;
