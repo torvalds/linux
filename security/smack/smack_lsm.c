@@ -2866,11 +2866,15 @@ static int smack_socket_connect(struct socket *sock, struct sockaddr *sap,
 #endif
 #ifdef SMACK_IPV6_SECMARK_LABELING
 	struct smack_known *rsp;
-	struct socket_smack *ssp = sock->sk->sk_security;
+	struct socket_smack *ssp;
 #endif
 
 	if (sock->sk == NULL)
 		return 0;
+
+#ifdef SMACK_IPV6_SECMARK_LABELING
+	ssp = sock->sk->sk_security;
+#endif
 
 	switch (sock->sk->sk_family) {
 	case PF_INET:
