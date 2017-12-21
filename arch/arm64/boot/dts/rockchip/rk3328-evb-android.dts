@@ -1,91 +1,17 @@
 /*
- * Copyright (c) 2016 Fuzhou Rockchip Electronics Co., Ltd
+ * Copyright (c) 2017 Fuzhou Rockchip Electronics Co., Ltd
  *
- * This file is dual-licensed: you can use it either under the terms
- * of the GPL or the X11 license, at your option. Note that this dual
- * licensing only applies to this file, and not this project as a
- * whole.
- *
- *  a) This library is free software; you can redistribute it and/or
- *     modify it under the terms of the GNU General Public License as
- *     published by the Free Software Foundation; either version 2 of the
- *     License, or (at your option) any later version.
- *
- *     This library is distributed in the hope that it will be useful,
- *     but WITHOUT ANY WARRANTY; without even the implied warranty of
- *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *     GNU General Public License for more details.
- *
- * Or, alternatively,
- *
- *  b) Permission is hereby granted, free of charge, to any person
- *     obtaining a copy of this software and associated documentation
- *     files (the "Software"), to deal in the Software without
- *     restriction, including without limitation the rights to use,
- *     copy, modify, merge, publish, distribute, sublicense, and/or
- *     sell copies of the Software, and to permit persons to whom the
- *     Software is furnished to do so, subject to the following
- *     conditions:
- *
- *     The above copyright notice and this permission notice shall be
- *     included in all copies or substantial portions of the Software.
- *
- *     THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- *     EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- *     OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- *     NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- *     HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- *     WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- *     FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- *     OTHER DEALINGS IN THE SOFTWARE.
+ * SPDX-License-Identifier: (GPL-2.0+ OR MIT)
  */
 
 /dts-v1/;
 #include "rk3328.dtsi"
+#include "rk3328-android.dtsi"
 #include <dt-bindings/input/input.h>
 
 / {
 	model = "Rockchip RK3328 EVB";
 	compatible = "rockchip,rk3328-evb", "rockchip,rk3328";
-
-	chosen {
-		bootargs = "rockchip_jtag earlyprintk=uart8250-32bit,0xff130000";
-	};
-
-	fiq-debugger {
-		compatible = "rockchip,fiq-debugger";
-		rockchip,serial-id = <2>;
-		rockchip,signal-irq = <159>;
-		rockchip,wake-irq = <0>;
-		/* If enable uart uses irq instead of fiq */
-		rockchip,irq-mode-enable = <0>;
-		rockchip,baudrate = <1500000>;  /* Only 115200 and 1500000 */
-		interrupts = <GIC_SPI 127 IRQ_TYPE_LEVEL_LOW>;
-		status = "okay";
-	};
-
-	firmware {
-		android {
-			compatible = "android,firmware";
-			fstab {
-				compatible = "android,fstab";
-				system {
-					compatible = "android,system";
-					dev = "/dev/block/platform/ff520000.dwmmc/by-name/system";
-					type = "ext4";
-					mnt_flags = "ro,barrier=1,inode_readahead_blks=8";
-					fsmgr_flags = "wait,verify";
-				};
-				vendor {
-					compatible = "android,vendor";
-					dev = "/dev/block/platform/ff520000.dwmmc/by-name/vendor";
-					type = "ext4";
-					mnt_flags = "ro,barrier=1,inode_readahead_blks=8";
-					fsmgr_flags = "wait,verify";
-				};
-			};
-		};
-	};
 
 	gmac_clkin: external-gmac-clock {
 		compatible = "fixed-clock";
@@ -131,17 +57,6 @@
 		};
 		simple-audio-card,codec {
 			sound-dai = <&hdmi>;
-		};
-	};
-
-	reserved-memory {
-		#address-cells = <2>;
-		#size-cells = <2>;
-		ranges;
-
-		drm_logo: drm-logo@00000000 {
-			compatible = "rockchip,drm-logo";
-			reg = <0x0 0x0 0x0 0x0>;
 		};
 	};
 
@@ -209,22 +124,6 @@
 
 &cpu0 {
 	cpu-supply = <&vdd_arm>;
-};
-
-&display_subsystem {
-	logo-memory-region = <&drm_logo>;
-	status = "okay";
-
-	route {
-		route_hdmi: route-hdmi {
-			status = "okay";
-			logo,uboot = "logo.bmp";
-			logo,kernel = "logo_kernel.bmp";
-			logo,mode = "center";
-			charge_logo,mode = "center";
-			connect = <&vop_out_hdmi>;
-		};
-	};
 };
 
 &emmc {
