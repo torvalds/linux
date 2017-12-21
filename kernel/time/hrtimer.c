@@ -685,21 +685,24 @@ static void hrtimer_reprogram(struct hrtimer *timer,
 
 	/* Update the pointer to the next expiring timer */
 	cpu_base->next_timer = timer;
+	cpu_base->expires_next = expires;
 
 	/*
+	 * If hres is not active, hardware does not have to be
+	 * programmed yet.
+	 *
 	 * If a hang was detected in the last timer interrupt then we
 	 * do not schedule a timer which is earlier than the expiry
 	 * which we enforced in the hang detection. We want the system
 	 * to make progress.
 	 */
-	if (cpu_base->hang_detected)
+	if (!__hrtimer_hres_active(cpu_base) || cpu_base->hang_detected)
 		return;
 
 	/*
 	 * Program the timer hardware. We enforce the expiry for
 	 * events which are already in the past.
 	 */
-	cpu_base->expires_next = expires;
 	tick_program_event(expires, 1);
 }
 
@@ -936,16 +939,7 @@ void hrtimer_start_range_ns(struct hrtimer *timer, ktime_t tim,
 	if (!leftmost)
 		goto unlock;
 
-	if (!hrtimer_is_hres_active(timer)) {
-		/*
-		 * Kick to reschedule the next tick to handle the new timer
-		 * on dynticks target.
-		 */
-		if (is_timers_nohz_active())
-			wake_up_nohz_cpu(new_base->cpu_base->cpu);
-	} else {
-		hrtimer_reprogram(timer, new_base);
-	}
+	hrtimer_reprogram(timer, new_base);
 unlock:
 	unlock_hrtimer_base(timer, &flags);
 }

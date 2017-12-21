@@ -210,7 +210,7 @@ static DEFINE_PER_CPU(struct timer_base, timer_bases[NR_BASES]);
 
 #ifdef CONFIG_NO_HZ_COMMON
 
-DEFINE_STATIC_KEY_FALSE(timers_nohz_active);
+static DEFINE_STATIC_KEY_FALSE(timers_nohz_active);
 static DEFINE_MUTEX(timer_keys_mutex);
 
 static void timer_update_keys(struct work_struct *work);
@@ -258,6 +258,13 @@ int timer_migration_handler(struct ctl_table *table, int write,
 	mutex_unlock(&timer_keys_mutex);
 	return ret;
 }
+
+static inline bool is_timers_nohz_active(void)
+{
+	return static_branch_unlikely(&timers_nohz_active);
+}
+#else
+static inline bool is_timers_nohz_active(void) { return false; }
 #endif /* NO_HZ_COMMON */
 
 static unsigned long round_jiffies_common(unsigned long j, int cpu,
