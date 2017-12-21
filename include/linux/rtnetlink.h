@@ -97,13 +97,9 @@ void rtnetlink_init(void);
 void __rtnl_unlock(void);
 void rtnl_kfree_skbs(struct sk_buff *head, struct sk_buff *tail);
 
-#define ASSERT_RTNL() do { \
-	if (unlikely(!rtnl_is_locked())) { \
-		printk(KERN_ERR "RTNL: assertion failed at %s (%d)\n", \
-		       __FILE__,  __LINE__); \
-		dump_stack(); \
-	} \
-} while(0)
+#define ASSERT_RTNL() \
+	WARN_ONCE(!rtnl_is_locked(), \
+		  "RTNL: assertion failed at %s (%d)\n", __FILE__,  __LINE__)
 
 extern int ndo_dflt_fdb_dump(struct sk_buff *skb,
 			     struct netlink_callback *cb,
