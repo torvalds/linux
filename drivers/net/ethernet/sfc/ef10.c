@@ -233,7 +233,7 @@ static int efx_ef10_get_vf_index(struct efx_nic *efx)
 
 static int efx_ef10_init_datapath_caps(struct efx_nic *efx)
 {
-	MCDI_DECLARE_BUF(outbuf, MC_CMD_GET_CAPABILITIES_V3_OUT_LEN);
+	MCDI_DECLARE_BUF(outbuf, MC_CMD_GET_CAPABILITIES_V4_OUT_LEN);
 	struct efx_ef10_nic_data *nic_data = efx->nic_data;
 	size_t outlen;
 	int rc;
@@ -304,6 +304,19 @@ static int efx_ef10_init_datapath_caps(struct efx_nic *efx)
 		netif_dbg(efx, probe, efx->net_dev,
 			  "firmware did not report VI window mode, assuming vi_stride = %u\n",
 			  efx->vi_stride);
+	}
+
+	if (outlen >= MC_CMD_GET_CAPABILITIES_V4_OUT_LEN) {
+		efx->num_mac_stats = MCDI_WORD(outbuf,
+				GET_CAPABILITIES_V4_OUT_MAC_STATS_NUM_STATS);
+		netif_dbg(efx, probe, efx->net_dev,
+			  "firmware reports num_mac_stats = %u\n",
+			  efx->num_mac_stats);
+	} else {
+		/* leave num_mac_stats as the default value, MC_CMD_MAC_NSTATS */
+		netif_dbg(efx, probe, efx->net_dev,
+			  "firmware did not report num_mac_stats, assuming %u\n",
+			  efx->num_mac_stats);
 	}
 
 	return 0;
@@ -1630,6 +1643,29 @@ static const struct efx_hw_stat_desc efx_ef10_stat_desc[EF10_STAT_COUNT] = {
 	EF10_DMA_STAT(tx_bad, VADAPTER_TX_BAD_PACKETS),
 	EF10_DMA_STAT(tx_bad_bytes, VADAPTER_TX_BAD_BYTES),
 	EF10_DMA_STAT(tx_overflow, VADAPTER_TX_OVERFLOW),
+	EF10_DMA_STAT(fec_uncorrected_errors, FEC_UNCORRECTED_ERRORS),
+	EF10_DMA_STAT(fec_corrected_errors, FEC_CORRECTED_ERRORS),
+	EF10_DMA_STAT(fec_corrected_symbols_lane0, FEC_CORRECTED_SYMBOLS_LANE0),
+	EF10_DMA_STAT(fec_corrected_symbols_lane1, FEC_CORRECTED_SYMBOLS_LANE1),
+	EF10_DMA_STAT(fec_corrected_symbols_lane2, FEC_CORRECTED_SYMBOLS_LANE2),
+	EF10_DMA_STAT(fec_corrected_symbols_lane3, FEC_CORRECTED_SYMBOLS_LANE3),
+	EF10_DMA_STAT(ctpio_dmabuf_start, CTPIO_DMABUF_START),
+	EF10_DMA_STAT(ctpio_vi_busy_fallback, CTPIO_VI_BUSY_FALLBACK),
+	EF10_DMA_STAT(ctpio_long_write_success, CTPIO_LONG_WRITE_SUCCESS),
+	EF10_DMA_STAT(ctpio_missing_dbell_fail, CTPIO_MISSING_DBELL_FAIL),
+	EF10_DMA_STAT(ctpio_overflow_fail, CTPIO_OVERFLOW_FAIL),
+	EF10_DMA_STAT(ctpio_underflow_fail, CTPIO_UNDERFLOW_FAIL),
+	EF10_DMA_STAT(ctpio_timeout_fail, CTPIO_TIMEOUT_FAIL),
+	EF10_DMA_STAT(ctpio_noncontig_wr_fail, CTPIO_NONCONTIG_WR_FAIL),
+	EF10_DMA_STAT(ctpio_frm_clobber_fail, CTPIO_FRM_CLOBBER_FAIL),
+	EF10_DMA_STAT(ctpio_invalid_wr_fail, CTPIO_INVALID_WR_FAIL),
+	EF10_DMA_STAT(ctpio_vi_clobber_fallback, CTPIO_VI_CLOBBER_FALLBACK),
+	EF10_DMA_STAT(ctpio_unqualified_fallback, CTPIO_UNQUALIFIED_FALLBACK),
+	EF10_DMA_STAT(ctpio_runt_fallback, CTPIO_RUNT_FALLBACK),
+	EF10_DMA_STAT(ctpio_success, CTPIO_SUCCESS),
+	EF10_DMA_STAT(ctpio_fallback, CTPIO_FALLBACK),
+	EF10_DMA_STAT(ctpio_poison, CTPIO_POISON),
+	EF10_DMA_STAT(ctpio_erase, CTPIO_ERASE),
 };
 
 #define HUNT_COMMON_STAT_MASK ((1ULL << EF10_STAT_port_tx_bytes) |	\
@@ -1705,6 +1741,43 @@ static const struct efx_hw_stat_desc efx_ef10_stat_desc[EF10_STAT_COUNT] = {
 	(1ULL << EF10_STAT_port_rx_dp_hlb_fetch) |			\
 	(1ULL << EF10_STAT_port_rx_dp_hlb_wait))
 
+/* These statistics are only provided if the NIC supports MC_CMD_MAC_STATS_V2,
+ * indicated by returning a value >= MC_CMD_MAC_NSTATS_V2 in
+ * MC_CMD_GET_CAPABILITIES_V4_OUT_MAC_STATS_NUM_STATS.
+ * These bits are in the second u64 of the raw mask.
+ */
+#define EF10_FEC_STAT_MASK (						\
+	(1ULL << (EF10_STAT_fec_uncorrected_errors - 64)) |		\
+	(1ULL << (EF10_STAT_fec_corrected_errors - 64)) |		\
+	(1ULL << (EF10_STAT_fec_corrected_symbols_lane0 - 64)) |	\
+	(1ULL << (EF10_STAT_fec_corrected_symbols_lane1 - 64)) |	\
+	(1ULL << (EF10_STAT_fec_corrected_symbols_lane2 - 64)) |	\
+	(1ULL << (EF10_STAT_fec_corrected_symbols_lane3 - 64)))
+
+/* These statistics are only provided if the NIC supports MC_CMD_MAC_STATS_V3,
+ * indicated by returning a value >= MC_CMD_MAC_NSTATS_V3 in
+ * MC_CMD_GET_CAPABILITIES_V4_OUT_MAC_STATS_NUM_STATS.
+ * These bits are in the second u64 of the raw mask.
+ */
+#define EF10_CTPIO_STAT_MASK (						\
+	(1ULL << (EF10_STAT_ctpio_dmabuf_start - 64)) |			\
+	(1ULL << (EF10_STAT_ctpio_vi_busy_fallback - 64)) |		\
+	(1ULL << (EF10_STAT_ctpio_long_write_success - 64)) |		\
+	(1ULL << (EF10_STAT_ctpio_missing_dbell_fail - 64)) |		\
+	(1ULL << (EF10_STAT_ctpio_overflow_fail - 64)) |		\
+	(1ULL << (EF10_STAT_ctpio_underflow_fail - 64)) |		\
+	(1ULL << (EF10_STAT_ctpio_timeout_fail - 64)) |			\
+	(1ULL << (EF10_STAT_ctpio_noncontig_wr_fail - 64)) |		\
+	(1ULL << (EF10_STAT_ctpio_frm_clobber_fail - 64)) |		\
+	(1ULL << (EF10_STAT_ctpio_invalid_wr_fail - 64)) |		\
+	(1ULL << (EF10_STAT_ctpio_vi_clobber_fallback - 64)) |		\
+	(1ULL << (EF10_STAT_ctpio_unqualified_fallback - 64)) |		\
+	(1ULL << (EF10_STAT_ctpio_runt_fallback - 64)) |		\
+	(1ULL << (EF10_STAT_ctpio_success - 64)) |			\
+	(1ULL << (EF10_STAT_ctpio_fallback - 64)) |			\
+	(1ULL << (EF10_STAT_ctpio_poison - 64)) |			\
+	(1ULL << (EF10_STAT_ctpio_erase - 64)))
+
 static u64 efx_ef10_raw_stat_mask(struct efx_nic *efx)
 {
 	u64 raw_mask = HUNT_COMMON_STAT_MASK;
@@ -1743,10 +1816,22 @@ static void efx_ef10_get_stat_mask(struct efx_nic *efx, unsigned long *mask)
 	if (nic_data->datapath_caps &
 	    (1 << MC_CMD_GET_CAPABILITIES_OUT_EVB_LBN)) {
 		raw_mask[0] |= ~((1ULL << EF10_STAT_rx_unicast) - 1);
-		raw_mask[1] = (1ULL << (EF10_STAT_COUNT - 63)) - 1;
+		raw_mask[1] = (1ULL << (EF10_STAT_V1_COUNT - 64)) - 1;
 	} else {
 		raw_mask[1] = 0;
 	}
+	/* Only show FEC stats when NIC supports MC_CMD_MAC_STATS_V2 */
+	if (efx->num_mac_stats >= MC_CMD_MAC_NSTATS_V2)
+		raw_mask[1] |= EF10_FEC_STAT_MASK;
+
+	/* CTPIO stats appear in V3. Only show them on devices that actually
+	 * support CTPIO. Although this driver doesn't use CTPIO others might,
+	 * and we may be reporting the stats for the underlying port.
+	 */
+	if (efx->num_mac_stats >= MC_CMD_MAC_NSTATS_V3 &&
+	    (nic_data->datapath_caps2 &
+	     (1 << MC_CMD_GET_CAPABILITIES_V4_OUT_CTPIO_LBN)))
+		raw_mask[1] |= EF10_CTPIO_STAT_MASK;
 
 #if BITS_PER_LONG == 64
 	BUILD_BUG_ON(BITS_TO_LONGS(EF10_STAT_COUNT) != 2);
@@ -1850,7 +1935,7 @@ static int efx_ef10_try_update_nic_stats_pf(struct efx_nic *efx)
 
 	dma_stats = efx->stats_buffer.addr;
 
-	generation_end = dma_stats[MC_CMD_MAC_GENERATION_END];
+	generation_end = dma_stats[efx->num_mac_stats - 1];
 	if (generation_end == EFX_MC_STATS_GENERATION_INVALID)
 		return 0;
 	rmb();
@@ -1898,7 +1983,7 @@ static int efx_ef10_try_update_nic_stats_vf(struct efx_nic *efx)
 	DECLARE_BITMAP(mask, EF10_STAT_COUNT);
 	__le64 generation_start, generation_end;
 	u64 *stats = nic_data->stats;
-	u32 dma_len = MC_CMD_MAC_NSTATS * sizeof(u64);
+	u32 dma_len = efx->num_mac_stats * sizeof(u64);
 	struct efx_buffer stats_buf;
 	__le64 *dma_stats;
 	int rc;
@@ -1923,7 +2008,7 @@ static int efx_ef10_try_update_nic_stats_vf(struct efx_nic *efx)
 	}
 
 	dma_stats = stats_buf.addr;
-	dma_stats[MC_CMD_MAC_GENERATION_END] = EFX_MC_STATS_GENERATION_INVALID;
+	dma_stats[efx->num_mac_stats - 1] = EFX_MC_STATS_GENERATION_INVALID;
 
 	MCDI_SET_QWORD(inbuf, MAC_STATS_IN_DMA_ADDR, stats_buf.dma_addr);
 	MCDI_POPULATE_DWORD_1(inbuf, MAC_STATS_IN_CMD,
@@ -1942,7 +2027,7 @@ static int efx_ef10_try_update_nic_stats_vf(struct efx_nic *efx)
 		goto out;
 	}
 
-	generation_end = dma_stats[MC_CMD_MAC_GENERATION_END];
+	generation_end = dma_stats[efx->num_mac_stats - 1];
 	if (generation_end == EFX_MC_STATS_GENERATION_INVALID) {
 		WARN_ON_ONCE(1);
 		goto out;

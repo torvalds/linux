@@ -555,7 +555,7 @@ static int siena_try_update_nic_stats(struct efx_nic *efx)
 
 	dma_stats = efx->stats_buffer.addr;
 
-	generation_end = dma_stats[MC_CMD_MAC_GENERATION_END];
+	generation_end = dma_stats[efx->num_mac_stats - 1];
 	if (generation_end == EFX_MC_STATS_GENERATION_INVALID)
 		return 0;
 	rmb();

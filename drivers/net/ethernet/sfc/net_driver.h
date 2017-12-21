@@ -774,6 +774,8 @@ struct vfdi_status;
  * @port_initialized: Port initialized?
  * @net_dev: Operating system network device. Consider holding the rtnl lock
  * @fixed_features: Features which cannot be turned off
+ * @num_mac_stats: Number of MAC stats reported by firmware (MAC_STATS_NUM_STATS
+ *	field of %MC_CMD_GET_CAPABILITIES_V4 response, or %MC_CMD_MAC_NSTATS)
  * @stats_buffer: DMA buffer for statistics
  * @phy_type: PHY type
  * @phy_op: PHY interface
@@ -922,6 +924,7 @@ struct efx_nic {
 
 	netdev_features_t fixed_features;
 
+	u16 num_mac_stats;
 	struct efx_buffer stats_buffer;
 	u64 rx_nodesc_drops_total;
 	u64 rx_nodesc_drops_while_down;
