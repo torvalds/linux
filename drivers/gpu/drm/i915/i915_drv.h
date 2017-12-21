@@ -80,8 +80,8 @@
 
 #define DRIVER_NAME		"i915"
 #define DRIVER_DESC		"Intel Graphics"
-#define DRIVER_DATE		"20171201"
-#define DRIVER_TIMESTAMP	1512176839
+#define DRIVER_DATE		"20171214"
+#define DRIVER_TIMESTAMP	1513282202
 
 /* Use I915_STATE_WARN(x) and I915_STATE_WARN_ON() (rather than WARN() and
  * WARN_ON()) for hw state sanity checks to check for unexpected conditions
@@ -398,6 +398,7 @@ enum intel_display_power_domain {
 	POWER_DOMAIN_AUX_D,
 	POWER_DOMAIN_GMBUS,
 	POWER_DOMAIN_MODESET,
+	POWER_DOMAIN_GT_IRQ,
 	POWER_DOMAIN_INIT,
 
 	POWER_DOMAIN_NUM,
@@ -1537,9 +1538,6 @@ struct i915_gem_mm {
 	 */
 	struct pagevec wc_stash;
 
-	/** Usable portion of the GTT for GEM */
-	dma_addr_t stolen_base; /* limited to low memory (32-bit) */
-
 	/**
 	 * tmpfs instance used for shmem backed objects
 	 */
@@ -1587,6 +1585,8 @@ struct drm_i915_error_state_buf {
 	loff_t start;
 	loff_t pos;
 };
+
+#define I915_IDLE_ENGINES_TIMEOUT (200) /* in ms */
 
 #define I915_RESET_TIMEOUT (10 * HZ) /* 10s */
 #define I915_FENCE_TIMEOUT (10 * HZ) /* 10s */
@@ -2252,6 +2252,30 @@ struct drm_i915_private {
 	struct kmem_cache *priorities;
 
 	const struct intel_device_info info;
+
+	/**
+	 * Data Stolen Memory - aka "i915 stolen memory" gives us the start and
+	 * end of stolen which we can optionally use to create GEM objects
+	 * backed by stolen memory. Note that stolen_usable_size tells us
+	 * exactly how much of this we are actually allowed to use, given that
+	 * some portion of it is in fact reserved for use by hardware functions.
+	 */
+	struct resource dsm;
+	/**
+	 * Reseved portion of Data Stolen Memory
+	 */
+	struct resource dsm_reserved;
+
+	/*
+	 * Stolen memory is segmented in hardware with different portions
+	 * offlimits to certain functions.
+	 *
+	 * The drm_mm is initialised to the total accessible range, as found
+	 * from the PCI config. On Broadwell+, this is further restricted to
+	 * avoid the first page! The upper end of stolen memory is reserved for
+	 * hardware functions and similarly removed from the accessible range.
+	 */
+	resource_size_t stolen_usable_size;	/* Total size minus reserved ranges */
 
 	void __iomem *regs;
 
@@ -3234,7 +3258,15 @@ intel_info(const struct drm_i915_private *dev_priv)
 #define HAS_GUC_CT(dev_priv)	((dev_priv)->info.has_guc_ct)
 #define HAS_GUC_UCODE(dev_priv)	(HAS_GUC(dev_priv))
 #define HAS_GUC_SCHED(dev_priv)	(HAS_GUC(dev_priv))
+
+/* For now, anything with a GuC has also HuC */
+#define HAS_HUC(dev_priv)	(HAS_GUC(dev_priv))
 #define HAS_HUC_UCODE(dev_priv)	(HAS_GUC(dev_priv))
+
+/* Having a GuC is not the same as using a GuC */
+#define USES_GUC(dev_priv)		intel_uc_is_using_guc()
+#define USES_GUC_SUBMISSION(dev_priv)	intel_uc_is_using_guc_submission()
+#define USES_HUC(dev_priv)		intel_uc_is_using_huc()
 
 #define HAS_RESOURCE_STREAMER(dev_priv) ((dev_priv)->info.has_resource_streamer)
 
@@ -3879,6 +3911,8 @@ int __must_check i915_gem_evict_for_node(struct i915_address_space *vm,
 					 unsigned int flags);
 int i915_gem_evict_vm(struct i915_address_space *vm);
 
+void i915_gem_flush_ggtt_writes(struct drm_i915_private *dev_priv);
+
 /* belongs in i915_gem_gtt.h */
 static inline void i915_gem_chipset_flush(struct drm_i915_private *dev_priv)
 {
@@ -3900,12 +3934,13 @@ void i915_gem_stolen_remove_node(struct drm_i915_private *dev_priv,
 int i915_gem_init_stolen(struct drm_i915_private *dev_priv);
 void i915_gem_cleanup_stolen(struct drm_device *dev);
 struct drm_i915_gem_object *
-i915_gem_object_create_stolen(struct drm_i915_private *dev_priv, u32 size);
+i915_gem_object_create_stolen(struct drm_i915_private *dev_priv,
+			      resource_size_t size);
 struct drm_i915_gem_object *
 i915_gem_object_create_stolen_for_preallocated(struct drm_i915_private *dev_priv,
-					       u32 stolen_offset,
-					       u32 gtt_offset,
-					       u32 size);
+					       resource_size_t stolen_offset,
+					       resource_size_t gtt_offset,
+					       resource_size_t size);
 
 /* i915_gem_internal.c */
 struct drm_i915_gem_object *

@@ -1,5 +1,5 @@
 /*
- * Copyright © 2014-2017 Intel Corporation
+ * Copyright(c) 2011-2016 Intel Corporation. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -16,26 +16,37 @@
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
  * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
- * IN THE SOFTWARE.
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ *
+ * Authors:
+ *    Eddie Dong <eddie.dong@intel.com>
+ *    Kevin Tian <kevin.tian@intel.com>
+ *
+ * Contributors:
+ *    Zhi Wang <zhi.a.wang@intel.com>
+ *    Changbin Du <changbin.du@intel.com>
+ *    Zhenyu Wang <zhenyuw@linux.intel.com>
+ *    Tina Zhang <tina.zhang@intel.com>
+ *    Bing Niu <bing.niu@intel.com>
  *
  */
 
-#ifndef _INTEL_HUC_H_
-#define _INTEL_HUC_H_
+#ifndef __GVT_RENDER_H__
+#define __GVT_RENDER_H__
 
-#include "intel_uc_fw.h"
-
-struct intel_huc {
-	/* Generic uC firmware management */
-	struct intel_uc_fw fw;
-
-	/* HuC-specific additions */
+struct engine_mmio {
+	int ring_id;
+	i915_reg_t reg;
+	u32 mask;
+	bool in_context;
+	u32 value;
 };
 
-void intel_huc_init_early(struct intel_huc *huc);
-int intel_huc_init_hw(struct intel_huc *huc);
-int intel_huc_auth(struct intel_huc *huc);
+void intel_gvt_switch_mmio(struct intel_vgpu *pre,
+			   struct intel_vgpu *next, int ring_id);
+
+void intel_gvt_init_engine_mmio_context(struct intel_gvt *gvt);
 
 #endif

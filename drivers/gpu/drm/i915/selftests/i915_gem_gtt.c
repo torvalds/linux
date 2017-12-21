@@ -1074,7 +1074,7 @@ static int igt_ggtt_page(void *arg)
 				       i915_gem_object_get_dma_address(obj, 0),
 				       offset, I915_CACHE_NONE, 0);
 
-		vaddr = io_mapping_map_atomic_wc(&ggtt->mappable, offset);
+		vaddr = io_mapping_map_atomic_wc(&ggtt->iomap, offset);
 		iowrite32(n, vaddr + n);
 		io_mapping_unmap_atomic(vaddr);
 
@@ -1092,7 +1092,7 @@ static int igt_ggtt_page(void *arg)
 				       i915_gem_object_get_dma_address(obj, 0),
 				       offset, I915_CACHE_NONE, 0);
 
-		vaddr = io_mapping_map_atomic_wc(&ggtt->mappable, offset);
+		vaddr = io_mapping_map_atomic_wc(&ggtt->iomap, offset);
 		val = ioread32(vaddr + n);
 		io_mapping_unmap_atomic(vaddr);
 

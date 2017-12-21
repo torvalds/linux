@@ -111,8 +111,8 @@ static u64 i915_gem_obj_total_ggtt_size(struct drm_i915_gem_object *obj)
 	u64 size = 0;
 	struct i915_vma *vma;
 
-	list_for_each_entry(vma, &obj->vma_list, obj_link) {
-		if (i915_vma_is_ggtt(vma) && drm_mm_node_allocated(&vma->node))
+	for_each_ggtt_vma(vma, obj) {
+		if (drm_mm_node_allocated(&vma->node))
 			size += vma->node.size;
 	}
 
@@ -522,8 +522,8 @@ static int i915_gem_object_info(struct seq_file *m, void *data)
 	seq_printf(m, "%u display objects (globally pinned), %llu bytes\n",
 		   dpy_count, dpy_size);
 
-	seq_printf(m, "%llu [%llu] gtt total\n",
-		   ggtt->base.total, ggtt->mappable_end);
+	seq_printf(m, "%llu [%pa] gtt total\n",
+		   ggtt->base.total, &ggtt->mappable_end);
 	seq_printf(m, "Supported page sizes: %s\n",
 		   stringify_page_sizes(INTEL_INFO(dev_priv)->page_sizes,
 					buf, sizeof(buf)));
@@ -663,38 +663,6 @@ static int i915_gem_batch_pool_info(struct seq_file *m, void *data)
 
 	return 0;
 }
-
-static void i915_ring_seqno_info(struct seq_file *m,
-				 struct intel_engine_cs *engine)
-{
-	struct intel_breadcrumbs *b = &engine->breadcrumbs;
-	struct rb_node *rb;
-
-	seq_printf(m, "Current sequence (%s): %x\n",
-		   engine->name, intel_engine_get_seqno(engine));
-
-	spin_lock_irq(&b->rb_lock);
-	for (rb = rb_first(&b->waiters); rb; rb = rb_next(rb)) {
-		struct intel_wait *w = rb_entry(rb, typeof(*w), node);
-
-		seq_printf(m, "Waiting (%s): %s [%d] on %x\n",
-			   engine->name, w->tsk->comm, w->tsk->pid, w->seqno);
-	}
-	spin_unlock_irq(&b->rb_lock);
-}
-
-static int i915_gem_seqno_info(struct seq_file *m, void *data)
-{
-	struct drm_i915_private *dev_priv = node_to_i915(m->private);
-	struct intel_engine_cs *engine;
-	enum intel_engine_id id;
-
-	for_each_engine(engine, dev_priv, id)
-		i915_ring_seqno_info(m, engine);
-
-	return 0;
-}
-
 
 static int i915_interrupt_info(struct seq_file *m, void *data)
 {
@@ -896,13 +864,12 @@ static int i915_interrupt_info(struct seq_file *m, void *data)
 		seq_printf(m, "Graphics Interrupt mask:		%08x\n",
 			   I915_READ(GTIMR));
 	}
-	for_each_engine(engine, dev_priv, id) {
-		if (INTEL_GEN(dev_priv) >= 6) {
+	if (INTEL_GEN(dev_priv) >= 6) {
+		for_each_engine(engine, dev_priv, id) {
 			seq_printf(m,
 				   "Graphics Interrupt mask (%s):	%08x\n",
 				   engine->name, I915_READ_IMR(engine));
 		}
-		i915_ring_seqno_info(m, engine);
 	}
 	intel_runtime_pm_put(dev_priv);
 
@@ -3213,7 +3180,7 @@ static int i915_engine_info(struct seq_file *m, void *unused)
 
 	p = drm_seq_file_printer(m);
 	for_each_engine(engine, dev_priv, id)
-		intel_engine_dump(engine, &p);
+		intel_engine_dump(engine, &p, "%s\n", engine->name);
 
 	intel_runtime_pm_put(dev_priv);
 
@@ -4672,7 +4639,6 @@ static const struct drm_info_list i915_debugfs_list[] = {
 	{"i915_gem_objects", i915_gem_object_info, 0},
 	{"i915_gem_gtt", i915_gem_gtt_info, 0},
 	{"i915_gem_stolen", i915_gem_stolen_list_info },
-	{"i915_gem_seqno", i915_gem_seqno_info, 0},
 	{"i915_gem_fence_regs", i915_gem_fence_regs_info, 0},
 	{"i915_gem_interrupt", i915_interrupt_info, 0},
 	{"i915_gem_batch_pool", i915_gem_batch_pool_info, 0},

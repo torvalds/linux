@@ -252,6 +252,20 @@ static void mark_busy(struct drm_i915_private *i915)
 	GEM_BUG_ON(!i915->gt.active_requests);
 
 	intel_runtime_pm_get_noresume(i915);
+
+	/*
+	 * It seems that the DMC likes to transition between the DC states a lot
+	 * when there are no connected displays (no active power domains) during
+	 * command submission.
+	 *
+	 * This activity has negative impact on the performance of the chip with
+	 * huge latencies observed in the interrupt handler and elsewhere.
+	 *
+	 * Work around it by grabbing a GT IRQ power domain whilst there is any
+	 * GT activity, preventing any DC state transitions.
+	 */
+	intel_display_power_get(i915, POWER_DOMAIN_GT_IRQ);
+
 	i915->gt.awake = true;
 
 	intel_enable_gt_powersave(i915);
@@ -663,10 +677,21 @@ i915_gem_request_alloc(struct intel_engine_cs *engine,
 	 *
 	 * Do not use kmem_cache_zalloc() here!
 	 */
-	req = kmem_cache_alloc(dev_priv->requests, GFP_KERNEL);
-	if (!req) {
-		ret = -ENOMEM;
-		goto err_unreserve;
+	req = kmem_cache_alloc(dev_priv->requests,
+			       GFP_KERNEL | __GFP_RETRY_MAYFAIL | __GFP_NOWARN);
+	if (unlikely(!req)) {
+		/* Ratelimit ourselves to prevent oom from malicious clients */
+		ret = i915_gem_wait_for_idle(dev_priv,
+					     I915_WAIT_LOCKED |
+					     I915_WAIT_INTERRUPTIBLE);
+		if (ret)
+			goto err_unreserve;
+
+		req = kmem_cache_alloc(dev_priv->requests, GFP_KERNEL);
+		if (!req) {
+			ret = -ENOMEM;
+			goto err_unreserve;
+		}
 	}
 
 	req->timeline = i915_gem_context_lookup_timeline(ctx, engine);
@@ -768,7 +793,7 @@ i915_gem_request_await_request(struct drm_i915_gem_request *to,
 	if (to->engine == from->engine) {
 		ret = i915_sw_fence_await_sw_fence_gfp(&to->submit,
 						       &from->submit,
-						       GFP_KERNEL);
+						       I915_FENCE_GFP);
 		return ret < 0 ? ret : 0;
 	}
 
@@ -796,7 +821,7 @@ i915_gem_request_await_request(struct drm_i915_gem_request *to,
 await_dma_fence:
 	ret = i915_sw_fence_await_dma_fence(&to->submit,
 					    &from->fence, 0,
-					    GFP_KERNEL);
+					    I915_FENCE_GFP);
 	return ret < 0 ? ret : 0;
 }
 
@@ -847,7 +872,7 @@ i915_gem_request_await_dma_fence(struct drm_i915_gem_request *req,
 		else
 			ret = i915_sw_fence_await_dma_fence(&req->submit, fence,
 							    I915_FENCE_TIMEOUT,
-							    GFP_KERNEL);
+							    I915_FENCE_GFP);
 		if (ret < 0)
 			return ret;
 

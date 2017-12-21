@@ -531,7 +531,6 @@ static int find_compression_threshold(struct drm_i915_private *dev_priv,
 				      int size,
 				      int fb_cpp)
 {
-	struct i915_ggtt *ggtt = &dev_priv->ggtt;
 	int compression_threshold = 1;
 	int ret;
 	u64 end;
@@ -541,7 +540,7 @@ static int find_compression_threshold(struct drm_i915_private *dev_priv,
 	 * If we enable FBC using a CFB on that memory range we'll get FIFO
 	 * underruns, even if that range is not reserved by the BIOS. */
 	if (IS_BROADWELL(dev_priv) || IS_GEN9_BC(dev_priv))
-		end = ggtt->stolen_size - 8 * 1024 * 1024;
+		end = resource_size(&dev_priv->dsm) - 8 * 1024 * 1024;
 	else
 		end = U64_MAX;
 
@@ -615,10 +614,16 @@ static int intel_fbc_alloc_cfb(struct intel_crtc *crtc)
 
 		fbc->compressed_llb = compressed_llb;
 
+		GEM_BUG_ON(range_overflows_t(u64, dev_priv->dsm.start,
+					     fbc->compressed_fb.start,
+					     U32_MAX));
+		GEM_BUG_ON(range_overflows_t(u64, dev_priv->dsm.start,
+					     fbc->compressed_llb->start,
+					     U32_MAX));
 		I915_WRITE(FBC_CFB_BASE,
-			   dev_priv->mm.stolen_base + fbc->compressed_fb.start);
+			   dev_priv->dsm.start + fbc->compressed_fb.start);
 		I915_WRITE(FBC_LL_BASE,
-			   dev_priv->mm.stolen_base + compressed_llb->start);
+			   dev_priv->dsm.start + compressed_llb->start);
 	}
 
 	DRM_DEBUG_KMS("reserved %llu bytes of contiguous stolen space for FBC, threshold: %d\n",

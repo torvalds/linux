@@ -1012,7 +1012,7 @@ static void *reloc_iomap(struct drm_i915_gem_object *obj,
 		offset += page << PAGE_SHIFT;
 	}
 
-	vaddr = (void __force *)io_mapping_map_atomic_wc(&ggtt->mappable,
+	vaddr = (void __force *)io_mapping_map_atomic_wc(&ggtt->iomap,
 							 offset);
 	cache->page = page;
 	cache->vaddr = (unsigned long)vaddr;

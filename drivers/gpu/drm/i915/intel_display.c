@@ -2639,7 +2639,6 @@ intel_alloc_initial_plane_obj(struct intel_crtc *crtc,
 {
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct i915_ggtt *ggtt = &dev_priv->ggtt;
 	struct drm_i915_gem_object *obj = NULL;
 	struct drm_mode_fb_cmd2 mode_cmd = { 0 };
 	struct drm_framebuffer *fb = &plane_config->fb->base;
@@ -2655,7 +2654,7 @@ intel_alloc_initial_plane_obj(struct intel_crtc *crtc,
 	/* If the FB is too big, just don't use it since fbdev is not very
 	 * important and we should probably use that space with FBC or other
 	 * features. */
-	if (size_aligned * 2 > ggtt->stolen_usable_size)
+	if (size_aligned * 2 > dev_priv->stolen_usable_size)
 		return false;
 
 	mutex_lock(&dev->struct_mutex);
@@ -9940,10 +9939,9 @@ found:
 	}
 
 	ret = intel_modeset_setup_plane_state(state, crtc, mode, fb, 0, 0);
+	drm_framebuffer_put(fb);
 	if (ret)
 		goto fail;
-
-	drm_framebuffer_put(fb);
 
 	ret = drm_atomic_set_mode_for_crtc(&crtc_state->base, mode);
 	if (ret)
@@ -10965,31 +10963,6 @@ encoder_retry:
 
 fail:
 	return ret;
-}
-
-static void
-intel_modeset_update_crtc_state(struct drm_atomic_state *state)
-{
-	struct drm_crtc *crtc;
-	struct drm_crtc_state *new_crtc_state;
-	int i;
-
-	/* Double check state. */
-	for_each_new_crtc_in_state(state, crtc, new_crtc_state, i) {
-		to_intel_crtc(crtc)->config = to_intel_crtc_state(new_crtc_state);
-
-		/*
-		 * Update legacy state to satisfy fbc code. This can
-		 * be removed when fbc uses the atomic state.
-		 */
-		if (drm_atomic_get_existing_plane_state(state, crtc->primary)) {
-			struct drm_plane_state *plane_state = crtc->primary->state;
-
-			crtc->primary->fb = plane_state->fb;
-			crtc->x = plane_state->src_x >> 16;
-			crtc->y = plane_state->src_y >> 16;
-		}
-	}
 }
 
 static bool intel_fuzzy_clock_check(int clock1, int clock2)
@@ -12364,9 +12337,9 @@ static void intel_atomic_commit_tail(struct drm_atomic_state *state)
 		}
 	}
 
-	/* Only after disabling all output pipelines that will be changed can we
-	 * update the the output configuration. */
-	intel_modeset_update_crtc_state(state);
+	/* FIXME: Eventually get rid of our intel_crtc->config pointer */
+	for_each_new_crtc_in_state(state, crtc, new_crtc_state, i)
+		to_intel_crtc(crtc)->config = to_intel_crtc_state(new_crtc_state);
 
 	if (intel_state->modeset) {
 		drm_atomic_helper_update_legacy_modeset_state(state->dev, state);
@@ -14621,7 +14594,7 @@ int intel_modeset_init(struct drm_device *dev)
 		dev->mode_config.cursor_height = MAX_CURSOR_HEIGHT;
 	}
 
-	dev->mode_config.fb_base = ggtt->mappable_base;
+	dev->mode_config.fb_base = ggtt->gmadr.start;
 
 	DRM_DEBUG_KMS("%d display pipe%s available.\n",
 		      INTEL_INFO(dev_priv)->num_pipes,

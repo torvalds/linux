@@ -214,7 +214,7 @@ int intel_uc_fw_upload(struct intel_uc_fw *uc_fw,
 			 intel_uc_fw_type_repr(uc_fw->type), uc_fw->path);
 
 	if (uc_fw->fetch_status != INTEL_UC_FIRMWARE_SUCCESS)
-		return -EIO;
+		return -ENOEXEC;
 
 	uc_fw->load_status = INTEL_UC_FIRMWARE_PENDING;
 	DRM_DEBUG_DRIVER("%s fw load %s\n",

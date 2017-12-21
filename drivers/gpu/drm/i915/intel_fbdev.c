@@ -115,7 +115,6 @@ static int intelfb_alloc(struct drm_fb_helper *helper,
 	struct drm_framebuffer *fb;
 	struct drm_device *dev = helper->dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct i915_ggtt *ggtt = &dev_priv->ggtt;
 	struct drm_mode_fb_cmd2 mode_cmd = {};
 	struct drm_i915_gem_object *obj;
 	int size, ret;
@@ -139,7 +138,7 @@ static int intelfb_alloc(struct drm_fb_helper *helper,
 	 * important and we should probably use that space with FBC or other
 	 * features. */
 	obj = NULL;
-	if (size * 2 < ggtt->stolen_usable_size)
+	if (size * 2 < dev_priv->stolen_usable_size)
 		obj = i915_gem_object_create_stolen(dev_priv, size);
 	if (obj == NULL)
 		obj = i915_gem_object_create(dev_priv, size);

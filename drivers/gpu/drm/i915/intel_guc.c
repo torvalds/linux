@@ -61,11 +61,120 @@ void intel_guc_init_send_regs(struct intel_guc *guc)
 
 void intel_guc_init_early(struct intel_guc *guc)
 {
+	intel_guc_fw_init_early(guc);
 	intel_guc_ct_init_early(&guc->ct);
 
 	mutex_init(&guc->send_mutex);
 	guc->send = intel_guc_send_nop;
 	guc->notify = gen8_guc_raise_irq;
+}
+
+int intel_guc_init_wq(struct intel_guc *guc)
+{
+	struct drm_i915_private *dev_priv = guc_to_i915(guc);
+
+	/*
+	 * GuC log buffer flush work item has to do register access to
+	 * send the ack to GuC and this work item, if not synced before
+	 * suspend, can potentially get executed after the GFX device is
+	 * suspended.
+	 * By marking the WQ as freezable, we don't have to bother about
+	 * flushing of this work item from the suspend hooks, the pending
+	 * work item if any will be either executed before the suspend
+	 * or scheduled later on resume. This way the handling of work
+	 * item can be kept same between system suspend & rpm suspend.
+	 */
+	guc->log.runtime.flush_wq = alloc_ordered_workqueue("i915-guc_log",
+						WQ_HIGHPRI | WQ_FREEZABLE);
+	if (!guc->log.runtime.flush_wq)
+		return -ENOMEM;
+
+	/*
+	 * Even though both sending GuC action, and adding a new workitem to
+	 * GuC workqueue are serialized (each with its own locking), since
+	 * we're using mutliple engines, it's possible that we're going to
+	 * issue a preempt request with two (or more - each for different
+	 * engine) workitems in GuC queue. In this situation, GuC may submit
+	 * all of them, which will make us very confused.
+	 * Our preemption contexts may even already be complete - before we
+	 * even had the chance to sent the preempt action to GuC!. Rather
+	 * than introducing yet another lock, we can just use ordered workqueue
+	 * to make sure we're always sending a single preemption request with a
+	 * single workitem.
+	 */
+	if (HAS_LOGICAL_RING_PREEMPTION(dev_priv) &&
+	    USES_GUC_SUBMISSION(dev_priv)) {
+		guc->preempt_wq = alloc_ordered_workqueue("i915-guc_preempt",
+							  WQ_HIGHPRI);
+		if (!guc->preempt_wq) {
+			destroy_workqueue(guc->log.runtime.flush_wq);
+			return -ENOMEM;
+		}
+	}
+
+	return 0;
+}
+
+void intel_guc_fini_wq(struct intel_guc *guc)
+{
+	struct drm_i915_private *dev_priv = guc_to_i915(guc);
+
+	if (HAS_LOGICAL_RING_PREEMPTION(dev_priv) &&
+	    USES_GUC_SUBMISSION(dev_priv))
+		destroy_workqueue(guc->preempt_wq);
+
+	destroy_workqueue(guc->log.runtime.flush_wq);
+}
+
+static int guc_shared_data_create(struct intel_guc *guc)
+{
+	struct i915_vma *vma;
+	void *vaddr;
+
+	vma = intel_guc_allocate_vma(guc, PAGE_SIZE);
+	if (IS_ERR(vma))
+		return PTR_ERR(vma);
+
+	vaddr = i915_gem_object_pin_map(vma->obj, I915_MAP_WB);
+	if (IS_ERR(vaddr)) {
+		i915_vma_unpin_and_release(&vma);
+		return PTR_ERR(vaddr);
+	}
+
+	guc->shared_data = vma;
+	guc->shared_data_vaddr = vaddr;
+
+	return 0;
+}
+
+static void guc_shared_data_destroy(struct intel_guc *guc)
+{
+	i915_gem_object_unpin_map(guc->shared_data->obj);
+	i915_vma_unpin_and_release(&guc->shared_data);
+}
+
+int intel_guc_init(struct intel_guc *guc)
+{
+	struct drm_i915_private *dev_priv = guc_to_i915(guc);
+	int ret;
+
+	ret = guc_shared_data_create(guc);
+	if (ret)
+		return ret;
+	GEM_BUG_ON(!guc->shared_data);
+
+	/* We need to notify the guc whenever we change the GGTT */
+	i915_ggtt_enable_guc(dev_priv);
+
+	return 0;
+}
+
+void intel_guc_fini(struct intel_guc *guc)
+{
+	struct drm_i915_private *dev_priv = guc_to_i915(guc);
+
+	i915_ggtt_disable_guc(dev_priv);
+	guc_shared_data_destroy(guc);
 }
 
 static u32 get_gt_type(struct drm_i915_private *dev_priv)
@@ -128,7 +237,7 @@ void intel_guc_init_params(struct intel_guc *guc)
 	}
 
 	/* If GuC submission is enabled, set up additional parameters here */
-	if (i915_modparams.enable_guc_submission) {
+	if (USES_GUC_SUBMISSION(dev_priv)) {
 		u32 ads = guc_ggtt_offset(guc->ads_vma) >> PAGE_SHIFT;
 		u32 pgs = guc_ggtt_offset(dev_priv->guc.stage_desc_pool);
 		u32 ctx_in_16 = GUC_MAX_STAGE_DESCRIPTORS / 16;

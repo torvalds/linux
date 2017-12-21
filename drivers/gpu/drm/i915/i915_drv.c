@@ -617,10 +617,12 @@ static void i915_gem_fini(struct drm_i915_private *dev_priv)
 
 	mutex_lock(&dev_priv->drm.struct_mutex);
 	intel_uc_fini_hw(dev_priv);
+	intel_uc_fini(dev_priv);
 	i915_gem_cleanup_engines(dev_priv);
 	i915_gem_contexts_fini(dev_priv);
 	mutex_unlock(&dev_priv->drm.struct_mutex);
 
+	intel_uc_fini_wq(dev_priv);
 	i915_gem_cleanup_userptr(dev_priv);
 
 	i915_gem_drain_freed_objects(dev_priv);
@@ -726,7 +728,7 @@ static int i915_kick_out_firmware_fb(struct drm_i915_private *dev_priv)
 	if (!ap)
 		return -ENOMEM;
 
-	ap->ranges[0].base = ggtt->mappable_base;
+	ap->ranges[0].base = ggtt->gmadr.start;
 	ap->ranges[0].size = ggtt->mappable_end;
 
 	primary =
@@ -1897,13 +1899,16 @@ void i915_reset(struct drm_i915_private *i915, unsigned int flags)
 	disable_irq(i915->drm.irq);
 	ret = i915_gem_reset_prepare(i915);
 	if (ret) {
-		DRM_ERROR("GPU recovery failed\n");
+		dev_err(i915->drm.dev, "GPU recovery failed\n");
 		intel_gpu_reset(i915, ALL_ENGINES);
-		goto error;
+		goto taint;
 	}
 
 	if (!intel_has_gpu_reset(i915)) {
-		DRM_DEBUG_DRIVER("GPU reset disabled\n");
+		if (i915_modparams.reset)
+			dev_err(i915->drm.dev, "GPU reset not supported\n");
+		else
+			DRM_DEBUG_DRIVER("GPU reset disabled\n");
 		goto error;
 	}
 
@@ -1916,7 +1921,7 @@ void i915_reset(struct drm_i915_private *i915, unsigned int flags)
 	}
 	if (ret) {
 		dev_err(i915->drm.dev, "Failed to reset chip\n");
-		goto error;
+		goto taint;
 	}
 
 	i915_gem_reset(i915);
@@ -1959,6 +1964,20 @@ wakeup:
 	wake_up_bit(&error->flags, I915_RESET_HANDOFF);
 	return;
 
+taint:
+	/*
+	 * History tells us that if we cannot reset the GPU now, we
+	 * never will. This then impacts everything that is run
+	 * subsequently. On failing the reset, we mark the driver
+	 * as wedged, preventing further execution on the GPU.
+	 * We also want to go one step further and add a taint to the
+	 * kernel so that any subsequent faults can be traced back to
+	 * this failure. This is important for CI, where if the
+	 * GPU/driver fails we would like to reboot and restart testing
+	 * rather than continue on into oblivion. For everyone else,
+	 * the system should still plod along, but they have been warned!
+	 */
+	add_taint(TAINT_WARN, LOCKDEP_STILL_OK);
 error:
 	i915_gem_set_wedged(i915);
 	i915_gem_retire_requests(i915);

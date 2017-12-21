@@ -1513,10 +1513,8 @@ bool intel_engines_are_idle(struct drm_i915_private *dev_priv)
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
 
-	if (READ_ONCE(dev_priv->gt.active_requests))
-		return false;
-
-	/* If the driver is wedged, HW state may be very inconsistent and
+	/*
+	 * If the driver is wedged, HW state may be very inconsistent and
 	 * report that it is still busy, even though we have stopped using it.
 	 */
 	if (i915_terminally_wedged(&dev_priv->gpu_error))
@@ -1596,7 +1594,7 @@ void intel_engines_park(struct drm_i915_private *i915)
 			dev_err(i915->drm.dev,
 				"%s is not idle before parking\n",
 				engine->name);
-			intel_engine_dump(engine, &p);
+			intel_engine_dump(engine, &p, NULL);
 		}
 
 		if (engine->park)
@@ -1666,7 +1664,9 @@ static void print_request(struct drm_printer *m,
 		   rq->timeline->common->name);
 }
 
-void intel_engine_dump(struct intel_engine_cs *engine, struct drm_printer *m)
+void intel_engine_dump(struct intel_engine_cs *engine,
+		       struct drm_printer *m,
+		       const char *header, ...)
 {
 	struct intel_breadcrumbs * const b = &engine->breadcrumbs;
 	const struct intel_engine_execlists * const execlists = &engine->execlists;
@@ -1674,17 +1674,29 @@ void intel_engine_dump(struct intel_engine_cs *engine, struct drm_printer *m)
 	struct drm_i915_private *dev_priv = engine->i915;
 	struct drm_i915_gem_request *rq;
 	struct rb_node *rb;
+	char hdr[80];
 	u64 addr;
 
-	drm_printf(m, "%s\n", engine->name);
+	if (header) {
+		va_list ap;
+
+		va_start(ap, header);
+		drm_vprintf(m, header, &ap);
+		va_end(ap);
+	}
+
+	if (i915_terminally_wedged(&engine->i915->gpu_error))
+		drm_printf(m, "*** WEDGED ***\n");
+
 	drm_printf(m, "\tcurrent seqno %x, last %x, hangcheck %x [%d ms], inflight %d\n",
 		   intel_engine_get_seqno(engine),
 		   intel_engine_last_submit(engine),
 		   engine->hangcheck.seqno,
 		   jiffies_to_msecs(jiffies - engine->hangcheck.action_timestamp),
 		   engine->timeline->inflight_seqnos);
-	drm_printf(m, "\tReset count: %d\n",
-		   i915_reset_engine_count(error, engine));
+	drm_printf(m, "\tReset count: %d (global %d)\n",
+		   i915_reset_engine_count(error, engine),
+		   i915_reset_count(error));
 
 	rcu_read_lock();
 
@@ -1786,12 +1798,12 @@ void intel_engine_dump(struct intel_engine_cs *engine, struct drm_printer *m)
 
 			rq = port_unpack(&execlists->port[idx], &count);
 			if (rq) {
-				drm_printf(m, "\t\tELSP[%d] count=%d, ",
-					   idx, count);
-				print_request(m, rq, "rq: ");
+				snprintf(hdr, sizeof(hdr),
+					 "\t\tELSP[%d] count=%d, rq: ",
+					 idx, count);
+				print_request(m, rq, hdr);
 			} else {
-				drm_printf(m, "\t\tELSP[%d] idle\n",
-					   idx);
+				drm_printf(m, "\t\tELSP[%d] idle\n", idx);
 			}
 		}
 		drm_printf(m, "\t\tHW active? 0x%x\n", execlists->active);
@@ -1826,6 +1838,16 @@ void intel_engine_dump(struct intel_engine_cs *engine, struct drm_printer *m)
 	}
 	spin_unlock_irq(&b->rb_lock);
 
+	if (INTEL_GEN(dev_priv) >= 6) {
+		drm_printf(m, "\tRING_IMR: %08x\n", I915_READ_IMR(engine));
+	}
+
+	drm_printf(m, "IRQ? 0x%lx (breadcrumbs? %s) (execlists? %s)\n",
+		   engine->irq_posted,
+		   yesno(test_bit(ENGINE_IRQ_BREADCRUMB,
+				  &engine->irq_posted)),
+		   yesno(test_bit(ENGINE_IRQ_EXECLIST,
+				  &engine->irq_posted)));
 	drm_printf(m, "Idle? %s\n", yesno(intel_engine_is_idle(engine)));
 	drm_printf(m, "\n");
 }

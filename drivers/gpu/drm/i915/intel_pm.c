@@ -58,7 +58,7 @@ static void gen9_init_clock_gating(struct drm_i915_private *dev_priv)
 	if (HAS_LLC(dev_priv)) {
 		/*
 		 * WaCompressedResourceDisplayNewHashMode:skl,kbl
-		 * Display WA#0390: skl,kbl
+		 * Display WA #0390: skl,kbl
 		 *
 		 * Must match Sampler, Pixel Back End, and Media. See
 		 * WaCompressedResourceSamplerPbeMediaNewHashMode.
@@ -6416,7 +6416,6 @@ static void valleyview_disable_rps(struct drm_i915_private *dev_priv)
 
 static bool bxt_check_bios_rc6_setup(struct drm_i915_private *dev_priv)
 {
-	struct i915_ggtt *ggtt = &dev_priv->ggtt;
 	bool enable_rc6 = true;
 	unsigned long rc6_ctx_base;
 	u32 rc_ctl;
@@ -6441,9 +6440,8 @@ static bool bxt_check_bios_rc6_setup(struct drm_i915_private *dev_priv)
 	 * for this check.
 	 */
 	rc6_ctx_base = I915_READ(RC6_CTX_BASE) & RC6_CTX_BASE_MASK;
-	if (!((rc6_ctx_base >= ggtt->stolen_reserved_base) &&
-	      (rc6_ctx_base + PAGE_SIZE <= ggtt->stolen_reserved_base +
-					ggtt->stolen_reserved_size))) {
+	if (!((rc6_ctx_base >= dev_priv->dsm_reserved.start) &&
+	      (rc6_ctx_base + PAGE_SIZE < dev_priv->dsm_reserved.end))) {
 		DRM_DEBUG_DRIVER("RC6 Base address not as expected.\n");
 		enable_rc6 = false;
 	}
@@ -7020,7 +7018,7 @@ static void valleyview_check_pctx(struct drm_i915_private *dev_priv)
 {
 	unsigned long pctx_addr = I915_READ(VLV_PCBR) & ~4095;
 
-	WARN_ON(pctx_addr != dev_priv->mm.stolen_base +
+	WARN_ON(pctx_addr != dev_priv->dsm.start +
 			     dev_priv->vlv_pctx->stolen->start);
 }
 
@@ -7035,16 +7033,15 @@ static void cherryview_check_pctx(struct drm_i915_private *dev_priv)
 
 static void cherryview_setup_pctx(struct drm_i915_private *dev_priv)
 {
-	struct i915_ggtt *ggtt = &dev_priv->ggtt;
-	unsigned long pctx_paddr, paddr;
+	resource_size_t pctx_paddr, paddr;
+	resource_size_t pctx_size = 32*1024;
 	u32 pcbr;
-	int pctx_size = 32*1024;
 
 	pcbr = I915_READ(VLV_PCBR);
 	if ((pcbr >> VLV_PCBR_ADDR_SHIFT) == 0) {
 		DRM_DEBUG_DRIVER("BIOS didn't set up PCBR, fixing up\n");
-		paddr = (dev_priv->mm.stolen_base +
-			 (ggtt->stolen_size - pctx_size));
+		paddr = dev_priv->dsm.end + 1 - pctx_size;
+		GEM_BUG_ON(paddr > U32_MAX);
 
 		pctx_paddr = (paddr & (~4095));
 		I915_WRITE(VLV_PCBR, pctx_paddr);
@@ -7056,16 +7053,16 @@ static void cherryview_setup_pctx(struct drm_i915_private *dev_priv)
 static void valleyview_setup_pctx(struct drm_i915_private *dev_priv)
 {
 	struct drm_i915_gem_object *pctx;
-	unsigned long pctx_paddr;
+	resource_size_t pctx_paddr;
+	resource_size_t pctx_size = 24*1024;
 	u32 pcbr;
-	int pctx_size = 24*1024;
 
 	pcbr = I915_READ(VLV_PCBR);
 	if (pcbr) {
 		/* BIOS set it up already, grab the pre-alloc'd space */
-		int pcbr_offset;
+		resource_size_t pcbr_offset;
 
-		pcbr_offset = (pcbr & (~4095)) - dev_priv->mm.stolen_base;
+		pcbr_offset = (pcbr & (~4095)) - dev_priv->dsm.start;
 		pctx = i915_gem_object_create_stolen_for_preallocated(dev_priv,
 								      pcbr_offset,
 								      I915_GTT_OFFSET_NONE,
@@ -7089,7 +7086,11 @@ static void valleyview_setup_pctx(struct drm_i915_private *dev_priv)
 		goto out;
 	}
 
-	pctx_paddr = dev_priv->mm.stolen_base + pctx->stolen->start;
+	GEM_BUG_ON(range_overflows_t(u64,
+				     dev_priv->dsm.start,
+				     pctx->stolen->start,
+				     U32_MAX));
+	pctx_paddr = dev_priv->dsm.start + pctx->stolen->start;
 	I915_WRITE(VLV_PCBR, pctx_paddr);
 
 out:
@@ -8417,7 +8418,7 @@ static void cnp_init_clock_gating(struct drm_i915_private *dev_priv)
 	if (!HAS_PCH_CNP(dev_priv))
 		return;
 
-	/* Wa #1181 */
+	/* Display WA #1181: cnp */
 	I915_WRITE(SOUTH_DSPCLK_GATE_D, I915_READ(SOUTH_DSPCLK_GATE_D) |
 		   CNP_PWM_CGE_GATING_DISABLE);
 }

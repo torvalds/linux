@@ -261,6 +261,8 @@ struct drm_i915_gem_object {
 		} userptr;
 
 		unsigned long scratch;
+
+		void *gvt_info;
 	};
 
 	/** for phys allocated objects */

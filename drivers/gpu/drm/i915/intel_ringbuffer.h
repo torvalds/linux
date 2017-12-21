@@ -200,6 +200,11 @@ struct intel_engine_execlists {
 	bool no_priolist;
 
 	/**
+	 * @elsp: the ExecList Submission Port register
+	 */
+	u32 __iomem *elsp;
+
+	/**
 	 * @port: execlist port states
 	 *
 	 * For each hardware ELSP (ExecList Submission Port) we keep
@@ -1008,7 +1013,10 @@ unsigned int intel_engines_has_context_isolation(struct drm_i915_private *i915);
 
 bool intel_engine_can_store_dword(struct intel_engine_cs *engine);
 
-void intel_engine_dump(struct intel_engine_cs *engine, struct drm_printer *p);
+__printf(3, 4)
+void intel_engine_dump(struct intel_engine_cs *engine,
+		       struct drm_printer *m,
+		       const char *header, ...);
 
 struct intel_engine_cs *
 intel_engine_lookup_user(struct drm_i915_private *i915, u8 class, u8 instance);

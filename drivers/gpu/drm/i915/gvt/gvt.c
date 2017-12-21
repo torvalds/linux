@@ -181,6 +181,8 @@ static const struct intel_gvt_ops intel_gvt_ops = {
 	.vgpu_deactivate = intel_gvt_deactivate_vgpu,
 	.gvt_find_vgpu_type = intel_gvt_find_vgpu_type,
 	.get_gvt_attrs = intel_get_gvt_attrs,
+	.vgpu_query_plane = intel_vgpu_query_plane,
+	.vgpu_get_dmabuf = intel_vgpu_get_dmabuf,
 };
 
 /**
@@ -383,6 +385,8 @@ int intel_gvt_init_device(struct drm_i915_private *dev_priv)
 	ret = intel_gvt_setup_mmio_info(gvt);
 	if (ret)
 		goto out_clean_idr;
+
+	intel_gvt_init_engine_mmio_context(gvt);
 
 	ret = intel_gvt_load_firmware(gvt);
 	if (ret)
