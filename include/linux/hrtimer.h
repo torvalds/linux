@@ -189,8 +189,8 @@ struct hrtimer_cpu_base {
 	ktime_t				expires_next;
 	struct hrtimer			*next_timer;
 	unsigned int			nr_events;
-	unsigned int			nr_retries;
-	unsigned int			nr_hangs;
+	unsigned short			nr_retries;
+	unsigned short			nr_hangs;
 	unsigned int			max_hang_time;
 #endif
 	struct hrtimer_clock_base	clock_base[HRTIMER_MAX_CLOCK_BASES];
