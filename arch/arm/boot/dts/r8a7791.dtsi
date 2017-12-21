@@ -257,7 +257,7 @@
 	};
 
 	cmt0: timer@ffca0000 {
-		compatible = "renesas,cmt-48-r8a7791", "renesas,cmt-48-gen2";
+		compatible = "renesas,r8a7791-cmt0", "renesas,rcar-gen2-cmt0";
 		reg = <0 0xffca0000 0 0x1004>;
 		interrupts = <GIC_SPI 142 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 143 IRQ_TYPE_LEVEL_HIGH>;
@@ -266,13 +266,11 @@
 		power-domains = <&sysc R8A7791_PD_ALWAYS_ON>;
 		resets = <&cpg 124>;
 
-		renesas,channels-mask = <0x60>;
-
 		status = "disabled";
 	};
 
 	cmt1: timer@e6130000 {
-		compatible = "renesas,cmt-48-r8a7791", "renesas,cmt-48-gen2";
+		compatible = "renesas,r8a7791-cmt1", "renesas,rcar-gen2-cmt1";
 		reg = <0 0xe6130000 0 0x1004>;
 		interrupts = <GIC_SPI 120 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 121 IRQ_TYPE_LEVEL_HIGH>,
@@ -286,8 +284,6 @@
 		clock-names = "fck";
 		power-domains = <&sysc R8A7791_PD_ALWAYS_ON>;
 		resets = <&cpg 329>;
-
-		renesas,channels-mask = <0xff>;
 
 		status = "disabled";
 	};
@@ -612,7 +608,8 @@
 	};
 
 	sdhi0: sd@ee100000 {
-		compatible = "renesas,sdhi-r8a7791";
+		compatible = "renesas,sdhi-r8a7791",
+			     "renesas,rcar-gen2-sdhi";
 		reg = <0 0xee100000 0 0x328>;
 		interrupts = <GIC_SPI 165 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cpg CPG_MOD 314>;
@@ -626,7 +623,8 @@
 	};
 
 	sdhi1: sd@ee140000 {
-		compatible = "renesas,sdhi-r8a7791";
+		compatible = "renesas,sdhi-r8a7791",
+			     "renesas,rcar-gen2-sdhi";
 		reg = <0 0xee140000 0 0x100>;
 		interrupts = <GIC_SPI 167 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cpg CPG_MOD 312>;
@@ -640,7 +638,8 @@
 	};
 
 	sdhi2: sd@ee160000 {
-		compatible = "renesas,sdhi-r8a7791";
+		compatible = "renesas,sdhi-r8a7791",
+			     "renesas,rcar-gen2-sdhi";
 		reg = <0 0xee160000 0 0x100>;
 		interrupts = <GIC_SPI 168 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cpg CPG_MOD 311>;
@@ -961,7 +960,8 @@
 	};
 
 	ether: ethernet@ee700000 {
-		compatible = "renesas,ether-r8a7791";
+		compatible = "renesas,ether-r8a7791",
+			     "renesas,rcar-gen2-ether";
 		reg = <0 0xee700000 0 0x400>;
 		interrupts = <GIC_SPI 162 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cpg CPG_MOD 813>;

@@ -507,7 +507,8 @@
 		};
 
 		sdhi0: sd@ee100000 {
-			compatible = "renesas,sdhi-r8a7792";
+			compatible = "renesas,sdhi-r8a7792",
+				     "renesas,rcar-gen2-sdhi";
 			reg = <0 0xee100000 0 0x328>;
 			interrupts = <0 165 IRQ_TYPE_LEVEL_HIGH>;
 			dmas = <&dmac0 0xcd>, <&dmac0 0xce>,

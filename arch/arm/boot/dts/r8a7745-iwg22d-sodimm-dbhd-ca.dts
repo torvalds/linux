@@ -1,5 +1,6 @@
 /*
- * Device Tree Source for the iWave-RZ-G1M/N Daughter Board Camera Module
+ * Device Tree Source for the iWave-RZG1E SODIMM carrier board + HDMI daughter
+ * board
  *
  * Copyright (C) 2017 Renesas Electronics Corp.
  *
@@ -8,10 +9,16 @@
  * kind, whether express or implied.
  */
 
+#include "r8a7745-iwg22d-sodimm.dts"
+
 / {
+	model = "iWave RainboW-G22D-SODIMM RZ/G1E based board with HDMI add-on";
+	compatible = "iwave,g22d", "iwave,g22m", "renesas,r8a7745";
+
 	aliases {
-		serial1 = &scif1;
-		serial4 = &hscif1;
+		serial0 = &scif1;
+		serial4 = &scif5;
+		serial6 = &hscif2;
 	};
 
 	cec_clock: cec-clock {
@@ -25,8 +32,23 @@
 		type = "a";
 
 		port {
-			hdmi_con_out: endpoint {
+			hdmi_con: endpoint {
 				remote-endpoint = <&adv7511_out>;
+			};
+		};
+	};
+};
+
+&du {
+	pinctrl-0 = <&du0_pins>;
+	pinctrl-names = "default";
+
+	status = "okay";
+
+	ports {
+		port@0 {
+			endpoint {
+				remote-endpoint = <&adv7511_in>;
 			};
 		};
 	};
@@ -39,39 +61,28 @@
 	status = "okay";
 };
 
-&du {
-	pinctrl-0 = <&du_pins>;
-	pinctrl-names = "default";
-	status = "okay";
-
-	ports {
-		port@0 {
-			endpoint {
-				remote-endpoint = <&adv7511_in>;
-			};
-		};
-	};
-};
-
-&hscif1 {
-	pinctrl-0 = <&hscif1_pins>;
+&hscif2 {
+	pinctrl-0 = <&hscif2_pins>;
 	pinctrl-names = "default";
 
-	uart-has-rtscts;
 	status = "okay";
 };
 
-&i2c5 {
+&i2c1 {
+	pinctrl-0 = <&i2c1_pins>;
+	pinctrl-names = "default";
+
 	status = "okay";
 	clock-frequency = <400000>;
 
 	hdmi@39 {
 		compatible = "adi,adv7511w";
 		reg = <0x39>;
-		interrupt-parent = <&gpio0>;
-		interrupts = <13 IRQ_TYPE_LEVEL_LOW>;
+		interrupt-parent = <&gpio1>;
+		interrupts = <0 IRQ_TYPE_LEVEL_LOW>;
 		clocks = <&cec_clock>;
 		clock-names = "cec";
+		pd-gpios = <&gpio2 24 GPIO_ACTIVE_HIGH>;
 
 		adi,input-depth = <8>;
 		adi,input-colorspace = "rgb";
@@ -86,14 +97,14 @@
 			port@0 {
 				reg = <0>;
 				adv7511_in: endpoint {
-					remote-endpoint = <&du_out_rgb>;
+					remote-endpoint = <&du_out_rgb0>;
 				};
 			};
 
 			port@1 {
 				reg = <1>;
 				adv7511_out: endpoint {
-					remote-endpoint = <&hdmi_con_out>;
+					remote-endpoint = <&hdmi_con>;
 				};
 			};
 		};
@@ -102,28 +113,45 @@
 
 &pfc {
 	can1_pins: can1 {
-		groups = "can1_data_d";
+		groups = "can1_data_b";
 		function = "can1";
 	};
 
-	du_pins: du {
-		groups = "du_rgb888", "du_sync", "du_oddf", "du_clk_out_0";
-		function = "du";
+	du0_pins: du0 {
+		groups = "du0_rgb888", "du0_sync", "du0_disp", "du0_clk0_out";
+		function = "du0";
 	};
 
-	hscif1_pins: hscif1 {
-		groups = "hscif1_data_c", "hscif1_ctrl_c";
-		function = "hscif1";
+	hscif2_pins: hscif2 {
+		groups = "hscif2_data";
+		function = "hscif2";
+	};
+
+	i2c1_pins: i2c1 {
+		groups = "i2c1_d";
+		function = "i2c1";
 	};
 
 	scif1_pins: scif1 {
-		groups = "scif1_data_d";
+		groups = "scif1_data";
 		function = "scif1";
+	};
+
+	scif5_pins: scif5 {
+		groups = "scif5_data_d";
+		function = "scif5";
 	};
 };
 
 &scif1 {
 	pinctrl-0 = <&scif1_pins>;
+	pinctrl-names = "default";
+
+	status = "okay";
+};
+
+&scif5 {
+	pinctrl-0 = <&scif5_pins>;
 	pinctrl-names = "default";
 
 	status = "okay";
