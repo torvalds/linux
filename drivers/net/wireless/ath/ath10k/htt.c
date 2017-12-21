@@ -256,7 +256,7 @@ int ath10k_htt_setup(struct ath10k_htt *htt)
 		return status;
 	}
 
-	status = ath10k_htt_send_frag_desc_bank_cfg(htt);
+	status = htt->tx_ops->htt_send_frag_desc_bank_cfg(htt);
 	if (status)
 		return status;
 

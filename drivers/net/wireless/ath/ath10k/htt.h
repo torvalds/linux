@@ -107,6 +107,14 @@ struct htt_msdu_ext_desc {
 	struct htt_data_tx_desc_frag frags[6];
 };
 
+struct htt_msdu_ext_desc_64 {
+	__le32 tso_flag[5];
+	__le16 ip_identification;
+	u8 flags;
+	u8 reserved;
+	struct htt_data_tx_desc_frag frags[6];
+};
+
 #define	HTT_MSDU_EXT_DESC_FLAG_IPV4_CSUM_ENABLE		BIT(0)
 #define	HTT_MSDU_EXT_DESC_FLAG_UDP_IPV4_CSUM_ENABLE	BIT(1)
 #define	HTT_MSDU_EXT_DESC_FLAG_UDP_IPV6_CSUM_ENABLE	BIT(2)
@@ -1387,11 +1395,20 @@ struct htt_q_state_conf {
 	u8 pad[2];
 } __packed;
 
-struct htt_frag_desc_bank_cfg {
+struct htt_frag_desc_bank_cfg32 {
 	u8 info; /* HTT_FRAG_DESC_BANK_CFG_INFO_ */
 	u8 num_banks;
 	u8 desc_size;
 	__le32 bank_base_addrs[HTT_FRAG_DESC_BANK_MAX];
+	struct htt_frag_desc_bank_id bank_id[HTT_FRAG_DESC_BANK_MAX];
+	struct htt_q_state_conf q_state;
+} __packed;
+
+struct htt_frag_desc_bank_cfg64 {
+	u8 info; /* HTT_FRAG_DESC_BANK_CFG_INFO_ */
+	u8 num_banks;
+	u8 desc_size;
+	__le64 bank_base_addrs[HTT_FRAG_DESC_BANK_MAX];
 	struct htt_frag_desc_bank_id bank_id[HTT_FRAG_DESC_BANK_MAX];
 	struct htt_q_state_conf q_state;
 } __packed;
@@ -1572,7 +1589,8 @@ struct htt_cmd {
 		struct htt_stats_req stats_req;
 		struct htt_oob_sync_req oob_sync_req;
 		struct htt_aggr_conf aggr_conf;
-		struct htt_frag_desc_bank_cfg frag_desc_bank_cfg;
+		struct htt_frag_desc_bank_cfg32 frag_desc_bank_cfg32;
+		struct htt_frag_desc_bank_cfg64 frag_desc_bank_cfg64;
 		struct htt_tx_fetch_resp tx_fetch_resp;
 	};
 } __packed;
@@ -1758,7 +1776,11 @@ struct ath10k_htt {
 
 	struct {
 		dma_addr_t paddr;
-		struct htt_msdu_ext_desc *vaddr;
+		union {
+			struct htt_msdu_ext_desc *vaddr_desc_32;
+			struct htt_msdu_ext_desc_64 *vaddr_desc_64;
+		};
+		size_t size;
 	} frag_desc;
 
 	struct {
@@ -1783,6 +1805,9 @@ struct ath10k_htt {
 
 struct ath10k_htt_tx_ops {
 	int (*htt_send_rx_ring_cfg)(struct ath10k_htt *htt);
+	int (*htt_send_frag_desc_bank_cfg)(struct ath10k_htt *htt);
+	int (*htt_alloc_frag_desc)(struct ath10k_htt *htt);
+	void (*htt_free_frag_desc)(struct ath10k_htt *htt);
 };
 
 #define RX_HTT_HDR_STATUS_LEN 64
@@ -1862,7 +1887,6 @@ void ath10k_htt_htc_t2h_msg_handler(struct ath10k *ar, struct sk_buff *skb);
 bool ath10k_htt_t2h_msg_handler(struct ath10k *ar, struct sk_buff *skb);
 int ath10k_htt_h2t_ver_req_msg(struct ath10k_htt *htt);
 int ath10k_htt_h2t_stats_req(struct ath10k_htt *htt, u8 mask, u64 cookie);
-int ath10k_htt_send_frag_desc_bank_cfg(struct ath10k_htt *htt);
 int ath10k_htt_send_rx_ring_cfg_ll(struct ath10k_htt *htt);
 int ath10k_htt_h2t_aggr_cfg_msg(struct ath10k_htt *htt,
 				u8 max_subfrms_ampdu,

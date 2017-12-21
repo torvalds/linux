@@ -256,23 +256,25 @@ static int ath10k_htt_tx_alloc_cont_txbuf(struct ath10k_htt *htt)
 	return 0;
 }
 
-static void ath10k_htt_tx_free_cont_frag_desc(struct ath10k_htt *htt)
+static void ath10k_htt_tx_free_cont_frag_desc_32(struct ath10k_htt *htt)
 {
 	size_t size;
 
-	if (!htt->frag_desc.vaddr)
+	if (!htt->frag_desc.vaddr_desc_32)
 		return;
 
-	size = htt->max_num_pending_tx * sizeof(struct htt_msdu_ext_desc);
+	size = htt->max_num_pending_tx *
+			sizeof(struct htt_msdu_ext_desc);
 
 	dma_free_coherent(htt->ar->dev,
 			  size,
-			  htt->frag_desc.vaddr,
+			  htt->frag_desc.vaddr_desc_32,
 			  htt->frag_desc.paddr);
-	htt->frag_desc.vaddr = NULL;
+
+	htt->frag_desc.vaddr_desc_32 = NULL;
 }
 
-static int ath10k_htt_tx_alloc_cont_frag_desc(struct ath10k_htt *htt)
+static int ath10k_htt_tx_alloc_cont_frag_desc_32(struct ath10k_htt *htt)
 {
 	struct ath10k *ar = htt->ar;
 	size_t size;
@@ -280,12 +282,57 @@ static int ath10k_htt_tx_alloc_cont_frag_desc(struct ath10k_htt *htt)
 	if (!ar->hw_params.continuous_frag_desc)
 		return 0;
 
-	size = htt->max_num_pending_tx * sizeof(struct htt_msdu_ext_desc);
-	htt->frag_desc.vaddr = dma_alloc_coherent(ar->dev, size,
-						  &htt->frag_desc.paddr,
-						  GFP_KERNEL);
-	if (!htt->frag_desc.vaddr)
+	size = htt->max_num_pending_tx *
+			sizeof(struct htt_msdu_ext_desc);
+	htt->frag_desc.vaddr_desc_32 = dma_alloc_coherent(ar->dev, size,
+							  &htt->frag_desc.paddr,
+							  GFP_KERNEL);
+	if (!htt->frag_desc.vaddr_desc_32) {
+		ath10k_err(ar, "failed to alloc fragment desc memory\n");
 		return -ENOMEM;
+	}
+	htt->frag_desc.size = size;
+
+	return 0;
+}
+
+static void ath10k_htt_tx_free_cont_frag_desc_64(struct ath10k_htt *htt)
+{
+	size_t size;
+
+	if (!htt->frag_desc.vaddr_desc_64)
+		return;
+
+	size = htt->max_num_pending_tx *
+			sizeof(struct htt_msdu_ext_desc_64);
+
+	dma_free_coherent(htt->ar->dev,
+			  size,
+			  htt->frag_desc.vaddr_desc_64,
+			  htt->frag_desc.paddr);
+
+	htt->frag_desc.vaddr_desc_64 = NULL;
+}
+
+static int ath10k_htt_tx_alloc_cont_frag_desc_64(struct ath10k_htt *htt)
+{
+	struct ath10k *ar = htt->ar;
+	size_t size;
+
+	if (!ar->hw_params.continuous_frag_desc)
+		return 0;
+
+	size = htt->max_num_pending_tx *
+			sizeof(struct htt_msdu_ext_desc_64);
+
+	htt->frag_desc.vaddr_desc_64 = dma_alloc_coherent(ar->dev, size,
+							  &htt->frag_desc.paddr,
+							  GFP_KERNEL);
+	if (!htt->frag_desc.vaddr_desc_64) {
+		ath10k_err(ar, "failed to alloc fragment desc memory\n");
+		return -ENOMEM;
+	}
+	htt->frag_desc.size = size;
 
 	return 0;
 }
@@ -363,7 +410,7 @@ static int ath10k_htt_tx_alloc_buf(struct ath10k_htt *htt)
 		return ret;
 	}
 
-	ret = ath10k_htt_tx_alloc_cont_frag_desc(htt);
+	ret = htt->tx_ops->htt_alloc_frag_desc(htt);
 	if (ret) {
 		ath10k_err(ar, "failed to alloc cont frag desc: %d\n", ret);
 		goto free_txbuf;
@@ -387,7 +434,7 @@ free_txq:
 	ath10k_htt_tx_free_txq(htt);
 
 free_frag_desc:
-	ath10k_htt_tx_free_cont_frag_desc(htt);
+	htt->tx_ops->htt_free_frag_desc(htt);
 
 free_txbuf:
 	ath10k_htt_tx_free_cont_txbuf(htt);
@@ -446,7 +493,7 @@ void ath10k_htt_tx_destroy(struct ath10k_htt *htt)
 
 	ath10k_htt_tx_free_cont_txbuf(htt);
 	ath10k_htt_tx_free_txq(htt);
-	ath10k_htt_tx_free_cont_frag_desc(htt);
+	htt->tx_ops->htt_free_frag_desc(htt);
 	ath10k_htt_tx_free_txdone_fifo(htt);
 	htt->tx_mem_allocated = false;
 }
@@ -545,12 +592,12 @@ int ath10k_htt_h2t_stats_req(struct ath10k_htt *htt, u8 mask, u64 cookie)
 	return 0;
 }
 
-int ath10k_htt_send_frag_desc_bank_cfg(struct ath10k_htt *htt)
+static int ath10k_htt_send_frag_desc_bank_cfg_32(struct ath10k_htt *htt)
 {
 	struct ath10k *ar = htt->ar;
 	struct sk_buff *skb;
 	struct htt_cmd *cmd;
-	struct htt_frag_desc_bank_cfg *cfg;
+	struct htt_frag_desc_bank_cfg32 *cfg;
 	int ret, size;
 	u8 info;
 
@@ -562,7 +609,7 @@ int ath10k_htt_send_frag_desc_bank_cfg(struct ath10k_htt *htt)
 		return -EINVAL;
 	}
 
-	size = sizeof(cmd->hdr) + sizeof(cmd->frag_desc_bank_cfg);
+	size = sizeof(cmd->hdr) + sizeof(cmd->frag_desc_bank_cfg32);
 	skb = ath10k_htc_alloc_skb(ar, size);
 	if (!skb)
 		return -ENOMEM;
@@ -579,11 +626,73 @@ int ath10k_htt_send_frag_desc_bank_cfg(struct ath10k_htt *htt)
 		     ar->running_fw->fw_file.fw_features))
 		info |= HTT_FRAG_DESC_BANK_CFG_INFO_Q_STATE_VALID;
 
-	cfg = &cmd->frag_desc_bank_cfg;
+	cfg = &cmd->frag_desc_bank_cfg32;
 	cfg->info = info;
 	cfg->num_banks = 1;
 	cfg->desc_size = sizeof(struct htt_msdu_ext_desc);
 	cfg->bank_base_addrs[0] = __cpu_to_le32(htt->frag_desc.paddr);
+	cfg->bank_id[0].bank_min_id = 0;
+	cfg->bank_id[0].bank_max_id = __cpu_to_le16(htt->max_num_pending_tx -
+						    1);
+
+	cfg->q_state.paddr = cpu_to_le32(htt->tx_q_state.paddr);
+	cfg->q_state.num_peers = cpu_to_le16(htt->tx_q_state.num_peers);
+	cfg->q_state.num_tids = cpu_to_le16(htt->tx_q_state.num_tids);
+	cfg->q_state.record_size = HTT_TX_Q_STATE_ENTRY_SIZE;
+	cfg->q_state.record_multiplier = HTT_TX_Q_STATE_ENTRY_MULTIPLIER;
+
+	ath10k_dbg(ar, ATH10K_DBG_HTT, "htt frag desc bank cmd\n");
+
+	ret = ath10k_htc_send(&htt->ar->htc, htt->eid, skb);
+	if (ret) {
+		ath10k_warn(ar, "failed to send frag desc bank cfg request: %d\n",
+			    ret);
+		dev_kfree_skb_any(skb);
+		return ret;
+	}
+
+	return 0;
+}
+
+static int ath10k_htt_send_frag_desc_bank_cfg_64(struct ath10k_htt *htt)
+{
+	struct ath10k *ar = htt->ar;
+	struct sk_buff *skb;
+	struct htt_cmd *cmd;
+	struct htt_frag_desc_bank_cfg64 *cfg;
+	int ret, size;
+	u8 info;
+
+	if (!ar->hw_params.continuous_frag_desc)
+		return 0;
+
+	if (!htt->frag_desc.paddr) {
+		ath10k_warn(ar, "invalid frag desc memory\n");
+		return -EINVAL;
+	}
+
+	size = sizeof(cmd->hdr) + sizeof(cmd->frag_desc_bank_cfg64);
+	skb = ath10k_htc_alloc_skb(ar, size);
+	if (!skb)
+		return -ENOMEM;
+
+	skb_put(skb, size);
+	cmd = (struct htt_cmd *)skb->data;
+	cmd->hdr.msg_type = HTT_H2T_MSG_TYPE_FRAG_DESC_BANK_CFG;
+
+	info = 0;
+	info |= SM(htt->tx_q_state.type,
+		   HTT_FRAG_DESC_BANK_CFG_INFO_Q_STATE_DEPTH_TYPE);
+
+	if (test_bit(ATH10K_FW_FEATURE_PEER_FLOW_CONTROL,
+		     ar->running_fw->fw_file.fw_features))
+		info |= HTT_FRAG_DESC_BANK_CFG_INFO_Q_STATE_VALID;
+
+	cfg = &cmd->frag_desc_bank_cfg64;
+	cfg->info = info;
+	cfg->num_banks = 1;
+	cfg->desc_size = sizeof(struct htt_msdu_ext_desc_64);
+	cfg->bank_base_addrs[0] =  __cpu_to_le64(htt->frag_desc.paddr);
 	cfg->bank_id[0].bank_min_id = 0;
 	cfg->bank_id[0].bank_max_id = __cpu_to_le16(htt->max_num_pending_tx -
 						    1);
@@ -1010,6 +1119,7 @@ int ath10k_htt_tx(struct ath10k_htt *htt, enum ath10k_hw_txrx_mode txmode,
 	u32 frags_paddr = 0;
 	u32 txbuf_paddr;
 	struct htt_msdu_ext_desc *ext_desc = NULL;
+	struct htt_msdu_ext_desc *ext_desc_t = NULL;
 
 	spin_lock_bh(&htt->tx_lock);
 	res = ath10k_htt_tx_alloc_msdu_id(htt, msdu);
@@ -1055,11 +1165,12 @@ int ath10k_htt_tx(struct ath10k_htt *htt, enum ath10k_hw_txrx_mode txmode,
 		/* pass through */
 	case ATH10K_HW_TXRX_ETHERNET:
 		if (ar->hw_params.continuous_frag_desc) {
-			memset(&htt->frag_desc.vaddr[msdu_id], 0,
+			ext_desc_t = htt->frag_desc.vaddr_desc_32;
+			memset(&ext_desc_t[msdu_id], 0,
 			       sizeof(struct htt_msdu_ext_desc));
 			frags = (struct htt_data_tx_desc_frag *)
-				&htt->frag_desc.vaddr[msdu_id].frags;
-			ext_desc = &htt->frag_desc.vaddr[msdu_id];
+				&ext_desc_t[msdu_id].frags;
+			ext_desc = &ext_desc_t[msdu_id];
 			frags[0].tword_addr.paddr_lo =
 				__cpu_to_le32(skb_cb->paddr);
 			frags[0].tword_addr.paddr_hi = 0;
@@ -1189,10 +1300,16 @@ err:
 
 static const struct ath10k_htt_tx_ops htt_tx_ops_32 = {
 	.htt_send_rx_ring_cfg = ath10k_htt_send_rx_ring_cfg_32,
+	.htt_send_frag_desc_bank_cfg = ath10k_htt_send_frag_desc_bank_cfg_32,
+	.htt_alloc_frag_desc = ath10k_htt_tx_alloc_cont_frag_desc_32,
+	.htt_free_frag_desc = ath10k_htt_tx_free_cont_frag_desc_32,
 };
 
 static const struct ath10k_htt_tx_ops htt_tx_ops_64 = {
 	.htt_send_rx_ring_cfg = ath10k_htt_send_rx_ring_cfg_64,
+	.htt_send_frag_desc_bank_cfg = ath10k_htt_send_frag_desc_bank_cfg_64,
+	.htt_alloc_frag_desc = ath10k_htt_tx_alloc_cont_frag_desc_64,
+	.htt_free_frag_desc = ath10k_htt_tx_free_cont_frag_desc_64,
 };
 
 void ath10k_htt_set_tx_ops(struct ath10k_htt *htt)
