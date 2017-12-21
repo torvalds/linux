@@ -118,13 +118,13 @@ static int tcf_act_police_init(struct net *net, struct nlattr *nla,
 	police = to_police(*a);
 	if (parm->rate.rate) {
 		err = -ENOMEM;
-		R_tab = qdisc_get_rtab(&parm->rate, tb[TCA_POLICE_RATE]);
+		R_tab = qdisc_get_rtab(&parm->rate, tb[TCA_POLICE_RATE], NULL);
 		if (R_tab == NULL)
 			goto failure;
 
 		if (parm->peakrate.rate) {
 			P_tab = qdisc_get_rtab(&parm->peakrate,
-					       tb[TCA_POLICE_PEAKRATE]);
+					       tb[TCA_POLICE_PEAKRATE], NULL);
 			if (P_tab == NULL)
 				goto failure;
 		}

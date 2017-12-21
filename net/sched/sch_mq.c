@@ -36,7 +36,8 @@ static void mq_destroy(struct Qdisc *sch)
 	kfree(priv->qdiscs);
 }
 
-static int mq_init(struct Qdisc *sch, struct nlattr *opt)
+static int mq_init(struct Qdisc *sch, struct nlattr *opt,
+		   struct netlink_ext_ack *extack)
 {
 	struct net_device *dev = qdisc_dev(sch);
 	struct mq_sched *priv = qdisc_priv(sch);
@@ -60,7 +61,8 @@ static int mq_init(struct Qdisc *sch, struct nlattr *opt)
 		dev_queue = netdev_get_tx_queue(dev, ntx);
 		qdisc = qdisc_create_dflt(dev_queue, get_default_qdisc_ops(dev, ntx),
 					  TC_H_MAKE(TC_H_MAJ(sch->handle),
-						    TC_H_MIN(ntx + 1)));
+						    TC_H_MIN(ntx + 1)),
+					  extack);
 		if (!qdisc)
 			return -ENOMEM;
 		priv->qdiscs[ntx] = qdisc;
@@ -154,7 +156,7 @@ static struct netdev_queue *mq_select_queue(struct Qdisc *sch,
 }
 
 static int mq_graft(struct Qdisc *sch, unsigned long cl, struct Qdisc *new,
-		    struct Qdisc **old)
+		    struct Qdisc **old, struct netlink_ext_ack *extack)
 {
 	struct netdev_queue *dev_queue = mq_queue_get(sch, cl);
 	struct net_device *dev = qdisc_dev(sch);

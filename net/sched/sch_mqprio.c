@@ -132,7 +132,8 @@ static int parse_attr(struct nlattr *tb[], int maxtype, struct nlattr *nla,
 	return 0;
 }
 
-static int mqprio_init(struct Qdisc *sch, struct nlattr *opt)
+static int mqprio_init(struct Qdisc *sch, struct nlattr *opt,
+		       struct netlink_ext_ack *extack)
 {
 	struct net_device *dev = qdisc_dev(sch);
 	struct mqprio_sched *priv = qdisc_priv(sch);
@@ -229,7 +230,7 @@ static int mqprio_init(struct Qdisc *sch, struct nlattr *opt)
 		qdisc = qdisc_create_dflt(dev_queue,
 					  get_default_qdisc_ops(dev, i),
 					  TC_H_MAKE(TC_H_MAJ(sch->handle),
-						    TC_H_MIN(i + 1)));
+						    TC_H_MIN(i + 1)), extack);
 		if (!qdisc)
 			return -ENOMEM;
 
@@ -319,7 +320,7 @@ static struct netdev_queue *mqprio_queue_get(struct Qdisc *sch,
 }
 
 static int mqprio_graft(struct Qdisc *sch, unsigned long cl, struct Qdisc *new,
-		    struct Qdisc **old)
+			struct Qdisc **old, struct netlink_ext_ack *extack)
 {
 	struct net_device *dev = qdisc_dev(sch);
 	struct netdev_queue *dev_queue = mqprio_queue_get(sch, cl);

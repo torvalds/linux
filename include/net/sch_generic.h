@@ -151,20 +151,23 @@ struct Qdisc_class_ops {
 	/* Child qdisc manipulation */
 	struct netdev_queue *	(*select_queue)(struct Qdisc *, struct tcmsg *);
 	int			(*graft)(struct Qdisc *, unsigned long cl,
-					struct Qdisc *, struct Qdisc **);
+					struct Qdisc *, struct Qdisc **,
+					struct netlink_ext_ack *extack);
 	struct Qdisc *		(*leaf)(struct Qdisc *, unsigned long cl);
 	void			(*qlen_notify)(struct Qdisc *, unsigned long);
 
 	/* Class manipulation routines */
 	unsigned long		(*find)(struct Qdisc *, u32 classid);
 	int			(*change)(struct Qdisc *, u32, u32,
-					struct nlattr **, unsigned long *);
+					struct nlattr **, unsigned long *,
+					struct netlink_ext_ack *);
 	int			(*delete)(struct Qdisc *, unsigned long);
 	void			(*walk)(struct Qdisc *, struct qdisc_walker * arg);
 
 	/* Filter manipulation */
 	struct tcf_block *	(*tcf_block)(struct Qdisc *sch,
-					     unsigned long arg);
+					     unsigned long arg,
+					     struct netlink_ext_ack *extack);
 	unsigned long		(*bind_tcf)(struct Qdisc *, unsigned long,
 					u32 classid);
 	void			(*unbind_tcf)(struct Qdisc *, unsigned long);
@@ -189,11 +192,13 @@ struct Qdisc_ops {
 	struct sk_buff *	(*dequeue)(struct Qdisc *);
 	struct sk_buff *	(*peek)(struct Qdisc *);
 
-	int			(*init)(struct Qdisc *sch, struct nlattr *arg);
+	int			(*init)(struct Qdisc *sch, struct nlattr *arg,
+					struct netlink_ext_ack *extack);
 	void			(*reset)(struct Qdisc *);
 	void			(*destroy)(struct Qdisc *);
 	int			(*change)(struct Qdisc *sch,
-					  struct nlattr *arg);
+					  struct nlattr *arg,
+					  struct netlink_ext_ack *extack);
 	void			(*attach)(struct Qdisc *sch);
 
 	int			(*dump)(struct Qdisc *, struct sk_buff *);
@@ -466,9 +471,11 @@ void qdisc_destroy(struct Qdisc *qdisc);
 void qdisc_tree_reduce_backlog(struct Qdisc *qdisc, unsigned int n,
 			       unsigned int len);
 struct Qdisc *qdisc_alloc(struct netdev_queue *dev_queue,
-			  const struct Qdisc_ops *ops);
+			  const struct Qdisc_ops *ops,
+			  struct netlink_ext_ack *extack);
 struct Qdisc *qdisc_create_dflt(struct netdev_queue *dev_queue,
-				const struct Qdisc_ops *ops, u32 parentid);
+				const struct Qdisc_ops *ops, u32 parentid,
+				struct netlink_ext_ack *extack);
 void __qdisc_calculate_pkt_len(struct sk_buff *skb,
 			       const struct qdisc_size_table *stab);
 int skb_do_redirect(struct sk_buff *);

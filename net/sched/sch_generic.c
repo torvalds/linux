@@ -551,7 +551,8 @@ struct Qdisc noop_qdisc = {
 };
 EXPORT_SYMBOL(noop_qdisc);
 
-static int noqueue_init(struct Qdisc *qdisc, struct nlattr *opt)
+static int noqueue_init(struct Qdisc *qdisc, struct nlattr *opt,
+			struct netlink_ext_ack *extack)
 {
 	/* register_qdisc() assigns a default of noop_enqueue if unset,
 	 * but __dev_queue_xmit() treats noqueue only as such
@@ -690,7 +691,8 @@ nla_put_failure:
 	return -1;
 }
 
-static int pfifo_fast_init(struct Qdisc *qdisc, struct nlattr *opt)
+static int pfifo_fast_init(struct Qdisc *qdisc, struct nlattr *opt,
+			   struct netlink_ext_ack *extack)
 {
 	unsigned int qlen = qdisc_dev(qdisc)->tx_queue_len;
 	struct pfifo_fast_priv *priv = qdisc_priv(qdisc);
@@ -753,7 +755,8 @@ static struct lock_class_key qdisc_tx_busylock;
 static struct lock_class_key qdisc_running_key;
 
 struct Qdisc *qdisc_alloc(struct netdev_queue *dev_queue,
-			  const struct Qdisc_ops *ops)
+			  const struct Qdisc_ops *ops,
+			  struct netlink_ext_ack *extack)
 {
 	void *p;
 	struct Qdisc *sch;
@@ -762,6 +765,7 @@ struct Qdisc *qdisc_alloc(struct netdev_queue *dev_queue,
 	struct net_device *dev;
 
 	if (!dev_queue) {
+		NL_SET_ERR_MSG(extack, "No device queue given");
 		err = -EINVAL;
 		goto errout;
 	}
@@ -826,21 +830,24 @@ errout:
 
 struct Qdisc *qdisc_create_dflt(struct netdev_queue *dev_queue,
 				const struct Qdisc_ops *ops,
-				unsigned int parentid)
+				unsigned int parentid,
+				struct netlink_ext_ack *extack)
 {
 	struct Qdisc *sch;
 
-	if (!try_module_get(ops->owner))
+	if (!try_module_get(ops->owner)) {
+		NL_SET_ERR_MSG(extack, "Failed to increase module reference counter");
 		return NULL;
+	}
 
-	sch = qdisc_alloc(dev_queue, ops);
+	sch = qdisc_alloc(dev_queue, ops, extack);
 	if (IS_ERR(sch)) {
 		module_put(ops->owner);
 		return NULL;
 	}
 	sch->parent = parentid;
 
-	if (!ops->init || ops->init(sch, NULL) == 0)
+	if (!ops->init || ops->init(sch, NULL, extack) == 0)
 		return sch;
 
 	qdisc_destroy(sch);
@@ -952,7 +959,7 @@ static void attach_one_default_qdisc(struct net_device *dev,
 	if (dev->priv_flags & IFF_NO_QUEUE)
 		ops = &noqueue_qdisc_ops;
 
-	qdisc = qdisc_create_dflt(dev_queue, ops, TC_H_ROOT);
+	qdisc = qdisc_create_dflt(dev_queue, ops, TC_H_ROOT, NULL);
 	if (!qdisc) {
 		netdev_info(dev, "activation failed\n");
 		return;
@@ -975,7 +982,7 @@ static void attach_default_qdiscs(struct net_device *dev)
 		dev->qdisc = txq->qdisc_sleeping;
 		qdisc_refcount_inc(dev->qdisc);
 	} else {
-		qdisc = qdisc_create_dflt(txq, &mq_qdisc_ops, TC_H_ROOT);
+		qdisc = qdisc_create_dflt(txq, &mq_qdisc_ops, TC_H_ROOT, NULL);
 		if (qdisc) {
 			dev->qdisc = qdisc;
 			qdisc->ops->attach(qdisc);

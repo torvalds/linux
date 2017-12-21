@@ -281,20 +281,24 @@ static void tcf_block_offload_unbind(struct tcf_block *block, struct Qdisc *q,
 }
 
 int tcf_block_get_ext(struct tcf_block **p_block, struct Qdisc *q,
-		      struct tcf_block_ext_info *ei)
+		      struct tcf_block_ext_info *ei,
+		      struct netlink_ext_ack *extack)
 {
 	struct tcf_block *block = kzalloc(sizeof(*block), GFP_KERNEL);
 	struct tcf_chain *chain;
 	int err;
 
-	if (!block)
+	if (!block) {
+		NL_SET_ERR_MSG(extack, "Memory allocation for block failed");
 		return -ENOMEM;
+	}
 	INIT_LIST_HEAD(&block->chain_list);
 	INIT_LIST_HEAD(&block->cb_list);
 
 	/* Create chain 0 by default, it has to be always present. */
 	chain = tcf_chain_create(block, 0);
 	if (!chain) {
+		NL_SET_ERR_MSG(extack, "Failed to create new tcf chain");
 		err = -ENOMEM;
 		goto err_chain_create;
 	}
@@ -321,7 +325,8 @@ static void tcf_chain_head_change_dflt(struct tcf_proto *tp_head, void *priv)
 }
 
 int tcf_block_get(struct tcf_block **p_block,
-		  struct tcf_proto __rcu **p_filter_chain, struct Qdisc *q)
+		  struct tcf_proto __rcu **p_filter_chain, struct Qdisc *q,
+		  struct netlink_ext_ack *extack)
 {
 	struct tcf_block_ext_info ei = {
 		.chain_head_change = tcf_chain_head_change_dflt,
@@ -329,7 +334,7 @@ int tcf_block_get(struct tcf_block **p_block,
 	};
 
 	WARN_ON(!p_filter_chain);
-	return tcf_block_get_ext(p_block, q, &ei);
+	return tcf_block_get_ext(p_block, q, &ei, extack);
 }
 EXPORT_SYMBOL(tcf_block_get);
 
@@ -793,7 +798,7 @@ replay:
 	}
 
 	/* And the last stroke */
-	block = cops->tcf_block(q, cl);
+	block = cops->tcf_block(q, cl, extack);
 	if (!block) {
 		err = -EINVAL;
 		goto errout;
@@ -1040,7 +1045,7 @@ static int tc_dump_tfilter(struct sk_buff *skb, struct netlink_callback *cb)
 		if (cl == 0)
 			goto out;
 	}
-	block = cops->tcf_block(q, cl);
+	block = cops->tcf_block(q, cl, NULL);
 	if (!block)
 		goto out;
 

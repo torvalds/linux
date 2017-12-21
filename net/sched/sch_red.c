@@ -197,7 +197,8 @@ static const struct nla_policy red_policy[TCA_RED_MAX + 1] = {
 	[TCA_RED_MAX_P] = { .type = NLA_U32 },
 };
 
-static int red_change(struct Qdisc *sch, struct nlattr *opt)
+static int red_change(struct Qdisc *sch, struct nlattr *opt,
+		      struct netlink_ext_ack *extack)
 {
 	struct red_sched_data *q = qdisc_priv(sch);
 	struct nlattr *tb[TCA_RED_MAX + 1];
@@ -224,7 +225,8 @@ static int red_change(struct Qdisc *sch, struct nlattr *opt)
 		return -EINVAL;
 
 	if (ctl->limit > 0) {
-		child = fifo_create_dflt(sch, &bfifo_qdisc_ops, ctl->limit);
+		child = fifo_create_dflt(sch, &bfifo_qdisc_ops, ctl->limit,
+					 extack);
 		if (IS_ERR(child))
 			return PTR_ERR(child);
 	}
@@ -272,14 +274,15 @@ static inline void red_adaptative_timer(struct timer_list *t)
 	spin_unlock(root_lock);
 }
 
-static int red_init(struct Qdisc *sch, struct nlattr *opt)
+static int red_init(struct Qdisc *sch, struct nlattr *opt,
+		    struct netlink_ext_ack *extack)
 {
 	struct red_sched_data *q = qdisc_priv(sch);
 
 	q->qdisc = &noop_qdisc;
 	q->sch = sch;
 	timer_setup(&q->adapt_timer, red_adaptative_timer, 0);
-	return red_change(sch, opt);
+	return red_change(sch, opt, extack);
 }
 
 static int red_dump_offload_stats(struct Qdisc *sch, struct tc_red_qopt *opt)
@@ -380,7 +383,7 @@ static int red_dump_class(struct Qdisc *sch, unsigned long cl,
 }
 
 static int red_graft(struct Qdisc *sch, unsigned long arg, struct Qdisc *new,
-		     struct Qdisc **old)
+		     struct Qdisc **old, struct netlink_ext_ack *extack)
 {
 	struct red_sched_data *q = qdisc_priv(sch);
 
