@@ -78,6 +78,32 @@ void intel_device_info_dump_flags(const struct intel_device_info *info,
 #undef PRINT_FLAG
 }
 
+static void sseu_dump(const struct sseu_dev_info *sseu, struct drm_printer *p)
+{
+	drm_printf(p, "slice mask: %04x\n", sseu->slice_mask);
+	drm_printf(p, "slice total: %u\n", hweight8(sseu->slice_mask));
+	drm_printf(p, "subslice total: %u\n", sseu_subslice_total(sseu));
+	drm_printf(p, "subslice mask %04x\n", sseu->subslice_mask);
+	drm_printf(p, "subslice per slice: %u\n",
+		   hweight8(sseu->subslice_mask));
+	drm_printf(p, "EU total: %u\n", sseu->eu_total);
+	drm_printf(p, "EU per subslice: %u\n", sseu->eu_per_subslice);
+	drm_printf(p, "has slice power gating: %s\n",
+		   yesno(sseu->has_slice_pg));
+	drm_printf(p, "has subslice power gating: %s\n",
+		   yesno(sseu->has_subslice_pg));
+	drm_printf(p, "has EU power gating: %s\n", yesno(sseu->has_eu_pg));
+}
+
+void intel_device_info_dump_runtime(const struct intel_device_info *info,
+				    struct drm_printer *p)
+{
+	sseu_dump(&info->sseu, p);
+
+	drm_printf(p, "CS timestamp frequency: %u kHz\n",
+		   info->cs_timestamp_frequency_khz);
+}
+
 void intel_device_info_dump(const struct intel_device_info *info,
 			    struct drm_printer *p)
 {
@@ -558,22 +584,4 @@ void intel_device_info_runtime_init(struct intel_device_info *info)
 
 	/* Initialize command stream timestamp frequency */
 	info->cs_timestamp_frequency_khz = read_timestamp_frequency(dev_priv);
-
-	DRM_DEBUG_DRIVER("slice mask: %04x\n", info->sseu.slice_mask);
-	DRM_DEBUG_DRIVER("slice total: %u\n", hweight8(info->sseu.slice_mask));
-	DRM_DEBUG_DRIVER("subslice total: %u\n",
-			 sseu_subslice_total(&info->sseu));
-	DRM_DEBUG_DRIVER("subslice mask %04x\n", info->sseu.subslice_mask);
-	DRM_DEBUG_DRIVER("subslice per slice: %u\n",
-			 hweight8(info->sseu.subslice_mask));
-	DRM_DEBUG_DRIVER("EU total: %u\n", info->sseu.eu_total);
-	DRM_DEBUG_DRIVER("EU per subslice: %u\n", info->sseu.eu_per_subslice);
-	DRM_DEBUG_DRIVER("has slice power gating: %s\n",
-			 info->sseu.has_slice_pg ? "y" : "n");
-	DRM_DEBUG_DRIVER("has subslice power gating: %s\n",
-			 info->sseu.has_subslice_pg ? "y" : "n");
-	DRM_DEBUG_DRIVER("has EU power gating: %s\n",
-			 info->sseu.has_eu_pg ? "y" : "n");
-	DRM_DEBUG_DRIVER("CS timestamp frequency: %u kHz\n",
-			 info->cs_timestamp_frequency_khz);
 }

@@ -1089,6 +1089,11 @@ static int i915_driver_init_hw(struct drm_i915_private *dev_priv)
 		return -ENODEV;
 
 	intel_device_info_runtime_init(mkwrite_device_info(dev_priv));
+	if (drm_debug & DRM_UT_DRIVER) {
+		struct drm_printer p = drm_debug_printer("i915 device info:");
+
+		intel_device_info_dump_runtime(&dev_priv->info, &p);
+	}
 
 	intel_sanitize_options(dev_priv);
 
