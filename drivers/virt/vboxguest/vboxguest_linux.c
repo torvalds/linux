@@ -291,8 +291,8 @@ static int vbg_pci_probe(struct pci_dev *pci, const struct pci_device_id *id)
 
 	vmmdev = devm_ioremap(dev, mmio, mmio_len);
 	if (!vmmdev) {
-		vbg_err("vboxguest: Error ioremap failed; MMIO addr=%p size=%d\n",
-			(void *)mmio, (int)mmio_len);
+		vbg_err("vboxguest: Error ioremap failed; MMIO addr=%pap size=%pap\n",
+			&mmio, &mmio_len);
 		goto err_disable_pcidev;
 	}
 
@@ -362,9 +362,9 @@ static int vbg_pci_probe(struct pci_dev *pci, const struct pci_device_id *id)
 	device_create_file(dev, &dev_attr_host_version);
 	device_create_file(dev, &dev_attr_host_features);
 
-	vbg_info("vboxguest: misc device minor %d, IRQ %d, I/O port %x, MMIO at %p (size %d)\n",
+	vbg_info("vboxguest: misc device minor %d, IRQ %d, I/O port %x, MMIO at %pap (size %pap)\n",
 		 gdev->misc_device.minor, pci->irq, gdev->io_port,
-		 (void *)mmio, (int)mmio_len);
+		 &mmio, &mmio_len);
 
 	return 0;
 
