@@ -1858,7 +1858,7 @@ int ath10k_pci_hif_exchange_bmi_msg(struct ath10k *ar,
 
 	ret = ath10k_pci_bmi_wait(ar, ce_tx, ce_rx, &xfer);
 	if (ret) {
-		u32 unused_buffer;
+		dma_addr_t unused_buffer;
 		unsigned int unused_nbytes;
 		unsigned int unused_id;
 
@@ -1871,7 +1871,7 @@ int ath10k_pci_hif_exchange_bmi_msg(struct ath10k *ar,
 
 err_resp:
 	if (resp) {
-		u32 unused_buffer;
+		dma_addr_t unused_buffer;
 
 		ath10k_ce_revoke_recv_next(ce_rx, NULL, &unused_buffer);
 		dma_unmap_single(ar->dev, resp_paddr,

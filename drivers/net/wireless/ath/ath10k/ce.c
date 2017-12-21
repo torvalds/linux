@@ -329,7 +329,7 @@ static inline void ath10k_ce_engine_int_status_clear(struct ath10k *ar,
  */
 int ath10k_ce_send_nolock(struct ath10k_ce_pipe *ce_state,
 			  void *per_transfer_context,
-			  u32 buffer,
+			  dma_addr_t buffer,
 			  unsigned int nbytes,
 			  unsigned int transfer_id,
 			  unsigned int flags)
@@ -413,7 +413,7 @@ void __ath10k_ce_send_revert(struct ath10k_ce_pipe *pipe)
 
 int ath10k_ce_send(struct ath10k_ce_pipe *ce_state,
 		   void *per_transfer_context,
-		   u32 buffer,
+		    dma_addr_t buffer,
 		   unsigned int nbytes,
 		   unsigned int transfer_id,
 		   unsigned int flags)
@@ -459,7 +459,8 @@ int __ath10k_ce_rx_num_free_bufs(struct ath10k_ce_pipe *pipe)
 	return CE_RING_DELTA(nentries_mask, write_index, sw_index - 1);
 }
 
-int __ath10k_ce_rx_post_buf(struct ath10k_ce_pipe *pipe, void *ctx, u32 paddr)
+int __ath10k_ce_rx_post_buf(struct ath10k_ce_pipe *pipe, void *ctx,
+			    dma_addr_t paddr)
 {
 	struct ath10k *ar = pipe->ar;
 	struct ath10k_ce *ce = ath10k_ce_priv(ar);
@@ -508,7 +509,8 @@ void ath10k_ce_rx_update_write_idx(struct ath10k_ce_pipe *pipe, u32 nentries)
 	dest_ring->write_index = write_index;
 }
 
-int ath10k_ce_rx_post_buf(struct ath10k_ce_pipe *pipe, void *ctx, u32 paddr)
+int ath10k_ce_rx_post_buf(struct ath10k_ce_pipe *pipe, void *ctx,
+			  dma_addr_t paddr)
 {
 	struct ath10k *ar = pipe->ar;
 	struct ath10k_ce *ce = ath10k_ce_priv(ar);
@@ -593,7 +595,7 @@ int ath10k_ce_completed_recv_next(struct ath10k_ce_pipe *ce_state,
 
 int ath10k_ce_revoke_recv_next(struct ath10k_ce_pipe *ce_state,
 			       void **per_transfer_contextp,
-			       u32 *bufferp)
+			       dma_addr_t *bufferp)
 {
 	struct ath10k_ce_ring *dest_ring;
 	unsigned int nentries_mask;
@@ -701,7 +703,7 @@ int ath10k_ce_completed_send_next_nolock(struct ath10k_ce_pipe *ce_state,
 /* NB: Modeled after ath10k_ce_completed_send_next */
 int ath10k_ce_cancel_send_next(struct ath10k_ce_pipe *ce_state,
 			       void **per_transfer_contextp,
-			       u32 *bufferp,
+			       dma_addr_t *bufferp,
 			       unsigned int *nbytesp,
 			       unsigned int *transfer_idp)
 {
