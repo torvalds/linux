@@ -1,0 +1,46 @@
+/*
+ * Copyright (c) 2017 Fuzhou Rockchip Electronics Co., Ltd
+ *
+ * SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+ */
+
+/dts-v1/;
+
+#include "rk3308.dtsi"
+
+/ {
+	model = "Rockchip RK3308 FPGA Platform";
+	compatible = "rockchip,rk3308-fpga", "rockchip,rk3308";
+
+	chosen {
+		bootargs = "earlycon=uart8250,mmio32,0xff0b0000 console=ttyFIQ0 init=/init initrd=0x9000000,0x18bfc0";
+	};
+
+	memory@00000000 {
+		device_type = "memory";
+		reg = <0x0 0x00200000 0x0 0x0FE00000>;
+	};
+
+	fiq_debugger: fiq-debugger {
+		compatible = "rockchip,fiq-debugger";
+		rockchip,serial-id = <1>;
+		rockchip,wake-irq = <0>;
+		rockchip,irq-mode-enable = <1>;
+		rockchip,baudrate = <1500000>;  /* Only 115200 and 1500000 */
+		interrupts = <GIC_SPI 150 IRQ_TYPE_LEVEL_HIGH 0>;
+		status = "ok";
+	};
+
+};
+
+&cpu1 {
+	/delete-property/enable-method;
+};
+
+&cpu2 {
+	/delete-property/enable-method;
+};
+
+&cpu3 {
+	/delete-property/enable-method;
+};
