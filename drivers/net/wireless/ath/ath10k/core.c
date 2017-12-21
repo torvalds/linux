@@ -1577,6 +1577,7 @@ static void ath10k_core_get_fw_name(struct ath10k *ar, char *fw_name,
 		break;
 	case ATH10K_BUS_PCI:
 	case ATH10K_BUS_AHB:
+	case ATH10K_BUS_SNOC:
 		scnprintf(fw_name, fw_name_len, "%s-%d.bin",
 			  ATH10K_FW_FILE_BASE, fw_api);
 		break;
