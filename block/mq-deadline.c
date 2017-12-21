@@ -59,6 +59,7 @@ struct deadline_data {
 	int front_merges;
 
 	spinlock_t lock;
+	spinlock_t zone_lock;
 	struct list_head dispatch;
 };
 
@@ -198,13 +199,33 @@ static inline int deadline_check_fifo(struct deadline_data *dd, int ddir)
 static struct request *
 deadline_fifo_request(struct deadline_data *dd, int data_dir)
 {
+	struct request *rq;
+	unsigned long flags;
+
 	if (WARN_ON_ONCE(data_dir != READ && data_dir != WRITE))
 		return NULL;
 
 	if (list_empty(&dd->fifo_list[data_dir]))
 		return NULL;
 
-	return rq_entry_fifo(dd->fifo_list[data_dir].next);
+	rq = rq_entry_fifo(dd->fifo_list[data_dir].next);
+	if (data_dir == READ || !blk_queue_is_zoned(rq->q))
+		return rq;
+
+	/*
+	 * Look for a write request that can be dispatched, that is one with
+	 * an unlocked target zone.
+	 */
+	spin_lock_irqsave(&dd->zone_lock, flags);
+	list_for_each_entry(rq, &dd->fifo_list[WRITE], queuelist) {
+		if (blk_req_can_dispatch_to_zone(rq))
+			goto out;
+	}
+	rq = NULL;
+out:
+	spin_unlock_irqrestore(&dd->zone_lock, flags);
+
+	return rq;
 }
 
 /*
@@ -214,10 +235,32 @@ deadline_fifo_request(struct deadline_data *dd, int data_dir)
 static struct request *
 deadline_next_request(struct deadline_data *dd, int data_dir)
 {
+	struct request *rq;
+	unsigned long flags;
+
 	if (WARN_ON_ONCE(data_dir != READ && data_dir != WRITE))
 		return NULL;
 
-	return dd->next_rq[data_dir];
+	rq = dd->next_rq[data_dir];
+	if (!rq)
+		return NULL;
+
+	if (data_dir == READ || !blk_queue_is_zoned(rq->q))
+		return rq;
+
+	/*
+	 * Look for a write request that can be dispatched, that is one with
+	 * an unlocked target zone.
+	 */
+	spin_lock_irqsave(&dd->zone_lock, flags);
+	while (rq) {
+		if (blk_req_can_dispatch_to_zone(rq))
+			break;
+		rq = deadline_latter_request(rq);
+	}
+	spin_unlock_irqrestore(&dd->zone_lock, flags);
+
+	return rq;
 }
 
 /*
@@ -259,7 +302,8 @@ static struct request *__dd_dispatch_request(struct blk_mq_hw_ctx *hctx)
 	if (reads) {
 		BUG_ON(RB_EMPTY_ROOT(&dd->sort_list[READ]));
 
-		if (writes && (dd->starved++ >= dd->writes_starved))
+		if (deadline_fifo_request(dd, WRITE) &&
+		    (dd->starved++ >= dd->writes_starved))
 			goto dispatch_writes;
 
 		data_dir = READ;
@@ -304,6 +348,13 @@ dispatch_find_request:
 		rq = next_rq;
 	}
 
+	/*
+	 * For a zoned block device, if we only have writes queued and none of
+	 * them can be dispatched, rq will be NULL.
+	 */
+	if (!rq)
+		return NULL;
+
 	dd->batching = 0;
 
 dispatch_request:
@@ -313,6 +364,10 @@ dispatch_request:
 	dd->batching++;
 	deadline_move_request(dd, rq);
 done:
+	/*
+	 * If the request needs its target zone locked, do it.
+	 */
+	blk_req_zone_write_lock(rq);
 	rq->rq_flags |= RQF_STARTED;
 	return rq;
 }
@@ -368,6 +423,7 @@ static int dd_init_queue(struct request_queue *q, struct elevator_type *e)
 	dd->front_merges = 1;
 	dd->fifo_batch = fifo_batch;
 	spin_lock_init(&dd->lock);
+	spin_lock_init(&dd->zone_lock);
 	INIT_LIST_HEAD(&dd->dispatch);
 
 	q->elevator = eq;
@@ -424,6 +480,12 @@ static void dd_insert_request(struct blk_mq_hw_ctx *hctx, struct request *rq,
 	struct deadline_data *dd = q->elevator->elevator_data;
 	const int data_dir = rq_data_dir(rq);
 
+	/*
+	 * This may be a requeue of a write request that has locked its
+	 * target zone. If it is the case, this releases the zone lock.
+	 */
+	blk_req_zone_write_unlock(rq);
+
 	if (blk_mq_sched_try_insert_merge(q, rq))
 		return;
 
@@ -466,6 +528,26 @@ static void dd_insert_requests(struct blk_mq_hw_ctx *hctx,
 		dd_insert_request(hctx, rq, at_head);
 	}
 	spin_unlock(&dd->lock);
+}
+
+/*
+ * For zoned block devices, write unlock the target zone of
+ * completed write requests. Do this while holding the zone lock
+ * spinlock so that the zone is never unlocked while deadline_fifo_request()
+ * while deadline_next_request() are executing.
+ */
+static void dd_completed_request(struct request *rq)
+{
+	struct request_queue *q = rq->q;
+
+	if (blk_queue_is_zoned(q)) {
+		struct deadline_data *dd = q->elevator->elevator_data;
+		unsigned long flags;
+
+		spin_lock_irqsave(&dd->zone_lock, flags);
+		blk_req_zone_write_unlock(rq);
+		spin_unlock_irqrestore(&dd->zone_lock, flags);
+	}
 }
 
 static bool dd_has_work(struct blk_mq_hw_ctx *hctx)
@@ -669,6 +751,7 @@ static struct elevator_type mq_deadline = {
 	.ops.mq = {
 		.insert_requests	= dd_insert_requests,
 		.dispatch_request	= dd_dispatch_request,
+		.completed_request	= dd_completed_request,
 		.next_request		= elv_rb_latter_request,
 		.former_request		= elv_rb_former_request,
 		.bio_merge		= dd_bio_merge,
