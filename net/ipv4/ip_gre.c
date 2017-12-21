@@ -313,11 +313,6 @@ static int erspan_rcv(struct sk_buff *skb, struct tnl_ptk_info *tpi,
 				return PACKET_REJECT;
 
 			md = ip_tunnel_info_opts(&tun_dst->u.tun_info);
-			if (!md) {
-				dst_release((struct dst_entry *)tun_dst);
-				return PACKET_REJECT;
-			}
-
 			memcpy(md, pkt_md, sizeof(*md));
 			md->version = ver;
 
