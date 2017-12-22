@@ -5,6 +5,24 @@ Kernel 4.14 for BananaPi R2
  - run "./build.sh config" to configure the kernel (menuconfig)
  - run "./build.sh" to start building kernel
 
+internal Wifi-driver (MT6625L) included
+
+to use it:
+
+  copy firmware and tools to SD-Card from https://github.com/BPI-SINOVOIP/BPI-R2-bsp/tree/master/vendor/mediatek/connectivity or folder "utils"
+
+  make a clean boot of bpi-r2
+  remove wpasupplicant if installed: "apt-get remove wpasupplicant"
+  run the following commands:
+    wmt_loader
+    stp_uart_launcher -p /etc/firmware &
+    echo A >/dev/wmtWifi #(activate AP-Mode)
+
+  if you type "ip a" you should see a ap0-device
+  now you can add an IP-address, start a dhcp-server and start hostapd on it
+
+  more information: http://www.fw-web.de/dokuwiki/doku.php?id=en/bpi-r2/wlan
+
 Master-Branch
 
 Linux kernel
