@@ -89,6 +89,9 @@ static int nfp_bpf_setup_tc_block_cb(enum tc_setup_type type,
 {
 	struct tc_cls_bpf_offload *cls_bpf = type_data;
 	struct nfp_net *nn = cb_priv;
+	struct bpf_prog *oldprog;
+	struct nfp_bpf_vnic *bv;
+	int err;
 
 	if (type != TC_SETUP_CLSBPF ||
 	    !tc_can_offload(nn->dp.netdev) ||
@@ -96,8 +99,6 @@ static int nfp_bpf_setup_tc_block_cb(enum tc_setup_type type,
 	    cls_bpf->common.protocol != htons(ETH_P_ALL) ||
 	    cls_bpf->common.chain_index)
 		return -EOPNOTSUPP;
-	if (nn->dp.bpf_offload_xdp)
-		return -EBUSY;
 
 	/* Only support TC direct action */
 	if (!cls_bpf->exts_integrated ||
@@ -106,16 +107,25 @@ static int nfp_bpf_setup_tc_block_cb(enum tc_setup_type type,
 		return -EOPNOTSUPP;
 	}
 
-	switch (cls_bpf->command) {
-	case TC_CLSBPF_REPLACE:
-		return nfp_net_bpf_offload(nn, cls_bpf->prog, true);
-	case TC_CLSBPF_ADD:
-		return nfp_net_bpf_offload(nn, cls_bpf->prog, false);
-	case TC_CLSBPF_DESTROY:
-		return nfp_net_bpf_offload(nn, NULL, true);
-	default:
+	if (cls_bpf->command != TC_CLSBPF_OFFLOAD)
 		return -EOPNOTSUPP;
+
+	bv = nn->app_priv;
+	oldprog = cls_bpf->oldprog;
+
+	/* Don't remove if oldprog doesn't match driver's state */
+	if (bv->tc_prog != oldprog) {
+		oldprog = NULL;
+		if (!cls_bpf->prog)
+			return 0;
 	}
+
+	err = nfp_net_bpf_offload(nn, cls_bpf->prog, oldprog);
+	if (err)
+		return err;
+
+	bv->tc_prog = cls_bpf->prog;
+	return 0;
 }
 
 static int nfp_bpf_setup_tc_block(struct net_device *netdev,

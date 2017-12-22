@@ -277,6 +277,7 @@ void __init kasan_early_init(void)
 void __init kasan_init(void)
 {
 	int i;
+	void *shadow_cpu_entry_begin, *shadow_cpu_entry_end;
 
 #ifdef CONFIG_KASAN_INLINE
 	register_die_notifier(&kasan_die_notifier);
@@ -329,8 +330,23 @@ void __init kasan_init(void)
 			      (unsigned long)kasan_mem_to_shadow(_end),
 			      early_pfn_to_nid(__pa(_stext)));
 
+	shadow_cpu_entry_begin = (void *)__fix_to_virt(FIX_CPU_ENTRY_AREA_BOTTOM);
+	shadow_cpu_entry_begin = kasan_mem_to_shadow(shadow_cpu_entry_begin);
+	shadow_cpu_entry_begin = (void *)round_down((unsigned long)shadow_cpu_entry_begin,
+						PAGE_SIZE);
+
+	shadow_cpu_entry_end = (void *)(__fix_to_virt(FIX_CPU_ENTRY_AREA_TOP) + PAGE_SIZE);
+	shadow_cpu_entry_end = kasan_mem_to_shadow(shadow_cpu_entry_end);
+	shadow_cpu_entry_end = (void *)round_up((unsigned long)shadow_cpu_entry_end,
+					PAGE_SIZE);
+
 	kasan_populate_zero_shadow(kasan_mem_to_shadow((void *)MODULES_END),
-			(void *)KASAN_SHADOW_END);
+				   shadow_cpu_entry_begin);
+
+	kasan_populate_shadow((unsigned long)shadow_cpu_entry_begin,
+			      (unsigned long)shadow_cpu_entry_end, 0);
+
+	kasan_populate_zero_shadow(shadow_cpu_entry_end, (void *)KASAN_SHADOW_END);
 
 	load_cr3(init_top_pgt);
 	__flush_tlb_all();

@@ -647,8 +647,8 @@ try:
 
     start_test("Test asking for TC offload of two filters...")
     sim.cls_bpf_add_filter(obj, da=True, skip_sw=True)
-    sim.cls_bpf_add_filter(obj, da=True, skip_sw=True)
-    # The above will trigger a splat until TC cls_bpf drivers are fixed
+    ret, _ = sim.cls_bpf_add_filter(obj, da=True, skip_sw=True, fail=False)
+    fail(ret == 0, "Managed to offload two TC filters at the same time")
 
     sim.tc_flush_filters(bound=2, total=2)
 

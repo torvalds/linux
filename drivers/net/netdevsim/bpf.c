@@ -107,6 +107,7 @@ int nsim_bpf_setup_tc_block_cb(enum tc_setup_type type,
 	struct tc_cls_bpf_offload *cls_bpf = type_data;
 	struct bpf_prog *prog = cls_bpf->prog;
 	struct netdevsim *ns = cb_priv;
+	struct bpf_prog *oldprog;
 
 	if (type != TC_SETUP_CLSBPF ||
 	    !tc_can_offload(ns->netdev) ||
@@ -114,25 +115,27 @@ int nsim_bpf_setup_tc_block_cb(enum tc_setup_type type,
 	    cls_bpf->common.chain_index)
 		return -EOPNOTSUPP;
 
-	if (nsim_xdp_offload_active(ns))
-		return -EBUSY;
-
 	if (!ns->bpf_tc_accept)
 		return -EOPNOTSUPP;
 	/* Note: progs without skip_sw will probably not be dev bound */
 	if (prog && !prog->aux->offload && !ns->bpf_tc_non_bound_accept)
 		return -EOPNOTSUPP;
 
-	switch (cls_bpf->command) {
-	case TC_CLSBPF_REPLACE:
-		return nsim_bpf_offload(ns, prog, true);
-	case TC_CLSBPF_ADD:
-		return nsim_bpf_offload(ns, prog, false);
-	case TC_CLSBPF_DESTROY:
-		return nsim_bpf_offload(ns, NULL, true);
-	default:
+	if (cls_bpf->command != TC_CLSBPF_OFFLOAD)
 		return -EOPNOTSUPP;
+
+	oldprog = cls_bpf->oldprog;
+
+	/* Don't remove if oldprog doesn't match driver's state */
+	if (ns->bpf_offloaded != oldprog) {
+		oldprog = NULL;
+		if (!cls_bpf->prog)
+			return 0;
+		if (ns->bpf_offloaded)
+			return -EBUSY;
 	}
+
+	return nsim_bpf_offload(ns, cls_bpf->prog, oldprog);
 }
 
 int nsim_bpf_disable_tc(struct netdevsim *ns)

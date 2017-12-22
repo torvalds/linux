@@ -696,9 +696,7 @@ struct tc_cls_matchall_offload {
 };
 
 enum tc_clsbpf_command {
-	TC_CLSBPF_ADD,
-	TC_CLSBPF_REPLACE,
-	TC_CLSBPF_DESTROY,
+	TC_CLSBPF_OFFLOAD,
 	TC_CLSBPF_STATS,
 };
 
@@ -707,6 +705,7 @@ struct tc_cls_bpf_offload {
 	enum tc_clsbpf_command command;
 	struct tcf_exts *exts;
 	struct bpf_prog *prog;
+	struct bpf_prog *oldprog;
 	const char *name;
 	bool exts_integrated;
 	u32 gen_flags;
