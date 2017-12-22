@@ -1,6 +1,7 @@
 /*
  * extcon-axp288.c - X-Power AXP288 PMIC extcon cable detection driver
  *
+ * Copyright (C) 2016-2017 Hans de Goede <hdegoede@redhat.com>
  * Copyright (C) 2015 Intel Corporation
  * Author: Ramakrishna Pallala <ramakrishna.pallala@intel.com>
  *
@@ -97,9 +98,11 @@ struct axp288_extcon_info {
 	struct device *dev;
 	struct regmap *regmap;
 	struct regmap_irq_chip_data *regmap_irqc;
+	struct delayed_work det_work;
 	int irq[EXTCON_IRQ_END];
 	struct extcon_dev *edev;
 	unsigned int previous_cable;
+	bool first_detect_done;
 };
 
 /* Power up/down reason string array */
@@ -135,6 +138,25 @@ static void axp288_extcon_log_rsi(struct axp288_extcon_info *info)
 
 	/* Clear the register value for next reboot (write 1 to clear bit) */
 	regmap_write(info->regmap, AXP288_PS_BOOT_REASON_REG, clear_mask);
+}
+
+static void axp288_chrg_detect_complete(struct axp288_extcon_info *info)
+{
+	/*
+	 * We depend on other drivers to do things like mux the data lines,
+	 * enable/disable vbus based on the id-pin, etc. Sometimes the BIOS has
+	 * not set these things up correctly resulting in the initial charger
+	 * cable type detection giving a wrong result and we end up not charging
+	 * or charging at only 0.5A.
+	 *
+	 * So we schedule a second cable type detection after 2 seconds to
+	 * give the other drivers time to load and do their thing.
+	 */
+	if (!info->first_detect_done) {
+		queue_delayed_work(system_wq, &info->det_work,
+				   msecs_to_jiffies(2000));
+		info->first_detect_done = true;
+	}
 }
 
 static int axp288_handle_chrg_det_event(struct axp288_extcon_info *info)
@@ -201,6 +223,8 @@ no_vbus:
 		info->previous_cable = cable;
 	}
 
+	axp288_chrg_detect_complete(info);
+
 	return 0;
 
 dev_det_ret:
@@ -222,8 +246,11 @@ static irqreturn_t axp288_extcon_isr(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static void axp288_extcon_enable(struct axp288_extcon_info *info)
+static void axp288_extcon_det_work(struct work_struct *work)
 {
+	struct axp288_extcon_info *info =
+		container_of(work, struct axp288_extcon_info, det_work.work);
+
 	regmap_update_bits(info->regmap, AXP288_BC_GLOBAL_REG,
 						BC_GLOBAL_RUN, 0);
 	/* Enable the charger detection logic */
@@ -245,6 +272,7 @@ static int axp288_extcon_probe(struct platform_device *pdev)
 	info->regmap = axp20x->regmap;
 	info->regmap_irqc = axp20x->regmap_irqc;
 	info->previous_cable = EXTCON_NONE;
+	INIT_DELAYED_WORK(&info->det_work, axp288_extcon_det_work);
 
 	platform_set_drvdata(pdev, info);
 
@@ -290,7 +318,7 @@ static int axp288_extcon_probe(struct platform_device *pdev)
 	}
 
 	/* Start charger cable type detection */
-	axp288_extcon_enable(info);
+	queue_delayed_work(system_wq, &info->det_work, 0);
 
 	return 0;
 }
