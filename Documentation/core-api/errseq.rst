@@ -1,5 +1,7 @@
+=====================
 The errseq_t datatype
 =====================
+
 An errseq_t is a way of recording errors in one place, and allowing any
 number of "subscribers" to tell whether it has changed since a previous
 point where it was sampled.
@@ -21,12 +23,13 @@ a flag to tell whether the value has been sampled since a new value was
 recorded.  That allows us to avoid bumping the counter if no one has
 sampled it since the last time an error was recorded.
 
-Thus we end up with a value that looks something like this::
+Thus we end up with a value that looks something like this:
 
-    bit:  31..13        12        11..0
-    +-----------------+----+----------------+
-    |     counter     | SF |      errno     |
-    +-----------------+----+----------------+
++--------------------------------------+----+------------------------+
+| 31..13                               | 12 | 11..0                  |
++--------------------------------------+----+------------------------+
+| counter                              | SF | errno                  |
++--------------------------------------+----+------------------------+
 
 The general idea is for "watchers" to sample an errseq_t value and keep
 it as a running cursor.  That value can later be used to tell whether
@@ -42,6 +45,7 @@ has ever been an error set since it was first initialized.
 
 API usage
 =========
+
 Let me tell you a story about a worker drone.  Now, he's a good worker
 overall, but the company is a little...management heavy.  He has to
 report to 77 supervisors today, and tomorrow the "big boss" is coming in
@@ -125,6 +129,7 @@ not usable by anyone else.
 
 Serializing errseq_t cursor updates
 ===================================
+
 Note that the errseq_t API does not protect the errseq_t cursor during a
 check_and_advance_operation. Only the canonical error code is handled
 atomically.  In a situation where more than one task might be using the
@@ -147,3 +152,8 @@ errseq_check_and_advance after taking the lock. e.g.::
 
 That avoids the spinlock in the common case where nothing has changed
 since the last time it was checked.
+
+Functions
+=========
+
+.. kernel-doc:: lib/errseq.c

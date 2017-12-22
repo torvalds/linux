@@ -22,6 +22,7 @@ Core utilities
    flexible-arrays
    librs
    genalloc
+   errseq
    printk-formats
 
 Interfaces for kernel debugging
