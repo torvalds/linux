@@ -865,6 +865,7 @@ intel_check_sprite_plane(struct intel_plane *plane,
 	struct drm_rect *src = &state->base.src;
 	struct drm_rect *dst = &state->base.dst;
 	const struct drm_rect *clip = &state->clip;
+	int max_stride = INTEL_GEN(dev_priv) >= 9 ? 32768 : 16384;
 	int hscale, vscale;
 	int max_scale, min_scale;
 	bool can_scale;
@@ -885,7 +886,7 @@ intel_check_sprite_plane(struct intel_plane *plane,
 	}
 
 	/* FIXME check all gen limits */
-	if (fb->width < 3 || fb->height < 3 || fb->pitches[0] > 16384) {
+	if (fb->width < 3 || fb->height < 3 || fb->pitches[0] > max_stride) {
 		DRM_DEBUG_KMS("Unsuitable framebuffer for plane\n");
 		return -EINVAL;
 	}
