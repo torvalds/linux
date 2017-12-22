@@ -523,9 +523,6 @@ void jsm_input(struct jsm_channel *ch)
 
 	jsm_dbg(READ, &ch->ch_bd->pci_dev, "start\n");
 
-	if (!ch)
-		return;
-
 	port = &ch->uart_port.state->port;
 	tp = port->tty;
 
@@ -648,11 +645,8 @@ static void jsm_carrier(struct jsm_channel *ch)
 	int phys_carrier = 0;
 
 	jsm_dbg(CARR, &ch->ch_bd->pci_dev, "start\n");
-	if (!ch)
-		return;
 
 	bd = ch->ch_bd;
-
 	if (!bd)
 		return;
 

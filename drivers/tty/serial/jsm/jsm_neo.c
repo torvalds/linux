@@ -282,9 +282,6 @@ static void neo_copy_data_from_uart_to_queue(struct jsm_channel *ch)
 	u16 head;
 	u16 tail;
 
-	if (!ch)
-		return;
-
 	/* cache head and tail of queue */
 	head = ch->ch_r_head & RQUEUEMASK;
 	tail = ch->ch_r_tail & RQUEUEMASK;
