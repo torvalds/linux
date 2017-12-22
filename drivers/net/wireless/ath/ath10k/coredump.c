@@ -667,6 +667,39 @@ static const struct ath10k_mem_region qca6174_hw30_mem_regions[] = {
 	},
 };
 
+static const struct ath10k_mem_region qca988x_hw20_mem_regions[] = {
+	{
+		.type = ATH10K_MEM_REGION_TYPE_DRAM,
+		.start = 0x400000,
+		.len = 0x50000,
+		.name = "DRAM",
+		.section_table = {
+			.sections = NULL,
+			.size = 0,
+		},
+	},
+	{
+		.type = ATH10K_MEM_REGION_TYPE_REG,
+		.start = 0x4000,
+		.len = 0x2000,
+		.name = "REG_PART1",
+		.section_table = {
+			.sections = NULL,
+			.size = 0,
+		},
+	},
+	{
+		.type = ATH10K_MEM_REGION_TYPE_REG,
+		.start = 0x8000,
+		.len = 0x58000,
+		.name = "REG_PART2",
+		.section_table = {
+			.sections = NULL,
+			.size = 0,
+		},
+	},
+};
+
 static const struct ath10k_hw_mem_layout hw_mem_layouts[] = {
 	{
 		.hw_id = QCA6174_HW_1_0_VERSION,
@@ -715,6 +748,13 @@ static const struct ath10k_hw_mem_layout hw_mem_layouts[] = {
 		.region_table = {
 			.regions = qca6174_hw30_mem_regions,
 			.size = ARRAY_SIZE(qca6174_hw30_mem_regions),
+		},
+	},
+	{
+		.hw_id = QCA988X_HW_2_0_VERSION,
+		.region_table = {
+			.regions = qca988x_hw20_mem_regions,
+			.size = ARRAY_SIZE(qca988x_hw20_mem_regions),
 		},
 	},
 };
