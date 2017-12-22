@@ -8730,6 +8730,40 @@ static struct bpf_test tests[] = {
 		.result = ACCEPT,
 	},
 	{
+		"calls: stack overflow using two frames (pre-call access)",
+		.insns = {
+			/* prog 1 */
+			BPF_ST_MEM(BPF_B, BPF_REG_10, -300, 0),
+			BPF_RAW_INSN(BPF_JMP|BPF_CALL, 0, 1, 0, 1),
+			BPF_EXIT_INSN(),
+
+			/* prog 2 */
+			BPF_ST_MEM(BPF_B, BPF_REG_10, -300, 0),
+			BPF_MOV64_IMM(BPF_REG_0, 0),
+			BPF_EXIT_INSN(),
+		},
+		.prog_type = BPF_PROG_TYPE_XDP,
+		.errstr = "combined stack size",
+		.result = REJECT,
+	},
+	{
+		"calls: stack overflow using two frames (post-call access)",
+		.insns = {
+			/* prog 1 */
+			BPF_RAW_INSN(BPF_JMP|BPF_CALL, 0, 1, 0, 2),
+			BPF_ST_MEM(BPF_B, BPF_REG_10, -300, 0),
+			BPF_EXIT_INSN(),
+
+			/* prog 2 */
+			BPF_ST_MEM(BPF_B, BPF_REG_10, -300, 0),
+			BPF_MOV64_IMM(BPF_REG_0, 0),
+			BPF_EXIT_INSN(),
+		},
+		.prog_type = BPF_PROG_TYPE_XDP,
+		.errstr = "combined stack size",
+		.result = REJECT,
+	},
+	{
 		"calls: spill into caller stack frame",
 		.insns = {
 			BPF_ST_MEM(BPF_DW, BPF_REG_10, -8, 0),
