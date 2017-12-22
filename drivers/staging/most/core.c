@@ -36,7 +36,7 @@ static struct mostcore {
 	struct list_head comp_list;
 } mc;
 
-#define to_driver(d) container_of(d, struct mostcore, drv);
+#define to_driver(d) container_of(d, struct mostcore, drv)
 
 struct pipe {
 	struct core_component *comp;
