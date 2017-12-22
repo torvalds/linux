@@ -28,8 +28,6 @@
 #include "crypto4xx_reg_def.h"
 #include "crypto4xx_sa.h"
 
-#define MODULE_NAME "crypto4xx"
-
 #define PPC460SX_SDR0_SRST                      0x201
 #define PPC405EX_SDR0_SRST                      0x200
 #define PPC460EX_SDR0_SRST                      0x201
