@@ -1083,6 +1083,17 @@ __enter_rtas:
 rtas_return_loc:
 	FIXUP_ENDIAN
 
+	/*
+	 * Clear RI and set SF before anything.
+	 */
+	mfmsr   r6
+	li	r0,MSR_RI
+	andc	r6,r6,r0
+	sldi	r0,r0,(MSR_SF_LG - MSR_RI_LG)
+	or	r6,r6,r0
+	sync
+	mtmsrd  r6
+
 	/* relocation is off at this point */
 	GET_PACA(r4)
 	clrldi	r4,r4,2			/* convert to realmode address */
@@ -1091,12 +1102,6 @@ rtas_return_loc:
 0:	mflr	r3
 	ld	r3,(1f-0b)(r3)		/* get &rtas_restore_regs */
 
-	mfmsr   r6
-	li	r0,MSR_RI
-	andc	r6,r6,r0
-	sync	
-	mtmsrd  r6
-        
         ld	r1,PACAR1(r4)           /* Restore our SP */
         ld	r4,PACASAVEDMSR(r4)     /* Restore our MSR */
 
