@@ -92,9 +92,9 @@
 			reg = <0x0 0x0 0x0 0x0>;
 		};
 
-		secure_memory: secure-memory@e7000000 {
+		secure_memory: secure-memory@20000000 {
 			compatible = "rockchip,secure-memory";
-			reg = <0x0 0xe7000000 0x0 0x10000000>;
+			reg = <0x0 0x20000000 0x0 0x10000000>;
 			status = "disabled";
 		};
 
