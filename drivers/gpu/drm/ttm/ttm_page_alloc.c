@@ -81,6 +81,7 @@ struct ttm_page_pool {
 	char			*name;
 	unsigned long		nfrees;
 	unsigned long		nrefills;
+	unsigned int		order;
 };
 
 /**
@@ -222,6 +223,17 @@ static struct kobj_type ttm_pool_kobj_type = {
 static struct ttm_pool_manager *_manager;
 
 #ifndef CONFIG_X86
+static int set_pages_wb(struct page *page, int numpages)
+{
+#if IS_ENABLED(CONFIG_AGP)
+	int i;
+
+	for (i = 0; i < numpages; i++)
+		unmap_page_from_agp(page++);
+#endif
+	return 0;
+}
+
 static int set_pages_array_wb(struct page **pages, int addrinarray)
 {
 #if IS_ENABLED(CONFIG_AGP)
@@ -284,13 +296,23 @@ static struct ttm_page_pool *ttm_get_pool(int flags, bool huge,
 }
 
 /* set memory back to wb and free the pages. */
-static void ttm_pages_put(struct page *pages[], unsigned npages)
+static void ttm_pages_put(struct page *pages[], unsigned npages,
+		unsigned int order)
 {
-	unsigned i;
-	if (set_pages_array_wb(pages, npages))
-		pr_err("Failed to set %d pages to wb!\n", npages);
-	for (i = 0; i < npages; ++i)
-		__free_page(pages[i]);
+	unsigned int i, pages_nr = (1 << order);
+
+	if (order == 0) {
+		if (set_pages_array_wb(pages, npages))
+			pr_err("Failed to set %d pages to wb!\n", npages);
+	}
+
+	for (i = 0; i < npages; ++i) {
+		if (order > 0) {
+			if (set_pages_wb(pages[i], pages_nr))
+				pr_err("Failed to set %d pages to wb!\n", pages_nr);
+		}
+		__free_pages(pages[i], order);
+	}
 }
 
 static void ttm_pool_update_free_locked(struct ttm_page_pool *pool,
@@ -353,7 +375,7 @@ restart:
 			 */
 			spin_unlock_irqrestore(&pool->lock, irq_flags);
 
-			ttm_pages_put(pages_to_free, freed_pages);
+			ttm_pages_put(pages_to_free, freed_pages, pool->order);
 			if (likely(nr_free != FREE_ALL_PAGES))
 				nr_free -= freed_pages;
 
@@ -388,7 +410,7 @@ restart:
 	spin_unlock_irqrestore(&pool->lock, irq_flags);
 
 	if (freed_pages)
-		ttm_pages_put(pages_to_free, freed_pages);
+		ttm_pages_put(pages_to_free, freed_pages, pool->order);
 out:
 	if (pages_to_free != static_buf)
 		kfree(pages_to_free);
@@ -412,6 +434,7 @@ ttm_pool_shrink_scan(struct shrinker *shrink, struct shrink_control *sc)
 	struct ttm_page_pool *pool;
 	int shrink_pages = sc->nr_to_scan;
 	unsigned long freed = 0;
+	unsigned int nr_free_pool;
 
 	if (!mutex_trylock(&lock))
 		return SHRINK_STOP;
@@ -419,12 +442,19 @@ ttm_pool_shrink_scan(struct shrinker *shrink, struct shrink_control *sc)
 	/* select start pool in round robin fashion */
 	for (i = 0; i < NUM_POOLS; ++i) {
 		unsigned nr_free = shrink_pages;
+		unsigned page_nr;
+
 		if (shrink_pages == 0)
 			break;
+
 		pool = &_manager->pools[(i + pool_offset)%NUM_POOLS];
+		page_nr = (1 << pool->order);
 		/* OK to use static buffer since global mutex is held. */
-		shrink_pages = ttm_page_pool_free(pool, nr_free, true);
-		freed += nr_free - shrink_pages;
+		nr_free_pool = roundup(nr_free, page_nr) >> pool->order;
+		shrink_pages = ttm_page_pool_free(pool, nr_free_pool, true);
+		freed += (nr_free_pool - shrink_pages) << pool->order;
+		if (freed >= sc->nr_to_scan)
+			break;
 	}
 	mutex_unlock(&lock);
 	return freed;
@@ -436,9 +466,12 @@ ttm_pool_shrink_count(struct shrinker *shrink, struct shrink_control *sc)
 {
 	unsigned i;
 	unsigned long count = 0;
+	struct ttm_page_pool *pool;
 
-	for (i = 0; i < NUM_POOLS; ++i)
-		count += _manager->pools[i].npages;
+	for (i = 0; i < NUM_POOLS; ++i) {
+		pool = &_manager->pools[i];
+		count += (pool->npages << pool->order);
+	}
 
 	return count;
 }
@@ -510,8 +543,7 @@ static int ttm_alloc_new_pages(struct list_head *pages, gfp_t gfp_flags,
 	int r = 0;
 	unsigned i, j, cpages;
 	unsigned npages = 1 << order;
-	unsigned max_cpages = min(count,
-			(unsigned)(PAGE_SIZE/sizeof(struct page *)));
+	unsigned max_cpages = min(count, (unsigned)NUM_PAGES_TO_ALLOC);
 
 	/* allocate array for page caching change */
 	caching_array = kmalloc(max_cpages*sizeof(struct page *), GFP_KERNEL);
@@ -744,12 +776,14 @@ static void ttm_put_pages(struct page **pages, unsigned npages, int flags,
 			}
 
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
-			for (j = 0; j < HPAGE_PMD_NR; ++j)
-				if (p++ != pages[i + j])
-				    break;
+			if (!(flags & TTM_PAGE_FLAG_DMA32)) {
+				for (j = 0; j < HPAGE_PMD_NR; ++j)
+					if (p++ != pages[i + j])
+					    break;
 
-			if (j == HPAGE_PMD_NR)
-				order = HPAGE_PMD_ORDER;
+				if (j == HPAGE_PMD_NR)
+					order = HPAGE_PMD_ORDER;
+			}
 #endif
 
 			if (page_count(pages[i]) != 1)
@@ -843,7 +877,7 @@ static int ttm_get_pages(struct page **pages, unsigned npages, int flags,
 #endif
 	struct list_head plist;
 	struct page *p = NULL;
-	unsigned count;
+	unsigned count, first;
 	int r;
 
 	/* No pool for cached pages */
@@ -865,29 +899,36 @@ static int ttm_get_pages(struct page **pages, unsigned npages, int flags,
 
 		i = 0;
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
-		while (npages >= HPAGE_PMD_NR) {
-			gfp_t huge_flags = gfp_flags;
+		if (!(gfp_flags & GFP_DMA32)) {
+			while (npages >= HPAGE_PMD_NR) {
+				gfp_t huge_flags = gfp_flags;
 
-			huge_flags |= GFP_TRANSHUGE;
-			huge_flags &= ~__GFP_MOVABLE;
-			huge_flags &= ~__GFP_COMP;
-			p = alloc_pages(huge_flags, HPAGE_PMD_ORDER);
-			if (!p)
-				break;
+				huge_flags |= GFP_TRANSHUGE;
+				huge_flags &= ~__GFP_MOVABLE;
+				huge_flags &= ~__GFP_COMP;
+				p = alloc_pages(huge_flags, HPAGE_PMD_ORDER);
+				if (!p)
+					break;
 
-			for (j = 0; j < HPAGE_PMD_NR; ++j)
-				pages[i++] = p++;
+				for (j = 0; j < HPAGE_PMD_NR; ++j)
+					pages[i++] = p++;
 
-			npages -= HPAGE_PMD_NR;
+				npages -= HPAGE_PMD_NR;
+			}
 		}
 #endif
 
+		first = i;
 		while (npages) {
 			p = alloc_page(gfp_flags);
 			if (!p) {
 				pr_debug("Unable to allocate page\n");
 				return -ENOMEM;
 			}
+
+			/* Swap the pages if we detect consecutive order */
+			if (i > first && pages[i - 1] == p - 1)
+				swap(p, pages[i - 1]);
 
 			pages[i++] = p;
 			--npages;
@@ -917,8 +958,15 @@ static int ttm_get_pages(struct page **pages, unsigned npages, int flags,
 	r = ttm_page_pool_get_pages(pool, &plist, flags, cstate,
 				    npages - count, 0);
 
-	list_for_each_entry(p, &plist, lru)
-		pages[count++] = p;
+	first = count;
+	list_for_each_entry(p, &plist, lru) {
+		struct page *tmp = p;
+
+		/* Swap the pages if we detect consecutive order */
+		if (count > first && pages[count - 1] == tmp - 1)
+			swap(tmp, pages[count - 1]);
+		pages[count++] = tmp;
+	}
 
 	if (r) {
 		/* If there is any pages in the list put them back to
@@ -933,7 +981,7 @@ static int ttm_get_pages(struct page **pages, unsigned npages, int flags,
 }
 
 static void ttm_page_pool_init_locked(struct ttm_page_pool *pool, gfp_t flags,
-		char *name)
+		char *name, unsigned int order)
 {
 	spin_lock_init(&pool->lock);
 	pool->fill_lock = false;
@@ -941,11 +989,17 @@ static void ttm_page_pool_init_locked(struct ttm_page_pool *pool, gfp_t flags,
 	pool->npages = pool->nfrees = 0;
 	pool->gfp_flags = flags;
 	pool->name = name;
+	pool->order = order;
 }
 
 int ttm_page_alloc_init(struct ttm_mem_global *glob, unsigned max_pages)
 {
 	int ret;
+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+	unsigned order = HPAGE_PMD_ORDER;
+#else
+	unsigned order = 0;
+#endif
 
 	WARN_ON(_manager);
 
@@ -953,23 +1007,23 @@ int ttm_page_alloc_init(struct ttm_mem_global *glob, unsigned max_pages)
 
 	_manager = kzalloc(sizeof(*_manager), GFP_KERNEL);
 
-	ttm_page_pool_init_locked(&_manager->wc_pool, GFP_HIGHUSER, "wc");
+	ttm_page_pool_init_locked(&_manager->wc_pool, GFP_HIGHUSER, "wc", 0);
 
-	ttm_page_pool_init_locked(&_manager->uc_pool, GFP_HIGHUSER, "uc");
+	ttm_page_pool_init_locked(&_manager->uc_pool, GFP_HIGHUSER, "uc", 0);
 
 	ttm_page_pool_init_locked(&_manager->wc_pool_dma32,
-				  GFP_USER | GFP_DMA32, "wc dma");
+				  GFP_USER | GFP_DMA32, "wc dma", 0);
 
 	ttm_page_pool_init_locked(&_manager->uc_pool_dma32,
-				  GFP_USER | GFP_DMA32, "uc dma");
+				  GFP_USER | GFP_DMA32, "uc dma", 0);
 
 	ttm_page_pool_init_locked(&_manager->wc_pool_huge,
 				  GFP_TRANSHUGE	& ~(__GFP_MOVABLE | __GFP_COMP),
-				  "wc huge");
+				  "wc huge", order);
 
 	ttm_page_pool_init_locked(&_manager->uc_pool_huge,
 				  GFP_TRANSHUGE	& ~(__GFP_MOVABLE | __GFP_COMP)
-				  , "uc huge");
+				  , "uc huge", order);
 
 	_manager->options.max_size = max_pages;
 	_manager->options.small = SMALL_ALLOCATION;
@@ -1058,7 +1112,6 @@ void ttm_pool_unpopulate(struct ttm_tt *ttm)
 }
 EXPORT_SYMBOL(ttm_pool_unpopulate);
 
-#if defined(CONFIG_SWIOTLB) || defined(CONFIG_INTEL_IOMMU)
 int ttm_populate_and_map_pages(struct device *dev, struct ttm_dma_tt *tt)
 {
 	unsigned i, j;
@@ -1129,7 +1182,6 @@ void ttm_unmap_and_unpopulate_pages(struct device *dev, struct ttm_dma_tt *tt)
 	ttm_pool_unpopulate(&tt->ttm);
 }
 EXPORT_SYMBOL(ttm_unmap_and_unpopulate_pages);
-#endif
 
 int ttm_page_alloc_debugfs(struct seq_file *m, void *data)
 {

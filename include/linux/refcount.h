@@ -8,7 +8,7 @@
 #include <linux/kernel.h>
 
 /**
- * refcount_t - variant of atomic_t specialized for reference counts
+ * struct refcount_t - variant of atomic_t specialized for reference counts
  * @refs: atomic_t counter field
  *
  * The counter saturates at UINT_MAX and will not move once

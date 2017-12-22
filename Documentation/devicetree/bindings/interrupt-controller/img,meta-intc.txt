@@ -71,7 +71,7 @@ Example 2:
 	 * An interrupt generating device that is wired to a Meta external
 	 * trigger block.
 	 */
-	uart1: uart@0x02004c00 {
+	uart1: uart@02004c00 {
 		// Interrupt source '5' that is level-sensitive.
 		// Note that there are only two cells as specified in the
 		// interrupt parent's '#interrupt-cells' property.

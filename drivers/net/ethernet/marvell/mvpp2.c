@@ -85,7 +85,7 @@
 
 /* RSS Registers */
 #define MVPP22_RSS_INDEX			0x1500
-#define     MVPP22_RSS_INDEX_TABLE_ENTRY(idx)	((idx) << 8)
+#define     MVPP22_RSS_INDEX_TABLE_ENTRY(idx)	(idx)
 #define     MVPP22_RSS_INDEX_TABLE(idx)		((idx) << 8)
 #define     MVPP22_RSS_INDEX_QUEUE(idx)		((idx) << 16)
 #define MVPP22_RSS_TABLE_ENTRY			0x1508
@@ -4629,11 +4629,6 @@ static void mvpp2_port_mii_gmac_configure_mode(struct mvpp2_port *port)
 		       MVPP22_CTRL4_QSGMII_BYPASS_ACTIVE;
 		val &= ~MVPP22_CTRL4_EXT_PIN_GMII_SEL;
 		writel(val, port->base + MVPP22_GMAC_CTRL_4_REG);
-
-		val = readl(port->base + MVPP2_GMAC_CTRL_2_REG);
-		val |= MVPP2_GMAC_DISABLE_PADDING;
-		val &= ~MVPP2_GMAC_FLOW_CTRL_MASK;
-		writel(val, port->base + MVPP2_GMAC_CTRL_2_REG);
 	} else if (phy_interface_mode_is_rgmii(port->phy_interface)) {
 		val = readl(port->base + MVPP22_GMAC_CTRL_4_REG);
 		val |= MVPP22_CTRL4_EXT_PIN_GMII_SEL |
@@ -4641,10 +4636,6 @@ static void mvpp2_port_mii_gmac_configure_mode(struct mvpp2_port *port)
 		       MVPP22_CTRL4_QSGMII_BYPASS_ACTIVE;
 		val &= ~MVPP22_CTRL4_DP_CLK_SEL;
 		writel(val, port->base + MVPP22_GMAC_CTRL_4_REG);
-
-		val = readl(port->base + MVPP2_GMAC_CTRL_2_REG);
-		val &= ~MVPP2_GMAC_DISABLE_PADDING;
-		writel(val, port->base + MVPP2_GMAC_CTRL_2_REG);
 	}
 
 	/* The port is connected to a copper PHY */
@@ -5607,7 +5598,7 @@ static int mvpp2_aggr_txq_init(struct platform_device *pdev,
 	u32 txq_dma;
 
 	/* Allocate memory for TX descriptors */
-	aggr_txq->descs = dma_alloc_coherent(&pdev->dev,
+	aggr_txq->descs = dma_zalloc_coherent(&pdev->dev,
 				MVPP2_AGGR_TXQ_SIZE * MVPP2_DESC_ALIGNED_SIZE,
 				&aggr_txq->descs_dma, GFP_KERNEL);
 	if (!aggr_txq->descs)
@@ -5805,7 +5796,7 @@ static int mvpp2_txq_init(struct mvpp2_port *port,
 						sizeof(*txq_pcpu->buffs),
 						GFP_KERNEL);
 		if (!txq_pcpu->buffs)
-			goto cleanup;
+			return -ENOMEM;
 
 		txq_pcpu->count = 0;
 		txq_pcpu->reserved_num = 0;
@@ -5821,26 +5812,10 @@ static int mvpp2_txq_init(struct mvpp2_port *port,
 					   &txq_pcpu->tso_headers_dma,
 					   GFP_KERNEL);
 		if (!txq_pcpu->tso_headers)
-			goto cleanup;
+			return -ENOMEM;
 	}
 
 	return 0;
-cleanup:
-	for_each_present_cpu(cpu) {
-		txq_pcpu = per_cpu_ptr(txq->pcpu, cpu);
-		kfree(txq_pcpu->buffs);
-
-		dma_free_coherent(port->dev->dev.parent,
-				  txq_pcpu->size * TSO_HEADER_SIZE,
-				  txq_pcpu->tso_headers,
-				  txq_pcpu->tso_headers_dma);
-	}
-
-	dma_free_coherent(port->dev->dev.parent,
-			  txq->size * MVPP2_DESC_ALIGNED_SIZE,
-			  txq->descs, txq->descs_dma);
-
-	return -ENOMEM;
 }
 
 /* Free allocated TXQ resources */
@@ -6866,6 +6841,12 @@ static int mvpp2_check_ringparam_valid(struct net_device *dev,
 		new_tx_pending = MVPP2_MAX_TXD;
 	else if (!IS_ALIGNED(ring->tx_pending, 32))
 		new_tx_pending = ALIGN(ring->tx_pending, 32);
+
+	/* The Tx ring size cannot be smaller than the minimum number of
+	 * descriptors needed for TSO.
+	 */
+	if (new_tx_pending < MVPP2_MAX_SKB_DESCS)
+		new_tx_pending = ALIGN(MVPP2_MAX_SKB_DESCS, 32);
 
 	if (ring->rx_pending != new_rx_pending) {
 		netdev_info(dev, "illegal Rx ring size value %d, round to %d\n",
@@ -8345,7 +8326,7 @@ static int mvpp2_probe(struct platform_device *pdev)
 	for_each_available_child_of_node(dn, port_node) {
 		err = mvpp2_port_probe(pdev, port_node, priv, i);
 		if (err < 0)
-			goto err_mg_clk;
+			goto err_port_probe;
 		i++;
 	}
 
@@ -8361,12 +8342,19 @@ static int mvpp2_probe(struct platform_device *pdev)
 	priv->stats_queue = create_singlethread_workqueue(priv->queue_name);
 	if (!priv->stats_queue) {
 		err = -ENOMEM;
-		goto err_mg_clk;
+		goto err_port_probe;
 	}
 
 	platform_set_drvdata(pdev, priv);
 	return 0;
 
+err_port_probe:
+	i = 0;
+	for_each_available_child_of_node(dn, port_node) {
+		if (priv->port_list[i])
+			mvpp2_port_remove(priv->port_list[i]);
+		i++;
+	}
 err_mg_clk:
 	clk_disable_unprepare(priv->axi_clk);
 	if (priv->hw_version == MVPP22)

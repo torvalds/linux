@@ -2165,7 +2165,6 @@ static int __init overlay_data_add(int onum)
 	ret = of_overlay_apply(info->np_overlay, &info->overlay_id);
 	if (ret < 0) {
 		pr_err("of_overlay_apply() (ret=%d), %d\n", ret, onum);
-		of_overlay_mutex_unlock();
 		goto out_free_np_overlay;
 	}
 

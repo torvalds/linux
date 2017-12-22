@@ -627,7 +627,8 @@ static void dax_mapping_entry_mkclean(struct address_space *mapping,
 
 			if (pfn != pmd_pfn(*pmdp))
 				goto unlock_pmd;
-			if (!pmd_dirty(*pmdp) && !pmd_write(*pmdp))
+			if (!pmd_dirty(*pmdp)
+					&& !pmd_access_permitted(*pmdp, WRITE))
 				goto unlock_pmd;
 
 			flush_cache_page(vma, address, pfn);

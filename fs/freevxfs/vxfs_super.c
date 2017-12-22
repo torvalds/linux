@@ -116,7 +116,7 @@ vxfs_statfs(struct dentry *dentry, struct kstatfs *bufp)
 static int vxfs_remount(struct super_block *sb, int *flags, char *data)
 {
 	sync_filesystem(sb);
-	*flags |= MS_RDONLY;
+	*flags |= SB_RDONLY;
 	return 0;
 }
 
@@ -220,7 +220,7 @@ static int vxfs_fill_super(struct super_block *sbp, void *dp, int silent)
 	int ret = -EINVAL;
 	u32 j;
 
-	sbp->s_flags |= MS_RDONLY;
+	sbp->s_flags |= SB_RDONLY;
 
 	infp = kzalloc(sizeof(*infp), GFP_KERNEL);
 	if (!infp) {

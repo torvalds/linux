@@ -228,8 +228,6 @@ isdn/
 	- directory with info on the Linux ISDN support, and supported cards.
 kbuild/
 	- directory with info about the kernel build process.
-kernel-doc-nano-HOWTO.txt
-	- outdated info about kernel-doc documentation.
 kdump/
 	- directory with mini HowTo on getting the crash dump code to work.
 doc-guide/
@@ -346,8 +344,6 @@ prctl/
 	- directory with info on the priveledge control subsystem
 preempt-locking.txt
 	- info on locking under a preemptive kernel.
-printk-formats.txt
-	- how to get printk format specifiers right
 process/
 	- how to work with the mainline kernel development process.
 pps/

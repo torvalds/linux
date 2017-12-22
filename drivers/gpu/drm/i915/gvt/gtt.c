@@ -311,9 +311,9 @@ static inline int gtt_set_entry64(void *pt,
 
 #define GTT_HAW 46
 
-#define ADDR_1G_MASK (((1UL << (GTT_HAW - 30 + 1)) - 1) << 30)
-#define ADDR_2M_MASK (((1UL << (GTT_HAW - 21 + 1)) - 1) << 21)
-#define ADDR_4K_MASK (((1UL << (GTT_HAW - 12 + 1)) - 1) << 12)
+#define ADDR_1G_MASK (((1UL << (GTT_HAW - 30)) - 1) << 30)
+#define ADDR_2M_MASK (((1UL << (GTT_HAW - 21)) - 1) << 21)
+#define ADDR_4K_MASK (((1UL << (GTT_HAW - 12)) - 1) << 12)
 
 static unsigned long gen8_gtt_get_pfn(struct intel_gvt_gtt_entry *e)
 {
