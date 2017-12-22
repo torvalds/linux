@@ -197,12 +197,17 @@ Ex)
 	[MEM] -> [SRC2] -> [CTU03] -+
 
 	sound {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
 		compatible = "simple-scu-audio-card";
 		...
-		simple-audio-card,cpu-0 {
+		simple-audio-card,cpu@0 {
+			reg = <0>;
 			sound-dai = <&rcar_sound 0>;
 		};
-		simple-audio-card,cpu-1 {
+		simple-audio-card,cpu@1 {
+			reg = <1>;
 			sound-dai = <&rcar_sound 1>;
 		};
 		simple-audio-card,codec {
