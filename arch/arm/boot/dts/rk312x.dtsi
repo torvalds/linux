@@ -817,6 +817,7 @@
 		resets = <&cru SRST_MIPIPHY_P>;
 		reset-names = "apb";
 		power-domains = <&power RK3128_PD_VIO>;
+		rockchip,grf = <&grf>;
 		#phy-cells = <0>;
 		status = "disabled";
 	};
