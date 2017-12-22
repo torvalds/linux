@@ -177,7 +177,7 @@ static int set_loopback(struct atm_dev *dev,int mode)
 		default:
 			return -EINVAL;
 	}
-	 dev->ops->phy_put(dev, control, reg);
+	dev->ops->phy_put(dev, control, reg);
 	PRIV(dev)->loop_mode = mode;
 	return 0;
 }

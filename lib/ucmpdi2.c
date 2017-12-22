@@ -15,7 +15,7 @@
  */
 
 #include <linux/module.h>
-#include <lib/libgcc.h>
+#include <linux/libgcc.h>
 
 word_type __ucmpdi2(unsigned long long a, unsigned long long b)
 {

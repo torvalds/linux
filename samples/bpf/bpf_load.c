@@ -193,8 +193,18 @@ static int load_and_attach(const char *event, struct bpf_insn *prog, int size)
 		return -1;
 	}
 	event_fd[prog_cnt - 1] = efd;
-	ioctl(efd, PERF_EVENT_IOC_ENABLE, 0);
-	ioctl(efd, PERF_EVENT_IOC_SET_BPF, fd);
+	err = ioctl(efd, PERF_EVENT_IOC_ENABLE, 0);
+	if (err < 0) {
+		printf("ioctl PERF_EVENT_IOC_ENABLE failed err %s\n",
+		       strerror(errno));
+		return -1;
+	}
+	err = ioctl(efd, PERF_EVENT_IOC_SET_BPF, fd);
+	if (err < 0) {
+		printf("ioctl PERF_EVENT_IOC_SET_BPF failed err %s\n",
+		       strerror(errno));
+		return -1;
+	}
 
 	return 0;
 }

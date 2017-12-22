@@ -759,6 +759,8 @@ const struct bpf_prog_ops perf_event_prog_ops = {
 
 static DEFINE_MUTEX(bpf_event_mutex);
 
+#define BPF_TRACE_MAX_PROGS 64
+
 int perf_event_attach_bpf_prog(struct perf_event *event,
 			       struct bpf_prog *prog)
 {
@@ -772,6 +774,12 @@ int perf_event_attach_bpf_prog(struct perf_event *event,
 		goto unlock;
 
 	old_array = event->tp_event->prog_array;
+	if (old_array &&
+	    bpf_prog_array_length(old_array) >= BPF_TRACE_MAX_PROGS) {
+		ret = -E2BIG;
+		goto unlock;
+	}
+
 	ret = bpf_prog_array_copy(old_array, NULL, prog, &new_array);
 	if (ret < 0)
 		goto unlock;
