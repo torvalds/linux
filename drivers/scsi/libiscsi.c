@@ -2744,8 +2744,10 @@ static void iscsi_host_dec_session_cnt(struct Scsi_Host *shost)
  * @iscsit: iscsi transport template
  * @shost: scsi host
  * @cmds_max: session can queue
+ * @dd_size: private driver data size, added to session allocation size
  * @cmd_task_size: LLD task private data size
  * @initial_cmdsn: initial CmdSN
+ * @id: target ID to add to this session
  *
  * This can be used by software iscsi_transports that allocate
  * a session per scsi host.
@@ -2973,7 +2975,7 @@ EXPORT_SYMBOL_GPL(iscsi_conn_setup);
 
 /**
  * iscsi_conn_teardown - teardown iscsi connection
- * cls_conn: iscsi class connection
+ * @cls_conn: iscsi class connection
  *
  * TODO: we may need to make this into a two step process
  * like scsi-mls remove + put host
