@@ -59,7 +59,7 @@ static ssize_t ds1682_show(struct device *dev, struct device_attribute *attr,
 {
 	struct sensor_device_attribute_2 *sattr = to_sensor_dev_attr_2(attr);
 	struct i2c_client *client = to_i2c_client(dev);
-	unsigned long long val;
+	unsigned long long val, check;
 	__le32 val_le = 0;
 	int rc;
 
@@ -72,6 +72,23 @@ static ssize_t ds1682_show(struct device *dev, struct device_attribute *attr,
 		return -EIO;
 
 	val = le32_to_cpu(val_le);
+
+	if (sattr->index == DS1682_REG_ELAPSED) {
+		int retries = 5;
+
+		/* Detect and retry when a tick occurs mid-read */
+		do {
+			rc = i2c_smbus_read_i2c_block_data(client, sattr->index,
+							   sattr->nr,
+							   (u8 *)&val_le);
+			if (rc < 0 || retries <= 0)
+				return -EIO;
+
+			check = val;
+			val = le32_to_cpu(val_le);
+			retries--;
+		} while (val != check && val != (check + 1));
+	}
 
 	/* Format the output string and return # of bytes
 	 * Special case: the 32 bit regs are time values with 1/4s
