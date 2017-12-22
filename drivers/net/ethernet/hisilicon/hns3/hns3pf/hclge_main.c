@@ -4660,6 +4660,20 @@ static u32 hclge_get_fw_version(struct hnae3_handle *handle)
 	return hdev->fw_version;
 }
 
+static void hclge_get_flowctrl_adv(struct hnae3_handle *handle,
+				   u32 *flowctrl_adv)
+{
+	struct hclge_vport *vport = hclge_get_vport(handle);
+	struct hclge_dev *hdev = vport->back;
+	struct phy_device *phydev = hdev->hw.mac.phydev;
+
+	if (!phydev)
+		return;
+
+	*flowctrl_adv |= (phydev->advertising & ADVERTISED_Pause) |
+			 (phydev->advertising & ADVERTISED_Asym_Pause);
+}
+
 static void hclge_set_flowctrl_adv(struct hclge_dev *hdev, u32 rx_en, u32 tx_en)
 {
 	struct phy_device *phydev = hdev->hw.mac.phydev;
@@ -5478,6 +5492,7 @@ static const struct hnae3_ae_ops hclge_ops = {
 	.get_tqps_and_rss_info = hclge_get_tqps_and_rss_info,
 	.set_channels = hclge_set_channels,
 	.get_channels = hclge_get_channels,
+	.get_flowctrl_adv = hclge_get_flowctrl_adv,
 };
 
 static struct hnae3_ae_algo ae_algo = {
