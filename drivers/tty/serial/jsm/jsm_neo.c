@@ -1172,6 +1172,9 @@ static irqreturn_t neo_intr(int irq, void *voidbrd)
 				continue;
 
 			ch = brd->channels[port];
+			if (!ch)
+				continue;
+
 			neo_copy_data_from_uart_to_queue(ch);
 
 			/* Call our tty layer to enforce queue flow control if needed. */
