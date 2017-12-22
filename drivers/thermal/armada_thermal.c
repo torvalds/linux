@@ -24,8 +24,6 @@
 #include <linux/of_device.h>
 #include <linux/thermal.h>
 
-#define THERMAL_VALID_MASK		0x1
-
 /* Thermal Manager Control and Status Register */
 #define PMU_TDC0_SW_RST_MASK		(0x1 << 1)
 #define PMU_TM_DISABLE_OFFS		0
@@ -67,7 +65,7 @@ struct armada_thermal_data {
 	/* Register shift and mask to access the sensor temperature */
 	unsigned int temp_shift;
 	unsigned int temp_mask;
-	unsigned int is_valid_shift;
+	u32 is_valid_bit;
 };
 
 static void armadaxp_init_sensor(struct platform_device *pdev,
@@ -149,9 +147,9 @@ static void armada380_init_sensor(struct platform_device *pdev,
 
 static bool armada_is_valid(struct armada_thermal_priv *priv)
 {
-	unsigned long reg = readl_relaxed(priv->sensor);
+	u32 reg = readl_relaxed(priv->sensor);
 
-	return (reg >> priv->data->is_valid_shift) & THERMAL_VALID_MASK;
+	return reg & priv->data->is_valid_bit;
 }
 
 static int armada_get_temp(struct thermal_zone_device *thermal,
@@ -199,7 +197,7 @@ static const struct armada_thermal_data armadaxp_data = {
 static const struct armada_thermal_data armada370_data = {
 	.is_valid = armada_is_valid,
 	.init_sensor = armada370_init_sensor,
-	.is_valid_shift = 9,
+	.is_valid_bit = BIT(9),
 	.temp_shift = 10,
 	.temp_mask = 0x1ff,
 	.coef_b = 3153000000UL,
@@ -210,7 +208,7 @@ static const struct armada_thermal_data armada370_data = {
 static const struct armada_thermal_data armada375_data = {
 	.is_valid = armada_is_valid,
 	.init_sensor = armada375_init_sensor,
-	.is_valid_shift = 10,
+	.is_valid_bit = BIT(10),
 	.temp_shift = 0,
 	.temp_mask = 0x1ff,
 	.coef_b = 3171900000UL,
@@ -221,7 +219,7 @@ static const struct armada_thermal_data armada375_data = {
 static const struct armada_thermal_data armada380_data = {
 	.is_valid = armada_is_valid,
 	.init_sensor = armada380_init_sensor,
-	.is_valid_shift = 10,
+	.is_valid_bit = BIT(10),
 	.temp_shift = 0,
 	.temp_mask = 0x3ff,
 	.coef_b = 1172499100UL,
