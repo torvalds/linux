@@ -301,7 +301,11 @@ int ttm_tt_swapin(struct ttm_tt *ttm)
 	swap_space = swap_storage->f_mapping;
 
 	for (i = 0; i < ttm->num_pages; ++i) {
-		from_page = shmem_read_mapping_page(swap_space, i);
+		gfp_t gfp_mask = mapping_gfp_mask(swap_space);
+
+		gfp_mask |= (ttm->page_flags & TTM_PAGE_FLAG_NO_RETRY ? __GFP_RETRY_MAYFAIL : 0);
+		from_page = shmem_read_mapping_page_gfp(swap_space, i, gfp_mask);
+
 		if (IS_ERR(from_page)) {
 			ret = PTR_ERR(from_page);
 			goto out_err;
@@ -350,10 +354,15 @@ int ttm_tt_swapout(struct ttm_tt *ttm, struct file *persistent_swap_storage)
 	swap_space = swap_storage->f_mapping;
 
 	for (i = 0; i < ttm->num_pages; ++i) {
+		gfp_t gfp_mask = mapping_gfp_mask(swap_space);
+
+		gfp_mask |= (ttm->page_flags & TTM_PAGE_FLAG_NO_RETRY ? __GFP_RETRY_MAYFAIL : 0);
+
 		from_page = ttm->pages[i];
 		if (unlikely(from_page == NULL))
 			continue;
-		to_page = shmem_read_mapping_page(swap_space, i);
+
+		to_page = shmem_read_mapping_page_gfp(swap_space, i, gfp_mask);
 		if (IS_ERR(to_page)) {
 			ret = PTR_ERR(to_page);
 			goto out_err;

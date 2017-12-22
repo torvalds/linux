@@ -86,6 +86,7 @@ struct ttm_backend_func {
 #define TTM_PAGE_FLAG_ZERO_ALLOC      (1 << 6)
 #define TTM_PAGE_FLAG_DMA32           (1 << 7)
 #define TTM_PAGE_FLAG_SG              (1 << 8)
+#define TTM_PAGE_FLAG_NO_RETRY	      (1 << 9)
 
 enum ttm_caching_state {
 	tt_uncached,
@@ -556,6 +557,7 @@ struct ttm_bo_global {
  * @dev_mapping: A pointer to the struct address_space representing the
  * device address space.
  * @wq: Work queue structure for the delayed delete workqueue.
+ * @no_retry: Don't retry allocation if it fails
  *
  */
 
@@ -592,6 +594,8 @@ struct ttm_bo_device {
 	struct delayed_work wq;
 
 	bool need_dma32;
+
+	bool no_retry;
 };
 
 /**

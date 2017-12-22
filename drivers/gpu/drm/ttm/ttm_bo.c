@@ -235,6 +235,9 @@ static int ttm_bo_add_ttm(struct ttm_buffer_object *bo, bool zero_alloc)
 	if (bdev->need_dma32)
 		page_flags |= TTM_PAGE_FLAG_DMA32;
 
+	if (bdev->no_retry)
+		page_flags |= TTM_PAGE_FLAG_NO_RETRY;
+
 	switch (bo->type) {
 	case ttm_bo_type_device:
 		if (zero_alloc)

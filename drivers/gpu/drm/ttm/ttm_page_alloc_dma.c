@@ -920,6 +920,9 @@ static gfp_t ttm_dma_pool_gfp_flags(struct ttm_dma_tt *ttm_dma, bool huge)
 		gfp_flags &= ~__GFP_COMP;
 	}
 
+	if (ttm->page_flags & TTM_PAGE_FLAG_NO_RETRY)
+		gfp_flags |= __GFP_RETRY_MAYFAIL;
+
 	return gfp_flags;
 }
 

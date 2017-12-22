@@ -741,6 +741,9 @@ out:
 		if (ttm_flags & TTM_PAGE_FLAG_ZERO_ALLOC)
 			gfp_flags |= __GFP_ZERO;
 
+		if (ttm_flags & TTM_PAGE_FLAG_NO_RETRY)
+			gfp_flags |= __GFP_RETRY_MAYFAIL;
+
 		/* ttm_alloc_new_pages doesn't reference pool so we can run
 		 * multiple requests in parallel.
 		 **/
@@ -892,6 +895,9 @@ static int ttm_get_pages(struct page **pages, unsigned npages, int flags,
 		/* set zero flag for page allocation if required */
 		if (flags & TTM_PAGE_FLAG_ZERO_ALLOC)
 			gfp_flags |= __GFP_ZERO;
+
+		if (flags & TTM_PAGE_FLAG_NO_RETRY)
+			gfp_flags |= __GFP_RETRY_MAYFAIL;
 
 		if (flags & TTM_PAGE_FLAG_DMA32)
 			gfp_flags |= GFP_DMA32;
