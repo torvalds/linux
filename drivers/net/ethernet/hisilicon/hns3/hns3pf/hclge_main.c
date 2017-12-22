@@ -1100,10 +1100,7 @@ static int hclge_configure(struct hclge_dev *hdev)
 	for (i = 0; i < hdev->tm_info.num_tc; i++)
 		hnae_set_bit(hdev->hw_tc_map, i, 1);
 
-	if (!hdev->num_vmdq_vport && !hdev->num_req_vfs)
-		hdev->tx_sch_mode = HCLGE_FLAG_TC_BASE_SCH_MODE;
-	else
-		hdev->tx_sch_mode = HCLGE_FLAG_VNET_BASE_SCH_MODE;
+	hdev->tx_sch_mode = HCLGE_FLAG_TC_BASE_SCH_MODE;
 
 	return ret;
 }
