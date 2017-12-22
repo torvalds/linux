@@ -1284,7 +1284,10 @@ static int nand_init_data_interface(struct nand_chip *chip)
 		if (ret)
 			continue;
 
-		/* Pass -1 to only */
+		/*
+		 * Pass NAND_DATA_IFACE_CHECK_ONLY to only check if the
+		 * controller supports the requested timings.
+		 */
 		ret = chip->setup_data_interface(mtd,
 						 NAND_DATA_IFACE_CHECK_ONLY,
 						 &chip->data_interface);
