@@ -528,6 +528,8 @@ static int do_show(int argc, char **argv)
 
 		fd = bpf_map_get_fd_by_id(id);
 		if (fd < 0) {
+			if (errno == ENOENT)
+				continue;
 			p_err("can't get map by id (%u): %s",
 			      id, strerror(errno));
 			break;
