@@ -2287,12 +2287,23 @@ static void gen8_check_and_clear_faults(struct drm_i915_private *dev_priv)
 	u32 fault = I915_READ(GEN8_RING_FAULT_REG);
 
 	if (fault & RING_FAULT_VALID) {
+		u32 fault_data0, fault_data1;
+		u64 fault_addr;
+
+		fault_data0 = I915_READ(GEN8_FAULT_TLB_DATA0);
+		fault_data1 = I915_READ(GEN8_FAULT_TLB_DATA1);
+		fault_addr = ((u64)(fault_data1 & FAULT_VA_HIGH_BITS) << 44) |
+			     ((u64)fault_data0 << 12);
+
 		DRM_DEBUG_DRIVER("Unexpected fault\n"
-				 "\tAddr: 0x%08lx\n"
+				 "\tAddr: 0x%08x_%08x\n"
+				 "\tAddress space: %s\n"
 				 "\tEngine ID: %d\n"
 				 "\tSource ID: %d\n"
 				 "\tType: %d\n",
-				 fault & PAGE_MASK,
+				 upper_32_bits(fault_addr),
+				 lower_32_bits(fault_addr),
+				 fault_data1 & FAULT_GTT_SEL ? "GGTT" : "PPGTT",
 				 GEN8_RING_FAULT_ENGINE_ID(fault),
 				 RING_FAULT_SRCID(fault),
 				 RING_FAULT_FAULT_TYPE(fault));
