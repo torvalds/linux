@@ -11933,6 +11933,13 @@ S:	Maintained
 F:	drivers/crypto/exynos-rng.c
 F:	Documentation/devicetree/bindings/crypto/samsung,exynos-rng4.txt
 
+SAMSUNG EXYNOS TRUE RANDOM NUMBER GENERATOR (TRNG) DRIVER
+M:	Łukasz Stelmach <l.stelmach@samsung.com>
+L:	linux-samsung-soc@vger.kernel.org
+S:	Maintained
+F:	drivers/char/hw_random/exynos-trng.c
+F:	Documentation/devicetree/bindings/rng/samsung,exynos5250-trng.txt
+
 SAMSUNG FRAMEBUFFER DRIVER
 M:	Jingoo Han <jingoohan1@gmail.com>
 L:	linux-fbdev@vger.kernel.org
