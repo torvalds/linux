@@ -1159,6 +1159,27 @@ static int max310x_gpio_direction_output(struct gpio_chip *chip,
 
 	return 0;
 }
+
+static int max310x_gpio_set_config(struct gpio_chip *chip, unsigned int offset,
+				   unsigned long config)
+{
+	struct max310x_port *s = gpiochip_get_data(chip);
+	struct uart_port *port = &s->p[offset / 4].port;
+
+	switch (pinconf_to_config_param(config)) {
+	case PIN_CONFIG_DRIVE_OPEN_DRAIN:
+		max310x_port_update(port, MAX310X_GPIOCFG_REG,
+				1 << ((offset % 4) + 4),
+				1 << ((offset % 4) + 4));
+		return 0;
+	case PIN_CONFIG_DRIVE_PUSH_PULL:
+		max310x_port_update(port, MAX310X_GPIOCFG_REG,
+				1 << ((offset % 4) + 4), 0);
+		return 0;
+	default:
+		return -ENOTSUPP;
+	}
+}
 #endif
 
 static int max310x_probe(struct device *dev, struct max310x_devtype *devtype,
@@ -1302,6 +1323,7 @@ static int max310x_probe(struct device *dev, struct max310x_devtype *devtype,
 	s->gpio.get		= max310x_gpio_get;
 	s->gpio.direction_output= max310x_gpio_direction_output;
 	s->gpio.set		= max310x_gpio_set;
+	s->gpio.set_config	= max310x_gpio_set_config;
 	s->gpio.base		= -1;
 	s->gpio.ngpio		= devtype->nr * 4;
 	s->gpio.can_sleep	= 1;
