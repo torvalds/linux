@@ -277,13 +277,13 @@ lpfc_nvme_info_show(struct device *dev, struct device_attribute *attr,
 	}
 
 	localport = vport->localport;
-	lport = (struct lpfc_nvme_lport *)localport->private;
 	if (!localport) {
 		len = snprintf(buf, PAGE_SIZE,
 				"NVME Initiator x%llx is not allocated\n",
 				wwn_to_u64(vport->fc_portname.u.wwn));
 		return len;
 	}
+	lport = (struct lpfc_nvme_lport *)localport->private;
 	len = snprintf(buf, PAGE_SIZE, "NVME Initiator Enabled\n");
 
 	spin_lock_irq(shost->host_lock);
