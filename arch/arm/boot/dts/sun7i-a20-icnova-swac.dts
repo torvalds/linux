@@ -107,8 +107,7 @@
 	pinctrl-0 = <&mmc0_pins_a>;
 	vmmc-supply = <&reg_vcc3v3>;
 	bus-width = <4>;
-	cd-gpios = <&pio 8 5 GPIO_ACTIVE_HIGH>; /* PI5 */
-	cd-inverted;
+	cd-gpios = <&pio 8 5 GPIO_ACTIVE_LOW>; /* PI5 */
 	status = "okay";
 };
 
