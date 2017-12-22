@@ -1745,8 +1745,26 @@ struct amdgpu_bo_va *amdgpu_vm_bo_add(struct amdgpu_device *adev,
 	INIT_LIST_HEAD(&bo_va->valids);
 	INIT_LIST_HEAD(&bo_va->invalids);
 
-	if (bo)
-		list_add_tail(&bo_va->base.bo_list, &bo->va);
+	if (!bo)
+		return bo_va;
+
+	list_add_tail(&bo_va->base.bo_list, &bo->va);
+
+	if (bo->tbo.resv != vm->root.base.bo->tbo.resv)
+		return bo_va;
+
+	if (bo->preferred_domains &
+	    amdgpu_mem_type_to_domain(bo->tbo.mem.mem_type))
+		return bo_va;
+
+	/*
+	 * We checked all the prerequisites, but it looks like this per VM BO
+	 * is currently evicted. add the BO to the evicted list to make sure it
+	 * is validated on next VM use to avoid fault.
+	 * */
+	spin_lock(&vm->status_lock);
+	list_move_tail(&bo_va->base.vm_status, &vm->evicted);
+	spin_unlock(&vm->status_lock);
 
 	return bo_va;
 }
