@@ -1133,7 +1133,7 @@ more_rgrps:
 			gfs2_assert_withdraw(sdp,
 				     gfs2_glock_is_locked_by_me(rd_gh->gh_gl));
 		} else {
-			rgd = gfs2_blk2rgrpd(sdp, bn, false);
+			rgd = gfs2_blk2rgrpd(sdp, bn, true);
 			ret = gfs2_glock_nq_init(rgd->rd_gl, LM_ST_EXCLUSIVE,
 						 0, rd_gh);
 			if (ret)
