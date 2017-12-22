@@ -701,7 +701,7 @@
 	};
 
 	rkvdec: rkvdec@ff36000 {
-		compatible = "rockchip,rkvdec";
+		compatible = "rockchip,rk3328-rkvdec", "rockchip,rkvdec";
 		reg = <0x0 0xff360000 0x0 0x400>;
 		interrupts = <GIC_SPI 7 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "irq_dec";
