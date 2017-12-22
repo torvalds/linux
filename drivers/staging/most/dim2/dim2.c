@@ -101,8 +101,8 @@ struct dim2_hdm {
 	unsigned char link_state;
 	int atx_idx;
 	struct medialb_bus bus;
-	void (*on_netinfo)(struct most_interface *,
-			   unsigned char, unsigned char *);
+	void (*on_netinfo)(struct most_interface *most_iface,
+			   unsigned char link_state, unsigned char *addrs);
 };
 
 #define iface_to_hdm(iface) container_of(iface, struct dim2_hdm, most_iface)

@@ -117,8 +117,8 @@ struct most_dev {
 	struct mutex io_mutex;
 	struct timer_list link_stat_timer;
 	struct work_struct poll_work_obj;
-	void (*on_netinfo)(struct most_interface *, unsigned char,
-			   unsigned char *);
+	void (*on_netinfo)(struct most_interface *most_iface,
+			   unsigned char link_state, unsigned char *addrs);
 };
 
 #define to_mdev(d) container_of(d, struct most_dev, iface)
