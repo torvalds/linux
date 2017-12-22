@@ -982,6 +982,10 @@ static void hclge_parse_cfg(struct hclge_cfg *cfg, struct hclge_desc *desc)
 	cfg->default_speed = hnae_get_field(__le32_to_cpu(req->param[3]),
 					    HCLGE_CFG_DEFAULT_SPEED_M,
 					    HCLGE_CFG_DEFAULT_SPEED_S);
+	cfg->rss_size_max = hnae_get_field(__le32_to_cpu(req->param[3]),
+					   HCLGE_CFG_RSS_SIZE_M,
+					   HCLGE_CFG_RSS_SIZE_S);
+
 	for (i = 0; i < ETH_ALEN; i++)
 		cfg->mac_addr[i] = (mac_addr_tmp >> (8 * i)) & 0xff;
 
@@ -1059,7 +1063,7 @@ static int hclge_configure(struct hclge_dev *hdev)
 
 	hdev->num_vmdq_vport = cfg.vmdq_vport_num;
 	hdev->base_tqp_pid = 0;
-	hdev->rss_size_max = 1;
+	hdev->rss_size_max = cfg.rss_size_max;
 	hdev->rx_buf_len = cfg.rx_buf_len;
 	ether_addr_copy(hdev->hw.mac.mac_addr, cfg.mac_addr);
 	hdev->hw.mac.media_type = cfg.media_type;

@@ -399,6 +399,8 @@ struct hclge_pf_res_cmd {
 #define HCLGE_CFG_MAC_ADDR_H_M	GENMASK(15, 0)
 #define HCLGE_CFG_DEFAULT_SPEED_S	16
 #define HCLGE_CFG_DEFAULT_SPEED_M	GENMASK(23, 16)
+#define HCLGE_CFG_RSS_SIZE_S	24
+#define HCLGE_CFG_RSS_SIZE_M	GENMASK(31, 24)
 
 struct hclge_cfg_param_cmd {
 	__le32 offset;

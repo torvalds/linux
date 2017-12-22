@@ -220,6 +220,7 @@ struct hclge_cfg {
 	u8 tc_num;
 	u16 tqp_desc_num;
 	u16 rx_buf_len;
+	u16 rss_size_max;
 	u8 phy_addr;
 	u8 media_type;
 	u8 mac_addr[ETH_ALEN];
