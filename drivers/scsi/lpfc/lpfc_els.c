@@ -6862,7 +6862,7 @@ lpfc_els_rcv_rtv(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
 		return 1;
 
 	pcmd = (uint8_t *) (((struct lpfc_dmabuf *) elsiocb->context2)->virt);
-		*((uint32_t *) (pcmd)) = ELS_CMD_ACC;
+	*((uint32_t *) (pcmd)) = ELS_CMD_ACC;
 	pcmd += sizeof(uint32_t); /* Skip past command */
 
 	/* use the command's xri in the response */
@@ -8155,9 +8155,9 @@ lpfc_els_unsol_buffer(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 			lpfc_nlp_put(ndlp);
 		break;
 	case ELS_CMD_REC:
-			/* receive this due to exchange closed */
-			rjt_err = LSRJT_UNABLE_TPC;
-			rjt_exp = LSEXP_INVALID_OX_RX;
+		/* receive this due to exchange closed */
+		rjt_err = LSRJT_UNABLE_TPC;
+		rjt_exp = LSEXP_INVALID_OX_RX;
 		break;
 	default:
 		lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_ELS_UNSOL,
