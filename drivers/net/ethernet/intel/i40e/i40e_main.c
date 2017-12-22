@@ -7371,7 +7371,7 @@ static int i40e_configure_clsflower(struct i40e_vsi *vsi,
 
 	if (tc < 0) {
 		dev_err(&vsi->back->pdev->dev, "Invalid traffic class\n");
-		return -EINVAL;
+		return -EOPNOTSUPP;
 	}
 
 	if (test_bit(__I40E_RESET_RECOVERY_PENDING, pf->state) ||
