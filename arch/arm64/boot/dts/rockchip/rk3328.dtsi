@@ -718,7 +718,25 @@
 		iommus = <&rkvdec_mmu>;
 		allocator = <1>;
 		power-domains = <&power RK3328_PD_VIDEO>;
+		operating-points-v2 = <&rkvdec_opp_table>;
 		status = "disabled";
+	};
+
+	rkvdec_opp_table: opp-table3 {
+		compatible = "operating-points-v2";
+
+		opp-100000000 {
+			opp-hz = /bits/ 64 <100000000>;
+			opp-microvolt = <950000>;
+		};
+		opp-200000000 {
+			opp-hz = /bits/ 64 <200000000>;
+			opp-microvolt = <950000>;
+		};
+		opp-500000000 {
+			opp-hz = /bits/ 64 <500000000>;
+			opp-microvolt = <1050000>;
+		};
 	};
 
 	rkvdec_mmu: iommu@ff360480 {
