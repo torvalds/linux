@@ -686,10 +686,12 @@ static struct pi_desc *vcpu_to_pi_desc(struct kvm_vcpu *vcpu)
 	return &(to_vmx(vcpu)->pi_desc);
 }
 
+#define ROL16(val, n) ((u16)(((u16)(val) << (n)) | ((u16)(val) >> (16 - (n)))))
 #define VMCS12_OFFSET(x) offsetof(struct vmcs12, x)
-#define FIELD(number, name)	[number] = VMCS12_OFFSET(name)
-#define FIELD64(number, name)	[number] = VMCS12_OFFSET(name), \
-				[number##_HIGH] = VMCS12_OFFSET(name)+4
+#define FIELD(number, name)	[ROL16(number, 6)] = VMCS12_OFFSET(name)
+#define FIELD64(number, name)						\
+	FIELD(number, name),						\
+	[ROL16(number##_HIGH, 6)] = VMCS12_OFFSET(name) + sizeof(u32)
 
 
 static u16 shadow_read_only_fields[] = {
@@ -908,9 +910,13 @@ static const unsigned short vmcs_field_to_offset_table[] = {
 
 static inline short vmcs_field_to_offset(unsigned long field)
 {
-	BUILD_BUG_ON(ARRAY_SIZE(vmcs_field_to_offset_table) > SHRT_MAX);
+	unsigned index;
 
-	if (field >= ARRAY_SIZE(vmcs_field_to_offset_table))
+	if (field >> 15)
+		return -ENOENT;
+
+	index = ROL16(field, 6);
+	if (index >= ARRAY_SIZE(vmcs_field_to_offset_table))
 		return -ENOENT;
 
 	/*
@@ -919,10 +925,10 @@ static inline short vmcs_field_to_offset(unsigned long field)
 	 */
 	asm("lfence");
 
-	if (vmcs_field_to_offset_table[field] == 0)
+	if (vmcs_field_to_offset_table[index] == 0)
 		return -ENOENT;
 
-	return vmcs_field_to_offset_table[field];
+	return vmcs_field_to_offset_table[index];
 }
 
 static inline struct vmcs12 *get_vmcs12(struct kvm_vcpu *vcpu)
