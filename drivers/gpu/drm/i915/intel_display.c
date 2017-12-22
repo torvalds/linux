@@ -12950,8 +12950,6 @@ static bool intel_primary_plane_format_mod_supported(struct drm_plane *plane,
 		return i965_mod_supported(format, modifier);
 	else
 		return i8xx_mod_supported(format, modifier);
-
-	unreachable();
 }
 
 static bool intel_cursor_plane_format_mod_supported(struct drm_plane *plane,
