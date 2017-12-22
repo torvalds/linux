@@ -17,6 +17,7 @@
 #define HCLGE_PHY_SUPPORTED_FEATURES	(SUPPORTED_Autoneg | \
 					 SUPPORTED_TP | \
 					 SUPPORTED_Pause | \
+					 SUPPORTED_Asym_Pause | \
 					 PHY_10BT_FEATURES | \
 					 PHY_100BT_FEATURES | \
 					 PHY_1000BT_FEATURES)
