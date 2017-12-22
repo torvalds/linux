@@ -107,7 +107,6 @@ struct axp288_extcon_info {
 	struct gpio_desc *gpio_mux_cntl;
 	int irq[EXTCON_IRQ_END];
 	struct extcon_dev *edev;
-	struct notifier_block extcon_nb;
 	unsigned int previous_cable;
 };
 
