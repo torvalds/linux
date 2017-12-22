@@ -4707,6 +4707,42 @@ static int hclge_cfg_pauseparam(struct hclge_dev *hdev, u32 rx_en, u32 tx_en)
 	return 0;
 }
 
+int hclge_cfg_flowctrl(struct hclge_dev *hdev)
+{
+	struct phy_device *phydev = hdev->hw.mac.phydev;
+	u16 remote_advertising = 0;
+	u16 local_advertising = 0;
+	u32 rx_pause, tx_pause;
+	u8 flowctl;
+
+	if (!phydev->link || !phydev->autoneg)
+		return 0;
+
+	if (phydev->advertising & ADVERTISED_Pause)
+		local_advertising = ADVERTISE_PAUSE_CAP;
+
+	if (phydev->advertising & ADVERTISED_Asym_Pause)
+		local_advertising |= ADVERTISE_PAUSE_ASYM;
+
+	if (phydev->pause)
+		remote_advertising = LPA_PAUSE_CAP;
+
+	if (phydev->asym_pause)
+		remote_advertising |= LPA_PAUSE_ASYM;
+
+	flowctl = mii_resolve_flowctrl_fdx(local_advertising,
+					   remote_advertising);
+	tx_pause = flowctl & FLOW_CTRL_TX;
+	rx_pause = flowctl & FLOW_CTRL_RX;
+
+	if (phydev->duplex == HCLGE_MAC_HALF) {
+		tx_pause = 0;
+		rx_pause = 0;
+	}
+
+	return hclge_cfg_pauseparam(hdev, rx_pause, tx_pause);
+}
+
 static void hclge_get_pauseparam(struct hnae3_handle *handle, u32 *auto_neg,
 				 u32 *rx_en, u32 *tx_en)
 {

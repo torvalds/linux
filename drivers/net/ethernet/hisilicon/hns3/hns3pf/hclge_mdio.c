@@ -183,6 +183,10 @@ static void hclge_mac_adjust_link(struct net_device *netdev)
 	ret = hclge_cfg_mac_speed_dup(hdev, speed, duplex);
 	if (ret)
 		netdev_err(netdev, "failed to adjust link.\n");
+
+	ret = hclge_cfg_flowctrl(hdev);
+	if (ret)
+		netdev_err(netdev, "failed to configure flow control.\n");
 }
 
 int hclge_mac_start_phy(struct hclge_dev *hdev)
