@@ -402,8 +402,8 @@ static int armada_thermal_probe(struct platform_device *pdev)
 
 	priv->data->init_sensor(pdev, priv);
 
-	thermal = thermal_zone_device_register("armada_thermal", 0, 0,
-					       priv, &ops, NULL, 0, 0);
+	thermal = thermal_zone_device_register(dev_name(&pdev->dev), 0, 0, priv,
+					       &ops, NULL, 0, 0);
 	if (IS_ERR(thermal)) {
 		dev_err(&pdev->dev,
 			"Failed to register thermal zone device\n");
