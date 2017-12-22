@@ -82,7 +82,6 @@ struct pd_uinfo {
 
 struct crypto4xx_device {
 	struct crypto4xx_core_device *core_dev;
-	char *name;
 	void __iomem *ce_base;
 	void __iomem *trng_base;
 

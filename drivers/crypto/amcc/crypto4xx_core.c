@@ -1370,7 +1370,7 @@ static int crypto4xx_probe(struct platform_device *ofdev)
 	rc = request_irq(core_dev->irq, is_revb ?
 			 crypto4xx_ce_interrupt_handler_revb :
 			 crypto4xx_ce_interrupt_handler, 0,
-			 core_dev->dev->name, dev);
+			 KBUILD_MODNAME, dev);
 	if (rc)
 		goto err_request_irq;
 
