@@ -125,8 +125,6 @@ struct opp_table *dev_pm_opp_set_clkname(struct device *dev, const char * name);
 void dev_pm_opp_put_clkname(struct opp_table *opp_table);
 struct opp_table *dev_pm_opp_register_set_opp_helper(struct device *dev, int (*set_opp)(struct dev_pm_set_opp_data *data));
 void dev_pm_opp_unregister_set_opp_helper(struct opp_table *opp_table);
-struct opp_table *dev_pm_opp_register_get_pstate_helper(struct device *dev, int (*get_pstate)(struct device *dev, unsigned long rate));
-void dev_pm_opp_unregister_get_pstate_helper(struct opp_table *opp_table);
 int dev_pm_opp_set_rate(struct device *dev, unsigned long target_freq);
 int dev_pm_opp_set_sharing_cpus(struct device *cpu_dev, const struct cpumask *cpumask);
 int dev_pm_opp_get_sharing_cpus(struct device *cpu_dev, struct cpumask *cpumask);
@@ -246,14 +244,6 @@ static inline struct opp_table *dev_pm_opp_register_set_opp_helper(struct device
 }
 
 static inline void dev_pm_opp_unregister_set_opp_helper(struct opp_table *opp_table) {}
-
-static inline struct opp_table *dev_pm_opp_register_get_pstate_helper(struct device *dev,
-		int (*get_pstate)(struct device *dev, unsigned long rate))
-{
-	return ERR_PTR(-ENOTSUPP);
-}
-
-static inline void dev_pm_opp_unregister_get_pstate_helper(struct opp_table *opp_table) {}
 
 static inline struct opp_table *dev_pm_opp_set_prop_name(struct device *dev, const char *name)
 {
