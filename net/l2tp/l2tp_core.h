@@ -59,7 +59,8 @@ struct l2tp_session_cfg {
 	int			debug;		/* bitmask of debug message
 						 * categories */
 	u16			vlan_id;	/* VLAN pseudowire only */
-	u16			offset;		/* offset to payload */
+	u16			offset;		/* offset to tx payload */
+	u16			peer_offset;	/* offset to rx payload */
 	u16			l2specific_len;	/* Layer 2 specific length */
 	u16			l2specific_type; /* Layer 2 specific type */
 	u8			cookie[8];	/* optional cookie */
@@ -86,8 +87,14 @@ struct l2tp_session {
 	int			cookie_len;
 	u8			peer_cookie[8];
 	int			peer_cookie_len;
-	u16			offset;		/* offset from end of L2TP header
-						   to beginning of data */
+	u16			offset;		/* offset from end of L2TP
+						 * header to beginning of
+						 * tx data
+						 */
+	u16			peer_offset;	/* offset from end of L2TP
+						 * header to beginning of
+						 * rx data
+						 */
 	u16			l2specific_len;
 	u16			l2specific_type;
 	u16			hdr_len;
