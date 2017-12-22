@@ -290,11 +290,6 @@ static int dw_mipi_dsi_stm_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		DRM_ERROR("Unable to get resource\n");
-		return -ENODEV;
-	}
-
 	dsi->base = devm_ioremap_resource(dev, res);
 	if (IS_ERR(dsi->base)) {
 		DRM_ERROR("Unable to get dsi registers\n");
