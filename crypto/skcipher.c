@@ -449,15 +449,14 @@ static int skcipher_walk_skcipher(struct skcipher_walk *walk,
 
 	walk->total = req->cryptlen;
 	walk->nbytes = 0;
+	walk->iv = req->iv;
+	walk->oiv = req->iv;
 
 	if (unlikely(!walk->total))
 		return 0;
 
 	scatterwalk_start(&walk->in, req->src);
 	scatterwalk_start(&walk->out, req->dst);
-
-	walk->iv = req->iv;
-	walk->oiv = req->iv;
 
 	walk->flags &= ~SKCIPHER_WALK_SLEEP;
 	walk->flags |= req->base.flags & CRYPTO_TFM_REQ_MAY_SLEEP ?
@@ -510,6 +509,8 @@ static int skcipher_walk_aead_common(struct skcipher_walk *walk,
 	int err;
 
 	walk->nbytes = 0;
+	walk->iv = req->iv;
+	walk->oiv = req->iv;
 
 	if (unlikely(!walk->total))
 		return 0;
@@ -524,9 +525,6 @@ static int skcipher_walk_aead_common(struct skcipher_walk *walk,
 
 	scatterwalk_done(&walk->in, 0, walk->total);
 	scatterwalk_done(&walk->out, 0, walk->total);
-
-	walk->iv = req->iv;
-	walk->oiv = req->iv;
 
 	if (req->base.flags & CRYPTO_TFM_REQ_MAY_SLEEP)
 		walk->flags |= SKCIPHER_WALK_SLEEP;

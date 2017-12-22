@@ -111,6 +111,12 @@ static int _aead_recvmsg(struct socket *sock, struct msghdr *msg,
 	size_t usedpages = 0;		/* [in]  RX bufs to be used from user */
 	size_t processed = 0;		/* [in]  TX bufs to be consumed */
 
+	if (!ctx->used) {
+		err = af_alg_wait_for_data(sk, flags);
+		if (err)
+			return err;
+	}
+
 	/*
 	 * Data length provided by caller via sendmsg/sendpage that has not
 	 * yet been processed.
@@ -285,6 +291,10 @@ static int _aead_recvmsg(struct socket *sock, struct msghdr *msg,
 		/* AIO operation */
 		sock_hold(sk);
 		areq->iocb = msg->msg_iocb;
+
+		/* Remember output size that will be generated. */
+		areq->outlen = outlen;
+
 		aead_request_set_callback(&areq->cra_u.aead_req,
 					  CRYPTO_TFM_REQ_MAY_BACKLOG,
 					  af_alg_async_cb, areq);
@@ -292,12 +302,8 @@ static int _aead_recvmsg(struct socket *sock, struct msghdr *msg,
 				 crypto_aead_decrypt(&areq->cra_u.aead_req);
 
 		/* AIO operation in progress */
-		if (err == -EINPROGRESS || err == -EBUSY) {
-			/* Remember output size that will be generated. */
-			areq->outlen = outlen;
-
+		if (err == -EINPROGRESS || err == -EBUSY)
 			return -EIOCBQUEUED;
-		}
 
 		sock_put(sk);
 	} else {

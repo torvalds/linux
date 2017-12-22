@@ -1138,12 +1138,6 @@ int af_alg_get_rsgl(struct sock *sk, struct msghdr *msg, int flags,
 		if (!af_alg_readable(sk))
 			break;
 
-		if (!ctx->used) {
-			err = af_alg_wait_for_data(sk, flags);
-			if (err)
-				return err;
-		}
-
 		seglen = min_t(size_t, (maxsize - len),
 			       msg_data_left(msg));
 
