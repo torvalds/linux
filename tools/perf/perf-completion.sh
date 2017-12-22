@@ -183,12 +183,16 @@ __perf_main ()
 				fi
 			done
 
-			evts=${result}+$(ls /sys/bus/event_source/devices/cpu/events)
+			evts=${result}" "$(ls /sys/bus/event_source/devices/cpu/events)
 		else
-			evts=${raw_evts}+$(ls /sys/bus/event_source/devices/cpu/events)
+			evts=${raw_evts}" "$(ls /sys/bus/event_source/devices/cpu/events)
 		fi
 
-		__perfcomp_colon "$evts" "$cur1"
+		if [[ "$cur1" == , ]]; then
+			__perfcomp_colon "$evts" ""
+		else
+			__perfcomp_colon "$evts" "$cur1"
+		fi
 	else
 		# List subcommands for perf commands
 		if [[ $prev_skip_opts == @(kvm|kmem|mem|lock|sched|
