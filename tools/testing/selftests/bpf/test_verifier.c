@@ -606,7 +606,6 @@ static struct bpf_test tests[] = {
 		},
 		.errstr = "misaligned stack access",
 		.result = REJECT,
-		.flags = F_LOAD_WITH_STRICT_ALIGNMENT,
 	},
 	{
 		"invalid map_fd for function call",
@@ -1797,7 +1796,6 @@ static struct bpf_test tests[] = {
 		},
 		.result = REJECT,
 		.errstr = "misaligned stack access off (0x0; 0x0)+-8+2 size 8",
-		.flags = F_LOAD_WITH_STRICT_ALIGNMENT,
 	},
 	{
 		"PTR_TO_STACK store/load - bad alignment on reg",
@@ -1810,7 +1808,6 @@ static struct bpf_test tests[] = {
 		},
 		.result = REJECT,
 		.errstr = "misaligned stack access off (0x0; 0x0)+-10+8 size 8",
-		.flags = F_LOAD_WITH_STRICT_ALIGNMENT,
 	},
 	{
 		"PTR_TO_STACK store/load - out of bounds low",
@@ -6115,7 +6112,7 @@ static struct bpf_test tests[] = {
 			BPF_EXIT_INSN(),
 		},
 		.fixup_map1 = { 3 },
-		.errstr = "R0 min value is negative",
+		.errstr = "unbounded min value",
 		.result = REJECT,
 	},
 	{
@@ -6139,7 +6136,7 @@ static struct bpf_test tests[] = {
 			BPF_EXIT_INSN(),
 		},
 		.fixup_map1 = { 3 },
-		.errstr = "R0 min value is negative",
+		.errstr = "unbounded min value",
 		.result = REJECT,
 	},
 	{
@@ -6165,7 +6162,7 @@ static struct bpf_test tests[] = {
 			BPF_EXIT_INSN(),
 		},
 		.fixup_map1 = { 3 },
-		.errstr = "R8 invalid mem access 'inv'",
+		.errstr = "unbounded min value",
 		.result = REJECT,
 	},
 	{
@@ -6190,7 +6187,7 @@ static struct bpf_test tests[] = {
 			BPF_EXIT_INSN(),
 		},
 		.fixup_map1 = { 3 },
-		.errstr = "R8 invalid mem access 'inv'",
+		.errstr = "unbounded min value",
 		.result = REJECT,
 	},
 	{
@@ -6238,7 +6235,7 @@ static struct bpf_test tests[] = {
 			BPF_EXIT_INSN(),
 		},
 		.fixup_map1 = { 3 },
-		.errstr = "R0 min value is negative",
+		.errstr = "unbounded min value",
 		.result = REJECT,
 	},
 	{
@@ -6309,7 +6306,7 @@ static struct bpf_test tests[] = {
 			BPF_EXIT_INSN(),
 		},
 		.fixup_map1 = { 3 },
-		.errstr = "R0 min value is negative",
+		.errstr = "unbounded min value",
 		.result = REJECT,
 	},
 	{
@@ -6360,7 +6357,7 @@ static struct bpf_test tests[] = {
 			BPF_EXIT_INSN(),
 		},
 		.fixup_map1 = { 3 },
-		.errstr = "R0 min value is negative",
+		.errstr = "unbounded min value",
 		.result = REJECT,
 	},
 	{
@@ -6387,7 +6384,7 @@ static struct bpf_test tests[] = {
 			BPF_EXIT_INSN(),
 		},
 		.fixup_map1 = { 3 },
-		.errstr = "R0 min value is negative",
+		.errstr = "unbounded min value",
 		.result = REJECT,
 	},
 	{
@@ -6413,7 +6410,7 @@ static struct bpf_test tests[] = {
 			BPF_EXIT_INSN(),
 		},
 		.fixup_map1 = { 3 },
-		.errstr = "R0 min value is negative",
+		.errstr = "unbounded min value",
 		.result = REJECT,
 	},
 	{
@@ -6442,7 +6439,7 @@ static struct bpf_test tests[] = {
 			BPF_EXIT_INSN(),
 		},
 		.fixup_map1 = { 3 },
-		.errstr = "R0 min value is negative",
+		.errstr = "unbounded min value",
 		.result = REJECT,
 	},
 	{
@@ -6472,7 +6469,7 @@ static struct bpf_test tests[] = {
 			BPF_JMP_IMM(BPF_JA, 0, 0, -7),
 		},
 		.fixup_map1 = { 4 },
-		.errstr = "R0 min value is negative",
+		.errstr = "unbounded min value",
 		.result = REJECT,
 	},
 	{
@@ -6500,8 +6497,7 @@ static struct bpf_test tests[] = {
 			BPF_EXIT_INSN(),
 		},
 		.fixup_map1 = { 3 },
-		.errstr_unpriv = "R0 pointer comparison prohibited",
-		.errstr = "R0 min value is negative",
+		.errstr = "unbounded min value",
 		.result = REJECT,
 		.result_unpriv = REJECT,
 	},
@@ -6557,6 +6553,462 @@ static struct bpf_test tests[] = {
 		.result = REJECT,
 	},
 	{
+		"bounds check based on zero-extended MOV",
+		.insns = {
+			BPF_ST_MEM(BPF_DW, BPF_REG_10, -8, 0),
+			BPF_MOV64_REG(BPF_REG_2, BPF_REG_10),
+			BPF_ALU64_IMM(BPF_ADD, BPF_REG_2, -8),
+			BPF_LD_MAP_FD(BPF_REG_1, 0),
+			BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 0, 0,
+				     BPF_FUNC_map_lookup_elem),
+			BPF_JMP_IMM(BPF_JEQ, BPF_REG_0, 0, 4),
+			/* r2 = 0x0000'0000'ffff'ffff */
+			BPF_MOV32_IMM(BPF_REG_2, 0xffffffff),
+			/* r2 = 0 */
+			BPF_ALU64_IMM(BPF_RSH, BPF_REG_2, 32),
+			/* no-op */
+			BPF_ALU64_REG(BPF_ADD, BPF_REG_0, BPF_REG_2),
+			/* access at offset 0 */
+			BPF_LDX_MEM(BPF_B, BPF_REG_0, BPF_REG_0, 0),
+			/* exit */
+			BPF_MOV64_IMM(BPF_REG_0, 0),
+			BPF_EXIT_INSN(),
+		},
+		.fixup_map1 = { 3 },
+		.result = ACCEPT
+	},
+	{
+		"bounds check based on sign-extended MOV. test1",
+		.insns = {
+			BPF_ST_MEM(BPF_DW, BPF_REG_10, -8, 0),
+			BPF_MOV64_REG(BPF_REG_2, BPF_REG_10),
+			BPF_ALU64_IMM(BPF_ADD, BPF_REG_2, -8),
+			BPF_LD_MAP_FD(BPF_REG_1, 0),
+			BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 0, 0,
+				     BPF_FUNC_map_lookup_elem),
+			BPF_JMP_IMM(BPF_JEQ, BPF_REG_0, 0, 4),
+			/* r2 = 0xffff'ffff'ffff'ffff */
+			BPF_MOV64_IMM(BPF_REG_2, 0xffffffff),
+			/* r2 = 0xffff'ffff */
+			BPF_ALU64_IMM(BPF_RSH, BPF_REG_2, 32),
+			/* r0 = <oob pointer> */
+			BPF_ALU64_REG(BPF_ADD, BPF_REG_0, BPF_REG_2),
+			/* access to OOB pointer */
+			BPF_LDX_MEM(BPF_B, BPF_REG_0, BPF_REG_0, 0),
+			/* exit */
+			BPF_MOV64_IMM(BPF_REG_0, 0),
+			BPF_EXIT_INSN(),
+		},
+		.fixup_map1 = { 3 },
+		.errstr = "map_value pointer and 4294967295",
+		.result = REJECT
+	},
+	{
+		"bounds check based on sign-extended MOV. test2",
+		.insns = {
+			BPF_ST_MEM(BPF_DW, BPF_REG_10, -8, 0),
+			BPF_MOV64_REG(BPF_REG_2, BPF_REG_10),
+			BPF_ALU64_IMM(BPF_ADD, BPF_REG_2, -8),
+			BPF_LD_MAP_FD(BPF_REG_1, 0),
+			BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 0, 0,
+				     BPF_FUNC_map_lookup_elem),
+			BPF_JMP_IMM(BPF_JEQ, BPF_REG_0, 0, 4),
+			/* r2 = 0xffff'ffff'ffff'ffff */
+			BPF_MOV64_IMM(BPF_REG_2, 0xffffffff),
+			/* r2 = 0xfff'ffff */
+			BPF_ALU64_IMM(BPF_RSH, BPF_REG_2, 36),
+			/* r0 = <oob pointer> */
+			BPF_ALU64_REG(BPF_ADD, BPF_REG_0, BPF_REG_2),
+			/* access to OOB pointer */
+			BPF_LDX_MEM(BPF_B, BPF_REG_0, BPF_REG_0, 0),
+			/* exit */
+			BPF_MOV64_IMM(BPF_REG_0, 0),
+			BPF_EXIT_INSN(),
+		},
+		.fixup_map1 = { 3 },
+		.errstr = "R0 min value is outside of the array range",
+		.result = REJECT
+	},
+	{
+		"bounds check based on reg_off + var_off + insn_off. test1",
+		.insns = {
+			BPF_LDX_MEM(BPF_W, BPF_REG_6, BPF_REG_1,
+				    offsetof(struct __sk_buff, mark)),
+			BPF_ST_MEM(BPF_DW, BPF_REG_10, -8, 0),
+			BPF_MOV64_REG(BPF_REG_2, BPF_REG_10),
+			BPF_ALU64_IMM(BPF_ADD, BPF_REG_2, -8),
+			BPF_LD_MAP_FD(BPF_REG_1, 0),
+			BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 0, 0,
+				     BPF_FUNC_map_lookup_elem),
+			BPF_JMP_IMM(BPF_JEQ, BPF_REG_0, 0, 4),
+			BPF_ALU64_IMM(BPF_AND, BPF_REG_6, 1),
+			BPF_ALU64_IMM(BPF_ADD, BPF_REG_6, (1 << 29) - 1),
+			BPF_ALU64_REG(BPF_ADD, BPF_REG_0, BPF_REG_6),
+			BPF_ALU64_IMM(BPF_ADD, BPF_REG_0, (1 << 29) - 1),
+			BPF_LDX_MEM(BPF_B, BPF_REG_0, BPF_REG_0, 3),
+			BPF_MOV64_IMM(BPF_REG_0, 0),
+			BPF_EXIT_INSN(),
+		},
+		.fixup_map1 = { 4 },
+		.errstr = "value_size=8 off=1073741825",
+		.result = REJECT,
+		.prog_type = BPF_PROG_TYPE_SCHED_CLS,
+	},
+	{
+		"bounds check based on reg_off + var_off + insn_off. test2",
+		.insns = {
+			BPF_LDX_MEM(BPF_W, BPF_REG_6, BPF_REG_1,
+				    offsetof(struct __sk_buff, mark)),
+			BPF_ST_MEM(BPF_DW, BPF_REG_10, -8, 0),
+			BPF_MOV64_REG(BPF_REG_2, BPF_REG_10),
+			BPF_ALU64_IMM(BPF_ADD, BPF_REG_2, -8),
+			BPF_LD_MAP_FD(BPF_REG_1, 0),
+			BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 0, 0,
+				     BPF_FUNC_map_lookup_elem),
+			BPF_JMP_IMM(BPF_JEQ, BPF_REG_0, 0, 4),
+			BPF_ALU64_IMM(BPF_AND, BPF_REG_6, 1),
+			BPF_ALU64_IMM(BPF_ADD, BPF_REG_6, (1 << 30) - 1),
+			BPF_ALU64_REG(BPF_ADD, BPF_REG_0, BPF_REG_6),
+			BPF_ALU64_IMM(BPF_ADD, BPF_REG_0, (1 << 29) - 1),
+			BPF_LDX_MEM(BPF_B, BPF_REG_0, BPF_REG_0, 3),
+			BPF_MOV64_IMM(BPF_REG_0, 0),
+			BPF_EXIT_INSN(),
+		},
+		.fixup_map1 = { 4 },
+		.errstr = "value 1073741823",
+		.result = REJECT,
+		.prog_type = BPF_PROG_TYPE_SCHED_CLS,
+	},
+	{
+		"bounds check after truncation of non-boundary-crossing range",
+		.insns = {
+			BPF_ST_MEM(BPF_DW, BPF_REG_10, -8, 0),
+			BPF_MOV64_REG(BPF_REG_2, BPF_REG_10),
+			BPF_ALU64_IMM(BPF_ADD, BPF_REG_2, -8),
+			BPF_LD_MAP_FD(BPF_REG_1, 0),
+			BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 0, 0,
+				     BPF_FUNC_map_lookup_elem),
+			BPF_JMP_IMM(BPF_JEQ, BPF_REG_0, 0, 9),
+			/* r1 = [0x00, 0xff] */
+			BPF_LDX_MEM(BPF_B, BPF_REG_1, BPF_REG_0, 0),
+			BPF_MOV64_IMM(BPF_REG_2, 1),
+			/* r2 = 0x10'0000'0000 */
+			BPF_ALU64_IMM(BPF_LSH, BPF_REG_2, 36),
+			/* r1 = [0x10'0000'0000, 0x10'0000'00ff] */
+			BPF_ALU64_REG(BPF_ADD, BPF_REG_1, BPF_REG_2),
+			/* r1 = [0x10'7fff'ffff, 0x10'8000'00fe] */
+			BPF_ALU64_IMM(BPF_ADD, BPF_REG_1, 0x7fffffff),
+			/* r1 = [0x00, 0xff] */
+			BPF_ALU32_IMM(BPF_SUB, BPF_REG_1, 0x7fffffff),
+			/* r1 = 0 */
+			BPF_ALU64_IMM(BPF_RSH, BPF_REG_1, 8),
+			/* no-op */
+			BPF_ALU64_REG(BPF_ADD, BPF_REG_0, BPF_REG_1),
+			/* access at offset 0 */
+			BPF_LDX_MEM(BPF_B, BPF_REG_0, BPF_REG_0, 0),
+			/* exit */
+			BPF_MOV64_IMM(BPF_REG_0, 0),
+			BPF_EXIT_INSN(),
+		},
+		.fixup_map1 = { 3 },
+		.result = ACCEPT
+	},
+	{
+		"bounds check after truncation of boundary-crossing range (1)",
+		.insns = {
+			BPF_ST_MEM(BPF_DW, BPF_REG_10, -8, 0),
+			BPF_MOV64_REG(BPF_REG_2, BPF_REG_10),
+			BPF_ALU64_IMM(BPF_ADD, BPF_REG_2, -8),
+			BPF_LD_MAP_FD(BPF_REG_1, 0),
+			BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 0, 0,
+				     BPF_FUNC_map_lookup_elem),
+			BPF_JMP_IMM(BPF_JEQ, BPF_REG_0, 0, 9),
+			/* r1 = [0x00, 0xff] */
+			BPF_LDX_MEM(BPF_B, BPF_REG_1, BPF_REG_0, 0),
+			BPF_ALU64_IMM(BPF_ADD, BPF_REG_1, 0xffffff80 >> 1),
+			/* r1 = [0xffff'ff80, 0x1'0000'007f] */
+			BPF_ALU64_IMM(BPF_ADD, BPF_REG_1, 0xffffff80 >> 1),
+			/* r1 = [0xffff'ff80, 0xffff'ffff] or
+			 *      [0x0000'0000, 0x0000'007f]
+			 */
+			BPF_ALU32_IMM(BPF_ADD, BPF_REG_1, 0),
+			BPF_ALU64_IMM(BPF_SUB, BPF_REG_1, 0xffffff80 >> 1),
+			/* r1 = [0x00, 0xff] or
+			 *      [0xffff'ffff'0000'0080, 0xffff'ffff'ffff'ffff]
+			 */
+			BPF_ALU64_IMM(BPF_SUB, BPF_REG_1, 0xffffff80 >> 1),
+			/* r1 = 0 or
+			 *      [0x00ff'ffff'ff00'0000, 0x00ff'ffff'ffff'ffff]
+			 */
+			BPF_ALU64_IMM(BPF_RSH, BPF_REG_1, 8),
+			/* no-op or OOB pointer computation */
+			BPF_ALU64_REG(BPF_ADD, BPF_REG_0, BPF_REG_1),
+			/* potentially OOB access */
+			BPF_LDX_MEM(BPF_B, BPF_REG_0, BPF_REG_0, 0),
+			/* exit */
+			BPF_MOV64_IMM(BPF_REG_0, 0),
+			BPF_EXIT_INSN(),
+		},
+		.fixup_map1 = { 3 },
+		/* not actually fully unbounded, but the bound is very high */
+		.errstr = "R0 unbounded memory access",
+		.result = REJECT
+	},
+	{
+		"bounds check after truncation of boundary-crossing range (2)",
+		.insns = {
+			BPF_ST_MEM(BPF_DW, BPF_REG_10, -8, 0),
+			BPF_MOV64_REG(BPF_REG_2, BPF_REG_10),
+			BPF_ALU64_IMM(BPF_ADD, BPF_REG_2, -8),
+			BPF_LD_MAP_FD(BPF_REG_1, 0),
+			BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 0, 0,
+				     BPF_FUNC_map_lookup_elem),
+			BPF_JMP_IMM(BPF_JEQ, BPF_REG_0, 0, 9),
+			/* r1 = [0x00, 0xff] */
+			BPF_LDX_MEM(BPF_B, BPF_REG_1, BPF_REG_0, 0),
+			BPF_ALU64_IMM(BPF_ADD, BPF_REG_1, 0xffffff80 >> 1),
+			/* r1 = [0xffff'ff80, 0x1'0000'007f] */
+			BPF_ALU64_IMM(BPF_ADD, BPF_REG_1, 0xffffff80 >> 1),
+			/* r1 = [0xffff'ff80, 0xffff'ffff] or
+			 *      [0x0000'0000, 0x0000'007f]
+			 * difference to previous test: truncation via MOV32
+			 * instead of ALU32.
+			 */
+			BPF_MOV32_REG(BPF_REG_1, BPF_REG_1),
+			BPF_ALU64_IMM(BPF_SUB, BPF_REG_1, 0xffffff80 >> 1),
+			/* r1 = [0x00, 0xff] or
+			 *      [0xffff'ffff'0000'0080, 0xffff'ffff'ffff'ffff]
+			 */
+			BPF_ALU64_IMM(BPF_SUB, BPF_REG_1, 0xffffff80 >> 1),
+			/* r1 = 0 or
+			 *      [0x00ff'ffff'ff00'0000, 0x00ff'ffff'ffff'ffff]
+			 */
+			BPF_ALU64_IMM(BPF_RSH, BPF_REG_1, 8),
+			/* no-op or OOB pointer computation */
+			BPF_ALU64_REG(BPF_ADD, BPF_REG_0, BPF_REG_1),
+			/* potentially OOB access */
+			BPF_LDX_MEM(BPF_B, BPF_REG_0, BPF_REG_0, 0),
+			/* exit */
+			BPF_MOV64_IMM(BPF_REG_0, 0),
+			BPF_EXIT_INSN(),
+		},
+		.fixup_map1 = { 3 },
+		/* not actually fully unbounded, but the bound is very high */
+		.errstr = "R0 unbounded memory access",
+		.result = REJECT
+	},
+	{
+		"bounds check after wrapping 32-bit addition",
+		.insns = {
+			BPF_ST_MEM(BPF_DW, BPF_REG_10, -8, 0),
+			BPF_MOV64_REG(BPF_REG_2, BPF_REG_10),
+			BPF_ALU64_IMM(BPF_ADD, BPF_REG_2, -8),
+			BPF_LD_MAP_FD(BPF_REG_1, 0),
+			BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 0, 0,
+				     BPF_FUNC_map_lookup_elem),
+			BPF_JMP_IMM(BPF_JEQ, BPF_REG_0, 0, 5),
+			/* r1 = 0x7fff'ffff */
+			BPF_MOV64_IMM(BPF_REG_1, 0x7fffffff),
+			/* r1 = 0xffff'fffe */
+			BPF_ALU64_IMM(BPF_ADD, BPF_REG_1, 0x7fffffff),
+			/* r1 = 0 */
+			BPF_ALU32_IMM(BPF_ADD, BPF_REG_1, 2),
+			/* no-op */
+			BPF_ALU64_REG(BPF_ADD, BPF_REG_0, BPF_REG_1),
+			/* access at offset 0 */
+			BPF_LDX_MEM(BPF_B, BPF_REG_0, BPF_REG_0, 0),
+			/* exit */
+			BPF_MOV64_IMM(BPF_REG_0, 0),
+			BPF_EXIT_INSN(),
+		},
+		.fixup_map1 = { 3 },
+		.result = ACCEPT
+	},
+	{
+		"bounds check after shift with oversized count operand",
+		.insns = {
+			BPF_ST_MEM(BPF_DW, BPF_REG_10, -8, 0),
+			BPF_MOV64_REG(BPF_REG_2, BPF_REG_10),
+			BPF_ALU64_IMM(BPF_ADD, BPF_REG_2, -8),
+			BPF_LD_MAP_FD(BPF_REG_1, 0),
+			BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 0, 0,
+				     BPF_FUNC_map_lookup_elem),
+			BPF_JMP_IMM(BPF_JEQ, BPF_REG_0, 0, 6),
+			BPF_MOV64_IMM(BPF_REG_2, 32),
+			BPF_MOV64_IMM(BPF_REG_1, 1),
+			/* r1 = (u32)1 << (u32)32 = ? */
+			BPF_ALU32_REG(BPF_LSH, BPF_REG_1, BPF_REG_2),
+			/* r1 = [0x0000, 0xffff] */
+			BPF_ALU64_IMM(BPF_AND, BPF_REG_1, 0xffff),
+			/* computes unknown pointer, potentially OOB */
+			BPF_ALU64_REG(BPF_ADD, BPF_REG_0, BPF_REG_1),
+			/* potentially OOB access */
+			BPF_LDX_MEM(BPF_B, BPF_REG_0, BPF_REG_0, 0),
+			/* exit */
+			BPF_MOV64_IMM(BPF_REG_0, 0),
+			BPF_EXIT_INSN(),
+		},
+		.fixup_map1 = { 3 },
+		.errstr = "R0 max value is outside of the array range",
+		.result = REJECT
+	},
+	{
+		"bounds check after right shift of maybe-negative number",
+		.insns = {
+			BPF_ST_MEM(BPF_DW, BPF_REG_10, -8, 0),
+			BPF_MOV64_REG(BPF_REG_2, BPF_REG_10),
+			BPF_ALU64_IMM(BPF_ADD, BPF_REG_2, -8),
+			BPF_LD_MAP_FD(BPF_REG_1, 0),
+			BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 0, 0,
+				     BPF_FUNC_map_lookup_elem),
+			BPF_JMP_IMM(BPF_JEQ, BPF_REG_0, 0, 6),
+			/* r1 = [0x00, 0xff] */
+			BPF_LDX_MEM(BPF_B, BPF_REG_1, BPF_REG_0, 0),
+			/* r1 = [-0x01, 0xfe] */
+			BPF_ALU64_IMM(BPF_SUB, BPF_REG_1, 1),
+			/* r1 = 0 or 0xff'ffff'ffff'ffff */
+			BPF_ALU64_IMM(BPF_RSH, BPF_REG_1, 8),
+			/* r1 = 0 or 0xffff'ffff'ffff */
+			BPF_ALU64_IMM(BPF_RSH, BPF_REG_1, 8),
+			/* computes unknown pointer, potentially OOB */
+			BPF_ALU64_REG(BPF_ADD, BPF_REG_0, BPF_REG_1),
+			/* potentially OOB access */
+			BPF_LDX_MEM(BPF_B, BPF_REG_0, BPF_REG_0, 0),
+			/* exit */
+			BPF_MOV64_IMM(BPF_REG_0, 0),
+			BPF_EXIT_INSN(),
+		},
+		.fixup_map1 = { 3 },
+		.errstr = "R0 unbounded memory access",
+		.result = REJECT
+	},
+	{
+		"bounds check map access with off+size signed 32bit overflow. test1",
+		.insns = {
+			BPF_ST_MEM(BPF_DW, BPF_REG_10, -8, 0),
+			BPF_MOV64_REG(BPF_REG_2, BPF_REG_10),
+			BPF_ALU64_IMM(BPF_ADD, BPF_REG_2, -8),
+			BPF_LD_MAP_FD(BPF_REG_1, 0),
+			BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 0, 0,
+				     BPF_FUNC_map_lookup_elem),
+			BPF_JMP_IMM(BPF_JNE, BPF_REG_0, 0, 1),
+			BPF_EXIT_INSN(),
+			BPF_ALU64_IMM(BPF_ADD, BPF_REG_0, 0x7ffffffe),
+			BPF_LDX_MEM(BPF_DW, BPF_REG_0, BPF_REG_0, 0),
+			BPF_JMP_A(0),
+			BPF_EXIT_INSN(),
+		},
+		.fixup_map1 = { 3 },
+		.errstr = "map_value pointer and 2147483646",
+		.result = REJECT
+	},
+	{
+		"bounds check map access with off+size signed 32bit overflow. test2",
+		.insns = {
+			BPF_ST_MEM(BPF_DW, BPF_REG_10, -8, 0),
+			BPF_MOV64_REG(BPF_REG_2, BPF_REG_10),
+			BPF_ALU64_IMM(BPF_ADD, BPF_REG_2, -8),
+			BPF_LD_MAP_FD(BPF_REG_1, 0),
+			BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 0, 0,
+				     BPF_FUNC_map_lookup_elem),
+			BPF_JMP_IMM(BPF_JNE, BPF_REG_0, 0, 1),
+			BPF_EXIT_INSN(),
+			BPF_ALU64_IMM(BPF_ADD, BPF_REG_0, 0x1fffffff),
+			BPF_ALU64_IMM(BPF_ADD, BPF_REG_0, 0x1fffffff),
+			BPF_ALU64_IMM(BPF_ADD, BPF_REG_0, 0x1fffffff),
+			BPF_LDX_MEM(BPF_DW, BPF_REG_0, BPF_REG_0, 0),
+			BPF_JMP_A(0),
+			BPF_EXIT_INSN(),
+		},
+		.fixup_map1 = { 3 },
+		.errstr = "pointer offset 1073741822",
+		.result = REJECT
+	},
+	{
+		"bounds check map access with off+size signed 32bit overflow. test3",
+		.insns = {
+			BPF_ST_MEM(BPF_DW, BPF_REG_10, -8, 0),
+			BPF_MOV64_REG(BPF_REG_2, BPF_REG_10),
+			BPF_ALU64_IMM(BPF_ADD, BPF_REG_2, -8),
+			BPF_LD_MAP_FD(BPF_REG_1, 0),
+			BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 0, 0,
+				     BPF_FUNC_map_lookup_elem),
+			BPF_JMP_IMM(BPF_JNE, BPF_REG_0, 0, 1),
+			BPF_EXIT_INSN(),
+			BPF_ALU64_IMM(BPF_SUB, BPF_REG_0, 0x1fffffff),
+			BPF_ALU64_IMM(BPF_SUB, BPF_REG_0, 0x1fffffff),
+			BPF_LDX_MEM(BPF_DW, BPF_REG_0, BPF_REG_0, 2),
+			BPF_JMP_A(0),
+			BPF_EXIT_INSN(),
+		},
+		.fixup_map1 = { 3 },
+		.errstr = "pointer offset -1073741822",
+		.result = REJECT
+	},
+	{
+		"bounds check map access with off+size signed 32bit overflow. test4",
+		.insns = {
+			BPF_ST_MEM(BPF_DW, BPF_REG_10, -8, 0),
+			BPF_MOV64_REG(BPF_REG_2, BPF_REG_10),
+			BPF_ALU64_IMM(BPF_ADD, BPF_REG_2, -8),
+			BPF_LD_MAP_FD(BPF_REG_1, 0),
+			BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 0, 0,
+				     BPF_FUNC_map_lookup_elem),
+			BPF_JMP_IMM(BPF_JNE, BPF_REG_0, 0, 1),
+			BPF_EXIT_INSN(),
+			BPF_MOV64_IMM(BPF_REG_1, 1000000),
+			BPF_ALU64_IMM(BPF_MUL, BPF_REG_1, 1000000),
+			BPF_ALU64_REG(BPF_ADD, BPF_REG_0, BPF_REG_1),
+			BPF_LDX_MEM(BPF_DW, BPF_REG_0, BPF_REG_0, 2),
+			BPF_JMP_A(0),
+			BPF_EXIT_INSN(),
+		},
+		.fixup_map1 = { 3 },
+		.errstr = "map_value pointer and 1000000000000",
+		.result = REJECT
+	},
+	{
+		"pointer/scalar confusion in state equality check (way 1)",
+		.insns = {
+			BPF_ST_MEM(BPF_DW, BPF_REG_10, -8, 0),
+			BPF_MOV64_REG(BPF_REG_2, BPF_REG_10),
+			BPF_ALU64_IMM(BPF_ADD, BPF_REG_2, -8),
+			BPF_LD_MAP_FD(BPF_REG_1, 0),
+			BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 0, 0,
+				     BPF_FUNC_map_lookup_elem),
+			BPF_JMP_IMM(BPF_JEQ, BPF_REG_0, 0, 2),
+			BPF_LDX_MEM(BPF_DW, BPF_REG_0, BPF_REG_0, 0),
+			BPF_JMP_A(1),
+			BPF_MOV64_REG(BPF_REG_0, BPF_REG_10),
+			BPF_JMP_A(0),
+			BPF_EXIT_INSN(),
+		},
+		.fixup_map1 = { 3 },
+		.result = ACCEPT,
+		.result_unpriv = REJECT,
+		.errstr_unpriv = "R0 leaks addr as return value"
+	},
+	{
+		"pointer/scalar confusion in state equality check (way 2)",
+		.insns = {
+			BPF_ST_MEM(BPF_DW, BPF_REG_10, -8, 0),
+			BPF_MOV64_REG(BPF_REG_2, BPF_REG_10),
+			BPF_ALU64_IMM(BPF_ADD, BPF_REG_2, -8),
+			BPF_LD_MAP_FD(BPF_REG_1, 0),
+			BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 0, 0,
+				     BPF_FUNC_map_lookup_elem),
+			BPF_JMP_IMM(BPF_JNE, BPF_REG_0, 0, 2),
+			BPF_MOV64_REG(BPF_REG_0, BPF_REG_10),
+			BPF_JMP_A(1),
+			BPF_LDX_MEM(BPF_DW, BPF_REG_0, BPF_REG_0, 0),
+			BPF_EXIT_INSN(),
+		},
+		.fixup_map1 = { 3 },
+		.result = ACCEPT,
+		.result_unpriv = REJECT,
+		.errstr_unpriv = "R0 leaks addr as return value"
+	},
+	{
 		"variable-offset ctx access",
 		.insns = {
 			/* Get an unknown value */
@@ -6596,6 +7048,71 @@ static struct bpf_test tests[] = {
 		.errstr = "variable stack access var_off=(0xfffffffffffffff8; 0x4)",
 		.result = REJECT,
 		.prog_type = BPF_PROG_TYPE_LWT_IN,
+	},
+	{
+		"indirect variable-offset stack access",
+		.insns = {
+			/* Fill the top 8 bytes of the stack */
+			BPF_ST_MEM(BPF_DW, BPF_REG_10, -8, 0),
+			/* Get an unknown value */
+			BPF_LDX_MEM(BPF_W, BPF_REG_2, BPF_REG_1, 0),
+			/* Make it small and 4-byte aligned */
+			BPF_ALU64_IMM(BPF_AND, BPF_REG_2, 4),
+			BPF_ALU64_IMM(BPF_SUB, BPF_REG_2, 8),
+			/* add it to fp.  We now have either fp-4 or fp-8, but
+			 * we don't know which
+			 */
+			BPF_ALU64_REG(BPF_ADD, BPF_REG_2, BPF_REG_10),
+			/* dereference it indirectly */
+			BPF_LD_MAP_FD(BPF_REG_1, 0),
+			BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 0, 0,
+				     BPF_FUNC_map_lookup_elem),
+			BPF_MOV64_IMM(BPF_REG_0, 0),
+			BPF_EXIT_INSN(),
+		},
+		.fixup_map1 = { 5 },
+		.errstr = "variable stack read R2",
+		.result = REJECT,
+		.prog_type = BPF_PROG_TYPE_LWT_IN,
+	},
+	{
+		"direct stack access with 32-bit wraparound. test1",
+		.insns = {
+			BPF_MOV64_REG(BPF_REG_1, BPF_REG_10),
+			BPF_ALU64_IMM(BPF_ADD, BPF_REG_1, 0x7fffffff),
+			BPF_ALU64_IMM(BPF_ADD, BPF_REG_1, 0x7fffffff),
+			BPF_MOV32_IMM(BPF_REG_0, 0),
+			BPF_STX_MEM(BPF_B, BPF_REG_1, BPF_REG_0, 0),
+			BPF_EXIT_INSN()
+		},
+		.errstr = "fp pointer and 2147483647",
+		.result = REJECT
+	},
+	{
+		"direct stack access with 32-bit wraparound. test2",
+		.insns = {
+			BPF_MOV64_REG(BPF_REG_1, BPF_REG_10),
+			BPF_ALU64_IMM(BPF_ADD, BPF_REG_1, 0x3fffffff),
+			BPF_ALU64_IMM(BPF_ADD, BPF_REG_1, 0x3fffffff),
+			BPF_MOV32_IMM(BPF_REG_0, 0),
+			BPF_STX_MEM(BPF_B, BPF_REG_1, BPF_REG_0, 0),
+			BPF_EXIT_INSN()
+		},
+		.errstr = "fp pointer and 1073741823",
+		.result = REJECT
+	},
+	{
+		"direct stack access with 32-bit wraparound. test3",
+		.insns = {
+			BPF_MOV64_REG(BPF_REG_1, BPF_REG_10),
+			BPF_ALU64_IMM(BPF_ADD, BPF_REG_1, 0x1fffffff),
+			BPF_ALU64_IMM(BPF_ADD, BPF_REG_1, 0x1fffffff),
+			BPF_MOV32_IMM(BPF_REG_0, 0),
+			BPF_STX_MEM(BPF_B, BPF_REG_1, BPF_REG_0, 0),
+			BPF_EXIT_INSN()
+		},
+		.errstr = "fp pointer offset 1073741822",
+		.result = REJECT
 	},
 	{
 		"liveness pruning and write screening",
