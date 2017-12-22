@@ -92,14 +92,9 @@ void i40iw_free_sqbuf(struct i40iw_sc_vsi *vsi, void *bufp)
 static u8 i40iw_derive_hw_ird_setting(u16 cm_ird)
 {
 	u8 encoded_ird_size;
-	u8 pof2_cm_ird = 1;
-
-	/* round-off to next powerof2 */
-	while (pof2_cm_ird < cm_ird)
-		pof2_cm_ird *= 2;
 
 	/* ird_size field is encoded in qp_ctx */
-	switch (pof2_cm_ird) {
+	switch (cm_ird ? roundup_pow_of_two(cm_ird) : 0) {
 	case I40IW_HW_IRD_SETTING_64:
 		encoded_ird_size = 3;
 		break;
