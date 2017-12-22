@@ -180,6 +180,10 @@ enum hclge_opcode_type {
 	/* Promisuous mode command */
 	HCLGE_OPC_CFG_PROMISC_MODE	= 0x0E01,
 
+	/* Vlan offload command */
+	HCLGE_OPC_VLAN_PORT_TX_CFG	= 0x0F01,
+	HCLGE_OPC_VLAN_PORT_RX_CFG	= 0x0F02,
+
 	/* Interrupts cmd */
 	HCLGE_OPC_ADD_RING_TO_VECTOR	= 0x1503,
 	HCLGE_OPC_DEL_RING_TO_VECTOR	= 0x1504,
@@ -668,6 +672,47 @@ struct hclge_vlan_filter_vf_cfg_cmd {
 	u8  vlan_cfg;
 	u8  rsv1[3];
 	u8  vf_bitmap[16];
+};
+
+#define HCLGE_ACCEPT_TAG_B		0
+#define HCLGE_ACCEPT_UNTAG_B		1
+#define HCLGE_PORT_INS_TAG1_EN_B	2
+#define HCLGE_PORT_INS_TAG2_EN_B	3
+#define HCLGE_CFG_NIC_ROCE_SEL_B	4
+struct hclge_vport_vtag_tx_cfg_cmd {
+	u8 vport_vlan_cfg;
+	u8 vf_offset;
+	u8 rsv1[2];
+	__le16 def_vlan_tag1;
+	__le16 def_vlan_tag2;
+	u8 vf_bitmap[8];
+	u8 rsv2[8];
+};
+
+#define HCLGE_REM_TAG1_EN_B		0
+#define HCLGE_REM_TAG2_EN_B		1
+#define HCLGE_SHOW_TAG1_EN_B		2
+#define HCLGE_SHOW_TAG2_EN_B		3
+struct hclge_vport_vtag_rx_cfg_cmd {
+	u8 vport_vlan_cfg;
+	u8 vf_offset;
+	u8 rsv1[6];
+	u8 vf_bitmap[8];
+	u8 rsv2[8];
+};
+
+struct hclge_tx_vlan_type_cfg_cmd {
+	__le16 ot_vlan_type;
+	__le16 in_vlan_type;
+	u8 rsv[20];
+};
+
+struct hclge_rx_vlan_type_cfg_cmd {
+	__le16 ot_fst_vlan_type;
+	__le16 ot_sec_vlan_type;
+	__le16 in_fst_vlan_type;
+	__le16 in_sec_vlan_type;
+	u8 rsv[16];
 };
 
 struct hclge_cfg_com_tqp_queue_cmd {

@@ -4380,22 +4380,168 @@ static int hclge_set_vf_vlan_filter(struct hnae3_handle *handle, int vfid,
 	return hclge_set_vf_vlan_common(hdev, vfid, false, vlan, qos, proto);
 }
 
+static int hclge_set_vlan_tx_offload_cfg(struct hclge_vport *vport)
+{
+	struct hclge_tx_vtag_cfg *vcfg = &vport->txvlan_cfg;
+	struct hclge_vport_vtag_tx_cfg_cmd *req;
+	struct hclge_dev *hdev = vport->back;
+	struct hclge_desc desc;
+	int status;
+
+	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_VLAN_PORT_TX_CFG, false);
+
+	req = (struct hclge_vport_vtag_tx_cfg_cmd *)desc.data;
+	req->def_vlan_tag1 = cpu_to_le16(vcfg->default_tag1);
+	req->def_vlan_tag2 = cpu_to_le16(vcfg->default_tag2);
+	hnae_set_bit(req->vport_vlan_cfg, HCLGE_ACCEPT_TAG_B,
+		     vcfg->accept_tag ? 1 : 0);
+	hnae_set_bit(req->vport_vlan_cfg, HCLGE_ACCEPT_UNTAG_B,
+		     vcfg->accept_untag ? 1 : 0);
+	hnae_set_bit(req->vport_vlan_cfg, HCLGE_PORT_INS_TAG1_EN_B,
+		     vcfg->insert_tag1_en ? 1 : 0);
+	hnae_set_bit(req->vport_vlan_cfg, HCLGE_PORT_INS_TAG2_EN_B,
+		     vcfg->insert_tag2_en ? 1 : 0);
+	hnae_set_bit(req->vport_vlan_cfg, HCLGE_CFG_NIC_ROCE_SEL_B, 0);
+
+	req->vf_offset = vport->vport_id / HCLGE_VF_NUM_PER_CMD;
+	req->vf_bitmap[req->vf_offset] =
+		1 << (vport->vport_id % HCLGE_VF_NUM_PER_BYTE);
+
+	status = hclge_cmd_send(&hdev->hw, &desc, 1);
+	if (status)
+		dev_err(&hdev->pdev->dev,
+			"Send port txvlan cfg command fail, ret =%d\n",
+			status);
+
+	return status;
+}
+
+static int hclge_set_vlan_rx_offload_cfg(struct hclge_vport *vport)
+{
+	struct hclge_rx_vtag_cfg *vcfg = &vport->rxvlan_cfg;
+	struct hclge_vport_vtag_rx_cfg_cmd *req;
+	struct hclge_dev *hdev = vport->back;
+	struct hclge_desc desc;
+	int status;
+
+	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_VLAN_PORT_RX_CFG, false);
+
+	req = (struct hclge_vport_vtag_rx_cfg_cmd *)desc.data;
+	hnae_set_bit(req->vport_vlan_cfg, HCLGE_REM_TAG1_EN_B,
+		     vcfg->strip_tag1_en ? 1 : 0);
+	hnae_set_bit(req->vport_vlan_cfg, HCLGE_REM_TAG2_EN_B,
+		     vcfg->strip_tag2_en ? 1 : 0);
+	hnae_set_bit(req->vport_vlan_cfg, HCLGE_SHOW_TAG1_EN_B,
+		     vcfg->vlan1_vlan_prionly ? 1 : 0);
+	hnae_set_bit(req->vport_vlan_cfg, HCLGE_SHOW_TAG2_EN_B,
+		     vcfg->vlan2_vlan_prionly ? 1 : 0);
+
+	req->vf_offset = vport->vport_id / HCLGE_VF_NUM_PER_CMD;
+	req->vf_bitmap[req->vf_offset] =
+		1 << (vport->vport_id % HCLGE_VF_NUM_PER_BYTE);
+
+	status = hclge_cmd_send(&hdev->hw, &desc, 1);
+	if (status)
+		dev_err(&hdev->pdev->dev,
+			"Send port rxvlan cfg command fail, ret =%d\n",
+			status);
+
+	return status;
+}
+
+static int hclge_set_vlan_protocol_type(struct hclge_dev *hdev)
+{
+	struct hclge_rx_vlan_type_cfg_cmd *rx_req;
+	struct hclge_tx_vlan_type_cfg_cmd *tx_req;
+	struct hclge_desc desc;
+	int status;
+
+	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_MAC_VLAN_TYPE_ID, false);
+	rx_req = (struct hclge_rx_vlan_type_cfg_cmd *)desc.data;
+	rx_req->ot_fst_vlan_type =
+		cpu_to_le16(hdev->vlan_type_cfg.rx_ot_fst_vlan_type);
+	rx_req->ot_sec_vlan_type =
+		cpu_to_le16(hdev->vlan_type_cfg.rx_ot_sec_vlan_type);
+	rx_req->in_fst_vlan_type =
+		cpu_to_le16(hdev->vlan_type_cfg.rx_in_fst_vlan_type);
+	rx_req->in_sec_vlan_type =
+		cpu_to_le16(hdev->vlan_type_cfg.rx_in_sec_vlan_type);
+
+	status = hclge_cmd_send(&hdev->hw, &desc, 1);
+	if (status) {
+		dev_err(&hdev->pdev->dev,
+			"Send rxvlan protocol type command fail, ret =%d\n",
+			status);
+		return status;
+	}
+
+	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_MAC_VLAN_INSERT, false);
+
+	tx_req = (struct hclge_tx_vlan_type_cfg_cmd *)&desc.data;
+	tx_req->ot_vlan_type = cpu_to_le16(hdev->vlan_type_cfg.tx_ot_vlan_type);
+	tx_req->in_vlan_type = cpu_to_le16(hdev->vlan_type_cfg.tx_in_vlan_type);
+
+	status = hclge_cmd_send(&hdev->hw, &desc, 1);
+	if (status)
+		dev_err(&hdev->pdev->dev,
+			"Send txvlan protocol type command fail, ret =%d\n",
+			status);
+
+	return status;
+}
+
 static int hclge_init_vlan_config(struct hclge_dev *hdev)
 {
-#define HCLGE_VLAN_TYPE_VF_TABLE   0
-#define HCLGE_VLAN_TYPE_PORT_TABLE 1
+#define HCLGE_FILTER_TYPE_VF		0
+#define HCLGE_FILTER_TYPE_PORT		1
+#define HCLGE_DEF_VLAN_TYPE		0x8100
+
 	struct hnae3_handle *handle;
+	struct hclge_vport *vport;
 	int ret;
+	int i;
 
-	ret = hclge_set_vlan_filter_ctrl(hdev, HCLGE_VLAN_TYPE_VF_TABLE,
-					 true);
+	ret = hclge_set_vlan_filter_ctrl(hdev, HCLGE_FILTER_TYPE_VF, true);
 	if (ret)
 		return ret;
 
-	ret = hclge_set_vlan_filter_ctrl(hdev, HCLGE_VLAN_TYPE_PORT_TABLE,
-					 true);
+	ret = hclge_set_vlan_filter_ctrl(hdev, HCLGE_FILTER_TYPE_PORT, true);
 	if (ret)
 		return ret;
+
+	hdev->vlan_type_cfg.rx_in_fst_vlan_type = HCLGE_DEF_VLAN_TYPE;
+	hdev->vlan_type_cfg.rx_in_sec_vlan_type = HCLGE_DEF_VLAN_TYPE;
+	hdev->vlan_type_cfg.rx_ot_fst_vlan_type = HCLGE_DEF_VLAN_TYPE;
+	hdev->vlan_type_cfg.rx_ot_sec_vlan_type = HCLGE_DEF_VLAN_TYPE;
+	hdev->vlan_type_cfg.tx_ot_vlan_type = HCLGE_DEF_VLAN_TYPE;
+	hdev->vlan_type_cfg.tx_in_vlan_type = HCLGE_DEF_VLAN_TYPE;
+
+	ret = hclge_set_vlan_protocol_type(hdev);
+	if (ret)
+		return ret;
+
+	for (i = 0; i < hdev->num_alloc_vport; i++) {
+		vport = &hdev->vport[i];
+		vport->txvlan_cfg.accept_tag = true;
+		vport->txvlan_cfg.accept_untag = true;
+		vport->txvlan_cfg.insert_tag1_en = false;
+		vport->txvlan_cfg.insert_tag2_en = false;
+		vport->txvlan_cfg.default_tag1 = 0;
+		vport->txvlan_cfg.default_tag2 = 0;
+
+		ret = hclge_set_vlan_tx_offload_cfg(vport);
+		if (ret)
+			return ret;
+
+		vport->rxvlan_cfg.strip_tag1_en = false;
+		vport->rxvlan_cfg.strip_tag2_en = true;
+		vport->rxvlan_cfg.vlan1_vlan_prionly = false;
+		vport->rxvlan_cfg.vlan2_vlan_prionly = false;
+
+		ret = hclge_set_vlan_rx_offload_cfg(vport);
+		if (ret)
+			return ret;
+	}
 
 	handle = &hdev->vport[0].nic;
 	return hclge_set_port_vlan_filter(handle, htons(ETH_P_8021Q), 0, false);
