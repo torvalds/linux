@@ -612,6 +612,8 @@ unsigned long native_calibrate_tsc(void)
 		}
 	}
 
+	if (crystal_khz == 0)
+		return 0;
 	/*
 	 * TSC frequency determined by CPUID is a "hardware reported"
 	 * frequency and is the most accurate one so far we have. This
