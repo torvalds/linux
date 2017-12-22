@@ -633,7 +633,6 @@ static void plane_atomic_power_down(struct dc *dc, struct pipe_ctx *pipe_ctx)
  */
 static void plane_atomic_disable(struct dc *dc, struct pipe_ctx *pipe_ctx)
 {
-	struct dce_hwseq *hws = dc->hwseq;
 	struct hubp *hubp = pipe_ctx->plane_res.hubp;
 	struct dpp *dpp = pipe_ctx->plane_res.dpp;
 	int opp_id = hubp->opp_id;
@@ -645,8 +644,9 @@ static void plane_atomic_disable(struct dc *dc, struct pipe_ctx *pipe_ctx)
 	dpp->funcs->dpp_dppclk_control(dpp, false, false);
 
 	if (opp_id != 0xf && pipe_ctx->stream_res.opp->mpc_tree_params.opp_list == NULL)
-		REG_UPDATE(OPP_PIPE_CONTROL[opp_id],
-				OPP_PIPE_CLOCK_EN, 0);
+		pipe_ctx->stream_res.opp->funcs->opp_pipe_clock_control(
+				pipe_ctx->stream_res.opp,
+				false);
 
 	hubp->power_gated = true;
 	dc->optimized_required = false; /* We're powering off, no need to optimize */
@@ -1311,8 +1311,9 @@ static void dcn10_enable_plane(
 	pipe_ctx->plane_res.hubp->funcs->hubp_clk_cntl(pipe_ctx->plane_res.hubp, true);
 
 	/* make sure OPP_PIPE_CLOCK_EN = 1 */
-	REG_UPDATE(OPP_PIPE_CONTROL[pipe_ctx->stream_res.tg->inst],
-			OPP_PIPE_CLOCK_EN, 1);
+	pipe_ctx->stream_res.opp->funcs->opp_pipe_clock_control(
+			pipe_ctx->stream_res.opp,
+			true);
 
 /* TODO: enable/disable in dm as per update type.
 	if (plane_state) {

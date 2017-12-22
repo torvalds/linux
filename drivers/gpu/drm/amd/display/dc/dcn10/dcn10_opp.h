@@ -44,7 +44,8 @@
 	SRI(FMT_MAP420_MEMORY_CONTROL, FMT, id), \
 	SRI(OPPBUF_CONTROL, OPPBUF, id),\
 	SRI(OPPBUF_3D_PARAMETERS_0, OPPBUF, id), \
-	SRI(OPPBUF_3D_PARAMETERS_1, OPPBUF, id)
+	SRI(OPPBUF_3D_PARAMETERS_1, OPPBUF, id), \
+	SRI(OPP_PIPE_CONTROL, OPP_PIPE, id)
 
 #define OPP_REG_LIST_DCN10(id) \
 	OPP_REG_LIST_DCN(id)
@@ -61,7 +62,8 @@
 	uint32_t OPPBUF_CONTROL; \
 	uint32_t OPPBUF_CONTROL1; \
 	uint32_t OPPBUF_3D_PARAMETERS_0; \
-	uint32_t OPPBUF_3D_PARAMETERS_1
+	uint32_t OPPBUF_3D_PARAMETERS_1; \
+	uint32_t OPP_PIPE_CONTROL
 
 #define OPP_MASK_SH_LIST_DCN(mask_sh) \
 	OPP_SF(FMT0_FMT_BIT_DEPTH_CONTROL, FMT_TRUNCATE_EN, mask_sh), \
@@ -89,7 +91,8 @@
 	OPP_SF(OPPBUF0_OPPBUF_CONTROL, OPPBUF_ACTIVE_WIDTH, mask_sh),\
 	OPP_SF(OPPBUF0_OPPBUF_CONTROL, OPPBUF_PIXEL_REPETITION, mask_sh),\
 	OPP_SF(OPPBUF0_OPPBUF_3D_PARAMETERS_0, OPPBUF_3D_VACT_SPACE1_SIZE, mask_sh), \
-	OPP_SF(OPPBUF0_OPPBUF_3D_PARAMETERS_0, OPPBUF_3D_VACT_SPACE2_SIZE, mask_sh)
+	OPP_SF(OPPBUF0_OPPBUF_3D_PARAMETERS_0, OPPBUF_3D_VACT_SPACE2_SIZE, mask_sh), \
+	OPP_SF(OPP_PIPE0_OPP_PIPE_CONTROL, OPP_PIPE_CLOCK_EN, mask_sh)
 
 #define OPP_MASK_SH_LIST_DCN10(mask_sh) \
 	OPP_MASK_SH_LIST_DCN(mask_sh), \
@@ -125,7 +128,8 @@
 	type OPPBUF_OVERLAP_PIXEL_NUM;\
 	type OPPBUF_NUM_SEGMENT_PADDED_PIXELS; \
 	type OPPBUF_3D_VACT_SPACE1_SIZE; \
-	type OPPBUF_3D_VACT_SPACE2_SIZE
+	type OPPBUF_3D_VACT_SPACE2_SIZE; \
+	type OPP_PIPE_CLOCK_EN
 
 struct dcn10_opp_registers {
 	OPP_COMMON_REG_VARIABLE_LIST;
@@ -175,6 +179,8 @@ void opp1_program_stereo(
 	struct output_pixel_processor *opp,
 	bool enable,
 	const struct dc_crtc_timing *timing);
+
+void opp1_pipe_clock_control(struct output_pixel_processor *opp, bool enable);
 
 void opp1_destroy(struct output_pixel_processor **opp);
 
