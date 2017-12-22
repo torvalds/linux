@@ -861,9 +861,10 @@ static void execlists_submission_tasklet(unsigned long data)
 			 */
 
 			status = READ_ONCE(buf[2 * head]); /* maybe mmio! */
-			GEM_TRACE("%s csb[%d]: status=0x%08x:0x%08x\n",
+			GEM_TRACE("%s csb[%d]: status=0x%08x:0x%08x, active=0x%x\n",
 				  engine->name, head,
-				  status, buf[2*head + 1]);
+				  status, buf[2*head + 1],
+				  execlists->active);
 
 			if (status & (GEN8_CTX_STATUS_IDLE_ACTIVE |
 				      GEN8_CTX_STATUS_PREEMPTED))
@@ -881,6 +882,8 @@ static void execlists_submission_tasklet(unsigned long data)
 
 			if (status & GEN8_CTX_STATUS_COMPLETE &&
 			    buf[2*head + 1] == PREEMPT_ID) {
+				GEM_TRACE("%s preempt-idle\n", engine->name);
+
 				execlists_cancel_port_requests(execlists);
 				execlists_unwind_incomplete_requests(execlists);
 
