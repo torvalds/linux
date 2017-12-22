@@ -3063,9 +3063,6 @@ static int skl_check_nv12_aux_surface(struct intel_plane_state *plane_state)
 
 static int skl_check_ccs_aux_surface(struct intel_plane_state *plane_state)
 {
-	struct intel_plane *plane = to_intel_plane(plane_state->base.plane);
-	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
-	struct intel_crtc *crtc = to_intel_crtc(plane_state->base.crtc);
 	const struct drm_framebuffer *fb = plane_state->base.fb;
 	int src_x = plane_state->base.src.x1 >> 16;
 	int src_y = plane_state->base.src.y1 >> 16;
@@ -3074,11 +3071,6 @@ static int skl_check_ccs_aux_surface(struct intel_plane_state *plane_state)
 	int x = src_x / hsub;
 	int y = src_y / vsub;
 	u32 offset;
-
-	if (!skl_plane_has_ccs(dev_priv, crtc->pipe, plane->id)) {
-		DRM_DEBUG_KMS("No RC support on %s\n", plane->base.name);
-		return -EINVAL;
-	}
 
 	if (plane_state->base.rotation & ~(DRM_MODE_ROTATE_0 | DRM_MODE_ROTATE_180)) {
 		DRM_DEBUG_KMS("RC support only with 0/180 degree rotation %x\n",
