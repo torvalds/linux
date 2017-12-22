@@ -2800,8 +2800,12 @@ int hns3_uninit_all_ring(struct hns3_nic_priv *priv)
 			h->ae_algo->ops->reset_queue(h, i);
 
 		hns3_fini_ring(priv->ring_data[i].ring);
+		devm_kfree(priv->dev, priv->ring_data[i].ring);
 		hns3_fini_ring(priv->ring_data[i + h->kinfo.num_tqps].ring);
+		devm_kfree(priv->dev,
+			   priv->ring_data[i + h->kinfo.num_tqps].ring);
 	}
+	devm_kfree(priv->dev, priv->ring_data);
 
 	return 0;
 }
