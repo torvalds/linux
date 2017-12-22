@@ -70,6 +70,13 @@
 	(DATA_ENDIAN << DMADESC_ENDIAN_SHIFT) |		\
 	(MMIO_ENDIAN << MMIO_ENDIAN_SHIFT))
 
+#define BUS_CTRL_ENDIAN_NSP_CONF			\
+	(0x02 << DMADATA_ENDIAN_SHIFT | 0x02 << DMADESC_ENDIAN_SHIFT)
+
+#define BUS_CTRL_ENDIAN_CONF_MASK			\
+	(0x3 << MMIO_ENDIAN_SHIFT | 0x3 << DMADESC_ENDIAN_SHIFT |	\
+	 0x3 << DMADATA_ENDIAN_SHIFT | 0x3 << PIODATA_ENDIAN_SHIFT)
+
 enum brcm_ahci_version {
 	BRCM_SATA_BCM7425 = 1,
 	BRCM_SATA_BCM7445,
@@ -250,18 +257,16 @@ static u32 brcm_ahci_get_portmask(struct platform_device *pdev,
 static void brcm_sata_init(struct brcm_ahci_priv *priv)
 {
 	void __iomem *ctrl = priv->top_ctrl + SATA_TOP_CTRL_BUS_CTRL;
+	u32 data;
 
 	/* Configure endianness */
-	if (priv->version ==  BRCM_SATA_NSP) {
-		u32 data = brcm_sata_readreg(ctrl);
-
-		data &= ~((0x03 << DMADATA_ENDIAN_SHIFT) |
-			(0x03 << DMADESC_ENDIAN_SHIFT));
-		data |= (0x02 << DMADATA_ENDIAN_SHIFT) |
-			(0x02 << DMADESC_ENDIAN_SHIFT);
-		brcm_sata_writereg(data, ctrl);
-	} else
-		brcm_sata_writereg(BUS_CTRL_ENDIAN_CONF, ctrl);
+	data = brcm_sata_readreg(ctrl);
+	data &= ~BUS_CTRL_ENDIAN_CONF_MASK;
+	if (priv->version == BRCM_SATA_NSP)
+		data |= BUS_CTRL_ENDIAN_NSP_CONF;
+	else
+		data |= BUS_CTRL_ENDIAN_CONF;
+	brcm_sata_writereg(data, ctrl);
 }
 
 #ifdef CONFIG_PM_SLEEP
