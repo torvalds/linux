@@ -386,6 +386,8 @@ struct hnae3_ae_ops {
 				  u16 vlan, u8 qos, __be16 proto);
 	void (*reset_event)(struct hnae3_handle *handle,
 			    enum hnae3_reset_type reset);
+	void (*get_channels)(struct hnae3_handle *handle,
+			     struct ethtool_channels *ch);
 };
 
 struct hnae3_dcb_ops {

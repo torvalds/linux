@@ -5002,6 +5002,26 @@ static void hclge_uninit_ae_dev(struct hnae3_ae_dev *ae_dev)
 	ae_dev->priv = NULL;
 }
 
+static u32 hclge_get_max_channels(struct hnae3_handle *handle)
+{
+	struct hnae3_knic_private_info *kinfo = &handle->kinfo;
+	struct hclge_vport *vport = hclge_get_vport(handle);
+	struct hclge_dev *hdev = vport->back;
+
+	return min_t(u32, hdev->rss_size_max * kinfo->num_tc, hdev->num_tqps);
+}
+
+static void hclge_get_channels(struct hnae3_handle *handle,
+			       struct ethtool_channels *ch)
+{
+	struct hclge_vport *vport = hclge_get_vport(handle);
+
+	ch->max_combined = hclge_get_max_channels(handle);
+	ch->other_count = 1;
+	ch->max_other = 1;
+	ch->combined_count = vport->alloc_tqps;
+}
+
 static const struct hnae3_ae_ops hclge_ops = {
 	.init_ae_dev = hclge_init_ae_dev,
 	.uninit_ae_dev = hclge_uninit_ae_dev,
@@ -5046,6 +5066,7 @@ static const struct hnae3_ae_ops hclge_ops = {
 	.set_vlan_filter = hclge_set_port_vlan_filter,
 	.set_vf_vlan_filter = hclge_set_vf_vlan_filter,
 	.reset_event = hclge_reset_event,
+	.get_channels = hclge_get_channels,
 };
 
 static struct hnae3_ae_algo ae_algo = {

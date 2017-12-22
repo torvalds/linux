@@ -849,6 +849,15 @@ static int hns3_nway_reset(struct net_device *netdev)
 	return genphy_restart_aneg(phy);
 }
 
+void hns3_get_channels(struct net_device *netdev,
+		       struct ethtool_channels *ch)
+{
+	struct hnae3_handle *h = hns3_get_handle(netdev);
+
+	if (h->ae_algo->ops->get_channels)
+		h->ae_algo->ops->get_channels(h, ch);
+}
+
 static const struct ethtool_ops hns3vf_ethtool_ops = {
 	.get_drvinfo = hns3_get_drvinfo,
 	.get_ringparam = hns3_get_ringparam,
@@ -883,6 +892,7 @@ static const struct ethtool_ops hns3_ethtool_ops = {
 	.get_link_ksettings = hns3_get_link_ksettings,
 	.set_link_ksettings = hns3_set_link_ksettings,
 	.nway_reset = hns3_nway_reset,
+	.get_channels = hns3_get_channels,
 };
 
 void hns3_ethtool_set_ops(struct net_device *netdev)
