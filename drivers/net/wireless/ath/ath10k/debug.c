@@ -2137,10 +2137,6 @@ static const struct file_operations fops_fw_checksums = {
 
 int ath10k_debug_create(struct ath10k *ar)
 {
-	ar->debug.fw_crash_data = vzalloc(sizeof(*ar->debug.fw_crash_data));
-	if (!ar->debug.fw_crash_data)
-		return -ENOMEM;
-
 	ar->debug.cal_data = vzalloc(ATH10K_DEBUG_CAL_DATA_LEN);
 	if (!ar->debug.cal_data)
 		return -ENOMEM;
@@ -2155,9 +2151,6 @@ int ath10k_debug_create(struct ath10k *ar)
 
 void ath10k_debug_destroy(struct ath10k *ar)
 {
-	vfree(ar->debug.fw_crash_data);
-	ar->debug.fw_crash_data = NULL;
-
 	vfree(ar->debug.cal_data);
 	ar->debug.cal_data = NULL;
 

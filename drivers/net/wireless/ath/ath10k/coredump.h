@@ -103,6 +103,8 @@ struct ath10k_dump_file_data {
 
 int ath10k_coredump_submit(struct ath10k *ar);
 struct ath10k_fw_crash_data *ath10k_coredump_new(struct ath10k *ar);
+int ath10k_coredump_create(struct ath10k *ar);
+void ath10k_coredump_destroy(struct ath10k *ar);
 
 #else /* CONFIG_DEV_COREDUMP */
 
@@ -114,6 +116,15 @@ static inline int ath10k_coredump_submit(struct ath10k *ar)
 static inline struct ath10k_fw_crash_data *ath10k_coredump_new(struct ath10k *ar)
 {
 	return NULL;
+}
+
+static inline int ath10k_coredump_create(struct ath10k *ar)
+{
+	return 0;
+}
+
+static inline void ath10k_coredump_destroy(struct ath10k *ar)
+{
 }
 
 #endif /* CONFIG_DEV_COREDUMP */

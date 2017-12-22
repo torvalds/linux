@@ -21,15 +21,12 @@
 
 #include "debug.h"
 
-#ifdef CONFIG_DEV_COREDUMP
-
 struct ath10k_fw_crash_data *ath10k_coredump_new(struct ath10k *ar)
 {
-	struct ath10k_fw_crash_data *crash_data = ar->debug.fw_crash_data;
+	struct ath10k_fw_crash_data *crash_data = ar->coredump.fw_crash_data;
 
 	lockdep_assert_held(&ar->data_lock);
 
-	crash_data->crashed_since_read = true;
 	guid_gen(&crash_data->guid);
 	ktime_get_real_ts64(&crash_data->timestamp);
 
@@ -37,10 +34,9 @@ struct ath10k_fw_crash_data *ath10k_coredump_new(struct ath10k *ar)
 }
 EXPORT_SYMBOL(ath10k_coredump_new);
 
-static struct ath10k_dump_file_data *ath10k_coredump_build(struct ath10k *ar,
-							   bool mark_read)
+static struct ath10k_dump_file_data *ath10k_coredump_build(struct ath10k *ar)
 {
-	struct ath10k_fw_crash_data *crash_data = ar->debug.fw_crash_data;
+	struct ath10k_fw_crash_data *crash_data = ar->coredump.fw_crash_data;
 	struct ath10k_ce_crash_hdr *ce_hdr;
 	struct ath10k_dump_file_data *dump_data;
 	struct ath10k_tlv_dump_data *dump_tlv;
@@ -63,12 +59,6 @@ static struct ath10k_dump_file_data *ath10k_coredump_build(struct ath10k *ar,
 		return NULL;
 
 	spin_lock_bh(&ar->data_lock);
-
-	if (!crash_data->crashed_since_read) {
-		spin_unlock_bh(&ar->data_lock);
-		vfree(buf);
-		return NULL;
-	}
 
 	dump_data = (struct ath10k_dump_file_data *)(buf);
 	strlcpy(dump_data->df_magic, "ATH10K-FW-DUMP",
@@ -122,8 +112,6 @@ static struct ath10k_dump_file_data *ath10k_coredump_build(struct ath10k *ar,
 	sofar += sizeof(*dump_tlv) + sizeof(*ce_hdr) +
 		 CE_COUNT * sizeof(ce_hdr->entries[0]);
 
-	ar->debug.fw_crash_data->crashed_since_read = !mark_read;
-
 	spin_unlock_bh(&ar->data_lock);
 
 	return dump_data;
@@ -132,34 +120,29 @@ static struct ath10k_dump_file_data *ath10k_coredump_build(struct ath10k *ar,
 int ath10k_coredump_submit(struct ath10k *ar)
 {
 	struct ath10k_dump_file_data *dump;
-	void *dump_ptr;
-	u32 dump_len;
 
-	/* To keep the dump file available also for debugfs don't mark the
-	 * file read, only debugfs should do that.
-	 */
-	dump = ath10k_coredump_build(ar, false);
+	dump = ath10k_coredump_build(ar);
 	if (!dump) {
 		ath10k_warn(ar, "no crash dump data found for devcoredump");
 		return -ENODATA;
 	}
 
-	/* Make a copy of the dump file for dev_coredumpv() as during the
-	 * transition period we need to own the original file. Once
-	 * fw_crash_dump debugfs file is removed no need to have a copy
-	 * anymore.
-	 */
-	dump_len = le32_to_cpu(dump->len);
-	dump_ptr = vzalloc(dump_len);
-
-	if (!dump_ptr)
-		return -ENOMEM;
-
-	memcpy(dump_ptr, dump, dump_len);
-
-	dev_coredumpv(ar->dev, dump_ptr, dump_len, GFP_KERNEL);
+	dev_coredumpv(ar->dev, dump, le32_to_cpu(dump->len), GFP_KERNEL);
 
 	return 0;
 }
 
-#endif /* CONFIG_DEV_COREDUMP */
+int ath10k_coredump_create(struct ath10k *ar)
+{
+	ar->coredump.fw_crash_data = vzalloc(sizeof(*ar->coredump.fw_crash_data));
+	if (!ar->coredump.fw_crash_data)
+		return -ENOMEM;
+
+	return 0;
+}
+
+void ath10k_coredump_destroy(struct ath10k *ar)
+{
+	vfree(ar->coredump.fw_crash_data);
+	ar->coredump.fw_crash_data = NULL;
+}
