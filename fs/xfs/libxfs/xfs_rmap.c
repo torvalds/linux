@@ -368,6 +368,51 @@ xfs_rmap_lookup_le_range(
 }
 
 /*
+ * Perform all the relevant owner checks for a removal op.  If we're doing an
+ * unknown-owner removal then we have no owner information to check.
+ */
+static int
+xfs_rmap_free_check_owner(
+	struct xfs_mount	*mp,
+	uint64_t		ltoff,
+	struct xfs_rmap_irec	*rec,
+	xfs_fsblock_t		bno,
+	xfs_filblks_t		len,
+	uint64_t		owner,
+	uint64_t		offset,
+	unsigned int		flags)
+{
+	int			error = 0;
+
+	if (owner == XFS_RMAP_OWN_UNKNOWN)
+		return 0;
+
+	/* Make sure the unwritten flag matches. */
+	XFS_WANT_CORRUPTED_GOTO(mp, (flags & XFS_RMAP_UNWRITTEN) ==
+			(rec->rm_flags & XFS_RMAP_UNWRITTEN), out);
+
+	/* Make sure the owner matches what we expect to find in the tree. */
+	XFS_WANT_CORRUPTED_GOTO(mp, owner == rec->rm_owner, out);
+
+	/* Check the offset, if necessary. */
+	if (XFS_RMAP_NON_INODE_OWNER(owner))
+		goto out;
+
+	if (flags & XFS_RMAP_BMBT_BLOCK) {
+		XFS_WANT_CORRUPTED_GOTO(mp, rec->rm_flags & XFS_RMAP_BMBT_BLOCK,
+				out);
+	} else {
+		XFS_WANT_CORRUPTED_GOTO(mp, rec->rm_offset <= offset, out);
+		XFS_WANT_CORRUPTED_GOTO(mp,
+				ltoff + rec->rm_blockcount >= offset + len,
+				out);
+	}
+
+out:
+	return error;
+}
+
+/*
  * Find the extent in the rmap btree and remove it.
  *
  * The record we find should always be an exact match for the extent that we're
@@ -444,33 +489,40 @@ xfs_rmap_unmap(
 		goto out_done;
 	}
 
-	/* Make sure the unwritten flag matches. */
-	XFS_WANT_CORRUPTED_GOTO(mp, (flags & XFS_RMAP_UNWRITTEN) ==
-			(ltrec.rm_flags & XFS_RMAP_UNWRITTEN), out_error);
+	/*
+	 * If we're doing an unknown-owner removal for EFI recovery, we expect
+	 * to find the full range in the rmapbt or nothing at all.  If we
+	 * don't find any rmaps overlapping either end of the range, we're
+	 * done.  Hopefully this means that the EFI creator already queued
+	 * (and finished) a RUI to remove the rmap.
+	 */
+	if (owner == XFS_RMAP_OWN_UNKNOWN &&
+	    ltrec.rm_startblock + ltrec.rm_blockcount <= bno) {
+		struct xfs_rmap_irec    rtrec;
+
+		error = xfs_btree_increment(cur, 0, &i);
+		if (error)
+			goto out_error;
+		if (i == 0)
+			goto out_done;
+		error = xfs_rmap_get_rec(cur, &rtrec, &i);
+		if (error)
+			goto out_error;
+		XFS_WANT_CORRUPTED_GOTO(mp, i == 1, out_error);
+		if (rtrec.rm_startblock >= bno + len)
+			goto out_done;
+	}
 
 	/* Make sure the extent we found covers the entire freeing range. */
 	XFS_WANT_CORRUPTED_GOTO(mp, ltrec.rm_startblock <= bno &&
-		ltrec.rm_startblock + ltrec.rm_blockcount >=
-		bno + len, out_error);
+			ltrec.rm_startblock + ltrec.rm_blockcount >=
+			bno + len, out_error);
 
-	/* Make sure the owner matches what we expect to find in the tree. */
-	XFS_WANT_CORRUPTED_GOTO(mp, owner == ltrec.rm_owner ||
-				    XFS_RMAP_NON_INODE_OWNER(owner), out_error);
-
-	/* Check the offset, if necessary. */
-	if (!XFS_RMAP_NON_INODE_OWNER(owner)) {
-		if (flags & XFS_RMAP_BMBT_BLOCK) {
-			XFS_WANT_CORRUPTED_GOTO(mp,
-					ltrec.rm_flags & XFS_RMAP_BMBT_BLOCK,
-					out_error);
-		} else {
-			XFS_WANT_CORRUPTED_GOTO(mp,
-					ltrec.rm_offset <= offset, out_error);
-			XFS_WANT_CORRUPTED_GOTO(mp,
-					ltoff + ltrec.rm_blockcount >= offset + len,
-					out_error);
-		}
-	}
+	/* Check owner information. */
+	error = xfs_rmap_free_check_owner(mp, ltoff, &ltrec, bno, len, owner,
+			offset, flags);
+	if (error)
+		goto out_error;
 
 	if (ltrec.rm_startblock == bno && ltrec.rm_blockcount == len) {
 		/* exact match, simply remove the record from rmap tree */
@@ -664,6 +716,7 @@ xfs_rmap_map(
 		flags |= XFS_RMAP_UNWRITTEN;
 	trace_xfs_rmap_map(mp, cur->bc_private.a.agno, bno, len,
 			unwritten, oinfo);
+	ASSERT(!xfs_rmap_should_skip_owner_update(oinfo));
 
 	/*
 	 * For the initial lookup, look for an exact match or the left-adjacent

@@ -5136,7 +5136,7 @@ __xfs_bunmapi(
 	 * blowing out the transaction with a mix of EFIs and reflink
 	 * adjustments.
 	 */
-	if (xfs_is_reflink_inode(ip) && whichfork == XFS_DATA_FORK)
+	if (tp && xfs_is_reflink_inode(ip) && whichfork == XFS_DATA_FORK)
 		max_len = min(len, xfs_refcount_max_unmap(tp->t_log_res));
 	else
 		max_len = len;
