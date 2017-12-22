@@ -40,6 +40,8 @@ struct vcodec_drm_buffer {
 		dma_addr_t iova;
 		unsigned long phys;
 	};
+	/* this is used for page fault */
+	unsigned long iova_out;
 	void *cpu_addr;
 	unsigned long size;
 	int index;
@@ -134,6 +136,71 @@ static void vcodec_drm_sgt_unmap_kernel(struct vcodec_drm_buffer *drm_buffer)
 	kfree(drm_buffer->pages);
 }
 
+static int vcodec_finalise_sg(struct scatterlist *sg,
+			      int nents,
+			      dma_addr_t dma_addr)
+{
+	struct scatterlist *s, *cur = sg;
+	unsigned long seg_mask = DMA_BIT_MASK(32);
+	unsigned int cur_len = 0, max_len = DMA_BIT_MASK(32);
+	int i, count = 0;
+
+	for_each_sg(sg, s, nents, i) {
+		/* Restore this segment's original unaligned fields first */
+		unsigned int s_iova_off = sg_dma_address(s);
+		unsigned int s_length = sg_dma_len(s);
+		unsigned int s_iova_len = s->length;
+
+		s->offset += s_iova_off;
+		s->length = s_length;
+		sg_dma_address(s) = DMA_ERROR_CODE;
+		sg_dma_len(s) = 0;
+
+		/*
+		 * Now fill in the real DMA data. If...
+		 * - there is a valid output segment to append to
+		 * - and this segment starts on an IOVA page boundary
+		 * - but doesn't fall at a segment boundary
+		 * - and wouldn't make the resulting output segment too long
+		 */
+		if (cur_len && !s_iova_off && (dma_addr & seg_mask) &&
+		    (cur_len + s_length <= max_len)) {
+			/* ...then concatenate it with the previous one */
+			cur_len += s_length;
+		} else {
+			/* Otherwise start the next output segment */
+			if (i > 0)
+				cur = sg_next(cur);
+			cur_len = s_length;
+			count++;
+
+			sg_dma_address(cur) = dma_addr + s_iova_off;
+		}
+
+		sg_dma_len(cur) = cur_len;
+		dma_addr += s_iova_len;
+
+		if (s_length + s_iova_off < s_iova_len)
+			cur_len = 0;
+	}
+	return count;
+}
+
+static void vcodec_invalidate_sg(struct scatterlist *sg, int nents)
+{
+	struct scatterlist *s;
+	int i;
+
+	for_each_sg(sg, s, nents, i) {
+		if (sg_dma_address(s) != DMA_ERROR_CODE)
+			s->offset += sg_dma_address(s);
+		if (sg_dma_len(s))
+			s->length = sg_dma_len(s);
+		sg_dma_address(s) = DMA_ERROR_CODE;
+		sg_dma_len(s) = 0;
+	}
+}
+
 static void vcodec_dma_unmap_sg(struct iommu_domain *domain,
 				dma_addr_t dma_addr)
 {
@@ -194,6 +261,63 @@ static void vcodec_drm_clear_map(struct kref *ref)
 	}
 
 	mutex_unlock(&iommu_info->iommu_mutex);
+}
+
+static int
+vcodec_drm_unmap_iommu_with_iova(struct vcodec_iommu_session_info *session_info,
+				 int idx)
+{
+	struct device *dev = session_info->dev;
+	struct vcodec_drm_buffer *drm_buffer;
+	struct vcodec_iommu_info *iommu_info = session_info->iommu_info;
+	struct vcodec_iommu_drm_info *drm_info = iommu_info->private;
+	struct iommu_domain *domain = drm_info->domain;
+
+	mutex_lock(&session_info->list_mutex);
+	drm_buffer = vcodec_drm_get_buffer_no_lock(session_info, idx);
+	mutex_unlock(&session_info->list_mutex);
+
+	if (!drm_buffer) {
+		dev_err(dev, "can not find %d buffer in list\n", idx);
+		return -EINVAL;
+	}
+
+	iommu_unmap(domain, drm_buffer->iova_out, PAGE_SIZE);
+
+	return 0;
+}
+
+static int
+vcodec_drm_map_iommu_with_iova(struct vcodec_iommu_session_info *session_info,
+			       int idx,
+			       unsigned long iova,
+			       unsigned long size)
+{
+	struct device *dev = session_info->dev;
+	struct vcodec_drm_buffer *drm_buffer;
+	struct vcodec_iommu_info *iommu_info = session_info->iommu_info;
+	struct vcodec_iommu_drm_info *drm_info = iommu_info->private;
+
+	mutex_lock(&session_info->list_mutex);
+	drm_buffer = vcodec_drm_get_buffer_no_lock(session_info, idx);
+	mutex_unlock(&session_info->list_mutex);
+
+	if (!drm_buffer) {
+		dev_err(dev, "can not find %d buffer in list\n", idx);
+		return -EINVAL;
+	}
+
+	drm_buffer->iova_out = iova;
+
+	iommu_map_sg(drm_info->domain,
+		     iova,
+		     drm_buffer->copy_sgt->sgl,
+		     drm_buffer->copy_sgt->nents,
+		     IOMMU_READ | IOMMU_WRITE);
+
+	return vcodec_finalise_sg(drm_buffer->copy_sgt->sgl,
+				  drm_buffer->copy_sgt->nents,
+				  iova);
 }
 
 static void*
@@ -337,71 +461,6 @@ static int vcodec_drm_attach(struct vcodec_iommu_info *iommu_info)
 	mutex_unlock(&iommu_info->iommu_mutex);
 
 	return ret;
-}
-
-static int vcodec_finalise_sg(struct scatterlist *sg,
-			      int nents,
-			      dma_addr_t dma_addr)
-{
-	struct scatterlist *s, *cur = sg;
-	unsigned long seg_mask = DMA_BIT_MASK(32);
-	unsigned int cur_len = 0, max_len = DMA_BIT_MASK(32);
-	int i, count = 0;
-
-	for_each_sg(sg, s, nents, i) {
-		/* Restore this segment's original unaligned fields first */
-		unsigned int s_iova_off = sg_dma_address(s);
-		unsigned int s_length = sg_dma_len(s);
-		unsigned int s_iova_len = s->length;
-
-		s->offset += s_iova_off;
-		s->length = s_length;
-		sg_dma_address(s) = DMA_ERROR_CODE;
-		sg_dma_len(s) = 0;
-
-		/*
-		 * Now fill in the real DMA data. If...
-		 * - there is a valid output segment to append to
-		 * - and this segment starts on an IOVA page boundary
-		 * - but doesn't fall at a segment boundary
-		 * - and wouldn't make the resulting output segment too long
-		 */
-		if (cur_len && !s_iova_off && (dma_addr & seg_mask) &&
-		    (cur_len + s_length <= max_len)) {
-			/* ...then concatenate it with the previous one */
-			cur_len += s_length;
-		} else {
-			/* Otherwise start the next output segment */
-			if (i > 0)
-				cur = sg_next(cur);
-			cur_len = s_length;
-			count++;
-
-			sg_dma_address(cur) = dma_addr + s_iova_off;
-		}
-
-		sg_dma_len(cur) = cur_len;
-		dma_addr += s_iova_len;
-
-		if (s_length + s_iova_off < s_iova_len)
-			cur_len = 0;
-	}
-	return count;
-}
-
-static void vcodec_invalidate_sg(struct scatterlist *sg, int nents)
-{
-	struct scatterlist *s;
-	int i;
-
-	for_each_sg(sg, s, nents, i) {
-		if (sg_dma_address(s) != DMA_ERROR_CODE)
-			s->offset += sg_dma_address(s);
-		if (sg_dma_len(s))
-			s->length = sg_dma_len(s);
-		sg_dma_address(s) = DMA_ERROR_CODE;
-		sg_dma_len(s) = 0;
-	}
 }
 
 static dma_addr_t vcodec_dma_map_sg(struct iommu_domain *domain,
@@ -911,6 +970,8 @@ static struct vcodec_iommu_ops drm_ops = {
 	.unmap_kernel = vcodec_drm_unmap_kernel,
 	.map_iommu = vcodec_drm_map_iommu,
 	.unmap_iommu = vcodec_drm_unmap_iommu,
+	.map_iommu_with_iova = vcodec_drm_map_iommu_with_iova,
+	.unmap_iommu_with_iova = vcodec_drm_unmap_iommu_with_iova,
 	.destroy = vcodec_drm_destroy,
 	.dump = vcdoec_drm_dump_info,
 	.attach = vcodec_drm_attach,

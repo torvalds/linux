@@ -61,6 +61,13 @@ struct vcodec_iommu_ops {
 			 dma_addr_t *iova, unsigned long *size);
 	int (*unmap_iommu)(struct vcodec_iommu_session_info *session_info,
 			   int idx);
+	int (*map_iommu_with_iova)(struct vcodec_iommu_session_info
+				   *session_info,
+				   int idx,
+				   unsigned long iova, unsigned long size);
+	int (*unmap_iommu_with_iova)(struct vcodec_iommu_session_info
+				     *session_info,
+				     int idx);
 	int (*destroy)(struct vcodec_iommu_info *iommu_info);
 	void (*dump)(struct vcodec_iommu_session_info *session_info);
 	int (*attach)(struct vcodec_iommu_info *iommu_info);
@@ -123,6 +130,14 @@ int vcodec_iommu_map_iommu(struct vcodec_iommu_info *iommu_info,
 int vcodec_iommu_unmap_iommu(struct vcodec_iommu_info *iommu_info,
 			     struct vpu_session *session,
 			     int idx);
+int vcodec_iommu_map_iommu_with_iova(struct vcodec_iommu_info *iommu_info,
+				     void *session,
+				     int idx,
+				     unsigned long iova,
+				     unsigned long size);
+int vcodec_iommu_unmap_iommu_with_iova(struct vcodec_iommu_info *iommu_info,
+				       void *session,
+				       int idx);
 void vcodec_iommu_dump(struct vcodec_iommu_info *iommu_info,
 		       struct vpu_session *session);
 void vcodec_iommu_clear(struct vcodec_iommu_info *iommu_info,

@@ -135,6 +135,35 @@ int vcodec_iommu_free_fd(struct vcodec_iommu_info *iommu_info,
 	return iommu_info->ops->free_fd(session_info, fd);
 }
 
+int vcodec_iommu_map_iommu_with_iova(struct vcodec_iommu_info *iommu_info,
+				     void *session,
+				     int idx, unsigned long iova,
+				     unsigned long size)
+{
+	struct vcodec_iommu_session_info *session_info = NULL;
+
+	session_info = vcodec_iommu_get_session_info(iommu_info, session);
+
+	if (!iommu_info || !iommu_info->ops->map_iommu || !session_info)
+		return -EINVAL;
+
+	return iommu_info->ops->map_iommu_with_iova(session_info,
+						    idx, iova, size);
+}
+
+int vcodec_iommu_unmap_iommu_with_iova(struct vcodec_iommu_info *iommu_info,
+				       void *session, int idx)
+{
+	struct vcodec_iommu_session_info *session_info = NULL;
+
+	session_info = vcodec_iommu_get_session_info(iommu_info, session);
+
+	if (!iommu_info || !iommu_info->ops->unmap_iommu || !session_info)
+		return -EINVAL;
+
+	return iommu_info->ops->unmap_iommu_with_iova(session_info, idx);
+}
+
 int vcodec_iommu_map_iommu(struct vcodec_iommu_info *iommu_info,
 			   struct vpu_session *session,
 			   int idx, dma_addr_t *iova,
