@@ -23,8 +23,8 @@ enum hclge_shaper_level {
 	HCLGE_SHAPER_LVL_PF	= 1,
 };
 
-#define HCLGE_SHAPER_BS_U_DEF	1
-#define HCLGE_SHAPER_BS_S_DEF	4
+#define HCLGE_SHAPER_BS_U_DEF	5
+#define HCLGE_SHAPER_BS_S_DEF	20
 
 #define HCLGE_ETHER_MAX_RATE	100000
 
