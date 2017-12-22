@@ -3179,7 +3179,7 @@ static int rockchip_gpiolib_register(struct platform_device *pdev,
 		bank->gpio_chip = rockchip_gpiolib_chip;
 
 		gc = &bank->gpio_chip;
-		gc->base = ARCH_GPIO_BASE + bank->pin_base;
+		gc->base = bank->pin_base;
 		gc->ngpio = bank->nr_pins;
 		gc->dev = &pdev->dev;
 		gc->of_node = bank->of_node;
