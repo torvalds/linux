@@ -5,7 +5,8 @@
  * Copyright (C) 2001, 2002, 2003, 2004 David S. Miller (davem@redhat.com)
  * Copyright (C) 2001 Jeff Garzik (jgarzik@pobox.com)
  * Copyright (C) 2004 Sun Microsystems Inc.
- * Copyright (C) 2007-2014 Broadcom Corporation.
+ * Copyright (C) 2007-2016 Broadcom Corporation.
+ * Copyright (C) 2016-2017 Broadcom Limited.
  */
 
 #ifndef _T3_H
