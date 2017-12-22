@@ -310,6 +310,19 @@ static int ppc_nest_imc_cpu_offline(unsigned int cpu)
 		return 0;
 
 	/*
+	 * Check whether nest_imc is registered. We could end up here if the
+	 * cpuhotplug callback registration fails. i.e, callback invokes the
+	 * offline path for all successfully registered nodes. At this stage,
+	 * nest_imc pmu will not be registered and we should return here.
+	 *
+	 * We return with a zero since this is not an offline failure. And
+	 * cpuhp_setup_state() returns the actual failure reason to the caller,
+	 * which in turn will call the cleanup routine.
+	 */
+	if (!nest_pmus)
+		return 0;
+
+	/*
 	 * Now that this cpu is one of the designated,
 	 * find a next cpu a) which is online and b) in same chip.
 	 */
@@ -1171,6 +1184,7 @@ static void imc_common_cpuhp_mem_free(struct imc_pmu *pmu_ptr)
 		if (nest_pmus == 1) {
 			cpuhp_remove_state(CPUHP_AP_PERF_POWERPC_NEST_IMC_ONLINE);
 			kfree(nest_imc_refc);
+			kfree(per_nest_pmu_arr);
 		}
 
 		if (nest_pmus > 0)
@@ -1195,7 +1209,6 @@ static void imc_common_cpuhp_mem_free(struct imc_pmu *pmu_ptr)
 		kfree(pmu_ptr->attr_groups[IMC_EVENT_ATTR]->attrs);
 	kfree(pmu_ptr->attr_groups[IMC_EVENT_ATTR]);
 	kfree(pmu_ptr);
-	kfree(per_nest_pmu_arr);
 	return;
 }
 
@@ -1309,6 +1322,8 @@ int init_imc_pmu(struct device_node *parent, struct imc_pmu *pmu_ptr, int pmu_id
 			ret = nest_pmu_cpumask_init();
 			if (ret) {
 				mutex_unlock(&nest_init_lock);
+				kfree(nest_imc_refc);
+				kfree(per_nest_pmu_arr);
 				goto err_free;
 			}
 		}
