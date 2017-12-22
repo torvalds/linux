@@ -1624,7 +1624,7 @@ static int ingress_pkey_table_search(struct hfi1_pportdata *ppd, u16 pkey)
  * the 'error info' for this failure.
  */
 static void ingress_pkey_table_fail(struct hfi1_pportdata *ppd, u16 pkey,
-				    u16 slid)
+				    u32 slid)
 {
 	struct hfi1_devdata *dd = ppd->dd;
 
