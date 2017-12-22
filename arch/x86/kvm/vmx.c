@@ -408,6 +408,12 @@ struct __packed vmcs12 {
 #define VMCS12_SIZE 0x1000
 
 /*
+ * VMCS12_MAX_FIELD_INDEX is the highest index value used in any
+ * supported VMCS12 field encoding.
+ */
+#define VMCS12_MAX_FIELD_INDEX 0x17
+
+/*
  * The nested_vmx structure is part of vcpu_vmx, and holds information we need
  * for correct emulation of VMX (i.e., nested VMX) on this vcpu.
  */
@@ -2923,7 +2929,7 @@ static void nested_vmx_setup_ctls_msrs(struct vcpu_vmx *vmx)
 	rdmsrl(MSR_IA32_VMX_CR4_FIXED1, vmx->nested.nested_vmx_cr4_fixed1);
 
 	/* highest index: VMX_PREEMPTION_TIMER_VALUE */
-	vmx->nested.nested_vmx_vmcs_enum = 0x2e;
+	vmx->nested.nested_vmx_vmcs_enum = VMCS12_MAX_FIELD_INDEX << 1;
 }
 
 /*
