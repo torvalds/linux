@@ -580,26 +580,19 @@ static void plane_atomic_disconnect(struct dc *dc, struct pipe_ctx *pipe_ctx)
 	struct hubp *hubp = pipe_ctx->plane_res.hubp;
 	int dpp_id = pipe_ctx->plane_res.dpp->inst;
 	struct mpc *mpc = dc->res_pool->mpc;
-	int pipe_idx;
 	struct mpc_tree *mpc_tree_params;
 	struct mpcc *mpcc_to_remove = NULL;
+	struct output_pixel_processor *opp = pipe_ctx->stream_res.opp;
 
-	/* look at tree rather than mi here to know if we already reset */
-	for (pipe_idx = 0; pipe_idx < dc->res_pool->pipe_count; pipe_idx++) {
-		struct output_pixel_processor *opp = dc->res_pool->opps[pipe_idx];
-
-		mpc_tree_params = &(opp->mpc_tree_params);
-		mpcc_to_remove = mpc->funcs->get_mpcc_for_dpp(mpc_tree_params, dpp_id);
-		if (mpcc_to_remove != NULL)
-			break;
-	}
+	mpc_tree_params = &(opp->mpc_tree_params);
+	mpcc_to_remove = mpc->funcs->get_mpcc_for_dpp(mpc_tree_params, dpp_id);
 
 	/*Already reset*/
-	if (pipe_idx == dc->res_pool->pipe_count)
+	if (mpcc_to_remove == NULL)
 		return;
 
 	mpc->funcs->remove_mpcc(mpc, mpc_tree_params, mpcc_to_remove);
-	dc->res_pool->opps[pipe_idx]->mpcc_disconnect_pending[pipe_ctx->plane_res.mpcc_inst] = true;
+	opp->mpcc_disconnect_pending[pipe_ctx->plane_res.mpcc_inst] = true;
 
 	dc->optimized_required = true;
 
@@ -975,8 +968,6 @@ static void dcn10_pipe_control_lock(
 	struct pipe_ctx *pipe,
 	bool lock)
 {
-	struct hubp *hubp = NULL;
-	hubp = dc->res_pool->hubps[pipe->pipe_idx];
 	/* use TG master update lock to lock everything on the TG
 	 * therefore only top pipe need to lock
 	 */
