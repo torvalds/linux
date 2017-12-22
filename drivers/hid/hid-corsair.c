@@ -2,11 +2,14 @@
  * HID driver for Corsair devices
  *
  * Supported devices:
+ *  - Vengeance K70 Keyboard
+ *  - K70 RAPIDFIRE Keyboard
  *  - Vengeance K90 Keyboard
  *  - Scimitar PRO RGB Gaming Mouse
  *
  * Copyright (c) 2015 Clement Vuchener
  * Copyright (c) 2017 Oscar Campos
+ * Copyright (c) 2017 Aaron Bottegal
  */
 
 /*
@@ -721,6 +724,11 @@ static const struct hid_device_id corsair_devices[] = {
             USB_DEVICE_ID_CORSAIR_GLAIVE_RGB) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_CORSAIR,
             USB_DEVICE_ID_CORSAIR_SCIMITAR_PRO_RGB) },
+	/*
+	 * Vengeance K70 and K70 RAPIDFIRE share product IDs.
+	 */
+	{ HID_USB_DEVICE(USB_VENDOR_ID_CORSAIR,
+            USB_DEVICE_ID_CORSAIR_K70R) },
 	{}
 };
 
