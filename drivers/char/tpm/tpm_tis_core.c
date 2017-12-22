@@ -766,6 +766,13 @@ int tpm_tis_core_init(struct device *dev, struct tpm_tis_data *priv, int irq,
 	priv->phy_ops = phy_ops;
 	dev_set_drvdata(&chip->dev, priv);
 
+	if (is_bsw()) {
+		priv->ilb_base_addr = ioremap(INTEL_LEGACY_BLK_BASE_ADDR,
+					ILB_REMAP_SIZE);
+		if (!priv->ilb_base_addr)
+			return -ENOMEM;
+	}
+
 	if (wait_startup(chip, 0) != 0) {
 		rc = -ENODEV;
 		goto out_err;
@@ -856,9 +863,16 @@ int tpm_tis_core_init(struct device *dev, struct tpm_tis_data *priv, int irq,
 		}
 	}
 
-	return tpm_chip_register(chip);
+	rc = tpm_chip_register(chip);
+	if (rc && is_bsw())
+		iounmap(priv->ilb_base_addr);
+
+	return rc;
 out_err:
 	tpm_tis_remove(chip);
+	if (is_bsw())
+		iounmap(priv->ilb_base_addr);
+
 	return rc;
 }
 EXPORT_SYMBOL_GPL(tpm_tis_core_init);
