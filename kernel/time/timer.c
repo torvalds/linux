@@ -982,8 +982,6 @@ __mod_timer(struct timer_list *timer, unsigned long expires, bool pending_only)
 	if (!ret && pending_only)
 		goto out_unlock;
 
-	debug_activate(timer, expires);
-
 	new_base = get_target_base(base, timer->flags);
 
 	if (base != new_base) {
@@ -1006,6 +1004,8 @@ __mod_timer(struct timer_list *timer, unsigned long expires, bool pending_only)
 			forward_timer_base(base);
 		}
 	}
+
+	debug_activate(timer, expires);
 
 	timer->expires = expires;
 	/*
