@@ -1032,6 +1032,9 @@ static int hns3_nic_set_features(struct net_device *netdev,
 				 netdev_features_t features)
 {
 	struct hns3_nic_priv *priv = netdev_priv(netdev);
+	struct hnae3_handle *h = priv->ae_handle;
+	netdev_features_t changed;
+	int ret;
 
 	if (features & (NETIF_F_TSO | NETIF_F_TSO6)) {
 		priv->ops.fill_desc = hns3_fill_desc_tso;
@@ -1039,6 +1042,17 @@ static int hns3_nic_set_features(struct net_device *netdev,
 	} else {
 		priv->ops.fill_desc = hns3_fill_desc;
 		priv->ops.maybe_stop_tx = hns3_nic_maybe_stop_tx;
+	}
+
+	changed = netdev->features ^ features;
+	if (changed & NETIF_F_HW_VLAN_CTAG_RX) {
+		if (features & NETIF_F_HW_VLAN_CTAG_RX)
+			ret = h->ae_algo->ops->enable_hw_strip_rxvtag(h, true);
+		else
+			ret = h->ae_algo->ops->enable_hw_strip_rxvtag(h, false);
+
+		if (ret)
+			return ret;
 	}
 
 	netdev->features = features;
@@ -1492,6 +1506,7 @@ static void hns3_set_default_feature(struct net_device *netdev)
 
 	netdev->features |= NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
 		NETIF_F_HW_VLAN_CTAG_FILTER |
+		NETIF_F_HW_VLAN_CTAG_TX | NETIF_F_HW_VLAN_CTAG_RX |
 		NETIF_F_RXCSUM | NETIF_F_SG | NETIF_F_GSO |
 		NETIF_F_GRO | NETIF_F_TSO | NETIF_F_TSO6 | NETIF_F_GSO_GRE |
 		NETIF_F_GSO_GRE_CSUM | NETIF_F_GSO_UDP_TUNNEL |
@@ -1506,6 +1521,7 @@ static void hns3_set_default_feature(struct net_device *netdev)
 
 	netdev->hw_features |= NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
 		NETIF_F_HW_VLAN_CTAG_FILTER |
+		NETIF_F_HW_VLAN_CTAG_TX | NETIF_F_HW_VLAN_CTAG_RX |
 		NETIF_F_RXCSUM | NETIF_F_SG | NETIF_F_GSO |
 		NETIF_F_GRO | NETIF_F_TSO | NETIF_F_TSO6 | NETIF_F_GSO_GRE |
 		NETIF_F_GSO_GRE_CSUM | NETIF_F_GSO_UDP_TUNNEL |

@@ -4547,6 +4547,18 @@ static int hclge_init_vlan_config(struct hclge_dev *hdev)
 	return hclge_set_port_vlan_filter(handle, htons(ETH_P_8021Q), 0, false);
 }
 
+static int hclge_en_hw_strip_rxvtag(struct hnae3_handle *handle, bool enable)
+{
+	struct hclge_vport *vport = hclge_get_vport(handle);
+
+	vport->rxvlan_cfg.strip_tag1_en = false;
+	vport->rxvlan_cfg.strip_tag2_en = enable;
+	vport->rxvlan_cfg.vlan1_vlan_prionly = false;
+	vport->rxvlan_cfg.vlan2_vlan_prionly = false;
+
+	return hclge_set_vlan_rx_offload_cfg(vport);
+}
+
 static int hclge_set_mtu(struct hnae3_handle *handle, int new_mtu)
 {
 	struct hclge_vport *vport = hclge_get_vport(handle);
@@ -5362,6 +5374,7 @@ static const struct hnae3_ae_ops hclge_ops = {
 	.get_mdix_mode = hclge_get_mdix_mode,
 	.set_vlan_filter = hclge_set_port_vlan_filter,
 	.set_vf_vlan_filter = hclge_set_vf_vlan_filter,
+	.enable_hw_strip_rxvtag = hclge_en_hw_strip_rxvtag,
 	.reset_event = hclge_reset_event,
 	.get_tqps_and_rss_info = hclge_get_tqps_and_rss_info,
 	.set_channels = hclge_set_channels,
