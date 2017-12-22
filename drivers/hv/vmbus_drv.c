@@ -37,7 +37,6 @@
 #include <linux/sched/task_stack.h>
 
 #include <asm/hyperv.h>
-#include <asm/hypervisor.h>
 #include <asm/mshyperv.h>
 #include <linux/notifier.h>
 #include <linux/ptrace.h>
@@ -1053,7 +1052,7 @@ static int vmbus_bus_init(void)
 	 * Initialize the per-cpu interrupt state and
 	 * connect to the host.
 	 */
-	ret = cpuhp_setup_state(CPUHP_AP_ONLINE_DYN, "x86/hyperv:online",
+	ret = cpuhp_setup_state(CPUHP_AP_ONLINE_DYN, "hyperv/vmbus:online",
 				hv_synic_init, hv_synic_cleanup);
 	if (ret < 0)
 		goto err_alloc;
@@ -1717,7 +1716,7 @@ static int __init hv_acpi_init(void)
 {
 	int ret, t;
 
-	if (x86_hyper_type != X86_HYPER_MS_HYPERV)
+	if (!hv_is_hyperv_initialized())
 		return -ENODEV;
 
 	init_completion(&probe_event);
