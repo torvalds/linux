@@ -249,7 +249,7 @@ nv50_instobj_acquire(struct nvkm_memory *memory)
 			iobj->base.memory.ptrs = &nv50_instobj_fast;
 		else
 			iobj->base.memory.ptrs = &nv50_instobj_slow;
-		refcount_inc(&iobj->maps);
+		refcount_set(&iobj->maps, 1);
 	}
 
 	mutex_unlock(&imem->subdev.mutex);

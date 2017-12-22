@@ -157,8 +157,8 @@ struct nouveau_drm {
 		struct nvif_object copy;
 		int mtrr;
 		int type_vram;
-		int type_host;
-		int type_ncoh;
+		int type_host[2];
+		int type_ncoh[2];
 	} ttm;
 
 	/* GEM interface support */
@@ -215,6 +215,13 @@ static inline struct nouveau_drm *
 nouveau_drm(struct drm_device *dev)
 {
 	return dev->dev_private;
+}
+
+static inline bool
+nouveau_drm_use_coherent_gpu_mapping(struct nouveau_drm *drm)
+{
+	struct nvif_mmu *mmu = &drm->client.mmu;
+	return !(mmu->type[drm->ttm.type_host[0]].type & NVIF_MEM_UNCACHED);
 }
 
 int nouveau_pmops_suspend(struct device *);

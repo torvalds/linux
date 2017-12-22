@@ -175,11 +175,31 @@ static void sun4i_hdmi_mode_set(struct drm_encoder *encoder,
 	writel(val, hdmi->base + SUN4I_HDMI_VID_TIMING_POL_REG);
 }
 
+static enum drm_mode_status sun4i_hdmi_mode_valid(struct drm_encoder *encoder,
+					const struct drm_display_mode *mode)
+{
+	struct sun4i_hdmi *hdmi = drm_encoder_to_sun4i_hdmi(encoder);
+	unsigned long rate = mode->clock * 1000;
+	unsigned long diff = rate / 200; /* +-0.5% allowed by HDMI spec */
+	long rounded_rate;
+
+	/* 165 MHz is the typical max pixelclock frequency for HDMI <= 1.2 */
+	if (rate > 165000000)
+		return MODE_CLOCK_HIGH;
+	rounded_rate = clk_round_rate(hdmi->tmds_clk, rate);
+	if (rounded_rate > 0 &&
+	    max_t(unsigned long, rounded_rate, rate) -
+	    min_t(unsigned long, rounded_rate, rate) < diff)
+		return MODE_OK;
+	return MODE_NOCLOCK;
+}
+
 static const struct drm_encoder_helper_funcs sun4i_hdmi_helper_funcs = {
 	.atomic_check	= sun4i_hdmi_atomic_check,
 	.disable	= sun4i_hdmi_disable,
 	.enable		= sun4i_hdmi_enable,
 	.mode_set	= sun4i_hdmi_mode_set,
+	.mode_valid	= sun4i_hdmi_mode_valid,
 };
 
 static const struct drm_encoder_funcs sun4i_hdmi_funcs = {

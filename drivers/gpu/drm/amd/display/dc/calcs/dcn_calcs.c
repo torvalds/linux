@@ -900,6 +900,15 @@ bool dcn_validate_bandwidth(
 			v->override_vta_ps[input_idx] = pipe->plane_res.scl_data.taps.v_taps;
 			v->override_hta_pschroma[input_idx] = pipe->plane_res.scl_data.taps.h_taps_c;
 			v->override_vta_pschroma[input_idx] = pipe->plane_res.scl_data.taps.v_taps_c;
+			/*
+			 * Spreadsheet doesn't handle taps_c is one properly,
+			 * need to force Chroma to always be scaled to pass
+			 * bandwidth validation.
+			 */
+			if (v->override_hta_pschroma[input_idx] == 1)
+				v->override_hta_pschroma[input_idx] = 2;
+			if (v->override_vta_pschroma[input_idx] == 1)
+				v->override_vta_pschroma[input_idx] = 2;
 			v->source_scan[input_idx] = (pipe->plane_state->rotation % 2) ? dcn_bw_vert : dcn_bw_hor;
 		}
 		if (v->is_line_buffer_bpp_fixed == dcn_bw_yes)
