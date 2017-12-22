@@ -339,4 +339,21 @@ static inline void intel_gvt_hypervisor_put_vfio_device(struct intel_vgpu *vgpu)
 	intel_gvt_host.mpt->put_vfio_device(vgpu);
 }
 
+/**
+ * intel_gvt_hypervisor_is_valid_gfn - check if a visible gfn
+ * @vgpu: a vGPU
+ * @gfn: guest PFN
+ *
+ * Returns:
+ * true on valid gfn, false on not.
+ */
+static inline bool intel_gvt_hypervisor_is_valid_gfn(
+		struct intel_vgpu *vgpu, unsigned long gfn)
+{
+	if (!intel_gvt_host.mpt->is_valid_gfn)
+		return true;
+
+	return intel_gvt_host.mpt->is_valid_gfn(vgpu->handle, gfn);
+}
+
 #endif /* _GVT_MPT_H_ */
