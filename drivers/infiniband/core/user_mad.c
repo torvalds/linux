@@ -233,8 +233,7 @@ static void recv_handler(struct ib_mad_agent *agent,
 	 * On OPA devices it is okay to lose the upper 16 bits of LID as this
 	 * information is obtained elsewhere. Mask off the upper 16 bits.
 	 */
-	if (agent->device->port_immutable[agent->port_num].core_cap_flags &
-	    RDMA_CORE_PORT_INTEL_OPA)
+	if (rdma_cap_opa_mad(agent->device, agent->port_num))
 		packet->mad.hdr.lid = ib_lid_be16(0xFFFF &
 						  mad_recv_wc->wc->slid);
 	else
