@@ -1853,11 +1853,13 @@ void hash__setup_initial_memory_limit(phys_addr_t first_memblock_base,
 	 * non-virtualized 64-bit hash MMU systems don't have a limitation
 	 * on real mode access.
 	 *
-	 * We also clamp it to 1G to avoid some funky things
-	 * such as RTAS bugs etc...
+	 * For guests on platforms before POWER9, we clamp the it limit to 1G
+	 * to avoid some funky things such as RTAS bugs etc...
 	 */
 	if (!early_cpu_has_feature(CPU_FTR_HVMODE)) {
-		ppc64_rma_size = min_t(u64, first_memblock_size, 0x40000000);
+		ppc64_rma_size = first_memblock_size;
+		if (!early_cpu_has_feature(CPU_FTR_ARCH_300))
+			ppc64_rma_size = min_t(u64, ppc64_rma_size, 0x40000000);
 
 		/* Finally limit subsequent allocations */
 		memblock_set_current_limit(ppc64_rma_size);
