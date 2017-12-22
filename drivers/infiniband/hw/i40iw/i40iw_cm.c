@@ -128,6 +128,8 @@ static void i40iw_record_ird_ord(struct i40iw_cm_node *cm_node, u32 conn_ird,
 
 	if (conn_ord > I40IW_MAX_ORD_SIZE)
 		conn_ord = I40IW_MAX_ORD_SIZE;
+	else if (!conn_ord && cm_node->send_rdma0_op == SEND_RDMA_READ_ZERO)
+		conn_ord = 1;
 
 	cm_node->ird_size = conn_ird;
 	cm_node->ord_size = conn_ord;
@@ -2874,21 +2876,22 @@ static struct i40iw_cm_listener *i40iw_make_listen_node(
  * i40iw_create_cm_node - make a connection node with params
  * @cm_core: cm's core
  * @iwdev: iwarp device structure
- * @private_data_len: len to provate data for mpa request
- * @private_data: pointer to private data for connection
+ * @conn_param: upper layer connection parameters
  * @cm_info: quad info for connection
  */
 static struct i40iw_cm_node *i40iw_create_cm_node(
 					struct i40iw_cm_core *cm_core,
 					struct i40iw_device *iwdev,
-					u16 private_data_len,
-					void *private_data,
+					struct iw_cm_conn_param *conn_param,
 					struct i40iw_cm_info *cm_info)
 {
 	struct i40iw_cm_node *cm_node;
 	struct i40iw_cm_listener *loopback_remotelistener;
 	struct i40iw_cm_node *loopback_remotenode;
 	struct i40iw_cm_info loopback_cm_info;
+
+	u16 private_data_len = conn_param->private_data_len;
+	const void *private_data = conn_param->private_data;
 
 	/* create a CM connection node */
 	cm_node = i40iw_make_cm_node(cm_core, iwdev, cm_info, NULL);
@@ -2897,6 +2900,8 @@ static struct i40iw_cm_node *i40iw_create_cm_node(
 	/* set our node side to client (active) side */
 	cm_node->tcp_cntxt.client = 1;
 	cm_node->tcp_cntxt.rcv_wscale = I40IW_CM_DEFAULT_RCV_WND_SCALE;
+
+	i40iw_record_ird_ord(cm_node, conn_param->ird, conn_param->ord);
 
 	if (!memcmp(cm_info->loc_addr, cm_info->rem_addr, sizeof(cm_info->loc_addr))) {
 		loopback_remotelistener = i40iw_find_listener(
@@ -2930,6 +2935,10 @@ static struct i40iw_cm_node *i40iw_create_cm_node(
 			memcpy(loopback_remotenode->pdata_buf, private_data,
 			       private_data_len);
 			loopback_remotenode->pdata.size = private_data_len;
+
+			if (loopback_remotenode->ord_size > cm_node->ird_size)
+				loopback_remotenode->ord_size =
+					cm_node->ird_size;
 
 			cm_node->state = I40IW_CM_STATE_OFFLOADED;
 			cm_node->tcp_cntxt.rcv_nxt =
@@ -3809,9 +3818,7 @@ int i40iw_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 		    __func__, cm_id->tos, cm_info.user_pri);
 	cm_id->add_ref(cm_id);
 	cm_node = i40iw_create_cm_node(&iwdev->cm_core, iwdev,
-				       conn_param->private_data_len,
-				       (void *)conn_param->private_data,
-				       &cm_info);
+				       conn_param, &cm_info);
 
 	if (IS_ERR(cm_node)) {
 		ret = PTR_ERR(cm_node);
@@ -3843,11 +3850,6 @@ int i40iw_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 	}
 
 	cm_node->apbvt_set = true;
-	i40iw_record_ird_ord(cm_node, conn_param->ird, conn_param->ord);
-	if (cm_node->send_rdma0_op == SEND_RDMA_READ_ZERO &&
-	    !cm_node->ord_size)
-		cm_node->ord_size = 1;
-
 	iwqp->cm_node = cm_node;
 	cm_node->iwqp = iwqp;
 	iwqp->cm_id = cm_id;
