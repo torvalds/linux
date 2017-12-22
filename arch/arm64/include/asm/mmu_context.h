@@ -49,7 +49,7 @@ static inline void contextidr_thread_switch(struct task_struct *next)
  */
 static inline void cpu_set_reserved_ttbr0(void)
 {
-	unsigned long ttbr = __pa_symbol(empty_zero_page);
+	unsigned long ttbr = phys_to_ttbr(__pa_symbol(empty_zero_page));
 
 	write_sysreg(ttbr, ttbr0_el1);
 	isb();
@@ -68,11 +68,21 @@ static inline void cpu_switch_mm(pgd_t *pgd, struct mm_struct *mm)
  * physical memory, in which case it will be smaller.
  */
 extern u64 idmap_t0sz;
+extern u64 idmap_ptrs_per_pgd;
 
 static inline bool __cpu_uses_extended_idmap(void)
 {
 	return (!IS_ENABLED(CONFIG_ARM64_VA_BITS_48) &&
 		unlikely(idmap_t0sz != TCR_T0SZ(VA_BITS)));
+}
+
+/*
+ * True if the extended ID map requires an extra level of translation table
+ * to be configured.
+ */
+static inline bool __cpu_uses_extended_idmap_level(void)
+{
+	return ARM64_HW_PGTABLE_LEVELS((64 - idmap_t0sz)) > CONFIG_PGTABLE_LEVELS;
 }
 
 /*
