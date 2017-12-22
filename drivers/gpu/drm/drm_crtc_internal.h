@@ -196,8 +196,8 @@ int drm_mode_atomic_ioctl(struct drm_device *dev,
 /* drm_plane.c */
 int drm_plane_register_all(struct drm_device *dev);
 void drm_plane_unregister_all(struct drm_device *dev);
-int drm_plane_check_pixel_format(const struct drm_plane *plane,
-				 u32 format);
+int drm_plane_check_pixel_format(struct drm_plane *plane,
+				 u32 format, u64 modifier);
 
 /* drm_bridge.c */
 void drm_bridge_detach(struct drm_bridge *bridge);

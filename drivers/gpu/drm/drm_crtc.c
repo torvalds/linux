@@ -629,12 +629,14 @@ retry:
 		 */
 		if (!crtc->primary->format_default) {
 			ret = drm_plane_check_pixel_format(crtc->primary,
-							   fb->format->format);
+							   fb->format->format,
+							   fb->modifier);
 			if (ret) {
 				struct drm_format_name_buf format_name;
-				DRM_DEBUG_KMS("Invalid pixel format %s\n",
-				              drm_get_format_name(fb->format->format,
-				                                  &format_name));
+				DRM_DEBUG_KMS("Invalid pixel format %s, modifier 0x%llx\n",
+					      drm_get_format_name(fb->format->format,
+								  &format_name),
+					      fb->modifier);
 				goto out;
 			}
 		}
