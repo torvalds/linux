@@ -768,7 +768,7 @@ static void kvm_s390_sync_request_broadcast(struct kvm *kvm, int req)
 
 /*
  * Must be called with kvm->srcu held to avoid races on memslots, and with
- * kvm->lock to avoid races with ourselves and kvm_s390_vm_stop_migration.
+ * kvm->slots_lock to avoid races with ourselves and kvm_s390_vm_stop_migration.
  */
 static int kvm_s390_vm_start_migration(struct kvm *kvm)
 {
@@ -824,7 +824,7 @@ static int kvm_s390_vm_start_migration(struct kvm *kvm)
 }
 
 /*
- * Must be called with kvm->lock to avoid races with ourselves and
+ * Must be called with kvm->slots_lock to avoid races with ourselves and
  * kvm_s390_vm_start_migration.
  */
 static int kvm_s390_vm_stop_migration(struct kvm *kvm)
@@ -839,6 +839,8 @@ static int kvm_s390_vm_stop_migration(struct kvm *kvm)
 
 	if (kvm->arch.use_cmma) {
 		kvm_s390_sync_request_broadcast(kvm, KVM_REQ_STOP_MIGRATION);
+		/* We have to wait for the essa emulation to finish */
+		synchronize_srcu(&kvm->srcu);
 		vfree(mgs->pgste_bitmap);
 	}
 	kfree(mgs);
@@ -848,14 +850,12 @@ static int kvm_s390_vm_stop_migration(struct kvm *kvm)
 static int kvm_s390_vm_set_migration(struct kvm *kvm,
 				     struct kvm_device_attr *attr)
 {
-	int idx, res = -ENXIO;
+	int res = -ENXIO;
 
-	mutex_lock(&kvm->lock);
+	mutex_lock(&kvm->slots_lock);
 	switch (attr->attr) {
 	case KVM_S390_VM_MIGRATION_START:
-		idx = srcu_read_lock(&kvm->srcu);
 		res = kvm_s390_vm_start_migration(kvm);
-		srcu_read_unlock(&kvm->srcu, idx);
 		break;
 	case KVM_S390_VM_MIGRATION_STOP:
 		res = kvm_s390_vm_stop_migration(kvm);
@@ -863,7 +863,7 @@ static int kvm_s390_vm_set_migration(struct kvm *kvm,
 	default:
 		break;
 	}
-	mutex_unlock(&kvm->lock);
+	mutex_unlock(&kvm->slots_lock);
 
 	return res;
 }
@@ -1753,7 +1753,9 @@ long kvm_arch_vm_ioctl(struct file *filp,
 		r = -EFAULT;
 		if (copy_from_user(&args, argp, sizeof(args)))
 			break;
+		mutex_lock(&kvm->slots_lock);
 		r = kvm_s390_get_cmma_bits(kvm, &args);
+		mutex_unlock(&kvm->slots_lock);
 		if (!r) {
 			r = copy_to_user(argp, &args, sizeof(args));
 			if (r)
@@ -1767,7 +1769,9 @@ long kvm_arch_vm_ioctl(struct file *filp,
 		r = -EFAULT;
 		if (copy_from_user(&args, argp, sizeof(args)))
 			break;
+		mutex_lock(&kvm->slots_lock);
 		r = kvm_s390_set_cmma_bits(kvm, &args);
+		mutex_unlock(&kvm->slots_lock);
 		break;
 	}
 	default:
