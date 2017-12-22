@@ -152,9 +152,9 @@ nouveau_cli_work_queue(struct nouveau_cli *cli, struct dma_fence *fence,
 	work->cli = cli;
 	mutex_lock(&cli->lock);
 	list_add_tail(&work->head, &cli->worker);
-	mutex_unlock(&cli->lock);
 	if (dma_fence_add_callback(fence, &work->cb, nouveau_cli_work_fence))
 		nouveau_cli_work_fence(fence, &work->cb);
+	mutex_unlock(&cli->lock);
 }
 
 static void
