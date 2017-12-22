@@ -112,7 +112,7 @@ static int hclge_shaper_para_calc(u32 ir, u8 shaper_level,
 	return 0;
 }
 
-static int hclge_mac_pause_en_cfg(struct hclge_dev *hdev, bool tx, bool rx)
+int hclge_mac_pause_en_cfg(struct hclge_dev *hdev, bool tx, bool rx)
 {
 	struct hclge_desc desc;
 

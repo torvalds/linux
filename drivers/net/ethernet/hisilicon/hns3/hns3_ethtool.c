@@ -559,6 +559,18 @@ static void hns3_get_pauseparam(struct net_device *netdev,
 			&param->rx_pause, &param->tx_pause);
 }
 
+static int hns3_set_pauseparam(struct net_device *netdev,
+			       struct ethtool_pauseparam *param)
+{
+	struct hnae3_handle *h = hns3_get_handle(netdev);
+
+	if (h->ae_algo->ops->set_pauseparam)
+		return h->ae_algo->ops->set_pauseparam(h, param->autoneg,
+						       param->rx_pause,
+						       param->tx_pause);
+	return -EOPNOTSUPP;
+}
+
 static int hns3_get_link_ksettings(struct net_device *netdev,
 				   struct ethtool_link_ksettings *cmd)
 {
@@ -880,6 +892,7 @@ static const struct ethtool_ops hns3_ethtool_ops = {
 	.get_ringparam = hns3_get_ringparam,
 	.set_ringparam = hns3_set_ringparam,
 	.get_pauseparam = hns3_get_pauseparam,
+	.set_pauseparam = hns3_set_pauseparam,
 	.get_strings = hns3_get_strings,
 	.get_ethtool_stats = hns3_get_stats,
 	.get_sset_count = hns3_get_sset_count,

@@ -4660,6 +4660,53 @@ static u32 hclge_get_fw_version(struct hnae3_handle *handle)
 	return hdev->fw_version;
 }
 
+static void hclge_set_flowctrl_adv(struct hclge_dev *hdev, u32 rx_en, u32 tx_en)
+{
+	struct phy_device *phydev = hdev->hw.mac.phydev;
+
+	if (!phydev)
+		return;
+
+	phydev->advertising &= ~(ADVERTISED_Pause | ADVERTISED_Asym_Pause);
+
+	if (rx_en)
+		phydev->advertising |= ADVERTISED_Pause | ADVERTISED_Asym_Pause;
+
+	if (tx_en)
+		phydev->advertising ^= ADVERTISED_Asym_Pause;
+}
+
+static int hclge_cfg_pauseparam(struct hclge_dev *hdev, u32 rx_en, u32 tx_en)
+{
+	enum hclge_fc_mode fc_mode;
+	int ret;
+
+	if (rx_en && tx_en)
+		fc_mode = HCLGE_FC_FULL;
+	else if (rx_en && !tx_en)
+		fc_mode = HCLGE_FC_RX_PAUSE;
+	else if (!rx_en && tx_en)
+		fc_mode = HCLGE_FC_TX_PAUSE;
+	else
+		fc_mode = HCLGE_FC_NONE;
+
+	if (hdev->tm_info.fc_mode == HCLGE_FC_PFC) {
+		hdev->fc_mode_last_time = fc_mode;
+		return 0;
+	}
+
+	ret = hclge_mac_pause_en_cfg(hdev, tx_en, rx_en);
+	if (ret) {
+		dev_err(&hdev->pdev->dev, "configure pauseparam error, ret = %d.\n",
+			ret);
+		return ret;
+	}
+
+	hdev->tm_info.fc_mode = fc_mode;
+
+	return 0;
+}
+
 static void hclge_get_pauseparam(struct hnae3_handle *handle, u32 *auto_neg,
 				 u32 *rx_en, u32 *tx_en)
 {
@@ -4687,6 +4734,41 @@ static void hclge_get_pauseparam(struct hnae3_handle *handle, u32 *auto_neg,
 		*rx_en = 0;
 		*tx_en = 0;
 	}
+}
+
+static int hclge_set_pauseparam(struct hnae3_handle *handle, u32 auto_neg,
+				u32 rx_en, u32 tx_en)
+{
+	struct hclge_vport *vport = hclge_get_vport(handle);
+	struct hclge_dev *hdev = vport->back;
+	struct phy_device *phydev = hdev->hw.mac.phydev;
+	u32 fc_autoneg;
+
+	/* Only support flow control negotiation for netdev with
+	 * phy attached for now.
+	 */
+	if (!phydev)
+		return -EOPNOTSUPP;
+
+	fc_autoneg = hclge_get_autoneg(handle);
+	if (auto_neg != fc_autoneg) {
+		dev_info(&hdev->pdev->dev,
+			 "To change autoneg please use: ethtool -s <dev> autoneg <on|off>\n");
+		return -EOPNOTSUPP;
+	}
+
+	if (hdev->tm_info.fc_mode == HCLGE_FC_PFC) {
+		dev_info(&hdev->pdev->dev,
+			 "Priority flow control enabled. Cannot set link flow control.\n");
+		return -EOPNOTSUPP;
+	}
+
+	hclge_set_flowctrl_adv(hdev, rx_en, tx_en);
+
+	if (!fc_autoneg)
+		return hclge_cfg_pauseparam(hdev, rx_en, tx_en);
+
+	return phy_start_aneg(phydev);
 }
 
 static void hclge_get_ksettings_an_result(struct hnae3_handle *handle,
@@ -5344,6 +5426,7 @@ static const struct hnae3_ae_ops hclge_ops = {
 	.set_autoneg = hclge_set_autoneg,
 	.get_autoneg = hclge_get_autoneg,
 	.get_pauseparam = hclge_get_pauseparam,
+	.set_pauseparam = hclge_set_pauseparam,
 	.set_mtu = hclge_set_mtu,
 	.reset_queue = hclge_reset_tqp,
 	.get_stats = hclge_get_stats,
