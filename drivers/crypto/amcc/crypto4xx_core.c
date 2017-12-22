@@ -1075,9 +1075,6 @@ static irqreturn_t crypto4xx_ce_interrupt_handler(int irq, void *data)
 	struct device *dev = (struct device *)data;
 	struct crypto4xx_core_device *core_dev = dev_get_drvdata(dev);
 
-	if (!core_dev->dev->ce_base)
-		return 0;
-
 	writel(PPC4XX_INTERRUPT_CLR,
 	       core_dev->dev->ce_base + CRYPTO4XX_INT_CLR);
 	tasklet_schedule(&core_dev->tasklet);
@@ -1325,19 +1322,19 @@ static int crypto4xx_probe(struct platform_device *ofdev)
 	tasklet_init(&core_dev->tasklet, crypto4xx_bh_tasklet_cb,
 		     (unsigned long) dev);
 
-	/* Register for Crypto isr, Crypto Engine IRQ */
-	core_dev->irq = irq_of_parse_and_map(ofdev->dev.of_node, 0);
-	rc = request_irq(core_dev->irq, crypto4xx_ce_interrupt_handler, 0,
-			 core_dev->dev->name, dev);
-	if (rc)
-		goto err_request_irq;
-
 	core_dev->dev->ce_base = of_iomap(ofdev->dev.of_node, 0);
 	if (!core_dev->dev->ce_base) {
 		dev_err(dev, "failed to of_iomap\n");
 		rc = -ENOMEM;
 		goto err_iomap;
 	}
+
+	/* Register for Crypto isr, Crypto Engine IRQ */
+	core_dev->irq = irq_of_parse_and_map(ofdev->dev.of_node, 0);
+	rc = request_irq(core_dev->irq, crypto4xx_ce_interrupt_handler, 0,
+			 core_dev->dev->name, dev);
+	if (rc)
+		goto err_request_irq;
 
 	/* need to setup pdr, rdr, gdr and sdr before this */
 	crypto4xx_hw_init(core_dev->dev);
@@ -1352,11 +1349,11 @@ static int crypto4xx_probe(struct platform_device *ofdev)
 	return 0;
 
 err_start_dev:
-	iounmap(core_dev->dev->ce_base);
-err_iomap:
 	free_irq(core_dev->irq, dev);
 err_request_irq:
 	irq_dispose_mapping(core_dev->irq);
+	iounmap(core_dev->dev->ce_base);
+err_iomap:
 	tasklet_kill(&core_dev->tasklet);
 err_build_sdr:
 	crypto4xx_destroy_sdr(core_dev->dev);
