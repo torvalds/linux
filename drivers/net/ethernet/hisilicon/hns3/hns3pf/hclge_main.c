@@ -2137,28 +2137,6 @@ static int hclge_query_mac_an_speed_dup(struct hclge_dev *hdev, int *speed,
 	return 0;
 }
 
-static int hclge_query_autoneg_result(struct hclge_dev *hdev)
-{
-	struct hclge_mac *mac = &hdev->hw.mac;
-	struct hclge_query_an_speed_dup_cmd *req;
-	struct hclge_desc desc;
-	int ret;
-
-	req = (struct hclge_query_an_speed_dup_cmd *)desc.data;
-
-	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_QUERY_AN_RESULT, true);
-	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
-	if (ret) {
-		dev_err(&hdev->pdev->dev,
-			"autoneg result query cmd failed %d.\n", ret);
-		return ret;
-	}
-
-	mac->autoneg = hnae_get_bit(req->an_syn_dup_speed, HCLGE_QUERY_AN_B);
-
-	return 0;
-}
-
 static int hclge_set_autoneg_en(struct hclge_dev *hdev, bool enable)
 {
 	struct hclge_config_auto_neg_cmd *req;
@@ -2194,8 +2172,6 @@ static int hclge_get_autoneg(struct hnae3_handle *handle)
 {
 	struct hclge_vport *vport = hclge_get_vport(handle);
 	struct hclge_dev *hdev = vport->back;
-
-	hclge_query_autoneg_result(hdev);
 
 	return hdev->hw.mac.autoneg;
 }
