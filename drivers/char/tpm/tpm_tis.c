@@ -133,78 +133,16 @@ static int check_acpi_tpm2(struct device *dev)
 }
 #endif
 
-#ifdef CONFIG_X86
-#define LPC_CNTRL_OFFSET		0x84
-#define LPC_CLKRUN_EN			(1 << 2)
-
-/**
- * tpm_platform_begin_xfer() - clear LPC CLKRUN_EN i.e. clocks will be running
- */
-static void tpm_platform_begin_xfer(struct tpm_tis_data *data)
-{
-	u32 clkrun_val;
-
-	if (!is_bsw())
-		return;
-
-	clkrun_val = ioread32(data->ilb_base_addr + LPC_CNTRL_OFFSET);
-
-	/* Disable LPC CLKRUN# */
-	clkrun_val &= ~LPC_CLKRUN_EN;
-	iowrite32(clkrun_val, data->ilb_base_addr + LPC_CNTRL_OFFSET);
-
-	/*
-	 * Write any random value on port 0x80 which is on LPC, to make
-	 * sure LPC clock is running before sending any TPM command.
-	 */
-	outb(0xCC, 0x80);
-
-}
-
-/**
- * tpm_platform_end_xfer() - set LPC CLKRUN_EN i.e. clocks can be turned off
- */
-static void tpm_platform_end_xfer(struct tpm_tis_data *data)
-{
-	u32 clkrun_val;
-
-	if (!is_bsw())
-		return;
-
-	clkrun_val = ioread32(data->ilb_base_addr + LPC_CNTRL_OFFSET);
-
-	/* Enable LPC CLKRUN# */
-	clkrun_val |= LPC_CLKRUN_EN;
-	iowrite32(clkrun_val, data->ilb_base_addr + LPC_CNTRL_OFFSET);
-
-	/*
-	 * Write any random value on port 0x80 which is on LPC, to make
-	 * sure LPC clock is running before sending any TPM command.
-	 */
-	outb(0xCC, 0x80);
-
-}
-#else
-static void tpm_platform_begin_xfer(struct tpm_tis_data *data)
-{
-}
-
-static void tpm_platform_end_xfer(struct tpm_tis_data *data)
-{
-}
-#endif
-
 static int tpm_tcg_read_bytes(struct tpm_tis_data *data, u32 addr, u16 len,
 			      u8 *result)
 {
 	struct tpm_tis_tcg_phy *phy = to_tpm_tis_tcg_phy(data);
 
-	tpm_platform_begin_xfer(data);
+	if (is_bsw() && !(data->flags & TPM_TIS_CLK_ENABLE))
+		WARN(1, "CLKRUN not enabled!\n");
 
 	while (len--)
 		*result++ = ioread8(phy->iobase + addr);
-
-	tpm_platform_end_xfer(data);
 
 	return 0;
 }
@@ -214,12 +152,11 @@ static int tpm_tcg_write_bytes(struct tpm_tis_data *data, u32 addr, u16 len,
 {
 	struct tpm_tis_tcg_phy *phy = to_tpm_tis_tcg_phy(data);
 
-	tpm_platform_begin_xfer(data);
+	if (is_bsw() && !(data->flags & TPM_TIS_CLK_ENABLE))
+		WARN(1, "CLKRUN not enabled!\n");
 
 	while (len--)
 		iowrite8(*value++, phy->iobase + addr);
-
-	tpm_platform_end_xfer(data);
 
 	return 0;
 }
@@ -228,11 +165,10 @@ static int tpm_tcg_read16(struct tpm_tis_data *data, u32 addr, u16 *result)
 {
 	struct tpm_tis_tcg_phy *phy = to_tpm_tis_tcg_phy(data);
 
-	tpm_platform_begin_xfer(data);
+	if (is_bsw() && !(data->flags & TPM_TIS_CLK_ENABLE))
+		WARN(1, "CLKRUN not enabled!\n");
 
 	*result = ioread16(phy->iobase + addr);
-
-	tpm_platform_end_xfer(data);
 
 	return 0;
 }
@@ -241,11 +177,10 @@ static int tpm_tcg_read32(struct tpm_tis_data *data, u32 addr, u32 *result)
 {
 	struct tpm_tis_tcg_phy *phy = to_tpm_tis_tcg_phy(data);
 
-	tpm_platform_begin_xfer(data);
+	if (is_bsw() && !(data->flags & TPM_TIS_CLK_ENABLE))
+		WARN(1, "CLKRUN not enabled!\n");
 
 	*result = ioread32(phy->iobase + addr);
-
-	tpm_platform_end_xfer(data);
 
 	return 0;
 }
@@ -254,11 +189,10 @@ static int tpm_tcg_write32(struct tpm_tis_data *data, u32 addr, u32 value)
 {
 	struct tpm_tis_tcg_phy *phy = to_tpm_tis_tcg_phy(data);
 
-	tpm_platform_begin_xfer(data);
+	if (is_bsw() && !(data->flags & TPM_TIS_CLK_ENABLE))
+		WARN(1, "CLKRUN not enabled!\n");
 
 	iowrite32(value, phy->iobase + addr);
-
-	tpm_platform_end_xfer(data);
 
 	return 0;
 }
@@ -341,9 +275,6 @@ static void tpm_tis_pnp_remove(struct pnp_dev *dev)
 
 	tpm_chip_unregister(chip);
 	tpm_tis_remove(chip);
-	if (is_bsw())
-		iounmap(priv->ilb_base_addr);
-
 }
 
 static struct pnp_driver tis_pnp_driver = {
@@ -394,9 +325,6 @@ static int tpm_tis_plat_remove(struct platform_device *pdev)
 
 	tpm_chip_unregister(chip);
 	tpm_tis_remove(chip);
-
-	if (is_bsw())
-		iounmap(priv->ilb_base_addr);
 
 	return 0;
 }
