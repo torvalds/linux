@@ -1057,6 +1057,9 @@ static enum surface_update_type get_plane_info_update_type(const struct dc_surfa
 	if (u->plane_info->input_tf != u->surface->input_tf)
 		update_flags->bits.input_tf_change = 1;
 
+	if (u->plane_info->sdr_white_level != u->surface->sdr_white_level)
+		update_flags->bits.output_tf_change = 1;
+
 	if (u->plane_info->horizontal_mirror != u->surface->horizontal_mirror)
 		update_flags->bits.horizontal_mirror_change = 1;
 
@@ -1101,7 +1104,8 @@ static enum surface_update_type get_plane_info_update_type(const struct dc_surfa
 			|| update_flags->bits.stereo_format_change
 			|| update_flags->bits.gamma_change
 			|| update_flags->bits.bpp_change
-			|| update_flags->bits.bandwidth_change)
+			|| update_flags->bits.bandwidth_change
+			|| update_flags->bits.output_tf_change)
 		return UPDATE_TYPE_FULL;
 
 	return UPDATE_TYPE_MED;

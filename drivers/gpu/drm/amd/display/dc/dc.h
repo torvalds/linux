@@ -367,6 +367,8 @@ struct dc_transfer_func {
 	struct dc_transfer_func_distributed_points tf_pts;
 	enum dc_transfer_func_type type;
 	enum dc_transfer_func_predefined tf;
+	/* FP16 1.0 reference level in nits, default is 80 nits, only for PQ*/
+	uint32_t sdr_ref_white_level;
 	struct dc_context *ctx;
 };
 
@@ -397,6 +399,7 @@ union surface_update_flags {
 		uint32_t position_change:1;
 		uint32_t in_transfer_func_change:1;
 		uint32_t input_csc_change:1;
+		uint32_t output_tf_change:1;
 
 		/* Full updates */
 		uint32_t new_plane:1;
@@ -428,6 +431,7 @@ struct dc_plane_state {
 	struct dc_bias_and_scale *bias_and_scale;
 	struct csc_transform input_csc_color_matrix;
 	struct fixed31_32 coeff_reduction_factor;
+	uint32_t sdr_white_level;
 
 	// TODO: No longer used, remove
 	struct dc_hdr_static_metadata hdr_static_ctx;
@@ -464,6 +468,7 @@ struct dc_plane_info {
 	enum plane_stereo_format stereo_format;
 	enum dc_color_space color_space;
 	enum color_transfer_func input_tf;
+	unsigned int sdr_white_level;
 	bool horizontal_mirror;
 	bool visible;
 	bool per_pixel_alpha;
