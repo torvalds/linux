@@ -538,9 +538,12 @@ static void gfs2_ordered_write(struct gfs2_sbd *sdp)
 	list_sort(NULL, &sdp->sd_log_le_ordered, &ip_cmp);
 	while (!list_empty(&sdp->sd_log_le_ordered)) {
 		ip = list_entry(sdp->sd_log_le_ordered.next, struct gfs2_inode, i_ordered);
-		list_move(&ip->i_ordered, &written);
-		if (ip->i_inode.i_mapping->nrpages == 0)
+		if (ip->i_inode.i_mapping->nrpages == 0) {
+			test_and_clear_bit(GIF_ORDERED, &ip->i_flags);
+			list_del(&ip->i_ordered);
 			continue;
+		}
+		list_move(&ip->i_ordered, &written);
 		spin_unlock(&sdp->sd_ordered_lock);
 		filemap_fdatawrite(ip->i_inode.i_mapping);
 		spin_lock(&sdp->sd_ordered_lock);
