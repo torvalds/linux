@@ -79,7 +79,8 @@ int tcf_classify(struct sk_buff *skb, const struct tcf_proto *tp,
 #else
 static inline
 int tcf_block_get(struct tcf_block **p_block,
-		  struct tcf_proto __rcu **p_filter_chain, struct Qdisc *q)
+		  struct tcf_proto __rcu **p_filter_chain, struct Qdisc *q,
+		  struct netlink_ext_ack *extack)
 {
 	return 0;
 }
