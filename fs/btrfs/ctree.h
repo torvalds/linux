@@ -714,6 +714,12 @@ struct btrfs_delayed_root;
  */
 #define BTRFS_FS_EXCL_OP			16
 
+/*
+ * To info transaction_kthread we need an immediate commit so it doesn't
+ * need to wait for commit_interval
+ */
+#define BTRFS_FS_NEED_ASYNC_COMMIT		17
+
 struct btrfs_fs_info {
 	u8 fsid[BTRFS_FSID_SIZE];
 	u8 chunk_tree_uuid[BTRFS_UUID_SIZE];
