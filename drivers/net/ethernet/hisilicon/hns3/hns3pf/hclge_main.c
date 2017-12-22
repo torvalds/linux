@@ -5022,6 +5022,116 @@ static void hclge_get_channels(struct hnae3_handle *handle,
 	ch->combined_count = vport->alloc_tqps;
 }
 
+static void hclge_get_tqps_and_rss_info(struct hnae3_handle *handle,
+					u16 *free_tqps, u16 *max_rss_size)
+{
+	struct hclge_vport *vport = hclge_get_vport(handle);
+	struct hclge_dev *hdev = vport->back;
+	u16 temp_tqps = 0;
+	int i;
+
+	for (i = 0; i < hdev->num_tqps; i++) {
+		if (!hdev->htqp[i].alloced)
+			temp_tqps++;
+	}
+	*free_tqps = temp_tqps;
+	*max_rss_size = hdev->rss_size_max;
+}
+
+static void hclge_release_tqp(struct hclge_vport *vport)
+{
+	struct hnae3_knic_private_info *kinfo = &vport->nic.kinfo;
+	struct hclge_dev *hdev = vport->back;
+	int i;
+
+	for (i = 0; i < kinfo->num_tqps; i++) {
+		struct hclge_tqp *tqp =
+			container_of(kinfo->tqp[i], struct hclge_tqp, q);
+
+		tqp->q.handle = NULL;
+		tqp->q.tqp_index = 0;
+		tqp->alloced = false;
+	}
+
+	devm_kfree(&hdev->pdev->dev, kinfo->tqp);
+	kinfo->tqp = NULL;
+}
+
+static int hclge_set_channels(struct hnae3_handle *handle, u32 new_tqps_num)
+{
+	struct hclge_vport *vport = hclge_get_vport(handle);
+	struct hnae3_knic_private_info *kinfo = &vport->nic.kinfo;
+	struct hclge_dev *hdev = vport->back;
+	int cur_rss_size = kinfo->rss_size;
+	int cur_tqps = kinfo->num_tqps;
+	u16 tc_offset[HCLGE_MAX_TC_NUM];
+	u16 tc_valid[HCLGE_MAX_TC_NUM];
+	u16 tc_size[HCLGE_MAX_TC_NUM];
+	u16 roundup_size;
+	u32 *rss_indir;
+	int ret, i;
+
+	hclge_release_tqp(vport);
+
+	ret = hclge_knic_setup(vport, new_tqps_num);
+	if (ret) {
+		dev_err(&hdev->pdev->dev, "setup nic fail, ret =%d\n", ret);
+		return ret;
+	}
+
+	ret = hclge_map_tqp_to_vport(hdev, vport);
+	if (ret) {
+		dev_err(&hdev->pdev->dev, "map vport tqp fail, ret =%d\n", ret);
+		return ret;
+	}
+
+	ret = hclge_tm_schd_init(hdev);
+	if (ret) {
+		dev_err(&hdev->pdev->dev, "tm schd init fail, ret =%d\n", ret);
+		return ret;
+	}
+
+	roundup_size = roundup_pow_of_two(kinfo->rss_size);
+	roundup_size = ilog2(roundup_size);
+	/* Set the RSS TC mode according to the new RSS size */
+	for (i = 0; i < HCLGE_MAX_TC_NUM; i++) {
+		tc_valid[i] = 0;
+
+		if (!(hdev->hw_tc_map & BIT(i)))
+			continue;
+
+		tc_valid[i] = 1;
+		tc_size[i] = roundup_size;
+		tc_offset[i] = kinfo->rss_size * i;
+	}
+	ret = hclge_set_rss_tc_mode(hdev, tc_valid, tc_size, tc_offset);
+	if (ret)
+		return ret;
+
+	/* Reinitializes the rss indirect table according to the new RSS size */
+	rss_indir = kcalloc(HCLGE_RSS_IND_TBL_SIZE, sizeof(u32), GFP_KERNEL);
+	if (!rss_indir)
+		return -ENOMEM;
+
+	for (i = 0; i < HCLGE_RSS_IND_TBL_SIZE; i++)
+		rss_indir[i] = i % kinfo->rss_size;
+
+	ret = hclge_set_rss(handle, rss_indir, NULL, 0);
+	if (ret)
+		dev_err(&hdev->pdev->dev, "set rss indir table fail, ret=%d\n",
+			ret);
+
+	kfree(rss_indir);
+
+	if (!ret)
+		dev_info(&hdev->pdev->dev,
+			 "Channels changed, rss_size from %d to %d, tqps from %d to %d",
+			 cur_rss_size, kinfo->rss_size,
+			 cur_tqps, kinfo->rss_size * kinfo->num_tc);
+
+	return ret;
+}
+
 static const struct hnae3_ae_ops hclge_ops = {
 	.init_ae_dev = hclge_init_ae_dev,
 	.uninit_ae_dev = hclge_uninit_ae_dev,
@@ -5066,6 +5176,8 @@ static const struct hnae3_ae_ops hclge_ops = {
 	.set_vlan_filter = hclge_set_port_vlan_filter,
 	.set_vf_vlan_filter = hclge_set_vf_vlan_filter,
 	.reset_event = hclge_reset_event,
+	.get_tqps_and_rss_info = hclge_get_tqps_and_rss_info,
+	.set_channels = hclge_set_channels,
 	.get_channels = hclge_get_channels,
 };
 

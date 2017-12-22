@@ -2651,6 +2651,19 @@ err:
 	return ret;
 }
 
+static void hns3_put_ring_config(struct hns3_nic_priv *priv)
+{
+	struct hnae3_handle *h = priv->ae_handle;
+	int i;
+
+	for (i = 0; i < h->kinfo.num_tqps; i++) {
+		devm_kfree(priv->dev, priv->ring_data[i].ring);
+		devm_kfree(priv->dev,
+			   priv->ring_data[i + h->kinfo.num_tqps].ring);
+	}
+	devm_kfree(priv->dev, priv->ring_data);
+}
+
 static int hns3_alloc_ring_memory(struct hns3_enet_ring *ring)
 {
 	int ret;
@@ -3158,6 +3171,115 @@ static int hns3_reset_notify(struct hnae3_handle *handle,
 	default:
 		break;
 	}
+
+	return ret;
+}
+
+static u16 hns3_get_max_available_channels(struct net_device *netdev)
+{
+	struct hnae3_handle *h = hns3_get_handle(netdev);
+	u16 free_tqps, max_rss_size, max_tqps;
+
+	h->ae_algo->ops->get_tqps_and_rss_info(h, &free_tqps, &max_rss_size);
+	max_tqps = h->kinfo.num_tc * max_rss_size;
+
+	return min_t(u16, max_tqps, (free_tqps + h->kinfo.num_tqps));
+}
+
+static int hns3_modify_tqp_num(struct net_device *netdev, u16 new_tqp_num)
+{
+	struct hns3_nic_priv *priv = netdev_priv(netdev);
+	struct hnae3_handle *h = hns3_get_handle(netdev);
+	int ret;
+
+	ret = h->ae_algo->ops->set_channels(h, new_tqp_num);
+	if (ret)
+		return ret;
+
+	ret = hns3_get_ring_config(priv);
+	if (ret)
+		return ret;
+
+	ret = hns3_nic_init_vector_data(priv);
+	if (ret)
+		goto err_uninit_vector;
+
+	ret = hns3_init_all_ring(priv);
+	if (ret)
+		goto err_put_ring;
+
+	return 0;
+
+err_put_ring:
+	hns3_put_ring_config(priv);
+err_uninit_vector:
+	hns3_nic_uninit_vector_data(priv);
+	return ret;
+}
+
+static int hns3_adjust_tqps_num(u8 num_tc, u32 new_tqp_num)
+{
+	return (new_tqp_num / num_tc) * num_tc;
+}
+
+int hns3_set_channels(struct net_device *netdev,
+		      struct ethtool_channels *ch)
+{
+	struct hns3_nic_priv *priv = netdev_priv(netdev);
+	struct hnae3_handle *h = hns3_get_handle(netdev);
+	struct hnae3_knic_private_info *kinfo = &h->kinfo;
+	bool if_running = netif_running(netdev);
+	u32 new_tqp_num = ch->combined_count;
+	u16 org_tqp_num;
+	int ret;
+
+	if (ch->rx_count || ch->tx_count)
+		return -EINVAL;
+
+	if (new_tqp_num > hns3_get_max_available_channels(netdev) ||
+	    new_tqp_num < kinfo->num_tc) {
+		dev_err(&netdev->dev,
+			"Change tqps fail, the tqp range is from %d to %d",
+			kinfo->num_tc,
+			hns3_get_max_available_channels(netdev));
+		return -EINVAL;
+	}
+
+	new_tqp_num = hns3_adjust_tqps_num(kinfo->num_tc, new_tqp_num);
+	if (kinfo->num_tqps == new_tqp_num)
+		return 0;
+
+	if (if_running)
+		dev_close(netdev);
+
+	hns3_clear_all_ring(h);
+
+	ret = hns3_nic_uninit_vector_data(priv);
+	if (ret) {
+		dev_err(&netdev->dev,
+			"Unbind vector with tqp fail, nothing is changed");
+		goto open_netdev;
+	}
+
+	hns3_uninit_all_ring(priv);
+
+	org_tqp_num = h->kinfo.num_tqps;
+	ret = hns3_modify_tqp_num(netdev, new_tqp_num);
+	if (ret) {
+		ret = hns3_modify_tqp_num(netdev, org_tqp_num);
+		if (ret) {
+			/* If revert to old tqp failed, fatal error occurred */
+			dev_err(&netdev->dev,
+				"Revert to old tqp num fail, ret=%d", ret);
+			return ret;
+		}
+		dev_info(&netdev->dev,
+			 "Change tqp num fail, Revert to old tqp num");
+	}
+
+open_netdev:
+	if (if_running)
+		dev_open(netdev);
 
 	return ret;
 }

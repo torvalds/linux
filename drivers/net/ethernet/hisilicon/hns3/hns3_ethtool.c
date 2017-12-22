@@ -893,6 +893,7 @@ static const struct ethtool_ops hns3_ethtool_ops = {
 	.set_link_ksettings = hns3_set_link_ksettings,
 	.nway_reset = hns3_nway_reset,
 	.get_channels = hns3_get_channels,
+	.set_channels = hns3_set_channels,
 };
 
 void hns3_ethtool_set_ops(struct net_device *netdev)
