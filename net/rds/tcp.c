@@ -290,6 +290,7 @@ static int rds_tcp_conn_alloc(struct rds_connection *conn, gfp_t gfp)
 		tc->t_cpath = &conn->c_path[i];
 
 		spin_lock_irq(&rds_tcp_conn_lock);
+		tc->t_tcp_node_detached = false;
 		list_add_tail(&tc->t_tcp_node, &rds_tcp_conn_list);
 		spin_unlock_irq(&rds_tcp_conn_lock);
 		rdsdebug("rds_conn_path [%d] tc %p\n", i,
