@@ -72,6 +72,11 @@ then
         echo "copy..."
         cp ./uImage ../SD/BPI-BOOT/bananapi/bpi-r2/linux/uImage
         cp -r ../mod/lib/modules ../SD/BPI-ROOT/lib/
+
+		#cp utils/wmt/src/{wmt_loader,wmt_loopback,stp_uart_launcher} ../SD/BPI-ROOT/usr/bin/
+		#cp utils/wmt/config/* ../SD/BPI-ROOT/system/etc/firmware/
+		#cp -r utils/wmt/firmware/* ../SD/BPI-ROOT/etc/firmware/
+
         echo "pack..."
         kernver=$(make kernelversion)
         gitbranch=$(git rev-parse --abbrev-ref HEAD)
