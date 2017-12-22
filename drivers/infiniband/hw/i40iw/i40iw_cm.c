@@ -4228,10 +4228,16 @@ set_qhash:
 }
 
 /**
- * i40iw_cm_disconnect_all - disconnect all connected qp's
+ * i40iw_cm_teardown_connections - teardown QPs
  * @iwdev: device pointer
+ * @ipaddr: Pointer to IPv4 or IPv6 address
+ * @ipv4: flag indicating IPv4 when true
+ * @disconnect_all: flag indicating disconnect all QPs
+ * teardown QPs where source or destination addr matches ip addr
  */
-void i40iw_cm_disconnect_all(struct i40iw_device *iwdev)
+void i40iw_cm_teardown_connections(struct i40iw_device *iwdev, u32 *ipaddr,
+				   struct i40iw_cm_info *nfo,
+				   bool disconnect_all)
 {
 	struct i40iw_cm_core *cm_core = &iwdev->cm_core;
 	struct list_head *list_core_temp;
@@ -4245,8 +4251,13 @@ void i40iw_cm_disconnect_all(struct i40iw_device *iwdev)
 	spin_lock_irqsave(&cm_core->ht_lock, flags);
 	list_for_each_safe(list_node, list_core_temp, &cm_core->connected_nodes) {
 		cm_node = container_of(list_node, struct i40iw_cm_node, list);
-		atomic_inc(&cm_node->ref_count);
-		list_add(&cm_node->connected_entry, &connected_list);
+		if (disconnect_all ||
+		    (nfo->vlan_id == cm_node->vlan_id &&
+		    (!memcmp(cm_node->loc_addr, ipaddr, nfo->ipv4 ? 4 : 16) ||
+		     !memcmp(cm_node->rem_addr, ipaddr, nfo->ipv4 ? 4 : 16)))) {
+			atomic_inc(&cm_node->ref_count);
+			list_add(&cm_node->connected_entry, &connected_list);
+		}
 	}
 	spin_unlock_irqrestore(&cm_core->ht_lock, flags);
 
@@ -4280,6 +4291,9 @@ void i40iw_if_notify(struct i40iw_device *iwdev, struct net_device *netdev,
 	enum i40iw_quad_hash_manage_type op =
 		ifup ? I40IW_QHASH_MANAGE_TYPE_ADD : I40IW_QHASH_MANAGE_TYPE_DELETE;
 
+	nfo.vlan_id = vlan_id;
+	nfo.ipv4 = ipv4;
+
 	/* Disable or enable qhash for listeners */
 	spin_lock_irqsave(&cm_core->listen_list_lock, flags);
 	list_for_each_entry(listen_node, &cm_core->listen_nodes, list) {
@@ -4289,8 +4303,6 @@ void i40iw_if_notify(struct i40iw_device *iwdev, struct net_device *netdev,
 			memcpy(nfo.loc_addr, listen_node->loc_addr,
 			       sizeof(nfo.loc_addr));
 			nfo.loc_port = listen_node->loc_port;
-			nfo.ipv4 = listen_node->ipv4;
-			nfo.vlan_id = listen_node->vlan_id;
 			nfo.user_pri = listen_node->user_pri;
 			if (!list_empty(&listen_node->child_listen_list)) {
 				i40iw_qhash_ctrl(iwdev,
@@ -4312,7 +4324,7 @@ void i40iw_if_notify(struct i40iw_device *iwdev, struct net_device *netdev,
 	}
 	spin_unlock_irqrestore(&cm_core->listen_list_lock, flags);
 
-	/* disconnect any connected qp's on ifdown */
+	/* teardown connected qp's on ifdown */
 	if (!ifup)
-		i40iw_cm_disconnect_all(iwdev);
+		i40iw_cm_teardown_connections(iwdev, ipaddr, &nfo, false);
 }

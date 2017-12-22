@@ -453,5 +453,7 @@ int i40iw_arp_table(struct i40iw_device *iwdev,
 
 void i40iw_if_notify(struct i40iw_device *iwdev, struct net_device *netdev,
 		     u32 *ipaddr, bool ipv4, bool ifup);
-void i40iw_cm_disconnect_all(struct i40iw_device *iwdev);
+void i40iw_cm_teardown_connections(struct i40iw_device *iwdev, u32 *ipaddr,
+				   struct i40iw_cm_info *nfo,
+				   bool disconnect_all);
 #endif /* I40IW_CM_H */

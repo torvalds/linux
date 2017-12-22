@@ -1800,7 +1800,7 @@ static void i40iw_close(struct i40e_info *ldev, struct i40e_client *client, bool
 	if (reset)
 		iwdev->reset = true;
 
-	i40iw_cm_disconnect_all(iwdev);
+	i40iw_cm_teardown_connections(iwdev, NULL, NULL, true);
 	destroy_workqueue(iwdev->virtchnl_wq);
 	i40iw_deinit_device(iwdev);
 }
