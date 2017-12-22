@@ -109,6 +109,7 @@ struct crypto4xx_device {
 	struct list_head alg_list;	/* List of algorithm supported
 					by this device */
 	struct ratelimit_state aead_ratelimit;
+	bool is_revb;
 };
 
 struct crypto4xx_core_device {

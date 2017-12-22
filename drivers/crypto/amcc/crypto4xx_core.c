@@ -128,7 +128,14 @@ static void crypto4xx_hw_init(struct crypto4xx_device *dev)
 	writel(PPC4XX_INT_DESCR_CNT, dev->ce_base + CRYPTO4XX_INT_DESCR_CNT);
 	writel(PPC4XX_INT_DESCR_CNT, dev->ce_base + CRYPTO4XX_INT_DESCR_CNT);
 	writel(PPC4XX_INT_CFG, dev->ce_base + CRYPTO4XX_INT_CFG);
-	writel(PPC4XX_PD_DONE_INT, dev->ce_base + CRYPTO4XX_INT_EN);
+	if (dev->is_revb) {
+		writel(PPC4XX_INT_TIMEOUT_CNT_REVB << 10,
+		       dev->ce_base + CRYPTO4XX_INT_TIMEOUT_CNT);
+		writel(PPC4XX_PD_DONE_INT | PPC4XX_TMO_ERR_INT,
+		       dev->ce_base + CRYPTO4XX_INT_EN);
+	} else {
+		writel(PPC4XX_PD_DONE_INT, dev->ce_base + CRYPTO4XX_INT_EN);
+	}
 }
 
 int crypto4xx_alloc_sa(struct crypto4xx_ctx *ctx, u32 size)
@@ -1070,16 +1077,27 @@ static void crypto4xx_bh_tasklet_cb(unsigned long data)
 /**
  * Top Half of isr.
  */
-static irqreturn_t crypto4xx_ce_interrupt_handler(int irq, void *data)
+static inline irqreturn_t crypto4xx_interrupt_handler(int irq, void *data,
+						      u32 clr_val)
 {
 	struct device *dev = (struct device *)data;
 	struct crypto4xx_core_device *core_dev = dev_get_drvdata(dev);
 
-	writel(PPC4XX_INTERRUPT_CLR,
-	       core_dev->dev->ce_base + CRYPTO4XX_INT_CLR);
+	writel(clr_val, core_dev->dev->ce_base + CRYPTO4XX_INT_CLR);
 	tasklet_schedule(&core_dev->tasklet);
 
 	return IRQ_HANDLED;
+}
+
+static irqreturn_t crypto4xx_ce_interrupt_handler(int irq, void *data)
+{
+	return crypto4xx_interrupt_handler(irq, data, PPC4XX_INTERRUPT_CLR);
+}
+
+static irqreturn_t crypto4xx_ce_interrupt_handler_revb(int irq, void *data)
+{
+	return crypto4xx_interrupt_handler(irq, data, PPC4XX_INTERRUPT_CLR |
+		PPC4XX_TMO_ERR_INT);
 }
 
 /**
@@ -1263,6 +1281,8 @@ static int crypto4xx_probe(struct platform_device *ofdev)
 	struct resource res;
 	struct device *dev = &ofdev->dev;
 	struct crypto4xx_core_device *core_dev;
+	u32 pvr;
+	bool is_revb = true;
 
 	rc = of_address_to_resource(ofdev->dev.of_node, 0, &res);
 	if (rc)
@@ -1279,6 +1299,7 @@ static int crypto4xx_probe(struct platform_device *ofdev)
 		       mfdcri(SDR0, PPC405EX_SDR0_SRST) | PPC405EX_CE_RESET);
 		mtdcri(SDR0, PPC405EX_SDR0_SRST,
 		       mfdcri(SDR0, PPC405EX_SDR0_SRST) & ~PPC405EX_CE_RESET);
+		is_revb = false;
 	} else if (of_find_compatible_node(NULL, NULL,
 			"amcc,ppc460sx-crypto")) {
 		mtdcri(SDR0, PPC460SX_SDR0_SRST,
@@ -1301,7 +1322,22 @@ static int crypto4xx_probe(struct platform_device *ofdev)
 	if (!core_dev->dev)
 		goto err_alloc_dev;
 
+	/*
+	 * Older version of 460EX/GT have a hardware bug.
+	 * Hence they do not support H/W based security intr coalescing
+	 */
+	pvr = mfspr(SPRN_PVR);
+	if (is_revb && ((pvr >> 4) == 0x130218A)) {
+		u32 min = PVR_MIN(pvr);
+
+		if (min < 4) {
+			dev_info(dev, "RevA detected - disable interrupt coalescing\n");
+			is_revb = false;
+		}
+	}
+
 	core_dev->dev->core_dev = core_dev;
+	core_dev->dev->is_revb = is_revb;
 	core_dev->device = dev;
 	spin_lock_init(&core_dev->lock);
 	INIT_LIST_HEAD(&core_dev->dev->alg_list);
@@ -1331,7 +1367,9 @@ static int crypto4xx_probe(struct platform_device *ofdev)
 
 	/* Register for Crypto isr, Crypto Engine IRQ */
 	core_dev->irq = irq_of_parse_and_map(ofdev->dev.of_node, 0);
-	rc = request_irq(core_dev->irq, crypto4xx_ce_interrupt_handler, 0,
+	rc = request_irq(core_dev->irq, is_revb ?
+			 crypto4xx_ce_interrupt_handler_revb :
+			 crypto4xx_ce_interrupt_handler, 0,
 			 core_dev->dev->name, dev);
 	if (rc)
 		goto err_request_irq;
