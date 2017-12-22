@@ -23,6 +23,7 @@
 
 #include "core.h"
 #include "debug.h"
+#include "coredump.h"
 
 #include "targaddrs.h"
 #include "bmi.h"
@@ -1470,7 +1471,7 @@ static void ath10k_pci_fw_crashed_dump(struct ath10k *ar)
 
 	ar->stats.fw_crash_counter++;
 
-	crash_data = ath10k_debug_get_new_fw_crash_data(ar);
+	crash_data = ath10k_coredump_new(ar);
 
 	if (crash_data)
 		scnprintf(guid, sizeof(guid), "%pUl", &crash_data->guid);
