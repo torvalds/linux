@@ -205,8 +205,8 @@ static int axp288_handle_chrg_det_event(struct axp288_extcon_info *info)
 		cable = EXTCON_CHG_USB_DCP;
 		break;
 	default:
-		dev_warn(info->dev,
-			"disconnect or unknown or ID event\n");
+		dev_warn(info->dev, "unknown (reserved) bc detect result\n");
+		cable = EXTCON_CHG_USB_SDP;
 	}
 
 no_vbus:
