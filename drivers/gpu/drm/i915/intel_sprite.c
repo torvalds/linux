@@ -1169,12 +1169,9 @@ static const uint64_t skl_plane_format_modifiers[] = {
 	DRM_FORMAT_MOD_INVALID
 };
 
-static bool g4x_sprite_plane_format_mod_supported(struct drm_plane *plane,
-						  uint32_t format,
-						  uint64_t modifier)
+static bool g4x_mod_supported(uint32_t format, uint64_t modifier)
 {
 	switch (format) {
-	case DRM_FORMAT_XBGR8888:
 	case DRM_FORMAT_XRGB8888:
 	case DRM_FORMAT_YUYV:
 	case DRM_FORMAT_YVYU:
@@ -1189,22 +1186,38 @@ static bool g4x_sprite_plane_format_mod_supported(struct drm_plane *plane,
 	}
 }
 
-static bool vlv_sprite_plane_format_mod_supported(struct drm_plane *plane,
-						  uint32_t format,
-						  uint64_t modifier)
+static bool snb_mod_supported(uint32_t format, uint64_t modifier)
 {
 	switch (format) {
+	case DRM_FORMAT_XRGB8888:
+	case DRM_FORMAT_XBGR8888:
 	case DRM_FORMAT_YUYV:
 	case DRM_FORMAT_YVYU:
 	case DRM_FORMAT_UYVY:
 	case DRM_FORMAT_VYUY:
+		if (modifier == DRM_FORMAT_MOD_LINEAR ||
+		    modifier == I915_FORMAT_MOD_X_TILED)
+			return true;
+		/* fall through */
+	default:
+		return false;
+	}
+}
+
+static bool vlv_mod_supported(uint32_t format, uint64_t modifier)
+{
+	switch (format) {
 	case DRM_FORMAT_RGB565:
-	case DRM_FORMAT_XRGB8888:
+	case DRM_FORMAT_ABGR8888:
 	case DRM_FORMAT_ARGB8888:
+	case DRM_FORMAT_XBGR8888:
+	case DRM_FORMAT_XRGB8888:
 	case DRM_FORMAT_XBGR2101010:
 	case DRM_FORMAT_ABGR2101010:
-	case DRM_FORMAT_XBGR8888:
-	case DRM_FORMAT_ABGR8888:
+	case DRM_FORMAT_YUYV:
+	case DRM_FORMAT_YVYU:
+	case DRM_FORMAT_UYVY:
+	case DRM_FORMAT_VYUY:
 		if (modifier == DRM_FORMAT_MOD_LINEAR ||
 		    modifier == I915_FORMAT_MOD_X_TILED)
 			return true;
@@ -1214,11 +1227,8 @@ static bool vlv_sprite_plane_format_mod_supported(struct drm_plane *plane,
 	}
 }
 
-static bool skl_sprite_plane_format_mod_supported(struct drm_plane *plane,
-						  uint32_t format,
-						  uint64_t modifier)
+static bool skl_mod_supported(uint32_t format, uint64_t modifier)
 {
-	/* This is the same as primary plane since SKL has universal planes */
 	switch (format) {
 	case DRM_FORMAT_XRGB8888:
 	case DRM_FORMAT_XBGR8888:
@@ -1259,13 +1269,13 @@ static bool intel_sprite_plane_format_mod_supported(struct drm_plane *plane,
 		return false;
 
 	if (INTEL_GEN(dev_priv) >= 9)
-		return skl_sprite_plane_format_mod_supported(plane, format, modifier);
+		return skl_mod_supported(format, modifier);
 	else if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
-		return vlv_sprite_plane_format_mod_supported(plane, format, modifier);
+		return vlv_mod_supported(format, modifier);
+	else if (INTEL_GEN(dev_priv) >= 6)
+		return snb_mod_supported(format, modifier);
 	else
-		return g4x_sprite_plane_format_mod_supported(plane, format, modifier);
-
-	unreachable();
+		return g4x_mod_supported(format, modifier);
 }
 
 static const struct drm_plane_funcs intel_sprite_plane_funcs = {
