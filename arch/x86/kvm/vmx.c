@@ -3894,17 +3894,17 @@ static void free_kvm_area(void)
 	}
 }
 
-enum vmcs_field_type {
-	VMCS_FIELD_TYPE_U16 = 0,
-	VMCS_FIELD_TYPE_U64 = 1,
-	VMCS_FIELD_TYPE_U32 = 2,
-	VMCS_FIELD_TYPE_NATURAL_WIDTH = 3
+enum vmcs_field_width {
+	VMCS_FIELD_WIDTH_U16 = 0,
+	VMCS_FIELD_WIDTH_U64 = 1,
+	VMCS_FIELD_WIDTH_U32 = 2,
+	VMCS_FIELD_WIDTH_NATURAL_WIDTH = 3
 };
 
-static inline int vmcs_field_type(unsigned long field)
+static inline int vmcs_field_width(unsigned long field)
 {
 	if (0x1 & field)	/* the *_HIGH fields are all 32 bit */
-		return VMCS_FIELD_TYPE_U32;
+		return VMCS_FIELD_WIDTH_U32;
 	return (field >> 13) & 0x3 ;
 }
 
@@ -3919,7 +3919,7 @@ static void init_vmcs_shadow_fields(void)
 
 	for (i = j = 0; i < max_shadow_read_only_fields; i++) {
 		u16 field = shadow_read_only_fields[i];
-		if (vmcs_field_type(field) == VMCS_FIELD_TYPE_U64 &&
+		if (vmcs_field_width(field) == VMCS_FIELD_WIDTH_U64 &&
 		    (i + 1 == max_shadow_read_only_fields ||
 		     shadow_read_only_fields[i + 1] != field + 1))
 			pr_err("Missing field from shadow_read_only_field %x\n",
@@ -3938,7 +3938,7 @@ static void init_vmcs_shadow_fields(void)
 
 	for (i = j = 0; i < max_shadow_read_write_fields; i++) {
 		u16 field = shadow_read_write_fields[i];
-		if (vmcs_field_type(field) == VMCS_FIELD_TYPE_U64 &&
+		if (vmcs_field_width(field) == VMCS_FIELD_WIDTH_U64 &&
 		    (i + 1 == max_shadow_read_write_fields ||
 		     shadow_read_write_fields[i + 1] != field + 1))
 			pr_err("Missing field from shadow_read_write_field %x\n",
@@ -7511,17 +7511,17 @@ static inline int vmcs12_read_any(struct kvm_vcpu *vcpu,
 
 	p = ((char *)(get_vmcs12(vcpu))) + offset;
 
-	switch (vmcs_field_type(field)) {
-	case VMCS_FIELD_TYPE_NATURAL_WIDTH:
+	switch (vmcs_field_width(field)) {
+	case VMCS_FIELD_WIDTH_NATURAL_WIDTH:
 		*ret = *((natural_width *)p);
 		return 0;
-	case VMCS_FIELD_TYPE_U16:
+	case VMCS_FIELD_WIDTH_U16:
 		*ret = *((u16 *)p);
 		return 0;
-	case VMCS_FIELD_TYPE_U32:
+	case VMCS_FIELD_WIDTH_U32:
 		*ret = *((u32 *)p);
 		return 0;
-	case VMCS_FIELD_TYPE_U64:
+	case VMCS_FIELD_WIDTH_U64:
 		*ret = *((u64 *)p);
 		return 0;
 	default:
@@ -7538,17 +7538,17 @@ static inline int vmcs12_write_any(struct kvm_vcpu *vcpu,
 	if (offset < 0)
 		return offset;
 
-	switch (vmcs_field_type(field)) {
-	case VMCS_FIELD_TYPE_U16:
+	switch (vmcs_field_width(field)) {
+	case VMCS_FIELD_WIDTH_U16:
 		*(u16 *)p = field_value;
 		return 0;
-	case VMCS_FIELD_TYPE_U32:
+	case VMCS_FIELD_WIDTH_U32:
 		*(u32 *)p = field_value;
 		return 0;
-	case VMCS_FIELD_TYPE_U64:
+	case VMCS_FIELD_WIDTH_U64:
 		*(u64 *)p = field_value;
 		return 0;
-	case VMCS_FIELD_TYPE_NATURAL_WIDTH:
+	case VMCS_FIELD_WIDTH_NATURAL_WIDTH:
 		*(natural_width *)p = field_value;
 		return 0;
 	default:
