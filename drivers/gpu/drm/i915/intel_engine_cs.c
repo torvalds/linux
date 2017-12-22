@@ -1667,6 +1667,35 @@ static void print_request(struct drm_printer *m,
 		   rq->timeline->common->name);
 }
 
+static void hexdump(struct drm_printer *m, const void *buf, size_t len)
+{
+	const size_t rowsize = 8 * sizeof(u32);
+	const void *prev = NULL;
+	bool skip = false;
+	size_t pos;
+
+	for (pos = 0; pos < len; pos += rowsize) {
+		char line[128];
+
+		if (prev && !memcmp(prev, buf + pos, rowsize)) {
+			if (!skip) {
+				drm_printf(m, "*\n");
+				skip = true;
+			}
+			continue;
+		}
+
+		WARN_ON_ONCE(hex_dump_to_buffer(buf + pos, len - pos,
+						rowsize, sizeof(u32),
+						line, sizeof(line),
+						false) >= sizeof(line));
+		drm_printf(m, "%08zx %s\n", pos, line);
+
+		prev = buf + pos;
+		skip = false;
+	}
+}
+
 void intel_engine_dump(struct intel_engine_cs *engine,
 		       struct drm_printer *m,
 		       const char *header, ...)
@@ -1869,8 +1898,11 @@ void intel_engine_dump(struct intel_engine_cs *engine,
 				  &engine->irq_posted)),
 		   yesno(test_bit(ENGINE_IRQ_EXECLIST,
 				  &engine->irq_posted)));
+
+	drm_printf(m, "HWSP:\n");
+	hexdump(m, engine->status_page.page_addr, PAGE_SIZE);
+
 	drm_printf(m, "Idle? %s\n", yesno(intel_engine_is_idle(engine)));
-	drm_printf(m, "\n");
 }
 
 static u8 user_class_map[] = {
