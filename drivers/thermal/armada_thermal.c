@@ -37,7 +37,6 @@
 #define A375_UNIT_CONTROL_MASK		0x7
 #define A375_READOUT_INVERT		BIT(15)
 #define A375_HW_RESETn			BIT(8)
-#define A380_HW_RESET			BIT(8)
 
 /* Legacy bindings */
 #define LEGACY_CONTROL_MEM_LEN		0x4
@@ -51,6 +50,10 @@
 #define CONTROL0_TSEN_START		BIT(0)
 #define CONTROL0_TSEN_RESET		BIT(1)
 #define CONTROL0_TSEN_ENABLE		BIT(2)
+
+/* EXT_TSEN refers to the external temperature sensors, out of the AP */
+#define CONTROL1_EXT_TSEN_SW_RESET	BIT(7)
+#define CONTROL1_EXT_TSEN_HW_RESETn	BIT(8)
 
 struct armada_thermal_data;
 
@@ -153,12 +156,11 @@ static void armada380_init_sensor(struct platform_device *pdev,
 {
 	u32 reg = readl_relaxed(priv->control1);
 
-	/* Reset hardware once */
-	if (!(reg & A380_HW_RESET)) {
-		reg |= A380_HW_RESET;
-		writel(reg, priv->control1);
-		msleep(10);
-	}
+	/* Disable the HW/SW reset */
+	reg |= CONTROL1_EXT_TSEN_HW_RESETn;
+	reg &= ~CONTROL1_EXT_TSEN_SW_RESET;
+	writel(reg, priv->control1);
+	msleep(10);
 }
 
 static void armada_ap806_init_sensor(struct platform_device *pdev,
@@ -277,6 +279,19 @@ static const struct armada_thermal_data armada_ap806_data = {
 	.needs_control0 = true,
 };
 
+static const struct armada_thermal_data armada_cp110_data = {
+	.is_valid = armada_is_valid,
+	.init_sensor = armada380_init_sensor,
+	.is_valid_bit = BIT(10),
+	.temp_shift = 0,
+	.temp_mask = 0x3ff,
+	.coef_b = 1172499100ULL,
+	.coef_m = 2000096ULL,
+	.coef_div = 4201,
+	.inverted = true,
+	.needs_control0 = true,
+};
+
 static const struct of_device_id armada_thermal_id_table[] = {
 	{
 		.compatible = "marvell,armadaxp-thermal",
@@ -297,6 +312,10 @@ static const struct of_device_id armada_thermal_id_table[] = {
 	{
 		.compatible = "marvell,armada-ap806-thermal",
 		.data       = &armada_ap806_data,
+	},
+	{
+		.compatible = "marvell,armada-cp110-thermal",
+		.data       = &armada_cp110_data,
 	},
 	{
 		/* sentinel */
