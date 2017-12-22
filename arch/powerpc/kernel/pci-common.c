@@ -60,7 +60,7 @@ resource_size_t isa_mem_base;
 EXPORT_SYMBOL(isa_mem_base);
 
 
-static const struct dma_map_ops *pci_dma_ops = &dma_direct_ops;
+static const struct dma_map_ops *pci_dma_ops = &dma_nommu_ops;
 
 void set_pci_dma_ops(const struct dma_map_ops *dma_ops)
 {

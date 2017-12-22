@@ -1850,7 +1850,7 @@ static int pnv_pci_ioda_dma_set_mask(struct pci_dev *pdev, u64 dma_mask)
 
 	if (bypass) {
 		dev_info(&pdev->dev, "Using 64-bit DMA iommu bypass\n");
-		set_dma_ops(&pdev->dev, &dma_direct_ops);
+		set_dma_ops(&pdev->dev, &dma_nommu_ops);
 	} else {
 		/*
 		 * If the device can't set the TCE bypass bit but still wants
@@ -1868,7 +1868,7 @@ static int pnv_pci_ioda_dma_set_mask(struct pci_dev *pdev, u64 dma_mask)
 				return rc;
 			/* 4GB offset bypasses 32-bit space */
 			set_dma_offset(&pdev->dev, (1ULL << 32));
-			set_dma_ops(&pdev->dev, &dma_direct_ops);
+			set_dma_ops(&pdev->dev, &dma_nommu_ops);
 		} else if (dma_mask >> 32 && dma_mask != DMA_BIT_MASK(64)) {
 			/*
 			 * Fail the request if a DMA mask between 32 and 64 bits

@@ -47,9 +47,9 @@ static u64 swiotlb_powerpc_get_required(struct device *dev)
  * for everything else.
  */
 const struct dma_map_ops swiotlb_dma_ops = {
-	.alloc = __dma_direct_alloc_coherent,
-	.free = __dma_direct_free_coherent,
-	.mmap = dma_direct_mmap_coherent,
+	.alloc = __dma_nommu_alloc_coherent,
+	.free = __dma_nommu_free_coherent,
+	.mmap = dma_nommu_mmap_coherent,
 	.map_sg = swiotlb_map_sg_attrs,
 	.unmap_sg = swiotlb_unmap_sg_attrs,
 	.dma_supported = swiotlb_dma_supported,
