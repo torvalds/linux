@@ -27,6 +27,10 @@ struct ath10k_fw_crash_data *ath10k_coredump_new(struct ath10k *ar)
 
 	lockdep_assert_held(&ar->data_lock);
 
+	if (ath10k_coredump_mask == 0)
+		/* coredump disabled */
+		return NULL;
+
 	guid_gen(&crash_data->guid);
 	ktime_get_real_ts64(&crash_data->timestamp);
 
@@ -45,9 +49,13 @@ static struct ath10k_dump_file_data *ath10k_coredump_build(struct ath10k *ar)
 	unsigned char *buf;
 
 	len = hdr_len;
-	len += sizeof(*dump_tlv) + sizeof(crash_data->registers);
-	len += sizeof(*dump_tlv) + sizeof(*ce_hdr) +
-		CE_COUNT * sizeof(ce_hdr->entries[0]);
+
+	if (test_bit(ATH10K_FW_CRASH_DUMP_REGISTERS, &ath10k_coredump_mask))
+		len += sizeof(*dump_tlv) + sizeof(crash_data->registers);
+
+	if (test_bit(ATH10K_FW_CRASH_DUMP_CE_DATA, &ath10k_coredump_mask))
+		len += sizeof(*dump_tlv) + sizeof(*ce_hdr) +
+			CE_COUNT * sizeof(ce_hdr->entries[0]);
 
 	sofar += hdr_len;
 
@@ -92,25 +100,28 @@ static struct ath10k_dump_file_data *ath10k_coredump_build(struct ath10k *ar)
 	dump_data->tv_sec = cpu_to_le64(crash_data->timestamp.tv_sec);
 	dump_data->tv_nsec = cpu_to_le64(crash_data->timestamp.tv_nsec);
 
-	/* Gather crash-dump */
-	dump_tlv = (struct ath10k_tlv_dump_data *)(buf + sofar);
-	dump_tlv->type = cpu_to_le32(ATH10K_FW_CRASH_DUMP_REGISTERS);
-	dump_tlv->tlv_len = cpu_to_le32(sizeof(crash_data->registers));
-	memcpy(dump_tlv->tlv_data, &crash_data->registers,
-	       sizeof(crash_data->registers));
-	sofar += sizeof(*dump_tlv) + sizeof(crash_data->registers);
+	if (test_bit(ATH10K_FW_CRASH_DUMP_REGISTERS, &ath10k_coredump_mask)) {
+		dump_tlv = (struct ath10k_tlv_dump_data *)(buf + sofar);
+		dump_tlv->type = cpu_to_le32(ATH10K_FW_CRASH_DUMP_REGISTERS);
+		dump_tlv->tlv_len = cpu_to_le32(sizeof(crash_data->registers));
+		memcpy(dump_tlv->tlv_data, &crash_data->registers,
+		       sizeof(crash_data->registers));
+		sofar += sizeof(*dump_tlv) + sizeof(crash_data->registers);
+	}
 
-	dump_tlv = (struct ath10k_tlv_dump_data *)(buf + sofar);
-	dump_tlv->type = cpu_to_le32(ATH10K_FW_CRASH_DUMP_CE_DATA);
-	dump_tlv->tlv_len = cpu_to_le32(sizeof(*ce_hdr) +
-					CE_COUNT * sizeof(ce_hdr->entries[0]));
-	ce_hdr = (struct ath10k_ce_crash_hdr *)(dump_tlv->tlv_data);
-	ce_hdr->ce_count = cpu_to_le32(CE_COUNT);
-	memset(ce_hdr->reserved, 0, sizeof(ce_hdr->reserved));
-	memcpy(ce_hdr->entries, crash_data->ce_crash_data,
-	       CE_COUNT * sizeof(ce_hdr->entries[0]));
-	sofar += sizeof(*dump_tlv) + sizeof(*ce_hdr) +
-		 CE_COUNT * sizeof(ce_hdr->entries[0]);
+	if (test_bit(ATH10K_FW_CRASH_DUMP_CE_DATA, &ath10k_coredump_mask)) {
+		dump_tlv = (struct ath10k_tlv_dump_data *)(buf + sofar);
+		dump_tlv->type = cpu_to_le32(ATH10K_FW_CRASH_DUMP_CE_DATA);
+		dump_tlv->tlv_len = cpu_to_le32(sizeof(*ce_hdr) +
+						CE_COUNT * sizeof(ce_hdr->entries[0]));
+		ce_hdr = (struct ath10k_ce_crash_hdr *)(dump_tlv->tlv_data);
+		ce_hdr->ce_count = cpu_to_le32(CE_COUNT);
+		memset(ce_hdr->reserved, 0, sizeof(ce_hdr->reserved));
+		memcpy(ce_hdr->entries, crash_data->ce_crash_data,
+		       CE_COUNT * sizeof(ce_hdr->entries[0]));
+		sofar += sizeof(*dump_tlv) + sizeof(*ce_hdr) +
+			CE_COUNT * sizeof(ce_hdr->entries[0]);
+	}
 
 	spin_unlock_bh(&ar->data_lock);
 
@@ -120,6 +131,10 @@ static struct ath10k_dump_file_data *ath10k_coredump_build(struct ath10k *ar)
 int ath10k_coredump_submit(struct ath10k *ar)
 {
 	struct ath10k_dump_file_data *dump;
+
+	if (ath10k_coredump_mask == 0)
+		/* coredump disabled */
+		return 0;
 
 	dump = ath10k_coredump_build(ar);
 	if (!dump) {
@@ -134,6 +149,10 @@ int ath10k_coredump_submit(struct ath10k *ar)
 
 int ath10k_coredump_create(struct ath10k *ar)
 {
+	if (ath10k_coredump_mask == 0)
+		/* coredump disabled */
+		return 0;
+
 	ar->coredump.fw_crash_data = vzalloc(sizeof(*ar->coredump.fw_crash_data));
 	if (!ar->coredump.fw_crash_data)
 		return -ENOMEM;
