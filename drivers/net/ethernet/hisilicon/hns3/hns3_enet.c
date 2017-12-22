@@ -723,6 +723,58 @@ static void hns3_set_txbd_baseinfo(u16 *bdtp_fe_sc_vld_ra_ri, int frag_end)
 	hnae_set_field(*bdtp_fe_sc_vld_ra_ri, HNS3_TXD_SC_M, HNS3_TXD_SC_S, 0);
 }
 
+static int hns3_fill_desc_vtags(struct sk_buff *skb,
+				struct hns3_enet_ring *tx_ring,
+				u32 *inner_vlan_flag,
+				u32 *out_vlan_flag,
+				u16 *inner_vtag,
+				u16 *out_vtag)
+{
+#define HNS3_TX_VLAN_PRIO_SHIFT 13
+
+	if (skb->protocol == htons(ETH_P_8021Q) &&
+	    !(tx_ring->tqp->handle->kinfo.netdev->features &
+	    NETIF_F_HW_VLAN_CTAG_TX)) {
+		/* When HW VLAN acceleration is turned off, and the stack
+		 * sets the protocol to 802.1q, the driver just need to
+		 * set the protocol to the encapsulated ethertype.
+		 */
+		skb->protocol = vlan_get_protocol(skb);
+		return 0;
+	}
+
+	if (skb_vlan_tag_present(skb)) {
+		u16 vlan_tag;
+
+		vlan_tag = skb_vlan_tag_get(skb);
+		vlan_tag |= (skb->priority & 0x7) << HNS3_TX_VLAN_PRIO_SHIFT;
+
+		/* Based on hw strategy, use out_vtag in two layer tag case,
+		 * and use inner_vtag in one tag case.
+		 */
+		if (skb->protocol == htons(ETH_P_8021Q)) {
+			hnae_set_bit(*out_vlan_flag, HNS3_TXD_OVLAN_B, 1);
+			*out_vtag = vlan_tag;
+		} else {
+			hnae_set_bit(*inner_vlan_flag, HNS3_TXD_VLAN_B, 1);
+			*inner_vtag = vlan_tag;
+		}
+	} else if (skb->protocol == htons(ETH_P_8021Q)) {
+		struct vlan_ethhdr *vhdr;
+		int rc;
+
+		rc = skb_cow_head(skb, 0);
+		if (rc < 0)
+			return rc;
+		vhdr = (struct vlan_ethhdr *)skb->data;
+		vhdr->h_vlan_TCI |= cpu_to_be16((skb->priority & 0x7)
+					<< HNS3_TX_VLAN_PRIO_SHIFT);
+	}
+
+	skb->protocol = vlan_get_protocol(skb);
+	return 0;
+}
+
 static int hns3_fill_desc(struct hns3_enet_ring *ring, void *priv,
 			  int size, dma_addr_t dma, int frag_end,
 			  enum hns_desc_type type)
@@ -733,6 +785,8 @@ static int hns3_fill_desc(struct hns3_enet_ring *ring, void *priv,
 	u16 bdtp_fe_sc_vld_ra_ri = 0;
 	u32 type_cs_vlan_tso = 0;
 	struct sk_buff *skb;
+	u16 inner_vtag = 0;
+	u16 out_vtag = 0;
 	u32 paylen = 0;
 	u16 mss = 0;
 	__be16 protocol;
@@ -756,15 +810,16 @@ static int hns3_fill_desc(struct hns3_enet_ring *ring, void *priv,
 		skb = (struct sk_buff *)priv;
 		paylen = skb->len;
 
+		ret = hns3_fill_desc_vtags(skb, ring, &type_cs_vlan_tso,
+					   &ol_type_vlan_len_msec,
+					   &inner_vtag, &out_vtag);
+		if (unlikely(ret))
+			return ret;
+
 		if (skb->ip_summed == CHECKSUM_PARTIAL) {
 			skb_reset_mac_len(skb);
 			protocol = skb->protocol;
 
-			/* vlan packet*/
-			if (protocol == htons(ETH_P_8021Q)) {
-				protocol = vlan_get_protocol(skb);
-				skb->protocol = protocol;
-			}
 			ret = hns3_get_l4_protocol(skb, &ol4_proto, &il4_proto);
 			if (ret)
 				return ret;
@@ -790,6 +845,8 @@ static int hns3_fill_desc(struct hns3_enet_ring *ring, void *priv,
 			cpu_to_le32(type_cs_vlan_tso);
 		desc->tx.paylen = cpu_to_le32(paylen);
 		desc->tx.mss = cpu_to_le16(mss);
+		desc->tx.vlan_tag = cpu_to_le16(inner_vtag);
+		desc->tx.outer_vlan_tag = cpu_to_le16(out_vtag);
 	}
 
 	/* move ring pointer to next.*/
@@ -2100,6 +2157,22 @@ static int hns3_handle_rx_bd(struct hns3_enet_ring *ring,
 	}
 
 	prefetchw(skb->data);
+
+	/* Based on hw strategy, the tag offloaded will be stored at
+	 * ot_vlan_tag in two layer tag case, and stored at vlan_tag
+	 * in one layer tag case.
+	 */
+	if (netdev->features & NETIF_F_HW_VLAN_CTAG_RX) {
+		u16 vlan_tag;
+
+		vlan_tag = le16_to_cpu(desc->rx.ot_vlan_tag);
+		if (!(vlan_tag & VLAN_VID_MASK))
+			vlan_tag = le16_to_cpu(desc->rx.vlan_tag);
+		if (vlan_tag & VLAN_VID_MASK)
+			__vlan_hwaccel_put_tag(skb,
+					       htons(ETH_P_8021Q),
+					       vlan_tag);
+	}
 
 	bnum = 1;
 	if (length <= HNS3_RX_HEAD_SIZE) {
