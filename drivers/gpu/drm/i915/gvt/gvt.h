@@ -412,23 +412,20 @@ void intel_vgpu_free_resource(struct intel_vgpu *vgpu);
 void intel_vgpu_write_fence(struct intel_vgpu *vgpu,
 	u32 fence, u64 value);
 
-/* Macros for easily accessing vGPU virtual/shadow register */
-#define vgpu_vreg(vgpu, reg) \
-	(*(u32 *)(vgpu->mmio.vreg + INTEL_GVT_MMIO_OFFSET(reg)))
-#define vgpu_vreg8(vgpu, reg) \
-	(*(u8 *)(vgpu->mmio.vreg + INTEL_GVT_MMIO_OFFSET(reg)))
-#define vgpu_vreg16(vgpu, reg) \
-	(*(u16 *)(vgpu->mmio.vreg + INTEL_GVT_MMIO_OFFSET(reg)))
-#define vgpu_vreg64(vgpu, reg) \
-	(*(u64 *)(vgpu->mmio.vreg + INTEL_GVT_MMIO_OFFSET(reg)))
-#define vgpu_sreg(vgpu, reg) \
-	(*(u32 *)(vgpu->mmio.sreg + INTEL_GVT_MMIO_OFFSET(reg)))
-#define vgpu_sreg8(vgpu, reg) \
-	(*(u8 *)(vgpu->mmio.sreg + INTEL_GVT_MMIO_OFFSET(reg)))
-#define vgpu_sreg16(vgpu, reg) \
-	(*(u16 *)(vgpu->mmio.sreg + INTEL_GVT_MMIO_OFFSET(reg)))
-#define vgpu_sreg64(vgpu, reg) \
-	(*(u64 *)(vgpu->mmio.sreg + INTEL_GVT_MMIO_OFFSET(reg)))
+/* Macros for easily accessing vGPU virtual/shadow register.
+   Explicitly seperate use for typed MMIO reg or real offset.*/
+#define vgpu_vreg_t(vgpu, reg) \
+	(*(u32 *)(vgpu->mmio.vreg + i915_mmio_reg_offset(reg)))
+#define vgpu_vreg(vgpu, offset) \
+	(*(u32 *)(vgpu->mmio.vreg + (offset)))
+#define vgpu_vreg64_t(vgpu, reg) \
+	(*(u64 *)(vgpu->mmio.vreg + i915_mmio_reg_offset(reg)))
+#define vgpu_vreg64(vgpu, offset) \
+	(*(u64 *)(vgpu->mmio.vreg + (offset)))
+#define vgpu_sreg_t(vgpu, reg) \
+	(*(u32 *)(vgpu->mmio.sreg + i915_mmio_reg_offset(reg)))
+#define vgpu_sreg(vgpu, offset) \
+	(*(u32 *)(vgpu->mmio.sreg + (offset)))
 
 #define for_each_active_vgpu(gvt, vgpu, id) \
 	idr_for_each_entry((&(gvt)->vgpu_idr), (vgpu), (id)) \
@@ -549,6 +546,8 @@ struct intel_gvt_ops {
 			struct attribute_group ***intel_vgpu_type_groups);
 	int (*vgpu_query_plane)(struct intel_vgpu *vgpu, void *);
 	int (*vgpu_get_dmabuf)(struct intel_vgpu *vgpu, unsigned int);
+	int (*write_protect_handler)(struct intel_vgpu *, u64, void *,
+				     unsigned int);
 };
 
 

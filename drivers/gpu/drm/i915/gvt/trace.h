@@ -330,13 +330,14 @@ TRACE_EVENT(inject_msi,
 );
 
 TRACE_EVENT(render_mmio,
-	TP_PROTO(int id, char *action, unsigned int reg,
+	TP_PROTO(int old_id, int new_id, char *action, unsigned int reg,
 		 unsigned int old_val, unsigned int new_val),
 
-	TP_ARGS(id, action, reg, new_val, old_val),
+	TP_ARGS(old_id, new_id, action, reg, new_val, old_val),
 
 	TP_STRUCT__entry(
-		__field(int, id)
+		__field(int, old_id)
+		__field(int, new_id)
 		__array(char, buf, GVT_TEMP_STR_LEN)
 		__field(unsigned int, reg)
 		__field(unsigned int, old_val)
@@ -344,15 +345,17 @@ TRACE_EVENT(render_mmio,
 	),
 
 	TP_fast_assign(
-		__entry->id = id;
+		__entry->old_id = old_id;
+		__entry->new_id = new_id;
 		snprintf(__entry->buf, GVT_TEMP_STR_LEN, "%s", action);
 		__entry->reg = reg;
 		__entry->old_val = old_val;
 		__entry->new_val = new_val;
 	),
 
-	TP_printk("VM%u %s reg %x, old %08x new %08x\n",
-		  __entry->id, __entry->buf, __entry->reg,
+	TP_printk("VM%u -> VM%u %s reg %x, old %08x new %08x\n",
+		  __entry->old_id, __entry->new_id,
+		  __entry->buf, __entry->reg,
 		  __entry->old_val, __entry->new_val)
 );
 

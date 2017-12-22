@@ -1968,6 +1968,39 @@ int intel_vgpu_emulate_gtt_mmio_write(struct intel_vgpu *vgpu, unsigned int off,
 	return ret;
 }
 
+int intel_vgpu_write_protect_handler(struct intel_vgpu *vgpu, u64 pa,
+				     void *p_data, unsigned int bytes)
+{
+	struct intel_gvt *gvt = vgpu->gvt;
+	int ret = 0;
+
+	if (atomic_read(&vgpu->gtt.n_tracked_guest_page)) {
+		struct intel_vgpu_page_track *t;
+
+		mutex_lock(&gvt->lock);
+
+		t = intel_vgpu_find_tracked_page(vgpu, pa >> PAGE_SHIFT);
+		if (t) {
+			if (unlikely(vgpu->failsafe)) {
+				/* remove write protection to prevent furture traps */
+				intel_vgpu_clean_page_track(vgpu, t);
+			} else {
+				ret = t->handler(t, pa, p_data, bytes);
+				if (ret) {
+					gvt_err("guest page write error %d, "
+						"gfn 0x%lx, pa 0x%llx, "
+						"var 0x%x, len %d\n",
+						ret, t->gfn, pa,
+						*(u32 *)p_data, bytes);
+				}
+			}
+		}
+		mutex_unlock(&gvt->lock);
+	}
+	return ret;
+}
+
+
 static int alloc_scratch_pages(struct intel_vgpu *vgpu,
 		intel_gvt_gtt_type_t type)
 {
@@ -2244,7 +2277,7 @@ struct intel_vgpu_mm *intel_vgpu_find_ppgtt_mm(struct intel_vgpu *vgpu,
 int intel_vgpu_g2v_create_ppgtt_mm(struct intel_vgpu *vgpu,
 		int page_table_level)
 {
-	u64 *pdp = (u64 *)&vgpu_vreg64(vgpu, vgtif_reg(pdp[0]));
+	u64 *pdp = (u64 *)&vgpu_vreg64_t(vgpu, vgtif_reg(pdp[0]));
 	struct intel_vgpu_mm *mm;
 
 	if (WARN_ON((page_table_level != 4) && (page_table_level != 3)))
@@ -2279,7 +2312,7 @@ int intel_vgpu_g2v_create_ppgtt_mm(struct intel_vgpu *vgpu,
 int intel_vgpu_g2v_destroy_ppgtt_mm(struct intel_vgpu *vgpu,
 		int page_table_level)
 {
-	u64 *pdp = (u64 *)&vgpu_vreg64(vgpu, vgtif_reg(pdp[0]));
+	u64 *pdp = (u64 *)&vgpu_vreg64_t(vgpu, vgtif_reg(pdp[0]));
 	struct intel_vgpu_mm *mm;
 
 	if (WARN_ON((page_table_level != 4) && (page_table_level != 3)))

@@ -825,6 +825,21 @@ static int force_nonpriv_reg_handler(struct parser_exec_state *s,
 	return 0;
 }
 
+static inline bool is_mocs_mmio(unsigned int offset)
+{
+	return ((offset >= 0xc800) && (offset <= 0xcff8)) ||
+		((offset >= 0xb020) && (offset <= 0xb0a0));
+}
+
+static int mocs_cmd_reg_handler(struct parser_exec_state *s,
+				unsigned int offset, unsigned int index)
+{
+	if (!is_mocs_mmio(offset))
+		return -EINVAL;
+	vgpu_vreg(s->vgpu, offset) = cmd_val(s, index + 1);
+	return 0;
+}
+
 static int cmd_reg_handler(struct parser_exec_state *s,
 	unsigned int offset, unsigned int index, char *cmd)
 {
@@ -847,6 +862,10 @@ static int cmd_reg_handler(struct parser_exec_state *s,
 		gvt_vgpu_err("found access of shadowed MMIO %x\n", offset);
 		return 0;
 	}
+
+	if (is_mocs_mmio(offset) &&
+	    mocs_cmd_reg_handler(s, offset, index))
+		return -EINVAL;
 
 	if (is_force_nonpriv_mmio(offset) &&
 		force_nonpriv_reg_handler(s, offset, index))
@@ -1220,13 +1239,13 @@ static int gen8_check_mi_display_flip(struct parser_exec_state *s,
 		return 0;
 
 	if (IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv)) {
-		stride = vgpu_vreg(s->vgpu, info->stride_reg) & GENMASK(9, 0);
-		tile = (vgpu_vreg(s->vgpu, info->ctrl_reg) &
+		stride = vgpu_vreg_t(s->vgpu, info->stride_reg) & GENMASK(9, 0);
+		tile = (vgpu_vreg_t(s->vgpu, info->ctrl_reg) &
 				GENMASK(12, 10)) >> 10;
 	} else {
-		stride = (vgpu_vreg(s->vgpu, info->stride_reg) &
+		stride = (vgpu_vreg_t(s->vgpu, info->stride_reg) &
 				GENMASK(15, 6)) >> 6;
-		tile = (vgpu_vreg(s->vgpu, info->ctrl_reg) & (1 << 10)) >> 10;
+		tile = (vgpu_vreg_t(s->vgpu, info->ctrl_reg) & (1 << 10)) >> 10;
 	}
 
 	if (stride != info->stride_val)
@@ -1245,21 +1264,21 @@ static int gen8_update_plane_mmio_from_mi_display_flip(
 	struct drm_i915_private *dev_priv = s->vgpu->gvt->dev_priv;
 	struct intel_vgpu *vgpu = s->vgpu;
 
-	set_mask_bits(&vgpu_vreg(vgpu, info->surf_reg), GENMASK(31, 12),
+	set_mask_bits(&vgpu_vreg_t(vgpu, info->surf_reg), GENMASK(31, 12),
 		      info->surf_val << 12);
 	if (IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv)) {
-		set_mask_bits(&vgpu_vreg(vgpu, info->stride_reg), GENMASK(9, 0),
+		set_mask_bits(&vgpu_vreg_t(vgpu, info->stride_reg), GENMASK(9, 0),
 			      info->stride_val);
-		set_mask_bits(&vgpu_vreg(vgpu, info->ctrl_reg), GENMASK(12, 10),
+		set_mask_bits(&vgpu_vreg_t(vgpu, info->ctrl_reg), GENMASK(12, 10),
 			      info->tile_val << 10);
 	} else {
-		set_mask_bits(&vgpu_vreg(vgpu, info->stride_reg), GENMASK(15, 6),
+		set_mask_bits(&vgpu_vreg_t(vgpu, info->stride_reg), GENMASK(15, 6),
 			      info->stride_val << 6);
-		set_mask_bits(&vgpu_vreg(vgpu, info->ctrl_reg), GENMASK(10, 10),
+		set_mask_bits(&vgpu_vreg_t(vgpu, info->ctrl_reg), GENMASK(10, 10),
 			      info->tile_val << 10);
 	}
 
-	vgpu_vreg(vgpu, PIPE_FRMCOUNT_G4X(info->pipe))++;
+	vgpu_vreg_t(vgpu, PIPE_FRMCOUNT_G4X(info->pipe))++;
 	intel_vgpu_trigger_virtual_event(vgpu, info->event);
 	return 0;
 }
