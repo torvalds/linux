@@ -68,11 +68,11 @@ enum antennaImpedance {
 enum lnaGain {
 	automatic,
 	max,
-	maxMinus6,
-	maxMinus12,
-	maxMinus24,
-	maxMinus36,
-	maxMinus48,
+	max_minus_6,
+	max_minus_12,
+	max_minus_24,
+	max_minus_36,
+	max_minus_48,
 	undefined
 };
 

@@ -367,13 +367,13 @@ int rf69_set_antenna_impedance(struct spi_device *spi, enum antennaImpedance ant
 int rf69_set_lna_gain(struct spi_device *spi, enum lnaGain lnaGain)
 {
 	switch (lnaGain) {
-	case automatic:	 return rf69_read_mod_write(spi, REG_LNA, MASK_LNA_GAIN, LNA_GAIN_AUTO);
-	case max:	 return rf69_read_mod_write(spi, REG_LNA, MASK_LNA_GAIN, LNA_GAIN_MAX);
-	case maxMinus6:  return rf69_read_mod_write(spi, REG_LNA, MASK_LNA_GAIN, LNA_GAIN_MAX_MINUS_6);
-	case maxMinus12: return rf69_read_mod_write(spi, REG_LNA, MASK_LNA_GAIN, LNA_GAIN_MAX_MINUS_12);
-	case maxMinus24: return rf69_read_mod_write(spi, REG_LNA, MASK_LNA_GAIN, LNA_GAIN_MAX_MINUS_24);
-	case maxMinus36: return rf69_read_mod_write(spi, REG_LNA, MASK_LNA_GAIN, LNA_GAIN_MAX_MINUS_36);
-	case maxMinus48: return rf69_read_mod_write(spi, REG_LNA, MASK_LNA_GAIN, LNA_GAIN_MAX_MINUS_48);
+	case automatic:	   return rf69_read_mod_write(spi, REG_LNA, MASK_LNA_GAIN, LNA_GAIN_AUTO);
+	case max:	   return rf69_read_mod_write(spi, REG_LNA, MASK_LNA_GAIN, LNA_GAIN_MAX);
+	case max_minus_6:  return rf69_read_mod_write(spi, REG_LNA, MASK_LNA_GAIN, LNA_GAIN_MAX_MINUS_6);
+	case max_minus_12: return rf69_read_mod_write(spi, REG_LNA, MASK_LNA_GAIN, LNA_GAIN_MAX_MINUS_12);
+	case max_minus_24: return rf69_read_mod_write(spi, REG_LNA, MASK_LNA_GAIN, LNA_GAIN_MAX_MINUS_24);
+	case max_minus_36: return rf69_read_mod_write(spi, REG_LNA, MASK_LNA_GAIN, LNA_GAIN_MAX_MINUS_36);
+	case max_minus_48: return rf69_read_mod_write(spi, REG_LNA, MASK_LNA_GAIN, LNA_GAIN_MAX_MINUS_48);
 	default:
 		dev_dbg(&spi->dev, "set: illegal input param");
 		return -EINVAL;

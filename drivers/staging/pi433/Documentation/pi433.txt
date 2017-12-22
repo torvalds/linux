@@ -200,11 +200,11 @@ rf params:
 		sets the gain of the low noise amp
 		automatic	- lna gain is determined by an agc
 		max		- lna gain is set to maximum
-		maxMinus6	- lna gain is set to  6db below max
-		maxMinus12	- lna gain is set to 12db below max
-		maxMinus24	- lna gain is set to 24db below max
-		maxMinus36	- lna gain is set to 36db below max
-		maxMinus48	- lna gain is set to 48db below max
+		max_minus_6	- lna gain is set to  6db below max
+		max_minus_12	- lna gain is set to 12db below max
+		max_minus_24	- lna gain is set to 24db below max
+		max_minus_36	- lna gain is set to 36db below max
+		max_minus_48	- lna gain is set to 48db below max
 	bw_mantisse
 		sets the bandwidth of the channel filter - part one: mantisse.
 		mantisse16	- mantisse is set to 16
