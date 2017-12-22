@@ -280,6 +280,11 @@ _perf()
 		export COMP_WORDBREAKS
 	fi
 
+	if [[ "$COMP_WORDBREAKS" == *:* ]]; then
+		COMP_WORDBREAKS="${COMP_WORDBREAKS/:/}"
+		export COMP_WORDBREAKS
+	fi
+
 	local cur words cword prev
 	if [ $preload_get_comp_words_by_ref = "true" ]; then
 		_get_comp_words_by_ref -n =:, cur words cword prev
