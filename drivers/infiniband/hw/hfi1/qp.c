@@ -556,6 +556,8 @@ void qp_iter_print(struct seq_file *s, struct rvt_qp_iter *iter)
 	struct sdma_engine *sde;
 	struct send_context *send_context;
 	struct rvt_ack_entry *e = NULL;
+	struct rvt_srq *srq = qp->ibqp.srq ?
+		ibsrq_to_rvtsrq(qp->ibqp.srq) : NULL;
 
 	sde = qp_to_sdma_engine(qp, priv->s_sc);
 	wqe = rvt_get_swqe_ptr(qp, qp->s_last);
@@ -563,7 +565,7 @@ void qp_iter_print(struct seq_file *s, struct rvt_qp_iter *iter)
 	if (qp->s_ack_queue)
 		e = &qp->s_ack_queue[qp->s_tail_ack_queue];
 	seq_printf(s,
-		   "N %d %s QP %x R %u %s %u %u %u f=%x %u %u %u %u %u %u SPSN %x %x %x %x %x RPSN %x S(%u %u %u %u %u %u %u) R(%u %u %u) RQP %x LID %x SL %u MTU %u %u %u %u %u SDE %p,%u SC %p,%u SCQ %u %u PID %d OS %x %x E %x %x %x\n",
+		   "N %d %s QP %x R %u %s %u %u %u f=%x %u %u %u %u %u %u SPSN %x %x %x %x %x RPSN %x S(%u %u %u %u %u %u %u) R(%u %u %u) RQP %x LID %x SL %u MTU %u %u %u %u %u SDE %p,%u SC %p,%u SCQ %u %u PID %d OS %x %x E %x %x %x RNR %d %s %d\n",
 		   iter->n,
 		   qp_idle(qp) ? "I" : "B",
 		   qp->ibqp.qp_num,
@@ -610,7 +612,11 @@ void qp_iter_print(struct seq_file *s, struct rvt_qp_iter *iter)
 		   /* ack queue information */
 		   e ? e->opcode : 0,
 		   e ? e->psn : 0,
-		   e ? e->lpsn : 0);
+		   e ? e->lpsn : 0,
+		   qp->r_min_rnr_timer,
+		   srq ? "SRQ" : "RQ",
+		   srq ? srq->rq.size : qp->r_rq.size
+		);
 }
 
 void *qp_priv_alloc(struct rvt_dev_info *rdi, struct rvt_qp *qp)
