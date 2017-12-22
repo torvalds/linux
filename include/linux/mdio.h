@@ -41,8 +41,8 @@ struct mdio_device {
 	int addr;
 	int flags;
 	struct gpio_desc *reset;
-	unsigned int reset_delay;
-	unsigned int reset_post_delay;
+	unsigned int reset_assert_delay;
+	unsigned int reset_deassert_delay;
 };
 #define to_mdio_device(d) container_of(d, struct mdio_device, dev)
 

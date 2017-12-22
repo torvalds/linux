@@ -55,10 +55,10 @@ Optional Properties:
 
 - reset-gpios: The GPIO phandle and specifier for the PHY reset signal.
 
-- reset-delay-us: Delay after the reset was asserted in microseconds.
+- reset-assert-us: Delay after the reset was asserted in microseconds.
   If this property is missing the delay will be skipped.
 
-- reset-post-delay-us: Delay after the reset was deasserted in microseconds.
+- reset-deassert-us: Delay after the reset was deasserted in microseconds.
   If this property is missing the delay will be skipped.
 
 Example:
@@ -70,6 +70,6 @@ ethernet-phy@0 {
 	reg = <0>;
 
 	reset-gpios = <&gpio1 4 GPIO_ACTIVE_LOW>;
-	reset-delay-us = <1000>;
-	reset-post-delay-us = <2000>;
+	reset-assert-us = <1000>;
+	reset-deassert-us = <2000>;
 };
