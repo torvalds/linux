@@ -2172,6 +2172,10 @@ static int hclge_get_autoneg(struct hnae3_handle *handle)
 {
 	struct hclge_vport *vport = hclge_get_vport(handle);
 	struct hclge_dev *hdev = vport->back;
+	struct phy_device *phydev = hdev->hw.mac.phydev;
+
+	if (phydev)
+		return phydev->autoneg;
 
 	return hdev->hw.mac.autoneg;
 }
