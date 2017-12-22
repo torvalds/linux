@@ -52,6 +52,11 @@ MODULE_PARM_DESC(reset_mode, "0: auto, 1: warm only (default: 0)");
 #define ATH10K_PCI_TARGET_WAIT 3000
 #define ATH10K_PCI_NUM_WARM_RESET_ATTEMPTS 3
 
+/* Maximum number of bytes that can be handled atomically by
+ * diag read and write.
+ */
+#define ATH10K_DIAG_TRANSFER_LIMIT	0x5000
+
 static const struct pci_device_id ath10k_pci_id_table[] = {
 	{ PCI_VDEVICE(ATHEROS, QCA988X_2_0_DEVICE_ID) }, /* PCI-E QCA988X V2 */
 	{ PCI_VDEVICE(ATHEROS, QCA6164_2_1_DEVICE_ID) }, /* PCI-E QCA6164 V2.1 */
@@ -1462,6 +1467,218 @@ static void ath10k_pci_dump_registers(struct ath10k *ar,
 		crash_data->registers[i] = reg_dump_values[i];
 }
 
+static int ath10k_pci_dump_memory_section(struct ath10k *ar,
+					  const struct ath10k_mem_region *mem_region,
+					  u8 *buf, size_t buf_len)
+{
+	const struct ath10k_mem_section *cur_section, *next_section;
+	unsigned int count, section_size, skip_size;
+	int ret, i, j;
+
+	if (!mem_region || !buf)
+		return 0;
+
+	if (mem_region->section_table.size < 0)
+		return 0;
+
+	cur_section = &mem_region->section_table.sections[0];
+
+	if (mem_region->start > cur_section->start) {
+		ath10k_warn(ar, "incorrect memdump region 0x%x with section start addrress 0x%x.\n",
+			    mem_region->start, cur_section->start);
+		return 0;
+	}
+
+	skip_size = cur_section->start - mem_region->start;
+
+	/* fill the gap between the first register section and register
+	 * start address
+	 */
+	for (i = 0; i < skip_size; i++) {
+		*buf = ATH10K_MAGIC_NOT_COPIED;
+		buf++;
+	}
+
+	count = 0;
+
+	for (i = 0; cur_section != NULL; i++) {
+		section_size = cur_section->end - cur_section->start;
+
+		if (section_size <= 0) {
+			ath10k_warn(ar, "incorrect ramdump format with start address 0x%x and stop address 0x%x\n",
+				    cur_section->start,
+				    cur_section->end);
+			break;
+		}
+
+		if ((i + 1) == mem_region->section_table.size) {
+			/* last section */
+			next_section = NULL;
+			skip_size = 0;
+		} else {
+			next_section = cur_section + 1;
+
+			if (cur_section->end > next_section->start) {
+				ath10k_warn(ar, "next ramdump section 0x%x is smaller than current end address 0x%x\n",
+					    next_section->start,
+					    cur_section->end);
+				break;
+			}
+
+			skip_size = next_section->start - cur_section->end;
+		}
+
+		if (buf_len < (skip_size + section_size)) {
+			ath10k_warn(ar, "ramdump buffer is too small: %zu\n", buf_len);
+			break;
+		}
+
+		buf_len -= skip_size + section_size;
+
+		/* read section to dest memory */
+		ret = ath10k_pci_diag_read_mem(ar, cur_section->start,
+					       buf, section_size);
+		if (ret) {
+			ath10k_warn(ar, "failed to read ramdump from section 0x%x: %d\n",
+				    cur_section->start, ret);
+			break;
+		}
+
+		buf += section_size;
+		count += section_size;
+
+		/* fill in the gap between this section and the next */
+		for (j = 0; j < skip_size; j++) {
+			*buf = ATH10K_MAGIC_NOT_COPIED;
+			buf++;
+		}
+
+		count += skip_size;
+
+		if (!next_section)
+			/* this was the last section */
+			break;
+
+		cur_section = next_section;
+	}
+
+	return count;
+}
+
+static int ath10k_pci_set_ram_config(struct ath10k *ar, u32 config)
+{
+	u32 val;
+
+	ath10k_pci_write32(ar, SOC_CORE_BASE_ADDRESS +
+			   FW_RAM_CONFIG_ADDRESS, config);
+
+	val = ath10k_pci_read32(ar, SOC_CORE_BASE_ADDRESS +
+				FW_RAM_CONFIG_ADDRESS);
+	if (val != config) {
+		ath10k_warn(ar, "failed to set RAM config from 0x%x to 0x%x\n",
+			    val, config);
+		return -EIO;
+	}
+
+	return 0;
+}
+
+static void ath10k_pci_dump_memory(struct ath10k *ar,
+				   struct ath10k_fw_crash_data *crash_data)
+{
+	const struct ath10k_hw_mem_layout *mem_layout;
+	const struct ath10k_mem_region *current_region;
+	struct ath10k_dump_ram_data_hdr *hdr;
+	u32 count, shift;
+	size_t buf_len;
+	int ret, i;
+	u8 *buf;
+
+	lockdep_assert_held(&ar->data_lock);
+
+	if (!crash_data)
+		return;
+
+	mem_layout = ath10k_coredump_get_mem_layout(ar);
+	if (!mem_layout)
+		return;
+
+	current_region = &mem_layout->region_table.regions[0];
+
+	buf = crash_data->ramdump_buf;
+	buf_len = crash_data->ramdump_buf_len;
+
+	memset(buf, 0, buf_len);
+
+	for (i = 0; i < mem_layout->region_table.size; i++) {
+		count = 0;
+
+		if (current_region->len > buf_len) {
+			ath10k_warn(ar, "memory region %s size %d is larger that remaining ramdump buffer size %zu\n",
+				    current_region->name,
+				    current_region->len,
+				    buf_len);
+			break;
+		}
+
+		/* To get IRAM dump, the host driver needs to switch target
+		 * ram config from DRAM to IRAM.
+		 */
+		if (current_region->type == ATH10K_MEM_REGION_TYPE_IRAM1 ||
+		    current_region->type == ATH10K_MEM_REGION_TYPE_IRAM2) {
+			shift = current_region->start >> 20;
+
+			ret = ath10k_pci_set_ram_config(ar, shift);
+			if (ret) {
+				ath10k_warn(ar, "failed to switch ram config to IRAM for section %s: %d\n",
+					    current_region->name, ret);
+				break;
+			}
+		}
+
+		/* Reserve space for the header. */
+		hdr = (void *)buf;
+		buf += sizeof(*hdr);
+		buf_len -= sizeof(*hdr);
+
+		if (current_region->section_table.size > 0) {
+			/* Copy each section individually. */
+			count = ath10k_pci_dump_memory_section(ar,
+							       current_region,
+							       buf,
+							       current_region->len);
+		} else {
+			/* No individiual memory sections defined so we can
+			 * copy the entire memory region.
+			 */
+			ret = ath10k_pci_diag_read_mem(ar,
+						       current_region->start,
+						       buf,
+						       current_region->len);
+			if (ret) {
+				ath10k_warn(ar, "failed to copy ramdump region %s: %d\n",
+					    current_region->name, ret);
+				break;
+			}
+
+			count = current_region->len;
+		}
+
+		hdr->region_type = cpu_to_le32(current_region->type);
+		hdr->start = cpu_to_le32(current_region->start);
+		hdr->length = cpu_to_le32(count);
+
+		if (count == 0)
+			/* Note: the header remains, just with zero length. */
+			break;
+
+		buf += count;
+		buf_len -= count;
+
+		current_region++;
+	}
+}
+
 static void ath10k_pci_fw_crashed_dump(struct ath10k *ar)
 {
 	struct ath10k_fw_crash_data *crash_data;
@@ -1482,6 +1699,7 @@ static void ath10k_pci_fw_crashed_dump(struct ath10k *ar)
 	ath10k_print_driver_info(ar);
 	ath10k_pci_dump_registers(ar, crash_data);
 	ath10k_ce_dump_registers(ar, crash_data);
+	ath10k_pci_dump_memory(ar, crash_data);
 
 	spin_unlock_bh(&ar->data_lock);
 

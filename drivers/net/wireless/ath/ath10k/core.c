@@ -2563,10 +2563,16 @@ static void ath10k_core_register_work(struct work_struct *work)
 		goto err_release_fw;
 	}
 
+	status = ath10k_coredump_register(ar);
+	if (status) {
+		ath10k_err(ar, "unable to register coredump\n");
+		goto err_unregister_mac;
+	}
+
 	status = ath10k_debug_register(ar);
 	if (status) {
 		ath10k_err(ar, "unable to initialize debugfs\n");
-		goto err_unregister_mac;
+		goto err_unregister_coredump;
 	}
 
 	status = ath10k_spectral_create(ar);
@@ -2589,6 +2595,8 @@ err_spectral_destroy:
 	ath10k_spectral_destroy(ar);
 err_debug_destroy:
 	ath10k_debug_destroy(ar);
+err_unregister_coredump:
+	ath10k_coredump_unregister(ar);
 err_unregister_mac:
 	ath10k_mac_unregister(ar);
 err_release_fw:
