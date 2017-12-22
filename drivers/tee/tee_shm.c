@@ -335,9 +335,11 @@ err:
 			idr_remove(&teedev->idr, shm->id);
 			mutex_unlock(&teedev->mutex);
 		}
-		for (n = 0; n < shm->num_pages; n++)
-			put_page(shm->pages[n]);
-		kfree(shm->pages);
+		if (shm->pages) {
+			for (n = 0; n < shm->num_pages; n++)
+				put_page(shm->pages[n]);
+			kfree(shm->pages);
+		}
 	}
 	kfree(shm);
 	teedev_ctx_put(ctx);
