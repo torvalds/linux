@@ -51,7 +51,7 @@ struct armada_thermal_data;
 
 /* Marvell EBU Thermal Sensor Dev Structure */
 struct armada_thermal_priv {
-	void __iomem *sensor;
+	void __iomem *status;
 	void __iomem *control0;
 	void __iomem *control1;
 	struct armada_thermal_data *data;
@@ -99,9 +99,9 @@ static void armadaxp_init_sensor(struct platform_device *pdev,
 	writel(reg, priv->control1);
 
 	/* Enable the sensor */
-	reg = readl_relaxed(priv->sensor);
+	reg = readl_relaxed(priv->status);
 	reg &= ~PMU_TM_DISABLE_MASK;
-	writel(reg, priv->sensor);
+	writel(reg, priv->status);
 }
 
 static void armada370_init_sensor(struct platform_device *pdev,
@@ -157,7 +157,7 @@ static void armada380_init_sensor(struct platform_device *pdev,
 
 static bool armada_is_valid(struct armada_thermal_priv *priv)
 {
-	u32 reg = readl_relaxed(priv->sensor);
+	u32 reg = readl_relaxed(priv->status);
 
 	return reg & priv->data->is_valid_bit;
 }
@@ -176,7 +176,7 @@ static int armada_get_temp(struct thermal_zone_device *thermal,
 		return -EIO;
 	}
 
-	reg = readl_relaxed(priv->sensor);
+	reg = readl_relaxed(priv->status);
 	reg = (reg >> priv->data->temp_shift) & priv->data->temp_mask;
 
 	/* Get formula coeficients */
@@ -279,9 +279,9 @@ static int armada_thermal_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	priv->sensor = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(priv->sensor))
-		return PTR_ERR(priv->sensor);
+	priv->status = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(priv->status))
+		return PTR_ERR(priv->status);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
 	control = devm_ioremap_resource(&pdev->dev, res);
