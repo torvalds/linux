@@ -1052,12 +1052,22 @@ static int igt_ggtt_page(void *arg)
 
 	memset(&tmp, 0, sizeof(tmp));
 	err = drm_mm_insert_node_in_range(&ggtt->base.mm, &tmp,
-					  1024 * PAGE_SIZE, 0,
+					  count * PAGE_SIZE, 0,
 					  I915_COLOR_UNEVICTABLE,
 					  0, ggtt->mappable_end,
 					  DRM_MM_INSERT_LOW);
 	if (err)
 		goto out_unpin;
+
+	intel_runtime_pm_get(i915);
+
+	for (n = 0; n < count; n++) {
+		u64 offset = tmp.start + n * PAGE_SIZE;
+
+		ggtt->base.insert_page(&ggtt->base,
+				       i915_gem_object_get_dma_address(obj, 0),
+				       offset, I915_CACHE_NONE, 0);
+	}
 
 	order = i915_random_order(count, &prng);
 	if (!order) {
@@ -1065,22 +1075,15 @@ static int igt_ggtt_page(void *arg)
 		goto out_remove;
 	}
 
-	intel_runtime_pm_get(i915);
 	for (n = 0; n < count; n++) {
 		u64 offset = tmp.start + order[n] * PAGE_SIZE;
 		u32 __iomem *vaddr;
 
-		ggtt->base.insert_page(&ggtt->base,
-				       i915_gem_object_get_dma_address(obj, 0),
-				       offset, I915_CACHE_NONE, 0);
-
 		vaddr = io_mapping_map_atomic_wc(&ggtt->iomap, offset);
 		iowrite32(n, vaddr + n);
 		io_mapping_unmap_atomic(vaddr);
-
-		wmb();
-		ggtt->base.clear_range(&ggtt->base, offset, PAGE_SIZE);
 	}
+	i915_gem_flush_ggtt_writes(i915);
 
 	i915_random_reorder(order, count, &prng);
 	for (n = 0; n < count; n++) {
@@ -1088,15 +1091,9 @@ static int igt_ggtt_page(void *arg)
 		u32 __iomem *vaddr;
 		u32 val;
 
-		ggtt->base.insert_page(&ggtt->base,
-				       i915_gem_object_get_dma_address(obj, 0),
-				       offset, I915_CACHE_NONE, 0);
-
 		vaddr = io_mapping_map_atomic_wc(&ggtt->iomap, offset);
 		val = ioread32(vaddr + n);
 		io_mapping_unmap_atomic(vaddr);
-
-		ggtt->base.clear_range(&ggtt->base, offset, PAGE_SIZE);
 
 		if (val != n) {
 			pr_err("insert page failed: found %d, expected %d\n",
@@ -1105,10 +1102,11 @@ static int igt_ggtt_page(void *arg)
 			break;
 		}
 	}
-	intel_runtime_pm_put(i915);
 
 	kfree(order);
 out_remove:
+	ggtt->base.clear_range(&ggtt->base, tmp.start, tmp.size);
+	intel_runtime_pm_put(i915);
 	drm_mm_remove_node(&tmp);
 out_unpin:
 	i915_gem_object_unpin_pages(obj);
