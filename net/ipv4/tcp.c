@@ -1371,8 +1371,10 @@ new_segment:
 			pfrag->offset += copy;
 		} else {
 			err = skb_zerocopy_iter_stream(sk, skb, msg, copy, uarg);
-			if (err == -EMSGSIZE || err == -EEXIST)
+			if (err == -EMSGSIZE || err == -EEXIST) {
+				tcp_mark_push(tp, skb);
 				goto new_segment;
+			}
 			if (err < 0)
 				goto do_error;
 			copy = err;
