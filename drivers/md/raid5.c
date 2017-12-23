@@ -6764,9 +6764,7 @@ static void free_conf(struct r5conf *conf)
 
 	log_exit(conf);
 
-	if (conf->shrinker.nr_deferred)
-		unregister_shrinker(&conf->shrinker);
-
+	unregister_shrinker(&conf->shrinker);
 	free_thread_groups(conf);
 	shrink_stripes(conf);
 	raid5_free_percpu(conf);
