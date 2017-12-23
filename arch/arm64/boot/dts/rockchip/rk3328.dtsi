@@ -46,8 +46,10 @@
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/pinctrl/rockchip.h>
 #include <dt-bindings/soc/rockchip,boot-mode.h>
+#include <dt-bindings/soc/rockchip-system-status.h>
 #include <dt-bindings/power/rk3328-power.h>
 #include <dt-bindings/thermal/thermal.h>
+#include "rk3328-dram-default-timing.dtsi"
 
 / {
 	compatible = "rockchip,rk3328";
@@ -1244,6 +1246,71 @@
 			snps,dis-del-phy-power-chg-quirk;
 			snps,tx-ipgap-linecheck-dis-quirk;
 			status = "disabled";
+		};
+	};
+
+	dfi: dfi@ff790000 {
+		reg = <0x00 0xff790000 0x00 0x400>;
+		compatible = "rockchip,rk3328-dfi";
+		rockchip,grf = <&grf>;
+		status = "disabled";
+	};
+
+	dmc: dmc {
+		compatible = "rockchip,rk3328-dmc";
+		devfreq-events = <&dfi>;
+		clocks = <&cru SCLK_DDRCLK>;
+		clock-names = "dmc_clk";
+		operating-points-v2 = <&dmc_opp_table>;
+		ddr_timing = <&ddr_timing>;
+		upthreshold = <40>;
+		downdifferential = <20>;
+		system-status-freq = <
+			/*system status         freq(KHz)*/
+			SYS_STATUS_NORMAL       786000
+			SYS_STATUS_REBOOT       786000
+			SYS_STATUS_SUSPEND      786000
+			SYS_STATUS_VIDEO_1080P  786000
+			SYS_STATUS_VIDEO_4K     786000
+			SYS_STATUS_VIDEO_4K_10B 933000
+			SYS_STATUS_PERFORMANCE  933000
+			SYS_STATUS_BOOST        933000
+		>;
+		auto-min-freq = <786000>;
+		auto-freq-en = <0>;
+		status = "disabled";
+	};
+
+	dmc_opp_table: opp-table3 {
+		compatible = "operating-points-v2";
+
+		opp-400000000 {
+			opp-hz = /bits/ 64 <400000000>;
+			opp-microvolt = <900000>;
+		};
+		opp-600000000 {
+			opp-hz = /bits/ 64 <600000000>;
+			opp-microvolt = <1000000>;
+		};
+		opp-786000000 {
+			opp-hz = /bits/ 64 <786000000>;
+			opp-microvolt = <1050000>;
+		};
+		opp-800000000 {
+			opp-hz = /bits/ 64 <800000000>;
+			opp-microvolt = <1050000>;
+		};
+		opp-850000000 {
+			opp-hz = /bits/ 64 <850000000>;
+			opp-microvolt = <1050000>;
+		};
+		opp-933000000 {
+			opp-hz = /bits/ 64 <933000000>;
+			opp-microvolt = <1075000>;
+		};
+		opp-1066000000 {
+			opp-hz = /bits/ 64 <1066000000>;
+			opp-microvolt = <1150000>;
 		};
 	};
 
