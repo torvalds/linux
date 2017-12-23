@@ -31,7 +31,7 @@ static void ia64_swiotlb_free_coherent(struct device *dev, size_t size,
 	swiotlb_free_coherent(dev, size, vaddr, dma_addr);
 }
 
-const struct dma_map_ops swiotlb_dma_ops = {
+const struct dma_map_ops ia64_swiotlb_dma_ops = {
 	.alloc = ia64_swiotlb_alloc_coherent,
 	.free = ia64_swiotlb_free_coherent,
 	.map_page = swiotlb_map_page,
@@ -48,7 +48,7 @@ const struct dma_map_ops swiotlb_dma_ops = {
 
 void __init swiotlb_dma_init(void)
 {
-	dma_ops = &swiotlb_dma_ops;
+	dma_ops = &ia64_swiotlb_dma_ops;
 	swiotlb_init(1);
 }
 
@@ -60,7 +60,7 @@ void __init pci_swiotlb_init(void)
 		printk(KERN_INFO "PCI-DMA: Re-initialize machine vector.\n");
 		machvec_init("dig");
 		swiotlb_init(1);
-		dma_ops = &swiotlb_dma_ops;
+		dma_ops = &ia64_swiotlb_dma_ops;
 #else
 		panic("Unable to find Intel IOMMU");
 #endif
