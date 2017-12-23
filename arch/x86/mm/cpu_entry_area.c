@@ -122,7 +122,8 @@ static __init void setup_cpu_entry_area_ptes(void)
 	start = CPU_ENTRY_AREA_BASE;
 	end = start + CPU_ENTRY_AREA_MAP_SIZE;
 
-	for (; start < end; start += PMD_SIZE)
+	/* Careful here: start + PMD_SIZE might wrap around */
+	for (; start < end && start >= CPU_ENTRY_AREA_BASE; start += PMD_SIZE)
 		populate_extra_pte(start);
 #endif
 }
