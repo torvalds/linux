@@ -443,7 +443,6 @@ static struct platform_driver bcm2835_alsa0_driver = {
 #endif
 	.driver = {
 		.name = "bcm2835_audio",
-		.owner = THIS_MODULE,
 		.of_match_table = snd_bcm2835_of_match_table,
 	},
 };
