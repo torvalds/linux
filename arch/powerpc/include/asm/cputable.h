@@ -107,12 +107,6 @@ struct cpu_spec {
 	 * called in real mode to handle SLB and TLB errors.
 	 */
 	long		(*machine_check_early)(struct pt_regs *regs);
-
-	/*
-	 * Processor specific routine to flush tlbs.
-	 */
-	void		(*flush_tlb)(unsigned int action);
-
 };
 
 extern struct cpu_spec		*cur_cpu_spec;
@@ -132,12 +126,6 @@ extern void cpu_feature_keys_init(void);
 #else
 static inline void cpu_feature_keys_init(void) { }
 #endif
-
-/* TLB flush actions. Used as argument to cpu_spec.flush_tlb() hook */
-enum {
-	TLB_INVAL_SCOPE_GLOBAL = 0,	/* invalidate all TLBs */
-	TLB_INVAL_SCOPE_LPID = 1,	/* invalidate TLBs for current LPID */
-};
 
 #endif /* __ASSEMBLY__ */
 

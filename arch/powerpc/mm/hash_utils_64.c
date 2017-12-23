@@ -1051,6 +1051,10 @@ void __init hash__early_init_mmu(void)
 	pr_info("Initializing hash mmu with SLB\n");
 	/* Initialize SLB management */
 	slb_initialize();
+
+	if (cpu_has_feature(CPU_FTR_ARCH_206)
+			&& cpu_has_feature(CPU_FTR_HVMODE))
+		tlbiel_all();
 }
 
 #ifdef CONFIG_SMP
@@ -1070,6 +1074,10 @@ void hash__early_init_mmu_secondary(void)
 	}
 	/* Initialize SLB */
 	slb_initialize();
+
+	if (cpu_has_feature(CPU_FTR_ARCH_206)
+			&& cpu_has_feature(CPU_FTR_HVMODE))
+		tlbiel_all();
 }
 #endif /* CONFIG_SMP */
 

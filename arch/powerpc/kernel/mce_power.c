@@ -58,115 +58,6 @@ static unsigned long addr_to_pfn(struct pt_regs *regs, unsigned long addr)
 	return pte_pfn(*ptep);
 }
 
-static void flush_tlb_206(unsigned int num_sets, unsigned int action)
-{
-	unsigned long rb;
-	unsigned int i;
-
-	switch (action) {
-	case TLB_INVAL_SCOPE_GLOBAL:
-		rb = TLBIEL_INVAL_SET;
-		break;
-	case TLB_INVAL_SCOPE_LPID:
-		rb = TLBIEL_INVAL_SET_LPID;
-		break;
-	default:
-		BUG();
-		break;
-	}
-
-	asm volatile("ptesync" : : : "memory");
-	for (i = 0; i < num_sets; i++) {
-		asm volatile("tlbiel %0" : : "r" (rb));
-		rb += 1 << TLBIEL_INVAL_SET_SHIFT;
-	}
-	asm volatile("ptesync" : : : "memory");
-}
-
-static void flush_tlb_300(unsigned int num_sets, unsigned int action)
-{
-	unsigned long rb;
-	unsigned int i;
-	unsigned int r;
-
-	switch (action) {
-	case TLB_INVAL_SCOPE_GLOBAL:
-		rb = TLBIEL_INVAL_SET;
-		break;
-	case TLB_INVAL_SCOPE_LPID:
-		rb = TLBIEL_INVAL_SET_LPID;
-		break;
-	default:
-		BUG();
-		break;
-	}
-
-	asm volatile("ptesync" : : : "memory");
-
-	if (early_radix_enabled())
-		r = 1;
-	else
-		r = 0;
-
-	/*
-	 * First flush table/PWC caches with set 0, then flush the
-	 * rest of the sets, partition scope. Radix must then do it
-	 * all again with process scope. Hash just has to flush
-	 * process table.
-	 */
-	asm volatile(PPC_TLBIEL(%0, %1, %2, %3, %4) : :
-			"r"(rb), "r"(0), "i"(2), "i"(0), "r"(r));
-	for (i = 1; i < num_sets; i++) {
-		unsigned long set = i * (1<<TLBIEL_INVAL_SET_SHIFT);
-
-		asm volatile(PPC_TLBIEL(%0, %1, %2, %3, %4) : :
-				"r"(rb+set), "r"(0), "i"(2), "i"(0), "r"(r));
-	}
-
-	asm volatile(PPC_TLBIEL(%0, %1, %2, %3, %4) : :
-			"r"(rb), "r"(0), "i"(2), "i"(1), "r"(r));
-	if (early_radix_enabled()) {
-		for (i = 1; i < num_sets; i++) {
-			unsigned long set = i * (1<<TLBIEL_INVAL_SET_SHIFT);
-
-			asm volatile(PPC_TLBIEL(%0, %1, %2, %3, %4) : :
-				"r"(rb+set), "r"(0), "i"(2), "i"(1), "r"(r));
-		}
-	}
-
-	asm volatile("ptesync" : : : "memory");
-}
-
-/*
- * Generic routines to flush TLB on POWER processors. These routines
- * are used as flush_tlb hook in the cpu_spec.
- *
- * action => TLB_INVAL_SCOPE_GLOBAL:  Invalidate all TLBs.
- *	     TLB_INVAL_SCOPE_LPID: Invalidate TLB for current LPID.
- */
-void __flush_tlb_power7(unsigned int action)
-{
-	flush_tlb_206(POWER7_TLB_SETS, action);
-}
-
-void __flush_tlb_power8(unsigned int action)
-{
-	flush_tlb_206(POWER8_TLB_SETS, action);
-}
-
-void __flush_tlb_power9(unsigned int action)
-{
-	unsigned int num_sets;
-
-	if (early_radix_enabled())
-		num_sets = POWER9_TLB_SETS_RADIX;
-	else
-		num_sets = POWER9_TLB_SETS_HASH;
-
-	flush_tlb_300(num_sets, action);
-}
-
-
 /* flush SLBs and reload */
 #ifdef CONFIG_PPC_BOOK3S_64
 static void flush_and_reload_slb(void)
@@ -226,10 +117,8 @@ static int mce_flush(int what)
 		return 1;
 	}
 	if (what == MCE_FLUSH_TLB) {
-		if (cur_cpu_spec && cur_cpu_spec->flush_tlb) {
-			cur_cpu_spec->flush_tlb(TLB_INVAL_SCOPE_GLOBAL);
-			return 1;
-		}
+		tlbiel_all();
+		return 1;
 	}
 
 	return 0;

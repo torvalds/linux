@@ -579,6 +579,9 @@ void __init radix__early_init_mmu(void)
 
 	radix_init_iamr();
 	radix_init_pgtable();
+
+	if (cpu_has_feature(CPU_FTR_HVMODE))
+		tlbiel_all();
 }
 
 void radix__early_init_mmu_secondary(void)
@@ -600,6 +603,9 @@ void radix__early_init_mmu_secondary(void)
 		radix_init_amor();
 	}
 	radix_init_iamr();
+
+	if (cpu_has_feature(CPU_FTR_HVMODE))
+		tlbiel_all();
 }
 
 void radix__mmu_cleanup_all(void)
