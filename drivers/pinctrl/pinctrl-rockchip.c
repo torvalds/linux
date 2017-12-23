@@ -2408,18 +2408,14 @@ static int rockchip_pinctrl_parse_dt(struct platform_device *pdev,
 	info->functions = devm_kzalloc(dev, info->nfunctions *
 					      sizeof(struct rockchip_pmx_func),
 					      GFP_KERNEL);
-	if (!info->functions) {
-		dev_err(dev, "failed to allocate memory for function list\n");
+	if (!info->functions)
 		return -EINVAL;
-	}
 
 	info->groups = devm_kzalloc(dev, info->ngroups *
 					    sizeof(struct rockchip_pin_group),
 					    GFP_KERNEL);
-	if (!info->groups) {
-		dev_err(dev, "failed allocate memory for ping group list\n");
+	if (!info->groups)
 		return -EINVAL;
-	}
 
 	i = 0;
 
@@ -2455,10 +2451,9 @@ static int rockchip_pinctrl_register(struct platform_device *pdev,
 
 	pindesc = devm_kzalloc(&pdev->dev, sizeof(*pindesc) *
 			info->ctrl->nr_pins, GFP_KERNEL);
-	if (!pindesc) {
-		dev_err(&pdev->dev, "mem alloc for pin descriptors failed\n");
+	if (!pindesc)
 		return -ENOMEM;
-	}
+
 	ctrldesc->pins = pindesc;
 	ctrldesc->npins = info->ctrl->nr_pins;
 
