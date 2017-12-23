@@ -1,0 +1,8 @@
+copy the following file to BPI-ROOT-partition of SD-Card:
+
+- config\WMT_SOC.cfg to system/etc/firmware/
+
+- content of folder firmware to etc/firmware/
+
+- src\stp_uart_launcher, src\wmt_loader and src\wmt_loopback to usr/bin/
+
