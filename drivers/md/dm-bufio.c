@@ -1743,20 +1743,23 @@ struct dm_bufio_client *dm_bufio_client_create(struct block_device *bdev, unsign
 		__free_buffer_wake(b);
 	}
 
+	c->shrinker.count_objects = dm_bufio_shrink_count;
+	c->shrinker.scan_objects = dm_bufio_shrink_scan;
+	c->shrinker.seeks = 1;
+	c->shrinker.batch = 0;
+	r = register_shrinker(&c->shrinker);
+	if (r)
+		goto bad_shrinker;
+
 	mutex_lock(&dm_bufio_clients_lock);
 	dm_bufio_client_count++;
 	list_add(&c->client_list, &dm_bufio_all_clients);
 	__cache_size_refresh();
 	mutex_unlock(&dm_bufio_clients_lock);
 
-	c->shrinker.count_objects = dm_bufio_shrink_count;
-	c->shrinker.scan_objects = dm_bufio_shrink_scan;
-	c->shrinker.seeks = 1;
-	c->shrinker.batch = 0;
-	register_shrinker(&c->shrinker);
-
 	return c;
 
+bad_shrinker:
 bad_buffer:
 bad_cache:
 	while (!list_empty(&c->reserved_buffers)) {
