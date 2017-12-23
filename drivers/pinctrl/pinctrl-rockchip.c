@@ -3166,7 +3166,7 @@ static int rockchip_pinctrl_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	info = devm_kzalloc(dev, sizeof(struct rockchip_pinctrl), GFP_KERNEL);
+	info = devm_kzalloc(dev, sizeof(*info), GFP_KERNEL);
 	if (!info)
 		return -ENOMEM;
 
