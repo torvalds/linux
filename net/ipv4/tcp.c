@@ -1104,12 +1104,15 @@ static int linear_payload_sz(bool first_skb)
 	return 0;
 }
 
-static int select_size(const struct sock *sk, bool sg, bool first_skb)
+static int select_size(const struct sock *sk, bool sg, bool first_skb, bool zc)
 {
 	const struct tcp_sock *tp = tcp_sk(sk);
 	int tmp = tp->mss_cache;
 
 	if (sg) {
+		if (zc)
+			return 0;
+
 		if (sk_can_gso(sk)) {
 			tmp = linear_payload_sz(first_skb);
 		} else {
@@ -1282,6 +1285,7 @@ restart:
 
 		if (copy <= 0 || !tcp_skb_can_collapse_to(skb)) {
 			bool first_skb;
+			int linear;
 
 new_segment:
 			/* Allocate new segment. If the interface is SG,
@@ -1295,9 +1299,8 @@ new_segment:
 				goto restart;
 			}
 			first_skb = tcp_rtx_and_write_queues_empty(sk);
-			skb = sk_stream_alloc_skb(sk,
-						  select_size(sk, sg, first_skb),
-						  sk->sk_allocation,
+			linear = select_size(sk, sg, first_skb, zc);
+			skb = sk_stream_alloc_skb(sk, linear, sk->sk_allocation,
 						  first_skb);
 			if (!skb)
 				goto wait_for_memory;
