@@ -255,6 +255,8 @@ static int rockchip_ddrclk_sip_set_rate_v2(struct clk_hw *hw,
 
 	p->hz = drate;
 	p->lcdc_type = rk_drm_get_lcdc_type();
+	p->wait_flag1 = 1;
+	p->wait_flag0 = 1;
 
 	res = sip_smc_dram(SHARE_PAGE_TYPE_DDR, 0,
 			   ROCKCHIP_SIP_CONFIG_DRAM_SET_RATE);
