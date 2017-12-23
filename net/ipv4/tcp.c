@@ -1186,7 +1186,7 @@ int tcp_sendmsg_locked(struct sock *sk, struct msghdr *msg, size_t size)
 	int flags, err, copied = 0;
 	int mss_now = 0, size_goal, copied_syn = 0;
 	bool process_backlog = false;
-	bool sg;
+	bool sg, zc = false;
 	long timeo;
 
 	flags = msg->msg_flags;
@@ -1204,7 +1204,8 @@ int tcp_sendmsg_locked(struct sock *sk, struct msghdr *msg, size_t size)
 			goto out_err;
 		}
 
-		if (!(sk_check_csum_caps(sk) && sk->sk_route_caps & NETIF_F_SG))
+		zc = sk_check_csum_caps(sk) && sk->sk_route_caps & NETIF_F_SG;
+		if (!zc)
 			uarg->zerocopy = 0;
 	}
 
@@ -1325,13 +1326,13 @@ new_segment:
 			copy = msg_data_left(msg);
 
 		/* Where to copy to? */
-		if (skb_availroom(skb) > 0) {
+		if (skb_availroom(skb) > 0 && !zc) {
 			/* We have some space in skb head. Superb! */
 			copy = min_t(int, copy, skb_availroom(skb));
 			err = skb_add_data_nocache(sk, skb, &msg->msg_iter, copy);
 			if (err)
 				goto do_fault;
-		} else if (!uarg || !uarg->zerocopy) {
+		} else if (!zc) {
 			bool merge = true;
 			int i = skb_shinfo(skb)->nr_frags;
 			struct page_frag *pfrag = sk_page_frag(sk);
