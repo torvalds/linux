@@ -39,6 +39,8 @@
 #include <linux/ratelimit.h>
 #include <linux/context_tracking.h>
 #include <linux/smp.h>
+#include <linux/console.h>
+#include <linux/kmsg_dump.h>
 
 #include <asm/emulated_ops.h>
 #include <asm/pgtable.h>
@@ -142,6 +144,28 @@ static arch_spinlock_t die_lock = __ARCH_SPIN_LOCK_UNLOCKED;
 static int die_owner = -1;
 static unsigned int die_nest_count;
 static int die_counter;
+
+extern void panic_flush_kmsg_start(void)
+{
+	/*
+	 * These are mostly taken from kernel/panic.c, but tries to do
+	 * relatively minimal work. Don't use delay functions (TB may
+	 * be broken), don't crash dump (need to set a firmware log),
+	 * don't run notifiers. We do want to get some information to
+	 * Linux console.
+	 */
+	console_verbose();
+	bust_spinlocks(1);
+}
+
+extern void panic_flush_kmsg_end(void)
+{
+	printk_safe_flush_on_panic();
+	kmsg_dump(KMSG_DUMP_PANIC);
+	bust_spinlocks(0);
+	debug_locks_off();
+	console_flush_on_panic();
+}
 
 static unsigned long oops_begin(struct pt_regs *regs)
 {

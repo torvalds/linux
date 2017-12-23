@@ -461,24 +461,14 @@ static int opal_recover_mce(struct pt_regs *regs,
 
 void pnv_platform_error_reboot(struct pt_regs *regs, const char *msg)
 {
-	/*
-	 * This is mostly taken from kernel/panic.c, but tries to do
-	 * relatively minimal work. Don't use delay functions (TB may
-	 * be broken), don't crash dump (need to set a firmware log),
-	 * don't run notifiers. We do want to get some information to
-	 * Linux console.
-	 */
-	console_verbose();
-	bust_spinlocks(1);
+	panic_flush_kmsg_start();
+
 	pr_emerg("Hardware platform error: %s\n", msg);
 	if (regs)
 		show_regs(regs);
 	smp_send_stop();
-	printk_safe_flush_on_panic();
-	kmsg_dump(KMSG_DUMP_PANIC);
-	bust_spinlocks(0);
-	debug_locks_off();
-	console_flush_on_panic();
+
+	panic_flush_kmsg_end();
 
 	/*
 	 * Don't bother to shut things down because this will
