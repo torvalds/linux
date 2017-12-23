@@ -335,7 +335,7 @@ static struct isc_format formats_list[] = {
 	},
 };
 
-struct fmt_config fmt_configs_list[] = {
+static struct fmt_config fmt_configs_list[] = {
 	{
 		.fourcc		= V4L2_PIX_FMT_SBGGR8,
 		.pfe_cfg0_bps	= ISC_PFE_CFG0_BPS_EIGHT,
