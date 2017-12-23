@@ -926,7 +926,8 @@ config MAXSMP
 config NR_CPUS
 	int "Maximum number of CPUs" if SMP && !MAXSMP
 	range 2 8 if SMP && X86_32 && !X86_BIGSMP
-	range 2 512 if SMP && !MAXSMP && !CPUMASK_OFFSTACK
+	range 2 64 if SMP && X86_32 && X86_BIGSMP
+	range 2 512 if SMP && !MAXSMP && !CPUMASK_OFFSTACK && X86_64
 	range 2 8192 if SMP && !MAXSMP && CPUMASK_OFFSTACK && X86_64
 	default "1" if !SMP
 	default "8192" if MAXSMP
