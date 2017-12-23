@@ -1977,8 +1977,7 @@ int lu_global_init(void)
  */
 void lu_global_fini(void)
 {
-	if (lu_site_shrinker.nr_deferred)
-		unregister_shrinker(&lu_site_shrinker);
+	unregister_shrinker(&lu_site_shrinker);
 	lu_context_key_degister(&lu_global_key);
 
 	/*
