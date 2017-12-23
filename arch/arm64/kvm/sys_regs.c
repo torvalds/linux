@@ -35,6 +35,7 @@
 #include <asm/kvm_coproc.h>
 #include <asm/kvm_emulate.h>
 #include <asm/kvm_host.h>
+#include <asm/kvm_hyp.h>
 #include <asm/kvm_mmu.h>
 #include <asm/perf_event.h>
 #include <asm/sysreg.h>
@@ -74,6 +75,38 @@ static bool write_to_read_only(struct kvm_vcpu *vcpu,
 	print_sys_reg_instr(params);
 	kvm_inject_undefined(vcpu);
 	return false;
+}
+
+u64 vcpu_read_sys_reg(struct kvm_vcpu *vcpu, int reg)
+{
+	if (!vcpu->arch.sysregs_loaded_on_cpu)
+		goto immediate_read;
+
+	/*
+	 * System registers listed in the switch are not saved on every
+	 * exit from the guest but are only saved on vcpu_put.
+	 */
+	switch (reg) {
+	}
+
+immediate_read:
+	return __vcpu_sys_reg(vcpu, reg);
+}
+
+void vcpu_write_sys_reg(struct kvm_vcpu *vcpu, u64 val, int reg)
+{
+	if (!vcpu->arch.sysregs_loaded_on_cpu)
+		goto immediate_write;
+
+	/*
+	 * System registers listed in the switch are not restored on every
+	 * entry to the guest but are only restored on vcpu_load.
+	 */
+	switch (reg) {
+	}
+
+immediate_write:
+	 __vcpu_sys_reg(vcpu, reg) = val;
 }
 
 /* 3 bits per cache level, as per CLIDR, but non-existent caches always 0 */

@@ -284,6 +284,10 @@ struct kvm_vcpu_arch {
 
 	/* Virtual SError ESR to restore when HCR_EL2.VSE is set */
 	u64 vsesr_el2;
+
+	/* True when deferrable sysregs are loaded on the physical CPU,
+	 * see kvm_vcpu_load_sysregs and kvm_vcpu_put_sysregs. */
+	bool sysregs_loaded_on_cpu;
 };
 
 #define vcpu_gp_regs(v)		(&(v)->arch.ctxt.gp_regs)
@@ -296,8 +300,8 @@ struct kvm_vcpu_arch {
  */
 #define __vcpu_sys_reg(v,r)	((v)->arch.ctxt.sys_regs[(r)])
 
-#define vcpu_read_sys_reg(v,r)	__vcpu_sys_reg(v,r)
-#define vcpu_write_sys_reg(v,n,r)	do { __vcpu_sys_reg(v,r) = n; } while (0)
+u64 vcpu_read_sys_reg(struct kvm_vcpu *vcpu, int reg);
+void vcpu_write_sys_reg(struct kvm_vcpu *vcpu, u64 val, int reg);
 
 /*
  * CP14 and CP15 live in the same array, as they are backed by the
