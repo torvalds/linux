@@ -286,7 +286,7 @@ static const struct dmi_system_id dell_quirks[] __initconst = {
 	{ }
 };
 
-void dell_set_arguments(u32 arg0, u32 arg1, u32 arg2, u32 arg3)
+static void dell_set_arguments(u32 arg0, u32 arg1, u32 arg2, u32 arg3)
 {
 	memset(buffer, 0, sizeof(struct calling_interface_buffer));
 	buffer->input[0] = arg0;
@@ -295,7 +295,7 @@ void dell_set_arguments(u32 arg0, u32 arg1, u32 arg2, u32 arg3)
 	buffer->input[3] = arg3;
 }
 
-int dell_send_request(u16 class, u16 select)
+static int dell_send_request(u16 class, u16 select)
 {
 	int ret;
 
