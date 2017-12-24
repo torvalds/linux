@@ -104,8 +104,16 @@ void __init pci_iommu_alloc(void)
 	detect_intel_iommu();
 
 #ifdef CONFIG_SWIOTLB
-	pci_swiotlb_init();
-#endif
+	if (!iommu_detected) {
+#ifdef CONFIG_IA64_GENERIC
+		printk(KERN_INFO "PCI-DMA: Re-initialize machine vector.\n");
+		machvec_init("dig");
+		swiotlb_dma_init();
+#else
+		panic("Unable to find Intel IOMMU");
+#endif /* CONFIG_IA64_GENERIC */
+	}
+#endif /* CONFIG_SWIOTLB */
 }
 
 #endif
