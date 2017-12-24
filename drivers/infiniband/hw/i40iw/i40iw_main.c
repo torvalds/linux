@@ -1290,7 +1290,7 @@ static void i40iw_wait_pe_ready(struct i40iw_hw *hw)
 			      __LINE__, statuscpu2);
 		if ((statuscpu0 == 0x80) && (statuscpu1 == 0x80) && (statuscpu2 == 0x80))
 			break;	/* SUCCESS */
-		mdelay(1000);
+		msleep(1000);
 		retrycount++;
 	} while (retrycount < 14);
 	i40iw_wr32(hw, 0xb4040, 0x4C104C5);
