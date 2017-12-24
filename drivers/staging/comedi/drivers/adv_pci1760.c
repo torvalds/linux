@@ -60,7 +60,7 @@
 #define PCI1760_CMD_SET_DO		0x01	/* Set output state */
 #define PCI1760_CMD_GET_DO		0x02	/* Read output status */
 #define PCI1760_CMD_GET_STATUS		0x03	/* Read current status */
-#define PCI1760_CMD_GET_FW_VER		0x0e	/* Read firware version */
+#define PCI1760_CMD_GET_FW_VER		0x0e	/* Read firmware version */
 #define PCI1760_CMD_GET_HW_VER		0x0f	/* Read hardware version */
 #define PCI1760_CMD_SET_PWM_HI(x)	(0x10 + (x) * 2) /* Set "hi" period */
 #define PCI1760_CMD_SET_PWM_LO(x)	(0x11 + (x) * 2) /* Set "lo" period */
