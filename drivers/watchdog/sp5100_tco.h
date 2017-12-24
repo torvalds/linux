@@ -7,6 +7,8 @@
  *	TCO timer driver for sp5100 chipsets
  */
 
+#include <linux/bitops.h>
+
 /*
  * Some address definitions for the Watchdog
  */
@@ -14,10 +16,10 @@
 #define SP5100_WDT_CONTROL(base)	((base) + 0x00) /* Watchdog Control */
 #define SP5100_WDT_COUNT(base)		((base) + 0x04) /* Watchdog Count */
 
-#define SP5100_WDT_START_STOP_BIT	(1 << 0)
-#define SP5100_WDT_FIRED		(1 << 1)
-#define SP5100_WDT_ACTION_RESET		(1 << 2)
-#define SP5100_WDT_TRIGGER_BIT		(1 << 7)
+#define SP5100_WDT_START_STOP_BIT	BIT(0)
+#define SP5100_WDT_FIRED		BIT(1)
+#define SP5100_WDT_ACTION_RESET		BIT(2)
+#define SP5100_WDT_TRIGGER_BIT		BIT(7)
 
 #define SP5100_PM_IOPORTS_SIZE		0x02
 
@@ -37,10 +39,10 @@
 #define SP5100_PM_WATCHDOG_BASE		0x6C
 
 #define SP5100_PCI_WATCHDOG_MISC_REG	0x41
-#define SP5100_PCI_WATCHDOG_DECODE_EN	(1 << 3)
+#define SP5100_PCI_WATCHDOG_DECODE_EN	BIT(3)
 
-#define SP5100_PM_WATCHDOG_DISABLE	(1 << 0)
-#define SP5100_PM_WATCHDOG_SECOND_RES	(3 << 1)
+#define SP5100_PM_WATCHDOG_DISABLE	((u8)BIT(0))
+#define SP5100_PM_WATCHDOG_SECOND_RES	GENMASK(2, 1)
 
 #define SP5100_DEVNAME			"SP5100 TCO"
 
@@ -50,12 +52,11 @@
 #define SB800_PM_WATCHDOG_BASE		0x48
 #define SB800_PM_WATCHDOG_CONFIG	0x4C
 
-#define SB800_PCI_WATCHDOG_DECODE_EN	(1 << 0)
-#define SB800_PM_WATCHDOG_DISABLE	(1 << 1)
-#define SB800_PM_WATCHDOG_SECOND_RES	(3 << 0)
-#define SB800_ACPI_MMIO_DECODE_EN	(1 << 0)
-#define SB800_ACPI_MMIO_SEL		(1 << 1)
-
+#define SB800_PCI_WATCHDOG_DECODE_EN	BIT(0)
+#define SB800_PM_WATCHDOG_DISABLE	((u8)BIT(1))
+#define SB800_PM_WATCHDOG_SECOND_RES	GENMASK(1, 0)
+#define SB800_ACPI_MMIO_DECODE_EN	BIT(0)
+#define SB800_ACPI_MMIO_SEL		BIT(1)
 
 #define SB800_PM_WDT_MMIO_OFFSET	0xB00
 
