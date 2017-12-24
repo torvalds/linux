@@ -461,6 +461,19 @@ static struct dentry *ovl_lower_fh_to_d(struct super_block *sb,
 		}
 	}
 
+	/* Then try to get upper dir by index */
+	if (index && d_is_dir(index)) {
+		struct dentry *upper = ovl_index_upper(ofs, index);
+
+		err = PTR_ERR(upper);
+		if (IS_ERR_OR_NULL(upper))
+			goto out_err;
+
+		dentry = ovl_get_dentry(sb, upper, NULL, NULL);
+		dput(upper);
+		goto out;
+	}
+
 	/* Then lookup origin by fh */
 	err = ovl_check_origin_fh(ofs, fh, NULL, &stack);
 	if (err) {
