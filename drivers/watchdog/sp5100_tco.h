@@ -24,10 +24,11 @@
  * read them from a register.
  */
 
-/*  For SP5100/SB7x0 chipset */
+/*  For SP5100/SB7x0/SB8x0 chipset */
 #define SP5100_IO_PM_INDEX_REG		0xCD6
 #define SP5100_IO_PM_DATA_REG		0xCD7
 
+/* For SP5100/SB7x0 chipset */
 #define SP5100_SB_RESOURCE_MMIO_BASE	0x9C
 
 #define SP5100_PM_WATCHDOG_CONTROL	0x69
@@ -44,11 +45,7 @@
 
 #define SP5100_DEVNAME			"SP5100 TCO"
 
-
 /*  For SB8x0(or later) chipset */
-#define SB800_IO_PM_INDEX_REG		0xCD6
-#define SB800_IO_PM_DATA_REG		0xCD7
-
 #define SB800_PM_ACPI_MMIO_EN		0x24
 #define SB800_PM_WATCHDOG_CONTROL	0x48
 #define SB800_PM_WATCHDOG_BASE		0x48

@@ -48,7 +48,6 @@
 static u32 tcobase_phys;
 static u32 tco_wdt_fired;
 static void __iomem *tcobase;
-static unsigned int pm_iobase;
 static DEFINE_SPINLOCK(tco_lock);	/* Guards the hardware */
 static unsigned long timer_alive;
 static char tco_expect_close;
@@ -132,25 +131,38 @@ static int tco_timer_set_heartbeat(int t)
 	return 0;
 }
 
+static u8 sp5100_tco_read_pm_reg8(u8 index)
+{
+	outb(index, SP5100_IO_PM_INDEX_REG);
+	return inb(SP5100_IO_PM_DATA_REG);
+}
+
+static void sp5100_tco_update_pm_reg8(u8 index, u8 reset, u8 set)
+{
+	u8 val;
+
+	outb(index, SP5100_IO_PM_INDEX_REG);
+	val = inb(SP5100_IO_PM_DATA_REG);
+	val &= reset;
+	val |= set;
+	outb(val, SP5100_IO_PM_DATA_REG);
+}
+
 static void tco_timer_enable(void)
 {
-	int val;
-
 	if (!tco_has_sp5100_reg_layout(sp5100_tco_pci)) {
 		/* For SB800 or later */
 		/* Set the Watchdog timer resolution to 1 sec */
-		outb(SB800_PM_WATCHDOG_CONFIG, SB800_IO_PM_INDEX_REG);
-		val = inb(SB800_IO_PM_DATA_REG);
-		val |= SB800_PM_WATCHDOG_SECOND_RES;
-		outb(val, SB800_IO_PM_DATA_REG);
+		sp5100_tco_update_pm_reg8(SB800_PM_WATCHDOG_CONFIG,
+					  0xff, SB800_PM_WATCHDOG_SECOND_RES);
 
 		/* Enable watchdog decode bit and watchdog timer */
-		outb(SB800_PM_WATCHDOG_CONTROL, SB800_IO_PM_INDEX_REG);
-		val = inb(SB800_IO_PM_DATA_REG);
-		val |= SB800_PCI_WATCHDOG_DECODE_EN;
-		val &= ~SB800_PM_WATCHDOG_DISABLE;
-		outb(val, SB800_IO_PM_DATA_REG);
+		sp5100_tco_update_pm_reg8(SB800_PM_WATCHDOG_CONTROL,
+					  ~SB800_PM_WATCHDOG_DISABLE,
+					  SB800_PCI_WATCHDOG_DECODE_EN);
 	} else {
+		u32 val;
+
 		/* For SP5100 or SB7x0 */
 		/* Enable watchdog decode bit */
 		pci_read_config_dword(sp5100_tco_pci,
@@ -164,11 +176,9 @@ static void tco_timer_enable(void)
 				       val);
 
 		/* Enable Watchdog timer and set the resolution to 1 sec */
-		outb(SP5100_PM_WATCHDOG_CONTROL, SP5100_IO_PM_INDEX_REG);
-		val = inb(SP5100_IO_PM_DATA_REG);
-		val |= SP5100_PM_WATCHDOG_SECOND_RES;
-		val &= ~SP5100_PM_WATCHDOG_DISABLE;
-		outb(val, SP5100_IO_PM_DATA_REG);
+		sp5100_tco_update_pm_reg8(SP5100_PM_WATCHDOG_CONTROL,
+					  ~SP5100_PM_WATCHDOG_DISABLE,
+					  SP5100_PM_WATCHDOG_SECOND_RES);
 	}
 }
 
@@ -321,6 +331,17 @@ static const struct pci_device_id sp5100_tco_pci_tbl[] = {
 };
 MODULE_DEVICE_TABLE(pci, sp5100_tco_pci_tbl);
 
+static u8 sp5100_tco_read_pm_reg32(u8 index)
+{
+	u32 val = 0;
+	int i;
+
+	for (i = 3; i >= 0; i--)
+		val = (val << 8) + sp5100_tco_read_pm_reg8(index + i);
+
+	return val;
+}
+
 /*
  * Init & exit routines
  */
@@ -329,7 +350,7 @@ static unsigned char sp5100_tco_setupdevice(void)
 	struct pci_dev *dev = NULL;
 	const char *dev_name = NULL;
 	u32 val;
-	u32 index_reg, data_reg, base_addr;
+	u8 base_addr;
 
 	/* Match the PCI device */
 	for_each_pci_dev(dev) {
@@ -351,35 +372,25 @@ static unsigned char sp5100_tco_setupdevice(void)
 	 */
 	if (tco_has_sp5100_reg_layout(sp5100_tco_pci)) {
 		dev_name = SP5100_DEVNAME;
-		index_reg = SP5100_IO_PM_INDEX_REG;
-		data_reg = SP5100_IO_PM_DATA_REG;
 		base_addr = SP5100_PM_WATCHDOG_BASE;
 	} else {
 		dev_name = SB800_DEVNAME;
-		index_reg = SB800_IO_PM_INDEX_REG;
-		data_reg = SB800_IO_PM_DATA_REG;
 		base_addr = SB800_PM_WATCHDOG_BASE;
 	}
 
 	/* Request the IO ports used by this driver */
-	pm_iobase = SP5100_IO_PM_INDEX_REG;
-	if (!request_region(pm_iobase, SP5100_PM_IOPORTS_SIZE, dev_name)) {
-		pr_err("I/O address 0x%04x already in use\n", pm_iobase);
+	if (!request_region(SP5100_IO_PM_INDEX_REG, SP5100_PM_IOPORTS_SIZE,
+			    dev_name)) {
+		pr_err("I/O address 0x%04x already in use\n",
+		       SP5100_IO_PM_INDEX_REG);
 		goto exit;
 	}
 
 	/*
 	 * First, Find the watchdog timer MMIO address from indirect I/O.
+	 * Low three bits of BASE are reserved.
 	 */
-	outb(base_addr+3, index_reg);
-	val = inb(data_reg);
-	outb(base_addr+2, index_reg);
-	val = val << 8 | inb(data_reg);
-	outb(base_addr+1, index_reg);
-	val = val << 8 | inb(data_reg);
-	outb(base_addr+0, index_reg);
-	/* Low three bits of BASE are reserved */
-	val = val << 8 | (inb(data_reg) & 0xf8);
+	val = sp5100_tco_read_pm_reg32(base_addr) & 0xfffffff8;
 
 	pr_debug("Got 0x%04x from indirect I/O\n", val);
 
@@ -400,14 +411,7 @@ static unsigned char sp5100_tco_setupdevice(void)
 				      SP5100_SB_RESOURCE_MMIO_BASE, &val);
 	} else {
 		/* Read SBResource_MMIO from AcpiMmioEn(PM_Reg: 24h) */
-		outb(SB800_PM_ACPI_MMIO_EN+3, SB800_IO_PM_INDEX_REG);
-		val = inb(SB800_IO_PM_DATA_REG);
-		outb(SB800_PM_ACPI_MMIO_EN+2, SB800_IO_PM_INDEX_REG);
-		val = val << 8 | inb(SB800_IO_PM_DATA_REG);
-		outb(SB800_PM_ACPI_MMIO_EN+1, SB800_IO_PM_INDEX_REG);
-		val = val << 8 | inb(SB800_IO_PM_DATA_REG);
-		outb(SB800_PM_ACPI_MMIO_EN+0, SB800_IO_PM_INDEX_REG);
-		val = val << 8 | inb(SB800_IO_PM_DATA_REG);
+		val = sp5100_tco_read_pm_reg32(SB800_PM_ACPI_MMIO_EN);
 	}
 
 	/* The SBResource_MMIO is enabled and mapped memory space? */
@@ -470,7 +474,7 @@ setup_wdt:
 unreg_mem_region:
 	release_mem_region(tcobase_phys, SP5100_WDT_MEM_MAP_SIZE);
 unreg_region:
-	release_region(pm_iobase, SP5100_PM_IOPORTS_SIZE);
+	release_region(SP5100_IO_PM_INDEX_REG, SP5100_PM_IOPORTS_SIZE);
 exit:
 	return 0;
 }
@@ -517,7 +521,7 @@ static int sp5100_tco_init(struct platform_device *dev)
 exit:
 	iounmap(tcobase);
 	release_mem_region(tcobase_phys, SP5100_WDT_MEM_MAP_SIZE);
-	release_region(pm_iobase, SP5100_PM_IOPORTS_SIZE);
+	release_region(SP5100_IO_PM_INDEX_REG, SP5100_PM_IOPORTS_SIZE);
 	return ret;
 }
 
@@ -531,7 +535,7 @@ static void sp5100_tco_cleanup(void)
 	misc_deregister(&sp5100_tco_miscdev);
 	iounmap(tcobase);
 	release_mem_region(tcobase_phys, SP5100_WDT_MEM_MAP_SIZE);
-	release_region(pm_iobase, SP5100_PM_IOPORTS_SIZE);
+	release_region(SP5100_IO_PM_INDEX_REG, SP5100_PM_IOPORTS_SIZE);
 }
 
 static int sp5100_tco_remove(struct platform_device *dev)
