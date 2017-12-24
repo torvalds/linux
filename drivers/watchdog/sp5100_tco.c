@@ -379,8 +379,8 @@ static unsigned char sp5100_tco_setupdevice(void)
 	}
 
 	/* Request the IO ports used by this driver */
-	if (!request_region(SP5100_IO_PM_INDEX_REG, SP5100_PM_IOPORTS_SIZE,
-			    dev_name)) {
+	if (!request_muxed_region(SP5100_IO_PM_INDEX_REG,
+				  SP5100_PM_IOPORTS_SIZE, dev_name)) {
 		pr_err("I/O address 0x%04x already in use\n",
 		       SP5100_IO_PM_INDEX_REG);
 		goto exit;
@@ -468,6 +468,7 @@ setup_wdt:
 	 */
 	tco_timer_stop();
 
+	release_region(SP5100_IO_PM_INDEX_REG, SP5100_PM_IOPORTS_SIZE);
 	/* Done */
 	return 1;
 
@@ -521,7 +522,6 @@ static int sp5100_tco_init(struct platform_device *dev)
 exit:
 	iounmap(tcobase);
 	release_mem_region(tcobase_phys, SP5100_WDT_MEM_MAP_SIZE);
-	release_region(SP5100_IO_PM_INDEX_REG, SP5100_PM_IOPORTS_SIZE);
 	return ret;
 }
 
@@ -535,7 +535,6 @@ static void sp5100_tco_cleanup(void)
 	misc_deregister(&sp5100_tco_miscdev);
 	iounmap(tcobase);
 	release_mem_region(tcobase_phys, SP5100_WDT_MEM_MAP_SIZE);
-	release_region(SP5100_IO_PM_INDEX_REG, SP5100_PM_IOPORTS_SIZE);
 }
 
 static int sp5100_tco_remove(struct platform_device *dev)
