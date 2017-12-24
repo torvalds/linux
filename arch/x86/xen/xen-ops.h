@@ -71,7 +71,7 @@ u64 xen_clocksource_read(void);
 void xen_setup_cpu_clockevents(void);
 void xen_save_time_memory_area(void);
 void xen_restore_time_memory_area(void);
-void __init xen_init_time_ops(void);
+void __ref xen_init_time_ops(void);
 void __init xen_hvm_init_time_ops(void);
 
 irqreturn_t xen_debug_interrupt(int irq, void *dev_id);
