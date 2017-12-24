@@ -5085,7 +5085,8 @@ static void vmx_complete_nested_posted_interrupt(struct kvm_vcpu *vcpu)
 	max_irr = find_last_bit((unsigned long *)vmx->nested.pi_desc->pir, 256);
 	if (max_irr != 256) {
 		vapic_page = kmap(vmx->nested.virtual_apic_page);
-		__kvm_apic_update_irr(vmx->nested.pi_desc->pir, vapic_page);
+		__kvm_apic_update_irr(vmx->nested.pi_desc->pir,
+			vapic_page, &max_irr);
 		kunmap(vmx->nested.virtual_apic_page);
 
 		status = vmcs_read16(GUEST_INTR_STATUS);
@@ -8986,7 +8987,7 @@ static int vmx_sync_pir_to_irr(struct kvm_vcpu *vcpu)
 		 * But on x86 this is just a compiler barrier anyway.
 		 */
 		smp_mb__after_atomic();
-		max_irr = kvm_apic_update_irr(vcpu, vmx->pi_desc.pir);
+		kvm_apic_update_irr(vcpu, vmx->pi_desc.pir, &max_irr);
 	} else {
 		max_irr = kvm_lapic_find_highest_irr(vcpu);
 	}
