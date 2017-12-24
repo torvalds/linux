@@ -160,8 +160,7 @@ TRACE_EVENT(inet_sock_set_state,
 		}
 	),
 
-	TP_printk("protocol=%s sport=%hu dport=%hu saddr=%pI4 daddr=%pI4"
-			"saddrv6=%pI6c daddrv6=%pI6c oldstate=%s newstate=%s",
+	TP_printk("protocol=%s sport=%hu dport=%hu saddr=%pI4 daddr=%pI4 saddrv6=%pI6c daddrv6=%pI6c oldstate=%s newstate=%s",
 			show_inet_protocol_name(__entry->protocol),
 			__entry->sport, __entry->dport,
 			__entry->saddr, __entry->daddr,
