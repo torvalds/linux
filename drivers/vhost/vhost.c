@@ -543,7 +543,7 @@ void vhost_dev_reset_owner(struct vhost_dev *dev, struct vhost_umem *umem)
 {
 	int i;
 
-	vhost_dev_cleanup(dev, true);
+	vhost_dev_cleanup(dev);
 
 	/* Restore memory to default empty mapping. */
 	INIT_LIST_HEAD(&umem->umem_list);
@@ -610,8 +610,7 @@ static void vhost_clear_msg(struct vhost_dev *dev)
 	spin_unlock(&dev->iotlb_lock);
 }
 
-/* Caller should have device mutex if and only if locked is set */
-void vhost_dev_cleanup(struct vhost_dev *dev, bool locked)
+void vhost_dev_cleanup(struct vhost_dev *dev)
 {
 	int i;
 
