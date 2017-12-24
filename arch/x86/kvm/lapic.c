@@ -581,7 +581,7 @@ static void pv_eoi_clr_pending(struct kvm_vcpu *vcpu)
 static int apic_has_interrupt_for_ppr(struct kvm_lapic *apic, u32 ppr)
 {
 	int highest_irr;
-	if (kvm_x86_ops->sync_pir_to_irr && apic->vcpu->arch.apicv_active)
+	if (apic->vcpu->arch.apicv_active)
 		highest_irr = kvm_x86_ops->sync_pir_to_irr(apic->vcpu);
 	else
 		highest_irr = apic_find_highest_irr(apic);

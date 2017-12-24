@@ -2973,7 +2973,7 @@ void kvm_arch_vcpu_put(struct kvm_vcpu *vcpu)
 static int kvm_vcpu_ioctl_get_lapic(struct kvm_vcpu *vcpu,
 				    struct kvm_lapic_state *s)
 {
-	if (kvm_x86_ops->sync_pir_to_irr && vcpu->arch.apicv_active)
+	if (vcpu->arch.apicv_active)
 		kvm_x86_ops->sync_pir_to_irr(vcpu);
 
 	return kvm_apic_get_state(vcpu, s);
@@ -6820,7 +6820,7 @@ static void vcpu_scan_ioapic(struct kvm_vcpu *vcpu)
 	if (irqchip_split(vcpu->kvm))
 		kvm_scan_ioapic_routes(vcpu, vcpu->arch.ioapic_handled_vectors);
 	else {
-		if (kvm_x86_ops->sync_pir_to_irr && vcpu->arch.apicv_active)
+		if (vcpu->arch.apicv_active)
 			kvm_x86_ops->sync_pir_to_irr(vcpu);
 		kvm_ioapic_scan_entry(vcpu, vcpu->arch.ioapic_handled_vectors);
 	}
@@ -7046,10 +7046,8 @@ static int vcpu_enter_guest(struct kvm_vcpu *vcpu)
 	 * This handles the case where a posted interrupt was
 	 * notified with kvm_vcpu_kick.
 	 */
-	if (kvm_lapic_enabled(vcpu)) {
-		if (kvm_x86_ops->sync_pir_to_irr && vcpu->arch.apicv_active)
-			kvm_x86_ops->sync_pir_to_irr(vcpu);
-	}
+	if (kvm_lapic_enabled(vcpu) && vcpu->arch.apicv_active)
+		kvm_x86_ops->sync_pir_to_irr(vcpu);
 
 	if (vcpu->mode == EXITING_GUEST_MODE || kvm_request_pending(vcpu)
 	    || need_resched() || signal_pending(current)) {
