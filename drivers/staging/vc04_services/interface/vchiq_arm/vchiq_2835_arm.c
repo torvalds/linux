@@ -224,8 +224,7 @@ vchiq_platform_get_arm_state(VCHIQ_STATE_T *state)
 
 	platform_state   = (struct vchiq_2835_state *)state->platform_state;
 
-	if (!platform_state->inited)
-		BUG();
+	WARN_ON_ONCE(!platform_state->inited);
 
 	return &platform_state->arm_state;
 }
