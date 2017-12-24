@@ -396,48 +396,44 @@ static int sp5100_tco_setupdevice(void)
 	pr_debug("Got 0x%04x from indirect I/O\n", val);
 
 	/* Check MMIO address conflict */
-	if (request_mem_region_exclusive(val, SP5100_WDT_MEM_MAP_SIZE,
-								dev_name))
-		goto setup_wdt;
-	else
+	if (!request_mem_region_exclusive(val, SP5100_WDT_MEM_MAP_SIZE,
+					  dev_name)) {
 		pr_debug("MMIO address 0x%04x already in use\n", val);
+		/*
+		 * Secondly, Find the watchdog timer MMIO address
+		 * from SBResource_MMIO register.
+		 */
+		if (tco_has_sp5100_reg_layout(sp5100_tco_pci)) {
+			/* Read SBResource_MMIO from PCI config(PCI_Reg: 9Ch) */
+			pci_read_config_dword(sp5100_tco_pci,
+					      SP5100_SB_RESOURCE_MMIO_BASE,
+					      &val);
+		} else {
+			/* Read SBResource_MMIO from AcpiMmioEn(PM_Reg: 24h) */
+			val = sp5100_tco_read_pm_reg32(SB800_PM_ACPI_MMIO_EN);
+		}
 
-	/*
-	 * Secondly, Find the watchdog timer MMIO address
-	 * from SBResource_MMIO register.
-	 */
-	if (tco_has_sp5100_reg_layout(sp5100_tco_pci)) {
-		/* Read SBResource_MMIO from PCI config(PCI_Reg: 9Ch) */
-		pci_read_config_dword(sp5100_tco_pci,
-				      SP5100_SB_RESOURCE_MMIO_BASE, &val);
-	} else {
-		/* Read SBResource_MMIO from AcpiMmioEn(PM_Reg: 24h) */
-		val = sp5100_tco_read_pm_reg32(SB800_PM_ACPI_MMIO_EN);
-	}
-
-	/* The SBResource_MMIO is enabled and mapped memory space? */
-	if ((val & (SB800_ACPI_MMIO_DECODE_EN | SB800_ACPI_MMIO_SEL)) ==
+		/* The SBResource_MMIO is enabled and mapped memory space? */
+		if ((val & (SB800_ACPI_MMIO_DECODE_EN | SB800_ACPI_MMIO_SEL)) !=
 						  SB800_ACPI_MMIO_DECODE_EN) {
+			pr_notice("failed to find MMIO address, giving up.\n");
+			ret = -ENODEV;
+			goto unreg_region;
+		}
 		/* Clear unnecessary the low twelve bits */
 		val &= ~0xFFF;
 		/* Add the Watchdog Timer offset to base address. */
 		val += SB800_PM_WDT_MMIO_OFFSET;
 		/* Check MMIO address conflict */
-		if (request_mem_region_exclusive(val, SP5100_WDT_MEM_MAP_SIZE,
-								   dev_name)) {
-			pr_debug("Got 0x%04x from SBResource_MMIO register\n",
-				val);
-			goto setup_wdt;
-		} else
+		if (!request_mem_region_exclusive(val, SP5100_WDT_MEM_MAP_SIZE,
+						  dev_name)) {
 			pr_debug("MMIO address 0x%04x already in use\n", val);
-	} else
-		pr_debug("SBResource_MMIO is disabled(0x%04x)\n", val);
+			ret = -EBUSY;
+			goto unreg_region;
+		}
+		pr_debug("Got 0x%04x from SBResource_MMIO register\n", val);
+	}
 
-	pr_notice("failed to find MMIO address, giving up.\n");
-	ret = -ENODEV;
-	goto  unreg_region;
-
-setup_wdt:
 	tcobase_phys = val;
 
 	tcobase = ioremap(val, SP5100_WDT_MEM_MAP_SIZE);
@@ -472,7 +468,7 @@ setup_wdt:
 	tco_timer_stop();
 
 	release_region(SP5100_IO_PM_INDEX_REG, SP5100_PM_IOPORTS_SIZE);
-	/* Done */
+
 	return 0;
 
 unreg_mem_region:
