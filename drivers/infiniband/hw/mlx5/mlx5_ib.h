@@ -115,6 +115,7 @@ enum {
 
 enum {
 	MLX5_IB_INVALID_UAR_INDEX	= BIT(31),
+	MLX5_IB_INVALID_BFREG		= BIT(31),
 };
 
 struct mlx5_ib_vma_private_data {

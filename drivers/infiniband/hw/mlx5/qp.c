@@ -627,7 +627,8 @@ static void mlx5_ib_unlock_cqs(struct mlx5_ib_cq *send_cq,
 			       struct mlx5_ib_cq *recv_cq);
 
 static int bfregn_to_uar_index(struct mlx5_ib_dev *dev,
-			       struct mlx5_bfreg_info *bfregi, int bfregn)
+			       struct mlx5_bfreg_info *bfregi, int bfregn,
+			       bool dyn_bfreg)
 {
 	int bfregs_per_sys_page;
 	int index_of_sys_page;
@@ -637,8 +638,16 @@ static int bfregn_to_uar_index(struct mlx5_ib_dev *dev,
 				MLX5_NON_FP_BFREGS_PER_UAR;
 	index_of_sys_page = bfregn / bfregs_per_sys_page;
 
-	offset = bfregn % bfregs_per_sys_page / MLX5_NON_FP_BFREGS_PER_UAR;
+	if (dyn_bfreg) {
+		index_of_sys_page += bfregi->num_static_sys_pages;
+		if (bfregn > bfregi->num_dyn_bfregs ||
+		    bfregi->sys_pages[index_of_sys_page] == MLX5_IB_INVALID_UAR_INDEX) {
+			mlx5_ib_dbg(dev, "Invalid dynamic uar index\n");
+			return -EINVAL;
+		}
+	}
 
+	offset = bfregn % bfregs_per_sys_page / MLX5_NON_FP_BFREGS_PER_UAR;
 	return bfregi->sys_pages[index_of_sys_page] + offset;
 }
 
@@ -764,7 +773,7 @@ static int create_user_qp(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 	struct mlx5_ib_create_qp ucmd;
 	struct mlx5_ib_ubuffer *ubuffer = &base->ubuffer;
 	int page_shift = 0;
-	int uar_index;
+	int uar_index = 0;
 	int npages;
 	u32 offset = 0;
 	int bfregn;
@@ -780,12 +789,20 @@ static int create_user_qp(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 	}
 
 	context = to_mucontext(pd->uobject->context);
-	/*
-	 * TBD: should come from the verbs when we have the API
-	 */
-	if (qp->flags & MLX5_IB_QP_CROSS_CHANNEL)
+	if (ucmd.flags & MLX5_QP_FLAG_BFREG_INDEX) {
+		uar_index = bfregn_to_uar_index(dev, &context->bfregi,
+						ucmd.bfreg_index, true);
+		if (uar_index < 0)
+			return uar_index;
+
+		bfregn = MLX5_IB_INVALID_BFREG;
+	} else if (qp->flags & MLX5_IB_QP_CROSS_CHANNEL) {
+		/*
+		 * TBD: should come from the verbs when we have the API
+		 */
 		/* In CROSS_CHANNEL CQ and QP must use the same UAR */
 		bfregn = MLX5_CROSS_CHANNEL_BFREG;
+	}
 	else {
 		bfregn = alloc_bfreg(dev, &context->bfregi, MLX5_IB_LATENCY_CLASS_HIGH);
 		if (bfregn < 0) {
@@ -804,8 +821,10 @@ static int create_user_qp(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 		}
 	}
 
-	uar_index = bfregn_to_uar_index(dev, &context->bfregi, bfregn);
 	mlx5_ib_dbg(dev, "bfregn 0x%x, uar_index 0x%x\n", bfregn, uar_index);
+	if (bfregn != MLX5_IB_INVALID_BFREG)
+		uar_index = bfregn_to_uar_index(dev, &context->bfregi, bfregn,
+						false);
 
 	qp->rq.offset = 0;
 	qp->sq.wqe_shift = ilog2(MLX5_SEND_WQE_BB);
@@ -845,7 +864,10 @@ static int create_user_qp(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 	MLX5_SET(qpc, qpc, page_offset, offset);
 
 	MLX5_SET(qpc, qpc, uar_page, uar_index);
-	resp->bfreg_index = adjust_bfregn(dev, &context->bfregi, bfregn);
+	if (bfregn != MLX5_IB_INVALID_BFREG)
+		resp->bfreg_index = adjust_bfregn(dev, &context->bfregi, bfregn);
+	else
+		resp->bfreg_index = MLX5_IB_INVALID_BFREG;
 	qp->bfregn = bfregn;
 
 	err = mlx5_ib_db_map_user(context, ucmd.db_addr, &qp->db);
@@ -874,7 +896,8 @@ err_umem:
 		ib_umem_release(ubuffer->umem);
 
 err_bfreg:
-	mlx5_ib_free_bfreg(dev, &context->bfregi, bfregn);
+	if (bfregn != MLX5_IB_INVALID_BFREG)
+		mlx5_ib_free_bfreg(dev, &context->bfregi, bfregn);
 	return err;
 }
 
@@ -887,7 +910,13 @@ static void destroy_qp_user(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 	mlx5_ib_db_unmap_user(context, &qp->db);
 	if (base->ubuffer.umem)
 		ib_umem_release(base->ubuffer.umem);
-	mlx5_ib_free_bfreg(dev, &context->bfregi, qp->bfregn);
+
+	/*
+	 * Free only the BFREGs which are handled by the kernel.
+	 * BFREGs of UARs allocated dynamically are handled by user.
+	 */
+	if (qp->bfregn != MLX5_IB_INVALID_BFREG)
+		mlx5_ib_free_bfreg(dev, &context->bfregi, qp->bfregn);
 }
 
 static int create_kernel_qp(struct mlx5_ib_dev *dev,
