@@ -421,8 +421,8 @@ static int sp5100_tco_setupdevice(struct device *dev)
 	 * Save WatchDogFired status, because WatchDogFired flag is
 	 * cleared here.
 	 */
-	tco_wdt_fired = val & SP5100_PM_WATCHDOG_FIRED;
-	val &= ~SP5100_PM_WATCHDOG_ACTION_RESET;
+	tco_wdt_fired = val & SP5100_WDT_FIRED;
+	val &= ~SP5100_WDT_ACTION_RESET;
 	writel(val, SP5100_WDT_CONTROL(tcobase));
 
 	/* Set a reasonable heartbeat before we stop the timer */
@@ -445,7 +445,7 @@ unreg_region:
 	return ret;
 }
 
-static int sp5100_tco_init(struct platform_device *pdev)
+static int sp5100_tco_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	int ret;
@@ -492,7 +492,7 @@ exit:
 	return ret;
 }
 
-static void sp5100_tco_cleanup(void)
+static int sp5100_tco_remove(struct platform_device *pdev)
 {
 	/* Stop the timer before we leave */
 	if (!nowayout)
@@ -502,22 +502,17 @@ static void sp5100_tco_cleanup(void)
 	misc_deregister(&sp5100_tco_miscdev);
 	iounmap(tcobase);
 	release_mem_region(tcobase_phys, SP5100_WDT_MEM_MAP_SIZE);
-}
 
-static int sp5100_tco_remove(struct platform_device *dev)
-{
-	if (tcobase)
-		sp5100_tco_cleanup();
 	return 0;
 }
 
-static void sp5100_tco_shutdown(struct platform_device *dev)
+static void sp5100_tco_shutdown(struct platform_device *pdev)
 {
 	tco_timer_stop();
 }
 
 static struct platform_driver sp5100_tco_driver = {
-	.probe		= sp5100_tco_init,
+	.probe		= sp5100_tco_probe,
 	.remove		= sp5100_tco_remove,
 	.shutdown	= sp5100_tco_shutdown,
 	.driver		= {
@@ -544,7 +539,7 @@ static const struct pci_device_id sp5100_tco_pci_tbl[] = {
 };
 MODULE_DEVICE_TABLE(pci, sp5100_tco_pci_tbl);
 
-static int __init sp5100_tco_init_module(void)
+static int __init sp5100_tco_init(void)
 {
 	struct pci_dev *dev = NULL;
 	int err;
@@ -580,14 +575,14 @@ unreg_platform_driver:
 	return err;
 }
 
-static void __exit sp5100_tco_cleanup_module(void)
+static void __exit sp5100_tco_exit(void)
 {
 	platform_device_unregister(sp5100_tco_platform_device);
 	platform_driver_unregister(&sp5100_tco_driver);
 }
 
-module_init(sp5100_tco_init_module);
-module_exit(sp5100_tco_cleanup_module);
+module_init(sp5100_tco_init);
+module_exit(sp5100_tco_exit);
 
 MODULE_AUTHOR("Priyanka Gupta");
 MODULE_DESCRIPTION("TCO timer driver for SP5100/SB800 chipset");
