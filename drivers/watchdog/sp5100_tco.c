@@ -345,12 +345,13 @@ static u8 sp5100_tco_read_pm_reg32(u8 index)
 /*
  * Init & exit routines
  */
-static unsigned char sp5100_tco_setupdevice(void)
+static int sp5100_tco_setupdevice(void)
 {
 	struct pci_dev *dev = NULL;
 	const char *dev_name = NULL;
 	u32 val;
 	u8 base_addr;
+	int ret;
 
 	/* Match the PCI device */
 	for_each_pci_dev(dev) {
@@ -361,7 +362,7 @@ static unsigned char sp5100_tco_setupdevice(void)
 	}
 
 	if (!sp5100_tco_pci)
-		return 0;
+		return -ENODEV;
 
 	pr_info("PCI Vendor ID: 0x%x, Device ID: 0x%x, Revision ID: 0x%x\n",
 		sp5100_tco_pci->vendor, sp5100_tco_pci->device,
@@ -383,7 +384,7 @@ static unsigned char sp5100_tco_setupdevice(void)
 				  SP5100_PM_IOPORTS_SIZE, dev_name)) {
 		pr_err("I/O address 0x%04x already in use\n",
 		       SP5100_IO_PM_INDEX_REG);
-		goto exit;
+		return -EBUSY;
 	}
 
 	/*
@@ -433,6 +434,7 @@ static unsigned char sp5100_tco_setupdevice(void)
 		pr_debug("SBResource_MMIO is disabled(0x%04x)\n", val);
 
 	pr_notice("failed to find MMIO address, giving up.\n");
+	ret = -ENODEV;
 	goto  unreg_region;
 
 setup_wdt:
@@ -441,6 +443,7 @@ setup_wdt:
 	tcobase = ioremap(val, SP5100_WDT_MEM_MAP_SIZE);
 	if (!tcobase) {
 		pr_err("failed to get tcobase address\n");
+		ret = -ENOMEM;
 		goto unreg_mem_region;
 	}
 
@@ -470,14 +473,13 @@ setup_wdt:
 
 	release_region(SP5100_IO_PM_INDEX_REG, SP5100_PM_IOPORTS_SIZE);
 	/* Done */
-	return 1;
+	return 0;
 
 unreg_mem_region:
 	release_mem_region(tcobase_phys, SP5100_WDT_MEM_MAP_SIZE);
 unreg_region:
 	release_region(SP5100_IO_PM_INDEX_REG, SP5100_PM_IOPORTS_SIZE);
-exit:
-	return 0;
+	return ret;
 }
 
 static int sp5100_tco_init(struct platform_device *dev)
@@ -488,8 +490,9 @@ static int sp5100_tco_init(struct platform_device *dev)
 	 * Check whether or not the hardware watchdog is there. If found, then
 	 * set it up.
 	 */
-	if (!sp5100_tco_setupdevice())
-		return -ENODEV;
+	ret = sp5100_tco_setupdevice();
+	if (ret)
+		return ret;
 
 	/* Check to see if last reboot was due to watchdog timeout */
 	pr_info("Last reboot was %striggered by watchdog.\n",
