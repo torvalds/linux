@@ -443,14 +443,22 @@ static struct dentry *ovl_lower_fh_to_d(struct super_block *sb,
 	struct ovl_path *stack = &origin;
 	struct dentry *dentry = NULL;
 	struct dentry *index = NULL;
+	struct inode *inode = NULL;
+	bool is_deleted = false;
 	int err;
 
 	/* First lookup indexed upper by fh */
 	if (ofs->indexdir) {
 		index = ovl_get_index_fh(ofs, fh);
 		err = PTR_ERR(index);
-		if (IS_ERR(index))
-			return ERR_PTR(err);
+		if (IS_ERR(index)) {
+			if (err != -ESTALE)
+				return ERR_PTR(err);
+
+			/* Found a whiteout index - treat as deleted inode */
+			is_deleted = true;
+			index = NULL;
+		}
 	}
 
 	/* Then lookup origin by fh */
@@ -461,6 +469,16 @@ static struct dentry *ovl_lower_fh_to_d(struct super_block *sb,
 		err = ovl_verify_origin(index, origin.dentry, false);
 		if (err)
 			goto out_err;
+	} else if (is_deleted) {
+		/* Lookup deleted non-dir by origin inode */
+		if (!d_is_dir(origin.dentry))
+			inode = ovl_lookup_inode(sb, origin.dentry);
+		err = -ESTALE;
+		if (!inode || atomic_read(&inode->i_count) == 1)
+			goto out_err;
+
+		/* Deleted but still open? */
+		index = dget(ovl_i_dentry_upper(inode));
 	}
 
 	dentry = ovl_get_dentry(sb, NULL, &origin, index);
@@ -468,6 +486,7 @@ static struct dentry *ovl_lower_fh_to_d(struct super_block *sb,
 out:
 	dput(origin.dentry);
 	dput(index);
+	iput(inode);
 	return dentry;
 
 out_err:

@@ -645,6 +645,22 @@ static bool ovl_verify_inode(struct inode *inode, struct dentry *lowerdentry,
 	return true;
 }
 
+struct inode *ovl_lookup_inode(struct super_block *sb, struct dentry *origin)
+{
+	struct inode *inode, *key = d_inode(origin);
+
+	inode = ilookup5(sb, (unsigned long) key, ovl_inode_test, key);
+	if (!inode)
+		return NULL;
+
+	if (!ovl_verify_inode(inode, origin, NULL)) {
+		iput(inode);
+		return ERR_PTR(-ESTALE);
+	}
+
+	return inode;
+}
+
 struct inode *ovl_get_inode(struct super_block *sb, struct dentry *upperdentry,
 			    struct dentry *lowerdentry, struct dentry *index,
 			    unsigned int numlower)
