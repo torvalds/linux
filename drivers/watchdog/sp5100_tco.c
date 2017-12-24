@@ -312,25 +312,6 @@ static struct miscdevice sp5100_tco_miscdev = {
 	.fops =		&sp5100_tco_fops,
 };
 
-/*
- * Data for PCI driver interface
- *
- * This data only exists for exporting the supported
- * PCI ids via MODULE_DEVICE_TABLE.  We do not actually
- * register a pci_driver, because someone else might
- * want to register another driver on the same PCI id.
- */
-static const struct pci_device_id sp5100_tco_pci_tbl[] = {
-	{ PCI_VENDOR_ID_ATI, PCI_DEVICE_ID_ATI_SBX00_SMBUS, PCI_ANY_ID,
-	  PCI_ANY_ID, },
-	{ PCI_VENDOR_ID_AMD, PCI_DEVICE_ID_AMD_HUDSON2_SMBUS, PCI_ANY_ID,
-	  PCI_ANY_ID, },
-	{ PCI_VENDOR_ID_AMD, PCI_DEVICE_ID_AMD_KERNCZ_SMBUS, PCI_ANY_ID,
-	  PCI_ANY_ID, },
-	{ 0, },			/* End of list */
-};
-MODULE_DEVICE_TABLE(pci, sp5100_tco_pci_tbl);
-
 static u8 sp5100_tco_read_pm_reg32(u8 index)
 {
 	u32 val = 0;
@@ -347,26 +328,10 @@ static u8 sp5100_tco_read_pm_reg32(u8 index)
  */
 static int sp5100_tco_setupdevice(void)
 {
-	struct pci_dev *dev = NULL;
 	const char *dev_name = NULL;
 	u32 val;
 	u8 base_addr;
 	int ret;
-
-	/* Match the PCI device */
-	for_each_pci_dev(dev) {
-		if (pci_match_id(sp5100_tco_pci_tbl, dev) != NULL) {
-			sp5100_tco_pci = dev;
-			break;
-		}
-	}
-
-	if (!sp5100_tco_pci)
-		return -ENODEV;
-
-	pr_info("PCI Vendor ID: 0x%x, Device ID: 0x%x, Revision ID: 0x%x\n",
-		sp5100_tco_pci->vendor, sp5100_tco_pci->device,
-		sp5100_tco_pci->revision);
 
 	/*
 	 * Determine type of southbridge chipset.
@@ -557,9 +522,40 @@ static struct platform_driver sp5100_tco_driver = {
 	},
 };
 
+/*
+ * Data for PCI driver interface
+ *
+ * This data only exists for exporting the supported
+ * PCI ids via MODULE_DEVICE_TABLE.  We do not actually
+ * register a pci_driver, because someone else might
+ * want to register another driver on the same PCI id.
+ */
+static const struct pci_device_id sp5100_tco_pci_tbl[] = {
+	{ PCI_VENDOR_ID_ATI, PCI_DEVICE_ID_ATI_SBX00_SMBUS, PCI_ANY_ID,
+	  PCI_ANY_ID, },
+	{ PCI_VENDOR_ID_AMD, PCI_DEVICE_ID_AMD_HUDSON2_SMBUS, PCI_ANY_ID,
+	  PCI_ANY_ID, },
+	{ PCI_VENDOR_ID_AMD, PCI_DEVICE_ID_AMD_KERNCZ_SMBUS, PCI_ANY_ID,
+	  PCI_ANY_ID, },
+	{ 0, },			/* End of list */
+};
+MODULE_DEVICE_TABLE(pci, sp5100_tco_pci_tbl);
+
 static int __init sp5100_tco_init_module(void)
 {
+	struct pci_dev *dev = NULL;
 	int err;
+
+	/* Match the PCI device */
+	for_each_pci_dev(dev) {
+		if (pci_match_id(sp5100_tco_pci_tbl, dev) != NULL) {
+			sp5100_tco_pci = dev;
+			break;
+		}
+	}
+
+	if (!sp5100_tco_pci)
+		return -ENODEV;
 
 	pr_info("SP5100/SB800 TCO WatchDog Timer Driver v%s\n", TCO_VERSION);
 
