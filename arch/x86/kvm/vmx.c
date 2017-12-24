@@ -8978,6 +8978,7 @@ static int vmx_sync_pir_to_irr(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 	int max_irr;
+	bool max_irr_updated;
 
 	WARN_ON(!vcpu->arch.apicv_active);
 	if (pi_test_on(&vmx->pi_desc)) {
@@ -8987,7 +8988,16 @@ static int vmx_sync_pir_to_irr(struct kvm_vcpu *vcpu)
 		 * But on x86 this is just a compiler barrier anyway.
 		 */
 		smp_mb__after_atomic();
-		kvm_apic_update_irr(vcpu, vmx->pi_desc.pir, &max_irr);
+		max_irr_updated =
+			kvm_apic_update_irr(vcpu, vmx->pi_desc.pir, &max_irr);
+
+		/*
+		 * If we are running L2 and L1 has a new pending interrupt
+		 * which can be injected, we should re-evaluate
+		 * what should be done with this new L1 interrupt.
+		 */
+		if (is_guest_mode(vcpu) && max_irr_updated)
+			kvm_vcpu_exiting_guest_mode(vcpu);
 	} else {
 		max_irr = kvm_lapic_find_highest_irr(vcpu);
 	}
