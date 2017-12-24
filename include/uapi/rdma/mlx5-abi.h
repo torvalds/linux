@@ -125,6 +125,8 @@ struct mlx5_ib_alloc_ucontext_resp {
 	__u64	hca_core_clock_offset;
 	__u32	log_uar_size;
 	__u32	num_uars_per_page;
+	__u32	num_dyn_bfregs;
+	__u32	reserved3;
 };
 
 struct mlx5_ib_alloc_pd_resp {

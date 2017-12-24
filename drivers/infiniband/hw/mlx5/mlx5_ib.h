@@ -1113,10 +1113,10 @@ static inline int get_uars_per_sys_page(struct mlx5_ib_dev *dev, bool lib_suppor
 				MLX5_UARS_IN_PAGE : 1;
 }
 
-static inline int get_num_uars(struct mlx5_ib_dev *dev,
-			       struct mlx5_bfreg_info *bfregi)
+static inline int get_num_static_uars(struct mlx5_ib_dev *dev,
+				      struct mlx5_bfreg_info *bfregi)
 {
-	return get_uars_per_sys_page(dev, bfregi->lib_uar_4k) * bfregi->num_sys_pages;
+	return get_uars_per_sys_page(dev, bfregi->lib_uar_4k) * bfregi->num_static_sys_pages;
 }
 
 #endif /* MLX5_IB_H */

@@ -1240,9 +1240,18 @@ static void print_lib_caps(struct mlx5_ib_dev *dev, u64 caps)
 		    caps & MLX5_LIB_CAP_4K_UAR ? "y" : "n");
 }
 
+static u16 calc_dynamic_bfregs(int uars_per_sys_page)
+{
+	/* Large page with non 4k uar support might limit the dynamic size */
+	if (uars_per_sys_page == 1  && PAGE_SIZE > 4096)
+		return MLX5_MIN_DYN_BFREGS;
+
+	return MLX5_MAX_DYN_BFREGS;
+}
+
 static int calc_total_bfregs(struct mlx5_ib_dev *dev, bool lib_uar_4k,
 			     struct mlx5_ib_alloc_ucontext_req_v2 *req,
-			     u32 *num_sys_pages)
+			     struct mlx5_bfreg_info *bfregi)
 {
 	int uars_per_sys_page;
 	int bfregs_per_sys_page;
@@ -1259,16 +1268,21 @@ static int calc_total_bfregs(struct mlx5_ib_dev *dev, bool lib_uar_4k,
 
 	uars_per_sys_page = get_uars_per_sys_page(dev, lib_uar_4k);
 	bfregs_per_sys_page = uars_per_sys_page * MLX5_NON_FP_BFREGS_PER_UAR;
+	/* This holds the required static allocation asked by the user */
 	req->total_num_bfregs = ALIGN(req->total_num_bfregs, bfregs_per_sys_page);
-	*num_sys_pages = req->total_num_bfregs / bfregs_per_sys_page;
-
 	if (req->num_low_latency_bfregs > req->total_num_bfregs - 1)
 		return -EINVAL;
 
-	mlx5_ib_dbg(dev, "uar_4k: fw support %s, lib support %s, user requested %d bfregs, allocated %d, using %d sys pages\n",
+	bfregi->num_static_sys_pages = req->total_num_bfregs / bfregs_per_sys_page;
+	bfregi->num_dyn_bfregs = ALIGN(calc_dynamic_bfregs(uars_per_sys_page), bfregs_per_sys_page);
+	bfregi->total_num_bfregs = req->total_num_bfregs + bfregi->num_dyn_bfregs;
+	bfregi->num_sys_pages = bfregi->total_num_bfregs / bfregs_per_sys_page;
+
+	mlx5_ib_dbg(dev, "uar_4k: fw support %s, lib support %s, user requested %d bfregs, allocated %d, total bfregs %d, using %d sys pages\n",
 		    MLX5_CAP_GEN(dev->mdev, uar_4k) ? "yes" : "no",
 		    lib_uar_4k ? "yes" : "no", ref_bfregs,
-		    req->total_num_bfregs, *num_sys_pages);
+		    req->total_num_bfregs, bfregi->total_num_bfregs,
+		    bfregi->num_sys_pages);
 
 	return 0;
 }
@@ -1280,7 +1294,7 @@ static int allocate_uars(struct mlx5_ib_dev *dev, struct mlx5_ib_ucontext *conte
 	int i;
 
 	bfregi = &context->bfregi;
-	for (i = 0; i < bfregi->num_sys_pages; i++) {
+	for (i = 0; i < bfregi->num_static_sys_pages; i++) {
 		err = mlx5_cmd_alloc_uar(dev->mdev, &bfregi->sys_pages[i]);
 		if (err)
 			goto error;
@@ -1304,7 +1318,7 @@ static int deallocate_uars(struct mlx5_ib_dev *dev, struct mlx5_ib_ucontext *con
 	int i;
 
 	bfregi = &context->bfregi;
-	for (i = 0; i < bfregi->num_sys_pages; i++) {
+	for (i = 0; i < bfregi->num_static_sys_pages; i++) {
 		err = mlx5_cmd_free_uar(dev->mdev, bfregi->sys_pages[i]);
 		if (err) {
 			mlx5_ib_warn(dev, "failed to free uar %d\n", i);
@@ -1419,13 +1433,13 @@ static struct ib_ucontext *mlx5_ib_alloc_ucontext(struct ib_device *ibdev,
 	bfregi = &context->bfregi;
 
 	/* updates req->total_num_bfregs */
-	err = calc_total_bfregs(dev, lib_uar_4k, &req, &bfregi->num_sys_pages);
+	err = calc_total_bfregs(dev, lib_uar_4k, &req, bfregi);
 	if (err)
 		goto out_ctx;
 
 	mutex_init(&bfregi->lock);
 	bfregi->lib_uar_4k = lib_uar_4k;
-	bfregi->count = kcalloc(req.total_num_bfregs, sizeof(*bfregi->count),
+	bfregi->count = kcalloc(bfregi->total_num_bfregs, sizeof(*bfregi->count),
 				GFP_KERNEL);
 	if (!bfregi->count) {
 		err = -ENOMEM;
@@ -1508,6 +1522,11 @@ static struct ib_ucontext *mlx5_ib_alloc_ucontext(struct ib_device *ibdev,
 
 	if (field_avail(typeof(resp), num_uars_per_page, udata->outlen))
 		resp.response_length += sizeof(resp.num_uars_per_page);
+
+	if (field_avail(typeof(resp), num_dyn_bfregs, udata->outlen)) {
+		resp.num_dyn_bfregs = bfregi->num_dyn_bfregs;
+		resp.response_length += sizeof(resp.num_dyn_bfregs);
+	}
 
 	err = ib_copy_to_udata(udata, &resp, resp.response_length);
 	if (err)
