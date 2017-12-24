@@ -273,14 +273,20 @@ static int sp5100_tco_setupdevice(struct device *dev,
 	/* Setup the watchdog timer */
 	tco_timer_enable();
 
-	/* Check that the watchdog action is set to reset the system */
 	val = readl(SP5100_WDT_CONTROL(tco->tcobase));
+	if (val & SP5100_WDT_DISABLED) {
+		dev_err(dev, "Watchdog hardware is disabled\n");
+		ret = -ENODEV;
+		goto unreg_region;
+	}
+
 	/*
 	 * Save WatchDogFired status, because WatchDogFired flag is
 	 * cleared here.
 	 */
 	if (val & SP5100_WDT_FIRED)
 		wdd->bootstatus = WDIOF_CARDRESET;
+	/* Set watchdog action to reset the system */
 	val &= ~SP5100_WDT_ACTION_RESET;
 	writel(val, SP5100_WDT_CONTROL(tco->tcobase));
 
