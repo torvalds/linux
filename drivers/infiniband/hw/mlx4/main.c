@@ -589,6 +589,7 @@ static int mlx4_ib_query_device(struct ib_device *ibdev,
 		if (props->rss_caps.supported_qpts) {
 			resp.rss_caps.rx_hash_function =
 				MLX4_IB_RX_HASH_FUNC_TOEPLITZ;
+
 			resp.rss_caps.rx_hash_fields_mask =
 				MLX4_IB_RX_HASH_SRC_IPV4 |
 				MLX4_IB_RX_HASH_DST_IPV4 |
@@ -598,6 +599,11 @@ static int mlx4_ib_query_device(struct ib_device *ibdev,
 				MLX4_IB_RX_HASH_DST_PORT_TCP |
 				MLX4_IB_RX_HASH_SRC_PORT_UDP |
 				MLX4_IB_RX_HASH_DST_PORT_UDP;
+
+			if (dev->dev->caps.tunnel_offload_mode ==
+			    MLX4_TUNNEL_OFFLOAD_MODE_VXLAN)
+				resp.rss_caps.rx_hash_fields_mask |=
+					MLX4_IB_RX_HASH_INNER;
 		}
 	}
 
