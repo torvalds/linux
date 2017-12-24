@@ -77,6 +77,7 @@ enum mlx5_ib_mmap_cmd {
 	MLX5_IB_MMAP_NC_PAGE			= 3,
 	/* 5 is chosen in order to be compatible with old versions of libmlx5 */
 	MLX5_IB_MMAP_CORE_CLOCK			= 5,
+	MLX5_IB_MMAP_ALLOC_WC			= 6,
 };
 
 enum {
@@ -110,6 +111,10 @@ enum {
 enum {
 	MLX5_TM_MAX_RNDV_MSG_SIZE	= 64,
 	MLX5_TM_MAX_SGE			= 1,
+};
+
+enum {
+	MLX5_IB_INVALID_UAR_INDEX	= BIT(31),
 };
 
 struct mlx5_ib_vma_private_data {
@@ -1020,6 +1025,9 @@ int mlx5_ib_gsi_post_recv(struct ib_qp *qp, struct ib_recv_wr *wr,
 void mlx5_ib_gsi_pkey_change(struct mlx5_ib_gsi_qp *gsi);
 
 int mlx5_ib_generate_wc(struct ib_cq *ibcq, struct ib_wc *wc);
+
+void mlx5_ib_free_bfreg(struct mlx5_ib_dev *dev, struct mlx5_bfreg_info *bfregi,
+			int bfregn);
 
 static inline void init_query_mad(struct ib_smp *mad)
 {

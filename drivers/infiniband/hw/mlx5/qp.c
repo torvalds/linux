@@ -581,7 +581,7 @@ static int alloc_bfreg(struct mlx5_ib_dev *dev,
 	return bfregn;
 }
 
-static void free_bfreg(struct mlx5_ib_dev *dev, struct mlx5_bfreg_info *bfregi, int bfregn)
+void mlx5_ib_free_bfreg(struct mlx5_ib_dev *dev, struct mlx5_bfreg_info *bfregi, int bfregn)
 {
 	mutex_lock(&bfregi->lock);
 	bfregi->count[bfregn]--;
@@ -874,7 +874,7 @@ err_umem:
 		ib_umem_release(ubuffer->umem);
 
 err_bfreg:
-	free_bfreg(dev, &context->bfregi, bfregn);
+	mlx5_ib_free_bfreg(dev, &context->bfregi, bfregn);
 	return err;
 }
 
@@ -887,7 +887,7 @@ static void destroy_qp_user(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 	mlx5_ib_db_unmap_user(context, &qp->db);
 	if (base->ubuffer.umem)
 		ib_umem_release(base->ubuffer.umem);
-	free_bfreg(dev, &context->bfregi, qp->bfregn);
+	mlx5_ib_free_bfreg(dev, &context->bfregi, qp->bfregn);
 }
 
 static int create_kernel_qp(struct mlx5_ib_dev *dev,

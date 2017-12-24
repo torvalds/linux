@@ -1301,6 +1301,10 @@ static int allocate_uars(struct mlx5_ib_dev *dev, struct mlx5_ib_ucontext *conte
 
 		mlx5_ib_dbg(dev, "allocated uar %d\n", bfregi->sys_pages[i]);
 	}
+
+	for (i = bfregi->num_static_sys_pages; i < bfregi->num_sys_pages; i++)
+		bfregi->sys_pages[i] = MLX5_IB_INVALID_UAR_INDEX;
+
 	return 0;
 
 error:
@@ -1318,13 +1322,17 @@ static int deallocate_uars(struct mlx5_ib_dev *dev, struct mlx5_ib_ucontext *con
 	int i;
 
 	bfregi = &context->bfregi;
-	for (i = 0; i < bfregi->num_static_sys_pages; i++) {
-		err = mlx5_cmd_free_uar(dev->mdev, bfregi->sys_pages[i]);
-		if (err) {
-			mlx5_ib_warn(dev, "failed to free uar %d\n", i);
-			return err;
+	for (i = 0; i < bfregi->num_sys_pages; i++) {
+		if (i < bfregi->num_static_sys_pages ||
+		    bfregi->sys_pages[i] != MLX5_IB_INVALID_UAR_INDEX) {
+			err = mlx5_cmd_free_uar(dev->mdev, bfregi->sys_pages[i]);
+			if (err) {
+				mlx5_ib_warn(dev, "failed to free uar %d, err=%d\n", i, err);
+				return err;
+			}
 		}
 	}
+
 	return 0;
 }
 
@@ -1582,15 +1590,13 @@ static int mlx5_ib_dealloc_ucontext(struct ib_ucontext *ibcontext)
 }
 
 static phys_addr_t uar_index2pfn(struct mlx5_ib_dev *dev,
-				 struct mlx5_bfreg_info *bfregi,
-				 int idx)
+				 int uar_idx)
 {
 	int fw_uars_per_page;
 
 	fw_uars_per_page = MLX5_CAP_GEN(dev->mdev, uar_4k) ? MLX5_UARS_IN_PAGE : 1;
 
-	return (pci_resource_start(dev->mdev->pdev, 0) >> PAGE_SHIFT) +
-			bfregi->sys_pages[idx] / fw_uars_per_page;
+	return (pci_resource_start(dev->mdev->pdev, 0) >> PAGE_SHIFT) + uar_idx / fw_uars_per_page;
 }
 
 static int get_command(unsigned long offset)
@@ -1606,6 +1612,12 @@ static int get_arg(unsigned long offset)
 static int get_index(unsigned long offset)
 {
 	return get_arg(offset);
+}
+
+/* Index resides in an extra byte to enable larger values than 255 */
+static int get_extended_index(unsigned long offset)
+{
+	return get_arg(offset) | ((offset >> 16) & 0xff) << 8;
 }
 
 static void  mlx5_ib_vma_open(struct vm_area_struct *area)
@@ -1758,21 +1770,29 @@ static int uar_mmap(struct mlx5_ib_dev *dev, enum mlx5_ib_mmap_cmd cmd,
 	unsigned long idx;
 	phys_addr_t pfn, pa;
 	pgprot_t prot;
-	int uars_per_page;
+	u32 bfreg_dyn_idx = 0;
+	u32 uar_index;
+	int dyn_uar = (cmd == MLX5_IB_MMAP_ALLOC_WC);
+	int max_valid_idx = dyn_uar ? bfregi->num_sys_pages :
+				bfregi->num_static_sys_pages;
 
 	if (vma->vm_end - vma->vm_start != PAGE_SIZE)
 		return -EINVAL;
 
-	uars_per_page = get_uars_per_sys_page(dev, bfregi->lib_uar_4k);
-	idx = get_index(vma->vm_pgoff);
-	if (idx % uars_per_page ||
-	    idx * uars_per_page >= bfregi->num_sys_pages) {
-		mlx5_ib_warn(dev, "invalid uar index %lu\n", idx);
+	if (dyn_uar)
+		idx = get_extended_index(vma->vm_pgoff) + bfregi->num_static_sys_pages;
+	else
+		idx = get_index(vma->vm_pgoff);
+
+	if (idx >= max_valid_idx) {
+		mlx5_ib_warn(dev, "invalid uar index %lu, max=%d\n",
+			     idx, max_valid_idx);
 		return -EINVAL;
 	}
 
 	switch (cmd) {
 	case MLX5_IB_MMAP_WC_PAGE:
+	case MLX5_IB_MMAP_ALLOC_WC:
 /* Some architectures don't support WC memory */
 #if defined(CONFIG_X86)
 		if (!pat_enabled())
@@ -1792,7 +1812,40 @@ static int uar_mmap(struct mlx5_ib_dev *dev, enum mlx5_ib_mmap_cmd cmd,
 		return -EINVAL;
 	}
 
-	pfn = uar_index2pfn(dev, bfregi, idx);
+	if (dyn_uar) {
+		int uars_per_page;
+
+		uars_per_page = get_uars_per_sys_page(dev, bfregi->lib_uar_4k);
+		bfreg_dyn_idx = idx * (uars_per_page * MLX5_NON_FP_BFREGS_PER_UAR);
+		if (bfreg_dyn_idx >= bfregi->total_num_bfregs) {
+			mlx5_ib_warn(dev, "invalid bfreg_dyn_idx %u, max=%u\n",
+				     bfreg_dyn_idx, bfregi->total_num_bfregs);
+			return -EINVAL;
+		}
+
+		mutex_lock(&bfregi->lock);
+		/* Fail if uar already allocated, first bfreg index of each
+		 * page holds its count.
+		 */
+		if (bfregi->count[bfreg_dyn_idx]) {
+			mlx5_ib_warn(dev, "wrong offset, idx %lu is busy, bfregn=%u\n", idx, bfreg_dyn_idx);
+			mutex_unlock(&bfregi->lock);
+			return -EINVAL;
+		}
+
+		bfregi->count[bfreg_dyn_idx]++;
+		mutex_unlock(&bfregi->lock);
+
+		err = mlx5_cmd_alloc_uar(dev->mdev, &uar_index);
+		if (err) {
+			mlx5_ib_warn(dev, "UAR alloc failed\n");
+			goto free_bfreg;
+		}
+	} else {
+		uar_index = bfregi->sys_pages[idx];
+	}
+
+	pfn = uar_index2pfn(dev, uar_index);
 	mlx5_ib_dbg(dev, "uar idx 0x%lx, pfn %pa\n", idx, &pfn);
 
 	vma->vm_page_prot = prot;
@@ -1801,14 +1854,32 @@ static int uar_mmap(struct mlx5_ib_dev *dev, enum mlx5_ib_mmap_cmd cmd,
 	if (err) {
 		mlx5_ib_err(dev, "io_remap_pfn_range failed with error=%d, vm_start=0x%lx, pfn=%pa, mmap_cmd=%s\n",
 			    err, vma->vm_start, &pfn, mmap_cmd2str(cmd));
-		return -EAGAIN;
+		err = -EAGAIN;
+		goto err;
 	}
 
 	pa = pfn << PAGE_SHIFT;
 	mlx5_ib_dbg(dev, "mapped %s at 0x%lx, PA %pa\n", mmap_cmd2str(cmd),
 		    vma->vm_start, &pa);
 
-	return mlx5_ib_set_vma_data(vma, context);
+	err = mlx5_ib_set_vma_data(vma, context);
+	if (err)
+		goto err;
+
+	if (dyn_uar)
+		bfregi->sys_pages[idx] = uar_index;
+	return 0;
+
+err:
+	if (!dyn_uar)
+		return err;
+
+	mlx5_cmd_free_uar(dev->mdev, idx);
+
+free_bfreg:
+	mlx5_ib_free_bfreg(dev, bfregi, bfreg_dyn_idx);
+
+	return err;
 }
 
 static int mlx5_ib_mmap(struct ib_ucontext *ibcontext, struct vm_area_struct *vma)
@@ -1823,6 +1894,7 @@ static int mlx5_ib_mmap(struct ib_ucontext *ibcontext, struct vm_area_struct *vm
 	case MLX5_IB_MMAP_WC_PAGE:
 	case MLX5_IB_MMAP_NC_PAGE:
 	case MLX5_IB_MMAP_REGULAR_PAGE:
+	case MLX5_IB_MMAP_ALLOC_WC:
 		return uar_mmap(dev, command, vma, context);
 
 	case MLX5_IB_MMAP_GET_CONTIGUOUS_PAGES:
