@@ -54,6 +54,11 @@ static int serdev_uevent(struct device *dev, struct kobj_uevent_env *env)
 	int rc;
 
 	/* TODO: platform modalias */
+
+	/* ACPI enumerated controllers do not have a modalias */
+	if (!dev->of_node && dev->type == &serdev_ctrl_type)
+		return 0;
+
 	rc = acpi_device_uevent_modalias(dev, env);
 	if (rc != -ENODEV)
 		return rc;
