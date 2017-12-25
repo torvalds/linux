@@ -100,7 +100,8 @@ static unsigned long ttm_bo_io_mem_pfn(struct ttm_buffer_object *bo,
 	if (bdev->driver->io_mem_pfn)
 		return bdev->driver->io_mem_pfn(bo, page_offset);
 
-	return ttm_bo_default_io_mem_pfn(bo, page_offset);
+	return ((bo->mem.bus.base + bo->mem.bus.offset) >> PAGE_SHIFT)
+		+ page_offset;
 }
 
 static int ttm_bo_vm_fault(struct vm_fault *vmf)
@@ -419,14 +420,6 @@ static struct ttm_buffer_object *ttm_bo_vm_lookup(struct ttm_bo_device *bdev,
 
 	return bo;
 }
-
-unsigned long ttm_bo_default_io_mem_pfn(struct ttm_buffer_object *bo,
-					unsigned long page_offset)
-{
-	return ((bo->mem.bus.base + bo->mem.bus.offset) >> PAGE_SHIFT)
-		+ page_offset;
-}
-EXPORT_SYMBOL(ttm_bo_default_io_mem_pfn);
 
 int ttm_bo_mmap(struct file *filp, struct vm_area_struct *vma,
 		struct ttm_bo_device *bdev)
