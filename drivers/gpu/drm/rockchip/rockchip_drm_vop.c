@@ -2509,6 +2509,49 @@ static int vop_afbdc_atomic_check(struct drm_crtc *crtc,
 
 		win = to_vop_win(plane);
 		src = &plane_state->src;
+		if (!(win->feature & WIN_FEATURE_AFBDC)) {
+			DRM_ERROR("win[%d] feature:0x%llx, not support afbdc\n",
+				  win->win_id, win->feature);
+			return -EINVAL;
+		}
+		if (!IS_ALIGNED(fb->width, 16)) {
+			DRM_ERROR("win[%d] afbdc must 16 align, width: %d\n",
+				  win->win_id, fb->width);
+			return -EINVAL;
+		}
+
+		if (VOP_CTRL_SUPPORT(vop, afbdc_pic_vir_width)) {
+			u32 align_x1, align_x2, align_y1, align_y2, align_val;
+
+			s->afbdc_win_format = afbdc_format;
+			s->afbdc_win_id = win->win_id;
+			s->afbdc_win_ptr = rockchip_fb_get_dma_addr(fb, 0);
+			s->afbdc_win_vir_width = fb->width;
+			s->afbdc_win_xoffset = (src->x1 >> 16);
+			s->afbdc_win_yoffset = (src->y1 >> 16);
+
+			align_x1 = (src->x1 >> 16) - ((src->x1 >> 16) % 16);
+			align_y1 = (src->y1 >> 16) - ((src->y1 >> 16) % 16);
+
+			align_val = (src->x2 >> 16) % 16;
+			if (align_val)
+				align_x2 = (src->x2 >> 16) + (16 - align_val);
+			else
+				align_x2 = src->x2 >> 16;
+
+			align_val = (src->y2 >> 16) % 16;
+			if (align_val)
+				align_y2 = (src->y2 >> 16) + (16 - align_val);
+			else
+				align_y2 = src->y2 >> 16;
+
+			s->afbdc_win_width = align_x2 - align_x1 - 1;
+			s->afbdc_win_height = align_y2 - align_y1 - 1;
+
+			s->afbdc_en = 1;
+
+			break;
+		}
 		if (src->x1 || src->y1 || fb->offsets[0]) {
 			DRM_ERROR("win[%d] afbdc not support offset display\n",
 				  win->win_id);
@@ -2918,7 +2961,7 @@ static void vop_cfg_update(struct drm_crtc *crtc,
 	vop_tv_config_update(crtc, old_crtc_state);
 
 	if (s->afbdc_en) {
-		uint32_t pic_size;
+		u32 pic_size, pic_offset;
 
 		VOP_CTRL_SET(vop, afbdc_format, s->afbdc_win_format | 1 << 4);
 		VOP_CTRL_SET(vop, afbdc_hreg_block_split, 0);
@@ -2927,6 +2970,11 @@ static void vop_cfg_update(struct drm_crtc *crtc,
 		pic_size = (s->afbdc_win_width & 0xffff);
 		pic_size |= s->afbdc_win_height << 16;
 		VOP_CTRL_SET(vop, afbdc_pic_size, pic_size);
+
+		VOP_CTRL_SET(vop, afbdc_pic_vir_width, s->afbdc_win_vir_width);
+		pic_offset = (s->afbdc_win_xoffset & 0xffff);
+		pic_offset |= s->afbdc_win_yoffset << 16;
+		VOP_CTRL_SET(vop, afbdc_pic_offset, pic_offset);
 	}
 
 	VOP_CTRL_SET(vop, afbdc_en, s->afbdc_en);

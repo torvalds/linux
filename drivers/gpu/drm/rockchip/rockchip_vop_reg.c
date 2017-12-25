@@ -1332,10 +1332,10 @@ static const struct vop_ctrl rk3366_lit_ctrl_data = {
 				     0, 2, 6, -1),
 	.afbdc_pic_size = VOP_REG_VER(PX30_AFBCD0_PIC_SIZE, 0xffffffff,
 				      0, 2, 6, -1),
-	.afbdc_pic_offset = VOP_REG_VER(PX30_AFBCD0_PIC_SIZE, 0xffffffff,
-				      0, 2, 6, -1),
+	.afbdc_pic_offset = VOP_REG_VER(PX30_AFBCD0_PIC_OFFSET, 0xffffffff,
+					0, 2, 6, -1),
 	.afbdc_axi_ctrl =  VOP_REG_VER(PX30_AFBCD0_AXI_CTRL, 0xffffffff,
-				      0, 2, 6, -1),
+				       0, 2, 6, -1),
 
 	.cabc_config_mode = VOP_REG_VER(PX30_CABC_CTRL0, 0x3, 1, 2, 6, -1),
 	.cabc_calc_pixel_num = VOP_REG_VER(PX30_CABC_CTRL0, 0x7fffff, 4,
@@ -1428,6 +1428,7 @@ static const struct vop_data px30_vop_lit = {
 
 static const struct vop_data px30_vop_big = {
 	.version = VOP_VERSION(2, 6),
+	.feature = VOP_FEATURE_AFBDC,
 	.max_input = {1920, 8192},
 	.max_output = {1920, 1080},
 	.ctrl = &rk3366_lit_ctrl_data,

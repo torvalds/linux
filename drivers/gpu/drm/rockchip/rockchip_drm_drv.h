@@ -110,6 +110,9 @@ struct rockchip_crtc_state {
 	int afbdc_win_ptr;
 	int afbdc_win_id;
 	int afbdc_en;
+	int afbdc_win_vir_width;
+	int afbdc_win_xoffset;
+	int afbdc_win_yoffset;
 	int cabc_mode;
 	int cabc_stage_up;
 	int cabc_stage_down;
