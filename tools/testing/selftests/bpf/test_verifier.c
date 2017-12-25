@@ -8764,6 +8764,127 @@ static struct bpf_test tests[] = {
 		.result = REJECT,
 	},
 	{
+		"calls: stack depth check using three frames. test1",
+		.insns = {
+			/* main */
+			BPF_RAW_INSN(BPF_JMP|BPF_CALL, 0, 1, 0, 4), /* call A */
+			BPF_RAW_INSN(BPF_JMP|BPF_CALL, 0, 1, 0, 5), /* call B */
+			BPF_ST_MEM(BPF_B, BPF_REG_10, -32, 0),
+			BPF_MOV64_IMM(BPF_REG_0, 0),
+			BPF_EXIT_INSN(),
+			/* A */
+			BPF_ST_MEM(BPF_B, BPF_REG_10, -256, 0),
+			BPF_EXIT_INSN(),
+			/* B */
+			BPF_RAW_INSN(BPF_JMP|BPF_CALL, 0, 1, 0, -3), /* call A */
+			BPF_ST_MEM(BPF_B, BPF_REG_10, -64, 0),
+			BPF_EXIT_INSN(),
+		},
+		.prog_type = BPF_PROG_TYPE_XDP,
+		/* stack_main=32, stack_A=256, stack_B=64
+		 * and max(main+A, main+A+B) < 512
+		 */
+		.result = ACCEPT,
+	},
+	{
+		"calls: stack depth check using three frames. test2",
+		.insns = {
+			/* main */
+			BPF_RAW_INSN(BPF_JMP|BPF_CALL, 0, 1, 0, 4), /* call A */
+			BPF_RAW_INSN(BPF_JMP|BPF_CALL, 0, 1, 0, 5), /* call B */
+			BPF_ST_MEM(BPF_B, BPF_REG_10, -32, 0),
+			BPF_MOV64_IMM(BPF_REG_0, 0),
+			BPF_EXIT_INSN(),
+			/* A */
+			BPF_ST_MEM(BPF_B, BPF_REG_10, -64, 0),
+			BPF_EXIT_INSN(),
+			/* B */
+			BPF_RAW_INSN(BPF_JMP|BPF_CALL, 0, 1, 0, -3), /* call A */
+			BPF_ST_MEM(BPF_B, BPF_REG_10, -256, 0),
+			BPF_EXIT_INSN(),
+		},
+		.prog_type = BPF_PROG_TYPE_XDP,
+		/* stack_main=32, stack_A=64, stack_B=256
+		 * and max(main+A, main+A+B) < 512
+		 */
+		.result = ACCEPT,
+	},
+	{
+		"calls: stack depth check using three frames. test3",
+		.insns = {
+			/* main */
+			BPF_MOV64_REG(BPF_REG_6, BPF_REG_1),
+			BPF_RAW_INSN(BPF_JMP|BPF_CALL, 0, 1, 0, 6), /* call A */
+			BPF_MOV64_REG(BPF_REG_1, BPF_REG_6),
+			BPF_RAW_INSN(BPF_JMP|BPF_CALL, 0, 1, 0, 8), /* call B */
+			BPF_JMP_IMM(BPF_JGE, BPF_REG_6, 0, 1),
+			BPF_ST_MEM(BPF_B, BPF_REG_10, -64, 0),
+			BPF_MOV64_IMM(BPF_REG_0, 0),
+			BPF_EXIT_INSN(),
+			/* A */
+			BPF_JMP_IMM(BPF_JLT, BPF_REG_1, 10, 1),
+			BPF_EXIT_INSN(),
+			BPF_ST_MEM(BPF_B, BPF_REG_10, -224, 0),
+			BPF_JMP_IMM(BPF_JA, 0, 0, -3),
+			/* B */
+			BPF_JMP_IMM(BPF_JGT, BPF_REG_1, 2, 1),
+			BPF_RAW_INSN(BPF_JMP|BPF_CALL, 0, 1, 0, -6), /* call A */
+			BPF_ST_MEM(BPF_B, BPF_REG_10, -256, 0),
+			BPF_EXIT_INSN(),
+		},
+		.prog_type = BPF_PROG_TYPE_XDP,
+		/* stack_main=64, stack_A=224, stack_B=256
+		 * and max(main+A, main+A+B) > 512
+		 */
+		.errstr = "combined stack",
+		.result = REJECT,
+	},
+	{
+		"calls: stack depth check using three frames. test4",
+		/* void main(void) {
+		 *   func1(0);
+		 *   func1(1);
+		 *   func2(1);
+		 * }
+		 * void func1(int alloc_or_recurse) {
+		 *   if (alloc_or_recurse) {
+		 *     frame_pointer[-300] = 1;
+		 *   } else {
+		 *     func2(alloc_or_recurse);
+		 *   }
+		 * }
+		 * void func2(int alloc_or_recurse) {
+		 *   if (alloc_or_recurse) {
+		 *     frame_pointer[-300] = 1;
+		 *   }
+		 * }
+		 */
+		.insns = {
+			/* main */
+			BPF_MOV64_IMM(BPF_REG_1, 0),
+			BPF_RAW_INSN(BPF_JMP|BPF_CALL, 0, 1, 0, 6), /* call A */
+			BPF_MOV64_IMM(BPF_REG_1, 1),
+			BPF_RAW_INSN(BPF_JMP|BPF_CALL, 0, 1, 0, 4), /* call A */
+			BPF_MOV64_IMM(BPF_REG_1, 1),
+			BPF_RAW_INSN(BPF_JMP|BPF_CALL, 0, 1, 0, 7), /* call B */
+			BPF_MOV64_IMM(BPF_REG_0, 0),
+			BPF_EXIT_INSN(),
+			/* A */
+			BPF_JMP_IMM(BPF_JEQ, BPF_REG_1, 0, 2),
+			BPF_ST_MEM(BPF_B, BPF_REG_10, -300, 0),
+			BPF_EXIT_INSN(),
+			BPF_RAW_INSN(BPF_JMP|BPF_CALL, 0, 1, 0, 1), /* call B */
+			BPF_EXIT_INSN(),
+			/* B */
+			BPF_JMP_IMM(BPF_JEQ, BPF_REG_1, 0, 1),
+			BPF_ST_MEM(BPF_B, BPF_REG_10, -300, 0),
+			BPF_EXIT_INSN(),
+		},
+		.prog_type = BPF_PROG_TYPE_XDP,
+		.result = REJECT,
+		.errstr = "combined stack",
+	},
+	{
 		"calls: spill into caller stack frame",
 		.insns = {
 			BPF_ST_MEM(BPF_DW, BPF_REG_10, -8, 0),
