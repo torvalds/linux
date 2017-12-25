@@ -815,7 +815,9 @@ int tpm_tis_core_init(struct device *dev, struct tpm_tis_data *priv, int irq,
 		      const struct tpm_tis_phy_ops *phy_ops,
 		      acpi_handle acpi_dev_handle)
 {
-	u32 vendor, intfcaps, intmask;
+	u32 vendor;
+	u32 intfcaps;
+	u32 intmask;
 	u8 rid;
 	int rc, probe;
 	struct tpm_chip *chip;
