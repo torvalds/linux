@@ -1,14 +1,11 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (C) 2013 Samsung Electronics Co., Ltd.
  *	Tomasz Figa <t.figa@samsung.com>
  * Copyright (c) 2004 Simtec Electronics
  *	http://armlinux.simtec.co.uk/
  *	Written by Ben Dooks, <ben@simtec.co.uk>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
-*/
+ */
 
 #ifndef __PLAT_SAMSUNG_PM_COMMON_H
 #define __PLAT_SAMSUNG_PM_COMMON_H __FILE__
