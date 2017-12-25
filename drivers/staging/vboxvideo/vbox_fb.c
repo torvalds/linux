@@ -170,7 +170,7 @@ static int vboxfb_create(struct drm_fb_helper *helper,
 	drm_fb_helper_fill_var(info, &fbdev->helper, sizes->fb_width,
 			       sizes->fb_height);
 
-	info->screen_base = bo->kmap.virtual;
+	info->screen_base = (char __iomem *)bo->kmap.virtual;
 	info->screen_size = size;
 
 #ifdef CONFIG_DRM_KMS_FB_HELPER
