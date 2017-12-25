@@ -484,8 +484,7 @@ create_pagelist(char __user *buf, size_t count, unsigned short type)
 				       __func__, actual_pages, num_pages);
 
 			/* This is probably due to the process being killed */
-			while (actual_pages > 0)
-			{
+			while (actual_pages > 0) {
 				actual_pages--;
 				put_page(pages[actual_pages]);
 			}
