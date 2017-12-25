@@ -31,8 +31,6 @@
 static unsigned int verbose = 5;
 module_param(verbose, int, 0644);
 
-#define ABS(x)		((x) < 0 ? (-x) : (x))
-
 struct mb86a16_state {
 	struct i2c_adapter		*i2c_adap;
 	const struct mb86a16_config	*config;
@@ -1202,12 +1200,12 @@ static int mb86a16_set_fe(struct mb86a16_state *state)
 
 			signal_dupl = 0;
 			for (j = 0; j < prev_freq_num; j++) {
-				if ((ABS(prev_swp_freq[j] - swp_freq)) < (swp_ofs * 3 / 2)) {
+				if ((abs(prev_swp_freq[j] - swp_freq)) < (swp_ofs * 3 / 2)) {
 					signal_dupl = 1;
 					dprintk(verbose, MB86A16_INFO, 1, "Probably Duplicate Signal, j = %d", j);
 				}
 			}
-			if ((signal_dupl == 0) && (swp_freq > 0) && (ABS(swp_freq - state->frequency * 1000) < fcp + state->srate / 6)) {
+			if ((signal_dupl == 0) && (swp_freq > 0) && (abs(swp_freq - state->frequency * 1000) < fcp + state->srate / 6)) {
 				dprintk(verbose, MB86A16_DEBUG, 1, "------ Signal detect ------ [swp_freq=[%07d, srate=%05d]]", swp_freq, state->srate);
 				prev_swp_freq[prev_freq_num] = swp_freq;
 				prev_freq_num++;
@@ -1381,7 +1379,7 @@ static int mb86a16_set_fe(struct mb86a16_state *state)
 			dprintk(verbose, MB86A16_INFO, 1, "SWEEP Frequency = %d", swp_freq);
 			swp_freq += delta_freq;
 			dprintk(verbose, MB86A16_INFO, 1, "Adjusting .., DELTA Freq = %d, SWEEP Freq=%d", delta_freq, swp_freq);
-			if (ABS(state->frequency * 1000 - swp_freq) > 3800) {
+			if (abs(state->frequency * 1000 - swp_freq) > 3800) {
 				dprintk(verbose, MB86A16_INFO, 1, "NO  --  SIGNAL !");
 			} else {
 

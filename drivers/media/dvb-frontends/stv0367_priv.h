@@ -35,7 +35,6 @@
 #endif
 
 /* MACRO definitions */
-#define ABS(X) ((X) < 0 ? (-1 * (X)) : (X))
 #define MAX(X, Y) ((X) >= (Y) ? (X) : (Y))
 #define MIN(X, Y) ((X) <= (Y) ? (X) : (Y))
 #define INRANGE(X, Y, Z) \
