@@ -1684,11 +1684,11 @@ int ip6_tnl_change_mtu(struct net_device *dev, int new_mtu)
 {
 	struct ip6_tnl *tnl = netdev_priv(dev);
 
-	if (tnl->parms.proto == IPPROTO_IPIP) {
-		if (new_mtu < ETH_MIN_MTU)
+	if (tnl->parms.proto == IPPROTO_IPV6) {
+		if (new_mtu < IPV6_MIN_MTU)
 			return -EINVAL;
 	} else {
-		if (new_mtu < IPV6_MIN_MTU)
+		if (new_mtu < ETH_MIN_MTU)
 			return -EINVAL;
 	}
 	if (new_mtu > 0xFFF8 - dev->hard_header_len)
