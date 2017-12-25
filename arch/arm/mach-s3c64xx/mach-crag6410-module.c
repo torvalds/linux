@@ -1,12 +1,9 @@
-/* Speyside modules for Cragganmore - board data probing
- *
- * Copyright 2011 Wolfson Microelectronics plc
- *	Mark Brown <broonie@opensource.wolfsonmicro.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- */
+// SPDX-License-Identifier: GPL-2.0
+//
+// Speyside modules for Cragganmore - board data probing
+//
+// Copyright 2011 Wolfson Microelectronics plc
+//	Mark Brown <broonie@opensource.wolfsonmicro.com>
 
 #include <linux/export.h>
 #include <linux/interrupt.h>
