@@ -138,9 +138,6 @@ static int tpm_tcg_read_bytes(struct tpm_tis_data *data, u32 addr, u16 len,
 {
 	struct tpm_tis_tcg_phy *phy = to_tpm_tis_tcg_phy(data);
 
-	if (is_bsw() && !(data->flags & TPM_TIS_CLK_ENABLE))
-		WARN(1, "CLKRUN not enabled!\n");
-
 	while (len--)
 		*result++ = ioread8(phy->iobase + addr);
 
@@ -152,9 +149,6 @@ static int tpm_tcg_write_bytes(struct tpm_tis_data *data, u32 addr, u16 len,
 {
 	struct tpm_tis_tcg_phy *phy = to_tpm_tis_tcg_phy(data);
 
-	if (is_bsw() && !(data->flags & TPM_TIS_CLK_ENABLE))
-		WARN(1, "CLKRUN not enabled!\n");
-
 	while (len--)
 		iowrite8(*value++, phy->iobase + addr);
 
@@ -165,9 +159,6 @@ static int tpm_tcg_read16(struct tpm_tis_data *data, u32 addr, u16 *result)
 {
 	struct tpm_tis_tcg_phy *phy = to_tpm_tis_tcg_phy(data);
 
-	if (is_bsw() && !(data->flags & TPM_TIS_CLK_ENABLE))
-		WARN(1, "CLKRUN not enabled!\n");
-
 	*result = ioread16(phy->iobase + addr);
 
 	return 0;
@@ -177,9 +168,6 @@ static int tpm_tcg_read32(struct tpm_tis_data *data, u32 addr, u32 *result)
 {
 	struct tpm_tis_tcg_phy *phy = to_tpm_tis_tcg_phy(data);
 
-	if (is_bsw() && !(data->flags & TPM_TIS_CLK_ENABLE))
-		WARN(1, "CLKRUN not enabled!\n");
-
 	*result = ioread32(phy->iobase + addr);
 
 	return 0;
@@ -188,9 +176,6 @@ static int tpm_tcg_read32(struct tpm_tis_data *data, u32 addr, u32 *result)
 static int tpm_tcg_write32(struct tpm_tis_data *data, u32 addr, u32 value)
 {
 	struct tpm_tis_tcg_phy *phy = to_tpm_tis_tcg_phy(data);
-
-	if (is_bsw() && !(data->flags & TPM_TIS_CLK_ENABLE))
-		WARN(1, "CLKRUN not enabled!\n");
 
 	iowrite32(value, phy->iobase + addr);
 
