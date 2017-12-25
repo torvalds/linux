@@ -52,6 +52,11 @@ void mlx5e_vxlan_init(struct mlx5e_priv *priv)
 		mlx5e_vxlan_add_port(priv, 4789);
 }
 
+static inline u8 mlx5e_vxlan_max_udp_ports(struct mlx5_core_dev *mdev)
+{
+	return MLX5_CAP_ETH(mdev, max_vxlan_udp_ports) ?: 4;
+}
+
 static int mlx5e_vxlan_core_add_port_cmd(struct mlx5_core_dev *mdev, u16 port)
 {
 	u32 in[MLX5_ST_SZ_DW(add_vxlan_udp_dport_in)]   = {0};
@@ -98,6 +103,13 @@ static void mlx5e_vxlan_add_port(struct mlx5e_priv *priv, u16 port)
 		return;
 	}
 
+	if (vxlan_db->num_ports >= mlx5e_vxlan_max_udp_ports(priv->mdev)) {
+		netdev_info(priv->netdev,
+			    "UDP port (%d) not offloaded, max number of UDP ports (%d) are already offloaded\n",
+			    port, mlx5e_vxlan_max_udp_ports(priv->mdev));
+		return;
+	}
+
 	if (mlx5e_vxlan_core_add_port_cmd(priv->mdev, port))
 		return;
 
@@ -114,6 +126,7 @@ static void mlx5e_vxlan_add_port(struct mlx5e_priv *priv, u16 port)
 	if (err)
 		goto err_free;
 
+	vxlan_db->num_ports++;
 	return;
 
 err_free:
@@ -163,6 +176,7 @@ out_unlock:
 	if (remove) {
 		mlx5e_vxlan_core_del_port_cmd(priv->mdev, port);
 		kfree(vxlan);
+		vxlan_db->num_ports--;
 	}
 	mutex_unlock(&priv->state_lock);
 	kfree(vxlan_work);

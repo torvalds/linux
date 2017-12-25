@@ -657,6 +657,7 @@ enum {
 struct mlx5e_vxlan_db {
 	spinlock_t			lock; /* protect vxlan table */
 	struct radix_tree_root		tree;
+	int				num_ports;
 };
 
 struct mlx5e_l2_rule {
