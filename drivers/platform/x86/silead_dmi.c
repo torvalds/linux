@@ -232,6 +232,21 @@ static const struct silead_ts_dmi_data chuwi_vi8_data = {
 	.properties     = chuwi_vi8_props,
 };
 
+static const struct property_entry trekstor_primebook_c13_props[] = {
+	PROPERTY_ENTRY_U32("touchscreen-size-x", 2624),
+	PROPERTY_ENTRY_U32("touchscreen-size-y", 1920),
+	PROPERTY_ENTRY_STRING("firmware-name",
+			      "gsl1680-trekstor-primebook-c13.fw"),
+	PROPERTY_ENTRY_U32("silead,max-fingers", 10),
+	PROPERTY_ENTRY_BOOL("silead,home-button"),
+	{ }
+};
+
+static const struct silead_ts_dmi_data trekstor_primebook_c13_data = {
+	.acpi_name	= "MSSL1680:00",
+	.properties	= trekstor_primebook_c13_props,
+};
+
 static const struct dmi_system_id silead_ts_dmi_table[] = {
 	{
 		/* CUBE iwork8 Air */
@@ -363,6 +378,14 @@ static const struct dmi_system_id silead_ts_dmi_table[] = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Insyde"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "i86"),
 			DMI_MATCH(DMI_BIOS_VERSION, "CHUWI.D86JLBNR"),
+		},
+	},
+	{
+		/* Trekstor Primebook C13 */
+		.driver_data = (void *)&trekstor_primebook_c13_data,
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "TREKSTOR"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Primebook C13"),
 		},
 	},
 	{ },
