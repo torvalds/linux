@@ -1646,10 +1646,9 @@ static int pcs_probe(struct platform_device *pdev)
 		return -EINVAL;
 
 	pcs = devm_kzalloc(&pdev->dev, sizeof(*pcs), GFP_KERNEL);
-	if (!pcs) {
-		dev_err(&pdev->dev, "could not allocate\n");
+	if (!pcs)
 		return -ENOMEM;
-	}
+
 	pcs->dev = &pdev->dev;
 	pcs->np = np;
 	raw_spin_lock_init(&pcs->lock);
