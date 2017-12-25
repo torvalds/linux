@@ -92,6 +92,17 @@ out_unlock:
 	return ret;
 }
 
+static unsigned long ttm_bo_io_mem_pfn(struct ttm_buffer_object *bo,
+				       unsigned long page_offset)
+{
+	struct ttm_bo_device *bdev = bo->bdev;
+
+	if (bdev->driver->io_mem_pfn)
+		return bdev->driver->io_mem_pfn(bo, page_offset);
+
+	return ttm_bo_default_io_mem_pfn(bo, page_offset);
+}
+
 static int ttm_bo_vm_fault(struct vm_fault *vmf)
 {
 	struct vm_area_struct *vma = vmf->vma;
@@ -234,7 +245,7 @@ static int ttm_bo_vm_fault(struct vm_fault *vmf)
 		if (bo->mem.bus.is_iomem) {
 			/* Iomem should not be marked encrypted */
 			cvma.vm_page_prot = pgprot_decrypted(cvma.vm_page_prot);
-			pfn = bdev->driver->io_mem_pfn(bo, page_offset);
+			pfn = ttm_bo_io_mem_pfn(bo, page_offset);
 		} else {
 			page = ttm->pages[page_offset];
 			if (unlikely(!page && i == 0)) {
