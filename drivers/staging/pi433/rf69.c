@@ -509,7 +509,7 @@ bool rf69_get_flag(struct spi_device *spi, enum flag flag)
 	case fifo_level_below_threshold: return (rf69_read_reg(spi, REG_IRQFLAGS2) & MASK_IRQFLAGS2_FIFO_LEVEL);
 	case fifo_overrun:		 return (rf69_read_reg(spi, REG_IRQFLAGS2) & MASK_IRQFLAGS2_FIFO_OVERRUN);
 	case packetSent:		 return (rf69_read_reg(spi, REG_IRQFLAGS2) & MASK_IRQFLAGS2_PACKET_SENT);
-	case payloadReady:		 return (rf69_read_reg(spi, REG_IRQFLAGS2) & MASK_IRQFLAGS2_PAYLOAD_READY);
+	case payload_ready:		 return (rf69_read_reg(spi, REG_IRQFLAGS2) & MASK_IRQFLAGS2_PAYLOAD_READY);
 	case crcOk:			 return (rf69_read_reg(spi, REG_IRQFLAGS2) & MASK_IRQFLAGS2_CRC_OK);
 	case batteryLow:		 return (rf69_read_reg(spi, REG_IRQFLAGS2) & MASK_IRQFLAGS2_LOW_BAT);
 	default:			 return false;
@@ -625,9 +625,9 @@ int rf69_set_adressFiltering(struct spi_device *spi, enum addressFiltering addre
 	}
 }
 
-int rf69_set_payload_length(struct spi_device *spi, u8 payloadLength)
+int rf69_set_payload_length(struct spi_device *spi, u8 payload_length)
 {
-	return rf69_write_reg(spi, REG_PAYLOAD_LENGTH, payloadLength);
+	return rf69_write_reg(spi, REG_PAYLOAD_LENGTH, payload_length);
 }
 
 int rf69_set_node_address(struct spi_device *spi, u8 nodeAddress)

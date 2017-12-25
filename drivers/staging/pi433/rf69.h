@@ -54,7 +54,7 @@ int rf69_set_packet_format(struct spi_device *spi, enum packetFormat packetForma
 int rf69_enable_crc(struct spi_device *spi);
 int rf69_disable_crc(struct spi_device *spi);
 int rf69_set_adressFiltering(struct spi_device *spi, enum addressFiltering addressFiltering);
-int rf69_set_payload_length(struct spi_device *spi, u8 payloadLength);
+int rf69_set_payload_length(struct spi_device *spi, u8 payload_length);
 int rf69_set_node_address(struct spi_device *spi, u8 nodeAddress);
 int rf69_set_broadcast_address(struct spi_device *spi, u8 broadcastAddress);
 int rf69_set_tx_start_condition(struct spi_device *spi, enum txStartCondition txStartCondition);

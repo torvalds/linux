@@ -510,7 +510,7 @@ pi433_receive(void *data)
 
 	/* get payload */
 	while (dev->rx_position < bytes_total) {
-		if (!rf69_get_flag(dev->spi, payloadReady)) {
+		if (!rf69_get_flag(dev->spi, payload_ready)) {
 			retval = wait_event_interruptible(dev->fifo_wait_queue,
 							  dev->free_in_fifo < FIFO_SIZE);
 			if (retval) /* wait was interrupted */

@@ -108,7 +108,7 @@ enum flag {
 	fifo_level_below_threshold,
 	fifo_overrun,
 	packetSent,
-	payloadReady,
+	payload_ready,
 	crcOk,
 	batteryLow
 };
