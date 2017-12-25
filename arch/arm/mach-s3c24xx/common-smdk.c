@@ -1,16 +1,11 @@
-/* linux/arch/arm/plat-s3c24xx/common-smdk.c
- *
- * Copyright (c) 2006 Simtec Electronics
- *	Ben Dooks <ben@simtec.co.uk>
- *
- * Common code for SMDK2410 and SMDK2440 boards
- *
- * http://www.fluff.org/ben/smdk2440/
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
-*/
+// SPDX-License-Identifier: GPL-2.0
+//
+// Copyright (c) 2006 Simtec Electronics
+//	Ben Dooks <ben@simtec.co.uk>
+//
+// Common code for SMDK2410 and SMDK2440 boards
+//
+// http://www.fluff.org/ben/smdk2440/
 
 #include <linux/kernel.h>
 #include <linux/types.h>
