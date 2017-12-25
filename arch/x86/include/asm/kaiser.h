@@ -96,8 +96,10 @@ DECLARE_PER_CPU(unsigned long, x86_cr3_pcid_user);
 extern char __per_cpu_user_mapped_start[], __per_cpu_user_mapped_end[];
 
 extern int kaiser_enabled;
+extern void __init kaiser_check_boottime_disable(void);
 #else
 #define kaiser_enabled	0
+static inline void __init kaiser_check_boottime_disable(void) {}
 #endif /* CONFIG_KAISER */
 
 /*
