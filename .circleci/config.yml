@@ -144,3 +144,13 @@ workflows:
      - android-arm32
      - android-aarch64
      - checkpatch
+  nightly:
+    triggers:
+      - schedule:
+          cron: "0 0 * * *"
+          filters:
+            branches:
+              only:
+                - master
+    jobs:
+      - x86_64_valgrind
