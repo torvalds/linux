@@ -427,11 +427,8 @@ static bool vnt_alloc_bufs(struct vnt_private *priv)
 
 	for (ii = 0; ii < priv->num_rcb; ii++) {
 		priv->rcb[ii] = kzalloc(sizeof(*priv->rcb[ii]), GFP_KERNEL);
-		if (!priv->rcb[ii]) {
-			dev_err(&priv->usb->dev,
-				"failed to allocate rcb no %d\n", ii);
+		if (!priv->rcb[ii])
 			goto free_rx_tx;
-		}
 
 		rcb = priv->rcb[ii];
 
