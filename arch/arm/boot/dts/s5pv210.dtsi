@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Samsung's S5PV210 SoC device tree source
  *
@@ -13,11 +14,7 @@
  * Note: This file does not include device nodes for all the controllers in
  * S5PV210 SoC. As device tree coverage for S5PV210 increases, additional
  * nodes can be added to this file.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
-*/
+ */
 
 #include <dt-bindings/clock/s5pv210.h>
 #include <dt-bindings/clock/s5pv210-audss.h>
