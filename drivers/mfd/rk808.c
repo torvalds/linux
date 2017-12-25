@@ -831,6 +831,7 @@ static int rk808_probe(struct i2c_client *client,
 	}
 
 	rk808->i2c = client;
+	rk808_i2c_client = client;
 	i2c_set_clientdata(client, rk808);
 
 	rk808->regmap = devm_regmap_init_i2c(client, rk808->regmap_cfg);
@@ -889,7 +890,6 @@ static int rk808_probe(struct i2c_client *client,
 	pm_off = of_property_read_bool(np,
 				"rockchip,system-power-controller");
 	if (pm_off && !pm_power_off) {
-		rk808_i2c_client = client;
 		pm_power_off = pm_pwroff_fn;
 	}
 
