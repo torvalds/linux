@@ -694,7 +694,8 @@ static void tpm_tis_clkrun_enable(struct tpm_chip *chip, bool value)
 	struct tpm_tis_data *data = dev_get_drvdata(&chip->dev);
 	u32 clkrun_val;
 
-	if (!IS_ENABLED(CONFIG_X86) || !is_bsw())
+	if (!IS_ENABLED(CONFIG_X86) || !is_bsw() ||
+	    !data->ilb_base_addr)
 		return;
 
 	if (value) {
@@ -751,6 +752,7 @@ int tpm_tis_core_init(struct device *dev, struct tpm_tis_data *priv, int irq,
 		      acpi_handle acpi_dev_handle)
 {
 	u32 vendor, intfcaps, intmask;
+	u32 clkrun_val;
 	u8 rid;
 	int rc, probe;
 	struct tpm_chip *chip;
@@ -776,6 +778,13 @@ int tpm_tis_core_init(struct device *dev, struct tpm_tis_data *priv, int irq,
 					ILB_REMAP_SIZE);
 		if (!priv->ilb_base_addr)
 			return -ENOMEM;
+
+		clkrun_val = ioread32(priv->ilb_base_addr + LPC_CNTRL_OFFSET);
+		/* Check if CLKRUN# is already not enabled in the LPC bus */
+		if (!(clkrun_val & LPC_CLKRUN_EN)) {
+			iounmap(priv->ilb_base_addr);
+			priv->ilb_base_addr = NULL;
+		}
 	}
 
 	if (chip->ops->clk_enable != NULL)
