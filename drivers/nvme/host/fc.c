@@ -3381,6 +3381,7 @@ nvme_fc_create_ctrl(struct device *dev, struct nvmf_ctrl_options *opts)
 
 static struct nvmf_transport_ops nvme_fc_transport = {
 	.name		= "fc",
+	.module		= THIS_MODULE,
 	.required_opts	= NVMF_OPT_TRADDR | NVMF_OPT_HOST_TRADDR,
 	.allowed_opts	= NVMF_OPT_RECONNECT_DELAY | NVMF_OPT_CTRL_LOSS_TMO,
 	.create_ctrl	= nvme_fc_create_ctrl,

@@ -2006,6 +2006,7 @@ out_free_ctrl:
 
 static struct nvmf_transport_ops nvme_rdma_transport = {
 	.name		= "rdma",
+	.module		= THIS_MODULE,
 	.required_opts	= NVMF_OPT_TRADDR,
 	.allowed_opts	= NVMF_OPT_TRSVCID | NVMF_OPT_RECONNECT_DELAY |
 			  NVMF_OPT_HOST_TRADDR | NVMF_OPT_CTRL_LOSS_TMO,

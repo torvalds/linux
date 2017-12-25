@@ -686,6 +686,7 @@ static struct nvmet_fabrics_ops nvme_loop_ops = {
 
 static struct nvmf_transport_ops nvme_loop_transport = {
 	.name		= "loop",
+	.module		= THIS_MODULE,
 	.create_ctrl	= nvme_loop_create_ctrl,
 };
 

@@ -492,7 +492,7 @@ EXPORT_SYMBOL_GPL(nvmf_should_reconnect);
  */
 int nvmf_register_transport(struct nvmf_transport_ops *ops)
 {
-	if (!ops->create_ctrl)
+	if (!ops->create_ctrl || !ops->module)
 		return -EINVAL;
 
 	down_write(&nvmf_transports_rwsem);
@@ -868,32 +868,41 @@ nvmf_create_ctrl(struct device *dev, const char *buf, size_t count)
 		goto out_unlock;
 	}
 
+	if (!try_module_get(ops->module)) {
+		ret = -EBUSY;
+		goto out_unlock;
+	}
+
 	ret = nvmf_check_required_opts(opts, ops->required_opts);
 	if (ret)
-		goto out_unlock;
+		goto out_module_put;
 	ret = nvmf_check_allowed_opts(opts, NVMF_ALLOWED_OPTS |
 				ops->allowed_opts | ops->required_opts);
 	if (ret)
-		goto out_unlock;
+		goto out_module_put;
 
 	ctrl = ops->create_ctrl(dev, opts);
 	if (IS_ERR(ctrl)) {
 		ret = PTR_ERR(ctrl);
-		goto out_unlock;
+		goto out_module_put;
 	}
 
 	if (strcmp(ctrl->subsys->subnqn, opts->subsysnqn)) {
 		dev_warn(ctrl->device,
 			"controller returned incorrect NQN: \"%s\".\n",
 			ctrl->subsys->subnqn);
+		module_put(ops->module);
 		up_read(&nvmf_transports_rwsem);
 		nvme_delete_ctrl_sync(ctrl);
 		return ERR_PTR(-EINVAL);
 	}
 
+	module_put(ops->module);
 	up_read(&nvmf_transports_rwsem);
 	return ctrl;
 
+out_module_put:
+	module_put(ops->module);
 out_unlock:
 	up_read(&nvmf_transports_rwsem);
 out_free_opts:
