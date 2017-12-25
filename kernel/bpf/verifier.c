@@ -2126,9 +2126,9 @@ static int check_func_call(struct bpf_verifier_env *env, struct bpf_insn *insn,
 	struct bpf_func_state *caller, *callee;
 	int i, subprog, target_insn;
 
-	if (state->curframe >= MAX_CALL_FRAMES) {
+	if (state->curframe + 1 >= MAX_CALL_FRAMES) {
 		verbose(env, "the call stack of %d frames is too deep\n",
-			state->curframe);
+			state->curframe + 2);
 		return -E2BIG;
 	}
 
