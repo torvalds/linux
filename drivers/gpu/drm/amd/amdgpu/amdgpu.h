@@ -181,10 +181,6 @@ extern int amdgpu_cik_support;
 #define CIK_CURSOR_WIDTH 128
 #define CIK_CURSOR_HEIGHT 128
 
-/* GPU RESET flags */
-#define AMDGPU_RESET_INFO_VRAM_LOST  (1 << 0)
-#define AMDGPU_RESET_INFO_FULLRESET  (1 << 1)
-
 struct amdgpu_device;
 struct amdgpu_ib;
 struct amdgpu_cs_parser;
