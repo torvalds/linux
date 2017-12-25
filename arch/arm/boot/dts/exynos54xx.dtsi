@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Samsung's Exynos54xx SoC series common device tree source
  *
@@ -8,10 +9,6 @@
  * Device nodes common for Samsung Exynos5410/5420/5422/5800. Specific
  * Exynos 54xx SoCs should include this file and customize it further
  * (e.g. with clocks).
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include "exynos5.dtsi"
