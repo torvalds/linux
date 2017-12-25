@@ -1166,7 +1166,7 @@ void iwl_trans_pcie_reclaim(struct iwl_trans *trans, int txq_id, int ssn,
 			 * In that case, iwl_queue_space will be small again
 			 * and we won't wake mac80211's queue.
 			 */
-			iwl_trans_pcie_tx(trans, skb, dev_cmd_ptr, txq_id);
+			iwl_trans_tx(trans, skb, dev_cmd_ptr, txq_id);
 		}
 		spin_lock_bh(&txq->lock);
 

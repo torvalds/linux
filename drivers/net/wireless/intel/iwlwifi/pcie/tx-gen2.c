@@ -488,6 +488,23 @@ int iwl_trans_pcie_gen2_tx(struct iwl_trans *trans, struct sk_buff *skb,
 
 	spin_lock(&txq->lock);
 
+	if (iwl_queue_space(txq) < txq->high_mark) {
+		iwl_stop_queue(trans, txq);
+
+		/* don't put the packet on the ring, if there is no room */
+		if (unlikely(iwl_queue_space(txq) < 3)) {
+			struct iwl_device_cmd **dev_cmd_ptr;
+
+			dev_cmd_ptr = (void *)((u8 *)skb->cb +
+					       trans_pcie->dev_cmd_offs);
+
+			*dev_cmd_ptr = dev_cmd;
+			__skb_queue_tail(&txq->overflow_q, skb);
+			spin_unlock(&txq->lock);
+			return 0;
+		}
+	}
+
 	idx = iwl_pcie_get_cmd_index(txq, txq->write_ptr);
 
 	/* Set up driver data for this TFD */
@@ -523,9 +540,6 @@ int iwl_trans_pcie_gen2_tx(struct iwl_trans *trans, struct sk_buff *skb,
 	/* Tell device the write index *just past* this latest filled TFD */
 	txq->write_ptr = iwl_queue_inc_wrap(txq->write_ptr);
 	iwl_pcie_gen2_txq_inc_wr_ptr(trans, txq);
-	if (iwl_queue_space(txq) < txq->high_mark)
-		iwl_stop_queue(trans, txq);
-
 	/*
 	 * At this point the frame is "transmitted" successfully
 	 * and we will get a TX status notification eventually.
@@ -957,6 +971,13 @@ void iwl_pcie_gen2_txq_unmap(struct iwl_trans *trans, int txq_id)
 			spin_unlock_irqrestore(&trans_pcie->reg_lock, flags);
 		}
 	}
+
+	while (!skb_queue_empty(&txq->overflow_q)) {
+		struct sk_buff *skb = __skb_dequeue(&txq->overflow_q);
+
+		iwl_op_mode_free_skb(trans->op_mode, skb);
+	}
+
 	spin_unlock_bh(&txq->lock);
 
 	/* just in case - this queue may have been stopped */
