@@ -8,6 +8,9 @@ config CEC_CORE
 config CEC_NOTIFIER
 	bool
 
+config CEC_PIN
+	bool
+
 menuconfig MEDIA_SUPPORT
 	tristate "Multimedia support"
 	depends on HAS_IOMEM
