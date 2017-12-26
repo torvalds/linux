@@ -110,6 +110,7 @@ config BT_HCIUART_NOKIA
 	depends on PM
 	select BT_HCIUART_H4
 	select BT_BCM
+	select GPIOLIB
 	help
 	  Nokia H4+ is serial protocol for communication between Bluetooth
 	  device and host. This protocol is required for Bluetooth devices
@@ -170,6 +171,7 @@ config BT_HCIUART_INTEL
 	depends on BT_HCIUART
 	select BT_HCIUART_H4
 	select BT_INTEL
+	select GPIOLIB
 	help
 	  The Intel protocol support enables Bluetooth HCI over serial
 	  port interface for Intel Bluetooth controllers.
@@ -183,6 +185,7 @@ config BT_HCIUART_BCM
 	depends on (!ACPI || SERIAL_DEV_CTRL_TTYPORT)
 	select BT_HCIUART_H4
 	select BT_BCM
+	select GPIOLIB
 	help
 	  The Broadcom protocol support enables Bluetooth HCI over serial
 	  port interface for Broadcom Bluetooth controllers.
