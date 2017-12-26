@@ -6,8 +6,8 @@
  * published by the Free Software Foundationr
  */
 
-#ifndef EXYNOS_REGS_DECON_H
-#define EXYNOS_REGS_DECON_H
+#ifndef EXYNOS_REGS_DECON5433_H
+#define EXYNOS_REGS_DECON5433_H
 
 /* Exynos543X DECON */
 #define DECON_VIDCON0			0x0000
@@ -206,4 +206,4 @@
 #define CRCCTRL_CRCEN			(0x1 << 0)
 #define CRCCTRL_MASK			(0x7)
 
-#endif /* EXYNOS_REGS_DECON_H */
+#endif /* EXYNOS_REGS_DECON5433_H */

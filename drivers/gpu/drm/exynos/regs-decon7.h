@@ -8,6 +8,9 @@
  * option) any later version.
  */
 
+#ifndef EXYNOS_REGS_DECON7_H
+#define EXYNOS_REGS_DECON7_H
+
 /* VIDCON0 */
 #define VIDCON0					0x00
 
@@ -346,3 +349,5 @@
 
 #define DECON_UPDATE_SLAVE_SYNC			(1 << 4)
 #define DECON_UPDATE_STANDALONE_F		(1 << 0)
+
+#endif /* EXYNOS_REGS_DECON7_H */
