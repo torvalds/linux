@@ -4,8 +4,6 @@
 
 media-objs	:= media-device.o media-devnode.o media-entity.o
 
-obj-$(CONFIG_CEC_CORE) += cec/
-
 #
 # I2C drivers should come before other drivers, otherwise they'll fail
 # when compiled as builtin drivers
@@ -25,6 +23,8 @@ obj-$(CONFIG_DVB_CORE)  += dvb-core/
 
 # There are both core and drivers at RC subtree - merge before drivers
 obj-y += rc/
+
+obj-$(CONFIG_CEC_CORE) += cec/
 
 #
 # Finally, merge the drivers that require the core

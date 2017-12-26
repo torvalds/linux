@@ -1,11 +1,3 @@
-config CEC_CORE
-	tristate
-	depends on MEDIA_CEC_SUPPORT
-	default y
-
-config MEDIA_CEC_NOTIFIER
-	bool
-
 config MEDIA_CEC_RC
 	bool "HDMI CEC RC integration"
 	depends on CEC_CORE && RC_CORE
