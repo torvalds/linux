@@ -908,27 +908,31 @@ static int init_search_param(struct stv *state)
 
 static int enable_puncture_rate(struct stv *state, enum fe_code_rate rate)
 {
+	u8 val;
+
 	switch (rate) {
 	case FEC_1_2:
-		return write_reg(state,
-				 RSTV0910_P2_PRVIT + state->regoff, 0x01);
+		val = 0x01;
+		break;
 	case FEC_2_3:
-		return write_reg(state,
-				 RSTV0910_P2_PRVIT + state->regoff, 0x02);
+		val = 0x02;
+		break;
 	case FEC_3_4:
-		return write_reg(state,
-				 RSTV0910_P2_PRVIT + state->regoff, 0x04);
+		val = 0x04;
+		break;
 	case FEC_5_6:
-		return write_reg(state,
-				 RSTV0910_P2_PRVIT + state->regoff, 0x08);
+		val = 0x08;
+		break;
 	case FEC_7_8:
-		return write_reg(state,
-				 RSTV0910_P2_PRVIT + state->regoff, 0x20);
+		val = 0x20;
+		break;
 	case FEC_NONE:
 	default:
-		return write_reg(state,
-				 RSTV0910_P2_PRVIT + state->regoff, 0x2f);
+		val = 0x2f;
+		break;
 	}
+
+	return write_reg(state, RSTV0910_P2_PRVIT + state->regoff, val);
 }
 
 static int set_vth_default(struct stv *state)
