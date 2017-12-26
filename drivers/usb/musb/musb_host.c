@@ -1779,7 +1779,6 @@ void musb_host_rx(struct musb *musb, u8 epnum)
 	struct musb_qh		*qh = hw_ep->in_qh;
 	size_t			xfer_len;
 	void __iomem		*mbase = musb->mregs;
-	int			pipe;
 	u16			rx_csr, val;
 	bool			iso_err = false;
 	bool			done = false;
@@ -1807,8 +1806,6 @@ void musb_host_rx(struct musb *musb, u8 epnum)
 		musb_h_flush_rxfifo(hw_ep, MUSB_RXCSR_CLRDATATOG);
 		return;
 	}
-
-	pipe = urb->pipe;
 
 	trace_musb_urb_rx(musb, urb);
 
