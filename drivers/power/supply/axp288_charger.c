@@ -222,13 +222,7 @@ static inline int axp288_charger_set_vbus_inlmt(struct axp288_chrg_info *info,
 					   int inlmt)
 {
 	int ret;
-	unsigned int val;
 	u8 reg_val;
-
-	/* Read in limit register */
-	ret = regmap_read(info->regmap, AXP20X_CHRG_BAK_CTRL, &val);
-	if (ret < 0)
-		goto set_inlmt_fail;
 
 	if (inlmt <= ILIM_100MA) {
 		reg_val = CHRG_VBUS_ILIM_100MA;
@@ -253,15 +247,15 @@ static inline int axp288_charger_set_vbus_inlmt(struct axp288_chrg_info *info,
 		inlmt = ILIM_3000MA;
 	}
 
-	reg_val = (val & ~CHRG_VBUS_ILIM_MASK)
-			| (reg_val << CHRG_VBUS_ILIM_BIT_POS);
-	ret = regmap_write(info->regmap, AXP20X_CHRG_BAK_CTRL, reg_val);
+	reg_val = reg_val << CHRG_VBUS_ILIM_BIT_POS;
+
+	ret = regmap_update_bits(info->regmap, AXP20X_CHRG_BAK_CTRL,
+				 CHRG_VBUS_ILIM_MASK, reg_val);
 	if (ret >= 0)
 		info->inlmt = inlmt;
 	else
 		dev_err(&info->pdev->dev, "charger BAK control %d\n", ret);
 
-set_inlmt_fail:
 	return ret;
 }
 
