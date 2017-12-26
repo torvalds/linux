@@ -122,6 +122,7 @@
 #define MLX5E_MAX_NUM_SQS              (MLX5E_MAX_NUM_CHANNELS * MLX5E_MAX_NUM_TC)
 #define MLX5E_TX_CQ_POLL_BUDGET        128
 #define MLX5E_UPDATE_STATS_INTERVAL    200 /* msecs */
+#define MLX5E_SQ_RECOVER_MIN_INTERVAL  500 /* msecs */
 
 #define MLX5E_ICOSQ_MAX_WQEBBS \
 	(DIV_ROUND_UP(sizeof(struct mlx5e_umr_wqe), MLX5_SEND_WQE_BB))
@@ -332,6 +333,7 @@ struct mlx5e_sq_dma {
 
 enum {
 	MLX5E_SQ_STATE_ENABLED,
+	MLX5E_SQ_STATE_RECOVERING,
 	MLX5E_SQ_STATE_IPSEC,
 };
 
@@ -378,6 +380,10 @@ struct mlx5e_txqsq {
 	struct mlx5e_channel      *channel;
 	int                        txq_ix;
 	u32                        rate_limit;
+	struct mlx5e_txqsq_recover {
+		struct work_struct         recover_work;
+		u64                        last_recover;
+	} recover;
 } ____cacheline_aligned_in_smp;
 
 struct mlx5e_xdpsq {

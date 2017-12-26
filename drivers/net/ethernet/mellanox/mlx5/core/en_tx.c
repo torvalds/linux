@@ -469,9 +469,13 @@ bool mlx5e_poll_tx_cq(struct mlx5e_cq *cq, int napi_budget)
 		wqe_counter = be16_to_cpu(cqe->wqe_counter);
 
 		if (unlikely(cqe->op_own >> 4 == MLX5_CQE_REQ_ERR)) {
-			if (!sq->stats.cqe_err)
+			if (!test_and_set_bit(MLX5E_SQ_STATE_RECOVERING,
+					      &sq->state)) {
 				mlx5e_dump_error_cqe(sq,
 						     (struct mlx5_err_cqe *)cqe);
+				queue_work(cq->channel->priv->wq,
+					   &sq->recover.recover_work);
+			}
 			sq->stats.cqe_err++;
 		}
 
@@ -528,7 +532,9 @@ bool mlx5e_poll_tx_cq(struct mlx5e_cq *cq, int napi_budget)
 	netdev_tx_completed_queue(sq->txq, npkts, nbytes);
 
 	if (netif_tx_queue_stopped(sq->txq) &&
-	    mlx5e_wqc_has_room_for(&sq->wq, sq->cc, sq->pc, MLX5E_SQ_STOP_ROOM)) {
+	    mlx5e_wqc_has_room_for(&sq->wq, sq->cc, sq->pc,
+				   MLX5E_SQ_STOP_ROOM) &&
+	    !test_bit(MLX5E_SQ_STATE_RECOVERING, &sq->state)) {
 		netif_tx_wake_queue(sq->txq);
 		sq->stats.wake++;
 	}
