@@ -521,7 +521,7 @@ static int cm_x300_u2d_init(struct device *dev)
 			pr_err("failed to get CLK_POUT: %d\n", err);
 			return err;
 		}
-		clk_enable(pout_clk);
+		clk_prepare_enable(pout_clk);
 
 		err = cm_x300_ulpi_phy_reset();
 		if (err) {
@@ -536,7 +536,7 @@ static int cm_x300_u2d_init(struct device *dev)
 static void cm_x300_u2d_exit(struct device *dev)
 {
 	if (cpu_is_pxa310()) {
-		clk_disable(pout_clk);
+		clk_disable_unprepare(pout_clk);
 		clk_put(pout_clk);
 	}
 }

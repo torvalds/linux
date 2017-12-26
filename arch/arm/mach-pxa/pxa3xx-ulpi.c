@@ -256,7 +256,7 @@ int pxa3xx_u2d_start_hc(struct usb_bus *host)
 	if (!u2d)
 		return 0;
 
-	clk_enable(u2d->clk);
+	clk_prepare_enable(u2d->clk);
 
 	if (cpu_is_pxa310()) {
 		pxa310_u2d_setup_otg_hc();
@@ -276,7 +276,7 @@ void pxa3xx_u2d_stop_hc(struct usb_bus *host)
 	if (cpu_is_pxa310())
 		pxa310_stop_otg_hc();
 
-	clk_disable(u2d->clk);
+	clk_disable_unprepare(u2d->clk);
 }
 EXPORT_SYMBOL_GPL(pxa3xx_u2d_stop_hc);
 
