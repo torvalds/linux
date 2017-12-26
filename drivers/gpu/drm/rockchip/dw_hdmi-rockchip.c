@@ -581,7 +581,7 @@ dw_hdmi_rockchip_encoder_atomic_check(struct drm_encoder *encoder,
 {
 	struct rockchip_crtc_state *s = to_rockchip_crtc_state(crtc_state);
 	struct rockchip_hdmi *hdmi = to_rockchip_hdmi(encoder);
-	unsigned int colordepth, colorformat;
+	unsigned int colordepth, colorformat, bus_width;
 
 	dw_hdmi_rockchip_select_output(conn_state, crtc_state, hdmi,
 				       &colorformat, &colordepth);
@@ -592,8 +592,7 @@ dw_hdmi_rockchip_encoder_atomic_check(struct drm_encoder *encoder,
 			s->bus_format = MEDIA_BUS_FMT_UYYVYY10_0_5X30;
 		else
 			s->bus_format = MEDIA_BUS_FMT_UYYVYY8_0_5X24;
-		if (hdmi->phy)
-			phy_set_bus_width(hdmi->phy, colordepth / 2);
+		bus_width = colordepth / 2;
 	} else {
 		s->output_mode = ROCKCHIP_OUT_MODE_AAAA;
 		if (colordepth > 8) {
@@ -609,9 +608,15 @@ dw_hdmi_rockchip_encoder_atomic_check(struct drm_encoder *encoder,
 			else
 				s->bus_format = MEDIA_BUS_FMT_RGB888_1X24;
 		}
-		if (hdmi->phy)
-			phy_set_bus_width(hdmi->phy, colordepth);
+		if (colorformat == DRM_HDMI_OUTPUT_YCBCR422)
+			bus_width = 8;
+		else
+			bus_width = colordepth;
 	}
+
+	if (hdmi->phy)
+		phy_set_bus_width(hdmi->phy, bus_width);
+
 	s->output_type = DRM_MODE_CONNECTOR_HDMIA;
 	s->tv_state = &conn_state->tv;
 
