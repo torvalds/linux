@@ -194,6 +194,7 @@ static void rockchip_usb_phy_action(void *data)
 static int rockchip_usb_phy_init(struct rockchip_usb_phy_base *base,
 				 struct device_node *child)
 {
+	struct device_node *np = base->dev->of_node;
 	struct rockchip_usb_phy *rk_phy;
 	unsigned int reg_offset;
 	const char *clk_name;
@@ -286,6 +287,21 @@ static int rockchip_usb_phy_init(struct rockchip_usb_phy_base *base,
 			return PTR_ERR(rk_phy->vbus);
 		rk_phy->vbus = NULL;
 	}
+
+	/*
+	 * Setting the COMMONONN to 1'b0 for EHCI PHY on RK3288 SoC.
+	 *
+	 * EHCI (auto) suspend causes the corresponding usb-phy into suspend
+	 * mode which would power down the inner PLL blocks in usb-phy if the
+	 * COMMONONN is set to 1'b1. The PLL output clocks contained CLK480M,
+	 * CLK12MOHCI, CLK48MOHCI, PHYCLOCK0 and so on, these clocks are not
+	 * only supplied for EHCI and OHCI, but also supplied for GPU and other
+	 * external modules, so setting COMMONONN to 1'b0 to keep the inner PLL
+	 * blocks in usb-phy always powered.
+	 */
+	if (of_device_is_compatible(np, "rockchip,rk3288-usb-phy") &&
+	    reg_offset == 0x334)
+		regmap_write(base->reg_base, reg_offset, BIT(16));
 
 	/*
 	 * When acting as uart-pipe, just keep clock on otherwise
