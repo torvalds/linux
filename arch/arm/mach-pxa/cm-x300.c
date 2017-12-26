@@ -509,7 +509,7 @@ static int cm_x300_ulpi_phy_reset(void)
 	return 0;
 }
 
-static inline int cm_x300_u2d_init(struct device *dev)
+static int cm_x300_u2d_init(struct device *dev)
 {
 	int err = 0;
 
