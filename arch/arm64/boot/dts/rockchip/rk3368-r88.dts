@@ -123,10 +123,11 @@
 		regulator-boot-on;
 	};
 
-	clkin_gmac: external-gmac-clock {
+	ext_gmac: gmac-clk {
 		compatible = "fixed-clock";
 		clock-frequency = <125000000>;
-		clock-output-names = "clkin_gmac";
+		/* clock-frequency = <50000000>; */
+		clock-output-names = "ext_gmac";
 		#clock-cells = <0>;
 	};
 
@@ -211,11 +212,11 @@
 	phy-supply = <&vcc_phy>;
 	phy-mode = "rmii";
 	clock_in_out = "output";
-	snps,reset-gpio = <&gpio3 12 0>;
+	snps,reset-gpio = <&gpio3 12 GPIO_ACTIVE_LOW>;
 	snps,reset-active-low;
 	snps,reset-delays-us = <0 50000 50000>;
-	//assigned-clocks = <&cru SCLK_RMII_SRC>;
-	//assigned-clock-parents = <&clkin_gmac>;
+	/* assigned-clocks = <&cru SCLK_MAC>; */
+	/* assigned-clock-parents = <&ext_gmac>; */
 	pinctrl-names = "default";
 	pinctrl-0 = <&rmii_pins>;
 	tx_delay = <0x30>;
