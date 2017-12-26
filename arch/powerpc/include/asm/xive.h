@@ -122,7 +122,7 @@ static inline bool xive_enabled(void) { return false; }
 static inline bool xive_spapr_init(void) { return false; }
 static inline bool xive_native_init(void) { return false; }
 static inline void xive_smp_probe(void) { }
-extern inline int  xive_smp_prepare_cpu(unsigned int cpu) { return -EINVAL; }
+static inline int  xive_smp_prepare_cpu(unsigned int cpu) { return -EINVAL; }
 static inline void xive_smp_setup_cpu(void) { }
 static inline void xive_smp_disable_cpu(void) { }
 static inline void xive_kexec_teardown_cpu(int secondary) { }
