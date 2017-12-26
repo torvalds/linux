@@ -357,34 +357,47 @@ static long cec_s_mode(struct cec_adapter *adap, struct cec_fh *fh,
 
 	if (copy_from_user(&mode, parg, sizeof(mode)))
 		return -EFAULT;
-	if (mode & ~(CEC_MODE_INITIATOR_MSK | CEC_MODE_FOLLOWER_MSK))
+	if (mode & ~(CEC_MODE_INITIATOR_MSK | CEC_MODE_FOLLOWER_MSK)) {
+		dprintk(1, "%s: invalid mode bits set\n", __func__);
 		return -EINVAL;
+	}
 
 	mode_initiator = mode & CEC_MODE_INITIATOR_MSK;
 	mode_follower = mode & CEC_MODE_FOLLOWER_MSK;
 
 	if (mode_initiator > CEC_MODE_EXCL_INITIATOR ||
-	    mode_follower > CEC_MODE_MONITOR_ALL)
+	    mode_follower > CEC_MODE_MONITOR_ALL) {
+		dprintk(1, "%s: unknown mode\n", __func__);
 		return -EINVAL;
+	}
 
 	if (mode_follower == CEC_MODE_MONITOR_ALL &&
-	    !(adap->capabilities & CEC_CAP_MONITOR_ALL))
+	    !(adap->capabilities & CEC_CAP_MONITOR_ALL)) {
+		dprintk(1, "%s: MONITOR_ALL not supported\n", __func__);
 		return -EINVAL;
+	}
 
 	if (mode_follower == CEC_MODE_MONITOR_PIN &&
-	    !(adap->capabilities & CEC_CAP_MONITOR_PIN))
+	    !(adap->capabilities & CEC_CAP_MONITOR_PIN)) {
+		dprintk(1, "%s: MONITOR_PIN not supported\n", __func__);
 		return -EINVAL;
+	}
 
 	/* Follower modes should always be able to send CEC messages */
 	if ((mode_initiator == CEC_MODE_NO_INITIATOR ||
 	     !(adap->capabilities & CEC_CAP_TRANSMIT)) &&
 	    mode_follower >= CEC_MODE_FOLLOWER &&
-	    mode_follower <= CEC_MODE_EXCL_FOLLOWER_PASSTHRU)
+	    mode_follower <= CEC_MODE_EXCL_FOLLOWER_PASSTHRU) {
+		dprintk(1, "%s: cannot transmit\n", __func__);
 		return -EINVAL;
+	}
 
 	/* Monitor modes require CEC_MODE_NO_INITIATOR */
-	if (mode_initiator && mode_follower >= CEC_MODE_MONITOR_PIN)
+	if (mode_initiator && mode_follower >= CEC_MODE_MONITOR_PIN) {
+		dprintk(1, "%s: monitor modes require NO_INITIATOR\n",
+			__func__);
 		return -EINVAL;
+	}
 
 	/* Monitor modes require CAP_NET_ADMIN */
 	if (mode_follower >= CEC_MODE_MONITOR_PIN && !capable(CAP_NET_ADMIN))
