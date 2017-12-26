@@ -195,7 +195,6 @@ static struct musb_qh *musb_ep_get_qh(struct musb_hw_ep *ep, int is_in)
 static void
 musb_start_urb(struct musb *musb, int is_in, struct musb_qh *qh)
 {
-	u16			frame;
 	u32			len;
 	void __iomem		*mbase =  musb->mregs;
 	struct urb		*urb = next_urb(qh);
@@ -244,7 +243,6 @@ musb_start_urb(struct musb *musb, int is_in, struct musb_qh *qh)
 	case USB_ENDPOINT_XFER_ISOC:
 	case USB_ENDPOINT_XFER_INT:
 		musb_dbg(musb, "check whether there's still time for periodic Tx");
-		frame = musb_readw(mbase, MUSB_FRAME);
 		/* FIXME this doesn't implement that scheduling policy ...
 		 * or handle framecounter wrapping
 		 */
