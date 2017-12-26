@@ -162,7 +162,6 @@ struct axp288_chrg_info {
 	int cv;
 	int max_cc;
 	int max_cv;
-	int is_charger_enabled;
 };
 
 static inline int axp288_charger_set_cc(struct axp288_chrg_info *info, int cc)
@@ -291,9 +290,6 @@ static int axp288_charger_enable_charger(struct axp288_chrg_info *info,
 {
 	int ret;
 
-	if ((int)enable == info->is_charger_enabled)
-		return 0;
-
 	if (enable)
 		ret = regmap_update_bits(info->regmap, AXP20X_CHRG_CTRL1,
 				CHRG_CCCV_CHG_EN, CHRG_CCCV_CHG_EN);
@@ -302,8 +298,6 @@ static int axp288_charger_enable_charger(struct axp288_chrg_info *info,
 				CHRG_CCCV_CHG_EN, 0);
 	if (ret < 0)
 		dev_err(&info->pdev->dev, "axp288 enable charger %d\n", ret);
-	else
-		info->is_charger_enabled = enable;
 
 	return ret;
 }
@@ -779,7 +773,6 @@ static int axp288_charger_probe(struct platform_device *pdev)
 	info->pdev = pdev;
 	info->regmap = axp20x->regmap;
 	info->regmap_irqc = axp20x->regmap_irqc;
-	info->is_charger_enabled = -1;
 
 	info->cable.edev = extcon_get_extcon_dev(AXP288_EXTCON_DEV_NAME);
 	if (info->cable.edev == NULL) {
