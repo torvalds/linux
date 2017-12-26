@@ -584,13 +584,13 @@ static void axp288_charger_extcon_evt_worker(struct work_struct *work)
 
 	/* Determine cable/charger type */
 	if (extcon_get_state(edev, EXTCON_CHG_USB_SDP) > 0) {
-		dev_dbg(&info->pdev->dev, "USB SDP charger  is connected");
+		dev_dbg(&info->pdev->dev, "USB SDP charger is connected\n");
 		current_limit = ILIM_500MA;
 	} else if (extcon_get_state(edev, EXTCON_CHG_USB_CDP) > 0) {
-		dev_dbg(&info->pdev->dev, "USB CDP charger is connected");
+		dev_dbg(&info->pdev->dev, "USB CDP charger is connected\n");
 		current_limit = ILIM_1500MA;
 	} else if (extcon_get_state(edev, EXTCON_CHG_USB_DCP) > 0) {
-		dev_dbg(&info->pdev->dev, "USB DCP charger is connected");
+		dev_dbg(&info->pdev->dev, "USB DCP charger is connected\n");
 		current_limit = ILIM_2000MA;
 	} else {
 		/* Charger type detection still in progress, bail. */
