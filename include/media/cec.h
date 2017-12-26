@@ -177,6 +177,7 @@ struct cec_adapter {
 	bool needs_hpd;
 	bool is_configuring;
 	bool is_configured;
+	bool cec_pin_is_high;
 	u32 monitor_all_cnt;
 	u32 monitor_pin_cnt;
 	u32 follower_cnt;
