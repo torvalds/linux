@@ -261,7 +261,6 @@ static inline int axp288_charger_set_vbus_inlmt(struct axp288_chrg_info *info,
 	else
 		dev_err(&info->pdev->dev, "charger BAK control %d\n", ret);
 
-
 set_inlmt_fail:
 	return ret;
 }
@@ -280,7 +279,6 @@ static int axp288_charger_vbus_path_select(struct axp288_chrg_info *info,
 
 	if (ret < 0)
 		dev_err(&info->pdev->dev, "axp288 vbus path select %d\n", ret);
-
 
 	return ret;
 }
