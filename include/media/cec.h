@@ -88,7 +88,7 @@ struct cec_event_entry {
 };
 
 #define CEC_NUM_CORE_EVENTS 2
-#define CEC_NUM_EVENTS CEC_EVENT_PIN_CEC_HIGH
+#define CEC_NUM_EVENTS CEC_EVENT_PIN_HPD_HIGH
 
 struct cec_fh {
 	struct list_head	list;
@@ -282,6 +282,16 @@ static inline void cec_received_msg(struct cec_adapter *adap,
  */
 void cec_queue_pin_cec_event(struct cec_adapter *adap,
 			     bool is_high, ktime_t ts);
+
+/**
+ * cec_queue_pin_hpd_event() - queue a pin event with a given timestamp.
+ *
+ * @adap:	pointer to the cec adapter
+ * @is_high:	when true the HPD pin is high, otherwise it is low
+ * @ts:		the timestamp for this event
+ *
+ */
+void cec_queue_pin_hpd_event(struct cec_adapter *adap, bool is_high, ktime_t ts);
 
 /**
  * cec_get_edid_phys_addr() - find and return the physical address

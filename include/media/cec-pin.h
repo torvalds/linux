@@ -97,6 +97,9 @@ enum cec_pin_state {
  * @free:	optional. Free any allocated resources. Called when the
  *		adapter is deleted.
  * @status:	optional, log status information.
+ * @read_hpd:	read the HPD pin. Return true if high, false if low or
+ *		an error if negative. If NULL or -ENOTTY is returned,
+ *		then this is not supported.
  *
  * These operations are used by the cec pin framework to manipulate
  * the CEC pin.
@@ -109,6 +112,7 @@ struct cec_pin_ops {
 	void (*disable_irq)(struct cec_adapter *adap);
 	void (*free)(struct cec_adapter *adap);
 	void (*status)(struct cec_adapter *adap, struct seq_file *file);
+	int  (*read_hpd)(struct cec_adapter *adap);
 };
 
 #define CEC_NUM_PIN_EVENTS 128
