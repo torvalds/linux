@@ -331,7 +331,7 @@ static int pxa3xx_u2d_probe(struct platform_device *pdev)
 			goto err_free_plat;
 	}
 
-	platform_set_drvdata(pdev, &u2d);
+	platform_set_drvdata(pdev, u2d);
 
 	return 0;
 
