@@ -329,12 +329,16 @@ static void __init pxa3xx_dummy_clocks_init(void)
 
 static void __init pxa3xx_base_clocks_init(void)
 {
+	struct clk *clk;
+
 	pxa3xx_register_plls();
 	pxa3xx_register_core();
 	clk_register_clk_pxa3xx_system_bus();
 	clk_register_clk_pxa3xx_ac97();
 	clk_register_clk_pxa3xx_smemc();
-	clk_register_gate(NULL, "CLK_POUT", "osc_13mhz", 0, OSCC, 11, 0, NULL);
+	clk = clk_register_gate(NULL, "CLK_POUT",
+				"osc_13mhz", 0, OSCC, 11, 0, NULL);
+	clk_register_clkdev(clk, "CLK_POUT", NULL);
 	clkdev_pxa_register(CLK_OSTIMER, "OSTIMER0", NULL,
 			    clk_register_fixed_factor(NULL, "os-timer0",
 						      "osc_13mhz", 0, 1, 4));
