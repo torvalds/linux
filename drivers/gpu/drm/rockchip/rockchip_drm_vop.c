@@ -51,10 +51,11 @@
 #define MAX_VOPS	2
 
 #define VOP_REG_SUPPORT(vop, reg) \
-		(!reg.major || (reg.major == VOP_MAJOR(vop->version) && \
-		reg.begin_minor <= VOP_MINOR(vop->version) && \
-		reg.end_minor >= VOP_MINOR(vop->version) && \
-		reg.mask))
+		(reg.mask && \
+		 (!reg.major || \
+		  (reg.major == VOP_MAJOR(vop->version) && \
+		   reg.begin_minor <= VOP_MINOR(vop->version) && \
+		   reg.end_minor >= VOP_MINOR(vop->version))))
 
 #define VOP_WIN_SUPPORT(vop, win, name) \
 		VOP_REG_SUPPORT(vop, win->phy->name)
