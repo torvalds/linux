@@ -557,7 +557,7 @@ static enum hrtimer_restart cec_pin_timer(struct hrtimer *timer)
 		    adap->is_configured || adap->monitor_all_cnt)
 			break;
 		/* Switch to interrupt mode */
-		pin->work_enable_irq = true;
+		atomic_set(&pin->work_irq_change, CEC_PIN_IRQ_ENABLE);
 		pin->state = CEC_ST_RX_IRQ;
 		wake_up_interruptible(&pin->kthread_waitq);
 		return HRTIMER_NORESTART;
@@ -591,7 +591,7 @@ static int cec_pin_thread_func(void *_adap)
 			kthread_should_stop() ||
 			pin->work_rx_msg.len ||
 			pin->work_tx_status ||
-			pin->work_enable_irq ||
+			atomic_read(&pin->work_irq_change) ||
 			atomic_read(&pin->work_pin_events));
 
 		if (pin->work_rx_msg.len) {
@@ -606,6 +606,7 @@ static int cec_pin_thread_func(void *_adap)
 			cec_transmit_attempt_done_ts(adap, tx_status,
 						     pin->work_tx_ts);
 		}
+
 		while (atomic_read(&pin->work_pin_events)) {
 			unsigned int idx = pin->work_pin_events_rd;
 
@@ -615,14 +616,26 @@ static int cec_pin_thread_func(void *_adap)
 			pin->work_pin_events_rd = (idx + 1) % CEC_NUM_PIN_EVENTS;
 			atomic_dec(&pin->work_pin_events);
 		}
-		if (pin->work_enable_irq) {
-			pin->work_enable_irq = false;
+
+		switch (atomic_xchg(&pin->work_irq_change,
+				    CEC_PIN_IRQ_UNCHANGED)) {
+		case CEC_PIN_IRQ_DISABLE:
+			pin->ops->disable_irq(adap);
+			cec_pin_high(pin);
+			cec_pin_to_idle(pin);
+			hrtimer_start(&pin->timer, 0, HRTIMER_MODE_REL);
+			break;
+		case CEC_PIN_IRQ_ENABLE:
 			pin->enable_irq_failed = !pin->ops->enable_irq(adap);
 			if (pin->enable_irq_failed) {
 				cec_pin_to_idle(pin);
 				hrtimer_start(&pin->timer, 0, HRTIMER_MODE_REL);
 			}
+			break;
+		default:
+			break;
 		}
+
 		if (kthread_should_stop())
 			break;
 	}
@@ -641,7 +654,7 @@ static int cec_pin_adap_enable(struct cec_adapter *adap, bool enable)
 		cec_pin_to_idle(pin);
 		pin->tx_msg.len = 0;
 		pin->timer_ts = 0;
-		pin->work_enable_irq = false;
+		atomic_set(&pin->work_irq_change, CEC_PIN_IRQ_UNCHANGED);
 		pin->kthread = kthread_run(cec_pin_thread_func, adap,
 					   "cec-pin");
 		if (IS_ERR(pin->kthread)) {
@@ -682,7 +695,7 @@ static int cec_pin_adap_transmit(struct cec_adapter *adap, u8 attempts,
 	pin->work_tx_status = 0;
 	pin->tx_bit = 0;
 	if (pin->state == CEC_ST_RX_IRQ) {
-		pin->work_enable_irq = false;
+		atomic_set(&pin->work_irq_change, CEC_PIN_IRQ_UNCHANGED);
 		pin->ops->disable_irq(adap);
 		cec_pin_high(pin);
 		cec_pin_to_idle(pin);
@@ -745,13 +758,8 @@ void cec_pin_changed(struct cec_adapter *adap, bool value)
 
 	cec_pin_update(pin, value, false);
 	if (!value && (adap->is_configuring || adap->is_configured ||
-		       adap->monitor_all_cnt)) {
-		pin->work_enable_irq = false;
-		pin->ops->disable_irq(adap);
-		cec_pin_high(pin);
-		cec_pin_to_idle(pin);
-		hrtimer_start(&pin->timer, 0, HRTIMER_MODE_REL);
-	}
+		       adap->monitor_all_cnt))
+		atomic_set(&pin->work_irq_change, CEC_PIN_IRQ_DISABLE);
 }
 EXPORT_SYMBOL_GPL(cec_pin_changed);
 
