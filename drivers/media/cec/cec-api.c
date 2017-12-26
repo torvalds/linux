@@ -271,16 +271,10 @@ static long cec_receive(struct cec_adapter *adap, struct cec_fh *fh,
 			bool block, struct cec_msg __user *parg)
 {
 	struct cec_msg msg = {};
-	long err = 0;
+	long err;
 
 	if (copy_from_user(&msg, parg, sizeof(msg)))
 		return -EFAULT;
-	mutex_lock(&adap->lock);
-	if (!adap->is_configured && fh->mode_follower < CEC_MODE_MONITOR)
-		err = -ENONET;
-	mutex_unlock(&adap->lock);
-	if (err)
-		return err;
 
 	err = cec_receive_msg(fh, &msg, block);
 	if (err)
