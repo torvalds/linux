@@ -17,6 +17,7 @@
  *
  */
 
+#include <linux/dmi.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/device.h>
@@ -679,6 +680,37 @@ intr_failed:
 	}
 }
 
+/*
+ * Some devices have no battery (HDMI sticks) and the axp288 battery's
+ * detection reports one despite it not being there.
+ */
+static const struct dmi_system_id axp288_fuel_gauge_blacklist[] = {
+	{
+		/* Intel Cherry Trail Compute Stick, Windows version */
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Intel Corporation"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "STK1AW32SC"),
+		},
+	},
+	{
+		/* Intel Cherry Trail Compute Stick, version without an OS */
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Intel Corporation"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "STK1A32SC"),
+		},
+	},
+	{
+		/* Meegopad T08 */
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Default string"),
+			DMI_MATCH(DMI_BOARD_VENDOR, "To be filled by OEM."),
+			DMI_MATCH(DMI_BOARD_NAME, "T3 MRD"),
+			DMI_MATCH(DMI_BOARD_VERSION, "V1.1"),
+		},
+	},
+	{}
+};
+
 static int axp288_fuel_gauge_probe(struct platform_device *pdev)
 {
 	int i, ret = 0;
@@ -693,6 +725,9 @@ static int axp288_fuel_gauge_probe(struct platform_device *pdev)
 		[BAT_D_CURR] = "axp288-chrg-d-curr",
 		[BAT_VOLT] = "axp288-batt-volt",
 	};
+
+	if (dmi_check_system(axp288_fuel_gauge_blacklist))
+		return -ENODEV;
 
 	info = devm_kzalloc(&pdev->dev, sizeof(*info), GFP_KERNEL);
 	if (!info)
