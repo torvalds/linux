@@ -1817,7 +1817,7 @@ static int nv_alloc_rx(struct net_device *dev)
 
 	while (np->put_rx.orig != less_rx) {
 		struct sk_buff *skb = netdev_alloc_skb(dev, np->rx_buf_sz + NV_RX_ALLOC_PAD);
-		if (skb) {
+		if (likely(skb)) {
 			np->put_rx_ctx->skb = skb;
 			np->put_rx_ctx->dma = dma_map_single(&np->pci_dev->dev,
 							     skb->data,
@@ -1858,7 +1858,7 @@ static int nv_alloc_rx_optimized(struct net_device *dev)
 
 	while (np->put_rx.ex != less_rx) {
 		struct sk_buff *skb = netdev_alloc_skb(dev, np->rx_buf_sz + NV_RX_ALLOC_PAD);
-		if (skb) {
+		if (likely(skb)) {
 			np->put_rx_ctx->skb = skb;
 			np->put_rx_ctx->dma = dma_map_single(&np->pci_dev->dev,
 							     skb->data,
