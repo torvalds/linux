@@ -194,7 +194,7 @@ static int write_shared_reg(struct stv *state, u16 reg, u8 mask, u8 val)
 	return status;
 }
 
-static int __maybe_unused write_field(struct stv *state, u32 field, u8 val)
+static int write_field(struct stv *state, u32 field, u8 val)
 {
 	int status;
 	u8 shift, mask, old, new;
@@ -880,45 +880,60 @@ static int stop(struct stv *state)
 	return 0;
 }
 
-static int init_search_param(struct stv *state)
+static void set_pls(struct stv *state, u32 pls_code)
 {
-	u8 tmp;
+	if (pls_code == state->cur_scrambling_code)
+		return;
 
-	read_reg(state, RSTV0910_P2_PDELCTRL1 + state->regoff, &tmp);
-	tmp |= 0x20; /* Filter_en (no effect if SIS=non-MIS */
-	write_reg(state, RSTV0910_P2_PDELCTRL1 + state->regoff, tmp);
+	/* PLROOT2 bit 2 = gold code */
+	write_reg(state, RSTV0910_P2_PLROOT0 + state->regoff,
+		  pls_code & 0xff);
+	write_reg(state, RSTV0910_P2_PLROOT1 + state->regoff,
+		  (pls_code >> 8) & 0xff);
+	write_reg(state, RSTV0910_P2_PLROOT2 + state->regoff,
+		  0x04 | ((pls_code >> 16) & 0x03));
+	state->cur_scrambling_code = pls_code;
+}
 
-	read_reg(state, RSTV0910_P2_PDELCTRL2 + state->regoff, &tmp);
-	tmp &= ~0x02; /* frame mode = 0 */
-	write_reg(state, RSTV0910_P2_PDELCTRL2 + state->regoff, tmp);
+static void set_isi(struct stv *state, u32 isi)
+{
+	if (isi == NO_STREAM_ID_FILTER)
+		return;
+	if (isi == 0x80000000) {
+		SET_FIELD(FORCE_CONTINUOUS, 1);
+		SET_FIELD(TSOUT_NOSYNC, 1);
+	} else {
+		SET_FIELD(FILTER_EN, 1);
+		write_reg(state, RSTV0910_P2_ISIENTRY + state->regoff,
+			  isi & 0xff);
+		write_reg(state, RSTV0910_P2_ISIBITENA + state->regoff, 0xff);
+	}
+	SET_FIELD(ALGOSWRST, 1);
+	SET_FIELD(ALGOSWRST, 0);
+}
 
-	write_reg(state, RSTV0910_P2_UPLCCST0 + state->regoff, 0xe0);
-	write_reg(state, RSTV0910_P2_ISIBITENA + state->regoff, 0x00);
+static void set_stream_modes(struct stv *state,
+			     struct dtv_frontend_properties *p)
+{
+	set_isi(state, p->stream_id);
+	set_pls(state, p->scrambling_sequence_index);
+}
 
-	read_reg(state, RSTV0910_P2_TSSTATEM + state->regoff, &tmp);
-	tmp &= ~0x01; /* nosync = 0, in case next signal is standard TS */
-	write_reg(state, RSTV0910_P2_TSSTATEM + state->regoff, tmp);
+static int init_search_param(struct stv *state,
+			     struct dtv_frontend_properties *p)
+{
+	SET_FIELD(FORCE_CONTINUOUS, 0);
+	SET_FIELD(FRAME_MODE, 0);
+	SET_FIELD(FILTER_EN, 0);
+	SET_FIELD(TSOUT_NOSYNC, 0);
+	SET_FIELD(TSFIFO_EMBINDVB, 0);
+	SET_FIELD(TSDEL_SYNCBYTE, 0);
+	SET_REG(UPLCCST0, 0xe0);
+	SET_FIELD(TSINS_TOKEN, 0);
+	SET_FIELD(HYSTERESIS_THRESHOLD, 0);
+	SET_FIELD(ISIOBS_MODE, 1);
 
-	read_reg(state, RSTV0910_P2_TSCFGL + state->regoff, &tmp);
-	tmp &= ~0x04; /* embindvb = 0 */
-	write_reg(state, RSTV0910_P2_TSCFGL + state->regoff, tmp);
-
-	read_reg(state, RSTV0910_P2_TSINSDELH + state->regoff, &tmp);
-	tmp &= ~0x80; /* syncbyte = 0 */
-	write_reg(state, RSTV0910_P2_TSINSDELH + state->regoff, tmp);
-
-	read_reg(state, RSTV0910_P2_TSINSDELM + state->regoff, &tmp);
-	tmp &= ~0x08; /* token = 0 */
-	write_reg(state, RSTV0910_P2_TSINSDELM + state->regoff, tmp);
-
-	read_reg(state, RSTV0910_P2_TSDLYSET2 + state->regoff, &tmp);
-	tmp &= ~0x30; /* hysteresis threshold = 0 */
-	write_reg(state, RSTV0910_P2_TSDLYSET2 + state->regoff, tmp);
-
-	read_reg(state, RSTV0910_P2_PDELCTRL0 + state->regoff, &tmp);
-	tmp = (tmp & ~0x30) | 0x10; /* isi obs mode = 1, observe min ISI */
-	write_reg(state, RSTV0910_P2_PDELCTRL0 + state->regoff, tmp);
-
+	set_stream_modes(state, p);
 	return 0;
 }
 
@@ -1005,7 +1020,6 @@ static int start(struct stv *state, struct dtv_frontend_properties *p)
 	s32 freq;
 	u8  reg_dmdcfgmd;
 	u16 symb;
-	u32 scrambling_code = 1;
 
 	if (p->symbol_rate < 100000 || p->symbol_rate > 70000000)
 		return -EINVAL;
@@ -1017,30 +1031,7 @@ static int start(struct stv *state, struct dtv_frontend_properties *p)
 	if (state->started)
 		write_reg(state, RSTV0910_P2_DMDISTATE + state->regoff, 0x5C);
 
-	init_search_param(state);
-
-	if (p->stream_id != NO_STREAM_ID_FILTER) {
-		/*
-		 * Backwards compatibility to "crazy" API.
-		 * PRBS X root cannot be 0, so this should always work.
-		 */
-		if (p->stream_id & 0xffffff00)
-			scrambling_code = p->stream_id >> 8;
-		write_reg(state, RSTV0910_P2_ISIENTRY + state->regoff,
-			  p->stream_id & 0xff);
-		write_reg(state, RSTV0910_P2_ISIBITENA + state->regoff,
-			  0xff);
-	}
-
-	if (scrambling_code != state->cur_scrambling_code) {
-		write_reg(state, RSTV0910_P2_PLROOT0 + state->regoff,
-			  scrambling_code & 0xff);
-		write_reg(state, RSTV0910_P2_PLROOT1 + state->regoff,
-			  (scrambling_code >> 8) & 0xff);
-		write_reg(state, RSTV0910_P2_PLROOT2 + state->regoff,
-			  (scrambling_code >> 16) & 0x0f);
-		state->cur_scrambling_code = scrambling_code;
-	}
+	init_search_param(state, p);
 
 	if (p->symbol_rate <= 1000000) { /* SR <=1Msps */
 		state->demod_timeout = 3000;
