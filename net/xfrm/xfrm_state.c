@@ -1534,8 +1534,12 @@ out:
 	err = -EINVAL;
 	spin_lock_bh(&x1->lock);
 	if (likely(x1->km.state == XFRM_STATE_VALID)) {
-		if (x->encap && x1->encap)
+		if (x->encap && x1->encap &&
+		    x->encap->encap_type == x1->encap->encap_type)
 			memcpy(x1->encap, x->encap, sizeof(*x1->encap));
+		else if (x->encap || x1->encap)
+			goto fail;
+
 		if (x->coaddr && x1->coaddr) {
 			memcpy(x1->coaddr, x->coaddr, sizeof(*x1->coaddr));
 		}
@@ -1552,6 +1556,8 @@ out:
 		x->km.state = XFRM_STATE_DEAD;
 		__xfrm_state_put(x);
 	}
+
+fail:
 	spin_unlock_bh(&x1->lock);
 
 	xfrm_state_put(x1);
