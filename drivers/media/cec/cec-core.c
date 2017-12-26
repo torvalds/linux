@@ -304,8 +304,8 @@ int cec_register_adapter(struct cec_adapter *adap,
 	adap->devnode.dev.parent = parent;
 
 #if IS_REACHABLE(CONFIG_RC_CORE)
-	adap->rc->dev.parent = parent;
 	if (adap->capabilities & CEC_CAP_RC) {
+		adap->rc->dev.parent = parent;
 		res = rc_register_device(adap->rc);
 
 		if (res) {
