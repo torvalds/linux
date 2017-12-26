@@ -220,6 +220,10 @@ struct cec_adapter *cec_allocate_adapter(const struct cec_adap_ops *ops,
 	struct cec_adapter *adap;
 	int res;
 
+#if !IS_REACHABLE(CONFIG_RC_CORE)
+	caps &= ~CEC_CAP_RC;
+#endif
+
 	if (WARN_ON(!caps))
 		return ERR_PTR(-EINVAL);
 	if (WARN_ON(!ops))
@@ -252,10 +256,10 @@ struct cec_adapter *cec_allocate_adapter(const struct cec_adap_ops *ops,
 		return ERR_PTR(res);
 	}
 
+#if IS_REACHABLE(CONFIG_RC_CORE)
 	if (!(caps & CEC_CAP_RC))
 		return adap;
 
-#if IS_REACHABLE(CONFIG_RC_CORE)
 	/* Prepare the RC input device */
 	adap->rc = rc_allocate_device(RC_DRIVER_SCANCODE);
 	if (!adap->rc) {
@@ -282,8 +286,6 @@ struct cec_adapter *cec_allocate_adapter(const struct cec_adap_ops *ops,
 	adap->rc->priv = adap;
 	adap->rc->map_name = RC_MAP_CEC;
 	adap->rc->timeout = MS_TO_NS(100);
-#else
-	adap->capabilities &= ~CEC_CAP_RC;
 #endif
 	return adap;
 }
