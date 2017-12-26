@@ -1615,6 +1615,9 @@ static int cec_feature_abort_reason(struct cec_adapter *adap,
 	 */
 	if (msg->msg[1] == CEC_MSG_FEATURE_ABORT)
 		return 0;
+	/* Don't Feature Abort messages from 'Unregistered' */
+	if (cec_msg_initiator(msg) == CEC_LOG_ADDR_UNREGISTERED)
+		return 0;
 	cec_msg_set_reply_to(&tx_msg, msg);
 	cec_msg_feature_abort(&tx_msg, msg->msg[1], reason);
 	return cec_transmit_msg(adap, &tx_msg, false);
