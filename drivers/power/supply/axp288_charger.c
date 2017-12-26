@@ -103,9 +103,6 @@
 #define USB_HOST_EXTCON_HID		"INT3496"
 #define USB_HOST_EXTCON_NAME		"INT3496:00"
 
-static const unsigned int cable_ids[] =
-	{ EXTCON_CHG_USB_SDP, EXTCON_CHG_USB_CDP, EXTCON_CHG_USB_DCP };
-
 enum {
 	VBUS_OV_IRQ = 0,
 	CHARGE_DONE_IRQ,
@@ -137,7 +134,7 @@ struct axp288_chrg_info {
 	/* SDP/CDP/DCP USB charging cable notifications */
 	struct {
 		struct extcon_dev *edev;
-		struct notifier_block nb[ARRAY_SIZE(cable_ids)];
+		struct notifier_block nb;
 		struct work_struct work;
 	} cable;
 
@@ -595,34 +592,11 @@ static void axp288_charger_extcon_evt_worker(struct work_struct *work)
 	power_supply_changed(info->psy_usb);
 }
 
-/*
- * We need 3 copies of this, because there is no way to find out for which
- * cable id we are being called from the passed in arguments; and we must
- * have a separate nb for each extcon_register_notifier call.
- */
-static int axp288_charger_handle_cable0_evt(struct notifier_block *nb,
-					    unsigned long event, void *param)
+static int axp288_charger_handle_cable_evt(struct notifier_block *nb,
+					   unsigned long event, void *param)
 {
 	struct axp288_chrg_info *info =
-		container_of(nb, struct axp288_chrg_info, cable.nb[0]);
-	schedule_work(&info->cable.work);
-	return NOTIFY_OK;
-}
-
-static int axp288_charger_handle_cable1_evt(struct notifier_block *nb,
-					    unsigned long event, void *param)
-{
-	struct axp288_chrg_info *info =
-		container_of(nb, struct axp288_chrg_info, cable.nb[1]);
-	schedule_work(&info->cable.work);
-	return NOTIFY_OK;
-}
-
-static int axp288_charger_handle_cable2_evt(struct notifier_block *nb,
-					    unsigned long event, void *param)
-{
-	struct axp288_chrg_info *info =
-		container_of(nb, struct axp288_chrg_info, cable.nb[2]);
+		container_of(nb, struct axp288_chrg_info, cable.nb);
 	schedule_work(&info->cable.work);
 	return NOTIFY_OK;
 }
@@ -800,17 +774,12 @@ static int axp288_charger_probe(struct platform_device *pdev)
 
 	/* Register for extcon notification */
 	INIT_WORK(&info->cable.work, axp288_charger_extcon_evt_worker);
-	info->cable.nb[0].notifier_call = axp288_charger_handle_cable0_evt;
-	info->cable.nb[1].notifier_call = axp288_charger_handle_cable1_evt;
-	info->cable.nb[2].notifier_call = axp288_charger_handle_cable2_evt;
-	for (i = 0; i < ARRAY_SIZE(cable_ids); i++) {
-		ret = devm_extcon_register_notifier(dev, info->cable.edev,
-					  cable_ids[i], &info->cable.nb[i]);
-		if (ret) {
-			dev_err(dev, "failed to register extcon notifier for %u: %d\n",
-				cable_ids[i], ret);
-			return ret;
-		}
+	info->cable.nb.notifier_call = axp288_charger_handle_cable_evt;
+	ret = devm_extcon_register_notifier_all(dev, info->cable.edev,
+						&info->cable.nb);
+	if (ret) {
+		dev_err(dev, "failed to register cable extcon notifier\n");
+		return ret;
 	}
 	schedule_work(&info->cable.work);
 
