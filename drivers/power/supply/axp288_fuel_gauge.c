@@ -386,24 +386,19 @@ vbatt_read_fail:
 
 static int fuel_gauge_get_current(struct axp288_fg_info *info, int *cur)
 {
-	int ret, value = 0;
-	int charge, discharge;
+	int ret, discharge;
 
-	ret = iio_read_channel_raw(info->iio_channel[BAT_CHRG_CURR], &charge);
-	if (ret < 0)
-		goto current_read_fail;
+	/* First check discharge current, so that we do only 1 read on bat. */
 	ret = iio_read_channel_raw(info->iio_channel[BAT_D_CURR], &discharge);
 	if (ret < 0)
-		goto current_read_fail;
+		return ret;
 
-	if (charge > 0)
-		value = charge;
-	else if (discharge > 0)
-		value = -1 * discharge;
+	if (discharge > 0) {
+		*cur = -1 * discharge;
+		return 0;
+	}
 
-	*cur = value;
-current_read_fail:
-	return ret;
+	return iio_read_channel_raw(info->iio_channel[BAT_CHRG_CURR], cur);
 }
 
 static int fuel_gauge_get_vocv(struct axp288_fg_info *info, int *vocv)
