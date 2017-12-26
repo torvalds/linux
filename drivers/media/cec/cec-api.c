@@ -202,7 +202,8 @@ static long cec_transmit(struct cec_adapter *adap, struct cec_fh *fh,
 		err = -EPERM;
 	else if (adap->is_configuring)
 		err = -ENONET;
-	else if (!adap->is_configured && msg.msg[0] != 0xf0)
+	else if (!adap->is_configured &&
+		 (adap->needs_hpd || msg.msg[0] != 0xf0))
 		err = -ENONET;
 	else if (cec_is_busy(adap, fh))
 		err = -EBUSY;
@@ -515,6 +516,7 @@ static int cec_open(struct inode *inode, struct file *filp)
 
 	mutex_lock(&devnode->lock);
 	if (list_empty(&devnode->fhs) &&
+	    !adap->needs_hpd &&
 	    adap->phys_addr == CEC_PHYS_ADDR_INVALID) {
 		err = adap->ops->adap_enable(adap, true);
 		if (err) {
@@ -559,6 +561,7 @@ static int cec_release(struct inode *inode, struct file *filp)
 	mutex_lock(&devnode->lock);
 	list_del(&fh->list);
 	if (list_empty(&devnode->fhs) &&
+	    !adap->needs_hpd &&
 	    adap->phys_addr == CEC_PHYS_ADDR_INVALID) {
 		WARN_ON(adap->ops->adap_enable(adap, false));
 	}

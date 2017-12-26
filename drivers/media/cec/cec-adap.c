@@ -368,6 +368,8 @@ int cec_thread_func(void *_adap)
 			 * transmit should be canceled.
 			 */
 			err = wait_event_interruptible_timeout(adap->kthread_waitq,
+				(adap->needs_hpd &&
+				 (!adap->is_configured && !adap->is_configuring)) ||
 				kthread_should_stop() ||
 				(!adap->transmitting &&
 				 !list_empty(&adap->transmit_queue)),
@@ -383,7 +385,9 @@ int cec_thread_func(void *_adap)
 
 		mutex_lock(&adap->lock);
 
-		if (kthread_should_stop()) {
+		if ((adap->needs_hpd &&
+		     (!adap->is_configured && !adap->is_configuring)) ||
+		    kthread_should_stop()) {
 			cec_flush(adap);
 			goto unlock;
 		}
@@ -682,7 +686,7 @@ int cec_transmit_msg_fh(struct cec_adapter *adap, struct cec_msg *msg,
 		return -EINVAL;
 	}
 	if (!adap->is_configured && !adap->is_configuring) {
-		if (msg->msg[0] != 0xf0) {
+		if (adap->needs_hpd || msg->msg[0] != 0xf0) {
 			dprintk(1, "%s: adapter is unconfigured\n", __func__);
 			return -ENONET;
 		}
@@ -1158,7 +1162,9 @@ static int cec_config_log_addr(struct cec_adapter *adap,
  */
 static void cec_adap_unconfigure(struct cec_adapter *adap)
 {
-	WARN_ON(adap->ops->adap_log_addr(adap, CEC_LOG_ADDR_INVALID));
+	if (!adap->needs_hpd ||
+	    adap->phys_addr != CEC_PHYS_ADDR_INVALID)
+		WARN_ON(adap->ops->adap_log_addr(adap, CEC_LOG_ADDR_INVALID));
 	adap->log_addrs.log_addr_mask = 0;
 	adap->is_configuring = false;
 	adap->is_configured = false;
@@ -1387,6 +1393,8 @@ void __cec_s_phys_addr(struct cec_adapter *adap, u16 phys_addr, bool block)
 	if (phys_addr == adap->phys_addr || adap->devnode.unregistered)
 		return;
 
+	dprintk(1, "new physical address %x.%x.%x.%x\n",
+		cec_phys_addr_exp(phys_addr));
 	if (phys_addr == CEC_PHYS_ADDR_INVALID ||
 	    adap->phys_addr != CEC_PHYS_ADDR_INVALID) {
 		adap->phys_addr = CEC_PHYS_ADDR_INVALID;
@@ -1396,7 +1404,7 @@ void __cec_s_phys_addr(struct cec_adapter *adap, u16 phys_addr, bool block)
 		if (adap->monitor_all_cnt)
 			WARN_ON(call_op(adap, adap_monitor_all_enable, false));
 		mutex_lock(&adap->devnode.lock);
-		if (list_empty(&adap->devnode.fhs))
+		if (adap->needs_hpd || list_empty(&adap->devnode.fhs))
 			WARN_ON(adap->ops->adap_enable(adap, false));
 		mutex_unlock(&adap->devnode.lock);
 		if (phys_addr == CEC_PHYS_ADDR_INVALID)
@@ -1404,7 +1412,7 @@ void __cec_s_phys_addr(struct cec_adapter *adap, u16 phys_addr, bool block)
 	}
 
 	mutex_lock(&adap->devnode.lock);
-	if (list_empty(&adap->devnode.fhs) &&
+	if ((adap->needs_hpd || list_empty(&adap->devnode.fhs)) &&
 	    adap->ops->adap_enable(adap, true)) {
 		mutex_unlock(&adap->devnode.lock);
 		return;
@@ -1412,7 +1420,7 @@ void __cec_s_phys_addr(struct cec_adapter *adap, u16 phys_addr, bool block)
 
 	if (adap->monitor_all_cnt &&
 	    call_op(adap, adap_monitor_all_enable, true)) {
-		if (list_empty(&adap->devnode.fhs))
+		if (adap->needs_hpd || list_empty(&adap->devnode.fhs))
 			WARN_ON(adap->ops->adap_enable(adap, false));
 		mutex_unlock(&adap->devnode.lock);
 		return;
