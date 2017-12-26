@@ -32,6 +32,12 @@
 #include <linux/seq_file.h>
 #include <asm/unaligned.h>
 
+#define PS_STAT_VBUS_TRIGGER		(1 << 0)
+#define PS_STAT_BAT_CHRG_DIR		(1 << 2)
+#define PS_STAT_VBAT_ABOVE_VHOLD	(1 << 3)
+#define PS_STAT_VBUS_VALID		(1 << 4)
+#define PS_STAT_VBUS_PRESENT		(1 << 5)
+
 #define CHRG_STAT_BAT_SAFE_MODE		(1 << 3)
 #define CHRG_STAT_BAT_VALID			(1 << 4)
 #define CHRG_STAT_BAT_PRESENT		(1 << 5)
@@ -336,8 +342,7 @@ static inline void fuel_gauge_remove_debugfs(struct axp288_fg_info *info)
 
 static void fuel_gauge_get_status(struct axp288_fg_info *info)
 {
-	int pwr_stat, ret;
-	int charge, discharge;
+	int pwr_stat, fg_res;
 
 	pwr_stat = fuel_gauge_reg_readb(info, AXP20X_PWR_INPUT_STATUS);
 	if (pwr_stat < 0) {
@@ -345,29 +350,25 @@ static void fuel_gauge_get_status(struct axp288_fg_info *info)
 			"PWR STAT read failed:%d\n", pwr_stat);
 		return;
 	}
-	ret = iio_read_channel_raw(info->iio_channel[BAT_CHRG_CURR], &charge);
-	if (ret < 0) {
-		dev_err(&info->pdev->dev,
-			"ADC charge current read failed:%d\n", ret);
-		return;
-	}
-	ret = iio_read_channel_raw(info->iio_channel[BAT_D_CURR], &discharge);
-	if (ret < 0) {
-		dev_err(&info->pdev->dev,
-			"ADC discharge current read failed:%d\n", ret);
-		return;
+
+	/* Report full if Vbus is valid and the reported capacity is 100% */
+	if (pwr_stat & PS_STAT_VBUS_VALID) {
+		fg_res = fuel_gauge_reg_readb(info, AXP20X_FG_RES);
+		if (fg_res < 0) {
+			dev_err(&info->pdev->dev,
+				"FG RES read failed: %d\n", fg_res);
+			return;
+		}
+		if (fg_res == (FG_REP_CAP_VALID | 100)) {
+			info->status = POWER_SUPPLY_STATUS_FULL;
+			return;
+		}
 	}
 
-	if (charge > 0)
+	if (pwr_stat & PS_STAT_BAT_CHRG_DIR)
 		info->status = POWER_SUPPLY_STATUS_CHARGING;
-	else if (discharge > 0)
+	else
 		info->status = POWER_SUPPLY_STATUS_DISCHARGING;
-	else {
-		if (pwr_stat & CHRG_STAT_BAT_PRESENT)
-			info->status = POWER_SUPPLY_STATUS_FULL;
-		else
-			info->status = POWER_SUPPLY_STATUS_NOT_CHARGING;
-	}
 }
 
 static int fuel_gauge_get_vbatt(struct axp288_fg_info *info, int *vbatt)
