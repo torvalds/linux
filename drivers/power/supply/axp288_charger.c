@@ -378,6 +378,11 @@ static int axp288_charger_usb_set_property(struct power_supply *psy,
 		if (ret < 0)
 			dev_warn(&info->pdev->dev, "set charge voltage failed\n");
 		break;
+	case POWER_SUPPLY_PROP_INPUT_CURRENT_LIMIT:
+		ret = axp288_charger_set_vbus_inlmt(info, val->intval);
+		if (ret < 0)
+			dev_warn(&info->pdev->dev, "set input current limit failed\n");
+		break;
 	default:
 		ret = -EINVAL;
 	}
@@ -430,7 +435,7 @@ static int axp288_charger_usb_get_property(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_CONSTANT_CHARGE_VOLTAGE_MAX:
 		val->intval = info->max_cv * 1000;
 		break;
-	case POWER_SUPPLY_PROP_CHARGE_CONTROL_LIMIT:
+	case POWER_SUPPLY_PROP_INPUT_CURRENT_LIMIT:
 		ret = axp288_charger_get_vbus_inlmt(info);
 		if (ret < 0)
 			return ret;
@@ -451,6 +456,7 @@ static int axp288_charger_property_is_writeable(struct power_supply *psy,
 	switch (psp) {
 	case POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT:
 	case POWER_SUPPLY_PROP_CONSTANT_CHARGE_VOLTAGE:
+	case POWER_SUPPLY_PROP_INPUT_CURRENT_LIMIT:
 		ret = 1;
 		break;
 	default:
@@ -469,7 +475,7 @@ static enum power_supply_property axp288_usb_props[] = {
 	POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT_MAX,
 	POWER_SUPPLY_PROP_CONSTANT_CHARGE_VOLTAGE,
 	POWER_SUPPLY_PROP_CONSTANT_CHARGE_VOLTAGE_MAX,
-	POWER_SUPPLY_PROP_CHARGE_CONTROL_LIMIT,
+	POWER_SUPPLY_PROP_INPUT_CURRENT_LIMIT,
 };
 
 static const struct power_supply_desc axp288_charger_desc = {
