@@ -137,31 +137,19 @@ struct slookup {
 	u32  reg_value;
 };
 
-static inline int i2c_write(struct i2c_adapter *adap, u8 adr,
-			    u8 *data, int len)
+static int write_reg(struct stv *state, u16 reg, u8 val)
 {
-	struct i2c_msg msg = {.addr = adr, .flags = 0,
-			      .buf = data, .len = len};
+	struct i2c_adapter *adap = state->base->i2c;
+	u8 data[3] = {reg >> 8, reg & 0xff, val};
+	struct i2c_msg msg = {.addr = state->base->adr, .flags = 0,
+			      .buf = data, .len = 3};
 
 	if (i2c_transfer(adap, &msg, 1) != 1) {
 		dev_warn(&adap->dev, "i2c write error ([%02x] %04x: %02x)\n",
-			 adr, (data[0] << 8) | data[1],
-			 (len > 2 ? data[2] : 0));
-		return -EREMOTEIO;
+			 state->base->adr, reg, val);
+		return -EIO;
 	}
 	return 0;
-}
-
-static int i2c_write_reg16(struct i2c_adapter *adap, u8 adr, u16 reg, u8 val)
-{
-	u8 msg[3] = {reg >> 8, reg & 0xff, val};
-
-	return i2c_write(adap, adr, msg, 3);
-}
-
-static int write_reg(struct stv *state, u16 reg, u8 val)
-{
-	return i2c_write_reg16(state->base->i2c, state->base->adr, reg, val);
 }
 
 static inline int i2c_read_regs16(struct i2c_adapter *adapter, u8 adr,
@@ -176,7 +164,7 @@ static inline int i2c_read_regs16(struct i2c_adapter *adapter, u8 adr,
 	if (i2c_transfer(adapter, msgs, 2) != 2) {
 		dev_warn(&adapter->dev, "i2c read error ([%02x] %04x)\n",
 			 adr, reg);
-		return -EREMOTEIO;
+		return -EIO;
 	}
 	return 0;
 }
