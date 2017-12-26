@@ -43,7 +43,7 @@ void mlx5e_vxlan_init(struct mlx5e_priv *priv)
 	struct mlx5e_vxlan_db *vxlan_db = &priv->vxlan;
 
 	spin_lock_init(&vxlan_db->lock);
-	INIT_RADIX_TREE(&vxlan_db->tree, GFP_ATOMIC);
+	hash_init(vxlan_db->htable);
 
 	if (mlx5e_vxlan_allowed(priv->mdev))
 		/* Hardware adds 4789 by default.
@@ -79,13 +79,27 @@ static int mlx5e_vxlan_core_del_port_cmd(struct mlx5_core_dev *mdev, u16 port)
 	return mlx5_cmd_exec(mdev, in, sizeof(in), out, sizeof(out));
 }
 
+static struct mlx5e_vxlan *mlx5e_vxlan_lookup_port_locked(struct mlx5e_priv *priv,
+							  u16 port)
+{
+	struct mlx5e_vxlan_db *vxlan_db = &priv->vxlan;
+	struct mlx5e_vxlan    *vxlan;
+
+	hash_for_each_possible(vxlan_db->htable, vxlan, hlist, port) {
+		if (vxlan->udp_port == port)
+			return vxlan;
+	}
+
+	return NULL;
+}
+
 struct mlx5e_vxlan *mlx5e_vxlan_lookup_port(struct mlx5e_priv *priv, u16 port)
 {
 	struct mlx5e_vxlan_db *vxlan_db = &priv->vxlan;
 	struct mlx5e_vxlan *vxlan;
 
 	spin_lock_bh(&vxlan_db->lock);
-	vxlan = radix_tree_lookup(&vxlan_db->tree, port);
+	vxlan = mlx5e_vxlan_lookup_port_locked(priv, port);
 	spin_unlock_bh(&vxlan_db->lock);
 
 	return vxlan;
@@ -95,7 +109,6 @@ static void mlx5e_vxlan_add_port(struct mlx5e_priv *priv, u16 port)
 {
 	struct mlx5e_vxlan_db *vxlan_db = &priv->vxlan;
 	struct mlx5e_vxlan *vxlan;
-	int err;
 
 	vxlan = mlx5e_vxlan_lookup_port(priv, port);
 	if (vxlan) {
@@ -121,16 +134,12 @@ static void mlx5e_vxlan_add_port(struct mlx5e_priv *priv, u16 port)
 	atomic_set(&vxlan->refcount, 1);
 
 	spin_lock_bh(&vxlan_db->lock);
-	err = radix_tree_insert(&vxlan_db->tree, vxlan->udp_port, vxlan);
+	hash_add(vxlan_db->htable, &vxlan->hlist, port);
 	spin_unlock_bh(&vxlan_db->lock);
-	if (err)
-		goto err_free;
 
 	vxlan_db->num_ports++;
 	return;
 
-err_free:
-	kfree(vxlan);
 err_delete_port:
 	mlx5e_vxlan_core_del_port_cmd(priv->mdev, port);
 }
@@ -161,12 +170,12 @@ static void mlx5e_vxlan_del_work(struct work_struct *work)
 
 	mutex_lock(&priv->state_lock);
 	spin_lock_bh(&vxlan_db->lock);
-	vxlan = radix_tree_lookup(&vxlan_db->tree, port);
+	vxlan = mlx5e_vxlan_lookup_port_locked(priv, port);
 	if (!vxlan)
 		goto out_unlock;
 
 	if (atomic_dec_and_test(&vxlan->refcount)) {
-		radix_tree_delete(&vxlan_db->tree, port);
+		hash_del(&vxlan->hlist);
 		remove = true;
 	}
 
@@ -206,13 +215,13 @@ void mlx5e_vxlan_cleanup(struct mlx5e_priv *priv)
 {
 	struct mlx5e_vxlan_db *vxlan_db = &priv->vxlan;
 	struct mlx5e_vxlan *vxlan;
-	unsigned int port = 0;
+	struct hlist_node *tmp;
+	int bkt;
 
-	/* Lockless since we are the only radix-tree consumers, wq is disabled */
-	while (radix_tree_gang_lookup(&vxlan_db->tree, (void **)&vxlan, port, 1)) {
-		port = vxlan->udp_port;
-		radix_tree_delete(&vxlan_db->tree, port);
-		mlx5e_vxlan_core_del_port_cmd(priv->mdev, port);
+	/* Lockless since we are the only hash table consumers, wq and TX are disabled */
+	hash_for_each_safe(vxlan_db->htable, bkt, tmp, vxlan, hlist) {
+		hash_del(&vxlan->hlist);
+		mlx5e_vxlan_core_del_port_cmd(priv->mdev, vxlan->udp_port);
 		kfree(vxlan);
 	}
 }

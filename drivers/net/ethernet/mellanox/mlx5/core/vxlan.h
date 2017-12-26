@@ -36,6 +36,7 @@
 #include "en.h"
 
 struct mlx5e_vxlan {
+	struct hlist_node hlist;
 	atomic_t refcount;
 	u16 udp_port;
 };
