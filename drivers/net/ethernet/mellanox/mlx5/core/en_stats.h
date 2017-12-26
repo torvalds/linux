@@ -99,6 +99,10 @@ struct mlx5e_qcounter_stats {
 	u32 rx_out_of_buffer;
 };
 
+struct mlx5e_vnic_env_stats {
+	__be64 query_vnic_env_out[MLX5_ST_SZ_QW(query_vnic_env_out)];
+};
+
 #define VPORT_COUNTER_GET(vstats, c) MLX5_GET64(query_vport_counter_out, \
 						vstats->query_vport_out, c)
 
@@ -201,6 +205,7 @@ struct mlx5e_ch_stats {
 struct mlx5e_stats {
 	struct mlx5e_sw_stats sw;
 	struct mlx5e_qcounter_stats qcnt;
+	struct mlx5e_vnic_env_stats vnic;
 	struct mlx5e_vport_stats vport;
 	struct mlx5e_pport_stats pport;
 	struct rtnl_link_stats64 vf_vport;

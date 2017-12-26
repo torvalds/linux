@@ -211,6 +211,65 @@ static void mlx5e_grp_q_update_stats(struct mlx5e_priv *priv)
 	qcnt->rx_out_of_buffer = MLX5_GET(query_q_counter_out, out, out_of_buffer);
 }
 
+#define VNIC_ENV_OFF(c) MLX5_BYTE_OFF(query_vnic_env_out, c)
+static const struct counter_desc vnic_env_stats_desc[] = {
+	{ "rx_steer_missed_packets",
+		VNIC_ENV_OFF(vport_env.nic_receive_steering_discard) },
+};
+
+#define NUM_VNIC_ENV_COUNTERS		ARRAY_SIZE(vnic_env_stats_desc)
+
+static int mlx5e_grp_vnic_env_get_num_stats(struct mlx5e_priv *priv)
+{
+	return MLX5_CAP_GEN(priv->mdev, nic_receive_steering_discard) ?
+		NUM_VNIC_ENV_COUNTERS : 0;
+}
+
+static int mlx5e_grp_vnic_env_fill_strings(struct mlx5e_priv *priv, u8 *data,
+					   int idx)
+{
+	int i;
+
+	if (!MLX5_CAP_GEN(priv->mdev, nic_receive_steering_discard))
+		return idx;
+
+	for (i = 0; i < NUM_VNIC_ENV_COUNTERS; i++)
+		strcpy(data + (idx++) * ETH_GSTRING_LEN,
+		       vnic_env_stats_desc[i].format);
+	return idx;
+}
+
+static int mlx5e_grp_vnic_env_fill_stats(struct mlx5e_priv *priv, u64 *data,
+					 int idx)
+{
+	int i;
+
+	if (!MLX5_CAP_GEN(priv->mdev, nic_receive_steering_discard))
+		return idx;
+
+	for (i = 0; i < NUM_VNIC_ENV_COUNTERS; i++)
+		data[idx++] = MLX5E_READ_CTR64_BE(priv->stats.vnic.query_vnic_env_out,
+						  vnic_env_stats_desc, i);
+	return idx;
+}
+
+static void mlx5e_grp_vnic_env_update_stats(struct mlx5e_priv *priv)
+{
+	u32 *out = (u32 *)priv->stats.vnic.query_vnic_env_out;
+	int outlen = MLX5_ST_SZ_BYTES(query_vnic_env_out);
+	u32 in[MLX5_ST_SZ_DW(query_vnic_env_in)] = {0};
+	struct mlx5_core_dev *mdev = priv->mdev;
+
+	if (!MLX5_CAP_GEN(priv->mdev, nic_receive_steering_discard))
+		return;
+
+	MLX5_SET(query_vnic_env_in, in, opcode,
+		 MLX5_CMD_OP_QUERY_VNIC_ENV);
+	MLX5_SET(query_vnic_env_in, in, op_mod, 0);
+	MLX5_SET(query_vnic_env_in, in, other_vport, 0);
+	mlx5_cmd_exec(mdev, in, sizeof(in), out, outlen);
+}
+
 #define VPORT_COUNTER_OFF(c) MLX5_BYTE_OFF(query_vport_counter_out, c)
 static const struct counter_desc vport_stats_desc[] = {
 	{ "rx_vport_unicast_packets",
@@ -1110,6 +1169,12 @@ const struct mlx5e_stats_grp mlx5e_stats_grps[] = {
 		.fill_stats = mlx5e_grp_q_fill_stats,
 		.update_stats_mask = MLX5E_NDO_UPDATE_STATS,
 		.update_stats = mlx5e_grp_q_update_stats,
+	},
+	{
+		.get_num_stats = mlx5e_grp_vnic_env_get_num_stats,
+		.fill_strings = mlx5e_grp_vnic_env_fill_strings,
+		.fill_stats = mlx5e_grp_vnic_env_fill_stats,
+		.update_stats = mlx5e_grp_vnic_env_update_stats,
 	},
 	{
 		.get_num_stats = mlx5e_grp_vport_get_num_stats,
