@@ -20,6 +20,7 @@
 #include <linux/sched/types.h>
 
 #include <media/cec-pin.h>
+#include "cec-pin-priv.h"
 
 /* All timings are in microseconds */
 
