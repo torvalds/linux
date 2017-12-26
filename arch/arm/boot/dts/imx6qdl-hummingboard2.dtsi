@@ -188,7 +188,7 @@
 		reg = <0x68>;
 	};
 
-	sgtl5000: codec@0a {
+	sgtl5000: codec@a {
 		clocks = <&clks IMX6QDL_CLK_CKO>;
 		compatible = "fsl,sgtl5000";
 		pinctrl-names = "default";
