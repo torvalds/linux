@@ -553,6 +553,32 @@ unlock:
 }
 EXPORT_SYMBOL_GPL(cec_transmit_done);
 
+void cec_transmit_attempt_done(struct cec_adapter *adap, u8 status)
+{
+	switch (status) {
+	case CEC_TX_STATUS_OK:
+		cec_transmit_done(adap, status, 0, 0, 0, 0);
+		return;
+	case CEC_TX_STATUS_ARB_LOST:
+		cec_transmit_done(adap, status, 1, 0, 0, 0);
+		return;
+	case CEC_TX_STATUS_NACK:
+		cec_transmit_done(adap, status, 0, 1, 0, 0);
+		return;
+	case CEC_TX_STATUS_LOW_DRIVE:
+		cec_transmit_done(adap, status, 0, 0, 1, 0);
+		return;
+	case CEC_TX_STATUS_ERROR:
+		cec_transmit_done(adap, status, 0, 0, 0, 1);
+		return;
+	default:
+		/* Should never happen */
+		WARN(1, "cec-%s: invalid status 0x%02x\n", adap->name, status);
+		return;
+	}
+}
+EXPORT_SYMBOL_GPL(cec_transmit_attempt_done);
+
 /*
  * Called when waiting for a reply times out.
  */
