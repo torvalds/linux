@@ -28,6 +28,16 @@ Optional properties:
 		   min-bandwidth: minimum ddr bandwidth in Mbyte/sec.
 		   max-bandwidth: maximum ddr bandwidth in Mbyte/sec.
 		   frequency: ddr frequency in KHz.
+- #cooling-cells: This property indicates dmc can work as a cooling device
+- ddr_power_model: Sets power model parameters.
+	- dynamic-power-coefficient: A u32 value that represents the running time dynamic
+	  power coefficient in units of mW/MHz/uVolt^2. The coefficient can either be
+	  calculated from power measurements or derived by analysis.
+	- static-power-coefficient: A u32 value that represents the static power
+	  coefficient.
+	- ts: An array containing coefficients for the temperature scaling factor.
+	  Used as : tsf = ts[3]*T^3 + ts[2]*T^2 + ts[1]*T + ts[0], where T = temperature
+	- thermal-zone: A string identifying the thermal zone used for the dmc
 
 Example:
 
@@ -90,5 +100,12 @@ Example:
 		center-supply = <&ppvar_centerlogic>;
 		upthreshold = <15>;
 		downdifferential = <10>;
+		#cooling-cells = <2>;
+		ddr_power_model: ddr_power_model {
+			dynamic-power-coefficient = <120>;
+			static-power-coefficient = <300>;
+			ts = <32000 4700 (-80) 2>;
+			thermal-zone = "soc-thermal";
+		}
 		status = "disabled";
 	};
