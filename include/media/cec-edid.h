@@ -26,6 +26,8 @@
 #define cec_phys_addr_exp(pa) \
 	((pa) >> 12), ((pa) >> 8) & 0xf, ((pa) >> 4) & 0xf, (pa) & 0xf
 
+#if IS_ENABLED(CONFIG_CEC_CORE)
+
 /**
  * cec_get_edid_phys_addr() - find and return the physical address
  *
@@ -100,5 +102,32 @@ u16 cec_phys_addr_for_input(u16 phys_addr, u8 input);
  * Return: 0 if the PA is valid, -EINVAL if not.
  */
 int cec_phys_addr_validate(u16 phys_addr, u16 *parent, u16 *port);
+
+#else
+
+static inline u16 cec_get_edid_phys_addr(const u8 *edid, unsigned int size,
+					 unsigned int *offset)
+{
+	if (offset)
+		*offset = 0;
+	return CEC_PHYS_ADDR_INVALID;
+}
+
+static inline void cec_set_edid_phys_addr(u8 *edid, unsigned int size,
+					  u16 phys_addr)
+{
+}
+
+static inline u16 cec_phys_addr_for_input(u16 phys_addr, u8 input)
+{
+	return CEC_PHYS_ADDR_INVALID;
+}
+
+static inline int cec_phys_addr_validate(u16 phys_addr, u16 *parent, u16 *port)
+{
+	return 0;
+}
+
+#endif
 
 #endif /* _MEDIA_CEC_EDID_H */

@@ -1,0 +1,13 @@
+config CEC_CORE
+	tristate
+	depends on MEDIA_CEC_SUPPORT
+	default y
+
+config MEDIA_CEC_NOTIFIER
+	bool
+
+config MEDIA_CEC_DEBUG
+	bool "HDMI CEC debugfs interface"
+	depends on MEDIA_CEC_SUPPORT && DEBUG_FS
+	---help---
+	  Turns on the DebugFS interface for CEC devices.
