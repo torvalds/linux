@@ -234,11 +234,12 @@
 			status = "okay";
 		};
 
-		LVDS: lvds {
-			compatible = "rockchip,rk618-lvds";
-			clocks = <&CRU LVDS_CLK>, <&CRU DITHER_CLK>,
-				 <&CRU VIF0_CLK>, <&CRU SCALER_CLK>;
-			clock-names = "lvds", "dither", "vif", "scaler";
+		HDMI: hdmi {
+			compatible = "rockchip,rk618-inno-hdmi";
+			clocks = <&CRU HDMI_CLK>;
+			clock-names = "hdmi";
+			interrupt-parent = <&gpio3>;
+			interrupts = <23 IRQ_TYPE_LEVEL_HIGH>;
 			status = "okay";
 
 			ports {
@@ -248,8 +249,62 @@
 				port@0 {
 					reg = <0>;
 
-					lvds_input_vop: endpoint {
+					hdmi_input_vop: endpoint {
+						remote-endpoint = <&vop_output_hdmi>;
+					};
+				};
+
+				port@1 {
+					reg = <1>;
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					/* Enable or Disable VIF Port */
+					hdmi_output_vif: endpoint@0 {
+						reg = <0>;
+						remote-endpoint = <&vif_input_hdmi>;
+						status = "disabled";
+					};
+
+					/* Enable or Disable Clone Port */
+					hdmi_output_lvds: endpoint@1 {
+						reg = <1>;
+						remote-endpoint = <&lvds_input_hdmi>;
+						status = "disabled";
+					};
+				};
+			};
+		};
+
+		LVDS: lvds {
+			compatible = "rockchip,rk618-lvds";
+			clocks = <&CRU LVDS_CLK>, <&CRU DITHER_CLK>,
+				 <&CRU VIF0_CLK>, <&CRU SCALER_CLK>;
+			clock-names = "lvds", "dither", "vif", "scaler";
+			status = "disabled";
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port@0 {
+					reg = <0>;
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					lvds_input_vop: endpoint@0 {
+						reg = <0>;
 						remote-endpoint = <&vop_output_lvds>;
+					};
+
+					lvds_input_vif: endpoint@1 {
+						reg = <1>;
+						remote-endpoint = <&vif_output_lvds>;
+					};
+
+					lvds_input_hdmi: endpoint@2 {
+						reg = <2>;
+						remote-endpoint = <&hdmi_output_lvds>;
 					};
 				};
 
@@ -258,6 +313,34 @@
 
 					lvds_output_panel: endpoint {
 						remote-endpoint = <&panel_input_lvds>;
+					};
+				};
+			};
+		};
+
+		VIF: vif {
+			compatible = "rockchip,rk618-vif";
+			clocks = <&CRU VIF0_CLK>, <&CRU VIF0_PRE_CLK>;
+			clock-names = "vif", "vif_pre";
+			status = "okay";
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port@0 {
+					reg = <0>;
+
+					vif_input_hdmi: endpoint {
+						remote-endpoint = <&hdmi_output_vif>;
+					};
+				};
+
+				port@1 {
+					reg = <1>;
+
+					vif_output_lvds: endpoint {
+						remote-endpoint = <&lvds_input_vif>;
 					};
 				};
 			};
@@ -273,6 +356,11 @@
 	vop_output_lvds: endpoint@4 {
 		reg = <4>;
 		remote-endpoint = <&lvds_input_vop>;
+	};
+
+	vop_output_hdmi: endpoint@5 {
+		reg = <5>;
+		remote-endpoint = <&hdmi_input_vop>;
 	};
 };
 
