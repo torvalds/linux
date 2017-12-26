@@ -29,7 +29,7 @@ struct edid;
 struct cec_adapter;
 struct cec_notifier;
 
-#ifdef CONFIG_MEDIA_CEC_NOTIFIER
+#if IS_REACHABLE(CONFIG_CEC_CORE) && IS_ENABLED(CONFIG_CEC_NOTIFIER)
 
 /**
  * cec_notifier_get - find or create a new cec_notifier for the given device.
