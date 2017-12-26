@@ -57,7 +57,7 @@ static unsigned int cec_poll(struct file *filp,
 		res |= POLLOUT | POLLWRNORM;
 	if (fh->queued_msgs)
 		res |= POLLIN | POLLRDNORM;
-	if (fh->pending_events)
+	if (fh->total_queued_events)
 		res |= POLLPRI;
 	poll_wait(filp, &fh->wait, poll);
 	mutex_unlock(&adap->lock);
@@ -289,15 +289,17 @@ static long cec_receive(struct cec_adapter *adap, struct cec_fh *fh,
 static long cec_dqevent(struct cec_adapter *adap, struct cec_fh *fh,
 			bool block, struct cec_event __user *parg)
 {
-	struct cec_event *ev = NULL;
+	struct cec_event_entry *ev = NULL;
 	u64 ts = ~0ULL;
 	unsigned int i;
+	unsigned int ev_idx;
 	long err = 0;
 
 	mutex_lock(&fh->lock);
-	while (!fh->pending_events && block) {
+	while (!fh->total_queued_events && block) {
 		mutex_unlock(&fh->lock);
-		err = wait_event_interruptible(fh->wait, fh->pending_events);
+		err = wait_event_interruptible(fh->wait,
+					       fh->total_queued_events);
 		if (err)
 			return err;
 		mutex_lock(&fh->lock);
@@ -305,23 +307,29 @@ static long cec_dqevent(struct cec_adapter *adap, struct cec_fh *fh,
 
 	/* Find the oldest event */
 	for (i = 0; i < CEC_NUM_EVENTS; i++) {
-		if (fh->pending_events & (1 << (i + 1)) &&
-		    fh->events[i].ts <= ts) {
-			ev = &fh->events[i];
-			ts = ev->ts;
+		struct cec_event_entry *entry =
+			list_first_entry_or_null(&fh->events[i],
+						 struct cec_event_entry, list);
+
+		if (entry && entry->ev.ts <= ts) {
+			ev = entry;
+			ev_idx = i;
+			ts = ev->ev.ts;
 		}
 	}
+
 	if (!ev) {
 		err = -EAGAIN;
 		goto unlock;
 	}
+	list_del(&ev->list);
 
-	if (copy_to_user(parg, ev, sizeof(*ev))) {
+	if (copy_to_user(parg, &ev->ev, sizeof(ev->ev)))
 		err = -EFAULT;
-		goto unlock;
-	}
-
-	fh->pending_events &= ~(1 << ev->event);
+	if (ev_idx >= CEC_NUM_CORE_EVENTS)
+		kfree(ev);
+	fh->queued_events[ev_idx]--;
+	fh->total_queued_events--;
 
 unlock:
 	mutex_unlock(&fh->lock);
@@ -495,6 +503,7 @@ static int cec_open(struct inode *inode, struct file *filp)
 		.event = CEC_EVENT_STATE_CHANGE,
 		.flags = CEC_EVENT_FL_INITIAL_STATE,
 	};
+	unsigned int i;
 	int err;
 
 	if (!fh)
@@ -502,6 +511,8 @@ static int cec_open(struct inode *inode, struct file *filp)
 
 	INIT_LIST_HEAD(&fh->msgs);
 	INIT_LIST_HEAD(&fh->xfer_list);
+	for (i = 0; i < CEC_NUM_EVENTS; i++)
+		INIT_LIST_HEAD(&fh->events[i]);
 	mutex_init(&fh->lock);
 	init_waitqueue_head(&fh->wait);
 
@@ -544,6 +555,7 @@ static int cec_release(struct inode *inode, struct file *filp)
 	struct cec_devnode *devnode = cec_devnode_data(filp);
 	struct cec_adapter *adap = to_cec_adapter(devnode);
 	struct cec_fh *fh = filp->private_data;
+	unsigned int i;
 
 	mutex_lock(&adap->lock);
 	if (adap->cec_initiator == fh)
@@ -584,6 +596,16 @@ static int cec_release(struct inode *inode, struct file *filp)
 
 		list_del(&entry->list);
 		kfree(entry);
+	}
+	for (i = CEC_NUM_CORE_EVENTS; i < CEC_NUM_EVENTS; i++) {
+		while (!list_empty(&fh->events[i])) {
+			struct cec_event_entry *entry =
+				list_first_entry(&fh->events[i],
+						 struct cec_event_entry, list);
+
+			list_del(&entry->list);
+			kfree(entry);
+		}
 	}
 	kfree(fh);
 

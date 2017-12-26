@@ -407,6 +407,7 @@ struct cec_log_addrs {
 #define CEC_EVENT_LOST_MSGS		2
 
 #define CEC_EVENT_FL_INITIAL_STATE	(1 << 0)
+#define CEC_EVENT_FL_DROPPED_EVENTS	(1 << 1)
 
 /**
  * struct cec_event_state_change - used when the CEC adapter changes state.
@@ -419,7 +420,7 @@ struct cec_event_state_change {
 };
 
 /**
- * struct cec_event_lost_msgs - tells you how many messages were lost due.
+ * struct cec_event_lost_msgs - tells you how many messages were lost.
  * @lost_msgs: how many messages were lost.
  */
 struct cec_event_lost_msgs {
