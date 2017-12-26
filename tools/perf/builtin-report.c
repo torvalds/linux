@@ -162,12 +162,28 @@ static int hist_iter__branch_callback(struct hist_entry_iter *iter,
 	struct hist_entry *he = iter->he;
 	struct report *rep = arg;
 	struct branch_info *bi;
+	struct perf_sample *sample = iter->sample;
+	struct perf_evsel *evsel = iter->evsel;
+	int err;
+
+	if (!ui__has_annotation())
+		return 0;
+
+	hist__account_cycles(sample->branch_stack, al, sample,
+			     rep->nonany_branch_mode);
 
 	bi = he->branch_info;
+	err = addr_map_symbol__inc_samples(&bi->from, sample, evsel->idx);
+	if (err)
+		goto out;
+
+	err = addr_map_symbol__inc_samples(&bi->to, sample, evsel->idx);
+
 	branch_type_count(&rep->brtype_stat, &bi->flags,
 			  bi->from.addr, bi->to.addr);
 
-	return 0;
+out:
+	return err;
 }
 
 static int process_sample_event(struct perf_tool *tool,
