@@ -716,7 +716,8 @@
 		compatible = "generic-ehci";
 		reg = <0x0 0xff500000 0x0 0x20000>;
 		interrupts = <GIC_SPI 24 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&cru HCLK_USBHOST0>;
+		clocks = <&cru HCLK_USBHOST0>, <&usbphy1>;
+		clock-names = "usbhost", "utmi";
 		phys = <&usbphy1>;
 		phy-names = "usb";
 		status = "disabled";
@@ -727,7 +728,8 @@
 		compatible = "generic-ohci";
 		reg = <0x0 0xff520000 0x0 0x100>;
 		interrupts = <GIC_SPI 41 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&cru HCLK_USBHOST0>;
+		clocks = <&cru HCLK_USBHOST0>, <&usbphy1>;
+		clock-names = "usbhost", "utmi";
 		phys = <&usbphy1>;
 		phy-names = "usb";
 		status = "disabled";
