@@ -84,12 +84,21 @@ int iwl_pcie_ctxt_info_gen3_init(struct iwl_trans *trans,
 	control_flags = IWL_PRPH_SCRATCH_RB_SIZE_4K |
 			IWL_PRPH_SCRATCH_MTR_MODE |
 			(IWL_PRPH_MTR_FORMAT_256B &
-			 IWL_PRPH_SCRATCH_MTR_FORMAT);
+			 IWL_PRPH_SCRATCH_MTR_FORMAT) |
+			IWL_PRPH_SCRATCH_EARLY_DEBUG_EN |
+			IWL_PRPH_SCRATCH_EDBG_DEST_DRAM;
 	prph_sc_ctrl->control.control_flags = cpu_to_le32(control_flags);
 
 	/* initialize RX default queue */
 	prph_sc_ctrl->rbd_cfg.free_rbd_addr =
 		cpu_to_le64(trans_pcie->rxq->bd_dma);
+
+	/* Configure debug, for integration */
+	iwl_pcie_alloc_fw_monitor(trans, 0);
+	prph_sc_ctrl->hwm_cfg.hwm_base_addr =
+		cpu_to_le64(trans_pcie->fw_mon_phys);
+	prph_sc_ctrl->hwm_cfg.hwm_size =
+		cpu_to_le32(trans_pcie->fw_mon_size);
 
 	/* allocate ucode sections in dram and set addresses */
 	ret = iwl_pcie_init_fw_sec(trans, fw, &prph_scratch->dram);
@@ -156,10 +165,6 @@ int iwl_pcie_ctxt_info_gen3_init(struct iwl_trans *trans,
 	memcpy(iml_img, trans->iml, trans->iml_len);
 
 	iwl_enable_interrupts(trans);
-
-	/* Configure debug, if exists */
-	if (trans->dbg_dest_tlv)
-		iwl_pcie_apply_destination(trans);
 
 	/* kick FW self load */
 	iwl_write64(trans, CSR_CTXT_INFO_ADDR,

@@ -895,6 +895,9 @@ void iwl_pcie_free_tso_page(struct iwl_trans_pcie *trans_pcie,
 struct iwl_tso_hdr_page *get_page_hdr(struct iwl_trans *trans, size_t len);
 #endif
 
+/* common functions that are used by gen3 transport */
+void iwl_pcie_alloc_fw_monitor(struct iwl_trans *trans, u8 max_power);
+
 /* transport gen 2 exported functions */
 int iwl_trans_pcie_gen2_start_fw(struct iwl_trans *trans,
 				 const struct fw_img *fw, bool run_in_rfkill);
