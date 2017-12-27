@@ -1791,6 +1791,62 @@ out:
 	return rcode;
 }
 
+static inline void aac_free_safw_ciss_luns(struct aac_dev *dev)
+{
+	kfree(dev->safw_phys_luns);
+	dev->safw_phys_luns = NULL;
+}
+
+/**
+ *	aac_get_safw_ciss_luns()	Process topology change
+ *	@dev:		aac_dev structure
+ *	@rescan:	Indicates rescan
+ *
+ *	Execute a CISS REPORT PHYS LUNS and process the results into
+ *	the current hba_map.
+ */
+static int aac_get_safw_ciss_luns(struct aac_dev *dev, int rescan)
+{
+	int rcode = -ENOMEM;
+	int datasize;
+	struct aac_srb *srbcmd;
+	struct aac_srb_unit srbu;
+	struct aac_ciss_phys_luns_resp *phys_luns;
+
+	datasize = sizeof(struct aac_ciss_phys_luns_resp) +
+		(AAC_MAX_TARGETS - 1) * sizeof(struct _ciss_lun);
+	phys_luns = kmalloc(datasize, GFP_KERNEL);
+	if (phys_luns == NULL)
+		goto out;
+
+	memset(&srbu, 0, sizeof(struct aac_srb_unit));
+
+	srbcmd = &srbu.srb;
+	srbcmd->flags	= cpu_to_le32(SRB_DataIn);
+	srbcmd->cdb[0]	= CISS_REPORT_PHYSICAL_LUNS;
+	srbcmd->cdb[1]	= 2; /* extended reporting */
+	srbcmd->cdb[8]	= (u8)(datasize >> 8);
+	srbcmd->cdb[9]	= (u8)(datasize);
+
+	rcode = aac_send_safw_bmic_cmd(dev, &srbu, phys_luns, datasize);
+	if (unlikely(rcode < 0))
+		goto mem_free_all;
+
+	if (phys_luns->resp_flag != 2) {
+		rcode = -ENOMSG;
+		goto mem_free_all;
+	}
+
+	dev->safw_phys_luns = phys_luns;
+
+out:
+	return rcode;
+mem_free_all:
+	kfree(phys_luns);
+	goto out;
+
+}
+
 /**
  *	aac_set_safw_attr_all_targets-	update current hba map with data from FW
  *	@dev:	aac_dev structure
@@ -1852,62 +1908,6 @@ update_devtype:
 		else
 			dev->hba_map[bus][target].new_devtype = devtype;
 	}
-}
-
-static inline void aac_free_safw_ciss_luns(struct aac_dev *dev)
-{
-	kfree(dev->safw_phys_luns);
-	dev->safw_phys_luns = NULL;
-}
-
-/**
- *	aac_get_safw_ciss_luns()	Process topology change
- *	@dev:		aac_dev structure
- *	@rescan:	Indicates rescan
- *
- *	Execute a CISS REPORT PHYS LUNS and process the results into
- *	the current hba_map.
- */
-static int aac_get_safw_ciss_luns(struct aac_dev *dev, int rescan)
-{
-	int rcode = -ENOMEM;
-	int datasize;
-	struct aac_srb *srbcmd;
-	struct aac_srb_unit srbu;
-	struct aac_ciss_phys_luns_resp *phys_luns;
-
-	datasize = sizeof(struct aac_ciss_phys_luns_resp) +
-		(AAC_MAX_TARGETS - 1) * sizeof(struct _ciss_lun);
-	phys_luns = kmalloc(datasize, GFP_KERNEL);
-	if (phys_luns == NULL)
-		goto out;
-
-	memset(&srbu, 0, sizeof(struct aac_srb_unit));
-
-	srbcmd = &srbu.srb;
-	srbcmd->flags	= cpu_to_le32(SRB_DataIn);
-	srbcmd->cdb[0]	= CISS_REPORT_PHYSICAL_LUNS;
-	srbcmd->cdb[1]	= 2; /* extended reporting */
-	srbcmd->cdb[8]	= (u8)(datasize >> 8);
-	srbcmd->cdb[9]	= (u8)(datasize);
-
-	rcode = aac_send_safw_bmic_cmd(dev, &srbu, phys_luns, datasize);
-	if (unlikely(rcode < 0))
-		goto mem_free_all;
-
-	if (phys_luns->resp_flag != 2) {
-		rcode = -ENOMSG;
-		goto mem_free_all;
-	}
-
-	dev->safw_phys_luns = phys_luns;
-
-out:
-	return rcode;
-mem_free_all:
-	kfree(phys_luns);
-	goto out;
-
 }
 
 static int aac_setup_safw_targets(struct aac_dev *dev, int rescan)
