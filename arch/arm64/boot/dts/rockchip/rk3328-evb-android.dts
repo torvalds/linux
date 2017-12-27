@@ -494,6 +494,7 @@
 
 &rkvdec {
 	status = "okay";
+	vcodec-supply = <&vdd_logic>;
 };
 
 &uart0 {
