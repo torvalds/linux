@@ -295,18 +295,21 @@ int aac_send_shutdown(struct aac_dev * dev)
 {
 	struct fib * fibctx;
 	struct aac_close *cmd;
-	int status;
+	int status = 0;
 
-	fibctx = aac_fib_alloc(dev);
-	if (!fibctx)
-		return -ENOMEM;
-	aac_fib_init(fibctx);
+	if (aac_adapter_check_health(dev))
+		return status;
 
 	if (!dev->adapter_shutdown) {
 		mutex_lock(&dev->ioctl_mutex);
 		dev->adapter_shutdown = 1;
 		mutex_unlock(&dev->ioctl_mutex);
 	}
+
+	fibctx = aac_fib_alloc(dev);
+	if (!fibctx)
+		return -ENOMEM;
+	aac_fib_init(fibctx);
 
 	cmd = (struct aac_close *) fib_data(fibctx);
 	cmd->command = cpu_to_le32(VM_CloseAll);
