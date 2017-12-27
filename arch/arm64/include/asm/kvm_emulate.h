@@ -26,6 +26,7 @@
 
 #include <asm/esr.h>
 #include <asm/kvm_arm.h>
+#include <asm/kvm_hyp.h>
 #include <asm/kvm_mmio.h>
 #include <asm/ptrace.h>
 #include <asm/cputype.h>
@@ -143,13 +144,43 @@ static inline void vcpu_set_reg(struct kvm_vcpu *vcpu, u8 reg_num,
 		vcpu_gp_regs(vcpu)->regs.regs[reg_num] = val;
 }
 
-/* Get vcpu SPSR for current mode */
-static inline unsigned long *vcpu_spsr(const struct kvm_vcpu *vcpu)
+static inline unsigned long vcpu_read_spsr(const struct kvm_vcpu *vcpu)
 {
-	if (vcpu_mode_is_32bit(vcpu))
-		return vcpu_spsr32(vcpu);
+	unsigned long *p = (unsigned long *)&vcpu_gp_regs(vcpu)->spsr[KVM_SPSR_EL1];
 
-	return (unsigned long *)&vcpu_gp_regs(vcpu)->spsr[KVM_SPSR_EL1];
+	if (vcpu_mode_is_32bit(vcpu)) {
+		unsigned long *p_32bit = vcpu_spsr32(vcpu);
+
+		/* KVM_SPSR_SVC aliases KVM_SPSR_EL1 */
+		if (p_32bit != p)
+			return *p_32bit;
+	}
+
+	if (vcpu->arch.sysregs_loaded_on_cpu)
+		return read_sysreg_el1(spsr);
+	else
+		return *p;
+}
+
+static inline void vcpu_write_spsr(const struct kvm_vcpu *vcpu, unsigned long v)
+{
+	unsigned long *p = (unsigned long *)&vcpu_gp_regs(vcpu)->spsr[KVM_SPSR_EL1];
+
+	/* KVM_SPSR_SVC aliases KVM_SPSR_EL1 */
+	if (vcpu_mode_is_32bit(vcpu)) {
+		unsigned long *p_32bit = vcpu_spsr32(vcpu);
+
+		/* KVM_SPSR_SVC aliases KVM_SPSR_EL1 */
+		if (p_32bit != p) {
+			*p_32bit = v;
+			return;
+		}
+	}
+
+	if (vcpu->arch.sysregs_loaded_on_cpu)
+		write_sysreg_el1(v, spsr);
+	else
+		*p = v;
 }
 
 static inline bool vcpu_mode_priv(const struct kvm_vcpu *vcpu)
