@@ -73,6 +73,7 @@
 #define   USB_CTRL_USB30_CTL1_USB3_IPP_MASK		0x20000000 /* option */
 #define USB_CTRL_USB30_PCTL		0x70
 #define   USB_CTRL_USB30_PCTL_PHY3_SOFT_RESETB_MASK	0x00000002
+#define   USB_CTRL_USB30_PCTL_PHY3_IDDQ_OVERRIDE_MASK	0x00008000
 #define   USB_CTRL_USB30_PCTL_PHY3_SOFT_RESETB_P1_MASK	0x00020000
 #define USB_CTRL_USB_DEVICE_CTL1	0x90
 #define   USB_CTRL_USB_DEVICE_CTL1_PORT_MODE_MASK	0x00000003 /* option */
@@ -998,6 +999,7 @@ void brcm_usb_uninit_eohci(struct brcm_usb_init_params *params)
 void brcm_usb_uninit_xhci(struct brcm_usb_init_params *params)
 {
 	brcmusb_xhci_soft_reset(params, 1);
+	USB_CTRL_SET(params->ctrl_regs, USB30_PCTL, PHY3_IDDQ_OVERRIDE);
 }
 
 void brcm_usb_set_family_map(struct brcm_usb_init_params *params)
