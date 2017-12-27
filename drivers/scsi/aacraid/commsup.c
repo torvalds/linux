@@ -1890,31 +1890,31 @@ static int aac_is_safw_target_valid(struct aac_dev *dev, int bus, int target)
 
 static void aac_resolve_luns(struct aac_dev *dev)
 {
+	int i;
 	int bus, target, channel;
 	struct scsi_device *sdev;
 
-	for (bus = 0; bus < AAC_MAX_BUSES; bus++) {
-		for (target = 0; target < AAC_MAX_TARGETS; target++) {
+	for (i = 0; i < AAC_BUS_TARGET_LOOP; i++) {
 
-			if (bus == CONTAINER_CHANNEL)
-				channel = CONTAINER_CHANNEL;
-			else
-				channel = aac_phys_to_logical(bus);
+		bus = get_bus_number(i);
+		target = get_target_number(i);
 
-			sdev = scsi_device_lookup(dev->scsi_host_ptr, channel,
+		if (bus == CONTAINER_CHANNEL)
+			channel = CONTAINER_CHANNEL;
+		else
+			channel = aac_phys_to_logical(bus);
+
+		sdev = scsi_device_lookup(dev->scsi_host_ptr, channel,
+				target, 0);
+
+		if (!sdev && aac_is_safw_target_valid(dev, bus, target))
+			scsi_add_device(dev->scsi_host_ptr, channel,
 					target, 0);
+		else if (sdev && aac_is_safw_target_valid(dev, bus, target))
+			scsi_remove_device(sdev);
 
-			if (!sdev && aac_is_safw_target_valid(dev, bus, target))
-				scsi_add_device(dev->scsi_host_ptr, channel,
-						target, 0);
-			else if (sdev && aac_is_safw_target_valid(dev,
-								bus, target))
-				scsi_remove_device(sdev);
-
-			if (sdev)
-				scsi_device_put(sdev);
-
-		}
+		if (sdev)
+			scsi_device_put(sdev);
 	}
 }
 
