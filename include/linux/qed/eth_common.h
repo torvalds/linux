@@ -104,6 +104,27 @@
 /* Control frame check constants */
 #define ETH_CTL_FRAME_ETH_TYPE_NUM	4
 
+/* GFS constants */
+#define ETH_GFT_TRASH_CAN_VPORT		0x1FF
+
+/* Destination port mode */
+enum dest_port_mode {
+	DEST_PORT_PHY,
+	DEST_PORT_LOOPBACK,
+	DEST_PORT_PHY_LOOPBACK,
+	DEST_PORT_DROP,
+	MAX_DEST_PORT_MODE
+};
+
+/* Ethernet address type */
+enum eth_addr_type {
+	BROADCAST_ADDRESS,
+	MULTICAST_ADDRESS,
+	UNICAST_ADDRESS,
+	UNKNOWN_ADDRESS,
+	MAX_ETH_ADDR_TYPE
+};
+
 struct eth_tx_1st_bd_flags {
 	u8 bitfields;
 #define ETH_TX_1ST_BD_FLAGS_START_BD_MASK		0x1
@@ -176,10 +197,6 @@ struct eth_edpm_fw_data {
 	__le32 reserved;
 };
 
-struct eth_fast_path_cqe_fw_debug {
-	__le16 reserved2;
-};
-
 /* Tunneling parsing flags */
 struct eth_tunnel_parsing_flags {
 	u8 flags;
@@ -226,9 +243,9 @@ struct eth_fast_path_rx_reg_cqe {
 	u8 placement_offset;
 	struct eth_tunnel_parsing_flags tunnel_pars_flags;
 	u8 bd_num;
-	u8 reserved[9];
-	struct eth_fast_path_cqe_fw_debug fw_debug;
-	u8 reserved1[3];
+	u8 reserved;
+	__le16 flow_id;
+	u8 reserved1[11];
 	struct eth_pmd_flow_flags pmd_flags;
 };
 
@@ -280,7 +297,7 @@ struct eth_fast_path_rx_tpa_start_cqe {
 	u8 tpa_agg_index;
 	u8 header_len;
 	__le16 ext_bd_len_list[ETH_TPA_CQE_START_LEN_LIST_SIZE];
-	struct eth_fast_path_cqe_fw_debug fw_debug;
+	__le16 flow_id;
 	u8 reserved;
 	struct eth_pmd_flow_flags pmd_flags;
 };

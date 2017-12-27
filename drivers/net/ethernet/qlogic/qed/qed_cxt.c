@@ -742,7 +742,7 @@ int qed_cxt_cfg_ilt_compute(struct qed_hwfn *p_hwfn, u32 *line_count)
 	p_blk = qed_cxt_set_blk(&p_cli->pf_blks[0]);
 
 	qed_cxt_qm_iids(p_hwfn, &qm_iids);
-	total = qed_qm_pf_mem_size(p_hwfn->rel_pf_id, qm_iids.cids,
+	total = qed_qm_pf_mem_size(qm_iids.cids,
 				   qm_iids.vf_cids, qm_iids.tids,
 				   p_hwfn->qm_info.num_pqs,
 				   p_hwfn->qm_info.num_vf_pqs);
@@ -1496,20 +1496,24 @@ static void qed_cdu_init_pf(struct qed_hwfn *p_hwfn)
 	}
 }
 
-void qed_qm_init_pf(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
+void qed_qm_init_pf(struct qed_hwfn *p_hwfn,
+		    struct qed_ptt *p_ptt, bool is_pf_loading)
 {
-	struct qed_qm_pf_rt_init_params params;
 	struct qed_qm_info *qm_info = &p_hwfn->qm_info;
+	struct qed_qm_pf_rt_init_params params;
+	struct qed_mcp_link_state *p_link;
 	struct qed_qm_iids iids;
 
 	memset(&iids, 0, sizeof(iids));
 	qed_cxt_qm_iids(p_hwfn, &iids);
 
+	p_link = &QED_LEADING_HWFN(p_hwfn->cdev)->mcp_info->link_output;
+
 	memset(&params, 0, sizeof(params));
 	params.port_id = p_hwfn->port_id;
 	params.pf_id = p_hwfn->rel_pf_id;
 	params.max_phys_tcs_per_port = qm_info->max_phys_tcs_per_port;
-	params.is_first_pf = p_hwfn->first_on_engine;
+	params.is_pf_loading = is_pf_loading;
 	params.num_pf_cids = iids.cids;
 	params.num_vf_cids = iids.vf_cids;
 	params.num_tids = iids.tids;
@@ -1520,6 +1524,7 @@ void qed_qm_init_pf(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 	params.num_vports = qm_info->num_vports;
 	params.pf_wfq = qm_info->pf_wfq;
 	params.pf_rl = qm_info->pf_rl;
+	params.link_speed = p_link->speed;
 	params.pq_params = qm_info->qm_pq_params;
 	params.vport_params = qm_info->qm_vport_params;
 
@@ -1883,7 +1888,7 @@ void qed_cxt_hw_init_common(struct qed_hwfn *p_hwfn)
 
 void qed_cxt_hw_init_pf(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 {
-	qed_qm_init_pf(p_hwfn, p_ptt);
+	qed_qm_init_pf(p_hwfn, p_ptt, true);
 	qed_cm_init_pf(p_hwfn);
 	qed_dq_init_pf(p_hwfn);
 	qed_cdu_init_pf(p_hwfn);

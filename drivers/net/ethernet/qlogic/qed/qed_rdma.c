@@ -553,7 +553,7 @@ static int qed_rdma_start_fw(struct qed_hwfn *p_hwfn,
 
 	if (QED_IS_IWARP_PERSONALITY(p_hwfn)) {
 		qed_iwarp_init_fw_ramrod(p_hwfn,
-					 &p_ent->ramrod.iwarp_init_func.iwarp);
+					 &p_ent->ramrod.iwarp_init_func);
 		p_ramrod = &p_ent->ramrod.iwarp_init_func.rdma;
 	} else {
 		p_ramrod = &p_ent->ramrod.roce_init_func.rdma;

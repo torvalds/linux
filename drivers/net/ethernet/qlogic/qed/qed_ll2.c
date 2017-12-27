@@ -406,6 +406,9 @@ static void qed_ll2_rxq_parse_gsi(struct qed_hwfn *p_hwfn,
 	data->opaque_data_0 = le32_to_cpu(p_cqe->rx_cqe_gsi.src_mac_addrhi);
 	data->opaque_data_1 = le16_to_cpu(p_cqe->rx_cqe_gsi.src_mac_addrlo);
 	data->u.data_length_error = p_cqe->rx_cqe_gsi.data_length_error;
+	data->qp_id = le16_to_cpu(p_cqe->rx_cqe_gsi.qp_id);
+
+	data->src_qp = le32_to_cpu(p_cqe->rx_cqe_gsi.src_qp);
 }
 
 static void qed_ll2_rxq_parse_reg(struct qed_hwfn *p_hwfn,
@@ -927,7 +930,8 @@ static int qed_sp_ll2_rx_queue_start(struct qed_hwfn *p_hwfn,
 		       qed_chain_get_pbl_phys(&p_rx->rcq_chain));
 
 	p_ramrod->drop_ttl0_flg = p_ll2_conn->input.rx_drop_ttl0_flg;
-	p_ramrod->inner_vlan_removal_en = p_ll2_conn->input.rx_vlan_removal_en;
+	p_ramrod->inner_vlan_stripping_en =
+		p_ll2_conn->input.rx_vlan_removal_en;
 	p_ramrod->queue_id = p_ll2_conn->queue_id;
 	p_ramrod->main_func_queue = p_ll2_conn->main_func_queue ? 1 : 0;
 
@@ -1299,8 +1303,20 @@ int qed_ll2_acquire_connection(void *cxt, struct qed_ll2_acquire_data *data)
 
 	memcpy(&p_ll2_info->input, &data->input, sizeof(p_ll2_info->input));
 
-	p_ll2_info->tx_dest = (data->input.tx_dest == QED_LL2_TX_DEST_NW) ?
-			      CORE_TX_DEST_NW : CORE_TX_DEST_LB;
+	switch (data->input.tx_dest) {
+	case QED_LL2_TX_DEST_NW:
+		p_ll2_info->tx_dest = CORE_TX_DEST_NW;
+		break;
+	case QED_LL2_TX_DEST_LB:
+		p_ll2_info->tx_dest = CORE_TX_DEST_LB;
+		break;
+	case QED_LL2_TX_DEST_DROP:
+		p_ll2_info->tx_dest = CORE_TX_DEST_DROP;
+		break;
+	default:
+		return -EINVAL;
+	}
+
 	if (data->input.conn_type == QED_LL2_TYPE_OOO ||
 	    data->input.secondary_queue)
 		p_ll2_info->main_func_queue = false;
@@ -2281,8 +2297,7 @@ static int qed_ll2_start(struct qed_dev *cdev, struct qed_ll2_params *params)
 		goto release_terminate;
 	}
 
-	if (cdev->hwfns[0].hw_info.personality == QED_PCI_ISCSI &&
-	    cdev->hwfns[0].pf_params.iscsi_pf_params.ooo_enable) {
+	if (QED_LEADING_HWFN(cdev)->hw_info.personality == QED_PCI_ISCSI) {
 		DP_VERBOSE(cdev, QED_MSG_STORAGE, "Starting OOO LL2 queue\n");
 		rc = qed_ll2_start_ooo(cdev, params);
 		if (rc) {
@@ -2340,8 +2355,7 @@ static int qed_ll2_stop(struct qed_dev *cdev)
 	qed_ptt_release(QED_LEADING_HWFN(cdev), p_ptt);
 	eth_zero_addr(cdev->ll2_mac_address);
 
-	if (cdev->hwfns[0].hw_info.personality == QED_PCI_ISCSI &&
-	    cdev->hwfns[0].pf_params.iscsi_pf_params.ooo_enable)
+	if (QED_LEADING_HWFN(cdev)->hw_info.personality == QED_PCI_ISCSI)
 		qed_ll2_stop_ooo(cdev);
 
 	rc = qed_ll2_terminate_connection(QED_LEADING_HWFN(cdev),

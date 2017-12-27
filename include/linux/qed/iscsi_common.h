@@ -106,6 +106,12 @@
 #define CQE_ERROR_BITMAP_RCV_ON_INVALID_CONN	(0x10)
 #define CQE_ERROR_BITMAP_DATA_TRUNCATED		(0x20)
 
+/* Union of data bd_opaque/ tq_tid */
+union bd_opaque_tq_union {
+	__le16 bd_opaque;
+	__le16 tq_tid;
+};
+
 /* ISCSI SGL entry */
 struct cqe_error_bitmap {
 	u8 cqe_error_status_bits;
@@ -131,6 +137,65 @@ union cqe_error_status {
 /* iSCSI Login Response PDU header */
 struct data_hdr {
 	__le32 data[12];
+};
+
+struct lun_mapper_addr_reserved {
+	struct regpair lun_mapper_addr;
+	u8 reserved0[8];
+};
+
+/* rdif conetxt for dif on immediate */
+struct dif_on_immediate_params {
+	__le32 initial_ref_tag;
+	__le16 application_tag;
+	__le16 application_tag_mask;
+	__le16 flags1;
+#define DIF_ON_IMMEDIATE_PARAMS_VALIDATE_GUARD_MASK		0x1
+#define DIF_ON_IMMEDIATE_PARAMS_VALIDATE_GUARD_SHIFT		0
+#define DIF_ON_IMMEDIATE_PARAMS_VALIDATE_APP_TAG_MASK		0x1
+#define DIF_ON_IMMEDIATE_PARAMS_VALIDATE_APP_TAG_SHIFT		1
+#define DIF_ON_IMMEDIATE_PARAMS_VALIDATE_REF_TAG_MASK		0x1
+#define DIF_ON_IMMEDIATE_PARAMS_VALIDATE_REF_TAG_SHIFT		2
+#define DIF_ON_IMMEDIATE_PARAMS_FORWARD_GUARD_MASK		0x1
+#define DIF_ON_IMMEDIATE_PARAMS_FORWARD_GUARD_SHIFT		3
+#define DIF_ON_IMMEDIATE_PARAMS_FORWARD_APP_TAG_MASK		0x1
+#define DIF_ON_IMMEDIATE_PARAMS_FORWARD_APP_TAG_SHIFT		4
+#define DIF_ON_IMMEDIATE_PARAMS_FORWARD_REF_TAG_MASK		0x1
+#define DIF_ON_IMMEDIATE_PARAMS_FORWARD_REF_TAG_SHIFT		5
+#define DIF_ON_IMMEDIATE_PARAMS_INTERVAL_SIZE_MASK		0x1
+#define DIF_ON_IMMEDIATE_PARAMS_INTERVAL_SIZE_SHIFT		6
+#define DIF_ON_IMMEDIATE_PARAMS_NETWORK_INTERFACE_MASK		0x1
+#define DIF_ON_IMMEDIATE_PARAMS_NETWORK_INTERFACE_SHIFT		7
+#define DIF_ON_IMMEDIATE_PARAMS_HOST_INTERFACE_MASK		0x3
+#define DIF_ON_IMMEDIATE_PARAMS_HOST_INTERFACE_SHIFT		8
+#define DIF_ON_IMMEDIATE_PARAMS_REF_TAG_MASK_MASK		0xF
+#define DIF_ON_IMMEDIATE_PARAMS_REF_TAG_MASK_SHIFT		10
+#define DIF_ON_IMMEDIATE_PARAMS_FORWARD_APP_TAG_WITH_MASK_MASK	0x1
+#define DIF_ON_IMMEDIATE_PARAMS_FORWARD_APP_TAG_WITH_MASK_SHIFT	14
+#define DIF_ON_IMMEDIATE_PARAMS_FORWARD_REF_TAG_WITH_MASK_MASK	0x1
+#define DIF_ON_IMMEDIATE_PARAMS_FORWARD_REF_TAG_WITH_MASK_SHIFT	15
+	u8 flags0;
+#define DIF_ON_IMMEDIATE_PARAMS_RESERVED_MASK			0x1
+#define DIF_ON_IMMEDIATE_PARAMS_RESERVED_SHIFT			0
+#define DIF_ON_IMMEDIATE_PARAMS_IGNORE_APP_TAG_MASK		0x1
+#define DIF_ON_IMMEDIATE_PARAMS_IGNORE_APP_TAG_SHIFT		1
+#define DIF_ON_IMMEDIATE_PARAMS_INITIAL_REF_TAG_IS_VALID_MASK	0x1
+#define DIF_ON_IMMEDIATE_PARAMS_INITIAL_REF_TAG_IS_VALID_SHIFT	2
+#define DIF_ON_IMMEDIATE_PARAMS_HOST_GUARD_TYPE_MASK		0x1
+#define DIF_ON_IMMEDIATE_PARAMS_HOST_GUARD_TYPE_SHIFT		3
+#define DIF_ON_IMMEDIATE_PARAMS_PROTECTION_TYPE_MASK		0x3
+#define DIF_ON_IMMEDIATE_PARAMS_PROTECTION_TYPE_SHIFT		4
+#define DIF_ON_IMMEDIATE_PARAMS_CRC_SEED_MASK			0x1
+#define DIF_ON_IMMEDIATE_PARAMS_CRC_SEED_SHIFT			6
+#define DIF_ON_IMMEDIATE_PARAMS_KEEP_REF_TAG_CONST_MASK		0x1
+#define DIF_ON_IMMEDIATE_PARAMS_KEEP_REF_TAG_CONST_SHIFT	7
+	u8 reserved_zero[5];
+};
+
+/* iSCSI dif on immediate mode attributes union */
+union dif_configuration_params {
+	struct lun_mapper_addr_reserved lun_mapper_address;
+	struct dif_on_immediate_params def_dif_conf;
 };
 
 /* Union of data/r2t sequence number */
@@ -163,8 +228,10 @@ struct ystorm_iscsi_task_state {
 #define YSTORM_ISCSI_TASK_STATE_LOCAL_COMP_SHIFT	0
 #define YSTORM_ISCSI_TASK_STATE_SLOW_IO_MASK		0x1
 #define YSTORM_ISCSI_TASK_STATE_SLOW_IO_SHIFT		1
-#define YSTORM_ISCSI_TASK_STATE_RESERVED0_MASK		0x3F
-#define YSTORM_ISCSI_TASK_STATE_RESERVED0_SHIFT		2
+#define YSTORM_ISCSI_TASK_STATE_SET_DIF_OFFSET_MASK	0x1
+#define YSTORM_ISCSI_TASK_STATE_SET_DIF_OFFSET_SHIFT	2
+#define YSTORM_ISCSI_TASK_STATE_RESERVED0_MASK		0x1F
+#define YSTORM_ISCSI_TASK_STATE_RESERVED0_SHIFT		3
 };
 
 /* The iscsi storm task context of Ystorm */
@@ -846,7 +913,7 @@ struct mstorm_iscsi_task_st_ctx {
 	__le32 data_buffer_offset;
 	u8 task_type;
 	struct iscsi_dif_flags dif_flags;
-	u8 reserved0[2];
+	__le16 dif_task_icid;
 	struct regpair sense_db;
 	__le32 expected_itt;
 	__le32 reserved1;
@@ -858,6 +925,10 @@ struct iscsi_reg1 {
 #define ISCSI_REG1_NUM_SGES_SHIFT	0
 #define ISCSI_REG1_RESERVED1_MASK	0xFFFFFFF
 #define ISCSI_REG1_RESERVED1_SHIFT	4
+};
+
+struct tqe_opaque {
+	__le16 opaque[2];
 };
 
 /* The iscsi storm task context of Ustorm */
@@ -874,7 +945,7 @@ struct ustorm_iscsi_task_st_ctx {
 #define USTORM_ISCSI_TASK_ST_CTX_RESERVED1_SHIFT	1
 	struct iscsi_dif_flags dif_flags;
 	__le16 reserved3;
-	__le32 reserved4;
+	struct tqe_opaque tqe_opaque_list;
 	__le32 reserved5;
 	__le32 reserved6;
 	__le32 reserved7;
@@ -946,6 +1017,18 @@ struct iscsi_conn_offload_params {
 	__le32 stat_sn;
 };
 
+/* iSCSI connection statistics */
+struct iscsi_conn_stats_params {
+	struct regpair iscsi_tcp_tx_packets_cnt;
+	struct regpair iscsi_tcp_tx_bytes_cnt;
+	struct regpair iscsi_tcp_tx_rxmit_cnt;
+	struct regpair iscsi_tcp_rx_packets_cnt;
+	struct regpair iscsi_tcp_rx_bytes_cnt;
+	struct regpair iscsi_tcp_rx_dup_ack_cnt;
+	__le32 iscsi_tcp_rx_chksum_err_cnt;
+	__le32 reserved;
+};
+
 /* spe message header */
 struct iscsi_slow_path_hdr {
 	u8 op_code;
@@ -978,14 +1061,17 @@ struct iscsi_conn_update_ramrod_params {
 #define ISCSI_CONN_UPDATE_RAMROD_PARAMS_DIF_BLOCK_SIZE_SHIFT	4
 #define ISCSI_CONN_UPDATE_RAMROD_PARAMS_DIF_ON_HOST_EN_MASK	0x1
 #define ISCSI_CONN_UPDATE_RAMROD_PARAMS_DIF_ON_HOST_EN_SHIFT	5
-#define ISCSI_CONN_UPDATE_RAMROD_PARAMS_RESERVED1_MASK		0x3
-#define ISCSI_CONN_UPDATE_RAMROD_PARAMS_RESERVED1_SHIFT		6
+#define ISCSI_CONN_UPDATE_RAMROD_PARAMS_DIF_ON_IMM_EN_MASK	0x1
+#define ISCSI_CONN_UPDATE_RAMROD_PARAMS_DIF_ON_IMM_EN_SHIFT	6
+#define ISCSI_CONN_UPDATE_RAMROD_PARAMS_LUN_MAPPER_EN_MASK	0x1
+#define ISCSI_CONN_UPDATE_RAMROD_PARAMS_LUN_MAPPER_EN_SHIFT	7
 	u8 reserved0[3];
 	__le32 max_seq_size;
 	__le32 max_send_pdu_length;
 	__le32 max_recv_pdu_length;
 	__le32 first_seq_length;
 	__le32 exp_stat_sn;
+	union dif_configuration_params dif_on_imme_params;
 };
 
 /* iSCSI CQ element */
@@ -1007,7 +1093,7 @@ struct iscsi_cqe_solicited {
 	u8 fw_dbg_field;
 	u8 caused_conn_err;
 	u8 reserved0[3];
-	__le32 reserved1[1];
+	__le32 data_truncated_bytes;
 	union iscsi_task_hdr iscsi_hdr;
 };
 
@@ -1019,7 +1105,8 @@ struct iscsi_cqe_unsolicited {
 	__le16 reserved0;
 	u8 reserved1;
 	u8 unsol_cqe_type;
-	struct regpair rqe_opaque;
+	__le16 rqe_opaque;
+	__le16 reserved2[3];
 	union iscsi_task_hdr iscsi_hdr;
 };
 
@@ -1053,22 +1140,22 @@ enum iscsi_cqe_unsolicited_type {
 /* iscsi debug modes */
 struct iscsi_debug_modes {
 	u8 flags;
-#define ISCSI_DEBUG_MODES_ASSERT_IF_RX_CONN_ERROR_MASK		0x1
-#define ISCSI_DEBUG_MODES_ASSERT_IF_RX_CONN_ERROR_SHIFT		0
-#define ISCSI_DEBUG_MODES_ASSERT_IF_RECV_RESET_MASK		0x1
-#define ISCSI_DEBUG_MODES_ASSERT_IF_RECV_RESET_SHIFT		1
-#define ISCSI_DEBUG_MODES_ASSERT_IF_RECV_FIN_MASK		0x1
-#define ISCSI_DEBUG_MODES_ASSERT_IF_RECV_FIN_SHIFT		2
-#define ISCSI_DEBUG_MODES_ASSERT_IF_RECV_CLEANUP_MASK		0x1
-#define ISCSI_DEBUG_MODES_ASSERT_IF_RECV_CLEANUP_SHIFT		3
-#define ISCSI_DEBUG_MODES_ASSERT_IF_RECV_REJECT_OR_ASYNC_MASK	0x1
-#define ISCSI_DEBUG_MODES_ASSERT_IF_RECV_REJECT_OR_ASYNC_SHIFT	4
-#define ISCSI_DEBUG_MODES_ASSERT_IF_RECV_NOP_MASK		0x1
-#define ISCSI_DEBUG_MODES_ASSERT_IF_RECV_NOP_SHIFT		5
-#define ISCSI_DEBUG_MODES_ASSERT_IF_DATA_DIGEST_ERROR_MASK	0x1
-#define ISCSI_DEBUG_MODES_ASSERT_IF_DATA_DIGEST_ERROR_SHIFT	6
-#define ISCSI_DEBUG_MODES_ASSERT_IF_DIF_ERROR_MASK		0x1
-#define ISCSI_DEBUG_MODES_ASSERT_IF_DIF_ERROR_SHIFT		7
+#define ISCSI_DEBUG_MODES_ASSERT_IF_RX_CONN_ERROR_MASK			0x1
+#define ISCSI_DEBUG_MODES_ASSERT_IF_RX_CONN_ERROR_SHIFT			0
+#define ISCSI_DEBUG_MODES_ASSERT_IF_RECV_RESET_MASK			0x1
+#define ISCSI_DEBUG_MODES_ASSERT_IF_RECV_RESET_SHIFT			1
+#define ISCSI_DEBUG_MODES_ASSERT_IF_RECV_FIN_MASK			0x1
+#define ISCSI_DEBUG_MODES_ASSERT_IF_RECV_FIN_SHIFT			2
+#define ISCSI_DEBUG_MODES_ASSERT_IF_RECV_CLEANUP_MASK			0x1
+#define ISCSI_DEBUG_MODES_ASSERT_IF_RECV_CLEANUP_SHIFT			3
+#define ISCSI_DEBUG_MODES_ASSERT_IF_RECV_REJECT_OR_ASYNC_MASK		0x1
+#define ISCSI_DEBUG_MODES_ASSERT_IF_RECV_REJECT_OR_ASYNC_SHIFT		4
+#define ISCSI_DEBUG_MODES_ASSERT_IF_RECV_NOP_MASK			0x1
+#define ISCSI_DEBUG_MODES_ASSERT_IF_RECV_NOP_SHIFT			5
+#define ISCSI_DEBUG_MODES_ASSERT_IF_DIF_OR_DATA_DIGEST_ERROR_MASK	0x1
+#define ISCSI_DEBUG_MODES_ASSERT_IF_DIF_OR_DATA_DIGEST_ERROR_SHIFT	6
+#define ISCSI_DEBUG_MODES_ASSERT_IF_HQ_CORRUPT_MASK			0x1
+#define ISCSI_DEBUG_MODES_ASSERT_IF_HQ_CORRUPT_SHIFT			7
 };
 
 /* iSCSI kernel completion queue IDs */
@@ -1080,9 +1167,9 @@ enum iscsi_eqe_opcode {
 	ISCSI_EVENT_TYPE_CLEAR_SQ,
 	ISCSI_EVENT_TYPE_TERMINATE_CONN,
 	ISCSI_EVENT_TYPE_MAC_UPDATE_CONN,
+	ISCSI_EVENT_TYPE_COLLECT_STATS_CONN,
 	ISCSI_EVENT_TYPE_ASYN_CONNECT_COMPLETE,
 	ISCSI_EVENT_TYPE_ASYN_TERMINATE_DONE,
-	RESERVED9,
 	ISCSI_EVENT_TYPE_START_OF_ERROR_TYPES = 10,
 	ISCSI_EVENT_TYPE_ASYN_ABORT_RCVD,
 	ISCSI_EVENT_TYPE_ASYN_CLOSE_RCVD,
@@ -1158,6 +1245,7 @@ enum iscsi_ramrod_cmd_id {
 	ISCSI_RAMROD_CMD_ID_TERMINATION_CONN = 5,
 	ISCSI_RAMROD_CMD_ID_CLEAR_SQ = 6,
 	ISCSI_RAMROD_CMD_ID_MAC_UPDATE = 7,
+	ISCSI_RAMROD_CMD_ID_CONN_STATS = 8,
 	MAX_ISCSI_RAMROD_CMD_ID
 };
 
@@ -1194,6 +1282,16 @@ struct iscsi_spe_conn_offload_option2 {
 	struct tcp_offload_params_opt2 tcp;
 };
 
+/* iSCSI collect connection statistics request */
+struct iscsi_spe_conn_statistics {
+	struct iscsi_slow_path_hdr hdr;
+	__le16 conn_id;
+	__le32 fw_cid;
+	u8 reset_stats;
+	u8 reserved0[7];
+	struct regpair stats_cnts_addr;
+};
+
 /* iSCSI connection termination request */
 struct iscsi_spe_conn_termination {
 	struct iscsi_slow_path_hdr hdr;
@@ -1220,12 +1318,14 @@ struct iscsi_spe_func_init {
 	u8 num_r2tq_pages_in_ring;
 	u8 num_uhq_pages_in_ring;
 	u8 ll2_rx_queue_id;
-	u8 ooo_enable;
+	u8 flags;
+#define ISCSI_SPE_FUNC_INIT_COUNTERS_EN_MASK	0x1
+#define ISCSI_SPE_FUNC_INIT_COUNTERS_EN_SHIFT	0
+#define ISCSI_SPE_FUNC_INIT_RESERVED0_MASK	0x7F
+#define ISCSI_SPE_FUNC_INIT_RESERVED0_SHIFT	1
 	struct iscsi_debug_modes debug_mode;
 	__le16 reserved1;
 	__le32 reserved2;
-	__le32 reserved3;
-	__le32 reserved4;
 	struct scsi_init_func_params func_params;
 	struct scsi_init_func_queues q_params;
 };
@@ -1242,6 +1342,7 @@ enum iscsi_task_type {
 	ISCSI_TASK_TYPE_TARGET_READ,
 	ISCSI_TASK_TYPE_TARGET_RESPONSE,
 	ISCSI_TASK_TYPE_LOGIN_RESPONSE,
+	ISCSI_TASK_TYPE_TARGET_IMM_W_DIF,
 	MAX_ISCSI_TASK_TYPE
 };
 
@@ -1326,6 +1427,7 @@ struct iscsi_xhqe {
 /* Per PF iSCSI receive path statistics - mStorm RAM structure */
 struct mstorm_iscsi_stats_drv {
 	struct regpair iscsi_rx_dropped_pdus_task_not_valid;
+	struct regpair iscsi_rx_dup_ack_cnt;
 };
 
 /* Per PF iSCSI transmit path statistics - pStorm RAM structure */
@@ -1339,6 +1441,9 @@ struct tstorm_iscsi_stats_drv {
 	struct regpair iscsi_rx_bytes_cnt;
 	struct regpair iscsi_rx_packet_cnt;
 	struct regpair iscsi_rx_new_ooo_isle_events_cnt;
+	struct regpair iscsi_rx_tcp_payload_bytes_cnt;
+	struct regpair iscsi_rx_tcp_pkt_cnt;
+	struct regpair iscsi_rx_pure_ack_cnt;
 	__le32 iscsi_cmdq_threshold_cnt;
 	__le32 iscsi_rq_threshold_cnt;
 	__le32 iscsi_immq_threshold_cnt;
@@ -1355,6 +1460,8 @@ struct ustorm_iscsi_stats_drv {
 struct xstorm_iscsi_stats_drv {
 	struct regpair iscsi_tx_go_to_slow_start_event_cnt;
 	struct regpair iscsi_tx_fast_retransmit_event_cnt;
+	struct regpair iscsi_tx_pure_ack_cnt;
+	struct regpair iscsi_tx_delayed_ack_cnt;
 };
 
 /* Per PF iSCSI transmit path statistics - yStorm RAM structure */
@@ -1362,6 +1469,8 @@ struct ystorm_iscsi_stats_drv {
 	struct regpair iscsi_tx_data_pdu_cnt;
 	struct regpair iscsi_tx_r2t_pdu_cnt;
 	struct regpair iscsi_tx_total_pdu_cnt;
+	struct regpair iscsi_tx_tcp_payload_bytes_cnt;
+	struct regpair iscsi_tx_tcp_pkt_cnt;
 };
 
 struct e4_tstorm_iscsi_task_ag_ctx {

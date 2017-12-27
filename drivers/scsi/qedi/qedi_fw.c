@@ -326,7 +326,7 @@ static void qedi_get_rq_bdq_buf(struct qedi_ctx *qedi,
 		  (qedi->bdq_prod_idx % qedi->rq_num_entries));
 
 	/* Obtain buffer address from rqe_opaque */
-	idx = cqe->rqe_opaque.lo;
+	idx = cqe->rqe_opaque;
 	if (idx > (QEDI_BDQ_NUM - 1)) {
 		QEDI_INFO(&qedi->dbg_ctx, QEDI_LOG_CONN,
 			  "wrong idx %d returned by FW, dropping the unsolicited pkt\n",
@@ -335,8 +335,7 @@ static void qedi_get_rq_bdq_buf(struct qedi_ctx *qedi,
 	}
 
 	QEDI_INFO(&qedi->dbg_ctx, QEDI_LOG_CONN,
-		  "rqe_opaque.lo [0x%p], rqe_opaque.hi [0x%p], idx [%d]\n",
-		  cqe->rqe_opaque.lo, cqe->rqe_opaque.hi, idx);
+		  "rqe_opaque [0x%p], idx [%d]\n", cqe->rqe_opaque, idx);
 
 	QEDI_INFO(&qedi->dbg_ctx, QEDI_LOG_CONN,
 		  "unsol_cqe_type = %d\n", cqe->unsol_cqe_type);
@@ -363,7 +362,7 @@ static void qedi_put_rq_bdq_buf(struct qedi_ctx *qedi,
 	struct scsi_bd *pbl;
 
 	/* Obtain buffer address from rqe_opaque */
-	idx = cqe->rqe_opaque.lo;
+	idx = cqe->rqe_opaque;
 	if (idx > (QEDI_BDQ_NUM - 1)) {
 		QEDI_INFO(&qedi->dbg_ctx, QEDI_LOG_CONN,
 			  "wrong idx %d returned by FW, dropping the unsolicited pkt\n",
@@ -378,8 +377,10 @@ static void qedi_put_rq_bdq_buf(struct qedi_ctx *qedi,
 	QEDI_INFO(&qedi->dbg_ctx, QEDI_LOG_CONN,
 		  "pbl [0x%p] pbl->address hi [0x%llx] lo [0x%llx] idx [%d]\n",
 		  pbl, pbl->address.hi, pbl->address.lo, idx);
-	pbl->opaque.hi = 0;
-	pbl->opaque.lo = cpu_to_le32(QEDI_U64_LO(idx));
+	pbl->opaque.iscsi_opaque.reserved_zero[0] = 0;
+	pbl->opaque.iscsi_opaque.reserved_zero[1] = 0;
+	pbl->opaque.iscsi_opaque.reserved_zero[2] = 0;
+	pbl->opaque.iscsi_opaque.opaque = cpu_to_le32(idx);
 
 	/* Increment producer to let f/w know we've handled the frame */
 	qedi->bdq_prod_idx += count;

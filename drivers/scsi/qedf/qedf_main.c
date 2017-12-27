@@ -2623,9 +2623,9 @@ static int qedf_alloc_bdq(struct qedf_ctx *qedf)
 	for (i = 0; i < QEDF_BDQ_SIZE; i++) {
 		pbl->address.hi = cpu_to_le32(U64_HI(qedf->bdq[i].buf_dma));
 		pbl->address.lo = cpu_to_le32(U64_LO(qedf->bdq[i].buf_dma));
-		pbl->opaque.hi = 0;
+		pbl->opaque.fcoe_opaque.hi = 0;
 		/* Opaque lo data is an index into the BDQ array */
-		pbl->opaque.lo = cpu_to_le32(i);
+		pbl->opaque.fcoe_opaque.lo = cpu_to_le32(i);
 		pbl++;
 	}
 

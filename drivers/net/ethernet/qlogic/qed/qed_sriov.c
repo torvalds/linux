@@ -153,9 +153,9 @@ static int qed_sp_vf_stop(struct qed_hwfn *p_hwfn,
 	return qed_spq_post(p_hwfn, p_ent, NULL);
 }
 
-static bool qed_iov_is_valid_vfid(struct qed_hwfn *p_hwfn,
-				  int rel_vf_id,
-				  bool b_enabled_only, bool b_non_malicious)
+bool qed_iov_is_valid_vfid(struct qed_hwfn *p_hwfn,
+			   int rel_vf_id,
+			   bool b_enabled_only, bool b_non_malicious)
 {
 	if (!p_hwfn->pf_iov_info) {
 		DP_NOTICE(p_hwfn->cdev, "No iov info\n");
@@ -4237,6 +4237,7 @@ qed_iov_bulletin_get_forced_vlan(struct qed_hwfn *p_hwfn, u16 rel_vf_id)
 static int qed_iov_configure_tx_rate(struct qed_hwfn *p_hwfn,
 				     struct qed_ptt *p_ptt, int vfid, int val)
 {
+	struct qed_mcp_link_state *p_link;
 	struct qed_vf_info *vf;
 	u8 abs_vp_id = 0;
 	int rc;
@@ -4249,7 +4250,10 @@ static int qed_iov_configure_tx_rate(struct qed_hwfn *p_hwfn,
 	if (rc)
 		return rc;
 
-	return qed_init_vport_rl(p_hwfn, p_ptt, abs_vp_id, (u32)val);
+	p_link = &QED_LEADING_HWFN(p_hwfn->cdev)->mcp_info->link_output;
+
+	return qed_init_vport_rl(p_hwfn, p_ptt, abs_vp_id, (u32)val,
+				 p_link->speed);
 }
 
 static int

@@ -109,8 +109,8 @@
 #define MAX_NUM_LL2_TX_STATS_COUNTERS	48
 
 #define FW_MAJOR_VERSION	8
-#define FW_MINOR_VERSION	20
-#define FW_REVISION_VERSION	0
+#define FW_MINOR_VERSION	33
+#define FW_REVISION_VERSION	1
 #define FW_ENGINEERING_VERSION	0
 
 /***********************/
@@ -148,16 +148,9 @@
 /* Traffic classes in network-facing blocks (PBF, BTB, NIG, BRB, PRS and QM) */
 #define NUM_PHYS_TCS_4PORT_K2	(4)
 #define NUM_OF_PHYS_TCS		(8)
-
+#define PURE_LB_TC		NUM_OF_PHYS_TCS
 #define NUM_TCS_4PORT_K2	(NUM_PHYS_TCS_4PORT_K2 + 1)
 #define NUM_OF_TCS		(NUM_OF_PHYS_TCS + 1)
-
-#define LB_TC			(NUM_OF_PHYS_TCS)
-
-#define MAX_NUM_VOQS_K2		(NUM_TCS_4PORT_K2 * MAX_NUM_PORTS_K2)
-#define MAX_NUM_VOQS_BB		(NUM_OF_TCS * MAX_NUM_PORTS_BB)
-#define MAX_NUM_VOQS_E4		(MAX_NUM_VOQS_K2)
-#define MAX_PHYS_VOQS		(NUM_OF_PHYS_TCS * MAX_NUM_PORTS_BB)
 
 /* CIDs */
 #define NUM_OF_CONNECTION_TYPES_E4	(8)
@@ -602,6 +595,11 @@
 #define PXP_VF_BAR0_START_SDM_ZONE_A	0x4000
 #define PXP_VF_BAR0_END_SDM_ZONE_A	0x10000
 
+#define PXP_VF_BAR0_START_IGU2		0x10000
+#define PXP_VF_BAR0_IGU2_LENGTH		0xD000
+#define PXP_VF_BAR0_END_IGU2		(PXP_VF_BAR0_START_IGU2 + \
+					 PXP_VF_BAR0_IGU2_LENGTH - 1)
+
 #define PXP_VF_BAR0_GRC_WINDOW_LENGTH	32
 
 #define PXP_ILT_PAGE_SIZE_NUM_BITS_MIN	12
@@ -662,14 +660,6 @@
 
 #define PRS_GFT_CAM_LINES_NO_MATCH	31
 
-/* Async data KCQ CQE */
-struct async_data {
-	__le32	cid;
-	__le16	itid;
-	u8	error_code;
-	u8	fw_debug_param;
-};
-
 /* Interrupt coalescing TimeSet */
 struct coalescing_timeset {
 	u8 value;
@@ -690,9 +680,26 @@ struct eth_rx_prod_data {
 	__le16 cqe_prod;
 };
 
-struct iscsi_eqe_data {
-	__le32 cid;
+struct tcp_ulp_connect_done_params {
+	__le16 mss;
+	u8 snd_wnd_scale;
+	u8 flags;
+#define TCP_ULP_CONNECT_DONE_PARAMS_TS_EN_MASK		0x1
+#define TCP_ULP_CONNECT_DONE_PARAMS_TS_EN_SHIFT		0
+#define TCP_ULP_CONNECT_DONE_PARAMS_RESERVED_MASK	0x7F
+#define TCP_ULP_CONNECT_DONE_PARAMS_RESERVED_SHIFT	1
+};
+
+struct iscsi_connect_done_results {
+	__le16 icid;
 	__le16 conn_id;
+	struct tcp_ulp_connect_done_params params;
+};
+
+struct iscsi_eqe_data {
+	__le16 icid;
+	__le16 conn_id;
+	__le16 reserved;
 	u8 error_code;
 	u8 error_pdu_opcode_reserved;
 #define ISCSI_EQE_DATA_ERROR_PDU_OPCODE_MASK		0x3F
@@ -756,7 +763,7 @@ struct ustorm_queue_zone {
 
 /* Status block structure */
 struct cau_pi_entry {
-	u32 prod;
+	__le32 prod;
 #define CAU_PI_ENTRY_PROD_VAL_MASK	0xFFFF
 #define CAU_PI_ENTRY_PROD_VAL_SHIFT	0
 #define CAU_PI_ENTRY_PI_TIMESET_MASK	0x7F
@@ -769,14 +776,14 @@ struct cau_pi_entry {
 
 /* Status block structure */
 struct cau_sb_entry {
-	u32 data;
+	__le32 data;
 #define CAU_SB_ENTRY_SB_PROD_MASK	0xFFFFFF
 #define CAU_SB_ENTRY_SB_PROD_SHIFT	0
 #define CAU_SB_ENTRY_STATE0_MASK	0xF
 #define CAU_SB_ENTRY_STATE0_SHIFT	24
 #define CAU_SB_ENTRY_STATE1_MASK	0xF
 #define CAU_SB_ENTRY_STATE1_SHIFT	28
-	u32 params;
+	__le32 params;
 #define CAU_SB_ENTRY_SB_TIMESET0_MASK	0x7F
 #define CAU_SB_ENTRY_SB_TIMESET0_SHIFT	0
 #define CAU_SB_ENTRY_SB_TIMESET1_MASK	0x7F
@@ -954,7 +961,7 @@ enum igu_int_cmd {
 
 /* IGU producer or consumer update command */
 struct igu_prod_cons_update {
-	u32 sb_id_and_flags;
+	__le32 sb_id_and_flags;
 #define IGU_PROD_CONS_UPDATE_SB_INDEX_MASK		0xFFFFFF
 #define IGU_PROD_CONS_UPDATE_SB_INDEX_SHIFT		0
 #define IGU_PROD_CONS_UPDATE_UPDATE_FLAG_MASK		0x1
@@ -969,7 +976,7 @@ struct igu_prod_cons_update {
 #define IGU_PROD_CONS_UPDATE_RESERVED0_SHIFT		29
 #define IGU_PROD_CONS_UPDATE_COMMAND_TYPE_MASK		0x1
 #define IGU_PROD_CONS_UPDATE_COMMAND_TYPE_SHIFT		31
-	u32 reserved1;
+	__le32 reserved1;
 };
 
 /* Igu segments access for default status block only */
@@ -979,6 +986,30 @@ enum igu_seg_access {
 	MAX_IGU_SEG_ACCESS
 };
 
+/* Enumeration for L3 type field of parsing_and_err_flags.
+ * L3Type: 0 - unknown (not ip), 1 - Ipv4, 2 - Ipv6
+ * (This field can be filled according to the last-ethertype)
+ */
+enum l3_type {
+	e_l3_type_unknown,
+	e_l3_type_ipv4,
+	e_l3_type_ipv6,
+	MAX_L3_TYPE
+};
+
+/* Enumeration for l4Protocol field of parsing_and_err_flags.
+ * L4-protocol: 0 - none, 1 - TCP, 2 - UDP.
+ * If the packet is IPv4 fragment, and its not the first fragment, the
+ * protocol-type should be set to none.
+ */
+enum l4_protocol {
+	e_l4_protocol_none,
+	e_l4_protocol_tcp,
+	e_l4_protocol_udp,
+	MAX_L4_PROTOCOL
+};
+
+/* Parsing and error flags field */
 struct parsing_and_err_flags {
 	__le16 flags;
 #define PARSING_AND_ERR_FLAGS_L3TYPE_MASK			0x3

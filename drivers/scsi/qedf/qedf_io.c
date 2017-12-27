@@ -2005,17 +2005,18 @@ void qedf_process_unsol_compl(struct qedf_ctx *qedf, uint16_t que_idx,
 	struct qedf_io_work *io_work;
 	u32 bdq_idx;
 	void *bdq_addr;
+	struct scsi_bd *p_bd_info;
 
+	p_bd_info = &cqe->cqe_info.unsolic_info.bd_info;
 	QEDF_INFO(&(qedf->dbg_ctx), QEDF_LOG_UNSOL,
-	    "address.hi=%x address.lo=%x opaque_data.hi=%x "
-	    "opaque_data.lo=%x bdq_prod_idx=%u len=%u.\n",
-	    le32_to_cpu(cqe->cqe_info.unsolic_info.bd_info.address.hi),
-	    le32_to_cpu(cqe->cqe_info.unsolic_info.bd_info.address.lo),
-	    le32_to_cpu(cqe->cqe_info.unsolic_info.bd_info.opaque.hi),
-	    le32_to_cpu(cqe->cqe_info.unsolic_info.bd_info.opaque.lo),
-	    qedf->bdq_prod_idx, pktlen);
+		  "address.hi=%x, address.lo=%x, opaque_data.hi=%x, opaque_data.lo=%x, bdq_prod_idx=%u, len=%u\n",
+		  le32_to_cpu(p_bd_info->address.hi),
+		  le32_to_cpu(p_bd_info->address.lo),
+		  le32_to_cpu(p_bd_info->opaque.fcoe_opaque.hi),
+		  le32_to_cpu(p_bd_info->opaque.fcoe_opaque.lo),
+		  qedf->bdq_prod_idx, pktlen);
 
-	bdq_idx = le32_to_cpu(cqe->cqe_info.unsolic_info.bd_info.opaque.lo);
+	bdq_idx = le32_to_cpu(p_bd_info->opaque.fcoe_opaque.lo);
 	if (bdq_idx >= QEDF_BDQ_SIZE) {
 		QEDF_ERR(&(qedf->dbg_ctx), "bdq_idx is out of range %d.\n",
 		    bdq_idx);

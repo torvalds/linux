@@ -164,6 +164,13 @@ struct rdma_srq_sge {
 	__le32 l_key;
 };
 
+/* Rdma doorbell data for flags update */
+struct rdma_pwm_flags_data {
+	__le16 icid; /* internal CID */
+	u8 agg_flags; /* aggregative flags */
+	u8 reserved;
+};
+
 /* Rdma doorbell data for SQ and RQ */
 struct rdma_pwm_val16_data {
 	__le16 icid;
@@ -184,8 +191,12 @@ struct rdma_pwm_val32_data {
 #define RDMA_PWM_VAL32_DATA_AGG_CMD_SHIFT		0
 #define RDMA_PWM_VAL32_DATA_BYPASS_EN_MASK		0x1
 #define RDMA_PWM_VAL32_DATA_BYPASS_EN_SHIFT		2
-#define RDMA_PWM_VAL32_DATA_RESERVED_MASK		0x1F
-#define RDMA_PWM_VAL32_DATA_RESERVED_SHIFT		3
+#define RDMA_PWM_VAL32_DATA_CONN_TYPE_IS_IWARP_MASK	0x1
+#define RDMA_PWM_VAL32_DATA_CONN_TYPE_IS_IWARP_SHIFT	3
+#define RDMA_PWM_VAL32_DATA_SET_16B_VAL_MASK		0x1
+#define RDMA_PWM_VAL32_DATA_SET_16B_VAL_SHIFT		4
+#define RDMA_PWM_VAL32_DATA_RESERVED_MASK		0x7
+#define RDMA_PWM_VAL32_DATA_RESERVED_SHIFT		5
 	__le32 value;
 };
 
@@ -492,8 +503,10 @@ struct rdma_sq_fmr_wqe {
 #define RDMA_SQ_FMR_WQE_DIF_VALIDATE_APP_TAG_SHIFT	5
 #define RDMA_SQ_FMR_WQE_DIF_CRC_SEED_MASK		0x1
 #define RDMA_SQ_FMR_WQE_DIF_CRC_SEED_SHIFT		6
-#define RDMA_SQ_FMR_WQE_RESERVED4_MASK			0x1FF
-#define RDMA_SQ_FMR_WQE_RESERVED4_SHIFT			7
+#define RDMA_SQ_FMR_WQE_DIF_RX_REF_TAG_CONST_MASK	0x1
+#define RDMA_SQ_FMR_WQE_DIF_RX_REF_TAG_CONST_SHIFT	7
+#define RDMA_SQ_FMR_WQE_RESERVED4_MASK			0xFF
+#define RDMA_SQ_FMR_WQE_RESERVED4_SHIFT			8
 	__le32 reserved5;
 };
 
@@ -572,8 +585,10 @@ struct rdma_sq_fmr_wqe_3rd {
 #define RDMA_SQ_FMR_WQE_3RD_DIF_VALIDATE_APP_TAG_SHIFT		5
 #define RDMA_SQ_FMR_WQE_3RD_DIF_CRC_SEED_MASK			0x1
 #define RDMA_SQ_FMR_WQE_3RD_DIF_CRC_SEED_SHIFT			6
-#define RDMA_SQ_FMR_WQE_3RD_RESERVED4_MASK			0x1FF
-#define RDMA_SQ_FMR_WQE_3RD_RESERVED4_SHIFT			7
+#define RDMA_SQ_FMR_WQE_3RD_DIF_RX_REF_TAG_CONST_MASK		0x1
+#define RDMA_SQ_FMR_WQE_3RD_DIF_RX_REF_TAG_CONST_SHIFT		7
+#define RDMA_SQ_FMR_WQE_3RD_RESERVED4_MASK			0xFF
+#define RDMA_SQ_FMR_WQE_RESERVED4_SHIFT				8
 	__le32 reserved5;
 };
 
@@ -618,8 +633,10 @@ struct rdma_sq_rdma_wqe {
 #define RDMA_SQ_RDMA_WQE_INLINE_FLG_SHIFT	4
 #define RDMA_SQ_RDMA_WQE_DIF_ON_HOST_FLG_MASK	0x1
 #define RDMA_SQ_RDMA_WQE_DIF_ON_HOST_FLG_SHIFT	5
-#define RDMA_SQ_RDMA_WQE_RESERVED0_MASK		0x3
-#define RDMA_SQ_RDMA_WQE_RESERVED0_SHIFT	6
+#define RDMA_SQ_RDMA_WQE_READ_INV_FLG_MASK	0x1
+#define RDMA_SQ_RDMA_WQE_READ_INV_FLG_SHIFT	6
+#define RDMA_SQ_RDMA_WQE_RESERVED0_MASK		0x1
+#define RDMA_SQ_RDMA_WQE_RESERVED0_SHIFT	7
 	u8 wqe_size;
 	u8 prev_wqe_size;
 	struct regpair remote_va;

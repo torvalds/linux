@@ -204,11 +204,14 @@ static void init_default_iscsi_task(struct iscsi_task_params *task_params,
 				    enum iscsi_task_type task_type)
 {
 	struct e4_iscsi_task_context *context;
-	u16 index;
 	u32 val;
+	u16 index;
+	u8 val_byte;
 
 	context = task_params->context;
+	val_byte = context->mstorm_ag_context.cdu_validation;
 	memset(context, 0, sizeof(*context));
+	context->mstorm_ag_context.cdu_validation = val_byte;
 
 	for (index = 0; index <
 	     ARRAY_SIZE(context->ystorm_st_context.pdu_hdr.data.data);
@@ -498,18 +501,32 @@ static int init_rw_iscsi_task(struct iscsi_task_params *task_params,
 
 	cxt = task_params->context;
 
-	val = cpu_to_le32(task_size);
-	cxt->ystorm_st_context.pdu_hdr.cmd.expected_transfer_length = val;
-	init_initiator_rw_cdb_ystorm_context(&cxt->ystorm_st_context,
-					     cmd_params);
-	val = cpu_to_le32(cmd_params->sense_data_buffer_phys_addr.lo);
-	cxt->mstorm_st_context.sense_db.lo = val;
 
-	val = cpu_to_le32(cmd_params->sense_data_buffer_phys_addr.hi);
-	cxt->mstorm_st_context.sense_db.hi = val;
+	if (task_type == ISCSI_TASK_TYPE_TARGET_READ) {
+		set_local_completion_context(cxt);
+	} else if (task_type == ISCSI_TASK_TYPE_TARGET_WRITE) {
+		val = cpu_to_le32(task_size +
+			   ((struct iscsi_r2t_hdr *)pdu_header)->buffer_offset);
+		cxt->ystorm_st_context.pdu_hdr.r2t.desired_data_trns_len = val;
+		cxt->mstorm_st_context.expected_itt =
+						   cpu_to_le32(pdu_header->itt);
+	} else {
+		val = cpu_to_le32(task_size);
+		cxt->ystorm_st_context.pdu_hdr.cmd.expected_transfer_length =
+									    val;
+		init_initiator_rw_cdb_ystorm_context(&cxt->ystorm_st_context,
+						     cmd_params);
+		val = cpu_to_le32(cmd_params->sense_data_buffer_phys_addr.lo);
+		cxt->mstorm_st_context.sense_db.lo = val;
+
+		val = cpu_to_le32(cmd_params->sense_data_buffer_phys_addr.hi);
+		cxt->mstorm_st_context.sense_db.hi = val;
+	}
 
 	if (task_params->tx_io_size) {
 		init_dif_context_flags(&cxt->ystorm_st_context.state.dif_flags,
+				       dif_task_params);
+		init_dif_context_flags(&cxt->ustorm_st_context.dif_flags,
 				       dif_task_params);
 		init_scsi_sgl_context(&cxt->ystorm_st_context.state.sgl_params,
 				      &cxt->ystorm_st_context.state.data_desc,
