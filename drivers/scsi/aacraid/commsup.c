@@ -1949,26 +1949,22 @@ static void aac_handle_sa_aif(struct aac_dev *dev, struct fib *fibptr)
 
 		aac_resolve_luns(dev);
 
-		if (events == SA_AIF_LDEV_CHANGE ||
-		    events == SA_AIF_BPCFG_CHANGE) {
-			aac_get_containers(dev);
-			for (container = 0; container <
+		for (container = 0; container <
 			dev->maximum_num_containers; ++container) {
-				sdev = scsi_device_lookup(dev->scsi_host_ptr,
-						CONTAINER_CHANNEL,
-						container, 0);
-				if (dev->fsa_dev[container].valid && !sdev) {
-					scsi_add_device(dev->scsi_host_ptr,
-						CONTAINER_CHANNEL,
-						container, 0);
-				} else if (!dev->fsa_dev[container].valid &&
-					sdev) {
-					scsi_remove_device(sdev);
-					scsi_device_put(sdev);
-				} else if (sdev) {
-					scsi_rescan_device(&sdev->sdev_gendev);
-					scsi_device_put(sdev);
-				}
+			sdev = scsi_device_lookup(dev->scsi_host_ptr,
+					CONTAINER_CHANNEL,
+					container, 0);
+			if (dev->fsa_dev[container].valid && !sdev) {
+				scsi_add_device(dev->scsi_host_ptr,
+					CONTAINER_CHANNEL,
+					container, 0);
+			} else if (!dev->fsa_dev[container].valid &&
+				sdev) {
+				scsi_remove_device(sdev);
+				scsi_device_put(sdev);
+			} else if (sdev) {
+				scsi_rescan_device(&sdev->sdev_gendev);
+				scsi_device_put(sdev);
 			}
 		}
 		break;

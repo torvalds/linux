@@ -2021,6 +2021,10 @@ static int aac_setup_safw_targets(struct aac_dev *dev, int rescan)
 {
 	int rcode = 0;
 
+	rcode = aac_get_containers(dev);
+	if (unlikely(rcode < 0))
+		goto out;
+
 	rcode = aac_get_safw_ciss_luns(dev, rescan);
 	if (unlikely(rcode < 0))
 		goto out;
