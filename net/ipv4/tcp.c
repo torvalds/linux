@@ -1104,12 +1104,15 @@ static int linear_payload_sz(bool first_skb)
 	return 0;
 }
 
-static int select_size(const struct sock *sk, bool sg, bool first_skb)
+static int select_size(const struct sock *sk, bool sg, bool first_skb, bool zc)
 {
 	const struct tcp_sock *tp = tcp_sk(sk);
 	int tmp = tp->mss_cache;
 
 	if (sg) {
+		if (zc)
+			return 0;
+
 		if (sk_can_gso(sk)) {
 			tmp = linear_payload_sz(first_skb);
 		} else {
@@ -1186,7 +1189,7 @@ int tcp_sendmsg_locked(struct sock *sk, struct msghdr *msg, size_t size)
 	int flags, err, copied = 0;
 	int mss_now = 0, size_goal, copied_syn = 0;
 	bool process_backlog = false;
-	bool sg;
+	bool sg, zc = false;
 	long timeo;
 
 	flags = msg->msg_flags;
@@ -1204,7 +1207,8 @@ int tcp_sendmsg_locked(struct sock *sk, struct msghdr *msg, size_t size)
 			goto out_err;
 		}
 
-		if (!(sk_check_csum_caps(sk) && sk->sk_route_caps & NETIF_F_SG))
+		zc = sk_check_csum_caps(sk) && sk->sk_route_caps & NETIF_F_SG;
+		if (!zc)
 			uarg->zerocopy = 0;
 	}
 
@@ -1281,6 +1285,7 @@ restart:
 
 		if (copy <= 0 || !tcp_skb_can_collapse_to(skb)) {
 			bool first_skb;
+			int linear;
 
 new_segment:
 			/* Allocate new segment. If the interface is SG,
@@ -1294,9 +1299,8 @@ new_segment:
 				goto restart;
 			}
 			first_skb = tcp_rtx_and_write_queues_empty(sk);
-			skb = sk_stream_alloc_skb(sk,
-						  select_size(sk, sg, first_skb),
-						  sk->sk_allocation,
+			linear = select_size(sk, sg, first_skb, zc);
+			skb = sk_stream_alloc_skb(sk, linear, sk->sk_allocation,
 						  first_skb);
 			if (!skb)
 				goto wait_for_memory;
@@ -1325,13 +1329,13 @@ new_segment:
 			copy = msg_data_left(msg);
 
 		/* Where to copy to? */
-		if (skb_availroom(skb) > 0) {
+		if (skb_availroom(skb) > 0 && !zc) {
 			/* We have some space in skb head. Superb! */
 			copy = min_t(int, copy, skb_availroom(skb));
 			err = skb_add_data_nocache(sk, skb, &msg->msg_iter, copy);
 			if (err)
 				goto do_fault;
-		} else if (!uarg || !uarg->zerocopy) {
+		} else if (!zc) {
 			bool merge = true;
 			int i = skb_shinfo(skb)->nr_frags;
 			struct page_frag *pfrag = sk_page_frag(sk);
@@ -1371,8 +1375,10 @@ new_segment:
 			pfrag->offset += copy;
 		} else {
 			err = skb_zerocopy_iter_stream(sk, skb, msg, copy, uarg);
-			if (err == -EMSGSIZE || err == -EEXIST)
+			if (err == -EMSGSIZE || err == -EEXIST) {
+				tcp_mark_push(tp, skb);
 				goto new_segment;
+			}
 			if (err < 0)
 				goto do_error;
 			copy = err;
