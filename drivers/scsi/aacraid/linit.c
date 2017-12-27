@@ -1790,7 +1790,7 @@ static int aac_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (error)
 		goto out_deinit;
 
-	aac_scan_host(aac, AAC_INIT);
+	aac_scan_host(aac);
 
 	pci_enable_pcie_error_reporting(pdev);
 	pci_save_state(pdev);
@@ -2077,7 +2077,7 @@ static void aac_pci_resume(struct pci_dev *pdev)
 		if (sdev->sdev_state == SDEV_OFFLINE)
 			sdev->sdev_state = SDEV_RUNNING;
 	scsi_unblock_requests(aac->scsi_host_ptr);
-	aac_scan_host(aac, AAC_RESCAN);
+	aac_scan_host(aac);
 	pci_save_state(pdev);
 
 	dev_err(&pdev->dev, "aacraid: PCI error - resume\n");

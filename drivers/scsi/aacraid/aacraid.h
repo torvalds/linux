@@ -2644,7 +2644,7 @@ static inline int aac_adapter_check_health(struct aac_dev *dev)
 }
 
 
-int aac_scan_host(struct aac_dev *dev, int rescan);
+int aac_scan_host(struct aac_dev *dev);
 
 static inline void aac_schedule_safw_scan_worker(struct aac_dev *dev)
 {
@@ -2659,7 +2659,7 @@ static inline void aac_safw_rescan_worker(struct work_struct *work)
 	wait_event(dev->scsi_host_ptr->host_wait,
 		!scsi_host_in_recovery(dev->scsi_host_ptr));
 
-	aac_scan_host(dev, AAC_RESCAN);
+	aac_scan_host(dev);
 }
 
 static inline void aac_cancel_safw_rescan_worker(struct aac_dev *dev)
@@ -2677,7 +2677,7 @@ static inline void aac_cancel_safw_rescan_worker(struct aac_dev *dev)
 void aac_safw_rescan_worker(struct work_struct *work);
 int aac_acquire_irq(struct aac_dev *dev);
 void aac_free_irq(struct aac_dev *dev);
-int aac_setup_safw_adapter(struct aac_dev *dev, int rescan);
+int aac_setup_safw_adapter(struct aac_dev *dev);
 const char *aac_driverinfo(struct Scsi_Host *);
 void aac_fib_vector_assign(struct aac_dev *dev);
 struct fib *aac_fib_alloc(struct aac_dev *dev);

@@ -1944,7 +1944,7 @@ static int aac_is_safw_device_exposed(struct aac_dev *dev, int bus, int target)
 	return is_exposed;
 }
 
-static int aac_update_safw_host_devices(struct aac_dev *dev, int rescan)
+static int aac_update_safw_host_devices(struct aac_dev *dev)
 {
 	int i;
 	int bus;
@@ -1952,7 +1952,7 @@ static int aac_update_safw_host_devices(struct aac_dev *dev, int rescan)
 	int is_exposed = 0;
 	int rcode = 0;
 
-	rcode = aac_setup_safw_adapter(dev, rescan);
+	rcode = aac_setup_safw_adapter(dev);
 	if (unlikely(rcode < 0)) {
 		goto out;
 	}
@@ -1974,24 +1974,24 @@ out:
 	return rcode;
 }
 
-static int aac_scan_safw_host(struct aac_dev *dev, int rescan)
+static int aac_scan_safw_host(struct aac_dev *dev)
 {
 	int rcode = 0;
 
-	rcode = aac_update_safw_host_devices(dev, rescan);
+	rcode = aac_update_safw_host_devices(dev);
 	if (rcode)
 		aac_schedule_safw_scan_worker(dev);
 
 	return rcode;
 }
 
-int aac_scan_host(struct aac_dev *dev, int rescan)
+int aac_scan_host(struct aac_dev *dev)
 {
 	int rcode = 0;
 
 	mutex_lock(&dev->scan_mutex);
 	if (dev->sa_firmware)
-		rcode = aac_scan_safw_host(dev, rescan);
+		rcode = aac_scan_safw_host(dev);
 	else
 		scsi_scan_host(dev->scsi_host_ptr);
 	mutex_unlock(&dev->scan_mutex);
@@ -2032,7 +2032,7 @@ static void aac_handle_sa_aif(struct aac_dev *dev, struct fib *fibptr)
 	case SA_AIF_LDEV_CHANGE:
 	case SA_AIF_BPCFG_CHANGE:
 
-		aac_scan_host(dev, AAC_RESCAN);
+		aac_scan_host(dev);
 
 		break;
 
