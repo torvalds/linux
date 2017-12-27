@@ -33,7 +33,8 @@
 #include <asm/virt.h>
 
 unsigned long *vcpu_reg32(const struct kvm_vcpu *vcpu, u8 reg_num);
-unsigned long *vcpu_spsr32(const struct kvm_vcpu *vcpu);
+unsigned long vcpu_read_spsr32(const struct kvm_vcpu *vcpu);
+void vcpu_write_spsr32(struct kvm_vcpu *vcpu, unsigned long v);
 
 bool kvm_condition_valid32(const struct kvm_vcpu *vcpu);
 void kvm_skip_instr32(struct kvm_vcpu *vcpu, bool is_wide_instr);
@@ -162,41 +163,26 @@ static inline void vcpu_set_reg(struct kvm_vcpu *vcpu, u8 reg_num,
 
 static inline unsigned long vcpu_read_spsr(const struct kvm_vcpu *vcpu)
 {
-	unsigned long *p = (unsigned long *)&vcpu_gp_regs(vcpu)->spsr[KVM_SPSR_EL1];
-
-	if (vcpu_mode_is_32bit(vcpu)) {
-		unsigned long *p_32bit = vcpu_spsr32(vcpu);
-
-		/* KVM_SPSR_SVC aliases KVM_SPSR_EL1 */
-		if (p_32bit != p)
-			return *p_32bit;
-	}
+	if (vcpu_mode_is_32bit(vcpu))
+		return vcpu_read_spsr32(vcpu);
 
 	if (vcpu->arch.sysregs_loaded_on_cpu)
 		return read_sysreg_el1(spsr);
 	else
-		return *p;
+		return vcpu_gp_regs(vcpu)->spsr[KVM_SPSR_EL1];
 }
 
-static inline void vcpu_write_spsr(const struct kvm_vcpu *vcpu, unsigned long v)
+static inline void vcpu_write_spsr(struct kvm_vcpu *vcpu, unsigned long v)
 {
-	unsigned long *p = (unsigned long *)&vcpu_gp_regs(vcpu)->spsr[KVM_SPSR_EL1];
-
-	/* KVM_SPSR_SVC aliases KVM_SPSR_EL1 */
 	if (vcpu_mode_is_32bit(vcpu)) {
-		unsigned long *p_32bit = vcpu_spsr32(vcpu);
-
-		/* KVM_SPSR_SVC aliases KVM_SPSR_EL1 */
-		if (p_32bit != p) {
-			*p_32bit = v;
-			return;
-		}
+		vcpu_write_spsr32(vcpu, v);
+		return;
 	}
 
 	if (vcpu->arch.sysregs_loaded_on_cpu)
 		write_sysreg_el1(v, spsr);
 	else
-		*p = v;
+		vcpu_gp_regs(vcpu)->spsr[KVM_SPSR_EL1] = v;
 }
 
 static inline bool vcpu_mode_priv(const struct kvm_vcpu *vcpu)
