@@ -918,7 +918,6 @@ static void setinqstr(struct aac_dev *dev, void *data, int tindex)
 		char *cname = kmemdup(sup_adap_info->adapter_type_text,
 				sizeof(sup_adap_info->adapter_type_text),
 								GFP_ATOMIC);
-
 		if (!cname)
 			return;
 
