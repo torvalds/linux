@@ -2305,6 +2305,8 @@ static void i40e_set_itr_per_queue(struct i40e_vsi *vsi,
 				   struct ethtool_coalesce *ec,
 				   int queue)
 {
+	struct i40e_ring *rx_ring = vsi->rx_rings[queue];
+	struct i40e_ring *tx_ring = vsi->tx_rings[queue];
 	struct i40e_pf *pf = vsi->back;
 	struct i40e_hw *hw = &pf->hw;
 	struct i40e_q_vector *q_vector;
@@ -2312,26 +2314,26 @@ static void i40e_set_itr_per_queue(struct i40e_vsi *vsi,
 
 	intrl = i40e_intrl_usec_to_reg(vsi->int_rate_limit);
 
-	vsi->rx_rings[queue]->rx_itr_setting = ec->rx_coalesce_usecs;
-	vsi->tx_rings[queue]->tx_itr_setting = ec->tx_coalesce_usecs;
+	rx_ring->rx_itr_setting = ec->rx_coalesce_usecs;
+	tx_ring->tx_itr_setting = ec->tx_coalesce_usecs;
 
 	if (ec->use_adaptive_rx_coalesce)
-		vsi->rx_rings[queue]->rx_itr_setting |= I40E_ITR_DYNAMIC;
+		rx_ring->rx_itr_setting |= I40E_ITR_DYNAMIC;
 	else
-		vsi->rx_rings[queue]->rx_itr_setting &= ~I40E_ITR_DYNAMIC;
+		rx_ring->rx_itr_setting &= ~I40E_ITR_DYNAMIC;
 
 	if (ec->use_adaptive_tx_coalesce)
-		vsi->tx_rings[queue]->tx_itr_setting |= I40E_ITR_DYNAMIC;
+		tx_ring->tx_itr_setting |= I40E_ITR_DYNAMIC;
 	else
-		vsi->tx_rings[queue]->tx_itr_setting &= ~I40E_ITR_DYNAMIC;
+		tx_ring->tx_itr_setting &= ~I40E_ITR_DYNAMIC;
 
-	q_vector = vsi->rx_rings[queue]->q_vector;
-	q_vector->rx.itr = ITR_TO_REG(vsi->rx_rings[queue]->rx_itr_setting);
+	q_vector = rx_ring->q_vector;
+	q_vector->rx.itr = ITR_TO_REG(rx_ring->rx_itr_setting);
 	vector = vsi->base_vector + q_vector->v_idx;
 	wr32(hw, I40E_PFINT_ITRN(I40E_RX_ITR, vector - 1), q_vector->rx.itr);
 
-	q_vector = vsi->tx_rings[queue]->q_vector;
-	q_vector->tx.itr = ITR_TO_REG(vsi->tx_rings[queue]->tx_itr_setting);
+	q_vector = tx_ring->q_vector;
+	q_vector->tx.itr = ITR_TO_REG(tx_ring->tx_itr_setting);
 	vector = vsi->base_vector + q_vector->v_idx;
 	wr32(hw, I40E_PFINT_ITRN(I40E_TX_ITR, vector - 1), q_vector->tx.itr);
 
