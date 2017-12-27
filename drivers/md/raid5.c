@@ -5563,7 +5563,7 @@ static bool raid5_make_request(struct mddev *mddev, struct bio * bi)
 	bool do_flush = false;
 
 	if (unlikely(bi->bi_opf & REQ_PREFLUSH)) {
-		int ret = r5l_handle_flush_request(conf->log, bi);
+		int ret = log_handle_flush_request(conf, bi);
 
 		if (ret == 0)
 			return true;
@@ -6168,7 +6168,7 @@ static int handle_active_stripes(struct r5conf *conf, int group,
 				break;
 		if (i == NR_STRIPE_HASH_LOCKS) {
 			spin_unlock_irq(&conf->device_lock);
-			r5l_flush_stripe_to_raid(conf->log);
+			log_flush_stripe_to_raid(conf);
 			spin_lock_irq(&conf->device_lock);
 			return batch_size;
 		}
@@ -8060,7 +8060,7 @@ static void raid5_quiesce(struct mddev *mddev, int quiesce)
 		wake_up(&conf->wait_for_overlap);
 		unlock_all_device_hash_locks_irq(conf);
 	}
-	r5l_quiesce(conf->log, quiesce);
+	log_quiesce(conf, quiesce);
 }
 
 static void *raid45_takeover_raid0(struct mddev *mddev, int level)

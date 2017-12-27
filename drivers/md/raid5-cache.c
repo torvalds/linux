@@ -1111,9 +1111,6 @@ void r5l_write_stripe_run(struct r5l_log *log)
 
 int r5l_handle_flush_request(struct r5l_log *log, struct bio *bio)
 {
-	if (!log)
-		return -ENODEV;
-
 	if (log->r5c_journal_mode == R5C_JOURNAL_MODE_WRITE_THROUGH) {
 		/*
 		 * in write through (journal only)
@@ -1592,8 +1589,6 @@ void r5l_wake_reclaim(struct r5l_log *log, sector_t space)
 void r5l_quiesce(struct r5l_log *log, int quiesce)
 {
 	struct mddev *mddev;
-	if (!log)
-		return;
 
 	if (quiesce) {
 		/* make sure r5l_write_super_and_discard_space exits */
