@@ -3939,19 +3939,19 @@ static int i40e_add_fdir_ethtool(struct i40e_vsi *vsi,
 		input->flex_offset = userdef.flex_offset;
 	}
 
-	ret = i40e_add_del_fdir(vsi, input, true);
-	if (ret)
-		goto free_input;
-
 	/* Add the input filter to the fdir_input_list, possibly replacing
 	 * a previous filter. Do not free the input structure after adding it
 	 * to the list as this would cause a use-after-free bug.
 	 */
 	i40e_update_ethtool_fdir_entry(vsi, input, fsp->location, NULL);
-
+	ret = i40e_add_del_fdir(vsi, input, true);
+	if (ret)
+		goto remove_sw_rule;
 	return 0;
 
-free_input:
+remove_sw_rule:
+	hlist_del(&input->fdir_node);
+	pf->fdir_pf_active_filters--;
 	kfree(input);
 	return ret;
 }
