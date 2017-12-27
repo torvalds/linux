@@ -2021,6 +2021,12 @@ struct aac_srb_reply
 	__le32		sense_data_size;
 	u8		sense_data[AAC_SENSE_BUFFERSIZE]; // Can this be SCSI_SENSE_BUFFERSIZE
 };
+
+struct aac_srb_unit {
+	struct aac_srb		srb;
+	struct aac_srb_reply	srb_reply;
+};
+
 /*
  * SRB Flags
  */
@@ -2634,7 +2640,6 @@ static inline int aac_adapter_check_health(struct aac_dev *dev)
 int aac_acquire_irq(struct aac_dev *dev);
 void aac_free_irq(struct aac_dev *dev);
 int aac_report_phys_luns(struct aac_dev *dev, struct fib *fibptr, int rescan);
-int aac_issue_bmic_identify(struct aac_dev *dev, u32 bus, u32 target);
 const char *aac_driverinfo(struct Scsi_Host *);
 void aac_fib_vector_assign(struct aac_dev *dev);
 struct fib *aac_fib_alloc(struct aac_dev *dev);
