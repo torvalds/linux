@@ -433,11 +433,8 @@ static void domain_dirty_limits(struct dirty_throttle_control *dtc)
 	else
 		bg_thresh = (bg_ratio * available_memory) / PAGE_SIZE;
 
-	if (unlikely(bg_thresh >= thresh)) {
-		pr_warn("vm direct limit must be set greater than background limit.\n");
+	if (bg_thresh >= thresh)
 		bg_thresh = thresh / 2;
-	}
-
 	tsk = current;
 	if (tsk->flags & PF_LESS_THROTTLE || rt_task(tsk)) {
 		bg_thresh += bg_thresh / 4 + global_wb_domain.dirty_limit / 32;

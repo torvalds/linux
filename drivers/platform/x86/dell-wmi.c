@@ -639,6 +639,8 @@ static int dell_wmi_events_set_enabled(bool enable)
 	int ret;
 
 	buffer = kzalloc(sizeof(struct calling_interface_buffer), GFP_KERNEL);
+	if (!buffer)
+		return -ENOMEM;
 	buffer->cmd_class = CLASS_INFO;
 	buffer->cmd_select = SELECT_APP_REGISTRATION;
 	buffer->input[0] = 0x10000;

@@ -458,11 +458,6 @@ static int __v4l2_async_notifier_parse_fwnode_endpoints(
 		if (!is_available)
 			continue;
 
-		if (WARN_ON(notifier->num_subdevs >= notifier->max_subdevs)) {
-			ret = -EINVAL;
-			break;
-		}
-
 		if (has_port) {
 			struct fwnode_endpoint ep;
 
@@ -472,6 +467,11 @@ static int __v4l2_async_notifier_parse_fwnode_endpoints(
 
 			if (ep.port != port)
 				continue;
+		}
+
+		if (WARN_ON(notifier->num_subdevs >= notifier->max_subdevs)) {
+			ret = -EINVAL;
+			break;
 		}
 
 		ret = v4l2_async_notifier_fwnode_parse_endpoint(

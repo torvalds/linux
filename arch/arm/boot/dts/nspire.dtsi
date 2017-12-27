@@ -56,6 +56,7 @@
 
 	usb_phy: usb_phy {
 		compatible = "usb-nop-xceiv";
+		#phy-cells = <0>;
 	};
 
 	vbus_reg: vbus_reg {

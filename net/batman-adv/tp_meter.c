@@ -482,7 +482,7 @@ static void batadv_tp_reset_sender_timer(struct batadv_tp_vars *tp_vars)
 
 /**
  * batadv_tp_sender_timeout - timer that fires in case of packet loss
- * @arg: address of the related tp_vars
+ * @t: address to timer_list inside tp_vars
  *
  * If fired it means that there was packet loss.
  * Switch to Slow Start, set the ss_threshold to half of the current cwnd and
@@ -1106,7 +1106,7 @@ static void batadv_tp_reset_receiver_timer(struct batadv_tp_vars *tp_vars)
 /**
  * batadv_tp_receiver_shutdown - stop a tp meter receiver when timeout is
  *  reached without received ack
- * @arg: address of the related tp_vars
+ * @t: address to timer_list inside tp_vars
  */
 static void batadv_tp_receiver_shutdown(struct timer_list *t)
 {

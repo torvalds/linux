@@ -22,7 +22,7 @@
 #include <ia_css_pipe_public.h>
 #include <ia_css_stream_public.h>
 
-/** The pipe id type, distinguishes the kind of pipes that
+/* The pipe id type, distinguishes the kind of pipes that
  *  can be run in parallel.
  */
 enum ia_css_pipe_id {

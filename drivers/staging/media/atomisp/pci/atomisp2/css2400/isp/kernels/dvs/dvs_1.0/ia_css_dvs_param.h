@@ -30,7 +30,7 @@
 #ifdef ISP2401
 
 #endif
-/** dvserence frame */
+/* dvserence frame */
 struct sh_css_isp_dvs_isp_config {
 	uint32_t num_horizontal_blocks;
 	uint32_t num_vertical_blocks;

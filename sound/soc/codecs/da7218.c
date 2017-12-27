@@ -2520,7 +2520,7 @@ static struct da7218_pdata *da7218_of_to_pdata(struct snd_soc_codec *codec)
 	}
 
 	if (da7218->dev_id == DA7218_DEV_ID) {
-		hpldet_np = of_find_node_by_name(np, "da7218_hpldet");
+		hpldet_np = of_get_child_by_name(np, "da7218_hpldet");
 		if (!hpldet_np)
 			return pdata;
 
