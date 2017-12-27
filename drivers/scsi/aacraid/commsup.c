@@ -1874,6 +1874,39 @@ static inline int is_safw_raid_volume(struct aac_dev *aac, int bus, int target)
 	return bus == CONTAINER_CHANNEL && target < aac->maximum_num_containers;
 }
 
+static struct scsi_device *aac_lookup_safw_scsi_device(struct aac_dev *dev,
+								int bus,
+								int target)
+{
+	if (bus != CONTAINER_CHANNEL)
+		bus = aac_phys_to_logical(bus);
+
+	return scsi_device_lookup(dev->scsi_host_ptr, bus, target, 0);
+}
+
+static int aac_add_safw_device(struct aac_dev *dev, int bus, int target)
+{
+	if (bus != CONTAINER_CHANNEL)
+		bus = aac_phys_to_logical(bus);
+
+	return scsi_add_device(dev->scsi_host_ptr, bus, target, 0);
+}
+
+static void aac_put_safw_scsi_device(struct scsi_device *sdev)
+{
+	if (sdev)
+		scsi_device_put(sdev);
+}
+
+static void aac_remove_safw_device(struct aac_dev *dev, int bus, int target)
+{
+	struct scsi_device *sdev;
+
+	sdev = aac_lookup_safw_scsi_device(dev, bus, target);
+	scsi_remove_device(sdev);
+	aac_put_safw_scsi_device(sdev);
+}
+
 static inline int aac_is_safw_scan_count_equal(struct aac_dev *dev,
 	int bus, int target)
 {
@@ -1888,33 +1921,37 @@ static int aac_is_safw_target_valid(struct aac_dev *dev, int bus, int target)
 		return aac_is_safw_scan_count_equal(dev, bus, target);
 }
 
+static int aac_is_safw_device_exposed(struct aac_dev *dev, int bus, int target)
+{
+	int is_exposed = 0;
+	struct scsi_device *sdev;
+
+	sdev = aac_lookup_safw_scsi_device(dev, bus, target);
+	if (sdev)
+		is_exposed = 1;
+	aac_put_safw_scsi_device(sdev);
+
+	return is_exposed;
+}
+
 static void aac_resolve_luns(struct aac_dev *dev)
 {
 	int i;
-	int bus, target, channel;
-	struct scsi_device *sdev;
+	int bus, target;
+	int is_exposed = 0;
 
 	for (i = 0; i < AAC_BUS_TARGET_LOOP; i++) {
 
 		bus = get_bus_number(i);
 		target = get_target_number(i);
 
-		if (bus == CONTAINER_CHANNEL)
-			channel = CONTAINER_CHANNEL;
-		else
-			channel = aac_phys_to_logical(bus);
+		is_exposed = aac_is_safw_device_exposed(dev, bus, target);
 
-		sdev = scsi_device_lookup(dev->scsi_host_ptr, channel,
-				target, 0);
-
-		if (!sdev && aac_is_safw_target_valid(dev, bus, target))
-			scsi_add_device(dev->scsi_host_ptr, channel,
-					target, 0);
-		else if (sdev && aac_is_safw_target_valid(dev, bus, target))
-			scsi_remove_device(sdev);
-
-		if (sdev)
-			scsi_device_put(sdev);
+		if (aac_is_safw_target_valid(dev, bus, target) && !is_exposed)
+			aac_add_safw_device(dev, bus, target);
+		else if (!aac_is_safw_target_valid(dev, bus, target) &&
+								is_exposed)
+			aac_remove_safw_device(dev, bus, target);
 	}
 }
 
