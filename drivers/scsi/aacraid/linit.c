@@ -1684,6 +1684,8 @@ static int aac_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	mutex_init(&aac->ioctl_mutex);
 	mutex_init(&aac->scan_mutex);
+
+	INIT_DELAYED_WORK(&aac->safw_rescan_work, aac_safw_rescan_worker);
 	/*
 	 *	Map in the registers from the adapter.
 	 */
@@ -1873,6 +1875,7 @@ static int aac_suspend(struct pci_dev *pdev, pm_message_t state)
 	struct aac_dev *aac = (struct aac_dev *)shost->hostdata;
 
 	scsi_block_requests(shost);
+	aac_cancel_safw_rescan_worker(aac);
 	aac_send_shutdown(aac);
 
 	aac_release_resources(aac);
@@ -1931,6 +1934,7 @@ static void aac_remove_one(struct pci_dev *pdev)
 	struct Scsi_Host *shost = pci_get_drvdata(pdev);
 	struct aac_dev *aac = (struct aac_dev *)shost->hostdata;
 
+	aac_cancel_safw_rescan_worker(aac);
 	scsi_remove_host(shost);
 
 	__aac_shutdown(aac);
@@ -1988,6 +1992,7 @@ static pci_ers_result_t aac_pci_error_detected(struct pci_dev *pdev,
 		aac->handle_pci_error = 1;
 
 		scsi_block_requests(aac->scsi_host_ptr);
+		aac_cancel_safw_rescan_worker(aac);
 		aac_flush_ios(aac);
 		aac_release_resources(aac);
 

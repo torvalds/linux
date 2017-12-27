@@ -1964,16 +1964,28 @@ out:
 	return rcode;
 }
 
+static int aac_scan_safw_host(struct aac_dev *dev, int rescan)
+{
+	int rcode = 0;
+
+	rcode = aac_update_safw_host_devices(dev, rescan);
+	if (rcode)
+		aac_schedule_safw_scan_worker(dev);
+
+	return rcode;
+}
+
 int aac_scan_host(struct aac_dev *dev, int rescan)
 {
 	int rcode = 0;
 
 	mutex_lock(&dev->scan_mutex);
 	if (dev->sa_firmware)
-		rcode = aac_update_safw_host_devices(dev, rescan);
+		rcode = aac_scan_safw_host(dev, rescan);
 	else
 		scsi_scan_host(dev->scsi_host_ptr);
 	mutex_unlock(&dev->scan_mutex);
+
 	return rcode;
 }
 

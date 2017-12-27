@@ -1341,6 +1341,8 @@ struct fib {
 #define AAC_EXPOSE_DISK		0
 #define AAC_HIDE_DISK			3
 
+#define AAC_SAFW_RESCAN_DELAY  10
+
 struct aac_hba_map_info {
 	__le32	rmw_nexus;		/* nexus for native HBA devices */
 	u8		devtype;	/* device type */
@@ -1611,6 +1613,7 @@ struct aac_dev
 	int			maximum_num_channels;
 	struct fsa_dev_info	*fsa_dev;
 	struct task_struct	*thread;
+	struct delayed_work	safw_rescan_work;
 	int			cardtype;
 	/*
 	 *This lock will protect the two 32-bit
@@ -2639,12 +2642,35 @@ static inline int aac_adapter_check_health(struct aac_dev *dev)
 	return (dev)->a_ops.adapter_check_health(dev);
 }
 
+
+int aac_scan_host(struct aac_dev *dev, int rescan);
+
+static inline void aac_schedule_safw_scan_worker(struct aac_dev *dev)
+{
+	schedule_delayed_work(&dev->safw_rescan_work, AAC_SAFW_RESCAN_DELAY);
+}
+
+static inline void aac_safw_rescan_worker(struct work_struct *work)
+{
+	struct aac_dev *dev = container_of(to_delayed_work(work),
+		struct aac_dev, safw_rescan_work);
+
+	aac_scan_host(dev, AAC_RESCAN);
+}
+
+static inline void aac_cancel_safw_rescan_worker(struct aac_dev *dev)
+{
+	if (dev->sa_firmware)
+		cancel_delayed_work_sync(&dev->safw_rescan_work);
+}
+
 /* SCp.phase values */
 #define AAC_OWNER_MIDLEVEL	0x101
 #define AAC_OWNER_LOWLEVEL	0x102
 #define AAC_OWNER_ERROR_HANDLER	0x103
 #define AAC_OWNER_FIRMWARE	0x106
 
+void aac_safw_rescan_worker(struct work_struct *work);
 int aac_acquire_irq(struct aac_dev *dev);
 void aac_free_irq(struct aac_dev *dev);
 int aac_setup_safw_adapter(struct aac_dev *dev, int rescan);
@@ -2719,7 +2745,6 @@ static inline int aac_supports_2T(struct aac_dev *dev)
 	return (dev->adapter_info.options & AAC_OPT_NEW_COMM_64);
 }
 
-int aac_scan_host(struct aac_dev *dev, int rescan);
 char * get_container_type(unsigned type);
 extern int numacb;
 extern char aac_driver_version[];
