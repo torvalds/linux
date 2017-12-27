@@ -1340,11 +1340,11 @@ struct fib {
 struct aac_hba_map_info {
 	__le32	rmw_nexus;		/* nexus for native HBA devices */
 	u8		devtype;	/* device type */
-	u8		new_devtype;
 	u8		reset_state;	/* 0 - no reset, 1..x - */
 					/* after xth TM LUN reset */
 	u16		qd_limit;
 	u8		expose;		/*checks if to expose or not*/
+	u32		scan_counter;
 	struct aac_ciss_identify_pd  *safw_identify_resp;
 };
 
@@ -1669,6 +1669,7 @@ struct aac_dev
 	u32			vector_cap;	/* MSI-X vector capab.*/
 	int			msi_enabled;	/* MSI/MSI-X enabled */
 	atomic_t		msix_counter;
+	u32			scan_counter;
 	struct msix_entry	msixentry[AAC_MAX_MSIX];
 	struct aac_msix_ctx	aac_msix[AAC_MAX_MSIX]; /* context */
 	struct aac_hba_map_info	hba_map[AAC_MAX_BUSES][AAC_MAX_TARGETS];

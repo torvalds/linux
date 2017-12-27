@@ -1982,6 +1982,8 @@ static void aac_set_safw_attr_all_targets(struct aac_dev *dev, int rescan)
 
 	lun_count = aac_get_safw_phys_lun_count(dev);
 
+	dev->scan_counter++;
+
 	for (i = 0; i < lun_count; ++i) {
 
 		bus = aac_get_safw_phys_bus(dev, i);
@@ -2007,13 +2009,12 @@ static void aac_set_safw_attr_all_targets(struct aac_dev *dev, int rescan)
 		} else
 			devtype = AAC_DEVTYPE_ARC_RAW;
 
+		dev->hba_map[bus][target].scan_counter = dev->scan_counter;
+
 		aac_set_safw_target_qd(dev, bus, target);
 
 update_devtype:
-		if (rescan == AAC_INIT)
-			dev->hba_map[bus][target].devtype = devtype;
-		else
-			dev->hba_map[bus][target].new_devtype = devtype;
+		dev->hba_map[bus][target].devtype = devtype;
 	}
 }
 

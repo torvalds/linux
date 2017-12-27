@@ -1869,13 +1869,29 @@ out:
 	return BlinkLED;
 }
 
+static inline int is_safw_raid_volume(struct aac_dev *aac, int bus, int target)
+{
+	return bus == CONTAINER_CHANNEL && target < aac->maximum_num_containers;
+}
+
+static inline int aac_is_safw_scan_count_equal(struct aac_dev *dev,
+	int bus, int target)
+{
+	return dev->hba_map[bus][target].scan_counter == dev->scan_counter;
+}
+
+static int aac_is_safw_target_valid(struct aac_dev *dev, int bus, int target)
+{
+	if (is_safw_raid_volume(dev, bus, target))
+		return dev->fsa_dev[target].valid;
+	else
+		return aac_is_safw_scan_count_equal(dev, bus, target);
+}
 
 static void aac_resolve_luns(struct aac_dev *dev)
 {
 	int bus, target, channel;
 	struct scsi_device *sdev;
-	u8 devtype;
-	u8 new_devtype;
 
 	for (bus = 0; bus < AAC_MAX_BUSES; bus++) {
 		for (target = 0; target < AAC_MAX_TARGETS; target++) {
@@ -1885,24 +1901,19 @@ static void aac_resolve_luns(struct aac_dev *dev)
 			else
 				channel = aac_phys_to_logical(bus);
 
-			devtype = dev->hba_map[bus][target].devtype;
-			new_devtype = dev->hba_map[bus][target].new_devtype;
-
 			sdev = scsi_device_lookup(dev->scsi_host_ptr, channel,
 					target, 0);
 
-			if (!sdev && new_devtype)
+			if (!sdev && aac_is_safw_target_valid(dev, bus, target))
 				scsi_add_device(dev->scsi_host_ptr, channel,
 						target, 0);
-			else if (sdev && new_devtype != devtype)
+			else if (sdev && aac_is_safw_target_valid(dev,
+								bus, target))
 				scsi_remove_device(sdev);
-			else if (sdev && new_devtype == devtype)
-				scsi_rescan_device(&sdev->sdev_gendev);
 
 			if (sdev)
 				scsi_device_put(sdev);
 
-			dev->hba_map[bus][target].devtype = new_devtype;
 		}
 	}
 }
@@ -1917,9 +1928,8 @@ static void aac_resolve_luns(struct aac_dev *dev)
  */
 static void aac_handle_sa_aif(struct aac_dev *dev, struct fib *fibptr)
 {
-	int i, bus, target, container, rcode = 0;
+	int i;
 	u32 events = 0;
-	struct scsi_device *sdev;
 
 	if (fibptr->hbacmd_size & SA_AIF_HOTPLUG)
 		events = SA_AIF_HOTPLUG;
@@ -1941,32 +1951,9 @@ static void aac_handle_sa_aif(struct aac_dev *dev, struct fib *fibptr)
 	case SA_AIF_LDEV_CHANGE:
 	case SA_AIF_BPCFG_CHANGE:
 
-		for (bus = 0; bus < AAC_MAX_BUSES; bus++)
-			for (target = 0; target < AAC_MAX_TARGETS; target++)
-				dev->hba_map[bus][target].new_devtype = 0;
-
-		rcode = aac_setup_safw_adapter(dev, AAC_RESCAN);
+		aac_setup_safw_adapter(dev, AAC_RESCAN);
 
 		aac_resolve_luns(dev);
-
-		for (container = 0; container <
-			dev->maximum_num_containers; ++container) {
-			sdev = scsi_device_lookup(dev->scsi_host_ptr,
-					CONTAINER_CHANNEL,
-					container, 0);
-			if (dev->fsa_dev[container].valid && !sdev) {
-				scsi_add_device(dev->scsi_host_ptr,
-					CONTAINER_CHANNEL,
-					container, 0);
-			} else if (!dev->fsa_dev[container].valid &&
-				sdev) {
-				scsi_remove_device(sdev);
-				scsi_device_put(sdev);
-			} else if (sdev) {
-				scsi_rescan_device(&sdev->sdev_gendev);
-				scsi_device_put(sdev);
-			}
-		}
 		break;
 
 	case SA_AIF_BPSTAT_CHANGE:
