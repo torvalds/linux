@@ -1701,31 +1701,6 @@ int aac_reset_adapter(struct aac_dev *aac, int forced, u8 reset_type)
 	 */
 	host = aac->scsi_host_ptr;
 	scsi_block_requests(host);
-	if (forced < 2) for (retval = 60; retval; --retval) {
-		struct scsi_device * dev;
-		struct scsi_cmnd * command;
-		int active = 0;
-
-		__shost_for_each_device(dev, host) {
-			spin_lock_irqsave(&dev->list_lock, flagv);
-			list_for_each_entry(command, &dev->cmd_list, list) {
-				if (command->SCp.phase == AAC_OWNER_FIRMWARE) {
-					active++;
-					break;
-				}
-			}
-			spin_unlock_irqrestore(&dev->list_lock, flagv);
-			if (active)
-				break;
-
-		}
-		/*
-		 * We can exit If all the commands are complete
-		 */
-		if (active == 0)
-			break;
-		ssleep(1);
-	}
 
 	/* Quiesce build, flush cache, write through mode */
 	if (forced < 2)
