@@ -903,7 +903,7 @@ static int _si5351_clkout_set_disable_state(
 	return 0;
 }
 
-void _si5351_clkout_reset_pll(struct si5351_driver_data *drvdata, int num)
+static void _si5351_clkout_reset_pll(struct si5351_driver_data *drvdata, int num)
 {
 	u8 val = si5351_reg_read(drvdata, SI5351_CLK0_CTRL + num);
 
