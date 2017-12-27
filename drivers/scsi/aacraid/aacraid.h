@@ -41,6 +41,7 @@
 
 #include <linux/interrupt.h>
 #include <linux/pci.h>
+#include <scsi/scsi_host.h>
 
 /*------------------------------------------------------------------------------
  *              D E F I N E S
@@ -2654,6 +2655,9 @@ static inline void aac_safw_rescan_worker(struct work_struct *work)
 {
 	struct aac_dev *dev = container_of(to_delayed_work(work),
 		struct aac_dev, safw_rescan_work);
+
+	wait_event(dev->scsi_host_ptr->host_wait,
+		!scsi_host_in_recovery(dev->scsi_host_ptr));
 
 	aac_scan_host(dev, AAC_RESCAN);
 }

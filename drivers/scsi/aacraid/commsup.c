@@ -1671,6 +1671,15 @@ out:
 	aac->in_reset = 0;
 	scsi_unblock_requests(host);
 
+	/*
+	 * Issue bus rescan to catch any configuration that might have
+	 * occurred
+	 */
+	if (!retval) {
+		dev_info(&aac->pdev->dev, "Scheduling bus rescan\n");
+		aac_schedule_safw_scan_worker(aac);
+	}
+
 	if (jafo) {
 		spin_lock_irq(host->host_lock);
 	}
