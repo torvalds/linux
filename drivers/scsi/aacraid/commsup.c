@@ -1934,11 +1934,18 @@ static int aac_is_safw_device_exposed(struct aac_dev *dev, int bus, int target)
 	return is_exposed;
 }
 
-static void aac_resolve_luns(struct aac_dev *dev)
+static int aac_update_safw_host_devices(struct aac_dev *dev, int rescan)
 {
 	int i;
-	int bus, target;
+	int bus;
+	int target;
 	int is_exposed = 0;
+	int rcode = 0;
+
+	rcode = aac_setup_safw_adapter(dev, rescan);
+	if (unlikely(rcode < 0)) {
+		goto out;
+	}
 
 	for (i = 0; i < AAC_BUS_TARGET_LOOP; i++) {
 
@@ -1953,6 +1960,8 @@ static void aac_resolve_luns(struct aac_dev *dev)
 								is_exposed)
 			aac_remove_safw_device(dev, bus, target);
 	}
+out:
+	return rcode;
 }
 
 /**
@@ -1988,9 +1997,7 @@ static void aac_handle_sa_aif(struct aac_dev *dev, struct fib *fibptr)
 	case SA_AIF_LDEV_CHANGE:
 	case SA_AIF_BPCFG_CHANGE:
 
-		aac_setup_safw_adapter(dev, AAC_RESCAN);
-
-		aac_resolve_luns(dev);
+		aac_update_safw_host_devices(dev, AAC_RESCAN);
 		break;
 
 	case SA_AIF_BPSTAT_CHANGE:
