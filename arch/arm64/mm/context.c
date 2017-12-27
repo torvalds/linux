@@ -194,26 +194,29 @@ set_asid:
 void check_and_switch_context(struct mm_struct *mm, unsigned int cpu)
 {
 	unsigned long flags;
-	u64 asid;
+	u64 asid, old_active_asid;
 
 	asid = atomic64_read(&mm->context.id);
 
 	/*
 	 * The memory ordering here is subtle.
-	 * If our ASID matches the current generation, then we update
-	 * our active_asids entry with a relaxed xchg. Racing with a
-	 * concurrent rollover means that either:
+	 * If our active_asids is non-zero and the ASID matches the current
+	 * generation, then we update the active_asids entry with a relaxed
+	 * cmpxchg. Racing with a concurrent rollover means that either:
 	 *
-	 * - We get a zero back from the xchg and end up waiting on the
+	 * - We get a zero back from the cmpxchg and end up waiting on the
 	 *   lock. Taking the lock synchronises with the rollover and so
 	 *   we are forced to see the updated generation.
 	 *
-	 * - We get a valid ASID back from the xchg, which means the
+	 * - We get a valid ASID back from the cmpxchg, which means the
 	 *   relaxed xchg in flush_context will treat us as reserved
 	 *   because atomic RmWs are totally ordered for a given location.
 	 */
-	if (!((asid ^ atomic64_read(&asid_generation)) >> asid_bits)
-	    && atomic64_xchg_relaxed(&per_cpu(active_asids, cpu), asid))
+	old_active_asid = atomic64_read(&per_cpu(active_asids, cpu));
+	if (old_active_asid &&
+	    !((asid ^ atomic64_read(&asid_generation)) >> asid_bits) &&
+	    atomic64_cmpxchg_relaxed(&per_cpu(active_asids, cpu),
+				     old_active_asid, asid))
 		goto switch_mm_fastpath;
 
 	raw_spin_lock_irqsave(&cpu_asid_lock, flags);
