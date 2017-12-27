@@ -42,6 +42,8 @@
 #include <linux/highmem.h> /* For flush_kernel_dcache_page */
 #include <linux/module.h>
 
+#include <asm/unaligned.h>
+
 #include <scsi/scsi.h>
 #include <scsi/scsi_cmnd.h>
 #include <scsi/scsi_device.h>
@@ -1844,7 +1846,41 @@ out:
 mem_free_all:
 	kfree(phys_luns);
 	goto out;
+}
 
+static inline u32 aac_get_safw_phys_lun_count(struct aac_dev *dev)
+{
+	return get_unaligned_be32(&dev->safw_phys_luns->list_length[0]);
+}
+
+static inline u32 aac_get_safw_phys_bus(struct aac_dev *dev, int lun)
+{
+	return dev->safw_phys_luns->lun[lun].level2[1] & 0x3f;
+}
+
+static inline u32 aac_get_safw_phys_target(struct aac_dev *dev, int lun)
+{
+	return dev->safw_phys_luns->lun[lun].level2[0];
+}
+
+static inline u32 aac_get_safw_phys_expose_flag(struct aac_dev *dev, int lun)
+{
+	return dev->safw_phys_luns->lun[lun].bus >> 6;
+}
+
+static inline u32 aac_get_safw_phys_attribs(struct aac_dev *dev, int lun)
+{
+	return dev->safw_phys_luns->lun[lun].node_ident[9];
+}
+
+static inline u32 aac_get_safw_phys_nexus(struct aac_dev *dev, int lun)
+{
+	return *((u32 *)&dev->safw_phys_luns->lun[lun].node_ident[12]);
+}
+
+static inline u32 aac_get_safw_phys_device_type(struct aac_dev *dev, int lun)
+{
+	return dev->safw_phys_luns->lun[lun].node_ident[8];
 }
 
 /**
@@ -1862,22 +1898,16 @@ static void aac_set_safw_attr_all_targets(struct aac_dev *dev, int rescan)
 	u32 i, bus, target;
 	u8 expose_flag, attribs;
 	u8 devtype;
-	struct aac_ciss_phys_luns_resp *phys_luns;
 
-	phys_luns = dev->safw_phys_luns;
-
-	lun_count = ((phys_luns->list_length[0] << 24)
-			+ (phys_luns->list_length[1] << 16)
-			+ (phys_luns->list_length[2] << 8)
-			+ (phys_luns->list_length[3])) / 24;
+	lun_count = aac_get_safw_phys_lun_count(dev);
 
 	for (i = 0; i < lun_count; ++i) {
 
-		bus = phys_luns->lun[i].level2[1] & 0x3f;
-		target = phys_luns->lun[i].level2[0];
-		expose_flag = phys_luns->lun[i].bus >> 6;
-		attribs = phys_luns->lun[i].node_ident[9];
-		nexus = *((u32 *) &phys_luns->lun[i].node_ident[12]);
+		bus = aac_get_safw_phys_bus(dev, i);
+		target = aac_get_safw_phys_target(dev, i);
+		expose_flag = aac_get_safw_phys_expose_flag(dev, i);
+		attribs = aac_get_safw_phys_attribs(dev, i);
+		nexus = aac_get_safw_phys_nexus(dev, i);
 
 		if (bus >= AAC_MAX_BUSES || target >= AAC_MAX_TARGETS)
 			continue;
