@@ -1756,7 +1756,7 @@ fib_error:
 }
 
 static int aac_issue_safw_bmic_identify(struct aac_dev *dev,
-	u32 bus, u32 target)
+	struct aac_ciss_identify_pd **identify_resp, u32 bus, u32 target)
 {
 	int rcode = -ENOMEM;
 	int datasize;
@@ -1779,7 +1779,7 @@ static int aac_issue_safw_bmic_identify(struct aac_dev *dev,
 
 	rcode = aac_send_safw_bmic_cmd(dev, &srbu, identify_reply, datasize);
 	if (unlikely(rcode < 0))
-		goto out;
+		goto mem_free_all;
 
 	if (identify_reply->current_queue_depth_limit <= 0 ||
 		identify_reply->current_queue_depth_limit > 32)
@@ -1788,9 +1788,13 @@ static int aac_issue_safw_bmic_identify(struct aac_dev *dev,
 		dev->hba_map[bus][target].qd_limit =
 			identify_reply->current_queue_depth_limit;
 
-	kfree(identify_reply);
+	*identify_resp = identify_reply;
+
 out:
 	return rcode;
+mem_free_all:
+	kfree(identify_reply);
+	goto out;
 }
 
 static inline void aac_free_safw_ciss_luns(struct aac_dev *dev)
@@ -1883,6 +1887,71 @@ static inline u32 aac_get_safw_phys_device_type(struct aac_dev *dev, int lun)
 	return dev->safw_phys_luns->lun[lun].node_ident[8];
 }
 
+static inline void aac_free_safw_identify_resp(struct aac_dev *dev,
+						int bus, int target)
+{
+	kfree(dev->hba_map[bus][target].safw_identify_resp);
+	dev->hba_map[bus][target].safw_identify_resp = NULL;
+}
+
+static inline void aac_free_safw_all_identify_resp(struct aac_dev *dev,
+	int lun_count)
+{
+	int luns;
+	int i;
+	u32 bus;
+	u32 target;
+
+	luns = aac_get_safw_phys_lun_count(dev);
+
+	if (luns < lun_count)
+		lun_count = luns;
+	else if (lun_count < 0)
+		lun_count = luns;
+
+	for (i = 0; i < lun_count; i++) {
+		bus = aac_get_safw_phys_bus(dev, i);
+		target = aac_get_safw_phys_target(dev, i);
+
+		aac_free_safw_identify_resp(dev, bus, target);
+	}
+}
+
+static int aac_get_safw_attr_all_targets(struct aac_dev *dev, int rescan)
+{
+	int i;
+	int rcode = 0;
+	u32 lun_count;
+	u32 bus;
+	u32 target;
+	struct aac_ciss_identify_pd *identify_resp = NULL;
+
+	lun_count = aac_get_safw_phys_lun_count(dev);
+
+	for (i = 0; i < lun_count; ++i) {
+
+		bus = aac_get_safw_phys_bus(dev, i);
+		target = aac_get_safw_phys_target(dev, i);
+
+		rcode = aac_issue_safw_bmic_identify(dev,
+						&identify_resp, bus, target);
+
+		if (unlikely(rcode < 0)) {
+			dev->hba_map[bus][target].qd_limit = 32;
+			goto free_identify_resp;
+		}
+
+		dev->hba_map[bus][target].safw_identify_resp = identify_resp;
+	}
+
+out:
+	return rcode;
+
+free_identify_resp:
+	aac_free_safw_all_identify_resp(dev, i);
+	goto out;
+}
+
 /**
  *	aac_set_safw_attr_all_targets-	update current hba map with data from FW
  *	@dev:	aac_dev structure
@@ -1929,9 +1998,6 @@ static void aac_set_safw_attr_all_targets(struct aac_dev *dev, int rescan)
 		if (devtype != AAC_DEVTYPE_NATIVE_RAW)
 			goto update_devtype;
 
-		if (aac_issue_safw_bmic_identify(dev, bus, target) < 0)
-			dev->hba_map[bus][target].qd_limit = 32;
-
 update_devtype:
 		if (rescan == AAC_INIT)
 			dev->hba_map[bus][target].devtype = devtype;
@@ -1948,8 +2014,14 @@ static int aac_setup_safw_targets(struct aac_dev *dev, int rescan)
 	if (unlikely(rcode < 0))
 		goto out;
 
+	rcode = aac_get_safw_attr_all_targets(dev, rescan);
+	if (unlikely(rcode < 0))
+		goto free_ciss_luns;
+
 	aac_set_safw_attr_all_targets(dev, rescan);
 
+	aac_free_safw_all_identify_resp(dev, -1);
+free_ciss_luns:
 	aac_free_safw_ciss_luns(dev);
 out:
 	return rcode;

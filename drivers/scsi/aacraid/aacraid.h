@@ -1345,6 +1345,7 @@ struct aac_hba_map_info {
 					/* after xth TM LUN reset */
 	u16		qd_limit;
 	u8		expose;		/*checks if to expose or not*/
+	struct aac_ciss_identify_pd  *safw_identify_resp;
 };
 
 /*
