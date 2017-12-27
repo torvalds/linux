@@ -4266,7 +4266,7 @@ static int i40e_set_priv_flags(struct net_device *dev, u32 flags)
 	struct i40e_netdev_priv *np = netdev_priv(dev);
 	struct i40e_vsi *vsi = np->vsi;
 	struct i40e_pf *pf = vsi->back;
-	u32 orig_flags, new_flags, changed_flags;
+	u64 orig_flags, new_flags, changed_flags;
 	u32 i, j;
 
 	orig_flags = READ_ONCE(pf->flags);
@@ -4323,7 +4323,7 @@ flags_complete:
 	 * originally. We'll just punt with an error and log something in the
 	 * message buffer.
 	 */
-	if (cmpxchg(&pf->flags, orig_flags, new_flags) != orig_flags) {
+	if (cmpxchg64(&pf->flags, orig_flags, new_flags) != orig_flags) {
 		dev_warn(&pf->pdev->dev,
 			 "Unable to update pf->flags as it was modified by another thread...\n");
 		return -EAGAIN;
