@@ -194,6 +194,7 @@ struct bpf_verifier_env {
 	struct bpf_insn_aux_data *insn_aux_data; /* array of per-insn state */
 	struct bpf_verifer_log log;
 	u32 subprog_starts[BPF_MAX_SUBPROGS];
+	/* computes the stack depth of each bpf function */
 	u16 subprog_stack_depth[BPF_MAX_SUBPROGS + 1];
 	u32 subprog_cnt;
 };
