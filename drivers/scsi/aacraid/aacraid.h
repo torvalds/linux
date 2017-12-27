@@ -1339,8 +1339,6 @@ struct fib {
 #define AAC_DEVTYPE_RAID_MEMBER	1
 #define AAC_DEVTYPE_ARC_RAW		2
 #define AAC_DEVTYPE_NATIVE_RAW		3
-#define AAC_EXPOSE_DISK		0
-#define AAC_HIDE_DISK			3
 
 #define AAC_SAFW_RESCAN_DELAY  10
 
@@ -1350,7 +1348,6 @@ struct aac_hba_map_info {
 	u8		reset_state;	/* 0 - no reset, 1..x - */
 					/* after xth TM LUN reset */
 	u16		qd_limit;
-	u8		expose;		/*checks if to expose or not*/
 	u32		scan_counter;
 	struct aac_ciss_identify_pd  *safw_identify_resp;
 };

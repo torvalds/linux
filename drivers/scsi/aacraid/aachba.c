@@ -1994,8 +1994,6 @@ static void aac_set_safw_attr_all_targets(struct aac_dev *dev)
 		if (bus >= AAC_MAX_BUSES || target >= AAC_MAX_TARGETS)
 			continue;
 
-		dev->hba_map[bus][target].expose = expose_flag;
-
 		if (expose_flag != 0) {
 			devtype = AAC_DEVTYPE_RAID_MEMBER;
 			goto update_devtype;
@@ -2913,14 +2911,6 @@ int aac_scsi_cmd(struct scsi_cmnd * scsicmd)
 			}
 		} else {  /* check for physical non-dasd devices */
 			bus = aac_logical_to_phys(scmd_channel(scsicmd));
-			if (bus < AAC_MAX_BUSES && cid < AAC_MAX_TARGETS &&
-				(dev->hba_map[bus][cid].expose
-						== AAC_HIDE_DISK)){
-				if (scsicmd->cmnd[0] == INQUIRY) {
-					scsicmd->result = DID_NO_CONNECT << 16;
-					goto scsi_done_ret;
-				}
-			}
 
 			if (bus < AAC_MAX_BUSES && cid < AAC_MAX_TARGETS &&
 				dev->hba_map[bus][cid].devtype
