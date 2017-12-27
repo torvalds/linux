@@ -107,6 +107,7 @@ enum {
 	Opt_noextent_cache,
 	Opt_noinline_data,
 	Opt_data_flush,
+	Opt_reserve_root,
 	Opt_mode,
 	Opt_io_size_bits,
 	Opt_fault_injection,
@@ -157,6 +158,7 @@ static match_table_t f2fs_tokens = {
 	{Opt_noextent_cache, "noextent_cache"},
 	{Opt_noinline_data, "noinline_data"},
 	{Opt_data_flush, "data_flush"},
+	{Opt_reserve_root, "reserve_root=%u"},
 	{Opt_mode, "mode=%s"},
 	{Opt_io_size_bits, "io_bits=%u"},
 	{Opt_fault_injection, "fault_injection=%u"},
@@ -189,6 +191,19 @@ void f2fs_msg(struct super_block *sb, const char *level, const char *fmt, ...)
 	vaf.va = &args;
 	printk_ratelimited("%sF2FS-fs (%s): %pV\n", level, sb->s_id, &vaf);
 	va_end(args);
+}
+
+static inline void limit_reserve_root(struct f2fs_sb_info *sbi)
+{
+	block_t limit = (sbi->user_block_count << 1) / 1000;
+
+	/* limit is 0.2% */
+	if (test_opt(sbi, RESERVE_ROOT) && sbi->root_reserved_blocks > limit) {
+		sbi->root_reserved_blocks = limit;
+		f2fs_msg(sbi->sb, KERN_INFO,
+			"Reduce reserved blocks for root = %u",
+				sbi->root_reserved_blocks);
+	}
 }
 
 static void init_once(void *foo)
@@ -487,6 +502,18 @@ static int parse_options(struct super_block *sb, char *options)
 			break;
 		case Opt_data_flush:
 			set_opt(sbi, DATA_FLUSH);
+			break;
+		case Opt_reserve_root:
+			if (args->from && match_int(args, &arg))
+				return -EINVAL;
+			if (test_opt(sbi, RESERVE_ROOT)) {
+				f2fs_msg(sb, KERN_INFO,
+					"Preserve previous reserve_root=%u",
+					sbi->root_reserved_blocks);
+			} else {
+				sbi->root_reserved_blocks = arg;
+				set_opt(sbi, RESERVE_ROOT);
+			}
 			break;
 		case Opt_mode:
 			name = match_strdup(&args[0]);
@@ -1006,7 +1033,10 @@ static int f2fs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	buf->f_blocks = total_count - start_count;
 	buf->f_bfree = user_block_count - valid_user_blocks(sbi) -
 						sbi->current_reserved_blocks;
-	buf->f_bavail = buf->f_bfree;
+	if (buf->f_bfree > sbi->root_reserved_blocks)
+		buf->f_bavail = buf->f_bfree - sbi->root_reserved_blocks;
+	else
+		buf->f_bavail = 0;
 
 	avail_node_count = sbi->total_node_count - sbi->nquota_files -
 						F2FS_RESERVED_NODE_NUM;
@@ -1135,6 +1165,9 @@ static int f2fs_show_options(struct seq_file *seq, struct dentry *root)
 	else if (test_opt(sbi, LFS))
 		seq_puts(seq, "lfs");
 	seq_printf(seq, ",active_logs=%u", sbi->active_logs);
+	if (test_opt(sbi, RESERVE_ROOT))
+		seq_printf(seq, ",reserve_root=%u",
+				sbi->root_reserved_blocks);
 	if (F2FS_IO_SIZE_BITS(sbi))
 		seq_printf(seq, ",io_size=%uKB", F2FS_IO_SIZE_KB(sbi));
 #ifdef CONFIG_F2FS_FAULT_INJECTION
@@ -1333,6 +1366,7 @@ skip:
 	sb->s_flags = (sb->s_flags & ~SB_POSIXACL) |
 		(test_opt(sbi, POSIX_ACL) ? SB_POSIXACL : 0);
 
+	limit_reserve_root(sbi);
 	return 0;
 restore_gc:
 	if (need_restart_gc) {
@@ -2569,6 +2603,7 @@ try_onemore:
 	sbi->last_valid_block_count = sbi->total_valid_block_count;
 	sbi->reserved_blocks = 0;
 	sbi->current_reserved_blocks = 0;
+	limit_reserve_root(sbi);
 
 	for (i = 0; i < NR_INODE_TYPE; i++) {
 		INIT_LIST_HEAD(&sbi->inode_list[i]);
