@@ -1658,14 +1658,12 @@ static int _aac_reset_adapter(struct aac_dev *aac, int forced, u8 reset_type)
 		command->scsi_done(command);
 	}
 	/*
-	 * Any Device that was already marked offline needs to be cleaned up
+	 * Any Device that was already marked offline needs to be marked
+	 * running
 	 */
 	__shost_for_each_device(dev, host) {
-		if (!scsi_device_online(dev)) {
-			sdev_printk(KERN_INFO, dev, "Removing offline device\n");
-			scsi_remove_device(dev);
-			scsi_device_put(dev);
-		}
+		if (!scsi_device_online(dev))
+			scsi_device_set_state(dev, SDEV_RUNNING);
 	}
 	retval = 0;
 
