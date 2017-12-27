@@ -2344,13 +2344,19 @@ static int i40evf_set_features(struct net_device *netdev,
 {
 	struct i40evf_adapter *adapter = netdev_priv(netdev);
 
-	if (!VLAN_ALLOWED(adapter))
+	/* Don't allow changing VLAN_RX flag when VLAN is set for VF
+	 * and return an error in this case
+	 */
+	if (VLAN_ALLOWED(adapter)) {
+		if (features & NETIF_F_HW_VLAN_CTAG_RX)
+			adapter->aq_required |=
+				I40EVF_FLAG_AQ_ENABLE_VLAN_STRIPPING;
+		else
+			adapter->aq_required |=
+				I40EVF_FLAG_AQ_DISABLE_VLAN_STRIPPING;
+	} else if ((netdev->features ^ features) & NETIF_F_HW_VLAN_CTAG_RX) {
 		return -EINVAL;
-
-	if (features & NETIF_F_HW_VLAN_CTAG_RX)
-		adapter->aq_required |= I40EVF_FLAG_AQ_ENABLE_VLAN_STRIPPING;
-	else
-		adapter->aq_required |= I40EVF_FLAG_AQ_DISABLE_VLAN_STRIPPING;
+	}
 
 	return 0;
 }
