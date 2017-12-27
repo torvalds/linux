@@ -2719,6 +2719,7 @@ static inline int aac_supports_2T(struct aac_dev *dev)
 	return (dev->adapter_info.options & AAC_OPT_NEW_COMM_64);
 }
 
+int aac_scan_host(struct aac_dev *dev, int rescan);
 char * get_container_type(unsigned type);
 extern int numacb;
 extern char aac_driver_version[];

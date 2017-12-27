@@ -2150,10 +2150,6 @@ int aac_get_adapter_info(struct aac_dev* dev)
 		dev->maximum_num_channels = le32_to_cpu(bus_info->BusCount);
 	}
 
-	if (!dev->sync_mode && dev->sa_firmware &&
-		dev->supplement_adapter_info.virt_device_bus != 0xffff)
-		rcode = aac_setup_safw_adapter(dev, AAC_INIT);
-
 	if (!dev->in_reset) {
 		char buffer[16];
 		tmp = le32_to_cpu(dev->adapter_info.kernelrev);

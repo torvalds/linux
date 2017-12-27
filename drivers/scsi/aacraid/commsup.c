@@ -1964,6 +1964,19 @@ out:
 	return rcode;
 }
 
+int aac_scan_host(struct aac_dev *dev, int rescan)
+{
+	int rcode = 0;
+
+	mutex_lock(&dev->scan_mutex);
+	if (dev->sa_firmware)
+		rcode = aac_update_safw_host_devices(dev, rescan);
+	else
+		scsi_scan_host(dev->scsi_host_ptr);
+	mutex_unlock(&dev->scan_mutex);
+	return rcode;
+}
+
 /**
  *	aac_handle_sa_aif	Handle a message from the firmware
  *	@dev: Which adapter this fib is from
@@ -1997,9 +2010,8 @@ static void aac_handle_sa_aif(struct aac_dev *dev, struct fib *fibptr)
 	case SA_AIF_LDEV_CHANGE:
 	case SA_AIF_BPCFG_CHANGE:
 
-		mutex_lock(&dev->scan_mutex);
-		aac_update_safw_host_devices(dev, AAC_RESCAN);
-		mutex_unlock(&dev->scan_mutex);
+		aac_scan_host(dev, AAC_RESCAN);
+
 		break;
 
 	case SA_AIF_BPSTAT_CHANGE:
